@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.layout.constraint;
 
 /**
  * ある軸(line方向またはpage方向)上の区間です(2026-07-23新設、
- * 排除域のConstraintSpace入力化——`docs/consultations/consult
+ * 排除域のConstraintSpace入力化——`設計相談
  * -exclusion-zone-codex.txt`の設計に基づく)。
  *
  * <p>

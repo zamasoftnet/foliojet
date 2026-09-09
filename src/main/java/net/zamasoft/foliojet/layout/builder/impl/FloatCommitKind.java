@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.layout.builder.impl;
 
 /**
  * 新規floatの配置確定の種別です(2026-07-23新設、排除域P1増分2——
- * `docs/consultations/consult-exclusion-p1-design-codex.txt`の設計)。
+ * `設計相談`の設計)。
  *
  * <p>
  * 従来の{@code transferFloatToNextPage}(判定名だが{@code breakFloats}

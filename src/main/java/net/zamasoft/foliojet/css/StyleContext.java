@@ -37,7 +37,7 @@ public class StyleContext {
 
 	/**
 	 * STRUCTURE_SCANパスが収集した、要素の終了時点まで確定しない
-	 * 疑似クラス(:has()・:last-child系)の判定結果。docs/PLAN.md
+	 * 疑似クラス(:has()・:last-child系)の判定結果。開発計画
 	 * 「2パス制御モード」参照。
 	 */
 	private final SelectorFacts selectorFacts;
@@ -211,7 +211,7 @@ public class StyleContext {
 		final CSSElement top = (CSSElement) this.elementStack.get(this.elementStack.size() - 1);
 
 		// :has()の判定を積み上げる(要素の終了時点まで真偽が確定しないため、
-		// 複数パスにまたがってSelectorFactsへ記録する。docs/PLAN.md
+		// 複数パスにまたがってSelectorFactsへ記録する。開発計画
 		// 「2パス制御モード」参照)
 		if (this.selectorFacts != null) {
 			recordHasFacts(this.styleSheet.getHasConditions(), this.elementStack, this.selectorFacts);
@@ -408,7 +408,7 @@ public class StyleContext {
 	 * (:has()は「部分木内に存在するか」の判定のため、一度真になれば以降
 	 * 不変)。文書全体を通じて呼び続けることで、要素の終了時点で確定する
 	 * :has()の真偽を段階的に積み上げます(単一パスでは完結しないため、
-	 * 複数パスにまたがって呼ぶ前提。docs/PLAN.md「2パス制御モード」参照)。
+	 * 複数パスにまたがって呼ぶ前提。開発計画「2パス制御モード」参照)。
 	 *
 	 * @param hasConditions 文書中の全:has()条件(文書順)
 	 * @param path          祖先チェーン(末尾が現在の要素)
@@ -437,7 +437,7 @@ public class StyleContext {
 
 	/**
 	 * {@code @container}の一致判定です(2026-08-15段4——
-	 * docs/history/2026-08-15-container-queries-design.md §2/§6)。
+	 * 開発記録 §2/§6)。
 	 * {@code query}が{@code null}(この規則が{@code @container}の内側に
 	 * 無い)なら常に一致。そうでなければ、pathの末尾(現在の要素)の
 	 * <b>祖先</b>(末尾自身は対象外——コンテナは自分自身になれない)を

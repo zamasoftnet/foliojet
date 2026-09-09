@@ -722,7 +722,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 			this.getUAContext().getSelectorFacts().reset();
 			// ContainerFactsもSelectorFactsと同じ寿命(STRUCTURE_SCAN開始時
 			// 1回だけリセット、以降の全パスで積み上げ・上書き)。
-			// 設計はdocs/history/2026-08-15-container-queries-design.md §2
+			// 設計は開発記録 §2
 			this.getUAContext().getContainerFacts().reset();
 		}
 		if (mode == PrepareMode.MIDDLE_PASS || mode == PrepareMode.LAST_PASS) {

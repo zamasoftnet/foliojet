@@ -4,7 +4,7 @@ import net.zamasoft.foliojet.layout.box.params.FloatSide;
 
 /**
  * 1個の配置済み浮動ボックスによる排除帯です(2026-07-23新設、
- * 排除域のConstraintSpace入力化——`docs/consultations/consult
+ * 排除域のConstraintSpace入力化——`設計相談
  * -exclusion-zone-codex.txt`の設計に基づく)。
  *
  * <p>

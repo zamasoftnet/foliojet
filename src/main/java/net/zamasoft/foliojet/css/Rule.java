@@ -55,7 +55,7 @@ public class Rule {
 
 	/**
 	 * この規則を包む{@code @container}の名前・条件です(2026-08-15段4——
-	 * docs/history/2026-08-15-container-queries-design.md)。{@code @container}
+	 * 開発記録)。{@code @container}
 	 * の内側で無ければ{@code null}(通常の規則はコンテナ条件を持たない)。
 	 */
 	private final ContainerQuery containerQuery;

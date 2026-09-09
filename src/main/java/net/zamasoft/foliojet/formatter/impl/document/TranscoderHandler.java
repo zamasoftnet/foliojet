@@ -235,7 +235,7 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 				// STRUCTURE_SCAN: ボックス構築・レイアウトを一切行わない
 				// 軽量な事前走査。CSSProcessor(スタイル解決・ボックス構築)
 				// を経由せず、専用の軽量walkerで直接受ける
-				// (docs/PLAN.md「2パス制御モード」参照)。上流のフィルタ
+				// (開発計画「2パス制御モード」参照)。上流のフィルタ
 				// 連鎖(CSSJML・入力フィルタ)はLAYOUTパスと共有し、
 				// ElementKeyの採番が両パスでずれないようにする。
 				exitPoint.setXMLHandler(new StructureScanHandler(this.ua.getUAContext().getSelectorFacts()));

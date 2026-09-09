@@ -13,7 +13,7 @@ import jp.cssj.test.unit.AbstractTestCase;
  *
  * <p>
  * 2026-07-25: ルビが注釈付きテキストになり(仕様裁定
- * docs/history/2026-07-25-ruby-annotation-spec-decision.md)、ルビを
+ * 開発記録)、ルビを
  * 含む行が行送りを広げなくなったため文書全体が詰まり、期待値が
  * 陳腐化した。{@code span#b}がページ境界をまたぐという本テストの
  * 主旨を保つため、フィクスチャの{@code span#b}直前に2行分の地の文を

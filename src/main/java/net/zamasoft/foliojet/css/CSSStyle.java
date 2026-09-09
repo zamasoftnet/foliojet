@@ -97,7 +97,7 @@ public class CSSStyle {
 	 * 採番された固定コード空間)とは別枠で管理する。カスタムプロパティ名は
 	 * 文書ごとに任意・無制限で、CODESはJVM全体で共有される静的な登録表のため、
 	 * 同時実行中の別文書のCSSStyleとコード空間がずれる恐れがあり、動的採番は
-	 * 採用しなかった(docs/PLAN.md参照)。
+	 * 採用しなかった(開発計画参照)。
 	 */
 	private Map<String, List<CssToken>> customProperties = null;
 	private Set<String> importantCustomProperties = null;

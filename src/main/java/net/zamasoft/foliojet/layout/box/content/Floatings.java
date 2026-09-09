@@ -206,7 +206,7 @@ public class Floatings {
 	 * 浮動ボックスをページ分割します(2026-07-24、P2-3でplan駆動commitへ
 	 * 切替、P2-5で旧sentinel契約(null=KeepAll / this=MoveAll / 新=
 	 * Partition)のadapterを撤去して型付き結果へ一本化。分岐表の正本:
-	 * {@code docs/history/2026-07-24-p2-splitfloatings-branch-table.md})。
+	 * 開発記録)。
 	 *
 	 * <p>
 	 * 実装は「{@link FloatSplitPlan#planDirect}で分類(純判定・副作用なし)

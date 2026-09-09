@@ -14,7 +14,7 @@ import java.util.logging.Logger;
  * production配線された)。
  *
  * <p>
- * codex設計相談(docs/consultations/consult-e6-spillable-tape-codex.md
+ * codex設計相談(設計相談
  * §2.2〜§2.4)の最小部品: byte recordの追記(append→recordId)、
  * recordId→file offsetの固定長disk index(indexをheapへ載せると
  * O(E)へ逆戻りするためディスク上に置く)、範囲cursor(1レコードずつ

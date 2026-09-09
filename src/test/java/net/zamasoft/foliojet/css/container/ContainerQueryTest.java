@@ -5,7 +5,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * {@code @container}実装・段3の条件パーサテストです
- * (docs/history/2026-08-15-container-queries-design.md §5/§6)。
+ * (開発記録 §5/§6)。
  * 名前・{@code and}連結・{@code not}・単位解決の受理と、未対応構文
  * (`or`・未対応特性・単位なし数値等)が常に不一致になることを固定する。
  */

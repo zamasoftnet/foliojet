@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.css.container;
 
 /**
  * {@code @container}条件内の単一特性式です(2026-08-15段3——
- * docs/history/2026-08-15-container-queries-design.md §5)。
+ * 開発記録 §5)。
  *
  * <p>
  * 第1段階では{@code container-type: inline-size}だけを対象とするため、

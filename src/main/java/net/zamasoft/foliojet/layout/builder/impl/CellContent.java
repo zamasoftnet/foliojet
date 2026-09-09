@@ -10,7 +10,7 @@ import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
  *
  * <p>
  * 実体は次の4態のどれか(E-6増分5a、2026-07-24で第3態を追加——
- * {@code docs/consultations/consult-e6b-remaining-increments-codex.md}
+ * 設計相談
  * §4.2/§4.3)。
  * </p>
  * <ol>

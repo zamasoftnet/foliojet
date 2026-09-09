@@ -5,7 +5,7 @@ import java.util.Map;
 
 /**
  * {@code @container}クエリのための、要素の事実です(2026-08-15段4——
- * docs/history/2026-08-15-container-queries-design.md §2)。
+ * 開発記録 §2)。
  * {@code CSSElement.elementKey}をキーとする点は{@link SelectorFacts}と同じ。
  *
  * <p>

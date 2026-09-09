@@ -411,7 +411,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * ownerへのcommit・実行(session)はまだ行わない——呼び出し側が
 	 * 「検証→column commit→executor開始」の順序を守れるようにする
 	 * (ChatGPT Pro相談、
-	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+	 * 設計相談
 	 * 参照)。PAGEの{@code pageBreak()}と同型のprefix
 	 * 吸収ロジック(stampRanges+extractReplayable)をCOLUMN向けに複製した
 	 * ——既存のPAGE経路には一切触れずに済むよう、意図的に共有せず並行
@@ -626,7 +626,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * 管理することで、COLUMN resume中にPAGE breakが入れ子になっても
 	 * (またはその逆でも)、{@link #replaySubtree}が常に「現在のtop
 	 * セッション」だけを見ればよいようにする(ChatGPT Pro相談、
-	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+	 * 設計相談
 	 * 参照)。
 	 */
 	private final java.util.ArrayDeque<net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession> sessions = new java.util.ArrayDeque<>();
@@ -1035,7 +1035,7 @@ public class RootBuilder extends BreakableBuilder {
 		// OpenShapeの入れ子数と実ボックス木の開き構造が食い違い、
 		// まだ開いているボックスを閉じたものとして誤処理しうるため、
 		// 絶対に触らない(外部レビューで確認済み、
-		// docs/consultations/consult-open-chain-prefix-*.md参照)。
+		// 設計相談*.md参照)。
 		// 断片は split の返り値(SplitResult.Frame → ContainerCut.WithFrame)
 		// で外へ伝播する — side channel なし
 		//
@@ -1043,7 +1043,7 @@ public class RootBuilder extends BreakableBuilder {
 		// (挙動不変。B1のContinuationCapability分類をそのまま使う)。
 		// スナップショットはこの後 ContinuationValidator の検証にも使う
 		// (再分類しない——ChatGPT Pro相談で確認、
-		// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b2-resume-program.md)。
+		// 設計相談)。
 		//
 		// 2026-07-21(B3a): MULTICOLをPAGE自動改ページ(ForceBreakMode以外)
 		// でのみ収集可能にした——強制改ページでは
@@ -1051,7 +1051,7 @@ public class RootBuilder extends BreakableBuilder {
 		// AssertionError("force break failed")へ落とす経路があり、
 		// 現時点では安全と確認できていない(B3bとして見送り。ChatGPT Pro
 		// 相談で指摘・検証済み、
-		// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b3-multicol-split-through.md)。
+		// 設計相談)。
 		final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot;
 		final net.zamasoft.foliojet.layout.fragment.BreakPlan plan;
 		{
@@ -1123,8 +1123,8 @@ public class RootBuilder extends BreakableBuilder {
 				// 「改ページポイントなし」としてfalseを返し、実内容が
 				// ある場合は下の共通ルートフレーム構築ロジックへ合流
 				// させる(専用のMovedOpen型は2026-07-22に撤去した、
-				// docs/history/2026-07-22-pagination-contract
-				// -consultation.md参照)。詳細はdocs/history/2026-07-22
+				// 開発記録
+				// -consultation.md参照)。詳細は開発記録
 				// -chainstop-content-loss-safety-net.md参照
 				final boolean hasContent = chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
 						&& (fc.hasFlows() || fc.hasFloatings());

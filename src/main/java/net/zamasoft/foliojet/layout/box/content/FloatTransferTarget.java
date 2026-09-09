@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.layout.box.content;
 /**
  * {@code Container.splitFloatings}の呼び出し側が指定する、移動float台帳の
  * 行き先です(2026-07-24新設、排除域P2のP2-4。
- * {@code docs/consultations/consult-exclusion-p2-design-codex.txt}§2.2の型)。
+ * 設計相談§2.2の型)。
  * 旧APIのnullableな{@code Container nextBox}引数のsentinel
  * (null / this / 既存コンテナ)を置き換えます。
  *

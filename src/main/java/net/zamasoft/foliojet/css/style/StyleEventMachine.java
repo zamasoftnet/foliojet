@@ -320,7 +320,7 @@ final class StyleEventMachine {
 			return;
 		}
 
-		// @container G4(2026-08-15段4、docs/history/2026-08-15-container-queries-design.md §2):
+		// @container G4(2026-08-15段4、開発記録 §2):
 		// container-type: inline-sizeの要素は、この時点(スタイル確定・
 		// レイアウトより前)で「クエリコンテナである」ことと名前を記録する。
 		// 実測inline-sizeはレイアウト確定後(AbstractVisitor.visitBox)で

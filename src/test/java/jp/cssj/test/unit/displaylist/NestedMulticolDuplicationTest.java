@@ -70,7 +70,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  *
  * <p>
  * <b>文書はここで組み立てます</b>——外部ファイルにすると相対パスの画像参照で
- * 判定が変わる事故を起こします(docs/LESSONS.md §6.9h)。経路2だけは
+ * 判定が変わる事故を起こします(教訓集 §6.9h)。経路2だけは
  * 「1段に収まらない画像」が欠陥の引き金なので画像を外せませんでした。
  * 参照はここで{@code File.toURI()}から<b>絶対URI</b>を組み立てます——
  * 文書を置くディレクトリが変わっても解決先が動かないようにするためです。

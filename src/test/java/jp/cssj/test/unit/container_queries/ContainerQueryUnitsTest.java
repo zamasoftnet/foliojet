@@ -9,7 +9,7 @@ import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
  * {@code @container}実装・段6の{@code cqw}/{@code cqi}単位テストです
- * (docs/history/2026-08-15-container-queries-design.md §5)。
+ * (開発記録 §5)。
  *
  * <p>
  * {@code #outer}(container-type: inline-size、300pt)の子{@code #box}は

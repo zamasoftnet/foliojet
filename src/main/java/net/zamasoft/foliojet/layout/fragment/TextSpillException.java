@@ -10,7 +10,7 @@ import java.io.IOException;
  * SpillStoreの{@link IOException}は黙殺もlive継続へのフォールバックも
  * せず、この例外でレイアウト失敗として伝播する——spillの成否で出力が
  * 変わる非決定性を作らない(クラッシュ型の一貫性。
- * docs/consultations/consult-e6b-remaining-increments-codex.md §5)。
+ * 設計相談 §5)。
  * </p>
  */
 public class TextSpillException extends RuntimeException {

@@ -10,11 +10,11 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
  * 浮動体のページ分割の純計画です(2026-07-24新設、排除域P2のP2-2。
- * {@code docs/consultations/consult-exclusion-p2-design-codex.txt}§2.1の型)。
+ * 設計相談§2.1の型)。
  *
  * <p>
  * {@link Floatings#splitPageAxis}の分岐表
- * ({@code docs/history/2026-07-24-p2-splitfloatings-branch-table.md})の
+ * (開発記録)の
  * 分類部だけを純関数({@link #classify})へ写した計画で、破壊的なbox
  * splitは含まない——{@link FloatItemPlan.SplitOnCommit}は「commit時に
  * 一度だけ{@code split}を呼ぶ」という印であり、その結果
@@ -82,7 +82,7 @@ public record FloatSplitPlan(
 		/**
 		 * commit時に救済分割(visual rescue split)を行う印です
 		 * (2026-07-25新設、増分7。答申§5。
-		 * {@code docs/history/2026-07-25-rescue-split-spec.md})。
+		 * 開発記録)。
 		 *
 		 * <p>
 		 * 分岐表5の「first ははみ出し許容でKeep」——すなわちフラグメント

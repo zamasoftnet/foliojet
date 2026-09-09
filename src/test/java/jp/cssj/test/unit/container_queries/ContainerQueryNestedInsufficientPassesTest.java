@@ -9,7 +9,7 @@ import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
  * {@code @container}実装・段5のfixture 2(不足側)です
- * (docs/history/2026-08-15-container-queries-design.md §3/§4)。
+ * (開発記録 §3/§4)。
  *
  * <p>
  * {@code #outer}(300pt) → {@code .mid}(container-type: inline-size、

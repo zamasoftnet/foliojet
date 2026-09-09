@@ -36,7 +36,7 @@ import net.zamasoft.pdfg2d.gc.text.TextShaper;
 
 /**
  * ルビ1単位です(注釈付きテキスト方式、2026-07-25新設——仕様裁定は
- * docs/history/2026-07-25-ruby-annotation-spec-decision.md)。
+ * 開発記録)。
  *
  * <p>
  * 親文字列+ふりがな文字列のペアを、行内で分割不可のatomic inline

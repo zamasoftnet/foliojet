@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * {@code container-name}プロパティです(css-contain-3、2026-08-15段2——
- * docs/history/2026-08-15-container-queries-design.md §5)。
+ * 開発記録 §5)。
  * {@code none | <custom-ident>+}(空白区切り、複数可)。
  *
  * <p>

@@ -45,7 +45,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * 実サイトの警告から拾ったCSSの穴(2026-08-29)を、宣言の解釈の段階で固定
- * するテストです。対象は{@code docs/PLAN.md} §5「実サイトの警告から拾った
+ * するテストです。対象は開発計画 §5「実サイトの警告から拾った
  * 候補」の各項目——落とすと見た目が壊れる指定(割合translateと他関数の併用、
  * ショートハンドの全体キーワード、8桁hex)と、実装済み機能の穴埋め
  * (ベンダ別名、flow-root、break-word、avoid-column、isolate、font-kerning、

@@ -13,7 +13,7 @@ import net.zamasoft.foliojet.layout.box.content.Container;
  * 切断は既に行われている。正確な意味は「ownerへの新column追加と
  * builder resume開始をまだcommitしていない切断結果」である(ChatGPT Pro
  * 相談で確認、
- * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+ * 設計相談
  * 参照)。PAGE経路と同様、split後の構造検証失敗は変換全体を中断すべきで
  * あり、旧経路へrollbackして再実行してはいけない。
  * </p>

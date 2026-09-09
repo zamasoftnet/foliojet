@@ -626,7 +626,7 @@ public class DisplayListGoldenTest extends TestCase {
 
 	/**
 	 * processing.pass-count&gt;=2を要する文書(STRUCTURE_SCANを使う
-	 * :has()/:last-child系。docs/PLAN.md「2パス制御モード」参照)。
+	 * :has()/:last-child系。開発計画「2パス制御モード」参照)。
 	 * 上のDOCUMENTSとは別枠にしているのは、既定のpass-count=1のまま
 	 * 全文書に一律でpass-count=2を課すと無関係な文書のコストが増えるため。
 	 */

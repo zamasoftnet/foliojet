@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.css.value;
 
 /**
  * {@code container-type}の値です(css-contain-3、2026-08-15段2——
- * docs/history/2026-08-15-container-queries-design.md §5)。
+ * 開発記録 §5)。
  *
  * <p>
  * {@code size}は構文としては受理するが、寸法をブロック軸まで含めて

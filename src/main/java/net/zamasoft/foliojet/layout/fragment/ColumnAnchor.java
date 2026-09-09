@@ -11,7 +11,7 @@ import net.zamasoft.foliojet.layout.box.content.Container;
  * fragment再構成されない({@code AbstractContainerBox.commitPreparedColumn()}
  * が同一インスタンスへ新しい空Containerを追加するだけ)ため、
  * 継続フレームではなくこの専用型で表す(ChatGPT Pro相談、
- * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+ * 設計相談
  * 参照)。
  *
  * @param remainder   owner直下の閉部分木の再生範囲を持つコンテナ

@@ -55,7 +55,7 @@ public record OpenPathScan(OpenPathSnapshot snapshot, List<AbstractContainerBox>
 	 * は{@code MULTICOL}として分類しない——owner内側にさらに現れる別の
 	 * 段組だけが{@code MULTICOL}になる)。anchorの書字方向はowner自身の
 	 * 書字方向を使う(ChatGPT Pro相談、
-	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+	 * 設計相談
 	 * 参照)。
 	 *
 	 * @param boxes owner(index 0)+その内側で現在開いている子孫。空不可

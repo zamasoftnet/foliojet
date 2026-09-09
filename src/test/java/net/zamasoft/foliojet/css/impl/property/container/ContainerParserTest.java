@@ -29,7 +29,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * {@code @container}実装・段2の解析テストです
- * (docs/history/2026-08-15-container-queries-design.md §5/§6)。
+ * (開発記録 §5/§6)。
  * {@code container-type}/{@code container-name}/{@code container}
  * ショートハンドの受理・拒否と既定値を固定する(FlexParserTestと同方針、
  * カスケードそのものはstyle文脈が要るためRaw中間形の受理までを対象とする)。

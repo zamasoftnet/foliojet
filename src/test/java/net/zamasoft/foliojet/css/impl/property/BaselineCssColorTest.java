@@ -34,7 +34,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * この製品の出力はPDFなので、どの色空間で書かれてもsRGB(かCMYK)へ落ちる。
  * したがってここで見るのは<b>変換後のsRGB成分</b>である。期待値は実際に
  * 変換したPDFの塗り演算子から採り、CSS Color 4の変換行列で手計算して
- * 一致を確かめたもの([[docs/history/2026-08-30-baseline-css-gap-implementation.md]])。
+ * 一致を確かめたもの([[開発記録]])。
  *
  * <p>
  * <b>色域外は単純クランプする</b>のがこの実装の方針で、色域マッピングはしない

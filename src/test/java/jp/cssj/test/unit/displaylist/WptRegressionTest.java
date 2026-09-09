@@ -33,7 +33,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * {@code column-width:0}は<b>小さい紙面でないと再現しません</b>。掃過が
  * 120x120ptで回しているのはそのためで、テストも同じ条件を作ります。
  * 「小さい紙面でだけページ数が爆発する」種類(grid等)は、退化した幾何の
- * 問題として別に扱います(`docs/NEXT-SESSION.md`)。
+ * 問題として別に扱います(`開発メモ`)。
  * </p>
  *
  * <h2>機序: インラインの中の{@code column-span:all}</h2>
@@ -70,7 +70,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * {@code endFlowBlock}するため、同じ型の不均衡が残ります
  * ({@code multicol-span-all-children-height-010}等2件)。
  * {@code InlineParamsStack.pop}に番人を置くだけでは<b>別のnullへ
- * ずれるだけ</b>で直らないことを確認済みです(`docs/NEXT-SESSION.md`)。
+ * ずれるだけ</b>で直らないことを確認済みです(`開発メモ`)。
  * </p>
  */
 public class WptRegressionTest extends TestCase {
@@ -264,7 +264,7 @@ public class WptRegressionTest extends TestCase {
 	 * {@code files/unittest/0490-robustness/}に置いた文書をそのまま変換します。
 	 *
 	 * <p>
-	 * 他のケースは文書をここで組み立てますが({@code docs/LESSONS.md} §6.9h)、
+	 * 他のケースは文書をここで組み立てますが(教訓集 §6.9h)、
 	 * <b>骨格を写すと再現しない</b>ものはWPTの原本を取り込んで使います。
 	 * 再現しない最小形で固定しても、修正を戻したときに落ちないので
      * 回帰テストになりません。

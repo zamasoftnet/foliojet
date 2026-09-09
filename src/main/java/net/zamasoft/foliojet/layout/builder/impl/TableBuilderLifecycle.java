@@ -17,7 +17,7 @@ import net.zamasoft.foliojet.layout.builder.TableBuilder;
  *
  * <p>
  * <b>C4の完成形について(2026-07-19、ChatGPT Pro外部設計レビューで確定、
- * 詳細はdocs/PLAN.md「C4」参照)</b>: 表ビルダーの統一は「単一の行アルゴリズム
+ * 詳細は開発計画「C4」参照)</b>: 表ビルダーの統一は「単一の行アルゴリズム
  * への融合」ではない。fixed/autoという列幅方針の違いとは別に、
  * 「早期コミット可能(Incremental)」か「表(またはrow-group)全体を保持
  * してからコミットする(Retained)」かという実行計画の違いが本質であり、

@@ -6,7 +6,7 @@ import net.zamasoft.foliojet.layout.constraint.AxisSpan;
 
 /**
  * 新規floatの配置計画です(2026-07-23新設、排除域P1増分3——
- * `docs/consultations/consult-exclusion-p1-design-codex.txt`の設計)。
+ * `設計相談`の設計)。
  *
  * <p>
  * {@code BlockBuilder.tryFloatPlacement}が副作用なしで算出する値で、

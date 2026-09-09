@@ -27,7 +27,7 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
  * 救済分割(visual rescue split)の断片です
- * (2026-07-25新設、増分3。{@code docs/consultations/consult-rescue-split-codex.md}
+ * (2026-07-25新設、増分3。設計相談
  * §2。<b>まだ本番経路へは配線されていません</b>)。
  *
  * <p>

@@ -196,7 +196,7 @@ public final class BoxRecipeBoxFactory {
 	 * 新品の{@link AbstractReplacedBox}を返します(2026-07-22新設、
 	 * M6d-A——{@link #create}と対だが戻り値型が{@code INonReplacedBox}
 	 * ではなく{@code AbstractReplacedBox}のため別メソッドとした
-	 * (`docs/history/2026-07-22-m6d-a-replaced-element-support.md`
+	 * (`開発記録`
 	 * 「未着手のまま残るもの」参照)。
 	 */
 	public static AbstractReplacedBox createReplaced(final ReplacedRecipe recipe) {

@@ -276,7 +276,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	 * 行境界では一切前進できない(=行分割の切断点が存在しない)場合に、
 	 * その唯一の行の物理下端を返します。前進できるなら
 	 * {@link LayoutUtils#NONE}を返します(2026-07-25新設、救済分割・増分6。
-	 * {@code docs/consultations/consult-rescue-split-codex.md} §1)。
+	 * 設計相談 §1)。
 	 *
 	 * <p>
 	 * 「巨大な行」の救済分割は、{@link #split(double, byte)}を<b>呼ぶ前に</b>

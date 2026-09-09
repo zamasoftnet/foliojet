@@ -70,7 +70,7 @@ public final class RowLayoutEngine {
 			// このRowSpecが前提とする「絶対値 or 比率の二択」に収まらない
 			// (行高分配アルゴリズムのratio利用箇所は比率単独を前提にしている)。
 			// RELATIVEと同じ扱いにして安全側に倒す(絶対成分は無視、比率成分の
-			// みratioへ渡す。docs/PLAN.md参照)。
+			// みratioへ渡す。開発計画参照)。
 			ratio = rowParams.size.getRatio();
 			if (ratio > 0) {
 				rowSize = 0;

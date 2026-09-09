@@ -20,7 +20,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * {@code @container}規則1個ぶんの解析結果です(2026-08-15段3——
- * docs/history/2026-08-15-container-queries-design.md §5/§6)。
+ * 開発記録 §5/§6)。
  *
  * <p>
  * ph-cssは{@code @container}自体を未知のat-rule({@code CSSUnknownRule})

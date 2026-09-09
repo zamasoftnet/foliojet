@@ -114,7 +114,7 @@ public abstract class AbstractTextParams extends Params {
 
 	/**
 	 * ルビ役割マーカーです(2026-07-25、注釈付きテキスト方式の仕様裁定
-	 * ——docs/history/2026-07-25-ruby-annotation-spec-decision.md)。
+	 * ——開発記録)。
 	 * ルビ関連要素(ruby/rb/rt)で{@code RUBY_*}が設定され、文字処理層
 	 * ({@code StyledTextUnitizer})が注釈付きテキスト単位を組み立てる
 	 * 手掛かりにします。

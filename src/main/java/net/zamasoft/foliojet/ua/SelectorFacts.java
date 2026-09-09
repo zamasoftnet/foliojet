@@ -18,7 +18,7 @@ import net.zamasoft.foliojet.css.selector.Condition;
  * 全LAYOUTパスからは読み取り専用として参照される。`:has()`は
  * {@code STRUCTURE_SCAN}を使わず、通常のLAYOUTパス(`StyleContext.merge`)が
  * 要素ごとの祖先チェーンを見ながら段階的に確定させる(`PageRef`と同じ
- * 「複数パスにまたがって値を積み上げる」設計。理由はdocs/PLAN.md
+ * 「複数パスにまたがって値を積み上げる」設計。理由は開発計画
  * 「2パス制御モード」参照——`:has()`の相対セレクタ評価には実際の
  * `CSSElement`(class/id/属性込み)と`StyleContext.matchesFromPath`が
  * 要り、`STRUCTURE_SCAN`専用の軽量walkerでは賄えないため)。
@@ -28,7 +28,7 @@ import net.zamasoft.foliojet.css.selector.Condition;
  * ページ参照・TOC専用ストアで、id無し要素の安定キーを持たない。
  * ライフサイクル(このクラスは`STRUCTURE_SCAN`開始時に1回だけリセットし、
  * 以降の全パスで蓄積し続ける)は`PageRef`の`reset()`と紛らわしいため
- * 相乗りはしない(docs/PLAN.md参照)。
+ * 相乗りはしない(開発計画参照)。
  * </p>
  *
  * @author MIYABE Tatsuhiko

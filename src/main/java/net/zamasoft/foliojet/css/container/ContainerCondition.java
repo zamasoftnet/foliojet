@@ -5,7 +5,7 @@ import java.util.List;
 
 /**
  * {@code @container}の条件です(2026-08-15段3——
- * docs/history/2026-08-15-container-queries-design.md §5)。
+ * 開発記録 §5)。
  *
  * <p>
  * 文法上、{@code not}は条件全体(単一の括弧項)にしか掛からず、

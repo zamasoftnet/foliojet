@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.layout.box.content;
 
 /**
  * {@link Floatings}のページ分割の型付き結果です(2026-07-24新設、
- * 排除域P2のP2-3。{@code docs/consultations/consult-exclusion-p2-design-codex.txt}
+ * 排除域P2のP2-3。設計相談
  * §2.2の型)。旧sentinel(null=KeepAll / this=MoveAll / 新=Partition)を
  * 置き換えます。
  *

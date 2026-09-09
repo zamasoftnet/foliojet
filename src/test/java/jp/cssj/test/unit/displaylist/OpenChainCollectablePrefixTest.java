@@ -58,7 +58,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * {@code flowStack.size()}のまま変更しない(ここを縮めると
  * {@code OpenShape}の入れ子数と実ボックス木の開き構造が食い違い、
  * まだ開いているボックスを誤って閉じる恐れがある——独立レビューで
- * 確認済み、{@code docs/consultations/consult-open-chain-prefix-*.md}
+ * 確認済み、{@code 設計相談*.md}
  * 参照)。{@code BreakPlan.openTailDepth() = depth - index - 1}は
  * {@code depth}を歩かずに得られる値のまま保たれるため、プレフィックスを
  * 切り詰めるだけで残存{@code OpenChain}深さが「違反箇所からその内側」
@@ -457,7 +457,7 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
-	 * 2026-07-22の改ページ契約(docs/history/2026-07-22-pagination
+	 * 2026-07-22の改ページ契約(開発記録
 	 * -contract-consultation.md参照)により、{@code vertical-rl}祖先の
 	 * 途中に{@code vertical-lr}(縦書きのまま方向だけ違う)が挟まる
 	 * ケースは意図的にatomic(この祖先チェーンは分割せず、丸ごと収まる

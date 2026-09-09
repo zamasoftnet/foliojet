@@ -17,7 +17,7 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.TotalFit;
  *
  * <p>
  * BreakNodeは<b>選択用の投影のみ</b>で、唯一の中間表現にはしない
- * (設計doc {@code docs/history/2026-07-23-m3c-design.md})。物理的な
+ * (設計doc 開発記録)。物理的な
  * 行生成(禁則・ハイフン実体化・インライン再生成・justification)は
  * すべて既存の{@link TextBuilder}が担当し、本クラスは「どのflushで
  * 改行するか」だけを供給する。禁則の写像は「下流へ実際に配達された

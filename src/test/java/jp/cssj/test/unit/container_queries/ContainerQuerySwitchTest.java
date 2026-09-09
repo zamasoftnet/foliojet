@@ -9,7 +9,7 @@ import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
  * {@code @container}実装・段4のfixture 1です
- * (docs/history/2026-08-15-container-queries-design.md §5)。
+ * (開発記録 §5)。
  *
  * <p>
  * 幅の違う2つの{@code container-type: inline-size}コンテナに同じ子部分木

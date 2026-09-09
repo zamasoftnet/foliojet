@@ -1280,7 +1280,7 @@ public class FlowContainer implements Container {
 		// たかどうか。チェーンメンバー自身のKeep/Moveの生値はここでは
 		// 使わない(pushback巻き戻しで2回検分されうる非純粋呼び出しの
 		// ため、switch直後の値は最終配置と食い違いうると判明——詳細は
-		// docs/history/2026-07-22-open-chain-b5c2-autoloop-root-cause.md
+		// 開発記録
 		// 参照)。かわりに、コンテナ全体の結論が確定する「nextBox+
 		// splitFloatings」の最終returnでのみ、その時点で確定している
 		// 事実(nextBoxがチェーンメンバー単体だけを含むか)から
@@ -1842,7 +1842,7 @@ public class FlowContainer implements Container {
 	/**
 	 * 浮動ボックス(直接保持分+子flowの再帰集約)をページ分割し、移動分の
 	 * 行き先を型で返します(2026-07-24、P2-4。分岐表の正本:
-	 * {@code docs/history/2026-07-24-p2-splitfloatings-branch-table.md}の
+	 * 開発記録の
 	 * 「public 3引数版」の表と1:1対応)。
 	 *
 	 * <table>
@@ -2195,7 +2195,7 @@ public class FlowContainer implements Container {
 	 * 選んでいた——増分1でMULTICOL native scope降下のバイト等価を証明、
 	 * 増分2でgateをMULTICOL許可へ拡張、増分3でrootless COLUMNも接続し、
 	 * legacy駆動へ入る入口が消えたため分岐ごと撤去した(codex相談
-	 * docs/consultations/consult-codex-2026-07-30-increment4-removal-spec.txt)。
+	 * 設計相談)。
 	 * TEXT/BLOCK/TABLE/REPLACEDの意味は{@link #restyleItem}が担い、
 	 * OpenChain降下だけが明示スタック(worklist)で駆動される。
 	 * </p>
@@ -2343,7 +2343,7 @@ public class FlowContainer implements Container {
 
 	/**
 	 * {@code OpenChain}を明示スタックで駆動するworklist executor本体
-	 * です(2026-07-22新設、B6a1——`docs/consultations/consult-b6a1
+	 * です(2026-07-22新設、B6a1——`設計相談
 	 * -explicit-worklist-executor-codex.txt`の設計をそのまま実装。
 	 * 2026-07-30の増分4で<b>唯一のdriver</b>となった——旧再帰driverとの
 	 * 並存期の経緯は{@link #restyle}のjavadoc参照)。
@@ -2366,7 +2366,7 @@ public class FlowContainer implements Container {
 	 * .getContainer()}のitemsを直接dequeへpushしていたため、
 	 * {@code flowStack}が正しい深さまで育たず`ContinuationInvariant
 	 * ViolationException(flowStack.size() != continuation.depth())`
-	 * を引き起こした(`docs/history/2026-07-22-b6a1-worklist-executor
+	 * を引き起こした(`開発記録
 	 * -bug-found-and-reverted.md`参照)。{@code OpenChain}降下の
 	 * {@code inner}は`OpenShape.of()`の構成上常にOpenChainかOpenText
 	 * であり決してClosedにならないため、対応する{@code endFlowBlock}
@@ -2622,7 +2622,7 @@ public class FlowContainer implements Container {
 	 * B6a1準備で{@code restyle()}のforループ本体から抽出——挙動は一切
 	 * 変えていない純粋な関数抽出(旧{@code continue}は{@code return}へ
 	 * 機械的に置換しただけ)。将来のworklist executor
-	 * (`docs/history/2026-07-22-b6a1-trailing-items-measurement.md`
+	 * (`開発記録`
 	 * 参照)が、この共有dispatchを複製せずそのまま呼べるようにする
 	 * ための下ごしらえ——TEXT/BLOCK/TABLE/REPLACEDの意味を二重実装
 	 * しない、というcodex設計相談の要件(却下案「switch全体を新

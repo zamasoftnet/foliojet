@@ -455,7 +455,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	 *
 	 * <p>
 	 * A-3bのアラインメント物理契約(2026-07-24文書化、
-	 * `docs/history/2026-07-23-a3b-goal-narrowed.md`が正本): 行内の
+	 * `開発記録`が正本): 行内の
 	 * 全セルは**同一の物理分割線**で切られ(後発セルで初めて分割が
 	 * 決まった場合は処理済みセルへ遡って強制分割)、各セルへは
 	 * この上端基準位置から更に{@code verticalAlign}(実測の

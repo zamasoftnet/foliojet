@@ -10,8 +10,8 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 /**
  * 単一の浮動体のページ分割判定に必要な実測値を固定した純データです
  * (2026-07-24新設、排除域P2のP2-1。
- * {@code docs/history/2026-07-24-p2-splitfloatings-branch-table.md}と
- * {@code docs/consultations/consult-exclusion-p2-design-codex.txt}§2.1)。
+ * 開発記録と
+ * 設計相談§2.1)。
  *
  * <p>
  * {@code FlowContainer.FloatMeasurements}(FlowCutter用の3並列配列)の

@@ -24,8 +24,8 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
  * 救済分割(visual rescue split)の振る舞いテストです(2026-07-25新設、増分5。
- * {@code docs/consultations/consult-rescue-split-codex.md}、
- * {@code docs/history/2026-07-25-rescue-split-spec.md})。
+ * 設計相談、
+ * 開発記録)。
  *
  * <p>
  * 増分6/7(2026-07-25)で、巨大な行(巨大フォント・背の高いインライン

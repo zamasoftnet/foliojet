@@ -622,7 +622,7 @@ public class CSSStyleSheetBuilder {
 
 	/**
 	 * {@code @container}クエリです(2026-08-15段4で条件評価に配線——
-	 * docs/history/2026-08-15-container-queries-design.md §6)。
+	 * 開発記録 §6)。
 	 *
 	 * <p>
 	 * ph-cssは{@code @counter-style}と同様、本規則を{@link CSSUnknownRule}
@@ -855,7 +855,7 @@ public class CSSStyleSheetBuilder {
 	 * 完全名(例: 外側{@code a}・内側{@code b}なら{@code "a.b"})で
 	 * 独立したレイヤーとして登録する(CSS Cascade Layersの入れ子命名と
 	 * 同じ考え方)。{@code !important}によるレイヤー優先順位の反転は
-	 * 未対応(docs/CSS-SUPPORT.md参照)。
+	 * 未対応(対応表参照)。
 	 */
 	private void layer(CSSLayerRule layerRule, URI uri, boolean mediaOk, String layerNamePrefix,
 			net.zamasoft.foliojet.css.container.ContainerQuery containerQuery) {
@@ -918,7 +918,7 @@ public class CSSStyleSheetBuilder {
 	 * ph-css 8.2.1はMedia Queries Level 3相当までしかパースできない
 	 * (Level 4の`or`結合子・括弧なしの`not (...)`・range構文
 	 * `(width &gt;= 400px)`は構文解析の時点で規則ごと無視される。
-	 * docs/CSS-SUPPORT.md参照)。
+	 * 対応表参照)。
 	 * </p>
 	 */
 	private boolean evaluateMediaExpression(CSSMediaExpression expression) {

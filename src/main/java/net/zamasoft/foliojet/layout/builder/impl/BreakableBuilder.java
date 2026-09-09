@@ -625,7 +625,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		if (this.breakDepth == -1) {
-			// 改ページ契約(2026-07-22、docs/history/2026-07-22-pagination
+			// 改ページ契約(2026-07-22、開発記録
 			// -contract-consultation.md参照): 軸違い(TB⇄RL/LR)だけでなく
 			// 同軸内の方向違い(RL⇄LR)もこの祖先チェーンをatomicにする
 			// (直交writing-mode表と同じ扱いを、通常フローのブロックにも
@@ -1575,7 +1575,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// 無条件にreturnしていた——newColumn()がno-cut(null)を返すと、
 				// 改段も行われず、autoBreak()と違いPAGEへのfallbackもされない
 				// サイレントno-opになっていた(ChatGPT Pro相談で発見・検証済み、
-				// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md)。
+				// 設計相談)。
 				// autoBreak()(887行目付近)と同じfallback規則に揃える。
 				if (this.columnBreak(columnBreak.flow(), breakMode, IPageBreakableBox.FLAGS_FIRST, lastFrame,
 						columnBreak.depth())) {
@@ -1713,7 +1713,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 * flowStack内にある通常経路({@link #findColumnBreak()})と、
 	 * {@code ColumnBuilder.contextFlow}がflowStack外にある経路の両方を
 	 * 扱う(ChatGPT Pro相談、
-	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+	 * 設計相談
 	 * 参照)。
 	 */
 	private java.util.List<AbstractContainerBox> captureColumnOpenPath(final Flow breakFlow) {
@@ -1776,7 +1776,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		// 2026-07-21: この改段(COLUMN)経路はRootBuilder.pageBreak()の
 		// BreakPlan機構を迂回する独立経路(ChatGPT Pro相談で発見、
-		// docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
+		// 設計相談)。
 		// 2026-07-30(増分4c): worklist一本化に伴い深さ64の例外ガードは
 		// 退役し、観測用の最大深さ記録だけを残した。
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenDepth(depth, true);

@@ -16,7 +16,7 @@ import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
  * ここで一度だけ行い(破断後・resume後に再分類しない)、
  * {@link ContinuationValidator}や実行経路は
  * この結果をそのまま運ぶ(ChatGPT Pro相談で確認、
- * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b2-resume-program.md)。
+ * 設計相談)。
  *
  * @param anchorFlow  index 0(anchor)の書字方向。PAGEでは文書rootの、
  *                    COLUMNでは段組ownerの書字方向

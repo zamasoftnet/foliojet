@@ -1245,7 +1245,7 @@ public class DirectSession extends AbstractCTISession
 					tmpFile = File.createTempFile("copper", ".tmp");
 					// STRUCTURE_SCAN: ボックス構築・レイアウトを一切行わない
 					// 軽量な事前走査(:has()/:last-child系の解決用、
-					// docs/PLAN.md「2パス制御モード」参照)。
+					// 開発計画「2パス制御モード」参照)。
 					// processing.pass-countの反復回数には数えない、独立した
 					// 1回だけの追加フェーズ。sourceを一度だけ読み切り、
 					// 以降の全パスが使うテンポラリファイルへ保存する

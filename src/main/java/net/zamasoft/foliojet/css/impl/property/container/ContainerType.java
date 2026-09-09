@@ -13,7 +13,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * {@code container-type}プロパティです(css-contain-3、2026-08-15段2——
- * docs/history/2026-08-15-container-queries-design.md §5)。
+ * 開発記録 §5)。
  * {@code normal | inline-size | size}。値の意味は{@link ContainerTypeValue}参照。
  *
  * @author MIYABE Tatsuhiko

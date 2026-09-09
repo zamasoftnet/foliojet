@@ -10,7 +10,7 @@ package net.zamasoft.foliojet.layout.fragment;
  * すべてプレフィックススキャンを停止させる)。このenumは「なぜ収集
  * できなかったか」を可視化するための分類であり、承認条件そのものは
  * 変更しない(ChatGPT Pro相談で得たB1のスコープ、
- * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
+ * 設計相談)。
  * </p>
  *
  * @see PaginationContract 書字方向によるatomic判定そのものの正本
@@ -25,7 +25,7 @@ public enum ContinuationCapability {
 	 * かつては{@code FlowBlockBox}の段組以外のサブタイプを表す
 	 * {@code FLOW_SUBTYPE}分類が並存していたが、唯一の実装だった
 	 * {@code RubyBodyBox}がルビの注釈付きテキスト化(2026-07-25仕様裁定、
-	 * docs/history/2026-07-25-ruby-annotation-spec-decision.md)で消滅した
+	 * 開発記録)で消滅した
 	 * ため撤去した——現在{@code FlowBlockBox}のサブタイプは段組のみ。
 	 */
 	MULTICOL,
@@ -34,7 +34,7 @@ public enum ContinuationCapability {
 	 * ルートと同じ軸(横書き/縦書き)だが、方向または字形回転種別が異なる
 	 * (例: {@code vertical-rl}祖先の途中に{@code vertical-lr}、または
 	 * 同じRLフローでnormalとsideways-rlが切り替わる場合)。
-	 * 2026-07-22の改ページ契約(docs/history/2026-07-22-pagination
+	 * 2026-07-22の改ページ契約(開発記録
 	 * -contract-consultation.md参照)により、この分類は{@link
 	 * #ORTHOGONAL_FLOW}と同じく非収集(atomic)対象——収集可能に一時
 	 * 解禁していた(B5b、2026-07-21)が、実装しやすさ優先の方針転換に
@@ -65,7 +65,7 @@ public enum ContinuationCapability {
 	 * PAGE経由のsplit-throughを許可するかを判定します(2026-07-21新設、
 	 * M6b Phase B B3)。「対象が何であるか」(このenum自体)と「現在の
 	 * 破断modeで収集を許すか」を分離する——ChatGPT Pro相談で確認、
-	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b3-multicol-split-through.md参照。
+	 * 設計相談参照。
 	 *
 	 * <p>
 	 * {@link #MULTICOL}はB3aで自動改ページのみ許可されていた——強制改ページで
@@ -87,7 +87,7 @@ public enum ContinuationCapability {
 	 * <p>
 	 * {@link #SAME_AXIS_DIRECTION_CHANGE}は2026-07-21(B5b)に一時解禁して
 	 * いたが、2026-07-22の改ページ契約により撤回した(atomic対象、
-	 * docs/history/2026-07-22-pagination-contract-consultation.md参照)。
+	 * 開発記録参照)。
 	 * </p>
 	 */
 	public boolean supportsPageSplitThrough(final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {

@@ -1335,7 +1335,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	/**
 	 * 救済分割(visual rescue split)の残余断片をフローへ載せます
 	 * (2026-07-25新設、増分5。
-	 * {@code docs/consultations/consult-rescue-split-codex.md} §5)。
+	 * 設計相談 §5)。
 	 *
 	 * <p>
 	 * 通常の{@link #addBound(net.zamasoft.foliojet.layout.box.IBox)}へ

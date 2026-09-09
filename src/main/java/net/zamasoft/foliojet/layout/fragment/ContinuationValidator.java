@@ -8,7 +8,7 @@ import java.util.Set;
 /**
  * 継続の正本({@link Continuation}のPAGE入力/COLUMN入力)を直接検査します
  * (2026-07-24新設、E-3増分1。
- * docs/consultations/consult-e3-single-source-codex.md §3)。
+ * 設計相談 §3)。
  *
  * <p>
  * 旧program系(E-3増分6で撤去した{@code ResumeProgramCompiler}/

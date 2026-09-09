@@ -2,10 +2,10 @@ package net.zamasoft.foliojet.layout.box.content;
 
 /**
  * {@code Container.splitFloatings}の型付き結果です(2026-07-24新設、
- * 排除域P2のP2-4。{@code docs/consultations/consult-exclusion-p2-design-codex.txt}
+ * 排除域P2のP2-4。設計相談
  * §2.2の型)。旧APIの返り値sentinel(nextBoxそのまま / this / 新コンテナ)を
  * 置き換えます。分岐表の正本:
- * {@code docs/history/2026-07-24-p2-splitfloatings-branch-table.md}の
+ * 開発記録の
  * 「public 3引数版」の表。
  *
  * <p>

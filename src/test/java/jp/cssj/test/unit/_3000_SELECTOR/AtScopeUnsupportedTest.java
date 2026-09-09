@@ -12,7 +12,7 @@ import jp.cssj.test.unit.AbstractTestCase;
 /**
  * {@code @scope}(donut scoping at-rule)は未対応(2026-07-21調査、
  * ph-css 8.2.1のjarに関連クラスが一切存在しないと確認済み——
- * {@code docs/CSS-SUPPORT.md}参照)。このテストは「未対応のat-ruleに
+ * 対応表参照)。このテストは「未対応のat-ruleに
  * 遭遇しても例外を投げず、規則全体が安全に無視されること」を固定する
  * ——{@code @scope}ブロック内の宣言(この文書では{@code p{color:red}})が
  * スコープ制約なしに全体へ誤って昇格して適用されてしまう

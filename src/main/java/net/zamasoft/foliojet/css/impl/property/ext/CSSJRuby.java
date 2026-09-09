@@ -29,7 +29,7 @@ public class CSSJRuby extends AbstractPrimitivePropertyInfo {
 
 	public Value getComputedValue(Value value, CSSStyle style) {
 		// ルビは注釈付きテキスト(文字に付く飾り)であり箱ではない
-		// (2026-07-25仕様裁定、docs/history/2026-07-25-ruby-annotation-
+		// (2026-07-25仕様裁定、開発記録
 		// spec-decision.md)。役割マーカー(ruby/rb/rt)はdisplayに
 		// 依存しない——ルビ関連要素はStyleBuilderが常にINLINEへ強制し、
 		// 単位の組み立ては文字処理層(StyledTextUnitizer)が行う。

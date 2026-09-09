@@ -154,7 +154,7 @@ public class ContinuationCapabilityTest extends TestCase {
 	 * {@code ORTHOGONAL_FLOW}/{@code UNSUPPORTED_BOX}/
 	 * {@code SAME_AXIS_DIRECTION_CHANGE}はmodeによらず常に収集不能
 	 * (2026-07-22の改ページ契約でatomic対象と確定、
-	 * docs/history/2026-07-22-pagination-contract-consultation.md参照
+	 * 開発記録参照
 	 * ——{@code SAME_AXIS_DIRECTION_CHANGE}はB5bで一時収集可能にして
 	 * いたが撤回した)。{@code MULTICOL}はmode非依存で収集可能なまま。
 	 */

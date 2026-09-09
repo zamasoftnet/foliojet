@@ -7,7 +7,7 @@ import net.zamasoft.foliojet.css.StructureElement;
 
 /**
  * {@code Params.element}のfreeze結果です(2026-07-24新設、E-6増分3b-4
- * ——{@code docs/history/2026-07-24-e6-remaining-design-decision.md}の
+ * ——開発記録の
  * StructureToken裁定)。
  *
  * <p>

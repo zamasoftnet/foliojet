@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.layout.rescue;
 
 /**
  * 救済分割(visual rescue split)の1ステップの判定結果です
- * (2026-07-25新設、増分1。{@code docs/consultations/consult-rescue-split-codex.md}
+ * (2026-07-25新設、増分1。設計相談
  * §1・§2。まだ本番経路へは配線されていません)。
  *
  * <p>

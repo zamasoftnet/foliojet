@@ -6,7 +6,7 @@ import net.zamasoft.foliojet.layout.box.content.Container;
 
 /**
  * 分割されたブロックfloatの継続断片の材料です(2026-07-24新設、
- * 排除域A-3a。{@code docs/consultations/consult-exclusion-p2-design-codex.txt}
+ * 排除域A-3a。設計相談
  * §3の型)。
  *
  * <p>

@@ -53,7 +53,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  *
  * <p>
  * <b>文書を外部ファイルにしない</b>のは、相対パスの画像参照で1時間の
- * 誤診断をした前科があるためです(docs/LESSONS.md §6.9h)。ここで組み立てる。
+ * 誤診断をした前科があるためです(教訓集 §6.9h)。ここで組み立てる。
  * </p>
  */
 public class MulticolDegenerateCutTest extends TestCase {

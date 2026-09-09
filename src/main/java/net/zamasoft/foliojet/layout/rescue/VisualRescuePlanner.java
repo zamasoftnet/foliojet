@@ -6,8 +6,8 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 /**
  * 救済分割(visual rescue split)の<b>入口</b>——判定を一手に引き受ける
  * 純関数と、機能全体の仕様・設計判断の集約点です(2026-07-25新設。
- * {@code docs/history/2026-07-25-rescue-split-spec.md}(合意仕様)、
- * {@code docs/consultations/consult-rescue-split-codex.md}(設計答申))。
+ * 開発記録(合意仕様)、
+ * 設計相談(設計答申))。
  *
  * <h2>1. 何をする機能か</h2>
  *

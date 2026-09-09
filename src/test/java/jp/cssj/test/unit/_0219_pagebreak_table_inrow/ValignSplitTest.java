@@ -9,7 +9,7 @@ import jp.cssj.test.unit.AbstractTestCase;
 
 /**
  * 行内(セル内)分割とvertical-alignの物理座標検査(横書き)。
- * A-3bのアラインメント物理契約(docs/history/2026-07-23-a3b-goal-narrowed.md)
+ * A-3bのアラインメント物理契約(開発記録)
  * の保護材:
  * <ul>
  * <li>行内の全セルは同一の物理分割線(ページ下端)で切られる</li>

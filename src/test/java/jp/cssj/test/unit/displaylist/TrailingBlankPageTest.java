@@ -56,7 +56,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  *
  * <p>
  * <b>文書はここで組み立てます</b>——外部ファイルにすると相対パスの画像参照で
- * 判定が変わる事故を起こします(docs/LESSONS.md §6.9h)。画像を使わない
+ * 判定が変わる事故を起こします(教訓集 §6.9h)。画像を使わない
  * シードを選んであるのはそのためです。
  * </p>
  *

@@ -52,7 +52,7 @@ public class CSSStyleSheet {
 	/**
 	 * 文書中に現れる全ての{@code :has()}条件(文書順)。要素の終了時点まで
 	 * 真偽が確定しないため、{@code StyleContext}が要素ごとに祖先チェーンを
-	 * 遡って判定を積み上げるのに使う(docs/PLAN.md「2パス制御モード」参照)。
+	 * 遡って判定を積み上げるのに使う(開発計画「2パス制御モード」参照)。
 	 */
 	private final List<Condition> hasConditions = new ArrayList<Condition>();
 
@@ -283,7 +283,7 @@ public class CSSStyleSheet {
 	/**
 	 * 文書中に現れる全ての{@code :has()}条件(文書順・変更不可)を返します。
 	 * ネストした{@code :has()}(:has()自身の引数内)は含めない(初期実装の
-	 * 制限、docs/PLAN.md参照)。
+	 * 制限、開発計画参照)。
 	 */
 	public List<Condition> getHasConditions() {
 		return Collections.unmodifiableList(this.hasConditions);

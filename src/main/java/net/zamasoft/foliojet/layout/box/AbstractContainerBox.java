@@ -609,7 +609,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 	 * {@code ownerContainer.splitPageAxis()}による元active columnの切断は
 	 * ここで既に行われる。正確な意味は「ownerへの新column追加とbuilder
 	 * resume開始をまだcommitしていない切断結果」である(ChatGPT Pro相談、
-	 * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+	 * 設計相談
 	 * 参照)。split後の構造検証失敗は変換全体を中断すべきであり、legacy
 	 * 経路へrollbackして再実行してはいけない。
 	 * </p>
@@ -637,9 +637,9 @@ public abstract class AbstractContainerBox extends AbstractBox
 			// 消失リスク)。containerが空の場合のみbareなKEEP/MOVEとして
 			// 返し、実内容がある場合は下の共通Cut構築ロジックへ合流させる
 			// (childFrameは常にnull——専用のMovedOpen型は2026-07-22に撤去
-			// した、docs/history/2026-07-22-pagination-contract
+			// した、開発記録
 			// -consultation.md参照)。詳細は
-			// docs/history/2026-07-22-chainstop-content-loss-safety-net.md
+			// 開発記録
 			// 参照
 			final boolean hasContent = chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
 					&& (fc.hasFlows() || fc.hasFloatings());

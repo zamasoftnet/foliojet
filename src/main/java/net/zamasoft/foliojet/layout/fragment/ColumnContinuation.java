@@ -7,7 +7,7 @@ import net.zamasoft.foliojet.layout.box.IBox;
 /**
  * COLUMN継続の正本トークンです(2026-07-24新設、E-3増分5。旧
  * {@code ColumnResumeProgram}+{@code RootBuilder.CompiledColumn}を置換
- * した小さなドメイントークン。docs/consultations/consult-e3-single-source
+ * した小さなドメイントークン。設計相談
  * -codex.md §1)。
  *
  * <p>

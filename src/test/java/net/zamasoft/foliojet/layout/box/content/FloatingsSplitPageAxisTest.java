@@ -23,7 +23,7 @@ import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 /**
  * {@code Floatings.splitPageAxis}の分岐表テストです(2026-07-24新設、
  * 排除域P2のP2-1。正本:
- * {@code docs/history/2026-07-24-p2-splitfloatings-branch-table.md}の
+ * 開発記録の
  * 「P2-1テスト行列(最低限)」)。
  *
  * <p>

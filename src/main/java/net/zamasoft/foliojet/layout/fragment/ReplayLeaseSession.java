@@ -9,7 +9,7 @@ package net.zamasoft.foliojet.layout.fragment;
  * nested PAGE break/COLUMN resume中の入れ子COLUMN改段でも、
  * {@code RootBuilder.replaySubtree()}が常に「現在のtopセッション」だけを
  * 見ればよいようにする(ChatGPT Pro相談、
- * docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-b4-column-target.md
+ * 設計相談
  * 参照)。
  */
 public interface ReplayLeaseSession {

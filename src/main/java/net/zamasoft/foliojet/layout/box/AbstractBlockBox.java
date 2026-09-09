@@ -318,9 +318,9 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			// 共通Frame構築ロジックへ合流させる(tailは常にOpenTailShape
 			// ——MOVE/KEEPどちらでも同じ「開いたまま続く」を表す。専用の
 			// MovedOpen型は2026-07-22に撤去した、
-			// docs/history/2026-07-22-pagination-contract-consultation.md
+			// 開発記録
 			// 参照)。詳細は
-			// docs/history/2026-07-22-chainstop-content-loss-safety-net.md
+			// 開発記録
 			// 参照
 			final boolean hasContent = chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
 					&& (fc.hasFlows() || fc.hasFloatings());

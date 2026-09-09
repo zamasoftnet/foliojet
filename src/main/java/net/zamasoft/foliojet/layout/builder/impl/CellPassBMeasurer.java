@@ -8,7 +8,7 @@ import net.zamasoft.foliojet.layout.fragment.ScratchReplayScope;
 
 /**
  * 表Pass B(行計測)の計測プリミティブです(E-6増分5b-1、2026-07-24——
- * {@code docs/consultations/consult-e6b-remaining-increments-codex.md}
+ * 設計相談
  * §4.4「確定列幅でセルrangeを一つずつ再生し、使用ページ方向寸法・
  * first ascentだけを取得してcell box treeを破棄する」)。
  *

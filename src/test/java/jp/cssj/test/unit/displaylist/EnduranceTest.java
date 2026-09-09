@@ -40,7 +40,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
  * E-6(spillableテープ基盤)の耐久試験です(2026-07-24。
- * docs/history/2026-07-24-e6-remaining-design-decision.md の
+ * 開発記録 の
  * 「耐久試験(案Aの合格条件)」——適応裁定でスコープ調整済み)。
  *
  * <p>

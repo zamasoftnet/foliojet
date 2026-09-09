@@ -41,7 +41,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * ({@code OpenShape.OpenChain}が深く入れ子になり、
  * {@code FlowContainer.restyle}・{@code RootBuilder.resumeFrame}の
  * 相互再帰が実際に深さ分だけ発火する)。restyle系の反復化(codex/grok
- * への外部相談、docs/consultations/consult-restyle-*.md参照)に着手する
+ * への外部相談、設計相談*.md参照)に着手する
  * 前の回帰基盤として、現状の再帰実装がどこまでの深さに耐えるかを
  * 実測・記録する。
  * </p>
@@ -78,7 +78,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  *
  * <p>
- * <b>{@code splitPageAxis}に今は着手しない理由</b>: `docs/NEXT-SESSION.md`
+ * <b>{@code splitPageAxis}に今は着手しない理由</b>: `開発メモ`
  * 「Box/Builderコア: FlowContainer.splitPageAxisの核心ループはM6d前提の
  * まま」に既存の記録があるとおり、{@code splitPageAxis}/{@code .split()}
  * 呼び出しは子ボックスを直接変異させる構造であり、
@@ -100,7 +100,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * (`ContinuationFrame.Child`を1段ごとに1回)で処理されていた。この
  * 自己再帰はswitch文の唯一かつ末尾の文(真の末尾再帰)だったため、
  * {@code while}ループへの書き換えのみで挙動を変えず反復化した(修正済み、
- * 三層検証済み)。`docs/NEXT-SESSION.md`「B0着手結果」参照。
+ * 三層検証済み)。`開発メモ`「B0着手結果」参照。
  * </p>
  */
 public class DeepNestingRestyleTest extends TestCase {
@@ -122,7 +122,7 @@ public class DeepNestingRestyleTest extends TestCase {
 	 * 併せて{@code ContinuationStats.RESTYLE_CHAIN_FIRINGS}
 	 * (M6b Phase B「切断ブロックチェーン」ソース再生化のB0=発火可視化、
 	 * 2026-07-20。codex/grokへの外部相談、
-	 * docs/consultations/consult-open-chain-replay-*.md参照)を計測し、
+	 * 設計相談*.md参照)を計測し、
 	 * この構成で開いたチェーン経由のbox-restyleが実際に多数発火している
 	 * ことを固定する。ソース再生化が進むほどこの値は下がるべきで、将来の
 	 * 段階ごとの縮小を実測するための基準値としてここに記録する。
@@ -156,7 +156,7 @@ public class DeepNestingRestyleTest extends TestCase {
 	 * </b>: {@code FlowContainer.splitPageAxis}↔
 	 * {@code AbstractBlockBox.splitForContinuation}(改ページ時のボックス
 	 * 分割)がこの深さで実際に{@code StackOverflowError}に到達する
-	 * (クラスjavadoc参照)。この経路は`docs/NEXT-SESSION.md`
+	 * (クラスjavadoc参照)。この経路は`開発メモ`
 	 * 「splitPageAxisの核心ループはM6d前提のまま」に既存の記録がある
 	 * とおり、子ボックスを直接変異させる構造であり、
 	 * ConstraintSpace/write-onceボックス(M6d)の設計が入るまでは安全な
@@ -195,7 +195,7 @@ public class DeepNestingRestyleTest extends TestCase {
 	/**
 	 * {@code splitPageAxis}の反復化(M6d後の大規模リファクタ)と比較検討
 	 * する代替案の実証実験です(2026-07-23、
-	 * `docs/history/2026-07-22-m6d-splitpageaxis-iteration
+	 * `開発記録
 	 * -investigation.md`「代替案」節参照)。
 	 *
 	 * <p>

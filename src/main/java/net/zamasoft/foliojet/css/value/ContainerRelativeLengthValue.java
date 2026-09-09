@@ -9,7 +9,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * コンテナクエリ単位({@code cqw} / {@code cqi})の長さです(2026-08-15段6——
- * css-contain-3、docs/history/2026-08-15-container-queries-design.md §5)。
+ * css-contain-3、開発記録 §5)。
  * {@code RelativeLengthValue}(em/ex/rem/ch)と同じく、解析時には解決せず
  * 使用値計算時(computed value)に{@link #toAbsoluteLength}で絶対長さへ
  * 変換する({@code ValueUtils.emExToAbsoluteLength}が両方を扱う——45箇所の

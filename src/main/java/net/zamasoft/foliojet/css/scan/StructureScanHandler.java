@@ -18,7 +18,7 @@ import net.zamasoft.foliojet.xml.XMLHandler;
  * カスケードを一切必要としない、DOM構造(親子・兄弟関係と要素名)だけで
  * 決まる疑似クラスのため、{@link net.zamasoft.foliojet.css.CSSProcessor}
  * (スタイル解決・ボックス構築)を経由せず、この軽量な専用walkerだけで
- * 解決する(docs/PLAN.md「2パス制御モード」の設計確定 v3参照)。
+ * 解決する(開発計画「2パス制御モード」の設計確定 v3参照)。
  * <p>
  * {@code display:none}の部分木も対象に含める(セレクタは要素にマッチし、
  * ボックスにはマッチしないため)。バッファするのは「1つの親の直接の子の

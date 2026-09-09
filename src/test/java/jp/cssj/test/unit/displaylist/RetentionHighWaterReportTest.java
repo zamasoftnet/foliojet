@@ -44,7 +44,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 保持系(RetainedTableBuilder / TwoPassBlockBuilder / LayoutSource /
  * SelectorFacts)の保持量high-waterのレポートテストです(E-6増分1、
  * 2026-07-24。spillableテープ基盤のspill閾値・対象選定の実測基盤——
- * docs/consultations/consult-e6-spillable-tape-codex.md §3-1)。
+ * 設計相談 §3-1)。
  *
  * <p>
  * TableBuildCharacterizationTestと同じ「空虚な緑の防止」: 観測カウンタが

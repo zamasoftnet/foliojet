@@ -6,7 +6,7 @@
 # 存在しないため、foliojet4側の `--tests` フィルタで担保する。
 # 実行: dev$ ./gradlew imageTest -PimageManifest=files/visual/SMOKE-MANIFEST.txt [-PforceRelease -PbuildFolioJet]
 # 注意: これはコミットゲートではない——コミット前のフル3層検証
-# (591文書)の代替にはならない(docs/NEXT-SESSION.md「テストの3段構え」参照)。
+# (591文書)の代替にはならない(開発メモ「テストの3段構え」参照)。
 #
 0080-border-collapse/auto-pagebreak-headerfooter.html
 0080-border-collapse/fixed-pagebreak-incell.html

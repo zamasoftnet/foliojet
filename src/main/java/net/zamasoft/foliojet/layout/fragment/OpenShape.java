@@ -42,7 +42,7 @@ public sealed interface OpenShape {
 	 * <p>
 	 * 2026-07-21: 再帰実装(1 + inner.depth())は、深さガード自体が
 	 * 深いOpenChainでStackOverflowErrorに到達しうるという盲点だった
-	 * (ChatGPT Pro相談で指摘、docs/consultations/ANSWER-CHATGPT-2026-07-21-open-chain-full-fix.md)。
+	 * (ChatGPT Pro相談で指摘、設計相談)。
 	 * ガードの判定に使う値が先に落ちては安全網の意味がないため、
 	 * 明示カーソルによる反復へ変更した。
 	 * </p>

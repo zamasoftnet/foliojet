@@ -478,7 +478,7 @@ public final class ElementPropertySet extends PropertySet {
 		// filter(filter-effects-1)、2026-08-29
 		reg(net.zamasoft.foliojet.css.impl.property.box.Filter.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextOverflow.INFO);
-		// @container G2(2026-08-15段2、docs/history/2026-08-15-container-queries-design.md)
+		// @container G2(2026-08-15段2、開発記録)
 		reg(ContainerType.INFO);
 		reg(ContainerName.INFO);
 		put(ContainerShorthand.INFO);

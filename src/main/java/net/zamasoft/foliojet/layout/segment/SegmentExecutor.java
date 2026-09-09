@@ -8,7 +8,7 @@ import net.zamasoft.foliojet.layout.box.INonReplacedBox;
 
 /**
  * 共有Segment executorです(2026-07-24新設、E-6増分3b-1——
- * {@code docs/consultations/consult-e6b-remaining-increments-codex.md}
+ * 設計相談
  * §2.3増分1)。
  *
  * <p>
@@ -42,7 +42,7 @@ import net.zamasoft.foliojet.layout.box.INonReplacedBox;
  * 「同じ論理要素=同じインスタンス」を要求するため、この executor
  * (=1再生セッション)内で{@code elementKey}によりinternし、live経路の
  * {@code CSSElement}共有と同じidentityを再現する(codex裁定——
- * {@code docs/history/2026-07-24-e6-remaining-design-decision.md})。
+ * 開発記録)。
  * </p>
  *
  * <p>

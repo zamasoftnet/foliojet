@@ -7,7 +7,7 @@ import net.zamasoft.foliojet.layout.draw.Drawer;
 
 /**
  * 副作用のない{@link Visitor}です(2026-07-25新設、救済分割・増分5。
- * {@code docs/consultations/consult-rescue-split-codex.md} §3)。
+ * 設計相談 §3)。
  *
  * <p>
  * 救済分割の<b>継続断片</b>({@code offset > 0})を描くあいだだけ実Visitorの

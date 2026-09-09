@@ -11,7 +11,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 /**
  * ある文脈(1つのformatting context)で現在有効な浮動体排除帯の集合です
  * (2026-07-23新設、排除域のConstraintSpace入力化のP0第一段——
- * `docs/consultations/consult-exclusion-zone-codex.txt`の設計に基づく)。
+ * `設計相談`の設計に基づく)。
  *
  * <p>
  * 不変値型。{@code net.zamasoft.foliojet.layout.builder.impl

@@ -119,7 +119,7 @@ public class TallBlockPaginationTest extends TestCase {
 	 * 実物では放棄後の`TextBuilder`が開始のない`INLINE_END`とフォント未設定の
 	 * 字を受け取り、`NullPointerException`で変換ごと失敗していた
 	 * (w3c-jlreq)。合成文書では同じ落ち方をまだ作れていない——再現手順は
-	 * `docs/history/2026-08-17-max-height-clamp-livelock.md`に残してある。
+	 * `開発記録`に残してある。
 	 * </p>
 	 */
 	public void testLivelockDegradesWithoutFailing() throws Exception {

@@ -52,7 +52,7 @@ import net.zamasoft.foliojet.css.value.LengthValue;
  * <b>{@code max()}/{@code min()}は仕様外の近似対応</b>(2026-08-06):
  * 長さの引数だけを対象に、比較して1本の固定長トラックへ畳み込む
  * (yahoo.co.jpの{@code max(44px,4.4rem)}のような単純な用途のみ。
- * {@code docs/PLAN.md}ではなく本クラスのjavadocのみに記録——正式な
+ * 開発計画ではなく本クラスのjavadocのみに記録——正式な
  * サブセット定義には含めない)。
  * </p>
  *

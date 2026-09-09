@@ -41,7 +41,7 @@ public final class ContinuationStats {
 	 *
 	 * <p>
 	 * <b>退役条件(2026-07-24 E-5)</b>: 当初目的(B5d本実装の要否判断)は
-	 * 2026-07-22にclose済み(docs/history/2026-07-22-b5d-closed-no
+	 * 2026-07-22にclose済み(開発記録
 	 * -implementation-needed.md——実測0件+既存の{@code remainder ==
 	 * activeColumn}判定で正しく処理されることを確認)。現在の残置理由は
 	 * {@code ContainerCut.Plain}のsentinel(null/this)が層ごとに異なる
@@ -101,7 +101,7 @@ public final class ContinuationStats {
 	 * M6b Phase B「切断ブロックチェーン」ソース再生化の可視化基盤=B0)。
 	 * ソース再生化が進むほどこの値は0に近づくべき値で、着手前の現状把握と、
 	 * 各段階での box-restyle 依存の縮小を実測するための発火カウンタです
-	 * (docs/consultations/consult-open-chain-replay-*.md参照)。
+	 * (設計相談*.md参照)。
 	 */
 	public static final AtomicLong RESTYLE_CHAIN_FIRINGS = new AtomicLong();
 
@@ -126,7 +126,7 @@ public final class ContinuationStats {
 	 * なお旧{@code LEGACY_RECURSIVE_DESCENTS}(旧再帰driverの発火数)は
 	 * 増分4fで削除した——producerである{@code RECURSIVE_DESCENDER}自体が
 	 * 物理撤去され、常時0の定数と化したため(撤去の証明過程は
-	 * docs/consultations/consult-codex-2026-07-30-*.txtと
+	 * 設計相談*.txtと
 	 * {@code WorklistDescentCensusTest}の履歴に残る)。
 	 * </p>
 	 */
@@ -728,7 +728,7 @@ public final class ContinuationStats {
 			//
 			// ここまで来たライブロックは実在する
 			// (`FloatSplitPlan.classify`の分岐表5の逃げ道へ構造的に到達
-			// できない浮動体。`docs/NEXT-SESSION.md`)。従来はここで
+			// できない浮動体。`開発メモ`)。従来はここで
 			// {@code ContinuationInvariantViolationException}を投げていたが、
 			// それは<b>変換の失敗</b>であり、{@code ARCHITECTURE.md} §5.13 は
 			// 変換の失敗を「常にエンジンの不具合」と定めている

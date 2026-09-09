@@ -74,7 +74,7 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
  * 指定・行軸auto寸法等{@link TableRetentionReason}の理由でもこちらへ
  * ルーティングされる。固定列幅も{@code this.fixed}フィールドで扱う——
  * 「自動レイアウト専用」ではない。詳細はTableLayoutのjavadoc・
- * docs/PLAN.md「C4」参照)。
+ * 開発計画「C4」参照)。
  *
  * @author MIYABE Tatsuhiko
  * @version $Id: RetainedTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
@@ -722,7 +722,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				case MIXED:
 					// calc()による絶対長さ+割合混在の列幅は、このAUTO-layout列幅
 					// 指定APIが前提とする「絶対 or 割合の二択」に収まらないため
-					// 未対応。AUTO(指定なし)として扱い安全側に倒す(docs/PLAN.md参照)。
+					// 未対応。AUTO(指定なし)として扱い安全側に倒す(開発計画参照)。
 				case AUTO:
 					// ignore
 					break;
@@ -807,7 +807,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 						case MIXED:
 							// calc()混在の表セル高さはAUTO-layoutの列高さ交渉アルゴリズムが
 							// 前提とする「絶対 or 割合の二択」に収まらないため未対応。
-							// AUTOと同じ扱いにして安全側に倒す(docs/PLAN.md参照)。
+							// AUTOと同じ扱いにして安全側に倒す(開発計画参照)。
 						case AUTO:
 							spec = des;
 							break;
@@ -840,7 +840,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 						case MIXED:
 							// calc()混在の表セル幅はAUTO-layoutの列幅交渉アルゴリズムが
 							// 前提とする「絶対 or 割合の二択」に収まらないため未対応。
-							// AUTOと同じ扱いにして安全側に倒す(docs/PLAN.md参照)。
+							// AUTOと同じ扱いにして安全側に倒す(開発計画参照)。
 						case AUTO:
 							spec = des;
 							break;

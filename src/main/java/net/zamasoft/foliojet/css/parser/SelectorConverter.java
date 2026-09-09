@@ -261,7 +261,7 @@ public final class SelectorConverter {
 							// :first-of-type は :nth-of-type(1) と等価
 							conditions.add(new NthCondition(ConditionType.NTH_OF_TYPE_CONDITION, 0, 1, "1"));
 						} else if (name.equalsIgnoreCase("last-child")) {
-							// STRUCTURE_SCANで解決(docs/PLAN.md「2パス制御モード」参照)
+							// STRUCTURE_SCANで解決(開発計画「2パス制御モード」参照)
 							conditions.add(new ValueCondition(ConditionType.LAST_CHILD_CONDITION, name));
 						} else if (name.equalsIgnoreCase("only-child")) {
 							conditions.add(new ValueCondition(ConditionType.ONLY_CHILD_CONDITION, name));
@@ -430,7 +430,7 @@ public final class SelectorConverter {
 			return convertNth(ConditionType.NTH_OF_TYPE_CONDITION, fname, param);
 		}
 		if (fname.equalsIgnoreCase("nth-last-child")) {
-			// STRUCTURE_SCANで解決(docs/PLAN.md「2パス制御モード」参照)
+			// STRUCTURE_SCANで解決(開発計画「2パス制御モード」参照)
 			return convertNth(ConditionType.NTH_LAST_CHILD_CONDITION, fname, param);
 		}
 		if (fname.equalsIgnoreCase("nth-last-of-type")) {

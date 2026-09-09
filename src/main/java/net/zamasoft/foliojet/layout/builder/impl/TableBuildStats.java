@@ -50,7 +50,7 @@ public final class TableBuildStats {
 
 	// ---- E-6増分1(2026-07-24): spillableテープ基盤の観測カウンタ群 ----
 	// spill閾値・対象選定の実測基盤。読み取り・max更新のみで挙動には
-	// 影響しない(docs/consultations/consult-e6-spillable-tape-codex.md §3-1)。
+	// 影響しない(設計相談 §3-1)。
 
 	/**
 	 * Retained(表全体保持)1表あたりの行数(header+body+footer)のhigh-water。
