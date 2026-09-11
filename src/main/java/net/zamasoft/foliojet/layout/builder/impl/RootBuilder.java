@@ -1843,7 +1843,7 @@ public class RootBuilder extends BreakableBuilder {
 	static volatile java.util.function.Consumer<ColumnFootnotePlacement> columnFootnoteObserver;
 
 	final void openFootnoteColumn(final BreakableBuilder builder, final Flow flow) {
-		if (this.isBottomFootnoteArea() || this.footnoteArea().isHeightFixed()
+		if (this.isPageBandFootnoteArea() || this.footnoteArea().isHeightFixed()
 				|| !this.isEligibleFootnoteColumnOwner(builder, flow.box)) return;
 		final var owner = flow.box;
 		final var column = owner.getContainer() instanceof net.zamasoft.foliojet.layout.box.content.ColumnsContainer columns
@@ -2051,7 +2051,7 @@ public class RootBuilder extends BreakableBuilder {
 
 	private FootnoteHost selectFootnoteHost(final net.zamasoft.foliojet.layout.builder.LayoutStack parent,
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner) {
-		if (this.isBottomFootnoteArea() || this.footnoteArea().isHeightFixed()) return this.pageFootnoteHost;
+		if (this.isPageBandFootnoteArea() || this.footnoteArea().isHeightFixed()) return this.pageFootnoteHost;
 		return this.columnFootnoteHost != null && this.columnFootnoteHost.owner == owner
 				&& this.isEligibleFootnoteColumnOwner(parent, owner) ? this.columnFootnoteHost : this.pageFootnoteHost;
 	}
@@ -2098,7 +2098,7 @@ public class RootBuilder extends BreakableBuilder {
 	private boolean initialFootnotePagePending;
 
 	private boolean hasFootnotePlan() {
-		return this.isBottomFootnoteArea() && this.pageGenerator.isFootnotePageProbeEnabled();
+		return this.isPageBandFootnoteArea() && this.pageGenerator.isFootnotePageProbeEnabled();
 	}
 
 	private FootnoteEntry bottomFootnote(final long id) {
@@ -2183,12 +2183,33 @@ public class RootBuilder extends BreakableBuilder {
 		return Math.max(box.getPageExtent(flow), box.paintedPageExtent(flow));
 	}
 
-	/** 横組みページのbottomは、従来のblock-end経路へそのまま通します。 */
-	private boolean isBottomFootnoteArea() {
-		return this.pageBox.getUserAgent().getUAContext().getFootnoteArea().position
-				== net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM
-				&& this.pageBox.getBlockParams().flow.isVertical();
+	/**
+	 * 用紙の端に帯を取る配置か(天地)。
+	 *
+	 * <p>
+	 * 帯は版面の<b>行方向</b>(縦組みページなら用紙の縦方向)を削るので、
+	 * 縦組みページでのみ働く。横組みページの{@code bottom}は
+	 * block-endと同じなので従来の経路へそのまま通す。横組みページの
+	 * {@code top}(block-startへ帯を取る)経路はまだ無いので、同じく
+	 * block-endへ落とす——一度だけ警告する。
+	 * </p>
+	 */
+	private boolean isPageBandFootnoteArea() {
+		final net.zamasoft.foliojet.ua.FootnoteArea area = this.footnoteArea();
+		if (!area.isPageBand()) {
+			return false;
+		}
+		if (this.pageBox.getBlockParams().flow.isVertical()) {
+			return true;
+		}
+		if (area.isHeadBand() && !this.warnedHeadBandHorizontal) {
+			this.warnedHeadBandHorizontal = true;
+			LOG.warning("@footnote { float: top } works on vertical pages only; falling back to block-end");
+		}
+		return false;
 	}
+
+	private boolean warnedHeadBandHorizontal;
 
 	/**
 	 * 脚注帯の用紙縦方向の占有量です。領域が横書きならblock方向、縦書きなら
@@ -2196,6 +2217,69 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	public static double footnoteBandExtent(final net.zamasoft.foliojet.layout.box.IBox box) {
 		return Math.max(box.getPageExtent(WritingMode.TB), box.paintedPageExtent(WritingMode.TB));
+	}
+
+	/**
+	 * 地の帯の中も縦組みか(2026-09-11)。
+	 *
+	 * <p>
+	 * 縦組みの本で地に帯を取り、そこへ**縦組みのまま**注を流す作り。
+	 * 横帯(F-1、{@code writing-mode: horizontal-tb})と軸がすべて入れ替わる。
+	 * </p>
+	 *
+	 * <table>
+	 * <caption>帯の軸</caption>
+	 * <tr><th></th><th>横帯</th><th>縦帯</th></tr>
+	 * <tr><td>注の行長</td><td>用紙の横方向の内寸</td><td>帯の高さ(記述子)</td></tr>
+	 * <tr><td>注が並ぶ向き</td><td>用紙の縦方向(上から下)</td><td>用紙の横方向(右から左)</td></tr>
+	 * <tr><td>帯の容量</td><td>帯の高さ</td><td>用紙の横方向の内寸</td></tr>
+	 * </table>
+	 *
+	 * <p>
+	 * 行長は帯の高さから決まるので、縦帯は{@code height}の指定が要る
+	 * (指定が無いと行長が宿主や版面から来て、注が版面の下へはみ出す)。
+	 * 指定が無ければ従来どおり横帯の勘定へ落とし、一度だけ警告する。
+	 * </p>
+	 */
+	private boolean isVerticalFootnoteBand() {
+		if (!this.isPageBandFootnoteArea()) {
+			return false;
+		}
+		final net.zamasoft.foliojet.ua.FootnoteArea area = this.footnoteArea();
+		final WritingMode band = area.flow == null ? this.pageBox.getBlockParams().flow : area.flow;
+		if (!band.isVertical()) {
+			return false;
+		}
+		if (!area.isHeightFixed()) {
+			if (!this.warnedVerticalBandHeight) {
+				this.warnedVerticalBandHeight = true;
+				LOG.warning("@footnote { float: bottom } with a vertical writing-mode needs an explicit height;"
+						+ " the note line length is the band height");
+			}
+			return false;
+		}
+		return true;
+	}
+
+	private boolean warnedVerticalBandHeight;
+
+	/**
+	 * 帯の中で注が占める量です。横帯は用紙の縦方向、縦帯は用紙の横方向。
+	 * 注が並ぶ向きの測度なので、帯の容量と同じ軸で測る。
+	 */
+	private double footnoteBandCost(final net.zamasoft.foliojet.layout.box.IBox box) {
+		if (!this.isVerticalFootnoteBand()) {
+			return footnoteBandExtent(box);
+		}
+		final WritingMode pageFlow = this.pageBox.getBlockParams().flow;
+		return Math.max(box.getPageExtent(pageFlow), box.paintedPageExtent(pageFlow));
+	}
+
+	/** 帯の容量です。横帯は帯の高さ、縦帯は用紙の横方向の内寸。 */
+	private double footnoteBandCapacity() {
+		return this.isVerticalFootnoteBand()
+				? this.pageBox.getInnerPageExtent(this.pageBox.getBlockParams().flow)
+				: this.pageBandInset();
 	}
 
 	private static final double MAX_FOOT_AREA_RATIO = 0.6;
@@ -2207,7 +2291,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * block軸のfootnoteReservationは0のままなので、上下浮動体の容量も不変です。
 	 */
 	private void beginPage() {
-		if (!this.isBottomFootnoteArea()) {
+		if (!this.isPageBandFootnoteArea()) {
 			if (this.footnoteArea().isHeightFixed() || this.footnoteArea().minHeight > 0) {
 				this.pageFootnoteHost.footnoteUsed = 0;
 				this.pageFootnoteHost.footnoteReservation = this.requestedFootnoteArea(this.blockFootnoteMaxArea());
@@ -2236,7 +2320,7 @@ public class RootBuilder extends BreakableBuilder {
 	private void reserveBottomFootnotes() {
 		if (this.footnoteArea().isHeightFixed()) {
 			final double maxArea = Math.max(0, this.pageBox.getInnerHeight()) * MAX_FOOT_AREA_RATIO;
-			this.pageBox.reserveFootArea(this.requestedFootnoteArea(maxArea));
+			this.reservePageBand(this.requestedFootnoteArea(maxArea));
 			this.reserveFixedFootnotes();
 			return;
 		}
@@ -2301,19 +2385,39 @@ public class RootBuilder extends BreakableBuilder {
 			if (observer != null) observer.accept(new FootnotePlanSnapshot(this.pageGeneration, report != null, usable, finished,
 					inset, java.util.Set.copyOf(this.footnotePlan.keySet())));
 		}
-		this.pageBox.reserveFootArea(minimum > 0 ? Math.max(minimum, inset) : inset);
+		this.reservePageBand(minimum > 0 ? Math.max(minimum, inset) : inset);
+	}
+
+	/**
+	 * 用紙の端の帯を予約します。地は版面の高さを縮めるだけ、天はそれに加えて
+	 * 本文の内容原点を帯の分だけ下げる({@code PageBox.reserveHeadArea})。
+	 */
+	private void reservePageBand(final double inset) {
+		if (this.footnoteArea().isHeadBand()) {
+			this.pageBox.reserveHeadArea(inset);
+		} else {
+			this.pageBox.reserveFootArea(inset);
+		}
+	}
+
+	/** 帯の予約量です。天地どちらの取り代かを吸収します。 */
+	private double pageBandInset() {
+		return this.footnoteArea().isHeadBand() ? this.pageBox.getHeadInset() : this.pageBox.getFootInset();
 	}
 
 	/** 固定帯は伸ばさず、完成した注にだけFIFOで予約資格を与えます。 */
 	private void reserveFixedFootnotes() {
 		this.footnotePlan.clear();
 		this.pageFootnoteHost.footnoteReservedCount = 0;
-		final double capacity = this.isBottomFootnoteArea() ? this.pageBox.getFootInset() : this.pageFootnoteHost.footnoteReservation;
+		// 縦帯は注が用紙の横方向に並ぶので、容量も測度もその軸で取る。
+		// 本文との間隙は用紙の縦方向にあり、横方向の容量からは引かない。
+		final boolean verticalBand = this.isVerticalFootnoteBand();
+		final double capacity = this.isPageBandFootnoteArea() ? this.footnoteBandCapacity() : this.pageFootnoteHost.footnoteReservation;
 		double used = 0;
 		for (final FootnoteEntry entry : this.pageFootnoteHost.pendingFootnotes) {
 			if (entry.noteBox == null || (entry.deferred && !entry.committed && !this.forceFootnoteAttach)) break;
-			final double extent = this.isBottomFootnoteArea() ? footnoteBandExtent(entry.noteBox) : this.footnoteExtent(entry.noteBox);
-			final double cost = (this.pageFootnoteHost.footnoteReservedCount == 0 ? FOOTNOTE_GAP : 0) + extent;
+			final double extent = this.isPageBandFootnoteArea() ? this.footnoteBandCost(entry.noteBox) : this.footnoteExtent(entry.noteBox);
+			final double cost = (!verticalBand && this.pageFootnoteHost.footnoteReservedCount == 0 ? FOOTNOTE_GAP : 0) + extent;
 			if (used + cost > capacity) {
 				// 単独でも入らない注は呼び出しを確定してから次ページで溢れさせる。
 				if (this.pageFootnoteHost.footnoteReservedCount == 0 && (entry.committed || this.forceFootnoteAttach)) {
@@ -2373,9 +2477,9 @@ public class RootBuilder extends BreakableBuilder {
 			this.reserveFixedFootnotes();
 			return;
 		}
-		if (this.isBottomFootnoteArea()) {
+		if (this.isPageBandFootnoteArea()) {
 			final double noteExtent = this.footnoteBandExtent(noteBox);
-			final double maxArea = Math.max(0, this.pageBox.getInnerHeight() + this.pageBox.getFootInset())
+			final double maxArea = Math.max(0, this.pageBox.getInnerHeight() + this.pageBandInset())
 					* MAX_FOOT_AREA_RATIO;
 			if (FOOTNOTE_GAP + noteExtent > maxArea && !this.warnedOversizedFootnote) {
 				this.warnedOversizedFootnote = true;
@@ -2441,7 +2545,7 @@ public class RootBuilder extends BreakableBuilder {
 			this.reserveFixedFootnotes();
 			return;
 		}
-		if (this.isBottomFootnoteArea()) {
+		if (this.isPageBandFootnoteArea()) {
 			// 地の帯はbeginPageで固定済み。ページ途中の注は予約しない。
 			return;
 		}
@@ -3238,7 +3342,7 @@ public class RootBuilder extends BreakableBuilder {
 		final FootnoteCallScan columnPageScan = this.columnPageEntries.isEmpty() ? null : this.scanFootnoteCalls(this.pageBox);
 		if (columnPageScan != null) this.numberColumnPageFootnotes(columnPageScan);
 		if (this.pageFootnoteHost.pendingFootnotes.isEmpty()) {
-			final double emptyArea = !this.isBottomFootnoteArea()
+			final double emptyArea = !this.isPageBandFootnoteArea()
 					&& (this.footnoteArea().isHeightFixed() || this.footnoteArea().minHeight > 0)
 					? this.pageFootnoteHost.footnoteReservation : 0;
 			this.pageFootnoteHost.footnoteReservedCount = 0;
@@ -3276,15 +3380,17 @@ public class RootBuilder extends BreakableBuilder {
 				if (planned) {
 					final FootnoteReservation reservation = this.footnotePlan.get(entry.id);
 					if (entry.noteBox == null || reservation == null) break;
-					final double height = this.isBottomFootnoteArea() ? footnoteBandExtent(entry.noteBox) : this.footnoteExtent(entry.noteBox);
-					final double capacity = this.isBottomFootnoteArea() ? this.pageBox.getFootInset() : this.pageFootnoteHost.footnoteReservation;
+					final double height = this.isPageBandFootnoteArea() ? this.footnoteBandCost(entry.noteBox) : this.footnoteExtent(entry.noteBox);
+					final double capacity = this.isPageBandFootnoteArea() ? this.footnoteBandCapacity() : this.pageFootnoteHost.footnoteReservation;
+					// 縦帯の間隙は用紙の縦方向。注が並ぶ横方向の勘定には入らない。
+					final double gap = this.isVerticalFootnoteBand() ? 0 : FOOTNOTE_GAP;
 					if (!(i == 0 && reservation.oversized())
 							&& (net.zamasoft.foliojet.layout.util.LayoutUtils.compare(height, reservation.height()) > 0
-									|| net.zamasoft.foliojet.layout.util.LayoutUtils.compare(FOOTNOTE_GAP + attachedExtent + height, capacity) > 0)) break;
+									|| net.zamasoft.foliojet.layout.util.LayoutUtils.compare(gap + attachedExtent + height, capacity) > 0)) break;
 				}
 				++attachCount;
-				if (this.isBottomFootnoteArea()) {
-					attachedExtent += this.footnoteBandExtent(entry.noteBox);
+				if (this.isPageBandFootnoteArea()) {
+					attachedExtent += this.footnoteBandCost(entry.noteBox);
 				} else {
 					attachedExtent += this.footnoteExtent(entry.noteBox);
 				}
@@ -3321,16 +3427,22 @@ public class RootBuilder extends BreakableBuilder {
 				}
 			}
 		}
-		final double base = this.isBottomFootnoteArea() ? super.getPageLimit() : this.pageFootnoteHost.capacityBase.getAsDouble();
-		final boolean sizedBlockArea = !this.isBottomFootnoteArea()
+		final double base = this.isPageBandFootnoteArea() ? super.getPageLimit() : this.pageFootnoteHost.capacityBase.getAsDouble();
+		final boolean sizedBlockArea = !this.isPageBandFootnoteArea()
 				&& (this.footnoteArea().isHeightFixed() || this.footnoteArea().minHeight > 0);
 		final double blockArea = sizedBlockArea ? this.pageFootnoteHost.footnoteReservation : 0;
 		double pageAxis = sizedBlockArea ? base - blockArea + FOOTNOTE_GAP : base - attachedExtent;
-		// 地の帯は予約領域の上端から並べる。巨大注も本文側へはみ出させない。
+		// 帯は予約領域の行方向の始端から並べる。巨大注も本文側へはみ出させない。
+		// 地は版面の下端の外(正)、天は内容原点の上(負)——天は
+		// PageBox.reserveHeadArea が内容原点を帯の分だけ下げてあるので、
+		// 帯の始端は -取り代 になる。
 		double lineAxis = 0;
-		if (this.isBottomFootnoteArea()) {
-			lineAxis = this.pageBox.getInnerHeight() + FOOTNOTE_GAP;
+		if (this.isPageBandFootnoteArea()) {
+			lineAxis = this.footnoteArea().isHeadBand() ? -this.pageBox.getHeadInset()
+					: this.pageBox.getInnerHeight() + FOOTNOTE_GAP;
 		}
+		// 縦帯で注が並ぶ用紙の横方向の位置(block-startからの送り)。
+		double bandPageAxis = 0;
 		for (int i = 0; i < attachCount; ++i) {
 			final FootnoteEntry entry = this.pageFootnoteHost.pendingFootnotes.removeFirst();
 			if (planned) this.bottomFootnotes.remove(entry.id);
@@ -3348,28 +3460,38 @@ public class RootBuilder extends BreakableBuilder {
 					}
 				}
 			}
-			if (this.isBottomFootnoteArea()) {
+			if (this.isPageBandFootnoteArea()) {
 				// addFloatingは物理x/yではなく(lineAxis, pageAxis)。縦組みでは行軸がy。
-				// 帯の中では注を用紙の左端に揃える。RL では pageAxis の原点が右端
-				// なので、注の幅(page 方向の伸び)の分だけ引く——持ち越し先の
-				// ページが呼び出しのページより狭くても左端から溢れさせない
 				final WritingMode pageFlow = this.pageBox.getBlockParams().flow;
-				final double notePageAxis = pageFlow == WritingMode.RL
-						? this.pageBox.getInnerPageExtent(pageFlow) - entry.noteBox.getPageExtent(pageFlow)
-						: 0;
-				this.pageBox.getContainer().addFloating(entry.noteBox, lineAxis, notePageAxis);
-				lineAxis += this.footnoteBandExtent(entry.noteBox);
+				if (this.isVerticalFootnoteBand()) {
+					// 縦帯(2026-09-11): 注は帯の上端に行頭を揃えて**横方向に並ぶ**。
+					// pageAxis の原点は block-start(RLなら右端)なので、そこから
+					// 注の幅だけ左へ送っていく。lineAxis は全部の注で帯の上端のまま。
+					this.pageBox.getContainer().addFloating(entry.noteBox, lineAxis, bandPageAxis);
+					bandPageAxis += this.footnoteBandCost(entry.noteBox);
+				} else {
+					// 横帯: 注を用紙の左端に揃える。RL では pageAxis の原点が右端
+					// なので、注の幅(page 方向の伸び)の分だけ引く——持ち越し先の
+					// ページが呼び出しのページより狭くても左端から溢れさせない
+					final double notePageAxis = pageFlow == WritingMode.RL
+							? this.pageBox.getInnerPageExtent(pageFlow) - entry.noteBox.getPageExtent(pageFlow)
+							: 0;
+					this.pageBox.getContainer().addFloating(entry.noteBox, lineAxis, notePageAxis);
+					lineAxis += this.footnoteBandExtent(entry.noteBox);
+				}
 			} else {
 				this.pageFootnoteHost.addFloating(entry.noteBox, pageAxis);
 				pageAxis += this.footnoteExtent(entry.noteBox);
 			}
 			this.pageFootnoteHost.footnoteProgressed = true;
 		}
-		if (this.isBottomFootnoteArea()) {
+		if (this.isPageBandFootnoteArea()) {
 			if (attachCount > 0) {
 				final net.zamasoft.foliojet.ua.FootnoteArea area = this.pageBox.getUserAgent()
 						.getUAContext().getFootnoteArea();
-				this.pageBox.setFootnoteSeparatorLineAxis(this.pageBox.getInnerHeight() + FOOTNOTE_GAP / 2,
+				// 罫線は本文と帯の間隙の中央。天の帯では内容原点より上なので負になる。
+				this.pageBox.setFootnoteSeparatorLineAxis(
+						area.isHeadBand() ? -FOOTNOTE_GAP / 2 : this.pageBox.getInnerHeight() + FOOTNOTE_GAP / 2,
 						area.flow == null ? this.pageBox.getBlockParams().flow : area.flow);
 			}
 			this.pageFootnoteHost.footnoteReservedCount = 0;

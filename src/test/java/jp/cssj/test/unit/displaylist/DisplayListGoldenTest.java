@@ -542,6 +542,12 @@ public class DisplayListGoldenTest extends TestCase {
 			// 和文詰めT1b(2026-07-31/2026-08-23)。normal/trim-start/
 			// space-allの行頭と連続約物の対比を固定する
 			"0510-text-spacing/trim-pairs.html", //
+			// 縦組みの地の帯に縦組みのまま注を流す(2026-09-11)。それまでは注1頁目に出ず、
+			// 本文が1頁から3頁へ膨らみ、注は版面の左下へ流れて紙からはみ出していた
+			"0125-footnote/footnote-bottom-vertical-band.html", //
+			// 天の帯(頭注)。本文の開始を帯の分だけ下げる(2026-09-11)
+			"0125-footnote/footnote-top-vertical-band.html", //
+			"0125-footnote/footnote-top-horizontal-band.html", //
 			// 内蔵CIDフォントの幅表。半角の範囲を CID 635 までとしていたため、
 			// 　、。(CID 633〜635)だけが半角で送られ、句読点の直後の字が
 			// 詰まって見えていた(2026-09-11)

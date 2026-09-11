@@ -1,0 +1,13 @@
+drawer z=0
+  x=0.00 y=0.40 FootnoteLabel["1. " w=12.00 h=8.00]
+  x=12.00 y=0.00 Text["注の一。縦組みのまま天の帯へ流したい。" asc=8.40 desc=3.60]
+  x=0.00 y=12.40 FootnoteLabel["2. " w=12.00 h=8.00]
+  x=12.00 y=12.00 Text["注の二。番号は呼び出しの順。" asc=8.40 desc=3.60]
+  x=245.00 y=30.00 Text["本文の一行目です" asc=7.50 desc=7.50]
+  x=256.39 y=110.00 FootnoteLabel["1" w=3.32 h=6.64]
+  x=245.00 y=116.64 Text["続きの本文" asc=7.50 desc=7.50]
+  x=256.39 y=166.64 FootnoteLabel["2" w=3.32 h=6.64]
+  x=230.00 y=30.00 Text["そして終わり。" asc=7.50 desc=7.50]
+  x=215.00 y=30.00 Text["二段落目の本文です。" asc=7.50 desc=7.50]
+  x=200.00 y=30.00 Text["三段落目の本文です。" asc=7.50 desc=7.50]
+  x=0.00 y=26.75 artifact FootnoteSeparator[w=86.67 h=0.50]

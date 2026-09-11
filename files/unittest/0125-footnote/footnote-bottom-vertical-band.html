@@ -1,0 +1,41 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="220pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>footnote: vertical band at the foot of a vertical page</title>
+<!--
+  縦組みの本で地に帯を取り、そこへ**縦組みのまま**注を流す(2026-09-11)。
+  日本語の縦組みの脚注はこの作りが普通で、F-1 の横帯
+  (writing-mode: horizontal-tb)とは軸がすべて入れ替わる。
+
+  それまでは注が1頁目に出ず、本文が1頁から3頁に膨らみ、注は版面の左下へ
+  流れて紙からはみ出していた。原因は2つ。
+    - 注の行長が与えられていなかった(縦組みの inline 軸は物理の高さなので、
+      横帯の width に当たるのは height)
+    - 帯の容量と注の測度が用紙の縦方向で取られていた(縦帯では注は横方向に並ぶ)
+
+  この fixture が押さえること:
+    - 帯は版面の下端 y=130(内寸124+間隙6)から高さ50pt(記述子56−間隙6)
+    - 注は帯の上端に行頭を揃え、**右から左へ**並ぶ
+      (注一 x=248→212、注二 x=200→176)
+    - 呼び出しと同じ頁に両方入り、番号は呼び出し順
+    - 罫線は帯の直上、小口側から版面幅の1/3
+-->
+<style>
+@page {
+  margin: 20pt;
+  @footnote { float: bottom; height: 56pt; writing-mode: vertical-rl }
+}
+body { margin: 0; font-size: 10pt; line-height: 15pt; writing-mode: vertical-rl; }
+p { margin: 0; }
+.note { float: footnote; font-size: 8pt; line-height: 12pt; }
+</style>
+</head>
+<body>
+<p>本文の一行目です<span id="n1" class="note">注の一。縦組みのまま地の帯へ流したい。</span>続きの本文<span id="n2" class="note">注の二。番号は呼び出しの順。</span>そして終わり。</p>
+<p>二段落目の本文です。</p>
+<p>三段落目の本文です。</p>
+</body>
+</html>

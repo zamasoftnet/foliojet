@@ -1,0 +1,38 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="220pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>footnote: horizontal band at the head of a vertical page</title>
+<!--
+  縦組みの本で天に帯を取り、そこへ**横組みで**注を流す＝横組みの頭注(2026-09-11)。
+  `footnote-top-vertical-band.html` の帯の中だけ横組みにした形で、
+  **帯の高さを指定しない**(auto)経路も通す。
+
+  天の帯は本文の開始を帯の分だけ下げる。`PageBox.reserveHeadArea` が版面の
+  padding-top を増やして内容原点を下げ、同じだけ内寸を縮める。
+
+  この fixture が押さえること(座標は表示リストの実測):
+    - 帯は版面の上端 y=0〜24pt(注2行ぶん。高さ指定なしなので内容で決まる)
+    - **本文は帯の下 y=30 から始まる**(帯24 + 間隙6)
+    - 注は横組みで、版面の行頭(x=0)から並ぶ
+    - 呼び出しと同じ頁に両方入り、番号は呼び出し順
+    - 罫線は帯と本文の間隙の中央 y=26.75、行頭から版面幅の1/3
+-->
+<style>
+@page {
+  margin: 20pt;
+  @footnote { float: top; writing-mode: horizontal-tb }
+}
+body { margin: 0; font-size: 10pt; line-height: 15pt; writing-mode: vertical-rl; }
+p { margin: 0; }
+.note { float: footnote; font-size: 8pt; line-height: 12pt; }
+</style>
+</head>
+<body>
+<p>本文の一行目です<span id="n1" class="note">注の一。縦組みのまま天の帯へ流したい。</span>続きの本文<span id="n2" class="note">注の二。番号は呼び出しの順。</span>そして終わり。</p>
+<p>二段落目の本文です。</p>
+<p>三段落目の本文です。</p>
+</body>
+</html>

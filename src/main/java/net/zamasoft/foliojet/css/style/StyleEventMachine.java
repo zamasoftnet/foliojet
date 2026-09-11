@@ -516,7 +516,7 @@ final class StyleEventMachine {
 		}
 		if (footnote) {
 			final net.zamasoft.foliojet.ua.FootnoteArea area = this.ua.getUAContext().getFootnoteArea();
-			final boolean bottomBand = area.position == net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM
+			final boolean bottomBand = area.isPageBand()
 					&& this.pageSequence.getProgression().isVertical();
 			// 地の帯はページ開始時に一度予約するので、段ごとの容量差を作らない。
 			for (CSSStyle ancestor = style.getParentStyle(); !bottomBand && ancestor != null; ancestor = ancestor
@@ -553,7 +553,7 @@ final class StyleEventMachine {
 				default -> net.zamasoft.foliojet.css.value.BlockFlowValue.TB_VALUE;
 				}, CSSStyle.MODE_IMPORTANT);
 			}
-			if (area.position == net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM
+			if (area.isPageBand()
 					&& this.pageSequence.getProgression().isVertical() && page == WritingMode.TB) {
 				// 箱と再生用recipeが寸法を捕捉する前に、横書きの行長を版面幅へ。
 				// 縦組み本文の行長や、図・表など元の宿主の幅は使わない。
@@ -575,9 +575,31 @@ final class StyleEventMachine {
 					style.set(Margin.RIGHT, AbsoluteLengthValue.ZERO, CSSStyle.MODE_IMPORTANT);
 				}
 			}
+			if (area.isPageBand()
+					&& this.pageSequence.getProgression().isVertical() && page.isVertical()
+					&& area.isHeightFixed()) {
+				// 縦組みの地の帯(2026-09-11)。帯の中も縦組みのとき、注の
+				// **行長は帯の用紙縦方向の内寸**になる——縦組みでは inline 軸が
+				// 物理の高さなので、横帯の width に当たるのは height。
+				// これを与えないと行長が宿主や版面から来て、注が版面の下へ
+				// はみ出して切れる(実測: 220ptの紙で y=86→230 まで伸びた)。
+				//
+				// 帯の寸法記述子は間隙込みなので、行長は間隙を引いた分。
+				final double band = area.height.doubleValue() - FOOTNOTE_BAND_GAP;
+				if (band > 0) {
+					style.set(Height.INFO, AbsoluteLengthValue.create(this.ua, band), CSSStyle.MODE_IMPORTANT);
+					style.set(BoxSizing.INFO, net.zamasoft.foliojet.css.value.css3.BoxSizingValue.BORDER_BOX_VALUE,
+							CSSStyle.MODE_IMPORTANT);
+					style.set(Margin.TOP, AbsoluteLengthValue.ZERO, CSSStyle.MODE_IMPORTANT);
+					style.set(Margin.BOTTOM, AbsoluteLengthValue.ZERO, CSSStyle.MODE_IMPORTANT);
+				}
+			}
 		}
 		return footnote;
 	}
+
+	/** 地の帯と本文の間の空きです({@code RootBuilder.FOOTNOTE_GAP}と同値)。 */
+	private static final double FOOTNOTE_BAND_GAP = 6;
 
 	/**
 	 * 表を開く前に外置きリストマーカーを確定させます(セル内容への混入を防ぐ)。

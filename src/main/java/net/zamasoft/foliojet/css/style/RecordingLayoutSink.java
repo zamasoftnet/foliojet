@@ -158,8 +158,7 @@ final class RecordingLayoutSink {
 		if (this.closed || this.inputDelivered || this.probe != null
 				|| page.getUserAgent().getUAContext().getFootnoteArea().isHeightFixed()
 				|| !page.getBlockParams().flow.isVertical()
-				|| page.getUserAgent().getUAContext().getFootnoteArea().position
-						!= net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM) return;
+				|| !page.getUserAgent().getUAContext().getFootnoteArea().isPageBand()) return;
 		this.pageWindow = page.getUserAgent().getRetainedTextLimit().pageWindow();
 		this.deliveryLease = this.layoutSource.retainFrom(0);
 		// NFCは入力呼び出し単位で適用されるので、その場合だけ元の文字境界を保つ。

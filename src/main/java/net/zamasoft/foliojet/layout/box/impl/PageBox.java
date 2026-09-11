@@ -106,6 +106,49 @@ public class PageBox extends AbstractBlockBox {
 		return this.footInset;
 	}
 
+	/**
+	 * 天の脚注帯(頭注、2026-09-11)。
+	 *
+	 * <p>
+	 * 地の帯は版面の<b>高さを縮めるだけ</b>で足りる——本文は上端から
+	 * 始まったまま短くなり、注は縮んだ分の下へ置ける。天の帯はそれに
+	 * 加えて<b>本文の開始を帯の分だけ下げる</b>必要がある。
+	 * </p>
+	 *
+	 * <p>
+	 * 下げ方は<b>版面のpadding-topを増やす</b>。{@code getFrameTop()}が
+	 * 内容原点の位置そのものなので、これで本文の行頭が帯の下から始まる。
+	 * 同時に内寸を同じだけ縮めるので、{@code getHeight()}
+	 * ({@code = height + frame.getFrameHeight()})も
+	 * {@code getVisualHeight()}も<b>値が変わらない</b>——用紙の外寸と余白は
+	 * そのまま保たれ、地の帯のように元の寸法を控えておく必要がない。
+	 * </p>
+	 *
+	 * <p>
+	 * 注は内容原点より上、すなわち<b>負の行方向位置</b>へ置く
+	 * ({@code RootBuilder}が{@code lineAxis = -inset}から並べる)。
+	 * 地の帯が内寸より下(正の外側)へ置くのと対称。
+	 * </p>
+	 */
+	public void reserveHeadArea(final double inset) {
+		assert this.headInset == 0;
+		if (inset == 0) {
+			return;
+		}
+		assert inset > 0 && inset <= this.height;
+		this.headInset = inset;
+		this.height -= inset;
+		this.visualHeight -= inset;
+		this.frame.padding.top += inset;
+	}
+
+	/** 天の脚注帯。本文の内容原点をこの分だけ下げてあります。 */
+	private double headInset = 0;
+
+	public double getHeadInset() {
+		return this.headInset;
+	}
+
 	@Override
 	public final double getHeight() {
 		if (this.footInset != 0) {
@@ -690,8 +733,16 @@ public class PageBox extends AbstractBlockBox {
 		this.footnoteSeparatorAxis = pageAxis;
 	}
 
-	/** 地の帯の罫線位置(本文内辺原点の行方向)と、領域の向きです。 */
-	private double footnoteSeparatorLineAxis = -1;
+	/**
+	 * 用紙の端の帯の罫線位置(本文内辺原点の行方向)と、領域の向きです。
+	 *
+	 * <p>
+	 * 天の帯では内容原点より上、すなわち<b>負</b>になる(2026-09-11)。
+	 * 未設定は{@code NaN}で表す——負を番兵にしていたので頭注の罫線が
+	 * 黙って消えていた。
+	 * </p>
+	 */
+	private double footnoteSeparatorLineAxis = Double.NaN;
 	private WritingMode footnoteSeparatorFlow;
 
 	public void setFootnoteSeparatorLineAxis(final double lineAxis, final WritingMode flow) {
@@ -724,7 +775,7 @@ public class PageBox extends AbstractBlockBox {
 				drawer.artifactView().visitDrawable(new FootnoteSeparatorDrawable(this, rect), rect.x, rect.y);
 			}
 		}
-		if (this.footnoteSeparatorLineAxis >= 0) {
+		if (!Double.isNaN(this.footnoteSeparatorLineAxis)) {
 			final double length = this.getInnerWidth() / 3;
 			final double x = this.frame.getFrameLeft() - this.frame.margin.left
 					+ (this.footnoteSeparatorFlow == WritingMode.RL ? this.getInnerWidth() - length : 0);

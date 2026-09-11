@@ -333,7 +333,7 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 
 	@Override
 	public boolean isFootnotePageProbeEnabled() {
-		return this.ua.getUAContext().getFootnoteArea().position == net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM
+		return this.ua.getUAContext().getFootnoteArea().isPageBand()
 				&& !this.ua.getUAContext().getFootnoteArea().isHeightFixed()
 				&& this.pageSequence.getProgression().isVertical();
 	}

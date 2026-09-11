@@ -255,7 +255,9 @@ public class FootnoteAreaRuleTest extends TestCase {
 		final List<Short> warnings = new ArrayList<>();
 		final PDFUserAgent ua = new PDFUserAgent() { };
 		try {
-			parse(ua, "@page :first, :left { @footnote { float: bottom; float: top;"
+			// float: top は 2026-09-11 に対応した(頭注)ので、未対応の例は
+			// inline-start へ差し替えた。対応した側は下で確かめる
+			parse(ua, "@page :first, :left { @footnote { float: bottom; float: inline-start;"
 					+ " writing-mode: sideways-rl; max-height: 50pt; color: red } }", warnings);
 			assertEquals(FootnoteArea.Position.BLOCK_END, ua.getUAContext().getFootnoteArea().position);
 			assertNull(ua.getUAContext().getFootnoteArea().flow);
@@ -263,6 +265,16 @@ public class FootnoteAreaRuleTest extends TestCase {
 			for (final short code : warnings) {
 				assertEquals(MessageCodes.WARN_BAD_CSS_SYNTAX, code);
 			}
+			warnings.clear();
+			parse(ua, "@footnote { float: top }", warnings);
+			assertEquals("天の帯(頭注)", FootnoteArea.Position.TOP,
+					ua.getUAContext().getFootnoteArea().position);
+			assertTrue("天も帯", ua.getUAContext().getFootnoteArea().isPageBand());
+			assertTrue("天であること", ua.getUAContext().getFootnoteArea().isHeadBand());
+			assertEquals("対応した値は警告しない", 0, warnings.size());
+			parse(ua, "@footnote { float: bottom }", warnings);
+			assertTrue("地も帯", ua.getUAContext().getFootnoteArea().isPageBand());
+			assertFalse("地は天ではない", ua.getUAContext().getFootnoteArea().isHeadBand());
 			parse(ua, "@footnote { writing-mode: vertical-lr } @footnote { writing-mode: bad }", warnings);
 			assertEquals("不正な向きは直前の有効値を消さない", WritingMode.LR,
 					ua.getUAContext().getFootnoteArea().flow);

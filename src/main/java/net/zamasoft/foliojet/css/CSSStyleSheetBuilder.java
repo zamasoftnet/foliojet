@@ -230,6 +230,10 @@ public class CSSStyleSheetBuilder {
 			case "float":
 				if ("bottom".equals(value)) {
 					area = area.withPosition(net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM);
+				} else if ("top".equals(value)) {
+					// 天の帯(頭注、2026-09-11)。縦組みページでのみ働く——
+					// 横組みページのblock-startへ帯を取る経路はまだ無い
+					area = area.withPosition(net.zamasoft.foliojet.ua.FootnoteArea.Position.TOP);
 				} else {
 					area = area.withPosition(net.zamasoft.foliojet.ua.FootnoteArea.Position.BLOCK_END);
 					supported = "block-end".equals(value);
