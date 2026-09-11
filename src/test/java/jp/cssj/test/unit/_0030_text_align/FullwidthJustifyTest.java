@@ -21,7 +21,8 @@ public class FullwidthJustifyTest extends AbstractTestCase {
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println(x);
-			assertEquals(29.28, x, 1);
+			// 内蔵CIDフォントの幅表を直し、　、。が全角に戻った(2026-09-11)
+			assertEquals(50.44, x, 1);
 			return true;
 		}
 		return false;

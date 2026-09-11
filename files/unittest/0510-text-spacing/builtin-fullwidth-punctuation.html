@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>built-in CID font: fullwidth punctuation advances</title>
+<style type="text/css">
+/*
+  内蔵のCIDフォント(AJ17UniJIS-Mincho)の字送りを固定する。
+  フォントを埋め込まないことがこのfixtureの要点なので
+  font-family は serif のままにする。
+
+  幅表(pdfg2d warrays/monospace_jis.txt)の半角範囲を CID 635 までと
+  していたため、　(CID 633)、(634)。(635) だけが半角で送られて
+  いた(2026-09-11)。右寄せなので、行の x がそのまま実効幅を表す。
+  120pt の箱に 12pt の字を流すので、3字の行は x=84.00 が正しい。
+  半角化されると x=90.00 になる。
+*/
+@page { margin: 0; size: 200pt 200pt; }
+body { font-size: 12pt; line-height: 1.2; margin: 0; font-family: serif; }
+p { margin: 0; width: 120pt; text-align: end; text-spacing-trim: space-all; }
+</style>
+</head>
+<body>
+<p id="aaa">あああ</p>
+<p id="ideographic-space">あ　あ</p>
+<p id="comma">あ、あ</p>
+<p id="full-stop">あ。あ</p>
+<p id="fullwidth-comma">あ，あ</p>
+<p id="middle-dot">あ・あ</p>
+<p id="brackets">「あ」</p>
+</body>
+</html>

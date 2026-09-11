@@ -7,5 +7,5 @@ drawer z=0
   x=-6.00 y=72.49 Text["「う" asc=10.80 desc=3.60]
   x=6.00 y=86.89 Text["「あ" asc=10.80 desc=3.60]
   x=0.00 y=101.29 Text["「あ" asc=10.80 desc=3.60]
-  x=42.00 y=115.69 Text["ああ。" asc=10.80 desc=3.60]
+  x=36.00 y=115.69 Text["ああ。" asc=10.80 desc=3.60]
   x=48.00 y=130.09 Text["ああ。" asc=10.80 desc=3.60]

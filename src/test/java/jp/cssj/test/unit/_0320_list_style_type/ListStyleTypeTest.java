@@ -30,7 +30,8 @@ public class ListStyleTypeTest extends AbstractTestCase {
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println(x);
-			assertEquals(50, x, 0);
+			// 内蔵CIDフォントの幅表を直し、　、。が全角に戻った(2026-09-11)
+			assertEquals(55, x, 0);
 			return true;
 		}
 		return false;

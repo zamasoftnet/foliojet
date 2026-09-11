@@ -48,7 +48,8 @@ public class TChuYTest extends AbstractTestCase {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			System.out.println("width: " + box.getWidth());
-			assertEquals(136, x, 0);
+			// 内蔵CIDフォントの幅表を直し、　、。が全角に戻った(2026-09-11)
+			assertEquals(146, x, 0);
 			assertEquals(136, y, 1);
 			assertEquals(30, box.getWidth(), 0);
 			return true;

@@ -20,7 +20,8 @@ public class RulesAllTest extends AbstractTestCase {
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.TABLE) {
 			System.out.println(box.getWidth());
-			assertEquals(72, box.getWidth(), 0);
+			// 内蔵CIDフォントの幅表を直し、　、。が全角に戻った(2026-09-11)
+			assertEquals(82, box.getWidth(), 0);
 			return true;
 		}
 		return false;

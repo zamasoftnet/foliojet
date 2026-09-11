@@ -542,6 +542,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// 和文詰めT1b(2026-07-31/2026-08-23)。normal/trim-start/
 			// space-allの行頭と連続約物の対比を固定する
 			"0510-text-spacing/trim-pairs.html", //
+			// 内蔵CIDフォントの幅表。半角の範囲を CID 635 までとしていたため、
+			// 　、。(CID 633〜635)だけが半角で送られ、句読点の直後の字が
+			// 詰まって見えていた(2026-09-11)
+			"0510-text-spacing/builtin-fullwidth-punctuation.html", //
 			// CSS Text 4の行端ポリシー。trim-both/autoの無条件行末詰めと、
 			// space-firstの初行・強制改行直後・自動折返しの差を固定する
 			"0510-text-spacing/trim-line-edges.html", //

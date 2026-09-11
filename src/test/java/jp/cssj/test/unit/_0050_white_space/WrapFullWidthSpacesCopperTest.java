@@ -38,7 +38,9 @@ public class WrapFullWidthSpacesCopperTest extends AbstractTestCase {
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
-			assertTrue(20 == box.getWidth() || 60 == box.getWidth());
+			// 内蔵CIDフォントの幅表を直し、　が全角(10pt)に戻ったため
+			// 後ろの断片が 60 → 110 (　が10個で +50)(2026-09-11)
+			assertTrue(20 == box.getWidth() || 110 == box.getWidth());
 			return true;
 		}
 		return false;
@@ -46,7 +48,7 @@ public class WrapFullWidthSpacesCopperTest extends AbstractTestCase {
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.TABLE_CELL) {
-			assertEquals(61.5, box.getWidth(), 0);
+			assertEquals(111.5, box.getWidth(), 0);
 			return true;
 		}
 		return false;
@@ -54,7 +56,7 @@ public class WrapFullWidthSpacesCopperTest extends AbstractTestCase {
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.TABLE_CELL) {
-			assertEquals(61.5, box.getWidth(), 0);
+			assertEquals(111.5, box.getWidth(), 0);
 			return true;
 		}
 		return false;
