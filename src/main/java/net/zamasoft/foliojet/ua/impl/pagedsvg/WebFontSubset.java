@@ -242,7 +242,8 @@ final class WebFontSubset {
 		if (this.mode == Mode.VERTICAL_UPRIGHT) {
 			final double width = this.font.getWidth(gid);
 			final double dx = -500.0 + (FontSource.DEFAULT_UNITS_PER_EM - width) / 2.0;
-			return AffineTransform.getTranslateInstance(dx, FontSource.DEFAULT_VERTICAL_ORIGIN).createTransformedShape(shape);
+			// 縦原点は字形ごと(VORG / yMax+tsb。IPA P 系の比例縦送りの括弧は 880 でなく 450 前後。2026-09-12)
+			return AffineTransform.getTranslateInstance(dx, this.font.getVerticalOrigin(gid)).createTransformedShape(shape);
 		}
 		if (this.mode == Mode.VERTICAL_SIDEWAYS) {
 			final BBox bbox = this.source.getBBox();

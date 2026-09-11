@@ -162,14 +162,16 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 		if (verticalFont) {
 			// 縦書きモード
 			// 縦書き対応フォント
-			at.concatenate(AffineTransform.getTranslateInstance(-fontSize / 2.0, fontSize * 0.88));
+			// FontUtils.drawText と同じ合成: T(中心寄せ, ペン + 字形ごとの縦原点) × S。
+			// 縦原点は書体の VORG / yMax+tsb(pdfg2d Font.getVerticalOrigin、2026-09-12)。
+			// 以前は 0.88em を字形座標で concatenate していて実質 1/1000 しか効いていなかった。
+			at.preConcatenate(AffineTransform.getTranslateInstance(-fontSize / 2.0, 0));
 			int pgid = 0;
 			for (int i = 0; i < glen; ++i) {
-				AffineTransform at2 = at;
+				AffineTransform at2;
 				int gid = gids[i];
 				if (i == 0 && xadvances != null && xadvances.get(0) != 0) {
 					at.preConcatenate(AffineTransform.getTranslateInstance(0, xadvances.get(0)));
-					at2 = at;
 				} else if (i > 0) {
 					double dy = fm.getAdvance(pgid) + letterSpacing;
 					dy -= fm.getKerning(pgid, gid);
@@ -182,10 +184,9 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 				Shape shape = font.getShapeByGID(gid);
 				if (shape != null) {
 					double width = (fontSize - fm.getWidth(gid)) / 2.0;
-					if (width != 0) {
-						at2 = AffineTransform.getTranslateInstance(width, 0);
-						at2.concatenate(at);
-					}
+					at2 = AffineTransform.getTranslateInstance(width,
+							font.getVerticalOrigin(gid) * fontSize / FontSource.DEFAULT_UNITS_PER_EM);
+					at2.concatenate(at);
 					if (oblique != null) {
 						shape = oblique.createTransformedShape(shape);
 					}
