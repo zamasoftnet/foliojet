@@ -16,7 +16,8 @@
 # 2026-09-06 T5b(recipe 再生の strut 規約統一)で範囲側が旧経路と一致した頁を削除: fuzz-repro/nested-flex-in-page-float-footnote.html p3, imageTest/legacy/0600-misc/asahi.html p1, imageTest/legacy/0600-misc/asahi.html p2, imageTest/legacy/0600-misc/asahi.html p3, imageTest/legacy/0600-misc/yahoo.html p1
 # vertical-table-first-cell-reading-order p2-4 は範囲側が変わったが旧経路とは不一致のまま。残差の原因は未確定(候補: 横書きの空 inline-block 行の descent、救済分割の元箱高さ・clip、縦組み行 metrics)。
 # 2026-09-06 T5c(block-level absolute の静的位置=先行行の後)で 022-NEST p1 の範囲側 digest を更新。旧経路(absolute を先行文字より先に記録)とは依然不一致。
+# 2026-09-11 内蔵CIDフォントの幅表(、。　を全角)の修正で 022-NEST p1 の範囲側 digest を更新。旧経路の digest は凍結のまま。
 fuzz-repro/vertical-table-first-cell-reading-order.html	2	LEGACY_STRUT_REUSE	945399d8f7ce34204f16c67c1a89e65ded9f62ce6981c61ea74f3702c2eaf4d9	4a6871f10fb10cab8d8a77ab9c86049e5fc5b5344d09155d035837f16bc1a9ac
 fuzz-repro/vertical-table-first-cell-reading-order.html	3	LEGACY_STRUT_REUSE	74031c2ff4c07d429b72de2c23ab09d8098f726003f617416d6cc3850f47275d	e61c1661076c9eb6cc53a50b9041b13f938a01e7be52c4fe20f4cf56ca1fedfa
 fuzz-repro/vertical-table-first-cell-reading-order.html	4	LEGACY_STRUT_REUSE	2dd61fae06837e58ae0dfa44371acf69f67e3b38cf5cb7929e0ac1b7cd9985cc	5ce2ea416e0f986adb37737b9b010fd716bb7854e8f37b853bc71dabaa7e5807
-imageTest/legacy/0110-absolute/022-NEST.html	1	LEGACY_STATIC_ABSOLUTE_ORDER	f831403be50a008a1e11f3a28df9b7c700aef1129f64b8d0f2f978577c4dadc7	4c8662e2a46ef4d64bbd90921b38c88cab65c5b16de66464f76ec5c2aa024123
+imageTest/legacy/0110-absolute/022-NEST.html	1	LEGACY_STATIC_ABSOLUTE_ORDER	f831403be50a008a1e11f3a28df9b7c700aef1129f64b8d0f2f978577c4dadc7	464b8fa1d10876c23ca775ee7c3e12eeb1f7963bb6ebc3b42d10f9b6859b4dfc

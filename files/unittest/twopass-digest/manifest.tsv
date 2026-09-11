@@ -149,6 +149,7 @@
 0125-footnote/footnote-bottom-columns.html	files/unittest/0125-footnote/footnote-bottom-columns.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-bottom-fixed-height.html	files/unittest/0125-footnote/footnote-bottom-fixed-height.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-bottom-nested-hosts.html	files/unittest/0125-footnote/footnote-bottom-nested-hosts.html	1	text/html	input.include=**	input.property-pi=true
+0125-footnote/footnote-bottom-vertical-band.html	files/unittest/0125-footnote/footnote-bottom-vertical-band.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-bottom-vertical-rl.html	files/unittest/0125-footnote/footnote-bottom-vertical-rl.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-carryin.html	files/unittest/0125-footnote/footnote-carryin.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-columns-block-end-balance.html	files/unittest/0125-footnote/footnote-columns-block-end-balance.html	1	text/html	input.include=**	input.property-pi=true
@@ -159,6 +160,8 @@
 0125-footnote/footnote-oversized.html	files/unittest/0125-footnote/footnote-oversized.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-pagelimit.html	files/unittest/0125-footnote/footnote-pagelimit.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-pagereset.html	files/unittest/0125-footnote/footnote-pagereset.html	1	text/html	input.include=**	input.property-pi=true
+0125-footnote/footnote-top-horizontal-band.html	files/unittest/0125-footnote/footnote-top-horizontal-band.html	1	text/html	input.include=**	input.property-pi=true
+0125-footnote/footnote-top-vertical-band.html	files/unittest/0125-footnote/footnote-top-vertical-band.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/footnote-vertical-rl.html	files/unittest/0125-footnote/footnote-vertical-rl.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/page-float.html	files/unittest/0125-footnote/page-float.html	1	text/html	input.include=**	input.property-pi=true
 0125-footnote/page-margin-note-horizontal.html	files/unittest/0125-footnote/page-margin-note-horizontal.html	1	text/html	input.include=**	input.property-pi=true
@@ -608,11 +611,13 @@
 0510-text-spacing/autospace-in-float.html	files/unittest/0510-text-spacing/autospace-in-float.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/autospace-inline-block-measured.html	files/unittest/0510-text-spacing/autospace-inline-block-measured.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/autospace-vertical.html	files/unittest/0510-text-spacing/autospace-vertical.html	1	text/html	input.include=**	input.property-pi=true
+0510-text-spacing/builtin-fullwidth-punctuation.html	files/unittest/0510-text-spacing/builtin-fullwidth-punctuation.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/hanging-end.html	files/unittest/0510-text-spacing/hanging-end.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/jlreq-boundaries.html	files/unittest/0510-text-spacing/jlreq-boundaries.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/jlreq-composed-features.html	files/unittest/0510-text-spacing/jlreq-composed-features.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/jlreq-justify-priority.html	files/unittest/0510-text-spacing/jlreq-justify-priority.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/jlreq-shrink-priority.html	files/unittest/0510-text-spacing/jlreq-shrink-priority.html	1	text/html	input.include=**	input.property-pi=true
+0510-text-spacing/jlreq-shrink-trimmed-pair.html	files/unittest/0510-text-spacing/jlreq-shrink-trimmed-pair.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/trim-line-edges.html	files/unittest/0510-text-spacing/trim-line-edges.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/trim-pairs.html	files/unittest/0510-text-spacing/trim-pairs.html	1	text/html	input.include=**	input.property-pi=true
 0520-block-align/align-content.html	files/unittest/0520-block-align/align-content.html	1	text/html	input.include=**	input.property-pi=true
@@ -856,6 +861,7 @@ imageTest/bp/watermark.html	files/visual/bp/watermark.html	1	text/html	input.inc
 imageTest/first-line.html	files/visual/first-line.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/form.html	files/visual/form.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/image/icc.html	files/visual/image/icc.html	1	text/html	input.include=**	input.property-pi=true
+imageTest/legacy-table-form.html	files/visual/legacy-table-form.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/legacy/0001-directive/000-import.html	../copperpdf4/dev/files/misc/tounittest/0001-directive/000-import.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/legacy/0001-directive/010-large-css.html	../copperpdf4/dev/files/misc/tounittest/0001-directive/010-large-css.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/legacy/0002-css/000-first-letter.html	../copperpdf4/dev/files/misc/tounittest/0002-css/000-first-letter.html	1	text/html	input.include=**	input.property-pi=true
@@ -1406,7 +1412,6 @@ imageTest/security/v2-upw-user-opw-owner.html	files/visual/security/v2-upw-user-
 imageTest/security/v4-aes-upw--opw-owner.html	files/visual/security/v4-aes-upw--opw-owner.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/security/v4-aes-upw-user-opw-owner.html	files/visual/security/v4-aes-upw-user-opw-owner.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/security/v4-arcfour-upw-user-opw-owner.html	files/visual/security/v4-arcfour-upw-user-opw-owner.html	1	text/html	input.include=**	input.property-pi=true
-imageTest/legacy-table-form.html	files/visual/legacy-table-form.html	1	text/html	input.include=**	input.property-pi=true
 imageTest/text-decoration.html	files/visual/text-decoration.html	1	text/html	input.include=**	input.property-pi=true
 ioprops/barcode.html	files/unittest/ioprops/barcode.html	1	text/html	input.include=**	input.property-pi=true
 ioprops/book-jan-absolute.html	files/unittest/ioprops/book-jan-absolute.html	1	text/html	input.include=**	input.property-pi=true
