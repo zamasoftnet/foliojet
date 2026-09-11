@@ -1,0 +1,25 @@
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="120pt"?>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>text-combine-upright and logical margin/padding</title>
+    <style>
+      @page { margin: 10pt; }
+      body { margin: 0; font-size: 10pt; line-height: 1; writing-mode: vertical-rl; }
+      p { margin: 0; }
+      span { text-combine-upright: all; }
+    </style>
+  </head>
+  <body>
+    <!-- 縦中横の論理 inline 辺は行の書字方向(縦)で解く: inline-start=上、inline-end=下。
+         2026-09-11 まで要素自身の block-flow(横)で解いて物理の左に効いていた -->
+    <p>あ<span style="margin-inline-start: 20pt">12</span>う</p>
+    <p>あ<span style="padding-inline-start: 20pt">12</span>う</p>
+    <p>あ<span style="margin-inline-end: 20pt">12</span>う</p>
+    <!-- block 辺(左右)は行の中の縦中横には効かない(横組みのインラインの上下と同じ) -->
+    <p>あ<span style="margin-block-start: 20pt">12</span>う</p>
+    <!-- 物理指定は従来どおり -->
+    <p>あ<span style="margin-top: 20pt">12</span>う</p>
+  </body>
+</html>

@@ -31,6 +31,16 @@ public enum LogicalSide {
 	 * 返します。
 	 */
 	public Side toPhysical(CSSStyle style) {
+		// 縦中横(text-combine-upright)の展開は要素自身の block-flow を横(TB)へ
+		// 上書きするが、要素の writing-mode は変わらない(css-writing-modes-3
+		// §9.1: 組んだ文字は縦の行の中の 1 文字)。論理辺は親=行の書字方向で
+		// 解く。そうしないと margin-inline-start が物理の左に効いていた
+		// (2026-09-08 に柱の縦中横ノンブルで発見、2026-09-11 修正)
+		if (net.zamasoft.foliojet.css.impl.property.text.TextCombineMode
+				.get(style) != net.zamasoft.foliojet.css.value.TextCombineValue.NONE
+				&& style.getParentStyle() != null) {
+			style = style.getParentStyle();
+		}
 		WritingMode flow = BlockFlow.get(style);
 		final byte direction = Direction.get(style);
 		boolean rtl = direction == AbstractTextParams.DIRECTION_RTL;
