@@ -27,8 +27,8 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 修正前は{@code AbstractContainerBox.finishLayout}が「各階層で局所処理→
  * 子へ委譲」というポリモーフィックな相互再帰(ボックス種別ごとに
  * オーバーライドを跨ぐ)で実装されており、1000段超のネストで
- * {@code StackOverflowError}を起こしていた(docs/history/
- * 2026-07-18-html5-tags-and-bugfixes.mdの「別立てフォローアップ」参照。
+ * {@code StackOverflowError}を起こしていた(開発記録の
+ * 「別立てフォローアップ」参照。
  * 当時試みた回帰テストは、同時に未修正だったこのバグにも依存してしまい
  * 単独のテストとして成立せず見送られた)。{@link net.zamasoft.foliojet.layout.box.FinishLayoutStep}
  * による明示的ワークリストへの反復化で解消したことをこのテストで固定する。

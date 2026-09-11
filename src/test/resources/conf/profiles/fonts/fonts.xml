@@ -225,7 +225,7 @@
 			Gothic(プロポーショナル)で、`font: 12pt/1 monospace` の ASCII の
 			送り幅が等幅にならず、_0050_white_space/PageBreakByBrTest 等の
 			座標が期待値と合わないため隔離されていた
-			(docs/history/2026-07-25-quarantined-tests.md の群2。再開条件は
+			(開発記録の群2。再開条件は
 			「総称ファミリの解決を見直すとき」)。フォントを固定した今、
 			取得した Noto Sans Mono CJK JP を先頭に置く。
 		-->

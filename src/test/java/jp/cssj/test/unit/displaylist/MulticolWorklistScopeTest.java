@@ -53,8 +53,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * が物理撤去されたため、driver比較は不可能かつ不要となり、本番routing
  * の回帰ガードへ再定義した(同一実装を2回走らせる比較は決定的な順序
  * 退行を検出できない——display-listの固定はtier1のgolden群が担う)。
- * codex相談: docs/consultations/
- * consult-codex-2026-07-30-increment4-removal-spec.txt §5。
+ * codex相談: 設計相談 §5。
  * </p>
  */
 public class MulticolWorklistScopeTest extends TestCase {

@@ -162,7 +162,7 @@ dependencies {
 //
 // 代わりに公開されている Noto を取得して使う。版は URL と SHA-256 で
 // 固定する(GitHub のリリース資産は不変)。取得済みなら何もしないので、
-// 2回目以降とオフラインでも動く。copperpdf4/dev/build.gradle の同名
+// 2回目以降とオフラインでも動く。dev/build.gradle の同名
 // タスクと同じ資産を使う。
 // ---------------------------------------------------------------------------
 def testFontDir = layout.buildDirectory.dir('fonts/noto-auto')
@@ -257,7 +257,7 @@ tasks.named('test') {
     if (project.hasProperty('jfr')) { jvmArgs "-XX:StartFlightRecording=filename=${project.property('jfr')},settings=profile,dumponexit=true" }
     workingDir = rootProject.projectDir
     // 隔離中のテスト。`-PincludeQuarantined`で除外を解除して現状を確認できる。
-    // 理由と再開条件は docs/history/2026-07-25-quarantined-tests.md を参照。
+    // 理由と再開条件は 開発記録 を参照。
     if (!project.hasProperty('includeQuarantined')) {
         // PageBreakByBrTest と PageBreakByWrapTest は隔離解除した(2026-08-03)。
         // どちらも `font: 12pt/1 monospace` のASCIIの送り幅に依存しており、
