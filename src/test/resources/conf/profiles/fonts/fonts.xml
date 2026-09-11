@@ -209,6 +209,14 @@
 			<alias name="等幅" />
 			<alias name="Noto Sans Mono CJK JP" />
 		</font-file>
+		<!--
+			プロポーショナルな約物(・=0.5em、（【】=0.55em、縦組みの「（の縦原点が 0.88em でない)を
+			持つ書体の回帰用(2026-09-11)。IPA P ゴシック(IPA フォントライセンス v1.0)。
+			Noto より後に置き、名指し(IPAPGothic)のときだけ使う。実体はリポジトリ内。
+		-->
+		<font-file src="truetype/ipagp.otf" types="cid-identity embedded" weight="400">
+			<alias name="IPAPGothic" />
+		</font-file>
 	</cid-fonts>
 
 	<!-- 一般フォント <generic-fonts> -->

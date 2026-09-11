@@ -1,0 +1,28 @@
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>JLREQ shrink must not count blanks that proportional punctuation does not have</title>
+    <style>
+      @page { margin: 10pt; }
+      body { margin: 0; font-family: 'IPAPGothic'; font-size: 12pt; line-height: 24pt; }
+      p { margin: 0; border-right: .2pt solid; }
+      .dot { width: 58pt; }
+      .opening { width: 58pt; }
+      .fit { width: 62pt; }
+    </style>
+  </head>
+  <body>
+    <!-- IPA P ゴシック(テスト用 conf の fonts.xml に登録。既定の fonts.policy では内蔵 AJ17 に落ちるので embedded を指定)の「・」は 0.5em、「（」「【」「】」は 0.55em で、全角約物の二分アキ・四分アキを持たない。
+         漢字・（字仮 = 12+12+6+6.6+12+12 = 60.6pt。58pt に詰めるには 2.6pt 要るが、
+         ・の後ろ四分(3)も（の前二分(6)も実在しないので追い込めず仮を送る
+         (数えると ・（ が -0.25em 重なった。2026-09-11 のフォント別ランダム試験) -->
+    <p class="dot"><span>漢</span><span>字</span><span>・</span><span>（</span><span>字</span>仮</p>
+    <!-- 漢文【字】仮 = 12+12+6.6+12+6.6+12 = 61.2pt。【の前二分も実在しないので仮を送る -->
+    <p class="opening"><span>漢</span><span>文</span><span>【</span><span>字</span><span>】</span>仮</p>
+    <!-- 62pt には詰めなしで収まる(対照) -->
+    <p class="fit"><span>漢</span><span>字</span><span>・</span><span>（</span><span>字</span>仮</p>
+  </body>
+</html>

@@ -1772,14 +1772,24 @@ public class TextBuilder {
 		final double existing = xa == null ? 0 : xa.get(current.glyphIndex);
 		double applied = Math.max(0, -existing);
 
+		// 二分アキ・四分アキは全角(1em)の約物の字形が持つ空白。プロポーショナルな約物
+		// (IPA P ゴシックの「、」=0.5em、源暎Mゴシックの「【」=0.5em 等)には無いので、
+		// pairTrim と同じ isWide 判定で容量を 0 にする。数えると字面同士が重なる
+		// (2026-09-11、フォントを変えたランダム試験で IPAPGothic の「・（」が送り -0.25em、
+		// 源暎Mゴシックの「文【」が 0.2em 重なった)
+		final boolean prevWide = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(
+				prev.text.getFontMetrics(), prev.gid, prev.fontSize, prev.text.getFontStyle().getDirection());
+		final boolean currentWide = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(
+				current.text.getFontMetrics(), current.gid, current.fontSize, current.text.getFontStyle().getDirection());
+
 		// 第5段階: cl-01の前、cl-02/cl-07の後の二分アキ。cl-06の後は詰めない。
 		double punctuation = 0;
 		if (punctuationTrim) {
-			if (cc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.OPENING) {
+			if (cc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.OPENING && currentWide) {
 				punctuation += current.fontSize / 2.0;
 			}
-			if (pc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.CLOSING
-					|| net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isComma(prev.codePoint)) {
+			if ((pc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.CLOSING
+					|| net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isComma(prev.codePoint)) && prevWide) {
 				punctuation += prev.fontSize / 2.0;
 			}
 			final double consumed = Math.min(punctuation, applied);
@@ -1790,10 +1800,10 @@ public class TextBuilder {
 		// 第4段階: cl-05の前後四分アキをベタまで詰める。
 		if (punctuationTrim) {
 			double middleDot = 0;
-			if (pc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.MIDDLE_DOT) {
+			if (pc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.MIDDLE_DOT && prevWide) {
 				middleDot += prev.fontSize / 4.0;
 			}
-			if (cc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.MIDDLE_DOT) {
+			if (cc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.MIDDLE_DOT && currentWide) {
 				middleDot += current.fontSize / 4.0;
 			}
 			addJlreqShrinkPoint(stages[4], current, Math.max(0, middleDot - applied));

@@ -536,6 +536,10 @@ public class DisplayListGoldenTest extends TestCase {
 			// 追込みの容量から、連続約物の詰めで取り済みの二分を差し引く(2026-09-11)。
 			// 差し引かないと「）。」の）がベタまで潰れ、。が）の字面に食い込んでいた
 			"0510-text-spacing/jlreq-shrink-trimmed-pair.html", //
+			// 追込みの二分アキ・四分アキは全角約物の字形が持つ空白。プロポーショナルな約物
+			// (IPA P ゴシックの・=0.5em、（【】=0.55em)には無いので容量に数えない(2026-09-11)。
+			// 数えると ・（ が -0.25em、文【 が 0.2em 重なっていた(フォント別ランダム試験)
+			"0510-text-spacing/jlreq-shrink-proportional.html", //
 			// 縦中横の論理 margin/padding は行の書字方向(縦)で解く(2026-09-11)。
 			// それまで margin-inline-start が物理の左に効いていた
 			"0390-writing-mode/tcy-logical-margin.html", //
