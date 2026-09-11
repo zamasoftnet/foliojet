@@ -1,0 +1,2 @@
+2060-opacity/opacity.html
+legacy/0600-misc/asahi.html source=../../../copperpdf4/dev/files/misc/tounittest/0600-misc/asahi.html

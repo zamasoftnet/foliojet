@@ -533,6 +533,9 @@ public class DisplayListGoldenTest extends TestCase {
 			"0510-text-spacing/autospace-horizontal.html", //
 			"0510-text-spacing/jlreq-justify-priority.html", // JLREQ 3.8.4の4段階追出し
 			"0510-text-spacing/jlreq-shrink-priority.html", // JLREQ 3.8.3の6段階追込み
+			// 追込みの容量から、連続約物の詰めで取り済みの二分を差し引く(2026-09-11)。
+			// 差し引かないと「）。」の）がベタまで潰れ、。が）の字面に食い込んでいた
+			"0510-text-spacing/jlreq-shrink-trimmed-pair.html", //
 			"0510-text-spacing/autospace-vertical.html", //
 			"0510-text-spacing/autospace-in-float.html", //
 			// M2c実測ラッパーへのtext-autospace持ち越し(2026-08-08)。

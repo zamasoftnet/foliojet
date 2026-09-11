@@ -1,0 +1,31 @@
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="280pt"?>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>JLREQ shrink must not eat an already-trimmed pair</title>
+    <style>
+      @page { margin: 10pt; }
+      body { margin: 0; font-size: 12pt; line-height: 24pt; }
+      p { margin: 0; border-right: .2pt solid; }
+      .fit { width: 60pt; }
+      .overflow { width: 58pt; }
+      .pair-fit { width: 60pt; }
+      .pair-overflow { width: 58pt; }
+      .dot { width: 48pt; }
+    </style>
+  </head>
+  <body>
+    <!-- 漢（字）。仮 = 12+12+12+6(）。の詰め)+12+12 = 66pt。60ptには（の前二分(6)だけで収まる。
+         ）の後ろ二分は「。」との詰めで取り済みなので容量に数えない(数えると）が3ptに潰れ。が食い込む) -->
+    <p class="fit"><span>漢</span><span>（</span><span>字</span><span>）</span><span>。</span>仮</p>
+    <!-- 58ptは容量6では足りないので追い込まず仮を送る。）→。は6のまま -->
+    <p class="overflow"><span>漢</span><span>（</span><span>字</span><span>）</span><span>。</span>仮</p>
+    <!-- ）（ は詰めで二分残り。残りの二分だけが容量(6)。漢字）（字仮 = 12+12+12+6+12+12 = 66pt。
+         60ptは残りの二分で収まり、58ptは容量6では足りないので仮を送る(取り済みの二分まで数えると58ptに詰め込み）と（が重なる) -->
+    <p class="pair-fit"><span>漢</span><span>字</span><span>）</span><span>（</span><span>字</span>仮</p>
+    <p class="pair-overflow"><span>漢</span><span>字</span><span>）</span><span>（</span><span>字</span>仮</p>
+    <!-- ・（ は詰め後に四分残り。漢・（字仮 = 12+12+6+12+12 = 54pt。48ptには ・の前四分(3)+・（の残り四分(3) でちょうど収まる -->
+    <p class="dot"><span>漢</span><span>・</span><span>（</span><span>字</span>仮</p>
+  </body>
+</html>

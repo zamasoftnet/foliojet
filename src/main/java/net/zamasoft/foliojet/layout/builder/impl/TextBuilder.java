@@ -1764,6 +1764,29 @@ public class TextBuilder {
 		final net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass cc = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass
 				.of(current.codePoint);
 
+		// 境界の詰めは現在glyphのxadvance(負=詰め)に載っている。JLREQ 3.1の
+		// 連続約物の詰め(pairTrim)で既に取られた二分は、第4・第5段階の容量から
+		// 差し引く。差し引かないと「）。」の）が二分→ベタまで潰れ、。が）の
+		// 字面に食い込む(2026-09-11、利用者報告「（乙36）。」)。
+		final net.zamasoft.pdfg2d.gc.text.GlyphAdvances xa = current.text.xAdvances();
+		final double existing = xa == null ? 0 : xa.get(current.glyphIndex);
+		double applied = Math.max(0, -existing);
+
+		// 第5段階: cl-01の前、cl-02/cl-07の後の二分アキ。cl-06の後は詰めない。
+		double punctuation = 0;
+		if (punctuationTrim) {
+			if (cc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.OPENING) {
+				punctuation += current.fontSize / 2.0;
+			}
+			if (pc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.CLOSING
+					|| net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isComma(prev.codePoint)) {
+				punctuation += prev.fontSize / 2.0;
+			}
+			final double consumed = Math.min(punctuation, applied);
+			punctuation -= consumed;
+			applied -= consumed;
+		}
+
 		// 第4段階: cl-05の前後四分アキをベタまで詰める。
 		if (punctuationTrim) {
 			double middleDot = 0;
@@ -1773,26 +1796,12 @@ public class TextBuilder {
 			if (cc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.MIDDLE_DOT) {
 				middleDot += current.fontSize / 4.0;
 			}
-			addJlreqShrinkPoint(stages[4], current, middleDot);
-		}
-
-		// 第5段階: cl-01の前、cl-02/cl-07の後の二分アキ。cl-06の後は詰めない。
-		if (punctuationTrim) {
-			double punctuation = 0;
-			if (cc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.OPENING) {
-				punctuation += current.fontSize / 2.0;
-			}
-			if (pc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.CLOSING
-					|| net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isComma(prev.codePoint)) {
-				punctuation += prev.fontSize / 2.0;
-			}
+			addJlreqShrinkPoint(stages[4], current, Math.max(0, middleDot - applied));
 			addJlreqShrinkPoint(stages[5], current, punctuation);
 		}
 
 		// 第6段階: text-autospaceの四分アキを最小八分まで詰める。
 		final boolean japaneseLatin = isJapaneseLatinBoundary(prev.codePoint, current.codePoint);
-		final net.zamasoft.pdfg2d.gc.text.GlyphAdvances xa = current.text.xAdvances();
-		final double existing = xa == null ? 0 : xa.get(current.glyphIndex);
 		if (japaneseLatin && existing > 0) {
 			final double ideographSize = net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses
 					.of(prev.codePoint) == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH
