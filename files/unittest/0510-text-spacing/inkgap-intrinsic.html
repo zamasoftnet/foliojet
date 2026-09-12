@@ -1,0 +1,25 @@
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Capped punctuation trim in vertical intrinsic measurement</title>
+  <style>
+    @page { margin: 10pt; }
+    body { margin: 0; writing-mode: vertical-rl; font-family: 'IPAGothicInkGapTest';
+      font-size: 10pt; line-height: 12pt; letter-spacing: .5pt;
+      text-spacing-trim: normal; text-autospace: no-autospace; }
+    table { border-collapse: separate; border-spacing: 0; margin: 0; font-size: inherit; }
+    td { padding: 0; border: 0; white-space: nowrap; }
+    p { margin: 0; }
+    span { display: inline-block; white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <!-- 縦の無枠・単一行。固有寸法は2em-0.35em+2*.5pt=17.5pt。
+       上限なしなら16ptとなる。CSSで高さを固定せずauto計量と配置を照合する。 -->
+  <table><tr><td id="cell">；（</td></tr></table>
+  <p><span id="inline">；（</span></p>
+</body>
+</html>

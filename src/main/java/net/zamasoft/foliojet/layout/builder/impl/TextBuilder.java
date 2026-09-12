@@ -615,14 +615,10 @@ public class TextBuilder {
 		final int prevGid = head.getGlyphIds()[head.getGlyphCount() - 1];
 		final int gid = tail.getGlyphIds()[0];
 		double trim = 0;
-		if (!this.autospace.isTrimOff() && this.fontMetrics.getKerning(prevGid, gid) == 0) {
-			final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction direction = head.getFontStyle().getDirection();
-			trim = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.pairTrim(prevCp,
-					net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(this.fontMetrics,
-							prevGid, fontSize, direction),
-					cp, net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(this.fontMetrics,
-							gid, fontSize, direction))
-					* fontSize;
+		if (!this.autospace.isTrimOff() && head.getFontMetrics().getKerning(prevGid, gid) == 0) {
+			trim = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.cappedPairTrim(prevCp,
+					head.getFontMetrics(), prevGid, fontSize, head.getFontStyle(), cp, tail.getFontMetrics(),
+					gid, tail.getFontStyle().getSize(), tail.getFontStyle());
 		}
 		return gap - trim;
 	}
@@ -1798,26 +1794,46 @@ public class TextBuilder {
 		}
 
 		// 第4段階: cl-05の前後四分アキをベタまで詰める。
+		double middleDot = 0;
 		if (punctuationTrim) {
-			double middleDot = 0;
 			if (pc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.MIDDLE_DOT && prevWide) {
 				middleDot += prev.fontSize / 4.0;
 			}
 			if (cc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.MIDDLE_DOT && currentWide) {
 				middleDot += current.fontSize / 4.0;
 			}
-			addJlreqShrinkPoint(stages[4], current, Math.max(0, middleDot - applied));
-			addJlreqShrinkPoint(stages[5], current, punctuation);
+			middleDot = Math.max(0, middleDot - applied);
 		}
 
 		// 第6段階: text-autospaceの四分アキを最小八分まで詰める。
 		final boolean japaneseLatin = isJapaneseLatinBoundary(prev.codePoint, current.codePoint);
+		double autospace = 0;
 		if (japaneseLatin && existing > 0) {
 			final double ideographSize = net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses
 					.of(prev.codePoint) == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH
 							? prev.fontSize : current.fontSize;
-			addJlreqShrinkPoint(stages[6], current, Math.min(existing, ideographSize / 8.0));
+			autospace = Math.min(existing, ideographSize / 8.0);
 		}
+		if (middleDot == 0 && punctuation == 0 && autospace == 0) {
+			return;
+		}
+		// drawTextと同じペン間距離。取り済みの詰め(existing)を二度引かない。
+		final FontMetrics prevMetrics = prev.text.getFontMetrics();
+		final double kerning = prev.text == current.text ? prevMetrics.getKerning(prev.gid, current.gid) : 0;
+		final double penDistance = prevMetrics.getAdvance(prev.gid) + prev.text.getLetterSpacing() - kerning + existing;
+		final double gap = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.inkGap(
+				prevMetrics, prev.gid, prev.fontSize, prev.text.getFontStyle(), current.text.getFontMetrics(),
+				current.gid, current.fontSize, current.text.getFontStyle(), penDistance);
+		double remaining = Double.isNaN(gap) ? Double.POSITIVE_INFINITY : Math.max(0, gap);
+		// 同じ境界に重なる段階は、実際に消費される第4→5→6の順で予算を共有する。
+		middleDot = Math.min(middleDot, remaining);
+		remaining = Math.max(0, remaining - middleDot);
+		punctuation = Math.min(punctuation, remaining);
+		remaining = Math.max(0, remaining - punctuation);
+		autospace = Math.min(autospace, remaining);
+		addJlreqShrinkPoint(stages[4], current, middleDot);
+		addJlreqShrinkPoint(stages[5], current, punctuation);
+		addJlreqShrinkPoint(stages[6], current, autospace);
 	}
 
 	private void addJlreqLineEndShrinkPoints(final List<JlreqShrinkPoint>[] stages, final JlreqGlyph tail) {
@@ -1932,7 +1948,7 @@ public class TextBuilder {
 		final double fontSize = this.fontStyle == null ? 0 : this.fontStyle.getSize();
 		double autospaceGap = this.autospace.gapBefore(ch, coff, fontSize);
 		double punctuationTrim = this.autospace.trimBefore(ch, coff, gid, this.text, this.fontMetrics, fontSize,
-				this.fontStyle.getDirection());
+				this.fontStyle);
 		if (!this.measuringLine && this.breakWord == AbstractTextParams.WORD_WRAP_BREAK_WORD && this.unitAdvance > 0) {
 			if (this.firstUnit) {
 				this.locateLine();
@@ -1952,7 +1968,7 @@ public class TextBuilder {
 				// 行を跨ぐpairに調整は入らない(再計算)
 				autospaceGap = this.autospace.gapBefore(ch, coff, fontSize);
 				punctuationTrim = this.autospace.trimBefore(ch, coff, gid, this.text, this.fontMetrics, fontSize,
-						this.fontStyle.getDirection());
+						this.fontStyle);
 			}
 		}
 

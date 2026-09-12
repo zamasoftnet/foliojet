@@ -1081,7 +1081,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		final double fontSize = this.text.getFontStyle().getSize();
 		final double gap = this.autospace.gapBefore(ch, coff, fontSize);
 		final double trim = this.autospace.trimBefore(ch, coff, gid, this.text,
-				this.text.getFontMetrics(), fontSize, this.text.getFontStyle().getDirection());
+				this.text.getFontMetrics(), fontSize, this.text.getFontStyle());
 		// appendGlyph はrun内の字間計測用にアドバンスを返すため、
 		// 呼び出しは一度だけ行い、結果を計測器へ渡す。
 		this.measurer.glyph(this.text.appendGlyph(ch, coff, clen, gid), gap, trim);

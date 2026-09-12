@@ -1,0 +1,43 @@
+<?jp.cssj.property name="output.page-width" value="340pt"?>
+<?jp.cssj.property name="output.page-height" value="180pt"?>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <title>Vertical punctuation trimming is capped by the ink gap</title>
+    <style>
+      @page { margin: 10pt; }
+      body { margin: 0; writing-mode: vertical-rl; font-size: 12pt; line-height: 18pt; }
+      p { margin: 0 12pt 0 0; width: 36pt; text-spacing-trim: normal; text-autospace: no-autospace; }
+      .ipa { font-family: 'IPAPGothic'; }
+      .test { font-family: 'IPAGothicInkGapTest'; }
+      .noto { font-family: 'Noto Sans JP'; }
+    </style>
+  </head>
+  <body>
+    <!-- (1) IPA P: 体；め仮 = 12+12+10.68+12 = 46.68pt。
+         高さ42ptは4.68pt不足。旧容量0.5em=6ptなら収まるが、
+         新容量は(0.25+min(0.25,0.047+0.043))*12=4.08ptなので仮を送る。
+         字形はfontTools実測: ；=0.354..0.953em、めの前=0.043em。 -->
+    <p class="ipa" style="height: 42pt">体；め仮</p>
+    <!-- (2) Notoの中央の全角中点は前後四分を詰められる対照。
+         体・め仮=48pt、高さ42ptとの差6pt=前後0.25emずつ。仮も同じ行。 -->
+    <p class="noto" style="height: 42pt">体・め仮</p>
+    <!-- (3) 加工書体: ；の後端1.000em、（の前端0.350em(vy=574、tsb=350)。
+         gap=(1+0.350-1)*12=4.2pt。pairTrim=6ptを4.2ptに上限。
+         ；（=24-4.2=19.8pt。高さ24ptでは追い込みなし、（のxadvance=-4.2pt。 -->
+    <p class="test" style="height: 24pt">；（</p>
+    <!-- (4) 同一run、spanなし。体；（め=48-4.2=43.8pt。
+         高さ24ptでは体；と（めに分かれる。normalなので行頭天付きなし。
+         分割前（のxadvance=-4.2pt、tailでは逆適用後0、字面は行頭+4.2pt。
+         行末；の詰め規則は変更しない。 -->
+    <p class="test" style="height: 24pt">体；（め</p>
+    <!-- (5) 異なる書体・サイズのrun境界。前IPAP 12pt、後加工書体10pt。
+         gap=12+0.350*10-0.953*12=4.064pt (< nominal 5pt)。
+         合計22-4.064=17.936pt。高さ24ptで追い込みなし、run間kerningなし。 -->
+    <p class="ipa" style="height: 24pt">；<span class="test" style="font-size: 10pt">（</span></p>
+    <!-- (6) (1)と同じ46.68ptを高さ40ptへ。6.68pt不足で旧容量6ptも足りない。
+         新旧とも追い込まず仮を次行へ送る。 -->
+    <p class="ipa" style="height: 40pt">体；め仮</p>
+  </body>
+</html>

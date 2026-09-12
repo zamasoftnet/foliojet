@@ -540,6 +540,7 @@ public class DisplayListGoldenTest extends TestCase {
 			// (IPA P ゴシックの・=0.5em、（【】=0.55em)には無いので容量に数えない(2026-09-11)。
 			// 数えると ・（ が -0.25em、文【 が 0.2em 重なっていた(フォント別ランダム試験)
 			"0510-text-spacing/jlreq-shrink-proportional.html", //
+			"0510-text-spacing/jlreq-shrink-vertical-colon.html", // 字面間隔でpairTrimと追込みを上限
 			// 縦中横の論理 margin/padding は行の書字方向(縦)で解く(2026-09-11)。
 			// それまで margin-inline-start が物理の左に効いていた
 			"0390-writing-mode/tcy-logical-margin.html", //

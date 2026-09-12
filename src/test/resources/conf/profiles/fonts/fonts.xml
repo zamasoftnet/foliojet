@@ -217,6 +217,15 @@
 		<font-file src="truetype/ipagp.otf" types="cid-identity embedded" weight="400">
 			<alias name="IPAPGothic" />
 		</font-file>
+		<!--
+			約物の詰めを字面で上限する回帰用(2026-09-12、docs/design/2026-09-12-punctuation-ink-gap-design.md §3-1)。
+			IPA ゴシックの部分集合(134 glyph)に vmtx の tsb を加工: 縦「；」は字面の下端を箱の下端に
+			(後ろの空き 0、tsb 401)、縦「（」は前の空きを 0.35em に(tsb 350)。「；（」の字面の間隔は 0.35em で、
+			pairTrim の 0.5em がここで上限される。IPA フォントライセンス v1.0、名指し(IPAGothicInkGapTest)のときだけ使う。
+		-->
+		<font-file src="truetype/gothic-inkgap-test.ttf" types="cid-identity embedded" weight="400">
+			<alias name="IPAGothicInkGapTest" />
+		</font-file>
 	</cid-fonts>
 
 	<!-- 一般フォント <generic-fonts> -->

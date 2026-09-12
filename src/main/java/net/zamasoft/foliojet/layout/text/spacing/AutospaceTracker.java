@@ -73,7 +73,7 @@ public final class AutospaceTracker {
 	 */
 	public double trimBefore(final char[] ch, final int coff, final int gid, final TextImpl currentText,
 			final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final double fontSize,
-			final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction direction) {
+			final net.zamasoft.pdfg2d.gc.font.FontStyle style) {
 		if (this.trimOff || this.prevCodePoint < 0 || this.prevGid < 0 || this.prevText == null) {
 			return 0;
 		}
@@ -83,12 +83,8 @@ public final class AutospaceTracker {
 			return 0;
 		}
 		final int cp = Character.codePointAt(ch, coff);
-		final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction prevDirection = this.prevText.getFontStyle()
-				.getDirection();
-		return JapaneseSpacingResolver.pairTrim(this.prevCodePoint,
-				JapaneseSpacingResolver.isWide(this.prevText.getFontMetrics(), this.prevGid, this.prevFontSize,
-						prevDirection), cp,
-				JapaneseSpacingResolver.isWide(metrics, gid, fontSize, direction)) * fontSize;
+		return JapaneseSpacingResolver.cappedPairTrim(this.prevCodePoint, this.prevText.getFontMetrics(),
+				this.prevGid, this.prevFontSize, this.prevText.getFontStyle(), cp, metrics, gid, fontSize, style);
 	}
 
 	/** 現在のcluster先頭と直前clusterの間のgap(絶対量)です。 */
