@@ -412,6 +412,9 @@ break-wordを設定すると、内容が行幅の限界をはみ出さないよ�
 <dt><span class="cssprop">text-autospace</span></dt>
 <dd>和文と欧文・数字の境界に四分アキを入れます。
 	<b>既定値はnormal(アキを入れる)です。</b>
+	句読点(、。，．)は全角なら対象外(字形が自身の後ろに空きを持つ)ですが、
+	比例幅(送りが0.75em以下——IPA P系の書体や<span class="cssprop">font-feature-settings</span>の
+	<tt>palt</tt>指定)のときは、その後ろの欧文・数字との間にも四分アキを入れます<span class="since">4.0.0</span>。
 	旧バージョンの見た目に戻すには<span class="cssdecl">text-autospace: no-autospace;</span>を
 	指定してください。</dd>
 <dt><span class="cssprop">text-spacing-trim</span></dt>

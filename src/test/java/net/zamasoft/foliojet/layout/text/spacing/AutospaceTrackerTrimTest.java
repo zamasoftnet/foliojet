@@ -154,11 +154,17 @@ public class AutospaceTrackerTrimTest extends TestCase {
 
 	/** 半角約物(width≤0.75em)は詰めない(プロポーショナル約物の保護)。 */
 	public void testNarrowExcluded() {
+		// wide 判定は送り(getAdvance、palt の GPOS 調整込み)で見る(2026-09-14)。stub は幅と送りを揃える
 		final FontMetrics narrow = new WideMetrics(0) {
 			private static final long serialVersionUID = 1L;
 
 			@Override
 			public double getWidth(final int gid) {
+				return 6;
+			}
+
+			@Override
+			public double getAdvance(final int gid) {
 				return 6;
 			}
 		};

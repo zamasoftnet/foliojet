@@ -29,7 +29,9 @@ public final class TextAutospaceClasses {
 
 	/** 文字クラスです。 */
 	public enum Kind {
-		IDEOGRAPH, ALPHA, NUMERIC, OTHER
+		IDEOGRAPH, ALPHA, NUMERIC,
+		/** JLREQ cl-06/cl-07 の句読点。比例幅のときだけ和字と同じく欧文・数字との間に四分アキを入れる。 */
+		PUNCTUATION, OTHER
 	}
 
 	/** code pointを分類します。 */
@@ -52,7 +54,28 @@ public final class TextAutospaceClasses {
 				&& Character.isLetter(cp) || cp >= 0x0400 && cp <= 0x04FF) {
 			return Kind.ALPHA;
 		}
+		if (JapaneseSpacingClass.of(cp) == JapaneseSpacingClass.PUNCTUATION) {
+			return Kind.PUNCTUATION;
+		}
 		return Kind.OTHER;
+	}
+
+	/**
+	 * 前の字が比例幅の句読点か(和欧間アキの対象にするか)です。JLREQ 3.2.8 の和欧間アキは
+	 * 漢字等・仮名と欧文用文字の間に入れるもので、句読点は対象外——全角の句読点は字形が
+	 * 自身の後ろに二分の空きを持つから困らない。IPA P 系や {@code palt} 指定のように
+	 * 句読点が比例幅だとその空きが無く、欧文・数字が字面に寄る(0.2em 台)ので、
+	 * 比例幅(送りが 0.75em 以下、{@link JapaneseSpacingResolver#isWide})の句読点に限り
+	 * 和字と同じ扱いにする(2026-09-14、利用者報告「palt 指定時、約物と欧文の間に
+	 * 和欧間アキが入らない」)。
+	 *
+	 * @param metrics 前の字の FontMetrics({@code null} なら不明=対象外)
+	 */
+	public static boolean proportionalPunctuation(final int prevCp,
+			final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final int gid, final double fontSize,
+			final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction direction) {
+		return metrics != null && gid >= 0 && of(prevCp) == Kind.PUNCTUATION
+				&& !JapaneseSpacingResolver.isWide(metrics, gid, fontSize, direction);
 	}
 
 	/**
@@ -64,10 +87,22 @@ public final class TextAutospaceClasses {
 	 * @param flags  実効フラグ({@code TextAutospaceValue.ALPHA}|{@code NUMERIC})
 	 */
 	public static double gapEm(final int prevCp, final int cp, final byte flags) {
+		return gapEm(prevCp, cp, flags, false);
+	}
+
+	/**
+	 * {@link #gapEm(int, int, byte)} に、前の字が比例幅の句読点なら和字と同じ扱いにする
+	 * 判定({@link #proportionalPunctuation})を加えたものです。
+	 */
+	public static double gapEm(final int prevCp, final int cp, final byte flags,
+			final boolean prevProportionalPunctuation) {
 		if (flags == 0) {
 			return 0;
 		}
-		final Kind prev = of(prevCp);
+		Kind prev = of(prevCp);
+		if (prev == Kind.PUNCTUATION && prevProportionalPunctuation) {
+			prev = Kind.IDEOGRAPH;
+		}
 		final Kind next = of(cp);
 		if (prev == next) {
 			return 0;
@@ -82,8 +117,9 @@ public final class TextAutospaceClasses {
 		return 0;
 	}
 
-	/** pairの和字側が前(prev)ならtrue(font-size選択用)。 */
+	/** pairの和字側(比例幅の句読点を含む)が前(prev)ならtrue(font-size選択用)。 */
 	public static boolean ideographFirst(final int prevCp) {
-		return of(prevCp) == Kind.IDEOGRAPH;
+		final Kind kind = of(prevCp);
+		return kind == Kind.IDEOGRAPH || kind == Kind.PUNCTUATION;
 	}
 }

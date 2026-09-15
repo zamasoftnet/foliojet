@@ -1,0 +1,8 @@
+drawer z=0
+  x=0.00 y=0.00 Text["約3約A" asc=14.56 desc=5.44]
+  x=0.00 y=20.00 Text["約、6約、A" asc=14.56 desc=5.44]
+  x=0.00 y=40.00 Text["約。6" asc=14.56 desc=5.44]
+  x=0.00 y=60.00 Text["約，6" asc=14.56 desc=5.44]
+  x=0.00 y=80.00 Text["約、あ" asc=14.56 desc=5.44]
+  x=0.00 y=100.00 Text["約、6" asc=14.56 desc=5.44]
+  x=0.00 y=120.00 Text["約、6" asc=13.61 desc=6.39]

@@ -94,6 +94,8 @@ public class DisplayListGoldenTest extends TestCase {
 			// キャプションの箱は表の border box(margin box ではない)。
 			// 左マージンのある表でキャプションが外へ広がっていた(2026-08-30)
 			"0240-table/caption-table-margin.html", //
+			// SVG 文書の <text>(Batik → MyGVTGlyphVector)。横・縦・太字・合成斜体(2026-09-14)
+			"0480-svg-text/inline-svg-text.html", //
 			// フォント相対単位 cap / ic / ric / rlh の計算値(2026-08-30)。
 			// 実フォントのcap-heightと根のline-heightが要るので、宣言の
 			// 解析テストでは押さえられない
@@ -531,6 +533,8 @@ public class DisplayListGoldenTest extends TestCase {
 			// 和文詰めA2(2026-07-31)。text-autospaceのgap(0.125em)を
 			// run境界のx座標で固定する(off/on/numeric限定/明示空白抑止)
 			"0510-text-spacing/autospace-horizontal.html", //
+			// 比例幅の句読点(IPAPGothic の「、」=0.5em)の後ろの欧文・数字に四分アキ(2026-09-14)
+			"0510-text-spacing/autospace-proportional-punctuation.html", //
 			"0510-text-spacing/jlreq-justify-priority.html", // JLREQ 3.8.4の4段階追出し
 			"0510-text-spacing/jlreq-shrink-priority.html", // JLREQ 3.8.3の6段階追込み
 			// 追込みの容量から、連続約物の詰めで取り済みの二分を差し引く(2026-09-11)。

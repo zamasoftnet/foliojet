@@ -94,6 +94,10 @@ public interface MessageCodes {
 	/** PDF/Xの出力インテント指定が不正なため変換を中断したエラーです。 */
 	public static final short ERROR_PDFX_OUTPUT_INTENT = 0x380E;
 	public static final short ERROR_RETAINED_TEXT_LIMIT = 0x380F;
+	/** サーバー側のメインドキュメントの取得を許可していないエラーです(遠隔の利用者にサーバーの内側の宛先を拒んだなど、2026-09-14)。 */
+	public static final short ERROR_FORBIDDEN_SERVERSIDE_DOCUMENT = 0x3810;
+	/** サーバー側のメインドキュメントを取得できなかった(接続拒否・切断など)エラーです(2026-09-14)。 */
+	public static final short ERROR_UNREACHABLE_SERVERSIDE_DOCUMENT = 0x3811;
 	public static final short ERROR_PLUGIN = 0x38FF;
 
 	public static final short FATAL_XSLT_FATAL = 0x4801;

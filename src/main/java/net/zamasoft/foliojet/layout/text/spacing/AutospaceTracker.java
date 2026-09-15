@@ -93,7 +93,11 @@ public final class AutospaceTracker {
 			return 0;
 		}
 		final int cp = Character.codePointAt(ch, coff);
-		final double gapEm = TextAutospaceClasses.gapEm(this.prevCodePoint, cp, this.flags);
+		// 比例幅の句読点(IPA P 系、palt)の後ろも和欧間アキの対象(2026-09-14)
+		final boolean proportionalPunctuation = this.prevText != null && TextAutospaceClasses
+				.proportionalPunctuation(this.prevCodePoint, this.prevText.getFontMetrics(), this.prevGid,
+						this.prevFontSize, this.prevText.getFontStyle().getDirection());
+		final double gapEm = TextAutospaceClasses.gapEm(this.prevCodePoint, cp, this.flags, proportionalPunctuation);
 		if (gapEm == 0) {
 			return 0;
 		}

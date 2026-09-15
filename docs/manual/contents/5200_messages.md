@@ -86,6 +86,8 @@
 | 380D<span class="since">3.0.0</span> | ドキュメントの内容が空なのでページを生成できない。 |  |
 | 380E<span class="since">4.0.0</span> | プロパティ名(string) 値(string) 理由(string) | PDF/Xの出力インテント指定が不正(ICCプロファイルを読めない・出力用でない・CMYKでない・識別名が空)。 |
 | 380F<span class="since">4.0.0</span> | 要素名(string) 上限(int) 到達値(int) | 寸法が決まるまで中身を溜めておく要素(表・浮動体など)の内容が<span class="ioprop">processing.retained-text-limit</span>を超えた。変換は失敗する。 |
+| 3810<span class="since">4.0.0</span> | ドキュメントのURI(string) 理由(string) | サーバー側のメインドキュメントの取得を許可していない(遠隔の利用者がサーバーの内側の宛先を指定したなど)。変換は失敗する。 |
+| 3811<span class="since">4.0.0</span> | ドキュメントのURI(string) 理由(string) | サーバー側のメインドキュメントを取得できない(接続拒否・切断など)。変換は失敗する。 |
 
 **深刻なエラー**
 

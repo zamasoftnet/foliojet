@@ -610,10 +610,14 @@ public class TextBuilder {
 		final int prevCp = Character.codePointBefore(headChars, head.getCharCount());
 		final int cp = Character.codePointAt(tail.getChars(), 0);
 		final double fontSize = head.getFontStyle().getSize();
-		final double gap = net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.gapEm(prevCp, cp,
-				this.autospace.getFlags()) * fontSize;
 		final int prevGid = head.getGlyphIds()[head.getGlyphCount() - 1];
 		final int gid = tail.getGlyphIds()[0];
+		// AutospaceTracker.gapBefore と同じ判定(比例幅の句読点の後ろも和欧間アキ、2026-09-14)
+		final boolean proportionalPunctuation = net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses
+				.proportionalPunctuation(prevCp, head.getFontMetrics(), prevGid, fontSize,
+						head.getFontStyle().getDirection());
+		final double gap = net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.gapEm(prevCp, cp,
+				this.autospace.getFlags(), proportionalPunctuation) * fontSize;
 		double trim = 0;
 		if (!this.autospace.isTrimOff() && head.getFontMetrics().getKerning(prevGid, gid) == 0) {
 			trim = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.cappedPairTrim(prevCp,
@@ -1805,13 +1809,16 @@ public class TextBuilder {
 			middleDot = Math.max(0, middleDot - applied);
 		}
 
-		// 第6段階: text-autospaceの四分アキを最小八分まで詰める。
-		final boolean japaneseLatin = isJapaneseLatinBoundary(prev.codePoint, current.codePoint);
+		// 第6段階: text-autospaceの四分アキを最小八分まで詰める。比例幅の句読点の後ろの
+		// 四分アキ(AutospaceTracker.gapBefore、2026-09-14)も同じ段階で詰める。
+		final boolean japaneseLatin = isJapaneseLatinBoundary(prev.codePoint, current.codePoint)
+				|| !prevWide && isWestern(current.codePoint)
+						&& net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.of(prev.codePoint)
+								== net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.PUNCTUATION;
 		double autospace = 0;
 		if (japaneseLatin && existing > 0) {
 			final double ideographSize = net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses
-					.of(prev.codePoint) == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH
-							? prev.fontSize : current.fontSize;
+					.ideographFirst(prev.codePoint) ? prev.fontSize : current.fontSize;
 			autospace = Math.min(existing, ideographSize / 8.0);
 		}
 		if (middleDot == 0 && punctuation == 0 && autospace == 0) {

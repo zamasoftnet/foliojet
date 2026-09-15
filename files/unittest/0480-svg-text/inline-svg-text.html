@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded"?>
+<html lang="ja">
+<head><meta charset="UTF-8"><title>SVG text via Batik (MyGVTGlyphVector)</title>
+<style>
+@page { size: 260pt 180pt; margin: 10pt; }
+body { margin: 0; }
+</style></head>
+<body>
+<!-- SVG 文書の <text> は Batik の GlyphLayout → MyGVTGlyphVector で字形を path に描く。
+     2026-09-14 まで getGlyphTransform 等が UnsupportedOperationException を投げて全滅し、
+     getOutline() が at を二重に掛けていた。横・縦・太字・合成斜体の 4 行を固定する -->
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160">
+<text x="10" y="30" font-family="serif" font-size="16">Copper 4 SVG</text>
+<text x="10" y="60" font-family="sans-serif" font-size="14" font-weight="bold">日本語のテキスト</text>
+<text x="10" y="90" font-family="serif" font-size="12" font-style="italic">Oblique 斜体</text>
+<text x="215" y="10" font-family="serif" font-size="14" writing-mode="tb">縦書きの一行</text>
+</svg>
+</body></html>

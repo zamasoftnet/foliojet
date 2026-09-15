@@ -27,11 +27,20 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 	protected final MyGVTFont font;
 	protected final FontRenderContext frc;
 	protected float[] x, y;
+	private AffineTransform[] glyphTransforms;
+	private boolean[] visible;
+	/** 字形ごとの送り(この書体に無い字は代替書体の送り)。null なら FontMetrics の送り */
+	private final double[] advances;
 
 	public MyGVTGlyphVector(TextImpl text, MyGVTFont font, FontRenderContext frc) {
+		this(text, font, frc, null);
+	}
+
+	public MyGVTGlyphVector(TextImpl text, MyGVTFont font, FontRenderContext frc, double[] advances) {
 		this.text = text;
 		this.font = font;
 		this.frc = frc;
+		this.advances = advances;
 		// 配列の最後は末尾の位置
 		this.x = new float[text.getGlyphCount() + 1];
 		this.y = new float[text.getGlyphCount() + 1];
@@ -60,8 +69,20 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 		return this.getLogicalBounds();
 	}
 
+	/** 字形 ix の送り。 */
+	private double advance(int ix) {
+		if (this.advances != null) {
+			return this.advances[ix];
+		}
+		return this.text.getFontMetrics().getAdvance(this.text.getGlyphIds()[ix]);
+	}
+
 	public Rectangle2D getLogicalBounds() {
-		double advance = this.text.getAdvance();
+		double advance = 0;
+		for (int i = 0; i < this.getNumGlyphs(); ++i) {
+			advance += this.advance(i);
+		}
+		advance += this.text.getLetterSpacing() * this.getNumGlyphs();
 		double size = this.text.getFontStyle().getSize();
 		return new Rectangle2D.Double(this.x[0], this.y[0], advance, size);
 	}
@@ -90,7 +111,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 	}
 
 	public GVTGlyphMetrics getGlyphMetrics(int ix) {
-		float hadvance = (float) this.text.getAdvance() / this.getNumGlyphs();
+		float hadvance = (float) this.advance(ix);
 		float vadvance = (float) this.text.getFontStyle().getSize();
 		return new GVTGlyphMetrics(hadvance, vadvance, (Rectangle2D) this.getGlyphLogicalBounds(ix),
 				GlyphMetrics.STANDARD);
@@ -101,7 +122,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 	}
 
 	public Shape getGlyphLogicalBounds(int ix) {
-		float hadvance = (float) this.text.getAdvance() / this.getNumGlyphs();
+		float hadvance = (float) this.advance(ix);
 		float vadvance = (float) this.text.getFontStyle().getSize();
 		return new Rectangle2D.Float(0, 0, hadvance, vadvance);
 	}
@@ -173,7 +194,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 				if (i == 0 && xadvances != null && xadvances.get(0) != 0) {
 					at.preConcatenate(AffineTransform.getTranslateInstance(0, xadvances.get(0)));
 				} else if (i > 0) {
-					double dy = fm.getAdvance(pgid) + letterSpacing;
+					double dy = this.advance(i - 1) + letterSpacing;
 					dy -= fm.getKerning(pgid, gid);
 					if (xadvances != null) {
 						dy += xadvances.get(i);
@@ -208,7 +229,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 				if (i == 0 && xadvances != null && xadvances.get(0) != 0) {
 					at.preConcatenate(AffineTransform.getTranslateInstance(xadvances.get(0), 0));
 				} else if (i > 0) {
-					double dx = fm.getAdvance(pgid) + letterSpacing;
+					double dx = this.advance(i - 1) + letterSpacing;
 					if (i > 0) {
 						dx -= fm.getKerning(pgid, gid);
 					}
@@ -227,7 +248,8 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 				pgid = gid;
 			}
 		}
-		return path.createTransformedShape(at);
+		// 各字形は at/at2 で変換済み。ここで at をもう一度掛けると拡縮とペン送りが二重になる(2026-09-14)
+		return path;
 	}
 
 	public Rectangle2D getGeometricBounds() {
@@ -235,39 +257,56 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 	}
 
 	public Rectangle2D getGlyphCellBounds(int ix) {
-		throw new UnsupportedOperationException();
+		// Batik の StrokingTextPainter が選択範囲や装飾の計算に使う。字の論理箱で足りる
+		return (Rectangle2D) this.getGlyphLogicalBounds(ix);
 	}
 
 	public int[] getGlyphCodes(int begin, int num, int[] ret) {
-		throw new UnsupportedOperationException();
+		if (ret == null) {
+			ret = new int[num];
+		}
+		final int[] gids = this.text.getGlyphIds();
+		System.arraycopy(gids, begin, ret, 0, num);
+		return ret;
 	}
 
 	public GlyphJustificationInfo getGlyphJustificationInfo(int ix) {
-		throw new UnsupportedOperationException();
+		// 均等割りは foliojet 側で済ませているので Batik には伸縮させない
+		return null;
 	}
 
 	public void draw(Graphics2D g2d, AttributedCharacterIterator aci) {
-		throw new UnsupportedOperationException();
+		g2d.fill(this.getOutline());
 	}
 
 	public AffineTransform getGlyphTransform(int ix) {
-		throw new UnsupportedOperationException();
+		// 字ごとの変換は持たない(null = 恒等)。以前は例外を投げていて、Batik の
+		// GlyphLayout.doExplicitGlyphLayout がここを通るため SVG 文書の <text> は
+		// 全部変換に失敗していた(2026-09-14)
+		return this.glyphTransforms == null ? null : this.glyphTransforms[ix];
 	}
 
 	public Shape getOutline(float x, float y) {
-		throw new UnsupportedOperationException();
+		return AffineTransform.getTranslateInstance(x, y).createTransformedShape(this.getOutline());
 	}
 
 	public boolean isGlyphVisible(int ix) {
-		throw new UnsupportedOperationException();
+		return this.visible == null || this.visible[ix];
 	}
 
 	public void setGlyphTransform(int ix, AffineTransform t) {
-		throw new UnsupportedOperationException();
+		if (this.glyphTransforms == null) {
+			this.glyphTransforms = new AffineTransform[this.text.getGlyphCount()];
+		}
+		this.glyphTransforms[ix] = t;
 	}
 
 	public void setGlyphVisible(int ix, boolean v) {
-		throw new UnsupportedOperationException();
+		if (this.visible == null) {
+			this.visible = new boolean[this.text.getGlyphCount()];
+			java.util.Arrays.fill(this.visible, true);
+		}
+		this.visible[ix] = v;
 	}
 
 	@Override

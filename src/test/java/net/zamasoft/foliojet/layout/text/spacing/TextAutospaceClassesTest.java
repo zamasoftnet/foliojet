@@ -22,7 +22,8 @@ public class TextAutospaceClassesTest extends TestCase {
 		assertEquals(Kind.ALPHA, TextAutospaceClasses.of('é'));
 		assertEquals(Kind.NUMERIC, TextAutospaceClasses.of('7'));
 		assertEquals(Kind.OTHER, TextAutospaceClasses.of('Ａ')); // 全角英字は対象外
-		assertEquals(Kind.OTHER, TextAutospaceClasses.of('。')); // 約物は対象外
+		assertEquals(Kind.PUNCTUATION, TextAutospaceClasses.of('。')); // 句読点は比例幅のときだけ対象(2026-09-14)
+		assertEquals(Kind.OTHER, TextAutospaceClasses.of('（'));
 		assertEquals(Kind.OTHER, TextAutospaceClasses.of(' '));
 	}
 

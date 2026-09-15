@@ -116,7 +116,7 @@ public class MySVGTextElementBridge extends SVGTextElementBridge {
 		FontListMetrics ms = this.fm.getFontListMetrics(fontStyle);
 		for (int i = 0; i < ms.getLength(); ++i) {
 			FontMetricsImpl m = (FontMetricsImpl) ms.getFontMetrics(i);
-			GVTFont font = new MyGVTFont(m, fontStyle);
+			GVTFont font = new MyGVTFont(m, fontStyle, ms);
 			fontList.add(font);
 		}
 

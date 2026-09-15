@@ -648,7 +648,19 @@ public class DirectSession extends AbstractCTISession
 
 	public void transcode(URI uri) throws IOException, TranscoderException {
 		this.prepareTranscode(uri);
-		final Source source = this.resolver.resolve(uri, true);
+		final Source source;
+		try {
+			source = this.resolver.resolve(uri, true);
+		} catch (SecurityException e) {
+			// 遠隔の利用者にサーバーの内側の宛先などを拒んだ(MySourceResolver)。以前は RuntimeException のまま
+			// CTIP サーバーを突き抜けて接続が切れ、利用者には "EOF within CTIP response" しか
+			// 届かなかった(2026-09-14、TECH-20260911-008)。メッセージ付きの中断にする
+			throw this.serverSideDocumentError(MessageCodes.ERROR_FORBIDDEN_SERVERSIDE_DOCUMENT, uri, e);
+		} catch (FileNotFoundException e) {
+			throw this.serverSideDocumentError(MessageCodes.ERROR_MISSING_SERVERSIDE_DOCUMENT, uri, null);
+		} catch (IOException e) {
+			throw this.serverSideDocumentError(MessageCodes.ERROR_UNREACHABLE_SERVERSIDE_DOCUMENT, uri, e);
+		}
 		// 進行通知用に先開きしたストリームは自分で閉じる(2026-08-27)。
 		// resolver.release(source)はSourceオブジェクトを返すだけで、
 		// getInputStream()で開いた実ストリームまでは閉じない。閉じ漏れる
@@ -689,17 +701,14 @@ public class DirectSession extends AbstractCTISession
 						progressIn = in;
 						xsource = new StreamSource(uri, in, source.getMimeType(), source.getEncoding());
 					}
+				} catch (FileNotFoundException e) {
+					throw this.serverSideDocumentError(MessageCodes.ERROR_MISSING_SERVERSIDE_DOCUMENT, uri, null);
 				} catch (IOException e) {
-					throw new FileNotFoundException();
+					// 接続拒否・切断など。以前は FileNotFoundException に化けて「ありません」と出ていた
+					throw this.serverSideDocumentError(MessageCodes.ERROR_UNREACHABLE_SERVERSIDE_DOCUMENT, uri, e);
 				}
 			}
 			this.transcode(xsource);
-		} catch (FileNotFoundException e) {
-			final short code = MessageCodes.ERROR_MISSING_SERVERSIDE_DOCUMENT;
-			final String[] args = new String[] { uri.toString() };
-			this.message(code, args);
-			throw new TranscoderException(TranscoderException.STATE_BROKEN, code, args,
-					MessageCodeUtils.toString(code, args));
 		} finally {
 			if (progressIn != null) {
 				try {
@@ -720,6 +729,22 @@ public class DirectSession extends AbstractCTISession
 			}
 			this.resolver.release(source);
 		}
+	}
+
+	/**
+	 * サーバー側のメインドキュメントを取れなかったときの中断(STATE_BROKEN)を、メッセージを通知してから作ります。
+	 * cause が無い code(3806)は引数 1 つ、ある code(3810/3811)は理由を 2 つ目の引数にします。
+	 */
+	private TranscoderException serverSideDocumentError(final short code, final URI uri, final Exception cause) {
+		final String[] args = cause == null ? new String[] { uri.toString() }
+				: new String[] { uri.toString(), String.valueOf(cause.getMessage()) };
+		this.message(code, args);
+		final TranscoderException te = new TranscoderException(TranscoderException.STATE_BROKEN, code, args,
+				MessageCodeUtils.toString(code, args));
+		if (cause != null) {
+			te.initCause(cause);
+		}
+		return te;
 	}
 
 	public OutputStream transcode(final SourceMetadata metaSource) throws IOException {

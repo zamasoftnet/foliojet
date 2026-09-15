@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.pdf.fonts.policy" value="embedded cid-keyed"?>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>text-autospace: proportional punctuation before Latin/digits</title>
+<style>
+@page { size: 240pt 200pt; margin: 10pt; }
+body { margin: 0; font-size: 12pt; line-height: 20pt; }
+p { margin: 0; }
+.p { font-family: 'IPAPGothic'; }
+.w { font-family: 'Mincho'; }
+.off { text-autospace: no-autospace; }
+</style>
+</head>
+<body>
+<!-- IPAPGothic の「、」「。」「，」は 0.5em(比例幅)。全角の句読点は自身の後ろに二分の空きを
+     持つが、比例幅だとそれが無く、後ろの欧文・数字が字面に寄る。比例幅の句読点(cl-06/07)の
+     後ろに欧文・数字が続くときだけ和欧間アキ(0.25em)を入れる(2026-09-14、利用者報告
+     「palt 指定時、約物と欧文の間に和欧間アキが入らない」)。palt の GPOS 調整も getAdvance
+     経由で同じ判定に乗る -->
+<p class="p" id="kanji">約3約A</p>
+<p class="p" id="comma">約、6約、A</p>
+<p class="p" id="period">約。6</p>
+<p class="p" id="fwcomma">約，6</p>
+<p class="p" id="punct-kana">約、あ</p>
+<p class="p off" id="off">約、6</p>
+<!-- 全角の句読点(Mincho は方針 embedded の代替 Noto Serif JP、「、」=1em)は従来どおり入れない -->
+<p class="w" id="wide">約、6</p>
+</body>
+</html>

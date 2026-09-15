@@ -378,6 +378,7 @@
 0390-writing-mode/sideways-rl.html	files/unittest/0390-writing-mode/sideways-rl.html	1	text/html	input.include=**	input.property-pi=true
 0390-writing-mode/t-chu-y.html	files/unittest/0390-writing-mode/t-chu-y.html	1	text/html	input.include=**	input.property-pi=true
 0390-writing-mode/table-pagebreak.html	files/unittest/0390-writing-mode/table-pagebreak.html	1	text/html	input.include=**	input.property-pi=true
+0390-writing-mode/tcy-logical-margin.html	files/unittest/0390-writing-mode/tcy-logical-margin.html	1	text/html	input.include=**	input.property-pi=true
 0390-writing-mode/tentsuki.html	files/unittest/0390-writing-mode/tentsuki.html	1	text/html	input.include=**	input.property-pi=true
 0390-writing-mode/text-orientation.html	files/unittest/0390-writing-mode/text-orientation.html	1	text/html	input.include=**	input.property-pi=true
 0390-writing-mode/vert-cell-in-hriz.html	files/unittest/0390-writing-mode/vert-cell-in-hriz.html	1	text/html	input.include=**	input.property-pi=true
@@ -449,6 +450,7 @@
 0480-rescue-split/tall-inline-block.html	files/unittest/0480-rescue-split/tall-inline-block.html	1	text/html	input.include=**	input.property-pi=true
 0480-rescue-split/vertical-page-lr.html	files/unittest/0480-rescue-split/vertical-page-lr.html	1	text/html	input.include=**	input.property-pi=true
 0480-rescue-split/vertical-page-rl.html	files/unittest/0480-rescue-split/vertical-page-rl.html	1	text/html	input.include=**	input.property-pi=true
+0480-svg-text/inline-svg-text.html	files/unittest/0480-svg-text/inline-svg-text.html	1	text/html	input.include=**	input.property-pi=true
 0480-svg-text/keep-text.html	files/unittest/0480-svg-text/keep-text.html	1	text/html	input.include=**	input.property-pi=true
 0490-robustness/image-map.html	files/unittest/0490-robustness/image-map.html	1	text/html	input.include=**	input.property-pi=true
 0490-robustness/invalid-span.html	files/unittest/0490-robustness/invalid-span.html	1	text/html	input.include=**	input.property-pi=true
@@ -610,14 +612,18 @@
 0510-text-spacing/autospace-horizontal.html	files/unittest/0510-text-spacing/autospace-horizontal.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/autospace-in-float.html	files/unittest/0510-text-spacing/autospace-in-float.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/autospace-inline-block-measured.html	files/unittest/0510-text-spacing/autospace-inline-block-measured.html	1	text/html	input.include=**	input.property-pi=true
+0510-text-spacing/autospace-proportional-punctuation.html	files/unittest/0510-text-spacing/autospace-proportional-punctuation.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/autospace-vertical.html	files/unittest/0510-text-spacing/autospace-vertical.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/builtin-fullwidth-punctuation.html	files/unittest/0510-text-spacing/builtin-fullwidth-punctuation.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/hanging-end.html	files/unittest/0510-text-spacing/hanging-end.html	1	text/html	input.include=**	input.property-pi=true
+0510-text-spacing/inkgap-intrinsic.html	files/unittest/0510-text-spacing/inkgap-intrinsic.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/jlreq-boundaries.html	files/unittest/0510-text-spacing/jlreq-boundaries.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/jlreq-composed-features.html	files/unittest/0510-text-spacing/jlreq-composed-features.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/jlreq-justify-priority.html	files/unittest/0510-text-spacing/jlreq-justify-priority.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/jlreq-shrink-priority.html	files/unittest/0510-text-spacing/jlreq-shrink-priority.html	1	text/html	input.include=**	input.property-pi=true
+0510-text-spacing/jlreq-shrink-proportional.html	files/unittest/0510-text-spacing/jlreq-shrink-proportional.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/jlreq-shrink-trimmed-pair.html	files/unittest/0510-text-spacing/jlreq-shrink-trimmed-pair.html	1	text/html	input.include=**	input.property-pi=true
+0510-text-spacing/jlreq-shrink-vertical-colon.html	files/unittest/0510-text-spacing/jlreq-shrink-vertical-colon.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/trim-line-edges.html	files/unittest/0510-text-spacing/trim-line-edges.html	1	text/html	input.include=**	input.property-pi=true
 0510-text-spacing/trim-pairs.html	files/unittest/0510-text-spacing/trim-pairs.html	1	text/html	input.include=**	input.property-pi=true
 0520-block-align/align-content.html	files/unittest/0520-block-align/align-content.html	1	text/html	input.include=**	input.property-pi=true

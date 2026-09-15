@@ -258,10 +258,15 @@ public final class JapaneseSpacingResolver {
 		return JapaneseSpacingClass.of(codePoint) == JapaneseSpacingClass.PUNCTUATION ? advance : 0;
 	}
 
-	/** wide判定(metrics換算: font単位750/1000 ⇔ 0.75×font-size)。 */
+	/**
+	 * wide判定(metrics換算: font単位750/1000 ⇔ 0.75×font-size)。横組の送りは
+	 * {@code getAdvance}(font-feature-settings の {@code palt} など GPOS の送り調整込み)で見る。
+	 * {@code getWidth} は hmtx の値だけなので、palt で二分に縮んだ「、」を全角と誤判定して
+	 * 固定二分の詰めや空きの仮定を当ててしまう(2026-09-14)。
+	 */
 	public static boolean isWide(final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final int gid,
 			final double fontSize) {
-		return metrics.getWidth(gid) > fontSize * 0.75;
+		return metrics.getAdvance(gid) > fontSize * 0.75;
 	}
 
 	/**
