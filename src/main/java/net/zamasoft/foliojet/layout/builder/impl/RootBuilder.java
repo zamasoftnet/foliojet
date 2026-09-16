@@ -1328,11 +1328,21 @@ public class RootBuilder extends BreakableBuilder {
 		// テスト・本番を問わず例外を投げる形に変更する。
 		if (this.flowStack.size() != continuation.depth()) {
 			// **何が積まれていたか/積み直されたかまで書く。** 深さの数字だけでは
-			// どの流し込みが落ちたのか分からず、診断に何時間もかかった(2026-08-03)
+			// どの流し込みが落ちたのか分からず、診断に何時間もかかった(2026-08-03)。
+			// **能力スキャンがどの段で止まったかも書く**(2026-09-16)。深さの差は
+			// 「continuation.depth()=破断時のflowStack」と「フレーム鎖=BreakPlanの
+			// approvedBoxes」の不一致であり、その分かれ目は firstBarrier なので、
+			// これが無いと鎖が浅い理由(どの箱のどの能力で止めたか)が分からない
 			throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
 					"break flow failed (flowStack.size()=" + this.flowStack.size() + ", continuation.depth()="
 							+ continuation.depth() + ")\n  破断時: " + flowsAtBreak + "\n  再開後: "
-							+ this.describeFlowStack());
+							+ this.describeFlowStack() + "\n  改ページ種別: " + mode + "\n  能力スキャン: 承認 "
+							+ plan.chain().size() + " 段 / 開き " + snapshot.levels().size() + " 段, 障壁 "
+							+ snapshot.firstBarrier()
+									.map(b -> "index=" + b.openPathIndex() + " reason=" + b.reason())
+									.orElse("なし")
+							+ "\n  開き鎖の分類: " + this.describeOpenPathCapabilities(snapshot)
+							+ "\n  継続の構造: " + describeContinuationShape(continuation));
 		}
 
 		if (LOG.isLoggable(Level.FINE)) {
@@ -1362,6 +1372,62 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/** 流し込みスタックの中身を人が読める形にします(不変条件の診断用)。 */
+	/**
+	 * 継続のフレーム鎖の段数と終端の開き形を表します(2026-09-16、診断用)。
+	 *
+	 * <p>
+	 * {@code continuation.depth()}は破断時の{@code flowStack}から採るのに対し、
+	 * 再開が積み直す段数はこのフレーム鎖で決まる。食い違いの診断には両方が要る。
+	 * </p>
+	 */
+	private static String describeContinuationShape(
+			final net.zamasoft.foliojet.layout.fragment.Continuation continuation) {
+		int frames = 0;
+		net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame = continuation.root();
+		net.zamasoft.foliojet.layout.fragment.OpenShape terminal = null;
+		while (frame != null) {
+			++frames;
+			switch (frame.tail()) {
+			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(final var child) -> frame = child;
+			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(final var shape) -> {
+				terminal = shape;
+				frame = null;
+			}
+			}
+		}
+		return "フレーム " + frames + " 段, 終端の開き形 " + (terminal == null ? "なし" : terminal + " (depth=" + terminal.depth() + ")")
+				+ ", depth フィールド " + continuation.depth();
+	}
+
+	/**
+	 * 開き鎖の各段の箱と継続能力を 1 行で表します(2026-09-16、診断用)。
+	 *
+	 * <p>
+	 * 継続の深さと再開後の深さが食い違うとき、分かれ目は「どの段で
+	 * {@link net.zamasoft.foliojet.layout.fragment.ContinuationCapability}が
+	 * 承認されなかったか」なので、段ごとの箱の型と分類を並べる。
+	 * </p>
+	 */
+	private String describeOpenPathCapabilities(
+			final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot) {
+		final StringBuilder out = new StringBuilder();
+		for (final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.OpenLevelDescriptor level : snapshot
+				.levels()) {
+			if (level.index() > 0) {
+				out.append(" / ");
+			}
+			out.append('[').append(level.index()).append(']').append(level.boxClass().getSimpleName()).append(':');
+			switch (level.role()) {
+			case net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.OpenLevelRole.Anchor(final var kind) ->
+				out.append("anchor(").append(kind).append(')');
+			case net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.OpenLevelRole.Ancestor(
+					final var capability) ->
+				out.append(capability);
+			}
+		}
+		return out.toString();
+	}
+
 	private String describeFlowStack() {
 		final StringBuilder out = new StringBuilder();
 		for (int i = 0; i < this.flowStack.size(); ++i) {

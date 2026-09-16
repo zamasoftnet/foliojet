@@ -1695,6 +1695,14 @@ public class FlowContainer implements Container {
 				source, progression, sourcePageExtent, slice.offset(), slice.sliceExtent());
 		final net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox tail = new net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox(
 				source, progression, sourcePageExtent, tailOffset, tailExtent);
+		if (System.getProperty("foliojet.debug.rescueProbe") != null) {
+			System.err.println("[rescueProbe] box=" + box.getClass().getSimpleName() + " element="
+					+ (box.getParams() == null ? "-" : String.valueOf(box.getParams().element)) + " offset=" + offset
+					+ " sourcePageExtent=" + sourcePageExtent + " available=" + available + " capacity=" + capacity
+					+ " atFragmentStart=" + atFragmentStart + " relaxUnfulfillableAvoid=" + relaxUnfulfillableAvoid
+					+ " container=" + (this.box.getParams() == null ? "-" : String.valueOf(this.box.getParams().element)));
+			new Throwable("[rescueProbe] call site").printStackTrace();
+		}
 		this.flows.set(index, new Flow(prevFlow.serial, head, prevFlow.pageAxis));
 		this.adopt(head);
 		net.zamasoft.foliojet.layout.rescue.RescueStats.recordEnabled();
