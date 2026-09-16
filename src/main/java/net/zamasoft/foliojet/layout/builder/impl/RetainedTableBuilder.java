@@ -930,8 +930,34 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	private TableShape resolveShape(final BlockBuilder builder) {
 		final TableParams tableParams = this.tableBox.getTableParams();
 		final AbstractContainerBox containerBox = this.layoutStack.getFlowBox();
-		final double lineSize = containerBox.getBlockParams().flow.isVertical() == tableParams.flow.isVertical() ? containerBox.getLineSize()
-						: (this.vertical ? this.layoutStack.getFixedHeight() : this.layoutStack.getFixedWidth());
+		final boolean sameAxis = containerBox.getBlockParams().flow.isVertical() == tableParams.flow.isVertical();
+		double lineSize = sameAxis ? containerBox.getLineSize()
+				: (this.vertical ? this.layoutStack.getFixedHeight() : this.layoutStack.getFixedWidth());
+		if (!sameAxis && (LayoutUtils.isNone(lineSize) || LayoutUtils.compare(lineSize, 0) <= 0)) {
+			// **直交フローの百分率の基準はフラグメンテナ(ページ)へ落とす**
+			// (2026-09-16、css-writing-modes-4 §7.3)。`getFixedWidth()`/
+			// `getFixedHeight()` は「明示寸法の祖先」を探す仕組みで、縦組み文書の
+			// 中の横組みの表のように該当が無いと 0 を返す。0 を基準にすると
+			// `max-width: 50%` が 0 になり、**幅 0 の表から内容が紙面外へあふれる**
+			// (掃過の「全描画が紙面外」。用紙 200pt の文書で x=200.5 から描かれた)。
+			// 用紙の寸法は確定値なので、最後の基準として使える
+			final RootBuilder root = builder.getPageContext();
+			if (root != null) {
+				final AbstractContainerBox pageBox = root.getRootBox();
+				if (pageBox != null) {
+					final double fragmentainer = this.vertical ? pageBox.getHeight() : pageBox.getWidth();
+					if (!LayoutUtils.isNone(fragmentainer) && LayoutUtils.compare(fragmentainer, 0) > 0) {
+						lineSize = fragmentainer;
+					}
+				}
+			}
+		}
+		if (System.getProperty("foliojet.debug.tableBasis") != null) {
+			System.err.println("[tableBasis] sameAxis=" + sameAxis + " lineSize=" + lineSize + " vertical=" + this.vertical
+					+ " container=" + containerBox.getClass().getSimpleName() + " containerFlowVertical="
+					+ containerBox.getBlockParams().flow.isVertical() + " tableFlowVertical=" + tableParams.flow.isVertical()
+					+ " size=" + tableParams.size + " maxSize=" + tableParams.maxSize);
+		}
 		// テーブル幅
 		double tableSize;
 		final double tableFrame, lineBorderSpacing;
