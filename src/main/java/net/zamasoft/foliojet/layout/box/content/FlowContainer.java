@@ -1516,8 +1516,16 @@ public class FlowContainer implements Container {
 					// ではなく見出し後の残量で切る
 					final Flow target = this.flows.get(index);
 					final double available = savePageLimit - target.pageAxis;
-					final IFlowBox rescued = this.rescueSplit(index, target, available,
-							((AutoBreakMode) mode).fragmentCapacity, false, true);
+					// **開いたままの箱は救済分割しない**(2026-09-16)。継続チェーンの
+					// メンバーは現在の破断点の祖先として開いており、まだ内容が届く。
+					// 視覚的に切って閉じた残余へ置き換えると、再開が addRescueBound で
+					// 閉じた箱として戻すため flowStack が積み直されず、継続の開き段数と
+					// 食い違う(不変条件「flowStack深さ≠継続深さ」——掃過で最多の欠陥、
+					// STRICT 2,459/WILD 1,570 件)。この場合は下の従来経路
+					// (境界 avoid を緩和して内側で切る=継続フレームを作る)へ落とす
+					final IFlowBox rescued = plan != null && plan.selects(target.box) ? null
+							: this.rescueSplit(index, target, available,
+									((AutoBreakMode) mode).fragmentCapacity, false, true);
 					if (rescued != null) {
 						nextBox = this.applyPartition(index, new ProbeOutcome.Split(rescued));
 						break;
