@@ -1840,12 +1840,37 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		if (pageColumn) root.columnCommitted(this, breakFlow, prepared);
 
+		// 再開後の深さ検査用に、刈り込む前の owner の位置を控える(下記)
+		final int ownerStackIndex = this.flowStack == null ? -1 : this.flowStack.indexOf(breakFlow);
 		this.pruneFlowStackTo(breakFlow);
 		this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);
 		// 2026-07-23(排除域P1増分1): 保持されたhidden flow分の空台帳を
 		// 積み直す(rootless経路と同じ)。
 		this.rebuildNoOverflowFloatingScopes();
 		root.resumeColumn(this, continuation);
+		// **再開後の相対開き深さを検査する**(2026-09-16)。PAGE 側には
+		// `RootBuilder.pageBreak` の「flowStack深さ≠継続深さ」があるが、改段には
+		// 同じ検査が無く、開いた箱が閉じた残余(救済分割)へ置き換わって積み直され
+		// なくても、そのまま true を返して続行していた(codex レビューで確認できた
+		// 検査の欠落)。破断前と同じ相対深さに戻っていなければ、内容の所属と終了
+		// イベントの対応が崩れているので fail closed で止める
+		// 再開は owner の Flow を作り直すので identity では引けない
+		// (`captureColumnOpenPath` を再呼び出しすると「owner が flowStack にも
+		// contextFlow にも無い」で落ちる)。添字で数える
+		final int resumedDepth = ownerStackIndex >= 0
+				? (this.flowStack == null ? 0 : this.flowStack.size()) - ownerStackIndex
+				: 1 + (this.flowStack == null ? 0 : this.flowStack.size());
+		if (resumedDepth != depth) {
+			throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
+					"column resume failed (relative open depth=" + resumedDepth + ", expected=" + depth
+							+ ")\n  改段種別: " + mode + "\n  開き鎖の分類: "
+							+ columnScan.snapshot().levels().stream()
+									.map(l -> "[" + l.index() + "]" + l.boxClass().getSimpleName() + ":"
+											+ (l.role() instanceof net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.OpenLevelRole.Ancestor a
+													? String.valueOf(a.capability())
+													: "anchor"))
+									.reduce((x, y) -> x + " / " + y).orElse("-"));
+		}
 		return true;
 	}
 
