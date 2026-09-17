@@ -947,6 +947,21 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					this.pageAxis = savedPageAxis;
 					break;
 				}
+				if (this.textBuilder != null) {
+					// **改ページ処理でつくられたテキストブロックを終了**(2026-09-17)。
+					// 継続の終端は深さ規約(OpenShape.of)で常に開きテキストなので、再開は
+					// 末尾の TextBlockBox を開いたまま戻す——ここへ来るのはテキストが
+					// 開いていないとき(textBuilder==null)だから、それは**既に終了処理を
+					// 済ませたテキストブロック(断片)**である(論理段落が終わったとは限らない
+					// ——flush() は続きのあるテキストも一度閉じる。続きは呼び出し中の
+					// イベントとして、この後に作る新しいブロックへ届く)。`endTextBlock()`・`breakByClear()`・浮動体の切断
+					// ループは皆この後始末を持つのに、この改ページだけ欠けていて、
+					// super.requireTextBlock() が「ブロック境界でテキストビルダーが開いた
+					// まま」で変換を失敗させていた(掃過 wild の 6 件。ページフロートの
+					// 排除で 1 行目が入らない頁)。開いたまま使い回すのは誤り——届きかけの
+					// control が前のブロックへ入り、インラインの開始が二重になる
+					this.endTextBlock();
+				}
 			}
 		}
 		super.requireTextBlock();

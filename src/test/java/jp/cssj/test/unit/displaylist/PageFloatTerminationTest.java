@@ -35,6 +35,36 @@ public class PageFloatTerminationTest extends TestCase {
 		check("top-float-exclusion-after-limit-shrinks");
 	}
 
+	/**
+	 * seed 3361501: ページフロートの排除で 1 行目が版面に入らず {@code requireTextBlock()} が改ページすると、
+	 * 再開が直前の完結したテキストブロックを(深さ規約どおり)開いたまま戻す。後始末が無く
+	 * 「ブロック境界でテキストビルダーが開いたまま」で変換が失敗していた。
+	 */
+	public void testFirstLineBreakClosesReopenedText() throws Exception {
+		check("first-line-break-reopens-closed-text");
+		// WILD の検査は「落ちない・止まる」までなので、この修正が語を二重に出していない
+		// ことを表示リストで固定する(救済スライスの続きは artifact として描かれるので除く)
+		final java.util.Map<String, Integer> draws = new java.util.TreeMap<>();
+		final File[] pages = new File("build/fuzz-regressions/first-line-break-reopens-closed-text-dl")
+				.listFiles((d, n) -> n.startsWith("page-") && n.endsWith(".txt"));
+		assertNotNull(pages);
+		assertTrue("表示リストが出ていない", pages.length > 0);
+		final java.util.regex.Pattern token = java.util.regex.Pattern.compile("Text\\[\"(T\\d+)\"");
+		for (final File page : pages) {
+			for (final String line : Files.readAllLines(page.toPath(), StandardCharsets.UTF_8)) {
+				if (line.contains(" artifact ")) {
+					continue;
+				}
+				final java.util.regex.Matcher m = token.matcher(line);
+				while (m.find()) {
+					draws.merge(m.group(1), 1, Integer::sum);
+				}
+			}
+		}
+		assertFalse("語が 1 つも描かれていない", draws.isEmpty());
+		draws.forEach((k, v) -> assertEquals("語 " + k + " が複数回描かれた", 1, v.intValue()));
+	}
+
 	private static void check(final String name) throws Exception {
 		final File fixture = new File("files/fuzz-repro/" + name + ".html");
 		final String html = Files.readString(fixture.toPath(), StandardCharsets.UTF_8);
