@@ -348,6 +348,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 						contGrid.setGridRows(contRows, contItems);
 					}
 				}
+				this.keepHeadRows(boundary + 1);
 				return new SplitResult.Split(continuation);
 			}
 			if (anySplit) {
@@ -435,6 +436,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 					contGrid.markTrackLayout();
 					contGrid.setGridRows(contRows, contItems);
 				}
+				this.keepHeadRows(boundary + 1);
 				return new SplitResult.Split(continuation);
 			}
 			// 境界行の誰も分割できない=行全体を境界とみなし、丸ごと持ち越す
@@ -452,7 +454,21 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			contGrid.setGridRows(shiftRows(this.rows, boundary, keptExtent),
 					new ArrayList<>(this.rowItems.subList(boundaryRow.startFlow(), this.rowItems.size())));
 		}
+		this.keepHeadRows(boundary);
 		return new SplitResult.Split(continuation);
+	}
+
+	/**
+	 * 分割後の頭側に、残した行と item だけを記録し直します(2026-09-17)。
+	 * {@link FlexBox} の同名の処理と同じ理由——移送済みの行を指したまま同じ頭が
+	 * もう一度分割されると、移送済みの item を再び分割して内容が複製される。
+	 */
+	private void keepHeadRows(final int rowCount) {
+		final int rows = Math.min(rowCount, this.rows.size());
+		final int items = rows == 0 ? 0
+				: Math.min(this.rowItems.size(), this.rows.get(rows - 1).startFlow() + this.rows.get(rows - 1).itemCount());
+		this.rows = new ArrayList<>(this.rows.subList(0, rows));
+		this.rowItems = new ArrayList<>(this.rowItems.subList(0, items));
 	}
 
 	/**

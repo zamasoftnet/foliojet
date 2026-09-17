@@ -2653,6 +2653,19 @@ public class FlowContainer implements Container {
 		{
 			{
 				BoxHolder holder = (BoxHolder) items.get(i);
+				if (System.getProperty("foliojet.debug.resumeDetail") != null) {
+					// 再開の各アイテムの出自(2026-09-17、診断用)。ResumeTrace は golden で
+					// 固定されているので文面を変えず、別スイッチで stderr へ出す
+					final IBox b = holder instanceof Replay ? null : holder.getBox();
+					System.err.println("[resumeDetail] depth=" + depth + " i=" + i + "/" + size + " serial=" + holder.serial
+							+ (holder instanceof Replay r ? " REPLAY range=" + r.range
+									: " " + b.getType() + " " + b.getClass().getSimpleName() + " element="
+											+ (b.getParams() == null ? "-" : String.valueOf(b.getParams().element)))
+							+ " last=" + (lastFlow == holder) + " shape=" + shape + " builder="
+							+ builder.getClass().getSimpleName() + " container="
+							+ (this.box == null || this.box.getParams() == null ? "-"
+									: String.valueOf(this.box.getParams().element)));
+				}
 				if (holder instanceof Replay replay) {
 					// C1c: 吸収された閉部分木のソース再駆動(再生可否は
 					// 破断時に判定済みのため無条件。op は従来と同一)

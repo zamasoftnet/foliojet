@@ -298,8 +298,9 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			if (continuation instanceof FlexBox contFlex) {
 				contFlex.markFlexLayout();
 				contFlex.setFlexLines(shiftLines(this.lines, boundary, keptExtent),
-						this.lineItems.subList(boundaryLine.startFlow(), this.lineItems.size()));
+						new ArrayList<>(this.lineItems.subList(boundaryLine.startFlow(), this.lineItems.size())));
 			}
+			this.keepHeadLines(boundary, boundaryLine.startFlow());
 			return new SplitResult.Split(continuation);
 		}
 		final double remaining = pageLimit - boundaryLine.start();
@@ -333,8 +334,9 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			if (continuation instanceof FlexBox contFlex) {
 				contFlex.markFlexLayout();
 				contFlex.setFlexLines(shiftLines(this.lines, boundary, keptExtent),
-						this.lineItems.subList(boundaryLine.startFlow(), this.lineItems.size()));
+						new ArrayList<>(this.lineItems.subList(boundaryLine.startFlow(), this.lineItems.size())));
 			}
+			this.keepHeadLines(boundary, boundaryLine.startFlow());
 			return new SplitResult.Split(continuation);
 		}
 
@@ -424,7 +426,24 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			contFlex.markFlexLayout();
 			contFlex.setFlexLines(contLines, contItems);
 		}
+		this.keepHeadLines(boundary + 1, boundaryLine.startFlow() + boundaryItems.length);
 		return new SplitResult.Split(continuation);
+	}
+
+	/**
+	 * 分割後の頭側に、残した行と item だけを記録し直します(2026-09-17)。
+	 *
+	 * <p>
+	 * 従来は分割しても {@code lines}/{@code lineItems} が元のままで、<b>次断片へ
+	 * 移送済みの行と item を指し続けていた</b>。多段の均衡のように同じ頭がもう一度
+	 * 分割されると、古い記録から「境界行」を選び、既に移送した item をもう一度
+	 * {@code split} して残余を作る——同じ内容が 2 つの断片に入る(掃過の
+	 * 「内容の複製」。seed 2010872 で T106 が同じ頁の 2 つの段に描かれた)。
+	 * </p>
+	 */
+	private void keepHeadLines(final int lineCount, final int itemCount) {
+		this.lines = new ArrayList<>(this.lines.subList(0, Math.min(lineCount, this.lines.size())));
+		this.lineItems = new ArrayList<>(this.lineItems.subList(0, Math.min(itemCount, this.lineItems.size())));
 	}
 
 	/**
