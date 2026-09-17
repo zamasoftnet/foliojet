@@ -1319,6 +1319,34 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
+	/**
+	 * 版面に<b>物理的に収まらない内容</b>を置いた文書の紙面外配置(2026-09-17新設)。
+	 *
+	 * <p>
+	 * 36M掃過(seed 2,000,000〜5,249,999)でエンジン側の欠陥を直し切ったあとに残った
+	 * 紙面外31件は、縮小すると「割れないルビが行より長い」「段が組版できない幅」
+	 * 「{@code min-width}が入れ物より広い」「狭い浮動体」へ収束した。2026-07-26の裁定
+	 * (収まらないものを置いた文書は除外。寸法を直すのは指定した側の責任)と同じ性質だが、
+	 * {@link #isOversized}は{@code width}/{@code height}/字の大きさしか見ないので漏れていた。
+	 * 2026-09-17のユーザー裁定で検出器を同じ性質の別表現へ広げた。
+	 * 判定は{@link #findUnfittableContent}の入れ子をたどった静的な下限見積りだけで行う。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>紙面外の検査にだけ使う</b>(白紙・内容の消失・読み順・複製・変換の失敗には適用しない)。
+	 * 集計では理由ごとに別の種別として数える——除外の内訳が変わったことに気づくため。
+	 * </p>
+	 */
+	private static final class ExcludedByUnfittableContent extends AssertionError {
+		private static final long serialVersionUID = 1L;
+		final String reason;
+
+		ExcludedByUnfittableContent(final String message, final String reason) {
+			super(message);
+			this.reason = reason;
+		}
+	}
+
 	/** 失敗メッセージから種別(defect class)を粗く取り出す。 */
 	static String classify(final Throwable t) {
 		for (Throwable c = t; c != null; c = c.getCause()) {
@@ -1343,6 +1371,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		if (t instanceof ExcludedByFlexMulticolMinContent) {
 			return "(除外)flex内の段組表によるmin-content幅";
+		}
+		if (t instanceof ExcludedByUnfittableContent) {
+			return "(除外)収まらない内容: " + ((ExcludedByUnfittableContent) t).reason;
 		}
 		// 捕捉するのはラッパ(AssertionError)なので、**cause鎖の全メッセージ**を
 		// 連結して判定する。t.getMessage()だけを見ると常にラッパの文言に
@@ -2031,7 +2062,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 						checkOne(seed, strict);
 					}
 					System.out.println("[fuzzOnly]   通った");
-				} catch (final ExcludedByOversizedBox | ExcludedByUntypesettableFloat excluded) {
+				} catch (final ExcludedByOversizedBox | ExcludedByUntypesettableFloat
+						| ExcludedByUnfittableContent excluded) {
 					System.out.println("[fuzzOnly]   " + classify(excluded) + " : " + excluded);
 				} catch (final Throwable t) {
 					System.out.println("[fuzzOnly]   " + classify(t) + " : " + t);
@@ -2900,6 +2932,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (hasFlexMulticolTable(doc.html())) {
 			throw new ExcludedByFlexMulticolMinContent(detail + " [flex内の段組表によるmin-content幅]");
 		}
+		// 版面に物理的に収まらない内容(2026-09-17のユーザー裁定。
+		// {@link ExcludedByUnfittableContent}に理由を書いた)
+		final String unfittable = findUnfittableContent(doc.html(), worstIsY);
+		if (unfittable != null) {
+			throw new ExcludedByUnfittableContent(detail + " [" + unfittable + "]", unfittable);
+		}
 		// 直交フローが親の**行軸**へ溢れた場合も除外(2026-07-28のユーザー
 		// 裁定。{@link ExcludedByOrthogonalLineAxis}に理由を書いた)。
 		// **ページ軸への溢れは除外しない**——そちらは改ページで直せるので、
@@ -2928,7 +2966,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			Pattern.CASE_INSENSITIVE);
 	private static final Pattern INPUT_TYPE = Pattern.compile("\\btype\\s*=\\s*[\"']?([a-z]+)",
 			Pattern.CASE_INSENSITIVE);
-	private static final Pattern INPUT_SIZE = Pattern.compile("\\bsize\\s*=", Pattern.CASE_INSENSITIVE);
+	private static final Pattern INPUT_SIZE_VALUE = Pattern.compile("\\bsize\\s*=\\s*[\"']?(\\d+)",
+			Pattern.CASE_INSENSITIVE);
+	/** 試験用UA CSSのフォームコントロールは12pt。1ex=6pt、外枠は左右で4pt(既定の20ex=124ptと同じ式)。 */
+	private static final double TEXT_CONTROL_EX_PT = 6;
+	private static final double TEXT_CONTROL_FRAME_PT = 4;
 	/** 試験用UA CSSの一行入力欄/textarea既定20exに外枠を加えた実寸。 */
 	private static final double DEFAULT_TEXT_CONTROL_WIDTH_PT = 124;
 
@@ -2938,29 +2980,32 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * <p>
 	 * {@code html-ua.css}はこれらを20exにする。固定試験フォントでは外枠込み
 	 * 124ptで、seed 473636/526411/651439の負座標・後続インライン位置を
-	 * そのまま説明する。checkbox/radio等と{@code size}指定付き入力へ広げない。
+	 * そのまま説明する。checkbox/radio等へは広げない。{@code size}付きの入力欄は既定幅ではなく
+	 * 指定した{@code size}の実寸を使い、文書内で最も広いものを返す(2026-09-17)。
 	 * </p>
 	 */
 	static double defaultTextControlWidth(final String html) {
+		double widest = 0;
 		final Matcher tag = TEXT_CONTROL_TAG.matcher(html);
 		while (tag.find()) {
 			if (tag.group(1).equalsIgnoreCase("textarea")) {
-				return DEFAULT_TEXT_CONTROL_WIDTH_PT;
-			}
-			final String attrs = tag.group(2);
-			if (INPUT_SIZE.matcher(attrs).find()) {
+				widest = Math.max(widest, DEFAULT_TEXT_CONTROL_WIDTH_PT);
 				continue;
 			}
+			final String attrs = tag.group(2);
 			final Matcher typeMatcher = INPUT_TYPE.matcher(attrs);
-			if (!typeMatcher.find()) {
-				return DEFAULT_TEXT_CONTROL_WIDTH_PT;
+			if (typeMatcher.find() && Set.of("button", "submit", "reset", "checkbox", "radio", "image", "hidden")
+					.contains(typeMatcher.group(1).toLowerCase(java.util.Locale.ROOT))) {
+				continue;
 			}
-			final String type = typeMatcher.group(1).toLowerCase(java.util.Locale.ROOT);
-			if (!Set.of("button", "submit", "reset", "checkbox", "radio", "image", "hidden").contains(type)) {
-				return DEFAULT_TEXT_CONTROL_WIDTH_PT;
-			}
+			// size付きの一行入力欄は size×1ex(6pt)+外枠4pt。生成器v2はsize=1〜20を付けるので、
+			// 以前のように読み飛ばすと「作者が指定した大きさ」から漏れる(2026-09-17、seed 4608881:
+			// size=16=100ptの入力欄は縦書きでも回転しないので、60pt幅の紙に100pt厚の行ができる)
+			final Matcher size = INPUT_SIZE_VALUE.matcher(attrs);
+			widest = Math.max(widest, size.find() ? Integer.parseInt(size.group(1)) * TEXT_CONTROL_EX_PT
+					+ TEXT_CONTROL_FRAME_PT : DEFAULT_TEXT_CONTROL_WIDTH_PT);
 		}
-		return 0;
+		return widest;
 	}
 
 	/**
@@ -3028,6 +3073,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		if (hasFlexMulticolTable(doc.html())) {
 			throw new ExcludedByFlexMulticolMinContent(detail + " [flex内の段組表によるmin-content幅]");
+		}
+		// 版面に物理的に収まらない内容(2026-09-17のユーザー裁定。
+		// {@link ExcludedByUnfittableContent}に理由を書いた)
+		final String unfittable = findUnfittableContent(doc.html(), nearestIsY);
+		if (unfittable != null) {
+			throw new ExcludedByUnfittableContent(detail + " [" + unfittable + "]", unfittable);
 		}
 		final boolean outsideInLineAxis = nearestIsY != pageAxisIsY(doc.html());
 		if (outsideInLineAxis && hasOrthogonalFlow(doc.html())) {
@@ -3621,7 +3672,42 @@ public class RandomDocumentFuzzTest extends TestCase {
 				return true;
 			}
 		}
-		return hasFloatInsideNarrowContainer(html, least) || hasOverwideFloat(html);
+		return hasNarrowFloat(html, least) || hasFloatInsideNarrowContainer(html, least) || hasOverwideFloat(html);
+	}
+
+	/**
+	 * 左右フロート自身の明示幅が組版下限未満か(2026-09-17新設)。
+	 *
+	 * <p>
+	 * {@link #FLOAT_EXPLICIT_SIZE}は{@code float:…;width:…}の<b>隣接</b>を前提にしているが、
+	 * 生成器v2は間に{@code writing-mode}を挟む({@code float:right;writing-mode:horizontal-tb;width:26pt})。
+	 * 同じ裁定の同じ形なのに宣言順で漏れていたので、同じタグのstyleの中で照合する
+	 * (seed 3767082・4709606: 幅22〜26ptの右フロートにリスト。UA既定の字下げだけで紙面の外へ出る)。
+	 * </p>
+	 */
+	static boolean hasNarrowFloat(final String html, final double least) {
+		final int bodyAt = html.indexOf("<body");
+		final Matcher tag = TAG_OR_WM.matcher(html);
+		if (bodyAt >= 0) {
+			tag.region(bodyAt, html.length());
+		}
+		while (tag.find()) {
+			if (tag.group(1) != null) {
+				continue;
+			}
+			final String attrs = String.valueOf(tag.group(3));
+			if (!STYLE_FLOAT.matcher(attrs).find()) {
+				continue;
+			}
+			// 後勝ちの幅(最後が百分率等なら不明=除外しない)。min-widthが勝つならその幅になる
+			final double font = least / MIN_PAGE_CHARS;
+			final double width = Math.max(lastLength(STYLE_WIDTH_DECLARATION, attrs, font, Double.POSITIVE_INFINITY),
+					lastLength(STYLE_MIN_WIDTH_DECLARATION, attrs, font, 0));
+			if (width < least) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** 明示幅が組版下限未満の祖先に、左右フロートが実際に入っているか。 */
@@ -3994,6 +4080,189 @@ public class RandomDocumentFuzzTest extends TestCase {
 			changes.push(Integer.valueOf(n));
 		}
 		return worst;
+	}
+
+	private static final Pattern STYLE_WIDTH_DECLARATION = Pattern
+			.compile("(?:^|[;\\s\"])width\\s*:\\s*([^;\"']*)");
+	private static final Pattern STYLE_HEIGHT_DECLARATION = Pattern
+			.compile("(?:^|[;\\s\"])height\\s*:\\s*([^;\"']*)");
+	private static final Pattern STYLE_MIN_WIDTH_DECLARATION = Pattern
+			.compile("(?:^|[;\\s\"])min-width\\s*:\\s*([^;\"']*)");
+	private static final Pattern PT_OR_EM_LENGTH = Pattern.compile("([\\d.]+)(pt|em)");
+	private static final Pattern STYLE_BORDER_COLLAPSE = Pattern.compile("border-collapse\\s*:\\s*collapse");
+	/** 明示した幅で箱が確定しないdisplay(非置換のinlineと表の部品)。 */
+	private static final Pattern STYLE_DISPLAY_UNSIZED = Pattern
+			.compile("(?:^|[;\\s\"])display\\s*:\\s*(?:inline|table[a-z-]*|inline-table)\\s*(?:;|\"|'|$)");
+	private static final Pattern PAGE_HEIGHT_PROPERTY = Pattern
+			.compile("name=\"output\\.page-height\"\\s+value=\"([\\d.]+)pt\"");
+
+	/** {@link #findUnfittableContent}の理由。集計の種別名の一部になる。 */
+	static final String UNFITTABLE_RUBY = "行より長い割れないルビ";
+	static final String UNFITTABLE_MIN_WIDTH = "入れ物より広いmin-width";
+	static final String UNFITTABLE_COLUMN = "組版できない幅の段";
+
+	/**
+	 * 版面に物理的に収まらない内容があれば、その理由を返します(無ければ{@code null})。
+	 * 2026-09-17新設。{@link ExcludedByUnfittableContent}に経緯を書いた。
+	 *
+	 * <p>
+	 * 開始・終了タグをスタックでたどり、要素ごとに<b>使える幅と高さの上限</b>を持ち回る
+	 * (紙面の内容領域→明示した{@code width}/{@code height}→段組の段幅。罫線を分ける表は
+	 * {@code border-spacing}の1.5pt×2、セルは罫線の1pt×2だけ狭める)。上限しか追わないので、
+	 * 百分率や内容依存の幅は「親と同じ」と見なす。幅の宣言は後勝ちで読み、幅で箱が確定しない要素
+	 * (非置換のinline・flex項目・表とセル)の幅指定では狭めない——収まる文書を収まらないと
+	 * 言わないため(2026-09-17のcodexレビューの反例を{@code FuzzOraclePredicateTest}に固定)。
+	 * 生成器のHTML(終了タグを省かない・{@code <br>}を出さない)を前提にした歩き方で、一般のHTMLの解析ではない。
+	 * </p>
+	 * <ul>
+	 * <li>{@link #UNFITTABLE_RUBY}: 長いルビ({@code fuzz-long-ruby})の親文字の幅の下限
+	 * (字0.5em・空白0.2em)が、その書字方向の行の上限を超える。copperはルビを行内で
+	 * 割らない。<b>はみ出しの軸がルビの行軸と一致するときだけ</b>除外する(31件の実測で
+	 * ルビを含む21件のうち20件が一致。残り1件は別の理由で説明できた)。</li>
+	 * <li>{@link #UNFITTABLE_MIN_WIDTH}: {@code min-width}が使える幅の上限より大きい。
+	 * {@code max-width}より{@code min-width}が勝つので、箱は必ず入れ物からはみ出す
+	 * ({@link #hasOverwideFloat}の「包含幅より広い明示幅」と同じ性質)。</li>
+	 * <li>{@link #UNFITTABLE_COLUMN}: 段幅が基準文字の{@value #MIN_PAGE_CHARS}倍未満。
+	 * {@link #isTinyPage}・{@link #hasUntypesettableFloat}と同じ物差し
+	 * (欄が組版できない幅なら中身は必ず溢れる)。<b>これは物理的に収まらないことの証明ではなく、
+	 * 除外方針の閾値である。</b></li>
+	 * </ul>
+	 *
+	 * <p>
+	 * <b>限界</b>: 除外は文書単位で、ルビ以外ははみ出しの軸も問わない(段からの溢れが浮動体を押し出す等、
+	 * 別の軸へ波及する実例があった)。該当する文書の別の枝・別の軸にある本物の欠陥は隠れる。
+	 * 実測(seed 5,250,000〜の2万文書)では、従来の述語だけで93%強の文書がどちらの軸でも除外になり、
+	 * この述語による上乗せは1ポイント未満だった。
+	 * </p>
+	 *
+	 * @param failureIsY はみ出しが縦(y)方向か
+	 */
+	static String findUnfittableContent(final String html, final boolean failureIsY) {
+		final Matcher widthProperty = PAGE_WIDTH_PROPERTY.matcher(html);
+		final Matcher heightProperty = PAGE_HEIGHT_PROPERTY.matcher(html);
+		final Matcher fm = FONT_SIZE.matcher(html);
+		if (!widthProperty.find() || !heightProperty.find() || !fm.find()) {
+			return null;
+		}
+		final Matcher pm = PAGE_MARGIN.matcher(html);
+		final double margin = pm.find() ? Double.parseDouble(pm.group(1)) : 0;
+		final double font = Double.parseDouble(fm.group(1));
+		final double least = font * MIN_PAGE_CHARS;
+		final Matcher bm = BODY_WRITING_MODE.matcher(html);
+		final java.util.ArrayDeque<Boolean> verticals = new java.util.ArrayDeque<>();
+		final java.util.ArrayDeque<double[]> extents = new java.util.ArrayDeque<>();
+		// 子の幅指定が「使える幅の上限」にならない入れ物(flex=項目が伸びる)の直下か
+		final java.util.ArrayDeque<Boolean> flexParents = new java.util.ArrayDeque<>();
+		// 生成器は罫線の方式を文書のstyle規則で決める(table{border-collapse:…})
+		final boolean collapsedTables = STYLE_BORDER_COLLAPSE.matcher(html).find();
+		verticals.push(Boolean.valueOf(bm.find() && bm.group(1).startsWith("vertical")));
+		extents.push(new double[] { Double.parseDouble(widthProperty.group(1)) - 2 * margin,
+				Double.parseDouble(heightProperty.group(1)) - 2 * margin });
+		flexParents.push(Boolean.FALSE);
+		boolean minWidth = false, column = false;
+		final int bodyAt = html.indexOf("<body");
+		final Matcher tag = TAG_OR_WM.matcher(html);
+		if (bodyAt >= 0) {
+			tag.region(bodyAt + 5, html.length());
+		}
+		while (tag.find()) {
+			if (tag.group(1) != null) {
+				if (verticals.size() > 1) {
+					verticals.pop();
+					extents.pop();
+					flexParents.pop();
+				}
+				continue;
+			}
+			final String name = tag.group(2);
+			final String attrs = String.valueOf(tag.group(3));
+			if (attrs.endsWith("/")) {
+				continue;
+			}
+			final boolean flexItem = flexParents.peek().booleanValue();
+			final boolean table = name.equalsIgnoreCase("table");
+			final boolean cell = name.equalsIgnoreCase("td") || name.equalsIgnoreCase("th");
+			boolean vertical = verticals.peek().booleanValue();
+			final Matcher wm = STYLE_WRITING_MODE.matcher(attrs);
+			if (wm.find()) {
+				vertical = wm.group(1).startsWith("vertical");
+			}
+			double width = extents.peek()[0];
+			double height = extents.peek()[1];
+			// 罫線を分ける表は、UA既定のborder-spacing(2px=1.5pt)×2とセルの罫線1pt×2を引ける
+			if (collapsedTables) {
+				// 重ねた罫線(1pt)は半分ずつセルの内側に入る。間隔は無い
+				if (cell) {
+					width -= 1;
+					height -= 1;
+				}
+			} else if (table || cell) {
+				width -= table ? 3 : 2;
+				height -= table ? 3 : 2;
+			}
+			final double minValue = lastLength(STYLE_MIN_WIDTH_DECLARATION, attrs, font, 0);
+			if (minValue > width) {
+				minWidth = true;
+			}
+			// 明示した幅・高さが中身の上限になるのは、その寸法で箱が確定する要素だけ。
+			// 非置換のinlineは幅を持たず、flex項目は伸び、表・セルは内容に合わせて広がる
+			final boolean sized = !flexItem && !table && !cell && !STYLE_DISPLAY_UNSIZED.matcher(attrs).find();
+			if (sized) {
+				width = lastLength(STYLE_WIDTH_DECLARATION, attrs, font, width);
+				height = lastLength(STYLE_HEIGHT_DECLARATION, attrs, font, height);
+			}
+			width = Math.max(width, minValue);
+			final Matcher count = STYLE_COLUMN_COUNT.matcher(attrs);
+			if (count.find() && Integer.parseInt(count.group(1)) > 1) {
+				final int n = Integer.parseInt(count.group(1));
+				final Matcher gapMatcher = STYLE_COLUMN_GAP.matcher(attrs);
+				final double gap = gapMatcher.find() ? Double.parseDouble(gapMatcher.group(1)) : 0;
+				final double columnExtent = ((vertical ? height : width) - gap * (n - 1)) / n;
+				if (vertical) {
+					height = columnExtent;
+				} else {
+					width = columnExtent;
+				}
+				if (columnExtent < least) {
+					column = true;
+				}
+			}
+			if (name.equalsIgnoreCase("ruby") && attrs.contains("fuzz-long-ruby") && vertical == failureIsY) {
+				final int end = html.indexOf("<rt>", tag.end());
+				if (end >= 0) {
+					double base = 0;
+					for (int i = tag.end(); i < end; ++i) {
+						base += html.charAt(i) == ' ' ? 0.2 : 0.5;
+					}
+					if (base * font > (vertical ? height : width)) {
+						return UNFITTABLE_RUBY;
+					}
+				}
+			}
+			verticals.push(Boolean.valueOf(vertical));
+			extents.push(new double[] { width, height });
+			flexParents.push(Boolean.valueOf(STYLE_FLEX.matcher(attrs).find()));
+		}
+		return minWidth ? UNFITTABLE_MIN_WIDTH : column ? UNFITTABLE_COLUMN : null;
+	}
+
+	/**
+	 * styleの中で<b>最後に</b>書かれた宣言の長さ(pt)を返します。CSSは後勝ちで、生成器は
+	 * {@code width:30pt;width:80%}のように同じプロパティを重ねる。最後が百分率・{@code calc()}・
+	 * キーワードなら静的には決められないので{@code fallback}(=親と同じ)を返し、古いpt値を残さない。
+	 */
+	static double lastLength(final Pattern declaration, final String attrs, final double font, final double fallback) {
+		final Matcher m = declaration.matcher(attrs);
+		String last = null;
+		while (m.find()) {
+			last = m.group(1).trim();
+		}
+		if (last == null) {
+			return fallback;
+		}
+		final Matcher length = PT_OR_EM_LENGTH.matcher(last);
+		return length.matches() ? Double.parseDouble(length.group(1)) * ("em".equals(length.group(2)) ? font : 1)
+				: fallback;
 	}
 
 	/** {@code body}規則の{@code writing-mode}(紙面の軸を決める)。 */

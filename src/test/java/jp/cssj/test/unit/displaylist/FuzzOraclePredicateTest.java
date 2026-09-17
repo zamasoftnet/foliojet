@@ -386,10 +386,21 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertEquals(124.0, RandomDocumentFuzzTest.defaultTextControlWidth("<textarea></textarea>"));
 	}
 
-	/** 小型controlやsize指定済みinputへ既定20exを誤適用しない。 */
+	/** 小型controlは数えない。size指定済みinputへは既定20exではなく、指定したsizeの実寸を使う。 */
 	public void testNonDefaultTextControlsDoNotContributeIntrinsicWidth() {
 		assertEquals(0.0, RandomDocumentFuzzTest.defaultTextControlWidth("<input type=\"radio\" />"));
-		assertEquals(0.0, RandomDocumentFuzzTest.defaultTextControlWidth("<input size=\"6\" />"));
+		assertEquals(40.0, RandomDocumentFuzzTest.defaultTextControlWidth("<input size=\"6\" />"));
+	}
+
+	/**
+	 * seed 4608881: size=16の入力欄は100pt(16ex+外枠4pt)。縦書きでも回転しないので、60pt幅の紙では
+	 * 100pt厚の行になる。読み飛ばすと「作者が指定した大きさ」から漏れる(2026-09-17)。最も広いものを採る。
+	 */
+	public void testSizedTextInputContributesItsOwnWidth() {
+		assertEquals(100.0, RandomDocumentFuzzTest
+				.defaultTextControlWidth("<input type=\"text\" value=\"x\" size=\"16\" /><input type=\"radio\" />"));
+		assertEquals(124.0, RandomDocumentFuzzTest
+				.defaultTextControlWidth("<input type=\"text\" size=\"4\" /><textarea></textarea>"));
 	}
 
 	/** seed 473924の最小形。flex祖先→3段組→表の実際の入れ子だけを拾う。 */
@@ -471,6 +482,222 @@ public class FuzzOraclePredicateTest extends TestCase {
 				.analyze(shrinkerDoc("<div style=\"float:none\"><p>T0</p></div>"));
 		assertNotNull(generated);
 		assertTrue(generated.reorderable().isEmpty());
+	}
+
+	// findUnfittableContent: 版面に物理的に収まらない内容(2026-09-17のユーザー裁定)
+	// shrinkerDocは内容領域50x50pt・6pt(組版下限48pt)
+
+	private static final String LONG_RUBY = "<p><ruby class=\"fuzz-long-ruby\">"
+			+ "T10 T11 T12 T13 T14 T15 T16 T17 T18 T19 T20 T21<rt>T22</rt></ruby></p>";
+
+	/** 12語(下限150pt)の割れないルビは50ptの行に入らない。はみ出しが行軸(x)のときだけ除外する。 */
+	public void testLongRubyBeyondLineIsUnfittableOnlyAlongItsLineAxis() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_RUBY,
+				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(LONG_RUBY), false));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(LONG_RUBY), true));
+	}
+
+	/** 縦書きの中のルビは行軸が縦(y)。seed 2031709の形。 */
+	public void testLongRubyInVerticalFlowUsesPageHeight() {
+		final String html = shrinkerDoc("<div style=\"writing-mode:vertical-rl\">" + LONG_RUBY + "</div>");
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_RUBY,
+				RandomDocumentFuzzTest.findUnfittableContent(html, true));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(html, false));
+	}
+
+	/** 行に入る長さのルビは除外しない(A4)。 */
+	public void testLongRubyThatFitsIsNotUnfittable() {
+		final String html = shrinkerDoc(LONG_RUBY).replace("value=\"60pt\"", "value=\"595pt\"");
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(html, false));
+	}
+
+	/** 短いルビ(クラス無し)は数えない。 */
+	public void testShortRubyIsNotUnfittable() {
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<p><ruby>T0<rt>T1</rt></ruby></p>"), false));
+	}
+
+	/** min-width:8em(48pt)は50ptに入るが、表(−4pt)のセル(−2pt)の中では入らない。seed 5210679の形。 */
+	public void testMinWidthBeyondCellIsUnfittable() {
+		final String box = "<div style=\"width:calc(35% + 8em);min-width:8em;max-width:90%;\">T0</div>";
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(box), false));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_MIN_WIDTH, RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<table><tr><td>" + box + "</td></tr></table>"), false));
+	}
+
+	/** 明示幅の箱より広いmin-width。別の枝の狭い箱とは結び付けない。 */
+	public void testMinWidthIsComparedWithItsOwnAncestors() {
+		final String box = "<div style=\"min-width:8em\">T0</div>";
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_MIN_WIDTH, RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<div style=\"width:30pt\">" + box + "</div>"), false));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<div style=\"width:30pt\">T1</div>" + box), false));
+	}
+
+	/** min-widthを持つ箱の中は、明示幅が狭くてもそのmin-widthまで使える(同じmin-widthの子は収まる)。 */
+	public void testMinWidthWidensItsOwnContent() {
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(
+				"<div style=\"width:30pt;min-width:8em\"><div style=\"min-width:8em\">T0</div></div>"), false));
+	}
+
+	// --- 収まる文書を収まらないと言わないこと(2026-09-17のcodexレビューの反例) ---
+
+	private static String wide(final String body) {
+		return shrinkerDoc(body).replace("name=\"output.page-width\" value=\"60pt\"",
+				"name=\"output.page-width\" value=\"210pt\"");
+	}
+
+	/** 内容幅200ptなら12語のルビ(下限121.2pt)は収まる。以下の反例の前提。 */
+	public void testLongRubyFitsTwoHundredPoints() {
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(wide(LONG_RUBY), false));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_RUBY, RandomDocumentFuzzTest
+				.findUnfittableContent(wide("<div style=\"width:30pt\">" + LONG_RUBY + "</div>"), false));
+	}
+
+	/** 幅の宣言は後勝ち。最後が百分率なら静的には不明なので、前のpt値で狭めない。 */
+	public void testLaterPercentageWidthOverridesEarlierLength() {
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				wide("<div style=\"width:30pt;width:80%;min-width:8em;max-width:90%\">" + LONG_RUBY + "</div>"),
+				false));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_RUBY, RandomDocumentFuzzTest.findUnfittableContent(
+				wide("<div style=\"width:80%;width:30pt\">" + LONG_RUBY + "</div>"), false));
+	}
+
+	/** 非置換のinlineのwidthは効かないので、中身の上限にしない。 */
+	public void testInlineWidthDoesNotBoundItsContent() {
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				wide("<div style=\"display:inline;width:30pt\">" + LONG_RUBY + "</div>"), false));
+	}
+
+	/** flex項目のwidthは伸びる前の基準でしかない。項目の中の段組を狭い段と決めつけない。 */
+	public void testFlexItemWidthDoesNotBoundItsContent() {
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(wide("<div style=\"display:flex\">"
+				+ "<div style=\"flex:1 1 auto;width:8em\"><div style=\"column-count:2\">T0</div></div></div>"),
+				false));
+		// flexの入れ物自身の幅は確定する
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(
+				wide("<div style=\"display:flex;width:60pt\"><div><div style=\"column-count:2\">T0</div></div></div>"),
+				false));
+	}
+
+	/** 表とセルは内容に合わせて広がるので、そのwidthでは狭めない。 */
+	public void testTableWidthDoesNotBoundItsContent() {
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				wide("<table style=\"width:30pt\"><tr><td style=\"width:30pt\">" + LONG_RUBY + "</td></tr></table>"),
+				false));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				wide("<div style=\"display:table;width:30pt\">" + LONG_RUBY + "</div>"), false));
+	}
+
+	/** 罫線を重ねる表には間隔が無く、引けるのは罫線の半分ずつ(計1pt)だけ。48ptの箱は50ptの表のセル(49pt)に収まる。 */
+	public void testCollapsedTableDoesNotLoseSpacing() {
+		final String cell = "<table><tr><td><div style=\"width:8em;min-width:8em\">T0</div></td></tr></table>";
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_MIN_WIDTH,
+				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(cell), false));
+		final String collapsed = shrinkerDoc(cell).replace("<style>", "<style>table{border-collapse:collapse}");
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(collapsed, false));
+		// 同じ48ptの箱でも、48ptの入れ物の中の表のセル(47pt)には入らない(seed 2129171の形)
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_MIN_WIDTH, RandomDocumentFuzzTest.findUnfittableContent(
+				collapsed.replace("<table>", "<div style=\"width:8em\"><table>").replace("</table>", "</table></div>"),
+				false));
+	}
+
+	/** 浮動体の幅も後勝ちで読み、min-widthが勝つならその幅で見る。 */
+	public void testNarrowFloatUsesTheEffectiveWidth() {
+		assertFalse(RandomDocumentFuzzTest.hasNarrowFloat(
+				shrinkerDoc("<div style=\"float:left;width:22pt;width:80%\">T0</div>"), 48));
+		assertFalse(RandomDocumentFuzzTest.hasNarrowFloat(
+				shrinkerDoc("<div style=\"float:left;width:22pt;min-width:8em\">T0</div>"), 48));
+		assertTrue(RandomDocumentFuzzTest.hasNarrowFloat(
+				shrinkerDoc("<div style=\"float:left;width:80%;width:22pt\">T0</div>"), 48));
+	}
+
+	/** 50ptを2段(間5pt)に割ると22.5pt=組版下限48pt未満。1段や、下限以上の段は除外しない。 */
+	public void testNarrowColumnIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc("<div style=\"column-count:2;column-gap:5pt\">T0</div>"), false));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<div style=\"column-count:1\">T0</div>"), false));
+		final String wide = shrinkerDoc("<div style=\"column-count:2;column-gap:5pt\">T0</div>")
+				.replace("value=\"60pt\"", "value=\"595pt\"");
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(wide, false));
+	}
+
+	/** 縦書きの段組は高さを割る。 */
+	public void testVerticalColumnsDivideHeight() {
+		final String html = shrinkerDoc(
+				"<div style=\"writing-mode:vertical-rl;column-count:2;column-gap:5pt\">T0</div>")
+				.replace("name=\"output.page-width\" value=\"60pt\"", "name=\"output.page-width\" value=\"595pt\"");
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_COLUMN,
+				RandomDocumentFuzzTest.findUnfittableContent(html, false));
+		final String tall = shrinkerDoc(
+				"<div style=\"writing-mode:vertical-rl;column-count:2;column-gap:5pt\">T0</div>")
+				.replace("name=\"output.page-height\" value=\"60pt\"", "name=\"output.page-height\" value=\"842pt\"");
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(tall, false));
+	}
+
+	/** 生成器v2はfloatとwidthの間にwriting-modeを挟む。宣言順で漏らさない(seed 3767082・4709606)。 */
+	public void testNarrowFloatIsFoundRegardlessOfDeclarationOrder() {
+		final String html = shrinkerDoc(
+				"<div style=\"float:right;writing-mode:horizontal-tb;width:22pt;\"><ol><li>T0</li></ol></div>");
+		assertTrue(RandomDocumentFuzzTest.hasNarrowFloat(html, 48));
+		assertTrue(RandomDocumentFuzzTest.hasUntypesettableFloat(html));
+		assertFalse(RandomDocumentFuzzTest.hasNarrowFloat(shrinkerDoc(
+				"<div style=\"float:right;writing-mode:horizontal-tb;width:48pt;\">T0</div>"), 48));
+		assertFalse(RandomDocumentFuzzTest.hasNarrowFloat(shrinkerDoc(
+				"<div style=\"float:none;width:22pt;\">T0</div><div style=\"float:left\">T1</div>"), 48));
+	}
+
+	/**
+	 * 除外述語が紙面外の検査をどれだけ覆うかの実測(-Dfoliojet.unfittableRate=件数 のときだけ)。
+	 * 「従来の述語だけ」と「収まらない内容を足したあと」で、どちらの軸のはみ出しでも除外になる文書の数を比べる。
+	 */
+	public void testUnfittableDetectorRate() {
+		final int n = Integer.getInteger("foliojet.unfittableRate", 0).intValue();
+		if (n == 0) {
+			return;
+		}
+		final java.util.Map<String, Integer> counts = new java.util.TreeMap<>();
+		for (int seed = 0; seed < n; ++seed) {
+			final RandomDocumentFuzzTest.Generated g = RandomDocumentFuzzTest.generate(5_250_000 + seed, true);
+			final String html = g.html();
+			final boolean anyAxis = g.beyondEngineControl()
+					|| RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(html)
+					|| RandomDocumentFuzzTest.hasUntypesettableOrthogonalFlow(html)
+					|| legacyUntypesettableFloat(html)
+					|| RandomDocumentFuzzTest.hasFlexMulticolTable(html)
+					|| RandomDocumentFuzzTest.orthogonalAxisChanges(html) >= 2;
+			int before = 0, after = 0;
+			for (final boolean failureIsY : new boolean[] { false, true }) {
+				final boolean base = anyAxis || (failureIsY != RandomDocumentFuzzTest.pageAxisIsY(html)
+						&& RandomDocumentFuzzTest.hasOrthogonalFlow(html));
+				final String unfittable = RandomDocumentFuzzTest.findUnfittableContent(html, failureIsY);
+				before += base ? 1 : 0;
+				after += base || unfittable != null || RandomDocumentFuzzTest.hasUntypesettableFloat(html) ? 1 : 0;
+				counts.merge("reason:" + unfittable, 1, Integer::sum);
+			}
+			counts.merge("before:excludedAxes=" + before, 1, Integer::sum);
+			counts.merge("after:excludedAxes=" + after, 1, Integer::sum);
+		}
+		System.out.println("[unfittableRate] n=" + n + " " + counts);
+	}
+
+	/** 2026-09-17より前の「組版できない幅の浮動体」(floatとwidthの隣接が前提)。発火率の比較用。 */
+	private static boolean legacyUntypesettableFloat(final String html) {
+		final java.util.regex.Matcher fm = java.util.regex.Pattern.compile("font:normal (\\d+)pt").matcher(html);
+		if (!fm.find()) {
+			return false;
+		}
+		final double least = Double.parseDouble(fm.group(1)) * 8;
+		final java.util.regex.Matcher m = java.util.regex.Pattern
+				.compile("float:[a-z]+;(?:width|height):(\\d+)pt").matcher(html);
+		while (m.find()) {
+			if (Double.parseDouble(m.group(1)) < least) {
+				return true;
+			}
+		}
+		return RandomDocumentFuzzTest.hasFloatInsideNarrowContainer(html, least)
+				|| RandomDocumentFuzzTest.hasOverwideFloat(html);
 	}
 
 	private static String shrinkerDoc(final String body) {
