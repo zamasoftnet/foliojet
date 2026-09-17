@@ -190,7 +190,10 @@ public record FloatSplitPlan(
 			// 分岐表2: 全体が切断線より後
 			return new FloatItemPlan.Move(m);
 		}
-		if (!FloatMeasurement.isUnsplittable(m.boxType(), m.sameWritingAxis(), m.pageBreakInside(), first)) {
+		// monolithic: 配置時の前進検査で「分割しても縮まない」と判明した浮動体は、分割可能な
+		// BLOCK でも分岐表5/5-R(救済分割か、はみ出したまま置く)へ落とす(2026-09-17)
+		if (!m.monolithic()
+				&& !FloatMeasurement.isUnsplittable(m.boxType(), m.sameWritingAxis(), m.pageBreakInside(), first)) {
 			// 分岐表3: commit時に一度だけsplitする印(結果は予言しない)
 			final byte splitFlags = first ? IPageBreakableBox.FLAGS_FIRST : IPageBreakableBox.FLAGS_SPLIT;
 			return new FloatItemPlan.SplitOnCommit(m, pageLimit - m.pageStart(), splitFlags);

@@ -25,6 +25,24 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
  * @version $Id: FloatBlockBox.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
+	/**
+	 * 分割しても前進しないと判明した浮動体の印です(2026-09-17)。ページ先頭で分割した
+	 * 残余が次ページでも同じ寸法に組み直される浮動体(中身が直交フローのセルや明示寸法で
+	 * ページ軸に切れない)に、配置時の前進検査
+	 * ({@code RootBuilder.fragmentStartFloatSplitProgresses})が立てる。改ページ時の分類
+	 * ({@code FloatSplitPlan.classify})はこれを分割不能として扱い、救済分割か
+	 * 「はみ出したまま置く」へ落とす——どちらも必ず前進する。
+	 */
+	private boolean splitMakesNoProgress;
+
+	public final void markSplitMakesNoProgress() {
+		this.splitMakesNoProgress = true;
+	}
+
+	public final boolean splitMakesNoProgress() {
+		return this.splitMakesNoProgress;
+	}
+
 	protected final FloatPos pos;
 	/**
 	 * 改ページ分割の続き断片か(2026-08-29)。{@code shape-outside}の解決

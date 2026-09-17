@@ -3330,7 +3330,20 @@ public class RootBuilder extends BreakableBuilder {
 			// overflowするfloatの実寸をそのまま使うと、行を何ページ分も先へ
 			// 移してから通常の改ページで少しずつ戻すため、次ページで集合を
 			// 交換しても空ページが何枚も残る。
-			final double exclusionEnd = Math.min(placedEnd, fragmentLimit);
+			// **終端は始端を下回らない**(2026-09-17)。fragmentLimit は同じページ世代の
+			// 中でも縮む(脚注の予約が後から入る)。縮んだ後に積んだ高さ 0 の float は
+			// start=139.68 に対して min(end, limit)=139.42 となり、負の区間になるうえ
+			// 「pageSpan.end 昇順」の契約(ExclusionSpace.copyOfSorted)を破っていた
+			// (掃過 wild の AssertionError。本番では assert が無効なので、並びの崩れた
+			// 排除域がそのまま使われていた)
+			final double exclusionEnd = Math.max(placedStart, Math.min(placedEnd, fragmentLimit));
+			if (System.getProperty("foliojet.debug.topFloat") != null) {
+				System.err.println("[topFloat] gen=" + this.pageGeneration + " start=" + placedStart + " extent=" + extent
+						+ " end=" + placedEnd + " fragmentLimit=" + fragmentLimit + " exclusionEnd=" + exclusionEnd
+						+ " stackEnd=" + this.topPageFloatStackEnd + " existing=" + this.topPageFloatExclusions.size()
+						+ " translate=" + this.placingTopByTranslate + " element="
+						+ (floatBox.getParams() == null ? "-" : String.valueOf(floatBox.getParams().element)));
+			}
 			this.pageBox.getContainer().addFloating(floatBox, 0, pageAxis);
 			final double lineExtent = floatBox.getLineExtent(this.pageBox.getBlockParams().flow);
 			if (!this.placingTopByTranslate && net.zamasoft.foliojet.layout.util.LayoutUtils.compare(lineExtent,
@@ -3354,6 +3367,49 @@ public class RootBuilder extends BreakableBuilder {
 
 	/** 直近のページでフロートの配置が進んだか(finish()の前進性ガード)。 */
 	private boolean pageFloatProgressed = false;
+
+	/** ページ先頭で分割した浮動体の、要素ごとの直近の(ページ世代, 占有寸法)。 */
+	private final java.util.Map<Object, double[]> fragmentStartFloatSplits = new java.util.IdentityHashMap<>();
+
+	/**
+	 * ページ先頭に置いた浮動体を<b>もう一度分割してよいか</b>を返します(2026-09-17)。
+	 *
+	 * <p>
+	 * 同軸のブロック浮動体は常に分割可能として扱うが、中身がページ軸に切れない
+	 * (縦組みの {@code width:58pt} のような明示寸法は断片ごとに満額で再適用される、
+	 * 直交フローのセルは切れない)と、残余は次ページでも<b>同じ寸法</b>に組み直される。
+	 * ページ先頭で分割→同じ寸法の残余→ページ先頭で分割…と永久に続き、白紙を出し続けて
+	 * OutOfMemoryError まで止まらなかった(掃過 wild の「ページ数過大」。60pt の用紙で
+	 * 63.25pt の残余が 27,820 ページ続いた)。
+	 * </p>
+	 *
+	 * <p>
+	 * 前回のページ先頭分割から占有寸法が縮んでいなければ前進していないので、分割を
+	 * やめてはみ出したまま置く(分割不能な浮動体のページ先頭と同じ扱い)。同じページ
+	 * 世代での再分類(段の均衡・restyle)は比較しない。
+	 * </p>
+	 *
+	 * @return 分割してよければ true。前進が無ければ false
+	 */
+	boolean fragmentStartFloatSplitProgresses(final Object element, final double occupiedExtent) {
+		if (element == null) {
+			return true;
+		}
+		final double[] previous = this.fragmentStartFloatSplits.get(element);
+		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+			System.err.println("[float-progress] gen=" + this.pageGeneration + " extent=" + occupiedExtent + " previous="
+					+ (previous == null ? "null" : previous[0] + "/" + previous[1]) + " element=" + System.identityHashCode(element));
+		}
+		if (previous != null && previous[0] < this.pageGeneration
+				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(occupiedExtent, previous[1]) >= 0) {
+			this.fragmentStartFloatSplits.remove(element);
+			return false;
+		}
+		if (previous == null || previous[0] < this.pageGeneration) {
+			this.fragmentStartFloatSplits.put(element, new double[] { this.pageGeneration, occupiedExtent });
+		}
+		return true;
+	}
 
 	/**
 	 * 現ページに、頁先頭(二次元排除)で置いた狭幅 top があるか。脇に本文が

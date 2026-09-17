@@ -37,6 +37,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  *                        論理積(flagsは呼び出しごとに変わるため
  *                        ここでは固定しない)
  * @param moveToNext      配置時に2-D bottom帯との交差で確定した一回限りの移送
+ * @param monolithic      分割しても前進しないと配置時に判明した(2026-09-17、{@code FloatBlockBox#splitMakesNoProgress})
  * @param boxType         {@link BoxType#BLOCK}か{@link BoxType#REPLACED}
  * @param pageBreakInside BLOCKの{@code page-break-inside}。REPLACEDは
  *                        概念が無いためnull
@@ -52,7 +53,8 @@ public record FloatMeasurement(
 		boolean fragmentHead,
 		boolean moveToNext,
 		BoxType boxType,
-		PageBreakMode pageBreakInside) {
+		PageBreakMode pageBreakInside,
+		boolean monolithic) {
 
 	/**
 	 * 配置済み浮動体から実測値を採取します(読み取り専用——
@@ -80,7 +82,8 @@ public record FloatMeasurement(
 		}
 		return new FloatMeasurement(ordinal, floating.serial, floating.box, floating.pageAxis,
 				floating.pageAxis + pageExtent, pageExtent, sameWritingAxis,
-				LayoutUtils.compare(floating.pageAxis, 0) <= 0, floating.moveToNext, boxType, pageBreakInside);
+				LayoutUtils.compare(floating.pageAxis, 0) <= 0, floating.moveToNext, boxType, pageBreakInside,
+				floating.box instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox f && f.splitMakesNoProgress());
 	}
 
 	/**

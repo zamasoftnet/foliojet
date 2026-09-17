@@ -1435,6 +1435,19 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.paintsNothingBeyondPage(box, pageStart)) {
 			return FloatCommitKind.PLACED;
 		}
+		if (first && this.getPageContext() != null
+				&& !this.getPageContext().fragmentStartFloatSplitProgresses(box.getParams().element,
+						FloatMeasurement.occupiedPageExtent(box, ownerFlow))) {
+			// 前回のページ先頭分割から縮んでいない=切っても前進しない。
+			// はみ出したまま置く(RootBuilder.fragmentStartFloatSplitProgresses)
+			LOG.warning("float does not shrink across pages; placed overflowing: " + box.getParams().element);
+			if (box instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBlock) {
+				// 改ページ時の分類(FloatSplitPlan.classify)にも伝える——PLACED だけでは
+				// 実際の改ページで再び分割され、同じ寸法の残余が続く
+				floatBlock.markSplitMakesNoProgress();
+			}
+			return FloatCommitKind.PLACED;
+		}
 		// 同軸のBLOCKだけを切断する(avoidもページ先頭なら分割可能)
 		return FloatCommitKind.SPLIT_AT_BREAK;
 	}
