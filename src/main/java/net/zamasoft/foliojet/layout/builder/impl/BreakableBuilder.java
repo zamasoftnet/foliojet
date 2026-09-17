@@ -1797,6 +1797,29 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			columnScan.snapshot().firstBarrier()
 					.ifPresent(barrier -> net.zamasoft.foliojet.layout.fragment.ContinuationStats
 							.recordColumnCapabilityScanStop(barrier.reason()));
+			// **再開が積み直せない段が開いているなら改段しない**(2026-09-16)。
+			// 再開は承認された前置きと、多段の native 降下で扱える段しか積み直さない。
+			// `ContinuationCapability.MULTICOL` は「素の FlowBlockBox ではない」の
+			// 総称で、本物の多段だけでなく grid/flex の箱もここに入る——後者が
+			// 障壁になったまま刈り込んで続行すると、あとで
+			// `endBreakableFlowBlock` が空のスタックを掴む・浮動体が宿主を失う
+			// といった別の場所で落ちる(掃過の wild seed 2375324・2678725)。
+			// 入れ子の多段は native 降下が扱える(`MulticolWorklistScopeTest`)ので
+			// 通す。改段を断れば呼び側が頁の改ページへ落とす
+			// (`autoBreak`・`forceBreak` は false を受けて `pageBreak` を呼ぶ)
+			final java.util.Optional<net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.CapabilityBarrier> barrier = columnScan
+					.snapshot().firstBarrier();
+			if (barrier.isPresent()) {
+				final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.OpenLevelDescriptor level = columnScan
+						.snapshot().levels().get(barrier.get().openPathIndex());
+				if (level.columnCount() <= 1) {
+					if (LOG.isLoggable(Level.FINE)) {
+						LOG.fine("column break declined: barrier at " + barrier.get().openPathIndex() + " is "
+								+ level.boxClass().getSimpleName() + " (" + barrier.get().reason() + ")");
+					}
+					return false;
+				}
+			}
 		}
 
 		final double contentLimit = this.getPageLimit() - breakFlow.pageAxis - lastFrame;
