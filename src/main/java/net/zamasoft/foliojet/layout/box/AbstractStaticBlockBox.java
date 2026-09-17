@@ -487,8 +487,19 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		// (2026-08-10、縦書き書籍の資料図版ページで実測)
 		final AbstractContainerBox fixedLineBox = flow.isVertical() ? layoutStack.getFixedHeightFlowBox()
 				: layoutStack.getFixedWidthFlowBox();
+		if (System.getProperty("foliojet.debug.lineBasis") != null) {
+			System.err.println("[lineBasis] box=" + this.getClass().getSimpleName() + " element="
+					+ (this.params == null ? "-" : String.valueOf(this.params.element)) + " flowVertical=" + flow.isVertical()
+					+ " containerFlowVertical=" + containerBox.getBlockParams().flow.isVertical() + " cLine=" + cLine
+					+ " fixedLineBox=" + (fixedLineBox == null ? "null" : fixedLineBox.getClass().getSimpleName())
+					+ " fixedLineExtent=" + (fixedLineBox == null ? Double.NaN : fixedLineBox.getInnerLineExtent(flow))
+					+ " orthogonalBasis=" + layoutStack.getOrthogonalLineBasis(flow)
+					+ " frame=" + this.frame.getFrameLineExtent(flow));
+		}
 		return (fixedLineBox != null ? fixedLineBox.getInnerLineExtent(flow)
-				: (flow.isVertical() ? layoutStack.getFixedHeight() : layoutStack.getFixedWidth()))
+				// 明示寸法の祖先が無ければフラグメンテナ(ページ)の内容域
+				// (2026-09-16、LayoutStack.getOrthogonalLineBasis)
+				: layoutStack.getOrthogonalLineBasis(flow))
 				- this.frame.getFrameLineExtent(flow);
 	}
 
@@ -517,8 +528,16 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		final double cPage = (cParams.flow.isVertical() != flow.isVertical())
 				? containerBox.getInnerLineExtent(cParams.flow)
 				: fixedPageBox.getInnerPageExtent(flow);
-		final double cLine = table ? containerBox.getInnerLineExtent(flow)
-				: (flow.isVertical() ? layoutStack.getFixedHeight() : layoutStack.getFixedWidth());
+		double cLine = table ? containerBox.getInnerLineExtent(flow)
+				// 同上(直交フローで 0 になると fit-content が 0 幅になる)
+				: layoutStack.getOrthogonalLineBasis(flow);
+		if (LayoutUtils.isNone(cLine) || LayoutUtils.compare(cLine, 0) <= 0) {
+			// 表文脈でも、包含ブロックの線軸内寸が直交フローでは基準にならない
+			// (縦組みの body の「幅」は 0 のまま渡ってくる)。0 を線軸の百分率の
+			// 基準にすると `max-width: 90%` が 0 になり、幅 0 の表から内容が
+			// 紙面外へあふれる(2026-09-16 に実測。掃過の「全描画が紙面外」)
+			cLine = layoutStack.getOrthogonalLineBasis(flow);
+		}
 		// ページ方向の%は基準が確定している場合のみ解決する
 		final double pagePercentBase = (!table && this.isSpecifiedPageSize()) ? cPage : LayoutUtils.NONE;
 		return new SizingContext(SizingMode.FIT_CONTENT, cLine, cLine, pagePercentBase);

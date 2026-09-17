@@ -931,27 +931,10 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		final TableParams tableParams = this.tableBox.getTableParams();
 		final AbstractContainerBox containerBox = this.layoutStack.getFlowBox();
 		final boolean sameAxis = containerBox.getBlockParams().flow.isVertical() == tableParams.flow.isVertical();
-		double lineSize = sameAxis ? containerBox.getLineSize()
-				: (this.vertical ? this.layoutStack.getFixedHeight() : this.layoutStack.getFixedWidth());
-		if (!sameAxis && (LayoutUtils.isNone(lineSize) || LayoutUtils.compare(lineSize, 0) <= 0)) {
-			// **直交フローの百分率の基準はフラグメンテナ(ページ)へ落とす**
-			// (2026-09-16、css-writing-modes-4 §7.3)。`getFixedWidth()`/
-			// `getFixedHeight()` は「明示寸法の祖先」を探す仕組みで、縦組み文書の
-			// 中の横組みの表のように該当が無いと 0 を返す。0 を基準にすると
-			// `max-width: 50%` が 0 になり、**幅 0 の表から内容が紙面外へあふれる**
-			// (掃過の「全描画が紙面外」。用紙 200pt の文書で x=200.5 から描かれた)。
-			// 用紙の寸法は確定値なので、最後の基準として使える
-			final RootBuilder root = builder.getPageContext();
-			if (root != null) {
-				final AbstractContainerBox pageBox = root.getRootBox();
-				if (pageBox != null) {
-					final double fragmentainer = this.vertical ? pageBox.getHeight() : pageBox.getWidth();
-					if (!LayoutUtils.isNone(fragmentainer) && LayoutUtils.compare(fragmentainer, 0) > 0) {
-						lineSize = fragmentainer;
-					}
-				}
-			}
-		}
+		// 直交フローの基準は LayoutStack.getOrthogonalLineBasis(明示寸法の祖先が
+		// 無ければフラグメンテナ)。判断はそこだけに置く
+		final double lineSize = sameAxis ? containerBox.getLineSize()
+				: this.layoutStack.getOrthogonalLineBasis(tableParams.flow);
 		if (System.getProperty("foliojet.debug.tableBasis") != null) {
 			System.err.println("[tableBasis] sameAxis=" + sameAxis + " lineSize=" + lineSize + " vertical=" + this.vertical
 					+ " container=" + containerBox.getClass().getSimpleName() + " containerFlowVertical="
@@ -960,6 +943,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		}
 		// テーブル幅
 		double tableSize;
+		// 幅 auto の表にも効かせるため、上限は解決後も残す(下の自動レイアウト)
+		double lineMaxSize;
 		final double tableFrame, lineBorderSpacing;
 		if (this.vertical) {
 			// 縦書き
@@ -970,6 +955,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			if (!LayoutUtils.isNone(maxSize) && !LayoutUtils.isNone(tableSize)) {
 				tableSize = Math.min(maxSize, tableSize);
 			}
+			lineMaxSize = maxSize;
 			if (tableParams.size.getHeightType() != LengthType.AUTO) {
 				tableSize += this.tableBox.getFrame().margin.getFrameHeight();
 			}
@@ -984,6 +970,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			if (!LayoutUtils.isNone(maxSize) && !LayoutUtils.isNone(tableSize)) {
 				tableSize = Math.min(maxSize, tableSize);
 			}
+			lineMaxSize = maxSize;
 			if (tableParams.size.getWidthType() != LengthType.AUTO) {
 				tableSize += this.tableBox.getFrame().margin.getFrameWidth();
 			}
@@ -1053,7 +1040,16 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			tableSize = result.innerSize() + tableFrame;
 		} else {
 			// 自動レイアウト(共有核 — P2-4)
-			final AutoColumnWidths.Sized sized = this.columnWidths.resolve(tableSize, blockBox.getLineSize(),
+			// **max-width は幅 auto の表にも効く**(2026-09-16、CSS 2.1 §17.5.2 の
+			// used width)。従来は「寸法が確定しているときだけ min を採る」形で、
+			// 幅 auto の表では上限を捨てて利用可能幅いっぱいに広げていた
+			// (用紙 200pt・`max-width: 50%` で 200pt になっていた)
+			double available = blockBox.getLineSize();
+			if (!LayoutUtils.isNone(lineMaxSize) && LayoutUtils.isNone(tableSize)
+					&& LayoutUtils.compare(lineMaxSize, available) < 0) {
+				available = lineMaxSize;
+			}
+			final AutoColumnWidths.Sized sized = this.columnWidths.resolve(tableSize, available,
 					tableFrame, lineBorderSpacing, tableParams.borderCollapse == TableParams.BORDER_SEPARATE);
 			tableSize = sized.tableSize();
 			columnSizes = sized.columnSizes();

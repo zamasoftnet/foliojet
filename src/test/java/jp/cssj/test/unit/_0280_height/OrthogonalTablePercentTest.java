@@ -40,4 +40,14 @@ public class OrthogonalTablePercentTest extends AbstractTestCase {
 		assertTrue("表の右端が紙面内", x + box.getWidth() <= 200.5);
 		return true;
 	}
+
+	/** 幅 auto+`max-width: 50%` の表も、基準が用紙幅なので 100pt までに収まる。 */
+	public boolean check_m(final IBox box, final int pageNumber, final double x, final double y) {
+		if (box.getType() != net.zamasoft.foliojet.layout.box.BoxType.TABLE) {
+			return false;
+		}
+		assertTrue("max-width が効いて 100pt 以内(実測 " + box.getWidth() + ")", box.getWidth() <= 100.5);
+		assertTrue("表が紙面内(x=" + x + " w=" + box.getWidth() + ")", x >= -0.5 && x + box.getWidth() <= 200.5);
+		return true;
+	}
 }
