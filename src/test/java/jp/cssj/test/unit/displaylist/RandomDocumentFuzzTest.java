@@ -126,7 +126,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 	private static final int EXTREME_MAX_PAGES = Integer.getInteger("foliojet.fuzzExtremeMaxPages", 4_000);
 
 	private static int pageLimit(final Generated doc) {
-		if (!doc.html().contains("data-fuzz-profile=\"extreme-v")) {
+		// 版面が破綻した文書(紙が小さすぎる・明示寸法が紙より大きい)では、収まらない箱の
+		// 救済分割のスライスが要素ごとに数ページ分できる。seed 5729966(60x60pt に 13pt、
+		// 218 要素)は min-width:8em の行が 3 段の grid だけで 8 ページになり、全体で 315 ページで
+		// **有限に**終わった(2026-09-18)。固定 300 では内容量そのものを暴走扱いするので、
+		// extreme と同じ「要素数×3」を上限にする。本物の暴走(seed 2264275 は 27,820 ページ)は
+		// 今までどおり超える
+		if (!doc.html().contains("data-fuzz-profile=\"extreme-v") && !doc.beyondEngineControl()) {
 			return MAX_PAGES;
 		}
 		// 60x60pt・内容領域40x40ptのseed 541は1,066要素から1,242ページを
@@ -482,6 +488,19 @@ public class RandomDocumentFuzzTest extends TestCase {
 	public void testStrictHistoricalBlankPageSeed() throws Exception {
 		checkOneV1(78906, true);
 		checkOneV1(78906, false);
+	}
+
+	/**
+	 * 2026-09-18、仕切り直した掃過(seed 5,250,000〜)の最初の停止。版面が破綻した文書(60x60pt に 13pt)の
+	 * 収まらない箱のスライスで 315 ページになり、固定 300 の上限に掛かった。上限を要素数×3 にした後は
+	 * 「版面が破綻した文書の紙面外配置」の除外へ落ちる(有限に終わることの固定)。
+	 */
+	public void testStrictBrokenLayoutDocumentFinishesWithinContentBound() throws Exception {
+		try {
+			checkOne(5729966, true);
+		} catch (final Throwable t) {
+			assertEquals(String.valueOf(t), "(除外)版面が破綻した文書の紙面外配置", classify(t));
+		}
 	}
 
 	/** 2026-08-14の百万件掃過で「紙面外への配置」になった7シードを固定する。 */
