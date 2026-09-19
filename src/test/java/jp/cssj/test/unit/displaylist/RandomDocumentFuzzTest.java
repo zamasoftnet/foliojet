@@ -2953,7 +2953,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		// 版面に物理的に収まらない内容(2026-09-17のユーザー裁定。
 		// {@link ExcludedByUnfittableContent}に理由を書いた)
-		final String unfittable = findUnfittableContent(doc.html(), worstIsY);
+		final String unfittable = findUnfittableContent(doc.html());
 		if (unfittable != null) {
 			throw new ExcludedByUnfittableContent(detail + " [" + unfittable + "]", unfittable);
 		}
@@ -3095,7 +3095,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		// 版面に物理的に収まらない内容(2026-09-17のユーザー裁定。
 		// {@link ExcludedByUnfittableContent}に理由を書いた)
-		final String unfittable = findUnfittableContent(doc.html(), nearestIsY);
+		final String unfittable = findUnfittableContent(doc.html());
 		if (unfittable != null) {
 			throw new ExcludedByUnfittableContent(detail + " [" + unfittable + "]", unfittable);
 		}
@@ -4136,8 +4136,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * <ul>
 	 * <li>{@link #UNFITTABLE_RUBY}: 長いルビ({@code fuzz-long-ruby})の親文字の幅の下限
 	 * (字0.5em・空白0.2em)が、その書字方向の行の上限を超える。copperはルビを行内で
-	 * 割らない。<b>はみ出しの軸がルビの行軸と一致するときだけ</b>除外する(31件の実測で
-	 * ルビを含む21件のうち20件が一致。残り1件は別の理由で説明できた)。</li>
+	 * 割らない。当初は「はみ出しの軸がルビの行軸と一致するときだけ」除外したが(31件の実測で
+	 * ルビを含む21件のうち20件が一致)、seed 7627539(2026-09-19)で、複数ページにまたがる浮動体の
+	 * 直後の収まらないルビの行が、救済分割の起点をページ軸の外に持ち、別の軸へ波及した。
+	 * 他の理由と同じく軸は問わない。</li>
 	 * <li>{@link #UNFITTABLE_MIN_WIDTH}: {@code min-width}が使える幅の上限より大きい。
 	 * {@code max-width}より{@code min-width}が勝つので、箱は必ず入れ物からはみ出す
 	 * ({@link #hasOverwideFloat}の「包含幅より広い明示幅」と同じ性質)。</li>
@@ -4148,15 +4150,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * </ul>
 	 *
 	 * <p>
-	 * <b>限界</b>: 除外は文書単位で、ルビ以外ははみ出しの軸も問わない(段からの溢れが浮動体を押し出す等、
+	 * <b>限界</b>: 除外は文書単位で、はみ出しの軸も問わない(段からの溢れが浮動体を押し出す等、
 	 * 別の軸へ波及する実例があった)。該当する文書の別の枝・別の軸にある本物の欠陥は隠れる。
 	 * 実測(seed 5,250,000〜の2万文書)では、従来の述語だけで93%強の文書がどちらの軸でも除外になり、
 	 * この述語による上乗せは1ポイント未満だった。
 	 * </p>
-	 *
-	 * @param failureIsY はみ出しが縦(y)方向か
 	 */
-	static String findUnfittableContent(final String html, final boolean failureIsY) {
+	static String findUnfittableContent(final String html) {
 		final Matcher widthProperty = PAGE_WIDTH_PROPERTY.matcher(html);
 		final Matcher heightProperty = PAGE_HEIGHT_PROPERTY.matcher(html);
 		final Matcher fm = FONT_SIZE.matcher(html);
@@ -4246,7 +4246,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 					column = true;
 				}
 			}
-			if (name.equalsIgnoreCase("ruby") && attrs.contains("fuzz-long-ruby") && vertical == failureIsY) {
+			if (name.equalsIgnoreCase("ruby") && attrs.contains("fuzz-long-ruby")) {
 				final int end = html.indexOf("<rt>", tag.end());
 				if (end >= 0) {
 					double base = 0;
