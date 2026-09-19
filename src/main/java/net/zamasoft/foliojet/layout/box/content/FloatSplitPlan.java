@@ -171,6 +171,17 @@ public record FloatSplitPlan(
 	 * @return 行き先計画
 	 */
 	public static FloatItemPlan classify(final FloatMeasurement m, final double pageLimit, final byte flags) {
+		final FloatItemPlan plan = classify0(m, pageLimit, flags);
+		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+			System.err.println("[float-classify] " + plan.getClass().getSimpleName() + " el="
+					+ (m.box().getParams() == null ? "-" : m.box().getParams().element) + " start=" + m.pageStart()
+					+ " end=" + m.pageEnd() + " extent=" + m.pageExtent() + " limit=" + pageLimit + " flags=" + flags
+					+ " head=" + m.fragmentHead() + " type=" + m.boxType() + " mono=" + m.monolithic());
+		}
+		return plan;
+	}
+
+	private static FloatItemPlan classify0(final FloatMeasurement m, final double pageLimit, final byte flags) {
 		// ライブロック確定時は物理位置を問わずfirst扱いにして、
 		// 「はみ出させてでも置く」逃げ道(分岐表5・5-R)へ到達させる
 		// (2026-07-29、{@link IPageBreakableBox#FLAGS_LIVELOCK})

@@ -1091,11 +1091,19 @@ public class FlowContainer implements Container {
 		final double pageSize = this.box.getPageExtent(this.box.getBlockParams().flow);
 		final double pageInnerSize = this.box.getInnerPageExtent(this.box.getBlockParams().flow);
 
-		// System.err.println("ACB A: flags=" + flags + "/" + mode +
-		// "/pageLimit=" + pageLimit + "/vertical="+vertical+"/pageInnerSize=" +
-		// pageInnerSize
-		// + "/flows.size=" + (this.flows == null ? 0 : this.flows.size())
-		// + "/" + this.box.getParams().element);
+		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+			final StringBuilder sb = new StringBuilder();
+			if (this.flows != null) {
+				for (final Object o : this.flows) {
+					final Flow f = (Flow) o;
+					sb.append(' ').append(f.box.getClass().getSimpleName()).append('@').append(f.pageAxis).append('+')
+							.append(f.box.getPageExtent(this.box.getBlockParams().flow));
+				}
+			}
+			System.err.println("[split-entry] el=" + (this.box.getParams() == null ? "-" : this.box.getParams().element)
+					+ " pageLimit=" + pageLimit + " pageSize=" + pageSize + " inner=" + pageInnerSize + " frameStart="
+					+ frameStart + " flags=" + flags + " floats=" + (this.floatings == null ? 0 : 1) + " flows=" + sb);
+		}
 		if (mode instanceof BreakMode.ForceBreakMode) {
 			// 強制改ページが指定されている場合
 			FlowContainer nextBox;
@@ -1475,6 +1483,10 @@ public class FlowContainer implements Container {
 						ignoreAvoid, relaxInsideIndex, prevPageSize, pageLimit, ((AutoBreakMode) mode).fragmentCapacity,
 						flowPageStarts, flowPageExtents, avoidBefore, avoidAfter,
 						flowPageEndFrames, floatPageStarts, floatPageExtents, floatUncut);
+				if (System.getProperty("foliojet.debug.floatTrace") != null) {
+					System.err.println("[move-resolution] " + resolution + " i=" + i + " lastOrphan=" + lastOrphan
+							+ " pageLimit=" + pageLimit + " el=" + (this.box.getParams() == null ? "-" : this.box.getParams().element));
+				}
 				switch (resolution) {
 				case FlowCutter.MoveResolution.Terminal(final FlowCutter.PreDecision action):
 					// **開いたままの末尾フローは前ページに置き去りにできない**
@@ -1537,6 +1549,21 @@ public class FlowContainer implements Container {
 					continue;
 				}
 				case FlowCutter.MoveResolution.Pushback(final int resumeIndex, final double newPageLimit):
+					if (resumeIndex + 1 == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0
+							&& LayoutUtils.compare(flowPageStarts[0], 0) <= 0
+							&& !this.hasInFlowContentBefore(newPageLimit)) {
+						// 前進の確保(2026-09-19): 押し戻しの連鎖がページ先頭(コンテナが FIRST で、最初の流れが
+						// 始端に接する)から始まり、切断線より前に通常フローの内容候補が一つも無いなら、
+						// それより前に改ページできる位置は無い。CSS の break-before:avoid の意味どおり
+						// avoid を無視して、この流れ以降を送る。押し戻すと先頭ブロックの枠の中(1pt)で切る
+						// ことになり、そのブロックが抱える浮動体も 1pt ずつしか進まない(掃過 strict の
+						// seed 8471349: 内容が空の枠付き div の浮動体の後ろに ul(UA 既定
+						// page-break-before:avoid)。207pt の浮動体が 1pt ずつ 207 ページ)。
+						// 背景付きの空ブロックは内容候補に数えない——そのブロックは残るので白紙にはならず、
+						// 1pt の断片を送るだけの押し戻しをやめる(0500-twopass-range/t4b-flex-middle-pushed)
+						nextBox = this.applyPartition(i, outcome);
+						break;
+					}
 					// ブロック間の改ページ禁止の場合
 					i = resumeIndex;
 					pageLimit = newPageLimit;
@@ -1812,6 +1839,36 @@ public class FlowContainer implements Container {
 			flowBottoms[i] = lastBottom;
 		}
 		return flowBottoms;
+	}
+
+	/**
+	 * 切断線より前に<b>通常フローの内容候補</b>(テキスト・表・置換要素・grid/flex・直交フローの箱、
+	 * すなわち同軸の素の FlowContainer を持つ FlowBlockBox 以外)が一つでもあるかを返します。
+	 * 背景・枠・空の指定寸法・浮動体・絶対配置は数えない。同軸の入れ子には降り、各候補の位置で判定する
+	 * (負のマージンで後続が切断線より前へ戻ることがあるので、切断線以後の流れに出会っても打ち切らない。
+	 * 直交フローは座標系が違うので降りず、箱ごと候補にする)。avoid の押し戻しの前進確保に使う。
+	 */
+	private boolean hasInFlowContentBefore(final double limit) {
+		if (this.flows == null) {
+			return false;
+		}
+		final WritingMode flow = this.box.getBlockParams().flow;
+		for (final Object o : this.flows) {
+			final Flow f = (Flow) o;
+			if (f.box instanceof FlowBlockBox block && block.getContainer() != null
+					&& block.getContainer().getClass() == FlowContainer.class
+					&& block.getBlockParams().flow.isVertical() == flow.isVertical()) {
+				if (((FlowContainer) block.getContainer())
+						.hasInFlowContentBefore(limit - f.pageAxis - block.getFrame().getFramePageStart(flow))) {
+					return true;
+				}
+				continue;
+			}
+			if (LayoutUtils.compare(f.pageAxis, limit) < 0) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private FlowMeasurements measureFlows(final BlockParams params) {
