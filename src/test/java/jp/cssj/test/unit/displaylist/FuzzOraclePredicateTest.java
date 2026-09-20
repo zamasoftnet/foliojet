@@ -490,7 +490,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 	private static final String LONG_RUBY = "<p><ruby class=\"fuzz-long-ruby\">"
 			+ "T10 T11 T12 T13 T14 T15 T16 T17 T18 T19 T20 T21<rt>T22</rt></ruby></p>";
 
-	/** 12語(下限150pt)の割れないルビは50ptの行に入らない。 */
+	/** 12語(下限131.7pt)の割れないルビは50ptの行に入らない。 */
 	public void testLongRubyBeyondLineIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_RUBY,
 				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(LONG_RUBY)));
@@ -548,7 +548,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 				"name=\"output.page-width\" value=\"210pt\"");
 	}
 
-	/** 内容幅200ptなら12語のルビ(下限121.2pt)は収まる。以下の反例の前提。 */
+	/** 内容幅200ptなら12語のルビ(下限131.7pt)は収まる。以下の反例の前提。 */
 	public void testLongRubyFitsTwoHundredPoints() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(wide(LONG_RUBY)));
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_RUBY, RandomDocumentFuzzTest

@@ -4135,7 +4135,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * </p>
 	 * <ul>
 	 * <li>{@link #UNFITTABLE_RUBY}: 長いルビ({@code fuzz-long-ruby})の親文字の幅の下限
-	 * (字0.5em・空白0.2em)が、その書字方向の行の上限を超える。copperはルビを行内で
+	 * (T 0.6em・数字 0.5em・空白 0.25em。試験書体の送り以下)が、その書字方向の行の上限を超える。copperはルビを行内で
 	 * 割らない。当初は「はみ出しの軸がルビの行軸と一致するときだけ」除外したが(31件の実測で
 	 * ルビを含む21件のうち20件が一致)、seed 7627539(2026-09-19)で、複数ページにまたがる浮動体の
 	 * 直後の収まらないルビの行が、救済分割の起点をページ軸の外に持ち、別の軸へ波及した。
@@ -4251,7 +4251,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 				if (end >= 0) {
 					double base = 0;
 					for (int i = tag.end(); i < end; ++i) {
-						base += html.charAt(i) == ' ' ? 0.2 : 0.5;
+						// 親文字は T+数字と単一空白だけ(appendNode の case 8)。試験の固定書体(Times-Roman)の
+						// 送りは T=0.611em、数字=0.5em、空白=0.25em で、これ以上にはならない。
+						// 字を一律 0.5em・空白 0.2em と見積もると 13 語で 197pt(実測 232pt)になり、
+						// 200pt の紙で見逃した(seed 9110300、2026-09-20)
+						final char c = html.charAt(i);
+						base += c == ' ' ? 0.25 : c == 'T' ? 0.6 : 0.5;
 					}
 					if (base * font > (vertical ? height : width)) {
 						return UNFITTABLE_RUBY;
