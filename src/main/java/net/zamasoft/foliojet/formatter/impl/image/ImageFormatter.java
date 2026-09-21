@@ -57,6 +57,11 @@ public class ImageFormatter implements Formatter {
 			}
 			imposition.finish();
 		} catch (IOException e) {
+			// 型のついた失敗(TranscoderException)は包み直さない。包むと
+			// 「I/O error. I/O error. ...」と前置きが二重になり、元の符号も失われる(2026-09-21)
+			if (e instanceof TranscoderException) {
+				throw (TranscoderException) e;
+			}
 			short code = CTIMessageCodes.ERROR_IO;
 			String[] args = new String[] { e.getMessage() };
 			String mes = MessageCodeUtils.toString(code, args);

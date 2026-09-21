@@ -9,6 +9,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
 import jp.cssj.cti2.CTISession;
+import jp.cssj.cti2.helpers.CTIMessageCodes;
 import jp.cssj.cti2.helpers.CTIMessageHelper;
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;
@@ -110,5 +111,100 @@ public class AbortTest extends TestCase {
 			w.write(s.toString());
 		}
 		return f;
+	}
+
+	/**
+	 * <b>中断は入出力エラーとして報告しない</b>(2026-09-21、ドライバのマトリクス拡張で発覚)。
+	 *
+	 * <p>
+	 * 本文を送っている最中に {@code abort()} が来ると、本文の受け口(と先読みバッファ)が
+	 * 畳まれる。パーサ側にはそれが普通の {@link java.io.IOException} として見えるので、
+	 * 従来は {@code ERROR_IO} で包んで報告していた。実サーバーでは中断が
+	 * 「I/O error. I/O error. prefetch read-ahead terminated」として client に届いており、
+	 * 型のついた {@code TranscoderException} をさらに包んだぶん前置きが二重になっていた。
+	 * </p>
+	 *
+	 * <p>
+	 * 固定するのは 2 点。報告される符号が {@code INFO_ABORT}(中断)であること、
+	 * そして本文に前置きの二重や先読みの内部語が出ないこと。
+	 * </p>
+	 */
+	public void testAbortIsReportedAsAbortNotIoError() throws Exception {
+		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+		final java.util.List<String> messages = new java.util.concurrent.CopyOnWriteArrayList<>();
+		final Throwable[] bodyFailure = new Throwable[1];
+
+		session.setResults(new SingleResult(new StreamFragmentedOutput(OutputStream.nullOutputStream())));
+		session.setMessageHandler((code, args, mes) -> messages.add(code + " " + (mes == null ? "" : mes)));
+		session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+		session.property("input.include", "**");
+		session.property("input.property-pi", "true");
+		// 実サーバーと同じ経路にする(本文を先読みバッファ越しに読む)
+		session.property("input.prefetch", "true");
+
+		final OutputStream body = session.transcode(new jp.cssj.cti2.helpers.DefaultMetaSource(
+				java.net.URI.create("http://example.invalid/abort.html"), "text/html", "UTF-8"));
+		final Thread writer = new Thread(() -> {
+			try {
+				body.write(longDocumentHead().getBytes(StandardCharsets.UTF_8));
+				body.flush();
+				for (int i = 0; i < 200000; ++i) {
+					body.write(("<tr><td>R" + i + "</td><td>C" + i + "</td></tr>\n").getBytes(StandardCharsets.UTF_8));
+				}
+				body.write("</table></body></html>".getBytes(StandardCharsets.UTF_8));
+				body.close();
+			} catch (final Throwable t) {
+				bodyFailure[0] = t;
+			}
+		}, "abort-report-body");
+		writer.setDaemon(true);
+		writer.start();
+
+		Thread.sleep(1500L);
+		session.abort(CTISession.ABORT_FORCE);
+		writer.join(60_000L);
+		try {
+			session.close();
+		} catch (final Throwable t) {
+			// close は中断後の後始末。ここでは本文側の報告を見る
+		}
+
+		// 観測結果をファイルにも残す(Gradle の出力が絞られても読めるように)
+		final StringBuilder seen = new StringBuilder();
+		seen.append("bodyFailure=").append(bodyFailure[0] == null ? "(なし)"
+				: bodyFailure[0].getClass().getName() + ": " + bodyFailure[0].getMessage()).append('\n');
+		if (bodyFailure[0] instanceof jp.cssj.cti2.TranscoderException) {
+			final jp.cssj.cti2.TranscoderException te = (jp.cssj.cti2.TranscoderException) bodyFailure[0];
+			seen.append("code=0x").append(Integer.toHexString(te.getCode() & 0xFFFF))
+					.append(" state=").append(te.getState()).append('\n');
+		}
+		for (final String m : messages) {
+			seen.append("message: ").append(m).append('\n');
+		}
+		final File report = new File("local/abort-report.txt");
+		report.getParentFile().mkdirs();
+		try (Writer w = new OutputStreamWriter(new FileOutputStream(report), StandardCharsets.UTF_8)) {
+			w.write(seen.toString());
+		}
+
+		assertNotNull("中断したのに本文側が何の失敗も受け取っていない", bodyFailure[0]);
+		final String mes = String.valueOf(bodyFailure[0].getMessage());
+		assertFalse("前置きが二重になっている: " + mes, mes.contains("I/O error. I/O error."));
+		assertFalse("中断が先読みの入出力エラーとして報告された: " + mes, mes.contains("prefetch read-ahead terminated"));
+		if (bodyFailure[0] instanceof jp.cssj.cti2.TranscoderException) {
+			final jp.cssj.cti2.TranscoderException te = (jp.cssj.cti2.TranscoderException) bodyFailure[0];
+			assertEquals("中断の符号で報告されていない: " + mes, CTIMessageCodes.INFO_ABORT, te.getCode());
+		}
+	}
+
+	private static String longDocumentHead() {
+		final StringBuilder s = new StringBuilder();
+		s.append("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");
+		s.append("<?jp.cssj.property name=\"output.page-width\" value=\"200pt\"?>\n");
+		s.append("<?jp.cssj.property name=\"output.page-height\" value=\"200pt\"?>\n");
+		s.append("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
+		s.append("<style>@page{margin:5pt}body{margin:0;font:normal 8pt/1.2 serif}\n");
+		s.append("td{border:1pt solid black}</style></head><body>\n<table>\n");
+		return s.toString();
 	}
 }

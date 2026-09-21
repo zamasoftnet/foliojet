@@ -145,6 +145,13 @@ public class DirectSession extends AbstractCTISession
 
 	private boolean aborted = false;
 
+	/**
+	 * {@link #abort(byte)}で渡された中断の種類({@link AbortException#ABORT_NORMAL}か
+	 * {@code ABORT_FORCE})。中断で入出力が畳まれたあとに上がってくる例外を、
+	 * 入出力エラーではなく中断として報告するために覚えておく(2026-09-21)。
+	 */
+	private byte abortMode = 0;
+
 	private boolean decodeMessage = true;
 
 	private boolean middlePath = false;
@@ -978,6 +985,7 @@ public class DirectSession extends AbstractCTISession
 
 		this.resolver.setup(uri, this.props, this);
 		this.aborted = false;
+		this.abortMode = 0;
 
 		final String outputType = UAProps.OUTPUT_TYPE.getString(this.props);
 		UserAgentFactory factory = PluginRegistry.getInstance().search(UserAgentFactory.class,
@@ -1034,6 +1042,7 @@ public class DirectSession extends AbstractCTISession
 		if (!this.aborted && this.ua != null) {
 			this.ua.abort(mode);
 			this.aborted = true;
+			this.abortMode = mode;
 		}
 	}
 
@@ -1348,6 +1357,20 @@ public class DirectSession extends AbstractCTISession
 			if (retained != null) throw retained;
 			final ContinuationInvariantViolationException invariant = ContinuationInvariantViolationException.findIn(e);
 			if (invariant != null) throw invariant;
+			// **中断は入出力エラーではない**(2026-09-21)。abort()が来ると本文の
+			// 受け口が畳まれるので、パーサ側には普通の IOException(先読みの打ち切り等)
+			// として見える。それを ERROR_IO で包むと、client には中断が
+			// 「I/O error. prefetch read-ahead terminated」として届いていた。
+			// 中断の報告は AbortException の経路に一本化する。
+			if (this.aborted) {
+				throw new AbortException(this.abortMode == 0 ? AbortException.ABORT_FORCE : this.abortMode);
+			}
+			// 既に型のついた失敗(TranscoderException)を ERROR_IO で包み直すと、
+			// 組み立て済みの本文がさらに前置きを受けて「I/O error. I/O error. ...」に
+			// なる。元の符号と状態を保って素通しする
+			if (e instanceof TranscoderException) {
+				throw (TranscoderException) e;
+			}
 			short code = CTIMessageCodes.ERROR_IO;
 			String[] args = new String[] { e.getMessage() };
 			String mes = MessageCodeUtils.toString(code, args);
