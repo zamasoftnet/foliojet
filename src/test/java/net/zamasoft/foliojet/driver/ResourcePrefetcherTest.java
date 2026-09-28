@@ -110,6 +110,44 @@ public class ResourcePrefetcherTest extends TestCase {
 	}
 
 	/**
+	 * 読み先行ストリーム: 閉じても、読み手のスレッドが待っているソケットを閉じないこと(2026-09-28)。
+	 * 仮想スレッドがソケットの読み取りで待っているところに割り込むとソケットが閉じる。CTIP の本文では
+	 * それが client との接続なので、中断や変換の失敗で本文の途中で閉じると client の接続が切れていた。
+	 * 下位は CTIP の本文の受け口と同じく close() で何もしないストリームにする。
+	 */
+	public void testCloseLeavesTheSocketOpen() throws Exception {
+		try (final java.net.ServerSocket server = new java.net.ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+				final java.net.Socket client = new java.net.Socket(InetAddress.getLoopbackAddress(),
+						server.getLocalPort());
+				final java.net.Socket accepted = server.accept()) {
+			accepted.setSoTimeout(5000);
+			final InputStream body = new java.io.FilterInputStream(accepted.getInputStream()) {
+				@Override
+				public void close() {
+					// CTIP の本文の受け口と同じく、接続は閉じない
+				}
+			};
+			client.getOutputStream().write(1);
+			client.getOutputStream().flush();
+			final InputStream in = new ResourcePrefetcher.ReadAheadInputStream(body, null);
+			assertEquals(1, in.read());
+			// 読み手のスレッドが次のバイトを待っているところで閉じる
+			Thread.sleep(200);
+			in.close();
+			Thread.sleep(200);
+			assertFalse("読み手への割り込みでソケットが閉じた", accepted.isClosed());
+
+			// 読みかけの 1 回はこのバイトで返り、読み手は抜ける。その後も接続は使える
+			client.getOutputStream().write(2);
+			client.getOutputStream().flush();
+			Thread.sleep(200);
+			client.getOutputStream().write(3);
+			client.getOutputStream().flush();
+			assertEquals(3, accepted.getInputStream().read());
+		}
+	}
+
+	/**
 	 * ACLゲート: input.includeが許さないURLは、先読みでも外向き要求を
 	 * 発生させないこと(先読みが遮断の抜け道にならない)。
 	 */

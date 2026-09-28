@@ -281,7 +281,12 @@ final class ResourcePrefetcher {
 				this.closed = true;
 				this.lock.notifyAll();
 			}
-			this.readerThread.interrupt();
+			// **読み手のスレッドに割り込まない**(2026-09-28)。仮想スレッドがソケットの読み取りで
+			// 待っているところに割り込むと、そのソケットが閉じる(JDK 21)。CTIP の本文では
+			// それが client との接続そのものなので、中断や変換の失敗で本文の途中で閉じると
+			// client の接続が切れていた。読みかけの 1 回が返れば closed を見て抜ける
+			// (CTIP の本文の残りは受け口が client の EOF まで読み捨てる)。
+			// ほかの下位ストリームは close() で読み取りが解ける
 			this.delegate.close();
 		}
 	}
