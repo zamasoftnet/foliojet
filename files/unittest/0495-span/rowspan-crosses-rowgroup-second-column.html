@@ -9,8 +9,9 @@ table{table-layout:fixed;width:120pt}th,td{border:1pt solid black;padding:0}</st
      IncrementalTableBuilder は境界の印を行の始めの補完 1 回で消していたので、BODYC を足した後の補完で HEADB を
      持ち込み、BODYDMUST が列数外として内容ごと消えていた(2026-09-29 に直した。rowspan-crosses-rowgroup.html は
      1 列目の場合)。
-     **残る誤り(未修正)**: HEADB の箱は rowspan=2 のまま tbody の行まで伸びる(HTML では行グループの終わりで切れる)。
-     1 列目の場合は tbody の行が thead の行と同じ高さに重なる。このgoldenのその部分は現状の記録。 -->
+     同日、HEADB の箱が tbody の行まで伸びていたのも直した: Incremental は rowspan の閉じていない行を単位にためて
+     いたが、行グループが替わっても単位を閉じず、tbody の行まで thead のグループに足していた。グループが替わったら
+     単位を確定し、rowspan はグループの終わりで切れる(HEADB は thead の行の中、tbody の行はその下)。 -->
 <table>
 <thead><tr><th>HEADA</th><th rowspan="2">HEADB</th></tr></thead>
 <tbody><tr><td>BODYC</td><td>BODYDMUST</td></tr></tbody>

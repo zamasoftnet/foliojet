@@ -841,7 +841,8 @@ public class FuzzOraclePredicateTest extends TestCase {
 	public void testTableColumnCounterexamplesAreNotUnfittable() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
 				shrinkerDoc(TABLE_OVER.replace("<table>", "<table style=\"margin-left:-60pt\">"))));
-		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc("<div>" + TABLE_OVER + "</div>")));
+		// 枠と余白だけのdivの中は判定する(testPlainWrapper)。書字方向を変えうるdivの中は判定しない
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc("<div dir=\"rtl\">" + TABLE_OVER + "</div>")));
 		assertNull(RandomDocumentFuzzTest
 				.findUnfittableContent(shrinkerDoc("<div style=\"float:left\">T9</div>" + TABLE_OVER)));
 		assertNull(RandomDocumentFuzzTest
@@ -902,6 +903,47 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertTrue(RandomDocumentFuzzTest.tableMinContentLowerBound(
 				html.replace("<td rowspan=\"2\">T11</td>", "<td rowspan=\"2\">T11</td><td>T16</td>"), from, 10,
 				false) > 0);
+	}
+
+	/**
+	 * seed 10760020(2026-09-29): 枠と余白だけのdiv({@code margin:7pt;padding:2pt;border:1pt solid black})の中の表で、
+	 * 4列目のセルに入れ子の表がある。入れ子の表の最小幅がセルの下限に入り、T8・T28の列は紙の外から始まる。
+	 */
+	public void testSeedTableInPlainWrapperWithNestedTableIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(10_760_020, true).html()));
+	}
+
+	/** 表を包んでよいのは、属性がstyleだけのdivで、宣言が負でない枠と余白だけのもの。 */
+	public void testPlainWrapper() {
+		assertTrue(RandomDocumentFuzzTest.isPlainWrapper("div", ""));
+		assertTrue(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"margin:7pt;padding:2pt;border:1pt solid black\""));
+		assertTrue(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"margin-left:3pt;border-top-width:2pt;\""));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"margin-left:-20pt\""));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"margin:calc(10% - 30pt)\""));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"width:400pt\""));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"margin:2pt;direction:rtl\""));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " dir=\"rtl\""));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " data-fuzz-role=\"cell-child\""));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("p", ""));
+		// 包むdivの中の表も判定し、手前へ出しうるdivの中の表は判定しない
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<div style=\"margin:1pt;padding:1pt\"><div>" + TABLE_OVER + "</div></div>")));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<div style=\"margin-left:-40pt\">" + TABLE_OVER + "</div>")));
+	}
+
+	/** 入れ子の表の最小幅がセルの下限に入る: 1セルの外側の表でも、中の表が紙より広ければ後ろの列は紙の外。 */
+	public void testNestedTableWidensItsCell() {
+		final String nested = "<table><tbody>\n<tr><td>T1<div><table><tbody>\n"
+				+ "<tr><td>T10</td><td>T11</td><td>T12</td><td>T13</td><td>T14</td><td>T15</td></tr>\n"
+				+ "</tbody></table>\n</div></td><td>T2</td></tr>\n</tbody></table>\n";
+		// 中の表の下限 1.5 + 11.1×6 = 68.1pt → 外側の2列目は 1.5 + 68.1 + 1.5 = 71.1pt から始まり、紙の端(55pt)の外
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(nested)));
+		// 中にstyleがあれば(入れ物が幅を狭めうる)中の表は数えない
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc(nested.replace("<div>", "<div style=\"width:10pt\">"))));
 	}
 
 	/** 述語の許容比は製品の{@code AutoColumnWidths.MIN_OVERFLOW_TOLERANCE}と同じでなければならない。 */

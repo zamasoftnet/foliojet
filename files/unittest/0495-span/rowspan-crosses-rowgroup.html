@@ -4,7 +4,10 @@
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <style>@page{margin:0}body{margin:0;font:normal 8pt/1 serif}
 table{table-layout:fixed;width:100pt}th,td{border:1pt solid black;padding:0}</style></head>
-<body><table>
+<body>
+<!-- thead の HEAD(rowspan=2)は行グループを越えない。2026-07-25 に BODYMUST が消えるのを直し、2026-09-29 に tbody の行が
+     thead の行に重なって描かれていたのを直した(Incremental が行グループの替わり目で行の単位を確定していなかった)。 -->
+<table>
 <thead><tr><th rowspan="2">HEAD</th></tr></thead>
 <tbody><tr><td>BODYMUST</td></tr></tbody>
 </table></body></html>

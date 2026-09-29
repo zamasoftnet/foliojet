@@ -323,7 +323,12 @@ public class IncrementalTableBuilder implements TableBuilder {
 				}
 				this.bindUnit = false;
 			} else {
-				if (this.bindUnit) {
+				// 行グループが替わったら、閉じていない rowspan があっても前のグループの単位を確定する
+				// (2026-09-29)。rowspan は行グループを越えない(CSS 2.1 §17.5)。見送ると新しいグループの
+				// 行まで同じ単位に入り、前のグループへ足されて、ぶち抜きの高さもそこまで伸びていた
+				// (thead の最後の行の rowspan で tbody の行が thead の行に重なった)。確定する単位の行数で
+				// rowspan は切られる(bindTableRowContent の Math.min)。Retained は行グループごとに組むので起きない
+				if (this.bindUnit || (!this.cellsUnit.isEmpty() && this.rowGroupBox != this.bindRowGroupBox)) {
 					this.bindTableRow(false);
 				}
 				this.bindUnit = true;

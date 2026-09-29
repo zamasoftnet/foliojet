@@ -4155,7 +4155,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * seed 9321740(2026-09-28): 縦書き・行長150ptの紙で、min-contentが行長を超える表と
 	 * {@code flex:1 0 35%}・{@code flex:2 0 calc(25% + 8pt)}の項目を並べ、ルビがy=307.76へ押し出された。
 	 * Chromeでも同じ形(y=300.77)で、エンジンの欠陥ではない。</li>
-	 * <li>{@link #UNFITTABLE_TABLE_COLUMN}: bodyの直下の表で、列の最小幅の下限の和が紙の行長を超え、
+	 * <li>{@link #UNFITTABLE_TABLE_COLUMN}: bodyの直下(か枠と余白だけのdivの中)の表で、列の最小幅の下限の和が紙の行長を超え、
 	 * 字のあるセルが紙の外の列から始まる({@link #tableColumnBeyondPage})。seed 10376223(2026-09-29): 120pt幅の紙に
 	 * 9列(1セルに入れ子の表)の表を置き、T20がx=269.48へ出た。Chromeでも同じ形(x=262.78)で、エンジンの欠陥ではない。</li>
 	 * </ul>
@@ -4189,6 +4189,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 		extents.push(new double[] { Double.parseDouble(widthProperty.group(1)) - 2 * margin,
 				Double.parseDouble(heightProperty.group(1)) - 2 * margin });
 		flexParents.push(Boolean.FALSE);
+		// bodyからここまでの祖先が、枠と余白だけのdivか({@link #isPlainWrapper})。表の始まりは内容の始まりより
+		// 手前に出ず、使える幅は紙の内容幅を超えない
+		final java.util.ArrayDeque<Boolean> plainPaths = new java.util.ArrayDeque<>();
+		plainPaths.push(Boolean.TRUE);
+		final double[] pageExtent = extents.peek();
 		boolean minWidth = false, column = false, flexLine = false, tableColumn = false;
 		final int bodyAt = html.indexOf("<body");
 		final Matcher tag = TAG_OR_WM.matcher(html);
@@ -4201,6 +4206,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 					verticals.pop();
 					extents.pop();
 					flexParents.pop();
+					plainPaths.pop();
 				}
 				continue;
 			}
@@ -4262,9 +4268,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 					tag.end(), attrs, vertical, vertical ? height : width, margin, font, collapsedTables)) {
 				flexLine = true;
 			}
-			// bodyの直下の属性の無い表(行長は紙の内容幅。表自身の罫線の間隔を引く前の値)
-			if (!tableColumn && verticals.size() == 1 && table && attrs.isBlank() && tableColumnBeyondPage(html,
-					tag.end(), extents.peek()[vertical ? 1 : 0], margin, font, collapsedTables)) {
+			// bodyの直下か枠と余白だけのdivの中の、属性の無い表(紙の端は内容の始まりから紙の内容幅+余白の位置)
+			if (!tableColumn && plainPaths.peek().booleanValue() && table && attrs.isBlank() && tableColumnBeyondPage(
+					html, tag.end(), pageExtent[vertical ? 1 : 0], margin, font, collapsedTables)) {
 				tableColumn = true;
 			}
 			if (name.equalsIgnoreCase("ruby") && attrs.contains("fuzz-long-ruby")) {
@@ -4287,6 +4293,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			verticals.push(Boolean.valueOf(vertical));
 			extents.push(new double[] { width, height });
 			flexParents.push(Boolean.valueOf(STYLE_FLEX.matcher(attrs).find()));
+			plainPaths.push(Boolean.valueOf(plainPaths.peek().booleanValue() && isPlainWrapper(name, attrs)));
 		}
 		return minWidth ? UNFITTABLE_MIN_WIDTH
 				: column ? UNFITTABLE_COLUMN
@@ -4624,7 +4631,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 					final int rowspan = spanOf(cellAttrs, "rowspan");
 					double min = bordered ? 2 : 0;
 					if (!cellAttrs.contains("style") && !content.contains("style")) {
-						min += longestWordAdvance(content) * font;
+						// 中の表(入れ子)の最小幅も下限に入る。表の固有の最小幅は縮めずに報告される
+						// (RetainedTableBuilder の minLineSize)。seed 10760020(2026-09-29)
+						min += Math.max(longestWordAdvance(content) * font,
+								nestedTablesLowerBound(html, cellStart, tag.start(), font, collapsedTables));
 					}
 					final java.util.BitSet here = occupied.get(row);
 					while (here.get(column)) {
@@ -4657,6 +4667,48 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return new TableGrid(cells, occupied.size(), columns, overlapped, spacing, copperDiverges);
 	}
 
+	/**
+	 * セルの中身({@code from}〜{@code to})にある属性の無い表の、最小幅の下限の最大を返します(無ければ0)。
+	 * 呼び側はセルとその中身にstyleが無いことを確かめてある(入れ物が幅を狭めない)。
+	 */
+	private static double nestedTablesLowerBound(final String html, final int from, final int to, final double font,
+			final boolean collapsedTables) {
+		double bound = 0;
+		for (int at = html.indexOf("<table>", from); at >= 0 && at < to; at = html.indexOf("<table>", at + 7)) {
+			bound = Math.max(bound, columnLowerBoundTotal(placeTableCells(html, at + 7, font, collapsedTables)));
+		}
+		return bound;
+	}
+
+	/**
+	 * 列ごとの幅の下限(単独のセルの最小幅+間隔の最大。単独のセルが無い列は0)。分離境界ではセルの両側に間隔の
+	 * 半分ずつが付き、colspanに覆われるだけの列はCopperでは間隔ごと0になりうる。
+	 */
+	private static double[] columnLowerBounds(final TableGrid grid) {
+		final double[] column = new double[grid.columns()];
+		for (final PlacedCell cell : grid.cells()) {
+			if (cell.colspan() == 1) {
+				column[cell.column()] = Math.max(column[cell.column()], cell.min() + grid.spacing());
+			}
+		}
+		return column;
+	}
+
+	/**
+	 * 表の最小幅の下限(両端の間隔の半分ずつ+{@link #columnLowerBounds}の和)。置き方がCopperと格子で食い違う表・
+	 * セルが重なる表は0。
+	 */
+	private static double columnLowerBoundTotal(final TableGrid grid) {
+		if (grid == null || !grid.overlappedRows().isEmpty() || grid.copperDiverges()) {
+			return 0;
+		}
+		double total = grid.spacing();
+		for (final double w : columnLowerBounds(grid)) {
+			total += w;
+		}
+		return total;
+	}
+
 	/** {@code CellContent.complementRowspan}の写し: 上の行のその位置にrowspanが続く限り、当行へ継続を足す。 */
 	private static void complementCopperRowspan(final List<int[]> cells, final List<int[]> upper) {
 		if (upper == null) {
@@ -4679,12 +4731,45 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 */
 	static final double TABLE_SHRINK_TOLERANCE = 1.1;
 
+	private static final Pattern STYLE_ONLY_ATTRIBUTE = Pattern.compile("\\s*style\\s*=\\s*\"([^\"]*)\"\\s*");
+	/** 枠と余白の宣言({@code margin}・{@code padding}・{@code border}とその各辺)。 */
+	private static final Pattern FRAME_DECLARATION = Pattern
+			.compile("\\s*(?:margin|padding|border)(?:-[a-z]+)*\\s*:\\s*([^;]*)");
+
+	/**
+	 * 表を包んでよい祖先か: 属性がstyleだけのdivで、宣言が枠と余白だけ(負の値・{@code calc()}なし)。
+	 * 表の始まりを右(縦書きでは下)へずらすだけで手前へは出さず、幅を指定しないので使える幅は親を超えない
+	 * (seed 10760020、2026-09-29: {@code margin:7pt;padding:2pt;border:1pt solid black}のdivの中の表)。
+	 */
+	static boolean isPlainWrapper(final String name, final String attrs) {
+		if (!name.equalsIgnoreCase("div")) {
+			return false;
+		}
+		if (attrs.isBlank()) {
+			return true;
+		}
+		final Matcher style = STYLE_ONLY_ATTRIBUTE.matcher(attrs);
+		if (!style.matches()) {
+			return false;
+		}
+		for (final String declaration : style.group(1).split(";")) {
+			if (declaration.isBlank()) {
+				continue;
+			}
+			final Matcher frame = FRAME_DECLARATION.matcher(declaration);
+			if (!frame.matches() || frame.group(1).contains("-") || frame.group(1).contains("calc")) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/** 証拠のセルに許す属性(生成器の定型)。 */
 	private static final Pattern PLAIN_CELL_ATTRIBUTES = Pattern
 			.compile("(?:\\s+(?:colspan|rowspan)\\s*=\\s*\"\\d+\")*\\s*");
 
 	/**
-	 * bodyの直下の属性の無い表(開始タグの直後が{@code from})で、字のあるセルが必ず紙の外に描かれるか——
+	 * 属性の無い表(開始タグの直後が{@code from})で、字のあるセルが必ず紙の外に描かれるか——
 	 * 手前の列の最小幅の下限と{@code border-spacing}の和が{@code extent + margin}(内容幅+余白。そこから先は紙の外)を
 	 * 超える列から始まるセルに、語が直に書かれているか——を返します(seed 10376223、2026-09-29)。
 	 *
@@ -4705,8 +4790,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * </p>
 	 *
 	 * <p>
-	 * <b>表の置き場所が確定する場合に限る。</b>表はbodyの直下で属性が無く(幅は内容で決まる)、左端は内容の始まり、
-	 * 列は書字方向の始まりから並ぶ。{@link #flexLineOverflows}と同じく、文書に浮動体・{@code display:none}・
+	 * <b>表の置き場所が確定する場合に限る。</b>表は属性が無く(幅は内容で決まる)、bodyの直下か、枠と余白だけのdivの中
+	 * ({@link #isPlainWrapper}。seed 10760020)にあり、左端は内容の始まりかそれより後、列は書字方向の始まりから並ぶ。
+	 * 包むdivは幅を指定しないので使える幅は紙の内容幅以下で、許容比の判定は紙の内容幅で足りる。セルの中の入れ子の
+	 * 表は、その最小幅の下限がセルの最小幅の下限に入る({@link #placeTableCells})。{@link #flexLineOverflows}と同じく、文書に浮動体・{@code display:none}・
 	 * {@code visibility:hidden}/{@code collapse}・絶対配置・位置の変位があれば判定しない。セルが重なる表
 	 * (表のモデルの誤り)も判定しない。証拠のセルは属性がcolspan・rowspanだけで、中身が語で始まり
 	 * (生成器はセルの先頭に語を置く)、中にstyle・dirが無いこと(字をセルの始まりより手前へ出す指定が無い)。
@@ -4720,25 +4807,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			return false;
 		}
 		final TableGrid grid = placeTableCells(html, from, font, collapsedTables);
-		if (grid == null || !grid.overlappedRows().isEmpty() || grid.copperDiverges()) {
+		// 表の最小幅が行長の許容比以内なら、Copperは列を縮めて収める(食い違い・重なりのある表は0で、判定しない)
+		if (columnLowerBoundTotal(grid) <= TABLE_SHRINK_TOLERANCE * extent) {
 			return false;
 		}
-		// 列の幅の下限(セルの両側の間隔の半分ずつを含む)。単独のセルが無い列(colspanに覆われるだけ)は
-		// Copperでは間隔ごと0になりうるので数えない
-		final double[] column = new double[grid.columns()];
-		for (final PlacedCell cell : grid.cells()) {
-			if (cell.colspan() == 1) {
-				column[cell.column()] = Math.max(column[cell.column()], cell.min() + grid.spacing());
-			}
-		}
-		// 表の最小幅(両端の間隔の半分ずつを含む)が行長の許容比以内なら、Copperは列を縮めて収める
-		double total = grid.spacing();
-		for (final double w : column) {
-			total += w;
-		}
-		if (total <= TABLE_SHRINK_TOLERANCE * extent) {
-			return false;
-		}
+		final double[] column = columnLowerBounds(grid);
 		for (final PlacedCell cell : grid.cells()) {
 			double start = grid.spacing();
 			for (int i = 0; i < cell.column(); ++i) {
