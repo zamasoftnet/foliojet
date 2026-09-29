@@ -696,6 +696,222 @@ public class FuzzOraclePredicateTest extends TestCase {
 				|| RandomDocumentFuzzTest.hasOverwideFloat(html);
 	}
 
+	// 折り返さないflex行の最小主軸サイズ(seed 9321740、2026-09-28)。
+	// 縦書き・行長150ptで、表(min-content≧108.3pt)とflex-shrink:0の35%・calc(25% + 8pt)が並ぶ
+
+	private static final String FLEX_TABLE = "<table><tbody>\n"
+			+ "<tr><td>T0</td><td rowspan=\"2\">T1</td><td rowspan=\"2\">T2</td><td>T3</td></tr>\n"
+			+ "<tr><td>T4</td><td>T5</td><td colspan=\"3\">T6</td><td>T7</td></tr>\n"
+			+ "<tr><td>T8</td><td rowspan=\"1\">T9</td><td rowspan=\"2\">T10</td><td>T11</td></tr>\n"
+			+ "<tr><td>T12</td><td colspan=\"3\">T13</td><td rowspan=\"1\">T14</td><td>T15</td></tr>\n"
+			+ "</tbody></table>\n";
+
+	private static String flexLineDoc(final String pageHeight, final String containerStyle) {
+		return "<?jp.cssj.property name=\"output.page-width\" value=\"300pt\"?>\n"
+				+ "<?jp.cssj.property name=\"output.page-height\" value=\"" + pageHeight + "\"?>\n"
+				+ "<html><head><style>\n@page{margin:0pt}\n"
+				+ "body{margin:0;font:normal 13pt/1.2 serif;writing-mode:vertical-lr}\n"
+				+ "p,div,td{margin:0;padding:0}\ntable{border-collapse:separate;table-layout:fixed}\n"
+				+ "td{border:1pt solid black}\n</style></head><body data-fuzz-generator=\"2\">\n"
+				+ "<div style=\"display:flex;position:relative;" + containerStyle + "gap:0pt;\">\n" + FLEX_TABLE
+				+ "<div data-fuzz-role=\"layout-item\" style=\"flex:1 0 35%;width:min-content;min-width:8em;max-width:90%;\">\n"
+				+ "<p>T16</p>\n</div>\n"
+				+ "<div data-fuzz-role=\"layout-item\" style=\"flex:2 0 calc(25% + 8pt);\">\n"
+				+ "<p><ruby>T24<rt>T25</rt></ruby></p>\n</div>\n</div>\n</body></html>";
+	}
+
+	/** seed 9321740の形: ルビの項目は 表108.3 + 35%×150 = 160.8pt から始まり、紙(150pt)の外。 */
+	public void testNowrapFlexLineBeyondLineIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_FLEX_LINE, RandomDocumentFuzzTest
+				.findUnfittableContent(flexLineDoc("150pt", "flex-direction:row;flex-wrap:nowrap;")));
+	}
+
+	/** 行長400ptならルビの項目は 108.3 + 140 = 248.3pt から始まりうる。 */
+	public void testNowrapFlexLineWithinLongLineIsNotUnfittable() {
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(flexLineDoc("400pt", "flex-direction:row;flex-wrap:nowrap;")));
+	}
+
+	/** 折り返すflex・列方向のflexは行長の和にならない。 */
+	public void testWrappingOrColumnFlexIsNotUnfittable() {
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(flexLineDoc("150pt", "flex-direction:row;flex-wrap:wrap;")));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(flexLineDoc("150pt", "flex-direction:column;flex-wrap:nowrap;")));
+	}
+
+	/**
+	 * 表の下限は2行目(T1・T2のrowspanを含む6セル): 16.3×6 + 1.5×7 = 108.3pt。
+	 * 4行目はT13(colspan 3)がT10(rowspan 2)と重なるので数えない。
+	 */
+	public void testTableMinContentLowerBound() {
+		final String html = flexLineDoc("150pt", "");
+		final int from = html.indexOf("<table>") + "<table>".length();
+		assertEquals(108.3, RandomDocumentFuzzTest.tableMinContentLowerBound(html, from, 13, false), 1e-9);
+		// 罫線を重ねる表は罫線も間隔も数えない: 2行目の1桁の6セル 14.3×6 = 85.8pt
+		assertEquals(85.8, RandomDocumentFuzzTest.tableMinContentLowerBound(html, from, 13, true), 1e-9);
+	}
+
+	/** 内容幅50pt・余白5pt: 4つ目の項目は 24pt×3+2pt×3 = 78pt から始まり、紙の端(55pt)の外。 */
+	private static final String FLEX_OVER = "<div style=\"display:flex;flex-direction:row;flex-wrap:nowrap;gap:2pt\">"
+			+ "<div style=\"flex:0 0 24pt\"><p>T1</p></div><div style=\"flex:0 0 24pt\"><p>T2</p></div>"
+			+ "<div style=\"flex:0 0 24pt\"><p>T3</p></div><div style=\"flex:0 0 24pt\"><p>T4</p></div></div>";
+
+	public void testTopLevelNowrapFlexBeyondPageIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_FLEX_LINE,
+				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(FLEX_OVER)));
+	}
+
+	/**
+	 * 箱の和が紙の端を超えても、字のある最後の項目が紙の中から始まれば除外しない(2026-09-28のcodexレビュー
+	 * 2回目の反例): 3つ目は 24+2×2 = 28pt から始まり、字は紙に収まる。和 24+48+4 = 76pt は空きの分。
+	 */
+	public void testTrailingEmptyBoxOverflowIsNotUnfittable() {
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(
+				"<div style=\"display:flex;flex-direction:row;flex-wrap:nowrap;gap:2pt;\"><p>T0</p>"
+						+ "<div style=\"flex:0 0 24pt;\"><p>T1</p></div><div style=\"flex:0 0 8em;\"><p>T2</p></div></div>")));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(FLEX_OVER.replace("<div style=\"flex:0 0 24pt\"><p>T4</p></div>", ""))));
+	}
+
+	/**
+	 * 2026-09-28のcodexレビューの反例。表の中では入れ物が内容に合わせて広がり、絶対配置・相対配置の変位は
+	 * 字を紙へ戻しうるし、display:none・浮動体・コンテナの寸法があれば行長が決まらない。どれも除外しない。
+	 */
+	public void testFlexLineCounterexamplesAreNotUnfittable() {
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc("<table><tbody><tr><td>T0" + FLEX_OVER + "</td></tr></tbody></table>")));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(
+				FLEX_OVER + "<div style=\"position:absolute;top:20pt;left:0pt\">X</div>")));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc(FLEX_OVER.replace("gap:2pt", "gap:2pt;position:relative;left:-10pt"))));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<p style=\"display:none\">T9</p>" + FLEX_OVER)));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<div style=\"float:left\">T9</div>" + FLEX_OVER)));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc(FLEX_OVER.replace("gap:2pt", "gap:2pt;width:200pt"))));
+	}
+
+	/**
+	 * 3回目の反例: 証拠の項目の中に逆向きflexがあると、字は項目の始まりより手前(紙の中)へ溢れうる。
+	 * 逆向きのコンテナでは、紙の外から始まる項目の長い字が紙の側へ溢れうる。どちらも除外しない。
+	 */
+	public void testFlexLineEvidenceItemMustBePlain() {
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(FLEX_OVER.replace("<p>T4</p>",
+				"<div style=\"display:flex;width:20pt;flex-direction:row-reverse;flex-wrap:nowrap;gap:0pt\">"
+						+ "<p><span style=\"display:inline-block;width:150pt;height:10pt\">T4</span></p></div>"))));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc(FLEX_OVER.replace("flex-direction:row;", "flex-direction:row-reverse;"))));
+		// 項目自身が寸法の宣言だけなら証拠になる
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_FLEX_LINE, RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc(FLEX_OVER.replace("flex:0 0 24pt\"><p>T4", "flex:0 0 24pt;min-width:8em;max-width:90%\"><p>T4"))));
+	}
+
+	// 紙の行長を超える表の最小幅(seed 10376223、2026-09-29)。120pt幅の紙(内容100pt)に9列の表、
+	// T20がx=269.48(Chromeでは262.78)に出た
+
+	/**
+	 * seedの文書そのもの。列0〜4の下限は各21.2pt(T25〜T27・T21・入れ子の表の語)で、T4の列は
+	 * 1.5 + 22.7×5 = 115pt から始まり、紙の端(110pt)の外。
+	 */
+	public void testSeedTableBeyondPageIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(10_376_223, true).html()));
+	}
+
+	/**
+	 * 内容幅50pt・余白5pt、語の下限は T1x=9.6pt・間隔1.5pt: 列jは 1.5+11.1j から始まる。1行目は
+	 * colspanで行の和が小さく、2行目で列が決まる。T15の列(j=5)は57pt=紙の端(55pt)の外。
+	 */
+	private static final String TABLE_OVER = "<table><tbody>\n<tr><td colspan=\"3\">T1</td><td colspan=\"3\">T2</td></tr>\n"
+			+ "<tr><td>T10</td><td>T11</td><td>T12</td><td>T13</td><td>T14</td><td>T15</td></tr>\n</tbody></table>\n";
+
+	public void testTopLevelTableBeyondPageIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(TABLE_OVER)));
+		// 列jの始まりは手前の列だけで決まる: 1行目のcolspanのセル(j=3)は1.5+33.3=34.8ptで紙の中
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc(TABLE_OVER.replace("<td>T15</td>", ""))));
+	}
+
+	/**
+	 * 表の置き場所が確定しない文書・証拠にならないセルは除外しない。表に属性がある、bodyの直下でない、
+	 * 文書に浮動体・display:none・位置の変位がある、セルが重なる、証拠のセルにstyle・dirがあるか語で始まらない。
+	 */
+	public void testTableColumnCounterexamplesAreNotUnfittable() {
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc(TABLE_OVER.replace("<table>", "<table style=\"margin-left:-60pt\">"))));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc("<div>" + TABLE_OVER + "</div>")));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<div style=\"float:left\">T9</div>" + TABLE_OVER)));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<p style=\"display:none\">T9</p>" + TABLE_OVER)));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc(TABLE_OVER + "<div style=\"position:relative;left:-10pt\">T9</div>")));
+		// 2行目のT10(colspan 2)が1行目のT1(rowspan 2)の桁に重なる
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(TABLE_OVER
+				.replace("<td colspan=\"3\">T1</td>", "<td>T0</td><td rowspan=\"2\">T1</td><td>T3</td>")
+				.replace("<td>T10</td>", "<td colspan=\"2\">T10</td>"))));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc(TABLE_OVER.replace("<td>T15</td>", "<td>T15<p style=\"margin-left:-60pt\">T16</p></td>"))));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc(TABLE_OVER.replace("<td>T15</td>", "<td dir=\"rtl\">T15</td>"))));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc(TABLE_OVER.replace("<td>T15</td>", "<td><b>T15</b></td>"))));
+	}
+
+	/**
+	 * 2026-09-29のcodexレビューの反例: 120pt(余白0)に7ptの4×4の表。T7は列10から始まるが、列7はT3(colspan 3)に
+	 * 覆われるだけで幅0になりうる。下限の合計131.0ptは120pt×1.1=132pt以内で、Copperは列を縮めて紙に収める。
+	 */
+	public void testSlightlyOverwideTableIsNotUnfittable() {
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				"<?jp.cssj.property name=\"output.page-width\" value=\"120pt\"?>\n"
+						+ "<?jp.cssj.property name=\"output.page-height\" value=\"400pt\"?>\n"
+						+ "<html><head><style>\n@page{margin:0pt}\n"
+						+ "body{margin:0;font:normal 7pt/1.2 serif;writing-mode:horizontal-tb}\n"
+						+ "p,div,td{margin:0;padding:0}\ntable{border-collapse:separate;table-layout:auto}\n"
+						+ "td{border:1pt solid black}\n</style></head><body data-fuzz-generator=\"2\">\n<table><tbody>\n"
+						+ "<tr><td colspan=\"3\" rowspan=\"2\">T0</td><td rowspan=\"2\">T1</td><td>T2</td>"
+						+ "<td colspan=\"3\" rowspan=\"2\">T3</td></tr>\n"
+						+ "<tr><td rowspan=\"3\">T4</td><td>T5</td><td>T6</td><td>T7</td></tr>\n"
+						+ "<tr><td rowspan=\"2\">T8</td><td>T9</td><td rowspan=\"2\">T10</td><td>T11</td></tr>\n"
+						+ "<tr><td>T12</td><td>T13</td><td>T14</td><td>T15</td></tr>\n</tbody></table>\n</body></html>"));
+	}
+
+	/**
+	 * 2026-09-29のcodexレビュー2回目の反例: 2行目の右端のT7(rowspan 3)は、短い3行目の終わりの手前(T6の2桁目)に
+	 * rowspanが無いのでCopperでは3行目以降へ引き継がれず、4行目のT15はHTMLの格子の列7でなく列6に入る。
+	 * 格子どおりなら下限142.5pt>132pt・T15は123ptからだが、Copperは7列で縮めて紙に収める。どちらの見積もりも使わない。
+	 */
+	public void testTableWhereCopperPlacesCellsDifferentlyIsNotUnfittable() {
+		final String html = "<?jp.cssj.property name=\"output.page-width\" value=\"120pt\"?>\n"
+				+ "<?jp.cssj.property name=\"output.page-height\" value=\"400pt\"?>\n"
+				+ "<html><head><style>\n@page{margin:0pt}\n"
+				+ "body{margin:0;font:normal 10pt/1.2 serif;writing-mode:horizontal-tb}\n"
+				+ "p,div,td{margin:0;padding:0}\ntable{border-collapse:separate;table-layout:auto}\n"
+				+ "td{border:1pt solid black}\n</style></head><body data-fuzz-generator=\"2\">\n<table><tbody>\n"
+				+ "<tr><td>T0</td><td>T1</td><td>T2</td><td>T3</td></tr>\n"
+				+ "<tr><td>T4</td><td colspan=\"3\">T5</td><td colspan=\"2\">T6</td><td rowspan=\"3\">T7</td></tr>\n"
+				+ "<tr><td>T8</td><td>T9</td><td colspan=\"2\" rowspan=\"2\">T10</td><td rowspan=\"2\">T11</td></tr>\n"
+				+ "<tr><td>T12</td><td>T13</td><td>T14</td><td>T15</td></tr>\n</tbody></table>\n</body></html>";
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(html));
+		final int from = html.indexOf("<table>") + "<table>".length();
+		assertEquals(0.0, RandomDocumentFuzzTest.tableMinContentLowerBound(html, from, 10, false), 0);
+		// 同じ表でも、3行目が右端まで埋まっていればCopperもT7を引き継ぎ、格子と一致する
+		assertTrue(RandomDocumentFuzzTest.tableMinContentLowerBound(
+				html.replace("<td rowspan=\"2\">T11</td>", "<td rowspan=\"2\">T11</td><td>T16</td>"), from, 10,
+				false) > 0);
+	}
+
+	/** 述語の許容比は製品の{@code AutoColumnWidths.MIN_OVERFLOW_TOLERANCE}と同じでなければならない。 */
+	public void testTableShrinkToleranceMatchesProduct() throws Exception {
+		final java.lang.reflect.Field field = Class.forName("net.zamasoft.foliojet.layout.sizing.AutoColumnWidths")
+				.getDeclaredField("MIN_OVERFLOW_TOLERANCE");
+		field.setAccessible(true);
+		assertEquals(field.getDouble(null), RandomDocumentFuzzTest.TABLE_SHRINK_TOLERANCE, 0);
+	}
+
 	private static String shrinkerDoc(final String body) {
 		return "<?jp.cssj.property name=\"output.page-width\" value=\"60pt\"?>"
 				+ "<?jp.cssj.property name=\"output.page-height\" value=\"60pt\"?>"

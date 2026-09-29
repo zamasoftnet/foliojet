@@ -4119,6 +4119,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 	static final String UNFITTABLE_RUBY = "行より長い割れないルビ";
 	static final String UNFITTABLE_MIN_WIDTH = "入れ物より広いmin-width";
 	static final String UNFITTABLE_COLUMN = "組版できない幅の段";
+	static final String UNFITTABLE_FLEX_LINE = "折り返さないflex行の最小主軸サイズ";
+	static final String UNFITTABLE_TABLE_COLUMN = "紙の行長を超える表の最小幅";
 
 	/**
 	 * 版面に物理的に収まらない内容があれば、その理由を返します(無ければ{@code null})。
@@ -4147,6 +4149,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * {@link #isTinyPage}・{@link #hasUntypesettableFloat}と同じ物差し
 	 * (欄が組版できない幅なら中身は必ず溢れる)。<b>これは物理的に収まらないことの証明ではなく、
 	 * 除外方針の閾値である。</b></li>
+	 * <li>{@link #UNFITTABLE_FLEX_LINE}: 折り返さない行方向のflexで、項目の主軸サイズの下限の和が
+	 * 紙の行長を超える({@link #flexLineOverflows})。flex項目は自動最小サイズ(min-content)より
+	 * 縮まず、{@code flex-shrink:0}の項目は{@code flex-basis}より縮まない(Flexbox §4.5・§9.7)。
+	 * seed 9321740(2026-09-28): 縦書き・行長150ptの紙で、min-contentが行長を超える表と
+	 * {@code flex:1 0 35%}・{@code flex:2 0 calc(25% + 8pt)}の項目を並べ、ルビがy=307.76へ押し出された。
+	 * Chromeでも同じ形(y=300.77)で、エンジンの欠陥ではない。</li>
+	 * <li>{@link #UNFITTABLE_TABLE_COLUMN}: bodyの直下の表で、列の最小幅の下限の和が紙の行長を超え、
+	 * 字のあるセルが紙の外の列から始まる({@link #tableColumnBeyondPage})。seed 10376223(2026-09-29): 120pt幅の紙に
+	 * 9列(1セルに入れ子の表)の表を置き、T20がx=269.48へ出た。Chromeでも同じ形(x=262.78)で、エンジンの欠陥ではない。</li>
 	 * </ul>
 	 *
 	 * <p>
@@ -4178,7 +4189,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		extents.push(new double[] { Double.parseDouble(widthProperty.group(1)) - 2 * margin,
 				Double.parseDouble(heightProperty.group(1)) - 2 * margin });
 		flexParents.push(Boolean.FALSE);
-		boolean minWidth = false, column = false;
+		boolean minWidth = false, column = false, flexLine = false, tableColumn = false;
 		final int bodyAt = html.indexOf("<body");
 		final Matcher tag = TAG_OR_WM.matcher(html);
 		if (bodyAt >= 0) {
@@ -4246,6 +4257,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 					column = true;
 				}
 			}
+			// bodyの直下(行長=紙の内容幅と確定する場所)のflexコンテナだけ
+			if (!flexLine && verticals.size() == 1 && STYLE_FLEX.matcher(attrs).find() && flexLineOverflows(html,
+					tag.end(), attrs, vertical, vertical ? height : width, margin, font, collapsedTables)) {
+				flexLine = true;
+			}
+			// bodyの直下の属性の無い表(行長は紙の内容幅。表自身の罫線の間隔を引く前の値)
+			if (!tableColumn && verticals.size() == 1 && table && attrs.isBlank() && tableColumnBeyondPage(html,
+					tag.end(), extents.peek()[vertical ? 1 : 0], margin, font, collapsedTables)) {
+				tableColumn = true;
+			}
 			if (name.equalsIgnoreCase("ruby") && attrs.contains("fuzz-long-ruby")) {
 				final int end = html.indexOf("<rt>", tag.end());
 				if (end >= 0) {
@@ -4267,7 +4288,492 @@ public class RandomDocumentFuzzTest extends TestCase {
 			extents.push(new double[] { width, height });
 			flexParents.push(Boolean.valueOf(STYLE_FLEX.matcher(attrs).find()));
 		}
-		return minWidth ? UNFITTABLE_MIN_WIDTH : column ? UNFITTABLE_COLUMN : null;
+		return minWidth ? UNFITTABLE_MIN_WIDTH
+				: column ? UNFITTABLE_COLUMN
+						: flexLine ? UNFITTABLE_FLEX_LINE : tableColumn ? UNFITTABLE_TABLE_COLUMN : null;
+	}
+
+	private static final Pattern STYLE_FLEX_DIRECTION = Pattern.compile("flex-direction\\s*:\\s*([a-z-]+)");
+	private static final Pattern STYLE_FLEX_WRAP = Pattern.compile("flex-wrap\\s*:\\s*([a-z-]+)");
+	private static final Pattern STYLE_GAP_DECLARATION = Pattern.compile("(?:^|[;\\s\"])gap\\s*:\\s*([^;\"']*)");
+	/** {@code flex:<grow> <shrink> <basis>}(生成器の形)。 */
+	private static final Pattern STYLE_FLEX_SHORTHAND = Pattern
+			.compile("(?:^|[;\\s\"])flex\\s*:\\s*(\\d+)\\s+(\\d+)\\s+([^;\"']*)");
+	private static final Pattern PERCENT_LENGTH = Pattern.compile("([\\d.]+)%");
+	private static final Pattern CALC_PERCENT_PLUS_PT = Pattern
+			.compile("calc\\(\\s*([\\d.]+)%\\s*\\+\\s*([\\d.]+)pt\\s*\\)");
+	/** 語の幅を下げうる(割れる・消える)指定。文書にあれば表の見積りを使わない。 */
+	private static final String[] BREAKABLE_TEXT_HINTS = { "display:none", "overflow-wrap:anywhere",
+			"overflow-wrap:break-word", "word-break:break", "line-break:anywhere" };
+
+	/** bodyの直下のflexコンテナに許す宣言(生成器の定型)。これ以外があれば行長が紙の内容幅と決まらない。 */
+	private static final Pattern FLEX_CONTAINER_DECLARATION = Pattern.compile(
+			"\\s*(?:display\\s*:\\s*flex|position\\s*:\\s*(?:static|relative)|float\\s*:\\s*none"
+					+ "|flex-direction\\s*:\\s*[a-z-]+|flex-wrap\\s*:\\s*[a-z-]+|gap\\s*:\\s*[^;]*)\\s*");
+	private static final Pattern STYLE_ATTRIBUTE = Pattern.compile("style\\s*=\\s*\"([^\"]*)\"");
+	/** 行方向の広さを変えうる浮動体(none以外)。BFCのflexコンテナを狭める。 */
+	private static final Pattern FLOAT_NOT_NONE = Pattern.compile("float\\s*:\\s*(?!none)[a-z]");
+	private static final Pattern OUT_OF_FLOW = Pattern.compile("position\\s*:\\s*(?:absolute|fixed)");
+	/** 箱を描かれた位置から動かす変位(相対配置のtop/left等)。 */
+	private static final Pattern POSITION_OFFSET = Pattern.compile("(?:^|[;\\s\"])(?:top|left|right|bottom)\\s*:");
+	/** 描かれる字(生成器の語 T+数字)。 */
+	private static final Pattern DRAWN_TOKEN = Pattern.compile("T\\d");
+
+	/**
+	 * bodyの直下にある折り返さない行方向のflexコンテナ(開始タグの直後が{@code from})で、字を含む項目が
+	 * 必ず紙の外に描かれるか——手前の項目の主軸サイズの下限とgapの和が{@code extent + margin}
+	 * (内容幅+余白。そこから先は紙の外)を超える位置から始まる項目に字があるか——を返します。
+	 *
+	 * <p>
+	 * <b>行長が確定する場所に限る。</b>コンテナはbodyの直下で、宣言は生成器の定型
+	 * ({@link #FLEX_CONTAINER_DECLARATION})だけ、文書に浮動体・{@code display:none}・{@code visibility:hidden}・
+	 * 絶対配置・位置の変位({@code top}等)が無いこと。このときコンテナの行長は内容幅{@code extent}そのもので、
+	 * 項目は余白{@code margin}の位置から並ぶ。表の中・浮動体の横・flex項目の中では入れ物が内容に合わせて
+	 * 広がったり狭まったりし、変位や絶対配置は字を紙へ戻しうるので判定しない。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>証拠にする項目は、字が項目の始まりより手前に出ないものに限る。</b>向きは{@code row}だけ
+	 * ({@code row-reverse}では、紙の外から始まる項目の長い字が行の終わり側=紙の側へ溢れて戻りうる)。
+	 * 項目自身の宣言は{@link #PLAIN_ITEM_DECLARATION}だけで、子孫にstyle・dirが無いこと(子孫の逆向きflexは
+	 * 字を開始側へ溢れさせる)。箱の和ではなく字のある項目の始まりで判定するのは、末尾の箱の空きだけが
+	 * はみ出して字は紙に収まる文書があるため。いずれも2026-09-28のcodexレビューの反例(3回)。
+	 * </p>
+	 *
+	 * <p>
+	 * 下限は{@code c + p×extent}。{@code flex-shrink:0}の項目は{@code flex-basis}
+	 * (pt・em・%・{@code calc(%+pt)}。{@code auto}等は0)、直下の属性の無い表は
+	 * {@link #tableMinContentLowerBound}、項目間は{@code gap}。主軸側の最大寸法({@code max-width}等)が
+	 * あるときは、basisと同じ形(どちらも%かどちらも定数)の場合だけ小さい方を採り、混ざれば0とする。
+	 * 下限しか足さないので、収まる文書を収まらないとは言わない。
+	 * </p>
+	 */
+	static boolean flexLineOverflows(final String html, final int from, final String containerAttrs,
+			final boolean vertical, final double extent, final double margin, final double font,
+			final boolean collapsedTables) {
+		final Matcher direction = STYLE_FLEX_DIRECTION.matcher(containerAttrs);
+		final Matcher wrap = STYLE_FLEX_WRAP.matcher(containerAttrs);
+		if ((direction.find() && !"row".equals(direction.group(1))) || (wrap.find() && !"nowrap".equals(wrap.group(1)))
+				|| html.contains("display:none") || html.contains("visibility:hidden") || FLOAT_NOT_NONE.matcher(html).find()
+				|| OUT_OF_FLOW.matcher(html).find() || POSITION_OFFSET.matcher(html).find()) {
+			return false;
+		}
+		final Matcher style = STYLE_ATTRIBUTE.matcher(containerAttrs);
+		if (!style.find()) {
+			return false;
+		}
+		for (final String declaration : style.group(1).split(";")) {
+			if (!declaration.isBlank() && !FLEX_CONTAINER_DECLARATION.matcher(declaration).matches()) {
+				return false;
+			}
+		}
+		// 項目の主軸は、コンテナが縦書きなら縦(max-height)、横書きなら横(max-width)
+		final String maxMain = vertical ? "max-height" : "max-width";
+		final double gap = lastLength(STYLE_GAP_DECLARATION, containerAttrs, font, 0);
+		double c = 0, p = 0;
+		int items = 0, depth = 0;
+		final Matcher tag = TAG_OR_WM.matcher(html);
+		tag.region(from, html.length());
+		while (tag.find()) {
+			if (tag.group(1) != null) {
+				if (depth == 0) {
+					break;
+				}
+				--depth;
+				continue;
+			}
+			final String attrs = String.valueOf(tag.group(3));
+			if (attrs.endsWith("/")) {
+				continue;
+			}
+			if (depth == 0) {
+				// この項目の箱は手前の項目とgapの後ろから始まる。そこが紙の端より先で、中に字があり、
+				// 中身が項目の始まりより手前へ出る指定(子孫のstyle・dir)が無ければ、字は必ず紙の外に
+				// 描かれる。末尾の箱の空きだけがはみ出す文書を除外しないため、箱の和ではなく描かれる
+				// 項目の始まりで判定する
+				if (c + p * extent + items * gap > extent + margin) {
+					final String inner = html.substring(tag.end(), elementEnd(html, tag.end()));
+					if (isPlainItem(attrs) && !inner.contains("style=") && !inner.contains("dir=")
+							&& DRAWN_TOKEN.matcher(inner.replaceAll("<[^>]*>", " ")).find()) {
+						return true;
+					}
+				}
+				++items;
+				double itemC = 0, itemP = 0;
+				final Matcher flex = STYLE_FLEX_SHORTHAND.matcher(attrs);
+				if (flex.find() && "0".equals(flex.group(2))) {
+					final double[] basis = linearLength(flex.group(3).trim(), font);
+					final Matcher max = Pattern.compile("(?:^|[;\\s\"])" + maxMain + "\\s*:\\s*([^;\"']*)").matcher(attrs);
+					String maxValue = null;
+					while (max.find()) {
+						maxValue = max.group(1).trim();
+					}
+					if (maxValue != null) {
+						final double[] m = linearLength(maxValue, font);
+						if (basis[1] == 0 && m[1] == 0 && m[0] > 0) {
+							basis[0] = Math.min(basis[0], m[0]);
+						} else if (basis[0] == 0 && m[0] == 0 && m[1] > 0) {
+							basis[1] = Math.min(basis[1], m[1]);
+						} else {
+							basis[0] = basis[1] = 0;
+						}
+					}
+					itemC = basis[0];
+					itemP = basis[1];
+				}
+				if (tag.group(2).equalsIgnoreCase("table") && attrs.isBlank()) {
+					final double table = tableMinContentLowerBound(html, tag.end(), font, collapsedTables);
+					// 行長はextentに確定しているので、そこでの値が大きい方を採る
+					if (table > itemC + itemP * extent) {
+						itemC = table;
+						itemP = 0;
+					}
+				}
+				c += itemC;
+				p += itemP;
+			}
+			++depth;
+		}
+		return false;
+	}
+
+	/** 項目自身に許す宣言。主軸上の位置を動かさず、中身の字を項目の始まりより手前へ出さない。 */
+	private static final Pattern PLAIN_ITEM_DECLARATION = Pattern
+			.compile("\\s*(?:flex|width|min-width|max-width)\\s*:[^;]*");
+
+	/** 項目の開始タグの属性が、styleを持たないか{@link #PLAIN_ITEM_DECLARATION}だけで、dirを持たないか。 */
+	private static boolean isPlainItem(final String attrs) {
+		if (attrs.contains("dir=")) {
+			return false;
+		}
+		final Matcher style = STYLE_ATTRIBUTE.matcher(attrs);
+		if (!style.find()) {
+			return true;
+		}
+		for (final String declaration : style.group(1).split(";")) {
+			if (!declaration.isBlank() && !PLAIN_ITEM_DECLARATION.matcher(declaration).matches()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** 開始タグの直後{@code from}から、対応する終了タグの位置を返します(無ければ文書の末尾)。 */
+	private static int elementEnd(final String html, final int from) {
+		int depth = 0;
+		final Matcher tag = TAG_OR_WM.matcher(html);
+		tag.region(from, html.length());
+		while (tag.find()) {
+			if (tag.group(1) != null) {
+				if (depth == 0) {
+					return tag.start();
+				}
+				--depth;
+			} else if (!String.valueOf(tag.group(3)).endsWith("/")) {
+				++depth;
+			}
+		}
+		return html.length();
+	}
+
+	/**
+	 * 長さを一次式{@code {定数pt, 割合}}で返します(pt・em・%・{@code calc(%+pt)})。読めなければ{0, 0}。
+	 */
+	private static double[] linearLength(final String value, final double font) {
+		final Matcher length = PT_OR_EM_LENGTH.matcher(value);
+		if (length.matches()) {
+			return new double[] { Double.parseDouble(length.group(1)) * ("em".equals(length.group(2)) ? font : 1), 0 };
+		}
+		final Matcher percent = PERCENT_LENGTH.matcher(value);
+		if (percent.matches()) {
+			return new double[] { 0, Double.parseDouble(percent.group(1)) / 100 };
+		}
+		final Matcher calc = CALC_PERCENT_PLUS_PT.matcher(value);
+		if (calc.matches()) {
+			return new double[] { Double.parseDouble(calc.group(2)), Double.parseDouble(calc.group(1)) / 100 };
+		}
+		return new double[] { 0, 0 };
+	}
+
+	/**
+	 * 表(開始タグの直後が{@code from})のmin-content行長の下限を返します。
+	 *
+	 * <p>
+	 * HTMLの表の格子の置き方(先の行のrowspanが占めた桁を飛ばす)でセルを置き、行ごとに、その行に掛かる
+	 * セルの最小幅の和と、セルの間と両端の{@code border-spacing}(UA既定1.5pt、罫線を分ける表だけ)を足す。
+	 * セルが重なる行(表のモデルの誤り)は数えない。セルの最小幅は、中の割れない語(T+数字。ルビの注記は除く)の
+	 * 送りの下限(T 0.6em・数字 0.5em)の最大と、罫線を分ける表なら{@code td}の罫線1pt×2。セルかその中に
+	 * style属性があれば(書体・書字方向・語の割れ方が変わりうる)語は数えず罫線だけにする。文書に語を割る・
+	 * 消す指定({@link #BREAKABLE_TEXT_HINTS})があるか、Copperがセルを格子と違う列に置く表
+	 * ({@link #placeTableCells}。2026-09-29)なら0を返す——後者では同じ列に来たセルの幅が和でなく最大になる。
+	 * </p>
+	 */
+	static double tableMinContentLowerBound(final String html, final int from, final double font,
+			final boolean collapsedTables) {
+		final TableGrid grid = placeTableCells(html, from, font, collapsedTables);
+		if (grid == null || grid.copperDiverges()) {
+			return 0;
+		}
+		double bound = 0;
+		for (int r = 0; r < grid.rows(); ++r) {
+			if (grid.overlappedRows().get(r)) {
+				continue;
+			}
+			final List<Double> mins = new ArrayList<>();
+			for (final PlacedCell cell : grid.cells()) {
+				if (cell.row() <= r && r < cell.row() + cell.rowspan()) {
+					mins.add(Double.valueOf(cell.min()));
+				}
+			}
+			if (mins.isEmpty()) {
+				continue;
+			}
+			double sum = (mins.size() + 1) * grid.spacing();
+			for (final Double w : mins) {
+				sum += w.doubleValue();
+			}
+			bound = Math.max(bound, sum);
+		}
+		return bound;
+	}
+
+	/** 表の格子に置いたセル。{@code min}は最小幅の下限、{@code attrs}と{@code content}は開始タグの属性と中身。 */
+	private record PlacedCell(int row, int column, int colspan, int rowspan, double min, String attrs, String content) {
+	}
+
+	/**
+	 * 表の格子。{@code spacing}はセルの間と両端の{@code border-spacing}。{@code copperDiverges}は、Copperが
+	 * どれかのセルをHTMLの格子と違う列に置くこと({@link #placeTableCells})。
+	 */
+	private record TableGrid(List<PlacedCell> cells, int rows, int columns, java.util.BitSet overlappedRows,
+			double spacing, boolean copperDiverges) {
+	}
+
+	/**
+	 * 表(開始タグの直後が{@code from})のセルを、HTMLの表の格子の置き方(先の行のrowspanが占めた桁を飛ばす)で置きます。
+	 * 入れ子の表のセルは外側のセルの中身として扱う。語を割る・消す指定({@link #BREAKABLE_TEXT_HINTS})があれば{@code null}。
+	 * セルの最小幅の下限は{@link #tableMinContentLowerBound}に書いたとおり。
+	 *
+	 * <p>
+	 * <b>Copperの置き方も並べて模擬する</b>(2026-09-29のcodexレビュー2回目の反例)。幅が内容で決まる表は
+	 * {@code RetainedTableBuilder}が組み、列は行ごとのセル列の添字になる。上の行のrowspanは、セルを足す前と
+	 * 行の終わりに{@code CellContent.complementRowspan}で引き継ぐが、上の行のその位置にrowspanが無ければ
+	 * そこで打ち切るので、行の終わりの手前に空きがあると、その先のrowspanは以降の行へ引き継がれない。
+	 * そのためセルがHTMLの格子と違う列に来ることがある(例: 2行目の右端のrowspan 3が、短い3行目で途切れ、
+	 * 4行目の右端のセルがその列へ入る)。列の添字が1つでも違えば{@code copperDiverges}を立てる。
+	 * </p>
+	 */
+	private static TableGrid placeTableCells(final String html, final int from, final double font,
+			final boolean collapsedTables) {
+		for (final String hint : BREAKABLE_TEXT_HINTS) {
+			if (html.contains(hint)) {
+				return null;
+			}
+		}
+		final boolean bordered = !collapsedTables && html.contains("td{border:1pt");
+		final double spacing = collapsedTables || html.contains("border-spacing") ? 0 : 1.5;
+		// 行→占有した桁
+		final List<java.util.BitSet> occupied = new ArrayList<>();
+		final List<PlacedCell> cells = new ArrayList<>();
+		final java.util.BitSet overlapped = new java.util.BitSet();
+		// Copperの行ごとのセル列({rowspan, colspan}。colspanのセルは列の数だけ並ぶ)
+		List<int[]> copperUpper = null, copperRow = new ArrayList<>();
+		boolean copperDiverges = false;
+		int nested = 0, row = -1, column = 0, columns = 0, cellStart = -1;
+		String cellAttrs = "";
+		final Matcher tag = TAG_OR_WM.matcher(html);
+		tag.region(from, html.length());
+		while (tag.find()) {
+			final boolean end = tag.group(1) != null;
+			final String name = end ? tag.group(1) : tag.group(2);
+			if (name.equalsIgnoreCase("table")) {
+				if (end) {
+					if (nested == 0) {
+						break;
+					}
+					--nested;
+				} else {
+					++nested;
+				}
+				continue;
+			}
+			if (nested > 0) {
+				continue;
+			}
+			if (end && name.equalsIgnoreCase("tr")) {
+				complementCopperRowspan(copperRow, copperUpper);
+				copperUpper = copperRow;
+				copperRow = new ArrayList<>();
+			} else if (end && (name.equalsIgnoreCase("tbody") || name.equalsIgnoreCase("thead")
+					|| name.equalsIgnoreCase("tfoot"))) {
+				// 行グループの境界ではrowspanを引き継がない
+				copperUpper = null;
+			} else if (!end && name.equalsIgnoreCase("tr")) {
+				++row;
+				column = 0;
+				while (occupied.size() <= row) {
+					occupied.add(new java.util.BitSet());
+				}
+			} else if (row >= 0 && (name.equalsIgnoreCase("td") || name.equalsIgnoreCase("th"))) {
+				if (!end) {
+					cellStart = tag.end();
+					cellAttrs = String.valueOf(tag.group(3));
+				} else if (cellStart >= 0) {
+					final String content = html.substring(cellStart, tag.start());
+					final int colspan = spanOf(cellAttrs, "colspan");
+					final int rowspan = spanOf(cellAttrs, "rowspan");
+					double min = bordered ? 2 : 0;
+					if (!cellAttrs.contains("style") && !content.contains("style")) {
+						min += longestWordAdvance(content) * font;
+					}
+					final java.util.BitSet here = occupied.get(row);
+					while (here.get(column)) {
+						++column;
+					}
+					for (int r = row; r < row + rowspan; ++r) {
+						while (occupied.size() <= r) {
+							occupied.add(new java.util.BitSet());
+						}
+						final java.util.BitSet slots = occupied.get(r);
+						if (slots.get(column, column + colspan).cardinality() > 0) {
+							overlapped.set(r);
+						}
+						slots.set(column, column + colspan);
+					}
+					complementCopperRowspan(copperRow, copperUpper);
+					copperDiverges |= copperRow.size() != column;
+					// RetainedTableBuilder.newContext と同じ並び(先頭のあとに colspan…2)
+					copperRow.add(new int[] { rowspan, colspan });
+					for (int k = colspan; k > 1; --k) {
+						copperRow.add(new int[] { rowspan, k });
+					}
+					cells.add(new PlacedCell(row, column, colspan, rowspan, min, cellAttrs, content));
+					column += colspan;
+					columns = Math.max(columns, column);
+					cellStart = -1;
+				}
+			}
+		}
+		return new TableGrid(cells, occupied.size(), columns, overlapped, spacing, copperDiverges);
+	}
+
+	/** {@code CellContent.complementRowspan}の写し: 上の行のその位置にrowspanが続く限り、当行へ継続を足す。 */
+	private static void complementCopperRowspan(final List<int[]> cells, final List<int[]> upper) {
+		if (upper == null) {
+			return;
+		}
+		while (upper.size() > cells.size()) {
+			final int[] upperCell = upper.get(cells.size());
+			if (upperCell[0] <= 1) {
+				break;
+			}
+			for (int colspan = upperCell[1]; colspan >= 1; --colspan) {
+				cells.add(new int[] { upperCell[0] - 1, colspan });
+			}
+		}
+	}
+
+	/**
+	 * Copperの自動表幅で、最小幅が使える幅のこの倍率以内なら列を比例縮小して収める(製品の
+	 * {@code AutoColumnWidths.MIN_OVERFLOW_TOLERANCE}。一致は{@code FuzzOraclePredicateTest}で確かめる)。
+	 */
+	static final double TABLE_SHRINK_TOLERANCE = 1.1;
+
+	/** 証拠のセルに許す属性(生成器の定型)。 */
+	private static final Pattern PLAIN_CELL_ATTRIBUTES = Pattern
+			.compile("(?:\\s+(?:colspan|rowspan)\\s*=\\s*\"\\d+\")*\\s*");
+
+	/**
+	 * bodyの直下の属性の無い表(開始タグの直後が{@code from})で、字のあるセルが必ず紙の外に描かれるか——
+	 * 手前の列の最小幅の下限と{@code border-spacing}の和が{@code extent + margin}(内容幅+余白。そこから先は紙の外)を
+	 * 超える列から始まるセルに、語が直に書かれているか——を返します(seed 10376223、2026-09-29)。
+	 *
+	 * <p>
+	 * <b>列ごとに見る。</b>{@link #tableMinContentLowerBound}(行ごとのセルの和)は表の幅の下限にはなるが、
+	 * どのセルが紙の外から始まるかは言えない。列の最小幅の下限を手前から足せば、各セルの始まりの下限になる。
+	 * 列の最小幅の下限は、その列だけに入るセル(colspan 1)の最小幅の最大——colspanのセルが行をまとめていても、
+	 * 別の行のセルが列の幅を決める(seed 10376223 では T1 の colspan 3 の下の3列を T25〜T27 が決め、T4 の列は
+	 * 115pt から始まる)。表の幅が{@code auto}なら{@code table-layout:fixed}でも自動レイアウトになり
+	 * (CSS 2.1 §17.5.2.1)、列はそれより狭くならない。colspanのセルは数えないので下限のまま。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>Copperの表幅の決め方に合わせる</b>(2026-09-29のcodexレビューの反例)。分離境界ではセルの両側に間隔の半分ずつ、
+	 * 表の両端にも半分ずつが付くので、列の下限は「セルの最小幅+間隔」、単独のセルが無い列は0とする。また表の最小幅が
+	 * 使える幅の{@link #TABLE_SHRINK_TOLERANCE}倍以内なら、Copperは列を比例縮小して版面に収める(印刷品質のための
+	 * 意図的なChromeとの差)ので、下限の合計がそれを超えるときだけ判定する。
+	 * </p>
+	 *
+	 * <p>
+	 * <b>表の置き場所が確定する場合に限る。</b>表はbodyの直下で属性が無く(幅は内容で決まる)、左端は内容の始まり、
+	 * 列は書字方向の始まりから並ぶ。{@link #flexLineOverflows}と同じく、文書に浮動体・{@code display:none}・
+	 * {@code visibility:hidden}/{@code collapse}・絶対配置・位置の変位があれば判定しない。セルが重なる表
+	 * (表のモデルの誤り)も判定しない。証拠のセルは属性がcolspan・rowspanだけで、中身が語で始まり
+	 * (生成器はセルの先頭に語を置く)、中にstyle・dirが無いこと(字をセルの始まりより手前へ出す指定が無い)。
+	 * </p>
+	 */
+	static boolean tableColumnBeyondPage(final String html, final int from, final double extent, final double margin,
+			final double font, final boolean collapsedTables) {
+		if (html.contains("display:none") || html.contains("visibility:hidden") || html.contains("visibility:collapse")
+				|| FLOAT_NOT_NONE.matcher(html).find() || OUT_OF_FLOW.matcher(html).find()
+				|| POSITION_OFFSET.matcher(html).find()) {
+			return false;
+		}
+		final TableGrid grid = placeTableCells(html, from, font, collapsedTables);
+		if (grid == null || !grid.overlappedRows().isEmpty() || grid.copperDiverges()) {
+			return false;
+		}
+		// 列の幅の下限(セルの両側の間隔の半分ずつを含む)。単独のセルが無い列(colspanに覆われるだけ)は
+		// Copperでは間隔ごと0になりうるので数えない
+		final double[] column = new double[grid.columns()];
+		for (final PlacedCell cell : grid.cells()) {
+			if (cell.colspan() == 1) {
+				column[cell.column()] = Math.max(column[cell.column()], cell.min() + grid.spacing());
+			}
+		}
+		// 表の最小幅(両端の間隔の半分ずつを含む)が行長の許容比以内なら、Copperは列を縮めて収める
+		double total = grid.spacing();
+		for (final double w : column) {
+			total += w;
+		}
+		if (total <= TABLE_SHRINK_TOLERANCE * extent) {
+			return false;
+		}
+		for (final PlacedCell cell : grid.cells()) {
+			double start = grid.spacing();
+			for (int i = 0; i < cell.column(); ++i) {
+				start += column[i];
+			}
+			if (start > extent + margin && PLAIN_CELL_ATTRIBUTES.matcher(cell.attrs()).matches()
+					&& DRAWN_TOKEN.matcher(cell.content()).lookingAt() && !cell.content().contains("style=")
+					&& !cell.content().contains("dir=")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static int spanOf(final String attrs, final String name) {
+		final Matcher m = Pattern.compile(name + "\\s*=\\s*\"(\\d+)\"").matcher(attrs);
+		return m.find() ? Math.max(1, Integer.parseInt(m.group(1))) : 1;
+	}
+
+	/** 割れない語(T+数字の連なり)の送りの下限の最大(em)。タグは語を切り、ルビの注記は数えない。 */
+	private static double longestWordAdvance(final String content) {
+		final String text = content.replaceAll("(?s)<rt>.*?</rt>", " ").replaceAll("<[^>]*>", " ");
+		double longest = 0, word = 0;
+		for (int i = 0; i < text.length(); ++i) {
+			final char ch = text.charAt(i);
+			if (ch == 'T') {
+				word += 0.6;
+			} else if (ch >= '0' && ch <= '9') {
+				word += 0.5;
+			} else {
+				word = 0;
+			}
+			longest = Math.max(longest, word);
+		}
+		return longest;
 	}
 
 	/**
