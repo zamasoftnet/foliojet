@@ -5,7 +5,10 @@
 <style>@page{margin:0}body{margin:0;font:normal 8pt/1 serif}
 table{table-layout:fixed;width:120pt;border-spacing:0}tr{height:30pt}
 td{padding:0;border:1pt solid black}</style></head>
-<body><table>
+<body>
+<!-- 空の2行目: 2026-09-29 に行の終わりの空き桁を空の匿名セルで埋めて直した(SPAN3Z は3行目まで伸び、CZZ は1列目)。
+     それまでのgoldenは誤った出力の記録だった(0240-table/rowspan-after-empty-row.html と同じ)。 -->
+<table>
 <tr><td>AZZ</td><td rowspan="3">SPAN3Z</td></tr>
 <tr></tr>
 <tr><td>CZZ</td></tr>

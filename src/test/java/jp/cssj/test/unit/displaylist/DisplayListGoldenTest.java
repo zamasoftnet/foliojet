@@ -107,6 +107,7 @@ public class DisplayListGoldenTest extends TestCase {
 			// (kawasaki-ombuds)
 			"0240-table/single-row-split-after-line.html", //
 			"0240-table/rowspan-after-empty-row.html", //
+			"0240-table/rowspan-after-short-row.html", //
 			// Retained行送出。発火と保持上限はRetentionHighWaterReportTestで固定。
 			"0240-table/row-streaming-emit.html", //
 			"0240-table/row-streaming-caption.html", //
@@ -632,6 +633,7 @@ public class DisplayListGoldenTest extends TestCase {
 			// (a) rowspanが行グループを越えてtbody先頭セルを消していた
 			// (b) 連結セルの座標がRL専用式で、vertical-lrで表の外へずれていた
 			"0495-span/rowspan-crosses-rowgroup.html", //
+			"0495-span/rowspan-crosses-rowgroup-second-column.html", //
 			"0495-span/rowspan-vertical-lr.html", //
 			"0495-span/rowspan-vertical-rl.html", //
 			// (c) 強制改ページで連結セルが次ページに現れなかった

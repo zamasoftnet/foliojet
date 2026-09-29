@@ -303,6 +303,7 @@
 0240-table/row-streaming-emit.html	files/unittest/0240-table/row-streaming-emit.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/row-streaming-group-height.html	files/unittest/0240-table/row-streaming-group-height.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/rowspan-after-empty-row.html	files/unittest/0240-table/rowspan-after-empty-row.html	1	text/html	input.include=**	input.property-pi=true
+0240-table/rowspan-after-short-row.html	files/unittest/0240-table/rowspan-after-short-row.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/single-row-split-after-line.html	files/unittest/0240-table/single-row-split-after-line.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/table-limit-empty-body.html	files/unittest/0240-table/table-limit-empty-body.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/z-order-2.html	files/unittest/0240-table/z-order-2.html	1	text/html	input.include=**	input.property-pi=true
@@ -466,6 +467,7 @@
 0490-transform/percent-translate-with-scale.html	files/unittest/0490-transform/percent-translate-with-scale.html	1	text/html	input.include=**	input.property-pi=true
 0495-span/colspan-beyond-columns-collapse.html	files/unittest/0495-span/colspan-beyond-columns-collapse.html	1	text/html	input.include=**	input.property-pi=true
 0495-span/rowspan-after-empty-row.html	files/unittest/0495-span/rowspan-after-empty-row.html	1	text/html	input.include=**	input.property-pi=true
+0495-span/rowspan-crosses-rowgroup-second-column.html	files/unittest/0495-span/rowspan-crosses-rowgroup-second-column.html	1	text/html	input.include=**	input.property-pi=true
 0495-span/rowspan-crosses-rowgroup.html	files/unittest/0495-span/rowspan-crosses-rowgroup.html	1	text/html	input.include=**	input.property-pi=true
 0495-span/rowspan-forced-break.html	files/unittest/0495-span/rowspan-forced-break.html	1	text/html	input.include=**	input.property-pi=true
 0495-span/rowspan-vertical-fixed.html	files/unittest/0495-span/rowspan-vertical-fixed.html	1	text/html	input.include=**	input.property-pi=true

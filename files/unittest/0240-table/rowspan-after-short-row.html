@@ -1,0 +1,30 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="120pt"?>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>rowspan after a short row</title>
+<style type="text/css">
+@page { margin: 10pt; }
+body { margin: 0; font: normal 10pt/1.2 serif; }
+td { border: 1pt solid black; padding: 0 2pt; }
+</style>
+</head>
+<body>
+<!--
+  2行目の右端の T7 は rowspan=3。3行目は T11 で終わり、その右(T6 の2桁目)は空き桁。
+  表ビルダーの rowspan の引き継ぎ(CellContent.complementRowspan)は rowspan の無い位置で
+  打ち切るので、以前は T7 が3行目以降へ引き継がれず、4行目の T15 が T7 の列に入って
+  T7 のセルに重なっていた(Chrome は T15 を T7 の右隣に置く)。2026-09-29 に、行の終わりの
+  空き桁を空の匿名セルで埋めて直した(StyleBoxEmitter / TableSlotTracker)。
+  T15 は T7 の右隣の列に来る。
+-->
+<table><tbody>
+<tr><td>T0</td><td>T1</td><td>T2</td><td>T3</td></tr>
+<tr><td>T4</td><td colspan="3">T5</td><td colspan="2">T6</td><td rowspan="3">T7</td></tr>
+<tr><td>T8</td><td>T9</td><td colspan="2" rowspan="2">T10</td><td rowspan="2">T11</td></tr>
+<tr><td>T12</td><td>T13</td><td>T14</td><td>T15</td></tr>
+</tbody></table>
+</body>
+</html>

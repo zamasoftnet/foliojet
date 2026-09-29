@@ -1,0 +1,9 @@
+drawer z=0
+  x=0.75 y=0.75 BackgroundBorder[w=59.25 h=11.50]
+  x=60.00 y=0.75 BackgroundBorder[w=59.25 h=23.00]
+  x=0.75 y=12.25 BackgroundBorder[w=59.25 h=11.50]
+  x=60.00 y=12.25 BackgroundBorder[w=59.25 h=11.50]
+  x=16.22 y=2.50 Text["HEADA" asc=6.07 desc=1.93]
+  x=75.85 y=8.25 Text["HEADB" asc=6.07 desc=1.93]
+  x=2.50 y=14.00 Text["BODYC" asc=6.07 desc=1.93]
+  x=61.75 y=14.00 Text["BODYDMUST" asc=6.07 desc=1.93]

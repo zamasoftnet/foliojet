@@ -16,8 +16,9 @@ td { border: 1pt solid black; height: 20pt; }
   1列目が rowspan=1 なので、繰り越しの補完が2列目まで進まず、
   rowspan が打ち切られていた(2026-08-03に再現条件を特定)。
 
-  **このgoldenは現状(誤った出力)の記録であり、正しさの記録ではない。**
-  空のグリッドスロットを入れて直したら、値は変わる(変わることが正しい)。
+  2026-09-29 に直した: 行の終わりの空き桁(ここでは2行目の1列目)を空の匿名セルで埋め、
+  B は3行目まで伸び、C は1列目に残る(StyleBoxEmitter / TableSlotTracker。
+  以前のgoldenは誤った出力の記録だった)。
 -->
 <table>
 <tr><td id="a">A</td><td id="b" rowspan="3">B</td></tr>

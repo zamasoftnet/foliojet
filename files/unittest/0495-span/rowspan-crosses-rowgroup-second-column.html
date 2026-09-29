@@ -1,0 +1,17 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>@page{margin:0}body{margin:0;font:normal 8pt/1 serif}
+table{table-layout:fixed;width:120pt}th,td{border:1pt solid black;padding:0}</style></head>
+<body>
+<!-- rowspan は行グループを越えない。2 列目の HEADB の rowspan=2 は tbody へ繰り越さず、BODYDMUST は 2 列目に出る。
+     IncrementalTableBuilder は境界の印を行の始めの補完 1 回で消していたので、BODYC を足した後の補完で HEADB を
+     持ち込み、BODYDMUST が列数外として内容ごと消えていた(2026-09-29 に直した。rowspan-crosses-rowgroup.html は
+     1 列目の場合)。
+     **残る誤り(未修正)**: HEADB の箱は rowspan=2 のまま tbody の行まで伸びる(HTML では行グループの終わりで切れる)。
+     1 列目の場合は tbody の行が thead の行と同じ高さに重なる。このgoldenのその部分は現状の記録。 -->
+<table>
+<thead><tr><th>HEADA</th><th rowspan="2">HEADB</th></tr></thead>
+<tbody><tr><td>BODYC</td><td>BODYDMUST</td></tr></tbody>
+</table></body></html>

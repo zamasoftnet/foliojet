@@ -331,6 +331,8 @@ public final class StyleBoxEmitter {
 	 */
 	private boolean flexFallbackReported = false;
 	private boolean gridFallbackReported = false;
+	/** 開いている表ごとの格子の桁の占有(内側の表が先頭)。{@link TableSlotTracker}。 */
+	private final java.util.ArrayDeque<TableSlotTracker> tableSlots = new java.util.ArrayDeque<>();
 
 	StyleBoxEmitter(final StyleBuildContext context, final RecordingLayoutSink sink, final BoxStyleMapper mapper,
 			final PageSequence pageSequence, final UserAgent ua, final Imposition imposition) {
@@ -958,6 +960,7 @@ public final class StyleBoxEmitter {
 			this.requireRoot(AbstractTextParams.DIRECTION_LTR, WritingMode.TB, WritingModeVariant.NORMAL);
 			this.sink.start(table);
 			this.context.setInTextBlock(false);
+			this.tableSlots.push(new TableSlotTracker(style));
 		}
 			break;
 
@@ -1015,6 +1018,7 @@ public final class StyleBoxEmitter {
 			TableRowGroupBox rowGroup = new TableRowGroupBox(params, pos);
 			this.sink.start(rowGroup);
 			this.context.setInTextBlock(false);
+			this.beginSlotRowGroup();
 		}
 			break;
 
@@ -1026,6 +1030,7 @@ public final class StyleBoxEmitter {
 			TableRowGroupBox rowGroup = new TableRowGroupBox(params, pos);
 			this.sink.start(rowGroup);
 			this.context.setInTextBlock(false);
+			this.beginSlotRowGroup();
 		}
 			break;
 
@@ -1037,6 +1042,7 @@ public final class StyleBoxEmitter {
 			TableRowGroupBox rowGroup = new TableRowGroupBox(params, pos);
 			this.sink.start(rowGroup);
 			this.context.setInTextBlock(false);
+			this.beginSlotRowGroup();
 		}
 			break;
 
@@ -1048,6 +1054,10 @@ public final class StyleBoxEmitter {
 			TableRowBox row = new TableRowBox(params, pos);
 			this.sink.start(row);
 			this.context.setInTextBlock(false);
+			final TableSlotTracker slots = this.tableSlots.peek();
+			if (slots != null) {
+				slots.beginRow();
+			}
 		}
 			break;
 
@@ -1060,6 +1070,10 @@ public final class StyleBoxEmitter {
 			final TableCellBox cell = new TableCellBox(params, pos, new FlowContainer());
 			this.sink.start(cell);
 			this.context.setInTextBlock(false);
+			final TableSlotTracker slots = this.tableSlots.peek();
+			if (slots != null) {
+				slots.placeCell(pos.colspan, pos.rowspan);
+			}
 
 			// 段組みの開始
 			style = this.startColumns(style, cell);
@@ -1084,6 +1098,13 @@ public final class StyleBoxEmitter {
 
 	void _endStyle() {
 		final CSSStyle style = this.context.getCurrentStyle();
+		final byte closing = Display.get(style);
+		if (closing == DisplayValue.TABLE_ROW) {
+			this.fillSlotGaps(style);
+		} else if ((closing == DisplayValue.TABLE || closing == DisplayValue.INLINE_TABLE)
+				&& CSSJInternalImage.getImage(style) == null) {
+			this.tableSlots.poll();
+		}
 		this.sink.endContentsSource(style);
 		// System.out.println("/" + style.path());
 		if (!this.context.isInBody()) {
@@ -1131,6 +1152,33 @@ public final class StyleBoxEmitter {
 		}
 
 		this.context.setCurrentStyle(style.getParentStyle());
+	}
+
+	private void beginSlotRowGroup() {
+		final TableSlotTracker slots = this.tableSlots.peek();
+		if (slots != null) {
+			slots.beginRowGroup();
+		}
+	}
+
+	/**
+	 * 行を閉じる前に、当行のセルの後ろで上から続く rowspan の手前にある空き桁を、空の匿名セルで埋めます
+	 * (2026-09-29。{@link TableSlotTracker}に理由を書いた)。
+	 */
+	private void fillSlotGaps(final CSSStyle row) {
+		final TableSlotTracker slots = this.tableSlots.peek();
+		if (slots == null) {
+			return;
+		}
+		while (slots.hasGapBeforeCarried()) {
+			final CSSStyle cell = row.inheritAnonStyle(CSSElement.ANON_TD);
+			cell.set(Display.INFO, DisplayValue.TABLE_CELL_VALUE);
+			// 行の書字方向を継ぐと、行が表と直交する指定のとき直交セルになり、行の分割の扱いが変わる
+			cell.set(BlockFlow.INFO, slots.table.get(BlockFlow.INFO));
+			this._startStyle(cell);
+			this._endStyle();
+		}
+		slots.endRow();
 	}
 
 }

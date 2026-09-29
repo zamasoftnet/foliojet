@@ -337,6 +337,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 			}
 			this.cellsUnit.add(this.cells);
 			this.rowsUnit.add(this.rowBox);
+			// 行グループの最初の行が終わった(以降の行は同じグループの上の行から繰り越す)
+			this.rowGroupBoundary = false;
 			// fixed ストリーミングの保持上限の観測(P2-1 保存契約)
 			TableBuildStats.reportRowRetention(this.rowsUnit.size());
 		}
@@ -937,12 +939,16 @@ public class IncrementalTableBuilder implements TableBuilder {
 		}
 	}
 
-	/** 直前が行グループ境界か(境界ではrowspanを繰り越さない)。 */
+	/**
+	 * 行グループの最初の行を組んでいる間か(境界ではrowspanを繰り越さない)。補完は行の始めだけでなく
+	 * セルを足すたびにも呼ばれるので、印は行の終わりまで保つ(2026-09-29。行の始めの1回で消していたため、
+	 * 最初のセルの後の補完が前のグループの最後の行からrowspanを持ち込み、固定レイアウトでは後ろのセルが
+	 * 列数外として消えていた。codexレビューで発見)。
+	 */
 	private boolean rowGroupBoundary = false;
 
 	private void complementRowspan() {
 		if (this.rowGroupBoundary) {
-			this.rowGroupBoundary = false;
 			return;
 		}
 		if (!this.cellsUnit.isEmpty()) {
