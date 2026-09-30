@@ -20,6 +20,9 @@ public enum OutputPdfVersion implements PropCode {
 
 	V1_4X1("1.4X-1"),
 
+	/** PDF/X-3:2003(ISO 15930-6、PDF 1.4基底)。 */
+	V1_4X3("1.4X-3"),
+
 	V1_7A2("1.7A-2"),
 
 	V1_7A2U("1.7A-2u"),
@@ -52,7 +55,7 @@ public enum OutputPdfVersion implements PropCode {
 		return this.ident;
 	}
 
-	private static final Set<OutputPdfVersion> EMBED_REQUIRED = EnumSet.of(V1_4A1, V1_4X1, V1_7A2, V1_7A2U,
+	private static final Set<OutputPdfVersion> EMBED_REQUIRED = EnumSet.of(V1_4A1, V1_4X1, V1_4X3, V1_7A2, V1_7A2U,
 			V1_7A2A, V1_7A3, V1_7A3A, V2_0A4, V1_6X4, V2_0X6, V1_7UA1, V2_0UA2);
 
 	private static final Set<OutputPdfVersion> TAGGING_REQUIRED = EnumSet.of(V1_7A2A, V1_7A3A, V1_7UA1, V2_0UA2);
@@ -62,6 +65,25 @@ public enum OutputPdfVersion implements PropCode {
 	 */
 	public boolean requiresFontEmbedding() {
 		return EMBED_REQUIRED.contains(this);
+	}
+
+	/**
+	 * PDF/Xのプロファイルならtrue。
+	 */
+	public boolean isPdfX() {
+		return this == V1_4X1 || this == V1_4X3 || this == V1_6X4 || this == V2_0X6;
+	}
+
+	/**
+	 * PDF 1.4基底のPDF/X(X-1a・X-3)なら警告に使う名前を、それ以外ならnullを返します。
+	 * どちらも透明・リンク注釈・暗号化を使えない。
+	 */
+	public String pdf14PdfXName() {
+		return switch (this) {
+		case V1_4X1 -> "PDF/X-1a";
+		case V1_4X3 -> "PDF/X-3";
+		default -> null;
+		};
 	}
 
 	/**

@@ -63,6 +63,24 @@ public class OutputIntentValidationTest extends TestCase {
 		assertTrue("埋め込んだCMYK ICCに/N 4が付くこと", pdf.contains("/N 4"));
 	}
 
+	/** PDF 1.4基底のX-1a・X-3はICC v4を拒否し、X-4は受け付ける(2026-09-30、PDF/X-3対応)。 */
+	public void testPdf14BasedPdfXRejectsIccV4Profile() throws Exception {
+		final byte[] v4 = cmykOutputProfile();
+		v4[8] = 4;
+		for (final String version : new String[] { "1.4X-1", "1.4X-3" }) {
+			assertFailedWithPdfXOutputIntentError(convert(version, "FOGRA39", v4));
+		}
+		assertNull("PDF/X-4はICC v4を受け付けること", convert(PDFX4, "FOGRA39", v4).failure);
+	}
+
+	public void testPdfX3AcceptsCmykOutputProfile() throws Exception {
+		final Conversion result = convert("1.4X-3", "FOGRA39", cmykOutputProfile());
+		assertNull("CMYK出力プロファイル(ICC v2)ならPDF/X-3変換が成功すること", result.failure);
+		final String pdf = new String(result.pdf, java.nio.charset.StandardCharsets.ISO_8859_1);
+		assertTrue("PDF/X-3:2003を識別すること", pdf.contains("(PDF/X-3:2003)"));
+		assertTrue("PDF 1.4基底であること", pdf.startsWith("%PDF-1.4"));
+	}
+
 	public void testPdfXWarnsWhenProfileHasNoIdentifier() throws Exception {
 		final Conversion result = convert(PDFX4, null, cmykOutputProfile());
 		assertNull("識別子が未指定なら明示ICCを使わない従来動作を維持すること", result.failure);

@@ -439,9 +439,9 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			if (version == PDFParams.Version.V_PDFA1B) {
 				this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_WATERMARK_OPACITY.name,
 						String.valueOf(opacity), "PDF/A-1");
-			} else if (version == PDFParams.Version.V_PDFX1A) {
+			} else if (version.isPdfXOnPdf14()) {
 				this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_WATERMARK_OPACITY.name,
-						String.valueOf(opacity), "PDF/X-1a");
+						String.valueOf(opacity), PDFParamsResolver.pdfxName(version));
 			} else {
 				gc.setFillAlpha((float) opacity);
 			}
@@ -547,12 +547,12 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 					this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, prefix + "uri", uriStr, "1.3");
 					break;
 				}
-				if (this.pdfWriter.getParams().version() == PDFParams.Version.V_PDFA1B) {
-					this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, prefix + "uri", uriStr, "PDF/A-1");
-					break;
-				}
-				if (this.pdfWriter.getParams().version() == PDFParams.Version.V_PDFX1A) {
-					this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, prefix + "uri", uriStr, "PDF/X-1a");
+				final PDFParams.Version version = this.pdfWriter.getParams().version();
+				if (!version.allowsAttachments()) {
+					// PDF/X全般・PDF/A-1/2・PDF/A-4(4f以外)は添付を禁止する。pdfg2dは例外にして
+					// 変換が失敗するので、ここで警告して添付しない(2026-09-30、X-4の失敗を実測)
+					this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, prefix + "uri", uriStr,
+							version.isPdfX() ? PDFParamsResolver.pdfxName(version) : "PDF/A-" + version.pdfaPart());
 					break;
 				}
 				URI uri;

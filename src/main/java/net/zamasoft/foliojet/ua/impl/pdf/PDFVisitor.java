@@ -107,12 +107,13 @@ public class PDFVisitor extends AbstractVisitor {
 	protected PDFVisitor(UserAgent ua) {
 		super(ua);
 		OutputPdfVersion version = UAProps.OUTPUT_PDF_VERSION.get(this.ua);
-		final boolean pdfx = version == OutputPdfVersion.V1_4X1 || version == OutputPdfVersion.V1_6X4
-				|| version == OutputPdfVersion.V2_0X6;
+		final boolean pdfx = version.isPdfX();
 		boolean links = UAProps.OUTPUT_PDF_HYPERLINKS.getBoolean(this.ua);
-		if (links && version == OutputPdfVersion.V1_4X1) {
+		if (links && pdfx) {
+			// PDF/Xは注釈を仕上がり・裁ち落とし域の外にしか置けない(pdfg2dが変換を失敗させる。
+			// 2026-09-30にX-4で実測)。X-1a・X-3はURIアクションも禁止
 			this.ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_HYPERLINKS.name,
-					String.valueOf(true), "PDF/X-1a");
+					String.valueOf(true), version.pdf14PdfXName() != null ? version.pdf14PdfXName() : "PDF/X");
 			links = false;
 		}
 		this.setHyperlinks(links);

@@ -67,7 +67,6 @@ import net.zamasoft.foliojet.ua.ImageMap;
 import net.zamasoft.foliojet.ua.ImageMap.Area;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.OutputBrokenImage;
-import net.zamasoft.foliojet.ua.props.OutputPdfVersion;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.gc.image.Image;
@@ -321,10 +320,10 @@ public class HTMLStyle {
 	private static void applyBrokenImage(CSSStyle style, String alt, boolean fallbackContent) {
 		UserAgent ua = style.getUserAgent();
 		OutputBrokenImage brokenimage = UAProps.OUTPUT_BROKEN_IMAGE.get(ua);
-		if (brokenimage == OutputBrokenImage.ANNOTATION
-				&& UAProps.OUTPUT_PDF_VERSION.get(ua) == OutputPdfVersion.V1_4X1) {
+		final String pdf14PdfX = UAProps.OUTPUT_PDF_VERSION.get(ua).pdf14PdfXName();
+		if (brokenimage == OutputBrokenImage.ANNOTATION && pdf14PdfX != null) {
 			ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_BROKEN_IMAGE.name, "annotation",
-					"PDF/X-1a");
+					pdf14PdfX);
 			brokenimage = OutputBrokenImage.CROSS;
 		}
 

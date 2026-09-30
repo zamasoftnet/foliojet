@@ -7,7 +7,7 @@ import net.zamasoft.pdfg2d.pdf.preflight.PdfXPreflight;
 import net.zamasoft.pdfg2d.pdf.preflight.PdfXPreflight.Flavour;
 
 /**
- * PDF/X-1a・PDF/X-4 の出力を pdfg2d の回帰プリフライト {@link PdfXPreflight} の
+ * PDF/X-1a・PDF/X-3・PDF/X-4 の出力を pdfg2d の回帰プリフライト {@link PdfXPreflight} の
  * 全規則で検証します(2026-09-05、色管理 I4)。
  *
  * <p>
@@ -28,6 +28,13 @@ public class PdfXValidationTest extends TestCase {
 
 	public void testPdfX4() throws Exception {
 		validate("1.6X-4", Flavour.X4);
+	}
+
+	/**
+	 * PDF/X-3(2026-09-30): 透明は X-1a と同じく近似、RGB は X-4 と同じく ICCBased で残る。
+	 */
+	public void testPdfX3() throws Exception {
+		validate("1.4X-3", Flavour.X3);
 	}
 
 	private static void validate(final String version, final Flavour flavour) throws Exception {

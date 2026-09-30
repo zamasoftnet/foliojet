@@ -123,6 +123,9 @@ final class PDFParamsResolver {
 		case V1_4X1:
 			params = params.withVersion(PDFParams.Version.V_PDFX1A);
 			break;
+		case V1_4X3:
+			params = params.withVersion(PDFParams.Version.V_PDFX3);
+			break;
 		case V1_5:
 			params = params.withVersion(PDFParams.Version.V_1_5);
 			break;
@@ -332,6 +335,9 @@ final class PDFParamsResolver {
 						} else if ((profileComponents != 1 && profileComponents != 3 && profileComponents != 4)
 								|| (pdfX && profileComponents != 4)) {
 							errorDetail = "380E.component-count";
+						} else if (params.version().isPdfXOnPdf14() && profile.getMajorVersion() >= 4) {
+							// ICC v4はPDF 1.5以降。X-1a・X-3はPDF 1.4基底
+							errorDetail = "380E.icc-version";
 						}
 						if (errorDetail != null) {
 							if (pdfX) {
@@ -455,6 +461,8 @@ final class PDFParamsResolver {
 		params = params.withPlatformEncoding(UAProps.OUTPUT_PDF_PLATFORM_ENCODING.getString(ua));
 
 		// 暗号化
+		// PDF 1.4基底のPDF/X(X-1a・X-3)の名前。暗号化は警告して付けない
+		final String pdf14PdfX = params.version().isPdfXOnPdf14() ? pdfxName(params.version()) : null;
 		switch (UAProps.OUTPUT_PDF_ENCRYPTION.get(ua)) {
 		case NONE:
 			break;
@@ -464,9 +472,9 @@ final class PDFParamsResolver {
 			if (params.version() == PDFParams.Version.V_PDFA1B) {
 				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v1",
 						"PDF/A-1");
-			} else if (params.version() == PDFParams.Version.V_PDFX1A) {
+			} else if (pdf14PdfX != null) {
 				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v1",
-						"PDF/X-1a");
+						pdf14PdfX);
 			} else {
 				V1EncryptionParams v1Params = new V1EncryptionParams();
 				applyEncryptionParams(ua, v1Params);
@@ -481,9 +489,9 @@ final class PDFParamsResolver {
 			if (params.version() == PDFParams.Version.V_PDFA1B) {
 				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v2",
 						"PDF/A-1");
-			} else if (params.version() == PDFParams.Version.V_PDFX1A) {
+			} else if (pdf14PdfX != null) {
 				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v2",
-						"PDF/X-1a");
+						pdf14PdfX);
 			} else if (params.version().v >= PDFParams.Version.V_1_3.v) {
 				V2EncryptionParams v2Params = new V2EncryptionParams();
 				applyEncryptionParams(ua, v2Params);
@@ -509,9 +517,9 @@ final class PDFParamsResolver {
 			if (params.version() == PDFParams.Version.V_PDFA1B) {
 				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v4",
 						"PDF/A-1");
-			} else if (params.version() == PDFParams.Version.V_PDFX1A) {
+			} else if (pdf14PdfX != null) {
 				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v4",
-						"PDF/X-1a");
+						pdf14PdfX);
 			} else if (params.version().v >= PDFParams.Version.V_1_5.v) {
 				V4EncryptionParams v4Params = new V4EncryptionParams();
 				applyEncryptionParams(ua, v4Params);
@@ -692,11 +700,16 @@ final class PDFParamsResolver {
 
 		String javaScript = UAProps.OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT.getString(ua);
 		if (javaScript != null) {
-			if (params.version().v >= PDFParams.Version.V_1_3.v) {
+			if (params.version().isPdfA() || params.version().isPdfX()) {
+				// PDF/A・PDF/Xはアクション(JavaScript)を禁止する。pdfg2dは例外にするので、ここで警告して落とす
+				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,
+						UAProps.OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT.name, javaScript,
+						params.version().isPdfA() ? "PDF/A" : "PDF/X");
+			} else if (params.version().v >= PDFParams.Version.V_1_3.v) {
 				params = params.withOpenAction(new JavaScriptAction(javaScript));
 			} else {
 				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,
-						UAProps.OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT.name, String.valueOf(numCopies), "1.2");
+						UAProps.OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT.name, javaScript, "1.2");
 			}
 		}
 
@@ -720,6 +733,18 @@ final class PDFParamsResolver {
 		r3p.setExtract(UAProps.OUTPUT_PDF_ENCRYPTION_PERMISSIONS_EXTRACT.getBoolean(ua));
 		r3p.setAssemble(UAProps.OUTPUT_PDF_ENCRYPTION_PERMISSIONS_ASSEMBLE.getBoolean(ua));
 		r3p.setPrintHigh(UAProps.OUTPUT_PDF_ENCRYPTION_PERMISSIONS_PRINT_HIGH.getBoolean(ua));
+	}
+
+	/**
+	 * 警告に使うPDF/Xの名前です(X-1a・X-3は版の名前、ほかは"PDF/X")。書き出し中の版から
+	 * 引く——連続変換ではUAのプロパティが次の文書の値に変わっていることがある(codexレビュー2026-09-30)。
+	 */
+	static String pdfxName(final PDFParams.Version version) {
+		return switch (version) {
+		case V_PDFX1A -> "PDF/X-1a";
+		case V_PDFX3 -> "PDF/X-3";
+		default -> "PDF/X";
+		};
 	}
 
 	private static IOException pdfXOutputIntentError(final PDFUserAgent ua, final String property,
