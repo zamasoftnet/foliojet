@@ -1,6 +1,19 @@
 rootProject.name = 'foliojet'
 
-includeBuild '../../../zamasoftnet-public/pdfg2d'
-includeBuild '../../../zamasoftnet-public/zstream'
-includeBuild '../../../zamasoftnet-public/cti.java'
-includeBuild '../../../zamasoftnet-public/html-balancer'
+// Sibling repositories (https://github.com/zamasoftnet/<name>) are composite
+// builds. Each is looked up in this order: the environment variable
+// (PDFG2D_DIR, ZSTREAM_DIR, CTI_JAVA_DIR, HTML_BALANCER_DIR), a checkout next
+// to this one (../pdfg2d), then ../../../zamasoftnet-public/<name>.
+def sibling = { String name, String envName ->
+    def env = System.getenv(envName)
+    if (env) {
+        return env
+    }
+    def candidates = ["../${name}", "../../../zamasoftnet-public/${name}"]
+    return candidates.find { file(it).isDirectory() } ?: candidates.last()
+}
+
+includeBuild sibling('pdfg2d', 'PDFG2D_DIR')
+includeBuild sibling('zstream', 'ZSTREAM_DIR')
+includeBuild sibling('cti.java', 'CTI_JAVA_DIR')
+includeBuild sibling('html-balancer', 'HTML_BALANCER_DIR')

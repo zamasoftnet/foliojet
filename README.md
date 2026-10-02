@@ -42,8 +42,8 @@ engine was rewritten and open-sourced in 2026.
 ## Build
 
 Java 21 and Gradle. FolioJet uses a Gradle composite build and expects four
-sibling repositories to be checked out next to it; see the Japanese section
-below for the exact layout, or run:
+sibling repositories to be checked out next to it (or set `PDFG2D_DIR`,
+`ZSTREAM_DIR`, `CTI_JAVA_DIR` and `HTML_BALANCER_DIR`):
 
 ```sh
 git clone https://github.com/zamasoftnet/cti.java.git
@@ -71,12 +71,14 @@ Gradle ベースの単一プロジェクト構成です。ビルドは `./gradle
 
 ## ビルドに必要なリポジトリ
 
-このリポジトリは Gradle の composite build で次の兄弟ディレクトリを参照します。
+このリポジトリは Gradle の composite build で次のリポジトリを参照します。
+それぞれ、環境変数(`CTI_JAVA_DIR`・`HTML_BALANCER_DIR`・`PDFG2D_DIR`・`ZSTREAM_DIR`)→
+このリポジトリの隣(`../cti.java` など)→ `../../../zamasoftnet-public/<名前>` の順に探します。
 
-- `../../../zamasoftnet-public/cti.java` - https://github.com/zamasoftnet/cti.java
-- `../../../zamasoftnet-public/html-balancer` - https://github.com/zamasoftnet/html-balancer
-- `../../../zamasoftnet-public/pdfg2d` - https://github.com/zamasoftnet/pdfg2d
-- `../../../zamasoftnet-public/zstream` - https://github.com/zamasoftnet/zstream
+- `cti.java` - https://github.com/zamasoftnet/cti.java
+- `html-balancer` - https://github.com/zamasoftnet/html-balancer
+- `pdfg2d` - https://github.com/zamasoftnet/pdfg2d
+- `zstream` - https://github.com/zamasoftnet/zstream
 
 例:
 
@@ -90,7 +92,7 @@ cd foliojet
 ./gradlew build
 ```
 
-`pdfg2d` の Maven group は現時点では `io.github.mimidesunya` のため、`build.gradle` の `io.github.mimidesunya:pdfg2d-*` 依存はそのままにしています。ローカル開発時は `settings.gradle` の composite build により `../../../zamasoftnet-public/pdfg2d` が使われます。
+`pdfg2d` の Maven group は現時点では `io.github.mimidesunya` のため、`build.gradle` の `io.github.mimidesunya:pdfg2d-*` 依存はそのままにしています。ローカル開発時は `settings.gradle` の composite build により、上の順で見つけた `pdfg2d` が使われます。
 
 ## 主な依存ライブラリ
 
