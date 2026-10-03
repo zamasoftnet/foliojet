@@ -573,18 +573,38 @@ public class FlowContainer implements Container {
 		// contentSize(子の指定幅)が箱幅へ反映されず、親のカーソルも
 		// 狭いまま→RL端寄せ配置で内容が紙面外に描かれた(2026-08-22、
 		// 掃過seed 1871636/1106107)
+		//
+		// 直交する子(縦の段組の中の横書き、横の段組の中の縦書き)も同じく
+		// atomicで、容量探索はその子の行の境目(軸違い)を切れ目として返す。
+		// 床が無いと縦の段組は子より細く組まれて内容が紙面の外へ、横の
+		// 段組は子より低く組まれて後続と重なった。同じ書字方向の子の中に
+		// あっても同じなので、そこは降りて探す(2026-10-03、掃過seed
+		// 11587843)。深い入れ子でスタックを食わないよう作業リストで辿る
 		final WritingMode outer = this.box.getBlockParams().flow;
 		double floor = 0;
-		for (int i = 0; i < this.flows.size(); ++i) {
-			final Flow f = (Flow) this.flows.get(i);
-			if (f.box.getType() != BoxType.BLOCK) {
+		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
+		final Deque<Double> offsets = new ArrayDeque<Double>();
+		containers.push(this);
+		offsets.push(0.0);
+		while (!containers.isEmpty()) {
+			final FlowContainer container = containers.pop();
+			final double offset = offsets.pop();
+			if (container.flows == null) {
 				continue;
 			}
-			final WritingMode inner = ((FlowBlockBox) f.box).getBlockParams().flow;
-			if (outer.isVertical() && inner.isVertical()
-					&& net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(outer,
-							inner)) {
-				floor = Math.max(floor, f.pageAxis + f.box.getPageExtent(outer));
+			for (int i = 0; i < container.flows.size(); ++i) {
+				final Flow f = (Flow) container.flows.get(i);
+				if (f.box.getType() != BoxType.BLOCK) {
+					continue;
+				}
+				final FlowBlockBox block = (FlowBlockBox) f.box;
+				if (net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(outer,
+						block.getBlockParams().flow)) {
+					floor = Math.max(floor, offset + f.pageAxis + f.box.getPageExtent(outer));
+				} else if (block.getContainer() instanceof FlowContainer inner) {
+					containers.push(inner);
+					offsets.push(offset + f.pageAxis + block.getFrame().getFramePageStart(outer));
+				}
 			}
 		}
 		return floor;
