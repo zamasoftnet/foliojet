@@ -88,6 +88,22 @@ public class BlockParams extends AbstractLineParams {
 	/** {@code clip-path}の形状(なければnull。2026-08-22)。 */
 	public ClipPathShape clipPath = null;
 
+	/**
+	 * 箱の外へ溢れた中身を描かないかを返します(2026-10-02)。
+	 *
+	 * <p>
+	 * {@code overflow}のクリップ・{@link #paintClip}・{@code clip-path}のどれか
+	 * があれば、溢れを「描かれるもの」として測りません(ページ分割の測度用)。
+	 * {@code clip-path}は参照ボックスの外へ広がる形も書けますが、ここでは箱で
+	 * 切れるものとして扱います——分割すると断片が自身の参照ボックスで切り抜き
+	 * 直すので({@link ClipPathShape})、溢れを数えて切ると隠れていた中身が
+	 * 次の断片に現れます。
+	 * </p>
+	 */
+	public boolean clipsOverflowPaint() {
+		return this.overflow.clipsPaint() || this.paintClip || this.clipPath != null;
+	}
+
 	public Columns columns = Columns.NONE_COLUMNS;
 
 	/**

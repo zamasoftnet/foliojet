@@ -1194,9 +1194,34 @@ public class FlowContainer implements Container {
 		}
 
 		final double prevPageSize = pageLimit;
-		// 主ループ前の判定は FlowCutter に純化されている(M4-A2)
-		final FlowCutter.PreDecision pre = FlowCutter.preDecide(pageLimit, pageSize, pageInnerSize, frameStart, flags,
-				this.flows != null && !this.flows.isEmpty());
+		// 主ループ前の判定は FlowCutter に純化されている(M4-A2)。
+		//
+		// 寸法は箱の幾何ではなく、**箱から溢れた通常フローまで含めた**値で
+		// 渡す(2026-10-02)。ページ軸の寸法を明示した箱(縦書きのwidth、横書きの
+		// height)の中身はoverflow:visibleのまま箱の外へ続くので、幾何だけで
+		// 「切断線が内底辺より先=前ページに残す」と決めると、溢れた中身が紙の
+		// 外まで並ぶ。組み立て中の通常フローはFLAGS_LASTでこの判定を通らないが、
+		// 閉じた箱として切られるページ先頭の浮動体はFLAGS_FIRSTだけで来る
+		// (掃過 seed 11065158、OffPageFloatTest)。
+		//
+		// 溢れの測度は下の主ループと同じ computeFlowBottoms()(子の幾何と子の
+		// 中身の終わりの大きいほう)。ここが溢れを見て主ループへ進めても、主ループが
+		// 別の測度なら切られない。浮動体のはみ出しは数えない——それは KeepFloats
+		// (持ち主を残して浮動体だけ送る)の仕事で、描画実測(paintedPageEnd())で
+		// 数えると段落からはみ出す浮動画像の文書(0110-clear/avoid-before-block)で
+		// 見出しの改ページ回避が崩れた。箱自身が切り抜くなら溢れは描かれないので
+		// 数えない(切ると断片が頁いっぱいに広がり、隠れた中身が見える)
+		final BlockParams params = this.box.getBlockParams();
+		final boolean hasFlows = this.flows != null && !this.flows.isEmpty();
+		final double[] flowBottoms = hasFlows ? this.computeFlowBottoms(params) : null;
+		double overflowEnd = 0;
+		if (hasFlows && !params.clipsOverflowPaint()) {
+			for (final double bottom : flowBottoms) {
+				overflowEnd = Math.max(overflowEnd, bottom);
+			}
+		}
+		final FlowCutter.PreDecision pre = FlowCutter.preDecide(pageLimit, Math.max(pageSize, overflowEnd),
+				Math.max(pageInnerSize, overflowEnd), frameStart, flags, hasFlows);
 		// **開いたままの末尾フローがあるなら「このページに残す」を選べない**
 		// (2026-08-03)。planが選んでいる末尾フローは、まだ組み立て中で
 		// 開いているフロー(継続チェーンの一員)である。ここで
@@ -1231,8 +1256,7 @@ public class FlowContainer implements Container {
 		}
 
 		// 通常のフローで指定位置にさしかかっているボックスを特定
-		final BlockParams params = this.box.getBlockParams();
-		final double[] flowBottoms = this.computeFlowBottoms(params);
+		// (flowBottoms は主ループ前の判定で計算済み。ここへ来るのはフローがあるときだけ)
 		int lastOrphan = FlowCutter.lastOrphan(flowBottoms, pageLimit);
 
 		// FlowCutter へ渡す純データ(avoid 押し戻し・後段判定用の計測)

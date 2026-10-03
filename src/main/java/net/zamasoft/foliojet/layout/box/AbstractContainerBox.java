@@ -127,24 +127,34 @@ public abstract class AbstractContainerBox extends AbstractBox
 	 * 書字方向が問い合わせ側と違う箱はページ軸が一致しないため、
 	 * 幾何寸法をそのまま返します(安全側)。
 	 * </p>
+	 *
+	 * <p>
+	 * 中身が箱から溢れて描かれるときは、枠線・背景が見える箱でも<b>溢れの
+	 * 先まで</b>を返します(2026-10-02)。従来は見える箱を箱いっぱいで
+	 * 打ち切っていたため、ページ軸の寸法を明示した縁取りの浮動体
+	 * ({@code float:right;height:96pt;border:1pt solid})の溢れた中身を
+	 * 配置時の判定({@code FloatMeasurement.occupiedPageExtent})が数えず、
+	 * 切断されないまま紙の外へ並んでいた。見えない箱は前からこの値だった。
+	 * </p>
 	 */
 	@Override
 	public double paintedPageExtent(final WritingMode flow) {
 		final double full = this.getPageExtent(flow);
-		if (this.frame.isVisible()) {
-			return full;
-		}
 		final BlockParams params = this.getBlockParams();
 		if (params.flow != flow) {
 			return full;
 		}
+		final boolean framed = this.frame.isVisible();
 		final double inner = this.container.paintedPageEnd();
 		if (LayoutUtils.compare(inner, 0) <= 0) {
-			// 中身が何も描かない = この箱は何も描かない
-			return 0;
+			// 中身が何も描かない = 枠線・背景だけを描く(見えなければ何も描かない)
+			return framed ? full : 0;
 		}
 		final double painted = this.frame.getFramePageStart(flow) + inner;
-		return params.overflow.clipsPaint() || params.paintClip ? Math.min(full, painted) : painted;
+		if (params.clipsOverflowPaint()) {
+			return framed ? full : Math.min(full, painted);
+		}
+		return framed ? Math.max(full, painted) : painted;
 	}
 
 	/**

@@ -57,8 +57,8 @@ public final class FlowCutter {
 	 * 忠実に維持しています。
 	 *
 	 * @param pageLimit     ボックスの内上辺から切断線までの距離
-	 * @param pageSize      ボックスのページ方向寸法
-	 * @param pageInnerSize ボックスのページ方向内寸
+	 * @param pageSize      ボックスのページ方向寸法(箱から溢れた通常フローを含む)
+	 * @param pageInnerSize ボックスのページ方向内寸(箱から溢れた通常フローを含む)
 	 * @param frameStart    ページ方向始端のフレーム幅
 	 * @param flags         IPageBreakableBox.FLAGS_* のビット和
 	 * @param hasFlows      通常フローの子が存在するか
