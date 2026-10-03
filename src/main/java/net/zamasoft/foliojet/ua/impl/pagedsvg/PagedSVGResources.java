@@ -277,6 +277,17 @@ final class PagedSVGResources {
 		this.imageMaxHeight = Math.max(0, maxHeight);
 	}
 
+	/** 画素に描き直すラスタ1枚の最大画素数(output.image-pixel-limit、負数は無制限。2026-10-03) */
+	private long rasterPixelLimit = -1;
+
+	void setRasterPixelLimit(final long limit) {
+		this.rasterPixelLimit = limit;
+	}
+
+	long rasterPixelLimit() {
+		return this.rasterPixelLimit;
+	}
+
 	void setPageChecksums(final boolean pageChecksums) {
 		this.pageChecksums = pageChecksums;
 	}

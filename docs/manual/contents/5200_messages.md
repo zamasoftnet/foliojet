@@ -50,7 +50,7 @@
 | 280E | XSLTファイルのURI(string) | XSLTファイルが存在しない。 |
 | 280F |  | PIによる入出力プロパティの上書きが禁止されている。 |
 | 2810 | 添付ファイルのURI(string) | PDFに添付しようとしたファイルが存在しない。 |
-| 2811 | 画像ファイルのURI(string)<br />段階(string)<span class="since">4.0.0</span> | 画像を読み込めない。段階は<tt>resolve</tt>(参照を解決できない)・<tt>fetch</tt>(取得に失敗。HTTPの状態が分かるときは<tt>fetch: HTTP 404</tt>のように付ける)・<tt>decode</tt>(対応していない形式か壊れた画像)のいずれか。URIの認証情報は除いて出す。 |
+| 2811 | 画像ファイルのURI(string)<br />段階(string)<span class="since">4.0.0</span> | 画像を読み込めない。段階は<tt>resolve</tt>(参照を解決できない)・<tt>fetch</tt>(取得に失敗。HTTPの状態が分かるときは<tt>fetch: HTTP 404</tt>のように付ける)・<tt>decode</tt>(対応していない形式か壊れた画像)・<span class="since">4.0.0</span><tt>too-large 幅x高さ &gt; 上限</tt>(画素数が<span class="ioprop">input.image-pixel-limit</span>を超えるので展開しなかった)のいずれか。URIの認証情報は除いて出す。 |
 | 2812 | PDFバージョン(string) 設定名(string) 設定値(string) | 現在のPDFバージョンで利用できない機能を使おうとした。 |
 | 2813 | エラーメッセージ(string) | インラインオブジェクトの形式に不正がある。 |
 | 2814 | リソースのURI(string) | リソースへのアクセスが許可されていない。 |
@@ -67,6 +67,7 @@
 | 2822<span class="since">4.0.0</span> | プロパティ名(string)<br />出力形式(string)<br />近似の内容(string) | 対応しているが、その出力形式では厳密に描けず近似で描いた(PDF/A-1・PDF/Xでの<span class="cssprop">box-shadow</span>/<span class="cssprop">text-shadow</span>のぼかし——通常のPDFでは影を画素にして厳密に描きます<span class="since">4.0.0</span>——・SVGでの<span class="cssdecl">conic-gradient()</span>(PDFはメッシュシェーディングで厳密<span class="since">4.0.0</span>)・<span class="cssprop">mix-blend-mode</span>等)。PDFの<span class="cssprop">filter</span>は要素を画像にして厳密に描くが、その要素の文字が選択・検索できなくなるため、その旨をこの警告(内容 filter-rasterized)で知らせる<span class="since">4.0.0</span>。画像出力(PNG/JPEG)やSVG系出力では厳密に描けるものが多く、そのときは出ない。文書ごと・プロパティごとに1回。 |
 | 2823<span class="since">4.0.0</span> | プロパティ名(string)<br />効かない理由(string) | 宣言は解釈できたが、その組み合わせでは効かない指定。浮動体・絶対配置の<span class="cssdecl">display: flex</span>/<span class="cssdecl">display: grid</span>は通常のブロックへ落ちる(itemは縦に積まれる)。未対応(2802)や意図的な無視(2821)と違い、<b>単体なら効くのに文脈のせいで落ちる</b>ものを知らせる。種類ごとに1回。 |
 | 2824<span class="since">4.0.0</span> | 出力形式(string) | <span class="ioprop">output.image.transparent</span>が指定されたが、その出力形式は透明を保てないため背景を白のまま描いた。PNG・GIF・TIFFは保てる。JPEG・BMP・WBMPは保てない。文書ごとに1回。 |
+| 2825<span class="since">4.0.0</span> | プロパティ名(string)<br />上限(string)<br />指定値(string) | 運用者の上限ファイル(<tt>jp.cssj.driver.limits</tt>)の値より緩い指定を受けた。指定は使わず、上限の値で変換する。 |
 
 **エラー**
 
@@ -88,6 +89,7 @@
 | 380F<span class="since">4.0.0</span> | 要素名(string) 上限(int) 到達値(int) | 寸法が決まるまで中身を溜めておく要素(表・浮動体など)の内容が<span class="ioprop">processing.retained-text-limit</span>を超えた。変換は失敗する。 |
 | 3810<span class="since">4.0.0</span> | ドキュメントのURI(string) 理由(string) | サーバー側のメインドキュメントの取得を許可していない(遠隔の利用者がサーバーの内側の宛先を指定したなど)。変換は失敗する。 |
 | 3811<span class="since">4.0.0</span> | ドキュメントのURI(string) 理由(string) | サーバー側のメインドキュメントを取得できない(接続拒否・切断など)。変換は失敗する。 |
+| 3812<span class="since">4.0.0</span> | 幅(string) 高さ(string) 上限(string) | 生成するラスター画像(画像出力の版面)の画素数が<span class="ioprop">output.image-pixel-limit</span>を超える。変換は失敗する。解像度か頁の大きさを下げる。 |
 
 **深刻なエラー**
 

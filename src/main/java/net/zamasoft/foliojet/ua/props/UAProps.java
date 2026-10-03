@@ -123,6 +123,15 @@ public final class UAProps {
 			"input.resource-count-limit", -1);
 
 	/**
+	 * 読み込む画像1枚の最大画素数(幅×高さ)です。負数は無制限です(2026-10-03)。
+	 * 画素を展開する前にヘッダの寸法で判定し、超えた画像は読み込めない画像と
+	 * 同じ扱いにします(メッセージ2811、{@code output.broken-image})。
+	 * 小さなファイルが展開すると巨大になる画像は、{@link #INPUT_RESOURCE_SIZE_LIMIT}
+	 * (読んだバイト数)では止まらないためです。
+	 */
+	public static final LongPropManager INPUT_IMAGE_PIXEL_LIMIT = new LongPropManager("input.image-pixel-limit", -1L);
+
+	/**
 	 * 変換をまたぐHTTP応答キャッシュ(2026-08-10)。認証情報・Cookieを
 	 * 伴わないGETだけが対象で、応答の{@code Cache-Control}
 	 * (no-store/no-cache/private/max-age)を尊重する。@importされた
@@ -370,6 +379,15 @@ public final class UAProps {
 	 */
 	public static final DoublePropManager OUTPUT_IMAGE_RESOLUTION = new DoublePropManager("output.image.resolution",
 			96.0);
+
+	/**
+	 * 生成するラスタ1枚の最大画素数(幅×高さ)です。負数は無制限です(2026-10-03)。
+	 * 画像出力の版面(頁の大きさ×{@link #OUTPUT_IMAGE_RESOLUTION})が超えると
+	 * 変換を失敗させ(メッセージ3812)、Paged SVGで画素に描き直す画像は
+	 * 倍率を下げて上限に収めます。
+	 */
+	public static final LongPropManager OUTPUT_IMAGE_PIXEL_LIMIT = new LongPropManager("output.image-pixel-limit",
+			-1L);
 
 	/**
 	 * 画像のアンチエイリアスです。

@@ -80,6 +80,8 @@ public interface MessageCodes {
 	 * </p>
 	 */
 	public static final short WARN_NO_ALPHA_IN_IMAGE_FORMAT = 0x2824;
+	/** 運用者の上限より緩い指定を受けた警告です(上限の値を使う。2026-10-03)。 */
+	public static final short WARN_OPERATOR_LIMIT = 0x2825;
 	public static final short WARN_PLUGIN = 0x28FF;
 
 	public static final short ERROR_BAD_XSLT_STYLESHEET = 0x3801;
@@ -98,6 +100,8 @@ public interface MessageCodes {
 	public static final short ERROR_FORBIDDEN_SERVERSIDE_DOCUMENT = 0x3810;
 	/** サーバー側のメインドキュメントを取得できなかった(接続拒否・切断など)エラーです(2026-09-14)。 */
 	public static final short ERROR_UNREACHABLE_SERVERSIDE_DOCUMENT = 0x3811;
+	/** 生成するラスタ(画像出力の版面)の画素数が output.image-pixel-limit を超えたエラーです(2026-10-03)。 */
+	public static final short ERROR_OUTPUT_IMAGE_TOO_LARGE = 0x3812;
 	public static final short ERROR_PLUGIN = 0x38FF;
 
 	public static final short FATAL_XSLT_FATAL = 0x4801;

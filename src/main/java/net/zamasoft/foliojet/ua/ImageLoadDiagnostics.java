@@ -100,11 +100,13 @@ public final class ImageLoadDiagnostics {
 		final TrackingSource tracking = new TrackingSource(source, mimeType);
 		T result = null;
 		boolean failed = false;
+		Exception failure = null;
 		try {
 			result = loader.load(uri, tracking);
 			failed = result == null;
 		} catch (final Exception e) {
 			failed = true;
+			failure = e;
 		} finally {
 			try {
 				// MySourceResolverは具象型へcastするため、wrapperではなく元を返す。
@@ -114,13 +116,20 @@ public final class ImageLoadDiagnostics {
 			}
 		}
 		if (failed) {
-			report(ua, safeUri(uri), failureDetail(tracking));
+			report(ua, safeUri(uri), failureDetail(tracking, failure));
 			return null;
 		}
 		return result;
 	}
 
-	private static String failureDetail(final TrackingSource source) {
+	private static String failureDetail(final TrackingSource source, final Exception failure) {
+		// 画素数の上限で断った画像(2026-10-03)。例外の文言が段階になる
+		// (「too-large 12000x12000 > 40000000」)
+		for (Throwable t = failure; t != null; t = t.getCause()) {
+			if (t instanceof net.zamasoft.pdfg2d.g2d.util.ImageTooLargeException tooLarge) {
+				return tooLarge.getMessage();
+			}
+		}
 		final int status = source.httpStatus();
 		if (source.fetchFailed()) {
 			return status >= 100 && status <= 599 ? "fetch: HTTP " + status : "fetch";

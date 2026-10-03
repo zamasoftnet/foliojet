@@ -215,6 +215,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		// 親と同じ設定・資源の解決・フォント。プロパティは写しを渡す
 		// (文書内のPIが書き換えるので、項目ごとに別の表でなければならない)
 		child.setProperties(this.getProperties());
+		child.setOperatorLimits(this.getOperatorLimits());
 		child.setSourceResolver(this.getSourceResolver());
 		child.setMessageHandler(releaseUnit::message);
 		child.getUAContext().setFontSourceManager(this.getUAContext().getFontSourceManager());
@@ -430,6 +431,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 					UAProps.OUTPUT_PAGED_SVG_IMAGE_MAX_WIDTH.getInteger(this),
 					UAProps.OUTPUT_PAGED_SVG_IMAGE_MAX_HEIGHT.getInteger(this));
 			this.resources.setPageChecksums(UAProps.OUTPUT_PAGED_SVG_PAGE_CHECKSUMS.getBoolean(this));
+			this.resources.setRasterPixelLimit(UAProps.OUTPUT_IMAGE_PIXEL_LIMIT.getLong(this));
 			// ZIPで返すときは中身を縮めない——ZIP側が縮めるので二重になるし、
 			// 受け手が展開してそのまま開ける名前(.svg/.json)であるべき
 			this.compression = this.zipBundle ? PagedSvgCompression.NONE
@@ -483,6 +485,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		final Map<String, String> props = new java.util.HashMap<>(this.getProperties());
 		props.putIfAbsent(UAProps.OUTPUT_PDF_FONTS_POLICY.name, "core,embedded");
 		pdf.setProperties(props);
+		pdf.setOperatorLimits(this.getOperatorLimits());
 		pdf.getUAContext().setFontSourceManager(this.getUAContext().getFontSourceManager());
 		try {
 			this.pdfSpool = java.io.File.createTempFile("copper-paged-svg-", ".pdf");

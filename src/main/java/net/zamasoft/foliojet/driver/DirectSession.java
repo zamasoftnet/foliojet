@@ -546,6 +546,7 @@ public class DirectSession extends AbstractCTISession
 	public void setUserAgent(UserAgent ua) {
 		assert ua != null;
 		this.ua = asResultUserAgent(ua);
+		this.applyOperatorLimits(this.ua);
 	}
 
 	private static RandomResultUserAgent asResultUserAgent(final UserAgent ua) {
@@ -573,6 +574,11 @@ public class DirectSession extends AbstractCTISession
 			// profileProperty()で入れる
 			this.message(MessageCodes.WARN_CANNOT_OVERRIDE_PROPERTY, new String[] { name });
 			return;
+		}
+		if (this.operatorLimits.loosens(name, value)) {
+			// 値はそのまま受け取り、読むときに上限を掛ける(OperatorLimits)
+			this.message(MessageCodes.WARN_OPERATOR_LIMIT,
+					new String[] { name, String.valueOf(this.operatorLimits.ceilings().get(name)), value });
 		}
 		this.profileProperty(name, value);
 	}
@@ -983,7 +989,7 @@ public class DirectSession extends AbstractCTISession
 			}
 		}
 
-		this.resolver.setup(uri, this.props, this);
+		this.resolver.setup(uri, this.operatorLimits.clampAll(this.props), this);
 		this.aborted = false;
 		this.abortMode = 0;
 
@@ -992,6 +998,7 @@ public class DirectSession extends AbstractCTISession
 				outputType);
 		if (factory != null) {
 			this.ua = asResultUserAgent(factory.createUserAgent());
+			this.applyOperatorLimits(this.ua);
 		} else {
 			throw new IllegalStateException("UnsupportedType: " + outputType);
 		}
@@ -1047,7 +1054,18 @@ public class DirectSession extends AbstractCTISession
 	}
 
 	public void setup() throws IOException {
+		this.operatorLimits = OperatorLimits.current();
 		this.prepareDefaultProperties();
+	}
+
+	/** 運用者が決めた、利用者が緩められない上限(2026-10-03)。{@link #setup()}で読む。 */
+	private OperatorLimits operatorLimits = OperatorLimits.NONE;
+
+	/** UAに運用者の上限を渡します。 */
+	private void applyOperatorLimits(final UserAgent ua) {
+		if (ua instanceof net.zamasoft.foliojet.ua.impl.AbstractUserAgent abstractUa) {
+			abstractUa.setOperatorLimits(this.operatorLimits);
+		}
 	}
 
 	public void reset() throws IOException {

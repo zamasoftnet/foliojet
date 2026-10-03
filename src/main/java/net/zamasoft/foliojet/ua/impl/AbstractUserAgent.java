@@ -10,6 +10,7 @@ import java.util.Map.Entry;
 
 import jp.cssj.cti2.helpers.CTIMessageCodes;
 import jp.cssj.cti2.message.MessageHandler;
+import net.zamasoft.pdfg2d.g2d.util.ImageTooLargeException;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
 import net.zamasoft.foliojet.css.util.FontValueUtils;
 import net.zamasoft.foliojet.css.util.LengthUtils;
@@ -162,10 +163,23 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	public final String getProperty(String name) {
-		if (this.props == null) {
-			return null;
-		}
-		return this.props.get(name);
+		final String value = this.props == null ? null : this.props.get(name);
+		// 運用者の上限は、どこで設定された値(クライアント・プロファイル・
+		// 文書中の処理命令)にも、読むたびに掛ける(2026-10-03)
+		return this.operatorLimits.clamp(name, value);
+	}
+
+	/** 運用者が決めた、利用者が緩められない上限(既定は無し)。 */
+	private net.zamasoft.foliojet.driver.OperatorLimits operatorLimits = net.zamasoft.foliojet.driver.OperatorLimits.NONE;
+
+	/** 運用者の上限を設定します。このUAから作る子のUAにも渡すこと。 */
+	public final void setOperatorLimits(final net.zamasoft.foliojet.driver.OperatorLimits limits) {
+		this.operatorLimits = limits == null ? net.zamasoft.foliojet.driver.OperatorLimits.NONE : limits;
+	}
+
+	/** 運用者の上限。 */
+	public final net.zamasoft.foliojet.driver.OperatorLimits getOperatorLimits() {
+		return this.operatorLimits;
 	}
 
 	/**
@@ -569,6 +583,8 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	protected Image loadImage(final Source source) throws IOException {
+		final URI uri = source.getURI();
+		this.throwIfRefusedImage(uri);
 		// 寸法しか要らないパスでは、記録済みの寸法を**資源に触れる前に**返す
 		// (2026-08-16)。PluginRegistry.searchはローダを選ぶためにSourceの
 		// MIME型を訊くので、ここより後ろで当てるとリモート資源の取得が
@@ -581,13 +597,47 @@ public abstract class AbstractUserAgent implements UserAgent {
 		// 寸法しか要らないパスは画素を読まず、ヘッダだけを読む。
 		// data:はURIそのものが中身で取得の往復が無いため、従来どおり
 		// 通常の読み込みに任せる(切り替えると挙動が変わりうる)
-		final URI uri = source.getURI();
 		final boolean cacheable = uri != null && !"data".equalsIgnoreCase(uri.getScheme());
-		if (cacheable && (this.isMeasurePass() || this.isStructureScanPass())
-				&& loader instanceof RasterImageLoader rasterLoader) {
-			return rasterLoader.loadImageForLayout(source);
+		try {
+			if (cacheable && (this.isMeasurePass() || this.isStructureScanPass())
+					&& loader instanceof RasterImageLoader rasterLoader) {
+				return rasterLoader.loadImageForLayout(source, UAProps.INPUT_IMAGE_PIXEL_LIMIT.getLong(this));
+			}
+			return loader.loadImage(this, source);
+		} catch (final ImageTooLargeException e) {
+			this.noteRefusedImage(uri, e);
+			throw e;
 		}
-		return loader.loadImage(this, source);
+	}
+
+	/**
+	 * 画素数の上限({@code input.image-pixel-limit})で断った画像です
+	 * (2026-10-03)。同じ画像が何度参照されても、パスが変わっても、資源を
+	 * 開き直してヘッダを読み直さない。寿命は画像寸法の記録と同じ(文書の開始で
+	 * 消す)。上限の値ごと覚え、上限が変われば読み直す。
+	 */
+	private Map<URI, ImageTooLargeException> refusedImages;
+
+	/** 上限で断った画像なら、同じ例外を投げます。 */
+	protected final void throwIfRefusedImage(final URI uri) throws ImageTooLargeException {
+		if (uri == null || this.refusedImages == null) {
+			return;
+		}
+		final ImageTooLargeException refused = this.refusedImages.get(uri);
+		if (refused != null && refused.getLimit() == UAProps.INPUT_IMAGE_PIXEL_LIMIT.getLong(this)) {
+			throw refused;
+		}
+	}
+
+	/** 上限で断った画像を覚えます。 */
+	protected final void noteRefusedImage(final URI uri, final ImageTooLargeException e) {
+		if (uri == null) {
+			return;
+		}
+		if (this.refusedImages == null) {
+			this.refusedImages = new HashMap<URI, ImageTooLargeException>();
+		}
+		this.refusedImages.put(uri, e);
 	}
 
 	public Image getImage(final Source source) throws IOException {
@@ -739,6 +789,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 			this.getUAContext().setFootnoteArea(null);
 			// 画像寸法も同じ寿命。別の文書では同じURIが違う内容を指しうる
 			this.getUAContext().getImageMetrics().reset();
+			this.refusedImages = null;
 			this.loadImageMetrics();
 		}
 		this.documentContext = new DocumentContext();

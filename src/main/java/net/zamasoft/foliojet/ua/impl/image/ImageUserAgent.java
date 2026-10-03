@@ -128,6 +128,14 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		at.transform(size, size);
 		final int w = (int) size.getX();
 		final int h = (int) size.getY();
+		// 版面の画素数の上限(2026-10-03)。頁の大きさ×解像度はいくらでも
+		// 大きくできるので、確保する前に断る
+		final long outputPixelLimit = UAProps.OUTPUT_IMAGE_PIXEL_LIMIT.getLong(this);
+		if (outputPixelLimit >= 0 && (long) w * h > outputPixelLimit) {
+			this.message(MessageCodes.ERROR_OUTPUT_IMAGE_TOO_LARGE, String.valueOf(w), String.valueOf(h),
+					String.valueOf(outputPixelLimit));
+			throw new AbortException(CTISession.ABORT_FORCE);
+		}
 		final boolean transparent = this.transparentBackground();
 		this.image = new BufferedImage(w, h,
 				transparent ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB);

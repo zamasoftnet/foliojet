@@ -451,6 +451,8 @@ final class PDFParamsResolver {
 		// 最大画像サイズ
 		params = params.withMaxImageWidth(UAProps.OUTPUT_PDF_IMAGE_MAX_WIDTH.getInteger(ua));
 		params = params.withMaxImageHeight(UAProps.OUTPUT_PDF_IMAGE_MAX_HEIGHT.getInteger(ua));
+		// 画素数の上限(展開する前にヘッダの寸法で断る。2026-10-03)
+		params = params.withImagePixelLimit(UAProps.INPUT_IMAGE_PIXEL_LIMIT.getLong(ua));
 
 		// box-shadow/text-shadowの影だけをラスタ化するときの解像度
 		params = params.withBlurRasterDpi(UAProps.OUTPUT_PDF_BLUR_RESOLUTION.getInteger(ua));

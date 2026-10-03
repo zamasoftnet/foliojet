@@ -272,6 +272,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			return image;
 		}
 		this.preparePDFWriter();
+		this.throwIfRefusedImage(source.getURI());
 		Image image;
 		// EXIFの向き(2026-08-30)。PDFの画像経路はPDFWriterが直に読むので
 		// RasterImageLoaderを通らず、**携帯で撮った横向きの写真が寝たまま
@@ -299,6 +300,11 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 					}
 				}, uri);
 			}
+		} catch (net.zamasoft.pdfg2d.g2d.util.ImageTooLargeException e) {
+			// 画素数の上限で断った画像は、別の経路で全部展開し直さない
+			// (2026-10-03。上限の意味は画素を確保しないこと)
+			this.noteRefusedImage(source.getURI(), e);
+			throw e;
 		} catch (IOException e) {
 			// ここはRasterImageLoaderを通るので向きは適用済み。二重に
 			// 掛けないよう、この経路では下の orient を通さない

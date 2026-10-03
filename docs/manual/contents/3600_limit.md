@@ -119,6 +119,8 @@ URIは**正規化してから**照合します。
 | <span class="ioprop">input.size-limit</span> | バイト | 主文書1件。EPUBではEPUBファイル全体 |
 | <span class="ioprop">input.resource-size-limit</span> | バイト | 主文書から解決した外部資源の累積読込量 |
 | <span class="ioprop">input.resource-count-limit</span> | URI数 | 主文書から解決した相異なる外部資源 |
+| <span class="ioprop">input.image-pixel-limit</span> | 画素数 | 読み込む画像1枚の幅×高さ(展開する前に判定) |
+| <span class="ioprop">output.image-pixel-limit</span> | 画素数 | 生成するラスター画像1枚(画像出力の版面など) |
 | <span class="ioprop">processing.time-limit</span> | ミリ秒 | 文書1件の変換全体。複数パスは合算 |
 
 いずれも既定では無制限です。容量制限を使う場合、入力はバイト列を返す
@@ -129,12 +131,28 @@ URIは**正規化してから**照合します。
 読み込んだバイトを数えるため、同じ資源を再取得すればその分も加算されます。
 `data:` URIも入力内容なので容量制限の対象です。
 
+画像は、圧縮されたファイルが小さくても、展開すると幅×高さ×4バイトのメモリを使います(1万×1万画素で約400MB)。読み込んだバイト数の上限では止まらないので、<span class="ioprop">input.image-pixel-limit</span>で画素数を絞ってください。超えた画像は展開せずに、読み込めない画像として扱います(メッセージ2811)。
+
 ```java
 session.property("input.size-limit", "10485760");           // 主文書10MiB
 session.property("input.resource-size-limit", "52428800"); // 外部資源合計50MiB
 session.property("input.resource-count-limit", "200");
+session.property("input.image-pixel-limit", "25000000");   // 画像1枚2500万画素
 session.property("processing.time-limit", "30000");        // 30秒
 ```
+
+#### <a id="prog-operator-limits">運用者の上限(緩められない上限)</a>
+
+<span class="since">4.0.0</span>上の上限は、プロファイル(<tt>jp.cssj.driver.default</tt>)に書いても
+クライアントの指定や文書中の処理命令で緩められます。システムプロパティ<tt>jp.cssj.driver.limits</tt>で
+上限ファイル(プロパティファイル)を指すと、そこに書いた値はどこで設定された値に対しても**小さい方**が使われます。
+厳しくする指定は効き、緩い指定は上限の値になります(警告2825)。書けるのは
+<span class="ioprop">input.size-limit</span>・<span class="ioprop">input.resource-size-limit</span>・
+<span class="ioprop">input.resource-count-limit</span>・<span class="ioprop">input.image-pixel-limit</span>・
+<span class="ioprop">output.image-pixel-limit</span>・<span class="ioprop">output.size-limit</span>・
+<span class="ioprop">output.page-limit</span>・<span class="ioprop">processing.time-limit</span>・
+<span class="ioprop">processing.retained-text-limit</span>・<span class="ioprop">processing.concurrency</span>です。
+それ以外の名前や数値でない値があると、セッションを作れません。
 
 ### <a id="prog-page-limit">ページ数の制限</a>
 

@@ -395,8 +395,16 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 	private BufferedImage rasterize(final Image image) throws GraphicsException {
 		final double iw = Math.max(1e-6, image.getWidth());
 		final double ih = Math.max(1e-6, image.getHeight());
-		final int w = Math.max(1, (int) Math.ceil(iw * RASTERIZE_SCALE));
-		final int h = Math.max(1, (int) Math.ceil(ih * RASTERIZE_SCALE));
+		int w = Math.max(1, (int) Math.ceil(iw * RASTERIZE_SCALE));
+		int h = Math.max(1, (int) Math.ceil(ih * RASTERIZE_SCALE));
+		// 画質のための倍率なので、画素数の上限を超えるなら倍率を下げて収める
+		// (2026-10-03、output.image-pixel-limit)。失敗にはしない
+		final long limit = this.resources.rasterPixelLimit();
+		if (limit >= 0 && (long) w * h > limit) {
+			final double scale = Math.sqrt(Math.max(1, limit) / (iw * ih));
+			w = Math.max(1, (int) Math.floor(iw * scale));
+			h = Math.max(1, (int) Math.floor(ih * scale));
+		}
 		final BufferedImage buffer = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
 		final Graphics2D g2d = buffer.createGraphics();
 		try {

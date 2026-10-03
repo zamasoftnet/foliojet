@@ -28,6 +28,7 @@ import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.pdfg2d.g2d.image.RasterImageImpl;
 import net.zamasoft.pdfg2d.g2d.util.G2DUtils;
+import net.zamasoft.pdfg2d.g2d.util.ImageTooLargeException;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
 
@@ -63,6 +64,18 @@ public class RasterImageLoader implements ImageLoader {
 	 * 描画しないパス向けに、画素を展開せず固有寸法とEXIF方向だけを読みます。
 	 */
 	public Image loadImageForLayout(final Source source) throws IOException {
+		return this.loadImageForLayout(source, -1L);
+	}
+
+	/**
+	 * 描画しないパス向けに、画素を展開せず固有寸法とEXIF方向だけを読みます。
+	 * 画素数の上限({@code input.image-pixel-limit})を超える画像は、出力の
+	 * パスと同じく{@link ImageTooLargeException}で断ります——測定と出力で
+	 * 画像の有無が食い違わないように(2026-10-03)。
+	 *
+	 * @param pixelLimit 最大画素数。負数は無制限
+	 */
+	public Image loadImageForLayout(final Source source, final long pixelLimit) throws IOException {
 		final ImageInputStream imageIn;
 		if (source.isFile()) {
 			imageIn = openFileImageInputStream(source, true);
@@ -86,6 +99,7 @@ public class RasterImageLoader implements ImageLoader {
 			final int height;
 			try {
 				reader.setInput(imageIn);
+				G2DUtils.checkPixelLimit(reader, pixelLimit);
 				width = reader.getWidth(0);
 				height = reader.getHeight(0);
 			} finally {
@@ -138,6 +152,8 @@ public class RasterImageLoader implements ImageLoader {
 				}
 			};
 		}
+		// uaはnullで呼ばれることがある(寸法だけを見る試験・経路)
+		final long pixelLimit = ua == null ? -1L : UAProps.INPUT_IMAGE_PIXEL_LIMIT.getLong(ua);
 		try { // ImageIOによるラスタ画像の取得
 			JPEGImageReader cir = null;
 			ImageReader jdkJpeg = null;
@@ -149,6 +165,25 @@ public class RasterImageLoader implements ImageLoader {
 			while (iri != null && iri.hasNext()) {
 				ir = iri.next();
 				ir.setInput(imageIn);
+				// 画素数の上限はICCや型の判定より前に、ヘッダの寸法で見る
+				// (2026-10-03)。大きいと分かったら他のリーダは試さない。
+				// 寸法を読めないリーダは従来どおり次へ回し、選んだリーダで
+				// 下でもう一度判定する
+				try {
+					G2DUtils.checkPixelLimit(ir, pixelLimit);
+				} catch (final ImageTooLargeException e) {
+					if (e.getWidth() >= 0) {
+						ir.dispose();
+						if (cir != null) {
+							cir.dispose();
+						}
+						if (jdkJpeg != null) {
+							jdkJpeg.dispose();
+						}
+						throw e;
+					}
+				}
+				imageIn.seek(0);
 				try {
 					Iterator<ImageTypeSpecifier> iti = ir.getImageTypes(0);
 					if (iti != null && iti.hasNext()) {
@@ -190,6 +225,13 @@ public class RasterImageLoader implements ImageLoader {
 					cir.dispose();
 				}
 			}
+			// 選んだリーダでの判定。寸法を読めなければ、上限があるときは断る
+			try {
+				G2DUtils.checkPixelLimit(ir, pixelLimit);
+			} catch (final ImageTooLargeException e) {
+				ir.dispose();
+				throw e;
+			}
 			imageIn.seek(0);
 			String formatName = null;
 			try {
@@ -217,7 +259,7 @@ public class RasterImageLoader implements ImageLoader {
 
 			final java.awt.image.BufferedImage decoded;
 			try {
-				decoded = G2DUtils.loadImage(ir, imageIn);
+				decoded = G2DUtils.loadImage(ir, imageIn, pixelLimit);
 			} catch (final RuntimeException | IOException e) {
 				if (System.getProperty("foliojet.debug.imageTrace") != null) {
 					System.err.println("[img] load failed: " + e);
