@@ -87,6 +87,12 @@ public abstract class Params {
 	 */
 	public double zoom = 1;
 
+	/**
+	 * {@code bookmark-level}・{@code bookmark-label}(2026-10-04)。どちらも既定
+	 * なら null(しおりは見出しの段数と文字から作る)。
+	 */
+	public BookmarkSpec bookmark = null;
+
 	public abstract ParamsType getType();
 
 	public String toString() {

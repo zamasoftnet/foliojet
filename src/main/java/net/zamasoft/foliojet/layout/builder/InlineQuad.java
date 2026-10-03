@@ -14,6 +14,15 @@ public abstract class InlineQuad extends Quad {
 	public static final byte INLINE_BLOCK = 4;
 	public static final byte INLINE_ABSOLUTE = 5;
 
+	/**
+	 * 文字を持たない原子インライン(代替文字の無い画像・数式、空のインライン
+	 * ブロック)の分かち書き用の文字(2026-10-04、TECH-20261003-004 の⑧)。
+	 * CSS Text の「原子インラインは U+FFFC として扱う」に合わせる。以前は
+	 * {@code BREAK}(無条件の改行機会)で、直後の「、」「。」の行頭禁則が
+	 * 効かず、数式の直後で改行して次の行が「、」で始まった。
+	 */
+	static final String OBJECT_REPLACEMENT = "￼";
+
 	public double advance = 0;
 
 	public abstract IBox getBox();
@@ -127,7 +136,7 @@ public abstract class InlineQuad extends Quad {
 
 		public String getString() {
 			String alt = this.box.getReplacedParams().image.getAltString();
-			return (alt == null || alt.length() == 0) ? BREAK : alt;
+			return (alt == null || alt.length() == 0) ? OBJECT_REPLACEMENT : alt;
 		}
 
 		public String toString() {
@@ -164,7 +173,7 @@ public abstract class InlineQuad extends Quad {
 				this.box.getText(textBuff);
 				this.text = textBuff.toString();
 			}
-			return this.text.length() == 0 ? BREAK : this.text;
+			return this.text.length() == 0 ? OBJECT_REPLACEMENT : this.text;
 		}
 
 		public String toString() {

@@ -20,5 +20,6 @@ drawer z=0
   x=30.00 y=137.64 Text["SECOND" asc=9.00 desc=3.00]
   x=20.00 y=160.84 Text["BLOCKQUOTETEXT" asc=9.00 desc=3.00]
   x=0.00 y=205.44 Text["CODEBLOCKTEXT" asc=7.91 desc=1.84]
+  x=0.00 y=0.00 PDFOutputDrawable
   x=0.00 y=228.24 Text["LINKTEXT" asc=8.60 desc=2.41]
   x=0.00 y=244.84 Text["RAWHTMLTEXT" asc=9.00 desc=3.00]

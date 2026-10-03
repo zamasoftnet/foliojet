@@ -41,7 +41,9 @@ import net.zamasoft.pdfg2d.gc.text.TextShaper;
  * 未解決に戻り、確定木の走査({@code RootBuilder})が改めて解決する。
  * </p>
  */
-public final class FootnoteLabelImage implements net.zamasoft.pdfg2d.gc.image.Image, ReplacedBoxImage {
+public final class FootnoteLabelImage
+		implements net.zamasoft.pdfg2d.gc.image.Image, ReplacedBoxImage,
+		net.zamasoft.foliojet.layout.box.content.BaselineImage {
 
 	private static final java.util.logging.Logger LOG = java.util.logging.Logger
 			.getLogger(FootnoteLabelImage.class.getName());
@@ -129,6 +131,17 @@ public final class FootnoteLabelImage implements net.zamasoft.pdfg2d.gc.image.Im
 	@Override
 	public double getHeight() {
 		return this.ascent + this.descent;
+	}
+
+	/**
+	 * 番号は字なので、字の基準線を行の基準線に合わせる(2026-10-04、
+	 * TECH-20261003-004 の⑥)。画像として下端を基準線に置くと、字の
+	 * 深さのぶん持ち上がったうえに{@code vertical-align: super}が重なり、
+	 * 既定の{@code ::footnote-call}が高く浮いていた。
+	 */
+	@Override
+	public double getDescent() {
+		return this.descent;
 	}
 
 	@Override

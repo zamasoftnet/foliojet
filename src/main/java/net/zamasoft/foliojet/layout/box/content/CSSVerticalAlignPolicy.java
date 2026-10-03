@@ -76,23 +76,20 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 		}
 
 		case CSSVerticalAlignPolicy.SUPER: {
-			// 上添え字
-			if (parentBox.getTextParams().isVerticalTypesetting()) {
-				// **縦組み**(2026-09-02): 字は中央線に置かれ、字面は左右に
-				// サイズの半分ずつしか無い。横組みの式(箱の中央を親のフォントの
-				// 上辺=右端へ)をそのまま使うと、上付きの箱の中央が字面の右端に
-				// 来て**丸ごと列の外へ張り出す**(利用者の報告: 縦書きで脚注の
-				// 番号が右にずれる)。Chrome(Blink)は上付きを親のフォントサイズの
-				// 1/3だけ寄せるので、それに合わせる。横組みの式は触らない
-				v = parentBox.getTextParams().fontStyle.getSize() / 3.0;
-				break;
-			}
-			// フォントの中央を親ボックスのフォントの上辺に揃える(SPEC なし)。
-			// -フォントの下辺を親ボックスの中央に揃える(SPEC なし)。
-			// -ベースラインを親ボックスのフォントの上辺に揃える(SPEC なし)。
-			// -ベースラインを親ボックスのフォントの中央に揃える(SPEC なし)。
-			final FontListMetrics flm = parentBox.getTextParams().getFontListMetrics();
-			v = descent + flm.getMaxAscent() - (ascent + descent) / 2.0;
+			// 上添え字。**基準線を親のフォントサイズの1/3だけ上げる**——
+			// Chrome(Blink)の上付きと同じ(縦組みは2026-09-02、横組みは
+			// 2026-10-04)。
+			//
+			// 縦組み: 字は中央線に置かれ、字面は左右にサイズの半分ずつしか
+			// 無い。旧い横組みの式(箱の中央を親のフォントの上辺=右端へ)を
+			// そのまま使うと、上付きの箱の中央が字面の右端に来て**丸ごと列の
+			// 外へ張り出していた**(利用者の報告: 縦書きで脚注の番号が右にずれる)。
+			//
+			// 横組みも旧い式(箱の中央を親のフォントの上辺に揃える、SPEC なし)
+			// をやめた。親の ascent が大きい和文フォントほど高く上がり、12pt の
+			// 本文で Chrome より約 2.5pt 高かった。既定の ::footnote-call が
+			// 高く浮いて行間を押し広げていた(TECH-20261003-004 の⑥、時限暗号の本)
+			v = parentBox.getTextParams().fontStyle.getSize() / 3.0;
 			break;
 		}
 

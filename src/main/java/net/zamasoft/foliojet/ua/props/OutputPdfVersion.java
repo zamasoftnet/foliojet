@@ -70,6 +70,16 @@ public enum OutputPdfVersion implements PropCode {
 	/**
 	 * PDF/Xのプロファイルならtrue。
 	 */
+	/**
+	 * しおり・リンクの既定を false のままにするか(2026-10-04)。PDF/UA-2 は文書内の
+	 * 行き先を構造の行き先(SD)にすることを求める(ISO 14289-2 §8.8)が、Copper の
+	 * しおり・文書内リンクはページの座標を行き先にするので、既定で付けると
+	 * 不適合になる。明示した値はそのまま使う。
+	 */
+	public boolean keepsNavigationOffByDefault() {
+		return this == V2_0UA2;
+	}
+
 	public boolean isPdfX() {
 		return this == V1_4X1 || this == V1_4X3 || this == V1_6X4 || this == V2_0X6;
 	}

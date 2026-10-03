@@ -546,6 +546,15 @@ final class PageSequence {
 			// いても落とす(後続に内容があるので 0 ページにはならない)。
 			return false;
 		}
+		if (this.emittedPages == 0 && closedByForcedBreak && !pageBox.isForcedBreakOrigin()
+				&& !pageBox.paintsAnything()) {
+			// 上の撤回(2026-09-06)の続き: 文書先頭の強制改ページの前のページは、
+			// **柱・ノンブルの宣言があっても落とす**(2026-10-04)。下の
+			// 「マージンボックスの宣言があれば描く」に任せると、柱のある本で
+			// 先頭の h1 に break-before: right があるだけで、柱だけの1頁目と
+			// 左右合わせの白紙が前に付いた(時限暗号の本の試験で発覚)
+			return true;
+		}
 		if (pageBox.isForcedBreakOrigin()) {
 			// 作者が意図した白紙
 			return false;
@@ -689,7 +698,12 @@ final class PageSequence {
 			final var values = new net.zamasoft.foliojet.css.style.running.PageValueSnapshot(
 					this.ua, this.pageElement, this.pageName);
 			final var running = new net.zamasoft.foliojet.css.style.running.RunningRenderer(this.ua, values);
-			MarginBoxes.draw(this.ua, this.styleContext, this.pageElement, this.pageName, pageBox, drawer, visitor, running);
+			// @page :blank(2026-10-04): 強制改ページで始まり、何も描かずに閉じた
+			// ページ(左右の改ページで挟んだ白紙など)。内容が確定したこの時点で
+			// しか分からないので、:blank が効くのはマージンボックスだけ
+			final boolean blank = pageBox.isForcedBreakOrigin() && !pageBox.paintsAnything();
+			MarginBoxes.draw(this.ua, this.styleContext, this.pageElement, this.pageName, pageBox, drawer, visitor, running,
+					blank);
 
 		}
 		// NopVisitorもstring-set/named-stringのページ状態を確定する。

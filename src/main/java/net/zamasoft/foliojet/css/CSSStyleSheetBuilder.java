@@ -199,6 +199,7 @@ public class CSSStyleSheetBuilder {
 	/** @footnoteの対応済み記述子を文書共通の領域へ適用します(F-1)。 */
 	private void footnoteArea(final List<CSSDeclaration> declarations, final URI uri) {
 		net.zamasoft.foliojet.ua.FootnoteArea area = this.ua.getUAContext().getFootnoteArea();
+		final List<CSSDeclaration> separator = new ArrayList<CSSDeclaration>();
 		for (final CSSDeclaration declaration : declarations) {
 			final String property = declaration.getProperty().toLowerCase(Locale.ROOT);
 			final List<CssToken> tokens = Tokens.fromExpression(declaration.getExpression());
@@ -252,6 +253,13 @@ public class CSSStyleSheetBuilder {
 					supported = false;
 				}
 				break;
+			case "border-top":
+			case "border-top-width":
+			case "border-top-style":
+			case "border-top-color":
+				// 本文との区切り線(2026-10-04)。値は要素と同じ解釈で後でまとめて計算する
+				separator.add(declaration);
+				break;
 			default:
 				supported = false;
 				break;
@@ -261,6 +269,25 @@ public class CSSStyleSheetBuilder {
 						"未対応の脚注領域の記述子です: " + property + ": "
 								+ declaration.getExpression().getAsCSSString(MEDIA_WRITER_SETTINGS, 0));
 			}
+		}
+		if (!separator.isEmpty()) {
+			// border-top の省略形・個別指定を要素と同じ規則で計算し、計算値の
+			// 太さ(style が none なら 0)と色を区切り線にする
+			final Declaration declaration = DeclarationParser.convert(separator, null,
+					ElementPropertySet.getInstance(), this.ua, uri);
+			final CSSStyle style = CSSStyle.getCSSStyle(this.ua, null, CSSElement.BEFORE);
+			if (declaration != null) {
+				declaration.applyProperties(style);
+			}
+			final net.zamasoft.foliojet.css.impl.property.box.Side top = net.zamasoft.foliojet.css.impl.property.box.Side.TOP;
+			final short borderStyle = net.zamasoft.foliojet.css.impl.property.border.BorderStyle.get(style, top);
+			// 太さの値は線種を見ない(none でも medium が返る)ので、ここで 0 にする
+			final boolean visible = borderStyle != net.zamasoft.foliojet.css.value.BorderStyleValue.NONE
+					&& borderStyle != net.zamasoft.foliojet.css.value.BorderStyleValue.HIDDEN;
+			area = area.withSeparator(new net.zamasoft.foliojet.ua.FootnoteArea.Separator(
+					visible ? net.zamasoft.foliojet.css.impl.property.border.BorderWidth.get(style, top) : 0,
+					net.zamasoft.foliojet.css.impl.property.border.BorderColor.get(style,
+							net.zamasoft.foliojet.css.impl.property.box.Side.TOP)));
 		}
 		this.ua.getUAContext().setFootnoteArea(area);
 	}
@@ -1090,7 +1117,7 @@ public class CSSStyleSheetBuilder {
 		}
 		// 名前付きページN1a(consult-codex-2026-07-31-named-pages.txt Q1):
 		// セレクタリスト全件を処理し、名前+複合擬似(chapter:first等)を
-		// 構造化PageRuleへ。未対応の擬似(:blank等)はそのセレクタのみ無効
+		// 構造化PageRuleへ。未対応の擬似(:nth()等)はそのセレクタのみ無効
 		final List<String> selectors = pageRule.getAllSelectors();
 		final List<String> names = new ArrayList<String>();
 		final List<Byte> masks = new ArrayList<Byte>();
@@ -1115,6 +1142,8 @@ public class CSSStyleSheetBuilder {
 						mask |= net.zamasoft.foliojet.css.PageRule.PSEUDO_RIGHT;
 					} else if ("single".equalsIgnoreCase(pseudo)) {
 						mask |= net.zamasoft.foliojet.css.PageRule.PSEUDO_SINGLE;
+					} else if ("blank".equalsIgnoreCase(pseudo)) {
+						mask |= net.zamasoft.foliojet.css.PageRule.PSEUDO_BLANK;
 					} else {
 						this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(),
 								"未対応のページ擬似クラスです: :" + pseudo);

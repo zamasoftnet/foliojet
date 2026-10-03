@@ -797,7 +797,31 @@ title要素は表示されないため、`string-set`の対象にできません
 ```
 
 `@page front:first`のように、名前と擬似クラス(:first、:left、:right)を
-組み合わせることもできます。
+組み合わせることもできます。ただし<span class="cssdecl">:first</span>は
+**文書の最初のページ**だけに合います(CSS Paged Media Level 3 のとおり)。
+`@page chapter:first`は「文書の最初のページが chapter のとき」だけ効き、
+**章ごとの最初のページは選べません**。章扉の柱を消すには、柱の
+<span class="cssprop">string-set</span>と`string(…, first-except)`などを使ってください。
+
+#### 白紙のページ(<span class="cssdecl">:blank</span>)<span class="since">4.0.0</span>
+
+<span class="cssdecl">@page :blank</span>は、強制改ページで始まって何も描かれなかった
+ページ(<span class="cssdecl">break-before: right</span>などで左右を合わせるために
+挟まれた白紙)に合います。白紙に柱やノンブルを出さないときに使います。
+
+```css
+@page :blank {
+  @top-center { content: none }
+  @bottom-center { content: none }
+}
+```
+
+白紙かどうかはページの内容が決まってから分かるので、効くのは
+**マージンボックス**(柱・ノンブル)だけです。余白・用紙の大きさ・背景は
+:blank でないときと同じです。
+
+なお、文書の先頭の要素に<span class="cssdecl">break-before</span>を書いても、
+その前に白紙のページは作りません(柱・ノンブルの指定があっても同じです)。
 
 <div class="note">
 
@@ -949,6 +973,13 @@ title要素は表示されないため、`string-set`の対象にできません
 - 浮動体や絶対配置の中の呼び出しは、次のページの帯に置かれることがあります。
   特にページ浮動体・絶対配置・並列注の中の呼び出しは仮組みの報告に含まれません。
   通常の浮動体や表セルの中の呼び出しは仮組みでも数えます。
+- <span class="cssprop">border-top</span>(と
+  <span class="cssprop">border-top-width</span>・<span class="cssprop">border-top-style</span>・
+  <span class="cssprop">border-top-color</span>)は本文と脚注の間の区切り線です。
+  指定すると脚注領域の幅いっぱいに、その太さ・色で引きます(線種は実線で描きます)。
+  <span class="cssdecl">border-top: none</span>なら引きません。指定が無ければ
+  既定の線(0.5pt・黒・版面の幅の 1/3)です。区切り線は本文との間隙(6pt)の中央に
+  引くので、間隙より太い線は本文や注に重なります。
 - 横書きの脚注の幅は、呼び出しのページの版面の幅です(脚注要素の
   <span class="cssprop">padding</span>と<span class="cssprop">border</span>を
   含み、左右の<span class="cssprop">margin</span>は無視します)。名前付きページで

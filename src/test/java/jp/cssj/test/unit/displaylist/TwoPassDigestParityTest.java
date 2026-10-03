@@ -405,7 +405,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 				Map.entry(BOX + "content.ColumnsContainer$ColumnRuleDrawable", "x y this$0"),
 				Map.entry(BOX + "impl.RubyUnitBox$RubyUnitDrawable", "box"),
 				Map.entry(BOX + "impl.WarichuUnitBox$WarichuDrawable", "box"),
-				Map.entry(BOX + "impl.PageBox$FootnoteSeparatorDrawable", "rect"),
+				Map.entry(BOX + "impl.PageBox$FootnoteSeparatorDrawable", "rect color"),
 				Map.entry("net.zamasoft.foliojet.ua.impl.pdf.PDFOutputDrawable", "action digestValues"));
 		private static final Map<String, String> GRADIENT_FIELDS = Map.ofEntries(
 				Map.entry(CSS + "css3.LinearGradientValue", "angle stops repeating"),
@@ -1355,10 +1355,14 @@ public final class TwoPassDigestParityTest extends TestCase {
 
 	public void testDigestFootnoteSeparatorAndArtifact() throws Exception {
 		final var constructor = Class.forName(DigestSerializer.BOX + "impl.PageBox$FootnoteSeparatorDrawable")
-				.getDeclaredConstructor(PageBox.class, java.awt.geom.Rectangle2D.Double.class);
+				.getDeclaredConstructor(PageBox.class, java.awt.geom.Rectangle2D.Double.class,
+						net.zamasoft.pdfg2d.gc.paint.Color.class);
 		assertTrue(constructor.trySetAccessible());
-		final Drawable horizontal = (Drawable) constructor.newInstance(null, new java.awt.geom.Rectangle2D.Double(0, 20, 30, .5));
-		final Drawable vertical = (Drawable) constructor.newInstance(null, new java.awt.geom.Rectangle2D.Double(20, 0, .5, 30));
+		final var black = net.zamasoft.pdfg2d.gc.paint.GrayColor.BLACK;
+		final Drawable horizontal = (Drawable) constructor.newInstance(null, new java.awt.geom.Rectangle2D.Double(0, 20, 30, .5),
+				black);
+		final Drawable vertical = (Drawable) constructor.newInstance(null, new java.awt.geom.Rectangle2D.Double(20, 0, .5, 30),
+				black);
 		assertFalse(drawingDigest(horizontal, 0).equals(drawingDigest(vertical, 0)));
 		final Drawer drawer = new Drawer(0);
 		drawer.artifactView().visitDrawable(horizontal, 0, 20);

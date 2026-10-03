@@ -359,6 +359,8 @@ public final class ElementPropertySet extends PropertySet {
 		reg(CounterSet.INFO);
 		reg(CounterIncrement.INFO);
 		reg(StringSet.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.content.BookmarkLevel.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.content.BookmarkLabel.INFO);
 		reg(ListStyleType.INFO);
 		reg(ListStylePosition.INFO);
 		reg(ListStyleImage.INFO);

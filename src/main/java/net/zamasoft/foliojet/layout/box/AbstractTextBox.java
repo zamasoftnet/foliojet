@@ -967,9 +967,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 						// 縦書き
 						ascent = descent = inlineBox.getWidth() / 2.0;
 					} else {
-						// 横書き
-						descent = 0;
-						ascent = inlineBox.getHeight();
+						// 横書き(基準線を持つ画像=数式は下端より上が基準線)
+						descent = ((AbstractReplacedBox) inlineBox).getBaselineDescent();
+						ascent = inlineBox.getHeight() - descent;
 					}
 				}
 					break;
@@ -1933,8 +1933,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 						// 縦書き
 						ascent = inlineBox.getWidth() / 2.0;
 					} else {
-						// 横書き
-						ascent = inlineBox.getHeight();
+						// 横書き(基準線を持つ画像=数式は下端より上が基準線)
+						ascent = inlineBox.getHeight() - ((AbstractReplacedBox) inlineBox).getBaselineDescent();
 					}
 				}
 					break;
@@ -2231,8 +2231,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 						// 縦書き
 						ascent = inlineBox.getWidth() / 2.0;
 					} else {
-						// 横書き
-						ascent = inlineBox.getHeight();
+						// 横書き(基準線を持つ画像=数式は下端より上が基準線)
+						ascent = inlineBox.getHeight() - ((AbstractReplacedBox) inlineBox).getBaselineDescent();
 					}
 				}
 					break;

@@ -89,6 +89,28 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		return this.height;
 	}
 
+	/**
+	 * 横書きの行で、この箱の下端(マージンの下端)から基準線までの距離を
+	 * 返します(2026-10-04)。ふつうの画像は下端が基準線なので 0。
+	 * {@link net.zamasoft.foliojet.layout.box.content.BaselineImage}(数式)は、
+	 * 画像の深さを object-fit で描く矩形の倍率に換算し、矩形の下の余白と
+	 * 枠(マージン・枠線・内側の余白)の下辺を足す。行の高さの計算・上下
+	 * 揃え・描画・字の輪郭の 4 か所が同じ値を使うこと。
+	 */
+	public final double getBaselineDescent() {
+		if (!(this.params.image instanceof net.zamasoft.foliojet.layout.box.content.BaselineImage baseline)) {
+			return 0;
+		}
+		final Image image = this.params.image;
+		if (!(this.width > 0 && this.height > 0 && image.getWidth() > 0 && image.getHeight() > 0)) {
+			return 0;
+		}
+		final double[] r = objectFitRect(this.params.objectFit, this.params.objectPosition, image.getWidth(),
+				image.getHeight(), this.width, this.height);
+		final double below = this.height - (r[1] + r[3]);
+		return this.frame.getFrameBottom() + below + baseline.getDescent() * r[3] / image.getHeight();
+	}
+
 	public final void calculateFrame(final double lineAxis) {
 		//
 		// ■ パディングの計算

@@ -112,7 +112,7 @@ public class StyleContext {
 	 */
 	public Declaration nextPage(CSSElement page, String pageName) {
 		final Declaration result = new Declaration();
-		for (final PageRule rule : this.matchingPageRules(page, pageName)) {
+		for (final PageRule rule : this.matchingPageRules(page, pageName, false)) {
 			result.merge(rule.declaration);
 		}
 		return result;
@@ -127,8 +127,17 @@ public class StyleContext {
 	}
 
 	public Map<MarginBoxName, Declaration> pageMarginBoxes(CSSElement page, String pageName) {
+		return this.pageMarginBoxes(page, pageName, false);
+	}
+
+	/**
+	 * @param blank 強制改ページで生じた内容の無いページか({@code @page :blank}、
+	 *              2026-10-04。ページを描く時点でしか分からないので、ここ
+	 *              (マージンボックス)だけが受け取る)
+	 */
+	public Map<MarginBoxName, Declaration> pageMarginBoxes(CSSElement page, String pageName, boolean blank) {
 		final Map<MarginBoxName, Declaration> result = new EnumMap<MarginBoxName, Declaration>(MarginBoxName.class);
-		for (final PageRule rule : this.matchingPageRules(page, pageName)) {
+		for (final PageRule rule : this.matchingPageRules(page, pageName, blank)) {
 			for (Map.Entry<MarginBoxName, Declaration> e : rule.marginBoxes.entrySet()) {
 				result.computeIfAbsent(e.getKey(), k -> new Declaration()).merge(e.getValue());
 			}
@@ -137,8 +146,8 @@ public class StyleContext {
 	}
 
 	/** 適合規則を特異性昇順(同値は出現順)で返します。 */
-	private List<PageRule> matchingPageRules(CSSElement page, String pageName) {
-		byte pseudo = 0;
+	private List<PageRule> matchingPageRules(CSSElement page, String pageName, boolean blank) {
+		byte pseudo = blank ? PageRule.PSEUDO_BLANK : 0;
 		if (page.isPseudoClass(CSSElement.PC_FIRST)) {
 			pseudo |= PageRule.PSEUDO_FIRST;
 		}

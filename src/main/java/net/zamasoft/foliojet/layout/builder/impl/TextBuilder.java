@@ -939,9 +939,10 @@ public class TextBuilder {
 				// 画像の基底線
 				switch (lineParams.flow) {
 				case WritingMode.TB:
-					// 横書き
-					ascent = box.getHeight();
-					descent = 0;
+					// 横書き(基準線を持つ画像=数式は下端より上が基準線。
+					// AbstractTextBox.verticalAlign・描画と同じ値)
+					descent = ((net.zamasoft.foliojet.layout.box.AbstractReplacedBox) box).getBaselineDescent();
+					ascent = box.getHeight() - descent;
 					break;
 				case WritingMode.LR:
 				case WritingMode.RL:

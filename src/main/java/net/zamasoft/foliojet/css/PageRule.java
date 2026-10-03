@@ -7,7 +7,7 @@ import java.util.Map;
  * 構造化された{@code @page}規則です(名前付きページN1a、2026-07-31——
  * consult-codex-2026-07-31-named-pages.txt Q1)。従来の4バケット
  * (無名/first/left/right)を置き換える順序付き規則列の1要素。
- * 特異性はCSS Page 3の(f,g,h)=(ページ名, :first, :left/:right/:single)。
+ * 特異性はCSS Page 3の(f,g,h)=(ページ名, :first/:blank, :left/:right/:single)。
  *
  * @author MIYABE Tatsuhiko
  */
@@ -21,6 +21,13 @@ public final class PageRule {
 
 	/** 見開きでない頁を選択する Copper 拡張です。 */
 	public static final byte PSEUDO_SINGLE = 8;
+
+	/**
+	 * 強制改ページで生じた内容の無いページ({@code :blank}、css-page-3)。
+	 * 判定はページを描く時点(内容が確定してから)なので、効くのは
+	 * マージンボックスだけ(2026-10-04、TECH-20261003-004 の⑤)。
+	 */
+	public static final byte PSEUDO_BLANK = 16;
 
 	/** ページ名(null=無名。CSS識別子として大文字小文字を区別)。 */
 	final String name;
@@ -47,7 +54,7 @@ public final class PageRule {
 	/** CSS Page 3の(f,g,h)特異性を単一整数へ符号化して返します。 */
 	int specificity() {
 		final int f = this.name != null ? 1 : 0;
-		final int g = (this.pseudoMask & PSEUDO_FIRST) != 0 ? 1 : 0;
+		final int g = Integer.bitCount(this.pseudoMask & (PSEUDO_FIRST | PSEUDO_BLANK));
 		final int h = Integer.bitCount(this.pseudoMask & (PSEUDO_LEFT | PSEUDO_RIGHT | PSEUDO_SINGLE));
 		return (f << 16) | (g << 8) | h;
 	}

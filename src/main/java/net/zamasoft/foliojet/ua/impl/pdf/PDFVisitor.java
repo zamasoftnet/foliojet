@@ -108,17 +108,20 @@ public class PDFVisitor extends AbstractVisitor {
 		super(ua);
 		OutputPdfVersion version = UAProps.OUTPUT_PDF_VERSION.get(this.ua);
 		final boolean pdfx = version.isPdfX();
-		boolean links = UAProps.OUTPUT_PDF_HYPERLINKS.getBoolean(this.ua);
+		boolean links = UAProps.navigation(UAProps.OUTPUT_PDF_HYPERLINKS, this.ua);
 		if (links && pdfx) {
 			// PDF/Xは注釈を仕上がり・裁ち落とし域の外にしか置けない(pdfg2dが変換を失敗させる。
-			// 2026-09-30にX-4で実測)。X-1a・X-3はURIアクションも禁止
-			this.ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_HYPERLINKS.name,
-					String.valueOf(true), version.pdf14PdfXName() != null ? version.pdf14PdfXName() : "PDF/X");
+			// 2026-09-30にX-4で実測)。X-1a・X-3はURIアクションも禁止。既定値(true、
+			// 2026-10-04から)のときは黙って外し、利用者が明示したときだけ警告する
+			if (this.ua.getProperty(UAProps.OUTPUT_PDF_HYPERLINKS.name) != null) {
+				this.ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_HYPERLINKS.name,
+						String.valueOf(true), version.pdf14PdfXName() != null ? version.pdf14PdfXName() : "PDF/X");
+			}
 			links = false;
 		}
 		this.setHyperlinks(links);
 		this.setFragments(UAProps.OUTPUT_PDF_HYPERLINKS_FRAGMENT.getBoolean(this.ua));
-		this.setBookmarks(UAProps.OUTPUT_PDF_BOOKMARKS.getBoolean(this.ua));
+		this.setBookmarks(UAProps.navigation(UAProps.OUTPUT_PDF_BOOKMARKS, this.ua));
 
 		boolean forms = UAProps.OUTPUT_PDF_FORMS.getBoolean(this.ua);
 		if (forms && pdfx) {

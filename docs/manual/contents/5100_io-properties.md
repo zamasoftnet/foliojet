@@ -157,11 +157,12 @@
 			</tr>
 			<tr id="appx-ioprop-output.pdf.bookmarks">
 				<td class="nowrap">output.pdf.bookmarks</td>
-				<td>false</td>
+				<td>true<br />(4.0.0より前はfalse。PDF/UA-2では既定がfalse)</td>
 				<td class="nowrap">1.0.0<br />(PDF 1.2)
 				</td>
 				<td>ブックマーク機能です。falseまたはtrueで指定します。<br />
-					trueにすると、H1〜H6要素をもとにブックマーク(アウトライン)を生成します。
+					trueにすると、H1〜H6要素をもとにブックマーク(アウトライン)を生成します。<br />
+					CSSの<span class="cssprop">bookmark-level</span>(<span class="cssdecl">auto</span>・<span class="cssdecl">none</span>・1以上の整数)で段数を変えたり見出しを外したり、見出しでない要素をしおりにしたりできます。<span class="cssdecl">auto</span>(既定)はH1〜H6の段数に従います。<span class="cssprop">bookmark-label</span>(文字列・<span class="cssdecl">content()</span>・<span class="cssdecl">attr()</span>の並び)でしおりの文字を変えられます。<span class="cssdecl">counter()</span>は使えません(番号は::beforeに書けばしおりの文字に入ります)。<span class="since">4.0.0</span>
 				</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.compression">
@@ -363,7 +364,7 @@
 			</tr>
 			<tr id="appx-ioprop-output.pdf.hyperlinks">
 				<td class="nowrap">output.pdf.hyperlinks</td>
-				<td>false</td>
+				<td>true<br />(4.0.0より前はfalse。PDF/UA-2では既定がfalse)</td>
 				<td class="nowrap">1.0.0<br />(PDF 1.2)
 				</td>
 				<td>ハイパーリンク機能です。falseまたはtrueで指定します。<br />

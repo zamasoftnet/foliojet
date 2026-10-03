@@ -180,7 +180,18 @@ public class VisualRescueSplitTest extends TestCase {
 	public void testMultiLineParagraphIsSplitByLinesNotSliced() throws Exception {
 		final List<String> enabled = render("2010-LIMIT/image-line.html", RescuePolicy.ENABLED);
 		final List<String> disabled = render("2010-LIMIT/image-line.html", RescuePolicy.DISABLED);
-		assertEquals(disabled, enabled);
+		// 1ページ目は行で分ける(先頭行だけを残す)——救済の有無で変わらない
+		assertEquals("1ページ目は行分割", disabled.get(0), enabled.get(0));
+		assertFalse("1ページ目は切り分けていない: " + enabled.get(0), enabled.get(0).contains("clip="));
+		assertNoBlankPage(enabled);
+		// 残った1行(ページより背の高い画像1つ)は、背の高い画像の行と同じく救済する
+		// (2026-10-04。以前は画像とそれを包むspanの終わりの間に不当な改行機会が
+		// あり、「まだ分けられる行」として救済を免れていた。原子インラインを
+		// U+FFFCとして分かち書きするようにして無くなった——TECH-20261003-004 の⑧)
+		for (int i = 1; i < enabled.size(); ++i) {
+			assertEquals("2ページ目以降は画像1つの断片: " + enabled.get(i), 2,
+					enabled.get(i).lines().filter(l -> l.contains("AbsoluteRectFrame")).count());
+		}
 	}
 
 	// ------------------------------------------------------------------

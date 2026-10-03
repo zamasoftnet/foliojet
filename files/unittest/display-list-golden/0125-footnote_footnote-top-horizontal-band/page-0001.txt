@@ -1,7 +1,7 @@
 drawer z=0
-  x=0.00 y=0.40 FootnoteLabel["1. " w=12.00 h=8.00]
+  x=0.00 y=2.33 FootnoteLabel["1. " w=12.00 h=8.00]
   x=12.00 y=0.00 Text["注の一。縦組みのまま天の帯へ流したい。" asc=8.40 desc=3.60]
-  x=0.00 y=12.40 FootnoteLabel["2. " w=12.00 h=8.00]
+  x=0.00 y=14.33 FootnoteLabel["2. " w=12.00 h=8.00]
   x=12.00 y=12.00 Text["注の二。番号は呼び出しの順。" asc=8.40 desc=3.60]
   x=245.00 y=30.00 Text["本文の一行目です" asc=7.50 desc=7.50]
   x=256.39 y=110.00 FootnoteLabel["1" w=3.32 h=6.64]

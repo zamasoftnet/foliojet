@@ -91,6 +91,28 @@ public class SVGImageLoader implements ImageLoader {
 		if (!uri.isOpaque()) {
 			return uri.toString();
 		}
+		return syntheticDocURI();
+	}
+
+	/**
+	 * インラインSVGの文書URI(=HTML文書の基底URI)をBatikへ渡す形にします
+	 * (2026-10-04、TECH-20261003-004 の④)。
+	 * <p>
+	 * 基底が<b>相対</b>のことがある——RESTのmultipartで本文をファイルとして
+	 * 送ると、ファイル名(main.xhtml)がそのまま文書URIになる。Batikは相対の
+	 * 文書URIから{@code file:.}を作って{@code url(#arrow)}等の同一文書参照を
+	 * 全部URISyntaxExceptionにしていた。opaqueと同じく合成URIを与える
+	 * (相対の基底からの相対参照はもともと解決できていない)。
+	 * </p>
+	 */
+	public static String toBatikInlineURI(URI uri) {
+		if (uri.isAbsolute() && !uri.isOpaque()) {
+			return uri.toString();
+		}
+		return syntheticDocURI();
+	}
+
+	private static String syntheticDocURI() {
 		// http形式にするのはBatik標準のhttpプロトコルハンドラに処理させる
 		// ため(独自スキームはMyParsedURLDefaultProtocolHandlerの不完全な
 		// ParsedURLDataで処理され、CSS経由の参照解決が壊れる)。ホストは

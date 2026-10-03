@@ -105,11 +105,13 @@ final class MarginBoxes {
 	 * @param pageBox      確定したページ
 	 * @param drawer       描画先(座標系はページ内容領域原点)
 	 * @param visitor      ビジタ
+	 * @param blank        強制改ページで生じた内容の無いページか({@code @page :blank})
 	 */
 	static void draw(final UserAgent ua, final StyleContext styleContext, final CSSElement pageElement,
 			final String pageName, final PageBox pageBox, final Drawer drawer, final Visitor visitor,
-			final RunningRenderer running) {
-		final Map<MarginBoxName, Declaration> declarations = styleContext.pageMarginBoxes(pageElement, pageName);
+			final RunningRenderer running, final boolean blank) {
+		final Map<MarginBoxName, Declaration> declarations = styleContext.pageMarginBoxes(pageElement, pageName,
+				blank);
 		if (declarations.isEmpty()) {
 			return;
 		}

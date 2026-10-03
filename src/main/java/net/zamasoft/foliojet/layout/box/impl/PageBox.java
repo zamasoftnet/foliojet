@@ -760,30 +760,42 @@ public class PageBox extends AbstractBlockBox {
 	 * (答申の座標対応)。
 	 */
 	public void drawFootnoteSeparator(final Drawer drawer) {
+		// @footnote の border-top(2026-10-04): 指定があれば領域の幅いっぱいに
+		// その太さ・色、太さ 0 なら引かない。指定が無ければUAの既定の線
+		final net.zamasoft.foliojet.ua.FootnoteArea.Separator spec = this.getUserAgent().getUAContext()
+				.getFootnoteArea().separator;
+		final double thickness = spec == null ? FOOTNOTE_SEPARATOR_THICKNESS : spec.thickness();
+		if (!(thickness > 0)) {
+			return;
+		}
+		final double ratio = spec == null ? 1.0 / 3 : 1;
+		final net.zamasoft.pdfg2d.gc.paint.Color color = spec == null || spec.color() == null
+				? net.zamasoft.pdfg2d.gc.paint.GrayColor.BLACK
+				: spec.color();
 		if (this.columnFootnoteSeparators != null) {
 			for (final ColumnFootnoteSeparator separator : this.columnFootnoteSeparators) {
-				final double length = separator.lineSize() / 3;
-				final double axis = separator.pageOrigin() + separator.pageAxis() - FOOTNOTE_SEPARATOR_THICKNESS / 2;
+				final double length = separator.lineSize() * ratio;
+				final double axis = separator.pageOrigin() + separator.pageAxis() - thickness / 2;
 				final java.awt.geom.Rectangle2D.Double rect;
 				if (!separator.flow().isVertical()) {
-					rect = new java.awt.geom.Rectangle2D.Double(separator.lineOrigin(), axis, length, FOOTNOTE_SEPARATOR_THICKNESS);
+					rect = new java.awt.geom.Rectangle2D.Double(separator.lineOrigin(), axis, length, thickness);
 				} else {
 					final double x = separator.flow() == WritingMode.RL
-							? this.getInnerWidth() - axis - FOOTNOTE_SEPARATOR_THICKNESS : axis;
-					rect = new java.awt.geom.Rectangle2D.Double(x, separator.lineOrigin(), FOOTNOTE_SEPARATOR_THICKNESS, length);
+							? this.getInnerWidth() - axis - thickness : axis;
+					rect = new java.awt.geom.Rectangle2D.Double(x, separator.lineOrigin(), thickness, length);
 				}
-				drawer.artifactView().visitDrawable(new FootnoteSeparatorDrawable(this, rect), rect.x, rect.y);
+				drawer.artifactView().visitDrawable(new FootnoteSeparatorDrawable(this, rect, color), rect.x, rect.y);
 			}
 		}
 		if (!Double.isNaN(this.footnoteSeparatorLineAxis)) {
-			final double length = this.getInnerWidth() / 3;
+			final double length = this.getInnerWidth() * ratio;
 			final double x = this.frame.getFrameLeft() - this.frame.margin.left
 					+ (this.footnoteSeparatorFlow == WritingMode.RL ? this.getInnerWidth() - length : 0);
 			final double y = this.frame.getFrameTop() - this.frame.margin.top
-					+ this.footnoteSeparatorLineAxis - FOOTNOTE_SEPARATOR_THICKNESS / 2;
+					+ this.footnoteSeparatorLineAxis - thickness / 2;
 			final java.awt.geom.Rectangle2D.Double rect = new java.awt.geom.Rectangle2D.Double(
-					x, y, length, FOOTNOTE_SEPARATOR_THICKNESS);
-			drawer.artifactView().visitDrawable(new FootnoteSeparatorDrawable(this, rect), rect.x, rect.y);
+					x, y, length, thickness);
+			drawer.artifactView().visitDrawable(new FootnoteSeparatorDrawable(this, rect, color), rect.x, rect.y);
 			return;
 		}
 		if (this.footnoteSeparatorAxis < 0) {
@@ -791,22 +803,22 @@ public class PageBox extends AbstractBlockBox {
 		}
 		final BlockParams params = this.getBlockParams();
 		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = params.flow;
-		final double length = this.getInnerLineExtent(flow) / 3;
-		final double axis = this.footnoteSeparatorAxis - FOOTNOTE_SEPARATOR_THICKNESS / 2;
+		final double length = this.getInnerLineExtent(flow) * ratio;
+		final double axis = this.footnoteSeparatorAxis - thickness / 2;
 		final java.awt.geom.Rectangle2D.Double rect;
 		if (!flow.isVertical()) {
-			// TB: 版面下端寄りの水平線(行方向の始端から1/3)
-			rect = new java.awt.geom.Rectangle2D.Double(0, axis, length, FOOTNOTE_SEPARATOR_THICKNESS);
+			// TB: 版面下端寄りの水平線(行方向の始端から。既定は1/3)
+			rect = new java.awt.geom.Rectangle2D.Double(0, axis, length, thickness);
 		} else if (flow == net.zamasoft.foliojet.layout.box.params.WritingMode.RL) {
 			// vertical-rl: block-end=左端側の垂直線
 			rect = new java.awt.geom.Rectangle2D.Double(
-					this.getInnerPageExtent(flow) - axis - FOOTNOTE_SEPARATOR_THICKNESS, 0,
-					FOOTNOTE_SEPARATOR_THICKNESS, length);
+					this.getInnerPageExtent(flow) - axis - thickness, 0,
+					thickness, length);
 		} else {
 			// vertical-lr: block-end=右端側の垂直線
-			rect = new java.awt.geom.Rectangle2D.Double(axis, 0, FOOTNOTE_SEPARATOR_THICKNESS, length);
+			rect = new java.awt.geom.Rectangle2D.Double(axis, 0, thickness, length);
 		}
-		drawer.artifactView().visitDrawable(new FootnoteSeparatorDrawable(this, rect), rect.x, rect.y);
+		drawer.artifactView().visitDrawable(new FootnoteSeparatorDrawable(this, rect, color), rect.x, rect.y);
 	}
 
 	/** separator罫線のdrawableです(装飾。構造要素に入れない)。 */
@@ -814,16 +826,20 @@ public class PageBox extends AbstractBlockBox {
 			extends net.zamasoft.foliojet.layout.draw.AbstractDrawable {
 		private final java.awt.geom.Rectangle2D.Double rect;
 
-		FootnoteSeparatorDrawable(final PageBox pageBox, final java.awt.geom.Rectangle2D.Double rect) {
+		private final net.zamasoft.pdfg2d.gc.paint.Color color;
+
+		FootnoteSeparatorDrawable(final PageBox pageBox, final java.awt.geom.Rectangle2D.Double rect,
+				final net.zamasoft.pdfg2d.gc.paint.Color color) {
 			super(pageBox, null, 1f, new AffineTransform());
 			this.rect = rect;
+			this.color = color;
 		}
 
 		@Override
 		public void innerDraw(final net.zamasoft.pdfg2d.gc.GC gc, final double x, final double y)
 				throws net.zamasoft.pdfg2d.gc.GraphicsException {
 			try (final var state = gc.begin()) {
-				gc.setFillPaint(net.zamasoft.pdfg2d.gc.paint.GrayColor.BLACK);
+				gc.setFillPaint(this.color);
 				gc.fill(new java.awt.geom.Rectangle2D.Double(x, y, this.rect.width, this.rect.height));
 			}
 		}

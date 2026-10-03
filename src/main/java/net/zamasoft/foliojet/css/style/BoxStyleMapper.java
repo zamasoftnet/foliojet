@@ -610,9 +610,42 @@ final class BoxStyleMapper {
 		};
 	}
 
+	/**
+	 * {@code bookmark-level}・{@code bookmark-label}の計算値です(2026-10-04)。
+	 * どちらも既定なら null。{@code attr()}はここで要素の属性から解決し、
+	 * {@code content()}は null の部品として残す(しおりを作る時点の要素の文字)。
+	 */
+	private static net.zamasoft.foliojet.layout.box.params.BookmarkSpec bookmark(final CSSStyle style) {
+		final CSSElement ce = style.getCSSElement();
+		if (ce == null || ce.isPseudoElement()) {
+			return null;
+		}
+		final int level = net.zamasoft.foliojet.css.impl.property.content.BookmarkLevel.get(style);
+		final Value[] parts = net.zamasoft.foliojet.css.impl.property.content.BookmarkLabel.get(style);
+		if (level == net.zamasoft.foliojet.layout.box.params.BookmarkSpec.LEVEL_AUTO && parts == null) {
+			return null;
+		}
+		String[] label = null;
+		if (parts != null) {
+			label = new String[parts.length];
+			for (int i = 0; i < parts.length; ++i) {
+				final Value part = parts[i];
+				if (part instanceof net.zamasoft.foliojet.css.value.StringValue str) {
+					label[i] = str.getString();
+				} else if (part instanceof net.zamasoft.foliojet.css.value.AttrValue attr) {
+					final String value = ce.atts == null ? null : ce.atts.getValue(attr.getName());
+					label[i] = value == null ? "" : value;
+				}
+				// content(): null のまま
+			}
+		}
+		return new net.zamasoft.foliojet.layout.box.params.BookmarkSpec(level, label);
+	}
+
 	void setupParams(Params params, CSSStyle style) {
 		params.element = style.getCSSElement();
 		params.footnoteId = style.footnoteId;
+		params.bookmark = bookmark(style);
 		if (Visibility.get(style) == VisibilityValue.VISIBLE) {
 			params.opacity = Opacity.get(style);
 		} else {

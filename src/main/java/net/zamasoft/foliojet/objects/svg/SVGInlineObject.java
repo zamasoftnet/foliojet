@@ -170,15 +170,19 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 		this.locator = null;
 
 		URI uri = ua.getDocumentContext().getBaseURI();
-		String path = uri.getPath();
-		if (path != null) {
-			int slash = path.lastIndexOf('/');
-			if (slash != -1) {
-				path = path.substring(slash + 1);
+		// 相対・opaqueの基底はBatikへ合成URIで渡す(SVGImageLoader.toBatikInlineURI)
+		final String batikURI = net.zamasoft.foliojet.ua.impl.svg.SVGImageLoader.toBatikInlineURI(uri);
+		if (batikURI.equals(uri.toString())) {
+			String path = uri.getPath();
+			if (path != null) {
+				int slash = path.lastIndexOf('/');
+				if (slash != -1) {
+					path = path.substring(slash + 1);
+				}
 			}
+			doc.getDocumentElement().setAttributeNS("http://www.w3.org/XML/1998/namespace", "base", path);
 		}
-		doc.getDocumentElement().setAttributeNS("http://www.w3.org/XML/1998/namespace", "base", path);
-		doc.setParsedURL(new ParsedURL(uri.toString()));
+		doc.setParsedURL(new ParsedURL(batikURI));
 
 		// HTML文書の著者CSSのSVG向け部分集合を<style>として注入する
 		// (2026-08-07)。インラインSVGは独立文書としてBatikに渡されるため、
@@ -214,7 +218,7 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 		if (running) {
 			this.snapshotRunningSource(doc, uri.toString());
 		}
-		Image image = this.loader.getImage(uri.toString(), doc, ua);
+		Image image = this.loader.getImage(batikURI, doc, ua);
 		double scale = LengthUtils.convert(ua, 1.0, Unit.PX, Unit.PT);
 		if (scale != 1) {
 			ImageMap map = ua.getUAContext().getImageMaps().remove(image);

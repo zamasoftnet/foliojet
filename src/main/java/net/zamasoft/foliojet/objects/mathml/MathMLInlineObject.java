@@ -1,27 +1,39 @@
 package net.zamasoft.foliojet.objects.mathml;
 
 import java.awt.Graphics2D;
-import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.List;
 
 import javax.xml.parsers.ParserConfigurationException;
 
-import net.zamasoft.foliojet.css.InlineObject;
-import net.zamasoft.foliojet.ua.impl.svg.SVGImageLoader;
+import net.zamasoft.foliojet.css.CSSStyle;
+import net.zamasoft.foliojet.css.StyleAwareInlineObject;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.xml.util.XMLParsers;
+import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.image.Image;
-import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
 import net.sourceforge.jeuclid.MathMLParserSupport;
 import net.sourceforge.jeuclid.context.LayoutContextImpl;
+import net.sourceforge.jeuclid.context.Parameter;
 import net.sourceforge.jeuclid.layout.JEuclidView;
 
 import org.apache.batik.dom.util.SAXDocumentFactory;
 import org.apache.batik.util.XMLResourceDescriptor;
 
-public class MathMLInlineObject extends SAXDocumentFactory implements InlineObject {
-	protected SVGImageLoader loader = null;
+/**
+ * 文書の中の MathML を JEuclid で組みます。
+ *
+ * <p>
+ * <b>数式の大きさ・色・書体は、その math 要素の CSS から取る</b>(2026-10-04)。
+ * 以前は JEuclid の既定(12pt・黒・JEuclid の書体)で組んでいたので、本文が
+ * 9pt でも式は 12pt になり、CSS の指定は{@code mstyle}の{@code mathsize}
+ * でしか変えられなかった。式の中の{@code mathsize}・{@code mathcolor}は
+ * これまでどおり CSS の値に対して効く。
+ * </p>
+ */
+public class MathMLInlineObject extends SAXDocumentFactory implements StyleAwareInlineObject {
+	private CSSStyle hostStyle = null;
 
 	public MathMLInlineObject() throws ParserConfigurationException {
 		super(MathMLParserSupport.createDocumentBuilder().getDOMImplementation(),
@@ -34,18 +46,33 @@ public class MathMLInlineObject extends SAXDocumentFactory implements InlineObje
 		this.setValidating(false);
 	}
 
+	public void setHostStyle(CSSStyle style) {
+		this.hostStyle = style;
+	}
+
+	@SuppressWarnings("unchecked")
 	public Image getImage(UserAgent ua) throws IOException {
 		final java.awt.Image tempimage = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = (Graphics2D) tempimage.getGraphics();
-		JEuclidView view = new JEuclidView(this.document, LayoutContextImpl.getDefaultLayoutContext(), g);
-
-		Image image = new MathMLImage(view);
-		double scale = ua.getFontMagnification();
-		if (scale != 1.0) {
-			AffineTransform at = AffineTransform.getScaleInstance(scale, scale);
-			image = new TransformedImage(image, at);
+		final LayoutContextImpl context = new LayoutContextImpl(LayoutContextImpl.getDefaultLayoutContext());
+		final double scale;
+		if (this.hostStyle == null) {
+			// 文字の拡大は CSS の大きさに解析の時点で掛かっている。CSS が
+			// 無いときだけ JEuclid の既定の大きさに掛ける
+			scale = ua.getFontMagnification();
+		} else {
+			scale = 1.0;
+			final FontStyle fontStyle = this.hostStyle.getFontStyle();
+			context.setParameter(Parameter.MATHSIZE, (float) fontStyle.getSize());
+			final net.zamasoft.pdfg2d.gc.paint.Color color = net.zamasoft.foliojet.css.impl.property.text.CSSColor
+					.get(this.hostStyle);
+			context.setParameter(Parameter.MATHCOLOR, new java.awt.Color(color.getRed(), color.getGreen(),
+					color.getBlue(), color.getAlpha()));
+			context.setParameter(Parameter.FONTS_SERIF, MathFonts.families(ua.getFontManager(), fontStyle,
+					(List<String>) context.getParameter(Parameter.FONTS_SERIF)));
 		}
-		return image;
+		JEuclidView view = new JEuclidView(this.document, context, g);
+		return new MathMLImage(view, scale);
 	}
 
 }

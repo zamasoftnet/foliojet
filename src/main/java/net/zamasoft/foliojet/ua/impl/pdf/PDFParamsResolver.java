@@ -410,7 +410,7 @@ final class PDFParamsResolver {
 		}
 
 		// ブックマーク
-		if (UAProps.OUTPUT_PDF_BOOKMARKS.getBoolean(ua)) {
+		if (UAProps.navigation(UAProps.OUTPUT_PDF_BOOKMARKS, ua)) {
 			params = params.withBookmarks(true);
 		}
 		if (UAProps.OUTPUT_PDF_BIDI_ACTUAL_TEXT.getBoolean(ua)) {

@@ -88,3 +88,16 @@ MathMLは、以下のとおり http://www.w3.org/1998/Math/MathML 名前空間�
 </div>
 
 MathMLを手書きするのは大変ですが、インターネットで検索すると、MathMLを作成するための様々なツールがあります(LaTeXから変換するものなど)。
+
+### 数式の大きさ・色・書体
+
+数式は、`math` 要素に効いている CSS の `font-size`・`color`・`font-family` で組みます(本文と同じ大きさ・色になります)。
+式の中の `mstyle` の `mathsize`・`mathcolor` は、その値に対して効きます。
+`font-family` は、書体設定にある書体の名前を並べて指定します(総称ファミリの `serif` などは、数式の既定の書体になります)。
+数式の中の文字は、書体を画像の輪郭として描きます(文字として検索・抽出はできません)。
+
+```css
+math { font-family: "Noto Serif", "Noto Serif JP", serif; }
+```
+
+行の中の数式は、数式の基準線を本文の基準線に揃えて置きます。添字や括弧、y のように基準線より下へ出る部分は、本文の基準線の下へ出ます。<span class="since">4.0.0</span>

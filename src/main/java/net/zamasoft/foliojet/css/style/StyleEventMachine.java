@@ -1169,7 +1169,27 @@ final class StyleEventMachine {
 	 */
 
 	
+	/** 頁参照が無効なときの警告は1文書に1回。 */
+	private boolean warnedPageReferencesDisabled = false;
+
+	/**
+	 * 頁参照({@code processing.page-references})が無効なのに
+	 * {@code target-counter()}等を使ったことを知らせます(2026-10-04、
+	 * TECH-20261003-004 の⑩)。以前は黙って空になり、目次の頁番号が
+	 * 抜けたまま出力された。
+	 */
+	private void warnPageReferencesDisabled() {
+		if (!this.warnedPageReferencesDisabled) {
+			this.warnedPageReferencesDisabled = true;
+			this.ua.message(MessageCodes.WARN_INEFFECTIVE_CSS_COMBINATION, "target-counter()",
+					net.zamasoft.foliojet.message.MessageCodeUtils.detail("2823.page-references"));
+		}
+	}
+
 	private void targetText(TargetTextValue targetText, String ref) {
+		if (!net.zamasoft.foliojet.ua.props.UAProps.PROCESSING_PAGE_REFERENCES.getBoolean(this.ua)) {
+			this.warnPageReferencesDisabled();
+		}
 		PageRef pageRef = this.ua.getUAContext().getPageRef();
 		if (pageRef == null) {
 			return;
@@ -1195,6 +1215,9 @@ final class StyleEventMachine {
 	}
 
 	private void pageRef(TargetCounterValue pageRefFunc, String ref) {
+		if (!net.zamasoft.foliojet.ua.props.UAProps.PROCESSING_PAGE_REFERENCES.getBoolean(this.ua)) {
+			this.warnPageReferencesDisabled();
+		}
 		PageRef pageRef = this.ua.getUAContext().getPageRef();
 		if (pageRef == null) {
 			return;

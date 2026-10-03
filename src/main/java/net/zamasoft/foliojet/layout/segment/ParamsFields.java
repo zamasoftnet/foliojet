@@ -32,7 +32,8 @@ import net.zamasoft.foliojet.layout.box.params.Params;
 record ParamsFields(StructureElement element, long footnoteId, int zIndexValue, byte zIndexType, float opacity,
 		AffineTransform transform, double transformTxRatio, double transformTyRatio, double transformTxRatioH,
 		double transformTyRatioW, Offset transformOrigin, net.zamasoft.pdfg2d.gc.paint.BlendMode blendMode,
-		double zoom, net.zamasoft.foliojet.css.value.css3.FilterValue filter) {
+		double zoom, net.zamasoft.foliojet.css.value.css3.FilterValue filter,
+		net.zamasoft.foliojet.layout.box.params.BookmarkSpec bookmark) {
 	ParamsFields {
 		transform = new AffineTransform(transform);
 	}
@@ -41,7 +42,7 @@ record ParamsFields(StructureElement element, long footnoteId, int zIndexValue, 
 		return new ParamsFields(StructureToken.freeze(source.element), source.footnoteId, source.zIndexValue,
 				source.zIndexType, source.opacity, source.transform, source.transformTxRatio, source.transformTyRatio,
 				source.transformTxRatioH, source.transformTyRatioW, source.transformOrigin, source.blendMode,
-				source.zoom, source.filter);
+				source.zoom, source.filter, source.bookmark);
 	}
 
 	void materializeInto(final Params target) {
@@ -64,5 +65,6 @@ record ParamsFields(StructureElement element, long footnoteId, int zIndexValue, 
 		target.blendMode = this.blendMode;
 		target.zoom = this.zoom;
 		target.filter = this.filter;
+		target.bookmark = this.bookmark;
 	}
 }

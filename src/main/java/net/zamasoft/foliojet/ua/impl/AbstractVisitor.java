@@ -444,6 +444,12 @@ public abstract class AbstractVisitor implements Visitor {
 		// ブックマーク
 		if ((this.bookmarks || pageRef != null) && isMarkupBox(type)) {
 			String header = CSSJML.HEADER_ATTR.getValue(ce.atts());
+			// bookmark-level・bookmark-label(2026-10-04): 指定があれば見出しの
+			// 段数・文字より優先する。none(0)は見出しでもしおり・節にしない
+			final net.zamasoft.foliojet.layout.box.params.BookmarkSpec bookmark = box.getParams().bookmark;
+			if (bookmark != null && bookmark.level() != net.zamasoft.foliojet.layout.box.params.BookmarkSpec.LEVEL_AUTO) {
+				header = bookmark.level() == 0 ? null : String.valueOf(bookmark.level());
+			}
 			if (header != null) {
 				// 見出しの処理
 				try {
@@ -457,6 +463,9 @@ public abstract class AbstractVisitor implements Visitor {
 						title = null;
 					} else {
 						title = textBuff.toString();
+					}
+					if (bookmark != null) {
+						title = bookmark.title(title);
 					}
 					this.ua.message(MessageCodes.INFO_HEADING_TITLE, title == null ? "" : title);
 

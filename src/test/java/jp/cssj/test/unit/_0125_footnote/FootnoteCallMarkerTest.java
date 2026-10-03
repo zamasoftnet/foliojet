@@ -36,8 +36,11 @@ public class FootnoteCallMarkerTest extends AbstractTestCase {
 			final String text = text(box);
 			assertTrue("marker must prefix the note body: " + text, text.startsWith("1. first note"));
 			// F3: 本文はページ下端の脚注領域へ移る(3件が文書順に積まれる)
-			// F5でmarkerが置換原子(固定欄ラベル)になり行高がわずかに変化
-			assertEquals(721.61, y, 1);
+			// F5でmarkerが置換原子(固定欄ラベル)になり行高がわずかに変化。
+			// 2026-10-04 に番号の字の基準線を行の基準線に揃えた(以前は番号の
+			// 下端を基準線に置き、各行が番号の深さぶん高かった)ので、注の行が
+			// 低くなり、ページ下端から積む領域が下がった(721.61→726.69)
+			assertEquals(726.69, y, 1);
 			return true;
 		}
 		return false;
@@ -48,7 +51,7 @@ public class FootnoteCallMarkerTest extends AbstractTestCase {
 		if (box.getType() == BoxType.BLOCK) {
 			final String text = text(box);
 			assertTrue("second note must be numbered 2: " + text, text.startsWith("2. second note"));
-			assertEquals(737.70, y, 1);
+			assertEquals(741.09, y, 1);
 			return true;
 		}
 		return false;
@@ -58,7 +61,7 @@ public class FootnoteCallMarkerTest extends AbstractTestCase {
 		if (box.getType() == BoxType.BLOCK) {
 			final String text = text(box);
 			assertTrue("third note must be numbered 3: " + text, text.startsWith("3. third note"));
-			assertEquals(753.80, y, 1);
+			assertEquals(755.49, y, 1);
 			return true;
 		}
 		return false;

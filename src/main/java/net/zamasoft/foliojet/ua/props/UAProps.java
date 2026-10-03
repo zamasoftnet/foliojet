@@ -541,15 +541,29 @@ public final class UAProps {
 			"output.pdf.encryption.length", 128);
 
 	/**
-	 * ブックマークです。
+	 * ブックマークです。既定は true(2026-10-04。以前は false で、本の PDF に
+	 * しおりが付かないことに気づきにくかった。Prince・WeasyPrint も既定で付ける)。
 	 */
-	public static final BooleanPropManager OUTPUT_PDF_BOOKMARKS = new BooleanPropManager("output.pdf.bookmarks", false);
+	public static final BooleanPropManager OUTPUT_PDF_BOOKMARKS = new BooleanPropManager("output.pdf.bookmarks", true);
 
 	/**
-	 * リンクです。
+	 * リンクです。既定は true(2026-10-04。Chrome・Prince・WeasyPrint と同じ)。
+	 * PDF/X では入れられないので、既定値のときは黙って外し、明示した true にだけ
+	 * 警告する(PDFVisitor)。
 	 */
 	public static final BooleanPropManager OUTPUT_PDF_HYPERLINKS = new BooleanPropManager("output.pdf.hyperlinks",
-			false);
+			true);
+
+	/**
+	 * しおり・リンクの実効値です(2026-10-04)。明示が無ければ既定(true)だが、
+	 * PDF/UA-2 では false({@link OutputPdfVersion#keepsNavigationOffByDefault})。
+	 */
+	public static boolean navigation(final BooleanPropManager prop, final net.zamasoft.foliojet.ua.UserAgent ua) {
+		if (ua.getProperty(prop.name) == null && OUTPUT_PDF_VERSION.get(ua).keepsNavigationOffByDefault()) {
+			return false;
+		}
+		return prop.getBoolean(ua);
+	}
 
 	/**
 	 * 段落単位のUnicode双方向アルゴリズム(2026-09-04。bidi-isolation-design.md)。

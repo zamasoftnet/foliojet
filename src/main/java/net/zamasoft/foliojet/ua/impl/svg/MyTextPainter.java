@@ -94,6 +94,11 @@ class MyTextPainter extends StrokingTextPainter {
 		for (int i = 0; i < textRuns.size(); i++) {
 			TextRun textRun = (TextRun) textRuns.get(i);
 			AttributedCharacterIterator aci = textRun.getACI();
+			// **属性は run の先頭で読む**(2026-10-04)。ACI の現在位置は前の
+			// 走査が置いたままのことがあり、そこで読むと別の run(最後の
+			// tspan)の書体・塗りになった——最初と最後の tspan の斜体・太字が
+			// 入れ替わって見えた。Batik の StrokingTextPainter も先に first() する
+			aci.first();
 
 			// 塗りの設定
 			TextPaintInfo tpi = (TextPaintInfo) aci.getAttribute(StrokingTextPainter.PAINT_INFO);
@@ -129,7 +134,15 @@ class MyTextPainter extends StrokingTextPainter {
 
 			// 描画
 			TextSpanLayout layout = textRun.getLayout();
+			// 横書きは 1 字目の位置から描く(2026-10-04)。getOffset() は dx・dy・
+			// baseline-shift を当てる前の位置で(GlyphLayout の説明どおり)、
+			// それらは字の位置にだけ入る。offset から描くと tspan の dy が
+			// 効かず、次の run の開始位置に持ち越されて「1 つ遅れて」効き、
+			// baseline-shift は効かなかった。縦書き・右から左は従来どおり
 			Point2D position = layout.getOffset();
+			if (fontStyle.getDirection() == FontStyle.Direction.LTR && layout.getGlyphVector().getNumGlyphs() > 0) {
+				position = layout.getGlyphVector().getGlyphPosition(0);
+			}
 			try (final var gcState = gc.begin()) {
 				double x = position.getX();
 				double y = position.getY();
