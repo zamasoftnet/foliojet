@@ -173,7 +173,7 @@ class MyParsedURLDefaultProtocolHandler extends AbstractParsedURLProtocolHandler
 			// 経路によって違い、閉じない経路があるとSourceが解放されない。
 			// ここを通るのはCSSと色プロファイルで、どちらも小さい
 			final byte[] body;
-			final Source source = ua.resolve(this.uri);
+			final Source source = ua.resolve(SVGImageLoader.toSourceURI(this.uri));
 			try {
 				final String mimeType = source.getMimeType();
 				if (mimeType != null) {

@@ -41,7 +41,7 @@ class MySVGImageElementBridge extends SVGImageElementBridge {
 		String purlStr = purl.toString();
 		try {
 			URI uri = URIHelper.create("UTF-8", purlStr);
-			Source source = this.ua.resolve(uri);
+			Source source = this.ua.resolve(SVGImageLoader.toSourceURI(uri));
 			try {
 				Image image = this.ua.getImage(source);
 				MyImageNode node = new MyImageNode(image);

@@ -109,15 +109,50 @@ public class SVGImageLoader implements ImageLoader {
 		if (uri.isAbsolute() && !uri.isOpaque()) {
 			return uri.toString();
 		}
+		final String path = uri.isOpaque() ? null : uri.getRawPath();
+		if (path != null && !path.isEmpty() && !path.startsWith("/")) {
+			// **相対の基底のパスは合成URIの下に残す**(2026-10-04、TECH-20261003-004 の⑲)。
+			// EPUBの項目の文書URIは書庫の中のパス(EPUB/text/book.xhtml)で相対。中の
+			// <image xlink:href="../images/x.jpg">は合成URIの下で解決され、取得するときに
+			// 相対へ戻す(toSourceURI)。HTMLの<img>と同じ相対URIになる
+			return "http://" + INLINE_HOST + "/" + INLINE_SEQ.incrementAndGet() + "/" + path;
+		}
 		return syntheticDocURI();
 	}
+
+	/**
+	 * Batikが合成URIの下で解決したURIを、取得に使うURIへ戻します(2026-10-04)。
+	 * 相対の基底を残した合成URI({@link #toBatikInlineURI})の下を指していれば、その相対URIに
+	 * する。それ以外はそのまま(合成URIだけを指す参照は従来どおり取得できない)。
+	 */
+	public static URI toSourceURI(final URI uri) {
+		if (!"http".equals(uri.getScheme()) || !INLINE_HOST.equals(uri.getHost())) {
+			return uri;
+		}
+		final java.util.regex.Matcher m = INLINE_RELATIVE.matcher(uri.getRawPath());
+		if (!m.matches()) {
+			return uri;
+		}
+		final StringBuilder relative = new StringBuilder(m.group(1));
+		if (uri.getRawQuery() != null) {
+			relative.append('?').append(uri.getRawQuery());
+		}
+		if (uri.getRawFragment() != null) {
+			relative.append('#').append(uri.getRawFragment());
+		}
+		return URI.create(relative.toString());
+	}
+
+	private static final String INLINE_HOST = "svg-inline.invalid";
+
+	private static final java.util.regex.Pattern INLINE_RELATIVE = java.util.regex.Pattern.compile("/[0-9]+/(.+)");
 
 	private static String syntheticDocURI() {
 		// http形式にするのはBatik標準のhttpプロトコルハンドラに処理させる
 		// ため(独自スキームはMyParsedURLDefaultProtocolHandlerの不完全な
 		// ParsedURLDataで処理され、CSS経由の参照解決が壊れる)。ホストは
 		// RFC 2606予約の.invalidで、実在せず衝突もフェッチ成功もしない
-		return "http://svg-inline.invalid/" + INLINE_SEQ.incrementAndGet() + ".svg";
+		return "http://" + INLINE_HOST + "/" + INLINE_SEQ.incrementAndGet() + ".svg";
 	}
 
 	public Image loadImage(final UserAgent ua, Source source) throws IOException {
