@@ -24,60 +24,9 @@ public final class GeneratedValueUtils {
 	 * @return
 	 */
 	public static ListStyleTypeValue toListStyleType(String ident) {
-		ident = ident.toLowerCase();
-		if (ident.equals("disc")) {
-			return ListStyleTypeValue.DISC_VALUE;
-		} else if (ident.equals("circle")) {
-			return ListStyleTypeValue.CIRCLE_VALUE;
-		} else if (ident.equals("square")) {
-			return ListStyleTypeValue.SQUARE_VALUE;
-		} else if (ident.equals("decimal")) {
-			return ListStyleTypeValue.DECIMAL_VALUE;
-		} else if (ident.equals("decimal-leading-zero")) {
-			return ListStyleTypeValue.DECIMAL_LEADING_ZERO_VALUE;
-		} else if (ident.equals("lower-roman")) {
-			return ListStyleTypeValue.LOWER_ROMAN_VALUE;
-		} else if (ident.equals("upper-roman")) {
-			return ListStyleTypeValue.UPPER_ROMAN_VALUE;
-		} else if (ident.equals("lower-greek")) {
-			return ListStyleTypeValue.LOWER_GREEK_VALUE;
-		} else if (ident.equals("lower-alpha")) {
-			return ListStyleTypeValue.LOWER_ALPHA_VALUE;
-		} else if (ident.equals("lower-latin")) {
-			return ListStyleTypeValue.LOWER_LATIN_VALUE;
-		} else if (ident.equals("upper-alpha")) {
-			return ListStyleTypeValue.UPPER_ALPHA_VALUE;
-		} else if (ident.equals("upper-latin")) {
-			return ListStyleTypeValue.UPPER_LATIN_VALUE;
-		} else if (ident.equals("hebrew")) {
-			// hebrew/armenian/georgianは字形を持たず算用数字で表す
-			// (format/periodが3つともDECIMALへ落ちる)。hebrewだけが
-			// DECIMALのコードを返していて、HEBREWの分岐が到達不能な
-			// 死にコードになっていたため対称化した(2026-08-02)。
-			// 実際の記号が要るなら@counter-styleで定義できる
-			return ListStyleTypeValue.HEBREW_VALUE;
-		} else if (ident.equals("armenian")) {
-			return ListStyleTypeValue.ARMENIAN_VALUE;
-		} else if (ident.equals("georgian")) {
-			return ListStyleTypeValue.GEORGIAN_VALUE;
-		} else if (ident.equals("cjk-ideographic")) {
-			return ListStyleTypeValue.CJK_IDEOGRAPHIC_VALUE;
-		} else if (ident.equals("hiragana")) {
-			return ListStyleTypeValue.HIRAGANA_VALUE;
-		} else if (ident.equals("katakana")) {
-			return ListStyleTypeValue.KATAKANA_VALUE;
-		} else if (ident.equals("hiragana-iroha")) {
-			return ListStyleTypeValue.HIRAGANA_IROHA_VALUE;
-		} else if (ident.equals("katakana-iroha")) {
-			return ListStyleTypeValue.KATAKANA_IROHA_VALUE;
-		} else if (ident.equals("-cssj-full-width-decimal") || ident.equals("-cssj-decimal-full-width")) {
-			return ListStyleTypeValue._CSSJ_FULL_WIDTH_DECIMAL_VALUE;
-		} else if (ident.equals("cjk-decimal") || ident.equals("-cssj-cjk-decimal")) {
-			return ListStyleTypeValue._CSSJ_CJK_DECIMAL_VALUE;
-		} else if (ident.equals("none")) {
-			return ListStyleTypeValue.NONE_VALUE;
-		}
-		return null;
+		// hebrew/armenian/georgianは字形を持たず算用数字で表す(format/periodが3つともDECIMALへ落ちる)。
+		// 実際の記号が要るなら@counter-styleで定義できる
+		return ListStyleTypeValue.forName(ident.toLowerCase(java.util.Locale.ROOT));
 	}
 
 	/**

@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
-import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -13,7 +12,6 @@ import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.BoxAlignment;
 import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
-import net.zamasoft.foliojet.layout.box.params.Columns;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.FlexContentAlignment;
 import net.zamasoft.foliojet.layout.box.params.FlexItemSpec;
@@ -22,7 +20,6 @@ import net.zamasoft.foliojet.layout.box.params.FlexWrap;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
-import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.builder.Builder;
@@ -31,7 +28,6 @@ import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.builder.RetainedFlex;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
-import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
 import net.zamasoft.foliojet.layout.sizing.FlexItemMetrics;
 import net.zamasoft.foliojet.layout.sizing.FlexItemMetricsResolver;
 import net.zamasoft.foliojet.layout.sizing.FlexLengthResolver;
@@ -137,27 +133,9 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return this.openItemSource != null && this.openItemSource == box;
 	}
 
-	/** 中立itemのparams(GridBuilder.itemParams()と同型の中立化)。 */
+	/** 中立itemのparams({@link NeutralItemParams})。 */
 	private BlockParams itemParams() {
-		final BlockParams params = BlockParamsTemplate.freeze(this.flexBox.getFlexParams()).materialize();
-		params.frame = RectFrame.NULL_FRAME;
-		params.element = null;
-		params.footnoteId = -1;
-		// **コンテナの実効opacityを引き継ぐ**(2026-08-18)。以前は1fへ
-		// 戻していたが、visibility:hiddenはopacity 0へ写像される
-		// (BoxStyleMapper.setupParams)ため、hiddenなコンテナの匿名・
-		// 中立itemだけが描かれてしまう——e-Statのドロップダウンメニューが
-		// 本文に重なって出た実欠陥(重なり1,462対)。authored itemは
-		// 自分のstyleからvisibilityを継承するので元から正しい。
-		params.opacity = this.flexBox.getFlexParams().opacity;
-		params.zIndexType = Params.Z_INDEX_AUTO;
-		params.zIndexValue = 0;
-		params.transform = new AffineTransform();
-		params.columns = Columns.NONE_COLUMNS;
-		params.size = Dimension.AUTO_DIMENSION;
-		params.minSize = Dimension.ZERO_DIMENSION;
-		params.maxSize = Dimension.AUTO_DIMENSION;
-		return params;
+		return NeutralItemParams.of(this.flexBox.getFlexParams());
 	}
 
 	/**

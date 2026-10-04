@@ -213,6 +213,11 @@ public class HTMLParser implements Parser {
 		InputStream in = new BufferedInputStream(
 				new LegacyCommentInputStream(new BufferedInputStream(source.getInputStream(), 64 * 1024)));
 		String encoding = XMLUtils.checkBOM(in);
+		if (encoding == null) {
+			// 伝送の層の文字コード(HTTPのContent-Type・CTIで渡された指定)はBOMの次に強い(HTMLの文字コードの決め方)。
+			// 2026-10-04まではここで捨て、入力の上限があって文字の経路(parseReader)を通れない本文を自動判定していた
+			encoding = source.getEncoding();
+		}
 
 		if (encoding != null) {
 			try (Reader r = new InputStreamReader(in, encoding)) {

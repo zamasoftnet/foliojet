@@ -504,7 +504,7 @@ public class CSSStyleSheetBuilder {
 		if (start < 0 || end <= start || end > wrapped.length()) {
 			return declaration.getProperty();
 		}
-		return decodeCssIdentifier(wrapped.substring(start, end));
+		return Tokens.unescape(wrapped.substring(start, end));
 	}
 
 	private static int sourceOffset(final String source, final int line, final int column) {
@@ -521,39 +521,6 @@ public class CSSStyleSheetBuilder {
 		}
 		final int result = offset + column - 1;
 		return result <= source.length() ? result : -1;
-	}
-
-	private static String decodeCssIdentifier(final String source) {
-		if (source.indexOf('\\') < 0) {
-			return source;
-		}
-		final StringBuilder decoded = new StringBuilder(source.length());
-		for (int i = 0; i < source.length(); ++i) {
-			final char c = source.charAt(i);
-			if (c != '\\' || i + 1 >= source.length()) {
-				decoded.append(c);
-				continue;
-			}
-			int end = i + 1;
-			while (end < source.length() && end - i <= 6 && isHexDigit(source.charAt(end))) {
-				++end;
-			}
-			if (end > i + 1) {
-				final int codePoint = Integer.parseInt(source.substring(i + 1, end), 16);
-				decoded.appendCodePoint(codePoint == 0 || !Character.isValidCodePoint(codePoint) ? 0xFFFD : codePoint);
-				if (end < source.length() && Character.isWhitespace(source.charAt(end))) {
-					++end;
-				}
-				i = end - 1;
-			} else {
-				decoded.append(source.charAt(++i));
-			}
-		}
-		return decoded.toString();
-	}
-
-	private static boolean isHexDigit(final char c) {
-		return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F';
 	}
 
 	private static int[] parseFeatureIndexes(final FontFeatureValues.Type type, final List<CssToken> tokens) {

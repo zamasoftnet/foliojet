@@ -38,7 +38,9 @@ public class BooleanPropManager extends AbstractPropManager {
 		if (str.equalsIgnoreCase("false")) {
 			return false;
 		}
+		// 不正な値は警告して既定値にする(ほかの型と同じ)。2026-10-04 までは false にしていて、
+		// 既定が true の性質(output.clip など)を output.clip=yes で切っていた
 		mh.message(MessageCodes.WARN_BAD_IO_PROPERTY, new String[] { this.name, str });
-		return false;
+		return this.defaultBoolean;
 	}
 }

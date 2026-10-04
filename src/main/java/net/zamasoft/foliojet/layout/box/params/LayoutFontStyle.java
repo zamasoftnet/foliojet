@@ -23,21 +23,34 @@ public record LayoutFontStyle(FontFamilyList family, double size, FontStyle.Styl
 		if (paintOrder == null) {
 			return base;
 		}
-		return copy(base, base.getFeatures(), paintOrder);
+		return copy(base, base.getSize(), base.getFeatures(), paintOrder);
 	}
 
 	public static FontStyle withFeatures(final FontStyle base, final FontFeatureSet features) {
+		return with(base, base.getSize(), features);
+	}
+
+	/**
+	 * 大きさだけを変えた書体の指定です(ルビ・割注の半分の大きさ)。2026-10-04 まではルビ・割注が引数を並べて
+	 * 写し、言語(lang=zh・ko でも和文の書体の並びになった)と paint-order を落としていた。
+	 */
+	public static FontStyle withSize(final FontStyle base, final double size) {
+		return with(base, size, base.getFeatures());
+	}
+
+	private static FontStyle with(final FontStyle base, final double size, final FontFeatureSet features) {
 		if (base instanceof final LayoutFontStyle layout) {
-			return copy(base, features, layout.paintOrder);
+			return copy(base, size, features, layout.paintOrder);
 		}
-		return new FontStyleImpl(base.getFamily(), base.getSize(), base.getStyle(), base.getWeight(),
-				base.getDirection(), base.getPolicy(), features, base.getSynthesisWeight(), base.getSynthesisStyle(),
+		return new FontStyleImpl(base.getFamily(), size, base.getStyle(), base.getWeight(), base.getDirection(),
+				base.getPolicy(), features, base.getSynthesisWeight(), base.getSynthesisStyle(),
 				base.getTextOrientation(), base.getWidthClass(), base.getLang());
 	}
 
-	private static LayoutFontStyle copy(final FontStyle base, final FontFeatureSet features, final String paintOrder) {
-		return new LayoutFontStyle(base.getFamily(), base.getSize(), base.getStyle(), base.getWeight(),
-				base.getDirection(), base.getPolicy(), features, base.getSynthesisWeight(), base.getSynthesisStyle(),
+	private static LayoutFontStyle copy(final FontStyle base, final double size, final FontFeatureSet features,
+			final String paintOrder) {
+		return new LayoutFontStyle(base.getFamily(), size, base.getStyle(), base.getWeight(), base.getDirection(),
+				base.getPolicy(), features, base.getSynthesisWeight(), base.getSynthesisStyle(),
 				base.getTextOrientation(), base.getWidthClass(), base.getLang(), paintOrder);
 	}
 

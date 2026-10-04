@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
-import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -13,18 +12,13 @@ import net.zamasoft.foliojet.layout.box.impl.RowGeometryFinalizer;
 import net.zamasoft.foliojet.layout.box.impl.RowSubgridLink;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.BoxAlignment;
-import net.zamasoft.foliojet.layout.box.params.Columns;
-import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.GridItemSpec;
 import net.zamasoft.foliojet.layout.box.params.GridParams;
-import net.zamasoft.foliojet.layout.box.params.Params;
-import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.LayoutContext;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
-import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 import net.zamasoft.foliojet.layout.sizing.BasicGridTrackSizing;
 import net.zamasoft.foliojet.layout.sizing.FixedGridLayout;
@@ -204,36 +198,12 @@ public final class GridBuilder
 	}
 
 	/**
-	 * 合成itemのparams(Gridの文字属性を継承し、frame等は中立へ戻す)。
+	 * 合成itemのparams({@link NeutralItemParams}。Gridの文字属性を継承し、frame等は中立へ戻す)。
 	 * G3a追補(答申Q1): Grid本体のwidth/min/max-widthがitemの固有寸法へ
 	 * 混入しないようsize系も中立化する。
 	 */
 	private BlockParams itemParams() {
-		final BlockParams params = BlockParamsTemplate.freeze(this.gridBox.getGridParams()).materialize();
-		params.frame = RectFrame.NULL_FRAME;
-		params.element = null;
-		params.footnoteId = -1;
-		// **コンテナの実効opacityを引き継ぐ**(2026-08-18)。以前は1fへ
-		// 戻していたが、visibility:hiddenはopacity 0へ写像される
-		// (BoxStyleMapper.setupParams)ため、hiddenなコンテナの匿名・
-		// 中立itemだけが描かれてしまう——e-Statのドロップダウンメニューが
-		// 本文に重なって出た実欠陥(重なり1,462対)。authored itemは
-		// 自分のstyleからvisibilityを継承するので元から正しい。
-		params.opacity = this.gridBox.getGridParams().opacity;
-		params.zIndexType = Params.Z_INDEX_AUTO;
-		params.zIndexValue = 0;
-		params.transform = new AffineTransform();
-		params.columns = Columns.NONE_COLUMNS;
-		// コンテナのalign-contentを引き継がない(2026-08-29)。itemの箱は
-		// コンテナのparamsから作るので、そのままではコンテナの
-		// align-content: centerがitem自身の内容整列として効いてしまう。
-		// itemが行の高さまで伸びるようになって表面化した(Chromeでは
-		// itemは30ptへ伸びるが中身は上端のまま)
-		params.blockAlignContent = BoxAlignment.NORMAL;
-		params.size = Dimension.AUTO_DIMENSION;
-		params.minSize = Dimension.ZERO_DIMENSION;
-		params.maxSize = Dimension.AUTO_DIMENSION;
-		return params;
+		return NeutralItemParams.of(this.gridBox.getGridParams());
 	}
 
 	/** takeover元のauthored box(endBoxの対応付け用。中立/匿名itemではnull)。 */

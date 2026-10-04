@@ -768,7 +768,9 @@ public class DirectSession extends AbstractCTISession
 				DirectSession.this.flush();
 			}
 		};
-		final String outputType = UAProps.OUTPUT_TYPE.getString(this.props);
+		// 本文の型は呼び出し側が渡した型(無ければ HTML)。2026-10-04 までは出力の型(application/pdf・image/png)を
+		// 渡していて、XHTML・Markdown・画像の本文も HTML として読み、画像出力では本文を画像として読もうとした
+		final String inputType = metaSource.getMimeType() == null ? "text/html" : metaSource.getMimeType();
 		final PipedInputStream in = new PipedInputStream(out, PIPE_BUFFER_SIZE);
 		this.pipeOut = out;
 		this.pipeException = null;
@@ -781,7 +783,7 @@ public class DirectSession extends AbstractCTISession
 					}
 					xin = new BufferedInputStream(new ProgressInputStream(in, DirectSession.this.progressListener));
 				}
-				Source source = new StreamSource(metaSource.getURI(), xin, outputType, metaSource.getEncoding());
+				Source source = new StreamSource(metaSource.getURI(), xin, inputType, metaSource.getEncoding());
 				DirectSession.this.transcode(source);
 			} catch (IOException e) {
 				DirectSession.this.pipeException = e;

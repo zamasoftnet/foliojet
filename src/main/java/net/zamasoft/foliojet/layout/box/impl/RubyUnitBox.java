@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
+import net.zamasoft.foliojet.layout.box.params.LayoutFontStyle;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
@@ -27,7 +28,6 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
-import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
@@ -258,10 +258,7 @@ public class RubyUnitBox extends InlineBlockBox {
 		for (final AnnotationInput input : annotationInputs) {
 			final InlineParams rp = input.params() == null ? container : input.params();
 			final FontStyle rubyBaseFs = rp.fontStyle;
-			final FontStyle rubyFs = new FontStyleImpl(rubyBaseFs.getFamily(), baseFs.getSize() / 2.0,
-					rubyBaseFs.getStyle(), rubyBaseFs.getWeight(), rubyBaseFs.getDirection(), rubyBaseFs.getPolicy(),
-					rubyBaseFs.getFeatures(), rubyBaseFs.getSynthesisWeight(), rubyBaseFs.getSynthesisStyle(),
-					rubyBaseFs.getTextOrientation(), rubyBaseFs.getWidthClass());
+			final FontStyle rubyFs = LayoutFontStyle.withSize(rubyBaseFs, baseFs.getSize() / 2.0);
 			final TextImpl[] texts = input.text().isEmpty() ? new TextImpl[0]
 					: shape(rp, rubyFs, input.text(), input.charOffset(), paragraphBidi);
 			final boolean interCharacter = !container.flow.isVertical() && rp.rubyPosition.isInterCharacter();

@@ -30,6 +30,7 @@ import net.zamasoft.pdfg2d.gc.paint.RGBAColor;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.token.Unit;
 
 /**
@@ -71,7 +72,7 @@ public final class ColorValueUtils {
 	/**
 	 * The 'gray' RGB color.
 	 */
-	public static final ColorValue GRAY = fromGrayComponent(0.5f);
+	public static final ColorValue GRAY = fromGrayComponent(128f / 255f);
 
 	/**
 	 * The 'lime' RGB color.
@@ -116,7 +117,7 @@ public final class ColorValueUtils {
 	/**
 	 * The 'white' RGB color.
 	 */
-	public static final ColorValue WHITE = fromGrayComponent(255f);
+	public static final ColorValue WHITE = fromGrayComponent(1f);
 
 	/**
 	 * The 'yellow' RGB color.
@@ -352,7 +353,7 @@ public final class ColorValueUtils {
 	/**
 	 * The 'gainsboro' RGB color.
 	 */
-	public static final ColorValue GAINSBORO = fromRGBOctets(220, 200, 200);
+	public static final ColorValue GAINSBORO = fromRGBOctets(220, 220, 220);
 
 	/**
 	 * The 'ghostwhite' RGB color.
@@ -417,7 +418,7 @@ public final class ColorValueUtils {
 	/**
 	 * The 'lavenderblush' RGB color.
 	 */
-	public static final ColorValue LAVENDERBLUSH = fromRGBOctets(255, 240, 255);
+	public static final ColorValue LAVENDERBLUSH = fromRGBOctets(255, 240, 245);
 
 	/**
 	 * The 'lawngreen' RGB color.
@@ -687,7 +688,7 @@ public final class ColorValueUtils {
 	/**
 	 * The 'salmon' RGB color.
 	 */
-	public static final ColorValue SALMON = fromRGBOctets(250, 69, 114);
+	public static final ColorValue SALMON = fromRGBOctets(250, 128, 114);
 
 	/**
 	 * The 'sandybrown' RGB color.
@@ -752,7 +753,7 @@ public final class ColorValueUtils {
 	/**
 	 * The 'thistle' RGB color.
 	 */
-	public static final ColorValue THISTLE = fromRGBOctets(216, 91, 216);
+	public static final ColorValue THISTLE = fromRGBOctets(216, 191, 216);
 
 	/**
 	 * The 'tomato' RGB color.
@@ -1000,7 +1001,7 @@ public final class ColorValueUtils {
 		map.put("appworkspace", APPWORKSPACE);
 		map.put("background", BACKGROUND);
 		map.put("buttonface", BUTTONFACE);
-		map.put("buttonheighlight", BUTTONHIGHLIGHT);
+		map.put("buttonhighlight", BUTTONHIGHLIGHT);
 		map.put("buttonshadow", BUTTONSHADOW);
 		map.put("buttontext", BUTTONTEXT);
 		map.put("captiontext", CAPTIONTEXT);
@@ -1063,39 +1064,24 @@ public final class ColorValueUtils {
 		return new ColorValue(GrayColor.create(g));
 	}
 
+	/**
+	 * HTMLの属性値({@code bgcolor} など)と {@code attr(… type(color))} の 16 進色(# を除いた桁)です。
+	 * 桁の読み方は CSS と同じ({@link Tokens#hexOctets})。属性値の慣行として、7 桁と 9 桁以上は先頭 6 桁、5 桁は
+	 * 先頭 3 桁、{@code "0"} は黒として読む。
+	 */
 	public static ColorValue parseRGBHexColor(String color) {
-		int r, g, b;
-		try {
-			if (color.length() == 8) {
-				// #RRGGBBAA(CSS Color 4、2026-08-29)
-				r = Integer.parseInt(color.substring(0, 2), 16);
-				g = Integer.parseInt(color.substring(2, 4), 16);
-				b = Integer.parseInt(color.substring(4, 6), 16);
-				final int a = Integer.parseInt(color.substring(6, 8), 16);
-				return fromRGBAComponents(r / 255f, g / 255f, b / 255f, a / 255f);
-			} else if (color.length() == 4) {
-				r = Integer.parseInt(color.substring(0, 1), 16) * 17;
-				g = Integer.parseInt(color.substring(1, 2), 16) * 17;
-				b = Integer.parseInt(color.substring(2, 3), 16) * 17;
-				final int a = Integer.parseInt(color.substring(3, 4), 16) * 17;
-				return fromRGBAComponents(r / 255f, g / 255f, b / 255f, a / 255f);
-			} else if (color.length() >= 6) {
-				r = Integer.parseInt(color.substring(0, 2), 16);
-				g = Integer.parseInt(color.substring(2, 4), 16);
-				b = Integer.parseInt(color.substring(4, 6), 16);
-			} else if (color.length() >= 3) {
-				r = Integer.parseInt(color.substring(0, 1), 16);
-				g = Integer.parseInt(color.substring(1, 2), 16);
-				b = Integer.parseInt(color.substring(2, 3), 16);
-			} else if (color.equals("0")) {
-				return BLACK;
-			} else {
-				return null;
-			}
-		} catch (NumberFormatException e) {
+		if (color.equals("0")) {
+			return BLACK;
+		}
+		final int n = color.length();
+		final int[] rgba = Tokens.hexOctets(n == 5 ? color.substring(0, 3) : n == 7 || n > 8 ? color.substring(0, 6) : color);
+		if (rgba == null) {
 			return null;
 		}
-		return ColorValueUtils.fromRGBOctets(r, g, b);
+		if (rgba[3] >= 0) {
+			return fromRGBAComponents(rgba[0] / 255f, rgba[1] / 255f, rgba[2] / 255f, rgba[3] / 255f);
+		}
+		return fromRGBOctets(rgba[0], rgba[1], rgba[2]);
 	}
 
 	/**

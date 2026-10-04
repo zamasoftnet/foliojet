@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
+import net.zamasoft.foliojet.layout.box.params.LayoutFontStyle;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
@@ -25,7 +26,6 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
-import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
 import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
@@ -107,10 +107,7 @@ public final class WarichuUnitBox extends InlineBlockBox {
 		final String second = text.substring(split);
 		final FontStyle baseFs = container.fontStyle;
 		final FontStyle srcFs = tp.fontStyle;
-		final FontStyle smallFs = new FontStyleImpl(srcFs.getFamily(), baseFs.getSize() / 2.0, srcFs.getStyle(),
-				srcFs.getWeight(), srcFs.getDirection(), srcFs.getPolicy(), srcFs.getFeatures(),
-				srcFs.getSynthesisWeight(), srcFs.getSynthesisStyle(), srcFs.getTextOrientation(),
-				srcFs.getWidthClass());
+		final FontStyle smallFs = LayoutFontStyle.withSize(srcFs, baseFs.getSize() / 2.0);
 		final TextImpl[] firstTexts = shape(tp, smallFs, first, charOffset, paragraphBidi);
 		final TextImpl[] secondTexts = shape(tp, smallFs, second, charOffset < 0 ? -1 : charOffset + split,
 				paragraphBidi);

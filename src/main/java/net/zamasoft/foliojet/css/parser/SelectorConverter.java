@@ -17,6 +17,7 @@ import com.helger.css.decl.ECSSSelectorCombinator;
 import com.helger.css.decl.ICSSSelectorMember;
 import com.helger.css.writer.CSSWriterSettings;
 
+import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.selector.AttributeCondition;
 import net.zamasoft.foliojet.css.selector.CombinatorSelector;
 import net.zamasoft.foliojet.css.selector.Condition;
@@ -59,43 +60,7 @@ public final class SelectorConverter {
 	 * </p>
 	 */
 	private static String unescapeCssIdent(String s) {
-		if (s.indexOf('\\') < 0) {
-			return s;
-		}
-		StringBuilder buf = new StringBuilder(s.length());
-		int i = 0;
-		int len = s.length();
-		while (i < len) {
-			char c = s.charAt(i);
-			if (c == '\\' && i + 1 < len) {
-				char next = s.charAt(i + 1);
-				if (isHexDigit(next)) {
-					int start = i + 1;
-					int end = start;
-					while (end < len && end < start + 6 && isHexDigit(s.charAt(end))) {
-						++end;
-					}
-					int codePoint = Integer.parseInt(s.substring(start, end), 16);
-					buf.appendCodePoint(codePoint);
-					i = end;
-					// 16進エスケープ直後の単一の空白は区切りとして消費される(CSS Syntax仕様)
-					if (i < len && Character.isWhitespace(s.charAt(i))) {
-						++i;
-					}
-				} else {
-					buf.append(next);
-					i += 2;
-				}
-			} else {
-				buf.append(c);
-				++i;
-			}
-		}
-		return buf.toString();
-	}
-
-	private static boolean isHexDigit(char c) {
-		return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+		return Tokens.unescape(s);
 	}
 
 	/**

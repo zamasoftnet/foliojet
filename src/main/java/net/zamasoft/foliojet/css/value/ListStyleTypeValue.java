@@ -4,52 +4,52 @@ package net.zamasoft.foliojet.css.value;
  * @author MIYABE Tatsuhiko
  */
 public enum ListStyleTypeValue implements ListStyleTypeSource {
-	NONE_VALUE(ListStyleTypeValue.NONE),
+	NONE_VALUE(ListStyleTypeValue.NONE, "none"),
 
-	DISC_VALUE(ListStyleTypeValue.DISC),
+	DISC_VALUE(ListStyleTypeValue.DISC, "disc"),
 
-	CIRCLE_VALUE(ListStyleTypeValue.CIRCLE),
+	CIRCLE_VALUE(ListStyleTypeValue.CIRCLE, "circle"),
 
-	SQUARE_VALUE(ListStyleTypeValue.SQUARE),
+	SQUARE_VALUE(ListStyleTypeValue.SQUARE, "square"),
 
-	DECIMAL_VALUE(ListStyleTypeValue.DECIMAL),
+	DECIMAL_VALUE(ListStyleTypeValue.DECIMAL, "decimal"),
 
-	DECIMAL_LEADING_ZERO_VALUE(ListStyleTypeValue.DECIMAL_LEADING_ZERO),
+	DECIMAL_LEADING_ZERO_VALUE(ListStyleTypeValue.DECIMAL_LEADING_ZERO, "decimal-leading-zero"),
 
-	LOWER_ROMAN_VALUE(ListStyleTypeValue.LOWER_ROMAN),
+	LOWER_ROMAN_VALUE(ListStyleTypeValue.LOWER_ROMAN, "lower-roman"),
 
-	UPPER_ROMAN_VALUE(ListStyleTypeValue.UPPER_ROMAN),
+	UPPER_ROMAN_VALUE(ListStyleTypeValue.UPPER_ROMAN, "upper-roman"),
 
-	LOWER_GREEK_VALUE(ListStyleTypeValue.LOWER_GREEK),
+	LOWER_GREEK_VALUE(ListStyleTypeValue.LOWER_GREEK, "lower-greek"),
 
-	LOWER_ALPHA_VALUE(ListStyleTypeValue.LOWER_ALPHA),
+	LOWER_ALPHA_VALUE(ListStyleTypeValue.LOWER_ALPHA, "lower-alpha"),
 
-	LOWER_LATIN_VALUE(ListStyleTypeValue.LOWER_LATIN),
+	LOWER_LATIN_VALUE(ListStyleTypeValue.LOWER_LATIN, "lower-latin"),
 
-	UPPER_ALPHA_VALUE(ListStyleTypeValue.UPPER_ALPHA),
+	UPPER_ALPHA_VALUE(ListStyleTypeValue.UPPER_ALPHA, "upper-alpha"),
 
-	UPPER_LATIN_VALUE(ListStyleTypeValue.UPPER_LATIN),
+	UPPER_LATIN_VALUE(ListStyleTypeValue.UPPER_LATIN, "upper-latin"),
 
-	HEBREW_VALUE(ListStyleTypeValue.HEBREW),
+	HEBREW_VALUE(ListStyleTypeValue.HEBREW, "hebrew"),
 
-	ARMENIAN_VALUE(ListStyleTypeValue.ARMENIAN),
+	ARMENIAN_VALUE(ListStyleTypeValue.ARMENIAN, "armenian"),
 
-	GEORGIAN_VALUE(ListStyleTypeValue.GEORGIAN),
+	GEORGIAN_VALUE(ListStyleTypeValue.GEORGIAN, "georgian"),
 
-	CJK_IDEOGRAPHIC_VALUE(ListStyleTypeValue.CJK_IDEOGRAPHIC),
+	CJK_IDEOGRAPHIC_VALUE(ListStyleTypeValue.CJK_IDEOGRAPHIC, "cjk-ideographic"),
 
-	HIRAGANA_VALUE(ListStyleTypeValue.HIRAGANA),
+	HIRAGANA_VALUE(ListStyleTypeValue.HIRAGANA, "hiragana"),
 
-	KATAKANA_VALUE(ListStyleTypeValue.KATAKANA),
+	KATAKANA_VALUE(ListStyleTypeValue.KATAKANA, "katakana"),
 
-	HIRAGANA_IROHA_VALUE(ListStyleTypeValue.HIRAGANA_IROHA),
+	HIRAGANA_IROHA_VALUE(ListStyleTypeValue.HIRAGANA_IROHA, "hiragana-iroha"),
 
-	KATAKANA_IROHA_VALUE(ListStyleTypeValue.KATAKANA_IROHA),
+	KATAKANA_IROHA_VALUE(ListStyleTypeValue.KATAKANA_IROHA, "katakana-iroha"),
 
-	_CSSJ_FULL_WIDTH_DECIMAL_VALUE(
-			ListStyleTypeValue._CSSJ_FULL_WIDTH_DECIMAL),
+	_CSSJ_FULL_WIDTH_DECIMAL_VALUE(ListStyleTypeValue._CSSJ_FULL_WIDTH_DECIMAL, "-cssj-full-width-decimal", "-cssj-decimal-full-width"),
 
-	_CSSJ_CJK_DECIMAL_VALUE(ListStyleTypeValue._CSSJ_CJK_DECIMAL);
+	_CSSJ_CJK_DECIMAL_VALUE(ListStyleTypeValue._CSSJ_CJK_DECIMAL, "cjk-decimal", "-cssj-cjk-decimal");
+
 	public static final short NONE = 0;
 
 	public static final short DISC = 1;
@@ -106,84 +106,36 @@ public enum ListStyleTypeValue implements ListStyleTypeSource {
 
 	private final short listStyleType;
 
-	private ListStyleTypeValue(short listStyleType) {
+	/** CSS の名前と別名。先頭が {@link #toString} の名前。 */
+	private final String[] names;
+
+	private ListStyleTypeValue(final short listStyleType, final String... names) {
 		this.listStyleType = listStyleType;
+		this.names = names;
 	}
 
 	public short getListStyleType() {
 		return this.listStyleType;
 	}
 
+	/** CSS の名前です(解析の {@link #forName} と同じ表から。2026-10-04 まで別の switch で、upper-latin が抜けて例外になっていた)。 */
 	public String toString() {
-		switch (this.listStyleType) {
-		case DISC:
-			return "disc";
+		return this.names[0];
+	}
 
-		case CIRCLE:
-			return "circle";
+	/** CSS の名前(小文字)か別名に当たる値です。無ければ null。 */
+	public static ListStyleTypeValue forName(final String name) {
+		return ByName.MAP.get(name);
+	}
 
-		case SQUARE:
-			return "square";
-
-		case DECIMAL:
-			return "decimal";
-
-		case DECIMAL_LEADING_ZERO:
-			return "decimal-leading-zero";
-
-		case LOWER_ROMAN:
-			return "lower-roman";
-
-		case UPPER_ROMAN:
-			return "upper-roman";
-
-		case LOWER_GREEK:
-			return "lower-greek";
-
-		case LOWER_ALPHA:
-			return "lower-alpha";
-
-		case LOWER_LATIN:
-			return "lower-latin";
-
-		case UPPER_ALPHA:
-			return "upper-alpha";
-
-		case HEBREW:
-			return "hebrew";
-
-		case ARMENIAN:
-			return "armenian";
-
-		case GEORGIAN:
-			return "georgian";
-
-		case CJK_IDEOGRAPHIC:
-			return "cjk-ideographic";
-
-		case HIRAGANA:
-			return "hiragana";
-
-		case KATAKANA:
-			return "katakana";
-
-		case HIRAGANA_IROHA:
-			return "hiragana-iroha";
-
-		case KATAKANA_IROHA:
-			return "katakana-iroha";
-
-		case _CSSJ_FULL_WIDTH_DECIMAL:
-			return "-cssj-full-width-decimal";
-
-		case _CSSJ_CJK_DECIMAL:
-			return "cjk-decimal";
-
-		case NONE:
-			return "none";
-
-		default:
-			throw new IllegalStateException();
+	private static final class ByName {
+		static final java.util.Map<String, ListStyleTypeValue> MAP = new java.util.HashMap<>();
+		static {
+			for (final ListStyleTypeValue value : values()) {
+				for (final String name : value.names) {
+					MAP.put(name, value);
+				}
+			}
 		}
 	}
 }

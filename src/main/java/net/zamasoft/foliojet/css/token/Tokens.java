@@ -4,6 +4,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.List;
 
@@ -246,42 +247,52 @@ public final class Tokens {
 	 * 落とすと背景色・文字色の宣言が丸ごと無効になっていた。
 	 */
 	private static CssToken parseHexColor(String value) {
-		String hex = value.substring(1);
-		int r, g, b;
-		int a = -1;
-		try {
-			if (hex.length() == 3 || hex.length() == 4) {
-				r = Integer.parseInt(hex.substring(0, 1), 16) * 17;
-				g = Integer.parseInt(hex.substring(1, 2), 16) * 17;
-				b = Integer.parseInt(hex.substring(2, 3), 16) * 17;
-				if (hex.length() == 4) {
-					a = Integer.parseInt(hex.substring(3, 4), 16) * 17;
-				}
-			} else if (hex.length() == 6 || hex.length() == 8) {
-				r = Integer.parseInt(hex.substring(0, 2), 16);
-				g = Integer.parseInt(hex.substring(2, 4), 16);
-				b = Integer.parseInt(hex.substring(4, 6), 16);
-				if (hex.length() == 8) {
-					a = Integer.parseInt(hex.substring(6, 8), 16);
-				}
-			} else {
-				return null;
-			}
-		} catch (NumberFormatException e) {
+		final int[] rgba = hexOctets(value.substring(1));
+		if (rgba == null) {
 			return null;
 		}
-		if (a >= 0) {
+		if (rgba[3] >= 0) {
 			// 実数表記のアルファは0〜1として読まれる(ColorValueUtils.toColorComponent)
 			return new CssToken.Func("rgba", List.of(
-					new CssToken.Num(r, true),
-					new CssToken.Num(g, true),
-					new CssToken.Num(b, true),
-					new CssToken.Num(a / 255.0, false)));
+					new CssToken.Num(rgba[0], true),
+					new CssToken.Num(rgba[1], true),
+					new CssToken.Num(rgba[2], true),
+					new CssToken.Num(rgba[3] / 255.0, false)));
 		}
 		return new CssToken.Func("rgb", List.of(
-				new CssToken.Num(r, true),
-				new CssToken.Num(g, true),
-				new CssToken.Num(b, true)));
+				new CssToken.Num(rgba[0], true),
+				new CssToken.Num(rgba[1], true),
+				new CssToken.Num(rgba[2], true)));
+	}
+
+	/**
+	 * 16進の色の桁(# を除いた 3・4・6・8 桁)を 0〜255 の {r, g, b, a} にします。透明度の桁が無ければ a は -1、
+	 * 桁数か字が違えば null。3・4 桁は各桁を 17 倍する(#abc = #aabbcc)。
+	 *
+	 * <p>
+	 * CSS の字句とHTMLの属性値({@code bgcolor} など、{@code ColorValueUtils.parseRGBHexColor})の唯一の定義
+	 * (2026-10-04。属性値の側は 3 桁を 17 倍せず、{@code bgcolor="#fff"} がほぼ黒になっていた)。
+	 * </p>
+	 */
+	public static int[] hexOctets(final String hex) {
+		final int n = hex.length();
+		final int width = n == 3 || n == 4 ? 1 : n == 6 || n == 8 ? 2 : 0;
+		if (width == 0) {
+			return null;
+		}
+		final int[] rgba = { 0, 0, 0, -1 };
+		for (int i = 0; i * width < n; ++i) {
+			int v = 0;
+			for (int j = 0; j < width; ++j) {
+				final char c = hex.charAt(i * width + j);
+				if (!HexFormat.isHexDigit(c)) {
+					return null;
+				}
+				v = v * 16 + HexFormat.fromHexDigit(c);
+			}
+			rgba[i] = width == 1 ? v * 17 : v;
+		}
+		return rgba;
 	}
 
 	private static CssToken parseNumber(String value) {
@@ -336,37 +347,52 @@ public final class Tokens {
 				value = value.substring(1, value.length() - 1);
 			}
 		}
-		if (value.indexOf('\\') == -1) {
-			return value;
-		}
-		StringBuilder buff = new StringBuilder(value.length());
-		for (int i = 0; i < value.length(); ++i) {
-			char c = value.charAt(i);
-			if (c != '\\' || i + 1 >= value.length()) {
-				buff.append(c);
-				continue;
-			}
-			char next = value.charAt(i + 1);
-			if (isHexDigit(next)) {
-				// CSSの16進エスケープ(最大6桁+空白1つ)
-				int end = i + 1;
-				while (end < value.length() && end - i <= 6 && isHexDigit(value.charAt(end))) {
-					++end;
-				}
-				buff.appendCodePoint(Integer.parseInt(value.substring(i + 1, end), 16));
-				if (end < value.length() && value.charAt(end) == ' ') {
-					++end;
-				}
-				i = end - 1;
-			} else {
-				buff.append(next);
-				++i;
-			}
-		}
-		return buff.toString();
+		return unescape(value);
 	}
 
-	private static boolean isHexDigit(char c) {
-		return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+	/**
+	 * CSS のエスケープを解きます(CSS Syntax の「エスケープされた符号位置」)。16 進は最大 6 桁で、続く空白 1 つを区切り
+	 * として消費し、0・サロゲート・範囲外は U+FFFD にする。ほかの字は {@code \} を外してそのまま。
+	 *
+	 * <p>
+	 * 文字列・識別子・セレクタの唯一の定義(2026-10-04。3 か所の写しが範囲外の値・エスケープの後ろの空白を別々に扱い、
+	 * {@code "\FFFFFF"} やセレクタの {@code .\110000} は例外になっていた)。
+	 * </p>
+	 */
+	public static String unescape(final String s) {
+		if (s.indexOf('\\') < 0) {
+			return s;
+		}
+		final int len = s.length();
+		final StringBuilder buf = new StringBuilder(len);
+		for (int i = 0; i < len; ++i) {
+			final char c = s.charAt(i);
+			if (c != '\\' || i + 1 >= len) {
+				buf.append(c);
+				continue;
+			}
+			int end = i + 1;
+			while (end < len && end - i <= 6 && HexFormat.isHexDigit(s.charAt(end))) {
+				++end;
+			}
+			if (end == i + 1) {
+				buf.append(s.charAt(++i));
+				continue;
+			}
+			final int codePoint = Integer.parseInt(s.substring(i + 1, end), 16);
+			buf.appendCodePoint(codePoint == 0 || codePoint > Character.MAX_CODE_POINT
+					|| codePoint >= Character.MIN_SURROGATE && codePoint <= Character.MAX_SURROGATE ? 0xFFFD
+							: codePoint);
+			if (end < len && isWhiteSpace(s.charAt(end))) {
+				++end;
+			}
+			i = end - 1;
+		}
+		return buf.toString();
+	}
+
+	/** CSS の空白(改行の正規化の前の CR・FF を含む)です。 */
+	private static boolean isWhiteSpace(final char c) {
+		return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
 	}
 }

@@ -418,11 +418,15 @@ public class BorderRenderer {
 			throws GraphicsException {
 		Color color = border.color;
 		double w = border.width / 2.0;
-		setStroke(gc, w, BorderRenderer.STROKE_SOLID);
-		gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
-		gc.draw(new Line2D.Double(x + w / 2.0, y, x + w / 2.0, y + length));
-		gc.setStrokePaint(ridge ? this.brighter(color) : this.darker(color));
-		gc.draw(new Line2D.Double(x - w / 2.0, y, x - w / 2.0, y + length));
+		// 横(drawHorizontalGrooveLine)と同じく状態を囲む。2026-10-04 までは囲まず、表の境界線・段の区切り線の
+		// groove/ridge が線幅と線の色を後の描画へ漏らしていた
+		try (final var gcState = gc.begin()) {
+			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
+			gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
+			gc.draw(new Line2D.Double(x + w / 2.0, y, x + w / 2.0, y + length));
+			gc.setStrokePaint(ridge ? this.brighter(color) : this.darker(color));
+			gc.draw(new Line2D.Double(x - w / 2.0, y, x - w / 2.0, y + length));
+		}
 	}
 
 	protected void drawHorizontalDoubleLine(GC gc, Border border, double x, double y, double length)
