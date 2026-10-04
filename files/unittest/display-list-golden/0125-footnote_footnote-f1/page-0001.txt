@@ -1,7 +1,7 @@
 drawer z=0
   x=0.00 y=727.89 FootnoteLabel["1. " w=18.00 h=12.00]
   x=18.00 y=726.69 Text["first" asc=10.31 desc=4.09]
-  x=40.57 y=726.69 Text["note" asc=10.31 desc=4.09]
+  x=40.09 y=726.69 Text["note" asc=10.31 desc=4.09]
   x=0.00 y=742.29 FootnoteLabel["2. " w=18.00 h=12.00]
   x=18.00 y=741.09 Text["second" asc=10.31 desc=4.09]
   x=54.32 y=741.09 Text["note" asc=10.31 desc=4.09]

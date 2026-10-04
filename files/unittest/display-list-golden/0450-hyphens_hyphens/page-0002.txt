@@ -13,7 +13,7 @@ drawer z=0
   x=0.00 y=84.00 Text["ment" asc=10.31 desc=4.09]
   x=27.00 y=84.00 Text["de-" asc=10.31 desc=4.09]
   x=0.00 y=98.40 Text["vel" asc=10.31 desc=4.09]
-  x=14.84 y=98.40 Text["op-" asc=10.31 desc=4.09]
+  x=14.48 y=98.40 Text["op-" asc=10.31 desc=4.09]
   x=0.00 y=112.80 Text["ment" asc=10.31 desc=4.09]
   x=27.00 y=112.80 Text["op-" asc=10.31 desc=4.09]
   x=0.00 y=127.20 Text["por" asc=10.31 desc=4.09]

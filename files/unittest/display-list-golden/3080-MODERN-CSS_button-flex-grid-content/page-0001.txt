@@ -6,6 +6,6 @@ drawer z=0
   x=0.00 y=0.00 Text["A" asc=10.31 desc=4.09]
   x=0.00 y=37.40 Text["B" asc=10.31 desc=4.09]
   x=0.00 y=74.80 Text["C" asc=13.52 desc=6.09]
-  x=11.00 y=74.80 AbsoluteRectFrame[w=22.18 h=19.61]
+  x=11.00 y=74.80 AbsoluteRectFrame[w=21.82 h=19.61]
   x=13.00 y=78.00 Text["​" asc=10.32 desc=2.89]
   x=13.00 y=76.80 Text["text" asc=11.52 desc=4.09]

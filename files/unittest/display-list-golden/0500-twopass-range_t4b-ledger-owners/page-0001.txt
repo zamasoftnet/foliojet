@@ -1,6 +1,6 @@
 drawer z=0
   x=0.00 y=0.00 Text["PAGE" asc=9.59 desc=4.41]
-  x=0.00 y=14.00 Text["FLOAT" asc=9.59 desc=4.41]
+  x=27.29 y=0.00 Text["FLOAT" asc=9.59 desc=4.41]
   x=326.00 y=0.00 Text["NOTE" asc=9.59 desc=4.41]
   x=0.00 y=408.00 FootnoteLabel["1. " w=15.00 h=10.00]
   x=15.00 y=406.00 Text["FOOTNOTE" asc=9.59 desc=4.41]

@@ -23,9 +23,10 @@ public class FloatTableCaptionTest extends AbstractTestCase {
 			System.err.println("y: "+y);
 			System.err.println("w: "+box.getWidth());
 			System.err.println("h: "+box.getHeight());
-			assertEquals(151, x, 1);
+			// 中核書体の kerning を直して(2026-10-04)「TABLE」の TA が詰まり、表が 48pt から 46pt に
+			assertEquals(154, x, 1);
 			assertEquals(0, y, 1);
-			assertEquals(48, box.getWidth(), 1);
+			assertEquals(46, box.getWidth(), 1);
 			assertEquals(32.8, box.getHeight(), 1);
 			return true;
 		}

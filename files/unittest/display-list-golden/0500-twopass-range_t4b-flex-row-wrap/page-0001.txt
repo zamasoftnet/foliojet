@@ -1,7 +1,7 @@
 drawer z=0
   x=0.00 y=0.00 AbsoluteRectFrame[w=78.00 h=65.00]
   x=5.00 y=5.00 Text["gamma" asc=9.59 desc=4.41]
-  x=36.99 y=5.00 Text["delta" asc=9.59 desc=4.41]
+  x=36.89 y=5.00 Text["delta" asc=9.59 desc=4.41]
   x=5.00 y=19.00 Text["epsilon" asc=9.59 desc=4.41]
   x=82.00 y=0.00 AbsoluteRectFrame[w=98.00 h=65.00]
   x=87.00 y=5.00 Text["alpha" asc=9.59 desc=4.41]
