@@ -25,12 +25,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 public final class RunningRenderTest extends TestCase {
 	static final class TestUA extends PDFUserAgent {
 	}
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	static final Pattern TEXT = Pattern.compile("Text\\[\"([^\"]*)\"");
 	static final Pattern Y = Pattern.compile("y=([-0-9.]+)");
 

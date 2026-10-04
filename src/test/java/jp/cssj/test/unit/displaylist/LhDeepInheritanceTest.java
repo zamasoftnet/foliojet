@@ -26,12 +26,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  */
 public class LhDeepInheritanceTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testDeepContentsChainWithLhLineHeight() throws Exception {
 		final int depth = 4000;
 		final StringBuilder html = new StringBuilder(depth * 32 + 512);

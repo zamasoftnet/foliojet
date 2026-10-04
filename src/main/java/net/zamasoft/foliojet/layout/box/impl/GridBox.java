@@ -147,26 +147,6 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 		return this.resolvedColumnWidths == null ? null : this.resolvedColumnWidths.clone();
 	}
 
-	/** 解決済み列gapです({@link #getResolvedColumnWidths}がnullなら0)。 */
-	public final double getResolvedColumnGap() {
-		return this.resolvedColumnGap;
-	}
-
-	/**
-	 * 解決済みの列線位置です(content-box原点、列数+1要素。2026-08-29)。
-	 * 未解決ならnull。
-	 */
-	public final double[] getResolvedColumnLines() {
-		if (this.resolvedColumnWidths == null) {
-			return null;
-		}
-		final double[] lines = new double[this.resolvedColumnWidths.length + 1];
-		for (int i = 0; i < this.resolvedColumnWidths.length; ++i) {
-			lines[i + 1] = lines[i] + this.resolvedColumnWidths[i] + (i > 0 ? this.resolvedColumnGap : 0);
-		}
-		return lines;
-	}
-
 	protected GridBox(final GridParams params, final FlowPos pos,
 			final net.zamasoft.foliojet.layout.box.params.Dimension size,
 			final net.zamasoft.foliojet.layout.box.params.Dimension minSize,

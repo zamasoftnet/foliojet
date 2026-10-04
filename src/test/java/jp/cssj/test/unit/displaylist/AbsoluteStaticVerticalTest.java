@@ -20,12 +20,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** 縦組みのoffset未指定absoluteが静的位置へ描かれることを固定します。 */
 public class AbsoluteStaticVerticalTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private record Point(double x, double y) {
 	}
 

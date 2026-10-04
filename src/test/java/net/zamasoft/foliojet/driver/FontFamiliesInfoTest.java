@@ -16,12 +16,6 @@ import junit.framework.TestCase;
  * </p>
  */
 public class FontFamiliesInfoTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static String info(final DirectSession session, final String uri) throws Exception {
 		try (InputStream in = session.getServerInfo(URI.create(uri))) {
 			return new String(in.readAllBytes(), StandardCharsets.UTF_8);

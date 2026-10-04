@@ -18,12 +18,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** {@code mask-image:url(SVG)} が背景色の四角ではなくアイコン形状になること。 */
 public class MaskImageUrlTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testSvgUrlMaskUsesBackgroundColorAndTransparentOutside() throws Exception {
 		final java.awt.image.BufferedImage image = render("mask-image-url.html");
 		assertTrue("SVGマスクの中心が背景色で描かれていません", isRed(image.getRGB(30, 30)));

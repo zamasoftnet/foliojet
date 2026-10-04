@@ -62,12 +62,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** F-4/F-8: 段組の包含寸法・ページ共通の帯・配置座標・長文の保持窓。 */
 public final class FootnoteColumnsTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final String AREA = "@footnote { float: bottom; writing-mode: horizontal-tb }";
 	private static final double EPSILON = 0.01;
 

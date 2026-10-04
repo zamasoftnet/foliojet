@@ -28,12 +28,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  */
 public class AtomicAfterPunctuationLineEndTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final Pattern BOX = Pattern
 			.compile("x=([-0-9.]+) y=[-0-9.]+ AbsoluteRectFrame\\[w=([-0-9.]+) h=10\\.00\\]");
 

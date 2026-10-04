@@ -28,12 +28,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 整形文脈で、余白は中身と相殺しない(css-flexbox-1 §3、css-grid-1 §3)。
  */
 public class FlexGridMarginTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	/** 行の高さ 18pt。上下の余白 10pt の箱の後ろの段落は、箱の行から 28pt 下にあるはず。 */
 	private static final String HTML = """
 			<!DOCTYPE html>

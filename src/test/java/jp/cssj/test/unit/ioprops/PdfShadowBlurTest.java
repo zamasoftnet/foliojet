@@ -32,12 +32,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** PDF出力では本文をベクタのまま保ち、ぼかした影だけをラスタ化することの試験。 */
 public class PdfShadowBlurTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final String PARAGRAPH_TEXT = "影だけを滑らかにぼかします";
 

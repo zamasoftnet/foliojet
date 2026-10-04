@@ -37,12 +37,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  */
 public class PdfIoPropertyTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/** 変換に使う最小の文書(内容はどのプロパティの検査にも影響しない)。 */

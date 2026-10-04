@@ -18,12 +18,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** 縦中横の字面計測ではCID-keyedフォントの輪郭欠落を警告しません。 */
 public class TextCombineOutlineWarningTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testCidKeyedTextCombineDoesNotWarnAboutBackgroundClip() throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><style>"
 				+ "@page{size:100pt 100pt;margin:10pt}body{margin:0;writing-mode:vertical-rl}"

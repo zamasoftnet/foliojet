@@ -31,12 +31,6 @@ public class AvoidChainOversizedTest extends TestCase {
 					+ "AbsoluteRectFrame\\[w=([0-9.]+) h=([0-9.]+)\\] "
 					+ "clip=\\[(-?[0-9.]+) (-?[0-9.]+) ([0-9.]+) ([0-9.]+)\\]$");
 
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public AvoidChainOversizedTest(final String name) {
 		super(name);
 	}

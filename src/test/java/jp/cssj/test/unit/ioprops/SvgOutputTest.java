@@ -15,13 +15,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** SVG出力、とくにラスター画像を含む文書の回帰テスト。 */
 public class SvgOutputTest extends TestCase {
-    static {
-        System.setProperty("jp.cssj.copper.config",
-                System.getProperty("jp.cssj.copper.config", "build/conf"));
-        System.setProperty("jp.cssj.driver.default",
-                System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-    }
-
     private static final URI COPPER_URI = URI.create("copper:direct:");
 
     /** PNGを含んでもBatikの画像エンコーダ不足で失敗せず、自己完結SVGになること。 */

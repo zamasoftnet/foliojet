@@ -39,12 +39,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  */
 public class LineClampTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testLineClamp() throws Exception {
 		final File dumpDir = new File("local/unittest/line-clamp-test");
 		dumpDir.mkdirs();

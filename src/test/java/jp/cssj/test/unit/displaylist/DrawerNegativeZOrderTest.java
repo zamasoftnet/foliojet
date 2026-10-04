@@ -24,12 +24,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** 負のz-indexを親の表示リストより前へ置く順序を固定します。 */
 public class DrawerNegativeZOrderTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testNegativeBeforeFlowBackgroundAndPositiveAfter() throws Exception {
 		final List<String> order = new ArrayList<>();
 		final Drawer parent = new Drawer(0);

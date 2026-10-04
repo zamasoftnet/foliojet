@@ -500,10 +500,6 @@ final class PagedSVGResources {
 		return this.carry != null && this.fontScope == PagedSvgFontScope.DOCUMENT;
 	}
 
-	boolean isEmbedding() {
-		return this.resourceMode == PagedSvgResourceMode.EMBED;
-	}
-
 	/** 取得元の URL をそのまま参照する設定か({@code resources=source})。 */
 	boolean referencesSources() {
 		return this.resourceMode == PagedSvgResourceMode.SOURCE;

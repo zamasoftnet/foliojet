@@ -24,12 +24,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * ここでは欄にできない書式(lower-roman)で確かめる。
  */
 public class PageReferencesWarningTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final String HTML = """
 			<!DOCTYPE html>
 			<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/>

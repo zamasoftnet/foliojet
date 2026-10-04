@@ -26,12 +26,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 警告され、区切り線はUAの既定(0.5pt・版面の 1/3)のままだった)。
  */
 public class FootnoteSeparatorBorderTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final long WATCHDOG_MS = 60_000L;
 
 	private static final Pattern SEPARATOR = Pattern.compile("FootnoteSeparator\\[w=([\\d.]+) h=([\\d.]+)\\]");

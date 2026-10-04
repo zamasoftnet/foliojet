@@ -31,13 +31,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * cti.li の要望)。
  */
 public class PagedSvgImagePolicyTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config",
-				System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/** 透明部分の無い 600×400 の PNG(版面では 40pt 幅にしか描かれない)。 */

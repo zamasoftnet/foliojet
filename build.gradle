@@ -258,24 +258,6 @@ tasks.named('test') {
     jvmArgs '--add-exports=java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED'
     if (project.hasProperty('jfr')) { jvmArgs "-XX:StartFlightRecording=filename=${project.property('jfr')},settings=profile,dumponexit=true" }
     workingDir = rootProject.projectDir
-    // 隔離中のテスト。`-PincludeQuarantined`で除外を解除して現状を確認できる。
-    // 理由と再開条件は 開発記録 を参照。
-    if (!project.hasProperty('includeQuarantined')) {
-        // PageBreakByBrTest と PageBreakByWrapTest は隔離解除した(2026-08-03)。
-        // どちらも `font: 12pt/1 monospace` のASCIIの送り幅に依存しており、
-        // 総称フォント monospace が等幅でないフォントへ解決されるために
-        // 落ちていた。テスト用フォントを固定し、monospace の先頭を
-        // Noto Sans Mono CJK JP にしたところ、**元の期待値のまま通った**
-        // ——期待値が正しく、フォント解決の側が原因だったことの裏付け。
-        // FlowTest だけは別問題(CJKの段組で、期待値165はcopper3.2時代のもの)
-        // なので隔離を続ける。
-        exclude 'jp/cssj/test/unit/_0410_column_width/FlowTest.class'
-        exclude 'jp/cssj/test/unit/_1060_META/DoubleDeclMetaTest.class'
-        exclude 'jp/cssj/test/unit/_1060_META/DoubleDeclTest.class'
-        exclude 'jp/cssj/test/unit/_1060_META/DoubleMetaTest.class'
-        exclude 'jp/cssj/test/unit/_1060_META/HTMLEUCTest.class'
-    }
-
     // 一時ディレクトリ。既定の `local` は /mnt/f(DrvFs)にあり、掃過では
     // LayoutSource の spill 等でここへも書くため I/O 律速の一因になる。
     // -PtestTmpDir=/dev/shm/foliojet のように速い場所を指せる(2026-07-28)
@@ -287,7 +269,6 @@ tasks.named('test') {
     // 失敗として検出したいテストハーネス側が明示的に有効化する。
     // -Dfoliojet.noProgressSeconds を外から渡せば下の一括転送が上書きする
     systemProperty 'foliojet.noProgressSeconds', '120'
-    systemProperty 'jp.cssj.copper.config', testConfDir.get().asFile.absolutePath
     systemProperty 'jp.cssj.driver.default', testConfDir.get().file('profiles/default.properties').asFile.absolutePath
     // foliojet.* は一つ残らずテストJVMへ渡す。
     // 以前は1つずつ if で列挙しており、**新しい調査用スイッチを足すたびに
@@ -309,7 +290,7 @@ tasks.named('test') {
     // これが無いと `[shrink]` の出力は build/test-results の XML を
     // 掘らないと読めず、**縮小器の自己検査の結果を見落とす**。
     if (System.getProperties().stringPropertyNames().any {
-        it in ['foliojet.fuzzShrink', 'foliojet.fuzzShrinkFile', 'foliojet.fuzzCheckFile', 'foliojet.fuzzOnlySeed', 'foliojet.fuzzOnlySeeds', 'foliojet.fuzzReport', 'foliojet.scratchDoc']
+        it in ['foliojet.fuzzShrink', 'foliojet.fuzzShrinkFile', 'foliojet.fuzzCheckFile', 'foliojet.fuzzOnlySeed', 'foliojet.fuzzOnlySeeds', 'foliojet.fuzzReport']
     }) {
         testLogging.showStandardStreams = true
     }

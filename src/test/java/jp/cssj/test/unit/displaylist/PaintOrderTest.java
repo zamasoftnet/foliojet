@@ -23,12 +23,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** {@code paint-order}による文字の塗り順をPDFのテキスト描画モードで固定します。 */
 public class PaintOrderTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testStrokeFillUsesTwoPasses() throws Exception {
 		assertEquals(List.of(1, 0), textModes("stroke fill"));
 	}

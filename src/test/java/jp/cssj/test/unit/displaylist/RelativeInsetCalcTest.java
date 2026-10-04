@@ -19,12 +19,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** 相対配置のinsetに割合と絶対長が混在するcalc()を使えることを固定する。 */
 public class RelativeInsetCalcTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testMixedCalcForBothInsetDirections() throws Exception {
 		final String html = "<!doctype html><html><head><meta charset='UTF-8'><style>"
 				+ "div{position:relative}.a{left:calc(50% - 25px);top:calc(50% - 10px)}"

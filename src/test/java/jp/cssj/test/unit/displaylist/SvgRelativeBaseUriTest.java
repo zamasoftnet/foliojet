@@ -22,12 +22,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 壊れないことを固定します(2026-10-04、TECH-20261003-004 の④)。
  */
 public class SvgRelativeBaseUriTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final String HTML = """
 			<!DOCTYPE html>
 			<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/>

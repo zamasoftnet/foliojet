@@ -31,12 +31,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  */
 public class ImageResolutionTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static byte[] convert(final String type) throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><style>@page{size:50mm 30mm;margin:0}"
 				+ "</style></head><body><p>x</p></body></html>";

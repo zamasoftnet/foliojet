@@ -39,12 +39,6 @@ import net.zamasoft.zstream.resolver.protocol.stream.StreamSource;
 
 /** 中間パスがserializerや最終描画を起動しないことの回帰テスト。 */
 public class MeasurePassOutputTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final byte[] PNG = Base64.getDecoder().decode(
 			"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");

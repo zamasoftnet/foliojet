@@ -21,12 +21,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 public class ParagraphBidiPagedSvgTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testLogicalLineAriaAndTextRunAreNotDuplicated() throws Exception {
 		final CapturingResults results = new CapturingResults();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);

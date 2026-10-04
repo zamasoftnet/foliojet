@@ -32,12 +32,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  */
 public class UnterminatedCommentTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testCloseUnterminatedComment() {
 		// 末尾の未閉鎖コメントは暗黙に閉じる
 		assertEquals("p{color:red}/* x*/", DeclarationParser.closeUnterminatedComment("p{color:red}/* x"));

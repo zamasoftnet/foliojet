@@ -24,12 +24,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** 頁1の二代入と頁2への継承を実変換で検証します。 */
 public class StringSetModeMatrixTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final Pattern TEXT = Pattern.compile("Text\\[\\\"([^\\\"]*)\\\"");
 
 	record Message(short code, String detail) {

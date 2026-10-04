@@ -39,12 +39,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 一番内側だけを見ると「効いていない」と誤読する(実際に一度誤読した)。
  */
 public class ImageOrientationTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	private static final File DOCUMENT = new File("files/unittest/ioprops/image-orientation.html");

@@ -18,12 +18,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** 改ページ境界のfloat内で、固定高ラッパーがatomic画像を切り捨てないこと。 */
 public class FloatAtomicImageMoveTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testAtomicImageMovesWholeWithItsExplicitHeightWrappers() throws Exception {
 		assertFullImageOnSecondPage("atomic-explicit-height-page-break.html", 0);
 	}

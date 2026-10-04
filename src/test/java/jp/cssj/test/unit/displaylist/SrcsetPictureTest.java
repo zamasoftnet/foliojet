@@ -25,12 +25,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * (2026-08-20)。
  */
 public class SrcsetPictureTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	/** srcsetは最高解像度候補(印刷向き)。 */
 	public void testPickFromSrcset() {
 		assertEquals("b.png", HTMLStyle.pickFromSrcset("a.png 1x, b.png 2x"));

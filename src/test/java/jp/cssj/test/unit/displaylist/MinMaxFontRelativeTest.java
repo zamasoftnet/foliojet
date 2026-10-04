@@ -23,12 +23,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 固定します(2026-10-04、出版の報告: {@code min(10mm, 3em)} が不正な値として捨てられていた)。
  */
 public class MinMaxFontRelativeTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	/** 高さ h の箱の幅です。箱ごとに高さを変えて見分ける。 */
 	private static double width(final String dump, final int h) {
 		final Matcher m = Pattern.compile("AbsoluteRectFrame\\[w=([-0-9.]+) h=" + h + "\\.00\\]").matcher(dump);

@@ -42,10 +42,8 @@ import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.impl.TableBox;
 import net.zamasoft.foliojet.layout.box.impl.TextBlockBox;
 import net.zamasoft.foliojet.layout.box.params.PosType;
-import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
-import net.zamasoft.foliojet.layout.box.params.Pos;
 
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.draw.Drawer;
@@ -2936,18 +2934,6 @@ public class FlowContainer implements Container {
 				}
 			}
 		}
-	}
-
-	public double getMaxWidth() {
-		if (this.flows == null) {
-			return 0;
-		}
-		double width = 0;
-		for (int i = 0; i < this.flows.size(); ++i) {
-			Flow flow = (Flow) this.flows.get(i);
-			width = Math.max(width, flow.box.getWidth());
-		}
-		return width;
 	}
 
 	public String toString() {

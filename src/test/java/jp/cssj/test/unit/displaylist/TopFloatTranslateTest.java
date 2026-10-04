@@ -43,12 +43,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 対応させ、配置頁・物理座標・本文の保存を表示リスト構築時の箱で検査する。
  */
 public class TopFloatTranslateTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final long WATCHDOG_MS = 60_000L;
 	private static final double EPSILON = 0.05;

@@ -21,12 +21,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 全体レビュー。上限があると本文はバイトの経路に回り、渡された文字コードを捨てて自動判定していた)。
  */
 public class LimitedInputEncodingTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static String dump(final String limit) throws Exception {
 		final byte[] body = "<p>café naïve</p>".getBytes(StandardCharsets.ISO_8859_1);
 		final Path dir = Files.createTempDirectory("limited-encoding");

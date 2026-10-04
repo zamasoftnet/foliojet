@@ -503,7 +503,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	public IntrinsicSizes intrinsicSizesMeasured() {
 		final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = this.layoutStack == null ? null
 				: this.getPageContext();
-		if (root != null && root.isSegmentRestyle()) {
+		if (root != null) {
 			final AbstractContainerBox rootBox = (AbstractContainerBox) this.getRootBox();
 			final IntrinsicSizes measured = net.zamasoft.foliojet.layout.sizing.MeasuredIntrinsics.of(
 					root.getPageGenerator().getLayoutSource(), rootBox, rootBox.getBlockParams(),
@@ -702,7 +702,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			this.reject(ContinuationStats.TwoPassSealReject.NO_SOURCE);
 		}
 		final RootBuilder root = this.getPageContext();
-		if (root == null || !root.isSegmentRestyle()) {
+		if (root == null) {
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.NO_SOURCE);
 			return;
 		}

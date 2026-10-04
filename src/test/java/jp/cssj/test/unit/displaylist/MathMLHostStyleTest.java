@@ -35,12 +35,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </ul>
  */
 public class MathMLHostStyleTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final long WATCHDOG_MS = 60_000L;
 
 	/** 数式の画像は表示リストでは枠(AbsoluteRectFrame)として出る。 */

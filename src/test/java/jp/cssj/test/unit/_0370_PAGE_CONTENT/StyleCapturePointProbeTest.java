@@ -31,12 +31,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  */
 public class StyleCapturePointProbeTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final Pattern TEXT = Pattern.compile("Text\\[\\\"([^\\\"]*)\\\"");
 
 	private record Conversion(byte[] pdf, String displayList) {

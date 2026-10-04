@@ -19,12 +19,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** 既定ON後も明示したflag OFFが既存RTL fixtureの表示リストを1 byteも変えないことを固定する。 */
 public class BidiFlagOffGoldenTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	public void testDirGoldenIsUnchangedWhenFlagIsOff() throws Exception {

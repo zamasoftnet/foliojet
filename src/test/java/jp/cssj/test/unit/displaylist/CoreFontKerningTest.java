@@ -34,12 +34,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  */
 public class CoreFontKerningTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	/** 1 つの BT〜ET: Td の x と、TJ の配列を字と数の並びにしたもの。 */
 	private record Run(float x, String tj) {
 	}

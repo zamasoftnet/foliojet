@@ -15,12 +15,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** 明示改ページと名前付きページ遷移を同じ境界で1回にまとめます。 */
 public class NamedPageTransitionBreakTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testPaintedNamedPagesDoNotExposeDuplicateBreak() throws Exception {
 		final File dir = new File("local/unittest/named-page-transition-background");
 		dir.mkdirs();

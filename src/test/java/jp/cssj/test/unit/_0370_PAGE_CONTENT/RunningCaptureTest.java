@@ -42,12 +42,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** 実変換で捕捉内容・副作用遮断・配置アンカーを検証します。 */
 public final class RunningCaptureTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	record Observed(int page, long order, String name, boolean beginsPage, RunningTemplate template) {
 	}
 

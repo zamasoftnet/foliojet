@@ -74,12 +74,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </ul>
  */
 public class EnduranceTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	private static final File WORK_DIR = new File("local/unittest/endurance");
@@ -651,7 +645,6 @@ public class EnduranceTest extends TestCase {
 		command.add("-Djava.awt.headless=true");
 		if (Boolean.getBoolean("foliojet.rowRetentionDiag")) command.add("-Dfoliojet.rowRetentionDiag=true");
 		command.add("-Djava.io.tmpdir=" + System.getProperty("java.io.tmpdir"));
-		command.add("-Djp.cssj.copper.config=" + System.getProperty("jp.cssj.copper.config"));
 		command.add("-Djp.cssj.driver.default=" + System.getProperty("jp.cssj.driver.default"));
 		command.add("-cp");
 		command.add(System.getProperty("java.class.path"));

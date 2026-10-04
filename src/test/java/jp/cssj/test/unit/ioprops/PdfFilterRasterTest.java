@@ -38,12 +38,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 2026-09-03 に描画単位ごとの画像化から要素ごとへまとめた(filter-element-group-design.md)。
  */
 public class PdfFilterRasterTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final String FILTERED_TEXT = "FILTERED-ELEMENT-TEXT";
 	private static final String OUTSIDE_TEXT = "OUTSIDE-PARAGRAPH-TEXT";

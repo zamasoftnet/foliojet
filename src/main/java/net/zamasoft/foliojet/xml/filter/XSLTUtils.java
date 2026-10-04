@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.xml.filter;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.IOException;
 
 import javax.xml.transform.TransformerConfigurationException;
@@ -138,14 +136,4 @@ public final class XSLTUtils {
 		return createTransformerFactory().newTransformerHandler();
 	}
 
-	public static StreamSource toStreamSource(Source source) throws IOException {
-		StreamSource streamSource;
-		if (source.isReader()) {
-			streamSource = new StreamSource(new BufferedReader(source.getReader()));
-		} else {
-			streamSource = new StreamSource(new BufferedInputStream(source.getInputStream()));
-		}
-		streamSource.setSystemId(source.getURI().toString());
-		return streamSource;
-	}
 }

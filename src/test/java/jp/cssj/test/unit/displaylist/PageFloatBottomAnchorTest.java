@@ -25,12 +25,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 第1章で、挿絵が節の見出しの前の頁に出た)。今はその頁には置かず、次頁の下端へ回す。
  */
 public class PageFloatBottomAnchorTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testBottomFloatIsNotBeforeItsAnchor() throws Exception {
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),

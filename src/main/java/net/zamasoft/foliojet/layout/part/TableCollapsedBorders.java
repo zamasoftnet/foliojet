@@ -196,44 +196,6 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * 水平境界を追加します。
-	 * 
-	 * @param col
-	 * @param index
-	 * @param bottom
-	 * @param border
-	 */
-	public void collapseHBorder(int col, int index, boolean bottom, Border border) {
-		if (index < this.headerRowSizes.length) {
-			this.headerHborders[col][index] = collapseBorder(this.headerHborders[col][index], border);
-			return;
-		}
-		if (index == this.headerRowSizes.length) {
-			if (bottom) {
-				this.headerHborders[col][index] = collapseBorder(this.headerHborders[col][index], border);
-			} else {
-				this.bodyHborders[col][0] = collapseBorder(this.bodyHborders[col][0], border);
-			}
-			return;
-		}
-		index -= this.headerRowSizes.length;
-		if (index < this.bodyRowSizes.length) {
-			this.bodyHborders[col][index] = collapseBorder(this.bodyHborders[col][index], border);
-			return;
-		}
-		if (index == this.bodyRowSizes.length) {
-			if (bottom) {
-				this.bodyHborders[col][index] = collapseBorder(this.bodyHborders[col][index], border);
-			} else {
-				this.footerHborders[col][0] = collapseBorder(this.footerHborders[col][0], border);
-			}
-			return;
-		}
-		index -= this.bodyRowSizes.length;
-		this.footerHborders[col][index] = collapseBorder(this.footerHborders[col][index], border);
-	}
-
-	/**
 	 * 水平境界を返します。
 	 * 
 	 * @param col
@@ -270,28 +232,6 @@ public class TableCollapsedBorders {
 		}
 		index -= this.bodyRowSizes.length;
 		return this.footerHborders[col][index];
-	}
-
-	/**
-	 * 垂直境界を設定します。
-	 * 
-	 * @param row
-	 * @param index
-	 * @param border
-	 */
-	public void collapseVBorder(int row, int index, Border border) {
-		// System.out.println(row + "/" + index);
-		if (row < this.headerRowSizes.length) {
-			this.headerVborders[row][index] = collapseBorder(this.headerVborders[row][index], border);
-			return;
-		}
-		row -= this.headerRowSizes.length;
-		if (row < this.bodyRowSizes.length) {
-			this.bodyVborders[row][index] = collapseBorder(this.bodyVborders[row][index], border);
-			return;
-		}
-		row -= this.bodyRowSizes.length;
-		this.footerVborders[row][index] = collapseBorder(this.footerVborders[row][index], border);
 	}
 
 	/**

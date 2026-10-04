@@ -39,7 +39,6 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 import net.zamasoft.pdfg2d.gc.text.FilterGlyphHandler;
-import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 
 /**
  * テキストだけを含むことができるボックスです。
@@ -472,10 +471,6 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 				action.accept(line.box);
 			}
 		}
-	}
-
-	public final int getLineCount() {
-		return this.lines.size();
 	}
 
 	/**

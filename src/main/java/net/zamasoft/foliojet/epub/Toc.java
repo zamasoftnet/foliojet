@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.epub;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -18,17 +17,6 @@ public class Toc {
 	 * ルートの項目のリストです。
 	 */
 	public NavPoint[] navPoints;
-
-	/**
-	 * 全ての項目を返します。
-	 * 
-	 * @return
-	 */
-	public NavPoint[] getAllNavPoints() {
-		List<NavPoint> points = new ArrayList<NavPoint>();
-		this.addAll(this.navPoints, points);
-		return points.toArray(new NavPoint[points.size()]);
-	}
 
 	private void addAll(NavPoint[] navPoints, List<NavPoint> points) {
 		for (NavPoint navPoint : navPoints) {

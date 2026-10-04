@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.layout.box;
 
-import net.zamasoft.foliojet.layout.box.params.OverflowMode;
-
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
@@ -15,7 +13,6 @@ import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
-import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
@@ -266,10 +263,6 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final BlockParams params = this.getBlockParams();
 		double lineSize = LayoutUtils.getMaxAdvance(this);
 		final int columnCount = this.getColumnCount();
-		if (System.getProperty("foliojet.colTrace") != null && columnCount >= 2) {
-			System.err.println("COL getLineSize raw=" + lineSize + " count=" + columnCount + " gap="
-					+ params.columns.gap + " vertical=" + params.flow.isVertical() + " el=" + this.getParams().element);
-		}
 		if (columnCount >= 2) {
 			// マルチカラム。**0未満にはしない**(css-multicolの used
 			// column-width は非負。gapが容器より大きい入れ子段組で負の
@@ -378,7 +371,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 				net.zamasoft.foliojet.layout.RetainedTextLimit.get(builder);
 		// 内容は初回の組版で数え済み。ソース・ボックスのどちらの再生も加算しない。
 		try (var suspended = limit == null ? null : limit.suspend()) {
-			final boolean replayed = root != null && root.isSegmentRestyle() && this.isSourceReplayable()
+			final boolean replayed = root != null && this.isSourceReplayable()
 					&& net.zamasoft.foliojet.layout.SourceReplayer.replayChildren(
 							root.getPageGenerator().getLayoutSource(), this.getSourceAnchor(), columnBuilder,
 							root.getPageGenerator());

@@ -30,12 +30,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  */
 public class SvgTextPathTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	/** 横 3 行(欧文・太字和文・合成斜体)と縦 1 行に字面があり、空白の領域には無い。 */
 	public void testTextLinesAreDrawn() throws Exception {
 		final java.awt.image.BufferedImage img = render("files/unittest/0480-svg-text/inline-svg-text.html");

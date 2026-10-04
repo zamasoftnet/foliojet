@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
@@ -44,11 +43,6 @@ public final class FontVariant extends AbstractShorthandPropertyInfo {
 			"swash", "ornaments", "annotation");
 
 	public static final ShorthandPropertyInfo INFO = new FontVariant();
-
-	/** 旧APIとの互換用。capsロングハンドのコードを返します。 */
-	public static double get(final CSSStyle style) {
-		return FontVariantCaps.get(style).getFontVariant();
-	}
 
 	private FontVariant() {
 		super("font-variant");

@@ -26,12 +26,6 @@ import net.zamasoft.zstream.resolver.util.SimpleSourceMetadata;
  * </p>
  */
 public class StreamedMainDocumentTypeTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static String text(final String mimeType, final String body) throws Exception {
 		final ByteArrayOutputStream pdf = new ByteArrayOutputStream();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),

@@ -25,13 +25,11 @@ import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.BrokenResultException;
 import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.ImageLoader;
-import net.zamasoft.foliojet.ua.ImageMetricsCache;
 import net.zamasoft.foliojet.ua.ImageMetricsIO;
 import net.zamasoft.foliojet.ua.impl.image.RasterImageLoader;
 import net.zamasoft.foliojet.ua.PassContext;
 import net.zamasoft.foliojet.ua.UAContext;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.ua.props.OutputPdfVersion;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.plugin.PluginRegistry;
 import net.zamasoft.zstream.resolver.Source;
@@ -586,10 +584,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	public void release(Source source) {
 		this.resolver.release(source);
-	}
-
-	public void setFontManager(FontManager fontManager) {
-		this.fontManager = fontManager;
 	}
 
 	public FontManager getFontManager() {

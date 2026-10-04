@@ -36,12 +36,6 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
  */
 public class TransparentImageOutputTest extends TestCase {
 
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	/** 左上は何も描かれない。中央に不透明な赤い箱を置く。 */
 	private static final String HTML = "<!DOCTYPE html><html><head><meta charset='utf-8'><style>"
 			+ "@page { size: 100px 100px; margin: 0 }"

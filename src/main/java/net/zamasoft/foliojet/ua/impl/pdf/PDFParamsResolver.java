@@ -182,7 +182,7 @@ final class PDFParamsResolver {
 				params = params.withTagged(switch (versionCode) {
 				case V1_7UA1 -> net.zamasoft.pdfg2d.pdf.params.TaggedParams.pdfua(lang);
 				case V2_0UA2 -> net.zamasoft.pdfg2d.pdf.params.TaggedParams.pdfua2(lang);
-				default -> new net.zamasoft.pdfg2d.pdf.params.TaggedParams(lang, false);
+				default -> new net.zamasoft.pdfg2d.pdf.params.TaggedParams(lang, 0);
 				});
 			}
 		}

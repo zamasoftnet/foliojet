@@ -69,10 +69,6 @@ public final class TypedAttrValue implements QuantityValue, PaintValue {
 		return this.unit;
 	}
 
-	public Value getFallback() {
-		return this.fallback;
-	}
-
 	/**
 	 * 属性を読んで値へ解決します。属性が無い・解釈できない場合はフォールバック、
 	 * フォールバックも無ければ null(<b>使用値計算時に無効</b>——呼び出し側は

@@ -64,12 +64,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * SHA-256 も同じ byte から取る。頁数の差は例外で免除しない。</p>
  */
 public final class TwoPassDigestParityTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final String PROPERTY = "foliojet.twopassDigest";
 	private static final Path DATA_DIR = Path.of("files/unittest/twopass-digest");
 	private static final Path REPORT_DIR = Path.of("build/reports/twopass-digest");

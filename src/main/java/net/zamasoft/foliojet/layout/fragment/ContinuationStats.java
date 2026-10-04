@@ -659,11 +659,6 @@ public final class ContinuationStats {
 		}
 	}
 
-	/** {@code reason}によってCOLUMN側のプレフィックススキャンが停止した回数。 */
-	public static long columnCapabilityScanStops(final ContinuationCapability reason) {
-		return COLUMN_CAPABILITY_SCAN_STOPS.get(reason).get();
-	}
-
 	/** COLUMN側のスキャン停止理由を記録します(常に{@code PLAIN_FLOW}以外)。 */
 	public static void recordColumnCapabilityScanStop(final ContinuationCapability reason) {
 		COLUMN_CAPABILITY_SCAN_STOPS.get(reason).incrementAndGet();

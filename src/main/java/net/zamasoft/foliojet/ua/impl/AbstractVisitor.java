@@ -9,7 +9,6 @@ import java.net.URISyntaxException;
 
 import net.zamasoft.foliojet.css.StructureElement;
 import net.zamasoft.foliojet.css.util.LengthUtils;
-import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
@@ -18,8 +17,6 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
-import java.util.List;
-import java.util.Map;
 
 import net.zamasoft.foliojet.ua.Counter;
 import net.zamasoft.foliojet.ua.CounterScope;
@@ -169,28 +166,8 @@ public abstract class AbstractVisitor implements Visitor {
 		return this.counters;
 	}
 
-	public boolean isBookmarks() {
-		return bookmarks;
-	}
-
-	public boolean isFragments() {
-		return fragments;
-	}
-
-	public boolean isHyperlinks() {
-		return hyperlinks;
-	}
-
-	public boolean isForms() {
-		return forms;
-	}
-
 	public void setForms(boolean forms) {
 		this.forms = forms;
-	}
-
-	public boolean isProcessPageReference() {
-		return processPageReference;
 	}
 
 	public void nextPage() {
@@ -454,7 +431,6 @@ public abstract class AbstractVisitor implements Visitor {
 				}
 			}
 		}
-
 
 		// ブックマーク
 		if ((this.bookmarks || pageRef != null) && isMarkupBox(type)) {

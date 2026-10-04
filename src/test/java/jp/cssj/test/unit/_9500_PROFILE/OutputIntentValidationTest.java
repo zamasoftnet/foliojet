@@ -25,12 +25,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** PDF/Xの明示OutputIntent ICCを完全解析し、不正な指定をfail closedにする試験。 */
 public class OutputIntentValidationTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final String PDFX4 = "1.6X-4";
 

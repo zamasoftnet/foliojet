@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.layout;
 
-import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
-
 import net.zamasoft.foliojet.layout.box.params.Fiducial;
 
 import net.zamasoft.foliojet.layout.box.params.AutoPosition;
@@ -42,7 +40,6 @@ import net.zamasoft.foliojet.layout.box.params.Columns;
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.Params;
-import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.TableParams;
 
 import net.zamasoft.foliojet.layout.builder.Builder;
@@ -568,17 +565,6 @@ public class DocumentBuilder implements TableBuilderHost {
 		};
 		return closes && c.hasOpenItem() && !c.hasOpenElementItem()
 				? new net.zamasoft.foliojet.layout.fragment.LayoutSource.AnonymousItemEnd() : null;
-	}
-
-	/** Bの境界予測だけを観測し、Cから転送する境界用の状態を汚しません。 */
-	public net.zamasoft.foliojet.layout.fragment.LayoutSource.Event observeDispatchBoundary(
-			final DispatchEvent event, final IBox box, final long nextId) {
-		final long saved = this.pendingAnonymousAnchor;
-		try {
-			return this.preDispatch(event, box, nextId);
-		} finally {
-			this.pendingAnonymousAnchor = saved;
-		}
 	}
 
 	/** 合成境界の再生。項目単独bindでは既存の項目箱が根なので開き直さない。 */

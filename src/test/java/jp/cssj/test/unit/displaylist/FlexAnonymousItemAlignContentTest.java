@@ -23,12 +23,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 固定します(2026-10-04、全体レビュー。grid には 2026-08-29 に入っていた中立化が flex の写しに無かった)。
  */
 public class FlexAnonymousItemAlignContentTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static double textY(final String layout) throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><style>"
 				+ "@page{size:300pt 200pt;margin:10pt} body{margin:0;font-size:10pt;line-height:1}</style></head><body>"

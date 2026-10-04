@@ -23,10 +23,6 @@ public class LimitedResults implements Results {
 		this.ua = ua;
 	}
 
-	public long getTraffic() {
-		return this.traffic;
-	}
-
 	public boolean hasNext() {
 		return this.results.hasNext();
 	}

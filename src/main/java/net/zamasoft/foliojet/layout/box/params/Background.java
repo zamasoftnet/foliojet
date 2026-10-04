@@ -129,22 +129,6 @@ public class Background {
 		return this.backgroundPaint;
 	}
 
-	/**
-	 * 最前面の背景画像を返します。無ければnull。
-	 *
-	 * @return
-	 */
-	public BackgroundImage getBackgroundImage() {
-		if (this.layers != null) {
-			for (final Layer layer : this.layers) {
-				if (layer instanceof BackgroundImage image) {
-					return image;
-				}
-			}
-		}
-		return null;
-	}
-
 	/** 背景のレイヤ(先頭が最前面)。無ければnull。 */
 	public Layer[] getLayers() {
 		return this.layers;

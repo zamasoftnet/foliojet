@@ -45,13 +45,6 @@ public enum MarginBoxName {
 	}
 
 	/**
-	 * at-rule の記号(先頭の @ を除く小文字名)を返します。
-	 */
-	public String getSymbol() {
-		return this.symbol;
-	}
-
-	/**
 	 * at-rule の記号(@top-center 等。@ はあってもなくてもよい)から
 	 * ボックス名を返します。未知の記号なら null を返します。
 	 */

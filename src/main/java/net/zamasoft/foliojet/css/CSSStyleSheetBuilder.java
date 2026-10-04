@@ -99,10 +99,6 @@ public class CSSStyleSheetBuilder {
 		this.cssStyleSheet = cssStyleSheet;
 	}
 
-	public CSSStyleSheet getCSSStyleSheet() {
-		return this.cssStyleSheet;
-	}
-
 	/**
 	 * これから{@link #parse(InputSource)}する規則のcascade originを設定します。
 	 * ユーザーエージェント既定スタイルシートを読み込む前後で切り替えて使用します。

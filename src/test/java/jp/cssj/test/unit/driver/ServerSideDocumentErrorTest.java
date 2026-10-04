@@ -24,12 +24,6 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
  * </p>
  */
 public class ServerSideDocumentErrorTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	/** ローカル網を許していない利用者がループバック宛てを頼む → 3810(許可していない)。 */
 	public void testForbiddenLocalNetworkIsReportedAsMessage() throws Exception {
 		final TranscoderException e = transcode(false);

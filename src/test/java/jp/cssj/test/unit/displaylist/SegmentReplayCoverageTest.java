@@ -26,12 +26,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 事故の再発防止)
  */
 public class SegmentReplayCoverageTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	public void testUnicodeBidiSurvivesParamsReplay() {
@@ -51,10 +45,6 @@ public class SegmentReplayCoverageTest extends TestCase {
 	}
 
 	public void testSubtreeReplayFires() throws Exception {
-		if (Boolean.getBoolean("foliojet.noSegmentRestyle")) {
-			// 実験フラグOFF時は対象経路が無効(box-restyle のみ)
-			return;
-		}
 		// 丸ごと次ページへ移動するブロックを含む文書
 		final long before = SourceReplayer.SUBTREE_REPLAYS.get();
 		final long prefixBefore = SourceReplayer.PREFIX_REPLAYS.get();
@@ -66,8 +56,7 @@ public class SegmentReplayCoverageTest extends TestCase {
 	}
 
 	public void testTextTailReplayFires() throws Exception {
-		if (Boolean.getBoolean("foliojet.noSegmentRestyle")
-				|| !Boolean.getBoolean("foliojet.segmentRestyle.textTail")) {
+		if (!Boolean.getBoolean("foliojet.segmentRestyle.textTail")) {
 			// 尾部再生は2026-07-28から**既定無効**(上限を与えられないため
 			// 内容を複製する。理由は RootBuilder.TEXT_TAIL_RESTYLE)。
 			// 明示的に有効化したときだけ、カバレッジの非空性を検証する

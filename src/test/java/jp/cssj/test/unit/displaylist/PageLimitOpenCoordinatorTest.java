@@ -17,12 +17,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** ページ上限でSAX入力が途中終了しても、開いたFlex/Gridを対称に畳む。 */
 public class PageLimitOpenCoordinatorTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testForceLimitInsideNestedCoordinatorsProducesPdf() throws Exception {
 		final StringBuilder html = new StringBuilder("<!doctype html><html><head><style>"
 				+ "@page{size:200pt 120pt;margin:5pt}.f{display:flex;flex-direction:column}"

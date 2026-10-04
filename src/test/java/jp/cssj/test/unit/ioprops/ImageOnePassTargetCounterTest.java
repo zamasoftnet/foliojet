@@ -29,12 +29,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 参照先が揃ってから画像に描く。結果の番号は出した順なので、頁の順に出す。
  */
 public class ImageOnePassTargetCounterTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final String STYLE = """
 			<style>
 			@page { size: 200pt 200pt; margin: 20pt }

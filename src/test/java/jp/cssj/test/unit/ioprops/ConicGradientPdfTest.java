@@ -26,12 +26,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** PDFのconic-gradientがType 4メッシュとして出力されることの試験。 */
 public class ConicGradientPdfTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final Pattern TYPE4 = Pattern.compile("/ShadingType\\s+4(?=\\s|/|>>)");
 

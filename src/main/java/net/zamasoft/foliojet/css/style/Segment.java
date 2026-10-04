@@ -32,13 +32,6 @@ public class Segment {
 	 */
 	protected int epoch = 0;
 
-	/**
-	 * 窓の世代を返します。
-	 */
-	public int getEpoch() {
-		return this.epoch;
-	}
-
 	public int getDepth() {
 		return this.depth;
 	}

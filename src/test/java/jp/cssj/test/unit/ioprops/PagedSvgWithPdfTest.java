@@ -28,13 +28,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * (2026-09-03、cti.li の要望「1回の変換で PDF と Paged SVG を両方」)。
  */
 public class PagedSvgWithPdfTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config",
-				System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	private static final String HTML = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>同時出力の見本</title><style>"

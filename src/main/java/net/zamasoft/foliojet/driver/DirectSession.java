@@ -530,10 +530,6 @@ public class DirectSession extends AbstractCTISession
 		}
 	}
 
-	public boolean isDecodeMessage() {
-		return this.decodeMessage;
-	}
-
 	public void setDecodeMessage(boolean decodeMessage) {
 		this.decodeMessage = decodeMessage;
 	}

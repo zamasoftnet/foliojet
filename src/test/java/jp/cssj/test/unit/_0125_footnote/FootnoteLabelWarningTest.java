@@ -28,12 +28,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  */
 public class FootnoteLabelWarningTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final String HTML = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>"
 			+ "@page{size:200pt 200pt;margin:10pt}body{margin:0}"
 			+ "::footnote-call{content:\"[\" counter(footnote, lower-roman) \"]\"}"

@@ -27,12 +27,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** T0で特定した未seal文書の経路を固定します。件数の観測はstderrへ出します。 */
 public final class TwoPassFlowSealTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	/** T0のFLOW_NO_SEALのうち、T1で範囲化する17文書。 */
 	static final List<String> FLOW_DOCUMENTS = List.of(
 			"0390-writing-mode/absolute.html",

@@ -26,12 +26,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 取っておき、参照先が揃ってから(遅くとも文書の終わりに)描いて出す。
  */
 public class PagedSvgOnePassTargetCounterTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final String STYLE = """
 			<style>
 			nav a::after { content: leader(".") target-counter(attr(href), page) }

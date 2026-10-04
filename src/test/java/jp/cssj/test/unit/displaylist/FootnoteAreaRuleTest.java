@@ -39,12 +39,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** 脚注領域の規則・持ち越し・固定帯(F-7)と、既定経路の保存を検査します。 */
 public class FootnoteAreaRuleTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final String AREA = "@footnote { float: bottom; writing-mode: horizontal-tb }";
 	private static final double EPSILON = 0.01;
 	private static final String FIXED_AREA = "@footnote { float: bottom; writing-mode: horizontal-tb; height: 40pt }";

@@ -33,12 +33,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** {@code border-image}のグラデーション源を9分割して描く試験です。 */
 public class BorderImageGradientTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final File DOCUMENT = new File("files/unittest/0310-border/border-image-gradient.html");
 	private static final Pattern MATRIX = Pattern.compile(

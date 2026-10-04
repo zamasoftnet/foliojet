@@ -28,12 +28,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  */
 public class AbsolutePercentImageTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	/** 100×200 px(75×150 pt)の画像。 */
 	private static final String IMAGE = "<img src=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'"
 			+ " width='100' height='200'%3E%3Crect width='100' height='200' fill='red'/%3E%3C/svg%3E\"/>";

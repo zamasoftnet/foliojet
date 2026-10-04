@@ -27,10 +27,6 @@ public class MyBridgeContext extends BridgeContext {
 		this.setTextPainter(textPainer);
 	}
 	
-	public ImageMap getImageMap() {
-		return this.imageMap;
-	}
-	
 	public void addLink(Shape shape, URI uri) {
 		this.imageMap.add(new ImageMap.Area(shape, uri));
 	}

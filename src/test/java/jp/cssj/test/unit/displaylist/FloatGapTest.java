@@ -38,12 +38,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** 分割不能floatの先送りで旧頁に排除跡を残さないことの回帰テスト。 */
 public class FloatGapTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final long WATCHDOG_MS = 60_000L;
 	private static final double EPSILON = 0.05;

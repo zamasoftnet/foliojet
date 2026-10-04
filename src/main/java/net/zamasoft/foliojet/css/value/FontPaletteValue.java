@@ -43,14 +43,6 @@ public final class FontPaletteValue implements Value {
 		return this.identifier;
 	}
 
-	/**
-	 * 解決した名前付きパレット定義を返します。未定義またはキーワード値なら
-	 * {@code null}です。この値は解析結果の参照用であり、描画には使われません。
-	 */
-	public Definition getDefinition() {
-		return this.definition;
-	}
-
 	@Override
 	public String toString() {
 		return switch (this.kind) {

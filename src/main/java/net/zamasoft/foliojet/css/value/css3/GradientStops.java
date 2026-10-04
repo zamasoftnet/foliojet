@@ -97,10 +97,6 @@ public final class GradientStops {
 		return this.colors[this.colors.length - 1];
 	}
 
-	public Color firstColor() {
-		return this.colors[0];
-	}
-
 	/**
 	 * 停止位置を確定します。
 	 *

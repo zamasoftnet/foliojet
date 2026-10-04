@@ -32,12 +32,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 画像圧縮・文書情報の解釈を、出力PDFの中身で確かめる。
  */
 public class PdfOutputIoPropertyTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/** リンクと画像と文書情報(title/meta)を持つ文書。 */

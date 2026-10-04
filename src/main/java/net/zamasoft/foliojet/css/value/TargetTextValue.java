@@ -30,10 +30,6 @@ public class TargetTextValue implements Value {
 		return this.ref;
 	}
 
-	public byte getTargetProperty() {
-		return this.targetProperty;
-	}
-
 	public String toString() {
 		return "target-text(" + this.ref + ")";
 	}

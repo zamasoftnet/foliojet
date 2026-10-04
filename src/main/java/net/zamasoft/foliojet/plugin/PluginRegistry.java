@@ -113,7 +113,4 @@ public final class PluginRegistry {
 		return this.classLoader;
 	}
 
-	public File[] getPluginFiles() {
-		return this.libs.clone();
-	}
 }

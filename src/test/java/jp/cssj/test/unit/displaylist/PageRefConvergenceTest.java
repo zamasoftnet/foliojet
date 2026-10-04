@@ -28,12 +28,6 @@ import net.zamasoft.foliojet.ua.PageRef.Fragment;
  * 比べていたので、単純な目次を 2 パスで組んでも「pass-count を増やせ」の記録が出ていた。
  */
 public class PageRefConvergenceTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	/** 単純な目次を 2 パスで組むと、収束しているので記録は出ない。 */
 	public void testSimpleTableOfContentsIsConverged() throws Exception {
 		final String html = "<!DOCTYPE html><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta charset=\"UTF-8\"/>"

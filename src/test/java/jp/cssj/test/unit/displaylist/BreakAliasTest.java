@@ -22,12 +22,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 固定します(2026-08-22)。旧{@code page-break-*}と同じ機構へ流れる。
  */
 public class BreakAliasTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	public void testBreakBeforePageBreaks() throws Exception {
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),

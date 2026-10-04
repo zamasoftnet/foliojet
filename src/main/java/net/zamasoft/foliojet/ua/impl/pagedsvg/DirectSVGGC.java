@@ -11,7 +11,6 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.gc.image.GroupImageGC;
 import net.zamasoft.pdfg2d.gc.image.Image;
-import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.paint.Paint;
 import net.zamasoft.pdfg2d.gc.text.Text;
 
@@ -564,10 +563,6 @@ class DirectSVGGC implements GC {
 
 	protected SVGPaintWriter paints() {
 		return this.paints;
-	}
-
-	protected static boolean isPlainColor(final Paint paint) {
-		return paint instanceof Color;
 	}
 
 }

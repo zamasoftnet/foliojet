@@ -31,12 +31,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 意図的に失敗する——内容を目視確認してコミットすること。
  */
 public class OptimizedGoldenTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	private static final String[] DOCUMENTS = { //

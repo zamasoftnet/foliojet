@@ -1,13 +1,11 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
-import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
 
 import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode;
@@ -184,13 +182,6 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		return false;
 	}
-
-	/**
-	 * 改ページ残余の再構築で、丸ごと移動した閉じた部分木をボックス再生の
-	 * 代わりにソースイベントから再駆動します(M6b segment-restyle)。
-	 * 既定で有効。{@code -Dfoliojet.noSegmentRestyle=true}で止められる(試験の対照用)。
-	 */
-	private static final boolean SEGMENT_RESTYLE = !Boolean.getBoolean("foliojet.noSegmentRestyle");
 
 	/**
 	 * 切断段落の尾部ソース再生(M6b v3)。<b>既定無効</b>
@@ -638,9 +629,6 @@ public class RootBuilder extends BreakableBuilder {
 			final net.zamasoft.foliojet.layout.box.content.Container container,
 			final net.zamasoft.foliojet.layout.box.params.WritingMode rootFlow) {
 		final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges = new java.util.IdentityHashMap<>();
-		if (!SEGMENT_RESTYLE) {
-			return ranges;
-		}
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = this.pageGenerator.getLayoutSource();
 		if (log == null) {
 			return ranges;
@@ -747,16 +735,6 @@ public class RootBuilder extends BreakableBuilder {
 	public final void exitTranslateBlockScope() {
 		assert this.translateBlockDepth > 0 : "translate block scope depth became negative";
 		--this.translateBlockDepth;
-	}
-
-	/** 現在開いている平行移動禁止スコープの深さです。 */
-	public final int getTranslateBlockDepth() {
-		return this.translateBlockDepth;
-	}
-
-	/** 現在のPageBoxが描画前の確定処理へ入った後ならtrue。 */
-	public final boolean isPageFinished() {
-		return this.pageFinished;
 	}
 
 	/** 新しいPageBoxごとに作り直す、当該ページのtopフロート排除域。 */
@@ -983,13 +961,6 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	public final PageGenerator getPageGenerator() {
 		return this.pageGenerator;
-	}
-
-	/**
-	 * segment-restyle が有効かを返します(M6c)。
-	 */
-	public final boolean isSegmentRestyle() {
-		return SEGMENT_RESTYLE;
 	}
 
 	/**
@@ -1601,7 +1572,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * 再駆動されます。false ならボックス再生でフォールバックします。
 	 */
 	public boolean replayFromSource(final net.zamasoft.foliojet.layout.box.IBox box, final BlockBuilder target) {
-		if (!SEGMENT_RESTYLE || this.resumeScopes.isEmpty()) {
+		if (this.resumeScopes.isEmpty()) {
 			return false;
 		}
 		// C2: 判定は破断時に一括記録済み(stampRanges)。ここでは消費のみ
@@ -1648,7 +1619,7 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	public boolean replayTextFrom(final net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock, final long endId,
 			final boolean keepTextOpen) {
-		if (!TEXT_TAIL_RESTYLE || !SEGMENT_RESTYLE || this.resumeScopes.isEmpty()) {
+		if (!TEXT_TAIL_RESTYLE || this.resumeScopes.isEmpty()) {
 			return false;
 		}
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = this.pageGenerator.getLayoutSource();
@@ -1866,13 +1837,6 @@ public class RootBuilder extends BreakableBuilder {
 			this.owner = owner;
 			this.lineOrigin = lineOrigin;
 			this.pageOrigin = pageOrigin;
-		}
-
-		/** 原点は頁内座標。添付先の段容器には局所座標で置く。 */
-		static FootnoteHost forColumn(final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner,
-				final net.zamasoft.foliojet.layout.box.content.FlowContainer column, final double lineOrigin,
-				final double pageOrigin, final double capacity, final double lineSize) {
-			return new FootnoteHost(() -> column, () -> capacity, () -> lineSize, owner, lineOrigin, pageOrigin);
 		}
 
 		void addFloating(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox, final double pageAxis) {

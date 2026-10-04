@@ -38,12 +38,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /** T5c: block absolute は先行行の後。本文の改行機会・字送りは変えない。 */
 public final class AbsoluteStaticPositionTest extends TestCase {
-	static {
-		System.setProperty("jp.cssj.copper.config", System.getProperty("jp.cssj.copper.config", "build/conf"));
-		System.setProperty("jp.cssj.driver.default",
-				System.getProperty("jp.cssj.driver.default", "build/conf/profiles/default.properties"));
-	}
-
 	private static final double LINE = 16;
 	private static final double BORDER = 2;
 	private static final String ABS = "<div class='a'></div>";
