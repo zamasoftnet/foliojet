@@ -93,6 +93,41 @@ public final class TargetCounterSlotImage
 			digit = Math.max(digit, this.measure(String.valueOf(c)));
 		}
 		this.digitAdvance = digit;
+		ua.getUAContext().noteTargetCounterSlot();
+	}
+
+	/** 参照先の値がもう分かっているか。 */
+	public boolean isResolved() {
+		return this.resolve() != null;
+	}
+
+	/**
+	 * 記録した描画(入れ子の群画像も)の中の欄を集めます。ページ分割SVGは、まだ値の
+	 * 分からない欄がある頁の出力を後回しにする({@code PagedSVGUserAgent})。
+	 */
+	public static java.util.List<TargetCounterSlotImage> slots(final net.zamasoft.pdfg2d.gc.RecorderGC.Page page) {
+		final java.util.List<TargetCounterSlotImage> slots = new java.util.ArrayList<>();
+		collect(page, slots);
+		return slots;
+	}
+
+	private static void collect(final net.zamasoft.pdfg2d.gc.RecorderGC.Page page,
+			final java.util.List<TargetCounterSlotImage> slots) {
+		for (final net.zamasoft.pdfg2d.gc.RecorderGC.Command command : page.commands()) {
+			final net.zamasoft.pdfg2d.gc.image.Image image;
+			if (command instanceof net.zamasoft.pdfg2d.gc.RecorderGC.DrawImage draw) {
+				image = draw.image();
+			} else if (command instanceof net.zamasoft.pdfg2d.gc.RecorderGC.DrawImageEffects draw) {
+				image = draw.image();
+			} else {
+				continue;
+			}
+			if (image instanceof TargetCounterSlotImage slot) {
+				slots.add(slot);
+			} else if (image instanceof net.zamasoft.pdfg2d.gc.RecorderGC.RecorderImage group) {
+				collect(group.getPage(), slots);
+			}
+		}
 	}
 
 	@Override
@@ -143,8 +178,11 @@ public final class TargetCounterSlotImage
 				});
 				return;
 			}
-			// ラスタ化するfilterの中など、後から書けない描画先
-			this.report("2822.target-counter-unresolved");
+			// ラスタ化するfilterの中など、後から書けない描画先。後回しにした頁を文書の終わりに
+			// 描くとき(ページ分割SVG)は、最後まで参照先が無かった欄なので黙る(PDFと同じ)
+			if (!this.ua.getUAContext().isDrawingHeldPages()) {
+				this.report("2822.target-counter-unresolved");
+			}
 		}
 	}
 

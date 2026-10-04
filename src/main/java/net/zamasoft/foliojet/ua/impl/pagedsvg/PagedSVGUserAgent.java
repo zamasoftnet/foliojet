@@ -66,6 +66,35 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	private PagedSVGResources resources;
 	private PagedSVGVisitor visitor;
 	private int page;
+
+	// ---- 1パスの target-counter() の頁番号(2026-10-04、docs/design/one-pass-target-counter-design.md §8)
+
+	/**
+	 * 今の頁の描画を記録している記録器。欄({@code TargetCounterSlotImage})のある文書では
+	 * 頁をまず記録し、閉じるときに未解決の欄が無ければすぐ描き直して出す。
+	 */
+	private net.zamasoft.pdfg2d.gc.RecorderGC recorder;
+
+	/** 未解決の欄があって出力を後回しにした頁。 */
+	private record HeldPage(PagedSVGResources.PageData page, net.zamasoft.pdfg2d.gc.RecorderGC.Page recording,
+			List<net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage> slots) {
+		boolean resolved() {
+			for (final var slot : this.slots) {
+				if (!slot.isResolved()) {
+					return false;
+				}
+			}
+			return true;
+		}
+	}
+
+	private final List<HeldPage> heldPages = new ArrayList<>();
+
+	/**
+	 * 後回しにしておく頁の上限。記録はメモリに持つので、遠くの頁を参照する頁が続く文書でも
+	 * 際限なく溜めない。超えたら古い頁から、分かっている番号で出す(未解決は空)。
+	 */
+	private static final int MAX_HELD_PAGES = 64;
 	private final Map<String, String> metadata = new LinkedHashMap<>();
 
 	// ---- PDF の同時出力(2026-09-03、cti.li の要望「1回の変換で PDF と Paged SVG を両方」)
@@ -173,6 +202,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		this.directBuffer = null;
 		this.directPage = null;
 		this.currentPage = null;
+		this.recorder = null;
+		this.heldPages.clear();
 		this.page = 0;
 		this.metadata.clear();
 		this.resources = new PagedSVGResources(this::emit, this.getUAContext().getPagedSvgFontCarry());
@@ -353,6 +384,15 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		return true;
 	}
 
+	/**
+	 * 未解決の欄がある頁は出力を後回しにして、値が揃ってから描く(2026-10-04、§8)。
+	 * 単一の文書だけ(EPUBの項目は親が頁の解放の順番を管理する)。
+	 */
+	@Override
+	public boolean paintsPageNumbersLater() {
+		return this.parent == null && this.release == null;
+	}
+
 	@Override
 	public FontManager getFontManager() {
 		if (this.fontManager == null) {
@@ -446,19 +486,18 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			}
 		}
 		this.currentPage = new PagedSVGResources.PageData(number, this.pageWidth, this.pageHeight);
-		// DOMを作らず書き出す。ページの内容はここでは確定しないので、
-		// 結果への書き出しは closePage で行う(ハッシュを流しながら
-		// 取るため、結果1件は1回のストリームで書き切る必要がある)
-		try {
-			this.directBuffer = new java.io.StringWriter(1 << 14);
-			this.directPage = new SVGPageOutput(this.directBuffer, this.pageWidth, this.pageHeight);
-			final String base = this.resources.getBaseUri();
-			this.directPage.writer().setFontSrc(uri -> base + uri);
-		} catch (final IOException e) {
-			throw new GraphicsException(e);
+		final GC svgGc;
+		if (this.getUAContext().hasTargetCounterSlots()
+				&& net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage.available(this)) {
+			// 欄のある文書: 頁をまず記録する。欄の値が未解決なら出力を後回しにする
+			// (§8)。記録器の supports() は SVG の GC と同じ答えを返す(入れ子の群も)。
+			// 違うと記録のときに近似の描き方へ入り、描き直しても戻らない
+			this.recorder = new net.zamasoft.pdfg2d.gc.RecorderGC(this.getFontManager(),
+					DirectSVGGC::supportsCapability);
+			svgGc = this.recorder;
+		} else {
+			svgGc = this.openDirectPage(this.currentPage);
 		}
-		final GC svgGc = new DirectPagedSVGGC(this.directPage.writer(), this.getFontManager(), this.resources,
-				this.currentPage);
 		if (this.parent == null && UAProps.OUTPUT_PAGED_SVG_PDF.getBoolean(this)) {
 			final GC pdfGc = this.pdfCompanion().nextPage(this.pageWidth, this.pageHeight);
 			if (pdfGc != null) {
@@ -466,6 +505,77 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			}
 		}
 		return svgGc;
+	}
+
+	/**
+	 * DOMを作らず書き出すページを開きます。ページの内容はここでは確定しないので、
+	 * 結果への書き出しは閉じるときに行う(ハッシュを流しながら取るため、結果1件は
+	 * 1回のストリームで書き切る必要がある)。
+	 */
+	private GC openDirectPage(final PagedSVGResources.PageData page) {
+		try {
+			this.directBuffer = new java.io.StringWriter(1 << 14);
+			this.directPage = new SVGPageOutput(this.directBuffer, page.width, page.height);
+			final String base = this.resources.getBaseUri();
+			this.directPage.writer().setFontSrc(uri -> base + uri);
+		} catch (final IOException e) {
+			throw new GraphicsException(e);
+		}
+		return new DirectPagedSVGGC(this.directPage.writer(), this.getFontManager(), this.resources, page);
+	}
+
+	/** 記録した頁を SVG へ描き直して出します。 */
+	private void drawRecordedPage(final PagedSVGResources.PageData page,
+			final net.zamasoft.pdfg2d.gc.RecorderGC.Page recording) throws IOException {
+		this.currentPage = page;
+		try {
+			recording.drawTo(this.openDirectPage(page));
+			this.closeDirectPage();
+		} finally {
+			this.directBuffer = null;
+			this.directPage = null;
+			this.currentPage = null;
+		}
+	}
+
+	/**
+	 * 後回しにした頁のうち、欄の値が揃ったものを出します。{@code force}なら全部
+	 * (文書の終わり。参照先の無い欄は空のまま)。
+	 */
+	private void flushHeldPages(final boolean force) throws IOException {
+		if (this.heldPages.isEmpty()) {
+			return;
+		}
+		final var context = this.getUAContext();
+		context.setDrawingHeldPages(force);
+		try {
+			for (final var i = this.heldPages.iterator(); i.hasNext();) {
+				final HeldPage held = i.next();
+				if (force || held.resolved()) {
+					i.remove();
+					this.drawRecordedPage(held.page(), held.recording());
+				}
+			}
+		} finally {
+			context.setDrawingHeldPages(false);
+		}
+	}
+
+	/** 後回しの上限を超えた古い頁を、分かっている番号で出します(未解決は空、警告を 1 回)。 */
+	private void releaseOldestHeldPage() throws IOException {
+		final HeldPage held = this.heldPages.remove(0);
+		final var context = this.getUAContext();
+		if (context.getReportedApproximations().add("target-counter() 2822.target-counter-held")) {
+			this.message(net.zamasoft.foliojet.message.MessageCodes.WARN_APPROXIMATED_RENDERING,
+					"target-counter()", UAProps.OUTPUT_TYPE.getString(this),
+					net.zamasoft.foliojet.message.MessageCodeUtils.detail("2822.target-counter-held"));
+		}
+		context.setDrawingHeldPages(true);
+		try {
+			this.drawRecordedPage(held.page(), held.recording());
+		} finally {
+			context.setDrawingHeldPages(false);
+		}
 	}
 
 	/**
@@ -572,7 +682,23 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			this.pdfCompanion.closePage(tee.secondary());
 		}
 		try {
-			this.closeDirectPage();
+			if (this.recorder != null) {
+				final net.zamasoft.pdfg2d.gc.RecorderGC.Page recording = this.recorder.getPage();
+				this.recorder = null;
+				final var slots = net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage.slots(recording);
+				final HeldPage held = new HeldPage(this.currentPage, recording, slots);
+				if (held.resolved()) {
+					this.drawRecordedPage(held.page(), recording);
+				} else {
+					this.heldPages.add(held);
+					if (this.heldPages.size() > MAX_HELD_PAGES) {
+						this.releaseOldestHeldPage();
+					}
+				}
+			} else {
+				this.closeDirectPage();
+			}
+			this.flushHeldPages(false);
 		} catch (final IOException e) {
 			throw new GraphicsException(e);
 		} finally {
@@ -751,6 +877,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			this.sink.end();
 			return;
 		}
+		// 後回しにした頁を出す(書体・manifest より前)
+		this.flushHeldPages(true);
 		this.resources.emitFonts();
 		// 測った画像の寸法を残す。次に同じ本を別の文字サイズ・画面サイズで
 		// 組むとき input.image-metrics に渡せば、寸法しか要らないパスで

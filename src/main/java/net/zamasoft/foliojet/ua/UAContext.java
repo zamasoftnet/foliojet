@@ -165,6 +165,30 @@ public class UAContext {
 		}
 	}
 
+	/** この変換で作った{@code target-counter()}の欄の数(ページ分割SVGの頁の記録の要否)。 */
+	private int targetCounterSlots = 0;
+
+	/** {@code target-counter()}の欄を1つ作ったことを記録します(2026-10-04)。 */
+	public void noteTargetCounterSlot() {
+		++this.targetCounterSlots;
+	}
+
+	/** この変換で{@code target-counter()}の欄を作ったか。 */
+	public boolean hasTargetCounterSlots() {
+		return this.targetCounterSlots > 0;
+	}
+
+	/** 後回しにした頁を文書の終わりに描いているか(ページ分割SVG)。 */
+	private boolean drawingHeldPages = false;
+
+	public boolean isDrawingHeldPages() {
+		return this.drawingHeldPages;
+	}
+
+	public void setDrawingHeldPages(final boolean drawingHeldPages) {
+		this.drawingHeldPages = drawingHeldPages;
+	}
+
 	/** 報告済みの近似描画の鍵({@code ApproximationGC.report}が使う)。 */
 	public java.util.Set<String> getReportedApproximations() {
 		return this.reportedApproximations;

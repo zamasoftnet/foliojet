@@ -323,6 +323,11 @@ class DirectSVGGC implements GC {
 	 */
 	@Override
 	public boolean supports(final Capability capability) {
+		return supportsCapability(capability);
+	}
+
+	/** {@link #supports}の答え。頁を記録するときの記録器も同じ答えを返す(2026-10-04)。 */
+	static boolean supportsCapability(final Capability capability) {
 		return switch (capability) {
 		case GAUSSIAN_BLUR, REPEATING_GRADIENT, GROUP_FILTER, DROP_SHADOW, BLEND_GROUP -> true;
 		case CONIC_GRADIENT -> false;

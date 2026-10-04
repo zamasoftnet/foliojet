@@ -667,8 +667,16 @@ final class PagedSVGResources {
 		return image;
 	}
 
+	/**
+	 * 頁を一覧へ足します。1パスの target-counter() で出力を後回しにした頁(2026-10-04)は
+	 * 後から届くので、頁番号の順に並べる。
+	 */
 	void addPage(final PageAsset page) {
-		this.pages.add(page);
+		int i = this.pages.size();
+		while (i > 0 && this.pages.get(i - 1).number() > page.number()) {
+			--i;
+		}
+		this.pages.add(i, page);
 	}
 
 	void addLink(final PageData page, final java.awt.Shape shape, final String href, final String contents) {
