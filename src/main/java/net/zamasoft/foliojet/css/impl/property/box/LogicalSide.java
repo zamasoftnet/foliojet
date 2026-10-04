@@ -13,9 +13,8 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  * ({@link BlockFlow})とdirection({@link Direction})の両方から物理的な辺
  * ({@link Side})への対応を解決します。
  * <p>
- * {@link Side}自体はもはや辺の回転を行わない({@code Side.resolve()}は
- * 2026-07-20に恒等写像へ簡略化済み、foliojet4独自の物理プロパティ「回転」
- * 機構{@code -cssj-direction-mode}を廃止したため)。{@link LogicalSide}は
+ * {@link Side}自体は辺の回転を行わない(foliojet4独自の物理プロパティ「回転」
+ * 機構{@code -cssj-direction-mode}は2026-07-20に廃止した)。{@link LogicalSide}は
  * それとは別に、block軸だけでなくinline軸(方向性、RTLでの左右反転)も
  * 考慮して物理側を解決する、CSS仕様どおりの論理プロパティ機構です
  * (2026-07-19実装)。
@@ -119,13 +118,12 @@ public enum LogicalSide {
 	 */
 	public static net.zamasoft.foliojet.css.value.Value resolve(CSSStyle style, Side requestedSide,
 			PrimitivePropertyInfo[] physicalBySide, PrimitivePropertyInfo[] logicalBySide) {
-		Side resolvedSide = requestedSide.resolve(style);
-		PrimitivePropertyInfo physicalInfo = physicalBySide[resolvedSide.ordinal()];
+		PrimitivePropertyInfo physicalInfo = physicalBySide[requestedSide.ordinal()];
 		if (style.isDeclared(physicalInfo)) {
 			return style.get(physicalInfo);
 		}
 		for (LogicalSide logical : VALUES) {
-			if (logical.toPhysical(style) == resolvedSide) {
+			if (logical.toPhysical(style) == requestedSide) {
 				PrimitivePropertyInfo logicalInfo = logicalBySide[logical.ordinal()];
 				if (style.isDeclared(logicalInfo)) {
 					return style.get(logicalInfo);

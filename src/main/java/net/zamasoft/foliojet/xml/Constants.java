@@ -9,16 +9,6 @@ public final class Constants {
 		// unused
 	}
 
-	/**
-	 * XML Namespaceの名前空間URIです。
-	 */
-	public static final String NAMESPACE_URI = "http://www.w3.org/2000/xmlns/";
-
-	/**
-	 * XML Namespaceの接頭辞です。
-	 */
-	public static final String NAMESPACE_PREFIX = "xmlns";
-
 	/** リンクの型。(SPEC ASSX1.0) */
 	public static final String STYLESHEET_REL = "stylesheet";
 

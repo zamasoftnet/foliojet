@@ -124,13 +124,4 @@ public final class BidiResolver {
 		}
 		return OBJECT;
 	}
-
-	/**
-	 * @deprecated 文字値だけでは本文と CSS 合成を区別できない。
-	 *             {@link BidiParagraphBuffer#isSyntheticControl(int)} を使う。
-	 */
-	@Deprecated
-	public static boolean isControl(final char c) {
-		return (c >= LRE && c <= RLO) || (c >= LRI && c <= PDI);
-	}
 }

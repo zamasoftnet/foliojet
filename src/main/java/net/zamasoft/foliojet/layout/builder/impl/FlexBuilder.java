@@ -922,7 +922,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			return false;
 		}
 		for (final FlexItemContent item : this.items) {
-			if (!item.collectAbsorbable(log, fromId, toId, out, outTables, outRanges, ownedAbsoluteAnchors, seen)) {
+			if (!item.collectAbsorbable(log, fromId, toId, outRanges, ownedAbsoluteAnchors)) {
 				return false;
 			}
 		}

@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.css.impl.property.box;
 
-import net.zamasoft.foliojet.css.CSSStyle;
-
 /**
  * ボックスの4辺です。
  *
@@ -9,8 +7,7 @@ import net.zamasoft.foliojet.css.CSSStyle;
  * 2026-07-20: 独自拡張{@code -cssj-direction-mode}による「物理プロパティの
  * 回転」機構は廃止した(実世界のCSS/ブラウザには存在しない挙動であり、
  * 縦書き対応は標準の論理プロパティ({@link LogicalSide})へ一本化した)。
- * {@link #resolve}は後方互換のため残すが、常に{@code this}を返す
- * (無回転)。
+ * 恒等写像として残していた{@code resolve}は2026-10-04に削除した。
  * </p>
  */
 public enum Side {
@@ -24,12 +21,5 @@ public enum Side {
 
 	public String text() {
 		return this.text;
-	}
-
-	/**
-	 * 物理的な辺をそのまま返します(回転なし)。
-	 */
-	public Side resolve(CSSStyle style) {
-		return this;
 	}
 }

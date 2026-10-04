@@ -1,10 +1,7 @@
 package net.zamasoft.foliojet.ua;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-
-import org.xml.sax.SAXException;
 
 /**
  * 画像寸法表の読み書きの入口です(2026-08-28)。
@@ -15,10 +12,8 @@ import org.xml.sax.SAXException;
  * </p>
  *
  * <p>
- * <b>読むのは両方</b>。4.0.0の開発中はXML({@code metrics.xml})で出して
- * いたので、手元に残っている寸法表や、それを前提にした手順書がそのまま
- * 動くようにします。先頭の非空白文字が{@code <}ならXML、それ以外はJSONと
- * みなすだけの判別で、形式の指定は要りません。
+ * 4.0.0の開発中に出していたXML({@code metrics.xml})の読み取りは、公開した版が一度も
+ * 出していない形式の互換のためだけの層だったので2026-10-04に削除した。
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -41,22 +36,12 @@ public final class ImageMetricsIO {
 	}
 
 	/**
-	 * 寸法表を読み込みます。JSONとXMLのどちらでも受け付けます。
+	 * 寸法表(JSON)を読み込みます。
 	 *
 	 * @return 読み込んだ件数
 	 */
 	public static int read(final InputStream in, final ImageMetricsCache cache, final double resolution)
-			throws IOException, SAXException {
-		final BufferedInputStream buffered = in instanceof BufferedInputStream b ? b : new BufferedInputStream(in);
-		buffered.mark(64);
-		int c;
-		while ((c = buffered.read()) != -1 && Character.isWhitespace(c)) {
-			// 先頭の空白を読み飛ばす
-		}
-		buffered.reset();
-		if (c == '<') {
-			return ImageMetricsXML.read(buffered, cache, resolution);
-		}
-		return ImageMetricsJSON.read(buffered, cache, resolution);
+			throws IOException {
+		return ImageMetricsJSON.read(in, cache, resolution);
 	}
 }

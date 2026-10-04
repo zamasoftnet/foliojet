@@ -250,10 +250,4 @@ public final class BidiParagraphBuffer {
 	public boolean requiresVisualReordering() {
 		return !this.resolve().isLeftToRight();
 	}
-
-	/** @deprecated {@link #requiresVisualReordering()} を使う。 */
-	@Deprecated
-	public boolean isMixed() {
-		return this.requiresVisualReordering();
-	}
 }

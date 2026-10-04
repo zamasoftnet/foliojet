@@ -1850,7 +1850,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// インライン配置
 			final AbstractStaticBlockBox staticBlockBox = (AbstractStaticBlockBox) blockBox;
 			containerBox = this.getFlowBox();
-			if (!LayoutUtils.needsIntrinsicSizing(containerBox, blockBox)) {
+			if (!LayoutUtils.needsIntrinsicSizing(blockBox)) {
 				// 固定幅
 				staticBlockBox.shrinkToFit(this, IntrinsicSizes.ZERO, false);
 				if (blockBox.isFixedMulticolumn()) {
@@ -1876,7 +1876,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				// 絶対配置
 				containerBox = this.getContextBox();
 			}
-			if (!LayoutUtils.needsIntrinsicSizing(containerBox, blockBox)) {
+			if (!LayoutUtils.needsIntrinsicSizing(blockBox)) {
 				// 固定幅
 				absoluteBox.shrinkToFit(containerBox, IntrinsicSizes.ZERO);
 

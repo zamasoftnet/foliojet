@@ -1,12 +1,7 @@
 package net.zamasoft.foliojet.css.util;
 
 import net.zamasoft.foliojet.css.token.Unit;
-import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
-import net.zamasoft.foliojet.css.value.LengthValue;
-import net.zamasoft.foliojet.css.value.PercentageValue;
-import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.pdfg2d.util.NumberUtils;
 
 /**
  * 長さ計算のためのユーティリティです。
@@ -16,30 +11,6 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
 public final class LengthUtils {
 	private LengthUtils() {
 		// unused
-	}
-
-	/**
-	 * パーセント値を絶対長さに変換します。
-	 * 
-	 * @param percentage
-	 * @param srcLength
-	 * @return
-	 */
-	public static double toAbsoluteLength(PercentageValue percentage, double srcLength) {
-		double ratio = percentage.getRatio();
-		return srcLength * ratio;
-	}
-
-	/**
-	 * 比率を絶対長さに変換します。
-	 * 
-	 * @param real
-	 * @param srcLength
-	 * @return
-	 */
-	public static double toAbsoluteLength(RealValue real, double srcLength) {
-		double ratio = real.getReal();
-		return srcLength * ratio;
 	}
 
 	/**
@@ -74,29 +45,5 @@ public final class LengthUtils {
 		default:
 			throw new IllegalArgumentException(unit.toString());
 		}
-	}
-
-	public static AbsoluteLengthValue parseLength(UserAgent ua, String s)
-			throws NumberFormatException, IllegalArgumentException {
-		s = s.toLowerCase().trim();
-		if (s.endsWith("q")) {
-			double len = NumberUtils.parseDouble(s.substring(0, s.length() - 1));
-			return AbsoluteLengthValue.create(ua, len, Unit.Q);
-		}
-		double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
-		if (s.endsWith("mm")) {
-			return AbsoluteLengthValue.create(ua, len, Unit.MM);
-		} else if (s.endsWith("cm")) {
-			return AbsoluteLengthValue.create(ua, len, Unit.CM);
-		} else if (s.endsWith("pt")) {
-			return AbsoluteLengthValue.create(ua, len, Unit.PT);
-		} else if (s.endsWith("px")) {
-			return AbsoluteLengthValue.create(ua, len, Unit.PX);
-		} else if (s.endsWith("pc")) {
-			return AbsoluteLengthValue.create(ua, len, Unit.PC);
-		} else if (s.endsWith("in")) {
-			return AbsoluteLengthValue.create(ua, len, Unit.IN);
-		}
-		throw new IllegalStateException();
 	}
 }

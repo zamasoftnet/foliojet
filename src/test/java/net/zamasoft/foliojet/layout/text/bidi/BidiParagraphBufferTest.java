@@ -31,8 +31,6 @@ public class BidiParagraphBufferTest extends TestCase {
 		assertEquals("\u202C\u2069", BidiResolver.closingControls(UnicodeBidiValue.ISOLATE_OVERRIDE));
 		assertEquals("\u2068", BidiResolver.openingControls(ltr, UnicodeBidiValue.PLAINTEXT));
 		assertEquals("\u2069", BidiResolver.closingControls(UnicodeBidiValue.PLAINTEXT));
-		assertTrue(BidiResolver.isControl('\u2066'));
-		assertFalse(BidiResolver.isControl('\uFFFC'));
 	}
 
 	public void testBaseDirection() {
@@ -61,7 +59,7 @@ public class BidiParagraphBufferTest extends TestCase {
 		buffer.addText(" ", null);
 		final BidiParagraphBuffer.Event lat = buffer.addText("ABC", null);
 		assertEquals(1, buffer.paragraphLevel());
-		assertTrue(buffer.isMixed());
+		assertTrue(buffer.requiresVisualReordering());
 		for (int i = heb.start(); i < heb.limit(); ++i) {
 			assertEquals(1, buffer.levelAt(i));
 		}
@@ -78,7 +76,7 @@ public class BidiParagraphBufferTest extends TestCase {
 		buffer.inlineStart(AbstractTextParams.DIRECTION_LTR, UnicodeBidiValue.NORMAL, "span");
 		buffer.addText("def", null);
 		buffer.inlineEnd("span");
-		assertFalse(buffer.isMixed());
+		assertFalse(buffer.requiresVisualReordering());
 		assertEquals("abc def", buffer.synthetic());
 	}
 

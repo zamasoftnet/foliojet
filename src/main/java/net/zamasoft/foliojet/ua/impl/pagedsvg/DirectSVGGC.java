@@ -114,12 +114,6 @@ class DirectSVGGC implements GC {
 	private LineCap lineCap = LineCap.BUTT;
 	private TextMode textMode = TextMode.FILL;
 
-	/**
-	 * 変換が最後に{@code <g>}へ出た時点の値。これと現在値が違うときだけ
-	 * 新しい{@code <g transform=...>}を開きます。
-	 */
-	private final AffineTransform emittedTransform = new AffineTransform();
-
 	DirectSVGGC(final SVGWriter writer, final FontManager fontManager) {
 		this.writer = writer;
 		this.paints = new SVGPaintWriter(writer);
@@ -438,7 +432,6 @@ class DirectSVGGC implements GC {
 	private void path(final Shape shape, final boolean doFill, final boolean doStroke, final String filterId)
 			throws GraphicsException {
 		try {
-			this.openTransformGroup();
 			this.writer.open("path");
 			this.writer.attr("d", SVGPathWriter.toPathData(shape, this.transform));
 			if (filterId != null) {
@@ -556,16 +549,6 @@ class DirectSVGGC implements GC {
 		}
 	}
 
-	/**
-	 * 座標をそのまま書くので、通常は{@code transform}属性を出しません。
-	 * {@link SVGPathWriter}が現在の変換を適用済みの座標を作るためです。
-	 * 将来グループ単位の不透明度などを出す必要が生じたときの入口として
-	 * ここに置いてあります。
-	 */
-	protected void openTransformGroup() throws IOException {
-		// 座標へ畳み込んでいるので、いまは何も開かない
-	}
-
 	/** {@code <g>}を1つ開いたことを、いま積まれている状態へ記録します。 */
 	protected void openedGroup() {
 		final Frame frame = this.frames.peek();
@@ -587,8 +570,4 @@ class DirectSVGGC implements GC {
 		return paint instanceof Color;
 	}
 
-	/** 直前に{@code <g>}へ出した変換。差分判定に使います。 */
-	protected AffineTransform emittedTransform() {
-		return this.emittedTransform;
-	}
 }

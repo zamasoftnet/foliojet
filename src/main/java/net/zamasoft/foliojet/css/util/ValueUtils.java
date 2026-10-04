@@ -95,8 +95,12 @@ public final class ValueUtils {
 	 */
 	public static LengthValue toLength(UserAgent ua, boolean legacy, String s) {
 		try {
-			s = s.toLowerCase().trim();
-			if (s.endsWith("em")) {
+			s = s.toLowerCase(java.util.Locale.ROOT).trim();
+			// rem は em より先に見る(2026-10-04 までは後ろにあり、"2rem" が em の分岐で "2r" を数として読んで無効になっていた)
+			if (s.endsWith("rem")) {
+				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 3));
+				return RelativeLengthValue.rem(len);
+			} else if (s.endsWith("em")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
 				return RelativeLengthValue.em(len);
 			} else if (s.endsWith("ex")) {
@@ -105,9 +109,6 @@ public final class ValueUtils {
 			} else if (s.endsWith("ch")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
 				return RelativeLengthValue.ch(len);
-			} else if (s.endsWith("rem")) {
-				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 3));
-				return RelativeLengthValue.rem(len);
 			} else if (s.endsWith("lh")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 2));
 				return RelativeLengthValue.lh(len);

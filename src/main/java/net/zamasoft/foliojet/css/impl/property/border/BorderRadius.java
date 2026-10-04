@@ -37,7 +37,7 @@ public final class BorderRadius extends AbstractPrimitivePropertyInfo {
 	}
 
 	public static Radius get(CSSStyle style, Corner corner) {
-		final BorderRadiusValue r = (BorderRadiusValue) style.get(BY_CORNER[corner.resolve(style).ordinal()]);
+		final BorderRadiusValue r = (BorderRadiusValue) style.get(BY_CORNER[corner.ordinal()]);
 		// パーセント成分は寸法確定後の描画時に解決するため比率のまま運ぶ
 		final double hr, hrRatio, vr, vrRatio;
 		if (r.hr instanceof PercentageValue percent) {

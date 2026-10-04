@@ -54,7 +54,6 @@ import net.zamasoft.foliojet.css.impl.property.text.TextAlign;
 import net.zamasoft.foliojet.css.impl.property.text.TextDecoration;
 import net.zamasoft.foliojet.css.impl.property.text.UnicodeBidi;
 import net.zamasoft.foliojet.css.impl.property.text.WhiteSpace;
-import net.zamasoft.foliojet.css.impl.property.box.LogicalSide;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJRuby;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJAutoWidth;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlAlign;
@@ -76,7 +75,6 @@ import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 import net.zamasoft.foliojet.css.impl.property.border.BorderWidth;
 import net.zamasoft.foliojet.css.impl.property.border.BorderStyle;
 import net.zamasoft.foliojet.css.impl.property.box.Padding;
-import net.zamasoft.foliojet.css.impl.property.box.Margin;
 import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
 import net.zamasoft.foliojet.css.impl.property.box.Inset;
 import net.zamasoft.foliojet.css.impl.property.box.Side;
@@ -108,11 +106,6 @@ public class HTMLStyle {
 	}
 
 	private static final RelativeLengthValue EX_20 = RelativeLengthValue.ex(20);
-	private static final RelativeLengthValue EM_4 = RelativeLengthValue.em(4);
-	private static final RelativeLengthValue EM_1_12 = RelativeLengthValue.em(1.12);
-	private static final RelativeLengthValue EM_1 = RelativeLengthValue.em(1);
-	private static final RelativeLengthValue EM__5 = RelativeLengthValue.em(.5);
-	private static final RelativeLengthValue _EM_1 = RelativeLengthValue.em(-1);
 	private static final ValueListValue WBR = new ValueListValue(new Value[] { new StringValue("\u200B") });
 	private static final ValueListValue OPEN_QUOTE = new ValueListValue(new Value[] { QuoteValue.OPEN_QUOTE_VALUE });
 	private static final ValueListValue CLOSE_QUOTE = new ValueListValue(new Value[] { QuoteValue.CLOSE_QUOTE_VALUE });
@@ -398,23 +391,6 @@ public class HTMLStyle {
 		if (alt != null) {
 			style.set(Content.INFO, new ValueListValue(new Value[] { new StringValue(alt) }));
 		}
-	}
-
-	/**
-	 * 段落の前後のマージンを設定します。
-	 * 
-	 * @param style
-	 * @param length
-	 */
-	private static void applyParagraphMargins(CSSStyle style, LengthValue length) {
-		final CSSStyle pStyle = style.getParentStyle();
-		if (pStyle == null) {
-			return;
-		}
-		// 段落マージンはblock-start/block-end両側(2026-07-20、
-		// -cssj-direction-mode廃止により論理プロパティへ一本化)
-		style.set(Margin.forSide(LogicalSide.BLOCK_START.toPhysical(pStyle)), length);
-		style.set(Margin.forSide(LogicalSide.BLOCK_END.toPhysical(pStyle)), length);
 	}
 
 	/**

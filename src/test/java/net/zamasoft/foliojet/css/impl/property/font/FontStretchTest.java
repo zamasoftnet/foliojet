@@ -78,7 +78,7 @@ public class FontStretchTest extends TestCase {
 				new FontPolicyList.FontPolicy[] { FontPolicyList.FontPolicy.EMBEDDED });
 		final FontStyle condensed = new FontStyleImpl(FontFamilyList.create("serif"), 12, FontStyle.Style.NORMAL,
 				FontStyle.Weight.W_400, FontStyle.Direction.LTR, policy, null, true, true,
-				FontStyle.TextOrientation.MIXED, FontStretch.toWidthClass(75));
+				FontStyle.TextOrientation.MIXED, FontStretch.toWidthClass(75), null);
 		assertEquals(3, condensed.getWidthClass());
 		final FontStyle plain = new FontStyleImpl(FontFamilyList.create("serif"), 12, FontStyle.Style.NORMAL,
 				FontStyle.Weight.W_400, FontStyle.Direction.LTR, policy);

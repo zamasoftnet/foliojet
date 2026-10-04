@@ -157,11 +157,10 @@ public final class LayoutUtils {
 	 * 内容ごと消えていた(縦書き文書内のheight付き横ブロック)。
 	 * 親と同軸のボックスでは従来と同値。
 	 *
-	 * @param containerBox 包含ブロック(現在は未使用。呼び出し側の文脈を残す)
-	 * @param blockBox     対象ボックス
+	 * @param blockBox 対象ボックス
 	 * @return 実測が必要であればtrue
 	 */
-	public static boolean needsIntrinsicSizing(AbstractContainerBox containerBox, AbstractContainerBox blockBox) {
+	public static boolean needsIntrinsicSizing(AbstractContainerBox blockBox) {
 		final BlockParams params = blockBox.getBlockParams();
 		if (params.hasIntrinsicLine()) {
 			// width/min-width/max-widthのいずれかが固有寸法キーワード

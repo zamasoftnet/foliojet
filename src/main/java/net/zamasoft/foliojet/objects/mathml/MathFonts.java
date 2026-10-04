@@ -103,7 +103,7 @@ final class MathFonts {
 			final FontStyle.Style style) {
 		final FontStyle fs = new FontStyleImpl(new FontFamilyList(new FontFamily(name)), base.getSize(), style,
 				base.getWeight(), FontStyle.Direction.LTR, FILE_POLICY, null, false, false, null,
-				FontSource.NORMAL_WIDTH_CLASS);
+				FontSource.NORMAL_WIDTH_CLASS, null);
 		final FontListMetrics flm = fontManager.getFontListMetrics(fs);
 		if (flm == null || flm.getLength() == 0) {
 			return null;

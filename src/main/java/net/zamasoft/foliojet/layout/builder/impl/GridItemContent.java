@@ -126,9 +126,8 @@ final class GridItemContent {
 
 	/** 検証だけを行い、親リース取得後に終端する一覧へ列挙します。 */
 	boolean collectAbsorbable(final net.zamasoft.foliojet.layout.fragment.LayoutSource log,
-			final long fromId, final long toId, final java.util.List<TwoPassBlockBuilder> out,
-			final java.util.List<RetainedTableBuilder> outTables, final java.util.List<RangeHandle> outRanges,
-			final java.util.Set<Long> anchors, final java.util.Set<TwoPassBlockBuilder> seen) {
+			final long fromId, final long toId, final java.util.List<RangeHandle> outRanges,
+			final java.util.Set<Long> anchors) {
 		if (this.body == null) {
 			return this.content.collectAbsorbableInto(log, fromId, toId, anchors);
 		}

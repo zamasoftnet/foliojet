@@ -31,20 +31,6 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 
 	public static final VerticalAlignPolicy BASELINE_POLICY = new CSSVerticalAlignPolicy(BASELINE);
 
-	public static final VerticalAlignPolicy MIDDLE_POLICY = new CSSVerticalAlignPolicy(MIDDLE);
-
-	public static final VerticalAlignPolicy SUB_POLICY = new CSSVerticalAlignPolicy(SUB);
-
-	public static final VerticalAlignPolicy SUPER_POLICY = new CSSVerticalAlignPolicy(SUPER);
-
-	public static final VerticalAlignPolicy TEXT_TOP_POLICY = new CSSVerticalAlignPolicy(TEXT_TOP);
-
-	public static final VerticalAlignPolicy TEXT_BOTTOM_POLICY = new CSSVerticalAlignPolicy(TEXT_BOTTOM);
-
-	public static final VerticalAlignPolicy TOP_POLICY = new CSSVerticalAlignPolicy(TOP);
-
-	public static final VerticalAlignPolicy BOTTOM_POLICY = new CSSVerticalAlignPolicy(BOTTOM);
-
 	private final short verticalAlignType;
 
 	protected CSSVerticalAlignPolicy(short verticalAlign) {

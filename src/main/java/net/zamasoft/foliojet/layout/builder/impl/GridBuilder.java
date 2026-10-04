@@ -981,7 +981,7 @@ public final class GridBuilder
 			return false;
 		}
 		for (final GridItemContent item : this.items) {
-			if (!item.collectAbsorbable(log, fromId, toId, out, outTables, outRanges, ownedAbsoluteAnchors, seen)) {
+			if (!item.collectAbsorbable(log, fromId, toId, outRanges, ownedAbsoluteAnchors)) {
 				return false;
 			}
 		}

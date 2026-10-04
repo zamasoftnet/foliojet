@@ -229,8 +229,6 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		}
 	}
 
-	private static final byte PARAM_COUNT = 3;
-
 	public RetainedTableBuilder(LayoutStack layoutStack, TableBox tableBox) {
 		this.layoutStack = layoutStack;
 		this.tableBox = tableBox;

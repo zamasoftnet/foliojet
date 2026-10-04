@@ -24,9 +24,10 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  *
  * <p>
  * P2-3以降、{@link Floatings#splitPageAxis}はこの計画で駆動される
- * (planDirect→ordinal順commit)。{@code children}(子flow再帰の計画)は
- * 現状常に空——子flowのfloatは実行時に各コンテナが独立にplan+commitする
- * (FlowContainerの型付き再帰集約、P2-4)。
+ * (planDirect→ordinal順commit)。子flowのfloatは実行時に各コンテナが独立に
+ * plan+commitする(FlowContainerの型付き再帰集約、P2-4)。計画の階層化
+ * (子flowの計画を持つ欄)は使われないまま残っていたので2026-10-04に削除した——
+ * 必要になった時点で足す。
  * </p>
  *
  * @param expectedSource 計画の対象{@link Floatings}(identity anchor)
@@ -34,15 +35,13 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * @param flags          {@code IPageBreakableBox.FLAGS_*}のスナップショット
  * @param ownerFlow      ownerの書字方向
  * @param direct         直接保持するfloatの計画(安定序数順)
- * @param children       子flowの計画(P2-2では常に空)
  */
 public record FloatSplitPlan(
 		Floatings expectedSource,
 		double pageLimit,
 		byte flags,
 		WritingMode ownerFlow,
-		List<FloatItemPlan> direct,
-		List<ChildFloatPlan> children) {
+		List<FloatItemPlan> direct) {
 
 	/**
 	 * 単一floatの行き先計画です。{@code Keep}/{@code Move}はfloat 1個
@@ -119,28 +118,8 @@ public record FloatSplitPlan(
 	}
 
 	/**
-	 * 子flow(BLOCK)への再帰分の計画です(現状未使用のseam——P2-4は
-	 * 子flowの再帰集約を実行時の型付き集約(FloatAggregate)で実現した
-	 * ため、計画の階層化はA-3a以降必要になった時点で埋める)。
-	 *
-	 * @param flowOrdinal  呼び出し時点のflowsスナップショットでの序数
-	 * @param expectedFlow 対象flow(identity anchor)
-	 * @param childLimit   子座標系へ変換した切断線
-	 * @param childFlags   {@code lflags & flags}(LAST判定は
-	 *                     originalFlowCountから計算すること——分岐表doc参照)
-	 * @param childPlan    子コンテナの計画
-	 */
-	public record ChildFloatPlan(
-			int flowOrdinal,
-			FlowContainer.Flow expectedFlow,
-			double childLimit,
-			byte childFlags,
-			FloatSplitPlan childPlan) {
-	}
-
-	/**
 	 * 直接保持分のみの純計画を作ります(読み取り専用——{@code source}にも
-	 * 各ボックスにも一切影響しない)。{@code children}は空。
+	 * 各ボックスにも一切影響しない)。
 	 *
 	 * @param source    対象の{@link Floatings}
 	 * @param ownerFlow ownerの書字方向
@@ -155,8 +134,7 @@ public record FloatSplitPlan(
 		for (final FloatMeasurement measurement : measurements) {
 			direct.add(classify(measurement, pageLimit, flags));
 		}
-		return new FloatSplitPlan(source, pageLimit, flags, ownerFlow, Collections.unmodifiableList(direct),
-				List.of());
+		return new FloatSplitPlan(source, pageLimit, flags, ownerFlow, Collections.unmodifiableList(direct));
 	}
 
 	/**

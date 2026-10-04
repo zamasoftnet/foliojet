@@ -25,7 +25,7 @@ final class FlexItemContent {
 	private final ContinuationStats.TwoPassCensusTag censusTag;
 	private final java.util.Set<Long> ownedAbsoluteAnchors;
 
-	/** close時点の固有寸法(F1dでは未使用。auto/content basis=F1eで使用)。 */
+	/** close時点の固有寸法(auto/content の basis に使う)。 */
 	final IntrinsicSizes sizes;
 
 	final boolean anonymous;
@@ -101,9 +101,8 @@ final class FlexItemContent {
 
 	/** 検証だけを行い、親リース取得後に終端する一覧へ列挙します。 */
 	boolean collectAbsorbable(final net.zamasoft.foliojet.layout.fragment.LayoutSource log,
-			final long fromId, final long toId, final java.util.List<TwoPassBlockBuilder> out,
-			final java.util.List<RetainedTableBuilder> outTables, final java.util.List<RangeHandle> outRanges,
-			final java.util.Set<Long> anchors, final java.util.Set<TwoPassBlockBuilder> seen) {
+			final long fromId, final long toId, final java.util.List<RangeHandle> outRanges,
+			final java.util.Set<Long> anchors) {
 		if (this.body == null) {
 			return this.content.collectAbsorbableInto(log, fromId, toId, anchors);
 		}

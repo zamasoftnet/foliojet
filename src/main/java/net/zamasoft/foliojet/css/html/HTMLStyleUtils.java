@@ -7,7 +7,6 @@ import java.util.StringTokenizer;
 import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.util.ColorValueUtils;
-import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.BorderStyleValue;
@@ -15,7 +14,6 @@ import net.zamasoft.foliojet.css.value.CSSFloatValue;
 import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
-import net.zamasoft.foliojet.css.value.ListStyleTypeValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.TextAlignValue;
@@ -31,7 +29,6 @@ import net.zamasoft.foliojet.css.impl.property.box.Height;
 import net.zamasoft.foliojet.css.impl.property.text.TextAlign;
 import net.zamasoft.foliojet.css.impl.property.box.VerticalAlign;
 import net.zamasoft.foliojet.css.impl.property.box.Width;
-import net.zamasoft.foliojet.css.impl.property.box.LogicalSide;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlAlign;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -120,44 +117,6 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * リストのインデントを設定します。
-	 * 
-	 * @param style
-	 * @param length
-	 */
-	static void applyListMargins(CSSStyle style, LengthValue length) {
-		final CSSStyle pStyle = style.getParentStyle();
-		if (pStyle == null) {
-			// 親が無い(ルート要素)場合は従来どおり横書き扱い
-			style.set(Margin.LEFT, length);
-			return;
-		}
-		// リストのインデントはinline-start側のマージン(2026-07-20、
-		// -cssj-direction-mode廃止により論理プロパティへ一本化)
-		style.set(Margin.forSide(LogicalSide.INLINE_START.toPhysical(pStyle)), length);
-	}
-
-	/**
-	 * 引用ブロックのインデントを指定します。
-	 * 
-	 * @param style
-	 * @param length
-	 */
-	static void applyQuoteMargins(CSSStyle style, LengthValue length) {
-		final CSSStyle pStyle = style.getParentStyle();
-		if (pStyle == null) {
-			// 親が無い(ルート要素)場合は従来どおり横書き扱い
-			style.set(Margin.LEFT, length);
-			style.set(Margin.RIGHT, length);
-			return;
-		}
-		// 引用ブロックのインデントはinline-start/inline-end両側のマージン
-		// (2026-07-20、-cssj-direction-mode廃止により論理プロパティへ一本化)
-		style.set(Margin.forSide(LogicalSide.INLINE_START.toPhysical(pStyle)), length);
-		style.set(Margin.forSide(LogicalSide.INLINE_END.toPhysical(pStyle)), length);
-	}
-
-	/**
 	 * width, height属性を適用します。
 	 * 
 	 * @param style
@@ -223,46 +182,6 @@ public final class HTMLStyleUtils {
 				style.set(Margin.BOTTOM, length);
 			} catch (Exception e) {
 				ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "vspace", vspace);
-			}
-		}
-	}
-
-	/**
-	 * marginheight, marginwidth属性を適用します。
-	 * 
-	 * @param style
-	 */
-	static void applyMarginWidthMarginHeight(String elem, CSSStyle style) {
-		UserAgent ua = style.getUserAgent();
-		CSSElement ce = style.getCSSElement();
-		{
-			String str = ce.atts.getValue("marginwidth");
-			if (str != null) {
-				try {
-					QuantityValue length = HTMLStyleUtils.parseLength(ua, str);
-					if (length.isNegative()) {
-						throw new NumberFormatException();
-					}
-					style.set(Margin.LEFT, length);
-					style.set(Margin.RIGHT, length);
-				} catch (Exception e) {
-					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "marginwidth", str);
-				}
-			}
-		}
-		{
-			String str = ce.atts.getValue("marginheight");
-			if (str != null) {
-				try {
-					QuantityValue length = HTMLStyleUtils.parseLength(ua, str);
-					if (length.isNegative()) {
-						throw new NumberFormatException();
-					}
-					style.set(Margin.TOP, length);
-					style.set(Margin.BOTTOM, length);
-				} catch (Exception e) {
-					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "marginheight", str);
-				}
 			}
 		}
 	}
@@ -712,21 +631,4 @@ public final class HTMLStyleUtils {
 		return (c >= '0' && c <= '9') || c == '-' || c == '+' || c == '.' || c == 'e';
 	}
 
-	static ListStyleTypeValue toListStyleType(String ident) {
-		if (ident.length() > 0) {
-			switch (ident.charAt(0)) {
-			case '1':
-				return ListStyleTypeValue.DECIMAL_VALUE;
-			case 'a':
-				return ListStyleTypeValue.LOWER_LATIN_VALUE;
-			case 'A':
-				return ListStyleTypeValue.UPPER_LATIN_VALUE;
-			case 'i':
-				return ListStyleTypeValue.LOWER_ROMAN_VALUE;
-			case 'I':
-				return ListStyleTypeValue.UPPER_ROMAN_VALUE;
-			}
-		}
-		return GeneratedValueUtils.toListStyleType(ident);
-	}
 }

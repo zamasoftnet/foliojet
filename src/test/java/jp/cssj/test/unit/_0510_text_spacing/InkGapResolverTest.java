@@ -66,7 +66,7 @@ public class InkGapResolverTest extends TestCase {
 			assertEquals(1 - 5.0 / divisors[i], inkStart(m, 1, 10, s), 1e-9);
 			assertEquals(8 + 5.0 / divisors[i], inkEnd(m, 1, 10, s), 1e-9);
 			final var off = new FontStyleImpl(s.getFamily(), 10, s.getStyle(), s.getWeight(), s.getDirection(),
-					s.getPolicy(), FontFeatureSet.EMPTY, false, false);
+					s.getPolicy(), FontFeatureSet.EMPTY, false, false, net.zamasoft.pdfg2d.gc.font.FontStyle.TextOrientation.MIXED, net.zamasoft.pdfg2d.font.FontSource.NORMAL_WIDTH_CLASS, null);
 			assertEquals(1.0, inkStart(m, 1, 10, off), 1e-9);
 		}
 	}

@@ -555,7 +555,6 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertSame(floatings, plan.expectedSource());
 		assertEquals(100.0, plan.pageLimit(), 0);
 		assertEquals(NO_FLAGS, plan.flags());
-		assertTrue(plan.children().isEmpty());
 		assertEquals(3, plan.direct().size());
 		assertTrue(plan.direct().get(0) instanceof FloatSplitPlan.FloatItemPlan.Keep);
 		assertEquals(1, plan.direct().get(0).expected().serial());

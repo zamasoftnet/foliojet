@@ -51,19 +51,4 @@ public class ImageMetricsFormatTest extends TestCase {
 		assertEquals(0, ImageMetricsIO.read(new ByteArrayInputStream(json), read, 72));
 		assertEquals(0, read.size());
 	}
-
-	/** 4.0.0開発中に出していたXMLの寸法表も読めること。 */
-	public void testStillReadsLegacyXml() throws Exception {
-		final String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-				+ "<image-metrics version=\"1\" resolution=\"96\">\n"
-				+ "  <image uri=\"https://example.com/a.png\" width=\"900\" height=\"600\""
-				+ " sha256=\"abc123\" media-type=\"image/png\" extension=\"png\""
-				+ " pixel-width=\"1200\" pixel-height=\"800\"/>\n"
-				+ "</image-metrics>\n";
-		final ImageMetricsCache read = new ImageMetricsCache();
-		assertEquals(1, ImageMetricsIO.read(
-				new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)), read, 96));
-		assertNotNull(read.get("https://example.com/a.png"));
-		assertNotNull("XMLの資源同一性も読むべき", read.getAsset("https://example.com/a.png"));
-	}
 }

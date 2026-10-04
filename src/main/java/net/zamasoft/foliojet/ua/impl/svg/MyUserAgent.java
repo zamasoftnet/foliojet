@@ -18,11 +18,6 @@ class MyUserAgent extends SVGUserAgent {
 		super(viewport);
 		this.docURI = docURI;
 		this.ua = ua;
-		this.addStdFeatures();
-	}
-
-	public Dimension2D getViewportSize() {
-		return this.viewport;
 	}
 
 	public void displayError(String message) {

@@ -12,7 +12,6 @@ import net.zamasoft.foliojet.css.parser.InputSource;
 import net.zamasoft.zstream.resolver.Source;
 
 import org.xml.sax.helpers.AttributesImpl;
-import org.xml.sax.helpers.DefaultHandler;
 
 /**
  * 
@@ -23,8 +22,6 @@ public final class XMLUtils {
 	private XMLUtils() {
 		// unused
 	}
-
-	public static DefaultHandler DEFAULT_HANDLER_INSTANCE = new DefaultHandler();
 
 	public static InputSource toCSSInputSource(Source source, String charset) throws IOException {
 		String encoding = source.getEncoding();

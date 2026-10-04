@@ -35,11 +35,10 @@ public final class BorderStyle extends AbstractPrimitivePropertyInfo {
 	}
 
 	public static short get(CSSStyle style, Side side) {
-		final Side physical = side.resolve(style);
-		Value declared = style.isDeclared(BY_SIDE[physical.ordinal()]) ? null
-				: LogicalBorder.declaredFor(style, LogicalBorder.Aspect.STYLE, physical);
+		Value declared = style.isDeclared(BY_SIDE[side.ordinal()]) ? null
+				: LogicalBorder.declaredFor(style, LogicalBorder.Aspect.STYLE, side);
 		BorderStyleValue value = (BorderStyleValue) (declared != null ? declared
-				: style.get(BY_SIDE[physical.ordinal()]));
+				: style.get(BY_SIDE[side.ordinal()]));
 		return value.getBorderStyle();
 	}
 

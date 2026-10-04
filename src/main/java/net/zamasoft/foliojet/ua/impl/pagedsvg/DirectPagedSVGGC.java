@@ -530,7 +530,6 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 
 		try {
 			final SVGWriter w = this.writer;
-			this.openTransformGroup();
 			w.open("text");
 			w.attr("x", xs.toString());
 			w.attr("y", ys.toString());
@@ -629,7 +628,6 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 		}
 		try {
 			final SVGWriter w = this.writer;
-			this.openTransformGroup();
 			w.open("text");
 			w.attr("x", xs.toString());
 			w.attr("y", ys.toString());
