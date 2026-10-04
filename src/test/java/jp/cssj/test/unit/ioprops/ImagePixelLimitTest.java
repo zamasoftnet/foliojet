@@ -93,6 +93,28 @@ public class ImagePixelLimitTest extends TestCase {
 		assertEquals(List.of("too-large 1x1 > 0"), this.image2811);
 	}
 
+	/**
+	 * 透明度の無い PNG(RGB・グレー・パレット)も上限の下で読む(2026-10-04)。寸法を読んだリーダが
+	 * ヘッダを読んだ状態を覚えていて、先頭へ戻した後の型の判定が失敗し、「読めない画像」として
+	 * 消えていた(19088〜19095 の本番。上の境界の試験の PNG は透明度付きで通っていた)。
+	 */
+	public void testPngWithoutAlphaIsReadUnderALimit() throws Exception {
+		final Map<String, byte[]> files = new java.util.LinkedHashMap<>();
+		final StringBuilder html = new StringBuilder("<html><body>");
+		for (final int type : new int[] { java.awt.image.BufferedImage.TYPE_INT_RGB,
+				java.awt.image.BufferedImage.TYPE_BYTE_GRAY, java.awt.image.BufferedImage.TYPE_BYTE_INDEXED }) {
+			final java.io.ByteArrayOutputStream png = new java.io.ByteArrayOutputStream();
+			javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(20, 10, type), "png", png);
+			files.put("t" + type + ".png", png.toByteArray());
+			html.append("<p><img src='t").append(type).append(".png'/></p>");
+		}
+		html.append("</body></html>");
+		final String pdf = this.convert(html.toString(), files, props("input.image-pixel-limit", "40000000"));
+		assertFalse(this.failed);
+		assertEquals(List.of(), this.image2811);
+		assertEquals(3, pdf.split("/Subtype /Image", -1).length - 1);
+	}
+
 	/** data: の画像も同じ判定(測定のパスでも全展開する経路)。 */
 	public void testDataUri() throws Exception {
 		final String html = "<html><body><p>x</p><img src='data:image/png;base64,"
