@@ -24,6 +24,7 @@ import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
+import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
  * ブロックボックスの実装です。
@@ -487,7 +488,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		// (2026-08-10、縦書き書籍の資料図版ページで実測)
 		final AbstractContainerBox fixedLineBox = flow.isVertical() ? layoutStack.getFixedHeightFlowBox()
 				: layoutStack.getFixedWidthFlowBox();
-		if (System.getProperty("foliojet.debug.lineBasis") != null) {
+		if (DebugFlags.LINE_BASIS) {
 			System.err.println("[lineBasis] box=" + this.getClass().getSimpleName() + " element="
 					+ (this.params == null ? "-" : String.valueOf(this.params.element)) + " flowVertical=" + flow.isVertical()
 					+ " containerFlowVertical=" + containerBox.getBlockParams().flow.isVertical() + " cLine=" + cLine

@@ -20,7 +20,8 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.builder.PageGenerator;
 import net.zamasoft.foliojet.layout.constraint.AxisSpan;
 import net.zamasoft.foliojet.layout.constraint.ExclusionSpace;
-import net.zamasoft.foliojet.layout.constraint.FloatExclusion;
+import net.zamasoft.foliojet.layout.constraint.FloatExclusion;
+import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
  * ドキュメント全体を構築します。
@@ -30,12 +31,6 @@ import net.zamasoft.foliojet.layout.constraint.FloatExclusion;
  */
 public class RootBuilder extends BreakableBuilder {
 	private static final Logger LOG = Logger.getLogger(RootBuilder.class.getName());
-
-	/**
-	 * 自動改ページごとの指紋をダンプするデバッグスイッチ。ホットパスで
-	 * 毎回{@code System.getProperty}(同期Hashtable)を引かないよう起動時に固定します。
-	 */
-	private static final boolean DEBUG_BREAK_FINGERPRINT = System.getProperty("foliojet.debug.breakFingerprint") != null;
 
 	/**
 	 * 進捗のない自動改ページ(ライブロック)の検出用の状態です(2026-07-27新設)。
@@ -165,7 +160,7 @@ public class RootBuilder extends BreakableBuilder {
 				Double.doubleToLongBits(this.pageAxis), target);
 		final int depthFreeOccurrences = this.depthFreeBreakCounts.merge(depthFree, 1, Integer::sum);
 		this.stalledBreakRun = Math.max(occurrences, depthFreeOccurrences) - 1;
-		if (DEBUG_BREAK_FINGERPRINT) {
+		if (DebugFlags.BREAK_FINGERPRINT) {
 			System.out.println("[fp] ingest=" + ingest + " depth=" + depth + " pageAxis=" + this.pageAxis
 					+ " boundTableRows=" + this.boundTableRows + " emittedTableFragments=" + this.emittedTableFragments
 					+ " target=" + target + " resumeDepth=" + this.sessions.size() + " stalled="
@@ -1197,46 +1192,7 @@ public class RootBuilder extends BreakableBuilder {
 			watermark = Math.min(watermark, this.sourceWatermark(f.container()));
 		}
 
-		//
-		// 改ページ実行
-		//
-		this.finishLayout();
-		// 何も描かないページは出力されない(css-break-3 §4.4)。落ちた
-		// ページは面(recto/verso)を消費しないので、こちらの面の追跡も
-		// 進めてはならない——進めると以後の左右改ページが全部裏返る
-		if (mode instanceof ForceBreakMode force && force.namedTransition) {
-			// 名前遷移で閉じたページは白紙なら落とす(N2b——drawPageが判定)
-			this.pageBox.markNamedTransitionClosed();
-		}
-		final boolean emitted = this.pageGenerator.drawPage(this.pageBox, false,
-				mode instanceof BreakMode.ForceBreakMode);
-		final PageBox pageBox = this.pageBox;
-		this.pageBox = this.nextPage();
-		this.beginPage();
-		this.resetPageMarginNoteCursors();
-		if (mode instanceof BreakMode.ForceBreakMode) {
-			// 強制改ページで始まったページは、白紙でも作者の意図として残す
-			this.pageBox.markForcedBreakOrigin();
-		}
-		// 脚注F4: 送られてきた脚注(carry-in)を新ページの容量へ最優先で
-		// 再予約する——継続本文がrestyle・構築される前でなければ、予約
-		// なしの容量で組まれてしまう
-		this.reserveFootnotes();
-		if (emitted && this.pageSide != PageBreakMode.AUTO) {
-			this.pageSide = (this.pageSide == PageBreakMode.VERSO) ? PageBreakMode.RECTO : PageBreakMode.VERSO;
-		}
-
-		if (LOG.isLoggable(Level.FINE)) {
-			LOG.fine("breaked: " + mode + "/pageSide=" + this.pageSide);
-		}
-
-		// コンテキストを再開。ページフロート(上端)は新ページの先頭へ
-		// 置き、本文はページ先頭から二次元排除する。
-		this.contextFlow = new Flow(this.pageBox, 0, 0);
-		this.reserveBottomFloats();
-		this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
-				super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation, true));
-		this.resetFragmentCursor(0, 0);
+		final PageBox pageBox = this.turnPage(mode);
 		this.beginRestyling();
 
 		// 継続記述(§5.7)。ルート断片は再開時に再構成(C1a)、閉部分木の
@@ -1424,6 +1380,55 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		}
 		return out.toString();
+	}
+
+	/**
+	 * 改ページを実行します: 今のページを確定して出力し、次のページを開いて、送られてきた脚注・ページフロートを
+	 * 置き直し、流し込みの位置をページの先頭へ戻す(2026-10-05 に {@link #pageBreak} から切り出した。本文は
+	 * 移しただけ)。脚注の再予約は、継続する本文を組み直すより先でなければならない。
+	 *
+	 * @param mode 今回の改ページのモード
+	 * @return 閉じたページ
+	 */
+	private PageBox turnPage(final BreakMode mode) {
+		this.finishLayout();
+		// 何も描かないページは出力されない(css-break-3 §4.4)。落ちた
+		// ページは面(recto/verso)を消費しないので、こちらの面の追跡も
+		// 進めてはならない——進めると以後の左右改ページが全部裏返る
+		if (mode instanceof ForceBreakMode force && force.namedTransition) {
+			// 名前遷移で閉じたページは白紙なら落とす(N2b——drawPageが判定)
+			this.pageBox.markNamedTransitionClosed();
+		}
+		final boolean emitted = this.pageGenerator.drawPage(this.pageBox, false,
+				mode instanceof BreakMode.ForceBreakMode);
+		final PageBox pageBox = this.pageBox;
+		this.pageBox = this.nextPage();
+		this.beginPage();
+		this.resetPageMarginNoteCursors();
+		if (mode instanceof BreakMode.ForceBreakMode) {
+			// 強制改ページで始まったページは、白紙でも作者の意図として残す
+			this.pageBox.markForcedBreakOrigin();
+		}
+		// 脚注F4: 送られてきた脚注(carry-in)を新ページの容量へ最優先で
+		// 再予約する——継続本文がrestyle・構築される前でなければ、予約
+		// なしの容量で組まれてしまう
+		this.reserveFootnotes();
+		if (emitted && this.pageSide != PageBreakMode.AUTO) {
+			this.pageSide = (this.pageSide == PageBreakMode.VERSO) ? PageBreakMode.RECTO : PageBreakMode.VERSO;
+		}
+
+		if (LOG.isLoggable(Level.FINE)) {
+			LOG.fine("breaked: " + mode + "/pageSide=" + this.pageSide);
+		}
+
+		// コンテキストを再開。ページフロート(上端)は新ページの先頭へ
+		// 置き、本文はページ先頭から二次元排除する。
+		this.contextFlow = new Flow(this.pageBox, 0, 0);
+		this.reserveBottomFloats();
+		this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
+				super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation, true));
+		this.resetFragmentCursor(0, 0);
+		return pageBox;
 	}
 
 	/** 流し込みスタックの中身を人が読める形にします(不変条件の診断用)。 */
@@ -3359,7 +3364,7 @@ public class RootBuilder extends BreakableBuilder {
 			// (掃過 wild の AssertionError。本番では assert が無効なので、並びの崩れた
 			// 排除域がそのまま使われていた)
 			final double exclusionEnd = Math.max(placedStart, Math.min(placedEnd, fragmentLimit));
-			if (System.getProperty("foliojet.debug.topFloat") != null) {
+			if (DebugFlags.TOP_FLOAT) {
 				System.err.println("[topFloat] gen=" + this.pageGeneration + " start=" + placedStart + " extent=" + extent
 						+ " end=" + placedEnd + " fragmentLimit=" + fragmentLimit + " exclusionEnd=" + exclusionEnd
 						+ " stackEnd=" + this.topPageFloatStackEnd + " existing=" + this.topPageFloatExclusions.size()
@@ -3418,7 +3423,7 @@ public class RootBuilder extends BreakableBuilder {
 			return true;
 		}
 		final double[] previous = this.fragmentStartFloatSplits.get(element);
-		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+		if (DebugFlags.FLOAT_TRACE) {
 			System.err.println("[float-progress] gen=" + this.pageGeneration + " extent=" + occupiedExtent + " previous="
 					+ (previous == null ? "null" : previous[0] + "/" + previous[1]) + " element=" + System.identityHashCode(element));
 		}

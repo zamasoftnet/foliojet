@@ -67,6 +67,7 @@ import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.TableCollapsedBorders;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.util.NumberUtils;
+import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
  * 表を実行計画Retained(全体を保持してからコミットする方式)で構築します
@@ -933,7 +934,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		// 無ければフラグメンテナ)。判断はそこだけに置く
 		final double lineSize = sameAxis ? containerBox.getLineSize()
 				: this.layoutStack.getOrthogonalLineBasis(tableParams.flow);
-		if (System.getProperty("foliojet.debug.tableBasis") != null) {
+		if (DebugFlags.TABLE_BASIS) {
 			System.err.println("[tableBasis] sameAxis=" + sameAxis + " lineSize=" + lineSize + " vertical=" + this.vertical
 					+ " container=" + containerBox.getClass().getSimpleName() + " containerFlowVertical="
 					+ containerBox.getBlockParams().flow.isVertical() + " tableFlowVertical=" + tableParams.flow.isVertical()

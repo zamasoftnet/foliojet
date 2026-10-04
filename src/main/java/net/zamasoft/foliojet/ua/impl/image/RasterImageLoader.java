@@ -33,6 +33,9 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
 
 public class RasterImageLoader implements ImageLoader {
+	/** {@code -Dfoliojet.debug.imageTrace}: 画像の読み込みの診断出力(起動時に決まる)。 */
+	private static final boolean IMAGE_TRACE = System.getProperty("foliojet.debug.imageTrace") != null;
+
 	public boolean match(Source key) {
 		return true;
 	}
@@ -158,7 +161,7 @@ public class RasterImageLoader implements ImageLoader {
 			JPEGImageReader cir = null;
 			ImageReader jdkJpeg = null;
 			Iterator<ImageReader> iri = ImageIO.getImageReaders(imageIn);
-			if (System.getProperty("foliojet.debug.imageTrace") != null) {
+			if (IMAGE_TRACE) {
 				System.err.println("[img] source=" + source.getURI() + " isFile=" + source.isFile());
 			}
 			ImageReader ir = null;
@@ -239,7 +242,7 @@ public class RasterImageLoader implements ImageLoader {
 			} catch (IOException e) {
 				// 形式名が取れない場合は従来どおり復号画像を使う。
 			}
-			if (System.getProperty("foliojet.debug.imageTrace") != null) {
+			if (IMAGE_TRACE) {
 				System.err.println("[img] chosen=" + ir.getClass().getName());
 			}
 			
@@ -261,13 +264,13 @@ public class RasterImageLoader implements ImageLoader {
 			try {
 				decoded = G2DUtils.loadImage(ir, imageIn, pixelLimit);
 			} catch (final RuntimeException | IOException e) {
-				if (System.getProperty("foliojet.debug.imageTrace") != null) {
+				if (IMAGE_TRACE) {
 					System.err.println("[img] load failed: " + e);
 					e.printStackTrace();
 				}
 				throw e;
 			}
-			if (System.getProperty("foliojet.debug.imageTrace") != null) {
+			if (IMAGE_TRACE) {
 				System.err.println("[img] decoded " + decoded.getWidth() + "x" + decoded.getHeight() + " type="
 						+ decoded.getType());
 			}
@@ -287,7 +290,7 @@ public class RasterImageLoader implements ImageLoader {
 					encoded = null;
 				}
 			}
-			if (System.getProperty("foliojet.debug.imageTrace") != null) {
+			if (IMAGE_TRACE) {
 				System.err.println("[img] format=" + formatName + " orientation=" + orientation + " keepEncoded="
 						+ keepEncoded + " passThrough="
 						+ (passThrough == null ? "no" : passThrough[0]));
@@ -492,7 +495,7 @@ public class RasterImageLoader implements ImageLoader {
 			final byte[] header = in.readNBytes(ORIENTATION_HEADER);
 			in.reset();
 			final int orientation = readOrientation(header);
-			if (System.getProperty("foliojet.debug.imageTrace") != null) {
+			if (IMAGE_TRACE) {
 				System.err.println("[img] peek orientation=" + orientation + " header=" + header.length
 						+ " source=" + source.getURI());
 			}

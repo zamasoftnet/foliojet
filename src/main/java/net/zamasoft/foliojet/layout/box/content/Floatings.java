@@ -17,6 +17,7 @@ import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
+import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
  * 通常のフロー以外のボックスを一括管理します。
@@ -67,7 +68,7 @@ public class Floatings {
 				// ブロックボックス
 				// 匿名ボックス
 				AbstractContainerBox floatBox = (AbstractContainerBox) this.box;
-				if (System.getProperty("foliojet.debug.floatTrace") != null) {
+				if (DebugFlags.FLOAT_TRACE) {
 					final net.zamasoft.foliojet.layout.box.content.Container c = floatBox.getContainer();
 					System.err.println("[float] 再生 box=" + System.identityHashCode(floatBox) + " container="
 							+ (c == null ? "null" : c.getClass().getSimpleName() + " flows="
@@ -113,7 +114,7 @@ public class Floatings {
 	public void addFloating(Floating floating) {
 		assert !LayoutUtils.isNone(floating.pageAxis) : "Undefined pageAxis";
 		assert !LayoutUtils.isNone(floating.lineAxis) : "Undefined lineAxis";
-		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+		if (DebugFlags.FLOAT_TRACE) {
 			final StringBuilder where = new StringBuilder();
 			final StackTraceElement[] st = new Throwable().getStackTrace();
 			for (int k = 1; k < Math.min(st.length, 8); ++k) {
@@ -230,7 +231,7 @@ public class Floatings {
 	public FloatSplitResult splitPageAxis(final AbstractContainerBox box, final double pageLimit,
 			final byte flags) {
 		assert !this.floatings.isEmpty();
-		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+		if (DebugFlags.FLOAT_TRACE) {
 			final StringBuilder where = new StringBuilder();
 			final StackTraceElement[] st = new Throwable().getStackTrace();
 			for (int k = 1; k < Math.min(st.length, 9); ++k) {
@@ -327,7 +328,7 @@ public class Floatings {
 					// 次フラグメント先頭、serial引き継ぎでnext側へ
 					sourceSide.add(floating);
 					final net.zamasoft.foliojet.layout.box.IFloatBox tailBox = fragment.materialize();
-					if (System.getProperty("foliojet.debug.floatTrace") != null) {
+					if (DebugFlags.FLOAT_TRACE) {
 						System.err.println("[float] 残余断片 元=" + System.identityHashCode(floating.getBox()) + " 断片="
 								+ System.identityHashCode(tailBox));
 					}

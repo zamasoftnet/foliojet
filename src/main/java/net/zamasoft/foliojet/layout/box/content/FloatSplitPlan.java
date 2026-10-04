@@ -7,6 +7,7 @@ import java.util.List;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
+import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
  * 浮動体のページ分割の純計画です(2026-07-24新設、排除域P2のP2-2。
@@ -150,7 +151,7 @@ public record FloatSplitPlan(
 	 */
 	public static FloatItemPlan classify(final FloatMeasurement m, final double pageLimit, final byte flags) {
 		final FloatItemPlan plan = classify0(m, pageLimit, flags);
-		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+		if (DebugFlags.FLOAT_TRACE) {
 			System.err.println("[float-classify] " + plan.getClass().getSimpleName() + " el="
 					+ (m.box().getParams() == null ? "-" : m.box().getParams().element) + " start=" + m.pageStart()
 					+ " end=" + m.pageEnd() + " extent=" + m.pageExtent() + " limit=" + pageLimit + " flags=" + flags

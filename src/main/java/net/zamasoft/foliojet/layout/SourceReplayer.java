@@ -21,7 +21,8 @@ import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
 import net.zamasoft.foliojet.layout.segment.FlexParamsTemplate;
 import net.zamasoft.foliojet.layout.segment.GridParamsTemplate;
 import net.zamasoft.foliojet.layout.segment.SegmentEvent;
-import net.zamasoft.foliojet.layout.segment.SegmentExecutor;
+import net.zamasoft.foliojet.layout.segment.SegmentExecutor;
+import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
  * レイアウトソースの再生ドライバです(M6b v3)。
@@ -447,7 +448,7 @@ public final class SourceReplayer {
 		// 「入れ子の浮動体で内容が消える」
 		// (files/fuzz-repro/nested-float-content-loss.html)の切り分けに使った
 		// ——受理(BlockBuilder)・配置・再生(Floatings)と対で読むこと。
-		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+		if (DebugFlags.FLOAT_TRACE) {
 			final StringBuilder where = new StringBuilder();
 			final StackTraceElement[] st = new Throwable().getStackTrace();
 			for (int k = 1; k < Math.min(st.length, 9); ++k) {

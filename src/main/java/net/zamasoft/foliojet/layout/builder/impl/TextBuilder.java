@@ -1339,9 +1339,8 @@ public class TextBuilder {
 	 * @param last 最終行として揃え、バッファ全体を消費する場合は {@code true}
 	 * @param materializeBreakHyphen 確定した分断位置のソフトハイフンを
 	 *                               実体化する場合は {@code true}
-	 * @return
+	 * @return 行に内容が入ったら true
 	 */
-
 	private boolean drawLine(final boolean last, final boolean materializeBreakHyphen) {
 		if (this.firstUnit) {
 			this.locateLine();
@@ -1397,67 +1396,7 @@ public class TextBuilder {
 					trimEndCandidate = (TextImpl) e;
 				} else if (e instanceof TextControl) {
 					final TextControl quad = (TextControl) e;
-					if (materializeBreakHyphen && i == count - 1 && quad == this.opportunity.hyphen()) {
-						// ソフトハイフンの分割機会で行が切られたのでハイフンを実体化する。
-						//
-						// ページ分割で閉じたブロック終端は last=true でここを通るため、
-						// !last だけでは拾えない。確定した分断かを引数で渡して実体化する。
-						final TextImpl hyphen = this.opportunity.hyphen().getText();
-						if (hyphen.getGlyphCount() > 0) {
-							// hyphenate-character:""は分割だけ行い文字を表示しない
-							this.addElement(hyphen);
-						}
-					} else if (quad instanceof InlineQuad) {
-						// インラインボックス
-						final InlineQuad inlineQuad = (InlineQuad) quad;
-						switch (inlineQuad.getType()) {
-						case InlineQuad.INLINE_START: {
-							// インライン開始
-							final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
-							this.startInline(inlineStartQuad.box);
-						}
-							break;
-
-						case InlineQuad.INLINE_END: {
-							// インライン終了
-							this.endInline();
-						}
-							break;
-
-						case InlineQuad.INLINE_REPLACED: {
-							// 置換されたボックス
-							final InlineReplacedQuad inlineReplacedQuad = (InlineReplacedQuad) inlineQuad;
-							this.startInline((IInlineBox) inlineReplacedQuad.box);
-							this.endInline();
-						}
-							break;
-
-						case InlineQuad.INLINE_BLOCK: {
-							// ブロックボックス
-							this.startInline((IInlineBox) inlineQuad.getBox());
-							this.endInline();
-						}
-							break;
-
-						case InlineQuad.INLINE_ABSOLUTE: {
-							// 絶対配置ボックス
-							final InlineAbsoluteQuad inlineAbsoluteQuad = (InlineAbsoluteQuad) inlineQuad;
-							this.getTextBox().addAbsolute(inlineAbsoluteQuad.box);
-						}
-							break;
-
-						default:
-							throw new IllegalStateException();
-						}
-					} else if (quad instanceof Control) {
-						final Control control = (Control) quad;
-						this.addElement(control);
-					} else if (quad instanceof net.zamasoft.foliojet.layout.text.LeaderQuad leaderQuad) {
-						// leader() L1: 割り付け済みの幅で行へ格納する
-						this.addElement(leaderQuad);
-					} else {
-						throw new IllegalStateException();
-					}
+					this.placeControl(quad, materializeBreakHyphen && i == count - 1);
 					// 折りたたまれる行末空白と幅0の境界は、直前の約物が
 					// 行末であることを妨げない。それ以外のインライン要素・
 					// leaderが後ろにあれば約物は行末ではない。
@@ -1757,6 +1696,77 @@ public class TextBuilder {
 		this.lineAxis -= physical;
 		this.pendingEndHang = hang;
 		return true;
+	}
+
+	/**
+	 * 行に並べる制御要素(分割のハイフン・インラインの開始と終了・置換・絶対配置・制御文字・leader)を、組み立て中の
+	 * 行へ反映します(2026-10-05 に {@link #drawLine} から切り出した。本文は移しただけ)。
+	 *
+	 * @param quad             制御要素
+	 * @param breakHyphenHere  行の最後の要素で、確定した分断なら true(分割のハイフンを実体化する)
+	 */
+	private void placeControl(final TextControl quad, final boolean breakHyphenHere) {
+		if (breakHyphenHere && quad == this.opportunity.hyphen()) {
+			// ソフトハイフンの分割機会で行が切られたのでハイフンを実体化する。
+			//
+			// ページ分割で閉じたブロック終端は last=true でここを通るため、
+			// !last だけでは拾えない。確定した分断かを引数で渡して実体化する。
+			final TextImpl hyphen = this.opportunity.hyphen().getText();
+			if (hyphen.getGlyphCount() > 0) {
+				// hyphenate-character:""は分割だけ行い文字を表示しない
+				this.addElement(hyphen);
+			}
+		} else if (quad instanceof InlineQuad) {
+			// インラインボックス
+			final InlineQuad inlineQuad = (InlineQuad) quad;
+			switch (inlineQuad.getType()) {
+			case InlineQuad.INLINE_START: {
+				// インライン開始
+				final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
+				this.startInline(inlineStartQuad.box);
+			}
+				break;
+
+			case InlineQuad.INLINE_END: {
+				// インライン終了
+				this.endInline();
+			}
+				break;
+
+			case InlineQuad.INLINE_REPLACED: {
+				// 置換されたボックス
+				final InlineReplacedQuad inlineReplacedQuad = (InlineReplacedQuad) inlineQuad;
+				this.startInline((IInlineBox) inlineReplacedQuad.box);
+				this.endInline();
+			}
+				break;
+
+			case InlineQuad.INLINE_BLOCK: {
+				// ブロックボックス
+				this.startInline((IInlineBox) inlineQuad.getBox());
+				this.endInline();
+			}
+				break;
+
+			case InlineQuad.INLINE_ABSOLUTE: {
+				// 絶対配置ボックス
+				final InlineAbsoluteQuad inlineAbsoluteQuad = (InlineAbsoluteQuad) inlineQuad;
+				this.getTextBox().addAbsolute(inlineAbsoluteQuad.box);
+			}
+				break;
+
+			default:
+				throw new IllegalStateException();
+			}
+		} else if (quad instanceof Control) {
+			final Control control = (Control) quad;
+			this.addElement(control);
+		} else if (quad instanceof net.zamasoft.foliojet.layout.text.LeaderQuad leaderQuad) {
+			// leader() L1: 割り付け済みの幅で行へ格納する
+			this.addElement(leaderQuad);
+		} else {
+			throw new IllegalStateException();
+		}
 	}
 
 	private static void addJlreqShrinkPoint(final List<JlreqShrinkPoint> points, final JlreqGlyph glyph,

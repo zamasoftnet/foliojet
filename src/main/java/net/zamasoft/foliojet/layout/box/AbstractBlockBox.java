@@ -28,6 +28,7 @@ import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
+import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
  * ブロックボックスの実装です。
@@ -397,7 +398,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		// 旧3引数splitPageAxisはこのPlain写像のwrapperだった(増分5で一本化)
 		final Container nextContainer = ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) this.container
 				.splitPageAxis(pageLimit, xmode, flags, null)).container();
-		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+		if (DebugFlags.FLOAT_TRACE) {
 			final String kind = nextContainer == null ? "KEEP"
 					: (nextContainer == this.splitMoveSentinel() ? "MOVE" : "SPLIT");
 			System.err.println("[float-split] " + kind + " el=" + this.params.element + " innerLimit=" + pageLimit

@@ -51,6 +51,7 @@ import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
+import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 public class FlowContainer implements Container {
 	/**
@@ -1111,7 +1112,7 @@ public class FlowContainer implements Container {
 		final double pageSize = this.box.getPageExtent(this.box.getBlockParams().flow);
 		final double pageInnerSize = this.box.getInnerPageExtent(this.box.getBlockParams().flow);
 
-		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+		if (DebugFlags.FLOAT_TRACE) {
 			final StringBuilder sb = new StringBuilder();
 			if (this.flows != null) {
 				for (final Object o : this.flows) {
@@ -1124,90 +1125,8 @@ public class FlowContainer implements Container {
 					+ " pageLimit=" + pageLimit + " pageSize=" + pageSize + " inner=" + pageInnerSize + " frameStart="
 					+ frameStart + " flags=" + flags + " floats=" + (this.floatings == null ? 0 : 1) + " flows=" + sb);
 		}
-		if (mode instanceof BreakMode.ForceBreakMode) {
-			// 強制改ページが指定されている場合
-			FlowContainer nextBox;
-			ForceBreakMode force = (ForceBreakMode) mode;
-			int index;
-			net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame chainFrame = null;
-			boolean moved = false;
-			net.zamasoft.foliojet.layout.fragment.ChainStopReason chainStopReason = null;
-			nextBox = new FlowContainer();
-			if (this.box != force.box) {
-				index = this.flows.size() - 1;
-				byte lflags = (byte) 0xFF;
-				if (index != 0) {
-					lflags ^= IPageBreakableBox.FLAGS_FIRST;
-				}
-				Flow flow = (Flow) this.flows.get(index);
-				if (plan != null && plan.selects(flow.box)) {
-					// C1d-C: チェーンメンバーの継続化。断片はボックスではなく
-					// フレームとして返り値で親へ伝播する
-					switch (((AbstractBlockBox) flow.box).splitForContinuation(pageLimit - flow.pageAxis, mode,
-							(byte) (lflags & flags), plan)) {
-					case SplitResult.Frame(
-							final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f) ->
-						chainFrame = f;
-					case SplitResult.Split(final IPageBreakableBox remainder) -> throw new IllegalStateException(
-							"チェーンメンバーは Split を返さない");
-					case SplitResult.Keep keep -> {
-						// 継続化不成立(chainFrame は null のまま)。box 全体を
-						// this 側に残す — 末尾の chainFrame==null 分岐が
-						// PlainWithChainStop(nextBox) へ自然にフォールバックする
-						chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP;
-					}
-					case SplitResult.Move move -> {
-						// box全体をnextBox側へ送る。自動改ページ主ループ
-						// ({@link #applyPartition})と同様、this.flows側からも除去
-						// しないと同一boxが前後ページに二重に残ってしまう
-						// (除去自体は下のsplitFloatings呼び出しの後——
-						// そちらがthis.flowsの元のサイズを前提にしている)
-						nextBox.addFlow(flow.serial, flow.box, 0);
-						moved = true;
-						chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.MOVE;
-					}
-					}
-				} else {
-					IPageBreakableBox flowBox = (IPageBreakableBox) flow.box;
-					final SplitResult forceResult = splitFlow(flowBox, pageLimit - flow.pageAxis, mode,
-							(byte) (lflags & flags), plan);
-					switch (forceResult) {
-					case SplitResult.Split(final IPageBreakableBox remainder) -> nextBox.addFlow(flow.serial,
-							(IFlowBox) remainder, 0);
-					case SplitResult.Frame frame -> throw new IllegalStateException("継続化は plan の選択なしには起きない");
-					case SplitResult.Keep keep -> {
-						// box 全体を this 側に残す(nextBox には何も加えない)
-					}
-					case SplitResult.Move move -> {
-						// 同上: this.flows側からも除去する(除去はsplitFloatings
-						// 呼び出しの後)
-						nextBox.addFlow(flow.serial, flow.box, 0);
-						moved = true;
-					}
-					}
-				}
-			} else {
-				index = this.flows == null ? 0 : this.flows.size();
-			}
-			final FloatAggregate aggregate = this.aggregateFloatings(pageLimit, flags, index);
-			if (moved) {
-				// aggregateFloatings(pageLimit, flags, index) は呼び出し時点の
-				// this.flows.size()==index+1 を前提に0..index-1を走査する
-				// ため、除去はその呼び出しの後に行う(先に除去すると
-				// FLAGS_LAST判定がずれる)
-				this.flows.remove(index);
-				this.invalidateNonDecorationContent();
-			}
-			this.attachAggregate(nextBox, aggregate);
-			assert nextBox != null;
-			assert nextBox != this;
-			if (chainFrame != null) {
-				return new net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(nextBox, chainFrame);
-			}
-			return chainStopReason != null
-					? new net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(nextBox,
-							chainStopReason)
-					: plain(nextBox);
+		if (mode instanceof final ForceBreakMode force) {
+			return this.splitForced(pageLimit, force, flags, plan);
 		}
 
 		final double prevPageSize = pageLimit;
@@ -1524,7 +1443,7 @@ public class FlowContainer implements Container {
 						ignoreAvoid, relaxInsideIndex, prevPageSize, pageLimit, ((AutoBreakMode) mode).fragmentCapacity,
 						flowPageStarts, flowPageExtents, avoidBefore, avoidAfter,
 						flowPageEndFrames, floatPageStarts, floatPageExtents, floatUncut);
-				if (System.getProperty("foliojet.debug.floatTrace") != null) {
+				if (DebugFlags.FLOAT_TRACE) {
 					System.err.println("[move-resolution] " + resolution + " i=" + i + " lastOrphan=" + lastOrphan
 							+ " pageLimit=" + pageLimit + " el=" + (this.box.getParams() == null ? "-" : this.box.getParams().element));
 				}
@@ -1651,6 +1570,94 @@ public class FlowContainer implements Container {
 				: plain(splitResult);
 	}
 
+	/**
+	 * 強制改ページ・改段での切断です(2026-10-05 に {@link #splitPageAxis} から切り出した。本文は移しただけ)。
+	 * 自分が改ページの持ち主でなければ末尾のフローを切り、持ち主なら流れは送らず浮動体だけを集約する。
+	 */
+	private net.zamasoft.foliojet.layout.fragment.ContainerCut splitForced(final double pageLimit,
+			final ForceBreakMode force, final byte flags, final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
+		final FlowContainer nextBox = new FlowContainer();
+		net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame chainFrame = null;
+		net.zamasoft.foliojet.layout.fragment.ChainStopReason chainStopReason = null;
+		boolean moved = false;
+		final int index;
+		if (this.box != force.box) {
+			index = this.flows.size() - 1;
+			byte lflags = (byte) 0xFF;
+			if (index != 0) {
+				lflags ^= IPageBreakableBox.FLAGS_FIRST;
+			}
+			final Flow flow = this.flows.get(index);
+			if (plan != null && plan.selects(flow.box)) {
+				// C1d-C: チェーンメンバーの継続化。断片はボックスではなく
+				// フレームとして返り値で親へ伝播する
+				switch (((AbstractBlockBox) flow.box).splitForContinuation(pageLimit - flow.pageAxis, force,
+						(byte) (lflags & flags), plan)) {
+				case SplitResult.Frame(
+						final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f) ->
+					chainFrame = f;
+				case SplitResult.Split(final IPageBreakableBox remainder) -> throw new IllegalStateException(
+						"チェーンメンバーは Split を返さない");
+				case SplitResult.Keep keep -> {
+					// 継続化不成立(chainFrame は null のまま)。box 全体を
+					// this 側に残す — 末尾の chainFrame==null 分岐が
+					// PlainWithChainStop(nextBox) へ自然にフォールバックする
+					chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP;
+				}
+				case SplitResult.Move move -> {
+					// box全体をnextBox側へ送る。自動改ページ主ループ
+					// ({@link #applyPartition})と同様、this.flows側からも除去
+					// しないと同一boxが前後ページに二重に残ってしまう
+					// (除去自体は下のsplitFloatings呼び出しの後——
+					// そちらがthis.flowsの元のサイズを前提にしている)
+					nextBox.addFlow(flow.serial, flow.box, 0);
+					moved = true;
+					chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.MOVE;
+				}
+				}
+			} else {
+				final IPageBreakableBox flowBox = (IPageBreakableBox) flow.box;
+				final SplitResult forceResult = splitFlow(flowBox, pageLimit - flow.pageAxis, force,
+						(byte) (lflags & flags), plan);
+				switch (forceResult) {
+				case SplitResult.Split(final IPageBreakableBox remainder) -> nextBox.addFlow(flow.serial,
+						(IFlowBox) remainder, 0);
+				case SplitResult.Frame frame -> throw new IllegalStateException("継続化は plan の選択なしには起きない");
+				case SplitResult.Keep keep -> {
+					// box 全体を this 側に残す(nextBox には何も加えない)
+				}
+				case SplitResult.Move move -> {
+					// 同上: this.flows側からも除去する(除去はsplitFloatings
+					// 呼び出しの後)
+					nextBox.addFlow(flow.serial, flow.box, 0);
+					moved = true;
+				}
+				}
+			}
+		} else {
+			index = this.flows == null ? 0 : this.flows.size();
+		}
+		final FloatAggregate aggregate = this.aggregateFloatings(pageLimit, flags, index);
+		if (moved) {
+			// aggregateFloatings(pageLimit, flags, index) は呼び出し時点の
+			// this.flows.size()==index+1 を前提に0..index-1を走査する
+			// ため、除去はその呼び出しの後に行う(先に除去すると
+			// FLAGS_LAST判定がずれる)
+			this.flows.remove(index);
+			this.invalidateNonDecorationContent();
+		}
+		this.attachAggregate(nextBox, aggregate);
+		assert nextBox != null;
+		assert nextBox != this;
+		if (chainFrame != null) {
+			return new net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(nextBox, chainFrame);
+		}
+		return chainStopReason != null
+				? new net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(nextBox,
+						chainStopReason)
+				: plain(nextBox);
+	}
+
 	private static net.zamasoft.foliojet.layout.fragment.ContainerCut plain(final Container container) {
 		return new net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain(container);
 	}
@@ -1771,7 +1778,7 @@ public class FlowContainer implements Container {
 				source, progression, sourcePageExtent, slice.offset(), slice.sliceExtent());
 		final net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox tail = new net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox(
 				source, progression, sourcePageExtent, tailOffset, tailExtent);
-		if (System.getProperty("foliojet.debug.rescueProbe") != null) {
+		if (DebugFlags.RESCUE_PROBE) {
 			System.err.println("[rescueProbe] box=" + box.getClass().getSimpleName() + " element="
 					+ (box.getParams() == null ? "-" : String.valueOf(box.getParams().element)) + " offset=" + offset
 					+ " sourcePageExtent=" + sourcePageExtent + " available=" + available + " capacity=" + capacity
@@ -2751,7 +2758,7 @@ public class FlowContainer implements Container {
 		{
 			{
 				BoxHolder holder = (BoxHolder) items.get(i);
-				if (System.getProperty("foliojet.debug.resumeDetail") != null) {
+				if (DebugFlags.RESUME_DETAIL) {
 					// 再開の各アイテムの出自(2026-09-17、診断用)。ResumeTrace は golden で
 					// 固定されているので文面を変えず、別スイッチで stderr へ出す
 					final IBox b = holder instanceof Replay ? null : holder.getBox();

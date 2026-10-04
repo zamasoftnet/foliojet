@@ -67,6 +67,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
+import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 public class BlockBuilder implements Builder, LayoutContext {
 	private static final Logger LOG = Logger.getLogger(BlockBuilder.class.getName());
@@ -1158,188 +1159,183 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 		this.noteBidiBarrier(box);
 		switch (box.getPos().getType()) {
-		case FLOW:
+		case FLOW, TABLE -> this.addFlowBound(box);
+		case FLOAT -> this.addFloatBound(box);
+		case ABSOLUTE -> this.addAbsoluteBound(box);
+		default -> throw new IllegalStateException();
+		}
+	}
+
+	/** 通常のフロー(ブロック・置換・表)を現在の位置へ積みます。余白の相殺と浮動体の回避もここ。 */
+	private void addFlowBound(final IBox box) {
+		this.requireNoOpenTextBuilder("(no context)");
+		IFlowBox flowBox = (IFlowBox) box;
+
+		Flow flow = this.getFlow();
+		BlockParams params = flow.box.getBlockParams();
+		boolean vertical = params.flow.isVertical();
+		AbsoluteInsets amargin;
+		AbsoluteRectFrame frame;
+		ClearMode clear;
+		Align align;
+		switch (box.getType()) {
+		case REPLACED: {
+			AbstractReplacedBox replacedBox = (AbstractReplacedBox) flowBox;
+			LayoutUtils.calculateReplacedSize(this, replacedBox);
+			frame = replacedBox.getFrame();
+			FlowPos pos = (FlowPos) flowBox.getPos();
+			clear = pos.clear;
+			align = pos.align;
+		}
+			break;
+		case BLOCK: {
+			AbstractBlockBox blockBox = (AbstractBlockBox) flowBox;
+			frame = blockBox.getFrame();
+			FlowPos pos = (FlowPos) flowBox.getPos();
+			clear = pos.clear;
+			// 表整列の解決結果は箱ローカル(共有 pos は record 後不変)
+			align = blockBox instanceof FlowBlockBox fb ? fb.getResolvedAlign() : pos.align;
+		}
+			break;
 		case TABLE: {
-			// 通常のフロー
-			this.requireNoOpenTextBuilder("(no context)");
-			IFlowBox flowBox = (IFlowBox) box;
-
-			Flow flow = this.getFlow();
-			BlockParams params = flow.box.getBlockParams();
-			boolean vertical = params.flow.isVertical();
-			AbsoluteInsets amargin;
-			AbsoluteRectFrame frame;
-			ClearMode clear;
-			Align align;
-			switch (box.getType()) {
-			case REPLACED: {
-				AbstractReplacedBox replacedBox = (AbstractReplacedBox) flowBox;
-				LayoutUtils.calculateReplacedSize(this, replacedBox);
-				frame = replacedBox.getFrame();
-				FlowPos pos = (FlowPos) flowBox.getPos();
-				clear = pos.clear;
-				align = pos.align;
-			}
-				break;
-			case BLOCK: {
-				AbstractBlockBox blockBox = (AbstractBlockBox) flowBox;
-				frame = blockBox.getFrame();
-				FlowPos pos = (FlowPos) flowBox.getPos();
-				clear = pos.clear;
-				// 表整列の解決結果は箱ローカル(共有 pos は record 後不変)
-				align = blockBox instanceof FlowBlockBox fb ? fb.getResolvedAlign() : pos.align;
-			}
-				break;
-			case TABLE: {
-				TableBox tableBox = (TableBox) flowBox;
-				frame = tableBox.getFrame();
-				clear = ClearMode.NONE;
-				align = null;
-			}
-				break;
-			default:
-				throw new IllegalStateException();
-			}
-			Insets margin = frame.frame.margin;
-			amargin = frame.margin;
-			double lineSize = box.getLineExtent(params.flow);
-			final double cLineSize = flow.box.getLineSize();
-			final double lineStop = this.lineAxis + cLineSize;
-			double xMarginStart = 0, lineEnd = lineStop, xMarginEnd = 0;
-			if (this.getFloatingCount() > 0) {
-				// clearのチェックと置換ボックスやテーブルが浮動ボックスと重ならない処理
-				// *** CLEAR_NONEもチェックしていることに注意 ***
-				final double pageStart;
-				final double marginAdjust;
-				if (vertical) {
-					marginAdjust = amargin.right;
-				} else {
-					marginAdjust = amargin.top;
-				}
-				pageStart = this.pageAxis - marginAdjust;
-				final ExclusionSpace snapshot = this.snapshotExclusions();
-				final ExclusionSpace.BoundAvoidance found = snapshot.findBoundAvoidance(pageStart, lineSize, lineStop,
-						marginAdjust, clear);
-				xMarginStart = found.xMarginStart();
-				lineEnd = found.lineEnd();
-				if (found.clearingExclusion() != null) {
-					this.poLastMargin = this.neLastMargin = 0;
-					this.pageAxis = found.clearPageEnd();
-				}
-			}
-			xMarginEnd = lineStop - lineEnd;
-
-			//
-			// ■ 通常のフローのマージンの計算(純計算は resolveAutoMargins へ — 2026-07-30)
-			// flex itemのauto marginはFlexBuilderが解決済みのため再解決しない
-			// (FlowBlockBox.coordinatorOwnsAutoMarginsの説明を参照)
-			//
-			if (align != null
-					&& !(flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox fb
-							&& fb.coordinatorOwnsAutoMargins())) {
-				resolveAutoMargins(vertical, frame, margin, amargin, cLineSize, lineSize, xMarginStart, xMarginEnd,
-						align);
-			}
-			if (amargin.top >= 0) {
-				if (amargin.top > this.poLastMargin) {
-					this.pageAxis -= this.poLastMargin;
-					this.poLastMargin = amargin.top;
-				} else {
-					this.pageAxis -= amargin.top;
-				}
-			} else {
-				if (amargin.top < this.neLastMargin) {
-					this.pageAxis -= this.neLastMargin;
-					this.neLastMargin = amargin.top;
-				} else {
-					this.pageAxis -= amargin.top;
-				}
-			}
-			if (flowBox instanceof TableBox tableBox && tableBox.isIncomplete()) {
-				this.poLastMargin = this.neLastMargin = 0;
-			} else if (vertical) {
-				this.poLastMargin = this.neLastMargin = amargin.left;
-			} else {
-				this.poLastMargin = this.neLastMargin = amargin.bottom;
-			}
-			flow.box.addFlow(flowBox, this.pageAxis - flow.pageAxis);
-
-			if (flowBox instanceof TableBox tableBox && tableBox.isIncomplete()) {
-				// getFrame() は終端を保留した有効フレーム。通常経路の演算順は維持する。
-				this.incompleteTablePlaced(tableBox, this.pageAxis);
-				this.pageAxis += tableBox.getInnerPageExtent(params.flow) + frame.getFramePageExtent(params.flow);
-			} else {
-				this.pageAxis += flowBox.getPageExtent(params.flow);
-			}
-			flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
+			TableBox tableBox = (TableBox) flowBox;
+			frame = tableBox.getFrame();
+			clear = ClearMode.NONE;
+			align = null;
 		}
 			break;
-
-		case FLOAT: {
-			if (box.getType() == BoxType.REPLACED) {
-				AbstractReplacedBox replacedBox = (AbstractReplacedBox) box;
-				LayoutUtils.calculateReplacedSize(this, replacedBox);
-			}
-
-			// 浮動体
-			final IFloatBox floatBox = (IFloatBox) box;
-			if (System.getProperty("foliojet.debug.floatTrace") != null) {
-				final StringBuilder where = new StringBuilder();
-				final StackTraceElement[] st = new Throwable().getStackTrace();
-				for (int k = 1; k < Math.min(st.length, 7); ++k) {
-					where.append(' ').append(st[k].getMethodName()).append(':').append(st[k].getLineNumber());
-				}
-				System.err.println("[float] 受理 side=" + floatBox.getFloatPos().floating + " box="
-						+ System.identityHashCode(floatBox) + " 経路" + where);
-			}
-			if (this.textBuilder != null && this.textBuilder.getLineAxis() > 0) {
-				// 行の途中に現れたフロート。行末側で現在行の残り幅に
-				// 収まるなら現在行の上端へ置き、行をその場で狭める
-				// (CSS 2.1 §9.5、ブラウザと同じ。kabutan 2026-08-08)。
-				// 収まらないとき・行頭側・clear付きは従来どおり行末まで
-				// 先送りして次の帯へ置く
-				if (!this.tryFloatOnCurrentLine(floatBox)) {
-					this.toAddFloating(floatBox);
-				}
-			} else {
-				this.addFloating(floatBox);
-			}
-		}
-			break;
-
-		case ABSOLUTE: {
-			// 絶対位置
-			final IAbsoluteBox absoluteBox = (IAbsoluteBox) box;
-			final AbsolutePos pos = absoluteBox.getAbsolutePos();
-			final AbstractContainerBox contextBox;
-			{
-				// 通常の絶対配置
-				// 固定配置
-				final Flow flow = this.getFlow();
-				contextBox = flow.box;
-				double staticX = this.lineAxis - flow.lineAxis;
-				double staticY = this.pageAxis - flow.pageAxis;
-				if (pos.usesStaticPageAxis(flow.box.getBlockParams().flow)) {
-					assert pos.autoPosition == AutoPosition.BLOCK : box.getParams();
-					if (this.textBuilder != null) {
-						staticY += this.textBuilder.getVirtualClosedPageAxis(this.pendingText);
-					} else {
-						staticY += new TextBuilder(this, this.breakToken).getVirtualClosedPageAxis(this.pendingText);
-					}
-				}
-				if (box.getType() == BoxType.REPLACED) {
-					// 縦組みRLの静的位置を物理化するには、箱のページ方向寸法が
-					// 必要なのでabsolute台帳へ渡す前に確定する。
-					((AbstractReplacedBox) box).calculateFrame(contextBox.getLineSize());
-				}
-				contextBox.addAbsolute(absoluteBox, staticX, staticY);
-			}
-		}
-			break;
-
 		default:
 			throw new IllegalStateException();
 		}
+		Insets margin = frame.frame.margin;
+		amargin = frame.margin;
+		double lineSize = box.getLineExtent(params.flow);
+		final double cLineSize = flow.box.getLineSize();
+		final double lineStop = this.lineAxis + cLineSize;
+		double xMarginStart = 0, lineEnd = lineStop, xMarginEnd = 0;
+		if (this.getFloatingCount() > 0) {
+			// clearのチェックと置換ボックスやテーブルが浮動ボックスと重ならない処理
+			// *** CLEAR_NONEもチェックしていることに注意 ***
+			final double pageStart;
+			final double marginAdjust;
+			if (vertical) {
+				marginAdjust = amargin.right;
+			} else {
+				marginAdjust = amargin.top;
+			}
+			pageStart = this.pageAxis - marginAdjust;
+			final ExclusionSpace snapshot = this.snapshotExclusions();
+			final ExclusionSpace.BoundAvoidance found = snapshot.findBoundAvoidance(pageStart, lineSize, lineStop,
+					marginAdjust, clear);
+			xMarginStart = found.xMarginStart();
+			lineEnd = found.lineEnd();
+			if (found.clearingExclusion() != null) {
+				this.poLastMargin = this.neLastMargin = 0;
+				this.pageAxis = found.clearPageEnd();
+			}
+		}
+		xMarginEnd = lineStop - lineEnd;
+
+		//
+		// ■ 通常のフローのマージンの計算(純計算は resolveAutoMargins へ — 2026-07-30)
+		// flex itemのauto marginはFlexBuilderが解決済みのため再解決しない
+		// (FlowBlockBox.coordinatorOwnsAutoMarginsの説明を参照)
+		//
+		if (align != null
+				&& !(flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox fb
+						&& fb.coordinatorOwnsAutoMargins())) {
+			resolveAutoMargins(vertical, frame, margin, amargin, cLineSize, lineSize, xMarginStart, xMarginEnd,
+					align);
+		}
+		if (amargin.top >= 0) {
+			if (amargin.top > this.poLastMargin) {
+				this.pageAxis -= this.poLastMargin;
+				this.poLastMargin = amargin.top;
+			} else {
+				this.pageAxis -= amargin.top;
+			}
+		} else {
+			if (amargin.top < this.neLastMargin) {
+				this.pageAxis -= this.neLastMargin;
+				this.neLastMargin = amargin.top;
+			} else {
+				this.pageAxis -= amargin.top;
+			}
+		}
+		if (flowBox instanceof TableBox tableBox && tableBox.isIncomplete()) {
+			this.poLastMargin = this.neLastMargin = 0;
+		} else if (vertical) {
+			this.poLastMargin = this.neLastMargin = amargin.left;
+		} else {
+			this.poLastMargin = this.neLastMargin = amargin.bottom;
+		}
+		flow.box.addFlow(flowBox, this.pageAxis - flow.pageAxis);
+
+		if (flowBox instanceof TableBox tableBox && tableBox.isIncomplete()) {
+			// getFrame() は終端を保留した有効フレーム。通常経路の演算順は維持する。
+			this.incompleteTablePlaced(tableBox, this.pageAxis);
+			this.pageAxis += tableBox.getInnerPageExtent(params.flow) + frame.getFramePageExtent(params.flow);
+		} else {
+			this.pageAxis += flowBox.getPageExtent(params.flow);
+		}
+		flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
+	}
+
+	/** 浮動体を受け取ります。行の途中なら現在行へ置くか、行末まで先送りする。 */
+	private void addFloatBound(final IBox box) {
+		if (box.getType() == BoxType.REPLACED) {
+			AbstractReplacedBox replacedBox = (AbstractReplacedBox) box;
+			LayoutUtils.calculateReplacedSize(this, replacedBox);
+		}
+
+		// 浮動体
+		final IFloatBox floatBox = (IFloatBox) box;
+		if (DebugFlags.FLOAT_TRACE) {
+			final StringBuilder where = new StringBuilder();
+			final StackTraceElement[] st = new Throwable().getStackTrace();
+			for (int k = 1; k < Math.min(st.length, 7); ++k) {
+				where.append(' ').append(st[k].getMethodName()).append(':').append(st[k].getLineNumber());
+			}
+			System.err.println("[float] 受理 side=" + floatBox.getFloatPos().floating + " box="
+					+ System.identityHashCode(floatBox) + " 経路" + where);
+		}
+		if (this.textBuilder != null && this.textBuilder.getLineAxis() > 0) {
+			// 行の途中に現れたフロート。行末側で現在行の残り幅に
+			// 収まるなら現在行の上端へ置き、行をその場で狭める
+			// (CSS 2.1 §9.5、ブラウザと同じ。kabutan 2026-08-08)。
+			// 収まらないとき・行頭側・clear付きは従来どおり行末まで
+			// 先送りして次の帯へ置く
+			if (!this.tryFloatOnCurrentLine(floatBox)) {
+				this.toAddFloating(floatBox);
+			}
+		} else {
+			this.addFloating(floatBox);
+		}
+	}
+
+	/** 絶対配置の箱を、静的位置を添えて流れの持ち主へ登録します。 */
+	private void addAbsoluteBound(final IBox box) {
+		// 通常の絶対配置・固定配置
+		final IAbsoluteBox absoluteBox = (IAbsoluteBox) box;
+		final AbsolutePos pos = absoluteBox.getAbsolutePos();
+		final Flow flow = this.getFlow();
+		final AbstractContainerBox contextBox = flow.box;
+		double staticX = this.lineAxis - flow.lineAxis;
+		double staticY = this.pageAxis - flow.pageAxis;
+		if (pos.usesStaticPageAxis(flow.box.getBlockParams().flow)) {
+			assert pos.autoPosition == AutoPosition.BLOCK : box.getParams();
+			if (this.textBuilder != null) {
+				staticY += this.textBuilder.getVirtualClosedPageAxis(this.pendingText);
+			} else {
+				staticY += new TextBuilder(this, this.breakToken).getVirtualClosedPageAxis(this.pendingText);
+			}
+		}
+		if (box.getType() == BoxType.REPLACED) {
+			// 縦組みRLの静的位置を物理化するには、箱のページ方向寸法が
+			// 必要なのでabsolute台帳へ渡す前に確定する。
+			((AbstractReplacedBox) box).calculateFrame(contextBox.getLineSize());
+		}
+		contextBox.addAbsolute(absoluteBox, staticX, staticY);
 	}
 
 	/**
@@ -1526,7 +1522,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 * 親ボックスのpage extent拡張)。
 	 */
 	final void commitFloatPlacement(final FloatPlacementDelta delta) {
-		if (System.getProperty("foliojet.debug.breakTrace") != null) {
+		if (DebugFlags.BREAK_TRACE) {
 			System.err.println("[float-commit] kind=" + delta.kind() + " el=" + delta.box().getParams().element
 					+ " pageSpan=" + delta.pageSpan().start() + ".." + delta.pageSpan().end() + " limit="
 					+ (this instanceof BreakableBuilder bb ? bb.getPageLimit() : Double.NaN));
@@ -1695,7 +1691,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	private void addFloating(IFloatBox box) {
-		if (System.getProperty("foliojet.debug.floatTrace") != null) {
+		if (DebugFlags.FLOAT_TRACE) {
 			System.err.println("[float] 配置 side=" + box.getFloatPos().floating + " box="
 					+ System.identityHashCode(box) + " builder=" + System.identityHashCode(this));
 		}

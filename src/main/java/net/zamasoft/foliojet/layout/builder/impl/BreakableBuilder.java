@@ -38,6 +38,7 @@ import net.zamasoft.foliojet.layout.constraint.AxisSpan;
 
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
+import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
  * 改ページ・改段の編成(自動/強制/段組)を担う抽象ビルダーです
@@ -1628,7 +1629,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 * @return
 	 */
 	private boolean autoBreak() {
-		if (System.getProperty("foliojet.debug.breakTrace") != null) {
+		if (DebugFlags.BREAK_TRACE) {
 			System.err.println("[break] pageAxis=" + this.pageAxis + " flow="
 					+ this.getFlowBox().getParams().element + " stack="
 					+ (this.flowStack == null ? 0 : this.flowStack.size()));
