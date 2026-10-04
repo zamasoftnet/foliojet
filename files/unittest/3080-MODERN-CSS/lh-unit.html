@@ -50,7 +50,7 @@ body {
 	line-height: calc(1lh - 100pt);
 	background: #cfc;
 }
-/* フォント相対成分が残るmin/maxは静的比較不能=宣言無効(width:auto) */
+/* フォント相対成分を含むmin/maxは計算値の段階で比べる: max(1lh, 5pt) = 30pt(2026-10-04。以前は宣言無効でwidth:auto) */
 #g {
 	width: max(1lh, 5pt);
 	height: 10pt;

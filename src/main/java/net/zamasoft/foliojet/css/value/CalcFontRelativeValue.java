@@ -1,5 +1,7 @@
 package net.zamasoft.foliojet.css.value;
 
+import java.util.function.IntToDoubleFunction;
+
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.token.Unit;
 
@@ -25,8 +27,75 @@ import net.zamasoft.foliojet.css.token.Unit;
  * 位置引数が9個になったため{@link #UNITS}添字の配列へ改めた(2026-08-30)。
  * 加減は成分ごと、数との乗除は全成分に効く——どちらもフォント寸法に対して
  * 線形なので、後で寸法を掛けても等価である。
+ *
+ * <p>
+ * 線形でない min()・max()・clamp() の部分は{@link Term}として別に持つ(2026-10-04)。
  */
 public final class CalcFontRelativeValue implements QuantityValue {
+	/**
+	 * 大小がフォント寸法で決まる min()・max() の部分です(2026-10-04、出版の報告: {@code min(10mm, 3em)} が
+	 * 不正な値になっていた)。
+	 *
+	 * <p>
+	 * {@code min(10mm, 3em)} は em の寸法が定まるまでどちらを取るか分からないので、線形の成分と分けて
+	 * 持ち、解くときに選ぶ。{@code unit} は{@link #UNITS}の i 番目の単位 1 つ分の長さ(pt)を返す。
+	 * 引数はいつもすべて評価してから選ぶ——どの単位を使うかを問い合わせで知るため({@link #uses})。
+	 * </p>
+	 */
+	@FunctionalInterface
+	public interface Term {
+		double length(IntToDoubleFunction unit);
+
+		/** {@code absolute + Σ font[i]·unit(i) + term} です。 */
+		static Term linear(double absolute, double[] font, Term term) {
+			final double[] components = font.clone();
+			return unit -> {
+				double length = absolute + (term == null ? 0 : term.length(unit));
+				for (int i = 0; i < components.length; ++i) {
+					if (components[i] != 0) {
+						length += components[i] * unit.applyAsDouble(i);
+					}
+				}
+				return length;
+			};
+		}
+
+		/** a と b の小さい方(min)・大きい方です。 */
+		static Term extremum(boolean min, Term a, Term b) {
+			return unit -> {
+				final double x = a.length(unit);
+				final double y = b.length(unit);
+				return min ? Math.min(x, y) : Math.max(x, y);
+			};
+		}
+
+		/** {@code a + sign·b} です。どちらかが null ならもう一方だけ。 */
+		static Term sum(Term a, Term b, double sign) {
+			if (b == null) {
+				return a;
+			}
+			if (a == null) {
+				return scaled(b, sign);
+			}
+			return unit -> a.length(unit) + sign * b.length(unit);
+		}
+
+		static Term scaled(Term term, double factor) {
+			return term == null ? null : unit -> factor * term.length(unit);
+		}
+
+		/** 単位の添字 i を使うかどうかです。 */
+		static boolean uses(Term term, int i) {
+			final boolean[] used = { false };
+			term.length(j -> {
+				used[0] |= j == i;
+				return 1;
+			});
+			return used[0];
+		}
+	}
+
+
 	/** 成分配列の並びです。{@link #indexOf}で添字を引きます。 */
 	public static final Unit[] UNITS = { Unit.EM, Unit.EX, Unit.REM, Unit.CH, Unit.LH, Unit.CAP, Unit.RLH };
 
@@ -51,15 +120,22 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	private final double absolute;
 	private final double ratio;
 	private final double[] font;
+	/** 線形でない部分です。無ければ null。 */
+	private final Term term;
 
 	public static Value create(double absolute, double ratio, double[] font) {
-		return new CalcFontRelativeValue(absolute, ratio, font.clone());
+		return create(absolute, ratio, font, null);
 	}
 
-	private CalcFontRelativeValue(double absolute, double ratio, double[] font) {
+	public static Value create(double absolute, double ratio, double[] font, Term term) {
+		return new CalcFontRelativeValue(absolute, ratio, font.clone(), term);
+	}
+
+	private CalcFontRelativeValue(double absolute, double ratio, double[] font, Term term) {
 		this.absolute = absolute;
 		this.ratio = ratio;
 		this.font = font;
+		this.term = term;
 	}
 
 	/**
@@ -72,12 +148,15 @@ public final class CalcFontRelativeValue implements QuantityValue {
 				abs += RelativeLengthValue.of(UNITS[i], this.font[i]).toAbsoluteLength(style).getLength();
 			}
 		}
+		if (this.term != null) {
+			abs += this.term.length(i -> RelativeLengthValue.of(UNITS[i], 1).toAbsoluteLength(style).getLength());
+		}
 		return CalcLengthValue.create(style.getUserAgent(), abs, this.ratio);
 	}
 
-	/** lh成分です(line-height自身の自己参照回避用)。 */
-	public double getLh() {
-		return this.font[LH];
+	/** lh を使うかどうかです(line-height自身の自己参照回避用)。 */
+	public boolean usesLh() {
+		return this.font[LH] != 0 || this.term != null && Term.uses(this.term, LH);
 	}
 
 	/** {@code 100% - <unit値>}を表す値です(&lt;position&gt;の端オフセット用)。 */
@@ -88,26 +167,32 @@ public final class CalcFontRelativeValue implements QuantityValue {
 		}
 		final double[] font = newComponents();
 		font[i] = -v;
-		return new CalcFontRelativeValue(0, 1, font);
+		return new CalcFontRelativeValue(0, 1, font, null);
 	}
 
 	/** {@code 100% - この値}を返します(&lt;position&gt;の端オフセット用)。 */
 	public Value subtractedFromFull() {
-		return new CalcFontRelativeValue(-this.absolute, 1 - this.ratio, negated(this.font));
+		return new CalcFontRelativeValue(-this.absolute, 1 - this.ratio, negated(this.font),
+				Term.scaled(this.term, -1));
 	}
 
 	/** lh成分を、与えられた基準line-heightで絶対成分へ畳んだ値を返します。 */
 	public Value resolveLh(net.zamasoft.foliojet.ua.UserAgent ua, double lineHeight) {
-		if (this.font[LH] == 0) {
+		if (!this.usesLh()) {
 			return this;
 		}
 		final double abs = this.absolute + this.font[LH] * lineHeight;
 		final double[] font = this.font.clone();
 		font[LH] = 0;
+		if (this.term != null) {
+			final Term term = this.term;
+			return new CalcFontRelativeValue(abs, this.ratio, font,
+					unit -> term.length(i -> i == LH ? lineHeight : unit.applyAsDouble(i)));
+		}
 		if (!hasFont(font)) {
 			return CalcLengthValue.create(ua, abs, this.ratio);
 		}
-		return new CalcFontRelativeValue(abs, this.ratio, font);
+		return new CalcFontRelativeValue(abs, this.ratio, font, null);
 	}
 
 	/** 割合成分です(2026-08-19、transformのtranslate%分解用)。 */
@@ -127,6 +212,9 @@ public final class CalcFontRelativeValue implements QuantityValue {
 		double abs = this.absolute;
 		for (int i = 0; i < UNITS.length; ++i) {
 			abs += this.font[i] * medium * approximateRatio(UNITS[i], ua);
+		}
+		if (this.term != null) {
+			abs += this.term.length(i -> medium * approximateRatio(UNITS[i], ua));
 		}
 		return abs;
 	}
@@ -154,12 +242,19 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	 * ({@link net.zamasoft.foliojet.ua.UserAgent#getFontMagnification})を絶対
 	 * 長さにだけ適用する規約で、フォント相対成分は基準のフォント寸法自体が
 	 * 倍率適用済みのため掛けない。
+	 * <p>
+	 * min()・max() の項の中の絶対長さにも掛ける。項は絶対長さと単位の長さの両方を同じ正の数倍すると
+	 * その数倍になる(min・max・加減・数との乗除のどれも保つ)ので、単位の長さを倍率で割って解き、
+	 * 結果に倍率を掛ければよい。
+	 * </p>
 	 */
 	public Value scaleAbsolute(double factor) {
-		if (factor == 1 || this.absolute == 0) {
+		if (factor == 1 || this.absolute == 0 && this.term == null) {
 			return this;
 		}
-		return new CalcFontRelativeValue(this.absolute * factor, this.ratio, this.font);
+		final Term term = this.term;
+		return new CalcFontRelativeValue(this.absolute * factor, this.ratio, this.font, term == null ? null
+				: unit -> factor * term.length(i -> unit.applyAsDouble(i) / factor));
 	}
 
 	/**
@@ -167,7 +262,7 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	 * ときだけ零と答える(この型はそもそも成分が非零のときにしか作られない)。
 	 */
 	public boolean isZero() {
-		return this.absolute == 0 && this.ratio == 0 && !hasFont(this.font);
+		return this.absolute == 0 && this.ratio == 0 && !hasFont(this.font) && this.term == null;
 	}
 
 	/**
@@ -176,7 +271,7 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	 * 解決するまで決まらないので偽を返す(CalcLengthValueと同じ規約)。
 	 */
 	public boolean isNegative() {
-		if (this.absolute > 0 || this.ratio > 0) {
+		if (this.term != null || this.absolute > 0 || this.ratio > 0) {
 			return false;
 		}
 		for (final double v : this.font) {
@@ -218,6 +313,9 @@ public final class CalcFontRelativeValue implements QuantityValue {
 				.append(z(this.ratio * 100)).append('%');
 		for (int i = 0; i < UNITS.length; ++i) {
 			buff.append(" + ").append(z(this.font[i])).append(UNITS[i].name().toLowerCase(java.util.Locale.ROOT));
+		}
+		if (this.term != null) {
+			buff.append(" + min/max(...)");
 		}
 		return buff.append(')').toString();
 	}

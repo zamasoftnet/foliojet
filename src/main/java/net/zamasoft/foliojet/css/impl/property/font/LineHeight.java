@@ -91,7 +91,7 @@ public class LineHeight extends AbstractPrimitivePropertyInfo {
 		if (value instanceof RelativeLengthValue rel && isSelfReferentialLineHeightUnit(rel.getUnit(), style)) {
 			return AbsoluteLengthValue.create(style.getUserAgent(), inheritedLineHeight(style) * rel.getValue());
 		}
-		if (value instanceof CalcFontRelativeValue lhCalc && lhCalc.getLh() != 0) {
+		if (value instanceof CalcFontRelativeValue lhCalc && lhCalc.usesLh()) {
 			value = lhCalc.resolveLh(style.getUserAgent(), inheritedLineHeight(style));
 		}
 		if (value instanceof CalcFontRelativeValue fontRelative) {

@@ -67,7 +67,7 @@ public class TextBuilder {
 	static double tabAdvance(final AbstractTextParams params, final double lineAxis) {
 		double width = params.tabSize;
 		if (params.tabSizeIsMultiple) {
-			width *= params.getFontListMetrics().getFontMetrics(0).getSpaceAdvance();
+			width *= params.getFontListMetrics().getSpaceAdvance();
 		}
 		if (width <= 0) {
 			return 0;
@@ -500,7 +500,7 @@ public class TextBuilder {
 		if (control instanceof WhiteSpace space) {
 			final var metrics = this.currentTextParams().getFontListMetrics();
 			final WhiteSpace copy = new WhiteSpace(metrics, space.getCharOffset());
-			copy.setWordSpacing(space.getAdvance() - metrics.getFontMetrics(0).getSpaceAdvance());
+			copy.setWordSpacing(space.getAdvance() - metrics.getSpaceAdvance());
 			return copy;
 		}
 		if (control instanceof Tab tab) {
@@ -1704,6 +1704,14 @@ public class TextBuilder {
 			prev = null;
 			pendingSpace = null;
 			beforeSpace = null;
+			// 原子インライン(数式・画像・inline-block)の後ろでは、その前の字はもう行末ではない
+			// (2026-10-04、出版の報告)。消さないと「。」の後ろ半分を行末として詰められると見込み、
+			// 収まらない箱を同じ行に置いて版面の右端を越えていた。枠のある行内要素の始まり・終わりと
+			// 絶対配置の置き場所は字に付くだけなので、行末の字は変えない
+			if (!(element instanceof InlineQuad quad && (quad.getType() == InlineQuad.INLINE_START
+					|| quad.getType() == InlineQuad.INLINE_END || quad.getType() == InlineQuad.INLINE_ABSOLUTE))) {
+				tail = null;
+			}
 		}
 
 		if (tail != null) {

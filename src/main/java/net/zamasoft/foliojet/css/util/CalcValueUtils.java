@@ -11,6 +11,7 @@ import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.token.Unit;
 import net.zamasoft.foliojet.css.value.AngleValue;
 import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
+import net.zamasoft.foliojet.css.value.CalcFontRelativeValue.Term;
 import net.zamasoft.foliojet.css.value.CalcLengthValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.RealValue;
@@ -27,11 +28,13 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * に行います。
  * </p>
  * <p>
- * <b>現時点で非対応(評価失敗としてnullを返す)</b>: em/ex/rem/ch等のフォント相対単位
- * (CSSStyleが定まるまで解決できないため。用途に応じ将来
- * {@link net.zamasoft.foliojet.css.value.RelativeLengthValue}と同様の
- * 「getComputedValue時に解決する」経路を追加する余地がある)、var()(カスケード時
- * 解決が必要な別アーキテクチャのため別途対応)、絶対長さと割合が静的に比較できない
+ * フォント相対単位(em/rem 等)は係数として持ち越し、計算値の段階で解く
+ * ({@link CalcFontRelativeValue})。絶対長さとフォント相対単位を比べる min()/max()/clamp()
+ * (例: {@code min(10mm, 3em)})も、そこで大小を選ぶ(2026-10-04)。
+ * </p>
+ * <p>
+ * <b>現時点で非対応(評価失敗としてnullを返す)</b>: var()(カスケード時
+ * 解決が必要な別アーキテクチャのため別途対応)、割合と他の長さを比べる
  * min()/max()/clamp()(例: {@code min(10px, 50%)}。基準値が定まる使用値計算時まで
  * 大小が確定しないため)。
  * </p>
@@ -85,15 +88,18 @@ public final class CalcValueUtils {
 		final double ratio;
 		/** フォント相対成分。{@link CalcFontRelativeValue#UNITS}と同じ並び。 */
 		final double[] font;
+		/** 大小がフォント寸法で決まる min()/max() の部分。無ければ null。 */
+		final Term term;
 
 		static Quantity number(double v) {
-			return Double.isFinite(v) ? new Quantity(Kind.NUMBER, v, 0, 0, CalcFontRelativeValue.newComponents())
+			return Double.isFinite(v)
+					? new Quantity(Kind.NUMBER, v, 0, 0, CalcFontRelativeValue.newComponents(), null)
 					: null;
 		}
 
 		static Quantity angle(double degrees) {
 			return Double.isFinite(degrees)
-					? new Quantity(Kind.ANGLE, degrees, 0, 0, CalcFontRelativeValue.newComponents())
+					? new Quantity(Kind.ANGLE, degrees, 0, 0, CalcFontRelativeValue.newComponents(), null)
 					: null;
 		}
 
@@ -102,6 +108,10 @@ public final class CalcValueUtils {
 		}
 
 		static Quantity length(double absolute, double ratio, double[] font) {
+			return length(absolute, ratio, font, null);
+		}
+
+		static Quantity length(double absolute, double ratio, double[] font, Term term) {
 			if (!Double.isFinite(absolute) || !Double.isFinite(ratio)) {
 				return null;
 			}
@@ -110,7 +120,7 @@ public final class CalcValueUtils {
 					return null;
 				}
 			}
-			return new Quantity(Kind.LENGTH, 0, absolute, ratio, font);
+			return new Quantity(Kind.LENGTH, 0, absolute, ratio, font, term);
 		}
 
 		/** フォント相対単位1つ分。 */
@@ -124,15 +134,20 @@ public final class CalcValueUtils {
 			return length(0, 0, font);
 		}
 
-		private Quantity(Kind kind, double number, double absolute, double ratio, double[] font) {
+		private Quantity(Kind kind, double number, double absolute, double ratio, double[] font, Term term) {
 			this.kind = kind;
 			this.number = number;
 			this.absolute = absolute;
 			this.ratio = ratio;
 			this.font = font;
+			this.term = term;
 		}
 
+		/** フォント寸法が定まるまで解けない部分があるかどうか。 */
 		boolean hasFont() {
+			if (this.term != null) {
+				return true;
+			}
 			for (final double v : this.font) {
 				if (v != 0) {
 					return true;
@@ -168,7 +183,7 @@ public final class CalcValueUtils {
 			}
 			if (this.hasFont()) {
 				// フォント寸法が定まる計算値の段階で解く
-				return CalcFontRelativeValue.create(this.absolute, this.ratio, this.font);
+				return CalcFontRelativeValue.create(this.absolute, this.ratio, this.font, this.term);
 			}
 			return CalcLengthValue.create(ua, this.absolute, this.ratio);
 		}
@@ -414,7 +429,7 @@ public final class CalcValueUtils {
 			return a.kind == Quantity.Kind.NUMBER ? Quantity.number(a.number + b.number)
 					: a.kind == Quantity.Kind.ANGLE ? Quantity.angle(a.number + b.number)
 					: Quantity.length(a.absolute + b.absolute, a.ratio + b.ratio,
-							Quantity.zip(a.font, b.font, (x, y) -> x + y));
+							Quantity.zip(a.font, b.font, (x, y) -> x + y), Term.sum(a.term, b.term, 1));
 		case MINUS:
 			if (a.kind != b.kind) {
 				if (b.kind == Quantity.Kind.NUMBER && b.number == 0) {
@@ -425,7 +440,7 @@ public final class CalcValueUtils {
 			return a.kind == Quantity.Kind.NUMBER ? Quantity.number(a.number - b.number)
 					: a.kind == Quantity.Kind.ANGLE ? Quantity.angle(a.number - b.number)
 					: Quantity.length(a.absolute - b.absolute, a.ratio - b.ratio,
-							Quantity.zip(a.font, b.font, (x, y) -> x - y));
+							Quantity.zip(a.font, b.font, (x, y) -> x - y), Term.sum(a.term, b.term, -1));
 		case TIMES:
 			if (a.kind == Quantity.Kind.NUMBER && b.kind == Quantity.Kind.NUMBER) {
 				return Quantity.number(a.number * b.number);
@@ -434,13 +449,15 @@ public final class CalcValueUtils {
 				if (b.kind == Quantity.Kind.ANGLE) {
 					return Quantity.angle(b.number * a.number);
 				}
-				return Quantity.length(b.absolute * a.number, b.ratio * a.number, b.scaled(a.number));
+				return Quantity.length(b.absolute * a.number, b.ratio * a.number, b.scaled(a.number),
+						Term.scaled(b.term, a.number));
 			}
 			if (b.kind == Quantity.Kind.NUMBER) {
 				if (a.kind == Quantity.Kind.ANGLE) {
 					return Quantity.angle(a.number * b.number);
 				}
-				return Quantity.length(a.absolute * b.number, a.ratio * b.number, a.scaled(b.number));
+				return Quantity.length(a.absolute * b.number, a.ratio * b.number, a.scaled(b.number),
+						Term.scaled(a.term, b.number));
 			}
 			// length同士の掛け算はCSS仕様上も無効
 			return null;
@@ -450,7 +467,8 @@ public final class CalcValueUtils {
 			}
 			return a.kind == Quantity.Kind.NUMBER ? Quantity.number(a.number / b.number)
 					: a.kind == Quantity.Kind.ANGLE ? Quantity.angle(a.number / b.number)
-					: Quantity.length(a.absolute / b.number, a.ratio / b.number, a.scaled(1 / b.number));
+					: Quantity.length(a.absolute / b.number, a.ratio / b.number, a.scaled(1 / b.number),
+							Term.scaled(a.term, 1 / b.number));
 		default:
 			return null;
 		}
@@ -549,12 +567,25 @@ public final class CalcValueUtils {
 	private static Quantity pick(Quantity a, Quantity b, boolean isMin) {
 		Integer cmp = compare(a, b);
 		if (cmp == null) {
-			return null;
+			return pickLater(a, b, isMin);
 		}
 		if (isMin) {
 			return cmp <= 0 ? a : b;
 		}
 		return cmp >= 0 ? a : b;
+	}
+
+	/**
+	 * 絶対長さとフォント相対単位を比べる min()/max() を、フォント寸法が定まる計算値の段階で選ぶ値にします
+	 * (2026-10-04、出版の報告: {@code min(10mm, 3em)} が不正な値になっていた)。割合を含む引数は、基準の
+	 * 長さがレイアウトまで決まらないので評価できない(null)。
+	 */
+	private static Quantity pickLater(Quantity a, Quantity b, boolean isMin) {
+		if (a.kind != Quantity.Kind.LENGTH || b.kind != Quantity.Kind.LENGTH || a.ratio != 0 || b.ratio != 0) {
+			return null;
+		}
+		return Quantity.length(0, 0, CalcFontRelativeValue.newComponents(), Term.extremum(isMin,
+				Term.linear(a.absolute, a.font, a.term), Term.linear(b.absolute, b.font, b.term)));
 	}
 
 	/**

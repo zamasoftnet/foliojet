@@ -204,6 +204,22 @@ public class CalcValueUtilsTest extends TestCase {
 		CssToken token = parseCalcToken("width: min(10px, 50%)");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertNull(value);
+		assertNull(CalcValueUtils.toCalc(userAgent(), parseCalcToken("width: clamp(5mm, 10%, 20mm)")));
+		assertNull(CalcValueUtils.toCalc(userAgent(), parseCalcToken("width: max(1em, 50%)")));
+	}
+
+	/**
+	 * 絶対長さとフォント相対単位の比較は、フォント寸法が定まる計算値の段階まで持ち越す(2026-10-04)。
+	 * 値は jp.cssj.test.unit.displaylist.MinMaxFontRelativeTest で組んで確かめる。
+	 */
+	public void testMinMaxWithFontRelativeUnitIsDeferred() {
+		for (final String declaration : new String[] { "width: min(10mm, 3em)", "width: max(1em, 1px)",
+				"width: clamp(1rem, 50pt, 2rem)", "width: calc(min(10pt, 1em) * 2 + 1em)" }) {
+			final Value value = CalcValueUtils.toCalc(userAgent(), parseCalcToken(declaration));
+			assertTrue(declaration + ": " + value, value instanceof CalcFontRelativeValue);
+			assertFalse(declaration, ((CalcFontRelativeValue) value).isZero());
+			assertFalse(declaration, ((CalcFontRelativeValue) value).isNegative());
+		}
 	}
 
 	// --- 手組みトークンによる境界条件の確認(RPNスタックの直接検証) ---
