@@ -35,3 +35,11 @@ FolioJet の MathML 組版に使う JEuclid core です。上流は更新が止�
     SuperscriptShiftUp・SuperscriptBottomMin・SubSuperscriptGapMin 等。字 1 つの土台は高さ・深さで動かさない)。
     上付きは土台の字のイタリック補正だけ右、添字の後に SpaceAfterScript。MATH 表の無い書体は上流のまま
   - `AbstractTokenWithTextLayout`: 字 1 つの mi の幅にイタリック補正を足す(添字の土台のときは足さない)
+- 2026-10-04(tech の 19093 の確かめで分かった 2 点+原因)
+  - `StringUtil.mapCpavToCpaf`: MATH 表のある書体では数式用の英数字(斜体の x は U+1D465)を先に使う(MathML Core と
+    同じ)。「ふつうの字を斜体で」が先に当たり、斜体の面の無い STIX Two Math では立体の字を AWT が機械的に傾けた字形に
+    なって、イタリック補正も 0 だった。MATH 表の無い書体は今までどおり
+  - `AbstractTokenWithTextLayout.getItalicCorrection`: BMP の外の字は字形の番号が 2 つ返る(2 つ目は見えない)ので、
+    1 つ目を使う(1 つでないと 0 にしていた)
+  - `ScriptSupport`: 字の土台の添字は送り幅の終わりから置く(下付きは斜体の字の張り出しの下へ入る)。上付きはそこから
+    補正だけ右。1 字の mo(閉じ括弧など)も字の土台として扱う((−x)³ の 3 を x³ と同じ高さに)

@@ -124,16 +124,25 @@ public final class ScriptSupport {
                 : ScriptSupport.calculateMathTableShifts(stage, now, table,
                         ScriptSupport.isCharacter(base), subScriptShift,
                         superScriptShift, baseInfo, subInfo, superInfo);
-        final float italicCorrection = (table != null)
-                && (base instanceof AbstractTokenWithTextLayout) ? ((AbstractTokenWithTextLayout) base)
-                .getItalicCorrection(view.getGraphics(), now)
-                : 0.0f;
+        float scriptStart = width;
+        float italicCorrection = 0.0f;
+        if ((table != null) && (base instanceof AbstractTokenWithTextLayout)) {
+            // TeX rule 18: the subscript starts at the end of the advance (it
+            // tucks under an overhanging italic glyph), the superscript after
+            // the italic correction. The width of the base also covers its ink.
+            final AbstractTokenWithTextLayout token = (AbstractTokenWithTextLayout) base;
+            final float advanceEnd = token.getAdvanceEnd(view.getGraphics(), now);
+            if (advanceEnd >= 0.0f) {
+                scriptStart = advanceEnd;
+            }
+            italicCorrection = token.getItalicCorrection(view.getGraphics(), now);
+        }
 
         if (subInfo != null) {
-            subInfo.moveTo(width, shiftInfo.getSubShift(), stage);
+            subInfo.moveTo(scriptStart, shiftInfo.getSubShift(), stage);
         }
         if (superInfo != null) {
-            superInfo.moveTo(width + italicCorrection,
+            superInfo.moveTo(scriptStart + italicCorrection,
                     -shiftInfo.getSuperShift(), stage);
         }
 
@@ -157,10 +166,14 @@ public final class ScriptSupport {
      * character do not move with its height and depth).
      */
     static boolean isCharacter(final JEuclidElement base) {
-        if (!(base instanceof AbstractTokenWithTextLayout)) {
+        // A single-character operator is a character too: the superscript of
+        // ")" in (-x)^3 sits as high as that of x^3, not at the top of the
+        // parenthesis
+        if (!(base instanceof AbstractTokenWithTextLayout)
+                && !(base instanceof net.sourceforge.jeuclid.elements.presentation.token.Mo)) {
             return false;
         }
-        final String text = ((AbstractTokenWithTextLayout) base).getText();
+        final String text = ((net.sourceforge.jeuclid.elements.AbstractJEuclidElement) base).getText();
         return (text != null) && (text.trim().codePointCount(0, text.trim().length()) == 1);
     }
 

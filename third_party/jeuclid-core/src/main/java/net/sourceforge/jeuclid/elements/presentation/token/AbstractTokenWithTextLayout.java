@@ -90,6 +90,27 @@ public abstract class AbstractTokenWithTextLayout extends
         }
     }
 
+    /**
+     * Copper PDF (2026-10-04): where the advance of the text ends (the left
+     * side of the italic correction), from the left edge of this token. The
+     * scripts of a base are placed from here, not from the end of its ink:
+     * the subscript tucks under an overhanging italic glyph and the
+     * superscript is shifted by the italic correction (TeX rule 18).
+     *
+     * @param g
+     *            the graphics context
+     * @param context
+     *            the layout context of the parent
+     * @return the end of the advance, or -1 when there is no text
+     */
+    public float getAdvanceEnd(final Graphics2D g, final LayoutContext context) {
+        final TextLayout t = this.produceTextLayout(g, context);
+        if (t == null) {
+            return -1.0f;
+        }
+        return StringUtil.getTextLayoutInfo(t, false).getOffset() + t.getAdvance();
+    }
+
     /** Whether this token is the base of an msub, msup or msubsup. */
     private boolean isScriptBase() {
         final org.w3c.dom.Node parent = this.getParentNode();
@@ -137,9 +158,11 @@ public abstract class AbstractTokenWithTextLayout extends
         if (table == null) {
             return 0.0f;
         }
+        // A character outside the BMP comes back as two glyph codes (the
+        // second one invisible); the first is the glyph
         final java.awt.font.GlyphVector glyphs = f.createGlyphVector(
                 g.getFontRenderContext(), text.toString());
-        if (glyphs.getNumGlyphs() != 1) {
+        if (glyphs.getNumGlyphs() < 1) {
             return 0.0f;
         }
         return table.italicCorrection(glyphs.getGlyphCode(0), f.getSize2D());

@@ -34,7 +34,7 @@ public class MathScriptTest extends TestCase {
 
 	/** 単位は 1000/em。添字の定数とイタリック補正(全部の字に 100)。 */
 	private static ByteBuffer syntheticFont() {
-		final int glyphs = 2048;
+		final int glyphs = 16000; // 補正の表の位置は 16 ビット(数式用の英数字は実物の STIX で確かめる)
 		final int constantsSize = 214;
 		final int italicsSize = 4 + glyphs * 4 + 10;
 		final int mathSize = 10 + constantsSize + 8 + italicsSize;
@@ -164,14 +164,64 @@ public class MathScriptTest extends TestCase {
 		assertTrue("fraction superscript is higher: " + fraction + " vs " + character, fraction < character - 1);
 	}
 
-	/** ⑮ 上付きは土台の字のイタリック補正(0.1em)だけ右。下付きはずらさない。 */
-	public void testSuperscriptIsShiftedByTheItalicCorrection() throws Exception {
-		final JEuclidView view = layout("<msubsup><mi>f</mi><mn>1</mn><mn>2</mn></msubsup>");
-		final LayoutInfo base = script(view, 0, 0);
-		final float baseEnd = base.getPosX(LayoutStage.STAGE2) + base.getWidth(LayoutStage.STAGE2);
-		assertEquals("subscript at the base", baseEnd, script(view, 0, 1).getPosX(LayoutStage.STAGE2), 0.01f);
-		assertEquals("superscript after the italic correction", baseEnd + SIZE * 0.1f,
+	/**
+	 * ⑮ 下付きは土台の字の送り幅の終わり(斜体の字の張り出しの下へ入る)、上付きはそこから
+	 * イタリック補正(0.1em)だけ右(TeX の規則 18。19093 では下付きも字のインクの右端から置いていた)。
+	 */
+	public void testScriptsStartAtTheAdvanceAndTheSuperscriptAfterTheItalicCorrection() throws Exception {
+		final String body = "<msubsup><mi mathvariant=\"normal\">f</mi><mn>1</mn><mn>2</mn></msubsup>";
+		final JEuclidView view = layout(body);
+		final var math = ((Node) view.getDocument()).getFirstChild();
+		Node m = math;
+		while (!(m instanceof Element)) {
+			m = m.getNextSibling();
+		}
+		final var base = (net.sourceforge.jeuclid.elements.presentation.token.AbstractTokenWithTextLayout) nth(nth(m, 0), 0);
+		final Graphics2D g = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
+		final LayoutContextImpl context = new LayoutContextImpl(LayoutContextImpl.getDefaultLayoutContext());
+		context.setParameter(Parameter.MATHSIZE, SIZE);
+		final float advanceEnd = base.getAdvanceEnd(g, context);
+		assertTrue(advanceEnd > 0);
+		assertEquals("subscript at the end of the advance", advanceEnd,
+				script(view, 0, 1).getPosX(LayoutStage.STAGE2), 0.01f);
+		assertEquals("superscript after the italic correction", advanceEnd + SIZE * 0.1f,
 				script(view, 0, 2).getPosX(LayoutStage.STAGE2), 0.01f);
+	}
+
+	/** ⑯ 1 字の演算子も字の土台: (−x)³ の「)」の上付きは x³ と同じ高さ(括弧の高さで上がらない)。 */
+	public void testSingleCharacterOperatorIsACharacterBase() throws Exception {
+		final JEuclidView view = layout(
+				"<msup><mi>x</mi><mn>3</mn></msup><mo>(</mo><mo>−</mo><mi>x</mi><msup><mo>)</mo><mn>3</mn></msup>");
+		assertEquals(script(view, 0, 1).getPosY(LayoutStage.STAGE2), script(view, 4, 1).getPosY(LayoutStage.STAGE2),
+				0.01f);
+	}
+
+	/**
+	 * 実物の STIX Two Math で: 斜体の V は数式用の英数字(U+1D449)の字形で組まれ、上付きは下付きより
+	 * その字のイタリック補正(0.1em)だけ右(書体パックが手元にあるときだけ)。斜体の面の無い数式用の書体で、
+	 * 立体の字を機械的に傾けて補正の無いまま組んでいた(19093)。
+	 */
+	public void testStixItalicUsesMathAlphanumerics() throws Exception {
+		final File dir = new File("/tmp/copper-pack/truetype/free");
+		final File[] stix = dir.listFiles((d, n) -> n.contains("STIXTwoMath"));
+		if (stix == null || stix.length == 0) {
+			return;
+		}
+		net.sourceforge.jeuclid.font.FontFactory.getInstance().getFont(java.awt.Font.SERIF, java.awt.Font.PLAIN, 12f);
+		final java.awt.Font font = net.sourceforge.jeuclid.font.FontFactory.getInstance()
+				.registerFont(java.awt.Font.TRUETYPE_FONT, stix[0]);
+		MathTable.register(font.getFamily(), MathTable.read(stix[0]));
+		final var doc = MathMLParserSupport.parseString("<math xmlns=\"" + MATH + "\">"
+				+ "<msub><mi>V</mi><mn>1</mn></msub><msup><mi>V</mi><mn>1</mn></msup></math>");
+		final LayoutContextImpl context = new LayoutContextImpl(LayoutContextImpl.getDefaultLayoutContext());
+		context.setParameter(Parameter.MATHSIZE, SIZE);
+		context.setParameter(Parameter.FONTS_SERIF, List.of(font.getFamily()));
+		final Graphics2D g = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics();
+		final JEuclidView view = new JEuclidView(doc, context, g);
+		view.getWidth();
+		final float sub = script(view, 0, 1).getPosX(LayoutStage.STAGE2);
+		final float sup = script(view, 1, 1).getPosX(LayoutStage.STAGE2);
+		assertEquals("superscript after the italic correction of V", SIZE * 0.1f, sup - sub, 0.05f);
 	}
 
 	/** 実物の STIX Two Math の MATH 表を読める(書体パックが手元にあるときだけ)。 */

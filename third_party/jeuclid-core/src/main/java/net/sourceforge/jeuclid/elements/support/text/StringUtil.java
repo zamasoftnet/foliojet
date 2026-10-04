@@ -200,6 +200,25 @@ public final class StringUtil {
         final List<CodePointAndVariant> alternatives = StringUtil.CMAP
                 .getAllAlternatives(cpav1);
 
+        // Copper PDF (2026-10-04): in a math font (one with a MATH table),
+        // prefer the Mathematical Alphanumeric character (italic x is
+        // U+1D465), as MathML Core does. The plain character in the italic
+        // style came first, and a math font without an italic face got an
+        // obliqued upright glyph without its italic correction.
+        for (final CodePointAndVariant cpav : alternatives) {
+            final int cp = cpav.getCodePoint();
+            if (((cp >= 0x1D400) && (cp <= 0x1D7FF))
+                    || ((cp >= 0x2100) && (cp <= 0x214F))) {
+                final Font mathFont = cpav.getVariant().createFont(fontSize,
+                        cp, context, false);
+                if ((mathFont != null)
+                        && (net.sourceforge.jeuclid.font.MathTable
+                                .forFont(mathFont) != null)) {
+                    return new Object[] { cp, mathFont };
+                }
+            }
+        }
+
         Font font = null;
         int codePoint = 0;
         final Iterator<CodePointAndVariant> it = alternatives.iterator();
