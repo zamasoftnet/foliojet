@@ -261,12 +261,12 @@ public final class RunningSideEffectTest extends TestCase {
 		references.reset();
 		final var fragment = references.getFragment(uri);
 		final var second = (PageRef.Fragment) references.getFragments(uri).stream().skip(1).findFirst().orElseThrow();
-		assertFalse(fragment.staleConsumed);
+		assertFalse(fragment.isStale());
 		assertEquals(List.of(7), references.counterView(true).counters(uri, "page", false));
-		assertTrue(fragment.staleConsumed);
-		assertFalse("単数参照は未使用の重複fragmentを消費しない", second.staleConsumed);
+		assertTrue(fragment.isStale());
+		assertFalse("単数参照は未使用の重複fragmentを消費しない", second.isStale());
 		assertEquals(List.of(7, 9), references.counterView(true).counters(uri, "page", true));
-		assertTrue(second.staleConsumed);
+		assertTrue(second.isStale());
 		references.reset();
 		final String stale = fingerprint(references);
 		assertTrue(references.counterView(true).counters(uri, "page", true).isEmpty());

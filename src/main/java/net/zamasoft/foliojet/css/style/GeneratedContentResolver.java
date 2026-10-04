@@ -120,16 +120,21 @@ final class GeneratedContentResolver {
 	 * 場合、1文書につき1回だけ警告する。振動検出・自動再試行は行わない
 	 * (自動昇格断念の判断と同じ方針)。
 	 */
-	void checkConverged(PageRef pageRef, Fragment frag) {
+	void checkConverged(PageRef pageRef, Fragment frag, String counter) {
 		if (!this.ua.isLastPass()) {
 			return;
 		}
 		if (frag.generation < pageRef.getGeneration()) {
 			// 前方参照(参照先はこのパスではまだ組まれていない)。前パスの
-			// 値を読むこと自体は正常で、**その値がこのパスで変わったとき
+			// 値を読むこと自体は正常で、**読んだ値がこのパスで変わったとき
 			// だけ**非収束になる。判定はPageRef側(参照先が書き直される
-			// 時点)で行い、警告は最終パスの完了後に1度だけ出す
-			frag.staleConsumed = true;
+			// 時点)で行い、警告は最終パスの完了後に1度だけ出す。
+			// counter が null なら本文(target-text())を読んだ
+			if (counter == null) {
+				frag.markStaleText();
+			} else {
+				frag.markStaleCounter(counter);
+			}
 		}
 	}
 }

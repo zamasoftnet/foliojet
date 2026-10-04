@@ -87,23 +87,35 @@ public class PageRef {
 		return this.unconverged;
 	}
 
-	/** 参照先の値が変わったか(収束判定用)。 */
-	private static boolean changed(final Counter[] before, final Counter[] after, final String textBefore,
-			final String textAfter) {
-		if (!java.util.Objects.equals(textBefore, textAfter)) {
+	/**
+	 * 前方参照が<b>読んだもの</b>が変わったか(収束判定用、2026-10-04)。読んだカウンタと、
+	 * {@code target-text()}が読んだときだけ本文を比べる。以前は全部のカウンタと本文を比べて
+	 * いたので、総頁数のように参照が読んでいないカウンタがパスの間で変わるだけで、単純な
+	 * 目次でも非収束の記録が出ていた。
+	 */
+	private static boolean changed(final Fragment f, final Counter[] after, final String textAfter) {
+		if (f.staleText && !java.util.Objects.equals(f.text, textAfter)) {
 			return true;
 		}
-		final int beforeCount = before == null ? 0 : before.length;
-		final int afterCount = after == null ? 0 : after.length;
-		if (beforeCount != afterCount) {
-			return true;
-		}
-		for (int i = 0; i < beforeCount; ++i) {
-			if (!before[i].name.equals(after[i].name) || before[i].value != after[i].value) {
-				return true;
+		if (f.staleCounters != null) {
+			for (final String name : f.staleCounters) {
+				if (counterValue(f.counters, name) != counterValue(after, name)) {
+					return true;
+				}
 			}
 		}
 		return false;
+	}
+
+	private static int counterValue(final Counter[] counters, final String name) {
+		if (counters != null) {
+			for (final Counter counter : counters) {
+				if (counter.name.equalsIgnoreCase(name)) {
+					return counter.value;
+				}
+			}
+		}
+		return 0;
 	}
 
 	public void addFragment(URI uri, Counter[] counters, String text) {
@@ -118,12 +130,12 @@ public class PageRef {
 		for (Iterator<Fragment> i = list.iterator(); i.hasNext();) {
 			Fragment f = i.next();
 			if (f.uid == seq[0]) {
-				if (f.staleConsumed && changed(f.counters, counters, f.text, text)) {
-					// このパスで既に前パスの値を読まれており、しかも値が
+				if (f.isStale() && changed(f, counters, text)) {
+					// このパスで既に前パスの値を読まれており、しかも読んだ値が
 					// 変わった=その参照は誤った値を出している
 					this.unconverged = true;
 				}
-				f.staleConsumed = false;
+				f.clearStale();
 				f.counters = counters;
 				f.text = text;
 				f.generation = this.generation;
@@ -185,7 +197,7 @@ public class PageRef {
 						continue;
 					}
 					if (lastPass && fragment.generation < this.generation) {
-						fragment.staleConsumed = true;
+						fragment.markStaleCounter(name);
 					}
 					values.add(fragment.getCounterValue(name));
 					if (!all) {
@@ -299,11 +311,35 @@ public class PageRef {
 		public int generation;
 
 		/**
-		 * 最終パスで、まだこのパスの値が書かれていない状態
-		 * (=前方参照)で読まれたか。{@link PageRef#isUnconverged()}の
-		 * 判定に使う。
+		 * 最終パスで、まだこのパスの値が書かれていない状態(=前方参照)で読まれたカウンタの
+		 * 名前(小文字)と、本文を読んだか。{@link PageRef#isUnconverged()}の判定に使う。
 		 */
-		public boolean staleConsumed;
+		private java.util.Set<String> staleCounters;
+
+		private boolean staleText;
+
+		/** 前方参照がこのカウンタを読んだことを記録します。 */
+		public void markStaleCounter(final String name) {
+			if (this.staleCounters == null) {
+				this.staleCounters = new java.util.HashSet<String>(2);
+			}
+			this.staleCounters.add(name.toLowerCase(java.util.Locale.ROOT));
+		}
+
+		/** 前方参照が本文({@code target-text()})を読んだことを記録します。 */
+		public void markStaleText() {
+			this.staleText = true;
+		}
+
+		/** 前方参照に読まれた印があるか。 */
+		public boolean isStale() {
+			return this.staleText || this.staleCounters != null;
+		}
+
+		void clearStale() {
+			this.staleCounters = null;
+			this.staleText = false;
+		}
 
 		protected Fragment(int uid, URI uri, Counter[] counters) {
 			this.uid = uid;

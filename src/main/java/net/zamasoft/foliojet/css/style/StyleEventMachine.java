@@ -1201,7 +1201,7 @@ final class StyleEventMachine {
 			if (frag == null) {
 				return;
 			}
-			this.generated.checkConverged(pageRef, frag);
+			this.generated.checkConverged(pageRef, frag, null);
 			if (frag.text == null || frag.text.length() == 0) {
 				return;
 			}
@@ -1274,7 +1274,7 @@ final class StyleEventMachine {
 				if (frag == null) {
 					return;
 				}
-				this.generated.checkConverged(pageRef, frag);
+				this.generated.checkConverged(pageRef, frag, counter);
 				int count = frag.getCounterValue(counter);
 				String str = CounterStyles.of(this.ua).format(count, pageRefFunc.getNumberStyleType());
 				if (str == null) {
@@ -1289,7 +1289,7 @@ final class StyleEventMachine {
 				IntList counts = new IntList();
 				for (Iterator<?> j = frags.iterator(); j.hasNext();) {
 					Fragment fragment = (Fragment) j.next();
-					this.generated.checkConverged(pageRef, fragment);
+					this.generated.checkConverged(pageRef, fragment, counter);
 					int count = fragment.getCounterValue(counter);
 					if (!counts.contains(count)) {
 						counts.add(count);
