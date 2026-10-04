@@ -31,6 +31,9 @@ repositories {
 
 configurations.configureEach {
     resolutionStrategy.force "xml-apis:xml-apis:${dependencyVersions.xmlApis}"
+    // batik(xmlgraphics-commons)が引く commons-io を、製品の REST 層が明示で入れる版に揃える。
+    // 揃えないと release の lib に 2.17 と 2.21 の 2 つが入っていた(2026-10-04)
+    resolutionStrategy.force "commons-io:commons-io:2.21.0"
     exclude group: 'xerces'
     exclude group: 'xalan'
 }
