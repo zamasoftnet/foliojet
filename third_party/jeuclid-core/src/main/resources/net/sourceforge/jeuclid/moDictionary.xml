@@ -205,7 +205,7 @@
     <element form="infix" lspace="mediummathspace" rspace="mediummathspace" stretchy="true">&#x022c3;</element>
     <element form="infix" lspace="mediummathspace" rspace="mediummathspace" stretchy="true">&#x0228e;</element>
     <element form="infix" lspace="mediummathspace" rspace="mediummathspace">&#x0002d;</element>
-    <!-- Copper PDF (2026-10-04): U+2212 MINUS SIGN and U+00D7 MULTIPLICATION SIGN were missing and fell back to thickmathspace -->
+    <!-- Copper PDF (2026-10-04): U+2212 MINUS SIGN and U+00D7 MULTIPLICATION SIGN were missing and fell back to thickmathspace. U+2212 has no postfix form (MathML Core): a trailing minus falls back to the infix spacing -->
     <element form="infix" lspace="mediummathspace" rspace="mediummathspace">&#x02212;</element>
     <element form="infix" lspace="mediummathspace" rspace="mediummathspace">&#x000d7;</element>
     <element form="infix" lspace="mediummathspace" rspace="mediummathspace">&#x0002b;</element>
@@ -307,7 +307,6 @@
     <element form="infix" lspace="verythinmathspace" rspace="verythinmathspace">&#x0007e;</element>
     <element form="infix" lspace="verythinmathspace" rspace="verythinmathspace">&#x00040;</element>
     <element form="postfix" lspace="verythinmathspace" rspace="0em">&#x0002d;</element>
-    <element form="postfix" lspace="verythinmathspace" rspace="0em">&#x02212;</element>
     <element form="postfix" lspace="verythinmathspace" rspace="0em">&#x0002b;&#x0002b;</element>
     <element form="prefix" lspace="0em" rspace="verythinmathspace">&#x0002b;&#x0002b;</element>
     <element form="infix" lspace="0em" rspace="0em">&#x02061;</element>

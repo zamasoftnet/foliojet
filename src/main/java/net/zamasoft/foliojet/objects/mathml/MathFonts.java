@@ -150,6 +150,9 @@ final class MathFonts {
 				// 書体の読み込みが起きなくなる(空のときだけ読む)。先に起こす
 				FontFactory.getInstance().getFont(Font.SERIF, Font.PLAIN, 12f);
 				final Font font = FontFactory.getInstance().registerFont(Font.TRUETYPE_FONT, file);
+				// 数式用の書体(MATH 表を持つ)なら、添字の位置・イタリック補正に使う(⑮⑯)
+				net.sourceforge.jeuclid.font.MathTable.register(font.getFamily(),
+						net.sourceforge.jeuclid.font.MathTable.read(file));
 				return font.getFamily();
 			} catch (final Exception e) {
 				LOG.log(Level.FINE, "MathML: " + file, e);

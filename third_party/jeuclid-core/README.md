@@ -20,10 +20,18 @@ FolioJet の MathML 組版に使う JEuclid core です。上流は更新が止�
     mo の `trim` は左の余白も捨てていたのをやめる)。送り幅の外へ出るインクは含める。幅は offset を含む
     ので `Mo.layoutStage1` で offset を足さない
   - ⑫ `AttributesHelper.EM` を 0.8389 から 1 へ(em は字の大きさ)
-  - ⑬ `moDictionary.xml` に U+2212(−、中置・前置・後置は `-` と同じ)と U+00D7(×、中置 mediummathspace)
+  - ⑬ `moDictionary.xml` に U+2212(−、中置・前置は `-` と同じ)と U+00D7(×、中置 mediummathspace)。
+    U+2212 の後置形は置かない(MathML Core に無い。末尾の − は中置形の空きへ戻る——当初は `-` に合わせて
+    後置形も入れ、行で切った式の末尾の − が詰まった)
   - ⑭ `Mo.detectFormParameter`: math・mstyle・msqrt・mtd など暗黙の mrow を持つ親でも先頭を前置形・末尾を
     後置形に。子が 1 つだけの行の演算子は中置形(MathML 3 §3.2.5.7.2)
   - 上流の jar にある `moDictionary.ser`・`charmap.ser` は作らない(XML と UnicodeData.txt を読むのは
     JVM ごとに 1 回で、測って 0.2 秒と 0.1 秒)。`appendixc.ser`(MathML 3 の辞書、読むと 5 秒)は
     使われていない
-
+- 2026-10-04(⑮⑯、添字の高さが土台のインクで揺れる・イタリック補正が無い)
+  - 新しい `font/MathTable`: OpenType の MATH 表(添字の定数・字ごとのイタリック補正)を読む。FolioJet の
+    `MathFonts` が書体のファイルを登録するときに一緒に読み、AWT の書体の family 名で引く
+  - `ScriptSupport`: MATH 表のある書体では TeX の規則 18 で添字を置く(SubscriptShiftDown・SubscriptTopMax・
+    SuperscriptShiftUp・SuperscriptBottomMin・SubSuperscriptGapMin 等。字 1 つの土台は高さ・深さで動かさない)。
+    上付きは土台の字のイタリック補正だけ右、添字の後に SpaceAfterScript。MATH 表の無い書体は上流のまま
+  - `AbstractTokenWithTextLayout`: 字 1 つの mi の幅にイタリック補正を足す(添字の土台のときは足さない)

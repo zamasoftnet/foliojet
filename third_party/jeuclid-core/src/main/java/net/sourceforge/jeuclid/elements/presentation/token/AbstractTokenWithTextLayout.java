@@ -74,13 +74,75 @@ public abstract class AbstractTokenWithTextLayout extends
                     t, false);
             info.setAscentHeight(tli.getAscent(), stage);
             info.setDescentHeight(tli.getDescent(), stage);
-            final float width = tli.getWidth();
+            float width = tli.getWidth();
+            // Copper PDF (2026-10-04): an identifier gets the italic correction
+            // of its glyph (MATH table) after it, as in TeX, unless it is the
+            // base of a script, which uses it to place the superscript.
+            if (!this.isScriptBase()) {
+                width = Math.max(width, tli.getOffset() + t.getAdvance()
+                        + this.getItalicCorrection(g, context));
+            }
             info.setHorizontalCenterOffset(width / 2.0f, stage);
             info.setWidth(width, stage);
             info.setGraphicsObject(new TextObject(t, tli.getOffset(),
                     (Color) this.applyLocalAttributesToContext(context)
                             .getParameter(Parameter.MATHCOLOR)));
         }
+    }
+
+    /** Whether this token is the base of an msub, msup or msubsup. */
+    private boolean isScriptBase() {
+        final org.w3c.dom.Node parent = this.getParentNode();
+        return (parent instanceof net.sourceforge.jeuclid.elements.presentation.script.AbstractSubSuper)
+                && ((net.sourceforge.jeuclid.elements.presentation.script.AbstractSubSuper) parent)
+                        .getBase() == this;
+    }
+
+    /**
+     * Copper PDF (2026-10-04): the italic correction of a single-glyph
+     * identifier, from the MATH table of its font. 0 for other tokens and
+     * for fonts without a MATH table.
+     *
+     * @param g
+     *            the graphics context
+     * @param context
+     *            the layout context of the parent
+     * @return the italic correction
+     */
+    public float getItalicCorrection(final Graphics2D g,
+            final LayoutContext context) {
+        if (!(this instanceof Mi)) {
+            return 0.0f;
+        }
+        final LayoutContext now = this.applyLocalAttributesToContext(context);
+        final AttributedCharacterIterator aci = StringUtil
+                .textContentAsAttributedCharacterIterator(now, this, this, 1.0f);
+        final StringBuilder text = new StringBuilder();
+        for (char c = aci.first(); c != java.text.CharacterIterator.DONE; c = aci
+                .next()) {
+            text.append(c);
+        }
+        if ((text.length() == 0)
+                || (text.codePointCount(0, text.length()) != 1)) {
+            return 0.0f;
+        }
+        aci.first();
+        final Object font = aci.getAttribute(java.awt.font.TextAttribute.FONT);
+        if (!(font instanceof java.awt.Font)) {
+            return 0.0f;
+        }
+        final java.awt.Font f = (java.awt.Font) font;
+        final net.sourceforge.jeuclid.font.MathTable table = net.sourceforge.jeuclid.font.MathTable
+                .forFont(f);
+        if (table == null) {
+            return 0.0f;
+        }
+        final java.awt.font.GlyphVector glyphs = f.createGlyphVector(
+                g.getFontRenderContext(), text.toString());
+        if (glyphs.getNumGlyphs() != 1) {
+            return 0.0f;
+        }
+        return table.italicCorrection(glyphs.getGlyphCode(0), f.getSize2D());
     }
 
     private TextLayout produceTextLayout(final Graphics2D g2d,

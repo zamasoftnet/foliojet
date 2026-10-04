@@ -92,6 +92,17 @@ public class MathSpacingTest extends TestCase {
 		}
 	}
 
+	/**
+	 * 末尾の − は後置形だが、U+2212 には後置形が無い(MathML Core)ので中置形の空きになる
+	 * (時限暗号の本で、行で切った式の末尾の − が詰まった)。
+	 */
+	public void testTrailingMinusKeepsInfixSpacing() throws Exception {
+		final float medium = SIZE * 4 / 18;
+		final float spaced = width("<mi>y</mi><mo>−</mo>");
+		final float tight = width("<mi>y</mi><mo lspace=\"0\" rspace=\"0\">−</mo>");
+		assertEquals(2 * medium, spaced - tight, 0.01f);
+	}
+
 	/** ⑭ 先頭の − は前置形: 左 0・右 veryverythinmathspace(1/18 em)。 */
 	public void testLeadingMinusIsPrefix() throws Exception {
 		final float veryverythin = SIZE / 18;

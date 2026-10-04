@@ -21,10 +21,13 @@ package net.sourceforge.jeuclid.elements.presentation.script;
 import java.awt.geom.Dimension2D;
 
 import net.sourceforge.jeuclid.LayoutContext;
+import net.sourceforge.jeuclid.context.Parameter;
 import net.sourceforge.jeuclid.elements.JEuclidElement;
 import net.sourceforge.jeuclid.elements.support.Dimension2DImpl;
 import net.sourceforge.jeuclid.elements.support.ElementListSupport;
 import net.sourceforge.jeuclid.elements.support.attributes.AttributesHelper;
+import net.sourceforge.jeuclid.elements.presentation.token.AbstractTokenWithTextLayout;
+import net.sourceforge.jeuclid.font.MathTable;
 import net.sourceforge.jeuclid.layout.LayoutInfo;
 import net.sourceforge.jeuclid.layout.LayoutStage;
 import net.sourceforge.jeuclid.layout.LayoutView;
@@ -111,23 +114,114 @@ public final class ScriptSupport {
         final LayoutInfo subInfo = view.getInfo(sub);
         final LayoutInfo superInfo = view.getInfo(sup);
 
-        final ShiftInfo shiftInfo = ScriptSupport.calculateScriptShfits(stage,
-                now, subScriptShift, superScriptShift, baseInfo, subInfo,
-                superInfo);
+        // Copper PDF (2026-10-04): with a MATH table, place the scripts by its
+        // constants (TeX rule 18) and shift the superscript by the italic
+        // correction of the base glyph.
+        final MathTable table = MathTable.find(now);
+        final ShiftInfo shiftInfo = table == null ? ScriptSupport
+                .calculateScriptShfits(stage, now, subScriptShift,
+                        superScriptShift, baseInfo, subInfo, superInfo)
+                : ScriptSupport.calculateMathTableShifts(stage, now, table,
+                        ScriptSupport.isCharacter(base), subScriptShift,
+                        superScriptShift, baseInfo, subInfo, superInfo);
+        final float italicCorrection = (table != null)
+                && (base instanceof AbstractTokenWithTextLayout) ? ((AbstractTokenWithTextLayout) base)
+                .getItalicCorrection(view.getGraphics(), now)
+                : 0.0f;
 
         if (subInfo != null) {
             subInfo.moveTo(width, shiftInfo.getSubShift(), stage);
         }
         if (superInfo != null) {
-            superInfo.moveTo(width, -shiftInfo.getSuperShift(), stage);
+            superInfo.moveTo(width + italicCorrection,
+                    -shiftInfo.getSuperShift(), stage);
         }
 
         final Dimension2D borderLeftTop = new Dimension2DImpl(0.0f, 0.0f);
-        final Dimension2D borderRightBottom = new Dimension2DImpl(0.0f, 0.0f);
+        final Dimension2D borderRightBottom = new Dimension2DImpl(
+                table == null ? 0.0f : table.get(
+                        MathTable.Constant.SPACE_AFTER_SCRIPT,
+                        ScriptSupport.fontSize(now)), 0.0f);
         ElementListSupport.fillInfoFromChildren(view, info, parent, stage,
                 borderLeftTop, borderRightBottom);
         info.setStretchAscent(baseInfo.getStretchAscent());
         info.setStretchDescent(baseInfo.getStretchDescent());
+    }
+
+    private static float fontSize(final LayoutContext now) {
+        return ((Number) now.getParameter(Parameter.MATHSIZE)).floatValue();
+    }
+
+    /**
+     * Whether a base is a single character (TeX rule 18a: the scripts of a
+     * character do not move with its height and depth).
+     */
+    static boolean isCharacter(final JEuclidElement base) {
+        if (!(base instanceof AbstractTokenWithTextLayout)) {
+            return false;
+        }
+        final String text = ((AbstractTokenWithTextLayout) base).getText();
+        return (text != null) && (text.trim().codePointCount(0, text.trim().length()) == 1);
+    }
+
+    /**
+     * Copper PDF (2026-10-04): script shifts from the MATH table constants
+     * (OpenType MATH, TeX rule 18). The shifts used to follow the ink of the
+     * base, so y_1 sat lower than x_1 and P^3 higher than x^3.
+     */
+    // CHECKSTYLE:OFF
+    static ShiftInfo calculateMathTableShifts(final LayoutStage stage,
+            final LayoutContext now, final MathTable table,
+            final boolean characterBase, final String subScriptShift,
+            final String superScriptShift, final LayoutInfo baseInfo,
+            final LayoutInfo subInfo, final LayoutInfo superInfo) {
+        // CHECKSTYLE:ON
+        final float size = ScriptSupport.fontSize(now);
+        float subShift = 0.0f;
+        float superShift = 0.0f;
+        if (subInfo != null) {
+            final float drop = characterBase ? 0.0f : baseInfo
+                    .getDescentHeight(stage)
+                    + table.get(MathTable.Constant.SUBSCRIPT_BASELINE_DROP_MIN,
+                            size);
+            subShift = Math.max(Math.max(drop, table.get(
+                    MathTable.Constant.SUBSCRIPT_SHIFT_DOWN, size)), subInfo
+                    .getAscentHeight(stage)
+                    - table.get(MathTable.Constant.SUBSCRIPT_TOP_MAX, size));
+        }
+        if (superInfo != null) {
+            final float drop = characterBase ? 0.0f : baseInfo
+                    .getAscentHeight(stage)
+                    - table.get(
+                            MathTable.Constant.SUPERSCRIPT_BASELINE_DROP_MAX,
+                            size);
+            superShift = Math.max(Math.max(drop, table.get(
+                    MathTable.Constant.SUPERSCRIPT_SHIFT_UP, size)), table.get(
+                    MathTable.Constant.SUPERSCRIPT_BOTTOM_MIN, size)
+                    + superInfo.getDescentHeight(stage));
+        }
+        if ((subInfo != null) && (superInfo != null)) {
+            final float superBottom = superShift
+                    - superInfo.getDescentHeight(stage);
+            final float gap = superBottom
+                    - (subInfo.getAscentHeight(stage) - subShift);
+            final float gapMin = table.get(
+                    MathTable.Constant.SUB_SUPERSCRIPT_GAP_MIN, size);
+            if (gap < gapMin) {
+                final float needed = gapMin - gap;
+                final float raise = Math.max(0.0f, Math.min(needed, table.get(
+                        MathTable.Constant.SUPERSCRIPT_BOTTOM_MAX_WITH_SUBSCRIPT,
+                        size)
+                        - superBottom));
+                superShift += raise;
+                subShift += needed - raise;
+            }
+        }
+        subShift = Math.max(subShift, AttributesHelper.convertSizeToPt(
+                subScriptShift, now, AttributesHelper.PT));
+        superShift = Math.max(superShift, AttributesHelper.convertSizeToPt(
+                superScriptShift, now, AttributesHelper.PT));
+        return new ShiftInfo(subShift, superShift);
     }
 
     static ShiftInfo calculateScriptShfits(final LayoutStage stage,
