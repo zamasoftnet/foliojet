@@ -155,6 +155,8 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 	public FontManager getFontManager() {
 		if (this.fontManager == null) {
 			this.fontManager = new FontManagerImpl(this.getUAContext().getFontSourceManager());
+			// 字形を持たない中核書体は Java2D の代用で崩れるので最後の頼みにする(2026-10-04)
+			this.fontManager.setCoreFontsLast(true);
 		}
 		return this.fontManager;
 	}
