@@ -21,7 +21,6 @@ import java.util.zip.GZIPOutputStream;
 import jp.cssj.cti2.CTISession;
 import jp.cssj.cti2.message.MessageHandler;
 import jp.cssj.cti2.results.Results;
-import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.BoundSide;
 import net.zamasoft.foliojet.ua.BrokenResultException;
@@ -435,11 +434,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	 * </p>
 	 */
 	@Override
-	public CSSJFontPolicyValue getDefaultFontPolicy() {
-		if (this.getProperty(UAProps.OUTPUT_PDF_FONTS_POLICY.name) != null) {
-			return super.getDefaultFontPolicy();
-		}
-		return CSSJFontPolicyValue.CORE_EMBEDDED_VALUE;
+	protected boolean embedsFontsByDefault() {
+		return true;
 	}
 
 	@Override

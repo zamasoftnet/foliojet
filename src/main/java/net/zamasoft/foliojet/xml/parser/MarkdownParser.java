@@ -17,7 +17,6 @@ import org.commonmark.ext.gfm.tables.TableRow;
 import org.commonmark.node.BlockQuote;
 import org.commonmark.node.BulletList;
 import org.commonmark.node.Code;
-import org.commonmark.node.Document;
 import org.commonmark.node.Emphasis;
 import org.commonmark.node.FencedCodeBlock;
 import org.commonmark.node.HardLineBreak;
@@ -28,7 +27,6 @@ import org.commonmark.node.Image;
 import org.commonmark.node.IndentedCodeBlock;
 import org.commonmark.node.Link;
 import org.commonmark.node.LinkReferenceDefinition;
-import org.commonmark.node.ListBlock;
 import org.commonmark.node.ListItem;
 import org.commonmark.node.Node;
 import org.commonmark.node.OrderedList;
@@ -54,14 +52,11 @@ import org.htmlunit.cyberneko.xerces.xni.parser.XMLInputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
-import net.zamasoft.balancer.ElementProps;
 import net.zamasoft.balancer.TagBalancer;
-import net.zamasoft.foliojet.ua.CompatibleMode;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.Parser;
 import net.zamasoft.foliojet.xml.XMLHandler;
-import net.zamasoft.foliojet.xml.vocab.Foreign;
 import net.zamasoft.zstream.resolver.Source;
 
 /**
@@ -266,86 +261,8 @@ public class MarkdownParser implements Parser {
 			this.xmlHandler = xmlHandler;
 			this.balancer = new TagBalancer();
 			final boolean changeDefaultNamespace = UAProps.INPUT_CHANGE_DEFAULT_NAMESPACE.getBoolean(ua);
-			// HTMLParserと同じforeign contentフィルタ(math/svgへHTML5の名前空間を
-			// 与える)+標準モードでのElementProps切替。詳細な設計判断は
-			// HTMLParser.parse内の同型フィルタのコメントを参照
-			final DefaultFilter foreign = new DefaultFilter() {
-				private boolean firstElement = true;
-				private String foreignURI = null;
-				private int foreignDepth = 0;
-
-				private void applyForeign(QName element) {
-					if (this.foreignDepth == 0) {
-						if (element.getUri() == null) {
-							final String uri = Foreign.uriOf(element.getLocalpart());
-							if (uri == null) {
-								return;
-							}
-							this.foreignURI = uri;
-							element.setUri(uri);
-						} else if (Foreign.is(element.getUri())) {
-							this.foreignURI = element.getUri();
-						} else {
-							return;
-						}
-					} else if (element.getUri() == null) {
-						element.setUri(this.foreignURI);
-					}
-					++this.foreignDepth;
-				}
-
-				public void startElement(QName element, XMLAttributes attributes, Augmentations augs)
-						throws XNIException {
-					this.applyForeign(element);
-					if (!changeDefaultNamespace && !Foreign.is(element.getUri())) {
-						if (element.getUri() != null
-								&& (element.getPrefix() == null || element.getPrefix().length() == 0)) {
-							element.setUri(null);
-						}
-					}
-					super.startElement(element, attributes, augs);
-					if (this.firstElement && element.getLocalpart().equalsIgnoreCase("body")) {
-						if (ua.getDocumentContext().getCompatibleMode() == CompatibleMode.STRICT) {
-							EventBridge.this.balancer.setElementProps(ElementProps.getElementProps("html4.xml"));
-						}
-						this.firstElement = false;
-					}
-				}
-
-				public void endElement(QName element, Augmentations augs) throws XNIException {
-					if (this.foreignDepth > 0) {
-						if (element.getUri() == null) {
-							element.setUri(this.foreignURI);
-						}
-						if (--this.foreignDepth == 0) {
-							this.foreignURI = null;
-						}
-					}
-					if (!changeDefaultNamespace && !Foreign.is(element.getUri())) {
-						if (element.getUri() != null
-								&& (element.getPrefix() == null || element.getPrefix().length() == 0)) {
-							element.setUri(null);
-						}
-					}
-					super.endElement(element, augs);
-				}
-
-				public void emptyElement(QName element, XMLAttributes attributes, Augmentations augs)
-						throws XNIException {
-					final int depth = this.foreignDepth;
-					final String uri = this.foreignURI;
-					this.applyForeign(element);
-					this.foreignDepth = depth;
-					this.foreignURI = uri;
-					if (!changeDefaultNamespace && !Foreign.is(element.getUri())) {
-						if (element.getUri() != null
-								&& (element.getPrefix() == null || element.getPrefix().length() == 0)) {
-							element.setUri(null);
-						}
-					}
-					super.emptyElement(element, attributes, augs);
-				}
-			};
+			// HTMLParserと同じforeign contentフィルタ(math/svgへHTML5の名前空間を与える)+標準モードでのElementProps切替
+			final DefaultFilter foreign = new ForeignContentFilter(ua, this.balancer, changeDefaultNamespace);
 			foreign.setDocumentHandler(this.balancer);
 			this.balancer.setDocumentSource(foreign);
 			this.balancer.setDocumentHandler(new XniToSax(xmlHandler));

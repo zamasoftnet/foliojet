@@ -42,9 +42,9 @@ public final class LogicalBoxShorthand extends AbstractShorthandPropertyInfo {
 	public static final ShorthandPropertyInfo PADDING_INLINE = new LogicalBoxShorthand("padding-inline",
 			Padding.INLINE_START, Padding.INLINE_END, BoxValueUtils::toPositiveLength);
 	public static final ShorthandPropertyInfo INSET_BLOCK = new LogicalBoxShorthand("inset-block",
-			Inset.BLOCK_START, Inset.BLOCK_END, BoxValueUtils::toTRLB);
+			Inset.BLOCK_START, Inset.BLOCK_END, BoxValueUtils::toMarginWidth);
 	public static final ShorthandPropertyInfo INSET_INLINE = new LogicalBoxShorthand("inset-inline",
-			Inset.INLINE_START, Inset.INLINE_END, BoxValueUtils::toTRLB);
+			Inset.INLINE_START, Inset.INLINE_END, BoxValueUtils::toMarginWidth);
 
 	public static ShorthandPropertyInfo[] all() {
 		return new ShorthandPropertyInfo[] { MARGIN_BLOCK, MARGIN_INLINE, PADDING_BLOCK, PADDING_INLINE, INSET_BLOCK,

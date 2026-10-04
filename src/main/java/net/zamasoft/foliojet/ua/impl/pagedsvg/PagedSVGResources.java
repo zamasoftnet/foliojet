@@ -21,7 +21,8 @@ import net.zamasoft.foliojet.ua.props.PagedSvgFontScope;
 import net.zamasoft.foliojet.ua.props.PagedSvgImageCompression;
 import net.zamasoft.foliojet.ua.props.PagedSvgResourceMode;
 import net.zamasoft.pdfg2d.font.FontSource;
-import net.zamasoft.pdfg2d.font.ShapedFont;
+import net.zamasoft.pdfg2d.font.ShapedFont;
+import net.zamasoft.foliojet.ua.JsonText;
 
 /** Per-book resource registry and manifest/page JSON serializer. */
 final class PagedSVGResources {
@@ -128,26 +129,26 @@ final class PagedSVGResources {
 		byte[] json() {
 			final StringBuilder json = new StringBuilder(256 + this.textRuns.size() * 160);
 			json.append("{\n  \"version\":1,\n  \"page\":").append(this.number)
-					.append(",\n  \"width\":").append(number(this.width))
-					.append(",\n  \"height\":").append(number(this.height)).append(",\n  \"text\":[");
+					.append(",\n  \"width\":").append(JsonText.number(this.width))
+					.append(",\n  \"height\":").append(JsonText.number(this.height)).append(",\n  \"text\":[");
 			for (int i = 0; i < this.textRuns.size(); ++i) {
 				final TextRun run = this.textRuns.get(i);
 				if (i != 0) {
 					json.append(',');
 				}
 				json.append("\n    {\"value\":");
-				quote(json, run.text);
+				json.append(JsonText.quoted(run.text));
 				json.append(",\"font\":");
-				quote(json, run.font);
-				json.append(",\"size\":").append(number(run.fontSize)).append(",\"transform\":[");
+				json.append(JsonText.quoted(run.font));
+				json.append(",\"size\":").append(JsonText.number(run.fontSize)).append(",\"transform\":[");
 				for (int j = 0; j < run.transform.length; ++j) {
 					if (j != 0) {
 						json.append(',');
 					}
-					json.append(number(run.transform[j]));
+					json.append(JsonText.number(run.transform[j]));
 				}
-				json.append("],\"bounds\":[").append(number(run.minX)).append(',').append(number(run.minY))
-						.append(',').append(number(run.maxX)).append(',').append(number(run.maxY)).append("]}");
+				json.append("],\"bounds\":[").append(JsonText.number(run.minX)).append(',').append(JsonText.number(run.minY))
+						.append(',').append(JsonText.number(run.maxX)).append(',').append(JsonText.number(run.maxY)).append("]}");
 			}
 			json.append("\n  ],\n  \"links\":[");
 			for (int i = 0; i < this.links.size(); ++i) {
@@ -156,14 +157,14 @@ final class PagedSVGResources {
 					json.append(',');
 				}
 				json.append("\n    {\"href\":");
-				quote(json, link.href);
+				json.append(JsonText.quoted(link.href));
 				if (link.contents != null) {
 					json.append(",\"contents\":");
-					quote(json, link.contents);
+					json.append(JsonText.quoted(link.contents));
 				}
-				json.append(",\"bounds\":[").append(number(link.minX)).append(',')
-						.append(number(link.minY)).append(',').append(number(link.maxX)).append(',')
-						.append(number(link.maxY)).append("]}");
+				json.append(",\"bounds\":[").append(JsonText.number(link.minX)).append(',')
+						.append(JsonText.number(link.minY)).append(',').append(JsonText.number(link.maxX)).append(',')
+						.append(JsonText.number(link.maxY)).append("]}");
 			}
 			json.append("\n  ],\n  \"anchors\":[");
 			for (int i = 0; i < this.fragments.size(); ++i) {
@@ -172,9 +173,9 @@ final class PagedSVGResources {
 					json.append(',');
 				}
 				json.append("\n    {\"id\":");
-				quote(json, fragment.id);
-				json.append(",\"x\":").append(number(fragment.x)).append(",\"y\":")
-						.append(number(fragment.y)).append('}');
+				json.append(JsonText.quoted(fragment.id));
+				json.append(",\"x\":").append(JsonText.number(fragment.x)).append(",\"y\":")
+						.append(JsonText.number(fragment.y)).append('}');
 			}
 			json.append("\n  ]\n}\n");
 			return json.toString().getBytes(StandardCharsets.UTF_8);
@@ -735,14 +736,14 @@ final class PagedSVGResources {
 		final StringBuilder json = new StringBuilder(1024 + this.pages.size() * 180);
 		json.append("{\n  \"version\":1,\n  \"mediaType\":\"application/vnd.copper.paged-svg\",")
 				.append("\n  \"pageCount\":").append(this.pages.size()).append(",\n  \"binding\":");
-		quote(json, binding);
+		json.append(JsonText.quoted(binding));
 		// 頁の進む向き(2026-09-02)。binding が single でも縦組みなら rtl——
 		// 読み器は綴じではなくこれで並べる(cti.li の要望)
 		json.append(",\n  \"pageProgressionDirection\":");
-		quote(json, pageProgression);
+		json.append(JsonText.quoted(pageProgression));
 		if (this.pdfUri != null) {
 			json.append(",\n  \"pdf\":");
-			quote(json, this.pdfUri);
+			json.append(JsonText.quoted(this.pdfUri));
 		}
 		json.append(",\n  \"metadata\":{");
 		int index = 0;
@@ -751,9 +752,9 @@ final class PagedSVGResources {
 				json.append(',');
 			}
 			json.append("\n    ");
-			quote(json, entry.getKey());
+			json.append(JsonText.quoted(entry.getKey()));
 			json.append(':');
-			quote(json, entry.getValue());
+			json.append(JsonText.quoted(entry.getValue()));
 		}
 		if (!metadata.isEmpty()) {
 			json.append('\n');
@@ -765,11 +766,11 @@ final class PagedSVGResources {
 				json.append(',');
 			}
 			json.append("\n    {\"family\":");
-			quote(json, font.subset.family());
+			json.append(JsonText.quoted(font.subset.family()));
 			json.append(",\"source\":");
-			quote(json, font.subset.sourceName());
+			json.append(JsonText.quoted(font.subset.sourceName()));
 			json.append(",\"uri\":");
-			quote(json, font.uri);
+			json.append(JsonText.quoted(font.uri));
 			json.append(",\"sha256\":\"").append(font.sha256).append("\",\"bytes\":").append(font.bytes);
 			if (font.omitted) {
 				json.append(",\"omitted\":true");
@@ -784,9 +785,9 @@ final class PagedSVGResources {
 				json.append(',');
 			}
 			json.append("\n    {\"uri\":");
-			quote(json, image.uri);
+			json.append(JsonText.quoted(image.uri));
 			json.append(",\"sha256\":\"").append(image.sha256).append("\",\"mediaType\":");
-			quote(json, image.mediaType);
+			json.append(JsonText.quoted(image.mediaType));
 			json.append(",\"width\":").append(image.width)
 					.append(",\"height\":").append(image.height);
 			if (image.omitted) {
@@ -794,7 +795,7 @@ final class PagedSVGResources {
 			}
 			if (image.source != null) {
 				json.append(",\"source\":");
-				quote(json, image.source);
+				json.append(JsonText.quoted(image.source));
 			}
 			json.append('}');
 		}
@@ -805,9 +806,9 @@ final class PagedSVGResources {
 				json.append(',');
 			}
 			json.append("\n    ");
-			quote(json, fragment.id);
+			json.append(JsonText.quoted(fragment.id));
 			json.append(":{\"page\":").append(fragment.page).append(",\"x\":")
-					.append(number(fragment.x)).append(",\"y\":").append(number(fragment.y)).append('}');
+					.append(JsonText.number(fragment.x)).append(",\"y\":").append(JsonText.number(fragment.y)).append('}');
 		}
 		if (!this.fragments.isEmpty()) {
 			json.append('\n');
@@ -821,13 +822,13 @@ final class PagedSVGResources {
 				json.append(',');
 			}
 			json.append("\n    {\"number\":").append(page.number).append(",\"width\":")
-					.append(number(page.width)).append(",\"height\":").append(number(page.height)).append(",\"svg\":");
-			quote(json, page.svgUri);
+					.append(JsonText.number(page.width)).append(",\"height\":").append(JsonText.number(page.height)).append(",\"svg\":");
+			json.append(JsonText.quoted(page.svgUri));
 			if (this.pageChecksums) {
 				json.append(",\"svgSha256\":\"").append(page.svgSha256).append('"');
 			}
 			json.append(",\"data\":");
-			quote(json, page.jsonUri);
+			json.append(JsonText.quoted(page.jsonUri));
 			if (this.pageChecksums) {
 				json.append(",\"dataSha256\":\"").append(page.jsonSha256).append('"');
 			}
@@ -844,9 +845,9 @@ final class PagedSVGResources {
 				json.append(',');
 			}
 			json.append('\n').append("  ".repeat(depth)).append("{\"title\":");
-			quote(json, item.title == null ? "" : item.title);
-			json.append(",\"page\":").append(item.page).append(",\"x\":").append(number(item.x))
-					.append(",\"y\":").append(number(item.y));
+			json.append(JsonText.quoted(item.title == null ? "" : item.title));
+			json.append(",\"page\":").append(item.page).append(",\"x\":").append(JsonText.number(item.x))
+					.append(",\"y\":").append(JsonText.number(item.y));
 			if (!item.children.isEmpty()) {
 				json.append(",\"children\":[");
 				appendOutline(json, item.children, depth + 1);
@@ -864,34 +865,4 @@ final class PagedSVGResources {
 		}
 	}
 
-	static String number(final double value) {
-		if (value == Math.rint(value)) {
-			return Long.toString((long) value);
-		}
-		return Double.toString(value);
-	}
-
-	static void quote(final StringBuilder out, final String value) {
-		out.append('"');
-		for (int i = 0; i < value.length(); ++i) {
-			final char ch = value.charAt(i);
-			switch (ch) {
-			case '"' -> out.append("\\\"");
-			case '\\' -> out.append("\\\\");
-			case '\b' -> out.append("\\b");
-			case '\f' -> out.append("\\f");
-			case '\n' -> out.append("\\n");
-			case '\r' -> out.append("\\r");
-			case '\t' -> out.append("\\t");
-			default -> {
-				if (ch < 0x20) {
-					out.append(String.format("\\u%04x", (int) ch));
-				} else {
-					out.append(ch);
-				}
-			}
-			}
-		}
-		out.append('"');
-	}
 }

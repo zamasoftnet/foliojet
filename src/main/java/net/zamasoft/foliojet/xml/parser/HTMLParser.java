@@ -11,30 +11,23 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.Charset;
 
-import net.zamasoft.balancer.ElementProps;
 import net.zamasoft.balancer.SAXParser;
 import net.zamasoft.balancer.TagBalancer;
-import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.Parser;
 import net.zamasoft.foliojet.xml.SourceLocator;
 import net.zamasoft.foliojet.xml.XMLHandler;
 import net.zamasoft.foliojet.xml.util.XMLUtils;
-import net.zamasoft.foliojet.xml.vocab.Foreign;
 import net.zamasoft.zstream.resolver.Source;
 
 import org.htmlunit.cyberneko.xerces.xni.Augmentations;
 import org.htmlunit.cyberneko.xerces.xni.NamespaceContext;
-import org.htmlunit.cyberneko.xerces.xni.QName;
-import org.htmlunit.cyberneko.xerces.xni.XMLAttributes;
 import org.htmlunit.cyberneko.xerces.xni.XMLLocator;
 import org.htmlunit.cyberneko.xerces.xni.XNIException;
 import org.htmlunit.cyberneko.xerces.xni.parser.XMLDocumentFilter;
-import org.htmlunit.cyberneko.filters.DefaultFilter;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
-import net.zamasoft.foliojet.ua.CompatibleMode;
 
 /**
  * NekoHTMLによりHTMLを解析します。
@@ -56,112 +49,13 @@ public class HTMLParser implements Parser {
 		final boolean changeDefaultNamespace = UAProps.INPUT_CHANGE_DEFAULT_NAMESPACE.getBoolean(ua);
 
 		final TagBalancer balancer = new TagBalancer();
-		XMLDocumentFilter[] filters = { new DefaultFilter() {
-			private boolean firstElement = true;
-
-			/**
-			 * <b>HTML5のforeign content</b>——{@code <math>}/{@code <svg>}の
-			 * 名前空間(入れ子の深さ。0なら外)。
-			 */
-			private String foreignURI = null;
-			private int foreignDepth = 0;
-
-			/**
-			 * {@code <math>}/{@code <svg>}とその子孫にHTML5の名前空間を与える。
-			 *
-			 * <p>
-			 * <b>HTMLでは{@code xmlns}を書かないのが普通である。</b>HTML5は
-			 * これらをforeign contentとして扱い、構文解析の段階で正しい名前空間へ
-			 * 入れる(ブラウザは全部そうする)。NekoHTMLはそこまでやらないので
-			 * ここで補う——**やらないとMathMLが平らな文字列になり、しかも
-			 * {@code <annotation>}の中の生のLaTeXまで一緒に出る**。arXivが今
-			 * HTMLを出している形(ar5iv/LaTeXML)がまさにこれで、
-			 * {@code h_{t}}が「htsubscript … h_{t}」と出ていた
-			 * (2026-08-05、実地コーパス第11波)。
-			 *
-			 * <p>
-			 * <b>簡略化している点</b>: HTML5が定める復帰点(integration point
-			 * ——{@code <foreignObject>}や
-			 * {@code <annotation-xml encoding="text/html">}の内側はHTMLへ戻る)は
-			 * 見ていない。深さだけで数える。印刷用途では、その内側にHTMLを
-			 * 書き戻す文書が実地でほぼ無いため。
-			 */
-			private void applyForeign(QName element) {
-				if (this.foreignDepth == 0) {
-					if (element.getUri() == null) {
-						final String uri = Foreign.uriOf(element.getLocalpart());
-						if (uri == null) {
-							return;
-						}
-						this.foreignURI = uri;
-						element.setUri(uri);
-					} else if (Foreign.is(element.getUri())) {
-						// xmlns が書いてある場合。NekoHTMLが既に付けている
-						this.foreignURI = element.getUri();
-					} else {
-						return;
-					}
-				} else if (element.getUri() == null) {
-					element.setUri(this.foreignURI);
-				}
-				++this.foreignDepth;
-			}
-
+		XMLDocumentFilter[] filters = { new ForeignContentFilter(ua, balancer, changeDefaultNamespace) {
+			@Override
 			public void startDocument(XMLLocator locator, String encoding, NamespaceContext namespaceContext,
 					Augmentations augs) throws XNIException {
 				super.startDocument(locator, encoding, namespaceContext, augs);
 				xmlHandler.setDocumentLocator(new HTMLSourceLocator(locator));
 			}
-
-			public void startElement(QName element, XMLAttributes attributes, Augmentations augs) throws XNIException {
-				this.applyForeign(element);
-				if (!changeDefaultNamespace && !Foreign.is(element.getUri())) {
-					if (element.getUri() != null && (element.getPrefix() == null || element.getPrefix().length() == 0)) {
-						element.setUri(null);
-					}
-				}
-				super.startElement(element, attributes, augs);
-				if (this.firstElement && element.getLocalpart().equalsIgnoreCase("body")) {
-					// 標準モードへの切り替え
-					if (ua.getDocumentContext().getCompatibleMode() == CompatibleMode.STRICT) {
-						balancer.setElementProps(ElementProps.getElementProps("html4.xml"));
-					}
-					this.firstElement = false;
-				}
-			}
-
-			public void endElement(QName element, Augmentations augs) throws XNIException {
-				if (this.foreignDepth > 0) {
-					if (element.getUri() == null) {
-						element.setUri(this.foreignURI);
-					}
-					if (--this.foreignDepth == 0) {
-						this.foreignURI = null;
-					}
-				}
-				if (!changeDefaultNamespace && !Foreign.is(element.getUri())) {
-					if (element.getUri() != null && (element.getPrefix() == null || element.getPrefix().length() == 0)) {
-						element.setUri(null);
-					}
-				}
-				super.endElement(element, augs);
-			}
-
-			public void emptyElement(QName element, XMLAttributes attributes, Augmentations augs) throws XNIException {
-				// 空要素は開いてすぐ閉じる。foreign の深さは増減させない
-				final int depth = this.foreignDepth;
-				final String uri = this.foreignURI;
-				this.applyForeign(element);
-				this.foreignDepth = depth;
-				this.foreignURI = uri;
-				if (!changeDefaultNamespace && !Foreign.is(element.getUri())) {
-					if (element.getUri() != null && (element.getPrefix() == null || element.getPrefix().length() == 0)) {
-						element.setUri(null);
-					}
-				}
-				super.emptyElement(element, attributes, augs);
-			}
-
 		}, balancer };
 		parser.setProperty("http://cyberneko.org/html/properties/filters", filters);
 

@@ -10,6 +10,7 @@ import java.util.Map;
 import net.zamasoft.foliojet.ua.MultiDocumentOutput.DocumentSet;
 import net.zamasoft.foliojet.ua.MultiDocumentOutput.DocumentUnit;
 import net.zamasoft.foliojet.ua.MultiDocumentOutput.TocEntry;
+import net.zamasoft.foliojet.ua.JsonText;
 
 /**
  * EPUBのPaged SVGの上位仕様 {@code index.json} を書きます(2026-09-02)。
@@ -39,9 +40,9 @@ final class PagedSvgIndex {
 		final StringBuilder json = new StringBuilder(1024);
 		json.append("{\n  \"version\":1,\n  \"mediaType\":\"application/vnd.copper.paged-svg\",")
 				.append("\n  \"composition\":\"epub\",\n  \"binding\":");
-		PagedSVGResources.quote(json, binding);
+		json.append(JsonText.quoted(binding));
 		json.append(",\n  \"pageProgressionDirection\":");
-		PagedSVGResources.quote(json, documents.pageProgressionDirection());
+		json.append(JsonText.quoted(documents.pageProgressionDirection()));
 		// 累積のページ番号。除外された項目と未完の項目は数えない
 		int total = 0;
 		final Map<Integer, Integer> firstPages = new HashMap<>();
@@ -63,9 +64,9 @@ final class PagedSvgIndex {
 				json.append(',');
 			}
 			json.append("\n    ");
-			PagedSVGResources.quote(json, entry.getKey());
+			json.append(JsonText.quoted(entry.getKey()));
 			json.append(':');
-			PagedSVGResources.quote(json, entry.getValue());
+			json.append(JsonText.quoted(entry.getValue()));
 		}
 		if (index != 0) {
 			json.append('\n');
@@ -80,14 +81,14 @@ final class PagedSvgIndex {
 			final String path = unit.uri() == null ? "" : unit.uri().getPath();
 			pathToIndex.putIfAbsent(path, unit.index());
 			json.append("\n    {\"index\":").append(unit.index()).append(",\"idref\":");
-			PagedSVGResources.quote(json, unit.idref() == null ? "" : unit.idref());
+			json.append(JsonText.quoted(unit.idref() == null ? "" : unit.idref()));
 			json.append(",\"uri\":");
-			PagedSVGResources.quote(json, path);
+			json.append(JsonText.quoted(path));
 			json.append(",\"included\":").append(unit.included());
 			final Integer pages = pageCounts.get(unit.index());
 			if (unit.included() && pages != null) {
 				json.append(",\"manifest\":");
-				PagedSVGResources.quote(json, itemPrefix(unit.index()) + "manifest.json");
+				json.append(JsonText.quoted(itemPrefix(unit.index()) + "manifest.json"));
 				json.append(",\"firstPage\":").append(firstPages.get(unit.index())).append(",\"pageCount\":")
 						.append(pages);
 			}
@@ -110,12 +111,12 @@ final class PagedSvgIndex {
 				json.append(',');
 			}
 			json.append('\n').append("  ".repeat(depth)).append("{\"title\":");
-			PagedSVGResources.quote(json, entry.label() == null ? "" : entry.label());
+			json.append(JsonText.quoted(entry.label() == null ? "" : entry.label()));
 			final URI uri = entry.uri();
 			final String path = uri == null ? null : uri.getPath();
 			if (path != null) {
 				json.append(",\"uri\":");
-				PagedSVGResources.quote(json, path);
+				json.append(JsonText.quoted(path));
 				final Integer item = pathToIndex.get(path);
 				if (item != null) {
 					json.append(",\"item\":").append(item);
@@ -123,7 +124,7 @@ final class PagedSvgIndex {
 			}
 			if (entry.fragment() != null) {
 				json.append(",\"fragment\":");
-				PagedSVGResources.quote(json, entry.fragment());
+				json.append(JsonText.quoted(entry.fragment()));
 			}
 			if (entry.children() != null && !entry.children().isEmpty()) {
 				json.append(",\"children\":[");

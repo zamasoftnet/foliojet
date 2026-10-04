@@ -6,6 +6,7 @@ import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.paint.LinearGradient;
 import net.zamasoft.pdfg2d.gc.paint.Paint;
 import net.zamasoft.pdfg2d.gc.paint.RadialGradient;
+import net.zamasoft.pdfg2d.util.ColorUtils;
 
 /**
  * pdfg2dの{@link Paint}をSVGの塗り指定へ直します。
@@ -150,13 +151,8 @@ final class SVGPaintWriter {
 	}
 
 	static String toHex(final Color color) {
-		return String.format("#%02x%02x%02x", clamp(color.getRed()), clamp(color.getGreen()),
-				clamp(color.getBlue()));
-	}
-
-	private static int clamp(final float v) {
-		final int i = Math.round(v * 255f);
-		return i < 0 ? 0 : i > 255 ? 255 : i;
+		return String.format("#%02x%02x%02x", ColorUtils.toOctet(color.getRed()), ColorUtils.toOctet(color.getGreen()),
+				ColorUtils.toOctet(color.getBlue()));
 	}
 
 	private String linearGradient(final LinearGradient g, final java.awt.geom.AffineTransform ctm)

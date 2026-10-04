@@ -22,6 +22,7 @@ import net.zamasoft.pdfg2d.gc.paint.Pattern;
 import net.zamasoft.pdfg2d.gc.paint.RGBAColor;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 import net.zamasoft.pdfg2d.gc.paint.RadialGradient;
+import net.zamasoft.pdfg2d.util.ColorUtils;
 
 /**
  * {@code filter}の効果を塗り・色・ラスタ画像へ掛ける小道具です
@@ -283,14 +284,9 @@ public final class FilterOps {
 				px[i] = 0;
 				continue;
 			}
-			px[i] = (ai << 24) | (clamp255(r[i] / al) << 16) | (clamp255(g[i] / al) << 8) | clamp255(b[i] / al);
+			px[i] = (ai << 24) | (ColorUtils.toOctet(r[i] / al) << 16) | (ColorUtils.toOctet(g[i] / al) << 8) | ColorUtils.toOctet(b[i] / al);
 		}
 		img.setRGB(0, 0, w, h, px, 0, w);
-	}
-
-	private static int clamp255(final float v) {
-		final int i = Math.round(v * 255);
-		return i < 0 ? 0 : i > 255 ? 255 : i;
 	}
 
 	private static void boxBlurH(final float[] src, final float[] dst, final int w, final int h, final int radius) {

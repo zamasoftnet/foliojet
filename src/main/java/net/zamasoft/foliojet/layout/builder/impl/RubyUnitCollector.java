@@ -145,7 +145,7 @@ final class RubyUnitCollector {
 				}
 				this.buffEnd = charOffset + i + 1;
 			}
-			if (c == ' ' || TextUtils.isControl(c) || TextUtils.isWhiteSpace(c)) {
+			if (TextUtils.isWhiteSpace(c)) {
 				this.pendingSpace = this.buff.length() > 0;
 				continue;
 			}
@@ -304,7 +304,7 @@ final class RubyUnitCollector {
 	private static boolean containsNonWhiteSpace(final char[] ch, final int off, final int len) {
 		for (int i = 0; i < len; ++i) {
 			final char c = ch[off + i];
-			if (c != ' ' && !TextUtils.isControl(c) && !TextUtils.isWhiteSpace(c)) {
+			if (!TextUtils.isWhiteSpace(c)) {
 				return true;
 			}
 		}

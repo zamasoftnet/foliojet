@@ -66,7 +66,7 @@ public final class Inset extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
-		final Value value = BoxValueUtils.toTRLB(ua, lu);
+		final Value value = BoxValueUtils.toMarginWidth(ua, lu);
 		if (value != null) {
 			return value;
 		}

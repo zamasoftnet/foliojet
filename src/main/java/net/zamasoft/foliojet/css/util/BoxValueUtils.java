@@ -58,17 +58,6 @@ public final class BoxValueUtils {
 	}
 
 	/**
-	 * top/right/left/bottom を値に変換します。
-	 * 
-	 * @param device
-	 * @param lu
-	 * @return
-	 */
-	public static Value toTRLB(UserAgent device, CssToken token) throws PropertyException {
-		return toMarginWidth(device, token);
-	}
-
-	/**
 	 * Length/Dimension/Insets/Offsetの主フィールド(getLength()/getWidth()等)に
 	 * 格納すべき値を返します。意味はtypeに依存する(Length.create/createMixedと
 	 * 同じ規約): ABSOLUTE→絶対長さそのもの、RELATIVE→割合そのもの、

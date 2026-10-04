@@ -6,6 +6,7 @@ import java.util.List;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.paint.RGBAColor;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
+import net.zamasoft.pdfg2d.util.ColorUtils;
 
 /**
  * グラデーションの色停止列です(css-images-3 §3.4、2026-08-29新設)。
@@ -348,13 +349,9 @@ public final class GradientStops {
 		final float g = (a.getGreen() * aa * ia + b.getGreen() * ab * fa) / alpha;
 		final float bl = (a.getBlue() * aa * ia + b.getBlue() * ab * fa) / alpha;
 		if (alpha >= 1) {
-			return RGBColor.create(clamp(r), clamp(g), clamp(bl));
+			return RGBColor.create(ColorUtils.clamp01(r), ColorUtils.clamp01(g), ColorUtils.clamp01(bl));
 		}
-		return RGBAColor.create(clamp(r), clamp(g), clamp(bl), alpha);
-	}
-
-	private static float clamp(final float v) {
-		return v < 0 ? 0 : v > 1 ? 1 : v;
+		return RGBAColor.create(ColorUtils.clamp01(r), ColorUtils.clamp01(g), ColorUtils.clamp01(bl), alpha);
 	}
 
 	/**

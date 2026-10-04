@@ -21,7 +21,6 @@ import javax.imageio.stream.FileCacheImageOutputStream;
 import jp.cssj.cti2.CTISession;
 import jp.cssj.cti2.results.NopResults;
 import jp.cssj.cti2.results.Results;
-import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage;
 import net.zamasoft.foliojet.ua.impl.AbstractUserAgent;
 import net.zamasoft.foliojet.ua.impl.NopVisitor;
@@ -60,11 +59,8 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 	 * </p>
 	 */
 	@Override
-	public CSSJFontPolicyValue getDefaultFontPolicy() {
-		if (this.getProperty(UAProps.OUTPUT_PDF_FONTS_POLICY.name) != null) {
-			return super.getDefaultFontPolicy();
-		}
-		return CSSJFontPolicyValue.CORE_EMBEDDED_VALUE;
+	protected boolean embedsFontsByDefault() {
+		return true;
 	}
 
 	private Results results, xresults;

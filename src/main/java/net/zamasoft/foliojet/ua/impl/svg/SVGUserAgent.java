@@ -36,7 +36,6 @@ import net.zamasoft.pdfg2d.pdf.font.FontManagerImpl;
 import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.impl.pagedsvg.SelfContainedSVGPage;
 import net.zamasoft.foliojet.ua.props.SvgTextMode;
-import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 
 public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
 	private Results results, xresults;
@@ -107,17 +106,14 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 	 * 1つも残らない。利用者が明示した場合はそちらに従う。
 	 */
 	@Override
-	public CSSJFontPolicyValue getDefaultFontPolicy() {
-		if (this.getProperty(UAProps.OUTPUT_PDF_FONTS_POLICY.name) != null) {
-			return super.getDefaultFontPolicy();
-		}
+	protected boolean embedsFontsByDefault() {
 		// outline モードも同じ既定にする(2026-09-02)。以前は keep だけで、outline は
 		// 共通の既定(print では cid-keyed 優先)のまま組んでいた。SVG に CID-keyed の
 		// 実体は無いので AWT の代替フォント(別の面・ヒント済みの輪郭)で描かれ、
 		// 「日」が本物より 6% 広く縦画が太い字形になっていた(PLAN の「単一SVGの
 		// outline 経路の字形が本物より大きい」)。埋め込み方針なら pdfg2d 自身の
 		// 輪郭で、PDF と 1/100pt まで一致する
-		return CSSJFontPolicyValue.CORE_EMBEDDED_VALUE;
+		return true;
 	}
 
 	/**

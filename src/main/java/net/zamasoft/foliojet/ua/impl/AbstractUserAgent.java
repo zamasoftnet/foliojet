@@ -403,7 +403,20 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return this.defaultFontFamily;
 	}
 
+	/**
+	 * {@code output.pdf.fonts.policy}の指定が無いとき、書体を埋め込む方針(core embedded)を既定にする出力かを
+	 * 返します。共通の既定の cid-keyed は PDF の外部 CID フォントを参照する仕組みで、画像・SVG には無い
+	 * (字形が AWT の代替やアウトラインへ落ちる)。画像・SVG・ページ分割SVG が真を返す(2026-10-04 まで
+	 * 3 つの出力が同じ{@code getDefaultFontPolicy}の上書きを写して持っていた)。
+	 */
+	protected boolean embedsFontsByDefault() {
+		return false;
+	}
+
 	public CSSJFontPolicyValue getDefaultFontPolicy() {
+		if (this.embedsFontsByDefault() && this.getProperty(UAProps.OUTPUT_PDF_FONTS_POLICY.name) == null) {
+			return CSSJFontPolicyValue.CORE_EMBEDDED_VALUE;
+		}
 		if (this.fontPolicy == null) {
 			String s = UAProps.OUTPUT_PDF_FONTS_POLICY.getString(this);
 			// PDF/A・PDF/X・PDF/UA はいずれもフォント埋め込みが必須。

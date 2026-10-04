@@ -67,7 +67,7 @@ public final class ImageMetricsJSON {
 		final ByteArrayOutputStream bytes = new ByteArrayOutputStream(256 + cache.size() * 96);
 		try (Writer out = new OutputStreamWriter(bytes, StandardCharsets.UTF_8)) {
 			out.write("{\n  \"version\": 1,\n  \"resolution\": ");
-			out.write(number(resolution));
+			out.write(JsonText.number(resolution));
 			out.write(",\n  \"images\": [");
 			boolean first = true;
 			for (final Map.Entry<String, Image> entry : new TreeMap<>(cache.entries()).entrySet()) {
@@ -75,19 +75,19 @@ public final class ImageMetricsJSON {
 				out.write(first ? "\n    {" : ",\n    {");
 				first = false;
 				out.write("\"uri\": ");
-				quote(out, entry.getKey());
+				out.write(JsonText.quoted(entry.getKey()));
 				out.write(", \"width\": ");
-				out.write(number(image.getWidth()));
+				out.write(JsonText.number(image.getWidth()));
 				out.write(", \"height\": ");
-				out.write(number(image.getHeight()));
+				out.write(JsonText.number(image.getHeight()));
 				final ImageMetricsCache.Asset asset = cache.getAsset(entry.getKey());
 				if (asset != null) {
 					out.write(", \"sha256\": ");
-					quote(out, asset.sha256());
+					out.write(JsonText.quoted(asset.sha256()));
 					out.write(", \"mediaType\": ");
-					quote(out, asset.mediaType());
+					out.write(JsonText.quoted(asset.mediaType()));
 					out.write(", \"extension\": ");
-					quote(out, asset.extension());
+					out.write(JsonText.quoted(asset.extension()));
 					out.write(", \"pixelWidth\": ");
 					out.write(Integer.toString(asset.pixelWidth()));
 					out.write(", \"pixelHeight\": ");
@@ -323,35 +323,4 @@ public final class ImageMetricsJSON {
 		}
 	}
 
-	private static void quote(final Writer out, final String value) throws IOException {
-		out.write('"');
-		for (int i = 0; i < value.length(); ++i) {
-			final char c = value.charAt(i);
-			switch (c) {
-			case '"' -> out.write("\\\"");
-			case '\\' -> out.write("\\\\");
-			case '\b' -> out.write("\\b");
-			case '\f' -> out.write("\\f");
-			case '\n' -> out.write("\\n");
-			case '\r' -> out.write("\\r");
-			case '\t' -> out.write("\\t");
-			default -> {
-				if (c < 0x20) {
-					out.write(String.format("\\u%04x", (int) c));
-				} else {
-					out.write(c);
-				}
-			}
-			}
-		}
-		out.write('"');
-	}
-
-	/** 整数は整数のまま書きます(1200.0ではなく1200)。 */
-	static String number(final double value) {
-		if (value == Math.rint(value) && !Double.isInfinite(value)) {
-			return Long.toString((long) value);
-		}
-		return Double.toString(value);
-	}
 }

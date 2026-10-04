@@ -59,7 +59,7 @@ final class WarichuCollector {
 				}
 				this.sourceEnd = charOffset + i + 1;
 			}
-			if (c == ' ' || TextUtils.isControl(c) || TextUtils.isWhiteSpace(c)) {
+			if (TextUtils.isWhiteSpace(c)) {
 				this.pendingSpace = this.buff.length() > 0;
 				continue;
 			}
