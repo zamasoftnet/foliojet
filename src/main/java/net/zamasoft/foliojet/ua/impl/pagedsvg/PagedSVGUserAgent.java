@@ -594,8 +594,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		pdf.setOperatorLimits(this.getOperatorLimits());
 		pdf.getUAContext().setFontSourceManager(this.getUAContext().getFontSourceManager());
 		try {
+			// 消すのは組み終えたときと後始末(deleteOnExit は常駐するサーバーで終了時の一覧を伸ばすだけ)
 			this.pdfSpool = java.io.File.createTempFile("copper-paged-svg-", ".pdf");
-			this.pdfSpool.deleteOnExit();
 			final net.zamasoft.zstream.io.FragmentedOutput spool = new net.zamasoft.zstream.io.impl.FileFragmentedOutput(
 					this.pdfSpool);
 			pdf.setResults(new Results() {
