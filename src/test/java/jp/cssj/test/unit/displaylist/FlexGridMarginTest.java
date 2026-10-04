@@ -70,7 +70,43 @@ public class FlexGridMarginTest extends TestCase {
 		assertEquals("block は今までどおり", 28f, y.get("P5") - y.get("Bd"), 0.05f);
 	}
 
+	/**
+	 * overflow:hidden・display:flow-root の箱も独立した整形文脈で、上の余白は最初の子の余白と
+	 * 相殺しない(CSS 2.1 §8.3.1。2026-10-04、ユーザー決定)。普通の block は今までどおり相殺する。
+	 */
+	private static final String BFC_HTML = """
+			<!DOCTYPE html>
+			<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/><style>
+			@page { size: 100mm 200mm; margin: 5mm }
+			body { font-size: 10pt; line-height: 18pt }
+			p { margin: 0 }
+			.c { margin-top: 10pt }
+			</style></head><body>
+			<p>Q0</p>
+			<div style="overflow:hidden; margin-top:10pt"><p class="c">Oa</p></div>
+			<p>Q1</p>
+			<div style="display:flow-root; margin-top:10pt"><p class="c">Ra</p></div>
+			<p>Q2</p>
+			<div style="margin-top:10pt"><p class="c">Ba</p></div>
+			<p>Q3</p>
+			<div style="overflow:hidden; margin-bottom:10pt"><p style="margin-bottom:10pt">Ob</p></div>
+			<p>Q4</p>
+			</body></html>
+			""";
+
+	public void testBlockFormattingContextRootsDoNotCollapseWithChildren() throws Exception {
+		final Map<String, Float> y = baselines(BFC_HTML);
+		assertEquals("overflow:hidden の上の余白+子の余白", 38f, y.get("Oa") - y.get("Q0"), 0.05f);
+		assertEquals("flow-root の上の余白+子の余白", 38f, y.get("Ra") - y.get("Q1"), 0.05f);
+		assertEquals("普通の block は相殺する", 28f, y.get("Ba") - y.get("Q2"), 0.05f);
+		assertEquals("overflow:hidden の下の余白+子の余白", 38f, y.get("Q4") - y.get("Ob"), 0.05f);
+	}
+
 	private static Map<String, Float> baselines() throws Exception {
+		return baselines(HTML);
+	}
+
+	private static Map<String, Float> baselines(final String html) throws Exception {
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
 				null);
@@ -78,7 +114,7 @@ public class FlexGridMarginTest extends TestCase {
 			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
 			session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
 			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
-			CTISessionHelper.transcodeStream(session, new ByteArrayInputStream(HTML.getBytes(StandardCharsets.UTF_8)),
+			CTISessionHelper.transcodeStream(session, new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)),
 					URI.create("file:///flex-grid-margin.xhtml"), "application/xhtml+xml", null);
 		} finally {
 			session.close();

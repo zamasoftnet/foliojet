@@ -1,0 +1,38 @@
+// JEuclid core 3.1.14 (de.rototor.jeuclid, Apache License 2.0) with Copper PDF's fixes.
+// foliojet4/settings.gradle includes this build, so it replaces the Maven artifact
+// de.rototor.jeuclid:jeuclid-core. See README.md for the origin and the changes.
+plugins {
+    id 'java-library'
+}
+
+group = 'de.rototor.jeuclid'
+version = '3.1.14-copper1'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api 'commons-logging:commons-logging:1.3.0'
+    api 'org.apache.xmlgraphics:batik-svg-dom:1.19'
+    api 'org.apache.xmlgraphics:batik-anim:1.19'
+    api 'org.apache.xmlgraphics:batik-ext:1.19'
+    api 'org.apache.xmlgraphics:xmlgraphics-commons:2.11'
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(Javadoc).configureEach {
+    enabled = false
+}

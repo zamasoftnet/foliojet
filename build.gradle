@@ -21,7 +21,6 @@ def dependencyVersions = [
     saxon            : '12.9',
     xmlApis          : '1.4.01',
     okapiBarcode     : '0.5.5',
-    jeuclid          : '3.1.14',
     commonmark       : '0.29.0',
     brotli4j         : '1.23.0'
 ]
@@ -122,7 +121,7 @@ dependencies {
     api "net.sf.saxon:Saxon-HE:${dependencyVersions.saxon}"
     api "xml-apis:xml-apis:${dependencyVersions.xmlApis}"
     api "uk.org.okapibarcode:okapibarcode:${dependencyVersions.okapiBarcode}"
-    api "de.rototor.jeuclid:jeuclid-core:${dependencyVersions.jeuclid}"
+    api project(':jeuclid-core')
     api "org.commonmark:commonmark:${dependencyVersions.commonmark}"
     api "org.commonmark:commonmark-ext-gfm-tables:${dependencyVersions.commonmark}"
     implementation "com.aayushatharva.brotli4j:brotli4j:${dependencyVersions.brotli4j}"

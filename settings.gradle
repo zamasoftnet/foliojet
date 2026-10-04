@@ -17,3 +17,8 @@ includeBuild sibling('pdfg2d', 'PDFG2D_DIR')
 includeBuild sibling('zstream', 'ZSTREAM_DIR')
 includeBuild sibling('cti.java', 'CTI_JAVA_DIR')
 includeBuild sibling('html-balancer', 'HTML_BALANCER_DIR')
+// JEuclid は上流が止まっているので、手を入れたソースを取り込んで使う(third_party/jeuclid-core/README.md)。
+// included build にすると作業の履歴が DrvFs 上の .gradle に置かれて up-to-date の判定が揺れるので、
+// サブプロジェクトにして本体と同じ履歴を使う
+include 'jeuclid-core'
+project(':jeuclid-core').projectDir = file('third_party/jeuclid-core')

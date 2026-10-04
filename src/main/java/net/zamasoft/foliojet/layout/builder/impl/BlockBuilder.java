@@ -1000,7 +1000,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// 縦書き
 			marginEnd = frame.margin.left;
 			bordered = frame.padding.left > 0 || !frame.frame.border.getLeft().isNull()
-					|| params.overflow != OverflowMode.VISIBLE || flowBox.getColumnCount() > 1
 					|| sealsMargins(flowBox);
 			double width = flowBox.getInnerWidth();
 			if (flowBox.getContentSize() != width || bordered) {
@@ -1014,7 +1013,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// 横書き
 			marginEnd = frame.margin.bottom;
 			bordered = frame.padding.bottom > 0 || !frame.frame.border.getBottom().isNull()
-					|| params.overflow != OverflowMode.VISIBLE || flowBox.getColumnCount() > 1
 					|| sealsMargins(flowBox);
 			double height = flowBox.getInnerHeight();
 			if (flowBox.getContentSize() != height || bordered) {
@@ -1776,15 +1774,24 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * flex・gridコンテナの余白は中身と相殺しない(css-flexbox-1 §3、css-grid-1 §3。
-	 * 2026-10-04、TECH-20261003-004 の⑰)。中身はFlexBuilder・GridBuilderが
-	 * 直接置くので、開くときに上の余白を「子と相殺する待ち」に残すと、閉じるときに
-	 * それを最後の子の余白と取り違えて下の余白と相殺し、下の余白が「下−上」に
-	 * 減っていた(上下同じなら0)。
+	 * 独立した整形文脈を作る箱の余白は、中身の余白と相殺しない(CSS 2.1 §8.3.1、
+	 * css-flexbox-1 §3、css-grid-1 §3)。
+	 *
+	 * <ul>
+	 * <li>flex・grid(2026-10-04、TECH-20261003-004 の⑰): 中身はFlexBuilder・
+	 * GridBuilderが直接置くので、開くときに上の余白を「子と相殺する待ち」に残すと、
+	 * 閉じるときにそれを最後の子の余白と取り違えて下の余白と相殺し、下の余白が
+	 * 「下−上」に減っていた(上下同じなら0)</li>
+	 * <li>overflow:visible 以外・flow-root・段組(2026-10-04、ユーザー決定): 上の余白が
+	 * 最初の子の余白と相殺されていた(Chromeは相殺しない)。下の側は以前から相殺
+	 * しなかった(flow-rootを除く)</li>
+	 * </ul>
 	 */
 	private static boolean sealsMargins(final FlowBlockBox flowBox) {
+		final BlockParams params = flowBox.getBlockParams();
 		return flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
-				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.GridBox;
+				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.GridBox
+				|| params.overflow != OverflowMode.VISIBLE || params.flowRoot || flowBox.getColumnCount() > 1;
 	}
 
 	/** CSS Writing Modes 3 §3.2とoverflowによる独立BFCのfloat境界。 */
