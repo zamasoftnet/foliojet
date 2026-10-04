@@ -41,7 +41,6 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.RecorderGC;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
-import net.zamasoft.pdfg2d.pdf.font.FontManagerImpl;
 import net.zamasoft.foliojet.ua.PrepareMode;
 
 public class ImageUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
@@ -65,8 +64,6 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 
 	private Results results, xresults;
 	private boolean middleStateSaved = false;
-
-	protected FontManagerImpl fontManager;
 
 	protected BufferedImage image;
 
@@ -142,19 +139,15 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 
 	private void reset() {
 		this.image = null;
-		this.fontManager = null;
+		this.closeOwnedFontManager();
 		this.page = 0;
 		this.recorder = null;
 		this.heldPages.clear();
 	}
 
 	public FontManager getFontManager() {
-		if (this.fontManager == null) {
-			this.fontManager = new FontManagerImpl(this.getUAContext().getFontSourceManager());
-			// 字形を持たない中核書体は Java2D の代用で崩れるので最後の頼みにする(2026-10-04)
-			this.fontManager.setCoreFontsLast(true);
-		}
-		return this.fontManager;
+		// 字形を持たない中核書体は Java2D の代用で崩れるので最後の頼みにする(2026-10-04)
+		return this.ownedFontManager(true);
 	}
 
 	public void meta(String name, String content) {

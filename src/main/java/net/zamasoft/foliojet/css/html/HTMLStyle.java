@@ -241,12 +241,6 @@ public class HTMLStyle {
 	}
 
 	/**
-	 * @param fallbackContent
-	 *            要素がHTML仕様のフォールバック内容(子要素)を持つか
-	 *            (object/applet)。既定のbroken-image=noneでは置換ボックスを
-	 *            作らず、子=フォールバックを描かせる
-	 */
-	/**
 	 * {@code srcset}から印刷向けの候補(最高解像度)を選びます
 	 * (2026-08-20)。密度記述子(2x)は最大密度、幅記述子(640w)は
 	 * 最大幅を選ぶ。記述子なしは1x。パースできなければnull。
@@ -310,6 +304,12 @@ public class HTMLStyle {
 		}
 	}
 
+	/**
+	 * @param fallbackContent
+	 *            要素がHTML仕様のフォールバック内容(子要素)を持つか
+	 *            (object/applet)。既定のbroken-image=noneでは置換ボックスを
+	 *            作らず、子=フォールバックを描かせる
+	 */
 	private static void applyBrokenImage(CSSStyle style, String alt, boolean fallbackContent) {
 		UserAgent ua = style.getUserAgent();
 		OutputBrokenImage brokenimage = UAProps.OUTPUT_BROKEN_IMAGE.get(ua);
@@ -498,11 +498,6 @@ public class HTMLStyle {
 	}
 
 	/**
-	 * <b>擬似要素の入力欄の幅</b>。要素側の幅はhtml-ua.cssへ移送したが
-	 * (2026-08-03)、{@code ::before}で作る入力欄にはその選択子が届かない
-	 * ——擬似要素は元の要素の属性を持たないため。ここだけJavaに残る。
-	 */
-	/**
 	 * <b>擬似要素のボタン</b>({@code <input type=file>}の「選択...」)。
 	 * 要素側のボタンの既定値はhtml-ua.cssへ移送したが(2026-08-03)、
 	 * {@code ::before}で作るボタンにはその選択子が届かないのでここに残る。
@@ -532,6 +527,11 @@ public class HTMLStyle {
 		style.set(WhiteSpace.INFO, WhiteSpaceValue.NOWRAP_VALUE);
 	}
 
+	/**
+	 * <b>擬似要素の入力欄の幅</b>。要素側の幅はhtml-ua.cssへ移送したが
+	 * (2026-08-03)、{@code ::before}で作る入力欄にはその選択子が届かない
+	 * ——擬似要素は元の要素の属性を持たないため。ここだけJavaに残る。
+	 */
 	private static void applyPseudoFieldWidth(CSSStyle style, String size) {
 		if (size != null) {
 			try {

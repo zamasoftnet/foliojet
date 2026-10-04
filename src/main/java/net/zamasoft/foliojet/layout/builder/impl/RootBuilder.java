@@ -106,8 +106,6 @@ public class RootBuilder extends BreakableBuilder {
 	 * </p>
 	 *
 	 * @param mode 今回の改ページのモード
-	 */
-	/**
 	 * @return ライブロックが確定したので改ページを放棄すべきならtrue
 	 */
 	private boolean guardBreakProgress(final BreakMode mode) {
@@ -195,7 +193,7 @@ public class RootBuilder extends BreakableBuilder {
 	/**
 	 * 改ページ残余の再構築で、丸ごと移動した閉じた部分木をボックス再生の
 	 * 代わりにソースイベントから再駆動します(M6b segment-restyle)。
-	 * 移行期間中は opt-in です。
+	 * 既定で有効。{@code -Dfoliojet.noSegmentRestyle=true}で止められる(試験の対照用)。
 	 */
 	private static final boolean SEGMENT_RESTYLE = !Boolean.getBoolean("foliojet.noSegmentRestyle");
 
@@ -242,7 +240,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * <p>
 	 * <b>再有効化するなら上限を与えること</b>——断片に「自分の内容が
 	 * 終わるソース文字位置」を持たせ、event-id ではなく<b>文字レベル</b>の
-	 * 上限として {@code replayTextTail} へ渡す。詳細は
+	 * 上限として {@code replayTextTail} へ渡す。
 	 * </p>
 	 */
 	private static final boolean TEXT_TAIL_RESTYLE = Boolean.getBoolean("foliojet.segmentRestyle.textTail");
@@ -1372,7 +1370,6 @@ public class RootBuilder extends BreakableBuilder {
 		return true;
 	}
 
-	/** 流し込みスタックの中身を人が読める形にします(不変条件の診断用)。 */
 	/**
 	 * 継続のフレーム鎖の段数と終端の開き形を表します(2026-09-16、診断用)。
 	 *
@@ -1429,6 +1426,7 @@ public class RootBuilder extends BreakableBuilder {
 		return out.toString();
 	}
 
+	/** 流し込みスタックの中身を人が読める形にします(不変条件の診断用)。 */
 	private String describeFlowStack() {
 		final StringBuilder out = new StringBuilder();
 		for (int i = 0; i < this.flowStack.size(); ++i) {
@@ -1444,11 +1442,6 @@ public class RootBuilder extends BreakableBuilder {
 		return out.toString();
 	}
 
-	/**
-	 * 移動した閉じた部分木のソース再駆動を試みます(M6b)。改ページの
-	 * 残余再構築中で、アンカーが現世代かつ窓内で閉じている場合のみ
-	 * 再駆動されます。false ならボックス再生でフォールバックします。
-	 */
 	/**
 	 * 継続フレームを外→内に消費します(C1d-A)。各フレームの断片ボックスを
 	 * ここで初めて構成し、コンテナを吸収済み prefix と合流させて歩く。
@@ -1597,6 +1590,11 @@ public class RootBuilder extends BreakableBuilder {
 		}
 	}
 
+	/**
+	 * 移動した閉じた部分木のソース再駆動を試みます(M6b)。改ページの
+	 * 残余再構築中で、アンカーが現世代かつ窓内で閉じている場合のみ
+	 * 再駆動されます。false ならボックス再生でフォールバックします。
+	 */
 	public boolean replayFromSource(final net.zamasoft.foliojet.layout.box.IBox box, final BlockBuilder target) {
 		if (!SEGMENT_RESTYLE || this.resumeScopes.isEmpty()) {
 			return false;

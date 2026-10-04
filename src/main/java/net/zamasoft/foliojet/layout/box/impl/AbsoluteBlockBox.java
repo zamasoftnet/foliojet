@@ -342,6 +342,10 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		return true;
 	}
 
+	/** 静的位置への退避が発火した回数(定義された振る舞いだが数は知りたい)。 */
+	public static final java.util.concurrent.atomic.AtomicLong FALLBACK_COUNT =
+			new java.util.concurrent.atomic.AtomicLong();
+
 	/**
 	 * <b>包含ブロックを失った絶対配置を静的位置へ落とします</b>
 	 * (2026-08-06、応急処置から仕様へ昇格)。
@@ -390,10 +394,6 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	 * 変換を止めないための最後の砦である。
 	 * </p>
 	 */
-	/** 静的位置への退避が発火した回数(定義された振る舞いだが数は知りたい)。 */
-	public static final java.util.concurrent.atomic.AtomicLong FALLBACK_COUNT =
-			new java.util.concurrent.atomic.AtomicLong();
-
 	private void resolveUnfinishedMargins() {
 		final AbsoluteInsets margin = this.frame.margin;
 		if (LayoutUtils.isNone(margin.top) || LayoutUtils.isNone(margin.bottom) || LayoutUtils.isNone(margin.left)

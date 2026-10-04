@@ -482,10 +482,6 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * id 以降で最初に保持されているイベントの位置を返します(内部用)。
-	 * compaction で疎になった id 列を二分探索します。
-	 */
-	/**
 	 * 範囲適格判定の疎な逆引き索引です(RangeSummary、2026-08-01——
 	 * エレガンス改善B)。「特別イベント」(Opaque・CAPTION・TABLE・float・
 	 * absolute・multicol・grid・縦横flow開始)のidだけをカテゴリ別に保持し、
@@ -616,6 +612,10 @@ public final class LayoutSource implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * id 以降で最初に保持されているイベントの位置を返します(内部用)。
+	 * compaction で疎になった id 列を二分探索します。
+	 */
 	private int indexOf(final long id) {
 		int low = 0;
 		int high = this.entries.size() - 1;
@@ -1089,28 +1089,6 @@ public final class LayoutSource implements AutoCloseable {
 
 
 	/**
-	 * [fromId, toId] の範囲が文脈依存kindについて自己完結しているかを
-	 * 返します(caption recipe化C2、2026-08-01——
-	 * consult-codex-2026-08-01-caption-recipe.txt Q1)。単なる
-	 * 「根がCAPTIONでない」より強い検証で、次を全て要求する:
-	 *
-	 * <ul>
-	 * <li>各CAPTION Startの時点で、範囲内で開いた明示的なTABLEが
-	 * スタック上にある(CAPTIONが範囲の根になる経路を構造的に禁止——
-	 * G-1の単独replay根クラッシュの再発防止)</li>
-	 * <li>範囲の終端で、範囲内から始まったboxが開いたまま残っていない
-	 * (CAPTIONを途中で切る範囲の禁止)</li>
-	 * <li>範囲内に対応の取れないEndBlockがない</li>
-	 * </ul>
-	 *
-	 * <p>
-	 * 疎な範囲の検出は{@link #isIntact}の担当(呼び出し側が合成する)。
-	 * Opaqueは「未知の開始イベント」としてスタックに積むがTABLEを確立
-	 * しない(fail closed)。C2ではshadow観測のみに使い、実routingは
-	 * {@link #containsCaption}の一律拒否のまま——C4で実ゲートへ昇格する。
-	 * </p>
-	 */
-	/**
 	 * キャプションの一律ゲート+観測です(ページ破断頻度の再生経路用——
 	 * {@code stampRanges}/{@code canReplayChildren})。範囲がキャプションを
 	 * 含むなら常にtrue(=box-restyleへ)。
@@ -1155,6 +1133,28 @@ public final class LayoutSource implements AutoCloseable {
 		return true;
 	}
 
+	/**
+	 * [fromId, toId] の範囲が文脈依存kindについて自己完結しているかを
+	 * 返します(caption recipe化C2、2026-08-01——
+	 * consult-codex-2026-08-01-caption-recipe.txt Q1)。単なる
+	 * 「根がCAPTIONでない」より強い検証で、次を全て要求する:
+	 *
+	 * <ul>
+	 * <li>各CAPTION Startの時点で、範囲内で開いた明示的なTABLEが
+	 * スタック上にある(CAPTIONが範囲の根になる経路を構造的に禁止——
+	 * G-1の単独replay根クラッシュの再発防止)</li>
+	 * <li>範囲の終端で、範囲内から始まったboxが開いたまま残っていない
+	 * (CAPTIONを途中で切る範囲の禁止)</li>
+	 * <li>範囲内に対応の取れないEndBlockがない</li>
+	 * </ul>
+	 *
+	 * <p>
+	 * 疎な範囲の検出は{@link #isIntact}の担当(呼び出し側が合成する)。
+	 * Opaqueは「未知の開始イベント」としてスタックに積むがTABLEを確立
+	 * しない(fail closed)。C2ではshadow観測のみに使い、実routingは
+	 * {@link #containsCaption}の一律拒否のまま——C4で実ゲートへ昇格する。
+	 * </p>
+	 */
 	public boolean isContextCompleteRange(final long fromId, final long toId) {
 		int index = this.indexOf(fromId);
 		if (index < 0) {

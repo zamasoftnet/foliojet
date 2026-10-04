@@ -56,9 +56,7 @@ public class TestPDFVisitor extends PDFVisitor {
 		boolean done = false;
 		Throwable t = null;
 		try {
-			Object result = method.invoke(this.test,
-					new Object[] { box, new Integer(this.pageNumber),
-							new Double(x), new Double(y) });
+			Object result = method.invoke(this.test, box, this.pageNumber, x, y);
 			if (Boolean.TRUE.equals(result)) {
 				done = true;
 				this.test.done.add(ce.id());

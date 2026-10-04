@@ -30,11 +30,6 @@ public interface LayoutStack {
 	public AbstractContainerBox getFixedHeightFlowBox();
 
 	/**
-	 * 幅が決まっているコンテキストルートを返します。
-	 * 
-	 * @return
-	 */
-	/**
 	 * <b>直交フローの線軸(inline)の百分率の基準</b>です(2026-09-16 新設)。
 	 *
 	 * <p>

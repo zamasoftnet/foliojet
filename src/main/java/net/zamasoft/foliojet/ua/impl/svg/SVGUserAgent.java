@@ -32,7 +32,6 @@ import net.zamasoft.pdfg2d.g2d.gc.G2DGC;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
-import net.zamasoft.pdfg2d.pdf.font.FontManagerImpl;
 import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.impl.pagedsvg.SelfContainedSVGPage;
 import net.zamasoft.foliojet.ua.props.SvgTextMode;
@@ -40,8 +39,6 @@ import net.zamasoft.foliojet.ua.props.SvgTextMode;
 public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
 	private Results results, xresults;
 	private boolean middleStateSaved = false;
-
-	private FontManagerImpl fontManager;
 
 	private SVGGraphics2D svgGen;
 
@@ -89,7 +86,7 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 		this.svgGen = null;
 		this.directBuffer = null;
 		this.directPage = null;
-		this.fontManager = null;
+		this.closeOwnedFontManager();
 		this.page = 0;
 	}
 
@@ -126,10 +123,7 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 	}
 
 	public FontManager getFontManager() {
-		if (this.fontManager == null) {
-			this.fontManager = new FontManagerImpl(this.getUAContext().getFontSourceManager());
-		}
-		return this.fontManager;
+		return this.ownedFontManager(false);
 	}
 
 	public void meta(String name, String content) {
@@ -158,7 +152,7 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 		Document doc = domImpl.createDocument(null, "svg", null);
 		this.svgGen = new SVGGraphics2D(doc);
 		this.svgGen.setSVGCanvasSize(dim);
-		G2DGC gc = new G2DGC(this.svgGen, this.fontManager);
+		G2DGC gc = new G2DGC(this.svgGen, this.ownedFontManager(false));
 		return gc;
 	}
 

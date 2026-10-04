@@ -367,10 +367,6 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 	}
 
 	/**
-	 * 分割点で行末に実体化するハイフン字形を作ります。
-	 * TextImplは可変(xadvances等)のため分割点ごとに新しいインスタンスを返します。
-	 */
-	/**
 	 * 分割記号の字形が全角かどうかを見ます。欧文の行末に置く記号なので、
 	 * 送り幅が0.5emを超えるものはCJK用の全角の面が選ばれたとみなします。
 	 */
@@ -390,6 +386,10 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 		return probe.getAdvance() > size * 0.5;
 	}
 
+	/**
+	 * 分割点で行末に実体化するハイフン字形を作ります。
+	 * TextImplは可変(xadvances等)のため分割点ごとに新しいインスタンスを返します。
+	 */
 	private static TextImpl hyphenText(int charOffset, FontStyle fontStyle, FontMetrics fontMetrics,
 			String hyphenateCharacter) {
 		if (hyphenateCharacter == null) {

@@ -314,13 +314,6 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * ページ方向に分割します。
-	 * 
-	 * @param prevTable
-	 * @param nextTable
-	 * @return
-	 */
-	/**
 	 * 元の並びの<b>末尾</b>を、行き先の長さぶんだけ写します。
 	 *
 	 * <p>
@@ -356,6 +349,13 @@ public class TableCollapsedBorders {
 		}
 	}
 
+	/**
+	 * ページ方向に分割します。
+	 * 
+	 * @param prevTable
+	 * @param nextTable
+	 * @return
+	 */
 	public TableCollapsedBorders splitPageAxis(final TableBox prevTable, final TableBox nextTable,
 			final int origBodyRowCount) {
 		// 前のテーブルのtable-body-groupの数と行の数を計算

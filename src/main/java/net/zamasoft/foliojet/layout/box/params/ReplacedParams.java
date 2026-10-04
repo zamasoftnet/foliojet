@@ -25,7 +25,6 @@ public class ReplacedParams extends AbstractTextParams {
 	 */
 	public double lineHeight = LayoutUtils.NONE;
 
-	/** {@code aspect-ratio}の幅/高さ(0=指定なし。2026-08-29)。 */
 	/**
 	 * {@code clip-path}(2026-08-29)。ブロックでは{@link BlockParams}が持つが、
 	 * 置換要素は{@link BlockParams}を持たないため、同じ形状をここへ写す。
@@ -33,6 +32,7 @@ public class ReplacedParams extends AbstractTextParams {
 	 */
 	public ClipPathShape clipPath = null;
 
+	/** {@code aspect-ratio}の幅/高さ(0=指定なし。2026-08-29)。 */
 	public double aspectRatio = 0;
 
 	/**

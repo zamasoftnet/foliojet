@@ -82,6 +82,12 @@ final class GeneratedContentResolver {
 		return "";
 	}
 
+	/**
+	 * {@code target-counter()}系/{@code target-text()}のtarget参照
+	 * (ATTR/REF)を、実際に{@code PageRef}へ問い合わせるための
+	 * {@code "#id"}文字列(またはhref)へ解決する。属性値が無い場合は
+	 * {@code null}。
+	 */
 	static String targetRef(byte type, String ref, CSSStyle style) {
 		switch (type) {
 		case TargetCounterValue.ATTR: {

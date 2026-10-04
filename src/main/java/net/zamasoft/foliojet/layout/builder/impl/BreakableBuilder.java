@@ -464,14 +464,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * class-A境界のページ名遷移を裁定します(名前付きページN2a——
-	 * consult-codex-2026-07-31-named-pages.txt Q2)。名前が変わるとき、
-	 * 名前を先に切り替えてtrueを返す(呼び出し側は明示改ページの処理後、
-	 * まだ改ページしていなければ遷移用の改ページを1回行う——author
-	 * breakとの合成で二重に送らない)。合成ボックス(element==null)は
-	 * 境界に関与しない。
-	 */
-	/**
 	 * ページ名遷移の改ページを送ります(N2b)。{@code namedTransition}印付き
 	 * のため、閉じられるページが白紙なら出力から落ちる。
 	 */
@@ -561,6 +553,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 	}
 
+	/**
+	 * class-A境界のページ名遷移を裁定します(名前付きページN2a——
+	 * consult-codex-2026-07-31-named-pages.txt Q2)。名前が変わるとき、
+	 * 名前を先に切り替えてtrueを返す(呼び出し側は明示改ページの処理後、
+	 * まだ改ページしていなければ遷移用の改ページを1回行う——author
+	 * breakとの合成で二重に送らない)。合成ボックス(element==null)は
+	 * 境界に関与しない。
+	 */
 	private boolean resolveNamedPageTransition(final net.zamasoft.foliojet.layout.box.IBox box) {
 		if (!this.supportsNamedPages() || this.isRestyling() || box.getParams().element == null
 				|| !(box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.AbstractBlockLevelPos pos)) {
@@ -1604,7 +1604,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// 改段も行われず、autoBreak()と違いPAGEへのfallbackもされない
 				// サイレントno-opになっていた(ChatGPT Pro相談で発見・検証済み、
 				// 設計相談)。
-				// autoBreak()(887行目付近)と同じfallback規則に揃える。
+				// {@link #autoBreak()}と同じfallback規則に揃える。
 				if (this.columnBreak(columnBreak.flow(), breakMode, IPageBreakableBox.FLAGS_FIRST, lastFrame,
 						columnBreak.depth())) {
 					return;

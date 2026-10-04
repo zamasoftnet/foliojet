@@ -1605,11 +1605,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 浮動体の追加を予約します。
-	 * 
-	 * @param box
-	 */
-	/**
 	 * 行の途中に現れた行末側フロートの、現在行への同一行配置の試みです
 	 * (2026-08-08)。CSS 2.1 §9.5の「行の途中のフロートは、収まるなら
 	 * 現在の行ボックスの上端に置き、行ボックスを狭める」のうち、既配置の
@@ -1670,6 +1665,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return true;
 	}
 
+	/**
+	 * 浮動体の追加を予約します。
+	 * 
+	 * @param box
+	 */
 	private void toAddFloating(IFloatBox box) {
 		if (this.toAddFloatings == null) {
 			this.toAddFloatings = new ArrayList<IFloatBox>();
@@ -2109,8 +2109,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 			return;
 		}
 		// テキストブロックが空(textBuilderが生成されていない)場合の
-		// flushは何もしない。endTextBlock()と同じnullガード(809行目付近の
-		// コメント参照)——E-6増分5aのセルrange bindで実際に発生する:
+		// flushは何もしない。endTextBlock()と同じnullガード——
+		// E-6増分5aのセルrange bindで実際に発生する:
 		// セル内容がsoft hyphen(U+00AD)のみのとき、StyledTextUnitizerは
 		// textShaperを作るがWordHyphenatorがMarkerを黙って落とす
 		// (hyphens:manualでfontMetrics未設定)ため、ビルダーへはglyphも
@@ -2139,8 +2139,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// テキストブロックの終了。内容が空(control()が一度も呼ばれず
 		// requireTextBlock()でtextBuilderが生成されない)場合はnullのまま
 		// ここに達することがある(2026-07-18、空のテーブルセルで
-		// NullPointerExceptionが実際に発生した)。このクラスの他の箇所
-		// (809行目付近等)と同じくnullガードで対応する
+		// NullPointerExceptionが実際に発生した)。flush()と同じく
+		// nullガードで対応する
 		if (this.textBuilder != null) {
 			if (this.textSession != null) {
 				// M3c: 蓄積分のbreakpoint選択と再生(不適格ならlegacyと

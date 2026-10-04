@@ -160,12 +160,8 @@ public record FloatSplitPlan(
 	}
 
 	private static FloatItemPlan classify0(final FloatMeasurement m, final double pageLimit, final byte flags) {
-		// ライブロック確定時は物理位置を問わずfirst扱いにして、
-		// 「はみ出させてでも置く」逃げ道(分岐表5・5-R)へ到達させる
-		// (2026-07-29、{@link IPageBreakableBox#FLAGS_LIVELOCK})
 		final boolean first = FloatMeasurement.isFragmentStart(
-				(flags & IPageBreakableBox.FLAGS_FIRST) != 0, m.fragmentHead())
-				|| (flags & IPageBreakableBox.FLAGS_LIVELOCK) != 0;
+				(flags & IPageBreakableBox.FLAGS_FIRST) != 0, m.fragmentHead());
 		if (m.moveToNext()) {
 			// 配置時に2-D bottom帯との交差が確定済み。物理ページ端で
 			// Keepへ戻さず、この分割で一度だけ次断片へ送る。

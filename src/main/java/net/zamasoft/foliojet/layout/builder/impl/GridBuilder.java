@@ -81,7 +81,6 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 public final class GridBuilder
 		implements net.zamasoft.foliojet.layout.builder.RetainedGrid, net.zamasoft.foliojet.layout.builder.ItemCoordinator {
 
-	/** 録画されたitem数(空匿名破棄を除く)。親rangeへの吸収・再構築も含み、bind数とは異なる。 */
 	/** 構築した項目の総数。TwoPassの本文記録数ではない。 */
 	public static final AtomicLong GRID_ITEM_RECORDS = new AtomicLong();
 

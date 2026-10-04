@@ -216,21 +216,6 @@ public final class RowLayoutEngine {
 	}
 
 	/**
-	 * rowspan で連結された行の高さを分配します(両ビルダーの同一
-	 * アルゴリズムの統合)。各連結について、連結範囲の行高合計が連結
-	 * セルの要求(min)に足りなければ、不足分を (1) %指定行に比率適用 →
-	 * (2) 連結によってのみ拡張された自動行 → (3) 自動行 → (4) 全行、の
-	 * 優先順で分配する。
-	 *
-	 * @param rowSizes    各行の高さ(入出力)
-	 * @param rowspanList 連結(row=開始行、span=連結数、min=要求高さ)。
-	 *                    Rowspan.SPAN_COMPARATOR でソート済みであること
-	 * @param noAdjRows   連結されないセルを含む行
-	 * @param autoRows    自動高さの行
-	 * @param rowRatios   %指定行の比率(なければ 0)
-	 */
-
-	/**
 	 * セルのページ軸要求寸法です(A-4、2026-07-30。両ビルダーの同型計算の
 	 * 統合): 実測値と、ABSOLUTE指定(content-boxなら枠を加算)の大きい方。
 	 * 演算順は旧実装のまま。
@@ -275,6 +260,20 @@ public final class RowLayoutEngine {
 		rowspan.min = Math.max(rowspan.min, size);
 	}
 
+	/**
+	 * rowspan で連結された行の高さを分配します(両ビルダーの同一
+	 * アルゴリズムの統合)。各連結について、連結範囲の行高合計が連結
+	 * セルの要求(min)に足りなければ、不足分を (1) %指定行に比率適用 →
+	 * (2) 連結によってのみ拡張された自動行 → (3) 自動行 → (4) 全行、の
+	 * 優先順で分配する。
+	 *
+	 * @param rowSizes    各行の高さ(入出力)
+	 * @param rowspanList 連結(row=開始行、span=連結数、min=要求高さ)。
+	 *                    Rowspan.SPAN_COMPARATOR でソート済みであること
+	 * @param noAdjRows   連結されないセルを含む行
+	 * @param autoRows    自動高さの行
+	 * @param rowRatios   %指定行の比率(なければ 0)
+	 */
 	public static void distributeSpannedRowSizes(final double[] rowSizes, final List<Rowspan> rowspanList,
 			final boolean[] noAdjRows, final boolean[] autoRows, final double[] rowRatios) {
 		for (int j = 0; j < rowspanList.size(); ++j) {

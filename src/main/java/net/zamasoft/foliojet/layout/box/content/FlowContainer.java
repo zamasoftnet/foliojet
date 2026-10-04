@@ -1139,9 +1139,6 @@ public class FlowContainer implements Container {
 				if (index != 0) {
 					lflags ^= IPageBreakableBox.FLAGS_FIRST;
 				}
-				if (index != this.flows.size() - 1) {
-					lflags ^= IPageBreakableBox.FLAGS_LAST;
-				}
 				Flow flow = (Flow) this.flows.get(index);
 				if (plan != null && plan.selects(flow.box)) {
 					// C1d-C: チェーンメンバーの継続化。断片はボックスではなく
@@ -1155,13 +1152,13 @@ public class FlowContainer implements Container {
 							"チェーンメンバーは Split を返さない");
 					case SplitResult.Keep keep -> {
 						// 継続化不成立(chainFrame は null のまま)。box 全体を
-						// this 側に残す — 720行目の chainFrame==null 分岐が
-						// plain(nextBox) へ自然にフォールバックする
+						// this 側に残す — 末尾の chainFrame==null 分岐が
+						// PlainWithChainStop(nextBox) へ自然にフォールバックする
 						chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP;
 					}
 					case SplitResult.Move move -> {
 						// box全体をnextBox側へ送る。自動改ページ主ループ
-						// (942-950行目)と同様、this.flows側からも除去
+						// ({@link #applyPartition})と同様、this.flows側からも除去
 						// しないと同一boxが前後ページに二重に残ってしまう
 						// (除去自体は下のsplitFloatings呼び出しの後——
 						// そちらがthis.flowsの元のサイズを前提にしている)
@@ -2081,16 +2078,16 @@ public class FlowContainer implements Container {
 	private static final FloatAggregate AGGREGATE_NONE = new FloatAggregate.None();
 	private static final FloatAggregate AGGREGATE_OWNER_ALL = new FloatAggregate.OwnerAll();
 
-	/**
-	 * 直接保持分と子flow [0..index) の浮動ボックスを分割・集約します
-	 * (P2-4で旧private 3引数版のsentinel状態機械を型付きへ置換)。
-	 */
 	/** 診断用: 保持しているフロー数と直接の浮動体数。 */
 	int flowCountForDebug() {
 		return (this.flows == null ? 0 : this.flows.size()) * 100
 				+ (this.floatings == null ? 0 : this.floatings.getCount());
 	}
 
+	/**
+	 * 直接保持分と子flow [0..index) の浮動ボックスを分割・集約します
+	 * (P2-4で旧private 3引数版のsentinel状態機械を型付きへ置換)。
+	 */
 	private FloatAggregate aggregateFloatings(final double pageLimit, final byte flags, final int index) {
 		// 入口final snapshot(addBound事故の教訓——codex設計§2.5)。
 		// lflagsのLAST判定は旧実装では「現在の」this.flows.size()を見ていた

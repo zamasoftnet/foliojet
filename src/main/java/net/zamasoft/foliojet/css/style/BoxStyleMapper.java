@@ -460,12 +460,6 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * ボックスの基本パラメータを設定します。
-	 * 
-	 * @param params
-	 * @param style
-	 */
-	/**
 	 * Gridコンテナのパラメータを設定します(Grid G0)。
 	 */
 	void setupGridParams(net.zamasoft.foliojet.layout.box.params.GridParams params, CSSStyle style,

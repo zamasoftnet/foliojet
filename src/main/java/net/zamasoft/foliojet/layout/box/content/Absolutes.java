@@ -103,8 +103,7 @@ public class Absolutes {
 	 * 配置のボックスの描画手順だけを、元の走査順のまま**逆順**で
 	 * {@code worklist}へ積む(逆順走査により、削除時のインデックス補正が
 	 * 不要になる)。
-	 */
-	/**
+	 *
 	 * @param ownerPageExtent 所有箱の物理幅(縦組みRLの{@link Absolute#blockStartAnchored}の変換に使う)
 	 */
 	public void pushDraw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,

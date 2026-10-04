@@ -48,6 +48,7 @@ import net.zamasoft.foliojet.ua.AbsoluteFontSize;
 import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 import net.zamasoft.foliojet.ua.BoundSide;
 import net.zamasoft.foliojet.ua.PrepareMode;
+import net.zamasoft.pdfg2d.pdf.font.FontManagerImpl;
 
 /**
  * @author MIYABE Tatsuhiko
@@ -842,7 +843,29 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return this.currentMode == PrepareMode.LAST_PASS;
 	}
 
+	/**
+	 * 画像・SVG 出力が自分で作る書体管理です。パスの切り替えと{@link #dispose}で閉じる——{@code @font-face}で取得した
+	 * 書体の一時ファイルはこの{@code close()}が消す(2026-10-04 までは参照を外すだけで閉じず、変換をまたいで残った)。
+	 */
+	private FontManagerImpl ownedFontManager;
+
+	protected final FontManagerImpl ownedFontManager(final boolean coreFontsLast) {
+		if (this.ownedFontManager == null) {
+			this.ownedFontManager = new FontManagerImpl(this.getUAContext().getFontSourceManager());
+			this.ownedFontManager.setCoreFontsLast(coreFontsLast);
+		}
+		return this.ownedFontManager;
+	}
+
+	protected final void closeOwnedFontManager() {
+		if (this.ownedFontManager != null) {
+			this.ownedFontManager.close();
+			this.ownedFontManager = null;
+		}
+	}
+
 	public void dispose() {
+		this.closeOwnedFontManager();
 		if (this.retainedTextLimit != null) this.retainedTextLimit.close();
 	}
 }

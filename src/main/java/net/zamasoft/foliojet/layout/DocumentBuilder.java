@@ -724,10 +724,6 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	/**
 	 * {@code box}を元とするtakeover element itemが末尾で開いていれば
-	 * そのFlexBuilderを返します(Flex F1d——authored boxのendBox対応付け)。
-	 */
-	/**
-	 * {@code box}を元とするtakeover element itemが末尾で開いていれば
 	 * そのGridBuilderを返します(G7、2026-08-29——{@link #flexItemEndingAt}と同型)。
 	 */
 	private GridBuilder gridItemEndingAt(final IBox box) {
@@ -740,6 +736,10 @@ public class DocumentBuilder implements TableBuilderHost {
 		return null;
 	}
 
+	/**
+	 * {@code box}を元とするtakeover element itemが末尾で開いていれば
+	 * そのFlexBuilderを返します(Flex F1d——authored boxのendBox対応付け)。
+	 */
 	private FlexBuilder flexItemEndingAt(final IBox box) {
 		// takeover(authored boxをitem boxへ引き継ぐ)はFlex固有のため
 		// coordinator一般化の対象外

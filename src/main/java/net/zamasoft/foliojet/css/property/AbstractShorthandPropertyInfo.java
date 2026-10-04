@@ -93,14 +93,6 @@ public abstract class AbstractShorthandPropertyInfo extends AbstractPropertyInfo
 	}
 
 	/**
-	 * 
-	 * @param lu
-	 * @param ua
-	 * @param uri
-	 * @param primitives
-	 * @throws PropertyException
-	 */
-	/**
 	 * 宣言値のトークン列を分解し、対応する単純プロパティ群を設定します。
 	 */
 	public abstract void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives)

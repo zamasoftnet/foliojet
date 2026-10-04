@@ -91,7 +91,6 @@ public abstract class AbstractBox implements IBox {
 		return 1;
 	}
 
-	/** 内部圧縮後に内容を中央へ寄せる物理Xのずれです(既定0)。 */
 	/**
 	 * この箱を内容として保持している{@code FlowContainer}(2026-08-29)。
 	 * {@code hasNonDecorationContent}のメモを、変更のあった箱の祖先だけ
@@ -107,6 +106,7 @@ public abstract class AbstractBox implements IBox {
 		this.contentParent = parent;
 	}
 
+	/** 内部圧縮後に内容を中央へ寄せる物理Xのずれです(既定0)。 */
 	protected double internalOffsetX() {
 		return 0;
 	}

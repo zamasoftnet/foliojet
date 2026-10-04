@@ -887,16 +887,16 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				footerRowCount, widths.colspanConstraintCount());
 	}
 
-	/**
-	 * テーブルを構築します。 外側のテーブルから順に実行します。
-	 * 
-	 * @param builder
-	 */
 	/** 表の形(寸法・列幅・匿名ブロック)です(bind の段間受け渡し)。 */
 	private record TableShape(BlockBuilder anonBuilder, PosType position, AbstractBlockBox blockBox, double tableSize,
 			double[] columnSizes, double specifiedPageSize, double tableInnerSize) {
 	}
 
+	/**
+	 * テーブルを構築します。 外側のテーブルから順に実行します。
+	 * 
+	 * @param builder
+	 */
 	public void bind(final net.zamasoft.foliojet.layout.builder.Builder host) {
 		if (this.abandoned) {
 			// 表吸収(codex増分5): 親の範囲再生が表を再構築するため到達しない

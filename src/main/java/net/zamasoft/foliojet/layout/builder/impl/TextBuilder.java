@@ -255,9 +255,6 @@ public class TextBuilder {
 		// System.err.println("CHANGE_TEXT: " + this.wrap + "/" + this.breakWord);
 	}
 
-	/**
-	 * テキストブロックに行を追加します。
-	 */
 	/** いまの行に文字(Text・目に見える Control・leader)が入ったか。 */
 	private boolean lineHasText = false;
 
@@ -569,6 +566,9 @@ public class TextBuilder {
 		}
 	}
 
+	/**
+	 * テキストブロックに行を追加します。
+	 */
 	private void addLine(AbstractLineBox lineBox) {
 		this.addStrutIfTextless(lineBox);
 		this.lineHasText = false;

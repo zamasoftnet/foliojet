@@ -50,18 +50,6 @@ public final class DisplayListDumper {
 	}
 
 	/**
-	 * このスレッドのダンプ出力先を設定します。返り値を閉じると元へ戻ります。
-	 *
-	 * <pre>
-	 * try (var scope = DisplayListDumper.scopedDir(dir)) {
-	 * 	// このスレッドの変換だけが dir へ出力する
-	 * }
-	 * </pre>
-	 *
-	 * @param dir 出力先(nullでこのスレッドの設定を外す)
-	 * @return 閉じると元の設定へ戻すハンドル
-	 */
-	/**
 	 * このスレッドに設定されている出力先を返します({@code null}なら未設定)。
 	 * レイアウトを別スレッドで実行する側が引き継ぐために使います。
 	 */
@@ -74,6 +62,18 @@ public final class DisplayListDumper {
 		return Boolean.TRUE.equals(DETAILED_GEOMETRY.get());
 	}
 
+	/**
+	 * このスレッドのダンプ出力先を設定します。返り値を閉じると元へ戻ります。
+	 *
+	 * <pre>
+	 * try (var scope = DisplayListDumper.scopedDir(dir)) {
+	 * 	// このスレッドの変換だけが dir へ出力する
+	 * }
+	 * </pre>
+	 *
+	 * @param dir 出力先(nullでこのスレッドの設定を外す)
+	 * @return 閉じると元の設定へ戻すハンドル
+	 */
 	public static AutoCloseable scopedDir(final String dir) {
 		final String saved = DIR_OVERRIDE.get();
 		if (dir == null) {

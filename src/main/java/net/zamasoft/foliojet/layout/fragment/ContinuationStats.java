@@ -709,11 +709,12 @@ public final class ContinuationStats {
 
 	/**
 	 * 自動改ページが進捗しているかを検査し、同一状態の反復が安全閾値
-	 * ({@link #STALLED_AUTO_BREAK_LIMIT})に達したら
-	 * {@link ContinuationInvariantViolationException}を投げます
-	 * (2026-07-27新設)。
+	 * ({@link #STALLED_AUTO_BREAK_LIMIT})に達したら、警告してtrueを返します
+	 * (2026-07-27新設。2026-07-29に例外を投げる設計から改ページを放棄する設計へ変えた——
+	 * 呼び出し側はその場に配置を続け、はみ出してでも出力を返す)。
 	 *
 	 * @param stalledRun 直前の自動改ページと状態が変わらないまま繰り返した回数
+	 * @return 改ページを放棄すべきならtrue
 	 */
 	public static boolean guardBreakProgress(final int stalledRun) {
 		MAX_STALLED_AUTO_BREAK_RUN.accumulateAndGet(stalledRun, Math::max);

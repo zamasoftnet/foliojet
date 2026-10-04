@@ -200,14 +200,6 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	}
 
 	/**
-	 * 行方向アラインメントを適用します。
-	 * 
-	 * @param textIndent  インデント
-	 * @param offset      浮動ボックス等によるずれ
-	 * @param maxLineAxis 最大行幅
-	 * @param last        ブロックの末尾または改行された行
-	 */
-	/**
 	 * 行末の詰め/ぶら下げ分です(和文詰めT2/H1——
 	 * consult-codex-2026-07-31-text-spacing.txt)。行の配置・均等割りは
 	 * この分を除いた実効行幅を基準にし、glyph自体は通常どおり描画される
@@ -247,6 +239,14 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		return this.endHangAdvance;
 	}
 
+	/**
+	 * 行方向アラインメントを適用します。
+	 * 
+	 * @param textIndent  インデント
+	 * @param offset      浮動ボックス等によるずれ
+	 * @param maxLineAxis 最大行幅
+	 * @param last        ブロックの末尾または改行された行
+	 */
 	public void align(double textIndent, double offset, double maxLineAxis, boolean last) {
 		// 行方向アラインメント
 		assert this.contents != null && !this.contents.isEmpty();

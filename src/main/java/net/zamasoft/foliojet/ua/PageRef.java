@@ -65,13 +65,6 @@ public class PageRef {
 	}
 
 	/**
-	 * フラグメントを追加します。
-	 *
-	 * @param uri
-	 * @param counters
-	 * @param text 参照先要素の描画テキスト({@code target-text()}用、無ければ{@code null})
-	 */
-	/**
 	 * 最終パスで<b>実際に収束していなかった</b>ことを検出した印です
 	 * (2026-08-02)。「前方参照が前パスの値を読んだ」だけでは非収束では
 	 * ない——前パスと同じ値なら結果は正しい。読まれた値が同じパスの
@@ -118,6 +111,13 @@ public class PageRef {
 		return 0;
 	}
 
+	/**
+	 * フラグメントを追加します。
+	 *
+	 * @param uri
+	 * @param counters
+	 * @param text 参照先要素の描画テキスト({@code target-text()}用、無ければ{@code null})
+	 */
 	public void addFragment(URI uri, Counter[] counters, String text) {
 		int[] seq = (int[]) this.uriToSeq.get(uri);
 		if (seq == null) {

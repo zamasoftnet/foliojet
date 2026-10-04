@@ -428,13 +428,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 		this.lineSize += advance;
 	}
 
-	/**
-	 * 両あわせのために拡大できるポイントをカウントします。
-	 * 
-	 * @param state TODO
-	 * 
-	 * @return
-	 */
 	/** JLREQ 3.8.4の追出し優先段階。 */
 	protected static final int JUSTIFY_WORD_SPACE = 1;
 	protected static final int JUSTIFY_AUTOSPACE = 2;

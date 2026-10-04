@@ -663,7 +663,20 @@ public class DirectSession extends AbstractCTISession
 		this.prepareTranscode(uri);
 		final Source source;
 		try {
-			source = this.resolver.resolve(uri, true);
+			source = this.resolveMainDocument(uri);
+		} catch (final TranscoderException e) {
+			// 用意したUAを捨てる。残すと次の変換が prepareTranscode を飛ばし、既定の性質・取得の許可・中断の
+			// 印を整えないまま組んでいた(2026-10-04)
+			this.discardUserAgent();
+			throw e;
+		}
+		this.transcodeResolved(uri, source);
+	}
+
+	/** 主文書を取得します。取得できなければ、利用者に伝える中断にする。 */
+	private Source resolveMainDocument(final URI uri) throws TranscoderException {
+		try {
+			return this.resolver.resolve(uri, true);
 		} catch (SecurityException e) {
 			// 遠隔の利用者にサーバーの内側の宛先などを拒んだ(MySourceResolver)。以前は RuntimeException のまま
 			// CTIP サーバーを突き抜けて接続が切れ、利用者には "EOF within CTIP response" しか
@@ -674,6 +687,9 @@ public class DirectSession extends AbstractCTISession
 		} catch (IOException e) {
 			throw this.serverSideDocumentError(MessageCodes.ERROR_UNREACHABLE_SERVERSIDE_DOCUMENT, uri, e);
 		}
+	}
+
+	private void transcodeResolved(final URI uri, final Source source) throws IOException, TranscoderException {
 		// 進行通知用に先開きしたストリームは自分で閉じる(2026-08-27)。
 		// resolver.release(source)はSourceオブジェクトを返すだけで、
 		// getInputStream()で開いた実ストリームまでは閉じない。閉じ漏れる
@@ -787,6 +803,9 @@ public class DirectSession extends AbstractCTISession
 				DirectSession.this.transcode(source);
 			} catch (IOException e) {
 				DirectSession.this.pipeException = e;
+			} catch (RuntimeException e) {
+				// 検査されない例外も失敗として flush() へ伝える(2026-10-04 まではスレッドと一緒に消え、成功と報告していた)
+				DirectSession.this.pipeException = new IOException(e);
 			}
 		});
 		return out;
@@ -927,10 +946,15 @@ public class DirectSession extends AbstractCTISession
 			throw failure(code, mes, t);
 		} finally {
 			this.processingDeadlineNanos = 0;
-			if (!this.continuous) {
-				this.ua.dispose();
-				this.ua = null;
-			}
+			this.discardUserAgent();
+		}
+	}
+
+	/** 連続変換でなければ、UAを後始末して外します。 */
+	private void discardUserAgent() {
+		if (!this.continuous && this.ua != null) {
+			this.ua.dispose();
+			this.ua = null;
 		}
 	}
 
@@ -1040,7 +1064,8 @@ public class DirectSession extends AbstractCTISession
 		} catch (BrokenResultException e) {
 			short code = CTIMessageCodes.FATAL_UNEXPECTED;
 			String mes = MessageCodeUtils.toString(code, new String[] { e.getMessage() });
-			throw new TranscoderException(TranscoderException.STATE_BROKEN, code, null, mes);
+			// 原因を繋ぐ(2026-10-04 までは捨てていた)
+			throw failure(code, mes, e);
 		} finally {
 			this.ua.dispose();
 			this.ua = null;

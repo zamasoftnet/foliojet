@@ -1063,10 +1063,6 @@ final class StyleEventMachine {
 		}
 	}
 
-	/**
-	 * 要素の ::before を合成します(合成擬似要素自身には作らない)。
-	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
-	 */
 	/** {@code content: element()} の警告は文書ごとに 1 回。 */
 	private boolean elementFunctionWarned = false;
 
@@ -1098,6 +1094,10 @@ final class StyleEventMachine {
 		}
 	}
 
+	/**
+	 * 要素の ::before を合成します(合成擬似要素自身には作らない)。
+	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 */
 	private void synthesizeBefore(final CSSStyle style, final CSSElement ce) {
 		// before(合成擬似要素自身には::before/::afterを作らない)
 		if (!ce.isPseudoElement()
@@ -1161,14 +1161,6 @@ final class StyleEventMachine {
 		}
 	}
 
-	/**
-	 * {@code target-counter()}系/{@code target-text()}のtarget参照
-	 * (ATTR/REF)を、実際に{@code PageRef}へ問い合わせるための
-	 * {@code "#id"}文字列(またはhref)へ解決する。属性値が無い場合は
-	 * {@code null}。
-	 */
-
-	
 	/** 頁参照が無効なときの警告は1文書に1回。 */
 	private boolean warnedPageReferencesDisabled = false;
 
@@ -1519,14 +1511,6 @@ final class StyleEventMachine {
 		this.sink.end();
 	}
 
-	/**
-	 * {@code ::footnote-call}/{@code ::footnote-marker}を合成します(脚注F1、
-	 * 2026-07-31——consult-codex-2026-07-31-footnote.txt §3)。利用者の同名
-	 * 擬似要素規則をカスケードし、{@code content}指定があればそれを
-	 * ({@link #startStyle}の生成機構で)、無ければUA既定=脚注番号
-	 * (globalスコープの"footnote"カウンタ、markerは区切り付き)を発行する。
-	 * callのUA既定は上付きの小さな番号(利用者規則が後から上書きする)。
-	 */
 	/** 脚注の論理ID採番(F4。表示番号のcounter "footnote"とは独立)。 */
 	private long nextFootnoteId = 0;
 
@@ -1572,6 +1556,14 @@ final class StyleEventMachine {
 	/** 脚注ラベルの未対応の内容の警告は1文書に1回。 */
 	private boolean warnedFootnoteLabelContent = false;
 
+	/**
+	 * {@code ::footnote-call}/{@code ::footnote-marker}を合成します(脚注F1、
+	 * 2026-07-31——consult-codex-2026-07-31-footnote.txt §3)。利用者の同名
+	 * 擬似要素規則をカスケードし、{@code content}指定があればそれを
+	 * ({@link #startStyle}の生成機構で)、無ければUA既定=脚注番号
+	 * (globalスコープの"footnote"カウンタ、markerは区切り付き)を発行する。
+	 * callのUA既定は上付きの小さな番号(利用者規則が後から上書きする)。
+	 */
 	private void footnotePseudo(final CSSStyle style, final CSSElement pseudoCe) {
 		this.styleContext.startElement(pseudoCe);
 		final Declaration declaration = this.styleContext.merge(null);
