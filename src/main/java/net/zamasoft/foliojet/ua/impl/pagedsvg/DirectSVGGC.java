@@ -69,6 +69,12 @@ class DirectSVGGC implements GC {
 
 		@Override
 		public void close() throws GraphicsException {
+			this.restore();
+			this.gc.frames.pop();
+		}
+
+		/** この状態を積んだ時点へ戻します(クリップの{@code <g>}を閉じる)。 */
+		void restore() throws GraphicsException {
 			try {
 				for (int i = 0; i < this.openGroups; ++i) {
 					this.gc.writer.end("g");
@@ -76,6 +82,7 @@ class DirectSVGGC implements GC {
 			} catch (final IOException e) {
 				throw new GraphicsException(e);
 			}
+			this.openGroups = 0;
 			this.gc.transform.setTransform(this.transform);
 			this.gc.fillPaint = this.fillPaint;
 			this.gc.strokePaint = this.strokePaint;
@@ -87,7 +94,6 @@ class DirectSVGGC implements GC {
 			this.gc.lineJoin = this.lineJoin;
 			this.gc.lineCap = this.lineCap;
 			this.gc.textMode = this.textMode;
-			this.gc.frames.pop();
 		}
 	}
 
@@ -132,8 +138,24 @@ class DirectSVGGC implements GC {
 		return frame;
 	}
 
+	/**
+	 * 直近の{@link #begin()}の状態へ戻します(PDF の Q q、Java2D の GC と同じ)。その後に掛けた
+	 * クリップも外す。
+	 *
+	 * <p>
+	 * 以前は初期状態(単位行列)へ戻していた。Graphics2D の橋渡し({@code BridgeGraphics2D}、
+	 * MathML・インライン SVG)は変換を「直近の begin への差分」で掛け直すので、頁の上の位置へ
+	 * ずらす分が消え、数式の 2 字目以降や入れ子の図形が頁の原点の近くに描かれていた
+	 * (2026-10-04、TECH-20261003-004 の⑳)。
+	 * </p>
+	 */
 	@Override
 	public void resetState() throws GraphicsException {
+		final Frame frame = this.frames.peek();
+		if (frame != null) {
+			frame.restore();
+			return;
+		}
 		this.transform.setToIdentity();
 		this.fillPaint = net.zamasoft.pdfg2d.gc.paint.RGBColor.BLACK;
 		this.strokePaint = net.zamasoft.pdfg2d.gc.paint.RGBColor.BLACK;
