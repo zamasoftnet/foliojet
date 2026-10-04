@@ -190,8 +190,9 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		final double pxPerPt = ppi / 72;
 		final AffineTransform at = AffineTransform.getScaleInstance(pxPerPt, pxPerPt);
 		at.transform(size, size);
-		final int w = (int) size.getX();
-		final int h = (int) size.getY();
+		// 四捨五入(2026-10-04)。切り捨てでは 50mm×350dpi=688.98 が 688 画素になり、印刷所が寸法を読み違えた
+		final int w = (int) Math.round(size.getX());
+		final int h = (int) Math.round(size.getY());
 		// 版面の画素数の上限(2026-10-03)。頁の大きさ×解像度はいくらでも
 		// 大きくできるので、確保する前に断る
 		final long outputPixelLimit = UAProps.OUTPUT_IMAGE_PIXEL_LIMIT.getLong(this);
@@ -344,7 +345,8 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 				ImageWriter writer = (ImageWriter) i.next();
 				try {
 					writer.setOutput(iout);
-					writer.write(this.image);
+					writer.write(null, new javax.imageio.IIOImage(this.image, null, resolutionMetadata(writer,
+							this.image, UAProps.OUTPUT_IMAGE_RESOLUTION.getDouble(this))), null);
 				} finally {
 					writer.dispose();
 				}
@@ -358,6 +360,71 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		if (!this.results.hasNext()) {
 			throw new AbortException(CTISession.ABORT_NORMAL);
 		}
+	}
+
+	/**
+	 * 解像度(dpi)を書き込んだ画像のメタデータです(2026-10-04)。PNG は pHYs、JPEG は JFIF(単位 1=dpi)、
+	 * ほかは標準形式の画素の大きさ。書けない形式なら null(書き出しは従来どおり)。
+	 *
+	 * <p>
+	 * 解像度が無いと、受け手(印刷所の入稿など)は画素数から寸法を読めない。製本直送の表紙作成コースは
+	 * 300〜350dpi の画像で入稿するので、読み器と出版の道具で書き足していた。
+	 * </p>
+	 */
+	private static javax.imageio.metadata.IIOMetadata resolutionMetadata(final ImageWriter writer,
+			final BufferedImage image, final double dpi) {
+		try {
+			final javax.imageio.metadata.IIOMetadata metadata = writer.getDefaultImageMetadata(
+					ImageTypeSpecifier.createFromRenderedImage(image), writer.getDefaultWriteParam());
+			if (metadata == null || metadata.isReadOnly() || !(dpi > 0)) {
+				return null;
+			}
+			final String nativeFormat = metadata.getNativeMetadataFormatName();
+			if ("javax_imageio_png_1.0".equals(nativeFormat)) {
+				final javax.imageio.metadata.IIOMetadataNode root = new javax.imageio.metadata.IIOMetadataNode(
+						nativeFormat);
+				final javax.imageio.metadata.IIOMetadataNode phys = new javax.imageio.metadata.IIOMetadataNode("pHYs");
+				final String perMeter = Long.toString(Math.round(dpi / 0.0254));
+				phys.setAttribute("pixelsPerUnitXAxis", perMeter);
+				phys.setAttribute("pixelsPerUnitYAxis", perMeter);
+				phys.setAttribute("unitSpecifier", "meter");
+				root.appendChild(phys);
+				metadata.mergeTree(nativeFormat, root);
+				return metadata;
+			}
+			if ("javax_imageio_jpeg_image_1.0".equals(nativeFormat)) {
+				final org.w3c.dom.Node tree = metadata.getAsTree(nativeFormat);
+				final org.w3c.dom.NodeList jfif = ((org.w3c.dom.Element) tree).getElementsByTagName("app0JFIF");
+				if (jfif.getLength() == 0) {
+					return null;
+				}
+				final org.w3c.dom.Element app0 = (org.w3c.dom.Element) jfif.item(0);
+				final String density = Long.toString(Math.min(65535, Math.round(dpi)));
+				app0.setAttribute("resUnits", "1");
+				app0.setAttribute("Xdensity", density);
+				app0.setAttribute("Ydensity", density);
+				metadata.setFromTree(nativeFormat, tree);
+				return metadata;
+			}
+			if (metadata.isStandardMetadataFormatSupported()) {
+				final javax.imageio.metadata.IIOMetadataNode root = new javax.imageio.metadata.IIOMetadataNode(
+						javax.imageio.metadata.IIOMetadataFormatImpl.standardMetadataFormatName);
+				final javax.imageio.metadata.IIOMetadataNode dimension = new javax.imageio.metadata.IIOMetadataNode(
+						"Dimension");
+				final String mmPerPixel = Double.toString(25.4 / dpi);
+				for (final String name : new String[] { "HorizontalPixelSize", "VerticalPixelSize" }) {
+					final javax.imageio.metadata.IIOMetadataNode node = new javax.imageio.metadata.IIOMetadataNode(name);
+					node.setAttribute("value", mmPerPixel);
+					dimension.appendChild(node);
+				}
+				root.appendChild(dimension);
+				metadata.mergeTree(javax.imageio.metadata.IIOMetadataFormatImpl.standardMetadataFormatName, root);
+				return metadata;
+			}
+		} catch (final javax.imageio.metadata.IIOInvalidTreeException | RuntimeException e) {
+			// 書けない形式は解像度なしで書く
+		}
+		return null;
 	}
 
 	public void finish() throws BrokenResultException, IOException {

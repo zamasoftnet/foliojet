@@ -581,6 +581,8 @@ JPEG・BMP・WBMPは保てません。保てない形式で指定すると、背
 と <span class="ioprop">output.image.resolution</span>
 が同じ値になるようにしてください。 デフォルトでは両方とも96です。
 
+画像の画素数は、ページの大きさ × 解像度を四捨五入した値です。 PNG と JPEG では、この解像度を画像の情報(PNG の pHYs、JPEG の JFIF)としても書き込みます<span class="since">4.0.0</span>。 画像を印刷物や組版ソフトに貼り込むとき、指定した解像度のままの大きさで扱われます。
+
 <span class="notice">なお、2.0.8以前では<span class="ioprop">output.image.resolution</span>のデフォルト値が72となっており、解像度が正しく反映されないバグがありました。
 	2.0.9以降では (以前の設定 × <span class="ioprop">output.resolution</span> /
 	72) で換算した値を設定してください。
