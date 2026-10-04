@@ -188,6 +188,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			this.width = result.size();
 			this.height = 0;
 		}
+		this.resolveDefinitePageAxis(containerBox);
 		assert !LayoutUtils.isNone(this.width);
 		assert !LayoutUtils.isNone(this.height);
 	}
@@ -217,24 +218,65 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		}
 	}
 
-	public final void finishLayoutSelf(final IFramedBox containerBox) {
-		this.bindDeferredContent(containerBox);
+	/**
+	 * 頁方向の内寸が中身に依らず決まる(大きさの指定、または両端の位置の指定。CSS2.1 10.6.4)ときの
+	 * その値。決まらなければ {@link LayoutUtils#NONE}(2026-10-04)。
+	 *
+	 * <p>
+	 * 中の置換要素の % の高さ(縦書きは幅)はこれを基準に解く({@code LayoutUtils})。箱の頁方向の
+	 * 大きさは中身を組んだ後で決まり、組んでいるあいだは 0 なので、{@code height: 100%} の画像が 0 に
+	 * なって描かれなかった(出版の表紙のひな形、枠の中の絵)。箱の大きさそのものは組む前に入れない
+	 * (縦書きの段組が頁方向の大きさを読んで段の置き方を変えた)。
+	 * </p>
+	 */
+	private double definitePageAxis = LayoutUtils.NONE;
 
-		double cWidth = containerBox.getInnerWidth() + containerBox.getFrame().padding.getFrameWidth();
-		double cHeight = containerBox.getInnerHeight() + containerBox.getFrame().padding.getFrameHeight();
+	/**
+	 * 頁方向の内寸が中身に依らず決まっていればその値を、決まっていなければ {@link LayoutUtils#NONE}
+	 * を返します。
+	 */
+	public final double getDefinitePageAxis() {
+		return this.definitePageAxis;
+	}
 
-		// 位置の計算
+	/** 頁方向の内寸が中身に依らず決まっているか。 */
+	public final boolean isPageAxisDefinite() {
+		return !LayoutUtils.isNone(this.definitePageAxis);
+	}
+
+	private void resolveDefinitePageAxis(final IFramedBox containerBox) {
+		final double cWidth = containerBox.getInnerWidth() + containerBox.getFrame().padding.getFrameWidth();
+		final double cHeight = containerBox.getInnerHeight() + containerBox.getFrame().padding.getFrameHeight();
 		final AbsolutePos pos = this.getAbsolutePos();
-		//
-		// ■ 絶対配置または固定配置のページ方向幅の計算 (CSS2.1 10.6.4)
-		// 縦横の物理鏡像は AbsoluteSizing.resolvePage に統合(忠実移植)
-		//
+		final boolean vertical = this.params.flow.isVertical();
+		final double size = vertical ? LayoutUtils.computeDimensionWidth(this.size, cWidth)
+				: LayoutUtils.computeDimensionHeight(this.size, cHeight);
+		final double start = vertical ? LayoutUtils.computeInsetsLeft(pos.location, cWidth)
+				: LayoutUtils.computeInsetsTop(pos.location, cHeight);
+		final double end = vertical ? LayoutUtils.computeInsetsRight(pos.location, cWidth)
+				: LayoutUtils.computeInsetsBottom(pos.location, cHeight);
+		if (LayoutUtils.isNone(size) && (LayoutUtils.isNone(start) || LayoutUtils.isNone(end))) {
+			this.definitePageAxis = LayoutUtils.NONE;
+			return;
+		}
+		double resolved = this.resolvePageAxis(containerBox, 0).size();
+		if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
+			resolved -= vertical ? this.frame.getBorderWidth() : this.frame.getBorderHeight();
+		}
+		this.definitePageAxis = Math.max(0, resolved);
+	}
+
+	/** 頁方向の大きさと位置(CSS2.1 10.6.4)。{@code contentSize}は中身の実寸。 */
+	private AbsoluteSizing.PageResult resolvePageAxis(final IFramedBox containerBox, final double contentSize) {
+		final double cWidth = containerBox.getInnerWidth() + containerBox.getFrame().padding.getFrameWidth();
+		final double cHeight = containerBox.getInnerHeight() + containerBox.getFrame().padding.getFrameHeight();
+		final AbsolutePos pos = this.getAbsolutePos();
 		final AbsoluteInsets margin = this.frame.margin;
 		final AbsoluteInsets padding = this.frame.padding;
 		final RectBorder border = this.frame.frame.border;
 		final boolean vertical = this.params.flow.isVertical();
 		final double cPage = vertical ? cWidth : cHeight;
-		final AbsoluteSizing.PageResult result = AbsoluteSizing.resolvePage(new AbsoluteSizing.PageInput( //
+		return AbsoluteSizing.resolvePage(new AbsoluteSizing.PageInput( //
 				cPage, //
 				vertical ? LayoutUtils.computeDimensionWidth(this.size, cWidth)
 						: LayoutUtils.computeDimensionHeight(this.size, cHeight), //
@@ -248,10 +290,23 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 						: LayoutUtils.computeInsetsBottom(pos.location, cHeight), //
 				vertical ? margin.left : margin.top, //
 				vertical ? margin.right : margin.bottom, //
-				// 内容実寸(旧実装の式を忠実に維持: 縦書き側は width 相当)
-				vertical ? this.getWidth() - this.frame.getFrameWidth() : this.height, //
+				contentSize, //
 				vertical ? border.getFrameWidth() + padding.getFrameWidth()
 						: border.getFrameHeight() + padding.getFrameHeight()));
+	}
+
+	public final void finishLayoutSelf(final IFramedBox containerBox) {
+		this.bindDeferredContent(containerBox);
+
+		//
+		// ■ 絶対配置または固定配置のページ方向幅の計算 (CSS2.1 10.6.4)
+		// 縦横の物理鏡像は AbsoluteSizing.resolvePage に統合(忠実移植)
+		//
+		final AbsoluteInsets margin = this.frame.margin;
+		final boolean vertical = this.params.flow.isVertical();
+		// 内容実寸(旧実装の式を忠実に維持: 縦書き側は width 相当)
+		final AbsoluteSizing.PageResult result = this.resolvePageAxis(containerBox,
+				vertical ? this.getWidth() - this.frame.getFrameWidth() : this.height);
 
 		double size = result.size();
 		assert !LayoutUtils.isNone(result.insetStart());

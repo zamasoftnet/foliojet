@@ -388,6 +388,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		if (box.getBlockParams().size.getWidthType() != LengthType.AUTO) {
 			return box;
 		}
+		// 両端の位置で頁方向の大きさが決まる絶対配置の箱(2026-10-04)。中の % の大きさの基準にする
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute
+				&& absolute.getBlockParams().flow.isVertical() && absolute.isPageAxisDefinite()) {
+			return box;
+		}
 		switch (box.getPos().getType()) {
 		case PAGE:
 		case INLINE:
@@ -407,6 +412,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	public AbstractContainerBox getFixedHeightContextBox() {
 		AbstractContainerBox box = this.getContextBox();
 		if (box.getBlockParams().size.getHeightType() != LengthType.AUTO) {
+			return box;
+		}
+		// 両端の位置で頁方向の大きさが決まる絶対配置の箱(2026-10-04)。中の % の大きさの基準にする
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute
+				&& !absolute.getBlockParams().flow.isVertical() && absolute.isPageAxisDefinite()) {
 			return box;
 		}
 		switch (box.getPos().getType()) {

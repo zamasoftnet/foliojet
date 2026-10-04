@@ -356,6 +356,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 				return box;
 			}
 		}
+		// 両端の位置で頁方向の大きさが決まる絶対配置の箱(2026-10-04)。中の % の大きさの基準にする
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute
+				&& absolute.getBlockParams().flow.isVertical() && absolute.isPageAxisDefinite()) {
+			return box;
+		}
 		if (this.layoutStack == null) {
 			return null;
 		}
@@ -379,6 +384,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 			if (!box.getBlockParams().size.getHeightType().needsReference() || !box.getType().isTableInternal()) {
 				return box;
 			}
+		}
+		// 両端の位置で頁方向の大きさが決まる絶対配置の箱(2026-10-04)。中の % の大きさの基準にする
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute
+				&& !absolute.getBlockParams().flow.isVertical() && absolute.isPageAxisDefinite()) {
+			return box;
 		}
 		if (this.layoutStack == null) {
 			return null;

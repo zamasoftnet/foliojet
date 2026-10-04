@@ -684,8 +684,8 @@ public final class LayoutUtils {
 				refMaxWidth = refWidth = LayoutUtils.NONE;
 				refMaxHeight = refHeight = LayoutUtils.NONE;
 			} else {
-				refWidth = box.getType()== BoxType.PAGE ? LayoutUtils.NONE : box.getInnerWidth();
-				refMaxWidth = box.getInnerWidth();
+				refWidth = box.getType()== BoxType.PAGE ? LayoutUtils.NONE : pageAxisReference(box, true);
+				refMaxWidth = pageAxisReference(box, true);
 				// 通常のフローでないため行幅があてにならない時はフローを探す
 				if (builder.isTwoPass()) {
 					refMaxHeight =refHeight = LayoutUtils.NONE;
@@ -722,8 +722,8 @@ public final class LayoutUtils {
 				refMaxHeight = refHeight = LayoutUtils.NONE;
 				refMaxWidth = refWidth = LayoutUtils.NONE;
 			} else {
-				refHeight = box.getType()== BoxType.PAGE ? LayoutUtils.NONE : box.getInnerHeight();
-				refMaxHeight = box.getInnerHeight();
+				refHeight = box.getType()== BoxType.PAGE ? LayoutUtils.NONE : pageAxisReference(box, false);
+				refMaxHeight = pageAxisReference(box, false);
 				// 通常のフローでないため行幅があてにならない時はフローを探す
 				if (builder.isTwoPass()) {
 					refMaxWidth = refWidth = LayoutUtils.NONE;
@@ -772,6 +772,20 @@ public final class LayoutUtils {
 			}
 		}
 		replacedBox.calculateSize(refWidth, refHeight, refMaxWidth, refMaxHeight);
+	}
+
+	/**
+	 * 置換要素の % の大きさの基準にする、包含ブロックの頁方向の内寸(2026-10-04)。絶対配置の箱は
+	 * 頁方向の大きさを中身を組んだ後で決め、組んでいるあいだの内寸は 0 なので、中身に依らず決まる
+	 * 大きさ(決まらなければ NONE=auto として解く)を使う。そのまま内寸を基準にすると
+	 * {@code height: 100%} の画像が 0 になって描かれなかった。
+	 */
+	private static double pageAxisReference(final AbstractContainerBox box, final boolean vertical) {
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute
+				&& absolute.getBlockParams().flow.isVertical() == vertical) {
+			return absolute.getDefinitePageAxis();
+		}
+		return vertical ? box.getInnerWidth() : box.getInnerHeight();
 	}
 
 	public static double getMaxAdvance(final AbstractContainerBox box) {
