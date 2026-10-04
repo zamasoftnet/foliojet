@@ -9,7 +9,9 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.ArrayDeque;
 import java.util.Iterator;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageTypeSpecifier;
@@ -20,6 +22,7 @@ import jp.cssj.cti2.CTISession;
 import jp.cssj.cti2.results.NopResults;
 import jp.cssj.cti2.results.Results;
 import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
+import net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage;
 import net.zamasoft.foliojet.ua.impl.AbstractUserAgent;
 import net.zamasoft.foliojet.ua.impl.NopVisitor;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
@@ -37,6 +40,7 @@ import net.zamasoft.zstream.io.util.SequentialOutputAdapter;
 import net.zamasoft.pdfg2d.g2d.gc.G2DGC;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
+import net.zamasoft.pdfg2d.gc.RecorderGC;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.pdf.font.FontManagerImpl;
 import net.zamasoft.foliojet.ua.PrepareMode;
@@ -72,6 +76,48 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 
 	protected int page = 0;
 
+	// ---- 1パスの target-counter() の頁番号(2026-10-04、docs/design/one-pass-target-counter-design.md §8)
+
+	/**
+	 * 今の頁の描画を記録している記録器。欄({@code TargetCounterSlotImage})のある文書では
+	 * 頁をまず記録し、欄の値が揃ってから画像に描いて出す。
+	 */
+	private RecorderGC recorder;
+
+	/** 記録した頁と、その頁の大きさ(pt)。 */
+	private record HeldPage(RecorderGC.Page recording, List<TargetCounterSlotImage> slots, double width,
+			double height) {
+		boolean resolved() {
+			for (final var slot : this.slots) {
+				if (!slot.isResolved()) {
+					return false;
+				}
+			}
+			return true;
+		}
+	}
+
+	/**
+	 * 出していない頁。結果の番号({@code #1}、{@code #2}…)は出した順なので、未解決の頁より
+	 * 後ろの頁も、解決していても待たせて頁の順に出す(ページ分割SVGは頁番号のファイル名で
+	 * 出すので順不同でよいが、画像は受け手が順番を頁番号とみなす)。
+	 */
+	private final ArrayDeque<HeldPage> heldPages = new ArrayDeque<>();
+
+	/**
+	 * 待たせておく頁の上限(ページ分割SVGと同じ)。記録はメモリに持つので、遠くの頁を参照する
+	 * 頁があっても際限なく溜めない。超えたら古い頁から、分かっている番号で出す(未解決は空)。
+	 */
+	private static final int MAX_HELD_PAGES = 64;
+
+	/**
+	 * 未解決の欄がある頁は、値が揃うまで出力を待たせる(2026-10-04、§8)。
+	 */
+	@Override
+	public boolean paintsPageNumbersLater() {
+		return true;
+	}
+
 	public void setResults(Results results) {
 		this.results = results;
 	}
@@ -102,6 +148,8 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		this.image = null;
 		this.fontManager = null;
 		this.page = 0;
+		this.recorder = null;
+		this.heldPages.clear();
 	}
 
 	public FontManager getFontManager() {
@@ -121,7 +169,21 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 			this.noteProgress();
 			return null;
 		}
-		final Point2D size = new Point2D.Double(this.pageWidth, this.pageHeight);
+		if (!this.heldPages.isEmpty()
+				|| this.getUAContext().hasTargetCounterSlots() && TargetCounterSlotImage.available(this)) {
+			// 欄のある文書: 頁をまず記録する。画素数の上限は記録の前に確かめる。記録器の
+			// supports() は Java2D と同じ答え(すべて描ける)を返す。違うと記録のときに近似の
+			// 描き方へ入り、描き直しても戻らない
+			this.pixelSize(this.pageWidth, this.pageHeight);
+			this.recorder = new RecorderGC(this.getFontManager(), capability -> capability != null);
+			return this.recorder;
+		}
+		return this.openImage(this.pageWidth, this.pageHeight);
+	}
+
+	/** 頁の画素数。版面の画素数の上限を超えるなら変換をやめる。 */
+	private int[] pixelSize(final double pageWidth, final double pageHeight) {
+		final Point2D size = new Point2D.Double(pageWidth, pageHeight);
 		final double ppi = UAProps.OUTPUT_IMAGE_RESOLUTION.getDouble(this);
 		final double pxPerPt = ppi / 72;
 		final AffineTransform at = AffineTransform.getScaleInstance(pxPerPt, pxPerPt);
@@ -136,6 +198,16 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 					String.valueOf(outputPixelLimit));
 			throw new AbortException(CTISession.ABORT_FORCE);
 		}
+		return new int[] { w, h };
+	}
+
+	/** 頁の画像を作り、描く GC を返します。 */
+	private G2DGC openImage(final double pageWidth, final double pageHeight) {
+		final int[] size = this.pixelSize(pageWidth, pageHeight);
+		final int w = size[0];
+		final int h = size[1];
+		final double pxPerPt = UAProps.OUTPUT_IMAGE_RESOLUTION.getDouble(this) / 72;
+		final AffineTransform at = AffineTransform.getScaleInstance(pxPerPt, pxPerPt);
 		final boolean transparent = this.transparentBackground();
 		this.image = new BufferedImage(w, h,
 				transparent ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB);
@@ -213,6 +285,47 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		if (gc == null) {
 			return;
 		}
+		if (this.recorder != null) {
+			final RecorderGC.Page recording = this.recorder.getPage();
+			this.recorder = null;
+			this.heldPages.add(
+					new HeldPage(recording, TargetCounterSlotImage.slots(recording), this.pageWidth, this.pageHeight));
+			if (this.heldPages.size() > MAX_HELD_PAGES) {
+				final var context = this.getUAContext();
+				if (context.getReportedApproximations().add("target-counter() 2822.target-counter-held")) {
+					this.message(MessageCodes.WARN_APPROXIMATED_RENDERING, "target-counter()",
+							UAProps.OUTPUT_TYPE.getString(this),
+							net.zamasoft.foliojet.message.MessageCodeUtils.detail("2822.target-counter-held"));
+				}
+				this.writeHeldPage(true);
+			}
+			while (!this.heldPages.isEmpty() && this.heldPages.peekFirst().resolved()) {
+				this.writeHeldPage(false);
+			}
+		} else {
+			this.writeImage();
+		}
+		this.checkAbort(CTISession.ABORT_NORMAL);
+	}
+
+	/**
+	 * 先頭の待たせた頁を画像に描いて出します。{@code force}なら未解決の欄を空のまま黙って描く
+	 * (上限を超えたとき・文書の終わり)。受け手がもう結果を取らないなら変換をやめる。
+	 */
+	private void writeHeldPage(final boolean force) throws IOException {
+		final HeldPage held = this.heldPages.removeFirst();
+		final var context = this.getUAContext();
+		context.setDrawingHeldPages(force);
+		try {
+			held.recording().drawTo(this.openImage(held.width(), held.height()));
+		} finally {
+			context.setDrawingHeldPages(false);
+		}
+		this.writeImage();
+	}
+
+	/** 描いた頁の画像を次の結果へ書き出します。受け手がもう結果を取らないなら変換をやめる。 */
+	private void writeImage() throws IOException {
 		String mimeType = UAProps.OUTPUT_TYPE.getString(this);
 		SourceMetadata metaSource = new SimpleSourceMetadata(URI.create("#" + (++this.page)), mimeType, null, -1);
 		FragmentedOutput builder = this.results.nextBuilder(metaSource);
@@ -238,15 +351,24 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 			throw new GraphicsException(e);
 		} finally {
 			builder.close();
+			this.image = null;
 		}
 		if (!this.results.hasNext()) {
 			throw new AbortException(CTISession.ABORT_NORMAL);
 		}
-		this.checkAbort(CTISession.ABORT_NORMAL);
 	}
 
 	public void finish() throws BrokenResultException, IOException {
 		super.finish();
+		// 待たせた頁を出す。最後まで参照先の無かった欄は空(受け手がもう取らなければやめる)
+		try {
+			while (!this.heldPages.isEmpty() && this.results.hasNext()) {
+				this.writeHeldPage(true);
+			}
+		} catch (final AbortException e) {
+			// 受け手がもう結果を取らない
+		}
+		this.heldPages.clear();
 		this.results.end();
 	}
 
