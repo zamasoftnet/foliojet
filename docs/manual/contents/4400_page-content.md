@@ -390,6 +390,8 @@ session.property("processing.pass-count", "2");
 
 目次とページ参照については、あわせて
 <span class="ioprop">processing.page-references</span>をtrueにしてください。
+ただし、PDF出力の十進の`target-counter()`は1パスのままで番号が出ます
+([ページの参照](#style-page-references))。
 
 **本文の後方に現れるスタイルシート**<span class="since">4.0.0</span>
 
@@ -462,6 +464,11 @@ SSRフレームワークが生成する、本文中に`<style>`が散らばっ�
 
 これらの機能を利用するためには、 <span class="ioprop">processing.page-references</span>
 をtrueに設定し、ページ参照情報を収集する機能を有効にしてください。 また、必要に応じて[2パス以上の変換処理](#style-multipass)を行ってください。
+
+CSS標準の`target-counter()`で十進のページ番号を出すだけなら、**PDF出力では
+1パスのまま、設定なしで番号が出ます**<span class="since">4.0.0</span>。
+番号の欄を決まった桁数の幅で先に組み、後ろのページの番号は文書を閉じるときに
+書き込むためです。詳しくは[-cssj-page-ref関数](#style-cssj-page-ref)の注を参照してください。
 
 ### <a id="style-gray">グレイスケール印刷</a>
 
@@ -994,6 +1001,9 @@ title要素は表示されないため、`string-set`の対象にできません
 図表の高さのぶんだけ下へ送られます(行の折り返しは変わりません)。
 本文と図表を合わせてそのページに収まらない場合は、図表だけが
 **次のページの先頭**へ移り、本文はそのページに残ります。
+<span class="cssdecl">float: bottom;</span>も同じで、図表を書いた位置で本文がもう
+下端の置き場(図表の高さぶん)まで届いているときは、図表だけが**次のページの下端**へ移り、
+本文はそのページに残ります。図表が、それを書いた位置より前のページに出ることはありません。
 本文の途中に置いた大きな図表を、読みやすい位置へ寄せるための機能です。
 
 ```css

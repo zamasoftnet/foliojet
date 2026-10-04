@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>PDF/UA Table of Contents</title>
+<style type="text/css">
+@font-face { font-family: 'ua'; src: url('../1080-FONT/MinionPro-Regular.otf'); }
+body { font-family: 'ua'; font-size: 12pt; }
+nav a::after { content: leader(".") target-counter(attr(href), page); }
+h1 { break-before: page; }
+</style>
+</head>
+<body>
+<nav><ol>
+<li><a href="#one">Chapter One</a></li>
+<li><a href="#two">Chapter Two</a></li>
+</ol></nav>
+<h1 id="one">Chapter One</h1>
+<p>The first chapter.</p>
+<h1 id="two">Chapter Two</h1>
+<p>The second chapter.</p>
+</body></html>

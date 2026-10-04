@@ -531,6 +531,11 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		return this.visitor;
 	}
 
+	@Override
+	public boolean paintsPageNumbersLater() {
+		return true;
+	}
+
 	public void finish() throws BrokenResultException, IOException {
 		super.finish();
 		if (!this.pageGenerated) {

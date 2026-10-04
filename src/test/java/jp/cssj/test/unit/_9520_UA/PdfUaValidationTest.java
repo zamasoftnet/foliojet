@@ -123,6 +123,26 @@ public class PdfUaValidationTest extends AbstractTestCase {
 		this.validateUa("files/unittest/3090-bidi/ua-logical-output-latin.html");
 	}
 
+	/**
+	 * 1パスの目次(後ろの頁の番号を部品に後から書く。2026-10-04)も PDF/UA-1 に適合すること。
+	 * 部品は文字と同じ標示付き内容の中で描かれ、部品の中には MCID を持たない。
+	 */
+	public void testPdfUa1WithOnePassTableOfContents() throws Exception {
+		this.session.property("output.pdf.version", "1.7UA-1");
+		this.session.property("output.pdf.tagged.lang", "en");
+		this.validateUa("files/unittest/9520-UA/ua-toc.html");
+		final String pdf = new String(java.nio.file.Files.readAllBytes(this.file.toPath()),
+				java.nio.charset.StandardCharsets.ISO_8859_1);
+		assertTrue("the forward page numbers must be deferred forms", pdf.contains("/Subtype /Form"));
+	}
+
+	/** 同じ目次の PDF/UA-2 です。 */
+	public void testPdfUa2WithOnePassTableOfContents() throws Exception {
+		this.session.property("output.pdf.version", "2.0UA-2");
+		this.session.property("output.pdf.tagged.lang", "en");
+		this.validate("files/unittest/9520-UA/ua-toc.html", PDFAFlavour.PDFUA_2, "PDF/UA-2");
+	}
+
 	private void validateUa(final String path) throws Exception {
 		this.validate(path, PDFAFlavour.PDFUA_1, "PDF/UA-1");
 	}

@@ -884,6 +884,7 @@ public class RootBuilder extends BreakableBuilder {
 		this.placedBottomFloatGenerations.clear();
 		this.bottomFloatOrders.clear();
 		this.bottomFloatOneDimensionalFallback = false;
+		this.bottomFloatsDeferredOnPage = false;
 		this.atomicFloatFloor = 0;
 		this.narrowTopPlacedWithTextBeside = false;
 		return next;
@@ -2778,6 +2779,12 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	private boolean bottomFloatOneDimensionalFallback = false;
 
+	/**
+	 * 当該ページで下端フロートを次ページへ回したらtrue(2026-10-04、
+	 * TECH-20261003-004 の⑱)。FIFOなので、後着のbottomもこのページでは予約しない。
+	 */
+	private boolean bottomFloatsDeferredOnPage = false;
+
 	// ------------------------------------------------------------------
 	// JLREQ 4.2.7 並列注（横組の傍注・縦組の頭注／脚注）。標準CSSに
 	// 対応する指定がないため、float:-cssj-note-start/endで版面の
@@ -2875,7 +2882,20 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			this.pendingBottomFloats.addLast(floatBox);
 			this.pendingBottomFloatGenerations.put(floatBox, this.pageGeneration);
+			final int reservedBefore = this.bottomFloatReservedCount;
+			final double reservationBefore = this.bottomFloatReservation;
 			this.reserveBottomFloats();
+			if (this.bottomFloatReservedCount > reservedBefore && this.currentPositionPastFirstReservedBottom()) {
+				// 本文がもう置き場の帯へ届いている。ここで予約すると頁の残りを
+				// 一次元で縮め、置き場より下の本文(錨より前の行も)が次頁へ
+				// 押し出されて、floatだけが錨より前の頁の下端に残る(⑱、時限暗号の
+				// 本の第1章で挿絵が節の見出しの前の頁に出た)。このページには
+				// 予約せず、次頁の下端へ回す(carry-inは本文より先に予約される)
+				this.bottomFloatReservedCount = reservedBefore;
+				this.bottomFloatReservation = reservationBefore;
+				this.bottomFloatsDeferredOnPage = true;
+				this.rebuildBottomPageFloatExclusions();
+			}
 			this.updateBottomFloatFallbackForCurrentPosition();
 		}
 	}
@@ -3088,6 +3108,10 @@ public class RootBuilder extends BreakableBuilder {
 			if (i++ < this.bottomFloatReservedCount) {
 				// このページで既に予約したFIFO prefixは後着floor/脚注でも外さない。
 				continue;
+			}
+			if (this.bottomFloatsDeferredOnPage) {
+				// 次頁へ回したbottomより後ろは、このページでは予約しない(FIFO)
+				break;
 			}
 			final double cost = this.footnoteExtent(floatBox);
 			if (this.bottomFloatReservation + cost > bottomMaxArea) {

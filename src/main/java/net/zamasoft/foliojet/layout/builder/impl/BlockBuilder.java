@@ -807,7 +807,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				this.pageAxis -= marginStart;
 			}
 		}
-		if (bordered) {
+		if (bordered || sealsMargins(flowBox)) {
 			this.poLastMargin = this.neLastMargin = 0;
 		}
 
@@ -1000,7 +1000,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// 縦書き
 			marginEnd = frame.margin.left;
 			bordered = frame.padding.left > 0 || !frame.frame.border.getLeft().isNull()
-					|| params.overflow != OverflowMode.VISIBLE || flowBox.getColumnCount() > 1;
+					|| params.overflow != OverflowMode.VISIBLE || flowBox.getColumnCount() > 1
+					|| sealsMargins(flowBox);
 			double width = flowBox.getInnerWidth();
 			if (flowBox.getContentSize() != width || bordered) {
 				this.pageAxis = flow.pageAxis + width;
@@ -1013,7 +1014,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// 横書き
 			marginEnd = frame.margin.bottom;
 			bordered = frame.padding.bottom > 0 || !frame.frame.border.getBottom().isNull()
-					|| params.overflow != OverflowMode.VISIBLE || flowBox.getColumnCount() > 1;
+					|| params.overflow != OverflowMode.VISIBLE || flowBox.getColumnCount() > 1
+					|| sealsMargins(flowBox);
 			double height = flowBox.getInnerHeight();
 			if (flowBox.getContentSize() != height || bordered) {
 				this.pageAxis = flow.pageAxis + height;
@@ -1771,6 +1773,18 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 			parentParams = flowBox.getBlockParams();
 		}
+	}
+
+	/**
+	 * flex・gridコンテナの余白は中身と相殺しない(css-flexbox-1 §3、css-grid-1 §3。
+	 * 2026-10-04、TECH-20261003-004 の⑰)。中身はFlexBuilder・GridBuilderが
+	 * 直接置くので、開くときに上の余白を「子と相殺する待ち」に残すと、閉じるときに
+	 * それを最後の子の余白と取り違えて下の余白と相殺し、下の余白が「下−上」に
+	 * 減っていた(上下同じなら0)。
+	 */
+	private static boolean sealsMargins(final FlowBlockBox flowBox) {
+		return flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
+				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.GridBox;
 	}
 
 	/** CSS Writing Modes 3 §3.2とoverflowによる独立BFCのfloat境界。 */

@@ -644,6 +644,14 @@ public final class UAProps {
 			"processing.page-references", false);
 
 	/**
+	 * 1パスのPDFで{@code target-counter()}の番号に取っておく桁数です(2026-10-04)。
+	 * 番号は後ろの頁のものでも、この桁数ぶんの欄を先に組み、値は文書を閉じるときに
+	 * 書きます。溢れた番号は欄の左へはみ出します。1〜9。
+	 */
+	public static final IntegerPropManager PROCESSING_TARGET_COUNTER_DIGITS = new IntegerPropManager(
+			"processing.target-counter.digits", 3);
+
+	/**
 	 * エラー発生時は強制中断します。
 	 */
 	public static final BooleanPropManager PROCESSING_FAIL_ON_FATAL_ERROR = new BooleanPropManager(
@@ -1039,6 +1047,7 @@ public final class UAProps {
 			PROCESSING_MIDDLE_PASS,
 			PROCESSING_CONCURRENCY,
 			PROCESSING_PAGE_REFERENCES,
+			PROCESSING_TARGET_COUNTER_DIGITS,
 			PROCESSING_FAIL_ON_FATAL_ERROR,
 			PROCESSING_TEXT_SPILL_BUDGET,
 			PROCESSING_RETAINED_TEXT_LIMIT,

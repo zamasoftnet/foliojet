@@ -348,6 +348,11 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 				return String.format(java.util.Locale.ROOT, "FootnoteLabel[\"%s\" w=%.2f h=%.2f]",
 						label.getAltString(), this.width, this.height);
 			}
+			// 1パスのtarget-counter()の欄。値は描くとき(後ろの頁なら文書を閉じるとき)に入る
+			if (this.image instanceof net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage slot) {
+				return String.format(java.util.Locale.ROOT, "TargetCounterSlot[\"%s\" w=%.2f h=%.2f]",
+						slot.getURI().getRawFragment(), this.width, this.height);
+			}
 			// object-fit/object-positionが既定でない場合は実描画矩形を出す
 			// (innerDrawの内部変換は表示リストに現れないため、goldenで
 			// 収まり方を固定できるようにここで同じ計算を晒す)。既定の

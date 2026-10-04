@@ -1036,7 +1036,7 @@ final class StyleEventMachine {
 						// ページ番号
 						String ref = GeneratedContentResolver.targetRef(pageRefFunc.getType(), pageRefFunc.getRef(), style);
 						if (ref != null) {
-							this.pageRef(pageRefFunc, ref);
+							this.pageRef(pageRefFunc, ref, style);
 						}
 					}
 						break;
@@ -1214,8 +1214,36 @@ final class StyleEventMachine {
 		}
 	}
 
-	private void pageRef(TargetCounterValue pageRefFunc, String ref) {
-		if (!net.zamasoft.foliojet.ua.props.UAProps.PROCESSING_PAGE_REFERENCES.getBoolean(this.ua)) {
+	/**
+	 * 1パスのPDFで、{@code target-counter()}を固定幅の欄として組めるか
+	 * (2026-10-04、docs/design/one-pass-target-counter-design.md)。初版は
+	 * 十進の番号・横書き・柱の取り込みの外だけ。
+	 */
+	private boolean targetCounterSlot(final TargetCounterValue pageRefFunc, final CSSStyle style) {
+		if (pageRefFunc.getSeparator() != null || this.runningCapture.isCapturing()) {
+			return false;
+		}
+		final short type = pageRefFunc.getNumberStyleType();
+		if (type != net.zamasoft.foliojet.css.value.ListStyleTypeValue.DECIMAL
+				&& type != net.zamasoft.foliojet.css.value.ListStyleTypeValue.DECIMAL_LEADING_ZERO) {
+			return false;
+		}
+		if (!net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage.available(this.ua)) {
+			return false;
+		}
+		// 縦書きの中は対象外。縦中横(text-combine-upright)の要素は自分の向きが
+		// 横になるので、祖先まで見る
+		for (CSSStyle s = style; s != null; s = s.getParentStyle()) {
+			if (BlockFlow.get(s).isVertical()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private void pageRef(TargetCounterValue pageRefFunc, String ref, CSSStyle style) {
+		final boolean slot = this.targetCounterSlot(pageRefFunc, style);
+		if (!slot && !net.zamasoft.foliojet.ua.props.UAProps.PROCESSING_PAGE_REFERENCES.getBoolean(this.ua)) {
 			this.warnPageReferencesDisabled();
 		}
 		PageRef pageRef = this.ua.getUAContext().getPageRef();
@@ -1226,6 +1254,18 @@ final class StyleEventMachine {
 		try {
 			URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
 					this.ua.getDocumentContext().getBaseURI(), ref);
+			if (slot) {
+				// 番号の値に依存しない欄を組み、値は描くとき(後ろの頁なら文書を
+				// 閉じるとき)に入れる
+				final ReplacedParams rparams = new ReplacedParams();
+				this.mapper.setupParams(rparams, style);
+				rparams.image = new net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage(this.ua, uri,
+						pageRefFunc.getCounter(), pageRefFunc.getNumberStyleType(), style.getFontStyle(),
+						net.zamasoft.foliojet.css.impl.property.text.TextFillColor.get(style));
+				this.checkMarker();
+				this.sink.replaced(new InlineReplacedBox(rparams, new InlinePos()));
+				return;
+			}
 			String sep = pageRefFunc.getSeparator();
 			String counter = pageRefFunc.getCounter();
 			char[] ch;

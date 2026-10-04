@@ -282,6 +282,7 @@
 0230-box-sizing/table-cell-collapse.html	files/unittest/0230-box-sizing/table-cell-collapse.html	1	text/html	input.include=**	input.property-pi=true
 0230-box-sizing/table-cell-fixed.html	files/unittest/0230-box-sizing/table-cell-fixed.html	1	text/html	input.include=**	input.property-pi=true
 0230-box-sizing/table-cell.html	files/unittest/0230-box-sizing/table-cell.html	1	text/html	input.include=**	input.property-pi=true
+0230-page-float/bottom-past-band.html	files/unittest/0230-page-float/bottom-past-band.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/absolute-in-float-in-cell.html	files/unittest/0240-table/absolute-in-float-in-cell.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/absolute.html	files/unittest/0240-table/absolute.html	1	text/html	input.include=**	input.property-pi=true
 0240-table/auto-min-overflow.html	files/unittest/0240-table/auto-min-overflow.html	1	text/html	input.include=**	input.property-pi=true
@@ -819,6 +820,7 @@
 9520-UA/ua-form.html	files/unittest/9520-UA/ua-form.html	1	text/html	input.include=**	input.property-pi=true
 9520-UA/ua-media.html	files/unittest/9520-UA/ua-media.html	1	text/html	input.include=**	input.property-pi=true
 9520-UA/ua-multipage.html	files/unittest/9520-UA/ua-multipage.html	1	text/html	input.include=**	input.property-pi=true
+9520-UA/ua-toc.html	files/unittest/9520-UA/ua-toc.html	1	text/html	input.include=**	input.property-pi=true
 9520-UA/ua.html	files/unittest/9520-UA/ua.html	1	text/html	input.include=**	input.property-pi=true
 9520-UA/ua2-roles.html	files/unittest/9520-UA/ua2-roles.html	1	text/html	input.include=**	input.property-pi=true
 container-queries/cq-units.html	files/unittest/container-queries/cq-units.html	1	text/html	input.include=**	input.property-pi=true

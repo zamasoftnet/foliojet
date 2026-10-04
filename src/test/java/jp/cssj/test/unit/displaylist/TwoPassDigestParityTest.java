@@ -416,7 +416,9 @@ public final class TwoPassDigestParityTest extends TestCase {
 				Map.entry(PDF + "gc.paint.RadialGradient", "cx cy radius fx fy fractions colors transform spread"),
 				Map.entry(PDF + "gc.paint.ConicGradient", "cx cy startAngle fractions colors transform spread"));
 		private static final Map<String, String> LABEL_FIELDS = Map.of(BOX + "impl.FootnoteLabelImage",
-				"footnoteId marker prefix suffix fontStyle fontManager digitAdvance prefixAdvance suffixAdvance ascent descent resolvedNumber");
+				"footnoteId marker prefix suffix fontStyle fontManager digitAdvance prefixAdvance suffixAdvance ascent descent resolvedNumber",
+				BOX + "impl.TargetCounterSlotImage",
+				"ua uri counter numberStyleType fontStyle fontManager color digits digitAdvance ascent descent");
 		private static final ClassValue<List<Field>> FIELDS = new ClassValue<>() {
 			@Override
 			protected List<Field> computeValue(final Class<?> type) {
@@ -885,6 +887,18 @@ public final class TwoPassDigestParityTest extends TestCase {
 				final RecorderGC recorder = new RecorderGC(manager, true);
 				image.drawTo(recorder);
 				value(path + ".commands", recorder.getPage().commands());
+			} else if (image instanceof net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage) {
+				// 1パスの target-counter() の欄(2026-10-04)。値は描くとき(後ろの頁なら PDF を閉じるとき)に
+				// 決まるので、表示リストには欄の仕様だけを射影する。ua・fontManager・fontStyle は描画参照
+				checkFields(image.getClass(), LABEL_FIELDS);
+				value(path + ".uri", get(image, "uri"));
+				value(path + ".counter", get(image, "counter"));
+				value(path + ".numberStyleType", get(image, "numberStyleType"));
+				value(path + ".digits", get(image, "digits"));
+				value(path + ".digitAdvance", get(image, "digitAdvance"));
+				value(path + ".ascent", get(image, "ascent"));
+				value(path + ".descent", get(image, "descent"));
+				value(path + ".color", get(image, "color"));
 			} else if (image.getClass().getName().equals("net.zamasoft.foliojet.ua.impl.pagedsvg.SourcedImage")) {
 				value(path + ".image", get(image, "image"));
 				value(path + ".companion", get(image, "companion"));

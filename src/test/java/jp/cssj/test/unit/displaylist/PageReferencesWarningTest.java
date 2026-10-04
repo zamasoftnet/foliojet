@@ -20,6 +20,8 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 頁参照({@code processing.page-references})が無効なのに{@code target-counter()}
  * を使った文書へ警告を出すことを固定します(2026-10-04、TECH-20261003-004 の⑩。
  * 以前は黙って空になり、時限暗号の本の目次の頁番号が抜けたまま出た)。
+ * 十進の番号は1パスのPDFでも出るようになった(OnePassTargetCounterTest)ので、
+ * ここでは欄にできない書式(lower-roman)で確かめる。
  */
 public class PageReferencesWarningTest extends TestCase {
 	static {
@@ -31,7 +33,7 @@ public class PageReferencesWarningTest extends TestCase {
 	private static final String HTML = """
 			<!DOCTYPE html>
 			<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/>
-			<style>a::after { content: leader(".") target-counter(attr(href), page) }</style></head><body>
+			<style>a::after { content: leader(".") target-counter(attr(href), page, lower-roman) }</style></head><body>
 			<p><a href="#c1">One</a></p>
 			<p><a href="#c2">Two</a></p>
 			<h1 id="c1">C1</h1><h1 id="c2">C2</h1>

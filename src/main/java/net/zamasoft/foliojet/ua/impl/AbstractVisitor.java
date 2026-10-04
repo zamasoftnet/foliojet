@@ -80,6 +80,13 @@ public abstract class AbstractVisitor implements Visitor {
 	protected final UserAgent ua;
 	private Counter[] counters = null;
 	private boolean processPageReference;
+
+	/**
+	 * 1パスのPDFで{@code target-counter()}の欄を後から埋めるために、id ごとの
+	 * カウンタだけを登録する(2026-10-04)。本文の取り込み・節は頁参照が有効な
+	 * ときだけ。
+	 */
+	private final boolean slotCounters;
 	private boolean hyperlinks;
 
 	private boolean fragments;
@@ -98,6 +105,7 @@ public abstract class AbstractVisitor implements Visitor {
 	protected AbstractVisitor(UserAgent ua) {
 		this.ua = ua;
 		this.setProcessPageReference(UAProps.PROCESSING_PAGE_REFERENCES.getBoolean(this.ua));
+		this.slotCounters = net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage.available(ua);
 	}
 
 	protected abstract void addFragment(String id, Point2D location);
@@ -284,6 +292,8 @@ public abstract class AbstractVisitor implements Visitor {
 		} else {
 			pageRef = null;
 		}
+		final PageRef counterRef = pageRef != null || !this.slotCounters ? pageRef
+				: this.ua.getUAContext().getPageRef();
 
 		final BoxType type = box.getType();
 		// ハイパーリンク
@@ -414,25 +424,30 @@ public abstract class AbstractVisitor implements Visitor {
 		}
 
 		// フラグメント
-		if ((this.fragments || pageRef != null) && isMarkupBox(type)) {
+		if ((this.fragments || counterRef != null) && isMarkupBox(type)) {
 			String id = XHTML.ID_ATTR.getValue(ce.atts());
 			if (id != null) {
-				// ページ参照を使う場合はいずれにしてもフラグメントを出す
-				Point2D location = new Point2D.Double(x, y);
-				if (!transform.isIdentity()) {
-					location = transform.transform(location, location);
+				if (this.fragments || pageRef != null) {
+					// ページ参照を使う場合はいずれにしてもフラグメントを出す
+					Point2D location = new Point2D.Double(x, y);
+					if (!transform.isIdentity()) {
+						location = transform.transform(location, location);
+					}
+					this.addFragment(id, location);
 				}
-				this.addFragment(id, location);
-				if (pageRef != null) {
+				if (counterRef != null) {
 					// ページ参照
 					try {
 						URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
 								this.ua.getDocumentContext().getBaseURI(), "#" + id);
-						// target-text()用にテキストも捕捉する
-						StringBuilder textBuff = new StringBuilder();
-						appendSemanticText(box, textBuff);
-						String text = textBuff.length() == 0 ? null : textBuff.toString();
-						pageRef.addFragment(uri, this.getCounters(), text);
+						String text = null;
+						if (pageRef != null) {
+							// target-text()用にテキストも捕捉する
+							StringBuilder textBuff = new StringBuilder();
+							appendSemanticText(box, textBuff);
+							text = textBuff.length() == 0 ? null : textBuff.toString();
+						}
+						counterRef.addFragment(uri, this.getCounters(), text);
 					} catch (URISyntaxException e) {
 						this.ua.message(MessageCodes.WARN_BAD_LINK_URI, e.getMessage());
 					}

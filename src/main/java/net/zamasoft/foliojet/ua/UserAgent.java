@@ -148,4 +148,17 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 	public default boolean keepsEncodedImages() {
 		return false;
 	}
+
+	/**
+	 * まだ分からない頁番号を、描いた後で書き込めるかを返します(2026-10-04)。
+	 *
+	 * <p>
+	 * PDFは頁から部品(Form XObject)を参照しておき、中身を文書を閉じるときに書ける。
+	 * これが{@code true}で1パスなら、{@code target-counter()}は固定幅の欄として組まれ、
+	 * 後ろの頁への参照も番号が出る({@code TargetCounterSlotImage})。
+	 * </p>
+	 */
+	public default boolean paintsPageNumbersLater() {
+		return false;
+	}
 }
