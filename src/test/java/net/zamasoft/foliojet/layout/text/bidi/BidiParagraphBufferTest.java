@@ -8,8 +8,7 @@ import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 
 /**
  * 段落単位の双方向解決の model({@link BidiParagraphBuffer}/{@link BidiResolver})の
- * 試験(2026-09-04、bidi-isolation-design.md batch A-1a)。まだレイアウトには
- * 配線されていない(flag {@code layout.bidi.paragraph} は既定 OFF)。
+ * 試験(2026-09-04、bidi-isolation-design.md batch A-1a)。
  */
 public class BidiParagraphBufferTest extends TestCase {
 	private static final String HEB = "אבג"; // אבג

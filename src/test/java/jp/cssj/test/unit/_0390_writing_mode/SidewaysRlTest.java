@@ -65,7 +65,6 @@ public class SidewaysRlTest extends AbstractTestCase {
 	@Override
 	protected void transcode() throws Exception {
 		this.assertGeometryContract();
-		this.session.property("layout.bidi.paragraph", "true");
 		final Path dumpDir = Files.createTempDirectory("foliojet-sideways-rl-");
 		try (AutoCloseable dump = DisplayListDumper.scopedDir(dumpDir.toString());
 				AutoCloseable geometry = DisplayListDumper.scopedDetailedGeometry(true)) {
@@ -405,7 +404,6 @@ public class SidewaysRlTest extends AbstractTestCase {
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 		session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 		session.property("input.include", "**");
-		session.property("layout.bidi.paragraph", "true");
 		return session;
 	}
 

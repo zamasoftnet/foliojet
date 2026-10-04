@@ -331,7 +331,7 @@ public final class RunningSideEffectTest extends TestCase {
 		});
 		final var result = RunningRenderTest.convert(RunningRenderTest.document(
 				"@page{@top-center{content:'" + logical + "'}}", "<p>BODY</p>"), ua, false, false,
-				Map.of("output.pdf.bidi.actual-text", "true", "layout.bidi.paragraph", "true"));
+				Map.of("output.pdf.bidi.actual-text", "true"));
 		assertEquals(1, ua.checkedPages);
 		RunningRenderTest.assertNoReplayWarnings(result);
 	}

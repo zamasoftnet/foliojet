@@ -31,10 +31,8 @@ public class SegmentReplayCoverageTest extends TestCase {
 	public void testUnicodeBidiSurvivesParamsReplay() {
 		final BlockParams source = new BlockParams();
 		source.unicodeBidi = UnicodeBidiValue.ISOLATE_OVERRIDE;
-		source.paragraphBidi = true;
 		final BlockParams restored = BlockParamsTemplate.freeze(source).materialize();
 		assertEquals(UnicodeBidiValue.ISOLATE_OVERRIDE, restored.unicodeBidi);
-		assertTrue(restored.paragraphBidi);
 	}
 
 	public void testBidiSemanticAliasSurvivesParamsTemplateRoundTrip() {

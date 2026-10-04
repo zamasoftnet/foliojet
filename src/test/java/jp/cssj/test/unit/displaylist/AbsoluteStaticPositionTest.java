@@ -289,15 +289,12 @@ public final class AbsoluteStaticPositionTest extends TestCase {
 	}
 
 	public void testMixedBidiAndIsolateKeepText() throws Exception {
-		final String bidi = "<?jp.cssj.property name=\"layout.bidi.paragraph\" value=\"true\"?>";
 		for (final boolean twoPass : new boolean[] { false, true }) {
 			for (final String[] sample : List.of(
 					new String[] { "ABC אב", "ג DEF" },
 					new String[] { "ABC <span style='direction:rtl;unicode-bidi:isolate'>אב", "ג</span> DEF" })) {
-				final Rendering reference = render(document(twoPass, false, "", sample[0] + sample[1])
-						.replace("</head>", bidi + "</head>"), null, twoPass);
-				final Rendering actual = render(document(twoPass, false, "", sample[0] + ABS + sample[1])
-						.replace("</head>", bidi + "</head>"), null, twoPass);
+				final Rendering reference = render(document(twoPass, false, "", sample[0] + sample[1]), null, twoPass);
+				final Rendering actual = render(document(twoPass, false, "", sample[0] + ABS + sample[1]), null, twoPass);
 				assertEquals("bidi のページ数", reference.pages().size(), actual.pages().size());
 				// barrier を挟むと段落の解決順は変わりうる。文字の欠落・重複だけを検査する。
 				assertEquals("bidi の文字集合", codePoints(reference), codePoints(actual));

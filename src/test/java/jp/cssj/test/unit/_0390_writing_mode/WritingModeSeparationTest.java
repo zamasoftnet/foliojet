@@ -253,7 +253,6 @@ public class WritingModeSeparationTest extends AbstractTestCase {
 			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
 			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 			session.property("input.include", "**");
-			session.property("layout.bidi.paragraph", "true");
 			CTISessionHelper.transcodeFile(session, FIXTURE, "text/html", "UTF-8");
 		} finally {
 			session.close();
@@ -263,7 +262,6 @@ public class WritingModeSeparationTest extends AbstractTestCase {
 	private void assertParagraphBidiCoordinate() {
 		assertNotNull(this.bidiBlock);
 		assertNotNull(this.bidiLine);
-		assertTrue(this.bidiLine.line.isParagraphBidiEnabled());
 		assertEquals(AbstractTextParams.DIRECTION_LTR, this.bidiLine.line.getLineParams().direction);
 		assertSame(WritingMode.LR, this.bidiLine.line.getLineParams().flow);
 		assertEquals("paragraph bidi: default-direction vertical-lr start must be at the top",

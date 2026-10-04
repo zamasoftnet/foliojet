@@ -1,20 +1,7 @@
-## メッセージハンドラから取得できる情報
+## <a id="appx-messages"></a>メッセージハンドラから取得できる情報
 
-### <a id="appx-messages">2.0以前(CTIP 1.0)</a>
-
-メッセージハンドラに渡される、<b>コード4の処理情報</b>(サーバー製品の説明書)から得ることができる情報の一覧です。
-
-| カテゴリ | 値の形式 | 説明 |
-| --- | --- | --- |
-| page-number | 数値 | これから生成されるページの番号です。最終的なページ番号が総ページ数となります。 |
-| heading-title | 文字列 | 見出し(h1〜h6)として認識された文字列です。 |
-| broken-image-uri | 文字列 | 表示できない画像のURIです。 |
-| pass-count | 数値 | 残りパス数です。 |
-| <a id="appx-messages-annot"></a>annot | 文字列 | cssj:annot属性で任意の要素に指定された注釈です。 |
-
-### <a id="appx-ctip2-messages">2.1以降(CTIP 2.0)</a>
-
-新しいプログラム・インターフェースでは<b>メッセージコード</b>(サーバー製品の説明書)により、さらに詳細な情報を得ることができます。
+<a id="appx-ctip2-messages"></a>メッセージハンドラには<b>メッセージコード</b>(サーバー製品の説明書)により情報が渡されます
+(CTIP 1.0 の処理情報は 4.0 で廃止)。
 
 **情報**
 
@@ -24,7 +11,7 @@
 | 1801 | ページ番号(int) | 現在処理を開始したページ。 |
 | 1802 | 見出し(string) | 現在出力した見出し。<span class="ioprop">output.pdf.bookmarks</span>か<span class="ioprop">processing.page-references</span>が有効なときだけ通知します(見出しの走査自体をその場合にしか行わないため)。 |
 | 1803 | パス番号(int) | 現在処理を開始した処理のパス。 |
-| 1804 | 注釈(string) | 現在出力した注釈。 |
+| <a id="appx-messages-annot"></a>1804 | 注釈(string) | 現在出力した注釈(cssj:annot属性で任意の要素に指定された注釈)。 |
 | 1805 | タイトル(string) | ドキュメントのタイトル。 |
 | 18FF | プラグイン名(string)<br />メッセージ(string) | プラグインからの情報メッセージ。 |
 | 1806<span class="since">2.1.2</span> | ページの高さ(double) | pt単位のページの高さです。 <span class="ioprop">output.auto-height</span>がtrueのときだけ通知します。 |

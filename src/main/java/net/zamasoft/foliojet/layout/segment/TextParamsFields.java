@@ -39,7 +39,7 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
  * </p>
  */
 record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode flow,
-		WritingModeVariant writingModeVariant, byte direction, byte unicodeBidi, boolean paragraphBidi,
+		WritingModeVariant writingModeVariant, byte direction, byte unicodeBidi,
 		boolean bidiSemanticAlias, boolean strictLineBox,
 		FontManager fontManager, TextBreakingRules lineBreakRules, Length letterSpacing, double wordSpacing,
 		byte textTransform, byte whiteSpace, byte wordWrap, byte textWrapStyle, byte hyphens, String hyphenateCharacter,
@@ -61,7 +61,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 
 	static TextParamsFields freeze(final AbstractTextParams source) {
 		return new TextParamsFields(ParamsFields.freeze(source), source.fontStyle, source.flow,
-				source.writingModeVariant, source.direction, source.unicodeBidi, source.paragraphBidi,
+				source.writingModeVariant, source.direction, source.unicodeBidi,
 				source.bidiSemanticAlias, source.strictLineBox,
 				source.fontManager, source.lineBreakRules, source.letterSpacing, source.wordSpacing,
 				source.textTransform, source.whiteSpace, source.wordWrap, source.textWrapStyle, source.hyphens,
@@ -90,7 +90,6 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.writingModeVariant = this.writingModeVariant;
 		target.direction = this.direction;
 		target.unicodeBidi = this.unicodeBidi;
-		target.paragraphBidi = this.paragraphBidi;
 		target.bidiSemanticAlias = this.bidiSemanticAlias;
 		// 標準モードの文字なし行のstrutも、範囲再生で維持する。
 		target.strictLineBox = this.strictLineBox;

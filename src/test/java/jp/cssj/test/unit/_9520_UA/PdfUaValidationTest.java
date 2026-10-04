@@ -108,7 +108,6 @@ public class PdfUaValidationTest extends AbstractTestCase {
 	public void testPdfUa1WithLogicalBidiOutput() throws Exception {
 		this.session.property("output.pdf.version", "1.7UA-1");
 		this.session.property("output.pdf.tagged.lang", "en");
-		this.session.property("layout.bidi.paragraph", "true");
 		// Hebrew 版(ua-logical-output.html)は埋め込みフォントに字形が無く .notdef 参照で 7.21.8 に落ちるので、
 		// PDF/UA の検証は bidi-override の Latin 版で行う(視覚順 321 CBA / 論理順 ABC 123)
 		this.validateUa("files/unittest/3090-bidi/ua-logical-output-latin.html");
@@ -118,7 +117,6 @@ public class PdfUaValidationTest extends AbstractTestCase {
 	public void testPdfUa1WithLogicalBidiOutputAndActualText() throws Exception {
 		this.session.property("output.pdf.version", "1.7UA-1");
 		this.session.property("output.pdf.tagged.lang", "en");
-		this.session.property("layout.bidi.paragraph", "true");
 		this.session.property("output.pdf.bidi.actual-text", "true");
 		this.validateUa("files/unittest/3090-bidi/ua-logical-output-latin.html");
 	}

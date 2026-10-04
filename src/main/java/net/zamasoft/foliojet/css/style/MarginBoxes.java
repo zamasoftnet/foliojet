@@ -310,8 +310,7 @@ final class MarginBoxes {
 			return TypesettingMode.inlineProgression(params.flow, params.writingModeVariant,
 					params.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
 		}
-		return params.paragraphBidi
-				&& params.direction == net.zamasoft.foliojet.layout.box.params.AbstractTextParams.DIRECTION_RTL;
+		return params.direction == net.zamasoft.foliojet.layout.box.params.AbstractTextParams.DIRECTION_RTL;
 	}
 
 	/**
@@ -391,7 +390,6 @@ final class MarginBoxes {
 					.getTextBreakingRules(style);
 			params.direction = Direction.get(style);
 			params.unicodeBidi = UnicodeBidi.get(style);
-			params.paragraphBidi = UAProps.LAYOUT_BIDI_PARAGRAPH.getBoolean(ua);
 			params.bidiSemanticAlias = UAProps.OUTPUT_PDF_BIDI_ACTUAL_TEXT.getBoolean(ua);
 			params.flow = net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style);
 			params.writingModeVariant = net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant.get(style);

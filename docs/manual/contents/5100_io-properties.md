@@ -700,7 +700,6 @@
 | <a id="appx-ioprop-processing.pass-count"></a>processing.pass-count | 1 | 1.2.0 | 1回のフォーマット処理のために、文書を処理する回数です。<br />総ページ数・目次・ページの参照・一部のセレクタは2以上でないと働きません(1パスのPDF・ページ分割SVG出力の十進の`target-counter()`は例外です)。<b>設定が足りなくても警告は出ません。</b><br />詳細は<a href="#style-multipass" class="pageref">2パス以上の変換処理</a>を参照してください。 |
 | <a id="appx-ioprop-processing.concurrency"></a>processing.concurrency | 0 | 4.0.0 | 独立に組める単位を同時にいくつ組むかです。いま効くのはEPUBのspine項目をページ分割SVGへ出すときだけです。`0`(既定)は自動で、CPUコア数と4の小さいほう。`1`で逐次。**いくつにしても出力は同一**です——項目は互いに独立で、結果はspine順に解放されるためで、変わるのは所要時間とメモリ(同時に組む項目の数だけレイアウトを保持します)だけです。 |
 | <a id="appx-ioprop-processing.time-limit"></a>processing.time-limit | 0 | 4.0.0 | 文書1件の変換に許す最大経過時間(ミリ秒)です。0以下は無制限です。複数パスでは全パスを合わせた時間を数えます。 |
-| <a id="appx-ioprop-layout.bidi.paragraph"></a>layout.bidi.paragraph | true | 4.0.0 | 右横書き(ヘブライ語・アラビア語など)の並べ替えを段落単位のUnicode双方向アルゴリズムで行うかどうかです。<br />falseにすると旧来の行単位(常に左横書き基底)の並べ替えに戻ります。左横書きだけの文書では出力は変わりません。 |
 
 ### <a id="appx-ioprops-nopi">文書中で設定できないプロパティ</a>
 

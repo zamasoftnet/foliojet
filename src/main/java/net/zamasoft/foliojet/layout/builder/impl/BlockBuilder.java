@@ -498,15 +498,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return this.layoutStack == null ? null : this.layoutStack.getPageContext();
 	}
 
-	final boolean paragraphBidiEnabled() {
-		return this.getFlowBox().getBlockParams().paragraphBidi;
-	}
-
 	final void noteBidiLine(final net.zamasoft.foliojet.layout.box.impl.TextBlockBox block,
 			final net.zamasoft.foliojet.layout.box.AbstractLineBox line) {
-		if (!this.paragraphBidiEnabled()) {
-			return;
-		}
 		if (this.bidiParagraph == null) {
 			this.bidiParagraph = new net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.Session();
 		}
@@ -515,7 +508,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 	final void seedBidiReplayPrefix(
 			final net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix prefix) {
-		if (!this.paragraphBidiEnabled() || prefix.isEmpty()) {
+		if (prefix.isEmpty()) {
 			return;
 		}
 		if (this.bidiParagraph == null) {
@@ -526,9 +519,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 	/** float/absolute/bound などの外側の順序境界を段落 queue へ残す。 */
 	public final void noteBidiBarrier(final Object payload) {
-		if (!this.paragraphBidiEnabled()) {
-			return;
-		}
 		if (this.bidiParagraph == null) {
 			this.bidiParagraph = new net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.Session();
 		}

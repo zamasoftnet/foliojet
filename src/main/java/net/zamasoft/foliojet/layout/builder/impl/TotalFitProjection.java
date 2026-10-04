@@ -182,7 +182,7 @@ public final class TotalFitProjection {
 		for (int i = 0; i < n; ++i) {
 			switch (pieces.get(i)) {
 			case Piece.Box box -> {
-				nodes.add(new BreakNode.Box(box.width(), null, 0, 0));
+				nodes.add(new BreakNode.Box(box.width()));
 				ordinals.add(-1);
 				unbreakable += box.width();
 				material = true;
@@ -202,7 +202,7 @@ public final class TotalFitProjection {
 					// 行内に算入される(Glue自体を破るとそのGlueの
 					// stretchは行に入らない)
 					addTailGlue(nodes, ordinals, flush);
-					nodes.add(new BreakNode.Penalty(0, 0, false, null));
+					nodes.add(new BreakNode.Penalty(0, 0, false));
 					ordinals.add(flush.ordinal());
 					nodes.add(new BreakNode.Glue(space.width(), space.width() * 0.5, 0));
 					ordinals.add(-1);
@@ -229,7 +229,7 @@ public final class TotalFitProjection {
 					// SoftHyphen直後のflush: ハイフンpenalty。penalty幅は
 					// 分割時にのみ行幅へ算入される=実体化されるハイフンの幅
 					addTailGlue(nodes, ordinals, f);
-					nodes.add(new BreakNode.Penalty(hyphen.width(), HYPHEN_COST, true, null));
+					nodes.add(new BreakNode.Penalty(hyphen.width(), HYPHEN_COST, true));
 					ordinals.add(f.ordinal());
 					++i;
 					unbreakable = 0;
@@ -254,7 +254,7 @@ public final class TotalFitProjection {
 					anyCandidate = true;
 				} else if (material) {
 					addTailGlue(nodes, ordinals, flush);
-					nodes.add(new BreakNode.Penalty(0, 0, false, null));
+					nodes.add(new BreakNode.Penalty(0, 0, false));
 					ordinals.add(flush.ordinal());
 					unbreakable = 0;
 					material = false;

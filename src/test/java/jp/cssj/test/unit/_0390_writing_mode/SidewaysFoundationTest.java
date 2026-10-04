@@ -25,7 +25,6 @@ public class SidewaysFoundationTest extends AbstractTestCase {
 
 	@Override
 	protected void transcode() throws Exception {
-		this.session.property("layout.bidi.paragraph", "true");
 		CTISessionHelper.transcodeFile(this.session,
 				new File("files/unittest/0390-writing-mode/sideways-foundation.html"), "text/html", "UTF-8");
 	}

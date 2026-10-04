@@ -39,7 +39,6 @@ public class HtmlDirBidiTest extends AbstractTestCase {
 		if (!(box instanceof AbstractLineBox line)) {
 			return false;
 		}
-		assertTrue("paragraph bidi must be enabled by default", line.isParagraphBidiEnabled());
 		assertTrue("pure LTR paragraph must not build visualContents", line.getVisualContents().isEmpty());
 		assertNull("pure LTR paragraph must not build LogicalLineEmission", line.getLogicalLineEmission());
 		assertNull("pure LTR paragraph must not collect visual sidecar text", line.getLogicalLineVisualText());

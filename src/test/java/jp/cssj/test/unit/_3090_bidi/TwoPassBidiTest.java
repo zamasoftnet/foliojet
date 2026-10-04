@@ -27,7 +27,6 @@ public class TwoPassBidiTest extends AbstractTestCase {
 
 	@Override
 	protected void transcode() throws Exception {
-		this.session.property("layout.bidi.paragraph", "true");
 		CTISessionHelper.transcodeFile(this.session, new File("files/unittest/3090-bidi/two-pass.html"),
 				"text/html", null);
 	}

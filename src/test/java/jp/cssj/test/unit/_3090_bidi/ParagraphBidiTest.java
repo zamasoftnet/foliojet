@@ -32,7 +32,6 @@ public class ParagraphBidiTest extends AbstractTestCase {
 
 	@Override
 	protected void transcode() throws Exception {
-		this.session.property("layout.bidi.paragraph", "true");
 		this.session.property("processing.page-references", "true");
 		this.session.property("processing.pass-count", "3");
 		CTISessionHelper.transcodeFile(this.session, new File("files/unittest/3090-bidi/stage1.html"),

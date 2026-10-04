@@ -28,7 +28,6 @@ public class ParagraphBidiPagedSvgTest extends TestCase {
 			session.setResults(results);
 			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 			session.property("input.include", "**");
-			session.property("layout.bidi.paragraph", "true");
 			session.property("output.type", "application/vnd.copper.paged-svg");
 			session.property("output.paged-svg.compression", "none");
 			CTISessionHelper.transcodeFile(session, new File("files/unittest/3090-bidi/ua-logical-output.html"),

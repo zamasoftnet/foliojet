@@ -52,7 +52,6 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	/** 段落 UBA が有効なときの描画専用 tree。論理 contents は不変。 */
 	private List<Object> visualContents;
 	private java.util.Map<Object, net.zamasoft.foliojet.layout.text.bidi.BidiSlice> bidiSlices = java.util.Map.of();
-	private boolean paragraphBidiEnabled;
 	private byte bidiBaseDirection = AbstractTextParams.DIRECTION_LTR;
 	private long bidiParagraphId;
 	private net.zamasoft.foliojet.layout.text.bidi.LogicalLineEmission logicalLineEmission;
@@ -75,13 +74,8 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		return this.last;
 	}
 
-	public final void setParagraphBidi(final boolean enabled, final byte baseDirection) {
-		this.paragraphBidiEnabled = enabled;
+	public final void setBidiBaseDirection(final byte baseDirection) {
 		this.bidiBaseDirection = baseDirection;
-	}
-
-	public final boolean isParagraphBidiEnabled() {
-		return this.paragraphBidiEnabled;
 	}
 
 	public final void setVisualContents(final List<Object> visualContents,
@@ -250,11 +244,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	public void align(double textIndent, double offset, double maxLineAxis, boolean last) {
 		// 行方向アラインメント
 		assert this.contents != null && !this.contents.isEmpty();
-		// OFF は従来の行単位経路をそのまま保つ。ON は段落終端で
-		// 別の visualContents を構成するので、論理 contents に触れない。
-		if (!this.paragraphBidiEnabled) {
-			this.reorderBidi();
-		}
+		// 双方向の並べ替えは段落の終端で別の visualContents を構成するので、論理 contents に触れない
 		this.last = last;
 		this.inlineExtent = maxLineAxis;
 		AbstractLineParams params = this.getLineParams();
@@ -264,7 +254,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		byte textAlign = last ? params.textAlignLast : params.textAlign;
 		// sideways は LTR と同じ論理 offset を作り、描画時の inlineToPhysical で
 		// 一度だけ物理化する。通常組版の RTL だけ従来の start/end 交換を残す。
-		if (this.paragraphBidiEnabled && this.bidiBaseDirection == AbstractTextParams.DIRECTION_RTL
+		if (this.bidiBaseDirection == AbstractTextParams.DIRECTION_RTL
 				&& !TypesettingMode.usesSidewaysInlineAxis(params.flow, params.writingModeVariant)) {
 			if (textAlign == AbstractLineParams.TEXT_ALIGN_START) {
 				textAlign = AbstractLineParams.TEXT_ALIGN_END;
@@ -403,57 +393,6 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	public LineBox splitLine(BlockParams params) {
 		LineBox newLine = new LineBox(params);
 		return newLine;
-	}
-
-	/**
-	 * この行のトップレベルの内容を Unicode 双方向アルゴリズム(UAX #9)の
-	 * 視覚順に並べ替え、右横書き(RTL)ランのグリフを反転します。行のテキストが
-	 * すべて左横書き(LTR)なら何もしないため、既存の LTR 文書の出力は変わりません。
-	 */
-	private void reorderBidi() {
-		if (this.contents == null || this.contents.isEmpty()) {
-			return;
-		}
-		// 水平組版(horizontal-tb と sideways-*)のみを対象とする。
-		if (this.getLineParams().isVerticalTypesetting()) {
-			return;
-		}
-		final int n = this.contents.size();
-
-		// 行の論理順テキストを構築(非テキストは中立オブジェクト U+FFFC)。
-		final StringBuilder logical = new StringBuilder();
-		final int[] itemStart = new int[n];
-		for (int i = 0; i < n; ++i) {
-			itemStart[i] = logical.length();
-			if (this.contents.get(i) instanceof net.zamasoft.pdfg2d.gc.text.Text text) {
-				logical.append(text.getChars(), 0, text.getCharCount());
-			} else {
-				logical.append('￼');
-			}
-		}
-
-		final java.text.Bidi bidi = new java.text.Bidi(logical.toString(), java.text.Bidi.DIRECTION_LEFT_TO_RIGHT);
-		if (bidi.isLeftToRight()) {
-			// 純 LTR: 並べ替え不要。既存出力を厳密に保持する。
-			return;
-		}
-
-		final byte[] levels = new byte[n];
-		for (int i = 0; i < n; ++i) {
-			levels[i] = (byte) bidi.getLevelAt(itemStart[i]);
-		}
-		final int[] order = net.zamasoft.pdfg2d.gc.text.pipeline.Itemizer.reorderVisual(levels);
-
-		final List<Object> newContents = new ArrayList<Object>(n);
-		for (final int idx : order) {
-			Object content = this.contents.get(idx);
-			// RTL テキストランはグリフを視覚順に反転する。
-			if ((levels[idx] & 1) != 0 && content instanceof net.zamasoft.pdfg2d.gc.text.TextImpl ti) {
-				content = ti.reverse();
-			}
-			newContents.add(content);
-		}
-		this.contents = newContents;
 	}
 
 	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,

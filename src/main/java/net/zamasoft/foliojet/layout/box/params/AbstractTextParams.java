@@ -181,13 +181,9 @@ public abstract class AbstractTextParams extends Params {
 	/**
 	 * {@code unicode-bidi}(css-writing-modes-3 §2.2、2026-09-04)。値は
 	 * {@link net.zamasoft.foliojet.css.value.UnicodeBidiValue}の6値。段落単位の
-	 * UBA(bidi-isolation-design.md、flag {@code layout.bidi.paragraph})が使う。
-	 * flag OFFの旧経路は参照しない。
+	 * UBA(bidi-isolation-design.md)が使う。
 	 */
 	public byte unicodeBidi = net.zamasoft.foliojet.css.value.UnicodeBidiValue.NORMAL;
-
-	/** {@code layout.bidi.paragraph} の計算時スナップショット。 */
-	public boolean paragraphBidi = true;
 
 	/** {@code output.pdf.bidi.actual-text} の計算時スナップショット。 */
 	public boolean bidiSemanticAlias = false;

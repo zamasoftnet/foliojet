@@ -24,7 +24,6 @@ public class TableCellReplayBidiTest extends AbstractTestCase {
 
 	@Override
 	protected void transcode() throws Exception {
-		this.session.property("layout.bidi.paragraph", "true");
 		this.session.property("processing.pass-count", "1");
 		CTISessionHelper.transcodeFile(this.session, new File("files/unittest/3090-bidi/table-split.html"),
 				"text/html", null);

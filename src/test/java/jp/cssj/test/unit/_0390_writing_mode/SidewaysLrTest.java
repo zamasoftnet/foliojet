@@ -94,7 +94,6 @@ public class SidewaysLrTest extends AbstractTestCase {
 		this.assertGeometryContract();
 		this.assertReversalContract();
 		this.assertLogicalSides();
-		this.session.property("layout.bidi.paragraph", "true");
 		final Path dumpDir = Files.createTempDirectory("foliojet-sideways-lr-");
 		try (AutoCloseable dump = DisplayListDumper.scopedDir(dumpDir.toString());
 				AutoCloseable geometry = DisplayListDumper.scopedDetailedGeometry(true)) {
@@ -853,7 +852,6 @@ public class SidewaysLrTest extends AbstractTestCase {
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 		session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 		session.property("input.include", "**");
-		session.property("layout.bidi.paragraph", "true");
 		return session;
 	}
 

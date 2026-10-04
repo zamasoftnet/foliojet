@@ -166,7 +166,6 @@ public class ParagraphBidiPdfTest extends TestCase {
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
-				session.property("layout.bidi.paragraph", "true");
 				session.property("output.pdf.hyperlinks", "true");
 				// 既定の fonts.policy(cid-keyed)は埋め込みを含まず @font-face が無視される。鏡像の CID alias は
 				// 埋め込み subset でだけ成立するので、埋め込みを許す

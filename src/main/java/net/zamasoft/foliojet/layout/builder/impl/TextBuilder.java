@@ -99,7 +99,6 @@ public class TextBuilder {
 	}
 
 	private final BlockBuilder builder;
-	private final boolean paragraphBidiEnabled;
 	private final byte paragraphDirection;
 
 	/**
@@ -179,7 +178,6 @@ public class TextBuilder {
 		this.lineClamp = net.zamasoft.foliojet.layout.builder.LineClampState.find(builder);
 		final Flow flow = builder.getFlow();
 		final BlockParams params = flow.box.getBlockParams();
-		this.paragraphBidiEnabled = builder.paragraphBidiEnabled();
 		this.paragraphDirection = params.direction;
 		this.textBlockBox = new TextBlockBox(params, breakToken);
 
@@ -198,7 +196,7 @@ public class TextBuilder {
 		this.last = !breakToken.midLine();
 		this.firstFormattedLine = !breakToken.midFlow();
 		this.lineBox = lineBox;
-		this.lineBox.setParagraphBidi(this.paragraphBidiEnabled, this.paragraphDirection);
+		this.lineBox.setBidiBaseDirection(this.paragraphDirection);
 		this.lineHead = this.firstUnit = true;
 		this.lastSpaceAdvance = 0;
 		this.changeTextState(params);
@@ -1165,7 +1163,7 @@ public class TextBuilder {
 			this.firstFormattedLine = false;
 			final AbstractLineBox lineBox = this.lineBox;
 			final LineBox newLineBox = lineBox.splitLine(this.textBlockBox.getBlockParams());
-			newLineBox.setParagraphBidi(this.paragraphBidiEnabled, this.paragraphDirection);
+			newLineBox.setBidiBaseDirection(this.paragraphDirection);
 
 			// StringBuilder text = new StringBuilder();
 			// lineBox.getText(text);
@@ -1203,7 +1201,7 @@ public class TextBuilder {
 				this.lineBox = newLineBox;
 			}
 			this.addLine(lineBox);
-			if (last && this.paragraphBidiEnabled) {
+			if (last) {
 				this.builder.resolveBidiParagraph(this.textBlockBox.getBlockParams());
 			}
 			lineAdded = true;
@@ -2267,12 +2265,10 @@ public class TextBuilder {
 		if (!this.drawLine(true, fragmentBreak)) {
 			// 開始のないINLINE_ENDだけを回復的に捨てたTextBuilderは、
 			// 1行も持たずに終了してよい。
-			if (this.paragraphBidiEnabled) {
-				if (fragmentBreak) {
-					this.builder.previewBidiParagraph(this.textBlockBox.getBlockParams());
-				} else {
-					this.builder.resolveBidiParagraph(this.textBlockBox.getBlockParams());
-				}
+			if (fragmentBreak) {
+				this.builder.previewBidiParagraph(this.textBlockBox.getBlockParams());
+			} else {
+				this.builder.resolveBidiParagraph(this.textBlockBox.getBlockParams());
 			}
 			return;
 		}
@@ -2280,12 +2276,10 @@ public class TextBuilder {
 		// ブロック末尾の行(nowrapの1行はここだけを通る)にもtext-overflowを適用
 		this.applyTextOverflow(this.lineBox);
 		this.addLine(this.lineBox);
-		if (this.paragraphBidiEnabled) {
-			if (fragmentBreak) {
-				this.builder.previewBidiParagraph(this.textBlockBox.getBlockParams());
-			} else {
-				this.builder.resolveBidiParagraph(this.textBlockBox.getBlockParams());
-			}
+		if (fragmentBreak) {
+			this.builder.previewBidiParagraph(this.textBlockBox.getBlockParams());
+		} else {
+			this.builder.resolveBidiParagraph(this.textBlockBox.getBlockParams());
 		}
 	}
 }

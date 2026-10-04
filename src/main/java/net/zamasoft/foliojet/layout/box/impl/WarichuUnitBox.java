@@ -92,12 +92,6 @@ public final class WarichuUnitBox extends InlineBlockBox {
 
 	public static WarichuUnitBox create(final InlineParams container, final String text,
 			final InlineParams textParams, final int charOffset, final int sourceStart, final int sourceEnd) {
-		return create(container, text, textParams, charOffset, sourceStart, sourceEnd, false);
-	}
-
-	public static WarichuUnitBox create(final InlineParams container, final String text,
-			final InlineParams textParams, final int charOffset, final int sourceStart, final int sourceEnd,
-			final boolean paragraphBidi) {
 		if (text.isEmpty()) {
 			return null;
 		}
@@ -108,9 +102,8 @@ public final class WarichuUnitBox extends InlineBlockBox {
 		final FontStyle baseFs = container.fontStyle;
 		final FontStyle srcFs = tp.fontStyle;
 		final FontStyle smallFs = LayoutFontStyle.withSize(srcFs, baseFs.getSize() / 2.0);
-		final TextImpl[] firstTexts = shape(tp, smallFs, first, charOffset, paragraphBidi);
-		final TextImpl[] secondTexts = shape(tp, smallFs, second, charOffset < 0 ? -1 : charOffset + split,
-				paragraphBidi);
+		final TextImpl[] firstTexts = shape(tp, smallFs, first, charOffset);
+		final TextImpl[] secondTexts = shape(tp, smallFs, second, charOffset < 0 ? -1 : charOffset + split);
 		final double firstAdvance = totalAdvance(firstTexts);
 		final double secondAdvance = totalAdvance(secondTexts);
 		final double lineExtent = Math.max(firstAdvance, secondAdvance);
@@ -137,7 +130,6 @@ public final class WarichuUnitBox extends InlineBlockBox {
 		params.lineBreakRules = container.lineBreakRules;
 		params.direction = container.direction;
 		params.unicodeBidi = container.unicodeBidi;
-		params.paragraphBidi = container.paragraphBidi;
 		params.bidiSemanticAlias = container.bidiSemanticAlias;
 		params.flow = container.flow;
 		params.writingModeVariant = container.writingModeVariant;
@@ -157,12 +149,6 @@ public final class WarichuUnitBox extends InlineBlockBox {
 	 */
 	public static List<WarichuUnitBox> createFragments(final InlineParams container, final String text,
 			final InlineParams textParams, final int charOffset, final int sourceStart, final int sourceEnd) {
-		return createFragments(container, text, textParams, charOffset, sourceStart, sourceEnd, false);
-	}
-
-	public static List<WarichuUnitBox> createFragments(final InlineParams container, final String text,
-			final InlineParams textParams, final int charOffset, final int sourceStart, final int sourceEnd,
-			final boolean paragraphBidi) {
 		if (text.isEmpty()) {
 			return List.of();
 		}
@@ -175,7 +161,7 @@ public final class WarichuUnitBox extends InlineBlockBox {
 			final int fragmentSourceEnd = sourceEnd < 0 ? -1
 					: to == text.length() ? sourceEnd : Math.min(sourceEnd, sourceStart + to);
 			final WarichuUnitBox box = create(container, text.substring(from, to), tp,
-					charOffset < 0 ? -1 : charOffset + from, fragmentSourceStart, fragmentSourceEnd, paragraphBidi);
+					charOffset < 0 ? -1 : charOffset + from, fragmentSourceStart, fragmentSourceEnd);
 			if (box != null) {
 				result.add(box);
 			}
@@ -235,12 +221,12 @@ public final class WarichuUnitBox extends InlineBlockBox {
 	}
 
 	private static TextImpl[] shape(final InlineParams src, final FontStyle fontStyle, final String text,
-			final int charOffset, final boolean paragraphBidi) {
+			final int charOffset) {
 		final TextImpl[] runs = text.isEmpty() ? new TextImpl[0]
 				: net.zamasoft.foliojet.layout.text.spacing.TrimmedRuns.shape(src.fontManager, fontStyle, text,
 						charOffset, src.textSpacingTrimOff);
-		return paragraphBidi ? net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.reorderAtomicRuns(runs,
-				src.direction, src.unicodeBidi, src.bidiSemanticAlias) : runs;
+		return net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.reorderAtomicRuns(runs, src.direction,
+				src.unicodeBidi, src.bidiSemanticAlias);
 	}
 
 	private static double totalAdvance(final TextImpl[] texts) {

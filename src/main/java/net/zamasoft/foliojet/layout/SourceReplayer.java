@@ -219,7 +219,6 @@ public final class SourceReplayer {
 		wrapperParams.writingModeVariant = template.writingModeVariant;
 		wrapperParams.direction = template.direction;
 		wrapperParams.unicodeBidi = template.unicodeBidi;
-		wrapperParams.paragraphBidi = template.paragraphBidi;
 		wrapperParams.bidiSemanticAlias = template.bidiSemanticAlias;
 		// ラッパー直下へ裸のテキストが流れると、そのテキスト状態は行頭で
 		// ラッパーの params から取り直される(BuilderGlyphHandler)。元

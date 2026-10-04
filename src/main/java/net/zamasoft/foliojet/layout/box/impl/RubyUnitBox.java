@@ -232,23 +232,16 @@ public class RubyUnitBox extends InlineBlockBox {
 		}
 	}
 
-	/** 親文字と0個以上の注釈レベルからatomic inlineを組み立てます。 */
+	/** 親文字と0個以上の注釈レベルからatomic inlineを組み立てます。親文字・各注釈は独立した小段落として視覚順にする。 */
 	public static RubyUnitBox create(final InlineParams container, final String baseText, final InlineParams baseParams,
 			final int baseOffset, final List<AnnotationInput> annotationInputs, final int sourceStart,
 			final int sourceEnd) {
-		return create(container, baseText, baseParams, baseOffset, annotationInputs, sourceStart, sourceEnd, false);
-	}
-
-	/** 段落 bidi 有効時は親文字・各注釈を独立した小段落として視覚順にする。 */
-	public static RubyUnitBox create(final InlineParams container, final String baseText, final InlineParams baseParams,
-			final int baseOffset, final List<AnnotationInput> annotationInputs, final int sourceStart,
-			final int sourceEnd, final boolean paragraphBidi) {
 		if (baseText.isEmpty() && annotationInputs.isEmpty()) {
 			return null;
 		}
 		final InlineParams bp = baseParams == null ? container : baseParams;
 		final FontStyle baseFs = bp.fontStyle;
-		final TextImpl[] baseTexts = shape(bp, baseFs, baseText, baseOffset, paragraphBidi);
+		final TextImpl[] baseTexts = shape(bp, baseFs, baseText, baseOffset);
 		final double baseAdvance = totalAdvance(baseTexts);
 
 		final List<RubyAnnotation> built = new ArrayList<RubyAnnotation>();
@@ -260,7 +253,7 @@ public class RubyUnitBox extends InlineBlockBox {
 			final FontStyle rubyBaseFs = rp.fontStyle;
 			final FontStyle rubyFs = LayoutFontStyle.withSize(rubyBaseFs, baseFs.getSize() / 2.0);
 			final TextImpl[] texts = input.text().isEmpty() ? new TextImpl[0]
-					: shape(rp, rubyFs, input.text(), input.charOffset(), paragraphBidi);
+					: shape(rp, rubyFs, input.text(), input.charOffset());
 			final boolean interCharacter = !container.flow.isVertical() && rp.rubyPosition.isInterCharacter();
 			final RubyAnnotation annotation = new RubyAnnotation(texts, rp.color,
 					interCharacter || rp.rubyPosition.isOver(input.level()), interCharacter);
@@ -315,7 +308,6 @@ public class RubyUnitBox extends InlineBlockBox {
 		params.lineBreakRules = bp.lineBreakRules;
 		params.direction = bp.direction;
 		params.unicodeBidi = bp.unicodeBidi;
-		params.paragraphBidi = bp.paragraphBidi;
 		params.bidiSemanticAlias = bp.bidiSemanticAlias;
 		params.flow = container.flow;
 		params.writingModeVariant = container.writingModeVariant;
@@ -333,11 +325,11 @@ public class RubyUnitBox extends InlineBlockBox {
 
 	/** 自己完結整形です(2026-08-01にRunCollector+TrimmedRunsへ一本化)。 */
 	private static TextImpl[] shape(final InlineParams src, final FontStyle fontStyle, final String text,
-			final int charOffset, final boolean paragraphBidi) {
+			final int charOffset) {
 		final TextImpl[] runs = net.zamasoft.foliojet.layout.text.spacing.TrimmedRuns.shape(src.fontManager, fontStyle,
 				text, charOffset, src.textSpacingTrimOff);
-		return paragraphBidi ? net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.reorderAtomicRuns(runs,
-				src.direction, src.unicodeBidi, src.bidiSemanticAlias) : runs;
+		return net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.reorderAtomicRuns(runs, src.direction,
+				src.unicodeBidi, src.bidiSemanticAlias);
 	}
 
 

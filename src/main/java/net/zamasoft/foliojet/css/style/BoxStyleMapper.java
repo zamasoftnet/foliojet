@@ -794,7 +794,6 @@ final class BoxStyleMapper {
 		}
 		params.direction = Direction.get(style);
 		params.unicodeBidi = net.zamasoft.foliojet.css.impl.property.text.UnicodeBidi.get(style);
-		params.paragraphBidi = UAProps.LAYOUT_BIDI_PARAGRAPH.getBoolean(this.ua);
 		params.bidiSemanticAlias = UAProps.OUTPUT_PDF_BIDI_ACTUAL_TEXT.getBoolean(this.ua);
 		params.flow = BlockFlow.get(style);
 		params.writingModeVariant = net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant.get(style);

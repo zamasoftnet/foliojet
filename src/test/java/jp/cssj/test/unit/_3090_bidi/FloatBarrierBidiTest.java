@@ -29,7 +29,6 @@ public class FloatBarrierBidiTest extends AbstractTestCase {
 
 	@Override
 	protected void transcode() throws Exception {
-		this.session.property("layout.bidi.paragraph", "true");
 		CTISessionHelper.transcodeFile(this.session, new File("files/unittest/3090-bidi/float-barrier.html"),
 				"text/html", null);
 	}

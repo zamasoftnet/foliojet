@@ -566,13 +566,6 @@ public final class UAProps {
 	}
 
 	/**
-	 * 段落単位のUnicode双方向アルゴリズム(2026-09-04。bidi-isolation-design.md)。
-	 * {@code false}では従来の行単位・LTR基底の並べ替えへ戻す。
-	 */
-	public static final BooleanPropManager LAYOUT_BIDI_PARAGRAPH = new BooleanPropManager("layout.bidi.paragraph",
-			true);
-
-	/**
 	 * リンクの方法です。
 	 */
 	public static final CodePropManager<OutputPdfHyperlinksHref> OUTPUT_PDF_HYPERLINKS_HREF = new CodePropManager<>("output.pdf.hyperlinks.href", OutputPdfHyperlinksHref.class, OutputPdfHyperlinksHref.RELATIVE);
