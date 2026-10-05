@@ -106,6 +106,67 @@ public class BottomFloatBesideBoxesTest extends TestCase {
 	}
 
 	/**
+	 * 図版の直後(あいだに段落が無い)の flow-root(jigensha の 2 件目、19105)。箱は帯のわずか手前から
+	 * 始まり、中の行だけ短くなって背景と罫が図版の下まで伸びていた。箱ごと図版の手前で短くなる。
+	 */
+	public void testVerticalFlowRootRightAfterFigure() throws Exception {
+		assertBoxesClearOfFigure(convert("v-flow-root-after", rightAfterFigure("display:flow-root")));
+	}
+
+	/** 同じく grid。行も短くならず、字が図版に重なっていた。 */
+	public void testVerticalGridRightAfterFigure() throws Exception {
+		assertBoxesClearOfFigure(convert("v-grid-after", rightAfterFigure("display:grid")));
+	}
+
+	private static String rightAfterFigure(final String display) {
+		return """
+				<!DOCTYPE html>
+				<html xmlns="http://www.w3.org/1999/xhtml" lang="ja"><head><meta charset="UTF-8"/>
+				<style>
+				@page{size:120mm 90mm;margin:6mm}
+				html{writing-mode:vertical-rl;font:9.2pt/1.7 serif}
+				p{margin:0}
+				.col{%s;background:#eef;border-left:3pt solid #25a;padding:3mm;margin:3mm 0}
+				.fig{writing-mode:horizontal-tb;float:bottom;width:100mm;height:35mm;background:#fb6;margin-top:3mm}
+				</style></head><body>
+				<p>本文。本文の一行目。</p><div class="fig"></div>
+				<div class="col">コラム。背景のある箱の中の字です。図を避けて箱ごと短くなる。</div>
+				<p>コラムのあとの本文。</p>
+				</body></html>
+				""".formatted(display);
+	}
+
+	/** 図版(いちばん大きい背景の枠)と、ほかの背景の枠が交わらず、行も図版に重ならない。 */
+	private static void assertBoxesClearOfFigure(final String[] pages) {
+		assertNoOverlap(pages, true);
+		boolean box = false;
+		for (int p = 0; p < pages.length; ++p) {
+			final List<double[]> frames = new ArrayList<>();
+			final Matcher f = FRAME.matcher(pages[p]);
+			while (f.find()) {
+				frames.add(new double[] { Double.parseDouble(f.group(1)), Double.parseDouble(f.group(2)),
+						Double.parseDouble(f.group(3)), Double.parseDouble(f.group(4)) });
+			}
+			double[] fig = null;
+			for (final double[] r : frames) {
+				if (fig == null || r[2] * r[3] > fig[2] * fig[3]) {
+					fig = r;
+				}
+			}
+			for (final double[] r : frames) {
+				if (r == fig) {
+					continue;
+				}
+				box = true;
+				final boolean overlaps = r[0] < fig[0] + fig[2] - 0.5 && fig[0] < r[0] + r[2] - 0.5
+						&& r[1] < fig[1] + fig[3] - 0.5 && fig[1] < r[1] + r[3] - 0.5;
+				assertFalse((p + 1) + " 頁で図版 " + Arrays.toString(fig) + " と重なる箱 " + Arrays.toString(r), overlaps);
+			}
+		}
+		assertTrue("背景のある箱が無い", box);
+	}
+
+	/**
 	 * どの頁でも、図版の枠と交わる行が無いこと。行の長さは全角の字数×字の大きさ(行末の句読点はぶら下げで
 	 * 行の外へ出てよいので数えない)。図版はいちばん大きい背景つきの枠。
 	 */

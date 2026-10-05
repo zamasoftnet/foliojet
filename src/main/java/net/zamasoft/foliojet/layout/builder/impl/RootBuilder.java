@@ -3169,15 +3169,21 @@ public class RootBuilder extends BreakableBuilder {
 	@Override
 	public void addGrid(final net.zamasoft.foliojet.layout.builder.RetainedGrid gridBuilder) {
 		final double start = this.getFlow().pageAxis;
+		final int narrowings = this.pageFloatNarrowings;
 		super.addGrid(gridBuilder);
-		this.exclusionBlindBoxPlaced(start);
+		if (this.pageFloatNarrowings == narrowings) {
+			this.exclusionBlindBoxPlaced(start);
+		}
 	}
 
 	@Override
 	public void addFlex(final net.zamasoft.foliojet.layout.builder.RetainedFlex flexBuilder) {
 		final double start = this.getFlow().pageAxis;
+		final int narrowings = this.pageFloatNarrowings;
 		super.addFlex(flexBuilder);
-		this.exclusionBlindBoxPlaced(start);
+		if (this.pageFloatNarrowings == narrowings) {
+			this.exclusionBlindBoxPlaced(start);
+		}
 	}
 
 	/**

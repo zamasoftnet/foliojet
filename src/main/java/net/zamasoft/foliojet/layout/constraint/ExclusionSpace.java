@@ -156,10 +156,19 @@ public final class ExclusionSpace {
 	 * {@link #narrowLineBandForMulticol}のように終わりだけで選ぶと、帯の手前に収まる箱まで細る。
 	 */
 	public AxisSpan narrowLineBandAt(final double pageAxis, final AxisSpan lineBand) {
+		return this.narrowLineBandOver(pageAxis, pageAxis, lineBand);
+	}
+
+	/**
+	 * {@code [pageStart, pageEnd]} にかかる浮動体の帯で {@code lineBand} を狭めます(2026-10-05)。
+	 * 独立した整形文脈の箱が、必ず占める範囲(枠の始まりから最小の大きさまで)にかかる帯を避けるのに使う。
+	 * {@code pageEnd == pageStart} なら {@link #narrowLineBandAt} と同じ。
+	 */
+	public AxisSpan narrowLineBandOver(final double pageStart, final double pageEnd, final AxisSpan lineBand) {
 		double lineStart = lineBand.start();
 		double lineEnd = lineBand.end();
 		for (final FloatExclusion exclusion : this.ascendingByPageEnd) {
-			if (exclusion.pageSpan().end() <= pageAxis || exclusion.pageSpan().start() > pageAxis) {
+			if (exclusion.pageSpan().end() <= pageStart || exclusion.pageSpan().start() > pageEnd) {
 				continue;
 			}
 			switch (exclusion.side()) {

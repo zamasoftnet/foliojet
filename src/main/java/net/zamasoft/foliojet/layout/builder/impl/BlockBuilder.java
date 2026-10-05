@@ -189,6 +189,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 	/** {@link #snapshotExclusions()}のキャッシュ(不変値なので共有可)。 */
 	private ExclusionSpace cachedExclusions = null;
 
+	/**
+	 * {@link #startFlowBlock} がページフロートの帯で箱を狭めた回数(2026-10-05)。RootBuilder が、置いた
+	 * grid・flex が帯を避けて狭まったのか、帯へ入ったのかを見分ける。
+	 */
+	int pageFloatNarrowings = 0;
+
 	/** {@link #cachedExclusions}を構築した時点の世代。 */
 	private int cachedExclusionsGeneration = -1;
 
@@ -728,18 +734,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// 2026-08-27、asahi.comフッターのfloatラベルへ隣のflexリストが
 			// 重なった実バグ)。帯はコンテナ開始時点の排除域で確定する
 			final ExclusionSpace snapshot = this.snapshotExclusions();
-			AxisSpan band = snapshot.narrowLineBandForMulticol(this.pageAxis,
+			final AxisSpan band = snapshot.narrowLineBandForMulticol(this.pageAxis,
 					new AxisSpan(this.lineAxis, this.lineAxis + lineSize));
-			// ページフロートも避ける(2026-10-05)。中の行は頁の排除域を見ずに組まれるので、下端の図版の帯の
-			// 中で始まる箱が図版に重なった(jigensha の縦組みの本の、図のあとの吹き出しの grid)。帯の手前で
-			// 始まって帯へ入る箱は RootBuilder がその頁を一次元の予約へ切り替えて手前で割る
-			final AxisSpan pageBand = this.pageFloatExclusionsForLineLayout().narrowLineBandAt(this.pageAxis, band);
-			if (pageBand.extent() > 0) {
-				band = pageBand;
-			}
 			xmargin = band.start() - this.lineAxis;
 			lineSize = band.extent();
 		}
+		// ページフロートの帯で狭める前の行方向の帯(差し込みの前)
+		final AxisSpan floatBand = new AxisSpan(this.lineAxis + xmargin, this.lineAxis + xmargin + lineSize);
 		if (insetStart != 0 || insetEnd != 0) {
 			final double inset = insetStart + insetEnd;
 			if (inset < lineSize) {
@@ -778,6 +779,33 @@ public class BlockBuilder implements Builder, LayoutContext {
 				// 浮動ボックスの下につける
 				this.poLastMargin = this.neLastMargin = 0;
 				this.pageAxis = found.pageSpan().end() - marginStart;
+			}
+		}
+
+		if (avoidsFloats(flowBox)) {
+			// ページフロートの帯も避ける(2026-10-05)。中の行は頁の排除域を見ずに組まれる(grid など)か、
+			// 箱が狭まらずに背景と罫が図版に重なった(flow-root、jigensha の縦組みの本の吹き出しとコラム)。
+			// 箱が必ず占める範囲——余白を相殺した後の枠の始まりから、ブロック方向の罫とパディングと 1 行
+			// ぶん——にかかる帯で狭める(図版の直後の箱は帯のわずか手前から始まり、始まりだけ見ると
+			// 漏れた)。それより先で帯へ入る表・grid・flex は RootBuilder がその頁を一次元の予約へ
+			// 切り替えて手前で割る
+			final double borderStart = this.collapsedBorderStart(frame, cParams);
+			final double minExtent = frame.getBorderPageExtent(cParams.flow) + flowBox.getBlockParams().lineHeight;
+			final AxisSpan pageBand = this.pageFloatExclusionsForLineLayout().narrowLineBandOver(borderStart,
+					borderStart + minExtent, floatBand);
+			if (pageBand.extent() > 0 && (LayoutUtils.compare(pageBand.start(), floatBand.start()) != 0
+					|| LayoutUtils.compare(pageBand.end(), floatBand.end()) != 0)) {
+				++this.pageFloatNarrowings;
+				xmargin = pageBand.start() - this.lineAxis;
+				lineSize = pageBand.extent();
+				if (insetStart != 0 || insetEnd != 0) {
+					final double inset = insetStart + insetEnd;
+					if (inset < lineSize) {
+						xmargin += insetStart;
+						lineSize -= inset;
+					}
+				}
+				flowBox.calculateSize(this, xmargin, lineSize);
 			}
 		}
 
@@ -1817,6 +1845,30 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
 				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.GridBox
 				|| params.overflow != OverflowMode.VISIBLE || params.flowRoot || flowBox.getColumnCount() > 1;
+	}
+
+	/**
+	 * 浮動体を避けて狭まる箱か(CSS 2.1 §9.5——独立した整形文脈を作る箱の border box は浮動体の
+	 * margin box に重ならない)。段組・flex・grid は通常の浮動体も避ける。flow-root・overflow が
+	 * visible 以外の箱は今はページフロートだけ避ける(2026-10-05)。
+	 */
+	private static boolean avoidsFloats(final FlowBlockBox flowBox) {
+		final BlockParams params = flowBox.getBlockParams();
+		return flowBox.getColumnCount() > 1 || flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
+				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.GridBox || params.flowRoot
+				|| params.overflow != OverflowMode.VISIBLE;
+	}
+
+	/** 開こうとしている箱の枠の始まり(余白を前の余白と相殺した後。下の相殺と同じ計算)。 */
+	private double collapsedBorderStart(final AbsoluteRectFrame frame, final BlockParams cParams) {
+		final double marginStart = cParams.flow.isVertical() ? frame.margin.right : frame.margin.top;
+		double start = this.pageAxis;
+		if (marginStart >= 0) {
+			start -= marginStart > this.poLastMargin ? this.poLastMargin : marginStart;
+		} else {
+			start -= marginStart < this.neLastMargin ? this.neLastMargin : marginStart;
+		}
+		return start + marginStart;
 	}
 
 	/** CSS Writing Modes 3 §3.2とoverflowによる独立BFCのfloat境界。 */
