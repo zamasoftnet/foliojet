@@ -538,6 +538,11 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 
 	public void finish() throws BrokenResultException, IOException {
 		super.finish();
+		if (this.isMeasurePass()) {
+			// 中間パス(processing.middle-pass=true)は結果を作らない。続けて最後のパスを組むのは継続変換で、単発の
+			// セッションで中間パスだけを組んだときに「内容なし」(380D)で失敗していた(2026-10-05)
+			return;
+		}
 		if (!this.pageGenerated) {
 			final short code = MessageCodes.ERROR_NO_CONTENT;
 			String mes = MessageCodeUtils.toString(code, null);

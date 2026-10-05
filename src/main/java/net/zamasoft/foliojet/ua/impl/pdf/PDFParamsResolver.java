@@ -179,6 +179,14 @@ final class PDFParamsResolver {
 			OutputPdfVersion versionCode = UAProps.OUTPUT_PDF_VERSION.get(ua);
 			if (net.zamasoft.foliojet.ua.props.TaggedPdf.isActive(ua)) {
 				String lang = UAProps.OUTPUT_PDF_TAGGED_LANG.getString(ua);
+				if ((versionCode == OutputPdfVersion.V1_7UA1 || versionCode == OutputPdfVersion.V2_0UA2)
+						&& (lang == null || lang.isBlank())) {
+					// PDF/UA は文書の言語が要る。2026-10-05 までは予期しない例外で落ちた
+					final short code = MessageCodes.ERROR_PDFUA_LANG;
+					final String[] args = { versionCode.ident() };
+					ua.message(code, args);
+					throw new jp.cssj.cti2.TranscoderException(code, args, MessageCodeUtils.toString(code, args));
+				}
 				params = params.withTagged(switch (versionCode) {
 				case V1_7UA1 -> net.zamasoft.pdfg2d.pdf.params.TaggedParams.pdfua(lang);
 				case V2_0UA2 -> net.zamasoft.pdfg2d.pdf.params.TaggedParams.pdfua2(lang);
@@ -460,7 +468,7 @@ final class PDFParamsResolver {
 		params = params.withFilterRasterDpi(UAProps.OUTPUT_PDF_FILTER_RESOLUTION.getInteger(ua));
 
 		// プラットフォームエンコーディング
-		params = params.withPlatformEncoding(UAProps.OUTPUT_PDF_PLATFORM_ENCODING.getString(ua));
+		params = params.withPlatformEncoding(platformEncoding(ua));
 
 		// 暗号化
 		// PDF 1.4基底のPDF/X(X-1a・X-3)の名前。暗号化は警告して付けない
@@ -749,11 +757,32 @@ final class PDFParamsResolver {
 		};
 	}
 
+	/**
+	 * PDF の内部で名前を表す文字コードです。PDF の構文は ASCII で書くので、ASCII を同じバイトで表す文字コードだけを
+	 * 受け付け、それ以外は警告して既定に戻す(2026-10-05。それまでは知らない名前で変換ごと落ち、UTF-16 では
+	 * 構文ごと壊れた PDF を出した)。
+	 */
+	private static String platformEncoding(final PDFUserAgent ua) {
+		final String name = UAProps.OUTPUT_PDF_PLATFORM_ENCODING.getString(ua);
+		try {
+			final String probe = "AZaz09 /()<>[]{}%";
+			if (java.nio.charset.Charset.isSupported(name) && java.util.Arrays.equals(probe.getBytes(name),
+					probe.getBytes(java.nio.charset.StandardCharsets.US_ASCII))) {
+				return name;
+			}
+		} catch (final IllegalArgumentException | java.io.UnsupportedEncodingException e) {
+			// 下で警告する(IllegalCharsetNameException は IllegalArgumentException)
+		}
+		ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_PDF_PLATFORM_ENCODING.name, name);
+		return UAProps.OUTPUT_PDF_PLATFORM_ENCODING.getDefaultString();
+	}
+
+	/** 呼び出し側へコード付きで返す(2026-10-05 までは素の IOException で、予期しない例外 4001 として返っていた)。 */
 	private static IOException pdfXOutputIntentError(final PDFUserAgent ua, final String property,
 			final String value, final String detailKey) {
 		final short code = MessageCodes.ERROR_PDFX_OUTPUT_INTENT;
 		final String[] args = new String[] { property, value, MessageCodeUtils.detail(detailKey) };
 		ua.message(code, args);
-		return new IOException(MessageCodeUtils.toString(code, args));
+		return new jp.cssj.cti2.TranscoderException(code, args, MessageCodeUtils.toString(code, args));
 	}
 }

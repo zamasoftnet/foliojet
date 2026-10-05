@@ -180,17 +180,20 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		final AffineTransform at = AffineTransform.getScaleInstance(pxPerPt, pxPerPt);
 		at.transform(size, size);
 		// 四捨五入(2026-10-04)。切り捨てでは 50mm×350dpi=688.98 が 688 画素になり、印刷所が寸法を読み違えた
-		final int w = (int) Math.round(size.getX());
-		final int h = (int) Math.round(size.getY());
+		// 少なくとも 1 画素(2026-10-05 までは小さな頁で 0 になり、画像を作れずに変換ごと落ちた)
+		final long w = Math.max(1, Math.round(size.getX()));
+		final long h = Math.max(1, Math.round(size.getY()));
 		// 版面の画素数の上限(2026-10-03)。頁の大きさ×解像度はいくらでも
-		// 大きくできるので、確保する前に断る
+		// 大きくできるので、確保する前に断る。指定が無くても、Java の画像が持てる画素数(int)を超えるなら断る
 		final long outputPixelLimit = UAProps.OUTPUT_IMAGE_PIXEL_LIMIT.getLong(this);
-		if (outputPixelLimit >= 0 && (long) w * h > outputPixelLimit) {
+		final long pixelLimit = outputPixelLimit >= 0 ? Math.min(outputPixelLimit, Integer.MAX_VALUE)
+				: Integer.MAX_VALUE;
+		if (w > pixelLimit / h) {
 			this.message(MessageCodes.ERROR_OUTPUT_IMAGE_TOO_LARGE, String.valueOf(w), String.valueOf(h),
-					String.valueOf(outputPixelLimit));
+					String.valueOf(pixelLimit));
 			throw new AbortException(CTISession.ABORT_FORCE);
 		}
-		return new int[] { w, h };
+		return new int[] { (int) w, (int) h };
 	}
 
 	/** 頁の画像を作り、描く GC を返します。 */

@@ -30,11 +30,9 @@ public final class Impositions {
 			return new NopImposition(ua);
 		}
 		final int nUp = UAProps.OUTPUT_N_UP.getInteger(ua);
+		// 1〜256 の外は読み取りで警告して既定の 1 になる
 		if (nUp > 1) {
 			return new NUpImposition(ua, nUp, UAProps.OUTPUT_N_UP_ORDER.get(ua));
-		}
-		if (nUp < 1) {
-			ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_N_UP.name, String.valueOf(nUp));
 		}
 		return new SinglePageImposition(ua);
 	}
@@ -69,7 +67,7 @@ public final class Impositions {
 			double[] trims;
 			String s = UAProps.OUTPUT_TRIMS.getString(ua);
 			if (s != null) {
-				String[] values = s.split("[\\s]+");
+				String[] values = s.trim().split("[\\s]+");
 				if (values.length <= 0 || values.length > 4) {
 					ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_TRIMS.name, s);
 					trims = null;
@@ -86,7 +84,10 @@ public final class Impositions {
 						}
 					}
 				}
-				switch (trims.length) {
+				// 読めなかったら(警告済み)断ちしろは変えない。2026-10-05 までは null の長さを読んで変換ごと落ちた
+				switch (trims == null ? 0 : trims.length) {
+				case 0:
+					break;
 				case 1:
 					imposition.setTrims(trims[0], trims[0], trims[0], trims[0]);
 					break;

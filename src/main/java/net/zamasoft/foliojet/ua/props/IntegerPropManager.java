@@ -9,9 +9,18 @@ import net.zamasoft.foliojet.ua.UserAgent;
 public class IntegerPropManager extends AbstractPropManager {
 	public final int defaultInt;
 
+	/** 受け付ける値の範囲(両端を含む)。外れた値は警告して既定値にする(2026-10-05)。 */
+	private final int min, max;
+
 	public IntegerPropManager(String name, int defaultInt) {
+		this(name, defaultInt, Integer.MIN_VALUE, Integer.MAX_VALUE);
+	}
+
+	public IntegerPropManager(String name, int defaultInt, int min, int max) {
 		super(name);
 		this.defaultInt = defaultInt;
+		this.min = min;
+		this.max = max;
 	}
 
 	public String getDefaultString() {
@@ -31,10 +40,14 @@ public class IntegerPropManager extends AbstractPropManager {
 			return this.defaultInt;
 		}
 		try {
-			return Integer.parseInt(str);
+			final int value = Integer.parseInt(str);
+			if (value >= this.min && value <= this.max) {
+				return value;
+			}
 		} catch (NumberFormatException e) {
-			mh.message(MessageCodes.WARN_BAD_IO_PROPERTY, new String[] { this.name, str });
+			// 下で警告する
 		}
+		mh.message(MessageCodes.WARN_BAD_IO_PROPERTY, new String[] { this.name, str });
 		return this.defaultInt;
 	}
 }

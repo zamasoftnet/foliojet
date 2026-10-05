@@ -77,6 +77,8 @@
 | 3810<span class="since">4.0.0</span> | ドキュメントのURI(string) 理由(string) | サーバー側のメインドキュメントの取得を許可していない(遠隔の利用者がサーバーの内側の宛先を指定したなど)。変換は失敗する。 |
 | 3811<span class="since">4.0.0</span> | ドキュメントのURI(string) 理由(string) | サーバー側のメインドキュメントを取得できない(接続拒否・切断など)。変換は失敗する。 |
 | 3812<span class="since">4.0.0</span> | 幅(string) 高さ(string) 上限(string) | 生成するラスター画像(画像出力の版面)の画素数が<span class="ioprop">output.image-pixel-limit</span>を超える。変換は失敗する。解像度か頁の大きさを下げる。 |
+| 3813<span class="since">4.0.0</span> | 出力形式(string) | <span class="ioprop">output.type</span>に対応していない形式が指定された。 |
+| 3814<span class="since">4.0.0</span> | PDFのバージョン(string) | PDF/UAを選んだのに、文書の言語が<span class="ioprop">output.pdf.tagged.lang</span>で指定されていない。 |
 
 **深刻なエラー**
 

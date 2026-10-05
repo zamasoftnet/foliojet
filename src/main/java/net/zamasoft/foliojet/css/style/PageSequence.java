@@ -489,7 +489,8 @@ final class PageSequence {
 		params.frame = this.pageFrame(pageStyle, margin, this.background);
 
 		this.pageNumber++;
-		if (this.maxPageNumber != -1 && this.pageNumber > this.maxPageNumber) {
+		// 負は無制限(-1 だけではない。2026-10-05 までは -2 以下で即座に中断した)
+		if (this.maxPageNumber >= 0 && this.pageNumber > this.maxPageNumber) {
 			short code = MessageCodes.ERROR_OUT_OF_PAGE_LIMIT;
 			String[] args = new String[] { String.valueOf(this.maxPageNumber) };
 			ua.message(code, args);

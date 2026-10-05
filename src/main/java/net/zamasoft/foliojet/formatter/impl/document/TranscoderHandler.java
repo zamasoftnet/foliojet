@@ -263,14 +263,28 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 	}
 }
 
-class StyleSheetSelectorImpl implements StyleSheetSelector {
-	private String titles;
+/**
+ * {@code input.stylesheet.titles} による選択です。title の無いスタイルシート(HTML の persistent)は選択にかかわらず
+ * 当て、title のあるものは選んだ名前と完全一致したときだけ当てる。名前はスペースかコンマで区切る(2026-10-05。
+ * それまでは title の無いものを渡すと {@code String.indexOf(null)} で変換ごと落ち、名前を部分一致で比べていた)。
+ */
+final class StyleSheetSelectorImpl implements StyleSheetSelector {
+	private final java.util.Set<String> titles = new java.util.HashSet<>();
 
-	public StyleSheetSelectorImpl(String titles) {
-		this.titles = titles;
+	StyleSheetSelectorImpl(final String titles) {
+		for (final String title : titles.split("[\\s,]+")) {
+			if (!title.isEmpty()) {
+				this.titles.add(title);
+			}
+		}
 	}
 
-	public boolean stylesheet(URI uri, String type, String title, String media, boolean alternate) {
-		return this.titles.indexOf(title) != -1;
+	public boolean stylesheet(final URI uri, final String type, final String title, final String media,
+			final boolean alternate) {
+		if (title == null || title.isBlank()) {
+			// 代替は名前が要るので、名前の無い代替は当てない
+			return !alternate;
+		}
+		return this.titles.contains(title.trim());
 	}
 }

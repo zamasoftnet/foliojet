@@ -248,7 +248,7 @@ public final class UAProps {
 	/**
 	 * 1枚の用紙に面付けする論理ページ数(N-up)です。1で面付けなし。
 	 */
-	public static final IntegerPropManager OUTPUT_N_UP = new IntegerPropManager("output.n-up", 1);
+	public static final IntegerPropManager OUTPUT_N_UP = new IntegerPropManager("output.n-up", 1, 1, 256);
 
 	/**
 	 * N-up面付けのページの並び順です。
@@ -301,7 +301,7 @@ public final class UAProps {
 	/**
 	 * テキストの倍率です。
 	 */
-	public static final DoublePropManager OUTPUT_TEXT_SIZE = new DoublePropManager("output.text-size", 1.0);
+	public static final DoublePropManager OUTPUT_TEXT_SIZE = new DoublePropManager("output.text-size", 1.0, 0.01, 100);
 
 	/**
 	 * 自動高さです。
@@ -372,13 +372,13 @@ public final class UAProps {
 	/**
 	 * pxを計算する際の解像度です。
 	 */
-	public static final DoublePropManager OUTPUT_RESOLUTION = new DoublePropManager("output.resolution", 96.0);
+	public static final DoublePropManager OUTPUT_RESOLUTION = new DoublePropManager("output.resolution", 96.0, 1, 10000);
 
 	/**
 	 * 画像出力解像度です。
 	 */
 	public static final DoublePropManager OUTPUT_IMAGE_RESOLUTION = new DoublePropManager("output.image.resolution",
-			96.0);
+			96.0, 1, 10000);
 
 	/**
 	 * 生成するラスタ1枚の最大画素数(幅×高さ)です。負数は無制限です(2026-10-03)。
@@ -596,7 +596,7 @@ public final class UAProps {
 	/**
 	 * 処理回数です。
 	 */
-	public static final IntegerPropManager PROCESSING_PASS_COUNT = new IntegerPropManager("processing.pass-count", 1);
+	public static final IntegerPropManager PROCESSING_PASS_COUNT = new IntegerPropManager("processing.pass-count", 1, 1, 10);
 
 	/** 溜める要素1つの文字payload上限。0以下で無制限。 */
 	public static final LongPropManager PROCESSING_RETAINED_TEXT_LIMIT = new LongPropManager(

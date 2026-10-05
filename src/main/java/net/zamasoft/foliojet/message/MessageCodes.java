@@ -102,6 +102,10 @@ public interface MessageCodes {
 	public static final short ERROR_UNREACHABLE_SERVERSIDE_DOCUMENT = 0x3811;
 	/** 生成するラスタ(画像出力の版面)の画素数が output.image-pixel-limit を超えたエラーです(2026-10-03)。 */
 	public static final short ERROR_OUTPUT_IMAGE_TOO_LARGE = 0x3812;
+	/** {@code output.type} に対応していない形式を指定したエラーです(2026-10-05)。 */
+	public static final short ERROR_UNSUPPORTED_OUTPUT_TYPE = 0x3813;
+	/** PDF/UA を選んだのに文書の言語({@code output.pdf.tagged.lang})が無いエラーです(2026-10-05)。 */
+	public static final short ERROR_PDFUA_LANG = 0x3814;
 	public static final short ERROR_PLUGIN = 0x38FF;
 
 	public static final short FATAL_XSLT_FATAL = 0x4801;

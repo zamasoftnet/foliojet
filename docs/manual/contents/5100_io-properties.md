@@ -20,7 +20,7 @@
 | <a id="appx-ioprop-input.filters"></a>input.filters | xslt<br />default-to-xhtml<br />loose-html | 1.0.0 | 入力文書へ適用する前処理を、適用する順にスペース区切りで並べます。xslt, default-to-xhtml, loose-html が指定できます。<br />詳細は<a href="#style-input-filters" class="pageref">入力フィルタ</a>を参照してください。 |
 | <a id="appx-ioprop-input.normalize-text"></a>input.normalize-text | false | 3.2.15 | "true"を設定すると、全てのテキストをNFC（正規化形式C）に正規化します。 |
 | <a id="appx-ioprop-input.property-pi"></a>input.property-pi | false | 2.0.0 | trueを設定するとドキュメント中でjp.cssj.property-pi処理命令を使うことができるようになります。 |
-| <a id="appx-ioprop-input.stylesheet.titles"></a>input.stylesheet.titles | - | 1.0.0 | 適用するCSSスタイルシートのタイトルをスペース区切りで並べます。 link要素またはxml-stylesheet処理命令で関連付けられたスタイルシートについて、 デフォルトでは代替スタイル以外が全て適用されますが、 このプロパティを用いて適用するスタイルシートを指定することができます。 |
+| <a id="appx-ioprop-input.stylesheet.titles"></a>input.stylesheet.titles | - | 1.0.0 | 適用するCSSスタイルシートのタイトルをスペースかコンマで区切って並べます。 link要素またはxml-stylesheet処理命令で関連付けられたスタイルシートについて、 デフォルトでは代替スタイル以外が全て適用されますが、 このプロパティを用いて適用するスタイルシートを指定することができます。title属性の無いスタイルシートは指定にかかわらず常に適用され、titleのあるものは名前が完全に一致したものだけが適用されます。 |
 | <a id="appx-ioprop-input.xslt.default-stylesheet"></a>input.xslt.default-stylesheet | - | 1.2.0 | デフォルトのXSLTスタイルシートのURIです。 このプロパティが指定されている場合、最初にデフォルトのスタイルシートが読み込まれます。 input.filtersにxsltフィルタが存在するとき場合のみ有効です。 |
 
 **HTTPアクセス関連プロパティ**
@@ -61,22 +61,22 @@
 | <a id="appx-ioprop-output.meta."></a>output.meta.<i>n</i>.name<br /> output.meta.<i>n</i>.value<br /> | - | 2.0.3 | 文書情報をあらかじめ設定します。 <i>n</i>は0から始まる通し番号で、<i>n</i>が同じ2つのプロパティで一組です。 <br /> 文書情報はドキュメント内の<tt>&lt;meta name="名前" content="値"&gt;</tt>要素によって上書きされます。 詳細は<a href="#style-xml-meta" class="pageref">文書情報</a>の節を参照してください。 |
 | <a id="appx-ioprop-output.no-page-break"></a>output.no-page-break | false | 2.0.3 | trueに設定すると改ページを全くしなくなります。 <span class="ioprop">output.auto-height</span> をtrueに設定するのと異なり、ページの高さを内容に合わせて拡大しません。 |
 | <a id="appx-ioprop-output.page-height"></a>output.page-height | 297mm | 1.0.0 | ページの高さです。デフォルトはA4の高さです。<br /> CSSの長さの単位(mm,cm,in,pt,pc,px)を使ってください。<br /> <a href="#style-page-layout">出力可能なページのサイズには制限があります。</a> |
-| <a id="appx-ioprop-output.page-limit"></a>output.page-limit | - | 1.2.0 | 最大ページ数です。ページ数が限界に達すると、処理が中断されます。 デフォルトでは無制限です。 詳細は<a href="#prog-page-limit" class="pageref">ページ数の制限</a>の節を参照してください。 |
+| <a id="appx-ioprop-output.page-limit"></a>output.page-limit | - | 1.2.0 | 最大ページ数です。ページ数が限界に達すると、処理が中断されます。 デフォルトでは無制限です。 詳細は<a href="#prog-page-limit" class="pageref">ページ数の制限</a>の節を参照してください。<br />負の値は無制限です。 |
 | <a id="appx-ioprop-output.page-limit.abort"></a>output.page-limit.abort | force | 3.0.11 | forceを設定すると、ページ数の限界に達した場合に結果を破棄します。normalを設定すると、できる限り途中までのファイルを出力します。 詳細は<a href="#prog-page-limit" class="pageref">ページ数の制限</a>の節を参照してください。 |
 | <a id="appx-ioprop-output.page-margins"></a>output.page-margins | 12.7mm | 2.0.0 | ページの余白です。 CSSの<span class="cssprop">margin</span>プロパティと同じ形式で記述します。 長さの単位は(mm,cm,in,pt,pc,px)が使用可能です。 この設定は文書中の@pageルール内で上書きできます。 |
 | <a id="appx-ioprop-output.type"></a>output.type | application/pdf | 2.0.3 | 出力するファイル形式のMIME型です。<br /> PDFは"application/pdf"、画像は"image/jpeg"、"image/png"、ページ分割SVGは"application/vnd.copper.paged-svg"、それを1本のZIPにまとめる場合は"application/vnd.copper.paged-svg+zip"を指定します。 詳細は<a href="#style-output" class="pageref">出力するファイル形式</a>を参照してください。 |
 | <a id="appx-ioprop-output.page-width"></a>output.page-width | 210mm | 1.0.0 | ページの幅です。デフォルトはA4の横幅です。<br /> CSSの長さの単位(mm,cm,in,pt,pc,px)を使ってください。<br /> <a href="#style-page-layout">出力可能なページのサイズには制限があります。</a> |
 | <a id="appx-ioprop-output.paper-height"></a>output.paper-height | output.page-heightの値 | 2.0.0 | 用紙の高さです。デフォルトはページの高さです。 用紙とページの大きさが異なる場合の動作は<span class="ioprop">output.fit-to-paper</span>の設定によります。<br /> CSSの長さの単位(mm,cm,in,pt,pc,px)を使ってください。<br /> <a href="#style-page-layout">出力可能なページのサイズには制限があります。</a> |
 | <a id="appx-ioprop-output.paper-width"></a>output.paper-width | output.paper-widthの値 | 2.0.0 | 用紙の幅です。デフォルトはページの横幅です。<br /> 用紙とページの大きさが異なる場合の動作は<span class="ioprop">output.fit-to-paper</span>の設定によります。<br /> CSSの長さの単位(mm,cm,in,pt,pc,px)を使ってください。<br /> <a href="#style-page-layout">出力可能なページのサイズには制限があります。</a> |
-| <a id="appx-ioprop-output.n-up"></a>output.n-up | 1 | 4.0.0 | 1枚の用紙に面付けする論理ページ数です。1で面付けを行いません。 指定した枚数が1枚の用紙に並べて配置されます。 |
+| <a id="appx-ioprop-output.n-up"></a>output.n-up | 1 | 4.0.0 | 1枚の用紙に面付けする論理ページ数です。1で面付けを行いません。 指定した枚数が1枚の用紙に並べて配置されます。<br />1〜256を指定できます。範囲外の値は警告して1(面付けしない)として扱います。 |
 | <a id="appx-ioprop-output.n-up.order"></a>output.n-up.order | horizontal | 4.0.0 | 面付けしたページの並び順です。 horizontal(行方向)、vertical(列方向)、 horizontal-reverse、vertical-reverseのいずれかです。 reverseを付けると逆順に並べます。 |
 | <a id="appx-ioprop-output.marks.spine-width"></a>output.marks.spine-width | - | 4.0.0 | 背表紙の幅です。長さで指定します。 設定すると、トンボに背表紙の位置を示す線が引かれます。 |
 | <a id="appx-ioprop-output.print-mode"></a>output.print-mode | double-side | 2.0.0<br /> left-side, right-sideは3.0.0 | 印刷モードです。single-side, double-side, left-side, right-sideのいずれかを指定します。<br /> single-sideでは片面印刷となり、@pageルールの:left, :right擬似クラスは適用されなくなります。<br /> left-side, right-sideでは、文書の横書き、縦書きに関わらず綴じ方向がどちらかに固定されます。 |
-| <a id="appx-ioprop-output.resolution"></a>output.resolution | 96 | 2.0.0 | px単位の基準となる解像度です。<br /> ppi(1インチあたりのピクセル数)を指定します。<br /> 一般的なブラウザでは96という値が使われます。 72を指定すると1pt(PDFの基本単位)と1pxの長さが同じになります。 |
-| <a id="appx-ioprop-output.size-limit"></a>output.size-limit | - | 1.2.0 | 出力データの最大サイズ(バイト)です。サイズが限界に達すると、処理が中断されます。 デフォルトでは無制限です。 |
+| <a id="appx-ioprop-output.resolution"></a>output.resolution | 96 | 2.0.0 | px単位の基準となる解像度です。<br /> ppi(1インチあたりのピクセル数)を指定します。<br /> 一般的なブラウザでは96という値が使われます。 72を指定すると1pt(PDFの基本単位)と1pxの長さが同じになります。<br />1〜10000を指定できます。範囲外の値は警告して96として扱います。 |
+| <a id="appx-ioprop-output.size-limit"></a>output.size-limit | - | 1.2.0 | 出力データの最大サイズ(バイト)です。サイズが限界に達すると、処理が中断されます。 デフォルトでは無制限です。<br />負の値は無制限です。 |
 | <a id="appx-ioprop-output.htrim"></a>output.htrim | 1cm | 2.0.0 | 左右の裁ち口の幅です。<br /> CSSの長さの単位(mm,cm,in,pt,pc,px)を使ってください。 |
 | <a id="appx-ioprop-output.vtrim"></a>output.vtrim | 1cm | 2.0.0 | 上下の裁ち口の幅です。<br /> CSSの長さの単位(mm,cm,in,pt,pc,px)を使ってください。 |
-| <a id="appx-ioprop-output.text-size"></a>output.text-size | 1.0 | 2.1.9 | 文字のサイズの拡大率（実数）です。<br /> 例えば 0.5 を設定すると、文字サイズが通常の半分になり、 2.0 を設定すると、2倍になります。 |
+| <a id="appx-ioprop-output.text-size"></a>output.text-size | 1.0 | 2.1.9 | 文字のサイズの拡大率（実数）です。<br /> 例えば 0.5 を設定すると、文字サイズが通常の半分になり、 2.0 を設定すると、2倍になります。<br />0.01〜100を指定できます。範囲外の値は警告して1.0として扱います。 |
 | output.type | application/pdf | 1.0.0 | 出力(MIME)形式です。 "application/pdf"(PDFファイル)は必ず利用することができます。<br /> 2.0.3から画像の出力に対応しました。画像の出力はJava Image I/Oに依存しており、 Java実行環境がサポートする画像形式("image/png"など)を利用することができます。 また、<a href="#style-image-jai">JAI-ImageI/O</a>等のプラグインをJava実行環境にインストールすることで、 利用可能な画像形式を追加することができます。<br /> 通常の画像出力では最後のページだけが出力されます。ページごとのSVGと共有資源を出力する場合は"application/vnd.copper.paged-svg"を指定します。コア14フォントとフォント設定ファイルのcid-keyed-font要素によるCID-Keyedフォントは通常の画像出力では正確に描画できません。 |
 | <a id="appx-ioprop-output.svg.text"></a>output.svg.text | outline | 4.0.0 | 単一SVG出力(`image/svg+xml`)で文字をどう書くかです。<br/>`outline`(既定)は字形をアウトライン(path)にします。`keep`は`&lt;text&gt;`のまま残し、サブセットしたWOFF2と画像を`data:`でSVGへ埋め込みます。 |
 | <a id="appx-ioprop-output.trim-inset"></a>output.trim-inset | - | 4.0.0 | 印刷面の外周のうち<b>塗り足しとして扱う帯の幅</b>です(仕上り線は印刷面の外周からこの幅だけ内側にあるとみなします)。<br/>塗り足し込みで作られた既存のデータを、CSSを書き換えずに正しい仕上りサイズで出力するために使います。長さの単位は(mm,cm,in,pt,pc,px)が使用可能です。 |
@@ -86,7 +86,7 @@
 
 | 名前 | デフォルト | バージョン | 説明 |
 | --- | --- | --- | --- |
-| <a id="appx-ioprop-output.image.resolution"></a>output.image.resolution | 96 | 2.0.4 | <span class="ioprop">output.type</span>の設定によりラスター画像を出力する際の解像度(dpi)です。<br /> <span class="notice">なお、2.0.8以前ではデフォルト値が72となっており、解像度が正しく反映されないバグがありました。 2.0.9以降では 以前の設定 × <span class="ioprop">output.resolution</span> / 72) で換算した値を設定してください。 </span> |
+| <a id="appx-ioprop-output.image.resolution"></a>output.image.resolution | 96 | 2.0.4 | <span class="ioprop">output.type</span>の設定によりラスター画像を出力する際の解像度(dpi)です。<br /> <span class="notice">なお、2.0.8以前ではデフォルト値が72となっており、解像度が正しく反映されないバグがありました。 2.0.9以降では 以前の設定 × <span class="ioprop">output.resolution</span> / 72) で換算した値を設定してください。 </span><br />1〜10000を指定できます。範囲外の値は警告して96として扱います。版面がJavaの画像の上限(約21億画素)を超えるときはメッセージ3812で失敗します。 |
 | <a id="appx-ioprop-output.image-pixel-limit"></a>output.image-pixel-limit | - | 4.0.0 | 生成するラスター画像1枚の最大画素数(幅×高さ)です。既定では無制限です。画像出力の版面(頁の大きさ×<span class="ioprop">output.image.resolution</span>)が超えると変換を失敗させます(メッセージ3812)。ページ分割SVGで画素に描き直す画像(SVG画像など)は、上限に収まるまで倍率を下げて描きます。 |
 | <a id="appx-ioprop-output.image.antialias"></a>output.image.antialias | true | 3.0.1 | ラスター画像出力の際のアンチエイリアスの設定です。 trueを設定するとアンチエイリアスを有効にします、 falseを設定するとアンチエイリアスを無効にします。 |
 | <a id="appx-ioprop-output.image.transparent"></a>output.image.transparent | false | 4.0.0 | 画像出力で背景を塗らずに描くかどうかです。trueにすると、何も描かれなかったところは透明のまま残ります。<b>透明を保てる形式(PNG・GIF・TIFF)でだけ効きます。</b>保てない形式(JPEG・BMP・WBMP)で指定した場合は白のまま描き、<a href="#appx-messages" class="pageref">2824</a>で知らせます。 |
@@ -338,7 +338,8 @@
 				<td>MS932</td>
 				<td class="nowrap">2.0.0</td>
 				<td>PDFの内部で名前(ファイル名など)を表すときに使うキャラクタ・エンコーディングです。<br />
-					PDFを開く環境に合わせて指定します。</td>
+					PDFを開く環境に合わせて指定します。ASCIIの文字を同じバイトで表すエンコーディング(MS932・UTF-8など)だけを
+					指定できます。知らない名前やUTF-16などは警告して既定のMS932として扱います。</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.file-id">
 				<td class="nowrap">output.pdf.file-id</td>
@@ -694,10 +695,10 @@
 | <a id="appx-ioprop-processing.text-spill-budget"></a>processing.text-spill-budget | 8388608 | 4.0.0 | 改ページの再生のために保持するテキストを、メモリ上に置いておく上限 (バイト数)です。<br /> これを超えた分は一時ファイルへ書き出されます。 <b>出力される内容はこの値によって変わりません</b>。変わるのはメモリの使い方だけです。 非常に長い文書でメモリが不足する場合に小さくしてください。 |
 | <a id="appx-ioprop-processing.retained-text-limit"></a>processing.retained-text-limit | 8388608 | 4.0.0 | 表・浮動体・inline-block・グリッド/フレックス・段組・絶対配置のように、寸法が決まるまで中身を溜めておく要素1つに入れられる文字量の上限(文字数×2バイト)です。<br />超えると変換は失敗します(メッセージ380F)。<b>出力される内容はこの値によって変わりません</b>。1件の変換が溜め込むメモリに天井を置くための設定で、メモリ量そのものの保証ではありません。脚注やページフロートの配置待ち、<span class="cssprop">orphans</span>/<span class="cssprop">widows</span>の先読みは数えません。0以下は無制限です。<br />目安: 溜めた文字1つにつき40〜50バイトのメモリを使います(既定の8MBで約200MB)。ヒープが小さい構成(256MB以下)では4MB程度に下げてください。 |
 | <a id="appx-ioprop-processing.table-row-emission"></a>processing.table-row-emission | false | 4.0.0 | trueを設定すると、自動レイアウト(<span class="cssdecl">table-layout: auto</span>)の大きな表を、行がページに収まるごとに順に確定して出力します(横組み・本文が1グループ・キャプションなど無しの単純な表に限ります)。確定した行を保持し続けないので、数千行の表でメモリを抑えられます。<b>出力される内容は変わりません</b>。既定はfalseです(検証中の機能のため)。 |
-| <a id="appx-ioprop-processing.middle-pass"></a>processing.middle-pass | false | 3.0.4 | trueを設定すると、実際は結果を生成しない中間の処理を実行します。 後でfalseを設定してドキュメントを処理すると、結果が生成されます。<br /> 詳細は<a href="#style-multipass">2パス以上の変換処理</a>を参照してください。 |
+| <a id="appx-ioprop-processing.middle-pass"></a>processing.middle-pass | false | 3.0.4 | trueを設定すると、実際は結果を生成しない中間の処理を実行します。 後でfalseを設定してドキュメントを処理すると、結果が生成されます。<br /> 詳細は<a href="#style-multipass">2パス以上の変換処理</a>を参照してください。<br />中間パスは結果を出力しません。最後のパスを組むのは継続して変換するセッションです。 |
 | <a id="appx-ioprop-processing.page-references"></a>processing.page-references | false | 2.0.0 | trueを設定すると、目次、ページ参照のための情報を収集します。 falseを設定すると、目次、ページ参照のための情報を収集しないため一部の機能が利用できなくなります。<br /> 詳細は<a href="#style-page-references">ページの参照</a>を参照してください。 |
 | <a id="appx-ioprop-processing.target-counter.digits"></a>processing.target-counter.digits | 3 | 4.0.0 | 1パスのPDF・ページ分割SVG出力で`target-counter()`の番号に取っておく桁数(1〜9)です。番号の欄をこの桁数の幅で先に組み、後ろのページの番号は後から書き込みます。番号は欄の中で右揃えになり、長い番号は欄の左へはみ出します(警告が出ます)。<br />詳細は<a href="#style-page-references">ページの参照</a>を参照してください。 |
-| <a id="appx-ioprop-processing.pass-count"></a>processing.pass-count | 1 | 1.2.0 | 1回のフォーマット処理のために、文書を処理する回数です。<br />総ページ数・目次・ページの参照・一部のセレクタは2以上でないと働きません(1パスのPDF・ページ分割SVG出力の十進の`target-counter()`は例外です)。<b>設定が足りなくても警告は出ません。</b><br />詳細は<a href="#style-multipass" class="pageref">2パス以上の変換処理</a>を参照してください。 |
+| <a id="appx-ioprop-processing.pass-count"></a>processing.pass-count | 1 | 1.2.0 | 1回のフォーマット処理のために、文書を処理する回数です。<br />総ページ数・目次・ページの参照・一部のセレクタは2以上でないと働きません(1パスのPDF・ページ分割SVG出力の十進の`target-counter()`は例外です)。<b>設定が足りなくても警告は出ません。</b><br />詳細は<a href="#style-multipass" class="pageref">2パス以上の変換処理</a>を参照してください。<br />1〜10を指定できます。範囲外の値は警告して1として扱います。 |
 | <a id="appx-ioprop-processing.concurrency"></a>processing.concurrency | 0 | 4.0.0 | 独立に組める単位を同時にいくつ組むかです。いま効くのはEPUBのspine項目をページ分割SVGへ出すときだけです。`0`(既定)は自動で、CPUコア数と4の小さいほう。`1`で逐次。**いくつにしても出力は同一**です——項目は互いに独立で、結果はspine順に解放されるためで、変わるのは所要時間とメモリ(同時に組む項目の数だけレイアウトを保持します)だけです。 |
 | <a id="appx-ioprop-processing.time-limit"></a>processing.time-limit | 0 | 4.0.0 | 文書1件の変換に許す最大経過時間(ミリ秒)です。0以下は無制限です。複数パスでは全パスを合わせた時間を数えます。 |
 

@@ -921,6 +921,10 @@ public class DirectSession extends AbstractCTISession
 			this.continuous = false;
 			final RetainedTextLimitException retained = RetainedTextLimitException.findIn(t);
 			if (retained != null) throw failure(retained.getCode(), retained.getMessage(), t);
+			// 描画層に包まれて届いた、コード付きの失敗(設定の誤りなど、メッセージは報告済み)はそのコードで返す
+			// (2026-10-05 までは PDF/X の出力インテント・PDF/UA の言語の誤りも 4001 になっていた)
+			final TranscoderException coded = codedCause(t);
+			if (coded != null) throw failure(coded.getCode(), coded.getMessage(), t);
 			this.ua.message(CTIMessageCodes.FATAL_UNEXPECTED, t.getMessage());
 			LOG.log(Level.SEVERE, "予期しないエラー", t);
 			short code = CTIMessageCodes.FATAL_UNEXPECTED;
@@ -952,6 +956,16 @@ public class DirectSession extends AbstractCTISession
 			this.ua.dispose();
 			this.ua = null;
 		}
+	}
+
+	/** 原因の連鎖の中の、予期しない失敗(4001)でないコード付きの例外です。 */
+	private static TranscoderException codedCause(final Throwable thrown) {
+		for (Throwable t = thrown; t != null; t = t.getCause() == t ? null : t.getCause()) {
+			if (t instanceof TranscoderException te && te.getCode() != CTIMessageCodes.FATAL_UNEXPECTED) {
+				return te;
+			}
+		}
+		return null;
 	}
 
 	/** 予期しない失敗を、原因を保ったまま包みます。 */
@@ -1022,7 +1036,12 @@ public class DirectSession extends AbstractCTISession
 			this.ua = asResultUserAgent(factory.createUserAgent());
 			this.applyOperatorLimits(this.ua);
 		} else {
-			throw new IllegalStateException("UnsupportedType: " + outputType);
+			// 設定の誤りなので、セッションは使える状態のまま断る(2026-10-05 までは予期しない例外で落ちた)
+			final short code = MessageCodes.ERROR_UNSUPPORTED_OUTPUT_TYPE;
+			final String[] args = { outputType };
+			this.message(code, args);
+			throw new TranscoderException(TranscoderException.STATE_READABLE, code, args,
+					MessageCodeUtils.toString(code, args));
 		}
 	}
 
@@ -1270,7 +1289,8 @@ public class DirectSession extends AbstractCTISession
 		}
 		Results results = this.results;
 		long limit = UAProps.OUTPUT_SIZE_LIMIT.getLong(this.ua);
-		if (limit != -1L) {
+		// 負は無制限(-1 だけではない。2026-10-05 までは -2 以下で即座に中断した)
+		if (limit >= 0) {
 			results = new LimitedResults(results, limit, this.ua);
 		}
 		int passCount = UAProps.PROCESSING_PASS_COUNT.getInteger(this.ua);
