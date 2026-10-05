@@ -47,6 +47,24 @@ public class TextCombineWidthVariantTest extends TestCase {
 		assertEquals(12, box.getWidth(), 0);
 	}
 
+	/**
+	 * 1em より狭い 1 字はセルの中央へ寄せ、二度目の呼び出し(段組の均衡で同じ箱がもう一度行へ積まれる)では
+	 * 寄せ直さない(2026-10-06、jigensha の報告)。以前は二度目に寄せ済みの字面で寄せ直してずれが 0 に戻り、
+	 * 字の右端がセルの中心に来た。
+	 */
+	public void testSingleCharacterStaysCenteredWhenFittedTwice() {
+		final TestBox box = new TestBox();
+		box.setNaturalWidth(6);
+		box.compressTextCombine(12, new java.awt.geom.Rectangle2D.Double(0.5, -8, 5, 8));
+		assertEquals(1, box.scaleX(), 0);
+		assertEquals(3, box.offsetX(), 1e-9);
+		assertEquals(12, box.getWidth(), 0);
+		// 二度目: 字面は寄せた後の位置で測られる
+		box.compressTextCombine(12, new java.awt.geom.Rectangle2D.Double(3.5, -8, 5, 8));
+		assertEquals(3, box.offsetX(), 1e-9);
+		assertEquals(12, box.getWidth(), 0);
+	}
+
 	private static final class TestBox extends InlineBlockBox {
 		TestBox() {
 			super(params(), new InlinePos());
@@ -65,6 +83,10 @@ public class TextCombineWidthVariantTest extends TestCase {
 
 		double scaleX() {
 			return this.internalScaleX();
+		}
+
+		double offsetX() {
+			return this.internalOffsetX();
 		}
 	}
 }

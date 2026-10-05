@@ -55,6 +55,9 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	/** 圧縮後のセル内で内容を中央へ寄せる物理Xのずれです。 */
 	private double textCombineOffsetX = 0;
 
+	/** {@link #compressTextCombine}で1emのセルへ収め終えたか。 */
+	private boolean textCombineFitted = false;
+
 	protected final double internalScaleX() {
 		return this.textCombineScaleX;
 	}
@@ -79,15 +82,17 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	 * </p>
 	 *
 	 * <p>
-	 * 二度呼ばれても壊れないよう、圧縮済み(scaleX≠1)なら何もしない
-	 * ——2パス構成では同じ箱が再度行へ積まれることがある。
+	 * 二度呼ばれても壊れないよう、収め終えた箱では何もしない——2パス構成・段組の均衡では同じ箱が
+	 * 再度行へ積まれることがある。以前は圧縮済み(scaleX≠1)かで判定していたため、圧縮しない1字は
+	 * 二度目に寄せ済みの字面で寄せ直してずれが0に戻り、字の右端が行の中心に来た(2026-10-06、
+	 * jigensha の報告。段組の中の縦中横の「2」「1」が約0.25em左へ寄った)。
 	 * </p>
 	 *
 	 * @param cellExtent セルの幅(通常は1em)
 	 * @param inkBounds  圧縮前のローカル座標における字面の輪郭。取得できない場合はnull
 	 */
 	public final void compressTextCombine(final double cellExtent, final Rectangle2D inkBounds) {
-		if (this.textCombineScaleX != 1 || cellExtent <= 0) {
+		if (this.textCombineFitted || cellExtent <= 0) {
 			return;
 		}
 		final double natural = this.width;
@@ -108,6 +113,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			this.textCombineOffsetX = (cellExtent - natural) / 2;
 		}
 		this.width = cellExtent;
+		this.textCombineFitted = true;
 	}
 
 	public final boolean isSpecifiedPageSize() {
