@@ -151,6 +151,41 @@ public final class ExclusionSpace {
 	}
 
 	/**
+	 * {@code pageAxis}を含む帯(始まりが{@code pageAxis}以前で、終わりがそれより後)の浮動体だけで
+	 * {@code lineBand}を狭めます(2026-10-05)。ページフロートの集合に使う——下端の帯はこれから始まるので、
+	 * {@link #narrowLineBandForMulticol}のように終わりだけで選ぶと、帯の手前に収まる箱まで細る。
+	 */
+	public AxisSpan narrowLineBandAt(final double pageAxis, final AxisSpan lineBand) {
+		double lineStart = lineBand.start();
+		double lineEnd = lineBand.end();
+		for (final FloatExclusion exclusion : this.ascendingByPageEnd) {
+			if (exclusion.pageSpan().end() <= pageAxis || exclusion.pageSpan().start() > pageAxis) {
+				continue;
+			}
+			switch (exclusion.side()) {
+			case START:
+				lineStart = Math.max(lineStart, exclusion.lineSpan().end());
+				break;
+			case END:
+				lineEnd = Math.min(lineEnd, exclusion.lineSpan().start());
+				break;
+			}
+		}
+		return new AxisSpan(lineStart, lineEnd);
+	}
+
+	/** {@code pageAxis}を含む帯の浮動体のうち、いちばん遅く終わるものの終わりです(無ければ NaN、2026-10-05)。 */
+	public double bandEndAt(final double pageAxis) {
+		double end = Double.NaN;
+		for (final FloatExclusion exclusion : this.ascendingByPageEnd) {
+			if (exclusion.pageSpan().end() > pageAxis && exclusion.pageSpan().start() <= pageAxis) {
+				end = Double.isNaN(end) ? exclusion.pageSpan().end() : Math.max(end, exclusion.pageSpan().end());
+			}
+		}
+		return end;
+	}
+
+	/**
 	 * {@code BlockBuilder.startFlowBlock}のmulticol回避と同じ規則で、
 	 * {@code lineBand}を浮動体が占める帯だけ狭めます(2026-07-23新設、
 	 * P0 Step3のshadow比較用——`BlockBuilder`の既存ループを1対1で

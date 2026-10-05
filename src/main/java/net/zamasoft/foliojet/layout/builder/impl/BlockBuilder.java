@@ -726,8 +726,15 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// 2026-08-27、asahi.comフッターのfloatラベルへ隣のflexリストが
 			// 重なった実バグ)。帯はコンテナ開始時点の排除域で確定する
 			final ExclusionSpace snapshot = this.snapshotExclusions();
-			final AxisSpan band = snapshot.narrowLineBandForMulticol(this.pageAxis,
+			AxisSpan band = snapshot.narrowLineBandForMulticol(this.pageAxis,
 					new AxisSpan(this.lineAxis, this.lineAxis + lineSize));
+			// ページフロートも避ける(2026-10-05)。中の行は頁の排除域を見ずに組まれるので、下端の図版の帯の
+			// 中で始まる箱が図版に重なった(jigensha の縦組みの本の、図のあとの吹き出しの grid)。帯の手前で
+			// 始まって帯へ入る箱は RootBuilder がその頁を一次元の予約へ切り替えて手前で割る
+			final AxisSpan pageBand = this.pageFloatExclusionsForLineLayout().narrowLineBandAt(this.pageAxis, band);
+			if (pageBand.extent() > 0) {
+				band = pageBand;
+			}
 			xmargin = band.start() - this.lineAxis;
 			lineSize = band.extent();
 		}
@@ -1222,6 +1229,26 @@ public class BlockBuilder implements Builder, LayoutContext {
 			if (found.clearingExclusion() != null) {
 				this.poLastMargin = this.neLastMargin = 0;
 				this.pageAxis = found.clearPageEnd();
+			}
+		}
+		final ExclusionSpace pageSpace = this.pageFloatExclusionsForLineLayout();
+		if (!pageSpace.isEmpty()) {
+			// ページフロートの帯も避ける(2026-10-05)。表・置換要素は中を頁の排除域で組まないので、
+			// 下端の図版の帯の中で始まると図版に重なった(jigensha の縦組みの本)。図版の脇に収まれば脇へ、
+			// 収まらなければ帯の終わり(頁の端)へ送り、次頁へ回す
+			final double marginAdjust = vertical ? amargin.right : amargin.top;
+			final double pageStart = this.pageAxis - marginAdjust;
+			final double bandEnd = pageSpace.bandEndAt(pageStart);
+			if (!Double.isNaN(bandEnd)) {
+				final AxisSpan room = pageSpace.narrowLineBandAt(pageStart,
+						new AxisSpan(this.lineAxis + xMarginStart, lineEnd));
+				if (LayoutUtils.compare(room.extent(), lineSize) >= 0) {
+					xMarginStart = room.start() - this.lineAxis;
+					lineEnd = room.end();
+				} else {
+					this.poLastMargin = this.neLastMargin = 0;
+					this.pageAxis = bandEnd + marginAdjust;
+				}
 			}
 		}
 		xMarginEnd = lineStop - lineEnd;

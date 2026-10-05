@@ -3159,6 +3159,45 @@ public class RootBuilder extends BreakableBuilder {
 				.compare(this.committedColumnsEndOnPage, this.firstReservedBottomPlacedStart()) > 0;
 	}
 
+	@Override
+	public void addTable(final net.zamasoft.foliojet.layout.builder.RetainedTable tableBuilder) {
+		final double start = this.pageAxis;
+		super.addTable(tableBuilder);
+		this.exclusionBlindBoxPlaced(start);
+	}
+
+	@Override
+	public void addGrid(final net.zamasoft.foliojet.layout.builder.RetainedGrid gridBuilder) {
+		final double start = this.getFlow().pageAxis;
+		super.addGrid(gridBuilder);
+		this.exclusionBlindBoxPlaced(start);
+	}
+
+	@Override
+	public void addFlex(final net.zamasoft.foliojet.layout.builder.RetainedFlex flexBuilder) {
+		final double start = this.getFlow().pageAxis;
+		super.addFlex(flexBuilder);
+		this.exclusionBlindBoxPlaced(start);
+	}
+
+	/**
+	 * 表・grid・flex を置いた直後に呼ぶ(2026-10-05)。これらのセルや項目の行は別の builder で組まれ、頁の
+	 * 排除域を見ないので、箱が下端フロートの置き場へ入ると中の字が図版に重なった(jigensha の縦組みの本で、
+	 * 図のあとの吹き出しの grid)。置き場の手前で始まって置き場まで達した箱は、この頁を一次元の予約へ切り替えて
+	 * 置き場の手前で割る(残りは次頁)。箱より前の内容は箱の始まりより前で終わっているので押し出されない。
+	 * 置き場の中で始まる grid・flex は始まりで図版のぶん狭めてある({@code BlockBuilder.startFlowBlock})。
+	 *
+	 * @param start 箱の始まり(頁の block 軸)
+	 */
+	private void exclusionBlindBoxPlaced(final double start) {
+		if (!this.bottomFloatOneDimensionalFallback && this.hasRootWritingModePath()
+				&& this.currentPositionPastFirstReservedBottom() && net.zamasoft.foliojet.layout.util.LayoutUtils
+						.compare(start, this.firstReservedBottomPlacedStart()) < 0) {
+			this.bottomFloatOneDimensionalFallback = true;
+			this.rebuildBottomPageFloatExclusions();
+		}
+	}
+
 	/** 現在の既配置範囲と先頭bottomのplacedStartから当該ページの経路を選び直す。 */
 	private void updateBottomFloatFallbackForCurrentPosition() {
 		final boolean fallback = this.currentPositionPastFirstReservedBottom();
