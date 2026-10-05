@@ -319,6 +319,22 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return true;
 	}
 
+	/**
+	 * 組んだ中身を捨てて空に戻します(2026-10-05)。shrink-to-fit の寸法を一度組んで測り直すとき
+	 * ({@code DocumentBuilder})、計測の再生で積んだ中身を本番の前に消す。{@link #balance} と同じく新しい
+	 * FlowContainer に替える。
+	 */
+	public final void resetContentForRelayout() {
+		this.container = new FlowContainer();
+		this.container.setBox(this);
+	}
+
+	/** 組んだ中身のうち直交する子孫の行方向の広がり({@link FlowContainer#orthogonalLineExtent})。 */
+	public final double orthogonalContentLineExtent() {
+		return this.container instanceof FlowContainer flows ? flows.orthogonalLineExtent(this.getBlockParams().flow)
+				: 0;
+	}
+
 	public final void balance(final BlockBuilder builder) {
 		final Container oldCont = this.container;
 

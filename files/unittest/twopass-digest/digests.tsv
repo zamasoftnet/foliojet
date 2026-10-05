@@ -1585,7 +1585,8 @@ fuzz-repro/oversized-footnote-after-multicol.html	2	e4a9c899fc8323cb568c8e57c60c
 fuzz-repro/oversized-top-float-before-flow.html	1	88fdb587090010c31a0e738095a0e0d63f3ac0ffffc231f72da5d3adac2aa1d3
 fuzz-repro/rescue-split-open-chain-member.html	1	c99a32b2e9aeaf745dc48fe0d8d40689843ef0f766128b98dd658d2f817e10cd
 fuzz-repro/rescue-split-open-chain-member.html	2	e7c5e04e43891881db63cbbbc0aac48e31ea4fd6fad2770ca2749ce5d237a81c
-fuzz-repro/seed-5448946-nested-writing-mode.html	1	8df8fcc5ff1727ab5419f614309832ded803df5e0efea2b32661f1c5a691b29f
+fuzz-repro/seed-5448946-nested-writing-mode.html	1	59795486740aaf8bb57dbd1a517398980928e5f178fc7bc28843004185f45257
+fuzz-repro/seed-5448946-nested-writing-mode.html	2	c6389bb4283207dd5f595c70f8a22d4e7731d3266c138a75c99fa55aa02f3859
 fuzz-repro/top-float-exclusion-after-limit-shrinks.html	1	f2c01e0d33cebac2eee9c637a66331352a85eca2132f32b9835942d0ac1a4087
 fuzz-repro/top-float-exclusion-after-limit-shrinks.html	2	f89199a92e3a9f7a181d9fb3dc9da2827f9a566ffb1b31272392063102a778d8
 fuzz-repro/vertical-table-first-cell-reading-order.html	1	394f04783defd5df37789ff7e6a11e4bc77d63d3d071afd4afe97aaf479e0730

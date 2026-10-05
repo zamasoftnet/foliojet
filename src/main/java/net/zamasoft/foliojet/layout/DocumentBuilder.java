@@ -1233,7 +1233,8 @@ public class DocumentBuilder implements TableBuilderHost {
 					if (!parentBuilder.isTwoPass() && entry.builder.isTwoPass()) {
 						// インラインブロックボックスの幅が明示されてなかった場合
 						final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) entry.builder;
-						inlineBlockBox.shrinkToFit(parentBuilder, stfBuilder.intrinsicSizesMeasured(), false);
+						inlineBlockBox.shrinkToFit(parentBuilder,
+								this.shrinkToFitSizes(inlineBlockBox, stfBuilder, parentBuilder), false);
 						final BlockBuilder inlineBlockBuilder = new BlockBuilder(this.pageContextBuilder(), inlineBlockBox);
 						stfBuilder.bind(inlineBlockBuilder, this.replayIntent);
 						inlineBlockBuilder.close();
@@ -1298,7 +1299,8 @@ public class DocumentBuilder implements TableBuilderHost {
 						if (entry.builder.isTwoPass()) {
 							// ビルド
 							final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-							blockBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+							blockBox.shrinkToFit(parentBuilder, this.shrinkToFitSizes(blockBox, contentBuilder, parentBuilder),
+									false);
 							final BlockBuilder bindBuilder = new BlockBuilder(this.pageContextBuilder(), blockBox);
 							contentBuilder.bind(bindBuilder, this.replayIntent);
 							bindBuilder.close();
@@ -1354,7 +1356,8 @@ public class DocumentBuilder implements TableBuilderHost {
 					}
 					if (entry.builder.isTwoPass()) {
 						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-						pageFloatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+						pageFloatBox.shrinkToFit(parentBuilder,
+								this.shrinkToFitSizes(pageFloatBox, contentBuilder, parentBuilder), false);
 						final BlockBuilder pageFloatBuilder = new BlockBuilder(this.pageContextBuilder(), pageFloatBox);
 						// 浮動体・脚注と同じ理由で、使い捨て計測の最中は消費しない
 						contentBuilder.bind(pageFloatBuilder, this.replayIntent);
@@ -1792,4 +1795,31 @@ public class DocumentBuilder implements TableBuilderHost {
 	private void requireNotDiscarded() {
 		if (this.discarded) throw new IllegalStateException("破棄済み文書への入力");
 	}
+	/**
+	 * shrink-to-fit の箱の固有寸法です(2026-10-05)。直交する中身(縦組みの入れ物の中の横組みの表・段落など)が
+	 * あれば、計測用の再生(本文を消費しない)で箱に一度組み、直交する子の実際の広がりを読んで、模倣計測の代用値
+	 * (表の幅・1 行ぶん)と差し替える。組んだ中身は捨てて空に戻す。jigensha の報告: 縦組みの float: bottom の
+	 * 入れ物の中の横組みの表が、表の幅を入れ物の高さとして数えられ、版面の下へはみ出した。
+	 */
+	private net.zamasoft.foliojet.layout.sizing.IntrinsicSizes shrinkToFitSizes(
+			final net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox box, final TwoPassBlockBuilder content,
+			final Builder parent) {
+		final net.zamasoft.foliojet.layout.sizing.IntrinsicSizes measured = content.intrinsicSizesMeasured();
+		if (!content.hasOrthogonalContent() || this.replayIntent == ReplayIntent.MEASURE || box.getColumnCount() > 1) {
+			return measured;
+		}
+		box.shrinkToFit(parent, measured, false);
+		final BlockBuilder trial = new BlockBuilder(this.pageContextBuilder(), box);
+		content.bind(trial, ReplayIntent.MEASURE);
+		trial.close();
+		final double extent = box.orthogonalContentLineExtent();
+		box.resetContentForRelayout();
+		if (!(extent > 0)) {
+			return measured;
+		}
+		final net.zamasoft.foliojet.layout.sizing.IntrinsicSizes base = content.intrinsicSizesWithoutOrthogonal();
+		return new net.zamasoft.foliojet.layout.sizing.IntrinsicSizes(Math.max(base.minContent(), extent),
+				Math.max(base.maxContent(), extent), measured.minPage(), measured.columnInflated());
+	}
+
 }

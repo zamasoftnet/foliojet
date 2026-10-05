@@ -47,6 +47,15 @@ final class IntrinsicMeasurer {
 
 	private double maxStartFloatAdvance = 0, maxEndFloatAdvance = 0;
 
+	/**
+	 * 直交する子(書字方向の軸が違う表・ブロック)の行方向の寄与です(2026-10-05)。模倣計測はその子の行方向の寸法
+	 * (縦組みの親では高さ)を知らず、表の幅や 1 行ぶんで代わりにしている。{@link #sizes()} は従来どおり含めて返し、
+	 * {@link #sizesWithoutOrthogonal()} は含めずに返す——組んで測り直す側(DocumentBuilder)が実寸と差し替える。
+	 */
+	private double orthogonalMinLine = 0, orthogonalMaxLine = 0;
+
+	private boolean orthogonalContent;
+
 	private int columnCount = 1;
 
 	/**
@@ -98,7 +107,18 @@ final class IntrinsicMeasurer {
 	}
 
 	IntrinsicSizes sizes() {
+		return new IntrinsicSizes(Math.max(this.minLineSize, this.orthogonalMinLine),
+				Math.max(this.maxLineSize, this.orthogonalMaxLine), this.minPageSize, this.columnInflated);
+	}
+
+	/** 直交する子の寄与を除いた固有寸法です({@link #orthogonalMinLine} を参照)。 */
+	IntrinsicSizes sizesWithoutOrthogonal() {
 		return new IntrinsicSizes(this.minLineSize, this.maxLineSize, this.minPageSize, this.columnInflated);
+	}
+
+	/** 直交する子(表・ブロック)を含むか。 */
+	boolean hasOrthogonalContent() {
+		return this.orthogonalContent;
 	}
 
 	void start(AbstractContainerBox containerBox) {
@@ -447,7 +467,17 @@ final class IntrinsicMeasurer {
 		this.maxLineSize = Math.max(this.maxLineSize, max * this.columnCount + this.lineFrame);
 	}
 
-	void table(final IntrinsicSizes tableSizes) {
+	void table(final IntrinsicSizes tableSizes, final boolean orthogonal) {
+		if (orthogonal) {
+			// 直交する表の固有寸法は表の行方向(表の幅)で、親の行方向ではない。従来どおりの寄与は別に持つ
+			this.orthogonalContent = true;
+			this.columnInflated |= tableSizes.columnInflated();
+			this.orthogonalMinLine = Math.max(this.orthogonalMinLine,
+					tableSizes.minContent() * this.columnCount + this.lineFrame);
+			this.orthogonalMaxLine = Math.max(this.orthogonalMaxLine,
+					tableSizes.maxContent() * this.columnCount + this.lineFrame);
+			return;
+		}
 		// 表の幅は表側のアルゴリズムが持つため従来どおりクランプしない
 		this.spannedContribution(tableSizes);
 	}
@@ -533,6 +563,12 @@ final class IntrinsicMeasurer {
 			// 子のページ方向の最小厚みが、親から見た行方向の幅になる。
 			minLine = maxLine = childSizes.minPage() + frameLine;
 			minPage = childSizes.minContent() + framePage;
+			// 最小厚み(1 行ぶん)は子の実際の高さではない。組んで測り直す側のために別に持つ(2026-10-05)
+			this.orthogonalContent = true;
+			this.orthogonalMinLine = Math.max(this.orthogonalMinLine, minLine * this.columnCount + this.lineFrame);
+			this.orthogonalMaxLine = Math.max(this.orthogonalMaxLine, maxLine * this.columnCount + this.lineFrame);
+			this.minPageSize = Math.max(this.minPageSize, minPage + this.pageFrame);
+			return;
 		}
 
 		this.minLineSize = Math.max(this.minLineSize,

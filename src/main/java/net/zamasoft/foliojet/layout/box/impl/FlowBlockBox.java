@@ -194,7 +194,14 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		containerBox = builder.getFlow(builder.getFlowCount() - 2).box;
 
 		Align align = this.resolvedAlign;
-		if (containerBox.getBlockParams().flow.isVertical()) {
+		final boolean containerVertical = containerBox.getBlockParams().flow.isVertical();
+		// 直交する表(縦組みの中の横組みの表など)で、親の行方向の寸法(縦組みの親では高さ)がまだ分からない
+		// (行を組む前の浮動体の中など)ときは、auto の余白で寄せない(2026-10-05)。寸法 0 のまま中央へ寄せると
+		// 余白が親の行の長さの半分になり、表が親の中ほどから下へはみ出した(jigensha の報告)。寸法が分かって
+		// から置く経路では BlockBuilder.addFlowBound が寄せる
+		final boolean unsizedOrthogonal = containerVertical != this.getBlockParams().flow.isVertical()
+				&& LayoutUtils.compare(containerVertical ? this.height : this.width, 0) <= 0;
+		if (containerVertical) {
 			// 縦書き
 			if (align == Align.START) {
 				Insets margin = this.getBlockParams().frame.margin;
@@ -207,7 +214,9 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				}
 			}
 			final double remainder = containerBox.getLineSize() - this.height;
-			switch (align) {
+			switch (unsizedOrthogonal ? null : align) {
+			case null:
+				break;
 			case Align.START:
 				this.frame.margin.bottom = remainder;
 				break;
@@ -245,7 +254,9 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			if (remainder < 0) {
 				align = Align.START;
 			}
-			switch (align) {
+			switch (unsizedOrthogonal ? null : align) {
+			case null:
+				break;
 			case Align.START:
 				this.frame.margin.right = remainder;
 				break;

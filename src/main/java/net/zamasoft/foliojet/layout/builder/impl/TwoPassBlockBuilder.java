@@ -519,6 +519,19 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		return this.measurer.sizes();
 	}
 
+	/**
+	 * 直交する子(縦組みの中の横組みの表・ブロックなど)を含むか(2026-10-05)。含むなら模倣計測の行方向の寸法は
+	 * その子の実寸を知らないので、shrink-to-fit の側が一度組んで測り直す({@code DocumentBuilder})。
+	 */
+	public boolean hasOrthogonalContent() {
+		return this.measurer.hasOrthogonalContent();
+	}
+
+	/** 直交する子の寄与を除いた模倣計測の固有寸法です。 */
+	public IntrinsicSizes intrinsicSizesWithoutOrthogonal() {
+		return this.measurer.sizesWithoutOrthogonal();
+	}
+
 	public boolean isMain() {
 		return false;
 	}
@@ -594,7 +607,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	public void addTable(net.zamasoft.foliojet.layout.builder.RetainedTable autoTableBuilder) {
 		autoTableBuilder.prepareLayout();
 		final IntrinsicSizes tableSizes = autoTableBuilder.getIntrinsicSizes();
-		this.measurer.table(tableSizes);
+		this.measurer.table(tableSizes, autoTableBuilder.getTableBox().getBlockBox().getBlockParams().flow
+				.isVertical() != this.getFlowBox().getBlockParams().flow.isVertical());
 		this.noteLayoutContent();
 		this.ownershipLedger().addPlan(autoTableBuilder, OwnershipLedger.Kind.TABLE);
 		switch (autoTableBuilder.getTableBox().getBlockBox().getPos().getType()) {

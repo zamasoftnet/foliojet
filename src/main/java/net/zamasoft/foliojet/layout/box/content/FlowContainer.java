@@ -259,6 +259,46 @@ public class FlowContainer implements Container {
 		return this.flows == null ? 0 : this.flows.size();
 	}
 
+	/**
+	 * 直交する子孫(書字方向の軸が {@code flow} と違う箱)が {@code flow} の行方向に占める広がりの最大です
+	 * (内容域の始端から、2026-10-05)。shrink-to-fit の箱を一度組んで測り直すのに使う
+	 * ({@code DocumentBuilder})。直交する子はボーダーボックスに auto でない余白を足した寸法(auto の余白は
+	 * 寸法の決まる前に解決されることがあるので数えない)、同じ向きのブロックは枠を足して中を辿る。文字の行は数えない
+	 * (模倣計測が正しく測っている)。
+	 */
+	public final double orthogonalLineExtent(final WritingMode flow) {
+		double max = 0;
+		if (this.flows == null) {
+			return max;
+		}
+		for (final Flow f : this.flows) {
+			if (!(f.box instanceof AbstractContainerBox child)) {
+				continue;
+			}
+			final AbsoluteRectFrame frame = child.getFrame();
+			final net.zamasoft.foliojet.layout.box.params.Insets specified = frame.frame.margin;
+			final boolean vertical = flow.isVertical();
+			final boolean startAuto = (vertical ? specified.getTopType() : specified.getLeftType())
+					== net.zamasoft.foliojet.layout.box.params.LengthType.AUTO;
+			final boolean endAuto = (vertical ? specified.getBottomType() : specified.getRightType())
+					== net.zamasoft.foliojet.layout.box.params.LengthType.AUTO;
+			final double margins = (startAuto ? 0 : vertical ? frame.margin.top : frame.margin.left)
+					+ (endAuto ? 0 : vertical ? frame.margin.bottom : frame.margin.right);
+			final double border = frame.getBorderLineExtent(flow);
+			if (child.getBlockParams().flow.isVertical() != vertical) {
+				final double inner = vertical ? child.getHeight() - frame.getFrameHeight()
+						: child.getWidth() - frame.getFrameWidth();
+				max = Math.max(max, inner + border + margins);
+			} else if (child.getContainer() instanceof FlowContainer inner) {
+				final double nested = inner.orthogonalLineExtent(flow);
+				if (nested > 0) {
+					max = Math.max(max, nested + border + margins);
+				}
+			}
+		}
+		return max;
+	}
+
 	@Override
 	public final boolean isFirstFlow(final IFlowBox box) {
 		return this.flows != null && !this.flows.isEmpty() && this.flows.get(0).box == box;
