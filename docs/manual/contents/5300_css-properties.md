@@ -79,7 +79,7 @@ CSS3以降のモジュール(段組・縦書き・Gridレイアウト・論理�
 | display | する | `contents`<span class="since">4.0.0</span>(要素自身のボックスを作らず子を親へ流す)に対応します。`run-in`と`inline-flex`/`inline-grid`には対応していません。 |
 | <span class="negative">elevation</span> | しない | 音声スタイルのため、印刷には無関係です。 |
 | empty-cells | する | |
-| float | する | |
+| float | する | 独立した整形文脈を作るブロック(<span class="cssdecl">display: flow-root;</span>、<tt>overflow</tt>が<tt>visible</tt>以外、flex・grid・段組)はフロートに重ならず、フロートの横の幅に箱ごと狭まります。横に入らないとき(幅を指定した箱が収まらない、または全幅のフロートの後)はフロートの下へ送ります(CSS 2.1 9.5)<span class="since">4.0.0</span>。ふつうのブロックは全幅のままで、中の行だけが回り込みます。 |
 | font-family | する | |
 | font-size | する | |
 | font-style | する | |

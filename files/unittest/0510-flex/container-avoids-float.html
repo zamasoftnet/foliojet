@@ -3,7 +3,8 @@
 /* flex/gridコンテナ(独立整形文脈)はfloatと重ならない(CSS 2.1 §9.5、
    2026-08-27)。従来は帯絞りがマルチカラム限定で、floatラベルの隣の
    flexリストが重なっていた(asahi.comフッター)。期待: flex/gridの
-   コンテナはx=110px開始・幅280px。plain blockは従来どおり重なる。
+   コンテナはx=110px開始・幅280px。overflow:hiddenの箱も同じ(2026-10-05、
+   以前は中の字だけ回り込み、箱は全幅だった)。plain blockは従来どおり重なる。
    tableが下へ落ちるのは既知の別差異(Chromeは横に置く)。 */
 @page { size: 400px 400px; margin: 0 }
 body { margin: 10px; font: 11px sans-serif }

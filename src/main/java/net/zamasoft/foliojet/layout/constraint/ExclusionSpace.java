@@ -183,6 +183,16 @@ public final class ExclusionSpace {
 		return new AxisSpan(lineStart, lineEnd);
 	}
 
+	/** {@code pageAxis}より後で終わる浮動体のうち、いちばん早い終わりです(無ければ NaN、2026-10-05)。 */
+	public double nextPageEndAfter(final double pageAxis) {
+		for (final FloatExclusion exclusion : this.ascendingByPageEnd) {
+			if (exclusion.pageSpan().end() > pageAxis) {
+				return exclusion.pageSpan().end();
+			}
+		}
+		return Double.NaN;
+	}
+
 	/** {@code pageAxis}を含む帯の浮動体のうち、いちばん遅く終わるものの終わりです(無ければ NaN、2026-10-05)。 */
 	public double bandEndAt(final double pageAxis) {
 		double end = Double.NaN;

@@ -722,33 +722,48 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.requireNoOpenTextBuilder("(no context)");
 		AbstractContainerBox containerBox = this.getFlowBox();
 		final BlockParams cParams = containerBox.getBlockParams();
-		double xmargin = 0;
-		double lineSize = containerBox.getLineSize();
-		if (flowBox.getColumnCount() > 1
+		final AxisSpan containerBand = new AxisSpan(this.lineAxis, this.lineAxis + containerBox.getLineSize());
+		// 通常の浮動体で狭めた行方向の帯(差し込みの前)
+		AxisSpan floatBand = containerBand;
+		final boolean avoidsFloats = avoidsFloats(flowBox);
+		if (avoidsFloats) {
+			// 独立した整形文脈の箱は浮動ボックスを避ける(CSS 2.1 §9.5——border boxがfloatの
+			// margin boxに重ならない。排除域はExclusionSpace queryへ一本化済み——2026-07-23、P0完了)。
+			// 段組、flex/grid(2026-08-27、asahi.comフッターのfloatラベルへ隣のflexリストが重なった実バグ)、
+			// flow-root・overflowがvisible以外の箱(2026-10-05、背景と罫がfloatの下まで伸びていた。
+			// Chromeは箱ごと狭める)。帯はコンテナ開始時点の排除域で確定する
+			floatBand = this.snapshotExclusions().narrowLineBandForMulticol(this.pageAxis, containerBand);
+		}
+		if (narrower(floatBand, containerBand) || flowBox.getColumnCount() > 1
 				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
 				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.GridBox) {
-			// マルチカラムの場合浮動ボックスを避ける(排除域は
-			// ExclusionSpace queryへ一本化済み——2026-07-23、P0完了)。
-			// flex/gridコンテナも独立整形文脈のためfloatと重ならない
-			// (CSS 2.1 §9.5——border boxがfloatのmargin boxを避ける。
-			// 2026-08-27、asahi.comフッターのfloatラベルへ隣のflexリストが
-			// 重なった実バグ)。帯はコンテナ開始時点の排除域で確定する
-			final ExclusionSpace snapshot = this.snapshotExclusions();
-			final AxisSpan band = snapshot.narrowLineBandForMulticol(this.pageAxis,
-					new AxisSpan(this.lineAxis, this.lineAxis + lineSize));
-			xmargin = band.start() - this.lineAxis;
-			lineSize = band.extent();
+			this.calculateSizeIn(flowBox, floatBand, insetStart, insetEnd);
+		} else {
+			// 狭まらなかった箱には容器の行の長さをそのまま渡す。帯の端から引き直すと 1 ulp ずれて、
+			// flow-root・overflow の箱の幅の digest が揺れた(段組・flex・grid は以前から帯の値)
+			this.calculateSizeIn(flowBox, 0, containerBox.getLineSize(), insetStart, insetEnd);
 		}
-		// ページフロートの帯で狭める前の行方向の帯(差し込みの前)
-		final AxisSpan floatBand = new AxisSpan(this.lineAxis + xmargin, this.lineAxis + xmargin + lineSize);
-		if (insetStart != 0 || insetEnd != 0) {
-			final double inset = insetStart + insetEnd;
-			if (inset < lineSize) {
-				xmargin += insetStart;
-				lineSize -= inset;
+		if (avoidsFloats && narrower(floatBand, containerBand)) {
+			// 浮動体の横に入らなければ、入るところまで浮動体の下へ下げる(CSS 2.1 §9.5、2026-10-05。Chromeも同じ)。
+			// 従来は幅を指定した箱は横に置いて版面の外へはみ出し、全幅の浮動体の後の箱は幅 0 に潰れた(msn の
+			// タブの下の天気の箱)。下げた位置が枠の始まり
+			final ExclusionSpace snapshot = this.snapshotExclusions();
+			double at = Double.NaN;
+			while (narrower(floatBand, containerBand) && !this.fitsBeside(flowBox, cParams, floatBand)) {
+				final double next = snapshot.nextPageEndAfter(Double.isNaN(at) ? this.pageAxis : at);
+				if (Double.isNaN(next)) {
+					break;
+				}
+				at = next;
+				floatBand = snapshot.narrowLineBandForMulticol(at, containerBand);
+				this.calculateSizeIn(flowBox, floatBand, insetStart, insetEnd);
+			}
+			if (!Double.isNaN(at)) {
+				this.poLastMargin = this.neLastMargin = 0;
+				this.pageAxis = at
+						- (cParams.flow.isVertical() ? flowBox.getFrame().margin.right : flowBox.getFrame().margin.top);
 			}
 		}
-		flowBox.calculateSize(this, xmargin, lineSize);
 		final FlowPos pos = flowBox.getFlowPos();
 
 		if (establishesIndependentFloatScope(flowBox, cParams)) {
@@ -782,7 +797,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 		}
 
-		if (avoidsFloats(flowBox)) {
+		if (avoidsFloats) {
 			// ページフロートの帯も避ける(2026-10-05)。中の行は頁の排除域を見ずに組まれる(grid など)か、
 			// 箱が狭まらずに背景と罫が図版に重なった(flow-root、jigensha の縦組みの本の吹き出しとコラム)。
 			// 箱が必ず占める範囲——余白を相殺した後の枠の始まりから、ブロック方向の罫とパディングと 1 行
@@ -796,16 +811,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			if (pageBand.extent() > 0 && (LayoutUtils.compare(pageBand.start(), floatBand.start()) != 0
 					|| LayoutUtils.compare(pageBand.end(), floatBand.end()) != 0)) {
 				++this.pageFloatNarrowings;
-				xmargin = pageBand.start() - this.lineAxis;
-				lineSize = pageBand.extent();
-				if (insetStart != 0 || insetEnd != 0) {
-					final double inset = insetStart + insetEnd;
-					if (inset < lineSize) {
-						xmargin += insetStart;
-						lineSize -= inset;
-					}
-				}
-				flowBox.calculateSize(this, xmargin, lineSize);
+				this.calculateSizeIn(flowBox, pageBand, insetStart, insetEnd);
 			}
 		}
 
@@ -1849,14 +1855,64 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 	/**
 	 * 浮動体を避けて狭まる箱か(CSS 2.1 §9.5——独立した整形文脈を作る箱の border box は浮動体の
-	 * margin box に重ならない)。段組・flex・grid は通常の浮動体も避ける。flow-root・overflow が
-	 * visible 以外の箱は今はページフロートだけ避ける(2026-10-05)。
+	 * margin box に重ならない)。通常の浮動体もページフロートも避ける(flow-root・overflow が visible 以外の箱を
+	 * 加えたのは 2026-10-05)。
 	 */
 	private static boolean avoidsFloats(final FlowBlockBox flowBox) {
 		final BlockParams params = flowBox.getBlockParams();
 		return flowBox.getColumnCount() > 1 || flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
 				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.GridBox || params.flowRoot
 				|| params.overflow != OverflowMode.VISIBLE;
+	}
+
+	/** 行方向の帯 {@code band} に、差し込みを除いて箱の寸法を決めます(帯の始まりが箱の行方向の位置)。 */
+	private void calculateSizeIn(final FlowBlockBox flowBox, final AxisSpan band, final double insetStart,
+			final double insetEnd) {
+		this.calculateSizeIn(flowBox, band.start() - this.lineAxis, band.extent(), insetStart, insetEnd);
+	}
+
+	/** 行方向の位置 {@code xmargin}・長さ {@code lineSize} に、差し込みを除いて箱の寸法を決めます。 */
+	private void calculateSizeIn(final FlowBlockBox flowBox, double xmargin, double lineSize, final double insetStart,
+			final double insetEnd) {
+		if (insetStart != 0 || insetEnd != 0) {
+			final double inset = insetStart + insetEnd;
+			if (inset < lineSize) {
+				xmargin += insetStart;
+				lineSize -= inset;
+			}
+		}
+		flowBox.calculateSize(this, xmargin, lineSize);
+	}
+
+	/** {@code band} が {@code full} より狭いか(浮動体で狭まったか)。 */
+	private static boolean narrower(final AxisSpan band, final AxisSpan full) {
+		return LayoutUtils.compare(band.start(), full.start()) != 0 || LayoutUtils.compare(band.end(), full.end()) != 0;
+	}
+
+	/**
+	 * 帯 {@code band} に置いた箱が浮動体の横に入るか。行方向の寸法を指定した箱は、その寸法と枠と余白が帯に
+	 * 収まれば入る。auto の箱は帯を埋めるので、内容の幅に 1 字ぶんが取れれば入るとみなす(Chrome は中身の
+	 * 最小内容寸法で決めるが、流し込みの前には分からない)。
+	 */
+	private boolean fitsBeside(final FlowBlockBox flowBox, final BlockParams cParams, final AxisSpan band) {
+		if (flowBox.getBlockParams().size.getLineType(cParams.flow) != LengthType.AUTO) {
+			return LayoutUtils.compare(this.placedLineExtent(flowBox, cParams, band), band.extent()) <= 0;
+		}
+		return LayoutUtils.compare(flowBox.getInnerLineExtent(cParams.flow),
+				flowBox.getBlockParams().fontStyle.getSize()) >= 0;
+	}
+
+	/**
+	 * 帯 {@code band} に置いた箱が要る行方向の量(枠の箱と、正の行方向の余白)。始端の余白には
+	 * {@code calculateSize} が帯の位置を足し込んでいるので、それを除く。
+	 */
+	private double placedLineExtent(final FlowBlockBox flowBox, final BlockParams cParams, final AxisSpan band) {
+		final AbsoluteRectFrame frame = flowBox.getFrame();
+		final boolean vertical = cParams.flow.isVertical();
+		final double offset = band.start() - this.lineAxis;
+		return flowBox.getInnerLineExtent(cParams.flow) + frame.getBorderLineExtent(cParams.flow)
+				+ Math.max(0, (vertical ? frame.margin.top : frame.margin.left) - offset)
+				+ Math.max(0, vertical ? frame.margin.bottom : frame.margin.right);
 	}
 
 	/** 開こうとしている箱の枠の始まり(余白を前の余白と相殺した後。下の相殺と同じ計算)。 */
