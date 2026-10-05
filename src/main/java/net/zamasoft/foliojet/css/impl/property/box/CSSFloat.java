@@ -60,6 +60,12 @@ public class CSSFloat extends AbstractPrimitivePropertyInfo {
 				return CSSFloatValue.PAGE_TOP_VALUE;
 			} else if (ident.equals("bottom")) {
 				return CSSFloatValue.PAGE_BOTTOM_VALUE;
+			} else if (ident.equals("block-start")) {
+				// css-page-floats の論理の向き(2026-10-05)。縦組みで top/bottom を物理の上下にしたので、
+				// それまでの縦組みの置き方(ブロックの先頭・末尾)はこちらで書く
+				return CSSFloatValue.PAGE_BLOCK_START_VALUE;
+			} else if (ident.equals("block-end")) {
+				return CSSFloatValue.PAGE_BLOCK_END_VALUE;
 			} else if (ident.equals("footnote")) {
 				// GCPM/Prince系の脚注float(F0、2026-07-31)
 				return CSSFloatValue.FOOTNOTE_VALUE;

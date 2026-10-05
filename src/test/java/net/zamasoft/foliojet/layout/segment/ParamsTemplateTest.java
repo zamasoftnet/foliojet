@@ -187,9 +187,9 @@ public class ParamsTemplateTest extends TestCase {
 		final FloatPos footnote = FloatPosTemplate
 				.freeze(new net.zamasoft.foliojet.layout.box.params.FootnotePos()).materialize();
 		final FloatPos pageTop = FloatPosTemplate
-				.freeze(new net.zamasoft.foliojet.layout.box.params.PageFloatPos(true)).materialize();
+				.freeze(new net.zamasoft.foliojet.layout.box.params.PageFloatPos(true, true)).materialize();
 		final FloatPos pageBottom = FloatPosTemplate
-				.freeze(new net.zamasoft.foliojet.layout.box.params.PageFloatPos(false)).materialize();
+				.freeze(new net.zamasoft.foliojet.layout.box.params.PageFloatPos(false, false)).materialize();
 		final FloatPos noteStart = FloatPosTemplate
 				.freeze(new net.zamasoft.foliojet.layout.box.params.PageMarginNotePos(true)).materialize();
 		final FloatPos noteEnd = FloatPosTemplate
@@ -199,6 +199,9 @@ public class ParamsTemplateTest extends TestCase {
 		assertTrue(pageTop instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos);
 		assertTrue(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageTop).top);
 		assertFalse(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageBottom).top);
+		// 物理の top と論理の block-end も再生で取り違えない(2026-10-05)
+		assertTrue(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageTop).physical);
+		assertFalse(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageBottom).physical);
 		assertTrue(noteStart instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos);
 		assertTrue(((net.zamasoft.foliojet.layout.box.params.PageMarginNotePos) noteStart).start);
 		assertFalse(((net.zamasoft.foliojet.layout.box.params.PageMarginNotePos) noteEnd).start);

@@ -285,7 +285,7 @@ public class BoxRecipeBoxFactoryTest extends TestCase {
 						.freeze(new net.zamasoft.foliojet.layout.box.params.FootnotePos())));
 		final INonReplacedBox pageBottom = BoxRecipeBoxFactory.create(new BoxRecipe.FloatBlock(
 				BlockParamsTemplate.freeze(blockParams()), FloatPosTemplate
-						.freeze(new net.zamasoft.foliojet.layout.box.params.PageFloatPos(false))));
+						.freeze(new net.zamasoft.foliojet.layout.box.params.PageFloatPos(false, true))));
 		final INonReplacedBox noteStart = BoxRecipeBoxFactory.create(new BoxRecipe.FloatBlock(
 				BlockParamsTemplate.freeze(blockParams()), FloatPosTemplate
 						.freeze(new net.zamasoft.foliojet.layout.box.params.PageMarginNotePos(true))));

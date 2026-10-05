@@ -364,9 +364,10 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertTrue("bottomのblock帯だけ左の60ptを避ける", wrapped);
 	}
 
-	/** 報告の判型でもvertical-rl bottomは左上の実矩形だけを排除する。 */
-	public void testVerticalRlBottomUsesRemainingInlineExtent() throws Exception {
-		final String html = bottomMetricDocument("vertical-rl", "width:30mm;height:45mm",
+	/** 報告の判型でもvertical-rl block-endは左上の実矩形だけを排除する。 */
+	public void testVerticalRlBlockEndUsesRemainingInlineExtent() throws Exception {
+		// 縦組みの bottom は 2026-10-05 から用紙の下(VerticalPageFloatTest)。ブロックの末尾の置き方は block-end
+		final String html = bottomMetricDocument("vertical-rl", "float:block-end;width:30mm;height:45mm",
 				"<p class='body'>" + words("BOTTOMV", 260) + "</p>");
 		final Capture capture = transcode("vertical-rl-bottom", html, 1, null);
 		final BoxBounds floating = only(capture.bottomFloats(), "vertical-rl bottom");

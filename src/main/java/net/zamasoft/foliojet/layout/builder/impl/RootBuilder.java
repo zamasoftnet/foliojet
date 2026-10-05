@@ -18,7 +18,7 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.builder.PageGenerator;
 import net.zamasoft.foliojet.layout.constraint.AxisSpan;
 import net.zamasoft.foliojet.layout.constraint.ExclusionSpace;
-import net.zamasoft.foliojet.layout.constraint.FloatExclusion;
+import net.zamasoft.foliojet.layout.constraint.FloatExclusion;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
@@ -756,12 +756,21 @@ public class RootBuilder extends BreakableBuilder {
 	private long pageGeneration = 0;
 	/** 頁内の改段commit履歴。段組ownerが閉じた後も頁終了まで保持する。 */
 	private int committedColumnsOnPage;
+	/**
+	 * この頁で改段した段の本文が達した位置(頁の block 軸、最大)。後の段で登録した下端フロートの
+	 * 置き場が、前の段の既に組んだ行と重ならないかの判定に使う(2026-10-05、jigensha の報告 4)。
+	 */
+	private double committedColumnsEndOnPage;
 	private final boolean debugFootnote = Boolean.getBoolean("net.zamasoft.foliojet.debug.footnote");
 
 	/** balanceの局所再生ではなく、BreakableBuilderの改段commit成功後だけ呼ぶ。 */
 	final void columnCommitted(final BreakableBuilder builder, final Flow flow,
 			final net.zamasoft.foliojet.layout.fragment.PreparedColumnCut prepared) {
 		++this.committedColumnsOnPage;
+		// 段の頁座標はこの builder のカーソルと同じなので、改段する前の位置がその段の終端。
+		// 別の builder の改段は座標を確かめられないので、版面の端まで組まれたものとみなす
+		this.committedColumnsEndOnPage = Math.max(this.committedColumnsEndOnPage,
+				builder == this ? this.currentPagePosition() : super.getPageLimit());
 		this.traceFootnote("column-commit", null, 0, java.util.Set.of());
 		final FootnoteHost previous = this.columnFootnoteHost;
 		if (previous == null || previous.owner != prepared.owner()
@@ -843,6 +852,7 @@ public class RootBuilder extends BreakableBuilder {
 		final PageBox next = this.pageGenerator.nextPage();
 		++this.pageGeneration;
 		this.committedColumnsOnPage = 0;
+		this.committedColumnsEndOnPage = 0;
 		this.pendingCurrentTopFloats.removeIf(entry -> entry.generation() != this.pageGeneration);
 		this.pageFinished = false;
 		this.pageFloatSequence = 0;
@@ -2677,12 +2687,23 @@ public class RootBuilder extends BreakableBuilder {
 				: pageLimit - this.columnFootnoteHost.footnoteReservation;
 	}
 
-	/** 頁所属の予約だけを含む。bottom一次元予約・下限・演算順は従来どおり。 */
+	/**
+	 * 頁所属の予約だけを含む。bottom一次元予約・下限・演算順は従来どおり。
+	 *
+	 * <p>
+	 * 段組の中では下端フロートを一次元で予約する(2026-10-05、jigensha の報告 4)。段組の断片が置き場の手前で
+	 * 切れ、段の罫・高さ揃えが絵の上へ伸びない。段の行は二次元でも置き場を避けていたが、断片は頁の底まで
+	 * 伸びていた(分割できない浮動体の帯も段組では使わない——{@link #hasTwoDimensionalBottomFloatLimit})
+	 * </p>
+	 */
 	@Override
 	public double getPageOwnerLimit() {
 		final double base = super.getPageLimit();
-		final double reserved = this.pageFootnoteHost.footnoteReservation
-				+ (this.bottomFloatOneDimensionalFallback ? this.bottomFloatReservation : 0);
+		// 段組の走査は下端フロートを予約した頁だけ(深い入れ子で毎回スタックを辿らない)
+		final double reserved = this.pageFootnoteHost.footnoteReservation + (this.bottomFloatReservation != 0
+				&& (this.bottomFloatOneDimensionalFallback || this.getMulticolumnBox() != null)
+						? this.bottomFloatReservation
+						: 0);
 		if (reserved == 0) {
 			return base;
 		}
@@ -2852,12 +2873,15 @@ public class RootBuilder extends BreakableBuilder {
 			final int reservedBefore = this.bottomFloatReservedCount;
 			final double reservationBefore = this.bottomFloatReservation;
 			this.reserveBottomFloats();
-			if (this.bottomFloatReservedCount > reservedBefore && this.currentPositionPastFirstReservedBottom()) {
+			if (this.bottomFloatReservedCount > reservedBefore && (this.currentPositionPastFirstReservedBottom()
+					|| this.earlierColumnPastFirstReservedBottom())) {
 				// 本文がもう置き場の帯へ届いている。ここで予約すると頁の残りを
 				// 一次元で縮め、置き場より下の本文(錨より前の行も)が次頁へ
 				// 押し出されて、floatだけが錨より前の頁の下端に残る(⑱、時限暗号の
 				// 本の第1章で挿絵が節の見出しの前の頁に出た)。このページには
-				// 予約せず、次頁の下端へ回す(carry-inは本文より先に予約される)
+				// 予約せず、次頁の下端へ回す(carry-inは本文より先に予約される)。
+				// 段組の後の段で登録したときは、前の段の行も既に組んである(同じ本の
+				// 2 段組で、挿絵が左の段の下の数行に重なった)
 				this.bottomFloatReservedCount = reservedBefore;
 				this.bottomFloatReservation = reservationBefore;
 				this.bottomFloatsDeferredOnPage = true;
@@ -3129,6 +3153,12 @@ public class RootBuilder extends BreakableBuilder {
 						.compare(currentPosition, this.firstReservedBottomPlacedStart()) > 0;
 	}
 
+	/** この頁で先に組んだ段の本文が、現在予約した先頭bottomの実配置帯へ達しているか。 */
+	private boolean earlierColumnPastFirstReservedBottom() {
+		return this.bottomFloatReservedCount > 0 && net.zamasoft.foliojet.layout.util.LayoutUtils
+				.compare(this.committedColumnsEndOnPage, this.firstReservedBottomPlacedStart()) > 0;
+	}
+
 	/** 現在の既配置範囲と先頭bottomのplacedStartから当該ページの経路を選び直す。 */
 	private void updateBottomFloatFallbackForCurrentPosition() {
 		final boolean fallback = this.currentPositionPastFirstReservedBottom();
@@ -3156,11 +3186,13 @@ public class RootBuilder extends BreakableBuilder {
 	 * {@code [placedStart, placedEnd]}へ登録し直します。
 	 *
 	 * <p>
-	 * 描画は全writing-modeで論理{@code lineAxis=0}に置く。したがって
+	 * 描画は論理{@code lineAxis=0}に置く。したがって
 	 * horizontal-tbは左下、vertical-rlは左上(脚注があればその右)、
 	 * vertical-lrは右上(脚注があればその左)であり、論理排除域は
 	 * {@code [0, inlineExtent]}の{@link FloatSide#START}になる。設計草案の
 	 * END側矩形へ変えると現行描画と交差するため、実描画座標を正とする。
+	 * ただし縦組みの物理の {@code bottom} は行の末尾側(用紙の下)に置き、排除域も
+	 * {@link FloatSide#END} にする({@link #bottomAtLineEnd}、2026-10-05)。
 	 * </p>
 	 */
 	private void rebuildBottomPageFloatExclusions() {
@@ -3189,14 +3221,28 @@ public class RootBuilder extends BreakableBuilder {
 					order = Long.valueOf(this.nextPageFloatOrder());
 					this.bottomFloatOrders.put(floatBox, order);
 				}
-				exclusions.add(new FloatExclusion(order.longValue(), FloatSide.START,
+				final double lineExtent = floatBox.getLineExtent(flow);
+				final boolean lineEnd = this.bottomAtLineEnd(floatBox);
+				exclusions.add(new FloatExclusion(order.longValue(), lineEnd ? FloatSide.END : FloatSide.START,
 						new AxisSpan(exclusionStart, exclusionEnd),
-						new AxisSpan(0, floatBox.getLineExtent(flow))));
+						lineEnd ? new AxisSpan(this.pageBox.getLineSize() - lineExtent, this.pageBox.getLineSize())
+								: new AxisSpan(0, lineExtent)));
 			}
 			pageAxis = placedEnd;
 		}
 		this.bottomPageFloatExclusionSnapshot = ExclusionSpace.copyOfSorted(exclusions);
 		this.refreshPageFloatExclusionSnapshot();
+	}
+
+	/**
+	 * 下端フロートを行の末尾側に置くか(2026-10-05)。縦組みの物理の {@code bottom} で、行が上から下へ
+	 * 進むときだけ——用紙の下になる(css-page-floats の bottom は書字方向に応じて block-end か
+	 * inline-end)。{@code block-end} と横組みは行の始まり側(従来どおり)。
+	 */
+	private boolean bottomAtLineEnd(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBox) {
+		return floatBox.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos pos && pos.physical
+				&& this.pageBox.getBlockParams()
+						.getInlineProgression() == net.zamasoft.foliojet.layout.box.params.TypesettingMode.InlineProgression.TOP_TO_BOTTOM;
 	}
 
 	/**
@@ -3234,7 +3280,10 @@ public class RootBuilder extends BreakableBuilder {
 				throw new IllegalStateException(
 						"bottom page float repeated on page generation " + this.pageGeneration);
 			}
-			this.pageBox.getContainer().addFloating(floatBox, 0, pageAxis);
+			final double lineAxis = this.bottomAtLineEnd(floatBox)
+					? this.pageBox.getLineSize() - floatBox.getLineExtent(this.pageBox.getBlockParams().flow)
+					: 0;
+			this.pageBox.getContainer().addFloating(floatBox, lineAxis, pageAxis);
 			pageAxis += this.footnoteExtent(floatBox);
 			this.pageFloatProgressed = true;
 		}

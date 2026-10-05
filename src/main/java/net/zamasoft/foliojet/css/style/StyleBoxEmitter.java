@@ -440,11 +440,13 @@ public final class StyleBoxEmitter {
 			final InlinePos pos = new InlinePos();
 			this.mapper.setupInlinePos(pos, style);
 			blockBox = new InlineBlockBox(params, pos);
-		} else if (floating == CSSFloatValue.PAGE_TOP || floating == CSSFloatValue.PAGE_BOTTOM) {
+		} else if (CSSFloatValue.isPageFloat(floating)) {
 			// ページフロート(2026-08-02): 脚注と同じくPosType=FLOATのまま
 			// 分離builderのライフサイクルへ流し、終了時にページ台帳
 			// (RootBuilder)へ渡す。topは配置後にRoot行走査の排除域になる
-			final PageFloatPos pos = new PageFloatPos(floating == CSSFloatValue.PAGE_TOP);
+			final PageFloatPos pos = new PageFloatPos(
+					floating == CSSFloatValue.PAGE_TOP || floating == CSSFloatValue.PAGE_BLOCK_START,
+					floating == CSSFloatValue.PAGE_TOP || floating == CSSFloatValue.PAGE_BOTTOM);
 			this.mapper.setupStaticPos(pos, style);
 			blockBox = new FloatBlockBox(params, pos);
 		} else if (floating == CSSFloatValue.PAGE_NOTE_START || floating == CSSFloatValue.PAGE_NOTE_END) {
