@@ -10,5 +10,6 @@ tasks.register('test', Test) {
     testClassesDirs = root.sourceSets.test.output.classesDirs
     classpath = root.sourceSets.test.runtimeClasspath
     include root.corpusTestClasses
-    maxParallelForks = root.corpusTestClasses.size()
+    // 分割した試験を含めて約 20 クラス。ルートの 8 フォークと合わせて 24 コアに収まる数
+    maxParallelForks = 12
 }

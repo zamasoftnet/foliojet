@@ -201,6 +201,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 				}
 				final long retainedBefore = net.zamasoft.foliojet.layout.RetainedTextLimit.HIGH_WATER.get();
 				try (final Rendered range = render(entry.getValue())) {
+					keepDump(doc, range.pages());
 					compareDocument(doc, range.pages(), baseline, writeDigests, exceptions,
 							visitedExceptions, actual, report);
 					++report.converted;
@@ -1096,13 +1097,42 @@ public final class TwoPassDigestParityTest extends TestCase {
 			if (this.failure != null) return;
 			try {
 				// 画像の内容キャッシュは頁内だけ。頁間の内容変化や画像の保持延長を避ける。
-				final byte[] bytes = new DigestSerializer(new IdentityHashMap<>()).page(drawer);
+				final byte[] bytes = locationIndependent(new DigestSerializer(new IdentityHashMap<>()).page(drawer));
 				Files.write(this.directory.resolve(String.format(Locale.ROOT, "page-%04d.txt", page)), bytes,
 						java.nio.file.StandardOpenOption.CREATE_NEW, java.nio.file.StandardOpenOption.WRITE);
 			} catch (final Exception | AssertionError e) {
 				this.failure = e;
 			}
 		}
+	}
+
+	/**
+	 * {@code -Dfoliojet.twopassDigestKeep=<文書名の一部>} に当たる文書の digest の元(頁ごとの直列化)を
+	 * {@code build/reports/twopass-digest/kept/} に残します(2026-10-05、digest のずれの中身を見るため)。
+	 */
+	private static void keepDump(final String doc, final List<Path> pages) throws IOException {
+		final String keep = System.getProperty("foliojet.twopassDigestKeep");
+		if (keep == null || keep.isEmpty() || !doc.contains(keep)) {
+			return;
+		}
+		final Path dir = REPORT_DIR.resolve("kept").resolve(doc.replaceAll("[^A-Za-z0-9._-]", "_"));
+		Files.createDirectories(dir);
+		for (final Path page : pages) {
+			Files.copy(page, dir.resolve(page.getFileName()), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		}
+	}
+
+	/** copper4 の絶対パス(foliojet4 の親。試験は foliojet4 で走る)。 */
+	private static final String COPPER4_ROOT = Path.of("").toAbsolutePath().getParent().toString();
+
+	/**
+	 * 文書の場所を digest から外します(2026-10-05)。文書内のリンクの URI は文書の絶対パスを含むので、作業ツリーを
+	 * ext4 へ写して回す(dev/tools/wsl/mirror.sh)と digest が変わった。copper4 の絶対パスを {@code <copper4>} に置き換える。
+	 */
+	private static byte[] locationIndependent(final byte[] bytes) {
+		final String text = new String(bytes, StandardCharsets.UTF_8);
+		return text.contains(COPPER4_ROOT) ? text.replace(COPPER4_ROOT, "<copper4>").getBytes(StandardCharsets.UTF_8)
+				: bytes;
 	}
 
 	private static void deleteDump(final Path directory) throws IOException {

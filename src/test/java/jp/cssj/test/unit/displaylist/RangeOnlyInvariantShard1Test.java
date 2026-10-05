@@ -1,0 +1,10 @@
+package jp.cssj.test.unit.displaylist;
+
+import junit.framework.TestCase;
+
+/** {@link RangeOnlyInvariantTest} の 1 番の受け持ち(2026-10-05、分割の説明はそちら)。 */
+public final class RangeOnlyInvariantShard1Test extends TestCase {
+	public void testFixedManifestOwnership() throws Exception {
+		RangeOnlyInvariantTest.checkShard(1);
+	}
+}

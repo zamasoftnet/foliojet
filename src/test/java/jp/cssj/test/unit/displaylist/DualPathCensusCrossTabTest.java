@@ -11,10 +11,25 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassCensusEvent;
 
-/** 全コーパスの範囲census。変換失敗も分母へ残す。 */
+/**
+ * 全コーパスの範囲census。変換失敗も分母へ残す。
+ *
+ * <p>
+ * <b>{@value #SHARDS} 分割</b>(2026-10-05)。1 クラスで 2 分かかり試験全体の尾になっていたので、文書名の hash で分け、
+ * このクラスが 0 番、{@code DualPathCensusCrossTabShardNTest} が残りを受け持つ。表は {@code crosstab-N.tsv}。
+ * </p>
+ */
 public final class DualPathCensusCrossTabTest extends TestCase {
+	static final int SHARDS = 3;
+
 	public void testCensusCrossTab() throws Exception {
-		final var documents = TwoPassDigestParityTest.corpusDocuments();
+		checkShard(0);
+	}
+
+	/** {@code shard} 番の受け持ちの文書で census を取ります(分割した試験クラスから呼ぶ)。 */
+	static void checkShard(final int shard) throws Exception {
+		final var documents = new java.util.TreeMap<>(TwoPassDigestParityTest.corpusDocuments());
+		documents.keySet().removeIf(doc -> Math.floorMod(doc.hashCode(), SHARDS) != shard);
 		final List<String> failures = new ArrayList<>();
 		final StringBuilder rows = new StringBuilder("docPath\tevent\trootKind\tsealAttempted\tsealOutcome\tphase\tbarrierReason\titemKind\tcount\n");
 		long converted = 0, rangeBinds = 0, emptyBinds = 0;
@@ -48,11 +63,12 @@ public final class DualPathCensusCrossTabTest extends TestCase {
 		}
 		final Path report = Path.of("build/reports/twopass-census");
 		Files.createDirectories(report);
-		Files.writeString(report.resolve("crosstab.tsv"), rows, StandardCharsets.UTF_8);
-		final String summary = "documents=" + converted + "/" + documents.size()
+		Files.writeString(report.resolve("crosstab-" + shard + ".tsv"), rows, StandardCharsets.UTF_8);
+		final String summary = "shard=" + shard + "/" + SHARDS + " documents=" + converted + "/" + documents.size()
 				+ " range=" + rangeBinds + " empty=" + emptyBinds + " failures=" + failures.size();
 		System.err.println("[range census] " + summary);
-		Files.writeString(report.resolve("summary.md"), summary + "\n" + String.join("\n", failures), StandardCharsets.UTF_8);
+		Files.writeString(report.resolve("summary-" + shard + ".md"), summary + "\n" + String.join("\n", failures),
+				StandardCharsets.UTF_8);
 		assertFalse("コーパスが空", documents.isEmpty());
 		assertTrue(String.join("\n", failures), failures.isEmpty());
 		assertEquals(documents.size(), converted);

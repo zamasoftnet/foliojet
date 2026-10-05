@@ -244,8 +244,8 @@ tasks.register('prepareTestConf', Copy) {
 // 同じフォークの後ろに並ぶと、終盤は 1〜2 本だけが走る(全件 5 分のうち 1 分半)。-PsplitCorpus のとき
 // ルートの test から外し、サブプロジェクト corpus-tests の test が 1 クラス 1 フォークで同時に回す
 // (同じプロジェクトの試験タスクは並列にならない)。`gradle test --parallel -PsplitCorpus`(2026-10-05)
-ext.corpusTestClasses = ['**/TwoPassDigestParity*Test.class', '**/DualPathCensusCrossTabTest.class',
-        '**/BlankPageCharacterizationTest.class', '**/RangeOnlyInvariantTest.class', '**/IoPropertyBoundaryTest.class',
+ext.corpusTestClasses = ['**/TwoPassDigestParity*Test.class', '**/DualPathCensusCrossTab*Test.class',
+        '**/BlankPageCharacterization*Test.class', '**/RangeOnlyInvariant*Test.class', '**/IoPropertyBoundaryTest.class',
         '**/RandomDocumentFuzzTest.class', '**/IncompleteTableNumericShadowTest.class', '**/DisplayListGoldenTest.class',
         '**/DeepNestingRestyleTest.class', '**/RunningSideEffectTest.class']
 

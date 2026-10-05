@@ -57,24 +57,43 @@ public class BlankPageCharacterizationTest extends TestCase {
 	/** 1ページも生成されなかった文書の特性値。 */
 	private static final String NO_PAGES = "!no-pages";
 
+	/**
+	 * 分割数(2026-10-05)。1 クラスで 1 分半かかり試験全体の尾になっていたので、文書名の hash で分け、このクラスが
+	 * 0 番、{@code BlankPageCharacterizationShardNTest} が残りを受け持つ。各番は期待値のうち自分の文書の行だけを比べる。
+	 */
+	static final int SHARDS = 3;
+
 	public BlankPageCharacterizationTest(String name) {
 		super(name);
 	}
 
 	public void testBlankPagesAreCharacterized() throws Exception {
+		checkShard(0);
+	}
+
+	private static String keyOf(final Path doc) {
+		return Path.of("files/unittest").relativize(doc).toString().replace('\\', '/');
+	}
+
+	/** {@code shard} 番の受け持ちを検査します(分割した試験クラスから呼ぶ)。期待値が無ければ 0 番が全件で作る。 */
+	static void checkShard(final int shard) throws Exception {
+		final boolean bootstrap = !Files.exists(EXPECTED);
+		if (bootstrap && shard != 0) {
+			return;
+		}
 		final List<Path> docs = new ArrayList<>();
 		try (var s = Files.walk(Path.of("files/unittest"))) {
 			s.filter(p -> {
 				final String n = p.getFileName().toString().toLowerCase();
 				return n.endsWith(".html") || n.endsWith(".xhtml");
-			}).sorted().forEach(docs::add);
+			}).filter(p -> bootstrap || Math.floorMod(keyOf(p).hashCode(), SHARDS) == shard).sorted().forEach(docs::add);
 		}
 
 		final TreeMap<String, String> actual = new TreeMap<>();
 		for (final Path doc : docs) {
-			final String blanks = this.blankPagesOf(doc);
+			final String blanks = blankPagesOf(doc);
 			if (!blanks.isEmpty()) {
-				actual.put(Path.of("files/unittest").relativize(doc).toString().replace('\\', '/'), blanks);
+				actual.put(keyOf(doc), blanks);
 			}
 		}
 
@@ -88,17 +107,37 @@ public class BlankPageCharacterizationTest extends TestCase {
 		}
 		final String actualText = sb.toString();
 
-		if (!Files.exists(EXPECTED)) {
+		if (bootstrap) {
 			Files.writeString(EXPECTED, actualText, StandardCharsets.UTF_8);
 			fail("特性値を生成しました。内容を確認してコミットしてください: " + EXPECTED);
 		}
-		final String expectedText = Files.readString(EXPECTED, StandardCharsets.UTF_8);
-		if (!expectedText.equals(actualText)) {
-			final Path actualPath = Path.of("local/blank-page-characterization-actual.txt");
+		// 期待値のうち、この番の受け持ちの文書の行だけを比べる
+		final TreeMap<String, String> expected = new TreeMap<>();
+		for (final String line : Files.readAllLines(EXPECTED, StandardCharsets.UTF_8)) {
+			final int tab = line.indexOf('\t');
+			if (line.startsWith("#") || tab < 0) {
+				continue;
+			}
+			final String doc = line.substring(0, tab);
+			if (Math.floorMod(doc.hashCode(), SHARDS) == shard) {
+				expected.put(doc, line.substring(tab + 1));
+			}
+		}
+		if (!expected.equals(actual)) {
+			final StringBuilder diff = new StringBuilder();
+			final java.util.TreeSet<String> keys = new java.util.TreeSet<>(expected.keySet());
+			keys.addAll(actual.keySet());
+			for (final String doc : keys) {
+				if (!java.util.Objects.equals(expected.get(doc), actual.get(doc))) {
+					diff.append(doc).append(": expected=").append(expected.get(doc)).append(" actual=")
+							.append(actual.get(doc)).append('\n');
+				}
+			}
+			final Path actualPath = Path.of("local/blank-page-characterization-actual-" + shard + ".txt");
 			actualPath.getParent().toFile().mkdirs();
 			Files.writeString(actualPath, actualText, StandardCharsets.UTF_8);
-			fail("白紙ページの構成が変わりました。差分を目視確認してから期待値を更新してください。\n" + "expected=" + EXPECTED
-					+ "\nactual=" + actualPath);
+			fail("白紙ページの構成が変わりました。差分を目視確認してから期待値(" + EXPECTED + ")の該当行を直してください。\n"
+					+ diff + "actual=" + actualPath);
 		}
 	}
 
@@ -115,7 +154,7 @@ public class BlankPageCharacterizationTest extends TestCase {
      * 落ちるようになった文書も、落ちなくなった文書も差分として現れる。
 	 * </p>
 	 */
-	private String blankPagesOf(final Path doc) {
+	private static String blankPagesOf(final Path doc) {
 		// 同名ファイルが別階層にあるため、相対パス全体をディレクトリ名にする
 		// (ファイル名だけだと衝突して別文書の結果を読んでしまう)
 		final String key = Path.of("files/unittest").relativize(doc).toString().replaceAll("[^A-Za-z0-9._-]", "_");

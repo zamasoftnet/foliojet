@@ -39,11 +39,26 @@ import net.zamasoft.pdfg2d.gc.font.FontPolicyList;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
-/** T4b: 固定manifestの所有終端・lease収支とrange/empty限定のbindを検査する。 */
+/**
+ * T4b: 固定manifestの所有終端・lease収支とrange/empty限定のbindを検査する。
+ *
+ * <p>
+ * 全件の検査は <b>{@value #SHARDS} 分割</b>(2026-10-05、文書名の hash)。このクラスが 0 番、
+ * {@code RangeOnlyInvariantShardNTest} が残りを受け持つ。
+ * </p>
+ */
 public final class RangeOnlyInvariantTest extends TestCase {
+	static final int SHARDS = 2;
+
 	public void testFixedManifestOwnership() throws Exception {
-		final var manifest = TwoPassDigestParityTest.fixedManifest();
+		checkShard(0);
+	}
+
+	/** {@code shard} 番の受け持ちの文書を検査します(分割した試験クラスから呼ぶ)。 */
+	static void checkShard(final int shard) throws Exception {
+		final var manifest = new java.util.TreeMap<>(TwoPassDigestParityTest.fixedManifest());
 		assertFalse("固定manifestが空", manifest.isEmpty());
+		manifest.keySet().removeIf(doc -> Math.floorMod(doc.hashCode(), SHARDS) != shard);
 		final List<String> failures = new ArrayList<>();
 		long converted = 0, observed = 0;
 		try (final TwoPassCensus census = ContinuationStats.beginTwoPassCensus()) {
