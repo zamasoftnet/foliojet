@@ -56,6 +56,7 @@ public class MathMLInlineObject extends SAXDocumentFactory implements StyleAware
 		Graphics2D g = (Graphics2D) tempimage.getGraphics();
 		final LayoutContextImpl context = new LayoutContextImpl(LayoutContextImpl.getDefaultLayoutContext());
 		final double scale;
+		final boolean sideways = this.hostStyle != null && sideways(this.hostStyle);
 		if (this.hostStyle == null) {
 			// 文字の拡大は CSS の大きさに解析の時点で掛かっている。CSS が
 			// 無いときだけ JEuclid の既定の大きさに掛ける
@@ -72,7 +73,19 @@ public class MathMLInlineObject extends SAXDocumentFactory implements StyleAware
 					(List<String>) context.getParameter(Parameter.FONTS_SERIF)));
 		}
 		JEuclidView view = new JEuclidView(this.document, context, g);
-		return new MathMLImage(view, scale);
+		return new MathMLImage(view, scale, sideways);
+	}
+
+	/**
+	 * 縦組みの行で、式を欧文と同じく横倒しにするか(2026-10-05)。{@code text-orientation: upright} は正立のまま。
+	 * {@code sideways-rl/lr} は行ごと回すので、式は回さない。
+	 */
+	private static boolean sideways(final CSSStyle style) {
+		return net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style).isVertical()
+				&& net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant
+						.get(style) == net.zamasoft.foliojet.layout.box.params.WritingModeVariant.NORMAL
+				&& net.zamasoft.foliojet.css.impl.property.text.TextOrientation
+						.get(style) != FontStyle.TextOrientation.UPRIGHT;
 	}
 
 }

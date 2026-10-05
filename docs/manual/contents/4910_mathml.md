@@ -101,3 +101,5 @@ math { font-family: "Noto Serif", "Noto Serif JP", serif; }
 ```
 
 行の中の数式は、数式の基準線を本文の基準線に揃えて置きます。添字や括弧、y のように基準線より下へ出る部分は、本文の基準線の下へ出ます。<span class="since">4.0.0</span>
+
+縦組みの行の中の数式は、欧文と同じく90°右に回した横倒しで組みます。行の向きには式の幅だけ進み、行の幅は式の高さになります。`text-orientation: upright` のときは正立のまま置き、行の幅を式の幅まで広げます。<span class="since">4.0.0</span>

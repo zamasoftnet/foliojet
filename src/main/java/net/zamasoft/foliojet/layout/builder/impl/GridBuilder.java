@@ -1103,7 +1103,7 @@ public final class GridBuilder
 		final double ownerFrame = this.rowSubgridOwner.getFrame().getFramePageExtent(params.flow);
 		this.rowSubgridOwner.setExactUsedPageSize(Math.max(0, ownerOuter - ownerFrame));
 
-		final boolean ledgerEligible = count > 0 && !params.flow.isVertical() && allSingleRowSpan(plan, count);
+		final boolean ledgerEligible = count > 0 && allSingleRowSpan(plan, count);
 		final Integer[] order = new Integer[count];
 		for (int i = 0; i < count; ++i) {
 			order[i] = i;
@@ -1452,7 +1452,7 @@ public final class GridBuilder
 		// 並べ替える。行内はソース順を保つ安定ソート——重なるitemの描画順は
 		// CSS仕様で文書順のため、重なりのあるgridは並べ替えず従来どおり
 		// atomicへ落とす(explicit-overlapの回帰を守る)
-		final boolean ledgerEligible = !this.items.isEmpty() && contentY == 0 && !params.flow.isVertical()
+		final boolean ledgerEligible = !this.items.isEmpty() && contentY == 0
 				&& allSingleRowSpan(plan, count);
 		Integer[] order = new Integer[count];
 		for (int i = 0; i < count; ++i) {
@@ -1499,8 +1499,9 @@ public final class GridBuilder
 		this.gridBox.setPageAxis(this.items.isEmpty() ? 0 : cursor);
 		// **改ページ用の行境界の記録**(2026-08-10、G6行分割——
 		// FlexBuilder.placeRowと同型)。対象はflow順(=ソース順)が行優先で
-		// 連続し、全itemがrowSpan=1、書字が水平、align-contentの先頭余白が
-		// 無い構成だけ。帳簿を付けなければGridBox.splitは呼ばれず、従来
+		// 連続し、全itemがrowSpan=1、align-contentの先頭余白が無い構成だけ
+		// (縦組みも対象——2026-10-05。従来は除いていたので、頁に収まらない
+		// 縦組みのgridが丸ごと次頁へ送られた)。帳簿を付けなければGridBox.splitは呼ばれず、従来
 		// どおりPageAtomicBoxのatomic経路(丸ごと送り/visual rescue)に
 		// 落ちるので、ゲートに引っかかっても今より悪くならない
 		if (rowMajor) {
