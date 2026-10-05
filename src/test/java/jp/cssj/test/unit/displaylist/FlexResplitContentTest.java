@@ -23,6 +23,13 @@ import junit.framework.TestCase;
  * どちらの文書も成分を 1 つ外すと再現しない(15 変種で確認)ほど条件が狭いが、
  * 複製と読み順の崩れは絶対要件の違反なので固定する。
  * </p>
+ *
+ * <p>
+ * 2026-10-05 に seed 2010872 の縮小形の先頭の表の {@code width:76%} を {@code width:45.6pt} へ書き換えた。
+ * 縦組みの中の % の基準が用紙の幅(60pt)から版面の幅(40pt)に直り、76% では表が細くなって後の浮動体が
+ * 全部紙の外へ出て、分割の経路を通らなくなったため。45.6pt は旧い基準での 76% で、表示リストは書き換え前と同じ
+ * (頁範囲の経路は元から版面の幅を基準にしていたので、そちらの digest は変わった)。
+ * </p>
  */
 public class FlexResplitContentTest extends TestCase {
 	public FlexResplitContentTest(final String name) {

@@ -425,8 +425,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 				}
 			}
 		}
+		// 文脈の箱は内寸(2026-10-05)。外寸(getWidth)だと頁の余白まで含み、縦組みの中の横組みの表が
+		// 用紙の幅で組まれて版面の外へはみ出した(jigensha の報告)。高さ・TwoPassBlockBuilder は元から内寸
 		AbstractContainerBox box = this.getFixedWidthContextBox();
-		return box == null ? 0 : box.getWidth() - frameWidth;
+		return box == null ? 0 : box.getInnerWidth() - frameWidth;
 	}
 
 	public AbstractContainerBox getFixedWidthFlowBox() {

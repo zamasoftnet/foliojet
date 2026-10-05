@@ -31,6 +31,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 模倣計測は直交する子の行方向の寸法(縦組みの入れ物では高さ)を知らず、表の幅や 1 行ぶんで代わりにしていた。
  * そのうえ表の {@code margin: auto} が高さの決まる前に中央へ寄せられ、表が入れ物の中ほどから版面の下へはみ出した。
  * 今は入れ物を一度組んで直交する子の実寸を測り、寸法の決まらない表は寄せない。
+ * また横組みの表の幅の上限が用紙の幅(頁の余白込み)になっていて、表が版面の右の余白へはみ出していた。
  * </p>
  */
 public class OrthogonalShrinkToFitTest extends TestCase {
@@ -38,6 +39,9 @@ public class OrthogonalShrinkToFitTest extends TestCase {
 
 	/** A5・余白 21mm の版面の高さ。 */
 	private static final double CONTENT_HEIGHT = (210 - 42) * 72 / 25.4;
+
+	/** 同じく版面の幅(左右の余白 21mm・16.6mm)。 */
+	private static final double CONTENT_WIDTH = (148 - 21 - 16.6) * 72 / 25.4;
 
 	private static final Pattern FRAME = Pattern
 			.compile("x=(-?[\\d.]+) y=(-?[\\d.]+) AbsoluteRectFrame\\[w=([\\d.]+) h=([\\d.]+)\\]$", Pattern.MULTILINE);
@@ -95,7 +99,8 @@ public class OrthogonalShrinkToFitTest extends TestCase {
 		for (final String page : pages) {
 			final Matcher t = TEXT.matcher(page);
 			while (t.find()) {
-				if (t.group(3).equals("5のx乗を23で割った余り")) {
+				// 見出しは版面の幅で 2 行に折れる
+				if (t.group(3).startsWith("5のx乗")) {
 					// 中央なら表の上端は入れ物の上端から 100pt 以上下(始端に置くと 20pt ほど)
 					assertTrue("表が中央に寄っていない: " + t.group(), Double.parseDouble(t.group(2)) > 100);
 					found = true;
@@ -105,7 +110,7 @@ public class OrthogonalShrinkToFitTest extends TestCase {
 		assertTrue("表が無い", found);
 	}
 
-	/** 背景つきの入れ物が版面の下端に接し、中の文字が全部その中にある。 */
+	/** 背景つきの入れ物が版面の下端に接して版面の幅に収まり、中の文字が全部その中にある。 */
 	private static void assertFitsAtBottom(final String[] pages) {
 		boolean found = false;
 		for (final String page : pages) {
@@ -118,6 +123,9 @@ public class OrthogonalShrinkToFitTest extends TestCase {
 				}
 				found = true;
 				assertEquals("入れ物の下端は版面の下端", CONTENT_HEIGHT, bottom, 0.5);
+				final double left = Double.parseDouble(f.group(1));
+				assertTrue("入れ物が版面の幅からはみ出す: " + f.group(),
+						left >= -0.5 && left + Double.parseDouble(f.group(3)) <= CONTENT_WIDTH + 0.5);
 				final Matcher t = TEXT.matcher(page);
 				while (t.find()) {
 					final double y = Double.parseDouble(t.group(2));
