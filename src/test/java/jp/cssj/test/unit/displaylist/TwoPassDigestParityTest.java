@@ -59,12 +59,20 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * manifest/digests/例外台帳の反映は差分レビュー後に人が行う。
  * regenerateでも例外台帳の範囲側照合を省かず、legacySha256は更新しない。
  *
- * <p>WSL で {@code ./gradlew test --tests '*TwoPassDigestParityTest' --rerun-tasks -i}。
+ * <p>WSL で {@code ./gradlew test --tests '*TwoPassDigestParity*' --rerun-tasks -i}。
  * ダンプは java.io.tmpdir に置き、文書ごとに削除する。頁の byte を正規化せず比較し、
  * SHA-256 も同じ byte から取る。頁数の差は例外で免除しない。</p>
+ *
+ * <p><b>{@value #SHARDS} 分割</b>(2026-10-05)。全件を 1 クラスで回すと 170 秒かかり、試験全体の最後の 2 分を
+ * この 1 本だけが走っていた。文書名の hash で分け、このクラスが 0 番、{@code TwoPassDigestParityShard1Test}〜
+ * が残りを受け持つ(Gradle はクラス単位で並列にする)。manifest の検査は 0 番だけ。check では分担した頁の
+ * 観測値を {@code build/reports/twopass-digest/digests.actual.N.tsv} に書くので、digest が意図どおり変わったときは
+ * 作り直しの実行をせずに {@code dev/tools/accept-digests.py} で台帳へ反映できる。regenerate は 0 番が全件を回す。</p>
  */
 public final class TwoPassDigestParityTest extends TestCase {
 	private static final String PROPERTY = "foliojet.twopassDigest";
+	/** 分割数。{@code TwoPassDigestParityShardNTest}(N=1..SHARDS-1)と合わせる。 */
+	static final int SHARDS = 4;
 	private static final Path DATA_DIR = Path.of("files/unittest/twopass-digest");
 	private static final Path REPORT_DIR = Path.of("build/reports/twopass-digest");
 	private static final String BOOTSTRAP = "# bootstrap: generate on first run";
@@ -94,10 +102,15 @@ public final class TwoPassDigestParityTest extends TestCase {
 	}
 
 	public void testDigestParity() throws Exception {
+		checkShard(0);
+	}
+
+	/** {@code shard} 番の受け持ちを検査します(分割した試験クラスから呼ぶ)。 */
+	static void checkShard(final int shard) throws Exception {
 		final long started = System.nanoTime();
 		final Report report = new Report();
 		try {
-			runParity(report, started);
+			runParity(report, started, shard);
 		} finally {
 			final String elapsed = elapsed(started);
 			System.err.println("[D7] elapsed=" + elapsed + " documents=" + report.converted + "/" + report.candidates
@@ -105,15 +118,29 @@ public final class TwoPassDigestParityTest extends TestCase {
 			System.err.println("[D7] retainedTextHighWater=" + net.zamasoft.foliojet.layout.RetainedTextLimit.HIGH_WATER.get()
 					+ " bytes (processing.retained-text-limit の既定 8MiB=8388608 に対するコーパス最大。B1、2026-09-06)");
 		}
-		assertTrue("TwoPass digest parity: " + report.failures.size() + " 件。" + REPORT_DIR.resolve("summary.md")
+		assertTrue("TwoPass digest parity: " + report.failures.size() + " 件。" + REPORT_DIR.resolve(summaryName(shard))
 				+ "\n" + String.join("\n", report.failures.stream().limit(20).toList()), report.failures.isEmpty());
 	}
 
-	private static void runParity(final Report report, final long started) throws Exception {
+	private static String summaryName(final int shard) {
+		return shard == 0 ? "summary.md" : "summary-" + shard + ".md";
+	}
+
+	/** 文書の受け持ちの番号。 */
+	private static int shardOf(final String doc) {
+		return Math.floorMod(doc.hashCode(), SHARDS);
+	}
+
+	private static void runParity(final Report report, final long started, final int shard) throws Exception {
 		final String mode = System.getProperty(PROPERTY, "check");
 		require(Set.of("check", "strict", "regenerate").contains(mode), PROPERTY + " は check / strict / regenerate のみ");
 		final boolean regenerate = "regenerate".equals(mode);
+		if (regenerate && shard != 0) {
+			// 候補は全件を揃えて書くので、regenerate は 0 番が全件を回す
+			return;
+		}
 		Files.createDirectories(REPORT_DIR);
+		Files.deleteIfExists(REPORT_DIR.resolve("digests.actual." + shard + ".tsv"));
 		if (regenerate) {
 			// 今回の生成が途中で止まっても前回の候補を誤って採用させない。
 			Files.deleteIfExists(REPORT_DIR.resolve("manifest.candidate.tsv"));
@@ -129,12 +156,14 @@ public final class TwoPassDigestParityTest extends TestCase {
 				&& saved.get(entry.getKey()).source().equals(entry.getValue().source())
 				&& !Files.isRegularFile(Path.of(entry.getValue().source()))
 				&& !external(entry.getValue().source()));
-		if (!manifestTable.bootstrap()) report.drift.addAll(manifestDiff(saved, discovered));
-		for (final String line : report.drift) System.err.println("[D7 MANIFEST] " + line);
-		checkManifestDrift(report, mode);
+		if (shard == 0) {
+			if (!manifestTable.bootstrap()) report.drift.addAll(manifestDiff(saved, discovered));
+			for (final String line : report.drift) System.err.println("[D7 MANIFEST] " + line);
+			checkManifestDrift(report, mode);
+		}
 		final Map<String, CorpusInput> manifest = regenerate || manifestTable.bootstrap() ? discovered : saved;
 		require(!manifest.isEmpty(), "manifest が空");
-		if (!regenerate && manifestTable.bootstrap()) report.fail("manifest 未反映。regenerate の候補をレビューして反映する");
+		if (shard == 0 && !regenerate && manifestTable.bootstrap()) report.fail("manifest 未反映。regenerate の候補をレビューして反映する");
 		if (regenerate || manifestTable.bootstrap()) {
 			writeManifest(manifest);
 			report.manifestWritten = true;
@@ -142,18 +171,21 @@ public final class TwoPassDigestParityTest extends TestCase {
 		final Table digestTable = readTable(DATA_DIR.resolve("digests.tsv"));
 		final Map<PageKey, String> baseline = readDigests(digestTable);
 		final boolean writeDigests = regenerate || digestTable.bootstrap();
-		if (!regenerate && digestTable.bootstrap()) report.fail("digests 未反映。regenerate の候補をレビューして反映する");
+		if (shard == 0 && !regenerate && digestTable.bootstrap()) report.fail("digests 未反映。regenerate の候補をレビューして反映する");
 		final Map<PageKey, ExceptionEntry> exceptions = readExceptions(readTable(DATA_DIR.resolve("exceptions.tsv")));
 		final Map<PageKey, String> actual = new TreeMap<>(PAGE_ORDER);
 		final Set<PageKey> visitedExceptions = new HashSet<>();
 		if (!writeDigests) {
 			final Set<String> baselineDocs = new TreeSet<>();
 			baseline.keySet().forEach(key -> baselineDocs.add(key.doc()));
-			if (!baselineDocs.equals(manifest.keySet())) report.fail("manifest と digests の文書集合が不一致");
+			if (shard == 0 && !baselineDocs.equals(manifest.keySet())) report.fail("manifest と digests の文書集合が不一致");
 		}
 		{
 			for (final var entry : manifest.entrySet()) {
 				final String doc = entry.getKey();
+				if (!regenerate && shardOf(doc) != shard) {
+					continue;
+				}
 				++report.candidates;
 				if (!discovered.containsKey(doc) || !Files.isRegularFile(Path.of(entry.getValue().source()))) {
 					++report.missing;
@@ -187,6 +219,9 @@ public final class TwoPassDigestParityTest extends TestCase {
 			}
 		}
 		for (final PageKey key : exceptions.keySet()) {
+			if (!regenerate && shardOf(key.doc()) != shard) {
+				continue;
+			}
 			if (!visitedExceptions.contains(key)) {
 				report.fail(key + " 例外台帳の文書/頁を観測できない(削除・頁消失・変換失敗)");
 			}
@@ -195,15 +230,19 @@ public final class TwoPassDigestParityTest extends TestCase {
 		if (writeDigests) {
 			if (report.converted == manifest.size() && report.converted > 0) {
 				// 不一致があっても範囲側の候補は保存する。台帳は自動更新しない。
-				writeDigests(actual);
+				writeDigests(actual, "digests.candidate.tsv");
 				report.digestsWritten = true;
 			} else {
 				Files.deleteIfExists(REPORT_DIR.resolve("digests.candidate.tsv"));
 				report.fail("全件の変換が完了していないため digests.candidate.tsv は生成しない");
 			}
 		}
+		if (!writeDigests) {
+			// 観測値(分担した頁全部)。意図どおりの変化なら作り直しの実行をせずに台帳へ反映できる
+			writeDigests(actual, "digests.actual." + shard + ".tsv");
+		}
 		final String summary = summary(report, exceptions, manifest.size(), mode, started);
-		Files.writeString(REPORT_DIR.resolve("summary.md"), summary, StandardCharsets.UTF_8);
+		Files.writeString(REPORT_DIR.resolve(summaryName(shard)), summary, StandardCharsets.UTF_8);
 	}
 
 	private static void compareDocument(final String doc, final List<Path> pages,
@@ -1180,12 +1219,12 @@ public final class TwoPassDigestParityTest extends TestCase {
 		return tsv(cells.toArray(String[]::new));
 	}
 
-	private static void writeDigests(final Map<PageKey, String> digests) throws IOException {
+	private static void writeDigests(final Map<PageKey, String> digests, final String name) throws IOException {
 		final StringBuilder text = new StringBuilder("# TwoPass D7 range digests v2; UTF-8, escaped TSV\n" + DIGEST_HEADER + "\n");
 		text.append("# page は1起点・連続。頁数は文書ごとの行数。SHA-256 は D7-drawable-v1 の UTF-8/LF byte から計算。\n");
 		text.append("# レビュー後に manifest/digests/例外台帳を同時に反映。legacySha256 は履歴証拠として凍結済み。\n");
 		digests.forEach((key, digest) -> text.append(tsv(key.doc(), Integer.toString(key.page()), digest)).append('\n'));
-		Files.writeString(REPORT_DIR.resolve("digests.candidate.tsv"), text, StandardCharsets.UTF_8);
+		Files.writeString(REPORT_DIR.resolve(name), text, StandardCharsets.UTF_8);
 	}
 
 	private static String tsv(final String... cells) {

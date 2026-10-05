@@ -1,0 +1,14 @@
+// 長いコーパス試験を、ルートの軽い試験と同時に 1 クラス 1 フォークで回す試験タスク(2026-10-05)。
+// 対象と理由はルートの build.gradle の corpusTestClasses。-PsplitCorpus のときだけ走り、そのときルートの
+// test はこれらを外す。`gradle test --parallel -PsplitCorpus` で両方が同時に走る。
+apply plugin: 'java-base'
+
+def root = rootProject
+tasks.register('test', Test) {
+    onlyIf { root.hasProperty('splitCorpus') }
+    root.configureTestTask(it)
+    testClassesDirs = root.sourceSets.test.output.classesDirs
+    classpath = root.sourceSets.test.runtimeClasspath
+    include root.corpusTestClasses
+    maxParallelForks = root.corpusTestClasses.size()
+}

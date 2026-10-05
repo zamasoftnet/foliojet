@@ -21,4 +21,6 @@ includeBuild sibling('html-balancer', 'HTML_BALANCER_DIR')
 // included build にすると作業の履歴が DrvFs 上の .gradle に置かれて up-to-date の判定が揺れるので、
 // サブプロジェクトにして本体と同じ履歴を使う
 include 'jeuclid-core'
+// 長いコーパス試験だけを並列に回す試験タスク(build.gradle の corpusTestClasses)
+include 'corpus-tests'
 project(':jeuclid-core').projectDir = file('third_party/jeuclid-core')

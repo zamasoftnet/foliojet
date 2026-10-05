@@ -240,67 +240,88 @@ tasks.register('prepareTestConf', Copy) {
     }
 }
 
+// 長いコーパス試験(各 1〜2.5 分)。Gradle は試験クラスを最初に各フォークへ順番に割り振るので、これらが
+// 同じフォークの後ろに並ぶと、終盤は 1〜2 本だけが走る(全件 5 分のうち 1 分半)。-PsplitCorpus のとき
+// ルートの test から外し、サブプロジェクト corpus-tests の test が 1 クラス 1 フォークで同時に回す
+// (同じプロジェクトの試験タスクは並列にならない)。`gradle test --parallel -PsplitCorpus`(2026-10-05)
+ext.corpusTestClasses = ['**/TwoPassDigestParity*Test.class', '**/DualPathCensusCrossTabTest.class',
+        '**/BlankPageCharacterizationTest.class', '**/RangeOnlyInvariantTest.class', '**/IoPropertyBoundaryTest.class',
+        '**/RandomDocumentFuzzTest.class', '**/IncompleteTableNumericShadowTest.class', '**/DisplayListGoldenTest.class',
+        '**/DeepNestingRestyleTest.class', '**/RunningSideEffectTest.class']
+
+// 試験タスクの共通設定(ルートの test と corpus-tests の test)
+ext.configureTestTask = { Test testTask ->
+    testTask.with {
+        dependsOn tasks.named('prepareTestConf')
+        useJUnit()
+        // -PnoAssertions で本番と同じ条件(assertion無効)にする。
+        // 「不変条件が破れたまま処理が続くと出力はどうなるか」を測るため
+        enableAssertions = !project.hasProperty('noAssertions')
+        // -PtestHeap=256m 等で上書きできる。1変換あたりの必要ヒープを
+        // 二分探索で測るため(2026-07-26)
+        maxHeapSize = project.hasProperty('testHeap') ? project.property('testHeap') : '1024m'
+        // 2026-07-24: テスト実行の並列化(カイゼン)。従来は単一フォークで
+        // 全395スイート直列・7〜9分かかっていた。各テストはDirectSessionの
+        // インプロセス変換+一時ファイル(ユニーク名)で独立しており、
+        // フォーク分離(別JVM)なら静的状態も共有しない。メモリは
+        // フォーク数×maxHeapSize を上限に見積もること(30GB環境で8×1GB)。
+        // -PtestForks=N で上書きできる(2026-10-05、偏りの測定用)
+        maxParallelForks = project.hasProperty('testForks') ? (project.property('testForks') as int)
+                : Math.min(8, Runtime.runtime.availableProcessors())
+        jvmArgs '--add-exports=java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED'
+        if (project.hasProperty('jfr')) { jvmArgs "-XX:StartFlightRecording=filename=${project.property('jfr')},settings=profile,dumponexit=true" }
+        workingDir = rootProject.projectDir
+        // 一時ディレクトリ。既定の `local` は /mnt/f(DrvFs)にあり、掃過では
+        // LayoutSource の spill 等でここへも書くため I/O 律速の一因になる。
+        // -PtestTmpDir=/dev/shm/foliojet のように速い場所を指せる(2026-07-28)
+        def configuredTestTmpDir = project.hasProperty('testTmpDir') ? project.property('testTmpDir') : 'local'
+        systemProperty 'java.io.tmpdir', configuredTestTmpDir
+        systemProperty 'java.awt.headless', 'true'
+        // ハングアップ検出(進捗なし締切)。製品既定は無制限(オーナー裁定
+        // 2026-08-01——誤爆すると正当な文書が失敗するため)で、ライブロックを
+        // 失敗として検出したいテストハーネス側が明示的に有効化する。
+        // -Dfoliojet.noProgressSeconds を外から渡せば下の一括転送が上書きする
+        systemProperty 'foliojet.noProgressSeconds', '120'
+        systemProperty 'jp.cssj.driver.default', testConfDir.get().file('profiles/default.properties').asFile.absolutePath
+        // foliojet.* は一つ残らずテストJVMへ渡す。
+        // 以前は1つずつ if で列挙しており、**新しい調査用スイッチを足すたびに
+        // ここも直す必要があった**——忘れると「プロパティを渡したのに何も
+        // 起きない」という、原因の分かりにくい空振りになる(2026-07-26に踏んだ)。
+        // 個別に列挙して守るものは何もないので一括で渡す。
+        // net.zamasoft.foliojet.debug.* も同じ理由で一括で渡す(2026-07-28)。
+        // 再開トレース(resume-trace.dir)は渡されていなかったため、指定しても
+        // 何も出ず、上のコメントが書いているのと同じ空振りを起こしていた。
+        System.getProperties().stringPropertyNames().findAll {
+            it.startsWith('foliojet.') || it.startsWith('net.zamasoft.foliojet.debug.')
+        }.each { k ->
+            systemProperty k, System.getProperty(k)
+        }
+
+        // 調査用スイッチ(-Dfoliojet.fuzzShrink 等)を付けたときだけ、テストの
+        // 標準出力をそのまま見せる。既定では隠したまま——通常のフルテストで
+        // 数万行を流すと gradle のメッセージ経路が詰まる(LESSONS.md §3.16)。
+        // これが無いと `[shrink]` の出力は build/test-results の XML を
+        // 掘らないと読めず、**縮小器の自己検査の結果を見落とす**。
+        if (System.getProperties().stringPropertyNames().any {
+            it in ['foliojet.fuzzShrink', 'foliojet.fuzzShrinkFile', 'foliojet.fuzzCheckFile', 'foliojet.fuzzOnlySeed', 'foliojet.fuzzOnlySeeds', 'foliojet.fuzzReport']
+        }) {
+            testLogging.showStandardStreams = true
+        }
+
+        doFirst {
+            // java.io.tmpdir はJVM自身では作られない。掃過向けに
+            // -PtestTmpDir=/dev/shm/... を新規パスへ向けても、最初の一時
+            // ファイル生成で遅れて失敗しないようテスト開始前に用意する。
+            new File(configuredTestTmpDir).mkdirs()
+            new File(rootProject.projectDir, 'local/unittest/pdf').mkdirs()
+        }
+    }
+}
+
 tasks.named('test') {
-    dependsOn tasks.named('prepareTestConf')
-    useJUnit()
-    // -PnoAssertions で本番と同じ条件(assertion無効)にする。
-    // 「不変条件が破れたまま処理が続くと出力はどうなるか」を測るため
-    enableAssertions = !project.hasProperty('noAssertions')
-    // -PtestHeap=256m 等で上書きできる。1変換あたりの必要ヒープを
-    // 二分探索で測るため(2026-07-26)
-    maxHeapSize = project.hasProperty('testHeap') ? project.property('testHeap') : '1024m'
-    // 2026-07-24: テスト実行の並列化(カイゼン)。従来は単一フォークで
-    // 全395スイート直列・7〜9分かかっていた。各テストはDirectSessionの
-    // インプロセス変換+一時ファイル(ユニーク名)で独立しており、
-    // フォーク分離(別JVM)なら静的状態も共有しない。メモリは
-    // フォーク数×maxHeapSize を上限に見積もること(30GB環境で8×1GB)。
-    maxParallelForks = Math.min(8, Runtime.runtime.availableProcessors())
-    jvmArgs '--add-exports=java.desktop/com.sun.imageio.plugins.jpeg=ALL-UNNAMED'
-    if (project.hasProperty('jfr')) { jvmArgs "-XX:StartFlightRecording=filename=${project.property('jfr')},settings=profile,dumponexit=true" }
-    workingDir = rootProject.projectDir
-    // 一時ディレクトリ。既定の `local` は /mnt/f(DrvFs)にあり、掃過では
-    // LayoutSource の spill 等でここへも書くため I/O 律速の一因になる。
-    // -PtestTmpDir=/dev/shm/foliojet のように速い場所を指せる(2026-07-28)
-    def configuredTestTmpDir = project.hasProperty('testTmpDir') ? project.property('testTmpDir') : 'local'
-    systemProperty 'java.io.tmpdir', configuredTestTmpDir
-    systemProperty 'java.awt.headless', 'true'
-    // ハングアップ検出(進捗なし締切)。製品既定は無制限(オーナー裁定
-    // 2026-08-01——誤爆すると正当な文書が失敗するため)で、ライブロックを
-    // 失敗として検出したいテストハーネス側が明示的に有効化する。
-    // -Dfoliojet.noProgressSeconds を外から渡せば下の一括転送が上書きする
-    systemProperty 'foliojet.noProgressSeconds', '120'
-    systemProperty 'jp.cssj.driver.default', testConfDir.get().file('profiles/default.properties').asFile.absolutePath
-    // foliojet.* は一つ残らずテストJVMへ渡す。
-    // 以前は1つずつ if で列挙しており、**新しい調査用スイッチを足すたびに
-    // ここも直す必要があった**——忘れると「プロパティを渡したのに何も
-    // 起きない」という、原因の分かりにくい空振りになる(2026-07-26に踏んだ)。
-    // 個別に列挙して守るものは何もないので一括で渡す。
-    // net.zamasoft.foliojet.debug.* も同じ理由で一括で渡す(2026-07-28)。
-    // 再開トレース(resume-trace.dir)は渡されていなかったため、指定しても
-    // 何も出ず、上のコメントが書いているのと同じ空振りを起こしていた。
-    System.getProperties().stringPropertyNames().findAll {
-        it.startsWith('foliojet.') || it.startsWith('net.zamasoft.foliojet.debug.')
-    }.each { k ->
-        systemProperty k, System.getProperty(k)
-    }
-
-    // 調査用スイッチ(-Dfoliojet.fuzzShrink 等)を付けたときだけ、テストの
-    // 標準出力をそのまま見せる。既定では隠したまま——通常のフルテストで
-    // 数万行を流すと gradle のメッセージ経路が詰まる(LESSONS.md §3.16)。
-    // これが無いと `[shrink]` の出力は build/test-results の XML を
-    // 掘らないと読めず、**縮小器の自己検査の結果を見落とす**。
-    if (System.getProperties().stringPropertyNames().any {
-        it in ['foliojet.fuzzShrink', 'foliojet.fuzzShrinkFile', 'foliojet.fuzzCheckFile', 'foliojet.fuzzOnlySeed', 'foliojet.fuzzOnlySeeds', 'foliojet.fuzzReport']
-    }) {
-        testLogging.showStandardStreams = true
-    }
-
-    doFirst {
-        // java.io.tmpdir はJVM自身では作られない。掃過向けに
-        // -PtestTmpDir=/dev/shm/... を新規パスへ向けても、最初の一時
-        // ファイル生成で遅れて失敗しないようテスト開始前に用意する。
-        new File(configuredTestTmpDir).mkdirs()
-        new File(rootProject.projectDir, 'local/unittest/pdf').mkdirs()
+    configureTestTask(it)
+    if (project.hasProperty('splitCorpus')) {
+        exclude corpusTestClasses
     }
 }
 
