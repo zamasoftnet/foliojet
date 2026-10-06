@@ -1,7 +1,6 @@
 package net.zamasoft.foliojet.css.lang;
 
 import net.zamasoft.foliojet.css.CSSStyle;
-import net.zamasoft.foliojet.css.value.TextTransformValue;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
 
@@ -46,16 +45,6 @@ public interface LanguageProfile {
 	 */
 	public ValueListValue getQuotes();
 
-	/**
-	 * 大文字小文字の変換を行います。 SPEC CSS2.1 16.5
-	 * 
-	 * @param transform
-	 *            See jp.cssj.style.text.valus.TextTransform
-	 * @param ch
-	 * @param off
-	 * @param len
-	 */
-	public void transform(TextTransformValue transform, char[] ch, int off, int len);
 	
 	/**
 	 * ハイフネーションを返します。

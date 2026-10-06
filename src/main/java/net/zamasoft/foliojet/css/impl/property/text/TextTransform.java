@@ -8,6 +8,7 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.value.TextTransformValue;
 import net.zamasoft.foliojet.css.value.Value;
+import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -39,21 +40,37 @@ public class TextTransform extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
+	/**
+	 * {@code none | [capitalize | uppercase | lowercase] || full-width}(css-text-3。{@code full-width} は
+	 * 2026-10-06、{@code full-size-kana}・{@code math-auto} は未対応)。
+	 */
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
-		final CssToken lu = tokens.next();
-		if (lu instanceof CssToken.Ident) {
-			String ident = ((CssToken.Ident) lu).lower();
-			if (ident.equals("none")) {
-				return TextTransformValue.NONE_VALUE;
-			} else if (ident.equals("capitalize")) {
-				return TextTransformValue.CAPITALIZE_VALUE;
-			} else if (ident.equals("uppercase")) {
-				return TextTransformValue.UPPERCASE_VALUE;
-			} else if (ident.equals("lowercase")) {
-				return TextTransformValue.LOWERCASE_VALUE;
+		if (tokens.eat("none")) {
+			if (tokens.hasNext()) {
+				throw new PropertyException();
+			}
+			return TextTransformValue.NONE_VALUE;
+		}
+		byte cased = AbstractTextParams.TEXT_TRANSFORM_NONE;
+		boolean fullWidth = false;
+		while (tokens.hasNext()) {
+			if (cased == AbstractTextParams.TEXT_TRANSFORM_NONE && tokens.eat("capitalize")) {
+				cased = AbstractTextParams.TEXT_TRANSFORM_CAPITALIZE;
+			} else if (cased == AbstractTextParams.TEXT_TRANSFORM_NONE && tokens.eat("uppercase")) {
+				cased = AbstractTextParams.TEXT_TRANSFORM_UPPERCASE;
+			} else if (cased == AbstractTextParams.TEXT_TRANSFORM_NONE && tokens.eat("lowercase")) {
+				cased = AbstractTextParams.TEXT_TRANSFORM_LOWERCASE;
+			} else if (!fullWidth && tokens.eat("full-width")) {
+				fullWidth = true;
+			} else {
+				throw new PropertyException();
 			}
 		}
-		throw new PropertyException();
+		if (cased == AbstractTextParams.TEXT_TRANSFORM_NONE && !fullWidth) {
+			throw new PropertyException();
+		}
+		return TextTransformValue
+				.of((byte) (cased | (fullWidth ? AbstractTextParams.TEXT_TRANSFORM_FULL_WIDTH : 0)));
 	}
 
 }

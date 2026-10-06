@@ -538,38 +538,7 @@ public class StyledTextUnitizer {
 	}
 
 	private void _characters(int charOffset, char[] ch, int off, int len) {
-		switch (this.getTextParams().textTransform) {
-		case AbstractTextParams.TEXT_TRANSFORM_LOWERCASE:
-			for (int i = 0; i < len; ++i) {
-				char c = ch[i + off];
-				ch[i + off] = Character.toLowerCase(c);
-			}
-			break;
-		case AbstractTextParams.TEXT_TRANSFORM_UPPERCASE:
-			for (int i = 0; i < len; ++i) {
-				char c = ch[i + off];
-				ch[i + off] = Character.toUpperCase(c);
-			}
-			break;
-		case AbstractTextParams.TEXT_TRANSFORM_CAPITALIZE:
-			boolean spaceBefore = true;
-			for (int i = 0; i < len; ++i) {
-				char c = ch[i + off];
-				if (Character.isLetter(c)) {
-					if (spaceBefore) {
-						ch[i + off] = Character.toUpperCase(c);
-					}
-					spaceBefore = false;
-				} else {
-					spaceBefore = true;
-				}
-			}
-			break;
-		case AbstractTextParams.TEXT_TRANSFORM_NONE:
-			break;
-		default:
-			throw new IllegalStateException();
-		}
+		TextTransforms.apply(this.getTextParams().textTransform, ch, off, len);
 		this.requireTextShaper();
 		this.textUnitizer.characters(this.textShaper, charOffset, ch, off, len);
 	}

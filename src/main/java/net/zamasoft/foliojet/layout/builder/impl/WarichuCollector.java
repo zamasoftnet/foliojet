@@ -3,7 +3,6 @@ package net.zamasoft.foliojet.layout.builder.impl;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.util.TextUtils;
 
@@ -70,7 +69,7 @@ final class WarichuCollector {
 				this.buff.append(' ');
 				this.pendingSpace = false;
 			}
-			c = transform(c, params.textTransform, this.buff.length() == 0
+			c = TextTransforms.apply(c, params.textTransform, this.buff.length() == 0
 						|| Character.isWhitespace(this.buff.charAt(this.buff.length() - 1)));
 			this.buff.append(c);
 		}
@@ -96,12 +95,4 @@ final class WarichuCollector {
 		return this.paramsStack.isEmpty() ? this.containerParams : this.paramsStack.get(this.paramsStack.size() - 1);
 	}
 
-	private static char transform(final char c, final byte mode, final boolean wordStart) {
-		return switch (mode) {
-		case AbstractTextParams.TEXT_TRANSFORM_LOWERCASE -> Character.toLowerCase(c);
-		case AbstractTextParams.TEXT_TRANSFORM_UPPERCASE -> Character.toUpperCase(c);
-		case AbstractTextParams.TEXT_TRANSFORM_CAPITALIZE -> wordStart ? Character.toUpperCase(c) : c;
-		default -> c;
-		};
-	}
 }

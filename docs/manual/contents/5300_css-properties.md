@@ -145,7 +145,7 @@ CSS3以降のモジュール(段組・縦書き・Gridレイアウト・論理�
 | text-align | する | <tt>match-parent</tt><span class="since">4.0.0</span>にも対応します(親の値を継ぎ、親の<tt>start</tt>/<tt>end</tt>は親の<span class="cssprop">direction</span>で左右に確定します)。<span class="cssprop">text-align-last</span>の<tt>match-parent</tt>も同じです。 |
 | text-decoration | する | |
 | text-indent | する | |
-| text-transform | する | |
+| text-transform | する | <tt>full-width</tt><span class="since">4.0.0</span>(ASCII の英数字と記号を全角へ、空白を全角の空白へ。縦組みでは全角にした数字が正立します)に対応します。<tt>uppercase full-width</tt> のように大文字・小文字の変換と組み合わせられます。半角カナは変えません。<tt>full-size-kana</tt>・<tt>math-auto</tt>には対応していません。 |
 | top | する | |
 | unicode-bidi | する<span class="since">4.0.0</span> | normal, embed, bidi-override, isolate, isolate-override, plaintext のすべてに対応します(isolateは周囲へ影響しない真の隔離、plaintextは最初の強い文字で方向を決めます)。HTMLのdir属性(isolate)、dir=autoとbdi要素(plaintext)、bdo要素(isolate-override)からも設定されます。 |
 | vertical-align | する | |

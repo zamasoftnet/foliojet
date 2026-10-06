@@ -3,7 +3,6 @@ package net.zamasoft.foliojet.css.impl.lang;
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.lang.LanguageProfile;
 import net.zamasoft.foliojet.css.value.QuotesValue;
-import net.zamasoft.foliojet.css.value.TextTransformValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.css.value.css3.WordBreakValue;
@@ -11,7 +10,6 @@ import net.zamasoft.foliojet.css.value.ext.CSSJBreakRuleValue;
 import net.zamasoft.foliojet.css.impl.property.text.WordBreak;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJBreakCharacters;
 import net.zamasoft.foliojet.css.impl.property.ext.CSSJNoBreakCharacters;
-import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.css.value.css3.LineBreakValue;
 import net.zamasoft.foliojet.css.impl.property.text.LineBreak;
 import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
@@ -131,46 +129,6 @@ public class LanguageProfile_ja implements LanguageProfile {
 
 	public ValueListValue getQuotes() {
 		return QUOTES;
-	}
-
-	public void transform(TextTransformValue transform, char[] ch, int off, int len) {
-		switch (transform.getTextTransform()) {
-		case AbstractTextParams.TEXT_TRANSFORM_CAPITALIZE: {
-			boolean spaceBefore = true;
-			for (int i = 0; i < len; ++i) {
-				char c = ch[i + off];
-				if (Character.isLetter(c)) {
-					if (spaceBefore) {
-						ch[i + off] = Character.toUpperCase(c);
-					}
-					spaceBefore = false;
-				} else {
-					spaceBefore = true;
-				}
-			}
-		}
-			break;
-
-		case AbstractTextParams.TEXT_TRANSFORM_LOWERCASE: {
-			for (int i = 0; i < len; ++i) {
-				ch[i + off] = Character.toLowerCase(ch[i + off]);
-			}
-		}
-			break;
-
-		case AbstractTextParams.TEXT_TRANSFORM_UPPERCASE: {
-			for (int i = 0; i < len; ++i) {
-				ch[i + off] = Character.toUpperCase(ch[i + off]);
-			}
-		}
-			break;
-
-		case AbstractTextParams.TEXT_TRANSFORM_NONE:
-			break;
-
-		default:
-			throw new IllegalStateException();
-		}
 	}
 
 	public TextBreakingRules getTextBreakingRules(final CSSStyle style) {

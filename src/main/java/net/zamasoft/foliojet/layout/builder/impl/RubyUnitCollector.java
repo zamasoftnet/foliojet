@@ -312,28 +312,11 @@ final class RubyUnitCollector {
 	}
 
 	private static String transform(final String text, final AbstractTextParams params) {
-		switch (params.textTransform) {
-		case AbstractTextParams.TEXT_TRANSFORM_LOWERCASE:
-			return text.toLowerCase(java.util.Locale.ROOT);
-		case AbstractTextParams.TEXT_TRANSFORM_UPPERCASE:
-			return text.toUpperCase(java.util.Locale.ROOT);
-		case AbstractTextParams.TEXT_TRANSFORM_CAPITALIZE: {
-			final char[] ch = text.toCharArray();
-			boolean spaceBefore = true;
-			for (int i = 0; i < ch.length; ++i) {
-				if (Character.isLetter(ch[i])) {
-					if (spaceBefore) {
-						ch[i] = Character.toUpperCase(ch[i]);
-					}
-					spaceBefore = false;
-				} else {
-					spaceBefore = true;
-				}
-			}
-			return new String(ch);
-		}
-		default:
+		if (params.textTransform == AbstractTextParams.TEXT_TRANSFORM_NONE) {
 			return text;
 		}
+		final char[] ch = text.toCharArray();
+		TextTransforms.apply(params.textTransform, ch, 0, ch.length);
+		return new String(ch);
 	}
 }

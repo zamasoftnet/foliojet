@@ -20,6 +20,12 @@ public abstract class AbstractTextParams extends Params {
 
 	public static final byte TEXT_TRANSFORM_LOWERCASE = 3;
 
+	/** {@link #textTransform} の大文字・小文字の変換の部分(下位 4 ビット)。 */
+	public static final byte TEXT_TRANSFORM_CASE_MASK = 0x0F;
+
+	/** {@code text-transform: full-width}(css-text-3、2026-10-06)。大文字・小文字の変換と組み合わせる印。 */
+	public static final byte TEXT_TRANSFORM_FULL_WIDTH = 0x10;
+
 	public static final byte WHITE_SPACE_NORMAL = 1;
 
 	public static final byte WHITE_SPACE_PRE = 2;
