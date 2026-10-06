@@ -102,6 +102,19 @@ public class CSSStyle {
 	private Map<String, List<CssToken>> customProperties = null;
 	private Set<String> importantCustomProperties = null;
 
+	/**
+	 * 親を持たないスタイル(頁・欄外の箱)が、親の代わりにカスタムプロパティを引く先(根要素のスタイル。
+	 * 2026-10-06、jigensha の報告: {@code :root} で宣言した変数が {@code @page} の欄外の箱で解決されず、
+	 * ノンブルが既定の書体になった)。css-page-3 §6 では頁の文脈は根要素から継ぐ。ほかの継承するプロパティは従来どおり
+	 * 継がず(同節が許す初期値の扱い)、変数だけ引く。
+	 */
+	private CSSStyle customPropertyFallback = null;
+
+	/** 親を持たないスタイルの、カスタムプロパティの引き先を設定します。 */
+	public void setCustomPropertyFallback(final CSSStyle fallback) {
+		this.customPropertyFallback = fallback;
+	}
+
 	public static CSSStyle getCSSStyle(UserAgent ua, CSSStyle parentStyle, CSSElement ce) {
 		CSSStyle style = new CSSStyle();
 		style.init(ce, ua, parentStyle);
@@ -353,6 +366,9 @@ public class CSSStyle {
 		for (CSSStyle style = this; style != null; style = style.parentStyle) {
 			if (style.customProperties != null && style.customProperties.get(name) != null) {
 				return style;
+			}
+			if (style.parentStyle == null && style.customPropertyFallback != null) {
+				return style.customPropertyFallback.getCustomPropertyOwner(name);
 			}
 		}
 		return null;

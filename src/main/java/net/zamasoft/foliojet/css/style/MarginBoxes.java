@@ -339,6 +339,8 @@ final class MarginBoxes {
 		static Box create(final UserAgent ua, final MarginBoxName name, final Declaration declaration,
 				final RunningRenderer renderer) {
 			final CSSStyle style = CSSStyle.getCSSStyle(ua, null, CSSElement.BEFORE);
+			// 根要素で宣言した変数を引けるように(var())
+			style.setCustomPropertyFallback(ua.getDocumentContext().getRootStyle());
 			// ボックス位置ごとの UA 既定(css-page-3 Appendix A 相当)。
 			// 宣言が上書きできるよう applyProperties より先に設定する
 			style.set(TextAlign.INFO, defaultTextAlign(name));

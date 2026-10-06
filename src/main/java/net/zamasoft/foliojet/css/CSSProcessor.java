@@ -592,6 +592,9 @@ public class CSSProcessor implements XMLHandler {
 
 		// スタイル構築
 		CSSStyle style = CSSStyle.getCSSStyle(this.ua, parentStyle, ce);
+		if (parentStyle == null) {
+			this.ua.getDocumentContext().setRootStyle(style);
+		}
 		this.applier.startStyle(style);
 		if (link != null) {
 			CSSJInternalLink.set(style, link);

@@ -264,6 +264,7 @@ final class PageSequence {
 	private CSSStyle pageStyle(final CSSElement element, final String name) {
 		Declaration declaration = this.styleContext.nextPage(element, name);
 		CSSStyle pageStyle = CSSStyle.getCSSStyle(this.ua, null, element);
+		pageStyle.setCustomPropertyFallback(this.ua.getDocumentContext().getRootStyle());
 
 		// デフォルトのマージン
 		if (this.margins != null) {

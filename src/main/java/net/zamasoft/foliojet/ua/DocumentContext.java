@@ -16,6 +16,20 @@ public class DocumentContext {
 	private CompatibleMode compatibleMode = CompatibleMode.NORMAL;
 
 	/**
+	 * 根要素のスタイル(2026-10-06)。親を持たない頁・欄外の箱のスタイルが、根要素で宣言したカスタムプロパティを
+	 * 引くために使う。
+	 */
+	private net.zamasoft.foliojet.css.CSSStyle rootStyle;
+
+	public net.zamasoft.foliojet.css.CSSStyle getRootStyle() {
+		return this.rootStyle;
+	}
+
+	public void setRootStyle(final net.zamasoft.foliojet.css.CSSStyle rootStyle) {
+		this.rootStyle = rootStyle;
+	}
+
+	/**
 	 * {@code mask-image:url(...)} のSVGを、マスクに塗る色ごとに保持します。
 	 * DocumentContextはパスごとに作り直されるため、別文書へ持ち越しません。
 	 */
