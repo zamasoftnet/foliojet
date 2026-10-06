@@ -79,11 +79,61 @@ public class StyledTextUnitizer {
 	 */
 	private RubyUnitCollector rubyCollector = null;
 
+	/**
+	 * ルビの親字の中の縦中横の字を渡す先(2026-10-06、jigensha の報告)。ルビの単位は字だけを持ち、縦中横の
+	 * インラインブロックは捨てられるので、字が消えていた(「2ちゃんねる」が「にちゃんねる」)。縦中横の中の字を
+	 * 全角にして、親字を集めている親の字の処理へ渡す(1em に詰める合成はしない近似)。
+	 */
+	private StyledTextUnitizer rubyTextCombineTarget = null;
+
+	/** ルビの親字を集めている最中か。 */
+	public boolean isCollectingRuby() {
+		return this.rubyCollector != null;
+	}
+
+	/**
+	 * この字の処理(ルビの親字の中の縦中横のインラインブロック)の字を、全角にして{@code parent}のルビの親字へ
+	 * 渡します。
+	 */
+	public void forwardTextCombineToRuby(final StyledTextUnitizer parent) {
+		this.rubyTextCombineTarget = parent;
+		this.textCombineChars = null;
+	}
+
 	private WarichuCollector warichuCollector = null;
 
 	/** 行末側の隣接文字が確定するまで張り出し判定を保留する直前のルビ。 */
 	private RubyUnitBox pendingRubyEnd = null;
 	private InlineQuad pendingRubyQuad = null;
+
+	/**
+	 * 末尾の張り出しが決まるまで行へ渡さずに持っておく制御です(ルビの箱と、その後のインラインの開始・終わり。
+	 * 2026-10-06)。行は制御を受け取った時点の送りで長さを数えるので、渡した後で箱を広げると数え漏れ、
+	 * 行に流し込むときに広げた分が次の行の余地になった(jigensha の報告: 親字より長いルビのある行に br で
+	 * 続く行が、句読点を含むと約 2.5mm 長くなった)。
+	 */
+	private final List<Quad> pendingRubyControls = new ArrayList<Quad>();
+
+	/** 制御を行へ渡します。ルビの箱の張り出しが決まる前なら、決まるまで持っておく。 */
+	private void control(final Quad quad) {
+		if (this.pendingRubyControls.isEmpty()) {
+			this.textShaper.control(quad);
+		} else {
+			this.pendingRubyControls.add(quad);
+		}
+	}
+
+	/** 持っておいた制御を順に行へ渡します。 */
+	private void emitPendingRubyControls() {
+		if (this.pendingRubyControls.isEmpty()) {
+			return;
+		}
+		this.requireTextShaper();
+		for (final Quad quad : this.pendingRubyControls) {
+			this.textShaper.control(quad);
+		}
+		this.pendingRubyControls.clear();
+	}
 
 	public StyledTextUnitizer(Builder builder) {
 		this.builder = builder;
@@ -181,6 +231,8 @@ public class StyledTextUnitizer {
 			return;
 		}
 		if (this.textShaper != null) {
+			// 張り出しはこの後の字で決める(従来どおり)。持っておいた制御だけ先に渡す
+			this.emitPendingRubyControls();
 			this.textShaper.flush();
 		}
 	}
@@ -240,7 +292,7 @@ public class StyledTextUnitizer {
 		this.textParamsStack.add(params);
 		this.textShaper.fontStyle(params.fontStyle);
 		Quad start = InlineQuad.createInlineBoxStartQuad(inlineBox);
-		this.textShaper.control(start);
+		this.control(start);
 		this.changeTextState(params);
 
 		if (inlineParams.rubyRole == AbstractTextParams.RUBY_CONTAINER) {
@@ -274,7 +326,7 @@ public class StyledTextUnitizer {
 		this.requireTextShaper();
 
 		Quad end = (InlineEndQuad) this.inlineQuadStack.remove(this.inlineQuadStack.size() - 1);
-		this.textShaper.control(end);
+		this.control(end);
 		this.textParamsStack.remove(this.textParamsStack.size() - 1);
 		AbstractTextParams params = this.getTextParams();
 		this.textShaper.fontStyle(params.fontStyle);
@@ -384,7 +436,8 @@ public class StyledTextUnitizer {
 		}
 		this.requireTextShaper();
 		final InlineQuad quad = InlineQuad.createInlineBlockBoxQuad(box);
-		this.textShaper.control(quad);
+		// 末尾の張り出しが決まるまで行へ渡さない(resolvePendingRubyEnd)
+		this.pendingRubyControls.add(quad);
 		this.pendingRubyEnd = box;
 		this.pendingRubyQuad = quad;
 		this.followingChar = 'x';
@@ -406,6 +459,14 @@ public class StyledTextUnitizer {
 
 	public void characters(int charOffset, char[] ch, final int off, final int len, boolean lineFeed) {
 		assert len > 0;
+		if (this.rubyTextCombineTarget != null && this.rubyTextCombineTarget.rubyCollector != null) {
+			final char[] wide = new char[len];
+			for (int i = 0; i < len; ++i) {
+				wide[i] = TextTransforms.fullWidth(ch[off + i]);
+			}
+			this.rubyTextCombineTarget.rubyCollector.characters(charOffset, wide, 0, len);
+			return;
+		}
 		if (this.textCombineChars != null) {
 			final char[] copy = java.util.Arrays.copyOfRange(ch, off, off + len);
 			this.textCombineChars.add(new TextCombineChars(charOffset, copy, lineFeed));
@@ -523,6 +584,7 @@ public class StyledTextUnitizer {
 			this.pendingRubyQuad.advance = this.pendingRubyEnd
 					.getLineExtent(this.pendingRubyEnd.getBlockParams().flow);
 		}
+		this.emitPendingRubyControls();
 		this.pendingRubyEnd = null;
 		this.pendingRubyQuad = null;
 	}

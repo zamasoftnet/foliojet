@@ -1040,9 +1040,15 @@ public class DocumentBuilder implements TableBuilderHost {
 				// インラインブロック
 				final InlineBlockBox inlineBlockBox = (InlineBlockBox) box;
 				final Builder builder = this.containerBuilder().builder;
+				final StyledTextUnitizer parentUnitizer = this.containerBuilder().getStyledTextUnitizer();
 				final Builder newBuilder = builder.newBuilder(inlineBlockBox);
 				this.startContainerBuilder(newBuilder);
 				this.startContainer();
+				if (inlineBlockBox.getBlockParams().textCombine != net.zamasoft.foliojet.css.value.TextCombineValue.NONE
+						&& parentUnitizer.isCollectingRuby()) {
+					// ルビの親字の中の縦中横は、字を親字へ渡す(箱はルビの側で捨てられる、2026-10-06)
+					this.containerBuilder().getStyledTextUnitizer().forwardTextCombineToRuby(parentUnitizer);
+				}
 			}
 		}
 			break;
