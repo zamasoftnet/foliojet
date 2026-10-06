@@ -716,8 +716,8 @@ public final class ContinuationStats {
 		if (stalledRun >= STALLED_AUTO_BREAK_LIMIT) {
 			STALLED_AUTO_BREAK_ALARMS.incrementAndGet();
 			final String message = "auto page break repeated " + stalledRun
-					+ " times without any progress (same break target, same page cursor, same flow depth, no new "
-					+ "source events); the layout is livelocked, so page breaking is abandoned and the content is "
+					+ " times without any progress (same break target and flow depth, no new source events, and the page "
+					+ "cursor repeats or keeps growing in nested breaks); the layout is livelocked, so page breaking is abandoned and the content is "
 					+ "laid out in place (it may overflow the page)";
 			java.util.logging.Logger.getLogger(ContinuationStats.class.getName()).warning(message);
 			// **例外ではなく「改ページをあきらめる」を返す**(2026-07-29)。

@@ -1,0 +1,96 @@
+package jp.cssj.test.unit.displaylist;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+
+import jp.cssj.cti2.helpers.CTIMessageHelper;
+import jp.cssj.cti2.helpers.CTISessionHelper;
+import jp.cssj.cti2.results.SingleResult;
+import junit.framework.TestCase;
+import net.zamasoft.foliojet.driver.DirectDriver;
+import net.zamasoft.foliojet.driver.DirectSession;
+import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
+import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
+import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
+
+/**
+ * 入れ子で伸び続ける改ページが止まることの回帰(2026-10-07、掃過 strict seed 12453214 の縮小形)。
+ * 縦組みの段組の中の浮動体の続き断片が毎回同じ寸法に組み直され、改ページの再開の中でまた改ページが
+ * 起きて、カーソルが 43.2pt ずつ伸びながら入れ子が 53,000 段続き、{@code StackOverflowError} になった。
+ * カーソルが毎回違うので、同じ改ページを数える指紋では捕まらなかった。
+ */
+public class NestedGrowingPageBreakTest extends TestCase {
+	private static final String HTML = """
+			<?jp.cssj.property name="output.page-width" value="120pt"?>
+			<?jp.cssj.property name="output.page-height" value="400pt"?>
+			<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+			<style>
+			@page{margin:5pt}
+			body{font:normal 6pt/1.2 serif;writing-mode:vertical-lr}
+			p,div,td{margin:0}
+			</style></head><body>
+			<div style="width:51pt">
+
+			</div>
+			<div style="column-count:2">
+
+			<div style="float:left">
+
+			<input size="11" />
+			<div style="display:grid;width:0pt;grid-template-columns:fit-content(0pt) minmax(0pt,1fr)">
+			<p><span style="display:inline-block;width:111pt;height:46pt"></span></p>
+
+			<div style="width:23pt">
+			T164
+			<div style="width:calc(35% + 8em);min-width:8em;max-width:90%">
+
+			T165
+
+			</div>
+
+			T168
+
+			</div>
+
+			<div>
+
+			</div>
+
+			</div>
+			</div>
+
+			<div style="writing-mode:horizontal-tb;min-width:8em">
+
+			</div>
+
+			</div>
+			</body></html>
+			""";
+
+	public NestedGrowingPageBreakTest(final String name) {
+		super(name);
+	}
+
+	public void testNestedGrowingBreaksAreAbandoned() throws Exception {
+		final long alarms = ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get();
+		final ByteArrayOutputStream out = new ByteArrayOutputStream();
+		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
+				null);
+		try {
+			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+			session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+			session.property("input.property-pi", "true");
+			CTISessionHelper.transcodeStream(session, new ByteArrayInputStream(HTML.getBytes(StandardCharsets.UTF_8)),
+					URI.create("file:///nested-growing-page-break.html"), "text/html", null);
+		} finally {
+			session.close();
+		}
+		assertTrue("PDF が出ていない", out.size() > 0);
+		// 改ページの放棄(はみ出して置く)で止まる
+		assertTrue("the nested growing page break was not abandoned",
+				ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get() > alarms);
+	}
+}

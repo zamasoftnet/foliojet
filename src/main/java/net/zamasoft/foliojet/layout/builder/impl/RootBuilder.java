@@ -65,6 +65,18 @@ public class RootBuilder extends BreakableBuilder {
 	 * 重なる状況は深さ差があっても進捗ではない。
 	 */
 	private final java.util.Map<BreakFingerprint, Integer> depthFreeBreakCounts = new java.util.HashMap<>();
+	/**
+	 * 入れ子で伸び続ける改ページの検出(2026-10-07、掃過 strict seed 12453214)。直前の改ページの
+	 * 再開の中(再開の入れ子が 1 段深い)で、入力も対象も深さも同じ改ページが、カーソルを毎回先へ
+	 * 進めて起きる。次ページへ回した残りが縮まず、毎回それより多くを組んでまた改ページする
+	 * (縦組みの段組の中の浮動体の続き断片が同じ寸法に組み直され、移された断片が積み増された)。
+	 * カーソルが毎回違うので指紋では同じ状態に見えず、入れ子が 53,000 段続いてスタックが溢れた。
+	 * ふつうの入れ子の改ページは、カーソルがページの上限のあたりで止まり、続けて伸びはしない。
+	 */
+	private BreakFingerprint nestedBreakKey = null;
+	private int nestedBreakSessions = -1;
+	private double nestedBreakPageAxis;
+	private int nestedGrowthRun = 0;
 	private long breakHistoryIngest = Long.MIN_VALUE;
 	private long boundTableRows, emittedTableFragments;
 	private long breakHistoryTableRows, breakHistoryTableFragments;
@@ -87,7 +99,14 @@ public class RootBuilder extends BreakableBuilder {
 		this.stalledBreakRun = 0;
 		this.breakFingerprintCounts.clear();
 		this.depthFreeBreakCounts.clear();
+		this.clearNestedGrowth();
 		this.breakHistoryIngest = Long.MIN_VALUE;
+	}
+
+	private void clearNestedGrowth() {
+		this.nestedBreakKey = null;
+		this.nestedBreakSessions = -1;
+		this.nestedGrowthRun = 0;
 	}
 
 	/**
@@ -144,6 +163,7 @@ public class RootBuilder extends BreakableBuilder {
 				|| this.emittedTableFragments != this.breakHistoryTableFragments) {
 			this.breakFingerprintCounts.clear();
 			this.depthFreeBreakCounts.clear();
+			this.clearNestedGrowth();
 			this.breakHistoryIngest = ingest;
 			this.breakHistoryTableRows = this.boundTableRows;
 			this.breakHistoryTableFragments = this.emittedTableFragments;
@@ -157,7 +177,21 @@ public class RootBuilder extends BreakableBuilder {
 				this.emittedTableFragments, -1,
 				Double.doubleToLongBits(this.pageAxis), target);
 		final int depthFreeOccurrences = this.depthFreeBreakCounts.merge(depthFree, 1, Integer::sum);
-		this.stalledBreakRun = Math.max(occurrences, depthFreeOccurrences) - 1;
+		// 第三の検出: 直前の改ページの再開の中で、同じ改ページがカーソルを先へ進めて起きた
+		// (nestedBreakKey のコメント参照)。カーソルは指紋から外して比べる
+		final BreakFingerprint nestedKey = new BreakFingerprint(ingest, this.boundTableRows,
+				this.emittedTableFragments, depth, 0L, target);
+		final int sessionDepth = this.sessions.size();
+		if (nestedKey.equals(this.nestedBreakKey) && sessionDepth == this.nestedBreakSessions + 1
+				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(this.pageAxis, this.nestedBreakPageAxis) > 0) {
+			++this.nestedGrowthRun;
+		} else {
+			this.nestedGrowthRun = 0;
+		}
+		this.nestedBreakKey = nestedKey;
+		this.nestedBreakSessions = sessionDepth;
+		this.nestedBreakPageAxis = this.pageAxis;
+		this.stalledBreakRun = Math.max(Math.max(occurrences, depthFreeOccurrences) - 1, this.nestedGrowthRun);
 		if (DebugFlags.BREAK_FINGERPRINT) {
 			System.out.println("[fp] ingest=" + ingest + " depth=" + depth + " pageAxis=" + this.pageAxis
 					+ " boundTableRows=" + this.boundTableRows + " emittedTableFragments=" + this.emittedTableFragments
@@ -172,6 +206,7 @@ public class RootBuilder extends BreakableBuilder {
 			this.stalledBreakRun = 0;
 			this.breakFingerprintCounts.clear();
 			this.depthFreeBreakCounts.clear();
+			this.clearNestedGrowth();
 			this.breakHistoryIngest = Long.MIN_VALUE;
 			if (source != null) {
 				source.abandonAutoBreaks();

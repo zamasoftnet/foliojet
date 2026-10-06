@@ -386,7 +386,10 @@ final class FuzzShrinker {
 				this.lastPages = countPages(this.workDl);
 				this.lastFailure = t;
 				this.lastSeverity = severity(t);
-				return RandomDocumentFuzzTest.classify(t);
+				final String kind = RandomDocumentFuzzTest.classify(t);
+				// スタックの溢れは溢れた所(最上段)が実行ごとに変わるので、場所を問わず同じ種別にする
+				// (2026-10-07、seed 12453214。場所まで比べると候補がどれも別の種別になり縮まらない)
+				return kind != null && kind.startsWith("StackOverflowError@") ? "StackOverflowError" : kind;
 			}
 		}
 
