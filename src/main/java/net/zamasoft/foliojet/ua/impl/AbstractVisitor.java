@@ -34,6 +34,15 @@ import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.foliojet.css.token.Unit;
 
 public abstract class AbstractVisitor implements Visitor {
+	/**
+	 * id を、文書の中への参照({@code #…})にします。URI に書けない字(空白・{@code %} など)は符号化する
+	 * (2026-10-06、jigensha の報告: {@code id="with space"} で警告 10252 が出た。リンクの側は
+	 * {@code href="#with%20space"} と符号化して書くので、それと同じ形にそろう)。
+	 */
+	private static String fragment(final String id) throws URISyntaxException {
+		return "#" + new URI(null, null, id).getRawFragment();
+	}
+
 	private static boolean isHyperlinkBox(BoxType type) {
 		switch (type) {
 		case LINE:
@@ -416,7 +425,7 @@ public abstract class AbstractVisitor implements Visitor {
 					// ページ参照
 					try {
 						URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
-								this.ua.getDocumentContext().getBaseURI(), "#" + id);
+								this.ua.getDocumentContext().getBaseURI(), fragment(id));
 						String text = null;
 						if (pageRef != null) {
 							// target-text()用にテキストも捕捉する
@@ -493,7 +502,7 @@ public abstract class AbstractVisitor implements Visitor {
 						// ページ参照
 						try {
 							URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
-									this.ua.getDocumentContext().getBaseURI(), "#" + ref);
+									this.ua.getDocumentContext().getBaseURI(), fragment(ref));
 							pageRef.startSection(uri, title, this.getCounters());
 							this.addFragment(ref, location);
 						} catch (URISyntaxException e) {
