@@ -303,7 +303,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 
 			final boolean japanese = this.containsJapaneseComposition();
 			final double capacity = japanese
-					? this.justificationCapacity(JUSTIFY_FALLBACK, new JustificationState())
+					? this.justificationCapacity(JUSTIFY_LETTERS, new JustificationState())
 					: this.countGeneralJustificationPoints(new JustificationState());
 			if (capacity <= 0) {
 				this.lineAlign = (maxLineAxis - lineWidth) / 2.0 + textIndent;
@@ -383,9 +383,16 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 			remainder -= used;
 		}
 		if (remainder > 0.0001) {
-			final double weight = this.justificationCapacity(JUSTIFY_FALLBACK, new JustificationState());
+			// 欧文の字間は、auto では配る所がほかに無い行だけ(JUSTIFY_LETTERS)
+			int priority = this.getTextParams().textJustify == AbstractTextParams.TEXT_JUSTIFY_INTER_CHARACTER
+					? JUSTIFY_LETTERS : JUSTIFY_FALLBACK;
+			double weight = this.justificationCapacity(priority, new JustificationState());
+			if (weight <= 0 && priority == JUSTIFY_FALLBACK) {
+				priority = JUSTIFY_LETTERS;
+				weight = this.justificationCapacity(priority, new JustificationState());
+			}
 			if (weight > 0) {
-				this.justify(JUSTIFY_FALLBACK, remainder / weight, new JustificationState());
+				this.justify(priority, remainder / weight, new JustificationState());
 			}
 		}
 	}

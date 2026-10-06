@@ -433,6 +433,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 	protected static final int JUSTIFY_AUTOSPACE = 2;
 	protected static final int JUSTIFY_GENERAL = 3;
 	protected static final int JUSTIFY_FALLBACK = 4;
+	/**
+	 * 最後の段で欧文の字間にも配る(JLREQ 3.8.4 の d。欧文用文字の字間を含めるかは JIS X 4051 で処理系定義)。
+	 * {@code text-justify: auto} では、和字間・語間など{@link #JUSTIFY_FALLBACK}で配る所が無い行だけ(2026-10-06、
+	 * jigensha の報告: 「T o r B r o w s e r」と欧文の字間まで空いた)。{@code inter-character} は最初から含める。
+	 */
+	protected static final int JUSTIFY_LETTERS = 5;
 
 	/**
 	 * この行／インラインが和文組版を含むかを返す。JLREQの段階的な行長調整は
@@ -843,7 +849,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 						|| nk == net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.NUMERIC);
 		final boolean bmpPair = prev <= Character.MAX_VALUE && next <= Character.MAX_VALUE;
 		final boolean atomic = bmpPair && rules.atomic((char) prev, (char) next);
-		if (atomic && !(priority == JUSTIFY_FALLBACK && westernInterletter)) {
+		if (atomic && !(priority == JUSTIFY_LETTERS && westernInterletter)) {
 			return 0;
 		}
 		final boolean normal = bmpPair ? rules.canSeparate((char) prev, (char) next)
@@ -859,7 +865,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 		case JUSTIFY_WORD_SPACE -> 0;
 		case JUSTIFY_AUTOSPACE -> normal && prev != ' ' && japaneseLatin ? size / 4.0 : 0;
 		case JUSTIFY_GENERAL -> normal && prev != ' ' && !japaneseLatin ? size / 4.0 : 0;
-		case JUSTIFY_FALLBACK -> normal || westernInterletter ? size : 0;
+		case JUSTIFY_FALLBACK -> normal ? size : 0;
+		case JUSTIFY_LETTERS -> normal || westernInterletter ? size : 0;
 		default -> throw new IllegalArgumentException("priority=" + priority);
 		};
 	}

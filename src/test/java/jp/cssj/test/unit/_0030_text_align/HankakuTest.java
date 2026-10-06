@@ -19,8 +19,10 @@ public class HankakuTest extends AbstractTestCase {
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
-			assertEquals(56.636363636363626, x, 0);
-			assertEquals(43.36363636363636, box.getWidth(), 0);
+			// 和文の両端揃えでは欧文の字間を空けない(2026-10-06。以前は abcdefghi の字間にも配り、x=56.64・幅 43.36)。
+			// 余りは「i|あ」「あ|あ」へ入る
+			assertEquals(45.0, x, 0);
+			assertEquals(55.0, box.getWidth(), 0);
 			return true;
 		}
 		return false;
