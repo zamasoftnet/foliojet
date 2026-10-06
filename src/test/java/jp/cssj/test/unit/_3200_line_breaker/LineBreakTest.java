@@ -129,6 +129,19 @@ public class LineBreakTest extends TestCase {
 		assertEquals(9, this.firstLineLength("strict-breakall", "strict; word-break: break-all", body));
 	}
 
+	/**
+	 * word-break: break-all でも半角の約物(! ? , . ))は行頭に来ない(2026-10-06、jigensha の報告)。欧文の語の中では
+	 * 割れる。
+	 */
+	public void testBreakAllKeepsHalfWidthPunctuationOffLineStart() throws Exception {
+		final String breakAll = "strict; word-break: break-all";
+		assertEquals(9, this.firstLineLength("breakall-exclamation", breakAll, "あいうえおかきくけこ!?さしすせそ"));
+		assertEquals(9, this.firstLineLength("breakall-comma", breakAll, "あいうえおかきくけこ, so"));
+		assertEquals(9, this.firstLineLength("breakall-period-paren", breakAll, "あいうえおかきくけこ.) so"));
+		final String word = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz";
+		assertTrue(this.lineCount("breakall-latin", breakAll, word) >= 2);
+	}
+
 	private String render(final String name, final String lineBreak, final String body) throws Exception {
 		final File dir = new File("local/unittest/line-break");
 		dir.mkdirs();
