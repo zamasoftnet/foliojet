@@ -1628,6 +1628,17 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 * 
 	 * @return
 	 */
+	/** 破断の時点で開いている箱(flowStack の箱、外→内)。 */
+	protected final java.util.List<net.zamasoft.foliojet.layout.box.IBox> openFlowBoxes() {
+		final java.util.List<net.zamasoft.foliojet.layout.box.IBox> boxes = new java.util.ArrayList<>();
+		if (this.flowStack != null) {
+			for (final Flow flow : this.flowStack) {
+				boxes.add(flow.box);
+			}
+		}
+		return boxes;
+	}
+
 	private boolean autoBreak() {
 		if (DebugFlags.BREAK_TRACE) {
 			System.err.println("[break] pageAxis=" + this.pageAxis + " flow="
@@ -1869,8 +1880,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		// 継続として切断する。強制改段では常に空チェーンになるため、
 		// この呼び出しはmode問わず安全(旧plan=nullと同じ結果になる)。
 		final net.zamasoft.foliojet.layout.fragment.BreakPlan relativePlan = columnScan.toBreakPlan();
-		final net.zamasoft.foliojet.layout.fragment.ColumnCutResult cutResult = breakFlow.box.prepareColumnCut(contentLimit,
-				ownerExtent, mode, flags, relativePlan);
+		final net.zamasoft.foliojet.layout.fragment.ColumnCutResult cutResult;
+		// 切断の間、開いている箱を写す(計画に選ばれない開いた箱も救済しない。OpenBoxes)
+		try (var open = net.zamasoft.foliojet.layout.fragment.OpenBoxes.scope(this.openFlowBoxes())) {
+			cutResult = breakFlow.box.prepareColumnCut(contentLimit, ownerExtent, mode, flags, relativePlan);
+		}
 		if (!(cutResult instanceof net.zamasoft.foliojet.layout.fragment.ColumnCutResult.Cut(
 				final net.zamasoft.foliojet.layout.fragment.PreparedColumnCut prepared))) {
 			// Keep/Move: 改段ポイントがない(旧newColumn()のnull相当)

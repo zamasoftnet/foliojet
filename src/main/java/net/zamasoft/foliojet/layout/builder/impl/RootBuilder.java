@@ -1123,8 +1123,11 @@ public class RootBuilder extends BreakableBuilder {
 					- prevRootBox.getFrame().getFramePageStart(prevRootBox.getBlockParams().flow);
 			final net.zamasoft.foliojet.layout.box.content.BreakMode xmode = net.zamasoft.foliojet.layout.box.content.BreakMode
 					.absorbColumn(mode, prevRootBox.getColumnCount());
-			final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = prevRootBox.getContainer()
-					.splitPageAxis(innerLimit, xmode, flags, plan);
+			final net.zamasoft.foliojet.layout.fragment.ContainerCut cut;
+			// 切断の間、開いている箱を写す(計画に選ばれない開いた箱も救済しない。OpenBoxes)
+			try (var open = net.zamasoft.foliojet.layout.fragment.OpenBoxes.scope(this.openFlowBoxes())) {
+				cut = prevRootBox.getContainer().splitPageAxis(innerLimit, xmode, flags, plan);
+			}
 			if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(
 					final net.zamasoft.foliojet.layout.box.content.Container chainStopContainer,
 					final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {

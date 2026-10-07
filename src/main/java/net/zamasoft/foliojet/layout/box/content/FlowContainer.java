@@ -1533,9 +1533,17 @@ public class FlowContainer implements Container {
 					// 食い違う(不変条件「flowStack深さ≠継続深さ」——掃過で最多の欠陥、
 					// STRICT 2,459/WILD 1,570 件)。この場合は下の従来経路
 					// (境界 avoid を緩和して内側で切る=継続フレームを作る)へ落とす
-					final IFlowBox rescued = plan != null && plan.selects(target.box) ? null
+					// 計画に選ばれていなくても、破断の時点で開いている箱は同じ理由で救済しない
+					// (2026-10-07、OpenBoxes。計画の無い降下では plan が null で渡る)
+					final boolean selected = plan != null && plan.selects(target.box);
+					final boolean open = !selected
+							&& net.zamasoft.foliojet.layout.fragment.OpenBoxes.isOpen(target.box);
+					final IFlowBox rescued = selected || open ? null
 							: this.rescueSplit(index, target, available,
 									((AutoBreakMode) mode).fragmentCapacity, false, true);
+					if (open) {
+						net.zamasoft.foliojet.layout.fragment.OpenBoxes.UNSELECTED_RESCUES_PREVENTED.incrementAndGet();
+					}
 					if (rescued != null) {
 						nextBox = this.applyPartition(index, new ProbeOutcome.Split(rescued));
 						break;
