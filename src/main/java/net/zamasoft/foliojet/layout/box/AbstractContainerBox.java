@@ -410,8 +410,82 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return this.container.getFirstAscent();
 	}
 
+	/**
+	 * Returns the distance from the baseline of the last line box to the block-end outer edge, which places an
+	 * inline-block on the line (CSS 2.1 §10.8.1: the baseline of its last line box).
+	 *
+	 * <p>
+	 * The container measures from its last flow, which is only right when the content fills the content box. A
+	 * fixed or minimum block size leaves space after the content, and a smaller one lets the content overflow;
+	 * either way the space between the end of the content and the end of the content box is added here, so the
+	 * baseline stays on the last line wherever that line is. Before 2026-10-07 a one-line inline-block with
+	 * {@code height:30pt} sat with its bottom on the baseline instead of its text (sweep seed 11942560, vertical
+	 * writing, where the overflowing content was pushed off the paper). Flex, grid and multi-column boxes keep
+	 * their own rules.
+	 * </p>
+	 *
+	 * <p>
+	 * A scroll container ({@code overflow} other than {@code visible}) in horizontal writing takes its bottom
+	 * margin edge as the baseline instead (CSS 2.1 §10.8.1), as browsers do.
+	 * </p>
+	 */
 	public final double getLastDescent() {
-		return this.container.getLastDescent();
+		final BlockParams params = this.getBlockParams();
+		if (!params.flow.isVertical() && params.overflow != net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE) {
+			return 0;
+		}
+		final double descent = this.container.getLastDescent();
+		// Ruby and warichu units keep a fixed baseline in an empty container: there is no last flow to measure from
+		if (LayoutUtils.isNone(descent) || !(this.container instanceof FlowContainer flowContainer)
+				|| !flowContainer.hasFlows()
+				|| params instanceof net.zamasoft.foliojet.layout.box.params.FlexParams
+				|| params instanceof net.zamasoft.foliojet.layout.box.params.GridParams) {
+			return descent;
+		}
+		return descent + this.getInnerPageExtent(params.flow) - this.container.getContentSize()
+				- this.blockContentAlignmentOffset();
+	}
+
+	/**
+	 * Returns the descent of this box placed on a line as an atomic inline (an inline-block): the part on the
+	 * line-under side of the baseline. The ascent is the rest of the box.
+	 *
+	 * <p>
+	 * {@link #getLastDescent()} measures toward this box's block end: the left in {@code vertical-rl}, the right in
+	 * {@code vertical-lr}. On a vertical line the line-under side is the left, except on a {@code sideways-lr}
+	 * line, where the glyphs face left and the line-under side is the right. When the two sides differ, the value
+	 * is the ascent, and the descent is the rest. Until 2026-10-07 four copies of this code took it as the descent
+	 * in every case, which put a {@code vertical-lr} inline-block on its first line instead of its last (sweep seed
+	 * 11942560). Ruby and warichu units return their descent directly (they lay out no flows) and are used as is.
+	 * </p>
+	 *
+	 * @param lineParams the parameters of the line
+	 * @return the descent on the line
+	 */
+	public final double inlineDescent(final net.zamasoft.foliojet.layout.box.params.AbstractTextParams lineParams) {
+		final BlockParams params = this.getBlockParams();
+		if (lineParams.flow.isVertical()) {
+			if (!params.flow.isVertical()) {
+				// Tate-chu-yoko: centered on the line
+				return this.getWidth() / 2.0;
+			}
+			final double last = this.getLastDescent();
+			if (LayoutUtils.isNone(last)) {
+				return this.getWidth() / 2.0;
+			}
+			if (!(this.container instanceof FlowContainer flowContainer) || !flowContainer.hasFlows()) {
+				return last;
+			}
+			final boolean lineUnderRight = lineParams.writingModeVariant == net.zamasoft.foliojet.layout.box.params.WritingModeVariant.SIDEWAYS_CCW;
+			final boolean blockEndRight = params.flow == WritingMode.LR;
+			return lineUnderRight == blockEndRight ? last : this.getWidth() - last;
+		}
+		if (params.flow.isVertical()) {
+			// Yoko-chu-tate: sits on the baseline
+			return 0;
+		}
+		final double last = this.getLastDescent();
+		return LayoutUtils.isNone(last) ? 0 : last;
 	}
 
 	public final double getWidth() {

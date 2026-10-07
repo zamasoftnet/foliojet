@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="300pt"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>inline-block baseline</title>
+<style type="text/css">
+@page { margin: 0 }
+body { margin: 0; font: normal 6pt/1.2 serif }
+p, div { margin: 0; padding: 0 }
+.ib { display: inline-block }
+</style>
+</head>
+<body>
+<!-- The baseline of an inline-block is the baseline of its last line box (CSS 2.1 §10.8.1), wherever that line is.
+     2026-10-07, fit sweep seed 11942560. -->
+<div style="padding-top: 40pt; height: 60pt">X<span id="ta" class="ib">X</span>X<span id="tb" class="ib"
+ style="height: 30pt">X</span>X<span id="tc" class="ib"><p>X</p><p>X</p><p>X</p></span>X<span id="td" class="ib"
+ style="height: 8pt"><p>X</p><p>X</p><p>X</p></span>X<span id="te" class="ib"
+ style="height: 10pt; overflow: hidden">X</span>X</div>
+<div style="writing-mode: vertical-lr; height: 100pt; padding-left: 40pt">X<span id="la" class="ib">X</span>X<span
+ id="lb" class="ib" style="width: 30pt">X</span>X<span id="lc" class="ib"><p>X</p><p>X</p><p>X</p></span>X<span id="ld"
+ class="ib" style="width: 8pt"><p>X</p><p>X</p><p>X</p></span>X</div>
+<div style="writing-mode: vertical-rl; height: 100pt; padding-right: 40pt">X<span id="ra" class="ib">X</span>X<span
+ id="rb" class="ib" style="width: 30pt">X</span>X<span id="rc" class="ib"><p>X</p><p>X</p><p>X</p></span>X<span id="rd"
+ class="ib" style="width: 8pt"><p>X</p><p>X</p><p>X</p></span>X</div>
+<div style="writing-mode: sideways-lr; height: 100pt; padding-left: 40pt">X<span id="sa" class="ib">X</span>X<span
+ id="sb" class="ib" style="width: 30pt">X</span>X<span id="sc" class="ib"><p>X</p><p>X</p><p>X</p></span>X</div>
+</body>
+</html>

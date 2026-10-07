@@ -874,32 +874,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 				case BLOCK: {
 					// インラインブロック
 					final AbstractContainerBox box = (AbstractContainerBox) inlineBox;
-					final BlockParams params = box.getBlockParams();
-					if (lineParams.flow.isVertical()) {
-						// 縦書き
-						if (params.flow.isVertical()) {
-							descent = box.getLastDescent();
-							if (LayoutUtils.isNone(descent)) {
-								descent = inlineBox.getWidth() / 2.0;
-							}
-						} else {
-							// 縦中横
-							descent = inlineBox.getWidth() / 2.0;
-						}
-						ascent = inlineBox.getWidth() - descent;
-					} else {
-						// 横書き
-						if (params.flow.isVertical()) {
-							// 横中縦
-							descent = 0;
-						} else {
-							descent = box.getLastDescent();
-							if (LayoutUtils.isNone(descent)) {
-								descent = 0;
-							}
-						}
-						ascent = inlineBox.getHeight() - descent;
-					}
+					final boolean verticalLine = lineParams.flow.isVertical();
+					descent = box.inlineDescent(lineParams);
+					ascent = (verticalLine ? inlineBox.getWidth() : inlineBox.getHeight()) - descent;
 				}
 					break;
 				case REPLACED: {
@@ -1822,34 +1799,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 					break;
 				case BLOCK: {
 					// インラインブロック
-					double descent;
-					AbstractContainerBox box = (AbstractContainerBox) inlineBox;
-					BlockParams params = box.getBlockParams();
-					if (vertical) {
-						// 縦書き
-						if (params.flow == WritingMode.RL || params.flow == WritingMode.LR) {
-							descent = box.getLastDescent();
-							if (LayoutUtils.isNone(descent)) {
-								descent = inlineBox.getWidth() / 2.0;
-							}
-						} else {
-							// 縦中横
-							descent = inlineBox.getWidth() / 2.0;
-						}
-						ascent = inlineBox.getWidth() - descent;
-					} else {
-						// 横書き
-						if (params.flow == WritingMode.TB) {
-							descent = box.getLastDescent();
-							if (LayoutUtils.isNone(descent)) {
-								descent = 0;
-							}
-						} else {
-							// 横中縦
-							descent = 0;
-						}
-						ascent = inlineBox.getHeight() - descent;
-					}
+					final AbstractContainerBox box = (AbstractContainerBox) inlineBox;
+					ascent = (vertical ? inlineBox.getWidth() : inlineBox.getHeight()) - box.inlineDescent(lineParams);
 				}
 					break;
 				case REPLACED: {
@@ -2118,34 +2069,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 					break;
 				case BLOCK: {
 					// インラインブロック
-					double descent;
-					AbstractContainerBox box = (AbstractContainerBox) inlineBox;
-					BlockParams params = box.getBlockParams();
-					if (vertical) {
-						// 縦書き
-						if (params.flow == WritingMode.RL || params.flow == WritingMode.LR) {
-							descent = box.getLastDescent();
-							if (LayoutUtils.isNone(descent)) {
-								descent = inlineBox.getWidth() / 2.0;
-							}
-						} else {
-							// 縦中横
-							descent = inlineBox.getWidth() / 2.0;
-						}
-						ascent = inlineBox.getWidth() - descent;
-					} else {
-						// 横書き
-						if (params.flow == WritingMode.TB) {
-							descent = box.getLastDescent();
-							if (LayoutUtils.isNone(descent)) {
-								descent = 0;
-							}
-						} else {
-							// 横中縦
-							descent = 0;
-						}
-						ascent = inlineBox.getHeight() - descent;
-					}
+					final AbstractContainerBox box = (AbstractContainerBox) inlineBox;
+					ascent = (vertical ? inlineBox.getWidth() : inlineBox.getHeight()) - box.inlineDescent(lineParams);
 				}
 					break;
 				case REPLACED: {

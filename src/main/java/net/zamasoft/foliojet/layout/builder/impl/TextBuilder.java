@@ -894,37 +894,9 @@ public class TextBuilder {
 					stf.compressTextCombine(params.fontStyle.getSize(), ink.getCurrentPoint() == null ? null
 							: ink.getBounds2D());
 				}
-				switch (lineParams.flow) {
-				case WritingMode.TB:
-					// 横書き
-					if (params.flow == WritingMode.TB) {
-						descent = inlineBlockBox.getLastDescent();
-						if (LayoutUtils.isNone(descent)) {
-							descent = 0;
-						}
-					} else {
-						// 横中縦
-						descent = 0;
-					}
-					ascent = inlineBox.getHeight() - descent;
-					break;
-				case WritingMode.LR:
-				case WritingMode.RL:
-					// 縦書き
-					if (params.flow == WritingMode.RL || params.flow == WritingMode.LR) {
-						descent = inlineBlockBox.getLastDescent();
-						if (LayoutUtils.isNone(descent)) {
-							descent = inlineBox.getWidth() / 2.0;
-						}
-					} else {
-						// 縦中横
-						descent = inlineBox.getWidth() / 2.0;
-					}
-					ascent = inlineBox.getWidth() - descent;
-					break;
-				default:
-					throw new IllegalStateException();
-				}
+				final boolean verticalLine = lineParams.flow.isVertical();
+				descent = inlineBlockBox.inlineDescent(lineParams);
+				ascent = (verticalLine ? inlineBox.getWidth() : inlineBox.getHeight()) - descent;
 			} else {
 				// 画像の基底線
 				switch (lineParams.flow) {
