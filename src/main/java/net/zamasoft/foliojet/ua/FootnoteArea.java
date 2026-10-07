@@ -2,41 +2,42 @@ package net.zamasoft.foliojet.ua;
 
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
-/** 文書に一つの脚注領域です。ページ名・ページ擬似クラスには依存しません。 */
+/** The single footnote area for a document. Independent of page names and page pseudo-classes. */
 public final class FootnoteArea {
 	public enum Position {
 		BLOCK_END,
 
-		/** 用紙の地の帯。 */
+		/** A band at the bottom of the sheet. */
 		BOTTOM,
 
-		/** 用紙の天の帯(頭注、2026-09-11)。 */
+		/** A band at the top of the sheet (headnotes, 2026-09-11). */
 		TOP
 	}
 
 	/**
-	 * 用紙の端に帯を取る配置か(天か地)。
+	 * Whether this placement reserves a band at the top or bottom of the sheet.
 	 *
 	 * <p>
-	 * {@code BLOCK_END}と違い、帯はページ開始時に一度だけ予約され、段の
-	 * 高さに差を作らない。天地どちらも版面の行方向(縦組みページなら用紙の
-	 * 縦方向)を削るので、勘定はほぼ同じ経路を通る。
+	 * Unlike {@code BLOCK_END}, a band is reserved only once at the start of the page and does not
+	 * create differences in column height. Both top and bottom bands reduce the type area in the
+	 * inline direction (the sheet's vertical direction on a vertical-writing page), so their
+	 * accounting follows mostly the same path.
 	 * </p>
 	 */
 	public boolean isPageBand() {
 		return this.position == Position.BOTTOM || this.position == Position.TOP;
 	}
 
-	/** 天の帯(頭注)か。 */
+	/** Whether this is a top band (headnotes). */
 	public boolean isHeadBand() {
 		return this.position == Position.TOP;
 	}
 
 	/**
-	 * 本文と脚注の間の区切り線です(2026-10-04、{@code @footnote}の{@code border-top}。
-	 * TECH-20261003-004 の⑤)。指定が無ければ{@code null}で、UAの既定の線
-	 * (0.5pt・黒・版面の行方向の 1/3)を引く。指定があれば領域の幅いっぱいに
-	 * その太さ・色で引き、太さ 0(none 等)なら引かない。
+	 * The separator between body text and footnotes (2026-10-04, {@code border-top} on {@code @footnote};
+	 * item ⑤ of TECH-20261003-004). If unspecified, this is {@code null} and the UA draws its default
+	 * line (0.5 pt, black, 1/3 of the type area's inline dimension). If specified, the line spans the
+	 * area's full width with the specified thickness and color. A thickness of 0 (none, etc.) draws no line.
 	 */
 	public record Separator(double thickness, net.zamasoft.pdfg2d.gc.paint.Color color) {
 	}
@@ -45,16 +46,16 @@ public final class FootnoteArea {
 
 	public final Position position;
 
-	/** nullならページの書字方向に従います。 */
+	/** If null, follows the page's writing direction. */
 	public final WritingMode flow;
 
-	/** pt単位の帯の寸法(間隙込み)。nullならautoです。 */
+	/** The band size in pt, including the gap. Null means auto. */
 	public final Double height;
 
-	/** pt単位の帯の下限です。 */
+	/** The minimum band size in pt. */
 	public final double minHeight;
 
-	/** 区切り線の指定(nullはUAの既定の線)。 */
+	/** The separator specification (null means the UA's default line). */
 	public final Separator separator;
 
 	private FootnoteArea(final Position position, final WritingMode flow, final Double height, final double minHeight,

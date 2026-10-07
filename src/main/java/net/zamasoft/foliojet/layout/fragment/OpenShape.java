@@ -1,33 +1,32 @@
 package net.zamasoft.foliojet.layout.fragment;
 
 /**
- * 継続末尾の開き形です(M3b Phase 3c: 旧 int depth 規約の型化)。
+ * The open shape at the end of a continuation (M3b Phase 3c: types the former int depth convention).
  *
  * <p>
- * moved-open ボックス連鎖(write-once 断片の運搬 — ARCHITECTURE §5.5
- * 是認)を OpenChain の入れ子で、開きテキスト(スライス handoff)を
- * OpenText で表す。旧規約の「深さ n」は Chain^(n-1)(Text) に対応し、
- * 負の深さのような不正状態は表現不能。トレース・水位歩行の互換の
- * ため depth() で旧値を導出できる。
+ * Represents a moved-open box chain (carrying write-once fragments, approved in ARCHITECTURE §5.5)
+ * as nested OpenChains, and open text (slice handoff) as OpenText.
+ * The former "depth n" corresponds to Chain^(n-1)(Text), making invalid states such as negative depth
+ * unrepresentable. depth() derives the old value for compatibility with tracing and watermark traversal.
  * </p>
  */
 public sealed interface OpenShape {
-	/** すべて閉じている(旧 depth=0)。 */
+	/** Everything is closed (former depth=0). */
 	record Closed() implements OpenShape {
 	}
 
-	/** 末尾は開きテキスト(旧 depth=1)。 */
+	/** The tail is open text (former depth=1). */
 	record OpenText() implements OpenShape {
 	}
 
-	/** 末尾は moved-open ボックス。inner はその内側の形(旧 depth-1)。 */
+	/** The tail is a moved-open box. inner is its inner shape (former depth-1). */
 	record OpenChain(OpenShape inner) implements OpenShape {
 	}
 
 	OpenShape CLOSED = new Closed();
 	OpenShape TEXT = new OpenText();
 
-	/** 旧 depth 規約からの変換です(0=Closed, 1=Text, n=Chain^(n-1)(Text))。 */
+	/** Converts from the former depth convention (0=Closed, 1=Text, n=Chain^(n-1)(Text)). */
 	static OpenShape of(final int depth) {
 		OpenShape shape = depth <= 0 ? CLOSED : TEXT;
 		for (int i = 1; i < depth; ++i) {
@@ -37,14 +36,14 @@ public sealed interface OpenShape {
 	}
 
 	/**
-	 * 旧 depth 規約の値です(トレース表示・水位歩行の互換)。
+	 * The value under the former depth convention (for trace display and watermark traversal compatibility).
 	 *
 	 * <p>
-	 * 2026-07-21: 再帰実装(1 + inner.depth())は、深さガード自体が
-	 * 深いOpenChainでStackOverflowErrorに到達しうるという盲点だった
-	 * (ChatGPT Pro相談で指摘、設計相談)。
-	 * ガードの判定に使う値が先に落ちては安全網の意味がないため、
-	 * 明示カーソルによる反復へ変更した。
+	 * 2026-07-21: The recursive implementation (1 + inner.depth()) overlooked that the depth guard itself
+	 * could reach StackOverflowError on a deep OpenChain
+	 * (noted in the ChatGPT Pro consultation; design consultation).
+	 * A safety net is useless if calculating its guard value fails first,
+	 * so this was changed to iteration with an explicit cursor.
 	 * </p>
 	 */
 	default int depth() {

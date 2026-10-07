@@ -10,13 +10,13 @@ import net.zamasoft.zstream.resolver.SourceResolver;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 
 /**
- * EPUBの中身がディレクトリとして与えられる場合の{@link ArchiveFile}です。
+ * An {@link ArchiveFile} for EPUB content supplied as a directory.
  *
  * <p>
- * ZIPを開く代わりに、項目のパスをリゾルバへ渡して都度取得します。
- * <b>要る項目しか取りません</b>。CTIPでクライアントがソースリゾルバを
- * 設定していれば、クライアント側のEPUBから必要な項目だけが送られてくるので、
- * 画像を出力しない処理では画像が転送されません。
+ * Passes each item's path to the resolver to retrieve it as needed, instead of opening a ZIP.
+ * <b>Retrieves only the required items</b>. If the client sets a source resolver over CTIP,
+ * only the required items are sent from the client's EPUB,
+ * so images are not transferred when the output does not include them.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -54,8 +54,8 @@ public class ResolvedArchiveFile implements ArchiveFile {
 	@Override
 	public InputStream getInputStream(final String path) throws IOException {
 		final Source source = this.resolver.resolve(this.toURI(path));
-		// 読み終わりで必ず解放する。ZipArchiveFileが再オープン版でしている
-		// のと同じ形で、呼び出し側の作法を変えずに済ませる
+		// Always release the resource after reading, following the same pattern as the reopening
+		// variant in ZipArchiveFile, so callers need no changes
 		return new FilterInputStream(source.getInputStream()) {
 			@Override
 			public void close() throws IOException {
@@ -70,6 +70,6 @@ public class ResolvedArchiveFile implements ArchiveFile {
 
 	@Override
 	public void close() throws IOException {
-		// 個々の取得ごとに解放しているので、まとめて閉じるものは無い
+		// Each retrieval releases its resource, so there is nothing to close collectively
 	}
 }

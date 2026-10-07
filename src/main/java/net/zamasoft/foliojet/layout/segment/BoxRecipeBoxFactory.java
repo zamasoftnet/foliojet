@@ -38,18 +38,17 @@ import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 
 /**
- * {@link BoxRecipe}から実際の{@code IBox}を再構築するファクトリです
- * (2026-07-22新設、M6d-A3d)。
+ * A factory that reconstructs actual {@code IBox} instances from {@link BoxRecipe}
+ * (introduced 2026-07-22, M6d-A3d).
  *
  * <p>
- * E-6増分3b-1(2026-07-24): 旧{@code SourceReplayer.newBox}
- * ({@code LayoutSource.Start}から直接読む対の実装)をkind別の
- * 構築カーネル({@link #create(LayoutSource.BoxKind, Params, Pos)})
- * としてここへ一元化した。TableBoxの「外箱と内側FlowBlockBoxが
- * TableParamsを共有する」alias構造もカーネルの一箇所だけが持つ。
- * recipe版({@link #create(BoxRecipe)})はテンプレートを
- * materializeしてからカーネルへ委譲する——旧{@code LayoutSource}
- * オブジェクトには一切触れない。
+ * E-6 increment 3b-1 (2026-07-24): Centralized the former {@code SourceReplayer.newBox}
+ * (the paired implementation reading directly from {@code LayoutSource.Start} )
+ * here as the construction kernel by kind ({@link #create(LayoutSource.BoxKind, Params, Pos)}).
+ * The kernel is also the single place defining TableBox's alias structure:
+ * the outer box and inner FlowBlockBox share TableParams.
+ * The recipe version ({@link #create(BoxRecipe)}) materializes templates, then delegates to the kernel;
+ * it never touches old {@code LayoutSource} objects.
  * </p>
  */
 public final class BoxRecipeBoxFactory {
@@ -57,31 +56,32 @@ public final class BoxRecipeBoxFactory {
 	}
 
 	/**
-	 * 再生で{@code TableBox}を再構築した回数です(G-1調査、2026-07-25。
-	 * 表セット実装のユーザー承認——2026-07-30——で復活)。このファクトリの
-	 * 呼び出し元は全てreplay駆動({@code SegmentExecutor})なので、この値が
-	 * そのまま「表がソース再生で作り直された回数」になる。表replay消費者
-	 * (T-c)の非空振り証明に使う——G-1時点ではこの値が常に0
-	 * (消費者不在)だったことが「recipe記録化単体は無意味」の根拠だった。
+	 * Number of {@code TableBox} reconstructions during replay (G-1 investigation, 2026-07-25;
+	 * restored with user approval of the table-set implementation on 2026-07-30).
+	 * All callers of this factory are replay-driven ({@code SegmentExecutor}), so this directly counts
+	 * tables rebuilt through source replay.
+	 * Used to prove the table replay consumer (T-c) actually runs.
+	 * At G-1, this was always 0 (no consumer), which established that recipe recording alone was pointless.
 	 */
 	public static final java.util.concurrent.atomic.AtomicLong TABLE_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
 
 	/**
-	 * CAPTION recipeのmaterialize回数です(caption recipe化C1——C4の
-	 * 表文脈replay解禁で>0になる。TABLE_REPLAYSと同型の非空振り証明)。
+	 * Number of CAPTION recipe materializations (caption recipes C1;
+	 * becomes >0 when C4 enables table-context replay).
+	 * Proves the path actually runs, analogous to TABLE_REPLAYS.
 	 */
 	public static final java.util.concurrent.atomic.AtomicLong CAPTION_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
 
-	/** 再生で{@code GridBox}を再構築した回数です(Grid G0c——G7の観測点)。 */
+	/** Number of {@code GridBox} reconstructions during replay (Grid G0c; G7 observation point). */
 	public static final java.util.concurrent.atomic.AtomicLong GRID_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
 
-	/** 再生で{@code FlexBox}を再構築した回数です(Flex F0c——非空振り観測点)。 */
+	/** Number of {@code FlexBox} reconstructions during replay (Flex F0c; observes that the path actually runs). */
 	public static final java.util.concurrent.atomic.AtomicLong FLEX_REPLAYS = new java.util.concurrent.atomic.AtomicLong();
 
-	/** 試験用: DirectSessionの変換スレッドからも通知する。保存・復元は試験側で行う。 */
+	/** For tests: also notifies from DirectSession's conversion thread. Tests handle saving/restoring. */
 	static volatile java.util.function.Consumer<BoxRecipe.PlacedTable> placedTableReplayObserver;
 
-	/** {@code recipe}のテンプレートをmaterializeし、対応する新品の{@code IBox}を返す。 */
+	/** Materializes {@code recipe}'s templates and returns the corresponding fresh {@code IBox}. */
 	public static INonReplacedBox create(final BoxRecipe recipe) {
 		return switch (recipe) {
 		case BoxRecipe.Flow r -> create(LayoutSource.BoxKind.FLOW, r.params().materialize(), r.pos().materialize());
@@ -100,8 +100,8 @@ public final class BoxRecipeBoxFactory {
 			create(LayoutSource.BoxKind.INLINE_BLOCK, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.InsideMarker r ->
 			create(LayoutSource.BoxKind.INSIDE_MARKER, r.params().materialize(), r.pos().materialize());
-		// Tableのparams共有(alias)はカーネル側で行うため、ここは
-		// materializeを1回ずつ呼ぶだけでよい
+		// The kernel handles Table params sharing (aliasing), so
+		// only one materialize call per template is needed here.
 		case BoxRecipe.Table r -> create(LayoutSource.BoxKind.TABLE, r.params().materialize(), r.pos().materialize());
 		case BoxRecipe.PlacedTable r -> {
 			TABLE_REPLAYS.incrementAndGet();
@@ -137,13 +137,13 @@ public final class BoxRecipeBoxFactory {
 	}
 
 	/**
-	 * kindとparams/posから同型の新品ボックスを作る構築カーネルです
-	 * (E-6増分3b-1で旧{@code SourceReplayer.newBox}を移設——
-	 * {@code StyleBuilder.boxKind}と対のファクトリ)。E-6増分3b-4で
-	 * {@code LayoutSource.Start}も記録時freezeのrecipe保持になったため、
-	 * live params/posを直接渡す呼び出し元は残っていない——recipe駆動
-	 * ({@link #create(BoxRecipe)})のmaterialize結果がここを通り、
-	 * kindごとの構築ロジックはこの一箇所だけが持つ。
+	 * The construction kernel creating a fresh box of the same kind from kind and params/pos
+	 * (moved from the former {@code SourceReplayer.newBox} in E-6 increment 3b-1;
+	 * the factory paired with {@code StyleBuilder.boxKind} ).
+	 * E-6 increment 3b-4 also changed {@code LayoutSource.Start} to retain recipes frozen at recording time,
+	 * so no caller still passes live params/pos directly.
+	 * Recipe-driven materialization results ({@link #create(BoxRecipe)}) pass through here,
+	 * the sole location of construction logic for each kind.
 	 */
 	public static INonReplacedBox create(final LayoutSource.BoxKind kind, final Params params, final Pos pos) {
 		return switch (kind) {
@@ -155,9 +155,9 @@ public final class BoxRecipeBoxFactory {
 		case INLINE_BLOCK -> new InlineBlockBox((BlockParams) params, (InlinePos) pos);
 		case INSIDE_MARKER -> new InsideMarkerBox((BlockParams) params, (InlinePos) pos);
 		case TABLE -> {
-			// 外側のTableBoxと内側のFlowBlockBoxはTableParamsを共有する
-			// (alias構造の一元点——live/recipeの両駆動で同じ。記録適格が
-			// params aliasを要求するのはこの再構成と対のため)
+			// The outer TableBox and inner FlowBlockBox share TableParams.
+			// (The single definition of the alias structure, identical for live/recipe-driven construction.
+			// Recording eligibility requires params aliasing to match this reconstruction.)
 			final TableParams tableParams = (TableParams) params;
 			TABLE_REPLAYS.incrementAndGet();
 			yield new TableBox(tableParams, new FlowBlockBox(tableParams, (FlowPos) pos));
@@ -167,22 +167,22 @@ public final class BoxRecipeBoxFactory {
 		case TABLE_CELL -> new TableCellBox((BlockParams) params, (TableCellPos) pos, new FlowContainer());
 		case TABLE_COLUMN_GROUP -> new TableColumnGroupBox((InnerTableParams) params, (TableColumnPos) pos);
 		case TABLE_COLUMN -> new TableColumnBox((InnerTableParams) params, (TableColumnPos) pos);
-		// E-6増分4e: 絶対配置ブロック(StyleBuilder:1166の生成と同型)
+		// E-6 increment 4e: Absolutely positioned block (same construction as StyleBuilder:1166)
 		case ABSOLUTE -> new AbsoluteBlockBox((BlockParams) params, (AbsolutePos) pos);
-		// Grid G0c: 再生消費者の非空振り証明用にGRID_REPLAYSを数える
-		// (TABLE_REPLAYSと同型)
+		// Grid G0c: Count GRID_REPLAYS to prove the replay consumer actually runs.
+		// (Analogous to TABLE_REPLAYS.)
 		case GRID -> {
 			GRID_REPLAYS.incrementAndGet();
 			yield new net.zamasoft.foliojet.layout.box.impl.GridBox(
 					(net.zamasoft.foliojet.layout.box.params.GridParams) params, (FlowPos) pos);
 		}
-		// Flex F0c: GRIDと同型の再構築+非空振り観測
+		// Flex F0c: Reconstruction and observation of actual execution, analogous to GRID
 		case FLEX -> {
 			FLEX_REPLAYS.incrementAndGet();
 			yield new net.zamasoft.foliojet.layout.box.impl.FlexBox(
 					(net.zamasoft.foliojet.layout.box.params.FlexParams) params, (FlowPos) pos);
 		}
-		// caption recipe化C1: 再生消費者の非空振り証明用(C4で>0になる)
+		// Caption recipes C1: Prove the replay consumer actually runs (becomes >0 in C4).
 		case CAPTION -> {
 			CAPTION_REPLAYS.incrementAndGet();
 			yield new FlowBlockBox((BlockParams) params,
@@ -192,12 +192,11 @@ public final class BoxRecipeBoxFactory {
 	}
 
 	/**
-	 * {@link ReplacedRecipe}のテンプレートをmaterializeし、対応する
-	 * 新品の{@link AbstractReplacedBox}を返します(2026-07-22新設、
-	 * M6d-A——{@link #create}と対だが戻り値型が{@code INonReplacedBox}
-	 * ではなく{@code AbstractReplacedBox}のため別メソッドとした
-	 * (`開発記録`
-	 * 「未着手のまま残るもの」参照)。
+	 * Materializes {@link ReplacedRecipe} 's templates and returns the corresponding fresh
+	 * {@link AbstractReplacedBox} (introduced 2026-07-22, M6d-A).
+	 * Paired with {@link #create} , but a separate method because its return type is
+	 * {@code AbstractReplacedBox} , not {@code INonReplacedBox}
+	 * (see "Items still unstarted" in the `development record`).
 	 */
 	public static AbstractReplacedBox createReplaced(final ReplacedRecipe recipe) {
 		return switch (recipe) {

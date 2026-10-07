@@ -22,55 +22,54 @@ import net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace;
 import net.zamasoft.pdfg2d.gc.text.pipeline.TotalFit;
 
 /**
- * Knuth-Plass行分割(CSS {@code text-wrap-style: pretty})のオプトイン
- * セッションです(2026-07-23新設、M3c増分3。2026-07-25に独自プロパティ
- * {@code text.line-breaker}からCSSへ一本化)。
+ * An opt-in session for Knuth-Plass line breaking (CSS {@code text-wrap-style: pretty})
+ * (introduced on 2026-07-23, M3c increment 3; consolidated from the proprietary
+ * {@code text.line-breaker} property into CSS on 2026-07-25).
  *
  * <p>
- * {@code requireTextBlock()}〜{@code endTextBlock()}のTextBuilder構築
- * セッション(段落相当)の整形済みイベントを配達せずに蓄積し、セッション
- * 終了時に{@link TotalFitProjection}でbreakpoint列を選択してから、既存の
- * {@link TextBuilder}へ蓄積イベントを再生する。物理的な行生成は従来
- * どおりTextBuilderが唯一の担当で、本セッションは「どのflushで改行
- * するか」({@link TotalFitProjection.Plan})を供給するだけ。
+ * Buffers shaped events for the TextBuilder construction session (roughly a paragraph) from
+ * {@code requireTextBlock()} to {@code endTextBlock()} without delivering them. At session end,
+ * {@link TotalFitProjection} selects breakpoints, then the buffered events replay into the existing
+ * {@link TextBuilder}. TextBuilder remains solely responsible for physical line construction;
+ * this session only supplies "which flush causes a line break" ({@link TotalFitProjection.Plan}).
  * </p>
  *
  * <p>
- * 適格条件は保守的で、1つでも満たさなければ計画なし(plan=null)の
- * verbatim再生=legacyと完全一致の出力にフォールバックする:
+ * Eligibility is conservative. If any condition fails, replay verbatim with no plan (plan=null),
+ * falling back to output identical to legacy:
  * </p>
  * <ul>
- * <li>開始時: 段落の算出値が{@code text-wrap-style: pretty}である・
- * 改ページ再開({@code BreakToken.midFlow/midLine})でない・
- * 横書き({@code WritingMode.TB}。縦書きは天付き調整
- * {@code locateLine()}が行ごとに実効幅を変えるため初期版では除外)・
- * {@code ::first-line}なし・段落開始Y以降に影響しうるfloat排除域が
- * ない・{@code white-space: pre/pre-wrap}でない・
- * {@code word-wrap: break-word}でない・行幅が正で有限。</li>
- * <li>記録中(即時中断→蓄積分をlegacyで再生し、以降は素通し):
- * タブ・インライン置換要素・インラインブロック(ルビを含む)・
- * インライン絶対配置・advance(枠幅)を持つインライン境界・
- * {@code addBound}(段落内float/絶対配置——TextBuilderの実状態を読む
- * ため、読む前に確定させる)・イベント数上限(10000)超過。</li>
+ * <li>At start: the paragraph's computed value is {@code text-wrap-style: pretty};
+ * this is not a resumption after a page break ({@code BreakToken.midFlow/midLine});
+ * horizontal writing ({@code WritingMode.TB}; vertical writing is excluded in the initial version
+ * because top alignment in {@code locateLine()} changes the effective width per line);
+ * no {@code ::first-line}; no float exclusion area that can affect the paragraph at or below its
+ * starting Y; neither {@code white-space: pre/pre-wrap} nor {@code word-wrap: break-word};
+ * and a positive, finite line width.</li>
+ * <li>During recording (abort immediately, replay buffered events through legacy, then pass through):
+ * a tab; an inline replaced element; an inline block (including ruby); inline absolute positioning;
+ * an inline boundary with an advance (frame width); {@code addBound} (a float or absolute positioning
+ * within the paragraph; it reads TextBuilder's actual state, so finalize before that read);
+ * or exceeding the event limit (10000).</li>
  * </ul>
  *
  * <p>
- * 最適化再生中に行間改ページ({@code BreakableBuilder.flush()})が
- * TextBuilderを差し替えた場合、planは元のTextBuilderインスタンスに
- * 束縛されているため、残りのイベントは自然にlegacyの貪欲法で組まれる
- * (計画の座標系と改ページ後の再生機構が混線しない)。
+ * If a page break between lines ({@code BreakableBuilder.flush()}) replaces TextBuilder during
+ * optimized replay, the plan remains bound to the original TextBuilder instance, so the remaining
+ * events naturally use legacy greedy layout (the plan's coordinate system does not get mixed
+ * with the replay mechanism after the page break).
  * </p>
  */
 final class TotalFitSession {
 
-	/** 蓄積イベント数の上限です(超えたらlegacyへフォールバック)。 */
+	/** Maximum number of buffered events (fall back to legacy when exceeded). */
 	private static final int EVENT_LIMIT = 10000;
 
 	private enum State {
 		RECORDING, REPLAYING, DONE
 	}
 
-	/** 記録される配達イベントです(再生時に同順で配達する)。 */
+	/** A recorded delivery event (delivered in the same order during replay). */
 	private sealed interface Recorded {
 		record Run(FontStyle fontStyle, FontMetrics fontMetrics) implements Recorded {
 		}
@@ -92,7 +91,7 @@ final class TotalFitSession {
 
 	private final BlockBuilder builder;
 
-	/** セッション開始時のTextBuilder(planはこのインスタンスに束縛)。 */
+	/** TextBuilder at session start (the plan is bound to this instance). */
 	private final TextBuilder textBuilder;
 
 	private final double lineSize;
@@ -108,20 +107,20 @@ final class TotalFitSession {
 	private State state = State.RECORDING;
 
 	/**
-	 * 再生済みイベント数です(記録中は0)。{@link #clampDeliveredCharEnd}
-	 * が「物理的にTextBuilderへ届いた配達境界」を求めるのに使う。
+	 * Number of replayed events (0 during recording). {@link #clampDeliveredCharEnd} uses this
+	 * to find the delivery boundary of events that have physically reached TextBuilder.
 	 */
 	private int replayIndex = 0;
 
 	/**
-	 * 再生で配達済みのグリフのソース文字終端の最大値です(未配達なら-1)。
-	 * legacyの{@code deliveredCharEnd}(グリフでのみ前進)と同じ意味論。
+	 * Maximum source character end of glyphs delivered during replay (-1 if none have been delivered).
+	 * Same semantics as legacy {@code deliveredCharEnd} (advances only on glyphs).
 	 */
 	private int maxDeliveredGlyphEnd = -1;
 
-	// ---- 幅計測ミラー(TextBuilderと同じ計算で投影用の幅を得る) ----
+	// ---- Width measurement mirror (uses TextBuilder's calculation to obtain widths for projection) ----
 
-	/** インラインのTextParamsスタック(TextBuilder.textParamStack相当)。 */
+	/** Inline TextParams stack (equivalent to TextBuilder.textParamStack). */
 	private final List<AbstractTextParams> paramsStack = new ArrayList<>();
 
 	private final AbstractTextParams baseParams;
@@ -137,8 +136,8 @@ final class TotalFitSession {
 	private TextImpl mirrorText;
 
 	/**
-	 * 和文詰めT1a: 同一run内の約物詰めの追跡(autospace有効段落は
-	 * pretty対象外のためflagsは常に0=trim判定のみ使用)。
+	 * Japanese spacing T1a: tracks punctuation trimming within a run (paragraphs with autospace
+	 * are excluded from pretty, so flags are always 0 and only trim decisions use them).
 	 */
 	private final net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker spacing = //
 			new net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker();
@@ -158,49 +157,49 @@ final class TotalFitSession {
 				: TotalFit.LastLinePolicy.RAGGED;
 		this.baseParams = params;
 		this.applyTextState(params);
-		// 和文詰めT1b: trim policy(autospace有効段落はpretty対象外のため
-		// flagsは0のまま)
+		// Japanese spacing T1b: trim policy (flags remain 0 because paragraphs
+		// with autospace are excluded from pretty).
 		this.spacing.setTrimOff(params.textSpacingTrimOff);
 	}
 
 	/**
-	 * セッション開始時の適格条件を検査し、適格なら新しいセッションを
-	 * 返します(不適格ならnull=従来の直接配達)。
+	 * Checks eligibility at session start and returns a new session if eligible
+	 * (null otherwise, for conventional direct delivery).
 	 */
 	static TotalFitSession tryBegin(final BlockBuilder builder, final TextBuilder textBuilder,
 			final BreakToken breakToken) {
 		if (breakToken.midFlow()) {
-			// 改ページ・改段・同一フロー内の再開(midLineを含む)
+			// Resumption after a page break, a column break, or within the same flow (including midLine).
 			return null;
 		}
 		final LayoutContext.Flow flow = builder.getFlow();
 		final BlockParams params = flow.box.getBlockParams();
 		if (params.textWrapStyle != AbstractTextParams.TEXT_WRAP_STYLE_PRETTY) {
-			// CSS text-wrap-style: pretty のオプトイン(2026-07-25)。
-			// 既定(auto)は貪欲法——K-Pの適用単位は段落なので、段落を
-			// 確立するブロックの算出値だけを見る
+			// Opt in via CSS text-wrap-style: pretty (2026-07-25).
+			// The default (auto) is greedy. K-P applies to a paragraph, so examine only
+			// the computed value of the block that establishes the paragraph.
 			return null;
 		}
 		if (params.flow != WritingMode.TB) {
-			// 縦書きは天付き(locateLineのCL01調整)が行ごとの実効幅を
-			// 変えるため初期版では除外する
+			// Exclude vertical writing in the initial version: top alignment (CL01 adjustment in locateLine)
+			// changes the effective width per line.
 			return null;
 		}
 		if (params.firstLineStyle != null) {
-			// ::first-line は先頭行のみスタイルが変わる
+			// ::first-line changes the style of the first line only.
 			return null;
 		}
 		if (!textStateSupported(params)) {
 			return null;
 		}
-		// 段落開始Y以降に影響しうるfloat排除域がないこと(codexレビュー:
-		// locateLine()は幅照会ではなく4状態を更新する副作用持ちで、下方
-		// floatのmaxPageSize設定など「幅が同じでもfloat関与」がある)
+		// Require no float exclusion area that can affect the paragraph at or below its starting Y (codex review:
+		// locateLine() is not a width query; it updates four state values. A float can be involved even
+		// when the width is unchanged, e.g., setting maxPageSize for a float further down).
 		if (builder.toAddFloatings != null && !builder.toAddFloatings.isEmpty()) {
 			return null;
 		}
 		if (builder.floatings != null && !builder.floatings.isEmpty()) {
-			// floatingsはpageEnd昇順ソート済み——末尾が最大pageEnd
+			// floatings is sorted by pageEnd ascending, so the last entry has the maximum pageEnd.
 			final LayoutContext.Floating last = builder.floatings.get(builder.floatings.size() - 1);
 			if (LayoutUtils.compare(last.pageEnd, builder.pageAxis) > 0) {
 				return null;
@@ -218,24 +217,22 @@ final class TotalFitSession {
 		return session;
 	}
 
-	/**
-	 * white-space/word-wrapが初期版の対応範囲かを検査します。
-	 */
+	/** Checks whether white-space/word-wrap is within the initial version's supported range. */
 	private static boolean textStateSupported(final AbstractTextParams params) {
-		// 和文詰めA2→既定on化(2026-08-01): autospaceはプロパティでは蹴らない。
-		// text-autospace既定normal化でプロパティ検査は全段落を蹴ってしまい、
-		// 純英文・純和文のprettyまで死ぬため、実際にギャップが発生した時点で
-		// recordGlyphがabortToLegacyする内容ベースの判定へ精密化した
-		// (ギャップを含む段落がK-P対象外である点はP1——答申Q5——のまま不変)
+		// Japanese spacing A2 -> enabled by default (2026-08-01): do not reject autospace by property.
+		// With text-autospace defaulting to normal, a property check rejected every paragraph, disabling
+		// pretty even for purely English or purely Japanese text. Refined this into a content-based check:
+		// recordGlyph calls abortToLegacy when a gap actually occurs.
+		// (Paragraphs with gaps remain excluded from K-P, as in P1, recommendation Q5.)
 		switch (params.whiteSpace) {
 		case AbstractTextParams.WHITE_SPACE_PRE:
 		case AbstractTextParams.WHITE_SPACE_PRE_WRAP:
-			// スペースをつぶさない経路は行頭・行末のつぶし規則が異なる
+			// Paths that preserve spaces have different collapse rules at the start and end of lines.
 			return false;
 		case AbstractTextParams.WHITE_SPACE_NORMAL:
 		case AbstractTextParams.WHITE_SPACE_PRE_LINE:
-			// 折り返しあり: break-wordはTextBuilder.glyph()の途中分割を
-			// 使うため対応しない
+			// With wrapping enabled: break-word is unsupported because it uses
+			// mid-sequence splitting in TextBuilder.glyph().
 			if (params.wordWrap == AbstractTextParams.WORD_WRAP_BREAK_WORD) {
 				return false;
 			}
@@ -252,29 +249,29 @@ final class TotalFitSession {
 				&& params.whiteSpace != AbstractTextParams.WHITE_SPACE_PRE_WRAP;
 		this.letterSpacing = LayoutUtils.computeLength(params.letterSpacing,
 				this.builder.getFlowBox().getLineSize());
-		// 既定on化(2026-08-01): ミラーtrackerにもautospaceフラグを載せ、
-		// recordGlyphのgapBefore検査(ギャップ実発生でabortToLegacy)を
-		// TextBuilder側(changeTextState)と同じ粒度で追随させる
+		// Enabled by default (2026-08-01): give the mirror tracker autospace flags as well, so
+		// recordGlyph's gapBefore check (abortToLegacy when a gap actually occurs)
+		// tracks the TextBuilder side (changeTextState) at the same granularity.
 		this.spacing.setFlags(params.textAutospace);
 	}
 
-	/** 記録中であればtrueを返します。 */
+	/** Returns true while recording. */
 	boolean recording() {
 		return this.state == State.RECORDING;
 	}
 
 	/**
-	 * 「物理的にTextBuilderへ届いたソース文字の配達境界」を返します。
+	 * Returns the delivery boundary of source characters that have physically reached TextBuilder.
 	 *
 	 * <p>
-	 * {@code BuilderGlyphHandler.deliveredCharEnd}は上流(shaper)からの
-	 * 配達で前進するため、本セッションが蓄積している間も進んでしまう。
-	 * しかし切断段落の尾部再生(2026-10-07 に撤去)は
-	 * この値を「これ以降はliveが供給する」境界として使っていたため、蓄積中・
-	 * 再生中の未配達イベントの先頭ソース位置でclampしないと、再生中の
-	 * 行間改ページで尾部再生と本セッションの残イベント配達が二重供給に
-	 * なる。未配達の最初のグリフのソース位置がその境界である(それより
-	 * 前はセッション開始前かreplayで配達済み)。
+	 * {@code BuilderGlyphHandler.deliveredCharEnd} advances on delivery from upstream (the shaper),
+	 * so it advances even while this session buffers events. However, tail replay for a split
+	 * paragraph (removed on 2026-10-07) used this value as the boundary beyond which live delivery
+	 * would supply content. Without clamping to the first source position of undelivered events
+	 * during buffering or replay, a page break between lines during replay caused duplicate delivery
+	 * from tail replay and this session's remaining events. The source position of the first
+	 * undelivered glyph is that boundary (earlier content predates the session or has been delivered
+	 * by replay).
 	 * </p>
 	 */
 	int clampDeliveredCharEnd(final int deliveredCharEnd) {
@@ -283,10 +280,10 @@ final class TotalFitSession {
 		}
 		for (int i = this.replayIndex; i < this.events.size(); ++i) {
 			if (this.events.get(i) instanceof Recorded.Glyph glyph && glyph.charOffset() >= 0) {
-				// 未配達のグリフが残っている: legacyと同じく「配達済み
-				// グリフの終端」が境界。まだ1グリフも再生していなければ
-				// 最初の未配達グリフの開始で抑える(セッション開始前の
-				// 値の上界)
+				// Undelivered glyphs remain: as in legacy, the boundary is the end
+				// of the delivered glyphs. If no glyph has been replayed yet,
+				// clamp to the start of the first undelivered glyph
+				// (an upper bound on the value before the session started).
 				return Math.min(deliveredCharEnd,
 						this.maxDeliveredGlyphEnd >= 0 ? this.maxDeliveredGlyphEnd : glyph.charOffset());
 			}
@@ -295,9 +292,9 @@ final class TotalFitSession {
 	}
 
 	/**
-	 * イベント数の上限を検査し、超過していればlegacyへ中断します。
+	 * Checks the event limit and aborts to legacy if exceeded.
 	 *
-	 * @return 記録を継続できればtrue
+	 * @return true if recording can continue
 	 */
 	private boolean checkCapacity() {
 		if (this.events.size() < EVENT_LIMIT) {
@@ -308,9 +305,9 @@ final class TotalFitSession {
 	}
 
 	/**
-	 * テキストランの開始を記録します。
+	 * Records the start of a text run.
 	 *
-	 * @return 記録した場合true(falseなら呼び出し側が直接配達する)
+	 * @return true if recorded (if false, the caller delivers it directly)
 	 */
 	boolean recordRun(final FontStyle fontStyle, final FontMetrics fontMetrics) {
 		if (!this.recording() || !this.checkCapacity()) {
@@ -324,9 +321,8 @@ final class TotalFitSession {
 	}
 
 	/**
-	 * グリフを記録します(クラスタ文字は防御コピー——上流のバッファは
-	 * 再利用される)。幅はTextBuilder.glyph()と同じ計算のミラー
-	 * TextImplで求める。
+	 * Records a glyph (defensively copies cluster characters because the upstream buffer is reused).
+	 * Computes the width with a mirror TextImpl using the same calculation as TextBuilder.glyph().
 	 */
 	boolean recordGlyph(final int charOffset, final char[] ch, final int coff, final byte clen, final int gid) {
 		if (!this.recording() || !this.checkCapacity()) {
@@ -341,37 +337,37 @@ final class TotalFitSession {
 			this.mirrorText.setLetterSpacing(this.letterSpacing);
 		}
 		final char[] cluster = Arrays.copyOfRange(ch, coff, coff + clen);
-		// 既定on化(2026-08-01): autospaceギャップが実際に発生する段落のみ
-		// K-P対象外(K-P側のpair gap discount対応はP1——答申Q5——のまま)。
-		// プロパティ検査ではなく実発生で判定することで、text-autospace既定
-		// normal下でも純英文・純和文の段落はprettyを保つ
+		// Enabled by default (2026-08-01): exclude only paragraphs where an autospace gap actually occurs
+		// from K-P (K-P pair gap discount support remains P1, recommendation Q5).
+		// Checking actual occurrences instead of properties preserves pretty for purely English
+		// or purely Japanese paragraphs even with text-autospace defaulting to normal.
 		if (this.spacing.gapBefore(cluster, 0, this.fontStyle.getSize()) != 0) {
 			this.abortToLegacy();
 			return false;
 		}
-		// T1a: 同一run内の約物詰め(font層から移管)を候補幅へ反映
-		// (ギャップ発生段落はpretty対象外のためtrimのみ。最終bindは
-		// TextBuilder側trackerがxadvanceで適用する——旧font層kern時代と
-		// 同じく分割点の復元はモデル化しない)
+		// T1a: include punctuation trimming within a run (moved from the font layer) in candidate widths.
+		// (Only trim, since paragraphs with gaps are excluded from pretty. The TextBuilder tracker
+		// applies it through xadvance at final bind. As with the old font-layer kern implementation,
+		// restoration at a breakpoint is not modeled.)
 		final double trim = this.spacing.trimBefore(cluster, 0, gid, this.mirrorText, this.fontMetrics,
 				this.fontStyle.getSize(), this.fontStyle);
-		// TextBuilder.glyph()と同じCSS幅式(GlyphMeasureStep)で候補幅を出す
-		// ——式の分岐drift(幅会計3系統)をここで封じる。gap≠0は上でK-P
-		// 対象外へ離脱済みのためgap=0
+		// Compute candidate widths with the same CSS width formula (GlyphMeasureStep) as TextBuilder.glyph().
+		// This prevents drift among the formulas in the three width accounting paths.
+		// gap=0 because gap!=0 has already exited the K-P path above.
 		final double advance = new net.zamasoft.foliojet.layout.text.GlyphMeasureStep(
 				this.mirrorText.appendGlyph(cluster, 0, clen, gid), this.letterSpacing, 0, trim).totalAdvance();
 		this.pendingBoxWidth += advance;
 		this.spacing.glyphAdded(this.mirrorText, this.fontStyle.getSize(), cluster, 0, clen, gid);
 		this.events.add(new Recorded.Glyph(charOffset, cluster, clen, gid));
 		if (this.mirrorText.getGlyphCount() > 10000) {
-			// TextBuilder.glyph()の長大ラン分割と同じ地点でミラーも切る
-			// (分割点のカーニング打ち切りを一致させる)
+			// Split the mirror at the same point as TextBuilder.glyph() splits very long runs
+			// (so kerning stops at the same split point).
 			this.mirrorText = null;
 		}
 		return true;
 	}
 
-	/** テキストランの終了を記録します。 */
+	/** Records the end of a text run. */
 	boolean recordRunEnd() {
 		if (!this.recording() || !this.checkCapacity()) {
 			return false;
@@ -382,19 +378,19 @@ final class TotalFitSession {
 	}
 
 	/**
-	 * 制御(空白・改行・ソフトハイフン・インライン境界)を記録します。
-	 * 初期版で対応しないもの(タブ・置換要素・インラインブロック・ルビ・
-	 * インライン絶対配置・枠幅付きインライン境界)はlegacyへ中断し
-	 * falseを返します(呼び出し側が直接配達する)。
+	 * Records a control (whitespace, line break, soft hyphen, or inline boundary).
+	 * For controls unsupported in the initial version (tabs, replaced elements, inline blocks, ruby,
+	 * inline absolute positioning, or inline boundaries with frame width), aborts to legacy and
+	 * returns false (the caller delivers directly).
 	 */
 	boolean recordControl(final TextControl quad) {
 		if (!this.recording() || !this.checkCapacity()) {
 			return false;
 		}
-		// 既定on化(2026-08-01): ミラーtrackerのpair状態をTextBuilder.control
-		// と同じ規約で断つ(幅0のインライン開始/終了だけはpairを維持)。
-		// これが無いと「あ text」のような空白を挟む和欧の並びで
-		// gapBefore検査が偽のギャップを検出し、K-Pが不要に中断される
+		// Enabled by default (2026-08-01): break the mirror tracker's pair state using the same rules
+		// as TextBuilder.control (only zero-width inline starts/ends preserve pairs).
+		// Without this, Japanese/Latin sequences separated by whitespace, such as "あ text",
+		// make gapBefore detect a false gap and abort K-P unnecessarily.
 		if (!(quad instanceof InlineQuad inlineQuad
 				&& (inlineQuad.getType() == InlineQuad.INLINE_START
 						|| inlineQuad.getType() == InlineQuad.INLINE_END)
@@ -417,7 +413,7 @@ final class TotalFitSession {
 
 			case ' ': {
 				if (!this.collapseSpaces) {
-					// 適格条件で除外済みのはずだが防御的に中断する
+					// Eligibility should already have excluded this, but abort defensively.
 					this.abortToLegacy();
 					return false;
 				}
@@ -429,7 +425,7 @@ final class TotalFitSession {
 
 			case '\t':
 			default:
-				// タブは行位置依存幅(TextBuilder.tabAdvance()、tab-size)
+				// Tab width depends on the line position (TextBuilder.tabAdvance(), tab-size).
 				this.abortToLegacy();
 				return false;
 			}
@@ -439,7 +435,7 @@ final class TotalFitSession {
 				final InlineQuad.InlineStartQuad startQuad = (InlineQuad.InlineStartQuad) inlineQuad;
 				final AbstractTextParams params = startQuad.box.getTextParams();
 				if (inlineQuad.getAdvance() != 0 || !textStateSupported(params)) {
-					// 枠幅付きインラインは行分割時の再生成で枠幅が変わる
+					// An inline with frame width changes that width when regenerated at a line break.
 					this.abortToLegacy();
 					return false;
 				}
@@ -468,7 +464,7 @@ final class TotalFitSession {
 			case InlineQuad.INLINE_BLOCK:
 			case InlineQuad.INLINE_ABSOLUTE:
 			default:
-				// 置換要素・インラインブロック(ルビ含む)・絶対配置
+				// Replaced elements, inline blocks (including ruby), and absolute positioning.
 				this.abortToLegacy();
 				return false;
 			}
@@ -480,7 +476,7 @@ final class TotalFitSession {
 		return true;
 	}
 
-	/** flush(breakpoint候補)を記録します。 */
+	/** Records a flush (breakpoint candidate). */
 	boolean recordFlush() {
 		if (!this.recording() || !this.checkCapacity()) {
 			return false;
@@ -501,10 +497,10 @@ final class TotalFitSession {
 	}
 
 	/**
-	 * 蓄積を中止し、蓄積済みイベントをlegacyの経路で再生します。以降の
-	 * イベントは呼び出し側が直接配達する(完全にlegacyと同じ挙動)。
-	 * float・絶対配置の{@code addBound}のように「TextBuilderの実状態を
-	 * 読む」外部処理の前に呼ぶこと。
+	 * Stops buffering and replays buffered events through the legacy path. The caller delivers
+	 * subsequent events directly (exactly the same behavior as legacy).
+	 * Call before external processing that reads TextBuilder's actual state, such as
+	 * {@code addBound} for floats or absolute positioning.
 	 */
 	void abortToLegacy() {
 		if (!this.recording()) {
@@ -514,10 +510,9 @@ final class TotalFitSession {
 	}
 
 	/**
-	 * セッション終了({@code endTextBlock()})。適格に完走していれば
-	 * breakpoint列を選択して再生し、選択できない場合はverbatim再生
-	 * (=legacyと一致)します。再生中の再入(行間改ページによる
-	 * {@code endTextBlock()})では何もしません。
+	 * Ends the session ({@code endTextBlock()}). If it remained eligible to the end, selects breakpoints
+	 * and replays; if selection fails, replays verbatim (= identical to legacy). Does nothing on
+	 * reentry during replay ({@code endTextBlock()} caused by a page break between lines).
 	 */
 	void finishSession() {
 		if (!this.recording()) {
@@ -530,27 +525,27 @@ final class TotalFitSession {
 	}
 
 	/**
-	 * CSS向けの{@link TotalFit.Parameters}です(TeXのplain第2パスの
-	 * 慣用値)。toleranceを緩めすぎると「ほぼ全てのbreakpointが実行
-	 * 可能」になり、activeの除去を持たない{@code TotalFit}では候補集合が
-	 * 爆発する({@link TotalFitProjection}の伸縮モデルの注記参照)。
+	 * CSS parameters for {@link TotalFit} (conventional values for the second pass of plain TeX).
+	 * If tolerance is too loose, almost every breakpoint becomes feasible, exploding the candidate
+	 * set in {@code TotalFit}, which does not remove active nodes (see the stretch/shrink model
+	 * note in {@link TotalFitProjection}).
 	 */
 	private static TotalFit.Parameters parameters(final TotalFit.LastLinePolicy lastLine) {
 		return new TotalFit.Parameters(200, 10, 10000, 10000, 5000, lastLine);
 	}
 
 	/**
-	 * 蓄積イベントを配達します。planがnullならverbatim(legacyと同一の
-	 * 呼び出し列)、非nullなら元のTextBuilderへplanを束縛して配達する
-	 * (flushの改行判定だけがplanに従い、行の物理生成はすべて既存
-	 * コード)。行間改ページでTextBuilderが差し替わった場合、planは
-	 * 死んだインスタンスに残るため残りは自然にlegacyで組まれる。
+	 * Delivers buffered events. If plan is null, replays verbatim (the same call sequence as legacy);
+	 * otherwise, binds the plan to the original TextBuilder and delivers. Only flush line-break
+	 * decisions follow the plan; all physical line construction uses existing code. If a page break
+	 * between lines replaces TextBuilder, the plan stays on the dead instance, so the remaining
+	 * events naturally use legacy layout.
 	 */
 	private void replay(final TotalFitProjection.Plan plan) {
-		// 注意: this.builder.textSessionは再生完了までnullにしない——
-		// 再生中の改ページ処理が配達境界(clampDeliveredCharEnd)を
-		// 参照するため。record系・abort・finishはすべてstateガードで
-		// 再入しない
+		// Note: keep this.builder.textSession non-null until replay finishes:
+		// page-break processing during replay consults the delivery boundary (clampDeliveredCharEnd).
+		// State guards prevent reentry into all record methods,
+		// abort, and finish.
 		this.state = State.REPLAYING;
 		if (plan != null) {
 			this.textBuilder.totalFitPlan = plan;
@@ -559,7 +554,7 @@ final class TotalFitSession {
 			int ordinal = 0;
 			for (int i = 0; i < this.events.size(); ++i) {
 				this.replayIndex = i;
-				// 行間改ページがTextBuilderを差し替えるため毎回読み直す
+				// Read again each time because a page break between lines replaces TextBuilder.
 				switch (this.events.get(i)) {
 				case Recorded.Run run -> this.builder.textBuilder.startTextRun(run.fontStyle(), run.fontMetrics());
 				case Recorded.Glyph glyph -> {
@@ -576,8 +571,8 @@ final class TotalFitSession {
 						plan.arriveFlush(ordinal);
 					}
 					++ordinal;
-					// BreakableBuilderの行間改ページ機構を通す(legacyの
-					// live配達と同じ経路)
+					// Go through BreakableBuilder's page-break mechanism between lines
+					// (the same path as legacy live delivery).
 					this.builder.flush();
 				}
 				}

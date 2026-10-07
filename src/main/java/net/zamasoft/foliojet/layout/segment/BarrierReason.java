@@ -1,22 +1,22 @@
 package net.zamasoft.foliojet.layout.segment;
 
 /**
- * {@link SegmentEvent.Barrier}が生じた理由です(2026-07-22新設、
- * M6d-A3a。2026-07-25時点で{@link LayoutSourceEventConverter}が実際に
- * 生成し、{@code SourceReplayer}が消費している)。
+ * The reason a {@link SegmentEvent.Barrier} occurs
+ * (introduced 2026-07-22, M6d-A3a; actually produced by {@link LayoutSourceEventConverter}
+ * and consumed by {@code SourceReplayer} as of 2026-07-25).
  *
  * <p>
- * 旧{@code LayoutSource.Opaque}は理由を一切持たない位置占有マーカーに
- * すぎなかった——それをそのまま正規モデルへ持ち込むと、なぜ再生
- * できなかったのかが後から追えず、silent fallbackの温床になる
- * (codex設計相談で指摘)。この列挙で理由を必ず明示する。
+ * The former {@code LayoutSource.Opaque} was merely a position-occupying marker without any reason.
+ * Carrying it unchanged into the canonical model would make it impossible to trace why replay failed,
+ * inviting silent fallback (noted in the codex design consultation).
+ * This enum requires an explicit reason.
  * </p>
  */
 public enum BarrierReason {
-	/** 表・置換要素等、まだ{@code SegmentEvent}化されていない内容(旧{@code Opaque}相当)。 */
+	/** Content not yet represented as {@code SegmentEvent}, such as tables/replaced elements (former {@code Opaque}). */
 	NOT_YET_SUPPORTED,
-	/** 変換時に未知の型を検出したため、安全側に倒した(fail closed)。 */
+	/** Conversion detected an unknown type and took the safe path (fail closed). */
 	UNKNOWN_TYPE,
-	/** 対応する{@code Start}がまだ閉じていない(部分木が未確定)。 */
+	/** The corresponding {@code Start} is not yet closed (subtree not finalized). */
 	UNCLOSED_SUBTREE;
 }

@@ -9,18 +9,18 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * 改ページ・改段の再開操作をテキストとしてダンプします(回帰検証用)。
+ * Dumps page-break/column-break resume operations as text (for regression verification).
  *
  * <p>
- * Continuation 移行(ARCHITECTURE §5.7)の各スライスは「再開の操作列が
- * 変わらない(または意図的に変わる)」ことを機械検証する必要があります。
- * 本トレースは restyle 走行(箱の再演)とソース再駆動の分岐・順序を
- * 記録し、golden 比較(ResumeTraceGoldenTest)で意味保存を固定します。
+ * Each slice of the Continuation migration (ARCHITECTURE §5.7) requires mechanical verification that the
+ * resume operation sequence stays unchanged (or changes intentionally).
+ * This trace records the branches and order of restyle traversal (box reenactment) and source replay,
+ * and golden comparison (ResumeTraceGoldenTest) enforces semantic preservation.
  * </p>
  *
  * <p>
- * システムプロパティ {@value #DIR_PROPERTY} に出力先ディレクトリを
- * 設定すると有効になります。無効時のコストはプロパティ参照1回です。
+ * Enabled by setting the output directory in system property {@value #DIR_PROPERTY} .
+ * When disabled, the cost is one property lookup.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -31,11 +31,11 @@ public final class ResumeTrace {
 	public static final String DIR_PROPERTY = "net.zamasoft.foliojet.debug.resume-trace.dir";
 
 	/**
-	 * 再開トレースのバッファスタックです。再生した内容が新ページを
-	 * 溢れさせると再開の中で破断が入れ子で起きるため、単一バッファでは
-	 * 内側の begin が外側の記録を上書きする(外部レビュー指摘)。
-	 * 入れ子の破断は「nested resume」行として外側にも痕跡を残し、
-	 * 自身は完了時に独立ファイルとして書き出される(完了順の連番)。
+	 * The buffer stack for resume traces. If replayed content overflows the new page, breaks nest within
+	 * resume.
+	 * With a single buffer, the inner begin would overwrite the outer recording (noted in external review).
+	 * A nested break also leaves a "nested resume" line in the outer trace and writes its own separate file
+	 * on completion (numbered in completion order).
 	 */
 	private static final ThreadLocal<java.util.ArrayDeque<StringBuilder>> buffers = ThreadLocal
 			.withInitial(java.util.ArrayDeque::new);
@@ -51,7 +51,7 @@ public final class ResumeTrace {
 	}
 
 	/**
-	 * 破断(改ページ・改段)の再開の開始を記録します。
+	 * Records the start of resume after a break (page or column).
 	 *
 	 * @param kind PAGE / COLUMN
 	 */
@@ -69,12 +69,11 @@ public final class ResumeTrace {
 	}
 
 	/**
-	 * 再開中の操作を記録します。呼び出し側は enabled 判定を気にせず
-	 * 呼んでよい(無効時は無視)。
+	 * Records an operation during resume. Callers need not check enabled (ignored when disabled).
 	 *
-	 * @param depth 祖先チェーン上の深さ(不明は -1)
-	 * @param op    操作名(replay-subtree / restyle-box / text-tail 等)
-	 * @param what  対象の要約(ボックス種別・serial 等)
+	 * @param depth depth on the ancestor chain (-1 if unknown)
+	 * @param op operation name (replay-subtree / restyle-box / text-tail, etc.)
+	 * @param what summary of the target (box kind, serial, etc.)
 	 */
 	public static void op(final int depth, final String op, final String what) {
 		final StringBuilder sb = buffers.get().peek();
@@ -89,7 +88,7 @@ public final class ResumeTrace {
 	}
 
 	/**
-	 * 再開の終了を記録し、有効ならファイルへ書き出します。
+	 * Records the end of resume and writes to a file if enabled.
 	 */
 	public static void end() {
 		final StringBuilder sb = buffers.get().poll();
@@ -112,7 +111,7 @@ public final class ResumeTrace {
 	}
 
 	/**
-	 * テスト用: 連番をリセットします。
+	 * For tests: resets the sequence number.
 	 */
 	public static void reset() {
 		breakCount.set(0);

@@ -72,7 +72,7 @@ import net.zamasoft.pdfg2d.gc.font.FontFace;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 
 /**
- * ph-cssで解析したスタイルシートからCSSStyleSheetを直接構築します。
+ * Builds CSSStyleSheet directly from a stylesheet parsed by ph-css.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -83,12 +83,12 @@ public class CSSStyleSheetBuilder {
 
 	private final UserAgent ua;
 
-	/** スタイルシートのURIのスタック(importの深さ・循環検出)。 */
+	/** Stack of stylesheet URIs (import depth and cycle detection). */
 	private final List<URI> uriStack = new ArrayList<URI>();
 
 	private CSSStyleSheet cssStyleSheet;
 
-	/** これから追加する規則のcascade origin。既定は文書(著者)スタイルシート。 */
+	/** Cascade origin of rules to add. Defaults to the document (author) stylesheet. */
 	private Origin origin = Origin.AUTHOR;
 
 	public CSSStyleSheetBuilder(UserAgent ua) {
@@ -100,8 +100,8 @@ public class CSSStyleSheetBuilder {
 	}
 
 	/**
-	 * これから{@link #parse(InputSource)}する規則のcascade originを設定します。
-	 * ユーザーエージェント既定スタイルシートを読み込む前後で切り替えて使用します。
+	 * Sets the cascade origin for rules to be parsed by {@link #parse(InputSource)}.
+	 * Switch this before and after loading the user agent default stylesheet.
 	 *
 	 * @param origin
 	 */
@@ -110,13 +110,13 @@ public class CSSStyleSheetBuilder {
 	}
 
 	/**
-	 * スタイルシートを解析して構築中のCSSStyleSheetに追加します。
+	 * Parses a stylesheet and adds it to the CSSStyleSheet under construction.
 	 */
 	public void parse(InputSource source) throws IOException, CSSException {
 		String css = read(source.getReader());
 		css = css.replace("{literal}", "").replace("{/literal}", "");
-		// 未閉鎖コメントは終端で暗黙に閉じる(DeclarationParser参照——
-		// ph-cssの字句解析はここで回復できず、シート全体が破棄されてしまう)
+		// Implicitly close an unclosed comment at the end (see DeclarationParser;
+		// ph-css lexical analysis cannot recover here and discards the entire sheet).
 		css = DeclarationParser.closeUnterminatedComment(css);
 		CascadingStyleSheet sheet = CSSReader.readFromStringReader(css, DeclarationParser.settings());
 		if (sheet == null) {
@@ -152,9 +152,9 @@ public class CSSStyleSheetBuilder {
 					break;
 				}
 			}
-			// 外側の@media/@supportsの不一致は内側へ継承する(2026-07-19修正:
-			// 以前は内側の判定だけで決まり、外側が不一致でも内側の@mediaが
-			// 独立に一致すれば適用されてしまっていた)
+			// Propagate a non-matching outer @media/@supports inward (fixed on 2026-07-19:
+			// previously, only the inner condition determined the result, so an inner @media
+			// that matched independently was applied even when the outer condition did not match).
 			for (ICSSTopLevelRule inner : mediaRule.getAllRules()) {
 				this.rule(inner, uri, mediaOk && ok, layer, layerNamePrefix, containerQuery);
 			}
@@ -166,12 +166,12 @@ public class CSSStyleSheetBuilder {
 		} else if (rule instanceof CSSPageRule pageRule) {
 			this.page(pageRule, uri, mediaOk);
 		} else if (rule instanceof CSSFontFaceRule fontFaceRule) {
-			// 従来動作の踏襲: @font-faceはメディアに関係なく登録する
+			// Preserve previous behavior: register @font-face regardless of media.
 			this.fontFace(fontFaceRule, uri);
 		} else if (rule instanceof CSSLayerRule layerRule) {
 			this.layer(layerRule, uri, mediaOk, layerNamePrefix, containerQuery);
 		} else if (rule instanceof CSSUnknownRule unknownRule) {
-			// ph-cssは未専用化のat-ruleを名前・引数・本文に分けて渡す
+			// ph-css passes at-rules without dedicated support as name, arguments, and body.
 			final String decl = unknownRule.getDeclaration();
 			if (mediaOk && "@counter-style".equalsIgnoreCase(decl)) {
 				this.counterStyle(unknownRule);
@@ -182,17 +182,17 @@ public class CSSStyleSheetBuilder {
 			} else if (mediaOk && "@font-palette-values".equalsIgnoreCase(decl)) {
 				this.fontPaletteValues(unknownRule);
 			} else if (mediaOk && "@footnote".equalsIgnoreCase(decl)) {
-				// 仕様の@page内に加え、トップレベルの記述も寛容に受ける。
+				// Leniently accept top-level declarations in addition to the specified location inside @page.
 				final CSSStyleRule holder = declarationHolder(unknownRule.getBody());
 				if (holder != null) {
 					this.footnoteArea(holder.getAllDeclarations(), uri);
 				}
 			}
 		}
-		// その他(@keyframes, @namespace, 未知のat-rule)は無視する
+		// Ignore others (@keyframes, @namespace, and unknown at-rules).
 	}
 
-	/** @footnoteの対応済み記述子を文書共通の領域へ適用します(F-1)。 */
+	/** Applies supported @footnote descriptors to the document-wide area (F-1). */
 	private void footnoteArea(final List<CSSDeclaration> declarations, final URI uri) {
 		net.zamasoft.foliojet.ua.FootnoteArea area = this.ua.getUAContext().getFootnoteArea();
 		final List<CSSDeclaration> separator = new ArrayList<CSSDeclaration>();
@@ -215,7 +215,7 @@ public class CSSStyleSheetBuilder {
 					supported = false;
 					break;
 				}
-				// 文書共通の領域には要素スタイルが無い。相対長はUAの既定フォントで解決する。
+				// The document-wide area has no element style. Resolve relative lengths with the UA default font.
 				final double points = length.toAbsoluteLength(CSSStyle.getCSSStyle(this.ua, null, CSSElement.BEFORE))
 						.getLength();
 				if (!Double.isFinite(points) || points < 0) {
@@ -228,8 +228,8 @@ public class CSSStyleSheetBuilder {
 				if ("bottom".equals(value)) {
 					area = area.withPosition(net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM);
 				} else if ("top".equals(value)) {
-					// 天の帯(頭注、2026-09-11)。縦組みページでのみ働く——
-					// 横組みページのblock-startへ帯を取る経路はまだ無い
+					// Top band (headnotes, 2026-09-11). Works only on pages with vertical writing;
+					// there is no path yet to reserve a band at block-start on pages with horizontal writing.
 					area = area.withPosition(net.zamasoft.foliojet.ua.FootnoteArea.Position.TOP);
 				} else {
 					area = area.withPosition(net.zamasoft.foliojet.ua.FootnoteArea.Position.BLOCK_END);
@@ -253,7 +253,7 @@ public class CSSStyleSheetBuilder {
 			case "border-top-width":
 			case "border-top-style":
 			case "border-top-color":
-				// 本文との区切り線(2026-10-04)。値は要素と同じ解釈で後でまとめて計算する
+				// Separator from the body text (2026-10-04). Interpret values as for elements and compute them together later.
 				separator.add(declaration);
 				break;
 			default:
@@ -267,8 +267,8 @@ public class CSSStyleSheetBuilder {
 			}
 		}
 		if (!separator.isEmpty()) {
-			// border-top の省略形・個別指定を要素と同じ規則で計算し、計算値の
-			// 太さ(style が none なら 0)と色を区切り線にする
+			// Compute border-top shorthand and longhand values using the same rules as elements;
+			// use the computed width (0 if style is none) and color for the separator.
 			final Declaration declaration = DeclarationParser.convert(separator, null,
 					ElementPropertySet.getInstance(), this.ua, uri);
 			final CSSStyle style = CSSStyle.getCSSStyle(this.ua, null, CSSElement.BEFORE);
@@ -277,7 +277,7 @@ public class CSSStyleSheetBuilder {
 			}
 			final net.zamasoft.foliojet.css.impl.property.box.Side top = net.zamasoft.foliojet.css.impl.property.box.Side.TOP;
 			final short borderStyle = net.zamasoft.foliojet.css.impl.property.border.BorderStyle.get(style, top);
-			// 太さの値は線種を見ない(none でも medium が返る)ので、ここで 0 にする
+			// The width value does not account for line style (returns medium even for none), so set it to 0 here.
 			final boolean visible = borderStyle != net.zamasoft.foliojet.css.value.BorderStyleValue.NONE
 					&& borderStyle != net.zamasoft.foliojet.css.value.BorderStyleValue.HIDDEN;
 			area = area.withSeparator(new net.zamasoft.foliojet.ua.FootnoteArea.Separator(
@@ -289,15 +289,15 @@ public class CSSStyleSheetBuilder {
 	}
 
 	/**
-	 * 著者定義カウンタスタイルです({@code @counter-style}、2026-08-02——
-	 * PLAN §2の5位。漢数字・いろは等の和文実需とWeb由来CSSの入力互換)。
+	 * Author-defined counter styles ({@code @counter-style}, 2026-08-02;
+	 * ranked fifth in PLAN §2. Supports Japanese needs such as kanji numerals and iroha, and CSS input from the Web).
 	 *
 	 * <p>
-	 * ph-cssは本規則を{@link CSSUnknownRule}(名前・引数・本文の文字列)
-	 * として渡すため、本文をダミーの規則へ包んで読み直し、宣言の並びを
-	 * {@link CounterStyleParser}へ渡す。登録簿は{@code UAContext}にあり、
-	 * {@code list-style-type: <name>}の側は名前からコードを引くだけなので
-	 * 規則の出現順に依存しない。
+	 * ph-css passes this rule as {@link CSSUnknownRule} (strings for name, arguments, and body),
+	 * so wrap the body in a dummy rule, parse it again, and pass the declaration sequence
+	 * to {@link CounterStyleParser}. The registry resides in {@code UAContext};
+	 * {@code list-style-type: <name>} only looks up a code by name,
+	 * so it does not depend on rule source order.
 	 * </p>
 	 */
 	private void counterStyle(final CSSUnknownRule rule) {
@@ -326,7 +326,7 @@ public class CSSStyleSheetBuilder {
 		}
 	}
 
-	/** {@code @font-feature-values}を文書単位の名前表へ登録します。 */
+	/** Registers {@code @font-feature-values} in the document's name table. */
 	private void fontFeatureValues(final CSSUnknownRule rule) {
 		final List<String> families = parseNamedFontFamilies(rule.getParameterList());
 		final String body = rule.getBody();
@@ -367,8 +367,8 @@ public class CSSStyleSheetBuilder {
 	}
 
 	/**
-	 * {@code @font-palette-values}を解析して登録します。解決結果は
-	 * {@code font-palette}から参照できますが、描画には反映しません。
+	 * Parses and registers {@code @font-palette-values}. The resolved result is
+	 * accessible from {@code font-palette}, but does not affect rendering.
 	 */
 	private void fontPaletteValues(final CSSUnknownRule rule) {
 		final String name = parseDashedIdent(rule.getParameterList());
@@ -486,7 +486,7 @@ public class CSSStyleSheetBuilder {
 		};
 	}
 
-	/** ph-cssが小文字化する宣言名を、元ソース位置から大小文字を保って復元します。 */
+	/** Restores declaration names lowercased by ph-css, preserving case from their original source positions. */
 	private static String originalDeclarationName(final String body, final CSSDeclaration declaration) {
 		final com.helger.css.CSSSourceLocation location = declaration.getSourceLocation();
 		if (location == null || !location.hasFirstTokenArea()) {
@@ -615,33 +615,33 @@ public class CSSStyleSheetBuilder {
 	}
 
 	/**
-	 * {@code @container}クエリです(2026-08-15段4で条件評価に配線——
-	 * 開発記録 §6)。
+	 * A {@code @container} query (wired to condition evaluation in 2026-08-15 stage 4;
+	 * development record §6).
 	 *
 	 * <p>
-	 * ph-cssは{@code @counter-style}と同様、本規則を{@link CSSUnknownRule}
-	 * (名前・引数・本文の文字列)として渡す。ただし本文の性質が違い、
-	 * 宣言列ではなく<b>規則列</b>(入れ子のスタイル規則)なので、
-	 * {@code "*{" + body + "}"}で包まず、bodyをそのまま独立した
-	 * スタイルシートとして読み直す。得られた規則群を、{@code @media}/
-	 * {@code @supports}と同じ「条件付きで規則群を登録する」経路
-	 * ({@link #rule})へ流す。
+	 * As with {@code @counter-style}, ph-css passes this rule as {@link CSSUnknownRule}
+	 * (strings for name, arguments, and body). However, the body differs:
+	 * it is a <b>sequence of rules</b> (nested style rules), not declarations,
+	 * so parse body directly as an independent stylesheet
+	 * without wrapping it in {@code "*{" + body + "}"}. Pass the resulting rules
+	 * through the same conditional rule registration path as {@code @media}/
+	 * {@code @supports} ({@link #rule}).
 	 * </p>
 	 *
 	 * <p>
-	 * 段1〜3は寸法事実を記録・参照する仕組みが無く、常に不一致として
-	 * 登録するだけだった。段4からは{@link net.zamasoft.foliojet.css.container.ContainerQuery}
-	 * (段3のパーサ)で条件を解析し、規則へ{@link Rule#getContainerQuery}として
-	 * 持たせる。実際の一致判定(祖先コンテナの探索・{@code ContainerFacts}の
-	 * 参照)は{@code StyleContext.merge}が行う——ここでは常に{@code mediaOk}を
-	 * そのまま伝えて<b>登録だけ</b>する(段1の「常に偽」は撤去)。
+	 * Stages 1-3 had no mechanism to record or look up dimension facts, so they only
+	 * registered queries as always non-matching. From stage 4, {@link net.zamasoft.foliojet.css.container.ContainerQuery}
+	 * (the stage 3 parser) parses the conditions and stores them on the rule
+	 * as {@link Rule#getContainerQuery}. {@code StyleContext.merge} performs the actual match
+	 * (ancestor container lookup and {@code ContainerFacts} access). Here, always pass {@code mediaOk}
+	 * through unchanged and <b>only register</b> the rules (stage 1's "always false" was removed).
 	 * </p>
 	 *
 	 * <p>
-	 * ネストした{@code @container}(内側の@containerが外側の@containerに
-	 * 包まれる場合)は、外側の条件を保持せず内側の条件で上書きする——
-	 * 仕様上の合成規則は定義されておらず、実コーパスにも例が無いための
-	 * 単純化(1規則が持てる{@code ContainerQuery}は1個のみ)。
+	 * For nested {@code @container} (an inner @container enclosed in an outer one),
+	 * the inner condition overwrites the outer condition rather than retaining it.
+	 * This simplification reflects the lack of a composition rule in the specification
+	 * and of examples in the real corpus (each rule can hold only one {@code ContainerQuery}).
 	 * </p>
 	 */
 	private void container(final CSSUnknownRule rule, final URI uri, final boolean mediaOk, final int layer,
@@ -662,23 +662,23 @@ public class CSSStyleSheetBuilder {
 	}
 
 	/**
-	 * スタイル規則です(CSS Nesting対応、2026-08-02——PLAN §2の4位。
-	 * ph-css 8.2の入れ子ASTを平坦化する)。
+	 * A style rule (CSS Nesting support, 2026-08-02; ranked fourth in PLAN §2).
+	 * Flattens the nested AST from ph-css 8.2.
 	 *
 	 * <p>
-	 * 入れ子セレクタは**テキスト置換**で親と結合する: {@code &}は親セレクタ
-	 * 文字列に置換、{@code &}なしは子孫結合({@code 親 子})。親がセレクタ
-	 * リストのときは直積で展開する。仕様の{@code :is()}脱糖と違い固有性は
-	 * 分岐ごとに評価される(Sass等のプリプロセッサと同じ挙動——記録済みの
-	 * 簡略化)。入れ子の後の宣言(CSSNestedDeclarations)は同セレクタの
-	 * 追加規則として出現順に登録され、カスケード順が保たれる。規則内に
-	 * 入れ子になった条件規則(@media等)はサブセット外として無視する。
+	 * Nested selectors join their parent by **text substitution**: replace {@code &} with the parent
+	 * selector string; without {@code &}, use a descendant combinator ({@code parent child}). If the parent is
+	 * a selector list, expand its Cartesian product. Unlike the specified {@code :is()} desugaring, specificity
+	 * is evaluated per branch (the same behavior as preprocessors such as Sass; a documented
+	 * simplification). Declarations after nesting (CSSNestedDeclarations) are registered in source order
+	 * as additional rules with the same selector, preserving cascade order. Conditional rules
+	 * nested inside rules (@media, etc.) are outside the supported subset and are ignored.
 	 * </p>
 	 */
 	private void styleRule(final CSSStyleRule styleRule, final URI uri, final int layer,
 			final List<String> parentSelectorTexts,
 			final net.zamasoft.foliojet.css.container.ContainerQuery containerQuery) {
-		// 結合済みセレクタ文字列(入れ子の再帰用に常に計算する)
+		// Combined selector strings (always computed for nested recursion)
 		final List<String> selfTexts = new ArrayList<>();
 		for (final CSSSelector selector : styleRule.getAllSelectors()) {
 			final String text = selector.getAsCSSString();
@@ -698,7 +698,7 @@ public class CSSStyleSheetBuilder {
 				selectors = this.parseSelectorTexts(selfTexts);
 			}
 		} catch (final CSSException e) {
-			// 解釈できないセレクタを含む規則は無視する(入れ子ごと)
+			// Ignore rules containing unparseable selectors, including their nested rules.
 			return;
 		}
 		if (selectors == null) {
@@ -714,7 +714,7 @@ public class CSSStyleSheetBuilder {
 			if (nested instanceof CSSStyleRule nestedStyle) {
 				this.styleRule(nestedStyle, uri, layer, selfTexts, containerQuery);
 			} else if (nested instanceof com.helger.css.decl.CSSNestedDeclarations nestedDecls) {
-				// 入れ子規則の後に現れた宣言——同セレクタで順序どおり追加
+				// Declarations after nested rules: append in order with the same selector.
 				if (nestedDecls.hasDeclarations()) {
 					final Declaration declaration = DeclarationParser.convert(nestedDecls.getAllDeclarations(),
 							null, ElementPropertySet.getInstance(), this.ua, uri);
@@ -722,25 +722,25 @@ public class CSSStyleSheetBuilder {
 					this.collectSVGStyleRule(selfTexts, nestedDecls.getAllDeclarations());
 				}
 			}
-			// 規則内の@media/@supports等はサブセット外(無視)
+			// @media/@supports, etc. inside rules are outside the supported subset (ignored).
 		}
 	}
 
 	/**
-	 * インラインSVG向けの著者CSS部分集合の収集です(2026-08-07)。
-	 * インラインSVGはBatikの独立文書として描かれ、HTML文書のスタイル
-	 * シートが届かない(CSSクラスでfill/strokeを塗るアイコンシステムが
-	 * 全部黒くなる)。そこでSVGプレゼンテーション系の宣言を含む規則
-	 * だけを{@link net.zamasoft.foliojet.ua.DocumentContext}へ集め、
-	 * SVG文書へ&lt;style&gt;注入してBatik側でカスケードさせる。
+	 * Collects a subset of author CSS for inline SVG (2026-08-07).
+	 * Inline SVG renders as a separate Batik document, so the HTML document's stylesheet
+	 * does not reach it (icon systems that set fill/stroke through CSS classes
+	 * turn entirely black). Collect only rules containing SVG presentation declarations
+	 * into {@link net.zamasoft.foliojet.ua.DocumentContext},
+	 * then inject &lt;style&gt; into the SVG document so Batik can apply the cascade.
 	 *
 	 * <p>
-	 * セレクタはBatikのCSS2世代のパーサが読める形(タグ・クラス・id・
-	 * 子孫・{@code >}・{@code *})だけを通す。擬似クラスや属性セレクタ、
-	 * エスケープ入りのクラス名は捨てる——SVG文書の中にはHTML側の祖先が
-	 * 存在しないので、文脈を要するセレクタはどのみち正しく評価できない。
-	 * 同じ理由で、HTML祖先を含む子孫セレクタは「一致しない」側へ倒れる
-	 * (過剰適用はしない)。var()を含む宣言はBatikが解決できないので捨てる。
+	 * Pass only selectors that Batik's CSS2-era parser can read (tag, class, id,
+	 * descendant, {@code >}, and {@code *}). Discard pseudo-classes, attribute selectors,
+	 * and escaped class names. HTML ancestors do not exist inside the SVG document,
+	 * so selectors requiring that context cannot be evaluated correctly anyway.
+	 * For the same reason, descendant selectors including HTML ancestors fail to match
+	 * (avoiding over-application). Discard declarations containing var(), which Batik cannot resolve.
 	 * </p>
 	 */
 	private void collectSVGStyleRule(final List<String> selectorTexts,
@@ -757,8 +757,8 @@ public class CSSStyleSheetBuilder {
 				continue;
 			}
 			hasCore |= core;
-			// 値は生トークン列のまま持つ。var()はここでは解決できない
-			// (要素の文脈が要る)ので、注入時まで遅延する(SVGAuthorCss参照)
+			// Keep values as raw token sequences. var() cannot resolve here
+			// (it needs the element context), so defer until injection (see SVGAuthorCss).
 			final List<CssToken> tokens = Tokens.fromExpression(d.getExpression());
 			if (tokens.isEmpty()) {
 				continue;
@@ -769,10 +769,10 @@ public class CSSStyleSheetBuilder {
 			decls.add(new SVGAuthorCss.Decl(prop, tokens, d.isImportant()));
 		}
 		if (decls == null || !hasCore) {
-			// SVG固有の描画プロパティを1つも含まない規則は持ち込まない。
-			// color/display/font系はHTML汎用で、これらだけの規則まで拾うと
-			// 実サイトでは数千規則になり(qiitaで6,234規則)、注入が肥大する
-			// 上にBatikが読めない値(display:flex等)を引く確率が上がる
+			// Do not import rules that contain no SVG-specific rendering properties.
+			// color/display/font properties are general HTML properties; collecting rules with only these
+			// would import thousands of rules on real sites (6,234 on qiita), bloating injection
+			// and increasing the chance of encountering values Batik cannot parse (such as display:flex).
 			return;
 		}
 		StringBuilder sels = null;
@@ -795,8 +795,8 @@ public class CSSStyleSheetBuilder {
 	}
 
 	/**
-	 * インラインSVGへ持ち込む「SVG固有の描画プロパティ」。規則の採否は
-	 * この集合を1つでも含むかで決める(collectSVGStyleRule参照)。
+	 * SVG-specific rendering properties to import into inline SVG. Accept a rule
+	 * if it contains at least one property in this set (see collectSVGStyleRule).
 	 */
 	private static final java.util.Set<String> SVG_PAINT_PROPS = java.util.Set.of( //
 			"fill", "fill-opacity", "fill-rule", //
@@ -808,19 +808,19 @@ public class CSSStyleSheetBuilder {
 			"text-anchor", "dominant-baseline", "baseline-shift");
 
 	/**
-	 * 採用された規則にだけ同乗させるHTML汎用プロパティ(継承・
-	 * currentColor・可視性のため)。
+	 * General HTML properties carried along only with accepted rules (for inheritance,
+	 * currentColor, and visibility).
 	 */
 	private static final java.util.Set<String> SVG_AUX_PROPS = java.util.Set.of( //
 			"color", "display", "visibility", //
 			"font-family", "font-size", "font-weight", "font-style", //
 			"letter-spacing", "word-spacing");
 
-	/** BatikのCSS2世代パーサへ安全に渡せるセレクタの形。 */
+	/** Selector forms safe to pass to Batik's CSS2-era parser. */
 	private static final java.util.regex.Pattern BATIK_SAFE_SELECTOR = java.util.regex.Pattern
 			.compile("[-_a-zA-Z0-9.#*>\\s]+");
 
-	/** 入れ子セレクタの結合({@code &}=親置換、なければ子孫結合)。 */
+	/** Combines nested selectors ({@code &}=parent substitution; otherwise a descendant combinator). */
 	private static String combineNestedSelector(final String parent, final String child) {
 		final String trimmed = child.trim();
 		if (trimmed.indexOf('&') >= 0) {
@@ -829,7 +829,7 @@ public class CSSStyleSheetBuilder {
 		return parent + " " + trimmed;
 	}
 
-	/** 結合済みセレクタ文字列群を再解析します(解釈不能はnull)。 */
+	/** Reparses combined selector strings (null if unparseable). */
 	private List<Selector> parseSelectorTexts(final List<String> texts) throws CSSException {
 		final CascadingStyleSheet sheet = CSSReader
 				.readFromStringReader(String.join(",", texts) + "{}", DeclarationParser.settings());
@@ -841,28 +841,28 @@ public class CSSStyleSheetBuilder {
 	}
 
 	/**
-	 * {@code @layer}(CSS Cascade Layers、2026-07-21新設)を処理します。
-	 * ブロック形式({@code @layer name { ... }}・匿名{@code @layer { ... }})、
-	 * 文形式({@code @layer a, b, c;}、規則を伴わずレイヤーの出現順だけを
-	 * 確定する)の両方に対応する。ネストした{@code @layer}(レイヤー
-	 * ブロックの中にさらに{@code @layer}がある場合)は、ドット結合した
-	 * 完全名(例: 外側{@code a}・内側{@code b}なら{@code "a.b"})で
-	 * 独立したレイヤーとして登録する(CSS Cascade Layersの入れ子命名と
-	 * 同じ考え方)。{@code !important}によるレイヤー優先順位の反転は
-	 * 未対応(対応表参照)。
+	 * Handles {@code @layer} (CSS Cascade Layers, added on 2026-07-21).
+	 * Supports both block form ({@code @layer name { ... }} or anonymous {@code @layer { ... }})
+	 * and statement form ({@code @layer a, b, c;}, which fixes only layer source order
+	 * without accompanying rules). Nested {@code @layer} (another {@code @layer}
+	 * inside a layer block) is registered as an independent layer
+	 * using the full dot-joined name (e.g., outer {@code a} and inner {@code b}
+	 * become {@code "a.b"}), following the same naming approach
+	 * as CSS Cascade Layers. Reversing layer priority for {@code !important}
+	 * is unsupported (see the support table).
 	 */
 	private void layer(CSSLayerRule layerRule, URI uri, boolean mediaOk, String layerNamePrefix,
 			net.zamasoft.foliojet.css.container.ContainerQuery containerQuery) {
 		final List<String> names = layerRule.getAllSelectors();
 		if (layerRule.getAllRules().isEmpty()) {
-			// 文形式(@layer a, b;)、または空ブロック(@layer a {})——
-			// 規則を追加せず出現順だけを確定する
+			// Statement form (@layer a, b;) or empty block (@layer a {}):
+			// fix source order without adding rules.
 			for (String name : names) {
 				this.cssStyleSheet.registerNamedLayer(qualifyLayerName(layerNamePrefix, name));
 			}
 			return;
 		}
-		// ブロック形式: 0個(匿名)か1個(名前つき)のはず
+		// Block form: should have zero names (anonymous) or one name (named).
 		final int childLayer;
 		final String childPrefix;
 		if (names.isEmpty()) {
@@ -882,8 +882,8 @@ public class CSSStyleSheetBuilder {
 	}
 
 	/**
-	 * 1個の@mediaクエリ(メディア型+特性式の並び、暗黙にAND)を評価します。
-	 * `not`が付く場合は全体を反転します(SPEC Media Queries)。
+	 * Evaluates one @media query (media type plus feature expressions, implicitly ANDed).
+	 * If `not` is present, invert the entire result (SPEC Media Queries).
 	 */
 	private boolean evaluateMediaQuery(CSSMediaQuery query) {
 		String medium = query.getMedium();
@@ -905,14 +905,14 @@ public class CSSStyleSheetBuilder {
 	private static final CSSWriterSettings MEDIA_WRITER_SETTINGS = new CSSWriterSettings();
 
 	/**
-	 * メディア特性式(`(min-width: 400px)`等)を評価します。ページ寸法は
-	 * `output.page-width`/`output.page-height`プロパティで文書解析前に
-	 * 静的に確定済みのため、先読みなしに1Pで評価できる。
+	 * Evaluates media feature expressions (such as `(min-width: 400px)`). Page dimensions
+	 * are statically determined by `output.page-width`/`output.page-height`
+	 * before document parsing, so evaluation needs no lookahead and works in 1P.
 	 * <p>
-	 * ph-css 8.2.1はMedia Queries Level 3相当までしかパースできない
-	 * (Level 4の`or`結合子・括弧なしの`not (...)`・range構文
-	 * `(width &gt;= 400px)`は構文解析の時点で規則ごと無視される。
-	 * 対応表参照)。
+	 * ph-css 8.2.1 can parse only up to the equivalent of Media Queries Level 3.
+	 * (Rules using Level 4's `or` combinator, `not (...)` without enclosing parentheses,
+	 * or range syntax such as `(width &gt;= 400px)` are ignored during parsing.
+	 * See the support table.)
 	 * </p>
 	 */
 	private boolean evaluateMediaExpression(CSSMediaExpression expression) {
@@ -935,7 +935,7 @@ public class CSSStyleSheetBuilder {
 			return false;
 		}
 		if (expression.getValue() == null) {
-			// 値なしのbooleanコンテキストクエリ(例: (color)、(monochrome))は未対応
+			// Boolean context queries without values (e.g., (color), (monochrome)) are unsupported.
 			return false;
 		}
 		String valueText = expression.getValue().getAsCSSString(MEDIA_WRITER_SETTINGS, 0);
@@ -961,19 +961,19 @@ public class CSSStyleSheetBuilder {
 		case "max-height":
 			return this.resolvePageHeight() <= length;
 		default:
-			// aspect-ratio等の未対応特性は保守的に不一致とする
+			// Conservatively treat unsupported features such as aspect-ratio as non-matching.
 			return false;
 		}
 	}
 
 	/**
-	 * メディアクエリのem/remを解決します。メディアクエリには要素の文脈が
-	 * 無いため、どちらも<b>初期フォントサイズ</b>(medium)基準で静的に
-	 * 解決できる(Media Queries Level 3 §6)。実サイトは
-	 * {@code (min-width: 70rem)}のようにremで書くことがあり、ここで
-	 * 落とすと@media全体が不成立になる(5ch.ioのサイドバーが
-	 * display:noneのまま丸ごと消えた欠陥で実測)。ex/chは
-	 * フォントメトリクスが要るため引き続き未対応(nullを返す)。
+	 * Resolves em/rem in media queries. Media queries have no element context,
+	 * so both units can resolve statically against the <b>initial font size</b>
+	 * (medium; Media Queries Level 3 §6). Real sites sometimes
+	 * use rem, as in {@code (min-width: 70rem)}; rejecting it here
+	 * makes the entire @media fail (observed in a defect where the sidebar
+	 * on 5ch.io stayed display:none and disappeared entirely). ex/ch still
+	 * require font metrics and remain unsupported (return null).
 	 */
 	private AbsoluteLengthValue mediaFontRelativeLength(String valueText) {
 		String text = valueText.trim().toLowerCase(java.util.Locale.ROOT);
@@ -1016,10 +1016,10 @@ public class CSSStyleSheetBuilder {
 	}
 
 	/**
-	 * @supports条件式(and/or/notと括弧によるネスト)を評価します。CSS仕様上、
-	 * 同一階層でand/orが混在することはない(混在させる場合は括弧が必須)ため、
-	 * 左から畳み込むだけでよい。ネスト(括弧)は構文由来の深さ(手書きCSSの
-	 * 入れ子段数)のため上限付きの再帰で扱う(calc()の関数ネストと同じ方針)。
+	 * Evaluates @supports conditions (and/or/not and parenthesized nesting). The CSS specification
+	 * does not allow and/or to mix at the same level (parentheses are required to mix them),
+	 * so a left fold suffices. Nesting depth comes from syntax (levels in handwritten CSS),
+	 * so use bounded recursion, as for nested calc() functions.
 	 */
 	private boolean evaluateSupports(List<ICSSSupportsConditionMember> members, URI uri, int depth) {
 		if (depth > MAX_DEPTH || members.isEmpty()) {
@@ -1059,7 +1059,7 @@ public class CSSStyleSheetBuilder {
 		if (member instanceof CSSSupportsConditionNested nested) {
 			return this.evaluateSupports(nested.getAllMembers(), uri, depth + 1);
 		}
-		// selector()等、ph-css 8.2.1がそもそも解析できない構文は未対応(不一致)
+		// Syntax that ph-css 8.2.1 cannot parse, such as selector(), is unsupported (non-matching).
 		return false;
 	}
 
@@ -1069,7 +1069,7 @@ public class CSSStyleSheetBuilder {
 			if (member instanceof CSSDeclaration declaration) {
 				declarations.add(declaration);
 			}
-			// ページマージンボックス(@top-center等)は page() が別途処理する
+			// page() handles page margin boxes (@top-center, etc.) separately.
 		}
 		return declarations;
 	}
@@ -1078,9 +1078,9 @@ public class CSSStyleSheetBuilder {
 		if (!mediaOk) {
 			return;
 		}
-		// 名前付きページN1a(consult-codex-2026-07-31-named-pages.txt Q1):
-		// セレクタリスト全件を処理し、名前+複合擬似(chapter:first等)を
-		// 構造化PageRuleへ。未対応の擬似(:nth()等)はそのセレクタのみ無効
+		// Named pages N1a (consult-codex-2026-07-31-named-pages.txt Q1):
+		// process every entry in the selector list, converting names plus compound pseudo-pages
+		// (chapter:first, etc.) to structured PageRule objects. Unsupported pseudo-pages (:nth(), etc.) invalidate only that selector.
 		final List<String> selectors = pageRule.getAllSelectors();
 		final List<String> names = new ArrayList<String>();
 		final List<Byte> masks = new ArrayList<Byte>();
@@ -1126,11 +1126,11 @@ public class CSSStyleSheetBuilder {
 			final net.zamasoft.foliojet.css.PageRule rule = this.cssStyleSheet.addPageRule(names.get(s),
 					masks.get(s), declaration);
 
-			// ページマージンボックス(@top-center等、css-page-3 §7)
+			// Page margin boxes (@top-center, etc., css-page-3 §7)
 			for (ICSSPageRuleMember member : pageRule.getAllMembers()) {
 				if (member instanceof CSSPageMarginBlock marginBlock) {
 					if ("@footnote".equalsIgnoreCase(marginBlock.getPageMarginSymbol())) {
-						// 領域は文書に一つ。セレクタリストの二件目以降では重ねない。
+						// There is one area per document. Do not duplicate it for later entries in the selector list.
 						if (s == 0) {
 							this.footnoteArea(marginBlock.getAllDeclarations(), uri);
 						}

@@ -30,7 +30,7 @@ import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 
 public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplacedBox {
 	/**
-	 * ボックスの外辺を灰色の枠で囲みます。
+	 * Draws a gray border around the box's outer edges.
 	 */
 
 	protected final InlineParams params;
@@ -88,27 +88,27 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		return this.frame;
 	}
 
-	/** bidi 視覚断片が論理始端 edge を引き継げるか。 */
+	/** Whether a bidi visual fragment can inherit the logical start edge. */
 	public final boolean hasLineStartEdge() {
 		return !this.cutHead;
 	}
 
-	/** bidi 視覚断片が論理終端 edge を引き継げるか。 */
+	/** Whether a bidi visual fragment can inherit the logical end edge. */
 	public final boolean hasLineEndEdge() {
 		return !this.cutTail;
 	}
 
-	/** bidi 描画断片だけが、論理始端を含むか確定した後に使う。 */
+	/** Used only by bidi drawing fragments after determining whether they contain the logical start. */
 	protected final void setFragmentCutHead(final boolean cutHead) {
 		this.cutHead = cutHead;
 	}
 
-	/** bidi 描画断片へ、継承分を含む実効 text-decoration を渡す。 */
+	/** Passes the effective text-decoration, including inherited values, to a bidi drawing fragment. */
 	final void copyDecorationTo(final InlineBox target) {
 		target.setDecoration(this.decoration);
 	}
 
-	/** finishLayoutSelf 後の相対配置量を bidi 描画断片へ渡す。 */
+	/** Passes the relative-positioning offset after finishLayoutSelf to a bidi drawing fragment. */
 	final void copyResolvedOffsetTo(final InlineBox target) {
 		target.offsetX = this.offsetX;
 		target.offsetY = this.offsetY;
@@ -127,9 +127,9 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 	}
 
 	public final void addAscentDescent(double ascent, double descent) {
-		// アセントディセントの拡大
+		// Expand ascent and descent
 		if (this.params.flow.isVertical()) {
-			// 縦書き(日本)
+			// Vertical writing (Japanese)
 			if (this.params.writingModeVariant == WritingModeVariant.SIDEWAYS_CCW) {
 				ascent += this.frame.getFrameLeft();
 				descent += this.frame.getFrameRight();
@@ -138,7 +138,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 				descent += this.frame.getFrameLeft();
 			}
 		} else {
-			// 横書き
+			// Horizontal writing
 			ascent += this.frame.getFrameTop();
 			descent += this.frame.getFrameBottom();
 		}
@@ -154,12 +154,12 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 	public final void firstPassLayout(AbstractContainerBox cb) {
 		RectFrame rframe = this.frame.frame;
 		//
-		// ■ パディングの計算
+		// ■ Calculate padding
 		//
 		LayoutUtils.computePaddings(this.frame.padding, rframe.padding, 0);
 
 		//
-		// ■ マージンの計算
+		// ■ Calculate margins
 		//
 		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, rframe.margin, 0);
 	}
@@ -169,22 +169,23 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 	}
 
 	/**
-	 * 行方向の margin/padding を現在の {@code frame.frame} から絶対値にする。bidi の視覚 fragment
-	 * (2026-09-04)が未切断の frame から再計算するために、コンテナ無しでも呼べる形に分けた。
+	 * Resolves line-axis margin/padding to absolute values from the current {@code frame.frame}.
+	 * Separated into a form callable without a container so bidi visual fragments (2026-09-04)
+	 * can recalculate from an uncut frame.
 	 */
 	public final void fixLineAxis(final boolean vertical, final double lineSize) {
 		RectFrame rframe = this.frame.frame;
 		//
-		// ■ パディングの計算
+		// ■ Calculate padding
 		//
 		LayoutUtils.computePaddings(this.frame.padding, rframe.padding, lineSize);
 
 		//
-		// ■ マージンの計算
+		// ■ Calculate margins
 		//
-		// ページ方向のマージンは適用しません
+		// Do not apply page-axis margins.
 		if (vertical) {
-			// 縦書き
+			// Vertical writing
 			double top, bottom;
 			switch (rframe.margin.getTopType()) {
 			case ABSOLUTE:
@@ -224,7 +225,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			this.frame.margin.bottom = bottom;
 			this.frame.margin.left = 0;
 		} else {
-			// 横書き
+			// Horizontal writing
 			double left, right;
 			switch (rframe.margin.getLeftType()) {
 			case ABSOLUTE:
@@ -269,7 +270,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 		InlinePos pos = this.getInlinePos();
 		if (pos.offset != null) {
 			//
-			// ■ 相対配置の位置の計算
+			// ■ Calculate the relative-positioning offset
 			//
 			this.offsetX = LayoutUtils.computeOffsetX(pos.offset, containerBox);
 			this.offsetY = LayoutUtils.computeOffsetY(pos.offset, containerBox);
@@ -297,15 +298,15 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 				drawer.visitDrawable(drawable, x, y);
 			}
 			if (this.getTextParams().flow.isVertical()) {
-				// 縦書き
-				// 内容の上
+				// Vertical writing
+				// Top of the content
 				y += this.frame.getFrameTop();
-				// ベースラインの計算に境界が含まれているので、左右の境界分ずらさない
+				// Baseline calculation includes borders, so do not offset by the left and right borders.
 			} else {
-				// 横書き
-				// 内容の左
+				// Horizontal writing
+				// Left of the content
 				x += this.frame.getFrameLeft();
-				// ベースラインの計算に境界が含まれているので、上下の境界分ずらさない
+				// Baseline calculation includes borders, so do not offset by the top and bottom borders.
 			}
 
 			if (this.getInlinePos().offset != null) {
@@ -313,7 +314,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 				contextY = y;
 			}
 
-			// 内部のテキスト・インラインを描画
+			// Draw the internal text and inlines
 			super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 		}
 	}
@@ -325,7 +326,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			RectFrame previousFrame;
 			RectFrame nextFrame;
 			if (params.flow.isVertical()) {
-				// 縦書き
+				// Vertical writing
 				if (params.writingModeVariant != WritingModeVariant.NORMAL
 						&& TypesettingMode.inlineProgression(params.flow, params.writingModeVariant,
 						params.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP) {
@@ -336,7 +337,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 					nextFrame = this.frame.frame.cut(false, true, true, true);
 				}
 			} else {
-				// 横書き
+				// Horizontal writing
 				previousFrame = this.frame.frame.cut(true, false, true, true);
 				nextFrame = this.frame.frame.cut(true, true, true, false);
 				this.frame.margin.right = 0;
@@ -368,7 +369,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			final AbsoluteInsets nextMargin;
 			final AbsoluteInsets nextPadding;
 			if (params.flow.isVertical()) {
-				// 縦書き
+				// Vertical writing
 				if (params.writingModeVariant != WritingModeVariant.NORMAL
 						&& TypesettingMode.inlineProgression(params.flow, params.writingModeVariant,
 						params.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP) {
@@ -381,7 +382,7 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 					nextPadding = this.frame.padding.cut(false, true, true, true);
 				}
 			} else {
-				// 横書き
+				// Horizontal writing
 				nextFrame = params.frame.cut(true, true, true, false);
 				nextMargin = this.frame.margin.cut(true, true, true, false);
 				nextPadding = this.frame.padding.cut(true, true, true, false);

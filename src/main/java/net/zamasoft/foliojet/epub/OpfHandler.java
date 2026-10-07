@@ -12,7 +12,7 @@ import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
-//OPFの読み込み
+//Read the OPF
 class OpfHandler extends DefaultHandler {
 	final URI base;
 	Contents contents = new Contents();
@@ -64,7 +64,7 @@ class OpfHandler extends DefaultHandler {
 			} else if (lName.equals("metadata")) {
 				this.inMetadata = true;
 			} else if (lName.equals("item")) {
-				// 書籍に含まれるファイル情報を取得
+				// Get information about the files included in the book
 				Item item = new Item();
 				item.id = atts.getValue("id");
 				item.href = atts.getValue("href");
@@ -87,18 +87,18 @@ class OpfHandler extends DefaultHandler {
 				this.hrefToItem.put(item.href, item);
 
 				if (item.properties != null) {
-					// EPUB3 表紙
+					// EPUB3 cover
 					if (item.properties.contains("cover-image")) {
 						this.contents.coverImage = item;
 					}
 
-					// EPUB3 目次
+					// EPUB3 table of contents
 					if (item.properties.indexOf("nav") != -1) {
 						this.contents.toc = item;
 					}
 				}
 			} else if (lName.equals("spine")) {
-				// EPUB2 目次
+				// EPUB2 table of contents
 				if (this.contents.toc == null) {
 					String toc = atts.getValue("toc");
 					if (toc != null) {
@@ -106,7 +106,7 @@ class OpfHandler extends DefaultHandler {
 					}
 				}
 
-				// 書籍全体のページの進行方向
+				// Page progression direction for the entire book
 				String pageProgressionDirection = atts.getValue("page-progression-direction");
 				if (pageProgressionDirection != null) {
 					if (pageProgressionDirection.equals("ltr")) {
@@ -130,7 +130,7 @@ class OpfHandler extends DefaultHandler {
 						}
 						itemRef.properties = Collections.unmodifiableList(list);
 
-						// アイテムのページの進行方向
+						// Page progression direction for the item
 						if (itemRef.properties.contains("page-spread-left")) {
 							itemRef.pageSpread = ItemRef.PAGE_SPREAD_LEFT;
 						} else if (itemRef.properties.contains("page-spread-right")) {
@@ -141,7 +141,7 @@ class OpfHandler extends DefaultHandler {
 					}
 				}
 			} else if (lName.equals("reference")) {
-				// EPUB2 リファレンス
+				// EPUB2 reference
 				Reference reference = new Reference();
 				reference.href = atts.getValue("href");
 				reference.fullPath = this.base.resolve(reference.href).getPath();
@@ -152,7 +152,7 @@ class OpfHandler extends DefaultHandler {
 				if (reference.item != null) {
 					reference.item.guide = reference;
 					reference.item.title = reference.title;
-					// EPUB2 カバー
+					// EPUB2 cover
 					if (this.contents.coverImage == null) {
 						if ("cover".equals(reference.type)) {
 							this.contents.coverImage = reference.item;

@@ -5,16 +5,15 @@ import net.zamasoft.foliojet.layout.box.params.CaptionSideMode;
 import net.zamasoft.foliojet.layout.box.params.TableCaptionPos;
 
 /**
- * {@link TableCaptionPos}(表キャプションの配置パラメータ、
- * {@link BoxKind#CAPTION}が使う)の内容をfreezeし、呼び出しごとに
- * 独立した新品の{@code TableCaptionPos}をmaterializeするテンプレート
- * です(caption recipe化C1、2026-08-01——
- * consult-codex-2026-08-01-caption-recipe.txt)。
+ * A template that freezes the contents of {@link TableCaptionPos} (table-caption placement
+ * parameters used by {@link BoxKind#CAPTION}) and materializes a fresh, independent
+ * {@code TableCaptionPos} on each call (caption recipe conversion C1, 2026-08-01:
+ * consult-codex-2026-08-01-caption-recipe.txt).
  *
  * <p>
- * {@code TableCaptionPos}は{@code FlowPos}+{@code captionSide}のため、
- * {@link FlowPosTemplate}と同じ構成に{@code captionSide}(enum、不変)を
- * 加えるだけでよい。
+ * Since {@code TableCaptionPos} is {@code FlowPos} plus {@code captionSide},
+ * it only needs the same composition as {@link FlowPosTemplate}, with the addition of
+ * {@code captionSide} (an immutable enum).
  * </p>
  */
 public record TableCaptionPosTemplate(NormalFlowPosFields common, Align align, byte columnSpan,
@@ -25,7 +24,7 @@ public record TableCaptionPosTemplate(NormalFlowPosFields common, Align align, b
 				source.gridItem, source.flexItem, source.captionSide);
 	}
 
-	/** 呼び出しごとに新品の{@code TableCaptionPos}を返す。 */
+	/** Returns a fresh {@code TableCaptionPos} on each call. */
 	public TableCaptionPos materialize() {
 		final TableCaptionPos pos = new TableCaptionPos();
 		this.common.materializeInto(pos);

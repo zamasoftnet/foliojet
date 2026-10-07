@@ -1,17 +1,17 @@
 package net.zamasoft.foliojet.epub;
 
 /**
- * ガイドの要素です。
+ * A guide entry.
  */
 public class Reference {
-	/** タイプ("text", "cover"など)です。 */
+	/** The type ("text", "cover", etc.). */
 	public String type;
-	/** タイトルです。 */
+	/** The title. */
 	public String title;
-	/** OPFからの相対パスです。 */
+	/** The relative path from the OPF. */
 	public String href;
-	/** ZIPファイル内でのパスです。 */
+	/** The path within the ZIP file. */
 	public String fullPath;
-	/** 対応するアイテムです。 */
+	/** The corresponding item. */
 	public Item item;
 }

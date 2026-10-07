@@ -4,10 +4,10 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /**
- * 構造化された{@code @page}規則です(名前付きページN1a、2026-07-31——
- * consult-codex-2026-07-31-named-pages.txt Q1)。従来の4バケット
- * (無名/first/left/right)を置き換える順序付き規則列の1要素。
- * 特異性はCSS Page 3の(f,g,h)=(ページ名, :first/:blank, :left/:right/:single)。
+ * A structured {@code @page} rule (named pages N1a, 2026-07-31;
+ * consult-codex-2026-07-31-named-pages.txt Q1). One entry in the ordered
+ * rule sequence that replaces the previous four buckets (unnamed/first/left/right).
+ * Specificity is CSS Page 3's (f,g,h)=(page name, :first/:blank, :left/:right/:single).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -19,29 +19,29 @@ public final class PageRule {
 
 	public static final byte PSEUDO_RIGHT = 4;
 
-	/** 見開きでない頁を選択する Copper 拡張です。 */
+	/** Copper extension selecting pages that are not part of a spread. */
 	public static final byte PSEUDO_SINGLE = 8;
 
 	/**
-	 * 強制改ページで生じた内容の無いページ({@code :blank}、css-page-3)。
-	 * 判定はページを描く時点(内容が確定してから)なので、効くのは
-	 * マージンボックスだけ(2026-10-04、TECH-20261003-004 の⑤)。
+	 * A page with no content created by a forced page break ({@code :blank}, css-page-3).
+	 * Determined at page rendering time, after content is final, so it affects
+	 * only margin boxes (2026-10-04, item ⑤ of TECH-20261003-004).
 	 */
 	public static final byte PSEUDO_BLANK = 16;
 
-	/** ページ名(null=無名。CSS識別子として大文字小文字を区別)。 */
+	/** Page name (null=unnamed; case-sensitive as a CSS identifier). */
 	final String name;
 
-	/** 要求する擬似ページのビット({@link #PSEUDO_FIRST}等)。 */
+	/** Required pseudo-page bits ({@link #PSEUDO_FIRST}, etc.). */
 	final byte pseudoMask;
 
-	/** 通常宣言(マージン等。無ければnull)。 */
+	/** Regular declarations (margins, etc.; null if none). */
 	final Declaration declaration;
 
-	/** マージンボックス宣言(無ければ空)。 */
+	/** Margin box declarations (empty if none). */
 	final Map<MarginBoxName, Declaration> marginBoxes = new EnumMap<>(MarginBoxName.class);
 
-	/** 出現順(同特異性のタイブレーク)。 */
+	/** Source order (breaks ties in specificity). */
 	final int order;
 
 	PageRule(final String name, final byte pseudoMask, final Declaration declaration, final int order) {
@@ -51,7 +51,7 @@ public final class PageRule {
 		this.order = order;
 	}
 
-	/** CSS Page 3の(f,g,h)特異性を単一整数へ符号化して返します。 */
+	/** Returns CSS Page 3 (f,g,h) specificity encoded as a single integer. */
 	int specificity() {
 		final int f = this.name != null ? 1 : 0;
 		final int g = Integer.bitCount(this.pseudoMask & (PSEUDO_FIRST | PSEUDO_BLANK));
@@ -60,10 +60,10 @@ public final class PageRule {
 	}
 
 	/**
-	 * ページへの適合を判定します。
+	 * Determines whether this rule matches the page.
 	 *
-	 * @param pageName 現在のページ名(null=無名)
-	 * @param pseudo   ページの擬似状態ビット
+	 * @param pageName current page name (null=unnamed)
+	 * @param pseudo   page pseudo-state bits
 	 */
 	boolean matches(final String pageName, final byte pseudo) {
 		if (this.name != null && !this.name.equals(pageName)) {

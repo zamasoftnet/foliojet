@@ -7,7 +7,7 @@ import net.zamasoft.foliojet.plugin.Plugin;
 import net.zamasoft.zstream.resolver.Source;
 
 /**
- * データをフォーマットします。
+ * Formats data.
  * 
  * @author MIYABE Tatsuhiko
  */

@@ -16,36 +16,36 @@ import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * Flexコンテナです(Flex F0b、2026-08-02——
- * consult-codex-2026-08-02-flexbox.txt。{@link GridBox}と同型)。
+ * A flex container (Flex F0b, 2026-08-02 --
+ * consult-codex-2026-08-02-flexbox.txt; same structure as {@link GridBox}).
  *
  * <p>
- * ページング上は正規のblock({@code BoxType.BLOCK}/{@code PosType.FLOW})の
- * まま——rescue・描画・フレーム処理を{@link FlowBlockBox}から継承し、
- * 既定では{@link PageAtomicBox}でページ軸の構造分割を型付きで禁じる
- * (css-flexbox-1 §10の断片化はinformativeのため非対応が正当。
- * 入らなければ丸ごと送り→visual rescue)。
+ * For pagination, it remains a regular block ({@code BoxType.BLOCK}/{@code PosType.FLOW}).
+ * It inherits rescue, drawing, and frame handling from {@link FlowBlockBox}.
+ * By default, {@link PageAtomicBox} prohibits structural page-axis splitting through its type
+ * (css-flexbox-1 §10 fragmentation is informative, so leaving it unsupported is valid.
+ * If it does not fit, move it whole, then use visual rescue).
  * </p>
  *
  * <p>
- * <b>行分割(2026-08-07、Bug C)</b>: {@link #setFlexLines}によりline境界
- * 情報が設定されている場合に限り、{@link #hasRowSplitLines()}がtrueになり、
- * {@code PaginationContract}の特例(同ファイル参照)を通じて
- * {@link #split}が実際に呼ばれる——テーブルの行が「同一物理切断線に
- * 揃えて強制分割し、揃わないitemは丸ごと次断片へ」という契約
- * ({@code TableRowGroupBox}/{@code TableRowBox}参照)を、rowspanの無い
- * 単純化版として適用する。境界情報はrow方向の行({@code FlexBuilder.placeRow})
- * のほか、<b>単一列のcolumn方向でもitem1つを1行として合成する</b>
- * (2026-08-18——app shell型のbody column flex(min-height:100vhの縦flex)が
- * 実文書の37%で全文atomicになり、救済分割の帯境界で行がスライスされて
- * いた。{@code placeColumn}の単一列とF4c縮退経路{@code bindFallback}が
- * 対象。2026-08-19のLine.start導入で主軸整列leading>0も扱える)。line境界が
- * 無ければ従来通りPageAtomicBoxのまま——丸ごと送りかvisual rescueへ落ちる。
+ * <b>Row splitting (2026-08-07, Bug C)</b>: only when {@link #setFlexLines} sets line boundary
+ * information does {@link #hasRowSplitLines()} return true, allowing {@link #split} to be called
+ * through the special case in {@code PaginationContract} (see that file).
+ * This applies a simplified version, without rowspan, of the table-row contract:
+ * "forcibly split at the same physical cut line, and move items that cannot align with it
+ * whole to the next fragment" (see {@code TableRowGroupBox}/{@code TableRowBox}).
+ * Boundary information comes from row-direction lines ({@code FlexBuilder.placeRow}),
+ * and <b>also synthesizes one row per item for a single column in the column direction</b>
+ * (2026-08-18: app-shell body column flex containers (vertical flex with min-height:100vh)
+ * made entire documents atomic in 37% of real documents, slicing lines at rescue-split band boundaries.
+ * This applies to single-column {@code placeColumn} and the F4c degraded path {@code bindFallback}.
+ * Introducing Line.start on 2026-08-19 also supports main-axis alignment with leading>0).
+ * Without line boundaries it remains a PageAtomicBox, as before: move whole or fall back to visual rescue.
  * </p>
  *
  * <p>
- * F0時点の内容配置は単一列の通常フロー(=FlowBlockBoxの挙動そのまま)。
- * 行分割・伸縮・整列はF1以降で{@code FlexBuilder}が担う。
+ * At F0, content placement is single-column normal flow (= unchanged FlowBlockBox behavior).
+ * From F1 onward, {@code FlexBuilder} handles line breaking, flexing, and alignment.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -53,60 +53,58 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft.foliojet.layout.box.RowSplitBox {
 
 	/**
-	 * 1本のflex行(line)のページ軸帳簿です(2026-08-07、Bug C)。
+	 * The page-axis ledger for one flex line (2026-08-07, Bug C).
 	 *
-	 * @param startFlow コンテナのflow一覧上でこの行の先頭itemが占める
-	 *                   0基点の位置(=直前までの行のitemCountの累計)
-	 * @param itemCount この行のitem数
-	 * @param start     行のページ軸開始位置(コンテナ内辺原点=itemの
-	 *                   addFlow位置と同じ座標。2026-08-19に追加——従来の
-	 *                   累積和による境界探索は、強制分割の残余行高が
-	 *                   推定(下限)のため実描画位置と世代を重ねてずれ、
-	 *                   多段ページ分割で行が丸ごと上へ食い込んだ
-	 *                   (bootstrap-iconsのラベル重なりで実測)。
-	 *                   {@link GridBox.Row#start}と同じ設計)
-	 * @param pageSize  この行のページ軸(cross軸、row-directionでは
-	 *                   縦方向)の確定寸法——{@code FlexBuilder.placeRow}の
-	 *                   {@code lineExtents[li]}と同じ値
+	 * @param startFlow zero-based position of this line's first item in the container's flow list
+	 *                  (= cumulative itemCount of preceding lines)
+	 * @param itemCount number of items in this line
+	 * @param start     page-axis start position of the line (origin at the container's inner edge;
+	 *                  the same coordinates as the item's addFlow position). Added on 2026-08-19:
+	 *                  boundary searches using cumulative sums drifted from actual drawing positions
+	 *                  across generations because forced-split remainder row heights were estimates
+	 *                  (lower bounds). Repeated page splitting made whole lines overlap upward
+	 *                  (observed as overlapping labels in bootstrap-icons).
+	 *                  The same design as {@link GridBox.Row#start}.
+	 * @param pageSize  finalized page-axis size of this line (cross axis; vertical in row-direction),
+	 *                  the same value as {@code lineExtents[li]} in {@code FlexBuilder.placeRow}
 	 */
 	public record Line(int startFlow, int itemCount, double start, double pageSize) {
 	}
 
 	/**
-	 * 行境界(視覚順=cross軸順、{@code FlexBuilder.placeRow}が
-	 * {@code addFlow}した順序と一致)。nullまたは空は「行分割の対象外」を
-	 * 意味し、{@link #split}は旧来のatomicフォールバックへ倒れる。
+	 * Line boundaries (visual order = cross-axis order, matching the order of
+	 * {@code addFlow} in {@code FlexBuilder.placeRow}). null or empty means "not eligible
+	 * for row splitting", so {@link #split} uses the previous atomic fallback.
 	 */
 	private List<Line> lines;
 
 	/**
-	 * {@link #lines}の各行に属するitemの実体(コンテナのflow一覧と同じ
-	 * 順序)。line内のitemを直接{@code split}するのに使う——container
-	 * 側はflowの入れ替え(移送)しか提供しないため(container越しに個々の
-	 * itemを取り出す汎用APIが無く、Flex専用にこちらで並行して持つ方が
-	 * 単純)。
+	 * The actual items belonging to each line in {@link #lines} (in the same order
+	 * as the container's flow list). Used to {@code split} items within a line directly:
+	 * the container only provides flow replacement (transfer), with no generic API to
+	 * retrieve individual items through it, so keeping a parallel flex-specific list here is simpler.
 	 */
 	private List<FlexItemBox> lineItems;
 
 	/**
-	 * flex配置({@code FlexBuilder}のplaceRow/placeColumn/bindFallback)が
-	 * 実際に走ったか。走っていなければ中身は単一列の通常フロー
-	 * (F0退行——column+auto高のapp shell型が代表)で、守るべきflex配置が
-	 * 無いため原子契約を主張しない({@link #isPageAtomicNow}。
-	 * {@link GridBox#isPageAtomicNow}のtrackLayoutと同じ設計判断——
-	 * 2026-08-18、bbc-japan等の実文書37%が全文atomic→救済分割の帯境界で
-	 * 行がスライスされていた)。
+	 * Whether flex placement (placeRow/placeColumn/bindFallback in {@code FlexBuilder})
+	 * actually ran. If not, the contents are single-column normal flow (F0 degradation;
+	 * typically a column+auto-height app shell), with no flex placement to protect.
+	 * Do not assert the atomic contract ({@link #isPageAtomicNow}; the same design decision
+	 * as trackLayout in {@link GridBox#isPageAtomicNow}).
+	 * On 2026-08-18, 37% of real documents, including bbc-japan, were entirely atomic,
+	 * causing lines to be sliced at rescue-split band boundaries.
 	 */
 	private boolean flexLayout;
 
 	public FlexBox(final FlexParams params, final FlowPos pos) {
 		super(params, pos);
-		// flexのitem配置(主軸整列)は汎用のrestyle再構築(逐次積み上げ)で
-		// 壊れるため、常に自己アンカーで復元するコンテナを使う(2026-08-08。
-		// 従来は分割継続断片だけがRowSplitContainerで守られており、絶対配置
-		// 子を含むflex行がページ跨ぎで丸ごと移動したとき(ソース再生の
-		// containsAbsoluteゲートでrestyleへ落ちる)にitemが階段状にずれた
-		// ——yahoo.co.jpの天気モジュール)
+		// Generic restyle reconstruction (sequential stacking) destroys flex item placement
+		// (main-axis alignment), so always use a container that restores it by self-anchoring (2026-08-08).
+		// Previously, RowSplitContainer protected only split continuation fragments. When a flex line
+		// with absolutely positioned children moved whole across pages (the containsAbsolute gate
+		// in source replay falls back to restyle), its items became staggered like steps
+		// -- the yahoo.co.jp weather module.
 		this.container = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
 		this.container.setBox(this);
 	}
@@ -124,8 +122,8 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	}
 
 	/**
-	 * 行境界情報を設定します({@code FlexBuilder.placeRow}が配置直後に
-	 * 一度だけ呼ぶ)。
+	 * Sets line boundary information (called once by {@code FlexBuilder.placeRow}
+	 * immediately after placement).
 	 */
 	public final void setFlexLines(final List<Line> lines, final List<FlexItemBox> lineItems) {
 		this.lines = lines;
@@ -133,8 +131,8 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	}
 
 	/**
-	 * 行分割の対象か(2026-08-07)。falseなら{@code PaginationContract}が
-	 * 従来のPageAtomicBox経路(丸ごと送り/visual rescue)を使う。
+	 * Whether row splitting applies (2026-08-07). If false, {@code PaginationContract}
+	 * uses the previous PageAtomicBox path (move whole/visual rescue).
 	 */
 	public final boolean hasRowSplitLines() {
 		return this.lines != null && !this.lines.isEmpty();
@@ -163,15 +161,15 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		}
 	}
 
-	/** flex配置が走ったことを記録します({@code FlexBuilder}の各配置経路が呼ぶ)。 */
+	/** Records that flex placement ran (called by each placement path in {@code FlexBuilder}). */
 	public final void markFlexLayout() {
 		this.flexLayout = true;
 	}
 
 	/**
-	 * 原子契約はflex配置が実際に走ったコンテナだけが主張する(2026-08-18——
-	 * {@link GridBox#isPageAtomicNow}と同じ形。F0退行の単一列通常フローは
-	 * 通常ブロックとして行単位に改ページされる)。
+	 * Only containers where flex placement actually ran assert the atomic contract (2026-08-18;
+	 * same form as {@link GridBox#isPageAtomicNow}). Single-column normal flow from F0 degradation
+	 * paginates by line as a normal block.
 	 */
 	@Override
 	public final boolean isPageAtomicNow() {
@@ -179,15 +177,15 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	}
 
 	/**
-	 * <b>継続断片も同じ種別で作る</b>(2026-08-05)。
+	 * <b>Creates continuation fragments with the same type</b> (2026-08-05).
 	 *
 	 * <p>
-	 * {@link FlowBlockBox#fragmentRecipe()} は {@code new FlowBlockBox(...)} を
-	 * 直に書いているので、<b>上書きしないと継続断片が素のブロックになる</b>。
-	 * {@code ContinuationValidator} が種別の食い違いを検出して
-	 * <b>変換全体を止める</b>——実地コーパス第23波の {@code ecma262}
-	 * (ECMAScript仕様書、7.5MBの単一ページ)がこれで、出力2.9MBの途中で
-	 * 落ちていた。{@code MulticolumnBlockBox} だけが上書きしていた。
+	 * {@link FlowBlockBox#fragmentRecipe()} directly uses {@code new FlowBlockBox(...)},
+	 * so <b>without an override, continuation fragments become plain blocks</b>.
+	 * {@code ContinuationValidator} detects the type mismatch and <b>stops the entire conversion</b>.
+	 * This caused {@code ecma262} in real-world corpus wave 23 (the ECMAScript specification,
+	 * a 7.5 MB single page) to fail after producing 2.9 MB of output.
+	 * Only {@code MulticolumnBlockBox} had an override.
 	 * </p>
 	 */
 	@Override
@@ -199,46 +197,46 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	}
 
 	/**
-	 * flex行のページ方向切断です(2026-08-07、Bug C)。
+	 * Splits flex lines along the page axis (2026-08-07, Bug C).
 	 *
 	 * <p>
-	 * {@code TableRowGroupBox.split}/{@code TableRowBox.split}と同じ形
-	 * (「収まる行は素通り、境界行で全itemを同一物理線へ揃えて強制分割、
-	 * それ以降の行は丸ごと次断片へ」)だが、rowspan(セル連結)が無い分
-	 * 大幅に単純——境界行のitemは{@link #lineItems}から直接取り出して
-	 * 分割するだけで、連結セルのような「切断線を遡って再計算する」
-	 * 処理が要らない。
+	 * The same form as {@code TableRowGroupBox.split}/{@code TableRowBox.split}
+	 * ("leave fitting rows alone, forcibly split all items in the boundary row at the same
+	 * physical line, and move later rows whole to the next fragment"), but much simpler
+	 * without rowspan (cell spanning). Simply retrieve boundary-row items directly from
+	 * {@link #lineItems} and split them; no need to backtrack and recalculate the cut line
+	 * as with spanning cells.
 	 * </p>
 	 *
 	 * <p>
-	 * cross軸位置(どの行に属すか)はitem自身ではなく{@code Container.Flow}
-	 * 側の帳簿なので、収まる行のitemは一切触らない(元のcontainerに
-	 * 残ったまま)。強制分割で生まれた継続itemは{@code fragmentRecipe}が
-	 * 新規生成するため主軸位置({@code baseOffsetX}/{@code Y})を引き継が
-	 * ない——{@link FlexItemBox#getFlexLineOffset}で元の値を読み、
-	 * {@link FlexItemBox#setFlexLineOffset}で明示的に復元する。
+	 * Cross-axis positions (which row an item belongs to) are recorded in {@code Container.Flow},
+	 * not the items themselves, so leave items in fitting rows untouched in the original container.
+	 * {@code fragmentRecipe} creates new continuation items for forced splits, so they do not
+	 * inherit main-axis positions ({@code baseOffsetX}/{@code Y}). Read the original value with
+	 * {@link FlexItemBox#getFlexLineOffset} and explicitly restore it with
+	 * {@link FlexItemBox#setFlexLineOffset}.
 	 * </p>
 	 */
 	public final SplitResult split(double pageLimit, final BreakMode mode, final byte flags) {
-		// TableRowBox.splitと違い、ここはBoxType.BLOCKの汎用経路
-		// (FlowContainer.splitPageAxisのcase BLOCK)を通常のブロックと共有する
-		// ため、FLAGS_LASTを伴う呼び出しが実際に起こりうる(2026-08-07、
-		// RandomDocumentFuzzTestの列組みで実測: AssertionErrorで変換全体が
-		// 落ちた)。table行がFLAGS_LASTを見ないのはTableRowGroupBoxが
-		// 呼び出し前に除いているという発呼側の契約であって、split自身の
-		// 制約ではない——下のxflags構築が元々FLAGS_LASTを運ばないため、
-		// 検査を外すだけで安全に扱える
+		// Unlike TableRowBox.split, this shares the generic BoxType.BLOCK path
+		// (case BLOCK in FlowContainer.splitPageAxis) with normal blocks,
+		// so calls with FLAGS_LAST can actually occur (2026-08-07; observed in multi-column layout
+		// in RandomDocumentFuzzTest: an AssertionError stopped the entire conversion).
+		// Table rows never see FLAGS_LAST because TableRowGroupBox removes it before calling:
+		// that is the caller's contract, not a restriction of split itself.
+		// The xflags construction below already excludes FLAGS_LAST,
+		// so simply removing the check handles this safely.
 		if (!this.hasRowSplitLines()) {
 			if (!this.isPageAtomicNow()) {
-				// F0退行(flex配置なし)は中身が単一列の通常フローなので、
-				// 通常ブロックの構造分割へ委譲する(2026-08-18)。これが無いと
-				// 「帳簿なし+非原子」の閉じた箱がフラグメント先頭でKEEPされ、
-				// ページ底を越えた内容が描かれず失われる(stripe-docsで実測:
-				// 3687ptの内側flexが2ページ目に丸ごと置かれ、以降が消えた)
+				// F0 degradation (no flex placement) contains single-column normal flow,
+				// so delegate to normal-block structural splitting (2026-08-18). Without this,
+				// a closed box with "no ledger + non-atomic" is KEEP at the fragment start,
+				// and content beyond the page bottom is not drawn and is lost (observed in stripe-docs:
+				// a 3687 pt inner flex was placed whole on page 2, and everything after that disappeared).
 				return super.split(pageLimit, mode, flags);
 			}
-			// 原子側の防御的フォールバック(通常はPaginationContractの特例に
-			// より、line境界が無ければこのメソッド自体が呼ばれない)
+			// Defensive fallback on the atomic side (normally the PaginationContract special case
+			// prevents this method from being called at all without line boundaries).
 			return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
 		}
 		final WritingMode flow = this.getBlockParams().flow;
@@ -255,9 +253,9 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		}
 
 		final double totalPageLimit = pageLimit;
-		// 切断線を跨ぐ行か、切断線以降に始まる最初の行(2026-08-19に累積和から
-		// Line.startの直接比較へ変更——GridBox.splitと同じ形。理由はLineの
-		// javadoc参照)
+		// The row crossing the cut line, or the first row starting at or beyond it (changed on 2026-08-19
+		// from cumulative sums to direct Line.start comparison, as in GridBox.split;
+		// see the Line Javadoc for the reason).
 		int boundary = -1;
 		boolean crosses = false;
 		for (int li = 0; li < this.lines.size(); ++li) {
@@ -273,20 +271,20 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			}
 		}
 		if (boundary < 0) {
-			// 全行が切断線の手前に収まる(切断線は末尾余白内)。内容の無い
-			// 余白は次ページへ運ばずここで切り詰める(KEEP)——継続断片が
-			// min-height等を再適用して生む余白を運ぶと、内容ゼロの白紙
-			// ページが増えるだけだった(k8s-docs等で実測)。GridBoxの同名
-			// 分岐(空の継続断片が余白を運ぶ)とは意図的に異なる——gridは
-			// min-height由来の余白を行分割の対象として運ぶ設計
-			// (gigazineの根治)で回帰を守っているため合わせない
+			// All lines fit before the cut line (which lies in trailing space).
+			// Trim empty space here (KEEP) instead of carrying it to the next page: carrying space
+			// created by reapplying min-height, etc. in continuation fragments only added blank pages
+			// with no content (observed in k8s-docs, etc.). This deliberately differs from
+			// the corresponding GridBox branch (an empty continuation fragment carries the space).
+			// Grid's design carries min-height space as eligible for row splitting
+			// (the root fix for gigazine) and protects its regressions, so do not make them match.
 			return SplitResult.KEEP;
 		}
 
 		final byte xflags = (byte) (flags & (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT));
 		final Line boundaryLine = this.lines.get(boundary);
 		if (!crosses) {
-			// 境界行は切断線以降に始まる——行を切らず丸ごと持ち越す
+			// The boundary row starts at or beyond the cut line: carry it whole without splitting.
 			if (boundary == 0) {
 				return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
 			}
@@ -322,7 +320,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		}
 
 		if (!anySplit) {
-			// 境界行の誰も分割できない=行全体を境界とみなし、丸ごと持ち越す
+			// No item in the boundary row can split: treat the entire row as the boundary and carry it whole.
 			if (boundary == 0) {
 				return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
 			}
@@ -340,10 +338,10 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			return new SplitResult.Split(continuation);
 		}
 
-		// 境界行:未分割(Keep判定)だったitemも強制分割する
+		// Boundary row: forcibly split even items that were not split (Keep decision).
 		final byte forcedFlags = (byte) (xflags | IPageBreakableBox.FLAGS_SPLIT);
 		final FlexItemBox[] remainders = new FlexItemBox[boundaryItems.length];
-		// 分割前のitem高(下の残余下限の計算用)
+		// Item height before splitting (for the remainder lower-bound calculation below).
 		final double[] preExtents = new double[boundaryItems.length];
 		for (int k = 0; k < boundaryItems.length; ++k) {
 			preExtents[k] = boundaryItems[k].getPageExtent(flow);
@@ -359,22 +357,22 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			remainders[k] = typedRemainder;
 		}
 
-		// 保持側の実消費(2026-08-19——GridBox.splitの同名の補正と同じ。
-		// 切断は不可分な内容を丸ごと残余へ送るため、保持断片の実内容は
-		// 切断線より早く終わりうる。実描画終端を基準に保持断片を閉じ、
-		// 継続の行開始も同じ量だけ引く)
+		// Actual extent consumed by the kept side (2026-08-19; same correction as in GridBox.split).
+		// Splitting moves indivisible content whole to the remainder, so the kept fragment's actual content
+		// can end before the cut line. Close the kept fragment at its actual painted end,
+		// and subtract the same amount from the continuation line starts.
 		double consumed = 0;
 		for (int k = 0; k < boundaryItems.length; ++k) {
 			consumed = Math.max(consumed, boundaryItems[k].paintedPageExtent(flow));
 		}
 		consumed = Math.min(consumed, remaining);
-		// 構造分割は成立しても、空itemや不可視itemだけの保持側は
-		// paintedPageExtent=0になりうる。このままkeptEnd=0で継続すると
-		// 同じ境界行を毎ページまったく消費せず再分割し、後続行の重なり
-		// 回避が世代ごとに位置を押し広げる(vertical-lr表内の空flex行で
-		// 96pt→2.37e16pt、58ページ目に描画座標assert)。分割が成立した
-		// 以上、描画物が無い場合だけは利用可能量をレイアウト上の進捗と
-		// する。描画物がある通常経路は従来どおり実描画終端を使う。
+		// Even if structural splitting succeeds, a kept side with only empty or invisible items
+		// can have paintedPageExtent=0. Continuing with keptEnd=0 would split the same boundary row
+		// on every page without consuming anything. Overlap avoidance for later rows would spread
+		// positions farther apart each generation (an empty flex row in a vertical-lr table grew from
+		// 96 pt to 2.37e16 pt, hitting a drawing-coordinate assertion on page 58). Since splitting
+		// succeeded, use the available extent as layout progress only when nothing is painted.
+		// The normal path with painted content still uses the actual painted end.
 		if (LayoutUtils.compare(consumed, 0) <= 0 && LayoutUtils.compare(remaining, 0) > 0) {
 			consumed = remaining;
 		}
@@ -387,15 +385,15 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			cont.addFlow(remainders[k], 0);
 			newLinePageSize = Math.max(newLinePageSize, remainders[k].getPageExtent(flow));
 		}
-		// **継続行の高さは残余の量を下回らせない**(2026-08-17、GridBox.splitの
-		// 同名の補正と同じ帳簿誤りに対する防御)。remainderは未レイアウトで
-		// getPageExtentがほぼ0を返しうる。flexの境界探索は累積和なので
-		// gridの「空の継続断片」(実害)までは起きないが、行が複数ある
-		// 継続で後続行の切断位置がずれる。幾何学的な下限で守る。
+		// **Keep the continuation line height at least as large as the remainder** (2026-08-17;
+		// guards against the same ledger error as the corresponding correction in GridBox.split).
+		// The remainder is not laid out yet, so getPageExtent may return nearly 0. Flex boundary searches
+		// use cumulative sums, avoiding grid's "empty continuation fragment" (an actual defect), but
+		// cut positions for later lines in a multi-line continuation shift. Enforce a geometric lower bound.
 		newLinePageSize = Math.max(newLinePageSize, boundaryLine.pageSize() - consumed);
-		// item単位では「分割前のitem高 − 保持側の実測高」も下回らない
-		// (2026-08-18——GridBox.splitの同名の補正と同じ。保持側は不可分な
-		// 内容を残余へ送って利用可能量より早く終わりうる)
+		// Per item, also enforce "item height before splitting - measured height of the kept side"
+		// (2026-08-18; same correction as in GridBox.split). The kept side can end before
+		// the available extent because indivisible content moves to the remainder.
 		for (int k = 0; k < boundaryItems.length; ++k) {
 			newLinePageSize = Math.max(newLinePageSize, preExtents[k] - consumed);
 		}
@@ -413,7 +411,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			int shift = boundaryItems.length;
 			for (int j = boundary + 1; j < this.lines.size(); ++j) {
 				final Line old = this.lines.get(j);
-				// startは移送(−keptEnd)後の実描画位置と一致させる
+				// Match start to the actual drawing position after transfer (-keptEnd).
 				contLines.add(new Line(shift, old.itemCount(), old.start() - keptEnd, old.pageSize()));
 				shift += old.itemCount();
 			}
@@ -431,14 +429,15 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	}
 
 	/**
-	 * 分割後の頭側に、残した行と item だけを記録し直します(2026-09-17)。
+	 * Rebuilds the leading fragment's records after splitting to include only kept lines and items (2026-09-17).
 	 *
 	 * <p>
-	 * 従来は分割しても {@code lines}/{@code lineItems} が元のままで、<b>次断片へ
-	 * 移送済みの行と item を指し続けていた</b>。多段の均衡のように同じ頭がもう一度
-	 * 分割されると、古い記録から「境界行」を選び、既に移送した item をもう一度
-	 * {@code split} して残余を作る——同じ内容が 2 つの断片に入る(掃過の
-	 * 「内容の複製」。seed 2010872 で T106 が同じ頁の 2 つの段に描かれた)。
+	 * Previously, {@code lines}/{@code lineItems} remained unchanged after splitting and
+	 * <b>kept referring to lines and items already transferred to the next fragment</b>.
+	 * When the same leading fragment was split again, as in multi-column balancing,
+	 * the stale records selected a "boundary row" and {@code split} already transferred items
+	 * again to create remainders. The same content entered two fragments (the sweep's
+	 * "content duplication": seed 2010872 drew T106 in two columns on the same page).
 	 * </p>
 	 */
 	private void keepHeadLines(final int lineCount, final int itemCount) {
@@ -447,16 +446,16 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	}
 
 	/**
-	 * {@code lines}の{@code fromIndex}行目以降を、先頭を0基点として
-	 * 付け替えたリストにします({@link #split}が行全体を丸ごと次断片へ
-	 * 持ち越す際に使う)。
+	 * Returns a list of lines from {@code fromIndex} onward in {@code lines},
+	 * rebased so the first starts at 0 (used when {@link #split} carries whole lines
+	 * to the next fragment).
 	 */
 	private static List<Line> shiftLines(final List<Line> lines, final int fromIndex, final double keptExtent) {
 		final List<Line> result = new ArrayList<>(lines.size() - fromIndex);
 		int shift = 0;
 		for (int j = fromIndex; j < lines.size(); ++j) {
 			final Line old = lines.get(j);
-			// startは移送(−keptExtent)後の実描画位置と一致させる
+			// Match start to the actual drawing position after transfer (-keptExtent).
 			result.add(new Line(shift, old.itemCount(), old.start() - keptExtent, old.pageSize()));
 			shift += old.itemCount();
 		}

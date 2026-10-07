@@ -25,46 +25,46 @@ public abstract class AbstractImposition implements Imposition {
 
 	protected OutputAutoRotate autoRotate = OutputAutoRotate.NONE;
 
-	/** クロップマーク(コーナートンボ)。 */
+	/** Crop marks (corner marks). */
 	protected boolean crop = false;
 
-	/** クロスマーク(センタートンボ)。 */
+	/** Cross marks (center marks). */
 	protected boolean cross = false;
 
-	/** 断ちしろ。 */
+	/** Trim allowance. */
 	protected double trimTop = 1.0 * PDFUtils.POINTS_PER_CM;
 	protected double trimRight = 1.0 * PDFUtils.POINTS_PER_CM;
 	protected double trimLeft = 1.0 * PDFUtils.POINTS_PER_CM;
 	protected double trimBottom = 1.0 * PDFUtils.POINTS_PER_CM;
 
-	/** 断ちしろのうちドブの幅。 */
+	/** Cutting margin within the trim allowance. */
 	protected double cuttingMargin = PDFUtils.CUTTING_MARGIN_MM * PDFUtils.POINTS_PER_MM;
 
 	/**
-	 * 印刷面の外周のうち塗り足しとして扱う帯の幅
-	 * (2026-08-29、利用者報告B-3。既定0=印刷面がそのまま仕上りサイズ)。
+	 * Width of the band along the printable area's perimeter treated as bleed
+	 * (2026-08-29, user report B-3; default 0 means the printable area is the finished size).
 	 */
 	protected double trimInset = 0;
 
-	/** 背表紙幅。 */
+	/** Spine width. */
 	protected double spineWidth = 0;
 
-	/** ページ幅。 */
+	/** Page width. */
 	protected double pageWidth = (PDFUtils.PAPER_A4_WIDTH_MM * PDFUtils.POINTS_PER_MM);
 
-	/** ページ高さ。 */
+	/** Page height. */
 	protected double pageHeight = (PDFUtils.PAPER_A4_HEIGHT_MM * PDFUtils.POINTS_PER_MM);
 
-	/** 用紙幅。 */
+	/** Paper width. */
 	protected double paperWidth;
 
-	/** 用紙高さ。 */
+	/** Paper height. */
 	protected double paperHeight;
 
-	/** 欄外記述。 */
+	/** Marginal note. */
 	protected MessageFormat note = null;
 
-	/** クリッピング */
+	/** Clipping */
 	protected boolean clip = true;
 
 	public AbstractImposition(UserAgent ua) {
@@ -87,9 +87,9 @@ public abstract class AbstractImposition implements Imposition {
 		case DOUBLE_SIDE:
 		case LEFT_SIDE:
 		case RIGHT_SIDE:
-			// 両面
+			// Double-sided
 			if (this.getBoundSide() == BoundSide.LEFT) {
-				// 左綴じ
+				// Left binding
 				if (pageElement == null) {
 					pageElement = CSSElement.PAGE_FIRST_RIGHT;
 				} else if (pageElement == CSSElement.PAGE_FIRST_RIGHT) {
@@ -100,7 +100,7 @@ public abstract class AbstractImposition implements Imposition {
 					pageElement = CSSElement.PAGE_LEFT_EVEN;
 				}
 			} else {
-				// 右綴じ
+				// Right binding
 				if (pageElement == null) {
 					pageElement = CSSElement.PAGE_FIRST_LEFT;
 				} else if (pageElement == CSSElement.PAGE_FIRST_LEFT) {
@@ -114,7 +114,7 @@ public abstract class AbstractImposition implements Imposition {
 			break;
 
 		case SINGLE_SIDE:
-			// 片面
+			// Single-sided
 			if (pageElement == null) {
 				pageElement = CSSElement.PAGE_SINGLE_FIRST;
 			} else {
@@ -138,12 +138,12 @@ public abstract class AbstractImposition implements Imposition {
 		case DOUBLE_SIDE:
 		case LEFT_SIDE:
 		case RIGHT_SIDE:
-			// 両面
+			// Double-sided
 			if (this.getBoundSide() == BoundSide.LEFT) {
-				// 横書き
+				// Horizontal writing
 				this.ua.setBoundSide(BoundSide.LEFT);
 			} else {
-				// 縦書き
+				// Vertical writing
 				this.ua.setBoundSide(BoundSide.RIGHT);
 			}
 			break;
@@ -212,8 +212,8 @@ public abstract class AbstractImposition implements Imposition {
 	}
 
 	/**
-	 * 仕上りサイズの幅です。印刷面から{@link #getTrimInset()}だけ内側
-	 * ——トンボはここに引き、用紙はここに断ち代を足した大きさになります。
+	 * The finished width. Inset by {@link #getTrimInset()} from the printable area:
+	 * crop marks are drawn here, and the paper size adds the trim allowance to this size.
 	 */
 	public final double getTrimWidth() {
 		return Math.max(0, this.pageWidth - this.trimInset * 2.0);

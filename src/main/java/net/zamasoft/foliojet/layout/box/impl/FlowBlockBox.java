@@ -35,8 +35,8 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
- * ブロックボックスの実装です。
- * 
+ * Implementation of a block box.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: FlowBlockBox.java 1552 2018-04-26 01:43:24Z miyabe $
  */
@@ -46,15 +46,15 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 
 	protected double contentSize;
 
-	/** RowSplitContainerの再構築で、子を流す前に使う一回限りの使用済み行寸法。 */
+	/** One-shot used line-axis size applied before flowing children during RowSplitContainer reconstruction. */
 	private double restyleLineWidth = LayoutUtils.NONE;
 	private double restyleLineHeight = LayoutUtils.NONE;
 
 	/**
-	 * 解決済みの整列です(表の auto マージン整列)。初期値は pos.align で、
-	 * shrinkToFit(table) が解決結果を保存します。共有 pos への書き戻しは
-	 * しない(ログが参照する pos は record 後不変 — §5.7 前提 (ii))。
-	 * 分割断片へは splitPage が引き継ぎます。
+	 * Resolved alignment (table auto-margin alignment). Initially pos.align;
+	 * shrinkToFit(table) saves the resolved result. Do not write it back to shared pos
+	 * (the pos referenced by the log is immutable after recording -- §5.7 assumption (ii)).
+	 * splitPage carries it to split fragments.
 	 */
 	protected Align resolvedAlign;
 
@@ -72,20 +72,20 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
-	 * 解決済みの整列を返します(表整列の解決後はその結果)。
+	 * Returns the resolved alignment (the result of table alignment resolution once performed).
 	 */
 	public final Align getResolvedAlign() {
 		return this.resolvedAlign;
 	}
 
 	/**
-	 * restyle再構築で膨らんだpage軸の内容寸法を復元します(2026-08-08、
-	 * {@code RowSplitContainer.restoreAnchoredPageAxis}専用。flexから
-	 * flex/grid共通へ一般化——2026-08-10)。汎用再構築はitemを縦積みで
-	 * 再登録するため、item側のendFlowBlockが親であるこの箱へΣitem高を
-	 * 書き込む——{@code setPageAxis}のcontentSizeはMath.maxの単調増加
-	 * なので、後から正しい値を渡しても縦積みの値が残る。ここだけは
-	 * 代入で戻す。
+	 * Restores page-axis content size inflated by restyle reconstruction
+	 * (2026-08-08; exclusively for {@code RowSplitContainer.restoreAnchoredPageAxis};
+	 * generalized from flex to shared flex/grid use on 2026-08-10).
+	 * Generic reconstruction registers items again as a vertical stack, so each item's
+	 * endFlowBlock writes the sum of item heights to this parent box. Because contentSize
+	 * in {@code setPageAxis} only increases through Math.max, passing the correct value later
+	 * leaves the vertical-stack value intact. Restore by assignment only here.
 	 */
 	public final void restoreContentExtent(final double content) {
 		this.contentSize = content;
@@ -97,9 +97,10 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
-	 * 未完表の末尾だけを更新します。未完時の暫定高が contentSize の最大値に
-	 * 残らないよう、表配置前の会計から setPageAxis を一度適用し直します。
-	 * 負の末尾マージンによる縮小も、指定高・min/max の規則を保って確定します。
+	 * Updates only the end of an incomplete table. Reapplies setPageAxis once from the
+	 * accounting state before table placement, so the provisional incomplete height does not
+	 * remain as the contentSize maximum. Also finalizes shrinking due to a negative trailing
+	 * margin while preserving specified-height and min/max rules.
 	 */
 	public final void updateIncompleteTableExtent(final double pageSize, final double beforeContentSize,
 			final double beforePageSize) {
@@ -112,27 +113,27 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
-	 * restyle再構築で潰れた確定寸法を復元します(2026-08-08、
-	 * {@code RowSplitContainer.restyle}専用。flexからflex/grid共通へ
-	 * 一般化——2026-08-10)。itemの寸法はitem coordinator(FlexBuilder/
-	 * GridBuilder)が所有するが、ページ跨ぎ移動後の汎用再構築は
-	 * {@code startFlowBlock.calculateSize}がwidth:autoを包含幅へ、
-	 * {@code endFlowBlock}がheight:autoを内容高(絶対配置子だけなら0)へ
-	 * 再解決してしまう——yahoo.co.jpのランキング順位バッジが行全幅の
-	 * 色帯になった実バグ。
+	 * Restores finalized dimensions overwritten by restyle reconstruction
+	 * (2026-08-08; exclusively for {@code RowSplitContainer.restyle}; generalized from flex
+	 * to shared flex/grid use on 2026-08-10). The item coordinator (FlexBuilder/GridBuilder)
+	 * owns item dimensions, but generic reconstruction after moving across pages resolves them
+	 * again: {@code startFlowBlock.calculateSize} sets width:auto to the containing width,
+	 * and {@code endFlowBlock} sets height:auto to the content height (0 with only absolutely
+	 * positioned children). This actual bug turned ranking badges on yahoo.co.jp into colored
+	 * strips spanning the entire line.
 	 */
 	public final void restoreExtents(final double width, final double height) {
-		// 呼び出し側はIBox.getWidth/getHeightで採った枠込み外寸を渡す。
-		// 内寸フィールドへそのまま代入すると、restyleのたびにmargin/border/
-		// paddingをもう一度足し、枠を持つitemが世代ごとに膨らむ。
+		// The caller passes outer dimensions including the frame, obtained from IBox.getWidth/getHeight.
+		// Assigning these directly to inner-size fields would add margin/border/padding again
+		// on every restyle, inflating framed items each generation.
 		this.width = width - this.frame.getFrameWidth();
 		this.height = height - this.frame.getFrameHeight();
 	}
 
 	/**
-	 * 次の{@link #calculateSize}で、flex/gridが確定した使用済み行寸法を先に
-	 * 適用します。後から箱幅だけを復元すると、内側のテキストは包含幅で
-	 * 改行済みのままになり、固定幅兄弟の画像へ描画が重なるためです。
+	 * On the next {@link #calculateSize}, first applies the used line-axis size finalized
+	 * by flex/grid. Restoring only the box width afterward leaves inner text wrapped at
+	 * the containing width, making it draw over an image in a fixed-width sibling.
 	 */
 	public final void prepareRestyleLineExtent(final double width, final double height, final boolean vertical) {
 		if (vertical) {
@@ -142,25 +143,24 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		}
 	}
 
-	/** 再生がボックス再構築を通らなかった場合の一回限り指定を破棄します。 */
+	/** Discards the one-shot specification if replay did not go through box reconstruction. */
 	public final void clearRestyleLineExtent() {
 		this.restyleLineWidth = LayoutUtils.NONE;
 		this.restyleLineHeight = LayoutUtils.NONE;
 	}
 
 	/**
-	 * item単位のauto marginを配置コーディネータ(flex §8.1)が所有するか。
-	 * flex itemのauto marginはFlexBuilderが行の自由空間から解決して
-	 * 線方向位置({@code flexLineOffset})・cross offsetへ焼き込み済みで、
-	 * marginの絶対値(amargin)は0のまま運ばれる。ページ跨ぎ継続断片の
-	 * restyle再構築が{@code calculateSize}のブロック則(§10.3.3)で
-	 * 再解決すると、(1)焼き込み済みの位置へマージンをもう一度加算し、
-	 * (2){@code restoreExtents}の枠控除が肥大して内寸が世代ごとに
-	 * 2×margin縮む——固定幅+{@code margin:0 auto}のflex item(本文カラム)が
-	 * ページを追うごとに右へずれながら1文字幅まで潰れた
-	 * (asahi.com記事ページ、2026-08-27)。trueのとき、
-	 * {@code calculateSize}はAUTOのmargin辺を再解決せず運ばれた
-	 * 絶対値のまま使う。
+	 * Whether the placement coordinator owns per-item auto margins (flex §8.1).
+	 * FlexBuilder has already resolved flex item auto margins from free space in the line
+	 * and incorporated them into the line-axis position ({@code flexLineOffset}) and cross offset.
+	 * The absolute margin values (amargin) are carried as 0. If restyle reconstruction of a
+	 * cross-page continuation fragment resolves them again using the block rules (§10.3.3)
+	 * in {@code calculateSize}, (1) it adds margins to positions that already include them,
+	 * and (2) the frame deduction in {@code restoreExtents} grows, shrinking the inner size
+	 * by 2×margin each generation. A fixed-width flex item (body text column) with
+	 * {@code margin:0 auto} drifted right and shrank to one character wide over successive pages
+	 * (an asahi.com article page, 2026-08-27). If true, {@code calculateSize} uses the carried
+	 * absolute values for AUTO margin sides without resolving them again.
 	 */
 	public boolean coordinatorOwnsAutoMargins() {
 		return false;
@@ -184,20 +184,20 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		if (!table) {
 			return;
 		}
-		// テーブル
+		// Table
 		BlockBuilder builder = (BlockBuilder) layoutStack;
 		containerBox = builder.getFlow(builder.getFlowCount() - 2).box;
 
 		Align align = this.resolvedAlign;
 		final boolean containerVertical = containerBox.getBlockParams().flow.isVertical();
-		// 直交する表(縦組みの中の横組みの表など)で、親の行方向の寸法(縦組みの親では高さ)がまだ分からない
-		// (行を組む前の浮動体の中など)ときは、auto の余白で寄せない(2026-10-05)。寸法 0 のまま中央へ寄せると
-		// 余白が親の行の長さの半分になり、表が親の中ほどから下へはみ出した(jigensha の報告)。寸法が分かって
-		// から置く経路では BlockBuilder.addFlowBound が寄せる
+		// For an orthogonal table (e.g. horizontal writing inside vertical writing), if the parent's line-axis size
+		// (height for a vertical-writing parent) is unknown (e.g. inside a float before line layout), do not align
+		// with auto margins (2026-10-05). Centering at size 0 made the margin half the parent's line length, so the table
+		// overflowed downward from the parent's middle (jigensha report). BlockBuilder.addFlowBound aligns once size is known.
 		final boolean unsizedOrthogonal = containerVertical != this.getBlockParams().flow.isVertical()
 				&& LayoutUtils.compare(containerVertical ? this.height : this.width, 0) <= 0;
 		if (containerVertical) {
-			// 縦書き
+			// Vertical writing
 			if (align == Align.START) {
 				Insets margin = this.getBlockParams().frame.margin;
 				if (margin.getTopType() == LengthType.AUTO) {
@@ -222,10 +222,10 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				this.frame.margin.top = this.frame.margin.bottom = remainder / 2;
 				break;
 			}
-			// 幅を固定
+			// Fix the width
 			this.size = Dimension.create(0, this.height, LengthType.AUTO, LengthType.ABSOLUTE);
 		} else {
-			// 横書き
+			// Horizontal writing
 			if (align == Align.START) {
 				Insets margin = this.getBlockParams().frame.margin;
 				if (margin.getLeftType() == LengthType.AUTO) {
@@ -237,15 +237,15 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				}
 			}
 			final double remainder = containerBox.getLineSize() - this.width;
-			// **包含ブロックより広い箱では始端に揃える**（2026-08-03）。
+			// **Align boxes wider than their containing block to the start** (2026-08-03).
 			//
-			// CSS 2.1 §10.3.3: 幅が指定されていて合計が包含ブロックを超える場合、
-			// direction: ltr では margin-right の指定が無視される——箱は始端に揃い、
-			// 終端側へ溢れる。従来は余りを機械的に2で割っていたため、余りが負の
-			// ときに**負の始端マージン**ができ、内容の左半分が紙の外へ出て
-			// 切れていた。固定幅の版面を margin: 0 auto で中央寄せする作りは
-			// 実地で極めて多い（総務省統計局のページを取り込んだ第3波で発覚、PLAN §3）。
-			// 紙幅より広い版面はどのみち溢れるが、**始端側を守れば読める**。
+			// CSS 2.1 §10.3.3: if the width is specified and the total exceeds the containing block,
+			// direction: ltr ignores the specified margin-right: the box aligns to the start
+			// and overflows at the end. Previously, the remainder was mechanically divided by 2,
+			// so a negative remainder produced a **negative start margin**, putting the left half
+			// of the content off the paper and clipping it. Centering a fixed-width type area
+			// with margin: 0 auto is extremely common (found in wave 3 with Statistics Bureau pages; PLAN §3).
+			// A type area wider than the paper overflows anyway, but **protecting the start keeps it readable**.
 			if (remainder < 0) {
 				align = Align.START;
 			}
@@ -262,18 +262,19 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				this.frame.margin.left = this.frame.margin.right = remainder / 2;
 				break;
 			}
-			// 幅を固定
+			// Fix the width
 			this.size = Dimension.create(this.width, 0, LengthType.ABSOLUTE, LengthType.AUTO);
 		}
 		this.resolvedAlign = align;
 	}
 
 	/**
-	 * {@code aspect-ratio}で、確定した行方向内寸からページ方向内寸を決めます
-	 * (2026-08-29。flex/gridのitemが行方向の確定寸法を受け取った直後、本文bindの前に呼ぶ——G7でFlexItemBoxから引き上げた)。
-	 * ページ方向が絶対長で指定されているとき・比率指定が無いときは何も
-	 * しない。内容が比率高より高いときは{@code overflow:visible}なら伸びる
-	 * ({@code minPageAxis}=比率高、{@code maxPageAxis}は可視のとき無制限)。
+	 * Uses {@code aspect-ratio} to determine the inner page-axis size from the finalized inner
+	 * line-axis size (2026-08-29; called just after a flex/grid item receives its finalized line-axis
+	 * size, before binding body content; moved up from FlexItemBox in G7).
+	 * Does nothing if the page-axis size is an absolute length or no ratio is specified.
+	 * If content is taller than the ratio-derived height, {@code overflow:visible} allows expansion
+	 * ({@code minPageAxis} = ratio-derived height; {@code maxPageAxis} is unlimited when visible).
 	 */
 	public void applyAspectRatio(final double lineExtent) {
 		final BlockParams params = this.getBlockParams();
@@ -297,15 +298,15 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
-	 * <b>指定されたページ方向内寸を自己適用します</b>(G7、2026-08-29)。
+	 * <b>Applies the specified inner page-axis size to this box</b> (G7, 2026-08-29).
 	 *
 	 * <p>
-	 * takeoverしたitem箱({@code GridItemBox})は{@code calculateSize}を
-	 * 通らないので、{@code specifiedPageAxis}が立たない。立てずに高さだけ
-	 * 入れると、断片化({@link net.zamasoft.foliojet.layout.fragment.FragmentState})が
-	 * 「指定寸法ではない」と見なして<b>継続断片へ元の指定高をそのまま
-	 * 渡す</b>——行分割された固定高itemの継続が残余でなく全高になる
-	 * (files/unittest/0500-grid/row-split-carry.htmlの2ページ目で実測)。
+	 * An item box that takes over the child ({@code GridItemBox}) does not pass through
+	 * {@code calculateSize}, so {@code specifiedPageAxis} is not set. Setting only the height
+	 * without the flag makes fragmentation ({@link net.zamasoft.foliojet.layout.fragment.FragmentState})
+	 * treat it as "not a specified size" and <b>pass the original specified height unchanged to
+	 * the continuation fragment</b>. A row-split fixed-height item then continues at its full height
+	 * instead of the remainder (observed on page 2 of files/unittest/0500-grid/row-split-carry.html).
 	 * </p>
 	 */
 	public final void applySpecifiedPageAxis(final double pageExtent) {
@@ -317,7 +318,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		this.contentSize = Math.max(this.contentSize, newSize);
 
 		if (this.params.flow.isVertical()) {
-			// 縦書き
+			// Vertical writing
 			if (newSize <= this.width) {
 				return;
 			}
@@ -327,7 +328,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			this.width = Math.max(this.minPageAxis, newSize);
 			this.width = Math.min(this.maxPageAxis, this.width);
 		} else {
-			// 横書き
+			// Horizontal writing
 			if (newSize == this.height) {
 				return;
 			}
@@ -340,9 +341,9 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
-	 * 行方向のmin/max指定値(box-sizingスケール)を内容寸法のスケールへ
-	 * 換算します(2026-08-29)。border-boxなら行方向の境界+パディングを引く。
-	 * 呼び出し側でパディングは解決済みであること(computePaddingsの後)。
+	 * Converts specified line-axis min/max values (box-sizing scale) to the content-size scale
+	 * (2026-08-29). For border-box, subtract line-axis borders and padding.
+	 * The caller must already have resolved padding (after computePaddings).
 	 */
 	private double lineMinMaxToContent(final double specified, final boolean lineIsHeight) {
 		if (this.params.boxSizing != BoxSizingMode.BORDER_BOX) {
@@ -354,26 +355,26 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	public void calculateSize(LayoutStack layoutStack, double xmargin, double lineSize) {
 		final AbstractContainerBox containerBox = layoutStack.getFlowBox();
 		final BlockParams cParams = containerBox.getBlockParams();
-		// Flexの中立wrapperが行方向の寸法指定を引き取っている場合、直下の
-		// 子は行方向を充填(auto)として解決する(2026-08-08——wrapperと
-		// 子の双方が%を解決すると二重適用になる。FlexItemBox参照)
+		// If a neutral Flex wrapper has taken over the line-axis size specification,
+		// the direct child resolves its line-axis size as fill (auto) (2026-08-08: resolving percentages
+		// in both wrapper and child would apply them twice; see FlexItemBox).
 		final boolean neutralLineFill = containerBox instanceof FlexItemBox item && item.isNeutralLineFill();
 		if (this.params.flow.isVertical()) {
-			// 縦書きのフロー
+			// Vertical-writing flow
 			this.specifiedPageAxis = this.size.getWidthType() == LengthType.ABSOLUTE
 					|| (this.size.getWidthType().needsReference() && containerBox.isSpecifiedPageSize());
 		} else {
-			// 横書きのフロー
+			// Horizontal-writing flow
 			this.specifiedPageAxis = this.size.getHeightType() == LengthType.ABSOLUTE
 					|| (this.size.getHeightType().needsReference() && containerBox.isSpecifiedPageSize());
 		}
 
 		//
-		// ■ パディングの計算
+		// ■ Calculate padding
 		//
 		LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
 		//
-		// ■ マージンの計算
+		// ■ Calculate margins
 		//
 		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineSize);
 
@@ -382,14 +383,14 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		double marginLeft, marginRight, marginTop, marginBottom;
 
 		//
-		// ■ 静的配置または相対配置の行方向幅の計算
+		// ■ Calculate the line-axis size for static or relative positioning
 		//
 
-		// 行方向幅の計算
+		// Calculate the line-axis size
 		double minWidth = LayoutUtils.NONE, maxWidth = LayoutUtils.NONE, minHeight = LayoutUtils.NONE,
 				maxHeight = LayoutUtils.NONE;
 		if (cParams.flow.isVertical()) {
-			// 縦書きのフロー
+			// Vertical-writing flow
 			marginLeft = amargin.left;
 			marginRight = amargin.right;
 			this.height = neutralLineFill ? LayoutUtils.NONE
@@ -398,8 +399,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				this.height -= this.frame.getBorderHeight();
 			}
 			if (LayoutUtils.isNone(this.height) && !neutralLineFill && this.params.aspectRatio > 0) {
-				// aspect-ratio: 行方向(高さ)autoでページ方向(幅)が確定なら
-				// 比率で高さを決める(2026-08-29)
+				// aspect-ratio: if the line-axis size (height) is auto and the page-axis size (width) is definite,
+				// derive the height from the ratio (2026-08-29).
 				final double definite = this.definitePageExtentForRatio(
 						this.isSpecifiedPageSize() ? containerBox.getInnerWidth() : LayoutUtils.NONE);
 				if (!LayoutUtils.isNone(definite)) {
@@ -409,35 +410,35 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			marginTop = marginBottom = 0;
 			for (int state = 0; state < 2; ++state) {
 				if (!LayoutUtils.isNone(this.height)) {
-					// 固定幅の場合(auto marginは再解決しない——
-					// coordinatorOwnsAutoMarginsの説明を参照)
+					// For a fixed width (do not resolve auto margins again;
+					// see the coordinatorOwnsAutoMargins explanation).
 					final boolean ownedMargins = this.coordinatorOwnsAutoMargins();
 					marginTop = margin.getTopType() == LengthType.AUTO && !ownedMargins ? LayoutUtils.NONE
 							: amargin.top;
 					marginBottom = margin.getBottomType() == LengthType.AUTO && !ownedMargins ? LayoutUtils.NONE
 							: amargin.bottom;
 					if (LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
-						// 上下のマージンを同じにする
+						// Make the top and bottom margins equal
 						marginTop = marginBottom = (lineSize - this.height - this.frame.getFrameHeight()) / 2.0;
 					} else if (LayoutUtils.isNone(marginTop)) {
-						// 上のマージンが不確定
+						// Top margin is undetermined
 						marginTop = lineSize - this.height - this.frame.getFrameHeight();
 					} else if (LayoutUtils.isNone(marginBottom)) {
-						// 下のマージンが不確定
+						// Bottom margin is undetermined
 						marginBottom = lineSize - marginBottom - this.frame.getFrameHeight();
 					} else {
-						// 制限しすぎ
+						// Over-constrained
 												switch (this.resolvedAlign) {
 						case Align.START:
-							// 上寄せ
+							// Align to top
 							marginBottom = 0;
 							break;
 						case Align.END:
-							// 下寄せ
+							// Align to bottom
 							marginTop += lineSize - this.height - this.frame.getFrameHeight();
 							break;
 						case Align.CENTER:
-							// 中央
+							// Center
 							double remainder = lineSize - this.height - this.frame.getFrameHeight();
 							remainder /= 2.0;
 							marginTop += remainder;
@@ -448,7 +449,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 						}
 					}
 				} else {
-					// 自動幅の場合
+					// For automatic width
 					marginTop = amargin.top;
 					marginBottom = amargin.bottom;
 					this.height = lineSize - this.frame.getFrameHeight();
@@ -459,9 +460,9 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					if (LayoutUtils.isNone(maxHeight)) {
 						maxHeight = Double.MAX_VALUE;
 					} else {
-						// min/max-heightはbox-sizingのスケール。this.heightは
-						// 内寸なので、border-boxなら枠を引いてから比べる
-						// (2026-08-29。横書き側の同名処理を参照)
+						// min/max-height use the box-sizing scale. this.height is the inner size,
+						// so for border-box subtract the frame before comparing
+						// (2026-08-29; see the corresponding horizontal-writing code).
 						maxHeight = this.lineMinMaxToContent(maxHeight, true);
 						if (this.height > maxHeight) {
 							this.height = maxHeight;
@@ -482,16 +483,16 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			assert !LayoutUtils.isNone(minHeight);
 			assert !LayoutUtils.isNone(maxHeight);
 			switch (this.minSize.getWidthType()) {
-			// min/maxの%の基準は包含ブロックのpage軸内寸——判定は容器側の
-			// 確定性(containerBox)で行う。従来はthis側(sizeの確定性)を見て
-			// おり、width:66pt(確定)の箱のmax-width:90%が未確定の親幅(0)に
-			// 対して0へ潰れた(2026-08-23、v2掲過 seed 2006804)
+			// The percentage basis for min/max is the containing block's inner page-axis size:
+			// check definiteness on the container side (containerBox). Previously this checked this
+			// (size definiteness), so max-width:90% on a width:66pt (definite) box collapsed to 0
+			// against an indefinite parent width (0) (2026-08-23, v2 sweep seed 2006804).
 			case RELATIVE:
 				if (containerBox.isSpecifiedPageSize()) {
 					minWidth = this.minSize.getWidth() * containerBox.getInnerWidth();
 					break;
 				}
-				// isSpecifiedPageSize()がfalseならAUTOへフォールスルー(既存の意図的な仕様)
+				// Fall through to AUTO if isSpecifiedPageSize() is false (existing intentional behavior).
 			case AUTO:
 				minWidth = 0;
 				break;
@@ -514,7 +515,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					maxWidth = this.params.maxSize.getWidth() * containerBox.getInnerWidth();
 					break;
 				}
-				// isSpecifiedPageSize()がfalseならAUTOへフォールスルー(既存の意図的な仕様)
+				// Fall through to AUTO if isSpecifiedPageSize() is false (existing intentional behavior).
 			case AUTO:
 				maxWidth = Double.MAX_VALUE;
 				break;
@@ -532,11 +533,11 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			default:
 				throw new IllegalStateException();
 			}
-			// ページ方向のmin/max指定はbox-sizingのスケール。this.width(内寸)と
-			// 比べる前に、border-boxなら枠を引いて内寸スケールへ揃える
-			// (2026-08-29)。従来はminPageAxis/maxPageAxisが枠込みのまま残り、
-			// setPageAxisが内容高を枠込みの下限まで押し上げていた(min-height:
-			// 40px+padding-block:8pxのborder-boxが56pxに)
+			// Specified page-axis min/max values use the box-sizing scale. Before comparing with this.width
+			// (inner size), subtract the frame for border-box to use the inner-size scale
+			// (2026-08-29). Previously, minPageAxis/maxPageAxis still included the frame,
+			// so setPageAxis increased content height to the frame-inclusive lower bound (a border-box with
+			// min-height:40px + padding-block:8px became 56 px).
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 				minWidth = Math.max(0, minWidth - this.getFrame().getBorderWidth());
 				if (maxWidth != Double.MAX_VALUE) {
@@ -555,10 +556,10 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					minWidth = maxWidth = this.width;
 					break;
 				}
-				// isSpecifiedPageSize()がfalseならAUTOへフォールスルー(既存の意図的な仕様)
+				// Fall through to AUTO if isSpecifiedPageSize() is false (existing intentional behavior).
 			case AUTO:
 				if (!this.params.flow.isVertical()) {
-					// 横書きのボックス
+					// Horizontal-writing box
 					this.width = layoutStack.getFixedWidth() - this.frame.getFrameWidth();
 				} else {
 					this.width = 0;
@@ -596,8 +597,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				throw new IllegalStateException();
 			}
 			if (!this.specifiedPageAxis && this.params.aspectRatio > 0) {
-				// aspect-ratio: ページ方向(幅)がautoなら高さから比率で決める
-				// (2026-08-29。横書き側の同名処理と対)
+				// aspect-ratio: if the page-axis size (width) is auto, derive it from height and the ratio
+				// (2026-08-29; paired with the corresponding horizontal-writing code).
 				double page = this.aspectRatioPageExtent(this.height);
 				page = Math.max(page, minWidth);
 				page = Math.min(page, maxWidth);
@@ -610,7 +611,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			}
 			marginTop += xmargin;
 		} else {
-			// 横書きのフロー
+			// Horizontal-writing flow
 			marginTop = amargin.top;
 			marginBottom = amargin.bottom;
 			this.width = neutralLineFill ? LayoutUtils.NONE
@@ -619,9 +620,9 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				this.width -= this.frame.getBorderWidth();
 			}
 			if (LayoutUtils.isNone(this.width) && !neutralLineFill && this.params.aspectRatio > 0) {
-				// aspect-ratio: 幅autoで高さが確定なら幅=高さ×比率(2026-08-29、
-				// css-sizing-4 §5.1。height:40px;aspect-ratio:2のブロックは
-				// 幅80pxになり、残りはmargin側へ)
+				// aspect-ratio: with auto width and definite height, width = height × ratio (2026-08-29,
+				// css-sizing-4 §5.1). A block with height:40px;aspect-ratio:2 gets
+				// width 80 px, with the remainder going to margins.
 				final double definite = this.definitePageExtentForRatio(
 						this.isSpecifiedPageSize() ? containerBox.getInnerHeight() : LayoutUtils.NONE);
 				if (!LayoutUtils.isNone(definite)) {
@@ -631,8 +632,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			marginLeft = marginRight = 0;
 			for (int state = 0; state < 2; ++state) {
 				if (!LayoutUtils.isNone(this.width)) {
-					// 固定幅の場合(auto marginは再解決しない——
-					// coordinatorOwnsAutoMarginsの説明を参照)
+					// For a fixed width (do not resolve auto margins again;
+					// see the coordinatorOwnsAutoMargins explanation).
 					final boolean ownedMargins = this.coordinatorOwnsAutoMargins();
 					marginLeft = margin.getLeftType() == LengthType.AUTO && !ownedMargins ? LayoutUtils.NONE
 							: amargin.left;
@@ -640,38 +641,38 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 							: amargin.right;
 					final double autoRemainder = lineSize - this.width - this.frame.getFrameWidth();
 					if (autoRemainder < 0 && (LayoutUtils.isNone(marginLeft) || LayoutUtils.isNone(marginRight))) {
-						// **包含ブロックより広い箱は始端に揃える**（2026-08-03）。
-						// CSS 2.1 §10.3.3: 幅が指定されていて合計が包含ブロックを超える場合、
-						// direction: ltr では margin-right の指定が無視される——箱は始端に
-						// 揃い、終端側へ溢れる。従来は余りを機械的に2で割っており、
-						// 余りが負のときに**負の左マージン**ができて内容の左半分が
-						// 紙の外へ出ていた。固定幅の版面を margin: 0 auto で中央寄せする
-						// 作りは実地で極めて多い（総務省統計局のページで発覚、PLAN §3）。
+						// **Align boxes wider than their containing block to the start** (2026-08-03).
+						// CSS 2.1 §10.3.3: if the width is specified and the total exceeds the containing block,
+						// direction: ltr ignores the specified margin-right: the box aligns to the start
+						// and overflows at the end. Previously, the remainder was mechanically divided by 2,
+						// so a negative remainder produced a **negative left margin**, putting the left half
+						// of the content off the paper. Centering a fixed-width type area with margin: 0 auto
+						// is extremely common (found with Statistics Bureau pages; PLAN §3).
 						marginLeft = LayoutUtils.isNone(marginLeft) ? 0 : marginLeft;
 						marginRight = LayoutUtils.isNone(marginRight) ? 0 : marginRight;
 					} else if (LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
-						// 左右のマージンを同じにする
+						// Make the left and right margins equal
 						marginLeft = marginRight = autoRemainder / 2.0;
 					} else {
 						if (LayoutUtils.isNone(marginLeft) && !LayoutUtils.isNone(marginRight)) {
-							// 左が不確定
+							// Left margin is undetermined
 							marginLeft = lineSize - this.width - this.frame.getFrameWidth();
 						} else if (LayoutUtils.isNone(marginRight)) {
-							// 右が不確定
+							// Right margin is undetermined
 							marginRight = lineSize - this.width - this.frame.getFrameWidth();
 						} else {
-							// 制限しすぎ
+							// Over-constrained
 														switch (this.resolvedAlign) {
 							case Align.START:
-								// 左寄せ
+								// Align to left
 								marginRight = 0;
 								break;
 							case Align.END:
-								// 右寄せ
+								// Align to right
 								marginLeft += lineSize - this.width - this.frame.getFrameWidth();
 								break;
 							case Align.CENTER:
-								// 中央
+								// Center
 								double remainder = lineSize - this.width - this.frame.getFrameWidth();
 								remainder /= 2.0;
 								marginLeft += remainder;
@@ -683,7 +684,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 						}
 					}
 				} else {
-					// 自動幅の場合
+					// For automatic width
 					marginLeft = amargin.left;
 					marginRight = amargin.right;
 					this.width = lineSize - this.frame.getFrameWidth();
@@ -694,14 +695,14 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					if (LayoutUtils.isNone(maxWidth)) {
 						maxWidth = Double.MAX_VALUE;
 					} else {
-						// min/max-widthはbox-sizingのスケール。this.widthは内寸
-						// なので、border-boxなら境界+パディングを引いてから比べる
-						// (2026-08-29)。従来は引いておらず、`min-width:100px;
-						// padding-inline:8px; box-sizing:border-box`のピル(flex item
-						// 内のgrid)が内寸100+枠16=116pxに広がった。通常フローの
-						// ブロックはAbstractStaticBlockBoxでなくここで幅が決まる
-						// (BlockBuilder.calculateSize)ため、そちらの換算だけでは
-						// 効かなかった(0510-flex/min-width-nested-container)
+						// min/max-width use the box-sizing scale. this.width is the inner size,
+						// so for border-box subtract borders and padding before comparing
+						// (2026-08-29). Previously no subtraction occurred, so a pill with `min-width:100px;
+						// padding-inline:8px; box-sizing:border-box` (a grid inside a flex item)
+						// expanded to inner size 100 + frame 16 = 116 px. Normal-flow block widths
+						// are determined here (BlockBuilder.calculateSize), not in AbstractStaticBlockBox,
+						// so converting only there
+						// had no effect (0510-flex/min-width-nested-container).
 						maxWidth = this.lineMinMaxToContent(maxWidth, false);
 						if (this.width > maxWidth) {
 							this.width = maxWidth;
@@ -727,7 +728,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					minHeight = this.minSize.getHeight() * containerBox.getInnerHeight();
 					break;
 				}
-				// isSpecifiedPageSize()がfalseならAUTOへフォールスルー(既存の意図的な仕様)
+				// Fall through to AUTO if isSpecifiedPageSize() is false (existing intentional behavior).
 			case AUTO:
 				minHeight = 0;
 				break;
@@ -750,7 +751,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					maxHeight = this.params.maxSize.getHeight() * containerBox.getInnerHeight();
 					break;
 				}
-				// isSpecifiedPageSize()がfalseならAUTOへフォールスルー(既存の意図的な仕様)
+				// Fall through to AUTO if isSpecifiedPageSize() is false (existing intentional behavior).
 			case AUTO:
 				maxHeight = Double.MAX_VALUE;
 				break;
@@ -768,8 +769,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			default:
 				throw new IllegalStateException();
 			}
-			// ページ方向のmin/maxをborder-boxなら内寸スケールへ(2026-08-29。
-			// 縦書き側の同名処理を参照)
+			// Convert page-axis min/max to the inner-size scale for border-box (2026-08-29;
+			// see the corresponding vertical-writing code).
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 				minHeight = Math.max(0, minHeight - this.getFrame().getBorderHeight());
 				if (maxHeight != Double.MAX_VALUE) {
@@ -789,10 +790,10 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					maxHeight = this.height;
 					break;
 				}
-				// isSpecifiedPageSize()がfalseならAUTOへフォールスルー(既存の意図的な仕様)
+				// Fall through to AUTO if isSpecifiedPageSize() is false (existing intentional behavior).
 			case AUTO:
 				if (this.params.flow.isVertical()) {
-					// 縦書きのボックス
+					// Vertical-writing box
 					this.height = layoutStack.getFixedHeight() - this.frame.getFrameHeight();
 				} else {
 					this.height = 0;
@@ -807,7 +808,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				this.height = Math.max(this.height, minHeight);
 				this.height = Math.min(this.height, maxHeight);
 				minHeight = this.height;
-				// 指定幅に固定する
+				// Fix to the specified width
 				maxHeight = this.height;
 				break;
 			case MIXED:
@@ -833,12 +834,12 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				throw new IllegalStateException();
 			}
 			if (!this.specifiedPageAxis && this.params.aspectRatio > 0) {
-				// aspect-ratio: 高さがauto(または基準未確定の%)なら幅から比率で
-				// 決める(2026-08-29)。通常フローのブロックの幅は常に確定
-				// しているので、これがサムネイルの16:9を決める本線。内容が
-				// 比率高より高いときはoverflow:visibleなら内容に合わせて伸びる
-				// (min-height:auto=内容寸法の近似。setPageAxisはminPageAxis
-				// 以上・maxPageAxis以下へ丸める)
+				// aspect-ratio: if height is auto (or a percentage with an indefinite basis), derive it
+				// from width and the ratio (2026-08-29). A normal-flow block always has a definite width,
+				// so this is the main path that determines a thumbnail's 16:9 ratio. If the content
+				// exceeds the ratio-derived height, overflow:visible lets the box grow to fit it
+				// (approximates min-height:auto = content size; setPageAxis clamps to at least minPageAxis
+				// and at most maxPageAxis).
 				double page = this.aspectRatioPageExtent(this.width);
 				page = Math.max(page, minHeight);
 				page = Math.min(page, maxHeight);
@@ -882,11 +883,11 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
-	 * aspect-ratioの逆算(ページ方向確定→行方向)に使う、ページ方向の
-	 * 確定content-box寸法です(2026-08-29)。絶対長、または基準が確定した
-	 * %・混合値のときだけ値を返し、それ以外はNONE。
+	 * The definite page-axis content-box size used to calculate aspect-ratio in reverse
+	 * (definite page axis → line axis) (2026-08-29). Returns a value only for an absolute length
+	 * or a percentage/mixed value with a definite basis; otherwise NONE.
 	 *
-	 * @param percentBase %の基準(未確定ならNONE)
+	 * @param percentBase percentage basis (NONE if indefinite)
 	 */
 	private double definitePageExtentForRatio(final double percentBase) {
 		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = this.params.flow;
@@ -930,7 +931,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			this.frames(pageBox, drawer, clip, transform, x, y);
 		}
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
-			// 負の z-index の子はここまで(自分の背景・枠)の後、残りの内容の前に描く(Appendix E ③)
+			// Draw children with negative z-index after this box's background/border and before other content (Appendix E ③).
 			drawer.markOwnDecorationEnd();
 		}
 		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
@@ -939,13 +940,13 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {
 		final BlockParams params = this.getBlockParams();
 		final FlowPos pos = this.getFlowPos();
-		// 解決済み整列は断片間で共有される状態(旧実装の pos 書き戻し相当)。
-		// レシピは値をキャプチャし、this を保持しない
+		// Resolved alignment is shared between fragments (equivalent to the old write-back to pos).
+		// The recipe captures the value and does not retain this.
 		final Align resolvedAlign = this.resolvedAlign;
-		// 固有寸法キーワードで決めた行方向幅は継続断片へ確定値として渡す
-		// (2026-08-29)。断片のsizeは行方向AUTOのままなので、restyle→
-		// startFlowBlock→calculateSizeが包含ブロック幅へ再解決してしまう。
-		// 解決値は内容全体の実測で断片間で共通なので、ABSOLUTEに固定する
+		// Pass line-axis sizes determined by intrinsic sizing keywords to continuations as definite values
+		// (2026-08-29). The fragment's size remains AUTO along the line axis, so restyle →
+		// startFlowBlock → calculateSize would resolve it again to the containing block width.
+		// The resolved value is measured from all content and shared across fragments, so fix it as ABSOLUTE.
 		final Dimension resolvedLine = params.hasIntrinsicLine() ? this.resolvedLineSize() : null;
 		return (state, container) -> {
 			final Dimension nextSize = resolvedLine == null ? state.nextSize()
@@ -958,9 +959,9 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
-	 * 行方向の使用寸法を指定寸法(ABSOLUTE)として表したDimensionを返します
-	 * (2026-08-29、{@link #fragmentRecipe}用)。border-box指定なら
-	 * calculateSizeが差し引くぶんを足しておく。
+	 * Returns a Dimension expressing the used line-axis size as a specified size (ABSOLUTE)
+	 * (2026-08-29, for {@link #fragmentRecipe}). For border-box, add the amount that
+	 * calculateSize deducts.
 	 */
 	private Dimension resolvedLineSize() {
 		final WritingMode flow = this.params.flow;
@@ -969,7 +970,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		return Dimension.create(line, line, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
 	}
 
-	/** {@code page}のページ方向に{@code line}の行方向を合成します。 */
+	/** Combines the page axis of {@code page} with the line axis of {@code line}. */
 	private static Dimension withLine(final Dimension page, final Dimension line, final WritingMode flow) {
 		return flow.isVertical()
 				? Dimension.create(page.getWidth(), page.getWidthRatio(), line.getHeight(), 0, page.getWidthType(),
@@ -982,15 +983,15 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		builder.startFlowBlock(this);
 		super.restyle(builder, shape);
 		if (!(shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.Closed)) {
-			// 開いた継続: 末尾はこの箱の中で live が続く
+			// Open continuation: live processing continues at the tail inside this box.
 			return;
 		}
 		if (!builder.hasOpenFlow()) {
-			// 閉部分木の再生中にcontextFlowをownerとする改段が起きると、
-			// pruneFlowStackTo()が内側を全て消費し、継続側にもopen flowを
-			// 積み直さない場合がある。そのときだけ古い呼出しフレームから
-			// 二重に閉じない。継続が別identityで同じ深度を積み直した場合は、
-			// その新しい最上位を通常どおり1段閉じる(seed 4540)。
+			// If a column break owned by contextFlow occurs while replaying a closed subtree,
+			// pruneFlowStackTo() may consume all inner flows without rebuilding open flows
+			// on the continuation side. Only in that case, avoid closing twice from the old call frame.
+			// If the continuation rebuilt the same depth with a different identity,
+			// close that new top level once as usual (seed 4540).
 			return;
 		}
 		builder.endFlowBlock();

@@ -5,7 +5,7 @@ import java.util.List;
 
 import net.zamasoft.foliojet.layout.RetainedTextLimit;
 
-/** 同じスレッドで断続的に駆動するscratchの資源を、接続の外でも保持します。 */
+/** Retains resources of a scratch driven intermittently on the same thread, even outside attachments. */
 public final class ScratchOwner implements AutoCloseable {
 	private final List<RangeHandle> handles = new ArrayList<>();
 	private final List<LayoutSource.RetentionLease> leases = new ArrayList<>();
@@ -14,21 +14,22 @@ public final class ScratchOwner implements AutoCloseable {
 	private LayoutSource.RetentionLease pin;
 	private boolean released;
 
-	/** 既存の一回限りの計測は、呼び側が会計を所有します。 */
+	/** For existing one-shot measurements, the caller owns the accounting. */
 	public ScratchOwner() {
 		this.account = null;
 	}
 
-	/** 長寿命のscratchは、資源と同じ寿命の独立会計も所有します。 */
+	/** A long-lived scratch also owns independent accounting with the same lifetime as its resources. */
 	public ScratchOwner(final RetainedTextLimit limit, final String elementName) {
 		this.account = limit.measurementAccount(elementName);
 	}
 
 	/**
-	 * 同一所有者への直連の再入は会計を切り替えません。独立会計付きのA→B→Aは
-	 * Aが既に接続中なので三段目でIllegalStateExceptionになります。
-	 * A→従来型measurement()→Aは所有者の接続を継ぎ、一時計測の会計のままです。
-	 * 失敗した接続は現在の所有者・意図・会計を変更しません。
+	 * Direct reentry into the same owner does not switch accounting.
+	 * A→B→A with independent accounting throws IllegalStateException at the third level because A is already
+	 * attached. A→legacy measurement()→A inherits the owner's attachment and keeps temporary measurement
+	 * accounting.
+	 * A failed attachment changes neither the current owner, intent, nor accounting.
 	 */
 	public ScratchReplayScope attach() {
 		return new ScratchReplayScope(this);
@@ -58,8 +59,9 @@ public final class ScratchOwner implements AutoCloseable {
 	}
 
 	/**
-	 * 未完TwoPass宿主の開始IDから主ログを保護します。接続中でなくても取得でき、
-	 * 他の所有者の接続中でも、その所有者へリースを登録しません。
+	 * Protects the main log from the start ID of an unfinished TwoPass host.
+	 * Can be acquired while detached; even while another owner is attached, does not register the lease with
+	 * it.
 	 */
 	public void retainFrom(final LayoutSource source, final long fromId) {
 		this.requireOpen();
@@ -70,9 +72,10 @@ public final class ScratchOwner implements AutoCloseable {
 	}
 
 	/**
-	 * 配達・再生から戻った安全点。宿主が最後のbind/closeを通知した本文だけを破棄する。
-	 * IDやページ水位は宿主の寿命を証明しない。未bindの表セル・captionは自身のリースで
-	 * 主ログを保護し、MEASUREで借用したMAIN/別scratchの本文は通知の対象外となる。
+	 * A safe point after delivery/replay returns. Discards only bodies whose hosts have notified final
+	 * bind/close.
+	 * IDs and page watermarks do not prove host lifetime. Unbound table cells and captions protect the main log
+	 * with their own leases; MAIN/other-scratch bodies borrowed through MEASURE are excluded from notification.
 	 */
 	public void reclaimCompleted() {
 		this.requireOpen();
@@ -90,7 +93,7 @@ public final class ScratchOwner implements AutoCloseable {
 		return this.pin == null ? -1 : this.pin.fromId();
 	}
 
-	/** seal済みで、まだ宿主のbind/closeを待っている本文の下限。 */
+	/** The lower bound of sealed bodies still waiting for host bind/close. */
 	public long oldestOpenSourceId(final LayoutSource source) {
 		long oldest = Long.MAX_VALUE;
 		for (final RangeHandle handle : this.handles) {
@@ -113,12 +116,12 @@ public final class ScratchOwner implements AutoCloseable {
 		return this.account == null ? 0 : this.account.currentBytes();
 	}
 
-	/** 回収後に残るリース登録数。主ログの移動pinも含みます。 */
+	/** Number of registered leases remaining after reclamation, including the main log's moving pin. */
 	public int retainedLeaseCount() {
 		return this.leases.size() + (this.pin == null ? 0 : 1);
 	}
 
-	/** 入力を打ち切った後に呼びます。接続は戻さず、全資源を清算します。冪等。 */
+	/** Called after input is cut off. Reclaims all resources without restoring the attachment. Idempotent. */
 	public void release() {
 		if (this.released) return;
 		this.released = true;
@@ -131,7 +134,7 @@ public final class ScratchOwner implements AutoCloseable {
 			}
 		}
 		this.handles.clear();
-		// capture等のハンドル以外のリースも回収する。closeは冪等。
+		// Also reclaims leases outside handles, such as capture leases. close is idempotent.
 		for (final LayoutSource.RetentionLease lease : this.leases) {
 			try {
 				lease.close();

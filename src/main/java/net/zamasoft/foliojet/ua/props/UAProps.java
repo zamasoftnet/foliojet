@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.ua.props;
 
 /**
- * 利用可能なパラメータ名です。
- * 
+ * Available parameter names.
+ *
  * @author MIYABE Tatsuhiko
  */
 public final class UAProps {
@@ -11,12 +11,12 @@ public final class UAProps {
 	}
 
 	/**
-	 * PIでのプロパティの上書き許可です。
+	 * Whether processing instructions may override properties.
 	 */
 	public static final BooleanPropManager INPUT_PROPERTY_PI = new BooleanPropManager("input.property-pi", false);
 
 	/**
-	 * XML/HTMLへのフィルタ処理です。
+	 * Filtering for XML/HTML.
 	 */
 	public static final StringPropManager INPUT_FILTERS = new StringPropManager("input.filters",
 			"xslt default-to-xhtml loose-html");
@@ -28,7 +28,7 @@ public final class UAProps {
 			false);
 
 	/**
-	 * 選択するalternateスタイルシートのタイトルです。
+	 * The title of the alternate stylesheet to select.
 	 */
 	public static final StringPropManager INPUT_STYLESHEET_TITLES = new StringPropManager("input.stylesheet.titles",
 			null);
@@ -40,483 +40,482 @@ public final class UAProps {
 			false);
 
 	/**
-	 * デフォルトのエンコーディングです。
+	 * The default encoding.
 	 */
 	public static final StringPropManager INPUT_DEFAULT_ENCODING = new StringPropManager("input.default-encoding",
 			"JISUniAutoDetect");
 
 	/**
-	 * デフォルトのCSSスタイルシートです。
+	 * The default CSS stylesheet.
 	 */
 	public static final StringPropManager INPUT_DEFAULT_STYLESHEET = new StringPropManager("input.default-stylesheet",
 			null);
 
 	/**
-	 * 画像の寸法をあらかじめ記したXMLです。レイアウトのために画像を読み込む代わりに
-	 * この寸法を使うので、多パス処理や同じ本の組み直しが速くなります。
-	 * Paged SVGは同じ形式のXMLを<code>metrics.xml</code>として出力するので、
-	 * それをそのまま次回の指定に使えます。
+	 * An XML file that lists image dimensions in advance. Layout uses these dimensions instead of loading
+	 * the images, which speeds up multi-pass processing and repeated layout of the same book.
+	 * Paged SVG outputs XML in the same format as <code>metrics.xml</code>,
+	 * so you can use that file directly for the next conversion.
 	 */
 	public static final StringPropManager INPUT_IMAGE_METRICS = new StringPropManager("input.image-metrics", null);
 
 	/**
-	 * EPUBのどのspine項目を組むかです(2026-09-02)。
+	 * Which EPUB spine items to lay out (2026-09-02).
 	 *
 	 * <p>
-	 * 空(既定)なら全項目。値は空白または{@code ,}で区切った並びで、各要素は
-	 * OPFの{@code idref}、項目のパス({@code OEBPS/ch3.xhtml}または{@code ch3.xhtml})、
-	 * 1起点の番号、番号の範囲({@code 3-5})のどれか。
+	 * An empty value (the default) selects all items. The value is a sequence separated by whitespace or
+	 * {@code ,}. Each entry is an OPF {@code idref}, an item path ({@code OEBPS/ch3.xhtml} or
+	 * {@code ch3.xhtml}), a 1-based number, or a range of numbers ({@code 3-5}).
 	 * </p>
 	 *
 	 * <p>
-	 * 電子書籍の読み器が文字サイズを変えたとき、<b>いま読んでいる章だけを
-	 * 組み直す</b>ための入口。項目は互いに独立に組まれるので、1章だけ組んだ
-	 * 結果は全体を通したときのその章と同一になる。Paged SVGでは項目の番号が
-	 * spine内の位置で固定されている({@code items/0003/})ので、部分の出力を
-	 * 全体の出力へそのまま重ねられる。
+	 * This entry point lets an e-book reader <b>lay out only the chapter currently being read</b> when
+	 * the font size changes. Items are laid out independently, so laying out one chapter produces the
+	 * same result as that chapter in a full-book conversion. In Paged SVG, item numbers are fixed by
+	 * their positions in the spine ({@code items/0003/}), so partial output can directly overlay
+	 * the output for the entire book.
 	 * </p>
 	 */
 	public static final StringPropManager INPUT_EPUB_SPINE = new StringPropManager("input.epub.spine", null);
 
 	/**
-	 * デフォルトのXSLTスタイルシートです。
+	 * The default XSLT stylesheet.
 	 */
 	public static final StringPropManager INPUT_XSLT_DEFAULT_STYLESHEET = new StringPropManager(
 			"input.xslt.default-stylesheet", null);
 
 	/**
-	 * Refererヘッダの送信。
+	 * Whether to send the Referer header.
 	 */
 	public static final BooleanPropManager INPUT_HTTP_REFERER = new BooleanPropManager("input.http.referer", true);
 
 	/**
-	 * 接続タイムアウトです。0は無制限。
-	 * 既定を無制限から60秒へ変更(2026-08-08)——応答しないサーバ1台で
-	 * 変換全体が永久に止まるのを防ぐ。
+	 * The connection timeout. 0 means unlimited.
+	 * The default changed from unlimited to 60 seconds (2026-08-08) to prevent one unresponsive server
+	 * from blocking the entire conversion forever.
 	 */
 	public static final IntegerPropManager INPUT_HTTP_CONNECTION_TIMEOUT = new IntegerPropManager(
 			"input.http.connection.timeout", 60000);
 
 	/**
-	 * ソケットタイムアウトです(応答待ち・読み取り停止の上限)。0は無制限。
-	 * 既定を無制限から60秒へ変更(2026-08-08)——kakaku.comの外部リソース
-	 * 1本の配信停止で変換が2000秒超ハングした実バグの再発防止。
+	 * The socket timeout (the limit on waiting for a response or a stalled read). 0 means unlimited.
+	 * The default changed from unlimited to 60 seconds (2026-08-08) to prevent recurrence of a real bug:
+	 * one external resource on kakaku.com stopped delivering data and hung conversion for over 2000 seconds.
 	 */
 	public static final IntegerPropManager INPUT_HTTP_SOCKET_TIMEOUT = new IntegerPropManager(
 			"input.http.socket.timeout", 60000);
 
 	/**
-	 * 主文書の最大入力サイズです。負数は無制限です。
+	 * The maximum input size of the main document. A negative value means unlimited.
 	 */
 	public static final LongPropManager INPUT_SIZE_LIMIT = new LongPropManager("input.size-limit", -1L);
 
 	/**
-	 * 主文書から解決する外部資源の累積最大入力サイズです。負数は無制限です。
+	 * The maximum cumulative input size of external resources resolved from the main document. A negative value means unlimited.
 	 */
 	public static final LongPropManager INPUT_RESOURCE_SIZE_LIMIT = new LongPropManager(
 			"input.resource-size-limit", -1L);
 
 	/**
-	 * 主文書から解決する相異なる外部資源URIの最大数です。負数は無制限です。
+	 * The maximum number of distinct external resource URIs resolved from the main document. A negative value means unlimited.
 	 */
 	public static final IntegerPropManager INPUT_RESOURCE_COUNT_LIMIT = new IntegerPropManager(
 			"input.resource-count-limit", -1);
 
 	/**
-	 * 読み込む画像1枚の最大画素数(幅×高さ)です。負数は無制限です(2026-10-03)。
-	 * 画素を展開する前にヘッダの寸法で判定し、超えた画像は読み込めない画像と
-	 * 同じ扱いにします(メッセージ2811、{@code output.broken-image})。
-	 * 小さなファイルが展開すると巨大になる画像は、{@link #INPUT_RESOURCE_SIZE_LIMIT}
-	 * (読んだバイト数)では止まらないためです。
+	 * The maximum pixel count (width × height) of each input image. A negative value means unlimited (2026-10-03).
+	 * The dimensions in the header are checked before decoding pixels. An image exceeding the limit is
+	 * treated like an unreadable image (message 2811, {@code output.broken-image}).
+	 * {@link #INPUT_RESOURCE_SIZE_LIMIT} (bytes read) cannot stop a small image file that expands
+	 * into a huge image.
 	 */
 	public static final LongPropManager INPUT_IMAGE_PIXEL_LIMIT = new LongPropManager("input.image-pixel-limit", -1L);
 
 	/**
-	 * 変換をまたぐHTTP応答キャッシュ(2026-08-10)。認証情報・Cookieを
-	 * 伴わないGETだけが対象で、応答の{@code Cache-Control}
-	 * (no-store/no-cache/private/max-age)を尊重する。@importされた
-	 * ウェブフォントCSS等、毎変換同じ外部リソースを取り直す遅延の解消。
+	 * An HTTP response cache shared across conversions (2026-08-10). Only GET requests without credentials
+	 * or cookies qualify. It respects the response's {@code Cache-Control}
+	 * (no-store/no-cache/private/max-age). This eliminates the delay of fetching the same external
+	 * resources, such as @import-ed web font CSS, again for every conversion.
 	 */
 	public static final BooleanPropManager INPUT_HTTP_CACHE = new BooleanPropManager("input.http.cache", true);
 
 	/**
-	 * 主文書から発見した外部リソース(スタイルシート・画像)の非同期先読み
-	 * (2026-08-27)。ストリームレイアウトはパーサ駆動スレッド=レイアウト
-	 * スレッドで、リソースは消費点で直列に同期解決されるため、実サイトの
-	 * 変換は直列のHTTP待ちがそのままwall-clockになる。先読みは主文書の
-	 * 読み先行バッファを走査して、エンジンが確実に要求するURLだけを
-	 * 並列取得しHTTP応答キャッシュへ置く。認証情報・Cookieを伴う要求は
-	 * 対象外で、ACL(input.include/exclude)を通過したURLしか取得しない。
-	 * 失敗・非対応は静かに従来の同期経路へ退化する。
+	 * Asynchronous prefetching of external resources (stylesheets and images) found in the main document
+	 * (2026-08-27). In streaming layout, the parser-driving thread is the layout thread, and resources
+	 * are resolved synchronously in sequence at their points of use. For real websites, sequential HTTP
+	 * waits therefore directly add to conversion wall-clock time. Prefetching scans the main document's
+	 * read-ahead buffer, fetches only URLs the engine will certainly request in parallel, and stores
+	 * them in the HTTP response cache. Requests with credentials or cookies are excluded, and only URLs
+	 * that pass the ACL (input.include/exclude) are fetched.
+	 * Failures and unsupported cases silently fall back to the existing synchronous path.
 	 *
 	 * <p>
-	 * <b>既定で有効</b>(2026-08-28、オーナー裁定)。実サイトの変換で
-	 * 効果が大きく(実測: 画像約110点の記事で24.3秒→6.4秒)、正しさは
-	 * 変わらないため。取得するのは{@code input.include}/{@code input.exclude}を
-	 * 通過したhttp(s)資源だけで、認証情報を送る要求は対象外。ACLが設定
-	 * されていない場合は{@code permits}が通さないので、差し込まれた
-	 * リゾルバ経由で資源を取る利用形態には影響しない。
+	 * <b>Enabled by default</b> (2026-08-28, owner's decision). It substantially improves conversion
+	 * of real websites (measured: 24.3 seconds → 6.4 seconds for an article with about 110 images)
+	 * without changing correctness. Only http(s) resources that pass {@code input.include}/{@code input.exclude}
+	 * are fetched; requests that send credentials are excluded. With no ACL configured, {@code permits}
+	 * rejects them, so this does not affect use cases that obtain resources through an injected resolver.
 	 * </p>
 	 */
 	public static final BooleanPropManager INPUT_PREFETCH = new BooleanPropManager("input.prefetch", true);
 
 	/**
-	 * HTTP応答キャッシュの保持期間(秒)です。0はキャッシュ無効。
-	 * 応答が{@code max-age}を持つ場合は短い方を使う。
+	 * The HTTP response cache retention period in seconds. 0 disables caching.
+	 * If the response has {@code max-age}, the shorter period applies.
 	 */
 	public static final IntegerPropManager INPUT_HTTP_CACHE_TTL = new IntegerPropManager("input.http.cache.ttl", 600);
 
 	/**
-	 * プロクシホスト名です。
+	 * The proxy host name.
 	 */
 	public static final StringPropManager INPUT_HTTP_PROXY_HOST = new StringPropManager("input.http.proxy.host", null);
 
 	/**
-	 * プロクシポート番号です。
+	 * The proxy port number.
 	 */
 	public static final IntegerPropManager INPUT_HTTP_PROXY_PORT = new IntegerPropManager("input.http.proxy.port",
 			8080);
 
 	/**
-	 * プロクシのユーザーです。
+	 * The proxy user.
 	 */
 	public static final StringPropManager INPUT_HTTP_PROXY_AUTHENTICATION_USER = new StringPropManager(
 			"input.http.proxy.authentication.user", null);
 
 	/**
-	 * プロクシのパスワードです。
+	 * The proxy password.
 	 */
 	public static final StringPropManager INPUT_HTTP_PROXY_AUTHENTICATION_PASSWORD = new StringPropManager(
 			"input.http.proxy.authentication.password", "");
 
 	/**
-	 * 認証時に最初に認証情報を送るかどうかの設定です。
+	 * Whether to send credentials preemptively for authentication.
 	 */
 	public static final BooleanPropManager INPUT_HTTP_AUTHENTICATION_PREEMPTIVE = new BooleanPropManager(
 			"input.http.authentication.preemptive", false);
 
 	/**
-	 * 認証の設定です。
+	 * Authentication settings.
 	 */
 	public static final String INPUT_HTTP_AUTHENTICATION = "input.http.authentication.";
 
 	/**
-	 * クッキーの設定です。
+	 * Cookie settings.
 	 */
 	public static final String INPUT_HTTP_COOKIE = "input.http.cookie.";
 
 	/**
-	 * HTTPヘッダの設定です。
+	 * HTTP header settings.
 	 */
 	public static final String INPUT_HTTP_HEADER = "input.http.header.";
 
 	/**
-	 * &lt;meta name="viewport"～をページサイズとして認識します。
+	 * Recognizes &lt;meta name="viewport"... as the page size.
 	 */
 	public static final BooleanPropManager INPUT_VIEWPORT = new BooleanPropManager("input.viewport", false);
 
 	/**
-	 * ページ幅です。
+	 * The page width.
 	 */
 	public static final StringPropManager OUTPUT_PAGE_WIDTH = new StringPropManager("output.page-width", "210mm");
 
 	/**
-	 * ページの高さです。
+	 * The page height.
 	 */
 	public static final StringPropManager OUTPUT_PAGE_HEIGHT = new StringPropManager("output.page-height", "297mm");
 
 	/**
-	 * ページのマージンです。
+	 * The page margins.
 	 */
 	public static final StringPropManager OUTPUT_PAGE_MARGINS = new StringPropManager("output.page-margins", "12.7mm");
 
 	/**
-	 * 用紙の幅です。
+	 * The paper width.
 	 */
 	public static final StringPropManager OUTPUT_PAPER_WIDTH = new StringPropManager("output.paper-width", null);
 
 	/**
-	 * 用紙の高さです。
+	 * The paper height.
 	 */
 	public static final StringPropManager OUTPUT_PAPER_HEIGHT = new StringPropManager("output.paper-height", null);
 
 	/**
-	 * 印刷モードです。
+	 * The print mode.
 	 */
 	public static final CodePropManager<OutputPrintMode> OUTPUT_PRINT_MODE = new CodePropManager<>("output.print-mode", OutputPrintMode.class, OutputPrintMode.DOUBLE_SIDE);
 
 	/**
-	 * 1枚の用紙に面付けする論理ページ数(N-up)です。1で面付けなし。
+	 * The number of logical pages imposed on one sheet (N-up). 1 disables imposition.
 	 */
 	public static final IntegerPropManager OUTPUT_N_UP = new IntegerPropManager("output.n-up", 1, 1, 256);
 
 	/**
-	 * N-up面付けのページの並び順です。
+	 * The page order for N-up imposition.
 	 */
 	public static final CodePropManager<OutputNUpOrder> OUTPUT_N_UP_ORDER = new CodePropManager<>("output.n-up.order", OutputNUpOrder.class, OutputNUpOrder.HORIZONTAL);
 
 	/**
-	 * 水平方向の断ち代の幅です。
+	 * The horizontal trim margin width.
 	 */
 	public static final StringPropManager OUTPUT_HTRIM = new StringPropManager("output.htrim", "1cm");
 
 	/**
-	 * 垂直方向の断ち代の幅です。
+	 * The vertical trim margin width.
 	 */
 	public static final StringPropManager OUTPUT_VTRIM = new StringPropManager("output.vtrim", "1cm");
 
 	/**
-	 * 断ち代の幅です。
+	 * The trim margin width.
 	 */
 	public static final StringPropManager OUTPUT_TRIMS = new StringPropManager("output.trims", null);
 
 	/**
-	 * 印刷面の外周のうち、<b>塗り足しとして扱う帯の幅</b>です
-	 * (仕上り線は印刷面の外周からこの幅だけ内側)。塗り足し込みで
-	 * 作られた既存データを、CSSを書き換えずにトンボ付きで出せます。
+	 * The <b>width of the outer band of the printed area treated as bleed</b>
+	 * (the trim line lies this far inside the outer edge of the printed area). This lets you output
+	 * existing content that already includes bleed with crop marks, without rewriting its CSS.
 	 */
 	public static final StringPropManager OUTPUT_TRIM_INSET = new StringPropManager("output.trim-inset", null);
 
 	/**
-	 * 内容を用紙に合わせて拡大します。
+	 * Enlarges the content to fit the paper.
 	 */
 	public static final CodePropManager<OutputFitToPaper> OUTPUT_FIT_TO_PAPER = new CodePropManager<>("output.fit-to-paper", OutputFitToPaper.class, OutputFitToPaper.FALSE);
 
 	/**
-	 * 内容または用紙を自動回転します
+	 * Automatically rotates the content or paper.
 	 */
 	public static final CodePropManager<OutputAutoRotate> OUTPUT_AUTO_ROTATE = new CodePropManager<>("output.auto-rotate", OutputAutoRotate.class, OutputAutoRotate.NONE);
 
 	/**
-	 * トンボの内部をクリップします。
+	 * Clips the area inside the crop marks.
 	 */
 	public static final BooleanPropManager OUTPUT_CLIP = new BooleanPropManager("output.clip", true);
 
 	/**
-	 * デフォルトのフォントです。
+	 * The default font.
 	 */
 	public static final StringPropManager OUTPUT_DEFAULT_FONT_FAMILY = new StringPropManager(
 			"output.default-font-family", "serif");
 
 	/**
-	 * テキストの倍率です。
+	 * The text scale factor.
 	 */
 	public static final DoublePropManager OUTPUT_TEXT_SIZE = new DoublePropManager("output.text-size", 1.0, 0.01, 100);
 
 	/**
-	 * 自動高さです。
+	 * Automatic height.
 	 */
 	public static final BooleanPropManager OUTPUT_AUTO_HEIGHT = new BooleanPropManager("output.auto-height", false);
 
 	/**
-	 * 自動高さです。
+	 * Automatic height.
 	 */
 	public static final BooleanPropManager OUTPUT_EXPAND_WITH_CONTENT = new BooleanPropManager("output.expand-with-content", false);
 
 	/**
-	 * 改ページを禁止します。
+	 * Disables page breaks.
 	 */
 	public static final BooleanPropManager OUTPUT_NO_PAGE_BREAK = new BooleanPropManager("output.no-page-break", false);
 
 	/**
-	 * 出力形式です。
+	 * The output format.
 	 */
 	public static final StringPropManager OUTPUT_TYPE = new StringPropManager("output.type", "application/pdf");
 
 	/**
-	 * 含有パターンです。
+	 * The include pattern.
 	 */
 	public static final String INPUT_INCLUDE = "input.include";
 
 	/**
-	 * 除外パターンです。
+	 * The exclude pattern.
 	 */
 	public static final String INPUT_EXCLUDE = "input.exclude";
 
 	/**
-	 * ファイルサイズの限界値です。
+	 * The file size limit.
 	 */
 	public static final LongPropManager OUTPUT_SIZE_LIMIT = new LongPropManager("output.size-limit", -1L);
 
 	/**
-	 * ページ数の限界値です。
+	 * The page count limit.
 	 */
 	public static final IntegerPropManager OUTPUT_PAGE_LIMIT = new IntegerPropManager("output.page-limit", -1);
 
 	/**
-	 * ページ数の限界に達した場合の処理です。
+	 * The action to take when the page count limit is reached.
 	 */
 	public static final CodePropManager<OutputPageLimitAbort> OUTPUT_PAGE_LIMIT_ABORT = new CodePropManager<>("output.page-limit.abort", OutputPageLimitAbort.class, OutputPageLimitAbort.FORCE);
 
 	/**
-	 * トンボの形式です。
+	 * The crop mark format.
 	 */
 	public static final CodePropManager<OutputMarks> OUTPUT_MARKS = new CodePropManager<>("output.marks", OutputMarks.class, OutputMarks.NONE);
 
 	/**
-	 * 適用するCSSのメディアタイプです。
+	 * The CSS media type to apply.
 	 */
 	public static final StringPropManager OUTPUT_MEDIA_TYPES = new StringPropManager("output.media_types",
 			"all print paged visual bitmap static");
 
 	/**
-	 * 表示できない画像の扱いです。
+	 * How to handle images that cannot be displayed.
 	 */
 	public static final CodePropManager<OutputBrokenImage> OUTPUT_BROKEN_IMAGE = new CodePropManager<>("output.broken-image", OutputBrokenImage.class, OutputBrokenImage.NONE);
 
 	/**
-	 * カラー出力です。
+	 * Color output.
 	 */
 	public static final CodePropManager<OutputColor> OUTPUT_COLOR = new CodePropManager<>("output.color", OutputColor.class, OutputColor.RGB);
 
 	/**
-	 * pxを計算する際の解像度です。
+	 * The resolution used to calculate px.
 	 */
 	public static final DoublePropManager OUTPUT_RESOLUTION = new DoublePropManager("output.resolution", 96.0, 1, 10000);
 
 	/**
-	 * 画像出力解像度です。
+	 * The image output resolution.
 	 */
 	public static final DoublePropManager OUTPUT_IMAGE_RESOLUTION = new DoublePropManager("output.image.resolution",
 			96.0, 1, 10000);
 
 	/**
-	 * 生成するラスタ1枚の最大画素数(幅×高さ)です。負数は無制限です(2026-10-03)。
-	 * 画像出力の版面(頁の大きさ×{@link #OUTPUT_IMAGE_RESOLUTION})が超えると
-	 * 変換を失敗させ(メッセージ3812)、Paged SVGで画素に描き直す画像は
-	 * 倍率を下げて上限に収めます。
+	 * The maximum pixel count (width × height) of each generated raster image. A negative value means
+	 * unlimited (2026-10-03). If the type area for image output (page size × {@link #OUTPUT_IMAGE_RESOLUTION})
+	 * exceeds the limit, conversion fails (message 3812). Images rasterized for Paged SVG use a lower
+	 * scale factor to stay within the limit.
 	 */
 	public static final LongPropManager OUTPUT_IMAGE_PIXEL_LIMIT = new LongPropManager("output.image-pixel-limit",
 			-1L);
 
 	/**
-	 * 画像のアンチエイリアスです。
+	 * Image antialiasing.
 	 */
 	public static final BooleanPropManager OUTPUT_IMAGE_ANTIALIAS = new BooleanPropManager("output.image.antialias",
 			true);
 
 	/**
-	 * 画像出力の背景を透明にするかです。
+	 * Whether the image output background is transparent.
 	 *
 	 * <p>
-	 * 既定の{@code false}では白で塗ってから描きます。{@code true}にすると
-	 * <b>塗らずに描く</b>ので、何も描かれなかったところは透明のまま残ります
-	 * (ページやその中の要素に背景色を指定していれば、そこは不透明になります)。
+	 * With the default {@code false}, drawing starts after filling the background with white.
+	 * With {@code true}, <b>drawing starts without a background fill</b>, so areas where nothing is drawn
+	 * remain transparent (a background color specified for the page or an element makes that area opaque).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>アルファを持てる形式でだけ効きます。</b>PNG・GIF・TIFFは持てますが、
-	 * JPEG・BMP・WBMPは持てません。持てない形式で指定したときは白のまま描き、
-	 * {@code 2824}で知らせます——黙って無視すると「透明にしたのに白い」と
-	 * 悩ませることになるためです。判定は形式表の決め打ちではなく、
-	 * 書き出す側({@code ImageWriter})に問い合わせます。
+	 * <b>Effective only for formats that support alpha.</b> PNG, GIF, and TIFF support it;
+	 * JPEG, BMP, and WBMP do not. For an unsupported format, drawing still uses a white background and
+	 * reports {@code 2824}: silently ignoring the setting would leave users wondering why their
+	 * transparent output is white. Support is determined by querying the writer ({@code ImageWriter}),
+	 * rather than using a hard-coded table of formats.
 	 * </p>
 	 */
 	public static final BooleanPropManager OUTPUT_IMAGE_TRANSPARENT = new BooleanPropManager(
 			"output.image.transparent", false);
 
 	/**
-	 * メタ情報です。
+	 * Metadata.
 	 */
 	public static final String OUTPUT_META = "output.meta.";
 
 	/**
-	 * フォントの扱いです。
+	 * Font handling.
 	 */
 	public static final StringPropManager OUTPUT_PDF_FONTS_POLICY = new StringPropManager("output.pdf.fonts.policy",
 			"cid-keyed");
 
 	/**
-	 * 全体の圧縮方法です。
+	 * The overall compression method.
 	 */
 	public static final CodePropManager<OutputPdfCompression> OUTPUT_PDF_COMPRESSION = new CodePropManager<>("output.pdf.compression", OutputPdfCompression.class, OutputPdfCompression.BINARY);
 
 	/**
-	 * 画像の圧縮方法です。
+	 * The image compression method.
 	 */
 	public static final CodePropManager<OutputPdfImageCompression> OUTPUT_PDF_IMAGE_COMPRESSION = new CodePropManager<>("output.pdf.image.compression", OutputPdfImageCompression.class, OutputPdfImageCompression.FLATE);
 
 	/**
-	 * ロスレス圧縮を適用する画像サイズの閾値です。
+	 * The image size threshold for applying lossless compression.
 	 */
 	public static final IntegerPropManager OUTPUT_PDF_IMAGE_COMPRESSION_LOSSLESS = new IntegerPropManager(
 			"output.pdf.image.compression.lossless", 200);
 
 	/**
-	 * 画像の最大幅（ピクセル数）です。
+	 * The maximum image width in pixels.
 	 */
 	public static final IntegerPropManager OUTPUT_PDF_IMAGE_MAX_WIDTH = new IntegerPropManager(
 			"output.pdf.image.max-width", 0);
 
 	/**
-	 * 画像の最大高さ（ピクセル数）です。
+	 * The maximum image height in pixels.
 	 */
 	public static final IntegerPropManager OUTPUT_PDF_IMAGE_MAX_HEIGHT = new IntegerPropManager(
 			"output.pdf.image.max-height", 0);
 
 	/**
-	 * PDFへ生成するぼかし影画像の解像度(dpi)です。
+	 * The resolution (dpi) of blurred shadow images generated for PDF.
 	 */
 	public static final IntegerPropManager OUTPUT_PDF_BLUR_RESOLUTION = new IntegerPropManager(
 			"output.pdf.blur-resolution", 150);
 
 	/**
-	 * PDFでfilter付き要素だけをラスタ化するときの解像度(dpi)です。
+	 * The resolution (dpi) when rasterizing only elements with filters in PDF.
 	 */
 	public static final IntegerPropManager OUTPUT_PDF_FILTER_RESOLUTION = new IntegerPropManager(
 			"output.pdf.filter-resolution", 300);
 
 	/**
-	 * 添付ファイル設定です。
+	 * Attachment settings.
 	 */
 	public static final String OUTPUT_PDF_ATTACHMENTS = "output.pdf.attachments.";
 
 	/**
-	 * PDFバージョンです。
+	 * The PDF version.
 	 */
 	public static final CodePropManager<OutputPdfVersion> OUTPUT_PDF_VERSION = new CodePropManager<>("output.pdf.version", OutputPdfVersion.class, OutputPdfVersion.V1_5);
 
 	/**
-	 * 暗号化方法です。
+	 * The encryption method.
 	 */
 	public static final CodePropManager<OutputPdfEncryption> OUTPUT_PDF_ENCRYPTION = new CodePropManager<>("output.pdf.encryption", OutputPdfEncryption.class, OutputPdfEncryption.NONE);
 
 	/**
-	 * タグ付き PDF（論理構造）を出力するかどうか。
+	 * Whether to output tagged PDF (logical structure).
 	 */
 	public static final BooleanPropManager OUTPUT_PDF_TAGGED = new BooleanPropManager("output.pdf.tagged", false);
 
 	/**
-	 * bidi 行の論理テキストを ActualText として出力するかどうか。
+	 * Whether to output the logical text of bidi lines as ActualText.
 	 */
 	public static final BooleanPropManager OUTPUT_PDF_BIDI_ACTUAL_TEXT = new BooleanPropManager("output.pdf.bidi.actual-text", false);
 
 	/**
-	 * タグ付き PDF / PDF/UA の言語（BCP 47、例 "ja"）。
+	 * The language for tagged PDF / PDF/UA (BCP 47, e.g. "ja").
 	 */
 	public static final StringPropManager OUTPUT_PDF_TAGGED_LANG = new StringPropManager("output.pdf.tagged.lang", null);
 
 	/**
-	 * HTML フォーム部品（input/textarea/select）を入力可能な PDF フォーム
-	 * フィールド（AcroForm）として出力するかどうか。有効にするとフォーム部品の
-	 * 見た目が対話ウィジェットの外観に変わる（フォームを含まない文書の出力は不変）。
-	 * PDF/X ではフォームが禁止されているため出力されない。
+	 * Whether to output HTML form controls (input/textarea/select) as fillable PDF form fields (AcroForm).
+	 * When enabled, form controls take on the appearance of interactive widgets
+	 * (output for documents without forms is unchanged).
+	 * Forms are not output in PDF/X because it prohibits them.
 	 */
 	public static final BooleanPropManager OUTPUT_PDF_FORMS = new BooleanPropManager("output.pdf.forms", false);
 
 	/**
-	 * 暗号のユーザーパスワードです。
+	 * The user password for encryption.
 	 */
 	public static final StringPropManager OUTPUT_PDF_ENCRYPTION_USER_PASSWORD = new StringPropManager(
 			"output.pdf.encryption.user-password", "");
 
 	/**
-	 * 暗号のオーナーパスワードです。
+	 * The owner password for encryption.
 	 */
 	public static final StringPropManager OUTPUT_PDF_ENCRYPTION_OWNER_PASSWORD = new StringPropManager(
 			"output.pdf.encryption.owner-password", null);
 
-	// PDFパーミッションの設定です。
+	// PDF permission settings.
 	public static final BooleanPropManager OUTPUT_PDF_ENCRYPTION_PERMISSIONS_PRINT = new BooleanPropManager(
 			"output.pdf.encryption.permissions.print", true);
 	public static final BooleanPropManager OUTPUT_PDF_ENCRYPTION_PERMISSIONS_MODIFY = new BooleanPropManager(
@@ -535,28 +534,29 @@ public final class UAProps {
 			"output.pdf.encryption.permissions.print-high", true);
 
 	/**
-	 * 暗号の長さです。
+	 * The encryption key length.
 	 */
 	public static final IntegerPropManager OUTPUT_PDF_ENCRYPTION_LENGTH = new IntegerPropManager(
 			"output.pdf.encryption.length", 128);
 
 	/**
-	 * ブックマークです。既定は true(2026-10-04。以前は false で、本の PDF に
-	 * しおりが付かないことに気づきにくかった。Prince・WeasyPrint も既定で付ける)。
+	 * Bookmarks (PDF outline). The default is true (2026-10-04). Previously it was false, which made
+	 * missing bookmarks in book PDFs easy to overlook. Prince and WeasyPrint also add them by default.
 	 */
 	public static final BooleanPropManager OUTPUT_PDF_BOOKMARKS = new BooleanPropManager("output.pdf.bookmarks", true);
 
 	/**
-	 * リンクです。既定は true(2026-10-04。Chrome・Prince・WeasyPrint と同じ)。
-	 * PDF/X では入れられないので、既定値のときは黙って外し、明示した true にだけ
-	 * 警告する(PDFVisitor)。
+	 * Links. The default is true (2026-10-04, as in Chrome, Prince, and WeasyPrint).
+	 * PDF/X prohibits links, so the default value silently omits them, and a warning is issued only
+	 * for an explicitly specified true (PDFVisitor).
 	 */
 	public static final BooleanPropManager OUTPUT_PDF_HYPERLINKS = new BooleanPropManager("output.pdf.hyperlinks",
 			true);
 
 	/**
-	 * しおり・リンクの実効値です(2026-10-04)。明示が無ければ既定(true)だが、
-	 * PDF/UA-2 では false({@link OutputPdfVersion#keepsNavigationOffByDefault})。
+	 * The effective value for bookmarks and links (2026-10-04). If not explicitly specified, it uses
+	 * the default (true), except in PDF/UA-2, where it is false
+	 * ({@link OutputPdfVersion#keepsNavigationOffByDefault}).
 	 */
 	public static boolean navigation(final BooleanPropManager prop, final net.zamasoft.foliojet.ua.UserAgent ua) {
 		if (ua.getProperty(prop.name) == null && OUTPUT_PDF_VERSION.get(ua).keepsNavigationOffByDefault()) {
@@ -566,230 +566,229 @@ public final class UAProps {
 	}
 
 	/**
-	 * リンクの方法です。
+	 * The link method.
 	 */
 	public static final CodePropManager<OutputPdfHyperlinksHref> OUTPUT_PDF_HYPERLINKS_HREF = new CodePropManager<>("output.pdf.hyperlinks.href", OutputPdfHyperlinksHref.class, OutputPdfHyperlinksHref.RELATIVE);
 
 	/**
-	 * リンクの基点です。
+	 * The link base.
 	 */
 	public static final StringPropManager OUTPUT_PDF_HYPERLINKS_BASE = new StringPropManager(
 			"output.pdf.hyperlinks.base", null);
 
 	/**
-	 * ページ内リンクです。
+	 * Links within a page.
 	 */
 	public static final BooleanPropManager OUTPUT_PDF_HYPERLINKS_FRAGMENT = new BooleanPropManager(
 			"output.pdf.hyperlinks.fragment", true);
 
 	/**
-	 * JPEG画像の圧縮方法です。
+	 * The JPEG image compression method.
 	 */
 	public static final CodePropManager<OutputPdfJpegImage> OUTPUT_PDF_JPEG_IMAGE = new CodePropManager<>("output.pdf.jpeg-image", OutputPdfJpegImage.class, OutputPdfJpegImage.RAW);
 
 	/**
-	 * PDF内部の名前リテラルのエンコーディングです。
+	 * The encoding of name literals inside PDF.
 	 */
 	public static final StringPropManager OUTPUT_PDF_PLATFORM_ENCODING = new StringPropManager(
 			"output.pdf.platform-encoding", "MS932");
 
 	/**
-	 * 処理回数です。
+	 * The number of processing passes.
 	 */
 	public static final IntegerPropManager PROCESSING_PASS_COUNT = new IntegerPropManager("processing.pass-count", 1, 1, 10);
 
-	/** 溜める要素1つの文字payload上限。0以下で無制限。 */
+	/** The text payload limit for each retained element. A value of 0 or less means unlimited. */
 	public static final LongPropManager PROCESSING_RETAINED_TEXT_LIMIT = new LongPropManager(
 			"processing.retained-text-limit", 8L << 20);
 
-	/** Retained表の行単位送出を有効にします。既定は完成表を配置する従来経路です。 */
+	/** Enables row-by-row emission of retained tables. The default uses the existing path that places completed tables. */
 	public static final BooleanPropManager PROCESSING_TABLE_ROW_EMISSION = new BooleanPropManager(
 			"processing.table-row-emission", false);
 
 	/**
-	 * 1文書の変換に許す最大経過時間(ミリ秒)です。0以下は無制限です。
+	 * The maximum elapsed time allowed to convert one document (milliseconds). A value of 0 or less means unlimited.
 	 */
 	public static final LongPropManager PROCESSING_TIME_LIMIT = new LongPropManager("processing.time-limit", 0L);
 
 	/**
-	 * データを実際には生成しない、中間のパスを実行します。
+	 * Runs an intermediate pass without actually generating data.
 	 */
 	public static final BooleanPropManager PROCESSING_MIDDLE_PASS = new BooleanPropManager("processing.middle-pass",
 			false);
 
 	/**
-	 * 独立に組める単位を同時にいくつ組むかです(2026-09-02)。
+	 * The number of independently layable units to lay out concurrently (2026-09-02).
 	 *
 	 * <p>
-	 * いま効くのはEPUBのspine項目を{@code MultiDocumentOutput}(Paged SVG)へ
-	 * 出すときだけ。{@code 0}(既定)は自動で、CPUコア数と4の小さいほう。
-	 * {@code 1}で逐次。<b>いくつにしても出力は同一</b>——項目は互いに独立で、
-	 * 結果はspine順に解放されるため。変わるのは所要時間とメモリ
-	 * (同時に組む項目の数だけレイアウトを保持する)だけ。
+	 * Currently effective only when outputting EPUB spine items to {@code MultiDocumentOutput} (Paged SVG).
+	 * {@code 0} (the default) selects automatically: the smaller of the CPU core count and 4.
+	 * {@code 1} selects sequential processing. <b>Output is identical for any value</b>, because items
+	 * are independent and results are released in spine order. Only elapsed time and memory use change
+	 * (layout is retained for each item being processed concurrently).
 	 * </p>
 	 */
 	public static final IntegerPropManager PROCESSING_CONCURRENCY = new IntegerPropManager("processing.concurrency",
 			0);
 	/**
-	 * ページ参照を行います。
+	 * Enables page references.
 	 */
 	public static final BooleanPropManager PROCESSING_PAGE_REFERENCES = new BooleanPropManager(
 			"processing.page-references", false);
 
 	/**
-	 * 1パスのPDFで{@code target-counter()}の番号に取っておく桁数です(2026-10-04)。
-	 * 番号は後ろの頁のものでも、この桁数ぶんの欄を先に組み、値は文書を閉じるときに
-	 * 書きます。溢れた番号は欄の左へはみ出します。1〜9。
+	 * The number of digits reserved for {@code target-counter()} numbers in single-pass PDF (2026-10-04).
+	 * Even for a number on a later page, a field of this many digits is laid out in advance, and the value
+	 * is written when the document closes. A number that exceeds the field overflows to the left. Range: 1–9.
 	 */
 	public static final IntegerPropManager PROCESSING_TARGET_COUNTER_DIGITS = new IntegerPropManager(
 			"processing.target-counter.digits", 3);
 
 	/**
-	 * エラー発生時は強制中断します。
+	 * Forces an abort when an error occurs.
 	 */
 	public static final BooleanPropManager PROCESSING_FAIL_ON_FATAL_ERROR = new BooleanPropManager(
 			"processing.fail-on-fatal-error", true);
 
 
 		/**
-	 * レイアウトソース(LayoutSource)のテキストpayloadをheapへinline
-	 * 保持する上限(bytes)です(既定8MB、2026-07-24新設——E-6増分3b-2)。
+	 * The limit (bytes) for retaining layout source (LayoutSource) text payload inline on the heap
+	 * (default 8 MB, introduced 2026-07-24: E-6 increment 3b-2).
 	 *
 	 * <p>
-	 * 保持中のinline bytesがこの予算を超える新規テキスト追記は一時
-	 * ファイル(spillストア)へ書かれ、改ページ再生時にdecodeされる。
-	 * 判定は設定値と累積bytesのみの決定的なもので、heap残量には依存
-	 * しない。出力(display list)は予算値に関わらず完全に同一——変わる
-	 * のはメモリ挙動のみ。既定値はコーパス実測(保持イベント数は数千
-	 * 規模の文書が大半)より十分大きく、通常文書ではspillは起きない。
+	 * New text that would push the retained inline bytes over this budget is written to a temporary
+	 * file (spill store) and decoded during page-break replay. The decision is deterministic, based
+	 * only on the configured value and cumulative bytes, not on available heap space.
+	 * Output (display list) is completely identical regardless of the budget; only memory behavior
+	 * changes. The default is comfortably above measured corpus requirements (most documents retain
+	 * a few thousand events), so ordinary documents do not spill.
 	 * </p>
 	 */
 	public static final LongPropManager PROCESSING_TEXT_SPILL_BUDGET = new LongPropManager(
 			"processing.text-spill-budget", 8L * 1024L * 1024L);
 
 	/**
-	 * ファイルIDです。
+	 * The file ID.
 	 */
 	public static final StringPropManager OUTPUT_PDF_FILE_ID = new StringPropManager("output.pdf.file-id", null);
 
 	/**
-	 * 作成日時です。
+	 * The creation date and time.
 	 */
 	public static final StringPropManager OUTPUT_PDF_META_CREATION_DATE = new StringPropManager(
 			"output.pdf.meta.creation-date", null);
 
 	/**
-	 * 更新日時です。
+	 * The modification date and time.
 	 */
 	public static final StringPropManager OUTPUT_PDF_META_MOD_DATE = new StringPropManager("output.pdf.meta.mod-date",
 			null);
 
 	/**
-	 * 電子インボイス(Factur-X/ZUGFeRD)のXMP適合レベルです。設定すると
-	 * fx:拡張スキーマがXMPへ出力されます(請求書XML自体は
-	 * output.pdf.attachments.*でrelationship=alternativeとして添付する)。
+	 * The XMP conformance level for electronic invoices (Factur-X/ZUGFeRD). When set, the fx: extension
+	 * schema is output to XMP (attach the invoice XML itself through output.pdf.attachments.*
+	 * with relationship=alternative).
 	 */
 	public static final StringPropManager OUTPUT_PDF_FACTURX_CONFORMANCE_LEVEL = new StringPropManager(
 			"output.pdf.facturx.conformance-level", null);
 
 	/**
-	 * Factur-Xの文書種別です(既定INVOICE)。
+	 * The Factur-X document type (default INVOICE).
 	 */
 	public static final StringPropManager OUTPUT_PDF_FACTURX_DOCUMENT_TYPE = new StringPropManager(
 			"output.pdf.facturx.document-type", "INVOICE");
 
 	/**
-	 * Factur-Xの請求書XMLファイル名です(既定factur-x.xml。添付名と
-	 * 一致させること)。
+	 * The Factur-X invoice XML file name (default factur-x.xml; it must match the attachment name).
 	 */
 	public static final StringPropManager OUTPUT_PDF_FACTURX_DOCUMENT_FILE_NAME = new StringPropManager(
 			"output.pdf.facturx.document-file-name", "factur-x.xml");
 
 	/**
-	 * Factur-Xのプロファイル版です(既定1.0)。
+	 * The Factur-X profile version (default 1.0).
 	 */
 	public static final StringPropManager OUTPUT_PDF_FACTURX_VERSION = new StringPropManager(
 			"output.pdf.facturx.version", "1.0");
 
 	/**
-	 * 出力インテントの出力条件識別名です(例: JC200103、FOGRA39)。
-	 * 設定するとカタログへ/OutputIntentsを出力します(PDF/Xの適合要件)。
+	 * The output condition identifier for the output intent (e.g. JC200103, FOGRA39).
+	 * When set, /OutputIntents is output in the catalog (required for PDF/X conformance).
 	 */
 	public static final StringPropManager OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER = new StringPropManager(
 			"output.pdf.output-intent.identifier", null);
 
 	/**
-	 * 出力インテントの出力条件の人間可読名です。
+	 * The human-readable name of the output condition for the output intent.
 	 */
 	public static final StringPropManager OUTPUT_PDF_OUTPUT_INTENT_CONDITION = new StringPropManager(
 			"output.pdf.output-intent.condition", null);
 
 	/**
-	 * 出力インテントのレジストリ名です(既定はICC特性化レジストリ)。
+	 * The registry name for the output intent (the default is the ICC characterization registry).
 	 */
 	public static final StringPropManager OUTPUT_PDF_OUTPUT_INTENT_REGISTRY = new StringPropManager(
 			"output.pdf.output-intent.registry", "http://www.color.org");
 
 	/**
-	 * 出力インテントの補足説明です(未登録条件のPDF/Xで推奨)。
+	 * Additional information for the output intent (recommended in PDF/X for unregistered conditions).
 	 */
 	public static final StringPropManager OUTPUT_PDF_OUTPUT_INTENT_INFO = new StringPropManager(
 			"output.pdf.output-intent.info", null);
 
 	/**
-	 * 出力インテントへ埋め込むICCプロファイルのURIです(DestOutputProfile)。
+	 * The URI of the ICC profile to embed in the output intent (DestOutputProfile).
 	 */
 	public static final StringPropManager OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE = new StringPropManager(
 			"output.pdf.output-intent.icc-profile", null);
 
 	/**
-	 * 既定のレンダリングインテントです(perceptual, relative-colorimetric,
-	 * saturation, absolute-colorimetricのいずれか)。
+	 * The default rendering intent (one of perceptual, relative-colorimetric,
+	 * saturation, or absolute-colorimetric).
 	 */
 	public static final StringPropManager OUTPUT_PDF_RENDERING_INTENT = new StringPropManager(
 			"output.pdf.rendering-intent", null);
 
 	/**
-	 * 背表紙幅です。
+	 * The spine width.
 	 */
 	public static final StringPropManager OUTPUT_MARKS_SPINE_WIDTH = new StringPropManager("output.marks.spine-width",
 			null);
 
 	/**
-	 * CFM暗号化です。
+	 * CFM encryption.
 	 */
 	public static final CodePropManager<OutputPdfEncryptionV4CFM> OUTPUT_PDF_ENCRYPTION_V4_CFM = new CodePropManager<>("output.pdf.encryption.v4.cfm", OutputPdfEncryptionV4CFM.class, OutputPdfEncryptionV4CFM.V2);
 
 	/**
-	 * すかし画像です。
+	 * The watermark image.
 	 */
 	public static final StringPropManager OUTPUT_PDF_WATERMARK_URI = new StringPropManager("output.pdf.watermark.uri",
 			null);
 
 	/**
-	 * すかし画像の配置方法です。
+	 * The watermark image placement method.
 	 */
 	public static final CodePropManager<OutputPdfWatermarkMode> OUTPUT_PDF_WATERMARK_MODE = new CodePropManager<>("output.pdf.watermark.mode", OutputPdfWatermarkMode.class, OutputPdfWatermarkMode.BACK);
 
 	/**
-	 * すかし画像の不透明度です。
+	 * The watermark image opacity.
 	 */
 	public static final DoublePropManager OUTPUT_PDF_WATERMARK_OPACITY = new DoublePropManager(
 			"output.pdf.watermark.opacity", 1);
 
 	/**
-	 * すかし画像を画面表示するか。
+	 * Whether to display the watermark image on screen.
 	 */
 	public static final BooleanPropManager OUTPUT_PDF_WATERMARK_VIEW = new BooleanPropManager(
 			"output.pdf.watermark.view", true);
 
 	/**
-	 * すかし画像を印刷するか。
+	 * Whether to print the watermark image.
 	 */
 	public static final BooleanPropManager OUTPUT_PDF_WATERMARK_PRINT = new BooleanPropManager(
 			"output.pdf.watermark.print", true);
 
-	// PDFの ViewerPreference の設定
+	// PDF ViewerPreference settings
 	public static final BooleanPropManager OUTPUT_PDF_VIEWER_PREFERENCES_HIDE_TOOLBAR = new BooleanPropManager(
 			"output.pdf.viewer-preferences.hide-toolber", false);
 
@@ -824,134 +823,133 @@ public final class UAProps {
 			"output.pdf.viewer-preferences.num-copies", 0);
 
 	/**
-	 * PDFを開いた時のJavaScript。
+	 * JavaScript to run when the PDF opens.
 	 */
 	public static final StringPropManager OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT = new StringPropManager(
 			"output.pdf.open-action.java-script", null);
 
 	/**
-	 * 文書情報を設定するmeta, titleタグを解釈します。
+	 * Interprets meta and title tags that set document information.
 	 */
 	public static final BooleanPropManager OUTPUT_USE_META_INFO = new BooleanPropManager("output.use-meta-info", true);
 
 	/**
-	 * Paged SVGの共有資源(フォントのサブセットと画像)の渡し方です。
-	 * 参照・埋め込み・送らないの3つから選びます。
+	 * How to deliver shared resources (font subsets and images) for Paged SVG.
+	 * Choose from referencing, embedding, or omitting them.
 	 */
 	public static final CodePropManager<PagedSvgResourceMode> OUTPUT_PAGED_SVG_RESOURCES = new CodePropManager<>(
 			"output.paged-svg.resources", PagedSvgResourceMode.class, PagedSvgResourceMode.REFERENCE);
 
 
 	/**
-	 * フォントのサブセットを<b>文書全体で1つにするか、ページごとに作るか</b>です。
+	 * Whether to create <b>one font subset for the entire document or one for each page</b>.
 	 *
 	 * <p>
-	 * 既定の{@code document}は文書全体で共有するので総量が最も小さい。ただし
-	 * <b>全ページを書き終えるまでサブセットが出せない</b>ので、受け手は変換が
-	 * 終わるまで1文字も描けない(本文は私用領域の文字で、字形は書体の中に
-	 * しかない)。
+	 * The default {@code document} shares subsets across the document, minimizing total size.
+	 * However, <b>subsets cannot be output until all pages have been written</b>, so the recipient
+	 * cannot draw even one character until conversion finishes (body text uses private-use characters,
+	 * whose glyphs exist only in the font).
 	 * </p>
 	 *
 	 * <p>
-	 * {@code page}にすると、<b>ページを閉じるたびにそのページ分だけを出す</b>。
-	 * 1ページ目とその書体が届いた時点で描き始められ、見えている頁の前後だけを
-	 * 取り寄せる読み器なら落とす量も減る。代償は総量——和文で実測すると
-     * 1ページ分が約20KBで、350ページの書籍ではフォント合計が0.25MB→7.1MB、
-	 * 出力全体では11.8MB→18.6MB(1.6倍)になる。**通読すると重く、拾い読みだと軽い**
-	 * (分岐点は12〜13ページ)。欧文だけの文書では誤差。
+	 * With {@code page}, <b>each page's subsets are output when that page closes</b>.
+	 * Drawing can start as soon as the first page and its fonts arrive. A reader that fetches only
+	 * pages near the visible page also downloads less. The tradeoff is total size: measured with
+	 * Japanese text, each page uses about 20 KB. In a 350-page book, total font size grows from
+	 * 0.25 MB → 7.1 MB, and total output from 11.8 MB → 18.6 MB (1.6 times).
+	 * **Heavier for reading cover to cover, lighter for selective reading**
+	 * (the break-even point is 12–13 pages). For documents containing only Latin text, the difference is negligible.
 	 * </p>
 	 */
 	public static final CodePropManager<PagedSvgFontScope> OUTPUT_PAGED_SVG_FONT_SCOPE = new CodePropManager<>(
 			"output.paged-svg.font-scope", PagedSvgFontScope.class, PagedSvgFontScope.DOCUMENT);
 
 	/**
-	 * ページSVGから共有資源(フォントのサブセットと画像)を指すときの前置きです。
+	 * The prefix used by page SVGs to reference shared resources (font subsets and images).
 	 *
 	 * <p>
-	 * 既定は{@code ../}で、{@code pages/}から見た相対になります。
-	 * <b>複数のページSVGを1つのHTML文書へ取り込む読み器では、これが解決
-	 * できません</b>——基底が取り込み先の文書になるためで、本文は私用領域の
-	 * 符号なので字形が来ないと<b>丸ごと空白</b>に見えます(2026-09-01、
-	 * cti.liの読み器からの報告)。
+	 * The default is {@code ../}, relative to {@code pages/}.
+	 * <b>A reader that embeds multiple page SVGs in a single HTML document cannot resolve this</b>,
+	 * because the host document becomes the base. Body text uses private-use code points, so without
+	 * the glyphs it appears <b>entirely blank</b> (2026-09-01, reported by the cti.li reader).
 	 * </p>
 	 *
 	 * <p>
-	 * 絶対URLの前置き({@code https://example.com/book/})を与えれば、
-	 * 取り込み先がどこでも解決します。末尾の{@code /}は無ければ補います。
-	 * フォントのサブセットにも画像にも同じ前置きが付きます。
+	 * An absolute URL prefix ({@code https://example.com/book/}) resolves regardless of the host document.
+	 * A trailing {@code /} is added if missing.
+	 * The same prefix applies to both font subsets and images.
 	 * </p>
 	 */
 	public static final StringPropManager OUTPUT_PAGED_SVG_BASE_URI = new StringPropManager(
 			"output.paged-svg.base-uri", "../");
 
 	/**
-	 * ページSVGとページJSONをgzipで縮めて返すかどうかです。
+	 * Whether to return page SVG and page JSON compressed with gzip.
 	 *
 	 * <p>
-	 * <b>既定はgzip</b>(2026-08-28、オーナー裁定)。ページSVGは文字が
-	 * そのまま入る素のテキストで、圧縮がよく効きます。名前は
-	 * {@code pages/NNNN.svgz}・{@code pages/NNNN.json.gz}になり、
-	 * {@code manifest.json}は読み口なので縮めません。静的配信する場合は
-	 * これらに{@code Content-Encoding: gzip}を付けてください。
+	 * <b>The default is gzip</b> (2026-08-28, owner's decision). Page SVG is plain text with characters
+	 * stored directly, so compression works well. File names are {@code pages/NNNN.svgz} and
+	 * {@code pages/NNNN.json.gz}; {@code manifest.json} is the entry point and is not compressed.
+	 * For static hosting, serve these files with {@code Content-Encoding: gzip}.
 	 * </p>
 	 */
 	public static final CodePropManager<PagedSvgCompression> OUTPUT_PAGED_SVG_COMPRESSION = new CodePropManager<>(
 			"output.paged-svg.compression", PagedSvgCompression.class, PagedSvgCompression.GZIP);
 
 	/**
-	 * ページ分割SVGの共有画像の圧縮方針です(2026-09-03、cti.li の要望)。
-	 * 既定はそのまま。{@code jpeg} で透明部分の無い大きなラスタ画像を
-	 * JPEG に再圧縮します。閾値と縮小は PDF の
-	 * {@code output.pdf.image.*} と同じ意味の鍵で指定します。
+	 * The compression policy for shared images in page-split SVG (2026-09-03, requested by cti.li).
+	 * The default leaves them unchanged. {@code jpeg} recompresses large raster images without
+	 * transparent areas as JPEG. Specify the threshold and size reduction using keys with the
+	 * same meanings as PDF's {@code output.pdf.image.*}.
 	 */
 	public static final CodePropManager<PagedSvgImageCompression> OUTPUT_PAGED_SVG_IMAGE_COMPRESSION = new CodePropManager<>(
 			"output.paged-svg.image.compression", PagedSvgImageCompression.class, PagedSvgImageCompression.NONE);
 
-	/** 非可逆圧縮を適用する画像サイズ(幅+高さの画素数)の閾値です。 */
+	/** The image size threshold (width + height in pixels) for applying lossy compression. */
 	public static final IntegerPropManager OUTPUT_PAGED_SVG_IMAGE_COMPRESSION_LOSSLESS = new IntegerPropManager(
 			"output.paged-svg.image.compression.lossless", 200);
 
-	/** 共有画像の最大幅(画素数)です。0 は無制限。 */
+	/** The maximum shared image width in pixels. 0 means unlimited. */
 	public static final IntegerPropManager OUTPUT_PAGED_SVG_IMAGE_MAX_WIDTH = new IntegerPropManager(
 			"output.paged-svg.image.max-width", 0);
 
-	/** 共有画像の最大高さ(画素数)です。0 は無制限。 */
+	/** The maximum shared image height in pixels. 0 means unlimited. */
 	public static final IntegerPropManager OUTPUT_PAGED_SVG_IMAGE_MAX_HEIGHT = new IntegerPropManager(
 			"output.paged-svg.image.max-height", 0);
 
 	/**
-	 * {@code manifest.json} の {@code pages[]} に各ページの SHA-256
-	 * ({@code svgSha256}・{@code dataSha256})を書くかです(2026-09-03)。
-	 * 受け手が使わないなら {@code false} で manifest が縮む(310 頁で 143KB の
-	 * 大半がこれ)。共有資源(フォント・画像)の {@code sha256} は URI と
-	 * 同一性の鍵なので常に書きます。
+	 * Whether to write each page's SHA-256 ({@code svgSha256} and {@code dataSha256})
+	 * in {@code pages[]} of {@code manifest.json} (2026-09-03).
+	 * If the recipient does not use them, {@code false} reduces the manifest size
+	 * (they account for most of its 143 KB for 310 pages). The {@code sha256} of shared resources
+	 * (fonts and images) is always written because it is the key for their URI and identity.
 	 */
 	public static final BooleanPropManager OUTPUT_PAGED_SVG_PAGE_CHECKSUMS = new BooleanPropManager(
 			"output.paged-svg.page-checksums", true);
 
 	/**
-	 * ページ分割SVGと同じ組版から PDF も出すかです(2026-09-03、cti.li の要望)。
-	 * {@code true} で結果集合に {@code document.pdf} が加わる(ZIP なら ZIP の中に、
-	 * manifest の {@code pdf})。組版は1回で、各ページの描画をページSVGと PDF の
-	 * 両方へ流す。PDF の書き方は {@code output.pdf.*} に従う。EPUB(項目ごとの
-	 * バンドル)では効かない。
+	 * Whether to also output PDF from the same layout as page-split SVG (2026-09-03, requested by cti.li).
+	 * {@code true} adds {@code document.pdf} to the result set (inside the ZIP for ZIP output;
+	 * the manifest's {@code pdf}). Layout runs once, and each page's drawing is sent to both page SVG
+	 * and PDF. PDF output follows {@code output.pdf.*}. This has no effect for EPUB (per-item bundles).
 	 */
 	public static final BooleanPropManager OUTPUT_PAGED_SVG_PDF = new BooleanPropManager("output.paged-svg.pdf",
 			false);
 
 	/**
-	 * 単一SVG出力({@code image/svg+xml})で文字をどう書くかです
-	 * (B-1、2026-08-29)。既定は従来どおりアウトライン。
-	 * {@code keep}にすると{@code <text>}のまま残し、サブセットした
-	 * WOFF2と画像を{@code data:}でSVGへ埋め込んで1枚で完結させます。
+	 * How to write text in single SVG output ({@code image/svg+xml})
+	 * (B-1, 2026-08-29). The default remains outlines.
+	 * With {@code keep}, text stays as {@code <text>}, and subsetted WOFF2 and images are embedded
+	 * in the SVG using {@code data:}, making the single file self-contained.
 	 */
 	public static final CodePropManager<SvgTextMode> OUTPUT_SVG_TEXT = new CodePropManager<>(
 			"output.svg.text", SvgTextMode.class, SvgTextMode.OUTLINE);
 
 	/**
-	 * このクラスの public static な {@link PropManager} すべてです(初回に集める——宣言の途中では揃っていないため)。
-	 * 2026-10-04 までは手で並べた一覧で、入力の上限・画像の画素数の上限・ページ分割SVGの書体の範囲など 8 件が漏れ、
-	 * 管理画面の既定値に出ていなかった。
+	 * All public static {@link PropManager} instances in this class (collected on first use,
+	 * since they are not all available midway through declaration).
+	 * Until 2026-10-04, a manual list omitted eight entries, including input limits, image pixel limits,
+	 * and font subset scope for page-split SVG, so they did not appear among the defaults in the management UI.
 	 */
 	private static final class All {
 		static final java.util.List<PropManager> LIST = collect();
@@ -978,7 +976,7 @@ public final class UAProps {
 	}
 
 	/**
-	 * 定義済みの全プロパティを返します。
+	 * Returns all defined properties.
 	 */
 	public static java.util.List<PropManager> all() {
 		return All.LIST;

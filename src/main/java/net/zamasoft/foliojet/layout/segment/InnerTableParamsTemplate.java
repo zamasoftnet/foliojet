@@ -7,19 +7,19 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 import net.zamasoft.foliojet.layout.box.params.RectBorder;
 
 /**
- * {@link InnerTableParams}({@code Params}を直接継承(``AbstractTextParams``
- * を経由しない)、{@link BoxKind#TABLE_ROW_GROUP}/
- * {@link BoxKind#TABLE_ROW}/{@link BoxKind#TABLE_COLUMN_GROUP}/
- * {@link BoxKind#TABLE_COLUMN}が使う)の内容をfreezeし、呼び出しごとに
- * 独立した新品の{@code InnerTableParams}をmaterializeするテンプレート
- * です(2026-07-22新設、M6d-A3b)。
+ * A template that freezes the contents of {@link InnerTableParams}
+ * (directly extends {@code Params} , bypassing ``AbstractTextParams``;
+ * used by {@link BoxKind#TABLE_ROW_GROUP} /{@link BoxKind#TABLE_ROW}/
+ * {@link BoxKind#TABLE_COLUMN_GROUP} /{@link BoxKind#TABLE_COLUMN})
+ * and materializes an independent, fresh {@code InnerTableParams} on each call
+ * (introduced 2026-07-22, M6d-A3b).
  *
  * <p>
- * 祖先({@code Params})のフィールドは{@link ParamsFields}
- * (`TextParamsFields`とも共有する)が担う。{@code background}/
- * {@code border}/{@code size}系/{@code pageBreakInside}は既存実装が
- * finalフィールドのみで実質不変と確認済みのため、参照をそのまま保持する
- * (コピー不要、2026-07-22 Stage2で不変recordへ置換)。
+ * {@link ParamsFields} (also shared with `TextParamsFields`) handles ancestor ({@code Params}) fields.
+ * Existing implementations of {@code background} /{@code border}/the {@code size} family/
+ * {@code pageBreakInside} have been confirmed effectively immutable with only final fields,
+ * so references are retained unchanged (no copy needed;
+ * replaced with an immutable record in Stage2, 2026-07-22).
  * </p>
  */
 public record InnerTableParamsTemplate(ParamsFields common, Background background, RectBorder border, Length size,
@@ -29,7 +29,7 @@ public record InnerTableParamsTemplate(ParamsFields common, Background backgroun
 				source.size, source.minSize, source.maxSize, source.pageBreakInside);
 	}
 
-	/** 呼び出しごとに新品の{@code InnerTableParams}を返す(複数回呼んでも互いに影響しない)。 */
+	/** Returns a fresh {@code InnerTableParams} on each call (multiple calls do not affect one another). */
 	public InnerTableParams materialize() {
 		final InnerTableParams p = new InnerTableParams();
 		this.common.materializeInto(p);

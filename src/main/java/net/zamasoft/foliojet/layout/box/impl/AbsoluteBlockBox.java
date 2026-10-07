@@ -38,8 +38,8 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
- * ブロックボックスの実装です
- * 
+ * Implementation of a block box.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: AbsoluteBlockBox.java 1552 2018-04-26 01:43:24Z miyabe $
  */
@@ -70,8 +70,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	}
 
 	/**
-	 * seal済み本文の持ち出し形(E-6増分4e)。{@code IntrinsicSizes}の
-	 * スナップショット+LayoutSource範囲+保持リースのみを持つ。
+	 * Portable form of sealed body content (E-6 increment 4e). Holds only an
+	 * {@code IntrinsicSizes} snapshot, a LayoutSource range, and a retention lease.
 	 */
 	private TwoPassBlockBuilder.DeferredBind deferredBind;
 
@@ -80,12 +80,12 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	}
 
 	/**
-	 * このボックスがどのcontext builderにも係留されておらず、bind予約
-	 * (DeferredBind)も持たないかを返します(absolute吸収=
-	 * codex増分9、2026-07-30)。TwoPass録画中のabsoluteはcontextがTwoPassの
-	 * ためprepareBind/addBound/inline登録を一切通らず、常にこの状態——
-	 * 親のrange化はこの証明の上でのみボックスを吸収できる(deferredBind
-	 * 保持中のボックスを吸収するとリースが誰にもbind/closeされなくなる)。
+	 * Returns whether this box is not anchored to any context builder and has no pending bind
+	 * (DeferredBind) (absolute absorption = codex increment 9, 2026-07-30).
+	 * An absolute box recorded in TwoPass always has this state: its context is TwoPass,
+	 * so it never goes through prepareBind/addBound/inline registration.
+	 * The parent may absorb the box into a range only with this proof
+	 * (absorbing a box that holds deferredBind would leave nobody to bind/close its lease).
 	 */
 	public final boolean isUnattachedForParentRange() {
 		return this.deferredBind == null;
@@ -98,20 +98,20 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		{
 			double lineAxis;
 			if (this.params.flow.isVertical()) {
-				// 縦書き
+				// Vertical writing
 				lineAxis = cHeight;
 			} else {
-				// 横書き
+				// Horizontal writing
 				lineAxis = cWidth;
 			}
 
 			//
-			// ■ パディングの計算
+			// ■ Calculate padding
 			//
 			LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineAxis);
 
 			//
-			// ■ マージンの計算
+			// ■ Calculate margins
 			//
 			LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineAxis);
 		}
@@ -123,16 +123,16 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		final boolean vertical = flow.isVertical();
 		final double cLine = vertical ? cHeight : cWidth;
 		//
-		// ■ 絶対配置または固定配置の行方向幅の計算 (CSS2.1 10.3.7)
+		// ■ Calculate the line-axis size for absolute or fixed positioning (CSS2.1 10.3.7)
 		//
 		double size = LayoutUtils.computeDimensionLine(this.size, flow, cLine);
 		if (this.params.boxSizing == BoxSizingMode.BORDER_BOX && !LayoutUtils.isNone(size)) {
 			size -= this.frame.getBorderLineExtent(flow);
 		}
-		// 固有寸法キーワード(2026-08-29)。引数無しfit-contentはautoの
-		// shrink-to-fit(CSS2.1 §10.3.7)そのものなのでAbsoluteSizingに任せ、
-		// それ以外はここで長さへ解いて指定幅として渡す。min/maxの
-		// fit-contentの上限は包含ブロック幅からフレームを引いた近似
+		// Intrinsic sizing keywords (2026-08-29). fit-content without an argument is exactly
+		// auto shrink-to-fit (CSS2.1 §10.3.7), so delegate it to AbsoluteSizing.
+		// Resolve other values to lengths here and pass them as the specified width. For min/max,
+		// approximate the fit-content upper bound as the containing block width minus the frame.
 		final double availableLine = cLine - this.frame.getFrameLineExtent(flow);
 		final net.zamasoft.foliojet.layout.box.params.IntrinsicSize intrinsic = this.params.intrinsicLine;
 		if (intrinsic != null && (intrinsic.kind() != net.zamasoft.foliojet.layout.box.params.IntrinsicSize.Kind.FIT_CONTENT
@@ -163,7 +163,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 				(vertical ? margin.getBottomType() : margin.getRightType()) == LengthType.AUTO, //
 				this.frame.getFrameLineExtent(flow), //
 				minLineAxis, maxLineAxis));
-		// 交差軸(ページ方向)のマージン: auto は未解決(NONE)のままにする
+		// Cross-axis (page-axis) margins: leave auto unresolved (NONE).
 		final double crossStart = (vertical ? margin.getLeftType() : margin.getTopType()) == LengthType.AUTO
 				? LayoutUtils.NONE
 				: (vertical ? amargin.left : amargin.top);
@@ -194,18 +194,19 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	}
 
 	/**
-	 * 保留していた本文を結び付けます。{@link #finishLayoutSelf}が呼ぶほか、
-	 * ページ確定時の脚注の呼び出し走査({@code RootBuilder.scanFootnoteCalls})が
-	 * <b>finishLayoutより先に</b>呼ぶ(2026-09-02)——走査はページのfinishLayoutの
-	 * 前に走るので、そのままでは絶対配置の中の呼び出しが見えず、注が次の
-	 * ページへ送られていた。結び付け済みなら何もしない。
+	 * Binds the deferred body content. Called by {@link #finishLayoutSelf} and also
+	 * <b>before finishLayout</b> by the footnote call scan at page finalization
+	 * ({@code RootBuilder.scanFootnoteCalls}) (2026-09-02).
+	 * The scan runs before the page's finishLayout, so otherwise calls inside absolutely
+	 * positioned boxes were invisible and their notes were sent to the next page.
+	 * Does nothing if already bound.
 	 */
 	public final void bindDeferredContent(final IFramedBox containerBox) {
 		if (this.deferredBind != null) {
-			// E-6増分4e: seal済み範囲からのSegmentExecutor駆動bind。
-			// sizesは模倣計測のスナップショット(現行のintrinsicSizesMeasured()
-			// と同値——DeferredBindのjavadoc参照)。リースはbindのfinallyで
-			// 解放される
+			// E-6 increment 4e: SegmentExecutor-driven bind from a sealed range.
+			// sizes is a snapshot of simulated measurements (equivalent to the current intrinsicSizesMeasured();
+			// see the DeferredBind Javadoc). The lease is released in the bind's finally
+			// block.
 			this.shrinkToFit(containerBox, this.deferredBind.sizes());
 			final BlockBuilder absoluteBuilder = new BlockBuilder(this.deferredBind.pageContext(), this);
 			final RetainedTextLimit limit = RetainedTextLimit.get(absoluteBuilder);
@@ -219,27 +220,28 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	}
 
 	/**
-	 * 頁方向の内寸が中身に依らず決まる(大きさの指定、または両端の位置の指定。CSS2.1 10.6.4)ときの
-	 * その値。決まらなければ {@link LayoutUtils#NONE}(2026-10-04)。
+	 * The inner page-axis size when it is independent of the contents (a specified size or positions
+	 * at both ends; CSS2.1 10.6.4). {@link LayoutUtils#NONE} if undetermined (2026-10-04).
 	 *
 	 * <p>
-	 * 中の置換要素の % の高さ(縦書きは幅)はこれを基準に解く({@code LayoutUtils})。箱の頁方向の
-	 * 大きさは中身を組んだ後で決まり、組んでいるあいだは 0 なので、{@code height: 100%} の画像が 0 に
-	 * なって描かれなかった(出版の表紙のひな形、枠の中の絵)。箱の大きさそのものは組む前に入れない
-	 * (縦書きの段組が頁方向の大きさを読んで段の置き方を変えた)。
+	 * Percentage heights (widths in vertical writing) of replaced elements inside use this as their
+	 * basis ({@code LayoutUtils}). The box's page-axis size is finalized after laying out its contents
+	 * and is 0 during layout, so {@code height: 100%} images became 0 and were not drawn
+	 * (images inside frames in a publishing cover template). Do not set the box size itself before
+	 * layout (multi-column layout in vertical writing read that page-axis size and changed column placement).
 	 * </p>
 	 */
 	private double definitePageAxis = LayoutUtils.NONE;
 
 	/**
-	 * 頁方向の内寸が中身に依らず決まっていればその値を、決まっていなければ {@link LayoutUtils#NONE}
-	 * を返します。
+	 * Returns the inner page-axis size if it is independent of the contents,
+	 * or {@link LayoutUtils#NONE} if undetermined.
 	 */
 	public final double getDefinitePageAxis() {
 		return this.definitePageAxis;
 	}
 
-	/** 頁方向の内寸が中身に依らず決まっているか。 */
+	/** Whether the inner page-axis size is independent of the contents. */
 	public final boolean isPageAxisDefinite() {
 		return !LayoutUtils.isNone(this.definitePageAxis);
 	}
@@ -266,7 +268,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		this.definitePageAxis = Math.max(0, resolved);
 	}
 
-	/** 頁方向の大きさと位置(CSS2.1 10.6.4)。{@code contentSize}は中身の実寸。 */
+	/** Page-axis size and position (CSS2.1 10.6.4). {@code contentSize} is the actual content size. */
 	private AbsoluteSizing.PageResult resolvePageAxis(final IFramedBox containerBox, final double contentSize) {
 		final double cWidth = containerBox.getInnerWidth() + containerBox.getFrame().padding.getFrameWidth();
 		final double cHeight = containerBox.getInnerHeight() + containerBox.getFrame().padding.getFrameHeight();
@@ -299,12 +301,12 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		this.bindDeferredContent(containerBox);
 
 		//
-		// ■ 絶対配置または固定配置のページ方向幅の計算 (CSS2.1 10.6.4)
-		// 縦横の物理鏡像は AbsoluteSizing.resolvePage に統合(忠実移植)
+		// ■ Calculate the page-axis size for absolute or fixed positioning (CSS2.1 10.6.4)
+		// Consolidated the physical vertical/horizontal mirror cases into AbsoluteSizing.resolvePage (faithful port).
 		//
 		final AbsoluteInsets margin = this.frame.margin;
 		final boolean vertical = this.params.flow.isVertical();
-		// 内容実寸(旧実装の式を忠実に維持: 縦書き側は width 相当)
+		// Actual content size (faithfully preserves the old formula: equivalent to width in vertical writing).
 		final AbsoluteSizing.PageResult result = this.resolvePageAxis(containerBox,
 				vertical ? this.getWidth() - this.frame.getFrameWidth() : this.height);
 
@@ -342,56 +344,55 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		return true;
 	}
 
-	/** 静的位置への退避が発火した回数(定義された振る舞いだが数は知りたい)。 */
+	/** Number of static-position fallbacks (defined behavior, but we want to know how often it occurs). */
 	public static final java.util.concurrent.atomic.AtomicLong FALLBACK_COUNT =
 			new java.util.concurrent.atomic.AtomicLong();
 
 	/**
-	 * <b>包含ブロックを失った絶対配置を静的位置へ落とします</b>
-	 * (2026-08-06、応急処置から仕様へ昇格)。
+	 * <b>Falls back to the static position for an absolutely positioned box that has lost its containing block</b>
+	 * (promoted from a workaround to defined behavior on 2026-08-06).
 	 *
 	 * <p>
-	 * <b>これは「あるはずのない状態の握り潰し」ではなく、この構造で
-	 * 定義された振る舞いである。</b> ストリーミングの版面生成では、確定した
-	 * ページの容器は生き続けない。絶対配置の最終解決は
-	 * {@code containerBox.getInnerWidth()} を必要とする(auto余白・割合)ので、
-	 * 包含ブロックが失われた箱については<b>解くための情報が存在しない</b>。
-	 * DOMを保持するブラウザなら木を歩き直せるが、ここでは歩き直す木が無い。
+	 * <b>This is behavior defined for this structure, not suppression of an "impossible state".</b>
+	 * Streaming type-area generation does not keep containers of finalized pages alive.
+	 * Final resolution of absolute positioning requires {@code containerBox.getInnerWidth()}
+	 * (auto margins and percentages), so a box that has lost its containing block
+	 * <b>no longer has the information needed for resolution</b>.
+	 * A browser retaining a DOM can traverse the tree again; here there is no tree to traverse.
 	 * </p>
 	 *
 	 * <p>
-	 * CSSの側にも寄る辺は無い。「包含ブロックがページを跨いだとき、絶対配置の
-	 * 包含ブロックは何か」は仕様が答えを持たず、ブラウザの印刷実装も割れている。
-	 * したがって<b>正解に合わせるという発想が成り立たない</b>——決めて書くしかない。
+	 * CSS offers no guidance either. The specification does not answer "what is the containing block
+	 * for absolute positioning when the containing block spans pages?", and browser print implementations
+	 * differ. Thus, <b>there is no correct answer to match</b>; we must choose and document the behavior.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>決めた振る舞い</b>: 未解決の余白・寸法を0とみなし、<b>静的位置</b>へ置く。
-	 * 恣意的な0埋めではなく、CSSがoffset autoに与える答え(静的位置)と地続きで
-	 * ある。変換は失敗させない(絶対要件)。
+	 * <b>Chosen behavior</b>: treat unresolved margins and dimensions as 0 and place the box at its
+	 * <b>static position</b>. This is not arbitrary zero filling; it follows CSS's answer for offset auto
+	 * (the static position). Do not fail the conversion (an absolute requirement).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>これで覆えるのは片方だけ</b>という点に注意。走査から落ちる容器では
-	 * {@code finishLayoutSelf} の仕事がすべて飛ぶが、実際に仕事をするのは
-	 * 2種類しかない——絶対配置の解決(ここ)と、
-	 * {@code position:relative} のずらし量。後者は<b>包含ブロックを必要としない</b>
-	 * ので走査に預ける理由が無く、2026-08-06に描画直前でも確定させるようにした
-	 * ({@code AbstractContainerBox.resolveRelativeOffset})。
+	 * Note that <b>this covers only one of the two cases</b>. A container omitted from traversal skips
+	 * all {@code finishLayoutSelf} work, but only two kinds do actual work: resolving absolute positioning
+	 * (here) and offsets for {@code position:relative}. The latter <b>does not need a containing block</b>,
+	 * so there is no reason to rely on traversal. On 2026-08-06, it was changed to also finalize offsets
+	 * immediately before drawing ({@code AbstractContainerBox.resolveRelativeOffset}).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>発火は数える</b>({@link #FALLBACK_COUNT})。定義された振る舞いでも、
-	 * どれだけ踏んでいるかを知らないまま放置しない。実測(2026-08-06)では
-	 * 実物大コーパス235文書のうち{@code github-readme}の16件だけだった。
+	 * <b>Count each occurrence</b> ({@link #FALLBACK_COUNT}). Even for defined behavior, do not leave
+	 * its frequency unknown. Measurements (2026-08-06) found only 16 occurrences in
+	 * {@code github-readme} among 235 full-scale corpus documents.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>直せるならなお良い</b>: 容器が走査から落ちる仕組みは未特定で、
-	 * 仮説を3つ実測で潰してある(継続断片・走査後の登録・C1c吸収のいずれも
-	 * 誤り)。塞げれば静的位置への退避は発火しなくなる。ただし
-	 * <b>塞いだあともこの退避は残すこと</b>——別の経路で同じ状況が起きても
-	 * 変換を止めないための最後の砦である。
+	 * <b>Fixing the cause would still be better</b>: the mechanism that omits containers from traversal
+	 * is unidentified. Measurements ruled out three hypotheses (continuation fragments, registration
+	 * after traversal, and C1c absorption). Fixing it would stop static-position fallbacks.
+	 * However, <b>retain this fallback after fixing it</b>; it is the last safeguard against stopping
+	 * conversion if another path causes the same situation.
 	 * </p>
 	 */
 	private void resolveUnfinishedMargins() {
@@ -426,13 +427,13 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			java.util.Deque<DrawStep> worklist) {
 		this.resolveUnfinishedMargins();
 		if (this.getAbsolutePos().fiducial != Fiducial.CONTEXT && !pageBox.isReplayPage()) {
-			// position:fixedはビューポート(=版面)に貼り付き、ビューポートの
-			// 外はスクロールしても到達できないためブラウザは4辺とも描かない。
-			// クリップしないと、負座標へ退避したoff-canvas UI(kanaloco.jpの
-			// #site-menuドロワー等)の端が用紙余白に描かれる(2026-08-09)。
-			// フロー内容には適用しない——印刷のブリード・トンボ・表の
-			// 境界は版面の外に描くのが正当(imageTestのmarks/border-collapse
-			// 群で実測)
+			// position:fixed attaches to the viewport (= type area). Since scrolling cannot reach
+			// outside the viewport, browsers do not draw beyond any of its four edges.
+			// Without clipping, edges of off-canvas UI moved to negative coordinates (such as kanaloco.jp's
+			// #site-menu drawer) appear in the paper margins (2026-08-09).
+			// Do not apply this to flow content: print bleed, crop marks, and table
+			// borders legitimately draw outside the type area (observed in imageTest's marks/border-collapse
+			// groups).
 			final java.awt.geom.Rectangle2D.Double icb = new java.awt.geom.Rectangle2D.Double(0, 0,
 					pageBox.getWidth(), pageBox.getHeight());
 			clip = clip == null ? icb : icb.createIntersection((java.awt.geom.Rectangle2D) clip);
@@ -445,7 +446,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 
 		this.frames(pageBox, drawer, clip, transform, x, y);
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
-			// 負の z-index の子はここまで(自分の背景・枠)の後、残りの内容の前に描く(Appendix E ③)
+			// Draw children with negative z-index after this box's background/border and before other content (Appendix E ③).
 			drawer.markOwnDecorationEnd();
 		}
 		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);

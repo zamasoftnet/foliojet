@@ -77,15 +77,15 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
 /**
- * EPubをフォーマットします。
+ * Formats EPub.
  *
  * <p>
- * 出力が{@link MultiDocumentOutput}(Paged SVG)なら、spine項目を<b>独立した
- * 文書として</b>組む({@link #formatDocuments})。項目ごとに子のUAを開いて
- * 自分のパス駆動を回し、並列に走らせられる。結果は親がspine順に解放する。
- * それ以外の出力(PDF・画像)は従来どおり1つのUAへ全項目を順に流す
- * ({@link #format})。どちらでも項目は必ず新しいページから始まる
- * (各項目の最後のページはその項目の終わりで閉じられる——2026-09-02に実測)。
+ * If the output is {@link MultiDocumentOutput} (Paged SVG), lays out spine items <b>as independent
+ * documents</b> ({@link #formatDocuments}). Opens a child UA for each item,
+ * which drives its own passes and can run in parallel. The parent releases results in spine order.
+ * Other output formats (PDF and images) feed all items sequentially to a single UA as before
+ * ({@link #format}). In either case, each item always starts on a new page
+ * (the last page of each item closes at that item's end, as measured on 2026-09-02).
  * </p>
  */
 public class EPubFormatter implements MultiDocumentFormatter {
@@ -97,8 +97,8 @@ public class EPubFormatter implements MultiDocumentFormatter {
 			"x.net.zamasoft.foliojet.formatter.impl.epub.replace-numbers", false);
 
 	/**
-	 * EPUBの中身がディレクトリとして与えられることを示すMIME型です。
-	 * ZIPを送らず、必要な項目だけを基底URIの下から取ります。
+	 * The MIME type indicating that EPUB content is supplied as a directory.
+	 * Retrieves only the required items under the base URI without sending a ZIP.
 	 */
 	public static final String DIRECTORY_MEDIA_TYPE = "application/epub+directory";
 
@@ -109,7 +109,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 			if (uri.length() >= 5 && uri.substring(uri.length() - 5).equalsIgnoreCase(".epub")) {
 				return true;
 			}
-			// ディレクトリ形式。末尾が「.epub/」なら拡張子指定だけで選べる
+			// Directory format. A ".epub/" suffix allows selection by extension alone
 			if (uri.length() >= 6 && uri.substring(uri.length() - 6).equalsIgnoreCase(".epub/")) {
 				return true;
 			}
@@ -118,10 +118,10 @@ public class EPubFormatter implements MultiDocumentFormatter {
 					&& (mimeType.equals("application/epub+zip") || mimeType.equals(DIRECTORY_MEDIA_TYPE))) {
 				return true;
 			}
-			// 拡張子も型も EPUB を名乗らない入力(URL 入力で application/octet-stream 等)は、
-			// 中身が ZIP で先頭項目 mimetype が application/epub+zip なら EPUB と見る
-			// (2026-09-02、cti.li の申し送り——HTML として読み続けて終わらなかった)。
-			// 覗けるのはファイルに実体のある入力だけ(ストリームは消費してしまう)
+			// For input whose extension and type do not identify it as EPUB (e.g., a URL with application/octet-stream),
+			// treat it as EPUB if it is a ZIP whose first item, mimetype, contains application/epub+zip
+			// (2026-09-02, cti.li handoff: it kept reading the input as HTML and never finished).
+			// Only inspect input backed by a file (inspection would consume a stream)
 			if (source.isFile() && looksLikeEpub(source.getFile())) {
 				return true;
 			}
@@ -131,7 +131,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		return false;
 	}
 
-	/** ZIP のローカルヘッダと、OCF が先頭に置く {@code mimetype} 項目(無圧縮)を見ます。 */
+	/** Inspects the ZIP local header and the uncompressed {@code mimetype} item that OCF places first. */
 	static boolean looksLikeEpub(final java.io.File file) {
 		if (file == null || !file.isFile()) {
 			return false;
@@ -148,7 +148,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		if (n < 40 || head[0] != 0x50 || head[1] != 0x4B || head[2] != 0x03 || head[3] != 0x04) {
 			return false;
 		}
-		// ローカルヘッダ: 名前の長さ(26-27)・拡張の長さ(28-29)、名前(30-)、拡張、データ
+		// Local header: name length (26-27), extra field length (28-29), name (30-), extra field, data
 		final int nameLen = (head[26] & 0xFF) | ((head[27] & 0xFF) << 8);
 		final int extraLen = (head[28] & 0xFF) | ((head[29] & 0xFF) << 8);
 		final String s = new String(head, 0, n, java.nio.charset.StandardCharsets.ISO_8859_1);
@@ -165,9 +165,9 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		case DOUBLE_SIDE:
 		case LEFT_SIDE:
 		case RIGHT_SIDE:
-			// 両面
+			// Double-sided
 			if (leftBind) {
-				// 横書き
+				// Horizontal writing
 				if (pageElement == null) {
 					pageElement = CSSElement.PAGE_FIRST_RIGHT;
 				} else if (pageElement == CSSElement.PAGE_FIRST_RIGHT) {
@@ -178,7 +178,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 					pageElement = CSSElement.PAGE_LEFT_EVEN;
 				}
 			} else {
-				// 縦書き
+				// Vertical writing
 				if (pageElement == null) {
 					pageElement = CSSElement.PAGE_FIRST_LEFT;
 				} else if (pageElement == CSSElement.PAGE_FIRST_LEFT) {
@@ -192,7 +192,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 			break;
 
 		case SINGLE_SIDE:
-			// 片面
+			// Single-sided
 			if (pageElement == null) {
 				pageElement = CSSElement.PAGE_SINGLE_FIRST;
 			} else {
@@ -206,12 +206,12 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		return pageElement;
 	}
 
-	/** 項目のパスから実体を開きます。ZIPとディレクトリで違うのはここだけです。 */
+	/** Opens an item by its path. This is the only difference between ZIP and directory input. */
 	private interface EntryOpener {
 		Source open(URI path, String mediaType) throws IOException;
 	}
 
-	/** 開いたEPUBに対して行う処理。 */
+	/** An operation on an open EPUB. */
 	private interface Body {
 		void run(EPubFile epub, Contents contents, EntryOpener opener) throws Exception;
 	}
@@ -228,17 +228,17 @@ public class EPubFormatter implements MultiDocumentFormatter {
 	}
 
 	/**
-	 * EPUBを開き(ZIPまたはディレクトリ)、資源の解決をUAへ据えてから本体を走らせます。
-	 * 失敗は種類を保って伝えます——中断と変換例外はそのまま、それ以外はプラグインの
-	 * 失敗として包む。
+	 * Opens an EPUB (ZIP or directory), sets resource resolution on the UA, then runs the main operation.
+	 * Preserves failure types: propagates abort and conversion exceptions unchanged,
+	 * and wraps other exceptions as plugin failures.
 	 */
 	private void withArchive(final Source source, final UserAgent ua, final Body body)
 			throws AbortException, TranscoderException {
 		try {
 			if (isDirectory(source)) {
 				final URI base = toDirectoryURI(source.getURI());
-				// EPUB内部は相対URIで参照し合う。ZIPの zip: スキームと同じ役目を
-				// 「基底URIへの相対解決」が果たす
+				// References within an EPUB use relative URIs. Resolution relative to the base URI
+				// serves the same role as the zip: scheme for ZIP input
 				final BaseURISourceResolver entries = new BaseURISourceResolver(ua.getSourceResolver(), base);
 				final CompositeSourceResolver resolver = new CompositeSourceResolver();
 				resolver.setDefaultSourceResolver(entries);
@@ -266,7 +266,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 			}
 			try {
 				try (final ZipFile zip = new ZipFile(epubFile)) {
-					// データ源をZIPファイルに設定
+					// Set the ZIP file as the data source
 					final CompositeSourceResolver resolver = new CompositeSourceResolver();
 					resolver.addSourceResolver("zip", new ZIPFileSourceResolver(zip));
 					resolver.setDefaultSourceResolver(ua.getSourceResolver());
@@ -303,7 +303,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 	}
 
 	private void open(final ArchiveFile archive, final EntryOpener opener, final Body body) throws Exception {
-		// メタ情報解析
+		// Parse metadata
 		final EPubFile epub = new EPubFile(archive);
 		final Container container = epub.readContainer();
 		final Rootfile root = container.rootfiles[0];
@@ -311,7 +311,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		body.run(epub, contents, opener);
 	}
 
-	/** ページ進行方向を{@code output.print-mode}へ写し、横綴じかどうかを返します。 */
+	/** Maps page progression to {@code output.print-mode} and returns whether the binding is horizontal. */
 	private static boolean applyProgression(final UserAgent ua, final Contents contents) {
 		boolean leftBind = true;
 		switch (contents.pageProgressionDirection) {
@@ -335,7 +335,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		return fullPathToItem;
 	}
 
-	// ---- 従来どおり: 1つのUAへ全項目を順に流す
+	// ---- As before: Feed all items sequentially to a single UA
 
 	private void formatSequential(final Contents contents, final EntryOpener opener, final UserAgent ua)
 			throws Exception {
@@ -350,7 +350,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		}
 	}
 
-	// ---- 項目ごとに独立: 子のUAで並列に組み、spine順に解放する
+	// ---- Independent items: Lay out in parallel with child UAs and release in spine order
 
 	private void formatIndependent(final EPubFile epub, final Contents contents, final EntryOpener opener,
 			final MultiDocumentOutput ua, final int passCount) throws Exception {
@@ -372,7 +372,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 			return;
 		}
 
-		// 項目はspine順に投入する。先頭から先に走るので、解放も早く始まる
+		// Submit items in spine order. Earlier items run first, allowing results to start releasing sooner
 		final int concurrency = Math.min(includedCount, concurrency(ua));
 		final LayoutThreadContext context = LayoutThreadContext.capture();
 		final ExecutorService pool = Executors.newFixedThreadPool(concurrency, r -> {
@@ -392,7 +392,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 					try (AutoCloseable scope = context.apply()) {
 						this.formatItemPasses(child, ir, fullPathToItem, opener, leftBind, passCount);
 					} catch (final TranscoderException | RuntimeException | Error e) {
-						// AbortExceptionはRuntimeException。そのまま通す
+						// AbortException is a RuntimeException. Let it propagate unchanged
 						throw e;
 					} catch (final Exception e) {
 						throw pluginFailure(child, e);
@@ -402,8 +402,8 @@ public class EPubFormatter implements MultiDocumentFormatter {
 			}
 			awaitAll(ua, futures);
 		} finally {
-			// 誰も書いていない状態でしか戻らない。中断でも、子がすべて
-			// 止まるまで待つ(呼び出し側がセッションを閉じたあとに書き続けさせない)
+			// Return only when no writers remain. Even on abort, wait for all children
+			// to stop (prevent writes after the caller closes the session)
 			pool.shutdownNow();
 			boolean interrupted = false;
 			while (true) {
@@ -423,8 +423,8 @@ public class EPubFormatter implements MultiDocumentFormatter {
 	}
 
 	/**
-	 * 全項目の完了を待ちます。最初の失敗で残りを中断し、全部が止まってから
-	 * その失敗を投げる。割り込み(締切)も中断に写し、待ち続ける。
+	 * Waits for all items to finish. On the first failure, aborts the rest and throws that failure
+	 * after all have stopped. Also maps an interrupt (deadline) to an abort and continues waiting.
 	 */
 	private static void awaitAll(final MultiDocumentOutput ua, final List<Future<?>> futures)
 			throws AbortException, TranscoderException {
@@ -474,7 +474,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		}
 	}
 
-	/** 同時に組む項目の数。{@code 0}(既定)はコア数と4の小さいほう。 */
+	/** The number of items to lay out concurrently. {@code 0} (default) uses the smaller of the core count and 4. */
 	private static int concurrency(final UserAgent ua) {
 		final int configured = UAProps.PROCESSING_CONCURRENCY.getInteger(ua);
 		if (configured > 0) {
@@ -484,8 +484,8 @@ public class EPubFormatter implements MultiDocumentFormatter {
 	}
 
 	/**
-	 * 項目1つのパス駆動。{@code DirectSession.format}と同じ順
-	 * (構造走査→中間×n→最終)で、入力はZIPの項目を開き直すので一時ファイルは要らない。
+	 * Drives the passes for one item in the same order as {@code DirectSession.format}
+	 * (structure scan → intermediate × n → final). Reopens the ZIP item for input, so no temporary file is needed.
 	 */
 	private void formatItemPasses(final UserAgent child, final ItemRef ir, final Map<URI, Item> fullPathToItem,
 			final EntryOpener opener, final boolean leftBind, final int passCount) throws Exception {
@@ -511,7 +511,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		child.finish();
 	}
 
-	/** 項目1つを、いま準備されているパスで組みます。 */
+	/** Lays out one item in the currently prepared pass. */
 	private void formatItem(final UserAgent ua, final ItemRef ir, final Map<URI, Item> fullPathToItem,
 			final EntryOpener opener, final boolean leftBind) throws Exception {
 		switch (ir.pageSpread) {
@@ -546,7 +546,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 			try {
 				parser.parse(ua, zSource, entryPoint);
 			} finally {
-				// E-6増分3b-2: spill一時ファイルの清算(冪等)
+				// E-6 increment 3b-2: Clean up spill temporary files (idempotent)
 				transcoderHandler.dispose();
 			}
 		} else {
@@ -555,7 +555,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		}
 	}
 
-	/** 見開きの合わせのための白紙。 */
+	/** A blank page to align facing pages. */
 	private void blankPage(final UserAgent ua) throws IOException {
 		String ws = UAProps.OUTPUT_PAGE_WIDTH.getString(ua);
 		AbsoluteLengthValue wl = ValueUtils.toAbsoluteLength(ua, false, ws);
@@ -573,11 +573,11 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		ua.closePage(gc);
 	}
 
-	// ---- spine の絞り込みと全体の記述
+	// ---- Spine filtering and overall description
 
 	/**
-	 * {@code input.epub.spine}で組む項目を選びます。空なら全部。要素は
-	 * idref・パス・1起点の番号・番号の範囲。どれにも当たらない要素は警告して無視する。
+	 * Selects items to lay out via {@code input.epub.spine}; empty means all items. Entries can be
+	 * idrefs, paths, one-based indices, or index ranges. Warns about and ignores entries that match none of these.
 	 */
 	static boolean[] selectSpine(final UserAgent ua, final Contents contents) {
 		final boolean[] included = new boolean[contents.spine.length];
@@ -663,7 +663,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		}
 	}
 
-	/** 目次(nav/ncx)。読めなければ空。 */
+	/** The table of contents (nav/ncx). Empty if it cannot be read. */
 	private static List<TocEntry> toc(final EPubFile epub, final Contents contents) {
 		try {
 			final Toc toc = epub.readToc(contents);
@@ -691,7 +691,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 				try {
 					uri = URIHelper.create("UTF-8", point.item.fullPath);
 				} catch (final URISyntaxException e) {
-					// 項目のパスが壊れているなら、nav が指すURIのまま
+					// If the item's path is invalid, keep the URI that nav points to
 				}
 			}
 			final String fragment = point.uri == null ? null : point.uri.getFragment();
@@ -700,7 +700,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		return entries;
 	}
 
-	/** EPUBの中身がディレクトリとして与えられているか。 */
+	/** Whether the EPUB content is supplied as a directory. */
 	private static boolean isDirectory(final Source source) {
 		try {
 			final String mimeType = source.getMimeType();
@@ -708,7 +708,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 				return true;
 			}
 		} catch (final IOException e) {
-			// MIME型が取れないならURIで判断する
+			// If the MIME type is unavailable, decide from the URI
 		}
 		final URI uri = source.getURI();
 		if (uri == null) {
@@ -718,7 +718,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		return path != null && path.endsWith("/");
 	}
 
-	/** 末尾を{@code /}に揃えます。相対解決の基点になるためです。 */
+	/** Ensures a trailing {@code /}, since this URI serves as the base for relative resolution. */
 	private static URI toDirectoryURI(final URI uri) {
 		if (uri == null) {
 			throw new IllegalArgumentException("EPUB directory URI is missing");
@@ -742,14 +742,14 @@ class LinkHandler extends DefaultXMLHandlerFilter {
 	}
 
 	/**
-	 * {@code href} が指す項目です。無ければ {@code null}。
+	 * The item referenced by {@code href}, or {@code null} if none exists.
 	 *
 	 * <p>
-	 * 2026-09-02(cti.li の申し送り): 目次の {@code href="3260.xhtml#ix_ACCS 不正アクセス事件"}
-	 * のように空白や日本語を含む断片で {@code URISyntaxException} になり、以前は
-	 * {@code SAXException} で**本全体**が I/O error に落ちていた(PDF でも)。断片は
-	 * 項目の特定に要らないので、まず断片を捨てて解決し直し、それでも駄目なら
-	 * その href だけ書き換えずに続行する。
+	 * 2026-09-02 (cti.li handoff): A table-of-contents fragment containing spaces or Japanese, such as
+	 * {@code href="3260.xhtml#ix_ACCS 不正アクセス事件"}, caused {@code URISyntaxException}. Previously,
+	 * the resulting {@code SAXException} failed **the entire book** with an I/O error (even for PDF).
+	 * The fragment is unnecessary for identifying the item, so first discard it and resolve again.
+	 * If that still fails, continue without rewriting that href.
 	 * </p>
 	 */
 	private Item itemOf(final String ref) {
@@ -761,7 +761,7 @@ class LinkHandler extends DefaultXMLHandlerFilter {
 				try {
 					return this.fullPathToItem.get(URIHelper.resolve("UTF-8", this.base, ref.substring(0, hash)));
 				} catch (URISyntaxException e2) {
-					// 下へ
+					// Continue below
 				}
 			}
 			java.util.logging.Logger.getLogger(LinkHandler.class.getName()).log(Level.FINE,

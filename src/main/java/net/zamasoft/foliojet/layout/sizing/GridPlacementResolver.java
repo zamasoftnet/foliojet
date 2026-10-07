@@ -10,50 +10,48 @@ import net.zamasoft.foliojet.css.value.GridLineValue;
 import net.zamasoft.foliojet.layout.box.params.GridItemSpec;
 
 /**
- * Grid itemの配置解決です(Grid G4a、2026-07-31——
- * consult-codex-2026-07-31-grid-g4.txt Q2/Q3)。boxに依存しない純粋計算。
- * 明示線番号(正負)・span・autoの混在をCSS Grid §8.3.1(競合の正規化)+
- * §8.5(auto-placement)のサブセットで解決する。
+ * Resolves Grid item placement (Grid G4a, 2026-07-31:
+ * consult-codex-2026-07-31-grid-g4.txt Q2/Q3). A pure calculation independent of boxes.
+ * Resolves a mix of explicit line numbers (positive/negative), spans, and auto using a subset of
+ * CSS Grid §8.3.1 (conflict normalization) and §8.5 (auto-placement).
  *
  * <p>
- * 2026-08-29の拡張: {@code grid-auto-flow}の{@code column}
- * (列方向カーソル——行を埋めてから次の列へ。必要な列は暗黙に増える)
- * と{@code dense}(各itemの探索をグリッド先頭から始める)、
- * {@code grid-template-rows}/{@code grid-template-areas}による明示行数
- * (負の行番号の基準)。線名は{@link GridLineNameResolver}で数値化済みの
- * ものを受け取る。
+ * Extensions on 2026-08-29: {@code grid-auto-flow} {@code column} (a column-flow cursor that fills
+ * rows before moving to the next column, adding implicit columns as needed) and {@code dense}
+ * (starts each item's search at the beginning of the grid); explicit row counts from
+ * {@code grid-template-rows}/{@code grid-template-areas} (the basis for negative row numbers).
+ * Receives line names already converted to numbers by {@link GridLineNameResolver}.
  * </p>
  *
  * <p>
- * fail closed(答申Q5): 未対応指定(行フローでexplicit columnの外へ出る
- * 線・span、上限超過等)は例外ではなく{@link Result.Unsupported}を返す
- * ——<b>1件だけauto化してはならない</b>(occupancyとcursorを通じて後続全
- * itemへ伝播する)。呼び出し側はcontainer単位でsource-order配置
- * (G3: col=i%n、row=i/n)へ戻す。行フローの暗黙列は呼び出し側
- * ({@code GridBuilder})が事前にトラックを足して{@code columnCount}へ
- * 含める。
+ * Fail closed (consultation Q5): unsupported specifications (lines/spans outside explicit columns in
+ * row flow, exceeded limits, etc.) return {@link Result.Unsupported} instead of throwing.
+ * <b>Do not turn just one item into auto</b>: occupancy and cursor effects propagate to all subsequent
+ * items. The caller falls back to source-order placement for the entire container
+ * (G3: col=i%n, row=i/n). For implicit columns in row flow, the caller ({@code GridBuilder})
+ * adds tracks beforehand and includes them in {@code columnCount}.
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class GridPlacementResolver {
 
-	/** 行・列・spanの資源防御上限(repeat展開上限と同じ)。 */
+	/** Resource limits for rows, columns, and spans (same as the repeat expansion limit). */
 	public static final int LIMIT = 4096;
 
 	private GridPlacementResolver() {
 		// static
 	}
 
-	/** item 1件の確定area(zero-based track index)。 */
+	/** One item's definite area (zero-based track indices). */
 	public record GridArea(int column, int row, int columnSpan, int rowSpan) {
 	}
 
-	/** 配置結果(source order)。 */
+	/** Placement result (source order). */
 	public record Plan(List<GridArea> areas, int columnCount, int rowCount) {
 	}
 
-	/** 解決結果です。Unsupportedは例外にしない(bind前のフォールバック用)。 */
+	/** Resolution result. Unsupported is not an exception (for fallback before bind). */
 	public sealed interface Result {
 		record Resolved(Plan plan) implements Result {
 		}
@@ -62,40 +60,40 @@ public final class GridPlacementResolver {
 		}
 	}
 
-	/** 未対応理由(観測・テスト用)。 */
+	/** Reasons for unsupported placement (for observation and tests). */
 	public enum Reason {
-		/** explicit gridの外の線・span(implicit columnが必要)。 */
+		/** Lines/spans outside the explicit grid (requires implicit columns). */
 		NEEDS_IMPLICIT_COLUMN,
-		/** 行・列・spanの上限超過。 */
+		/** Row, column, or span limit exceeded. */
 		LIMIT_EXCEEDED,
-		/** 負の行番号(明示行が無いGridではサブセット外)。 */
+		/** Negative row number (outside the subset for Grids with no explicit rows). */
 		NEGATIVE_ROW
 	}
 
-	/** 1軸の正規化結果(zero-based開始track。nullはauto)。 */
+	/** Normalized result for one axis (zero-based start track; null means auto). */
 	private record AxisPlacement(Integer definiteStart, int span) {
 	}
 
 	/**
-	 * 全itemの配置を解決します(行フロー・sparse——従来互換)。
+	 * Resolves placement of all items (row flow, sparse; compatible with prior behavior).
 	 *
-	 * @param items       source-orderの各item指定
-	 * @param columnCount explicit列数(正)
-	 * @return 解決結果
+	 * @param items       Item specifications in source order
+	 * @param columnCount Explicit column count (positive)
+	 * @return Resolution result
 	 */
 	public static Result resolve(final List<GridItemSpec> items, final int columnCount) {
 		return resolve(items, columnCount, 0, false, false);
 	}
 
 	/**
-	 * 全itemの配置を解決します(2026-08-29)。
+	 * Resolves placement of all items (2026-08-29).
 	 *
-	 * @param items        source-orderの各item指定(線名は数値化済み)
-	 * @param columnCount  explicit列数(正。行フローの暗黙列は含めて渡す)
-	 * @param explicitRows explicit行数(0なら明示行なし=負の行番号は不可)
-	 * @param columnFlow   {@code grid-auto-flow: column}か
-	 * @param dense        {@code dense}か
-	 * @return 解決結果(列フローでは{@code Plan.columnCount}が使った列数)
+	 * @param items        Item specifications in source order (line names already converted to numbers)
+	 * @param columnCount  Explicit column count (positive; include implicit columns for row flow)
+	 * @param explicitRows Explicit row count (0 means no explicit rows; negative row numbers are disallowed)
+	 * @param columnFlow   Whether {@code grid-auto-flow: column} applies
+	 * @param dense        Whether {@code dense} applies
+	 * @return Resolution result (in column flow, {@code Plan.columnCount} is the number of columns used)
 	 */
 	public static Result resolve(final List<GridItemSpec> items, final int columnCount, final int explicitRows,
 			final boolean columnFlow, final boolean dense) {
@@ -103,11 +101,11 @@ public final class GridPlacementResolver {
 	}
 
 	/**
-	 * 行軸を固定範囲へ制限するsubgrid用の配置です(2026-09-03)。通常どおり
-	 * 仮想implicit行へ配置した後、完成したareaだけを{@code boundRows}行へ
-	 * clampします。
+	 * Placement for subgrid with the row axis restricted to a fixed range (2026-09-03).
+	 * Places into virtual implicit rows as usual, then clamps only the completed areas to
+	 * {@code boundRows} rows.
 	 *
-	 * @param boundRows 返却する行数(1以上)
+	 * @param boundRows Number of rows to return (at least 1)
 	 */
 	public static Result resolve(final List<GridItemSpec> items, final int columnCount, final int explicitRows,
 			final boolean columnFlow, final boolean dense, final int boundRows) {
@@ -129,7 +127,7 @@ public final class GridPlacementResolver {
 				return new Result.Unsupported(i, reason);
 			}
 			cols[i] = (AxisPlacement) col;
-			// 行: 明示行があれば負番号はその末端基準、無ければ不可
+			// Rows: negative numbers are relative to the explicit row end, if present; otherwise disallowed.
 			final Object row = normalizeAxis(spec.rowStart(), spec.rowEnd(), explicitRows > 0 ? explicitRows : -1);
 			if (row instanceof Reason reason) {
 				return new Result.Unsupported(i, reason);
@@ -140,7 +138,7 @@ public final class GridPlacementResolver {
 				return new Result.Unsupported(i, Reason.NEEDS_IMPLICIT_COLUMN);
 			}
 			if (!columnFlow && (c.span > n || (c.definiteStart != null && c.definiteStart + c.span > n))) {
-				// 列の範囲検証(implicit columnは呼び出し側が事前に足す——答申Q5: clamp禁止)
+				// Validate column bounds (the caller adds implicit columns first; consultation Q5: no clamping).
 				return new Result.Unsupported(i, Reason.NEEDS_IMPLICIT_COLUMN);
 			}
 			if (c.span > LIMIT || (c.definiteStart != null && c.definiteStart + c.span > LIMIT)) {
@@ -148,7 +146,7 @@ public final class GridPlacementResolver {
 			}
 			final AxisPlacement r = rows[i];
 			if (boundRows == null && r.definiteStart != null && r.definiteStart < 0) {
-				// span/lineの逆算等で行頭より前へ出た(implicit先頭行は未対応)
+				// Went before the first row, e.g., by calculating backward from span/line (implicit leading rows unsupported).
 				return new Result.Unsupported(i, Reason.NEGATIVE_ROW);
 			}
 			if (r.span > LIMIT || (r.definiteStart != null && r.definiteStart + r.span > LIMIT)) {
@@ -159,7 +157,7 @@ public final class GridPlacementResolver {
 		final GridArea[] areas = new GridArea[items.size()];
 		final Map<Integer, BitSet> occupancy = new HashMap<>();
 
-		// (1) 両軸definite: そのまま配置(重複は許可、source order描画)
+		// (1) Both axes definite: place directly (overlap allowed; render in source order).
 		for (int i = 0; i < items.size(); ++i) {
 			if (cols[i].definiteStart != null && rows[i].definiteStart != null) {
 				areas[i] = new GridArea(cols[i].definiteStart, rows[i].definiteStart, cols[i].span, rows[i].span);
@@ -170,7 +168,7 @@ public final class GridPlacementResolver {
 			final Result result = resolveColumnFlow(items.size(), cols, rows, areas, occupancy, n, explicitRows, dense);
 			return boundRows == null ? result : clampRows(result, boundRows);
 		}
-		// (2) 行definite・列auto: 指定行内のsparse cursor(行ごとに前進のみ。denseは常に先頭から)
+		// (2) Row definite, column auto: sparse cursor in the specified row (only forward per row; dense starts at the beginning).
 		final Map<Integer, Integer> rowCursor = new HashMap<>();
 		for (int i = 0; i < items.size(); ++i) {
 			if (cols[i].definiteStart == null && rows[i].definiteStart != null) {
@@ -180,7 +178,7 @@ public final class GridPlacementResolver {
 					++col;
 				}
 				if (col + cols[i].span > n) {
-					// 行内に空きがない——implicit columnは作らない
+					// No room in the row: do not create implicit columns.
 					return new Result.Unsupported(i, Reason.NEEDS_IMPLICIT_COLUMN);
 				}
 				areas[i] = new GridArea(col, row, cols[i].span, rows[i].span);
@@ -188,8 +186,8 @@ public final class GridPlacementResolver {
 				rowCursor.put(row, col + cols[i].span);
 			}
 		}
-		// (3)(4) 残り(列definite・行auto/両軸auto)をsource orderで
-		// auto-placement cursor(sparse: 戻らない。dense: 毎回先頭から)により配置
+		// (3)(4) Place remaining items (column definite/row auto, or both auto) in source order
+		// with an auto-placement cursor (sparse: never backtrack; dense: start at the beginning each time).
 		int curRow = 0, curCol = 0;
 		for (int i = 0; i < items.size(); ++i) {
 			if (areas[i] != null) {
@@ -200,7 +198,7 @@ public final class GridPlacementResolver {
 				curCol = 0;
 			}
 			if (cols[i].definiteStart != null) {
-				// 列definite: cursor列より戻るなら次行へ
+				// Column definite: move to the next row if this goes backward from the cursor's column.
 				final int col = cols[i].definiteStart;
 				if (col < curCol) {
 					++curRow;
@@ -217,7 +215,7 @@ public final class GridPlacementResolver {
 				curRow = row;
 				curCol = col + cols[i].span;
 			} else {
-				// 両軸auto: cursorから前方の空き矩形を探す
+				// Both axes auto: find a free rectangle ahead of the cursor.
 				int row = curRow, col = curCol;
 				while (true) {
 					if (col + cols[i].span > n) {
@@ -248,7 +246,7 @@ public final class GridPlacementResolver {
 		return boundRows == null ? result : clampRows(result, boundRows);
 	}
 
-	/** 配置後のareaをbounded row axisへclampします。 */
+	/** Clamps placed areas to the bounded row axis. */
 	private static Result clampRows(final Result result, final int boundRows) {
 		if (!(result instanceof Result.Resolved resolved)) {
 			return result;
@@ -267,10 +265,10 @@ public final class GridPlacementResolver {
 	}
 
 	/**
-	 * 列フロー({@code grid-auto-flow: column})の自動配置です(2026-08-29、
-	 * css-grid-1 §8.5を列方向に読み替え)。行数は明示行数と確定配置の
-	 * 行末端の大きいほう(最低1)で固定し、列は必要なだけ暗黙に増える
-	 * ({@code Plan.columnCount}=使った列数)。
+	 * Auto-placement in column flow ({@code grid-auto-flow: column}; 2026-08-29,
+	 * css-grid-1 §8.5 applied in the column direction). Fixes the row count at the larger of
+	 * the explicit row count and the end row of definite placements (at least 1).
+	 * Adds implicit columns as needed ({@code Plan.columnCount}=number of columns used).
 	 */
 	private static Result resolveColumnFlow(final int count, final AxisPlacement[] cols,
 			final AxisPlacement[] rows, final GridArea[] areas, final Map<Integer, BitSet> occupancy, final int n,
@@ -281,7 +279,7 @@ public final class GridPlacementResolver {
 				rowCount = Math.max(rowCount, area.row() + area.rowSpan());
 			}
 		}
-		// (2') 列definite・行auto: 指定列内のカーソル(行方向へ前進。足りなければ暗黙行)
+		// (2') Column definite, row auto: cursor within the specified column (advance through rows; add implicit rows if needed).
 		final Map<Integer, Integer> colCursor = new HashMap<>();
 		for (int i = 0; i < count; ++i) {
 			if (cols[i].definiteStart != null && rows[i].definiteStart == null) {
@@ -299,7 +297,7 @@ public final class GridPlacementResolver {
 				rowCount = Math.max(rowCount, row + rows[i].span);
 			}
 		}
-		// (3')(4') 残り(行definite・列auto/両軸auto)を列方向カーソルで配置
+		// (3')(4') Place remaining items (row definite/column auto, or both auto) with a column-flow cursor.
 		int curRow = 0, curCol = 0, usedColumns = n;
 		for (int i = 0; i < count; ++i) {
 			if (areas[i] != null) {
@@ -311,7 +309,7 @@ public final class GridPlacementResolver {
 				curCol = 0;
 			}
 			if (rows[i].definiteStart != null) {
-				// 行definite: cursor行より戻るなら次列へ
+				// Row definite: move to the next column if this goes backward from the cursor's row.
 				final int row = rows[i].definiteStart;
 				if (row < curRow) {
 					++curCol;
@@ -354,24 +352,25 @@ public final class GridPlacementResolver {
 	}
 
 	/**
-	 * 1軸の正規化です(CSS Grid §8.3.1の競合処理)。戻り値は
-	 * {@link AxisPlacement}または{@link Reason}(未対応)。
+	 * Normalizes one axis (CSS Grid §8.3.1 conflict handling).
+	 * Returns {@link AxisPlacement} or {@link Reason} (unsupported).
 	 *
-	 * @param explicitTracks 負番号の基準となるexplicit track数。負なら
-	 *                       この軸は負番号未対応(行——{@link Reason#NEGATIVE_ROW})
+	 * @param explicitTracks Explicit track count used as the basis for negative numbers.
+	 *                       If negative, this axis does not support negative numbers
+	 *                       (rows: {@link Reason#NEGATIVE_ROW})
 	 */
 	private static Object normalizeAxis(final GridLineValue start, final GridLineValue end,
 			final int explicitTracks) {
 		final Integer startLine = lineIndex(start, explicitTracks);
 		final Integer endLine = lineIndex(end, explicitTracks);
 		if (startLine != null && startLine == Integer.MIN_VALUE || endLine != null && endLine == Integer.MIN_VALUE) {
-			return Reason.NEGATIVE_ROW; // 番兵——行軸の負番号(サブセット外)
+			return Reason.NEGATIVE_ROW; // Sentinel: negative row-axis number (outside the subset).
 		}
 		if (startLine != null && startLine > LIMIT || endLine != null && endLine > LIMIT) {
 			return Reason.LIMIT_EXCEEDED;
 		}
 		if (startLine != null && endLine != null) {
-			// line / line: 逆順は交換、同一線はend除去でspan 1
+			// line / line: swap if reversed; for the same line, remove end to give span 1.
 			int a = startLine, b = endLine;
 			if (a == b) {
 				return new AxisPlacement(a, 1);
@@ -392,20 +391,21 @@ public final class GridPlacementResolver {
 		if (endLine != null) {
 			if (start.isSpan()) {
 				final int span = Math.min(LIMIT, start.getNumber());
-				return new AxisPlacement(endLine - span, span); // span / line: 逆算
+				return new AxisPlacement(endLine - span, span); // span / line: calculate backward.
 			}
 			return new AxisPlacement(endLine - 1, 1); // auto / line
 		}
-		// 両方auto/span——span/spanはend側を無視(§8.3.1)
+		// Both auto/span: for span/span, ignore the end side (§8.3.1).
 		final int span = start.isSpan() ? Math.min(LIMIT, start.getNumber())
 				: end.isSpan() ? Math.min(LIMIT, end.getNumber()) : 1;
 		return new AxisPlacement(null, span);
 	}
 
 	/**
-	 * 線番号のzero-based線indexです(auto/span/未解決の線名はnull)。負番号は
-	 * explicit末端基準(-1→N)。{@code explicitTracks<0}の軸(行)で
-	 * 負番号なら{@code MIN_VALUE}(番兵——呼び出し側がReasonへ変換)。
+	 * Zero-based line index for a line number (null for auto/span/unresolved line names).
+	 * Negative numbers are relative to the explicit end (-1→N).
+	 * A negative number on an axis (rows) with {@code explicitTracks<0} returns {@code MIN_VALUE}
+	 * (a sentinel that the caller converts to Reason).
 	 */
 	private static Integer lineIndex(final GridLineValue value, final int explicitTracks) {
 		if (value.isAuto() || value.isSpan() || value.isNamed()) {
@@ -418,7 +418,7 @@ public final class GridPlacementResolver {
 		if (explicitTracks < 0) {
 			return Integer.MIN_VALUE;
 		}
-		// -K → 1-based線N+2-K → zero-based N+1-K(-1=末端線N、-2=N-1)
+		// -K → 1-based line N+2-K → zero-based N+1-K (-1=end line N, -2=N-1).
 		return explicitTracks + 1 + number;
 	}
 

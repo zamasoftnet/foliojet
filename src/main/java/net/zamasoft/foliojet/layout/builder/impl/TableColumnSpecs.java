@@ -4,8 +4,8 @@ import net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox;
 import net.zamasoft.foliojet.layout.sizing.FixedColumnWidths;
 
 /**
- * colgroup 構造から固定レイアウトの列指定を組み立てるヘルパです。
- * IncrementalTableBuilder / RetainedTableBuilder で共有します。
+ * Helper that builds fixed-layout column specifications from a colgroup structure.
+ * Shared by IncrementalTableBuilder / RetainedTableBuilder.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -15,10 +15,10 @@ final class TableColumnSpecs {
 	}
 
 	/**
-	 * colgroup 配下の列数(span 込み)を数えます。
+	 * Counts columns under colgroup (including spans).
 	 *
-	 * @param root 列グループのルート
-	 * @return 列数
+	 * @param root the column group root
+	 * @return the number of columns
 	 */
 	static int countColumns(TableColumnGroupBox root) {
 		final int[] count = { 0 };
@@ -27,14 +27,14 @@ final class TableColumnSpecs {
 	}
 
 	/**
-	 * colgroup 由来の列指定を組み立てます。
+	 * Builds column specifications from colgroup.
 	 *
-	 * @param root            列グループのルート
-	 * @param columnCount     列数
-	 * @param refSize         %指定の基準寸法
-	 * @param separateSpacing 分離境界モデルの場合に各指定へ加算する境界間隔
-	 *                        (それ以外は0)
-	 * @return 列指定(AUTO は null)
+	 * @param root            the column group root
+	 * @param columnCount     the number of columns
+	 * @param refSize         the reference size for % values
+	 * @param separateSpacing border spacing added to each specification in the separate border model
+	 *                        (0 otherwise)
+	 * @return column specifications (null for AUTO)
 	 */
 	static FixedColumnWidths.Spec[] colgroupSpecs(TableColumnGroupBox root, int columnCount, double refSize,
 			double separateSpacing) {
@@ -47,8 +47,8 @@ final class TableColumnSpecs {
 					false);
 			case RELATIVE -> new FixedColumnWidths.Spec(
 					refSize * column.getInnerTableParams().size.getLength() + separateSpacing, true);
-			// calc()による絶対長さと割合の混在(例: calc(50% + 10px))。refSizeは
-			// この時点で既に確定しているため、ABSOLUTEと同様に確定値として扱う。
+			// Mixed absolute lengths and percentages in calc() (e.g., calc(50% + 10px)). refSize is already
+			// resolved at this point, so treat this as a resolved value, just like ABSOLUTE.
 			case MIXED -> new FixedColumnWidths.Spec(column.getInnerTableParams().size.getLength()
 					+ refSize * column.getInnerTableParams().size.getRatio() + separateSpacing, false);
 			};

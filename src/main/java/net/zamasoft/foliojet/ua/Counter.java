@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.ua;
 
 /**
- * カウンタです。
- * 
+ * A counter.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class Counter {

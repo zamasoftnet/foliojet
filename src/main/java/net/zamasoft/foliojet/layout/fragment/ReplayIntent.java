@@ -1,23 +1,23 @@
 package net.zamasoft.foliojet.layout.fragment;
 
-/** 本配置と、本文を消費しない一時計測を区別します。 */
+/** Distinguishes final placement from temporary measurement that does not consume the body. */
 public enum ReplayIntent {
 	MAIN, MEASURE;
 
 	private static final ThreadLocal<Scope> CURRENT = new ThreadLocal<>();
 
-	/** 同期したSTF・Grid・Flex・表のbind連鎖に現在の再生意図を引き継ぎます。 */
+	/** Propagates the current replay intent through synchronous STF/Grid/Flex/table bind chains. */
 	public static ReplayIntent current() {
 		final Scope scope = CURRENT.get();
 		return scope == null ? MAIN : scope.intent;
 	}
 
-	/** MEASUREの内側では、引数省略のbindも本文を消費しません。 */
+	/** Inside MEASURE, even bind calls with the argument omitted do not consume the body. */
 	public Scope enter() {
 		return new Scope(this);
 	}
 
-	/** 再生意図の動的スコープ。呼び出しスレッド内でLIFOに閉じます。 */
+	/** Dynamic scope for replay intent. Close in LIFO order on the calling thread. */
 	public static final class Scope implements AutoCloseable {
 		private final Scope previous;
 		private final ReplayIntent intent;

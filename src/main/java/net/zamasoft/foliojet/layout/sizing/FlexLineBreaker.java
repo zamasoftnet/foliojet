@@ -4,29 +4,28 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Flexの行分割(css-flexbox-1 §9.3 step 5)の純粋計算です(Flex F2a、
- * 2026-08-02——consult-codex-2026-08-02-flexbox.txt)。itemをouter
- * hypothetical main sizeとmain gapで行へ集め、次のitemを足すと
- * コンテナ主軸内寸を超える位置で切る。各行は最低1 item(単体で
- * 超過するitemも自分の行を持つ)。
+ * A pure calculation of Flex line breaks (css-flexbox-1 §9.3 step 5; Flex F2a,
+ * 2026-08-02: consult-codex-2026-08-02-flexbox.txt). Collects items into lines using outer
+ * hypothetical main sizes and main gaps, breaking when the next item would exceed the container's
+ * inner main size. Each line contains at least one item (an item that overflows alone gets its own line).
  *
  * <p>
- * 境界は「超えたら切る」(&gt;)——ちょうど収まる(==)は同じ行に残す。
- * 浮動小数の等値ぎわは{@code EPSILON}で「ちょうど」側へ倒す
- * (答申の検証条件: exact fitのFP誤差で行が割れない)。
+ * Breaks only when the size exceeds the limit (&gt;); an exact fit (==) stays on the same line.
+ * Near floating-point equality, {@code EPSILON} favors "exact fit"
+ * (the consultation's validation condition: floating-point error must not break an exact-fit line).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class FlexLineBreaker {
 
-	/** exact fit判定の許容誤差(pt)。 */
+	/** Tolerance for exact-fit detection (pt). */
 	private static final double EPSILON = 1e-6;
 
 	private FlexLineBreaker() {
 	}
 
-	/** 1行の範囲です(from含む・to含まない、ソース順)。 */
+	/** The range of one line (from inclusive, to exclusive; source order). */
 	public record Line(int from, int to) {
 		public int count() {
 			return this.to - this.from;
@@ -34,10 +33,10 @@ public final class FlexLineBreaker {
 	}
 
 	/**
-	 * @param items ソース順のitem計測値
-	 * @param innerMainSize コンテナ主軸内寸
-	 * @param mainGap item間のgap
-	 * @return 行のリスト(空入力は空リスト)
+	 * @param items Item measurements in source order
+	 * @param innerMainSize Container's inner main size
+	 * @param mainGap Gap between items
+	 * @return List of lines (empty for empty input)
 	 */
 	public static List<Line> breakLines(final List<FlexItemMetrics> items, final double innerMainSize,
 			final double mainGap) {

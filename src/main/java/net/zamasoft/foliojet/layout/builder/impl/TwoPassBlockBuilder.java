@@ -35,11 +35,11 @@ import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
 
 public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
-	/** 計測中の状態と、確定後の再生元。計測中は本文を保持しない。 */
+	/** State during measurement and the replay source after finalization. No body is retained during measurement. */
 	private sealed interface ReplayBody {
 		record Measuring() implements ReplayBody { }
 
-		/** アンカーなしの独立再生。展開済みイベントだけを保持し、recordsもリースも持ちません。 */
+		/** Standalone replay without an anchor. Retains only expanded events, with no records or lease. */
 		final class ReplayOnly implements ReplayBody {
 			final net.zamasoft.foliojet.layout.builder.PageGenerator pageGenerator;
 			List<SegmentEvent> events = new ArrayList<>();
@@ -53,38 +53,36 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 
 		/**
-		 * LayoutSourceの子イベント範囲 [fromId, toId] による本文です。
-		 * bindは{@code SourceReplayer.bindTwoPassRange}(SegmentExecutor
-		 * 駆動)で行われ、範囲はseal時に取得した{@code RetentionLease}が
-		 * compactから守る。リースの終端はRangeHandleが一度だけ受け付ける。
+		 * A body represented by a child event range [fromId, toId] in LayoutSource.
+		 * Binds via {@code SourceReplayer.bindTwoPassRange} (driven by SegmentExecutor); the
+		 * {@code RetentionLease} acquired at seal protects the range from compaction.
+		 * RangeHandle accepts lease termination exactly once.
 		 */
 		record SourceRangeBody(RangeHandle handle,
 				net.zamasoft.foliojet.layout.builder.PageGenerator pageGenerator) implements ReplayBody {
 		}
 
 		/**
-		 * seal済み本文を{@link DeferredBind}へ持ち出した後の状態です
-		 * (E-6増分4e)。リースの所有はDeferredBindへ移っており、この
-		 * ビルダーへのbind要求は契約違反(このビルダー経由のbindは
-		 * 以後起きない——deferred absoluteのbindはDeferredBindが担う)。
+		 * State after transferring a sealed body to {@link DeferredBind} (E-6 increment 4e).
+		 * DeferredBind now owns the lease. A bind request to this builder violates the contract
+		 * (no further bind goes through this builder; DeferredBind handles binding deferred absolutes).
 		 */
 		record Detached() implements ReplayBody {
 		}
 
-		/** 空本文。MAIN bindは一度だけ受け付け、リースは不要。 */
+		/** An empty body. Accepts MAIN bind exactly once; no lease is needed. */
 		final class Empty implements ReplayBody {
 			boolean consumed;
 		}
 
 		/**
-		 * 親のrange化に吸収された後の状態です(DP増分3、2026-07-30——
-		 * codex相談 consult-codex-2026-07-30-dualpath-endgame.txt
-		 * NESTED_BUILDER解消)。親の{@code SourceRangeBody}が子の範囲を
-		 * 包含し、bindは親の範囲再生(SegmentExecutor)が子の内容ごと
-		 * 再構築する——このビルダーへのbind要求は契約違反
-		 * ({@link Detached}と同じ扱い)。子が保持していたリースは吸収時に
-		 * 解放済み(親リースが先に取得されているためcompact可能水位は
-		 * 後退しない)。
+		 * State after subsumption into the parent's range (DP increment 3, 2026-07-30;
+		 * codex consultation consult-codex-2026-07-30-dualpath-endgame.txt,
+		 * NESTED_BUILDER elimination). The parent's {@code SourceRangeBody} includes the child range,
+		 * and parent range replay (SegmentExecutor) reconstructs the child content during bind.
+		 * A bind request to this builder violates the contract (treated like {@link Detached}).
+		 * The child's lease was released on subsumption (the parent lease was acquired first,
+		 * so the compaction watermark does not move backward).
 		 */
 		record Subsumed() implements ReplayBody {
 		}
@@ -92,12 +90,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 
 	/**
-	 * seal済み本文と固有寸法の持ち出し形。絶対配置・表セル・Grid/Flex項目が
-	 * 計測builderを保持せずに再生するために使う。空本文と独立再生も運べる。
+	 * Transferable form of a sealed body and intrinsic sizes. Absolute positioning, table cells,
+	 * and Grid/Flex items use it to replay without retaining the measurement builder.
+	 * It can also carry an empty body or standalone replay.
 	 *
-	 * <p>sizesはIntrinsicMeasurerのスナップショット。範囲のリースは
-	 * MAIN bind、親への吸収、文書終了時の破棄のいずれかで一度だけ解放する。
-	 * scratch計測は元の本文を消費しない。</p>
+	 * <p>sizes is a snapshot of IntrinsicMeasurer. The range lease is released exactly once,
+	 * on MAIN bind, subsumption into the parent, or disposal at document end.
+	 * Scratch measurement does not consume the original body.</p>
 	 */
 	public static final class DeferredBind {
 		private final RootBuilder pageContext;
@@ -112,8 +111,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				final ContinuationStats.TwoPassCensusTag censusTag, final java.util.Set<Long> ownedAbsoluteAnchors) {
 			this.pageContext = pageContext;
 			this.handle = body instanceof ReplayBody.SourceRangeBody range ? range.handle() : null;
-			// 範囲本文はhandleが正本。持ち出し後にSourceRangeBodyと寸法の
-			// 二つ目のsnapshotを全セル分保持しない。
+			// The handle is authoritative for a range body. Do not retain a second SourceRangeBody
+			// and sizes snapshot for every cell after transfer.
 			this.body = this.handle == null ? body : null;
 			this.sizes = this.handle == null ? sizes : this.handle.sizes();
 			this.pageGenerator = body instanceof ReplayBody.SourceRangeBody range ? range.pageGenerator() : null;
@@ -121,20 +120,20 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			this.ownedAbsoluteAnchors = java.util.Set.copyOf(ownedAbsoluteAnchors);
 		}
 
-		/** 固有寸法(模倣計測のスナップショット——クラスjavadoc参照)。 */
+		/** Intrinsic sizes (a snapshot of simulated measurement; see the class javadoc). */
 		public IntrinsicSizes sizes() {
 			return this.sizes;
 		}
 
-		/** bind用のページ文脈({@code new BlockBuilder(pageContext, box)}の第1引数)。 */
+		/** Page context for bind (the first argument to {@code new BlockBuilder(pageContext, box)}). */
 		public RootBuilder pageContext() {
 			return this.pageContext;
 		}
 
 		/**
-		 * seal済み範囲を{@code builder}へ再駆動します
-		 * ({@link TwoPassBlockBuilder#bind}のSourceRangeBody armと同型。
-		 * リースは完了・失敗を問わず解放する)。
+		 * Redrives the sealed range into {@code builder}
+		 * (equivalent to the SourceRangeBody arm of {@link TwoPassBlockBuilder#bind};
+		 * releases the lease on both success and failure).
 		 */
 		public void bind(final BlockBuilder builder) {
 			if (ReplayIntent.current() == ReplayIntent.MEASURE) {
@@ -163,18 +162,18 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			}
 		}
 
-		/** 範囲本文の所有ハンドル。空本文・独立再生ではnull。 */
+		/** Ownership handle for a range body. null for an empty body or standalone replay. */
 		public RangeHandle handle() {
 			return this.handle;
 		}
 
 		/**
-		 * 表Pass B(行計測)用にseal済み範囲を{@code builder}へ再駆動します
-		 * (E-6増分5b-1、2026-07-24——codex設計§4.4)。{@link #bind}と同じ
-		 * SegmentExecutor駆動だが、<b>リースを解放しない</b>(後続の本bindが
-		 * 同じ範囲をもう一度captureする——captureはslice自身のリースを都度
-		 * 取得・解放する非破壊読み)。統計(TWO_PASS_RANGE_BINDS)も計上しない
-		 * (seal:bind 1:1検証を汚さない)。
+		 * Redrives the sealed range into {@code builder} for table Pass B (row measurement)
+		 * (E-6 increment 5b-1, 2026-07-24; codex design §4.4). Uses the same SegmentExecutor as
+		 * {@link #bind}, but <b>does not release the lease</b> (the subsequent actual bind captures
+		 * the same range again; capture is a nondestructive read that acquires and releases its
+		 * slice's own lease each time). Does not count statistics (TWO_PASS_RANGE_BINDS) either
+		 * (to avoid distorting the seal:bind 1:1 validation).
 		 */
 		public void measureInto(final BlockBuilder builder) {
 			final RetainedTextLimit limit = RetainedTextLimit.get(builder);
@@ -197,9 +196,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 
 		/**
-		 * このseal済み本文が{@code log}上の[from, to]に包含されるかを
-		 * 返します(表吸収=codex増分5、2026-07-30。親range化の検証相が使う
-		 * ——副作用なし)。
+		 * Returns whether this sealed body is contained in [from, to] on {@code log}
+		 * (table subsumption = codex increment 5, 2026-07-30; used by the validation phase
+		 * of parent range conversion, with no side effects).
 		 */
 		boolean within(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long from, final long to) {
 			return this.handle != null && this.handle.state() == RangeHandle.State.OPEN && this.handle.source() == log
@@ -207,7 +206,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 					&& this.handle.fromId() >= from && this.handle.toId() <= to;
 		}
 
-		/** セルのsealで検証済みの所有証明を、包含確認後に親のexact照合へ引き継ぐ。 */
+		/** After checking containment, passes ownership proof validated at cell seal to the parent's exact matching. */
 		boolean collectAbsorbableInto(final net.zamasoft.foliojet.layout.fragment.LayoutSource log,
 				final long from, final long to, final java.util.Set<Long> anchors) {
 			if (this.body instanceof ReplayBody.Empty empty) return !empty.consumed;
@@ -219,11 +218,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 
 		/**
-		 * 親のrange化への吸収です(表吸収=codex増分5のコミット相)。
-		 * ハンドルをSUBSUMEDへ遷移し、seal:bind収支のSUBSUMED側を
-		 * 計上する(セル専用の収支も同じハンドルが計上する)。
-		 * 呼び出し時点で親のリースは取得済みであること
-		 * (compact可能水位の順序契約)。
+		 * Subsumes into the parent's range (commit phase of table subsumption = codex increment 5).
+		 * Transitions the handle to SUBSUMED and records the SUBSUMED side of seal:bind accounting
+		 * (the same handle also records cell-specific accounting).
+		 * The parent lease must already be acquired at the time of the call
+		 * (the ordering contract for the compaction watermark).
 		 */
 		void abandonForParentRange() {
 			if (this.handle != null) this.handle.subsume();
@@ -235,21 +234,17 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	protected final LayoutStack layoutStack;
 
-	/**
-	 * 固有寸法の計測器。本文の給餌を受けて固有寸法だけを求めます。
-	 */
+	/** Intrinsic size measurer. Receives body input and computes intrinsic sizes only. */
 	private final IntrinsicMeasurer measurer = new IntrinsicMeasurer(this);
 
 	private TextImpl text;
 
 	private final List<AbstractContainerBox> flowStack = new ArrayList<AbstractContainerBox>();
 
-	/**
-	 * bind() の再生元。計測中は本文を保持せず、closeで確定する。
-	 */
+	/** Replay source for bind(). Retains no body during measurement; finalizes at close. */
 	private ReplayBody body = new ReplayBody.Measuring();
 
-	/** 子または計画の所有ノードができるまで、空の台帳をセルごとに割り当てない。 */
+	/** Avoid allocating an empty ledger for each cell until a child or plan ownership node exists. */
 	private OwnershipLedger ownershipLedger;
 
 	OwnershipLedger ownershipLedger() {
@@ -285,11 +280,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		};
 	}
 
-	/** 本文の所有遷移を台帳へも通知する。台帳が子の吸収可否を判定する。 */
+	/** Also notifies the ledger of body ownership transitions. The ledger decides whether children can be subsumed. */
 	private void setBody(final ReplayBody body) {
 		this.body = body;
 		if (!(body instanceof ReplayBody.Measuring) && !(body instanceof ReplayBody.ReplayOnly)) {
-			// 計測中のrunと直前pair参照も、確定本文からは保持しない。
+			// Do not retain the measuring run or the preceding pair reference from the finalized body either.
 			this.text = null;
 			this.autospace = null;
 		}
@@ -297,8 +292,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	/**
-	 * 直近のinline-blockの計測token。子の録画が終わってquadが届く時点で
-	 * 固有寸法を読む。本文の再生とは独立している。
+	 * Measurement token for the most recent inline-block. Reads intrinsic sizes when the quad
+	 * arrives after child recording ends. Independent of body replay.
 	 */
 	private record InlineMeasureToken(TwoPass builder) implements TwoPass {
 		@Override
@@ -307,17 +302,17 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 	}
 
-	// quad到着までの対応付け。本文の再生元とは独立した計測token。
+	// Association until the quad arrives. A measurement token independent of the body replay source.
 	private InlineMeasureToken pendingInlineMeasure;
 
 	private boolean hasLayoutContent;
 
-	// seal時にexact照合を通った所有証明。通常の子rangeからも親へ引き継ぐ。
+	// Ownership proof that passed exact matching at seal. Also passes from normal child ranges to their parent.
 	private java.util.Set<Long> rangeOwnedAbsoluteAnchors = java.util.Set.of();
 
 	private final ContinuationStats.TwoPassCensusTag censusTag;
 
-	/** 範囲censusの根の分類。本文の保持には影響しない。 */
+	/** Root classification for the range census. Does not affect body retention. */
 	public void tagRootKind(final ContinuationStats.TwoPassRootKind kind) {
 		if (this.censusTag != null) this.censusTag.rootKind(kind);
 	}
@@ -327,10 +322,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.censusTag = ContinuationStats.newTwoPassCensusTag();
 		this.flowStack.add(containerBox);
 		this.measurer.start(containerBox);
-		// E-6増分1(2026-07-24): ネスト深さのhigh-water観測(読み取りのみ、
-		// 挙動には影響しない)。layoutStack鎖上の連続するTwoPassBlockBuilder
-		// 数を数える(表セル経由のネストはRetainedTableBuilderが親のlayoutStack
-		// を引き継ぐため、この鎖に自然に現れる)
+		// E-6 increment 1 (2026-07-24): observe the nesting depth high-water mark
+		// (read-only, with no effect on behavior). Count consecutive TwoPassBlockBuilders
+		// along the layoutStack chain (nesting through table cells appears naturally here
+		// because RetainedTableBuilder inherits its parent's layoutStack).
 		int depth = 1;
 		for (LayoutStack stack = layoutStack; stack instanceof TwoPassBlockBuilder parent; stack = parent.layoutStack) {
 			++depth;
@@ -339,8 +334,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	/**
-	 * 独立再生の録画を開始します。固有寸法の計測は必要ですが、入力は既に
-	 * 展開済みなので、glyph列・live boxのrecordsを再び保持する必要はありません。
+	 * Starts recording standalone replay. Intrinsic size measurement is needed, but the input
+	 * is already expanded, so glyph sequences and live box records need not be retained again.
 	 */
 	public void startReplayOnly(final net.zamasoft.foliojet.layout.builder.PageGenerator pageGenerator) {
 		if (!(this.body instanceof ReplayBody.Measuring) || this.hasLayoutContent) {
@@ -349,7 +344,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.setBody(new ReplayBody.ReplayOnly(pageGenerator));
 	}
 
-	/** DocumentBuilderの境界判断と同じ順序で、独立イベントを保持します。 */
+	/** Retains standalone events in the same order as DocumentBuilder's boundary decisions. */
 	public void recordReplayOnlyEvent(final SegmentEvent event, final long ordinal) {
 		if (this.body instanceof ReplayBody.ReplayOnly replay) {
 			if (replay.closed) {
@@ -360,7 +355,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 	}
 
-	/** 自分のEndまたは次の兄弟の開始を除き、本文イベントを確定します。 */
+	/** Finalizes body events, excluding its own End or the start of the next sibling. */
 	public void finishReplayOnly(final long ordinal, final boolean includeClosingEvent) {
 		if (this.body instanceof ReplayBody.ReplayOnly replay) {
 			if (replay.closed) {
@@ -374,7 +369,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 	}
 
-	/** 折り畳み後の文字・制御・箱が計測器へ届いたことを記録する。 */
+	/** Records that characters, controls, and boxes after folding have reached the measurer. */
 	private void noteLayoutContent() {
 		if (!(this.body instanceof ReplayBody.Measuring)
 				&& !(this.body instanceof ReplayBody.ReplayOnly)) {
@@ -388,7 +383,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		if (box.getBlockParams().size.getWidthType() != LengthType.AUTO) {
 			return box;
 		}
-		// 両端の位置で頁方向の大きさが決まる絶対配置の箱(2026-10-04)。中の % の大きさの基準にする
+		// Absolute box with page-axis size set by both end positions (2026-10-04). Use as the basis for inner % sizes.
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute
 				&& absolute.getBlockParams().flow.isVertical() && absolute.isPageAxisDefinite()) {
 			return box;
@@ -414,7 +409,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		if (box.getBlockParams().size.getHeightType() != LengthType.AUTO) {
 			return box;
 		}
-		// 両端の位置で頁方向の大きさが決まる絶対配置の箱(2026-10-04)。中の % の大きさの基準にする
+		// Absolute box with page-axis size set by both end positions (2026-10-04). Use as the basis for inner % sizes.
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute
 				&& !absolute.getBlockParams().flow.isVertical() && absolute.isPageAxisDefinite()) {
 			return box;
@@ -496,9 +491,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	/**
-	 * 固有寸法を実レイアウト計測(M2c)で求め、範囲を特定できない場合は
-	 * 旧2パスの模倣計測へフォールバックします。shrinkToFit の全消費者は
-	 * getIntrinsicSizes()(模倣のみ)ではなくこちらを使うこと。
+	 * Obtains intrinsic sizes by actual layout measurement (M2c), falling back to the old two-pass
+	 * simulated measurement if the range cannot be identified. All shrinkToFit consumers must use
+	 * this instead of getIntrinsicSizes() (simulation only).
 	 */
 	public IntrinsicSizes intrinsicSizesMeasured() {
 		final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = this.layoutStack == null ? null
@@ -520,14 +515,15 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	/**
-	 * 直交する子(縦組みの中の横組みの表・ブロックなど)を含むか(2026-10-05)。含むなら模倣計測の行方向の寸法は
-	 * その子の実寸を知らないので、shrink-to-fit の側が一度組んで測り直す({@code DocumentBuilder})。
+	 * Whether there is an orthogonal child (e.g., a table/block in horizontal writing within vertical writing)
+	 * (2026-10-05). If so, simulated line-axis measurement does not know the child's actual size,
+	 * so shrink-to-fit lays it out once and measures again ({@code DocumentBuilder}).
 	 */
 	public boolean hasOrthogonalContent() {
 		return this.measurer.hasOrthogonalContent();
 	}
 
-	/** 直交する子の寄与を除いた模倣計測の固有寸法です。 */
+	/** Intrinsic sizes from simulated measurement, excluding contributions from orthogonal children. */
 	public IntrinsicSizes intrinsicSizesWithoutOrthogonal() {
 		return this.measurer.sizesWithoutOrthogonal();
 	}
@@ -580,10 +576,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public void startFlowBlock(final FlowBlockBox flowBox) {
-		// 通常のフローのブロックボックス
+		// A block box in normal flow.
 		AbstractContainerBox containerBox = this.getFlowBox();
-		// firstPassLayout は計測状態(浮動体アドバンス)を読まないため、
-		// clearFloatAdvance(計測器側)との順序入れ替えは等価。
+		// firstPassLayout does not read measurement state (float advance), so swapping its order
+		// with clearFloatAdvance (on the measurer side) is equivalent.
 		flowBox.firstPassLayout(containerBox);
 		this.measurer.startFlow(flowBox, containerBox);
 
@@ -592,7 +588,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public void endFlowBlock() {
-		// 通常のフローのブロックボックス
+		// A block box in normal flow.
 		AbstractBlockBox flowBox = (AbstractBlockBox) this.flowStack.remove(this.flowStack.size() - 1);
 		this.measurer.endFlow(flowBox);
 		this.noteLayoutContent();
@@ -620,27 +616,27 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	public void addGrid(final net.zamasoft.foliojet.layout.builder.RetainedGrid gridBuilder) {
 		// Grid G3d1/d2(consult-codex-2026-07-31-grid-g3.txt Q3): TwoPass
-		// 宿主では実行計画を台帳に登録し、Gridのcontent-box固有寸法を計測器へ
-		// 伝える(GridBoxのframeはstartFlowBlock→measurer.startFlowの
-		// 通常経路が一度だけ加算する——二重計上防止は答申Q5)。
-		// Gridは常にFLOW配置のためinline-block計測tokenは不要
+		// In the host, register the execution plan in the ledger and pass Grid's intrinsic content-box
+		// sizes to the measurer (the normal startFlowBlock -> measurer.startFlow path adds GridBox's
+		// frame exactly once; preventing double counting is recommendation Q5).
+		// Grid always uses FLOW positioning, so no inline-block measurement token is needed.
 		this.measurer.grid(gridBuilder.getIntrinsicSizes(), gridBuilder.getGridBox());
 		this.noteLayoutContent();
 		this.ownershipLedger().addPlan(gridBuilder, OwnershipLedger.Kind.GRID);
 	}
 
 	public void addFlex(final net.zamasoft.foliojet.layout.builder.RetainedFlex flexBuilder) {
-		// Flex F1f(addGridと同型): 実行計画を台帳に登録し、Flexのcontent-box
-		// 固有寸法を計測器へ伝える(frameは通常経路が一度だけ加算)
+		// Flex F1f (equivalent to addGrid): register the execution plan in the ledger and pass Flex's
+		// intrinsic content-box sizes to the measurer (the normal path adds the frame exactly once).
 		this.measurer.flex(flexBuilder.getIntrinsicSizes(), flexBuilder.getFlexBox());
 		this.noteLayoutContent();
 		this.ownershipLedger().addPlan(flexBuilder, OwnershipLedger.Kind.FLEX);
 	}
 
 	public Builder newBuilder(final AbstractBlockBox stfBox) {
-		// * TODO 絶対幅の場合はBoundContainerContextが使えますが、
-		// * 絶対配置の位置調整を構築後に行わないといけないため
-		// * そのままにしています。
+		// * TODO BoundContainerContext can be used for an absolute width,
+		// * but absolute positioning must be adjusted after construction,
+		// * so leave this as is.
 		final TwoPassBlockBuilder builder = new TwoPassBlockBuilder(this, stfBox);
 		builder.tagRootKind(
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassRootKind.NESTED);
@@ -648,9 +644,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		stfBox.firstPassLayout(box);
 		switch (stfBox.getPos().getType()) {
 		case FLOW:
-			// 書字方向が違う
+			// Different writing directions.
 		case FLOAT:
-			// 浮動体
+			// Float.
 			if (stfBox.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos pageFloat) {
 				this.noteLayoutContent();
 				this.ownershipLedger().addChild(builder, OwnershipLedger.Kind.PAGE_FLOAT);
@@ -667,13 +663,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			break;
 
 		case ABSOLUTE:
-			// 絶対配置
+			// Absolute positioning.
 			this.noteLayoutContent();
 			this.ownershipLedger().addChild(builder, OwnershipLedger.Kind.ABSOLUTE);
 			break;
 
 		case INLINE:
-			// インラインブロック
+			// Inline block.
 			this.pendingInlineMeasure = new InlineMeasureToken(builder);
 			break;
 
@@ -687,29 +683,29 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.measurer.fitFloating(childBuilder);
 	}
 
-	/** ネストしたshrink-to-fitブロックの固有寸法を親の軸へ換算します。 */
+	/** Converts the intrinsic sizes of a nested shrink-to-fit block to the parent's axes. */
 	public void fitBlock(final TwoPassBlockBuilder childBuilder) {
 		this.measurer.fitBlock(childBuilder);
 	}
 
-	/** close時に本文範囲を確定する。不適格は変換を失敗させる。 */
+	/** Finalizes the body range at close. Ineligibility fails the conversion. */
 	public void sealBodyForRangeBind() {
 		this.sealBodyForRangeBind(this.getRootBox().getSourceAnchor(), RangeHandle.ReplayMode.CHILDREN_ONLY);
 	}
 
-	/** 即時配置表のセルcloseだけが文字本文の切り出しを許す。 */
+	/** Only cell close in an immediately placed table allows a text body to be extracted. */
 	void sealCellBodyForRangeBind(final boolean sliceText) {
 		this.sealBodyForRangeBind(this.getRootBox().getSourceAnchor(), RangeHandle.ReplayMode.CHILDREN_ONLY, sliceText);
 	}
 
-	/** 項目closeから呼ぶ。anchorはauthored child、匿名項目では合成Startのもの。 */
+	/** Called from item close. anchor is the authored child, or the synthetic Start for an anonymous item. */
 	void sealBodyForRangeBind(final long anchor, final RangeHandle.ReplayMode mode) {
 		this.sealBodyForRangeBind(anchor, mode, false);
 	}
 
 	private void sealBodyForRangeBind(final long anchor, final RangeHandle.ReplayMode mode, final boolean sliceText) {
 		if (!(this.body instanceof ReplayBody.Measuring)) {
-			return; // 冪等
+			return; // Idempotent.
 		}
 		this.sealAnchor = anchor;
 		if (this.layoutStack == null) {
@@ -723,13 +719,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		final net.zamasoft.foliojet.layout.builder.PageGenerator pageGenerator = root.getPageGenerator();
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = pageGenerator.getLayoutSource();
 		if (log == null) {
-			// scratch計測(MeasurePageGenerator)等、ログを持たない文脈
+			// A context without a log, such as scratch measurement (MeasurePageGenerator).
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.NO_SOURCE);
 			return;
 		}
-		// Opaque記録の種別(表・表キャプション)はendOfが-1になり、ここで
-		// 構造的に不適格になる(fail closed)。絶対配置はE-6増分4eの
-		// recipe記録化でendOfが引けるようになった(NO_RANGE=81の解消)
+		// Opaque record types (tables/table captions) have endOf=-1, making them structurally
+		// ineligible here (fail closed). Absolute positioning gained endOf lookup through
+		// recipe recording in E-6 increment 4e (resolved NO_RANGE=81).
 		final long endId = anchor < 0 ? -1
 				: mode == RangeHandle.ReplayMode.ROOTED_SUBTREE && log.get(anchor) instanceof net.zamasoft.foliojet.layout.fragment.LayoutSource.Replaced
 						? anchor : log.endOf(anchor);
@@ -748,7 +744,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		final long toId = childrenOnly ? endId - 1 : endId;
 		if (toId < fromId) {
 			if (!this.hasLayoutContent) {
-				// ソースも計測内容も空なら、本文を持たない終端とする。
+				// If both the source and measured content are empty, use a terminal state with no body.
 				this.setBody(new ReplayBody.Empty());
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassEmptySeal();
 				if (this.censusTag != null) {
@@ -761,19 +757,19 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 		final boolean opaque = log.containsOpaque(fromId, toId);
 		if (opaque || log.captionSealGate(fromId, toId)) {
-			// containsCaption(caption recipe化C1): キャプションはOpaque記録
-			// からrecipe記録へ移ったが、C2のcontext-complete検証までは
-			// 従来と同じ範囲を同じ理由(OPAQUE_RANGE)で弾く——routing不変。
-			// 旧コメントの「キャプション付き表はOpaque記録のためここが弾く」
-			// はこの分岐が引き継いだ
-			// containsOpaqueは先頭欠落でもtrue。実Opaqueだけがconverterの
-			// NOT_YET_SUPPORTEDに対応する。caption gate自体はBarrierではない。
+			// containsCaption (caption recipe conversion C1): captions moved from Opaque to recipe
+			// records, but until C2's context-complete validation, reject the same ranges for
+			// the same reason (OPAQUE_RANGE); routing is unchanged.
+			// This branch takes over the old comment's rule: reject tables with captions here
+			// because they use Opaque records.
+			// containsOpaque is also true if the start is missing. Only actual Opaque corresponds to
+			// the converter's NOT_YET_SUPPORTED. The caption gate itself is not a Barrier.
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.OPAQUE_RANGE,
 					this.censusTag != null && opaque && log.get(fromId) != null
 							? BarrierReason.NOT_YET_SUPPORTED : null);
 			return;
 		}
-		// 検証相はledgerのみを走査する。子の解放は親リース取得後。
+		// The validation phase scans only the ledger. Release children after acquiring the parent lease.
 		final List<TwoPassBlockBuilder> absorbable = new ArrayList<TwoPassBlockBuilder>();
 		final List<RetainedTableBuilder> absorbableTables = new ArrayList<RetainedTableBuilder>();
 		final List<RangeHandle> absorbableRanges = new ArrayList<>();
@@ -786,20 +782,20 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			return;
 		}
 		if (!log.absoluteStartsExactly(fromId, toId, ownedAbsoluteAnchors)) {
-			// absolute吸収(codex増分9): 範囲内のAbsolute Startのうちownership ledger
-			// が所有を証明できないものが残る(外側context・別実行計画の所有
-			// など)——fail closed
+			// Absolute subsumption (codex increment 9): some Absolute Starts in the range still lack
+			// ownership proof in the ownership ledger (owned by an outer context or a different
+			// execution plan, etc.). Fail closed.
 			reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.ABSOLUTE_RANGE);
 			return;
 		}
-		// 範囲の完全性(連番で穴なし)の最終検証。probeのリースは即時解放
+		// Final validation of range completeness (consecutive IDs, no gaps). Release the probe lease immediately.
 		try (net.zamasoft.foliojet.layout.fragment.LayoutSource.ReplaySlice probe = log.capture(fromId, toId)) {
 			if (probe == null) {
 				reject(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject.RANGE_NOT_INTACT);
 				return;
 			}
 		}
-		// seal(コミット相): 子は親リース取得後に吸収(リース解放+Subsumed化)する
+		// Seal (commit phase): subsume children (release leases + mark Subsumed) after acquiring the parent lease.
 		this.setBody(new ReplayBody.SourceRangeBody(new RangeHandle(log, fromId, toId,
 				this.measurer.sizes(), mode, sliceText), pageGenerator));
 		if (this.censusTag != null) {
@@ -813,17 +809,17 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			child.subsumeIntoParentRange();
 		}
 		for (final RetainedTableBuilder table : absorbableTables) {
-			// 表吸収(codex増分5): seal済みセルのリース解放+計画のabandon。
-			// 親の範囲再生がソースから表全体を再構築する
+			// Table subsumption (codex increment 5): release sealed cells' leases and abandon the plan.
+			// Parent range replay reconstructs the entire table from the source.
 			table.abandonForParentRange();
 		}
 		if (this.ownershipLedger != null) this.ownershipLedger.plansSubsumed();
 	}
 
 	/**
-	 * 記録済みRetained表計画1個の吸収可否検証です(表吸収=codex増分5、
-	 * 検証相・副作用なし)。表とインライン計測tokenは同一計画をidentityで共有しうるため、outTablesの重複を
-	 * 冪等スキップする。
+	 * Validates whether one recorded Retained table plan can be subsumed (table subsumption = codex
+	 * increment 5, validation phase, no side effects). A table and an inline measurement token may
+	 * share the same plan by identity, so skip duplicates in outTables idempotently.
 	 */
 	static boolean collectAbsorbableTable(final RetainedTableBuilder retained,
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId, final long toId,
@@ -844,8 +840,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			return false;
 		}
 		if (table.getBlockBox() instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute) {
-			// 配置付き表は表計画として排他所有する。
-			// 内外が同じStartを指し、未係留であることを確かめ、最後のexact照合へ渡す。
+			// Own a positioned table exclusively as a table plan.
+			// Verify the inner/outer objects point to the same Start and are unanchored; pass to final exact matching.
 			if (!(start.recipe() instanceof net.zamasoft.foliojet.layout.segment.BoxRecipe.PlacedTable placed
 					&& placed.placement() instanceof net.zamasoft.foliojet.layout.segment.BoxRecipe.Absolute)
 					|| absolute.getSourceAnchor() != anchor || !absolute.isUnattachedForParentRange()
@@ -860,7 +856,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		return true;
 	}
 
-	/** 表・項目からの吸収可否も同じledgerで判定する。 */
+	/** Uses the same ledger to decide whether subsumption from a table or item is allowed. */
 	boolean collectAbsorbableSelf(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId,
 			final long toId, final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
 			final List<RangeHandle> outRanges, final java.util.Set<Long> anchors,
@@ -880,9 +876,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	/**
-	 * 親のrange化に吸収されます(DP増分3のコミット相)。呼び出し時点で
-	 * 親のリースは取得済みであること(子リース解放でcompact可能水位が
-	 * 後退しないための順序契約)。リースcloseは冪等・非throwing。
+	 * Subsumes into the parent's range (commit phase of DP increment 3). The parent lease must
+	 * already be acquired at the time of the call (the ordering contract prevents releasing
+	 * a child lease from moving the compaction watermark backward). Lease close is idempotent
+	 * and non-throwing.
 	 */
 	private void subsumeIntoParentRange() {
 		if (this.body instanceof ReplayBody.SourceRangeBody range) {
@@ -916,7 +913,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				+ this.getRootBox().getClass().getSimpleName() + " owner state=" + this.ownershipState());
 	}
 
-	/** 空本文は計測内容で判定する。未seal本文をbindする許可ではない。 */
+	/** Determines an empty body from measured content. Does not authorize binding an unsealed body. */
 	boolean hasEmptyBody() {
 		return this.body instanceof ReplayBody.Empty
 				|| this.body instanceof ReplayBody.ReplayOnly replay && replay.closed && !this.hasLayoutContent
@@ -938,12 +935,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		return this.rangeOwnedAbsoluteAnchors;
 	}
 
-	/** 折り畳み後に内容が給餌されたか。匿名項目の破棄判定はrecordsに依存しない。 */
+	/** Whether content was fed after folding. Anonymous item disposal does not depend on records. */
 	boolean hasLayoutContent() {
 		return this.hasLayoutContent;
 	}
 
-	/** 確定本文を持ち出す。空・独立再生もbuilderを保持しない。 */
+	/** Transfers the finalized body. Empty bodies and standalone replay also do not retain the builder. */
 	public DeferredBind detachDeferredBind() {
 		if (!(this.body instanceof ReplayBody.SourceRangeBody) && !(this.body instanceof ReplayBody.Empty)
 				&& !(this.body instanceof ReplayBody.ReplayOnly replay && replay.closed)) {
@@ -960,30 +957,29 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.bind(builder, ReplayIntent.current());
 	}
 
-	/** Bで配置を終えた宿主、またはflow外として破棄する宿主の本文を回収可にする。 */
+	/** Makes the body reclaimable for a host placed in B or discarded as outside flow. */
 	public void completeScratchHost() {
 		if (this.body instanceof ReplayBody.SourceRangeBody range) range.handle().completeScratchHost();
 	}
 
 	/**
-	 * 記録した本文を{@code builder}へ再生します。
+	 * Replays the recorded body into {@code builder}.
 	 *
 	 * <p>
-	 * <b>{@code intent}=MEASUREは使い捨て計測の最中の再生</b>です(2026-08-03
-	 * 新設)。使用権(リース)を<b>解放せず</b>、統計にも数えません——同じ
-	 * 範囲を本番のbindがもう一度読むからです。
+	 * <b>{@code intent}=MEASURE replays during disposable measurement</b> (introduced on 2026-08-03).
+	 * It <b>does not release</b> the usage right (lease) or count statistics, because the actual
+	 * bind reads the same range again.
 	 * </p>
 	 *
 	 * <p>
-	 * これが無かったために、<b>使い捨ての計測が本文を使い切ってしまい、
-	 * 本番では空になる</b>という内容消失が起きていた。表の行の計測は
-	 * 記録した範囲を捨てるつもりで再生するが、その途中で入れ子の浮動体の
-	 * 本文が「本番として」bindされ、使用権が閉じられていた。再現は
-	 * {@code files/fuzz-repro/nested-float-content-loss.html}(細い箱・
-	 * 表・右寄せ・左寄せの4つが揃うと、内側の浮動体の文字が消える)。
-	 * 絶対配置は同じ問題を2026-07-30に別の形(scratchでは丸ごと飛ばす)で
-	 * 塞いであるが、浮動体は計測値に寄与するため飛ばせない——だから
-	 * 「消費しない再生」が要る。
+	 * Without this, content was lost: <b>disposable measurement consumed the body, leaving it empty
+	 * for actual layout</b>. Table row measurement replayed the recorded range with the intent to
+	 * discard the result, but a nested float's body was bound as "actual layout" during that replay,
+	 * closing the usage right. Reproduction: {@code files/fuzz-repro/nested-float-content-loss.html}
+	 * (the inner float's text disappears when a narrow box, a table, right alignment, and left
+	 * alignment all occur together). The same problem for absolute positioning was fixed differently
+	 * on 2026-07-30 (skip it entirely during scratch measurement), but floats contribute to measured
+	 * sizes and cannot be skipped. This is why nondestructive replay is needed.
 	 * </p>
 	 */
 	public void bind(final BlockBuilder builder, final ReplayIntent intent) {
@@ -1016,10 +1012,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			case ReplayBody.Empty empty -> bindWithoutRange(empty, builder, this.censusTag);
 			case ReplayBody.Measuring measuring -> throw this.invariant("未seal本文のbind");
 			case ReplayBody.Detached detached ->
-				// E-6増分4e: DeferredBindへ持ち出し済み。bindはDeferredBindが担う
+				// E-6 increment 4e: already transferred to DeferredBind. DeferredBind handles bind.
 				throw new IllegalStateException("DeferredBindへ持ち出し済みのビルダーへのbind");
 			case ReplayBody.Subsumed subsumed ->
-				// DP増分3: 親の範囲再生が内容ごと再構築する。個別bindは契約違反
+				// DP increment 3: parent range replay reconstructs the content. An individual bind violates the contract.
 				throw new IllegalStateException("親のrange化に吸収済みのビルダーへのbind");
 			}
 			if (ReplayIntent.current() == ReplayIntent.MAIN) {
@@ -1034,12 +1030,12 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				root.exitTranslateBlockScope();
 			}
 		}
-		// bind内の一時scratch接続を戻してから、呼び側が所有する本文の終端を通知する。
-		// measureIntoとは異なり、bindはこの宿主の最終配置。MAINの借用は通知しない。
+		// Restore the temporary scratch connection in bind before signaling the end of the caller-owned body.
+		// Unlike measureInto, bind is this host's final placement. Do not signal a MAIN borrow.
 		if (intent == ReplayIntent.MEASURE) this.completeScratchHost();
 	}
 
-	/** leaseなし本文の共通駆動。通常ソースの不適格時には到達しない。 */
+	/** Common execution for bodies without leases. Unreachable when a normal source is ineligible. */
 	private static void bindWithoutRange(final ReplayBody body, final BlockBuilder builder,
 			final ContinuationStats.TwoPassCensusTag censusTag) {
 		switch (body) {
@@ -1070,7 +1066,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 	}
 
-	/** 和文詰めA2: text-autospaceのpair追跡(初回glyphで遅延初期化)。 */
+	/** Japanese spacing A2: pair tracking for text-autospace (lazily initialized on the first glyph). */
 	private net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker autospace;
 
 	public void startTextRun(int charOffset, final FontStyle fontStyle, final FontMetrics fontMetrics) {
@@ -1079,13 +1075,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		this.lastRunFontMetrics = fontMetrics;
 	}
 
-	/** 直近の run の書体(run が閉じた後に届く glyph の遅延再開用)。 */
+	/** Font of the most recent run (for lazy resumption when a glyph arrives after the run closes). */
 	private FontStyle lastRunFontStyle;
 	private FontMetrics lastRunFontMetrics;
 
 	public void glyph(int charOffset, char[] ch, int coff, byte clen, int gid) {
-		// gap・trimは固有寸法にだけ反映する。範囲再生ではTextBuilderが
-		// 再計測する。幅式はIntrinsicMeasurer.glyphに集約する。
+		// Apply gap/trim only to intrinsic sizes. TextBuilder measures again during range replay.
+		// Centralize the width formula in IntrinsicMeasurer.glyph.
 		if (this.autospace == null) {
 			this.autospace = new net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker();
 			final net.zamasoft.foliojet.layout.box.params.AbstractTextParams params = //
@@ -1094,9 +1090,9 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			this.autospace.setTrimOff(params.textSpacingTrimOff);
 		}
 		if (this.text == null) {
-			// run が閉じた後に glyph が届く(表の caption の中の ::before/::after の生成
-			// 内容で実測、2026-09-05: CharacterHandler が endRun した後に保留 glyph が
-			// flush される)。BlockBuilder(:1927)と同じく直近の書体で run を遅延再開する。
+			// A glyph arrives after the run closes (observed in ::before/::after generated content
+			// inside a table caption, 2026-09-05: pending glyphs flush after CharacterHandler calls endRun).
+			// As in BlockBuilder(:1927), lazily resume the run with the most recent font.
 			if (this.lastRunFontStyle == null) {
 				throw new IllegalStateException("glyph before any text run");
 			}
@@ -1106,21 +1102,21 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		final double gap = this.autospace.gapBefore(ch, coff, fontSize);
 		final double trim = this.autospace.trimBefore(ch, coff, gid, this.text,
 				this.text.getFontMetrics(), fontSize, this.text.getFontStyle());
-		// appendGlyph はrun内の字間計測用にアドバンスを返すため、
-		// 呼び出しは一度だけ行い、結果を計測器へ渡す。
+		// appendGlyph returns the advance for spacing measurement within a run,
+		// so call it only once and pass the result to the measurer.
 		this.measurer.glyph(this.text.appendGlyph(ch, coff, clen, gid), gap, trim);
 		this.autospace.glyphAdded(this.text, fontSize, ch, coff, clen, gid);
 		this.noteLayoutContent();
 	}
 
 	public void endTextRun() {
-		// run内の字間計測にだけ使い、本文としては保持しない。
+		// Use only for spacing measurement within a run; do not retain as body content.
 		this.text = null;
 	}
 
 	public void control(final TextControl quad) {
-		// 和文詰めA2: 制御はpairを断つ(TextBuilder側と同じ規約——幅0の
-		// インライン開始/終了だけはpairを維持)
+		// Japanese spacing A2: controls break pairs (same rules as TextBuilder;
+		// only zero-width inline starts/ends preserve pairs).
 		if (this.autospace != null && !(quad instanceof InlineQuad inlineQuad
 				&& (inlineQuad.getType() == InlineQuad.INLINE_START
 						|| inlineQuad.getType() == InlineQuad.INLINE_END)
@@ -1129,7 +1125,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 		final TwoPass inlineBlockMeasure;
 		if (quad instanceof InlineBlockQuad inlineBlockQuad && !inlineBlockQuad.box.isPreMeasured()) {
-			// quadと子の計測tokenを対応付け、本文の所有をledgerへ登録する
+			// Associate the quad with the child's measurement token and register body ownership in the ledger.
 			inlineBlockMeasure = this.pendingInlineMeasure;
 			assert inlineBlockMeasure != null;
 			final TwoPass measuredBuilder = this.pendingInlineMeasure.builder();
@@ -1165,8 +1161,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	}
 
 	public boolean isEmpty() {
-		// seal済み(SourceRangeBody)は適格判定が空範囲を除外しているため
-		// 常に非空(E-6増分4a)。空本文seal(Empty、DP増分2)は空
+		// Sealed (SourceRangeBody) is always nonempty because eligibility excludes empty ranges
+		// (E-6 increment 4a). An empty body seal (Empty, DP increment 2) is empty.
 		return this.hasEmptyBody();
 	}
 

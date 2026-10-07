@@ -6,8 +6,8 @@ public class TextShadow {
 	public final double x, y;
 
 	/**
-	 * ぼかし半径(0=ぼかしなし。2026-08-29)。描画は{@code box-shadow}と
-	 * 同じ多段の半透明近似({@code AbstractTextBox.TextSequenceDrawable})。
+	 * The blur radius (0 = no blur; 2026-08-29). Drawing uses the same multistep translucent approximation as
+	 * {@code box-shadow} ({@code AbstractTextBox.TextSequenceDrawable}).
 	 */
 	public final double blur;
 

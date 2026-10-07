@@ -8,15 +8,15 @@ import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * セルの軸寸法の共通計算です(A-3、2026-07-30)。Incremental/Retained
- * 両ビルダーにあった同型ブロックの統合。演算順は旧実装のまま。
+ * Shared calculation of cell axis sizes (A-3, 2026-07-30). Consolidates equivalent blocks
+ * from the Incremental/Retained builders. Preserves the old order of operations.
  */
 final class TableCellMetrics {
 	private TableCellMetrics() {
 	}
 
 	/**
-	 * colspanの窓の列幅を合算します。加算順は旧実装どおり左から。
+	 * Sums column widths over the colspan window. Adds from the left, as in the old implementation.
 	 */
 	static double spannedLineSize(final double[] columnSizes, final int column, final int span) {
 		double size = columnSizes[column];
@@ -28,12 +28,12 @@ final class TableCellMetrics {
 	}
 
 	/**
-	 * 行軸寸法を適用し、直交書字方向のセルには直交軸へ内容の実測を
-	 * 適用します(両ビルダー共通の規約。旧実装はfontSize*10の仮寸法——
-	 * 0390-writing-mode/orthogonal-cell-fixedで是正済み)。
+	 * Applies the line-axis size. For cells with an orthogonal writing mode, applies the measured
+	 * content size to the orthogonal axis (a convention shared by both builders; the old implementation
+	 * used the provisional size fontSize*10, corrected in 0390-writing-mode/orthogonal-cell-fixed).
 	 *
-	 * @param intrinsics 直交セルのときだけ評価される(遅延——
-	 *                   非直交セルでは計測ビルダーを参照しない)
+	 * @param intrinsics evaluated only for orthogonal cells (lazy:
+	 *                   does not reference the measurement builder for non-orthogonal cells)
 	 */
 	static void applyLineAxis(final TableCellBox cellBox, final Supplier<IntrinsicSizes> intrinsics,
 			final double lineSize, final boolean vertical, final TableParams tableParams) {

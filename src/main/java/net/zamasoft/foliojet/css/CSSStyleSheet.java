@@ -18,28 +18,28 @@ import net.zamasoft.foliojet.css.selector.SelectorListCondition;
 import net.zamasoft.foliojet.css.selector.SimpleSelector;
 
 /**
- * スタイルシートは、与えられた要素に対して適用される宣言を返します。
+ * A stylesheet returns the declarations that apply to a given element.
  * <p>
- * このクラスは、SAXイベントとして送られた文書に対して段階的にスタイルを適用することを意図しています。
- * 要素は必ずしもSAXイベントの要素とは一致せず、CSSの一部の擬似クラスにあるような文書の構成要素にも対応させることができます。
- * startElementに対応するendElementは必ず矛盾なく呼ばれる必要があります。
+ * This class is intended to apply styles incrementally to a document supplied as SAX events.
+ * Elements need not correspond to SAX event elements; they may represent document components such as CSS pseudo-classes.
+ * Each startElement must have a corresponding, consistently ordered endElement call.
  * </p>
  * <p>
- * 規則は右端の単純セレクタ(ID・クラス・要素名・擬似要素)で索引化され、
- * 要素ごとの照合は候補バケットに対してのみ行われます。
- * 構築(addRule/addPage)後は不変であり、複数スレッドから共有できます。
+ * Rules are indexed by the rightmost simple selector (ID, class, element name, or pseudo-element),
+ * and matching for each element examines only candidate buckets.
+ * Immutable after construction (addRule/addPage), and shareable across threads.
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public class CSSStyleSheet {
-	/** 全規則(文書順)。 */
+	/** All rules (in document order). */
 	final List<Rule> rules = new ArrayList<Rule>();
 
 	/*
-	 * 右端単純セレクタによる索引。各規則はいずれか1つのバケットにだけ入る。
-	 * 索引は「マッチし得る規則を漏らさない」保守的なスーパーセットであり、
-	 * 実際のマッチ判定はStyleContextが行う。
+	 * Index by rightmost simple selector. Each rule belongs to exactly one bucket.
+	 * The index is a conservative superset that never omits a potentially matching rule;
+	 * StyleContext performs the actual match.
 	 */
 	private final Map<String, List<Rule>> idToRules = new HashMap<String, List<Rule>>();
 	private final Map<String, List<Rule>> classToRules = new HashMap<String, List<Rule>>();
@@ -48,33 +48,33 @@ public class CSSStyleSheet {
 	private final List<Rule> universalRules = new ArrayList<Rule>();
 
 	/**
-	 * 文書中に現れる全ての{@code :has()}条件(文書順)。要素の終了時点まで
-	 * 真偽が確定しないため、{@code StyleContext}が要素ごとに祖先チェーンを
-	 * 遡って判定を積み上げるのに使う(開発計画「2パス制御モード」参照)。
+	 * All {@code :has()} conditions in the document (in document order). Their truth values
+	 * are not final until an element ends, so {@code StyleContext} uses them to accumulate
+	 * results up the ancestor chain for each element (see "two-pass control mode" in the development plan).
 	 */
 	private final List<Condition> hasConditions = new ArrayList<Condition>();
 
 	/**
-	 * 構造化された{@code @page}規則の列です(名前付きページN1a、
-	 * 2026-07-31——旧4バケット(無名/first/left/right)を置き換え。
-	 * 適用はStyleContextが特異性(f,g,h)昇順→出現順のmergeで行う)。
+	 * The sequence of structured {@code @page} rules (named pages N1a,
+	 * 2026-07-31; replaced the old four buckets: unnamed/first/left/right).
+	 * StyleContext applies them by merging in ascending specificity (f,g,h), then source order.
 	 */
 	final List<PageRule> pageRules = new ArrayList<PageRule>();
 
 	/**
-	 * cascadeレイヤーの出現順を登録する台帳です(2026-07-21新設、CSS
-	 * Cascade Layers)。名前つきレイヤーは同じ名前が再度現れても最初の
-	 * 出現順を保つ(spec: 同名レイヤーへの追記であり、順位は変わらない)。
+	 * Registry of cascade layer source order (added on 2026-07-21, CSS
+	 * Cascade Layers). Named layers retain their first occurrence's order even when the same name
+	 * appears again (spec: appending to a layer with the same name does not change its rank).
 	 */
 	private final Map<String, Integer> namedLayerOrder = new HashMap<String, Integer>();
 	private int nextLayerOrder = 0;
 
 	/**
-	 * 名前つきレイヤーを登録し、その優先順位番号を返します(初出時に
-	 * 確定、以後同名で呼ばれても同じ番号を返す)。ネストしたレイヤー
-	 * (例: {@code @layer a { @layer b { ... } }})は呼び出し側が
-	 * ドット結合した完全名(例: {@code "a.b"})を渡すことで、独立した
-	 * 名前として扱う。
+	 * Registers a named layer and returns its priority number (fixed on first occurrence;
+	 * later calls with the same name return the same number). For nested layers
+	 * (e.g., {@code @layer a { @layer b { ... } }}), the caller supplies
+	 * the full dot-joined name (e.g., {@code "a.b"}), which is treated
+	 * as an independent name.
 	 */
 	public int registerNamedLayer(String fullName) {
 		Integer existing = this.namedLayerOrder.get(fullName);
@@ -87,24 +87,24 @@ public class CSSStyleSheet {
 	}
 
 	/**
-	 * 匿名レイヤー({@code @layer { ... }}、名前なし)用に、呼ばれるたびに
-	 * 新しい優先順位番号を発行します(spec: 匿名レイヤーは常に一意)。
+	 * Issues a new priority number on each call for an anonymous layer
+	 * ({@code @layer { ... }}, unnamed; spec: anonymous layers are always unique).
 	 */
 	public int registerAnonymousLayer() {
 		return this.nextLayerOrder++;
 	}
 
 	/**
-	 * ルールを追加します({@code @container}の内側の規則、2026-08-15段4)。
+	 * Adds a rule (inside {@code @container}, 2026-08-15 stage 4).
 	 *
-	 * @param containerQuery この規則を包む{@code @container}(無ければnull)
+	 * @param containerQuery the enclosing {@code @container} for this rule (null if none)
 	 */
 	public void addRule(List<Selector> selectors, Declaration declaration, Origin origin, int layer,
 			net.zamasoft.foliojet.css.container.ContainerQuery containerQuery) {
 		if (declaration == null) {
 			return;
 		}
-		for (Selector selector : selectors) {// ループすることに注意！
+		for (Selector selector : selectors) {// Note the loop!
 			Rule rule = new Rule(selector, declaration, this.rules.size(), origin, layer, containerQuery);
 			this.rules.add(rule);
 			this.index(rule);
@@ -113,12 +113,12 @@ public class CSSStyleSheet {
 	}
 
 	/**
-	 * selectorが持つ全ての{@code :has()}条件を(結合子チェーン・
-	 * {@code :not()}/{@code :is()}/{@code :where()}内にネストしたものも
-	 * 含めて)outへ集めます。セレクタのAST(構文由来・有限)を辿るだけの
-	 * 非有界でない反復深さのため、通常の再帰で実装する(要素木を辿る
-	 * ものではなく、HTML入力由来の非有界な深さとは性質が異なる——
-	 * Tokens.fromExpression等、既存コードの同種の判断と同じ)。
+	 * Collects all {@code :has()} conditions in selector into out, including those
+	 * nested in combinator chains or {@code :not()}/{@code :is()}/{@code :where()}.
+	 * Uses ordinary recursion because it only traverses the selector AST
+	 * (finite and derived from syntax), so the traversal depth is not unbounded.
+	 * It does not traverse the element tree and differs from the unbounded depth of HTML input;
+	 * this follows the same reasoning as existing code such as Tokens.fromExpression.
 	 */
 	private static void collectHasConditions(Selector selector, List<Condition> out) {
 		SimpleSelector simple = selector.getSimpleSelector();
@@ -157,7 +157,7 @@ public class CSSStyleSheet {
 			return;
 		}
 		ElementSelector element = (ElementSelector) simple;
-		// ID > クラス > 要素名 > 全称 の順で、最も選択的なバケットに入れる
+		// Use the most selective bucket, in order: ID > class > element name > universal.
 		for (Condition condition : element.getConditions()) {
 			if (condition.getConditionType() == Condition.ConditionType.ID_CONDITION) {
 				this.bucket(this.idToRules, condition.getValue()).add(rule);
@@ -178,7 +178,7 @@ public class CSSStyleSheet {
 	}
 
 	private List<Rule> bucket(Map<String, List<Rule>> map, String key) {
-		// ID・クラス・要素名の照合は大文字小文字を無視するため、キーは小文字に正規化する
+		// Normalize keys to lowercase because ID, class, and element name matching is case-insensitive.
 		key = key.toLowerCase(Locale.ROOT);
 		List<Rule> list = map.get(key);
 		if (list == null) {
@@ -196,16 +196,16 @@ public class CSSStyleSheet {
 	}
 
 	/**
-	 * 右端の単純セレクタが要素にマッチし得る規則のバケット群を返します。
-	 * 返される規則は候補(スーパーセット)であり、実際のマッチ判定は呼び出し側が行います。
+	 * Returns buckets of rules whose rightmost simple selector may match the element.
+	 * The returned rules are candidates (a superset); the caller performs the actual match.
 	 *
-	 * @param ce 照合対象の要素(要素スタックの先頭)
-	 * @return 候補規則のリストの集まり
+	 * @param ce the element to match (the top of the element stack)
+	 * @return a collection of candidate rule lists
 	 */
 	List<List<Rule>> candidateBuckets(CSSElement ce) {
 		List<List<Rule>> buckets = new ArrayList<List<Rule>>(4);
 		if (ce.isPseudoElement()) {
-			// 擬似要素には擬似要素セレクタの規則しかマッチしない
+			// Only rules with pseudo-element selectors match pseudo-elements.
 			List<Rule> list = this.lookup(this.pseudoElementToRules, ce.lName);
 			if (list != null) {
 				buckets.add(list);
@@ -235,22 +235,22 @@ public class CSSStyleSheet {
 	}
 
 	/**
-	 * 文書中に現れる全ての{@code :has()}条件(文書順・変更不可)を返します。
-	 * ネストした{@code :has()}(:has()自身の引数内)は含めない(初期実装の
-	 * 制限、開発計画参照)。
+	 * Returns all {@code :has()} conditions in the document (in document order, immutable).
+	 * Excludes nested {@code :has()} (inside :has() arguments); this is a limitation
+	 * of the initial implementation (see the development plan).
 	 */
 	public List<Condition> getHasConditions() {
 		return Collections.unmodifiableList(this.hasConditions);
 	}
 
 	/**
-	 * 構造化された{@code @page}規則を追加します(名前付きページN1a)。
-	 * 規則ごとに1件——宣言とマージンボックスを同じ特異性・出現順で持つ。
+	 * Adds a structured {@code @page} rule (named pages N1a).
+	 * One entry per rule; declarations and margin boxes share the same specificity and source order.
 	 *
-	 * @param name        ページ名(null=無名)
-	 * @param pseudoMask  要求する擬似ページ({@link PageRule#PSEUDO_FIRST}等)
-	 * @param declaration 通常宣言(null可)
-	 * @return 追加した規則(呼び出し側がマージンボックスを詰める)
+	 * @param name        page name (null=unnamed)
+	 * @param pseudoMask  required pseudo-pages ({@link PageRule#PSEUDO_FIRST}, etc.)
+	 * @param declaration regular declarations (may be null)
+	 * @return the added rule (the caller populates its margin boxes)
 	 */
 	public PageRule addPageRule(String name, byte pseudoMask, Declaration declaration) {
 		final PageRule rule = new PageRule(name, pseudoMask, declaration, this.pageRules.size());
@@ -258,7 +258,7 @@ public class CSSStyleSheet {
 		return rule;
 	}
 
-	/** 規則へマージンボックス宣言を追加します。 */
+	/** Adds margin box declarations to a rule. */
 	public void addPageRuleMarginBox(PageRule rule, MarginBoxName box, Declaration declaration) {
 		if (declaration == null) {
 			return;

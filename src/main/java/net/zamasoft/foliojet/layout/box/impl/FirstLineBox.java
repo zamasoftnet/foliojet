@@ -15,8 +15,8 @@ import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
- * 行ボックスの実装です。
- * 
+ * Implementation of a line box.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: FirstLineBox.java 1631 2022-05-15 05:43:49Z miyabe $
  */
@@ -47,7 +47,7 @@ public class FirstLineBox extends AbstractLineBox {
 	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			java.util.Deque<DrawStep> worklist) {
-		// 背景は最初の行だけ描画する
+		// Draw the background only on the first line.
 		if (this.params.opacity != 0 && this.params.background.isVisible()) {
 			Drawable drawable = new BackgroundDrawable(pageBox, clip, this.params.opacity, transform,
 					this.params.background, this.getWidth(), this.getHeight()).withBlendMode(this.params.blendMode).withFilter(this.params.filter);

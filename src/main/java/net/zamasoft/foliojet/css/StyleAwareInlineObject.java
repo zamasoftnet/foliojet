@@ -1,11 +1,11 @@
 package net.zamasoft.foliojet.css;
 
 /**
- * ホスト文書側のスタイル文脈を受け取れるインラインオブジェクトです
- * (2026-08-07)。CSSProcessorはインラインオブジェクトの開始時に、その
- * 要素(SVGならsvgルート)の解決済み{@link CSSStyle}を渡す。
- * インラインSVGが著者CSSのvar()をそのSVGの位置のカスタムプロパティで
- * 解決するために使う({@link SVGAuthorCss#toCssText})。
+ * An inline object that can receive the host document's style context
+ * (2026-08-07). When an inline object starts, CSSProcessor passes the resolved
+ * {@link CSSStyle} of that element (the svg root for SVG).
+ * Used by inline SVG to resolve var() in author CSS with custom properties
+ * at the SVG's location ({@link SVGAuthorCss#toCssText}).
  */
 public interface StyleAwareInlineObject extends InlineObject {
 	public void setHostStyle(CSSStyle style);

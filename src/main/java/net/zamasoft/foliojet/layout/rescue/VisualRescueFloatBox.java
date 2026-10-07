@@ -5,25 +5,24 @@ import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
- * 浮動ボックス用の救済断片アダプタです(2026-07-25新設、増分3。
- * <b>まだ本番経路へは配線されていません</b>)。
+ * A rescue-fragment adapter for floating boxes (introduced 2026-07-25, increment 3;
+ * <b>not yet wired into production paths</b>).
  *
  * <p>
- * {@link VisualRescueBox}に{@link IFloatBox#getFloatPos()}を足すだけの
- * 薄いラッパーです。配置パラメータは元ボックスのものをそのまま返します
- * ——断片は元ボックスのParams・Posを一切変更しません。排除域の高さは
- * 断片の占有量({@code sliceExtent})になりますが、それは
- * {@code getPageExtent()}から導かれるため、ここで持つ状態はありません。
+ * A thin wrapper that only adds {@link IFloatBox#getFloatPos()} to {@link VisualRescueBox} .
+ * Returns the original box's positioning parameters unchanged; fragments never modify its Params or Pos.
+ * The exclusion-area height becomes the fragment's occupancy ({@code sliceExtent}),
+ * but this derives from {@code getPageExtent()} , so no state is held here.
  * </p>
  */
 public class VisualRescueFloatBox extends VisualRescueBox implements IFloatBox {
 
 	/**
-	 * @param source           レイアウト済みの元ボックス
-	 * @param progression      ページ軸を決める書字方向
-	 * @param sourcePageExtent 元ボックスのページ方向の占有量
-	 * @param offset           この断片が始まるページ方向位置
-	 * @param sliceExtent      この断片の占有量
+	 * @param source laid-out original box
+	 * @param progression writing direction determining the page axis
+	 * @param sourcePageExtent original box's page-direction occupancy
+	 * @param offset page-direction position where this fragment starts
+	 * @param sliceExtent this fragment's occupancy
 	 */
 	public VisualRescueFloatBox(final IFloatBox source, final WritingMode progression, final double sourcePageExtent,
 			final double offset, final double sliceExtent) {

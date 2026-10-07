@@ -5,17 +5,15 @@ import net.zamasoft.foliojet.layout.box.params.EmptyCellsMode;
 import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 
 /**
- * {@link TableCellPos}({@code AbstractBlockLevelPos}を直接継承、
- * {@link BoxKind#TABLE_CELL}が使う)の内容をfreezeし、呼び出しごとに
- * 独立した新品の{@code TableCellPos}をmaterializeするテンプレートです
- * (2026-07-22新設、M6d-A3b)。
+ * A template that freezes the contents of {@link TableCellPos} (directly extends
+ * {@code AbstractBlockLevelPos}; used by {@link BoxKind#TABLE_CELL}) and materializes a fresh,
+ * independent {@code TableCellPos} on each call (introduced on 2026-07-22, M6d-A3b).
  *
  * <p>
- * 祖先のフィールドは{@link BlockLevelPosFields}(`TableRowPosTemplate`・
- * `TableRowGroupPosTemplate`とも共有する)が担う。{@code colspan}/
- * {@code rowspan}(プリミティブ)・{@code emptyCells}/
- * {@code verticalAlign}(enum)はそのまま保持する(2026-07-22 Stage2で
- * 不変recordへ置換)。
+ * {@link BlockLevelPosFields} (also shared with `TableRowPosTemplate` and `TableRowGroupPosTemplate`)
+ * handles ancestor fields. Holds {@code colspan}/{@code rowspan} (primitives) and
+ * {@code emptyCells}/{@code verticalAlign} (enums) directly
+ * (replaced with an immutable record in Stage2 on 2026-07-22).
  * </p>
  */
 public record TableCellPosTemplate(BlockLevelPosFields common, int colspan, int rowspan, EmptyCellsMode emptyCells,
@@ -25,7 +23,7 @@ public record TableCellPosTemplate(BlockLevelPosFields common, int colspan, int 
 				source.emptyCells, source.verticalAlign, source.breakInsideDeclaredAuto);
 	}
 
-	/** 呼び出しごとに新品の{@code TableCellPos}を返す(複数回呼んでも互いに影響しない)。 */
+	/** Returns a fresh {@code TableCellPos} on each call (multiple calls do not affect one another). */
 	public TableCellPos materialize() {
 		final TableCellPos pos = new TableCellPos();
 		this.common.materializeInto(pos);

@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * テーブルのパラメータです。
- * 
+ * Table parameters.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: TableCellPos.java 1552 2018-04-26 01:43:24Z miyabe $
  */
@@ -16,11 +16,11 @@ public class TableCellPos extends AbstractBlockLevelPos {
 	public CellAlign verticalAlign = CellAlign.BASELINE;
 
 	/**
-	 * 著者が明示的に{@code page-break-inside: auto}(または{@code break-inside:
-	 * auto})を宣言したセルか(2026-08-27)。rowspanが跨ぐ行間はavoid相当
-	 * (説明書4550の仕様)だが、明示autoのセルはそこからオプトアウトできる。
-	 * UA既定のセルavoid撤去に伴い、計算値だけでは「既定のauto」と
-	 * 「明示のauto」を区別できなくなったため宣言有無を運ぶ。
+	 * Whether the author explicitly declares {@code page-break-inside: auto} (or {@code break-inside: auto}) on
+	 * this cell (2026-08-27). Boundaries between rows crossed by a rowspan behave as avoid (the specification in
+	 * manual 4550), but cells with explicit auto can opt out. After removing the UA default avoid for cells,
+	 * computed values alone could no longer distinguish default auto from explicit auto, so carry whether the
+	 * declaration is present.
 	 */
 	public boolean breakInsideDeclaredAuto = false;
 

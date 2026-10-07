@@ -10,93 +10,90 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.LineMeasure;
 import net.zamasoft.pdfg2d.gc.text.pipeline.TotalFit;
 
 /**
- * TextBuilder構築セッションの計測済みイベント列({@link Piece}列)を
- * Knuth-Plassの{@link BreakNode}列へ投影し、{@link TotalFit}が選択した
- * breakpoint列を{@link Plan}(flush序数の集合)として返します
- * (2026-07-23新設、M3c増分3)。
+ * Projects the measured event sequence (a sequence of {@link Piece}s) from a TextBuilder construction
+ * session onto Knuth-Plass {@link BreakNode}s, and returns the breakpoints selected by {@link TotalFit}
+ * as a {@link Plan} (a set of flush ordinals)
+ * (introduced on 2026-07-23, M3c increment 3).
  *
  * <p>
- * BreakNodeは<b>選択用の投影のみ</b>で、唯一の中間表現にはしない
- * (設計doc 開発記録)。物理的な
- * 行生成(禁則・ハイフン実体化・インライン再生成・justification)は
- * すべて既存の{@link TextBuilder}が担当し、本クラスは「どのflushで
- * 改行するか」だけを供給する。禁則の写像は「下流へ実際に配達された
- * flush→通常penalty、SoftHyphen直後のflush→hyphen penalty、明示改行
- * (toLineFeed)のflush→forced penalty」。空白は仮想的なGlueとし、
- * 直後にflushがある場合のみ手前にコスト0のpenaltyを置いて候補にする
- * (TeXの慣用形。そこで破ると空白幅は行幅から除外される=末尾空白の
- * つぶしと一致する)。
+ * BreakNode is <b>only a projection for selection</b>, not the sole intermediate representation
+ * (design doc 開発記録). The existing {@link TextBuilder} handles all physical line construction
+ * (kinsoku (line-breaking rules), hyphen materialization, inline regeneration, and justification);
+ * this class only supplies "which flush causes a line break." Kinsoku maps as follows: a flush
+ * actually delivered downstream becomes a normal penalty, a flush immediately after SoftHyphen
+ * becomes a hyphen penalty, and a flush for an explicit line break (toLineFeed) becomes a forced
+ * penalty. Whitespace becomes virtual Glue; only when a flush follows it immediately do we place
+ * a zero-cost penalty before it to make it a candidate (the TeX convention). Breaking there excludes
+ * the whitespace width from the line width, matching trailing whitespace collapse.
  * </p>
  *
  * <p>
- * <b>伸縮モデル</b>: foliojet4のjustificationは伸長のみで縮小を実装して
- * いない({@code AbstractLineBox.align})ため、Glueのshrinkは常に0と
- * する——これによりK-Pは物理的に再現できない「詰め込んだ行」を決して
- * 選ばない。伸長は選択専用の控えめな近似で、空白Glueに幅の半分、各
- * breakpoint候補の直前に分割禁止ガード付きの0幅尾部Glue(約2em)を
- * 置く。<b>伸長は意図的に小さく保つ</b>——{@link TotalFit}はactiveの
- * 除去(TeXのdeactivation)を行わないため、伸長が大きく「ほぼ全ての
- * breakpointが実行可能」になるモデルでは候補集合がO(n²)に爆発して
- * 実用時間で解けない(実測でハング相当。増分4への申し送り)。この
- * 結果、行が大きく空く組み方はK-Pの実行可能解に入らず、事後の幅検証で
- * 検出されてlegacyへフォールバックする。
+ * <b>Stretch/shrink model</b>: foliojet4 justification only stretches; it does not implement shrinking
+ * ({@code AbstractLineBox.align}), so Glue shrink is always 0. This prevents K-P from selecting
+ * a "squeezed line" that cannot be physically reproduced. Stretch is a conservative approximation
+ * used only for selection: whitespace Glue gets half its width, and zero-width trailing Glue
+ * (about 2 em), protected by a forbidden-break guard, precedes each breakpoint candidate.
+ * <b>Stretch is intentionally kept small</b>: {@link TotalFit} does not remove active nodes
+ * (TeX deactivation), so a model with enough stretch to make "almost every breakpoint feasible"
+ * explodes the candidate set to O(n²) and cannot finish in practical time (effectively hung in
+ * measurements; a handoff item for increment 4). As a result, layouts with large gaps in lines
+ * are not feasible K-P solutions; the subsequent width validation detects this and falls back
+ * to legacy.
  * </p>
  *
  * <p>
- * 投影できない列(breakpoint候補なし、候補間の不可分な連続が行幅を
- * 超える、選択結果に溢れ行が残る等)はnullを返し、呼び出し側がlegacyへ
- * フォールバックする。純関数であり合成入力で単体テストできる。
+ * Returns null for sequences that cannot be projected (no breakpoint candidates, an indivisible
+ * run between candidates exceeding the line width, overflowing lines remaining in the selection,
+ * etc.), and the caller falls back to legacy. This is a pure function that can be unit tested
+ * with synthetic inputs.
  * </p>
  */
 public final class TotalFitProjection {
 
-	/** TeXの\hyphenpenalty相当のハイフン分割コストです。 */
+	/** Hyphenation cost equivalent to TeX's \hyphenpenalty. */
 	static final int HYPHEN_COST = 50;
 
 	private TotalFitProjection() {
 	}
 
-	/**
-	 * 計測済みイベントです。{@link TotalFitSession}が記録時に構築します。
-	 */
+	/** A measured event. {@link TotalFitSession} constructs it during recording. */
 	public sealed interface Piece {
-		/** breakpoint候補の間の不可分な材料(グリフ等)の合計幅です。 */
+		/** Total width of indivisible material (glyphs, etc.) between breakpoint candidates. */
 		record Box(double width) implements Piece {
 		}
 
-		/** 空白({@code WhiteSpace})です。幅はつぶし前のadvanceです。 */
+		/** Whitespace ({@code WhiteSpace}). The width is the advance before collapse. */
 		record Space(double width) implements Piece {
 		}
 
 		/**
-		 * ソフトハイフン({@code SoftHyphen})です。幅は分割時に実体化される
-		 * ハイフングリフのadvanceです。
+		 * A soft hyphen ({@code SoftHyphen}). The width is the advance of the hyphen glyph
+		 * materialized at a break.
 		 */
 		record Hyphen(double width) implements Piece {
 		}
 
-		/** 明示改行({@code '\n'}、次のflushで強制改行)です。 */
+		/** An explicit line break ({@code '\n'}, forcing a break at the next flush). */
 		record LineFeed() implements Piece {
 		}
 
 		/**
-		 * 下流へ配達されたflush(=breakpoint候補)です。
+		 * A flush delivered downstream (= a breakpoint candidate).
 		 *
-		 * @param ordinal セッション内のflush序数(0起点)
-		 * @param stretch この候補位置の仮想的な伸長の基準量(現在フォント
-		 *                サイズの半分)。尾部Glueのstretchはこの4倍(約2em)
+		 * @param ordinal zero-based flush ordinal within the session
+		 * @param stretch base virtual stretch at this candidate (half the current font size).
+		 *                The trailing Glue stretch is four times this amount (about 2 em)
 		 */
 		record Flush(int ordinal, double stretch) implements Piece {
 		}
 	}
 
 	/**
-	 * 選択されたbreakpoint列(flush序数の集合)です。再生時、
-	 * {@link TotalFitSession}が各flushイベントの直前に
-	 * {@link #arriveFlush}でカーソルを進め、{@link TextBuilder}が
-	 * {@link #takeBreakAtCursor}で「このflushで改行するか」を一度だけ
-	 * 消費します(legacyの{@code while(flush())}ループの再入で二重改行
-	 * しないためのconsume-once)。
+	 * The selected breakpoints (a set of flush ordinals). During replay, {@link TotalFitSession}
+	 * advances the cursor with {@link #arriveFlush} immediately before each flush event, and
+	 * {@link TextBuilder} consumes "whether to break at this flush" exactly once via
+	 * {@link #takeBreakAtCursor} (consume-once prevents a duplicate line break on reentry into
+	 * the legacy {@code while(flush())} loop).
 	 */
 	public static final class Plan {
 		private final BitSet chosen;
@@ -107,12 +104,12 @@ public final class TotalFitProjection {
 			this.chosen = chosen;
 		}
 
-		/** 序数{@code ordinal}のflushイベントの到着を通知します。 */
+		/** Signals the arrival of the flush event with ordinal {@code ordinal}. */
 		public void arriveFlush(final int ordinal) {
 			this.pending = this.chosen.get(ordinal);
 		}
 
-		/** 現在のflushで改行すべきなら一度だけtrueを返します。 */
+		/** Returns true exactly once if a line break is required at the current flush. */
 		public boolean takeBreakAtCursor() {
 			if (!this.pending) {
 				return false;
@@ -121,21 +118,21 @@ public final class TotalFitProjection {
 			return true;
 		}
 
-		/** 選択されたflush序数の集合を返します(テスト用)。 */
+		/** Returns the set of selected flush ordinals (for tests). */
 		public BitSet chosenOrdinals() {
 			return (BitSet) this.chosen.clone();
 		}
 	}
 
 	/**
-	 * イベント列からbreakpoint列を選択します。
+	 * Selects breakpoints from an event sequence.
 	 *
-	 * @param pieces         計測済みイベント列
-	 * @param firstLineWidth 先頭行の使用可能幅(text-indent適用済み)
-	 * @param lineWidth      2行目以降の使用可能幅
-	 * @param params         {@link TotalFit}のパラメータ
-	 * @return 選択されたbreakpoint列。投影できない場合はnull(呼び出し側
-	 *         はlegacyへフォールバックする)
+	 * @param pieces         measured event sequence
+	 * @param firstLineWidth available width of the first line (with text-indent applied)
+	 * @param lineWidth      available width of the second and subsequent lines
+	 * @param params         parameters for {@link TotalFit}
+	 * @return the selected breakpoints, or null if projection is impossible
+	 *         (the caller falls back to legacy)
 	 */
 	public static Plan plan(final List<Piece> pieces, final double firstLineWidth, final double lineWidth,
 			final TotalFit.Parameters params) {
@@ -145,25 +142,25 @@ public final class TotalFitProjection {
 		}
 		final List<BreakNode> nodes = new ArrayList<>();
 		final List<Integer> ordinals = new ArrayList<>();
-		// breakpoint候補の間の不可分な連続幅。これが最小行幅を超える列は
-		// K-Pの実行可能解が枯渇し全体が退化しうるため投影しない(legacyも
-		// 同様に溢れるだけなので、フォールバックで出力はlegacyと一致する)
+		// Indivisible run width between breakpoint candidates. Do not project a sequence whose width
+		// exceeds the minimum line width: K-P may exhaust feasible solutions and degenerate globally.
+		// (Legacy also overflows in this case, so fallback produces the same output as legacy.)
 		final double maxUsable = Math.min(firstLineWidth, lineWidth);
 		double unbreakable = 0;
-		// 直前のbreakpoint候補以降に幅のある材料が出たか(材料なしのflushに
-		// penaltyを置くと空行の候補を作ってしまうため抑制する)
+		// Whether material with nonzero width has appeared since the previous breakpoint candidate.
+		// Suppress penalties for flushes with no material, since they would create empty-line candidates.
 		boolean material = false;
 		boolean pendingForced = false;
 		boolean anyCandidate = false;
 
 		final int n = pieces.size();
-		// 「行末確定」の空白(そこから先、LineFeedまたは列末尾まで幅のある
-		// 材料・flushが一切ない空白)は幅0のGlueにする。この空白は候補に
-		// ならず(forbiddenガード付き)、必ず強制改行・段落末の行末に落ちる
-		// ——legacyのTextBuilderは行末空白をつぶすため、幅を算入すると
-		// 「実際にはちょうど収まる行」がK-Pには溢れて見え、1つ手前の候補へ
-		// 改行が systematically ずれる(HTMLは閉じタグ前の改行由来の末尾
-		// 空白が極めて一般的。E-2で発覚)。
+		// Use zero-width Glue for whitespace known to be line-final (no material with nonzero width
+		// or flush from there to LineFeed or the sequence end). This whitespace is not a candidate
+		// (it has a forbidden guard), and must end up at a forced break or the end of the paragraph.
+		// Legacy TextBuilder collapses trailing whitespace, so counting its width makes K-P see
+		// an overflow in a line that actually fits exactly, systematically moving the break
+		// to the preceding candidate. (Trailing whitespace from a newline before a closing tag
+		// is extremely common in HTML. Discovered in E-2.)
 		final boolean[] lineFinal = new boolean[n];
 		{
 			boolean finalRun = true;
@@ -171,8 +168,8 @@ public final class TotalFitProjection {
 				switch (pieces.get(i)) {
 				case Piece.Space space -> lineFinal[i] = finalRun;
 				case Piece.LineFeed lf -> finalRun = true;
-				// Flushは幅のない候補マーカーなので行末確定性を変えない
-				// (段落末尾の[Space, Flush]の空白も行末確定)
+				// Flush is a candidate marker with no width, so it does not change whether whitespace is line-final.
+				// (The whitespace in [Space, Flush] at the end of a paragraph is also line-final.)
 				case Piece.Flush flush -> {
 				}
 				default -> finalRun = false;
@@ -195,12 +192,12 @@ public final class TotalFitProjection {
 				final Piece.Flush flush = !pendingForced && material && i + 1 < n
 						&& pieces.get(i + 1) instanceof Piece.Flush f ? f : null;
 				if (flush != null) {
-					// 空白直後のflush: 空白Glueの手前にコスト0のpenaltyを
-					// 置く(TeXの慣用形)。そこで破ると空白幅は行幅に
-					// 入らず、次行頭では読み捨てられる——空白のつぶしと
-					// 一致する。penalty方式なので尾部Glueのstretchが
-					// 行内に算入される(Glue自体を破るとそのGlueの
-					// stretchは行に入らない)
+					// Flush immediately after whitespace: place a zero-cost penalty before the whitespace Glue
+					// (the TeX convention). Breaking there excludes the whitespace width from the line width,
+					// and the next line discards it at the start, matching whitespace collapse.
+					// Using a penalty includes the trailing Glue stretch in the line.
+					// (Breaking at the Glue itself would exclude that Glue's stretch
+					// from the line.)
 					addTailGlue(nodes, ordinals, flush);
 					nodes.add(new BreakNode.Penalty(0, 0, false));
 					ordinals.add(flush.ordinal());
@@ -211,10 +208,10 @@ public final class TotalFitProjection {
 					material = false;
 					anyCandidate = true;
 				} else {
-					// flushを伴わない空白(nowrap等)・行頭の空白:
-					// 分割禁止のGlue。materialは変えない(空白だけでは
-					// 後続flushをbreakpoint候補にしない=空白のみの行を
-					// 作らない)。行末確定の空白は幅0(上のlineFinal注記)
+					// Whitespace without a flush (nowrap, etc.), or leading whitespace:
+					// Glue with breaks forbidden. Leave material unchanged (whitespace alone does not make
+					// a following flush a breakpoint candidate, so it cannot create a whitespace-only line).
+					// Line-final whitespace has zero width (see the lineFinal note above).
 					final double w = lineFinal[i] ? 0 : space.width();
 					nodes.add(BreakNode.Penalty.forbidden());
 					ordinals.add(-1);
@@ -226,8 +223,8 @@ public final class TotalFitProjection {
 
 			case Piece.Hyphen hyphen -> {
 				if (!pendingForced && material && i + 1 < n && pieces.get(i + 1) instanceof Piece.Flush f) {
-					// SoftHyphen直後のflush: ハイフンpenalty。penalty幅は
-					// 分割時にのみ行幅へ算入される=実体化されるハイフンの幅
+					// Flush immediately after SoftHyphen: a hyphen penalty. Its width counts toward the line width
+					// only at a break, matching the width of the materialized hyphen.
 					addTailGlue(nodes, ordinals, f);
 					nodes.add(new BreakNode.Penalty(hyphen.width(), HYPHEN_COST, true));
 					ordinals.add(f.ordinal());
@@ -236,7 +233,7 @@ public final class TotalFitProjection {
 					material = false;
 					anyCandidate = true;
 				}
-				// flushを伴わないソフトハイフンは幅0の無効果(候補にしない)
+				// A soft hyphen without a flush has zero width and no effect (not a candidate).
 			}
 
 			case Piece.LineFeed lf -> pendingForced = true;
@@ -260,23 +257,23 @@ public final class TotalFitProjection {
 					material = false;
 					anyCandidate = true;
 				}
-				// 材料なしのflushは候補にしない
+				// A flush without material is not a candidate.
 			}
 			}
 		}
 		if (!anyCandidate || nodes.isEmpty()) {
-			// breakpoint候補ゼロ(1行段落・nowrap等)は最適化する意味がない
+			// No breakpoint candidates (a single-line paragraph, nowrap, etc.): nothing to optimize.
 			return null;
 		}
 
-		// firstLineThenConstantはeasyLine=1を宣言する——2行目以降の行番号を
-		// 支配同値類へ潰せないと、和文justify(全文字がbreakpoint)で
-		// activeが行数変種ごとに残り、ソルバが分単位に退化する(E-2実測)
+		// firstLineThenConstant declares easyLine=1. Unless line numbers from the second line onward
+		// collapse into dominance equivalence classes, Japanese text with justify (every character is
+		// a breakpoint) retains active nodes for every line-count variant, taking minutes to solve (E-2 measurements).
 		final LineMeasure measure = LineMeasure.firstLineThenConstant(firstLineWidth, lineWidth);
 		final List<TotalFit.BrokenLine> lines = TotalFit.totalFit(nodes, measure, params);
 
-		// 幅の事後検証: 選択に溢れ行(実行可能解の枯渇によるfit-anyway
-		// 退化)が残っていれば投影失敗として扱う
+		// Post-selection width validation: treat remaining overflowing lines (fit-anyway degeneration
+		// after feasible solutions are exhausted) as projection failure.
 		final double[] sumWidth = new double[nodes.size() + 1];
 		for (int i = 0; i < nodes.size(); ++i) {
 			final BreakNode node = nodes.get(i);
@@ -287,7 +284,7 @@ public final class TotalFitProjection {
 		for (int lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
 			final TotalFit.BrokenLine line = lines.get(lineIndex);
 			final int breakIndex = line.breakIndex();
-			// 行頭の読み捨てGlueを除いた自然幅
+			// Natural width excluding Glue discarded at the line start.
 			int lineStart = line.begin();
 			while (lineStart < breakIndex && nodes.get(lineStart) instanceof BreakNode.Glue) {
 				++lineStart;
@@ -307,7 +304,7 @@ public final class TotalFitProjection {
 			}
 			final int ordinal = ordinals.get(breakIndex);
 			if (ordinal < 0) {
-				// 候補でないノードで破った——投影の不整合。安全側へ倒す
+				// Broke at a node that is not a candidate: inconsistent projection. Fail safely.
 				return null;
 			}
 			chosen.set(ordinal);
@@ -316,10 +313,10 @@ public final class TotalFitProjection {
 	}
 
 	/**
-	 * breakpoint候補の直前に、分割禁止ガード付きの0幅尾部Glue(この
-	 * 候補で破った行が持ちうる仮想的な伸長。約2em)を置きます。ガードが
-	 * ないとコスト・フラグなしの迂回breakpointができてしまう(強制改行の
-	 * 手前の空行候補、hyphen demeritsの無効化)。
+	 * Places zero-width trailing Glue with a forbidden-break guard immediately before a breakpoint
+	 * candidate (the virtual stretch available to a line broken here, about 2 em). Without the guard,
+	 * an alternative breakpoint with no cost or flag would appear (an empty-line candidate before
+	 * a forced break, or bypassed hyphen demerits).
 	 */
 	private static void addTailGlue(final List<BreakNode> nodes, final List<Integer> ordinals,
 			final Piece.Flush flush) {

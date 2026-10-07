@@ -5,7 +5,7 @@ import java.awt.geom.AffineTransform;
 import net.zamasoft.foliojet.css.StructureElement;
 
 /**
- * 内容のパラメータです。
+ * Content parameters.
  *
  * @author MIYABE Tatsuhiko
  * @version $Id: Params.java 1587 2019-06-10 01:42:25Z miyabe $
@@ -16,50 +16,48 @@ public abstract class Params {
 	public static final byte Z_INDEX_SPECIFIED = 1;
 
 	/**
-	 * 対応するソース要素です。live構築では{@code CSSElement}、ソース
-	 * 再生(BoxRecipeのmaterialize)では{@code StructureToken}が入る
-	 * (E-6増分3b-4——読み手が必要とする契約は{@link StructureElement}の
-	 * javadoc参照)。
+	 * The corresponding source element. Live construction uses {@code CSSElement}; source replay (BoxRecipe
+	 * materialize) uses {@code StructureToken} (E-6 increment 3b-4; see the {@link StructureElement} Javadoc for
+	 * the contract required by readers).
 	 */
 	public StructureElement element = null;
 
 	/**
-	 * 脚注の論理識別子です(脚注F4、2026-07-31——
-	 * consult-codex-2026-07-31-footnote-f4.txt)。engine-ownedの単調な
-	 * 通し番号で、CSSには非公開。脚注元要素の本文ボックスと
-	 * {@code ::footnote-call}擬似要素のインラインボックスが同じIDを持ち、
-	 * ページ確定時の「呼び出しがこのページに残ったか」の集合判定に使う。
-	 * 表示上の番号(counter "footnote")とは独立(ページ毎再採番=F5に備える)。
-	 * 脚注と無関係のボックスは-1。
+	 * The logical identifier of a footnote (footnote F4, 2026-07-31; consult-codex-2026-07-31-footnote-f4.txt).
+	 * This engine-owned, monotonically increasing sequence number is not exposed to CSS. The body box of the
+	 * footnote source element and the inline box of the {@code ::footnote-call} pseudo-element share the same ID.
+	 * At page finalization, a set membership check determines whether the call remains on this page. This is
+	 * independent of the displayed number (counter "footnote"), in preparation for per-page renumbering (F5). Boxes
+	 * unrelated to footnotes use -1.
 	 */
 	public long footnoteId = -1;
 
 	/**
-	 * ボックスの奥行きです。
+	 * The depth of the box.
 	 */
 	public int zIndexValue = 0;
 
 	public byte zIndexType = Z_INDEX_AUTO;
 
-	/** このボックスがstacking contextを作るならtrueを返します。 */
+	/** Returns true if this box establishes a stacking context. */
 	public boolean isStackingContext() {
 		return this.zIndexType == Z_INDEX_SPECIFIED;
 	}
 
 	/**
-	 * ボックスの可視性です。
+	 * The visibility of the box.
 	 */
 	public float opacity = 1f;
 
 	/**
-	 * {@code mix-blend-mode}(compositing-1、2026-08-29)。描画要素ごとに
-	 * {@code GC.setBlendMode}へ渡す(MixBlendMode参照)。
+	 * {@code mix-blend-mode} (compositing-1, 2026-08-29). Passed to {@code GC.setBlendMode} for each drawable
+	 * element (see MixBlendMode).
 	 */
 	public net.zamasoft.pdfg2d.gc.paint.BlendMode blendMode = net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL;
 
 	/**
-	 * {@code filter}(filter-effects-1、2026-08-29)。描画要素ごとに
-	 * 適用する(AbstractDrawable参照)。親の効果は計算値で合成済み。
+	 * {@code filter} (filter-effects-1, 2026-08-29). Applied to each drawable element (see AbstractDrawable). The
+	 * computed value already combines the parent's effects.
 	 */
 	public net.zamasoft.foliojet.css.value.css3.FilterValue filter = net.zamasoft.foliojet.css.value.css3.FilterValue.NONE;
 
@@ -67,29 +65,29 @@ public abstract class Params {
 	public AffineTransform transform = IDENTITY_TRANSFORM;
 
 	/**
-	 * {@code translate()}の割合成分(2026-08-03新設)。描画時に箱の幅・高さを
-	 * 掛けて平行移動に足す——割合の基準がその要素自身の境界箱なので、
-	 * 解析時には行列へ畳めない。
+	 * The percentage components of {@code translate()} (added 2026-08-03). At drawing time, multiply them by the
+	 * box width and height and add them to the translation. Since percentages refer to the element's own border
+	 * box, they cannot be folded into the matrix during parsing.
 	 */
 	public double transformTxRatio = 0, transformTyRatio = 0;
 
 	/**
-	 * 割合の平行移動が回転・拡大の後ろに来たときの交差成分(2026-08-29、
-	 * {@code TransformValue}参照)。{@code transformTxRatioH}は高さに掛けて
-	 * xへ、{@code transformTyRatioW}は幅に掛けてyへ足す。
+	 * The cross components when a percentage translation follows a rotation or scale (2026-08-29, see {@code
+	 * TransformValue}). Multiply {@code transformTxRatioH} by the height and add it to x; multiply {@code
+	 * transformTyRatioW} by the width and add it to y.
 	 */
 	public double transformTxRatioH = 0, transformTyRatioW = 0;
 	public Offset transformOrigin = Offset.HALF_OFFSET;
 
 	/**
-	 * {@code zoom}(2026-08-29)。境界箱の左上を原点に要素と子孫の描画を
-	 * 拡大する近似({@code Zoom}のjavadoc)。{@code transform}の外側に掛かる。
+	 * {@code zoom} (2026-08-29). Approximates zoom by scaling the drawing of the element and its descendants about
+	 * the top-left corner of the border box (Javadoc for {@code Zoom}). Applied outside {@code transform}.
 	 */
 	public double zoom = 1;
 
 	/**
-	 * {@code bookmark-level}・{@code bookmark-label}(2026-10-04)。どちらも既定
-	 * なら null(しおりは見出しの段数と文字から作る)。
+	 * {@code bookmark-level} and {@code bookmark-label} (2026-10-04). Null if both are at their defaults (bookmarks
+	 * are generated from heading levels and text).
 	 */
 	public BookmarkSpec bookmark = null;
 

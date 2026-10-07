@@ -3,49 +3,48 @@ package net.zamasoft.foliojet.layout.fragment;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
- * 改ページ契約(ARCHITECTURE.md §5.10、2026-07-22確定)の書字方向まわりの
- * 判定を1箇所に宣言します(2026-07-30新設)。
+ * Declares writing-direction decisions for the pagination contract in one place
+ * (ARCHITECTURE.md §5.10, finalized 2026-07-22; introduced 2026-07-30).
  *
  * <p>
- * それまで「どのボックスがatomic(丸ごと収まるか、丸ごと次ページへ送られる
- * か)か」の判定は、{@code BreakableBuilder.startFlowBlock()}の
- * {@code breakDepth}障壁と{@code FlowContainer.splitPageAxis()}の軸比較という
- * <b>2箇所の書字方向比較の偶然の一致</b>として実装されており、契約を
- * 問い合わせる型が存在しなかった。CSS Grid/Flexbox(断片化なし=atomic)の
- * ような新しいレイアウトを足すときは、書字方向比較を増やすのではなく
- * ここに判定を足すこと。
+ * Previously, deciding which boxes are atomic (fit entirely or move entirely to the next page) relied on
+ * <b>two writing-direction comparisons coincidentally agreeing</b>: the {@code breakDepth} barrier in
+ * {@code BreakableBuilder.startFlowBlock()} and the axis comparison in
+ * {@code FlowContainer.splitPageAxis()} . No type exposed the contract for queries.
+ * When adding new layouts such as CSS Grid/Flexbox (no fragmentation = atomic),
+ * add the decision here instead of adding more writing-direction comparisons.
  * </p>
  *
  * <p>
- * <b>2つの述語は意図的に強さが違う。</b>
- * {@link #isChainAtomicBoundary}は{@link WritingMode}の完全一致
- * (RL⇄LRの方向違いも境界)で、自動改ページがそのボックスの内部から
- * 始まること自体を抑止する(コミット{@code 77eef99}、
- * {@link ContinuationCapability#SAME_AXIS_DIRECTION_CHANGE}と同じ扱い)。
- * 一方{@link #splitsInPageAxis}は軸(縦/横)だけの比較で、
- * 「その場での幾何学的切断に意味があるか」を判定する——同軸の方向違い
- * (RL⇄LR)はページ軸の幾何が同一なので、切断の実行自体は可能なまま
- * 残している(上流の障壁が自動改ページを抑止するため、実文書でこの差が
- * 現れるのは強制改ページ等の限定経路のみ)。この非対称は出荷済みの
- * 挙動であり、統一する場合はgolden差分の全数レビューを伴うこと。
+ * <b>The two predicates intentionally differ in strength.</b>
+ * {@link #isChainAtomicBoundary} requires an exact {@link WritingMode} match
+ * (RL⇄LR direction changes also form boundaries) and prevents automatic page breaking from starting
+ * inside the box at all (commit {@code 77eef99} , same treatment as
+ * {@link ContinuationCapability#SAME_AXIS_DIRECTION_CHANGE} ).
+ * By contrast, {@link #splitsInPageAxis} compares only the axis (vertical/horizontal) to determine whether
+ * a geometric cut in place makes sense. Different directions on the same axis (RL⇄LR) have identical
+ * page-axis geometry, so actual cutting remains possible.
+ * Since the upstream barrier suppresses automatic page breaks, this difference appears in real documents
+ * only on limited paths such as forced page breaks. This asymmetry is shipped behavior;
+ * unifying it requires review of all golden differences.
  * </p>
  *
- * @see ContinuationCapability 祖先チェーン収集(open chain)側の分類
+ * @see ContinuationCapability classification for ancestor-chain collection (open chain)
  */
 public final class PaginationContract {
 	private PaginationContract() {
-		// 静的ユーティリティ
+		// Static utility
 	}
 
 	/**
-	 * 親フローの書字方向{@code outer}に対し、子ブロックの書字方向
-	 * {@code inner}がチェーン継続のatomic境界になるかを判定します。
+	 * Determines whether a child block's writing direction {@code inner} forms an atomic boundary for
+	 * chain continuation relative to the parent flow's writing direction {@code outer} .
 	 *
 	 * <p>
-	 * 境界の内側では自動改ページを開始しない(§5.10ルール3——absolute・
-	 * 書字方向が幹と食い違うボックスはatomic)。{@code WritingMode}は
-	 * enumなので参照比較で足りる。{@code isVertical()}だけの比較では
-	 * 軸が同じRL/LRの違いを見逃す。
+	 * Automatic page breaks do not start inside this boundary (§5.10 rule 3:
+	 * absolute boxes and boxes whose writing direction differs from the main flow are atomic).
+	 * {@code WritingMode} is an enum, so reference comparison suffices.
+	 * Comparing only {@code isVertical()} misses RL/LR differences on the same axis.
 	 * </p>
 	 */
 	public static boolean isChainAtomicBoundary(final WritingMode outer, final WritingMode inner) {
@@ -53,45 +52,45 @@ public final class PaginationContract {
 	}
 
 	/**
-	 * ボックス自身を見る変種です(Grid G0、2026-07-31)。
-	 * {@link net.zamasoft.foliojet.layout.box.PageAtomicBox}の印を持つ
-	 * ボックス(Grid等の「常時分割不可」)は書字方向に関わらずatomic境界。
+	 * Variant that examines the box itself (Grid G0, 2026-07-31).
+	 * Boxes marked with {@link net.zamasoft.foliojet.layout.box.PageAtomicBox}
+	 * (always unsplittable, such as Grid) form atomic boundaries regardless of writing direction.
 	 *
-	 * @param outer 親フローの書字方向
-	 * @param box   子ブロック
+	 * @param outer parent flow's writing direction
+	 * @param box child block
 	 */
 	public static boolean isChainAtomicBoundary(final WritingMode outer,
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
 		if (box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox atomic && atomic.isPageAtomicNow()) {
-			// **flex行分割(2026-08-07、Bug C)でもここはtrueのまま**——
-			// isChainAtomicBoundaryとsplitsInPageAxisは意図的に強さが違う
-			// (このファイル冒頭のコメント参照)。row-split対象のFlexBoxを
-			// ここでも「atomicでない」にすると、open-chain継続の
-			// {@code BreakPlan}がFlexBoxをチェーンメンバーとして選べて
-			// しまい、{@code FlowContainer.splitPageAxis}が
-			// {@code FlexBox.split}を直接呼ぶ経路ではなく
-			// {@code splitForContinuation}(ソース再生ベースの汎用継続)
-			// へ迂回する——結果、行の強制分割で作った継続itemの位置が、
-			// BlockBuilderの逐次カーソルで無関係に上書きされ、cross軸の
-			// 揃えが崩れる(実測で確認: 3枚のカードが階段状にずれた)。
-			// splitsInPageAxisだけ緩め、split()は直接呼ばせつつチェーンへは
-			// 絶対に入れない、という非対称をテーブルと同じ理由で踏襲する
+			// **This remains true even for flex row splitting (2026-08-07, Bug C)**:
+			// isChainAtomicBoundary and splitsInPageAxis intentionally differ in strength
+			// (see the comment at the top of this file). Also treating a row-splittable FlexBox
+			// as non-atomic here would allow the open-chain continuation's
+			// {@code BreakPlan} to select FlexBox as a chain member,
+			// making {@code FlowContainer.splitPageAxis} take a detour
+			// instead of directly calling {@code FlexBox.split}:
+			// it would use {@code splitForContinuation} (generic source-replay-based continuation).
+			// As a result, positions of continuation items created by forced row splitting
+			// would be overwritten independently by BlockBuilder's sequential cursor, breaking
+			// cross-axis alignment (confirmed by measurement: three cards formed a staircase).
+			// For the same reason as tables, retain the asymmetry: relax only splitsInPageAxis,
+			// allow direct calls to split(), and never admit the box into the chain.
 			return true;
 		}
 		return isChainAtomicBoundary(outer, box.getBlockParams().flow);
 	}
 
 	/**
-	 * PageAtomicBoxからの限定的な脱出です(2026-08-07、Bug C——flex行分割。
-	 * 2026-08-10のgrid行分割で{@link net.zamasoft.foliojet.layout.box.RowSplitBox}
-	 * へ一般化)。
+	 * A limited escape from PageAtomicBox (2026-08-07, Bug C, flex row splitting;
+	 * generalized to {@link net.zamasoft.foliojet.layout.box.RowSplitBox} for grid row splitting on
+	 * 2026-08-10).
 	 *
 	 * <p>
-	 * 行境界の帳簿が確定している場合のみ、ボックス自身の{@code split}が
-	 * 行単位の強制分割(テーブル行と同型)を実装しているため、
-	 * {@link #splitsInPageAxis}に限ってPageAtomicBoxの「常にatomic」を
-	 * 上書きする。帳簿が無い構成(flexのcolumn-direction、gridの
-	 * rowSpan&gt;1等)は対象外のまま従来のatomic経路へ落ちる。
+	 * Only when row-boundary bookkeeping is finalized does the box's own {@code split} implement forced
+	 * row-by-row splitting (analogous to table rows). Only for {@link #splitsInPageAxis} ,
+	 * this overrides PageAtomicBox's always-atomic rule.
+	 * Configurations without that bookkeeping (flex column-direction, grid rowSpan&gt;1, etc.)
+	 * remain excluded and follow the existing atomic path.
 	 * </p>
 	 */
 	private static boolean isRowSplitEligible(final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
@@ -99,14 +98,13 @@ public final class PaginationContract {
 	}
 
 	/**
-	 * ページ進行軸が{@code vertical}(縦書きか)の文脈で、書字方向
-	 * {@code inner}の子ブロックをその場で切断できるか(切断がページ軸の
-	 * 幾何として意味を持つか)を判定します。
+	 * Determines whether a child block with writing direction {@code inner} can be cut in place
+	 * (whether the cut makes geometric sense on the page axis) in a context whose page progression axis is
+	 * {@code vertical} (whether writing is vertical).
 	 *
 	 * <p>
-	 * 軸が食い違う子({@link ContinuationCapability#ORTHOGONAL_FLOW}相当)は
-	 * 切断せず、置換要素と同じatomic経路(丸ごと残すか丸ごと次ページ)へ
-	 * 落とす。
+	 * Children on a different axis (equivalent to {@link ContinuationCapability#ORTHOGONAL_FLOW} ) are not cut;
+	 * they follow the same atomic path as replaced elements (keep entirely or move entirely to the next page).
 	 * </p>
 	 */
 	public static boolean splitsInPageAxis(final boolean vertical, final WritingMode inner) {
@@ -114,8 +112,8 @@ public final class PaginationContract {
 	}
 
 	/**
-	 * ボックス自身を見る変種です(Grid G0)。{@code PageAtomicBox}は
-	 * その場の幾何学的切断も行わない(丸ごと送り→visual rescue)。
+	 * Variant that examines the box itself (Grid G0). {@code PageAtomicBox} also skips geometric cutting
+	 * in place (move entirely → visual rescue).
 	 */
 	public static boolean splitsInPageAxis(final boolean vertical,
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {

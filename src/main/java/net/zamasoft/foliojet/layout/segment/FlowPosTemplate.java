@@ -4,19 +4,19 @@ import net.zamasoft.foliojet.layout.box.params.Align;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 
 /**
- * {@link FlowPos}(通常フローの配置パラメータ、{@link BoxKind#FLOW}/
- * {@link BoxKind#MULTICOL}が使う)の内容をfreezeし、呼び出しごとに
- * 独立した新品の{@code FlowPos}をmaterializeするテンプレートです
- * (2026-07-22新設、M6d-A3b Stage1)。
+ * A template that freezes the contents of {@link FlowPos}
+ * (normal-flow positioning parameters used by {@link BoxKind#FLOW} /{@link BoxKind#MULTICOL})
+ * and materializes an independent, fresh {@code FlowPos} on each call
+ * (introduced 2026-07-22, M6d-A3b Stage1).
  *
  * <p>
- * 祖先({@code AbstractNormalFlowPos}/{@code AbstractBlockLevelPos}/
- * {@code AbstractStaticPos})のフィールドは{@link NormalFlowPosFields}
- * (`FloatPosTemplate`と共有)が担う。{@code align}/{@code columnSpan}
- * (`FlowPos`固有)は既存実装が値クラス・プリミティブで実質不変のため
- * そのまま保持する——{@code Params}系の{@code AffineTransform}/配列の
- * ような真にmutableなフィールドが{@code Pos}階層には存在しないため
- * 防御的コピーは不要(2026-07-22 Stage2で不変recordへ置換)。
+ * {@link NormalFlowPosFields} (shared with `FloatPosTemplate`) handles ancestor fields
+ * ({@code AbstractNormalFlowPos}/{@code AbstractBlockLevelPos}/{@code AbstractStaticPos}).
+ * Retains {@code align} /{@code columnSpan} (specific to `FlowPos`) unchanged:
+ * their existing implementations are value classes or primitives and effectively immutable.
+ * The {@code Pos} hierarchy has no truly mutable fields like the {@code AffineTransform} /arrays in the
+ * {@code Params} family, so defensive copies are unnecessary
+ * (replaced with an immutable record in Stage2, 2026-07-22).
  * </p>
  */
 public record FlowPosTemplate(NormalFlowPosFields common, Align align, byte columnSpan,
@@ -27,7 +27,7 @@ public record FlowPosTemplate(NormalFlowPosFields common, Align align, byte colu
 				source.gridItem, source.flexItem);
 	}
 
-	/** 呼び出しごとに新品の{@code FlowPos}を返す(複数回呼んでも互いに影響しない)。 */
+	/** Returns a fresh {@code FlowPos} on each call (multiple calls do not affect one another). */
 	public FlowPos materialize() {
 		final FlowPos pos = new FlowPos();
 		this.common.materializeInto(pos);

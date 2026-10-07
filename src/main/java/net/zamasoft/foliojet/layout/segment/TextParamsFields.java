@@ -12,30 +12,28 @@ import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
 import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
 
 /**
- * {@code Params}/{@code AbstractTextParams}が共通して持つフィールドの
- * freeze/materialize処理です(2026-07-22新設、M6d-A3b Stage1、
- * package-private)。
+ * Freeze/materialize handling for fields shared by {@code Params}/{@code AbstractTextParams}
+ * (introduced on 2026-07-22, M6d-A3b Stage1; package-private).
  *
  * <p>
- * 元は{@link LineParamsFields}が単独で持っていたが、{@code InlineParams}
- * (`AbstractTextParams`を直接継承し、`AbstractLineParams`のtext-align等
- * を持たない)のテンプレートを追加する際に、この祖先部分だけを共有する
- * 必要が生じたため切り出した(継承階層の重複実装を避ける、real
- * duplicationの解消——2つ目の具体的な必要が生じてからの抽出)。
- * {@link LineParamsFields}はこれを合成して、line固有の4フィールド
- * (textAlign/textAlignLast/textIndent/lineHeight)を追加で持つ。
+ * Originally held solely by {@link LineParamsFields}. Adding a template for {@code InlineParams}
+ * (which directly extends `AbstractTextParams` and has none of the text-align or other fields of
+ * `AbstractLineParams`) required sharing only this ancestor portion, so it was extracted
+ * (to avoid duplicating the inheritance hierarchy: removing real duplication only after a second
+ * concrete need arose). {@link LineParamsFields} composes this with four additional line-specific
+ * fields (textAlign/textAlignLast/textIndent/lineHeight).
  * </p>
  *
  * <p>
- * 祖先({@code Params})のフィールドは{@link ParamsFields}
- * (`InnerTableParamsTemplate`とも共有する)へ委譲する(合成、
- * さらに2つ目の具体的な必要が生じたため2026-07-22に抽出)。
+ * Delegates ancestor ({@code Params}) fields to {@link ParamsFields}
+ * (also shared with `InnerTableParamsTemplate`; composition, extracted on 2026-07-22 when another
+ * second concrete need arose).
  * </p>
  *
  * <p>
- * {@code textShadows}(配列、mutableな参照)はコンパクトコンストラクタで
- * freeze時に{@code clone()}し、{@link #materializeInto}呼び出しごとに
- * 新品の{@code clone()}を書き戻す(2026-07-22 Stage2、不変recordへ置換)。
+ * For {@code textShadows} (an array, a mutable reference), the compact constructor calls
+ * {@code clone()} on freeze, and each {@link #materializeInto} call writes back a fresh
+ * {@code clone()} (2026-07-22 Stage2, replaced with an immutable record).
  * </p>
  */
 record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode flow,
@@ -54,8 +52,8 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		boolean hangingPunctuationEnd, boolean hangingPunctuationFirst, boolean hangingPunctuationForceEnd,
 		byte textCombine, double tabSize, boolean tabSizeIsMultiple) {
 	TextParamsFields {
-		// 配列参照自体がmutableなため、freeze時にclone()する(要素の
-		// TextShadowはfinalフィールドのみで実質不変)
+		// Clone the mutable array reference on freeze (its TextShadow elements
+		// have only final fields and are effectively immutable).
 		textShadows = textShadows == null ? null : textShadows.clone();
 	}
 
@@ -79,9 +77,9 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 	}
 
 	/**
-	 * {@code target}へ全フィールドを書き戻す。呼び出しごとに新品の
-	 * {@code AffineTransform}/{@code TextShadow[]}を割り当てるため、
-	 * 複数回materializeしても互いに影響しない(M6d-Aの最重要契約)。
+	 * Writes all fields back to {@code target}. Allocates fresh
+	 * {@code AffineTransform}/{@code TextShadow[]} instances on each call, so multiple materializations
+	 * do not affect one another (the most important M6d-A contract).
 	 */
 	void materializeInto(final AbstractTextParams target) {
 		this.common.materializeInto(target);
@@ -91,7 +89,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.direction = this.direction;
 		target.unicodeBidi = this.unicodeBidi;
 		target.bidiSemanticAlias = this.bidiSemanticAlias;
-		// 標準モードの文字なし行のstrutも、範囲再生で維持する。
+		// Preserve the strut of textless lines in standards mode during range replay too.
 		target.strictLineBox = this.strictLineBox;
 		target.fontManager = this.fontManager;
 		target.lineBreakRules = this.lineBreakRules;
@@ -108,8 +106,8 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.decoration = this.decoration;
 		target.decorationThickness = this.decorationThickness;
 		target.decorationColor = this.decorationColor;
-		// 装飾線の線種・太さ・下線位置(2026-08-29)。凍結から漏らすと再生・
-		// restyleで実線・既定太さへ戻る
+		// Decoration line style, thickness, and underline position (2026-08-29). Omitting these from
+		// freezing would restore solid lines and default thickness during replay or restyle.
 		target.decorationStyle = this.decorationStyle;
 		target.decorationThicknessLength = this.decorationThicknessLength;
 		target.underlineOffset = this.underlineOffset;

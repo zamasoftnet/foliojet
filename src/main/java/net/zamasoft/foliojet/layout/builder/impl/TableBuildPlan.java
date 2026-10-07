@@ -3,16 +3,16 @@ package net.zamasoft.foliojet.layout.builder.impl;
 import java.util.EnumSet;
 
 /**
- * 表構築の実行計画です(C4-B、2026-07-19)。
+ * Execution plan for table construction (C4-B, 2026-07-19).
  *
  * <p>
- * {@link Mode#RETAINED}は必ず1つ以上の{@link TableRetentionReason}を伴う——
- * テストが「TwoPassカウンタが増えたか」ではなく「どの理由でどちらの計画に
- * なったか」を直接検証できるようにする。
+ * {@link Mode#RETAINED} always carries at least one {@link TableRetentionReason},
+ * so tests can directly check which plan was selected and why, rather than whether
+ * the TwoPass counter increased.
  * </p>
  *
- * @param mode    実行計画の種別
- * @param reasons Retainedを要する理由(Incrementalなら空)
+ * @param mode    the execution plan type
+ * @param reasons reasons Retained is required (empty for Incremental)
  * @author MIYABE Tatsuhiko
  */
 public record TableBuildPlan(Mode mode, EnumSet<TableRetentionReason> reasons) {
@@ -21,9 +21,9 @@ public record TableBuildPlan(Mode mode, EnumSet<TableRetentionReason> reasons) {
 	}
 
 	public enum Mode {
-		/** 早期コミット可能(行単位でストリーミングし、確定した行から先へ流す)。 */
+		/** Can commit early (streams by row and forwards each row as soon as it is finalized). */
 		INCREMENTAL,
-		/** 表全体(または該当row-group全体)を保持してからコミットする。 */
+		/** Retains the entire table (or the entire relevant row-group) before committing. */
 		RETAINED
 	}
 }

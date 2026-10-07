@@ -5,34 +5,34 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
 
 /**
- * 整形済みテキストの正規化イベントです(M3b Phase 1 / C3)。
+ * Normalized events for shaped text (M3b Phase 1 / C3).
  *
  * <p>
- * WordHyphenator の出口(BuilderGlyphHandler の入力)で確定した
- * glyph/control/run 境界を値として運ぶ。open 段落の handoff は shaper の
- * 内部状態ではなくこの列で行う(codex 相談 2026-07-17 の設計)。
- * ControlQuad はインライン quad・制御を Phase 1 では参照のまま運ぶ
- * (値 recipe 化は Phase 3 — インライン継続の box 依存除去と同時)。
+ * Carries glyph/control/run boundaries finalized at the WordHyphenator output
+ * (the BuilderGlyphHandler input) as values. Open paragraphs are handed off through this sequence,
+ * not through the shaper's internal state (design from the codex consultation, 2026-07-17).
+ * In Phase 1, ControlQuad carries inline quads and controls by reference
+ * (value recipes arrive in Phase 3, together with removal of box dependencies from inline continuations).
  * </p>
  */
 public sealed interface TextReplayEvent {
-	/** テキストランの開始。 */
+	/** Start of a text run. */
 	record RunStart(int charOffset, FontStyle fontStyle, FontMetrics fontMetrics) implements TextReplayEvent {
 	}
 
-	/** グリフ(chars は専有コピー)。 */
+	/** A glyph (chars is an exclusively owned copy). */
 	record Glyph(int charOffset, char[] chars, int gid) implements TextReplayEvent {
 	}
 
-	/** テキストランの終了。 */
+	/** End of a text run. */
 	record RunEnd() implements TextReplayEvent {
 	}
 
-	/** 制御・インライン quad(Phase 1: 参照運搬)。 */
+	/** A control or inline quad (Phase 1: carried by reference). */
 	record ControlQuad(TextControl quad) implements TextReplayEvent {
 	}
 
-	/** 行の flush。 */
+	/** Line flush. */
 	record Flush() implements TextReplayEvent {
 	}
 }

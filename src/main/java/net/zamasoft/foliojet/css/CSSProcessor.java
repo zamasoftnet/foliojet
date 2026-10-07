@@ -55,7 +55,7 @@ import net.zamasoft.foliojet.css.parser.InputSource;
 import net.zamasoft.foliojet.ua.CompatibleMode;
 
 /**
- * CSSに関する処理命令を処理します。
+ * Handles CSS processing instructions.
  * 
  * @author MIYABE Tatsuhiko
  */
@@ -64,7 +64,7 @@ public class CSSProcessor implements XMLHandler {
 	private static final Attributes EMPTY_ATTRS = new AttributesImpl();
 
 	/**
-	 * 属性を上書きするためのオブジェクトです。
+	 * An object for overriding attributes.
 	 */
 	private final AttributesImpl attsi = new AttributesImpl();
 
@@ -77,12 +77,12 @@ public class CSSProcessor implements XMLHandler {
 	private final StyleApplier applier;
 
 	/**
-	 * alternativeスタイルを選択するインターフェースです。
+	 * The interface for selecting alternative styles.
 	 */
 	private StyleSheetSelector ssh = null;
 
 	/**
-	 * ドキュメントのデフォルトのスタイル付け方式です。
+	 * The document's default styling method.
 	 */
 	private String defaultStyleType = Constants.CSS_MIME_TYPE;
 	private boolean firstChild = true;
@@ -94,13 +94,13 @@ public class CSSProcessor implements XMLHandler {
 	private int noneStack = 0;
 
 	/**
-	 * 次に採番するElementKey(文書順の通し番号、0始まり)。パスをまたいで
-	 * 安定なキーとして{@code CSSElement.elementKey}に使う
-	 * ({@code CSSElement}のjavadoc参照)。
+	 * The next ElementKey to assign (sequence number in document order, zero-based). Used
+	 * as a stable key across passes in {@code CSSElement.elementKey}
+	 * (see the {@code CSSElement} Javadoc).
 	 */
 	private long nextElementKey = 0;
 
-	// インラインオブジェクト
+	// Inline object
 	private InlineObject inlineObject = null;
 
 	private int inlineObjectDepth = 0;
@@ -116,10 +116,10 @@ public class CSSProcessor implements XMLHandler {
 	public CSSProcessor(UserAgent ua, Imposition imposition) {
 		this.ua = ua;
 		this.imposition = imposition;
-		// パス持ち越しスタイルシート(2026-08-08)。body内の<style>は
-		// 1パスでは前方の要素へ遡及できないが、pass-count>=2なら前の
-		// パス(STRUCTURE_SCAN含む)で収集済みの規則を最初から適用できる。
-		// 寿命はUAContext.getCarriedStyleSheetのjavadoc参照
+		// Stylesheet carried across passes (2026-08-08). In one pass, <style> inside body
+		// cannot apply retroactively to earlier elements, but with pass-count>=2, rules collected
+		// in the previous pass (including STRUCTURE_SCAN) can apply from the beginning.
+		// For its lifetime, see the Javadoc for UAContext.getCarriedStyleSheet.
 		CSSStyleSheet carried = this.ua.getUAContext().getCarriedStyleSheet();
 		if (carried == null) {
 			carried = new CSSStyleSheet();
@@ -133,10 +133,10 @@ public class CSSProcessor implements XMLHandler {
 
 		this.applier = new StyleApplier(ua, styleContext);
 
-		// UAデフォルトスタイルシート(html-ua.css、cascade origin=USER_AGENT)。
-		// 固有性・出現順にかかわらず常に著者スタイルシートに劣後する
-		// (2026-07-18、CSSで表現できる既定値をHTMLStyle.javaのswitch文から
-		// 段階的に移す方針で新設。詳細はPLAN.md参照)。
+		// UA default stylesheet (html-ua.css, cascade origin=USER_AGENT).
+		// Always ranks below author stylesheets, regardless of specificity or source order.
+		// (Added on 2026-07-18 to gradually move defaults expressible in CSS out of the
+		// switch statement in HTMLStyle.java. See PLAN.md for details.)
 		try (Reader uaStyleReader = new InputStreamReader(
 				CSSProcessor.class.getResourceAsStream("html/html-ua.css"), StandardCharsets.UTF_8)) {
 			InputSource uaInputSource = new InputSource(uaStyleReader);
@@ -145,13 +145,13 @@ public class CSSProcessor implements XMLHandler {
 			this.styleSheetBuilder.setOrigin(Origin.USER_AGENT);
 			this.styleSheetBuilder.parse(uaInputSource);
 		} catch (IOException | CSSException e) {
-			// バンドルされたリソースのため、実行時に発生しない想定
+			// Not expected at runtime because this is a bundled resource
 			throw new IllegalStateException("UAデフォルトスタイルシートの読み込みに失敗しました", e);
 		} finally {
 			this.styleSheetBuilder.setOrigin(Origin.AUTHOR);
 		}
 
-		// デフォルトのスタイルシート
+		// Default stylesheet
 		String defaultStyle = UAProps.INPUT_DEFAULT_STYLESHEET.getString(this.ua);
 		if (defaultStyle != null) {
 			try {
@@ -242,9 +242,9 @@ public class CSSProcessor implements XMLHandler {
 	}
 
 	/**
-	 * 変換終了時の清算です(E-6増分3b-2)。レイアウトソースのspill
-	 * ストア(一時ファイル)を閉じる。成功・例外を問わずformatterの
-	 * finally(TranscoderHandler.dispose経由)から呼ばれる。冪等。
+	 * Cleanup at the end of conversion (E-6 increment 3b-2). Closes the layout source spill
+	 * store (temporary file). Called from the formatter's finally block
+	 * (via TranscoderHandler.dispose), on both success and failure. Idempotent.
 	 */
 	public void dispose() {
 		if (this.builder != null) {
@@ -279,11 +279,11 @@ public class CSSProcessor implements XMLHandler {
 				this.ua.getDocumentContext().setCompatibleMode(CompatibleMode.STRICT);
 			}
 		} else if (systemId == null && "html".equalsIgnoreCase(name)) {
-			// HTML5の簡易DOCTYPE(<!DOCTYPE html>)。publicId/systemIdを伴わないが、
-			// 実務上はほぼ全てのHTML5文書がこれを使うため標準モード(html4.xmlのタグ
-			// 入れ子ルール)として扱う。付けない場合、legacy.xmlにはVIDEO/SOURCE/TRACK
-			// 等のHTML5要素の定義が無くUNKNOWN扱いとなり、入れ子構造が破壊される
-			// (2026-07-18、video>source+trackが後続要素を飲み込むバグで発見)。
+			// The short HTML5 DOCTYPE (<!DOCTYPE html>). It has no publicId/systemId, but
+			// almost all real-world HTML5 documents use it, so treat it as standards mode
+			// (the tag nesting rules in html4.xml). Otherwise, legacy.xml has no definitions for
+			// HTML5 elements such as VIDEO/SOURCE/TRACK, treats them as UNKNOWN, and breaks nesting.
+			// (Found on 2026-07-18 through a bug where video>source+track swallowed subsequent elements.)
 			this.ua.getDocumentContext().setCompatibleMode(CompatibleMode.STRICT);
 		}
 	}
@@ -322,7 +322,7 @@ public class CSSProcessor implements XMLHandler {
 
 	public void processingInstruction(String target, String data) throws SAXException {
 		if (target.equals(Constants.LINK_PI)) {
-			// 外部スタイルシート (SPEC ASSX1.0)
+			// External stylesheet (SPEC ASSX1.0)
 			try {
 				XMLUtils.parsePseudoAttributes(data.toCharArray(), 0, data.length(), this.attsi);
 				String type = this.attsi.getValue("type");
@@ -344,7 +344,7 @@ public class CSSProcessor implements XMLHandler {
 			}
 			this.attsi.clear();
 		} else if (target.equals(CSSJML.PI_STYLESHEET)) {
-			// 文書内スタイルシート(<STYLE>...)に相当
+			// Equivalent to an embedded stylesheet (<STYLE>...)
 			try {
 				String styleSheet = XMLUtils.parsePseudoAttributes(data.toCharArray(), 0, data.length(), this.attsi);
 				String media = this.attsi.getValue("media");
@@ -368,7 +368,7 @@ public class CSSProcessor implements XMLHandler {
 			}
 			this.attsi.clear();
 		} else if (target.equals(CSSJML.PI_DOCUMENT_INFO)) {
-			// 文書情報(<TITLE>..., <META name="... に相当)
+			// Document information (equivalent to <TITLE>..., <META name="...)
 			try {
 				XMLUtils.parsePseudoAttributes(data.toCharArray(), 0, data.length(), this.attsi);
 				String name = this.attsi.getValue("name");
@@ -379,17 +379,17 @@ public class CSSProcessor implements XMLHandler {
 			}
 			this.attsi.clear();
 		} else if (target.equals(CSSJML.PI_DEFAULT_ENCODING)) {
-			// デフォルトの文書エンコーディング(<META http-equiv="Content-Type"... に相当)
+			// Default document encoding (equivalent to <META http-equiv="Content-Type"...)
 			try {
 				this.ua.getDocumentContext().setEncoding(data);
 			} catch (UnsupportedEncodingException e) {
 				this.ua.message(MessageCodes.WARN_UNSUPPORTED_ENCODING, data);
 			}
 		} else if (target.equals(CSSJML.PI_DEFAULT_STYLE_TYPE)) {
-			// デフォルトのスタイルシート形式(<META http-equiv="Content-Style-Type"... に相当)
+			// Default stylesheet format (equivalent to <META http-equiv="Content-Style-Type"...)
 			this.defaultStyleType = data;
 		} else if (target.equals(CSSJML.PI_BASE_URI)) {
-			// 文書のベースURI(<BASE href="... に相当)
+			// Document base URI (equivalent to <BASE href="...)
 			URI uri;
 			try {
 				uri = this.applier.getBaseURI();
@@ -404,7 +404,7 @@ public class CSSProcessor implements XMLHandler {
 
 	private void requireBuilder() {
 		if (this.builder == null) {
-			// 内容開始
+			// Start of content
 			this.builder = new StyleBuilder(this.applier.getStyleContext(), this.ua, this.imposition);
 		}
 	}
@@ -417,16 +417,16 @@ public class CSSProcessor implements XMLHandler {
 		// None
 		if (this.noneStack > 0) {
 			this.noneStack++;
-			// ElementKeyは表示の有無に関わらず、文書順に漏れなく消費する
-			// (STRUCTURE_SCANは表示されない部分木も対象に含めるため。
-			// ここでCSSElementを作らない要素もキー空間だけは消費しないと、
-			// このdisplay:none部分木より後に続く兄弟要素のキーが
-			// STRUCTURE_SCAN側の採番とずれてしまう)
+			// Consume every ElementKey in document order, regardless of visibility.
+			// (STRUCTURE_SCAN includes hidden subtrees.
+			// Even elements for which no CSSElement is created here must consume a key;
+			// otherwise, keys for sibling elements following this display:none subtree
+			// would differ from those assigned by STRUCTURE_SCAN.)
 			++this.nextElementKey;
 			return;
 		}
 
-		// インラインオブジェクト<
+		// Inline object <
 		if (this.inlineObjectDepth > 0) {
 			try {
 				this.inlineObject.startElement(uri, lName, qName, atts);
@@ -434,16 +434,16 @@ public class CSSProcessor implements XMLHandler {
 				this.ua.message(MessageCodes.WARN_BAD_INLINE_OBJECT, e.getMessage());
 			}
 			this.inlineObjectDepth++;
-			// ElementKeyはnoneStackと同じ理由で漏れなく消費する(下の
-			// コメント参照)
+			// Consume every ElementKey for the same reason as noneStack
+			// (see the comment below).
 			++this.nextElementKey;
 			return;
 		}
 
-		// リンク
+		// Link
 		String href = Constants.XLINK_HREF_ATTR.getValue(atts);
 
-		// クラス
+		// Classes
 		String styleClass = XHTML.getAttr(atts, XHTML.CLASS_ATTR.lName);
 		String styleClasses[];
 		if (styleClass == null) {
@@ -458,7 +458,7 @@ public class CSSProcessor implements XMLHandler {
 			styleClasses = (String[]) list.toArray(new String[list.size()]);
 		}
 
-		// 擬似クラス
+		// Pseudo-classes
 		byte[] pseudoClasses;
 		{
 			int len = 0;
@@ -494,33 +494,33 @@ public class CSSProcessor implements XMLHandler {
 		// ID
 		String id = XHTML.getAttr(atts, XHTML.ID_ATTR.lName);
 
-		// 言語
+		// Language
 		String lang = XHTML.getAttr(atts, XHTML.LANG_ATTR.lName);
 		if (lang != null) {
 			lang = lang.trim().toLowerCase();
 		}
 
-		// 要素
+		// Element
 		if (atts.getLength() == 0) {
 			atts = EMPTY_ATTRS;
 		} else {
 			atts = new AttributesImpl(atts);
 		}
 
-		// リンクの継承
+		// Link inheritance
 		URI link = null;
 		CSSStyle parentStyle = this.builder.getCurrentStyle();
 		if (href != null) {
 			try {
 				OutputPdfHyperlinksHref conf = UAProps.OUTPUT_PDF_HYPERLINKS_HREF.get(ua);
 				if (conf == OutputPdfHyperlinksHref.RELATIVE || href.startsWith("#")) {
-					// 相対アドレス
+					// Relative address
 					link = URIHelper.create(this.ua.getDocumentContext().getEncoding(), href);
 					if (link.isAbsolute()) {
 						link = this.ua.getDocumentContext().getBaseURI().relativize(link);
 					}
 				} else {
-					// 絶対アドレス
+					// Absolute address
 					URI base;
 					String str = UAProps.OUTPUT_PDF_HYPERLINKS_BASE.getString(this.ua);
 					if (str == null) {
@@ -555,23 +555,23 @@ public class CSSProcessor implements XMLHandler {
 
 		final Locale loca;
 		if (lang == null) {
-			// 言語は文書ツリーを継承する(xml:lang / :lang() のスコープはサブツリー)
+			// Language is inherited through the document tree (xml:lang / :lang() scope is the subtree).
 			loca = parentStyle == null ? null : parentStyle.getCSSElement().lang;
 		} else if (lang.equals("ja")) {
 			loca = Locale.JAPANESE;
 		} else if (lang.equals("en")) {
 			loca = Locale.ENGLISH;
 		} else {
-			// BCP-47として解釈する(2026-08-31)。`new Locale("zh-hans")`は
-			// タグを分解せず言語を"zh-hans"にしてしまうため、`:lang(zh)`も
-			// 言語別のフォント連鎖も`en-US`の分綴も当たらなかった。
-			// 解釈できない値は従来どおりそのまま言語として扱う
+			// Interpret as BCP-47 (2026-08-31). `new Locale("zh-hans")` did not decompose
+			// the tag and instead set the language to "zh-hans", so neither `:lang(zh)`,
+			// language-specific font chains, nor `en-US` hyphenation applied.
+			// Treat unparseable values as language names as before.
 			final Locale tagged = Locale.forLanguageTag(lang);
 			loca = tagged.getLanguage().isEmpty() ? new Locale(lang) : tagged;
 		}
 
-		// :dir() 用の方向性。dir="auto" の一次強方向文字判定は先読みを要する
-		// ため対象外(継承値へフォールスルー、CSS-SUPPORT.md参照)
+		// Directionality for :dir(). Determining the first strong directional character for dir="auto"
+		// requires lookahead and is out of scope (falls through to the inherited value; see CSS-SUPPORT.md).
 		String dirAttr = XHTML.getAttr(atts, XHTML.DIR_ATTR.lName);
 		final String dir;
 		if (dirAttr != null && dirAttr.equalsIgnoreCase("ltr")) {
@@ -586,7 +586,7 @@ public class CSSProcessor implements XMLHandler {
 				this.precedingElement, charOffset, this.nextElementKey++);
 		this.precedingElement = null;
 
-		// スタイル構築
+		// Build the style
 		CSSStyle style = CSSStyle.getCSSStyle(this.ua, parentStyle, ce);
 		if (parentStyle == null) {
 			this.ua.getDocumentContext().setRootStyle(style);
@@ -599,27 +599,27 @@ public class CSSProcessor implements XMLHandler {
 		// display: none;
 		short display = Display.get(style);
 		if (display == DisplayValue.NONE) {
-			// 表示しない
+			// Do not display
 			this.applier.endStyle();
 			this.noneStack = 1;
 			return;
 		}
 
-		// インラインオブジェクト
+		// Inline object
 		InlineObjectFactory factory = PluginRegistry.getInstance().search(InlineObjectFactory.class, ce);
 		if (factory != null) {
 			if (this.inlineObject == null) {
 				this.inlineObject = factory.createInlineObject();
 				this.inlineObject.setDocumentLocator(this.saxLocator);
 			}
-			// **既定の名前空間の宣言を必ず添えること**(2026-08-06)。
-			// HTMLに直接書いたSVGは `xmlns` を書かない——HTMLの構文解析器が
-			// 暗黙に付ける決まりだからである。ところがここから先の
-			// 組み立て器(Batikの SAXSVGDocumentFactory)は**属性の xmlns を
-			// 見て**要素の種類を決めるので、宣言が無いと中身が
-			// GenericElement になり、`GenericElement cannot be cast to
-			// SVGOMSVGElement` で丸ごと描画されない。
-			// `xmlns` を明示した書き方だけが動く、という食い違いだった。
+			// **Always include the default namespace declaration** (2026-08-06).
+			// SVG written directly in HTML omits `xmlns`, because the HTML parser
+			// is required to supply it implicitly. However, the downstream builder
+			// (Batik's SAXSVGDocumentFactory) determines element types by **examining
+			// the xmlns attribute**. Without the declaration, its contents become
+			// GenericElement instances, and `GenericElement cannot be cast to
+			// SVGOMSVGElement` prevents the entire SVG from rendering.
+			// This caused an inconsistency where only markup with an explicit `xmlns` worked.
 			final boolean hasDefaultNamespace = this.namespaces.containsKey("")
 					|| atts.getIndex("http://www.w3.org/2000/xmlns/", "xmlns") >= 0
 					|| atts.getIndex("xmlns") >= 0;
@@ -639,11 +639,11 @@ public class CSSProcessor implements XMLHandler {
 					this.attsi.addAttribute("http://www.w3.org/2000/xmlns/", "xmlns", "xmlns", "CDATA", uri);
 				}
 			}
-			// インラインSVGのcurrentColor解決(2026-08-07)。HTML側の
-			// カスケードで決まったcolorの計算値を、切り出したSVG文書の
-			// ルートへプレゼンテーション属性として焼き込む。SVG文書は
-			// HTML文書のスタイル文脈から切り離されるため、これが無いと
-			// fill="currentColor" のアイコンが継承色を失って黒になる
+			// Resolve currentColor in inline SVG (2026-08-07). Write the computed color
+			// from the HTML cascade to the root of the extracted SVG document
+			// as a presentation attribute. The SVG document is detached
+			// from the HTML document's style context, so without this,
+			// icons with fill="currentColor" lose their inherited color and turn black.
 			if ("svg".equalsIgnoreCase(lName) && atts.getValue("color") == null) {
 				if (atts != this.attsi) {
 					this.attsi.clear();
@@ -667,8 +667,8 @@ public class CSSProcessor implements XMLHandler {
 			HTMLStyleUtils.applyWidthHeight(lName, style);
 			this.inlineObjectStyle = style;
 			if (this.inlineObject instanceof StyleAwareInlineObject styleAware) {
-				// 著者CSSのvar()をこのSVGの位置のカスタムプロパティで
-				// 解決するためのスタイル文脈(SVGAuthorCss.toCssText)
+				// Style context for resolving var() in author CSS with the custom
+				// properties at this SVG's location (SVGAuthorCss.toCssText)
 				styleAware.setHostStyle(style);
 			}
 			return;
@@ -676,20 +676,20 @@ public class CSSProcessor implements XMLHandler {
 
 		this.builder.startStyle(style);
 		{
-			// 代替テキスト
+			// Alternative text
 			String text = CSSJInternalImage.getText(style);
 			if (text != null && text.length() > 0) {
 				char[] ch = text.toCharArray();
 				this.builder.characters(-1, ch, 0, ch.length);
 			}
 			if (CSSJInternalImage.getImage(style) != null) {
-				// 画像タグの内部は無視する
+				// Ignore the contents of image tags
 				this.noneStack = 1;
 			} else if (net.zamasoft.foliojet.css.impl.property.box.ContentVisibility
 					.get(style) == net.zamasoft.foliojet.css.value.ContentVisibilityValue.HIDDEN) {
-				// content-visibility:hidden——要素自身のボックスは残し、
-				// 中身だけレイアウトから省く(画像タグの内部無視と同じ機構。
-				// endElement側のフォールスルー条件と対)
+				// content-visibility:hidden: retain the element's own box
+				// and omit only its contents from layout (the same mechanism used to ignore image tag contents;
+				// paired with the fall-through condition in endElement).
 				this.noneStack = 1;
 			}
 		}
@@ -704,7 +704,7 @@ public class CSSProcessor implements XMLHandler {
 			charOffset -= len;
 		}
 		if (this.inlineObjectDepth > 0) {
-			// SVG等のインラインマークアップ
+			// Inline markup such as SVG
 			try {
 				this.inlineObject.characters(ch, off, len);
 			} catch (Exception e) {
@@ -712,7 +712,7 @@ public class CSSProcessor implements XMLHandler {
 				this.ua.message(MessageCodes.WARN_BAD_INLINE_OBJECT, e.getMessage());
 			}
 		} else if (this.noneStack <= 0 && len > 0) {
-			// 通常のテキスト
+			// Normal text
 			if (this.builder != null) {
 				this.builder.characters(charOffset, ch, off, len);
 			}
@@ -729,7 +729,7 @@ public class CSSProcessor implements XMLHandler {
 			}
 			this.inlineObjectDepth--;
 			if (this.inlineObjectDepth == 0) {
-				// プラグイン終了
+				// End the plugin
 				Image image = null;
 				try {
 					this.inlineObject.endDocument();
@@ -761,7 +761,7 @@ public class CSSProcessor implements XMLHandler {
 			--this.noneStack;
 			if (this.noneStack == 0) {
 				if (currentStyle == null) {
-					// ルート要素がnoneの場合に発生する
+					// Occurs when the root element is none
 					return;
 				}
 				if (CSSJInternalImage.getImage(currentStyle) == null

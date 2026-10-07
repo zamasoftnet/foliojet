@@ -9,34 +9,34 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.VarSubstitution;
 
 /**
- * インラインSVGへ持ち込む著者CSSのSVG向け部分集合です(2026-08-07)。
+ * The SVG subset of author CSS imported into inline SVG (2026-08-07).
  *
  * <p>
- * インラインSVGは独立文書としてBatikに渡され、HTML文書のスタイルシートが
- * 届かない——CSSクラスでfill/strokeを指定するアイコンがSVG既定の
- * fill=blackで黒く塗り潰れる(qiitaのいいねボタンで発覚)。そこで
- * スタイルシート解析時にSVGプレゼンテーション系の宣言を含む規則だけを
- * ここへ集め、SVG文書へ&lt;style&gt;として注入してBatik側で
- * カスケードさせる({@code CSSStyleSheetBuilder.collectSVGStyleRule}が
- * 収集、{@code SVGInlineObject.getImage}が注入)。
+ * Inline SVG is passed to Batik as an independent document, so the HTML document's
+ * stylesheet does not reach it. Icons whose fill/stroke is set through CSS classes
+ * are filled black by SVG's default fill=black (discovered on qiita's like button).
+ * During stylesheet parsing, collect only rules containing SVG presentation
+ * declarations here, then inject them into the SVG document as &lt;style&gt;
+ * Batik applies the cascade ({@code CSSStyleSheetBuilder.collectSVGStyleRule}
+ * collects them; {@code SVGInlineObject.getImage} injects them).
  * </p>
  *
  * <p>
- * 宣言値は生トークン列のまま保持する。モダンサイトのアイコン色は
- * ほぼ例外なく {@code var(--color-*)} 経由で指定される(qiitaの実測)ため、
- * var()を含む宣言を捨てると本命が全部落ちる——解決は注入時まで遅延し、
- * そのSVG要素のスタイル({@code CSSStyle})の文脈でカスタムプロパティを
- * 引く({@link VarSubstitution})。重複追加はキーで吸収する(多重パスで
- * 同じスタイルシートが再解析されるため)。
+ * Retain declaration values as raw token sequences. Modern sites almost always
+ * set icon colors through {@code var(--color-*)} (observed on qiita),
+ * so discarding declarations containing var() loses the main intended rules. Defer resolution
+ * until injection, looking up custom properties in the SVG element's
+ * style context ({@code CSSStyle}) via {@link VarSubstitution}. Deduplicate additions by key
+ * because multiple passes reparse the same stylesheet.
  * </p>
  */
 public final class SVGAuthorCss {
 
-	/** 1宣言。tokensはvar()を含み得る生トークン列。 */
+	/** One declaration. tokens is a raw token sequence that may contain var(). */
 	public record Decl(String property, List<CssToken> tokens, boolean important) {
 	}
 
-	/** 1規則(Batik安全形へ濾過済みのセレクタ+宣言群)。 */
+	/** One rule (selectors filtered to a Batik-safe form plus declarations). */
 	public record Rule(String selectors, List<Decl> declarations) {
 	}
 
@@ -55,9 +55,9 @@ public final class SVGAuthorCss {
 	}
 
 	/**
-	 * Batikへ渡すCSSテキストを組み立てます。var()を含む宣言は
-	 * {@code varContext}(注入先SVG要素のスタイル)の文脈で解決し、
-	 * 解決できないもの(未定義かつフォールバックなし等)は捨てます。
+	 * Builds CSS text to pass to Batik. Resolves declarations containing var()
+	 * in {@code varContext} (the style of the SVG element receiving injection),
+	 * discarding those that cannot resolve (undefined with no fallback, etc.).
 	 */
 	public synchronized String toCssText(CSSStyle varContext) {
 		if (this.rules.isEmpty()) {
@@ -79,18 +79,18 @@ public final class SVGAuthorCss {
 				}
 				final String value = serialize(tokens);
 				if (value == null || value.isEmpty() || value.indexOf('<') >= 0) {
-					// Batikが読めない値・空値・CDATA/要素境界を壊し得る値は
-					// 宣言ごと捨てる。**1つでも不正な値があるとBatikは
-					// スタイルシート全体を無効にする**(2026-08-07に実測——
-					// rgb(0 0 255)の空白区切りで全滅した)ので、ここの防御が
-					// 注入の成立条件そのもの。加えて注入側は規則ごとに
-					// <style>を分け、万一の不正が1規則に閉じるようにしている
+					// Discard entire declarations for values Batik cannot read, empty values, or values
+					// that could break CDATA/element boundaries. **Even one invalid value makes Batik
+					// invalidate the entire stylesheet** (observed on 2026-08-07:
+					// the space-separated rgb(0 0 255) invalidated everything), so this defense
+					// is essential for injection to work. The injection side also gives each rule
+					// its own <style>, containing any unexpected invalid value to one rule.
 					continue;
 				}
 				if ("display".equals(d.property())
 						&& !BATIK_DISPLAY_VALUES.contains(value.toLowerCase(java.util.Locale.ROOT))) {
-					// BatikのCSS2世代のdisplay検証はflex/grid等を拒否し、
-					// シート全体を無効化する(qiitaのdisplay:flexで実測)
+					// Batik's CSS2-era display validation rejects flex/grid, etc.,
+					// and invalidates the entire sheet (observed with display:flex on qiita).
 					continue;
 				}
 				if (decls == null) {
@@ -101,9 +101,9 @@ public final class SVGAuthorCss {
 					decls.append(" !important");
 				}
 				decls.append(';');
-				// rgba()/rgb(r g b / a)のアルファはSVG 1.1の色に表現がない。
-				// 捨てると濃くなりすぎる(qiitaの輪郭はrgb(0 0 0 / 12%))ので、
-				// fill/stroke/stop-colorに限り対応する*-opacityへ移す
+				// SVG 1.1 colors cannot represent alpha from rgba()/rgb(r g b / a).
+				// Dropping it makes colors too dark (qiita's outlines use rgb(0 0 0 / 12%)),
+				// so move it to the corresponding *-opacity for fill/stroke/stop-color only.
 				final Double alpha = extractAlpha(tokens);
 				final String opacityProp = opacityPropertyFor(d.property());
 				if (alpha != null && opacityProp != null) {
@@ -122,9 +122,9 @@ public final class SVGAuthorCss {
 	}
 
 	/**
-	 * BatikのCSS2世代パーサが読める形へ値を直列化します。読めるか確信の
-	 * 持てないトークンを含む宣言はnull(=宣言ごと破棄)にする——Batikは
-	 * 1つの不正値でスタイルシート全体を無効にするため、通す側を狭く取る。
+	 * Serializes values into a form Batik's CSS2-era parser can read. Return null
+	 * (discard the entire declaration) for tokens whose readability is uncertain.
+	 * Keep acceptance narrow because one invalid value invalidates the entire stylesheet in Batik.
 	 */
 	private static String serialize(List<CssToken> tokens) {
 		final List<String> parts = new ArrayList<String>(tokens.size());
@@ -147,7 +147,7 @@ public final class SVGAuthorCss {
 			return ident.name();
 		}
 		if (token instanceof CssToken.Uri uri) {
-			// url(#id)等。SVG文書内のグラデーション参照に要る
+			// url(#id), etc. Required for gradient references inside the SVG document.
 			return "url(" + uri.uri() + ")";
 		}
 		if (token == CssToken.Op.COMMA) {
@@ -157,11 +157,11 @@ public final class SVGAuthorCss {
 			return "/";
 		}
 		if (token instanceof CssToken.Func func) {
-			// 色関数だけ通す。#hexはトークン化の段階でrgb()関数になるが、
-			// 素朴に空白区切りへ直列化するとBatikが読めない——カンマ区切りの
-			// rgb(r,g,b)へ組み直す。rgba()のアルファはBatik(SVG 1.1の色)に
-			// 表現がないため落とす(近似)。それ以外の関数(calc等)は
-			// Batikが解釈できないので宣言ごと破棄
+			// Allow only color functions. #hex becomes an rgb() function during tokenization,
+			// but naive space-separated serialization is unreadable by Batik, so rebuild it
+			// as comma-separated rgb(r,g,b). Drop rgba() alpha because Batik
+			// (SVG 1.1 colors) cannot represent it (approximation). Batik cannot interpret
+			// other functions (calc, etc.), so discard their entire declarations.
 			if (func.is("rgb") || func.is("rgba")) {
 				final List<Integer> components = new ArrayList<Integer>(4);
 				for (final CssToken arg : func.args()) {
@@ -179,7 +179,7 @@ public final class SVGAuthorCss {
 			}
 			return null;
 		}
-		// Keyword(inherit等)・unicode-range等は対象外
+		// Keyword (inherit, etc.), unicode-range, and similar tokens are out of scope.
 		return null;
 	}
 
@@ -187,7 +187,7 @@ public final class SVGAuthorCss {
 		return Math.max(0, Math.min(255, v));
 	}
 
-	/** 値が単一のrgba()等でアルファを持つならそれを返します(0..1)。 */
+	/** Returns the alpha (0..1) if the value is a single rgba() or similar function with alpha. */
 	private static Double extractAlpha(List<CssToken> tokens) {
 		if (tokens.size() != 1 || !(tokens.get(0) instanceof CssToken.Func func)
 				|| !(func.is("rgb") || func.is("rgba"))) {
@@ -214,7 +214,7 @@ public final class SVGAuthorCss {
 		return Double.valueOf(Math.max(0d, Math.min(1d, a)));
 	}
 
-	/** BatikのCSS2世代のdisplay検証が受理する値。 */
+	/** Values accepted by Batik's CSS2-era display validation. */
 	private static final java.util.Set<String> BATIK_DISPLAY_VALUES = java.util.Set.of( //
 			"none", "inline", "block", "list-item", "run-in", "compact", "marker", //
 			"table", "inline-table", "table-row-group", "table-header-group", "table-footer-group", //

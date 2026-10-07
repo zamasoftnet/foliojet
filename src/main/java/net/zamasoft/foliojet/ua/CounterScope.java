@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.ua;
 
 /**
- * カウンタのスコープです。
- * 
+ * A counter scope.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class CounterScope {

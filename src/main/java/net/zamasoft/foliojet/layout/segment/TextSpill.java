@@ -4,45 +4,42 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * text payload専用のspillファサードです(E-6増分3b-2、2026-07-24新設)。
+ * A spill facade dedicated to text payloads (E-6 increment 3b-2, introduced on 2026-07-24).
  *
  * <p>
- * {@code LayoutSource.Chars}のchar[]本体を、予算超過時にディスクへ
- * 退避するための最小の口({@code append}/{@code read}/{@code close})を
- * 提供する。物理格納は{@link SpillStore}(package-private最小部品——
- * codex裁定によりstore自体は公開しない)で、本クラスはUTF-16BEの
- * encode/decodeとrecordId直接readだけを担う。レイアウト意味論は
- * 一切持たない。
+ * Provides the minimal interface ({@code append}/{@code read}/{@code close}) for spilling the
+ * char[] payload of {@code LayoutSource.Chars} to disk when the budget is exceeded.
+ * {@link SpillStore} handles physical storage (a minimal package-private component; the codex decision
+ * keeps the store itself private). This class handles only UTF-16BE encoding/decoding and direct reads
+ * by recordId. It has no layout semantics.
  * </p>
  *
  * <p>
- * <b>寿命</b>: {@code LayoutSource}がspillを最初に必要としたときに
- * 遅延生成され、{@code LayoutSource#close()}(変換終了経路のfinally)で
- * 確実に閉じられる。closeは冪等で、両一時ファイルを削除する。
+ * <b>Lifetime</b>: created lazily when {@code LayoutSource} first needs to spill and reliably closed
+ * by {@code LayoutSource#close()} (in the finally block on the conversion completion path).
+ * Close is idempotent and deletes both temporary files.
  * </p>
  *
  * <p>
- * スレッド安全ではない(単一レイアウトセッション内での利用が前提。
- * {@code SpillStore}と同じ契約)。
+ * Not thread-safe (intended for use within a single layout session, the same contract as {@code SpillStore}).
  * </p>
  */
 public final class TextSpill implements AutoCloseable {
 	/**
-	 * spill I/O障害の注入点です(テスト専用——{@link SpillStore.TempFileDeleter}
-	 * と同じ流儀。E-6耐久試験(2026-07-24)がspill write/read失敗の型付き
-	 * 失敗({@code TextSpillException})・一時ファイル清算・後続変換の正常
-	 * 動作を検証するために使う)。production経路では常にnullで、nullの
-	 * ときの挙動は注入点導入前と完全に同一。
+	 * Injection point for spill I/O failures (tests only, following {@link SpillStore.TempFileDeleter}).
+	 * E-6 endurance tests (2026-07-24) use it to verify typed failures ({@code TextSpillException}) on spill
+	 * write/read errors, temporary-file cleanup, and successful subsequent conversions.
+	 * Always null on the production path; behavior with null is exactly the same as before this hook was added.
 	 */
 	interface IOFaultInjector {
-		/** {@link TextSpill#append}のstore書き込み直前に呼ばれます。 */
+		/** Called just before {@link TextSpill#append} writes to the store. */
 		void beforeAppend() throws IOException;
 
-		/** {@link TextSpill#read}のstore読み出し直前に呼ばれます。 */
+		/** Called just before {@link TextSpill#read} reads from the store. */
 		void beforeRead() throws IOException;
 	}
 
-	/** テスト専用の障害注入フック(TextSpillTestHooks経由で設定)。 */
+	/** Failure-injection hook for tests only (set through TextSpillTestHooks). */
 	static volatile IOFaultInjector faultInjector = null;
 
 	private final SpillStore store;
@@ -51,14 +48,14 @@ public final class TextSpill implements AutoCloseable {
 		this.store = store;
 	}
 
-	/** 新しいspillストア(一時ファイル)を開きます。 */
+	/** Opens a new spill store (temporary files). */
 	public static TextSpill open() throws IOException {
 		return new TextSpill(SpillStore.create());
 	}
 
 	/**
-	 * {@code ch[off..off+len)}をUTF-16BEで1 recordとして追記し、
-	 * recordId(0起点の連番)を返します。
+	 * Appends {@code ch[off..off+len)} as one UTF-16BE record and returns its recordId
+	 * (a zero-based sequence number).
 	 */
 	public long append(final char[] ch, final int off, final int len) throws IOException {
 		final IOFaultInjector injector = faultInjector;
@@ -75,11 +72,10 @@ public final class TextSpill implements AutoCloseable {
 	}
 
 	/**
-	 * recordIdのrecordをdecodeして返します。返す配列は<b>常に呼び出し
-	 * ごとに新しい(fresh)</b>——replay駆動の下流はin-place変換を行う
-	 * ため、キャッシュ共有は行わない(3b-1の方針)。heapメタデータの
-	 * 期待長と実recordの長さが食い違う場合は破損として
-	 * {@link IOException}で失敗する。
+	 * Decodes and returns the record at recordId. The returned array is <b>always fresh on each call</b>.
+	 * Downstream replay processing transforms it in place, so no cached array is shared (the 3b-1 policy).
+	 * If the expected length in heap metadata differs from the actual record length, treats this as
+	 * corruption and fails with {@link IOException}.
 	 */
 	public char[] read(final long recordId, final int expectedUtf16Length) throws IOException {
 		final IOFaultInjector injector = faultInjector;
@@ -98,7 +94,7 @@ public final class TextSpill implements AutoCloseable {
 		return ch;
 	}
 
-	/** ストアを閉じ、一時ファイルを削除します(冪等)。 */
+	/** Closes the store and deletes temporary files (idempotent). */
 	@Override
 	public void close() {
 		this.store.close();
@@ -112,7 +108,7 @@ public final class TextSpill implements AutoCloseable {
 		return this.store.indexFileForTest();
 	}
 
-	/** 一時ファイルが両方とも削除済みかを返します(テスト観測用)。 */
+	/** Returns whether both temporary files have been deleted (for test observation). */
 	public boolean tempFilesDeletedForTest() {
 		return !this.store.dataFileForTest().exists() && !this.store.indexFileForTest().exists();
 	}

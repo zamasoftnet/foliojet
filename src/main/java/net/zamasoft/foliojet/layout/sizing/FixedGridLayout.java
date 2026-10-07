@@ -1,10 +1,10 @@
 package net.zamasoft.foliojet.layout.sizing;
 
 /**
- * 固定列Gridの配置計算です(Grid G1a、2026-07-31——
- * consult-codex-2026-07-31-grid-g1.txt §2.2/§5)。boxに依存しない
- * 純粋計算: source-order row auto-placement(row=index/列数、
- * col=index%列数)、行高=行内itemの実高の最大、gap適用。
+ * Calculates placement in a fixed-column Grid (Grid G1a, 2026-07-31:
+ * consult-codex-2026-07-31-grid-g1.txt §2.2/§5). A pure calculation independent of boxes:
+ * source-order row auto-placement (row=index/column count, col=index%column count),
+ * row height=maximum actual item height in the row, with gaps applied.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -31,17 +31,17 @@ public final class FixedGridLayout {
 		return this.columnWidths[index % this.columnWidths.length];
 	}
 
-	/** itemのsource indexから列indexを返します。 */
+	/** Returns the column index for an item's source index. */
 	public int columnOf(final int sourceIndex) {
 		return sourceIndex % this.columnWidths.length;
 	}
 
-	/** itemのsource indexから行indexを返します。 */
+	/** Returns the row index for an item's source index. */
 	public int rowOf(final int sourceIndex) {
 		return sourceIndex / this.columnWidths.length;
 	}
 
-	/** 列の行方向開始位置(先行列幅+gapの合計)です。 */
+	/** A column's line-axis start position (sum of preceding column widths and gaps). */
 	public double columnStart(final int columnIndex) {
 		double start = 0;
 		for (int i = 0; i < columnIndex; ++i) {
@@ -51,20 +51,20 @@ public final class FixedGridLayout {
 	}
 
 	/**
-	 * 配置結果です。
+	 * Placement result.
 	 *
-	 * @param rowStarts   各行のページ方向開始位置
-	 * @param rowHeights  各行の高さ(行内itemの実高の最大)
-	 * @param totalExtent gap込みのページ方向総高
+	 * @param rowStarts   Page-axis start position of each row
+	 * @param rowHeights  Height of each row (maximum actual item height in the row)
+	 * @param totalExtent Total page-axis height including gaps
 	 */
 	public record Placement(double[] rowStarts, double[] rowHeights, double totalExtent) {
 	}
 
 	/**
-	 * 全itemの実高から行高・行開始・総高を解決します。
+	 * Resolves row heights, row starts, and total height from actual heights of all items.
 	 *
-	 * @param itemExtents source-order各itemのページ方向実高
-	 * @return 配置結果(item無しなら総高0の空)
+	 * @param itemExtents Actual page-axis height of each item in source order
+	 * @return Placement result (empty with total height 0 if there are no items)
 	 */
 	public Placement place(final double[] itemExtents) {
 		final int rows = (itemExtents.length + this.columnWidths.length - 1) / this.columnWidths.length;

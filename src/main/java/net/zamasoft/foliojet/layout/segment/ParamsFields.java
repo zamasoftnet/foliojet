@@ -7,26 +7,25 @@ import net.zamasoft.foliojet.layout.box.params.Offset;
 import net.zamasoft.foliojet.layout.box.params.Params;
 
 /**
- * {@code Params}が持つ基底フィールド(element/zIndexValue/zIndexType/
- * opacity/transform/transformOrigin)のfreeze/materialize処理です
- * (2026-07-22新設、M6d-A3b、package-private——{@link TextParamsFields}
- * (`AbstractTextParams`用)と{@link InnerTableParamsTemplate}
- * (`InnerTableParams`は`Params`を直接継承)が共有する)。
+ * Freeze/materialize processing for {@code Params} ' base fields
+ * (element/zIndexValue/zIndexType/opacity/transform/transformOrigin).
+ * Introduced 2026-07-22, M6d-A3b; package-private and shared by
+ * {@link TextParamsFields} (for `AbstractTextParams`) and {@link InnerTableParamsTemplate}
+ * (`InnerTableParams` directly extends `Params`).
  *
  * <p>
- * {@code transform}({@code AffineTransform}、mutableなJDKクラス)は
- * freeze時・materialize時それぞれで防御的コピーが必要
- * ({@link TextParamsFields}と同じ理由)——コンパクトコンストラクタで
- * freeze時のコピーを、{@link #materializeInto}呼び出しごとに新品の
- * コピーをそれぞれ行う(2026-07-22 Stage2、不変recordへ置換)。
+ * {@code transform} ({@code AffineTransform}, a mutable JDK class) needs defensive copies on both freeze
+ * and materialize (the same reason as {@link TextParamsFields} ).
+ * The compact constructor copies at freeze time, and each {@link #materializeInto} call creates a fresh copy
+ * (Stage2, 2026-07-22; replaced with an immutable record).
  * </p>
  *
  * <p>
- * {@code element}はE-6増分3b-4(2026-07-24)で{@code CSSElement}の
- * 直接保持から{@link StructureToken#freeze}の結果へ切り替えた——
- * {@code CSSElement.precedingElement}チェーン(過去の要素列)をrecipeが
- * 引き留めないため。identity契約(同じ論理要素=同じインスタンス)は
- * 再生セッション内のintern({@code SegmentExecutor})が保つ。
+ * E-6 increment 3b-4 (2026-07-24) changed {@code element} from direct {@code CSSElement} retention
+ * to the result of {@link StructureToken#freeze} , so recipes do not retain the
+ * {@code CSSElement.precedingElement} chain (past elements).
+ * Interning within the replay session ({@code SegmentExecutor}) preserves the identity contract:
+ * same logical element = same instance.
  * </p>
  */
 record ParamsFields(StructureElement element, long footnoteId, int zIndexValue, byte zIndexType, float opacity,
@@ -52,11 +51,11 @@ record ParamsFields(StructureElement element, long footnoteId, int zIndexValue, 
 		target.zIndexType = this.zIndexType;
 		target.opacity = this.opacity;
 		target.transform = new AffineTransform(this.transform);
-		// %のtranslate成分(要素寸法が要るため行列へ畳めず別持ち——
-		// Params.transformTxRatio/TyRatio)。2026-08-08まで凍結対象から
-		// 漏れており、純粋な translate(-50%) 等(行列は恒等)が
-		// 再具現化で丸ごと消えていた——yahoo.co.jpの検索ボタンの虫眼鏡
-		// (::beforeのtranslateY(-50%))が半個ぶん下にずれた実バグ
+		// Percentage translate components (stored separately because element dimensions are needed
+		// and they cannot be folded into the matrix; Params.transformTxRatio/TyRatio). Until 2026-08-08,
+		// they were omitted from freezing, so pure translate(-50%), etc. (identity matrix)
+		// disappeared entirely on rematerialization. This caused the actual yahoo.co.jp search-button bug:
+		// the magnifying glass (::before with translateY(-50%)) shifted down by half its own height.
 		target.transformTxRatio = this.transformTxRatio;
 		target.transformTyRatio = this.transformTyRatio;
 		target.transformTxRatioH = this.transformTxRatioH;

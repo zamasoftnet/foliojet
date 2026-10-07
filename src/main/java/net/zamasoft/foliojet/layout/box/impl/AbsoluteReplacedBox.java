@@ -12,8 +12,8 @@ import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * 画像ボックスの実装です。
- * 
+ * Implementation of an image box.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: AbsoluteReplacedBox.java 1561 2018-07-04 11:44:21Z miyabe $
  */
@@ -35,7 +35,7 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 
 	public final void finishLayoutSelf(IFramedBox containerBox) {
 		//
-		// ■ 幅と高さの計算
+		// ■ Calculate width and height
 		//
 		double cWidth = containerBox.getInnerWidth() + containerBox.getFrame().padding.getFrameWidth();
 		double cHeight = containerBox.getInnerHeight() + containerBox.getFrame().padding.getFrameHeight();
@@ -44,7 +44,7 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 		Insets margin = this.frame.frame.margin;
 		AbsoluteInsets amargin = this.frame.margin;
 
-		// 横書き
+		// Horizontal writing
 		double left = LayoutUtils.computeInsetsLeft(this.pos.location, cWidth);
 		double right = LayoutUtils.computeInsetsRight(this.pos.location, cWidth);
 		double marginLeft = margin.getLeftType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.left;
@@ -59,7 +59,7 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 			if (!LayoutUtils.isNone(marginLeft) && LayoutUtils.isNone(marginRight)) {
 				marginRight = cWidth - left - right - this.width - this.frame.getFrameWidth();
 			} else {
-				// 制限しすぎ
+				// Over-constrained
 				right = 0;
 				// right = lineWidth - left - width - marginLeft
 				// - marginRight - aframe.getFrameWidth();
@@ -99,7 +99,7 @@ public class AbsoluteReplacedBox extends AbstractReplacedBox implements IAbsolut
 			if (!LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
 				marginBottom = cHeight - top - bottom - this.height - this.frame.getFrameHeight();
 			} else {
-				// 制限しすぎ
+				// Over-constrained
 				bottom = 0;
 				// bottom = pageHeight - top - height - marginTop
 				// - marginBottom - padding.getFrameHeight();

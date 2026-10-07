@@ -4,16 +4,16 @@ import net.zamasoft.foliojet.layout.box.params.AbstractNormalFlowPos;
 import net.zamasoft.foliojet.layout.box.params.ClearMode;
 
 /**
- * {@code AbstractNormalFlowPos}が{@code AbstractBlockLevelPos}に加えて
- * 持つフィールド({@code clear})のfreeze/materialize処理です
- * (2026-07-22新設、M6d-A3b、package-private——{@link FlowPosTemplate}
- * と{@link FloatPosTemplate}が共有する)。祖先
- * ({@code AbstractStaticPos}/{@code AbstractBlockLevelPos})の
- * フィールドは{@link BlockLevelPosFields}へ委譲する(合成)。
+ * Freeze/materialize processing for the field ({@code clear}) that {@code AbstractNormalFlowPos}
+ * adds to {@code AbstractBlockLevelPos} .
+ * Introduced 2026-07-22, M6d-A3b; package-private and shared by
+ * {@link FlowPosTemplate} and {@link FloatPosTemplate} .
+ * Delegates ancestor ({@code AbstractStaticPos}/{@code AbstractBlockLevelPos}) fields
+ * to {@link BlockLevelPosFields} (composition).
  *
  * <p>
- * 全フィールドが既存実装(値クラス・enum)で実質不変と確認済みのため、
- * 防御的コピーは不要——単純に値をそのまま保持・書き戻すだけで済む。
+ * All fields in existing implementations (value classes/enums) have been confirmed effectively immutable,
+ * so defensive copies are unnecessary; simply retain and write back values unchanged.
  * </p>
  */
 record NormalFlowPosFields(BlockLevelPosFields common, ClearMode clear) {

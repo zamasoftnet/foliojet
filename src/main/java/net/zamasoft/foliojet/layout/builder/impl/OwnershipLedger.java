@@ -13,13 +13,13 @@ import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 import net.zamasoft.foliojet.layout.fragment.RangeHandle;
 import net.zamasoft.foliojet.layout.segment.BoxRecipe;
 
-/** TwoPass宿主の子・実行計画の所有を保持し、範囲への吸収可否を判定する。 */
+/** Tracks ownership of a TwoPass host's children and execution plans, and checks whether a range can absorb them. */
 final class OwnershipLedger {
 	enum Kind { STF, INLINE_BLOCK, INLINE_TABLE, TABLE, GRID, FLEX, PAGE_FLOAT, MARGIN_NOTE, FOOTNOTE, ABSOLUTE }
 
 	enum State { RECORDING, REPLAY_ONLY, SEALED, EMPTY, DETACHED, CONSUMED, SUBSUMED, ABANDONED }
 
-	/** リースは取得しない。planの範囲はhandleを持たない。 */
+	/** Does not acquire a lease. Plan ranges have no handle. */
 	record SourceRange(LayoutSource source, long fromId, long toId, RangeHandle handle) {
 		SourceRange(final RangeHandle handle) {
 			this(handle.source(), handle.fromId(), handle.toId(), handle);
@@ -40,7 +40,7 @@ final class OwnershipLedger {
 		}
 	}
 
-	/** anchorは登録時には固定しない。後で付与された根箱のanchorも反映する。 */
+	/** Does not fix the anchor at registration. Also reflects anchors assigned to root boxes later. */
 	record LiveNode(TwoPass identity, TwoPassBlockBuilder parent, Kind kind, SourceRange sourceRange,
 			State state, TwoPass retainedPlan) implements OwnerNode {
 		public long anchor() {
@@ -48,7 +48,7 @@ final class OwnershipLedger {
 		}
 	}
 
-	/** 終端ではanchorと分類・状態だけを残し、builder/箱/計画/ソースを保持しない。 */
+	/** At termination, keeps only the anchor, classification, and state; retains no builder/box/plan/source. */
 	record TerminalNode(long anchor, State state, Kind kind) implements OwnerNode {
 		public TwoPass identity() { return null; }
 		public TwoPassBlockBuilder parent() { return null; }
@@ -66,7 +66,7 @@ final class OwnershipLedger {
 		};
 	}
 
-	/** 試験専用。検証相の入口で所有だけを観測し、通常は全域保持しない。 */
+	/** For tests only. Observes ownership at entry to validation; normally does not retain the whole range. */
 	private static volatile java.util.function.Consumer<TwoPassBlockBuilder> collectionObserver;
 
 	private final TwoPassBlockBuilder owner;
@@ -96,7 +96,7 @@ final class OwnershipLedger {
 
 	void addPlan(final TwoPass plan, final Kind kind) {
 		if (this.nodes.isEmpty()) this.nodes = new ArrayList<>();
-		// inline-tableの合成InlineBlockBoxにはanchorがないため、計画の根箱を使う。
+		// The synthetic InlineBlockBox for an inline-table has no anchor, so use the plan's root box.
 		final long anchor = anchorOf(plan);
 		SourceRange range = null;
 		final RootBuilder root = this.owner.layoutStack == null ? null : this.owner.getPageContext();
@@ -111,8 +111,8 @@ final class OwnershipLedger {
 	}
 
 	void plansSubsumed() {
-		// 親リース取得・全子の吸収完了後は、所有証明をabsoluteAnchorsへ
-		// 移し終えている。terminalノードから子builder/計測器を保持しない。
+		// After acquiring the parent lease and absorbing all children, the ownership proof has moved
+		// to absoluteAnchors. Do not retain child builders/measurers from terminal nodes.
 		this.nodes = List.of();
 	}
 
@@ -176,12 +176,12 @@ final class OwnershipLedger {
 			final Set<TwoPassBlockBuilder> seen) {
 		observeCollection(this.owner);
 		for (final OwnerNode node : this.nodes) {
-			if (node.identity() == null) return false; // 終端した子は再び吸収できない。
+			if (node.identity() == null) return false; // A terminated child cannot be absorbed again.
 			switch (node.kind()) {
 			case INLINE_TABLE, TABLE -> {
-				// PlacedTableも表・インライン計測tokenと同じ計画を所有する。
-				// 共通の検証でabsolute表のanchorも収集する。Incremental計画は
-				// mainのFLOWだけで、録画宿主には入らずセル本文が個別にsealされる。
+				// PlacedTable also owns the same plan as the table and inline measurement tokens.
+				// Shared validation also collects anchors for absolute tables. Incremental plans occur only
+				// in main FLOW, never enter recording hosts, and seal cell bodies individually.
 				if (!(node.retainedPlan() instanceof RetainedTableBuilder table)
 						|| !TwoPassBlockBuilder.collectAbsorbableTable(table, log, fromId, toId, out, outTables,
 								outRanges, ownedAbsoluteAnchors, seen)) {
@@ -219,7 +219,7 @@ final class OwnershipLedger {
 				}
 			}
 			case STF, INLINE_BLOCK, PAGE_FLOAT, MARGIN_NOTE, FOOTNOTE -> {
-				// 子の所有状態を下で検証する。
+				// Validate the child's ownership state below.
 			}
 			}
 			if (!(node.identity() instanceof TwoPassBlockBuilder child)
@@ -238,7 +238,7 @@ final class OwnershipLedger {
 		if (!seen.add(owner)) {
 			return true;
 		}
-		// seal済み・空・未確定の子を、それぞれの所有状態で検証する。
+		// Validate sealed, empty, and unfinalized children according to their respective ownership states.
 		switch (owner.bodyState()) {
 		case SEALED -> {
 			final RangeHandle range = owner.rangeHandle();

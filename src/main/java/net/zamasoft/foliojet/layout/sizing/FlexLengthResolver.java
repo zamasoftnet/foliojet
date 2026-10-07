@@ -3,19 +3,19 @@ package net.zamasoft.foliojet.layout.sizing;
 import java.util.List;
 
 /**
- * 1行ぶんのFlex伸縮解決(css-flexbox-1 §9.7 Resolving Flexible Lengths)の
- * 純粋計算です(Flex F1c、2026-08-02——consult-codex-2026-08-02-flexbox.txt
- * Q3)。入力は{@link FlexItemMetrics}列とコンテナ主軸内寸・main gap、
- * 出力は各itemの使用主軸内寸(ソース順)。
+ * A pure calculation of flexible lengths for one Flex line
+ * (css-flexbox-1 §9.7 Resolving Flexible Lengths; Flex F1c, 2026-08-02:
+ * consult-codex-2026-08-02-flexbox.txt Q3). Takes a sequence of {@link FlexItemMetrics},
+ * the container's inner main size, and the main gap; returns each item's used inner main size in source order.
  *
  * <p>
- * 仕様の要点(全て実装——検証はFlexLengthResolverTest):
- * free spaceとfactor選択はouter size、scaled shrink factorは
- * inner flex base size(§9.7.6)。factor合計&lt;1のときは
- * initial free space×合計とremainingの絶対値が小さい方(§9.7.9.b)。
- * min/max violationの符号合計でfreeze対象を選ぶ(§9.7.9.e)。
- * 反復は最大itemCount+1回で、各反復は必ず1件以上freezeする
- * (不変条件——破れは実装欠陥なのでassertではなくIllegalStateException)。
+ * Key specification rules (all implemented; verified by FlexLengthResolverTest):
+ * free space and factor selection use outer size; scaled shrink factors use inner flex base size (§9.7.6).
+ * When the factor sum is &lt;1, use whichever has the smaller absolute value:
+ * initial free space×sum or remaining free space (§9.7.9.b).
+ * The signed sum of min/max violations selects items to freeze (§9.7.9.e).
+ * At most itemCount+1 iterations; each iteration must freeze at least one item
+ * (an invariant: violation is an implementation defect, so use IllegalStateException instead of assert).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -26,10 +26,10 @@ public final class FlexLengthResolver {
 	}
 
 	/**
-	 * @param items 行内のitem(ソース順)
-	 * @param innerMainSize コンテナの主軸内寸
-	 * @param mainGap item間のgap(F2cまで常に0)
-	 * @return 各itemの使用主軸内寸(clamp済み)
+	 * @param items Items in the line (source order)
+	 * @param innerMainSize Container's inner main size
+	 * @param mainGap Gap between items (always 0 until F2c)
+	 * @return Each item's used inner main size (clamped)
 	 */
 	public static double[] resolve(final List<FlexItemMetrics> items, final double innerMainSize,
 			final double mainGap) {
@@ -38,16 +38,16 @@ public final class FlexLengthResolver {
 		if (n == 0) {
 			return target;
 		}
-		// gap合計を先に控除した配分可能量(§9.7はgapをfree spaceに含めない)
+		// Distributable space after subtracting total gaps (§9.7 excludes gaps from free space).
 		final double available = innerMainSize - mainGap * (n - 1);
-		// 伸長か収縮か(outer hypothetical合計との比較——§9.7.1)
+		// Grow or shrink (compare with the sum of outer hypothetical sizes; §9.7.1).
 		double outerHypotheticalSum = 0;
 		for (final FlexItemMetrics item : items) {
 			outerHypotheticalSum += item.outerHypotheticalMain();
 		}
 		final boolean growing = outerHypotheticalSum < available;
-		// 事前freeze(§9.7.3): factor 0、または方向不一致
-		// (伸長なのにbase>hypothetical=既にclamp減、収縮なのにbase<hypothetical)
+		// Initial freezing (§9.7.3): factor 0 or a direction mismatch
+		// (growing with base>hypothetical, already clamped down; shrinking with base<hypothetical).
 		final boolean[] frozen = new boolean[n];
 		for (int i = 0; i < n; ++i) {
 			final FlexItemMetrics item = items.get(i);
@@ -58,10 +58,10 @@ public final class FlexLengthResolver {
 				frozen[i] = true;
 			}
 		}
-		// initial free space(§9.7.4: frozenはtarget、unfrozenはouter base)
+		// Initial free space (§9.7.4: target for frozen items, outer base for unfrozen items).
 		final double initialFree = available - occupied(items, target, frozen);
 		for (int iteration = 0; iteration <= n; ++iteration) {
-			// 全freezeで終了(§9.7.5)
+			// Finish when all items are frozen (§9.7.5).
 			boolean allFrozen = true;
 			for (final boolean f : frozen) {
 				allFrozen &= f;
@@ -69,7 +69,7 @@ public final class FlexLengthResolver {
 			if (allFrozen) {
 				return target;
 			}
-			// remaining free space(§9.7.9.b。factor合計<1なら縮小)
+			// Remaining free space (§9.7.9.b; reduce if factor sum<1).
 			double remaining = available - occupied(items, target, frozen);
 			double sumFactors = 0;
 			for (int i = 0; i < n; ++i) {
@@ -83,8 +83,8 @@ public final class FlexLengthResolver {
 					remaining = magnitude;
 				}
 			}
-			// 配分(§9.7.9.c): growはfactor比例、shrinkはscaled factor
-			// (factor×inner base)比例
+			// Distribute (§9.7.9.c): grow in proportion to factors, shrink in proportion to scaled factors
+			// (factor×inner base).
 			if (remaining != 0) {
 				double sumScaled = 0;
 				if (!growing) {
@@ -156,7 +156,7 @@ public final class FlexLengthResolver {
 		throw new IllegalStateException("§9.7の反復が上限(" + (n + 1) + ")を超えました");
 	}
 
-	/** frozenはtarget(outer)、unfrozenはouter flex base sizeの合計(§9.7.4)。 */
+	/** Sums targets (outer) for frozen items and outer flex base sizes for unfrozen items (§9.7.4). */
 	private static double occupied(final List<FlexItemMetrics> items, final double[] target,
 			final boolean[] frozen) {
 		double sum = 0;

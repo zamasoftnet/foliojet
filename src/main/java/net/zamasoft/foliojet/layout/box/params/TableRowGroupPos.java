@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * テーブル行グループのパラメータです。
- * 
+ * Parameters for a table row group.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: TableRowGroupPos.java 1552 2018-04-26 01:43:24Z miyabe $
  */

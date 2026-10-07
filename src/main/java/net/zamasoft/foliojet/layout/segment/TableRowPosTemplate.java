@@ -3,16 +3,15 @@ package net.zamasoft.foliojet.layout.segment;
 import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 
 /**
- * {@link TableRowPos}({@code AbstractBlockLevelPos}を直接継承、
- * 固有フィールドを持たない、{@link BoxKind#TABLE_ROW}が使う)の内容を
- * freezeし、呼び出しごとに独立した新品の{@code TableRowPos}を
- * materializeするテンプレートです(2026-07-22新設、M6d-A3b)。
+ * A template that freezes the contents of {@link TableRowPos} (directly extends
+ * {@code AbstractBlockLevelPos}, has no fields of its own, and is used by {@link BoxKind#TABLE_ROW})
+ * and materializes a fresh, independent {@code TableRowPos} on each call
+ * (introduced on 2026-07-22, M6d-A3b).
  *
  * <p>
- * 祖先({@code AbstractStaticPos}/{@code AbstractBlockLevelPos})の
- * フィールドは{@link BlockLevelPosFields}(`TableRowGroupPosTemplate`・
- * `TableCellPosTemplate`とも共有する)が担う(2026-07-22 Stage2で
- * 不変recordへ置換)。
+ * {@link BlockLevelPosFields} (also shared with `TableRowGroupPosTemplate` and `TableCellPosTemplate`)
+ * handles the ancestor fields ({@code AbstractStaticPos}/{@code AbstractBlockLevelPos})
+ * (replaced with an immutable record in Stage2 on 2026-07-22).
  * </p>
  */
 public record TableRowPosTemplate(BlockLevelPosFields common) {
@@ -20,7 +19,7 @@ public record TableRowPosTemplate(BlockLevelPosFields common) {
 		return new TableRowPosTemplate(BlockLevelPosFields.freeze(source));
 	}
 
-	/** 呼び出しごとに新品の{@code TableRowPos}を返す(複数回呼んでも互いに影響しない)。 */
+	/** Returns a fresh {@code TableRowPos} on each call (multiple calls do not affect one another). */
 	public TableRowPos materialize() {
 		final TableRowPos pos = new TableRowPos();
 		this.common.materializeInto(pos);

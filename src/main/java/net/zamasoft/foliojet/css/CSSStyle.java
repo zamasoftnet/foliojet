@@ -27,7 +27,7 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle.Weight;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
- * CSSスタイルです。
+ * A CSS style.
  * 
  * @author MIYABE Tatsuhiko
  */
@@ -37,7 +37,7 @@ public class CSSStyle {
 	public static final byte MODE_IMPORTANT = 1;
 
 	/**
-	 * 匿名ボックスのスタイルです。
+	 * The style of an anonymous box.
 	 * 
 	 * @author MIYABE Tatsuhiko
 	 */
@@ -62,55 +62,55 @@ public class CSSStyle {
 	}
 
 	/**
-	 * 対応するマークアップ言語要素です。
+	 * The corresponding markup language element.
 	 */
 	private CSSElement ce;
 
 	/**
-	 * ターゲットUAです。
+	 * The target UA.
 	 */
 	private UserAgent ua;
 
 	/**
-	 * 親のスタイルです。
+	 * The parent style.
 	 */
 	private CSSStyle parentStyle;
 
 	private Value[] values = null;
 	private Value[] computedValues = null;
-	/** {@link #get}が消費(クリア)した宣言の記録({@link #isDeclared}用)。 */
+	/** Records declarations consumed (cleared) by {@link #get} (for {@link #isDeclared}). */
 	private java.util.BitSet consumedDeclared = null;
 	private boolean[] importants = null;
 	private FontStyle fontStyle = null;
 
 	/**
-	 * 脚注の論理識別子です(脚注F4、CSS非公開のengine-owned側路——
-	 * {@code Params.footnoteId}参照)。StyleEventMachineが脚注元要素の
-	 * styleと::footnote-call擬似styleへ同じIDを設定し、
-	 * {@code BoxStyleMapper.setupParams}がbox paramsへ写す。既定-1。
+	 * The logical footnote identifier (footnotes F4, an engine-owned side channel not exposed through CSS;
+	 * see {@code Params.footnoteId}). StyleEventMachine sets the same ID
+	 * on the source footnote element's style and its ::footnote-call pseudo-style;
+	 * {@code BoxStyleMapper.setupParams} copies it to the box params. Defaults to -1.
 	 */
 	public long footnoteId = -1;
 
 	/**
-	 * カスタムプロパティ(--name)の宣言値(生トークン列、var()は未解決のまま)。
-	 * 通常のプロパティのvalues[]/computedValues[](ElementPropertySet.CODESで
-	 * 採番された固定コード空間)とは別枠で管理する。カスタムプロパティ名は
-	 * 文書ごとに任意・無制限で、CODESはJVM全体で共有される静的な登録表のため、
-	 * 同時実行中の別文書のCSSStyleとコード空間がずれる恐れがあり、動的採番は
-	 * 採用しなかった(開発計画参照)。
+	 * Declared values of custom properties (--name): raw token sequences with var() still unresolved.
+	 * Managed separately from the regular property values[]/computedValues[]
+	 * (the fixed code space assigned by ElementPropertySet.CODES). Custom property names
+	 * are arbitrary and unbounded per document, whereas CODES is a static registry shared across the JVM.
+	 * Dynamic code assignment was rejected because it could cause code spaces to diverge
+	 * between CSSStyle instances in concurrently processed documents (see the development plan).
 	 */
 	private Map<String, List<CssToken>> customProperties = null;
 	private Set<String> importantCustomProperties = null;
 
 	/**
-	 * 親を持たないスタイル(頁・欄外の箱)が、親の代わりにカスタムプロパティを引く先(根要素のスタイル。
-	 * 2026-10-06、jigensha の報告: {@code :root} で宣言した変数が {@code @page} の欄外の箱で解決されず、
-	 * ノンブルが既定の書体になった)。css-page-3 §6 では頁の文脈は根要素から継ぐ。ほかの継承するプロパティは従来どおり
-	 * 継がず(同節が許す初期値の扱い)、変数だけ引く。
+	 * The source of custom properties for parentless styles (page and margin boxes): the root element's style.
+	 * On 2026-10-06, jigensha reported that variables declared on {@code :root} failed to resolve in {@code @page}
+	 * margin boxes, so page numbers used the default font. css-page-3 §6 makes the page context inherit from the root.
+	 * As before, other inherited properties use initial values (allowed by that section); only variables are looked up.
 	 */
 	private CSSStyle customPropertyFallback = null;
 
-	/** 親を持たないスタイルの、カスタムプロパティの引き先を設定します。 */
+	/** Sets the source of custom properties for a parentless style. */
 	public void setCustomPropertyFallback(final CSSStyle fallback) {
 		this.customPropertyFallback = fallback;
 	}
@@ -121,7 +121,7 @@ public class CSSStyle {
 		return style;
 	}
 
-	/** 計算済みの値を再計算せず設定します。不変テンプレートの復元専用です。 */
+	/** Sets a computed value without recomputing it. Only for restoring immutable templates. */
 	public void restoreComputed(final PrimitivePropertyInfo info, final Value value, final boolean declared) {
 		final short code = ElementPropertySet.getCode(info);
 		if (code < 0) {
@@ -189,7 +189,7 @@ public class CSSStyle {
 	}
 
 	/**
-	 * 上位に匿名スタイルを挿入します。
+	 * Inserts an anonymous style above this style.
 	 * 
 	 * @return
 	 */
@@ -198,7 +198,7 @@ public class CSSStyle {
 	}
 
 	/**
-	 * 下位に匿名スタイルを挿入します。
+	 * Inserts an anonymous style below this style.
 	 * 
 	 * @return
 	 */
@@ -207,7 +207,7 @@ public class CSSStyle {
 	}
 
 	/**
-	 * 上位の匿名スタイルを除去します。
+	 * Removes the anonymous style above this style.
 	 */
 	public void removeAnonStyle() {
 		assert this.parentStyle.isAnonStyle();
@@ -225,17 +225,17 @@ public class CSSStyle {
 	public Value get(PrimitivePropertyInfo info) {
 		short code = ElementPropertySet.getCode(info);
 		if (code == -1) {
-			// fail-loud(2026-08-01): setと同じ登録漏れ検出(本番は既定値で続行)
+			// fail-loud (2026-08-01): Detect missing registrations as in set (production continues with the default value).
 			assert false : "カスケード用コード未割当のプロパティがgetされました(登録漏れ): " + info.getName();
 			return info.getDefault(this);
 		}
-		// 継承の親方向探索は元々 this.parentStyle.get(info) の再帰だったが、
-		// 深くネストした文書(例: 条項番号が千段以上入れ子になる法令HTML)で
-		// StackOverflowError になる実クラッシュが発生したため、スタック深さに
-		// 依存しない反復に書き換える(2026-07-18)。意味論は再帰版と同一:
-		// 各階層で values[code] を読み出し次第クリアし、最終的に確定した値を
-		// 子階層へ向けて getComputedValue で1階層ずつ変換しながら
-		// computedValues[code] にキャッシュする。
+		// The upward inheritance search originally recursed through this.parentStyle.get(info),
+		// but deeply nested documents (e.g., legal HTML with over a thousand nested clause numbers)
+		// caused actual StackOverflowError crashes. It was rewritten as an iteration
+		// independent of stack depth (2026-07-18). Semantics remain identical to the recursive version:
+		// clear values[code] at each level as soon as it is read, then cache the final value
+		// in computedValues[code] down through the child levels, transforming it with
+		// getComputedValue one level at a time.
 		java.util.List<CSSStyle> chain = new java.util.ArrayList<CSSStyle>();
 		CSSStyle style = this;
 		Value resolved;
@@ -247,8 +247,8 @@ public class CSSStyle {
 			}
 			Value raw = style.values != null ? style.values[code] : null;
 			if (raw != null) {
-				// 継承(読み出し次第クリア)。クリア後もisDeclaredが宣言有無を
-				// 答えられるよう、消費済みビットに記録する
+				// Inheritance (clear as soon as read). Record a consumed bit so that isDeclared
+				// can still report whether a declaration exists after clearing.
 				style.values[code] = null;
 				if (style.consumedDeclared == null) {
 					style.consumedDeclared = new java.util.BitSet(ElementPropertySet.getCodeSize());
@@ -256,12 +256,12 @@ public class CSSStyle {
 				style.consumedDeclared.set(code);
 			}
 			if (raw == KeywordValue.UNSET) {
-				// unset: 継承特性ならinherit相当、非継承特性ならinitial相当
+				// unset: equivalent to inherit for inherited properties and initial for non-inherited properties
 				// (CSS Cascading and Inheritance)
 				raw = info.isInherited() ? KeywordValue.INHERIT : KeywordValue.INITIAL;
 			}
 			if (raw == KeywordValue.INITIAL) {
-				// initial: 継承せず、常にプロパティの初期値を使う
+				// initial: always use the property's initial value without inheriting
 				resolved = info.getDefault(style);
 				chain.add(style);
 				break;
@@ -269,7 +269,7 @@ public class CSSStyle {
 			boolean needsParent = raw != null ? raw == KeywordValue.INHERIT
 					: (style.parentStyle != null && info.isInherited());
 			if (!needsParent || style.parentStyle == null) {
-				// デフォルトの場合は継承するか、デフォルト値を使う
+				// For the default case, inherit or use the default value
 				resolved = (raw != null && !needsParent) ? raw : info.getDefault(style);
 				chain.add(style);
 				break;
@@ -279,7 +279,7 @@ public class CSSStyle {
 		}
 		for (int i = chain.size() - 1; i >= 0; --i) {
 			CSSStyle level = chain.get(i);
-			// 計算値
+			// Computed value
 			resolved = info.getComputedValue(resolved, level);
 			if (level.computedValues == null) {
 				level.computedValues = new Value[ElementPropertySet.getCodeSize()];
@@ -290,18 +290,18 @@ public class CSSStyle {
 	}
 
 	/**
-	 * このスタイルの直下(継承元をたどらず)でプロパティが明示的に宣言されて
-	 * いるか返します。論理プロパティ(margin-inline-start等)と対応する物理
-	 * プロパティ(margin-top等)が同じ辺を指す場合にどちらを優先するかの判定や、
-	 * Flexの自動最小サイズ(§4.5、min宣言有無)の判定に使います。
+	 * Returns whether a property is explicitly declared directly on this style
+	 * (without following inheritance). Used to determine precedence when a logical property
+	 * (such as margin-inline-start) and its physical counterpart (such as margin-top) refer to the same side,
+	 * and to determine the Flex automatic minimum size (§4.5, presence of min declarations).
 	 * <p>
-	 * {@link #get}はこのスタイル階層のvalues[code]を読み出し次第クリアする
-	 * (継承解決の一部)が、クリア時に消費済みビットへ記録するため、この判定は
-	 * getの前後どちらで呼んでも同じ結果を返す。かつては「getより前に呼ぶ」
-	 * という順序制約があり、BlockParams構築(MinWidth.get)後にFlexItemSpecを
-	 * 構築する経路でmin-width宣言が常に「なし」と誤判定され、フロー内容が
-	 * 空のflexアイテムがmin-widthを無視して幅0になっていた(2026-08-07、
-	 * yahoo.co.jpの順位バッジ消失として発覚)。
+	 * {@link #get} clears values[code] at this style level as soon as it is read
+	 * (as part of inheritance resolution), but records a consumed bit when clearing.
+	 * This check therefore returns the same result before or after get. Previously, it had
+	 * to run before get; querying a FlexItemSpec after building BlockParams (MinWidth.get)
+	 * always misreported the min-width declaration as absent on that path, making flex items
+	 * with empty flow content ignore min-width and shrink to width 0 (2026-08-07;
+	 * discovered when ranking badges disappeared on yahoo.co.jp).
 	 * </p>
 	 */
 	public boolean isDeclared(PrimitivePropertyInfo info) {
@@ -316,11 +316,11 @@ public class CSSStyle {
 	}
 
 	/**
-	 * カスタムプロパティ(--name)の宣言を記録します。値は型検証を行わず
-	 * 生トークン列のまま保持します(var()の実際の解決は使用時=
+	 * Records a custom property (--name) declaration. Retains the value
+	 * as a raw token sequence without type validation (actual var() resolution is deferred until use,
 	 * {@link net.zamasoft.foliojet.css.property.DeferredProperty#applyProperty}
-	 * まで遅延するため)。!importantの優先度は通常の{@link #set}と同じ
-	 * 「一度importantになったら以後のNORMALは無視」規則に従う。
+	 * ). !important priority follows the same rule as regular {@link #set}:
+	 * once important, ignore subsequent NORMAL declarations.
 	 */
 	public void setCustomProperty(String name, List<CssToken> tokens, byte mode) {
 		if (mode == MODE_IMPORTANT) {
@@ -338,10 +338,10 @@ public class CSSStyle {
 	}
 
 	/**
-	 * カスタムプロパティの値を、祖先方向の継承を考慮して解決します。
-	 * 見つからなければnull。通常の{@link #get}と異なり読み出し後も
-	 * クリアしません(同じ祖先の値を複数の子孫が独立して繰り返し参照
-	 * しうるため)。
+	 * Resolves a custom property value, accounting for inheritance from ancestors.
+	 * Returns null if not found. Unlike regular {@link #get}, it does not
+	 * clear the value after reading, because multiple descendants may independently
+	 * read the same ancestor's value repeatedly.
 	 */
 	public List<CssToken> getCustomProperty(String name) {
 		final CSSStyle owner = this.getCustomPropertyOwner(name);
@@ -349,17 +349,17 @@ public class CSSStyle {
 	}
 
 	/**
-	 * そのカスタムプロパティを<b>宣言している</b>スタイルを返します
-	 * (2026-08-03新設)。見つからなければnull。
+	 * Returns the style that <b>declares</b> this custom property
+	 * (added on 2026-08-03). Returns null if not found.
 	 *
 	 * <p>
-	 * 値の中の{@code var()}は、<b>宣言した要素の文脈</b>で解決しなければ
-	 * なりません(CSS Variables 1: カスタムプロパティの計算値は
-	 * 「{@code var()}を置換した後のトークン列」であり、<b>継承より前に</b>
-	 * 計算される)。祖先で{@code --y: calc(var(--x) + 1px)}と書き、子で
-	 * {@code --x}だけ変えても、継承した{@code --y}は<b>祖先の</b>
-	 * {@code --x}で計算された値のままです。Chrome・Firefox・Safariとも
-	 * 仕様どおり(2026-08-03、独立相談で確認)。
+	 * {@code var()} within the value must resolve in the <b>declaring element's context</b>
+	 * (CSS Variables 1: a custom property's computed value is the
+	 * token sequence after {@code var()} substitution, computed <b>before inheritance</b>).
+	 * If an ancestor declares {@code --y: calc(var(--x) + 1px)} and a child changes
+	 * only {@code --x}, the inherited {@code --y} retains the value computed
+	 * with the <b>ancestor's</b> {@code --x}. Chrome, Firefox, and Safari all follow
+	 * the specification (confirmed in an independent consultation on 2026-08-03).
 	 * </p>
 	 */
 	public CSSStyle getCustomPropertyOwner(String name) {
@@ -381,12 +381,12 @@ public class CSSStyle {
 	public void set(PrimitivePropertyInfo info, Value value, byte mode) {
 		short code = ElementPropertySet.getCode(info);
 		if (code == -1) {
-			// fail-loud(2026-08-01): 解釈可能なプロパティのコード未割当は
-			// 登録漏れ(ElementPropertySetのreg/regCode)であり、開発・テスト
-			// (-ea)では即座に落とす。@page sizeで「黙って捨てられて長い
-			// デバッグになった」実害の再発防止。本番(-eaなし)は従来どおり
-			// WARNで続行(クラッシュ排除)。静的な網羅検査は
-			// PropertyCodeRegistryTestが行う
+			// fail-loud (2026-08-01): A supported property without an assigned code
+			// means a missing registration (ElementPropertySet reg/regCode); fail immediately
+			// in development and tests (-ea). This prevents a recurrence of the @page size incident,
+			// where silent discarding led to a lengthy debugging session. Production (without -ea)
+			// continues with WARN as before (to avoid crashes). Static coverage checks
+			// are performed by PropertyCodeRegistryTest.
 			assert false : "カスケード用コード未割当のプロパティがsetされました(登録漏れ): " + info.getName();
 			this.ua.message(MessageCodes.WARN_UNSUPPORTED_CSS_PROPERTY, info.getName());
 			return;
@@ -416,10 +416,10 @@ public class CSSStyle {
 	}
 
 	/**
-	 * 内容の言語です(2026-10-07)。疑似要素(::before・::after・::marker など)は共有の
-	 * {@link CSSElement}で言語を持たないので、親の要素の言語を返す。以前は null になり、汎用ファミリの
-	 * 言語別の連鎖・禁則・ハイフネーションが既定(日本語向け)に落ちた(lang=zh・ko の文書の
-	 * {@code content} の字に日本語の字形が出た)。
+	 * The content language (2026-10-07). Pseudo-elements (::before, ::after, ::marker, etc.) use shared
+	 * {@link CSSElement} instances without a language, so return the parent element's language. Previously, null
+	 * caused language-specific generic family chains, kinsoku (line-breaking rules), and hyphenation to fall back
+	 * to Japanese defaults (Japanese glyph forms appeared in {@code content} text in lang=zh or ko documents).
 	 */
 	public java.util.Locale getLang() {
 		for (CSSStyle style = this; style != null; style = style.parentStyle) {
@@ -442,22 +442,22 @@ public class CSSStyle {
 		FontPolicyList policy = CSSJFontPolicy.get(this);
 		final var alternates = net.zamasoft.foliojet.css.impl.property.font.FontVariantAlternates.get(this);
 		final var featureValues = this.ua.getUAContext().getFontFeatureValues();
-		// @font-feature-valuesの無い文書は従来と同じメソッドを通し、既定経路を変えない。
+		// Documents without @font-feature-values use the same method as before, preserving the default path.
 		final var alternateFeatures = featureValues.isEmpty() ? alternates.featureSet()
 				: alternates.featureSet(featureValues, family.get(0).getName());
-		// font-variant-*由来のタグをfont-feature-settingsの明示タグで
-		// 上書きしてOpenType feature列へ正規化する(css-fonts-3の優先順)
+		// Override tags from font-variant-* with explicit font-feature-settings tags
+		// and normalize them to an OpenType feature sequence (css-fonts-3 priority order).
 		final var features = net.zamasoft.foliojet.css.impl.property.font.FontVariantCaps.get(this).featureSet()
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontVariantLigatures.get(this).featureSet())
 				.override(alternateFeatures)
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontVariantEastAsian.get(this).featureSet())
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontVariantNumeric.get(this).featureSet())
-				// font-kerning:noneはkern明示off(2026-08-29)。font-feature-settingsが優先
+				// font-kerning:none explicitly disables kern (2026-08-29). font-feature-settings takes precedence.
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontKerning.featureSet(this))
 				.override(net.zamasoft.foliojet.css.impl.property.font.FontFeatureSettings.get(this));
 
-		// font-stretch(2026-08-29)は幅級(usWidthClass 1..9)としてFontStyleに
-		// 載せ、pdfg2dの書体選択がitalic/weight同点の中から幅級の近い面を選ぶ
+		// Carry font-stretch (2026-08-29) in FontStyle as a width class (usWidthClass 1..9);
+		// pdfg2d font selection chooses the nearest width class among faces tied on italic/weight.
 		this.fontStyle = new FontStyleImpl(family, size, style, weight, direction, policy, features,
 				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisWeight.get(this),
 				net.zamasoft.foliojet.css.impl.property.font.FontSynthesisStyle.get(this),
@@ -465,9 +465,9 @@ public class CSSStyle {
 						net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant.get(this),
 						net.zamasoft.foliojet.css.impl.property.text.TextOrientation.get(this)),
 				net.zamasoft.foliojet.css.impl.property.font.FontStretch.getWidthClass(this),
-				// 内容の言語(2026-08-31)。汎用ファミリの連鎖を言語別に選ぶために
-				// 運ぶ。既定の連鎖は日本語向けなので、これが無いと中国語に
-				// 日本語の字形が、韓国語のsans-serifに明朝が出る
+				// Content language (2026-08-31). Carried to select language-specific
+				// generic family chains. The default chain targets Japanese; without this,
+				// Chinese uses Japanese glyph forms and Korean sans-serif uses a Mincho face.
 				this.getLang());
 		return this.fontStyle;
 	}

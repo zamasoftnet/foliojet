@@ -1,27 +1,28 @@
 package net.zamasoft.foliojet.layout.sizing;
 
 /**
- * 表の列幅の分配です。 SPEC css-tables-3 [Distributing width to columns]
+ * Distributes table column widths. SPEC css-tables-3 [Distributing width to columns]
  *
  * <p>
- * 各列は最低 min[i] を確保した上で、余剰を PERCENT→CONSTRAINED→AUTO の優先順で
- * target[i] まで拡張します(余剰が不足する場合は各列の不足量に比例して配分)。
- * 全列が目標に達してなお余る場合は、AUTO→CONSTRAINED→PERCENT の順で最初に
- * 存在する種別の列へ現在幅に比例して(全て0なら均等に)分配します。
+ * Ensures each column has at least min[i], then uses surplus space to expand to target[i]
+ * in PERCENT→CONSTRAINED→AUTO priority order (if surplus is insufficient, distributes it in
+ * proportion to each column's deficit). If space remains after all columns reach their targets,
+ * distributes it to the first existing column type in AUTO→CONSTRAINED→PERCENT order,
+ * proportionally to current widths (equally if all are zero).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class ColumnDistribution {
 	/**
-	 * 列の種別です。優先順の低い順に並びます。
+	 * Column types, in ascending priority order.
 	 */
 	public enum ColumnType {
-		/** 幅指定のない列(目標=最大内容幅)。 */
+		/** A column with no specified width (target=max-content width). */
 		AUTO,
-		/** 幅が長さで指定された列(目標=指定幅)。 */
+		/** A column whose width is specified as a length (target=specified width). */
 		CONSTRAINED,
-		/** 幅が%で指定された列(目標=解決済みの%幅)。 */
+		/** A column whose width is specified as a percentage (target=resolved percentage width). */
 		PERCENT;
 	}
 
@@ -34,14 +35,14 @@ public final class ColumnDistribution {
 	}
 
 	/**
-	 * 列幅を分配します。
+	 * Distributes column widths.
 	 *
-	 * @param min       列ごとの開始幅(通常は最小内容幅)
-	 * @param target    列ごとの目標幅(AUTO=最大内容幅、CONSTRAINED=指定幅、
-	 *                  PERCENT=解決済みの%幅)
-	 * @param types     列ごとの種別
-	 * @param available 分配可能な幅
-	 * @return 列幅の配列(合計は max(Σmin, available))
+	 * @param min       Initial width of each column (normally min-content width)
+	 * @param target    Target width of each column (AUTO=max-content width, CONSTRAINED=specified width,
+	 *                  PERCENT=resolved percentage width)
+	 * @param types     Type of each column
+	 * @param available Width available for distribution
+	 * @return Array of column widths (sum is max(Σmin, available))
 	 */
 	public static double[] distribute(double[] min, double[] target, ColumnType[] types, double available) {
 		final int n = min.length;
@@ -52,7 +53,7 @@ public final class ColumnDistribution {
 			sum += min[i];
 		}
 
-		// 優先順に目標幅まで拡張
+		// Expand to target widths in priority order.
 		for (final ColumnType type : GROW_ORDER) {
 			if (available <= sum) {
 				return sizes;
@@ -78,7 +79,7 @@ public final class ColumnDistribution {
 			}
 		}
 
-		// 余剰の分配
+		// Distribute surplus space.
 		if (available > sum) {
 			final double rem = available - sum;
 			for (final ColumnType type : EXCESS_ORDER) {

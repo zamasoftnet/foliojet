@@ -11,47 +11,48 @@ import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * {@link ReplacedParams}(置換要素のparams、{@link ReplacedRecipe}の
- * 4variantすべてが使う)の内容をfreezeし、呼び出しごとに独立した新品の
- * {@code ReplacedParams}をmaterializeするテンプレートです(2026-07-22
- * 新設、M6d-A Replaced要素対応)。
+ * A template that freezes the contents of {@link ReplacedParams}
+ * (replaced-element params used by all four {@link ReplacedRecipe} variants)
+ * and materializes an independent, fresh {@code ReplacedParams} on each call
+ * (introduced 2026-07-22, M6d-A replaced-element support).
  *
  * <p>
- * {@code ReplacedParams}は{@code AbstractTextParams}を直接継承する
- * ({@code InlineParams}と同型)ため、祖先フィールドは
- * {@link TextParamsFields}に委譲する。固有フィールドの{@code size}/
- * {@code minSize}/{@code maxSize}({@code Dimension})・{@code boxSizing}
- * (enum)・{@code frame}({@code RectFrame})は{@link BlockParamsFields}と
- * 同じ理由(既存実装がfinalフィールドのみの実質不変値クラス)で
- * コピー不要、{@code lineHeight}はプリミティブでそのままコピーする。
+ * {@code ReplacedParams} directly extends {@code AbstractTextParams} (like {@code InlineParams} ),
+ * so ancestor fields are delegated to {@link TextParamsFields} .
+ * Its own fields {@code size} /{@code minSize}/{@code maxSize} ({@code Dimension}),
+ * {@code boxSizing} (enum), and {@code frame} ({@code RectFrame}) need no copying
+ * for the same reason as {@link BlockParamsFields} :
+ * existing implementations are effectively immutable value classes with only final fields.
+ * {@code lineHeight} is a primitive and copied unchanged.
  * </p>
  *
  * <p>
- * {@code image}({@code Image})だけは性質が異なる。通常の(URL等から
- * 読み込んだ)画像は不変・再入可能な共有リソースだが、
- * {@link ReplacedBoxImage}実装(現状{@code BarcodeImage}のみ)は
- * {@code AbstractReplacedBox.calculateSize()}が呼ぶ
- * {@code setReplacedBox(box, width, height)}で自分自身にlive boxへの
- * back-referenceを書き込む——レイアウトのたびに変異する共有不可な状態を
- * 持つ。旧実装(〜E-6増分3b-5)はこれを検出するとfail closedで
- * {@code Optional.empty()}を返しBarrier化していたが、E-6増分3b-6で
- * {@link ReplacedBoxImage#duplicate()}(独立複製)ベースの総関数へ変更
- * した: {@link #freeze}は記録時に複製を凍結してliveとの共有状態を切り、
- * {@link #materialize}は呼び出しごとにさらに複製を配って再生同士の
- * 共有状態も切る(frozen templateから複数回materializeした結果は互いに
- * 独立、というM6d-Aの最重要契約を保つ)——これによりBarrier化の理由が
- * 消え、置換要素のfreezeは失敗variantを持たない。
+ * Only {@code image} ({@code Image}) differs.
+ * Ordinary images (loaded from URLs, etc.) are immutable, reentrant shared resources,
+ * but {@link ReplacedBoxImage} implementations (currently only {@code BarcodeImage} ) write a
+ * back-reference to the live box into themselves through
+ * {@code setReplacedBox(box, width, height)} , called by {@code AbstractReplacedBox.calculateSize()} .
+ * They have unshareable state that mutates on every layout.
+ * The old implementation (through E-6 increment 3b-5) detected this and failed closed,
+ * returning {@code Optional.empty()} to produce a Barrier.
+ * E-6 increment 3b-6 changed this to a total function based on
+ * {@link ReplacedBoxImage#duplicate()} (independent copies):
+ * {@link #freeze} freezes a copy at recording time to sever shared state with the live object,
+ * and {@link #materialize} distributes further copies on each call to sever shared state between replays.
+ * This preserves M6d-A's most important contract:
+ * multiple materializations from a frozen template are mutually independent.
+ * The reason for producing a Barrier is thus eliminated, and replaced-element freezing has no failure variant.
  * </p>
  *
  * <p>
- * Stage2(2026-07-22、他のTemplate/Fields群を不変recordへ置換)の
- * 唯一の例外として、この型だけは通常のfinalクラスのまま残す——
- * {@code public record}の正準コンストラクタはrecord自身と同じ
- * public可視性を強制されるため、record化すると上記のimage正規化
- * ({@code freeze()}のみが構築経路——凍結値にliveの
- * {@code ReplacedBoxImage}をそのまま格納できない保証)を誰でも
- * バイパスできてしまう(JLS 8.10.4.2)。これはM6d-Aの安全上重要な
- * 契約であり、record化の均一性より優先する。
+ * As the sole exception to Stage2 (2026-07-22, which replaced other Template/Fields types with immutable
+ * records),
+ * this type remains an ordinary final class.
+ * The canonical constructor of a {@code public record} must have the same public visibility as the record.
+ * Converting this type to a record would let anyone bypass the image normalization above:
+ * {@code freeze()} is the only construction path, guaranteeing that a live {@code ReplacedBoxImage}
+ * cannot be stored directly in a frozen value (JLS 8.10.4.2).
+ * This safety-critical M6d-A contract takes precedence over uniform use of records.
  * </p>
  */
 public final class ReplacedParamsTemplate {
@@ -87,11 +88,10 @@ public final class ReplacedParamsTemplate {
 	}
 
 	/**
-	 * live paramsから凍結します(E-6増分3b-6で総関数化——失敗variantは
-	 * ない)。{@code source.image}が{@link ReplacedBoxImage}(back-reference
-	 * を持つ共有不可の画像)の場合は{@link ReplacedBoxImage#duplicate()}の
-	 * 独立複製を凍結する——liveボックスの画像状態とテンプレートの間に
-	 * 共有状態が残らない。
+	 * Freezes live params (made a total function in E-6 increment 3b-6; no failure variant).
+	 * If {@code source.image} is a {@link ReplacedBoxImage} (an unshareable image with a back-reference),
+	 * freezes an independent copy from {@link ReplacedBoxImage#duplicate()} .
+	 * No shared state remains between the live box's image state and the template.
 	 */
 	public static ReplacedParamsTemplate freeze(final ReplacedParams source) {
 		final Image image = source.image instanceof ReplacedBoxImage unsafe ? unsafe.duplicate() : source.image;
@@ -100,7 +100,7 @@ public final class ReplacedParamsTemplate {
 				source.lineHeight, image, source.aspectRatio, source.aspectRatioAuto);
 	}
 
-	/** 幅・高さと上下限に、包含ブロックを参照する割合寸法が残っているか。 */
+	/** Whether width, height, or their bounds still contain percentage sizes referencing the containing block. */
 	public boolean hasRelativeSize() {
 		return hasRelativeSize(this.size) || hasRelativeSize(this.minSize) || hasRelativeSize(this.maxSize);
 	}
@@ -110,7 +110,7 @@ public final class ReplacedParamsTemplate {
 				|| size.getHeightType() == LengthType.RELATIVE || size.getHeightType() == LengthType.MIXED;
 	}
 
-	/** 呼び出しごとに新品の{@code ReplacedParams}を返す(複数回呼んでも互いに影響しない)。 */
+	/** Returns a fresh {@code ReplacedParams} on each call (multiple calls do not affect one another). */
 	public ReplacedParams materialize() {
 		final ReplacedParams params = new ReplacedParams();
 		this.common.materializeInto(params);
@@ -124,10 +124,10 @@ public final class ReplacedParamsTemplate {
 		params.lineHeight = this.lineHeight;
 		params.aspectRatio = this.aspectRatio; // 2026-08-29
 		params.aspectRatioAuto = this.aspectRatioAuto;
-		// ReplacedBoxImageはmaterializeごとに複製を配る——凍結済み複製自体を
-		// 共有すると、複数の再生ボックスが
-		// setReplacedBoxのback-referenceを取り合い「materialize結果は互いに
-		// 独立」の契約が壊れる(E-6増分3b-6)
+		// Distribute a copy of ReplacedBoxImage on each materialize call. Sharing the frozen copy
+		// itself would make multiple replay boxes compete
+		// for the setReplacedBox back-reference, violating the contract that
+		// materialization results are mutually independent (E-6 increment 3b-6).
 		params.image = this.image instanceof ReplacedBoxImage frozen ? frozen.duplicate() : this.image;
 		return params;
 	}

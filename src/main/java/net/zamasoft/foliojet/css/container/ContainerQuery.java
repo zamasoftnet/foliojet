@@ -19,33 +19,33 @@ import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code @container}規則1個ぶんの解析結果です(2026-08-15段3——
- * 開発記録 §5/§6)。
+ * Parse result for one {@code @container} rule (2026-08-15 stage 3;
+ * development record §5/§6).
  *
  * <p>
- * ph-cssは{@code @container}自体を未知のat-rule({@code CSSUnknownRule})
- * として渡すため、{@link #parse}は{@code getParameterList()}が返す生の
- * 引数文字列(例: {@code "card (min-width: 400px)"})を自前で解釈する。
- * ただし個々の括弧項(例: {@code "(min-width: 400px)"})自体の字句解析は、
- * {@code @media}の特性式として読み直すことでph-cssへ委譲する
- * (設計の「@mediaの特性クエリを流用」)。この委譲により、空白・単位・
- * コロンの字句規則を自前で再実装しない。
+ * ph-css passes {@code @container} itself as an unknown at-rule ({@code CSSUnknownRule}),
+ * so {@link #parse} interprets the raw argument string returned by {@code getParameterList()}
+ * (e.g., {@code "card (min-width: 400px)"}) itself.
+ * However, it delegates lexical analysis of each parenthesized term
+ * (e.g., {@code "(min-width: 400px)"}) to ph-css by reparsing it as a {@code @media}
+ * feature expression (the design's "reuse @media feature queries"). This delegation avoids
+ * reimplementing lexical rules for whitespace, units, and colons.
  * </p>
  *
  * <p>
- * 第1段階で受理する構文は設計§5のとおり:
- * {@code @container [<name>] (<feature>)[ and (<feature>) ]*}、または
- * {@code @container [<name>] not (<feature>)}。{@code or}・
- * スタイルクエリ・{@code cqw}/{@code cqi}等のコンテナ相対単位・
- * {@code container-type: size}軸の特性は対象外。これらを含む入力は
- * {@link ContainerCondition#isValid()}が{@code false}になる
- * (常に不一致、既存の{@code @media}未対応特性と同じ保守的な扱い)。
+ * Phase 1 accepts the syntax specified in design §5:
+ * {@code @container [<name>] (<feature>)[ and (<feature>) ]*}, or
+ * {@code @container [<name>] not (<feature>)}. {@code or},
+ * style queries, container-relative units such as {@code cqw}/{@code cqi},
+ * and features on the {@code container-type: size} axis are out of scope. Input containing
+ * these makes {@link ContainerCondition#isValid()} return {@code false}
+ * (always non-matching, as in the existing conservative treatment of unsupported {@code @media} features).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class ContainerQuery {
-	/** {@code @container}が受理する特性名(width系とinline-size系は同軸)。 */
+	/** Feature names accepted by {@code @container} (width and inline-size families share an axis). */
 	private static final java.util.Map<String, ContainerFeature.Kind> FEATURE_KINDS = java.util.Map.of( //
 			"width", ContainerFeature.Kind.EXACT, //
 			"inline-size", ContainerFeature.Kind.EXACT, //
@@ -65,7 +65,7 @@ public final class ContainerQuery {
 		this.condition = condition;
 	}
 
-	/** コンテナ名(名前指定が無ければnull)。 */
+	/** Container name (null if unspecified). */
 	public String getName() {
 		return this.name;
 	}
@@ -75,9 +75,9 @@ public final class ContainerQuery {
 	}
 
 	/**
-	 * {@code @container}の生引数文字列を解析します。失敗しても例外は
-	 * 投げず、{@link ContainerCondition#isValid()}が{@code false}の
-	 * (常に不一致の)条件を持つインスタンスを返す。
+	 * Parses a raw {@code @container} argument string. On failure, does not
+	 * throw; returns an instance whose condition has {@link ContainerCondition#isValid()}
+	 * equal to {@code false} (always non-matching).
 	 */
 	public static ContainerQuery parse(final String rawParams, final UserAgent ua) {
 		if (rawParams == null) {
@@ -125,8 +125,8 @@ public final class ContainerQuery {
 	}
 
 	/**
-	 * {@code "(a) and (b)"}のような括弧項の並びを分割します。{@code and}
-	 * 以外の結合子(未対応の{@code or}等)や閉じ括弧の欠落はnull(解析失敗)。
+	 * Splits a sequence of parenthesized terms such as {@code "(a) and (b)"}. Returns null
+	 * (parse failure) for combinators other than {@code and} (e.g., unsupported {@code or}) or missing closing parentheses.
 	 */
 	private static List<String> splitParenGroups(final String text) {
 		final List<String> groups = new ArrayList<>();
@@ -172,13 +172,13 @@ public final class ContainerQuery {
 				i += 3;
 				continue;
 			}
-			// "and"以外の残り(未対応の"or"等)
+			// Remainder other than "and" (unsupported "or", etc.)
 			return null;
 		}
 		return groups;
 	}
 
-	/** 1個の括弧項({@code "(min-width: 400px)"})を@media特性式として読み直す。 */
+	/** Reparses one parenthesized term ({@code "(min-width: 400px)"}) as an @media feature expression. */
 	private static ContainerFeature parseFeature(final String parenGroup, final UserAgent ua) {
 		final CSSReaderSettings settings = new CSSReaderSettings().setBrowserCompliantMode(true)
 				.setCustomErrorHandler(new DoNothingCSSParseErrorHandler());

@@ -19,19 +19,20 @@ import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
- * ブロックボックスの実装です。
- * 
+ * Implementation of a block box.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: FloatBlockBox.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 	/**
-	 * 分割しても前進しないと判明した浮動体の印です(2026-09-17)。ページ先頭で分割した
-	 * 残余が次ページでも同じ寸法に組み直される浮動体(中身が直交フローのセルや明示寸法で
-	 * ページ軸に切れない)に、配置時の前進検査
-	 * ({@code RootBuilder.fragmentStartFloatSplitProgresses})が立てる。改ページ時の分類
-	 * ({@code FloatSplitPlan.classify})はこれを分割不能として扱い、救済分割か
-	 * 「はみ出したまま置く」へ落とす——どちらも必ず前進する。
+	 * Marks a float known not to make progress when split (2026-09-17).
+	 * The placement-time progress check ({@code RootBuilder.fragmentStartFloatSplitProgresses})
+	 * sets this for floats whose remainder, split at the page start, is laid out at the same size
+	 * on the next page (contents such as orthogonal-flow cells or explicit dimensions prevent
+	 * page-axis splitting). Page-break classification ({@code FloatSplitPlan.classify}) treats
+	 * it as unsplittable and falls back to rescue splitting or "place while overflowing".
+	 * Both always make progress.
 	 */
 	private boolean splitMakesNoProgress;
 
@@ -45,10 +46,11 @@ public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 
 	protected final FloatPos pos;
 	/**
-	 * 改ページ分割の続き断片か(2026-08-29)。{@code shape-outside}の解決
-	 * ({@code FloatShapeResolver})が、元の寸法・位置を持たない続き断片で
-	 * 形状をマージンボックス矩形へ退避するために使う。続き断片は
-	 * {@link #fragmentRecipe}経由の保護コンストラクタでしか作られない。
+	 * Whether this is a continuation fragment from a page-break split (2026-08-29).
+	 * {@code shape-outside} resolution ({@code FloatShapeResolver}) uses this to fall back
+	 * to the margin-box rectangle for continuation fragments, which lack the original dimensions
+	 * and position. Continuation fragments are created only by the protected constructor
+	 * through {@link #fragmentRecipe}.
 	 */
 	private final boolean continuation;
 
@@ -92,7 +94,7 @@ public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 
 		this.frames(pageBox, drawer, clip, transform, x, y);
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
-			// 負の z-index の子はここまで(自分の背景・枠)の後、残りの内容の前に描く(Appendix E ③)
+			// Draw children with negative z-index after this box's background/border and before other content (Appendix E ③).
 			drawer.markOwnDecorationEnd();
 		}
 		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);

@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * テーブル行のパラメータです。
- * 
+ * Parameters for a table row.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: TableRowPos.java 1552 2018-04-26 01:43:24Z miyabe $
  */

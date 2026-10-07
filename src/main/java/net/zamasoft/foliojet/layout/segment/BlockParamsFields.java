@@ -9,23 +9,19 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 
 /**
- * {@code BlockParams}が{@code AbstractLineParams}に加えて持つ
- * フィールド({@code frame}・{@code firstLineStyle}・
- * {@code pageBreakInside}・{@code orphans}/{@code widows}・
- * {@code size}系・{@code boxSizing}・{@code overflow}・{@code columns})
- * のfreeze/materialize処理です(2026-07-22新設、M6d-A3b、
- * package-private——{@link BlockParamsTemplate}が使う。
- * 祖先({@code Params}/{@code AbstractTextParams}/
- * {@code AbstractLineParams})のフィールドは{@link LineParamsFields}へ
- * 委譲する(合成、{@code TextParamsFields}/{@code LineParamsFields}と
- * 同じパターン)。
+ * Freeze/materialize processing for the fields {@code BlockParams} adds to {@code AbstractLineParams}
+ * ({@code frame}, {@code firstLineStyle} , {@code pageBreakInside} , {@code orphans} /{@code widows},
+ * the {@code size} family, {@code boxSizing} , {@code overflow} , and {@code columns} ).
+ * Introduced 2026-07-22, M6d-A3b; package-private and used by {@link BlockParamsTemplate} .
+ * Delegates ancestor ({@code Params}/{@code AbstractTextParams}/{@code AbstractLineParams}) fields to
+ * {@link LineParamsFields} (composition, the same pattern as
+ * {@code TextParamsFields} /{@code LineParamsFields}).
  * </p>
  *
  * <p>
- * {@code firstLineStyle}(nullable)は{@link FirstLineParamsTemplate}で
- * 再帰的にfreeze/materializeする。その他のフィールドは既存実装が
- * finalフィールドのみで実質不変と確認済みのため、参照をそのまま
- * 保持する(コピー不要)。
+ * Recursively freezes/materializes nullable {@code firstLineStyle} through {@link FirstLineParamsTemplate} .
+ * Existing implementations of other fields have been confirmed effectively immutable with only final fields,
+ * so their references are retained unchanged (no copy needed).
  * </p>
  */
 record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLineParamsTemplate firstLineStyle,
@@ -44,10 +40,9 @@ record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLinePara
 	}
 
 	/**
-	 * {@code target}へ全フィールドを書き戻す。{@code target}は
-	 * {@code BlockParams}のサブクラス({@code TableParams}等)でもよい
-	 * ——呼び出しごとに新品の{@code firstLineStyle}を割り当てるため、
-	 * 複数回materializeしても互いに影響しない。
+	 * Writes all fields back to {@code target} . {@code target} may be a {@code BlockParams} subclass
+	 * (such as {@code TableParams} ). Assigns a fresh {@code firstLineStyle} on each call,
+	 * so multiple materializations do not affect one another.
 	 */
 	void materializeInto(final BlockParams target) {
 		this.common.materializeInto(target);
@@ -67,10 +62,10 @@ record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLinePara
 		target.clipPath = this.clipPath;
 		target.flowRoot = this.flowRoot;
 		target.textOverflow = this.textOverflow;
-		// aspect-ratio(2026-08-29)。凍結から漏らすと再生・restyleで比率が
-		// 消え、サムネイルの高さが内容(空)の0へ潰れる
+		// aspect-ratio (2026-08-29). Omitting it from freezing loses the ratio on replay/restyle,
+		// collapsing thumbnail height to the height of its (empty) content: 0.
 		target.aspectRatio = this.aspectRatio;
-		// line-clamp(2026-08-29)。漏らすと再生で行数の打ち切りが消える
+		// line-clamp (2026-08-29). Omitting it loses the line-count cutoff on replay.
 		target.lineClamp = this.lineClamp;
 	}
 }

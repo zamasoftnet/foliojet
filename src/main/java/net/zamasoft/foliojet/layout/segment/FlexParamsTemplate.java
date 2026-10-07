@@ -6,14 +6,14 @@ import net.zamasoft.foliojet.layout.box.params.FlexWrap;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
- * {@link FlexParams}({@code BlockParams}を直接継承、{@code BoxKind#FLEX}が
- * 使う)の内容をfreezeし、呼び出しごとに独立した新品の{@code FlexParams}を
- * materializeするテンプレートです(Flex F0c、2026-08-02——
- * consult-codex-2026-08-02-flexbox.txt F0c。{@code GridParamsTemplate}と同型)。
+ * A template that freezes the contents of {@link FlexParams}
+ * (directly extends {@code BlockParams} , used by {@code BoxKind#FLEX} ) and materializes an independent,
+ * fresh {@code FlexParams} on each call (Flex F0c, 2026-08-02;
+ * consult-codex-2026-08-02-flexbox.txt F0c; analogous to {@code GridParamsTemplate} ).
  *
  * <p>
- * direction/wrapはenumのためそのまま保持できる。F2c(gap)・F3a(整列)の
- * フィールド追加時はここへ追随する。
+ * direction/wrap are enums and can be retained unchanged.
+ * Update this template when adding F2c (gap) and F3a (alignment) fields.
  * </p>
  */
 public record FlexParamsTemplate(BlockParamsFields common, FlexDirection flexDirection, FlexWrap flexWrap,
@@ -25,12 +25,12 @@ public record FlexParamsTemplate(BlockParamsFields common, FlexDirection flexDir
 				source.rowGap, source.columnGap, source.justifyContent, source.alignItems, source.alignContent);
 	}
 
-	/** 凍結済みの書字方向を返します({@code containsMixedFlow}用)。 */
+	/** Returns the frozen writing direction (for {@code containsMixedFlow}). */
 	public WritingMode flow() {
 		return this.common.common().text().flow();
 	}
 
-	/** 呼び出しごとに新品の{@code FlexParams}を返す。 */
+	/** Returns a fresh {@code FlexParams} on each call. */
 	public FlexParams materialize() {
 		final FlexParams p = new FlexParams();
 		this.common.materializeInto(p);

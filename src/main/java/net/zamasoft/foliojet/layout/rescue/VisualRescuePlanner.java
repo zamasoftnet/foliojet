@@ -4,206 +4,204 @@ import net.zamasoft.foliojet.layout.box.params.PosType;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * 救済分割(visual rescue split)の<b>入口</b>——判定を一手に引き受ける
- * 純関数と、機能全体の仕様・設計判断の集約点です(2026-07-25新設。
- * 開発記録(合意仕様)、
- * 設計相談(設計答申))。
+ * The <b>entry point</b> for visual rescue splitting: pure functions centralizing its decisions,
+ * and the collected specification and design decisions for the feature
+ * (introduced 2026-07-25; development record (agreed specification),
+ * design consultation (design recommendation)).
  *
- * <h2>1. 何をする機能か</h2>
+ * <h2>1. What the feature does</h2>
  *
  * <p>
- * ページからはみ出す分割不能な要素の<b>情報のロスを防ぐ</b>ため、枠線
- * ボックスを<b>幾何学的に(機械的に)切断</b>して断片を次フラグメンテナへ
- * 送ります。行間やブロックの継ぎ目は一切考慮しません——通常の改ページ
- * 分割とは別の考えです。実装はクリップ+座標移動で、内容はベクターのまま
- * (画像化しない)。切断面には装飾を付けず、上マージン・上枠線は先頭断片
- * だけ、下枠線・下マージンは最終断片だけがclip内に入ります(CSS
- * {@code box-decoration-break: slice}と同じ結果が、辺を落とす特別処理
- * <b>なしに</b>得られます)。継続断片はPDFの{@code /Artifact}として出力し、
- * テキスト抽出・読み上げ・構造タグの二重化を防ぎます。
+ * To <b>prevent information loss</b> from unsplittable elements overflowing a page,
+ * <b>geometrically (mechanically) cuts</b> the border box and sends fragments to the next fragmentainer.
+ * It never considers line gaps or block boundaries; this is distinct from normal page-break splitting.
+ * Implemented with clipping and coordinate shifts, content stays vector-based (no conversion to images).
+ * Cut surfaces receive no decorations. Only the first fragment's clip includes the top margin and top border;
+ * only the final fragment's clip includes the bottom border and bottom margin.
+ * This produces the same result as CSS {@code box-decoration-break: slice}
+ * <b>without</b> special edge-removal processing.
+ * Continuation fragments are emitted as PDF {@code /Artifact} , preventing duplicate text extraction,
+ * read-aloud output, and structure tags.
  * </p>
  *
- * <h2>2. なぜ「この一点だけ」を置き換えるのか</h2>
+ * <h2>2. Why it replaces only this one point</h2>
  *
  * <p>
- * 発動するのは「一度次のフラグメンテナへ送っても、その先頭でなお収まらない」
- * ——現在「はみ出したまま描画」に落ちる<b>唯一の非進行点</b>だけです
- * (通常フローは{@code FlowContainer.rescueSplit}、浮動体は
- * {@code FloatSplitPlan.rescue}の二か所)。この選択には3つの理由があります。
+ * Triggers only when content has been moved to the next fragmentainer once and still does not fit at its start:
+ * the <b>sole point of nonprogress</b> that currently falls back to drawing with overflow
+ * (two sites: {@code FlowContainer.rescueSplit} for normal flow and {@code FloatSplitPlan.rescue} for floats).
+ * There are three reasons for this choice.
  * </p>
  *
  * <ul>
- * <li><b>通常経路が完全に不変になる</b>。収まる場合も一度の延期で収まる
- * 場合もこの地点には来ないため、既存goldenは一切変わりません。</li>
- * <li><b>置き換える対象が「情報が失われる場所」そのもの</b>。ここは
- * すでに敗北が確定している地点で、救済は劣化ではなく回復です。</li>
- * <li><b>分類器を作らなくてよい</b>。「何が分割不能か」をクラス列挙で
- * 定義すると必ず漏れます。「エンジン自身の通常分割が前進しなかった」と
- * いう<b>結果</b>を正本にすれば、置換要素・巨大な行・インラインブロック・
- * インラインテーブル・ルビ・書字方向不一致ボックスがすべて同じ一本の
- * 経路で捕捉されます。</li>
+ * <li><b>Normal paths remain completely unchanged</b>.
+ * Content that fits immediately or after one postponement never reaches this point,
+ * so existing goldens do not change at all.</li>
+ * <li><b>The replacement targets precisely where information is lost</b>.
+ * Failure is already certain here; rescue restores information rather than degrading it.</li>
+ * <li><b>No classifier is needed</b>.
+ * Defining unsplittable content by enumerating classes inevitably misses cases.
+ * Using the <b>result</b> that the engine's own normal splitting made no progress as the authority
+ * captures replaced elements, huge lines, inline blocks, inline tables, ruby,
+ * and boxes with mismatched writing directions through the same single path.</li>
  * </ul>
  *
- * <h2>3. なぜ絶対配置は対象外か</h2>
+ * <h2>3. Why absolute positioning is excluded</h2>
  *
  * <p>
- * {@link #isRescuablePos(PosType)}が{@code PosType.ABSOLUTE}を明示的に
- * 拒否します(合意仕様)。
+ * {@link #isRescuablePos(PosType)} explicitly rejects {@code PosType.ABSOLUTE}
+ * (the agreed specification).
  * </p>
  *
  * <ul>
- * <li>絶対配置は<b>意図的に</b>はみ出させる用途が多い(透かし・装飾・
- * 裁ち落とし)。自動で切るのは明らかな誤りです。</li>
- * <li>基準ボックスが別ページにあり得るため「どこから続きか」の帳簿が
- * 曖昧になります。</li>
- * <li>回避策がある——通常ブロックで包めば対象になります。逆に、救済対象の
- * 通常ブロックの中にある絶対配置子は、そのブロックのclipに従って切れます。
+ * <li>Absolute positioning often <b>intentionally</b> overflows (watermarks, decorations, bleed).
+ * Automatically cutting it is clearly wrong.</li>
+ * <li>The reference box may be on another page, making bookkeeping of the continuation start ambiguous.</li>
+ * <li>A workaround exists: wrap it in a normal block to make it eligible.
+ * Conversely, absolutely positioned children inside a normal block undergoing rescue are cut according
+ * to that block's clip.
  * </li>
  * </ul>
  *
- * <h2>4. なぜ表全体は見送りか</h2>
+ * <h2>4. Why whole-table rescue is deferred</h2>
  *
  * <p>
- * {@code BoxType.TABLE}を幾何学的に切る経路は<b>作っていません</b>。表は
- * 行・行グループ・セルの分割機構を自前で持ち、{@code Keep}/{@code Move}が
- * 「内部機構が処理した」の意なのか「本当に前進できない」のかを現状の
- * 戻り値からは区別できません。区別できないまま切ると、正常に行分割できて
- * いる表まで帯状に刻む明確な劣化になります。<b>セルの中身</b>は
- * フラグメンテナがセルになるだけで同一経路が効くため、実害のある形
- * (セルに収まらない巨大画像)は既にカバー済みです。コーパスにも表全体の
- * 候補がないため、段階的拡大の方針に従って見送ります。
+ * <b>No path is provided</b> for geometrically cutting {@code BoxType.TABLE} .
+ * Tables have their own row, row-group, and cell splitting mechanisms;
+ * current return values cannot distinguish whether {@code Keep} /{@code Move} means
+ * the internal mechanism handled it or progress is genuinely impossible.
+ * Cutting without that distinction would clearly degrade tables whose rows split normally by slicing them
+ * into strips. <b>Cell contents</b> use the same path with the cell as fragmentainer,
+ * so harmful cases (huge images that do not fit cells) are already covered.
+ * The corpus also has no whole-table candidates, so this is deferred under the policy of gradual expansion.
  * </p>
  *
- * <h2>5. 白紙対策の2つの下限</h2>
+ * <h2>5. Two lower bounds against blank pages</h2>
  *
  * <p>
- * 「意図しない白紙ページを作らない」は無限ループの不在と並ぶ絶対要件です。
- * 作者が意図した白紙(非表示オブジェクト・強制改ページ)は正常で、
- * <b>エンジンの都合で生じる白紙・実質白紙</b>だけが不具合です。救済分割は
- * 放っておくと「数ptの断片ページ」を量産しうるため、
- * {@link #planInFragmentainer}が<b>両側</b>に下限を課します。この2つは
- * どちらも{@link #MIN_RESCUE_ADVANCE}(1pt)とは別物です——1ptは
- * 「無限ループしないか」の下限であって「1ptずつ切ってよい」ではありません。
+ * Avoiding unintended blank pages is an absolute requirement alongside freedom from infinite loops.
+ * Author-intended blank pages (hidden objects or forced page breaks) are valid;
+ * only <b>blank or effectively blank pages caused by the engine</b> are defects.
+ * Left unchecked, rescue splitting could produce many pages containing only a few pt of content,
+ * so {@link #planInFragmentainer} imposes lower bounds on <b>both ends</b>.
+ * Both differ from {@link #MIN_RESCUE_ADVANCE} (1 pt):
+ * 1 pt is the lower bound for avoiding infinite loops, not permission to cut 1 pt at a time.
  * </p>
  *
  * <ul>
- * <li><b>先頭側</b>({@link #minUsefulSlice(double)}): <b>今</b>使える量が
- * 小さすぎるなら救済しない。浮動体の排除域などでフラグメンテナの一部しか
- * 空いていない状況で切り始めると、数十ptの断片ページが延々と続きます。
- * 絶対値20ptと容量の1/4の大きい方を使い、下回れば従来の終端へ落として
- * 外側のフラグメンテナへ委譲します。</li>
- * <li><b>末尾側</b>({@link #MIN_RESCUE_SLICE}): <b>はみ出し量</b>が
- * 小さすぎるなら救済しない。数ptのはみ出しを救うために丸ごと1ページ
- * 増やすと、そのページが実質白紙になります。こちらに割合の下限を課さない
- * のは、「A4に貼られた少しだけ背の高い画像」という<b>本来の用途</b>まで
- * 拒否してしまうためです。</li>
+ * <li><b>Start side</b> ({@link #minUsefulSlice(double)}): Do not rescue if the extent available
+ * <b>now</b> is too small. Starting cuts when only part of the fragmentainer is free,
+ * for example due to float exclusion areas, can produce an endless succession of pages with
+ * fragments of a few tens of pt. Uses the greater of an absolute 20 pt and one quarter of capacity;
+ * below that, falls back to the existing terminal path and delegates to the outer fragmentainer.</li>
+ * <li><b>End side</b> ({@link #MIN_RESCUE_SLICE}): Do not rescue if <b>overflow</b> is too small.
+ * Adding a whole page to rescue a few pt makes that page effectively blank.
+ * No proportional lower bound applies here because it would also reject the <b>intended use case</b>
+ * of an image slightly too tall for A4.</li>
  * </ul>
  *
  * <p>
- * どちらも<b>救済を始めるかどうか</b>({@code offset == 0})にだけ効きます。
- * 切り始めた後に「小さすぎるからやめる」を選ぶと残りの内容が失われるため、
- * 開始後は前進保証だけを守って必ず切り進めます。
+ * Both affect only <b>whether to begin rescue</b> ({@code offset == 0}).
+ * Stopping after cutting has begun because a fragment is too small would lose the remaining content.
+ * Once started, slicing therefore always continues while maintaining only the progress guarantee.
  * </p>
  *
  * <p>
- * <b>ただし例外が一つあります</b>(2026-07-25、独立レビュー指摘)。継続断片
- * ({@code offset > 0})であっても、送り先のフラグメンテナに
- * {@link #MIN_RESCUE_ADVANCE}未満しか空きがなければ
- * {@link RescueDecision.Reason#INSUFFICIENT_CAPACITY}を返し、救済の連鎖は
- * そこで終わります(残りは従来どおりはみ出したまま描かれる)。
- * <b>これは意図した終端です。</b>ここで「外側のフラグメンテナへ送る」を
- * 選ぶと、フラグメンテナの容量はページごとに変わらないため、送っても
- * 送っても同じ判定になり<b>無限ループ</b>になります——絶対要件の
- * 「無限ループの不在」は、絶対要件の「情報を失わない」より優先します。
- * なお{@link #minUsefulSlice(double)}(20pt以上)を満たさないと救済は
- * 始まらないので、この終端に到達するのは容量1pt未満という縮退した
- * フラグメンテナだけです。
+ * <b>There is one exception</b> (2026-07-25, independent review).
+ * Even for a continuation fragment ({@code offset > 0}), if the destination fragmentainer has less than
+ * {@link #MIN_RESCUE_ADVANCE} available, returns
+ * {@link RescueDecision.Reason#INSUFFICIENT_CAPACITY} and ends the rescue chain there
+ * (the remainder is drawn with overflow as before).
+ * <b>This termination is intentional.</b>
+ * Choosing to move to the outer fragmentainer here would yield the same decision on every move,
+ * because fragmentainer capacity does not change from page to page, causing an <b>infinite loop</b>.
+ * The absolute requirement of no infinite loops takes precedence over the absolute requirement of no
+ * information loss.
+ * Since rescue cannot begin unless {@link #minUsefulSlice(double)} (at least 20 pt) is satisfied,
+ * only a degenerate fragmentainer with capacity below 1 pt reaches this termination.
  * </p>
  *
- * <h2>6. 前進保証(無限ループの不在)</h2>
+ * <h2>6. Progress guarantee (no infinite loops)</h2>
  *
  * <p>
- * 再試行回数カウンタには一切依存しません。次の構造で保証します(答申§1)。
+ * Does not depend on retry counters. The following structure guarantees progress (recommendation §1).
  * </p>
  *
  * <ul>
- * <li>tailを作る断片は必ず{@link #MIN_RESCUE_ADVANCE}以上を消費する。</li>
- * <li>{@code nextOffset > offset}が厳密に成り立つときしか断片を作らない
- * (NaN・Infinity・極大doubleの丸めで停滞する場合は救済しない)。</li>
- * <li>残余が容量に収まったら{@code lastFragment}となり、tailを作らない。</li>
+ * <li>A fragment creating a tail always consumes at least {@link #MIN_RESCUE_ADVANCE} .</li>
+ * <li>Creates a fragment only when {@code nextOffset > offset} holds strictly
+ * (no rescue if NaN, Infinity, or rounding of extremely large doubles stalls progress).</li>
+ * <li>Once the remainder fits capacity, it becomes {@code lastFragment} and creates no tail.</li>
  * </ul>
  *
  * <p>
- * したがって救済が改ページを起こしたフラグメントは必ず正の量を消費し、
- * 残余は真に減少します。判定が{@link RescueDecision.None}を返した場合は
- * 従来どおりの終端(ページ先頭ならはみ出したまま描画)へ落ち、再試行は
- * しません。実行時にも二重に検査します(配線側の{@code tailOffset > offset}
- * 検査)——不変条件の重複ですが、絶対要件なので冗長でも守ります。
+ * Thus every fragment for which rescue causes a page break consumes a positive amount,
+ * and the remainder strictly decreases. A {@link RescueDecision.None} decision falls back to the
+ * existing terminal behavior (draw with overflow at the page start), with no retry.
+ * Runtime code also double-checks this ({@code tailOffset > offset} in the integration code).
+ * Although the invariant check is redundant, it protects an absolute requirement.
  * </p>
  *
- * <h2>7. 作らないもの(将来の誘惑への歯止め)</h2>
+ * <h2>7. What is deliberately excluded (a guard against future temptations)</h2>
  *
  * <p>
- * 答申§7で「作らない」と決めたものです。2026-07-25の増分8時点で、
- * 以下はいずれも<b>実装されていません</b>。増やしたくなったときは、まず
- * ここに反例が来ていないかを疑ってください——救済は「敗北確定地点の
- * 単調な幾何スライス」以上のものになってはいけません。
+ * Recommendation §7 ruled out the following. As of increment 8 on 2026-07-25,
+ * <b>none is implemented</b>. Before adding one, first consider whether this list already argues against it.
+ * Rescue must remain no more than monotonic geometric slicing at the point where failure is certain.
  * </p>
  *
  * <ul>
- * <li><b>切断位置の最適化</b>——グリフ境界や行境界を探す「賢い」切断は
- * しません。切るのは常に「使える量ちょうど」です。内容を見て位置を選び
- * 始めると、通常の改ページアルゴリズムの劣化コピーが生えます。</li>
- * <li><b>切断面の装飾</b>——線・マーク・余白・重複装飾を足しません。
- * {@code AbsoluteRectFrame}には辺を落とす{@code cut()}がありますが救済では
- * 使わず、元の幾何を保ったclipだけで済ませます(背景画像やtransformを
- * 含めて正確なため)。</li>
- * <li><b>ラスタライズ</b>——ページ画像化も救済専用Form XObjectも作らず、
- * 内容はベクターのまま。元箱の寸法変更・scale-to-fit・画像再圧縮も
- * しません。</li>
- * <li><b>救済専用のページ跨ぎ上限</b>——「10ページまで」のような専用の
- * 打ち切りは持ちません。前進保証が構造的なので不要で、持てば内容が
- * 黙って失われます。全体の{@code output.page-limit}はそのまま尊重します。
+ * <li><b>Cut-position optimization</b>: No clever cuts seeking glyph or line boundaries.
+ * Always cut exactly the available extent. Choosing positions by inspecting content would grow
+ * an inferior copy of the normal page-break algorithm.</li>
+ * <li><b>Cut-surface decorations</b>: No added lines, marks, whitespace, or duplicate decorations.
+ * Although {@code AbsoluteRectFrame} provides {@code cut()} to remove edges, rescue does not use it.
+ * Clipping while preserving the original geometry suffices and remains accurate for background images
+ * and transforms.</li>
+ * <li><b>Rasterization</b>: No page images or rescue-specific Form XObjects; content stays vector-based.
+ * No original-box resizing, scale-to-fit, or image recompression.</li>
+ * <li><b>Rescue-specific page-span limits</b>: No dedicated cutoff such as "up to 10 pages."
+ * The structural progress guarantee makes it unnecessary, and a cutoff would silently lose content.
+ * The global {@code output.page-limit} remains honored.
  * </li>
- * <li><b>全断片の事前生成</b>——各改ページでhead一個とtail一個だけを
- * 作ります。断片リストもThreadLocalもundo logも持ちません
- * (ストリーミング要件)。</li>
- * <li><b>失敗後のrollback・別アルゴリズム再試行</b>——救済しないと決めたら
- * 従来の終端へ一度落ちるだけで、やり直しません。</li>
- * <li><b>ParamsやLayoutSource recipeへの救済offset追加</b>——救済箱は
- * ソースイベントではなく、レイアウト済み箱から派生する短命なページング
- * 状態です({@code sourceAnchor = -1}のreplay barrier)。</li>
- * <li><b>絶対配置/fixed自身の救済</b>(上記§3)。</li>
- * <li><b>注釈(リンク・イメージマップ・フォーム)の断片への追従</b>——
- * 救済された要素の注釈矩形は<b>元ボックスの寸法のまま</b>で、継続断片は
- * artifact扱いなので注釈自体が出ません(2026-07-25、独立レビュー指摘。
- * {@code AbstractVisitor}はclipではなく箱の幾何から矩形を作る)。
- * <b>既知の制限として受け入れます</b>——救済が働くのは「ページに収まらない
- * 巨大な画像・行」であり、そこにリンクやフォームが載っている実例は
- * 想定しにくい一方、断片ごとに注釈を複製すると「同じリンクが複数ページに
- * ある」というPDF構造上の別問題を招きます。実例に当たったら、
- * 「先頭断片へクリップ」を第一候補として再検討します。</li>
+ * <li><b>Precreating all fragments</b>: Creates only one head and one tail at each page break.
+ * No fragment list, ThreadLocal, or undo log (the streaming requirement).</li>
+ * <li><b>Rollback or retry with another algorithm after failure</b>:
+ * A no-rescue decision falls back to the existing terminal path once, with no retry.</li>
+ * <li><b>Rescue offsets in Params or LayoutSource recipes</b>:
+ * Rescue boxes are short-lived pagination state derived from laid-out boxes, not source events
+ * (a replay barrier with {@code sourceAnchor = -1} ).</li>
+ * <li><b>Rescue of absolute/fixed positioning itself</b> (see §3 above).</li>
+ * <li><b>Annotations (links, image maps, forms) following fragments</b>:
+ * Annotation rectangles of rescued elements <b>retain the original box dimensions</b>,
+ * and continuation fragments emit no annotations because they are artifacts
+ * (2026-07-25, independent review; {@code AbstractVisitor} builds rectangles from box geometry, not clips).
+ * <b>Accepted as a known limitation</b>: rescue acts on huge images or lines that do not fit a page,
+ * where real examples carrying links or forms are hard to envisage.
+ * Duplicating annotations per fragment, meanwhile, creates a separate PDF structure issue:
+ * the same link on multiple pages. If a real example appears, reconsider with clipping to the first
+ * fragment as the first candidate.</li>
  * </ul>
  *
- * <h2>8. この型の責務</h2>
+ * <h2>8. Responsibilities of this type</h2>
  *
  * <p>
- * 判定は散らばらせずここへ集約します(答申§4)。入力は
+ * Centralizes decisions here instead of scattering them (recommendation §4). Inputs are:
  * </p>
  *
  * <ul>
- * <li>フラグメント先頭か({@code atFragmentStart})</li>
- * <li>利用可能なページ方向の量({@code available})</li>
- * <li>元ボックスのページ方向の占有量({@code sourcePageExtent})</li>
- * <li>すでに消費した量({@code offset})</li>
+ * <li>whether this is the fragment start ({@code atFragmentStart})</li>
+ * <li>available page-direction extent ({@code available})</li>
+ * <li>original box's page-direction occupancy ({@code sourcePageExtent})</li>
+ * <li>already consumed extent ({@code offset})</li>
  * </ul>
  *
  * <p>
- * の4つ(+配置方法と容量)だけで、ボックスにもコンテナにも触れません。
- * 断片の表現は{@link VisualRescueBox}、通常フローへの配線は
- * {@code FlowContainer.rescueSplit}、浮動体への配線は
- * {@code FloatSplitPlan.rescue}、観測は{@link RescueStats}、テスト専用の
- * 切替は{@link RescuePolicy}です。
+ * Only these four inputs (plus positioning method and capacity) are used;
+ * neither boxes nor containers are touched.
+ * {@link VisualRescueBox} represents fragments; {@code FlowContainer.rescueSplit} integrates normal flow;
+ * {@code FloatSplitPlan.rescue} integrates floats; {@link RescueStats} provides observation;
+ * {@link RescuePolicy} supplies the test-only switch.
  * </p>
  */
 public final class VisualRescuePlanner {
@@ -213,56 +211,54 @@ public final class VisualRescuePlanner {
 	}
 
 	/**
-	 * 救済分割が1ステップで消費しなければならない最小量です
-	 * ({@code 2 * LayoutUtils.THRESHOLD} = 1pt相当)。
+	 * The minimum extent rescue splitting must consume in one step
+	 * ({@code 2 * LayoutUtils.THRESHOLD}, equivalent to 1 pt).
 	 *
 	 * <p>
-	 * {@link LayoutUtils#compare(double, double)}は{@code THRESHOLD}未満の
-	 * 差を「同一」とみなすため、これを下回る前進は「進んでいない」と
-	 * 区別できません。したがってtailを作る断片の下限をこの値に取ります。
+	 * {@link LayoutUtils#compare(double, double)} treats differences below {@code THRESHOLD} as equal,
+	 * so progress below that cannot be distinguished from no progress.
+	 * This value is therefore the minimum for a fragment that creates a tail.
 	 * </p>
 	 */
 	public static final double MIN_RESCUE_ADVANCE = 2 * LayoutUtils.THRESHOLD;
 
 	/**
-	 * 救済分割が1ステップで消費しなければならない<b>実用上の</b>最小量です
-	 * (2026-07-25、増分4で追加。「意図しない白紙(実質白紙)ページを作らない」
-	 * という絶対要件のうち、<b>極小断片ページ</b>を防ぐ側)。
+	 * The <b>practical</b> minimum extent rescue splitting must consume in one step
+	 * (2026-07-25, added in increment 4).
+	 * It prevents <b>tiny-fragment pages</b> as part of the absolute requirement to avoid unintended
+	 * blank or effectively blank pages.
 	 *
 	 * <p>
-	 * {@link #MIN_RESCUE_ADVANCE}(1pt)は「無限ループしないか」の下限
-	 * であって、「1ptずつ切って何十ページも作ってよい」という意味では
-	 * ありません。値20ptは
-	 * {@code BreakableBuilder.MIN_PAGE_LIMIT}と同じで、エンジン自身が
-	 * 「これより小さいページ方向容量は縮退として無視する」と決めている
-	 * 唯一既存の閾値です。新しい魔法数を増やさず、既存の判断基準に
-	 * そろえます(定数の重複定義を避けて参照しないのは、
-	 * {@code layout.rescue}が{@code layout.builder.impl}に依存しない
-	 * ためです)。
+	 * {@link #MIN_RESCUE_ADVANCE} (1 pt) is the minimum for avoiding infinite loops,
+	 * not permission to cut 1 pt at a time and create dozens of pages.
+	 * The value 20 pt equals {@code BreakableBuilder.MIN_PAGE_LIMIT} ,
+	 * the sole existing threshold at which the engine ignores smaller page-direction capacities as degenerate.
+	 * Aligns with the existing criterion instead of adding a new magic number.
+	 * The constant is defined here rather than referenced to avoid duplication because
+	 * {@code layout.rescue} must not depend on {@code layout.builder.impl} .
 	 * </p>
 	 */
 	public static final double MIN_RESCUE_SLICE = 20;
 
 	/**
-	 * 救済分割が1ステップで消費しなければならない、フラグメンテナ容量に
-	 * 対する最小の割合です(2026-07-25、増分4)。
+	 * The minimum fraction of fragmentainer capacity rescue splitting must consume in one step
+	 * (2026-07-25, increment 4).
 	 *
 	 * <p>
-	 * 絶対値の下限({@link #MIN_RESCUE_SLICE})だけでは、大きなページで
-	 * フロートの排除域などにより利用可能量が極端に小さくなった場合に、
-	 * 数十ptの断片ページが延々と続く危険が残ります。「フラグメンテナの
-	 * 1/4も使えないなら救済しない(=従来どおりの終端へ落ちる)」という
-	 * 割合の下限を併せて課します。
+	 * An absolute lower bound ({@link #MIN_RESCUE_SLICE}) alone still risks an endless succession of pages
+	 * with fragments of a few tens of pt when float exclusion areas, for example, leave very little space
+	 * on a large page. Also imposes a proportional lower bound:
+	 * if less than one quarter of the fragmentainer can be used, do not rescue
+	 * (= fall back to the existing terminal behavior).
 	 * </p>
 	 */
 	public static final double MIN_RESCUE_FRACTION = 0.25;
 
 	/**
-	 * 与えられたフラグメンテナ容量に対して、救済を始めてよい利用可能量の
-	 * 下限です。
+	 * The minimum available extent required to begin rescue for a given fragmentainer capacity.
 	 *
-	 * @param capacity フラグメンテナ(ページ・段・セル)のページ方向内寸
-	 * @return 下限
+	 * @param capacity fragmentainer's (page/column/cell) inner page-direction extent
+	 * @return the lower bound
 	 */
 	public static double minUsefulSlice(final double capacity) {
 		if (!isDefined(capacity) || !(capacity > 0)) {
@@ -272,30 +268,30 @@ public final class VisualRescuePlanner {
 	}
 
 	/**
-	 * 配置方法が救済分割の対象になり得るかを返します。
+	 * Returns whether the positioning method can be eligible for rescue splitting.
 	 *
 	 * <p>
-	 * 絶対配置は対象外です——理由はこの型のクラス説明§3に集約しています。
-	 * なお{@code BreakableBuilder.addBound()}も{@code PosType.ABSOLUTE}を
-	 * 即座に通常配置へ送っており、除外は二重になります(答申§4)。
+	 * Absolute positioning is excluded; the reasons are collected in §3 of this type's class documentation.
+	 * {@code BreakableBuilder.addBound()} also immediately sends {@code PosType.ABSOLUTE} to normal placement,
+	 * so exclusion is checked twice (recommendation §4).
 	 * </p>
 	 *
-	 * @param posType 配置方法({@code null}可——不明なら対象とみなす)
-	 * @return 救済分割の対象になり得ればtrue
+	 * @param posType positioning method (may be {@code null} ; unknown is treated as eligible)
+	 * @return true if it can be eligible for rescue splitting
 	 */
 	public static boolean isRescuablePos(final PosType posType) {
 		return posType != PosType.ABSOLUTE;
 	}
 
 	/**
-	 * 配置方法の除外を含めて次の断片を決めます。
+	 * Determines the next fragment, including positioning-method exclusions.
 	 *
-	 * @param posType          対象ボックスの配置方法
-	 * @param atFragmentStart  フラグメント(ページ・段・セル)の先頭か
-	 * @param available        利用可能なページ方向の量
-	 * @param sourcePageExtent 元ボックスのページ方向の占有量(不変)
-	 * @param offset           すでに消費したページ方向の量
-	 * @return 判定結果
+	 * @param posType target box's positioning method
+	 * @param atFragmentStart whether this is the start of the fragment (page/column/cell)
+	 * @param available available page-direction extent
+	 * @param sourcePageExtent original box's page-direction occupancy (immutable)
+	 * @param offset page-direction extent already consumed
+	 * @return the decision
 	 */
 	public static RescueDecision plan(final PosType posType, final boolean atFragmentStart, final double available,
 			final double sourcePageExtent, final double offset) {
@@ -306,32 +302,31 @@ public final class VisualRescuePlanner {
 	}
 
 	/**
-	 * フラグメンテナ容量を考慮して次の断片を決めます(<b>配線はこれを
-	 * 使います</b>)。
+	 * Determines the next fragment accounting for fragmentainer capacity
+	 * (<b>integration code uses this method</b>).
 	 *
 	 * <p>
-	 * {@link #plan(boolean, double, double, double)}の「前進保証」(無限
-	 * ループの不在)に加えて、<b>白紙対策の2つの下限</b>——先頭側の
-	 * {@link #minUsefulSlice(double)}と末尾側の{@link #MIN_RESCUE_SLICE}
-	 * ——を課します。2つの意味と、割合の下限を末尾側に置かない理由は、
-	 * この型のクラス説明§5に集約しています。
+	 * In addition to the progress guarantee (no infinite loops) of
+	 * {@link #plan(boolean, double, double, double)} , imposes <b>two lower bounds against blank pages</b>:
+	 * {@link #minUsefulSlice(double)} at the start and {@link #MIN_RESCUE_SLICE} at the end.
+	 * Their meanings, and the reason for no proportional lower bound at the end,
+	 * are collected in §5 of this type's class documentation.
 	 * </p>
 	 *
 	 * <p>
-	 * どちらの下限も<b>救済を始めるかどうか</b>({@code offset == 0})の
-	 * 判定にだけ効きます。すでに切り始めている({@code offset > 0})断片で
-	 * 「小さすぎるからやめる」を選ぶと、残りの内容が失われる(=従来どおり
-	 * はみ出して切り捨てられる)ため、開始後は前進保証だけを守って必ず
-	 * 切り進めます。
+	 * Both lower bounds affect only <b>whether to begin rescue</b> ({@code offset == 0}).
+	 * For a fragment already being sliced ({@code offset > 0}), stopping because it is too small would lose
+	 * the remaining content (= overflow and discard it as before).
+	 * Once started, slicing always continues while maintaining only the progress guarantee.
 	 * </p>
 	 *
-	 * @param posType          対象ボックスの配置方法
-	 * @param atFragmentStart  フラグメント(ページ・段・セル)の先頭か
-	 * @param capacity         フラグメンテナのページ方向内寸(容量)
-	 * @param available        利用可能なページ方向の量
-	 * @param sourcePageExtent 元ボックスのページ方向の占有量(不変)
-	 * @param offset           すでに消費したページ方向の量
-	 * @return 判定結果
+	 * @param posType target box's positioning method
+	 * @param atFragmentStart whether this is the start of the fragment (page/column/cell)
+	 * @param capacity fragmentainer's inner page-direction extent (capacity)
+	 * @param available available page-direction extent
+	 * @param sourcePageExtent original box's page-direction occupancy (immutable)
+	 * @param offset page-direction extent already consumed
+	 * @return the decision
 	 */
 	public static RescueDecision planInFragmentainer(final PosType posType, final boolean atFragmentStart,
 			final double capacity, final double available, final double sourcePageExtent, final double offset) {
@@ -340,35 +335,35 @@ public final class VisualRescuePlanner {
 			return decision;
 		}
 		if (!slice.firstFragment()) {
-			// 開始後は前進保証だけを守る(やめると内容が失われる)
+			// After starting, enforce only the progress guarantee (stopping would lose content).
 			return decision;
 		}
 		if (available < minUsefulSlice(capacity)) {
 			return new RescueDecision.None(RescueDecision.Reason.SLIVER_CAPACITY);
 		}
 		if (sourcePageExtent - slice.nextOffset() < MIN_RESCUE_SLICE) {
-			// 末尾側の守り: はみ出し量が実用上小さすぎる。数ptのために
-			// 1ページ増やすと、そのページは実質白紙になる
+			// Guard the tail: the overflow is too small to be useful. Adding a page
+			// for a few pt would make it effectively blank.
 			return new RescueDecision.None(RescueDecision.Reason.SLIVER_REMAINDER);
 		}
 		return decision;
 	}
 
 	/**
-	 * 次の断片を決めます(前進保証だけを見る中核判定)。
+	 * Determines the next fragment (the core decision, checking only the progress guarantee).
 	 *
 	 * <p>
-	 * {@code atFragmentStart}が偽のときは救済しません。まだ「次の
-	 * フラグメントへ送る」という通常の手段が残っており、救済は
-	 * <b>その手段を使い切った地点</b>(=現在はみ出したまま描画している
-	 * 地点)だけを置き換えるものだからです。
+	 * Does not rescue when {@code atFragmentStart} is false.
+	 * The normal option of moving to the next fragment remains available.
+	 * Rescue replaces only <b>the point where that option has been exhausted</b>
+	 * (= the point currently drawing with overflow).
 	 * </p>
 	 *
-	 * @param atFragmentStart  フラグメント(ページ・段・セル)の先頭か
-	 * @param available        利用可能なページ方向の量
-	 * @param sourcePageExtent 元ボックスのページ方向の占有量(不変)
-	 * @param offset           すでに消費したページ方向の量
-	 * @return 判定結果
+	 * @param atFragmentStart whether this is the start of the fragment (page/column/cell)
+	 * @param available available page-direction extent
+	 * @param sourcePageExtent original box's page-direction occupancy (immutable)
+	 * @param offset page-direction extent already consumed
+	 * @return the decision
 	 */
 	public static RescueDecision plan(final boolean atFragmentStart, final double available,
 			final double sourcePageExtent, final double offset) {
@@ -382,33 +377,33 @@ public final class VisualRescuePlanner {
 			return new RescueDecision.None(RescueDecision.Reason.INVALID_GEOMETRY);
 		}
 		final double remaining = sourcePageExtent - offset;
-		// 残余の判定もLayoutUtils.compare基準にする(2026-07-25、増分4)。
-		// 素の`remaining > 0`では、丸めで0.1pt等の残余が出たときに
-		// 「実質白紙の断片ページ」を1枚作ってしまう。エンジンが
-		// 「同一」とみなす差(THRESHOLD)以下の残余は消費済みとする
+		// Also judge the remainder using LayoutUtils.compare (2026-07-25, increment 4).
+		// A raw `remaining > 0` would create an effectively blank fragment page
+		// when rounding leaves a remainder such as 0.1 pt. Treat a remainder at or below
+		// the difference the engine considers equal (THRESHOLD) as already consumed.
 		if (LayoutUtils.compare(remaining, 0) <= 0) {
 			return new RescueDecision.None(RescueDecision.Reason.EXHAUSTED);
 		}
 
-		// 残余が容量に収まるか(THRESHOLD許容つき)。収まるなら最終断片で、
-		// tailを作らないため前進量の下限は要らない。収まらないなら容量
-		// いっぱいを切り、必ずtailが続く。
+		// Does the remainder fit capacity (with THRESHOLD tolerance)? If so, this is the last fragment;
+		// no tail is created, so no minimum advance is required. Otherwise cut the full capacity,
+		// and a tail must follow.
 		final boolean fits = LayoutUtils.compare(remaining, available) <= 0;
 		if (fits) {
 			if (offset == 0) {
-				// 先頭でそもそも収まっている——救済不要(通常経路)
+				// Already fits at the start; no rescue needed (normal path).
 				return new RescueDecision.None(RescueDecision.Reason.FITS);
 			}
 			final double nextOffset = offset + remaining;
 			if (!(nextOffset > offset)) {
-				// 極大doubleの丸めなど。進めないなら救済しない
+				// For example, rounding of extremely large doubles. No progress means no rescue.
 				return new RescueDecision.None(RescueDecision.Reason.NO_PROGRESS);
 			}
 			return new RescueDecision.Slice(offset, remaining, nextOffset, false, true);
 		}
 
 		if (!(available >= MIN_RESCUE_ADVANCE)) {
-			// 容量0・容量1pt未満・負の容量。外側のfragmentainerへ委譲する
+			// Zero, sub-1 pt, or negative capacity. Delegate to the outer fragmentainer.
 			return new RescueDecision.None(RescueDecision.Reason.INSUFFICIENT_CAPACITY);
 		}
 		final double nextOffset = offset + available;
@@ -419,9 +414,9 @@ public final class VisualRescuePlanner {
 	}
 
 	/**
-	 * 有限かつ「未確定」でない実数であればtrueを返します。
-	 * {@code LayoutUtils.NONE}はAUTO等の未確定を表すマジック値なので、
-	 * 数値としては有限でも幾何としては扱えません。
+	 * Returns true for a finite real number that is not unresolved.
+	 * {@code LayoutUtils.NONE} is a magic value representing unresolved values such as AUTO,
+	 * so it cannot be treated as geometry even though it is numerically finite.
 	 */
 	private static boolean isDefined(final double v) {
 		return !Double.isNaN(v) && !Double.isInfinite(v) && !LayoutUtils.isNone(v);

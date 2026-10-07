@@ -4,15 +4,15 @@ import net.zamasoft.foliojet.layout.box.AbstractLineBox;
 import net.zamasoft.foliojet.layout.box.AbstractTextBox;
 
 /**
- * vertical-align特性による上下のずれを計算します。
- * 
+ * Calculates vertical offsets for the vertical-align property.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: VerticalAlignPolicy.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public interface VerticalAlignPolicy {
 	/**
-	 * ベースラインからのずれを返します。正の値が上方向です。
-	 * 
+	 * Returns the offset from the baseline. Positive values point upward.
+	 *
 	 * @param parent
 	 * @param line
 	 * @param ascent

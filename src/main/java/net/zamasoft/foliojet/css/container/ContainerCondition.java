@@ -4,17 +4,17 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * {@code @container}の条件です(2026-08-15段3——
- * 開発記録 §5)。
+ * A {@code @container} condition (2026-08-15 stage 3;
+ * development record §5).
  *
  * <p>
- * 文法上、{@code not}は条件全体(単一の括弧項)にしか掛からず、
- * 複数の括弧項は{@code and}でのみ連結できる(仕様上{@code and}と{@code or}
- * は同一階層で混在しない)。{@code or}は第1段階の対象外(§5)。未対応の
- * 構文・特性・単位は{@link #never()}(常に不一致)として保守的に扱う——
- * {@code @media}の未対応特性を不一致とする既存方針
+ * Grammatically, {@code not} applies only to the entire condition (one parenthesized term),
+ * and multiple parenthesized terms can join only with {@code and} (the specification
+ * prohibits mixing {@code and} and {@code or} at the same level). {@code or} is outside phase 1 (§5).
+ * Conservatively treat unsupported syntax, features, and units as {@link #never()} (always non-matching),
+ * following the existing policy for unsupported {@code @media} features
  * ({@link net.zamasoft.foliojet.css.CSSStyleSheetBuilder}
- * の{@code evaluateMediaExpression}参照)と同じ考え方。
+ * in {@code evaluateMediaExpression}).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -34,24 +34,24 @@ public final class ContainerCondition {
 		this.features = features;
 	}
 
-	/** 常に不一致になる条件(未対応の構文・特性・単位、または解析失敗)。 */
+	/** An always non-matching condition (unsupported syntax, feature, or unit, or a parse failure). */
 	static ContainerCondition never() {
 		return NEVER;
 	}
 
-	/** {@code (a) and (b) and ...}——1個以上の特性式をANDで連結する。 */
+	/** {@code (a) and (b) and ...}: joins one or more feature expressions with AND. */
 	static ContainerCondition and(List<ContainerFeature> features) {
 		return new ContainerCondition(true, false, List.copyOf(features));
 	}
 
-	/** {@code not (a)}——単一の特性式を否定する。 */
+	/** {@code not (a)}: negates one feature expression. */
 	static ContainerCondition not(ContainerFeature feature) {
 		return new ContainerCondition(true, true, List.of(feature));
 	}
 
 	/**
-	 * コンテナのused inline-size(pt)に対して条件を評価します。
-	 * 解析できなかった条件は常に{@code false}。
+	 * Evaluates the condition against the container's used inline-size (pt).
+	 * Conditions that could not be parsed always return {@code false}.
 	 */
 	public boolean evaluate(double inlineSize) {
 		if (!this.valid) {
@@ -67,7 +67,7 @@ public final class ContainerCondition {
 		return this.negate ? !allMatch : allMatch;
 	}
 
-	/** 解析に成功した条件か(未対応構文で{@link #never()}になっていないか)。 */
+	/** Whether parsing succeeded (not {@link #never()} due to unsupported syntax). */
 	public boolean isValid() {
 		return this.valid;
 	}

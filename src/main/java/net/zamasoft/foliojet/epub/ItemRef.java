@@ -13,12 +13,12 @@ public class ItemRef {
 	public static final byte PAGE_SPREAD_LEFT = 1;
 	public static final byte PAGE_SPREAD_RIGHT = 2;
 	/**
-	 * ページの開始方向です。
+	 * The side on which the page starts.
 	 */
 	public byte pageSpread = PAGE_SPREAD_DEFAULT;
 
 	/**
-	 * アイテムのプロパティ(OPFのitemref/@propertiesです)
+	 * The item's properties (itemref/@properties in the OPF)
 	 */
 	public List<String> properties;
 }

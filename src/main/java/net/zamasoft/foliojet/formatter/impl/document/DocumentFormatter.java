@@ -41,7 +41,7 @@ public class DocumentFormatter implements Formatter {
 			try {
 				parser.parse(ua, source, entryPoint);
 			} finally {
-				// E-6増分3b-2: 成功・例外を問わずspill一時ファイルを清算する
+				// E-6 increment 3b-2: Clean up spill temporary files on both success and exception
 				entryPoint.dispose();
 			}
 		} catch (IOException e) {
@@ -49,8 +49,8 @@ public class DocumentFormatter implements Formatter {
 			if (retained != null) throw retained;
 			final var invariant = ContinuationInvariantViolationException.findIn(e);
 			if (invariant != null) throw invariant;
-			// 型のついた失敗(TranscoderException)は包み直さない。包むと
-			// 「I/O error. I/O error. ...」と前置きが二重になり、元の符号も失われる(2026-09-21)
+			// Do not wrap typed failures (TranscoderException) again. Wrapping duplicates
+			// the prefix as "I/O error. I/O error. ..." and loses the original code (2026-09-21)
 			if (e instanceof TranscoderException) {
 				throw (TranscoderException) e;
 			}

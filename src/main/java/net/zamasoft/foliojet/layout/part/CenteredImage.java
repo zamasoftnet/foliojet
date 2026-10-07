@@ -7,8 +7,8 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.WrappedImage;
 
 /**
- * UAの単位にスケールされた画像です。
- * 
+ * An image scaled to UA units.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: TransformedImage.java 1565 2018-07-04 11:51:25Z miyabe $
  */
@@ -33,7 +33,7 @@ public class CenteredImage extends WrappedImage {
 		this.at = new AffineTransform(s, 0, 0, s, tx, ty);
 	}
 
-	/** 収める箱の幅(2026-08-29、filterの包み直し用)。 */
+	/** Width of the containing box (2026-08-29, for rewrapping filters). */
 	public double getBoxWidth() {
 		return this.width;
 	}
@@ -42,7 +42,7 @@ public class CenteredImage extends WrappedImage {
 		return this.height;
 	}
 
-	/** 中身への拡大率。 */
+	/** Scale factor for the contents. */
 	public double getScale() {
 		return this.at.getScaleX();
 	}

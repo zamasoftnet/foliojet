@@ -7,16 +7,16 @@ import net.zamasoft.foliojet.layout.fragment.ReplayIntent;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
 /**
- * Gridのitem 1件分の保持です(Grid G3a、2026-07-31——
- * consult-codex-2026-07-31-grid-g3.txt Q1)。本文(TwoPass録画)・
- * close時点の固有寸法スナップショット・最終item boxを所有する。
-	 * closeで要素項目のauthored範囲・匿名項目の子範囲をsealし、Grid終端のbindまでリースを持つ。
-	 * 不適格は変換を失敗させる。
+ * Retained content for one Grid item (Grid G3a, 2026-07-31:
+ * consult-codex-2026-07-31-grid-g3.txt Q1). Owns the body (TwoPass recording),
+ * the intrinsic size snapshot at close, and the final item box.
+ * At close, seals the authored range for element items or the child range for anonymous items,
+ * and holds a lease until bind at the end of the Grid. Ineligibility fails the conversion.
  *
  * <p>
- * 固有寸法は{@code getIntrinsicSizes()}(IntrinsicMeasurer模倣計測)を
- * 正本とする。{@code intrinsicSizesMeasured()}のscratch実測は合成item
- * (anchorなし・%基準の再現不能)には適用できない(答申Q1)。
+ * Uses {@code getIntrinsicSizes()} (simulated measurement by IntrinsicMeasurer) as the
+ * authoritative intrinsic sizes. Scratch measurement by {@code intrinsicSizesMeasured()}
+ * cannot apply to synthetic items (no anchor; cannot reproduce the % reference size) (review Q1).
  * </p>
  */
 final class GridItemContent {
@@ -25,38 +25,38 @@ final class GridItemContent {
 
 	final RangeHandle body;
 
-	/** 空本文・独立再生も確定本文だけを持ち、実測builderは手放す。 */
+	/** Even empty bodies and independent replay retain only finalized content and release the measurement builder. */
 	private final TwoPassBlockBuilder.DeferredBind content;
 
 	private final net.zamasoft.foliojet.layout.builder.PageGenerator pageGenerator;
 	private final ContinuationStats.TwoPassCensusTag censusTag;
 	private final java.util.Set<Long> ownedAbsoluteAnchors;
 
-	/** close時点の固有寸法(G3aではshadow観測のみ。auto/fr列=G3b/cで使用)。 */
+	/** Intrinsic sizes at close (shadow observation only in G3a; used for auto/fr columns in G3b/c). */
 	final IntrinsicSizes sizes;
 
 	final boolean anonymous;
 
-	/** 明示配置指定(G4a——authored childのFlowPosからのスナップショット)。 */
+	/** Explicit placement (G4a: snapshot from the authored child's FlowPos). */
 	final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec;
 
 	/**
-	 * 行方向min-content寄与の上限です(2026-08-19。負=無制限)。
-	 * css-grid §6.6のautomatic minimum size——itemに行軸のmin寸法が
-	 * <b>明示宣言</b>されている(例: Tailwindの`min-w-0`)か、itemが
-	 * スクロールコンテナ(overflow≠visible)のとき、自動最小サイズは
-	 * 明示値(0など)になり、内容のmin-contentでトラックを押し広げない
-	 * (Chrome実測: min-width:0のitemはトラックがコンテナ幅に収まり、
-	 * 無指定なら内容min-contentまで膨らむ——react.devの`main.min-w-0`は
-	 * 前者に依存しており、無視すると本文が紙面外x=628〜へ押し出されて
-	 * 全ページ白紙になっていた)。
+	 * Upper bound on the line-axis min-content contribution (2026-08-19; negative means unlimited).
+	 * The automatic minimum size in css-grid §6.6: when an item has an <b>explicit declaration</b>
+	 * of its minimum line-axis size (e.g., Tailwind's `min-w-0`), or is a scroll container
+	 * (overflow≠visible), its automatic minimum size becomes the explicit value (such as 0),
+	 * and the content's min-content size does not expand the track.
+	 * (Observed in Chrome: tracks fit the container width for items with min-width:0; without it,
+	 * they expand to the content's min-content size. The `main.min-w-0` on react.dev relies on the
+	 * former behavior. Ignoring it pushed the body text outside the sheet to x=628 and beyond,
+	 * leaving every page blank.)
 	 */
 	final double minContributionCap;
 
 	/**
-	 * takeover item(authoredな箱をitem箱そのものにした)かどうか
-	 * (G7、2026-08-29)。takeoverでは<b>authored rootの枠と宣言寸法が
-	 * 録画本文の外にある</b>ため、固有寸法の寄与へ足し直す必要がある。
+	 * Whether this is a takeover item (the authored box itself becomes the item box)
+	 * (G7, 2026-08-29). With takeover, <b>the authored root's frame and declared sizes lie
+	 * outside the recorded body</b>, so they must be added back to the intrinsic size contribution.
 	 */
 	final boolean takeover;
 
@@ -77,19 +77,19 @@ final class GridItemContent {
 	}
 
 	/**
-	 * 確定トラック幅で本文を一度だけbindします(録画→計測→bindの
-	 * TwoPassライフサイクル。floatの
-	 * {@code contentBuilder.bind(floatBuilder); floatBuilder.close()}と同型)。
+	 * Binds the body exactly once at the resolved track width (the TwoPass lifecycle of
+	 * record → measure → bind, like a float's
+	 * {@code contentBuilder.bind(floatBuilder); floatBuilder.close()}).
 	 */
 	void bind(final BlockBuilder host, final double trackWidth) {
-		// 枠の実寸解決はGridBuilderの幅決定と同じ場所で済ませてある
-		// (基準はグリッド領域の幅。G7、2026-08-29)
+		// Actual frame sizes have already been resolved where GridBuilder determines the width
+		// (relative to the grid area's width; G7, 2026-08-29).
 		this.itemBox.setTrackWidth(trackWidth);
 		if (this.takeover) {
-			// aspect-ratio(G7、2026-08-29——FlexItemContent.bindと同じ理由)。
-			// takeoverしたitem箱はcalculateSizeを通らないので、トラック幅が
-			// 入ったここでページ方向を比率で決める。これが無いと
-			// 3080-MODERN-CSS/aspect-ratioのgrid itemが内容高へ潰れる
+			// aspect-ratio (G7, 2026-08-29: the same reason as in FlexItemContent.bind).
+			// The item box taken over does not go through calculateSize, so determine its page-axis size
+			// from the ratio here, once the track width is available. Without this,
+			// the grid item in 3080-MODERN-CSS/aspect-ratio collapses to its content height.
 			this.itemBox.applyAspectRatio(trackWidth);
 		}
 		final BlockBuilder target = new BlockBuilder(host, this.itemBox);
@@ -108,11 +108,11 @@ final class GridItemContent {
 		}
 		target.close();
 		if (ReplayIntent.current() == ReplayIntent.MEASURE && this.body != null) this.body.completeScratchHost();
-		// takeover item(authored paramsを引き継いだ根box)は指定高を
-		// 自己適用する(G7、2026-08-29——FlexItemContent.bindと同型)。
-		// 通常フローでは親のstartFlowBlockが適用するが、bind builderの
-		// 根には適用者がいない。これが無いと、takeoverしたitemの
-		// height指定が丸ごと落ちる(実測: height:20mmが内容高2.7mmになった)
+		// A takeover item (a root box that inherits authored params) applies its specified height
+		// to itself (G7, 2026-08-29: like FlexItemContent.bind).
+		// In normal flow, the parent's startFlowBlock applies it, but no one applies it to
+		// the bind builder's root. Without this, the takeover item's
+		// height declaration is lost entirely (observed: height:20mm became the content height of 2.7 mm).
 		final net.zamasoft.foliojet.layout.box.params.BlockParams params = this.itemBox.getBlockParams();
 		final boolean vertical = params.flow.isVertical();
 		final net.zamasoft.foliojet.layout.box.params.LengthType pageType = vertical
@@ -124,7 +124,7 @@ final class GridItemContent {
 		}
 	}
 
-	/** 検証だけを行い、親リース取得後に終端する一覧へ列挙します。 */
+	/** Only validates and lists entries to terminate after acquiring the parent lease. */
 	boolean collectAbsorbable(final net.zamasoft.foliojet.layout.fragment.LayoutSource log,
 			final long fromId, final long toId, final java.util.List<RangeHandle> outRanges,
 			final java.util.Set<Long> anchors) {

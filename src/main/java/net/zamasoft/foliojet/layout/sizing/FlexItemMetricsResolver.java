@@ -6,25 +6,25 @@ import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
 
 /**
- * authoredスタイルと内在サイズからFlex itemの主軸計測値
- * ({@link FlexItemMetrics})を導く純粋計算です(Flex F1b、2026-08-02——
- * consult-codex-2026-08-02-flexbox.txt Q3「TwoPass intrinsicsからのbasis」)。
- * 横書きrow初期サブセット:
+ * A pure calculation deriving Flex item main-axis measurements ({@link FlexItemMetrics}) from
+ * authored styles and intrinsic sizes (Flex F1b, 2026-08-02:
+ * consult-codex-2026-08-02-flexbox.txt Q3, "basis from TwoPass intrinsics").
+ * Initial subset for horizontal-writing rows:
  *
  * <ol>
- * <li>flex base size(§9.2.3): definite basis→その値(min/max未適用)。
- * percentage basisはコンテナ主軸がdefiniteなら解決、indefiniteならauto扱い。
- * basis:auto→widthプロパティ、それもautoまたはbasis:content→max-content</li>
- * <li>min-width:auto(§4.5): scrollableなら0、非scrollableは
- * min(min-content, definite preferred width)(preferredがautoなら
- * min-content)、さらにdefinite maxでclamp</li>
- * <li>hypothetical main size: baseをused min/maxでclamp</li>
+ * <li>flex base size (§9.2.3): definite basis→that value (without min/max).
+ * Resolve percentage basis if the container's main axis is definite; otherwise treat it as auto.
+ * basis:auto→the width property; if that is also auto, or basis:content→max-content</li>
+ * <li>min-width:auto (§4.5): 0 if scrollable; otherwise
+ * min(min-content, definite preferred width) (min-content if preferred is auto),
+ * further clamped by a definite max</li>
+ * <li>hypothetical main size: clamp base by used min/max</li>
  * </ol>
  *
  * <p>
- * 全入力はpt。preferred/min/maxと%basisの解決結果はbox-sizing:border-box
- * のとき枠(border+padding)を引いてcontent-box内寸へ正規化する
- * (負になれば0)。内在サイズ(minContent/maxContent)は元々内寸。
+ * All inputs are in pt. For box-sizing:border-box, subtract the frame (border+padding)
+ * from preferred/min/max and resolved percentage basis to normalize to inner content-box sizes
+ * (floor at 0). Intrinsic sizes (minContent/maxContent) are already inner sizes.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -35,19 +35,19 @@ public final class FlexItemMetricsResolver {
 	}
 
 	/**
-	 * 1 itemぶんの入力です。寸法はcontent-box外寸(著者指定そのまま)で
-	 * 渡し、正規化はresolverが行う。
+	 * Input for one item. Pass sizes outside the content box (as authored);
+	 * the resolver normalizes them.
 	 *
-	 * @param preferredMain 主軸のwidth(auto=NaN)
-	 * @param minMain min-width(auto=NaN——{@code FlexItemSpec.minWidthAuto})
-	 * @param maxMain max-width(なし=+∞)
-	 * @param mainFrame 主軸のborder+padding合計
-	 * @param outerMargin 主軸のmargin合計
-	 * @param borderBox box-sizing:border-boxか
-	 * @param scrollable overflowがvisible以外か(§4.5の自動最小除外)
-	 * @param minContent 内在最小(内寸)
-	 * @param maxContent 内在最大(内寸)
-	 * @param containerInnerMain コンテナ主軸内寸(indefinite=NaN)
+	 * @param preferredMain Main-axis width (auto=NaN)
+	 * @param minMain min-width (auto=NaN; {@code FlexItemSpec.minWidthAuto})
+	 * @param maxMain max-width (none=+∞)
+	 * @param mainFrame Total main-axis border+padding
+	 * @param outerMargin Total main-axis margin
+	 * @param borderBox Whether box-sizing:border-box applies
+	 * @param scrollable Whether overflow is other than visible (excludes the automatic minimum in §4.5)
+	 * @param minContent Intrinsic minimum (inner size)
+	 * @param maxContent Intrinsic maximum (inner size)
+	 * @param containerInnerMain Container's inner main size (indefinite=NaN)
 	 */
 	public record Input(int sourceIndex, double grow, double shrink, FlexBasisValue basis, double preferredMain,
 			double minMain, double maxMain, double mainFrame, double outerMargin, boolean borderBox,
@@ -57,7 +57,7 @@ public final class FlexItemMetricsResolver {
 	public static FlexItemMetrics resolve(final Input in) {
 		final double preferred = inner(in.preferredMain(), in);
 		final double max = inner(in.maxMain(), in);
-		// flex base size(§9.2.3の初期サブセット)
+		// Flex base size (initial subset of §9.2.3).
 		double base;
 		final Double basisSize = basisSize(in);
 		if (basisSize != null) {
@@ -67,7 +67,7 @@ public final class FlexItemMetricsResolver {
 		} else {
 			base = in.maxContent();
 		}
-		// 自動最小サイズ(§4.5)
+		// Automatic minimum size (§4.5).
 		double min = inner(in.minMain(), in);
 		if (Double.isNaN(min)) {
 			if (in.scrollable()) {
@@ -77,10 +77,10 @@ public final class FlexItemMetricsResolver {
 				min = Math.min(min, max);
 			}
 		}
-		// max-contentは本来有限だが、未確定な%置換要素の番兵を内在計測で
-		// 加算するとInfinityへ飽和しうる。有限コンテナのshrink計算へ
-		// Infinityを渡すとscaled factorがInfinity/Infinity=NaNになり、§9.7が
-		// 進めない。循環する内在寄与は自動最小(min-content)へ縮退させる。
+		// max-content should be finite, but adding sentinels for unresolved percentage replaced elements
+		// during intrinsic measurement can saturate to Infinity. Passing Infinity to shrink calculations
+		// for a finite container makes scaled factors Infinity/Infinity=NaN, preventing §9.7
+		// from progressing. Reduce cyclic intrinsic contributions to the automatic minimum (min-content).
 		if (!Double.isFinite(base)) {
 			base = Double.isFinite(min) ? Math.max(0, min) : 0;
 		}
@@ -90,8 +90,8 @@ public final class FlexItemMetricsResolver {
 	}
 
 	/**
-	 * basisの寸法解決(絶対長さ・%・calc()の絶対+%混在)。auto/content/
-	 * 未解決%はnull(auto経路へ)。
+	 * Resolves basis sizes (absolute lengths, percentages, and mixed absolute+percentage calc()).
+	 * Returns null for auto/content/unresolved percentages (to the auto path).
 	 */
 	private static Double basisSize(final Input in) {
 		if (in.basis().isAuto() || in.basis().isContent()) {
@@ -108,10 +108,10 @@ public final class FlexItemMetricsResolver {
 			return inner(length.getLength(), in);
 		}
 		if (size instanceof net.zamasoft.foliojet.css.value.CalcLengthValue calc) {
-			// calc(50% - 16px)等。%成分と同じくコンテナ主軸がdefiniteの
-			// ときだけ解決する(indefiniteならauto扱い)——旧実装はcalcを
-			// 一律auto扱いしており、asahi.comトップの
-			// flex-basis:calc(50% - 16px)がmin-contentへ潰れていた(2026-08-08)
+			// E.g., calc(50% - 16px). As with percentage components, resolve only when the container's
+			// main axis is definite (otherwise treat as auto). The old implementation treated all calc
+			// values as auto, collapsing flex-basis:calc(50% - 16px) on the asahi.com home page
+			// to min-content (2026-08-08).
 			if (Double.isNaN(in.containerInnerMain())) {
 				return null;
 			}
@@ -120,7 +120,7 @@ public final class FlexItemMetricsResolver {
 		return null;
 	}
 
-	/** border-box指定の寸法をcontent-box内寸へ(auto=NaNはそのまま)。 */
+	/** Converts a border-box size to an inner content-box size (leaves auto=NaN unchanged). */
 	private static double inner(final double size, final Input in) {
 		if (Double.isNaN(size) || !in.borderBox()) {
 			return size;

@@ -9,47 +9,43 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * length-prefixedなbyte recordの追記専用spillストアです(E-6増分2、
- * 2026-07-24新設。増分3b-2で{@link TextSpill}経由のtext payload spillに
- * production配線された)。
+ * An append-only spill store for length-prefixed byte records (E-6 increment 2, introduced on
+ * 2026-07-24; wired into production for text payload spilling through {@link TextSpill} in increment 3b-2).
  *
  * <p>
- * codex設計相談(設計相談
- * §2.2〜§2.4)の最小部品: byte recordの追記(append→recordId)、
- * recordId→file offsetの固定長disk index(indexをheapへ載せると
- * O(E)へ逆戻りするためディスク上に置く)、範囲cursor(1レコードずつ
- * 読む)、closeでの一時ファイル削除。codecやレイアウト意味論は
- * 一切持たない——{@code byte[]}のみを扱う。
+ * The minimal component from the codex design consultation (design consultation §2.2–§2.4):
+ * appending byte records (append→recordId), a fixed-length disk index mapping recordId→file offset
+ * (kept on disk because an on-heap index would return to O(E)), range cursors (one record at a time),
+ * and temporary-file deletion on close. Has no codec or layout semantics; handles only {@code byte[]}.
  * </p>
  *
  * <p>
- * <b>物理形式</b>: データファイルは先頭にmagic+版(各4byte)、以降は
- * {@code [int length][payload]}の連続。indexファイルはrecordId×8byte
- * 位置に、そのrecordのデータファイル内offset(8byte)を持つ固定長。
- * cursorは範囲の駆動開始前にindex/record長の整合(offsetの単調連続・
- * 長さの境界・末尾整合)を検査し、不正データでは1件もvisitせず
- * 失敗する(§2.4)。
+ * <b>Physical format</b>: the data file starts with a magic value and version (4 bytes each),
+ * followed by a sequence of {@code [int length][payload]}. The fixed-length index file stores each
+ * record's data-file offset (8 bytes) at recordId×8 bytes.
+ * Before executing a range, the cursor validates index/record-length consistency (monotonic,
+ * contiguous offsets, length bounds, and end consistency). Invalid data causes failure before
+ * visiting any record (§2.4).
  * </p>
  *
  * <p>
- * <b>寿命</b>: {@link AutoCloseable}。closeは冪等で、両一時ファイルを
- * 削除する。削除失敗は黙殺せずWARN(DirectSessionの複数パス一時
- * ファイル処理と同じ方針、§2.5)。一時ファイルは
- * {@code File.createTempFile}(java.io.tmpdir配下)で作る——
- * DirectSessionの既存流儀({@code File.createTempFile("copper", ...)})
- * に合わせる。
+ * <b>Lifetime</b>: {@link AutoCloseable}. Close is idempotent and deletes both temporary files.
+ * Deletion failures produce WARN messages instead of being ignored (the same policy as DirectSession
+ * multi-pass temporary-file handling, §2.5). Creates temporary files with {@code File.createTempFile}
+ * (under java.io.tmpdir), following the existing DirectSession convention
+ * ({@code File.createTempFile("copper", ...)}).
  * </p>
  *
  * <p>
- * スレッド安全ではない(単一レイアウトセッション内での利用が前提)。
+ * Not thread-safe (intended for use within a single layout session).
  * </p>
  */
 final class SpillStore implements AutoCloseable {
 	private static final Logger LOG = Logger.getLogger(SpillStore.class.getName());
 
-	/** データファイル先頭のmagic("FJSP")。 */
+	/** Magic value ("FJSP") at the start of the data file. */
 	static final int MAGIC = 0x464A5350;
-	/** ストア物理形式の版。 */
+	/** Version of the store's physical format. */
 	static final int STORE_VERSION = 1;
 
 	private static final int HEADER_BYTES = 8;
@@ -57,9 +53,9 @@ final class SpillStore implements AutoCloseable {
 	private static final int INDEX_ENTRY_BYTES = 8;
 
 	/**
-	 * 一時ファイル削除の注入点です(テスト専用——削除失敗時のWARN経路を
-	 * プラットフォーム非依存に検証するため)。production利用は常に
-	 * {@link #create()}の既定実装({@code Files.deleteIfExists})。
+	 * Injection point for temporary-file deletion (tests only, to verify the WARN path on deletion
+	 * failure independently of the platform). Production always uses the default implementation
+	 * of {@link #create()} ({@code Files.deleteIfExists}).
 	 */
 	interface TempFileDeleter {
 		void delete(java.nio.file.Path path) throws IOException;
@@ -71,14 +67,14 @@ final class SpillStore implements AutoCloseable {
 	private final RandomAccessFile data;
 	private final RandomAccessFile index;
 
-	/** 追記済みrecord数(= 次に付与されるrecordId)。 */
+	/** Number of appended records (= the next recordId to assign). */
 	private long recordCount = 0;
-	/** データファイルの論理長(次のrecordの書き込み位置)。 */
+	/** Logical length of the data file (write position of the next record). */
 	private long dataLength = HEADER_BYTES;
 
 	private boolean closed = false;
 
-	/** 既定の削除実装({@code Files.deleteIfExists})で新しいストアを作ります。 */
+	/** Creates a new store with the default deletion implementation ({@code Files.deleteIfExists}). */
 	static SpillStore create() throws IOException {
 		return new SpillStore(path -> Files.deleteIfExists(path));
 	}
@@ -95,7 +91,7 @@ final class SpillStore implements AutoCloseable {
 			data.writeInt(MAGIC);
 			data.writeInt(STORE_VERSION);
 		} catch (IOException | RuntimeException e) {
-			// 構築失敗時も一時ファイル・ハンドルを残さない(§2.5)
+			// Leave no temporary files or handles behind even if construction fails (§2.5).
 			closeQuietly(data, dataFile);
 			closeQuietly(index, indexFile);
 			this.deleteQuietly(dataFile);
@@ -109,7 +105,7 @@ final class SpillStore implements AutoCloseable {
 	}
 
 	/**
-	 * recordを追記し、そのrecordId(0起点の連番)を返します。
+	 * Appends a record and returns its recordId (a zero-based sequence number).
 	 */
 	long append(final byte[] record) throws IOException {
 		this.ensureOpen();
@@ -125,16 +121,16 @@ final class SpillStore implements AutoCloseable {
 		return id;
 	}
 
-	/** 追記済みrecord数(= 次に付与されるrecordId)を返します。 */
+	/** Returns the number of appended records (= the next recordId to assign). */
 	long recordCount() {
 		return this.recordCount;
 	}
 
 	/**
-	 * recordIdのrecord payloadを直接読み出します(E-6増分3b-2: text
-	 * payloadの単発読み——順次cursorを開くまでもないrecordId直接read)。
-	 * 境界検査つきで、不正データは1バイトも返さず{@link IOException}で
-	 * 失敗します(§2.4のクラッシュ型一貫性)。返す配列は毎回新しい。
+	 * Reads the payload of recordId directly (E-6 increment 3b-2: a single text-payload read,
+	 * accessing recordId directly without opening a sequential cursor).
+	 * Checks bounds and fails with {@link IOException} without returning a single byte of invalid data
+	 * (the crash-style consistency of §2.4). Returns a fresh array each time.
 	 */
 	byte[] read(final long recordId) throws IOException {
 		this.ensureOpen();
@@ -156,10 +152,10 @@ final class SpillStore implements AutoCloseable {
 	}
 
 	/**
-	 * 半開範囲{@code [fromId, toIdExclusive)}の順次読み出しcursorを
-	 * 返します。範囲の駆動開始前にヘッダ・index・record長の整合を検査し、
-	 * 不正データでは1件も返さず{@link IOException}で失敗します(§2.4)。
-	 * 同じストアから複数のcursorを独立に開けます。
+	 * Returns a sequential-read cursor over the half-open range {@code [fromId, toIdExclusive)}.
+	 * Validates header, index, and record-length consistency before executing the range;
+	 * invalid data causes {@link IOException} before returning any record (§2.4).
+	 * Multiple cursors can be opened independently on the same store.
 	 */
 	Cursor cursor(final long fromId, final long toIdExclusive) throws IOException {
 		this.ensureOpen();
@@ -172,9 +168,9 @@ final class SpillStore implements AutoCloseable {
 	}
 
 	/**
-	 * 範囲の完全性検査です。offsetの単調連続・record長の境界・末尾整合を
-	 * indexとlengthフィールドだけで検査する(payloadは読まない——検査は
-	 * O(範囲)のseekで済ませ、heapには何も保持しない)。
+	 * Checks range integrity: monotonic, contiguous offsets, record-length bounds, and end consistency,
+	 * using only the index and length fields (does not read payloads; validation takes O(range) seeks
+	 * and retains nothing on the heap).
 	 */
 	private void validateRange(final long fromId, final long toIdExclusive) throws IOException {
 		this.data.seek(0);
@@ -205,7 +201,7 @@ final class SpillStore implements AutoCloseable {
 			expectedNext = offset + LENGTH_BYTES + length;
 		}
 		if (expectedNext >= 0) {
-			// 範囲末尾の次の境界も整合していること(末尾recordの長さ改竄検出)
+			// Also check the boundary after the range end (detect tampering with the last record's length).
 			final long bound = toIdExclusive == this.recordCount ? this.dataLength : this.offsetOf(toIdExclusive);
 			if (expectedNext != bound) {
 				throw new IOException("spill data corrupted (dangling tail: expected next offset " + bound + ", got "
@@ -220,9 +216,9 @@ final class SpillStore implements AutoCloseable {
 	}
 
 	/**
-	 * 範囲{@code [fromId, toIdExclusive)}を1レコードずつ読む順次cursor
-	 * です。消費位置はcursorが所有する(ストア側は位置を持たない)。
-	 * ファイルハンドルはストア共有のため、cursor自体はclose不要。
+	 * A sequential cursor that reads the range {@code [fromId, toIdExclusive)} one record at a time.
+	 * The cursor owns the read position (the store does not hold it).
+	 * File handles are shared with the store, so the cursor itself needs no close.
 	 */
 	final class Cursor {
 		private long nextId;
@@ -237,7 +233,7 @@ final class SpillStore implements AutoCloseable {
 			return this.nextId < this.toIdExclusive;
 		}
 
-		/** 次のrecordのpayloadを返します。 */
+		/** Returns the payload of the next record. */
 		byte[] next() throws IOException {
 			if (!this.hasNext()) {
 				throw new NoSuchElementException("cursor exhausted at " + this.nextId);
@@ -246,8 +242,8 @@ final class SpillStore implements AutoCloseable {
 			final long offset = SpillStore.this.offsetOf(this.nextId);
 			SpillStore.this.data.seek(offset);
 			final int length = SpillStore.this.data.readInt();
-			// cursor作成後の破損に対する保険(作成時に全数検査済みだが、
-			// 巨大確保やEOFの前にもう一度だけ境界を見る)
+			// Guard against corruption after cursor creation (all records were checked at creation,
+			// but check bounds once more before a huge allocation or EOF).
 			if (length < 0 || offset + LENGTH_BYTES + length > SpillStore.this.dataLength) {
 				throw new IOException("spill record corrupted (bad length " + length + ") at record " + this.nextId);
 			}
@@ -287,7 +283,7 @@ final class SpillStore implements AutoCloseable {
 		}
 	}
 
-	/** 削除失敗を黙殺しない(WARN。DirectSessionの一時ファイル処理と同じ方針)。 */
+	/** Do not ignore deletion failures (WARN, following DirectSession's temporary-file handling policy). */
 	private void deleteQuietly(final File file) {
 		if (file == null) {
 			return;

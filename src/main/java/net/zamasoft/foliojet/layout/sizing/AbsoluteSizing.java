@@ -3,31 +3,30 @@ package net.zamasoft.foliojet.layout.sizing;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * 絶対配置ボックスの行方向の寸法・インセット・マージン解決です。
- * SPEC CSS2.1 10.3.7(制約式 start + margin + size + margin + end = available)
- * をボックスに触れない純関数として実装します。auto は {@link LayoutUtils#NONE}
- * で表します。max/min クランプで寸法が変わった場合は解決をやり直します
- * (旧実装の state ループと同じ)。
+ * Resolves line-axis sizes, insets, and margins of absolutely positioned boxes.
+ * Implements SPEC CSS2.1 10.3.7 (the constraint start + margin + size + margin + end = available)
+ * as a pure function without touching boxes. Represents auto with {@link LayoutUtils#NONE}.
+ * Resolves again if max/min clamping changes the size (as in the old implementation's state loop).
  *
  * @author MIYABE Tatsuhiko
  */
 public final class AbsoluteSizing {
 	/**
-	 * 入力です。auto は NONE で表します。
+	 * Input. Represents auto with NONE.
 	 *
-	 * @param available       包含ブロックの行方向寸法(パディング込み)
-	 * @param size            指定寸法(box-sizing 調整済み。auto=NONE)
-	 * @param maxSize         最大寸法(なし=NONE)
-	 * @param minSize         最小寸法(なし=0相当の解決済み値)
-	 * @param insetStart      行方向始端インセット(auto=NONE)
-	 * @param insetEnd        行方向終端インセット(auto=NONE)
-	 * @param marginStart     解決済み始端マージン
-	 * @param marginEnd       解決済み終端マージン
-	 * @param marginStartAuto 始端マージンが auto 指定
-	 * @param marginEndAuto   終端マージンが auto 指定
-	 * @param frameExtent     行方向フレーム(マージン+ボーダー+パディング)合計
-	 * @param minContent      最小内容寸法
-	 * @param maxContent      最大内容寸法
+	 * @param available       Containing block's line-axis size (including padding)
+	 * @param size            Specified size (adjusted for box-sizing; auto=NONE)
+	 * @param maxSize         Maximum size (none=NONE)
+	 * @param minSize         Minimum size (resolved value, equivalent to 0 when absent)
+	 * @param insetStart      Line-start inset (auto=NONE)
+	 * @param insetEnd        Line-end inset (auto=NONE)
+	 * @param marginStart     Resolved start margin
+	 * @param marginEnd       Resolved end margin
+	 * @param marginStartAuto Whether the start margin is specified as auto
+	 * @param marginEndAuto   Whether the end margin is specified as auto
+	 * @param frameExtent     Total line-axis frame extent (margin+border+padding)
+	 * @param minContent      Min-content size
+	 * @param maxContent      Max-content size
 	 */
 	public record Input(double available, double size, double maxSize, double minSize, double insetStart,
 			double insetEnd, double marginStart, double marginEnd, boolean marginStartAuto, boolean marginEndAuto,
@@ -35,13 +34,13 @@ public final class AbsoluteSizing {
 	}
 
 	/**
-	 * 解決結果です。
+	 * Resolved result.
 	 *
-	 * @param size        行方向寸法
-	 * @param insetStart  始端インセット(確定値)
-	 * @param insetEnd    終端インセット(確定値)
-	 * @param marginStart 始端マージン(auto 未解決なら NONE)
-	 * @param marginEnd   終端マージン(auto 未解決なら NONE)
+	 * @param size        Line-axis size
+	 * @param insetStart  Start inset (definite value)
+	 * @param insetEnd    End inset (definite value)
+	 * @param marginStart Start margin (NONE if auto remains unresolved)
+	 * @param marginEnd   End margin (NONE if auto remains unresolved)
 	 */
 	public record Result(double size, double insetStart, double insetEnd, double marginStart, double marginEnd) {
 	}
@@ -51,43 +50,43 @@ public final class AbsoluteSizing {
 	}
 
 	/**
-	 * ページ方向の入力です(CSS2.1 10.6.4 相当)。auto は NONE で表します。
-	 * 行方向({@link Input})と違い shrink-to-fit(min/max-content)は関与せず、
-	 * 内容の実寸(contentSize)を直接使います。
+	 * Page-axis input (equivalent to CSS2.1 10.6.4). Represents auto with NONE.
+	 * Unlike the line axis ({@link Input}), this does not involve shrink-to-fit (min/max-content);
+	 * it uses the actual content size (contentSize) directly.
 	 *
-	 * @param available   包含ブロックのページ方向寸法(パディング込み)
-	 * @param size        指定寸法(auto=NONE。box-sizing 調整は呼び出し側で後段)
-	 * @param maxSize     最大寸法(なし=NONE)
-	 * @param minSize     最小寸法(解決済み値)
-	 * @param insetStart  ページ方向始端インセット(横書き=top / 縦書き=left。auto=NONE)
-	 * @param insetEnd    ページ方向終端インセット(横書き=bottom / 縦書き=right。auto=NONE)
-	 * @param marginStart 始端マージン(auto=NONE)
-	 * @param marginEnd   終端マージン(auto=NONE)
-	 * @param contentSize 内容のページ方向実寸
-	 * @param frameExtent ボーダー+パディングのページ方向合計
+	 * @param available   Containing block's page-axis size (including padding)
+	 * @param size        Specified size (auto=NONE; the caller adjusts for box-sizing later)
+	 * @param maxSize     Maximum size (none=NONE)
+	 * @param minSize     Minimum size (resolved value)
+	 * @param insetStart  Page-start inset (horizontal writing=top / vertical writing=left; auto=NONE)
+	 * @param insetEnd    Page-end inset (horizontal writing=bottom / vertical writing=right; auto=NONE)
+	 * @param marginStart Start margin (auto=NONE)
+	 * @param marginEnd   End margin (auto=NONE)
+	 * @param contentSize Actual page-axis content size
+	 * @param frameExtent Total page-axis border+padding extent
 	 */
 	public record PageInput(double available, double size, double maxSize, double minSize, double insetStart,
 			double insetEnd, double marginStart, double marginEnd, double contentSize, double frameExtent) {
 	}
 
 	/**
-	 * ページ方向の解決結果です。
+	 * Page-axis result.
 	 *
-	 * @param size        ページ方向寸法
-	 * @param insetStart  始端インセット(確定値)
-	 * @param marginStart 始端マージン(確定値)
-	 * @param marginEnd   終端マージン(確定値)
+	 * @param size        Page-axis size
+	 * @param insetStart  Start inset (definite value)
+	 * @param marginStart Start margin (definite value)
+	 * @param marginEnd   End margin (definite value)
 	 */
 	public record PageResult(double size, double insetStart, double marginStart, double marginEnd) {
 	}
 
 	/**
-	 * ページ方向の寸法・インセット・マージンを解決します
-	 * (旧 AbsoluteBlockBox.finishLayout の縦横鏡像 約100行×2 の統合。
-	 * 忠実移植 — dangling-else の「制限しすぎ」挙動も維持)。
+	 * Resolves page-axis sizes, insets, and margins
+	 * (consolidates the two mirrored vertical/horizontal sections of about 100 lines each in the old
+	 * AbsoluteBlockBox.finishLayout; a faithful port, preserving the dangling-else "over-constrained" behavior).
 	 *
-	 * @param in 入力
-	 * @return 解決結果
+	 * @param in Input
+	 * @return Resolved result
 	 */
 	public static PageResult resolvePage(final PageInput in) {
 		double size = in.size();
@@ -99,7 +98,7 @@ public final class AbsoluteSizing {
 			start = in.insetStart();
 			double end = in.insetEnd();
 			if (!LayoutUtils.isNone(start) && !LayoutUtils.isNone(end) && !LayoutUtils.isNone(size)) {
-				// 過剰指定: マージン(auto)で吸収する
+				// Over-specified: absorb through auto margins.
 				if (LayoutUtils.isNone(marginStart) && LayoutUtils.isNone(marginEnd)) {
 					marginStart = marginEnd = (in.available() - start - end - size - in.frameExtent()) / 2.0;
 				}
@@ -109,7 +108,7 @@ public final class AbsoluteSizing {
 				if (!LayoutUtils.isNone(marginStart) && LayoutUtils.isNone(marginEnd)) {
 					marginEnd = in.available() - start - end - size - marginStart - in.frameExtent();
 				} else {
-					// 制限しすぎ(旧実装の dangling-else をそのまま維持)
+					// Over-constrained (preserves the dangling-else behavior of the old implementation).
 					end = 0;
 				}
 			} else {
@@ -163,10 +162,10 @@ public final class AbsoluteSizing {
 	}
 
 	/**
-	 * 行方向の寸法・インセット・マージンを解決します。
+	 * Resolves line-axis sizes, insets, and margins.
 	 *
-	 * @param in 入力
-	 * @return 解決結果
+	 * @param in Input
+	 * @return Resolved result
 	 */
 	public static Result resolve(final Input in) {
 		double size = in.size();
@@ -176,7 +175,7 @@ public final class AbsoluteSizing {
 			start = in.insetStart();
 			end = in.insetEnd();
 			if (!LayoutUtils.isNone(start) && !LayoutUtils.isNone(end) && !LayoutUtils.isNone(size)) {
-				// 過剰指定: マージン(auto)で吸収する
+				// Over-specified: absorb through auto margins.
 				marginStart = in.marginStartAuto() ? LayoutUtils.NONE : in.marginStart();
 				marginEnd = in.marginEndAuto() ? LayoutUtils.NONE : in.marginEnd();
 				if (LayoutUtils.isNone(marginStart) && LayoutUtils.isNone(marginEnd)) {
@@ -188,7 +187,7 @@ public final class AbsoluteSizing {
 				if (!LayoutUtils.isNone(marginStart) && LayoutUtils.isNone(marginEnd)) {
 					marginEnd = in.available() - start - end - size - in.frameExtent();
 				} else {
-					// 制限しすぎ(旧実装の dangling-else をそのまま維持)
+					// Over-constrained (preserves the dangling-else behavior of the old implementation).
 					end = 0;
 				}
 			} else {
@@ -204,9 +203,9 @@ public final class AbsoluteSizing {
 							size = Sizing.fitContent(in.minContent(), size, limit);
 							start = end = 0;
 						} else if (LayoutUtils.isNone(start)) {
-							// 台帳#2 解消(2026-07-17): 旧縦書き変種
-							// fitContent(minContent - inset, …, limit) を廃し、
-							// 10.3.7 の形 fitContent(minContent, …, limit - inset) に統一
+							// Ledger #2 resolved (2026-07-17): removed the old vertical-writing variant,
+							// fitContent(minContent - inset, …, limit), and standardized on
+							// the 10.3.7 form, fitContent(minContent, …, limit - inset).
 							size = Sizing.fitContent(in.minContent(), size, limit - end);
 							start = in.available() - end - size - in.frameExtent();
 						} else {

@@ -7,15 +7,15 @@ import net.zamasoft.foliojet.layout.box.params.GridParams;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
- * {@link GridParams}({@code BlockParams}を直接継承、{@code BoxKind#GRID}が
- * 使う)の内容をfreezeし、呼び出しごとに独立した新品の{@code GridParams}を
- * materializeするテンプレートです(Grid G0c、2026-07-31——
- * consult-codex-2026-07-31-grid.txt §3.7)。
+ * A template that freezes the contents of {@link GridParams}
+ * (directly extends {@code BlockParams} , used by {@code BoxKind#GRID} ) and materializes an independent,
+ * fresh {@code GridParams} on each call
+ * (Grid G0c, 2026-07-31; consult-codex-2026-07-31-grid.txt §3.7).
  *
  * <p>
- * トラック({@link GridTrackListValue.TrackSize})は不変recordの
- * 不変リスト、gapはプリミティブのためそのまま保持できる
- * ({@code TableParamsTemplate}と同型)。
+ * Tracks ({@link GridTrackListValue.TrackSize}) are immutable lists of immutable records,
+ * and gaps are primitives, so both can be retained unchanged
+ * (analogous to {@code TableParamsTemplate} ).
  * </p>
  */
 public record GridParamsTemplate(BlockParamsFields common, List<GridTrackListValue.TrackSize> templateColumns,
@@ -38,12 +38,12 @@ public record GridParamsTemplate(BlockParamsFields common, List<GridTrackListVal
 				source.autoFlowDense, source.columnsSubgrid, source.rowsSubgrid);
 	}
 
-	/** 凍結済みの書字方向を返します({@code containsMixedFlow}用)。 */
+	/** Returns the frozen writing direction (for {@code containsMixedFlow}). */
 	public WritingMode flow() {
 		return this.common.common().text().flow();
 	}
 
-	/** 呼び出しごとに新品の{@code GridParams}を返す。 */
+	/** Returns a fresh {@code GridParams} on each call. */
 	public GridParams materialize() {
 		final GridParams p = new GridParams();
 		this.common.materializeInto(p);
@@ -57,8 +57,8 @@ public record GridParamsTemplate(BlockParamsFields common, List<GridTrackListVal
 		p.alignItems = this.alignItems;
 		p.justifyContent = this.justifyContent;
 		p.alignContent = this.alignContent;
-		// 2026-08-29のGrid拡張(線名・領域・implicitトラック・auto-flow)。
-		// 全て不変値なので参照共有でよい
+		// Grid extensions from 2026-08-29 (line names, areas, implicit tracks, auto-flow).
+		// All are immutable values, so sharing references is sufficient.
 		p.columnLineNames = this.columnLineNames;
 		p.rowLineNames = this.rowLineNames;
 		p.templateAreas = this.templateAreas;

@@ -5,34 +5,34 @@ import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.TableBuilder;
 
 /**
- * IncrementalTableBuilder/RetainedTableBuilderの選択・開始・終了を一箇所へ集約する
- * ライフサイクルアダプタです(C4準備、2026-07-19。C4-Bでルーティング判定を
- * {@link TableBuildPlanner}へ委譲)。
+ * Lifecycle adapter that centralizes selection, start, and end of
+ * IncrementalTableBuilder/RetainedTableBuilder (C4 preparation, 2026-07-19;
+ * delegates routing decisions to {@link TableBuildPlanner} in C4-B).
  *
  * <p>
- * 計算・箱操作は一切変更していません。DocumentBuilderに分散していた
- * ビルダー選択条件と、終了時のisIncremental()判定+IncrementalTableBuilderへの
- * castをここへ移しただけです。
+ * No calculations or box operations changed. This only moved the builder selection
+ * conditions scattered through DocumentBuilder, and the isIncremental() check plus
+ * cast to IncrementalTableBuilder at the end, into this class.
  * </p>
  *
  * <p>
- * <b>C4の完成形について(2026-07-19、ChatGPT Pro外部設計レビューで確定、
- * 詳細は開発計画「C4」参照)</b>: 表ビルダーの統一は「単一の行アルゴリズム
- * への融合」ではない。fixed/autoという列幅方針の違いとは別に、
- * 「早期コミット可能(Incremental)」か「表(またはrow-group)全体を保持
- * してからコミットする(Retained)」かという実行計画の違いが本質であり、
- * この保持寿命・コミット時点は統一すべきではない(数学的に、表全体依存の
- * 行高分配を互換規則どおり正確に行う・ページを完成次第不変な形で出力する・
- * 有界メモリで入力を一度だけ消費する、の3条件は同時に満たせないため)。
- * 統一してよいのは列幅計算・セル実測・rowspan分配・境界解決・断片化部品
- * という計算核であり、既にRowLayoutEngine/CellContent/CollapsedBorderRules
- * 等として共有済み。このクラスは「2つの実行計画を選ぶ薄い層」として
- * 確定させる方向で発展させる(C4-C: 2026-07-19、isOnePass()を
- * isIncremental()へ改名済み(挙動不変)。DocumentBuilder側の
- * 分岐そのものをTableBuildSession相当のtell-don't-ask構造へ
- * 置き換える本体作業は、DocumentBuilderの非公開インライン文脈操作
- * (closeInlines/endContainer/startContainer)を公開する設計判断を
- * 要するため、別途の設計サイクルへ回す)。
+ * <b>Final form of C4 (settled in the external ChatGPT Pro design review on 2026-07-19;
+ * see development plan "C4" for details)</b>: Unifying table builders does not mean merging
+ * them into a single row algorithm. Apart from the fixed/auto column-width policies,
+ * the essential difference is the execution plan: either commit early (Incremental),
+ * or retain the entire table (or row-group) before committing (Retained).
+ * These retention lifetimes and commit points must not be unified. Mathematically,
+ * three requirements cannot all hold: distribute row heights that depend on the entire table
+ * exactly according to compatibility rules, emit completed pages immutably as soon as ready,
+ * and consume input once with bounded memory.
+ * The parts that can be unified are the computational kernels for column widths, cell measurement,
+ * rowspan distribution, border resolution, and fragmentation; these are already shared as
+ * RowLayoutEngine/CellContent/CollapsedBorderRules and others. Develop this class toward a
+ * settled thin layer that selects between the two execution plans (C4-C: isOnePass() was renamed
+ * to isIncremental() on 2026-07-19, with no behavior change. Replacing the DocumentBuilder-side
+ * branch itself with a tell-don't-ask structure equivalent to TableBuildSession requires a design
+ * decision to expose DocumentBuilder's private inline context operations
+ * (closeInlines/endContainer/startContainer), so that work goes into a separate design cycle).
  * </p>
  */
 public final class TableBuilderLifecycle {
@@ -40,19 +40,19 @@ public final class TableBuilderLifecycle {
 	}
 
 	/**
-	 * 表の開始時に、{@link TableBuildPlanner}が決めた実行計画に従って
-	 * ビルダーを選び、必要なら{@link IncrementalTableBuilder#startLayout}まで
-	 * 実行して返します。
+	 * At the start of a table, selects a builder according to the execution plan chosen by
+	 * {@link TableBuildPlanner}, calls {@link IncrementalTableBuilder#startLayout} if needed,
+	 * and returns the builder.
 	 */
 	public static TableBuilder start(Builder builder, TableBox tableBox) {
 		final TableBuildPlan plan = TableBuildPlanner.plan(builder, tableBox);
 		if (plan.mode() == TableBuildPlan.Mode.RETAINED) {
 			TableBuildStats.TWO_PASS_BUILDS.incrementAndGet();
-			// E-6増分1(2026-07-24): Retained理由別の発生回数(観測のみ、挙動不変)
+			// E-6 increment 1 (2026-07-24): counts by Retained reason (observation only; no behavior change).
 			TableBuildStats.recordRetentionReasons(plan.reasons());
 			return new RetainedTableBuilder(builder, tableBox);
 		}
-		// Incremental(table-layout:fixed相当)
+		// Incremental (equivalent to table-layout:fixed)
 		TableBuildStats.ONE_PASS_BUILDS.incrementAndGet();
 		final IncrementalTableBuilder fixedTableBuilder = new IncrementalTableBuilder(tableBox);
 		fixedTableBuilder.startLayout((RootBuilder) builder);
@@ -60,8 +60,8 @@ public final class TableBuilderLifecycle {
 	}
 
 	/**
-	 * 表の終了時の処理です。実行計画ごとの終端はtableBuilder自身が知って
-	 * いる(A-2、2026-07-30: 旧isIncremental()分岐+castをtell-don't-askへ)。
+	 * Handles the end of a table. tableBuilder itself knows how to terminate each execution plan
+	 * (A-2, 2026-07-30: replaced the old isIncremental() branch + cast with tell-don't-ask).
 	 */
 	public static void finish(TableBuilder tableBuilder, Builder builder) {
 		tableBuilder.finish(builder);

@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 表の行グループ種別です。
+ * The type of table row group.
  *
  * @author MIYABE Tatsuhiko
  */

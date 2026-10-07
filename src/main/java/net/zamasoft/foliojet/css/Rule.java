@@ -6,17 +6,17 @@ import net.zamasoft.foliojet.css.selector.Selector;
 import net.zamasoft.foliojet.css.selector.Specificity;
 
 /**
- * CSS規則です。 規則は、選択子とそれに対応するスタイル宣言のペアです。
- * スタイルシート構築後は不変であり、複数スレッドから共有できます。
+ * A CSS rule: a pair consisting of a selector and its corresponding style declaration.
+ * Immutable after stylesheet construction, and shareable across threads.
  *
  * @author MIYABE Tatsuhiko
  */
 public class Rule {
 	/**
-	 * cascadeレイヤーに属さない規則の{@link #layer}値です(2026-07-21新設、
-	 * CSS Cascade Layers)。どのレイヤー(出現順が最も新しいもの含む)にも
-	 * 優先する——{@code Integer.MAX_VALUE}を使うことで、通常の昇順比較
-	 * (レイヤーなし=最優先)がそのまま成立する。
+	 * The {@link #layer} value for rules outside cascade layers (added on 2026-07-21,
+	 * CSS Cascade Layers). Takes precedence over every layer, including
+	 * the latest one. Using {@code Integer.MAX_VALUE} makes normal ascending comparison
+	 * give unlayered rules the highest priority.
 	 */
 	public static final int NO_LAYER = Integer.MAX_VALUE;
 
@@ -24,39 +24,39 @@ public class Rule {
 
 	private final Declaration declaration;
 
-	/** スタイルシート内の出現順。固有性が等しい規則の優先順位を決める。 */
+	/** Source order within the stylesheet. Determines precedence for rules with equal specificity. */
 	private final int order;
 
-	/** cascade origin。固有性・出現順に優先する(USER_AGENT は常に AUTHOR に劣後)。 */
+	/** Cascade origin. Precedes specificity and source order (USER_AGENT always ranks below AUTHOR). */
 	private final Origin origin;
 
 	/**
-	 * cascadeレイヤーの優先順位番号です(2026-07-21新設、CSS Cascade
+	 * The priority number of the cascade layer (added on 2026-07-21, CSS Cascade
 	 * Layers)。{@link CSSStyleSheet#registerNamedLayer}/
-	 * {@link CSSStyleSheet#registerAnonymousLayer}が発行する、スタイル
-	 * シート内でレイヤーが最初に現れた順の通し番号。{@link #NO_LAYER}
-	 * (レイヤーに属さない規則)が常に最優先。origin・specificity・
-	 * 出現順の間、origin直後に比較される(CSS Cascading and
+	 * {@link CSSStyleSheet#registerAnonymousLayer}: the sequence number
+	 * of the layer's first occurrence in the stylesheet. {@link #NO_LAYER}
+	 * (a rule outside all layers) always takes highest priority. Compared immediately after
+	 * origin, before specificity and source order (CSS Cascading and
 	 * Inheritance: origin/importance → layer → specificity → order)。
-	 * {@code !important}によるレイヤー優先順位の反転(importantな宣言は
-	 * <b>先に現れたレイヤー</b>が後のレイヤーに優先し、レイヤー外が最弱)は
-	 * <b>2026-08-03に対応した</b>——通常順で一度カスケードを適用したあと、
-	 * important宣言だけを反転順でもう一度重ねる
+	 * Layer priority reversal for {@code !important} (important declarations in
+	 * <b>earlier layers</b> outrank later layers, with unlayered declarations weakest)
+	 * <b>was supported on 2026-08-03</b>. After applying the cascade once in normal order,
+	 * apply only important declarations again in reverse order
 	 * ({@link Declaration#applyImportantProperties}、
-	 * {@code RuleComparator.IMPORTANT})。importantどうしは後勝ちなので、
-	 * 最も強いものが最後に載る。レイヤーを使った規則が無い文書では
-	 * 反転の合成そのものを行わない(費用ゼロ)。
-	 * なお<b>UA由来のimportantが著者のimportantより強い</b>という
-	 * origin側の反転は未対応(印刷用途で影響する場面が無いため)。
+	 * {@code RuleComparator.IMPORTANT}). Later important declarations win,
+	 * so the strongest is applied last. Documents with no layered rules
+	 * skip the reverse merge entirely (zero cost).
+	 * Origin reversal, where <b>UA important declarations outrank author important declarations</b>,
+	 * remains unsupported because it has no effect in print use cases.
 	 */
 	private final int layer;
 
 	private transient Specificity specificity = null;
 
 	/**
-	 * この規則を包む{@code @container}の名前・条件です(2026-08-15段4——
-	 * 開発記録)。{@code @container}
-	 * の内側で無ければ{@code null}(通常の規則はコンテナ条件を持たない)。
+	 * The name and condition of the enclosing {@code @container} (2026-08-15 stage 4;
+	 * development record). Set to {@code null} when not inside {@code @container}
+	 * (regular rules have no container condition).
 	 */
 	private final ContainerQuery containerQuery;
 
@@ -78,13 +78,13 @@ public class Rule {
 		this.containerQuery = containerQuery;
 	}
 
-	/** この規則を包む{@code @container}(無ければnull)。 */
+	/** The enclosing {@code @container} for this rule (null if none). */
 	public ContainerQuery getContainerQuery() {
 		return this.containerQuery;
 	}
 
 	/**
-	 * 選択子を返します。
+	 * Returns the selector.
 	 *
 	 * @return
 	 */
@@ -93,7 +93,7 @@ public class Rule {
 	}
 
 	/**
-	 * スタイル宣言を返します。
+	 * Returns the style declaration.
 	 *
 	 * @return
 	 */
@@ -102,7 +102,7 @@ public class Rule {
 	}
 
 	/**
-	 * スタイルシート内の出現順を返します。
+	 * Returns the source order within the stylesheet.
 	 *
 	 * @return
 	 */
@@ -111,7 +111,7 @@ public class Rule {
 	}
 
 	/**
-	 * cascade origin を返します。
+	 * Returns the cascade origin.
 	 *
 	 * @return
 	 */
@@ -120,8 +120,8 @@ public class Rule {
 	}
 
 	/**
-	 * cascadeレイヤーの優先順位番号を返します({@link #NO_LAYER}なら
-	 * どのレイヤーにも属さない)。
+	 * Returns the cascade layer priority number ({@link #NO_LAYER} means
+	 * the rule belongs to no layer).
 	 *
 	 * @return
 	 */
@@ -130,7 +130,7 @@ public class Rule {
 	}
 
 	/**
-	 * 選択子の固有性を返します。
+	 * Returns the selector's specificity.
 	 *
 	 * @return
 	 */

@@ -1,17 +1,16 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 境界線とパディングで囲まれたボックスです。
+ * A box enclosed by borders and padding.
  *
  * <p>
- * このボックスの内部には1つだけのボックスを含むことができます。
+ * This box can contain only one box inside it.
  * </p>
  *
  * <p>
- * box-shadow(影)とoutline(アウトライン)もここに持つ(2026-08-29)。どちらも
- * 寸法に影響しない装飾で、枠と一緒に描かれ、枠と一緒にsegment再生へ
- * 運ばれる(BlockParamsFieldsは{@code frame}を丸ごと写す)ので、別の
- * paramsフィールドを増やすより安全。
+ * Also holds box-shadow (shadows) and outline (2026-08-29). Both are decorations that do not affect dimensions.
+ * They are drawn with the frame and carried with it into segment replay (BlockParamsFields copies {@code frame} as
+ * a whole), so keeping them here is safer than adding separate params fields.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -28,10 +27,10 @@ public class RectFrame {
 
 	public final Insets padding;
 
-	/** box-shadowの影(先頭が最前面)。無ければnull。 */
+	/** The box-shadow shadows (frontmost first). Null if absent. */
 	public final BoxShadow[] shadows;
 
-	/** outline。無ければnull。 */
+	/** The outline. Null if absent. */
 	public final Outline outline;
 
 	public static RectFrame create(Insets margin, RectBorder border, Background background, Insets padding) {
@@ -79,7 +78,7 @@ public class RectFrame {
 		RectBorder newBorder = this.border.cut(top, right, bottom, left);
 		Insets newPadding = this.padding.cut(top, right, bottom, left);
 
-		// 影とアウトラインは断片ごとに描く(box-decoration-break: cloneに相当)
+		// Draw shadows and outlines for each fragment (equivalent to box-decoration-break: clone).
 		return RectFrame.create(newMargin, newBorder, this.background, newPadding, this.shadows, this.outline);
 	}
 

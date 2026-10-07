@@ -6,18 +6,18 @@ import net.zamasoft.foliojet.layout.box.params.Fiducial;
 import net.zamasoft.foliojet.layout.box.params.Insets;
 
 /**
- * {@link AbsolutePos}(絶対配置の配置パラメータ、{@link ReplacedRecipe
- * .Absolute}が使う)の内容をfreezeし、呼び出しごとに独立した新品の
- * {@code AbsolutePos}をmaterializeするテンプレートです(2026-07-22
- * 新設、M6d-A Replaced要素対応)。
+ * A template that freezes the contents of {@link AbsolutePos}
+ * (absolute-positioning parameters used by {@link ReplacedRecipe
+ * .Absolute}) and materializes an independent, fresh {@code AbsolutePos} on each call
+ * (introduced 2026-07-22, M6d-A replaced-element support).
  *
  * <p>
- * {@code AbsolutePos}は{@code Pos}を直接実装し({@code AbstractStaticPos}
- * を継承しない、{@code offset}を持たない)、フィールドは
- * {@code location}({@code Insets}、finalフィールドのみで実質不変)・
- * {@code autoPosition}/{@code fiducial}(enum)のみ——{@code FlowPos}系と
- * 違い共有できる祖先{@code *Fields}ヘルパーが無いため単独で完結する
- * (2026-07-22 Stage2で不変recordへ置換)。
+ * {@code AbsolutePos} directly implements {@code Pos}
+ * (does not extend {@code AbstractStaticPos} and has no {@code offset} ).
+ * Its only fields are {@code location} ({@code Insets}, effectively immutable with only final fields)
+ * and {@code autoPosition} /{@code fiducial} (enums).
+ * Unlike the {@code FlowPos} family, it has no shared ancestor {@code *Fields} helper,
+ * so it is self-contained (replaced with an immutable record in Stage2, 2026-07-22).
  * </p>
  */
 public record AbsolutePosTemplate(Insets location, AutoPosition autoPosition, Fiducial fiducial) {
@@ -25,7 +25,7 @@ public record AbsolutePosTemplate(Insets location, AutoPosition autoPosition, Fi
 		return new AbsolutePosTemplate(source.location, source.autoPosition, source.fiducial);
 	}
 
-	/** 呼び出しごとに新品の{@code AbsolutePos}を返す(複数回呼んでも互いに影響しない)。 */
+	/** Returns a fresh {@code AbsolutePos} on each call (multiple calls do not affect one another). */
 	public AbsolutePos materialize() {
 		final AbsolutePos pos = new AbsolutePos();
 		pos.location = this.location;

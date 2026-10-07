@@ -3,14 +3,13 @@ package net.zamasoft.foliojet.layout.fragment;
 import java.io.IOException;
 
 /**
- * text payloadのspill I/O(書き込み・読み出し)が失敗したことを示す
- * 型付きレイアウト失敗です(E-6増分3b-2、2026-07-24新設)。
+ * A typed layout failure indicating failed text payload spill I/O (write/read)
+ * (E-6 increment 3b-2, introduced 2026-07-24).
  *
  * <p>
- * SpillStoreの{@link IOException}は黙殺もlive継続へのフォールバックも
- * せず、この例外でレイアウト失敗として伝播する——spillの成否で出力が
- * 変わる非決定性を作らない(クラッシュ型の一貫性。
- * 設計相談 §5)。
+ * SpillStore's {@link IOException} is neither ignored nor handled by falling back to live continuation.
+ * It propagates through this exception as a layout failure, avoiding nondeterministic output depending
+ * on spill success (crash consistency; design consultation §5).
  * </p>
  */
 public class TextSpillException extends RuntimeException {

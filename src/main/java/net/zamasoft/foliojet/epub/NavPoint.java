@@ -3,21 +3,21 @@ package net.zamasoft.foliojet.epub;
 import java.net.URI;
 
 /**
- * 目次の項目です。
+ * An entry in the table of contents.
  */
 public class NavPoint {
-	/** 項目のラベルです。 */
+	/** The entry's label. */
 	public String label;
-	/** リンク先のURIです。 */
+	/** The target URI. */
 	public URI uri;
-	/** 対応するアイテムです。 */
+	/** The corresponding item. */
 	public Item item;
 
-	/** 項目のIDです(NCXのみ)。 */
+	/** The entry's ID (NCX only). */
 	public String id;
-	/** 項目の再生順序です(NCXのみ)。 */
+	/** The entry's playback order (NCX only). */
 	public int playOrder;
 
-	/** 子項目です。 */
+	/** The child entries. */
 	public NavPoint[] children;
 }

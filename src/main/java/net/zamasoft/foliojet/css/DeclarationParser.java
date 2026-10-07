@@ -17,7 +17,7 @@ import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * ph-cssで解析した宣言列をDeclarationに変換します。
+ * Converts a declaration sequence parsed by ph-css to a Declaration.
  */
 final class DeclarationParser {
 	private DeclarationParser() {
@@ -30,23 +30,23 @@ final class DeclarationParser {
 	}
 
 	/**
-	 * 閉じられていないコメントを入力終端で暗黙に閉じます(2026-08-18、
-	 * 利用者バグ報告)。
+	 * Implicitly closes an unclosed comment at the end of input (2026-08-18,
+	 * user bug report).
 	 *
 	 * <p>
-	 * CSS Syntax Level 3の「Consume comments」は、コメント中に入力が
-	 * 尽きた場合をparse errorとしつつ<b>そこでコメントを終えて処理を
-	 * 継続する</b>と定める(=直前までの規則は有効)。ところがph-cssの
-	 * 字句解析器(JavaCC)は未閉鎖コメントでTokenMgrErrorになり、
-	 * {@code CSSReader}がnullを返して<b>シート全体が破棄</b>されていた。
-	 * ph-css側では回復できないため、入力を渡す前にここで検査して
-	 * 終端が未閉鎖コメント内なら{@code "*&#47;"}を補う。
+	 * CSS Syntax Level 3's "Consume comments" specifies that input ending
+	 * inside a comment is a parse error, but <b>ends the comment there
+	 * and continues processing</b> (so preceding rules remain valid). However, the ph-css
+	 * lexer (JavaCC) raised TokenMgrError on an unclosed comment,
+	 * making {@code CSSReader} return null and <b>discard the entire sheet</b>.
+	 * Because ph-css cannot recover, check before passing the input
+	 * and append {@code "*&#47;"} if it ends inside an unclosed comment.
 	 * </p>
 	 *
 	 * <p>
-	 * 文字列(""/'')内・{@code url(}〜{@code )}内の{@code /*}はコメント
-	 * 開始ではない(未引用のurlトークン内ではコメントは認識されない)ため、
-	 * その状態を追跡して誤検出しない。
+	 * {@code /*} inside strings (""/'') or between {@code url(} and {@code )} does not
+	 * start a comment (comments are not recognized inside unquoted URL tokens),
+	 * so track those states to avoid false positives.
 	 * </p>
 	 */
 	static String closeUnterminatedComment(final String css) {
@@ -76,9 +76,9 @@ final class DeclarationParser {
 				break;
 			case STRING:
 				if (c == '\\') {
-					++i; // エスケープ(次の1文字を読み飛ばす。\改行も同じ扱いで足りる)
+					++i; // Escape (skip the next character; the same handling suffices for a backslash followed by a newline)
 				} else if (c == quote || c == '\n') {
-					// 改行は不正文字列の終端(bad-string)——状態だけ戻す
+					// A newline ends an invalid string (bad-string); just reset the state.
 					state = NORMAL;
 				}
 				break;
@@ -86,8 +86,8 @@ final class DeclarationParser {
 				if (c == '\\') {
 					++i;
 				} else if (c == '"' || c == '\'') {
-					// 引用付きurl("...")はSTRINGとして続きを読む(閉じ括弧は
-					// NORMALに戻ってから消費されるが、コメント判定には影響しない)
+					// Continue reading a quoted url("...") as STRING (the closing parenthesis is
+					// consumed after returning to NORMAL, but does not affect comment detection).
 					state = STRING;
 					quote = c;
 				} else if (c == ')') {
@@ -100,13 +100,13 @@ final class DeclarationParser {
 	}
 
 	/**
-	 * style属性文字列→ph-cssのASTのキャッシュ。生成された文書は同一の
-	 * インラインスタイルを大量に繰り返すことが多く(e-Gov法令HTMLは
-	 * 4.2万属性で異なり値はわずか)、ph-cssの起動が変換時間の1割を
-	 * 占めていた(2026-08-09のランダムポーズ実測)。ASTは以後読み取り
-	 * 専用で扱うため共有できる。ここで止めてDeclarationまでキャッシュ
-	 * しないのは、プロパティ解釈が文書URI(url()の相対解決)に依存する
-	 * ため。
+	 * Cache from style attribute strings to ph-css ASTs. Generated documents often
+	 * repeat the same inline styles extensively (e-Gov legal HTML has 42,000 attributes
+	 * but few distinct values), and starting ph-css accounted for one tenth
+	 * of conversion time (measured by random pauses on 2026-08-09). ASTs can be shared
+	 * because subsequent access is read-only. Stop caching at this level rather than
+	 * caching Declaration, because property interpretation depends on the document URI
+	 * (relative resolution of url()).
 	 */
 	private static final int INLINE_CACHE_LIMIT = 4096;
 	private static final java.util.Map<String, CSSDeclarationList> INLINE_CACHE = java.util.Collections
@@ -119,10 +119,10 @@ final class DeclarationParser {
 			});
 
 	/**
-	 * インラインスタイル(style属性)を解析してintoに追記します。
+	 * Parses an inline style (style attribute) and appends it to into.
 	 *
-	 * @param into 追記先。nullなら必要時に新規作成。
-	 * @return 解析結果(1つも解釈できなければinto)
+	 * @param into destination; if null, created as needed
+	 * @return the parse result (into if no declarations can be interpreted)
 	 */
 	static Declaration parseInline(String css, Declaration into, PropertySet propertySet, UserAgent ua, URI uri)
 			throws CSSException {
@@ -138,10 +138,10 @@ final class DeclarationParser {
 	}
 
 	/**
-	 * ph-cssの宣言列をintoに追記します。
+	 * Appends ph-css declarations to into.
 	 *
-	 * @param into 追記先。nullなら必要時に新規作成。
-	 * @return 1つも解釈できなければinto(nullのままの場合あり)
+	 * @param into destination; if null, created as needed
+	 * @return into if no declarations can be interpreted (may remain null)
 	 */
 	static Declaration convert(List<CSSDeclaration> declarations, Declaration into, PropertySet propertySet,
 			UserAgent ua, URI uri) {

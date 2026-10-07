@@ -5,90 +5,82 @@ import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.INonReplacedBox;
 
 /**
- * 共有Segment executorです(2026-07-24新設、E-6増分3b-1——
- * 設計相談
- * §2.3増分1)。
+ * Shared Segment executor (introduced on 2026-07-24, E-6 increment 3b-1:
+ * design consultation §2.3 increment 1).
  *
  * <p>
- * {@code SourceReplayer.drive}に重複していた
- * replay switchの「駆動部分」——{@code DocumentBuilder}への駆動・
- * ordinal({@code EventId})→{@code SourceAnchor}再付与・テキストの
- * fresh copy化——をここへ一元化する。入力はstreamingカーソル
- * (1イベントずつの呼び出し)で、Listを要求しない。
+ * Centralizes the "execution" part of the replay switch duplicated in {@code SourceReplayer.drive}:
+ * driving {@code DocumentBuilder}, reattaching ordinals ({@code EventId}) as {@code SourceAnchor},
+ * and making fresh copies of text. Takes input through a streaming cursor (one event per call)
+ * and does not require a List.
  * </p>
  *
  * <p>
- * <b>単一switch(E-6増分3b-6で統合完了)</b>: 過渡の
- * {@code executeLive(LayoutSource.Event)}経路は、置換要素のfreeze総関数化
- * ({@code ReplacedBoxImage}のduplicateベースfreeze——
- * {@code ReplacedParamsTemplate})によりlive変種({@code ReplacedLive})が
- * 撤去されたため、{@link #execute(SegmentEvent)}へ一本化された。
- * 呼び出し側({@code SourceReplayer})は
- * {@code LayoutSource.Event}を{@code LayoutSourceEventConverter.convert}で
- * オンザフライ変換して駆動する。
+ * <b>Single switch (consolidation completed in E-6 increment 3b-6)</b>: the transitional
+ * {@code executeLive(LayoutSource.Event)} path was consolidated into {@link #execute(SegmentEvent)}
+ * after replaced-element freezing became a total function (duplicate-based freezing of
+ * {@code ReplacedBoxImage} in {@code ReplacedParamsTemplate}), removing the live variant
+ * ({@code ReplacedLive}). The caller ({@code SourceReplayer}) converts {@code LayoutSource.Event}
+ * on the fly with {@code LayoutSourceEventConverter.convert} and executes it.
  * </p>
  *
  * <p>
- * <b>StructureTokenのintern(E-6増分3b-4)</b>: recipeのmaterializeは
- * イベントごとに独立した{@code Params}を作るため、同じ論理要素が複数の
- * Startを持つケース(例: {@code <li>}のprincipal boxとmarker box)では
- * {@code Params.element}のtokenも別インスタンスになる。Tagged PDFの
- * 構造タグ二重開き防止({@code PageBox.beginStruct}のidentity set)は
- * 「同じ論理要素=同じインスタンス」を要求するため、この executor
- * (=1再生セッション)内で{@code elementKey}によりinternし、live経路の
- * {@code CSSElement}共有と同じidentityを再現する(codex裁定——
- * 開発記録)。
+ * <b>StructureToken interning (E-6 increment 3b-4)</b>: materializing a recipe creates independent
+ * {@code Params} for each event. When the same logical element has multiple Start events
+ * (e.g., the principal box and marker box of a {@code <li>}), the {@code Params.element} tokens
+ * are also separate instances. Preventing duplicate structure-tag openings in Tagged PDF
+ * (the identity set in {@code PageBox.beginStruct}) requires "same logical element = same instance."
+ * This executor (= one replay session) therefore interns by {@code elementKey} to reproduce the
+ * identity maintained by shared {@code CSSElement} instances on the live path
+ * (codex decision: development record).
  * </p>
  *
  * <p>
- * <b>Charsのfresh copy化(3b-1で是正)</b>: 記録済み{@code char[]}を
- * そのまま{@code doc.characters}へ渡すと、
- * {@code StyledTextUnitizer.characters}が配列内容をその場で書き換える
- * ため、同一範囲の再replayで変換済みテキストへの再変換が起きうる
- * (記録時は防御コピー済みだがreplay時は生渡しだった)。
- * {@link SegmentEvent.Text}経由の駆動は{@code String#toCharArray()}が
- * 毎回freshな配列を返すため構造的に安全。
+ * <b>Fresh copies of Chars (corrected in 3b-1)</b>: passing a recorded {@code char[]} directly to
+ * {@code doc.characters} lets {@code StyledTextUnitizer.characters} modify the array in place,
+ * so replaying the same range could transform already transformed text again
+ * (recording made a defensive copy, but replay passed the array directly).
+ * Execution through {@link SegmentEvent.Text} is structurally safe because
+ * {@code String#toCharArray()} returns a fresh array each time.
  * </p>
  */
 public final class SegmentExecutor {
-	/** 主ソースの系譜を付けるか、独立した反復内容として組むかを指定します。 */
+	/** Specifies whether to attach main-source lineage or lay out independent repeated content. */
 	public enum AnchorMode { SOURCE, NONE }
 
 	private final DocumentBuilder doc;
 	private final AnchorMode anchorMode;
 
 	/**
-	 * 次に駆動するイベントのordinal(= EventId)。再生インスタンスへ
-	 * {@code SourceAnchor}として再付与する(P0: アンカーはボックス個体に
-	 * 属する——次の破断で再び再生可能になるための系譜。保存すべきは
-	 * 「ordinal→SourceAnchor」の対応のみで、元params/pos/boxの
-	 * identityではない——codex設計§1.3)。
+	 * Ordinal (= EventId) of the next event to execute. Reattaches it to the replay instance as a
+	 * {@code SourceAnchor} (P0: anchors belong to individual boxes, providing lineage for replay at the
+	 * next break. Only the "ordinal→SourceAnchor" mapping must be preserved, not the identity of the
+	 * original params/pos/box; codex design §1.3).
 	 */
 	private long eventId;
 
 	/**
-	 * 再生セッション内のStructureToken internです(E-6増分3b-4、クラス
-	 * javadoc「StructureTokenのintern」参照)。key({@code elementKey})→
-	 * 最初にmaterializeされたtokenインスタンス。
+	 * StructureToken interning within a replay session (E-6 increment 3b-4; see
+	 * "StructureToken interning" in the class Javadoc). Maps a key ({@code elementKey})
+	 * to the first materialized token instance.
 	 */
 	private final java.util.HashMap<Long, StructureToken> structureTokens = new java.util.HashMap<>();
 
 	/**
-	 * この再生セッション内で開いているboxのkind列です(caption recipe化
-	 * C2の最終防衛、2026-08-01——consult-codex-2026-08-01-caption-recipe
-	 * .txt Q1)。文脈依存kind(CAPTION)がTABLEの確立なしに
-	 * {@code doc.startBox()}へ届く経路を、範囲適格判定(context-complete
-	 * 検証)をすり抜けた場合でも型付き例外で止める——G-1の単独replay根
-	 * クラッシュ(ClassCastException)を仕様化された失敗に変える。
+	 * Sequence of kinds of boxes open in this replay session (the final safeguard in caption recipe
+	 * conversion C2, 2026-08-01: consult-codex-2026-08-01-caption-recipe.txt Q1).
+	 * Stops a context-dependent kind (CAPTION) that reaches {@code doc.startBox()} without an established
+	 * TABLE by throwing a typed exception, even if it evades range eligibility checks (context-complete
+	 * validation). Turns the G-1 standalone replay-root crash (ClassCastException) into a specified failure.
 	 */
 	private final java.util.ArrayDeque<SegmentEvent> openKinds = new java.util.ArrayDeque<>();
 
-	/** {@link #openKinds}中のTABLEの数(CAPTIONの文脈判定用)。 */
+	/** Number of TABLE entries in {@link #openKinds} (for checking CAPTION context). */
 	private int openTables;
 
 	/**
-	 * @param doc    駆動先(新品の{@code DocumentBuilder})
-	 * @param fromId 範囲先頭のEventId(sliceのordinalと1:1)
+	 * @param doc    Execution target (a fresh {@code DocumentBuilder})
+	 * @param fromId EventId at the start of the range (maps 1:1 to the slice ordinal)
 	 */
 	public SegmentExecutor(final DocumentBuilder doc, final long fromId) {
 		this(doc, fromId, AnchorMode.SOURCE);
@@ -104,7 +96,7 @@ public final class SegmentExecutor {
 		this.anchorMode = java.util.Objects.requireNonNull(anchorMode);
 	}
 
-	/** 独立したイベント列を順に駆動します。イベント番号の更新はexecuteだけが行います。 */
+	/** Executes an independent sequence of events in order. Only execute updates the event number. */
 	public void drive(final Iterable<? extends SegmentEvent> events) {
 		for (final SegmentEvent event : events) {
 			this.execute(event);
@@ -112,12 +104,11 @@ public final class SegmentExecutor {
 	}
 
 	/**
-	 * materialize済みparamsの{@code element}をこの再生セッションの正準
-	 * tokenへ差し替えます(E-6増分3b-4)。tokenは{@code StructureToken
-	 * .freeze}によりelementKey&gt;=0の実要素のみ({@code elementKey<0}は
-	 * static singletonの{@code CSSElement}がそのまま入るため対象外——
-	 * identityは共有singletonが既に保っている)。package-privateは
-	 * 単体テスト({@code StructureTokenTest})からの直接検証のため。
+	 * Replaces {@code element} in materialized params with the canonical token for this replay session
+	 * (E-6 increment 3b-4). {@code StructureToken.freeze} creates tokens only for real elements with
+	 * elementKey&gt;=0 ({@code elementKey<0} is excluded because the static singleton {@code CSSElement}
+	 * is stored directly; the shared singleton already preserves identity).
+	 * Package-private to allow direct verification from unit tests ({@code StructureTokenTest}).
 	 */
 	void internStructureToken(final net.zamasoft.foliojet.layout.box.params.Params params) {
 		if (params.element instanceof StructureToken token && token.elementKey() >= 0) {
@@ -126,9 +117,9 @@ public final class SegmentExecutor {
 	}
 
 	/**
-	 * 正規イベント({@link SegmentEvent})を1件駆動します。
-	 * {@link SegmentEvent.Barrier}は駆動不能——範囲の適格性は呼び出し側が
-	 * 事前に検証している契約のため、ここでは失敗にする。
+	 * Executes one canonical event ({@link SegmentEvent}).
+	 * {@link SegmentEvent.Barrier} cannot be executed; the caller must validate range eligibility
+	 * in advance, so encountering one here is a failure.
 	 */
 	public void execute(final SegmentEvent event) {
 		if (this.anchorMode == AnchorMode.NONE) {
@@ -147,13 +138,13 @@ public final class SegmentExecutor {
 	private void dispatch(final SegmentEvent event) {
 		switch (event) {
 		case SegmentEvent.Assignment assignment -> {
-			// 配置だけを組み直す。代入は確定頁の元アンカーから一度だけ実行する。
+			// Rebuild placement only. Run each assignment once from the original anchor on the finalized page.
 		}
 		case SegmentEvent.BeginBox(final BoxRecipe recipe) -> {
 			final BoxKind kind = recipe.kind();
 			if (kind == BoxKind.CAPTION && this.openTables == 0) {
-				// 最終防衛(C2): 表文脈なしのCAPTIONは範囲適格判定が
-				// 通さない契約——ここへ届いたら適格判定の欠陥
+				// Final safeguard (C2): range eligibility must reject CAPTION without
+				// table context; reaching this point indicates a defect in eligibility checking.
 				throw new IllegalStateException(
 						"表文脈(TABLE Start)の確立なしにCAPTIONを再生しようとしました: eventId=" + this.eventId);
 			}
@@ -161,10 +152,10 @@ public final class SegmentExecutor {
 				++this.openTables;
 			}
 			this.openKinds.push(event);
-			// strictLineBoxを含む記録値は、初回bind・計測・改頁・反復内容の再生で共通に使う。
+			// Recorded values, including strictLineBox, are shared by initial bind, measurement, page breaks, and repeated-content replay.
 			final INonReplacedBox box = BoxRecipeBoxFactory.create(recipe);
-			// PlacedTableも1個のTableBoxとして渡す。宿主はTableBuilderLifecycleが
-			// liveと同じ配置で組むため、ここで追加のBeginBox/EndBoxは生成しない。
+			// Pass PlacedTable as a single TableBox too. TableBuilderLifecycle builds its host
+			// with the same placement as the live path, so do not create extra BeginBox/EndBox events here.
 			this.internStructureToken(box.getParams());
 			if (this.anchorMode == AnchorMode.SOURCE) {
 				box.setSourceAnchor(this.eventId);
@@ -193,7 +184,7 @@ public final class SegmentExecutor {
 			this.doc.endAnonymousItem();
 		}
 		case SegmentEvent.Text(final int sourceOffset, final String text, final boolean fixed) -> {
-			// toCharArray()は毎回freshな配列(下流のin-place変換に安全)
+			// toCharArray() returns a fresh array each time (safe for downstream in-place transformations).
 			final char[] ch = text.toCharArray();
 			this.doc.characters(sourceOffset, ch, 0, ch.length, fixed);
 		}
@@ -206,8 +197,8 @@ public final class SegmentExecutor {
 			this.doc.addReplacedBox(box);
 		}
 		case SegmentEvent.Barrier barrier -> throw new IllegalStateException("barrier event in replay range: " + barrier);
-		// leader() L1: 駆動のたびにshape・割り付けし直す(可変状態を再生間で
-		// 共有しない——LeaderQuadはaddLeaderが新規生成する)
+		// leader() L1: reshape and reallocate on each execution (do not share mutable state
+		// across replays; addLeader creates a new LeaderQuad).
 		case SegmentEvent.Leader(final String pattern) -> this.doc.addLeader(pattern);
 		}
 	}

@@ -14,14 +14,14 @@ import net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 入力先頭からEOFまで一度ずつ駆動するB。Cの配達中にはMEASUREを接続しません。
- * B・報告listenerの例外は入力元へ伝播します。DirectSessionの既定では変換失敗となり、
- * disposeが未完資源を回収します。観測の例外を握りつぶして続行はしません。
+ * B, driven once from the start of input to EOF. Does not attach MEASURE while C delivers events.
+ * Exceptions from B or the reporting listener propagate to the input source. DirectSession defaults to conversion
+ * failure, and dispose reclaims unfinished resources. Observation exceptions are never swallowed to continue.
  */
 public final class FootnotePageProbe {
-	/** ページ規則から解決した予約前の内寸。ページ木・カウンタは共有しません。 */
+	/** Inner dimensions resolved from page rules, before reservation. Does not share page trees or counters. */
 	public record PageGeometry(double width, double height, net.zamasoft.foliojet.layout.box.params.WritingMode flow) { }
-	/** Cから初回の予約前幾何を借ります。名前遷移後は別途照会し、可変ページ木は保持しません。 */
+	/** Borrows C's initial geometry before reservation. Queries again after a name transition; retains no mutable page tree. */
 	public record PageStart(UserAgent ua, BlockParamsTemplate template, double width, double height, String pageName) {
 		public static PageStart capture(final PageBox page, final double width, final double height, final String pageName) {
 			return new PageStart(page.getUserAgent(), BlockParamsTemplate.freeze(page.getBlockParams()), width, height, pageName);
@@ -29,8 +29,8 @@ public final class FootnotePageProbe {
 	}
 
 	/**
-	 * 各配達後の回収済み安全点を渡す試験用観測です。resourcesBeforeReclaimだけは
-	 * 同じ回収の直前の登録数で、closed時は0。resourcesには移動pinも含みます。
+	 * A test observer that receives the reclaimed safe point after each delivery. Only resourcesBeforeReclaim
+	 * is the registration count just before that reclamation, or 0 when closed. resources also includes moving pins.
 	 */
 	public record Retention(boolean closed, boolean inputFinished, int pages, long nextId, long pin,
 			long unfinishedFrom, int resources, int leases, long currentBytes, int compactionRequests,
@@ -38,7 +38,7 @@ public final class FootnotePageProbe {
 			long mainGeneration, int retainedReports) { }
 	static volatile java.util.function.Consumer<Retention> retentionObserver;
 
-	/** Cの未配達キューと主ログ。windowDeliveriesは世代待ちを入力位置で進めた件数。 */
+	/** C's undelivered queue and main log. windowDeliveries counts generation waits advanced by input position. */
 	public record WindowRetention(long currentBytes, int deliveries, long reportGeneration, long mainGeneration,
 			long windowDeliveries, LayoutSource.RetentionSnapshot source, long sourceBytes, int retainedReports) { }
 
@@ -61,7 +61,7 @@ public final class FootnotePageProbe {
 	private int charOffset, pages;
 	private boolean inputFinished, closed;
 
-	/** 最初のC入力の途中でも、接続せずにpinを取得できます。 */
+	/** Can acquire a pin without attaching, even during the first C input. */
 	public FootnotePageProbe(final PageStart start, final LayoutSource source) {
 		this(start, source, start.ua().getUAContext().getFootnotePageProbeListener());
 	}
@@ -78,26 +78,26 @@ public final class FootnotePageProbe {
 		this.ua.getUAContext().footnotePageProbeCreated();
 	}
 
-	/** Bのページ名と出力済み枚数で照会します。Cのページ進行は起こしません。 */
+	/** Queries with B's page name and number of emitted pages. Does not advance C's pages. */
 	public void setPageGeometry(final java.util.function.BiFunction<String, Integer, PageGeometry> geometry) {
 		this.pageGeometry = geometry;
 	}
 
-	/** Bの回収安全点でsinkの報告保持量も同時に採ります。 */
+	/** Also samples the sink's retained reports at B's reclamation safe point. */
 	public void observeReports(final java.util.function.LongSupplier generation, final java.util.function.IntSupplier reports) {
 		this.mainGeneration = generation;
 		this.retainedReports = reports;
 	}
 
-	/** 注のrecipeを凍結する時点の呼び出し側の幅です。 */
+	/** The caller's width when the note recipe is frozen. */
 	public double namedPageWidth() {
 		return this.generator == null ? Double.NaN : this.generator.namedPageWidth();
 	}
 
 	private void start() {
 		this.generator = new MeasurePageGenerator(this.ua, this.start.template(), this.start.width(), this.start.height(), this.source);
-		// Cはhtmlのpage名を初回ページの生成前に設定済み。同じ名前から始め、
-		// ルートflowを開く前の偽の名前遷移と、B/Cの世代ずれを防ぐ。
+		// C has already set the html page name before creating the initial page. Start with the same name
+		// to prevent a spurious name transition before opening the root flow and a B/C generation mismatch.
 		this.generator.setPageName(this.start.pageName());
 		this.generator.setPageGeometry(this.pageGeometry);
 		this.start = null;
@@ -108,7 +108,7 @@ public final class FootnotePageProbe {
 		this.generator.setDeliveredEventEnd(() -> this.eventId + 1);
 	}
 
-	/** B自身のlive境界を、実イベントの記録前に判定します。接続はこの呼び出しだけです。 */
+	/** Checks B's own live boundary before recording the real event. Attaches only for this call. */
 	public LayoutSource.Event preDispatch(final DocumentBuilder.DispatchEvent type, final IBox box, final long nextId) {
 		try (final ScratchReplayScope scope = this.owner.attach()) {
 			if (this.doc == null) this.start();
@@ -118,7 +118,7 @@ public final class FootnotePageProbe {
 		}
 	}
 
-	/** 境界・実イベントの記録後に新品を配達する。1イベント内の複数改頁も止めません。 */
+	/** Delivers fresh instances after recording boundaries and real events. Allows multiple page breaks within one event. */
 	public void deliver(final DocumentBuilder.DispatchEvent type, final LayoutSource.Event event,
 			final long id, final LayoutSource.Event boundary) {
 		try (final ScratchReplayScope scope = this.owner.attach()) {
@@ -127,7 +127,7 @@ public final class FootnotePageProbe {
 			this.deliveryStart = boundary == null ? id : id - 1;
 			++this.deliveredEvents;
 			final IBox fresh = this.materialize(event, id);
-			// preDispatchが確保した元anchorを使い、Bも生イベントの通常経路で開閉する。
+			// Use the original anchor acquired by preDispatch; B also opens and closes through the normal raw-event path.
 			this.dispatch(event, id, fresh);
 			this.charOffset = Math.max(this.charOffset, this.doc.getDeliveredCharEnd());
 		} catch (final RuntimeException failure) {
@@ -147,7 +147,7 @@ public final class FootnotePageProbe {
 				page.lastPage() ? FootnotePageProbeReport.Completion.END_OF_INPUT : FootnotePageProbeReport.Completion.DRAW_PAGE, bytes));
 	}
 
-	/** 未完宿主・改頁残余・配達中イベントを残し、終了したMEASURE所有だけを回収します。 */
+	/** Reclaims only completed MEASURE ownership, retaining unfinished hosts, page-break remainders, and events in delivery. */
 	private void reclaim() {
 		try {
 			this.reclaimResources();
@@ -183,7 +183,7 @@ public final class FootnotePageProbe {
 		default -> null;
 		};
 		if (box != null) {
-			// SegmentExecutorと同じ、再生セッション内だけの構造token共有。
+			// Share structural tokens only within the replay session, as in SegmentExecutor.
 			final var params = box.getParams();
 			if (params.element instanceof net.zamasoft.foliojet.layout.segment.StructureToken token
 					&& token.elementKey() >= 0) {
@@ -222,7 +222,7 @@ public final class FootnotePageProbe {
 		}
 	}
 
-	/** 全End配達後だけ正常終了し、最終ページ・note-onlyページも通常のdrawで報告します。 */
+	/** Finishes normally only after all End deliveries; reports the final and note-only pages through normal draw. */
 	public void finishInput(final boolean completeStructure) {
 		if (completeStructure) {
 			try (final ScratchReplayScope scope = this.owner.attach()) {
@@ -236,7 +236,7 @@ public final class FootnotePageProbe {
 		}
 	}
 
-	/** ページ報告とは別の寿命終端。未完宿主をsealせず、例外時も所有者を清算します。 */
+	/** A lifetime endpoint separate from page reporting. Cleans up owners even on exception, without sealing unfinished hosts. */
 	public void discard() {
 		if (this.closed) return;
 		this.closed = true;

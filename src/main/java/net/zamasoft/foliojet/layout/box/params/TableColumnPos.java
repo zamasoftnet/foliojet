@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * テーブルカラムまたはカラムグループのパラメータです。
- * 
+ * Parameters for a table column or column group.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: TableColumnPos.java 1552 2018-04-26 01:43:24Z miyabe $
  */

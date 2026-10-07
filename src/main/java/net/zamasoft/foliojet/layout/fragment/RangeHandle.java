@@ -7,19 +7,19 @@ import net.zamasoft.foliojet.layout.builder.PageGenerator;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
-/** seal済み本文の範囲・寸法と、そのリースまたは文字sliceの単一所有者です。 */
+/** The sole owner of a sealed body's range and dimensions, and of its lease or text slice. */
 public final class RangeHandle {
-	/** fromId/toIdはモードに応じてseal時に切り出した実際の再生閉区間です。 */
+	/** fromId/toId are the actual closed replay interval extracted at seal time according to the mode. */
 	public enum ReplayMode {
-		/** 既存の根(通常のTwoPass・takeover項目)の子だけ: [anchor+1, end-1]。 */
+		/** Only children of an existing root (ordinary TwoPass or takeover item): [anchor+1, end-1]. */
 		CHILDREN_ONLY,
-		/** 中立wrapper内へauthored rootも再構築: [anchor, end]。置換要素は[anchor, anchor]。 */
+		/** Also rebuilds the authored root inside a neutral wrapper: [anchor, end]; replaced elements: [anchor, anchor]. */
 		ROOTED_SUBTREE,
-		/** 匿名項目の合成Start/Endを除く子: [anchor+1, end-1]。 */
+		/** Children excluding an anonymous item's synthetic Start/End: [anchor+1, end-1]. */
 		ANONYMOUS_CHILDREN
 	}
 
-	/** 終端からの再生・再終端は許しません。 */
+	/** Disallows replay or repeated termination from a terminal state. */
 	public enum State { OPEN, CONSUMED, SUBSUMED, ABANDONED }
 
 	private final LayoutSource source;
@@ -35,18 +35,18 @@ public final class RangeHandle {
 	private boolean scratchComplete;
 	private java.util.function.Consumer<State> ownerStateObserver;
 
-	/** 試験専用の観測点。通常変換ではnullで、ハンドルを全域に保持しません。 */
+	/** Test-only observation point. Null in normal conversion; does not retain handles globally. */
 	static volatile java.util.function.Consumer<RangeHandle> sealObserver;
 	static volatile java.util.function.BiConsumer<RangeHandle, ReplayIntent> replayStartObserver;
 	static volatile java.util.function.BiConsumer<RangeHandle, ReplayIntent> replayObserver;
 
-	/** 検証済みの閉区間を保持します。寸法は不変値のスナップショットです。 */
+	/** Retains a validated closed interval. Dimensions are an immutable snapshot. */
 	public RangeHandle(final LayoutSource source, final long fromId, final long toId,
 			final IntrinsicSizes sizes, final ReplayMode replayMode) {
 		this(source, fromId, toId, sizes, replayMode, false);
 	}
 
-	/** sliceTextは親範囲に吸収されないRetained表のセルだけが指定する。 */
+	/** Only Retained table cells not absorbed into a parent range specify sliceText. */
 	public RangeHandle(final LayoutSource source, final long fromId, final long toId,
 			final IntrinsicSizes sizes, final ReplayMode replayMode, final boolean sliceText) {
 		this.source = Objects.requireNonNull(source);
@@ -86,9 +86,9 @@ public final class RangeHandle {
 	public boolean hasTextSlice() { return this.textSlice != null; }
 
 	/**
-	 * 宿主の最後のbind、または配置しない宿主のcloseから呼ぶ寿命終端通知。
-	 * MEASUREによる借用は終端ではない。他のscratchやMAINの本文には触れない。
-	 * 実際のabandonは配達・再生から戻った所有者の安全点で行う。
+	 * Lifetime-end notification called by the host's final bind, or close for a host that is not placed.
+	 * Borrowing through MEASURE is not termination. Does not touch bodies of other scratches or MAIN.
+	 * Actual abandon occurs at the owner's safe point after delivery/replay returns.
 	 */
 	public void completeScratchHost() {
 		if (this.scratchOwner != null && this.scratchOwner == ScratchReplayScope.currentOwner()) {
@@ -99,7 +99,7 @@ public final class RangeHandle {
 
 	boolean isScratchComplete() { return this.scratchComplete; }
 
-	/** 宿主のownership ledgerへ終端を通知する。detach時はnullで関連を切る。 */
+	/** Notifies the host's ownership ledger of termination. Null severs the association on detach. */
 	public void observeOwnerState(final java.util.function.Consumer<State> observer) {
 		this.ownerStateObserver = observer;
 		if (observer != null && this.state != State.OPEN) {
@@ -109,13 +109,13 @@ public final class RangeHandle {
 
 	private void notifyOwnerState() {
 		final var observer = this.ownerStateObserver;
-		this.ownerStateObserver = null; // 終端後のハンドルから宿主を保持しない。
+		this.ownerStateObserver = null; // Do not retain the host through a terminated handle.
 		if (observer != null) {
 			observer.accept(this.state);
 		}
 	}
 
-	/** 表セル専用の収支も同じ終端で計上するための印です。 */
+	/** A marker for recording table-cell-specific accounting at the same termination point. */
 	public void markCell() {
 		this.requireOpen();
 		if (this.cell) {
@@ -125,7 +125,7 @@ public final class RangeHandle {
 		ContinuationStats.recordCellRangeSeal();
 	}
 
-	/** 本配置。成功・失敗を問わずCONSUMEDになり、リースを一度だけ閉じます。 */
+	/** Final placement. Becomes CONSUMED on success or failure and closes the lease exactly once. */
 	public void bind(final BlockBuilder builder, final PageGenerator pageGenerator) {
 		this.requireOpen();
 		if (ReplayIntent.current() == ReplayIntent.MEASURE) {
@@ -148,7 +148,7 @@ public final class RangeHandle {
 		}
 	}
 
-	/** 一時計測。元のハンドルとリースはOPENのまま残します。 */
+	/** Temporary measurement. Leaves the original handle and lease OPEN. */
 	public void measure(final BlockBuilder builder, final PageGenerator pageGenerator) {
 		this.requireOpen();
 		this.replaying = true;
@@ -192,7 +192,7 @@ public final class RangeHandle {
 		}
 	}
 
-	/** 親のリース取得後、親範囲の再生へ所有を移します。 */
+	/** Transfers ownership to replay of the parent range after acquiring the parent's lease. */
 	public void subsume() {
 		if (this.textSlice != null) throw new IllegalStateException("吸収対象外のセルsliceを親へ移せません");
 		this.terminate(State.SUBSUMED);
@@ -203,8 +203,9 @@ public final class RangeHandle {
 	}
 
 	/**
-	 * 一時ビルダー等、再生しない本文を破棄します。終了通知が失敗しても終端状態を保ち、
-	 * リース・textSliceを解放します。通知の例外は呼び出し側へ伝えます。
+	 * Discards bodies that will not be replayed, such as those of temporary builders.
+	 * Preserves terminal state and releases the lease/textSlice even if the termination notification fails.
+	 * Propagates notification exceptions to the caller.
 	 */
 	public void abandon() {
 		this.terminate(State.ABANDONED);
@@ -220,7 +221,7 @@ public final class RangeHandle {
 		try {
 			this.notifyOwnerState();
 		} finally {
-			// 所有状態の通知が失敗しても、終端した範囲と本文の所有は残さない。
+			// Even if ownership-state notification fails, retain no ownership of the terminated range or body.
 			this.source.releaseRange(this);
 			this.releaseBody();
 		}

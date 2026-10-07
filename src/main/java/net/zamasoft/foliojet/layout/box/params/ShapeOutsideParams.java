@@ -1,30 +1,34 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 浮動体の{@code shape-outside}・{@code shape-margin}・
- * {@code shape-image-threshold}をまとめた不変パラメータです
- * (css-shapes-1、2026-08-29新設)。
+ * Immutable parameters combining a float's {@code shape-outside}, {@code shape-margin}, and {@code
+ * shape-image-threshold} (css-shapes-1, added 2026-08-29).
  *
  * <p>
- * {@link FloatPos}に載せて運ぶ(構築時に一度だけ書く——
- * {@code BlockBuilder}の排除域スナップショットは{@code FloatPos}を
- * 台帳追加後に読み直さない前提なので、ここは全フィールドfinalで
- * 後から書き換えられない形にしておく)。実際の排除形状は配置後の
- * 浮動体の寸法が決まってから{@code FloatShapeResolver}が解決する。
+ * Carried on {@link FloatPos}, written only once during construction. The exclusion-area snapshot in {@code
+ * BlockBuilder} assumes that it does not reread {@code FloatPos} after adding it to the ledger, so all fields here
+ * are final and cannot be changed later. {@code FloatShapeResolver} resolves the actual exclusion shape once the
+ * placed float's dimensions are known.
  * </p>
  *
  * <p>
- * {@code shape}と{@code image}は排他: {@code url()}指定で画素が得られた
- * ときだけ{@code image}を持ち、それ以外(basic-shape・shape-boxのみ・
- * 画像を解決できない計測パス)は{@code shape}を持つ。
+ * {@code shape} and {@code image} are mutually exclusive: {@code image} is present only when a {@code url()}
+ * specification yields pixels. All other cases (a basic-shape, a shape-box alone, or a measurement pass that cannot
+ * resolve the image) use {@code shape}.
  * </p>
  */
 public final class ShapeOutsideParams {
-	/** 基本形状または参照ボックスのみ(参照ボックスは{@code shape.referenceBox})。imageがある場合はnull。 */
+	/**
+	 * A basic shape or reference box alone (the reference box is {@code shape.referenceBox}). Null if image is
+	 * present.
+	 */
 	public final ClipPathShape shape;
-	/** {@code url()}画像から抽出した不透明画素の輪郭(閾値適用済み)。基本形状の場合はnull。 */
+	/**
+	 * The outline of opaque pixels extracted from a {@code url()} image, after thresholding. Null for a basic
+	 * shape.
+	 */
 	public final ShapeImage image;
-	/** {@code shape-margin}(%は包含ブロックの行方向幅基準)。 */
+	/** {@code shape-margin} (% refers to the containing block's line-axis width). */
 	public final Length margin;
 
 	public ShapeOutsideParams(final ClipPathShape shape, final ShapeImage image, final Length margin) {
@@ -37,22 +41,21 @@ public final class ShapeOutsideParams {
 	}
 
 	/**
-	 * 画像由来の形状です。画素そのものは持たず、行ごと・列ごとの
-	 * 「閾値を超える画素の範囲」だけを保持する(排除域の照会は行方向の
-	 * 帯ごとの最大/最小しか要らないので、これで十分かつ画像1枚分の
-	 * メモリを台帳に抱え込まずに済む)。
+	 * An image-derived shape. Keeps no pixels, only the ranges of pixels exceeding the threshold in each row and
+	 * column. Exclusion-area queries need only the maximum/minimum for each band along the line axis, so this is
+	 * sufficient and avoids retaining an entire image in the ledger.
 	 *
-	 * @param width  画素幅
-	 * @param height 画素高さ
-	 * @param rowMin 各行の最初の不透明画素x(なければ-1)
-	 * @param rowMax 各行の最後の不透明画素x(なければ-1)
-	 * @param colMin 各列の最初の不透明画素y(なければ-1)
-	 * @param colMax 各列の最後の不透明画素y(なければ-1)
+	 * @param width  width in pixels
+	 * @param height height in pixels
+	 * @param rowMin x of the first opaque pixel in each row (-1 if none)
+	 * @param rowMax x of the last opaque pixel in each row (-1 if none)
+	 * @param colMin y of the first opaque pixel in each column (-1 if none)
+	 * @param colMax y of the last opaque pixel in each column (-1 if none)
 	 */
 	public record ShapeImage(int width, int height, int[] rowMin, int[] rowMax, int[] colMin, int[] colMax) {
 		/**
-		 * {@code shape-image-threshold}を適用して画像から輪郭範囲を抽出します
-		 * (css-shapes-1 §3.2: 不透明度が閾値<b>より大きい</b>画素が形状)。
+		 * Extracts outline ranges from an image by applying {@code shape-image-threshold} (css-shapes-1 §3.2:
+		 * pixels with opacity <b>greater than</b> the threshold form the shape).
 		 */
 		public static ShapeImage extract(final java.awt.image.BufferedImage pixels, final double threshold) {
 			final int w = pixels.getWidth(), h = pixels.getHeight();

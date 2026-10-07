@@ -4,32 +4,31 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * {@code @container}クエリのための、要素の事実です(2026-08-15段4——
- * 開発記録 §2)。
- * {@code CSSElement.elementKey}をキーとする点は{@link SelectorFacts}と同じ。
+ * Element facts for {@code @container} queries (2026-08-15, stage 4; development record §2).
+ * Like {@link SelectorFacts}, this uses {@code CSSElement.elementKey} as the key.
  *
  * <p>
- * 2種類の事実を持つ。区別する理由は寿命と書き込み時点が違うため:
+ * Stores two kinds of facts separately because their lifetimes and write timing differ:
  * </p>
  * <ul>
- * <li><b>コンテナ種別・名前</b>: その要素自身の{@code container-type}/
- * {@code container-name}(値の型は{@code container-type: inline-size}か
- * どうかの1bitと名前の並びだけ)。**スタイル解決の時点**(要素の宣言が
- * 確定した直後、レイアウトより前)で書き込める。値は要素の指定値そのもの
- * なので、パスをまたいで変わらない——上書きしても実害はないが、
- * {@link #reset()}のタイミングはSelectorFactsと合わせる。</li>
- * <li><b>実測inline-size</b>: レイアウト確定後(設計§2「finishLayoutで
- * 寸法を確定した時点」)にしか分からない。**このパスの値で毎回上書き**
- * する(:has()の「一度真になったら不変」とは逆——寸法は前のパスより
- * 縮むことも伸びることもある)。次のパス(N+1)の{@code StyleContext.merge}
- * が読む。パス1には値が無い(={@link #getInlineSize}が{@code NaN})ため、
- * 全クエリが偽になり現状のフォールバックと一致する(設計§2)。</li>
+ * <li><b>Container type and names</b>: the element's own {@code container-type}/
+ * {@code container-name} (the value consists only of one bit indicating
+ * {@code container-type: inline-size} and a list of names). These can be written
+ * **during style resolution** (just after the element's declarations are finalized, before layout).
+ * They are the element's specified values and do not change across passes. Overwriting them is harmless,
+ * but the timing of {@link #reset()} follows SelectorFacts.</li>
+ * <li><b>Measured inline-size</b>: known only after layout is finalized (design §2, "when finishLayout
+ * finalizes the dimensions"). **Overwrite it with this pass's value every time**
+ * (unlike :has(), which never changes once true: dimensions can shrink or grow from the previous pass).
+ * {@code StyleContext.merge} in the next pass (N+1) reads it.
+ * Pass 1 has no value ({@link #getInlineSize} returns {@code NaN}), so all queries are false,
+ * matching the current fallback (design §2).</li>
  * </ul>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class ContainerFacts {
-	/** 不動点判定の許容差(pt)。{@code LayoutUtils.THRESHOLD}と同じ値(設計§3)。 */
+	/** Tolerance for fixed-point detection (pt). Same value as {@code LayoutUtils.THRESHOLD} (design §3). */
 	private static final double CONVERGENCE_THRESHOLD = 0.5;
 
 	private Map<Long, String[]> containerNames;
@@ -37,25 +36,27 @@ public final class ContainerFacts {
 	private Map<Long, Double> inlineSize;
 
 	/**
-	 * 直前のパス開始時点の{@link #inlineSize}の写し(段5——設計§3/§4の
-	 * 不動点判定用)。{@link #beginPass()}が毎パス開始時に更新する。
+	 * Snapshot of {@link #inlineSize} at the start of the previous pass
+	 * (stage 5, for fixed-point detection in design §3/§4).
+	 * {@link #beginPass()} updates it at the start of each pass.
 	 */
 	private Map<Long, Double> previousInlineSize;
 
-	/** 2つ前のパス開始時点の写し(段7——振動検出用)。 */
+	/** Snapshot at the start of the pass two passes ago (stage 7, for oscillation detection). */
 	private Map<Long, Double> beforePreviousInlineSize;
 
 	/**
-	 * 振動を検出して値を固定したコンテナ(段7、設計§4「振動は狭いほうへ寄せる」)。
-	 * 一度固定したら以降のパスでは書き換えない。
+	 * Containers whose values are locked after detecting oscillation
+	 * (stage 7, design §4, "resolve oscillation toward the narrower size").
+	 * Once locked, they are not overwritten in subsequent passes.
 	 */
 	private Map<Long, Double> pinnedInlineSize;
 
 	/**
-	 * このパスで新たに事実を記録する前に呼びます。{@link SelectorFacts#reset()}
-	 * と同じくSTRUCTURE_SCAN開始時に1回だけ呼べば足りる——以降の全パスで
-	 * 蓄積・上書きし続ける({@code container-type}/{@code container-name}が
-	 * 消えることは無いため)。
+	 * Call before recording new facts in this pass. Like {@link SelectorFacts#reset()},
+	 * this only needs to be called once at the start of STRUCTURE_SCAN. Subsequent passes
+	 * keep accumulating and overwriting facts because {@code container-type}/{@code container-name}
+	 * never disappear.
 	 */
 	public void reset() {
 		this.containerNames = null;
@@ -66,10 +67,10 @@ public final class ContainerFacts {
 	}
 
 	/**
-	 * 実レイアウトを伴う各パス(MIDDLE_PASS/LAST_PASS)の開始時に呼びます
-	 * (段5、設計§3「パスN-1の寸法でクエリ評価→レイアウト→寸法を記録」の
-	 * 「パスN-1の寸法」を固定するためのスナップショット)。STRUCTURE_SCAN/
-	 * DOCUMENT(1パス変換)では呼ばない——寸法事実そのものが無い。
+	 * Call at the start of each pass that performs actual layout (MIDDLE_PASS/LAST_PASS).
+	 * This snapshot fixes the "dimensions from pass N-1" in stage 5, design §3:
+	 * "evaluate queries using pass N-1 dimensions, perform layout, then record dimensions."
+	 * Do not call during STRUCTURE_SCAN/DOCUMENT (single-pass conversion): there are no dimension facts.
 	 */
 	public void beginPass() {
 		this.beforePreviousInlineSize = this.previousInlineSize;
@@ -77,15 +78,15 @@ public final class ContainerFacts {
 	}
 
 	/**
-	 * 直近の{@link #beginPass()}以降に書き込まれた実測inline-sizeが、
-	 * その直前(スナップショット時点)から不動点に達しているか(設計§3/§4)。
-	 * 判定は0.5pt許容差。片方にしか無いキー(新たにコンテナと判明した、
-	 * または前パスでは無かった)も不一致として扱う。
+	 * Whether the measured inline-sizes written since the latest {@link #beginPass()}
+	 * have reached a fixed point relative to the preceding snapshot (design §3/§4).
+	 * Uses a tolerance of 0.5 pt. A key present on only one side (newly identified as a container,
+	 * or absent in the previous pass) also counts as a mismatch.
 	 *
 	 * <p>
-	 * 振動(周期2)は{@link #setInlineSize}が検出して狭いほうへ固定するので、
-	 * 固定後は不動点として扱われる(=ここでは収束と判定される)。固定が
-	 * 起きたかどうかは{@link #hasOscillation()}で分かる。
+	 * {@link #setInlineSize} detects period-2 oscillation and locks the value to the narrower size.
+	 * Once locked, the value is treated as a fixed point (and therefore as converged here).
+	 * {@link #hasOscillation()} indicates whether any value was locked.
 	 * </p>
 	 */
 	public boolean isConverged() {
@@ -109,11 +110,11 @@ public final class ContainerFacts {
 	}
 
 	/**
-	 * elementKeyの要素が{@code container-type: inline-size}のクエリコンテナ
-	 * であることを記録します。{@code normal}(非コンテナ)は記録しない
-	 * (=容量節約。{@link #isInlineSizeContainer}がfalseを返す既定と一致)。
-	 * {@code container-type: size}は第1段階の対象外のためここでは記録しない
-	 * (設計§4「container-type: sizeは初回に入れない」)。
+	 * Records that the element with elementKey is a {@code container-type: inline-size} query container.
+	 * Does not record {@code normal} (non-container), saving space and matching the default false
+	 * returned by {@link #isInlineSizeContainer}.
+	 * Does not record {@code container-type: size}, which is outside the first stage's scope
+	 * (design §4, "exclude container-type: size from the initial implementation").
 	 */
 	public void setInlineSizeContainer(long elementKey, String[] names) {
 		if (this.containerNames == null) {
@@ -126,7 +127,7 @@ public final class ContainerFacts {
 		return this.containerNames != null && this.containerNames.containsKey(elementKey);
 	}
 
-	/** そのコンテナの{@code container-name}(無名なら空配列)。 */
+	/** The container's {@code container-name} (an empty array if unnamed). */
 	public String[] getContainerNames(long elementKey) {
 		if (this.containerNames == null) {
 			return EMPTY_NAMES;
@@ -138,14 +139,14 @@ public final class ContainerFacts {
 	private static final String[] EMPTY_NAMES = new String[0];
 
 	/**
-	 * レイアウト確定後の、そのコンテナのused inline-size(pt)を記録します。
+	 * Records the container's used inline-size (pt) after layout is finalized.
 	 *
 	 * <p>
-	 * 段7(設計§4後半): 周期2の<b>振動</b>——「合致すると縮み、外れると伸びる」
-	 * クエリは値がA→B→A→B…と往復して不動点に達しない——を検出したら、
-	 * <b>狭いほうへ寄せて固定</b>する。狭いほうはフォールバック側であり、
-	 * 現在の挙動に近く内容が欠けにくいため。一度固定したコンテナは以降の
-	 * パスで書き換えない(固定が次のパスで再び揺れては意味がない)。
+	 * Stage 7 (second half of design §4): detect period-2 <b>oscillation</b>, where a query that
+	 * "shrinks when matched and grows when unmatched" alternates A→B→A→B… without reaching a fixed point,
+	 * and <b>lock it to the narrower size</b>. The narrower size is the fallback side, closer to
+	 * the current behavior and less likely to lose content. Once locked, a container is not overwritten
+	 * in subsequent passes (locking would be pointless if it oscillated again in the next pass).
 	 * </p>
 	 */
 	public void setInlineSize(long elementKey, double lengthPt) {
@@ -160,7 +161,7 @@ public final class ContainerFacts {
 				return;
 			}
 		}
-		// 今回値がN-2の値と一致し、かつN-1の値とは違う ＝ 周期2の往復
+		// The current value matches N-2 but differs from N-1: a period-2 oscillation.
 		final Double twoAgo = this.beforePreviousInlineSize == null ? null
 				: this.beforePreviousInlineSize.get(key);
 		final Double oneAgo = this.previousInlineSize == null ? null : this.previousInlineSize.get(key);
@@ -178,12 +179,12 @@ public final class ContainerFacts {
 		this.inlineSize.put(key, lengthPt);
 	}
 
-	/** 振動を検出して値を固定したコンテナがあるか(診断用)。 */
+	/** Whether any container's value was locked after detecting oscillation (for diagnostics). */
 	public boolean hasOscillation() {
 		return this.pinnedInlineSize != null && !this.pinnedInlineSize.isEmpty();
 	}
 
-	/** 前パスまでの実測inline-size(pt)。未確定なら{@code Double.NaN}。 */
+	/** Measured inline-size (pt) through the previous pass. {@code Double.NaN} if not yet determined. */
 	public double getInlineSize(long elementKey) {
 		if (this.inlineSize == null) {
 			return Double.NaN;

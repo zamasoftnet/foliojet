@@ -1,13 +1,13 @@
 package net.zamasoft.foliojet.css.container;
 
 /**
- * {@code @container}条件内の単一特性式です(2026-08-15段3——
- * 開発記録 §5)。
+ * A single feature expression in a {@code @container} condition (2026-08-15 stage 3;
+ * development record §5).
  *
  * <p>
- * 第1段階では{@code container-type: inline-size}だけを対象とするため、
- * {@code width}系と{@code inline-size}系の特性名は同じ軸(インライン寸法)
- * として扱い、区別しない。
+ * Phase 1 supports only {@code container-type: inline-size},
+ * so feature names in the {@code width} and {@code inline-size} families
+ * refer to the same axis (inline dimension) and are not distinguished.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -19,7 +19,7 @@ final class ContainerFeature {
 
 	final Kind kind;
 
-	/** 比較対象の長さ(pt)。 */
+	/** Length to compare against (pt). */
 	final double length;
 
 	ContainerFeature(Kind kind, double length) {

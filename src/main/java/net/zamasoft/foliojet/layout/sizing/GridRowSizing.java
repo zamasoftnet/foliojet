@@ -3,18 +3,18 @@ package net.zamasoft.foliojet.layout.sizing;
 import java.util.List;
 
 /**
- * Gridの行高解決です(Grid G4d、2026-07-31——
- * consult-codex-2026-07-31-grid-g4.txt Q2)。boxに依存しない純粋計算。
- * rowSpan=1のitemを先にmax集約し、spanの小さい順に「不足=item実高−
- * 内側rowGap−跨ぐ行高の合計」を各行へ{@code 不足/rowSpan}ずつ均等
- * 加算する。同一span長のitemはplanned increase(最大必要増分)へ
- * 蓄積してまとめて反映=item走査順に依存しない。
+ * Resolves Grid row heights (Grid G4d, 2026-07-31:
+ * consult-codex-2026-07-31-grid-g4.txt Q2). A pure calculation independent of boxes.
+ * First aggregates maxima for items with rowSpan=1, then processes spans in ascending order.
+ * Adds "deficit=actual item height−internal rowGap−sum of spanned row heights" equally to each row
+ * as {@code deficit/rowSpan}. Items with the same span length accumulate into planned increases
+ * (maximum required increments), applied together, so item traversal order does not matter.
  *
  * @author MIYABE Tatsuhiko
  */
 public final class GridRowSizing {
 
-	/** item以外から行サイジングへ渡す寄与(行は呼び出し元ローカル)。 */
+	/** A contribution to row sizing from outside the items (rows are local to the caller). */
 	public record Contribution(int row, int span, double extent) {
 	}
 
@@ -23,13 +23,13 @@ public final class GridRowSizing {
 	}
 
 	/**
-	 * 行高を解決します。
+	 * Resolves row heights.
 	 *
-	 * @param areas       各itemの確定area(source order)
-	 * @param itemExtents 各itemのページ方向実高(bind後)
-	 * @param rowCount    総行数
-	 * @param rowGap      行間gap
-	 * @return 各行の高さ(空行は0)
+	 * @param areas       Definite area of each item (source order)
+	 * @param itemExtents Actual page-axis height of each item (after bind)
+	 * @param rowCount    Total row count
+	 * @param rowGap      Gap between rows
+	 * @return Height of each row (0 for empty rows)
 	 */
 	public static double[] resolve(final List<GridPlacementResolver.GridArea> areas, final double[] itemExtents,
 			final int rowCount, final double rowGap) {
@@ -37,15 +37,15 @@ public final class GridRowSizing {
 	}
 
 	/**
-	 * itemと追加寄与から行高を解決します。追加寄与は各spanについてitemの
-	 * 後に、同じplanned increaseの算術で処理します(2026-09-03)。
+	 * Resolves row heights from items and extra contributions. For each span, processes extra
+	 * contributions after items with the same planned-increase arithmetic (2026-09-03).
 	 *
-	 * @param areas       各itemの確定area(source order)
-	 * @param itemExtents 各itemのページ方向実高(bind後)
-	 * @param rowCount    総行数
-	 * @param rowGap      行間gap
-	 * @param extra       item以外からの追加寄与(source order)
-	 * @return 各行の高さ(空行は0)
+	 * @param areas       Definite area of each item (source order)
+	 * @param itemExtents Actual page-axis height of each item (after bind)
+	 * @param rowCount    Total row count
+	 * @param rowGap      Gap between rows
+	 * @param extra       Extra contributions from outside the items (source order)
+	 * @return Height of each row (0 for empty rows)
 	 */
 	public static double[] resolve(final List<GridPlacementResolver.GridArea> areas, final double[] itemExtents,
 			final int rowCount, final double rowGap, final List<Contribution> extra) {

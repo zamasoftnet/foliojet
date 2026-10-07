@@ -3,14 +3,14 @@ package net.zamasoft.foliojet.layout.builder.impl;
 import java.util.Comparator;
 
 /**
- * 行結合(rowspan)の分配要求です(P2-2 共有核の入力)。
+ * Distribution request for a row span (rowspan) (input to the P2-2 shared kernel).
  */
 public class Rowspan {
-	/** 行番号(0オリジン) */
+	/** Row index (zero-based) */
 	public final int row;
-	/** 結合される行の数 */
+	/** Number of spanned rows */
 	public final int span;
-	/** 最小幅 */
+	/** Minimum width */
 	public double min;
 
 	public Rowspan(int row, int span) {

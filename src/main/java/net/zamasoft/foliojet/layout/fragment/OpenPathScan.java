@@ -9,15 +9,14 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 
 /**
- * {@code flowStack}の収集可能プレフィックススキャンの結果です
- * (2026-07-21新設、M6b Phase B B2)。{@link #capture}は副作用を持たない
- * (統計カウンタへの記録は呼び出し側の責務——{@link OpenPathSnapshot}の
- * 構築とスキャンの実行を、観測(統計)から分離するため)。
+ * The result of scanning the collectable prefix of {@code flowStack}
+ * (introduced 2026-07-21, M6b Phase B B2). {@link #capture} has no side effects:
+ * callers are responsible for updating statistics counters, separating construction of
+ * {@link OpenPathSnapshot} and execution of the scan from observation (statistics).
  *
- * @param snapshot      全レベルの分類結果
- * @param approvedBoxes 先頭から最初の違反レベルまでの収集可能な祖先
- *                      ({@link BreakPlan}の{@code chain}に相当。
- *                      {@code root}は含まない)
+ * @param snapshot classification results for all levels
+ * @param approvedBoxes collectable ancestors from the start up to the first violating level
+ * (equivalent to {@code chain} in {@link BreakPlan} ; excludes {@code root} )
  */
 public record OpenPathScan(OpenPathSnapshot snapshot, List<AbstractContainerBox> approvedBoxes) {
 
@@ -25,22 +24,22 @@ public record OpenPathScan(OpenPathSnapshot snapshot, List<AbstractContainerBox>
 		approvedBoxes = List.copyOf(approvedBoxes);
 	}
 
-	/** 既存の{@link BreakPlan}機構への変換(挙動不変であることの根拠)。 */
+	/** Converts to the existing {@link BreakPlan} mechanism (the basis for unchanged behavior). */
 	public BreakPlan toBreakPlan() {
 		return new BreakPlan(this.approvedBoxes, this.snapshot.depth(), 0);
 	}
 
 	/**
-	 * PAGE継続用: flowStack(root含む、破断時点のスナップショット)を
-	 * 分類します。各レベルの分類自体({@code ContinuationCapability
-	 * .classify}の呼び出し)はmodeに関わらず一度だけ行うが、収集を許可
-	 * するか({@code capability.supportsPageSplitThrough(mode)})はmodeに
-	 * 依存する(2026-07-21、M6b Phase B B3。強制改ページでは{@code
-	 * MULTICOL}を収集しない——{@link ContinuationCapability
-	 * #supportsPageSplitThrough}参照)。
+	 * For PAGE continuations: classifies flowStack (including root, snapshotted at the break).
+	 * Each level is classified once (a call to {@code ContinuationCapability
+	 * .classify}), regardless of mode, but permission to collect it
+	 * ({@code capability.supportsPageSplitThrough(mode)}) depends on mode
+	 * (2026-07-21, M6b Phase B B3; forced page breaks do not collect {@code
+	 * MULTICOL}; see {@link ContinuationCapability
+	 * #supportsPageSplitThrough}).
 	 *
-	 * @param boxes flowStackの各レベルのボックス(index 0 = root)。空不可
-	 * @param mode  この破断の{@code BreakMode}(自動か強制かで収集許可が変わる)
+	 * @param boxes boxes at each flowStack level (index 0 = root); must not be empty
+	 * @param mode {@code BreakMode} for this break (automatic versus forced changes collection permission)
 	 */
 	public static OpenPathScan capture(final List<AbstractContainerBox> boxes,
 			final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {
@@ -48,18 +47,15 @@ public record OpenPathScan(OpenPathSnapshot snapshot, List<AbstractContainerBox>
 	}
 
 	/**
-	 * COLUMN継続用: 段組ownerから相対的に数えたopen pathを分類します
-	 * (2026-07-21新設、M6b Phase B B4。2026-07-25時点で
-	 * {@code BreakableBuilder}から使われている)。index 0はowner自身で
-	 * あり、{@link ContinuationCapability#classify}は呼ばない(owner自体
-	 * は{@code MULTICOL}として分類しない——owner内側にさらに現れる別の
-	 * 段組だけが{@code MULTICOL}になる)。anchorの書字方向はowner自身の
-	 * 書字方向を使う(ChatGPT Pro相談、
-	 * 設計相談
-	 * 参照)。
+	 * For COLUMN continuations: classifies the open path relative to the multi-column owner
+	 * (introduced 2026-07-21, M6b Phase B B4; used by {@code BreakableBuilder} as of 2026-07-25).
+	 * Index 0 is the owner itself and does not call {@link ContinuationCapability#classify}
+	 * (the owner itself is not classified as {@code MULTICOL} ; only further multi-column layouts inside it
+	 * become {@code MULTICOL} ). Uses the owner's own writing direction for the anchor
+	 * (ChatGPT Pro consultation; see the design consultation).
 	 *
-	 * @param boxes owner(index 0)+その内側で現在開いている子孫。空不可
-	 * @param mode  この破断のBreakMode
+	 * @param boxes owner (index 0) plus its currently open descendants; must not be empty
+	 * @param mode BreakMode for this break
 	 */
 	public static OpenPathScan captureColumn(final List<AbstractContainerBox> boxes,
 			final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {

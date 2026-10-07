@@ -5,13 +5,13 @@ import java.util.Locale;
 import org.xml.sax.Attributes;
 
 /**
- * CSS要素の情報です。
+ * Information about a CSS element.
  *
  * <p>
- * E-6増分3b-4(2026-07-24): レイアウト後の読み手(Tagged PDF・注釈系・
- * string-set)向けの読み取り契約{@link StructureElement}を実装する。
- * ソース再生のfreeze結果({@code StructureToken})と共通の契約で、
- * {@code Params.element}はこのinterface型で保持される。
+ * E-6 increment 3b-4 (2026-07-24): Implements the read contract {@link StructureElement}
+ * for consumers after layout (Tagged PDF, annotations, and string-set).
+ * The contract is shared with the frozen source replay result ({@code StructureToken});
+ * {@code Params.element} stores this interface type.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -29,88 +29,88 @@ public class CSSElement implements StructureElement {
 	public static final byte PC_ROOT = 8;
 
 	/**
-	 * at-page 左綴じ両面の最初のページです。
+	 * The first at-page page for left-bound duplex printing.
 	 */
 	public static final CSSElement PAGE_FIRST_RIGHT = new CSSElement(new byte[] { PC_FIRST, PC_RIGHT, PC_ODD });
 
 	/**
-	 * at-page 左綴じ左ページです。
+	 * A left at-page page for left binding.
 	 */
 	public static final CSSElement PAGE_LEFT_EVEN = new CSSElement(new byte[] { PC_LEFT, PC_EVEN });
 
 	/**
-	 * at-page 左綴じ右ページです。
+	 * A right at-page page for left binding.
 	 */
 	public static final CSSElement PAGE_RIGHT_ODD = new CSSElement(new byte[] { PC_RIGHT, PC_ODD });
 
 	/**
-	 * at-page 右綴じ両面の最初のページです。
+	 * The first at-page page for right-bound duplex printing.
 	 */
 	public static final CSSElement PAGE_FIRST_LEFT = new CSSElement(new byte[] { PC_FIRST, PC_LEFT, PC_ODD });
 
 	/**
-	 * at-page 右綴じ左ページです。
+	 * A left at-page page for right binding.
 	 */
 	public static final CSSElement PAGE_LEFT_ODD = new CSSElement(new byte[] { PC_LEFT, PC_ODD });
 
 	/**
-	 * at-page 右綴じ右ページです。
+	 * A right at-page page for right binding.
 	 */
 	public static final CSSElement PAGE_RIGHT_EVEN = new CSSElement(new byte[] { PC_RIGHT, PC_EVEN });
 
 	/**
-	 * at-page 片面の最初のページです。
+	 * The first at-page page for simplex printing.
 	 */
 	public static final CSSElement PAGE_SINGLE_FIRST = new CSSElement(new byte[] { PC_FIRST });
 
 	/**
-	 * at-page 片面のページです。
+	 * An at-page page for simplex printing.
 	 */
 	public static final CSSElement PAGE_SINGLE = new CSSElement((byte[]) null);
 
 	/**
-	 * at-page first-line 擬似要素です。
+	 * The at-page first-line pseudo-element.
 	 */
 	public static final CSSElement FIRST_LINE = new CSSElement("first-line");
 
 	/**
-	 * at-page first-letter 擬似要素です。
+	 * The at-page first-letter pseudo-element.
 	 */
 	public static final CSSElement FIRST_LETTER = new CSSElement("first-letter");
 
 	/**
-	 * at-page before 擬似要素です。
+	 * The at-page before pseudo-element.
 	 */
 	public static final CSSElement BEFORE = new CSSElement("before");
 
 	/**
-	 * at-page after 擬似要素です。
+	 * The at-page after pseudo-element.
 	 */
 	public static final CSSElement AFTER = new CSSElement("after");
 
 	/**
-	 * {@code ::marker}擬似要素です(2026-07-21新設、CSS Lists)。
-	 * リストマーカー(list-item)自身に対して{@code color}/{@code font-*}等
-	 * 限定的なプロパティをカスケード解決するために使う。BEFORE/AFTERと
-	 * 同じ仕組み(atts=nullの合成CSSElement)。
+	 * The {@code ::marker} pseudo-element (added on 2026-07-21, CSS Lists).
+	 * Used to resolve the cascade for a limited set of properties such as {@code color}/{@code font-*}
+	 * on the list marker (list-item) itself. Uses the same mechanism as BEFORE/AFTER:
+	 * a synthetic CSSElement with atts=null.
 	 */
 	public static final CSSElement MARKER = new CSSElement("marker");
 
 	/**
-	 * {@code ::footnote-call}擬似要素です(脚注F0、2026-07-31——設計は
-	 * consult-codex-2026-07-31-footnote.txt)。呼び出し位置に残る番号
-	 * マーカー。合成はF1で配線する。
+	 * The {@code ::footnote-call} pseudo-element (footnotes F0, 2026-07-31; design:
+	 * consult-codex-2026-07-31-footnote.txt). The number marker that remains
+	 * at the call site. Synthesis is wired in F1.
 	 */
 	public static final CSSElement FOOTNOTE_CALL = new CSSElement("footnote-call");
 
 	/**
-	 * {@code ::footnote-marker}擬似要素です(脚注F0)。脚注本文先頭の番号。
-	 * 合成はF1で配線する。
+	 * The {@code ::footnote-marker} pseudo-element (footnotes F0). The number at the start of the footnote body.
+	 * Synthesis is wired in F1.
 	 */
 	public static final CSSElement FOOTNOTE_MARKER = new CSSElement("footnote-marker");
 
 	/**
-	 * 匿名要素です。
+	 * An anonymous element.
 	 */
 	public static final CSSElement ANON = new CSSElement((String)null);
 	public static final CSSElement ANON_TABLE = new CSSElement("table");
@@ -118,50 +118,50 @@ public class CSSElement implements StructureElement {
 	public static final CSSElement ANON_TR = new CSSElement("tr");
 	public static final CSSElement ANON_TD = new CSSElement("td");
 
-	/** XML/HTML要素です。 */
+	/** An XML/HTML element. */
 	public final String uri, lName;
 
-	/** CSS IDセレクタに対応するIDです。 */
+	/** The ID corresponding to a CSS ID selector. */
 	public final String id;
 
-	/** CSS classセレクタに対応する全てのクラスです。 */
+	/** All classes corresponding to CSS class selectors. */
 	public final String[] styleClasses;
 
-	/** CSS擬似クラスです。 */
+	/** CSS pseudo-classes. */
 	public final byte[] pseudoClasses;
 
-	/** 言語です。 */
+	/** The language. */
 	public final Locale lang;
 
 	/**
-	 * :dir() 用の方向性です("ltr" / "rtl" / null=未指定)。dir 属性から
-	 * 文書ツリーを継承します(dir="auto" の一次強方向文字判定は先読みを
-	 * 要するため1P原則の範囲外とし、継承値へフォールスルーします)。
+	 * Directionality for :dir() ("ltr" / "rtl" / null=unspecified). Inherited through
+	 * the document tree from the dir attribute. Determining the first strong directional character
+	 * for dir="auto" requires lookahead, so it is outside the 1P policy and falls through to the inherited value.
 	 */
 	public final String dir;
 
-	/** XML/HTML属性です。 */
+	/** XML/HTML attributes. */
 	public final Attributes atts;
 
-	/** 先行する要素です。 */
+	/** The preceding element. */
 	public final CSSElement precedingElement;
 
-	/** 文書中の位置です。 */
+	/** The position in the document. */
 	public final int charOffset;
 
 	/**
-	 * 文書順の通し番号です(0始まり、パス(STRUCTURE_SCAN/LAYOUT等)を
-	 * またいで安定——同一の入力に対して同一の走査順で採番されるため)。
-	 * {@code :has()}/{@code :last-child}系のようにパスをまたいで判定結果を
-	 * キャッシュする機能の安定キーとして使う({@code SelectorFacts}参照)。
-	 * 擬似要素には振らない(-1のまま。DOM上の実要素のみが対象のため)。
-	 * charOffset(ソース上のバイト位置)ではなくこの専用カウンタを使うのは、
-	 * charOffsetはロケータが無い経路では-1に落ちて衝突しうるため。
+	 * A sequence number in document order (zero-based, stable across passes such as STRUCTURE_SCAN/LAYOUT,
+	 * because the same input receives numbers in the same traversal order).
+	 * Used as a stable key for features that cache matching results across passes,
+	 * such as {@code :has()}/{@code :last-child} (see {@code SelectorFacts}).
+	 * Not assigned to pseudo-elements (remains -1, since only actual DOM elements are eligible).
+	 * This dedicated counter is used instead of charOffset (the byte position in the source)
+	 * because charOffset becomes -1 on paths without a locator and may collide.
 	 */
 	public final long elementKey;
 
 	/**
-	 * HTML要素を構築します。
+	 * Constructs an HTML element.
 	 *
 	 * @param uri
 	 * @param lName
@@ -171,7 +171,7 @@ public class CSSElement implements StructureElement {
 	 * @param atts
 	 * @param precedingElement
 	 * @param charOffset
-	 * @param elementKey       文書順の通し番号(0始まり)。擬似要素は-1
+	 * @param elementKey       sequence number in document order (zero-based); -1 for pseudo-elements
 	 */
 	public CSSElement(String uri, String lName, String id, String[] styleClasses, byte[] pseudoClasses, Locale lang,
 			String dir, Attributes atts, CSSElement precedingElement, int charOffset, long elementKey) {
@@ -189,7 +189,7 @@ public class CSSElement implements StructureElement {
 	}
 
 	/**
-	 * 擬似要素を構築します。
+	 * Constructs a pseudo-element.
 	 *
 	 * @param pseudoElement
 	 */
@@ -198,7 +198,7 @@ public class CSSElement implements StructureElement {
 	}
 
 	/**
-	 * 擬似クラスを構築します。
+	 * Constructs a pseudo-class.
 	 *
 	 * @param pseudoClasses
 	 */
@@ -227,7 +227,7 @@ public class CSSElement implements StructureElement {
 	}
 
 	/**
-	 * 与えられたクラスであればtrueを返します。
+	 * Returns true if this element has the given class.
 	 *
 	 * @param styleClass
 	 * @return
@@ -244,7 +244,7 @@ public class CSSElement implements StructureElement {
 	}
 
 	/**
-	 * 与えられた擬似クラスであればtrueを返します。
+	 * Returns true if this element has the given pseudo-class.
 	 * 
 	 * @param pseudoClass
 	 * @return

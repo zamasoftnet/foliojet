@@ -11,95 +11,95 @@ import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 
 /**
- * 出力デバイスの既定スタイル・メトリクスの読み取り面です。
- * CSSの解釈に必要な情報を提供します。
+ * Read interface for the output device's default styles and metrics.
+ * Provides the information needed to interpret CSS.
  */
 public interface DeviceStyle {
 	/**
-	 * このUAに対応するデフォルトのロケールを返します。
+	 * Returns the default locale for this UA.
 	 */
 	public Locale getDefaultLocale();
 
 	/**
-	 * このメディアが与えられたメディアタイプに含まれる場合はtrueを返します。
+	 * Returns true if this medium is included in the given media types.
 	 *
-	 * @param mediaTypes スペース区切りのメディアタイプ
+	 * @param mediaTypes space-separated media types
 	 */
 	public boolean is(String mediaTypes);
 
 	/**
-	 * デバイスの解像度(1インチ当たりのピクセル数)を返します。dpi(1インチ当たりのドット数)で
-	 * ないことに注意してください。これはPixelからの換算に使われます。
+	 * Returns the device resolution in pixels per inch. This is not dpi (dots per inch).
+	 * Used for conversion from pixels.
 	 */
 	public double getPixelsPerInch();
 
 	/**
-	 * line-height特性にnormalが指定された際のフォントとの比率(1.0-1.2)を返します。
+	 * Returns the ratio to the font size (1.0-1.2) when the line-height property is normal.
 	 */
 	public double getNormalLineHeight();
 
 	/**
-	 * デバイスのデフォルトの前景色を返します。
+	 * Returns the device's default foreground color.
 	 */
 	public ColorValue getDefaultColor();
 
 	/**
-	 * デバイスのマット色を返します。
+	 * Returns the device's matte color.
 	 */
 	public ColorValue getMatColor();
 
 	/**
-	 * デフォルトのマーカーオフセット(リスト項目の装飾とテキストの間の長さ)を返します。
+	 * Returns the default marker offset (the distance between a list item's marker and its text).
 	 */
 	public LengthValue getDefaultMarkerOffset();
 
 	/**
-	 * デフォルトのフォントを返します。
+	 * Returns the default font.
 	 */
 	public FontFamilyValue getDefaultFontFamily();
 
 	/**
-	 * フォントの埋め込みポリシーを返します。
+	 * Returns the font embedding policy.
 	 */
 	public CSSJFontPolicyValue getDefaultFontPolicy();
 
 	/**
-	 * 絶対フォントサイズキーワードに対応するフォントのサイズを返します。
+	 * Returns the font size corresponding to an absolute font-size keyword.
 	 */
 	public double getFontSize(AbsoluteFontSize absoluteFontSize);
 
 	/**
-	 * 文字サイズを調整して表示するための、フォントの倍率です。
+	 * The font scaling factor for displaying adjusted text sizes.
 	 */
 	public double getFontMagnification();
 
 	/**
-	 * 与えられたサイズより一回り大きなフォントのサイズを返します。
+	 * Returns the next larger font size for the given size.
 	 */
 	public double getLargerFontSize(double fontSize);
 
 	/**
-	 * 与えられたサイズより一回り小さなフォントのサイズを返します。
+	 * Returns the next smaller font size for the given size.
 	 */
 	public double getSmallerFontSize(double fontSize);
 
 	/**
-	 * 境界線の太さを返します。border-widthプロパティ等で使われます。
+	 * Returns the border thickness. Used for properties such as border-width.
 	 */
 	public AbsoluteLengthValue getBorderWidth(BorderWidthKeyword keyword);
 
 	/**
-	 * ボックスの大きさの最小値を返します。
+	 * Returns the minimum box size.
 	 */
 	public LengthValue getMinSize();
 
 	/**
-	 * ボックスの大きさの最大値を返します。
+	 * Returns the maximum box size.
 	 */
 	public Value getMaxSize();
 
 	/**
-	 * フォントマネージャを返します。
+	 * Returns the font manager.
 	 */
 	public FontManager getFontManager();
 }

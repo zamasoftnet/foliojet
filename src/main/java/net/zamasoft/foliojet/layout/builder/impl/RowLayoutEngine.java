@@ -3,27 +3,27 @@ package net.zamasoft.foliojet.layout.builder.impl;
 import java.util.List;
 
 /**
- * 行・セル配置の共有核です(P2-2: §5.2b 表ビルダー統一)。
+ * Shared kernel for row and cell layout (P2-2: §5.2b table builder unification).
  *
  * <p>
- * 「両ビルダーの行高さアルゴリズムを統合した」という説明は過大だった
- * (2026-07-19訂正、C4-D・外部設計レビュー)。実際に共有されているのは
- * 局所/全体それぞれの行高方針をボックス木から切り離した純粋な配列演算
- * であり、いつ・どの範囲へ・どの順序で適用するかはIncremental
- * (IncrementalTableBuilder)/Retained(RetainedTableBuilder)で異なる。
- * 呼び出し側は行ボックスから配列を組み、結果を書き戻す(データの出所
- * だけがビルダーごとに異なる — CellContent.complementRowspan と同じ分担)。
+ * The claim that this "unified the row-height algorithms of both builders" was overstated
+ * (correction on 2026-07-19, C4-D and external design review). What is actually shared is pure
+ * array arithmetic that separates each local/global row-height policy from the box tree.
+ * When, over which range, and in which order it applies differ between Incremental
+ * (IncrementalTableBuilder) and Retained (RetainedTableBuilder).
+ * Callers build arrays from row boxes and write the results back (only the data source differs
+ * by builder: the same division of responsibilities as CellContent.complementRowspan).
  * </p>
  * <p>
- * 概念上2種類に分かれる(クラス自体は分離していない、2026-07-19時点):
+ * Conceptually, there are two categories (the class itself was not split as of 2026-07-19):
  * <ul>
- * <li><b>局所(窓内で完結、Incremental/Retained共用)</b>: {@link #rowSpec}、
- * {@link #distributeSpannedRowSizes}(開いているrowspanの範囲だけで完結)、
- * {@link #distributeGroupSize}(1つのrow-group内で完結——絶対高さ
- * row-groupはIncrementalでもこの単位を丸ごと保持する、P0-2参照)。</li>
- * <li><b>表全体(Retained専用。specifiedPageSize=0=表heightがautoの
- * 場合は恒等的に無効になるため、Incrementalは実質呼ばない)</b>:
- * {@link #distributePercentRowSizes}、{@link #distributeTableSize}。</li>
+ * <li><b>Local (self-contained within a window, shared by Incremental/Retained)</b>: {@link #rowSpec},
+ * {@link #distributeSpannedRowSizes} (only the range of open rowspans),
+ * {@link #distributeGroupSize} (within one row-group; even Incremental retains an entire row-group
+ * with an absolute height; see P0-2).</li>
+ * <li><b>Whole table (Retained only. With specifiedPageSize=0, i.e., table height auto,
+ * these are identically no-ops, so Incremental effectively does not call them)</b>:
+ * {@link #distributePercentRowSizes}, {@link #distributeTableSize}.</li>
  * </ul>
  * </p>
  */
@@ -33,19 +33,19 @@ public final class RowLayoutEngine {
 	}
 
 	/**
-	 * 指定行高の導出結果です。
+	 * Result of deriving a specified row height.
 	 *
-	 * @param size  指定・min/max から確定した行高(自動・%は 0)
-	 * @param ratio %指定の比率(なければ 0)
-	 * @param auto  自動高さ(0% 指定も自動として扱う)
+	 * @param size  row height resolved from the specification and min/max (0 for auto or %)
+	 * @param ratio ratio for a % specification (0 if absent)
+	 * @param auto  automatic height (0% is also treated as automatic)
 	 */
 	public record RowSpec(double size, double ratio, boolean auto) {
 	}
 
 	/**
-	 * 行の指定高さを導出します(両ビルダーの同一 switch の統合)。
-	 * ABSOLUTE は指定値、%は比率へ、0% と AUTO は自動行。min/max の
-	 * ABSOLUTE 指定でクランプする。
+	 * Derives the specified row height (consolidates identical switches in both builders).
+	 * ABSOLUTE uses the specified value; % becomes a ratio; 0% and AUTO are automatic rows.
+	 * Clamps to ABSOLUTE min/max specifications.
 	 */
 	public static RowSpec rowSpec(final net.zamasoft.foliojet.layout.box.params.InnerTableParams rowParams) {
 		double rowSize;
@@ -66,11 +66,11 @@ public final class RowLayoutEngine {
 			rowSize = 0;
 			break;
 		case MIXED:
-			// calc()による絶対長さ+割合混在(例: calc(50% + 10pt))の行高は、
-			// このRowSpecが前提とする「絶対値 or 比率の二択」に収まらない
-			// (行高分配アルゴリズムのratio利用箇所は比率単独を前提にしている)。
-			// RELATIVEと同じ扱いにして安全側に倒す(絶対成分は無視、比率成分の
-			// みratioへ渡す。開発計画参照)。
+			// A row height mixing an absolute length and percentage in calc() (e.g., calc(50% + 10pt))
+			// does not fit RowSpec's assumption of either an absolute value or a ratio
+			// (uses of ratio in the row-height distribution algorithm assume a ratio alone).
+			// Conservatively treat it like RELATIVE (ignore the absolute component and pass only
+			// the ratio component to ratio; see the development plan).
 			ratio = rowParams.size.getRatio();
 			if (ratio > 0) {
 				rowSize = 0;
@@ -108,15 +108,16 @@ public final class RowLayoutEngine {
 	}
 
 	/**
-	 * 行グループの指定高さを行へ分配します(両ビルダーの同一アルゴリズムの
-	 * 統合)。行高合計が指定に満たなければ比例拡大し、合計0なら均等分配
-	 * する(均等分配の分母はグループ自身の行数 — 旧 TwoPass は表全体の
-	 * 行数で割っており合計が指定高にならなかったが、この分岐は通常文書
-	 * では到達し難く fixture では発火確認できていない。正規化して統合)。
+	 * Distributes a row group's specified height to its rows (consolidates the identical algorithm
+	 * in both builders). If the sum of row heights is less than specified, scales proportionally;
+	 * if the sum is 0, distributes equally (the denominator is the group's own row count.
+	 * Old TwoPass divided by the entire table's row count, so the sum did not reach the specified
+	 * height. This branch is hard to reach in normal documents and was not confirmed to fire
+	 * in fixtures. Normalized and consolidated).
 	 *
-	 * @param rowSizes  各行の高さ(入出力)
-	 * @param groupSize 行グループの指定高さ
-	 * @return 行高合計の増分
+	 * @param rowSizes  height of each row (input/output)
+	 * @param groupSize the row group's specified height
+	 * @return the increase in total row height
 	 */
 	public static double distributeGroupSize(final double[] rowSizes, final double groupSize) {
 		double sum = 0;
@@ -136,14 +137,14 @@ public final class RowLayoutEngine {
 	}
 
 	/**
-	 * %指定行の高さを表の指定高さへ向けて拡大します(文書順に残余を
-	 * 消費)。
+	 * Expands heights of rows with % specifications toward the table's specified height
+	 * (consumes the remainder in document order).
 	 *
-	 * @param rowSizes          各行の高さ(入出力)
-	 * @param rowRatios         %指定行の比率(なければ 0)
-	 * @param specifiedPageSize 表の指定高さ
-	 * @param remainder         分配できる残余
-	 * @return 行高合計の増分
+	 * @param rowSizes          height of each row (input/output)
+	 * @param rowRatios         ratios of rows with % specifications (0 if absent)
+	 * @param specifiedPageSize the table's specified height
+	 * @param remainder         remainder available for distribution
+	 * @return the increase in total row height
 	 */
 	public static double distributePercentRowSizes(final double[] rowSizes, final double[] rowRatios,
 			final double specifiedPageSize, double remainder) {
@@ -162,14 +163,15 @@ public final class RowLayoutEngine {
 	}
 
 	/**
-	 * 表の指定高さへの不足分を行へ分配します。自動行と固定行が混在すれば
-	 * 自動行へ現在高さの比で分配(自動行合計が0なら均等)、そうでなければ
-	 * 全行を指定高さへ比例スケール(合計0なら均等)する。
+	 * Distributes the shortfall from the table's specified height to rows. With both automatic and
+	 * fixed rows, distributes to automatic rows in proportion to their current heights (equally if
+	 * their sum is 0). Otherwise, scales all rows proportionally to the specified height (equally if
+	 * the sum is 0).
 	 *
-	 * @param rowSizes          各行の高さ(入出力)
-	 * @param autoRows          高さ指定が auto の行(%0 指定は含まない —
-	 *                          rowspan 分配の autoRows とは判定が異なる)
-	 * @param specifiedPageSize 表の指定高さ
+	 * @param rowSizes          height of each row (input/output)
+	 * @param autoRows          rows whose specified height is auto (excludes %0;
+	 *                          differs from the autoRows criterion for rowspan distribution)
+	 * @param specifiedPageSize the table's specified height
 	 */
 	public static void distributeTableSize(final double[] rowSizes, final boolean[] autoRows,
 			final double specifiedPageSize) {
@@ -185,7 +187,7 @@ public final class RowLayoutEngine {
 			return;
 		}
 		if (autoRowCount > 0 && autoRowCount < rowSizes.length) {
-			// 固定高さの行がある場合
+			// If there are rows with fixed heights
 			final double remainder = specifiedPageSize - rowSizeSum;
 			double autoSum = 0;
 			for (int i = 0; i < rowSizes.length; ++i) {
@@ -207,8 +209,8 @@ public final class RowLayoutEngine {
 	}
 
 	/**
-	 * Incremental の rowspan 窓で、確定セル外寸からページ軸の実測値を
-	 * 取り出します。縦書きのページ軸は物理幅、横書きは物理高さです。
+	 * Extracts the measured page-axis size from resolved outer cell sizes in the Incremental rowspan
+	 * window. The page axis is physical width in vertical writing and physical height in horizontal writing.
 	 */
 	public static double measuredRowspanPageSize(final net.zamasoft.foliojet.layout.box.impl.TableCellBox cellBox,
 			final boolean vertical) {
@@ -216,9 +218,9 @@ public final class RowLayoutEngine {
 	}
 
 	/**
-	 * セルのページ軸要求寸法です(A-4、2026-07-30。両ビルダーの同型計算の
-	 * 統合): 実測値と、ABSOLUTE指定(content-boxなら枠を加算)の大きい方。
-	 * 演算順は旧実装のまま。
+	 * Required page-axis size of a cell (A-4, 2026-07-30; consolidates equivalent calculations
+	 * in both builders): the larger of the measured value and the ABSOLUTE specification
+	 * (plus the frame for content-box). Preserves the old order of operations.
 	 */
 	public static double demandPageSize(final double measured,
 			final net.zamasoft.foliojet.layout.box.params.BlockParams cellParams,
@@ -245,8 +247,8 @@ public final class RowLayoutEngine {
 	}
 
 	/**
-	 * rowspanの分配要求を登録します(A-4。同一(row,span)は1つにまとめ、
-	 * 要求値は最大を採る——両ビルダーの同型登録の統合)。
+	 * Registers a rowspan distribution request (A-4; combines identical (row,span) pairs into one,
+	 * taking the maximum requested value; consolidates equivalent registration in both builders).
 	 */
 	public static void addSpannedDemand(final java.util.Map<Rowspan, Rowspan> rowspans,
 			final java.util.List<Rowspan> rowspanList, final int row, final int span, final double size) {
@@ -261,18 +263,18 @@ public final class RowLayoutEngine {
 	}
 
 	/**
-	 * rowspan で連結された行の高さを分配します(両ビルダーの同一
-	 * アルゴリズムの統合)。各連結について、連結範囲の行高合計が連結
-	 * セルの要求(min)に足りなければ、不足分を (1) %指定行に比率適用 →
-	 * (2) 連結によってのみ拡張された自動行 → (3) 自動行 → (4) 全行、の
-	 * 優先順で分配する。
+	 * Distributes heights of rows connected by rowspan (consolidates the identical algorithm
+	 * in both builders). For each span, if the total row height over the span falls short of the
+	 * spanning cell's requirement (min), distributes the shortfall in priority order:
+	 * (1) apply ratios to rows with % specifications → (2) automatic rows expanded only by spanning
+	 * → (3) automatic rows → (4) all rows.
 	 *
-	 * @param rowSizes    各行の高さ(入出力)
-	 * @param rowspanList 連結(row=開始行、span=連結数、min=要求高さ)。
-	 *                    Rowspan.SPAN_COMPARATOR でソート済みであること
-	 * @param noAdjRows   連結されないセルを含む行
-	 * @param autoRows    自動高さの行
-	 * @param rowRatios   %指定行の比率(なければ 0)
+	 * @param rowSizes    height of each row (input/output)
+	 * @param rowspanList spans (row=starting row, span=span count, min=required height).
+	 *                    Must be sorted by Rowspan.SPAN_COMPARATOR
+	 * @param noAdjRows   rows containing non-spanning cells
+	 * @param autoRows    rows with automatic heights
+	 * @param rowRatios   ratios of rows with % specifications (0 if absent)
 	 */
 	public static void distributeSpannedRowSizes(final double[] rowSizes, final List<Rowspan> rowspanList,
 			final boolean[] noAdjRows, final boolean[] autoRows, final double[] rowRatios) {
@@ -287,7 +289,7 @@ public final class RowLayoutEngine {
 			}
 			double minRem = rowspan.min - minSum;
 			if (minRem > 0) {
-				// minを分配
+				// Distribute min
 				double adjCount = 0, autoCount = 0;
 				for (int k = 0; k < rowspan.span; ++k) {
 					final int kk = rowspan.row + k;
@@ -300,7 +302,7 @@ public final class RowLayoutEngine {
 					if (autoRows[kk]) {
 						++autoCount;
 					}
-					// %の適用
+					// Apply %
 					if (rowRatios[kk] > 0) {
 						final double diff = minRem * rowRatios[kk];
 						minRem -= diff;
@@ -308,7 +310,7 @@ public final class RowLayoutEngine {
 					}
 				}
 				if (adjCount > 0 && adjCount < rowspan.span) {
-					// 連結により拡張したセルのだけの行に分配
+					// Distribute to rows containing only cells expanded by spanning
 					minRem /= adjCount;
 					for (int k = 0; k < rowspan.span; ++k) {
 						final int kk = rowspan.row + k;
@@ -320,7 +322,7 @@ public final class RowLayoutEngine {
 						}
 					}
 				} else if (autoCount > 0 && autoCount < rowspan.span) {
-					// 自動高さの行に分配
+					// Distribute to rows with automatic heights
 					minRem /= autoCount;
 					for (int k = 0; k < rowspan.span; ++k) {
 						final int kk = rowspan.row + k;
@@ -332,7 +334,7 @@ public final class RowLayoutEngine {
 						}
 					}
 				} else {
-					// 高さの分配
+					// Distribute height
 					minRem /= rowspan.span;
 					for (int k = 0; k < rowspan.span; ++k) {
 						final int kk = rowspan.row + k;

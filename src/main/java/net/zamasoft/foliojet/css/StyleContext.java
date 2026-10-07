@@ -28,22 +28,22 @@ public class StyleContext {
 
 	private static final Logger LOG = Logger.getLogger(StyleContext.class.getName());
 
-	/** 上位の要素のリスト。 */
+	/** List of ancestor elements. */
 	private final List<CSSElement> elementStack = new ArrayList<CSSElement>();
 
 	public final CSSStyleSheet styleSheet;
 
 	/**
-	 * STRUCTURE_SCANパスが収集した、要素の終了時点まで確定しない
-	 * 疑似クラス(:has()・:last-child系)の判定結果。開発計画
-	 * 「2パス制御モード」参照。
+	 * Results collected by the STRUCTURE_SCAN pass for pseudo-classes whose results
+	 * are not final until an element ends (:has() and :last-child variants). See
+	 * "two-pass control mode" in the development plan.
 	 */
 	private final SelectorFacts selectorFacts;
 
 	/**
-	 * {@code @container}クエリのための要素の事実(2026-08-15段4)。
-	 * {@link #selectorFacts}と同じくSTRUCTURE_SCAN開始時にリセットされ、
-	 * 複数パスにまたがって積み上げる({@link ContainerFacts}参照)。
+	 * Element facts for {@code @container} queries (2026-08-15 stage 4).
+	 * Like {@link #selectorFacts}, reset at the start of STRUCTURE_SCAN
+	 * and accumulated across passes (see {@link ContainerFacts}).
 	 */
 	private final ContainerFacts containerFacts;
 
@@ -54,7 +54,7 @@ public class StyleContext {
 	}
 
 	/**
-	 * 要素の開始を通知します。
+	 * Notifies the start of an element.
 	 *
 	 * @param ce
 	 */
@@ -63,18 +63,18 @@ public class StyleContext {
 	}
 
 	/**
-	 * 要素の終了を通知します。
+	 * Notifies the end of an element.
 	 */
 	public void endElement() {
 		CSSElement ce = (CSSElement) this.elementStack.remove(this.elementStack.size() - 1);
 	}
 
 	/**
-	 * ページの開始に対して、対応するスタイル宣言を返します(名前付き
-	 * ページN1a——特異性(f,g,h)昇順→出現順にmergeし後勝ち)。
+	 * Returns the corresponding style declarations at the start of a page (named
+	 * pages N1a; merge in ascending specificity (f,g,h), then source order, with later declarations winning).
 	 *
-	 * @param page     ページ擬似要素(first/left/rightの擬似クラス)
-	 * @param pageName 現在のページ名(null=無名)
+	 * @param page     page pseudo-element (first/left/right pseudo-classes)
+	 * @param pageName current page name (null=unnamed)
 	 */
 	public Declaration nextPage(CSSElement page, String pageName) {
 		final Declaration result = new Declaration();
@@ -85,8 +85,8 @@ public class StyleContext {
 	}
 
 	/**
-	 * ページに対して適用されるマージンボックスの宣言を返します
-	 * (合成順は {@link #nextPage(CSSElement, String)} と同一)。
+	 * Returns margin box declarations that apply to the page
+	 * (the merge order matches {@link #nextPage(CSSElement, String)}).
 	 */
 	public Map<MarginBoxName, Declaration> pageMarginBoxes(CSSElement page) {
 		return this.pageMarginBoxes(page, null);
@@ -97,9 +97,9 @@ public class StyleContext {
 	}
 
 	/**
-	 * @param blank 強制改ページで生じた内容の無いページか({@code @page :blank}、
-	 *              2026-10-04。ページを描く時点でしか分からないので、ここ
-	 *              (マージンボックス)だけが受け取る)
+	 * @param blank whether this is a page with no content created by a forced page break ({@code @page :blank},
+	 *                           2026-10-04). Known only at page rendering time, so only this method
+	 *                           (margin boxes) receives it
 	 */
 	public Map<MarginBoxName, Declaration> pageMarginBoxes(CSSElement page, String pageName, boolean blank) {
 		final Map<MarginBoxName, Declaration> result = new EnumMap<MarginBoxName, Declaration>(MarginBoxName.class);
@@ -111,7 +111,7 @@ public class StyleContext {
 		return result;
 	}
 
-	/** 適合規則を特異性昇順(同値は出現順)で返します。 */
+	/** Returns matching rules in ascending specificity (source order for ties). */
 	private List<PageRule> matchingPageRules(CSSElement page, String pageName, boolean blank) {
 		byte pseudo = blank ? PageRule.PSEUDO_BLANK : 0;
 		if (page.isPseudoClass(CSSElement.PC_FIRST)) {
@@ -132,13 +132,13 @@ public class StyleContext {
 				matched.add(rule);
 			}
 		}
-		// 安定ソート=同特異性は出現順を保つ
+		// Stable sort: preserve source order for equal specificity.
 		matched.sort(java.util.Comparator.comparingInt(PageRule::specificity));
 		return matched;
 	}
 
 	/**
-	 * 現在の要素に対応するスタイル宣言と与えられたスタイル宣言をマージします。
+	 * Merges the style declarations for the current element with the given declarations.
 	 *
 	 * @return
 	 */
@@ -147,27 +147,27 @@ public class StyleContext {
 	}
 
 	/**
-	 * @param importantOut 非nullなら、レイヤーを使った規則があるとき
-	 *                     important宣言を反転順で合成したものをその要素0へ置く
+	 * @param importantOut if non-null and layered rules exist, receives at index 0
+	 *                                         the important declarations merged in reverse order
 	 */
 	public Declaration merge(Declaration declaration, Declaration[] userAgentOut, Declaration[] importantOut) {
 
 		if (this.elementStack.isEmpty()) {
 			return declaration;
 		}
-		// 右端セレクタの索引から候補規則だけを照合する
+		// Match only candidate rules from the rightmost selector index.
 		final CSSElement top = (CSSElement) this.elementStack.get(this.elementStack.size() - 1);
 
-		// :has()の判定を積み上げる(要素の終了時点まで真偽が確定しないため、
-		// 複数パスにまたがってSelectorFactsへ記録する。開発計画
-		// 「2パス制御モード」参照)
+		// Accumulate :has() results (truth values are not final until an element ends,
+		// so record them in SelectorFacts across passes; see "two-pass control mode"
+		// in the development plan).
 		if (this.selectorFacts != null) {
 			recordHasFacts(this.styleSheet.getHasConditions(), this.elementStack, this.selectorFacts);
 		}
 
 		final List<List<Rule>> buckets = this.styleSheet.candidateBuckets(top);
 
-		// 結果が確定したもの
+		// Results that are final
 		List<Rule> result = null;
 		for (List<Rule> bucket : buckets) {
 		for (Rule rule : bucket) {
@@ -188,11 +188,11 @@ public class StyleContext {
 			declaration = new Declaration();
 		}
 
-		// 固有性→文書内の出現順で整列(SPEC CSS2 6.4.1)。
-		// 候補はバケット横断で順不同に集まるため、出現順(Rule.order)を明示的に比較する。
+		// Sort by specificity, then source order in the document (SPEC CSS2 6.4.1).
+		// Candidates arrive unordered across buckets, so explicitly compare source order (Rule.order).
 		Collections.sort(result, RuleComparator.INSTANCE);
 
-		// 合成
+		// Merge
 		for (int i = 0; i < result.size(); ++i) {
 			Rule rule = (Rule) result.get(i);
 			Declaration tempDecl = rule.getDeclaration();
@@ -205,9 +205,9 @@ public class StyleContext {
 			}
 			declaration.merge(tempDecl);
 		}
-		// **@layerと!importantの併用**: importantどうしはレイヤー順が反転する
-		// (CSS Cascade 5)。レイヤーを使った規則が2つ以上あるときだけ、
-		// important宣言を反転順でもう一度重ねる材料を作る(2026-08-03)
+		// **Combining @layer and !important**: layer order reverses among important declarations
+		// (CSS Cascade 5). Only when two or more rules use layers, prepare
+		// the material for applying important declarations again in reverse order (2026-08-03).
 		if (importantOut != null && usesLayers(result)) {
 			final List<Rule> importantRules = new ArrayList<Rule>(result);
 			Collections.sort(importantRules, RuleComparator.IMPORTANT);
@@ -220,7 +220,7 @@ public class StyleContext {
 		return declaration;
 	}
 
-	/** レイヤーに属する規則が含まれるか(反転の合成をする価値があるか)。 */
+	/** Whether any rule belongs to a layer (whether a reverse merge is worthwhile). */
 	private static boolean usesLayers(final List<Rule> rules) {
 		for (int i = 0; i < rules.size(); ++i) {
 			if (rules.get(i).getLayer() != Rule.NO_LAYER) {
@@ -231,28 +231,28 @@ public class StyleContext {
 	}
 
 	/**
-	 * pathの末尾要素を起点として、selector(結合子チェーンを含みうる)が
-	 * 一致するかを判定します。{@link #merge}のトップレベル規則評価と、
-	 * :is()/:where()/:not()の引数(子孫 半角スペース・子 &gt;・隣接兄弟 +・
-	 * 一般兄弟 ~ のいずれの結合子も含みうる)の評価の両方から使う共通実装
-	 * です(2026-07-19、両者で重複していたロジックを統合)。非再帰:
-	 * selectorは右端から左へ、pathは末尾(対象要素)から先頭(最も遠い祖先)
-	 * へ反復的に辿るだけです(要素木・選択木いずれも再帰しない)。
+	 * Determines whether selector (which may contain a combinator chain) matches
+	 * starting from the last element in path. Shared by top-level rule evaluation
+	 * in {@link #merge} and argument evaluation for :is()/:where()/:not(),
+	 * whose arguments may contain descendant (space), child (&gt;), adjacent sibling (+),
+	 * or general sibling (~) combinators (2026-07-19: unified duplicated logic). Non-recursive:
+	 * iteratively traverse selector from right to left and path from its end (target element)
+	 * to its beginning (most distant ancestor), without recursion over either tree.
 	 *
-	 * @param selector 評価するセレクタ
-	 * @param path     対象要素を末尾とする祖先チェーン(先頭が最も遠い祖先)。
-	 *                 隣接・一般兄弟結合子で対象要素がこのpathの外の兄弟へ
-	 *                 移っても、兄弟は同じ親を共有するためpathの残りの
-	 *                 接頭辞をそのまま祖先として使い続けられる
-	 * @param facts    STRUCTURE_SCANが収集した先読みが要る疑似クラスの
-	 *                 判定結果(:has()・:last-child系)。無ければnull可
+	 * @param selector selector to evaluate
+	 * @param path     ancestor chain ending at the target element (most distant ancestor first);
+	 *                                 even if an adjacent or general sibling combinator moves the target
+	 *                                 to a sibling outside this path, the remaining prefix still serves
+	 *                                 as its ancestors because siblings share the same parent
+	 * @param facts    results collected by STRUCTURE_SCAN for pseudo-classes requiring lookahead
+	 *                                 (:has() and :last-child variants); may be null if unavailable
 	 */
 	private static boolean matchesFromPath(Selector selector, List<CSSElement> path, SelectorFacts facts) {
-		boolean first = true;// 最初のセレクタのため、該当する要素が直ちにあらわれなければならない。
-		boolean child = false;// 子セレクタのため、擬似要素をのぞいて該当する要素が直ちにあらわれなければならない。
-		boolean sibling = false;// 隣接セレクタのため、pathをあがらずに隣の要素に移る
+		boolean first = true;// For the first selector, a matching element must appear immediately.
+		boolean child = false;// For a child selector, a matching element must appear immediately, excluding pseudo-elements.
+		boolean sibling = false;// For an adjacent selector, move to the neighboring element without ascending path.
 		CSSElement ce = null;
-		List<CSSElement> ceView = null;// ceを末尾とする祖先チェーン(:is()/:where()/:not()のネスト評価用)
+		List<CSSElement> ceView = null;// Ancestor chain ending at ce (for nested evaluation of :is()/:where()/:not())
 		NEXT: for (int j = path.size() - 1; j >= 0; --j) {
 			if (sibling) {
 				sibling = false;
@@ -262,7 +262,7 @@ public class StyleContext {
 				ceView = path.subList(0, j + 1);
 			}
 			switch (selector.getSelectorType()) {
-			// 子セレクタ
+			// Child selector
 			case CHILD_SELECTOR: {
 				CombinatorSelector combinator = (CombinatorSelector) selector;
 				SimpleSelector simpleSelector = combinator.getSimpleSelector();
@@ -275,7 +275,7 @@ public class StyleContext {
 			}
 				break;
 
-			// 子孫セレクタ
+			// Descendant selector
 			case DESCENDANT_SELECTOR: {
 				CombinatorSelector combinator = (CombinatorSelector) selector;
 				SimpleSelector simpleSelector = combinator.getSimpleSelector();
@@ -288,7 +288,7 @@ public class StyleContext {
 			}
 				break;
 
-			// 隣接セレクタ
+			// Adjacent selector
 			case DIRECT_ADJACENT_SELECTOR: {
 				CombinatorSelector combinator = (CombinatorSelector) selector;
 				SimpleSelector simpleSelector = combinator.getSimpleSelector();
@@ -307,14 +307,14 @@ public class StyleContext {
 			}
 				break;
 
-			// 一般兄弟セレクタ
+			// General sibling selector
 			case GENERAL_ADJACENT_SELECTOR: {
 				CombinatorSelector combinator = (CombinatorSelector) selector;
 				SimpleSelector simpleSelector = combinator.getSimpleSelector();
 				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
 					selector = combinator.getAncestorSelector();
 					child = true;
-					// 先行する兄弟のいずれかが左側セレクタの右端にマッチする位置まで戻る
+					// Walk back until a preceding sibling matches the rightmost part of the left-hand selector.
 					CSSElement sib = ce.precedingElement;
 					List<CSSElement> ancestors = path.subList(0, j);
 					while (sib != null
@@ -333,7 +333,7 @@ public class StyleContext {
 			}
 				break;
 
-			// 単純セレクタ
+			// Simple selector
 			default: {
 				SimpleSelector simpleSelector = selector.getSimpleSelector();
 				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
@@ -350,21 +350,21 @@ public class StyleContext {
 	}
 
 	/**
-	 * :has()の判定を積み上げます。現在の要素(pathの末尾)を新たな候補として、
-	 * その全ての祖先(pathの末尾を除く各要素)についてチェックし、真になった
-	 * ものをfactsへ記録します。既に真と分かっている祖先は再チェックしません
-	 * (:has()は「部分木内に存在するか」の判定のため、一度真になれば以降
-	 * 不変)。文書全体を通じて呼び続けることで、要素の終了時点で確定する
-	 * :has()の真偽を段階的に積み上げます(単一パスでは完結しないため、
-	 * 複数パスにまたがって呼ぶ前提。開発計画「2パス制御モード」参照)。
+	 * Accumulates :has() results. Use the current element (the end of path) as a new candidate,
+	 * check each of its ancestors (every path element except the last), and record
+	 * true results in facts. Do not recheck ancestors already known to be true:
+	 * :has() tests existence within a subtree, so a true result
+	 * never changes. Calling this throughout the document incrementally accumulates
+	 * :has() truth values that become final when elements end. A single pass cannot finish this,
+	 * so callers must invoke it across passes; see "two-pass control mode" in the development plan.
 	 *
-	 * @param hasConditions 文書中の全:has()条件(文書順)
-	 * @param path          祖先チェーン(末尾が現在の要素)
-	 * @param facts         書き込み先
+	 * @param hasConditions all :has() conditions in the document (in document order)
+	 * @param path          ancestor chain (current element last)
+	 * @param facts         destination for recorded results
 	 */
 	private static void recordHasFacts(List<Condition> hasConditions, List<CSSElement> path, SelectorFacts facts) {
 		if (hasConditions.isEmpty() || path.size() < 2) {
-			// 祖先が無ければ:has()の対象(subject)になり得ない
+			// Without an ancestor, there can be no subject for :has().
 			return;
 		}
 		for (Condition hasCondition : hasConditions) {
@@ -384,18 +384,18 @@ public class StyleContext {
 	}
 
 	/**
-	 * {@code @container}の一致判定です(2026-08-15段4——
-	 * 開発記録 §2/§6)。
-	 * {@code query}が{@code null}(この規則が{@code @container}の内側に
-	 * 無い)なら常に一致。そうでなければ、pathの末尾(現在の要素)の
-	 * <b>祖先</b>(末尾自身は対象外——コンテナは自分自身になれない)を
-	 * 近い順に辿り、名前が合う最初のクエリコンテナだけを使う
-	 * (仕様どおり、複数祖先を跨いだ合成はしない)。該当コンテナが
-	 * 無ければ不一致。
+	 * Matches {@code @container} queries (2026-08-15 stage 4;
+	 * development record §2/§6).
+	 * Always matches if {@code query} is {@code null} (the rule is not inside
+	 * {@code @container}). Otherwise, traverse the <b>ancestors</b> of the last path element
+	 * (the current element) from nearest to farthest. Exclude the current element itself:
+	 * an element cannot be its own container. Use only the first query container
+	 * with a matching name (per the specification; do not combine multiple ancestors).
+	 * If there is no such container, the query does not match.
 	 *
 	 * <p>
-	 * 実測寸法は{@link ContainerFacts}が前パスまでに記録した値
-	 * ({@code NaN}なら未確定=常に不一致、設計§2「パス1は全クエリ偽」)。
+	 * Measured dimensions are values recorded by {@link ContainerFacts} through the previous pass
+	 * ({@code NaN} means undetermined, hence always non-matching; design §2, "all queries are false in pass 1").
 	 * </p>
 	 */
 	private static boolean containerQueryMatches(ContainerQuery query, List<CSSElement> path,
@@ -440,7 +440,7 @@ public class StyleContext {
 	private static boolean evaluateSimpleSelector(SimpleSelector selector, List<CSSElement> path, SelectorFacts facts) {
 		CSSElement ce = path.get(path.size() - 1);
 		switch (selector.getSelectorType()) {
-		// 要素セレクタ
+		// Element selector
 		case ELEMENT_NODE_SELECTOR: {
 			ElementSelector elementSelector = (ElementSelector) selector;
 			if (ce.isPseudoElement()) {
@@ -464,7 +464,7 @@ public class StyleContext {
 			return true;
 		}
 
-		// 擬似要素セレクタ
+		// Pseudo-element selector
 		case PSEUDO_ELEMENT_SELECTOR: {
 			if (!ce.isPseudoElement()) {
 				return false;
@@ -474,7 +474,7 @@ public class StyleContext {
 			return name.equals(ce.lName);
 		}
 
-		// 未対応のセレクタは変換を止めず不一致として扱う
+		// Treat unsupported selectors as non-matching without stopping conversion.
 		default:
 			LOG.warning("未対応のセレクタです: " + selector.getSelectorType() + " " + selector);
 			return false;
@@ -484,13 +484,13 @@ public class StyleContext {
 	private static boolean evaluateCondition(Condition condition, List<CSSElement> path, SelectorFacts facts) {
 		CSSElement ce = path.get(path.size() - 1);
 		switch (condition.getConditionType()) {
-		// クラス条件
+		// Class condition
 		case CLASS_CONDITION: {
 			String styleClass = condition.getValue();
 			return ce.isStyleClass(styleClass);
 		}
 
-		// 擬似クラス条件
+		// Pseudo-class condition
 		case PSEUDO_CLASS_CONDITION: {
 			String pseudoClass = condition.getValue();
 			if (pseudoClass == null || pseudoClass.length() == 0) {
@@ -526,12 +526,12 @@ public class StyleContext {
 			case 'S':
 			case 's':
 				if (pseudoClass.equalsIgnoreCase("scope")) {
-					// 2026-07-21: @scopeは未対応のため、:scopeは常に
-					// :root相当として扱う(CSS Selectors 4「スタイル
-					// シート内でスコープ根が他に指定されなければ
-					// ルート要素がデフォルト」の単純化)。@scopeを
-					// 実装する際は、この単純化をelementStack上の
-					// スコープ根追跡へ置き換える必要がある。
+					// 2026-07-21: @scope is unsupported, so always treat :scope
+					// as equivalent to :root (a simplification of CSS Selectors 4:
+					// the root element is the default scope root when no other
+					// scope root is specified in the stylesheet). When implementing
+					// @scope, replace this simplification with scope root tracking
+					// on elementStack.
 					pc = CSSElement.PC_ROOT;
 				}
 				break;
@@ -539,13 +539,13 @@ public class StyleContext {
 			return ce.isPseudoClass(pc);
 		}
 
-		// ID条件
+		// ID condition
 		case ID_CONDITION: {
 			String id = condition.getValue();
 			return id.equalsIgnoreCase(ce.id);
 		}
 
-		// 属性条件
+		// Attribute condition
 		case ATTRIBUTE_CONDITION: {
 			if (ce.atts == null) {
 				return false;
@@ -559,7 +559,7 @@ public class StyleContext {
 			return ce.atts.getValue(name) != null;
 		}
 
-		// スペース区切り属性値条件
+		// Space-separated attribute value condition
 		case ONE_OF_ATTRIBUTE_CONDITION: {
 			if (ce.atts == null) {
 				return false;
@@ -579,7 +579,7 @@ public class StyleContext {
 		}
 			return false;
 
-		// ハイフン区切り属性値条件
+		// Hyphen-separated attribute value condition
 		case BEGIN_HYPHEN_ATTRIBUTE_CONDITION: {
 			if (ce.atts == null) {
 				return false;
@@ -600,7 +600,7 @@ public class StyleContext {
 
 		}
 
-		// 言語条件
+		// Language condition
 		case LANG_CONDITION: {
 			String value = condition.getValue();
 			if (ce.lang == null) {
@@ -610,13 +610,13 @@ public class StyleContext {
 			return lang.equalsIgnoreCase(value);
 		}
 
-		// 方向性条件(:dir())
+		// Directionality condition (:dir())
 		case DIR_CONDITION: {
 			String value = condition.getValue();
 			return ce.dir != null && ce.dir.equalsIgnoreCase(value);
 		}
 
-		// An+B条件(:nth-child() / :nth-of-type())
+		// An+B condition (:nth-child() / :nth-of-type())
 		case NTH_CHILD_CONDITION: {
 			NthCondition nth = (NthCondition) condition;
 			return nth.matches(siblingPosition(ce, false));
@@ -626,23 +626,23 @@ public class StyleContext {
 			return nth.matches(siblingPosition(ce, true));
 		}
 
-		// 後方基準の疑似クラス(STRUCTURE_SCANが収集したSelectorFactsを
-		// 参照。facts自体が無い、またはその要素の走査結果が無い
-		// (STRUCTURE_SCANが実行されていない=processing.pass-count<2)
-		// 場合は未対応セレクタと同じく不一致として扱う)
+		// Pseudo-classes counted from the end (consult SelectorFacts collected by STRUCTURE_SCAN).
+		// If facts itself or the scan result for the element is missing
+		// (STRUCTURE_SCAN did not run, i.e., processing.pass-count<2),
+		// treat them as non-matching, like unsupported selectors.
 		case LAST_CHILD_CONDITION:
 			return facts != null && facts.isLastChild(ce.elementKey);
 		case ONLY_CHILD_CONDITION:
-			// :first-child(既存、開始時点で確定済みのPC_FIRST_CHILD)と
-			// :last-child(STRUCTURE_SCAN)の両方を満たす要素
+			// An element satisfying both :first-child (existing PC_FIRST_CHILD,
+			// already determined at its start) and :last-child (STRUCTURE_SCAN)
 			return ce.isPseudoClass(CSSElement.PC_FIRST_CHILD) && facts != null && facts.isLastChild(ce.elementKey);
 		case EMPTY_CONDITION:
 			return facts != null && facts.isEmpty(ce.elementKey);
 		case LAST_OF_TYPE_CONDITION:
 			return facts != null && facts.isLastOfType(ce.elementKey);
 		case ONLY_OF_TYPE_CONDITION:
-			// :first-of-type相当(既存のsiblingPosition(ce,true)==1)と
-			// :last-of-type(STRUCTURE_SCAN)の両方を満たす要素
+			// An element satisfying both the equivalent of :first-of-type
+			// (existing siblingPosition(ce,true)==1) and :last-of-type (STRUCTURE_SCAN)
 			return siblingPosition(ce, true) == 1 && facts != null && facts.isLastOfType(ce.elementKey);
 		case NTH_LAST_CHILD_CONDITION: {
 			if (facts == null) {
@@ -659,12 +659,12 @@ public class StyleContext {
 			return position >= 1 && ((NthCondition) condition).matches(position);
 		}
 
-		// :has()(引数は複数可、OR。StyleContext.mergeが呼ぶrecordHasFactsが
-		// 複数パスにまたがって積み上げた結果を参照するだけ)
+		// :has() (multiple arguments allowed, ORed). Only consult results accumulated
+		// across passes by recordHasFacts, called from StyleContext.merge.
 		case HAS_CONDITION:
 			return facts != null && facts.isHasMatch(ce.elementKey, condition);
 
-		// 前方一致・後方一致・部分一致属性値条件
+		// Prefix, suffix, and substring attribute value conditions
 		case PREFIX_ATTRIBUTE_CONDITION:
 		case SUFFIX_ATTRIBUTE_CONDITION:
 		case SUBSTRING_ATTRIBUTE_CONDITION: {
@@ -677,20 +677,20 @@ public class StyleContext {
 			if (attr == null || value == null || value.isEmpty()) {
 				return false;
 			}
-			// **大文字小文字は区別する**(2026-08-05に修正)。CSS Selectors では
-			// 属性セレクタの値比較は既定で case-sensitive で、区別しないのは
-			// `i` フラグを付けたときだけ。ここは無条件に両辺を小文字化しており、
-			// `li[type^="a"]`(小文字ローマ数字/英字)と `li[type^="A"]` が
-			// **どちらも同じ要素に当たって後勝ち**していた——`<li type="a">` が
-			// `H.`、`<li type="i">` が `X.` と大文字で出る。
+			// **Case-sensitive** (fixed on 2026-08-05). In CSS Selectors,
+			// attribute selector value comparison is case-sensitive by default, becoming
+			// case-insensitive only with the `i` flag. This code unconditionally lowercased both sides,
+			// so `li[type^="a"]` (lowercase Roman numerals/letters) and `li[type^="A"]`
+			// **both matched the same element, with the later rule winning**. `<li type="a">`
+			// rendered as uppercase `H.`, and `<li type="i">` as `X.`.
 			//
-			// **この差は基準画像で0.027%しかなく、imageTest の許容2%に
-			// 隠れていた。** 基準を作り直す前に新旧を並べて目視して見つけた。
+			// **This difference occupied only 0.027% of the baseline image and was hidden
+			// by imageTest's 2% tolerance.** Found by visually comparing old and new images before rebuilding baselines.
 			//
-			// なお `=` と `~=` は HTML の歴史的な「値を大文字小文字を無視して
-			// 比較する属性」の一覧(type/align/valign等)に合わせて
-			// 区別しないまま残している。前方・後方・部分一致にはその一覧が
-			// 適用されないので、ここだけが標準どおりになる。
+			// `=` and `~=` remain case-insensitive to follow HTML's historical list
+			// of attributes whose values compare without regard to case
+			// (type/align/valign, etc.). That list does not apply to prefix, suffix,
+			// or substring matches, so only this code is changed to follow the standard.
 			switch (condition.getConditionType()) {
 			case PREFIX_ATTRIBUTE_CONDITION:
 				return attr.startsWith(value);
@@ -701,11 +701,11 @@ public class StyleContext {
 			}
 		}
 
-		// :not擬似クラス条件(引数は子孫・子・隣接兄弟・一般兄弟いずれの結合子も
-		// 対応。pathをそのままmatchesFromPathへ渡すことで、:not()に付随した
-		// 要素(=pathの末尾)を起点に祖先方向へ遡って評価できる。2026-07-19、
-		// 隣接・一般兄弟結合子のみ対応(evaluateSiblingChain)だった状態から
-		// 子孫・子結合子にも対応(matchesFromPathへ統合))
+		// :not pseudo-class condition (supports descendant, child, adjacent sibling, and general sibling
+		// combinators in arguments). Passing path directly to matchesFromPath evaluates upward
+		// through ancestors from the element attached to :not() (=the end of path). On 2026-07-19,
+		// support expanded from adjacent/general sibling combinators only (evaluateSiblingChain)
+		// to descendant/child combinators too (unified in matchesFromPath).
 		case NOT_CONDITION: {
 			for (Selector selector : ((SelectorListCondition) condition).getSelectors()) {
 				if (matchesFromPath(selector, path, facts)) {
@@ -715,8 +715,8 @@ public class StyleContext {
 			return true;
 		}
 
-		// :is擬似クラス条件(詳細度は引数リスト中最大。:where()とはConditionTypeで
-		// 区別するが、マッチング判定自体は同一のためcaseをまとめる)
+		// :is pseudo-class condition (specificity is the maximum in the argument list). ConditionType
+		// distinguishes it from :where(), but matching is identical, so combine the cases.
 		case IS_CONDITION:
 		case WHERE_CONDITION: {
 			for (Selector selector : ((SelectorListCondition) condition).getSelectors()) {
@@ -727,7 +727,7 @@ public class StyleContext {
 			return false;
 		}
 
-		// 未対応の条件は変換を止めず不一致として扱う
+		// Treat unsupported conditions as non-matching without stopping conversion.
 		default:
 			LOG.warning("未対応のセレクタ条件です: " + condition.getConditionType() + " " + condition);
 			return false;
@@ -735,13 +735,13 @@ public class StyleContext {
 	}
 
 	/**
-	 * 兄弟内での通し番号(1始まり)を返します。先行兄弟チェーン
-	 * (CSSElement.precedingElement)を先頭側へ反復的に辿るだけで求まり
-	 * (1P、後続要素は見ない)、再帰は使いません。
+	 * Returns the sequence number among siblings (one-based). Iteratively follows
+	 * the preceding sibling chain (CSSElement.precedingElement) toward the beginning
+	 * (1P, without examining following elements); no recursion.
 	 *
-	 * @param ce           対象要素
-	 * @param sameTypeOnly true なら同じ要素名の兄弟だけを数える
-	 *                     (:nth-of-type() 用)
+	 * @param ce           target element
+	 * @param sameTypeOnly if true, count only siblings with the same element name
+	 *                                         (for :nth-of-type())
 	 */
 	private static int siblingPosition(CSSElement ce, boolean sameTypeOnly) {
 		int position = 1;
@@ -762,13 +762,13 @@ public class StyleContext {
 }
 
 /**
- * 規則を固有性の順に整列するための比較子です。
+ * Comparator for sorting rules by specificity.
  *
  * @author MIYABE Tatsuhiko
  */
 class RuleComparator implements Comparator<Object> {
 	/**
-	 * このクラスのインスタンスを返します。
+	 * Returns an instance of this class.
 	 */
 	public static final RuleComparator INSTANCE = new RuleComparator();
 
@@ -777,28 +777,28 @@ class RuleComparator implements Comparator<Object> {
 	}
 
 	/**
-	 * cascade origin(USER_AGENT &lt; AUTHOR)の昇順を最優先し、次に
-	 * cascadeレイヤーの出現順(レイヤーなし{@link Rule#NO_LAYER}が常に
-	 * 最優先、レイヤーどうしでは後から現れたレイヤーが優先)、
-	 * 同じレイヤーの中では固有性の昇順、固有性が等しい場合はスタイル
-	 * シート内の出現順で比較します(CSS Cascading and Inheritance:
+	 * Compare first by ascending cascade origin (USER_AGENT &lt; AUTHOR), then
+	 * by cascade layer source order (unlayered {@link Rule#NO_LAYER} always has
+	 * highest priority; among layers, later ones take precedence),
+	 * then by ascending specificity within a layer, and finally by stylesheet
+	 * source order for equal specificity (CSS Cascading and Inheritance:
 	 * origin/importance → layer → specificity → order。2026-07-21、
-	 * CSS Cascade Layers対応でlayerの段を追加。importantによる
-	 * layer優先順位反転は未対応、{@link Rule#getLayer()}参照)。
+	 * The layer step was added for CSS Cascade Layers. Layer priority
+	 * reversal for important is unsupported; see {@link Rule#getLayer()}).
 	 */
 	public int compare(Object o1, Object o2) {
 		return compare((Rule) o1, (Rule) o2, false);
 	}
 
 	/**
-	 * {@code important}がtrueなら<b>レイヤーの順序を反転</b>して比較します
-	 * (2026-08-03新設)。
+	 * Compares with <b>reversed layer order</b> if {@code important} is true
+	 * (added on 2026-08-03).
 	 *
 	 * <p>
-	 * CSS Cascade 5では、{@code !important}の宣言どうしの強さは
-	 * <b>通常と逆</b>になる——レイヤーに属さない宣言が<b>最弱</b>で、
-	 * <b>先に現れたレイヤー</b>ほど強い。Chrome・Firefox・Safariとも
-	 * 仕様どおり(2026-08-03、独立相談で確認)。
+	 * In CSS Cascade 5, precedence among {@code !important} declarations is
+	 * <b>the reverse of normal order</b>: unlayered declarations are <b>weakest</b>,
+	 * and <b>earlier layers</b> are stronger. Chrome, Firefox, and Safari all follow
+	 * the specification (confirmed in an independent consultation on 2026-08-03).
 	 * </p>
 	 */
 	static int compare(final Rule rule1, final Rule rule2, final boolean important) {
@@ -817,7 +817,7 @@ class RuleComparator implements Comparator<Object> {
 		return Integer.compare(rule1.getOrder(), rule2.getOrder());
 	}
 
-	/** {@code !important}の宣言どうしの比較子(レイヤー順が反転する)。 */
+	/** Comparator for {@code !important} declarations (reverses layer order). */
 	static final Comparator<Object> IMPORTANT = new Comparator<Object>() {
 		public int compare(final Object o1, final Object o2) {
 			return RuleComparator.compare((Rule) o1, (Rule) o2, true);

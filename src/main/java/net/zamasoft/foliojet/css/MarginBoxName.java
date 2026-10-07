@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.css;
 
 /**
- * ページマージンボックスの名前です(css-page-3 §7.1 の16ボックス)。
+ * Page margin box names (the 16 boxes in css-page-3 §7.1).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -45,8 +45,8 @@ public enum MarginBoxName {
 	}
 
 	/**
-	 * at-rule の記号(@top-center 等。@ はあってもなくてもよい)から
-	 * ボックス名を返します。未知の記号なら null を返します。
+	 * Returns the box name for an at-rule symbol (@top-center, etc.;
+	 * the @ is optional). Returns null for an unknown symbol.
 	 */
 	public static MarginBoxName fromSymbol(String symbol) {
 		String name = symbol.startsWith("@") ? symbol.substring(1) : symbol;

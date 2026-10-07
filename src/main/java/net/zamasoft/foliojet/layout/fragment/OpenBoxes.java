@@ -9,28 +9,31 @@ import java.util.concurrent.atomic.AtomicLong;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 頁・段の切断の間だけ、破断の時点で開いている箱(ビルダーの flowStack の箱)を持ちます(2026-10-07)。
+ * Holds boxes open at the break (boxes on the builder's flowStack) only during a page/column cut (2026-10-07).
  *
  * <p>
- * 開いた箱は救済分割しない(2026-09-16、{@code FlowContainer} の {@code RelaxInside})。救済は箱を視覚的に
- * 切って閉じた残余に置き換えるので、まだ内容が届く開いた箱にすると、再開で flowStack が積み直されず継続の
- * 開き段数と食い違う。それまでの判定は改ページ計画({@link BreakPlan})が承認した鎖の箱だけを守り、能力
- * スキャンが障壁で止まった先の開いた箱、段が内側の段組を収集しない経路、{@code vertical-rl} と
- * {@code sideways-rl} の境のような「開いているが計画に選ばれない」箱は守れなかった(計画の無い降下では
- * 計画が null で渡る)。開き状態は計画とは別に、切断の入口でここへ写す。
+ * Open boxes must not undergo rescue splitting (2026-09-16, {@code RelaxInside} in {@code FlowContainer} ).
+ * Rescue visually cuts a box and replaces it with a closed remainder. Applied to an open box still receiving
+ * content, it prevents flowStack from being rebuilt on resume, leaving it inconsistent with the continuation's
+ * open depth. The previous check protected only chain boxes approved by the page-break plan ({@link
+ * BreakPlan}).
+ * It did not protect boxes that were open but absent from the plan: those beyond a barrier where the
+ * capability scan stopped, paths where a column does not collect inner multi-column layout, or boundaries
+ * such as {@code vertical-rl} versus {@code sideways-rl} (descent without a plan passes null).
+ * Copy the open state here at the cut entry point, independently of the plan.
  * </p>
  *
  * <p>
- * 救済分割の判定と同じく、並行する変換で混線しないよう{@link ThreadLocal}で持ちます。
+ * Like the rescue-split decision, uses {@link ThreadLocal} to prevent concurrent conversions from interfering.
  * </p>
  */
 public final class OpenBoxes {
 	private static final ThreadLocal<Set<IBox>> OPEN = new ThreadLocal<>();
 
-	/** 計画に選ばれていない開いた箱の救済を止めた回数(掃過・試験の観測用)。 */
+	/** Number of times rescue was blocked for an open box absent from the plan (sweep/test observation). */
 	public static final AtomicLong UNSELECTED_RESCUES_PREVENTED = new AtomicLong();
 
-	/** 切断の範囲です。閉じると前の状態に戻る。 */
+	/** The cut scope. Closing restores the previous state. */
 	public interface Scope extends AutoCloseable {
 		@Override
 		void close();
@@ -41,7 +44,8 @@ public final class OpenBoxes {
 	}
 
 	/**
-	 * 切断の間、{@code boxes}を開いた箱とします。入れ子の切断(切断の中の段の切断)は外側の箱も引き継ぐ。
+	 * Treats {@code boxes} as open during the cut. Nested cuts (column cuts within a cut) also inherit outer
+	 * boxes.
 	 */
 	public static Scope scope(final Collection<? extends IBox> boxes) {
 		final Set<IBox> previous = OPEN.get();
@@ -60,7 +64,7 @@ public final class OpenBoxes {
 		};
 	}
 
-	/** 破断の時点で開いている箱か。切断の外では常に false。 */
+	/** Whether the box is open at the break. Always false outside a cut. */
 	public static boolean isOpen(final IBox box) {
 		final Set<IBox> open = OPEN.get();
 		return open != null && open.contains(box);

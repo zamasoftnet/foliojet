@@ -8,22 +8,19 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 
 /**
- * 破断時の{@code flowStack}(開いた祖先チェーン、またはCOLUMN継続の
- * ownerから数えた相対path)を、mutableなボックスidentityから独立に観測
- * したスナップショットです(2026-07-21新設、M6b Phase B B2。B4でPAGE root
- * だけでなくCOLUMN ownerも表現できるよう{@link OpenLevelRole.Anchor}へ
- * 一般化した)。{@link ContinuationCapability#classify}による分類は
- * ここで一度だけ行い(破断後・resume後に再分類しない)、
- * {@link ContinuationValidator}や実行経路は
- * この結果をそのまま運ぶ(ChatGPT Pro相談で確認、
- * 設計相談)。
+ * A snapshot of {@code flowStack} at the break (the open ancestor chain, or the path relative to the
+ * owner of a COLUMN continuation), observed independently of mutable box identity
+ * (introduced 2026-07-21, M6b Phase B B2; generalized to {@link OpenLevelRole.Anchor} in B4 to represent
+ * COLUMN owners as well as PAGE roots). Classification by {@link ContinuationCapability#classify}
+ * occurs only once here (no reclassification after the break or resume);
+ * {@link ContinuationValidator} and execution paths carry this result unchanged
+ * (confirmed in the ChatGPT Pro consultation; design consultation).
  *
- * @param anchorFlow  index 0(anchor)の書字方向。PAGEでは文書rootの、
- *                    COLUMNでは段組ownerの書字方向
- * @param anchorWritingModeVariant index 0(anchor)の字形回転種別
- * @param levels      open pathの各レベル(index 0 = anchor)
- * @param firstBarrier 最初に収集不能と判定されたレベル(全レベルが
- *                     収集可能なら空)
+ * @param anchorFlow writing direction of index 0 (anchor): document root for PAGE, multi-column owner for
+ * COLUMN
+ * @param anchorWritingModeVariant glyph rotation variant of index 0 (anchor)
+ * @param levels levels of the open path (index 0 = anchor)
+ * @param firstBarrier first level found uncollectable (empty if all levels are collectable)
  */
 public record OpenPathSnapshot(WritingMode anchorFlow, WritingModeVariant anchorWritingModeVariant,
 		List<OpenLevelDescriptor> levels, Optional<CapabilityBarrier> firstBarrier) {
@@ -32,27 +29,27 @@ public record OpenPathSnapshot(WritingMode anchorFlow, WritingModeVariant anchor
 		levels = List.copyOf(levels);
 	}
 
-	/** 既存の通常 writing-mode 用コンストラクタです。 */
+	/** The existing constructor for ordinary writing-mode. */
 	public OpenPathSnapshot(final WritingMode anchorFlow, final List<OpenLevelDescriptor> levels,
 			final Optional<CapabilityBarrier> firstBarrier) {
 		this(anchorFlow, WritingModeVariant.NORMAL, levels, firstBarrier);
 	}
 
-	/** open pathの深さ(全レベル数、anchorを含む)。 */
+	/** Open-path depth (total level count, including the anchor). */
 	public int depth() {
 		return this.levels.size();
 	}
 
-	/** 収集不能と判定された最初のレベルの位置と理由です。 */
+	/** The position and reason of the first level found uncollectable. */
 	public record CapabilityBarrier(int openPathIndex, ContinuationCapability reason) {
 	}
 
-	/** anchorの種別です(PAGE文書rootか、COLUMN段組ownerか)。 */
+	/** The anchor kind (PAGE document root or COLUMN multi-column owner). */
 	public enum AnchorKind {
 		PAGE_ROOT, COLUMN_OWNER
 	}
 
-	/** レベルがanchor(root/owner)か、分類済みの祖先かを表します。 */
+	/** Indicates whether a level is an anchor (root/owner) or a classified ancestor. */
 	public sealed interface OpenLevelRole {
 		record Anchor(AnchorKind kind) implements OpenLevelRole {
 		}
@@ -62,43 +59,42 @@ public record OpenPathSnapshot(WritingMode anchorFlow, WritingModeVariant anchor
 	}
 
 	/**
-	 * flowStackの1レベルの、mutableなボックスから独立した記述です。
+	 * Describes one flowStack level independently of the mutable box.
 	 *
-	 * @param index       flowStack上の位置(0 = root)
-	 * @param boxClass    実行時クラス(段組等のサブタイプ判定に使う)
-	 * @param flow        書字方向
-	 * @param writingModeVariant 字形回転種別
-	 * @param columnCount 段組数
-	 * @param sourceAnchor split前のソースアンカー(診断用。resume後の新
-	 *                     fragmentは旧anchorを継承しないため、照合の主キー
-	 *                     には使わない)
-	 * @param role        rootか分類済み祖先か
+	 * @param index position on flowStack (0 = root)
+	 * @param boxClass runtime class (used to identify subtypes such as multi-column layout)
+	 * @param flow writing direction
+	 * @param writingModeVariant glyph rotation variant
+	 * @param columnCount number of columns
+	 * @param sourceAnchor source anchor before split (diagnostic only; not the primary matching key,
+	 * because the new fragment after resume does not inherit the old anchor)
+	 * @param role root or classified ancestor
 	 */
 	public record OpenLevelDescriptor(int index, Class<? extends AbstractContainerBox> boxClass,
 			WritingMode flow, WritingModeVariant writingModeVariant, int columnCount, long sourceAnchor,
 			OpenLevelRole role) {
 
-		/** 既存の通常 writing-mode 用コンストラクタです。 */
+		/** The existing constructor for ordinary writing-mode. */
 		public OpenLevelDescriptor(final int index, final Class<? extends AbstractContainerBox> boxClass,
 				final WritingMode flow, final int columnCount, final long sourceAnchor, final OpenLevelRole role) {
 			this(index, boxClass, flow, WritingModeVariant.NORMAL, columnCount, sourceAnchor, role);
 		}
 
-		/** resume時の実fragmentと照合するための署名。 */
+		/** Signature for matching the actual fragment on resume. */
 		public FragmentSignature fragmentSignature() {
 			return new FragmentSignature(this.boxClass, this.flow, this.writingModeVariant, this.columnCount);
 		}
 	}
 
 	/**
-	 * fragment identityの照合キーです(class/flow/variant/columnCount。実行時
-	 * クラスがサブタイプ——段組——も区別する)。{@code sourceAnchor}は
-	 * 含めない(新fragmentは旧anchorを継承しないため)。
+	 * The matching key for fragment identity (class/flow/variant/columnCount; the runtime class also
+	 * distinguishes subtypes such as multi-column layout). Excludes {@code sourceAnchor}
+	 * because new fragments do not inherit the old anchor.
 	 */
 	public record FragmentSignature(Class<? extends AbstractContainerBox> boxClass,
 			WritingMode flow, WritingModeVariant writingModeVariant, int columnCount) {
 
-		/** 既存の通常 writing-mode 用コンストラクタです。 */
+		/** The existing constructor for ordinary writing-mode. */
 		public FragmentSignature(final Class<? extends AbstractContainerBox> boxClass, final WritingMode flow,
 				final int columnCount) {
 			this(boxClass, flow, WritingModeVariant.NORMAL, columnCount);

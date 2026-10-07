@@ -4,27 +4,25 @@ import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.content.Container;
 
 /**
- * {@code AbstractContainerBox.prepareColumnCut()}が返す、まだownerへ
- * commitしていない切断結果です(2026-07-21新設、M6b Phase B B4)。
+ * A cut result returned by {@code AbstractContainerBox.prepareColumnCut()} that has not yet been committed
+ * to the owner (introduced 2026-07-21, M6b Phase B B4).
  *
  * <p>
- * ここでいう「prepared」は、完全に副作用のないdry-runという意味では
- * ない——{@code ownerContainer.splitPageAxis()}による元active columnの
- * 切断は既に行われている。正確な意味は「ownerへの新column追加と
- * builder resume開始をまだcommitしていない切断結果」である(ChatGPT Pro
- * 相談で確認、
- * 設計相談
- * 参照)。PAGE経路と同様、split後の構造検証失敗は変換全体を中断すべきで
- * あり、旧経路へrollbackして再実行してはいけない。
+ * "Prepared" does not mean a completely side-effect-free dry run:
+ * {@code ownerContainer.splitPageAxis()} has already cut the original active column.
+ * Its precise meaning is a cut result whose addition of a new column to the owner and start of builder
+ * resume have not yet been committed (confirmed in the ChatGPT Pro consultation; see the design consultation).
+ * As on the PAGE path, structural validation failure after split must abort the entire conversion;
+ * do not roll back to the old path and rerun it.
  * </p>
  *
- * @param owner                    段組owner box(commit時にthisと同一か検証)
- * @param expectedOwnerContainer   prepare時点のowner.container(commit時の同一性検証用)
- * @param expectedActiveColumn     prepare時点のactive column
- * @param expectedActualColumnCount prepare時点の実体化済み段数
- * @param newPageExtent            commit時にownerへ設定する新しいpage軸寸法
- * @param ownerRemainder           owner直下の残余コンテナ(次columnへ運ぶ内容)
- * @param childFrame               貫通した場合の継続フレーム(貫通しなければnull)
+ * @param owner multi-column owner box (checked against this for identity at commit)
+ * @param expectedOwnerContainer owner.container at prepare time (for identity validation at commit)
+ * @param expectedActiveColumn active column at prepare time
+ * @param expectedActualColumnCount number of materialized columns at prepare time
+ * @param newPageExtent new page-axis extent to set on the owner at commit
+ * @param ownerRemainder remainder container directly under the owner (content carried to the next column)
+ * @param childFrame continuation frame if the cut passes through (null otherwise)
  */
 public record PreparedColumnCut(AbstractContainerBox owner, Container expectedOwnerContainer,
 		Container expectedActiveColumn, int expectedActualColumnCount, double newPageExtent, Container ownerRemainder,

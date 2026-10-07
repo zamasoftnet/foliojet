@@ -8,19 +8,19 @@ import net.zamasoft.foliojet.layout.box.params.PageMarginNotePos;
 import net.zamasoft.foliojet.layout.box.params.ShapeOutsideParams;
 
 /**
- * {@link FloatPos}(浮動体の配置パラメータ、{@link BoxKind#FLOAT_BLOCK}
- * が使う)の内容をfreezeし、呼び出しごとに独立した新品の
- * {@code FloatPos}をmaterializeするテンプレートです(2026-07-22新設、
- * M6d-A3b)。
+ * A template that freezes the contents of {@link FloatPos}
+ * (float positioning parameters used by {@link BoxKind#FLOAT_BLOCK} )
+ * and materializes an independent, fresh {@code FloatPos} on each call
+ * (introduced 2026-07-22, M6d-A3b).
  *
  * <p>
- * {@code FloatPos}は{@code FlowPos}と同じ{@code AbstractNormalFlowPos}
- * を継承するため、祖先フィールドは{@link NormalFlowPosFields}
- * (`FlowPosTemplate`と共有)が担う。{@code floating}
- * ({@code FloatSide}、enum)はそのまま保持する(2026-07-22 Stage2で
- * 不変recordへ置換)。{@code shapeOutside}({@code shape-outside}、
- * 2026-08-29)は全フィールドfinalの不変値なので参照をそのまま持つ——
- * ここで運ばないとセグメント再生後の浮動体から形状が黙って消える。
+ * {@code FloatPos} extends the same {@code AbstractNormalFlowPos} as {@code FlowPos} ,
+ * so {@link NormalFlowPosFields} (shared with `FlowPosTemplate`) handles ancestor fields.
+ * Retains {@code floating} ({@code FloatSide}, an enum) unchanged
+ * (replaced with an immutable record in Stage2, 2026-07-22).
+ * {@code shapeOutside} ({@code shape-outside}, 2026-08-29) is an immutable value with all-final fields,
+ * so its reference is retained unchanged.
+ * Without carrying it here, shapes would silently disappear from floats after segment replay.
  * </p>
  */
 
@@ -40,7 +40,7 @@ public record FloatPosTemplate(NormalFlowPosFields common, FloatSide floating, K
 		return new FloatPosTemplate(NormalFlowPosFields.freeze(source), source.floating, kind, source.shapeOutside);
 	}
 
-	/** 呼び出しごとに新品の{@code FloatPos}を返す(複数回呼んでも互いに影響しない)。 */
+	/** Returns a fresh {@code FloatPos} on each call (multiple calls do not affect one another). */
 	public FloatPos materialize() {
 		final FloatPos pos = switch (this.kind) {
 		case NORMAL -> new FloatPos();

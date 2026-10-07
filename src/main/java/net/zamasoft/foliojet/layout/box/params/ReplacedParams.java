@@ -21,23 +21,22 @@ public class ReplacedParams extends AbstractTextParams {
 	public RectFrame frame = RectFrame.NULL_FRAME;
 
 	/**
-	 * 行の高さです。
+	 * The line height.
 	 */
 	public double lineHeight = LayoutUtils.NONE;
 
 	/**
-	 * {@code clip-path}(2026-08-29)。ブロックでは{@link BlockParams}が持つが、
-	 * 置換要素は{@link BlockParams}を持たないため、同じ形状をここへ写す。
-	 * これが無いと{@code <img>}のclip-pathだけ黙って無視されていた。
+	 * {@code clip-path} (2026-08-29). {@link BlockParams} holds it for blocks, but replaced elements have no {@link
+	 * BlockParams}, so copy the same shape here. Without this, clip-path on {@code <img>} was silently ignored.
 	 */
 	public ClipPathShape clipPath = null;
 
-	/** {@code aspect-ratio}の幅/高さ(0=指定なし。2026-08-29)。 */
+	/** The width/height ratio of {@code aspect-ratio} (0 = unspecified; 2026-08-29). */
 	public double aspectRatio = 0;
 
 	/**
-	 * {@code aspect-ratio: auto <ratio>}か(2026-08-29)。trueなら画像の
-	 * 固有比率があるときはそちらを優先し、無いときだけ指定比率を使う。
+	 * Whether this is {@code aspect-ratio: auto <ratio>} (2026-08-29). If true, prefer the image's intrinsic ratio
+	 * when available; use the specified ratio only otherwise.
 	 */
 	public boolean aspectRatioAuto = false;
 

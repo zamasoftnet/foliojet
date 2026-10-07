@@ -26,71 +26,72 @@ import net.zamasoft.foliojet.layout.visitor.ArtifactVisitor;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
- * 救済分割(visual rescue split)の断片です
- * (2026-07-25新設、増分3。設計相談
- * §2。<b>まだ本番経路へは配線されていません</b>)。
+ * A fragment for visual rescue splitting
+ * (introduced 2026-07-25, increment 3; design consultation §2;
+ * <b>not yet wired into production paths</b>).
  *
  * <p>
- * 「同じ箱を、消費済み量だけずらして、残りをクリップして描く」という
- * 短命な描画デコレータです。元ボックス({@code source})の寸法・Params・
- * Pos・Containerは<b>一切</b>変更しません。断片が変えるのはページ方向の
- * <b>占有量</b>だけで、行方向の寸法は元ボックスと同じです。つまり
- * 「元ボックスのレイアウト寸法」と「フラグメント上の占有寸法」を
- * 分離します。
+ * A short-lived drawing decorator that draws the same box shifted by the consumed extent and clips
+ * the remainder. It changes <b>none</b> of the original box's ({@code source}) dimensions, Params, Pos,
+ * or Container. Fragments change only page-direction <b>occupancy</b>;
+ * line-direction dimensions stay the same as the original box.
+ * This separates the original box's layout dimensions from its occupied dimensions on the fragment.
  * </p>
  *
- * <h2>座標</h2>
+ * <h2>Coordinates</h2>
  *
  * <p>
- * 断片の物理原点{@code (x, y)}に対して、元ボックスを描く原点は
+ * Relative to the fragment's physical origin {@code (x, y)} , the original box's drawing origin is:
  * </p>
  *
  * <pre>
- * 横書き(TB):     sourceX = x
- *                 sourceY = y - offset
- * 縦書き右→左(RL): sourceX = x - (sourcePageExtent - offset - sliceExtent)
- *                 sourceY = y
- * 縦書き左→右(LR): sourceX = x - offset
- *                 sourceY = y
+ * Horizontal writing (TB):             sourceX = x
+ *                                      sourceY = y - offset
+ * Vertical writing, right to left (RL): sourceX = x - (sourcePageExtent - offset - sliceExtent)
+ *                                      sourceY = y
+ * Vertical writing, left to right (LR): sourceX = x - offset
+ *                                      sourceY = y
  * </pre>
  *
  * <p>
- * です。ページ軸の<b>向き</b>の規則は{@link LayoutUtils#drawX}の説明が
- * 正本で、上式はそこから導かれます。向きが正のTBとLRが同じ
- * 「{@code - offset}」の形になり、向きが負のRLだけが
- * 「まだ消費していない残余」{@code sourcePageExtent - offset - sliceExtent}
- * を引く形になります(縦書きRLではページ方向始端=元ボックスの右端で、
- * 断片の左端{@code x}から元ボックスの左端までの距離がその残余になる)。
+ * The description of {@link LayoutUtils#drawX} is authoritative for page-axis <b>direction</b>;
+ * the formulas above derive from it. TB and LR, whose directions are positive, both use
+ * {@code - offset} . Only RL, whose direction is negative, subtracts the unconsumed remainder,
+ * {@code sourcePageExtent - offset - sliceExtent}
+ * (in vertical RL writing, the page-direction start is the original box's right edge;
+ * that remainder is the distance from the fragment's left edge {@code x} to the original box's left edge).
  * </p>
  *
- * <h2>枠線・マージン</h2>
+ * <h2>Borders and margins</h2>
  *
  * <p>
- * 断片の矩形でクリップするだけなので、装飾は自然にsliceになります
- * (CSS {@code box-decoration-break: slice}と同じ):先頭断片だけが上
- * マージン・上枠線を含み、最終断片だけが下枠線・下マージンを含み、
- * 中間断片はどちらも含まず、切断面に新しい線は描かれません。
- * {@code AbsoluteRectFrame.cut()}は<b>使いません</b>——元の幾何を保った
- * クリップの方が、背景画像やtransformを含めて正確だからです(答申§2)。
+ * Simply clipping to the fragment rectangle naturally slices decorations
+ * (as with CSS {@code box-decoration-break: slice} ):
+ * only the first fragment includes the top margin and top border;
+ * only the final fragment includes the bottom border and bottom margin.
+ * Intermediate fragments include neither, and no new line is drawn on a cut surface.
+ * <b>Does not use</b> {@code AbsoluteRectFrame.cut()} :
+ * clipping while preserving the original geometry is more accurate, including background images
+ * and transforms (recommendation §2).
  * </p>
  *
- * <h2>意味論</h2>
+ * <h2>Semantics</h2>
  *
  * <p>
- * 続きの断片({@code offset > 0})は「見た目は内容、意味の上では先頭断片に
- * 属する」ものです。{@link #pushGetTextSteps}は先頭断片だけが元ボックスへ
- * 委譲し、継続断片は何も返しません。PDF上のartifact化(構造タグを開かない)
- * は描画側({@code Drawer}のartifact属性 +
- * {@code GC.beginArtifactScope()})が担当します。
+ * Continuation fragments ({@code offset > 0}) are visually content but semantically belong to the first
+ * fragment. Only the first fragment delegates {@link #pushGetTextSteps} to the original box;
+ * continuation fragments return nothing.
+ * The drawing side handles PDF artifacts (without opening structure tags):
+ * the artifact attribute of {@code Drawer} plus {@code GC.beginArtifactScope()} .
  * </p>
  *
  * <h2>SourceAnchor</h2>
  *
  * <p>
- * 救済断片はソースイベントではなくレイアウト済みボックスから派生する
- * ページング状態なので、{@code sourceAnchor}は{@code -1}のままです
- * ({@link AbstractBox}の既定)。{@code stampRanges()}はアンカーが非負の
- * ボックスだけを再生対象にするため、レシピ再生と救済tailは二重化しません。
+ * Rescue fragments are pagination state derived from laid-out boxes, not source events,
+ * so {@code sourceAnchor} remains {@code -1} (the default in {@link AbstractBox} ).
+ * Since {@code stampRanges()} selects only boxes with nonnegative anchors for replay,
+ * recipe replay and rescue tails do not duplicate each other.
  * </p>
  */
 public class VisualRescueBox extends AbstractBox {
@@ -106,11 +107,11 @@ public class VisualRescueBox extends AbstractBox {
 	private final double sliceExtent;
 
 	/**
-	 * @param source           レイアウト済みの元ボックス
-	 * @param progression      ページ軸を決める書字方向(包含ブロックのもの)
-	 * @param sourcePageExtent 元ボックスのページ方向の占有量(不変)
-	 * @param offset           この断片が始まるページ方向位置
-	 * @param sliceExtent      この断片の占有量
+	 * @param source laid-out original box
+	 * @param progression writing direction determining the page axis (that of the containing block)
+	 * @param sourcePageExtent original box's page-direction occupancy (immutable)
+	 * @param offset page-direction position where this fragment starts
+	 * @param sliceExtent this fragment's occupancy
 	 */
 	public VisualRescueBox(final IBox source, final WritingMode progression, final double sourcePageExtent,
 			final double offset, final double sliceExtent) {
@@ -118,7 +119,7 @@ public class VisualRescueBox extends AbstractBox {
 			throw new IllegalArgumentException("source");
 		}
 		if (source instanceof VisualRescueBox) {
-			// 断片の断片は作らない。区間はoffset/sliceExtentだけで表す
+			// Do not create fragments of fragments. Represent the interval solely with offset/sliceExtent.
 			throw new IllegalArgumentException("救済断片を入れ子にしない: " + source);
 		}
 		if (progression == null) {
@@ -145,14 +146,14 @@ public class VisualRescueBox extends AbstractBox {
 	}
 
 	/**
-	 * 判定結果から断片を作ります。元ボックスの種類に応じて通常フロー用と
-	 * float用のアダプタを選びます。
+	 * Creates a fragment from a decision. Selects a normal-flow or float adapter according to the original box
+	 * kind.
 	 *
-	 * @param source           レイアウト済みの元ボックス
-	 * @param progression      ページ軸を決める書字方向
-	 * @param sourcePageExtent 元ボックスのページ方向の占有量
-	 * @param slice            {@link VisualRescuePlanner}の判定結果
-	 * @return 断片
+	 * @param source laid-out original box
+	 * @param progression writing direction determining the page axis
+	 * @param sourcePageExtent original box's page-direction occupancy
+	 * @param slice decision from {@link VisualRescuePlanner}
+	 * @return the fragment
 	 */
 	public static VisualRescueBox of(final IBox source, final WritingMode progression, final double sourcePageExtent,
 			final RescueDecision.Slice slice) {
@@ -175,34 +176,34 @@ public class VisualRescueBox extends AbstractBox {
 		return this.progression;
 	}
 
-	/** 元ボックスのページ方向の占有量です(断片ごとに変わりません)。 */
+	/** The original box's page-direction occupancy (unchanged across fragments). */
 	public final double getSourcePageExtent() {
 		return this.sourcePageExtent;
 	}
 
-	/** この断片が始まるページ方向位置(消費済み量)です。 */
+	/** The page-direction position where this fragment starts (consumed extent). */
 	public final double getOffset() {
 		return this.offset;
 	}
 
-	/** この断片の占有量です。 */
+	/** This fragment's occupancy. */
 	public final double getSliceExtent() {
 		return this.sliceExtent;
 	}
 
-	/** 先頭断片(上マージン・上枠線を持つ)であればtrueを返します。 */
+	/** Returns true for the first fragment (with top margin and top border). */
 	public final boolean isFirstFragment() {
 		return this.offset == 0;
 	}
 
-	/** 最終断片(下枠線・下マージンを持つ)であればtrueを返します。 */
+	/** Returns true for the final fragment (with bottom border and bottom margin). */
 	public final boolean isLastFragment() {
 		return LayoutUtils.compare(this.offset + this.sliceExtent, this.sourcePageExtent) >= 0;
 	}
 
 	/**
-	 * 続きの断片(PDFのartifactとして出す側)であればtrueを返します。
-	 * 答申§3のとおり{@code offset > 0}が唯一の判定です。
+	 * Returns true for a continuation fragment (emitted as a PDF artifact).
+	 * As specified in recommendation §3, {@code offset > 0} is the sole criterion.
 	 */
 	public final boolean isContinuation() {
 		return !this.isFirstFragment();
@@ -213,18 +214,18 @@ public class VisualRescueBox extends AbstractBox {
 	}
 
 	/**
-	 * 元ボックスのページ方向<b>終端側</b>のマージンです(2026-07-25、増分5)。
+	 * The margin on the original box's <b>end side</b> in the page direction (2026-07-25, increment 5).
 	 *
 	 * <p>
-	 * 断片の直後でマージンの折りたたみを再開するために使います。元
-	 * ボックスの下マージンは<b>最終断片の幾何の中</b>にあるため、断片の
-	 * 占有量には既に含まれています。ここが返すのは「次の内容の上マージンと
-	 * 相殺してよい量」です({@code BlockBuilder.addBound}の
-	 * {@code poLastMargin}の設定と同じ軸の選び方)。
+	 * Used to resume margin collapsing immediately after the fragment.
+	 * The original box's bottom margin is <b>within the final fragment's geometry</b>,
+	 * so it is already included in the fragment's occupancy.
+	 * Returns the amount that may collapse with the next content's top margin
+	 * (uses the same axis selection as setting {@code poLastMargin} in {@code BlockBuilder.addBound} ).
 	 * </p>
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return 折りたたみ対象のマージン(枠を持たない元ボックスなら0)
+	 * @param flow writing direction determining the axes
+	 * @return margin eligible for collapsing (0 if the original box has no frame)
 	 */
 	public final double sourceCollapsibleEndMargin(final WritingMode flow) {
 		if (!(this.source instanceof IFramedBox framed)) {
@@ -251,9 +252,9 @@ public class VisualRescueBox extends AbstractBox {
 	}
 
 	/**
-	 * 断片には固有の枠がないため、内部寸法は「行方向は元ボックスの内部
-	 * 寸法、ページ方向はこの断片の占有量」とします(IBoxの契約を満たす
-	 * ためだけの値で、レイアウトには使われません)。
+	 * A fragment has no frame of its own, so its inner dimensions use the original box's inner dimension
+	 * on the line axis and this fragment's occupancy on the page axis.
+	 * These values only satisfy the IBox contract; layout does not use them.
 	 */
 	public final double getInnerWidth() {
 		return this.progression.isVertical() ? this.sliceExtent : this.source.getInnerWidth();
@@ -265,12 +266,12 @@ public class VisualRescueBox extends AbstractBox {
 	}
 
 	/**
-	 * 断片の物理原点{@code fragmentX}に対する、元ボックスの描画原点Xです。
+	 * The original box's drawing origin X relative to the fragment's physical origin {@code fragmentX} .
 	 */
 	public final double sourceDrawX(final double fragmentX) {
-		// ページ軸の向きの扱いは LayoutUtils.drawX と同じ規則に従う
-		// (2026-07-25、vertical-lr対応。従来はisVertical()でRLとLRを
-		// 同一視し、RL専用の式だけを持っていた)
+		// Handle page-axis direction according to the same rule as LayoutUtils.drawX.
+		// (2026-07-25, vertical-lr support. Previously isVertical() treated RL and LR
+		// as identical and provided only the RL formula.)
 		return switch (this.progression) {
 		case TB -> fragmentX;
 		case RL -> fragmentX - (this.sourcePageExtent - this.offset - this.sliceExtent);
@@ -279,28 +280,28 @@ public class VisualRescueBox extends AbstractBox {
 	}
 
 	/**
-	 * 断片の物理原点{@code fragmentY}に対する、元ボックスの描画原点Yです。
+	 * The original box's drawing origin Y relative to the fragment's physical origin {@code fragmentY} .
 	 */
 	public final double sourceDrawY(final double fragmentY) {
 		return this.progression.isVertical() ? fragmentY : fragmentY - this.offset;
 	}
 
 	/**
-	 * 断片の物理矩形です(この矩形の外は描かれません)。
+	 * The fragment's physical rectangle (nothing is drawn outside it).
 	 */
 	public final Rectangle2D.Double fragmentRect(final double x, final double y) {
 		return new Rectangle2D.Double(x, y, this.getWidth(), this.getHeight());
 	}
 
 	/**
-	 * 断片の矩形と既存のクリップを交差させます。
-	 * {@code AbstractContainerBox.clip()}と同じ流儀です
-	 * ({@link Rectangle2D#createIntersection(Rectangle2D)})。
+	 * Intersects the fragment rectangle with the existing clip.
+	 * Follows the same approach as {@code AbstractContainerBox.clip()}
+	 * ({@link Rectangle2D#createIntersection(Rectangle2D)}).
 	 *
-	 * @param clip 既存のクリップ({@code null}可)
-	 * @param x    断片の物理X
-	 * @param y    断片の物理Y
-	 * @return 交差したクリップ
+	 * @param clip existing clip (may be {@code null} )
+	 * @param x fragment's physical X
+	 * @param y fragment's physical Y
+	 * @return the intersected clip
 	 */
 	public final Shape clip(final Shape clip, final double x, final double y) {
 		final Rectangle2D.Double newClip = this.fragmentRect(x, y);
@@ -311,31 +312,32 @@ public class VisualRescueBox extends AbstractBox {
 	}
 
 	/**
-	 * 元ボックスは既にレイアウト済みなので何もしません(断片は寸法計算を
-	 * 一切行わない——これが「レイアウト計算を変えない」という設計の核)。
+	 * Does nothing because the original box is already laid out.
+	 * Fragments never calculate dimensions; this is the core of the design that leaves layout calculations
+	 * unchanged.
 	 */
 	public void finishLayoutSelf(final IFramedBox containerBox) {
 	}
 
 	/**
-	 * 元ボックスを再度finishLayoutすると二重計算になるため、子は積みません。
+	 * Pushes no children, because running finishLayout again on the original box would calculate twice.
 	 */
 	public void pushFinishLayoutChildren(final IFramedBox containerBox, final Deque<FinishLayoutStep> worklist) {
 	}
 
 	/**
-	 * 断片の矩形でクリップし、消費済み量だけずらした位置から元ボックスを
-	 * 描きます。元ボックスの描画そのものには一切手を加えません
-	 * (=内容はベクターのまま。ラスタライズしない)。
+	 * Clips to the fragment rectangle and draws the original box from a position shifted by the consumed
+	 * extent.
+	 * Does not alter drawing of the original box itself (content stays vector-based; no rasterization).
 	 */
 	public void pushDrawSteps(final PageBox pageBox, final Drawer drawer, final Visitor visitor, final Shape clip,
 			final AffineTransform transform, final double contextX, final double contextY, final double x,
 			final double y, final Deque<DrawStep> worklist) {
 		final Shape sliceClip = this.clip(clip, x, y);
-		// 継続断片({@code offset > 0})はartifactとして出す(答申§3)。
-		// 唯一の判定はoffset>0で、(a)表示リストへのartifact印、
-		// (b)副作用のないVisitor、の二つを同時に切り替える。先頭断片は
-		// 通常どおり実Visitor・実内容
+		// Emit continuation fragments ({@code offset > 0}) as artifacts (recommendation §3).
+		// The sole criterion is offset>0, which switches both (a) the display-list artifact flag
+		// and (b) a side-effect-free Visitor. The first fragment uses
+		// the real Visitor and real content as usual.
 		final Drawer sliceDrawer = this.isContinuation() ? drawer.artifactView() : drawer;
 		final Visitor sliceVisitor = this.isContinuation() ? ArtifactVisitor.INSTANCE : visitor;
 		worklist.push(IBox.drawStep(this.source, pageBox, sliceDrawer, sliceVisitor, sliceClip, transform, contextX,
@@ -343,33 +345,31 @@ public class VisualRescueBox extends AbstractBox {
 	}
 
 	/**
-	 * 元ボックスの枠(背景・ボーダー)の描画手順を、断片のクリップと
-	 * 座標で積みます(2026-07-25、増分6)。
+	 * Pushes drawing steps for the original box's frame (background/borders) using the fragment's clip
+	 * and coordinates (2026-07-25, increment 6).
 	 *
 	 * <p>
-	 * ブロックの枠は<b>描画パスとは別の「フレームパス」</b>で描かれます
-	 * ({@code AbstractBlockBox.pushFramesSteps} —— 背景・ボーダーを内容
-	 * より先に、親コンテナの走査で描く)。したがって
-	 * {@link #pushDrawSteps}へ元ボックスを委譲するだけでは、ブロックを
-	 * 元にした断片の背景・ボーダーが<b>どの断片にも出ません</b>。
-	 * この入口が、そのフレームパスの側の委譲です。
+	 * Block frames are drawn in a <b>frame pass separate from the drawing pass</b>
+	 * ({@code AbstractBlockBox.pushFramesSteps}; the parent-container traversal draws backgrounds/borders
+	 * before content). Merely delegating the original box to {@link #pushDrawSteps} therefore leaves
+	 * the background/borders of block-derived fragments <b>absent from every fragment</b>.
+	 * This entry point delegates the frame-pass side.
 	 * </p>
 	 *
 	 * <p>
-	 * 枠を{@link #clip(Shape, double, double)}で切るだけなので、装飾は
-	 * 描画パスと同じく自然にsliceになります(先頭断片だけが上ボーダー、
-	 * 最終断片だけが下ボーダーを含み、切断面に線は出ない)。継続断片は
-	 * artifact扱いも同じです。
+	 * Simply cutting the frame with {@link #clip(Shape, double, double)} naturally slices decorations,
+	 * just as in the drawing pass (only the first fragment contains the top border, only the final fragment
+	 * contains the bottom border, and no line appears at the cut).
+	 * Continuation fragments receive the same artifact treatment.
 	 * </p>
 	 *
 	 * <p>
-	 * 元ボックスが枠パスを持たない種類(テキストブロック・置換要素)
-	 * であれば何も積みません——置換要素は自分の{@code pushDrawSteps}で
-	 * 枠を描くため、二重に描かないためです。
+	 * Pushes nothing if the original box kind has no frame pass (text blocks/replaced elements).
+	 * Replaced elements draw their frames in their own {@code pushDrawSteps} , so this avoids drawing twice.
 	 * </p>
 	 *
-	 * @param x 断片の物理X
-	 * @param y 断片の物理Y
+	 * @param x fragment's physical X
+	 * @param y fragment's physical Y
 	 */
 	public final void pushSourceFramesSteps(final PageBox pageBox, final Drawer drawer, final Shape clip,
 			final AffineTransform transform, final double x, final double y,
@@ -383,8 +383,8 @@ public class VisualRescueBox extends AbstractBox {
 	}
 
 	/**
-	 * 先頭断片だけが元ボックス全体のテキストを一度返します。継続断片は
-	 * 空です(テキスト抽出・読み上げの二重化を防ぐ)。
+	 * Only the first fragment returns the entire original box's text once.
+	 * Continuation fragments are empty, preventing duplicate text extraction and read-aloud output.
 	 */
 	public void pushGetTextSteps(final StringBuilder textBuff, final Deque<GetTextStep> worklist) {
 		if (this.isFirstFragment()) {
@@ -393,9 +393,8 @@ public class VisualRescueBox extends AbstractBox {
 	}
 
 	/**
-	 * 輪郭は見た目の話なので、全断片が元ボックスへ委譲します(座標だけ
-	 * ずらす)。テキスト抽出({@link #pushGetTextSteps})とは判定が異なる
-	 * ことに注意してください。
+	 * Outlines are visual, so every fragment delegates to the original box (shifting only coordinates).
+	 * Note that this criterion differs from text extraction ({@link #pushGetTextSteps}).
 	 */
 	public void pushTextShapeSteps(final PageBox pageBox, final GeneralPath path, final AffineTransform transform,
 			final double x, final double y, final Deque<TextShapeStep> worklist) {

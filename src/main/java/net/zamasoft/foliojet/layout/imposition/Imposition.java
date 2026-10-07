@@ -9,26 +9,27 @@ import net.zamasoft.foliojet.ua.props.OutputAutoRotate;
 import net.zamasoft.foliojet.ua.props.OutputFitToPaper;
 
 /**
- * 面付けを行うインターフェースです。
- * 
+ * An interface for imposition.
+ *
  * <p>
- * PagedMediaと異なり、複数のページに並行して描画することはできません。
- * PDF上の同じページに複数のページを面付けするため、nextPageは複数の呼び出しに対して同じグラフィックコンテキストを返すことがあるためです。
+ * Unlike PagedMedia, it does not allow concurrent drawing on multiple pages.
+ * Since multiple pages are imposed on the same PDF page, multiple calls to nextPage may return the
+ * same graphics context.
  * </p>
- * 
+ *
  * @author MIYABE Tatsuhiko
  */
 public interface Imposition {
 	/**
-	 * 綴じ方向を返します。
-	 * 
+	 * Returns the binding side.
+	 *
 	 * @return
 	 */
 	public BoundSide getBoundSide();
 
 	/**
-	 * 綴じ方向を設定します。
-	 * 
+	 * Sets the binding side.
+	 *
 	 * @param boundSide
 	 */
 	public void setBoundSide(BoundSide boundSide);
@@ -50,8 +51,8 @@ public interface Imposition {
 	public double getTrimLeft();
 
 	/**
-	 * 断ち代の幅を設定します。
-	 * 
+	 * Sets the trim allowance widths.
+	 *
 	 * @param trimTop
 	 * @param trimRight
 	 * @param trimBottom
@@ -60,18 +61,17 @@ public interface Imposition {
 	public void setTrims(double trimTop, double trimRight, double trimBottom, double trimLeft);
 
 	/**
-	 * ドブの幅を返します。
-	 * 
+	 * Returns the cutting margin width.
+	 *
 	 * @return
 	 */
 	public double getCuttingMargin();
 
 	/**
-	 * 印刷面の外周のうち、<b>塗り足しとして扱う帯の幅</b>です
-	 * (2026-08-29、利用者報告B-3)。ここが0でなければ、仕上り線は
-	 * 印刷面の外周からこの幅だけ内側にあるとみなします——つまり
-	 * 塗り足し込みで作られた既存データを、CSSを書き換えずに
-	 * トンボ付きで出力できます。
+	 * The <b>width of the band treated as bleed</b> along the printable area's perimeter
+	 * (2026-08-29, user report B-3). When nonzero, the trim line is considered inset from the printable area's
+	 * perimeter by this width. This lets existing data created with bleed be output with crop marks
+	 * without changing the CSS.
 	 */
 	public double getTrimInset();
 
@@ -79,22 +79,22 @@ public interface Imposition {
 	public void setTrimInset(double trimInset);
 
 	/**
-	 * ドブの幅を設定します。
-	 * 
+	 * Sets the cutting margin width.
+	 *
 	 * @param cuttingMargin
 	 */
 	public void setCuttingMargin(double cuttingMargin);
 
 	/**
-	 * 背表紙の幅を返します。
-	 * 
+	 * Returns the spine width.
+	 *
 	 * @return
 	 */
 	public double getSpineWidth();
 
 	/**
-	 * 背表紙の幅を設定します。
-	 * 
+	 * Sets the spine width.
+	 *
 	 * @param spineWidth
 	 */
 	public void setSpineWidth(double spineWidth);
@@ -104,8 +104,8 @@ public interface Imposition {
 	public double getPaperWidth();
 
 	/**
-	 * 用紙幅を設定します。
-	 * 
+	 * Sets the paper width.
+	 *
 	 * @param paperWidth
 	 */
 	public void setPaperWidth(double paperWidth);
@@ -115,8 +115,8 @@ public interface Imposition {
 	public double getPaperHeight();
 
 	/**
-	 * 用紙高さを設定します。
-	 * 
+	 * Sets the paper height.
+	 *
 	 * @param paperHeight
 	 */
 	public void setPaperHeight(double paperHeight);
@@ -124,8 +124,8 @@ public interface Imposition {
 	public String getNote();
 
 	/**
-	 * トンボの部分に印刷される注釈を設定します。
-	 * 
+	 * Sets the note printed in the crop-mark area.
+	 *
 	 * @param note
 	 */
 	public void setNote(String note);
@@ -133,8 +133,8 @@ public interface Imposition {
 	public boolean isCrop();
 
 	/**
-	 * クロップマーク(コーナートンボ)の有無を設定します。
-	 * 
+	 * Sets whether to draw crop marks (corner marks).
+	 *
 	 * @param crop
 	 */
 	public void setCrop(boolean crop);
@@ -142,8 +142,8 @@ public interface Imposition {
 	public boolean isCross();
 
 	/**
-	 * 印刷面をクリッピングするかどうかを設定します。
-	 * 
+	 * Sets whether to clip the printable area.
+	 *
 	 * @param clip
 	 */
 	public void setClip(boolean clip);
@@ -151,22 +151,22 @@ public interface Imposition {
 	public boolean isClip();
 
 	/**
-	 * クロスマーク(センタートンボ)の有無を設定します。
-	 * 
+	 * Sets whether to draw cross marks (center marks).
+	 *
 	 * @param cross
 	 */
 	public void setCross(boolean cross);
 
 	/**
-	 * ページ幅を設定します。
-	 * 
+	 * Sets the page width.
+	 *
 	 * @param width
 	 */
 	public void setPageWidth(double width);
 
 	/**
-	 * ページ高さを設定します。
-	 * 
+	 * Sets the page height.
+	 *
 	 * @param height
 	 */
 	public void setPageHeight(double height);
@@ -179,7 +179,7 @@ public interface Imposition {
 
 	public CSSElement nextPageSide();
 
-	/** 現在の面付け規則で次面を求めます。UAの面・ページ番号は更新しません。 */
+	/** Finds the next side under the current imposition rules. Does not update the UA's side or page number. */
 	public CSSElement getNextPageSide(CSSElement pageElement);
 
 	public void closePage() throws GraphicsException;

@@ -17,7 +17,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /**
- * EPUBファイルを読み込みます。
+ * Reads an EPUB file.
  * 
  * @author MIYABE Tatsuhiko
  */
@@ -43,10 +43,10 @@ public class EPubFile {
 	}
 
 	/**
-	 * 与えられたEPUBファイルを読み込むためのインスタンスを作ります。
+	 * Creates an instance for reading the given EPUB file.
 	 * 
 	 * @param archive
-	 *            EPUBファイル。
+	 *            The EPUB file.
 	 */
 	public EPubFile(ArchiveFile archive) {
 		this.archive = archive;
@@ -75,15 +75,15 @@ public class EPubFile {
 	}
 
 	/**
-	 * META-INF/container.xmlを読み込みます。
+	 * Reads META-INF/container.xml.
 	 * 
-	 * @return META-INF/container.xmlの情報。
+	 * @return The information in META-INF/container.xml.
 	 * @throws FileNotFoundException
-	 *             META-INF/container.xmlが存在しない場合。
+	 *             If META-INF/container.xml does not exist.
 	 * @throws IOException
-	 *             ファイルの読み込みエラーがあった場合。
+	 *             If an error occurs while reading the file.
 	 * @throws SAXException
-	 *             ファイルの形式に問題があった場合。
+	 *             If the file format is invalid.
 	 */
 	public Container readContainer() throws FileNotFoundException, IOException, SAXException {
 		try (InputStream in = this.archive.getInputStream("META-INF/container.xml")) {
@@ -95,22 +95,22 @@ public class EPubFile {
 	}
 
 	/**
-	 * OPFを読み込みます。
+	 * Reads the OPF.
 	 * 
 	 * @param root
-	 *            mimeTypeが"application/oebps-package+xml"のルートファイル。
-	 * @return 解析済みOPF。
+	 *            The root file whose mimeType is "application/oebps-package+xml".
+	 * @return The parsed OPF.
 	 * @throws IOException
-	 *             ファイルの読み込みエラーがあった場合。
+	 *             If an error occurs while reading the file.
 	 * @throws SAXException
-	 *             ファイルの形式に問題があった場合。
+	 *             If the file format is invalid.
 	 */
 	public Contents readContents(Rootfile root) throws IOException, SAXException {
 		try (InputStream in = new BufferedInputStream(this.archive.getInputStream(root.fullPath))) {
 			SAXParser parser = this.getSAXParser();
 			OpfHandler handler = new OpfHandler(root.fullPath);
 			parser.parse(new InputSource(in), handler);
-			// TODO readTitle が異常に遅い
+			// TODO readTitle is unusually slow
 			// for (Item item : handler.items) {
 			// if (item.title == null) {
 			// item.title = this.readTitle(item);
@@ -121,20 +121,20 @@ public class EPubFile {
 	}
 
 	/**
-	 * NCX形式の目次を取得します。
+	 * Gets the table of contents in NCX format.
 	 * 
 	 * @param contents
-	 *            解析済みOPF。
-	 * @return 解析済みNCX。
+	 *            The parsed OPF.
+	 * @return The parsed NCX.
 	 * @throws IOException
-	 *             ファイルの読み込みエラーがあった場合。
+	 *             If an error occurs while reading the file.
 	 * @throws SAXException
-	 *             ファイルの形式に問題があった場合。
+	 *             If the file format is invalid.
 	 */
 	public Toc readToc(Contents contents) throws IOException, SAXException {
 		if (contents.toc == null) {
-			// spine@tocがない場合、ncxを検索する。
-			// 不正なOPFに対応するための仕様外の動作です
+			// Search for the ncx if spine@toc is absent.
+			// This behavior falls outside the specification to support invalid OPF files
 			for (int i = 0; i < contents.items.length; ++i) {
 				if ("application/x-dtbncx+xml".equals(contents.items[i].mediaType)) {
 					contents.toc = contents.items[i];

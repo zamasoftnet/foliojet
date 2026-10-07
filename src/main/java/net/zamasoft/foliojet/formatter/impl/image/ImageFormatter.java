@@ -57,8 +57,8 @@ public class ImageFormatter implements Formatter {
 			}
 			imposition.finish();
 		} catch (IOException e) {
-			// 型のついた失敗(TranscoderException)は包み直さない。包むと
-			// 「I/O error. I/O error. ...」と前置きが二重になり、元の符号も失われる(2026-09-21)
+			// Do not wrap typed failures (TranscoderException) again. Wrapping duplicates
+			// the prefix as "I/O error. I/O error. ..." and loses the original code (2026-09-21)
 			if (e instanceof TranscoderException) {
 				throw (TranscoderException) e;
 			}

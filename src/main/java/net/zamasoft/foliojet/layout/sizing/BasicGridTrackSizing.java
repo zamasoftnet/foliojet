@@ -5,47 +5,50 @@ import java.util.List;
 import net.zamasoft.foliojet.css.value.GridTrackListValue;
 
 /**
- * Gridのトラック幅解決です(Grid G3b/G3c/G4d、2026-07-31——
- * consult-codex-2026-07-31-grid-g3.txt Q2、-grid-g4.txt Q2)。
- * boxに依存しない純粋計算。CSS Grid仕様§11/§12の印刷向けサブセット:
- * 各トラックはbase(下限)とgrowth limit(成長上限)を持つ。
+ * Resolves Grid track widths (Grid G3b/G3c/G4d, 2026-07-31:
+ * consult-codex-2026-07-31-grid-g3.txt Q2, -grid-g4.txt Q2).
+ * A pure calculation independent of boxes. A print-oriented subset of CSS Grid specification §11/§12:
+ * each track has a base (lower bound) and a growth limit (upper bound).
  *
  * <table border="1">
  * <tr><th>track</th><th>base</th><th>growth limit</th></tr>
- * <tr><td>fixed</td><td>指定長</td><td>指定長</td></tr>
- * <tr><td>auto</td><td>span1 itemの最大min-content+span不足分配</td><td>最大max-content+span不足分配</td></tr>
- * <tr><td>fr</td><td>同上(min-content床)</td><td>∞(残余分配)</td></tr>
- * <tr><td>minmax(min,max)</td><td>min側: 固定長→その値/min-content・auto→内容min/max-content→内容max</td>
- * <td>max側: 固定長→その値/fr→∞/auto・max-content→内容max/min-content→内容min</td></tr>
+ * <tr><td>fixed</td><td>Specified length</td><td>Specified length</td></tr>
+ * <tr><td>auto</td><td>Largest span1 item min-content + distributed span deficit</td>
+ * <td>Largest max-content + distributed span deficit</td></tr>
+ * <tr><td>fr</td><td>Same as above (min-content floor)</td><td>∞ (remaining-space distribution)</td></tr>
+ * <tr><td>minmax(min,max)</td><td>min: fixed length→that value/min-content or auto→content min/max-content→content max</td>
+ * <td>max: fixed length→that value/fr→∞/auto or max-content→content max/min-content→content min</td></tr>
  * </table>
  *
  * <p>
- * 2026-08-29: 全トラックを(min sizing function, max sizing function)の対へ
- * 分解して扱う(css-grid-1 §11.5の表——{@code auto}={@code minmax(auto,auto)}、
- * {@code <fr>}={@code minmax(auto,<fr>)}、固定長={@code minmax(L,L)}、
- * {@code minmax()}はそのまま)。手順(2)の「growth limitまでの成長」は
- * 仕様§12.6のmaximize tracks——上限が基礎幅より大きい全トラックへ均等に
- * 配る(固定長・min-content・max-contentは上限=基礎幅なので変わらない)。
- * 手順(4)のstretchはmax側が{@code auto}のトラックだけ(§12.8)。
+ * 2026-08-29: decomposed every track into a (min sizing function, max sizing function) pair
+ * (the table in css-grid-1 §11.5: {@code auto}={@code minmax(auto,auto)},
+ * {@code <fr>}={@code minmax(auto,<fr>)}, fixed length={@code minmax(L,L)},
+ * and {@code minmax()} stays as is). "Grow to the growth limit" in step (2) is maximize tracks
+ * in specification §12.6: distribute equally to all tracks whose limit exceeds their base width
+ * (fixed length, min-content, and max-content have limit=base width, so they do not change).
+ * Stretch in step (4) applies only to tracks whose max side is {@code auto} (§12.8).
  * </p>
  *
  * <p>
- * span itemの不足分配(G4d、仕様§12.5の簡約): span1を先に集約し、
- * spanの小さい順に「不足=contribution−内側gap−跨ぐトラックの現寸の
- * 合計」を、fixedを増やさずauto(均等)またはfr(weight比——frを跨ぐ
- * 場合)へ分配する。同一span長のitemはplanned increase(最大必要増分)
- * へ蓄積してまとめて反映=item走査順に依存しない。増やせるトラックが
- * 無ければトラックは変えずitem overflowを許容。
+ * Distributing spanning-item deficits (G4d, a simplification of specification §12.5):
+ * aggregate span1 first, then process spans in ascending order. Distribute
+ * "deficit=contribution−internal gaps−sum of current sizes of spanned tracks" to auto tracks equally
+ * or to fr tracks by weight (when spanning fr), without growing fixed tracks.
+ * Items with the same span length accumulate into planned increases (maximum required increments),
+ * applied together, so item traversal order does not matter. If no track can grow,
+ * leave tracks unchanged and allow item overflow.
  * </p>
  *
  * <p>
- * 解決手順: (1)base合計+gapが利用可能幅を超えたら縮めずそのまま
- * overflow(min-content床は常に守る=内容欠落よりはみ出しの安全側)。
- * (2)正の残余はauto列をgrowth limitまで均等成長。(3)fr列があれば
- * 非fr確定後の残余をbase床付きfind-frで分配(単独{@code 1fr}は仕様の
- * {@code minmax(auto,1fr)}相当、weight合計1未満はpartial fill)。
- * (4)frが無くauto列があれば、なお残る残余を既定stretch相当で均等加算。
- * (5)どちらも無ければ残余は末尾に残す。
+ * Resolution steps: (1) If total base+gaps exceeds the available width, allow overflow without shrinking
+ * (always honor the min-content floor, choosing overflow over lost content).
+ * (2) Use positive remaining space to grow auto columns equally to their growth limits.
+ * (3) If there are fr columns, distribute the remainder after fixing non-fr columns with find-fr
+ * and a base floor (a standalone {@code 1fr} is equivalent to the specification's
+ * {@code minmax(auto,1fr)}; a weight sum below 1 gives partial fill).
+ * (4) If there are no fr columns but there are auto columns, add any remainder equally,
+ * equivalent to the default stretch. (5) If neither exists, leave the remainder at the end.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -56,32 +59,31 @@ public final class BasicGridTrackSizing {
 		// static
 	}
 
-	/** item 1件の列方向contribution(G4d——span対応)。 */
+	/** One item's column-axis contribution (G4d: span support). */
 	public record ItemContribution(int column, int span, double minContent, double maxContent) {
 	}
 
-	/** 行方向の固有寸法(Grid全体のcontent-box contribution)。 */
+	/** Line-axis intrinsic sizes (content-box contribution of the entire Grid). */
 	public record Intrinsics(double min, double max) {
 	}
 
-	/** {@code stretchAutoTracks=true}での解決(既定=justify-content:normal)。 */
+	/** Resolves with {@code stretchAutoTracks=true} (default: justify-content:normal). */
 	public static double[] resolve(final List<GridTrackListValue.TrackSize> tracks,
 			final List<ItemContribution> items, final double available, final double columnGap) {
 		return resolve(tracks, items, available, columnGap, true);
 	}
 
 	/**
-	 * トラック幅を解決します。
+	 * Resolves track widths.
 	 *
-	 * @param tracks            列テンプレート(fixed/auto/fr)
-	 * @param items             各itemの列contribution
-	 * @param available         Gridコンテナのcontent-box行幅
-	 * @param columnGap         列間gap
-	 * @param stretchAutoTracks 手順(4)のauto列への残余stretchを行うか
-	 *                          (G5c——justify-contentがstart/center/endの
-	 *                          ときfalse: auto列はmax-content上限までの
-	 *                          成長で止め、残余をcontent offsetに残す)
-	 * @return 各列の確定幅(NaN・負値を返さない)
+	 * @param tracks            Column templates (fixed/auto/fr)
+	 * @param items             Column contributions of each item
+	 * @param available         Grid container's content-box line width
+	 * @param columnGap         Gap between columns
+	 * @param stretchAutoTracks Whether step (4) stretches auto columns using remaining space
+	 *                          (G5c: false for justify-content start/center/end; auto columns stop
+	 *                          growing at the max-content limit, leaving the remainder for content offset)
+	 * @return Definite widths of each column (never NaN or negative)
 	 */
 	public static double[] resolve(final List<GridTrackListValue.TrackSize> tracks0,
 			final List<ItemContribution> items, final double available, final double columnGap,
@@ -96,25 +98,25 @@ public final class BasicGridTrackSizing {
 		}
 		double free = available - base;
 		if (free <= 0 || (sized.autoCount == 0 && sized.frCount == 0 && sized.growableCount == 0)) {
-			// (1)(5) 縮めない(overflow)。可変列が無ければ残余は末尾に残す。
+			// (1)(5) Do not shrink (overflow). Without flexible columns, leave the remainder at the end.
 			//
-			// ただし**複数列を跨ぐitemのmin-contentで膨らんだ分は縮める**
-			// (2026-08-19)。分割不能な長トークン(遺伝子名・URL・識別子)を
-			// 含むitemはmin-contentが利用可能幅を大きく超えることがあり、
-			// その不足分配(G4d)で全列が一様に太る。結果、**そのitemだけで
-             // なくgrid全体が版面を超え、無関係な兄弟(本文段落)の折り返し幅
-			// まで広がって文書全体が右へはみ出していた**(elife-artで実測:
-			// available 487ptに対しspan10 itemのmin 889ptが各列を82ptへ
-			// 押し上げ、grid合計822pt。本文53件のedge-cut/text-lostの源)。
-			// CSSでも当該itemはあふれるが、あふれるのはitem自身であって
-			// トラック群ではない——単一列itemのmin(span1、下のfloor)は
-			// 尊重したまま、span由来の超過だけを利用可能幅へ収める。
-			// **可変列だけで構成されるgridに限る**(2026-08-19)。固定長列を
-			// 含む場合、span itemの不足分配で得た床は「固定列の外側で
-			// 内容が要求する最小幅」であり、これを削ると仕様(および
-			// testSpanDeficitToFrが固定する挙動)に反する。実害のある形は
-			// 「repeat(12,1fr)のような全可変gridで、span itemの
-			// min-contentが全列を一様に太らせる」ケース
+			// However, **shrink the expansion caused by the min-content of items spanning multiple columns**
+			// (2026-08-19). Items containing long unbreakable tokens (gene names, URLs, identifiers) can have
+			// min-content far exceeding the available width, and distributing their deficit (G4d)
+			// widens every column uniformly. As a result, **the entire grid, not just the item, exceeded
+             // the type area, widening even the wrapping width of unrelated siblings (body paragraphs)
+			// and pushing the whole document off to the right** (measured on elife-art:
+			// with 487 pt available, a span10 item's min of 889 pt pushed each column to 82 pt,
+			// totaling 822 pt for the grid; the source of 53 body-text edge-cut/text-lost cases).
+			// CSS also lets this item overflow, but the item itself overflows, not the tracks.
+			// Honor the minimum of single-column items (span1, floor below),
+			// and fit only the span-derived excess into the available width.
+			// **Only for grids consisting entirely of flexible columns** (2026-08-19). With fixed-length
+			// columns, the floor from distributing spanning-item deficits is the minimum width that
+			// content requires outside the fixed columns. Reducing it violates the specification
+			// (and the behavior fixed by testSpanDeficitToFr). The harmful case is
+			// an entirely flexible grid such as repeat(12,1fr), where a spanning item's
+			// min-content widens every column uniformly.
 			boolean allFlexible = true;
 			for (int i = 0; i < n && allFlexible; ++i) {
 				allFlexible = sized.auto[i] || sized.fr[i];
@@ -126,7 +128,7 @@ public final class BasicGridTrackSizing {
 					floorSum += floor[i];
 				}
 				if (floorSum <= available) {
-					// span由来の増分だけを比例縮小して利用可能幅へ収める
+					// Shrink only span-derived increments proportionally to fit the available width.
 					double excess = 0;
 					for (int i = 0; i < n; ++i) {
 						excess += Math.max(0, widths[i] - floor[i]);
@@ -143,14 +145,14 @@ public final class BasicGridTrackSizing {
 			return widths;
 		}
 		if (sized.frCount > 0) {
-			// (2') frと共存する上限つき列はgrowth limitまで成長してから残余をfrへ
+			// (2') Grow bounded columns alongside fr to their growth limits, then give the remainder to fr.
 			growAutos(widths, sized.limit, sized.growable, sized.growableCount, free);
 			distributeFr(widths, sized.base, sized.fr, sized.frWeight, available, columnGap, n);
 			return widths;
 		}
-		// (2) 上限つき列をgrowth limitまで均等成長(maximize tracks)→(4) なお
-		// 残る分はauto列へ均等stretch(justify-contentがpositionalのときは
-		// stretchせず残余を残す——G5c)
+		// (2) Grow bounded columns equally to their growth limits (maximize tracks); (4) stretch
+		// auto columns equally with the remainder (for positional justify-content,
+		// leave the remainder without stretching; G5c).
 		free -= growAutos(widths, sized.limit, sized.growable, sized.growableCount, free);
 		if (stretchAutoTracks && sized.autoCount > 0 && free > 1e-9) {
 			final double share = free / sized.autoCount;
@@ -164,9 +166,9 @@ public final class BasicGridTrackSizing {
 	}
 
 	/**
-	 * span itemの不足分配を<b>行わない</b>基礎幅です(2026-08-19)。
-	 * 単一列itemのmin-contentと固定長だけを積む——{@link #resolve}が
-	 * 「span由来で膨らんだ分だけを縮める」ときの床に使う。
+	 * Base widths <b>without</b> spanning-item deficit distribution (2026-08-19).
+	 * Accumulates only single-column item min-content and fixed lengths; {@link #resolve} uses these
+	 * as floors when shrinking only span-derived expansion.
 	 */
 	private static double[] spanFreeBase(final List<GridTrackListValue.TrackSize> tracks,
 			final List<ItemContribution> items, final double columnGap, final int n) {
@@ -180,9 +182,9 @@ public final class BasicGridTrackSizing {
 	}
 
 	/**
-	 * Grid全体の行方向content-box固有寸法です(G3d2/G4d)。
-	 * min=gap+Σbase(span不足分配込み)、max=gap+Σ(fixed長|max
-	 * contribution)。
+	 * Line-axis content-box intrinsic sizes of the entire Grid (G3d2/G4d).
+	 * min=gap+Σbase (including span deficit distribution),
+	 * max=gap+Σ(fixed length|max contribution).
 	 */
 	public static Intrinsics intrinsics(final List<GridTrackListValue.TrackSize> tracks0,
 			final List<ItemContribution> items, final double columnGap) {
@@ -199,9 +201,9 @@ public final class BasicGridTrackSizing {
 	}
 
 	/**
-	 * %トラック(2026-08-29)を畳みます。利用可能幅が定まっていれば
-	 * {@code Fixed}(幅×割合)、未定(固有寸法の計算、NaN)なら{@code Auto}
-	 * (css-grid-1 §11.1: 不定寸法に対する%はautoとして扱う)。
+	 * Resolves percentage tracks (2026-08-29). Uses {@code Fixed} (width×ratio) when available width
+	 * is definite, or {@code Auto} when indefinite (intrinsic-size calculation, NaN)
+	 * (css-grid-1 §11.1: percentages against indefinite sizes are treated as auto).
 	 */
 	private static List<GridTrackListValue.TrackSize> resolvePercents(
 			final List<GridTrackListValue.TrackSize> tracks, final double available) {
@@ -214,7 +216,7 @@ public final class BasicGridTrackSizing {
 			} else if (t instanceof GridTrackListValue.MinMax minMax
 					&& (minMax.min() instanceof GridTrackListValue.Percentage
 							|| minMax.max() instanceof GridTrackListValue.Percentage)) {
-				// minmax()の片側の%も同じ規則で畳む(2026-08-29)
+				// Resolve a percentage on either side of minmax() by the same rule (2026-08-29).
 				r = new GridTrackListValue.MinMax(
 						minMax.min() instanceof GridTrackListValue.Percentage p ? resolvePercent(p, available)
 								: minMax.min(),
@@ -238,46 +240,46 @@ public final class BasicGridTrackSizing {
 	}
 
 	/**
-	 * base/limit/maxContribの集約結果(span不足分配込み)。
+	 * Aggregated base/limit/maxContrib (including span deficit distribution).
 	 *
-	 * @param auto         max側がautoのトラック(stretch対象)
-	 * @param fr           max側がfrのトラック
-	 * @param growable     上限が基礎幅より大きい有限上限のトラック(maximize
-	 *                     tracksの対象)
-	 * @param intrinsicMax Grid全体のmax-content寄与に使う各トラック幅
+	 * @param auto         Tracks whose max side is auto (subject to stretch)
+	 * @param fr           Tracks whose max side is fr
+	 * @param growable     Tracks with a finite limit greater than the base width
+	 *                     (subject to maximize tracks)
+	 * @param intrinsicMax Each track's width used for the entire Grid's max-content contribution
 	 */
 	private record Sized(double[] base, double[] limit, double[] maxContrib, boolean[] auto, boolean[] fr,
 			double[] frWeight, int autoCount, int frCount, boolean[] growable, int growableCount,
 			double[] intrinsicMax) {
 	}
 
-	/** min側のsizing function(css-grid-1 §11.5)。 */
+	/** The min-side sizing function (css-grid-1 §11.5). */
 	private enum MinKind {
 		FIXED, MIN_CONTENT, MAX_CONTENT
 	}
 
-	/** max側のsizing function。 */
+	/** The max-side sizing function. */
 	private enum MaxKind {
 		FIXED, FR, MIN_CONTENT, MAX_CONTENT, AUTO
 	}
 
-	/** トラック1本の(min, max)分解(2026-08-29)。 */
+	/** Decomposes one track into (min, max) (2026-08-29). */
 	private record Functions(MinKind min, double fixedMin, MaxKind max, double fixedMax, double frWeight) {
 		static Functions of(final GridTrackListValue.TrackSize track) {
 			return switch (track) {
 			case GridTrackListValue.Fixed f -> new Functions(MinKind.FIXED, f.length(), MaxKind.FIXED, f.length(), 0);
 			case GridTrackListValue.Auto ignore -> new Functions(MinKind.MIN_CONTENT, 0, MaxKind.AUTO, 0, 0);
-			// 基準幅が未確定(固有寸法計測)の%はautoとして扱う(2026-08-29。
-			// bind時はGridBuilder.sizingTracksがFixedへ解決済み)
+			// Treat percentages with an indefinite reference width (intrinsic measurement) as auto (2026-08-29).
+			// At bind time, GridBuilder.sizingTracks has already resolved them to Fixed.
 			case GridTrackListValue.Percentage ignore -> new Functions(MinKind.MIN_CONTENT, 0, MaxKind.AUTO, 0, 0);
-			// 展開前の形はここへ来ない(GridBuilder.placementPlanが展開する)。
-			// 万一来てもautoとして壊れないようにする
+			// Unexpanded forms do not reach here (GridBuilder.placementPlan expands them).
+			// If one does, treat it as auto to avoid breakage.
 			case GridTrackListValue.AutoRepeat ignore -> new Functions(MinKind.MIN_CONTENT, 0, MaxKind.AUTO, 0, 0);
 			case GridTrackListValue.MinContent ignore -> new Functions(MinKind.MIN_CONTENT, 0, MaxKind.MIN_CONTENT,
 					0, 0);
 			case GridTrackListValue.MaxContent ignore -> new Functions(MinKind.MAX_CONTENT, 0, MaxKind.MAX_CONTENT,
 					0, 0);
-			// 単独frは仕様のminmax(auto, fr)
+			// Standalone fr is minmax(auto, fr) in the specification.
 			case GridTrackListValue.Fr flex -> new Functions(MinKind.MIN_CONTENT, 0, MaxKind.FR, 0,
 					Math.max(0, flex.weight()));
 			case GridTrackListValue.MinMax minMax -> {
@@ -298,10 +300,10 @@ public final class BasicGridTrackSizing {
 		final double[] minContrib = new double[n];
 		final boolean[] auto = new boolean[n];
 		final boolean[] fr = new boolean[n];
-		// 内容寄与を受けるトラック(min側かmax側が内容依存。2026-08-29)
+		// Tracks receiving content contributions (min or max side depends on content; 2026-08-29).
 		final boolean[] content = new boolean[n];
-		// 基礎幅が固定(minmax(0,<fr>)等——内容のmin-contentで膨らまない。
-		// 2026-08-19のZeroMinFrをminmax一般形へ畳んだもの)
+		// Fixed base width (e.g., minmax(0,<fr>): content min-content does not expand it.
+		// The 2026-08-19 ZeroMinFr folded into the general minmax form).
 		final boolean[] fixedMin = new boolean[n];
 		final Functions[] fn = new Functions[n];
 		final double[] frWeight = new double[n];
@@ -317,7 +319,7 @@ public final class BasicGridTrackSizing {
 			}
 			switch (fn[i].max) {
 			case FIXED -> {
-				// max側が固定長でもmin側が内容依存なら寄与を受ける(上のcontent)
+				// Even with a fixed-length max, a content-dependent min receives contributions (content above).
 			}
 			case FR -> {
 				fr[i] = true;
@@ -333,7 +335,7 @@ public final class BasicGridTrackSizing {
 			case MIN_CONTENT, MAX_CONTENT -> content[i] = true;
 			}
 		}
-		// span1のcontributionを先に集約
+		// Aggregate span1 contributions first.
 		int maxSpan = 1;
 		for (final ItemContribution item : items) {
 			maxSpan = Math.max(maxSpan, item.span());
@@ -347,14 +349,14 @@ public final class BasicGridTrackSizing {
 			case MIN_CONTENT -> base[c] = Math.max(base[c], itemMin);
 			case MAX_CONTENT -> base[c] = Math.max(base[c], itemMax);
 			case FIXED -> {
-				// 固定minは内容で膨らまない
+				// Content does not expand a fixed min.
 			}
 			}
 			minContrib[c] = Math.max(minContrib[c], itemMin);
 			maxContrib[c] = Math.max(maxContrib[c], itemMax);
 		}
-		// span itemの不足分配(G4d): spanの小さい順・同一span長は
-		// planned increase(最大必要増分)へ蓄積してまとめて反映
+		// Spanning-item deficit distribution (G4d): ascending span order; equal span lengths
+		// accumulate into planned increases (maximum required increments), then apply together.
 		for (int span = 2; span <= maxSpan; ++span) {
 			final double[] plannedBase = new double[n];
 			final double[] plannedMax = new double[n];
@@ -380,7 +382,7 @@ public final class BasicGridTrackSizing {
 					}
 				}
 				if (growable == 0) {
-					continue; // fixedのみを跨ぐ——トラックを増やさずoverflow
+					continue; // Spans only fixed tracks: overflow without growing tracks.
 				}
 				final double deficitMin = item.minContent() - gaps - curBase;
 				final double deficitMax = item.maxContent() - gaps - curMax;
@@ -391,7 +393,7 @@ public final class BasicGridTrackSizing {
 					final double shareMin;
 					final double shareMax;
 					if (spansFr) {
-						// frを跨ぐ: fr trackへweight比(weight合計0は均等)
+						// Spans fr: distribute to fr tracks by weight (equally if the weight sum is zero).
 						if (!fr[c]) {
 							continue;
 						}
@@ -413,14 +415,14 @@ public final class BasicGridTrackSizing {
 				maxContrib[c] += plannedMax[c];
 			}
 		}
-		// growth limit(§11.5の初期化+§12.5の内容解決後の「上限≧基礎幅」)
+		// Growth limit ("limit≧base width" after §11.5 initialization and §12.5 content resolution).
 		final boolean[] growable = new boolean[n];
 		final double[] intrinsicMax = new double[n];
 		int growableCount = 0;
 		for (int i = 0; i < n; ++i) {
 			switch (fn[i].max) {
 			case FIXED -> {
-				// max<minのminmaxは仕様どおりmaxを無視(=minに揃う)
+				// For minmax with max<min, ignore max as specified (= align to min).
 				limit[i] = Math.max(base[i], fn[i].fixedMax);
 				intrinsicMax[i] = limit[i];
 			}
@@ -447,10 +449,11 @@ public final class BasicGridTrackSizing {
 	}
 
 	/**
-	 * 上限つき列をgrowth limitまで均等成長させ、消費した量を返します
-	 * (飽和列を凍結して反復——1passごとに少なくとも1列が飽和するか
-	 * 残余を使い切る。仕様§12.6 maximize tracks。2026-08-29からauto列に
-	 * 限らずminmax(min, 固定長)等の有限上限を持つ列も対象)。
+	 * Grows bounded columns equally to their growth limits and returns the amount consumed
+	 * (iterates while freezing saturated columns; each pass either saturates at least one column
+	 * or consumes all remaining space; specification §12.6 maximize tracks).
+	 * Since 2026-08-29, also covers columns with finite limits such as minmax(min, fixed length),
+	 * not just auto columns.
 	 */
 	private static double growAutos(final double[] widths, final double[] limits, final boolean[] auto,
 			final int autoCount, double free) {
@@ -483,11 +486,11 @@ public final class BasicGridTrackSizing {
 	}
 
 	/**
-	 * fr列へ残余を分配します(G3c——base床付きfind-fr、答申Q2)。
-	 * 非fr列の確定後、fr列は残余全体からweight比で取る。
-	 * {@code oneFr*weight}がbase床(span不足分配込み)を割る列は床で
-	 * 凍結して再計算。weight合計が1未満のときは1へ切り上げ、残余の
-	 * 一部だけを充填する(仕様のpartial fill——0.5frは残余の50%)。
+	 * Distributes remaining space to fr columns (G3c: find-fr with a base floor, consultation Q2).
+	 * After non-fr columns are fixed, fr columns take weighted shares of the entire remainder.
+	 * Freezes columns whose {@code oneFr*weight} falls below their base floor (including span deficit
+	 * distribution) at that floor and recalculates. If the weight sum is below 1, raises it to 1
+	 * to fill only part of the remainder (the specification's partial fill: 0.5fr takes 50% of the remainder).
 	 */
 	private static void distributeFr(final double[] widths, final double[] floors, final boolean[] fr,
 			final double[] frWeight, final double available, final double columnGap, final int n) {

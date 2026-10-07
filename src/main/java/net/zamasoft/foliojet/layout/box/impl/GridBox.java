@@ -18,92 +18,90 @@ import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * Gridコンテナです(Grid G0、2026-07-31——
- * consult-codex-2026-07-31-grid.txt §3)。
+ * A grid container (Grid G0, 2026-07-31 --
+ * consult-codex-2026-07-31-grid.txt §3).
  *
  * <p>
- * ページング上は正規のblock({@code BoxType.BLOCK}/{@code PosType.FLOW})の
- * まま——rescue・描画・フレーム処理を{@link FlowBlockBox}から継承し、
- * 既定では{@link PageAtomicBox}でページ軸の構造分割を型付きで禁じる
- * (入らなければ丸ごと送り→visual rescue)。
+ * For pagination, it remains a regular block ({@code BoxType.BLOCK}/{@code PosType.FLOW}).
+ * It inherits rescue, drawing, and frame handling from {@link FlowBlockBox}.
+ * By default, {@link PageAtomicBox} prohibits structural page-axis splitting through its type
+ * (if it does not fit, move it whole, then use visual rescue).
  * </p>
  *
  * <p>
- * <b>行分割(2026-08-10、G6)</b>: {@code GridBuilder.bind}により行境界
- * 情報が設定されている場合に限り、{@link #hasRowSplitLines()}がtrueに
- * なり、{@code PaginationContract}の特例({@link RowSplitBox})を通じて
- * {@link #split}が実際に呼ばれる——{@link FlexBox#split}(2026-08-07、
- * Bug C)をgridへ移植した2例目で、大元はテーブルの行契約
- * ({@code TableRowGroupBox}/{@code TableRowBox})。「収まる行は素通り、
- * 境界行で全itemを同一物理切断線へ揃えて強制分割、以降の行は丸ごと
- * 次断片へ」。帳簿が無い構成(rowSpan&gt;1、flow順が行優先でない明示
- * 配置、縦書き、align-contentの先頭余白あり)は従来通りatomicのまま
- * ——丸ごと送りかvisual rescueへ落ちる。min-height由来の余りは
- * align-content:stretch既定で行高へ分配済みのため、行分割がそのまま
- * 処理する(gigazine.netの先頭白紙ページの根治)。
+ * <b>Row splitting (2026-08-10, G6)</b>: only when {@code GridBuilder.bind} sets row boundary
+ * information does {@link #hasRowSplitLines()} return true, allowing {@link #split} to be
+ * called through the special case in {@code PaginationContract} ({@link RowSplitBox}).
+ * This is the second application, porting {@link FlexBox#split} (2026-08-07, Bug C) to grid;
+ * the original is the table-row contract ({@code TableRowGroupBox}/{@code TableRowBox}):
+ * "leave fitting rows alone, forcibly split all items in the boundary row at the same physical
+ * cut line, and move later rows whole to the next fragment".
+ * Configurations without a ledger (rowSpan&gt;1, explicit placement with non-row-major flow order,
+ * vertical writing, or leading space from align-content) remain atomic as before:
+ * move whole or fall back to visual rescue. Extra space from min-height is already distributed
+ * to row heights by the default align-content:stretch, so row splitting handles it directly
+ * (the root fix for the leading blank page on gigazine.net).
  * </p>
  *
  * <p>
- * G0時点の内容配置は単一列の通常フロー(=FlowBlockBoxの挙動そのまま。
- * template=noneの意味論)。トラック解決とitem配置はG1以降で
- * {@code GridBuilder}が担う。
+ * At G0, content placement is single-column normal flow (= unchanged FlowBlockBox behavior;
+ * template=none semantics). From G1 onward, {@code GridBuilder} handles track resolution
+ * and item placement.
  * </p>
  */
 public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox {
 
 	/**
-	 * 1本のgrid行のページ軸帳簿です(2026-08-10、G6行分割)。
+	 * The page-axis ledger for one grid row (2026-08-10, G6 row splitting).
 	 *
 	 * <p>
-	 * {@link FlexBox.Line}との違いは{@code start}を明示すること——gridは
-	 * rowGap・空行(explicit-rows-sparse)・min-height分配で行の間隔が
-	 * 一様でないため、累積和ではなく配置済みの行開始位置をそのまま運ぶ。
+	 * Unlike {@link FlexBox.Line}, this explicitly carries {@code start}: rowGap, empty rows
+	 * (explicit-rows-sparse), and min-height distribution make row spacing nonuniform in grid.
+	 * Carry the placed row start positions directly instead of using cumulative sums.
 	 * </p>
 	 *
-	 * @param startFlow コンテナのflow一覧上でこの行の先頭itemが占める
-	 *                   0基点の位置
-	 * @param itemCount この行のitem数
-	 * @param start     行のページ軸開始位置(コンテナ内辺原点、
-	 *                   {@code GridBuilder.bind}の{@code rowStarts[r]})
-	 * @param extent    行のページ軸寸法(align-content:stretchの分配込み)
-	 * @param itemsEnd  行内のitem実端(行開始からの相対、align-selfの
-	 *                   オフセット込みの最大)。min-height由来の分配等で
-	 *                   {@code extent}がこれより大きいとき、差分は空白——
-	 *                   切断線が空白内に落ちたらitemを切らず空白を切る
-	 *                   (slack split)ための帳簿
+	 * @param startFlow zero-based position of this row's first item in the container's flow list
+	 * @param itemCount number of items in this row
+	 * @param start     page-axis start position of the row (origin at the container's inner edge;
+	 *                  {@code rowStarts[r]} in {@code GridBuilder.bind})
+	 * @param extent    page-axis size of the row (including align-content:stretch distribution)
+	 * @param itemsEnd  actual end of items in the row (relative to row start; maximum including
+	 *                  align-self offsets). If {@code extent} exceeds this due to min-height
+	 *                  distribution, etc., the difference is blank space. This ledger allows
+	 *                  splitting that space without splitting items when the cut line falls in it
+	 *                  (slack split).
 	 */
 	public record Row(int startFlow, int itemCount, double start, double extent, double itemsEnd) {
 	}
 
 	/**
-	 * 行境界(行優先順、{@code GridBuilder.bind}が{@code addFlow}した順序と
-	 * 一致)。nullまたは空は「行分割の対象外」を意味し、{@link #split}は
-	 * 旧来のatomicフォールバックへ倒れる。
+	 * Row boundaries (row-major order, matching the order of {@code addFlow} in
+	 * {@code GridBuilder.bind}). null or empty means "not eligible for row splitting",
+	 * so {@link #split} uses the previous atomic fallback.
 	 */
 	private List<Row> rows;
 
 	/**
-	 * {@link #rows}の各行に属するitemの実体(コンテナのflow一覧と同じ
-	 * 順序)。行内のitemを直接{@code split}するのに使う
-	 * ({@code FlexBox.lineItems}と同じ理由)。
+	 * The actual items belonging to each row in {@link #rows} (in the same order as
+	 * the container's flow list). Used to {@code split} items within a row directly
+	 * (for the same reason as {@code FlexBox.lineItems}).
 	 */
 	private List<GridItemBox> rowItems;
 
 	/**
-	 * トラック配置({@code GridBuilder.bind})が実際に走ったか。走って
-	 * いなければ中身は単一列の通常フロー(TwoPass不活性のG0退行)で、
-	 * 守るべきトラック配置が無いため原子契約を主張しない
-	 * ({@link #isPageAtomicNow})。
+	 * Whether track placement ({@code GridBuilder.bind}) actually ran. If not, the contents
+	 * are single-column normal flow (G0 degradation with TwoPass inactive), with no track
+	 * placement to protect, so do not assert the atomic contract ({@link #isPageAtomicNow}).
 	 */
 	private boolean trackLayout;
 
 	public GridBox(final GridParams params, final FlowPos pos) {
 		super(params, pos);
-		// gridのitem配置(行方向トラック位置+行開始位置)は汎用のrestyle
-		// 再構築(逐次積み上げ)で壊れるため、アンカーで復元するコンテナを
-		// 使う(2026-08-10。FlexBoxが2026-08-08に同じ理由で導入したものの
-		// 一般化——行分割の継続断片だけでなく、絶対配置子を含むgridの
-		// ページ跨ぎ丸ごと移動でも同じ再構築経路を通る)
+		// Generic restyle reconstruction (sequential stacking) destroys grid item placement
+		// (line-axis track positions + row starts), so use a container that restores it from anchors
+		// (2026-08-10; a generalization of what FlexBox introduced for the same reason on 2026-08-08).
+		// The same reconstruction path handles both row-split continuations and whole-grid moves
+		// across pages when the grid has absolutely positioned children.
 		this.container = new RowSplitContainer();
 		this.container.setBox(this);
 	}
@@ -113,8 +111,8 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 	}
 
 	/**
-	 * row subgridが親から受けた使用寸法を、作者指定のheight/min/max-height・
-	 * aspect-ratioに拘束されず正確に設定します(2026-09-03)。
+	 * Sets the used size received by a row subgrid from its parent exactly,
+	 * without constraints from authored height/min/max-height or aspect-ratio (2026-09-03).
 	 */
 	public final void setExactUsedPageSize(final double pageSize) {
 		this.restoreContentExtent(Math.max(0, pageSize));
@@ -132,8 +130,8 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 	}
 
 	/**
-	 * 行境界情報を設定します({@code GridBuilder.bind}が配置直後に一度だけ
-	 * 呼ぶ。分割時は継続断片の帳簿の付け替えにも使う)。
+	 * Sets row boundary information (called once by {@code GridBuilder.bind} immediately
+	 * after placement; also used to rebase continuation-fragment ledgers during splitting).
 	 */
 	public final void setGridRows(final List<Row> rows, final List<GridItemBox> rowItems) {
 		this.rows = rows;
@@ -141,8 +139,8 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 	}
 
 	/**
-	 * 行分割の対象か(2026-08-10)。falseなら{@code PaginationContract}が
-	 * 従来のPageAtomicBox経路(丸ごと送り/visual rescue)を使う。
+	 * Whether row splitting applies (2026-08-10). If false, {@code PaginationContract}
+	 * uses the previous PageAtomicBox path (move whole/visual rescue).
 	 */
 	public final boolean hasRowSplitLines() {
 		return this.rows != null && !this.rows.isEmpty();
@@ -172,14 +170,14 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 		}
 	}
 
-	/** トラック配置が走ったことを記録します({@code GridBuilder.bind}が呼ぶ)。 */
+	/** Records that track placement ran (called by {@code GridBuilder.bind}). */
 	public final void markTrackLayout() {
 		this.trackLayout = true;
 	}
 
 	/**
-	 * 原子契約はトラック配置が実際に走ったgridだけが主張する
-	 * (2026-08-10——設計判断は{@link PageAtomicBox#isPageAtomicNow}に集約)。
+	 * Only grids where track placement actually ran assert the atomic contract
+	 * (2026-08-10; the design decision is centralized in {@link PageAtomicBox#isPageAtomicNow}).
 	 */
 	@Override
 	public final boolean isPageAtomicNow() {
@@ -187,28 +185,29 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 	}
 
 	/**
-	 * grid行のページ方向切断です(2026-08-10、G6)。
+	 * Splits grid rows along the page axis (2026-08-10, G6).
 	 *
 	 * <p>
-	 * {@link FlexBox#split}と同じ形(「収まる行は素通り、境界行で全itemを
-	 * 同一物理切断線へ揃えて強制分割、それ以降の行は丸ごと次断片へ」)。
-	 * 境界の判定だけ累積和でなく{@link Row#start}の直接比較——rowGap・
-	 * 空行・align-content分配で行間隔が一様でないため。切断線が最終行より
-	 * 後(末尾余白内)に落ちた場合は、空の継続断片が余白だけを運ぶ。
+	 * The same form as {@link FlexBox#split} ("leave fitting rows alone, forcibly split all items
+	 * in the boundary row at the same physical cut line, and move later rows whole to the next fragment").
+	 * Only boundary detection differs: compare {@link Row#start} directly instead of cumulative sums,
+	 * because rowGap, empty rows, and align-content distribution make row spacing nonuniform.
+	 * If the cut line falls after the last row (in trailing space), an empty continuation
+	 * fragment carries only that space.
 	 * </p>
 	 */
 	public final SplitResult split(double pageLimit, final BreakMode mode, final byte flags) {
 		if (!this.hasRowSplitLines()) {
 			if (!this.isPageAtomicNow()) {
-				// G0退行(トラック配置なし)は中身が単一列の通常フローなので、
-				// 通常ブロックの構造分割へ委譲する(2026-08-19——FlexBoxの
-				// F0委譲と同じ。これが無いと「帳簿なし+非原子」の閉じた箱が
-				// フラグメント先頭でKEEPされ、ページ底を越えた内容が描かれず
-				// 失われる。stripe-docsの末尾1,636ptのG0 gridで実測)
+				// G0 degradation (no track placement) contains single-column normal flow,
+				// so delegate to normal-block structural splitting (2026-08-19; same as FlexBox's
+				// F0 delegation). Without this, a closed box with "no ledger + non-atomic" is KEEP
+				// at the fragment start, and content beyond the page bottom is not drawn and is lost
+				// (observed in the trailing 1,636 pt G0 grid in stripe-docs).
 				return super.split(pageLimit, mode, flags);
 			}
-			// 原子側の防御的フォールバック(通常はPaginationContractの特例に
-			// より、行境界が無ければこのメソッド自体が呼ばれない)
+			// Defensive fallback on the atomic side (normally the PaginationContract special case
+			// prevents this method from being called at all without row boundaries).
 			return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
 		}
 		final WritingMode flow = this.getBlockParams().flow;
@@ -224,7 +223,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			return SplitResult.MOVE;
 		}
 
-		// 切断線を跨ぐ(crosses)か、切断線以降に始まる最初の行
+		// The first row that crosses the cut line (crosses) or starts at or beyond it.
 		int boundary = -1;
 		boolean crosses = false;
 		for (int ri = 0; ri < this.rows.size(); ++ri) {
@@ -240,8 +239,8 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			}
 		}
 		if (boundary < 0) {
-			// 全行が切断線の手前に収まる(切断線は末尾余白内)——空の
-			// 継続断片が残りの余白を運ぶ
+			// All rows fit before the cut line (which lies in trailing space): an empty
+			// continuation fragment carries the remaining space.
 			final RowSplitContainer cont = new RowSplitContainer();
 			cont.anchorCurrent(0);
 			final AbstractContainerBox continuation = this.splitPage(cont, pageLimit, false);
@@ -261,9 +260,9 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			}
 			final SplitResult[] probed = new SplitResult[boundaryItems.length];
 			boolean anySplit = (flags & IPageBreakableBox.FLAGS_SPLIT) != 0;
-			// **slack判定は分割の試行より先**(2026-08-29、G7)。itemが行高まで
-			// 伸びるようになったので、後に置くと無装飾のitemまで先にSplitを
-			// 返し、min-height由来の空白で切る経路へ入れなくなる
+			// **Check slack before attempting to split** (2026-08-29, G7). Items now stretch to row height,
+			// so checking later would let even undecorated items return Split first,
+			// making the path that splits min-height-derived blank space unreachable.
 			final boolean slack = !anySplit
 					&& LayoutUtils.compare(boundaryRow.itemsEnd(), remaining) <= 0;
 			if (!anySplit && !slack) {
@@ -276,11 +275,11 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				}
 			}
 			if (slack) {
-				// 境界行のitemは全て切断線の手前に収まり、はみ出しているのは
-				// 行末尾の空白(min-height由来のalign-content:stretch分配等)
-				// だけ——itemを切らず空白の中で切る(slack split)。
-				// gigazine.netの「min-height:800pxのgridが小さな内容ごと
-				// 次ページへ丸ごと沈む」形の根治点
+				// All items in the boundary row fit before the cut line; only trailing row space
+				// (such as min-height-derived align-content:stretch distribution) overflows.
+				// Split within the blank space without splitting items (slack split).
+				// This is the root fix for gigazine.net's case where a grid with min-height:800px
+				// sank whole to the next page along with its small contents.
 				final RowSplitContainer cont = new RowSplitContainer();
 				final List<Row> contRows = new ArrayList<>();
 				final List<GridItemBox> contItems = new ArrayList<>();
@@ -308,10 +307,10 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				return new SplitResult.Split(continuation);
 			}
 			if (anySplit) {
-				// 境界行: 未分割(Keep判定)だったitemも強制分割する
+				// Boundary row: forcibly split even items that were not split (Keep decision).
 				final byte forcedFlags = (byte) (xflags | IPageBreakableBox.FLAGS_SPLIT);
 				final GridItemBox[] remainders = new GridItemBox[boundaryItems.length];
-				// 分割前のitem高(下の残余下限の計算用)
+				// Item height before splitting (for the remainder lower-bound calculation below).
 				final double[] preExtents = new double[boundaryItems.length];
 				for (int k = 0; k < boundaryItems.length; ++k) {
 					preExtents[k] = boundaryItems[k].getPageExtent(flow);
@@ -326,14 +325,14 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 					}
 					remainders[k] = typedRemainder;
 				}
-				// **保持側の実消費**(2026-08-19)。切断は不可分な内容を丸ごと
-				// 残余へ送るため、保持断片の実内容は切断線remainingより早く
-				// 終わりうる(smolcssで実測50pt)。従来は移送・保持断片寸法を
-				// 切断線基準にしていたため、残余の実内容が「旧幾何−切断線」で
-				// 固定した次行の開始位置に重なった。実描画終端
-				// (paintedPageExtent——枠が見える箱は箱いっぱい=従来どおり
-				// 切断線に落ちる安全側)を基準に、保持断片を実消費で閉じ、
-				// 継続の行開始も同じ量だけ引く。
+				// **Actual extent consumed by the kept side** (2026-08-19). Splitting moves indivisible content
+				// whole to the remainder, so the kept fragment's actual content can end before the cut line
+				// remaining (observed: 50 pt in smolcss). Previously, transfers and kept-fragment dimensions
+				// used the cut line as their basis, so the remainder's actual content overlapped the next row
+				// whose start was fixed at "old geometry - cut line". Use the actual painted end
+				// (paintedPageExtent; boxes with visible frames use the full box, conservatively falling
+				// on the cut line as before) to close the kept fragment at its actual consumed extent
+				// and subtract the same amount from the continuation row starts.
 				double consumed = 0;
 				for (int k = 0; k < boundaryItems.length; ++k) {
 					consumed = Math.max(consumed, boundaryItems[k].paintedPageExtent(flow));
@@ -347,23 +346,23 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 					cont.addFlow(remainders[k], 0);
 					newRowExtent = Math.max(newRowExtent, remainders[k].getPageExtent(flow));
 				}
-				// **継続行の高さは残余の量を下回らせない**(2026-08-17)。
-				// remainderはこの時点では未レイアウト(アンカー復元前)で、
-				// getPageExtentがほぼ0を返しうる。それを帳簿に書くと、次の
-				// splitの境界探索が「全行が切断線の手前に収まる」と誤読して
-				// **空の継続断片**を返し、残余(1itemが複数ページぶんの
-				// 文書では数万pt)が頭断片に積み残って紙外へ描かれる
-				// (eLife論文で実測: 95ページぶんが3ページ目に積み上がった)。
-				// 幾何学的に、残余は「元の行の高さ − このページで消費した量」
-				// を下回らない。
+				// **Keep the continuation row height at least as large as the remainder** (2026-08-17).
+				// The remainder is not laid out at this point (before anchor restoration),
+				// so getPageExtent may return nearly 0. Recording that in the ledger makes the next
+				// split's boundary search misread "all rows fit before the cut line" and return
+				// an **empty continuation fragment**. The remainder (tens of thousands of points in documents
+				// where one item spans multiple pages) stays in the leading fragment and draws off the paper
+				// (observed in an eLife paper: 95 pages of content piled onto page 3).
+				// Geometrically, the remainder cannot be smaller than "original row height -
+				// extent consumed on this page".
 				newRowExtent = Math.max(newRowExtent, boundaryRow.extent() - consumed);
-				// さらに、item単位では「分割前のitem高 − 保持側の実測高」を
-				// 下回らない(2026-08-18)。切断は不可分な内容(行・原子ブロック)を
-				// 丸ごと残余へ送るため、保持側の実消費は利用可能量remainingより
-				// 小さくなりうる——上の下限(extent−remaining)だけだと残余を
-				// 過小記帳し、次ページで後続行が継続行の実内容に重なる
-				// (smolcssで実測: 保持側が原子のデモ箱を送って~65pt早く終わり、
-				// 次の記事の本文が前の記事のフッタに重なった)
+				// Also, per item, it cannot be smaller than "item height before splitting - measured height
+				// of the kept side" (2026-08-18). Splitting moves indivisible content (lines, atomic blocks)
+				// whole to the remainder, so the kept side may consume less than the available remaining extent.
+				// The above lower bound (extent-remaining) alone would under-record the remainder,
+				// making later rows overlap the continuation row's actual content on the next page
+				// (observed in smolcss: the kept side sent an atomic demo box onward and ended ~65 pt early,
+				// so the next article's body text overlapped the previous article's footer).
 				for (int k = 0; k < boundaryItems.length; ++k) {
 					newRowExtent = Math.max(newRowExtent, preExtents[k] - consumed);
 				}
@@ -395,7 +394,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				this.keepHeadRows(boundary + 1);
 				return new SplitResult.Split(continuation);
 			}
-			// 境界行の誰も分割できない=行全体を境界とみなし、丸ごと持ち越す
+			// No item in the boundary row can split: treat the entire row as the boundary and carry it whole.
 		}
 		if (boundary == 0) {
 			return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
@@ -415,9 +414,10 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 	}
 
 	/**
-	 * 分割後の頭側に、残した行と item だけを記録し直します(2026-09-17)。
-	 * {@link FlexBox} の同名の処理と同じ理由——移送済みの行を指したまま同じ頭が
-	 * もう一度分割されると、移送済みの item を再び分割して内容が複製される。
+	 * Rebuilds the leading fragment's records after splitting to include only kept rows and items (2026-09-17).
+	 * For the same reason as the corresponding {@link FlexBox} operation: if the same leading fragment
+	 * is split again while still referring to transferred rows, it splits transferred items again
+	 * and duplicates content.
 	 */
 	private void keepHeadRows(final int rowCount) {
 		final int rows = Math.min(rowCount, this.rows.size());
@@ -428,9 +428,8 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 	}
 
 	/**
-	 * {@code rows}の{@code fromIndex}行目以降を、flow位置と行開始位置を
-	 * 0基点へ付け替えたリストにします({@link #split}が行を丸ごと次断片へ
-	 * 持ち越す際に使う)。
+	 * Returns a list of rows from {@code fromIndex} onward in {@code rows}, with flow positions
+	 * and row starts rebased to 0 (used when {@link #split} carries whole rows to the next fragment).
 	 */
 	private static List<Row> shiftRows(final List<Row> rows, final int fromIndex, final double keptExtent) {
 		final List<Row> result = new ArrayList<>(rows.size() - fromIndex);
@@ -444,15 +443,15 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 	}
 
 	/**
-	 * <b>継続断片も同じ種別で作る</b>(2026-08-05)。
+	 * <b>Creates continuation fragments with the same type</b> (2026-08-05).
 	 *
 	 * <p>
-	 * {@link FlowBlockBox#fragmentRecipe()} は {@code new FlowBlockBox(...)} を
-	 * 直に書いているので、<b>上書きしないと継続断片が素のブロックになる</b>。
-	 * {@code ContinuationValidator} が種別の食い違いを検出して
-	 * <b>変換全体を止める</b>——実地コーパス第23波の {@code ecma262}
-	 * (ECMAScript仕様書、7.5MBの単一ページ)がこれで、出力2.9MBの途中で
-	 * 落ちていた。{@code MulticolumnBlockBox} だけが上書きしていた。
+	 * {@link FlowBlockBox#fragmentRecipe()} directly uses {@code new FlowBlockBox(...)},
+	 * so <b>without an override, continuation fragments become plain blocks</b>.
+	 * {@code ContinuationValidator} detects the type mismatch and <b>stops the entire conversion</b>.
+	 * This caused {@code ecma262} in real-world corpus wave 23 (the ECMAScript specification,
+	 * a 7.5 MB single page) to fail after producing 2.9 MB of output.
+	 * Only {@code MulticolumnBlockBox} had an override.
 	 * </p>
 	 */
 	@Override

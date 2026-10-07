@@ -1,27 +1,28 @@
 package net.zamasoft.foliojet.layout.sizing;
 
 /**
- * 固有寸法(内容に由来する寸法)です。
+ * Intrinsic sizes (sizes derived from content).
  * <ul>
- * <li>minContent — 最小内容寸法(分割不能な最長ランの行方向寸法)</li>
- * <li>maxContent — 最大内容寸法(折り返しなしで並べた場合の行方向寸法)</li>
- * <li>minPage — 最小ページ方向寸法</li>
- * <li>columnInflated — {@code minContent}が<b>段数倍</b>を含むか</li>
+ * <li>minContent — Min-content size (line-axis size of the longest unbreakable run)</li>
+ * <li>maxContent — Max-content size (line-axis size when laid out without wrapping)</li>
+ * <li>minPage — Minimum page-axis size</li>
+ * <li>columnInflated — Whether {@code minContent} includes <b>multiplication by the column count</b></li>
  * </ul>
  *
  * <p>
- * <b>{@code columnInflated}が要る理由</b>(2026-07-28)。段組の最小内容寸法は
- * 「段数 × 中身の最小内容寸法 + 段間」で、入れ子にすれば積で効く。この値を
- * {@code fit-content}の下限にすると、<b>紙の行軸をいくらでも超える</b>——
- * 段が4つあるだけで4倍である。しかし<b>段は狭くできる</b>(行軸を段数で
- * 割り直すだけ)ので、この下限は守らなくてよい。
+ * <b>Why {@code columnInflated} is needed</b> (2026-07-28).
+ * The min-content size of multi-column layout is "column count × content's min-content size + gaps";
+ * nesting multiplies these factors. Using this as the {@code fit-content} lower bound can
+ * <b>exceed the paper's line-axis size without limit</b>: four columns alone multiply it by four.
+ * But <b>columns can be narrowed</b> (simply divide the line-axis space by the column count again),
+ * so this lower bound need not be honored.
  * </p>
  *
  * <p>
- * 一方、{@code height:150mm}の画像のように<b>作者が明示した不可分な箱</b>から
- * 来た最小内容寸法は守るべきで、紙に収めようと縮めても中身が余計にはみ出す
- * だけである。両者は値からは区別できないので、<b>段数倍が効いたかどうかを
- * 測定側で記録して運ぶ</b>。
+ * In contrast, min-content sizes from <b>indivisible boxes explicitly specified by the author</b>,
+ * such as an image with {@code height:150mm}, should be honored: shrinking to fit the paper
+ * only makes their content overflow further. The values alone cannot distinguish these cases,
+ * so <b>measurement records and carries whether multiplication by the column count took effect</b>.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -29,7 +30,7 @@ package net.zamasoft.foliojet.layout.sizing;
 public record IntrinsicSizes(double minContent, double maxContent, double minPage, boolean columnInflated) {
 	public static final IntrinsicSizes ZERO = new IntrinsicSizes(0, 0, 0);
 
-	/** 段数倍を含まない固有寸法({@code columnInflated = false})。 */
+	/** Intrinsic sizes without multiplication by the column count ({@code columnInflated = false}). */
 	public IntrinsicSizes(final double minContent, final double maxContent, final double minPage) {
 		this(minContent, maxContent, minPage, false);
 	}

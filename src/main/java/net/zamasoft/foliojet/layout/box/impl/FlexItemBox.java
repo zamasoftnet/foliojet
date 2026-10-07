@@ -4,29 +4,30 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 
 /**
- * Flexアイテムのボックスです(Flex F1d、2026-08-02——
- * consult-codex-2026-08-02-flexbox.txt Q2)。
+ * A flex item box (Flex F1d, 2026-08-02 --
+ * consult-codex-2026-08-02-flexbox.txt Q2).
  *
  * <p>
- * {@code GridItemBox}(中立合成wrapper)と違い、plainなブロック直下子では
- * **authored childのBlockParams/FlowPosを引き継いで生成**し、元の外箱は
- * 構築しない——将来のstretch(F3c)でauthoredの背景・枠がitemサイズへ
- * 追随するため(答申の最重要プロトタイプ条件)。匿名テキスト・置換要素・
- * 非plain子(表・入れ子コンテナ等)のみ中立paramsのwrapperになる。
- * 合成経路でもauthored経路でもsource protocolへは露出させない
- * (記録・再生時は子イベントから決定的に再合成される)。
+ * Unlike {@code GridItemBox} (a neutral synthetic wrapper), for a plain direct block child,
+ * **create it by inheriting the authored child's BlockParams/FlowPos**, without constructing
+ * the original outer box. This lets the authored background/border follow the item size
+ * under future stretch (F3c), the consultation's most important prototype condition.
+ * Only anonymous text, replaced elements, and non-plain children (tables, nested containers, etc.)
+ * use wrappers with neutral params. Neither the synthetic nor the authored path exposes
+ * the box to the source protocol (it is deterministically synthesized again from child events
+ * during recording/replay).
  * </p>
  */
 public class FlexItemBox extends FlowBlockBox {
 
 	/**
-	 * 中立wrapperがauthored childの行方向寸法指定を引き取ったか
-	 * (2026-08-08、{@code FlexBuilder.startNeutralElementItem})。
-	 * trueのとき、直下の子は行方向指定をauto(wrapper充填)として解決する
-	 * ({@code FlowBlockBox.calculateSize})——wrapperと子の双方が%を
-	 * 解決すると二重適用になるため。子のparams側で中立化しないのは、
-	 * item本体の再生がchildの記録から再具現化されるため、liveの変異が
-	 * 残らないから(検証済み——asahi.comの高校野球ストリップ)。
+	 * Whether a neutral wrapper has taken over the authored child's specified line-axis size
+	 * (2026-08-08, {@code FlexBuilder.startNeutralElementItem}).
+	 * If true, the direct child resolves its line-axis specification as auto (fill the wrapper)
+	 * ({@code FlowBlockBox.calculateSize}), because resolving percentages in both wrapper and child
+	 * would apply them twice. Do not neutralize the child's params: replay reifies the item itself
+	 * from the child's recording, so live mutations do not survive
+	 * (verified with the high-school baseball strip on asahi.com).
 	 */
 	private boolean neutralLineFill;
 
@@ -36,34 +37,34 @@ public class FlexItemBox extends FlowBlockBox {
 	}
 
 	/**
-	 * flex itemは寸法をFlexBuilderが注入するため、{@code specifiedPageAxis}を
-	 * 立てる唯一の場所である{@code AbstractStaticBlockBox.calculateSize}の
-	 * 該当分岐を通らないことがある(2026-08-09)。その場合ページ跨ぎ分割の
-	 * 残量計算({@code FragmentState.of})が「指定寸法なし」と誤認して
-	 * ページ方向の指定寸法を残量へ分割せず、継続断片が指定高を<b>フルに</b>
-	 * 再解決する——固定高itemを持つflex行がページを跨ぐと、継続側の行が
-	 * ほぼ指定高まるごと膨らみ、後続内容を押し下げていた(flex丸ごと移動の
-	 * replay経路の変形として記録されていた実バグ)。絶対長のときだけ立てる
-	 * (%はflexの基準が要るため保守的に従来どおり)。
+	 * FlexBuilder injects flex item dimensions, so items may bypass the relevant branch of
+	 * {@code AbstractStaticBlockBox.calculateSize}, the only place that sets
+	 * {@code specifiedPageAxis} (2026-08-09). Then remainder calculation for cross-page splitting
+	 * ({@code FragmentState.of}) mistakenly sees "no specified size" and does not split the specified
+	 * page-axis size into a remainder; the continuation fragment resolves the <b>full</b> specified
+	 * height again. A flex line with fixed-height items spanning pages thus inflated the continuation
+	 * line by almost the entire specified height and pushed later content down (an actual bug recorded
+	 * as deformation in the whole-flex-move replay path). Set this only for absolute lengths
+	 * (conservatively keep the existing percentage behavior, which requires the flex basis).
 	 */
 	private void markSpecifiedPageAxisFromSize() {
 		this.specifiedPageAxis = this.size
 				.getPageType(this.getBlockParams().flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE;
 	}
 
-	/** 行方向寸法の引き取りを記録します(中立wrapper専用)。 */
+	/** Records takeover of the line-axis size (neutral wrappers only). */
 	public void markNeutralLineFill() {
 		this.neutralLineFill = true;
 	}
 
-	/** {@link #markNeutralLineFill}参照。 */
+	/** See {@link #markNeutralLineFill}. */
 	public boolean isNeutralLineFill() {
 		return this.neutralLineFill;
 	}
 
 	/**
-	 * flex itemのauto marginはFlexBuilderが解決済み
-	 * ({@link FlowBlockBox#coordinatorOwnsAutoMargins}参照)。
+	 * FlexBuilder has already resolved auto margins for flex items
+	 * (see {@link FlowBlockBox#coordinatorOwnsAutoMargins}).
 	 */
 	@Override
 	public boolean coordinatorOwnsAutoMargins() {
@@ -71,15 +72,15 @@ public class FlexItemBox extends FlowBlockBox {
 	}
 
 	/**
-	 * 線方向のitem開始位置(Flexコンテナ内辺原点、自然位置からの相対)を
-	 * 設定します(F6: 縦書きでは物理Y)。
+	 * Sets the item's line-axis start position (origin at the flex container's inner edge,
+	 * relative to the natural position; F6: physical Y in vertical writing).
 	 *
 	 * <p>
-	 * {@code baseOffsetX}/{@code baseOffsetY}にも同じ値を退避する
-	 * (2026-08-06)。{@code AbstractContainerBox.resolveRelativeOffset}が
-	 * {@code position:relative}のずらし量をこの上へ加算するための基準値
-	 * ——退避しないと、そちらが{@code offsetX}を代入で上書きしてFlexの
-	 * 配置が消える(検索ボタンの左右逆転・アイコンの原点集約はこれが原因)。
+	 * Also save the same value in {@code baseOffsetX}/{@code baseOffsetY} (2026-08-06).
+	 * This is the basis on which {@code AbstractContainerBox.resolveRelativeOffset} adds
+	 * the {@code position:relative} offset. Without it, that method overwrites {@code offsetX}
+	 * by assignment and loses flex placement (causing reversed search-button positions and
+	 * icons to cluster at the origin).
 	 * </p>
 	 */
 	public void setFlexLineOffset(final double lineOffset, final boolean vertical) {
@@ -93,22 +94,21 @@ public class FlexItemBox extends FlowBlockBox {
 	}
 
 	/**
-	 * {@link #setFlexLineOffset}で設定した線方向位置を読みます
-	 * (2026-08-07、Flex行分割用)。
+	 * Reads the line-axis position set by {@link #setFlexLineOffset}
+	 * (2026-08-07, for flex row splitting).
 	 *
 	 * <p>
-	 * 行を跨いで強制分割した残余{@link FlexItemBox}は{@code fragmentRecipe}が
-	 * 新規生成するため線方向位置を引き継がない——分割後に呼び出し側が
-	 * これで読んだ元の値を残余へ{@link #setFlexLineOffset}し直す必要がある
-	 * (cross軸の位置はitemではなくコンテナのFlow側が持つので、こちらは
-	 * 触らなくてよい)。
+	 * {@code fragmentRecipe} creates a new remainder {@link FlexItemBox} for a forced split
+	 * across a row, so it does not inherit the line-axis position. After splitting, the caller
+	 * must read the original value here and apply {@link #setFlexLineOffset} again to the remainder
+	 * (the cross-axis position belongs to the container's Flow, not the item, so needs no change here).
 	 * </p>
 	 */
 	public double getFlexLineOffset(final boolean vertical) {
 		return vertical ? this.baseOffsetY : this.baseOffsetX;
 	}
 
-	/** 確定した線方向内寸(content-box)を設定します(bind直前に呼ぶ。縦書き=高さ)。 */
+	/** Sets the finalized inner line-axis size (content-box; called just before bind; height in vertical writing). */
 	public void setFlexMainSize(final double mainSize, final boolean vertical) {
 		if (vertical) {
 			this.height = mainSize;
@@ -127,32 +127,32 @@ public class FlexItemBox extends FlowBlockBox {
 	}
 
 	/**
-	 * <b>継続断片も同じ種別で作る</b>(2026-08-05)。
+	 * <b>Creates continuation fragments with the same type</b> (2026-08-05).
 	 *
 	 * <p>
-	 * {@link FlowBlockBox#fragmentRecipe()} は {@code new FlowBlockBox(...)} を
-	 * 直に書いているので、<b>上書きしないと継続断片が素のブロックになる</b>。
-	 * {@code ContinuationValidator} が種別の食い違いを検出して
-	 * <b>変換全体を止める</b>——実地コーパス第23波の {@code ecma262}
-	 * (ECMAScript仕様書、7.5MBの単一ページ)がこれで、出力2.9MBの途中で
-	 * 落ちていた。{@code MulticolumnBlockBox} だけが上書きしていた。
+	 * {@link FlowBlockBox#fragmentRecipe()} directly uses {@code new FlowBlockBox(...)},
+	 * so <b>without an override, continuation fragments become plain blocks</b>.
+	 * {@code ContinuationValidator} detects the type mismatch and <b>stops the entire conversion</b>.
+	 * This caused {@code ecma262} in real-world corpus wave 23 (the ECMAScript specification,
+	 * a 7.5 MB single page) to fail after producing 2.9 MB of output.
+	 * Only {@code MulticolumnBlockBox} had an override.
 	 * </p>
 	 */
 	@Override
 	public net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe() {
 		final BlockParams params = this.getBlockParams();
 		final FlowPos pos = this.getFlowPos();
-		// 線方向(主軸)は指定寸法でなく**flex解決後の使用寸法**を継続断片へ
-		// 運ぶ(2026-08-08)。FragmentStateのnextSizeは行方向の指定寸法を
-		// そのまま残すため、width:100%のitemがflex-shrinkで縮んでいた場合、
-		// 継続側の%再解決が縮小前の幅を復元してしまい、隣のitem
-		// (flex-shrink:0の固定幅サイドバー)を紙面外へ押し出す——
-		// asahi.comトップの速報ニュース欄が時刻だけ残して消えた実バグ。
-		// レシピはthisを保持しない規約のため、値でキャプチャする
+		// Carry the **used size after flex resolution**, not the specified size, along the line axis
+		// (main axis) to continuation fragments (2026-08-08). FragmentState's nextSize retains
+		// the specified line-axis size. If flex-shrink has shrunk a width:100% item, resolving
+		// the percentage again in the continuation restores its pre-shrink width and pushes the adjacent item
+		// (a fixed-width sidebar with flex-shrink:0) off the paper.
+		// This actual bug made the breaking-news section on asahi.com's home page disappear except for the times.
+		// Capture by value because recipes must not retain this.
 		final boolean vertical = params.flow.isVertical();
-		// Dimensionのabsolute値はbox-sizingスケール(BORDER_BOXなら解決時に
-		// 枠が控除される——AbstractStaticBlockBox)。内寸this.width/heightへ
-		// 枠ぶんを足し戻してから運ぶ
+		// Dimension's absolute values use the box-sizing scale (BORDER_BOX deducts the frame
+		// during resolution -- AbstractStaticBlockBox). Add the frame back to the inner
+		// this.width/height before carrying the values.
 		final double usedMain = (vertical ? this.height : this.width)
 				+ (params.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
 						? this.frame.getBorderLineExtent(params.flow)

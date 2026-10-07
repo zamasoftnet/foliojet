@@ -11,11 +11,13 @@ import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
 
 /**
- * flex・grid の中立・匿名 item の params です。容れ物の文字の特性を引き継ぎ、枠・大きさ・整列などは中立へ戻す。
+ * Params for neutral and anonymous flex/grid items. Inherits the container's text properties,
+ * and resets frames, sizes, alignment, and other properties to neutral values.
  *
  * <p>
- * FlexBuilder と GridBuilder に同じ中立化の写しがあり、grid の側にだけ後から align-content の中立化が足されて、
- * flex の匿名 item には容れ物の align-content が効いたままだった(2026-10-04、全体レビュー)。
+ * FlexBuilder and GridBuilder had duplicate neutralization logic. Neutralization of align-content
+ * was later added only to grid, leaving the container's align-content active on anonymous flex items
+ * (2026-10-04, overall review).
  * </p>
  */
 final class NeutralItemParams {
@@ -27,25 +29,25 @@ final class NeutralItemParams {
 		params.frame = RectFrame.NULL_FRAME;
 		params.element = null;
 		params.footnoteId = -1;
-		// **コンテナの実効opacityを引き継ぐ**(2026-08-18)。以前は1fへ
-		// 戻していたが、visibility:hiddenはopacity 0へ写像される
-		// (BoxStyleMapper.setupParams)ため、hiddenなコンテナの匿名・
-		// 中立itemだけが描かれてしまう——e-Statのドロップダウンメニューが
-		// 本文に重なって出た実欠陥(重なり1,462対)。authored itemは
-		// 自分のstyleからvisibilityを継承するので元から正しい。
+		// **Inherit the container's effective opacity** (2026-08-18). Previously, it was reset to 1f,
+		// but visibility:hidden maps to opacity 0
+		// (BoxStyleMapper.setupParams), so only anonymous and neutral items of hidden
+		// containers were drawn. This caused a real defect: e-Stat's dropdown menu
+		// overlapped the body text (1,462 overlapping pairs). Authored items inherit
+		// visibility from their own style and were already correct.
 		params.opacity = container.opacity;
 		params.zIndexType = Params.Z_INDEX_AUTO;
 		params.zIndexValue = 0;
 		params.transform = new AffineTransform();
 		params.columns = Columns.NONE_COLUMNS;
-		// コンテナのalign-contentを引き継がない(2026-08-29)。itemの箱は
-		// コンテナのparamsから作るので、そのままではコンテナの
-		// align-content: centerがitem自身の内容整列として効いてしまう。
-		// itemが行の高さまで伸びるようになって表面化した(Chromeでは
-		// itemは30ptへ伸びるが中身は上端のまま)
+		// Do not inherit the container's align-content (2026-08-29). The item box is
+		// created from the container's params, so otherwise the container's
+		// align-content: center would act as content alignment within the item itself.
+		// This surfaced when items began stretching to the row height (in Chrome,
+		// the item stretches to 30 pt, but its content stays at the top).
 		params.blockAlignContent = BoxAlignment.NORMAL;
-		// G3a追補(答申Q1): コンテナのwidth/min/max-widthがitemの固有寸法へ
-		// 混入しないようsize系も中立化する
+		// G3a addendum (review Q1): also neutralize sizes to keep the container's width/min/max-width
+		// out of the item's intrinsic sizes.
 		params.size = Dimension.AUTO_DIMENSION;
 		params.minSize = Dimension.ZERO_DIMENSION;
 		params.maxSize = Dimension.AUTO_DIMENSION;

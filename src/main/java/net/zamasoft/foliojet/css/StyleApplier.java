@@ -21,7 +21,7 @@ import net.zamasoft.foliojet.xml.vocab.XHTML;
 import net.zamasoft.foliojet.css.parser.CSSException;
 
 /**
- * CSSに関する処理命令を処理します。
+ * Handles CSS processing instructions.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -61,25 +61,25 @@ public class StyleApplier {
 
 	public void startStyle(CSSStyle style) {
 		CSSElement ce = style.getCSSElement();
-		// スタイルシートのスタイル宣言。
-		// **UA既定スタイルシートは分けて受け取る**——HTMLの属性由来の既定値
-		// (presentational hints)はUA既定より強く著者より弱い、という
-		// HTML仕様の重ね順にするため(2026-08-03)
+		// Style declarations from stylesheets.
+		// **Receive the UA default stylesheet separately** so that defaults from HTML attributes
+		// (presentational hints) outrank UA defaults but rank below author styles,
+		// following the HTML specification's cascade order (2026-08-03).
 		this.styleContext.startElement(ce);
 		final Declaration[] uaDeclaration = new Declaration[1];
-		// @layer と !important を併用したときの反転(CSS Cascade 5)。
-		// レイヤーを使った規則があるときだけ中身が入る(2026-08-03)
+		// Reversal when combining @layer and !important (CSS Cascade 5).
+		// Populated only when layered rules exist (2026-08-03).
 		final Declaration[] importantDeclaration = new Declaration[1];
 		Declaration declaration = this.styleContext.merge(null, uaDeclaration, importantDeclaration);
 
-		// インラインスタイル宣言
+		// Inline style declarations
 		String inlineStyleDecl;
 		if (this.changeDefaultNamespace) {
 			inlineStyleDecl = ce.atts.getValue(XHTML.STYLE_ATTR.lName);
 		} else {
-			// **SVG/MathMLなどforeign content配下の要素はXHTML名前空間の
-			// styleを持たない**(HTML5構文解析仕様どおり。2026-08-06、
-			// インラインSVGサイズ崩れバグ調査で判明)。無修飾でも試す
+			// **Elements inside foreign content such as SVG/MathML do not have style
+			// in the XHTML namespace** (per the HTML5 parsing specification; found on 2026-08-06
+			// while investigating broken inline SVG sizing). Also try an unqualified attribute.
 			inlineStyleDecl = XHTML.getAttr(ce.atts, XHTML.STYLE_ATTR.lName);
 		}
 		if (inlineStyleDecl != null) {
@@ -92,28 +92,28 @@ public class StyleApplier {
 			}
 		}
 
-		// UA既定スタイルシート(html-ua.css)
+		// UA default stylesheet (html-ua.css)
 		if (uaDeclaration[0] != null) {
 			uaDeclaration[0].applyProperties(style);
 		}
 
-		// HTMLスタイル(属性由来の既定値。UA既定より強い)
+		// HTML styles (defaults from attributes; stronger than UA defaults)
 		this.html.applyStyle(style);
 
-		// CSSスタイル
+		// CSS styles
 		if (declaration != null) {
 			declaration.applyProperties(style);
 		}
-		// **!important のレイヤー順は反転する**(CSS Cascade 5)。通常順で
-		// 一度重ねたあと、important宣言だけを反転順でもう一度重ねる——
-		// importantどうしは後勝ちなので、最も強いものが最後に載る
+		// **Reverse layer order for !important** (CSS Cascade 5). After applying
+		// the cascade once in normal order, apply only important declarations again in reverse order.
+		// Later important declarations win, so the strongest is applied last.
 		if (importantDeclaration[0] != null) {
 			importantDeclaration[0].applyImportantProperties(style);
 		}
 
 		short display = Display.get(style);
 		if (display == DisplayValue.TABLE_CELL && Width.getLength(style).getType() == LengthType.ABSOLUTE) {
-			// 幅指定されている場合はwhite-space: normal;を適用する
+			// Apply white-space: normal; when a width is specified.
 			Length length;
 			final CSSStyle pStyle = style.getParentStyle();
 			if (pStyle != null && BlockFlow.get(pStyle).isVertical()) {

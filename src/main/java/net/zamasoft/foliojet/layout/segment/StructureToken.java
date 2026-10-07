@@ -6,46 +6,42 @@ import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.StructureElement;
 
 /**
- * {@code Params.element}のfreeze結果です(2026-07-24新設、E-6増分3b-4
- * ——開発記録の
- * StructureToken裁定)。
+ * The frozen form of {@code Params.element} (introduced on 2026-07-24, E-6 increment 3b-4:
+ * the StructureToken decision in the development record).
  *
  * <p>
- * {@link CSSElement}をそのまま{@link ParamsFields}に保持すると、
- * {@code CSSElement.precedingElement}チェーン経由で過去の要素列を
- * まるごと引き留める(保持の問題——共有自体は安全)。そこで記録時
- * freezeでは、レイアウト後の読み手({@link StructureElement}のjavadoc
- * 参照)が必要とする4フィールドだけを持つこの軽量tokenへ切り離す。
- * {@code atts}参照はイベント数線形の軽量メタデータとして許容
- * (codex裁定——{@code CSSElement}自体が描画時読み出しのため保持して
- * いる同じ参照であり、新たな保持は増えない)。
+ * Holding {@link CSSElement} directly in {@link ParamsFields} retains the entire sequence of earlier
+ * elements through the {@code CSSElement.precedingElement} chain (a retention problem; sharing itself
+ * is safe). Freezing at recording time therefore detaches it into this lightweight token, holding
+ * only the four fields needed by readers after layout (see the Javadoc of {@link StructureElement}).
+ * The {@code atts} reference is acceptable as lightweight metadata linear in event count
+ * (codex decision: {@code CSSElement} already holds the same reference for reading during rendering,
+ * so this adds no retention).
  * </p>
  *
  * <p>
- * <b>identity契約</b>: 同じ論理要素({@code elementKey})のtokenは
- * 再生セッション内でintern({@code SegmentExecutor})され、同一
- * インスタンスが渡る——Tagged PDFの構造タグ二重開き防止
- * ({@code PageBox.beginStruct}のidentity set。例: {@code <li>}の
- * principal boxとmarker boxは同じ要素を共有する)をlive経路と同じ
- * 形で保つ。
+ * <b>Identity contract</b>: tokens for the same logical element ({@code elementKey}) are interned
+ * within a replay session ({@code SegmentExecutor}), so the same instance is passed.
+ * This prevents duplicate structure-tag openings in Tagged PDF in the same way as the live path
+ * (the identity set in {@code PageBox.beginStruct}; for example, the principal box and marker box
+ * of a {@code <li>} share the same element).
  * </p>
  */
 public record StructureToken(long elementKey, String lName, String id, Attributes atts) implements StructureElement {
 
 	/**
-	 * 記録時freezeです({@link ParamsFields#freeze}から呼ばれる)。
+	 * Freezes at recording time (called by {@link ParamsFields#freeze}).
 	 *
 	 * <ul>
-	 * <li>{@code null}・freeze済みtokenはそのまま。</li>
-	 * <li>{@code elementKey < 0}の{@link CSSElement}(擬似要素・匿名要素・
-	 * at-page側)は<b>そのまま保持する</b>——これらは全て{@code CSSElement}の
-	 * static singleton定数({@code precedingElement}を持たず保持は無害。
-	 * 動的生成は{@code CSSProcessor}のelementKey採番経路のみ——2026-07-24
-	 * 実査)であり、singleton共有こそがlive挙動のidentity(例: 匿名表の
-	 * {@code ANON_TABLE}共有によるタグ二重開き防止)と完全に一致する。
-	 * tokenへ写すと逆にidentityが壊れる(-1は擬似要素間で衝突するため
-	 * internできない)。</li>
-	 * <li>それ以外(文書中の実要素)は4フィールドだけのtokenへ写す。</li>
+	 * <li>Leaves {@code null} and already frozen tokens unchanged.</li>
+	 * <li><b>Retains</b> {@link CSSElement} instances with {@code elementKey < 0} (pseudo-elements,
+	 * anonymous elements, and at-page elements) directly. These are all static singleton constants
+	 * of {@code CSSElement} (no {@code precedingElement}, so retention is harmless; dynamic creation
+	 * occurs only through the {@code CSSProcessor} elementKey assignment path, inspected on 2026-07-24).
+	 * Sharing the singleton exactly matches the identity of live behavior (e.g., sharing {@code ANON_TABLE}
+	 * for anonymous tables prevents duplicate tag openings). Copying them into tokens would instead
+	 * break identity (-1 collides across pseudo-elements, so they cannot be interned).</li>
+	 * <li>Copies all other elements (real elements in the document) into tokens with only four fields.</li>
 	 * </ul>
 	 */
 	public static StructureElement freeze(final StructureElement element) {

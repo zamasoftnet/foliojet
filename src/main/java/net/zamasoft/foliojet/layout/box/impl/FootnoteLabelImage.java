@@ -17,28 +17,27 @@ import net.zamasoft.pdfg2d.gc.text.TextImpl;
 import net.zamasoft.pdfg2d.gc.text.TextShaper;
 
 /**
- * 脚注番号の未解決ラベルです(脚注F5、2026-07-31——
- * consult-codex-2026-07-31-footnote-f5.txt)。{@code ::footnote-call}/
- * {@code ::footnote-marker}の番号部分を文字として焼き込まず、
- * {@code footnoteId}付きのインライン置換原子(このImageを持つ
- * {@code InlineReplacedBox})として保持する。番号はページ確定時に
- * {@code RootBuilder}が「callが残ったページ」ごとに1から割り当てて
- * {@link #resolve}し、描画時に初めてグリフ化される。
+ * An unresolved footnote-number label (footnotes F5, 2026-07-31 --
+ * consult-codex-2026-07-31-footnote-f5.txt). Instead of embedding the number part of
+ * {@code ::footnote-call}/{@code ::footnote-marker} as text, keeps it as an atomic inline
+ * replaced element (an {@code InlineReplacedBox} holding this Image) with a {@code footnoteId}.
+ * At page finalization, {@code RootBuilder} assigns numbers starting at 1 for each
+ * "page where the call remains" and invokes {@link #resolve}. Glyphs are created only at drawing time.
  *
  * <p>
- * <b>固定欄</b>: レイアウト幅は番号の桁数に依存しない
- * (callは1桁欄、markerは2桁欄+右揃え。数字は0〜9の最大advance基準)。
- * 番号がレイアウト入力にならないため、widows/avoid・脚注予約との
- * 固定点計算が発生しない——CSSの厳密な番号幅再組版ではないことは
- * 意図的仕様逸脱として記録済み。
+ * <b>Fixed slot</b>: layout width does not depend on the number of digits
+ * (one digit for calls; two digits, right-aligned, for markers; based on the maximum advance of digits 0-9).
+ * Because the number is not a layout input, no fixed-point calculation with widows/avoid or
+ * footnote reservation occurs. Not relaying out to the exact number width required by CSS
+ * is a documented intentional deviation from the specification.
  * </p>
  *
  * <p>
- * {@link ReplacedBoxImage}として実装するのは可変状態(解決済み番号)を
- * 持つため——freeze経路({@code ReplacedParamsTemplate})が記録時に
- * {@link #duplicate}の独立複製を凍結し、ソース再生ごとにさらに複製を
- * 配るので、live・再生間で解決状態が共有されない。再生された複製は
- * 未解決に戻り、確定木の走査({@code RootBuilder})が改めて解決する。
+ * Implements {@link ReplacedBoxImage} because it has mutable state (the resolved number).
+ * The freeze path ({@code ReplacedParamsTemplate}) freezes an independent {@link #duplicate}
+ * at recording time and supplies another duplicate for each source replay, so resolution state
+ * is not shared between live processing and replay. Replayed duplicates return to the unresolved
+ * state, and traversal of the finalized tree ({@code RootBuilder}) resolves them again.
  * </p>
  */
 public final class FootnoteLabelImage
@@ -50,7 +49,7 @@ public final class FootnoteLabelImage
 
 	private final long footnoteId;
 
-	/** markerなら2桁欄+右揃え、callなら1桁欄+左詰め(超過は右へ張り出し)。 */
+	/** Markers use a two-digit, right-aligned slot; calls use one digit, left-aligned (overflow extends right). */
 	private final boolean marker;
 
 	private final String prefix, suffix;
@@ -59,14 +58,14 @@ public final class FootnoteLabelImage
 
 	private final FontManager fontManager;
 
-	/** 数字1桁の欄幅(0〜9の最大advance)。 */
+	/** Slot width for one digit (maximum advance of 0-9). */
 	private final double digitAdvance;
 
 	private final double prefixAdvance, suffixAdvance;
 
 	private final double ascent, descent;
 
-	/** ページ確定時に割り当てられる番号。未解決は-1。 */
+	/** Number assigned at page finalization. -1 means unresolved. */
 	private int resolvedNumber = -1;
 
 	public FootnoteLabelImage(final long footnoteId, final boolean marker, final String prefix, final String suffix,
@@ -102,7 +101,7 @@ public final class FootnoteLabelImage
 		this.suffixAdvance = source.suffixAdvance;
 		this.ascent = source.ascent;
 		this.descent = source.descent;
-		// 解決状態は複製しない——再生された複製は確定木の走査が改めて解決する
+		// Do not copy resolution state: traversal of the finalized tree resolves replayed duplicates again.
 	}
 
 	public long getFootnoteId() {
@@ -114,15 +113,15 @@ public final class FootnoteLabelImage
 	}
 
 	/**
-	 * ページ確定時の番号割り当てです({@code RootBuilder}から)。
+	 * Assigns the number at page finalization (from {@code RootBuilder}).
 	 *
-	 * @param number ページローカルの脚注番号(1始まり)
+	 * @param number page-local footnote number (starting at 1)
 	 */
 	public void resolve(final int number) {
 		this.resolvedNumber = number;
 	}
 
-	/** 欄幅: 数字欄(callは1桁、markerは2桁)+literalの前後。 */
+	/** Slot width: number slot (one digit for calls, two for markers) + leading/trailing literals. */
 	@Override
 	public double getWidth() {
 		return this.prefixAdvance + this.digitAdvance * (this.marker ? 2 : 1) + this.suffixAdvance;
@@ -134,10 +133,10 @@ public final class FootnoteLabelImage
 	}
 
 	/**
-	 * 番号は字なので、字の基準線を行の基準線に合わせる(2026-10-04、
-	 * TECH-20261003-004 の⑥)。画像として下端を基準線に置くと、字の
-	 * 深さのぶん持ち上がったうえに{@code vertical-align: super}が重なり、
-	 * 既定の{@code ::footnote-call}が高く浮いていた。
+	 * The number is text, so align its text baseline with the line baseline
+	 * (2026-10-04, TECH-20261003-004 item ⑥). Placing its bottom on the baseline as an image
+	 * raised it by the text descent, on top of {@code vertical-align: super}, so the default
+	 * {@code ::footnote-call} floated too high.
 	 */
 	@Override
 	public double getDescent() {
@@ -149,7 +148,7 @@ public final class FootnoteLabelImage
 		return this.resolvedNumber < 0 ? "" : this.prefix + this.resolvedNumber + this.suffix;
 	}
 
-	/** 採番漏れの警告は1回だけ(掃過で大量に出さない)。 */
+	/** Warn about missing numbering only once (avoid flooding the sweep output). */
 	private static final java.util.concurrent.atomic.AtomicBoolean WARNED_UNRESOLVED =
 			new java.util.concurrent.atomic.AtomicBoolean();
 
@@ -157,12 +156,12 @@ public final class FootnoteLabelImage
 	public void drawTo(final GC gc) throws GraphicsException {
 		int number = this.resolvedNumber;
 		if (number < 0) {
-			// **採番漏れでも変換は失敗させない**(2026-08-02。絶対要件=
-			// クラッシュ・変換の失敗の不在)。呼び出しの走査は版面のflow・
-			// float・行・インラインだけを歩くため、表のセルや絶対配置の
-			// 中にある呼び出しは採番されない(PLANの脚注残:
-			// 表・絶対配置文脈のcall走査)。番号を消すと内容の消失に
-			// なるので、**文書順の通番**へ落として描き、1回だけ警告する
+			// **Do not fail conversion even if numbering was missed** (2026-08-02; absolute requirement:
+			// no crashes or conversion failures). The call scan traverses only type-area flows,
+			// floats, lines, and inlines, so calls inside table cells or absolutely positioned boxes
+			// are not numbered (remaining footnote work in PLAN:
+			// call scans in table and absolute-positioning contexts). Removing the number would lose content,
+			// so draw a **sequential number in document order** as a fallback and warn only once.
 			number = (int) (this.footnoteId + 1);
 			if (WARNED_UNRESOLVED.compareAndSet(false, true)) {
 				LOG.warning("footnote label was not numbered by the page scan"
@@ -176,8 +175,8 @@ public final class FootnoteLabelImage
 		for (final TextImpl run : runs) {
 			advance += run.getAdvance();
 		}
-		// markerは右揃え(1桁でも本文開始位置が安定)、callは左詰めで
-		// 超過(10以上)はinline-end側へ張り出す
+		// Markers are right-aligned (keeping the body text start stable even with one digit); calls are left-aligned,
+		// with overflow (10 and above) extending toward inline-end.
 		double x = this.marker ? this.getWidth() - advance : 0;
 		final double y = this.ascent;
 		for (final TextImpl run : runs) {
@@ -188,7 +187,7 @@ public final class FootnoteLabelImage
 
 	@Override
 	public void setReplacedBox(final AbstractReplacedBox box, final double width, final double height) {
-		// back-referenceは不要(サイズは固定欄)
+		// No back-reference is needed (size is a fixed slot).
 	}
 
 	@Override
@@ -204,7 +203,7 @@ public final class FootnoteLabelImage
 		return advance;
 	}
 
-	/** 自己完結整形です(2026-08-01にRunCollector+TrimmedRunsへ一本化)。 */
+	/** Self-contained shaping (unified on RunCollector+TrimmedRuns on 2026-08-01). */
 	private TextImpl[] shape(final String text) {
 		return net.zamasoft.foliojet.layout.text.spacing.TrimmedRuns.shape(this.fontManager, this.fontStyle, text, -1,
 				false);

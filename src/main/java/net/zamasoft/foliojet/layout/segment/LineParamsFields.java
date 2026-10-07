@@ -4,23 +4,22 @@ import net.zamasoft.foliojet.layout.box.params.AbstractLineParams;
 import net.zamasoft.foliojet.layout.box.params.Length;
 
 /**
- * {@code AbstractLineParams}が{@code AbstractTextParams}に加えて持つ
- * line固有フィールド(textAlign/textAlignLast/textIndent/lineHeight)の
- * freeze/materialize処理です(2026-07-22新設、M6d-A3b Stage1、
- * package-private——{@link BlockParamsTemplate}と
- * {@link FirstLineParamsTemplate}の内部実装として共有する)。
+ * Freeze/materialize processing for the line-specific fields
+ * (textAlign/textAlignLast/textIndent/lineHeight) that {@code AbstractLineParams} adds to
+ * {@code AbstractTextParams} .
+ * Introduced 2026-07-22, M6d-A3b Stage1; package-private and shared as the internal implementation of
+ * {@link BlockParamsTemplate} and {@link FirstLineParamsTemplate} .
  *
  * <p>
- * {@code Params}/{@code AbstractTextParams}の共通祖先フィールドは
- * {@link TextParamsFields}に委譲する(合成)——{@code InlineParams}
- * (`AbstractTextParams`を直接継承、line固有フィールドを持たない)の
- * テンプレートが同じ祖先部分を必要としたため、重複を避けてそちらへ
- * 切り出した。
+ * Delegates shared ancestor fields from {@code Params} /{@code AbstractTextParams} to
+ * {@link TextParamsFields} (composition).
+ * They were extracted there to avoid duplication because the template for {@code InlineParams}
+ * (directly extends `AbstractTextParams`, with no line-specific fields) needs the same ancestor portion.
  * </p>
  *
  * <p>
- * テンプレート自体を不変recordへ置換するStage2(2026-07-22完了)。
- * フィールド分類の根拠は{@link TextParamsFields}のjavadocを参照。
+ * Stage2 replaced the templates themselves with immutable records (completed 2026-07-22).
+ * See the {@link TextParamsFields} Javadoc for the basis of field classification.
  * </p>
  */
 record LineParamsFields(TextParamsFields text, byte textAlign, byte textAlignLast, Length textIndent,
@@ -31,9 +30,9 @@ record LineParamsFields(TextParamsFields text, byte textAlign, byte textAlignLas
 	}
 
 	/**
-	 * {@code target}へ全フィールドを書き戻す。呼び出しごとに新品の
-	 * {@code AffineTransform}/{@code TextShadow[]}を割り当てるため、
-	 * 複数回materializeしても互いに影響しない(M6d-Aの最重要契約)。
+	 * Writes all fields back to {@code target} .
+	 * Allocates fresh {@code AffineTransform} /{@code TextShadow[]} instances on each call,
+	 * so multiple materializations do not affect one another (M6d-A's most important contract).
 	 */
 	void materializeInto(final AbstractLineParams target) {
 		this.text.materializeInto(target);

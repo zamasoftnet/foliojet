@@ -1,47 +1,45 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
 /**
- * WordHyphenator → BuilderGlyphHandler 境界の正規化イベント観測です
- * (M3b Phase 0: shadow journal。挙動不変)。
+ * Observes normalized events at the WordHyphenator → BuilderGlyphHandler boundary
+ * (M3b Phase 0: shadow journal; no behavior change).
  *
  * <p>
- * 配達されたイベントに一度だけ seq を振り、ソース文字カーソル
- * (グリフに加えて control の消費も含む)を追跡する。既存の
- * deliveredCharEnd はグリフでしか進まないため「正規化イベントの配達
- * 境界」として不完全(BuilderGlyphHandler の注記)— その差を型と
- * テストで固定するのが本クラスの役目。TextReplaySlice(C3)と
- * BreakNode 投影(M3b)はこの seq 空間を共有する。
+ * Assigns a seq exactly once to each delivered event and tracks the source character cursor
+ * (including consumption by controls as well as glyphs). The existing deliveredCharEnd
+ * advances only for glyphs, so it is incomplete as a normalized event delivery boundary
+ * (see the note in BuilderGlyphHandler). This class fixes that distinction in types and tests.
+ * TextReplaySlice (C3) and BreakNode projection (M3b) share this seq space.
  * </p>
  */
 public final class TextEventJournal {
 	private int seq = 0;
 
 	/**
-	 * 正規化イベントの配達カーソル(ソース文字終端)。グリフと
-	 * ソース位置を持つ control で前進する。
+	 * Delivery cursor for normalized events (source character end).
+	 * Advances for glyphs and controls with source positions.
 	 */
 	private int cursor = 0;
 
-	/** 直近のイベント seq を返します。 */
+	/** Returns the most recent event seq. */
 	public int seq() {
 		return this.seq;
 	}
 
 	/**
-	 * 正規化イベントの配達カーソルを返します。末尾の空白・改行・
-	 * SoftHyphen の消費を含むため、deliveredCharEnd(グリフのみ)より
-	 * 進んでいることがある。
+	 * Returns the delivery cursor for normalized events. Includes consumption of trailing spaces,
+	 * line breaks, and SoftHyphen, so it may be ahead of deliveredCharEnd (glyphs only).
 	 */
 	public int cursor() {
 		return this.cursor;
 	}
 
-	/** テキストランの開始。 */
+	/** Start of a text run. */
 	public void run(final int charOffset) {
 		++this.seq;
 	}
 
-	/** グリフの配達。 */
+	/** Delivery of a glyph. */
 	public void glyph(final int charStart, final int charEnd) {
 		++this.seq;
 		if (charStart >= 0) {
@@ -49,7 +47,7 @@ public final class TextEventJournal {
 		}
 	}
 
-	/** ソース位置を持つ control(空白・改行・SoftHyphen)の配達。 */
+	/** Delivery of a control with a source position (space, line break, or SoftHyphen). */
 	public void control(final int charOffset) {
 		++this.seq;
 		if (charOffset >= 0) {
@@ -57,12 +55,12 @@ public final class TextEventJournal {
 		}
 	}
 
-	/** インライン quad の配達(ソース位置なし)。 */
+	/** Delivery of an inline quad (no source position). */
 	public void inline() {
 		++this.seq;
 	}
 
-	/** 行の flush。 */
+	/** Line flush. */
 	public void flush() {
 		++this.seq;
 	}

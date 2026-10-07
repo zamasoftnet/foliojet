@@ -1,10 +1,10 @@
 package net.zamasoft.foliojet.layout.box.impl;
 
 /**
- * 本文1グループ・行境界分割の演算履歴です。Pass B の全行高を保持し、
- * 実箱の範囲 [start, visibleEnd) と仮想の全残余 [start, end) を分けます。
- * 未 bind 行の高さを実箱へ設定してはいけません。Retained への接続は B-2b-2。
- * 行高配列は継続計画と共有しますが、行・セル・前断片の箱は保持しません。
+ * Operation history for a single body group split at row boundaries. Keeps all Pass B row heights
+ * and separates the actual box range [start, visibleEnd) from the virtual full remainder [start, end).
+ * Do not set unbound row heights on actual boxes. Connection to Retained is B-2b-2.
+ * Shares the row-height array with continuation plans, but retains no row, cell, or preceding-fragment boxes.
  */
 public final class IncompleteTablePlan {
 
@@ -12,7 +12,7 @@ public final class IncompleteTablePlan {
 		AUTO, FORCED
 	}
 
-	/** 確定した送出範囲 [start, cut) と、分割直前・直後の仮想寸法です。 */
+	/** Finalized emission range [start, cut), and virtual dimensions immediately before and after splitting. */
 	public record Cut(int start, int cut, int visibleEnd, int end, SplitKind kind,
 			double groupBefore, double tableBefore, double groupKeep, double tableKeep,
 			double groupNext, double tableNext) {
@@ -25,7 +25,7 @@ public final class IncompleteTablePlan {
 	private double visibleGroupSize;
 	private Cut cut;
 
-	/** ヘッダ高は完成した共有ヘッダの値。初期の表高は header → body の順で加算します。 */
+	/** Header height comes from the completed shared header. Add initial table height in header → body order. */
 	public IncompleteTablePlan(final double[] rowSizes, final double headerSize) {
 		this.rowSizes = rowSizes.clone();
 		if (rowSizes.length == 0 || !Double.isFinite(headerSize) || headerSize < 0) {
@@ -91,7 +91,7 @@ public final class IncompleteTablePlan {
 				: this.visibleEnd == this.end() ? this.tableSize : (0 + this.headerSize) + this.visibleGroupSize;
 	}
 
-	/** 追記検査と可視範囲の更新。未処理末尾の走査は切断確定時だけ行います。 */
+	/** Checks appends and updates the visible range. Scans the unprocessed tail only when finalizing the cut. */
 	void rowsAppended(final TableRowGroupBox body) {
 		final int end = this.start + body.getTableRowCount();
 		if (this.cut != null || end < this.visibleEnd || end > this.end()) {
@@ -111,7 +111,7 @@ public final class IncompleteTablePlan {
 		}
 	}
 
-	/** TableRowGroupBox.split の返却前に、全残余と同じ先頭からの減算を確定します。 */
+	/** Before TableRowGroupBox.split returns, finalizes subtraction from the same start as the full remainder. */
 	IncompleteTablePlan split(final TableRowGroupBox kept, final TableRowGroupBox next, final SplitKind kind) {
 		final int k = this.start + kept.getTableRowCount();
 		if (this.cut != null || k <= this.start || k >= this.visibleEnd

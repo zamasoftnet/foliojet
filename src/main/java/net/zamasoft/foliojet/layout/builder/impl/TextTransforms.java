@@ -3,19 +3,20 @@ package net.zamasoft.foliojet.layout.builder.impl;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 
 /**
- * {@code text-transform} の字の写しです(2026-10-06 に本文・ルビ・割注の 3 つの写しを集め、{@code full-width} を加えた)。
+ * Character mapping for {@code text-transform} (on 2026-10-06, consolidated three copies for
+ * body text, ruby, and warichu, and added {@code full-width}).
  *
  * <p>
- * 大文字・小文字の変換のあとに全角化する。どれも 1 字を 1 字へ写すので、字数は変わらない(文書の中の位置が
- * そのまま使える)。
+ * Converts to full-width forms after changing case. Each mapping converts one character to one
+ * character, preserving the character count (so positions in the document remain usable).
  * </p>
  */
 final class TextTransforms {
 	private TextTransforms() {
-		// 使わない
+		// Unused
 	}
 
-	/** {@code ch[off..off+len)} をその場で変えます。{@code capitalize} の語頭はこの範囲の中で数える。 */
+	/** Transforms {@code ch[off..off+len)} in place. Counts word starts for {@code capitalize} within this range. */
 	static void apply(final byte transform, final char[] ch, final int off, final int len) {
 		switch (transform & AbstractTextParams.TEXT_TRANSFORM_CASE_MASK) {
 		case AbstractTextParams.TEXT_TRANSFORM_LOWERCASE:
@@ -54,7 +55,7 @@ final class TextTransforms {
 		}
 	}
 
-	/** 1 字を変えます(割注。{@code capitalize} の語頭かは呼び出し側が渡す)。 */
+	/** Transforms one character (warichu; the caller supplies whether it starts a word for {@code capitalize}). */
 	static char apply(final char c, final byte transform, final boolean wordStart) {
 		final char cased = switch (transform & AbstractTextParams.TEXT_TRANSFORM_CASE_MASK) {
 		case AbstractTextParams.TEXT_TRANSFORM_LOWERCASE -> Character.toLowerCase(c);
@@ -66,8 +67,9 @@ final class TextTransforms {
 	}
 
 	/**
-	 * 全角の形があればそれを返します(css-text-3 §2.1.1 {@code full-width})。ASCII の字と記号は U+FF01〜U+FF5E へ、
-	 * 空白は U+3000 へ、¢£¬¯¦¥₩ は U+FFE0〜U+FFE6 へ。半角カナは濁点・半濁点の合成が絡むので変えない。
+	 * Returns the full-width form if one exists (css-text-3 §2.1.1 {@code full-width}).
+	 * Maps ASCII letters and symbols to U+FF01–U+FF5E, spaces to U+3000, and ¢£¬¯¦¥₩ to U+FFE0–U+FFE6.
+	 * Leaves half-width kana unchanged because they require composition with voiced/semi-voiced marks.
 	 */
 	static char fullWidth(final char c) {
 		if (c == ' ') {

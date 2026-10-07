@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.layout.fragment;
 
-/** scratch所有者とその会計を、呼び出し中だけ同じスレッドへ接続します。 */
+/** Attaches a scratch owner and its accounting to the same thread only for the duration of the call. */
 public final class ScratchReplayScope implements AutoCloseable {
 	private static final ThreadLocal<ScratchReplayScope> CURRENT = new ThreadLocal<>();
 	private final ScratchReplayScope previous;
@@ -10,14 +10,14 @@ public final class ScratchReplayScope implements AutoCloseable {
 	private final net.zamasoft.foliojet.layout.RetainedTextLimit.MeasurementAttachment accounting;
 	private boolean closed;
 
-	/** 従来の一回限りの計測。close時に新品の所有者も解放します。 */
+	/** Legacy one-shot measurement. Also releases the fresh owner on close. */
 	public ScratchReplayScope() {
 		this(new ScratchOwner(), true);
 	}
 
 	/**
-	 * closeは接続だけを戻します。所有者は明示的にreleaseしてください。
-	 * 再入と一時計測の会計は{@link ScratchOwner#attach()}の契約に従います。
+	 * close only restores the attachment. Explicitly release the owner.
+	 * Reentry and temporary measurement accounting follow the contract of {@link ScratchOwner#attach()} .
 	 */
 	public ScratchReplayScope(final ScratchOwner owner) {
 		this(owner, false);
@@ -34,7 +34,7 @@ public final class ScratchReplayScope implements AutoCloseable {
 		CURRENT.set(this);
 	}
 
-	/** scratch文書は生成時の所有者を保持し、途中破棄でその資源を清算します。 */
+	/** Scratch documents retain their creation-time owner and reclaim its resources on early discard. */
 	public static ScratchOwner currentOwner() {
 		final ScratchReplayScope scope = CURRENT.get();
 		return scope == null ? null : scope.owner;
@@ -50,7 +50,7 @@ public final class ScratchReplayScope implements AutoCloseable {
 		if (owner != null) owner.register(lease);
 	}
 
-	/** ビルダーの未完スコープも、その会計へ結び付いたまま回収します。 */
+	/** Also reclaims unfinished builder scopes while they remain tied to their accounting. */
 	public static void register(final net.zamasoft.foliojet.layout.RetainedTextLimit.Scope scope) {
 		final ScratchOwner owner = currentOwner();
 		if (owner != null) owner.register(scope);

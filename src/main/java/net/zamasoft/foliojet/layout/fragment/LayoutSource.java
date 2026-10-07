@@ -8,63 +8,58 @@ import net.zamasoft.foliojet.layout.segment.BoxRecipe;
 import net.zamasoft.foliojet.layout.segment.TextSpill;
 
 /**
- * レイアウトのソースプロトコルログです(M6b v3)。
+ * The layout source protocol log (M6b v3).
  *
  * <p>
- * スタイル適用・疑似要素合成の後、レイアウトの前という境界
- * (DocumentBuilder への入力プロトコル)のイベントを追記専用で記録します。
- * params/pos は計算済みの産物なので、再生でセレクタ照合・生成内容合成・
- * カウンタ評価が再実行されることは構造的にありません。改ページ残余の
- * 再生はこのログを read-only で読み、ライブの StyleBuilder/DocumentBuilder
- * の状態には一切触れない専用ドライバが行います(ARCHITECTURE.md §5.6 v3)。
+ * Records events in an append-only log at the boundary after style application and pseudo-element synthesis
+ * but before layout (the input protocol to DocumentBuilder). Since params/pos are already computed,
+ * replay structurally cannot repeat selector matching, generated-content synthesis, or counter evaluation.
+ * A dedicated driver replays page-break remainders by reading this log as read-only, without touching
+ * any live StyleBuilder/DocumentBuilder state (ARCHITECTURE.md §5.6 v3).
  * </p>
  *
  * <p>
- * <b>BeginBoxのappend時freeze(E-6増分3b-4、2026-07-24)</b>:
- * {@link Start}はliveのparams/pos参照ではなく、記録時に
- * {@link BoxRecipe#freeze}で凍結したrecipeを保持する。params/posの変異は
- * 全て記録前のStyleBuilderフェーズに閉じる(codex設計§1.1・独立
- * cross-check済み)ため出力挙動は不変で、ログがliveのparams/pos・
- * {@code CSSElement}のprecedingElementグラフを引き留めない
- * ({@code Params.element}は{@code StructureToken}へ切り離される——
- * {@code StructureToken}のjavadoc参照)。
+ * <b>Freeze BeginBox on append (E-6 increment 3b-4, 2026-07-24)</b>:
+ * {@link Start} holds a recipe frozen by {@link BoxRecipe#freeze} at recording time, rather than live
+ * params/pos references. All params/pos mutations stay within the StyleBuilder phase before recording
+ * (codex design §1.1, independently cross-checked), so output behavior is unchanged. The log does not retain
+ * live params/pos or the precedingElement graph of {@code CSSElement}
+ * ({@code Params.element} is detached into {@code StructureToken} ; see the {@code StructureToken} Javadoc).
  * </p>
  *
  * <p>
- * <b>EventId</b>: 各イベントには付与時から不変の id が振られます。
- * ボックスへの刻印(アンカー)は id で行い、compaction 後も安定です。
- * <b>水位破棄</b>: {@link #compact(long)} は指定 id より前のイベントを、
- * 開いている(未対応の)Start を残して破棄します。保持量は
- * O(現在ページ+開いている要素) に保たれます。
+ * <b>EventId</b>: Each event receives an id that remains immutable from assignment onward.
+ * Boxes are stamped with ids (anchors), which remain stable after compaction.
+ * <b>Watermark-based discard</b>: {@link #compact(long)} discards events before the specified id,
+ * preserving open (unmatched) Starts. Retention stays at O(current page + open elements).
  * </p>
  *
  * <p>
- * <b>text payloadのspill(E-6増分3b-2、2026-07-24)</b>: {@link Chars}の
- * char[]本体は、inline保持量が設定予算({@code processing.text-spill
- * -budget})を超えた後の新規追記から{@link TextSpill}(一時ファイル)へ
- * 退避される。判定は設定値と累積inline bytesのみの決定的なもので、
- * heap残量には依存しない。イベント境界は一切変えない(1 Chars =
- * 1 payload。分割・結合はNFC正規化・text-transformの呼び出し境界を
- * 変えるため禁止——codex設計§2.4)。spillストアはこのLayoutSourceの
- * 寿命に紐づき、{@link #close()}(変換終了経路のfinally)で一時
- * ファイルごと確実に削除される。
+ * <b>Text payload spill (E-6 increment 3b-2, 2026-07-24)</b>: The char[] contents of {@link Chars}
+ * are spilled to {@link TextSpill} (a temporary file) starting with new appends that exceed the configured
+ * inline retention budget ({@code processing.text-spill
+ * -budget}). The decision is deterministic, based only on the configured value and cumulative inline bytes,
+ * never on remaining heap space. Event boundaries never change (1 Chars = 1 payload; splitting or merging
+ * is prohibited because it changes NFC normalization and text-transform call boundaries; codex design §2.4).
+ * The spill store has the lifetime of this LayoutSource and is reliably deleted, including its temporary
+ * file, by {@link #close()} (in the finally block of the conversion termination path).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class LayoutSource implements AutoCloseable {
-	/** ゼロadvance・非構造・非描画の代入位置です。payloadは頁registryが所有します。 */
+	/** A zero-advance, nonstructural, nonpainting substitution position. The page registry owns the payload. */
 	public record Assignment(long order) implements Event {
 	}
-	/** 文書内で一度でも自動改ページのライブロックが確定したか。 */
+	/** Whether an automatic page-break livelock has ever been confirmed in this document. */
 	private boolean autoBreaksAbandoned = false;
 
-	/** この入力位置での自動改ページが既にライブロックしたか。 */
+	/** Whether automatic page breaking has already livelocked at this input position. */
 	public boolean areAutoBreaksAbandoned() {
 		return this.autoBreaksAbandoned;
 	}
 
-	/** この入力位置での自動改ページを文書の残りの処理でも拒否します。 */
+	/** Rejects automatic page breaks at this input position for the rest of the document. */
 	public void abandonAutoBreaks() {
 		this.autoBreaksAbandoned = true;
 	}
@@ -74,143 +69,140 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * ボックスの種別です。params/pos からの再インスタンス化の
-	 * ファクトリ選択({@code BoxRecipeBoxFactory.create}のkindカーネル)と
-	 * 記録時freeze({@link BoxRecipe#freeze})のvariant選択に使います。
+	 * The box kind. Selects the factory for reinstantiation from params/pos
+	 * (the kind kernel of {@code BoxRecipeBoxFactory.create} ) and the variant for freezing at recording time
+	 * ({@link BoxRecipe#freeze}).
 	 */
 	public enum BoxKind {
-		/** 通常ブロック(FlowBlockBox)。 */
+		/** Normal block (FlowBlockBox). */
 		FLOW,
-		/** マルチカラムブロック(MulticolumnBlockBox)。 */
+		/** Multi-column block (MulticolumnBlockBox). */
 		MULTICOL,
-		/** インライン(InlineBox)。 */
+		/** Inline (InlineBox). */
 		INLINE,
-		/** 外置きリストマーカー(OutsideMarkerBox)。 */
+		/** Outside list marker (OutsideMarkerBox). */
 		MARKER,
-		/** 浮動ブロック(FloatBlockBox)。 */
+		/** Floating block (FloatBlockBox). */
 		FLOAT_BLOCK,
-		/** インラインブロック(InlineBlockBox)。 */
+		/** Inline block (InlineBlockBox). */
 		INLINE_BLOCK,
-		/** 内部マーカー(InsideMarkerBox)。 */
+		/** Inside marker (InsideMarkerBox). */
 		INSIDE_MARKER,
 		/**
-		 * テーブル(TableBox。blockBoxはparams共有+<b>内側blockBoxのpos</b>で
-		 * 再構成——外側{@code TableBox.getPos()}は常に{@code TablePos}で
-		 * 配置種別を持たない)。G-1調査(2026-07-25)後に一旦撤去、表セット
-		 * 実装のユーザー承認(2026-07-30、G-1裁定の更新)で復活。記録適格は
-		 * {@code RecordingLayoutSink.boxKind}のTableBox分岐(exact class+
-		 * params alias、fail closed)。PlacedTableも同じTABLE kindのStart/Endを使う。
+		 * Table (TableBox; reconstructs blockBox with shared params and <b>the inner blockBox's pos</b>;
+		 * the outer {@code TableBox.getPos()} is always {@code TablePos} and has no positioning kind).
+		 * Removed after the G-1 investigation (2026-07-25), then restored with user approval of the table-set
+		 * implementation (2026-07-30, revision of the G-1 decision). Recording eligibility is determined by the
+		 * TableBox branch of {@code RecordingLayoutSink.boxKind} (exact class + params alias, fail closed).
+		 * PlacedTable also uses Start/End with the same TABLE kind.
 		 */
 		TABLE,
-		/** テーブル行グループ(TableRowGroupBox)。 */
+		/** Table row group (TableRowGroupBox). */
 		TABLE_ROW_GROUP,
-		/** テーブル行(TableRowBox)。 */
+		/** Table row (TableRowBox). */
 		TABLE_ROW,
-		/** テーブルセル(TableCellBox)。 */
+		/** Table cell (TableCellBox). */
 		TABLE_CELL,
-		/** テーブル列グループ(TableColumnGroupBox)。 */
+		/** Table column group (TableColumnGroupBox). */
 		TABLE_COLUMN_GROUP,
-		/** テーブル列(TableColumnBox)。 */
+		/** Table column (TableColumnBox). */
 		TABLE_COLUMN,
 		/**
-		 * 絶対配置ブロック(AbsoluteBlockBox)。E-6増分4e(2026-07-24)で
-		 * Opaque記録からrecipe記録へ昇格——末尾追加なのは既存ordinalを
-		 * 変えないため({@code segment.BoxKind}と並びを揃える)。
+		 * Absolutely positioned block (AbsoluteBlockBox). Promoted from Opaque recording to recipe recording
+		 * in E-6 increment 4e (2026-07-24). Appended to preserve existing ordinals
+		 * (keep the order aligned with {@code segment.BoxKind} ).
 		 */
 		ABSOLUTE,
 		/**
-		 * Gridコンテナ(GridBox。Grid G0c、2026-07-31——
-		 * consult-codex-2026-07-31-grid.txt §3.7。末尾追加は既存ordinal
-		 * 維持のため)。
+		 * Grid container (GridBox; Grid G0c, 2026-07-31;
+		 * consult-codex-2026-07-31-grid.txt §3.7). Appended to preserve existing ordinals.
 		 */
 		GRID,
 		/**
-		 * 表キャプション(FlowBlockBox+TableCaptionPos。caption recipe化
-		 * C1、2026-08-01——consult-codex-2026-08-01-caption-recipe.txt)。
-		 * 文脈依存kind: 再生には同一範囲内で先行するTABLE Startの確立が
-		 * 必要で、範囲の根にはなれない(C1ではcontainsCaptionの一律
-		 * ゲートで再生対象外、C2でcontext-complete検証へ置換予定)。
+		 * Table caption (FlowBlockBox + TableCaptionPos; caption recipes C1, 2026-08-01;
+		 * consult-codex-2026-08-01-caption-recipe.txt).
+		 * A context-dependent kind: replay requires a preceding TABLE Start established in the same range,
+		 * so it cannot be the range root (C1 excludes it from replay with the blanket containsCaption gate;
+		 * C2 is scheduled to replace this with context-complete validation).
 		 */
 		CAPTION,
 		/**
-		 * Flexコンテナ(FlexBox。Flex F0c、2026-08-02——
-		 * consult-codex-2026-08-02-flexbox.txt。末尾追加は既存ordinal
-		 * 維持のため)。
+		 * Flex container (FlexBox; Flex F0c, 2026-08-02; consult-codex-2026-08-02-flexbox.txt).
+		 * Appended to preserve existing ordinals.
 		 */
 		FLEX;
 	}
 
 	/**
-	 * ボックスの開始です(E-6増分3b-4、2026-07-24: live params/pos参照の
-	 * 保持から記録時freezeのrecipe保持へ置換)。記録時
-	 * ({@code StyleBuilder.startBox})に{@link BoxRecipe#freeze}で凍結され、
-	 * 再生は{@code BoxRecipeBoxFactory.create(BoxRecipe)}のmaterializeで
-	 * 新品のボックスを作る——liveのparams/pos({@code CSSElement}グラフ
-	 * 含む)はログに残らない。freezeは{@code StyleBuilder.boxKind}が
-	 * 非nullを返す全14 kind(E-6増分4eでABSOLUTE、表セットでTABLE追加)をカバーする総関数
-	 * ({@code ReplacedRecipe.freeze}と違い失敗変種はない)。生成内容・マーカー番号等は解決済みの
-	 * 後続イベントとして続くため、再生でスタイル副作用は再実行されません。
+	 * The start of a box (E-6 increment 3b-4, 2026-07-24: replaced retention of live params/pos references
+	 * with retention of a recipe frozen at recording time). {@link BoxRecipe#freeze} freezes it during
+	 * recording
+	 * ({@code StyleBuilder.startBox}), and replay materializes a fresh box through
+	 * {@code BoxRecipeBoxFactory.create(BoxRecipe)} . Live params/pos (including the {@code CSSElement} graph)
+	 * do not remain in the log. freeze is a total function covering all 14 kinds for which
+	 * {@code StyleBuilder.boxKind} returns non-null (ABSOLUTE added in E-6 increment 4e, TABLE in the table
+	 * set);
+	 * unlike {@code ReplacedRecipe.freeze} , it has no failure variant. Generated content, marker numbers, etc.
+	 * follow as already resolved events, so replay does not repeat style side effects.
 	 */
 	public record Start(BoxRecipe recipe) implements Event {
 	}
 
 	/**
-	 * 置換要素です(E-6増分3b-3、2026-07-24: live box保持からrecipe保持へ
-	 * 置換)。記録時({@code StyleBuilder.addReplacedBox})に
-	 * {@code ReplacedRecipe.freeze}で凍結され、再生は
-	 * {@code BoxRecipeBoxFactory.createReplaced}のmaterializeで新品の
-	 * ボックスを作る——liveボックスへの参照はログに残らない。
-	 * E-6増分3b-6: {@code ReplacedBoxImage}実装(BarcodeImage等)を
-	 * 参照するボックスも{@code duplicate()}の独立複製ベースでfreeze
-	 * されるようになり、live box保持の過渡変種({@code ReplacedLive})は
-	 * 撤去された。freezeできない未知サブクラス(現存4実装ではゼロ)は
-	 * {@link Opaque}+{@link EndBlock}の対でfail closed記録される。
+	 * A replaced element (E-6 increment 3b-3, 2026-07-24: replaced live box retention with recipe retention).
+	 * {@code ReplacedRecipe.freeze} freezes it during recording ({@code StyleBuilder.addReplacedBox});
+	 * replay materializes a fresh box through {@code BoxRecipeBoxFactory.createReplaced} ,
+	 * so no live box references remain in the log.
+	 * E-6 increment 3b-6: Boxes referencing {@code ReplacedBoxImage} implementations (BarcodeImage, etc.)
+	 * also became freezable using independent copies from {@code duplicate()} , and the transitional variant
+	 * that retained a live box ({@code ReplacedLive}) was removed. Unknown subclasses that cannot be frozen
+	 * (none among the four existing implementations) are recorded fail-closed as an
+	 * {@link Opaque} + {@link EndBlock} pair.
 	 */
 	public record Replaced(net.zamasoft.foliojet.layout.segment.ReplacedRecipe recipe) implements Event {
 	}
 
 	/**
-	 * テキストです。charOffset はソース文字オフセット(生成内容は -1)。
-	 * fixed は doc プロトコルの固定テキストフラグをそのまま保持します。
-	 * payload は inline char[] または spill 済み record 参照です
-	 * (E-6増分3b-2。{@link TextPayload})。
+	 * Text. charOffset is the source character offset (-1 for generated content).
+	 * fixed preserves the doc protocol's fixed-text flag unchanged.
+	 * payload is an inline char[] or a reference to a spilled record
+	 * (E-6 increment 3b-2; {@link TextPayload} ).
 	 */
 	public record Chars(int charOffset, TextPayload payload, boolean fixed) implements Event {
-		/** inline payload での簡易構築です(テスト・小規模呼び出し用)。 */
+		/** Convenience construction with an inline payload (for tests and small callers). */
 		public Chars(final int charOffset, final char[] ch, final boolean fixed) {
 			this(charOffset, new TextPayload.Inline(ch), fixed);
 		}
 	}
 
 	/**
-	 * {@code leader()}です(css-content-3、
-	 * consult-codex-2026-07-31-leader.txt L1)。payloadは正規化済み
-	 * パターン文字列のみ——shape・幅の割り付けは再生のたびに
-	 * {@code StyledTextUnitizer.leader}が行うため、再生間で可変状態を
-	 * 共有しない(LeaderQuadは駆動ごとに新規生成)。
+	 * {@code leader()} (css-content-3, consult-codex-2026-07-31-leader.txt L1).
+	 * The payload contains only the normalized pattern string. {@code StyledTextUnitizer.leader} performs
+	 * shaping and width allocation on each replay, so replays share no mutable state
+	 * (a new LeaderQuad is created for each run).
 	 */
 	public record Leader(String pattern) implements Event {
 	}
 
 	/**
-	 * {@link Chars}のテキスト本体です(E-6増分3b-2)。UTF-16長
-	 * ({@link #utf16Length()})はSpilledでもheapメタデータとして持ち、
-	 * 範囲計算がdecodeなしで成立する(挙動不変の保証)。
+	 * The text contents of {@link Chars} (E-6 increment 3b-2). Even Spilled retains the UTF-16 length
+	 * ({@link #utf16Length()}) as heap metadata, allowing range calculations without decoding
+	 * (a guarantee of unchanged behavior).
 	 */
 	public sealed interface TextPayload permits TextPayload.Inline, TextPayload.Spilled {
-		/** UTF-16単位の文字数です(heapメタデータ——decode不要で読める)。 */
+		/** The character count in UTF-16 units (heap metadata, readable without decoding). */
 		int utf16Length();
 
 		/**
-		 * テキストを<b>常に呼び出しごとに新しい(freshな)char[]</b>で
-		 * 返します。replay駆動の下流({@code StyledTextUnitizer})は配列を
-		 * in-placeで書き換えるため、保持配列を直接返してはならない
-		 * (3b-1のfresh copy方針)。Spilledの読み出し失敗は
-		 * {@link TextSpillException}(型付きレイアウト失敗)。
+		 * Returns the text <b>in a new (fresh) char[] on every call</b>. Downstream replay processing
+		 * ({@code StyledTextUnitizer}) modifies the array in place, so the retained array must never be
+		 * returned
+		 * directly (the fresh-copy policy of 3b-1). Spilled read failures raise
+		 * {@link TextSpillException} (a typed layout failure).
 		 */
 		char[] freshChars();
 
-		/** heap上のinline保持です。 */
+		/** Inline retention on the heap. */
 		record Inline(char[] ch) implements TextPayload {
 			@Override
 			public int utf16Length() {
@@ -224,8 +216,8 @@ public final class LayoutSource implements AutoCloseable {
 		}
 
 		/**
-		 * {@link TextSpill}へ書き出し済みのrecord参照です。heapに残るのは
-		 * (store参照, recordId, utf16Length)の定数サイズのみ。
+		 * A reference to a record already written to {@link TextSpill} . Only the constant-size tuple
+		 * (store reference, recordId, utf16Length) remains on the heap.
 		 */
 		record Spilled(TextSpill spill, long recordId, int utf16Length) implements TextPayload {
 			@Override
@@ -241,45 +233,45 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * ブロックの終了です。
+	 * The end of a block.
 	 */
 	public record EndBlock() implements Event {
 	}
 
-	/** 匿名Grid/Flex項目の合成開始。anchorはこのイベント自身のEventIdです。 */
+	/** Starts synthesizing an anonymous Grid/Flex item. anchor is this event's own EventId. */
 	public record AnonymousItemStart(long anchor) implements Event {
 	}
 
-	/** 匿名項目の合成終了。本文範囲はこの対の境界を含みません。 */
+	/** Ends synthesizing an anonymous item. The body range excludes the boundaries of this pair. */
 	public record AnonymousItemEnd() implements Event {
 	}
 
 	/**
-	 * 範囲replay不能マーカーです(recipe化に対応していないボックス種別
-	 * ——{@code StyleBuilder.boxKind}がnullを返すもの、および未知の
-	 * {@code AbstractReplacedBox}サブクラスのfail closed)。
-	 * ログの完全性(正直な全記録)のために
-	 * 位置を占有し、範囲にこれを含む再生要求はフォールバックさせます。
-	 * 常に{@link EndBlock}と対を成す開始イベントとして積まれます
-	 * ({@code compact}/{@code endOf}の開閉対称性)。
+	 * Marks a range as non-replayable (box kinds without recipe support:
+	 * those for which {@code StyleBuilder.boxKind} returns null, and fail-closed handling of unknown
+	 * {@code AbstractReplacedBox} subclasses). Occupies a position to keep the log complete
+	 * (an honest record of everything), and makes replay requests containing it fall back for the entire range.
+	 * Always pushed as a start event paired with {@link EndBlock}
+	 * (start/end symmetry in {@code compact} /{@code endOf}).
 	 *
 	 * <p>
-	 * <b>撤去対象ではない(E-6増分3b-6で明確化)</b>: live型
-	 * ({@code ReplacedLive})と違い、Opaqueはreplay適格判定
-	 * ({@code containsOpaque})のfail closed基盤として恒久的に必要
-	 * ——「変換できないものは正直にマークして範囲ごとフォールバック」
-	 * が、silent hole(内容の黙失)を構造的に防ぐ。recipe化対応が
-	 * 広がるほど発生頻度は下がるが、型自体は残る。
+	 * <b>Not slated for removal (clarified in E-6 increment 3b-6)</b>: Unlike the live variant
+	 * ({@code ReplacedLive}), Opaque is permanently required as the fail-closed foundation of replay
+	 * eligibility
+	 * ({@code containsOpaque}). Honestly marking what cannot be converted and falling back for the entire range
+	 * structurally prevents silent holes (silently lost content). Occurrences decrease as recipe support
+	 * expands,
+	 * but the type itself remains.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>発生源の実測(F-4、2026-07-25。{@code files/unittest}全数
-	 * 436文書)</b>: 計319件で、内訳は表本体310+表キャプション9のみ
-	 * (キャプションは必ず表の内側にあるので前者の真部分集合)。
-	 * 未知の{@code AbstractReplacedBox}サブクラスは現存4実装では
-	 * 構造的にゼロ。ルビ由来160件は2026-07-25の注釈付きテキスト化で
-	 * 消滅した。よって「Opaqueの残存源=表」であり、
-	 * {@link BoxKind#TABLE}の記録条件を正すことが唯一の削減手段。
+	 * <b>Measured sources (F-4, 2026-07-25; all 436 documents in {@code files/unittest} )</b>:
+	 * 319 occurrences in total, all from table bodies (310) and table captions (9)
+	 * (captions are always inside tables, so the latter are a proper subset of the former).
+	 * Unknown {@code AbstractReplacedBox} subclasses structurally cannot occur among the four existing
+	 * implementations. The 160 ruby-derived occurrences disappeared with the switch to annotated text on
+	 * 2026-07-25. Thus, tables are the remaining source of Opaque, and correcting the recording conditions for
+	 * {@link BoxKind#TABLE} is the only way to reduce it.
 	 * </p>
 	 */
 	public record Opaque() implements Event {
@@ -288,7 +280,7 @@ public final class LayoutSource implements AutoCloseable {
 	private static final class Entry {
 		private final long id;
 		private final Event event;
-		/** 本体とseal済みsliceの共有数。inline payloadの予算を二重計上しない。 */
+		/** The share count for the main store and sealed slices. Avoids double-counting the inline payload budget. */
 		private int owners = 1;
 
 		Entry(final long id, final Event event) {
@@ -305,37 +297,37 @@ public final class LayoutSource implements AutoCloseable {
 	private long nextId = 0;
 
 	/**
-	 * text payloadのinline保持予算の既定値(bytes)です(E-6増分3b-2)。
-	 * {@code UAProps.PROCESSING_TEXT_SPILL_BUDGET}の既定値と同値。
-	 * コーパス実測(SOURCE_EVENT_HIGH_WATER=数千イベント規模の文書が
-	 * 大半)より十分大きく、通常文書ではspillは起きない。
+	 * The default inline retention budget for text payloads, in bytes (E-6 increment 3b-2).
+	 * Equals the default of {@code UAProps.PROCESSING_TEXT_SPILL_BUDGET} .
+	 * It is well above corpus measurements (most documents have a SOURCE_EVENT_HIGH_WATER of a few thousand
+	 * events), so normal documents do not spill.
 	 */
 	public static final long DEFAULT_TEXT_SPILL_BUDGET_BYTES = 8L * 1024L * 1024L;
 
-	/** inline text payloadの予算(bytes)。超過後の新規Charsはspillされる。 */
+	/** The inline text payload budget in bytes. New Chars spill once it is exceeded. */
 	private final long textSpillBudgetBytes;
 
 	/**
-	 * 現在entriesまたはseal済みsliceが保持しているinline text payloadの累積bytes
-	 * (UTF-16見積り: char数×2)。append時に加算し、inline Charsの
-	 * 最後の所有が終わったとき減算する——判定はこの値と設定予算のみで行う
-	 * 決定的なもの(heap残量参照は禁止——codex設計§2.1)。
+	 * Cumulative bytes of inline text payloads currently retained by entries or sealed slices
+	 * (UTF-16 estimate: character count × 2). Added on append and subtracted when the final ownership of inline
+	 * Chars ends. The decision is deterministic, based only on this value and the configured budget
+	 * (consulting remaining heap space is prohibited; codex design §2.1).
 	 */
 	private long liveInlineTextBytes = 0;
 
-	/** spillストア(最初に必要になったとき遅延生成。{@link #close()}で削除)。 */
+	/** The spill store (created lazily on first use; deleted by {@link #close()}). */
 	private TextSpill textSpill = null;
 
 	/**
-	 * E-6増分2(2026-07-24): 追記イベントのshadow観測フック(テスト
-	 * 専用、LayoutSourceTestHooks経由で設定)。production経路では常に
-	 * null——nullのときの挙動は増分前と完全に同一。レイアウトが別
-	 * スレッドで走る構成(large stack)があるためvolatile。
+	 * E-6 increment 2 (2026-07-24): Shadow observation hook for appended events
+	 * (test only, set through LayoutSourceTestHooks). Always null in production; when null, behavior is
+	 * identical to that before the increment. Volatile because some configurations run layout on another
+	 * thread (large stack).
 	 */
 	static volatile java.util.function.Consumer<Event> appendObserver;
-	/** 終了清算が隠していた所有の取り残しを、解放前に観測する(試験専用)。 */
+	/** Observes leftover ownership hidden by final cleanup, before release (test only). */
 	static volatile java.util.function.Consumer<LayoutSource> beforeCloseObserver;
-	/** T5aのcompact直後の観測(試験専用)。 */
+	/** Observation immediately after T5a compaction (test only). */
 	static volatile java.util.function.Consumer<LayoutSource> compactObserver;
 
 	public record RetentionSnapshot(long leases, int openRanges, int retainedEvents, long oldestWatermark, long nextId,
@@ -347,41 +339,40 @@ public final class LayoutSource implements AutoCloseable {
 				this.textSlices.size(), this.slicedEvents);
 	}
 
-	/** 主ログとseal済みsliceが共有する、未解放のinline文字payloadのバイト数。 */
+	/** Bytes of unreleased inline character payloads shared by the main log and sealed slices. */
 	public long retainedInlineTextBytes() {
 		return this.liveInlineTextBytes;
 	}
 
-	/** 既定予算({@link #DEFAULT_TEXT_SPILL_BUDGET_BYTES})で作ります。 */
+	/** Creates an instance with the default budget ({@link #DEFAULT_TEXT_SPILL_BUDGET_BYTES}). */
 	public LayoutSource() {
 		this(DEFAULT_TEXT_SPILL_BUDGET_BYTES);
 	}
 
 	/**
-	 * text payloadのinline保持予算(bytes)を指定して作ります
-	 * (E-6増分3b-2。productionはStyleBuilderが
-	 * {@code processing.text-spill-budget}を渡す)。
+	 * Creates an instance with the specified inline text payload retention budget, in bytes
+	 * (E-6 increment 3b-2; in production, StyleBuilder passes {@code processing.text-spill-budget} ).
 	 */
 	public LayoutSource(final long textSpillBudgetBytes) {
 		this.textSpillBudgetBytes = textSpillBudgetBytes;
 	}
 
 	/**
-	 * イベントを追記し、その EventId を返します。
+	 * Appends an event and returns its EventId.
 	 */
 	public long append(final Event event) {
 		final long id = this.nextId++;
 		this.entries.add(new Entry(id, event));
 		this.indexEvent(id, event); // RangeSummary(2026-08-01)
-		// E-6増分3b-2: inline text payloadの予算会計(append/compactで対称)
+		// E-6 increment 3b-2: Inline text payload budget accounting (symmetric for append/compact)
 		if (event instanceof Chars chars && chars.payload() instanceof TextPayload.Inline inline) {
 			this.liveInlineTextBytes += (long) inline.utf16Length() * 2;
 			ContinuationStats.recordLiveTextPayloadBytes(this.liveInlineTextBytes);
 		}
-		// E-6増分1(2026-07-24): 保持量のhigh-water観測のみ(挙動不変)
+		// E-6 increment 1 (2026-07-24): Observe retention high-water marks only (behavior unchanged)
 		ContinuationStats.recordSourceEventRetention(this.entries.size());
 		this.reportRetention();
-		// E-6増分2(2026-07-24): shadow観測のみ(挙動不変)
+		// E-6 increment 2 (2026-07-24): Shadow observation only (behavior unchanged)
 		final java.util.function.Consumer<Event> observer = appendObserver;
 		if (observer != null) {
 			observer.accept(event);
@@ -390,18 +381,17 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * テキストイベントを追記し、その EventId を返します(E-6増分3b-2)。
-	 * inline保持量({@code liveInlineTextBytes})+今回分が予算内なら
-	 * 配列コピーをinline保持し、予算を超える追記は{@link TextSpill}へ
-	 * 書く(「予算超過後の新規Charsはspillで書く」——sealed済みの古い
-	 * inline chunkを後からspillする複雑さは作らない。compactでinline分が
-	 * 解放されれば以降の追記は再びinlineに戻るため、inline保持量は常に
-	 * 予算以下に保たれる)。
+	 * Appends a text event and returns its EventId (E-6 increment 3b-2).
+	 * If inline retention ({@code liveInlineTextBytes}) plus this append fits the budget, retains an array copy
+	 * inline; appends exceeding the budget go to {@link TextSpill} . The rule is to spill new Chars after the
+	 * budget is exceeded, avoiding the complexity of retroactively spilling old sealed inline chunks.
+	 * If compaction releases inline data, subsequent appends return to inline storage, so inline retention
+	 * always stays within budget.
 	 *
 	 * <p>
-	 * spillの書き込み失敗は{@link TextSpillException}(型付きレイアウト
-	 * 失敗)として伝播する——黙殺やinline継続へのフォールバックはしない
-	 * (spill成否で出力・メモリ挙動が変わる非決定性を作らない)。
+	 * Spill write failures propagate as {@link TextSpillException} (a typed layout failure).
+	 * They are neither ignored nor handled by falling back to continued inline storage, avoiding
+	 * nondeterministic output or memory behavior depending on spill success.
 	 * </p>
 	 */
 	public long appendChars(final int charOffset, final char[] ch, final int off, final int len, final boolean fixed) {
@@ -428,12 +418,11 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * text payloadのspillストアを閉じ、一時ファイルを削除します(冪等。
-	 * E-6増分3b-2)。LayoutSourceの寿命の終端——変換の終了経路
-	 * (StyleBuilder.finish、および例外時も通るformatterのfinally→
-	 * CSSProcessor.dispose)——で必ず呼ばれる。close後の新規再生はできない。
-	 * 既に取得した文字ReplaySliceがある場合だけ、
-	 * その最後のcloseまでspillの削除を遅らせる。
+	 * Closes the text payload spill store and deletes the temporary file (idempotent; E-6 increment 3b-2).
+	 * Always called at the end of the LayoutSource lifetime through the conversion termination path
+	 * (StyleBuilder.finish, and the formatter's finally → CSSProcessor.dispose, also reached on exceptions).
+	 * No new replay is possible after close. Only when previously acquired text ReplaySlices remain does
+	 * spill deletion wait until the last of them closes.
 	 */
 	@Override
 	public void close() {
@@ -442,7 +431,7 @@ public final class LayoutSource implements AutoCloseable {
 			final var observer = beforeCloseObserver;
 			if (observer != null) observer.accept(this);
 		} finally {
-			// 中断・不適格でも、主ソースに残った本文の所有を終端する。
+			// Ends ownership of body text remaining in the main source, even on interruption or ineligibility.
 			for (final RangeHandle handle : java.util.List.copyOf(this.openRanges)) handle.abandon();
 			this.closed = true;
 			this.retentionLeases.clear();
@@ -453,27 +442,27 @@ public final class LayoutSource implements AutoCloseable {
 		}
 	}
 
-	/** spillストアを返します(未生成ならnull。テスト観測用)。 */
+	/** Returns the spill store (null if not yet created; for test observation). */
 	public TextSpill textSpillForTest() {
 		return this.textSpill;
 	}
 
 	/**
-	 * 次に付与される EventId を返します(= 現在の末尾位置)。
+	 * Returns the next EventId to be assigned (= the current end position).
 	 */
 	public long nextId() {
 		return this.nextId;
 	}
 
 	/**
-	 * 保持しているイベント数を返します。
+	 * Returns the number of retained events.
 	 */
 	public int size() {
 		return this.entries.size();
 	}
 
 	/**
-	 * id のイベントを返します(破棄済み・未付与なら null)。
+	 * Returns the event with the given id (null if discarded or not yet assigned).
 	 */
 	public Event get(final long id) {
 		final int index = this.indexOf(id);
@@ -481,19 +470,18 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * 範囲適格判定の疎な逆引き索引です(RangeSummary、2026-08-01——
-	 * エレガンス改善B)。「特別イベント」(Opaque・CAPTION・TABLE・float・
-	 * absolute・multicol・grid・縦横flow開始)のidだけをカテゴリ別に保持し、
-	 * {@code containsX(from,to)}を範囲の線形走査からO(log k)の二分探索へ
-	 * 置き換える(kはカテゴリ内件数——通常ページあたり数個)。
+	 * A sparse reverse index for range eligibility (RangeSummary, 2026-08-01; elegance improvement B).
+	 * Retains only the ids of special events (Opaque, CAPTION, TABLE, float, absolute, multicol, grid,
+	 * and vertical/horizontal flow starts), by category. Replaces the linear range scan in
+	 * {@code containsX(from,to)} with O(log k) binary search
+	 * (k is the category size, usually a few entries per page).
 	 *
 	 * <p>
-	 * idは追記順に単調増加なのでリストは常にソート済み。メモリは
-	 * 「特別イベント数×8B」のみで、全イベント並走の累積配列(約40B/
-	 * イベント)を避けた——メモリ効率化の指示と両立する設計。
-	 * {@code compact()}はkept再構築に相乗りして索引も作り直す。
-	 * 線形実装との等価性は{@code LayoutSourceTest}の乱数プロパティテストが
-	 * 固定する。
+	 * Ids increase monotonically in append order, so lists stay sorted. Memory usage is only
+	 * "special event count × 8 B", avoiding cumulative arrays alongside all events (about 40 B per event);
+	 * this design complies with the memory-efficiency requirement.
+	 * {@code compact()} also rebuilds the index while rebuilding kept.
+	 * Randomized property tests in {@code LayoutSourceTest} enforce equivalence with the linear implementation.
 	 * </p>
 	 */
 	private static final class SparseIndex {
@@ -511,10 +499,10 @@ public final class LayoutSource implements AutoCloseable {
 			this.size = 0;
 		}
 
-		/** [fromId, toId] に1件でもあるか(両端含む)。 */
+		/** Whether [fromId, toId] contains any entry (both ends inclusive). */
 		boolean anyInRange(final long fromId, final long toId) {
 			int low = 0, high = this.size - 1;
-			// fromId以上の最初の位置
+			// First position at or above fromId
 			while (low <= high) {
 				final int mid = (low + high) >>> 1;
 				if (this.ids[mid] < fromId) {
@@ -538,7 +526,7 @@ public final class LayoutSource implements AutoCloseable {
 	private final SparseIndex verticalFlowIds = new SparseIndex();
 	private final SparseIndex horizontalFlowIds = new SparseIndex();
 
-	/** 追記/再構築時のカテゴリ分類です(containsX系と同じ検出条件)。 */
+	/** Classifies categories on append/rebuild (the same detection conditions as the containsX family). */
 	private void indexEvent(final long id, final Event event) {
 		switch (event) {
 		case Opaque opaque -> this.opaqueIds.add(id);
@@ -552,13 +540,13 @@ public final class LayoutSource implements AutoCloseable {
 				if (t.placement() instanceof BoxRecipe.Absolute) this.absoluteIds.add(id);
 			}
 			case BoxRecipe.Multicol m -> this.multicolIds.add(id);
-			// **auto高さの段組(column-countつきFlow)も段組として索引する**
-			// (2026-08-21、掃過seed 615921)。従来は固定寸法段組
-			// (MulticolumnBlockBox)だけが載り、auto段組はSourceReplayerの
-			// 「段組を含む範囲はソース再生しない」防壁とMeasuredIntrinsicsの
-			// フォールバックを素通りしていた。M2c実測はスクラッチ側で
-			// 段組が再現されず、段数倍に膨らんだ幅がcolumnInflatedフラグ
-			// なしで返り、縦書きの段組内float:rightが紙面の外へ置かれた
+			// **Also index auto-height multi-column layout (Flow with column-count) as multi-column**
+			// (2026-08-21, sweep seed 615921). Previously, only fixed-size multi-column layout
+			// (MulticolumnBlockBox) was indexed, so auto-height columns bypassed SourceReplayer's
+			// "do not source-replay ranges containing columns" barrier and MeasuredIntrinsics
+			// fallback. M2c measurement did not reproduce the columns in scratch layout,
+			// and returned a width inflated by the column count without the columnInflated flag,
+			// placing float:right outside the paper in vertical writing within multi-column layout.
 			case BoxRecipe.Flow f -> {
 				if (f.params().hasMultipleColumns()) this.multicolIds.add(id);
 			}
@@ -594,7 +582,7 @@ public final class LayoutSource implements AutoCloseable {
 		}
 	}
 
-	/** {@code compact()}後の索引再構築です(kept走査に相乗り)。 */
+	/** Rebuilds the index after {@code compact()} (alongside the kept scan). */
 	private void rebuildIndexes() {
 		this.opaqueIds.clear();
 		this.captionIds.clear();
@@ -612,8 +600,8 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * id 以降で最初に保持されているイベントの位置を返します(内部用)。
-	 * compaction で疎になった id 列を二分探索します。
+	 * Returns the position of the first retained event at or after id (internal use).
+	 * Binary-searches the id sequence made sparse by compaction.
 	 */
 	private int indexOf(final long id) {
 		int low = 0;
@@ -633,10 +621,9 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * 未消費の再生範囲の保持リースです(参照カウント。C1c)。
-	 * ボックスを運搬しない source-only の継続アイテムが所有し、消費完了で
-	 * close する。リースが生きている間、compact はその fromId より前を
-	 * 破棄しない。close は冪等。
+	 * A retention lease for an unconsumed replay range (reference-counted; C1c).
+	 * Owned by source-only continuation items that carry no boxes, and closed once consumption finishes.
+	 * While the lease is alive, compact does not discard events before its fromId. close is idempotent.
 	 */
 	public final class RetentionLease implements AutoCloseable {
 		private final long fromId;
@@ -665,9 +652,9 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * fromId 以降のイベントの保持リースです(fromId → 参照数)。
-	 * 同じ fromId を複数の継続が独立に所有し得るため参照カウント
-	 * (単純な集合では一方の解放が他方の pin を消す — 外部レビュー指摘)。
+	 * Retention leases for events at or after fromId (fromId → reference count).
+	 * Reference-counted because multiple continuations may independently own the same fromId
+	 * (with a simple set, releasing one would remove the other's pin; noted in external review).
 	 */
 	private final java.util.TreeMap<Long, Integer> retentionLeases = new java.util.TreeMap<>();
 	private long retentionLeaseCount;
@@ -685,13 +672,13 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * fromId 以降のイベントを保持するリースを取得します。
+	 * Acquires a lease retaining events at or after fromId.
 	 */
 	public RetentionLease retainFrom(final long fromId) {
 		return this.retainFrom(fromId, true);
 	}
 
-	/** 明示したscratch所有者が取得する場合は、現在の接続には登録しません。 */
+	/** Does not register with the current attachment when acquired by an explicit scratch owner. */
 	RetentionLease retainFrom(final long fromId, final boolean registerScratch) {
 		if (this.closed) throw new IllegalStateException("終了済みソースの保持");
 		this.retentionLeases.merge(fromId, 1, Integer::sum);
@@ -717,22 +704,22 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * watermark より前のイベントを、開いている Start を残して
-	 * 破棄します。開いている Start の id は変わりません。
-	 * 生きている保持リースの最小 fromId が watermark を内部で clamp
-	 * します(呼び出し側が水位とリースを合成する必要はない)。
+	 * Discards events before watermark, preserving open Starts. The ids of open Starts do not change.
+	 * The smallest fromId of the live retention leases clamps watermark internally
+	 * (callers need not combine the watermark and leases).
 	 *
 	 * <p>
-	 * <b>spill済みrecordとの整合(E-6増分3b-2)</b>: entriesから外れた
-	 * {@link TextPayload.Spilled}のrecordは{@link TextSpill}上に残る
-	 * (初版ではdisk領域の途中回収はしない——codex裁定)。これは
-	 * recordIdへのheap参照が消えるだけであり、リークではない: 一時
-	 * ファイル全体が{@link #close()}(変換終了経路のfinally)で削除される。
-	 * inline payloadは本体と文字sliceの最後の所有が終わった時に予算会計
-	 * ({@code liveInlineTextBytes})から減算され、以降の追記が再びinlineに戻れる。
+	 * <b>Consistency with spilled records (E-6 increment 3b-2)</b>:
+	 * A {@link TextPayload.Spilled} record removed from entries remains in {@link TextSpill}
+	 * (the initial version does not reclaim disk space partway through; codex decision).
+	 * Only the heap reference to recordId disappears; this is not a leak, since
+	 * {@link #close()} (in the finally block of the conversion termination path) deletes the entire temporary
+	 * file. Inline payloads are subtracted from budget accounting ({@code liveInlineTextBytes}) when the last
+	 * ownership by the main store and text slices ends, allowing subsequent appends to return to inline
+	 * storage.
 	 * </p>
 	 *
-	 * @param watermark これより前(id &lt; watermark)が破棄対象
+	 * @param watermark events before this value (id &lt; watermark) are eligible for discard
 	 */
 	public void compact(final long watermark) {
 		if (this.compactionCheckpoint != null) this.compactionCheckpoint.request(0, watermark);
@@ -742,8 +729,8 @@ public final class LayoutSource implements AutoCloseable {
 	private CompactionCheckpoint compactionCheckpoint;
 
 	/**
-	 * teeの保護リースで抑止されたCの回収範囲を、Bのpin前進後に再適用します。
-	 * 重なる要求は区間へ集約し、適用済み区間は忘れます。入力・文字は保持しません。
+	 * Reapplies C's reclamation ranges blocked by the tee's protective lease after B advances its pin.
+	 * Coalesces overlapping requests into intervals and forgets applied intervals. Retains no input or text.
 	 */
 	public CompactionCheckpoint checkpointCompaction() {
 		if (this.compactionCheckpoint != null) throw new IllegalStateException("compact観測の重複");
@@ -777,7 +764,7 @@ public final class LayoutSource implements AutoCloseable {
 			return this.requests.size();
 		}
 
-		/** Cが要求した区間だけを再適用する。B自身の水位で主ログをcompactしない。 */
+		/** Reapplies only intervals requested by C. Does not compact the main log using B's own watermark. */
 		public void reapply() {
 			final long retained = LayoutSource.this.retentionLeases.isEmpty() ? Long.MAX_VALUE
 					: LayoutSource.this.retentionLeases.firstKey();
@@ -803,9 +790,10 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * 即時配置されるRetained表の、収集済み部分だけを回収する。
-	 * 表より前の未配置内容を守り、OPENリースの最小fromIdより先へは進まない。
-	 * 記録中は水位が1024イベント進むごと、Pass B/Cの境界はforceで呼ぶ。
+	 * Reclaims only the collected portion of a Retained table placed immediately.
+	 * Protects unplaced content preceding the table and never advances past the smallest fromId of OPEN leases.
+	 * During recording, called each time the watermark advances by 1024 events; uses force at Pass B/C
+	 * boundaries.
 	 */
 	public boolean compactRetainedTable(final long tableId, final long watermark, final boolean force) {
 		if (this.compactionCheckpoint != null && tableId >= 0
@@ -837,7 +825,7 @@ public final class LayoutSource implements AutoCloseable {
 		final long clamped = this.retentionLeases.isEmpty() ? watermark
 				: Math.min(watermark, this.retentionLeases.firstKey());
 		final List<Entry> kept = new ArrayList<Entry>();
-		// 破棄対象範囲の「未対応 Start」のスタックを求める
+		// Find the stack of "unmatched Starts" in the range to discard.
 		final List<Entry> open = new ArrayList<Entry>();
 		for (final Entry entry : this.entries) {
 			if (entry.id() < fromId) {
@@ -848,10 +836,10 @@ public final class LayoutSource implements AutoCloseable {
 				break;
 			}
 			switch (entry.event()) {
-			// Opaque も EndBlock と対を成す開始イベント(startBox が Opaque を
-			// 積み endBox が EndBlock を積む)。Start と同様に扱わないと、
-			// Opaque の対の EndBlock が祖先の Start を誤って pop し、
-			// compaction の反復で開チェーンが崩壊する(2026-07-17 修正)
+			// Opaque is also a start event paired with EndBlock (startBox pushes Opaque,
+			// endBox pushes EndBlock). Without the same handling as Start,
+			// Opaque's matching EndBlock incorrectly pops an ancestor Start,
+			// and repeated compaction destroys the open chain (fixed 2026-07-17).
 			case Start start -> open.add(entry);
 			case AnonymousItemStart start -> open.add(entry);
 			case Opaque opaque -> open.add(entry);
@@ -890,7 +878,7 @@ public final class LayoutSource implements AutoCloseable {
 		this.entries.clear();
 		this.entries.addAll(kept);
 		this.rebuildIndexes(); // RangeSummary(2026-08-01)
-		// 生きているリースの範囲は compact 後も保持されている
+		// Live lease ranges remain retained after compact.
 		assert this.retentionLeases.isEmpty() || this.indexOf(this.retentionLeases.firstKey()) >= 0
 				|| this.retentionLeases.firstKey() >= this.nextId : this.retentionLeases.firstKey();
 		final var observer = compactObserver;
@@ -898,8 +886,8 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * id の Start/AnonymousItemStart に対応する終了イベントの id を返します。
-	 * PlacedTableもStartを1個だけ積む。部分木がまだ閉じていなければ -1。
+	 * Returns the id of the end event matching the Start/AnonymousItemStart with the given id.
+	 * PlacedTable also pushes just one Start. Returns -1 if the subtree is still open.
 	 */
 	public long endOf(final long startId) {
 		int index = this.indexOf(startId);
@@ -910,7 +898,7 @@ public final class LayoutSource implements AutoCloseable {
 		int depth = 0;
 		for (int i = index; i < this.entries.size(); ++i) {
 			switch (this.entries.get(i).event()) {
-			// Opaque は EndBlock と対の開始イベント(compact と同じ対称性)
+			// Opaque is a start event paired with EndBlock (the same symmetry as compact).
 			case Start start -> ++depth;
 			case AnonymousItemStart start -> ++depth;
 			case Opaque opaque -> ++depth;
@@ -938,12 +926,11 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * [fromId, toId] の範囲に Opaque(再生非対応)イベントが
-	 * 含まれていれば true を返します。
+	 * Returns true if the range [fromId, toId] contains an Opaque (non-replayable) event.
 	 */
 	public boolean containsOpaque(final long fromId, final long toId) {
-		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
-		// fromId不在時のfail closed(true)は従来どおり
+		// RangeSummary(2026-08-01): Replace the linear scan with binary search of the sparse index.
+		// Preserve fail-closed behavior (true) when fromId is missing.
 		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
@@ -952,20 +939,19 @@ public final class LayoutSource implements AutoCloseable {
 
 
 	/**
-	 * [fromId, toId] の範囲に表キャプション({@link BoxKind#CAPTION})の
-	 * Start が含まれていれば true を返します(caption recipe化C1、
-	 * 2026-08-01——consult-codex-2026-08-01-caption-recipe.txt)。
+	 * Returns true if [fromId, toId] contains a table caption ({@link BoxKind#CAPTION}) Start
+	 * (caption recipes C1, 2026-08-01; consult-codex-2026-08-01-caption-recipe.txt).
 	 *
 	 * <p>
-	 * キャプションは文脈依存kind(再生に囲みTableBuilderが必要)のため、
-	 * C1では従来のOpaque記録と同じ範囲を同じ判定で弾く(routing不変)。
-	 * C2でcontext-complete検証(範囲内に対応するTABLE Startの確立)へ
-	 * 置換する。
+	 * Captions are context-dependent kinds (replay requires an enclosing TableBuilder), so C1 rejects the same
+	 * ranges using the same conditions as the former Opaque recording (routing unchanged).
+	 * C2 replaces this with context-complete validation (establishing the matching TABLE Start within the
+	 * range).
 	 * </p>
 	 */
 	public boolean containsCaption(final long fromId, final long toId) {
-		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
-		// fromId不在時のfail closed(true)は従来どおり
+		// RangeSummary(2026-08-01): Replace the linear scan with binary search of the sparse index.
+		// Preserve fail-closed behavior (true) when fromId is missing.
 		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
@@ -974,18 +960,17 @@ public final class LayoutSource implements AutoCloseable {
 
 
 	/**
-	 * キャプションの一律ゲート+観測です(ページ破断頻度の再生経路用——
-	 * {@code stampRanges}/{@code canReplayChildren})。範囲がキャプションを
-	 * 含むなら常にtrue(=box-restyleへ)。
+	 * The blanket caption gate and observation (for replay paths invoked at page-break frequency:
+	 * {@code stampRanges} /{@code canReplayChildren}). Always returns true for ranges containing captions
+	 * (= routes to box-restyle).
 	 *
 	 * <p>
-	 * <b>C4で実ゲート化を試み、撤回した(2026-08-01実測)</b>: キャプション
-	 * 付き多ページ表(0217のthead/tfoot反復、100px頁)をページ破断のたびに
-	 * 表全体replayする形になり、Java heap spaceで変換死(tableReplays
-	 * 37→3891)。破断頻度で駆動される経路の解禁は、replay一回性が保証される
-	 * bind経路と性質が違う——bind一回のTwoPass seal側だけ実ゲート
-	 * ({@link #captionSealGate})とし、こちらは恒久的に一律拒否+観測に
-	 * 留める。
+	 * <b>Attempted to make this a selective gate in C4, then reverted (measured 2026-08-01)</b>:
+	 * A multi-page table with captions (0217, repeated thead/tfoot, 100px pages) replayed the entire table at
+	 * every page break, killing conversion with Java heap space (tableReplays 37→3891).
+	 * Enabling a path invoked at page-break frequency differs from enabling a bind path that guarantees
+	 * one-time replay. Only the TwoPass seal side, which binds once, uses a selective gate
+	 * ({@link #captionSealGate}); this side permanently retains blanket rejection plus observation.
 	 * </p>
 	 */
 	public boolean observeCaptionGate(final long fromId, final long toId) {
@@ -1001,10 +986,10 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * キャプションの実ゲートです(bind一回性のあるTwoPass seal専用、C4)。
-	 * キャプションを含む範囲でも、context-complete検証(範囲内に対応する
-	 * TABLE Startの確立・完全閉鎖)を満たせば吸収・range bindを許可する。
-	 * CAPTION単独根・途中切断の形(G-1のクラッシュ形)は恒久的にreject。
+	 * The selective caption gate (only for TwoPass seal with one-time bind, C4).
+	 * Allows absorption and range bind even for ranges containing captions if context-complete validation
+	 * passes (the matching TABLE Start is established and fully closed within the range).
+	 * Permanently rejects a standalone CAPTION root or a range cut partway through (the G-1 crash shape).
 	 */
 	public boolean captionSealGate(final long fromId, final long toId) {
 		if (!this.containsCaption(fromId, toId)) {
@@ -1019,25 +1004,24 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * [fromId, toId] の範囲が文脈依存kindについて自己完結しているかを
-	 * 返します(caption recipe化C2、2026-08-01——
-	 * consult-codex-2026-08-01-caption-recipe.txt Q1)。単なる
-	 * 「根がCAPTIONでない」より強い検証で、次を全て要求する:
+	 * Returns whether [fromId, toId] is self-contained for context-dependent kinds
+	 * (caption recipes C2, 2026-08-01; consult-codex-2026-08-01-caption-recipe.txt Q1).
+	 * This is stronger than merely checking that the root is not CAPTION, and requires all of the following:
 	 *
 	 * <ul>
-	 * <li>各CAPTION Startの時点で、範囲内で開いた明示的なTABLEが
-	 * スタック上にある(CAPTIONが範囲の根になる経路を構造的に禁止——
-	 * G-1の単独replay根クラッシュの再発防止)</li>
-	 * <li>範囲の終端で、範囲内から始まったboxが開いたまま残っていない
-	 * (CAPTIONを途中で切る範囲の禁止)</li>
-	 * <li>範囲内に対応の取れないEndBlockがない</li>
+	 * <li>At each CAPTION Start, the stack contains an explicit TABLE opened within the range
+	 * (structurally forbids CAPTION as the range root, preventing a recurrence of the G-1 standalone replay
+	 * root crash)</li>
+	 * <li>At the range end, no box started within the range remains open
+	 * (forbids ranges that cut through a CAPTION)</li>
+	 * <li>No unmatched EndBlock occurs within the range</li>
 	 * </ul>
 	 *
 	 * <p>
-	 * 疎な範囲の検出は{@link #isIntact}の担当(呼び出し側が合成する)。
-	 * Opaqueは「未知の開始イベント」としてスタックに積むがTABLEを確立
-	 * しない(fail closed)。C2ではshadow観測のみに使い、実routingは
-	 * {@link #containsCaption}の一律拒否のまま——C4で実ゲートへ昇格する。
+	 * {@link #isIntact} detects sparse ranges (callers combine the checks).
+	 * Opaque is pushed as an unknown start event but does not establish a TABLE (fail closed).
+	 * C2 uses this only for shadow observation; actual routing retains the blanket rejection by
+	 * {@link #containsCaption} . C4 promotes it to a selective gate.
 	 * </p>
 	 */
 	public boolean isContextCompleteRange(final long fromId, final long toId) {
@@ -1045,7 +1029,7 @@ public final class LayoutSource implements AutoCloseable {
 		if (index < 0) {
 			return false;
 		}
-		// 範囲内で開いたkind列(CAPTIONに対するTABLEの確立を問う)
+		// Kinds opened within the range (check that a TABLE is established for CAPTION)
 		final java.util.ArrayDeque<Event> stack = new java.util.ArrayDeque<>();
 		int tableDepth = 0;
 		for (; index < this.entries.size(); ++index) {
@@ -1057,7 +1041,7 @@ public final class LayoutSource implements AutoCloseable {
 			case Start(final BoxRecipe recipe) -> {
 				final net.zamasoft.foliojet.layout.segment.BoxKind kind = recipe.kind();
 				if (kind == net.zamasoft.foliojet.layout.segment.BoxKind.CAPTION && tableDepth == 0) {
-					// 範囲内にTABLEの確立がないCAPTION(単独根・表の外)
+					// CAPTION with no TABLE established within the range (standalone root or outside a table)
 					return false;
 				}
 				if (kind == net.zamasoft.foliojet.layout.segment.BoxKind.TABLE) {
@@ -1072,13 +1056,13 @@ public final class LayoutSource implements AutoCloseable {
 				}
 			}
 			case Opaque opaque -> {
-				// 未知の開始イベントはスタック対応を保証できない——fail
-				// closedで不適格(Opaque範囲はいずれにせよcontainsOpaqueが弾く)
+				// Unknown start events cannot guarantee stack pairing;
+				// fail closed as ineligible (containsOpaque rejects Opaque ranges anyway).
 				return false;
 			}
 			case EndBlock end -> {
 				if (stack.isEmpty() || !(stack.peek() instanceof Start)) {
-					// 範囲外で開いたboxを閉じるEndBlock(範囲がboxを跨ぐ)
+					// EndBlock closing a box opened outside the range (the range straddles boxes)
 					return false;
 				}
 				if (((Start) stack.pop()).recipe().kind() == net.zamasoft.foliojet.layout.segment.BoxKind.TABLE) {
@@ -1095,23 +1079,23 @@ public final class LayoutSource implements AutoCloseable {
 			}
 			}
 		}
-		// 範囲内から始まったboxが全て閉じていること
+		// All boxes started within the range must be closed.
 		return stack.isEmpty();
 	}
 
-	/** GridのStartが含まれるか。範囲先頭が欠けている場合もtrue。 */
+	/** Whether the range contains a Grid Start. Also true if the range start is missing. */
 	public boolean containsGrid(final long fromId, final long toId) {
-		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
-		// fromId不在時のfail closed(true)は従来どおり
+		// RangeSummary(2026-08-01): Replace the linear scan with binary search of the sparse index.
+		// Preserve fail-closed behavior (true) when fromId is missing.
 		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
 		return this.gridIds.anyInRange(fromId, toId);
 	}
 
-	/** FlexのStartが含まれるか。範囲先頭が欠けている場合もtrue。 */
+	/** Whether the range contains a Flex Start. Also true if the range start is missing. */
 	public boolean containsFlex(final long fromId, final long toId) {
-		// fromId不在時のfail closed(true)はcontainsGridと同じ
+		// Fail closed (true) when fromId is missing, as in containsGrid.
 		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
@@ -1120,13 +1104,13 @@ public final class LayoutSource implements AutoCloseable {
 
 
 	/**
-	 * [fromId, toId] の範囲にマルチカラムの Start が含まれていれば
-	 * true を返します(M6c: 段組内容の再生は列機構(columnBreak/balance)
-	 * との相互作用が未検証のためフォールバックさせる)。
+	 * Returns true if [fromId, toId] contains a multi-column Start
+	 * (M6c: replay of multi-column content falls back because interaction with the column mechanism
+	 * (columnBreak/balance) has not been verified).
 	 */
 	public boolean containsMulticol(final long fromId, final long toId) {
-		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
-		// fromId不在時のfail closed(true)は従来どおり
+		// RangeSummary(2026-08-01): Replace the linear scan with binary search of the sparse index.
+		// Preserve fail-closed behavior (true) when fromId is missing.
 		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
@@ -1135,15 +1119,15 @@ public final class LayoutSource implements AutoCloseable {
 
 
 	/**
-	 * [fromId, toId] の範囲に、指定の書字方向と異なる内容が含まれていれば
-	 * true を返します(M6b: 縦横混在の再生はサブビルダー文脈の再現が
-	 * 未設計のためフォールバックさせる)。
+	 * Returns true if [fromId, toId] contains content with a writing direction different from the specified one
+	 * (M6b: replay mixing vertical and horizontal writing falls back because reproduction of the sub-builder
+	 * context has not been designed).
 	 */
 	public boolean containsMixedFlow(final long fromId, final long toId,
 			final net.zamasoft.foliojet.layout.box.params.WritingMode rootFlow) {
-		// RangeSummary(2026-08-01): 「targetと違う向きのflow開始が範囲内に
-		// あるか」——照会されるのは常に文書主方向と逆側の索引で、それは
-		// 典型文書では疎(横文書なら縦flow開始、縦文書なら横flow開始)
+		// RangeSummary(2026-08-01): Check for flow starts oriented differently from target within the range.
+		// The queried index is always for the direction opposite to the document's main direction,
+		// which is sparse in typical documents (vertical starts in horizontal documents, and vice versa).
 		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
@@ -1152,13 +1136,13 @@ public final class LayoutSource implements AutoCloseable {
 
 
 	/**
-	 * [fromId, toId] の範囲に浮動配置の Start が含まれていれば
-	 * true を返します(M6c: バランスのソース再生はフロートの係留の
-	 * 再現が未検証のためフォールバックさせる)。
+	 * Returns true if [fromId, toId] contains a floating-position Start
+	 * (M6c: source replay for balancing falls back because reproduction of float anchoring has not been
+	 * verified).
 	 */
 	public boolean containsFloat(final long fromId, final long toId) {
-		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
-		// fromId不在時のfail closed(true)は従来どおり
+		// RangeSummary(2026-08-01): Replace the linear scan with binary search of the sparse index.
+		// Preserve fail-closed behavior (true) when fromId is missing.
 		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
@@ -1167,28 +1151,28 @@ public final class LayoutSource implements AutoCloseable {
 
 
 	/**
-	 * [fromId, toId] の範囲に表({@link BoxKind#TABLE})の Start が
-	 * 含まれていれば true を返します(G-1、2026-07-25。表セット実装の
-	 * ユーザー承認——2026-07-30——で復活)。
+	 * Returns true if [fromId, toId] contains a table ({@link BoxKind#TABLE}) Start
+	 * (G-1, 2026-07-25; restored with user approval of the table-set implementation on 2026-07-30).
 	 *
 	 * <p>
-	 * <b>なぜ必要か(G-1実測)</b>: 表のrecipe記録化で「範囲を再生できる」
-	 * ようになっても、<b>再生してよいか</b>は消費側ごとに別問題である。
-	 * {@code MeasuredIntrinsics}(実レイアウト実測)は、表を含む範囲を
-	 * 通し始めると固有寸法が「模倣計測」から「∞幅scratchページへの実
-	 * source replay計測」へ<b>アルゴリズムごと切り替わり</b>、出力が壊れる
-	 * ——実測では{@code 0070-table-layout/float-in-auto-4.html}の
-	 * shrink-to-fitフロート幅が376/414.5/276/216 → 全て500pt(=ページ幅)へ
-	 * 発散した(∞幅ページでは表の%指定セルが1e6基準で解決されるため)。
-	 * E-6増分4eが絶対配置に対して{@link #containsAbsolute}で行った
-	 * 切り分けと同型のゲート。表replay消費者(T-c)が解禁するのは
-	 * {@code restyleItem case TABLE}の直接replayだけで、これらの間接
-	 * 消費側は明示的に段階解禁するまで表を含む範囲を通さない。
+	 * <b>Why this is needed (G-1 measurements)</b>: Even if recording tables as recipes makes a range
+	 * replayable,
+	 * <b>whether replay is allowed</b> remains a separate question for each consumer.
+	 * Once {@code MeasuredIntrinsics} (measurement through actual layout) accepts ranges containing tables,
+	 * intrinsic sizing <b>switches algorithms entirely</b>, from simulated measurement to actual source replay
+	 * on a scratch page of infinite width, breaking output. In measurements,
+	 * the shrink-to-fit float widths in {@code 0070-table-layout/float-in-auto-4.html} diverged from
+	 * 376/414.5/276/216 to 500 pt (= page width) in every case
+	 * (because percentage-sized table cells resolve against 1e6 on the infinite-width page).
+	 * This gate is analogous to the separation introduced for absolute positioning by
+	 * {@link #containsAbsolute} in E-6 increment 4e.
+	 * The table replay consumer (T-c) enables only direct replay in {@code restyleItem case TABLE} ;
+	 * these indirect consumers reject ranges containing tables until explicitly enabled in stages.
 	 * </p>
 	 */
 	public boolean containsTable(final long fromId, final long toId) {
-		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
-		// fromId不在時のfail closed(true)は従来どおり
+		// RangeSummary(2026-08-01): Replace the linear scan with binary search of the sparse index.
+		// Preserve fail-closed behavior (true) when fromId is missing.
 		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
@@ -1197,27 +1181,27 @@ public final class LayoutSource implements AutoCloseable {
 
 
 	/**
-	 * [fromId, toId] の範囲に絶対配置ブロックの Start が含まれていれば
-	 * true を返します(E-6増分4e、2026-07-24)。
+	 * Returns true if [fromId, toId] contains an absolutely positioned block Start
+	 * (E-6 increment 4e, 2026-07-24).
 	 *
 	 * <p>
-	 * 増分4e以前は絶対配置が{@link Opaque}で記録されていたため、
-	 * {@link #containsOpaque}が全replay経路を暗黙にフォールバックさせて
-	 * いた。recipe記録化(適格化の対象は絶対配置ビルダー<b>自身の本文</b>
-	 * seal)後も、絶対配置を<b>含む</b>範囲の再生は従来どおり
-	 * フォールバックさせる——絶対配置はcontext builderへ係留
-	 * ({@code BlockBuilder.addBound}の{@code addAbsolute})され、deferred
-	 * bind(ページ末の{@code finishLayoutSelf})を持つため、範囲再生に
-	 * よる再構築は「liveで係留済みの箱+再生で新造される箱」の二重登録や
-	 * bindされないDeferredBind(リース取り残し)を生む。この判定は
-	 * {@link #containsFloat}と同じ「係留の再実行」ゲートの絶対配置版
-	 * (置換要素の絶対配置({@code ReplacedRecipe}のABSOLUTE)は増分4e
-	 * 以前から再生対象で挙動実績があるため、従来どおり対象外)。
+	 * Before increment 4e, absolute positioning was recorded as {@link Opaque} , so
+	 * {@link #containsOpaque} implicitly made all replay paths fall back.
+	 * After switching to recipe recording (eligibility applies to sealing <b>the absolute builder's own
+	 * body</b>), replay of ranges <b>containing</b> absolute positioning still falls back.
+	 * Absolutely positioned boxes are anchored to the context builder
+	 * ({@code addAbsolute} in {@code BlockBuilder.addBound} ) and have deferred bind
+	 * ({@code finishLayoutSelf} at page end). Reconstructing them through range replay creates duplicate
+	 * registration of the live anchored box and the newly replayed box, or an unbound DeferredBind
+	 * (a leftover lease). This is the absolute-positioning counterpart of the re-anchoring gate
+	 * in {@link #containsFloat} . Absolutely positioned replaced elements (ABSOLUTE in {@code ReplacedRecipe} )
+	 * remain excluded from this check because replay supported them before increment 4e with established
+	 * behavior.
 	 * </p>
 	 */
 	public boolean containsAbsolute(final long fromId, final long toId) {
-		// RangeSummary(2026-08-01): 線形走査から疎索引の二分探索へ。
-		// fromId不在時のfail closed(true)は従来どおり
+		// RangeSummary(2026-08-01): Replace the linear scan with binary search of the sparse index.
+		// Preserve fail-closed behavior (true) when fromId is missing.
 		if (this.indexOf(fromId) < 0) {
 			return true;
 		}
@@ -1226,17 +1210,16 @@ public final class LayoutSource implements AutoCloseable {
 
 
 	/**
-	 * [fromId, toId] の範囲内の全絶対配置Start(AbsoluteおよびabsoluteなPlacedTable)が
-	 * {@code ownedAnchors}と<b>完全一致</b>するかを返します(absolute吸収=
-	 * codex増分9、2026-07-30。副作用なし)。
+	 * Returns whether all absolutely positioned Starts (Absolute and absolute PlacedTable) in [fromId, toId]
+	 * <b>exactly match</b> {@code ownedAnchors}
+	 * (absolute absorption = codex increment 9, 2026-07-30; no side effects).
 	 *
 	 * <p>
-	 * {@code containsAbsolute}(1件でもあればfalse=fail closed)の
-	 * 「全件owned(ownership ledgerが排他所有を証明済み)なら許可、1件でも
-	 * unmatchedならreject」への置換に使う。unmatchedなStartは「外側
-	 * contextまたは別実行計画(表セル等)に属するabsolute」の兆候であり、
-	 * 吸収すると係留の二重化またはリースの孤児化を生む。範囲先頭が
-	 * 失われている(compact済み)場合もfalse。
+	 * Replaces {@code containsAbsolute} (any occurrence means false = fail closed) with permission only when
+	 * all are owned (the ownership ledger has proved exclusive ownership), rejecting any unmatched occurrence.
+	 * An unmatched Start indicates an absolute belonging to an outer context or another execution plan
+	 * (such as a table cell); absorbing it duplicates anchoring or orphans a lease.
+	 * Also returns false if the start of the range has been lost to compaction.
 	 * </p>
 	 */
 	public boolean absoluteStartsExactly(final long fromId, final long toId,
@@ -1259,36 +1242,35 @@ public final class LayoutSource implements AutoCloseable {
 				++matched;
 			}
 		}
-		// ownedAnchorsの全IDが範囲内の実Absolute Startであること
-		// (収集側が範囲・種別を検証済みだが、二重防壁として数で照合)
+		// All IDs in ownedAnchors must be actual Absolute Starts within the range.
+		// (Collection already validated ranges and kinds; compare counts as a second barrier.)
 		return matched == ownedAnchors.size();
 	}
 
 	/**
-	 * 一回の再生が読むイベント範囲の streaming ビューです(E-6増分3a、
-	 * 2026-07-24: 全量 List コピーの所有から「store(本体)+範囲
-	 * [fromId, toId]+保持リース」への参照ビューへ変更)。
+	 * A streaming view of the event range read by a single replay (E-6 increment 3a, 2026-07-24:
+	 * changed from owning a full List copy to a reference view of the store (main contents),
+	 * range [fromId, toId], and retention lease).
 	 *
 	 * <p>
-	 * <b>compact からの保護</b>: capture 時に範囲の完全性(連番で穴なし)を
-	 * 検証し、自前の {@link RetentionLease}(fromId)を取得する。visitor 内の
-	 * 入れ子改ページによる compact(backing list の clear+addAll)は、
-	 * {@link #compact(long)} の水位 clamp によって fromId より前へ抑えられる
-	 * ため、streaming 走査中に範囲内のイベントが破棄されることは構造的に
-	 * ない(従来は全量コピーで隔離していた保証の置き換え。
-	 * LayoutSourceTest.testReplaySurvivesNestedCompaction が固定)。
-	 * 数値 index は各イベントごとに id で再検証するため、入れ子 compact で
-	 * backing list が組み直されてもずれない(silent skip しない——
-	 * 外部レビュー指摘の保証も維持)。
+	 * <b>Protection from compact</b>: At capture time, validates range integrity (consecutive ids without gaps)
+	 * and acquires its own {@link RetentionLease} (fromId). The watermark clamp in {@link #compact(long)}
+	 * keeps compaction caused by nested page breaks within the visitor (clear + addAll on the backing list)
+	 * before fromId, structurally preventing discard of events in the range during streaming iteration.
+	 * This replaces the isolation guarantee of the former full copy, enforced by
+	 * LayoutSourceTest.testReplaySurvivesNestedCompaction.
+	 * The numeric index is revalidated against the id for each event, so rebuilding the backing list in nested
+	 * compaction cannot shift it (no silent skipping; also preserves the guarantee noted in external review).
 	 * </p>
-	 * <p>切り出し済み文字本文は不変配列を共有して読む。本体のリースは不要で、
-	 * 配列の共有数が本文とspillの寿命を再生完了まで守る。</p>
+	 * <p>Already extracted text bodies share an immutable array for reading. No lease on the main store is
+	 * needed;
+	 * the array's share count protects the body and spill lifetimes until replay finishes.</p>
 	 *
 	 * <p>
-	 * <b>consume-once</b>: {@link #replay} は一度だけ呼べ、完了時
-	 * (例外時も finally で)リースを解放する。再生せず放棄する場合は
-	 * {@link #close()}(冪等)。リースを取り残すと以後の compact が永久に
-	 * clamp される(保持リーク)ため、消費経路は必ずどちらかを通ること。
+	 * <b>consume-once</b>: {@link #replay} may be called only once and releases the lease on completion
+	 * (in finally even on exceptions). To abandon without replay, use {@link #close()} (idempotent).
+	 * A leftover lease permanently clamps subsequent compaction (a retention leak),
+	 * so every consumption path must take one of these two routes.
 	 * </p>
 	 */
 	public final class ReplaySlice implements AutoCloseable {
@@ -1322,10 +1304,10 @@ public final class LayoutSource implements AutoCloseable {
 		}
 
 		/**
-		 * 範囲のイベントを1件ずつ順に visitor へ渡します(consume-once)。
-		 * リースが cursor の未読範囲を compact から守るため、visitor 内の
-		 * 入れ子改ページに対して安全です。完了・例外を問わずリースを
-		 * 解放します。
+		 * Passes each event in the range to visitor in order (consume-once).
+		 * The lease protects the cursor's unread range from compact, making this safe against nested page
+		 * breaks
+		 * inside the visitor. Releases the lease on completion or exception.
 		 */
 		public void replay(final java.util.function.Consumer<Event> visitor) {
 			if (this.consumed) {
@@ -1343,12 +1325,12 @@ public final class LayoutSource implements AutoCloseable {
 				final List<Entry> entries = LayoutSource.this.entries;
 				int hint = -1;
 				for (long id = this.fromId; id <= this.toId; ++id) {
-					// visitor(入れ子 compact)が backing list を組み直して
-					// いる可能性があるため、index は毎回 id で検証する
+					// The visitor (nested compact) may have rebuilt the backing list,
+					// so validate the index against the id each time.
 					if (hint < 0 || hint >= entries.size() || entries.get(hint).id() != id) {
 						hint = LayoutSource.this.indexOf(id);
 						if (hint < 0) {
-							// リースが fromId 以降を守っている限り起きない
+							// Cannot happen while the lease protects events from fromId onward.
 							throw new IllegalStateException("replay range lost during streaming replay: id=" + id
 									+ " of [" + this.fromId + ", " + this.toId + "]");
 						}
@@ -1363,7 +1345,7 @@ public final class LayoutSource implements AutoCloseable {
 		}
 
 		/**
-		 * 消費せず放棄します(リース解放。冪等)。
+		 * Abandons without consumption (releases the lease; idempotent).
 		 */
 		@Override
 		public void close() {
@@ -1379,11 +1361,12 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * 親TwoPassへ吸収されないセルの文字本文。連続EventIdは先頭+配列位置で復元する。
-	 * 構造イベントを含むセルは本体のリースを維持するので、入れ子sealが行う
-	 * endOf/範囲検証や親captureが、本体から消えた構造を読むことはない。
-	 * ReplaySliceも共有数を持ち、再生中にハンドルが終端してもpayloadを保つ。
-	 * Spilledの実体はLayoutSource.closeまで生存し、closeは全ハンドルを先に終端する。
+	 * Text bodies of cells not absorbed into a parent TwoPass. Reconstructs consecutive EventIds from the start
+	 * plus array position. Cells containing structural events retain a lease on the main store, so endOf/range
+	 * validation in nested seal and parent capture never read structure that has disappeared from the main
+	 * store.
+	 * ReplaySlice also holds a share count, preserving the payload even if the handle terminates during replay.
+	 * Spilled contents survive until LayoutSource.close, which terminates all handles first.
 	 */
 	final class SealedTextSlice {
 		private final long fromId;
@@ -1408,7 +1391,7 @@ public final class LayoutSource implements AutoCloseable {
 			if (--this.readers == 0) {
 				for (int i = 0; i < this.chars.length; ++i) {
 					final int index = LayoutSource.this.indexOf(this.fromId + i);
-					// 本体がまだあれば予算の所有を戻す。compact済みならsliceが最後の所有者。
+					// Return budget ownership if the main entry remains; after compaction, the slice is the last owner.
 					if (index >= 0) LayoutSource.this.releaseEntry(LayoutSource.this.entries.get(index));
 					else LayoutSource.this.releaseText(this.chars[i]);
 				}
@@ -1431,7 +1414,7 @@ public final class LayoutSource implements AutoCloseable {
 		return toId <= slice.toId() ? slice : null;
 	}
 
-	/** 同じ本文を独立に再生する所有者も、EventIdを変えず配列を共有する。 */
+	/** Owners replaying the same body independently also share the array without changing EventIds. */
 	SealedTextSlice retainTextSlice(final long fromId, final long toId) {
 		final SealedTextSlice slice = this.textSlices.get(fromId);
 		if (slice == null || slice.toId() != toId) return null;
@@ -1439,11 +1422,11 @@ public final class LayoutSource implements AutoCloseable {
 		return slice;
 	}
 
-	/** 文字だけの閉区間をsealする。構造を含む本文はリースのまま保持する。 */
+	/** Seals a text-only closed interval. Bodies containing structure remain retained by leases. */
 	SealedTextSlice sealTextSlice(final long fromId, final long toId) {
 		if (!this.isIntact(fromId, toId)) throw new IllegalStateException("seal本文の欠落");
-		// 同一範囲はretainTextSliceで共有する。部分的な重なりは通常リースで守る。
-		// 各Entryの予算を担うsliceは高々一つにし、sliceからEntry自体は保持しない。
+		// Share identical ranges via retainTextSlice. Protect partial overlaps with ordinary leases.
+		// At most one slice accounts for each Entry's budget; slices do not retain the Entry itself.
 		final var previous = this.textSlices.floorEntry(toId);
 		if (previous != null && previous.getValue().toId() >= fromId) return null;
 		final int first = this.indexOf(fromId);
@@ -1461,10 +1444,10 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * [fromId, toId] の検証済み streaming ビューを取得します(リース付き。
-	 * E-6増分3aで不変スナップショット(全量コピー)から置換)。
-	 * 端が破棄済み・範囲の内部に破棄済みの穴がある・toId まで届かない
-	 * 場合は null(呼び出し側の契約に応じてフォールバックまたは失敗)。
+	 * Acquires a validated streaming view of [fromId, toId] with a lease
+	 * (replaced the immutable snapshot (full copy) in E-6 increment 3a).
+	 * Returns null if an endpoint has been discarded, the range contains a discarded gap, or it does not reach
+	 * toId (fallback or failure according to the caller's contract).
 	 */
 	public ReplaySlice capture(final long fromId, final long toId) {
 		if (this.closed) throw new IllegalStateException("終了済みソースの再生");
@@ -1477,19 +1460,18 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * [fromId, toId] が欠落なく保持されているかを返します
-	 * (本体の連続性の判定。captureは切り出し済み文字sliceも読める。
-	 * リースを取らずに問い合わせる
-	 * ためのもので、再生範囲を<b>記録する側</b>
-	 * ({@code RootBuilder.stampRanges})が使います)。
+	 * Returns whether [fromId, toId] is retained without gaps
+	 * (checks continuity in the main store; capture can also read extracted text slices).
+	 * Queries without acquiring a lease, for the <b>recording side</b> of replay ranges
+	 * ({@code RootBuilder.stampRanges}).
 	 *
 	 * <p>
-	 * <b>なぜ記録時にも要るか(2026-07-27)</b>: {@link #compact(long)}は
-	 * 「開いている(未対応の)Start」だけを水位より前から残すため、
-	 * 破断時にまだ開いていた要素は<b>Startだけが残り中身が消えた</b>
-	 * 状態になる。その要素が後で閉じると{@link #endOf(long)}は疎な
-	 * 保持列を走って一見もっともらしい終端を返すので、密度を見ない限り
-	 * 「再生可能」と誤判定される。
+	 * <b>Why recording also needs this (2026-07-27)</b>:
+	 * {@link #compact(long)} preserves only open (unmatched) Starts before the watermark.
+	 * An element still open at a break can therefore have <b>only its Start retained, with its contents
+	 * gone</b>.
+	 * When it later closes, {@link #endOf(long)} traverses the sparse retained sequence and returns a
+	 * plausible-looking end, so without checking density the range is incorrectly judged replayable.
 	 * </p>
 	 */
 	public boolean isIntact(final long fromId, final long toId) {
@@ -1497,10 +1479,10 @@ public final class LayoutSource implements AutoCloseable {
 		if (index < 0 || toId < fromId) {
 			return false;
 		}
-		// EventId は連番で付与され、破棄されても順序は保たれる(狭義単調
-		// 増加)。よって entries[index].id == fromId かつ
-		// entries[index + n].id == toId == fromId + n なら、その間の n+1 件は
-		// 強制的に連番 == 穴なし(旧実装の1件ずつの逐次検証と等価)
+		// EventIds are assigned consecutively and remain ordered after discard (strictly
+		// increasing). Thus, if entries[index].id == fromId and
+		// entries[index + n].id == toId == fromId + n, the n+1 entries between them
+		// must be consecutive == no gaps (equivalent to the former sequential per-entry validation).
 		final long offset = toId - fromId;
 		if (offset > this.entries.size() - 1 - index) {
 			return false;
@@ -1510,11 +1492,11 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * [fromId, toId] の範囲のイベントを順に visitor へ渡します。
-	 * 内部で検証済み streaming ビュー(リース付き)を取ってから駆動する
-	 * ため、visitor 内の入れ子改ページ(compact)に対して安全です。
-	 * 範囲が完全でなければ実行前に失敗します(フォールバック可能な
-	 * 呼び出し側は {@link #capture} を使うこと)。
+	 * Passes events in [fromId, toId] to visitor in order.
+	 * Internally acquires a validated streaming view with a lease before replay,
+	 * so nested page breaks (compact) inside the visitor are safe.
+	 * Fails before execution if the range is incomplete (callers that can fall back should use {@link #capture}
+	 * ).
 	 */
 	public void replay(final long fromId, final long toId, final java.util.function.Consumer<Event> visitor) {
 		final ReplaySlice slice = this.capture(fromId, toId);

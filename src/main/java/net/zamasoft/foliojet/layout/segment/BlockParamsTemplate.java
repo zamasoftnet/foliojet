@@ -4,14 +4,14 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
- * {@link BlockParams}(M6d-Aの{@link BoxKind#FLOW}等が使う代表的な
- * {@code Params}実装)の内容をfreezeし、呼び出しごとに独立した新品の
- * {@code BlockParams}をmaterializeするテンプレートです(2026-07-22
- * 新設、M6d-A3b——2026-07-22中にStage2で不変recordへ置換)。
+ * A template that freezes the contents of {@link BlockParams}
+ * (a representative {@code Params} implementation used by M6d-A's {@link BoxKind#FLOW} , etc.)
+ * and materializes an independent, fresh {@code BlockParams} on each call.
+ * Introduced 2026-07-22, M6d-A3b; replaced with an immutable record in Stage2 later on 2026-07-22.
  *
  * <p>
- * フィールドは{@link BlockParamsFields}(`TableParams`
- * (`BlockParams`を直接継承)のテンプレートとも共有する)が担う。
+ * {@link BlockParamsFields} handles the fields, shared with the template for
+ * `TableParams` (which directly extends `BlockParams`).
  * </p>
  */
 public record BlockParamsTemplate(BlockParamsFields fields) {
@@ -20,29 +20,29 @@ public record BlockParamsTemplate(BlockParamsFields fields) {
 	}
 
 	/**
-	 * 凍結済みの書字方向を返します(E-6増分3b-4——
-	 * {@code LayoutSource.containsMixedFlow}が凍結済みStartから読む)。
+	 * Returns the frozen writing direction (E-6 increment 3b-4;
+	 * {@code LayoutSource.containsMixedFlow} reads it from frozen Starts).
 	 */
 	public WritingMode flow() {
 		return this.fields.common().text().flow();
 	}
 
 	/**
-	 * 段組(column-count 2以上)を持つかを返します
-	 * ({@code LayoutSource}の段組索引が凍結済みStartから読む。2026-08-21)。
+	 * Returns whether it has multi-column layout (column-count of at least 2)
+	 * ({@code LayoutSource}'s multi-column index reads it from frozen Starts; 2026-08-21).
 	 */
 	public boolean hasMultipleColumns() {
 		return this.fields.columns() != null && this.fields.columns().count >= 2;
 	}
 
-	/** 呼び出しごとに新品の{@code BlockParams}を返す(複数回呼んでも互いに影響しない)。 */
+	/** Returns a fresh {@code BlockParams} on each call (multiple calls do not affect one another). */
 	public BlockParams materialize() {
 		final BlockParams p = new BlockParams();
 		this.fields.materializeInto(p);
 		return p;
 	}
 
-	/** Grid/Flex固有フィールドを保ち、計測ラッパー等の共通フィールドだけを復元します。 */
+	/** Restores only shared fields for measurement wrappers, etc., preserving Grid/Flex-specific fields. */
 	public void materializeInto(final BlockParams target) {
 		this.fields.materializeInto(target);
 	}

@@ -7,10 +7,10 @@ import net.zamasoft.foliojet.css.property.CustomProperty;
 import net.zamasoft.foliojet.css.property.Property;
 
 /**
- * スタイル宣言です。
+ * A style declaration.
  * 
  * <p>
- * スタイル宣言とはCSSの特性を列挙した部分です。
+ * A style declaration is the part of CSS that lists properties.
  * </p>
  * 
  * @author MIYABE Tatsuhiko
@@ -19,10 +19,10 @@ public class Declaration {
 	private final List<Property> properties = new ArrayList<Property>();
 
 	/**
-	 * スタイル宣言を合成します。
+	 * Merges style declarations.
 	 * 
 	 * @param declaration
-	 *            追加するスタイル宣言。nullの場合は何もしません。
+	 *            the style declaration to add; does nothing if null
 	 */
 	public void merge(Declaration declaration) {
 		if (declaration == null) {
@@ -35,7 +35,7 @@ public class Declaration {
 	}
 
 	/**
-	 * 特性を追加します。
+	 * Adds a property.
 	 * 
 	 * @param property
 	 */
@@ -52,15 +52,15 @@ public class Declaration {
 	}
 
 	/**
-	 * 特性を先頭から順に適用します。
+	 * Applies properties in order from the beginning.
 	 * <p>
-	 * カスタムプロパティ({@link CustomProperty})は、その他のプロパティ
-	 * (var()を参照しうる)より必ず先に適用する2パス構成にする——CSS仕様上、
-	 * var()による置換は要素の全カスタムプロパティが確定した後の使用値計算
-	 * 時に行われるべきもので、同一要素内でたまたま出現順(カスケード順)が
-	 * 逆(var()を使う宣言の方が先に適用される順序)になっただけで参照先が
-	 * 見えなくなるのは仕様に反するため。1パス目・2パス目それぞれの内部の
-	 * 相対順序(カスケード順)は保つ。
+	 * Use two passes to apply custom properties ({@link CustomProperty}) before all other
+	 * properties (which may reference var()). The CSS specification requires
+	 * var() substitution during used-value calculation, after all custom properties
+	 * on the element are determined. A reference must not become unavailable
+	 * merely because the source order (cascade order) on the same element happens
+	 * to apply the var()-using declaration first. Preserve the relative
+	 * order (cascade order) within each of the two passes.
 	 * </p>
 	 *
 	 * @param style
@@ -81,16 +81,16 @@ public class Declaration {
 	}
 
 	/**
-	 * {@code !important}が付いた宣言だけを適用します(2026-08-03新設)。
+	 * Applies only declarations with {@code !important} (added on 2026-08-03).
 	 *
 	 * <p>
-	 * {@code @layer}と{@code !important}を併用したときの<b>優先順位の反転</b>
-	 * (CSS Cascade 5——importantどうしではレイヤー外が最弱・先のレイヤーほど
-	 * 強い)を表すために使います。通常の順序で一度カスケードを適用したあと、
-	 * important宣言だけを<b>反転した順序でもう一度</b>適用する
-	 * ({@link CSSStyle#set}はimportantどうしなら後勝ちなので、最も強い
-	 * important宣言が最後に載る)。normal宣言を二度適用しないよう、ここでは
-	 * important以外を触らない。
+	 * Used to express <b>priority reversal</b> when combining {@code @layer} and {@code !important}
+	 * (CSS Cascade 5: among important declarations, unlayered ones are weakest
+	 * and earlier layers are stronger). After applying the cascade once in normal order,
+	 * apply only important declarations <b>again in reverse order</b>
+	 * ({@link CSSStyle#set} lets later important declarations win, so the strongest
+	 * important declaration is applied last). Leave non-important declarations untouched
+	 * here to avoid applying normal declarations twice.
 	 * </p>
 	 */
 	public void applyImportantProperties(CSSStyle style) {

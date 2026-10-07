@@ -1,72 +1,70 @@
 package net.zamasoft.foliojet.layout.rescue;
 
 /**
- * 救済分割(visual rescue split)の1ステップの判定結果です
- * (2026-07-25新設、増分1。設計相談
- * §1・§2。まだ本番経路へは配線されていません)。
+ * The result of one step of visual rescue splitting
+ * (introduced 2026-07-25, increment 1; design consultation §1/§2; not yet wired into production paths).
  *
  * <p>
- * 救済分割は「ページ先頭でもなお収まらない分割不能ボックス」を
- * <b>幾何学的に</b>切って次のフラグメントへ送る仕組みで、通常の改ページ
- * 分割とは別物です。この型は、そのステップで
+ * Rescue splitting <b>geometrically</b> cuts an unsplittable box that still does not fit at the page start
+ * and sends it to the next fragment. This differs from normal page-break splitting.
+ * This type represents one of the following for that step:
  * </p>
  *
  * <ul>
- * <li>{@link None} — 救済しない(=従来どおりの挙動へ委ねる)</li>
- * <li>{@link Slice} — {@code offset}から{@code sliceExtent}だけ切り出す</li>
+ * <li>{@link None} — no rescue (= defer to existing behavior)</li>
+ * <li>{@link Slice} — extract {@code sliceExtent} starting at {@code offset} </li>
  * </ul>
  *
  * <p>
- * のどちらかを表します。判定は{@link VisualRescuePlanner}の純関数だけが
- * 作ります(副作用なし・ボックスに触れない)。
+ * Only the pure functions in {@link VisualRescuePlanner} create decisions
+ * (no side effects; no boxes are touched).
  * </p>
  */
 public sealed interface RescueDecision {
 
 	/**
-	 * 救済しなかった理由です。分岐の意図をテストで固定できるように、
-	 * 単なる{@code false}ではなく理由を持たせています。
+	 * The reason rescue was not performed. Carries a reason instead of a simple {@code false}
+	 * so tests can enforce the intent of each branch.
 	 */
 	public enum Reason {
-		/** フラグメントの先頭ではない(=まだ次のフラグメントへ送る余地がある)。 */
+		/** Not at the fragment start (= there is still an opportunity to move to the next fragment). */
 		NOT_FIRST,
-		/** 絶対配置(合意仕様により対象外——意図的なはみ出しを壊さない)。 */
+		/** Absolute positioning (excluded by the agreed specification to preserve intentional overflow). */
 		ABSOLUTE,
-		/** NaN・Infinity・{@code LayoutUtils.NONE}(未確定)が混じっている。 */
+		/** Contains NaN, Infinity, or {@code LayoutUtils.NONE} (unresolved). */
 		UNDEFINED_GEOMETRY,
-		/** 負のoffset、非正の元寸法など、幾何として成立しない。 */
+		/** Invalid geometry, such as a negative offset or nonpositive original extent. */
 		INVALID_GEOMETRY,
-		/** 消費済みoffsetが元寸法に達しており、残余がない。 */
+		/** The consumed offset has reached the original extent, leaving no remainder. */
 		EXHAUSTED,
-		/** 先頭断片で容量に収まる——救済不要(通常経路)。 */
+		/** Fits the capacity in the first fragment; no rescue needed (normal path). */
 		FITS,
-		/** 容量が{@link VisualRescuePlanner#MIN_RESCUE_ADVANCE}未満(前進保証を満たせない)。 */
+		/** Capacity is below {@link VisualRescuePlanner#MIN_RESCUE_ADVANCE} (cannot guarantee progress). */
 		INSUFFICIENT_CAPACITY,
 		/**
-		 * 容量は前進保証を満たすが、実用上小さすぎる
-		 * ({@link VisualRescuePlanner#minUsefulSlice(double)}未満)。
-		 * 極小断片ページの連続=実質白紙ページを作らないための拒否で、
-		 * 従来どおりの終端(はみ出したまま描画)へ落ちる。
+		 * Capacity satisfies the progress guarantee but is too small to be useful
+		 * (below {@link VisualRescuePlanner#minUsefulSlice(double)} ).
+		 * Rejects to avoid a succession of tiny-fragment pages that are effectively blank,
+		 * and falls back to the existing terminal behavior (draw with overflow).
 		 */
 		SLIVER_CAPACITY,
 		/**
-		 * 容量は足りるが、<b>はみ出している量</b>が実用上小さすぎる
-		 * ({@link VisualRescuePlanner#MIN_RESCUE_SLICE}未満)。
-		 * 数ptのはみ出しを救うために丸ごと1ページ増やすと、そのページは
-		 * 実質白紙になる——「意図しない白紙ページを作らない」という絶対
-		 * 要件の、末尾側の守り。従来どおりの終端(はみ出したまま描画)へ
-		 * 落ちる。
+		 * Capacity is sufficient, but <b>the amount of overflow</b> is too small to be useful
+		 * (below {@link VisualRescuePlanner#MIN_RESCUE_SLICE} ).
+		 * Adding a whole page to rescue a few pt of overflow would make that page effectively blank.
+		 * This guards the tail against violating the absolute requirement to avoid unintended blank pages.
+		 * Falls back to the existing terminal behavior (draw with overflow).
 		 */
 		SLIVER_REMAINDER,
-		/** 加算の丸めで{@code offset}が厳密増加しない(極大doubleなど)。 */
+		/** Rounding in addition prevents {@code offset} from strictly increasing (e.g. extremely large doubles). */
 		NO_PROGRESS;
 	}
 
 	/**
-	 * 救済しません。呼び出し側は従来どおりの終端(ページ先頭なら
-	 * はみ出したまま描画、そうでなければ次フラグメントへ委譲)へ落ちます。
+	 * No rescue. The caller falls back to the existing terminal behavior:
+	 * draw with overflow at the page start, or delegate to the next fragment otherwise.
 	 *
-	 * @param reason 救済しなかった理由
+	 * @param reason reason rescue was not performed
 	 */
 	public record None(Reason reason) implements RescueDecision {
 		public None {
@@ -77,25 +75,24 @@ public sealed interface RescueDecision {
 	}
 
 	/**
-	 * 区間{@code [offset, nextOffset)}を1断片として切り出します
-	 * (「区間分割値型」)。レイアウト寸法は一切変わらず、ページ上の
-	 * 占有量だけが{@code sliceExtent}になります。
+	 * Extracts the interval {@code [offset, nextOffset)} as one fragment (an interval-split value type).
+	 * Layout dimensions do not change; only the occupied page extent becomes {@code sliceExtent} .
 	 *
 	 * <p>
-	 * 不変条件(コンストラクタで検査):
+	 * Invariants (checked by the constructor):
 	 * </p>
 	 * <ul>
 	 * <li>{@code offset >= 0}</li>
 	 * <li>{@code sliceExtent > 0}</li>
-	 * <li>{@code nextOffset > offset}(前進保証。等しければ無限ループ)</li>
+	 * <li>{@code nextOffset > offset} (progress guarantee; equality would cause an infinite loop)</li>
 	 * <li>{@code firstFragment == (offset == 0)}</li>
 	 * </ul>
 	 *
-	 * @param offset        この断片が始まるページ方向位置(元ボックス座標)
-	 * @param sliceExtent   この断片がフラグメント上で占有するページ方向寸法
-	 * @param nextOffset    次の断片が始まる位置({@code offset + sliceExtent})
-	 * @param firstFragment 先頭断片(上マージン・上枠線を持つ)か
-	 * @param lastFragment  最終断片(下枠線・下マージンを持ち、tailを作らない)か
+	 * @param offset page-direction position where this fragment starts (original box coordinates)
+	 * @param sliceExtent page-direction extent occupied by this slice on the fragment
+	 * @param nextOffset position where the next fragment starts ({@code offset + sliceExtent})
+	 * @param firstFragment whether this is the first fragment (with top margin and top border)
+	 * @param lastFragment whether this is the final fragment (with bottom border and bottom margin, no tail)
 	 */
 	public record Slice(
 			double offset,
@@ -112,7 +109,7 @@ public sealed interface RescueDecision {
 				throw new IllegalArgumentException("sliceExtent=" + sliceExtent);
 			}
 			if (!(nextOffset > offset)) {
-				// 前進保証: ここを破ると改ページループが停止しない
+				// Progress guarantee: violating this prevents the page-break loop from terminating.
 				throw new IllegalArgumentException("前進しない: offset=" + offset + " nextOffset=" + nextOffset);
 			}
 			if (firstFragment != (offset == 0)) {
@@ -120,12 +117,12 @@ public sealed interface RescueDecision {
 			}
 		}
 
-		/** 続きの断片(=PDFのartifactとして出す側)であればtrueを返します。 */
+		/** Returns true for a continuation fragment (= the part emitted as a PDF artifact). */
 		public boolean isContinuation() {
 			return !this.firstFragment;
 		}
 
-		/** この断片のあとに残余断片(tail)を作る必要があればtrueを返します。 */
+		/** Returns true if a remainder fragment (tail) must be created after this fragment. */
 		public boolean hasTail() {
 			return !this.lastFragment;
 		}

@@ -1,13 +1,14 @@
 package net.zamasoft.foliojet.layout.text.bidi;
 
 /**
- * Unicode Bidi_Mirroring_Glyph の対応表(UAX #9 L4。BidiMirroring-17.0.0.txt、2025-08-01、428 対)。
- * 2026-09-04 に生成(bidi-isolation-design.md §0-22、batch A-1c-1)。resolved level が奇数で
- * {@code Bidi_Mirrored=Yes} の文字は、表示 glyph だけをここで得た鏡像文字のものにする——
- * 論理文字(抽出・ToUnicode・ActualText)は変えない。Java 標準にはこの対応表の API が無い。
+ * Unicode Bidi_Mirroring_Glyph mapping (UAX #9 L4; BidiMirroring-17.0.0.txt, 2025-08-01, 428 pairs).
+ * Generated on 2026-09-04 (bidi-isolation-design.md §0-22, batch A-1c-1).
+ * For characters with an odd resolved level and {@code Bidi_Mirrored=Yes}, uses the mirrored character
+ * from this table only for the display glyph; logical characters (extraction, ToUnicode, ActualText)
+ * remain unchanged. The standard Java API does not expose this mapping.
  */
 public final class BidiMirroring {
-	/** [logical, mirrored] の平坦な対(code point 昇順)。 */
+	/** Flattened [logical, mirrored] pairs (ascending code-point order). */
 	private static final int[] PAIRS = {
 			0x0028, 0x0029, 0x0029, 0x0028, 0x003C, 0x003E, 0x003E, 0x003C,
 			0x005B, 0x005D, 0x005D, 0x005B, 0x007B, 0x007D, 0x007D, 0x007B,
@@ -132,20 +133,20 @@ public final class BidiMirroring {
 	}
 
 	/**
-	 * 鏡像文字の code point。対応が無ければ元の code point を返す(Bidi_Mirrored=Yes でも
-	 * BidiMirroring.txt に対が無い文字——∜ 等——は L4 上そのまま描く)。
+	 * Returns the mirrored character's code point, or the original code point if no mapping exists
+	 * (characters with Bidi_Mirrored=Yes but no pair in BidiMirroring.txt, such as ∜, render unchanged under L4).
 	 */
 	public static int mirror(final int codePoint) {
 		final Integer mirrored = TABLE.get(codePoint);
 		return mirrored == null ? codePoint : mirrored.intValue();
 	}
 
-	/** {@link #mirror} が別の文字を返すか。 */
+	/** Whether {@link #mirror} returns a different character. */
 	public static boolean hasMirror(final int codePoint) {
 		return TABLE.containsKey(codePoint);
 	}
 
-	/** 対の数(試験用)。 */
+	/** Number of pairs (for tests). */
 	public static int size() {
 		return TABLE.size();
 	}

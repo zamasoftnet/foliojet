@@ -3,26 +3,26 @@ package net.zamasoft.foliojet.layout.fragment;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * テキストブロックの行境界での切断判定です。orphans/widows 制約を満たす
- * 切断位置を決める純関数で、ボックスには触れません。
+ * Determines cuts at text-block line boundaries. A pure function that chooses a cut position satisfying
+ * orphans/widows constraints without touching boxes.
  *
  * <p>
- * widows/orphans は対象範囲の高さを line-height で割った仮想行数を基準に
- * 判定します。両方を満たせない場合は全体を次ページへ送りますが、
- * ページ先頭(first)では orphans を無視し、少なくとも1行を前ページに残します。
+ * Evaluates widows/orphans against the virtual line count obtained by dividing the target range's height
+ * by line-height. If both constraints cannot be satisfied, moves the entire block to the next page.
+ * At the page start (first), however, ignores orphans and leaves at least one line on the preceding page.
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class LineCutter {
 	/**
-	 * 切断判定の結果です。
+	 * The cut decision result.
 	 */
 	public sealed interface Decision {
-		/** 切断線が底辺以下 — 全体が前ページに収まります。 */
+		/** The cut line is at or below the bottom edge; everything fits on the preceding page. */
 		Decision KEEP = new Keep();
 
-		/** 全体を次ページへ送ります。 */
+		/** Moves everything to the next page. */
 		Decision MOVE = new Move();
 
 		record Keep() implements Decision {
@@ -32,9 +32,9 @@ public final class LineCutter {
 		}
 
 		/**
-		 * 行 lastLine の直後で切断します。
+		 * Cuts immediately after line lastLine.
 		 *
-		 * @param lastLine 前ページに残す最後の行のインデックス
+		 * @param lastLine index of the last line to leave on the preceding page
 		 */
 		record CutAfter(int lastLine) implements Decision {
 		}
@@ -45,20 +45,19 @@ public final class LineCutter {
 	}
 
 	/**
-	 * 実質的に高さのある行が2行未満か(=行境界での切断点が存在しない)を
-	 * 返します。
+	 * Returns whether fewer than two lines have non-negligible height
+	 * (= no cut point exists at a line boundary).
 	 *
 	 * <p>
-	 * この場合{@link #decide}はフラグメント先頭で<b>無条件に</b>
-	 * {@link Decision#KEEP}を返します——つまり行分割では一切前進できず、
-	 * 容量を超えていればはみ出したまま描かれます。救済分割(2026-07-25)は
-	 * その「非進行点」だけを置き換えるため、同じ判定をここから使います
-	 * (規則の定義を二重に持たないため)。
+	 * In this case, {@link #decide} <b>unconditionally</b> returns {@link Decision#KEEP} at the fragment start.
+	 * Line splitting therefore cannot make any progress, and content exceeding capacity is drawn overflowing.
+	 * Rescue splitting (2026-07-25) replaces only this point of nonprogress, so it uses the same decision here
+	 * to avoid defining the rule twice.
 	 * </p>
 	 *
-	 * @param lineStarts 各行の上辺位置
-	 * @param lineEnds   各行の底辺位置
-	 * @return 実質1行以下ならtrue
+	 * @param lineStarts top-edge position of each line
+	 * @param lineEnds bottom-edge position of each line
+	 * @return true if there is effectively at most one line
 	 */
 	public static boolean singleEffectiveLine(final double[] lineStarts, final double[] lineEnds) {
 		int nonZeroLines = 0;
@@ -73,37 +72,37 @@ public final class LineCutter {
 	}
 
 	/**
-	 * 切断位置を判定します。
+	 * Determines the cut position.
 	 *
-	 * @param pageLimit  ボックス上辺から切断線までの距離
-	 * @param pageSize   ボックスのページ方向寸法
-	 * @param lineHeight 仮想行数の計算に使う行高さ
-	 * @param orphans    前ページに残すべき最小仮想行数
-	 * @param widows     次ページへ送るべき最小仮想行数
-	 * @param first      ボックスがページ先頭にある(FLAGS_FIRST)
-	 * @param lineStarts 各行の上辺位置
-	 * @param lineEnds   各行の底辺位置
-	 * @return 切断判定
+	 * @param pageLimit distance from the box's top edge to the cut line
+	 * @param pageSize box extent in the page direction
+	 * @param lineHeight line height used to calculate the virtual line count
+	 * @param orphans minimum virtual line count to leave on the preceding page
+	 * @param widows minimum virtual line count to send to the next page
+	 * @param first whether the box is at the page start (FLAGS_FIRST)
+	 * @param lineStarts top-edge position of each line
+	 * @param lineEnds bottom-edge position of each line
+	 * @return the cut decision
 	 */
 	public static Decision decide(final double pageLimit, final double pageSize, final double lineHeight,
 			final int orphans, final int widows, final boolean first, final double[] lineStarts,
 			final double[] lineEnds) {
 		if (LayoutUtils.compare(pageLimit, pageSize) >= 0) {
-			// 切断線が底辺以下にある場合は移動なし
+			// No move if the cut line is at or below the bottom edge.
 			return Decision.KEEP;
 		}
 
 		if (!singleEffectiveLine(lineStarts, lineEnds)) {
 			if (!first && LayoutUtils.compare(pageLimit, lineEnds[0]) < 0) {
-				// 切断線が最初の行の底辺より上にある場合は全部移動
+				// Move everything if the cut line is above the first line's bottom edge.
 				return Decision.MOVE;
 			}
 		} else {
-			// １行だけの場合
+			// Single-line case
 			return first ? Decision.KEEP : Decision.MOVE;
 		}
 
-		// 前ページに残すことができる最後の行を求める
+		// Find the last line that can remain on the preceding page.
 		int lastOrphan;
 		for (lastOrphan = lineEnds.length - 1; lastOrphan > 0; --lastOrphan) {
 			if (LayoutUtils.compare(pageLimit, lineEnds[lastOrphan]) >= 0) {
@@ -111,7 +110,7 @@ public final class LineCutter {
 			}
 		}
 
-		// 'widows'による制約
+		// Constraint imposed by 'widows'
 		while (lastOrphan >= 0) {
 			final double virHeight = pageSize - lineEnds[lastOrphan];
 			final int virWidows = (int) Math.round(virHeight / lineHeight);
@@ -127,7 +126,7 @@ public final class LineCutter {
 			lastOrphan = 0;
 		}
 		if (!first) {
-			// 'orphans'による制約
+			// Constraint imposed by 'orphans'
 			final int virOrphans = (int) Math.round(lineEnds[lastOrphan] / lineHeight);
 			if (virOrphans < orphans) {
 				return Decision.MOVE;

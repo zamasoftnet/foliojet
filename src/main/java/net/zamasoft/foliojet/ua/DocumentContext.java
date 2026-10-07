@@ -16,8 +16,8 @@ public class DocumentContext {
 	private CompatibleMode compatibleMode = CompatibleMode.NORMAL;
 
 	/**
-	 * 根要素のスタイル(2026-10-06)。親を持たない頁・欄外の箱のスタイルが、根要素で宣言したカスタムプロパティを
-	 * 引くために使う。
+	 * The root element's style (2026-10-06). Parentless page and margin box styles use it to look up
+	 * custom properties declared on the root element.
 	 */
 	private net.zamasoft.foliojet.css.CSSStyle rootStyle;
 
@@ -30,8 +30,8 @@ public class DocumentContext {
 	}
 
 	/**
-	 * {@code mask-image:url(...)} のSVGを、マスクに塗る色ごとに保持します。
-	 * DocumentContextはパスごとに作り直されるため、別文書へ持ち越しません。
+	 * Stores SVGs for {@code mask-image:url(...)} by the color painted into the mask.
+	 * DocumentContext is recreated for each pass, so these do not carry over to another document.
 	 */
 	private final Map<String, Image> maskImages = new HashMap<String, Image>();
 
@@ -46,8 +46,8 @@ public class DocumentContext {
 	}
 
 	/**
-	 * インラインSVGへ持ち込む著者CSSのSVG向け部分集合です(2026-08-07)。
-	 * 収集・注入・var()解決の仕組みは{@link net.zamasoft.foliojet.css.SVGAuthorCss}参照。
+	 * The SVG subset of author CSS imported into inline SVG (2026-08-07).
+	 * See {@link net.zamasoft.foliojet.css.SVGAuthorCss} for collection, injection, and var() resolution.
 	 */
 	private final net.zamasoft.foliojet.css.SVGAuthorCss svgAuthorCss = new net.zamasoft.foliojet.css.SVGAuthorCss();
 

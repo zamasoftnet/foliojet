@@ -15,7 +15,7 @@ public class RectBorder {
 
 	private final Border top, right, bottom, left;
 
-	/** 計算済みborder-image。sourceがnoneまたは画像取得失敗ならnull。 */
+	/** The computed border-image. Null if source is none or image retrieval fails. */
 	private final BorderImage borderImage;
 
 	public static class Radius {
@@ -24,9 +24,10 @@ public class RectBorder {
 		public final double hr, vr;
 
 		/**
-		 * パーセント半径の比率成分(border-radius:50%等)。水平はボックス幅、
-		 * 垂直はボックス高さに掛ける(CSS Backgrounds §5.1)。寸法はレイアウト
-		 * 確定まで分からないため、描画側が{@link #resolve}で絶対値へ解決する。
+		 * The ratio components of percentage radii (border-radius:50%, etc.). Multiply the horizontal component by
+		 * the box width and the vertical component by the box height (CSS Backgrounds §5.1). Since dimensions are
+		 * unknown until layout is finalized, the drawing code resolves them to absolute values with {@link
+		 * #resolve}.
 		 */
 		public final double hrRatio, vrRatio;
 
@@ -55,7 +56,7 @@ public class RectBorder {
 			this.vrRatio = vrRatio;
 		}
 
-		/** ボックス寸法でパーセント成分を絶対値へ解決した半径を返します。 */
+		/** Returns radii with percentage components resolved to absolute values using the box dimensions. */
 		public Radius resolve(double width, double height) {
 			if (this.hrRatio == 0 && this.vrRatio == 0) {
 				return this;
@@ -148,9 +149,9 @@ public class RectBorder {
 	}
 
 	public boolean isVisible() {
-		// 境界画像だけが指定された箱(border-style:noneのまま border-image を
-		// 出す書き方)は、4辺のスタイルを見るだけでは不可視と判定されて
-		// 描画そのものが省かれてしまう
+		// A box with only a border image (border-image drawn while border-style remains none)
+		// is considered invisible if only the styles of the four sides are checked,
+		// so drawing the box itself is skipped.
 		return this.borderImage != null || this.getTop().isVisible() || this.getRight().isVisible()
 				|| this.getBottom().isVisible() || this.getLeft().isVisible();
 	}

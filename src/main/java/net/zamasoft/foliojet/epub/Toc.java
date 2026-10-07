@@ -3,18 +3,18 @@ package net.zamasoft.foliojet.epub;
 import java.util.List;
 
 /**
- * 目次(NCX)に相当する情報です。
+ * Information corresponding to the table of contents (NCX).
  * 
  * @author MIYABE Tatsuhiko
  */
 public class Toc {
 	/**
-	 * 目次のタイトルです。
+	 * The title of the table of contents.
 	 */
 	public String docTitle;
 
 	/**
-	 * ルートの項目のリストです。
+	 * The list of root entries.
 	 */
 	public NavPoint[] navPoints;
 

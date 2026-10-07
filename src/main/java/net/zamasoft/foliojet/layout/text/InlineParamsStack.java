@@ -6,15 +6,14 @@ import java.util.List;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 
 /**
- * グリフパイプラインを流れるインライン文脈(AbstractTextParams のネスト)です。
- * チェーンの先頭ステージ(CSSJTextUnitizer)が InlineQuad の通過で push/pop し、
- * 下流ステージ(WordHyphenator 等)は参照を共有して current() を読むだけです。
+ * Inline context flowing through the glyph pipeline (nested AbstractTextParams).
+ * The first stage in the chain (CSSJTextUnitizer) pushes/pops as InlineQuad passes through;
+ * downstream stages (WordHyphenator, etc.) share the reference and only read current().
  *
  * <p>
- * 注意: これは「パイプライン寿命」の文脈です。quad の発生源
- * (StyledTextUnitizer)と、テキストブロックを跨いで生存する
- * BuilderGlyphHandler、行再構築時に動く TextBuilder は寿命が異なるため
- * 独自のスタックを持ちます(ARCHITECTURE.md §5.5)。
+ * Note: this context has "pipeline lifetime." The quad producer (StyledTextUnitizer),
+ * BuilderGlyphHandler (which survives across text blocks), and TextBuilder (which runs during line
+ * reconstruction) have different lifetimes, so they keep their own stacks (ARCHITECTURE.md §5.5).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -35,9 +34,9 @@ public final class InlineParamsStack {
 	}
 
 	/**
-	 * 現在のインライン文脈のパラメータを返します。
+	 * Returns the parameters of the current inline context.
 	 *
-	 * @return スタック最上位のパラメータ
+	 * @return Parameters at the top of the stack
 	 */
 	public AbstractTextParams current() {
 		return this.stack.get(this.stack.size() - 1);

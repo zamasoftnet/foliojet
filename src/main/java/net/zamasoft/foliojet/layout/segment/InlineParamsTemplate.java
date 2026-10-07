@@ -5,17 +5,16 @@ import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
- * {@link InlineParams}({@link BoxKind#INLINE}が使う{@code Params}
- * 実装、{@code AbstractTextParams}を直接継承しline固有フィールドを
- * 持たない)の内容をfreezeし、呼び出しごとに独立した新品の
- * {@code InlineParams}をmaterializeするテンプレートです(2026-07-22
- * 新設、M6d-A3b Stage1)。
+ * A template that freezes the contents of {@link InlineParams}
+ * (the {@code Params} implementation used by {@link BoxKind#INLINE} ;
+ * directly extends {@code AbstractTextParams} and has no line-specific fields)
+ * and materializes an independent, fresh {@code InlineParams} on each call
+ * (introduced 2026-07-22, M6d-A3b Stage1).
  *
  * <p>
- * 祖先({@code Params}/{@code AbstractTextParams})のフィールドは
- * {@link TextParamsFields}が担う。{@code frame}(既存{@code RectFrame}
- * 実装はfinalフィールドのみで実質不変)はコピー不要(2026-07-22
- * Stage2、不変recordへ置換)。
+ * {@link TextParamsFields} handles ancestor ({@code Params}/{@code AbstractTextParams}) fields.
+ * {@code frame} needs no copy: the existing {@code RectFrame} implementation has only final fields
+ * and is effectively immutable (replaced with an immutable record in Stage2, 2026-07-22).
  * </p>
  */
 public record InlineParamsTemplate(TextParamsFields common, RectFrame frame) {
@@ -24,14 +23,14 @@ public record InlineParamsTemplate(TextParamsFields common, RectFrame frame) {
 	}
 
 	/**
-	 * 凍結済みの書字方向を返します(E-6増分3b-4——
-	 * {@code LayoutSource.containsMixedFlow}が凍結済みStartから読む)。
+	 * Returns the frozen writing direction (E-6 increment 3b-4;
+	 * {@code LayoutSource.containsMixedFlow} reads it from frozen Starts).
 	 */
 	public WritingMode flow() {
 		return this.common.flow();
 	}
 
-	/** 呼び出しごとに新品の{@code InlineParams}を返す(複数回呼んでも互いに影響しない)。 */
+	/** Returns a fresh {@code InlineParams} on each call (multiple calls do not affect one another). */
 	public InlineParams materialize() {
 		final InlineParams p = new InlineParams();
 		this.common.materializeInto(p);

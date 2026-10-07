@@ -5,15 +5,15 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * 表のページ方向切断の判定です(C4-T1。FlowCutter/LineCutter と同じ
- * 「判定の純化」を表に適用)。
+ * Determines table cuts in the page direction (C4-T1; applies the same pure-decision approach as
+ * FlowCutter/LineCutter to tables).
  *
  * <p>
- * TableBox / TableRowGroupBox の切断ループが行っていた判定
- * (ヘッダ・フッタの予約、グループ間・行間の改ページ禁止、縦横混在、
- * 全残し/全移動)を、ボックス木から切り離した純関数として固定します。
- * ループ自体(子 split の結果に依存する走行)はボックス側に残ります —
- * FlowContainer と FlowCutter の分担と同型。
+ * Extracts the decisions formerly made by the TableBox / TableRowGroupBox cut loops
+ * (header/footer reservation, break avoidance between groups/rows, mixed vertical/horizontal writing,
+ * keep-all/move-all) into pure functions detached from the box tree.
+ * The loops themselves (traversal depending on child split results) remain on the box side,
+ * analogous to the division between FlowContainer and FlowCutter.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -24,27 +24,25 @@ public final class TableCutter {
 	}
 
 	/**
-	 * ページ先頭なら全体を残し(KEEP)、そうでなければ全体を送ります
-	 * (MOVE)。空の表・ヘッダとフッタが収まらない場合・切断先が
-	 * 見つからなかった場合の共通の縮退です。
+	 * Keeps everything (KEEP) at the page start; otherwise moves everything (MOVE).
+	 * The common fallback for empty tables, headers/footers that do not fit, or failure to find a cut position.
 	 */
 	public static SplitResult keepOrMoveAll(final byte flags) {
 		return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
 	}
 
 	/**
-	 * {@code Split}を返すはずの子splitの結果から、期待する型の残余を
-	 * 取り出します。契約違反は{@link ContinuationInvariantViolationException}
-	 * にします(2026-07-25。従来は素のcastで、契約違反が
-	 * {@code ClassCastException}という原因の読めない形で現れていた。
-	 * {@code TableRowBox.forcedCellRemainder}と同じ扱いへ揃えたもの——
-	 * 正常経路のロジックは不変)。
+	 * Extracts a remainder of the expected type from a child split result that should be {@code Split} .
+	 * Reports contract violations as {@link ContinuationInvariantViolationException}
+	 * (2026-07-25; previously a raw cast exposed contract violations as an uninformative
+	 * {@code ClassCastException} . Aligned with {@code TableRowBox.forcedCellRemainder} ;
+	 * normal-path logic is unchanged).
 	 *
-	 * @param <T>      期待する残余の型
-	 * @param result   子splitの結果
-	 * @param type     期待する残余の型
-	 * @param context  例外メッセージに載せる呼び出し元の説明
-	 * @return 残余
+	 * @param <T> expected remainder type
+	 * @param result child split result
+	 * @param type expected remainder type
+	 * @param context caller description included in the exception message
+	 * @return the remainder
 	 */
 	public static <T extends IPageBreakableBox> T requireSplitRemainder(final SplitResult result, final Class<T> type,
 			final String context) {
@@ -56,16 +54,16 @@ public final class TableCutter {
 	}
 
 	/**
-	 * 表の切断線からヘッダ・フッタ等の「改ページしない部分」を差し引きます。
+	 * Subtracts nonbreaking portions such as headers/footers from the table's cut line.
 	 *
-	 * @param pageLimit      表の外辺からの切断線
-	 * @param boxPageExtent  表のページ方向外寸
-	 * @param framePageStart ページ方向始端側のフレーム幅
-	 * @param framePageEnd   ページ方向終端側のフレーム幅
-	 * @param marginPageEnd  ページ方向終端側のマージン幅
-	 * @param headerSize     ヘッダ行グループのページ寸(なければ負)
-	 * @param footerSize     フッタ行グループのページ寸(なければ負)
-	 * @return 本体行グループに使える切断線
+	 * @param pageLimit cut line measured from the table's outer edge
+	 * @param boxPageExtent table's outer extent in the page direction
+	 * @param framePageStart frame width on the start side of the page direction
+	 * @param framePageEnd frame width on the end side of the page direction
+	 * @param marginPageEnd margin width on the end side of the page direction
+	 * @param headerSize header row group's page extent (negative if absent)
+	 * @param footerSize footer row group's page extent (negative if absent)
+	 * @return the cut line available to body row groups
 	 */
 	public static double reserveNonBreakable(double pageLimit, final double boxPageExtent,
 			final double framePageStart, final double framePageEnd, final double marginPageEnd,
@@ -79,13 +77,16 @@ public final class TableCutter {
 			pageLimit -= footerSize;
 			pageLimit -= framePageEnd;
 		} else if (over > 0 && LayoutUtils.compare(over, marginPageEnd) < 0) {
-			// 境界が下マージンに差し掛かった場合は切る
+			// Cut when the boundary reaches the bottom margin.
 			pageLimit -= marginPageEnd;
 		}
 		return pageLimit;
 	}
 
-	/** 未完表は末尾マージン・終端フレームを予約せず、始端とヘッダだけを引きます。 */
+	/**
+	 * For incomplete tables, subtracts only the start frame and header, without reserving the trailing margin
+	 * or end frame.
+	 */
 	public static double reserveIncompleteNonBreakable(double pageLimit, final double framePageStart,
 			final double headerSize) {
 		pageLimit -= framePageStart;
@@ -96,16 +97,14 @@ public final class TableCutter {
 	}
 
 	/**
-	 * 行グループ境界の改ページ禁止です。前グループの break-after /
-	 * 当グループの break-before に加え、境界に接する行(前グループ末尾
-	 * 行の break-after・当グループ先頭行の break-before)も見ます。
+	 * Break avoidance at row-group boundaries. Checks the preceding group's break-after and the current
+	 * group's break-before, plus rows adjoining the boundary (the preceding group's last-row break-after
+	 * and the current group's first-row break-before).
 	 *
-	 * @param beforeGroupBreakAfter   前グループの page-break-after
-	 * @param groupBreakBefore        当グループの page-break-before
-	 * @param beforeGroupLastRowAfter 前グループ末尾行の page-break-after
-	 *                                (行がなければ AUTO)
-	 * @param groupFirstRowBefore     当グループ先頭行の page-break-before
-	 *                                (行がなければ AUTO)
+	 * @param beforeGroupBreakAfter preceding group's page-break-after
+	 * @param groupBreakBefore current group's page-break-before
+	 * @param beforeGroupLastRowAfter preceding group's last-row page-break-after (AUTO if no row)
+	 * @param groupFirstRowBefore current group's first-row page-break-before (AUTO if no row)
 	 */
 	public static boolean groupBreakAvoid(final PageBreakMode beforeGroupBreakAfter, final PageBreakMode groupBreakBefore,
 			final PageBreakMode beforeGroupLastRowAfter, final PageBreakMode groupFirstRowBefore) {
@@ -114,36 +113,37 @@ public final class TableCutter {
 	}
 
 	/**
-	 * 行境界の改ページ禁止です。行の break-after/before に加え、前行の
-	 * 縦連結セル(rowspan)による禁止を判定します。
+	 * Break avoidance at row boundaries. In addition to row break-after/before, checks avoidance imposed by
+	 * row-spanning cells (rowspan) in the preceding row.
 	 *
 	 * <p>
-	 * 通常は「切断可能(page-break-inside:auto かつ書字方向一致)な
-	 * セルはスキップし、連結が次行へ伸びるセルがあれば禁止」。
-	 * ページ先頭の 1-2 行目(i==1 かつ FLAGS_FIRST)だけは特例で、
-	 * 連結セルのうち書字方向が違うものだけが禁止を立てる(一致する
-	 * 連結は禁止を解除しつつ走査を続ける — 旧実装の挙動を忠実に維持)。
+	 * Normally, skips cuttable cells (page-break-inside:auto and matching writing direction), then prohibits
+	 * a break if any cell extends into the next row.
+	 * Only between rows 1 and 2 at the page start (i==1 and FLAGS_FIRST) is there an exception:
+	 * only spanning cells with a different writing direction impose avoidance.
+	 * A span with a matching direction clears avoidance while continuing the scan,
+	 * faithfully preserving the old implementation's behavior.
 	 * </p>
 	 *
-	 * @param i                    当行のインデックス
-	 * @param pageFirst            FLAGS_FIRST(ページ先頭)
-	 * @param beforeRowBreakAfter  前行の page-break-after
-	 * @param rowBreakBefore       当行の page-break-before
-	 * @param beforeCellCuttable   前行の各セルが切断可能
-	 *                             (inside==AUTO かつ書字方向一致)
-	 * @param beforeCellExtended   前行の各セルの連結が次行へ伸びる
-	 * @param beforeCellFlowMatch  前行の各セルの書字方向が表と一致
+	 * @param i current row index
+	 * @param pageFirst FLAGS_FIRST (page start)
+	 * @param beforeRowBreakAfter preceding row's page-break-after
+	 * @param rowBreakBefore current row's page-break-before
+	 * @param beforeCellCuttable whether each cell in the preceding row is cuttable
+	 * (inside==AUTO and matching writing direction)
+	 * @param beforeCellExtended whether each cell in the preceding row extends into the next row
+	 * @param beforeCellFlowMatch whether each cell in the preceding row matches the table's writing direction
 	 */
 	public static boolean rowBreakAvoid(final int i, final boolean pageFirst, final PageBreakMode beforeRowBreakAfter,
 			final PageBreakMode rowBreakBefore, final boolean[] beforeCellCuttable, final boolean[] beforeCellExtended,
 			final boolean[] beforeCellFlowMatch) {
 		boolean breakAvoid = beforeRowBreakAfter == PageBreakMode.AVOID || rowBreakBefore == PageBreakMode.AVOID;
 		if (!breakAvoid && (i != 1 || !pageFirst)) {
-			// 連結されたセルによる改ページ禁止。rowspanが跨ぐ行間はavoid相当
-			// (説明書4550の仕様)。cuttable=著者が明示的にpage-break-inside:auto
-			// を宣言したセル(TableCellPos.breakInsideDeclaredAuto)だけが
-			// オプトアウトできる——UA既定のセルavoid撤去(2026-08-27)後も、
-			// 既定のrowspanブロックはまとめて持ち越す
+			// Break avoidance imposed by spanning cells. Boundaries crossed by rowspan act as avoid
+			// (the specification in manual 4550). Only cuttable cells where the author explicitly declared
+			// page-break-inside:auto (TableCellPos.breakInsideDeclaredAuto)
+			// can opt out. Even after removal of the UA default cell avoid (2026-08-27),
+			// rowspan blocks move together by default.
 			for (int j = 0; j < beforeCellExtended.length; ++j) {
 				if (beforeCellCuttable[j]) {
 					continue;
@@ -154,7 +154,7 @@ public final class TableCutter {
 				}
 			}
 		} else if (i == 1 && pageFirst) {
-			// ページ先頭の1-2行目で連結されたセルがある場合の特例
+			// Exception for spanning cells between rows 1 and 2 at the page start
 			for (int j = 0; j < beforeCellExtended.length; ++j) {
 				if (!beforeCellExtended[j]) {
 					continue;
@@ -163,7 +163,7 @@ public final class TableCutter {
 					breakAvoid = false;
 					continue;
 				}
-				// 書字方向が違えば必ず改ページしない
+				// Always prohibit a break if writing directions differ.
 				breakAvoid = true;
 				break;
 			}
@@ -172,10 +172,10 @@ public final class TableCutter {
 	}
 
 	/**
-	 * 書字方向が表と異なるセルを含む行は切断・移送せず前に残します
-	 * (縦横混在の分割は未対応)。
+	 * Keeps a row containing cells whose writing direction differs from the table before the break,
+	 * without cutting or moving it (splitting mixed vertical/horizontal writing is unsupported).
 	 *
-	 * @param cellFlowMatch 当行の各セルの書字方向が表と一致
+	 * @param cellFlowMatch whether each cell in the current row matches the table's writing direction
 	 */
 	public static boolean mixedFlowKeep(final boolean[] cellFlowMatch) {
 		for (final boolean match : cellFlowMatch) {
@@ -187,14 +187,14 @@ public final class TableCutter {
 	}
 
 	/**
-	 * セル断片の寸法・フレーム状態です(C4-T2。ブロックの
-	 * {@link FragmentState} に相当するが、最小寸法の残量計算が異なる —
-	 * セルは実寸から引き、ブロックは min(指定, 実寸) から引く)。
+	 * Cell-fragment dimensions and frame state (C4-T2; corresponds to block {@link FragmentState} ,
+	 * but calculates remaining minimum size differently:
+	 * cells subtract from actual size; blocks subtract from min(specified, actual)).
 	 *
-	 * @param nextSize    継続断片の指定寸法
-	 * @param nextMinSize 継続断片の最小寸法
-	 * @param nextFrame   継続断片のフレーム(始端側を落とした形)
-	 * @param prevFrame   前断片のフレーム(終端側を落とした形)
+	 * @param nextSize specified size of the continuation fragment
+	 * @param nextMinSize minimum size of the continuation fragment
+	 * @param nextFrame continuation fragment's frame (start side removed)
+	 * @param prevFrame preceding fragment's frame (end side removed)
 	 */
 	public record CellFragmentState(net.zamasoft.foliojet.layout.box.params.Dimension nextSize,
 			net.zamasoft.foliojet.layout.box.params.Dimension nextMinSize,
@@ -203,24 +203,24 @@ public final class TableCutter {
 	}
 
 	/**
-	 * セル断片の状態を計算します(純関数。旧 TableCellBox.splitPage の
-	 * 縦横鏡像 約30行×2 の共通化)。
+	 * Calculates cell-fragment state (pure function; unifies the roughly 30 lines × 2 of mirrored
+	 * vertical/horizontal code in the former TableCellBox.splitPage).
 	 *
 	 * <p>
-	 * 縦書き分岐の Dimension.create の引数順は、旧実装では横書き・
-	 * FragmentState と非対称(width スロットに交差軸指定)だったが、
-	 * FragmentState と同じ規約(width=ページ方向残量)に正規化した。
-	 * 実寸は行分割(setWidth/setHeight)と列幅機構が支配するため出力は
-	 * 不変(vert-cell-specified-pagebreak の交差検証で同一を確認 —
-	 * PLAN サイクル18)。
+	 * In the old implementation, the Dimension.create argument order for vertical writing differed from
+	 * horizontal writing and FragmentState (cross-axis specification in the width slot).
+	 * It was normalized to the same convention as FragmentState (width = remaining page-direction extent).
+	 * Actual size is governed by row splitting (setWidth/setHeight) and the column-width mechanism,
+	 * so output is unchanged (confirmed identical by the vert-cell-specified-pagebreak cross-check;
+	 * PLAN cycle 18).
 	 * </p>
 	 *
-	 * @param vertical   縦書きか
-	 * @param size       指定寸法
-	 * @param minSize    最小寸法
-	 * @param frame      切断前のフレーム
-	 * @param pageExtent 切断前のページ方向内寸(縦書き=width)
-	 * @param pageLimit  切断位置(内辺から)
+	 * @param vertical whether writing is vertical
+	 * @param size specified size
+	 * @param minSize minimum size
+	 * @param frame frame before cutting
+	 * @param pageExtent inner page-direction extent before cutting (width in vertical writing)
+	 * @param pageLimit cut position (from the inner edge)
 	 */
 	public static CellFragmentState cellFragmentState(final boolean vertical,
 			final net.zamasoft.foliojet.layout.box.params.Dimension size,
@@ -257,20 +257,20 @@ public final class TableCutter {
 	}
 
 	/**
-	 * 表断片のフレームです(C4-T2)。ヘッダは全断片で繰り返されるため
-	 * 継続断片も始端フレームを保持し、フッタも同様に前断片が終端
-	 * フレームを保持します。
+	 * Table-fragment frames (C4-T2). Headers repeat in all fragments, so the continuation fragment also
+	 * retains the start frame; likewise, footers make the preceding fragment retain the end frame.
 	 *
-	 * @param prevFrame 前断片のフレーム
-	 * @param nextFrame 継続断片のフレーム
+	 * @param prevFrame preceding fragment's frame
+	 * @param nextFrame continuation fragment's frame
 	 */
 	public record TableFragmentFrames(net.zamasoft.foliojet.layout.part.AbsoluteRectFrame prevFrame,
 			net.zamasoft.foliojet.layout.part.AbsoluteRectFrame nextFrame) {
 	}
 
 	/**
-	 * 未完表の有効フレームです。元のフレームは最終残余が complete() まで保持します。
-	 * フッタ付き表の終端予約は別契約なので、未完表としては受け付けません。
+	 * The effective frame of an incomplete table. The final remainder retains the original frame until
+	 * complete().
+	 * Tables with footers have a separate end-reservation contract and are not accepted as incomplete tables.
 	 */
 	public static net.zamasoft.foliojet.layout.part.AbsoluteRectFrame incompleteFrame(final boolean vertical,
 			final boolean repeatFooter, final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame) {
@@ -281,13 +281,12 @@ public final class TableCutter {
 	}
 
 	/**
-	 * 表断片のフレームを計算します(純関数。旧 splitTableBox の
-	 * フレーム切断判定)。
+	 * Calculates table-fragment frames (pure function; the frame-cut decisions from the former splitTableBox).
 	 *
-	 * @param vertical     縦書きか
-	 * @param repeatHeader ヘッダ行グループがある(全断片で繰り返す)
-	 * @param repeatFooter フッタ行グループがある(全断片で繰り返す)
-	 * @param frame        切断前のフレーム
+	 * @param vertical whether writing is vertical
+	 * @param repeatHeader whether a header row group exists (repeats in all fragments)
+	 * @param repeatFooter whether a footer row group exists (repeats in all fragments)
+	 * @param frame frame before cutting
 	 */
 	public static TableFragmentFrames tableFragmentFrames(final boolean vertical, final boolean repeatHeader,
 			final boolean repeatFooter, final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame) {
@@ -299,36 +298,34 @@ public final class TableCutter {
 	}
 
 	/**
-	 * 行切断の前置判定です(C4-T3。旧 TableRowBox.split の先頭部)。
-	 * KEEP/MOVE で確定するか、null なら主処理(セル分割)へ進みます。
+	 * Preliminary decision for a row cut (C4-T3; the start of the former TableRowBox.split).
+	 * Either decides KEEP/MOVE or returns null to proceed to the main processing (cell splitting).
 	 *
-	 * @param pageFirst            FLAGS_FIRST(ページ先頭)
-	 * @param firstRow             FLAGS_FIRST_ROW(先頭行または先頭行と連結)
-	 * @param pageLimit            切断線(行の上端から)
-	 * @param rowPageSize          行のページ寸
-	 * @param rowInsideAvoid       行の page-break-inside: avoid
-	 * @param cellPageExtents      各セルのページ寸(rowspan で行より
-	 *                             大きいことがある)
-	 * @param cellFlowMatch        各セルの書字方向が表と一致
-	 * @param cellInsideAvoid      各セルの page-break-inside: avoid
-	 * @param cellCollapsedAtStart 各セルが上部境界なしかつ高さゼロ
-	 *                             (分割を諦める)
-	 * @param fragmentCapacity     フラグメンテナ(ページ/段)のページ方向内寸
-	 *                             (不明なら-1。{@code AutoBreakMode.fragmentCapacity})
+	 * @param pageFirst FLAGS_FIRST (page start)
+	 * @param firstRow FLAGS_FIRST_ROW (first row or connected to it)
+	 * @param pageLimit cut line (from the row's top edge)
+	 * @param rowPageSize row's page extent
+	 * @param rowInsideAvoid row's page-break-inside: avoid
+	 * @param cellPageExtents each cell's page extent (may exceed the row due to rowspan)
+	 * @param cellFlowMatch whether each cell matches the table's writing direction
+	 * @param cellInsideAvoid each cell's page-break-inside: avoid
+	 * @param cellCollapsedAtStart whether each cell has no top boundary and zero height (give up splitting)
+	 * @param fragmentCapacity fragmentainer's (page/column) inner page-direction extent
+	 * (-1 if unknown; {@code AutoBreakMode.fragmentCapacity} )
 	 */
 	public static SplitResult rowPreDecide(final boolean pageFirst, final boolean firstRow, final double pageLimit,
 			final double rowPageSize, final boolean rowInsideAvoid, final double[] cellPageExtents,
 			final boolean[] cellFlowMatch, final boolean[] cellInsideAvoid, final boolean[] cellCollapsedAtStart,
 			final double fragmentCapacity) {
 		if (!pageFirst) {
-			// ページ頭ではない場合
+			// Not at the page start
 			if (LayoutUtils.compare(pageLimit, 0) < 0) {
-				// 切断線より下にある場合
+				// Below the cut line
 				return SplitResult.MOVE;
 			}
 			if (LayoutUtils.compare(pageLimit, rowPageSize) >= 0) {
-				// 切断線より上にある場合。連結されたセルによる高さを考慮する
-				// ため、全てのセルの高さをチェック
+				// Above the cut line. Check every cell's height
+				// to account for height contributed by spanning cells.
 				boolean leave = true;
 				for (final double extent : cellPageExtents) {
 					if (LayoutUtils.compare(pageLimit, extent) < 0) {
@@ -337,22 +334,22 @@ public final class TableCutter {
 					}
 				}
 				if (leave) {
-					// 移動なし
+					// No move
 					return SplitResult.KEEP;
 				}
 			}
 			boolean breakAvoid = false;
 			if (rowInsideAvoid) {
-				// 行の改ページ禁止
+				// Break avoidance on the row
 				breakAvoid = true;
 			} else {
 				for (int i = 0; i < cellFlowMatch.length; ++i) {
-					// 書字方向が違う場合は改ページ禁止
+					// Prohibit page breaks if writing directions differ.
 					if (!cellFlowMatch[i]) {
 						return SplitResult.MOVE;
 					}
 					if (cellInsideAvoid[i]) {
-						// セルの改ページ禁止
+						// Break avoidance on the cell
 						breakAvoid = true;
 					}
 				}
@@ -360,27 +357,27 @@ public final class TableCutter {
 			if (breakAvoid && !firstRow) {
 				return SplitResult.MOVE;
 			}
-			// 行境界の切断を優先する(2026-08-27、css-break/Chrome準拠。UA既定の
-			// セルavoid撤去と対)。切断線が掛かった行が新しいフラグメンテナに
-			// 丸ごと収まるなら、行の内部では切らず行ごと持ち越す。丸ごとでも
-			// 収まらない行(1行ラッパー表の巨大な行等)は、送っても結局内部で
-			// 切ることになり送り元に大きな空白だけが残るため、その場で切る
+			// Prefer cuts at row boundaries (2026-08-27, aligned with css-break/Chrome, paired with
+			// removal of the UA default cell avoid). If the row intersected by the cut line fits
+			// entirely in a fresh fragmentainer, move it whole instead of cutting inside it. Rows
+			// that do not fit whole (such as a huge row in a single-row wrapper table) would need
+			// an internal cut anyway and leave a large blank space behind, so cut them in place.
 			if (!firstRow && fragmentCapacity > 0
 					&& LayoutUtils.compare(rowPageSize, fragmentCapacity) <= 0) {
 				return SplitResult.MOVE;
 			}
 			return null;
 		}
-		// ページ頭の場合
+		// At the page start
 		if (LayoutUtils.compare(pageLimit, rowPageSize) >= 0) {
-			// rowspanによる連結のはみ出しがあったとしても、あとの処理で切る
+			// Even if a rowspan overflows, later processing cuts it.
 			return SplitResult.KEEP;
 		}
-		// 書字方向が違う場合は移動しない
+		// Do not move if writing directions differ.
 		if (mixedFlowKeep(cellFlowMatch)) {
 			return SplitResult.KEEP;
 		}
-		// 上部境界がなく、高さがゼロのセルが存在すれば分割を諦める
+		// Give up splitting if any cell has no top boundary and zero height.
 		for (final boolean collapsed : cellCollapsedAtStart) {
 			if (collapsed) {
 				return SplitResult.KEEP;
@@ -390,31 +387,30 @@ public final class TableCutter {
 	}
 
 	/**
-	 * 明示的な行間強制改ページの位置です(C4-T3)。
+	 * The position of an explicit forced page break between rows (C4-T3).
 	 *
-	 * @param rowGroup  切断直前の本体行グループのインデックス
-	 * @param row       切断直前の行のインデックス(グループ末尾なら -1)
-	 * @param breakMode 指定された改ページ種別(PAGE / COLUMN)
+	 * @param rowGroup index of the body row group immediately before the cut
+	 * @param row index of the row immediately before the cut (-1 at the group end)
+	 * @param breakMode specified break kind (PAGE / COLUMN)
 	 */
 	public record ForceBreakAt(int rowGroup, int row, PageBreakMode breakMode) {
 	}
 
 	/**
-	 * 自動テーブルの明示的な強制改ページ(行・行グループの
-	 * page-break-before/after: page|column)のうち、切断線までに現れる
-	 * 最初のものを探します(純関数。旧 BreakableBuilder.
-	 * firstTableForceBreak の走査)。切断線を越えた行に達したら打ち切り
-	 * (以降は自動改ページの領分)。
+	 * Finds the first explicit forced break in an automatic table
+	 * (row/row-group page-break-before/after: page|column) occurring up to the cut line
+	 * (pure function; the scan from the former BreakableBuilder.firstTableForceBreak).
+	 * Stops on reaching a row beyond the cut line (automatic page breaking takes over from there).
 	 *
-	 * @param pageLimit        切断線
-	 * @param last             本体行グループ先頭のページ位置
-	 *                         (表の位置からヘッダ・フッタ等を調整済み)
-	 * @param rowSizes         各グループの各行のページ寸
-	 * @param groupBreakBefore 各グループの page-break-before
-	 * @param groupBreakAfter  各グループの page-break-after
-	 * @param rowBreakBefore   各グループの各行の page-break-before
-	 * @param rowBreakAfter    各グループの各行の page-break-after
-	 * @return 最初の強制改ページ。切断線まで現れなければ null
+	 * @param pageLimit cut line
+	 * @param last page position of the start of the body row groups
+	 * (adjusted from the table position for headers, footers, etc.)
+	 * @param rowSizes page extent of each row in each group
+	 * @param groupBreakBefore each group's page-break-before
+	 * @param groupBreakAfter each group's page-break-after
+	 * @param rowBreakBefore each row's page-break-before in each group
+	 * @param rowBreakAfter each row's page-break-after in each group
+	 * @return the first forced break, or null if none occurs up to the cut line
 	 */
 	public static ForceBreakAt firstForceBreak(final double pageLimit, double last, final double[][] rowSizes,
 			final PageBreakMode[] groupBreakBefore, final PageBreakMode[] groupBreakAfter,
@@ -426,31 +422,31 @@ public final class TableCutter {
 			if (rowGroup > 0) {
 				breakMode = groupBreakBefore[rowGroup];
 				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
-					// 行グループの直前の改ページ
+					// Break immediately before a row group
 					return new ForceBreakAt(rowGroup - 1, -1, breakMode);
 				}
 			}
 			for (int row = 0; row < rowCount; ++row) {
 				last += rowSizes[rowGroup][row];
 				if (LayoutUtils.compare(last, pageLimit) > 0) {
-					// 切断線を越えた: 以降は自動改ページの領分
+					// Past the cut line: automatic page breaking takes over from here.
 					return null;
 				}
 				if (rowGroup > 0 || row > 0) {
 					breakMode = rowBreakBefore[rowGroup][row];
 					if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
-						// 行の直前の改ページ
+						// Break immediately before a row
 						return row - 1 >= 0 ? new ForceBreakAt(rowGroup, row - 1, breakMode)
 								: new ForceBreakAt(rowGroup - 1, -1, breakMode);
 					}
 				}
 				if (rowGroup == groupCount - 1 && row == rowCount - 1) {
-					// 末尾の場合はループから抜ける
+					// Exit the loop at the end.
 					break;
 				}
 				breakMode = rowBreakAfter[rowGroup][row];
 				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
-					// 行の直後の改ページ
+					// Break immediately after a row
 					return row < rowCount - 1 ? new ForceBreakAt(rowGroup, row, breakMode)
 							: new ForceBreakAt(rowGroup, -1, breakMode);
 				}
@@ -458,7 +454,7 @@ public final class TableCutter {
 			if (rowGroup < groupCount - 1) {
 				breakMode = groupBreakAfter[rowGroup];
 				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
-					// 行グループの直後に改ページ
+					// Break immediately after a row group
 					return new ForceBreakAt(rowGroup, -1, breakMode);
 				}
 			}
@@ -467,13 +463,12 @@ public final class TableCutter {
 	}
 
 	/**
-	 * ページ先頭での行フラグを計算します。先頭行、または先頭行と
-	 * セルを共有する(rowspan で連結された)行には FLAGS_FIRST_ROW を
-	 * 立て、2行目以降は FLAGS_FIRST を落とします。
+	 * Calculates row flags at the page start. Sets FLAGS_FIRST_ROW for the first row and for rows sharing
+	 * a cell with it (connected by rowspan); clears FLAGS_FIRST from the second row onward.
 	 *
-	 * @param xflags      FLAGS_FIRST/FLAGS_SPLIT でマスク済みのフラグ
-	 * @param i           当行のインデックス
-	 * @param linkedToTop 当行が先頭行とセルを共有する
+	 * @param xflags flags already masked with FLAGS_FIRST/FLAGS_SPLIT
+	 * @param i current row index
+	 * @param linkedToTop whether the current row shares a cell with the first row
 	 */
 	public static byte firstRowFlags(byte xflags, final int i, final boolean linkedToTop) {
 		if ((xflags & IPageBreakableBox.FLAGS_FIRST) == 0) {

@@ -6,33 +6,33 @@ import java.util.List;
 import net.zamasoft.foliojet.css.counterstyle.CounterStyleDef.System;
 
 /**
- * {@code @counter-style}の本体(記述子の並び)を{@link CounterStyleDef}へ
- * 読み取ります(2026-08-02)。
+ * Reads the body of {@code @counter-style} (a sequence of descriptors) into
+ * {@link CounterStyleDef} (2026-08-02).
  *
  * <p>
- * 記述子はカスケードも継承もしないため、CSSプロパティの機構ではなく
- * ここで直接読む({@link CounterStyleDef}のjavadoc参照)。値は
- * 「文字列・識別子・整数・記号」の単純な並びなので、字句もこの中で
- * 完結させている。
+ * Descriptors neither cascade nor inherit, so read them directly here
+ * instead of using the CSS property mechanism (see the {@link CounterStyleDef} Javadoc).
+ * Values are simple sequences of strings, identifiers, integers, and symbols,
+ * so lexical analysis is also handled entirely here.
  * </p>
  *
  * <p>
- * <b>サブセット</b>: {@code speak-as}(音声のみ)は無視する。
+ * <b>Subset</b>: ignores {@code speak-as} (speech only).
  * </p>
  */
 public final class CounterStyleParser {
 
 	private CounterStyleParser() {
-		// インスタンス化しない
+		// Do not instantiate
 	}
 
-	/** {@code additive-symbols}の1対です。 */
+	/** One {@code additive-symbols} pair. */
 	private record Additive(int weight, String symbol) {
 	}
 
 	/**
-	 * 記述子の並び(宣言名と値の対)から定義を作ります。表現できない
-	 * 定義(記号がない等)ならnullを返します。
+	 * Builds a definition from a sequence of descriptors (name/value pairs). Returns null
+	 * if the definition cannot represent numbers (e.g., no symbols).
 	 */
 	public static CounterStyleDef parse(final List<String[]> descriptors) {
 		System system = System.SYMBOLIC;
@@ -83,7 +83,7 @@ public final class CounterStyleParser {
 					}
 				}
 				default -> {
-					// 未知のsystemは無視(既定のsymbolicのまま)
+					// Ignore unknown systems (retain the default symbolic).
 				}
 				}
 				break;
@@ -105,7 +105,7 @@ public final class CounterStyleParser {
 						pairs.add(new Additive(weight, unquote(parts.get(1))));
 					}
 				}
-				// 重みの降順に並べる(加算記数は大きい方から使う)
+				// Sort by descending weight (additive numeration uses larger weights first).
 				pairs.sort((a, b) -> Integer.compare(b.weight(), a.weight()));
 				additiveWeights = new int[pairs.size()];
 				additiveSymbols = new ArrayList<>(pairs.size());
@@ -139,7 +139,7 @@ public final class CounterStyleParser {
 				if (trimmed.equalsIgnoreCase("auto")) {
 					break;
 				}
-				// 最初の範囲だけを採る(複数範囲は印刷実務で必要性が薄い)
+				// Take only the first range (multiple ranges have little practical value for print).
 				final List<String> parts = tokens(split(trimmed, ',').get(0));
 				if (parts.size() >= 2) {
 					rangeMin = bound(parts.get(0), CounterStyleDef.INFINITE_MIN);
@@ -165,13 +165,13 @@ public final class CounterStyleParser {
 				break;
 
 			default:
-				// speak-as等は無視
+				// Ignore speak-as, etc.
 				break;
 			}
 		}
 
 		if (system == System.EXTENDS && !suffixSpecified) {
-			// extendsは基底の記述子を継ぐ——suffixは基底(組み込み)に任せる
+			// extends inherits the base descriptors; leave suffix to the base (built-in) style.
 			suffix = ".";
 		}
 
@@ -181,7 +181,7 @@ public final class CounterStyleParser {
 		return def.isValid() ? def : null;
 	}
 
-	/** {@code symbols}の値(文字列・識別子・記号の並び)。 */
+	/** The value of {@code symbols} (a sequence of strings, identifiers, and symbols). */
 	private static List<String> symbols(final String value) {
 		final List<String> result = new ArrayList<>();
 		for (final String token : tokens(value)) {
@@ -190,7 +190,7 @@ public final class CounterStyleParser {
 		return result;
 	}
 
-	/** 範囲の端(整数または{@code infinite})。 */
+	/** Range endpoint (an integer or {@code infinite}). */
 	private static int bound(final String token, final int infinite) {
 		if (token.equalsIgnoreCase("infinite")) {
 			return infinite;
@@ -212,7 +212,7 @@ public final class CounterStyleParser {
 		return parts.isEmpty() ? "" : parts.get(0);
 	}
 
-	/** 引用符を外します(エスケープは扱わない)。 */
+	/** Removes quotes (does not handle escapes). */
 	private static String unquote(final String token) {
 		if (token.length() >= 2) {
 			final char quote = token.charAt(0);
@@ -223,7 +223,7 @@ public final class CounterStyleParser {
 		return token;
 	}
 
-	/** 引用符の外の空白で区切ります。 */
+	/** Splits on whitespace outside quotes. */
 	private static List<String> tokens(final String value) {
 		final List<String> result = new ArrayList<>();
 		final StringBuilder buff = new StringBuilder();
@@ -253,7 +253,7 @@ public final class CounterStyleParser {
 		return result;
 	}
 
-	/** 引用符の外の区切り文字で分割します。 */
+	/** Splits on delimiters outside quotes. */
 	private static List<String> split(final String value, final char separator) {
 		final List<String> result = new ArrayList<>();
 		final StringBuilder buff = new StringBuilder();

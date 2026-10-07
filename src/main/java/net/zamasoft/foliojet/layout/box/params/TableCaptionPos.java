@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * テーブルキャプションボックスのパラメータです。
- * 
+ * Parameters for a table caption box.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: TableCaptionPos.java 1552 2018-04-26 01:43:24Z miyabe $
  */

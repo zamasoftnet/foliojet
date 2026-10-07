@@ -1,21 +1,19 @@
 package net.zamasoft.foliojet.layout.fragment;
 
 /**
- * 吸収済み再生範囲(occurrence単位)のリースを所有するセッションの共通
- * 契約です(2026-07-21新設、M6b Phase B4-Step4)。PAGEの{@code
- * RootBuilder.ResumeSession}とCOLUMNの{@code RootBuilder
- * .ColumnResumeSession}の両方がこれを実装し、同じスタック
- * ({@code RootBuilder.sessions})で管理されることで、COLUMN resume中の
- * nested PAGE break/COLUMN resume中の入れ子COLUMN改段でも、
- * {@code RootBuilder.replaySubtree()}が常に「現在のtopセッション」だけを
- * 見ればよいようにする(ChatGPT Pro相談、
- * 設計相談
- * 参照)。
+ * The common contract for sessions owning leases on absorbed replay ranges (per occurrence)
+ * (introduced 2026-07-21, M6b Phase B4-Step4).
+ * Both PAGE's {@code
+ * RootBuilder.ResumeSession} and COLUMN's {@code RootBuilder
+ * .ColumnResumeSession} implement it and share the same stack ({@code RootBuilder.sessions}).
+ * Thus {@code RootBuilder.replaySubtree()} need only inspect the current top session,
+ * even for a nested PAGE break during COLUMN resume or a nested COLUMN break during COLUMN resume
+ * (ChatGPT Pro consultation; see the design consultation).
  */
 public interface ReplayLeaseSession {
-	/** 吸収済み範囲の消費完了です(replaySubtreeのfinallyから)。 */
+	/** Marks consumption of an absorbed range complete (from replaySubtree's finally). */
 	void releaseLease(Continuation.SourceRange occurrence);
 
-	/** 未消費のリースが残っているか(セッション終了時の健全性チェック用)。 */
+	/** Whether any unconsumed leases remain (for the sanity check at session end). */
 	boolean hasUnconsumedLeases();
 }

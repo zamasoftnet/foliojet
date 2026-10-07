@@ -3,27 +3,27 @@ package net.zamasoft.foliojet.epub;
 import java.util.List;
 
 public class Item {
-	/** アイテムのIDです。 */
+	/** The item ID. */
 	public String id;
-	/** アイテムのデータ形式です。 */
+	/** The item's data format. */
 	public String mediaType;
-	/** OPFからアイテムへの相対パスです。 */
+	/** The relative path from the OPF to the item. */
 	public String href;
-	/** ZIPファイル内でのアイテムへのパスです。 */
+	/** The path to the item within the ZIP file. */
 	public String fullPath;
 
 	/**
-	 * アイテムのタイトルです。 これはガイドによるタイトルか、文書のTITLE要素の内容です。
+	 * The item's title, taken from the guide or the document's TITLE element.
 	 */
 	public String title;
 
 	/**
-	 * アイテムに対応する最初のガイドです。 ガイドが存在しない場合はnullです。
+	 * The first guide entry corresponding to the item, or null if no guide entry exists.
 	 */
 	public Reference guide;
 
 	/**
-	 * アイテムのプロパティ(OPFのitem/@propertiesです)
+	 * The item's properties (item/@properties in the OPF)
 	 */
 	public List<String> properties;
 }

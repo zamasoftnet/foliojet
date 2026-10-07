@@ -6,8 +6,8 @@ import net.zamasoft.foliojet.layout.box.params.Border;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * つぶし境界の実装です。
- * 
+ * Implements collapsed borders.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: TableCollapsedBorders.java 1554 2018-04-26 03:34:02Z miyabe $
  */
@@ -27,8 +27,8 @@ public class TableCollapsedBorders {
 	private Border[][] footerVborders;
 
 	/**
-	 * 優先度が高い方の境界を返します。
-	 * 
+	 * Returns the border with higher priority.
+	 *
 	 * @param prev
 	 * @param next
 	 * @return
@@ -44,8 +44,8 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * カラム幅と各境界を配列で指定したインスタンスを生成します。
-	 * 
+	 * Creates an instance with column widths and borders specified as arrays.
+	 *
 	 * @param columnWidths
 	 * @param headerRowHeights
 	 * @param headerVborders
@@ -73,8 +73,8 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * カラムの数を返します。
-	 * 
+	 * Returns the number of columns.
+	 *
 	 * @return
 	 */
 	public int getColumnCount() {
@@ -82,8 +82,8 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * カラムの幅を設定します。
-	 * 
+	 * Sets the column width.
+	 *
 	 * @param col
 	 * @param size
 	 */
@@ -93,8 +93,8 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * カラムの幅を返します。
-	 * 
+	 * Returns the column width.
+	 *
 	 * @param col
 	 * @return
 	 */
@@ -103,15 +103,15 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * 行数を返します。
-	 * 
+	 * Returns the number of rows.
+	 *
 	 * @return
 	 */
 	public int getRowCount() {
 		return this.headerRowSizes.length + this.bodyRowSizes.length + this.footerRowSizes.length;
 	}
 
-	/** つぶし境界モデルに、実際に描かれる境界が一つでもあるか。 */
+	/** Whether the collapsed-border model contains any border that is actually drawn. */
 	public boolean paintsAnything() {
 		final int rows = this.getRowCount();
 		final int columns = this.getColumnCount();
@@ -135,8 +135,8 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * 行の高さを返します。
-	 * 
+	 * Returns the row height.
+	 *
 	 * @param row
 	 * @param rowSize
 	 */
@@ -155,8 +155,8 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * 行の高さを返します。
-	 * 
+	 * Returns the row height.
+	 *
 	 * @param row
 	 * @return
 	 */
@@ -173,8 +173,8 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * 水平境界を返します。
-	 * 
+	 * Returns a horizontal border.
+	 *
 	 * @param col
 	 * @param index
 	 * @return
@@ -212,8 +212,8 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * 垂直境界を返します。
-	 * 
+	 * Returns a vertical border.
+	 *
 	 * @param row
 	 * @param index
 	 * @return
@@ -231,22 +231,20 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * 元の並びの<b>末尾</b>を、行き先の長さぶんだけ写します。
+	 * Copies the <b>tail</b> of the source sequence for the destination's length.
 	 *
 	 * <p>
-	 * 行き先が元より長いことがある——分割後の表の本体行数が、分割前より
-	 * <b>多く</b>なる場合である(段組の中の表を無名の行が包み直すなど、
-	 * 表が組み直される経路で起きる。2026-08-03に実測:
-	 * {@code local/shrink/w56-min.html})。従来は
-	 * {@code System.arraycopy(src, src.length - n, ...)} と直に書いていた
-	 * ため、その場合に添字が負になり
-	 * {@code ArrayIndexOutOfBoundsException} で変換ごと落ちていた。
+	 * The destination can be longer than the source: the table can have <b>more</b> body rows after splitting
+	 * than before. This occurs on paths that rebuild tables, such as an anonymous row rewrapping a table within
+	 * multi-column layout (measured 2026-08-03: {@code local/shrink/w56-min.html} ).
+	 * Previously, the direct call {@code System.arraycopy(src, src.length - n, ...)} produced a negative index
+	 * in this case and crashed the entire conversion with {@code ArrayIndexOutOfBoundsException} .
 	 * </p>
 	 *
 	 * <p>
-	 * 行数の食い違い自体は下の {@code origBodyRowCount != prev + next} の
-	 * 分岐が想定しており(境界の罫線を落とす)、ここで写せない先頭側は
-	 * 罫線なし(null)のままにする。
+	 * The {@code origBodyRowCount != prev + next} branch below already anticipates mismatched row counts
+	 * (dropping the boundary rules). Leave the leading portion that cannot be copied here without borders
+	 * (null).
 	 * </p>
 	 */
 	private static void copyTail(final Object src, final Object dst) {
@@ -258,7 +256,7 @@ public class TableCollapsedBorders {
 		}
 	}
 
-	/** 元の先頭を、行き先へ収まる分だけ写す。増えた末尾側は未指定のままにする。 */
+	/** Copies as much of the source head as fits in the destination. Leaves any added tail unspecified. */
 	private static void copyHead(final Object src, final Object dst) {
 		final int count = Math.min(java.lang.reflect.Array.getLength(src), java.lang.reflect.Array.getLength(dst));
 		if (count > 0) {
@@ -267,29 +265,29 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * ページ方向に分割します。
-	 * 
+	 * Splits in the page direction.
+	 *
 	 * @param prevTable
 	 * @param nextTable
 	 * @return
 	 */
 	public TableCollapsedBorders splitPageAxis(final TableBox prevTable, final TableBox nextTable,
 			final int origBodyRowCount) {
-		// 前のテーブルのtable-body-groupの数と行の数を計算
+		// Calculate the previous table's table-body-group count and row count.
 		int prevBodyGroupCount = prevTable.getTableBodyCount();
 		int prevBodyRowCount = 0;
 		for (int i = 0; i < prevBodyGroupCount; ++i) {
 			prevBodyRowCount += prevTable.getTableBody(i).getTableRowCount();
 		}
 
-		// 次のテーブルのtable-body-groupの数と行の数を計算
+		// Calculate the next table's table-body-group count and row count.
 		int nextBodyGroupCount = nextTable.getTableBodyCount();
 		int nextBodyRowCount = 0;
 		for (int i = 0; i < nextBodyGroupCount; ++i) {
 			nextBodyRowCount += nextTable.getTableBody(i).getTableRowCount();
 		}
 
-		// 水平境界
+		// Horizontal borders
 		Border[][] hborders = this.bodyHborders;
 		this.bodyHborders = new Border[this.columnSizes.length][prevBodyRowCount + 1];
 		for (int i = 0; i < this.columnSizes.length; ++i) {
@@ -306,7 +304,7 @@ public class TableCollapsedBorders {
 			}
 		}
 
-		// 垂直境界
+		// Vertical borders
 		Border[][] vborders = this.bodyVborders;
 		this.bodyVborders = new Border[prevBodyRowCount][];
 		copyHead(vborders, this.bodyVborders);
@@ -317,15 +315,15 @@ public class TableCollapsedBorders {
 		}
 		Border[][] nextVBorders = new Border[nextBodyRowCount][];
 		copyTail(vborders, nextVBorders);
-		// 写せなかった先頭側(元より行が増えた場合)は空の並びで埋める。
-		// nullのままだと getVBorder が NullPointerException になる
+		// Fill the uncopied leading portion (when rows outnumber the source) with empty sequences.
+		// Leaving null would cause NullPointerException in getVBorder.
 		for (int i = 0; i < nextVBorders.length; ++i) {
 			if (nextVBorders[i] == null) {
 				nextVBorders[i] = new Border[this.columnSizes.length + 1];
 			}
 		}
 
-		// 行の高さ
+		// Row heights
 		final double[] nextRowSizes = new double[nextBodyRowCount];
 		copyTail(this.bodyRowSizes, nextRowSizes);
 
@@ -333,7 +331,7 @@ public class TableCollapsedBorders {
 				this.headerVborders, this.headerHborders, nextRowSizes, nextVBorders, nextHBorders, this.footerRowSizes,
 				this.footerVborders, this.footerHborders);
 
-		// 行
+		// Rows
 		final double[] rowSizes = this.bodyRowSizes;
 		this.bodyRowSizes = new double[prevBodyRowCount];
 		copyHead(rowSizes, this.bodyRowSizes);

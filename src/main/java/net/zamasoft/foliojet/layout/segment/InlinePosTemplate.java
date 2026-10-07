@@ -5,19 +5,18 @@ import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.Offset;
 
 /**
- * {@link InlinePos}({@link BoxKind#INLINE}が使う配置パラメータ)の
- * 内容をfreezeし、呼び出しごとに独立した新品の{@code InlinePos}を
- * materializeするテンプレートです(2026-07-22新設、M6d-A3b Stage1)。
+ * A template that freezes the contents of {@link InlinePos}
+ * (positioning parameters used by {@link BoxKind#INLINE} )
+ * and materializes an independent, fresh {@code InlinePos} on each call
+ * (introduced 2026-07-22, M6d-A3b Stage1).
  *
  * <p>
- * {@code offset}(祖先{@code AbstractStaticPos}、既に確認済みの不変
- * 値クラス)・{@code lineHeight}(プリミティブ)はそのまま保持する。
- * {@code verticalAlign}({@code VerticalAlignPolicy})は振る舞いを表す
- * 状態を持たないpolicyオブジェクト(実装{@code CSSVerticalAlignPolicy}
- * は`BASELINE_POLICY`等の共有singletonとして使われている)——
- * {@code FontManager}等と同じ「共有可能な不変サービス」として扱い、
- * コピーせず参照をそのまま保持する(2026-07-22 Stage2で不変recordへ
- * 置換)。
+ * Retains {@code offset} (from ancestor {@code AbstractStaticPos} , a confirmed immutable value class)
+ * and {@code lineHeight} (primitive) unchanged.
+ * {@code verticalAlign} ({@code VerticalAlignPolicy}) is a stateless policy object representing behavior
+ * (the {@code CSSVerticalAlignPolicy} implementation is used as shared singletons such as `BASELINE_POLICY`).
+ * Treats it as a shareable immutable service, like {@code FontManager} , and retains the reference without
+ * copying (replaced with an immutable record in Stage2, 2026-07-22).
  * </p>
  */
 public record InlinePosTemplate(Offset offset, VerticalAlignPolicy verticalAlign, double lineHeight) {
@@ -25,7 +24,7 @@ public record InlinePosTemplate(Offset offset, VerticalAlignPolicy verticalAlign
 		return new InlinePosTemplate(source.offset, source.verticalAlign, source.lineHeight);
 	}
 
-	/** 呼び出しごとに新品の{@code InlinePos}を返す(複数回呼んでも互いに影響しない)。 */
+	/** Returns a fresh {@code InlinePos} on each call (multiple calls do not affect one another). */
 	public InlinePos materialize() {
 		final InlinePos pos = new InlinePos();
 		pos.offset = this.offset;

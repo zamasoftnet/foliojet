@@ -43,8 +43,8 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 	private List<SAXEventRecorder.SAXEvent> events = new ArrayList<SAXEventRecorder.SAXEvent>();
 
 	/**
-	 * 変換終了時の清算対象です(E-6増分3b-2)。LAYOUTパスでのみ生成される
-	 * (STRUCTURE_SCANパスはnullのまま)。
+	 * The object to clean up when conversion ends (E-6 increment 3b-2). Created only in the LAYOUT pass
+	 * (remains null in the STRUCTURE_SCAN pass).
 	 */
 	private CSSProcessor cssProcessor = null;
 
@@ -53,9 +53,9 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 	}
 
 	/**
-	 * 変換の清算です(E-6増分3b-2)。レイアウトソースのspillストア
-	 * (一時ファイル)を閉じる。成功・例外を問わず、parseを駆動した
-	 * formatterのfinallyから呼ぶこと。冪等。
+	 * Cleans up the conversion (E-6 increment 3b-2). Closes the layout source's spill store
+	 * (temporary file). Call from the finally block of the formatter that drives parsing,
+	 * on both success and exception. Idempotent.
 	 */
 	public void dispose() {
 		if (this.cssProcessor != null) {
@@ -172,7 +172,7 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 	}
 
 	public void processingInstruction(String target, String data) throws SAXException {
-		// jp.cssj.property PI の処理
+		// Process the jp.cssj.property PI
 		if (CSSJML.PI_PROPERTY.equals(target)) {
 			if (UAProps.INPUT_PROPERTY_PI.getBoolean(this.ua)) {
 				try {
@@ -201,15 +201,15 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 
 	public void startElement(String uri, String lName, String qName, Attributes atts) throws SAXException {
 		if (this.events != null) {
-			// 設定の適用
+			// Apply settings
 			this.ua.getDocumentContext().setCompatibleMode(CompatibleMode.NORMAL);
 
-			// フィルタ
+			// Filters
 			XMLHandlerFilter entryPoint = new CSSJMLHandlerFilter(this.ua);
 			this.setXMLHandler(entryPoint);
 			XMLHandlerFilter exitPoint = entryPoint;
 
-			// スタイルシートの選択
+			// Select stylesheets
 			String stylesheets = UAProps.INPUT_STYLESHEET_TITLES.getString(this.ua);
 			StyleSheetSelector ssh;
 			if (stylesheets != null) {
@@ -218,7 +218,7 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 				ssh = null;
 			}
 
-			// フィルタ
+			// Filters
 			String filters = UAProps.INPUT_FILTERS.getString(this.ua);
 			for (StringTokenizer i = new StringTokenizer(filters); i.hasMoreTokens();) {
 				String filter = i.nextToken();
@@ -232,26 +232,26 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 			}
 
 			if (this.ua.isStructureScanPass()) {
-				// STRUCTURE_SCAN: ボックス構築・レイアウトを一切行わない
-				// 軽量な事前走査。CSSProcessor(スタイル解決・ボックス構築)
-				// を経由せず、専用の軽量walkerで直接受ける
-				// (開発計画「2パス制御モード」参照)。上流のフィルタ
-				// 連鎖(CSSJML・入力フィルタ)はLAYOUTパスと共有し、
-				// ElementKeyの採番が両パスでずれないようにする。
+				// STRUCTURE_SCAN: A lightweight preliminary scan that performs no box construction
+				// or layout. Bypasses CSSProcessor (style resolution and box construction)
+				// and receives events directly through a dedicated lightweight walker
+				// (see the development plan "2パス制御モード"). Shares the upstream filter
+				// chain (CSSJML and input filters) with the LAYOUT pass
+				// so that ElementKey numbering stays consistent between the two passes.
 				exitPoint.setXMLHandler(new StructureScanHandler(this.ua.getUAContext().getSelectorFacts()));
 			} else {
-				// CSSの処理
+				// Process CSS
 				Imposition imposition = Impositions.createImposition(this.ua);
 				CSSProcessor cssProcessor = new CSSProcessor(this.ua, imposition);
 				if (ssh != null) {
 					cssProcessor.setStyleSheetSelector(ssh);
 				}
 				exitPoint.setXMLHandler(cssProcessor);
-				// E-6増分3b-2: dispose(spill一時ファイルの清算)の対象として保持
+				// E-6 increment 3b-2: Retain for dispose (cleanup of spill temporary files)
 				this.cssProcessor = cssProcessor;
 			}
 
-			// 再開
+			// Resume
 			for (int i = 0; i < this.events.size(); ++i) {
 				SAXEvent event = (SAXEvent) this.events.get(i);
 				event.doEvent(entryPoint);
@@ -264,9 +264,9 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 }
 
 /**
- * {@code input.stylesheet.titles} による選択です。title の無いスタイルシート(HTML の persistent)は選択にかかわらず
- * 当て、title のあるものは選んだ名前と完全一致したときだけ当てる。名前はスペースかコンマで区切る(2026-10-05。
- * それまでは title の無いものを渡すと {@code String.indexOf(null)} で変換ごと落ち、名前を部分一致で比べていた)。
+ * Selects via {@code input.stylesheet.titles}. Untitled stylesheets (HTML persistent sheets) always apply;
+ * titled sheets apply only if their names exactly match a selected name. Separate names with spaces or commas
+ * (2026-10-05; previously, untitled sheets failed the conversion at {@code String.indexOf(null)}, and names used substring matching).
  */
 final class StyleSheetSelectorImpl implements StyleSheetSelector {
 	private final java.util.Set<String> titles = new java.util.HashSet<>();
@@ -282,7 +282,7 @@ final class StyleSheetSelectorImpl implements StyleSheetSelector {
 	public boolean stylesheet(final URI uri, final String type, final String title, final String media,
 			final boolean alternate) {
 		if (title == null || title.isBlank()) {
-			// 代替は名前が要るので、名前の無い代替は当てない
+			// Alternates require names, so do not apply unnamed alternates
 			return !alternate;
 		}
 		return this.titles.contains(title.trim());

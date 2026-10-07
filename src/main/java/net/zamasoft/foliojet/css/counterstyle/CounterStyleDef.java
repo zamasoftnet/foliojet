@@ -3,35 +3,35 @@ package net.zamasoft.foliojet.css.counterstyle;
 import java.util.List;
 
 /**
- * {@code @counter-style}で定義された著者定義カウンタスタイルです
- * (CSS Counter Styles Level 3のうち印刷で意味のあるサブセット、
- * 2026-08-02——PLAN §2の5位。漢数字・いろは等の和文実需と、Web由来CSSの
- * 入力互換が動機)。
+ * An author-defined counter style defined by {@code @counter-style}
+ * (the subset of CSS Counter Styles Level 3 relevant to print;
+ * 2026-08-02, ranked fifth in PLAN §2). Motivated by Japanese needs such as kanji
+ * numerals and iroha, and compatibility with CSS input from the Web.
  *
  * <p>
- * 記述子({@code system}/{@code symbols}等)は<b>プロパティではない</b>
- * ——カスケードも継承もせず、規則ごとに独立した定義になる。そのため
- * CSSStyleのプロパティ機構({@code PropertySet})には載せず、
- * {@link CounterStyleParser}が本レコードへ直接読み取る。
+ * Descriptors ({@code system}/{@code symbols}, etc.) are <b>not properties</b>.
+ * They neither cascade nor inherit; each rule is an independent definition.
+ * Therefore they do not use CSSStyle's property mechanism ({@code PropertySet});
+ * {@link CounterStyleParser} reads directly into this record.
  * </p>
  *
  * <p>
- * 数値の表現だけを{@link #format(int, CounterStyles, int)}が返し、
- * マーカーの前後(prefix/suffix)は呼び出し側が付ける
- * ({@code counter()}は仕様上prefix/suffixを含めないため)。
+ * {@link #format(int, CounterStyles, int)} returns only the numeric representation;
+ * the caller adds marker prefix/suffix
+ * (because the specification excludes prefix/suffix from {@code counter()}).
  * </p>
  */
 public final class CounterStyleDef {
 
-	/** 記号の並べ方です(CSS Counter Styles Level 3 §3)。 */
+	/** How symbols are arranged (CSS Counter Styles Level 3 §3). */
 	public enum System {
 		CYCLIC, NUMERIC, ALPHABETIC, SYMBOLIC, ADDITIVE, FIXED, EXTENDS
 	}
 
-	/** 範囲の無限を表します。 */
+	/** Represents infinity in a range. */
 	public static final int INFINITE_MIN = Integer.MIN_VALUE;
 
-	/** 範囲の無限を表します。 */
+	/** Represents infinity in a range. */
 	public static final int INFINITE_MAX = Integer.MAX_VALUE;
 
 	private static final int MAX_REPEAT = 1000;
@@ -41,16 +41,16 @@ public final class CounterStyleDef {
 	/** {@code symbols}(cyclic/numeric/alphabetic/symbolic/fixed)。 */
 	public final List<String> symbols;
 
-	/** {@code additive-symbols}の重み(降順)。 */
+	/** Weights for {@code additive-symbols} (descending order). */
 	public final int[] additiveWeights;
 
-	/** {@code additive-symbols}の記号(重みと同順)。 */
+	/** Symbols for {@code additive-symbols} (same order as the weights). */
 	public final List<String> additiveSymbols;
 
-	/** {@code system: fixed <first>}の開始値です。 */
+	/** Starting value for {@code system: fixed <first>}. */
 	public final int fixedFirst;
 
-	/** {@code system: extends <name>}の基底スタイル名です。 */
+	/** Base style name for {@code system: extends <name>}. */
 	public final String extendsName;
 
 	public final String prefix;
@@ -69,7 +69,7 @@ public final class CounterStyleDef {
 
 	public final String padSymbol;
 
-	/** {@code fallback}(未指定なら{@code decimal})。 */
+	/** {@code fallback} ({@code decimal} if unspecified). */
 	public final String fallbackName;
 
 	CounterStyleDef(final System system, final List<String> symbols, final int[] additiveWeights,
@@ -94,8 +94,8 @@ public final class CounterStyleDef {
 	}
 
 	/**
-	 * 定義が実際に数を表現できるか(記号が空の{@code symbols}等は不正で、
-	 * 仕様上その規則自体が無効になる)。
+	 * Whether this definition can represent numbers (e.g., {@code symbols} with no symbols
+	 * is invalid and invalidates the entire rule per the specification).
 	 */
 	public boolean isValid() {
 		return switch (this.system) {
@@ -106,12 +106,12 @@ public final class CounterStyleDef {
 		};
 	}
 
-	/** この定義の範囲に{@code number}が入るか。 */
+	/** Whether {@code number} is within this definition's range. */
 	private boolean inRange(final int number) {
 		if (this.rangeMin != INFINITE_MIN || this.rangeMax != INFINITE_MAX) {
 			return number >= this.rangeMin && number <= this.rangeMax;
 		}
-		// 既定の範囲(§6.2)
+		// Default range (§6.2)
 		return switch (this.system) {
 		case ALPHABETIC, SYMBOLIC -> number >= 1;
 		case ADDITIVE -> number >= 0;
@@ -121,10 +121,10 @@ public final class CounterStyleDef {
 	}
 
 	/**
-	 * 数値を表現へ変換します(prefix/suffixは含まない)。表現できない
-	 * ときは{@code fallback}へ委ね、それも失敗すればnullを返します。
+	 * Converts a number to its representation (without prefix/suffix). Delegates
+	 * to {@code fallback} if unrepresentable, and returns null if that also fails.
 	 *
-	 * @param depth 再帰(extends/fallback)の深さ。暴走を止めるための保険。
+	 * @param depth recursion depth (extends/fallback), as a safeguard against runaway recursion
 	 */
 	public String format(final int number, final CounterStyles styles, final int depth) {
 		if (depth > 8) {
@@ -183,7 +183,7 @@ public final class CounterStyleDef {
 		}
 	}
 
-	/** 負数へ{@code negative}の前後記号を付けます。 */
+	/** Adds the {@code negative} prefix and suffix symbols to a negative number. */
 	private String negate(final int number, final String core) {
 		if (core == null || number >= 0) {
 			return core;
@@ -191,7 +191,7 @@ public final class CounterStyleDef {
 		return this.negativePrefix + core + this.negativeSuffix;
 	}
 
-	/** {@code pad}を適用します(記号数が足りるまで前置)。 */
+	/** Applies {@code pad} (prepends until there are enough symbols). */
 	private String pad(final String core, final int number) {
 		if (this.padLength <= 0) {
 			return core;
@@ -203,7 +203,7 @@ public final class CounterStyleDef {
 			++length;
 		}
 		if (number < 0) {
-			// 負符号の内側にパディングする(§6.4)
+			// Pad inside the negative sign (§6.4).
 			if (core.startsWith(this.negativePrefix) && !this.negativePrefix.isEmpty()) {
 				return this.negativePrefix + buff + core.substring(this.negativePrefix.length());
 			}
@@ -211,7 +211,7 @@ public final class CounterStyleDef {
 		return buff + core;
 	}
 
-	/** 双射基数(a, b, ..., z, aa, ab, ...)。 */
+	/** Bijective numeration (a, b, ..., z, aa, ab, ...). */
 	private static String alphabetic(long number, final List<String> symbols) {
 		final int base = symbols.size();
 		final StringBuilder buff = new StringBuilder();
@@ -224,7 +224,7 @@ public final class CounterStyleDef {
 		return buff.length() == 0 ? null : buff.toString();
 	}
 
-	/** 位取り記数(symbols.get(0)が0)。 */
+	/** Positional numeration (symbols.get(0) is 0). */
 	private static String numeric(long number, final List<String> symbols) {
 		final int base = symbols.size();
 		if (number == 0) {
@@ -239,7 +239,7 @@ public final class CounterStyleDef {
 		return buff.toString();
 	}
 
-	/** 加算記数(ローマ数字方式)。表現できなければnull。 */
+	/** Additive numeration (Roman numeral style). Returns null if unrepresentable. */
 	private String additive(long number) {
 		if (number == 0) {
 			for (int i = 0; i < this.additiveWeights.length; ++i) {

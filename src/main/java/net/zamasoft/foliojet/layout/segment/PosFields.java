@@ -4,13 +4,12 @@ import net.zamasoft.foliojet.layout.box.params.AbstractStaticPos;
 import net.zamasoft.foliojet.layout.box.params.Offset;
 
 /**
- * {@code AbstractStaticPos}が持つ唯一のフィールド({@code offset})の
- * freeze/materialize処理です(2026-07-22新設、M6d-A3b、
- * package-private——{@link BlockLevelPosFields}が合成する)。
+ * Freeze/materialize processing for the sole field ({@code offset}) in {@code AbstractStaticPos}
+ * (introduced 2026-07-22, M6d-A3b; package-private, composed by {@link BlockLevelPosFields} ).
  *
  * <p>
- * {@code offset}(既存{@code Offset}実装はfinalフィールドのみで実質
- * 不変)はコピー不要、そのまま保持する。
+ * {@code offset} needs no copy and is retained unchanged:
+ * the existing {@code Offset} implementation has only final fields and is effectively immutable.
  * </p>
  */
 record PosFields(Offset offset) {

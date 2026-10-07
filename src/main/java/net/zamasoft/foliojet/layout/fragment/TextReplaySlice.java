@@ -14,20 +14,20 @@ import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.TextControl;
 
 /**
- * 整形済みテキストイベントの不変スライスです(M3b Phase 1 / C3)。
+ * An immutable slice of shaped-text events (M3b Phase 1 / C3).
  *
  * <p>
- * 残余行の restyle が GlyphHandler へ配達する列を record で捕捉し、
- * replay で同一の呼び出し列を再現する。Phase 1 ではボックス側
- * (TextBlockBox の残余行)を oracle として使い、運搬体だけを
- * イベント列に置き換える — 捕捉と再生は構成的に同一なので挙動不変。
+ * record captures the sequence delivered to GlyphHandler by restyling remainder lines,
+ * and replay reproduces the identical call sequence. Phase 1 uses the box side
+ * (TextBlockBox's remainder lines) as the oracle, replacing only the carrier with an event sequence.
+ * Capture and replay are identical by construction, so behavior is unchanged.
  * </p>
  */
 public final class TextReplaySlice {
 	private final List<TextReplayEvent> events;
 	private final BidiReplayPrefix bidiReplayPrefix;
 
-	/** consume-once: 再生済みなら true(P0 の ranges と同じ規約)。 */
+	/** consume-once: true if already replayed (same convention as P0 ranges). */
 	private boolean consumed;
 
 	private TextReplaySlice(final List<TextReplayEvent> events, final BidiReplayPrefix bidiReplayPrefix) {
@@ -35,19 +35,19 @@ public final class TextReplaySlice {
 		this.bidiReplayPrefix = bidiReplayPrefix;
 	}
 
-	/** イベント数を返します。 */
+	/** Returns the event count. */
 	public int size() {
 		return this.events.size();
 	}
 
 	/**
-	 * producer が GlyphHandler へ配達する列を捕捉します(close まで)。
+	 * Captures the sequence delivered by producer to GlyphHandler (through close).
 	 */
 	public static TextReplaySlice record(final Consumer<GlyphHandler> producer) {
 		return record(producer, BidiReplayPrefix.EMPTY);
 	}
 
-	/** 段落途中の再生では、既に配置済みの先行行も UBA 文脈として保持する。 */
+	/** For replay from mid-paragraph, also retains preceding, already placed lines as UBA context. */
 	public static TextReplaySlice record(final Consumer<GlyphHandler> producer,
 			final List<AbstractLineBox> bidiReplayPrefix) {
 		return record(producer, BidiReplayPrefix.EMPTY.append(bidiReplayPrefix));
@@ -81,19 +81,20 @@ public final class TextReplaySlice {
 			}
 
 			public void close() {
-				// 終端は replay 側の close で再現する
+				// Reproduce termination through close on the replay side.
 			}
 		});
 		return new TextReplaySlice(Collections.unmodifiableList(events), bidiReplayPrefix);
 	}
 
 	/**
-	 * 捕捉した列を GlyphHandler へ再生し、close で終端します。
-	 * consume-once — 二重再生は二重供給(グリフの重複)なので禁止。
-	 * 非 quad の Control(WhiteSpace/Tab/LineBreak/SoftHyphen)は
-	 * final フィールドのみの不変値のため参照運搬=値運搬。可変参照が
-	 * 残るのは InlineQuad(インライン継続)のみで、これは OpenChain
-	 * recipe(Phase 3c)で値化する。
+	 * Replays the captured sequence to GlyphHandler and terminates with close.
+	 * consume-once: a second replay would supply glyphs twice, so it is prohibited.
+	 * Non-quad Controls (WhiteSpace/Tab/LineBreak/SoftHyphen) are immutable values containing only final
+	 * fields,
+	 * so carrying references is equivalent to carrying values.
+	 * Only InlineQuad (inline continuation) retains mutable references;
+	 * OpenChain recipes (Phase 3c) convert these to values.
 	 */
 	public void replay(final GlyphHandler gh) {
 		if (this.consumed) {

@@ -5,24 +5,23 @@ import java.util.Optional;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 
 /**
- * {@link LayoutSource.Event}を{@link SegmentEvent}へ変換するアダプタ
- * です(2026-07-22新設、M6d-A3c)。
+ * An adapter converting {@link LayoutSource.Event} to {@link SegmentEvent}
+ * (introduced 2026-07-22, M6d-A3c).
  *
  * <p>
- * イベント数は1:1を維持する(M6d-A2のordinal対応・shadow比較を
- * 壊さないため、codex設計相談で確認)。{@code Start}/{@code Replaced}は
- * 記録時({@code StyleBuilder})にfreeze済みのrecipeを対応する
- * {@link SegmentEvent.BeginBox}/{@link SegmentEvent.Replaced}へ包むだけ
- * (E-6増分3b-3/3b-4。live box保持の過渡変種{@code ReplacedLive}は
- * 3b-6で撤去された——{@code ReplacedBoxImage}もduplicateベースで
- * freezeされる)。{@code Opaque}(範囲replay不能マーカー)は常に
- * {@link SegmentEvent.Barrier}へ変換する——silent fallbackを避けるため、
- * 理由({@link BarrierReason#NOT_YET_SUPPORTED})を明示する。
+ * Maintains a 1:1 event count to preserve M6d-A2 ordinal correspondence and shadow comparison
+ * (confirmed in the codex design consultation).
+ * {@code Start} /{@code Replaced} simply wrap recipes already frozen at recording time ({@code StyleBuilder})
+ * in the corresponding {@link SegmentEvent.BeginBox} /{@link SegmentEvent.Replaced}
+ * (E-6 increments 3b-3/3b-4; the transitional live-box-retaining variant {@code ReplacedLive} was removed
+ * in 3b-6, and {@code ReplacedBoxImage} also freezes through duplication).
+ * {@code Opaque} (a non-replayable-range marker) always becomes {@link SegmentEvent.Barrier} ,
+ * with an explicit reason ({@link BarrierReason#NOT_YET_SUPPORTED}) to avoid silent fallback.
  * </p>
  *
  * <p>
- * {@code LayoutSource}本体・{@code SourceReplayer}には一切関与しない
- * ——読み取り専用の変換のみを行う。
+ * Does not interact with the {@code LayoutSource} itself or {@code SourceReplayer} ;
+ * performs read-only conversion only.
  * </p>
  */
 public final class LayoutSourceEventConverter {
@@ -30,38 +29,38 @@ public final class LayoutSourceEventConverter {
 	}
 
 	/**
-	 * {@code event}が{@link #convert}で{@link SegmentEvent.Barrier}になる
-	 * (=replay不能)かを、payloadのdecodeや変換オブジェクトの生成なしで
-	 * 判定します(E-6増分3b-5——範囲の適格判定の1パスstreaming走査用。
-	 * {@link #convert}の分類と常に同期していること)。3b-6のlive型撤去後、
-	 * Barrier源は{@code Opaque}のみ。
+	 * Determines whether {@code event} becomes {@link SegmentEvent.Barrier} through {@link #convert}
+	 * (= non-replayable) without decoding payloads or allocating conversion objects
+	 * (E-6 increment 3b-5; for single-pass streaming scans of range eligibility).
+	 * Must always stay synchronized with {@link #convert} 's classification.
+	 * After the live variant's removal in 3b-6, {@code Opaque} is the only Barrier source.
 	 */
 	public static boolean convertsToBarrier(final LayoutSource.Event event) {
 		return event instanceof LayoutSource.Opaque;
 	}
 
-	/** 単一の{@link LayoutSource.Event}を対応する{@link SegmentEvent}へ変換する。 */
+	/** Converts one {@link LayoutSource.Event} to its corresponding {@link SegmentEvent}. */
 	public static SegmentEvent convert(final LayoutSource.Event event) {
 		return switch (event) {
 		case LayoutSource.Assignment(final long order) -> new SegmentEvent.Assignment(order);
-		// E-6増分3b-4: 記録時(StyleBuilder.startBox)にfreeze済みの
-		// recipeをそのまま包む(変換時freezeは記録時freezeへ前倒しされた)
-		// PlacedTableも同じ1:1変換で、表の宿主のためにordinalを増やさない。
+		// E-6 increment 3b-4: Wrap the recipe already frozen at recording time
+		// (StyleBuilder.startBox); conversion-time freezing was moved forward to recording time.
+		// PlacedTable uses the same 1:1 conversion; no extra ordinal is added for the table host.
 		case LayoutSource.Start(final BoxRecipe recipe) -> new SegmentEvent.BeginBox(recipe);
 		case LayoutSource.EndBlock endBlock -> new SegmentEvent.EndBox();
 		case LayoutSource.AnonymousItemStart(final long anchor) -> new SegmentEvent.AnonymousItemStart(anchor);
 		case LayoutSource.AnonymousItemEnd end -> new SegmentEvent.AnonymousItemEnd();
 		case LayoutSource.Chars(final int charOffset, final LayoutSource.TextPayload payload, final boolean fixed) ->
-			// freshChars()はInline=clone、Spilled=storeからのdecode(E-6増分3b-2)
+			// freshChars(): Inline=clone, Spilled=decode from the store (E-6 increment 3b-2)
 			new SegmentEvent.Text(charOffset, new String(payload.freshChars()), fixed);
-		// E-6増分3b-3: 記録時(StyleBuilder.addReplacedBox)にfreeze済みの
-		// recipeをそのまま包む(変換時freezeは記録時freezeへ前倒しされた)
+		// E-6 increment 3b-3: Wrap the recipe already frozen at recording time
+		// (StyleBuilder.addReplacedBox); conversion-time freezing was moved forward to recording time.
 		case LayoutSource.Replaced(final ReplacedRecipe recipe) -> new SegmentEvent.Replaced(recipe);
-		// Opaqueはそもそも種別情報を保持しない(フィールドなしの位置占有
-		// マーカー)ため常にBarrier化する
+		// Opaque carries no kind information (a fieldless position-occupying
+		// marker), so always convert it to a Barrier.
 		case LayoutSource.Opaque opaque ->
 			new SegmentEvent.Barrier(Optional.empty(), BarrierReason.NOT_YET_SUPPORTED);
-		// leader() L1: パターン文字列のみの不変payload(1:1変換)
+		// leader() L1: Immutable payload containing only the pattern string (1:1 conversion)
 		case LayoutSource.Leader(final String pattern) -> new SegmentEvent.Leader(pattern);
 		};
 	}

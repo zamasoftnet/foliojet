@@ -3,29 +3,29 @@ package net.zamasoft.foliojet.layout.sizing;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * 固定レイアウト(table-layout: fixed)の列幅分配です。 SPEC CSS2.1 17.5.2.1
- * colgroup 指定と先頭行セル指定(colgroup 優先)をマージし、
- * 表幅を超えた%指定を削り、残余を AUTO 列に均等分配
- * (AUTO 列が無ければ全列に均等加算、余らなければ内容幅に切り詰め)します。
- * ボックスに触れない純関数です。
+ * Distributes column widths for fixed layout (table-layout: fixed). SPEC CSS2.1 17.5.2.1.
+ * Merges colgroup and first-row cell specifications (colgroup takes priority), reduces percentage
+ * specifications that exceed the table width, and distributes the remainder equally among AUTO columns
+ * (adds equally to all columns if none are AUTO; truncates to content width if no space remains).
+ * A pure function that does not touch boxes.
  *
  * @author MIYABE Tatsuhiko
  */
 public final class FixedColumnWidths {
 	/**
-	 * 列幅の指定です。指定なし(AUTO)は配列要素 null で表します。
+	 * A column-width specification. A null array element represents an unspecified width (AUTO).
 	 *
-	 * @param length     指定幅(解決済み)
-	 * @param percentage %指定由来であればtrue(超過時の削り対象)
+	 * @param length     Specified width (resolved)
+	 * @param percentage True if derived from a percentage (subject to reduction on overflow)
 	 */
 	public record Spec(double length, boolean percentage) {
 	}
 
 	/**
-	 * 分配結果です。
+	 * Distribution result.
 	 *
-	 * @param sizes     列幅
-	 * @param innerSize 内容に合わせて調整された表の内側寸法
+	 * @param sizes     Column widths
+	 * @param innerSize Inner table size adjusted to fit content
 	 */
 	public record Result(double[] sizes, double innerSize) {
 	}
@@ -35,13 +35,13 @@ public final class FixedColumnWidths {
 	}
 
 	/**
-	 * セルの行方向指定から列幅指定を導出します(P2-2: OnePass/TwoPass の
-	 * 同一実装の統合)。AUTO は null(指定なし)。
+	 * Derives a column-width specification from a cell's line-axis specification
+	 * (P2-2: consolidation of identical OnePass/TwoPass implementations). AUTO is null (unspecified).
 	 *
-	 * @param cellBox   セル
-	 * @param colspan   列結合数(指定幅は colspan で均等割り)
-	 * @param tableFlow 表の書字方向
-	 * @param refSize   %指定の基準寸法
+	 * @param cellBox   Cell
+	 * @param colspan   Column span (divide the specified width equally by colspan)
+	 * @param tableFlow Table's writing direction
+	 * @param refSize   Reference size for percentage specifications
 	 */
 	public static Spec cellSpec(final net.zamasoft.foliojet.layout.box.impl.TableCellBox cellBox, final int colspan,
 			final net.zamasoft.foliojet.layout.box.params.WritingMode tableFlow, final double refSize) {
@@ -50,10 +50,10 @@ public final class FixedColumnWidths {
 		case AUTO:
 			return null;
 		case MIXED:
-			// calc()による絶対長さ+割合混在(例: calc(50% + 10px))の表セル幅は
-			// 固定レイアウトの列幅分配アルゴリズムが前提とする「絶対 or 割合の
-			// 二択」に収まらないため未対応。AUTO(指定なし)として扱い、
-			// 安全側に倒す(クラッシュや誤った幅計算を避ける。開発計画参照)。
+			// Table-cell widths mixing absolute lengths and percentages with calc() (e.g., calc(50% + 10px))
+			// do not fit the fixed-layout column-width distribution algorithm's assumption
+			// of "absolute or percentage" and are unsupported. Treat them as AUTO (unspecified)
+			// to stay safe (avoid crashes or incorrect width calculations; see the development plan).
 			return null;
 		case ABSOLUTE: {
 			double fix = cellParams.size.getLineLength(tableFlow);
@@ -75,12 +75,12 @@ public final class FixedColumnWidths {
 	}
 
 	/**
-	 * 列幅を分配します。
+	 * Distributes column widths.
 	 *
-	 * @param colgroupSpecs colgroup 由来の列指定(優先。なしは null)
-	 * @param cellSpecs     先頭行セル由来の列指定(colspan 展開済み。なしは null)
-	 * @param innerSize     表の内側寸法
-	 * @return 列幅と調整後の内側寸法
+	 * @param colgroupSpecs Column specifications from colgroup (take priority; null if absent)
+	 * @param cellSpecs     Column specifications from first-row cells (colspan expanded; null if absent)
+	 * @param innerSize     Inner table size
+	 * @return Column widths and adjusted inner size
 	 */
 	public static Result distribute(Spec[] colgroupSpecs, Spec[] cellSpecs, double innerSize) {
 		final int n = colgroupSpecs.length;
@@ -104,7 +104,7 @@ public final class FixedColumnWidths {
 			}
 		}
 
-		// テーブル幅を超えたパーセント幅は削る
+		// Reduce percentage widths that exceed the table width.
 		if (percentSizeSum > 0 && sizeSum > innerSize) {
 			final double removeSize = Math.min(percentSizeSum, sizeSum - innerSize);
 			for (int i = 0; i < n; ++i) {
@@ -118,7 +118,7 @@ public final class FixedColumnWidths {
 		}
 
 		if (autoCount > 0) {
-			// 残余を AUTO 列に均等分配
+			// Distribute the remainder equally among AUTO columns.
 			final double each;
 			if (innerSize > sizeSum) {
 				each = (innerSize - sizeSum) / autoCount;
@@ -132,13 +132,13 @@ public final class FixedColumnWidths {
 				}
 			}
 		} else if (innerSize > sizeSum) {
-			// AUTO 列が無ければ全列に均等加算
+			// Without AUTO columns, add equally to all columns.
 			final double each = (innerSize - sizeSum) / n;
 			for (int i = 0; i < n; ++i) {
 				sizes[i] += each;
 			}
 		} else {
-			// 余らない場合は内容幅に切り詰め
+			// If no space remains, truncate to content width.
 			innerSize = 0;
 			for (int i = 0; i < n; ++i) {
 				innerSize += sizes[i];

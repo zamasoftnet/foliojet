@@ -12,30 +12,30 @@ import net.zamasoft.foliojet.css.value.ListStyleTypeValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 文書ごとの著者定義カウンタスタイル({@code @counter-style})の登録簿
- * であり、<b>カウンタ整形の入口</b>です(2026-08-02——PLAN §2の5位)。
+ * The per-document registry of author-defined counter styles ({@code @counter-style})
+ * and the <b>entry point for counter formatting</b> (2026-08-02; ranked fifth in PLAN §2).
  *
  * <p>
- * カウンタスタイルはコード({@code short})で持ち回る既存設計を保つ。
- * 組み込みは{@link ListStyleTypeValue}の定数、著者定義は
- * {@link ListStyleTypeValue#FIRST_CUSTOM}以降を名前ごとに割り当てる。
- * 名前→コードの割り当ては{@code @counter-style}規則より先に
- * {@code list-style-type: foo}を読んでも成立する(定義は後から埋まる)
- * ——CSSに規則の出現順の制約はないため。
+ * Retains the existing design of passing counter styles as codes ({@code short}).
+ * Built-in styles use {@link ListStyleTypeValue} constants; author-defined styles
+ * receive a code per name starting at {@link ListStyleTypeValue#FIRST_CUSTOM}.
+ * Name-to-code assignment works even if {@code list-style-type: foo}
+ * is read before its {@code @counter-style} rule (the definition is filled in later),
+ * because CSS imposes no rule source-order constraint.
  * </p>
  *
  * <p>
- * 整形はここが窓口になり、組み込みコードは{@link GeneratedValueUtils}へ
- * 委譲する。依存を一方向(counterstyle → util)に保つための配置で、
- * {@code fallback}/{@code extends}が組み込みスタイルを指す場合も
- * 同じ窓口で解決できる。
+ * Formatting goes through this entry point, which delegates built-in codes to {@link GeneratedValueUtils}.
+ * This placement keeps dependencies one-way (counterstyle → util),
+ * and lets {@code fallback}/{@code extends} referencing built-in styles
+ * resolve through the same entry point.
  * </p>
  */
 public final class CounterStyles {
 
 	/**
-	 * カウンタスタイル名を値へ解決します(組み込みならその定数、
-	 * それ以外は著者定義として文書ごとのコードを割り当てる)。
+	 * Resolves a counter style name to a value (its constant if built-in;
+	 * otherwise assigns a document-specific code as an author-defined style).
 	 */
 	public static ListStyleTypeSource styleValue(final UserAgent ua, final String name) {
 		final ListStyleTypeValue builtin = GeneratedValueUtils.toListStyleType(name);
@@ -45,12 +45,12 @@ public final class CounterStyles {
 		return new CounterStyleValue(ua.getUAContext().getCounterStyles().code(name));
 	}
 
-	/** カウンタスタイル名をコードへ解決します。 */
+	/** Resolves a counter style name to a code. */
 	public static short styleCode(final UserAgent ua, final String name) {
 		return styleValue(ua, name).getListStyleType();
 	}
 
-	/** 文書のカウンタスタイル登録簿です。 */
+	/** The document's counter style registry. */
 	public static CounterStyles of(final UserAgent ua) {
 		return ua.getUAContext().getCounterStyles();
 	}
@@ -60,8 +60,8 @@ public final class CounterStyles {
 	private final List<CounterStyleDef> defs = new ArrayList<>();
 
 	/**
-	 * 名前に対応するコードを返します(未知の名前にも割り当てる——
-	 * 定義がなければ整形時に{@code decimal}へ落ちる、仕様どおりの扱い)。
+	 * Returns the code for a name (also assigns unknown names;
+	 * if undefined, formatting falls back to {@code decimal}, as specified).
 	 */
 	public synchronized short code(final String name) {
 		final String key = name.toLowerCase();
@@ -71,7 +71,7 @@ public final class CounterStyles {
 		}
 		final short code = (short) (ListStyleTypeValue.FIRST_CUSTOM + this.defs.size());
 		if (code < ListStyleTypeValue.FIRST_CUSTOM) {
-			// 割り当て枯渇(現実には起きない)——decimalへ縮退する
+			// Code allocation exhausted (unrealistic in practice): fall back to decimal.
 			return ListStyleTypeValue.DECIMAL;
 		}
 		this.nameToCode.put(key, code);
@@ -79,7 +79,7 @@ public final class CounterStyles {
 		return code;
 	}
 
-	/** 定義を登録します(同名の再定義は後勝ち——CSSの規則どおり)。 */
+	/** Registers a definition (later definitions of the same name win, per CSS rules). */
 	public synchronized void define(final String name, final CounterStyleDef def) {
 		final short code = this.code(name);
 		if (code >= ListStyleTypeValue.FIRST_CUSTOM) {
@@ -87,16 +87,16 @@ public final class CounterStyles {
 		}
 	}
 
-	/** コードに対応する定義です(未定義ならnull)。 */
+	/** The definition for a code (null if undefined). */
 	public synchronized CounterStyleDef def(final short code) {
 		final int index = code - ListStyleTypeValue.FIRST_CUSTOM;
 		return index >= 0 && index < this.defs.size() ? this.defs.get(index) : null;
 	}
 
 	/**
-	 * カウンタを整形します。組み込みスタイルは{@link GeneratedValueUtils}
-	 * へ委譲し、著者定義は定義に従います。記号マーカー(disc等、文字列で
-	 * 表せないもの)はnullを返します。
+	 * Formats a counter. Delegates built-in styles to {@link GeneratedValueUtils}
+	 * and follows the definition for author-defined styles. Returns null for symbolic
+	 * markers that cannot be represented as strings (disc, etc.).
 	 */
 	public String format(final int number, final short style) {
 		return this.format(number, style, 0);
@@ -108,14 +108,14 @@ public final class CounterStyles {
 		}
 		final CounterStyleDef def = this.def(style);
 		if (def == null) {
-			// 定義のない名前は decimal(§CSS Counter Styles 3 §7)
+			// Undefined names use decimal (§CSS Counter Styles 3 §7).
 			return String.valueOf(number);
 		}
 		final String str = def.format(number, this, depth);
 		return str != null ? str : String.valueOf(number);
 	}
 
-	/** {@code fallback}/{@code extends}の解決です(名前で辿る)。 */
+	/** Resolves {@code fallback}/{@code extends} (follows names). */
 	String formatByName(final String name, final int number, final int depth) {
 		if (depth > 8) {
 			return String.valueOf(number);
@@ -127,13 +127,13 @@ public final class CounterStyles {
 		return this.format(number, this.code(name), depth);
 	}
 
-	/** マーカーの前置文字列です(組み込みは空)。 */
+	/** Marker prefix string (empty for built-in styles). */
 	public String prefix(final short style) {
 		final CounterStyleDef def = style >= ListStyleTypeValue.FIRST_CUSTOM ? this.def(style) : null;
 		return def == null ? "" : def.prefix;
 	}
 
-	/** マーカーの後置文字列です(組み込みは{@code "."}等)。 */
+	/** Marker suffix string ({@code "."}, etc. for built-in styles). */
 	public String suffix(final short style) {
 		if (style < ListStyleTypeValue.FIRST_CUSTOM) {
 			return GeneratedValueUtils.period(style);

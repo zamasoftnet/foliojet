@@ -4,40 +4,39 @@ import net.zamasoft.foliojet.layout.box.impl.GridBox;
 import net.zamasoft.foliojet.layout.builder.Builder;
 
 /**
- * Grid構築ライフサイクルの入口です(Grid G1b——TableBuilderLifecycleと
- * 同じ薄い形。実行計画の選択ではなく、G1適格判定と開始/終了の対称性
- * だけを持つ)。
+ * Entry point for the Grid build lifecycle (Grid G1b: the same thin structure as TableBuilderLifecycle.
+ * It handles only G1 eligibility and symmetric start/end operations, not execution plan selection).
  */
 public final class GridBuilderLifecycle {
 	private GridBuilderLifecycle() {
-		// 静的ユーティリティ
+		// Static utility
 	}
 
 	/**
-	 * トラック配置を適用できるGridかを判定します
-	 * (consult-codex-2026-07-31-grid-g1.txt §1.1)。不適格(宿主がブロックでない)
-	 * はG0の単一列フローへ落とす。列種は
-	 * fixed(G1)/auto(G3b)/fr(G3c)の全部、宿主はBlockBuilderに加えて
-	 * TwoPass(G3d1——実行計画をGridEventとして録画し幅確定後にbind)も
-	 * 適格(consult-codex-2026-07-31-grid-g3.txt Q3)。
+	 * Determines whether track placement applies to this Grid
+	 * (consult-codex-2026-07-31-grid-g1.txt §1.1). Ineligible grids (with a non-block host)
+	 * fall back to the G0 single-column flow. All column types are eligible:
+	 * fixed (G1), auto (G3b), and fr (G3c). In addition to BlockBuilder, TwoPass hosts are
+	 * eligible (G3d1: record the execution plan as a GridEvent and bind after the width is resolved)
+	 * (consult-codex-2026-07-31-grid-g3.txt Q3).
 	 */
 	public static boolean eligible(final GridBox gridBox, final Builder builder) {
-		// grid-template-columns無し(=暗黙の単一autoカラム)も適格(2026-08-09)。
-		// 従来はG0の単一列フローへ落としており、place-items等のitem整列が
-		// 一切効かなかった(NHKニュースのボタンのアイコン中央寄せ)。
-		// GridBoxは不適格でもPageAtomicのため、適格化で改ページ特性は
-		// 変わらない。暗黙トラックの補完はGridBuilderのコンストラクタが行う
-		// grid-template-rows有りも適格(2026-08-29)。従来はG0の単一列へ
-		// 落としていたが、grid-template-areasを使う実物のページはほぼ必ず
-		// 行テンプレートも書く。固定長の行はその高さ、auto/fr/%の行は内容高
-		// (GridBuilder.bind参照)
-		// 縦組みも適格(2026-10-05、jigensha の報告 3)。従来は sideways-lr 以外の縦組みを
-		// G0 の単一列へ落としていたため、列・gap・整列が一切効かなかった。bind は論理軸で
-		// 組むので縦組みでもそのまま正しく、Chrome とほぼ同じ位置に並ぶ
+		// Grids without grid-template-columns (= an implicit single auto column) are also eligible (2026-08-09).
+		// Previously, they fell back to the G0 single-column flow, so item alignment such as place-items
+		// had no effect at all (centering icons in buttons on NHK News).
+		// GridBox is PageAtomic even when ineligible, so making it eligible does not change
+		// page break behavior. The GridBuilder constructor fills in implicit tracks.
+		// Grids with grid-template-rows are also eligible (2026-08-29). Previously they fell back to
+		// a G0 single column, but real pages that use grid-template-areas almost always
+		// also specify row templates. Fixed-length rows use that height; auto/fr/% rows use the content height
+		// (see GridBuilder.bind).
+		// Vertical writing is also eligible (2026-10-05, jigensha report 3). Previously, vertical writing other than
+		// sideways-lr fell back to a G0 single column, disabling columns, gaps, and alignment. bind uses logical axes,
+		// so it also works correctly for vertical writing, placing items at almost the same positions as Chrome.
 		return builder instanceof BlockBuilder || builder instanceof TwoPassBlockBuilder;
 	}
 
-	/** GridBuilderを開始します(適格判定済みであること)。 */
+	/** Starts a GridBuilder (eligibility must already be checked). */
 	public static GridBuilder start(final Builder builder, final GridBox gridBox) {
 		return new GridBuilder(builder, gridBox);
 	}

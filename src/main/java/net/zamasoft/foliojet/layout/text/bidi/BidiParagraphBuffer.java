@@ -7,28 +7,29 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 段落単位の双方向解決のための論理イベントの保持器です(2026-09-04、
- * bidi-isolation-design.md §2-1〜§2-3。batch A-1a では model と試験だけ——
- * レイアウトへの配線は A-1b、所有者は DocumentBuilder 側の順序付き event queue)。
+ * Holds logical events for paragraph-level bidirectional resolution (2026-09-04,
+ * bidi-isolation-design.md §2-1–§2-3; batch A-1a provided only the model and tests;
+ * A-1b connects it to layout, owned by the ordered event queue on the DocumentBuilder side).
  *
  * <p>
- * 文字・inline の開始/終了・atomic inline・強制段落区切り・レイアウト barrier
- * (float/absolute 等)を論理順に受け、{@link java.text.Bidi} へ渡す合成 UTF-16 列を
- * 組む。普通の inline 境界は何も出さず UBA に透明、{@code unicode-bidi} を持つ
-	 * inline だけ制御文字で囲む({@link BidiResolver})。atomic inline は通常 U+FFFC 1 個
-	 * (embed/override の replaced inline だけ要素方向の strong 代替文字)。
- * 解決後は各イベントの合成列上の範囲からレベルを引ける。
+ * Accepts characters, inline starts/ends, atomic inlines, forced paragraph breaks, and layout barriers
+ * (floats/absolute positioning, etc.) in logical order, building a synthetic UTF-16 sequence for
+ * {@link java.text.Bidi}. Ordinary inline boundaries emit nothing and are transparent to UBA;
+ * only inlines with {@code unicode-bidi} are enclosed in control characters ({@link BidiResolver}).
+ * An atomic inline normally contributes one U+FFFC (only replaced inlines with embed/override use a
+ * strong substitute character in the element's direction).
+ * After resolution, levels can be retrieved from each event's range in the synthetic sequence.
  * </p>
  */
 public final class BidiParagraphBuffer {
-	/** イベントの種類。 */
+	/** Event kinds. */
 	public enum Kind {
 		TEXT, INLINE_START, INLINE_END, ATOMIC, PARAGRAPH_BREAK, BARRIER
 	}
 
 	/**
-	 * 論理イベント。{@code start}/{@code limit} は合成列上の範囲(制御文字を
-	 * 含まない。TEXT/ATOMIC 以外は幅 0)。
+	 * A logical event. {@code start}/{@code limit} delimit its range in the synthetic sequence
+	 * (excluding control characters; zero length except for TEXT/ATOMIC).
 	 */
 	public static class Event {
 		private final Kind kind;
@@ -58,11 +59,11 @@ public final class BidiParagraphBuffer {
 		}
 	}
 
-	/** 段落跨ぎで開き直す inline の不変 recipe。 */
+	/** Immutable recipe for an inline reopened across paragraph boundaries. */
 	public record OpenInline(byte direction, byte unicodeBidi, Object payload) {
 	}
 
-	/** 強制段落境界と、次の buffer へ渡す open-inline snapshot。 */
+	/** A forced paragraph boundary and the open-inline snapshot passed to the next buffer. */
 	public static final class ParagraphBreak extends Event {
 		private final List<OpenInline> openInlines;
 
@@ -85,8 +86,8 @@ public final class BidiParagraphBuffer {
 	private boolean broken;
 
 	/**
-	 * @param blockDirection   段落を含むブロックの {@code direction}
-	 * @param blockUnicodeBidi 同ブロックの {@code unicode-bidi}(plaintext なら自動判定)
+	 * @param blockDirection   {@code direction} of the block containing the paragraph
+	 * @param blockUnicodeBidi {@code unicode-bidi} of that block (automatic detection for plaintext)
 	 */
 	public BidiParagraphBuffer(final byte blockDirection, final byte blockUnicodeBidi) {
 		this.baseDirectionFlag = BidiResolver.baseDirectionFlag(blockDirection, blockUnicodeBidi);
@@ -94,7 +95,7 @@ public final class BidiParagraphBuffer {
 		this.appendSynthetic(BidiResolver.rootOpeningControls(blockDirection, blockUnicodeBidi));
 	}
 
-	/** 文字列(正規化・text-transform 後)。 */
+	/** Text (after normalization and text-transform). */
 	public Event addText(final CharSequence text, final Object payload) {
 		this.beforeAdd();
 		final int start = this.synthetic.length();
@@ -102,7 +103,7 @@ public final class BidiParagraphBuffer {
 		return this.add(new Event(Kind.TEXT, start, this.synthetic.length(), (byte) 0, (byte) 0, payload));
 	}
 
-	/** inline の開始。{@code unicode-bidi} に応じた制御文字を挿入する。 */
+	/** Inline start. Inserts control characters according to {@code unicode-bidi}. */
 	public Event inlineStart(final byte direction, final byte unicodeBidi, final Object payload) {
 		this.beforeAdd();
 		this.appendSynthetic(BidiResolver.openingControls(direction, unicodeBidi));
@@ -111,7 +112,7 @@ public final class BidiParagraphBuffer {
 		return this.add(new Event(Kind.INLINE_START, at, at, direction, unicodeBidi, payload));
 	}
 
-	/** inline の終了({@link #inlineStart}と対)。 */
+	/** Inline end (paired with {@link #inlineStart}). */
 	public Event inlineEnd(final Object payload) {
 		this.beforeAdd();
 		if (this.openInlines.isEmpty()) {
@@ -123,14 +124,14 @@ public final class BidiParagraphBuffer {
 		return this.add(new Event(Kind.INLINE_END, at, at, open.direction(), open.unicodeBidi(), payload));
 	}
 
-	/** atomic inline(置換要素・inline-block・ruby・warichu)。通常 U+FFFC 1 個。 */
+	/** Atomic inline (replaced element, inline-block, ruby, warichu). Normally one U+FFFC. */
 	public Event atomic(final Object payload) {
 		return this.atomic(payload, (byte) 0, net.zamasoft.foliojet.css.value.UnicodeBidiValue.NORMAL);
 	}
 
 	/**
-	 * atomic inline。embed/override の replaced inline は CSS Writing Modes
-	 * §2.4.3 に従い要素方向の strong 代替文字で解決する。
+	 * Atomic inline. Replaced inlines with embed/override resolve with a strong substitute character
+	 * in the element's direction, per CSS Writing Modes §2.4.3.
 	 */
 	public Event atomic(final Object payload, final byte direction, final byte unicodeBidi) {
 		this.beforeAdd();
@@ -140,9 +141,9 @@ public final class BidiParagraphBuffer {
 	}
 
 	/**
-	 * 強制段落区切り(bidi type B)。開いている inline の制御はここで一度閉じ、
-	 * 次の段落で開き直す(css-writing-modes-3 §2.4)。開き直しは返した
-	 * snapshot を呼び出し側が新しい buffer へ渡して行う。
+	 * Forced paragraph break (bidi type B). Closes controls for open inlines here and reopens them
+	 * in the next paragraph (css-writing-modes-3 §2.4). The caller reopens them by passing
+	 * the returned snapshot to a new buffer.
 	 */
 	public ParagraphBreak paragraphBreak(final Object payload) {
 		this.beforeAdd();
@@ -159,14 +160,14 @@ public final class BidiParagraphBuffer {
 		return event;
 	}
 
-	/** 前の buffer の {@link ParagraphBreak#openInlines()} を論理順に開き直す。 */
+	/** Reopens the previous buffer's {@link ParagraphBreak#openInlines()} in logical order. */
 	public void reopen(final List<OpenInline> snapshot) {
 		for (final OpenInline open : snapshot) {
 			this.inlineStart(open.direction(), open.unicodeBidi(), open.payload());
 		}
 	}
 
-	/** レイアウトの順序境界(float・absolute・親 builder への bound 追加等)。合成列には出ない。 */
+	/** Layout ordering barrier (float, absolute, bound addition to parent builder, etc.). Emits nothing into the synthetic sequence. */
 	public Event barrier(final Object payload) {
 		this.beforeAdd();
 		final int at = this.synthetic.length();
@@ -198,7 +199,7 @@ public final class BidiParagraphBuffer {
 		return Collections.unmodifiableList(this.events);
 	}
 
-	/** 合成列(制御文字込み)。試験・診断用。 */
+	/** Synthetic sequence (including control characters). For tests and diagnostics. */
 	public String synthetic() {
 		return this.synthetic.toString();
 	}
@@ -211,7 +212,7 @@ public final class BidiParagraphBuffer {
 		return this.events.isEmpty();
 	}
 
-	/** CSS が合成した制御文字の索引か。本文由来の同値文字は false。 */
+	/** Whether this index refers to a CSS-synthesized control character. False for the same character from body text. */
 	public boolean isSyntheticControl(final int index) {
 		if (index < 0 || index >= this.synthetic.length()) {
 			throw new IndexOutOfBoundsException(index);
@@ -219,7 +220,7 @@ public final class BidiParagraphBuffer {
 		return this.syntheticControls.get(index);
 	}
 
-	/** 段落全体を一度だけ解決した {@link Bidi}(遅延、追加のたびに作り直す)。 */
+	/** {@link Bidi} resolved once for the entire paragraph (lazy; recreated after each addition). */
 	public Bidi resolve() {
 		if (this.bidi == null) {
 			final String closeRoot = this.broken ? "" : BidiResolver.rootClosingControls(this.blockUnicodeBidi);
@@ -228,25 +229,26 @@ public final class BidiParagraphBuffer {
 		return this.bidi;
 	}
 
-	/** 段落レベル(0=LTR、1=RTL)。plaintext の自動判定の結果もここに出る。 */
+	/** Paragraph level (0=LTR, 1=RTL). Also exposes plaintext's automatic direction result. */
 	public int paragraphLevel() {
 		return this.resolve().getBaseLevel();
 	}
 
-	/** 合成列の索引 {@code index} の埋め込みレベル。 */
+	/** Embedding level at {@code index} in the synthetic sequence. */
 	public int levelAt(final int index) {
 		return this.resolve().getLevelAt(index);
 	}
 
 	/**
-	 * 行 {@code [start, limit)} の {@link Bidi}(UAX #9 L1: 行末の空白を段落レベルへ)。
-	 * 行分割後に、その行の視覚順を求めるために使う。
+	 * {@link Bidi} for the line {@code [start, limit)}
+	 * (UAX #9 L1: reset trailing whitespace to the paragraph level).
+	 * Used after line breaking to determine the line's visual order.
 	 */
 	public Bidi lineBidi(final int start, final int limit) {
 		return this.resolve().createLineBidi(start, limit);
 	}
 
-	/** 段落に RTL の文字か右→左の基準があるか(なければ並べ替え不要)。 */
+	/** Whether the paragraph has RTL characters or a right-to-left base direction (otherwise no reordering is needed). */
 	public boolean requiresVisualReordering() {
 		return !this.resolve().isLeftToRight();
 	}

@@ -18,42 +18,41 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 
 /**
- * ボックスの生成方法を表すrecipeです(2026-07-22新設、M6d-A3a策定・
- * A3c向けに拡張)。
+ * A recipe describing how to create a box
+ * (introduced 2026-07-22, defined in M6d-A3a and extended for A3c).
  *
  * <p>
- * A3aでは{@link BoxKind}だけを持つ骨格だったが、A3b(`Params`/`Pos`の
- * freeze/materialize)実装後、実際にfrozenな内容を運べる形へ拡張する
- * 必要が生じた——{@code BoxKind}ごとに必要なテンプレートの組が異なる
- * (例: {@link BoxKind#FLOW}は{@link BlockParamsTemplate}+
- * {@link FlowPosTemplate}、{@link BoxKind#INLINE}は
- * {@link InlineParamsTemplate}+{@link InlinePosTemplate})ため、
- * 単一recordではなくsealed interfaceのvariantとして表現する。
+ * A3a was a skeleton containing only {@link BoxKind} , but implementing A3b
+ * (`Params`/`Pos` freeze/materialize) required an extension to carry actual frozen contents.
+ * Each {@code BoxKind} needs a different set of templates:
+ * for example, {@link BoxKind#FLOW} uses {@link BlockParamsTemplate} + {@link FlowPosTemplate} ,
+ * while {@link BoxKind#INLINE} uses {@link InlineParamsTemplate} + {@link InlinePosTemplate} .
+ * Therefore represented as sealed-interface variants rather than a single record.
  * </p>
  *
  * <p>
- * E-6増分3b-4(2026-07-24): {@link #freeze}を追加し、記録時
- * ({@code StyleBuilder.startBox})にlive params/posから凍結する——
- * {@code StyleBuilder.boxKind}が非nullを返す全13 kind(E-6増分4eで
- * {@link Absolute}追加)をカバーする
- * <b>総関数</b>(旧{@code LayoutSourceEventConverter.convertStart}の
- * 変換時freezeの移設。{@code ReplacedRecipe.freeze}と違い失敗変種は
- * ない)。テンプレートを持たない種別はそもそも{@code boxKind}がnullを
- * 返し{@code LayoutSource.Opaque}として記録される。
+ * E-6 increment 3b-4 (2026-07-24): Added {@link #freeze} to freeze live params/pos at recording time
+ * ({@code StyleBuilder.startBox}).
+ * A <b>total function</b> covering all 13 kinds for which {@code StyleBuilder.boxKind} returns non-null
+ * ({@link Absolute} added in E-6 increment 4e).
+ * Moved the former conversion-time freezing from {@code LayoutSourceEventConverter.convertStart} ;
+ * unlike {@code ReplacedRecipe.freeze} , it has no failure variant.
+ * Kinds without templates already return null from {@code boxKind}
+ * and are recorded as {@code LayoutSource.Opaque} .
  * </p>
  *
  * <p>
- * 子Segment参照はここに含めない——recipeは「箱の生成方法」であって
- * 「構造」ではない(A3a方針を継続)。
+ * Contains no child Segment references: a recipe describes box creation, not structure
+ * (continuing the A3a policy).
  * </p>
  */
 public sealed interface BoxRecipe {
 	BoxKind kind();
 
 	/**
-	 * 包含ブロックの高さがautoでも、固定ページ軸まで探して割合寸法を解決する形です。
-	 * 通常Flowのheight/min-heightは直近の親を参照するため、ここには含めません。
-	 * 実際の祖先で解決できる場合も保守的にtrueとし、箱の生成・bindは行いません。
+	 * A form that searches up to a fixed page axis to resolve percentage sizes even if the containing block's
+	 * height is auto. Excludes ordinary Flow height/min-height, which refer to the immediate parent.
+	 * Conservatively returns true even when actual ancestors can resolve them; does not create or bind boxes.
 	 */
 	default boolean hasPageRelativeSize() {
 		final BlockParamsFields fields = switch (this) {
@@ -67,8 +66,8 @@ public sealed interface BoxRecipe {
 		default -> null;
 		};
 		if (fields == null) return false;
-		// 直交する子では物理高さが行軸になる。両軸を検査し、包含セルで
-		// 解ける割合幅も保守的に含める(Replacedの検査と同じ方針)。
+		// For orthogonal children, physical height becomes the line axis. Check both axes and conservatively
+		// include percentage widths resolvable by the containing cell (the same policy as the Replaced check).
 		return hasRelativeSize(fields.size()) || hasRelativeSize(fields.minSize()) || hasRelativeSize(fields.maxSize())
 				|| (this instanceof PlacedTable box && box.placement().hasPageRelativeSize());
 	}
@@ -78,9 +77,11 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 主ログと反復内容のinline/float/absolute表です。kindはTABLEのまま、
-	 * Start/Endを1対だけ持ちます。TABLEのfreezeと同じく配置は内側blockBoxのposから凍結し、
-	 * 再構築時のTableParamsは内外で共有します。宿主の配置処理は表ビルダーが担います。
+	 * Inline/float/absolute tables in the main log and repeated content.
+	 * The kind remains TABLE with only one Start/End pair.
+	 * Like TABLE freezing, freezes positioning from the inner blockBox's pos
+	 * and shares TableParams between inner and outer boxes on reconstruction.
+	 * The table builder handles placement of the host.
 	 */
 	record PlacedTable(TableParamsTemplate params, BoxRecipe placement) implements BoxRecipe {
 		public PlacedTable {
@@ -94,15 +95,15 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 凍結済みparamsの書字方向を返します(E-6増分3b-4——
-	 * {@code LayoutSource.containsMixedFlow}が凍結済みStartから読む)。
-	 * {@code InnerTableParams}系({@code AbstractTextParams}を継承せず
-	 * flowを持たない)は{@code null}——旧liveログの
-	 * {@code params instanceof AbstractTextParams}判定と同値。
+	 * Returns the frozen params' writing direction (E-6 increment 3b-4;
+	 * {@code LayoutSource.containsMixedFlow} reads it from frozen Starts).
+	 * Returns {@code null} for the {@code InnerTableParams} family
+	 * (which does not extend {@code AbstractTextParams} and has no flow),
+	 * equivalent to the old live log's {@code params instanceof AbstractTextParams} check.
 	 */
 	WritingMode flowOrNull();
 
-	/** params/pos以外のレイアウト属性も、箱を記録する時点で凍結します。 */
+	/** Also freezes layout attributes outside params/pos when recording a box. */
 	static BoxRecipe freeze(final LayoutSource.BoxKind kind,
 			final net.zamasoft.foliojet.layout.box.INonReplacedBox box) {
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox marker) {
@@ -115,65 +116,65 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * kindとlive params/posから対応するvariantを凍結します(E-6増分3b-4、
-	 * 記録時freeze)。castの成立は{@code StyleBuilder.boxKind}のkind判定
-	 * (実行時クラス一致)が保証する。
+	 * Freezes the corresponding variant from kind and live params/pos
+	 * (E-6 increment 3b-4, recording-time freeze).
+	 * The kind check in {@code StyleBuilder.boxKind} (exact runtime-class match) guarantees valid casts.
 	 */
 	static BoxRecipe freeze(final LayoutSource.BoxKind kind, final Params params, final Pos pos) {
 		return switch (kind) {
 		case FLOW -> new Flow(BlockParamsTemplate.freeze((BlockParams) params), FlowPosTemplate.freeze((FlowPos) pos));
-		// MulticolumnBlockBoxはFlowBlockBoxを継承するためBoxKind.FLOWと
-		// 同じBlockParams/FlowPosを使う(既存コード確認済み)
+		// MulticolumnBlockBox extends FlowBlockBox, so it uses the same
+		// BlockParams/FlowPos as BoxKind.FLOW (confirmed in existing code).
 		case MULTICOL -> new Multicol(BlockParamsTemplate.freeze((BlockParams) params),
 				FlowPosTemplate.freeze((FlowPos) pos));
 		case INLINE -> new Inline(InlineParamsTemplate.freeze((InlineParams) params),
 				InlinePosTemplate.freeze((InlinePos) pos));
-		// OutsideMarkerBoxはBlockParams/InlinePosを使う(既存コード確認済み)
+		// OutsideMarkerBox uses BlockParams/InlinePos (confirmed in existing code).
 		case MARKER -> new Marker(BlockParamsTemplate.freeze((BlockParams) params),
 				InlinePosTemplate.freeze((InlinePos) pos));
-		// FloatBlockBoxはBlockParams/FloatPosを使う(既存コード確認済み)
+		// FloatBlockBox uses BlockParams/FloatPos (confirmed in existing code).
 		case FLOAT_BLOCK -> new FloatBlock(BlockParamsTemplate.freeze((BlockParams) params),
 				FloatPosTemplate.freeze((FloatPos) pos));
-		// InlineBlockBoxはBlockParams/InlinePosを使う(既存コード確認済み)
+		// InlineBlockBox uses BlockParams/InlinePos (confirmed in existing code).
 		case INLINE_BLOCK -> new InlineBlock(BlockParamsTemplate.freeze((BlockParams) params),
 				InlinePosTemplate.freeze((InlinePos) pos));
-		// InsideMarkerBoxはBlockParams/InlinePosを使う(既存コード確認済み)
+		// InsideMarkerBox uses BlockParams/InlinePos (confirmed in existing code).
 		case INSIDE_MARKER -> new InsideMarker(BlockParamsTemplate.freeze((BlockParams) params),
 				InlinePosTemplate.freeze((InlinePos) pos));
-		// TableBoxはTableParams+「内側blockBoxのFlowPos」を使う。
-		// 外側TableBox.getPos()は常にTablePos(FlowPosではない)なので、
-		// 記録側(RecordingLayoutSink.start)はTableBox.getBlockBox().getPos()を
-		// 渡す契約。BoxKind.TABLEは内側blockBoxが素のFlowPosのときだけ
-		// 記録されるためcastは成立する(G-1の記録契約の是正、2026-07-30復活)
+		// TableBox uses TableParams + the inner blockBox's FlowPos.
+		// The outer TableBox.getPos() always returns TablePos (not FlowPos), so
+		// the recording side (RecordingLayoutSink.start) must pass TableBox.getBlockBox().getPos().
+		// BoxKind.TABLE is recorded only when the inner blockBox has a plain FlowPos,
+		// making the cast valid (G-1 recording contract corrected, restored 2026-07-30).
 		case TABLE -> new Table(TableParamsTemplate.freeze((TableParams) params),
 				FlowPosTemplate.freeze((FlowPos) pos));
-		// TableRowGroupBoxはInnerTableParams/TableRowGroupPosを使う(既存コード確認済み)
+		// TableRowGroupBox uses InnerTableParams/TableRowGroupPos (confirmed in existing code).
 		case TABLE_ROW_GROUP -> new TableRowGroup(InnerTableParamsTemplate.freeze((InnerTableParams) params),
 				TableRowGroupPosTemplate.freeze((TableRowGroupPos) pos));
-		// TableRowBoxはInnerTableParams/TableRowPosを使う(既存コード確認済み)
+		// TableRowBox uses InnerTableParams/TableRowPos (confirmed in existing code).
 		case TABLE_ROW -> new TableRow(InnerTableParamsTemplate.freeze((InnerTableParams) params),
 				TableRowPosTemplate.freeze((TableRowPos) pos));
-		// TableCellBoxはBlockParams/TableCellPosを使う(既存コード確認済み)
+		// TableCellBox uses BlockParams/TableCellPos (confirmed in existing code).
 		case TABLE_CELL -> new TableCell(BlockParamsTemplate.freeze((BlockParams) params),
 				TableCellPosTemplate.freeze((TableCellPos) pos));
-		// TableColumnGroupBoxはInnerTableParams/TableColumnPosを使う(既存コード確認済み)
+		// TableColumnGroupBox uses InnerTableParams/TableColumnPos (confirmed in existing code).
 		case TABLE_COLUMN_GROUP -> new TableColumnGroup(InnerTableParamsTemplate.freeze((InnerTableParams) params),
 				TableColumnPosTemplate.freeze((TableColumnPos) pos));
-		// TableColumnBoxはTableColumnGroupBoxと同じInnerTableParams/
-		// TableColumnPosを使う(既存コード確認済み)
+		// TableColumnBox uses the same InnerTableParams/TableColumnPos as
+		// TableColumnGroupBox (confirmed in existing code).
 		case TABLE_COLUMN -> new TableColumn(InnerTableParamsTemplate.freeze((InnerTableParams) params),
 				TableColumnPosTemplate.freeze((TableColumnPos) pos));
-		// AbsoluteBlockBoxはBlockParams/AbsolutePosを使う(E-6増分4e。
-		// AbsolutePosTemplateはReplacedRecipe.Absoluteで実績あり)
+		// AbsoluteBlockBox uses BlockParams/AbsolutePos (E-6 increment 4e;
+		// AbsolutePosTemplate already has established use in ReplacedRecipe.Absolute).
 		case ABSOLUTE -> new Absolute(BlockParamsTemplate.freeze((BlockParams) params),
 				AbsolutePosTemplate.freeze((AbsolutePos) pos));
-		// GridBoxはGridParams/FlowPosを使う(Grid G0c)
+		// GridBox uses GridParams/FlowPos (Grid G0c).
 		case GRID -> new Grid(GridParamsTemplate.freeze((net.zamasoft.foliojet.layout.box.params.GridParams) params),
 				FlowPosTemplate.freeze((FlowPos) pos));
-		// FlexBoxはFlexParams/FlowPosを使う(Flex F0c)
+		// FlexBox uses FlexParams/FlowPos (Flex F0c).
 		case FLEX -> new Flex(FlexParamsTemplate.freeze((net.zamasoft.foliojet.layout.box.params.FlexParams) params),
 				FlowPosTemplate.freeze((FlowPos) pos));
-		// 表キャプションはFlowBlockBox+TableCaptionPos(caption recipe化C1)
+		// Table captions use FlowBlockBox + TableCaptionPos (caption recipes C1).
 		case CAPTION -> new Caption(BlockParamsTemplate.freeze((BlockParams) params),
 				TableCaptionPosTemplate.freeze((net.zamasoft.foliojet.layout.box.params.TableCaptionPos) pos));
 		};
@@ -190,9 +191,9 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 表キャプション({@code FlowBlockBox}+{@code TableCaptionPos}。
-	 * caption recipe化C1)。文脈依存kind——再生には同一範囲内で先行する
-	 * TABLE Startの確立が必要(C2のcontext-completeゲートが正本)。
+	 * Table caption ({@code FlowBlockBox} + {@code TableCaptionPos} ; caption recipes C1).
+	 * A context-dependent kind: replay requires a preceding TABLE Start established within the same range
+	 * (C2's context-complete gate is authoritative).
 	 */
 	record Caption(BlockParamsTemplate params, TableCaptionPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
@@ -215,9 +216,9 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 段組ブロック({@code MulticolumnBlockBox})——{@code FlowBlockBox}を
-	 * 継承するため{@link BoxKind#FLOW}と同じ{@code BlockParams}/
-	 * {@code FlowPos}を使う(既存コード確認済み)。
+	 * Multi-column block ({@code MulticolumnBlockBox}).
+	 * Extends {@code FlowBlockBox} , so uses the same {@code BlockParams} /{@code FlowPos}
+	 * as {@link BoxKind#FLOW} (confirmed in existing code).
 	 */
 	record Multicol(BlockParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
@@ -230,8 +231,8 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 外置きリストマーカー({@code OutsideMarkerBox})——
-	 * {@code BlockParams}/{@code InlinePos}を使う(既存コード確認済み)。
+	 * Outside list marker ({@code OutsideMarkerBox}).
+	 * Uses {@code BlockParams} /{@code InlinePos} (confirmed in existing code).
 	 */
 	record Marker(BlockParamsTemplate params, InlinePosTemplate pos, boolean overlaysFollowingBlock) implements BoxRecipe {
 		public Marker(final BlockParamsTemplate params, final InlinePosTemplate pos) {
@@ -248,8 +249,8 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 浮動ブロック({@code FloatBlockBox})——{@code BlockParams}/
-	 * {@code FloatPos}を使う(既存コード確認済み)。
+	 * Floating block ({@code FloatBlockBox}).
+	 * Uses {@code BlockParams} /{@code FloatPos} (confirmed in existing code).
 	 */
 	record FloatBlock(BlockParamsTemplate params, FloatPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
@@ -262,8 +263,8 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * インラインブロック({@code InlineBlockBox})——{@code BlockParams}/
-	 * {@code InlinePos}を使う(既存コード確認済み)。
+	 * Inline block ({@code InlineBlockBox}).
+	 * Uses {@code BlockParams} /{@code InlinePos} (confirmed in existing code).
 	 */
 	record InlineBlock(BlockParamsTemplate params, InlinePosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
@@ -276,8 +277,8 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 内部マーカー({@code InsideMarkerBox})——{@code BlockParams}/
-	 * {@code InlinePos}を使う(既存コード確認済み)。
+	 * Inside marker ({@code InsideMarkerBox}).
+	 * Uses {@code BlockParams} /{@code InlinePos} (confirmed in existing code).
 	 */
 	record InsideMarker(BlockParamsTemplate params, InlinePosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
@@ -290,11 +291,12 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 表({@code TableBox})——{@code TableParams}と<b>内側blockBoxの</b>
-	 * {@code FlowPos}を使う(外側{@code TableBox.getPos()}は常に
-	 * {@code TablePos}で配置種別を持たない。{@code RecordingLayoutSink}が
-	 * 内側posを渡す契約)。G-1調査後に一旦撤去、表セット実装のユーザー
-	 * 承認(2026-07-30、G-1裁定の更新)で復活。
+	 * Table ({@code TableBox}).
+	 * Uses {@code TableParams} and <b>the inner blockBox's</b> {@code FlowPos}
+	 * (the outer {@code TableBox.getPos()} is always {@code TablePos} and has no positioning kind;
+	 * {@code RecordingLayoutSink} must pass the inner pos).
+	 * Removed after the G-1 investigation, then restored with user approval of the table-set implementation
+	 * (2026-07-30, revision of the G-1 decision).
 	 */
 	record Table(TableParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
@@ -306,7 +308,7 @@ public sealed interface BoxRecipe {
 		}
 	}
 
-	/** Gridコンテナ(Grid G0c、2026-07-31)。 */
+	/** Grid container (Grid G0c, 2026-07-31). */
 	record Grid(GridParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
 		@Override
 		public BoxKind kind() {
@@ -319,7 +321,7 @@ public sealed interface BoxRecipe {
 		}
 	}
 
-	/** Flexコンテナ(Flex F0c、2026-08-02)。 */
+	/** Flex container (Flex F0c, 2026-08-02). */
 	record Flex(FlexParamsTemplate params, FlowPosTemplate pos) implements BoxRecipe {
 		@Override
 		public BoxKind kind() {
@@ -333,8 +335,8 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 表の行グループ({@code TableRowGroupBox})——{@code InnerTableParams}/
-	 * {@code TableRowGroupPos}を使う(既存コード確認済み)。
+	 * Table row group ({@code TableRowGroupBox}).
+	 * Uses {@code InnerTableParams} /{@code TableRowGroupPos} (confirmed in existing code).
 	 */
 	record TableRowGroup(InnerTableParamsTemplate params, TableRowGroupPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
@@ -347,8 +349,8 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 表の行({@code TableRowBox})——{@code InnerTableParams}/
-	 * {@code TableRowPos}を使う(既存コード確認済み)。
+	 * Table row ({@code TableRowBox}).
+	 * Uses {@code InnerTableParams} /{@code TableRowPos} (confirmed in existing code).
 	 */
 	record TableRow(InnerTableParamsTemplate params, TableRowPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
@@ -361,9 +363,9 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 表のセル({@code TableCellBox})——既存{@link BoxKind#FLOW}等と
-	 * 同じ{@code BlockParams}を再利用し、{@code TableCellPos}を使う
-	 * (既存コード確認済み)。
+	 * Table cell ({@code TableCellBox}).
+	 * Reuses the same {@code BlockParams} as existing {@link BoxKind#FLOW} , etc.,
+	 * and uses {@code TableCellPos} (confirmed in existing code).
 	 */
 	record TableCell(BlockParamsTemplate params, TableCellPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
@@ -376,9 +378,8 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 表のカラムグループ({@code TableColumnGroupBox})——
-	 * {@code InnerTableParams}/{@code TableColumnPos}を使う
-	 * (既存コード確認済み)。
+	 * Table column group ({@code TableColumnGroupBox}).
+	 * Uses {@code InnerTableParams} /{@code TableColumnPos} (confirmed in existing code).
 	 */
 	record TableColumnGroup(InnerTableParamsTemplate params, TableColumnPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
@@ -391,9 +392,9 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 表のカラム({@code TableColumnBox})——{@code TableColumnGroup}と
-	 * 同じ{@code InnerTableParams}/{@code TableColumnPos}を使う
-	 * (既存コード確認済み)。
+	 * Table column ({@code TableColumnBox}).
+	 * Uses the same {@code InnerTableParams} /{@code TableColumnPos}
+	 * as {@code TableColumnGroup} (confirmed in existing code).
 	 */
 	record TableColumn(InnerTableParamsTemplate params, TableColumnPosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {
@@ -406,13 +407,13 @@ public sealed interface BoxRecipe {
 	}
 
 	/**
-	 * 絶対配置ブロック({@code AbsoluteBlockBox})——{@code BlockParams}/
-	 * {@code AbsolutePos}を使う(E-6増分4e、2026-07-24)。記録の主目的は
-	 * 絶対配置ビルダー自身の本文range seal({@code endOf}が引けるように
-	 * なること——旧Opaque記録では{@code TwoPassSealReject.NO_RANGE})。
-	 * 絶対配置を<b>含む</b>範囲の再生は{@code LayoutSource
-	 * .containsAbsolute}ゲートが従来どおりフォールバックさせる
-	 * (係留・deferred bindの二重化防止——同メソッドjavadoc参照)。
+	 * Absolutely positioned block ({@code AbsoluteBlockBox}).
+	 * Uses {@code BlockParams} /{@code AbsolutePos} (E-6 increment 4e, 2026-07-24).
+	 * Recording primarily enables sealing the absolute builder's own body range
+	 * (making {@code endOf} available; former Opaque recording gave {@code TwoPassSealReject.NO_RANGE} ).
+	 * The {@code LayoutSource
+	 * .containsAbsolute} gate still makes replay of ranges <b>containing</b> absolute positioning fall back
+	 * (to prevent duplicate anchoring/deferred bind; see that method's Javadoc).
 	 */
 	record Absolute(BlockParamsTemplate params, AbsolutePosTemplate pos) implements BoxRecipe {
 		public BoxKind kind() {

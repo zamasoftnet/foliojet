@@ -55,81 +55,85 @@ public class AbsoluteRectFrame {
 	}
 
 	/**
-	 * 行方向の始端側(横書き=左、縦書き=上)のフレーム幅を返します。
+	 * Returns the frame width on the start side of the line direction
+	 * (left in horizontal writing, top in vertical writing).
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return 行方向始端側のフレーム幅
+	 * @param flow writing direction that determines the axes
+	 * @return frame width on the start side of the line direction
 	 */
 	public final double getFrameLineStart(WritingMode flow) {
 		return flow.isVertical() ? this.getFrameTop() : this.getFrameLeft();
 	}
 
 	/**
-	 * 行方向の終端側(横書き=右、縦書き=下)のフレーム幅を返します。
+	 * Returns the frame width on the end side of the line direction
+	 * (right in horizontal writing, bottom in vertical writing).
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return 行方向終端側のフレーム幅
+	 * @param flow writing direction that determines the axes
+	 * @return frame width on the end side of the line direction
 	 */
 	public final double getFrameLineEnd(WritingMode flow) {
 		return flow.isVertical() ? this.getFrameBottom() : this.getFrameRight();
 	}
 
 	/**
-	 * ページ方向の始端側(横書き=上、縦書き=右)のフレーム幅を返します。
-	 * 縦書きの内部座標は常に右から左(LRは描画段で反転)です。
+	 * Returns the frame width on the start side of the page direction
+	 * (top in horizontal writing, right in vertical writing).
+	 * Internal coordinates for vertical writing always run right to left (LR is reversed during drawing).
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return ページ方向始端側のフレーム幅
+	 * @param flow writing direction that determines the axes
+	 * @return frame width on the start side of the page direction
 	 */
 	public final double getFramePageStart(WritingMode flow) {
 		return flow.isVertical() ? this.getFrameRight() : this.getFrameTop();
 	}
 
 	/**
-	 * ページ方向の終端側(横書き=下、縦書き=左)のフレーム幅を返します。
+	 * Returns the frame width on the end side of the page direction
+	 * (bottom in horizontal writing, left in vertical writing).
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return ページ方向終端側のフレーム幅
+	 * @param flow writing direction that determines the axes
+	 * @return frame width on the end side of the page direction
 	 */
 	public final double getFramePageEnd(WritingMode flow) {
 		return flow.isVertical() ? this.getFrameLeft() : this.getFrameBottom();
 	}
 
 	/**
-	 * 行方向のフレーム幅の合計を返します。
+	 * Returns the total frame width in the line direction.
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return 行方向のフレーム幅
+	 * @param flow writing direction that determines the axes
+	 * @return frame width in the line direction
 	 */
 	public final double getFrameLineExtent(WritingMode flow) {
 		return flow.isVertical() ? this.getFrameHeight() : this.getFrameWidth();
 	}
 
 	/**
-	 * ページ方向のフレーム幅の合計を返します。
+	 * Returns the total frame width in the page direction.
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return ページ方向のフレーム幅
+	 * @param flow writing direction that determines the axes
+	 * @return frame width in the page direction
 	 */
 	public final double getFramePageExtent(WritingMode flow) {
 		return flow.isVertical() ? this.getFrameWidth() : this.getFrameHeight();
 	}
 
 	/**
-	 * 行方向のボーダー+パディング幅の合計を返します。
+	 * Returns the total border + padding width in the line direction.
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return 行方向のボーダー+パディング幅
+	 * @param flow writing direction that determines the axes
+	 * @return border + padding width in the line direction
 	 */
 	public final double getBorderLineExtent(WritingMode flow) {
 		return flow.isVertical() ? this.getBorderHeight() : this.getBorderWidth();
 	}
 
 	/**
-	 * ページ方向のボーダー+パディング幅の合計を返します。
+	 * Returns the total border + padding width in the page direction.
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return ページ方向のボーダー+パディング幅
+	 * @param flow writing direction that determines the axes
+	 * @return border + padding width in the page direction
 	 */
 	public final double getBorderPageExtent(WritingMode flow) {
 		return flow.isVertical() ? this.getBorderWidth() : this.getBorderHeight();
@@ -158,10 +162,10 @@ public class AbsoluteRectFrame {
 		y += this.margin.top;
 		width -= this.margin.getFrameWidth();
 		height -= this.margin.getFrameHeight();
-		// 描画順(CSS Backgrounds 3 §7.1 / CSS UI 3 §4、2026-08-29):
-		// 外側の影は背景の下、内側の影は背景の上で境界の下、アウトラインは
-		// 境界の上。アウトラインは本来内容より上だが、この枠drawableの中で
-		// 境界の直後に描く(内容に重なる負のoffsetでは内容の下になる)
+		// Painting order (CSS Backgrounds 3 §7.1 / CSS UI 3 §4, 2026-08-29):
+		// Outer shadows are below the background; inner shadows are above it and below borders;
+		// outlines are above borders. Outlines should be above content, but this frame drawable
+		// draws them just after borders (negative offsets overlapping content place them below it).
 		BoxDecorationRenderer.drawOuterShadows(gc, this.frame, x, y, width, height);
 		this.frame.background.draw(gc, x, y, width, height, this.frame.border, this.frame.padding, textClip);
 		BoxDecorationRenderer.drawInsetShadows(gc, this.frame, x, y, width, height);

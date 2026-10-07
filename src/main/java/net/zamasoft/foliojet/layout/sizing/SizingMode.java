@@ -1,17 +1,17 @@
 package net.zamasoft.foliojet.layout.sizing;
 
 /**
- * サイズ決定のモードです。
+ * Sizing mode.
  *
  * @author MIYABE Tatsuhiko
  */
 public enum SizingMode {
-	/** 確定寸法でのレイアウト(bind/再生パス)。 */
+	/** Layout at a definite size (bind/replay pass). */
 	DEFINITE,
-	/** 最小内容寸法の実測。 */
+	/** Actual min-content measurement. */
 	MIN_CONTENT,
-	/** 最大内容寸法の実測。 */
+	/** Actual max-content measurement. */
 	MAX_CONTENT,
-	/** fit-content(shrink-to-fit)による寸法決定。 */
+	/** Sizing with fit-content (shrink-to-fit). */
 	FIT_CONTENT;
 }

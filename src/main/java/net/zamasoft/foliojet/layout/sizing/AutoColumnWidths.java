@@ -10,57 +10,57 @@ import java.util.Map;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * 自動レイアウト(table-layout: auto)の列幅解決です。 SPEC CSS 2.1 17.5.2.2
- * FixedColumnWidths と対を成す。colgroup 指定とセルの実測
- * (最小幅/推奨幅/指定幅)を列型ラダー(推奨 &lt; 絶対 &lt; パーセント)で
- * 蓄積し、列結合(colspan)の指定幅・最小幅・パーセント幅を3パスで
- * 分配して、列配列と表の最小・最大行寸法を確定する。 ボックスに触れない
- * 純粋な蓄積器で、finish() で結果配列の所有権を呼び出し側へ返す
- * (P2-4: §5.2b 表ビルダー統一)。
+ * Resolves column widths for automatic layout (table-layout: auto). SPEC CSS 2.1 17.5.2.2.
+ * Pairs with FixedColumnWidths. Accumulates colgroup specifications and cell measurements
+ * (minimum/preferred/specified widths) using a column-type hierarchy (preferred &lt; absolute &lt; percent).
+ * Distributes specified, minimum, and percentage widths of column spans (colspan) in three passes
+ * to determine column arrays and the table's minimum and maximum line-axis sizes.
+ * A pure accumulator that does not touch boxes; finish() transfers ownership of the result arrays
+ * to the caller (P2-4: §5.2b table builder consolidation).
  *
  * @author MIYABE Tatsuhiko
  */
 public final class AutoColumnWidths {
 	/**
-	 * 最小内容幅の超過をどこまで潰して版面に収めるかの許容比です
-	 * (resolve参照。列minの合計が利用可能幅のこの倍率以内なら従来どおり
-	 * 比例縮小で収め、超えたら列minを保って表ごとはみ出す)。
+	 * Tolerance ratio for compressing excess min-content width to fit the type area
+	 * (see resolve: if the sum of column minima is within this multiple of the available width,
+	 * shrink proportionally to fit as before; otherwise, preserve column minima and let the whole table overflow).
 	 */
 	static final double MIN_OVERFLOW_TOLERANCE = 1.1;
 
-	/** 列型: 推奨幅(内容由来)。 */
+	/** Column type: preferred width (derived from content). */
 	public static final byte COLUMN_TYPE_DES = 0;
-	/** 列型: 絶対指定。 */
+	/** Column type: absolute specification. */
 	public static final byte COLUMN_TYPE_FIX = 1;
-	/** 列型: パーセント。 */
+	/** Column type: percentage. */
 	public static final byte COLUMN_TYPE_PCT = 2;
 
 	/**
-	 * 解決結果です。配列の所有権は呼び出し側に移る(レイアウト段で
-	 * 基準寸法により変換・消費される)。
+	 * Resolved result. Transfers array ownership to the caller
+	 * (converted and consumed relative to the reference size during layout).
 	 *
-	 * @param mins        列の最小幅
-	 * @param specs       列の指定幅(型に応じ絶対値または比率)
-	 * @param desired     列の推奨幅
-	 * @param types       列型(COLUMN_TYPE_*)
-	 * @param minLineSize 表の最小行寸法(枠込み)
-	 * @param maxLineSize 表の最大行寸法(枠込み)
+	 * @param mins        Minimum column widths
+	 * @param specs       Specified column widths (absolute values or ratios, depending on type)
+	 * @param desired     Preferred column widths
+	 * @param types       Column types (COLUMN_TYPE_*)
+	 * @param minLineSize Minimum table line-axis size (including frame)
+	 * @param maxLineSize Maximum table line-axis size (including frame)
 	 */
 	public record Result(double[] mins, double[] specs, double[] desired, byte[] types, double minLineSize,
 			double maxLineSize) {
 		/**
-		 * 表の使用行寸法と列幅を確定します(CSS 2.1 17.5.2.2
-		 * [Column widths influence the final table width as follows])。
-		 * 指定がなければ最大行寸法を基準に%列による拡張を試み、最小・最大
-		 * 表幅にクランプした上で、%指定を絶対値へ変換(specs を破壊的に
-		 * 更新)して ColumnDistribution で列幅を分配する。
+		 * Determines the table's used line-axis size and column widths (CSS 2.1 17.5.2.2
+		 * [Column widths influence the final table width as follows]).
+		 * Without a specified size, tries to expand for percentage columns based on the maximum line-axis size.
+		 * Clamps to the minimum/maximum table width, converts percentage specifications to absolute values
+		 * (mutating specs), and distributes column widths with ColumnDistribution.
 		 *
-		 * @param specifiedLineSize 指定の表寸法(なければ LayoutUtils.NONE)
-		 * @param maxTableSize      利用可能な最大表寸法
-		 * @param tableFrame        表の枠
-		 * @param lineBorderSpacing 行方向の境界間隔
-		 * @param separateBorders   分離境界であれば true
-		 * @return 表寸法と列幅
+		 * @param specifiedLineSize Specified table size (LayoutUtils.NONE if absent)
+		 * @param maxTableSize      Maximum available table size
+		 * @param tableFrame        Table frame
+		 * @param lineBorderSpacing Border spacing along the line axis
+		 * @param separateBorders   True for separate borders
+		 * @return Table size and column widths
 		 */
 		public Sized resolve(final double specifiedLineSize, final double maxTableSize, final double tableFrame,
 				final double lineBorderSpacing, final boolean separateBorders) {
@@ -73,7 +73,7 @@ public final class AutoColumnWidths {
 			if (LayoutUtils.isNone(tableSize)) {
 				tableSize = this.maxLineSize;
 				if (tableSize < maxTableSize && columnCount > 1) {
-					// パーセント幅によるテーブルの拡張
+					// Expand the table for percentage widths.
 					int pctCount = 0, effColumnCount = 0;
 					double pctSum = 0, noPctDesiredSum = 0;
 					double w = tableSize - tableFrame;
@@ -109,18 +109,18 @@ public final class AutoColumnWidths {
 					tableSize = w + tableFrame;
 				}
 			}
-			// minLineSize には tableFrame が含まれていることに注意。
-			// 利用可能幅で切り詰めた後に最小内容幅の保証を判定する(2026-08-20。
-			// 断片間の列幅一貫は実測確認済み——resolveは表ごと1回で、分割
-			// 断片は確定済み列幅を共有するため、2026-08-18の撤回理由は現構造
-			// では成立しない)。最小内容幅が利用可能幅を超える表は、列を潰すと
-			// 内容が隣列に重なって壊れるため、列minを保って表ごと行方向へ
-			// はみ出す(CSS 2.2 17.5.2.2 / Chromeの挙動)。ただし超過が許容比
-			// 以内のわずかなものは従来どおり潰して版面に収める——セルの
-			// paddingが潰れを吸収して重なりは実質出ず(w3c-jlreqの比1.02〜1.09
-			// の表群で実測)、Chromeのように数ptだけ紙端で文字を切るより
-			// 印刷品質が高い。意図的なChromeとの差(印刷向けの品質判断)。
-			// 自動表幅の最小保証（2026-08-20）による
+			// Note that minLineSize includes tableFrame.
+			// Check the min-content width guarantee after truncating to the available width (2026-08-20).
+			// Column-width consistency across fragments was verified: resolve runs once per table, and split
+			// fragments share the resolved column widths, so the reason for the 2026-08-18 withdrawal
+			// does not apply to the current structure. When min-content width exceeds the available width,
+			// compressing columns makes content overlap adjacent columns and breaks layout. Preserve column
+			// minima and let the whole table overflow along the line axis (CSS 2.2 17.5.2.2 / Chrome behavior).
+			// However, compress small excesses within the tolerance ratio to fit the type area as before.
+			// Cell padding absorbs the compression with essentially no overlap (measured on w3c-jlreq tables
+			// with ratios of 1.02–1.09), giving better print quality than clipping a few pt of text at the
+			// paper edge as Chrome does. This intentionally differs from Chrome as a print-quality decision.
+			// Per the minimum guarantee for automatic table widths (2026-08-20).
 			if (tableSize > maxTableSize) {
 				tableSize = maxTableSize;
 			}
@@ -129,7 +129,7 @@ public final class AutoColumnWidths {
 				tableSize = this.minLineSize;
 			}
 			final double innerSize = tableSize - tableFrame;
-			// ％幅の計算
+			// Calculate percentage widths.
 			final double refSize = separateBorders ? innerSize - columnCount * lineBorderSpacing : innerSize;
 			for (int i = 0; i < columnCount; ++i) {
 				if (this.types[i] != COLUMN_TYPE_PCT) {
@@ -137,21 +137,21 @@ public final class AutoColumnWidths {
 				}
 				this.specs[i] *= refSize;
 				if (separateBorders) {
-					// 分離境界
+					// Separate borders.
 					this.specs[i] += lineBorderSpacing;
 				}
 			}
 
-			// 列幅の分配 (css-tables-3)
+			// Distribute column widths (css-tables-3).
 			double[] startSizes = this.mins;
 			double minSum = 0;
 			for (int i = 0; i < columnCount; ++i) {
 				minSum += this.mins[i];
 			}
 			if (minSum > innerSize) {
-				// 最小幅の合計が内寸を超える場合は比例縮小する(min保証後の
-				// tableSize>=minLineSizeでは通常到達しない防御——負や退化寸法
-				// の数値ケースのみ)
+				// Shrink proportionally if the sum of minimum widths exceeds the inner size (a safeguard
+				// normally unreachable with tableSize>=minLineSize after the minimum guarantee;
+				// only numerical cases with negative or degenerate sizes).
 				startSizes = new double[columnCount];
 				for (int i = 0; i < columnCount; ++i) {
 					startSizes[i] = this.mins[i] * Math.max(0, innerSize) / minSum;
@@ -171,15 +171,15 @@ public final class AutoColumnWidths {
 	}
 
 	/**
-	 * 表寸法の解決結果です。
+	 * Resolved table size.
 	 *
-	 * @param tableSize   表の行寸法(枠込み)
-	 * @param columnSizes 列幅
+	 * @param tableSize   Table's line-axis size (including frame)
+	 * @param columnSizes Column widths
 	 */
 	public record Sized(double tableSize, double[] columnSizes) {
 	}
 
-	/** 列結合の蓄積です。 */
+	/** Accumulated column-span data. */
 	private static final class Colspan {
 		final int col, span;
 		double min = 0;
@@ -218,7 +218,7 @@ public final class AutoColumnWidths {
 	}
 
 	/**
-	 * colgroup 由来の絶対指定幅を適用します(span の各列へ)。
+	 * Applies an absolute width specified by colgroup (to each column in the span).
 	 */
 	public void specFixed(final int col, final int span, final double fix) {
 		for (int s = 0; s < span; ++s) {
@@ -235,7 +235,7 @@ public final class AutoColumnWidths {
 	}
 
 	/**
-	 * colgroup 由来のパーセント指定幅を適用します(span の各列へ)。
+	 * Applies a percentage width specified by colgroup (to each column in the span).
 	 */
 	public void specPercent(final int col, final int span, final double pct) {
 		for (int s = 0; s < span; ++s) {
@@ -248,14 +248,14 @@ public final class AutoColumnWidths {
 				if (pct > this.specs[k]) {
 					double pctDiff = pct - this.specs[k];
 					this.specs[k] += pctDiff;
-					this.desired[k] = 1; // PCT指定には一応なんらかの内容があると判断させるため
+					this.desired[k] = 1; // Ensure PCT specifications are treated as having some content.
 				}
 			}
 		}
 	}
 
 	/**
-	 * colgroup 由来の min-size を先頭列に適用します。
+	 * Applies a colgroup min-size to the first column.
 	 */
 	public void colMin(final int col, final double minSize) {
 		this.mins[col] = Math.max(minSize, this.mins[col]);
@@ -263,7 +263,7 @@ public final class AutoColumnWidths {
 	}
 
 	/**
-	 * colgroup 由来の max-size を先頭列に適用します。
+	 * Applies a colgroup max-size to the first column.
 	 */
 	public void colMax(final int col, final double maxSize) {
 		this.mins[col] = Math.min(maxSize, this.mins[col]);
@@ -274,19 +274,19 @@ public final class AutoColumnWidths {
 	}
 
 	/**
-	 * セルの実測を蓄積します。連結なしは列型ラダーで即時適用、連結ありは
-	 * Colspan バケットに積み finish() の3パスで分配する。
+	 * Accumulates cell measurements. Applies non-spanning cells immediately through the column-type
+	 * hierarchy; stores spanning cells in Colspan buckets for distribution in the three passes of finish().
 	 *
-	 * @param col  先頭カラム(0オリジン)
-	 * @param span 列結合数
-	 * @param min  最小幅(枠込み)
-	 * @param des  推奨幅(枠込み)
-	 * @param type 指定の型(COLUMN_TYPE_*)
-	 * @param spec 指定幅(型に応じ絶対値または比率。DES では des と同値)
+	 * @param col  First column (zero-based)
+	 * @param span Number of spanned columns
+	 * @param min  Minimum width (including frame)
+	 * @param des  Preferred width (including frame)
+	 * @param type Specification type (COLUMN_TYPE_*)
+	 * @param spec Specified width (absolute value or ratio, depending on type; same as des for DES)
 	 */
 	public void cell(final int col, final int span, final double min, double des, final byte type, final double spec) {
 		if (span == 1) {
-			// 連結なし
+			// No column span.
 			this.mins[col] = Math.max(this.mins[col], min);
 			switch (type) {
 			case COLUMN_TYPE_DES:
@@ -325,7 +325,7 @@ public final class AutoColumnWidths {
 				this.desired[col] = Math.max(this.desired[col], des);
 			}
 		} else {
-			// 連結あり
+			// Column span.
 			Colspan key = new Colspan(col, span);
 			Colspan colspan = this.colspans.get(key);
 			if (colspan == null) {
@@ -364,26 +364,26 @@ public final class AutoColumnWidths {
 	}
 
 	/**
-	 * 蓄積された異なる(開始列, colspan)制約の個数(Uspan、最悪O(C²))を
-	 * 返します。E-6増分1(2026-07-24)、spill閾値・対象選定の実測基盤の
-	 * 読み取り専用アクセサ。挙動には影響しない。
+	 * Returns the number of distinct accumulated (start column, colspan) constraints
+	 * (Uspan, O(C²) in the worst case). E-6 increment 1 (2026-07-24): a read-only accessor for
+	 * measurements used to choose spill thresholds and targets. Does not affect behavior.
 	 */
 	public int colspanConstraintCount() {
 		return this.colspanList.size();
 	}
 
 	/**
-	 * 列結合の3パス分配(指定幅/最小幅/パーセント幅)とパーセント制限を
-	 * 実行し、結果を返します。
+	 * Performs three-pass column-span distribution (specified/minimum/percentage widths)
+	 * and percentage limiting, then returns the result.
 	 *
-	 * @param tableFrame 表の枠(最小・最大行寸法に加算)
+	 * @param tableFrame Table frame (added to minimum and maximum line-axis sizes)
 	 */
 	public Result finish(final double tableFrame) {
-		// colspanの適用
+		// Apply colspan.
 		Collections.sort(this.colspanList, Colspan.SPAN_COMPARATOR);
 		for (int i = 0; i < this.colspanList.size(); ++i) {
 			final Colspan colspan = this.colspanList.get(i);
-			// 自動幅/固定幅を分配
+			// Distribute automatic/fixed widths.
 			boolean fix = !LayoutUtils.isNone(colspan.fix);
 			double spec = fix ? colspan.fix : colspan.des;
 			double desSum = 0;
@@ -403,7 +403,7 @@ public final class AutoColumnWidths {
 				++noFixCount;
 				noFixDesiredSum += des;
 			}
-			// 全てのカラムの幅が0なら幅0のカラムを無視しない
+			// If all columns have zero width, do not ignore zero-width columns.
 			if (effCount == 0) {
 				noFixDesiredSum = 0;
 				for (int s = 0; s < colspan.span; ++s) {
@@ -419,7 +419,7 @@ public final class AutoColumnWidths {
 				}
 			}
 			if (noFixCount == 0 && !fix) {
-				// 元が全て固定幅の場合は、自動幅は適用しない
+				// If all widths were originally fixed, do not apply automatic widths.
 				continue;
 			}
 			if (spec > desSum) {
@@ -454,7 +454,7 @@ public final class AutoColumnWidths {
 		}
 		for (int i = 0; i < this.colspanList.size(); ++i) {
 			final Colspan colspan = this.colspanList.get(i);
-			// 最小幅を分配
+			// Distribute minimum widths.
 			double minSum = 0, desSum = 0, diffSum = 0;
 			for (int s = 0; s < colspan.span; ++s) {
 				int k = colspan.col + s;
@@ -500,7 +500,7 @@ public final class AutoColumnWidths {
 		}
 		for (int i = 0; i < this.colspanList.size(); ++i) {
 			final Colspan colspan = this.colspanList.get(i);
-			// パーセント幅をdesの比率で分配
+			// Distribute percentage widths in proportion to des.
 			if (LayoutUtils.isNone(colspan.pct)) {
 				continue;
 			}
@@ -546,7 +546,7 @@ public final class AutoColumnWidths {
 			}
 		}
 
-		// 最小幅/最大幅計算、パーセント幅制限
+		// Calculate minimum/maximum widths and limit percentage widths.
 		double minLineSize = 0, maxLineSize = 0;
 		double pctRem = 1;
 		for (int i = 0; i < this.mins.length; ++i) {
