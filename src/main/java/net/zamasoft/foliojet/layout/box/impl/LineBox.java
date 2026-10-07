@@ -7,8 +7,8 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Params;
 
 /**
- * 行ボックスの実装です。
- * 
+ * Implements a line box.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: LineBox.java 1552 2018-04-26 01:43:24Z miyabe $
  */

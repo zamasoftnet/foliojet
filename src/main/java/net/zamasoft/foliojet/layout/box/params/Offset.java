@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 位置を表すオブジェクトです。
+ * An object representing a position.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -12,7 +12,7 @@ public class Offset {
 
 	private final double x;
 	private final double y;
-	/** MIXED(calc()の絶対+割合混在)の場合のみ意味を持つ割合成分。それ以外は常に0。 */
+	/** Percentage component, meaningful only for MIXED (absolute + percentage in calc()). Always 0 otherwise. */
 	private final double xRatio;
 	private final double yRatio;
 	private final byte flags;
@@ -21,7 +21,7 @@ public class Offset {
 		return create(x, 0, y, 0, xType, yType);
 	}
 
-	/** xType/yTypeがMIXEDの場合のxRatio/yRatio付きの生成。 */
+	/** Creates an offset with xRatio/yRatio when xType/yType is MIXED. */
 	public static Offset create(double x, double xRatio, double y, double yRatio, LengthType xType,
 			LengthType yType) {
 		if (xType == LengthType.AUTO && yType == LengthType.AUTO) {

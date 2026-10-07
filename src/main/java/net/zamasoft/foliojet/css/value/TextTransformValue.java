@@ -14,7 +14,7 @@ public enum TextTransformValue implements Value {
 
 	LOWERCASE_VALUE(AbstractTextParams.TEXT_TRANSFORM_LOWERCASE),
 
-	/** {@code full-width} と、大文字・小文字の変換との組み合わせ(2026-10-06)。 */
+	/** Combinations of {@code full-width} and uppercase/lowercase conversion (2026-10-06). */
 	FULL_WIDTH_VALUE(AbstractTextParams.TEXT_TRANSFORM_FULL_WIDTH),
 
 	CAPITALIZE_FULL_WIDTH_VALUE(
@@ -32,7 +32,7 @@ public enum TextTransformValue implements Value {
 		this.textTransform = textTransform;
 	}
 
-	/** 大文字・小文字の変換と {@code full-width} の印を合わせた値の値です。 */
+	/** A value combining case conversion and the {@code full-width} flag. */
 	public static TextTransformValue of(final byte textTransform) {
 		for (final TextTransformValue value : values()) {
 			if (value.textTransform == textTransform) {

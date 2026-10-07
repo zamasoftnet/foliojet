@@ -76,8 +76,8 @@ class MyHttpSourceResolver implements SourceResolver {
 	}
 
 	/**
-	 * 変換をまたぐHTTP応答キャッシュのTTL(秒)です。0はキャッシュ無効。
-	 * 安全条件と設計は{@link HttpResponseCache}に集約しています。
+	 * The TTL (seconds) of the HTTP response cache shared across conversions. Zero disables caching.
+	 * {@link HttpResponseCache} documents the safety conditions and design.
 	 */
 	public void setCacheTtl(int cacheTtl) {
 		this.cacheTtl = cacheTtl;
@@ -108,20 +108,20 @@ class MyHttpSourceResolver implements SourceResolver {
 	}
 
 	/**
-	 * 転送先を取ってよいかの判定です。{@code null}なら再判定しません。
+	 * The check for whether a redirect target may be fetched. {@code null} means no recheck.
 	 *
 	 * <p>
-	 * これがあるとき、3xxは{@link HttpClient}に追従させず<b>自分で追い、
-	 * ホップごとに同じ判定を掛けます</b>。任せてしまうと、許可した公開ホストが
-	 * サーバーの内側へ転送したときに、判定を一度も通らずに届いてしまいます
-	 * (2026-09-08)。
+	 * When present, <b>follows 3xx redirects itself and applies the same check at every hop</b>,
+	 * instead of letting {@link HttpClient} follow them. Delegating would let an allowed public host
+	 * redirect into the server's internal network without any check along the way
+	 * (2026-09-08).
 	 * </p>
 	 */
 	private java.util.function.Predicate<URI> redirectGuard = null;
 
 	/**
-	 * 転送先を再判定するかどうか。<b>遅延評価</b>します——ACLは要求の設定が
-	 * 進んだ後に決まるので、リゾルバを作った時点では分かりません。
+	 * Whether to recheck redirect targets. <b>Evaluated lazily</b>: the ACL is determined
+	 * only as request configuration progresses, so it is unknown when the resolver is created.
 	 */
 	private java.util.function.BooleanSupplier revalidateRedirects = () -> false;
 
@@ -135,16 +135,16 @@ class MyHttpSourceResolver implements SourceResolver {
 		return this.redirectGuard != null && this.revalidateRedirects.getAsBoolean();
 	}
 
-	/** 追う転送の上限です。輪を作られても止まるようにします。 */
+	/** The maximum redirects to follow. Ensures termination even if a loop is created. */
 	private static final int MAX_REDIRECTS = 5;
 
 	protected HttpClient createHttpClient(ExecutorService executor) {
 		HttpClient.Builder builder = HttpClient.newBuilder();
 		builder.executor(executor);
-		// **常に自分で追う。** ここは HttpClient を1つ作って使い回すので、
-		// 生成の時点の判定で NORMAL / NEVER を作り分けると、あとから ACL を
-		// 足しても既に NORMAL のクライアントが転送を追ってしまう。
-		// 自分で追えば、ホップごとに判定を掛けられる(followRedirects())
+		// **Always follow redirects ourselves.** A single HttpClient is created and reused here,
+		// so choosing NORMAL / NEVER from the state at creation would let an existing
+		// NORMAL client follow redirects even after an ACL is added.
+		// Following them ourselves allows a check at every hop (followRedirects()).
 		builder.followRedirects(HttpClient.Redirect.NEVER);
 		if (this.connectionTimeout > 0) {
 			builder.connectTimeout(Duration.ofMillis(this.connectionTimeout));
@@ -152,11 +152,11 @@ class MyHttpSourceResolver implements SourceResolver {
 		if (this.proxyHost != null) {
 			builder.proxy(ProxySelector.of(new InetSocketAddress(this.proxyHost, this.proxyPort)));
 		} else {
-			// **明示しないと JVM 既定のプロキシを使う。** 2026-09-08 に実測した:
-			// http.proxyHost を立てておくと newBuilder().build() でも経由する
-			// (しかも client.proxy() は空を返すので getter では気づけない)。
-			// ACL は要求 URI のホストを見るので、既定プロキシがあると
-			// 判定と実際の接続先が食い違う
+			// **Without an explicit setting, the JVM's default proxy is used.** Measured on 2026-09-08:
+			// setting http.proxyHost routes even newBuilder().build() through it.
+			// (Moreover, client.proxy() returns empty, so its getter cannot reveal this.)
+			// The ACL checks the request URI's host, so a default proxy creates
+			// a mismatch between the checked destination and the actual connection.
 			builder.proxy(HttpClient.Builder.NO_PROXY);
 		}
 		builder.cookieHandler(this.cookieManager);
@@ -184,40 +184,40 @@ class MyHttpSourceResolver implements SourceResolver {
 	}
 
 	/**
-	 * 同時に走らせる先読み取得の上限。HTTP/2なら1接続に多重化される。
-	 * 実測(wikipedia・画像約100点、素24.3s): 8で6.7〜7.4s、16で6.4〜6.7s
-	 * ——ここから先は帯域・RTT側が支配的。
+	 * The maximum concurrent prefetch requests. HTTP/2 multiplexes them over one connection.
+	 * Measured (Wikipedia, about 100 images, 24.3 s baseline): 6.7–7.4 s at 8, 6.4–6.7 s at 16;
+	 * beyond this, bandwidth and RTT dominate.
 	 */
 	private static final int PREFETCH_PARALLELISM = 12;
 
 	/**
-	 * <b>同一ホストへの同時取得の上限</b>(2026-08-28)。全体だけを絞っても
-	 * 1つのサイトへ束で当たるため、配信側のレート制限に触れる。実測:
-	 * 実運用のサーバーから{@code upload.wikimedia.org}へ16並列で当てると6本が
-	 * <b>HTTP 429</b>になり、巻き添えで本来のスタイルシート取得まで失敗して
-	 * 変換が中止した。ブラウザの同時接続数(6前後)に倣って抑える。
+	 * <b>The maximum concurrent fetches per host</b> (2026-08-28). A global limit alone
+	 * still sends a burst to one site, triggering its rate limit. Measured: 16 concurrent requests
+	 * from the production server to {@code upload.wikimedia.org} produced six <b>HTTP 429</b> responses.
+	 * Even the required stylesheet fetch failed as collateral damage, aborting conversion.
+	 * Limit concurrency to roughly the browser connection count (around 6).
 	 */
 	private static final int PREFETCH_PARALLELISM_PER_HOST = 4;
 
-	/** close()後の遅延した先読み登録を止める(セッション跨ぎの汚染防止)。 */
+	/** Prevents delayed prefetch registration after close() (avoids contamination across sessions). */
 	private volatile boolean prefetchClosed;
 
-	/** 1変換セッションで先読みを試みるURIの上限(暴走・過剰取得の抑え)。 */
+	/** The maximum URIs to attempt prefetching in one conversion session (limits runaway or excessive fetching). */
 	private static final int PREFETCH_MAX_URIS = 256;
 
 	/**
-	 * 取得中の先読み。キーは要求URI(リダイレクトはHttpClientが追従する
-	 * ため、同じ論理要求はここで合流する)。完了・失敗・中止で必ず除去し、
-	 * Futureを完了させる——resolve()がここでawaitするため、未完了のまま
-	 * 放置すると実要求が固まる。
+	 * In-flight prefetches. The key is the request URI (HttpClient follows redirects,
+	 * so identical logical requests join here). Always removes the entry and completes its Future
+	 * on completion, failure, or cancellation: resolve() awaits it here, and leaving it incomplete
+	 * would hang the actual request.
 	 */
 	private final ConcurrentHashMap<URI, Inflight> prefetching = new ConcurrentHashMap<>();
 
 	/**
-	 * 取得中の先読み1件。{@code started}は<b>実際にHTTP要求を始めたか</b>で、
-	 * 順番待ちのものと区別するために要る。実要求が順番待ちの先読みに
-	 * 合流すると、直列より遅くなるうえ、待たされた末に失敗すると本来
-	 * 成功したはずの資源まで落ちる(2026-08-28、実運用で発生)。
+	 * One in-flight prefetch. {@code started} means <b>the HTTP request has actually started</b>,
+	 * distinguishing it from queued work. Joining a queued prefetch makes an actual request
+	 * slower than serial fetching; if the prefetch then fails after the wait, even a resource
+	 * that should have succeeded is lost (2026-08-28, observed in production).
 	 */
 	private record Inflight(CompletableFuture<Void> future, java.util.concurrent.atomic.AtomicBoolean started) {
 		Inflight() {
@@ -225,45 +225,44 @@ class MyHttpSourceResolver implements SourceResolver {
 		}
 	}
 
-	/** ホスト別の同時取得を絞る。 */
+	/** Limits concurrent fetches per host. */
 	private final ConcurrentHashMap<String, Semaphore> hostSlots = new ConcurrentHashMap<>();
 
 	/**
-	 * レート制限(429/503)を返したホスト。以降そのホストの先読みをやめる。
-	 * 投機的な取得で配信側を怒らせて本来の取得まで失うのは本末転倒。
+	 * Hosts that returned rate limits (429/503). Stops further prefetching for those hosts.
+	 * It defeats the purpose if speculative fetches upset the server and lose required fetches too.
 	 */
 	private final java.util.Set<String> throttledHosts = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
 	/**
-	 * セッション局所の先読み結果ストア(キーは要求URI)。プロセス共通の
-	 * {@link HttpResponseCache}とは別に持つ理由: 主文書応答のSet-Cookie
-	 * (例: wikipediaのGeoIP)で以降の同ドメイン要求が全て「要求側
-	 * キャッシュ対象外」になり、共有キャッシュ経由の受け渡しが成立しない
-	 * (実測: hit 0/miss 256)。ここは応答側の条件
-	 * (200・Set-Cookieなし・no-store/private/no-cacheなし)だけで保持し、
-	 * 同一変換内のresolveが最優先で使う。発見時点の取得を消費時点で使う
-	 * 意味論はChromeのpreload scannerと同じ。resolverのclose()
-	 * (=セッション終了)で破棄する。
+	 * A session-local store of prefetch results (keyed by request URI). Kept separately from
+	 * the process-wide {@link HttpResponseCache} because Set-Cookie on the main-document response
+	 * (e.g., Wikipedia's GeoIP) makes all subsequent requests to that domain ineligible for request-side
+	 * caching, preventing transfer through the shared cache (measured: hit 0/miss 256).
+	 * This store retains responses based only on response-side conditions
+	 * (200, no Set-Cookie, no no-store/private/no-cache), and resolve within the same conversion
+	 * uses it first. Using a discovery-time fetch at consumption time has the same semantics
+	 * as Chrome's preload scanner. Discarded on resolver close() (=session end).
 	 */
 	private final ConcurrentHashMap<URI, HttpResponseCache.Entry> prefetched = new ConcurrentHashMap<>();
 
-	/** セッション局所ストアの合計バイト上限(超過分は保持しない)。 */
+	/** The total byte limit of the session-local store (does not retain excess data). */
 	private static final long PREFETCHED_MAX_TOTAL_BYTES = 64L * 1024 * 1024;
 
 	private final java.util.concurrent.atomic.AtomicLong prefetchedBytes = new java.util.concurrent.atomic.AtomicLong();
 
 	/**
-	 * 主文書のURI。<b>同じ資源を同一変換内で何度も取りに行かない</b>ための
-	 * 判定に使います(2026-08-28)。
+	 * The main document URI. Used to decide how to <b>avoid fetching the same resource
+	 * repeatedly within one conversion</b> (2026-08-28).
 	 *
 	 * <p>
-	 * 共有キャッシュに載らない資源——Cookieを送るホストの画像・CSS背景など
-	 * ——は、実要求の経路が本文を控えないと参照のたびに外向き取得が起きます。
-	 * 実測: 寸法表を再利用した2回目のPaged SVG変換が同じ背景SVGを66回
-	 * 取りに行き、5.0秒の変換が13.4秒になっていました。そこで副資源の本文は
-	 * セッション局所ストアへ控えます。<b>主文書だけは控えません</b>——
-	 * 流し込みのまま組版を始める設計で、読み切ってから渡すと最初のページが
-	 * 出るまでが遅くなるためです。
+	 * Resources ineligible for the shared cache, such as images and CSS backgrounds on hosts receiving
+	 * cookies, trigger an outbound fetch for every reference unless the actual-request path retains
+	 * the body. Measured: a second Paged SVG conversion reusing the size table fetched the same
+	 * background SVG 66 times, increasing conversion time from 5.0 s to 13.4 s. Therefore,
+	 * subresource bodies are retained in the session-local store. <b>Only the main document is not retained</b>: 
+	 * the design starts layout while streaming, and passing it on only after reading it all
+	 * would delay the first page.
 	 * </p>
 	 */
 	private volatile URI mainUri;
@@ -277,12 +276,13 @@ class MyHttpSourceResolver implements SourceResolver {
 	private final AtomicInteger prefetchStarted = new AtomicInteger();
 
 	/**
-	 * URIの非同期先読み(input.prefetch)。取得できた本文は同期経路と同じ
-	 * 条件で{@link HttpResponseCache}へ入り、後続の{@link #resolve(URI)}が
-	 * キャッシュ命中として受け取る。認証情報・Cookie・キャッシュ無効
-	 * (TTL=0)の要求は{@link #cacheKey}がnullを返すため先読みしない——
-	 * 並列取得が直列時と同値にならない(Cookie適用順・利用者固有応答)
-	 * リスクを避ける。失敗は静かに捨て、実要求が正規経路で取り直す。
+	 * Asynchronous URI prefetch (input.prefetch). Successfully fetched bodies enter
+	 * {@link HttpResponseCache} under the same conditions as the synchronous path, and subsequent
+	 * {@link #resolve(URI)} calls receive them as cache hits. Does not prefetch requests with
+	 * authentication, cookies, or caching disabled (TTL=0), since {@link #cacheKey} returns null.
+	 * This avoids the risk that parallel fetching differs from serial fetching
+	 * (cookie application order and user-specific responses). Silently discards failures;
+	 * the actual request refetches through the normal path.
 	 */
 	void prefetch(final URI uri, final MySourceResolver cssGate) {
 		if (this.prefetchClosed || this.prefetchStarted.get() >= PREFETCH_MAX_URIS) {
@@ -292,10 +292,10 @@ class MyHttpSourceResolver implements SourceResolver {
 			return;
 		}
 		final HttpRequest request = this.createHttpRequest(uri);
-		// 認証情報が付く要求は先読みしない(並列化で認証・利用者固有応答の
-		// 意味論を変えない)。Cookieだけの要求は対象——主文書応答の
-		// Set-Cookie(例: wikipediaのGeoIP)で以降の全要求にCookieが付くのが
-		// 実サイトの通常で、発見時点の取得はChromeのpreload scannerと同じ
+		// Do not prefetch authenticated requests (parallelism must not change authentication
+		// or user-specific response semantics). Requests with only cookies are eligible:
+		// Set-Cookie on the main-document response (e.g., Wikipedia's GeoIP) commonly adds cookies
+		// to all later requests on real sites. Discovery-time fetching matches Chrome's preload scanner.
 		if (request.headers().firstValue("Authorization").isPresent()
 				|| this.findCredential(uri.getHost(), uri.getPort()) != null) {
 			MySourceResolver.PREFETCH_LOG.fine(() -> "prefetch auth skip: " + uri);
@@ -305,13 +305,13 @@ class MyHttpSourceResolver implements SourceResolver {
 		if (cacheKey != null) {
 			final HttpResponseCache.Entry entry = HttpResponseCache.get(cacheKey, this.cacheTtl);
 			if (entry != null) {
-				// **共有キャッシュにあってもセッション局所ストアへ写す**
-				// (2026-08-28)。ここで単に打ち切ると、消費時点の
-				// {@link #cacheKey}がCookie付き要求でnullになり(主文書の
-				// Set-Cookie以降は同一ドメインの全要求にCookieが付く)、
-				// 共有キャッシュを参照できずに取り直しになる。実測では
-				// 2回目以降の変換で先読み合流が253件→約100件へ落ち、
-				// 変換時間が11秒→29秒に戻っていた
+				// **Copy to the session-local store even when present in the shared cache**
+				// (2026-08-28). Simply stopping here makes consumption-time
+				// {@link #cacheKey} return null for requests with cookies (after the main document's
+				// Set-Cookie, all requests to the same domain have cookies),
+				// preventing shared-cache access and causing refetching. Measurements showed
+				// prefetch joins dropping from 253 to about 100 on subsequent conversions,
+				// and conversion time returning from 11 s to 29 s.
 				this.store(uri, entry);
 				return;
 			}
@@ -348,30 +348,30 @@ class MyHttpSourceResolver implements SourceResolver {
 						if (hostSlot != null) {
 							hostSlot.acquire();
 						}
-						// 順番待ちのあいだに実要求がこのURIを取りに行ったら、
-						// 投機は降りる(二重取得と余計な負荷を避ける)
+						// If an actual request fetches this URI while the prefetch is queued,
+						// withdraw the speculation (avoid duplicate retrieval and unnecessary load).
 						if (this.prefetching.get(uri) != inflight || this.prefetchClosed) {
 							return;
 						}
 						inflight.started().set(true);
 						final MyHttpSource source = new MyHttpSource(uri, client, request, cacheKey, false, false);
 						try {
-							// 本文を上限まで読み、応答側の条件を満たせば
-							// セッション局所ストアへ(共有キャッシュへも、
-							// 要求側条件を満たす場合のみ)。条件を満たさない
-							// 応答は使わず、実要求に任せる
+							// Read the body up to the limit and, if it meets response-side conditions,
+							// store it locally in the session (also in the shared cache,
+							// but only if request-side conditions hold). Do not use responses
+							// that fail the conditions; leave retrieval to the actual request.
 							final HttpResponseCache.Entry entry = source.readEntryForPrefetch();
 							if (entry != null) {
 								this.store(uri, entry);
 								if (cacheKey != null && source.isSharedCacheable()) {
 									HttpResponseCache.put(cacheKey, entry);
 								}
-								// 取得したのがスタイルシートなら、その中の
-								// url()/@importも先読みする(深さ1のみ——
-								// cssGate=nullで再帰を止める)。CSS背景画像は
-								// 消費点解決の繰り返しが特に高くつく
-								// (実測: wikipediaの虫めがねアイコン1つが
-								// 64回直列取得されていた)
+								// If the fetched resource is a stylesheet, prefetch
+								// its url()/@import references too (only one level deep:
+								// cssGate=null stops recursion). Repeated resolution of CSS background images
+								// at the point of consumption is especially expensive
+								// (measured: a single Wikipedia magnifying-glass icon
+								// was fetched serially 64 times).
 								if (cssGate != null && isCssEntry(uri, entry)) {
 									for (final URI found : extractCssUris(uri, entry)) {
 										cssGate.prefetch(found, false);
@@ -390,20 +390,20 @@ class MyHttpSourceResolver implements SourceResolver {
 						this.prefetchSlots.release();
 					}
 				} catch (final Throwable ignore) {
-					// 先読みは常に任意。失敗の報告も実要求の正規経路に任せる
+					// Prefetch is always optional. Leave failure reporting to the actual request's normal path too.
 				} finally {
 					this.prefetching.remove(uri, inflight);
 					inflight.future().complete(null);
 				}
 			});
 		} catch (final RejectedExecutionException e) {
-			// close()直後など。先読みを断念する
+			// For example, immediately after close(). Abandon prefetch.
 			this.prefetching.remove(uri, inflight);
 			inflight.future().complete(null);
 		}
 	}
 
-	/** 先読み結果がCSSか(url()/@import走査の対象か)を判定します。 */
+	/** Determines whether a prefetch result is CSS (eligible for url()/@import scanning). */
 	private static boolean isCssEntry(final URI uri, final HttpResponseCache.Entry entry) {
 		final String mime = entry.mimeType();
 		if (mime != null) {
@@ -417,7 +417,7 @@ class MyHttpSourceResolver implements SourceResolver {
 			"(?:url\\(\\s*(['\"]?)([^'\"()\\s]+)\\1\\s*\\))|(?:@import\\s+['\"]([^'\"]+)['\"])",
 			java.util.regex.Pattern.CASE_INSENSITIVE);
 
-	/** CSS本文からurl()/@importの参照先を取り出します(CSSのURI基準)。 */
+	/** Extracts url()/@import targets from the CSS body (relative to the CSS URI). */
 	private static java.util.List<URI> extractCssUris(final URI cssUri, final HttpResponseCache.Entry entry) {
 		final java.util.List<URI> result = new java.util.ArrayList<>();
 		final String text = new String(entry.body(), java.nio.charset.StandardCharsets.UTF_8);
@@ -430,13 +430,13 @@ class MyHttpSourceResolver implements SourceResolver {
 			try {
 				result.add(net.zamasoft.zstream.resolver.util.URIHelper.resolve(entry.encoding(), cssUri, ref));
 			} catch (final java.net.URISyntaxException | RuntimeException e) {
-				// 参照が読めないだけ——実要求の正規経路が正
+				// Only a reference could not be parsed; the actual request's normal path is authoritative.
 			}
 		}
 		return result;
 	}
 
-	/** セッション局所ストアへ入れます(合計上限を超える分は保持しない)。 */
+	/** Adds to the session-local store (does not retain entries exceeding the total limit). */
 	private void store(final URI uri, final HttpResponseCache.Entry entry) {
 		final int length = entry.body().length;
 		if (this.prefetchedBytes.addAndGet(length) <= PREFETCHED_MAX_TOTAL_BYTES) {
@@ -447,26 +447,26 @@ class MyHttpSourceResolver implements SourceResolver {
 	}
 
 	public Source resolve(URI uri) throws IOException {
-		// 同じURIの先読みが取得中なら合流する(二重取得しない)。先読みの
-		// 失敗・キャンセルはここでは無視し、以降の正規経路で取り直す
+		// Join an in-flight prefetch for the same URI (avoid duplicate retrieval). Ignore prefetch
+		// failure or cancellation here and refetch via the normal path below.
 		final Inflight inflight = this.prefetching.get(uri);
 		if (inflight != null) {
 			if (inflight.started().get()) {
-				// 取得中なら合流する(同じ往復を二度払わない)
+				// Join if already fetching (do not pay for the same round trip twice).
 				try {
 					inflight.future().join();
 				} catch (final CancellationException | CompletionException ignore) {
-					// 正規経路へ
+					// Continue through the normal path.
 				}
 			} else {
-				// **順番待ちには合流しない**(2026-08-28)。待たされたうえ、
-				// 先読みが失敗すると本来取れるはずの資源まで落ちる。
-				// mapから外して投機を降ろし、すぐ自分で取りに行く
+				// **Do not join queued work** (2026-08-28). After the wait, a failed prefetch
+				// can lose a resource that would otherwise have been retrievable.
+				// Remove it from the map, withdraw speculation, and fetch immediately ourselves.
 				this.prefetching.remove(uri, inflight);
 				inflight.future().complete(null);
 			}
 		}
-		// セッション局所の先読み結果が最優先(同一変換内の受け渡し)
+		// Session-local prefetch results take priority (transfer within the same conversion).
 		final HttpResponseCache.Entry pre = this.prefetched.get(uri);
 		if (pre != null) {
 			MySourceResolver.PREFETCH_LOG.fine(() -> "resolve hit(session): " + uri);
@@ -482,22 +482,22 @@ class MyHttpSourceResolver implements SourceResolver {
 			}
 		}
 		MySourceResolver.PREFETCH_LOG.fine(() -> "resolve miss: " + uri);
-		// 副資源は本文を読み切ってから控える。主文書は**流しながら**控える
-		// ——読み切ってから渡すと組版の開始が遅れる(mainUriのjavadoc参照)
+		// Retain subresources after reading their entire bodies. Retain the main document **while streaming**:
+		// waiting to pass it on until fully read delays layout start (see mainUri's Javadoc).
 		final boolean main = uri.equals(this.mainUri);
 		final boolean remember = !main;
 		return new MyHttpSource(uri, this.httpClient(), request, cacheKey, remember, main);
 	}
 
 	/**
-	 * この要求のキャッシュキーを返します。キャッシュ対象外なら
-	 * {@code null}(安全条件と設計は{@link HttpResponseCache}に集約)。
+	 * Returns this request's cache key, or {@code null} if it is ineligible for caching
+	 * (safety conditions and design are documented in {@link HttpResponseCache}).
 	 *
 	 * <p>
-	 * 要求側の除外は3つ: (1)Authorizationヘッダを送る(preemptive認証・
-	 * カスタムヘッダ)、(2)当該ホストに一致する資格情報がある(401応答への
-	 * Authenticator反応で利用者固有の応答になり得る)、(3)当該URIへ送られる
-	 * Cookieがある(変換中のSet-Cookieで増えるため、要求を作る都度検査)。
+	 * Three request-side exclusions: (1) sends an Authorization header (preemptive authentication
+	 * or custom headers); (2) has credentials matching the host (Authenticator's response to a 401
+	 * may produce a user-specific response); (3) has cookies to send to the URI (checked whenever
+	 * a request is built, since Set-Cookie can add cookies during conversion).
 	 * </p>
 	 */
 	private String cacheKey(final URI uri, final HttpRequest request) {
@@ -518,9 +518,9 @@ class MyHttpSourceResolver implements SourceResolver {
 		} catch (final IOException e) {
 			return null;
 		}
-		// キーはURI+経路(プロクシ)+送信ヘッダ全体。ヘッダで応答を変える
-		// サーバー(Referer判定のhotlink保護等)が混線しないよう、送る
-		// ヘッダが1つでも違えば別エントリにする
+		// The key is URI + route (proxy) + all outgoing headers. Servers that vary responses
+		// by headers (e.g., Referer-based hotlink protection) must not be mixed, so a difference
+		// in even one outgoing header produces a separate entry.
 		final StringBuilder key = new StringBuilder(uri.toASCIIString());
 		key.append('\n').append(this.proxyHost).append(':').append(this.proxyPort);
 		new java.util.TreeMap<>(request.headers().map())
@@ -543,8 +543,8 @@ class MyHttpSourceResolver implements SourceResolver {
 			this.executor = null;
 		}
 		this.httpClient = null;
-		// 実行前に破棄された先読みタスクはfinallyを通らない。resolve()が
-		// joinで固まらないよう、残ったFutureをここで完了させる
+		// Prefetch tasks discarded before execution never enter finally. Complete remaining Futures
+		// here so resolve() cannot hang in join.
 		this.prefetching.forEach((uri, inflight) -> inflight.future().complete(null));
 		this.prefetching.clear();
 		this.hostSlots.clear();
@@ -568,18 +568,18 @@ class MyHttpSourceResolver implements SourceResolver {
 		return false;
 	}
 
-	/** 転送を指す状態かどうかです。 */
+	/** Whether the status indicates a redirect. */
 	private static boolean isRedirect(final int status) {
 		return status == 301 || status == 302 || status == 303 || status == 307 || status == 308;
 	}
 
 	/**
-	 * 2つのURIが同じオリジンかどうかです。
+	 * Whether two URIs have the same origin.
 	 *
 	 * <p>
-	 * scheme・host・portのどれかが違えば別オリジンとします。fetchの規定や
-	 * {@code curl}の既定({@code --location-trusted}を付けない)と同じ扱いで、
-	 * 世の標準動向に合わせています。
+	 * A difference in scheme, host, or port makes them different origins. Follows prevailing
+	 * standards, with the same handling as fetch's rules and {@code curl}'s default
+	 * (without {@code --location-trusted}).
 	 * </p>
 	 */
 	static boolean sameOrigin(final URI a, final URI b) {
@@ -595,11 +595,11 @@ class MyHttpSourceResolver implements SourceResolver {
 	}
 
 	/**
-	 * <b>別オリジンへは送らない</b>ヘッダです。
+	 * Headers that <b>must not be sent to another origin</b>.
 	 *
 	 * <p>
-	 * 呼び出し側が{@code input.http.header.N}で付けたものも対象です。
-	 * 特定のサイト向けに付けた資格情報が、転送で別のホストへ渡ってしまうためです。
+	 * Also applies to headers added by the caller via {@code input.http.header.N},
+	 * since redirects could otherwise send credentials intended for one site to another host.
 	 * </p>
 	 */
 	private static boolean isCredentialHeader(final String name) {
@@ -613,18 +613,18 @@ class MyHttpSourceResolver implements SourceResolver {
 
 	private HttpRequest createHttpRequest(URI uri, boolean sameOrigin) {
 		HttpRequest.Builder builder = HttpRequest.newBuilder(uri).GET();
-		// java.net.http.HttpClient は Accept-Encoding を自動送信せず、応答の
-		// Content-Encoding も自動で解凍しない(帯域節約のため明示的に要求し、
-		// getInputStream() 側で解凍する。static object store 由来のレスポンス
-		// (S3 等)は Accept-Encoding 無指定でも Content-Encoding: gzip を
-		// 返すことがあるため、要求の有無に関わらず解凍側の対応が本質)。
+		// java.net.http.HttpClient does not automatically send Accept-Encoding or decompress
+		// response Content-Encoding (request compression explicitly to save bandwidth,
+		// and decompress in getInputStream()). Responses from static object stores
+		// (such as S3) can return Content-Encoding: gzip even without Accept-Encoding,
+		// so decompression support is essential regardless of whether compression was requested.
 		builder.header("Accept-Encoding", "gzip, deflate");
-		// User-Agent 未設定のままだと HttpClient 既定の "Java-http-client/x.x"
-		// が送られ、bot policy を敷くサイト(実例: Wikipedia が
-		// robots policy 遵守目的で明示的な User-Agent を要求し、無ければ
-		// 403 で拒否する)からコンテンツを取得できない実バグを2026-07-18の
-		// 実地テストで発見。管理者が input.http-header*.name で明示的に
-		// User-Agent を設定している場合はそちらを優先し、上書きしない
+		// Without a User-Agent setting, HttpClient sends its default "Java-http-client/x.x".
+		// Sites with bot policies then cannot be fetched (e.g., Wikipedia explicitly requires
+		// a User-Agent for robots policy compliance and rejects requests without it
+		// with 403). This actual bug was found in field testing on 2026-07-18.
+		// If the administrator explicitly sets User-Agent via input.http-header*.name,
+		// give it priority and do not overwrite it.
 		if (!this.hasCustomHeader("User-Agent")) {
 			builder.header("User-Agent", DEFAULT_USER_AGENT);
 		}
@@ -645,7 +645,7 @@ class MyHttpSourceResolver implements SourceResolver {
 			for (int i = 0; i < headers.size(); ++i) {
 				Entry<String, String> header = headers.get(i);
 				if (!sameOrigin && isCredentialHeader(header.getKey())) {
-					// 転送で別オリジンへ来た。資格情報になりうるものは送らない
+					// Redirected to another origin. Do not send anything that could be credentials.
 					continue;
 				}
 				builder.header(header.getKey(), header.getValue());
@@ -667,12 +667,12 @@ class MyHttpSourceResolver implements SourceResolver {
 		private final HttpClient httpClient;
 		private final HttpRequest request;
 		private final String cacheKey;
-		/** 本文をセッション局所ストアへ控えるか(同一変換内の再取得防止)。 */
+		/** Whether to retain the body in the session-local store (prevents refetching within one conversion). */
 		private final boolean remember;
 		/**
-		 * 主文書か。<b>流しながら</b>控えます(2026-08-28)。同じセッションで
-		 * もう一度変換するとき——webappの文字サイズ変更のように——
-		 * 取り直すとページの内容が変わりうるので、最初に読んだものを使う。
+		 * Whether this is the main document. Retains it <b>while streaming</b> (2026-08-28).
+		 * When converting again in the same session, such as after changing the webapp's text size,
+		 * refetching could change the page content, so use the first body read.
 		 */
 		private final boolean main;
 		private CompletableFuture<HttpResponse<InputStream>> responseFuture;
@@ -738,15 +738,15 @@ class MyHttpSourceResolver implements SourceResolver {
 			}
 			this.tryConnect();
 			InputStream body = this.decodedBody();
-			// 応答側のキャッシュ判定(要求側は resolve() の cacheKey)。
-			// 本文を上限まで先読みして保存する——EOF検出契機の保存は
-			// GZIPInputStreamが下位ストリームを-1まで読み切るとは限らず
-			// (トレーラはバッファ内で消費され得る)、gzip配信のCSSという
-			// 主目的で不発になるため。上限超過時は読んだ分+残りを
-			// 連結して素通しする(設計は HttpResponseCache に集約)
-			// 共有キャッシュに載らない資源も、副資源と分かっていれば
-			// セッション局所ストアへ控える(2026-08-28。同一変換内で同じ
-			// 資源を何度も取りに行かない——{@link #discovered}のjavadoc)
+			// Response-side cache eligibility (the request side uses cacheKey in resolve()).
+			// Read ahead up to the body limit and store it. Saving on EOF detection would fail
+			// for the main use case of gzip-served CSS: GZIPInputStream does not necessarily
+			// read the underlying stream through -1 (the trailer may be consumed within its buffer).
+			// If the limit is exceeded, concatenate the bytes already read with the remainder
+			// and pass them through (design documented in HttpResponseCache).
+			// Even resources ineligible for the shared cache go into the session-local store
+			// when known to be subresources (2026-08-28; avoid repeatedly fetching the same
+			// resource within a conversion: see {@link #discovered}'s Javadoc).
 			final boolean shared = this.cacheKey != null && this.isCacheableResponse();
 			if (shared || (this.remember && this.response.statusCode() == 200)) {
 				final byte[] head = body.readNBytes(HttpResponseCache.MAX_ENTRY_BYTES + 1);
@@ -767,11 +767,11 @@ class MyHttpSourceResolver implements SourceResolver {
 				}
 			}
 			if (this.main) {
-				// **流しながら控える**(2026-08-28)。同じセッションでもう一度
-				// 変換するとき、取り直すとページの内容が変わりうる(実サイトは
-				// 読み込むたびに違うHTMLを返す)。読み切ってから渡すと組版の
-				// 開始が遅れるので、渡しながら写しを取る。読み切らなかったら
-				// 控えない——中途半端な写しを次の変換で使うほうが害が大きい
+				// **Retain while streaming** (2026-08-28). Refetching for another conversion in
+				// the same session could change the page content (real sites return different HTML
+				// on each load). Waiting to pass it on until fully read delays layout start,
+				// so copy while passing it on. If not read to the end, do not retain it:
+				// using an incomplete copy for the next conversion would cause greater harm.
 				final URI uri = this.getURI();
 				final String type = this.mimeType;
 				final String charset = this.encoding;
@@ -786,18 +786,16 @@ class MyHttpSourceResolver implements SourceResolver {
 		}
 
 		/**
-		 * 接続済み応答の復号ボディを返します(ストール時限+Content-Encoding
-		 * 解凍)。
+		 * Returns the decoded body of the connected response (stall timeout + Content-Encoding
+		 * decompression).
 		 *
 		 * <p>
-		 * ストール時限(2026-08-08): HttpRequest.timeout()は応答ヘッダ到着
-		 * までしか守らず、ボディのストリーミングが止まるとレイアウト
-		 * スレッドが永久に固まる——kakaku.comの外部リソース1本で変換全体が
-		 * 2000秒超ハングした実バグ。input.http.socket.timeout
-		 * (requestTimeout)を読み取り毎のストール上限として使う。
-		 * 解凍: HttpClientはContent-Encodingを自動解凍しない。未対応の
-		 * ままだと圧縮バイト列がそのままパーサに渡り、大量の文字化けとして
-		 * 観測される。
+		 * Stall timeout (2026-08-08): HttpRequest.timeout() protects only until response headers arrive.
+		 * If body streaming stops, the layout thread hangs forever: one external resource on kakaku.com
+		 * hung the whole conversion for over 2000 s in an actual bug. Uses input.http.socket.timeout
+		 * (requestTimeout) as the stall limit for each read.
+		 * Decompression: HttpClient does not automatically decompress Content-Encoding. Without support,
+		 * compressed bytes reach the parser unchanged and appear as extensive garbled text.
 		 * </p>
 		 */
 		private InputStream decodedBody() throws IOException {
@@ -818,8 +816,8 @@ class MyHttpSourceResolver implements SourceResolver {
 					body = new InflaterInputStream(body);
 					break;
 				default:
-					// br(Brotli)等、未対応の符号化はそのまま渡す(現状 br は
-					// 要求していないため通常は到達しない)
+					// Pass unsupported encodings such as br (Brotli) through unchanged (normally unreachable,
+					// since br is not currently requested).
 					break;
 				}
 			}
@@ -827,19 +825,18 @@ class MyHttpSourceResolver implements SourceResolver {
 		}
 
 		/**
-		 * 先読み用: 本文を上限まで読み切ってエントリにします。200以外・
-		 * 上限超過は{@code null}(その資源は実要求が正規経路で取り直す)。
+		 * For prefetch: reads the entire body up to the limit into an entry. Non-200 responses
+		 * or bodies exceeding the limit return {@code null} (the actual request refetches normally).
 		 *
 		 * <p>
-		 * ここでは応答側のキャッシュ条件(Set-Cookie等)を課さない——
-		 * セッション局所の受け渡しは「同一変換内で同じ資源を2回取らない」
-		 * だけで、Chromeが同一ロード内のmemory cacheでヘッダに関わらず
-		 * 再利用するのと同じ意味論。Set-Cookieの副作用は応答受信時に
-		 * cookieManagerが処理済みで、本文の再利用とは独立している
-		 * (実例: upload.wikimedia.orgが画像応答の一部にWMF-Uniq追跡
-		 * Cookieを付け、厳格条件では画像の半数が保持できなかった)。
-		 * プロセス共通の{@link HttpResponseCache}への保存可否は、従来
-		 * どおり{@link #isCacheableResponse()}で別途判定する。
+		 * Does not impose response-side cache conditions (Set-Cookie, etc.) here: session-local transfer
+		 * merely avoids fetching the same resource twice within one conversion, matching Chrome's
+		 * reuse in its memory cache within one load regardless of headers. cookieManager already
+		 * processed Set-Cookie side effects when the response arrived; these are independent of body reuse.
+		 * For example, upload.wikimedia.org adds a WMF-Uniq tracking cookie to some image responses,
+		 * and strict conditions prevented retaining half the images. Eligibility for storage in
+		 * the process-wide {@link HttpResponseCache} is still checked separately
+		 * by {@link #isCacheableResponse()}.
 		 * </p>
 		 */
 		HttpResponseCache.Entry readEntryForPrefetch() throws IOException {
@@ -847,8 +844,8 @@ class MyHttpSourceResolver implements SourceResolver {
 			final int status = this.response.statusCode();
 			if (status != 200) {
 				if (status == 429 || status == 503) {
-					// レート制限。このホストの先読みは以降やめる(投機で
-					// 配信側を怒らせて本来の取得まで失うのは本末転倒)
+					// Rate limited. Stop prefetching from this host (it defeats the purpose if speculation
+					// upsets the server and loses required fetches too).
 					final String host = this.getURI().getHost();
 					if (host != null && throttledHosts.add(host)) {
 						MySourceResolver.PREFETCH_LOG
@@ -872,15 +869,15 @@ class MyHttpSourceResolver implements SourceResolver {
 					parseMaxAge(this.response.headers().firstValue("Cache-Control").orElse(null)));
 		}
 
-		/** 応答が共有キャッシュ条件を満たすか(先読みタスクからの判定用)。 */
+		/** Whether the response meets shared-cache conditions (checked by prefetch tasks). */
 		boolean isSharedCacheable() {
 			return this.isCacheableResponse();
 		}
 
 		/**
-		 * 応答が共有キャッシュへ保存してよいものかを返します。
-		 * 200のGET応答で、Set-Cookieが無く、Cache-Controlが
-		 * no-store/no-cache/privateのいずれも含まず、Vary:*でないこと。
+		 * Returns whether the response may be stored in the shared cache.
+		 * Must be a 200 GET response, without Set-Cookie, without no-store/no-cache/private
+		 * in Cache-Control, and without Vary:*.
 		 */
 		private boolean isCacheableResponse() {
 			if (this.response.statusCode() != 200) {
@@ -950,31 +947,30 @@ class MyHttpSourceResolver implements SourceResolver {
 			this.mimeType = this.response.headers().firstValue("Content-Type").orElse(null);
 			this.contentEncoding = this.response.headers().firstValue("Content-Encoding").orElse(null);
 			this.encoding = parseCharset(this.mimeType);
-			// Content-Length は圧縮後のバイト数であり、解凍後の長さとは
-			// 一致しない(getInputStream() が解凍する場合)。誤った長さを
-			// 伝えるより不明(-1)の方が安全
+			// Content-Length is the compressed byte count, which differs from the decompressed
+			// length when getInputStream() decompresses. Reporting unknown (-1) is safer
+			// than reporting an incorrect length.
 			this.contentLength = this.contentEncoding != null ? -1
 					: this.response.headers().firstValueAsLong("Content-Length").orElse(-1);
 			this.lastModified = parseLastModified(this.response.headers().firstValue("Last-Modified").orElse(null));
 		}
 
 		/**
-		 * 3xxを自分で追います。
+		 * Follows 3xx redirects itself.
 		 *
 		 * <p>
-		 * {@link HttpClient}は常に{@code Redirect.NEVER}で作るので、
-		 * <b>ここが唯一の転送処理</b>です。生成時の状態で
-		 * {@code NORMAL}/{@code NEVER}を作り分けると、あとから判定を足しても
-		 * 既存のクライアントが先に追ってしまうためです。
+		 * Since {@link HttpClient} is always created with {@code Redirect.NEVER},
+		 * <b>this is the only redirect handler</b>. Choosing {@code NORMAL}/{@code NEVER}
+		 * from the state at creation would let existing clients follow redirects before
+		 * a check added later could run.
 		 * </p>
 		 *
 		 * <p>
-		 * <b>判定を掛けるのはセッションが制限しているときだけ</b>です。
-		 * ACLを一度も設定していないセッションで
-		 * {@code restrictedResolver.permits()}を引くと、既定が
-		 * <b>{@code data:}以外は拒否</b>なので、すべての転送が止まります。
-		 * 判定しないときも、ホップ数の上限とHTTPS→HTTPの格下げ拒否は掛けます
-		 * ({@code Redirect.NORMAL}と同じ扱い)。
+		 * <b>Checks only when the session imposes restrictions</b>. Calling
+		 * {@code restrictedResolver.permits()} in a session with no ACL ever set would stop
+		 * all redirects, since the default is <b>deny everything except {@code data:}</b>.
+		 * Even without checking, enforces the hop limit and rejects HTTPS→HTTP downgrades
+		 * (the same as {@code Redirect.NORMAL}).
 		 * </p>
 		 */
 		private void followRedirects() throws IOException {
@@ -996,7 +992,7 @@ class MyHttpSourceResolver implements SourceResolver {
 				} catch (final IllegalArgumentException e) {
 					throw new IOException("bad redirect target: " + location);
 				}
-				// HttpClient の NORMAL と同じく、HTTPS から HTTP への格下げは追わない
+				// Like HttpClient's NORMAL, do not follow HTTPS-to-HTTP downgrades.
 				if ("https".equalsIgnoreCase(current.getScheme())
 						&& !"https".equalsIgnoreCase(next.getScheme())) {
 					throw new IOException("refusing to follow a redirect from https to " + next.getScheme());
@@ -1004,7 +1000,7 @@ class MyHttpSourceResolver implements SourceResolver {
 				if (guard != null && !guard.test(next)) {
 					throw new SecurityException("Access to the redirect target is not permitted: " + next);
 				}
-				// 本文は使わないので閉じる
+				// Close the unused body.
 				try {
 					this.response.body().close();
 				} catch (final IOException e) {
@@ -1076,8 +1072,8 @@ class MyHttpSourceResolver implements SourceResolver {
 	}
 
 	/**
-	 * 応答の{@code Cache-Control}からmax-age(秒)を取り出します。
-	 * 共有キャッシュなのでs-maxageを優先し、どちらも無ければ-1。
+	 * Extracts max-age (seconds) from the response's {@code Cache-Control}.
+	 * Since this is a shared cache, s-maxage takes priority. Returns -1 if neither is present.
 	 */
 	static long parseMaxAge(final String cacheControl) {
 		if (cacheControl == null) {
@@ -1094,7 +1090,7 @@ class MyHttpSourceResolver implements SourceResolver {
 					maxAge = Long.parseLong(token.substring("max-age=".length()).trim());
 				}
 			} catch (final NumberFormatException e) {
-				// 不正な値は無指定とみなす
+				// Treat an invalid value as unspecified.
 			}
 		}
 		return sMaxAge >= 0 ? sMaxAge : maxAge;

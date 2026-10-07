@@ -5,44 +5,44 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * OPFの情報です。
- * 
+ * OPF information.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class Contents {
-	/** 指定なし（通常は左から右）。 */
+	/** Unspecified (usually left to right). */
 	public static final byte PAGE_PROGRESSION_DIRECTION_DEFAULT = 0;
-	/** 左から右へ（横書き）。 */
+	/** Left to right (horizontal writing). */
 	public static final byte PAGE_PROGRESSION_DIRECTION_LTR = 1;
-	/** 右から左へ（縦書き）。 */
+	/** Right to left (vertical writing). */
 	public static final byte PAGE_PROGRESSION_DIRECTION_RTL = 2;
 
-	/** OPFのZIPファイル内でのパスです。 */
+	/** The OPF path within the ZIP file. */
 	public String base;
 
-	/** パッケージの唯一のIDです。 */
+	/** The package's unique ID. */
 	public PropertiedString id;
 
-	/** パッケージのタイトルです。 */
+	/** The package title. */
 	public PropertiedString title;
-	/** パッケージの説明です。 */
+	/** The package description. */
 	public PropertiedString description;
-	/** パッケージの言語です。 */
+	/** The package language. */
 	public List<PropertiedString> language = new ArrayList<PropertiedString>();
-	/** パッケージのIDです。 */
+	/** The package ID. */
 	public List<PropertiedString> identifier = new ArrayList<PropertiedString>();
-	/** パッケージの作者です。 */
+	/** The package author. */
 	public List<PropertiedString> author = new ArrayList<PropertiedString>();
-	/** パッケージの出版社です。 */
+	/** The package publisher. */
 	public List<PropertiedString> publisher = new ArrayList<PropertiedString>();
-	/** パッケージの権利情報です。 */
+	/** The package rights information. */
 	public List<PropertiedString> rights = new ArrayList<PropertiedString>();
 
 	Map<String, String> meta;
 
 	/**
-	 * メタデータを返します。
-	 * 
+	 * Returns metadata.
+	 *
 	 * @param key
 	 * @return
 	 */
@@ -50,28 +50,28 @@ public class Contents {
 		return this.meta.get(key);
 	}
 
-	/** 目次です。 */
+	/** The table of contents. */
 	public Item toc;
 
-	/** 表紙です。 */
+	/** The cover. */
 	public Item coverImage;
 
-	/** 全ての項目の配列です。 */
+	/** An array of all items. */
 	public Item[] items;
 
 	Map<String, Item> fullPathToItem;
 
-	/** パスから項目を返します。 */
+	/** Returns the item for a path. */
 	public Item getItem(String fullPath) {
 		return this.fullPathToItem.get(fullPath);
 	}
 
-	/** ページ順に並べられた本の項目の配列です。 */
+	/** An array of book items in page order. */
 	public ItemRef[] spine;
 
-	/** ページ進行方法です。 */
+	/** The page progression direction. */
 	public byte pageProgressionDirection = PAGE_PROGRESSION_DIRECTION_DEFAULT;
 
-	/** ガイド情報です。 */
+	/** Guide information. */
 	public Reference[] guide;
 }

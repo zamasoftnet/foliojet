@@ -5,18 +5,18 @@ import net.zamasoft.foliojet.css.token.Unit;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 絶対(デバイス相対を含む)長さです。
+ * An absolute length (including device-relative lengths).
  */
 public abstract class AbsoluteLengthValue implements LengthValue, Comparable<AbsoluteLengthValue> {
 	public abstract Unit getUnit();
 
 	/**
-	 * 指定した単位での長さを返します。
+	 * Returns the length in the specified unit.
 	 */
 	public abstract double getLength(Unit unit);
 
 	/**
-	 * PT単位で長さを返します。
+	 * Returns the length in PT units.
 	 */
 	public abstract double getLength();
 

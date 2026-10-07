@@ -17,16 +17,16 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code text-decoration}短縮形(css-text-decoration-3)です(2026-08-29に
- * 個別指定{@code text-decoration-line}から分離)。
+ * {@code text-decoration} shorthand (css-text-decoration-3; separated from the
+ * individual {@code text-decoration-line} on 2026-08-29).
  *
  * <p>
- * {@code <line>* || <style> || <color> || <thickness>}を順不同で受け、
- * 線種({@link TextDecoration})・色({@link TextDecorationColor})・
- * 線のスタイルと太さ({@link TextDecorationAux}——受理のみ)へ展開します。
- * 省略した構成要素は初期値へ戻す(短縮形の規約)。従来は
- * {@code underline dotted}のように線種以外を伴うと宣言ごと無効になり、
- * 下線自体が消えていた(実サイト50件中14件)。
+ * Accepts {@code <line>* || <style> || <color> || <thickness>} in any order and expands into
+ * line types ({@link TextDecoration}), color ({@link TextDecorationColor}),
+ * and line style/thickness ({@link TextDecorationAux}, accepted only).
+ * Resets omitted components to initial values (the shorthand convention).
+ * Previously, anything beyond line types, such as {@code underline dotted},
+ * invalidated the entire declaration, removing the underline itself (14 of 50 real sites).
  * </p>
  *
  * @author MIYABE Tatsuhiko

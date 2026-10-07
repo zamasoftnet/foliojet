@@ -1,14 +1,14 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 配置パラメータです。
+ * Positioning parameters.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: AbstractStaticPos.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public abstract class AbstractStaticPos implements Pos {
 	/**
-	 * 相対配置指定です。
+	 * Relative positioning settings.
 	 */
 	public Offset offset = null;
 

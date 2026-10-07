@@ -22,22 +22,23 @@ import net.zamasoft.pdfg2d.gc.text.TextImpl;
 import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 
 /**
- * 1パスのPDFで組む{@code target-counter()}の番号の欄です(2026-10-04、
- * docs/design/one-pass-target-counter-design.md)。
+ * Number slot for {@code target-counter()} laid out in a one-pass PDF (2026-10-04,
+ * docs/design/one-pass-target-counter-design.md).
  *
  * <p>
- * 欄の幅は「桁数×数字の最大の送り」で、番号の値に依存しない。だから目次は参照先の
- * 頁が決まる前に組める。描くときに値が分かっていれば(前の頁への参照)その場で
- * 描き、まだなら(後ろの頁への参照)PDFの部品を頁から参照だけしておき、中身は
- * 文書を閉じるときに書く({@link PDFGC#drawDeferredForm})。番号は欄の中で
- * 右揃えで、溢れたら左へはみ出す。
+ * The slot width is "digit count × maximum digit advance", independent of the number's value.
+ * This allows a table of contents to be laid out before the target pages are known. If the value
+ * is known at draw time (a reference to an earlier page), draw it immediately. Otherwise (a reference
+ * to a later page), only reference a PDF component from the page and write its content when closing
+ * the document ({@link PDFGC#drawDeferredForm}). Numbers are right-aligned within the slot
+ * and overflow to the left if they do not fit.
  * </p>
  *
  * <p>
- * 前例は脚注番号の固定欄({@link FootnoteLabelImage})。あちらは頁を確定した
- * ときに埋まるが、こちらは別の(後ろの)頁で決まるので、描画を後へ送る。
- * 画像は不変の仕様だけを持ち、描くたびに部品を作る(表の見出しの繰り返しや
- * 複製で共有しない)。
+ * The precedent is the fixed footnote-number slot ({@link FootnoteLabelImage}). That slot is filled
+ * when its page is finalized, but this one is determined on another (later) page, so drawing is deferred.
+ * The image holds only an immutable specification and creates a component on each draw
+ * (not shared by repeated table headers or replicas).
  * </p>
  */
 public final class TargetCounterSlotImage
@@ -59,16 +60,16 @@ public final class TargetCounterSlotImage
 
 	private final int digits;
 
-	/** 数字1桁の欄幅(0〜9の最大advance)。 */
+	/** Width of one digit slot (the maximum advance among 0–9). */
 	private final double digitAdvance;
 
 	private final double ascent, descent;
 
 	/**
-	 * 1パスのPDFで、{@code target-counter()}を欄として組めるか。組めなければ
-	 * 今までどおり(2パス以上なら前のパスの値を文字で組む)。
-	 * {@code output.pdf.bidi.actual-text}では行の論理文字列で欄がU+FFFCになり
-	 * 番号が抜けるので組まない。
+	 * Whether {@code target-counter()} can be laid out as a slot in a one-pass PDF. Otherwise, retain
+	 * the existing behavior (with two or more passes, lay out the previous pass's value as text).
+	 * Do not use slots with {@code output.pdf.bidi.actual-text}: the slot becomes U+FFFC in the line's
+	 * logical text, omitting the number.
 	 */
 	public static boolean available(final UserAgent ua) {
 		return ua.paintsPageNumbersLater() && UAProps.PROCESSING_PASS_COUNT.getInteger(ua) == 1
@@ -96,14 +97,14 @@ public final class TargetCounterSlotImage
 		ua.getUAContext().noteTargetCounterSlot();
 	}
 
-	/** 参照先の値がもう分かっているか。 */
+	/** Whether the target value is already known. */
 	public boolean isResolved() {
 		return this.resolve() != null;
 	}
 
 	/**
-	 * 記録した描画(入れ子の群画像も)の中の欄を集めます。ページ分割SVGは、まだ値の
-	 * 分からない欄がある頁の出力を後回しにする({@code PagedSVGUserAgent})。
+	 * Collects slots in recorded drawing operations (including nested group images). Page-split SVG
+	 * defers output of pages containing slots with unknown values ({@code PagedSVGUserAgent}).
 	 */
 	public static java.util.List<TargetCounterSlotImage> slots(final net.zamasoft.pdfg2d.gc.RecorderGC.Page page) {
 		final java.util.List<TargetCounterSlotImage> slots = new java.util.ArrayList<>();
@@ -140,13 +141,13 @@ public final class TargetCounterSlotImage
 		return this.ascent + this.descent;
 	}
 
-	/** 番号は字なので、字の基準線を行の基準線に合わせる。 */
+	/** Numbers are text, so align their text baseline with the line baseline. */
 	@Override
 	public double getDescent() {
 		return this.descent;
 	}
 
-	/** 参照先のURI(表示リスト用)。 */
+	/** Target URI (for the display list). */
 	public URI getURI() {
 		return this.uri;
 	}
@@ -170,7 +171,7 @@ public final class TargetCounterSlotImage
 				pdf.drawDeferredForm(this.getWidth(), this.getHeight(), form -> {
 					final String later = this.resolve();
 					if (later == null) {
-						// 参照先が無い。2パスのときと同じく空にする
+						// No target exists. Leave the slot empty, as in two-pass mode.
 						return null;
 					}
 					form.setFillPaint(this.color);
@@ -178,8 +179,8 @@ public final class TargetCounterSlotImage
 				});
 				return;
 			}
-			// ラスタ化するfilterの中など、後から書けない描画先。後回しにした頁を文書の終わりに
-			// 描くとき(ページ分割SVG)は、最後まで参照先が無かった欄なので黙る(PDFと同じ)
+			// A drawing target that cannot be written later, such as inside a rasterizing filter. When drawing
+			// deferred pages at document end (page-split SVG), no target was ever found, so stay silent (as in PDF).
 			if (!this.ua.getUAContext().isDrawingHeldPages()) {
 				this.report("2822.target-counter-unresolved");
 			}
@@ -187,8 +188,8 @@ public final class TargetCounterSlotImage
 	}
 
 	/**
-	 * 近似を知らせる包み紙だけを剥がす。filter等の包み紙はその内側へ描く必要が
-	 * あるので剥がさない(その中では後から書けない)。
+	 * Unwraps only wrappers that report approximations. Do not unwrap filters and similar wrappers:
+	 * drawing must occur inside them (where deferred writing is unavailable).
 	 */
 	private static GC unwrapApproximation(GC gc) {
 		while (gc instanceof ApproximationGC a) {
@@ -198,8 +199,8 @@ public final class TargetCounterSlotImage
 	}
 
 	/**
-	 * 参照先の値を、このパスで登録されたものだけ読む。前のパス(継続変換の中間パス)の
-	 * 値は確定していないので使わない。
+	 * Reads only target values registered in this pass. Do not use values from the previous pass
+	 * (an intermediate pass in continuous conversion), because they are not final.
 	 */
 	private String resolve() {
 		final PageRef pageRef = this.ua.getUAContext().getPageRef();
@@ -210,7 +211,7 @@ public final class TargetCounterSlotImage
 		return CounterStyles.of(this.ua).format(fragment.getCounterValue(this.counter), this.numberStyleType);
 	}
 
-	/** 欄の右端に揃えて描き、描いた範囲を返す。 */
+	/** Draws aligned to the slot's right edge and returns the painted bounds. */
 	private Rectangle2D paint(final GC gc, final String text) throws GraphicsException {
 		final TextImpl[] runs = this.shape(text);
 		double advance = 0;
@@ -227,7 +228,7 @@ public final class TargetCounterSlotImage
 			gc.drawText(run, x, this.ascent);
 			x += run.getAdvance();
 		}
-		// 字形の張り出しを切らないよう、上下左右に字の高さぶんの余裕を取る
+		// Leave one character height of space on all four sides to avoid clipping glyph overhangs.
 		final double height = this.getHeight();
 		return new Rectangle2D.Double(Math.min(0, left) - height, -height, Math.max(width, advance) + height * 2,
 				height * 3);
@@ -243,10 +244,10 @@ public final class TargetCounterSlotImage
 
 	@Override
 	public void setReplacedBox(final AbstractReplacedBox box, final double width, final double height) {
-		// back-referenceは不要(サイズは固定欄)
+		// No back-reference is needed (size is a fixed slot).
 	}
 
-	/** 不変なので複製は自分自身でよい。 */
+	/** Immutable, so the replica can be this instance itself. */
 	@Override
 	public net.zamasoft.pdfg2d.gc.image.Image duplicate() {
 		return this;

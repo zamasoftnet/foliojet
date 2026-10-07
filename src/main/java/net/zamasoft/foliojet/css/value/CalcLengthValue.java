@@ -1,15 +1,16 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * 絶対長さと割合(パーセント)が混在した calc() の結果です(例: {@code calc(50% + 10px)})。
+ * Result of calc() mixing absolute length and percentage (e.g. {@code calc(50% + 10px)}).
  * <p>
- * 使用値計算(レイアウト時、パーセントの基準値が定まった時点)まで両成分を
- * 分離したまま持ち回ります。{@code absolute} は{@link AbsoluteLengthValue#getLength()}
- * と同じ規約(PT単位)、{@code ratio} は{@link PercentageValue#getRatio()}と同じ規約
- * (100%=1.0)です。基準値 {@code ref} での実際の長さは {@code absolute + ratio * ref}
- * です(このクラス自身はrefを持たないため計算しません。実際の解決は
- * {@link net.zamasoft.foliojet.layout.util.LayoutUtils}側、
- * {@link net.zamasoft.foliojet.layout.box.params.LengthType#MIXED}経由で行います)。
+ * Carries both components separately until used-value computation (during layout,
+ * when the percentage reference is known). {@code absolute} follows
+ * {@link AbsoluteLengthValue#getLength()} (PT units); {@code ratio} follows
+ * {@link PercentageValue#getRatio()} (100%=1.0). Actual length with reference
+ * {@code ref} is {@code absolute + ratio * ref}. This class does not hold ref and
+ * therefore does not calculate it; actual resolution occurs in
+ * {@link net.zamasoft.foliojet.layout.util.LayoutUtils}, via
+ * {@link net.zamasoft.foliojet.layout.box.params.LengthType#MIXED}.
  * </p>
  */
 public final class CalcLengthValue implements Value, QuantityValue {
@@ -17,9 +18,9 @@ public final class CalcLengthValue implements Value, QuantityValue {
 	private final double ratio;
 
 	/**
-	 * 絶対成分と割合成分から値を生成します。どちらか一方が0なら、より単純な
-	 * {@link AbsoluteLengthValue}/{@link PercentageValue}を返します
-	 * (両方0でもゼロ長のAbsoluteLengthValueを返す)。
+	 * Creates a value from absolute and ratio components. If either is 0, returns the
+	 * simpler {@link AbsoluteLengthValue}/{@link PercentageValue}
+	 * (if both are 0, returns a zero-length AbsoluteLengthValue).
 	 */
 	public static QuantityValue create(net.zamasoft.foliojet.ua.UserAgent ua, double absolute, double ratio) {
 		if (ratio == 0) {
@@ -36,21 +37,21 @@ public final class CalcLengthValue implements Value, QuantityValue {
 		this.ratio = ratio;
 	}
 
-	/** PT単位の絶対成分。 */
+	/** Absolute component in PT units. */
 	public double getAbsolute() {
 		return this.absolute;
 	}
 
-	/** 割合成分(100%=1.0)。 */
+	/** Ratio component (100%=1.0). */
 	public double getRatio() {
 		return this.ratio;
 	}
 
 	/**
-	 * 絶対成分・割合成分が同符号の場合のみ、確実に負であることが分かる。
-	 * 符号が異なる場合は基準値次第で正負が変わるため、確実な判定はできない
-	 * (falseを返す。CSS仕様上も、パーセントを含む値の負値判定は使用値計算時まで
-	 * 確定しない)。
+	 * The result is certainly negative only when absolute and ratio components have the
+	 * same sign. With opposite signs, the reference value determines the sign, so a definite
+	 * check is impossible (returns false; CSS likewise defers negativity checks for
+	 * percentage-containing values until used-value computation).
 	 */
 	public boolean isNegative() {
 		return this.absolute < 0 && this.ratio < 0;

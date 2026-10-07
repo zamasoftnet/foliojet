@@ -1,15 +1,15 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code container-type}の値です(css-contain-3、2026-08-15段2——
- * 開発記録 §5)。
+ * A {@code container-type} value (css-contain-3, 2026-08-15 stage 2;
+ * development record §5).
  *
  * <p>
- * {@code size}は構文としては受理するが、寸法をブロック軸まで含めて
- * containしてしまい改ページと直交するため、段1〜3の実装では
- * クエリコンテナとして扱わない(設計§4「`container-type: size`は
- * 初回に入れない」)。値そのものは保持し、警告は実際に
- * {@code ContainerFacts}を参照する段で出す。
+ * Accepts {@code size} as syntax, but containing dimensions through the block axis
+ * conflicts with page breaking, so stages 1–3 do not treat it as a query container
+ * (design §4: do not include `container-type: size` initially).
+ * Retains the value itself and warns at the stage that actually consults
+ * {@code ContainerFacts}.
  * </p>
  *
  * @author MIYABE Tatsuhiko

@@ -15,19 +15,20 @@ import net.zamasoft.foliojet.layout.box.params.BookmarkSpec;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * GCPM {@code bookmark-level: auto | none | <integer>}(2026-10-04)。
+ * GCPM {@code bookmark-level: auto | none | <integer>} (2026-10-04).
  *
  * <p>
- * 仕様の初期値は{@code none}だが、Copper は h1〜h6 から段数を取って
- * しおりを作ってきたので、初期値を{@code auto}(文書の見出しの段数に従う、
- * Copper の拡張)にする。{@code none}で見出しをしおりから外し、整数で
- * 見出しでない要素もしおりにできる。
+ * The specified initial value is {@code none}, but Copper has always created bookmarks
+ * using heading levels from h1–h6, so the initial value is {@code auto}
+ * (a Copper extension that follows document heading levels).
+ * {@code none} excludes a heading from bookmarks; an integer can turn non-heading elements
+ * into bookmarks too.
  * </p>
  */
 public class BookmarkLevel extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BookmarkLevel();
 
-	/** 0 は none、{@link BookmarkSpec#LEVEL_AUTO}は auto。 */
+	/** 0 means none; {@link BookmarkSpec#LEVEL_AUTO} means auto. */
 	public static int get(final CSSStyle style) {
 		final Value value = style.get(INFO);
 		if (value == KeywordValue.AUTO) {

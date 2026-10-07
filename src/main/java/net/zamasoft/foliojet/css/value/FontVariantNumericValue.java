@@ -5,9 +5,9 @@ import java.util.Arrays;
 import net.zamasoft.pdfg2d.gc.font.FontFeatureSet;
 
 /**
- * {@code font-variant-numeric}の値です(css-fonts-3)。互いに排他的な
- * 数字字形・幅・分数の三カテゴリと、独立なordinal/slashed-zeroを保持し、
- * OpenType featureタグへ正規化します。
+ * A {@code font-variant-numeric} value (css-fonts-3). Retains three categories
+ * with mutually exclusive choices (figure style, width, and fractions), plus independent
+ * ordinal/slashed-zero settings, and normalizes them into OpenType feature tags.
  */
 public final class FontVariantNumericValue implements Value {
 	public static final FontVariantNumericValue NORMAL_VALUE =
@@ -40,7 +40,7 @@ public final class FontVariantNumericValue implements Value {
 		return this == NORMAL_VALUE;
 	}
 
-	/** CSSキーワードを対応するOpenType feature(値1)へ変換します。 */
+	/** Maps CSS keywords to the corresponding OpenType features (with value 1). */
 	public FontFeatureSet featureSet() {
 		if (this.isNormal()) {
 			return FontFeatureSet.EMPTY;

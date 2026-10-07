@@ -1,12 +1,13 @@
 package net.zamasoft.foliojet.css.selector;
 
 /**
- * An+B構文を引数に取る条件(:nth-child() / :nth-of-type())。
+ * A condition taking An+B syntax as its argument (:nth-child() / :nth-of-type()).
  *
  * <p>
- * 判定は先行兄弟チェーン(CSSElement.precedingElement)を先頭側へ反復的に
- * 辿って通し番号を数えるだけで完結し(1P、先読み不要)、要素スタックへの
- * 追加状態は持たない。チェーン長ぶんの反復はあるが再帰は使わない。
+ * Matches simply by iteratively walking the preceding-sibling chain
+ * (CSSElement.precedingElement) toward its beginning to count the position
+ * (1P, no lookahead), without adding state to the element stack.
+ * Iterates over the chain length but does not recurse.
  * </p>
  */
 public final class NthCondition implements Condition {
@@ -49,14 +50,14 @@ public final class NthCondition implements Condition {
 	}
 
 	public Specificity getSpecificity() {
-		// 擬似クラスとしての詳細度(クラス相当)
+		// Pseudo-class specificity (equivalent to a class)
 		return new Specificity(0, 1, 0);
 	}
 
 	/**
-	 * An+B式が指定の通し番号(1始まり)にマッチするか判定します。
+	 * Tests whether the An+B expression matches the given position (one-based).
 	 *
-	 * @param position 1始まりの通し番号
+	 * @param position one-based position
 	 */
 	public boolean matches(int position) {
 		assert position >= 1 : "position は1始まりです: " + position;
@@ -64,7 +65,7 @@ public final class NthCondition implements Condition {
 		if (this.a == 0) {
 			return diff == 0;
 		}
-		// diff = a*k を満たす非負整数 k が存在するか
+		// Whether there is a nonnegative integer k satisfying diff = a*k
 		return diff % this.a == 0 && diff / this.a >= 0;
 	}
 

@@ -7,15 +7,14 @@ import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.SourceResolver;
 
 /**
- * EPUB内の相対パスを、基底URIの下の実体へ結び付けるリゾルバです。
+ * A resolver that maps relative paths within an EPUB to resources under a base URI.
  *
  * <p>
- * ZIPのEPUBでは{@code zip:}スキームと{@link ZIPFileSourceResolver}がこの役目を
- * 果たしますが、EPUBの中身がディレクトリとして与えられる場合は、
- * <b>基底URIへの相対解決</b>がそのまま同じ役目になります。基底URIが
- * {@code http:}ならウェブ上のEPUB展開物を、CTIPでクライアントが
- * ソースリゾルバを設定していればクライアント側のEPUBを、
- * それぞれ<b>必要な項目だけ</b>取得して組版できます。
+ * For ZIP EPUBs, the {@code zip:} scheme and {@link ZIPFileSourceResolver} serve this role.
+ * When EPUB contents are supplied as a directory, <b>resolution relative to the base URI</b>
+ * serves the same purpose directly. An {@code http:} base URI lets you lay out an unpacked EPUB
+ * on the web. If a CTIP client installs a source resolver, it lets you lay out a client-side EPUB.
+ * In either case, fetches <b>only the required items</b>.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -26,15 +25,15 @@ public class BaseURISourceResolver implements SourceResolver {
 	private final URI base;
 
 	/**
-	 * @param enclosed 実体を取得するリゾルバ。
-	 * @param base     末尾が{@code /}の階層URI。
+	 * @param enclosed the resolver that retrieves resources
+	 * @param base     a hierarchical URI ending in {@code /}
 	 */
 	public BaseURISourceResolver(final SourceResolver enclosed, final URI base) {
 		this.enclosed = enclosed;
 		this.base = base;
 	}
 
-	/** 基底URIの下の絶対URIへ直します。 */
+	/** Converts to an absolute URI under the base URI. */
 	public URI toAbsolute(final URI uri) {
 		return this.base.resolve(uri);
 	}

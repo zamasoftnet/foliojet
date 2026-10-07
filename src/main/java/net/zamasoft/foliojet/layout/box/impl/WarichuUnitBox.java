@@ -31,11 +31,11 @@ import net.zamasoft.pdfg2d.gc.text.TextImpl;
 import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
 
 /**
- * JLREQ 3.4の短い割注を、半サイズの2段として保持するatomic inline。
- * 行送りへの寄与は本文1行分のままにし、2段の字面はその中へ配置します。
+ * Atomic inline that holds a short JLREQ 3.4 warichu annotation as two half-size lines.
+ * Its contribution to line pitch remains one body-text line, with both lines' glyph bounds (ink) placed inside.
  */
 public final class WarichuUnitBox extends InlineBlockBox {
-	/** 1断片を2段各4字程度に抑え、狭い本文行でも次行へ送れるようにする。 */
+	/** Keeps each fragment to about four characters per line in two lines, allowing it to move to the next narrow body line. */
 	private static final int MAX_FRAGMENT_CODE_POINTS = 8;
 	private final TextImpl[] firstTexts, secondTexts;
 	private final Color color;
@@ -140,8 +140,9 @@ public final class WarichuUnitBox extends InlineBlockBox {
 	}
 
 	/**
-	 * 長い割注を、禁則を破らない複数のatomic二段断片へ分ける。断片間は通常の
-	 * インライン分割機会になるため、割注全体が本文の複数行にまたがれる。
+	 * Splits long warichu into multiple atomic two-line fragments without violating kinsoku (line-breaking rules).
+	 * Boundaries between fragments are ordinary inline break opportunities, allowing the whole warichu
+	 * to span multiple body-text lines.
 	 */
 	public static List<WarichuUnitBox> createFragments(final InlineParams container, final String text,
 			final InlineParams textParams, final int charOffset, final int sourceStart, final int sourceEnd) {
@@ -177,7 +178,7 @@ public final class WarichuUnitBox extends InlineBlockBox {
 				return at;
 			}
 		}
-		// 長い不可分列（欧文単語等）は途中で壊さず、最初の合法境界まで延ばす。
+		// Extend long indivisible sequences (Latin words, etc.) to the first legal boundary without breaking them internally.
 		for (int at = ideal + 1; at < text.length(); ++at) {
 			if (legalBoundary(text, at, rules)) {
 				return at;
@@ -193,7 +194,7 @@ public final class WarichuUnitBox extends InlineBlockBox {
 		return rules == null || !rules.atomic(text.charAt(at - 1), text.charAt(at));
 	}
 
-	/** 中央付近で、行頭・行末禁則を破らない境界を選ぶ。 */
+	/** Chooses a boundary near the center that respects line-start and line-end kinsoku (line-breaking rules). */
 	private static int split(final String text, final TextBreakingRules rules) {
 		if (text.length() <= 1) {
 			return text.length();

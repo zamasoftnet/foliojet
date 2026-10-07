@@ -13,13 +13,13 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code shape-image-threshold}です(css-shapes-1 §4.2、2026-08-29新設)。
+ * {@code shape-image-threshold} (css-shapes-1 §4.2, added 2026-08-29).
  *
  * <p>
- * {@code <number>}。{@code shape-outside: url()}の画像から形状を
- * 抽出するときの不透明度の閾値(この値<b>より大きい</b>画素が形状に
- * なる)。範囲外は0..1へ丸める(仕様どおりcomputed valueで丸める)。
- * 既定0・非継承。
+ * {@code <number>}. Opacity threshold for extracting a shape from a
+ * {@code shape-outside: url()} image (pixels <b>greater than</b> this value form the shape).
+ * Clamps out-of-range values to 0..1 at the computed-value stage, as specified.
+ * Defaults to 0; not inherited.
  * </p>
  */
 public class ShapeImageThreshold extends AbstractPrimitivePropertyInfo {

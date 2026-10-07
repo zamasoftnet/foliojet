@@ -16,17 +16,18 @@ import net.zamasoft.foliojet.css.value.css3.TransformValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 個別変換プロパティ{@code translate}です(css-transforms-2 §7、
- * 2026-08-29新設)。
+ * Individual transform property {@code translate} (css-transforms-2 §7,
+ * added 2026-08-29).
  *
  * <p>
- * {@code none | <length-percentage> [ <length-percentage> <length>? ]?}。
- * 3つ目(z)は読み捨てる。値は{@code transform}と同じ
- * {@link TransformValue}で持ち、割合は{@code translate()}と同じく
- * 要素自身の寸法に掛ける係数として運ぶ——個別プロパティは変換列の
- * 先頭(translate→rotate→scale→transform の順、§7.3)に来るので、
- * 割合の前に合成される行列は恒等で、係数はそのままW→x・H→yに載る。
- * 実際の合成は{@code BoxStyleMapper.setupParams}で行う。
+ * {@code none | <length-percentage> [ <length-percentage> <length>? ]?}.
+ * Reads and discards the third component (z). Stores values in the same
+ * {@link TransformValue} as {@code transform}; as with {@code translate()},
+ * percentages travel as coefficients multiplied by the element's own dimensions.
+ * Individual properties come first in the transform sequence
+ * (translate→rotate→scale→transform, §7.3), so the matrix composed before
+ * the percentages is identity, and the coefficients map directly to W→x and H→y.
+ * Actual composition occurs in {@code BoxStyleMapper.setupParams}.
  * </p>
  */
 public class Translate extends AbstractPrimitivePropertyInfo {
@@ -69,7 +70,7 @@ public class Translate extends AbstractPrimitivePropertyInfo {
 		if (tokens.hasNext()) {
 			ty = Transform.lengthOrRatio(ua, tokens.next(), pct, 1);
 			if (tokens.hasNext()) {
-				// z成分。紙面へ射影できないので長さとして検査だけする
+				// z component. Cannot project onto paper, so only validate it as a length.
 				Transform.toLength(ua, tokens.next());
 			}
 		}

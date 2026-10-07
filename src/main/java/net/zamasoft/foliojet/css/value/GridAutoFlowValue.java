@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code grid-auto-flow}の値です(css-grid-1 §7.7、2026-08-29)。
- * {@code [ row | column ] || dense}。
+ * A {@code grid-auto-flow} value (css-grid-1 §7.7, 2026-08-29).
+ * {@code [ row | column ] || dense}.
  *
  * @author MIYABE Tatsuhiko
  */

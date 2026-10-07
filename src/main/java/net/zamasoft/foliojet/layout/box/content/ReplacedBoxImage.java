@@ -5,28 +5,27 @@ import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * レイアウト中のボックスから状態を受け取る画像です(実装は
- * {@link Image}でもあること)。{@code AbstractReplacedBox.calculateSize()}
- * がレイアウトのたびに{@link #setReplacedBox}を呼ぶため、実装は
- * 「共有不可の変異する状態」を持つ——通常の(URL等から読み込んだ)
- * 不変・再入可能な画像とは扱いが異なり、凍結経路
- * ({@code ReplacedParamsTemplate.freeze})は記録時に{@link #duplicate}の
- * 独立複製を凍結し、materializeごとにさらに複製を配ることで
- * live・再生間および再生同士の共有状態を切る(E-6増分3b-6)。
+ * An image that receives state from the box being laid out (implementations must also implement
+ * {@link Image}). {@code AbstractReplacedBox.calculateSize()} calls {@link #setReplacedBox}
+ * on every layout, so implementations hold mutable state that cannot be shared.
+ * Unlike ordinary immutable, reentrant images (loaded from URLs, etc.), the freezing path
+ * ({@code ReplacedParamsTemplate.freeze}) freezes an independent {@link #duplicate} at recording
+ * time and supplies a further copy on each materialization. This prevents shared state between
+ * live layout and replay, and between replays (E-6 increment 3b-6).
  */
 public interface ReplacedBoxImage {
 	public void setReplacedBox(AbstractReplacedBox box, double width, double height);
 
 	/**
-	 * 独立した複製を返します(E-6増分3b-3導入・3b-6でfreeze経路の正規
-	 * 部品化、2026-07-24)。ソース再生はライブのボックス木に触れない
-	 * 新品のボックスを作るが、画像インスタンスを共有すると
-	 * {@link #setReplacedBox}のback-referenceを再生ボックスが奪い、
-	 * ライブ側の描画状態を破壊しうる。複製は描画内容(不変部分)を
-	 * 共有してよいが、{@link #setReplacedBox}で受け取る状態は複製ごとに
-	 * 独立であること。<b>複製自身も{@link ReplacedBoxImage}(かつ
-	 * {@link Image})を実装すること</b>——凍結済み複製からmaterializeごとに
-	 * さらに複製を配るため({@code ReplacedParamsTemplate.materialize})。
+	 * Returns an independent copy (introduced in E-6 increment 3b-3; made a standard part of
+	 * the freeze path in 3b-6, 2026-07-24). Source replay creates fresh boxes without touching
+	 * the live box tree, but sharing image instances lets a replay box take over the
+	 * {@link #setReplacedBox} back-reference, potentially corrupting live drawing state.
+	 * Copies may share drawing content (the immutable part), but state received through
+	 * {@link #setReplacedBox} must be independent for each copy.
+	 * <b>The copy itself must also implement {@link ReplacedBoxImage} (and {@link Image})</b>,
+	 * because each materialization supplies another copy of the frozen copy
+	 * ({@code ReplacedParamsTemplate.materialize}).
 	 */
 	public Image duplicate();
 }

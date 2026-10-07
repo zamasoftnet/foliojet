@@ -12,8 +12,8 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code flex-direction}です(Flex F1a、2026-08-02——
- * consult-codex-2026-08-02-flexbox.txt)。
+ * {@code flex-direction} (Flex F1a, 2026-08-02:
+ * consult-codex-2026-08-02-flexbox.txt).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -48,7 +48,7 @@ public class FlexDirectionProperty extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	/** 1つのキーワードを読み取ります(flex-flowと共用)。不正はnull。 */
+	/** Reads one keyword (shared with flex-flow). Null if invalid. */
 	public static FlexDirectionValue parseKeyword(final TokenStream tokens) {
 		if (tokens.eat("row")) {
 			return FlexDirectionValue.ROW;

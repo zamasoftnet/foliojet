@@ -6,27 +6,27 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * プロパティ情報と解釈のためのオブジェクトです。
+ * An object for property information and parsing.
  *
  * @author MIYABE Tatsuhiko
  */
 public interface PropertyInfo {
 	/**
-	 * プロパティ名を返します。
+	 * Returns the property name.
 	 *
 	 * @return
 	 */
 	public String getName();
 
 	/**
-	 * 宣言値のトークン列を解釈してプロパティを生成します。
+	 * Parses the declaration's token sequence to create a property.
 	 *
-	 * @param tokens    宣言値
-	 * @param ua        ユーザーエージェント
-	 * @param uri       宣言のあるスタイルシートのURI
-	 * @param important !important か
-	 * @return 解釈されたプロパティ
-	 * @throws PropertyException 値を解釈できない場合
+	 * @param tokens    declaration value
+	 * @param ua        user agent
+	 * @param uri       URI of the stylesheet containing the declaration
+	 * @param important whether !important is specified
+	 * @return the parsed property
+	 * @throws PropertyException if the value cannot be interpreted
 	 */
 	public Property parse(TokenStream tokens, UserAgent ua, URI uri, boolean important) throws PropertyException;
 }

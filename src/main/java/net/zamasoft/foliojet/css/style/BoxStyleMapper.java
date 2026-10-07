@@ -251,39 +251,38 @@ import net.zamasoft.foliojet.ua.AbsoluteFontSize;
 import net.zamasoft.foliojet.ua.BoundSide;
 
 /**
- * CSSの計算値を Params / Pos / RectFrame / Background / RectBorder へ
- * 写像する群です(StyleBuilder解体・増分3で抽出、2026-07-30。
- * 各メソッドの本体はStyleBuilderから逐語移動——挙動不変)。
+ * Maps computed CSS values to Params / Pos / RectFrame / Background / RectBorder
+ * (extracted in increment 3 of the StyleBuilder decomposition, 2026-07-30.
+ * Method bodies moved verbatim from StyleBuilder; behavior is unchanged).
  *
  * <p>
- * 状態を持たない(ua/styleContextの参照のみ)。呼び出し時点の
- * 文脈(currentStyle/rightSide/inBody)は引数で受け取る。
+ * Holds no state (only ua/styleContext references). Receives the call-time context
+ * (currentStyle/rightSide/inBody) as arguments.
  * </p>
  */
 final class BoxStyleMapper {
 	/**
-	 * {@code colspan}の上限です。HTML Standardが定める値(実ブラウザと同じ)。
+	 * Upper bound for {@code colspan}, as defined by the HTML Standard (matching browsers).
 	 *
 	 * <p>
-	 * 上限がないと、{@code colspan="2147483647"}のセル1個で
-	 * {@code IncrementalTableBuilder}が約21億回の要素追加を行い、停止前に
-	 * メモリを使い尽くします(2026-07-25、独立レビューで発見)。
-	 * 負・0・非数値の正規化は以前からあったが、<b>巨大な正数だけが素通り</b>
-	 * していた。上限値は「世界の標準動向に対応物があるか」の基準で
-	 * HTML Standardに揃える。
+	 * Without a bound, one cell with {@code colspan="2147483647"} makes
+	 * {@code IncrementalTableBuilder} add about 2.1 billion entries, exhausting memory
+	 * before completion (found in an independent review, 2026-07-25).
+	 * Negative, zero, and nonnumeric values were already normalized, but <b>huge positive
+	 * values alone passed through</b>. Align the bound with the HTML Standard under the
+	 * criterion of whether an equivalent exists in worldwide standards.
 	 * </p>
 	 */
 	private static final int MAX_COLSPAN = 1000;
 
 	/**
-	 * {@code rowspan}の上限です。HTML Standardが定める値(実ブラウザと同じ)。
+	 * Upper bound for {@code rowspan}, as defined by the HTML Standard (matching browsers).
 	 *
 	 * <p>
-	 * 上限がないと、{@code rowspan="2147483647"}で
-	 * {@code CollapsedBorderRules.streamSpacing}の
-	 * {@code borderRow + rowspan - 1}が<b>intオーバーフローで負値</b>になり、
-	 * {@code List.get(負値)}で{@code IndexOutOfBoundsException}になります
-	 * (2026-07-25、独立レビューで発見)。
+	 * Without a bound, {@code rowspan="2147483647"} makes
+	 * {@code borderRow + rowspan - 1} in {@code CollapsedBorderRules.streamSpacing}
+	 * <b>overflow int to a negative value</b>, causing {@code IndexOutOfBoundsException}
+	 * in {@code List.get(negative value)} (found in an independent review, 2026-07-25).
 	 * </p>
 	 */
 	private static final int MAX_ROWSPAN = 65534;
@@ -297,8 +296,8 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * 相対配置可能な配置の設定します。
-	 * 
+	 * Sets up positioning that permits relative positioning.
+	 *
 	 * @param pos
 	 * @param style
 	 */
@@ -309,16 +308,16 @@ final class BoxStyleMapper {
 		} else if (position != PositionValue.STATIC) {
 			pos.offset = this.createRelativeOffset(style);
 		}
-		// 名前付きページN1b: pageのused value(最も近い非autoの祖先)を
-		// ブロックレベル配置へ運ぶ(境界判定=N2の入力)
+		// Named pages N1b: carry the used value of page (nearest non-auto ancestor)
+		// to block-level positioning (input for boundary detection=N2).
 		if (pos instanceof net.zamasoft.foliojet.layout.box.params.AbstractBlockLevelPos blockLevel) {
 			blockLevel.pageName = net.zamasoft.foliojet.css.impl.property.page.PageProperty.getUsed(style);
 		}
 	}
 
 	/**
-	 * インライン配置の設定をします。
-	 * 
+	 * Sets up inline positioning.
+	 *
 	 * @param pos
 	 * @param style
 	 */
@@ -329,8 +328,8 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * 絶対配置の設定をします。
-	 * 
+	 * Sets up absolute positioning.
+	 *
 	 * @param pos
 	 * @param style
 	 */
@@ -351,13 +350,13 @@ final class BoxStyleMapper {
 				break;
 
 			default:
-				// 絶対配置の要素はdisplayがブロック化される(CSS Display 3
-				// §2.7)。ここへ来るのはinline-block/inline-table以外の
-				// 全ての値で、静的位置はブロックとして決まる。
-				// **既知の値を並べて残りを例外にしていたため、後から
-				// displayを増やすたびにクラッシュしていた**(2026-08-02に
-				// position:absolute + display:flex の実文書で発覚)。
-				// 列挙をやめ、ブロック化の規則そのものを書く
+				// The display of an absolutely positioned element is blockified (CSS Display 3
+				// §2.7). All values except inline-block/inline-table reach here, and the static
+				// position is determined as a block.
+				// **Enumerating known values and throwing for the rest caused crashes whenever
+				// a display value was added later** (discovered on 2026-08-02 in a real document
+				// with position:absolute + display:flex).
+				// Replace enumeration with the blockification rule itself.
 				pos.autoPosition = AutoPosition.BLOCK;
 				break;
 			}
@@ -370,8 +369,8 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * 通常のフロー配置の設定をします。
-	 * 
+	 * Sets up normal flow positioning.
+	 *
 	 * @param pos
 	 * @param style
 	 */
@@ -381,8 +380,8 @@ final class BoxStyleMapper {
 		pos.pageBreakBefore = this.toPageBreak(PageBreakBefore.get(style), rightSide);
 		pos.pageBreakAfter = this.toPageBreak(PageBreakAfter.get(style), rightSide);
 		pos.columnSpan = ColumnSpan.get(style);
-		// Grid G4a/G5a: 明示配置4 longhand+self alignment 2値(Grid直下で
-		// item化されるときだけ参照される。全autoはsingleton共有)
+		// Grid G4a/G5a: four explicit-placement longhands + two self-alignment values (read
+		// only when becoming a direct Grid item; share a singleton when all are auto).
 		pos.gridItem = net.zamasoft.foliojet.layout.box.params.GridItemSpec.of(
 				net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.get(style,
 						net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.COLUMN_START),
@@ -396,9 +395,9 @@ final class BoxStyleMapper {
 						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_SELF)),
 				toBoxAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
 						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_SELF)));
-		// Flex F1a: 伸縮3値+自動最小サイズ復元用のmin宣言有無(Flex直下で
-		// item化されるときだけ参照される。全既定はsingleton共有。
-		// alignSelfはF3c、orderはF5aで解析)
+		// Flex F1a: three flex values + whether min is declared, to restore automatic minimum
+		// size (read only when becoming a direct Flex item; share a singleton for all defaults.
+		// alignSelf is parsed in F3c, order in F5a).
 		pos.flexItem = net.zamasoft.foliojet.layout.box.params.FlexItemSpec.of(
 				net.zamasoft.foliojet.css.impl.property.flex.FlexFactor.get(style,
 						net.zamasoft.foliojet.css.impl.property.flex.FlexFactor.GROW),
@@ -413,10 +412,10 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * min-width(vertical=falseのとき)/min-height(同true)が著者宣言
-	 * されているかを返します(Flex F1a——自動最小サイズ§4.5の判定材料。
-	 * {@code MinWidth.get}/{@code MinHeight.get}の解決順と同じく物理
-	 * プロパティ優先で、論理プロパティは書字方向で対応付ける)。
+	 * Returns whether the author declares min-width (vertical=false) or min-height
+	 * (vertical=true) (Flex F1a: input to automatic minimum size §4.5 checks).
+	 * As in {@code MinWidth.get}/{@code MinHeight.get}, physical properties take precedence,
+	 * and logical properties are mapped according to the writing direction.
 	 */
 	private static boolean minSizeDeclared(final CSSStyle style, final boolean height) {
 		if (style.isDeclared(height ? net.zamasoft.foliojet.css.impl.property.box.MinHeight.INFO
@@ -429,8 +428,8 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * 浮動配置の設定をします。
-	 * 
+	 * Sets up float positioning.
+	 *
 	 * @param pos
 	 * @param style
 	 */
@@ -454,13 +453,13 @@ final class BoxStyleMapper {
 		pos.clear = Clear.get(style);
 		pos.pageBreakBefore = this.toPageBreak(PageBreakBefore.get(style), rightSide);
 		pos.pageBreakAfter = this.toPageBreak(PageBreakAfter.get(style), rightSide);
-		// shape-outside(css-shapes-1、2026-08-29)。左右floatだけが対象
-		// (脚注・ページフロートは別のPosを通るのでここへ来ない)
+		// shape-outside (css-shapes-1, 2026-08-29). Applies only to left/right floats
+		// (footnotes and page floats use other Pos types and do not reach here).
 		pos.shapeOutside = net.zamasoft.foliojet.css.impl.property.box.ShapeOutside.toParams(style);
 	}
 
 	/**
-	 * Gridコンテナのパラメータを設定します(Grid G0)。
+	 * Sets up Grid container parameters (Grid G0).
 	 */
 	void setupGridParams(net.zamasoft.foliojet.layout.box.params.GridParams params, CSSStyle style,
 			CSSStyle parentStyle, boolean inBody, PageSequence pageSequence) {
@@ -471,10 +470,10 @@ final class BoxStyleMapper {
 				.getRows(style);
 		params.templateColumns = columns.getTracks();
 		params.templateRows = rows.getTracks();
-		// 2026-08-29: 線名・領域・implicitトラック・auto-flow
+		// 2026-08-29: line names, areas, implicit tracks, auto-flow
 		params.columnLineNames = columns.getLineNames();
 		params.rowLineNames = rows.getLineNames();
-		// subgrid(css-grid-2、2026-08-29): トラックは空、線名列だけ運ぶ
+		// subgrid (css-grid-2, 2026-08-29): tracks are empty; carry only the line-name sequence
 		params.columnsSubgrid = columns.isSubgrid();
 		params.rowsSubgrid = rows.isSubgrid();
 		params.templateAreas = net.zamasoft.foliojet.css.impl.property.grid.GridTemplateAreas.get(style);
@@ -490,7 +489,7 @@ final class BoxStyleMapper {
 		params.rowGapNormal = net.zamasoft.foliojet.css.impl.property.grid.RowGap.isNormal(style);
 		params.columnGap = net.zamasoft.foliojet.css.impl.property.column.ColumnGap.getForGrid(style);
 		params.columnGapNormal = net.zamasoft.foliojet.css.impl.property.column.ColumnGap.isNormal(style);
-		// G5a: コンテナ側alignment 4値(used value解決はbind時——再生決定性)
+		// G5a: four container alignment values (resolve used values at bind time for replay determinism)
 		params.justifyItems = toBoxAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty
 				.get(style, net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_ITEMS));
 		params.alignItems = toBoxAlignment(net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty
@@ -504,7 +503,7 @@ final class BoxStyleMapper {
 	void setupFlexParams(net.zamasoft.foliojet.layout.box.params.FlexParams params, CSSStyle style,
 			CSSStyle parentStyle, boolean inBody, PageSequence pageSequence) {
 		this.setupBlockParams(params, style, parentStyle, inBody, pageSequence);
-		// Flex F1a: direction/wrap(整列はF3a、gapはF2c)
+		// Flex F1a: direction/wrap (alignment in F3a, gap in F2c)
 		params.flexDirection = switch (net.zamasoft.foliojet.css.impl.property.flex.FlexDirectionProperty.get(style)) {
 		case ROW -> net.zamasoft.foliojet.layout.box.params.FlexDirection.ROW;
 		case ROW_REVERSE -> net.zamasoft.foliojet.layout.box.params.FlexDirection.ROW_REVERSE;
@@ -516,11 +515,11 @@ final class BoxStyleMapper {
 		case WRAP -> net.zamasoft.foliojet.layout.box.params.FlexWrap.WRAP;
 		case WRAP_REVERSE -> net.zamasoft.foliojet.layout.box.params.FlexWrap.WRAP_REVERSE;
 		};
-		// F2c: gapはGridと同じrow-gap/column-gapを共用(gapショートハンド込み)
+		// F2c: share row-gap/column-gap with Grid (including the gap shorthand)
 		params.rowGap = net.zamasoft.foliojet.css.impl.property.grid.RowGap.get(style);
 		params.columnGap = net.zamasoft.foliojet.css.impl.property.column.ColumnGap.getForGrid(style);
-		// F3a: 整列(プロパティはGridと共用。flex既定: align-items=stretch、
-		// content系normal)
+		// F3a: alignment (properties shared with Grid; Flex defaults: align-items=stretch,
+		// content properties=normal)
 		params.justifyContent = toFlexJustify(
 				net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.get(style,
 						net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.JUSTIFY_CONTENT),
@@ -535,10 +534,10 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * justify-contentのFlex側写像です(F5b)。reverse主軸ではflex-start/
-	 * flex-end/normal/stretch(いずれもflex-start相当)が物理END側になる。
-	 * 無印start/endは書字方向基準のため反転しない(答申F5bの
-	 * 「startとflex-startを同一視できない」)。
+	 * Flex mapping for justify-content (F5b). On a reversed main axis,
+	 * flex-start/flex-end/normal/stretch (all equivalent to flex-start) map to physical END.
+	 * Plain start/end follow the writing direction and are not reversed (F5b recommendation:
+	 * "start and flex-start cannot be treated as equivalent").
 	 */
 	private static net.zamasoft.foliojet.layout.box.params.FlexContentAlignment toFlexJustify(
 			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value, final boolean reversed) {
@@ -558,8 +557,10 @@ final class BoxStyleMapper {
 		return toFlexContentAlignment(value);
 	}
 
-	/** content distribution値のFlex側写像(align-content用。flex-*の
-	 * cross反転はF5cのwrap-reverseで扱う)。 */
+	/**
+	 * Flex mapping for content-distribution values (for align-content; flex-* cross-axis
+	 * reversal is handled by wrap-reverse in F5c).
+	 */
 	private static net.zamasoft.foliojet.layout.box.params.FlexContentAlignment toFlexContentAlignment(
 			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value) {
 		return switch (value) {
@@ -574,7 +575,7 @@ final class BoxStyleMapper {
 		};
 	}
 
-	/** self alignment値のFlex側写像(normalは文脈既定へ、flex-start/endはstart/end)。 */
+	/** Flex mapping for self-alignment values (normal to the contextual default, flex-start/end to start/end). */
 	private static net.zamasoft.foliojet.layout.box.params.BoxAlignment toFlexItemAlignment(
 			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value,
 			final net.zamasoft.foliojet.layout.box.params.BoxAlignment normal) {
@@ -589,12 +590,12 @@ final class BoxStyleMapper {
 		};
 	}
 
-	/** CSS値→layout値(同名対応)。 */
+	/** CSS values to layout values (matching names). */
 	private static net.zamasoft.foliojet.layout.box.params.BoxAlignment toBoxAlignment(
 			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value) {
-		// Flex F3aで増えた値のGrid側縮退: flex-start/endはstart/end相当、
-		// space-*はGrid未対応のためNORMALへ(答申F3aのリスク対応——
-		// CSSプロパティはdisplay非依存でGridへも流入する)
+		// Grid fallback for values added in Flex F3a: flex-start/end map to start/end;
+		// space-* falls back to NORMAL because Grid does not support it (risk handling from
+		// the F3a recommendation: CSS properties are display-independent and also reach Grid).
 		return switch (value) {
 		case FLEX_START -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.START;
 		case FLEX_END -> net.zamasoft.foliojet.layout.box.params.BoxAlignment.END;
@@ -605,9 +606,9 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * {@code bookmark-level}・{@code bookmark-label}の計算値です(2026-10-04)。
-	 * どちらも既定なら null。{@code attr()}はここで要素の属性から解決し、
-	 * {@code content()}は null の部品として残す(しおりを作る時点の要素の文字)。
+	 * Computed values of {@code bookmark-level} and {@code bookmark-label} (2026-10-04).
+	 * Null if both are defaults. Resolves {@code attr()} from element attributes here;
+	 * leaves {@code content()} as a null component (element text at bookmark creation time).
 	 */
 	private static net.zamasoft.foliojet.layout.box.params.BookmarkSpec bookmark(final CSSStyle style) {
 		final CSSElement ce = style.getCSSElement();
@@ -630,7 +631,7 @@ final class BoxStyleMapper {
 					final String value = ce.atts == null ? null : ce.atts.getValue(attr.getName());
 					label[i] = value == null ? "" : value;
 				}
-				// content(): null のまま
+				// content(): leave null
 			}
 		}
 		return new net.zamasoft.foliojet.layout.box.params.BookmarkSpec(level, label);
@@ -654,24 +655,24 @@ final class BoxStyleMapper {
 		if (params.zIndexType == Params.Z_INDEX_SPECIFIED) {
 			params.zIndexValue = ZIndex.getValue(style);
 		} else if (params.filter.own().needsGroup()) {
-			// filter-effects-1 §3: none以外のfilterはstacking contextを作る。
-			// opacity()だけは従来どおり描画要素の透明化層で扱う。
+			// filter-effects-1 §3: a filter other than none creates a stacking context.
+			// Continue handling opacity() alone through the drawing element's transparency layer.
 			params.zIndexType = Params.Z_INDEX_SPECIFIED;
 			params.zIndexValue = 0;
 		}
 	}
 
 	/**
-	 * 個別変換プロパティと{@code transform}を合成します(css-transforms-2
-	 * §7.3、2026-08-29)。順序は translate → rotate → scale → transform、
-	 * すなわち行列 P·M(P=T·R·S、Mは{@code transform})。
+	 * Composes individual transform properties and {@code transform} (css-transforms-2
+	 * §7.3, 2026-08-29). Order: translate → rotate → scale → transform,
+	 * i.e. matrix P·M (P=T·R·S; M is {@code transform}).
 	 *
 	 * <p>
-	 * {@code transform}の割合成分(W/H係数ベクトル4つ、{@code TransformValue})
-	 * は「Mの外側に足す平行移動」なので、前にPが掛かると P_lin で写る
-	 * (P·(M+v) = P·M + P_lin·v)。Tは純粋な平行移動なので P_lin = R·S。
-	 * {@code translate}自身の割合は先頭(前置が恒等)だから、W→x・H→yへ
-	 * そのまま加える。
+	 * The percentage components of {@code transform} (four W/H coefficients,
+	 * {@code TransformValue}) are a translation added outside M, so premultiplication by P
+	 * maps them through P_lin (P·(M+v) = P·M + P_lin·v).
+	 * T is a pure translation, so P_lin = R·S. The percentages in {@code translate}
+	 * itself come first (preceded by identity), so add W→x and H→y directly.
 	 * </p>
 	 */
 	private void setupTransform(final Params params, final CSSStyle style) {
@@ -699,7 +700,7 @@ final class BoxStyleMapper {
 		final AffineTransform pre = new AffineTransform(translate.getTransform());
 		pre.concatenate(rotate.getTransform());
 		pre.concatenate(scale.getTransform());
-		// transformの係数ベクトル(W→(x,y)、H→(x,y))をP_linで写す
+		// Map transform coefficient vectors (W→(x,y), H→(x,y)) through P_lin
 		final double m00 = pre.getScaleX(), m10 = pre.getShearY(), m01 = pre.getShearX(), m11 = pre.getScaleY();
 		final double wx = m00 * txRatio + m01 * tyRatioW;
 		final double wy = m10 * txRatio + m11 * tyRatioW;
@@ -718,7 +719,7 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * テキストボックスのパラメータを設定します。
+	 * Sets up text box parameters.
 	 *
 	 * @param params
 	 * @param style
@@ -728,21 +729,21 @@ final class BoxStyleMapper {
 		params.whiteSpace = WhiteSpace.get(style);
 		params.wordWrap = WordWrap.get(style);
 		if (net.zamasoft.foliojet.css.impl.property.text.WordBreak.get(style) == WordBreakValue.BREAK_WORD) {
-			// css-text-3 §5.2: break-word = normal + overflow-wrap:anywhere(2026-08-29)
+			// css-text-3 §5.2: break-word = normal + overflow-wrap:anywhere (2026-08-29)
 			params.wordWrap = AbstractTextParams.WORD_WRAP_BREAK_WORD;
 		}
 		params.textWrapStyle = TextWrapStyle.get(style);
 		params.textJustify = net.zamasoft.foliojet.css.impl.property.text.TextJustify.get(style);
 		params.strictLineBox = this.ua.getDocumentContext()
 				.getCompatibleMode() == net.zamasoft.foliojet.ua.CompatibleMode.STRICT;
-		// tab-size(css-text-3、2026-08-29)。倍数なら空白幅を掛ける(TextBuilder)
+		// tab-size (css-text-3, 2026-08-29). Multiply a factor by the space width (TextBuilder).
 		params.tabSize = net.zamasoft.foliojet.css.impl.property.text.TabSize.get(style);
 		params.tabSizeIsMultiple = net.zamasoft.foliojet.css.impl.property.text.TabSize.isMultiple(style);
 		params.color = TextFillColor.get(style);
 		params.decoration = TextDecoration.get(style);
 		params.decorationThickness = 1.0 / style.getUserAgent().getFontSize(AbsoluteFontSize.MEDIUM) / 2.0;
 		params.decorationColor = net.zamasoft.foliojet.css.impl.property.text.TextDecorationColor.get(style);
-		// 線種・太さ・下線位置(2026-08-29に描画へ配線。from-fontはauto扱い)
+		// Line style, thickness, and underline position (wired to drawing on 2026-08-29; treat from-font as auto)
 		params.decorationStyle = net.zamasoft.foliojet.css.impl.property.text.TextDecorationAux.getStyle(style);
 		params.decorationThicknessLength = net.zamasoft.foliojet.css.impl.property.text.TextDecorationAux
 				.getThickness(style);
@@ -757,18 +758,18 @@ final class BoxStyleMapper {
 		params.letterSpacing = LetterSpacing.get(style);
 		params.wordSpacing = WordSpacing.get(style);
 		params.textTransform = TextTransform.get(style);
-		// 和文詰めA1: 実効フラグ(幾何はA2で配線)
+		// Japanese text spacing A1: effective flags (geometry wired in A2)
 		params.textAutospace = net.zamasoft.foliojet.css.impl.property.text.TextAutospace.getFlags(style);
-		// 和文詰めT1b: space-all=約物詰め無効、trim-start=行頭天付き
+		// Japanese text spacing T1b: space-all disables punctuation trimming; trim-start removes line-start spacing
 		params.textSpacingTrimOff = net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim.isSpaceAll(style);
 		params.textSpacingTrimStart = net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim
 				.trimsLineStart(style);
 		params.textSpacingTrimEnd = net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim.trimsLineEnd(style);
 		params.textSpacingSpaceFirst = net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim
 				.spacesFirstLine(style);
-		// 縦中横の種別(allだけ1em幅へ圧縮する。2026-08-11)
+		// Tate-chu-yoko type (only all is compressed to 1em width; 2026-08-11)
 		params.textCombine = net.zamasoft.foliojet.css.impl.property.text.TextCombineMode.get(style);
-		// 和文詰めH1: 行末句読点のぶら下げ
+		// Japanese text spacing H1: hanging punctuation at line ends
 		params.hangingPunctuationEnd = net.zamasoft.foliojet.css.impl.property.text.HangingPunctuation
 				.isAllowEnd(style);
 		params.hangingPunctuationFirst = net.zamasoft.foliojet.css.impl.property.text.HangingPunctuation
@@ -797,8 +798,8 @@ final class BoxStyleMapper {
 		params.bidiSemanticAlias = UAProps.OUTPUT_PDF_BIDI_ACTUAL_TEXT.getBoolean(this.ua);
 		params.flow = BlockFlow.get(style);
 		params.writingModeVariant = net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant.get(style);
-		// ルビ役割マーカーをparamsへ載せ、文字処理層(StyledTextUnitizer)へ
-		// 配達する(注釈付きテキスト方式、2026-07-25仕様裁定)。
+		// Carry the ruby role marker in params to the text processing layer
+		// (StyledTextUnitizer; annotated-text approach, specification decision on 2026-07-25).
 		switch (CSSJRuby.get(style)) {
 		case CSSJRubyValue.RUBY:
 			params.rubyRole = AbstractTextParams.RUBY_CONTAINER;
@@ -818,8 +819,8 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * 置換可能ボックスのパラメータを設定します。
-	 * 
+	 * Sets up replaced box parameters.
+	 *
 	 * @param src
 	 * @param params
 	 * @param style
@@ -834,11 +835,11 @@ final class BoxStyleMapper {
 		params.boxSizing = BoxSizing.get(style);
 		params.objectFit = ObjectFit.get(style);
 		params.objectPosition = ObjectPosition.get(style);
-		// clip-path(2026-08-29)。ブロックと同じ形状を置換要素へも渡す。
-		// 以前は BlockParams だけが持っていたため <img> では黙って無視されていた
+		// clip-path (2026-08-29). Pass the same shapes used for blocks to replaced elements.
+		// Previously only BlockParams held them, so they were silently ignored on <img>.
 		params.clipPath = net.zamasoft.foliojet.css.impl.property.box.ClipPath
 				.toShape(net.zamasoft.foliojet.css.impl.property.box.ClipPath.get(style));
-		// aspect-ratio(2026-08-29)。auto併記は固有比率優先(AbstractReplacedBox)
+		// aspect-ratio (2026-08-29). With auto, prefer the intrinsic ratio (AbstractReplacedBox).
 		final net.zamasoft.foliojet.css.value.AspectRatioValue aspectRatio = net.zamasoft.foliojet.css.impl.property.box.AspectRatio
 				.get(style);
 		params.aspectRatio = aspectRatio.getRatio();
@@ -850,8 +851,8 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * 行ボックスのパラメータを設定します。
-	 * 
+	 * Sets up line box parameters.
+	 *
 	 * @param params
 	 * @param style
 	 */
@@ -864,8 +865,8 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * 行ボックスのパラメータを設定します。
-	 * 
+	 * Sets up line box parameters.
+	 *
 	 * @param params
 	 * @param style
 	 */
@@ -899,10 +900,10 @@ final class BoxStyleMapper {
 		params.minSize = BoxValueUtils.toMinDimension(MinWidth.get(style), MinHeight.get(style));
 		params.maxSize = BoxValueUtils.toDimension(MaxWidth.get(style), MaxHeight.get(style));
 		{
-			// 固有寸法キーワード(2026-08-29)は行方向だけ別枠で運ぶ。
-			// ブロック軸のmax-content/min-content/fit-contentは仕様どおり
-			// 内容高さ(=auto)、min/maxならそれぞれ0/noneと同じなので、
-			// Dimension側のAUTO化(BoxValueUtils.lengthType)だけで足りる
+			// Carry intrinsic size keywords (2026-08-29) separately only for the inline axis.
+			// On the block axis, max-content/min-content/fit-content mean content height (=auto),
+			// or 0/none for min/max, respectively, as specified. Converting to AUTO
+			// on the Dimension side (BoxValueUtils.lengthType) is therefore sufficient.
 			final boolean vertical = params.flow.isVertical();
 			params.intrinsicLine = BoxValueUtils.toIntrinsicSize(vertical ? Height.get(style) : Width.get(style));
 			params.intrinsicMinLine = BoxValueUtils
@@ -911,18 +912,18 @@ final class BoxStyleMapper {
 					.toIntrinsicSize(vertical ? MaxHeight.get(style) : MaxWidth.get(style));
 		}
 		params.boxSizing = BoxSizing.get(style);
-		// aspect-ratio(2026-08-29)。非置換ボックスではauto併記に意味が無い
+		// aspect-ratio (2026-08-29). Specifying auto alongside it has no meaning for non-replaced boxes.
 		params.aspectRatio = net.zamasoft.foliojet.css.impl.property.box.AspectRatio.get(style).getRatio();
 
 		params.overflow = Overflow.get(style);
 		params.flowRoot = style.get(Display.INFO) == DisplayValue.FLOW_ROOT_VALUE;
-		// -webkit-line-clamp: N は「N行で切り、以降を隠す」(2026-08-29)。
-		// 行数はBlockParams.lineClampで運び、TextBuilderがN行目の後の行を
-		// 捨てて省略記号を付ける(真のline-clamp、同日夜)。高さの上限=
-		// N×line-height と overflow:hidden は、行として数えられない後続
-		// (置換ブロック・表・浮動体等)を漏らさないための保険として残す。
-		// 実サイトの抜粋・見出しの省略に使われ、捨てると本文が丸ごと露出
-		// して後続へ重なる
+		// -webkit-line-clamp: N means cut off after N lines and hide the rest (2026-08-29).
+		// Carry the count in BlockParams.lineClamp; TextBuilder discards lines after the Nth
+		// and adds an ellipsis (true line-clamp, that evening). Keep the height limit
+		// N×line-height and overflow:hidden as safeguards against leaking subsequent content
+		// that does not count as lines (replaced blocks, tables, floats, etc.).
+		// Used to truncate excerpts and headings on real sites; discarding it exposes
+		// the entire body text, overlapping subsequent content.
 		final int lineClamp = net.zamasoft.foliojet.css.impl.property.box.LineClamp.get(style);
 		if (lineClamp > 0) {
 			params.lineClamp = lineClamp;
@@ -963,9 +964,9 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * 通常ブロックの align-content used value。CSS Align §5.1.1では内容全体が
-	 * 単一のalignment subjectなので、content-distribution値は各fallbackへ
-	 * 縮退する。
+	 * The align-content used value for a normal block. CSS Align §5.1.1 treats all content
+	 * as a single alignment subject, so content-distribution values reduce to their
+	 * respective fallbacks.
 	 */
 	private static net.zamasoft.foliojet.layout.box.params.BoxAlignment toBlockContentAlignment(
 			final net.zamasoft.foliojet.css.value.BoxAlignmentValue value) {
@@ -980,8 +981,8 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * インラインボックスのパラメータを設定します。
-	 * 
+	 * Sets up inline box parameters.
+	 *
 	 * @param params
 	 * @param style
 	 */
@@ -991,8 +992,8 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * テーブルボックスのパラメータを設定します。
-	 * 
+	 * Sets up table box parameters.
+	 *
 	 * @param params
 	 * @param style
 	 */
@@ -1012,8 +1013,8 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * テーブルキャプション配置の設定をします。
-	 * 
+	 * Sets up table caption positioning.
+	 *
 	 * @param pos
 	 * @param style
 	 */
@@ -1098,8 +1099,8 @@ final class BoxStyleMapper {
 		this.setupStaticPos(pos, style);
 		pos.emptyCells = EmptyCells.get(style);
 		pos.verticalAlign = VerticalAlign.getForTableCell(style);
-		// rowspan行間のavoid相当(説明書4550)からの著者オプトアウト検出
-		// (TableCellPos.breakInsideDeclaredAuto参照)
+		// Detect author opt-out from avoid-like behavior between rows spanned by rowspan (manual 4550)
+		// (see TableCellPos.breakInsideDeclaredAuto)
 		pos.breakInsideDeclaredAuto = style.isDeclared(PageBreakInside.INFO)
 				&& PageBreakInside.get(style) == net.zamasoft.foliojet.layout.box.params.PageBreakMode.AUTO;
 
@@ -1143,17 +1144,17 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * 背景を構築します。
-	 * 
+	 * Builds the background.
+	 *
 	 * @param style
 	 * @return
 	 */
 	static Background createBackground(CSSStyle style) {
 		final Image maskImage = MaskImage.getImage(style);
 		PaintValue backgroundPaint = BackgroundColor.get(style);
-		// background-imageのレイヤ(2026-08-29に多層化)。先頭が最前面。
-		// グラデーションは塗り(PaintLayer)、url()は画像として、背景色の上に
-		// 末尾から順に重ねる——半透明のグラデーションから下の色・画像が透ける
+		// background-image layers (multilayer support added on 2026-08-29). First is frontmost.
+		// Stack gradients as paint (PaintLayer) and url() as images over the background color
+		// from last to first; colors/images below show through translucent gradients.
 		final net.zamasoft.foliojet.css.value.Value[] values = BackgroundImage.getLayers(style);
 		final java.util.List<Background.Layer> layers = new java.util.ArrayList<Background.Layer>(values.length);
 		final java.util.List<Integer> sourceLayerIndexes = new java.util.ArrayList<Integer>(values.length);
@@ -1187,12 +1188,12 @@ final class BoxStyleMapper {
 			return Background.create(backgroundPaint, layers.toArray(new Background.Layer[layers.size()]),
 					BackgroundClip.get(style), origins, blendModes);
 		} else if (maskImage != null) {
-			// 単色SVGのURLマスクは、背景色をSVGのcurrentColorへ焼き込み、
-			// 直接描く。背景色の矩形は残さない。
-			// mask-size/position/repeatが指定されていればそれに従う
-			// (2026-08-29)。無指定なら従来どおり箱いっぱい・繰り返しなしで
-			// 描く——仕様の既定(原寸・repeat)より、アイコン型抜きの実例に
-			// 合う(MDN等で実測済みの近似)
+			// For a single-color SVG URL mask, bake the background color into SVG currentColor
+			// and draw directly. Do not retain a background-color rectangle.
+			// Honor mask-size/position/repeat when specified
+			// (2026-08-29). Otherwise, continue filling the box without repetition,
+			// which fits icon cutout examples better than the specified defaults (intrinsic size,
+			// repeat); an approximation verified on MDN and elsewhere.
 			final boolean declared = !net.zamasoft.foliojet.css.impl.property.box.MaskSize.isDefault(style)
 					|| !net.zamasoft.foliojet.css.impl.property.box.MaskPosition.isDefault(style)
 					|| !net.zamasoft.foliojet.css.impl.property.box.MaskRepeat.isDefault(style);
@@ -1228,15 +1229,15 @@ final class BoxStyleMapper {
 				return Background.create(backgroundPaint, backgroundImage, clip,
 						new byte[] { maskOrigin.getBackgroundOrigin() });
 			}
-			// mask-originの初期値では従来の配置経路を保ち、既存出力を変えない。
+			// For the initial mask-origin value, retain the previous positioning path and preserve existing output.
 			return Background.create(backgroundPaint, backgroundImage, clip);
 		}
 		return Background.create(backgroundPaint, backgroundImage, BackgroundClip.get(style));
 	}
 
 	/**
-	 * 矩形境界を構築します。
-	 * 
+	 * Builds the rectangular border.
+	 *
 	 * @param style
 	 * @return
 	 */
@@ -1261,7 +1262,7 @@ final class BoxStyleMapper {
 		return border;
 	}
 
-	/** border-imageの計算値を描画層向けの単位付きパラメータへ写します。 */
+	/** Maps computed border-image values to parameters with units for the drawing layer. */
 	private static net.zamasoft.foliojet.layout.box.params.BorderImage createBorderImage(CSSStyle style) {
 		final Value declaredSource = net.zamasoft.foliojet.css.impl.property.border.BorderImageSource.get(style);
 		final net.zamasoft.foliojet.layout.box.params.BorderImage.Source source;
@@ -1274,8 +1275,8 @@ final class BoxStyleMapper {
 		} else if (declaredSource instanceof PaintValue paint) {
 			source = new net.zamasoft.foliojet.layout.box.params.BorderImage.PaintSource(paint);
 		} else {
-			// none。ここをnullのまま保つことで既存の境界線パラメータと描画経路を
-			// まったく変えない。
+			// none. Keeping this null leaves the existing border parameters and drawing path
+			// completely unchanged.
 			return null;
 		}
 
@@ -1295,12 +1296,12 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * {@code border-image-slice}の4値です。
+	 * The four {@code border-image-slice} values.
 	 *
 	 * <p>
-	 * 数値は<b>画像のピクセル数</b>なので、ここでptへ換算しておく——描画層は
-	 * {@code Image#getWidth()}(pt)としか比較できず、UAの解像度を知らないため。
-	 * 換算後は割合と同じく「画像座標系での位置」として一様に扱える。
+	 * Numbers are <b>image pixel counts</b>, so convert them to pt here: the drawing layer
+	 * can only compare against {@code Image#getWidth()} (pt) and does not know the UA resolution.
+	 * After conversion, treat them uniformly with percentages as positions in image coordinates.
 	 */
 	private static net.zamasoft.foliojet.layout.box.params.BorderImage.Quad borderImageSliceQuad(CSSStyle style,
 			Value top, Value right, Value bottom, Value left) {
@@ -1356,8 +1357,8 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * 矩形枠を構築します。
-	 * 
+	 * Builds the rectangular frame.
+	 *
 	 * @param style
 	 * @return
 	 */
@@ -1365,12 +1366,12 @@ final class BoxStyleMapper {
 		RectBorder border = createRectBorder(style);
 		Background background = createBackground(style);
 
-		// HTML/BODYタグ
+		// HTML/BODY tags
 		if (!inBody) {
 			CSSElement ce = style.getCSSElement();
 			if (XHTML.HTML_ELEM.equalsElement(ce) || XHTML.BODY_ELEM.equalsElement(ce)) {
-				// 背景の扱い
-				// これはIE, Opera, FirefoxよりもKHTMLに近いものです。
+				// Background handling
+				// This is closer to KHTML than to IE, Opera, or Firefox.
 				if (pageSequence.promoteRootBackground(background)) {
 					background = Background.NULL_BACKGROUND;
 				}
@@ -1378,7 +1379,7 @@ final class BoxStyleMapper {
 			}
 		}
 
-		// マージン
+		// Margins
 		final Insets margin;
 		{
 			Value top = Margin.get(style, Side.TOP);
@@ -1388,7 +1389,7 @@ final class BoxStyleMapper {
 			margin = BoxValueUtils.toInsets(top, right, bottom, left);
 		}
 
-		// パディング
+		// Padding
 		final Insets padding;
 		{
 			Value top = Padding.get(style, Side.TOP);
@@ -1403,7 +1404,7 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * アウトラインを構築します(2026-08-29)。見えないものはnull。
+	 * Builds the outline (2026-08-29). Null if invisible.
 	 */
 	static net.zamasoft.foliojet.layout.box.params.Outline createOutline(CSSStyle style) {
 		return net.zamasoft.foliojet.layout.box.params.Outline.create(
@@ -1414,8 +1415,8 @@ final class BoxStyleMapper {
 	}
 
 	/**
-	 * 相対位置を構築します。
-	 * 
+	 * Builds the relative position.
+	 *
 	 * @param style
 	 * @return
 	 */
@@ -1512,7 +1513,7 @@ final class BoxStyleMapper {
 		case PageBreakValue.PAGE_BREAK_ALWAYS:
 			return PageBreakMode.PAGE;
 		case PageBreakValue.PAGE_BREAK_LEFT:
-			// 2026-07-20、-cssj-direction-mode廃止によりrightSideのみで判定
+			// 2026-07-20: use only rightSide after removal of -cssj-direction-mode
 			if (rightSide) {
 				return PageBreakMode.RECTO;
 			}

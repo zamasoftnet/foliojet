@@ -1,28 +1,28 @@
 package net.zamasoft.foliojet.layout.box;
 
 /**
- * ボックスのタイプです。
+ * The box type.
  */
 public enum BoxType {
 	PAGE, TEXT_BLOCK, LINE, INLINE, BLOCK, REPLACED, TABLE, TABLE_COLUMN_GROUP, TABLE_COLUMN, TABLE_ROW_GROUP,
 	TABLE_ROW, TABLE_CELL,
 	/**
-	 * 救済分割(visual rescue split)の断片です
-	 * ({@code net.zamasoft.foliojet.layout.rescue.VisualRescueBox}。
-	 * 2026-07-25追加、増分3。<b>まだ本番経路へ配線されていません</b>)。
+	 * A visual rescue split fragment
+	 * ({@code net.zamasoft.foliojet.layout.rescue.VisualRescueBox};
+	 * added 2026-07-25, increment 3. <b>Not yet wired into the production path</b>).
 	 *
 	 * <p>
-	 * 既存の型(特に{@code REPLACED})を偽装せず独立の型にしています。
-	 * 偽装すると{@code getParams()}が{@code ReplacedParams}へ
-	 * キャストされる類のClassCastExceptionが実行時まで見つからないためです
-	 * (答申§2)。この型はレイアウト済みボックスから派生する短命な
-	 * ページング状態であり、レシピ(LayoutSource)には入りません。
+	 * Uses a distinct type rather than impersonating an existing one (especially {@code REPLACED}).
+	 * Impersonation would leave ClassCastExceptions, such as casting {@code getParams()} to
+	 * {@code ReplacedParams}, undetected until runtime (recommendation §2).
+	 * This type is short-lived pagination state derived from an already laid-out box
+	 * and does not enter the recipe (LayoutSource).
 	 * </p>
 	 */
 	RESCUE;
 
 	/**
-	 * テーブル内部要素(列グループ・列・行グループ・行・セル)であればtrueを返します。
+	 * Returns true for internal table elements (column groups, columns, row groups, rows, and cells).
 	 */
 	public boolean isTableInternal() {
 		return switch (this) {

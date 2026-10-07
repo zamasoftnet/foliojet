@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * clearプロパティの値です。
+ * Values of the clear property.
  *
  * @author MIYABE Tatsuhiko
  */

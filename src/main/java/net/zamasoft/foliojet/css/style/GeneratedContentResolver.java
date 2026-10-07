@@ -17,11 +17,11 @@ import net.zamasoft.foliojet.ua.PassContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 生成コンテンツの参照解決です(2026-08-01、85点計画増分14——
- * StyleEventMachineからstring-set/target-*系の解決ロジックを分離)。
- * カウンタスコープ・文書横断参照(PageRef)・収束警告という
- * 「パス跨ぎの解決」だけを持ち、sinkへの発行はStyleEventMachineに残る。
- * sinkなしで解決規則を単体テストできる。
+ * Resolves generated-content references (2026-08-01, increment 14 of the 85-point plan:
+ * separated string-set/target-* resolution logic from StyleEventMachine).
+ * Handles only resolution across passes: counter scopes, cross-document references
+ * (PageRef), and convergence warnings. StyleEventMachine retains emission to the sink.
+ * Resolution rules can be unit-tested without a sink.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -83,15 +83,14 @@ final class GeneratedContentResolver {
 	}
 
 	/**
-	 * {@code target-counter()}系/{@code target-text()}のtarget参照
-	 * (ATTR/REF)を、実際に{@code PageRef}へ問い合わせるための
-	 * {@code "#id"}文字列(またはhref)へ解決する。属性値が無い場合は
-	 * {@code null}。
+	 * Resolves target references (ATTR/REF) for {@code target-counter()} and related
+	 * functions / {@code target-text()} to a {@code "#id"} string (or href) for querying
+	 * {@code PageRef}. Returns {@code null} if the attribute value is absent.
 	 */
 	static String targetRef(byte type, String ref, CSSStyle style) {
 		switch (type) {
 		case TargetCounterValue.ATTR: {
-			// 属性から
+			// From an attribute
 			CSSElement parentCe = style.getParentStyle().getCSSElement();
 			if (parentCe.atts == null) {
 				return null;
@@ -101,16 +100,16 @@ final class GeneratedContentResolver {
 				return null;
 			}
 			if (!ref.equals("href") && str.indexOf("#") == -1) {
-				// 互換性のため
+				// For compatibility
 				str = "#" + str;
 			}
 			return str;
 		}
 		case TargetCounterValue.REF: {
-			// ID指定
+			// ID specification
 			String id = ref;
 			if (id.indexOf("#") == -1) {
-				// 互換性のため
+				// For compatibility
 				id = "#" + id;
 			}
 			return id;
@@ -121,21 +120,21 @@ final class GeneratedContentResolver {
 	}
 
 /**
-	 * 収束性の軽量チェック: 最終パスで解決したフラグメントが今回パスで
-	 * 書き込まれたものではなく(1パス以上前のstaleな値のまま)確定した
-	 * 場合、1文書につき1回だけ警告する。振動検出・自動再試行は行わない
-	 * (自動昇格断念の判断と同じ方針)。
+	 * Lightweight convergence check: warns once per document if a fragment resolved on
+	 * the final pass is finalized using a stale value from one or more passes earlier,
+	 * rather than one written in this pass. Does not detect oscillation or retry
+	 * automatically (same policy as the decision to abandon automatic promotion).
 	 */
 	void checkConverged(PageRef pageRef, Fragment frag, String counter) {
 		if (!this.ua.isLastPass()) {
 			return;
 		}
 		if (frag.generation < pageRef.getGeneration()) {
-			// 前方参照(参照先はこのパスではまだ組まれていない)。前パスの
-			// 値を読むこと自体は正常で、**読んだ値がこのパスで変わったとき
-			// だけ**非収束になる。判定はPageRef側(参照先が書き直される
-			// 時点)で行い、警告は最終パスの完了後に1度だけ出す。
-			// counter が null なら本文(target-text())を読んだ
+			// Forward reference (the target has not yet been laid out in this pass). Reading
+			// the previous pass's value is normal; non-convergence occurs **only when that value
+			// changes in this pass**. PageRef checks when the target is rewritten,
+			// and the warning is issued only once after the final pass completes.
+			// A null counter means body text (target-text()) was read.
 			if (counter == null) {
 				frag.markStaleText();
 			} else {

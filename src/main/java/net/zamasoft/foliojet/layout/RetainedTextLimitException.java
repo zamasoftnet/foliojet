@@ -3,9 +3,10 @@ package net.zamasoft.foliojet.layout;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
 
 /**
- * 溜め込みの上限({@code processing.retained-text-limit})を超えたときの失敗です。
- * メッセージコード 0x380F と引数(要素名・上限・到達値)を保持し、{@code DirectSession} が
- * {@code ContinuationInvariantViolationException} と同じ経路で {@code TranscoderException(STATE_BROKEN)} にする。
+ * A failure when the retention limit ({@code processing.retained-text-limit}) is exceeded.
+ * Retains message code 0x380F and arguments (element name, limit, reached value); {@code DirectSession}
+ * converts it to {@code TranscoderException(STATE_BROKEN)} through the same path as
+ * {@code ContinuationInvariantViolationException}.
  */
 public class RetainedTextLimitException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
@@ -27,7 +28,7 @@ public class RetainedTextLimitException extends RuntimeException {
 		return this.args.clone();
 	}
 
-	/** パーサー・formatter・ワーカーが包んだ失敗を取り出します。 */
+	/** Extracts failures wrapped by parsers, formatters, or workers. */
 	public static RetainedTextLimitException findIn(final Throwable failure) {
 		final java.util.Set<Throwable> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
 		for (Throwable cause = failure; cause != null && seen.add(cause); cause = cause.getCause()) {

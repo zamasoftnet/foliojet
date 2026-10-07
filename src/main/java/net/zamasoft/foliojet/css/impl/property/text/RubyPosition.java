@@ -11,7 +11,7 @@ import net.zamasoft.foliojet.css.value.RubyPositionValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** CSS Ruby Level 1の{@code ruby-position}。 */
+/** CSS Ruby Level 1 {@code ruby-position}. */
 public final class RubyPosition extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new RubyPosition();
 

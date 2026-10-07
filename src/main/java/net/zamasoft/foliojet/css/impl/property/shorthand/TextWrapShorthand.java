@@ -13,21 +13,21 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * CSS Text 4 の {@code text-wrap} 短縮形です(2026-07-25新設)。
+ * CSS Text 4 {@code text-wrap} shorthand (added 2026-07-25).
  *
  * <p>
- * 品質側({@code text-wrap-style})の値
- * {@code auto}/{@code pretty}/{@code balance}/{@code stable}に加え、
- * 2026-08-29からmode側({@code text-wrap-mode})の{@code nowrap}を
- * {@code white-space: nowrap}相当として、{@code wrap}を何もしない値として
- * 受理します(実サイトで{@code text-wrap: nowrap}が使われていた)。
- * {@code white-space}との相互作用は完全ではなく、{@code nowrap}は
- * white-spaceの原始値を上書きします。
+ * In addition to quality ({@code text-wrap-style}) values
+ * {@code auto}/{@code pretty}/{@code balance}/{@code stable}, since 2026-08-29
+ * accepts mode ({@code text-wrap-mode}) value {@code nowrap} as equivalent to
+ * {@code white-space: nowrap}, and {@code wrap} as a no-op
+ * ({@code text-wrap: nowrap} appeared on real sites).
+ * Interaction with {@code white-space} is incomplete; {@code nowrap} overrides
+ * the white-space primitive value.
  * </p>
  *
  * <p>
- * {@code balance}/{@code stable}は{@link TextWrapStyle}と同じく
- * {@code auto}として扱います(未対応)。
+ * As with {@link TextWrapStyle}, treats {@code balance}/{@code stable}
+ * as {@code auto} (unsupported).
  * </p>
  *
  * @author MIYABE Tatsuhiko

@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code paint-order: normal | [ fill || stroke || markers ]}です。
+ * {@code paint-order: normal | [ fill || stroke || markers ]}.
  */
 public final class PaintOrder extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new PaintOrder();

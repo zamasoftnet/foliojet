@@ -18,7 +18,7 @@ public final class BorderValueUtils {
 	}
 
 	/**
-	 * &lt;border-width&gt; を値に変換します。
+	 * Converts &lt;border-width&gt; to a value.
 	 */
 	public static LengthValue toBorderWidth(UserAgent ua, CssToken token) {
 		if (token instanceof CssToken.Ident ident) {
@@ -41,7 +41,7 @@ public final class BorderValueUtils {
 	}
 
 	/**
-	 * &lt;border-style&gt; を値に変換します。
+	 * Converts &lt;border-style&gt; to a value.
 	 */
 	public static BorderStyleValue toBorderStyle(CssToken token) {
 		if (token instanceof CssToken.Ident ident) {
@@ -72,7 +72,7 @@ public final class BorderValueUtils {
 	}
 
 	/**
-	 * &lt;border-radius&gt;(水平半径 [垂直半径])を値に変換します。残りトークンを消費します。
+	 * Converts &lt;border-radius&gt; (horizontal radius [vertical radius]) to a value. Consumes remaining tokens.
 	 */
 	public static BorderRadiusValue toBorderRadius(UserAgent ua, TokenStream tokens) {
 		CssToken first = tokens.next();
@@ -100,10 +100,10 @@ public final class BorderValueUtils {
 	}
 
 	/**
-	 * border-radiusの半径成分({@code <length-percentage>})を値にします。
-	 * パーセントは水平半径ならボックス幅・垂直半径なら高さ基準で、寸法確定後の
-	 * 描画時に解決される({@code RectBorder.Radius#resolve})。longhand
-	 * ({@link #toBorderRadius})とshorthand(BorderRadiusShorthand)の両方が使う。
+	 * Converts a border-radius radius component ({@code <length-percentage>}) to a value.
+	 * Percentages use box width for horizontal radii and height for vertical radii, and
+	 * resolve at drawing time after dimensions are finalized ({@code RectBorder.Radius#resolve}).
+	 * Used by both the longhand ({@link #toBorderRadius}) and shorthand (BorderRadiusShorthand).
 	 */
 	public static QuantityValue toRadiusComponent(UserAgent ua, CssToken token) {
 		if (token instanceof CssToken.Percent) {

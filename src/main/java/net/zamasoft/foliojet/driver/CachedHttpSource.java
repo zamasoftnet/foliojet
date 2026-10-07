@@ -11,11 +11,10 @@ import java.util.Map.Entry;
 import net.zamasoft.zstream.resolver.SourceValidity;
 import net.zamasoft.zstream.resolver.util.AbstractSource;
 
-// 2026-09-02 に MyHttpSourceResolver.java から分けた(本文は移しただけ。設計レビュー「10クラス 1,560行」)。
+// Split from MyHttpSourceResolver.java on 2026-09-02 (body only moved; design review: 10 classes, 1,560 lines).
 /**
- * {@link HttpResponseCache}のエントリを提供するSourceです。中身は
- * 解凍済みバイト列なので、ネットワークにも{@code HttpClient}にも
- * 触れません。
+ * A Source that provides an entry from {@link HttpResponseCache}. Its contents are
+ * decompressed bytes, so it accesses neither the network nor {@code HttpClient}.
  */
 final class CachedHttpSource extends AbstractSource {
 	private final HttpResponseCache.Entry entry;
@@ -69,6 +68,6 @@ final class CachedHttpSource extends AbstractSource {
 	}
 
 	public void close() {
-		// メモリ上のバイト列なので解放するものがない
+		// The bytes are in memory, so there is nothing to release.
 	}
 }

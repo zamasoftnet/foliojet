@@ -4,8 +4,8 @@ import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox;
 
 /**
- * マーカーの出力情報です。
- * 
+ * Marker output information.
+ *
  * @author MIYABE Tatsuhiko
  */
 class Marker {

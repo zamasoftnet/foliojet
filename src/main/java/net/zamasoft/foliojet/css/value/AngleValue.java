@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code <angle>}の計算値です。内部表現はCSS数学関数の正規化単位である度です。
+ * A computed {@code <angle>} value. Internally uses degrees, the normalized unit for CSS math functions.
  */
 public final class AngleValue implements QuantityValue {
 	private final double degrees;

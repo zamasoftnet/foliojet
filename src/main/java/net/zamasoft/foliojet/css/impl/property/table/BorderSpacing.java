@@ -59,7 +59,7 @@ public class BorderSpacing extends AbstractCompositePrimitivePropertyInfo {
 			return new Entry[] { new Entry(BorderSpacing.INFO_H, KeywordValue.INHERIT),
 					new Entry(BorderSpacing.INFO_V, KeywordValue.INHERIT) };
 		}
-		// 型付き attr()(2026-08-03)。<table cellspacing> の移送に要る
+		// Typed attr() (2026-08-03). Needed to move <table cellspacing>.
 		final net.zamasoft.foliojet.css.token.CssToken first = tokens.next();
 		final Value hAttr = net.zamasoft.foliojet.css.util.AttrValueUtils.toTypedAttr(ua, first,
 				net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.LENGTH);

@@ -4,8 +4,8 @@ import net.zamasoft.foliojet.css.token.Unit;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 長さ計算のためのユーティリティです。
- * 
+ * Utilities for length calculations.
+ *
  * @author MIYABE Tatsuhiko
  */
 public final class LengthUtils {
@@ -14,7 +14,7 @@ public final class LengthUtils {
 	}
 
 	/**
-	 * 単位換算します。
+	 * Converts units.
 	 */
 	public static double convert(UserAgent ua, double length, Unit fromUnit, Unit toUnit) {
 		if (fromUnit == toUnit) {
@@ -24,7 +24,7 @@ public final class LengthUtils {
 	}
 
 	/**
-	 * 1単位あたりのインチ数を返します。
+	 * Returns inches per unit.
 	 */
 	private static double inchesPer(UserAgent ua, Unit unit) {
 		switch (unit) {

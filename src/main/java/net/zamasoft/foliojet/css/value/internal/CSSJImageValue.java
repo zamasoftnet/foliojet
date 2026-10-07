@@ -10,7 +10,7 @@ public class CSSJImageValue implements Value {
 	private final Image image;
 	private final SvgSource svgSource;
 
-	/** DOM/GVT/UAから切り離したインラインSVG。documentがnullなら予算超過等で捕捉不可。 */
+	/** Inline SVG detached from DOM/GVT/UA. A null document means capture failed, e.g., due to a budget overrun. */
 	public record SvgSource(String document, String baseURI) {
 	}
 

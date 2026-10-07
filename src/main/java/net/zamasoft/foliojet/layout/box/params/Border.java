@@ -37,52 +37,49 @@ public class Border implements Comparable<Border> {
 	}
 
 	/**
-	 * 幅(太さ)です。
+	 * Width (thickness).
 	 */
 	public final double width;
 
 	/**
-	 * スタイルです。
+	 * Style.
 	 */
 	public final short style;
 
 	/**
-	 * 色です。 透明の場合はnullです。
+	 * Color. null means transparent.
 	 */
 	public final Color color;
 
 	/**
-	 * 枠線の太さの<b>使用値</b>の上限(ポイント)です。
+	 * Upper limit of the border width's <b>used value</b> (points).
 	 *
 	 * <p>
-	 * CSSは上限を定めていませんが、実ブラウザはどれも内部表現の飽和値で
-	 * 頭打ちにします(Chromeの{@code LayoutUnit}は約3,355万px)。
-	 * ここも同じ立場を取ります——{@code colspan}/{@code rowspan}をHTML
-	 * Standardの上限へ丸めたのと同じ理由です。
+	 * CSS defines no upper limit, but real browsers all cap it at the saturation value of their internal
+	 * representation (Chrome's {@code LayoutUnit} is about 33.55 million px). We take the same approach,
+	 * for the same reason that {@code colspan}/{@code rowspan} are clamped to the HTML Standard's limits.
 	 * </p>
 	 *
 	 * <p>
-	 * 1e6pt は約35m。PDFのページ寸法の上限14,400pt(200インチ)の
-	 * 70倍近くあり、正当な枠線が届く値ではありません。一方
-	 * {@link net.zamasoft.foliojet.layout.util.LayoutUtils#DRAWABLE_LIMIT}
-	 * (1e8pt)の100分の1なので、4辺ぶんを足しても入れ子で重ねても
-	 * 描画可能な範囲に収まります。
+	 * 1e6 pt is about 35 m: nearly 70 times the PDF page-size limit of 14,400 pt (200 inches), far beyond
+	 * any legitimate border. It is also one hundredth of
+	 * {@link net.zamasoft.foliojet.layout.util.LayoutUtils#DRAWABLE_LIMIT} (1e8 pt), so summing all four
+	 * sides or nesting borders still stays within drawable bounds.
 	 * </p>
 	 *
 	 * <p>
-	 * 丸めないと{@code border-bottom:4294967295px}(=3.22e9pt)のような
-	 * 指定がそのまま寸法になり、{@code BackgroundBorderDrawable}の
-	 * 「描画高が異常」assertで<b>変換が失敗</b>します
-	 * (WPT {@code css-break/grid/grid-large-end-border-crash.html})。
-	 * assertを無効にした本番でも、3,500kmの枠を描こうとするだけで
-	 * 正しくはなりません。<b>入力を正気な範囲へ丸めるのが正しい層</b>です。
+	 * Without clamping, declarations such as {@code border-bottom:4294967295px} (= 3.22e9 pt) become
+	 * actual dimensions, and the "abnormal drawing height" assertion in {@code BackgroundBorderDrawable}
+	 * <b>fails the conversion</b> (WPT {@code css-break/grid/grid-large-end-border-crash.html}).
+	 * Even in production with assertions disabled, trying to draw a 3,500 km border does not make it
+	 * correct. <b>Clamping input to a sane range is the right layer for this</b>.
 	 * </p>
 	 */
 	public static final double MAX_WIDTH = 1e6;
 
 	public static Border create(short style, double width, Color color) {
-		// 使用値の上限({@link #MAX_WIDTH}参照)。NaNはここで0へ落ちる
-		// (NaNはどの比較もfalseなので、下のisNull()で拾えない)
+		// Used-value limit (see {@link #MAX_WIDTH}). NaN becomes 0 here
+		// (all comparisons with NaN are false, so isNull() below cannot catch it).
 		if (Double.isNaN(width)) {
 			width = 0;
 		} else if (width > MAX_WIDTH) {

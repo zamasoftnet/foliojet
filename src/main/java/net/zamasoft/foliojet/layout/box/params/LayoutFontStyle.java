@@ -10,8 +10,8 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
 /**
- * 描画側にも必要なテキスト特性を保持するフォントスタイルです。
- * フォント選択に使う値は元の{@link FontStyle}からそのまま写します。
+ * Font style that retains text properties also needed for drawing.
+ * Values used for font selection are copied unchanged from the original {@link FontStyle}.
  */
 public record LayoutFontStyle(FontFamilyList family, double size, FontStyle.Style style, FontStyle.Weight weight,
 		FontStyle.Direction direction, FontPolicyList policy, FontFeatureSet features, boolean synthesisWeight,
@@ -31,8 +31,9 @@ public record LayoutFontStyle(FontFamilyList family, double size, FontStyle.Styl
 	}
 
 	/**
-	 * 大きさだけを変えた書体の指定です(ルビ・割注の半分の大きさ)。2026-10-04 まではルビ・割注が引数を並べて
-	 * 写し、言語(lang=zh・ko でも和文の書体の並びになった)と paint-order を落としていた。
+	 * Font specification with only the size changed (half size for ruby and warichu). Until 2026-10-04,
+	 * ruby and warichu copied arguments individually, dropping language (lang=zh/ko also got the Japanese
+	 * font sequence) and paint-order.
 	 */
 	public static FontStyle withSize(final FontStyle base, final double size) {
 		return with(base, size, base.getFeatures());

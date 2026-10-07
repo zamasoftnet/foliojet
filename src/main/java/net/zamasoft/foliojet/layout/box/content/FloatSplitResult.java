@@ -1,31 +1,28 @@
 package net.zamasoft.foliojet.layout.box.content;
 
 /**
- * {@link Floatings}のページ分割の型付き結果です(2026-07-24新設、
- * 排除域P2のP2-3。設計相談
- * §2.2の型)。旧sentinel(null=KeepAll / this=MoveAll / 新=Partition)を
- * 置き換えます。
+ * The typed pagination result for {@link Floatings} (added 2026-07-24, exclusion area P2,
+ * P2-3; the type from design consultation §2.2). Replaces the old sentinels
+ * (null=KeepAll / this=MoveAll / new=Partition).
  *
  * <p>
- * <b>語彙対応(E-4)</b>: {@code All}接尾辞は「台帳({@link Floatings})
- * 全体」の粒度を表す——box 1個粒度の
- * {@code SplitResult.Keep}/{@code Move}、float 1個粒度の
- * {@link FloatSplitPlan.FloatItemPlan}とは意図的に区別している。
- * {@code Partition}は台帳を残す側と送る側({@code remainder})へ二分する
- * ことを表し、box 1個の{@code SplitResult.Split}とは別概念。全体表は
- * {@code SplitResult}のjavadoc参照。
+ * <b>Terminology map (E-4)</b>: The {@code All} suffix means the entire ledger
+ * ({@link Floatings}), intentionally distinct from {@code SplitResult.Keep}/{@code Move}
+ * for one box and {@link FloatSplitPlan.FloatItemPlan} for one float.
+ * {@code Partition} divides the ledger into a retained side and a moved side ({@code remainder});
+ * this differs from {@code SplitResult.Split} for one box. See the {@code SplitResult} Javadoc
+ * for the full map.
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public sealed interface FloatSplitResult {
-	/** 全floatを元のフラグメントに残します(旧 null)。元リストは無傷。 */
+	/** Keeps all floats in the original fragment (formerly null). Leaves the original list untouched. */
 	FloatSplitResult KEEP_ALL = new KeepAll();
 
 	/**
-	 * 全floatを丸ごと次のフラグメントへ送ります(旧 this)。遅延表現——
-	 * floatは元の{@link Floatings}に残したままで、台帳ごとの付け替えは
-	 * 呼び出し側(owner)が行う。
+	 * Sends all floats in their entirety to the next fragment (formerly this). A deferred representation:
+	 * floats remain in the original {@link Floatings}; the caller (owner) reassigns the whole ledger.
 	 */
 	FloatSplitResult MOVE_ALL = new MoveAll();
 
@@ -36,12 +33,13 @@ public sealed interface FloatSplitResult {
 	}
 
 	/**
-	 * 一部を次のフラグメントへ送ります(旧 新Floatings)。元の
-	 * {@link Floatings}にはKEEPとSPLIT元が元順序で残り、{@code remainder}
-	 * にはMOVEされた元のFloatingとSPLITの残余(座標(0,0)・serial引き継ぎ)
-	 * が元順序で入る。{@code remainder}は空にならない。
+	 * Sends part of the ledger to the next fragment (formerly new Floatings).
+	 * The original {@link Floatings} retains KEEP and SPLIT sources in their original order;
+	 * {@code remainder} contains moved original Floatings and SPLIT remainders
+	 * (at coordinates (0,0), with inherited serials) in their original order.
+	 * {@code remainder} is never empty.
 	 *
-	 * @param remainder 次のフラグメントへ送る台帳(非空)
+	 * @param remainder the nonempty ledger to send to the next fragment
 	 */
 	record Partition(Floatings remainder) implements FloatSplitResult {
 	}

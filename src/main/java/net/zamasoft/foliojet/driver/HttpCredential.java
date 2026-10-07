@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.driver;
 
 
 
-// 2026-09-02 に MyHttpSourceResolver.java から分けた(本文は移しただけ。設計レビュー「10クラス 1,560行」)。
+// Split from MyHttpSourceResolver.java on 2026-09-02 (body only moved; design review: 10 classes, 1,560 lines).
 class HttpCredential {
 	final String host;
 	final int port;

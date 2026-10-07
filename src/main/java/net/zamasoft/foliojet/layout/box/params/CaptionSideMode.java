@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 表キャプションの位置(caption-side)です。
+ * Table caption position (caption-side).
  *
  * @author MIYABE Tatsuhiko
  */

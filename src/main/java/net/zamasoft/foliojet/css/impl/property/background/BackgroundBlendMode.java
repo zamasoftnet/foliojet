@@ -15,11 +15,11 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.BlendMode;
 
-/** {@code background-blend-mode} (Compositing 1)です。 */
+/** {@code background-blend-mode} (Compositing 1). */
 public class BackgroundBlendMode extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BackgroundBlendMode();
 
-	/** 先頭が最前面の背景画像に対応するブレンドモード列です。 */
+	/** Sequence of blend modes, with the first corresponding to the frontmost background image. */
 	public record BlendModesValue(BlendMode[] modes) implements Value {
 		@Override
 		public String toString() {

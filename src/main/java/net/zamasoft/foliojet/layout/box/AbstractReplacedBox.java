@@ -29,8 +29,8 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * 画像ボックスの実装です。
- * 
+ * Implements an image box.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: AbstractReplacedBox.java 1635 2023-04-03 08:16:41Z miyabe $
  */
@@ -90,12 +90,12 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 	}
 
 	/**
-	 * 横書きの行で、この箱の下端(マージンの下端)から基準線までの距離を
-	 * 返します(2026-10-04)。ふつうの画像は下端が基準線なので 0。
-	 * {@link net.zamasoft.foliojet.layout.box.content.BaselineImage}(数式)は、
-	 * 画像の深さを object-fit で描く矩形の倍率に換算し、矩形の下の余白と
-	 * 枠(マージン・枠線・内側の余白)の下辺を足す。行の高さの計算・上下
-	 * 揃え・描画・字の輪郭の 4 か所が同じ値を使うこと。
+	 * Returns the distance from this box's bottom edge (the margin bottom) to the baseline
+	 * in a horizontal line (2026-10-04). For ordinary images, the baseline is at the bottom, so this is 0.
+	 * For {@link net.zamasoft.foliojet.layout.box.content.BaselineImage} (formulas), convert the image depth
+	 * using the scale of the rectangle drawn by object-fit, then add the space below that rectangle
+	 * and the bottom of the frame (margin, border, and padding). Line height calculation, vertical
+	 * alignment, drawing, and glyph outline collection must all use the same value.
 	 */
 	public final double getBaselineDescent() {
 		if (!(this.params.image instanceof net.zamasoft.foliojet.layout.box.content.BaselineImage baseline)) {
@@ -113,16 +113,16 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 
 	public final void calculateFrame(final double lineAxis) {
 		//
-		// ■ パディングの計算
+		// ■ Calculate padding
 		//
 		LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineAxis);
 		//
-		// ■ マージンの計算
+		// ■ Calculate margins
 		//
 		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineAxis);
 	}
 
-	/** aspect-ratioによるcontent-box高さ(box-sizingの箱に比率が掛かる。2026-08-29)。 */
+	/** Content-box height from aspect-ratio (the ratio applies to the box-sizing box; 2026-08-29). */
 	private double ratioHeight(final double contentWidth, final double ratio) {
 		if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 			return Math.max(0, (contentWidth + this.frame.getBorderWidth()) / ratio - this.frame.getBorderHeight());
@@ -130,7 +130,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		return contentWidth / ratio;
 	}
 
-	/** aspect-ratioによるcontent-box幅({@link #ratioHeight}の逆。2026-08-29)。 */
+	/** Content-box width from aspect-ratio (the inverse of {@link #ratioHeight}; 2026-08-29). */
 	private double ratioWidth(final double contentHeight, final double ratio) {
 		if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 			return Math.max(0, (contentHeight + this.frame.getBorderHeight()) * ratio - this.frame.getBorderWidth());
@@ -145,9 +145,9 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		if (this.params.image instanceof ReplacedBoxImage) {
 			((ReplacedBoxImage) this.params.image).setReplacedBox(this, width, height);
 		}
-		// aspect-ratio(2026-08-29、css-sizing-4 §5): 指定比率が固有比率に
-		// 優先する。auto併記のときだけ固有比率(幅・高さとも正)を優先し、
-		// 固有比率の無い画像(壊れた画像・寸法なしSVG)で指定比率を使う
+		// aspect-ratio (2026-08-29, css-sizing-4 §5): The specified ratio takes precedence over the intrinsic
+		// ratio. Only when auto is also specified does the intrinsic ratio (positive width and height) take
+		// precedence; use the specified ratio for images without one (broken images or SVGs without dimensions).
 		double ratio = 0;
 		if (this.params.aspectRatio > 0) {
 			final boolean natural = this.params.image.getWidth() > 0 && this.params.image.getHeight() > 0;
@@ -155,11 +155,11 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		}
 		// SPEC CSS2.1 10.3.2
 		if (LayoutUtils.isNone(width) && LayoutUtils.isNone(height)) {
-			// 両方が不確定
+			// Both dimensions are indefinite
 			width = this.params.image.getWidth();
 			height = this.params.image.getHeight();
 			if (ratio > 0) {
-				// 固有幅を保ち高さを比率で決める(幅が無ければ高さから逆算)
+				// Keep the intrinsic width and derive the height from the ratio (or derive the width if only height exists)
 				if (width > 0) {
 					height = this.ratioHeight(width, ratio);
 				} else if (height > 0) {
@@ -167,7 +167,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 				}
 			}
 		} else if (LayoutUtils.isNone(width)) {
-			// 幅が不確定
+			// Width is indefinite
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 				height -= this.frame.getBorderHeight();
 			}
@@ -178,11 +178,11 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			} else if (intrinsicHeight != 0) {
 				width = intrinsicWidth * height / intrinsicHeight;
 			} else {
-				// 元画像の高さがゼロの場合[最小のレイアウトにするポリシー]
+				// The source image has zero height [policy: use the smallest layout]
 				width = 0;
 			}
 		} else if (LayoutUtils.isNone(height)) {
-			// 高さが不確定
+			// Height is indefinite
 			if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 				width -= this.frame.getBorderWidth();
 			}
@@ -193,7 +193,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			} else if (intrinsicWidth != 0) {
 				height = intrinsicHeight * width / intrinsicWidth;
 			} else {
-				// 元画像の幅がゼロの場合[最小のレイアウトにするポリシー]
+				// The source image has zero width [policy: use the smallest layout]
 				height = 0;
 			}
 		} else if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
@@ -209,9 +209,9 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		double minWidth = LayoutUtils.computeDimensionWidth(this.params.minSize, refWidth);
 		double maxHeight = LayoutUtils.computeDimensionHeight(this.params.maxSize, refMaxHeight);
 		double minHeight = LayoutUtils.computeDimensionHeight(this.params.minSize, refHeight);
-		// 固有寸法計測では包含ブロックが未確定(NONE)になりうる。このとき
-		// %のmin-sizeは循環寄与なので0として扱う。番兵を数値の最小寸法として
-		// Math.maxへ渡すと、置換要素が10^308pt級へ膨張してしまう。
+		// The containing block can be indefinite (NONE) during intrinsic size measurement. In this case,
+		// a percentage min-size is a cyclic contribution, so treat it as 0. Passing the sentinel to Math.max
+		// as a numeric minimum size would inflate the replaced element to around 10^308 pt.
 		if (LayoutUtils.isNone(minWidth)) {
 			minWidth = 0;
 		}
@@ -302,11 +302,11 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 	}
 
 	public void finishLayoutSelf(IFramedBox containerBox) {
-		// 相対配置
+		// Relative positioning
 		AbstractStaticPos pos = (AbstractStaticPos) this.getPos();
 		if (pos.offset != null) {
 			//
-			// ■ 相対配置の位置の計算
+			// ■ Calculate the relative position
 			//
 			this.offsetX = LayoutUtils.computeOffsetX(pos.offset, containerBox);
 			this.offsetY = LayoutUtils.computeOffsetY(pos.offset, containerBox);
@@ -319,7 +319,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 	}
 
 	/**
-	 * リーフ(子を持たない)なので何もしません。
+	 * Does nothing because this is a leaf (has no children).
 	 */
 	public void pushFinishLayoutChildren(IFramedBox containerBox, java.util.Deque<FinishLayoutStep> worklist) {
 	}
@@ -342,21 +342,21 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 
 		@Override
 		public String describe() {
-			// 脚注ラベル(F5)は解決済み番号を表示リストへ出す——goldenが
-			// 座標だけでなく番号文字そのものを固定できるように
+			// Emit the resolved number of a footnote label (F5) to the display list so the golden can lock down
+			// the number characters themselves as well as their coordinates.
 			if (this.image instanceof net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage label) {
 				return String.format(java.util.Locale.ROOT, "FootnoteLabel[\"%s\" w=%.2f h=%.2f]",
 						label.getAltString(), this.width, this.height);
 			}
-			// 1パスのtarget-counter()の欄。値は描くとき(後ろの頁なら文書を閉じるとき)に入る
+			// Single-pass target-counter() field. Its value is set at draw time (at document close for a later page).
 			if (this.image instanceof net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage slot) {
 				return String.format(java.util.Locale.ROOT, "TargetCounterSlot[\"%s\" w=%.2f h=%.2f]",
 						slot.getURI().getRawFragment(), this.width, this.height);
 			}
-			// object-fit/object-positionが既定でない場合は実描画矩形を出す
-			// (innerDrawの内部変換は表示リストに現れないため、goldenで
-			// 収まり方を固定できるようにここで同じ計算を晒す)。既定の
-			// 出力は従来のまま——既存goldenは不変
+			// Emit the actual drawing rectangle when object-fit/object-position are not the defaults
+			// (the internal transform in innerDraw does not appear in the display list, so expose the same
+			// calculation here to let the golden lock down how the image fits). Keep the default
+			// output as before, leaving existing goldens unchanged.
 			if (this.objectFit != ObjectFitMode.FILL || !isCenterPosition(this.objectPosition)) {
 				final double width = this.width - this.frame.getFrameWidth();
 				final double height = this.height - this.frame.getFrameHeight();
@@ -370,9 +370,9 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		}
 
 		/**
-		 * {@code filter: drop-shadow()}: ラスタ画像なら不透明度のシルエットを
-		 * ぼかした影を、画像と同じ位置・寸法でずらして描く(2026-08-29)。
-		 * ラスタでなければ箱の形の影(AbsoluteRectFrameDrawable)。
+		 * {@code filter: drop-shadow()}: For raster images, draw a blurred shadow of the opacity silhouette
+		 * at the image's position and size, with an offset (2026-08-29).
+		 * For non-raster images, use a box-shaped shadow (AbsoluteRectFrameDrawable).
 		 */
 		@Override
 		protected void drawFilterShadow(GC gc, double x, double y,
@@ -384,8 +384,8 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			if (width > 0 && height > 0 && this.image.getWidth() > 0 && this.image.getHeight() > 0) {
 				final double[] r = this.fitRect(width, height);
 				final double sx = r[2] / this.image.getWidth(), sy = r[3] / this.image.getHeight();
-				// ぼかし半径の半分が標準偏差(filter-effects-1 §9.2)。画像の
-				// 論理単位へ換算する
+				// Half the blur radius is the standard deviation (filter-effects-1 §9.2). Convert it
+				// to the logical units of the image.
 				final double sigma = filterShadow.blur() > 0 ? filterShadow.blur() / 2 / Math.sqrt(sx * sy) : 0;
 				final net.zamasoft.foliojet.layout.util.FilterOps.Shadow shadow = net.zamasoft.foliojet.layout.util.FilterOps
 						.shadowOf(this.image, filterShadow.color(), sigma);
@@ -410,15 +410,15 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			y += this.frame.getFrameTop();
 			double width = this.width - this.frame.getFrameWidth();
 			double height = this.height - this.frame.getFrameHeight();
-			// 固有サイズ0の画像はスケール計算がゼロ除算(Infinity)になるため
-			// 描画しない(壊れた変換行列でバックエンドを巻き込むより安全)
+			// Do not draw images with an intrinsic size of 0: calculating the scale would divide by zero (Infinity).
+			// Skipping them is safer than passing a broken transformation matrix to the backend.
 			if (width > 0 && height > 0 && this.image.getWidth() > 0 && this.image.getHeight() > 0) {
 				final double[] r = this.fitRect(width, height);
 				final double dx = r[0], dy = r[1], drawWidth = r[2], drawHeight = r[3];
 				final AffineTransform at = AffineTransform.getTranslateInstance(x + dx, y + dy);
 				at.scale(drawWidth / this.image.getWidth(), drawHeight / this.image.getHeight());
-				// 内容ボックスからはみ出す場合(cover/none等)はブラウザ同様に
-				// クリップする
+				// Clip content that overflows the content box (cover/none, etc.),
+				// as browsers do.
 				final boolean overflows = dx < -0.001 || dy < -0.001 || dx + drawWidth > width + 0.001
 						|| dy + drawHeight > height + 0.001;
 				try (final var gcState = gc.begin()) {
@@ -445,15 +445,15 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 	}
 
 	/**
-	 * SPEC css-images-3 object-fit/object-position: 内容ボックス
-	 * (width×height)への実描画矩形{dx, dy, drawWidth, drawHeight}を
-	 * 返します。描画({@code ReplacedBoxDrawable})とリンク注釈の座標変換
-	 * ({@code AbstractVisitor})が同じ幾何を共有するための単一の計算です。
-	 * 呼び出し側で寸法が正であることを確認してください。
+	 * SPEC css-images-3 object-fit/object-position: Returns the actual drawing rectangle
+	 * {dx, dy, drawWidth, drawHeight} within the content box (width×height).
+	 * This single calculation lets drawing ({@code ReplacedBoxDrawable}) and the coordinate transform
+	 * for link annotations ({@code AbstractVisitor}) share the same geometry.
+	 * The caller must check that the dimensions are positive.
 	 */
 	public static double[] objectFitRect(final ObjectFitMode objectFit, final Offset objectPosition,
 			final double imageWidth, final double imageHeight, final double width, final double height) {
-		// 実描画寸法(concrete object size)
+		// Actual drawing dimensions (concrete object size)
 		final double drawWidth, drawHeight;
 		switch (objectFit) {
 		case CONTAIN: {
@@ -483,7 +483,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			drawHeight = height;
 			break;
 		}
-		// object-positionによる余白(負にもなる)への割り付け
+		// Distribute the free space (which may be negative) according to object-position
 		final double dx = positionOffset(objectPosition.getX(), objectPosition.getXRatio(),
 				objectPosition.getXType(), width - drawWidth);
 		final double dy = positionOffset(objectPosition.getY(), objectPosition.getYRatio(),
@@ -504,7 +504,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		}
 	}
 
-	/** 既定のobject-position(50% 50%)か。Offsetは値クラスなので成分で比較する。 */
+	/** Whether object-position is the default (50% 50%). Offset is a value class, so compare its components. */
 	static boolean isCenterPosition(final Offset pos) {
 		return pos.getXType() == LengthType.RELATIVE && pos.getYType() == LengthType.RELATIVE
 				&& pos.getX() == .5 && pos.getY() == .5;
@@ -523,10 +523,10 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 	}
 
 	/**
-	 * {@code clip-path}を合成したクリップです(2026-08-29)。置換要素は
-	 * {@link net.zamasoft.foliojet.layout.box.AbstractContainerBox}を通らないため、
-	 * 同じ規則(参照ボックスの実寸で形状を解決し、既存のクリップと交差)を
-	 * ここに置く。{@code <img>}の背景・枠・画像すべてを切る(css-masking-1)。
+	 * The clip combined with {@code clip-path} (2026-08-29). Replaced elements do not go through
+	 * {@link net.zamasoft.foliojet.layout.box.AbstractContainerBox}, so apply the same rule here:
+	 * resolve the shape using the actual reference-box dimensions and intersect it with the existing clip.
+	 * Clip the background, frame, and image of {@code <img>} together (css-masking-1).
 	 */
 	private Shape clipWithClipPath(final Shape clip, final double x, final double y) {
 		final ClipPathShape clipPath = this.params.clipPath;
@@ -539,8 +539,8 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		final double mw = this.frame.margin.getFrameWidth(), mh = this.frame.margin.getFrameHeight();
 		final double bw = this.frame.frame.border.getFrameWidth(), bh = this.frame.frame.border.getFrameHeight();
 		final double pw = this.frame.padding.getFrameWidth(), ph = this.frame.padding.getFrameHeight();
-		// 置換要素のwidth/heightはマージン箱の実寸(innerDrawがframeを引いて
-		// 内容箱にしている)。参照ボックスごとにそこから削る
+		// A replaced element's width/height are the actual margin-box dimensions (innerDraw subtracts the frame
+		// to get the content box). Subtract the appropriate amount for each reference box.
 		final Rectangle2D.Double ref = switch (clipPath.referenceBox) {
 		case MARGIN_BOX -> new Rectangle2D.Double(x, y, this.width, this.height);
 		case BORDER_BOX -> new Rectangle2D.Double(x + ml, y + mt, this.width - mw, this.height - mh);

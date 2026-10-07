@@ -7,25 +7,25 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * 読み込みに失敗した{@code <img>}の既定(broken-image=none)の代替物です
- * (2026-08-06)。
+ * Default substitute (broken-image=none) for an {@code <img>} that fails to load
+ * (2026-08-06).
  *
  * <p>
- * 以前は画像が読み込めないと{@link Image}をまったく設定せず、要素が
- * 置換ボックスではない普通のinlineボックスへ縮退していた——CSSの
- * {@code width}/{@code height}(HTML属性由来のヒントも著者CSSの上書きも
- * 含む)が完全に無視される欠陥だった。実物のwoocommerce.comのドキュメント
- * ページで発覚: {@code display:table}の図(WordPressの画像キャプション
- * パターン)の中で画像が読み込めないと、幅を決める要素が無くなり、
- * table全体がmin-content(最長単語幅)まで潰れ、figcaptionが単語ごとに
- * 1行の縦長の列になっていた。
+ * Previously, a failed image load set no {@link Image} at all, so the element degraded
+ * to a normal inline box instead of a replaced box. This caused CSS
+ * {@code width}/{@code height} (including both HTML attribute hints and author CSS overrides)
+ * to be ignored entirely. The defect appeared on an actual woocommerce.com documentation page:
+ * when an image failed to load inside a {@code display:table} figure (the WordPress image caption
+ * pattern), no element remained to determine the width. The entire table collapsed to
+ * min-content (the longest word's width), and the figcaption became a tall column
+ * with one word per line.
  * </p>
  *
  * <p>
- * {@link NullImage}と違いalt文字列を描画する(何も描かないと、以前は
- * 見えていた代替テキストが単に消えてしまう)。{@link BrokenImage}と違い
- * 赤いバツ印は描かない(broken-image=noneの意図は「装飾なしでalt文字列
- * だけ見せる」)。
+ * Unlike {@link NullImage}, this draws the alt string (drawing nothing would simply
+ * lose the alternative text that was previously visible). Unlike {@link BrokenImage},
+ * it does not draw a red cross (broken-image=none means "show only the alt string
+ * without decoration").
  * </p>
  */
 public class AltTextImage implements Image {

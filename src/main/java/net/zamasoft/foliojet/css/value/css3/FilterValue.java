@@ -8,44 +8,44 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 
 /**
- * {@code filter}の値です(filter-effects-1、2026-08-29新設)。
+ * A {@code filter} value (filter-effects-1, added on 2026-08-29).
  *
  * <p>
- * 関数列は解析時に4種の効果へ畳み込む: 色行列(grayscale/sepia/saturate/
- * hue-rotate/invert/brightness/contrast——いずれも4×5の色行列なので
- * 順に掛け合わせて1つにできる)、不透明度(opacity()、描画時の
- * グループ不透明度に掛ける)、ぼかし(blur()、標準偏差pt)、影
- * (drop-shadow()、1つだけ——複数は最後を採る)。
+ * Parsing folds the function sequence into four types of effects: a color matrix
+ * (grayscale/sepia/saturate/hue-rotate/invert/brightness/contrast, all 4×5 color matrices
+ * that can be multiplied in sequence into one), opacity (opacity(), multiplied by group
+ * opacity at rendering time), blur (blur(), standard deviation in pt), and shadow
+ * (drop-shadow(), only one: the last wins if there are several).
  * </p>
  *
  * <p>
- * 仕様では要素全体を1枚の絵にしてから効果を掛けるが、本実装は
- * mix-blend-mode/opacityと同じ流儀で描画要素(背景・境界・文字・画像)
- * ごとに掛ける。子孫の描画要素へ届けるため、計算値は親の計算値と
- * 合成する({@link #compose})——色行列は積、不透明度は積、ぼかしは和。
- * 影は宣言した要素の枠にだけ描く(子孫ごとに影が付くのを防ぐ)ので
- * 合成では引き継がない。
+ * The specification applies effects after combining the whole element into one image, but this
+ * implementation applies them to each drawing component (background, border, text, image),
+ * as with mix-blend-mode/opacity. To deliver effects to descendants' drawing components,
+ * composes computed values with the parent's computed values ({@link #compose}): multiply
+ * color matrices, multiply opacities, and add blurs. Shadows draw only on the frame of the
+ * element declaring them (to avoid shadows on every descendant), so composition does not inherit them.
  * </p>
  */
 public final class FilterValue implements Value {
-	/** {@code drop-shadow(x y blur color)}。 */
+	/** {@code drop-shadow(x y blur color)}. */
 	public record DropShadow(double x, double y, double blur, Color color) {
 	}
 
 	public static final FilterValue NONE = new FilterValue(1f, null, 0, null, null);
 
-	/** 描画時のグループ不透明度に掛ける係数。 */
+	/** The factor multiplied by group opacity at rendering time. */
 	public final float opacity;
-	/** 4×5の色行列(行優先、[r g b a 1]に掛ける)。恒等ならnull。 */
+	/** A 4×5 color matrix (row-major, multiplied by [r g b a 1]). Null for the identity. */
 	public final float[] matrix;
-	/** ぼかしの標準偏差(pt)。0なら無し。 */
+	/** The blur standard deviation (pt). Zero means none. */
 	public final double blur;
 	public final DropShadow shadow;
-	/** 宣言の字面(自身に宣言があるとき)。継承だけの値ではnull。 */
+	/** The declaration's text (when declared on this element). Null for inherited-only values. */
 	public final String declared;
-	/** この要素自身の宣言値。解析直後の値ではnull(={@code this})。 */
+	/** This element's own declared value. Null immediately after parsing (={@code this}). */
 	private final FilterValue own;
-	/** 親要素の合成値。根ではnull。 */
+	/** The parent element's composed value. Null at the root. */
 	private final FilterValue inherited;
 
 	public FilterValue(final float opacity, final float[] matrix, final double blur, final DropShadow shadow,
@@ -68,30 +68,30 @@ public final class FilterValue implements Value {
 		return this.opacity == 1f && this.matrix == null && this.blur <= 0 && this.shadow == null;
 	}
 
-	/** 色行列かぼかしがあるか(描画をFilterGCで包む必要があるか)。 */
+	/** Whether a color matrix or blur exists (whether drawing needs a FilterGC wrapper). */
 	public boolean hasColorOps() {
 		return this.matrix != null || this.blur > 0;
 	}
 
-	/** 要素全体を1つの層にまとめる必要があるか。 */
+	/** Whether the entire element needs to be combined into a single layer. */
 	public boolean needsGroup() {
 		return this.hasColorOps() || this.shadow != null;
 	}
 
-	/** この要素自身の宣言値を返します。 */
+	/** Returns this element's own declared value. */
 	public FilterValue own() {
 		return this.own == null ? this : this.own;
 	}
 
-	/** 共有された解析値を、要素固有の同一性を持つ値へ複写します。 */
+	/** Copies a shared parsed value into a value with an element-specific identity. */
 	public FilterValue forElement() {
 		return this.isNone() ? NONE
 				: new FilterValue(this.opacity, this.matrix, this.blur, this.shadow, this.declared, null, null);
 	}
 
 	/**
-	 * 親の効果に子の効果を重ねます。子の描画に子の効果を掛け、その結果に
-	 * 親の効果が掛かる順。
+	 * Composes the child's effects with the parent's effects. Applies the child's effects
+	 * to its drawing first, then applies the parent's effects to the result.
 	 */
 	public FilterValue compose(final FilterValue child) {
 		if (child == null) {
@@ -110,7 +110,7 @@ public final class FilterValue implements Value {
 				child.own(), this);
 	}
 
-	/** 囲んでいる要素層ですでに掛けた宣言を除いた合成値を返します。 */
+	/** Returns the composed value excluding declarations already applied by enclosing element layers. */
 	public FilterValue excluding(final Set<FilterValue> grouped) {
 		if (grouped == null || grouped.isEmpty()) {
 			return this;
@@ -127,7 +127,7 @@ public final class FilterValue implements Value {
 		return result.isNone() ? NONE : result;
 	}
 
-	/** 行列の積 {@code a × b}(bを先に掛ける)。 */
+	/** Matrix product {@code a × b} (applies b first). */
 	public static float[] multiply(final float[] a, final float[] b) {
 		final float[] r = new float[20];
 		for (int row = 0; row < 4; ++row) {
@@ -145,7 +145,7 @@ public final class FilterValue implements Value {
 		return r;
 	}
 
-	/** 色行列を色へ掛けます。アルファ行は恒等なので変えない。 */
+	/** Applies the color matrix to a color. Leaves alpha unchanged because the alpha row is the identity. */
 	public static float[] apply(final float[] m, final float r, final float g, final float b, final float a) {
 		final float[] out = new float[3];
 		for (int row = 0; row < 3; ++row) {
@@ -156,7 +156,7 @@ public final class FilterValue implements Value {
 		return out;
 	}
 
-	/** ラスタのキャッシュ鍵に使う、効果の字面。 */
+	/** Textual representation of the effects for the raster cache key. */
 	public String key() {
 		final StringBuilder s = new StringBuilder();
 		if (this.matrix != null) {

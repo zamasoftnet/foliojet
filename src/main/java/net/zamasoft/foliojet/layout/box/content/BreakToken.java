@@ -1,58 +1,58 @@
 package net.zamasoft.foliojet.layout.box.content;
 
 /**
- * テキストブロックの継続トークン(BreakToken)です。
- * ページ・段の切断や、同一フロー内の後続テキストブロックの再開情報を表します。
+ * A continuation token (BreakToken) for a text block.
+ * Represents resume information for page/column splits and subsequent text blocks in the same flow.
  *
  * <p>
- * M6b: enum から位置を運べる sealed 型に拡張。None &lt; MidFlow &lt; MidLine
- * の全順序で、合成は強い方を採ります。MidFlow/MidLine の charOffset は
- * 再開位置のソース文字オフセット(pdfg2d Text.getCharOffset 由来)で、
- * セグメント再駆動(segment-restyle)の再開位置の対応付けに使います。
- * 位置が不明な合成トークンは -1 を持ちます。
+ * M6b: Extended from an enum to a sealed type that carries positions. The total order is
+ * None &lt; MidFlow &lt; MidLine; combination takes the stronger one.
+ * MidFlow/MidLine charOffset is the source character offset at the resume position
+ * (from pdfg2d Text.getCharOffset), used to map resume positions for segment replay
+ * (segment-restyle). A combined token with an unknown position carries -1.
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public sealed interface BreakToken {
-	/** フローの先頭(text-indent と :first-line が適用される)。 */
+	/** The start of a flow (text-indent and :first-line apply). */
 	public static final BreakToken NONE = new None();
 
-	/** 位置不明のフロー途中継続(合成用)。 */
+	/** A mid-flow continuation with an unknown position (for combination). */
 	public static final BreakToken MID_FLOW = new MidFlow(-1);
 
 	record None() implements BreakToken {
 	}
 
 	/**
-	 * フローの途中からの継続(text-indent と :first-line を抑制)。
+	 * A continuation from within a flow (suppresses text-indent and :first-line).
 	 *
-	 * @param charOffset 再開位置のソース文字オフセット(不明なら -1)
+	 * @param charOffset the source character offset at the resume position (-1 if unknown)
 	 */
 	record MidFlow(int charOffset) implements BreakToken {
 	}
 
 	/**
-	 * 行の途中(語中)からの継続(前の行と接続して折り返す)。
+	 * A continuation from within a line (within a word; connects to the preceding line for wrapping).
 	 *
-	 * @param charOffset 再開位置のソース文字オフセット(不明なら -1)
+	 * @param charOffset the source character offset at the resume position (-1 if unknown)
 	 */
 	record MidLine(int charOffset) implements BreakToken {
 	}
 
 	/**
-	 * フロー途中の継続であればtrueを返します。
+	 * Returns true for a mid-flow continuation.
 	 *
-	 * @return フロー途中であればtrue
+	 * @return true if within a flow
 	 */
 	public default boolean midFlow() {
 		return !(this instanceof None);
 	}
 
 	/**
-	 * 行途中の継続であればtrueを返します。
+	 * Returns true for a mid-line continuation.
 	 *
-	 * @return 行途中であればtrue
+	 * @return true if within a line
 	 */
 	public default boolean midLine() {
 		return this instanceof MidLine;
@@ -67,10 +67,10 @@ public sealed interface BreakToken {
 	}
 
 	/**
-	 * 2つの継続状態を合成します(強い方を採ります)。
+	 * Combines two continuation states (takes the stronger one).
 	 *
-	 * @param other 合成する継続状態
-	 * @return 合成結果
+	 * @param other the continuation state to combine
+	 * @return the combined result
 	 */
 	public default BreakToken combine(BreakToken other) {
 		return this.rank() >= other.rank() ? this : other;

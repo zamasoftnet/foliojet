@@ -14,14 +14,14 @@ public interface PaintValue extends Value {
 	public Paint getPaint(Rectangle2D box);
 
 	/**
-	 * 形を塗ります(2026-08-29)。既定は{@link #getPaint}を塗りに設定して
-	 * 塗りつぶすだけ。円錐グラデーションのようにpdfg2dの{@code Paint}で
-	 * 表せない塗りは、これを上書きして自前で描く。
+	 * Fills a shape (2026-08-29). By default, sets {@link #getPaint} as the fill paint
+	 * and simply fills the shape. Paints that pdfg2d's {@code Paint} cannot represent,
+	 * such as conic gradients, override this method to draw themselves.
 	 *
-	 * @param gc    描画先(塗りの設定は呼び出し側のスコープに残るので、
-	 *              呼び出し側がbegin()で囲むこと)
-	 * @param shape 塗る形
-	 * @param box   グラデーションの基準箱(通常は{@code shape}の外接矩形)
+	 * @param gc    the drawing destination (the fill setting remains in the caller's scope,
+	 *              so the caller must enclose the call in begin())
+	 * @param shape the shape to fill
+	 * @param box   the gradient's reference box (usually the bounding rectangle of {@code shape})
 	 */
 	public default void fill(final GC gc, final Shape shape, final Rectangle2D box) throws GraphicsException {
 		gc.setFillPaint(this.getPaint(box));

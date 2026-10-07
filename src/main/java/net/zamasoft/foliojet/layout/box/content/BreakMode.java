@@ -7,28 +7,27 @@ import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * ブロックの分割モードです。
- * 
+ * The block splitting mode.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: BreakMode.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public abstract class BreakMode {
 	/**
-	 * 指定線上での自動改ページです。
+	 * An automatic page break at the specified line.
 	 */
 	public static class AutoBreakMode extends BreakMode {
 		public final IBox box;
 
 		/**
-		 * フラグメンテナ(ページ/段)のページ方向内寸です(2026-08-20。
-		 * 不明なら-1)。改ページ禁止(page-break-inside:avoid)の箱が
-		 * <b>丸ごとでもフラグメンテナに収まらない</b>とき、css-breakは
-		 * avoidを無視してよい——送っても結局内部で切ることになり、
-		 * 送り元のページに大きな空白だけが残るため
-		 * (w3c-jlreqの二重言語の巨大figureで実測: 送りが2,053頁中479頁の
-		 * 「半分空きページ」を作っていた)。判定はルート版面内寸との比較
-		 * (祖先フレーム分は引いていない=安全側の近似。真の容量はこれ以下
-		 * なので「版面より大きい箱」は確実に収まらない)。
+		 * The fragmentainer's (page/column) inner page-axis size (2026-08-20; -1 if unknown).
+		 * When a box with page-break-inside:avoid <b>cannot fit even in a whole fragmentainer</b>,
+		 * css-break allows ignoring avoid: moving it would still require an internal split,
+		 * merely leaving a large blank area on the source page
+		 * (measured on large bilingual figures in w3c-jlreq: moving them produced 479 half-empty
+		 * pages out of 2,053). Compare against the root type area's inner size
+		 * (without subtracting ancestor frames, a conservative approximation: actual capacity
+		 * is no larger, so a box larger than the type area definitely cannot fit).
 		 */
 		public final double fragmentCapacity;
 
@@ -52,7 +51,7 @@ public abstract class BreakMode {
 			this.fragmentCapacity = fragmentCapacity;
 		}
 
-		/** 容量つきの匿名モード(flowStackが浅い場合のautoBreak用)。 */
+		/** Anonymous mode with capacity (for autoBreak when flowStack is shallow). */
 		public static AutoBreakMode withCapacity(final double fragmentCapacity) {
 			return new AutoBreakMode(fragmentCapacity);
 		}
@@ -68,9 +67,9 @@ public abstract class BreakMode {
 	public static AutoBreakMode DEFAULT_BREAK_MODE = new AutoBreakMode();
 
 	/**
-	 * 段組の改段(自動)です(旧 FLAGS_COLUMN の型付け)。改段は段組
-	 * ボックスに到達したところで吸収され、内側では通常の自動改ページと
-	 * して振る舞う。
+	 * An automatic column break in multi-column layout (the typed form of the former FLAGS_COLUMN).
+	 * Absorb the column break when it reaches the multi-column box; inside it, behave
+	 * as a normal automatic page break.
 	 */
 	public static final class ColumnBreakMode extends AutoBreakMode {
 		private ColumnBreakMode(IBox box, final double fragmentCapacity) {
@@ -87,8 +86,8 @@ public abstract class BreakMode {
 	}
 
 	/**
-	 * 自動改ページを改段として印付けます(強制改ページは breakType が
-	 * 段を表すためそのまま)。
+	 * Marks an automatic page break as a column break (leave forced breaks unchanged,
+	 * since their breakType identifies the column break).
 	 */
 	public static BreakMode column(final BreakMode mode) {
 		if (mode instanceof ColumnBreakMode) {
@@ -101,8 +100,8 @@ public abstract class BreakMode {
 	}
 
 	/**
-	 * 段組ボックス自身に到達した改段を吸収し、内側の通常改ページへ
-	 * 戻します。
+	 * Absorbs a column break that has reached the multi-column box itself,
+	 * reverting to a normal page break inside it.
 	 */
 	public static BreakMode absorbColumn(final BreakMode mode, final int columnCount) {
 		if (columnCount > 1 && mode instanceof ColumnBreakMode column) {
@@ -112,8 +111,8 @@ public abstract class BreakMode {
 	}
 
 	/**
-	 * 特定の場所での強制改ページです。
-	 * 
+	 * A forced page break at a specific location.
+	 *
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: BreakMode.java 1552 2018-04-26 01:43:24Z miyabe $
 	 */
@@ -123,9 +122,9 @@ public abstract class BreakMode {
 		public final PageBreakMode breakType;
 
 		/**
-		 * ページ名遷移(名前付きページN2b)による改ページかです。閉じられる
-		 * ページが白紙なら出力から落とす(作者の明示改ページと違い、白紙を
-		 * 保存する理由にならない)。
+		 * Whether this break comes from a page-name transition (named pages N2b). If the closing
+		 * page is blank, omit it from output (unlike an explicit author-requested break,
+		 * this is not a reason to preserve a blank page).
 		 */
 		public final boolean namedTransition;
 
@@ -158,8 +157,8 @@ public abstract class BreakMode {
 	}
 
 	/**
-	 * テーブル内での強制改ページです。
-	 * 
+	 * A forced page break within a table.
+	 *
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: BreakMode.java 1552 2018-04-26 01:43:24Z miyabe $
 	 */

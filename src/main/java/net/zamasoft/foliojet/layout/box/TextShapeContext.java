@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.layout.box;
 
-/** 字形輪郭収集中の警告方針をスレッド単位で保持します。 */
+/** Stores the warning policy during glyph outline collection per thread. */
 final class TextShapeContext {
 	private static final ThreadLocal<Integer> QUIET_DEPTH = new ThreadLocal<>();
 
@@ -23,6 +23,6 @@ final class TextShapeContext {
 	}
 
 	private TextShapeContext() {
-		// 使用しない。
+		// Not used.
 	}
 }

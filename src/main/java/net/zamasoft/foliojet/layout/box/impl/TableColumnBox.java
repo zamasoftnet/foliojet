@@ -22,7 +22,7 @@ import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
- * テーブル列の実装です。
+ * Table column implementation.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: TableColumnBox.java 1622 2022-05-02 06:22:56Z miyabe $
@@ -55,7 +55,7 @@ public class TableColumnBox extends AbstractInnerTableBox {
 		this.pageSize = pageSize;
 	}
 
-	/** 列は内容を持たず、実描画経路と同じく背景が見える場合だけ描く。 */
+	/** Columns have no content and paint only when their background is visible, as in the actual drawing path. */
 	@Override
 	public boolean paintsAnything() {
 		return this.params.opacity != 0 && this.params.background.isVisible();
@@ -66,7 +66,7 @@ public class TableColumnBox extends AbstractInnerTableBox {
 	}
 
 	public final void pushFinishLayoutChildren(IFramedBox containerBox, Deque<FinishLayoutStep> worklist) {
-		// ignore(リーフ)
+		// ignore (leaf)
 	}
 
 	public void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,

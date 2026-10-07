@@ -13,13 +13,13 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code grid-column-start/end}・{@code grid-row-start/end}です(Grid G0)。
+ * {@code grid-column-start/end} and {@code grid-row-start/end} (Grid G0).
  * {@code auto | <custom-ident> | [ <integer> && <custom-ident>? ] |
- * [ span && [ <integer> || <custom-ident> ] ]}(css-grid-1 §8.3)。
- * 線名は2026-08-29から受理する(数値化はレイアウト側)。
- * {@code span 0}は仕様では無効だが、実物のWebで見かける
- * ({@code grid-column: span 0})ため{@code span 1}として受理する
- * (2026-08-29——宣言無効で単一列へ落ちるより見た目が近い)。
+ * [ span && [ <integer> || <custom-ident> ] ]} (css-grid-1 §8.3).
+ * Line names have been accepted since 2026-08-29 (converted to numbers during layout).
+ * {@code span 0} is invalid in the specification, but appears on real sites
+ * ({@code grid-column: span 0}), so accept it as {@code span 1}
+ * (2026-08-29; closer visually than invalidating the declaration and falling back to a single column).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -61,8 +61,8 @@ public class GridPlacement extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * 1つの&lt;grid-line&gt;を読み取ります(shorthandと共用)。不正はnull。
-	 * スラッシュ(shorthandの区切り)の手前で止まる。
+	 * Reads one &lt;grid-line&gt; (shared with shorthands). Null if invalid.
+	 * Stops before a slash (the shorthand separator).
 	 */
 	public static GridLineValue parseLine(final TokenStream tokens) {
 		if (tokens.eat("auto")) {
@@ -106,7 +106,7 @@ public class GridPlacement extends AbstractPrimitivePropertyInfo {
 				return null;
 			}
 			if (count == 0) {
-				count = 1; // span 0→span 1(クラスjavadoc)
+				count = 1; // span 0→span 1 (see class Javadoc).
 			}
 			return name == null ? GridLineValue.span(count) : GridLineValue.span(count, name);
 		}

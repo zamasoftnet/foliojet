@@ -23,8 +23,8 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 /**
  * <a href=
  * "http://www.w3.org/TR/2002/WD-css3-background-20020802/#background-size">
- * backgropund-size 特性 </a>です。
- * 
+ * backgropund-size property </a>.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
@@ -34,7 +34,7 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 
 	private static final PrimitivePropertyInfo[] PRIMITIVES = { INFO_WIDTH, INFO_HEIGHT };
 
-	/** 対象primitiveを指定する版(mask-sizeが共有する、2026-08-29)。 */
+	/** Version with target primitives (shared by mask-size, 2026-08-29). */
 	protected static net.zamasoft.foliojet.layout.box.params.BackgroundFit getFit(CSSStyle style,
 			PrimitivePropertyInfo infoWidth) {
 		Value widthValue = style.get(infoWidth);
@@ -48,11 +48,11 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 	}
 
 	/**
-	 * 画像の固有寸法を考慮したfitです(css-backgrounds-3 §background-size、
-	 * 2026-08-27)。auto×autoで画像が縦横比しか持たない(viewBoxのみの
-	 * SVG等)ときはcontain制約で配置領域へ収める。従来は代用値
-	 * (viewBox寸法)を原寸扱いし、ロゴSVGが数百pxのまま箱からはみ出て
-	 * いた(asahi.comフッターのRe:Ronロゴ)。
+	 * Fit that accounts for the image's intrinsic dimensions (css-backgrounds-3 §background-size,
+	 * 2026-08-27). With auto×auto, if the image has only an aspect ratio (e.g. an SVG with only
+	 * a viewBox), fits it into the positioning area using contain constraints. Previously,
+	 * substitute values (viewBox dimensions) were treated as the intrinsic size, so logo SVGs
+	 * remained hundreds of px wide and overflowed their boxes (the Re:Ron logo in the asahi.com footer).
 	 */
 	public static net.zamasoft.foliojet.layout.box.params.BackgroundFit getFit(CSSStyle style, Image image) {
 		return getFit(style, image, INFO_WIDTH, INFO_HEIGHT);
@@ -79,7 +79,7 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 			PrimitivePropertyInfo infoHeight) {
 		Value widthValue = style.get(infoWidth);
 		if (widthValue == KeywordValue.CONTAIN || widthValue == KeywordValue.COVER) {
-			// 実寸はgetFit()を見た描画側が計算する
+			// The renderer calculates the actual dimensions using getFit().
 			return Dimension.AUTO_DIMENSION;
 		}
 		Value heightValue = style.get(infoHeight);
@@ -116,11 +116,11 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 		if (widthType == LengthType.AUTO && heightType == LengthType.AUTO) {
 			switch (image.getIntrinsic()) {
 			case RATIO:
-				// 縦横比のみ: contain制約(getFit(style, image)がCONTAINを
-				// 返し、実寸は描画側が配置領域から計算する)
+				// Aspect ratio only: contain constraints (getFit(style, image) returns CONTAIN;
+				// the renderer calculates the actual dimensions from the positioning area).
 				return Dimension.AUTO_DIMENSION;
 			case NONE:
-				// 寸法情報なし: 既定サイズ規則により配置領域いっぱい
+				// No dimension information: fill the positioning area under the default sizing rules.
 				widthType = heightType = LengthType.RELATIVE;
 				width = height = 1;
 				break;
@@ -140,12 +140,12 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 		this("-cssj-background-size");
 	}
 
-	/** mask-size等、同じ文法を使う特性のための派生用(2026-08-29)。 */
+	/** For derived properties such as mask-size that use the same grammar (2026-08-29). */
 	protected BackgroundSize(String name) {
 		super(name);
 	}
 
-	/** ショートハンドから値列を渡すための公開入口(2026-08-29)。 */
+	/** Public entry point for passing a sequence of values from a shorthand (2026-08-29). */
 	public Entry[] parseSizeValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		return this.parseValues(tokens, ua, uri);
 	}
@@ -163,7 +163,7 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 	}
 
 	/**
-	 * 計算値はAbsoluteLengthValue, PercentageValue, AutoValueのいずれかです。
+	 * Computed values are AbsoluteLengthValue, PercentageValue, or AutoValue.
 	 */
 	public Value getComputedValue(Value value, CSSStyle style) {
 		return ValueUtils.emExToAbsoluteLength(value, style);
@@ -177,13 +177,13 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 		Value w, h;
 
 		final CssToken lu = tokens.next();
-		// **contain/coverキーワード形式**(2026-08-06)。単独値のみ許され、
-		// 幅高さの2値構文とは併用不可(仕様通り、後続トークンがあれば無効)。
-		// これまで未対応で、`ValueUtils.toLength`が失敗して例外になり
-		// 既定のauto/autoへ丸ごと落ちていた——auto/autoは画像の原寸表示を
-		// 意味するため、実寸より大きい画像(スプライト等)では箱の中に
-		// ごく一部だけが表示される欠陥になっていた
-		// (yahoo.co.jpのサイドバーアイコンで発覚)
+		// **contain/cover keyword form** (2026-08-06). Only a standalone value is allowed;
+		// it cannot combine with the width/height pair (trailing tokens invalidate it, per the specification).
+		// Previously unsupported: `ValueUtils.toLength` failed with an exception,
+		// causing the whole value to fall back to the default auto/auto. auto/auto displays
+		// the intrinsic image size, so images larger than the intended size (sprites, etc.)
+		// showed only a small portion inside the box
+		// (found in yahoo.co.jp sidebar icons).
 		if (ValueUtils.isKeyword(lu, "contain")) {
 			if (tokens.hasNext()) {
 				throw new PropertyException();

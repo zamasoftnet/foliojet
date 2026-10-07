@@ -46,7 +46,7 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 
 /**
- * テーブルの実装です。
+ * Table implementation.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: TableBox.java 1631 2022-05-15 05:43:49Z miyabe $
@@ -64,20 +64,19 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	protected TableRowGroupBox headerGroupBox = null;
 
 	/**
-	 * この表が分割の継続断片(splitTableBoxで作られた後ろ半分)かどうかです
-	 * (タグ付きPDF欠陥②の修正、2026-07-30)。継続断片に表示されるヘッダは
-	 * 「同じ要素の反復表示」であって継続ではない——{@link #isRepeatedGroup}
-	 * が使う。
+	 * Whether this table is a continuation fragment (the second half created by splitTableBox)
+	 * (tagged PDF defect ② fix, 2026-07-30). Headers displayed in continuation fragments
+	 * are repetitions of the same element, not continuations. Used by {@link #isRepeatedGroup}.
 	 */
 	private boolean tableContinuation = false;
 
-	/** 後続の本文行を待っている表断片です。production からの有効化は B-2。 */
+	/** A table fragment waiting for subsequent body rows. Enabled in production in B-2. */
 	private boolean incomplete = false;
 
-	/** 終端フレームを復元できるのは、これを所有する最終残余だけです。 */
+	/** Only the final remainder that owns this can restore the end frame. */
 	private AbsoluteRectFrame completionFrame = null;
 
-	/** 未完受理由来の数値計画。complete 後の最終分割にも必要です。 */
+	/** Numeric plan from acceptance of an incomplete table. Also needed for the final split after complete. */
 	private IncompleteTablePlan incompletePlan;
 
 	private boolean incompleteColumnsSplit;
@@ -131,8 +130,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	/**
-	 * フレーム計算後、親への初回配置前に未完表にします。
-	 * 反復フッタは各断片の終端フレームを必要とするため、この契約の対象外です。
+	 * Marks the table as incomplete after frame calculation and before its first placement in the parent.
+	 * Repeated footers require an end frame on each fragment, so this contract excludes them.
 	 */
 	public final void markIncomplete() {
 		if (this.incomplete || this.isFragmented()) {
@@ -143,7 +142,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		this.completionFrame = this.frame;
 		this.frame = openFrame;
 		this.incomplete = true;
-		// 完了後も、全表ソースの再生で送出済みの行を復活させない。
+		// Even after completion, replaying the full table source must not resurrect emitted rows.
 		this.invalidateSourceReplay();
 	}
 
@@ -151,7 +150,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		return this.incomplete;
 	}
 
-	/** 初回受理前にだけ全行高の計画を取り付けます。通常の完成表には取り付けません。 */
+	/** Attaches the plan for all row heights only before initial acceptance. Not attached to ordinary complete tables. */
 	public final void setIncompletePlan(final IncompleteTablePlan plan) {
 		if (!this.incomplete || this.isFragmented() || this.incompletePlan != null
 				|| this.params.flow.isVertical() || this.getTableBodyCount() != 1
@@ -168,8 +167,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		body.updateIncompleteSize();
 		this.height = plan.visibleTableSize();
 		this.updateIncompleteColumns();
-		// 通常フローのラッパーは前頁の本文を所有する。数値計画で送出する表は
-		// 配置メタデータだけを引き継ぎ、継続表→元ラッパー→前断片の参照を切る。
+		// The normal-flow wrapper owns the previous page's body. Tables emitted using a numeric plan
+		// inherit only placement metadata, breaking the continuation table → original wrapper → previous fragment chain.
 		if (this.block instanceof FlowBlockBox flow) {
 			this.block = new FlowBlockBox(flow.getBlockParams(), flow.getFlowPos());
 		}
@@ -180,10 +179,11 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	/**
-	 * 親の改頁・描画・残余再開が済んだ送出断片から本文の所有を外します。
-	 * 旧ラッパーや直近の描画器が前頁のTableBoxを参照していても、行木を残さない。
-	 * 本文1グループ・rowspanなしの数値計画だけが対象。残余と反復ヘッダには触れず、
-	 * 親フローの寸法会計が読む高さ・幅・フレームはそのまま保ちます。
+	 * Releases body ownership from an emitted fragment after the parent finishes its page break, drawing,
+	 * and remainder resumption. Do not retain the row tree even if an old wrapper or the latest drawer
+	 * references the previous page's TableBox. Applies only to numeric plans with one body group and no
+	 * rowspan. Leaves the remainder and repeated headers untouched, and preserves the height, width, and
+	 * frame that the parent flow reads for dimension accounting.
 	 */
 	public final void releaseDrawnRowFragment() {
 		if (this.incompletePlan != null && this.incompletePlan.cut() != null) {
@@ -191,7 +191,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 	}
 
-	/** 実箱を膨らませず、完成表の配置→内寸と終端の減算の丸めを再現します。 */
+	/** Reproduces rounding in complete-table placement → inner size and end subtraction without enlarging the actual box. */
 	public final double incompleteForceBreakStart(final double pageStart) {
 		if (!this.incomplete || this.incompletePlan == null || this.completionFrame == null) {
 			throw new IllegalStateException("Expected an active incomplete numeric plan");
@@ -202,8 +202,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	/**
-	 * 最終残余の終端フレームを一度だけ復元します。
-	 * 親のカーソル・末尾マージンの確定は B-2 の完了操作が行います。
+	 * Restores the final remainder's end frame exactly once.
+	 * The B-2 completion operation finalizes the parent cursor and trailing margin.
 	 */
 	public final void complete() {
 		if (!this.incomplete || this.completionFrame == null) {
@@ -242,9 +242,9 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	public final void calculateFrame(double lineSize) {
 		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.params.frame.margin, lineSize);
 		if (this.params.borderCollapse == TableParams.BORDER_SEPARATE) {
-			// 分離境界モデル
+			// Separated border model
 			//
-			// ■ パディングの計算
+			// ■ Calculate padding
 			//
 			LayoutUtils.computePaddings(this.frame.padding, this.params.frame.padding, lineSize);
 			this.frame.padding.top = params.borderSpacingV / 2.0;
@@ -262,7 +262,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	public final void pushFinishLayoutChildren(final IFramedBox containerBox, final Deque<FinishLayoutStep> worklist) {
-		// 元の走査順(header→body(0..n)→footer)を保つため、スタックへは逆順でpushする
+		// Push onto the stack in reverse order to preserve the original traversal order (header → body(0..n) → footer).
 		if (this.footerGroupBox != null) {
 			worklist.push(IBox.step(this.footerGroupBox, containerBox));
 		}
@@ -360,12 +360,12 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	/**
-	 * 親が受理した最終残余の本文1グループへの行追記を寸法へ反映します。
-	 * 呼び出しは親の未完表ハンドルに限ります。行は既に addTableRow 済みで、
-	 * previousRowCount / previousPageSize は前回受理時のグループの値です。
-	 * グループ高の行順の加算をそのまま使い、header + body の組付け順を保ちます。
-	 * height += newBodySize - oldBodySize では丸めが変わるため、差分を再加算しません。
-	 * 計画がある場合は、その全残余の演算履歴を使います。
+	 * Updates dimensions for rows appended to the single body group of the final remainder accepted by the parent.
+	 * Only the parent's incomplete-table handle may call this. addTableRow has already added the rows;
+	 * previousRowCount / previousPageSize are the group's values at the previous acceptance.
+	 * Uses the group height summed in row order as is, preserving the header + body assembly order.
+	 * Do not add the difference back: height += newBodySize - oldBodySize changes rounding.
+	 * If a plan exists, use its operation history for the entire remainder.
 	 */
 	public final void updateIncompleteBody(final TableRowGroupBox body, final int previousRowCount,
 			final double previousPageSize) {
@@ -402,13 +402,13 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		this.updateIncompleteColumns();
 	}
 
-	/** 未完表の追記・完了時だけ、完成表の組付けと同じ内寸を現在の列木へ設定します。 */
+	/** Only on append/completion of an incomplete table, sets the current column tree's inner size as in complete-table assembly. */
 	private void updateIncompleteColumns() {
 		if (this.columnGroupBox != null) {
-			// RetainedTableBuilder.assemble と同じく、フレームを含めず eachColumn で設定する。
+			// As in RetainedTableBuilder.assemble, set via eachColumn without including the frame.
 			final double pageSize = this.params.flow.isVertical() ? this.getInnerWidth() : this.getInnerHeight();
 			if (this.incompleteColumnsSplit) {
-				// 自動 splitPageAxis は走査用の根にも寸法を設定する。
+				// Automatic splitPageAxis also sets dimensions on the traversal root.
 				this.columnGroupBox.setPageSize(pageSize);
 			}
 			this.columnGroupBox.eachColumn((column, col, span) -> column.setPageSize(pageSize));
@@ -420,11 +420,12 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	/**
-	 * 未完表の可視行だけで切断が確定するか(B-2b-6)。{@code splitTable} が未完表に行う
-	 * 控除(始端枠・ヘッダ)を同じ関数で行い、ヘッダが収まらなければ表ごとの移動で確定、
-	 * それ以外は本文群の切断走査の dry-run に委ねます。
+	 * Whether the visible rows alone determine the cut for an incomplete table (B-2b-6). Uses the same
+	 * function for deductions (start frame and header) that {@code splitTable} applies to incomplete tables.
+	 * If the header does not fit, moving the entire table is conclusive; otherwise, delegates to a dry run
+	 * of the body-group cut traversal.
 	 *
-	 * @param tableLimit 親が表に渡す切断限界(表の開始位置からの容量)
+	 * @param tableLimit cut limit the parent passes to the table (capacity from the table's start position)
 	 */
 	public final boolean emissionCutDetermined(final double tableLimit) {
 		if (this.bodyGroups == null || this.bodyGroups.isEmpty()) return false;
@@ -432,15 +433,15 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	/**
-	 * 本文群を明示する形。描画後に {@code bodyGroups} を解放した残余表でも、送出中の本文群
-	 * (親が別に保持)で判定できます。
+	 * Variant with an explicit body group. Even for a remainder table whose {@code bodyGroups} were released
+	 * after drawing, the body group being emitted (held separately by the parent) allows this check.
 	 */
 	public final boolean emissionCutDetermined(final double tableLimit, final TableRowGroupBox body) {
 		return this.emissionCutDetermined(tableLimit, body,
 				this.headerGroupBox != null ? this.headerGroupBox.getPageSize() : -1);
 	}
 
-	/** ヘッダ群がまだ装着されていない受理前(Pass C)は、ヘッダ高を明示します。 */
+	/** Before acceptance (Pass C), when the header group is not yet attached, supplies the header height explicitly. */
 	public final boolean emissionCutDetermined(final double tableLimit, final TableRowGroupBox body,
 			final double headerSize) {
 		final double limit = net.zamasoft.foliojet.layout.fragment.TableCutter.reserveIncompleteNonBreakable(tableLimit,
@@ -457,18 +458,18 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	 * {@inheritDoc}
 	 *
 	 * <p>
-	 * 表は {@link AbstractContainerBox} 系ではないため、何もしなければ
-	 * {@link IBox} の安全側の既定値 ({@code true}) を返します。しかし、行・列・
-	 * 背景・罫線を一つも持たない空表は実際には何も描きません。縦組みで末尾の
-	 * 空表に明示幅があると、幅だけを理由に次ページへ送られ、その空ページが
-	 * 「描く可能性あり」と誤認されて残っていました (fuzz seed 5141)。
+	 * Tables do not belong to the {@link AbstractContainerBox} family, so without an override they return
+	 * the conservative {@link IBox} default ({@code true}). However, an empty table with no rows, columns,
+	 * backgrounds, or borders actually paints nothing. In vertical writing, a trailing empty table with
+	 * an explicit width was moved to the next page solely because of its width; that blank page was
+	 * misclassified as potentially painting content and retained (fuzz seed 5141).
 	 * </p>
 	 *
 	 * <p>
-	 * HTML の匿名表ボックス生成は、空の {@code display:table} にも匿名の行・
-	 * セルを作り得ます。そのため「行がある」だけでは判定せず、列・行・セルの
-	 * 背景・罫線・内容まで {@code paintsAnything()} でたどります。つぶし境界は
-	 * 実際に見える境界があるかを調べます。
+	 * HTML anonymous table box generation can create anonymous rows and cells even for an empty
+	 * {@code display:table}. Thus, the presence of rows alone is insufficient: {@code paintsAnything()}
+	 * also traverses column, row, and cell backgrounds, borders, and content. For collapsed borders,
+	 * checks whether any borders are actually visible.
 	 * </p>
 	 */
 	@Override
@@ -509,7 +510,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			if (!this.frame.frame.border.isVisible()) {
 				break;
 			}
-			// 分離境界
+			// Separated borders
 			Drawable drawable = new BorderDrawable(pageBox, clip, this.params.opacity, transform,
 					this.frame.frame.border,
 					this.width + this.frame.padding.getFrameWidth() + this.frame.frame.border.getFrameWidth(),
@@ -519,7 +520,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			break;
 
 		case TableParams.BORDER_COLLAPSE: {
-			// つぶし境界
+			// Collapsed borders
 			Drawable drawable = new CollapsedBordersDrawable(pageBox, clip, this.params.opacity, transform,
 					this.borders, this.params.flow.isVertical()).withBlendMode(this.params.blendMode).withFilter(this.params.filter);
 			drawer.visitDrawable(drawable, xx, yy);
@@ -561,23 +562,23 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			drawer.visitDrawable(drawable, xx, yy);
 		}
 
-		// frames/floatsの各パスはまだ再帰実装のまま(別課題、RELIABILITY-PLAN.md
-		// 参照)。テーブルのネスト段数は行/セル数に依存しない有界な段数
-		// なので、ここでは同期的に呼んでよい。内容(draw)パスだけを
-		// 反復化する——子の描画座標を先に(副作用なく)計算してから、
-		// 元の走査順を保つため**逆順**でworklistへpushする。
+		// The frames/floats passes still use recursion (a separate task; see RELIABILITY-PLAN.md).
+		// Table nesting depth is bounded independently of the row/cell count, so synchronous
+		// calls are acceptable here. Make only the content (draw) pass iterative:
+		// first calculate child drawing coordinates without side effects, then push onto
+		// the worklist in **reverse order** to preserve the original traversal order.
 		final List<IBox> contentBoxes = new ArrayList<>();
 		final List<Double> contentXs = new ArrayList<>();
 		final List<Double> contentYs = new ArrayList<>();
 
-		// 縦横で同一の構造だった2つの分岐を統合(2026-07-25、vertical-lr対応)。
-		// 論理位置(ページ方向の始端/終端)だけを数え、物理座標への変換は
-		// LayoutUtils.drawX/drawY に任せる。従来は縦書き側でRL専用式
-		// (カーソルを右端から減算)を手書きしており、これが重複していたことが
-		// vertical-lrの取りこぼしを生んでいた。
+		// Merged the two structurally identical vertical/horizontal branches (2026-07-25, vertical-lr support).
+		// Track only logical positions (start/end in the page direction), and delegate physical-coordinate
+		// conversion to LayoutUtils.drawX/drawY. Previously, vertical writing used handwritten
+		// RL-only formulas (subtracting the cursor from the right edge); this duplication
+		// caused vertical-lr cases to be missed.
 		final WritingMode flow = this.params.flow;
 		final double tableExtent = flow.isVertical() ? this.width : this.height;
-		// ページ方向を消費するグループを、文書順(header→body→footer)に並べる
+		// Arrange groups that consume space in the page direction in document order (header → body → footer).
 		final List<TableRowGroupBox> groups = new ArrayList<>();
 		if (this.headerGroupBox != null) {
 			groups.add(this.headerGroupBox);
@@ -603,11 +604,11 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				pageStart = pageEnd;
 			}
 		}
-		// 列グループは表全体に渡るので、ページ方向の区間は [0, tableExtent]
+		// Column groups span the entire table, so their page-direction interval is [0, tableExtent].
 		final double columnGroupX = LayoutUtils.drawX(flow, xx, tableExtent, 0, tableExtent, 0);
 		final double columnGroupY = LayoutUtils.drawY(flow, yy, 0, 0);
 
-		// 内部の境界/背景
+		// Inner borders/backgrounds
 		if (this.columnGroupBox != null) {
 			this.columnGroupBox.frames(pageBox, drawer, clip, transform, columnGroupX, columnGroupY);
 		}
@@ -617,7 +618,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 		this.drawBorders(pageBox, drawer, clip, transform, x, y, xx, yy);
 
-		// 浮動ボックス(列グループは対象外)
+		// Floating boxes (excluding column groups)
 		for (int i = 0; i < groupCount; ++i) {
 			final TableRowGroupBox group = groups.get(i);
 			final boolean repetition = this.isRepeatedGroup(group);
@@ -630,7 +631,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			}
 		}
 
-		// 内容
+		// Content
 		if (this.columnGroupBox != null) {
 			contentBoxes.add(this.columnGroupBox);
 			contentXs.add(columnGroupX);
@@ -648,7 +649,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			final IBox content = contentBoxes.get(i);
 			final boolean repetition = this.isRepeatedGroup(content);
 			if (repetition) {
-				// LIFOなので実行順は push→drawStep→pop になる
+				// LIFO makes the execution order push → drawStep → pop.
 				worklist.push(w -> pageBox.popStructRepetition());
 			}
 			worklist.push(IBox.drawStep(content, pageBox, drawer, visitor, clip, transform, contextX, contextY,
@@ -660,12 +661,11 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	/**
-	 * このグループの表示が「同じ要素の反復」かを返します(タグ付きPDF
-	 * 欠陥②の修正、2026-07-30)。継続断片のヘッダと、後続断片を持つ断片の
-	 * フッタが該当する(ヘッダの原本は先頭断片、フッタの原本は最終断片)。
-	 * 反復の描画中はページ横断レジストリを迂回し、従来どおりページごとの
-	 * StructElemを宣言する——継続として併合すると同じ内容がページ数ぶん
-	 * 1つの要素に重複してしまう。
+	 * Returns whether displaying this group repeats the same element (tagged PDF defect ② fix, 2026-07-30).
+	 * This applies to headers in continuation fragments and footers in fragments with subsequent fragments
+	 * (the original header is in the first fragment; the original footer is in the last).
+	 * While drawing repetitions, bypass the cross-page registry and declare a StructElem per page as before.
+	 * Merging them as continuations would duplicate the same content once per page in a single element.
 	 */
 	private boolean isRepeatedGroup(final IBox box) {
 		return (box == this.headerGroupBox && this.tableContinuation)
@@ -673,8 +673,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	public final void pushGetTextSteps(final StringBuilder textBuff, Deque<GetTextStep> worklist) {
-		// 元の走査順(header→body(0..n)→footer)を保つため、スタックへは
-		// 逆順でpushする
+		// To preserve the original traversal order (header → body(0..n) → footer),
+		// push onto the stack in reverse order.
 		if (this.footerGroupBox != null) {
 			worklist.push(IBox.getTextStep(this.footerGroupBox, textBuff));
 		}
@@ -733,8 +733,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 
 		/**
-		 * 境界内容を序列化します(display-list golden 用)。NONE 以外の
-		 * 各グリッド境界を H列,添字 / V行,添字 = [style,width,color] で列挙。
+		 * Serializes border content (for display-list golden).
+		 * Lists each grid border other than NONE as H column,index / V row,index = [style,width,color].
 		 */
 		public String describe() {
 			final StringBuilder sb = new StringBuilder("CollapsedBorders[");
@@ -762,11 +762,10 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	/**
-	 * 表全体を運ぶ判定の共通出口です(2026-08-23)。Moveのときソース再生を
-	 * 無効化する——表の字句的ソース区間はfoster parentingで表外へ確定した
-	 * 内容を含みうるため、MOVE後の再生は確定済み内容を複製する
-	 * ({@code AbstractBox.invalidateSourceReplay}参照)。構築済みの箱は
-	 * box-restyleフォールバックが運ぶ。
+	 * Common exit for decisions that move the whole table (2026-08-23). Disables source replay on Move:
+	 * the table's lexical source range may contain content finalized outside the table by foster parenting,
+	 * so replay after MOVE duplicates finalized content (see {@code AbstractBox.invalidateSourceReplay}).
+	 * The box-restyle fallback carries the constructed boxes.
 	 */
 	private SplitResult keepOrMoveWholeTable(final byte flags) {
 		final SplitResult result = net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
@@ -783,7 +782,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		return this.splitTable(pageLimit, mode, flags);
 	}
 
-	/** 保持側の数値は親が寸法を読む前・pageBreak が前頁を描く前に確定します。 */
+	/** Finalizes retained-side values before the parent reads dimensions and before pageBreak draws the previous page. */
 	private SplitResult splitIncomplete(final double pageLimit, final BreakMode mode, final byte flags) {
 		if (mode instanceof BreakMode.ForceBreakMode && this.columnGroupBox != null) {
 			throw new IllegalStateException("Forced breaks with columns are outside the numeric plan");
@@ -817,7 +816,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			}
 		}
 		if (mode instanceof BreakMode.ForceBreakMode) {
-			// 行間強制改ページ
+			// Forced page break between rows
 			TableForceBreakMode force = (TableForceBreakMode) mode;
 			TableBox nextTable = this.splitTableBox();
 			int rowGroup = force.rowGroup;
@@ -847,7 +846,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				}
 			}
 			if (this.borders != null) {
-				// つぶし境界
+				// Collapsed borders
 				nextTable.borders = this.borders.splitPageAxis(this, nextTable, origBodyRowCount);
 			}
 			return new SplitResult.Split(nextTable);
@@ -857,13 +856,13 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			return this.keepOrMoveWholeTable(flags);
 		}
 
-		// 上下の改ページしない部分(ヘッダ・フッタ等)の高さを差し引く
-		// (判定は TableCutter に純化)
+		// Subtract the heights of the unbreakable parts at the top and bottom (headers, footers, etc.).
+		// (Decision extracted into pure logic in TableCutter.)
 		final double headerSize = this.headerGroupBox != null ? this.headerGroupBox.getPageSize() : -1;
 		final double footerSize = this.footerGroupBox != null ? this.footerGroupBox.getPageSize() : -1;
 		if (this.incomplete) {
-			// 見えている末行は論理終端ではない。末尾マージンによる切断を保留する。
-			// FLAGS_LAST は分割位置の契約なので、未完印で変更しない。
+			// The last visible row is not the logical end. Defer cuts caused by trailing margins.
+			// FLAGS_LAST is a split-position contract; do not change it based on the incomplete flag.
 			pageLimit = net.zamasoft.foliojet.layout.fragment.TableCutter.reserveIncompleteNonBreakable(pageLimit,
 					this.frame.getFramePageStart(this.params.flow), headerSize);
 		} else if (vertical) {
@@ -876,7 +875,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 					headerSize, footerSize);
 		}
 
-		// テーブルのヘッダとフッタがおさまらない
+		// The table header and footer do not fit.
 		if (LayoutUtils.compare(pageLimit, 0) <= 0) {
 			return this.keepOrMoveWholeTable(flags);
 		}
@@ -900,7 +899,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			assert nextTable == null || !(groupResult instanceof SplitResult.Keep);
 			if (groupResult instanceof SplitResult.Keep) {
 				if (!ignoreBreakAvoid && i == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-					// ページ先頭の場合は改ページ禁止を無視してやりなおす
+					// At the start of a page, retry while ignoring page-break avoidance.
 					ignoreBreakAvoid = true;
 					pageLimit = savePageLimit;
 					i = -1;
@@ -911,14 +910,14 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			}
 			if (groupResult instanceof SplitResult.Move) {
 				if (i == 0) {
-					// 全部移動(ソース再生は無効化——keepOrMoveWholeTable参照)
+					// Move everything (source replay disabled; see keepOrMoveWholeTable).
 					assert (flags & IPageBreakableBox.FLAGS_FIRST) == 0;
 					this.invalidateSourceReplay();
 					return SplitResult.MOVE;
 				}
 				if (!ignoreBreakAvoid) {
 					final TableRowGroupBox beforeGroup = (TableRowGroupBox) this.bodyGroups.get(i - 1);
-					// 判定は TableCutter に純化
+					// Decision extracted into pure logic in TableCutter.
 					if (net.zamasoft.foliojet.layout.fragment.TableCutter.groupBreakAvoid(
 							beforeGroup.getTableRowGroupPos().pageBreakAfter,
 							prevRowGroup.getTableRowGroupPos().pageBreakBefore,
@@ -929,8 +928,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 							prevRowGroup.getTableRowCount() > 0
 									? prevRowGroup.getTableRow(0).getTableRowPos().pageBreakBefore
 									: PageBreakMode.AUTO)) {
-						// 行グループの改ページ禁止
-						// 一つ戻って前の行グループを末尾で切る
+						// Row-group page-break avoidance
+						// Go back one group and cut the previous row group at its end.
 						pageLimit = beforeGroup.getPageSize() - LayoutUtils.THRESHOLD * 2;
 						i -= 2;
 						continue;
@@ -971,7 +970,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			this.bodyGroups.remove(this.bodyGroups.size() - 1);
 		}
 		if (this.columnGroupBox != null) {
-			// カラム
+			// Columns
 			if (vertical) {
 				nextTable.columnGroupBox = (TableColumnGroupBox) this.columnGroupBox.splitPageAxis(this.width,
 						nextTable.width);
@@ -981,7 +980,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			}
 		}
 		if (this.borders != null) {
-			// つぶし境界
+			// Collapsed borders
 			nextTable.borders = this.borders.splitPageAxis(this, nextTable, origBodyRowCount);
 		}
 		return new SplitResult.Split(nextTable);
@@ -992,28 +991,28 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			throw new IllegalStateException("Only the final incomplete table remainder can be split");
 		}
 		net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.TABLE_FRAGMENTS.incrementAndGet();
-		// 表セット T-b(2026-07-30): 前断片(this)はアンカーを保持し続けるが、
-		// その範囲は継続断片が持っている残り(row切断の進捗)も含む——
-		// 前断片をソース再生すると表全体が再構築されて分割の進捗が巻き戻る。
-		// AbstractBlockBoxの実分割と同じく断片化の印を付け、
-		// isSourceReplayable()=falseでstampRanges/再生の対象から外す
+		// Table set T-b (2026-07-30): The preceding fragment (this) keeps its anchor, but its range
+		// also includes the remainder held by the continuation fragment (row-cutting progress).
+		// Replaying the preceding fragment's source rebuilds the entire table and rolls back split progress.
+		// Mark it as fragmented, as in an actual split of AbstractBlockBox,
+		// and exclude it from stampRanges/replay with isSourceReplayable()=false.
 		this.markFragmented();
 		final boolean vertical = this.params.flow.isVertical();
-		// フレームの切断判定は TableCutter に純化(C4-T2)
+		// Frame-cut decisions extracted into pure logic in TableCutter (C4-T2).
 		final net.zamasoft.foliojet.layout.fragment.TableCutter.TableFragmentFrames frames = net.zamasoft.foliojet.layout.fragment.TableCutter
 				.tableFragmentFrames(vertical, this.headerGroupBox != null, this.footerGroupBox != null, this.frame);
-		// 分割断片は継続物(アンカーなし — 新品として再生されない。P0)
+		// A split fragment is a continuation (no anchor; not replayed as a fresh box. P0).
 		TableBox nextTable = new TableBox(this.params, frames.nextFrame(), this.block);
 		if (this.incomplete) {
 			nextTable.incomplete = true;
 			nextTable.invalidateSourceReplay();
-			// 元の終端を保持し、反復ヘッダがなければ始端だけを落として渡す。
+			// Keep the original end; if there is no repeated header, remove only the start before passing it on.
 			nextTable.completionFrame = net.zamasoft.foliojet.layout.fragment.TableCutter
 					.tableFragmentFrames(vertical, this.headerGroupBox != null, false, this.completionFrame).nextFrame();
 			this.completionFrame = null;
 		}
-		// タグ付きPDF欠陥②(2026-07-30): 継続断片のヘッダは「反復表示」
-		// (isRepeatedGroup参照)
+		// Tagged PDF defect ② (2026-07-30): Headers in continuation fragments are repetitions
+		// (see isRepeatedGroup).
 		nextTable.tableContinuation = true;
 		if (vertical) {
 			nextTable.height = this.height;

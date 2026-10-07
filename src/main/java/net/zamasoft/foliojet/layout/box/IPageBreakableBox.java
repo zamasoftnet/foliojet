@@ -4,15 +4,14 @@ import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
 
 /**
- * ページ方向に分割可能なボックスです。
+ * A box that can be split along the page axis.
  *
  * <p>
- * <b>切断契約</b>: {@link #splitPageAxis(double, BreakMode, byte)} は
- * 「構築済みのボックスをその場で変異させ、次ページへ送る残余を返す」
- * プロトコルです。返値は三義的です(下記参照)。呼び出し側は返値の
- * 同一性(this)と null を判定して継続処理を行います。
- * テキストの継続情報は {@link net.zamasoft.foliojet.layout.box.content.BreakToken}
- * が担います(柱2で切断結果と統合予定)。
+ * <b>Splitting contract</b>: {@link #splitPageAxis(double, BreakMode, byte)} is a protocol
+ * that mutates an already built box in place and returns the remainder to send to the next page.
+ * The return value has three meanings (see below). The caller checks identity (this) and null
+ * to continue processing. {@link net.zamasoft.foliojet.layout.box.content.BreakToken}
+ * carries text continuation information (planned to be integrated with split results in pillar 2).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -20,22 +19,22 @@ import net.zamasoft.foliojet.layout.fragment.SplitResult;
  */
 public interface IPageBreakableBox extends IBox {
 	/**
-	 * 内部で切断するか、前ページに残します。
+	 * Splits internally or keeps the box on the preceding page.
 	 */
 	public static final byte FLAGS_FIRST = 1;
 
 	/**
-	 * 内部で切断するか、次ページに送ります。
+	 * Splits internally or sends the box to the next page.
 	 */
 	public static final byte FLAGS_LAST = 2;
 
 	/**
-	 * 必ず内部で切断します。
+	 * Always splits internally.
 	 */
 	public static final byte FLAGS_SPLIT = 4;
 
 	/**
-	 * 内部で切断するか、前ページに残します(テーブル行)。
+	 * Splits internally or keeps the box on the preceding page (table rows).
 	 */
 	public static final byte FLAGS_FIRST_ROW = 8;
 
@@ -47,22 +46,23 @@ public interface IPageBreakableBox extends IBox {
 	public static final byte FLAGS_FLOAT_CROSSES = 16;
 
 	/**
-	 * ボックスをページ方向に分割します(M4-A3: SplitResult ネイティブ)。
+	 * Splits the box along the page axis (M4-A3: native SplitResult).
 	 *
-	 * @param pageLimit ボックスの外辺(ページ方向始端)から分割位置までの長さです。
-	 * @param mode      分割モード。自動改ページは AutoBreakMode、強制改ページは
-	 *                  ForceBreakMode(TextBlockBox には渡されません)。
-	 * @param flags     FLAGS_* のビット和。
-	 *                  FLAGS_FIRST=このボックスはページ先頭にある(内部で切断するか、
-	 *                  全体を前ページに残してよい)。
-	 *                  FLAGS_LAST=ページ末尾にある(内部で切断するか、全体を次ページへ
-	 *                  送ってよい。テーブルの行・行グループでは禁止)。
-	 *                  FLAGS_SPLIT=必ず内部で切断する。
-	 *                  FLAGS_FIRST_ROW=FLAGS_FIRST のテーブル行変種(ページ先頭行)。
-	 *                  改段(マルチカラム)は BreakMode.ColumnBreakMode で表す。
-	 * @return 切断結果。KEEP=分割せず前のページに残す。MOVE=全体を次のページに
-	 *         移動する。Split(remainder)=内部で切断した(このボックスは前ページ分
-	 *         のみを保持するよう変異済みで、remainder を次のページに送る)。
+	 * @param pageLimit the distance from the box's outer edge (page-axis start) to the split position.
+	 * @param mode      the split mode: AutoBreakMode for automatic page breaks, ForceBreakMode
+	 *                  for forced page breaks (not passed to TextBlockBox).
+	 * @param flags     a bitwise combination of FLAGS_*.
+	 *                  FLAGS_FIRST=this box is at the page start (may split internally or
+	 *                  keep the whole box on the preceding page).
+	 *                  FLAGS_LAST=at the page end (may split internally or send the whole box
+	 *                  to the next page; prohibited for table rows and row groups).
+	 *                  FLAGS_SPLIT=always split internally.
+	 *                  FLAGS_FIRST_ROW=the table-row variant of FLAGS_FIRST (first row on the page).
+	 *                  Column breaks (multi-column layout) use BreakMode.ColumnBreakMode.
+	 * @return the split result. KEEP=keep on the preceding page without splitting.
+	 *         MOVE=move the entire box to the next page. Split(remainder)=split internally
+	 *         (this box has already been mutated to retain only the preceding page's portion;
+	 *         send remainder to the next page).
 	 */
 	public SplitResult split(double pageLimit, BreakMode mode, byte flags);
 }

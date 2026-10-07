@@ -19,7 +19,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
- * テーブル列の実装です。
+ * Table column implementation.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: TableColumnGroupBox.java 1552 2018-04-26 01:43:24Z miyabe $
@@ -50,7 +50,7 @@ public class TableColumnGroupBox extends TableColumnBox {
 		return this.columns == null ? 0 : this.columns.size();
 	}
 
-	/** 列グループ自身または子列に表示される背景があるか。 */
+	/** Whether the column group itself or any child column has a visible background. */
 	@Override
 	public boolean paintsAnything() {
 		if (super.paintsAnything()) {
@@ -65,10 +65,10 @@ public class TableColumnGroupBox extends TableColumnBox {
 	}
 
 	/**
-	 * 葉の列(および子を持たない列グループ)を文書順に走査します。
-	 * {@link #eachColumn}の葉だけを拾うビューです。
+	 * Traverses leaf columns (and childless column groups) in document order.
+	 * A view of {@link #eachColumn} that selects only leaves.
 	 *
-	 * @param consumer 各列に適用する処理
+	 * @param consumer operation to apply to each column
 	 */
 	public final void forEachColumn(java.util.function.Consumer<TableColumnBox> consumer) {
 		this.eachColumn((column, col, span) -> {
@@ -80,15 +80,15 @@ public class TableColumnGroupBox extends TableColumnBox {
 	}
 
 	/**
-	 * 列走査の訪問者です。列グループ(子あり)にはグループ→子の順で
-	 * 訪問し、col は葉のカラム位置、span は葉なら colPos.span、
-	 * グループなら直下の子の数(旧来の手動スタック走査の規約)。
+	 * Visitor for column traversal. Visits column groups with children in group → children order.
+	 * col is the leaf column position; span is colPos.span for leaves, or the number of immediate
+	 * children for groups (the convention of the former manual-stack traversal).
 	 */
 	public interface ColumnVisitor {
 		void visit(TableColumnBox column, int col, int span);
 	}
 
-	/** {@link #eachColumn}の走査フレーム(グループと、次に見る子)。 */
+	/** Traversal frame for {@link #eachColumn} (the group and the next child to visit). */
 	private static final class ColumnWalkFrame {
 		final TableColumnGroupBox group;
 		int next = 0;
@@ -99,10 +99,10 @@ public class TableColumnGroupBox extends TableColumnBox {
 	}
 
 	/**
-	 * 列と列グループをカラム位置付きで走査します。両表ビルダーに7箇所
-	 * あった手動スタックの RECURSE 走査の置き換えです。再帰しない
-	 * (設計不変条件6——A-5で明示スタックへ反復化、2026-07-30。
-	 * 訪問順・colの数え方は旧再帰版と同一)。
+	 * Traverses columns and column groups with column positions. Replaces the seven manual-stack
+	 * RECURSE traversals across the two table builders. Does not recurse (design invariant 6:
+	 * A-5 made it iterative with an explicit stack, 2026-07-30. Visit order and col counting
+	 * match the former recursive version).
 	 */
 	public final void eachColumn(final ColumnVisitor visitor) {
 		final java.util.ArrayDeque<ColumnWalkFrame> stack = new java.util.ArrayDeque<>();
@@ -132,8 +132,8 @@ public class TableColumnGroupBox extends TableColumnBox {
 		if (this.columns == null) {
 			return;
 		}
-		// 列の描画座標を先に(副作用なく)計算してから、元の走査順を保つため
-		// **逆順**でpushする
+		// First calculate column drawing coordinates without side effects, then push in
+		// **reverse order** to preserve the original traversal order.
 		final int n = this.columns.size();
 		final double[] xs = new double[n];
 		final double[] ys = new double[n];
@@ -165,8 +165,8 @@ public class TableColumnGroupBox extends TableColumnBox {
 		if (this.columns == null) {
 			return;
 		}
-		// 列の描画座標を先に(副作用なく)計算してから、元の走査順を保つため
-		// **逆順**でpushする
+		// First calculate column drawing coordinates without side effects, then push in
+		// **reverse order** to preserve the original traversal order.
 		final int n = this.columns.size();
 		final double[] drawXs = new double[n];
 		final double[] drawYs = new double[n];

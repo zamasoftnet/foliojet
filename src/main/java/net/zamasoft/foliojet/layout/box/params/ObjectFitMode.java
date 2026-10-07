@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * object-fitの値です。置換要素の内容をボックスへ収める方法を表します。
+ * Values of object-fit. Specify how a replaced element's content fits into its box.
  *
  * @author MIYABE Tatsuhiko
  */

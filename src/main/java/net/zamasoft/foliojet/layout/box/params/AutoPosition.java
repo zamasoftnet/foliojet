@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 絶対配置ボックスの自動配置方法です。
+ * Automatic positioning mode for absolutely positioned boxes.
  *
  * @author MIYABE Tatsuhiko
  */

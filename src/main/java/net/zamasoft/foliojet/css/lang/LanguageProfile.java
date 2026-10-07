@@ -5,49 +5,49 @@ import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
 
 /**
- * 各言語のための固有の機能です。
- * 
+ * Language-specific functionality.
+ *
  * @author MIYABE Tatsuhiko
  */
 public interface LanguageProfile {
 	/**
-	 * 2文字の言語コードを返します。
-	 * 
+	 * Returns the two-letter language code.
+	 *
 	 * @return
 	 */
 	public String getLanguage();
 
 	/**
-	 * 与えられた文字が空白であればtrueを返します。
-	 * 
+	 * Returns true if the given character is whitespace.
+	 *
 	 * @param ch
 	 * @return
 	 */
 	public boolean isWhitespace(char ch);
 
 	/**
-	 * :first-letter擬似要素によって切り出される文字数をカウントします。
-	 * 
+	 * Counts the characters selected by the :first-letter pseudo-element.
+	 *
 	 * @param ch
-	 *            文字配列。
+	 *             the character array.
 	 * @param off
-	 *            文字列の開始位置。
+	 *             the start position of the string.
 	 * @param len
-	 *            文字列の長さ。
-	 * @return offの後に切り出す文字数。
+	 *             the length of the string.
+	 * @return the number of characters to select starting at off.
 	 */
 	public int countFirstLetter(char[] ch, int off, int len);
 
 	/**
-	 * 引用符のペア(Quotes)のリストを返します。
-	 * 
+	 * Returns a list of quotation mark pairs (Quotes).
+	 *
 	 * @return
 	 */
 	public ValueListValue getQuotes();
 
 	
 	/**
-	 * ハイフネーションを返します。
+	 * Returns the hyphenation rules.
 	 * @param style
 	 * @return
 	 */

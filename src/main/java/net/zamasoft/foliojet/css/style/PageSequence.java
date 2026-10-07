@@ -52,16 +52,17 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 
 /**
- * ページのライフサイクル(ページの作成・{@code @page}スタイルとカウンタ・
- * 白紙判定と巻き戻し・描画・面付けの終了)です(StyleBuilder解体・増分2で
- * 抽出、2026-07-30。各メソッドの本体はStyleBuilderから逐語移動——挙動不変)。
+ * Page lifecycle: page creation, {@code @page} styles and counters, blank-page checks
+ * and rollback, drawing, and completion of imposition (extracted in increment 2 of
+ * StyleBuilder decomposition, 2026-07-30. Method bodies moved verbatim from StyleBuilder;
+ * behavior is unchanged).
  *
  * <p>
- * <b>順序が契約である</b>: {@code nextPage}は
+ * <b>Order is the contract</b>: {@code nextPage} runs
  * segment.trimToOpenElements → imposition.nextPageSide →
- * {@code @page}宣言とカウンタ適用 の順、{@code drawPage}は
- * 白紙判定(巻き戻し) → imposition.nextPage → flow → fixed →
- * margin boxes → DisplayListDumper → drawer.draw → closePage の順。
+ * {@code @page} declaration and counter application; {@code drawPage} runs
+ * blank-page check (rollback) → imposition.nextPage → flow → fixed →
+ * margin boxes → DisplayListDumper → drawer.draw → closePage.
  * </p>
  */
 final class PageSequence {
@@ -72,7 +73,7 @@ final class PageSequence {
 	private final Segment segment;
 	private final AbsoluteLengthValue[] margins;
 
-	/** 脚注の構築前の幅決定に使う、現在の本文ページです。 */
+	/** Current body page, used to determine width before constructing footnotes. */
 	private PageBox currentPage;
 
 	PageBox getCurrentPage() {
@@ -80,9 +81,9 @@ final class PageSequence {
 	}
 
 	/**
-	 * 予約カウンタ({@code pages})の警告。author側のカウンタ処理
-	 * (StyleBuilder)と「1文書につき1回」のフラグを共有するため、
-	 * 判定・警告ともStyleBuilderへ委ねる。
+	 * Warning for the reserved counter ({@code pages}). Delegates both checking and
+	 * warning to StyleBuilder to share the once-per-document flag with author-side
+	 * counter processing (StyleBuilder).
 	 */
 	private final Consumer<String> reservedCounterWarner;
 
@@ -96,34 +97,33 @@ final class PageSequence {
 	private int maxPageNumber = Integer.MAX_VALUE;
 
 	/**
-	 * 実際に出力したページ数(2026-07-28、css-break-3 §4.4)。
+	 * Number of pages actually output (2026-07-28, css-break-3 §4.4).
 	 */
 	private int emittedPages = 0;
 
 	/**
-	 * タグ付きPDF構造要素のページ横断レジストリです(欠陥②の修正、
-	 * 2026-07-30)。文書(このPageSequence)単位で1つ持ち、各ページの
-	 * PageBoxへ配線する。untagged/非PDF出力ではlookupが起きないだけで
-	 * 無害。
+	 * Cross-page registry of tagged PDF structure elements (fix for defect ②,
+	 * 2026-07-30). One per document (this PageSequence), wired to each page's PageBox.
+	 * Harmless for untagged/non-PDF output, where no lookup occurs.
 	 */
 	private final net.zamasoft.foliojet.layout.box.impl.TaggedStructureContext structContext = new net.zamasoft.foliojet.layout.box.impl.TaggedStructureContext();
 
 	/**
-	 * 直前のページ面。落としたページの面を返すために覚えます
-	 * ({@link #nextPage()}が {@code imposition.nextPageSide()} で進める)。
+	 * Previous page side, retained to restore the side of a discarded page
+	 * ({@link #nextPage()} advances it with {@code imposition.nextPageSide()}).
 	 */
 	private CSSElement previousPageSide = null;
 
-	/** そのページで {@code @page} の counter-increment が加えた量。 */
+	/** Amount added by {@code @page} counter-increment on this page. */
 	private Value[] appliedPageIncrements = null;
 
-	/** そのページで page カウンタを自動加算したか(css-page-3 §6.1)。 */
+	/** Whether the page counter was automatically incremented for this page (css-page-3 §6.1). */
 	private boolean appliedAutoPageIncrement = false;
 
-	/** ルートページの背景(HTML/BODYから昇格)。 */
+	/** Root page background (promoted from HTML/BODY). */
 	private Background background = null;
 
-	/** 組版方向(HTML/BODYのwriting-modeから確定)。 */
+	/** Layout direction (determined from HTML/BODY writing-mode). */
 	private WritingMode progression = WritingMode.TB;
 
 	PageSequence(final UserAgent ua, final StyleContext styleContext, final Imposition imposition,
@@ -136,7 +136,7 @@ final class PageSequence {
 		this.reservedCounterWarner = reservedCounterWarner;
 		this.pageNumber = ua.getPassContext().getPageNumber();
 
-		// ページ幅
+		// Page width
 		{
 			String s = UAProps.OUTPUT_PAGE_WIDTH.getString(ua);
 			AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(this.ua, false, s);
@@ -151,7 +151,7 @@ final class PageSequence {
 			}
 		}
 
-		// ページ高さ
+		// Page height
 		{
 			String s = UAProps.OUTPUT_PAGE_HEIGHT.getString(ua);
 			AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(this.ua, false, s);
@@ -167,7 +167,7 @@ final class PageSequence {
 		}
 		Impositions.setupImposition(this.ua, this.imposition);
 
-		// マージン
+		// Margins
 		{
 			AbsoluteLengthValue[] margins;
 			String s = UAProps.OUTPUT_PAGE_MARGINS.getString(ua);
@@ -195,7 +195,7 @@ final class PageSequence {
 			this.margins = margins;
 		}
 
-		// 最大ページ数
+		// Maximum page count
 		this.maxPageNumber = UAProps.OUTPUT_PAGE_LIMIT.getInteger(ua);
 	}
 
@@ -210,15 +210,15 @@ final class PageSequence {
 	void setProgression(final WritingMode progression) {
 		this.progression = progression;
 		if (this.ua instanceof net.zamasoft.foliojet.ua.impl.AbstractUserAgent aua) {
-			// 出力側(ページ分割SVGの manifest)が頁の進む向きを書けるように
+			// Allow the output side (page-split SVG manifest) to record page progression direction
 			aua.setPageProgression(progression);
 		}
 	}
 
 	/**
-	 * HTML/BODYの背景をルートページの背景へ昇格します。
+	 * Promotes the HTML/BODY background to the root page background.
 	 *
-	 * @return 昇格した(呼び出し側は要素側の背景をNULLにする)ならtrue
+	 * @return true if promoted (the caller sets the element's background to NULL)
 	 */
 	boolean promoteRootBackground(final Background background) {
 		if (this.background == null && background != Background.NULL_BACKGROUND) {
@@ -239,17 +239,17 @@ final class PageSequence {
 	}
 
 	/**
-	 * 次に生成されるページからのページ名です(名前付きページN2a。
-	 * null=無名。境界裁定(BreakableBuilder)が改ページに先立って設定
-	 * する——生成済みページの解決を汚染しないよう、確定値は
-	 * {@link #pageName}へnextPage()時に捕捉する)。
+	 * Page name from the next generated page onward (named pages N2a; null=unnamed).
+	 * Boundary resolution (BreakableBuilder) sets it before a page break. Capture the
+	 * finalized value in {@link #pageName} at nextPage() so it does not affect resolution
+	 * for a page already generated.
 	 */
 	private String pendingPageName;
 
-	/** 現在(生成済み)のページの名前です(宣言解決・柱・空白判定用)。 */
+	/** Name of the current (already generated) page (for declarations, running headers, and blank-page checks). */
 	private String pageName;
 
-	/** size:autoの文書既定寸法です(N3/N4——初回nextPageで捕捉)。 */
+	/** Document default size for size:auto (N3/N4: captured at the first nextPage). */
 	private double defaultPageWidth = -1, defaultPageHeight = -1;
 
 	void setPageName(final String pageName) {
@@ -257,7 +257,7 @@ final class PageSequence {
 	}
 
 	String getPageName() {
-		// 境界裁定の比較対象=「これから置く内容のページ名」=pending
+		// Boundary comparison target = page name of content about to be placed = pending
 		return this.pendingPageName;
 	}
 
@@ -266,7 +266,7 @@ final class PageSequence {
 		CSSStyle pageStyle = CSSStyle.getCSSStyle(this.ua, null, element);
 		pageStyle.setCustomPropertyFallback(this.ua.getDocumentContext().getRootStyle());
 
-		// デフォルトのマージン
+		// Default margins
 		if (this.margins != null) {
 			switch (this.margins.length) {
 			case 1:
@@ -318,10 +318,10 @@ final class PageSequence {
 
 		if ((this.doc.getPageMode() & DocumentBuilder.PAGE_MODE_CONTINUOUS) != 0) {
 			if (this.imposition.getBoundSide() == BoundSide.LEFT) {
-				// 横書き
+				// Horizontal writing
 				return Dimension.create(width, height, LengthType.ABSOLUTE, LengthType.AUTO);
 			} else {
-				// 縦書き
+				// Vertical writing
 				return Dimension.create(width, height, LengthType.AUTO, LengthType.ABSOLUTE);
 			}
 		} else {
@@ -330,7 +330,7 @@ final class PageSequence {
 	}
 
 	private Insets pageMargin(final CSSStyle pageStyle) {
-		// マージン
+		// Margins
 		Value marginTop = Margin.get(pageStyle, Side.TOP);
 		Value marginRight = Margin.get(pageStyle, Side.RIGHT);
 		Value marginBottom = Margin.get(pageStyle, Side.BOTTOM);
@@ -349,17 +349,18 @@ final class PageSequence {
 		CSSElement element = this.firstPageElement;
 		if (emitted > 0) {
 			element = this.imposition.getNextPageSide(element);
-			// 初回遷移後は固定面か2面の周期。本番の規則で仮想面を進め、
-			// EPUBの途中面・片面開始も扱う。照会ごとの全頁再走査はしない。
+			// After the first transition, the side is fixed or alternates. Advance virtual sides using actual rules
+			// to handle intermediate EPUB sides and single-side starts. Do not rescan all pages for each query.
 			if ((emitted & 1) == 0) element = this.imposition.getNextPageSide(element);
 		}
 		return element;
 	}
 
 	/**
-	 * Bの名前と出力済み枚数だけで予約前の版面を照会します。スタイル・寸法の
-	 * 解決は本番と共通ですが、segment、カウンタ、面付け、現在ページは進めません。
-	 * Bが白紙を落とした場合は同じ面のまま、生成世代だけが進みます。
+	 * Queries the type area before reservation using only B's name and output page count.
+	 * Shares style and size resolution with actual processing, but does not advance segment,
+	 * counters, imposition, or the current page. If B discards a blank page, only the generation
+	 * advances; the side stays the same.
 	 */
 	net.zamasoft.foliojet.layout.FootnotePageProbe.PageGeometry footnotePageGeometry(final String name, final int emitted) {
 		final CSSElement element = this.footnotePageElement(emitted);
@@ -367,26 +368,26 @@ final class PageSequence {
 		final BlockParams params = this.pageParams(style);
 		params.size = this.pageSize(style);
 		params.frame = this.pageFrame(style, this.pageMargin(style), Background.NULL_BACKGROUND);
-		// %余白・border・paddingの内寸演算もPageBoxと共有する。描画・登録はしない。
+		// Share inner-size calculations for percentage margins/border/padding with PageBox too. Do not draw or register.
 		final PageBox geometry = new PageBox(params, this.ua);
 		return new net.zamasoft.foliojet.layout.FootnotePageProbe.PageGeometry(
 				geometry.getInnerWidth(), geometry.getInnerHeight(), params.flow);
 	}
 
 	PageBox nextPage() {
-		// セグメント窓の刈り込み: 開いている要素だけ残す(M6a)
+		// Trim the segment window: retain only open elements (M6a)
 		this.segment.trimToOpenElements();
-		// 名前付きページN2a: このページの名前を確定
+		// Named pages N2a: finalize this page's name
 		this.pageName = this.pendingPageName;
-		// ページスタイル
-		// 面(recto/verso)は nextPageSide() が進める。落としたページは面を
-		// 消費しないので、進める前の値を覚えておく(discardPage が戻す)
+		// Page style
+		// nextPageSide() advances the side (recto/verso). Discarded pages do not consume
+		// a side, so remember the value before advancing (discardPage restores it).
 		this.previousPageSide = this.ua.getPassContext().getPageSide();
 		this.pageElement = this.imposition.nextPageSide();
 		if (this.firstPageElement == null) this.firstPageElement = this.pageElement;
 		CSSStyle pageStyle = this.pageStyle(this.pageElement, this.pageName);
 
-		// ページカウンターリセット
+		// Reset page counters
 		Value[] resets = CounterReset.get(pageStyle);
 		if (resets != null) {
 			for (int i = 0; i < resets.length; ++i) {
@@ -401,7 +402,7 @@ final class PageSequence {
 			}
 		}
 
-		// ページカウンター加算
+		// Increment page counters
 		Value[] increments = CounterIncrement.get(pageStyle);
 		boolean pageIncremented = false;
 		if (increments != null) {
@@ -419,30 +420,30 @@ final class PageSequence {
 			}
 		}
 		if (!pageIncremented) {
-			// page カウンタはページごとに自動加算される(css-page-3 §6.1)。
-			// @page の counter-increment が page を明示した場合はそちらが優先
+			// The page counter automatically increments for each page (css-page-3 §6.1).
+			// An explicit page entry in @page counter-increment takes precedence.
 			this.ua.getPassContext().getCounterScope(0, true).increment("page", 1);
 		}
-		// 落としたページは番号を消費しない(discardPage が同じ順序で戻す)
+		// Discarded pages do not consume a number (discardPage restores it in the same order)
 		this.appliedPageIncrements = increments;
 		this.appliedAutoPageIncrement = !pageIncremented;
 
-		// ルートのスタイルを適用
+		// Apply the root style
 		if (this.background == null) {
 			this.background = Background.NULL_BACKGROUND;
 		}
 
 		final BlockParams params = this.pageParams(pageStyle);
 
-		// ページのサイズ(N3/N4: @page sizeがoutput既定を上書きする。
-		// size:autoの既定は初回に捕捉した文書既定へ必ず戻す——impositionの
-		// 現在値はdrawPageが前ページの寸法へ書き換えるため状態が漏れる)
+		// Page size (N3/N4: @page size overrides output defaults). Always restore size:auto
+		// to the document defaults captured initially: drawPage rewrites the current imposition
+		// values to the previous page's size, so using them would leak state.
 		if (this.defaultPageWidth <= 0) {
 			this.defaultPageWidth = this.imposition.getPageWidth();
 			this.defaultPageHeight = this.imposition.getPageHeight();
 		}
-		// トンボと断ち代(2026-08-02): CSSで明示された場合だけ
-		// output.marks / output.trims を上書きする(size:autoと同じ考え方)
+		// Crop marks and bleed (2026-08-02): override output.marks / output.trims
+		// only when explicitly specified in CSS (same approach as size:auto).
 		final net.zamasoft.foliojet.css.value.PageMarksValue marks = PageMarks.get(pageStyle);
 		if (marks != net.zamasoft.foliojet.css.value.PageMarksValue.UNSPECIFIED) {
 			this.imposition.setCrop(marks.isCrop());
@@ -450,25 +451,25 @@ final class PageSequence {
 			if ((marks.isCrop() || marks.isCross()) && this.imposition.getTrimTop() == 0
 					&& this.imposition.getTrimRight() == 0 && this.imposition.getTrimBottom() == 0
 					&& this.imposition.getTrimLeft() == 0) {
-				// output.marksがnoneのままだと裁ち口が0にされているので、
-				// CSSでトンボを宣言したときは既定(1cm)へ戻す(2026-08-29)。
-				// トンボは裁ち口の中に引くので、幅が0だと用紙の外へ出て消える
+				// If output.marks remains none, the cutting margin is zero, so restore the default
+				// (1 cm) when CSS declares crop marks (2026-08-29).
+				// Marks are drawn in the cutting margin; zero width places them outside the sheet and hides them.
 				final double d = net.zamasoft.pdfg2d.pdf.util.PDFUtils.POINTS_PER_CM;
 				this.imposition.setTrims(d, d, d, d);
 			}
 		}
 		final double bleed = PageBleed.get(pageStyle);
-		// output.trim-insetが指定されているときは、塗り足しの実体はもう
-		// 印刷面の中にある(B-3)。CSSのbleedで裁ち口を広げ直すと二重になる
+		// When output.trim-inset is specified, the bleed already lies within the print area
+		// (B-3). Expanding the cutting margin again with CSS bleed would double it.
 		if (bleed >= 0 && this.imposition.getTrimInset() == 0) {
-			// CSSで塗り足しを宣言したなら、その分だけ仕上り線の外へ描く意思が
-			// あるということ(2026-08-29の利用者報告)。断ち代を同じ幅にして、
-			// 内容が仕上り線で切り落とされないようにする——以前は断ち代が0のまま
-			// だったので、bleedを書いても塗り足しが白いまま出ていた。
-			// 裁ち口は塗り足しより狭くしない。ただし**今より狭めない**のも大事で、
-			// トンボは裁ち口の中に、塗り足しのさらに外側へ引かれる
-			// (PrinterMarksはcuttingMarginの2倍を使う)。裁ち口を塗り足しと
-			// 同じ幅まで詰めるとトンボが用紙の外へ出て消える
+			// Declaring bleed in CSS expresses an intent to draw that far beyond the trim line
+			// (user report, 2026-08-29). Set the bleed allowance to the same width so content
+			// is not clipped at the trim line. Previously it remained zero,
+			// so the bleed area stayed white even when bleed was specified.
+			// Do not make the cutting margin narrower than bleed. **Do not narrow it from its current size**
+			// either: crop marks are drawn within the cutting margin, farther out than the bleed
+			// (PrinterMarks uses twice cuttingMargin). Reducing the cutting margin to the bleed
+			// width places crop marks outside the sheet and hides them.
 			final double trim = Math.max(bleed, Math.max(Math.max(this.imposition.getTrimTop(),
 					this.imposition.getTrimRight()),
 					Math.max(this.imposition.getTrimBottom(), this.imposition.getTrimLeft())));
@@ -480,17 +481,17 @@ final class PageSequence {
 		params.overflow = OverflowMode.VISIBLE;
 		Insets margin = this.pageMargin(pageStyle);
 
-		// ページ箱の背景(css-page-3 §3、2026-09-01)。ページ固有の背景は
-		// PageBoxが用紙全面へ先に描き、html/bodyから昇格したcanvas背景は
-		// 通常のframe背景として余白の内側へ重ねる。
-		// 枠線と内側余白(css-page-3 §3.1、2026-09-03): `@page`のborder/paddingは
-		// 要素と同じ規則で余白の内側に取り、版面(page area)はその内側になる。
-		// 描くのはPageBox.drawFlowのframes()(要素の枠と同じ経路)
+		// Page box background (css-page-3 §3, 2026-09-01). PageBox draws the page-specific
+		// background across the whole sheet first, then overlays the canvas background promoted
+		// from html/body inside the margins as a normal frame background.
+		// Border and padding (css-page-3 §3.1, 2026-09-03): @page border/padding lie inside
+		// the margins by the same rules as elements; the type area (page area) lies inside them.
+		// Drawn by frames() in PageBox.drawFlow (same path as element frames).
 		final Background pageBackground = BoxStyleMapper.createBackground(pageStyle);
 		params.frame = this.pageFrame(pageStyle, margin, this.background);
 
 		this.pageNumber++;
-		// 負は無制限(-1 だけではない。2026-10-05 までは -2 以下で即座に中断した)
+		// Negative means unlimited (not just -1; until 2026-10-05, -2 or below aborted immediately)
 		if (this.maxPageNumber >= 0 && this.pageNumber > this.maxPageNumber) {
 			short code = MessageCodes.ERROR_OUT_OF_PAGE_LIMIT;
 			String[] args = new String[] { String.valueOf(this.maxPageNumber) };
@@ -502,78 +503,78 @@ final class PageSequence {
 		}
 		this.ua.message(MessageCodes.INFO_PAGE_NUMBER, String.valueOf(this.pageNumber));
 		final PageBox pageBox = new PageBox(params, this.ua, pageBackground);
-		// @page の背景を塗り足しまで伸ばす。塗り足しの幅は CSS の bleed か、
-		// 面付け側で決めた裁ち代(output.cutting-margin 等)の大きい方
+		// Extend the @page background to the bleed. Use the greater of CSS bleed and
+		// the bleed allowance determined by imposition (output.cutting-margin, etc.).
 		pageBox.setBleed(Math.max(bleed, this.imposition.getCuttingMargin()));
 		this.currentPage = pageBox;
 		return pageBox;
 	}
 
 	/**
-	 * このページが<b>紙に何も描かない</b>ので出力しないでよいかを返します
-	 * (2026-07-28新設、css-break-3 §4.4。判定の全文はStyleBuilderからの
-	 * 移動——本文・{@code @page}背景・固定配置・legacy・マージンボックス宣言の
-	 * 5種すべてを見る。トンボ・ノンブルは数えない)。
+	 * Returns whether output can be omitted because this page <b>draws nothing on paper</b>
+	 * (added 2026-07-28, css-break-3 §4.4; the full check moved from StyleBuilder).
+	 * Checks all five categories: body text, {@code @page} background, fixed positioning,
+	 * legacy, and margin box declarations. Does not count crop marks or page numbers.
 	 */
 	private boolean paintsNothing(final PageBox pageBox, final boolean lastPage, final boolean closedByForcedBreak) {
 		if (pageBox.isNamedTransitionClosed() && !pageBox.paintsAnything()) {
-			// ページ先頭でのページ名遷移により閉じられた白紙ページ(N2b)。
-			// 柱の宣言や強制改ページ起点でも落とす——旧名の未確定ページを
-			// 新名で作り直す差し替えと等価にする(遷移改ページの後には必ず
-			// 遷移先の内容が続くため、0ページのPDFにはならない)
+			// Blank page closed by a page-name transition at page start (N2b).
+			// Discard even with running header declarations or a forced-break origin: equivalent
+			// to replacing an unfinalized page with the old name by one with the new name
+			// (destination content always follows a transition break, so the PDF cannot have zero pages).
 			return true;
 		}
 		if (this.emittedPages == 0 && lastPage) {
-			// **0ページのPDFは作らない**。ただし「まだ1枚も出していない」
-			// だけでは落とさない理由にならない(2026-07-29)——後続の
-			// ページに内容があるなら、先頭の白紙は落として構わない。
+			// **Do not create a zero-page PDF**. However, having output no pages yet is not
+			// by itself a reason to retain one (2026-07-29): if subsequent pages have content,
+			// the initial blank page can be discarded.
 			//
-			// 従来は最初の1枚を無条件で残していたため、**内容が2ページ目
-			// から始まる文書で1ページ目が白紙のまま出ていた**
-			// (掃過 seed 597668 / 1954254。実測では3ページのうち
-			// 1ページ目だけが`drawer z=0`のみだった)。
+			// Previously the first page was always retained, so **documents whose content began
+			// on page 2 output a blank page 1**
+			// (sweep seeds 597668 / 1954254; observations showed that only page 1 of 3
+			// contained nothing but `drawer z=0`).
 			//
-			// `lastPage`は呼び出し元が区別する: `RootBuilder.pageBreak`は
-			// 改ページで確定したページなので**後続がある**(false)、
-			// `RootBuilder.finish`は文書の最後(true)。
+			// The caller distinguishes `lastPage`: `RootBuilder.pageBreak` finalizes a page
+			// at a break, so **there is a following page** (false);
+			// `RootBuilder.finish` is the document end (true).
 			//
-			// 2026-07-29〜09-06 は `closedByForcedBreak` も残す理由にしていた
-			// (先頭要素の {@code page-break-before:always} は「その前に紙を
-			// 1枚」という作者の要求、と解釈)。**撤回**(2026-09-06、利用者報告
-			// 「縦中横リンクの字箱」の併記): 文書先頭に改ページ点は無く、
-			// Chrome も Prince も白紙を作らない(css-break-3 §3.1、改ページは
-			// 箱と箱の間にしか置けない)。記事ごとに先頭 section へ
-			// {@code break-before: page} を書く書籍 CSS で毎回 1 頁目が白紙に
-			// なっていた。何も描かない先頭ページは強制改ページで閉じられて
-			// いても落とす(後続に内容があるので 0 ページにはならない)。
+			// From 2026-07-29 to 09-06, `closedByForcedBreak` was also a reason to retain a page
+			// (interpreting {@code page-break-before:always} on the first element as an author's
+			// request for a sheet before it). **Withdrawn** (2026-09-06, alongside the user report
+			// "character boxes for tate-chu-yoko links"): there is no break point at the start of a document;
+			// neither Chrome nor Prince creates a blank page (css-break-3 §3.1: page breaks can
+			// occur only between boxes). Book CSS specifying {@code break-before: page} on each
+			// article's initial section had produced a blank first page every time.
+			// Discard an initial page that draws nothing even if it was closed by a forced break
+			// (subsequent content prevents a zero-page document).
 			return false;
 		}
 		if (this.emittedPages == 0 && closedByForcedBreak && !pageBox.isForcedBreakOrigin()
 				&& !pageBox.paintsAnything()) {
-			// 上の撤回(2026-09-06)の続き: 文書先頭の強制改ページの前のページは、
-			// **柱・ノンブルの宣言があっても落とす**(2026-10-04)。下の
-			// 「マージンボックスの宣言があれば描く」に任せると、柱のある本で
-			// 先頭の h1 に break-before: right があるだけで、柱だけの1頁目と
-			// 左右合わせの白紙が前に付いた(時限暗号の本の試験で発覚)
+			// Continuation of the withdrawal above (2026-09-06): discard the page preceding a forced
+			// break at document start **even with running header/page number declarations** (2026-10-04).
+			// Relying on the rule below to draw whenever margin boxes are declared caused a book
+			// with running headers and break-before: right on its first h1 to gain a header-only first page
+			// and a blank page for side alignment (found in the 時限暗号 (Time-Lock Cipher) book test).
 			return true;
 		}
 		if (pageBox.isForcedBreakOrigin()) {
-			// 作者が意図した白紙
+			// Author-intended blank page
 			return false;
 		}
 		if (pageBox.paintsAnything()) {
 			return false;
 		}
-		// ページマージンボックス(柱・ノンブル)は宣言があれば描くとみなす
+		// Treat declared page margin boxes (running headers/page numbers) as drawing content
 		return this.styleContext.pageMarginBoxes(this.pageElement, this.pageName).isEmpty();
 	}
 
 	/**
-	 * 何も描かないページを取り消します(2026-07-28新設)。
+	 * Cancels a page that draws nothing (added 2026-07-28).
 	 *
 	 * <p>
-	 * <b>ページ番号も面も消費させません。</b> {@link #nextPage()}が進めたもの
-	 * だけを、逆順に、そのまま戻します。
+	 * <b>Consumes neither a page number nor a side.</b> Reverses only what
+	 * {@link #nextPage()} advanced, exactly and in reverse order.
 	 * </p>
 	 */
 	private void discardPage() {
@@ -586,7 +587,7 @@ final class PageSequence {
 				final CounterSetValue counterSet = (CounterSetValue) this.appliedPageIncrements[i];
 				final String name = counterSet.getName();
 				if (StyleBuilder.isReservedCounterName(name)) {
-					// nextPage() も加算していない
+					// nextPage() did not increment it either
 					continue;
 				}
 				pc.getCounterScope(0, true).increment(name, -counterSet.getValue());
@@ -598,12 +599,12 @@ final class PageSequence {
 
 	boolean drawPage(final PageBox pageBox, final boolean lastPage, final boolean closedByForcedBreak)
 			throws GraphicsException {
-		// 何も描かないページは出力しない(css-break-3 §4.4)。判定は
-		// imposition.nextPage()(=PDFのページを作る地点)より前に済ませる
-		// ——作ってしまってから取り消すのではなく、作らない
+		// Do not output pages that draw nothing (css-break-3 §4.4). Check before
+		// imposition.nextPage() (the point at which the PDF page is created):
+		// avoid creating the page instead of creating and then canceling it.
 		if (this.paintsNothing(pageBox, lastPage, closedByForcedBreak)) {
-			// 紙を捨てても代入元の文書順は失わない。空要素のclear/string-setを
-			// 一度だけ確定して次頁へ継承する。描画・PDF登録は行わない。
+			// Discarding a sheet does not lose the assignment source's document order. Finalize empty-element
+			// clear/string-set once and inherit it on the next page. Do not draw or register PDF objects.
 			final Visitor assignmentVisitor = new net.zamasoft.foliojet.ua.impl.NopVisitor(this.ua);
 			for (final var assignment : this.ua.getPassContext().getRunningRegistry().commitPage(pageBox)) {
 				assignmentVisitor.visitAssignment(assignment);
@@ -612,9 +613,9 @@ final class PageSequence {
 			this.discardPage();
 			return false;
 		}
-		// RootBuilderから渡された切断・移送済みの木で、代入の所属頁をcommitする。
+		// Commit assignment page ownership using the split/transferred tree from RootBuilder.
 		final var assignments = this.ua.getPassContext().getRunningRegistry().commitPage(pageBox);
-		// ページサイズ決定
+		// Determine page size
 		if (UAProps.OUTPUT_EXPAND_WITH_CONTENT.getBoolean(ua)) {
 			this.imposition.setPageWidth(pageBox.getVisualWidth());
 			this.imposition.setPageHeight(pageBox.getVisualHeight());
@@ -630,11 +631,11 @@ final class PageSequence {
 		}
 
 		if ((this.doc.getPageMode() & DocumentBuilder.PAGE_MODE_CONTINUOUS) != 0) {
-			// 自動高さの場合、高さを通知する
+			// Report height when it is automatic
 			this.ua.message(MessageCodes.INFO_PAGE_HEIGHT, String.valueOf(pageBox.getHeight()));
 		}
 
-		// 描画
+		// Drawing
 		final GC gc = this.imposition.nextPage();
 
 		if (UAProps.OUTPUT_EXPAND_WITH_CONTENT.getBoolean(ua)) {
@@ -670,10 +671,10 @@ final class PageSequence {
 			marginT = null;
 		}
 
-		// B-3(2026-07-30): 構造宣言先を表示リスト構築の前に配線する
-		// (文書順の走査中に宣言し、描画はz順になっても構造は乱れない)。
-		// 欠陥②の修正(2026-07-30): ページ横断レジストリ(this.structContext)
-		// も渡し、継続断片が初出時のStructElemへ内容を継ぎ足せるようにする
+		// B-3 (2026-07-30): wire the structure declaration destination before building the display list
+		// (declare during document-order traversal, preserving structure even when drawing follows z-order).
+		// Fix for defect ② (2026-07-30): also pass the cross-page registry (this.structContext)
+		// so continuation fragments can append content to the StructElem from the first occurrence.
 		if (gc instanceof net.zamasoft.pdfg2d.pdf.gc.PDFGC pdfgc
 				&& pdfgc.getPDFGraphicsOutput() instanceof net.zamasoft.pdfg2d.pdf.PDFPageOutput structOut) {
 			pageBox.setStructOutput(structOut, this.structContext);
@@ -683,47 +684,47 @@ final class PageSequence {
 
 		final Drawer drawer = new Drawer(0);
 
-		// フロー
+		// Flow
 		pageBox.drawFlow(drawer, visitor);
 		for (final var assignment : assignments) {
 			visitor.visitAssignment(assignment);
 		}
 
 		if (gc != null) {
-			// 脚注separator罫線(flow後・fixed前。装飾なのでartifact)
+			// Footnote separator rule (after flow, before fixed; decorative, so artifact)
 			pageBox.drawFootnoteSeparator(drawer);
 
-			// 固定
+			// Fixed
 			pageBox.drawFixed(drawer, visitor);
 
-			// ページマージンボックス(css-page-3。本文の後に描く=仕様の描画順)
+			// Page margin boxes (css-page-3: drawn after body text, as specified)
 			final var values = new net.zamasoft.foliojet.css.style.running.PageValueSnapshot(
 					this.ua, this.pageElement, this.pageName);
 			final var running = new net.zamasoft.foliojet.css.style.running.RunningRenderer(this.ua, values);
-			// @page :blank(2026-10-04): 強制改ページで始まり、何も描かずに閉じた
-			// ページ(左右の改ページで挟んだ白紙など)。内容が確定したこの時点で
-			// しか分からないので、:blank が効くのはマージンボックスだけ
+			// @page :blank (2026-10-04): a page begun by a forced break and closed without
+			// drawing anything (e.g. a blank page inserted by left/right page breaks). This is known
+			// only now, after content is finalized, so :blank affects only margin boxes.
 			final boolean blank = pageBox.isForcedBreakOrigin() && !pageBox.paintsAnything();
 			MarginBoxes.draw(this.ua, this.styleContext, this.pageElement, this.pageName, pageBox, drawer, visitor, running,
 					blank);
 
 		}
-		// NopVisitorもstring-set/named-stringのページ状態を確定する。
+		// NopVisitor also finalizes the page state of string-set/named strings.
 		visitor.endPage();
 
-		// 描画処理を非同期で実行
-		// PDFでは描画処理は非常に早く終わる
+		// Execute drawing asynchronously
+		// PDF drawing completes very quickly
 		if (gc != null) {
 			DisplayListDumper.dumpPage(drawer, this.pageNumber);
-			// 近似描画の報告経路(2822)を載せて描く(2026-08-29)
+			// Draw with the approximate-rendering reporting path (2822) installed (2026-08-29)
 			drawer.draw(net.zamasoft.foliojet.layout.util.ApproximationGC.wrap(gc, this.ua), pageBox.getWidth(),
 					pageBox.getHeight());
 			if (marginState != null) {
 				marginState.close();
 			}
 		}
-		// 欠陥②の修正: ページ横断レジストリの清算(このページで継続
-		// されなかった要素の宣言を破棄——保持量をページ内要素数に有界化)
+		// Fix for defect ②: clean up the cross-page registry (discard declarations for elements
+		// not continued on this page, bounding retained data by the page's element count).
 		this.structContext.endPage();
 		this.imposition.closePage();
 		++this.emittedPages;
@@ -731,8 +732,8 @@ final class PageSequence {
 	}
 
 	/**
-	 * 面付けを終了し、ページ番号をパス文脈へ保存します
-	 * ({@code StyleBuilder.finish()}から呼ばれる)。
+	 * Finishes imposition and saves the page number to the pass context
+	 * (called from {@code StyleBuilder.finish()}).
 	 */
 	void finish() throws GraphicsException {
 		this.imposition.finish();

@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.css.value;
 
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 
-/** CSS Writing Modesのtext-orientation値。 */
+/** The CSS Writing Modes text-orientation value. */
 public enum TextOrientationValue implements Value {
 	MIXED("mixed", FontStyle.TextOrientation.MIXED),
 	UPRIGHT("upright", FontStyle.TextOrientation.UPRIGHT),

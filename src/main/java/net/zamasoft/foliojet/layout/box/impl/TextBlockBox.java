@@ -38,18 +38,18 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.text.FilterGlyphHandler;
 
 /**
- * テキストだけを含むことができるボックスです。
+ * A box that can contain only text.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: TextBlockBox.java 1631 2022-05-15 05:43:49Z miyabe $
  */
 public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlowBox {
 	/**
-	 * ボックスの外辺を薄紫色の枠で囲みます。
+	 * Outlines the box's outer edges with a light purple border.
 	 */
 
 	/**
-	 * 配置された行です。
+	 * A placed line.
 	 * 
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: TextBlockBox.java 1631 2022-05-15 05:43:49Z miyabe $
@@ -75,14 +75,14 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	protected final BlockParams params;
 
 	/**
-	 * テキストブロックに含まれる行のリスト。
+	 * List of lines in the text block.
 	 */
 	protected final List<Line> lines = new ArrayList<Line>();
 
 	protected double lineSize = 0;
 
 	/**
-	 * このテキストブロックの継続状態です。
+	 * Continuation state of this text block.
 	 */
 	protected final BreakToken breakToken;
 
@@ -96,7 +96,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	/**
-	 * このテキストブロックの継続トークンを返します(M6b)。
+	 * Returns this text block's continuation token (M6b).
 	 */
 	public final BreakToken getBreakToken() {
 		return this.breakToken;
@@ -137,9 +137,9 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	public final double getPageSize() {
-		// 切断残余の運搬体や、回復時に開始のないINLINE_ENDだけを
-		// 捨てたブロックは、行をまだ／もう持たない。幾何寸法は0とし、
-		// 描画有無の保守判定はpaintedPageExtent()のPAINTS_UNKNOWNへ任せる。
+		// A split-remainder carrier, or a block that discarded only an unmatched INLINE_END
+		// during recovery, has no lines yet or no longer has them. Its geometric size is 0;
+		// leave the conservative painting check to PAINTS_UNKNOWN in paintedPageExtent().
 		if (this.lines.isEmpty()) {
 			return 0;
 		}
@@ -151,13 +151,12 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	 * {@inheritDoc}
 	 *
 	 * <p>
-	 * <b>行が1本もないテキストブロックは「測れない」</b>——切断された段落の
-	 * 尾部断片は、まだソースから再生されていない中身を待っている状態であり、
-	 * 「何も描かない」と断じてはいけない(断じると、白紙ページの抑止判定が
-	 * その断片ごと捨ててよいと誤り、<b>内容が消える</b>)。
-	 * {@link net.zamasoft.foliojet.layout.util.LayoutUtils#PAINTS_UNKNOWN}を
-	 * 返して、判定を常に安全側(=描くものがある)へ倒す。幾何寸法を返す
-	 * {@link #getPageSize()}は空なら0だが、描画有無だけはそれと分けて扱う。
+	 * <b>A text block with no lines is "unmeasurable"</b>: the tail fragment of a split paragraph is
+	 * waiting for content not yet replayed from source, so it must not be declared to paint nothing.
+	 * Doing so makes blank-page suppression wrongly conclude that the entire fragment can be discarded,
+	 * <b>losing content</b>. Returns {@link net.zamasoft.foliojet.layout.util.LayoutUtils#PAINTS_UNKNOWN}
+	 * to always choose the conservative result (= there is content to paint). {@link #getPageSize()},
+	 * which returns the geometric size, returns 0 when empty; painting presence is handled separately.
 	 * </p>
 	 */
 	@Override
@@ -172,17 +171,16 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	 * {@inheritDoc}
 	 *
 	 * <p>
-	 * テキストは<b>行の中にしか描かれません</b>。行が占めるページ方向の高さが
-	 * 0なら、字面も下線も置く場所がない=何も描きません
-	 * ({@link #getPageSize()}は最後の行の終端、つまり全行の高さの合計)。
+	 * Text is painted <b>only within lines</b>. If the page-direction height occupied by lines is 0,
+	 * there is nowhere to place glyph bounds (ink) or underlines, so nothing is painted
+	 * ({@link #getPageSize()} is the end of the last line, i.e., the sum of all line heights).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>行が1本もない場合はここも「描く」と答えます</b>——
-	 * {@link #paintedPageExtent}が
-	 * {@link LayoutUtils#PAINTS_UNKNOWN}を返すためです。切断された段落の
-	 * 尾部断片は「中身をこれからソース再生で受け取る器」であり、空だからと
-	 * 捨てると<b>内容が消えます</b>(そちらのjavadoc参照)。
+	 * <b>With no lines, this also answers "paints"</b>, because {@link #paintedPageExtent} returns
+	 * {@link LayoutUtils#PAINTS_UNKNOWN}. The tail fragment of a split paragraph is a container that
+	 * will receive content through source replay; discarding it as empty <b>loses content</b>
+	 * (see that method's Javadoc).
 	 * </p>
 	 */
 	@Override
@@ -192,20 +190,20 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 
 	public final double getWidth() {
 		if (this.params.flow.isVertical()) {
-			// 縦書き
+			// Vertical writing
 			return this.getPageSize();
 		} else {
-			// 横書き
+			// Horizontal writing
 			return this.lineSize;
 		}
 	}
 
 	public final double getHeight() {
 		if (this.params.flow.isVertical()) {
-			// 縦書き
+			// Vertical writing
 			return this.lineSize;
 		} else {
-			// 横書き
+			// Horizontal writing
 			return this.getPageSize();
 		}
 	}
@@ -219,9 +217,9 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	/**
-	 * 行ボックスを列挙します(読み取り専用。脚注F4のcall走査用に公開)。
+	 * Enumerates line boxes (read-only; exposed for footnote F4 call traversal).
 	 *
-	 * @param action 各行に適用する処理
+	 * @param action operation to apply to each line
 	 */
 	public final void forEachLine(final java.util.function.Consumer<net.zamasoft.foliojet.layout.box.AbstractLineBox> action) {
 		for (int i = 0; i < this.lines.size(); ++i) {
@@ -230,19 +228,19 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	public final void addLine(AbstractLineBox lineBox, double pageAxis) {
-		// 行が増えると「内容がある」の答えが変わりうる(FlowContainerのメモ)
+		// Adding a line may change the answer to "has content" (see the note in FlowContainer).
 		if (this.getContentParent() != null) {
 			this.getContentParent().invalidateNonDecorationContent();
 		}
 		assert !LayoutUtils.isNone(pageAxis);
 		this.lines.add(new Line(lineBox, pageAxis));
-		// この拡張はIE互換モードでなければ、あまり意味はない
-		// (T2/H1: 行末の詰め/ぶら下げ分は論理幅から除く=effective基準)
+		// This extension has little meaning outside IE compatibility mode.
+		// (T2/H1: Exclude line-end compression/hanging from logical width, i.e., use the effective width.)
 		this.lineSize = Math.max(lineBox.getLineSize() - lineBox.getEndHangAdvance(), this.lineSize);
 	}
 
 	/**
-	 * 表の直前へ独立して出力した外置きマーカー専用ブロックか。
+	 * Whether this block contains only an outside marker emitted separately just before a table.
 	 */
 	public final boolean overlaysFollowingBlock() {
 		return this.lines.size() == 1 && this.lines.get(0).box.containsOnlyOverlayOutsideMarker();
@@ -252,7 +250,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	public final void pushFinishLayoutChildren(final IFramedBox containerBox, final Deque<FinishLayoutStep> worklist) {
-		// 元の走査順(先頭行から)を保つため、スタックへは逆順(末尾行から)でpushする
+		// Push in reverse order (last line first) to preserve the original traversal order (first line first).
 		for (int i = this.lines.size() - 1; i >= 0; --i) {
 			Line line = (Line) this.lines.get(i);
 			worklist.push(IBox.step(line.box, containerBox));
@@ -260,7 +258,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	public final void pushGetTextSteps(StringBuilder textBuff, Deque<GetTextStep> worklist) {
-		// 元の走査順(先頭行から)を保つため、スタックへは逆順(末尾行から)でpushする
+		// Push in reverse order (last line first) to preserve the original traversal order (first line first).
 		for (int i = this.lines.size() - 1; i >= 0; --i) {
 			Line line = (Line) this.lines.get(i);
 			worklist.push(IBox.getTextStep(line.box, textBuff));
@@ -268,32 +266,28 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	/**
-	 * 行境界では一切前進できない(=行分割の切断点が存在しない)場合に、
-	 * その唯一の行の物理下端を返します。前進できるなら
-	 * {@link LayoutUtils#NONE}を返します(2026-07-25新設、救済分割・増分6。
-	 * 設計相談 §1)。
+	 * Returns the physical bottom edge of the sole line when no progress is possible at line boundaries
+	 * (= no line-splitting cut point exists). Returns {@link LayoutUtils#NONE} if progress is possible
+	 * (added 2026-07-25, rescue splitting increment 6; design consultation §1).
 	 *
 	 * <p>
-	 * 「巨大な行」の救済分割は、{@link #split(double, byte)}を<b>呼ぶ前に</b>
-	 * この値を検査して判定します。{@link LineCutter}はフラグメント先頭
-	 * ({@code FLAGS_FIRST})で実質1行しかなければ<b>無条件に</b>
-	 * {@code KEEP}を返す——つまり容量を超えていてもはみ出したまま
-	 * 描かれる——ので、切断結果からはその非進行を区別できないためです。
-	 * 巨大フォント・背の高いインラインブロック・インラインテーブル・
-	 * ルビ単位・インライン置換要素は、すべて「背の高い1行」として
-	 * この一点に集約されます(個別の分岐は作りません)。
+	 * Rescue splitting of an oversized line checks this value <b>before calling</b>
+	 * {@link #split(double, byte)}. At the fragment start ({@code FLAGS_FIRST}), {@link LineCutter}
+	 * <b>unconditionally</b> returns {@code KEEP} if there is effectively only one line, so it is drawn
+	 * with overflow even when capacity is exceeded. Thus, the cut result cannot distinguish this lack
+	 * of progress. Huge fonts, tall inline blocks, inline tables, ruby units, and inline replaced elements
+	 * all converge here as one tall line (without separate branches).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>複数行あるときは救済しません</b>。行分割が実際に前進する
-	 * (先頭行を残して残りを次フラグメントへ送る)ため非進行点ではなく、
-	 * そこで段落全体を幾何学的に切ると「全ページに全行の帯が並ぶ」という
-	 * 明確な劣化になるからです({@code files/unittest/2010-LIMIT/line.html}
-	 * で実測)。先頭行だけが極端に高い段落のはみ出しは、従来どおり
-	 * 残ります。
+	 * <b>Do not apply rescue splitting when there are multiple lines</b>. Line splitting actually makes
+	 * progress (keeping the first line and sending the rest to the next fragment), so this is not a
+	 * no-progress point. Geometrically cutting the entire paragraph here clearly degrades output:
+	 * every page shows a band of every line (observed with {@code files/unittest/2010-LIMIT/line.html}).
+	 * A paragraph whose first line alone is extremely tall still overflows as before.
 	 * </p>
 	 *
-	 * @return 前進できないときの唯一の行の下端。前進できるなら{@code NONE}
+	 * @return the bottom edge of the sole line if no progress is possible; {@code NONE} otherwise
 	 */
 	public final double getUnbreakableLinePageEnd() {
 		if (this.lines.isEmpty()) {
@@ -319,7 +313,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return ((Line) this.lines.get(0)).pageAxis;
 	}
 
-	/** 各行の上辺・底辺(このボックスの上端からの距離)を採取します。 */
+	/** Collects each line's top and bottom edges (distances from this box's top edge). */
 	private void measureLines(final double[] lineStarts, final double[] lineEnds) {
 		for (int i = 0; i < this.lines.size(); ++i) {
 			final Line line = (Line) this.lines.get(i);
@@ -345,11 +339,11 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	/**
-	 * 提案位置の直前の行境界を返します(M5-B)。getCutPoint の切り上げに
-	 * 対する切り下げで、提案位置より前に行境界がなければ 0 を返します。
+	 * Returns the line boundary immediately before the proposed position (M5-B). Rounds down rather
+	 * than up as getCutPoint does; returns 0 if no line boundary precedes the proposed position.
 	 *
-	 * @param pageAxis 提案位置
-	 * @return 直前の行境界(なければ 0)
+	 * @param pageAxis proposed position
+	 * @return the immediately preceding line boundary (0 if none)
 	 */
 	public final double getCutPointBelow(final double pageAxis) {
 		double result = 0;
@@ -371,11 +365,11 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		assert !LayoutUtils.isNone(y);
 		visitor.visitBox(transform, this, drawer, x, y);
 
-		// 元の走査順(先頭行から)を保つため、スタックへは逆順(末尾行から)でpushする
+		// Push in reverse order (last line first) to preserve the original traversal order (first line first).
 		for (int i = this.lines.size() - 1; i >= 0; --i) {
 			Line line = (Line) this.lines.get(i);
 			AbstractLineBox lineBox = line.box;
-			// 描画(論理→物理変換は LayoutUtils.drawX/drawY に集約)
+			// Draw (logical → physical conversion is centralized in LayoutUtils.drawX/drawY).
 			worklist.push(IBox.drawStep(lineBox, pageBox, drawer, visitor, clip, transform, contextX, contextY,
 					LayoutUtils.drawX(this.params.flow, x, this.getPageSize(), line.pageAxis, line.getPageEnd(), 0),
 					LayoutUtils.drawY(this.params.flow, y, line.pageAxis, 0)));
@@ -384,7 +378,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 
 	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
 			Deque<TextShapeStep> worklist) {
-		// 元の走査順(先頭行から)を保つため、スタックへは逆順(末尾行から)でpushする
+		// Push in reverse order (last line first) to preserve the original traversal order (first line first).
 		for (int i = this.lines.size() - 1; i >= 0; --i) {
 			Line line = (Line) this.lines.get(i);
 			AbstractLineBox lineBox = line.box;
@@ -395,17 +389,17 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	/**
-	 * 行境界でページ方向に切断します(柱2cの型付きプロトコル)。
-	 * 切断判定は {@link LineCutter} が行い、Split の場合このボックスは
-	 * 前ページ分の行のみを保持するよう変異します。
+	 * Cuts in the page direction at a line boundary (the typed protocol of pillar 2c).
+	 * {@link LineCutter} decides the cut; for Split, mutates this box to retain only the lines
+	 * for the previous page.
 	 *
-	 * @param pageLimit ボックスの外辺から切断線までの距離
-	 * @param flags     IPageBreakableBox.FLAGS_* のビット和
-	 * @return 切断結果
+	 * @param pageLimit distance from the box's outer edge to the cut line
+	 * @param flags     bitwise OR of IPageBreakableBox.FLAGS_*
+	 * @return the cut result
 	 */
 	public final SplitResult split(final double pageLimit, final byte flags) {
 		assert (!this.lines.isEmpty());
-		// FLAGS_LASTは実際の要素に対するもので、仮想的なテキストブロックには適用しない
+		// FLAGS_LAST applies to actual elements, not virtual text blocks.
 
 		final double pageSize = this.getPageExtent(this.params.flow);
 		final double[] lineStarts = new double[this.lines.size()];
@@ -420,12 +414,12 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		case LineCutter.Decision.Move move:
 			return SplitResult.MOVE;
 		case LineCutter.Decision.CutAfter(final int lastLine): {
-			// 切断行以降(widows)を次ページのフラグメントに移す
+			// Move the cut line and subsequent lines (widows) to the next page's fragment.
 			final int firstWidow = lastLine + 1;
 			final double top = ((Line) this.lines.get(firstWidow)).pageAxis;
-			// 再開位置 = 前断片(切断行まで)の末尾文字終端(M6b v3)。
-			// 残余先頭の firstCharOffset は行分割時の Text 分割の丸めで
-			// ずれることがあるため、残った側の終端から導出する
+			// Resume position = the trailing character end of the preceding fragment (through the cut line) (M6b v3).
+			// The remainder's initial firstCharOffset may shift due to rounding when Text is split
+			// during line breaking, so derive it from the retained portion's end.
 			final int resumeOffset = ((Line) this.lines.get(lastLine)).box.lastCharEnd();
 			final BreakToken token = ((Line) this.lines.get(lastLine)).box.isLast()
 					? new BreakToken.MidFlow(resumeOffset)
@@ -440,11 +434,11 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			}
 			assert !this.lines.isEmpty();
 			assert !nextTextBlock.lines.isEmpty();
-			// M3b Phase 2/3a: handoff 内容は破断時点で確定する — 残余の
-			// 正規化イベント列をここで捕捉し、行は捨てる。運搬体は
-			// slice+breakToken だけを運ぶ(切断は live、運搬は不変、
-			// 再開で再構築 — grok 裁定 docs/consult-p3-resplit-grok.txt。
-			// resume 前に残余の行・寸法を読む経路はない)
+			// M3b Phase 2/3a: Finalize handoff content at the break. Capture the remainder's
+			// normalized event sequence here and discard the lines. The carrier transports
+			// only slice+breakToken (live cutting, immutable transport,
+			// reconstruction on resume; grok decision in docs/consult-p3-resplit-grok.txt.
+			// No path reads the remainder's lines or dimensions before resume).
 			final AbstractLineBox firstLine = ((Line) this.lines.get(0)).box;
 			final List<AbstractLineBox> bidiPrefixLines = new ArrayList<>();
 			for (int i = 0; i <= lastLine; ++i) {
@@ -474,32 +468,32 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	/**
-	 * 破断時に捕捉した残余の正規化イベント列です(M3b Phase 2)。
-	 * 分割断片(運搬体)のみ非 null。
+	 * Normalized event sequence of the remainder captured at the break (M3b Phase 2).
+	 * Non-null only for split fragments (carriers).
 	 */
 	private net.zamasoft.foliojet.layout.fragment.TextReplaySlice slice;
 
 	public final void restyle(final BlockBuilder builder) {
-		// sliceを持たない空ブロックは、開始のないINLINE_ENDだけを
-		// 回復的に捨てて確定したもの。再生すべきソースも行もない。
-		// 切断残余は行が空でもsliceを持つため、ここでは吸収されない。
+		// An empty block without a slice was finalized by recovering from and discarding
+		// only an unmatched INLINE_END. It has neither source nor lines to replay.
+		// Split remainders have a slice even with no lines, so they are not absorbed here.
 		if (this.slice == null && this.lines.isEmpty()) {
 			return;
 		}
 		assert this.slice != null || !this.lines.isEmpty();
 		builder.setBreakToken(this.breakToken);
-		// M3b Phase 1/2: 運搬体はスライス。分割断片は破断時に捕捉済み、
-		// それ以外(全 restyle 経路)はここで捕捉する。捕捉→再生は
-		// 構成的に同一の呼び出し列なので挙動不変
+		// M3b Phase 1/2: The carrier is a slice. Split fragments were captured at the break;
+		// capture all others (all restyle paths) here. Capture → replay produces
+		// structurally identical call sequences, so behavior is unchanged.
 		final net.zamasoft.foliojet.layout.fragment.TextReplaySlice slice = this.slice != null ? this.slice
 				: this.recordSlice();
 		slice.replay(new BuilderGlyphHandler(builder));
 	}
 
 	/**
-	 * 残余行の正規化イベント列を捕捉します(M3b Phase 1 / C3)。
-	 * WordHyphenator 相当(unitizer)の出口で捕捉した、restyle が
-	 * BuilderGlyphHandler へ配達するのと同一の列。
+	 * Captures the normalized event sequence of the remaining lines (M3b Phase 1 / C3).
+	 * Captured at the output of the WordHyphenator equivalent (unitizer), this is the same sequence
+	 * that restyle delivers to BuilderGlyphHandler.
 	 */
 	private net.zamasoft.foliojet.layout.fragment.TextReplaySlice recordSlice() {
 		final net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix bidiPrefix = this.lines.isEmpty()

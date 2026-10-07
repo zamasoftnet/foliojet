@@ -16,35 +16,35 @@ import net.zamasoft.pdfg2d.gc.paint.BlendMode;
 import net.zamasoft.pdfg2d.gc.paint.Pattern;
 
 /**
- * 背景です。
+ * Background.
  *
  * <p>
- * 背景色の上に、{@code background-image}のレイヤを重ねる(2026-08-29に
- * 多層化)。レイヤは画像({@link BackgroundImage})かグラデーション
- * ({@link PaintLayer})で、CSSどおり先頭のレイヤが最前面——描画は末尾から。
- * 画像レイヤの繰り返し・位置・寸法は先頭レイヤ(longhand)の値を全画像で
- * 共有する(レイヤごとの{@code background-repeat}等は未対応、記録済み)。
+ * Stacks {@code background-image} layers over the background color (multiple layers added 2026-08-29).
+ * Each layer is an image ({@link BackgroundImage}) or gradient ({@link PaintLayer}); as in CSS, the
+ * first layer is frontmost, so drawing starts at the last. All image layers share the first layer's
+ * longhand values for repetition, position, and size (per-layer {@code background-repeat}, etc.
+ * are unsupported, as documented).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  * @version $Id: Background.java 1635 2023-04-03 08:16:41Z miyabe $
  */
 public class Background {
-	/** 背景のレイヤ(画像かグラデーション)。 */
+	/** Background layer (image or gradient). */
 	public interface Layer {
 	}
 
-	/** グラデーションのレイヤ。塗る領域いっぱいに塗る。 */
+	/** Gradient layer. Fills the entire painting area. */
 	public record PaintLayer(PaintValue paint) implements Layer {
 	}
 
 	/**
-	 * 背景色です。nullの場合は背景を塗りません。
+	 * Background color. null means no background fill.
 	 */
 	private final PaintValue backgroundPaint;
 
 	/**
-	 * 背景のレイヤです(先頭が最前面)。nullの場合はレイヤを描きません。
+	 * Background layers (first is frontmost). null means no layers are drawn.
 	 */
 	private final Layer[] layers;
 
@@ -57,18 +57,18 @@ public class Background {
 	public static final byte TEXT = 4;
 
 	/**
-	 * 背景の切り取り方法。
+	 * Background clipping mode.
 	 */
 	private final byte backgroundClip;
 
-	/** 背景画像の配置基準。値がレイヤ数より少ない場合は循環させる。 */
+	/** Positioning reference for background images. Cycles the values if there are fewer than the layers. */
 	private final byte[] backgroundOrigins;
 
-	/** 背景レイヤの合成モード。値がレイヤ数より少ない場合は循環させる。 */
+	/** Background-layer blend modes. Cycles the values if there are fewer than the layers. */
 	private final BlendMode[] backgroundBlendModes;
 
 	/**
-	 * 無地の背景です。
+	 * Plain background.
 	 */
 	public static final Background NULL_BACKGROUND = new Background(null, null, BORDER_BOX,
 			new byte[] { PADDING_BOX }, new BlendMode[] { BlendMode.NORMAL });
@@ -121,7 +121,7 @@ public class Background {
 	}
 
 	/**
-	 * 背景色を返します。
+	 * Returns the background color.
 	 *
 	 * @return
 	 */
@@ -129,14 +129,14 @@ public class Background {
 		return this.backgroundPaint;
 	}
 
-	/** 背景のレイヤ(先頭が最前面)。無ければnull。 */
+	/** Background layers (first is frontmost). null if absent. */
 	public Layer[] getLayers() {
 		return this.layers;
 	}
 
 	/**
-	 * 表示リストのダンプ用に、グラデーションのレイヤを要約します。
-	 * グラデーションが無ければ空文字列(既存goldenを変えない)。
+	 * Summarizes gradient layers for display-list dumps.
+	 * An empty string if there are no gradients (preserves existing golden data).
 	 */
 	public String describeGradients() {
 		if (this.layers == null) {
@@ -152,7 +152,7 @@ public class Background {
 	}
 
 	/**
-	 * 背景の切り抜き方法を返します。
+	 * Returns the background clipping mode.
 	 *
 	 * @return
 	 */
@@ -160,18 +160,18 @@ public class Background {
 		return this.backgroundClip;
 	}
 
-	/** 指定レイヤの背景画像配置基準を返します。 */
+	/** Returns the background-image positioning reference for the specified layer. */
 	public byte getBackgroundOrigin(int layer) {
 		return this.backgroundOrigins[layer % this.backgroundOrigins.length];
 	}
 
-	/** 指定レイヤの合成モードをCSSのリスト繰り返し規則で返します。 */
+	/** Returns the specified layer's blend mode using CSS list-repetition rules. */
 	public BlendMode getBackgroundBlendMode(int layer) {
 		return this.backgroundBlendModes[layer % this.backgroundBlendModes.length];
 	}
 
 	/**
-	 * 背景を描画します。
+	 * Draws the background.
 	 *
 	 * @param gc
 	 * @param x
@@ -238,16 +238,16 @@ public class Background {
 							 *//* Android end */
 		try (final var gcState = gc.begin()) {
 			if (this.backgroundPaint != null) {
-				// 背景色。fill paintは自分のスコープで閉じる——アルファ付きの
-				// 背景色(rgba)を外のスコープへ残すと、続く背景画像が
-				// そのアルファのまま描かれる(α=0で画像が丸ごと不可視に
-				// なったasahi.comの動画サムネイル、2026-08-27)
+				// Background color. Keep fill paint in its own scope: leaving an alpha-bearing
+				// background color (rgba) in the outer scope causes the following background image
+				// to use that alpha (α=0 made the entire image invisible in asahi.com video
+				// thumbnails, 2026-08-27).
 				try (final var colorState = gc.begin()) {
 					this.backgroundPaint.fill(gc, shape, shape.getBounds2D());
 				}
 			}
 			if (this.layers != null) {
-				// 先頭のレイヤが最前面なので末尾から描く
+				// The first layer is frontmost, so draw from the last.
 				for (int i = this.layers.length - 1; i >= 0; --i) {
 					final Layer layer = this.layers[i];
 					try (final var layerState = gc.begin()) {
@@ -279,7 +279,7 @@ public class Background {
 			double width, double height, double pbLeft, double pbTop, double pbRight, double pbBottom, double ppLeft,
 			double ppTop, double ppRight, double ppBottom, byte backgroundOrigin)
 			throws GraphicsException {
-		// 背景画像描画
+		// Draw the background image.
 		final double originX;
 		final double originY;
 		final double originWidth;
@@ -307,12 +307,12 @@ public class Background {
 			throw new IllegalStateException(Byte.toString(backgroundOrigin));
 		}
 
-		// サイズ
+		// Size
 		double imageWidth = 0, imageHeight = 0;
 		if (backgroundImage.fit != BackgroundFit.NONE) {
-			// background-size: contain/cover(2026-08-06)。箱の実寸が
-			// 分かるここで初めて縦横比を比較して実寸を決める
-			// (BackgroundFit/BackgroundSize.getFitのコメント参照)
+			// background-size: contain/cover (2026-08-06). Only here, where the box's actual
+			// size is known, compare aspect ratios and determine the actual image size
+			// (see comments in BackgroundFit/BackgroundSize.getFit).
 			double natW = backgroundImage.image.getWidth();
 			double natH = backgroundImage.image.getHeight();
 			if (natW > 0 && natH > 0) {
@@ -358,9 +358,9 @@ public class Background {
 			}
 		}
 
-		// 画像固有サイズのゼロも弾く: 0のままスケール計算(265-266行)に
-		// 進むとInfinity倍率のPattern生成(BufferedImage)が
-		// "Width (0) and height (0) cannot be <= 0"で変換ごと中断する
+		// Also reject zero intrinsic image sizes: proceeding to scale calculation (lines 265-266)
+		// with zero creates a Pattern (BufferedImage) with an Infinity scale and aborts the entire
+		// conversion with "Width (0) and height (0) cannot be <= 0".
 		if (!(imageWidth > 0 && imageHeight > 0 && backgroundImage.image.getWidth() > 0
 				&& backgroundImage.image.getHeight() > 0)) {
 			return;
@@ -368,12 +368,12 @@ public class Background {
 		double offX = originX;
 		double offY = originY;
 		if (backgroundImage.attachment == BackgroundImage.ATTACHMENT_FIXED) {
-			// 固定位置
+			// Fixed position
 			offX -= x;
 			offY -= y;
 		}
 
-		// 位置
+		// Position
 		Offset pos = backgroundImage.position;
 		switch (pos.getXType()) {
 		case ABSOLUTE:
@@ -383,8 +383,8 @@ public class Background {
 			offX += pos.getX() * (originWidth - imageWidth);
 			break;
 		case MIXED:
-			// calc(100% - 10px)や4値構文(right 10px)の位置(2026-08-29)。
-			// 従来はここで例外になり変換全体が失敗していた
+			// Positions using calc(100% - 10px) or four-value syntax (right 10px) (2026-08-29).
+			// Previously, an exception here failed the entire conversion.
 			offX += pos.getX() + pos.getXRatio() * (originWidth - imageWidth);
 			break;
 		case AUTO:
@@ -421,11 +421,11 @@ public class Background {
 			image = backgroundImage.image;
 		}
 
-		// 描画
+		// Draw
 		gc.clip(shape);
 		switch (backgroundImage.repeat) {
 		case BackgroundImage.REPEAT_NO: {
-			// 繰り返しなし
+			// No repeat
 			double tx = offX;
 			double ty = offY;
 			AffineTransform at = new AffineTransform(sx, 0, 0, sy, tx, ty);
@@ -437,7 +437,7 @@ public class Background {
 			break;
 
 		case BackgroundImage.REPEAT_X: {
-			// 横方法繰り返し
+			// Horizontal repeat
 			try (final var gcState2 = gc.begin()) {
 				double tx = offX % imageWidth;
 				double ty = offY;
@@ -453,7 +453,7 @@ public class Background {
 			break;
 
 		case BackgroundImage.REPEAT_Y: {
-			// 縦方向繰り返し
+			// Vertical repeat
 			try (final var gcState2 = gc.begin()) {
 				double tx = offX;
 				double ty = offY % imageHeight;
@@ -469,7 +469,7 @@ public class Background {
 			break;
 
 		case BackgroundImage.REPEAT: {
-			// タイリング
+			// Tiling
 			try (final var gcState2 = gc.begin()) {
 				double tx = offX % imageWidth;
 				double ty = offY % imageHeight;
@@ -490,7 +490,7 @@ public class Background {
 	}
 
 	/**
-	 * 背景が可視であればtrueを返します。
+	 * Returns true if the background is visible.
 	 *
 	 * @return
 	 */

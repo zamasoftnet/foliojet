@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 
-/** {@code text-orientation: mixed | upright | sideways}。継承プロパティ。 */
+/** {@code text-orientation: mixed | upright | sideways}. Inherited property. */
 public class TextOrientation extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new TextOrientation();
 

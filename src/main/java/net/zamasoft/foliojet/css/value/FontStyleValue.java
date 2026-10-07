@@ -19,8 +19,8 @@ public enum FontStyleValue implements Value {
 	}
 
 	/**
-	 * スタイルコードを返します。
-	 * 
+	 * Returns the style code.
+	 *
 	 * @return
 	 */
 	public Style getFontStyle() {

@@ -5,77 +5,77 @@ import java.util.List;
 import net.zamasoft.foliojet.css.value.GridTrackListValue;
 
 /**
- * Gridコンテナのパラメータです(Grid G0、2026-07-31——
- * consult-codex-2026-07-31-grid.txt §3.1。{@code TableParams}と同型の
- * {@code BlockParams}拡張)。トラックはcomputed済み
- * ({@link GridTrackListValue.TrackSize}=Fixed(絶対長)/Auto/Fr)。
+ * Grid container parameters (Grid G0, 2026-07-31;
+ * consult-codex-2026-07-31-grid.txt §3.1. A {@code BlockParams} extension analogous to
+ * {@code TableParams}). Tracks are already computed
+ * ({@link GridTrackListValue.TrackSize} = Fixed (absolute length)/Auto/Fr).
  *
  * @author MIYABE Tatsuhiko
  */
 public class GridParams extends BlockParams {
 
-	/** 明示列トラック(空=implicit 1列auto)。 */
+	/** Explicit column tracks (empty = one implicit auto column). */
 	public List<GridTrackListValue.TrackSize> templateColumns = List.of();
 
-	/** 明示行トラック(空=全行implicit auto)。 */
+	/** Explicit row tracks (empty = all rows implicit auto). */
 	public List<GridTrackListValue.TrackSize> templateRows = List.of();
 
-	/** 明示列の線名(templateColumns.size()+1要素。2026-08-29)。 */
+	/** Explicit column line names (templateColumns.size()+1 entries; 2026-08-29). */
 	public List<List<String>> columnLineNames = List.of(List.of());
 
-	/** 明示行の線名(templateRows.size()+1要素。2026-08-29)。 */
+	/** Explicit row line names (templateRows.size()+1 entries; 2026-08-29). */
 	public List<List<String>> rowLineNames = List.of(List.of());
 
-	/** {@code grid-template-areas}(2026-08-29。noneはNONE_VALUE)。 */
+	/** {@code grid-template-areas} (2026-08-29; none is NONE_VALUE). */
 	public net.zamasoft.foliojet.css.value.GridTemplateAreasValue templateAreas = net.zamasoft.foliojet.css.value.GridTemplateAreasValue.NONE_VALUE;
 
-	/** {@code grid-auto-columns}(2026-08-29。空=auto)。 */
+	/** {@code grid-auto-columns} (2026-08-29; empty = auto). */
 	public List<GridTrackListValue.TrackSize> autoColumns = List.of();
 
-	/** {@code grid-auto-rows}(2026-08-29。空=auto)。 */
+	/** {@code grid-auto-rows} (2026-08-29; empty = auto). */
 	public List<GridTrackListValue.TrackSize> autoRows = List.of();
 
-	/** {@code grid-auto-flow}が{@code column}か(2026-08-29)。 */
+	/** Whether {@code grid-auto-flow} is {@code column} (2026-08-29). */
 	public boolean autoFlowColumn = false;
 
-	/** {@code grid-auto-flow}に{@code dense}があるか(2026-08-29)。 */
+	/** Whether {@code grid-auto-flow} includes {@code dense} (2026-08-29). */
 	public boolean autoFlowDense = false;
 
 	/**
-	 * {@code grid-template-columns: subgrid}か(css-grid-2、2026-08-29)。
-	 * trueのとき{@link #templateColumns}は空で、{@link #columnLineNames}は
-	 * {@code subgrid [a] [b] ...}の線名列(要素数は任意)。親の跨ぐトラックを
-	 * bind時に継ぐ({@code GridBuilder.bind})。
+	 * Whether {@code grid-template-columns: subgrid} applies (css-grid-2, 2026-08-29).
+	 * When true, {@link #templateColumns} is empty and {@link #columnLineNames} is the line-name sequence
+	 * in {@code subgrid [a] [b] ...} (any number of entries). Inherits the spanned parent tracks
+	 * at bind time ({@code GridBuilder.bind}).
 	 */
 	public boolean columnsSubgrid = false;
 
 	/**
-	 * {@code grid-template-rows: subgrid}か(2026-08-29/09-03)。子孫の寄与を
-	 * 親へ渡し、親の行解決後に行幾何を継ぐ({@code GridBuilder}のjavadoc)。
+	 * Whether {@code grid-template-rows: subgrid} applies (2026-08-29/09-03). Passes descendant contributions
+	 * to the parent and inherits row geometry after the parent resolves its rows ({@code GridBuilder} Javadoc).
 	 */
 	public boolean rowsSubgrid = false;
 
-	/** 行間隔(絶対長)。 */
+	/** Row gap (absolute length). */
 	public double rowGap = 0;
 
-	/** {@code row-gap}が{@code normal}または未指定か(2026-09-03)。 */
+	/** Whether {@code row-gap} is {@code normal} or unspecified (2026-09-03). */
 	public boolean rowGapNormal = true;
 
-	/** 列間隔(絶対長。columnGapのnormalはGridでは0)。 */
+	/** Column gap (absolute length; normal for columnGap is 0 in Grid). */
 	public double columnGap = 0;
 
-	/** {@code column-gap}が{@code normal}または未指定か(2026-09-03)。 */
+	/** Whether {@code column-gap} is {@code normal} or unspecified (2026-09-03). */
 	public boolean columnGapNormal = true;
 
-	/** itemの行方向既定配置(G5a。normalはGridではstretch)。 */
+	/** Default item alignment in the line direction (G5a; normal is stretch in Grid). */
 	public BoxAlignment justifyItems = BoxAlignment.NORMAL;
 
-	/** itemのページ方向既定配置(G5a)。 */
+	/** Default item alignment in the page direction (G5a). */
 	public BoxAlignment alignItems = BoxAlignment.NORMAL;
 
-	/** トラック群の行方向配置(G5a)。 */
+	/** Track-group alignment in the line direction (G5a). */
 	public BoxAlignment justifyContent = BoxAlignment.NORMAL;
 
-	/** 行群のページ方向配置(G5a。明示高Gridで意味を持つ)。 */
+	/** Row-group alignment in the page direction (G5a; meaningful for Grids with explicit height). */
 	public BoxAlignment alignContent = BoxAlignment.NORMAL;
 }

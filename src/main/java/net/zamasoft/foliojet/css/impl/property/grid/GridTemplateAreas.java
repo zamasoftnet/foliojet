@@ -16,12 +16,13 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code grid-template-areas}です(css-grid-1 §7.3、2026-08-29——
- * 50サイト掃過で170回/8サイト)。{@code none | <string>+}。各文字列は
- * 空白区切りのセルで、名前か{@code .}(連続する{@code .}も1個の空セル)。
- * 全行の列数が等しく、同名セルが矩形をなすことを検証する(不正は
- * 宣言無効=仕様どおり)。名前は{@code name-start}/{@code name-end}の
- * 暗黙線名としてレイアウト側({@code GridLineNameResolver})が使う。
+ * {@code grid-template-areas} (css-grid-1 §7.3, 2026-08-29:
+ * 170 occurrences on 8 sites in a 50-site sweep). {@code none | <string>+}.
+ * Each string contains space-separated cells: names or {@code .}
+ * (consecutive {@code .} also form one empty cell).
+ * Validates equal column counts in every row and rectangular areas for identical names
+ * (invalid input invalidates the declaration, as specified). Layout
+ * ({@code GridLineNameResolver}) uses names as implicit {@code name-start}/{@code name-end} line names.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -90,7 +91,7 @@ public class GridTemplateAreas extends AbstractPrimitivePropertyInfo {
 				}
 			}
 		}
-		// 矩形性: 各領域のbounds内が全てその名前で埋まっていること
+		// Rectangularity: every cell within an area's bounds must have that name.
 		final List<GridTemplateAreasValue.Area> areas = new ArrayList<>(bounds.size());
 		for (final Map.Entry<String, int[]> e : bounds.entrySet()) {
 			final int[] b = e.getValue();
@@ -106,7 +107,7 @@ public class GridTemplateAreas extends AbstractPrimitivePropertyInfo {
 		return GridTemplateAreasValue.create(areas, rows.size(), columnCount);
 	}
 
-	/** 1行の文字列をセルへ分割します(空セル{@code .}+はnull)。 */
+	/** Splits one row string into cells (empty cells {@code .}+ become null). */
 	private static String[] splitCells(final String text) throws PropertyException {
 		final List<String> cells = new ArrayList<>();
 		final int n = text.length();
@@ -123,7 +124,7 @@ public class GridTemplateAreas extends AbstractPrimitivePropertyInfo {
 					++i;
 				}
 				if (i < n && !Character.isWhitespace(text.charAt(i))) {
-					throw new PropertyException(); // ".a"のような混在
+					throw new PropertyException(); // A mixture such as ".a".
 				}
 				cells.add(null);
 				continue;

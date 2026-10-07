@@ -13,10 +13,10 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
- * {@code text-decoration-line}です。2026-08-29までは{@code text-decoration}
- * (線種だけを受ける旧CSS2の形)だった——短縮形は
- * {@code TextDecorationShorthand}へ分離し、こちらは線種の個別指定になった
- * (レイアウトが読むのは従来どおりこのフラグ)。
+ * {@code text-decoration-line}. Until 2026-08-29, this was {@code text-decoration}
+ * (the old CSS2 form accepting only line types). The shorthand was separated into
+ * {@code TextDecorationShorthand}, making this the individual line-type property
+ * (layout still reads this flag as before).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -28,7 +28,7 @@ public class TextDecoration extends AbstractPrimitivePropertyInfo {
 		return value.getFlags();
 	}
 
-	/** 線種キーワード(小文字)のフラグ。該当しなければ0。 */
+	/** Flag for a line-type keyword (lowercase). 0 if it does not match. */
 	public static byte flagOf(final String ident) {
 		switch (ident) {
 		case "underline":

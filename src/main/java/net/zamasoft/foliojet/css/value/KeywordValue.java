@@ -1,8 +1,6 @@
 package net.zamasoft.foliojet.css.value;
 
-/**
- * 単独のキーワードを表す値です。
- */
+/** A value representing a single keyword. */
 public enum KeywordValue implements Value {
 	AUTO("auto"),
 
@@ -20,15 +18,15 @@ public enum KeywordValue implements Value {
 
 	UNSET("unset"),
 
-	/** background-sizeのキーワード形式(2026-08-06、BackgroundSize参照)。 */
+	/** The keyword form of background-size (2026-08-06, see BackgroundSize). */
 	CONTAIN("contain"),
 
 	COVER("cover"),
 
 	/**
-	 * 固有寸法キーワード(css-sizing-3 §2.2、2026-08-29)。width/height/
-	 * min-/max-系(と論理版)が受け付ける。引数付きの
-	 * {@code fit-content(<length-percentage>)}は{@link FitContentValue}。
+	 * Intrinsic size keywords (css-sizing-3 §2.2, 2026-08-29). Accepted by width/height,
+	 * the min-/max- variants, and their logical counterparts.
+	 * The form with an argument, {@code fit-content(<length-percentage>)}, is {@link FitContentValue}.
 	 */
 	MAX_CONTENT("max-content"),
 
@@ -36,12 +34,12 @@ public enum KeywordValue implements Value {
 
 	FIT_CONTENT("fit-content"),
 
-	/** image-orientationの初期値(css-images-3、2026-08-30)。 */
+	/** The initial value of image-orientation (css-images-3, 2026-08-30). */
 	FROM_IMAGE("from-image"),
 
 	/**
-	 * mask-imageのグラデーション近似の内部マーカー(2026-08-09、MaskImage参照)。
-	 * CSSのキーワードではない。
+	 * Internal marker for the gradient approximation of mask-image (2026-08-09, see MaskImage).
+	 * This is not a CSS keyword.
 	 */
 	CLIP("clip");
 

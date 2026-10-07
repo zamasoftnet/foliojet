@@ -4,43 +4,43 @@ import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
 /**
- * 構築中のセル内容です(P2-2: §5.2b 表ビルダー統一の共通 model 第一片。
- * OnePass/TwoPass 両ビルダーの同名内部クラスの統合 — 差は colspan を
- * 引数で受けるか pos から読むかのコンストラクタだけだった)。
+ * Cell content under construction (P2-2: the first part of the shared model for table builder
+ * unification in §5.2b. Unifies the identically named inner classes of the OnePass/TwoPass
+ * builders; they differed only in whether the constructor took colspan or read it from pos).
  *
  * <p>
- * 実体は次の4態のどれか(E-6増分5a、2026-07-24で第3態を追加——
- * 設計相談
- * §4.2/§4.3)。
+ * The content is in one of the following four states (E-6 increment 5a added the third state
+ * on 2026-07-24 — design consultation
+ * §4.2/§4.3).
  * </p>
  * <ol>
- * <li>実測ビルダー({@link TwoPassBlockBuilder}、未確定内容)</li>
- * <li>連結の続き(rowspan の2行目以降 = extended、確定済みセルボックス)</li>
- * <li>seal済み本文({@link TwoPassBlockBuilder.DeferredBind}: IntrinsicSizes数値+
- * SourceRange(+lease)。Retained表のセルclose時に計測器を手放した形)</li>
- * <li>MAIN後の固有寸法({@link IntrinsicSizes}。本文の所有は終了済み)</li>
+ * <li>Measurement builder ({@link TwoPassBlockBuilder}, unresolved content)</li>
+ * <li>Span continuation (second and subsequent rowspan rows = extended, resolved cell box)</li>
+ * <li>Sealed body ({@link TwoPassBlockBuilder.DeferredBind}: IntrinsicSizes values +
+ * SourceRange (+lease). The measurer is released when a Retained table cell closes)</li>
+ * <li>Intrinsic sizes after MAIN ({@link IntrinsicSizes}; body ownership has ended)</li>
  * </ol>
  *
- * <p>セルcloseで確定本文を持ち出す。範囲の所有はMAIN bind・親への吸収・
- * 文書終了時の破棄で終端する。空セルはリースを持たないEmptyとしてsealする。
- * CELL_RANGE_SEALSと各終端カウンタの収支はRangeOnlyInvariantTestで検査する。</p>
+ * <p>Export the finalized body when the cell closes. Range ownership ends on MAIN bind,
+ * absorption into the parent, or disposal at document end. Seal empty cells as Empty without a lease.
+ * RangeOnlyInvariantTest checks that CELL_RANGE_SEALS balances the termination counters.</p>
  */
 class CellContent {
-	/** 根箱は全状態で同じ。状態ごとの根箱+本文のラッパーを割り当てない。 */
+	/** The root box is the same in every state. Do not allocate a root-box/body wrapper for each state. */
 	private final TableCellBox cellBox;
 	private Object cell;
 
 	public final int rowspan, colspan;
 
 	/**
-	 * 実測ビルダーから(colspan は pos から読む)。
+	 * From a measurement builder (read colspan from pos).
 	 */
 	public CellContent(TwoPassBlockBuilder cellBuilder) {
 		this(cellBuilder, ((TableCellBox) cellBuilder.getRootBox()).getTableCellPos().colspan);
 	}
 
 	/**
-	 * 実測ビルダーから(colspan を明示。固定レイアウトの列切り詰め用)。
+	 * From a measurement builder (explicit colspan, for truncating columns in fixed layout).
 	 */
 	public CellContent(TwoPassBlockBuilder cellBuilder, int colspan) {
 		this.cellBox = (TableCellBox) cellBuilder.getRootBox();
@@ -50,7 +50,7 @@ class CellContent {
 	}
 
 	/**
-	 * 連結の続き(確定済みセルボックス)から。
+	 * From a span continuation (resolved cell box).
 	 */
 	public CellContent(TableCellBox cell, int rowspan, int colspan) {
 		assert rowspan >= 1;
@@ -62,13 +62,13 @@ class CellContent {
 	}
 
 	/**
-	 * rowspan で連結されたセルの補完です(P2-2 共有核。両ビルダーの
-	 * 同一アルゴリズムの統合 — 差はリストの出所だけだった)。
-	 * 前行のセル列を参照し、rowspan が続くセルの継続 CellContent を
-	 * 当行へ追加する。
+	 * Fills in cells joined by rowspan (P2-2 shared core. Unifies the identical algorithms
+	 * in both builders; only the source of the lists differed).
+	 * Consult the previous row's cells and add a continuation CellContent to the current
+	 * row for each cell whose rowspan continues.
 	 *
-	 * @param cells      当行のセル列(追記される)
-	 * @param upperCells 前行のセル列
+	 * @param cells      current row's cells (appended to)
+	 * @param upperCells previous row's cells
 	 */
 	static void complementRowspan(final java.util.List<CellContent> cells, final java.util.List<CellContent> upperCells) {
 		while (upperCells.size() > cells.size()) {
@@ -84,8 +84,8 @@ class CellContent {
 	}
 
 	/**
-	 * 行のベースライン(先頭アセントの最大)を求めます(P2-4 共有核。
-	 * 3箇所の同一ループの統合 — 連結の続きは持ち主の行で数える)。
+	 * Computes the row baseline (maximum first ascent) (P2-4 shared core).
+	 * Unifies three identical loops; span continuations count in their owning row.
 	 */
 	static double maxFirstAscent(final java.util.List<CellContent> cells) {
 		double rowAscent = 0;
@@ -103,15 +103,15 @@ class CellContent {
 	}
 
 	/**
-	 * 行高をセルへ適用します(P2-5 (c) 共有核。3箇所の同一処理の統合)。
-	 * 非連結セルごとに連結範囲の行高合計をページ方向寸法として設定し、
-	 * 縦位置合わせを行う。
+	 * Applies row heights to cells (P2-5 (c) shared core; unifies three identical operations).
+	 * For each cell that is not a continuation, set its page-axis size to the sum of the row
+	 * heights in its span, then apply vertical alignment.
 	 *
-	 * @param cells     行のセル列
-	 * @param rowSizes  行高(単位または行グループの窓)
-	 * @param rowIndex  当行の窓内位置
-	 * @param rowAscent 行のベースライン(NaN なら適用済みとして省略)
-	 * @param vertical  縦書きであれば true
+	 * @param cells     row's cells
+	 * @param rowSizes  row heights (unit or row-group window)
+	 * @param rowIndex  current row's position in the window
+	 * @param rowAscent row baseline (NaN means already applied; skip it)
+	 * @param vertical  true for vertical writing
 	 */
 	static void applyCellExtents(final java.util.List<CellContent> cells, final double[] rowSizes, final int rowIndex,
 			final double rowAscent, final boolean vertical) {
@@ -143,17 +143,17 @@ class CellContent {
 	}
 
 	/**
-	 * 実測ビルダーを返します。E-6増分5a以降、Retained表のセルはclose時に
-	 * seal({@link #sealForRangeBind()})されビルダーを手放しうるため、
-	 * Retained側はこれを使わず{@link #getIntrinsicSizes()}/
-	 * {@link #bind(BlockBuilder)}を使うこと(現在の呼び出しは
-	 * 列計測中のIncremental表のみ)。
+	 * Returns the measurement builder. Since E-6 increment 5a, Retained table cells can
+	 * seal ({@link #sealForRangeBind()}) and release the builder on close, so the Retained
+	 * path must use {@link #getIntrinsicSizes()}/
+	 * {@link #bind(BlockBuilder)} instead (current callers are only Incremental tables
+	 * during column measurement).
 	 */
 	public TwoPassBlockBuilder getBuilder() {
 		return (TwoPassBlockBuilder) this.cell;
 	}
 
-	/** セルcloseで確定本文を持ち出し、実測builderを手放す。 */
+	/** Exports the finalized body on cell close and releases the measurement builder. */
 	void sealForRangeBind() {
 		this.sealForRangeBind(false);
 	}
@@ -169,8 +169,9 @@ class CellContent {
 	}
 
 	/**
-	 * 列幅計算・直交セル寸法が読む固有寸法です(既存IntrinsicMeasurerの
-	 * 模倣値。計測器はclose後不変なので、seal時の数値は従来のbind時読みと同値)。
+	 * Intrinsic sizes read by column width calculation and orthogonal cell sizing
+	 * (copies of existing IntrinsicMeasurer values). The measurer is immutable after close,
+	 * so the values at seal time equal those previously read at bind time.
 	 */
 	public net.zamasoft.foliojet.layout.sizing.IntrinsicSizes getIntrinsicSizes() {
 		if (this.cell instanceof IntrinsicSizes sizes) return sizes;
@@ -180,7 +181,7 @@ class CellContent {
 		return this.getBuilder().getIntrinsicSizes();
 	}
 
-	/** 確定本文を配置する。未確定のままの配置は契約違反。 */
+	/** Lays out the finalized body. Laying it out while unresolved violates the contract. */
 	public void bind(final BlockBuilder cellBindBuilder) {
 		if (this.cell instanceof IntrinsicSizes) throw new IllegalStateException("消費済みセル本文のbind");
 		if (!(this.cell instanceof TwoPassBlockBuilder.DeferredBind body)) {
@@ -194,23 +195,23 @@ class CellContent {
 	}
 
 	/**
-	 * seal済み本文のDeferredBindを返します(E-6増分5b-1、表Pass B計測
-	 * プリミティブ{@link CellPassBMeasurer}用)。未seal(計測中)・
-	 * extendedはnull(Pass B対象外)。
+	 * Returns the DeferredBind of the sealed body (E-6 increment 5b-1, for the table Pass B
+	 * measurement primitive {@link CellPassBMeasurer}). Returns null for unsealed
+	 * (still measuring) and extended cells (outside Pass B).
 	 */
 	TwoPassBlockBuilder.DeferredBind rangeBody() {
 		return this.cell instanceof TwoPassBlockBuilder.DeferredBind body && body.handle() != null ? body : null;
 	}
 
 	/**
-	 * 親range化への吸収です(表吸収=codex増分5のコミット相、2026-07-30)。
-	 * seal済みのセルだけを処理する——DeferredBindのリースを
-	 * 解放し、セル側のSUBSUMED収支を計上した上で、実セル参照だけの保持
-	 * (extended相当。bind経路は{@code isExtended}スキップで到達しない)へ
-	 * 落とす。未seal(計測中)のセルビルダーは検証相
-	 * ({@code TwoPassBlockBuilder.collectAbsorbableSelf})が吸収一覧へ
-	 * 直接列挙し、コミット相が{@code subsumeIntoParentRange}するため
-	 * ここではno-op。extendedも実セル側が処理するためno-op。
+	 * Absorbs the cell into the parent's range representation (table absorption = commit phase
+	 * of codex increment 5, 2026-07-30). Process only sealed cells: release the DeferredBind
+	 * lease, account for the cell's SUBSUMED termination, and reduce retained state to the
+	 * actual cell reference (equivalent to extended; the bind path skips it via {@code isExtended}).
+	 * For unsealed (still measuring) cell builders, the validation phase
+	 * ({@code TwoPassBlockBuilder.collectAbsorbableSelf}) lists them directly for absorption,
+	 * and the commit phase calls {@code subsumeIntoParentRange}, so this is a no-op here.
+	 * Extended cells are also a no-op because the actual cell handles them.
 	 */
 	void abandonForParentRange() {
 		if (this.cell instanceof TwoPassBlockBuilder.DeferredBind body) {
@@ -220,22 +221,22 @@ class CellContent {
 	}
 
 	/**
-	 * 表吸収の検証相(副作用なし)がseal済みセルの範囲包含を検査するための
-	 * 読み取りです(codex増分5)。seal済み本文でなければnull。
+	 * Read access for the table absorption validation phase (no side effects) to check range
+	 * containment of sealed cells (codex increment 5). Returns null unless the body is sealed.
 	 */
 	TwoPassBlockBuilder.DeferredBind sealedBodyOrNull() {
 		return this.cell instanceof TwoPassBlockBuilder.DeferredBind body ? body : null;
 	}
 
 	/**
-	 * 未seal(計測中)のセルビルダーを返します(表吸収の検証相用。
-	 * seal済み・extendedはnull)。
+	 * Returns the unsealed (still measuring) cell builder (for table absorption validation).
+	 * Returns null for sealed and extended cells.
 	 */
 	TwoPassBlockBuilder unsealedBuilderOrNull() {
 		return this.cell instanceof TwoPassBlockBuilder builder ? builder : null;
 	}
 
-	/** 範囲本文・空本文だけをscratch計測できる。 */
+	/** Only range bodies and empty bodies support scratch measurement. */
 	boolean isPassBMeasurable() {
 		return this.cell instanceof TwoPassBlockBuilder.DeferredBind body
 				&& (body.handle() != null || body.isEmpty())

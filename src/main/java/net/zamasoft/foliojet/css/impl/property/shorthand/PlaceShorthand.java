@@ -13,11 +13,11 @@ import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * {@code place-items} / {@code place-self} / {@code place-content}
- * ショートハンドです(2026-08-09)。{@code <align> [<justify>]}——
- * 1値なら両方に適用(CSS Box Alignment §6.4)。受理できる
- * キーワードは各longhand({@link GridAlignmentProperty})のサブセットに
- * 従う。NHKニュースのナビのボタンが{@code place-items:center}で
- * アイコンを中央寄せしており、未対応だと左上に寄っていた。
+ * shorthands (2026-08-09). {@code <align> [<justify>]};
+ * one value applies to both (CSS Box Alignment §6.4). Accepted keywords follow
+ * each longhand's subset ({@link GridAlignmentProperty}).
+ * NHK News navigation buttons use {@code place-items:center} to center icons;
+ * without support, they sat at the top-left.
  *
  * @author MIYABE Tatsuhiko
  */

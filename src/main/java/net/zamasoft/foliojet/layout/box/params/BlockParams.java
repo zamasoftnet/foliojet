@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * ブロックボックスのパラメータです。
+ * Block box parameters.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: BlockParams.java 1552 2018-04-26 01:43:24Z miyabe $
@@ -24,10 +24,9 @@ public class BlockParams extends AbstractLineParams {
 	public Dimension maxSize = Dimension.AUTO_DIMENSION;
 
 	/**
-	 * 行方向のwidth/min-width/max-width(縦書きはheight系)に書かれた
-	 * 固有寸法キーワード(2026-08-29)。無ければnull。あるとき対応する
-	 * {@code size}/{@code minSize}/{@code maxSize}の行方向はAUTO
-	 * ({@link IntrinsicSize}参照)。
+	 * Intrinsic size keywords specified for line-direction width/min-width/max-width (height properties
+	 * in vertical writing) (2026-08-29). null if absent. When present, the corresponding line-direction
+	 * value in {@code size}/{@code minSize}/{@code maxSize} is AUTO (see {@link IntrinsicSize}).
 	 */
 	public IntrinsicSize intrinsicLine = null;
 
@@ -43,61 +42,58 @@ public class BlockParams extends AbstractLineParams {
 	public static final byte TEXT_OVERFLOW_ELLIPSIS = 1;
 
 	/**
-	 * {@code text-overflow}(css-overflow-3、2026-08-29)。overflowが
-	 * visible以外のときだけ意味を持つ(TextBuilder.applyTextOverflow)。
+	 * {@code text-overflow} (css-overflow-3, 2026-08-29). Meaningful only when overflow is not visible
+	 * (TextBuilder.applyTextOverflow).
 	 */
 	public byte textOverflow = TEXT_OVERFLOW_CLIP;
 
 	/**
-	 * {@code line-clamp}/{@code -webkit-line-clamp}の行数(0=none。
-	 * 2026-08-29)。このブロックのインライン内容(入れ子のブロックの行も
-	 * 含む)をN行で打ち切り、後続があればN行目の末尾を省略記号で切る
-	 * ({@code TextBuilder}と{@code LineClampState})。{@code maxSize}の
-	 * N×line-heightと{@code overflow:hidden}は保険として残す。
+	 * Line count for {@code line-clamp}/{@code -webkit-line-clamp} (0 = none; 2026-08-29).
+	 * Truncates this block's inline content (including lines in nested blocks) at N lines; if more content
+	 * follows, truncates line N with an ellipsis ({@code TextBuilder} and {@code LineClampState}).
+	 * Keeps N×line-height in {@code maxSize} and {@code overflow:hidden} as safeguards.
 	 */
 	public int lineClamp = 0;
 
 	/**
-	 * {@code display: flow-root}(2026-08-29)。overflow:hiddenと同じく
-	 * 独立BFCを作り、内側のfloatを親の排除域へ漏らさず、auto高さは
-	 * 内側のfloatの下端まで伸びる。描画クリップは掛けない。
+	 * {@code display: flow-root} (2026-08-29). Like overflow:hidden, creates an independent BFC,
+	 * prevents inner floats from leaking into the parent's exclusion area, and extends auto height
+	 * to the bottom of inner floats. Does not apply a drawing clip.
 	 */
 	public boolean flowRoot = false;
 
 	/**
-	 * {@code aspect-ratio}の幅/高さ(0=指定なし。2026-08-29)。非置換
-	 * ボックスでは{@code auto}併記に意味が無いため比率だけを持つ。
-	 * 適用は{@code FlowBlockBox.calculateSize}/
-	 * {@code AbstractStaticBlockBox.shrinkToFit}。
+	 * Width/height ratio for {@code aspect-ratio} (0 = unspecified; 2026-08-29). For non-replaced boxes,
+	 * adding {@code auto} has no meaning, so only the ratio is stored.
+	 * Applied by {@code FlowBlockBox.calculateSize}/{@code AbstractStaticBlockBox.shrinkToFit}.
 	 */
 	public double aspectRatio = 0;
 
 	/**
-	 * 通常ブロックコンテナの内容全体をブロック軸に配置する
-	 * {@code align-content} (CSS Box Alignment Level 3 §5.1.1)。
-	 * Flex/Grid は各レイアウト固有の同名フィールドを使う。
+	 * {@code align-content} places all content of a normal block container along the block axis
+	 * (CSS Box Alignment Level 3 §5.1.1).
+	 * Flex/Grid use the same-named fields specific to their respective layouts.
 	 */
 	public BoxAlignment blockAlignContent = BoxAlignment.NORMAL;
 
 	/**
-	 * mask-imageのグラデーション近似によるペイントクリップ(MaskImage参照)。
-	 * overflow: hiddenと同じ描画クリップだけを適用し、レイアウトには影響しない。
+	 * Paint clip from the gradient approximation of mask-image (see MaskImage).
+	 * Applies only the same drawing clip as overflow: hidden, without affecting layout.
 	 */
 	public boolean paintClip = false;
 
-	/** {@code clip-path}の形状(なければnull。2026-08-22)。 */
+	/** {@code clip-path} shape (null if absent; 2026-08-22). */
 	public ClipPathShape clipPath = null;
 
 	/**
-	 * 箱の外へ溢れた中身を描かないかを返します(2026-10-02)。
+	 * Returns whether content overflowing the box is excluded from drawing (2026-10-02).
 	 *
 	 * <p>
-	 * {@code overflow}のクリップ・{@link #paintClip}・{@code clip-path}のどれか
-	 * があれば、溢れを「描かれるもの」として測りません(ページ分割の測度用)。
-	 * {@code clip-path}は参照ボックスの外へ広がる形も書けますが、ここでは箱で
-	 * 切れるものとして扱います——分割すると断片が自身の参照ボックスで切り抜き
-	 * 直すので({@link ClipPathShape})、溢れを数えて切ると隠れていた中身が
-	 * 次の断片に現れます。
+	 * If any of {@code overflow} clipping, {@link #paintClip}, or {@code clip-path} applies, overflow
+	 * is not measured as painted content (for page-splitting metrics). Although {@code clip-path} can
+	 * specify shapes extending outside the reference box, it is treated here as clipping at the box:
+	 * after splitting, each fragment clips again using its own reference box ({@link ClipPathShape}),
+	 * so counting overflow when cutting would reveal previously hidden content in the next fragment.
 	 * </p>
 	 */
 	public boolean clipsOverflowPaint() {
@@ -107,9 +103,9 @@ public class BlockParams extends AbstractLineParams {
 	public Columns columns = Columns.NONE_COLUMNS;
 
 	/**
-	 * 行方向の寸法決定に内容の実測(固有寸法)が要るかどうか(2026-08-29)。
-	 * 通常フローのブロックでtrueなら、浮動体と同じ2パス経路
-	 * (TwoPassBlockBuilder → shrinkToFit)へ回す。
+	 * Whether line-direction sizing requires measuring content (intrinsic size) (2026-08-29).
+	 * If true for a normal-flow block, routes it through the same two-pass path as floats
+	 * (TwoPassBlockBuilder → shrinkToFit).
 	 */
 	public boolean hasIntrinsicLine() {
 		return this.intrinsicLine != null || this.intrinsicMinLine != null || this.intrinsicMaxLine != null;

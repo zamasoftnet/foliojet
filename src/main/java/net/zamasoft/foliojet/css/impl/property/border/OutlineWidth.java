@@ -17,8 +17,8 @@ import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * outline-width 特性です(CSS UI 3 §4、2026-08-29)。値は
- * {@code <line-width>}(border-widthと同じ。thin/medium/thick可)。
+ * outline-width property (CSS UI 3 §4, 2026-08-29). Values are
+ * {@code <line-width>} (same as border-width; thin/medium/thick are allowed).
  *
  * @author MIYABE Tatsuhiko
  */

@@ -16,9 +16,9 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code row-gap}です(Grid G0)。固定長のみ({@code normal}=0)。
- * 列間隔は既存の{@code column-gap}(multicolと共用——Gridでのnormalの
- * 解決0はBoxStyleMapper側)を使う。
+ * {@code row-gap} (Grid G0). Fixed lengths only ({@code normal}=0).
+ * Column spacing uses the existing {@code column-gap} (shared with multicol;
+ * BoxStyleMapper resolves normal to 0 for Grid).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -33,7 +33,7 @@ public class RowGap extends AbstractPrimitivePropertyInfo {
 		return ((AbsoluteLengthValue) value).getLength();
 	}
 
-	/** computed valueが{@code normal}か。使用値0とは区別して保持する。 */
+	/** Whether the computed value is {@code normal}. Retain it separately from the used value 0. */
 	public static boolean isNormal(final CSSStyle style) {
 		return style.get(INFO) == KeywordValue.NORMAL;
 	}

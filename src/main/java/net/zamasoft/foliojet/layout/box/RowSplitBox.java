@@ -1,42 +1,41 @@
 package net.zamasoft.foliojet.layout.box;
 
 /**
- * {@link PageAtomicBox}のうち、行境界の帳簿を持つときに限り自身の
- * {@code split}で行単位のページ分割(テーブル行の契約と同型)を行う
- * ボックスの印です(2026-08-10、grid行分割の導入でflex専用判定から
- * 一般化)。
+ * Marks a {@link PageAtomicBox} whose own {@code split} performs pagination by row
+ * (with the same contract as table rows) only when it has a row-boundary ledger.
+ * Generalized from a flex-only check when grid row splitting was introduced on 2026-08-10.
  *
  * <p>
- * {@code PaginationContract.splitsInPageAxis}だけがこの印を見て
- * PageAtomicBoxの「常にatomic」を上書きする。
- * {@code isChainAtomicBoundary}側は上書きしない——チェーン継続の
- * {@code BreakPlan}がメンバーとして選ぶと、{@code split}を直接呼ぶ
- * 経路ではなくソース再生ベースの汎用継続へ迂回し、行の強制分割で
- * 作った継続itemの位置が壊れる(2026-08-07に実測)。この非対称は
- * テーブルと同じ理由の意図的なもの。
+ * Only {@code PaginationContract.splitsInPageAxis} checks this marker to override
+ * PageAtomicBox's "always atomic" behavior.
+ * It does not override {@code isChainAtomicBoundary}: if the chain continuation
+ * {@code BreakPlan} selects it as a member, processing detours from directly calling
+ * {@code split} to generic source-replay continuation, corrupting the positions of continuation
+ * items created by forced row splitting (measured on 2026-08-07).
+ * This asymmetry is intentional, for the same reason as tables.
  * </p>
  */
 public interface RowSplitBox {
 
 	/**
-	 * 行分割の対象か。falseなら従来のPageAtomicBox経路
-	 * (丸ごと送り/visual rescue)を使う。
+	 * Whether row splitting applies. If false, use the existing PageAtomicBox path
+	 * (move the whole box / visual rescue).
 	 */
 	boolean hasRowSplitLines();
 
 	/**
-	 * 行帳簿のスナップショットを返します(視覚順。各行は
-	 * {flow先頭index, item数, 行start, 行extent})。帳簿が無ければnull。
-	 * {@code RowSplitContainer}の復元時の押し下げ
-	 * ({@code restoreAnchoredPageAxis}参照)が行のグループ化に使う
-	 * (2026-08-19)。
+	 * Returns a snapshot of the row ledger (in visual order; each row is
+	 * {first flow index, item count, row start, row extent}), or null if there is no ledger.
+	 * The push-down when restoring {@code RowSplitContainer}
+	 * (see {@code restoreAnchoredPageAxis}) uses it to group rows
+	 * (2026-08-19).
 	 */
 	double[][] rowLedgerSnapshot();
 
 	/**
-	 * 押し下げ後の行startを帳簿へ書き戻します({@link #rowLedgerSnapshot}と
-	 * 同じ順序・件数)。帳簿と実描画位置を一致させ、以後の再分割の境界探索を
-	 * 狂わせないため(2026-08-19)。
+	 * Writes row starts back to the ledger after push-down (same order and count as
+	 * {@link #rowLedgerSnapshot}). Keeps the ledger consistent with actual drawing positions
+	 * so subsequent splits search for boundaries correctly (2026-08-19).
 	 */
 	void syncRowStarts(double[] starts);
 }

@@ -13,9 +13,9 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code text-emphasis-position}(css-text-decor-3)です。
- * {@code [ over | under ] && [ right | left ]}を順不同で受け付け、
- * 省略された成分は初期値の{@code over right}で補います。
+ * {@code text-emphasis-position} (css-text-decor-3).
+ * Accepts {@code [ over | under ] && [ right | left ]} in any order,
+ * filling omitted components from the initial value {@code over right}.
  *
  * @author MIYABE Tatsuhiko
  */

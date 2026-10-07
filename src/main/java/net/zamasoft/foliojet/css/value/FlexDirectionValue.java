@@ -1,9 +1,9 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code flex-direction}のキーワード値です(Flex F1a、2026-08-02——
- * consult-codex-2026-08-02-flexbox.txt)。layout側の{@code FlexDirection}と
- * 同名対応(マッピングはBoxStyleMapper)。
+ * A {@code flex-direction} keyword value (Flex F1a, 2026-08-02:
+ * consult-codex-2026-08-02-flexbox.txt). Names correspond to {@code FlexDirection}
+ * in the layout layer (mapped by BoxStyleMapper).
  *
  * @author MIYABE Tatsuhiko
  */

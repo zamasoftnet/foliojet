@@ -15,8 +15,8 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
- * HTMLの水平アラインメント相当する内部特性です。
- * 
+ * Internal property corresponding to HTML horizontal alignment.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class CSSJAutoWidth extends AbstractPrimitivePropertyInfo {

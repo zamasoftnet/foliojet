@@ -18,15 +18,15 @@ import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * GCPM {@code bookmark-label: <content-list>}(2026-10-04)。
+ * GCPM {@code bookmark-label: <content-list>} (2026-10-04).
  *
  * <p>
- * 受け付けるのは{@code <string>}・{@code content()}・{@code content(text)}
- * (どちらも要素の文字)・{@code attr(<名前>)}の並び。初期値は
- * {@code content(text)}で、従来どおり見出しの文字(::before の生成内容を
- * 含む)がしおりになる。{@code counter()}は受け付けない——箱が作られる
- * 時点ではその要素の{@code counter-increment}がまだ効いていないので、
- * 章番号が 1 つずれる。番号は{@code ::before}に書けばしおりの文字に入る。
+ * Accepts sequences of {@code <string>}, {@code content()}, {@code content(text)}
+ * (both use the element's text), and {@code attr(<name>)}. The initial value is
+ * {@code content(text)}, so heading text (including generated ::before content) becomes
+ * the bookmark, as before. Does not accept {@code counter()}: when the box is created,
+ * the element's {@code counter-increment} has not yet taken effect, so chapter numbers
+ * would be off by one. Putting the number in {@code ::before} includes it in the bookmark text.
  * </p>
  */
 public class BookmarkLabel extends AbstractPrimitivePropertyInfo {
@@ -34,7 +34,7 @@ public class BookmarkLabel extends AbstractPrimitivePropertyInfo {
 
 	private static final ValueListValue DEFAULT = new ValueListValue(new Value[] { ContentFunctionValue.INSTANCE });
 
-	/** 部品の並び(既定なら null)。 */
+	/** Sequence of components (null for the default). */
 	public static Value[] get(final CSSStyle style) {
 		final Value value = style.get(INFO);
 		if (value == DEFAULT) {

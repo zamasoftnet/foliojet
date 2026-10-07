@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.css.impl.property.box.Side;
 
 /**
  * border-top-style / border-right-style / border-bottom-style /
- * border-left-style 特性です。
+ * border-left-style properties.
  *
  * @author MIYABE Tatsuhiko
  */

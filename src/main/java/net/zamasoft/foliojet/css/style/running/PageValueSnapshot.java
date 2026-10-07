@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.ua.PageAssignmentState.Mode;
 import net.zamasoft.foliojet.ua.PageAssignmentState.Presence;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** フローのvisit後に確定した頁の値です。可変なカウンタ・文字列状態は公開しません。 */
+/** Page values finalized after visiting the flow. Does not expose mutable counter/string state. */
 public final class PageValueSnapshot {
 	private final Map<String, Integer> counters;
 	private final Map<String, Map<Mode, String>> strings;
@@ -56,7 +56,7 @@ public final class PageValueSnapshot {
 		return this.counters.getOrDefault(name.toLowerCase(Locale.ROOT), 0);
 	}
 
-	/** マージンボックスが参照するroot scopeの階層は一つです。 */
+	/** Margin boxes reference a single level of root scope. */
 	public List<Integer> counters(final String name) {
 		return List.of(this.counter(name));
 	}
@@ -65,7 +65,7 @@ public final class PageValueSnapshot {
 		return this.strings.getOrDefault(name, Map.of()).getOrDefault(mode, "");
 	}
 
-	/** 参照先fragmentの値です。表示頁のcounterとは独立です。 */
+	/** Values of the referenced fragment, independent of the displayed page's counters. */
 	public List<Integer> targetCounters(final URI uri, final String name, final boolean all) {
 		return this.references.counters(uri, name, all);
 	}

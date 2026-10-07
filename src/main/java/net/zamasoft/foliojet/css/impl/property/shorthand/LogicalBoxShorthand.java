@@ -16,18 +16,18 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 論理ショートハンド {@code margin-block} / {@code margin-inline} /
+ * Logical shorthands {@code margin-block} / {@code margin-inline} /
  * {@code padding-block} / {@code padding-inline} / {@code inset-block} /
- * {@code inset-inline}(css-logical-1 §4、2026-08-29)。
+ * {@code inset-inline} (css-logical-1 §4, 2026-08-29).
  *
  * <p>
- * 論理longhand({@code margin-inline-start}等)は実装済みで、2値を
- * start/endへ配るだけのこのショートハンドが無く、宣言ごと捨てられていた。
- * 値は1つか2つ(start end)。全体キーワードは基底の{@link #longhands()}で受ける。
+ * Logical longhands ({@code margin-inline-start}, etc.) already existed, but these shorthands,
+ * which merely distribute two values to start/end, were missing, so declarations were discarded entirely.
+ * Accepts one or two values (start end). The base class handles CSS-wide keywords via {@link #longhands()}.
  * </p>
  */
 public final class LogicalBoxShorthand extends AbstractShorthandPropertyInfo {
-	/** 値の型ごとの読み方。 */
+	/** Parsing strategy for each value type. */
 	@FunctionalInterface
 	private interface Reader {
 		Value read(UserAgent ua, CssToken token) throws PropertyException;

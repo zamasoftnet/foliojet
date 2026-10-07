@@ -1,14 +1,14 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * JLREQ 4.2.7の並列注（横組の傍注・縦組の頭注／脚注）を、版面の
- * 論理行頭側または行末側の余白へ置く配置です。
+ * Places JLREQ 4.2.7 parallel notes (sidenotes in horizontal writing, headnotes/footnotes in vertical
+ * writing) in the margin on the logical line-start or line-end side of the type area.
  *
- * <p>CSSに標準の並列注指定がないため、Copper拡張の
- * {@code float: -cssj-note-start | -cssj-note-end}から生成します。</p>
+ * <p>CSS has no standard parallel-note setting, so these are created from the Copper extension
+ * {@code float: -cssj-note-start | -cssj-note-end}.</p>
  */
 public final class PageMarginNotePos extends FloatPos {
-	/** 論理行頭側へ置くか（falseは論理行末側）。 */
+	/** Whether to place on the logical line-start side (false means logical line-end). */
 	public final boolean start;
 
 	public PageMarginNotePos(final boolean start) {

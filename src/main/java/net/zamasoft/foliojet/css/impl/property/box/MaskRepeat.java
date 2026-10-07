@@ -6,8 +6,8 @@ import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.value.BackgroundRepeatValue;
 
 /**
- * {@code mask-repeat}(css-masking-1 §7.7、2026-08-29)。文法は
- * {@link BackgroundRepeat}と同じ(space/roundは未対応でrepeat扱い)。
+ * {@code mask-repeat} (css-masking-1 §7.7, 2026-08-29). Uses the same grammar as
+ * {@link BackgroundRepeat} (space/round are unsupported and treated as repeat).
  */
 public class MaskRepeat extends BackgroundRepeat {
 	public static final PrimitivePropertyInfo INFO = new MaskRepeat();
@@ -16,7 +16,7 @@ public class MaskRepeat extends BackgroundRepeat {
 		return ((BackgroundRepeatValue) style.get(INFO)).getBackgroundRepeat();
 	}
 
-	/** 既定(repeat)のままか。 */
+	/** Whether the value is still the default (repeat). */
 	public static boolean isDefault(final CSSStyle style) {
 		return style.get(INFO) == BackgroundRepeatValue.REPEAT_VALUE;
 	}

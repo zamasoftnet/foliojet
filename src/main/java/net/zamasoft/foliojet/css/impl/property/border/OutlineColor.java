@@ -17,16 +17,16 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 
 /**
- * outline-color 特性です(CSS UI 3 §4、2026-08-29)。値は
- * {@code <color> | invert}。invertはPDFでは表現できないので、
- * border-colorの既定と同じくcurrentColorとして扱う。
+ * outline-color property (CSS UI 3 §4, 2026-08-29). Values are
+ * {@code <color> | invert}. PDF cannot express invert, so treat it as currentColor,
+ * the same as the border-color default.
  *
  * @author MIYABE Tatsuhiko
  */
 public class OutlineColor extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new OutlineColor();
 
-	/** 色を返します。transparentならnull。 */
+	/** Returns the color, or null for transparent. */
 	public static Color get(CSSStyle style) {
 		final Value value = style.get(INFO);
 		if (value == KeywordValue.TRANSPARENT) {
@@ -49,7 +49,7 @@ public class OutlineColor extends AbstractPrimitivePropertyInfo {
 
 	public Value getComputedValue(Value value, CSSStyle style) {
 		if (value == KeywordValue.DEFAULT) {
-			// invert / 未指定 → currentColor
+			// invert / unspecified → currentColor
 			return style.get(CSSColor.INFO);
 		}
 		return value;
@@ -65,8 +65,8 @@ public class OutlineColor extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * {@code <color> | invert}を値に変換します。該当しなければnull。
-	 * outlineショートハンドと共用。
+	 * Converts {@code <color> | invert} to a value. Returns null if it does not match.
+	 * Shared with the outline shorthand.
 	 */
 	public static Value toOutlineColor(UserAgent ua, CssToken token) {
 		if (token instanceof CssToken.Ident ident && ident.lower().equals("invert")) {

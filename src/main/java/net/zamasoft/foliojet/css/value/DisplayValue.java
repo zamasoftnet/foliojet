@@ -41,9 +41,9 @@ public enum DisplayValue implements Value {
 	CONTENTS_VALUE(DisplayValue.CONTENTS),
 
 	/**
-	 * {@code display: flow-root}(css-display-3、2026-08-29)。箱の種別は
-	 * blockと同じで、独立BFCを作る点だけが違う。種別コードはBLOCKを共有し、
-	 * BFCの有無は{@code BlockParams.flowRoot}で運ぶ。
+	 * {@code display: flow-root} (css-display-3, 2026-08-29). The box type is the same as
+	 * block; only the creation of an independent BFC differs. It shares the BLOCK type code,
+	 * and {@code BlockParams.flowRoot} carries whether it establishes a BFC.
 	 */
 	FLOW_ROOT_VALUE(DisplayValue.BLOCK);
 	public static final byte NONE = 0;
@@ -56,7 +56,7 @@ public enum DisplayValue implements Value {
 
 	public static final byte LIST_ITEM = 4;
 
-	// 5 は旧 RUN_IN(4で廃止)の欠番
+	// 5 is unused: formerly RUN_IN (removed in 4).
 
 	public static final byte TABLE = 6;
 
@@ -78,14 +78,14 @@ public enum DisplayValue implements Value {
 
 	public static final byte TABLE_CAPTION = 15;
 
-	/** CSS Grid(G0、2026-07-31——断片化なしサブセット)。 */
+	/** CSS Grid (G0, 2026-07-31: subset without fragmentation). */
 	public static final byte GRID = 16;
 
 	public static final byte FLEX = 17;
 
 	/**
-	 * CSS Display 3 §2.5。要素自身の箱を作らず、子をそのまま親の箱へ
-	 * 流す(2026-08-07。MDN等モダンサイトのレイアウトラッパーで多用)。
+	 * CSS Display 3 §2.5. Does not create a box for the element itself; its children flow
+	 * directly into the parent box (2026-08-07; widely used for layout wrappers on modern sites such as MDN).
 	 */
 	public static final byte CONTENTS = 18;
 

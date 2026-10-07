@@ -15,9 +15,9 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
- * overflow-x / overflow-y の軸別プリミティブです。一括指定の
- * {@code overflow}は{@link net.zamasoft.foliojet.css.impl.property.shorthand.OverflowShorthand}が
- * 両軸へ展開します。
+ * Axis-specific primitives for overflow-x / overflow-y. The
+ * {@code overflow} shorthand is expanded to both axes by
+ * {@link net.zamasoft.foliojet.css.impl.property.shorthand.OverflowShorthand}.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -26,15 +26,15 @@ public class Overflow extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO_Y = new Overflow("overflow-y");
 
 	/**
-	 * 論理軸の{@code overflow-block} / {@code overflow-inline}(css-overflow-3、
-	 * 2026-08-30)。
+	 * Logical-axis {@code overflow-block} / {@code overflow-inline} (css-overflow-3,
+	 * 2026-08-30).
 	 *
 	 * <p>
-	 * 印刷では{@code hidden}/{@code scroll}/{@code auto}はどれも「クリップする」で
-	 * 等価で、{@link #get(CSSStyle)}が最後に軸をまとめてしまうため、
-	 * <b>writing-modeによる物理軸への割り当ては見ていない</b>——4つのうち
-	 * ひとつでも非visibleならクリップ、という単純化にしている
-	 * (軸ごとに「クリップする/しない」を混在させられないのは物理版と同じ)。
+	 * For print, {@code hidden}/{@code scroll}/{@code auto} all mean "clip".
+	 * Since {@link #get(CSSStyle)} ultimately merges the axes,
+	 * <b>the mapping to physical axes via writing-mode is not considered</b>.
+	 * The simplified rule clips if any of the four values is non-visible
+	 * (as with the physical version, clipping cannot be enabled for only one axis).
 	 * </p>
 	 */
 	public static final PrimitivePropertyInfo INFO_BLOCK = new Overflow("overflow-block");
@@ -43,14 +43,14 @@ public class Overflow extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO_INLINE = new Overflow("overflow-inline");
 
 	/**
-	 * 両軸を単一の描画モードへ畳みます。
+	 * Collapses both axes into a single rendering mode.
 	 *
 	 * <p>
-	 * CSS Overflow 3の計算規則では、片軸が非visibleなら他軸のvisibleは
-	 * autoへ計算される(軸別に「クリップする/しない」を混在させることは
-	 * できない)。印刷ではhidden/scroll/autoはいずれもクリップで
-	 * 同じ扱いなので、両軸visibleのときだけvisible、それ以外は
-	 * 非visible側のモードを返す。
+	 * Under CSS Overflow 3 computation rules, if one axis is non-visible, visible on the other
+	 * computes to auto (clipping and non-clipping axes cannot be mixed).
+	 * For print, hidden/scroll/auto all clip and are treated alike,
+	 * so returns visible only when both axes are visible; otherwise returns
+	 * the non-visible axis's mode.
 	 * </p>
 	 */
 	public static OverflowMode get(CSSStyle style) {
@@ -67,14 +67,14 @@ public class Overflow extends AbstractPrimitivePropertyInfo {
 		if (y == OverflowMode.VISIBLE) {
 			return x;
 		}
-		// 両軸とも非visibleで種類が異なる場合、描画はどれもクリップで
-		// 等価。強い方(hidden)を優先する
+		// If both axes are non-visible but have different types, they all clip during rendering
+		// and are equivalent. Prefer the stronger mode (hidden).
 		return (x == OverflowMode.HIDDEN || y == OverflowMode.HIDDEN) ? OverflowMode.HIDDEN : x;
 	}
 
 	/**
-	 * 物理軸と論理軸のうち「クリップする方」を採ります(2026-08-30)。
-	 * 印刷ではvisible以外はすべてクリップなので、visibleでない方が勝つ。
+	 * Chooses the clipping mode from the physical and logical axes (2026-08-30).
+	 * For print, everything except visible clips, so the non-visible value wins.
 	 */
 	private static OverflowMode strongest(final OverflowMode physical, final OverflowMode logical) {
 		if (physical == OverflowMode.VISIBLE) {
@@ -112,7 +112,7 @@ public class Overflow extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * overflowのキーワード1つを値へ変換します。該当しなければnull。
+	 * Converts one overflow keyword to a value. Returns null if it does not match.
 	 */
 	public static Value toValue(CssToken lu) {
 		if (lu instanceof CssToken.Ident) {
@@ -121,8 +121,8 @@ public class Overflow extends AbstractPrimitivePropertyInfo {
 			case "visible":
 				return OverflowValue.VISIBLE_VALUE;
 			case "hidden":
-			// clip(CSS Overflow 3)はスクロール不能なクリップ。印刷では
-			// hiddenと等価
+			// clip (CSS Overflow 3) clips without scrolling. For print,
+			// it is equivalent to hidden.
 			case "clip":
 				return OverflowValue.HIDDEN_VALUE;
 			case "scroll":

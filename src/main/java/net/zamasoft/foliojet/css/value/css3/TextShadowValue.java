@@ -5,8 +5,8 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
- * transform です。
- * 
+ * transform.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class TextShadowValue implements Value {
@@ -19,7 +19,7 @@ public class TextShadowValue implements Value {
 
 		public final ColorValue color;
 
-		/** ぼかし半径(なければnull。2026-08-29)。 */
+		/** Blur radius (null if absent; 2026-08-29). */
 		public final LengthValue blur;
 
 		public Shadow(LengthValue x, LengthValue y, ColorValue color) {

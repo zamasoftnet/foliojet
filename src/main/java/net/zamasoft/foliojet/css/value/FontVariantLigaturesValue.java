@@ -5,13 +5,14 @@ import java.util.Arrays;
 import net.zamasoft.pdfg2d.gc.font.FontFeatureSet;
 
 /**
- * {@code font-variant-ligatures}の値です。
+ * A {@code font-variant-ligatures} value.
  *
  * <p>
- * 各カテゴリを未指定・有効・無効の三状態で保持し、OpenTypeの
- * {@code liga/clig/dlig/hlig/calt}へ変換します。pdfg2dへタグは搬送されますが、
- * 現在のOpenType処理はGSUB単一置換だけで、合字・文脈置換のlookupは未対応です。
- * したがって現時点の描画は受理・保持相当です。
+ * Retains three states for each category: unspecified, enabled, and disabled, and maps them
+ * to OpenType {@code liga/clig/dlig/hlig/calt}. The tags pass through to pdfg2d, but
+ * its current OpenType processing supports only GSUB single substitutions, not ligature
+ * or contextual substitution lookups. Thus, current rendering support amounts to accepting
+ * and retaining the values.
  * </p>
  */
 public final class FontVariantLigaturesValue implements Value {
@@ -65,7 +66,7 @@ public final class FontVariantLigaturesValue implements Value {
 		return this == NORMAL_VALUE;
 	}
 
-	/** OpenType featureタグ列へ正規化します。 */
+	/** Normalizes to an OpenType feature tag sequence. */
 	public FontFeatureSet featureSet() {
 		if (this.isNormal()) {
 			return FontFeatureSet.EMPTY;

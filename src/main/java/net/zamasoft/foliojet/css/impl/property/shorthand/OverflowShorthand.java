@@ -13,8 +13,8 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
- * overflow一括指定。CSS Overflow 3の2値構文
- * ({@code overflow: <x> <y>})に対応し、1値なら両軸へ展開します。
+ * overflow shorthand. Supports CSS Overflow 3 two-value syntax
+ * ({@code overflow: <x> <y>}); a single value expands to both axes.
  *
  * @author MIYABE Tatsuhiko
  */

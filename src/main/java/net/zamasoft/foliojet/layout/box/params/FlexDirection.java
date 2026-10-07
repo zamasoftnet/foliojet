@@ -1,9 +1,9 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * Flexコンテナの主軸方向です(Flex F1a、2026-08-02——
- * consult-codex-2026-08-02-flexbox.txt Q2)。CSS側の
- * {@code FlexDirectionValue}と同名対応(マッピングはBoxStyleMapper)。
+ * Main-axis direction of a Flex container (Flex F1a, 2026-08-02;
+ * consult-codex-2026-08-02-flexbox.txt Q2). Corresponds by name to the CSS-side
+ * {@code FlexDirectionValue} (mapping in BoxStyleMapper).
  *
  * @author MIYABE Tatsuhiko
  */

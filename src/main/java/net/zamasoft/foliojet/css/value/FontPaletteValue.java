@@ -3,9 +3,9 @@ package net.zamasoft.foliojet.css.value;
 import net.zamasoft.foliojet.css.font.FontPaletteValues.Definition;
 
 /**
- * {@code font-palette}の値です。名前付き値は{@code @font-palette-values}
- * の定義まで解決しますが、FolioJet/pdfg2dにはカラーフォントのパレット選択
- * 機構がないため、<b>解決した定義を描画には反映しません</b>。
+ * A {@code font-palette} value. Named values resolve to their {@code @font-palette-values}
+ * definitions, but FolioJet/pdfg2d has no mechanism for selecting color-font palettes,
+ * so <b>the resolved definitions do not affect rendering</b>.
  */
 public final class FontPaletteValue implements Value {
 	public enum Kind {

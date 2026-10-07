@@ -9,15 +9,15 @@ import java.util.Map;
 import net.zamasoft.pdfg2d.gc.font.FontFamily;
 
 /**
- * 文書中の{@code @font-feature-values}で定義された、フォントファミリ別の
- * OpenType機能値名の登録簿です。
+ * Registry of OpenType feature value names by font family, defined by
+ * {@code @font-feature-values} in the document.
  *
- * <p>同じ(ファミリ、内側の規則、名前)が再定義された場合は、CSS Fontsの
- * 規定どおり後の定義で置き換えます。登録簿は複数の組版パスで共有するため
- * {@code UAContext}が保持します。</p>
+ * <p>If the same (family, inner rule, name) is redefined, the later definition
+ * replaces it as CSS Fonts specifies. {@code UAContext} holds the registry
+ * so that multiple layout passes can share it.</p>
  */
 public final class FontFeatureValues {
-	/** {@code font-variant-alternates}の名前付き関数に対応する内側の規則です。 */
+	/** Inner rules corresponding to the named functions of {@code font-variant-alternates}. */
 	public enum Type {
 		STYLISTIC, STYLESET, CHARACTER_VARIANT, SWASH, ORNAMENTS, ANNOTATION;
 
@@ -36,7 +36,7 @@ public final class FontFeatureValues {
 
 	private final Map<FontFamily, EnumMap<Type, Map<String, int[]>>> families = new HashMap<>();
 
-	/** 定義を各ファミリへ登録します。 */
+	/** Registers a definition for each family. */
 	public void define(final List<String> familyNames, final Type type, final String name, final int[] values) {
 		for (final String familyName : familyNames) {
 			final FontFamily family = new FontFamily(familyName);
@@ -47,8 +47,8 @@ public final class FontFeatureValues {
 	}
 
 	/**
-	 * 名前に対応する番号列を返します。未定義なら{@code null}です。
-	 * 返却値は呼び出し側から変更できないよう複製します。
+	 * Returns the sequence of numbers for the name, or {@code null} if it is undefined.
+	 * Returns a copy so that the caller cannot modify the stored value.
 	 */
 	public int[] lookup(final String familyName, final Type type, final String name) {
 		if (familyName == null) {

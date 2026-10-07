@@ -6,11 +6,11 @@ import net.zamasoft.foliojet.layout.box.params.Border;
 import net.zamasoft.foliojet.layout.box.params.RectBorder;
 
 /**
- * つぶし境界の辺選択です(P2-3: §5.2b 表ビルダー統一)。物理境界
- * (RectBorder)から、グリッドの H境界(行進行に直交)の始端/終端・
- * V境界の始端/終端に採る辺への4射影。縦書きと横書きの collapse 本文は
- * この射影だけが異なる(TwoPass の一括適用・OnePass のストリーミング
- * 蓄積の両方で共有)。
+ * Collapsed-border edge selection (P2-3: §5.2b table-builder unification). Four projections from
+ * physical borders (RectBorder) to the edges used for the start/end of grid H borders
+ * (perpendicular to row progression) and the start/end of V borders. Vertical and horizontal
+ * writing differ only in this projection within the collapse logic (shared by both TwoPass
+ * batch application and OnePass streaming accumulation).
  */
 record BorderAxes(Function<RectBorder, Border> hStart, Function<RectBorder, Border> hEnd,
 		Function<RectBorder, Border> vStart, Function<RectBorder, Border> vEnd) {

@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 要素セレクタ(条件つき)。localName が null の場合は全称セレクタです。
+ * An element selector (with conditions). A null localName denotes the universal selector.
  */
 public final class ElementSelector implements SimpleSelector {
 	private final String localName;

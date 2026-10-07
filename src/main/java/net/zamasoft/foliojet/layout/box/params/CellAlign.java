@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * セル内容のページ方向の揃え(セルのvertical-align)です。
+ * Cell-content alignment in the page direction (the cell's vertical-align).
  *
  * @author MIYABE Tatsuhiko
  */

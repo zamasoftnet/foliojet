@@ -19,26 +19,27 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code initial-letter}です(css-inline-3、2026-08-20新設)。
+ * {@code initial-letter} (css-inline-3, added 2026-08-20).
  *
  * <p>
- * {@code ::first-letter}(または先頭のインラインボックス)に指定された
- * ドロップキャップの行数と沈み。適用は{@code StyleEventMachine}の
- * first-letter分岐が{@link #desugar}で行う——占有行数から文字寸法を
- * 計算し、既存のfloat機構(float:left+回り込み)へ脱糖する。Firefoxが
- * 未実装のまま(非Baseline)の印刷差別化機能で、Prince/AH/WebKitが対応。
+ * The drop cap's line count and sink, specified on {@code ::first-letter}
+ * (or the first inline box). The first-letter branch of {@code StyleEventMachine}
+ * applies it via {@link #desugar}: calculates font size from the occupied line count
+ * and desugars to the existing float mechanism (float:left + text wrapping).
+ * A print differentiator supported by Prince/AH/WebKit, still unimplemented in Firefox
+ * (non-Baseline).
  * </p>
  *
  * <p>
- * <b>寸法の近似</b>: cap高整列は「大文字の高さ=フォント寸法の0.7倍」の
- * 慣用近似で行う(実フォントのOS/2 sCapHeightはスタイル計算段階では
- * 参照できない)。目標cap高 = (N-1)×行送り + 親のcap高。
+ * <b>Size approximation</b>: cap-height alignment uses the conventional approximation
+ * "uppercase height = 0.7 × font size" (the actual font's OS/2 sCapHeight is unavailable
+ * during style computation). Target cap height = (N-1)×line pitch + parent cap height.
  * </p>
  */
 public class InitialLetter extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new InitialLetter();
 
-	/** 慣用のcap-height比(cap高/フォント寸法)。 */
+	/** Conventional cap-height ratio (cap height/font size). */
 	private static final double CAP_RATIO = 0.7;
 
 	public static InitialLetterValue get(final CSSStyle style) {
@@ -47,11 +48,11 @@ public class InitialLetter extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * first-letterスタイルへの脱糖です。{@code initial-letter}が指定されて
-	 * いれば、文字寸法・行の高さ・floatを設定して既存機構に載せる。
+	 * Desugars into the first-letter style. If {@code initial-letter} is specified,
+	 * sets font size, line height, and float to use existing mechanisms.
 	 *
-	 * @param firstLetterStyle first-letter擬似要素のスタイル(適用済み)
-	 * @param parentStyle 親(段落)のスタイル
+	 * @param firstLetterStyle style of the first-letter pseudo-element (already applied)
+	 * @param parentStyle parent (paragraph) style
 	 */
 	public static void desugar(final CSSStyle firstLetterStyle, final CSSStyle parentStyle) {
 		final InitialLetterValue v = get(firstLetterStyle);
@@ -61,38 +62,38 @@ public class InitialLetter extends AbstractPrimitivePropertyInfo {
 		final UserAgent ua = firstLetterStyle.getUserAgent();
 		final double parentFontSize = FontSize.get(parentStyle);
 		final double lineHeight = LineHeight.get(parentStyle);
-		// 実フォントのcap高比を使う(2026-08-20、利用者了承のうえ厳密化)。
-		// OS/2 sCapHeight由来(units/em=1000規約)。異常値(全欠損の0や
-		// em超え)は慣用近似0.7へフォールバック
+		// Use the actual font cap-height ratio (2026-08-20, made more precise with user approval).
+		// Derived from OS/2 sCapHeight (units/em=1000 convention). Invalid values (0 for missing data
+		// or values above em) fall back to the conventional approximation 0.7.
 		double capRatio = CAP_RATIO;
 		try {
-			// 親スタイルの確定済みFontStyleで解決する——firstLetterStyle側は
-			// この後font-size等をsetするため、ここでgetFontStyle()を呼ぶと
-			// 未確定状態が固定される(実測でドロップキャップが親サイズ相当に
-			// 潰れた)。first-letterでのfont-family上書きは稀なので親で足りる
+			// Resolve using the parent style's finalized FontStyle. firstLetterStyle will have
+			// font-size, etc. set afterward, so calling getFontStyle() here would
+			// freeze an unfinished state (measured: the drop cap collapsed to about the parent size).
+			// The parent suffices because font-family overrides on first-letter are rare.
 			final short cap = ua.getFontManager().getFontListMetrics(parentStyle.getFontStyle())
 					.getFontMetrics(0).getFontSource().getCapHeight();
 			if (cap > 200 && cap <= 1000) {
 				capRatio = cap / 1000.0;
 			}
 		} catch (final RuntimeException e) {
-			// フォント解決に失敗しても近似で続行
+			// Continue with the approximation even if font resolution fails.
 		}
-		// 目標cap高: (N-1)行ぶんの行送り+親のcap高
+		// Target cap height: line pitch for (N-1) lines + parent cap height.
 		final double targetCap = (v.lines() - 1) * lineHeight + parentFontSize * capRatio;
 		final double size = targetCap / capRatio;
 		firstLetterStyle.set(FontSize.INFO, AbsoluteLengthValue.create(ua, size));
-		// floatの箱高がsink行数ちょうどになるよう行の高さを絶対値で固定する
-		// (文字寸法のまま=RealValue.ONEだと箱がsink行を超え、回り込みが
-		// 1行余分に及ぶ——Chrome対照で確認)
+		// Fix line height as an absolute value so the float box height is exactly sink lines
+		// (using the font size, RealValue.ONE, makes the box exceed sink lines and extends
+		// text wrapping by one extra line; confirmed against Chrome).
 		firstLetterStyle.set(LineHeight.INFO, AbsoluteLengthValue.create(ua, v.sink() * lineHeight));
 		if (v.sink() >= v.lines()) {
-			// 通常のドロップキャップ: floatで回り込み
+			// Normal drop cap: wrap text using a float.
 			firstLetterStyle.set(net.zamasoft.foliojet.css.impl.property.box.CSSFloat.INFO,
 					CSSFloatValue.LEFT_VALUE);
 		}
-		// sink < lines(raised cap)はインラインの拡大のみ(floatなし)——
-		// ベースラインに立つ形が仕様の近似になる
+		// sink < lines (raised cap) only enlarges the inline text (no float);
+		// standing on the baseline approximates the specification.
 	}
 
 	protected InitialLetter() {

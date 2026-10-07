@@ -48,9 +48,9 @@ public class FontSize extends AbstractPrimitivePropertyInfo {
 			parentStyle = style;
 		}
 		if (value instanceof CalcFontRelativeValue fontRelative) {
-			// font-size自身のem/ex/rem/chは親のフォントを基準に解く(単独の
-			// RelativeLengthValueと同じ規約。根要素ではプロパティ初期値=medium
-			// が基準になる)。解決後は%成分の有無に応じて下の分岐へ流れる
+			// Resolve em/ex/rem/ch in font-size itself against the parent font (the same convention
+			// as standalone RelativeLengthValue; on the root element, use the initial property value
+			// medium). After resolution, follow the branches below according to whether a % component remains.
 			value = fontRelative.resolve(parentStyle);
 		}
 		if (value instanceof PercentageValue percentage) {
@@ -58,10 +58,10 @@ public class FontSize extends AbstractPrimitivePropertyInfo {
 			return AbsoluteLengthValue.create(parentStyle.getUserAgent(), percentage.getRatio() * fontSize);
 		}
 		if (value instanceof CalcLengthValue calc) {
-			// calc()が絶対長さと割合を混在させた場合(例: calc(1px + 50%))。
-			// font-sizeの%は(width/height等と違いレイアウト時ではなく)親の
-			// font-sizeを基準に今ここで解決できるため、PercentageValueと
-			// 同じ扱いにしてAbsoluteLengthValueへ完全に還元する。
+			// When calc() mixes absolute lengths and percentages (e.g. calc(1px + 50%)).
+			// Unlike width/height, etc., font-size percentages can be resolved here against the
+			// parent font-size without waiting for layout. Treat them like PercentageValue
+			// and reduce completely to AbsoluteLengthValue.
 			double fontSize = FontSize.get(parentStyle);
 			return AbsoluteLengthValue.create(parentStyle.getUserAgent(),
 					calc.getAbsolute() + calc.getRatio() * fontSize);
@@ -79,7 +79,7 @@ public class FontSize extends AbstractPrimitivePropertyInfo {
 			}
 		}
 		if (value instanceof RelativeLengthValue relative) {
-			// font-size自体の相対長さは親のフォントサイズを基準にする
+			// Relative lengths in font-size itself use the parent font size as the reference.
 			return relative.toAbsoluteLength(parentStyle);
 		}
 		return value;

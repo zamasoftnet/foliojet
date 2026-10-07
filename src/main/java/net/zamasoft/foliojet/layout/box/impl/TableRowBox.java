@@ -38,7 +38,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
- * テーブル行の実装です。
+ * Table row implementation.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: TableRowBox.java 1622 2022-05-02 06:22:56Z miyabe $
@@ -181,7 +181,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		return this.cells.size();
 	}
 
-	/** 表示される行背景または元セルを持つか。rowspan の延長セルは重複して見ない。 */
+	/** Whether the row has a visible background or source cells. Do not revisit rowspan extension cells. */
 	@Override
 	public boolean paintsAnything() {
 		if (this.params.opacity == 0) {
@@ -215,7 +215,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		if (this.cells == null) {
 			return;
 		}
-		// 元の走査順(先頭セルから)を保つため、スタックへは逆順(末尾セルから)でpushする
+		// Push in reverse order (last cell first) to preserve the original traversal order (first cell first).
 		for (int i = this.cells.size() - 1; i >= 0; --i) {
 			Cell cell = (Cell) this.cells.get(i);
 			if (cell.isSource()) {
@@ -243,15 +243,15 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		if (this.cells == null) {
 			return;
 		}
-		// セルの描画対象と座標を先に(副作用なく)計算してから、元の走査順を
-		// 保つため**逆順**でpushする
+		// First calculate which cells to draw and their coordinates without side effects, then push
+		// in **reverse order** to preserve the original traversal order.
 		final int n = this.cells.size();
 		final TableCellBox[] sourceCells = new TableCellBox[n];
 		final double[] xs = new double[n];
 		final double[] ys = new double[n];
 		int count = 0;
 		if (this.tableParams.flow.isVertical()) {
-			// 縦書き
+			// Vertical writing
 			final boolean bottomToTop = this.tableParams.writingModeVariant != WritingModeVariant.NORMAL
 					&& TypesettingMode.inlineProgression(this.tableParams.flow,
 							this.tableParams.writingModeVariant,
@@ -263,11 +263,11 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource() && cellBox.getTableCellPos().offset == null) {
 					sourceCells[count] = cellBox;
-					// 連結セルは行のページ寸法を超える。向きの扱いは
-					// LayoutUtils.drawX に任せる(従来はRL専用式を手書きして
-					// おり、vertical-lr で連結セルだけ表の外へずれていた。
-					// 通常セルは幅==行のページ寸法なので誤りが相殺され、
-					// rowspan セルでだけ現れる。2026-07-25、独立レビューで発見)
+					// Spanning cells exceed the row's page-axis size. Delegate direction handling to
+					// LayoutUtils.drawX (previously, handwritten RL-only formulas displaced spanning cells
+					// outside the table in vertical-lr. For ordinary cells, width == row page-axis size
+					// canceled the error, so it appeared only in rowspan cells.
+					// Found in an independent review, 2026-07-25).
 					xs[count] = LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, 0, cellBox.getWidth(), 0);
 					ys[count] = bottomToTop
 							? lineOrigin + LayoutUtils.inlineToPhysical(this.tableParams, this.getHeight(), logicalLine,
@@ -279,7 +279,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				logicalLine += cellBox.getHeight();
 			}
 		} else {
-			// 横書き
+			// Horizontal writing
 			for (int i = 0; i < n; ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
@@ -314,7 +314,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			final double lineOrigin = y;
 			double logicalLine = 0;
 			for (int i = 0; i < this.cells.size(); ++i) {
-				// 縦書き
+				// Vertical writing
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource() && cellBox.getTableCellPos().offset == null) {
@@ -330,7 +330,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				logicalLine += cellBox.getHeight();
 			}
 		} else {
-			// 横書き
+			// Horizontal writing
 			for (int i = 0; i < this.cells.size(); ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
@@ -365,15 +365,15 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			return;
 		}
 		final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
-		// セルの描画対象と座標を先に(副作用なく)計算してから、元の走査順を
-		// 保つため**逆順**でpushする
+		// First calculate which cells to draw and their coordinates without side effects, then push
+		// in **reverse order** to preserve the original traversal order.
 		final int n = this.cells.size();
 		final TableCellBox[] sourceCells = new TableCellBox[n];
 		final double[] drawXs = new double[n];
 		final double[] drawYs = new double[n];
 		int sourceCount = 0;
 		if (this.tableParams.flow.isVertical()) {
-			// 縦書き
+			// Vertical writing
 			final boolean bottomToTop = this.tableParams.writingModeVariant != WritingModeVariant.NORMAL
 					&& TypesettingMode.inlineProgression(this.tableParams.flow,
 							this.tableParams.writingModeVariant,
@@ -396,7 +396,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				logicalLine += cellBox.getHeight();
 			}
 		} else {
-			// 横書き
+			// Horizontal writing
 			for (int i = 0; i < n; ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
@@ -422,7 +422,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		if (this.cells == null) {
 			return;
 		}
-		// 元の走査順を保つため、スタックへは逆順でpushする
+		// Push onto the stack in reverse order to preserve the original traversal order.
 		for (int i = this.cells.size() - 1; i >= 0; --i) {
 			Cell cell = (Cell) this.cells.get(i);
 			worklist.push(IBox.getTextStep(cell.getCellBox(), textBuff));
@@ -430,20 +430,18 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	}
 
 	/**
-	 * セルの切断位置です(C4-T3)。連結セル(rowspan)は連結元の行から
-	 * 当行までのページ寸を加算する — 切断線はセル上端基準になる。
+	 * Cell cut position (C4-T3). For spanning cells (rowspan), adds the page-axis sizes from the
+	 * source row through this row: the cut line is relative to the cell's top edge.
 	 *
 	 * <p>
-	 * A-3bのアラインメント物理契約(2026-07-24文書化、
-	 * `開発記録`が正本): 行内の
-	 * 全セルは**同一の物理分割線**で切られ(後発セルで初めて分割が
-	 * 決まった場合は処理済みセルへ遡って強制分割)、各セルへは
-	 * この上端基準位置から更に{@code verticalAlign}(実測の
-	 * 確定セル高と内容高の差)を引いた内容座標が渡される
-	 * ({@code TableCellBox.split}参照)。この表専用分割機構は
-	 * FragmentRecipe系の共通継続IRへは統合しない(意図的な隔離領域
-	 * ——共通IRは並列に開く複数セルを構造的に表現できないため。
-	 * 設計相談で確定、再開条件は上記文書参照)。
+	 * A-3b physical alignment contract (documented 2026-07-24; `開発記録` is the authoritative record):
+	 * All cells in a row are cut at **the same physical split line** (if a later cell first determines
+	 * the split, go back and force splits on the cells already processed). Each cell receives content
+	 * coordinates that further subtract {@code verticalAlign} (the difference between the measured final
+	 * cell height and content height) from this top-relative position (see {@code TableCellBox.split}).
+	 * This table-specific split mechanism is not integrated into the common FragmentRecipe continuation IR
+	 * (an intentionally isolated area: the common IR cannot structurally represent multiple cells open
+	 * in parallel. Decided during design consultation; see the document above for conditions for revisiting).
 	 * </p>
 	 */
 	private static double cellCutPageAxis(final Cell cell, final double pageLimit) {
@@ -463,9 +461,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	}
 
 	/**
-	 * この行に割り当てられる切断区間が、セル内容の切断可能な単位を少なくとも
-	 * 1つ取るかを、セルを変異させずに調べます。セル自身のフレーム・padding
-	 * だけは進捗に数えません。
+	 * Checks, without mutating cells, whether the cut interval assigned to this row captures at least
+	 * one splittable unit of cell content. A cell's own frame and padding alone do not count as progress.
 	 */
 	private static boolean cellFragmentTakesContent(final Cell cell, final double pageLimit) {
 		final TableCellBox cellBox = cell.getCellBox();
@@ -491,8 +488,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			return false;
 		}
 
-		// 位置を純粋問い合わせできない浮動・絶対配置は、内容消失を避けるため
-		// 安全側(進捗あり)に倒す。
+		// For floats/absolute positioning whose positions cannot be queried without side effects,
+		// conservatively assume progress to avoid content loss.
 		if (container.hasFloatings()) {
 			return true;
 		}
@@ -514,11 +511,10 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	}
 
 	/**
-	 * FLAGS_SPLIT付きセル分割の契約(必ず{@code Split}を返し、残余は
-	 * {@code TableCellBox})を明示検査して残余セルを返します。従来は
-	 * uncheckedなcastで、契約違反が{@code ClassCastException}として
-	 * 現れていた(2026-07-24アーキレビューE-1: 契約違反時の例外の種類を
-	 * 明確化するのみで、正常経路のロジックは不変)。
+	 * Explicitly checks the FLAGS_SPLIT cell-splitting contract (always returns {@code Split}, with a
+	 * {@code TableCellBox} remainder) and returns the remainder cell. Previously, an unchecked cast
+	 * surfaced contract violations as {@code ClassCastException} (2026-07-24 architecture review E-1:
+	 * only clarifies the exception type for contract violations; normal-path logic remains unchanged).
 	 */
 	private static TableCellBox forcedCellRemainder(final TableCellBox cellBox, final double cutPageAxis,
 			final BreakMode mode, final byte flags) {
@@ -532,7 +528,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 
 		final boolean vertical = this.tableParams.flow.isVertical();
 		if ((flags & IPageBreakableBox.FLAGS_SPLIT) == 0) {
-			// 前置判定は TableCutter に純化(C4-T3)
+			// Preliminary decisions extracted into pure logic in TableCutter (C4-T3).
 			final double[] cellPageExtents = new double[this.cells.size()];
 			final boolean[] cellFlowMatch = new boolean[this.cells.size()];
 			final boolean[] cellInsideAvoid = new boolean[this.cells.size()];
@@ -556,10 +552,10 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			if (pre != null) {
 				return pre;
 			}
-			// 縦書きでrowspanにより先頭行と連結した行はFIRST_ROWにより通常の
-			// 行単位MOVEを免除される。その行が次のフラグメンテナへ丸ごと
-			// 収まり、ここで内容を1単位も取れないなら、枠だけの先頭断片を
-			// 作らず行ごと送る。横書きの既存分割順は変えない。
+			// In vertical writing, FIRST_ROW exempts rows joined to the first row by rowspan from ordinary
+			// row-level MOVE. If such a row fits entirely in the next fragmentainer and no content unit
+			// can be taken here, move the whole row instead of creating an initial fragment containing
+			// only a frame. Preserve the existing split order for horizontal writing.
 			if (vertical && !pageFirst && firstRow && fragmentCapacity > 0
 					&& LayoutUtils.compare(this.getPageSize(), fragmentCapacity) <= 0
 					&& !this.fragmentTakesContent(pageLimit)) {
@@ -570,8 +566,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		final double pageWindow = this.pageSize - pageLimit;
 		TableRowBox nextRowBox = null;
 		if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0) {
-			// 必ず切断する
-			// 分割断片は継続物(アンカーなし — 新品として再生されない。P0)
+			// Always cut.
+			// A split fragment is a continuation (no anchor; not replayed as a fresh box. P0).
 			nextRowBox = new TableRowBox(this.params, this.getTableRowPos());
 			nextRowBox.setTableParams(this.tableParams);
 			this.pageSize = pageLimit;
@@ -593,7 +589,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				if (nextRowBox == null) {
 					continue;
 				}
-				// 他に分割されたセルがある場合、強制切断する
+				// Force a cut if another cell has already split.
 				byte xxflags = (byte) (xflags | IPageBreakableBox.FLAGS_SPLIT);
 				nextCellBox = forcedCellRemainder(prevCellBox, cutPageAxis, mode, xxflags);
 			}
@@ -653,11 +649,11 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
 				return SplitResult.KEEP;
 			}
-			// 現在の行を持ち越す
+			// Carry the current row forward.
 			return SplitResult.MOVE;
 		}
 
-		// 分割の後処理
+		// Post-split processing
 		for (int i = 0; i < nextRowBox.cells.size(); ++i) {
 			Cell cell = (Cell) nextRowBox.cells.get(i);
 			double rowSize = nextRowBox.pageSize;
@@ -675,25 +671,24 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	}
 
 	/**
-	 * <b>拡張エントリの無い</b>連結セルを切断します(2026-08-22)。
+	 * Cuts spanning cells <b>without extension entries</b> (2026-08-22).
 	 *
 	 * <p>
-	 * 空の{@code <tr>}や短い行がrowspanの谷間に穴を作ると、穴の先の列の
-	 * 継続セルには行リスト上の延長(ExtendedCell)が作られない
-	 * ({@code CellContent.complementRowspan}は終了列で走査を打ち切る
-	 * ——リストが列位置をindexで表すため、途中へ占位を挟むと自セルの
-	 * 列がずれて挿せない)。延長が無いと行移動時の
-	 * {@link #cutRowspanCells}(移動行の延長エントリ経由)に拾われず、
-	 * セルが前ページに全高で残って読み順が逆転する(掃過seed
-	 * 1472118/1173267)。ここでは保持側の行から直接、posのrowspanが
-	 * 移動域へ届くのに延長チェーンが届かないセルを切り、残余を移動行へ
-	 * 追加する。残余は行リスト末尾に付くため中間列の穴のぶんだけ行方向
-	 * 位置が詰まるが、読み順・ページ所属は正しくなる。
+	 * When an empty {@code <tr>} or a short row creates a gap among rowspans, continuation cells in columns
+	 * beyond the gap get no extension (ExtendedCell) in the row list ({@code CellContent.complementRowspan}
+	 * stops scanning at the ending column: list indices represent column positions, so inserting a
+	 * placeholder in the middle would shift the cell's own column and is not possible). Without an
+	 * extension, {@link #cutRowspanCells} does not find the cell when a row moves (it follows extension
+	 * entries in the moving row), leaving the cell at full height on the previous page and reversing
+	 * reading order (sweep seeds 1472118/1173267). Here, cut directly from retained rows those cells whose
+	 * pos rowspan reaches the moving region but whose extension chain does not, and add their remainders
+	 * to the moving row. The remainders are appended to the row list, so their line-direction positions
+	 * are compressed by the intervening column gaps, but reading order and page assignment become correct.
 	 * </p>
 	 *
-	 * @param rowsToCut   この行から移動行までの行数(自行の次=1)
-	 * @param cutPageAxis この行のセル上端から切断線までの距離
-	 * @param target      残余を追加する移動行
+	 * @param rowsToCut   number of rows from this row to the moving row (the next row = 1)
+	 * @param cutPageAxis distance from the top of this row's cells to the cut line
+	 * @param target      moving row to which remainders are added
 	 */
 	public final void cutUnextendedRowspanCells(final int rowsToCut, final double cutPageAxis,
 			final TableRowBox target) {
@@ -705,7 +700,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			}
 			final TableCellBox cellBox = cell.getCellBox();
 			if (cellBox.getTableCellPos().rowspan <= rowsToCut) {
-				// 移動域まで届かない
+				// Does not reach the moving region.
 				continue;
 			}
 			int chain = 0;
@@ -714,11 +709,11 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				++chain;
 			}
 			if (chain >= rowsToCut) {
-				// 延長が移動域に届いている——cutRowspanCellsが扱う
+				// The extension reaches the moving region; cutRowspanCells handles it.
 				continue;
 			}
 			if (LayoutUtils.compare(cellBox.getPageExtent(this.tableParams.flow), cutPageAxis) <= 0) {
-				// 実体が切断線に届かない(空のまま)
+				// The actual cell does not reach the cut line (remains empty).
 				continue;
 			}
 			final TableCellBox nextCell = forcedCellRemainder(cellBox, cutPageAxis, BreakMode.DEFAULT_BREAK_MODE,
@@ -738,7 +733,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 
 	public final void cutRowspanCells() {
 		net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.ROWSPAN_CUTS.incrementAndGet();
-		// 連結されたセルを強制切断する
+		// Force a cut on spanning cells.
 		final boolean vertical = this.tableParams.flow.isVertical();
 		for (int i = 0; i < this.cells.size(); ++i) {
 			Cell cell = (Cell) this.cells.get(i);
@@ -746,7 +741,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				continue;
 			}
 			TableCellBox prevCell = cell.getCellBox();
-			// 切断面は行の上辺、即ちセルの高さから現在行の高さを引いたもの
+			// The cut plane is the row's top edge: cell height minus the current row's height.
 			Cell sCell = cell.getSource();
 			double cutPageAxis = sCell.getTableRow().getPageSize();
 			for (ExtendedCell xcell = sCell.getNextExtendedCell(); xcell != null; xcell = xcell.getNextExtendedCell()) {
@@ -763,7 +758,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				prevCell.setHeight(cutPageAxis);
 			}
 			this.restyleCell(nextCell);
-			// addTableSourceCellの代わりに直接更新する
+			// Update directly instead of using addTableSourceCell.
 			Cell source = new SourceCellImpl(nextCell, this);
 			this.cells.set(i, source);
 			ExtendedCell xcell = cell.getNextExtendedCell();
@@ -776,7 +771,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 					xcell = xcell.getNextExtendedCell();
 				} while (xcell != null);
 			}
-			// 行の高さをセルの高さを行数で割ったもので更新
+			// Update the row height to the cell height divided by the number of rows.
 			this.pageSize = Math.max(this.pageSize, nextCell.getPageExtent(this.tableParams.flow) / span);
 		}
 		for (int i = 0; i < this.cells.size(); ++i) {
@@ -795,7 +790,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	}
 
 	private final void restyleCell(TableCellBox nextCell) {
-		// 再レイアウトにFIXEDボックスは関与しないのでpageContextBuilderはnullでよい
+		// FIXED boxes do not participate in relayout, so pageContextBuilder may be null.
 		final BlockBuilder cellBindBuilder = new BlockBuilder(null, nextCell);
 		nextCell.restyle(cellBindBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
 		cellBindBuilder.close();

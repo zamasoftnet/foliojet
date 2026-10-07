@@ -21,7 +21,7 @@ public enum UnicodeBidiValue implements Value {
 
 	public static final byte BIDI_OVERRIDE = 3;
 
-	/** css-writing-modes-3 §2.2 の isolate 系(2026-09-04。それまでは embed/bidi-override/normal へ潰していた)。 */
+	/** The isolate variants in css-writing-modes-3 §2.2 (2026-09-04; previously reduced to embed/bidi-override/normal). */
 	public static final byte ISOLATE = 4;
 
 	public static final byte ISOLATE_OVERRIDE = 5;

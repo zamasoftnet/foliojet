@@ -3,14 +3,14 @@ package net.zamasoft.foliojet.layout.box.params;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 
 /**
- * 継承・伝播する文字装飾線の描画属性です。
+ * Drawing attributes of inherited/propagated text-decoration lines.
  *
  * <p>
- * 2026-08-29から色だけでなく線種・太さ・下線位置も線ごとに運ぶ
- * ({@link Line})。CSSの装飾線は指定した要素が「所有」し、子孫の
- * テキストへ伝播しても線種・太さ・色は所有要素のものを使う
- * (css-text-decoration-3 §2.2)ので、フラグを立てた要素のparamsから
- * 作った値を{@code AbstractTextBox.setDecoration}で子へ渡していく。
+ * Since 2026-08-29, carries line style, thickness, and underline position as well as color per line
+ * ({@link Line}). CSS decoration lines are "owned" by the element specifying them; even when they
+ * propagate to descendant text, they use the owning element's style, thickness, and color
+ * (css-text-decoration-3 §2.2). Therefore, values created from the params of the element setting
+ * the flag are passed to children via {@code AbstractTextBox.setDecoration}.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -18,17 +18,17 @@ import net.zamasoft.pdfg2d.gc.paint.Color;
  */
 public class Decoration {
 	/**
-	 * 1本の装飾線の描画属性。
+	 * Drawing attributes of one decoration line.
 	 *
-	 * @param color     線の色
-	 * @param style     線種({@code AbstractTextParams.DECORATION_STYLE_*})
-	 * @param thickness 太さの絶対長(0なら自動=フォントサイズ×decorationThickness)
-	 * @param offset    下線のずらし(NaNなら自動。下線以外は無視)
-	 * @param position  下線の位置({@code AbstractTextParams.UNDERLINE_POSITION_*}。
-	 *                  下線以外は無視)
+	 * @param color     line color
+	 * @param style     line style ({@code AbstractTextParams.DECORATION_STYLE_*})
+	 * @param thickness absolute thickness (0 means automatic = font size × decorationThickness)
+	 * @param offset    underline offset (NaN means automatic; ignored for other decorations)
+	 * @param position  underline position ({@code AbstractTextParams.UNDERLINE_POSITION_*};
+	 *                  ignored for other decorations)
 	 */
 	public record Line(Color color, byte style, double thickness, double offset, byte position) {
-		/** 所有要素のparamsから線の属性を作る。 */
+		/** Creates line attributes from the owning element's params. */
 		public static Line of(final Color color, final AbstractTextParams params) {
 			return new Line(color, params.decorationStyle, params.decorationThicknessLength, params.underlineOffset,
 					params.underlinePosition);

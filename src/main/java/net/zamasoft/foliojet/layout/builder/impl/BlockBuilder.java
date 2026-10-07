@@ -76,7 +76,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	protected Flow contextFlow;
 
 	/**
-	 * 包含ブロックのスタック。
+	 * Stack of containing blocks.
 	 */
 	protected List<Flow> flowStack = null;
 
@@ -86,39 +86,38 @@ public class BlockBuilder implements Builder, LayoutContext {
 	private RetainedTextLimit.Scope retainedRoot;
 	private java.util.Map<Integer, RetainedTextLimit.Scope> retainedFlows;
 
-	/** 有効時だけ生成する、container 所有の段落イベント queue。 */
+	/** Container-owned paragraph event queue, created only when enabled. */
 	private net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.Session bidiParagraph;
 
 	/**
-	 * 上流の {@code GlyphHandler} で現在開いているテキストランです。
+	 * Text run currently open in the upstream {@code GlyphHandler}.
 	 *
-	 * <p>行間の断片化は {@link #textBuilder} を閉じることがありますが、
-	 * shaper 側の同じランはその後も glyph を送り続けられます。その場合は
-	 * 次の glyph で新しい {@link TextBuilder} とランを遅延再開するため、
-	 * ランのフォント状態を builder の寿命とは独立に保持します。</p>
+	 * <p>Fragmentation between lines may close {@link #textBuilder}, while the same run in the shaper
+	 * can continue sending glyphs. In that case, the next glyph lazily reopens a new {@link TextBuilder}
+	 * and run, so the run's font state is retained independently of the builder's lifetime.</p>
 	 */
 	private FontStyle openRunFontStyle = null;
 	private FontMetrics openRunFontMetrics = null;
 
 	/**
-	 * ブロック境界で<b>テキストビルダーが開いたままでない</b>ことを検査します
-	 * (2026-07-26、assertから fail-closed へ昇格)。
+	 * Checks that <b>no text builder remains open</b> at a block boundary
+	 * (2026-07-26, promoted from an assertion to fail-closed behavior).
 	 *
 	 * <p>
-	 * この不変条件が破れると、<b>本番では黙って内容が落ちる</b>ことを実測で
-	 * 確認した——ランダム生成のstrict seed 890は、assertionを切ると変換に
-	 * 成功したまま段落3つ({@code column-count:3}のブロック丸ごと)を出力から
-	 * 失う。assertionが有効なら同じ文書は明示的に失敗する。
+	 * Measurements confirmed that violating this invariant <b>silently loses content in production</b>:
+	 * with assertions disabled, random-generation strict seed 890 converted successfully while losing
+	 * three paragraphs (an entire {@code column-count:3} block) from the output.
+	 * With assertions enabled, the same document fails explicitly.
 	 * </p>
 	 *
 	 * <p>
-	 * 証券レポート等では「出力されない」より「間違ったものが出力される」方が
-	 * 桁違いに危険なので、<b>テスト・本番を問わず例外にする</b>。
-	 * 検査自体はnull比較で費用ゼロ。{@code RootBuilder.pageBreak}の
-	 * 深さ検査が2026-07-21に同じ理由で昇格済みで、これはその第2弾。
+	 * For securities reports and similar documents, incorrect output is far more dangerous than no output,
+	 * so <b>throw an exception in both tests and production</b>. The check is a null comparison with
+	 * zero cost. The depth check in {@code RootBuilder.pageBreak} was promoted for the same reason
+	 * on 2026-07-21; this is the second such change.
 	 * </p>
 	 *
-	 * @param context 例外メッセージに載せる文脈(要素など)
+	 * @param context context to include in the exception message (element, etc.)
 	 */
 	protected final void requireNoOpenTextBuilder(final Object context) {
 		if (this.textBuilder != null) {
@@ -128,80 +127,75 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * Knuth-Plass行分割({@code text-wrap-style: pretty})の蓄積
-	 * セッションです(2026-07-23、M3c増分3)。オプトインが有効で段落が
-	 * 適格な場合のみ{@link #requireTextBlock()}で開始され、記録中は
-	 * テキストイベントを{@link #textBuilder}へ配達せず蓄積する。既定
-	 * (legacy)では常にnullで挙動不変。
+	 * Accumulation session for Knuth-Plass line breaking ({@code text-wrap-style: pretty})
+	 * (2026-07-23, M3c increment 3). Started by {@link #requireTextBlock()} only when opted in and the
+	 * paragraph is eligible. During recording, accumulates text events instead of delivering them to
+	 * {@link #textBuilder}. Always null in the default (legacy) mode, preserving behavior.
 	 */
 	TotalFitSession textSession = null;
 
 	/**
-	 * 次のテキストブロックの継続状態です。
+	 * Continuation state of the next text block.
 	 */
 	protected BreakToken breakToken = BreakToken.NONE;
 
 	protected double poLastMargin = 0, neLastMargin = 0;
 
 	/**
-	 * 配置中の通常のフローのボックスの、コンテキストボックスに対する位置です。
+	 * Position of the normal-flow box being placed, relative to the context box.
 	 */
 	protected double lineAxis = 0, pageAxis = 0;
 
 	/**
-	 * 次の行またはフローの開始で追加する浮動ボックスです。
+	 * Floating boxes to add at the start of the next line or flow.
 	 */
 	protected List<IFloatBox> toAddFloatings = null;
 
 	/**
-	 * 追加済みの浮動ボックスです。
+	 * Floating boxes already added.
 	 */
 	protected List<Floating> floatings = null;
-	/** overflow:hiddenまたはwriting-mode変更で独立したfloat台帳。 */
+	/** Independent float registries created by overflow:hidden or writing-mode changes. */
 	private List<List<Floating>> noOverflowFloatings = null;
-	/** {@link #noOverflowFloatings}と同じ順で、その台帳を所有するflow box。 */
+	/** Flow boxes owning those registries, in the same order as {@link #noOverflowFloatings}. */
 	private List<AbstractContainerBox> independentFloatScopeOwners = null;
 
 	/**
-	 * {@link #floatings}台帳の世代カウンタです(2026-07-24、E-5——codex
-	 * アーキレビュー指摘「照会ごとのO(N) snapshot再構築」の解消)。台帳を
-	 * 変更する全ての口が{@link #noteFloatingsChanged()}を呼んで
-	 * インクリメントする:
+	 * Generation counter for the {@link #floatings} registry (2026-07-24, E-5: eliminates the O(N)
+	 * snapshot rebuild per query identified in the codex architecture review). Every registry mutation
+	 * entry point calls {@link #noteFloatingsChanged()} to increment it:
 	 * <ul>
-	 * <li>{@link #addFloating(LayoutContext.Floating)}——要素追加</li>
-	 * <li>{@link #addFloating(IFloatBox)}——{@code FLOAT_COMP}安定ソート
-	 * (並び順は{@code FloatExclusion.order}とスナップショット内容に
-	 * 影響する)</li>
-	 * <li>{@link #endFlowBlock()}——overflow:hiddenスコープpop時の
-	 * {@code removeAll}</li>
-	 * <li>{@code BreakableBuilder.resetFragmentCursor()}——フラグメント
-	 * 境界での台帳リセット({@code floatings = null})</li>
+	 * <li>{@link #addFloating(LayoutContext.Floating)}: adds an entry</li>
+	 * <li>{@link #addFloating(IFloatBox)}: stable {@code FLOAT_COMP} sort (order affects
+	 * {@code FloatExclusion.order} and snapshot content)</li>
+	 * <li>{@link #endFlowBlock()}: {@code removeAll} when popping an overflow:hidden scope</li>
+	 * <li>{@code BreakableBuilder.resetFragmentCursor()}: registry reset at a fragment boundary
+	 * ({@code floatings = null})</li>
 	 * </ul>
-	 * 要素{@link LayoutContext.Floating}は全フィールドfinalの不変値で、
-	 * スナップショットが参照する{@code box.getFloatPos().floating}も
-	 * 台帳追加後に書き換わることはない({@code StyleBuilder}・
-	 * {@code FloatPosTemplate}ともレイアウト開始前の構築時のみ書く)ため、
-	 * リスト自体の追加・削除・並び替えだけを世代に数えれば足りる。
+	 * Each {@link LayoutContext.Floating} entry is immutable, with all fields final. The snapshot's
+	 * {@code box.getFloatPos().floating} also never changes after registry insertion
+	 * ({@code StyleBuilder} and {@code FloatPosTemplate} write only during construction, before layout).
+	 * Thus, counting only list additions, removals, and reordering in the generation is sufficient.
 	 */
 	private int floatingsGeneration = 0;
 
-	/** {@link #snapshotExclusions()}のキャッシュ(不変値なので共有可)。 */
+	/** Cache for {@link #snapshotExclusions()} (immutable, so it can be shared). */
 	private ExclusionSpace cachedExclusions = null;
 
 	/**
-	 * {@link #startFlowBlock} がページフロートの帯で箱を狭めた回数(2026-10-05)。RootBuilder が、置いた
-	 * grid・flex が帯を避けて狭まったのか、帯へ入ったのかを見分ける。
+	 * Number of times {@link #startFlowBlock} narrowed a box around a page-float band (2026-10-05).
+	 * RootBuilder uses this to distinguish whether a placed grid/flex narrowed to avoid the band or entered it.
 	 */
 	int pageFloatNarrowings = 0;
 
-	/** {@link #cachedExclusions}を構築した時点の世代。 */
+	/** Generation at which {@link #cachedExclusions} was built. */
 	private int cachedExclusionsGeneration = -1;
 
 	/**
-	 * {@link #floatings}台帳の変更を記録します(E-5、世代キャッシュの
-	 * 無効化)。変更操作を増やす場合は必ずこれを呼ぶこと——呼び漏らしは
-	 * staleなスナップショット=実挙動バグになる。迷ったら安全側
-	 * (余分なインクリメントは再構築が増えるだけで正しさは保たれる)。
+	 * Records a change to the {@link #floatings} registry (E-5, generation-cache invalidation).
+	 * Always call this when adding a mutation operation: a missed call creates a stale snapshot and
+	 * an actual behavior bug. When in doubt, err on the safe side (an extra increment only causes
+	 * more rebuilds; correctness is preserved).
 	 */
 	final void noteFloatingsChanged() {
 		++this.floatingsGeneration;
@@ -209,13 +203,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 通常の浮動体台帳と、各独立BFCが共有する浮動体台帳をページ軸方向へ
-	 * 平行移動します。同じ{@link Floating}は複数の台帳に同一identityで
-	 * 現れるため、identityによるold→new対応を一度だけ作り、すべての
-	 * 参照を同じ新インスタンスへ置き換えます。これにより台帳間のaliasを
-	 * 保ったまま、排除域スナップショットのキャッシュも無効化します。
+	 * Translates the normal float registry and the float registries shared by each independent BFC
+	 * along the page axis. The same {@link Floating} can appear with identical identity in multiple
+	 * registries, so creates the identity-based old → new mapping only once and replaces every reference
+	 * with the same new instance. Preserves aliases across registries while also invalidating the
+	 * exclusion-area snapshot cache.
 	 *
-	 * @param dy ページ軸方向の移動量
+	 * @param dy translation along the page axis
 	 */
 	public final void shiftFloatLedgers(final double dy) {
 		final java.util.IdentityHashMap<Floating, Floating> shifted = new java.util.IdentityHashMap<>();
@@ -243,11 +237,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 現在有効な通常float台帳と、開いている独立BFCの台帳が持つ
-	 * ページ軸終端の最大値を返します。同じ要素が両方へ現れても最大値だけを
-	 * 求めるため、identityの重複は結果に影響しません。
+	 * Returns the maximum page-axis end in the currently active normal float registry and the registries
+	 * of open independent BFCs. Only the maximum is needed, so duplicate identities do not affect the
+	 * result even if an entry appears in both.
 	 *
-	 * @return 配置済みfloatがなければ0、あればそのページ軸終端の最大値
+	 * @return 0 if no floats are placed; otherwise, their maximum page-axis end
 	 */
 	protected final double maxActiveFloatingPageEnd() {
 		double pageEnd = 0;
@@ -277,12 +271,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 開いている通常フローのページ軸位置と現在のカーソルを同量だけ
-	 * 平行移動します。各フローのボックス、行軸位置、枠量と
-	 * {@code line-clamp}状態は保ちます。{@link #contextFlow}はflowStackの
-	 * 外にあるページ自身の{@code (0, 0)}基準なので移動しません。
+	 * Translates the page-axis positions of open normal flows and the current cursor by the same amount.
+	 * Preserves each flow's box, line-axis position, frame amount, and {@code line-clamp} state.
+	 * {@link #contextFlow} is the page's own {@code (0, 0)} reference outside flowStack and is not moved.
 	 *
-	 * @param dy ページ軸方向の移動量
+	 * @param dy translation along the page axis
 	 */
 	public final void shiftFlowStack(final double dy) {
 		if (this.flowStack != null) {
@@ -294,7 +287,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 浮動ボックスをページ方向の底辺がページ開始位置にあるものから順に整列します。
+	 * Sorts floating boxes by their page-direction bottom edge, starting nearest the page start.
 	 */
 	private static Comparator<Object> FLOAT_COMP = new Comparator<Object>() {
 		public int compare(Object o1, Object o2) {
@@ -343,7 +336,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.retainedRoot = null;
 	}
 
-	/** 固定幅の独立ビルダーは、親への配置後に呼び側のfinallyで閉じます。 */
+	/** The caller closes fixed-width independent builders in finally after placing them in the parent. */
 	public void finishRetainedContext() {
 		if (this.retainedContext != null) {
 			this.retainedContext.close();
@@ -362,7 +355,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				return box;
 			}
 		}
-		// 両端の位置で頁方向の大きさが決まる絶対配置の箱(2026-10-04)。中の % の大きさの基準にする
+		// Absolute boxes sized on the page axis by both ends (2026-10-04): the reference for inner % sizes.
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute
 				&& absolute.getBlockParams().flow.isVertical() && absolute.isPageAxisDefinite()) {
 			return box;
@@ -391,7 +384,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				return box;
 			}
 		}
-		// 両端の位置で頁方向の大きさが決まる絶対配置の箱(2026-10-04)。中の % の大きさの基準にする
+		// Absolute boxes sized on the page axis by both ends (2026-10-04): the reference for inner % sizes.
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute
 				&& !absolute.getBlockParams().flow.isVertical() && absolute.isPageAxisDefinite()) {
 			return box;
@@ -421,17 +414,17 @@ public class BlockBuilder implements Builder, LayoutContext {
 				BlockParams params = flow.box.getBlockParams();
 				frameWidth += flow.box.getFrame().getFrameWidth();
 				if (!params.flow.isVertical()) {
-					// 横書き
+					// Horizontal writing
 					return flow.box.getWidth() - frameWidth;
 				}
 				if (flow.box.isSpecifiedPageSize()) {
-					// 幅が指定されている
+					// Width is specified.
 					return flow.box.getWidth() - frameWidth;
 				}
 			}
 		}
-		// 文脈の箱は内寸(2026-10-05)。外寸(getWidth)だと頁の余白まで含み、縦組みの中の横組みの表が
-		// 用紙の幅で組まれて版面の外へはみ出した(jigensha の報告)。高さ・TwoPassBlockBuilder は元から内寸
+		// Use the context's inner size (2026-10-05). getWidth included page margins, so horizontal tables in vertical writing
+		// used paper width and overflowed the type area (jigensha report). Height/TwoPassBlockBuilder already used inner sizes.
 		AbstractContainerBox box = this.getFixedWidthContextBox();
 		return box == null ? 0 : box.getInnerWidth() - frameWidth;
 	}
@@ -442,11 +435,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 				Flow flow = (Flow) this.flowStack.get(i);
 				BlockParams params = flow.box.getBlockParams();
 				if (!params.flow.isVertical()) {
-					// 横書き
+					// Horizontal writing
 					return flow.box;
 				}
 				if (flow.box.isSpecifiedPageSize()) {
-					// 幅が指定されている
+					// Width is specified.
 					return flow.box;
 				}
 			}
@@ -460,11 +453,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 				final Flow flow = (Flow) this.flowStack.get(i);
 				final BlockParams params = flow.box.getBlockParams();
 				if (params.flow.isVertical()) {
-					// 縦書き
+					// Vertical writing
 					return flow.box;
 				}
 				if (flow.box.isSpecifiedPageSize()) {
-					// 幅が指定されている
+					// Width is specified.
 					return flow.box;
 				}
 			}
@@ -480,11 +473,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 				BlockParams params = flow.box.getBlockParams();
 				frameHeight += flow.box.getFrame().getFrameHeight();
 				if (params.flow.isVertical()) {
-					// 縦書き
+					// Vertical writing
 					return flow.box.getHeight() - frameHeight;
 				}
 				if (flow.box.isSpecifiedPageSize()) {
-					// 幅が指定されている
+					// Width is specified.
 					return flow.box.getHeight() - frameHeight;
 				}
 			}
@@ -494,12 +487,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * ページ文脈(根のbuilder)です。<b>持たないことがある</b>——表セルの
-	 * 再レイアウト用builder({@code TableRowBox}が
-	 * {@code new BlockBuilder(null, ...)}で作る)は版面に紐づかないため。
-	 * 呼び出し側は既にnullを想定しており({@code optimizedTextEnabled}の
-	 * 「ページ文脈を持たない再レイアウト用ビルダー」分岐等)、ここだけが
-	 * null安全でなかった(2026-08-02、掃過のNPEで発覚)。
+	 * Page context (root builder). <b>May be absent</b>: builders for table-cell relayout
+	 * (created by {@code TableRowBox} via {@code new BlockBuilder(null, ...)}) are not tied to a type area.
+	 * Callers already allow null (e.g., the "relayout builder without page context" branch of
+	 * {@code optimizedTextEnabled}); only this method was not null-safe
+	 * (2026-08-02, discovered by an NPE during the sweep).
 	 */
 	public RootBuilder getPageContext() {
 		return this.layoutStack == null ? null : this.layoutStack.getPageContext();
@@ -524,7 +516,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.bidiParagraph.replayPrefix(prefix);
 	}
 
-	/** float/absolute/bound などの外側の順序境界を段落 queue へ残す。 */
+	/** Records outer ordering boundaries such as float/absolute/bound in the paragraph queue. */
 	public final void noteBidiBarrier(final Object payload) {
 		if (this.bidiParagraph == null) {
 			this.bidiParagraph = new net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.Session();
@@ -540,7 +532,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.bidiParagraph = null;
 	}
 
-	/** 改ページは段落終端にせず、確定ページの描画用 tree だけ先行生成する。 */
+	/** Does not end the paragraph at a page break; generates only the finalized page's drawing tree ahead of time. */
 	final void previewBidiParagraph(final BlockParams params) {
 		if (this.bidiParagraph != null) {
 			this.bidiParagraph.preview(params);
@@ -548,27 +540,24 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * <b>協調的な中断点</b>(2026-07-27新設)。長く走るループの先頭で
-	 * 呼びます。
+	 * <b>Cooperative interruption point</b> (added 2026-07-27). Called at the start of long-running loops.
 	 *
 	 * <p>
-	 * <b>ページの境目だけでは足りない。</b>変換を外から止める手段は
-	 * {@code abort()}しかないが、それは旗を立てるだけで、エンジンが旗を
-	 * 読む場所がなければ何も起きない。従来は読む場所が
-	 * {@code UserAgent.nextPage()}=ページの境目だけだったので、
-	 * <b>1ページの処理が終わらない文書は永久に止められなかった</b>。
+	 * <b>Page boundaries alone are insufficient.</b> The only way to stop a conversion externally is
+	 * {@code abort()}, which merely sets a flag; nothing happens unless the engine reads it.
+	 * Previously, it was read only in {@code UserAgent.nextPage()}, at page boundaries, so
+	 * <b>documents whose single-page processing never finished could never be stopped</b>.
 	 * </p>
 	 *
 	 * <p>
-	 * 見るのは{@code ABORT_FORCE}だけ。{@code ABORT_NORMAL}は
-	 * 「次のページの区切りで綺麗に止める」意味なので、ページの途中では
-	 * 反応してはいけない。
+	 * Checks only {@code ABORT_FORCE}. {@code ABORT_NORMAL} means "stop cleanly at the next page boundary",
+	 * so it must not trigger in the middle of a page.
 	 * </p>
 	 */
 	protected final void checkAbort() {
-		// ページ文脈を持たないbuilder(表セルの再レイアウト用)では
-		// 中断の旗を読む相手が居ない——外から止める必要があるループは
-		// 版面側で回るため、ここは何もしないでよい(2026-08-02、掃過のNPE)
+		// Builders without page context (for table-cell relayout) have no object from which
+		// to read the abort flag. Loops requiring external interruption run on the type-area
+		// side, so this can be a no-op (2026-08-02, sweep NPE).
 		final RootBuilder root = this.getPageContext();
 		if (root == null) {
 			return;
@@ -601,7 +590,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 現在のフローか上位にある最初のpositionが指定されているボックスを返す。
+	 * Returns the first box with position specified, starting at the current flow and searching ancestors.
 	 */
 	public AbstractContainerBox getContextBox() {
 		if (this.flowStack != null) {
@@ -636,8 +625,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 現在のフローからrootまでの間の最初のpositionが指定されているボックスを返す。
-	 * 
+	 * Returns the first box with position specified between the current flow and root.
+	 *
 	 * @return
 	 */
 	Flow getSubContextFlow() {
@@ -669,17 +658,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * contextFlowより内側に、閉じるべきopen flowが残っているかを返します。
+	 * Returns whether any open flows remain inside contextFlow that need closing.
 	 *
 	 * <p>
-	 * 閉部分木のrestyle中にも、その内容が段からあふれると入れ子の
-	 * COLUMN継続が発生します。ownerが{@link #contextFlow}の場合、継続は
-	 * {@code pruneFlowStackTo(contextFlow)}はrestyle呼出し元が積んだフローを
-	 * 消費し、COLUMN継続が同じ構造深度を別の箱identityで積み直すことが
-	 * あります。閉じたrestyleの各Java呼出しフレームは、その新しい最上位を
-	 * 1段ずつ閉じる必要があります。一方、継続が内側を全て消費して何も
-	 * 積み直さなかった場合だけ、余った古い呼出しフレームは閉じる対象を
-	 * 持ちません(2026-08-25、extreme strict seed 4540)。
+	 * Even while restyling a closed subtree, content overflowing a column can cause nested COLUMN
+	 * continuations. When the owner is {@link #contextFlow}, {@code pruneFlowStackTo(contextFlow)}
+	 * consumes flows pushed by the restyle caller, and a COLUMN continuation may repush the same
+	 * structural depth with different box identities. Each Java call frame of the closed restyle must
+	 * close the new topmost flow one level at a time. Only if the continuation consumes all inner flows
+	 * without repushing anything do the remaining old call frames have nothing to close
+	 * (2026-08-25, extreme strict seed 4540).
 	 * </p>
 	 */
 	public final boolean hasOpenFlow() {
@@ -702,35 +690,34 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 行方向の内側への差し込みを与えて通常フローのブロックを開きます。
+	 * Opens a normal-flow block with inward insets in the line direction.
 	 *
 	 * <p>
-	 * 表のキャプション専用の入口です。CSS 2.1 §17.4のとおり、表要素の
-	 * {@code margin}は表そのものではなく<b>ラッパー箱</b>に付き、キャプションの
-	 * 包含ブロックはラッパーの内容箱——つまり<b>表のborder box</b>です。
-	 * copper4はラッパーの内容幅を表のmargin boxにしているので、そのまま並べると
-	 * キャプションが表のマージンぶんだけ外側へはみ出す(2026-08-30、
-	 * Wikipediaのサムネイルの説明文が図の左へずれる欠陥)。ここで差し込んで
-	 * 表のborder boxに合わせる。
+	 * Entry point dedicated to table captions. Per CSS 2.1 §17.4, the table element's {@code margin}
+	 * belongs to the <b>wrapper box</b>, not the table itself, and the caption's containing block is the
+	 * wrapper's content box, i.e., the <b>table's border box</b>. copper4 uses the table's margin box
+	 * as the wrapper content width, so placing them as is makes the caption extend outward by the table
+	 * margins (2026-08-30, the defect where Wikipedia thumbnail captions shifted left of the figure).
+	 * Inset here to align with the table's border box.
 	 * </p>
 	 *
-	 * @param insetStart 行方向先頭側の差し込み幅
-	 * @param insetEnd   行方向末尾側の差し込み幅
+	 * @param insetStart inset width on the line-start side
+	 * @param insetEnd   inset width on the line-end side
 	 */
 	public void startFlowBlock(final FlowBlockBox flowBox, final double insetStart, final double insetEnd) {
 		this.requireNoOpenTextBuilder("(no context)");
 		AbstractContainerBox containerBox = this.getFlowBox();
 		final BlockParams cParams = containerBox.getBlockParams();
 		final AxisSpan containerBand = new AxisSpan(this.lineAxis, this.lineAxis + containerBox.getLineSize());
-		// 通常の浮動体で狭めた行方向の帯(差し込みの前)
+		// Line-direction band narrowed by ordinary floats (before insets).
 		AxisSpan floatBand = containerBand;
 		final boolean avoidsFloats = avoidsFloats(flowBox);
 		if (avoidsFloats) {
-			// 独立した整形文脈の箱は浮動ボックスを避ける(CSS 2.1 §9.5——border boxがfloatの
-			// margin boxに重ならない。排除域はExclusionSpace queryへ一本化済み——2026-07-23、P0完了)。
-			// 段組、flex/grid(2026-08-27、asahi.comフッターのfloatラベルへ隣のflexリストが重なった実バグ)、
-			// flow-root・overflowがvisible以外の箱(2026-10-05、背景と罫がfloatの下まで伸びていた。
-			// Chromeは箱ごと狭める)。帯はコンテナ開始時点の排除域で確定する
+			// Boxes with independent formatting contexts avoid floating boxes (CSS 2.1 §9.5: the border box must not
+			// overlap a float's margin box. Exclusions are unified through ExclusionSpace queries; 2026-07-23, P0 complete).
+			// Includes multi-column layout, flex/grid (2026-08-27: an adjacent flex list overlapped a float label in asahi.com's footer),
+			// flow-root, and non-visible overflow boxes (2026-10-05: backgrounds and borders extended under floats;
+			// Chrome narrows the whole box). The band is determined by the exclusion area at container start.
 			floatBand = this.snapshotExclusions().narrowLineBandForMulticol(this.pageAxis, containerBand);
 		}
 		if (narrower(floatBand, containerBand) || flowBox.getColumnCount() > 1
@@ -738,14 +725,14 @@ public class BlockBuilder implements Builder, LayoutContext {
 				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.GridBox) {
 			this.calculateSizeIn(flowBox, floatBand, insetStart, insetEnd);
 		} else {
-			// 狭まらなかった箱には容器の行の長さをそのまま渡す。帯の端から引き直すと 1 ulp ずれて、
-			// flow-root・overflow の箱の幅の digest が揺れた(段組・flex・grid は以前から帯の値)
+			// For boxes that were not narrowed, pass the container's line size unchanged. Subtracting band endpoints
+			// shifted it by 1 ulp, changing flow-root/overflow box-width digests (multi-column/flex/grid already used band values).
 			this.calculateSizeIn(flowBox, 0, containerBox.getLineSize(), insetStart, insetEnd);
 		}
 		if (avoidsFloats && narrower(floatBand, containerBand)) {
-			// 浮動体の横に入らなければ、入るところまで浮動体の下へ下げる(CSS 2.1 §9.5、2026-10-05。Chromeも同じ)。
-			// 従来は幅を指定した箱は横に置いて版面の外へはみ出し、全幅の浮動体の後の箱は幅 0 に潰れた(msn の
-			// タブの下の天気の箱)。下げた位置が枠の始まり
+			// If it cannot fit beside floats, move down until it fits (CSS 2.1 §9.5, 2026-10-05; Chrome does the same).
+			// Previously, specified-width boxes were placed beside floats and overflowed the type area; boxes after full-width
+			// floats collapsed to width 0 (msn's weather box below the tabs). The lowered position is the frame start.
 			final ExclusionSpace snapshot = this.snapshotExclusions();
 			double at = Double.NaN;
 			while (narrower(floatBand, containerBand) && !this.fitsBeside(flowBox, cParams, floatBand)) {
@@ -766,8 +753,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final FlowPos pos = flowBox.getFlowPos();
 
 		if (establishesIndependentFloatScope(flowBox, cParams)) {
-			// overflow:hiddenとwriting-mode変更はいずれも独立BFCを作り、
-			// 内側のfloatを親の排除域へ漏らさない。
+			// Both overflow:hidden and writing-mode changes establish independent BFCs
+			// and prevent inner floats from leaking into the parent's exclusion area.
 			if (this.noOverflowFloatings == null) {
 				this.noOverflowFloatings = new ArrayList<List<Floating>>();
 				this.independentFloatScopeOwners = new ArrayList<AbstractContainerBox>();
@@ -779,7 +766,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final AbsoluteRectFrame frame = flowBox.getFrame();
 
 		if (pos.clear != ClearMode.NONE && this.getFloatingCount() > 0) {
-			// clearが指定されている場合
+			// If clear is specified
 			final double marginStart;
 			if (cParams.flow.isVertical()) {
 				marginStart = frame.margin.right;
@@ -790,19 +777,19 @@ public class BlockBuilder implements Builder, LayoutContext {
 			final ExclusionSpace snapshot = this.snapshotExclusions();
 			final FloatExclusion found = snapshot.findClearBoundary(pageStart, marginStart, pos.clear);
 			if (found != null) {
-				// 浮動ボックスの下につける
+				// Place below floating boxes.
 				this.poLastMargin = this.neLastMargin = 0;
 				this.pageAxis = found.pageSpan().end() - marginStart;
 			}
 		}
 
 		if (avoidsFloats) {
-			// ページフロートの帯も避ける(2026-10-05)。中の行は頁の排除域を見ずに組まれる(grid など)か、
-			// 箱が狭まらずに背景と罫が図版に重なった(flow-root、jigensha の縦組みの本の吹き出しとコラム)。
-			// 箱が必ず占める範囲——余白を相殺した後の枠の始まりから、ブロック方向の罫とパディングと 1 行
-			// ぶん——にかかる帯で狭める(図版の直後の箱は帯のわずか手前から始まり、始まりだけ見ると
-			// 漏れた)。それより先で帯へ入る表・grid・flex は RootBuilder がその頁を一次元の予約へ
-			// 切り替えて手前で割る
+			// Also avoid page-float bands (2026-10-05). Inner lines were laid out without page exclusions (e.g., grid),
+			// or un-narrowed boxes' backgrounds/borders overlapped figures (flow-root; speech balloons/columns in jigensha's vertical books).
+			// Narrow using bands intersecting the minimum occupied extent: from the frame start after margin collapse
+			// through block-direction borders, padding, and one line (boxes just after figures began slightly before
+			// the band and escaped checks based only on their start). For tables/grid/flex entering the band farther on,
+			// RootBuilder switches that page to a one-dimensional reservation and splits before the band.
 			final double borderStart = this.collapsedBorderStart(frame, cParams);
 			final double minExtent = frame.getBorderPageExtent(cParams.flow) + flowBox.getBlockParams().lineHeight;
 			final AxisSpan pageBand = this.pageFloatExclusionsForLineLayout().narrowLineBandOver(borderStart,
@@ -814,22 +801,22 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 		}
 
-		// 開始位置マージンのつぶし
+		// Collapse start-position margins.
 		// SPEC CSS 2.1 8.3.1
-		// 正のマージンでは大きいほうが採用される
-		// 正と負のマージンでは両方が足される
-		// 負と負のマージンでは絶対値が大きいほうが採用される
+		// For positive margins, use the larger one.
+		// For a positive and a negative margin, add both.
+		// For two negative margins, use the one with the larger absolute value.
 		LayoutContext.Flow parentFlow = this.getFlow(this.getFlowCount() - 1);
 		double marginStart, frameStart, frameHead;
 		boolean bordered;
 		if (cParams.flow.isVertical()) {
-			// 縦書き
+			// Vertical writing
 			marginStart = frame.margin.right;
 			frameHead = frame.getFrameTop();
 			frameStart = frame.getFrameRight();
 			bordered = frame.padding.right > 0 || !frame.frame.border.getRight().isNull();
 		} else {
-			// 横書きのフロー
+			// Horizontal-writing flow
 			marginStart = frame.margin.top;
 			frameHead = frame.getFrameLeft();
 			frameStart = frame.getFrameTop();
@@ -873,18 +860,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 			/**
-	 * 現在の{@link #floatings}を{@link ExclusionSpace}へ変換した
-	 * スナップショットを返します(2026-07-23新設、P0 Step4以降は
-	 * 実レイアウトに使用。{@code TextBuilder}もこれを共用する)。
-	 * {@code this.floatings}は既に{@code FLOAT_COMP}(pageEnd昇順、
-	 * 同値は追加順)でソート済みのため、並び順をそのまま
-	 * {@link ExclusionSpace#copyOfSorted}へ渡すO(N)一括構築で足りる
-	 * (2026-07-23、codexレビュー指摘のO(N²)解消)。
+	 * Returns a snapshot converting the current {@link #floatings} to {@link ExclusionSpace}
+	 * (added 2026-07-23; used for actual layout since P0 Step4, and shared by {@code TextBuilder}).
+	 * {@code this.floatings} is already sorted by {@code FLOAT_COMP} (ascending pageEnd, insertion order
+	 * for ties), so O(N) batch construction suffices by passing the order unchanged to
+	 * {@link ExclusionSpace#copyOfSorted} (2026-07-23, removed the O(N²) cost noted in codex review).
 	 *
 	 * <p>
-	 * 台帳が前回構築時から変わっていなければ({@link #floatingsGeneration}
-	 * 世代一致)、再構築せずキャッシュ済みの不変スナップショットを返す
-	 * (2026-07-24、E-5——照会ごとのO(N)再構築の解消)。
+	 * If the registry has not changed since construction (matching {@link #floatingsGeneration}),
+	 * returns the cached immutable snapshot without rebuilding
+	 * (2026-07-24, E-5: eliminates O(N) rebuilding per query).
 	 * </p>
 	 */
 	ExclusionSpace snapshotExclusions() {
@@ -896,9 +881,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 			return this.cachedExclusions;
 		}
 		final List<FloatExclusion> exclusions = new ArrayList<>(count);
-		// shape-outside(2026-08-29)の解決に要る文脈。書字方向は根ボックス、
-		// shape-marginの%基準は包含ブロックの行方向幅。台帳が変わらない限り
-		// キャッシュに乗るので、行ごとに形状を作り直すことはない
+		// Context needed to resolve shape-outside (2026-08-29). Writing mode comes from the root box;
+		// the shape-margin percentage reference is the containing block's line-direction width. Cached
+		// while the registry is unchanged, so shapes are not rebuilt for every line.
 		final BlockParams rootParams = this.getRootBox().getBlockParams();
 		final WritingMode progression = rootParams.flow;
 		final double containingLineSize = this.getFlowBox().getLineSize();
@@ -920,15 +905,15 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 行組み用に通常フロートとページフロートを別々に走査し、共通の
-	 * 利用可能帯へ合成します。
+	 * Scans normal floats and page floats separately for line layout and combines them into one
+	 * available band.
 	 *
 	 * <p>
-	 * bottomページフロートは現在位置より未来から始まるため、通常floatの
-	 * 「最初の未来開始で打ち切る」スナップショットへ混ぜない。通常集合は
-	 * 従来の{@link ExclusionSpace#scanLineBand}、ページ集合だけは全件走査し、
-	 * lineStartの最大、lineEndとmaxPageSizeの最小を採る。clear、BFC回避、
-	 * 通常float配置は従来どおり{@link #snapshotExclusions()}だけを見る。
+	 * Bottom page floats start beyond the current position, so do not mix them into the normal-float
+	 * snapshot, whose scan stops at the first future start. The normal set uses the existing
+	 * {@link ExclusionSpace#scanLineBand}; only the page set is fully scanned, taking the maximum
+	 * lineStart and minimum lineEnd/maxPageSize. clear, BFC avoidance, and normal-float placement
+	 * continue to consult only {@link #snapshotExclusions()}.
 	 * </p>
 	 */
 	final ExclusionSpace.LineScan scanLineBandForLineLayout(final double pageStart, final double lineHeight,
@@ -938,7 +923,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				lineEnd0);
 		final ExclusionSpace pageSpace = this.pageFloatExclusionsForLineLayout();
 		if (pageSpace.isEmpty()) {
-			// 通常floatだけの文書は結果オブジェクトも含め従来経路をそのまま返す。
+			// For documents with only normal floats, return the existing path unchanged, including its result object.
 			return ordinary;
 		}
 		final ExclusionSpace.LineScan page = pageSpace.scanLineBandFully(pageStart, lineHeight, lineStart0, lineEnd0);
@@ -964,7 +949,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				maxPageSizeSet, maxPageSize);
 	}
 
-	/** 同じ行境界を作る排除域のうち、境界が最後まで残る方を返す。 */
+	/** Of exclusion areas producing the same line boundary, returns the one whose boundary persists longest. */
 	private static FloatExclusion laterEnding(final FloatExclusion a, final FloatExclusion b) {
 		if (a == null) {
 			return b;
@@ -983,7 +968,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return !this.snapshotExclusions().isEmpty() || !this.pageFloatExclusionsForLineLayout().isEmpty();
 	}
 
-	/** Root座標の行組みだけが別走査するページフロート排除域。 */
+	/** Page-float exclusion areas scanned separately only for line layout in Root coordinates. */
 	protected ExclusionSpace pageFloatExclusionsForLineLayout() {
 		return ExclusionSpace.EMPTY;
 	}
@@ -1009,21 +994,21 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final BlockParams parentParams = parentFlow.box.getBlockParams();
 
 		if (flowBox.getColumnCount() > 1 && params.columns.fill == Columns.FILL_BALANCE) {
-			// カラムのバランス
+			// Column balancing
 			this.pageAxis = flow.pageAxis;
 			flowBox.balance(this);
 		}
 		if (establishesIndependentFloatScope(flowBox, parentParams)) {
-			// 独立BFC内のfloatを親の排除域から外す。
+			// Remove floats inside independent BFCs from the parent's exclusion area.
 			assert this.independentFloatScopeOwners.get(this.independentFloatScopeOwners.size() - 1) == flowBox;
 			this.independentFloatScopeOwners.remove(this.independentFloatScopeOwners.size() - 1);
 			final List<Floating> floatings = this.noOverflowFloatings.remove(this.noOverflowFloatings.size() - 1);
-			// CSS 2.1 §10.6.7: auto高さのBFCは、そのBFCに属するfloatの
-			// margin box下端を含む。通常フローのカーソルだけで高さを決めると、
-			// 改ページ後の短い本文(55.2pt)を高さにして、先頭へ移った画像float
-			// (150pt)をoverflow:hiddenで切ってしまう(Yahoo!ニュース実例)。
-			// 配置台帳のpageEndはこのbuilderと同じページ軸座標なので、scopeを
-			// 外す前にauto箱のカーソルと箱寸法をfloat下端まで伸ばす。
+			// CSS 2.1 §10.6.7: An auto-height BFC includes the bottom margin-box edge of floats belonging
+			// to that BFC. Using only the normal-flow cursor to determine height uses the short body text
+			// after a page break (55.2 pt) as the height, clipping an image float moved to the start
+			// (150 pt) via overflow:hidden (a real Yahoo! News example).
+			// The placement registry's pageEnd uses this builder's page-axis coordinates, so before
+			// removing the scope, extend the auto box's cursor and dimensions to the float bottom.
 			if (!flowBox.isSpecifiedPageSize()) {
 				for (int i = 0; i < floatings.size(); ++i) {
 					this.pageAxis = Math.max(this.pageAxis, floatings.get(i).pageEnd);
@@ -1040,7 +1025,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final double marginEnd, frameEnd;
 		boolean bordered;
 		if (parentParams.flow.isVertical()) {
-			// 縦書き
+			// Vertical writing
 			marginEnd = frame.margin.left;
 			bordered = frame.padding.left > 0 || !frame.frame.border.getLeft().isNull()
 					|| sealsMargins(flowBox);
@@ -1053,7 +1038,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 			frameEnd = frame.getFrameLeft();
 		} else {
-			// 横書き
+			// Horizontal writing
 			marginEnd = frame.margin.bottom;
 			bordered = frame.padding.bottom > 0 || !frame.frame.border.getBottom().isNull()
 					|| sealsMargins(flowBox);
@@ -1094,21 +1079,21 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.pageAxis += frameEnd;
 
 		parentFlow.box.setPageAxis(this.pageAxis - parentFlow.pageAxis);
-		// **積んだ量をそのまま戻す。** frame から取り直してはいけない——
-		// margin:auto はフローの内側で解決されるので、積んだ 0 に対して
-		// 106.75 を引く、といった食い違いが起きる(Flow.frameHead の説明)
+		// **Undo exactly the amount pushed.** Do not reread it from frame:
+		// margin:auto is resolved inside the flow, so the values can differ, such as
+		// subtracting 106.75 after pushing 0 (see the description of Flow.frameHead).
 		this.lineAxis -= flow.frameHead;
 	}
 
 	/**
-	 * 通常フローのボックスのauto margin・表整列(align)を物理マージンへ
-	 * 解決します(addBoundから抽出した純計算、2026-07-30。演算順は
-	 * 旧実装のまま。{@code amargin}へ書き込む)。
+	 * Resolves normal-flow box auto margins and table alignment (align) into physical margins
+	 * (pure calculation extracted from addBound, 2026-07-30; preserves the former operation order).
+	 * Writes to {@code amargin}.
 	 *
 	 * <p>
-	 * 注意: 旧コード同様、渡された{@code lineSize}からframeSizeを引いた
-	 * 値を分配式に使う(呼び出し側の{@code lineSize}は変更されない——
-	 * 旧実装でもこの計算より後に{@code lineSize}を読む箇所はない)。
+	 * Note: As in the old code, the distribution formula uses the supplied {@code lineSize} minus
+	 * frameSize. The caller's {@code lineSize} is unchanged; the old implementation also never read
+	 * {@code lineSize} after this calculation.
 	 * </p>
 	 */
 	private static void resolveAutoMargins(final boolean vertical, final AbsoluteRectFrame frame, final Insets margin,
@@ -1125,43 +1110,43 @@ public class BlockBuilder implements Builder, LayoutContext {
 			marginEnd = margin.getRightType() == LengthType.AUTO ? LayoutUtils.NONE : amargin.right;
 		}
 		lineSize -= frameSize;
-		// **包含ブロックより広い箱では auto マージンを0にする**(2026-08-03)。
+		// **Set auto margins to 0 for boxes wider than their containing block** (2026-08-03).
 		//
-		// CSS 2.1 §10.3.3: 幅が指定されていて合計が包含ブロックを超える場合、
-		// {@code direction: ltr} では{@code margin-right}の指定が無視される
-		// ——つまり<b>箱は始端に揃い、終端側へ溢れる</b>。従来は余りを機械的に
-		// 2で割っていたため、余りが負のときに<b>負の始端マージン</b>ができ、
-		// 内容の左半分が紙の外へ出て切れていた。
+		// CSS 2.1 §10.3.3: If width is specified and the total exceeds the containing block,
+		// {@code direction: ltr} ignores the specified {@code margin-right}.
+		// Thus, <b>the box aligns to the start and overflows at the end</b>. Previously, the remainder
+		// was mechanically divided by 2, so a negative remainder created a <b>negative start margin</b>,
+		// pushing the left half of the content off the sheet and clipping it.
 		//
-		// 固定幅の版面を{@code margin: 0 auto}で中央寄せする作りは実地で
-		// 極めて多い(総務省統計局のページを取り込んだ第3波で発覚、PLAN §3)。
-		// 紙幅より広い版面はどのみち溢れるが、<b>始端側を守れば読める</b>。
+		// Centering a fixed-width type area with {@code margin: 0 auto} is extremely common in practice
+		// (found in the third wave, using Statistics Bureau of Japan pages; PLAN §3).
+		// A type area wider than the paper overflows anyway, but <b>preserving the start side keeps it readable</b>.
 		final double autoRemainder = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
 		if (autoRemainder < 0 && (LayoutUtils.isNone(marginStart) || LayoutUtils.isNone(marginEnd))) {
 			marginStart = LayoutUtils.isNone(marginStart) ? 0 : marginStart;
 			marginEnd = LayoutUtils.isNone(marginEnd) ? 0 : marginEnd;
 		} else if (LayoutUtils.isNone(marginStart) && LayoutUtils.isNone(marginEnd)) {
-			// 左右のマージンを同じにする
+			// Make left and right margins equal.
 			marginStart = marginEnd = autoRemainder / 2.0;
 		} else if (LayoutUtils.isNone(marginStart)) {
-			// 左が不確定
+			// Left is undetermined.
 			marginStart = autoRemainder;
 		} else if (LayoutUtils.isNone(marginEnd)) {
-			// 右が不確定
+			// Right is undetermined.
 			marginEnd = autoRemainder;
 		} else {
-			// 制限しすぎ
+			// Over-constrained
 			switch (align) {
 			case Align.START:
-				// 左寄せ
+				// Align left
 				marginEnd = 0;
 				break;
 			case Align.END:
-				// 右寄せ
+				// Align right
 				marginStart += cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
 				break;
 			case Align.CENTER:
-				// 中央
+				// Center
 				double remainder = cLineSize - lineSize - frameSize - xMarginStart - xMarginEnd;
 				remainder /= 2.0;
 				marginStart += remainder;
@@ -1180,12 +1165,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 	}
 
-	/** shaper/分綴待ちの文字。静的位置を読むときだけ計量用に配達する。 */
+	/** Characters pending shaping/hyphenation. Deliver for measurement only when reading the static position. */
 	java.util.function.Consumer<net.zamasoft.pdfg2d.gc.text.GlyphHandler> pendingText = measurement -> { };
 
 	public void addBound(IBox box) {
-		// M3c: float・絶対配置はTextBuilderの実状態(lineAxis/pageAxis)を
-		// 読むため、K-P蓄積中なら先にlegacyへ確定させる
+		// M3c: Floats and absolute positioning read TextBuilder's live state (lineAxis/pageAxis),
+		// so finalize into legacy mode first if K-P accumulation is active.
 		if (this.textSession != null) {
 			this.textSession.abortToLegacy();
 		}
@@ -1198,7 +1183,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 	}
 
-	/** 通常のフロー(ブロック・置換・表)を現在の位置へ積みます。余白の相殺と浮動体の回避もここ。 */
+	/** Adds normal flow (blocks, replaced elements, tables) at the current position; also collapses margins and avoids floats. */
 	private void addFlowBound(final IBox box) {
 		this.requireNoOpenTextBuilder("(no context)");
 		IFlowBox flowBox = (IFlowBox) box;
@@ -1225,7 +1210,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			frame = blockBox.getFrame();
 			FlowPos pos = (FlowPos) flowBox.getPos();
 			clear = pos.clear;
-			// 表整列の解決結果は箱ローカル(共有 pos は record 後不変)
+			// Table-alignment resolution is box-local (shared pos is immutable after recording).
 			align = blockBox instanceof FlowBlockBox fb ? fb.getResolvedAlign() : pos.align;
 		}
 			break;
@@ -1246,8 +1231,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final double lineStop = this.lineAxis + cLineSize;
 		double xMarginStart = 0, lineEnd = lineStop, xMarginEnd = 0;
 		if (this.getFloatingCount() > 0) {
-			// clearのチェックと置換ボックスやテーブルが浮動ボックスと重ならない処理
-			// *** CLEAR_NONEもチェックしていることに注意 ***
+			// Check clear and prevent replaced boxes and tables from overlapping floating boxes.
+			// *** Note that CLEAR_NONE is also checked. ***
 			final double pageStart;
 			final double marginAdjust;
 			if (vertical) {
@@ -1268,9 +1253,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 		final ExclusionSpace pageSpace = this.pageFloatExclusionsForLineLayout();
 		if (!pageSpace.isEmpty()) {
-			// ページフロートの帯も避ける(2026-10-05)。表・置換要素は中を頁の排除域で組まないので、
-			// 下端の図版の帯の中で始まると図版に重なった(jigensha の縦組みの本)。図版の脇に収まれば脇へ、
-			// 収まらなければ帯の終わり(頁の端)へ送り、次頁へ回す
+			// Also avoid page-float bands (2026-10-05). Tables/replaced elements do not lay out their contents with page
+			// exclusions, so starting in a bottom-figure band caused overlap (jigensha's vertical book). Place beside
+			// the figure if it fits; otherwise, move to the band end (page edge) and carry over to the next page.
 			final double marginAdjust = vertical ? amargin.right : amargin.top;
 			final double pageStart = this.pageAxis - marginAdjust;
 			final double bandEnd = pageSpace.bandEndAt(pageStart);
@@ -1289,9 +1274,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 		xMarginEnd = lineStop - lineEnd;
 
 		//
-		// ■ 通常のフローのマージンの計算(純計算は resolveAutoMargins へ — 2026-07-30)
-		// flex itemのauto marginはFlexBuilderが解決済みのため再解決しない
-		// (FlowBlockBox.coordinatorOwnsAutoMarginsの説明を参照)
+		// ■ Calculate normal-flow margins (pure calculation in resolveAutoMargins; 2026-07-30).
+		// Do not resolve flex-item auto margins again: FlexBuilder has already resolved them
+		// (see the description of FlowBlockBox.coordinatorOwnsAutoMargins).
 		//
 		if (align != null
 				&& !(flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox fb
@@ -1324,7 +1309,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		flow.box.addFlow(flowBox, this.pageAxis - flow.pageAxis);
 
 		if (flowBox instanceof TableBox tableBox && tableBox.isIncomplete()) {
-			// getFrame() は終端を保留した有効フレーム。通常経路の演算順は維持する。
+			// getFrame() is the effective frame with its end deferred. Preserve the ordinary path's operation order.
 			this.incompleteTablePlaced(tableBox, this.pageAxis);
 			this.pageAxis += tableBox.getInnerPageExtent(params.flow) + frame.getFramePageExtent(params.flow);
 		} else {
@@ -1333,14 +1318,14 @@ public class BlockBuilder implements Builder, LayoutContext {
 		flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
 	}
 
-	/** 浮動体を受け取ります。行の途中なら現在行へ置くか、行末まで先送りする。 */
+	/** Receives a float. Mid-line, either places it on the current line or defers it until line end. */
 	private void addFloatBound(final IBox box) {
 		if (box.getType() == BoxType.REPLACED) {
 			AbstractReplacedBox replacedBox = (AbstractReplacedBox) box;
 			LayoutUtils.calculateReplacedSize(this, replacedBox);
 		}
 
-		// 浮動体
+		// Float
 		final IFloatBox floatBox = (IFloatBox) box;
 		if (DebugFlags.FLOAT_TRACE) {
 			final StringBuilder where = new StringBuilder();
@@ -1352,11 +1337,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 					+ System.identityHashCode(floatBox) + " 経路" + where);
 		}
 		if (this.textBuilder != null && this.textBuilder.getLineAxis() > 0) {
-			// 行の途中に現れたフロート。行末側で現在行の残り幅に
-			// 収まるなら現在行の上端へ置き、行をその場で狭める
-			// (CSS 2.1 §9.5、ブラウザと同じ。kabutan 2026-08-08)。
-			// 収まらないとき・行頭側・clear付きは従来どおり行末まで
-			// 先送りして次の帯へ置く
+			// A float appearing mid-line. If on the line-end side and it fits in the current line's
+			// remaining width, place it at the current line's top and narrow the line immediately
+			// (CSS 2.1 §9.5, as in browsers; kabutan 2026-08-08).
+			// If it does not fit, is on the line-start side, or has clear, defer to line end
+			// and place in the next band as before.
 			if (!this.tryFloatOnCurrentLine(floatBox)) {
 				this.toAddFloating(floatBox);
 			}
@@ -1365,9 +1350,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 	}
 
-	/** 絶対配置の箱を、静的位置を添えて流れの持ち主へ登録します。 */
+	/** Registers an absolutely positioned box and its static position with the flow owner. */
 	private void addAbsoluteBound(final IBox box) {
-		// 通常の絶対配置・固定配置
+		// Ordinary absolute/fixed positioning
 		final IAbsoluteBox absoluteBox = (IAbsoluteBox) box;
 		final AbsolutePos pos = absoluteBox.getAbsolutePos();
 		final Flow flow = this.getFlow();
@@ -1383,43 +1368,40 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 		}
 		if (box.getType() == BoxType.REPLACED) {
-			// 縦組みRLの静的位置を物理化するには、箱のページ方向寸法が
-			// 必要なのでabsolute台帳へ渡す前に確定する。
+			// Converting the static position in RL vertical writing to physical coordinates requires
+			// the box's page-direction size, so finalize it before passing it to the absolute registry.
 			((AbstractReplacedBox) box).calculateFrame(contextBox.getLineSize());
 		}
 		contextBox.addAbsolute(absoluteBox, staticX, staticY);
 	}
 
 	/**
-	 * 救済分割(visual rescue split)の残余断片をフローへ載せます
-	 * (2026-07-25新設、増分5。
-	 * 設計相談 §5)。
+	 * Adds a visual rescue split remainder fragment to the flow
+	 * (added 2026-07-25, increment 5; design consultation §5).
 	 *
 	 * <p>
-	 * 通常の{@link #addBound(net.zamasoft.foliojet.layout.box.IBox)}へ
-	 * BoxTypeを偽装して流すことは<b>しません</b>。断片は
-	 * {@code ReplacedParams}も{@code AbsoluteRectFrame}も持たない短命な
-	 * 描画デコレータであり、あちらの経路は必ずキャストで落ちるためです。
+	 * Does <b>not</b> disguise the BoxType and send it through ordinary
+	 * {@link #addBound(net.zamasoft.foliojet.layout.box.IBox)}. Fragments are short-lived drawing decorators
+	 * with neither {@code ReplacedParams} nor {@code AbsoluteRectFrame}, so that path always fails on a cast.
 	 * </p>
 	 *
 	 * <p>
-	 * 断片はレイアウト済みの元ボックスを幾何学的に切ったものなので、
-	 * ここでやることは「現在のページ方向カーソルへ、断片の占有量ぶん
-	 * だけ載せる」だけです。マージンの再計算・整列の再計算・排除域の
-	 * 回避は<b>一切行いません</b>:
+	 * Since a fragment is a geometric slice of an already laid-out original box, this only adds its
+	 * occupied extent at the current page-direction cursor. Performs <b>no</b> margin recalculation,
+	 * alignment recalculation, or exclusion-area avoidance:
 	 * </p>
 	 *
 	 * <ul>
-	 * <li>行方向の位置は元ボックス自身が自分のマージンから決めるため、
-	 * 先頭断片と必ず一致する。</li>
-	 * <li>上マージンは元ボックスの幾何の一部として先頭断片の中にあり、
-	 * 続きの断片には存在しない(切断面には装飾を付けない)。したがって
-	 * ここでマージンを積むと二重になる。</li>
-	 * <li>下マージンも同じく最終断片の幾何の中にある。断片の直後の
-	 * 折りたたみは、その内側の下マージンを基準に再開する。</li>
+	 * <li>The original box determines its line-direction position from its own margins, so it always
+	 * matches the first fragment.</li>
+	 * <li>The top margin is part of the original box's geometry within the first fragment and is absent
+	 * from continuation fragments (cut surfaces receive no decorations). Adding a margin here would
+	 * therefore count it twice.</li>
+	 * <li>The bottom margin is likewise part of the final fragment's geometry. Margin collapsing
+	 * immediately after the fragment resumes from that internal bottom margin.</li>
 	 * </ul>
 	 *
-	 * @param box 残余断片
+	 * @param box remainder fragment
 	 */
 	public void addRescueBound(final net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox box) {
 		if (this.textSession != null) {
@@ -1428,36 +1410,36 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.requireNoOpenTextBuilder("(no context)");
 		final Flow flow = this.getFlow();
 		final BlockParams params = flow.box.getBlockParams();
-		// 断片の前でマージンを折りたたまない(切断面には装飾がない)
+		// Do not collapse margins before the fragment (the cut surface has no decorations).
 		this.poLastMargin = this.neLastMargin = 0;
 		flow.box.addFlow(box, this.pageAxis - flow.pageAxis);
 		this.pageAxis += box.getPageExtent(params.flow);
 		flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
-		// 断片の後は、元ボックスの下マージン(最終断片の幾何に含まれる)を
-		// 基準に折りたたみを再開する
+		// After the fragment, resume collapsing from the original box's bottom margin
+		// (included in the final fragment's geometry).
 		final double bottomMargin = box.isLastFragment() ? box.sourceCollapsibleEndMargin(params.flow) : 0;
 		this.poLastMargin = this.neLastMargin = bottomMargin;
 	}
 
 	/**
-	 * 左浮動体の位置を設定します。
+	 * Sets the position of a left float.
 	 *
 	 * @param box
 	 */
 	protected void addStartFloat(IFloatBox box) {
-		// 1.浮動ボックスの基準となる左右の辺は包含ボックスからはみ出さない
-		// 2.浮動ボックスの次に浮動ボックスがある場合、後の浮動ボックスは前の浮動ボックスの横に並ぶか下につくかのどちらかである
-		// 3.左右の浮動ボックスが重なることはない
-		// 4.浮動ボックスの上辺は包含ボックスからはみ出さない
-		// 5.浮動ボックスの上辺は以前に現れたブロックボックスの上辺より上にはならない
-		// 6.浮動ボックスの上辺は以前に現れたボックスを包含する行ボックスの上辺より上にはならない
-		// 7.浮動ボックスは最も端にある場合を除き、包含ボックスの左右の辺をはみ出してはならない
-		// 8.浮動ボックスは第一になるべく高く、第二になるべく端に位置しなければならない
+		// 1. The reference left/right edge of a floating box does not extend outside the containing box.
+		// 2. A floating box following another floating box is placed either beside or below it.
+		// 3. Left and right floating boxes do not overlap.
+		// 4. A floating box's top edge does not extend outside the containing box.
+		// 5. A floating box's top edge is no higher than the top edge of any preceding block box.
+		// 6. A floating box's top edge is no higher than the top edge of a line box containing a preceding box.
+		// 7. A floating box must not extend beyond the containing box's left/right edges unless it is outermost.
+		// 8. A floating box must be as high as possible first, and as close to the edge as possible second.
 		this.commitFloatPlacement(this.tryFloatPlacement(box, this.snapshotExclusions(), FloatSide.START));
 	}
 
 	/**
-	 * 右浮動体の位置を設定します。
+	 * Sets the position of a right float.
 	 *
 	 * @param box
 	 */
@@ -1466,16 +1448,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 新規floatの配置先を副作用なしで探索し、配置計画を返します
-	 * (2026-07-23、排除域P1増分3——addStartFloat/addEndFloatが重複して
-	 * 持っていた探索ループの一本化。挙動不変)。入力はすべて実測物理値
-	 * ({@code exclusions}スナップショットと現在カーソル)で、builderの
-	 * 状態は一切変更しない——計画を捨てるだけで試行のrollbackになる。
+	 * Searches for a new float's placement without side effects and returns a placement plan
+	 * (2026-07-23, exclusion areas P1 increment 3: unifies the search loops duplicated in
+	 * addStartFloat/addEndFloat; behavior unchanged). All inputs are measured physical values
+	 * (the {@code exclusions} snapshot and current cursor). Changes no builder state;
+	 * discarding the plan rolls back the attempt.
 	 *
 	 * <p>
-	 * 「浮動体はこれより上にはならない」制約(最後に配置されたfloatの
-	 * 上端)は{@code exclusions}の末尾要素から取る(旧コードの
-	 * {@code floatings}末尾と同じ値——スナップショットは並びを保存する)。
+	 * The "float cannot be higher than this" constraint (the top of the last placed float) comes
+	 * from the final {@code exclusions} entry (the same value as the old code's final
+	 * {@code floatings} entry; the snapshot preserves order).
 	 * </p>
 	 */
 	final FloatPlacementDelta tryFloatPlacement(final IFloatBox box, final ExclusionSpace exclusions,
@@ -1504,10 +1486,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 				lineEnd = found.lineEnd();
 				final double width = lineEnd - lineStart;
 				if (LayoutUtils.compare(width, lineWidth) >= 0) {
-					// 幅に余裕がある
+					// Enough width is available.
 					break;
 				}
-				// 余裕がない場合は１つ下りて再探索
+				// If there is not enough space, move down one step and search again.
 				if (found.startExclusion() == null && found.endExclusion() == null) {
 					break;
 				}
@@ -1526,18 +1508,18 @@ public class BlockBuilder implements Builder, LayoutContext {
 				}
 			}
 		}
-		// END側は行末揃え。ただし**行頭より前(=紙面の外側)へは出さない**
-		// (2026-08-21、掃過seed 615921)。CSS 2.2 §9.5.1はSTART側フロートに
-		// 「包含ブロックの行頭端より前に出ない」を課しており、帯より広い
-		// END側フロートも同じ下限で止める。画面のブラウザは行頭側へ
-		// はみ出させる(スクロールで読める)が、紙の外に置かれた内容には
-		// 続きがない——columnInflatedクランプ(AbstractStaticBlockBox)と
-		// 同じ印刷優先の判断。発動するのは帯幅より広いフロートだけ
-		// 直交縦書きフロートのはみ出し描画の紙側寄せ(2026-08-22、掃過seed
-		// 1353935): 横書き包含ブロック中の縦書きフロートは、内側のページ軸
-		// (=外側の線軸)方向へoverflow:visibleの描画が箱幅を超えて伸びる。
-		// RLなら物理左へ、LRなら物理右へ——紙の外に落ちる側の超過分だけ
-		// フロートを内側へ寄せる(END側クランプと同じ印刷優先の判断)
+		// Align END-side floats to the line end, but **never place them before line start (= outside the page)**
+		// (2026-08-21, sweep seed 615921). CSS 2.2 §9.5.1 requires START-side floats not to extend
+		// before the containing block's line-start edge. Apply the same lower bound to END-side
+		// floats wider than the band. Screen browsers allow overflow toward line start
+		// (accessible by scrolling), but content placed outside the paper has nowhere else
+		// to appear. This is the same print-first decision as the columnInflated clamp
+		// (AbstractStaticBlockBox). Applies only to floats wider than the band.
+		// Move overflow painting of orthogonal vertical-writing floats toward the paper (2026-08-22, sweep seed
+		// 1353935): A vertical-writing float in a horizontal-writing containing block can paint beyond its box width
+		// with overflow:visible along the inner page axis (= outer line axis). RL overflows physically left,
+		// LR physically right. Shift the float inward only by the excess that would fall outside the paper
+		// (the same print-first decision as the END-side clamp).
 		final double paintedOverflow;
 		final WritingMode innerFlow;
 		if (progression == WritingMode.TB && box instanceof AbstractContainerBox innerBox
@@ -1568,10 +1550,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 配置計画をレイアウト状態へ反映します(2026-07-23、排除域P1増分3。
-	 * 副作用の発生順は旧コードと同一: breakFloats記録→コンテナへの追加
-	 * (serial更新)→排除域台帳(+hidden台帳、FLOAT_COMP安定ソート)→
-	 * 親ボックスのpage extent拡張)。
+	 * Applies a placement plan to layout state (2026-07-23, exclusion areas P1 increment 3).
+	 * Side effects retain the old code's order: record breakFloats → add to container (update serial) →
+	 * exclusion registry (+hidden registry, stable FLOAT_COMP sort) → extend the parent box's page extent.
 	 */
 	final void commitFloatPlacement(final FloatPlacementDelta delta) {
 		if (DebugFlags.BREAK_TRACE) {
@@ -1582,7 +1563,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (delta.kind() != FloatCommitKind.PLACED) {
 			this.recordBreakFloat(delta.side());
 		}
-		// 配置
+		// Placement
 		final double lineOffset = delta.lineSpan().start();
 		final double pageStart = delta.pageSpan().start();
 		final Flow flow = this.getFlow();
@@ -1595,9 +1576,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 			flow.box.addFloating(delta.box(), lineOffset - flow.lineAxis, pageStart - flow.pageAxis);
 		}
 		if (delta.kind() == FloatCommitKind.MOVE_BY_CLEAR) {
-			// clear先送りは現行のroot-only extent規則を保存する(通常の
-			// extendParentsと同じではない——ネスト中は親extentを更新しない。
-			// codex設計: この非対称をP1で黙って正規化しない)。
+			// Deferring clear preserves the current root-only extent rule (unlike ordinary extendParents,
+			// it does not update parent extents while nested).
+			// codex design: Do not silently normalize this asymmetry in P1.
 			if (this.flowStack == null || this.flowStack.isEmpty()) {
 				this.getRootBox().setPageAxis(delta.pageSpan().end());
 			}
@@ -1607,7 +1588,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			final WritingMode progression = this.getRootBox().getBlockParams().flow;
 			this.addFloating(new LayoutContext.Floating(delta.box(), lineOffset, pageStart, progression));
 		}
-		// 2026-09-04: 配置を確定するこの一か所からだけatomic floorを通知する。
+		// 2026-09-04: Report the atomic floor only from this single point where placement is finalized.
 		if ((delta.kind() == FloatCommitKind.PLACED || delta.kind() == FloatCommitKind.SPLIT_AT_BREAK)
 				&& this instanceof RootBuilder root) {
 			final WritingMode ownerFlow = flow.box.getBlockParams().flow;
@@ -1621,12 +1602,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 				root.reportAtomicFloatPlacement(delta.box(), ownerFlow, pageStart);
 			}
 		}
-		// 上位ボックスの幅の拡張
+		// Extend ancestor box widths.
 		this.extendParents(pageStart, delta.pageSpan().extent());
 	}
 
 	private void extendParents(final double pageStart, final double pageWidth) {
-		// 浮動ボックスによる上位ボックスの幅の拡張
+		// Extend ancestor box widths for floating boxes.
 		Flow contextFlow = this.getSubContextFlow();
 		double pageAxis = pageStart + pageWidth;
 		int i;
@@ -1638,8 +1619,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 				if (this.independentFloatScopeOwners != null
 						&& this.independentFloatScopeOwners.contains(contextFlow.box)) {
 					contextFlow.box.setPageAxis(pageAxis - contextFlow.pageAxis);
-					// overflow:hiddenの指定寸法、またはwriting-mode変更BFCが
-					// 確定した内側extentだけを上位へ伝える。
+					// Propagate only the specified dimensions of overflow:hidden or the finalized inner
+					// extent of a BFC created by a writing-mode change to ancestors.
 					pageAxis = contextFlow.box.getInnerPageExtent(params.flow) + contextFlow.pageAxis;
 				}
 			}
@@ -1653,34 +1634,33 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 行の途中に現れた行末側フロートの、現在行への同一行配置の試みです
-	 * (2026-08-08)。CSS 2.1 §9.5の「行の途中のフロートは、収まるなら
-	 * 現在の行ボックスの上端に置き、行ボックスを狭める」のうち、既配置の
-	 * 内容を動かさずに済む行末側だけを実装する(行頭側は既配置内容の
-	 * 再配置が必要になるため、従来どおり行末で先送りする)。
+	 * Attempts to place a line-end float encountered mid-line on the current line (2026-08-08).
+	 * Of CSS 2.1 §9.5's rule to place a mid-line float at the current line box's top and narrow the line
+	 * if it fits, implements only the line-end side, which does not require moving already placed content.
+	 * The line-start side requires relaying out existing content, so it remains deferred until line end.
 	 *
-	 * @return 配置したら true。false なら呼び出し側が従来の先送りへ回す
+	 * @return true if placed; if false, the caller uses the existing deferral path
 	 */
 	private boolean tryFloatOnCurrentLine(final IFloatBox box) {
 		final FloatPos pos = box.getFloatPos();
 		if (pos.floating != FloatSide.END) {
 			return false;
 		}
-		// clearは排除帯の走査(scanFloatPlacementBand)がそのまま解決する。
-		// clearが現在行の上端より下を要求する場合はpageStart検査で
-		// 先送りに落ちる(021-RIGHT_clearのclear:left、Chrome実測と一致)
+		// The exclusion-band scan (scanFloatPlacementBand) resolves clear as is.
+		// If clear requires a position below the current line's top, the pageStart check
+		// falls back to deferral (clear:left in 021-RIGHT_clear, matching Chrome observations).
 		final WritingMode progression = this.getRootBox().getBlockParams().flow;
 		final double lineWidth = box.getLineExtent(progression);
 		final double pageWidth = box.getPageExtent(progression);
-		// 現在行の上端(開いている行の高さは含めない)
+		// Top of the current line (excludes the open line's height).
 		final double lineTop = this.pageAxis + this.textBuilder.getPageAxis();
 		final double lineStart0 = this.lineAxis;
 		final double lineEnd0 = this.lineAxis + this.getFlowBox().getLineSize();
 		double lineEnd = lineEnd0;
 		final ExclusionSpace exclusions = this.snapshotExclusions();
 		if (!exclusions.isEmpty()) {
-			// 「以前のフロートの上端より上に置かない」制約を現在行の
-			// 上端が満たさないなら、同一行配置はできない
+			// If the current line's top violates the constraint not to place above the top
+			// of preceding floats, same-line placement is impossible.
 			final List<FloatExclusion> ascending = exclusions.ascendingByPageEnd();
 			if (LayoutUtils.compare(ascending.get(ascending.size() - 1).pageSpan().start(), lineTop) > 0) {
 				return false;
@@ -1693,11 +1673,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 			lineEnd = found.lineEnd();
 		}
 		final double lineOffset = lineEnd - lineWidth;
-		// 2026-09-04: MOVE_TO_NEXTの行を狭めて跡地を残さないよう、先に分類する。
+		// 2026-09-04: Classify first to avoid narrowing a MOVE_TO_NEXT line and leaving unused space behind.
 		final FloatCommitKind kind = this.classifyFloatPlacement(box, lineTop);
 		if (kind == FloatCommitKind.PLACED || kind == FloatCommitKind.SPLIT_AT_BREAK) {
-			// 実際に現断片へ残す場合だけ、現在行の既存内容
-			// (textIndent+確定・未確定アドバンス)の手前へ狭める。
+			// Only when actually retaining it in the current fragment, narrow the line up to
+			// its existing content (textIndent + finalized and pending advances).
 			if (!this.textBuilder.narrowCurrentLine(lineOffset)) {
 				return false;
 			}
@@ -1706,16 +1686,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 				new AxisSpan(lineOffset, lineOffset + lineWidth), new AxisSpan(lineTop, lineTop + pageWidth),
 				kind));
 		if (this.floatings != null) {
-			// 台帳の底辺昇順を回復する(addFloating(IFloatBox)と同じ。
-			// 現在行の上端は既存フロートの底辺より上のことがある)
+			// Restore ascending bottom-edge order in the registry (as in addFloating(IFloatBox);
+			// the current line's top can be above existing floats' bottom edges).
 			Collections.sort(this.floatings, FLOAT_COMP);
 		}
 		return true;
 	}
 
 	/**
-	 * 浮動体の追加を予約します。
-	 * 
+	 * Schedules a float for addition.
+	 *
 	 * @param box
 	 */
 	private void toAddFloating(IFloatBox box) {
@@ -1729,7 +1709,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 予約された浮動体が存在すれば追加します。
+	 * Adds any scheduled floats.
 	 */
 	void checkFloatings() {
 		if (this.toAddFloatings == null || this.toAddFloatings.isEmpty()) {
@@ -1762,8 +1742,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 			throw new IllegalStateException();
 		}
 		if (this.floatings != null) {
-			// 底辺を下から順に整列
-			// このソートは安定ソートである必要があります
+			// Sort bottom edges starting from the bottom.
+			// This sort must be stable.
 			Collections.sort(this.floatings, FLOAT_COMP);
 			this.noteFloatingsChanged();
 		}
@@ -1783,29 +1763,27 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * fragment境界(改ページ・改段)通過後に、overflow:hiddenのfloat台帳
-	 * ({@link #noOverflowFloatings})を現在のflowStack上のactive hidden
-	 * flowから再構築します(2026-07-23、排除域P1増分1)。
+	 * Rebuilds the overflow:hidden float registries ({@link #noOverflowFloatings}) from active hidden
+	 * flows on the current flowStack after crossing a fragment boundary (page/column break)
+	 * (2026-07-23, exclusion areas P1 increment 1).
 	 *
 	 * <p>
-	 * 従来は{@code resetFragmentCursor()}が{@code floatings}だけをnullに
-	 * 戻しこの台帳には触れなかったため、PAGE改ページ(flowStack.clear()+
-	 * resume再駆動でhidden flowが台帳を再pushする経路)では旧断片の
-	 * スコープエントリがpopされないまま残留し続けた——レイアウト結果には
-	 * 影響しない(popは常に末尾=新エントリ、removeAllは空振り)が、
-	 * ページ数×hidden深さ×float数で旧Floating/IFloatBox参照が文書終了
-	 * までGCできなかった(codexレビュー指摘)。
+	 * Previously, {@code resetFragmentCursor()} reset only {@code floatings} to null without touching
+	 * these registries. Thus, on PAGE breaks (flowStack.clear() followed by resumed execution that
+	 * pushes registries again for hidden flows), the old fragment's scope entries remained without
+	 * being popped. This did not affect layout results (pop always took the newest last entry,
+	 * and removeAll did nothing), but old Floating/IFloatBox references could not be garbage-collected
+	 * until document end, at a cost of page count × hidden depth × float count (noted in codex review).
 	 * </p>
 	 *
 	 * <p>
-	 * PAGE({@code flowStack.clear()}直後に呼ぶ)では結果はnull——再開される
-	 * hidden flowが{@code startFlowBlock()}で新しい台帳を積む。COLUMN
-	 * ({@code pruneFlowStackTo()}+{@code resetFragmentCursor()}直後に呼ぶ)
-	 * では、保持されたhidden flowの数だけ空の台帳を積み直す——それらの
-	 * flowは再度{@code startFlowBlock()}されないため、積み直さないと
-	 * 終了時のpopが破綻する。どちらも{@code floatings}自体はリセット済み
-	 * (assertで検査)のため、旧floatを引き継ぐ必要はなく空台帳で十分
-	 * (owner付けは不要)。
+	 * For PAGE (called immediately after {@code flowStack.clear()}), the result is null: resumed hidden
+	 * flows push new registries in {@code startFlowBlock()}. For COLUMN (called immediately after
+	 * {@code pruneFlowStackTo()} + {@code resetFragmentCursor()}), pushes an empty registry for each
+	 * retained hidden flow. Those flows do not reenter {@code startFlowBlock()}, so failing to repush
+	 * would break the pop at completion. In both cases, {@code floatings} itself is already reset
+	 * (checked by an assertion), so old floats need not be inherited; empty registries suffice
+	 * (no owner assignment needed).
 	 * </p>
 	 */
 	protected final void rebuildNoOverflowFloatingScopes() {
@@ -1832,17 +1810,17 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 独立した整形文脈を作る箱の余白は、中身の余白と相殺しない(CSS 2.1 §8.3.1、
-	 * css-flexbox-1 §3、css-grid-1 §3)。
+	 * Margins of boxes establishing independent formatting contexts do not collapse with their content's
+	 * margins (CSS 2.1 §8.3.1, css-flexbox-1 §3, css-grid-1 §3).
 	 *
 	 * <ul>
-	 * <li>flex・grid(2026-10-04、TECH-20261003-004 の⑰): 中身はFlexBuilder・
-	 * GridBuilderが直接置くので、開くときに上の余白を「子と相殺する待ち」に残すと、
-	 * 閉じるときにそれを最後の子の余白と取り違えて下の余白と相殺し、下の余白が
-	 * 「下−上」に減っていた(上下同じなら0)</li>
-	 * <li>overflow:visible 以外・flow-root・段組(2026-10-04、ユーザー決定): 上の余白が
-	 * 最初の子の余白と相殺されていた(Chromeは相殺しない)。下の側は以前から相殺
-	 * しなかった(flow-rootを除く)</li>
+	 * <li>flex/grid (2026-10-04, TECH-20261003-004 ⑰): FlexBuilder/GridBuilder place their content directly.
+	 * Leaving the top margin pending for collapse with children at opening caused it to be mistaken for
+	 * the last child's margin at closing and collapsed with the bottom margin, reducing the bottom
+	 * margin to "bottom − top" (0 if both were equal).</li>
+	 * <li>Non-visible overflow, flow-root, and multi-column layout (2026-10-04, user decision):
+	 * top margins previously collapsed with the first child's margin (Chrome does not collapse them).
+	 * Bottom margins already did not collapse (except for flow-root).</li>
 	 * </ul>
 	 */
 	private static boolean sealsMargins(final FlowBlockBox flowBox) {
@@ -1853,9 +1831,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 浮動体を避けて狭まる箱か(CSS 2.1 §9.5——独立した整形文脈を作る箱の border box は浮動体の
-	 * margin box に重ならない)。通常の浮動体もページフロートも避ける(flow-root・overflow が visible 以外の箱を
-	 * 加えたのは 2026-10-05)。
+	 * Whether the box narrows to avoid floats (CSS 2.1 §9.5: the border box of a box establishing an
+	 * independent formatting context does not overlap a float's margin box). Avoids both normal floats
+	 * and page floats (flow-root and non-visible overflow boxes added 2026-10-05).
 	 */
 	private static boolean avoidsFloats(final FlowBlockBox flowBox) {
 		final BlockParams params = flowBox.getBlockParams();
@@ -1864,13 +1842,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 				|| params.overflow != OverflowMode.VISIBLE;
 	}
 
-	/** 行方向の帯 {@code band} に、差し込みを除いて箱の寸法を決めます(帯の始まりが箱の行方向の位置)。 */
+	/** Sizes the box in line-direction {@code band}, subtracting insets (the band start is the box's line-direction position). */
 	private void calculateSizeIn(final FlowBlockBox flowBox, final AxisSpan band, final double insetStart,
 			final double insetEnd) {
 		this.calculateSizeIn(flowBox, band.start() - this.lineAxis, band.extent(), insetStart, insetEnd);
 	}
 
-	/** 行方向の位置 {@code xmargin}・長さ {@code lineSize} に、差し込みを除いて箱の寸法を決めます。 */
+	/** Sizes the box at line-direction position {@code xmargin} and length {@code lineSize}, subtracting insets. */
 	private void calculateSizeIn(final FlowBlockBox flowBox, double xmargin, double lineSize, final double insetStart,
 			final double insetEnd) {
 		if (insetStart != 0 || insetEnd != 0) {
@@ -1883,15 +1861,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 		flowBox.calculateSize(this, xmargin, lineSize);
 	}
 
-	/** {@code band} が {@code full} より狭いか(浮動体で狭まったか)。 */
+	/** Whether {@code band} is narrower than {@code full} (narrowed by floats). */
 	private static boolean narrower(final AxisSpan band, final AxisSpan full) {
 		return LayoutUtils.compare(band.start(), full.start()) != 0 || LayoutUtils.compare(band.end(), full.end()) != 0;
 	}
 
 	/**
-	 * 帯 {@code band} に置いた箱が浮動体の横に入るか。行方向の寸法を指定した箱は、その寸法と枠と余白が帯に
-	 * 収まれば入る。auto の箱は帯を埋めるので、内容の幅に 1 字ぶんが取れれば入るとみなす(Chrome は中身の
-	 * 最小内容寸法で決めるが、流し込みの前には分からない)。
+	 * Whether a box placed in {@code band} fits beside floats. A box with a specified line-direction size
+	 * fits if that size plus frame and margins fits the band. An auto-sized box fills the band, so assume
+	 * it fits if its content width can accommodate one character (Chrome uses the content's min-content
+	 * size, but this is unknown before content flows in).
 	 */
 	private boolean fitsBeside(final FlowBlockBox flowBox, final BlockParams cParams, final AxisSpan band) {
 		if (flowBox.getBlockParams().size.getLineType(cParams.flow) != LengthType.AUTO) {
@@ -1902,8 +1881,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 帯 {@code band} に置いた箱が要る行方向の量(枠の箱と、正の行方向の余白)。始端の余白には
-	 * {@code calculateSize} が帯の位置を足し込んでいるので、それを除く。
+	 * Line-direction space needed by a box placed in {@code band} (border box plus positive line-direction
+	 * margins). {@code calculateSize} has added the band's position to the start margin, so exclude it.
 	 */
 	private double placedLineExtent(final FlowBlockBox flowBox, final BlockParams cParams, final AxisSpan band) {
 		final AbsoluteRectFrame frame = flowBox.getFrame();
@@ -1914,7 +1893,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				+ Math.max(0, vertical ? frame.margin.bottom : frame.margin.right);
 	}
 
-	/** 開こうとしている箱の枠の始まり(余白を前の余白と相殺した後。下の相殺と同じ計算)。 */
+	/** Frame start of the box about to open, after collapsing with the preceding margin (same calculation as below). */
 	private double collapsedBorderStart(final AbsoluteRectFrame frame, final BlockParams cParams) {
 		final double marginStart = cParams.flow.isVertical() ? frame.margin.right : frame.margin.top;
 		double start = this.pageAxis;
@@ -1926,11 +1905,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return start + marginStart;
 	}
 
-	/** CSS Writing Modes 3 §3.2とoverflowによる独立BFCのfloat境界。 */
+	/** Float boundary of an independent BFC under CSS Writing Modes 3 §3.2 and overflow. */
 	private static boolean establishesIndependentFloatScope(final FlowBlockBox flowBox,
 			final BlockParams parentParams) {
 		final BlockParams params = flowBox.getBlockParams();
-		// display:flow-rootは独立BFC(2026-08-29)。overflow:hiddenと同じ扱い
+		// display:flow-root creates an independent BFC (2026-08-29). Treat like overflow:hidden.
 		return params.overflow == OverflowMode.HIDDEN || params.flowRoot
 				|| (params.flow.isVertical() == parentParams.flow.isVertical()
 						&& params.flow != parentParams.flow);
@@ -1942,12 +1921,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	public void addGrid(final net.zamasoft.foliojet.layout.builder.RetainedGrid gridBuilder) {
-		// Grid G3d1: 通常フローでは即時bind(トラック解決→item bind→配置)
+		// Grid G3d1: Bind immediately in normal flow (track resolution → item bind → placement).
 		gridBuilder.bind(this);
 	}
 
 	public void addFlex(final net.zamasoft.foliojet.layout.builder.RetainedFlex flexBuilder) {
-		// Flex F1f: 通常フローでは即時bind(§9.7解決→item bind→row配置)
+		// Flex F1f: Bind immediately in normal flow (§9.7 resolution → item bind → row placement).
 		flexBuilder.bind(this);
 	}
 
@@ -1965,18 +1944,18 @@ public class BlockBuilder implements Builder, LayoutContext {
 				if (retainsFlowContent(blockBox)) columns.beginRetainedContext(blockBox);
 				return columns;
 			}
-			// フロー（ページ進行方向が違う場合）
+			// Flow (when page progression directions differ)
 		case FLOAT:
 		case INLINE: {
-			// 浮動体
-			// インライン配置
+			// Float
+			// Inline placement
 			final AbstractStaticBlockBox staticBlockBox = (AbstractStaticBlockBox) blockBox;
 			containerBox = this.getFlowBox();
 			if (!LayoutUtils.needsIntrinsicSizing(blockBox)) {
-				// 固定幅
+				// Fixed width
 				staticBlockBox.shrinkToFit(this, IntrinsicSizes.ZERO, false);
 				if (blockBox.isFixedMulticolumn()) {
-					// ページ方向が固定されたマルチカラム
+					// Multi-column layout with a fixed page-direction size
 					builder = new ColumnBuilder(this, blockBox);
 				} else {
 					builder = new BlockBuilder(this, blockBox);
@@ -1992,17 +1971,17 @@ public class BlockBuilder implements Builder, LayoutContext {
 		case ABSOLUTE: {
 			final AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) blockBox;
 			if (absoluteBox.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
-				// 固定配置
+				// Fixed positioning
 				containerBox = this.getPageContext().getRootBox();
 			} else {
-				// 絶対配置
+				// Absolute positioning
 				containerBox = this.getContextBox();
 			}
 			if (!LayoutUtils.needsIntrinsicSizing(blockBox)) {
-				// 固定幅
+				// Fixed width
 				absoluteBox.shrinkToFit(containerBox, IntrinsicSizes.ZERO);
 
-				// 高さは最後に確定するので、マルチカラムで高さが明示された場合でもリフローする
+				// Height is finalized at the end, so reflow even when multi-column height is explicitly specified.
 				builder = new BlockBuilder(this, blockBox);
 			} else {
 				// STF
@@ -2021,7 +2000,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return builder;
 	}
 
-	/** 未完表の初回配置・残余再配置で、マージン相殺後の始点を親へ渡します。 */
+	/** Passes the start after margin collapse to the parent for initial incomplete-table placement and remainder placement. */
 	protected void incompleteTablePlaced(final TableBox tableBox, final double pageStart) {
 	}
 
@@ -2040,7 +2019,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final AbstractContainerBox flowBox = (AbstractContainerBox) this.contextFlow.box;
 		final BlockParams params = flowBox.getBlockParams();
 		if (flowBox.getColumnCount() > 1 && params.columns.fill == Columns.FILL_BALANCE) {
-			// カラムのバランス
+			// Column balancing
 			this.pageAxis = this.contextFlow.pageAxis;
 			flowBox.balance(this);
 		}
@@ -2055,10 +2034,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	protected void requireTextBlock() {
-		// 新規テキストブロック
+		// New text block
 		this.requireNoOpenTextBuilder("(no context)");
-		// textSessionは再生中の改ページ処理が新しいTextBuilderを作る間も
-		// 保持される(配達境界のclampのため)——記録中でないことだけを検査
+		// textSession remains while page-break handling during replay creates a new TextBuilder
+		// (to clamp the delivery boundary), so check only that it is not recording.
 		assert this.textSession == null || !this.textSession.recording();
 		final BreakToken breakToken = this.breakToken;
 		this.textBuilder = new TextBuilder(this, breakToken);
@@ -2068,18 +2047,18 @@ public class BlockBuilder implements Builder, LayoutContext {
 		double localPageAxis = this.pageAxis - flow.pageAxis;
 		flow.box.addFlow(this.textBuilder.textBlockBox, localPageAxis);
 
-		// M3c: オプトイン時(text-wrap-style: pretty)のみ、適格な段落の
-		// K-P蓄積セッションを開始する
+		// M3c: Start a K-P accumulation session for an eligible paragraph
+		// only when opted in (text-wrap-style: pretty).
 		if (this.textSession == null && this.optimizedTextEnabled()) {
 			this.textSession = TotalFitSession.tryBegin(this, this.textBuilder, breakToken);
 		}
 	}
 
 	/**
-	 * 「物理的にTextBuilderへ届いたソース文字の配達境界」を返します
-	 * (M3c)。K-Pセッションが蓄積・再生中の場合、未配達イベントの先頭
-	 * ソース位置でclampする(切断段落の尾部再生とセッションの残イベント
-	 * 配達が二重供給にならないため)。セッションがなければそのまま返す。
+	 * Returns the delivery boundary of source characters that have physically reached TextBuilder (M3c).
+	 * When a K-P session is accumulating or replaying, clamps to the first undelivered event's source
+	 * position to prevent duplicate delivery from split-paragraph tail replay and the session's remaining
+	 * events. Returns unchanged if no session exists.
 	 */
 	final int clampDeliveredCharEnd(final int deliveredCharEnd) {
 		final TotalFitSession session = this.textSession;
@@ -2090,13 +2069,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * Knuth-Plass行分割の蓄積セッションを開始しうる文脈かを返します
-	 * (M3c)。オプトインの可否そのものは段落の算出値
-	 * ({@code text-wrap-style: pretty})で決まり、{@link TotalFitSession#tryBegin}
-	 * が判定する(2026-07-25、独自プロパティ{@code text.line-breaker}から
-	 * CSSへ一本化)。ここで見るのは文脈側の条件だけ——破断残余の再構築
-	 * (restyle)中は、切断段落の尾部再生等の再開機構と混線しないよう
-	 * 保守的に無効とする。
+	 * Returns whether this context can start a Knuth-Plass line-breaking accumulation session (M3c).
+	 * Opt-in itself depends on the paragraph's computed value ({@code text-wrap-style: pretty}) and is
+	 * checked by {@link TotalFitSession#tryBegin} (2026-07-25, unified under CSS instead of the proprietary
+	 * {@code text.line-breaker} property). This checks only context conditions: conservatively disables
+	 * the session during break-remainder reconstruction (restyle) to avoid interference with resumption
+	 * mechanisms such as split-paragraph tail replay.
 	 */
 	private boolean optimizedTextEnabled() {
 		final RootBuilder root;
@@ -2105,7 +2083,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		} else if (this.layoutStack != null) {
 			root = this.getPageContext();
 		} else {
-			// ページ文脈を持たない再レイアウト用ビルダー
+			// Relayout builder without page context
 			return false;
 		}
 		if (root == null || root.isRestyling()) {
@@ -2118,10 +2096,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 開いているテキストランのフォントを返します(無ければ{@code null})。
-	 * 途中で作り直された{@link TextBuilder}がフォントを引き継げなかった
-	 * ときの復元元です(2026-08-17。{@link #glyph}が遅延生成でこれを使うのと
-	 * 同じ値)。
+	 * Returns the open text run's font ({@code null} if absent). Used to restore the font when a
+	 * {@link TextBuilder} recreated mid-stream could not inherit it (2026-08-17; the same value
+	 * {@link #glyph} uses for lazy creation).
 	 */
 	FontStyle getOpenRunFontStyle() {
 		return this.openRunFontStyle;
@@ -2149,10 +2126,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 			return;
 		}
 		if (this.textBuilder == null) {
-			// flush()中の行間断片化がTextBuilderだけを閉じ、shaperの
-			// テキストランは継続している場合がある。次のglyphが実際に
-			// 到着した時点でだけ継続ブロックを作る（末尾で空の
-			// TextBuilderを合成しない）。
+			// Fragmentation between lines during flush() may close only TextBuilder while
+			// the shaper's text run continues. Create a continuation block only when
+			// the next glyph actually arrives (do not synthesize an empty
+			// TextBuilder at the end).
 			if (this.openRunFontStyle == null || this.openRunFontMetrics == null) {
 				throw new IllegalStateException("glyph outside a text run");
 			}
@@ -2167,8 +2144,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 			if (this.textSession != null && this.textSession.recordRunEnd()) {
 				return;
 			}
-			// ラン末尾の直前で断片化し、その後にglyphが無い場合は
-			// TextBuilderを作り直す必要がない。
+			// If fragmentation occurs just before run end and no glyph follows,
+			// there is no need to recreate TextBuilder.
 			if (this.textBuilder != null) {
 				this.textBuilder.endTextRun();
 			}
@@ -2180,11 +2157,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 	public void control(final TextControl quad) {
 		if (quad instanceof InlineQuad) {
-			// インラインボックス
+			// Inline box
 			final InlineQuad inlineQuad = (InlineQuad) quad;
 			switch (inlineQuad.getType()) {
 			case InlineQuad.INLINE_START: {
-				// インライン開始
+				// Inline start
 				final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
 				inlineStartQuad.box.fixLineAxis(this.getFlowBox());
 			}
@@ -2202,7 +2179,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				break;
 
 			case InlineQuad.INLINE_REPLACED: {
-				// 置換されたインライン
+				// Replaced inline
 				final InlineReplacedQuad inlineReplacedQuad = (InlineReplacedQuad) inlineQuad;
 				LayoutUtils.calculateReplacedSize(this, inlineReplacedQuad.box);
 			}
@@ -2225,16 +2202,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (this.textSession != null && this.textSession.recordFlush()) {
 			return;
 		}
-		// テキストブロックが空(textBuilderが生成されていない)場合の
-		// flushは何もしない。endTextBlock()と同じnullガード——
-		// E-6増分5aのセルrange bindで実際に発生する:
-		// セル内容がsoft hyphen(U+00AD)のみのとき、StyledTextUnitizerは
-		// textShaperを作るがWordHyphenatorがMarkerを黙って落とす
-		// (hyphens:manualでfontMetrics未設定)ため、ビルダーへはglyphも
-		// controlも届かないままshaperのclose連鎖がflush()だけを呼ぶ
-		// (2026-07-24、040-8BITS_ASCII.htmlのNullPointerException)。
-		// live経路のセルはTwoPassBlockBuilder(textBuilder非依存)で
-		// 記録されるため、この空flushはbind時のrange再生でのみ到達する。
+		// flush does nothing for an empty text block (textBuilder was never created).
+		// The same null guard as endTextBlock(); this actually occurs during
+		// cell-range bind in E-6 increment 5a:
+		// when a cell contains only a soft hyphen (U+00AD), StyledTextUnitizer creates
+		// a textShaper, but WordHyphenator silently drops the Marker
+		// (fontMetrics is unset with hyphens:manual). Neither glyph nor control reaches
+		// the builder, and the shaper's close chain calls only flush()
+		// (2026-07-24, NullPointerException in 040-8BITS_ASCII.html).
+		// Live-path cells are recorded by TwoPassBlockBuilder (independent of textBuilder),
+		// so this empty flush is reached only during range replay at bind time.
 		if (this.textBuilder == null) {
 			return;
 		}
@@ -2247,21 +2224,21 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * テキストブロックを閉じます。
+	 * Closes the text block.
 	 *
-	 * @param fragmentBreak 本文の終端ではなく、断片の容量超過によって
-	 *                      テキストが後続断片へ継続する場合は {@code true}
+	 * @param fragmentBreak {@code true} when text continues into a subsequent fragment because the
+	 *                      fragment's capacity was exceeded, rather than because body content ended
 	 */
 	protected final void endTextBlock(final boolean fragmentBreak) {
-		// テキストブロックの終了。内容が空(control()が一度も呼ばれず
-		// requireTextBlock()でtextBuilderが生成されない)場合はnullのまま
-		// ここに達することがある(2026-07-18、空のテーブルセルで
-		// NullPointerExceptionが実際に発生した)。flush()と同じく
-		// nullガードで対応する
+		// End the text block. If content is empty (control() was never called and
+		// requireTextBlock() did not create textBuilder), it may still be null
+		// when reaching here (2026-07-18, an actual NullPointerException
+		// in an empty table cell). Handle this with a null guard
+		// as in flush().
 		if (this.textBuilder != null) {
 			if (this.textSession != null) {
-				// M3c: 蓄積分のbreakpoint選択と再生(不適格ならlegacyと
-				// 同一のverbatim再生)。再生中の再入では何もしない
+				// M3c: Choose breakpoints for the accumulated content and replay it (verbatim replay
+				// identical to legacy if ineligible). Do nothing on reentry during replay.
 				this.textSession.finishSession();
 			}
 			this.textBuilder.finish(fragmentBreak);
@@ -2273,20 +2250,19 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * 新規floatの配置確定の種別を、副作用なしで分類します(2026-07-23、
-	 * 排除域P1増分2——従来の{@code transferFloatToNextPage}を純分類と
-	 * {@link #recordBreakFloat}へ分解)。基底実装は常に
-	 * {@link FloatCommitKind#PLACED}(改ページ文脈を持たないbuilderは
-	 * floatを先送りしない)。
+	 * Classifies a new float's placement commit without side effects (2026-07-23, exclusion areas
+	 * P1 increment 2: splits the former {@code transferFloatToNextPage} into pure classification and
+	 * {@link #recordBreakFloat}). The base implementation always returns {@link FloatCommitKind#PLACED}
+	 * (builders without page-break context do not defer floats).
 	 */
 	FloatCommitKind classifyFloatPlacement(IFloatBox box, double pageStart) {
 		return FloatCommitKind.PLACED;
 	}
 
 	/**
-	 * フラグメント境界と交差したfloatの記録hookです(2026-07-23、
-	 * 排除域P1増分2)。基底実装は何もしない。{@code BreakableBuilder}が
-	 * {@code breakFloats}への追加として実装する。
+	 * Hook for recording a float crossing a fragment boundary (2026-07-23, exclusion areas P1 increment 2).
+	 * The base implementation does nothing. {@code BreakableBuilder} implements this by adding to
+	 * {@code breakFloats}.
 	 */
 	void recordBreakFloat(FloatSide side) {
 	}

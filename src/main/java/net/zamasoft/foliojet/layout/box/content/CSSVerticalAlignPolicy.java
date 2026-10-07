@@ -5,10 +5,9 @@ import net.zamasoft.foliojet.layout.box.AbstractTextBox;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 
 /**
- * {@code vertical-align}を計算します。キーワードの基礎的な意味はCSS 2.1
- * §10.8.1を参照しますが、FolioJet全体のCSS実装範囲をCSS 2.1に限定するものでは
- * ありません。
- * 
+ * Calculates {@code vertical-align}. CSS 2.1 §10.8.1 provides the basic keyword meanings,
+ * but this does not limit FolioJet's overall CSS implementation scope to CSS 2.1.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: CSSVerticalAlignPolicy.java 1622 2022-05-02 06:22:56Z miyabe $
  */
@@ -42,52 +41,52 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 		final double v;
 		switch (this.verticalAlignType) {
 		case CSSVerticalAlignPolicy.BASELINE:
-			// ベースライン
+			// Baseline
 			v = 0;
 			break;
 
 		case CSSVerticalAlignPolicy.MIDDLE: {
 			if (parentBox.getTextParams().isVerticalTypesetting()) {
-				// **縦組み**(2026-09-02): 行は中央線揃えなので、箱の中央を親の中央線に
-				// 置く(横組みの x-height の項は無い——それを使うと半 x-height 右へ
-				// 寄っていた)。文字の箱は左右対称で 0、inline-table 等の非対称な箱は
-				// 中央が来るぶんだけずれる
+				// **Vertical writing** (2026-09-02): Lines align to the centerline, so place the box center
+				// on the parent centerline (there is no horizontal-writing x-height term; using it shifted
+				// the box right by half the x-height). Symmetric text boxes have offset 0; asymmetric boxes
+				// such as inline-table shift by the amount needed to center them.
 				v = -((ascent + descent) / 2.0 - descent);
 				break;
 			}
-			// ボックスの中央線を親ボックスの基底線から親のx-heightの半分だけ上に揃える。
+			// Align the box centerline half the parent x-height above the parent box baseline.
 			final FontListMetrics flm = parentBox.getTextParams().getFontListMetrics();
 			v = flm.getMaxXHeight() / 2.0 - ((ascent + descent) / 2.0 - descent);
 			break;
 		}
 
 		case CSSVerticalAlignPolicy.SUPER: {
-			// 上添え字。**基準線を親のフォントサイズの1/3だけ上げる**——
-			// Chrome(Blink)の上付きと同じ(縦組みは2026-09-02、横組みは
-			// 2026-10-04)。
+			// Superscript. **Raise the baseline by 1/3 of the parent font size**,
+			// matching Chrome (Blink) superscripts (vertical writing: 2026-09-02; horizontal writing:
+			// 2026-10-04).
 			//
-			// 縦組み: 字は中央線に置かれ、字面は左右にサイズの半分ずつしか
-			// 無い。旧い横組みの式(箱の中央を親のフォントの上辺=右端へ)を
-			// そのまま使うと、上付きの箱の中央が字面の右端に来て**丸ごと列の
-			// 外へ張り出していた**(利用者の報告: 縦書きで脚注の番号が右にずれる)。
+			// Vertical writing: Characters sit on the centerline, with glyph bounds extending only half their size
+			// to either side. Reusing the old horizontal formula (box center at the parent font top = right edge)
+			// placed the superscript box center at the glyph bounds' right edge, making it **protrude entirely
+			// outside the column** (user report: footnote numbers shifted right in vertical writing).
 			//
-			// 横組みも旧い式(箱の中央を親のフォントの上辺に揃える、SPEC なし)
-			// をやめた。親の ascent が大きい和文フォントほど高く上がり、12pt の
-			// 本文で Chrome より約 2.5pt 高かった。既定の ::footnote-call が
-			// 高く浮いて行間を押し広げていた(TECH-20261003-004 の⑥、時限暗号の本)
+			// The old horizontal formula (box center at the parent font top, no SPEC) was also removed.
+			// Japanese fonts with larger parent ascent raised it farther: in 12 pt body text,
+			// it was about 2.5 pt above Chrome. The default ::footnote-call floated too high
+			// and widened the line spacing (TECH-20261003-004, item ⑥, the Jigen Ango book).
 			v = parentBox.getTextParams().fontStyle.getSize() / 3.0;
 			break;
 		}
 
 		case CSSVerticalAlignPolicy.SUB: {
-			// 下添え字
+			// Subscript
 			if (parentBox.getTextParams().isVerticalTypesetting()) {
-				// 縦組み: 上付きと同じ理由で、Chromeの下付き(親のフォントサイズの
-				// 1/5)に合わせる(2026-09-02)
+				// Vertical writing: For the same reason as superscripts, match Chrome's subscript offset
+				// (1/5 of the parent font size; 2026-09-02).
 				v = -parentBox.getTextParams().fontStyle.getSize() / 5.0;
 				break;
 			}
-			// ベースラインを親ボックスのフォント下辺に揃える(SPEC なし)。
+			// Align the baseline with the bottom of the parent box font (no SPEC).
 			final FontListMetrics flm = parentBox.getTextParams().getFontListMetrics();
 			v = -flm.getMaxDescent();
 			break;
@@ -95,12 +94,12 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 
 		case CSSVerticalAlignPolicy.TEXT_TOP: {
 			if (parentBox.getTextParams().isVerticalTypesetting()) {
-				// 縦組み(2026-09-02): 親のフォントの「上辺」は字面の右辺=サイズの半分。
-				// 横組みの ascent(約 0.88 倍)を使うと右へはみ出していた
+				// Vertical writing (2026-09-02): The parent font "top" is the glyph bounds' right edge = half the size.
+				// Using horizontal ascent (about 0.88 times the size) made it protrude to the right.
 				v = parentBox.getTextParams().fontStyle.getSize() / 2.0 - ascent;
 				break;
 			}
-			// ボックスのフォントの上辺を親ボックスのフォントの上辺に揃える。
+			// Align the top of the box font with the top of the parent box font.
 			final FontListMetrics flm = parentBox.getTextParams().getFontListMetrics();
 			v = flm.getMaxAscent() - ascent;
 			break;
@@ -108,18 +107,18 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 
 		case CSSVerticalAlignPolicy.TEXT_BOTTOM: {
 			if (parentBox.getTextParams().isVerticalTypesetting()) {
-				// 縦組み: 親のフォントの「下辺」は字面の左辺=サイズの半分
+				// Vertical writing: The parent font "bottom" is the glyph bounds' left edge = half the size.
 				v = -(parentBox.getTextParams().fontStyle.getSize() / 2.0 - descent);
 				break;
 			}
-			// ボックスのフォントの下辺を親要素のフォントの下辺に揃える。
+			// Align the bottom of the box font with the bottom of the parent element font.
 			final FontListMetrics flm = parentBox.getTextParams().getFontListMetrics();
 			v = -flm.getMaxDescent() + descent;
 			break;
 		}
 
 		case CSSVerticalAlignPolicy.TOP: {
-			// ボックスのフォントの上辺を行の上辺に合わせる
+			// Align the top of the box font with the top of the line.
 			// v = (lineBox.getAscent() - ascent) - baseline - (lineBox.getPageSize() -
 			// (ascent + descent)) / 2;
 			v = lineBox.getAscent() - ascent;
@@ -127,7 +126,7 @@ public class CSSVerticalAlignPolicy implements VerticalAlignPolicy {
 		}
 
 		case CSSVerticalAlignPolicy.BOTTOM: {
-			// ボックスのフォントの下辺を行の下辺に合わせる
+			// Align the bottom of the box font with the bottom of the line.
 			// v = -(lineBox.getDescent() - descent) - baseline + (lineBox.getPageSize() -
 			// (ascent + descent)) / 2;
 			v = -lineBox.getDescent() + descent;

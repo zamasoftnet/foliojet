@@ -5,7 +5,7 @@ import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
 import net.zamasoft.foliojet.layout.box.impl.TableBox;
 
 /**
- * テーブルを構築します。
+ * Builds a table.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: TableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
@@ -20,48 +20,44 @@ public interface TableBuilder {
 	public Builder newContext(AbstractContainerBox box);
 
 	/**
-	 * 表の終了処理を行います(A-2、2026-07-30)。実行計画の終端は実装ごとに
-	 * 異なる(Incremental=残余のコミットとレイアウト終了、Retained=
-	 * {@code host.addTable(this)}による全体bind)ため、呼び出し側が
-	 * isIncrementalを問うて分岐するのではなく実装自身に委ねる
-	 * (tell-don't-ask——{@link #prepareEnterCell}と同じ方針。
-	 * 旧{@code isIncremental()}はこの移行で撤去した)。
+	 * Finishes the table (A-2, 2026-07-30). Execution-plan completion differs by implementation:
+	 * Incremental commits the remainder and ends layout; Retained binds the whole table via
+	 * {@code host.addTable(this)}. Therefore, delegates to the implementation instead of having the
+	 * caller branch on isIncremental (tell-don't-ask, as with {@link #prepareEnterCell}).
+	 * The former {@code isIncremental()} was removed in this migration.
 	 */
 	public void finish(Builder host);
 
 	/**
-	 * セル/キャプションに入る直前(newContext呼び出し前)に呼ばれます
-	 * (C4-C深化、2026-07-19)。Incremental(OnePass)はインライン文脈を
-	 * 閉じ直す必要があるが、Retained(TwoPass)は独立した内側ビルダーを
-	 * 持つため何もしなくてよい——この判断をDocumentBuilder側で
-	 * isIncremental()を問うのではなく、TableBuilder実装自身に委ねる
-	 * (tell-don't-ask)。既定はRetained相当の no-op。
+	 * Called just before entering a cell/caption (before newContext)
+	 * (C4-C refinement, 2026-07-19). Incremental (OnePass) must close the inline context again,
+	 * while Retained (TwoPass) has an independent inner builder and needs no action. Delegates this
+	 * decision to the TableBuilder implementation instead of having DocumentBuilder ask isIncremental()
+	 * (tell-don't-ask). Defaults to a no-op, as for Retained.
 	 */
 	public default void prepareEnterCell(TableBuilderHost host) {
 	}
 
 	/**
-	 * カラム/行グループ/行に入る直前に呼ばれます(C4-C深化)。既定は
-	 * no-op。
+	 * Called just before entering a column/row group/row (C4-C refinement). Defaults to a no-op.
 	 */
 	public default void prepareEnterTrack(TableBuilderHost host) {
 	}
 
 	/**
-	 * カラム/行グループ/行に入った直後に呼ばれます(C4-C深化)。既定は
-	 * no-op。
+	 * Called just after entering a column/row group/row (C4-C refinement). Defaults to a no-op.
 	 */
 	public default void afterEnterTrack(TableBuilderHost host) {
 	}
 
 	/**
-	 * セル/キャプションのコンテナビルダーが閉じた直後(録画完了点)に
-	 * 呼ばれます(E-6増分5a、2026-07-24)。Retained実装は、適格なセル本文を
-	 * 「IntrinsicSizes数値+LayoutSource範囲参照(+lease)」保持へ
-	 * seal(records解放)する。既定はno-op(Incremental表のセルは対象外——
-	 * 保持窓が行単位で短く、close前ピークの縮小は別増分で扱う)。
+	 * Called just after the cell/caption container builder closes (recording completion point)
+	 * (E-6 increment 5a, 2026-07-24). The Retained implementation seals eligible cell bodies into
+	 * "IntrinsicSizes numbers + LayoutSource range reference (+lease)" retention, releasing records.
+	 * Defaults to a no-op (excludes Incremental table cells: their retention window is short, per row;
+	 * reducing the peak before close is handled in a separate increment).
 	 *
-	 * @param cellBuilder 閉じたセル/キャプションのコンテナビルダー
+	 * @param cellBuilder closed cell/caption container builder
 	 */
 	public default void sealCellContext(Builder cellBuilder) {
 	}

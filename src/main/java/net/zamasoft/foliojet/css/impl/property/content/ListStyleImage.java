@@ -58,7 +58,7 @@ public class ListStyleImage extends AbstractPrimitivePropertyInfo {
 		}
 		URIValue value;
 		try {
-			// url()とimage-set()(2026-08-29)
+			// url() and image-set() (2026-08-29).
 			value = ValueUtils.toImage(ua, uri, lu);
 			if (value != null) {
 				return value;

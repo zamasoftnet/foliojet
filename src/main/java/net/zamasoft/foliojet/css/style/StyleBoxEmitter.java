@@ -79,20 +79,20 @@ import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.ua.BoundSide;
 
 /**
- * display値によるボックスのdispatchと匿名表補完です(StyleBuilder解体・
- * 増分4a、2026-07-30。各メソッドの本体はStyleBuilderから逐語移動——
- * 挙動不変。状態は{@link StyleBuildContext}経由)。
+ * Dispatches boxes by display value and completes anonymous table structure
+ * (StyleBuilder decomposition, increment 4a, 2026-07-30. Method bodies moved verbatim
+ * from StyleBuilder; behavior is unchanged. State is accessed through {@link StyleBuildContext}).
  *
  * <p>
- * 匿名表補完は増分4b(2026-07-30)で明示スタック({@code OpenStep}の
- * chain)へ反復化済み——補正・挿入は内→外、送出は外→内という旧再帰と
- * 同一の順序を保存している({@link #_startStyle}のコメント参照)。
+ * Anonymous table completion became iterative with an explicit stack (an {@code OpenStep}
+ * chain) in increment 4b (2026-07-30). Preserves the old recursion's order: corrections
+ * and insertions inside out, emission outside in (see the comment on {@link #_startStyle}).
  * </p>
  */
 public final class StyleBoxEmitter {
 	/**
-	 * 計算済みスタイルから組版イベントだけを生成する、反復内容専用の入口です。
-	 * カスケード・counter・string-set・主ソースの記録処理には入りません。
+	 * Entry point for repeated content: generates only layout events from computed styles.
+	 * Does not enter cascade, counter, string-set, or main-source recording processing.
 	 */
 	public static final class Replay implements StyleBuildContext {
 		private CSSStyle current;
@@ -115,7 +115,7 @@ public final class StyleBoxEmitter {
 			this.emitter._startStyle(style);
 		}
 
-		/** 明示要素と、それに補完された匿名箱を元の親まで閉じます。 */
+		/** Closes the explicit element and its added anonymous boxes back to the original parent. */
 		public void end(final CSSStyle parent) {
 			while (this.current != parent) {
 				this.emitter._endStyle();
@@ -153,7 +153,7 @@ public final class StyleBoxEmitter {
 		public void setInTextBlock(final boolean inTextBlock) { this.inTextBlock = inTextBlock; }
 		public boolean isRightSide() { return this.rightSide; }
 		public void setRightSide(final boolean rightSide) { this.rightSide = rightSide; }
-		public void checkMarker() { /* 反復内容から本文のリスト番号を変更しません。 */ }
+		public void checkMarker() { /* Do not change body list numbering from repeated content. */ }
 	}
 	private final StyleBuildContext context;
 	private final RecordingLayoutSink sink;
@@ -162,12 +162,12 @@ public final class StyleBoxEmitter {
 	private final UserAgent ua;
 	private final Imposition imposition;
 	/**
-	 * 「効かない組み合わせ」の告知(2823)を出したかどうか(2026-08-29)。
-	 * 文書に同じ書き方が並ぶのが普通なので、種類ごとに1回だけ知らせる。
+	 * Whether a notice (2823) for an ineffective combination has been issued (2026-08-29).
+	 * Since documents commonly repeat the same pattern, report only once per kind.
 	 */
 	private boolean flexFallbackReported = false;
 	private boolean gridFallbackReported = false;
-	/** 開いている表ごとの格子の桁の占有(内側の表が先頭)。{@link TableSlotTracker}。 */
+	/** Grid column occupancy for each open table (innermost first). {@link TableSlotTracker}. */
 	private final java.util.ArrayDeque<TableSlotTracker> tableSlots = new java.util.ArrayDeque<>();
 
 	StyleBoxEmitter(final StyleBuildContext context, final RecordingLayoutSink sink, final BoxStyleMapper mapper,
@@ -181,25 +181,25 @@ public final class StyleBoxEmitter {
 	}
 
 	void requireRoot(byte direction, WritingMode progression, WritingModeVariant writingModeVariant) {
-		// 保留されたHTMLのルートを出力する
+		// Output the pending HTML root
 		if (!this.context.isInBody()) {
 			this.context.setInBody(true);
 			if (this.context.getHtmlRootBlock() != null) {
-				// ページの描画方法
+				// Page drawing method
 				final BlockParams params = this.context.getHtmlRootBlock().getBlockParams();
 				params.direction = direction;
 				params.flow = progression;
 				params.writingModeVariant = writingModeVariant;
 			}
 			this.pageSequence.setProgression(progression);
-			// 名前付きページN1b: root(html)のpage used valueを全ページへ
-			// 適用する(文書途中の遷移・body以下の名前はN2——
+			// Named pages N1b: apply root (html)'s page used value to all pages
+			// (mid-document transitions and names under body are N2:
 			// consult-codex-2026-07-31-named-pages.txt)
 			if (this.context.getHtmlRootBlock() != null && this.context.getHtmlRootBlock()
 					.getPos() instanceof net.zamasoft.foliojet.layout.box.params.AbstractBlockLevelPos blockLevel) {
 				this.pageSequence.setPageName(blockLevel.pageName);
 			}
-			// 右とじ
+			// Right binding
 			boolean right;
 			OutputPrintMode printMode = UAProps.OUTPUT_PRINT_MODE.get(this.ua);
 			if (printMode == OutputPrintMode.LEFT_SIDE) {
@@ -222,15 +222,14 @@ public final class StyleBoxEmitter {
 	}
 
 	/**
-	 * ルート直下の<b>全面絶対配置ラッパー</b>かを返します(2026-08-17。
-	 * 判断の背景は呼び出し側のコメント参照)。
+	 * Returns whether this is a <b>full-area absolutely positioned wrapper</b> directly
+	 * under the root (2026-08-17; see the caller's comment for the reasoning).
 	 *
 	 * <p>
-	 * 条件は意図的に狭い: (1) 親がhtml/body(それより深い全面配置は
-	 * モーダルの背景等、重ねる意図がありうる)、(2) 寸法が
-	 * {@code width:100%}かつ{@code height:100%}、または上下左右の
-	 * insetが全て0——どちらも「ビューポートに一致させる」意図の
-	 * 定型だけを拾う。
+	 * Deliberately narrow conditions: (1) the parent is html/body (deeper full-area positioning
+	 * may intentionally overlay content, e.g. modal backgrounds); (2) dimensions are
+	 * {@code width:100%} and {@code height:100%}, or all four insets are zero.
+	 * Both match only standard patterns intended to fill the viewport.
 	 * </p>
 	 */
 	private static boolean isFullViewportWrapper(final CSSStyle style) {
@@ -277,25 +276,25 @@ public final class StyleBoxEmitter {
 			this.mapper.setupInlinePos(pos, style);
 			blockBox = new InlineBlockBox(params, pos);
 		} else if (CSSFloatValue.isPageFloat(floating)) {
-			// ページフロート(2026-08-02): 脚注と同じくPosType=FLOATのまま
-			// 分離builderのライフサイクルへ流し、終了時にページ台帳
-			// (RootBuilder)へ渡す。topは配置後にRoot行走査の排除域になる
+			// Page floats (2026-08-02): as with footnotes, keep PosType=FLOAT and use
+			// the separate builder lifecycle, handing off to the page ledger (RootBuilder)
+			// at the end. After placement, top becomes an exclusion region for Root line scanning.
 			final PageFloatPos pos = new PageFloatPos(
 					floating == CSSFloatValue.PAGE_TOP || floating == CSSFloatValue.PAGE_BLOCK_START,
 					floating == CSSFloatValue.PAGE_TOP || floating == CSSFloatValue.PAGE_BOTTOM);
 			this.mapper.setupStaticPos(pos, style);
 			blockBox = new FloatBlockBox(params, pos);
 		} else if (floating == CSSFloatValue.PAGE_NOTE_START || floating == CSSFloatValue.PAGE_NOTE_END) {
-			// JLREQ並列注。ページの論理行方向の余白へ分離配置する。
+			// JLREQ parallel notes. Place separately in the page's logical inline-axis margins.
 			final PageMarginNotePos pos = new PageMarginNotePos(floating == CSSFloatValue.PAGE_NOTE_START);
 			this.mapper.setupStaticPos(pos, style);
 			blockBox = new FloatBlockBox(params, pos);
 		} else if (floating == CSSFloatValue.FOOTNOTE) {
-			// 脚注F2(2026-07-31): FootnotePos(PosType=FLOAT)で分離builderの
-			// ライフサイクルへ流す。左右floatと違いFloatSide/clear等は使わず、
-			// 終了時に親へaddBoundされずページ脚注台帳へ渡る。縦書きは
-			// F7で解禁(占有量はaxis-neutral、領域は版面block-end、番号
-			// ラベルは直立の限定縦中横=意図的仕様逸脱)
+			// Footnotes F2 (2026-07-31): use the separate builder lifecycle with
+			// FootnotePos (PosType=FLOAT). Unlike left/right floats, do not use FloatSide/clear,
+			// and hand off to the page footnote ledger at the end instead of addBound to the parent.
+			// Vertical writing enabled in F7 (axis-neutral occupancy, area at type-area block-end,
+			// upright number labels using limited tate-chu-yoko: deliberate specification deviation).
 			final FootnotePos pos = new FootnotePos();
 			this.mapper.setupStaticPos(pos, style);
 			blockBox = new FloatBlockBox(params, pos);
@@ -317,8 +316,8 @@ public final class StyleBoxEmitter {
 
 	CSSStyle startColumns(CSSStyle style, AbstractContainerBox box) {
 		int c = LayoutUtils.getColumnCount(box);
-		// Cの遅延中はboxがまだ未構築。column-widthの使用段数をここで
-		// 1に固定せず、ラッパーを発行して予約後の包含寸法で決める。
+		// While C is delayed, the box is not built yet. Do not fix the used column count
+		// for column-width to 1 here; emit a wrapper and determine it from containing dimensions after reservation.
 		if (c > 1 || (this.sink.isFootnoteInputDelayed()
 				&& !LayoutUtils.isNone(box.getBlockParams().columns.width))) {
 			final BlockParams params = box.getBlockParams();
@@ -345,25 +344,25 @@ public final class StyleBoxEmitter {
 	}
 
 	void _startStyle(final CSSStyle startStyle) {
-		// 匿名表補完の自己再帰を明示スタックへ(増分4b、2026-07-30)。
-		// 不変: 頭の補正と匿名親の挿入は内→外(発見順)、ボックスの送出は
-		// 外→内——旧再帰(fix(style)→fix(anon)→…→emit(anonN)→…→
-		// emit(style))と同一の順序。display/position/htmlRootは補正時点の
-		// 値を捕捉する(例: キャプションのBLOCK変換後も旧ローカル同様に
-		// TABLE_CAPTIONとしてdispatchされる)
+		// Replace self-recursion for anonymous table completion with an explicit stack (increment 4b, 2026-07-30).
+		// Invariant: head corrections and anonymous-parent insertion run inside out (discovery order),
+		// box emission outside in: the same order as the old recursion
+		// (fix(style)→fix(anon)→…→emit(anonN)→…→emit(style)). Capture display/position/htmlRoot
+		// at correction time (e.g. a caption still dispatches as TABLE_CAPTION after conversion
+		// to BLOCK, as with the old local variable).
 		final java.util.ArrayDeque<OpenStep> chain = new java.util.ArrayDeque<>();
 		CSSStyle style = startStyle;
 		while (true) {
 			CSSStyle inserted = null;
 
 			if (CSSJRuby.get(style) != CSSJRubyValue.NONE) {
-				// ルビ関連要素(ruby/rb/rt)は箱を作らず通常のINLINEとして流す
-				// (注釈付きテキスト方式、2026-07-25仕様裁定)。単位の組み立ては
-				// 文字処理層(StyledTextUnitizer)がrubyRoleマーカーを手掛かりに
-				// 行う。
+				// Ruby-related elements (ruby/rb/rt) create no boxes; pass through as ordinary INLINE
+				// (annotated-text approach, specification decision on 2026-07-25). The text processing
+				// layer (StyledTextUnitizer) assembles units using the rubyRole marker
+				// as its guide.
 				style.set(Display.INFO, DisplayValue.INLINE_VALUE, CSSStyle.MODE_IMPORTANT);
 			}
-			// ルートのHTMLタグはblockに固定する
+			// Fix the root HTML tag to block
 			boolean htmlRoot = false;
 			if (!this.context.isInBody() && this.context.getHtmlRootBlock() == null) {
 				final CSSElement ce = style.getCSSElement();
@@ -378,61 +377,61 @@ public final class StyleBoxEmitter {
 				}
 			}
 
-			// SPEC CSS 2.1 9.7の計算はDisplayクラスで実装済み
+			// SPEC CSS 2.1 9.7 computation is already implemented in Display
 			final byte display = Display.get(style);
 			byte position = CSSPosition.get(style);
 			if (position == PositionValue.ABSOLUTE && isFullViewportWrapper(style)) {
-				// **ルート直下の全面絶対配置は通常フローへ落とす**(2026-08-17)。
+				// **Convert full-area absolute positioning directly under the root to normal flow** (2026-08-17).
 				//
-				// Read the Docsテーマの
+				// The Read the Docs theme's
 				// {@code .wy-grid-for-nav{position:absolute;width:100%;height:100%}}
-				// のような**画面用の全面レイアウトラッパー**が本文全体を包む
-				// 作りは、ドキュメントサイトに広く使われている(実地コーパスの
-				// mathjax-docs・rtd-themeの2文書がこれで、テーマのprint CSSも
-				// 解除し忘れている)。絶対配置は分割しない設計
-				// (ARCHITECTURE §5.10——透かし・装飾の意図的なはみ出しを
-				// 勝手に切ると誤りになる)なので、そのままでは数百ページぶんの
-				// 本文が**丸ごと1ページに積み上がって内容が全損**する。
+				// is an example of a **full-area screen layout wrapper** around the entire body text.
+				// This pattern is common on documentation sites (two documents in the real-world corpus:
+				// mathjax-docs and rtd-theme; their theme's print CSS also fails to undo it).
+				// Absolute positioning is intentionally not fragmented
+				// (ARCHITECTURE §5.10: arbitrarily splitting intended overflow for watermarks or decorations
+				// would be wrong), so leaving it unchanged stacks hundreds of pages of body text
+				// **onto one page, losing all content**.
 				//
-				// 印刷では「ビューポートいっぱいに広げる」指定に意味がなく、
-				// Chromeの印刷も中身をページへ流す。対象は
-				// **body/html直下・width:100%かつheight:100%(またはinset:0
-				// 相当)**に限る——透かし・裁ち落とし等の局所的な絶対配置には
-				// 影響しない。採否はimageTest 592文書0差分と実地コーパスの
-				// 実測で確認した(ユーザー承認2026-08-17)。
+				// Filling the viewport has no meaning in print, and Chrome printing also flows the content
+				// across pages. Restrict this to **direct children of body/html with width:100% and
+				// height:100% (or the equivalent of inset:0)**:
+				// localized absolute positioning for watermarks, bleed, etc. is unaffected.
+				// Validated the decision with zero differences across 592 imageTest documents and
+				// observations of the real-world corpus (user approval, 2026-08-17).
 				position = PositionValue.STATIC;
 			}
 			if (position == PositionValue.STATIC || position == PositionValue.RELATIVE
 					|| position == PositionValue.STICKY) {
-				// タグの補完
+				// Complete tags
 				final CSSStyle parentStyle = style.getParentStyle();
 				if (parentStyle != null) {
-					// display:contentsの祖先は箱を作らないため、匿名箱の補完は
-					// 最も近い非contents祖先を親と見なして判定する(2026-08-07)
+					// display:contents ancestors have no boxes, so anonymous-box completion treats
+					// the nearest non-contents ancestor as the parent (2026-08-07).
 					final short parentDisplay = Display.getFlattenedParentDisplay(style);
-					// **flexアイテム・gridアイテムのfloatは効かない**
-					// (CSS Flexbox §3「float and clear do not create floating or
-					// clearance for flex items」、CSS Grid §3も同文)。
+					// **float has no effect on flex or grid items**
+					// (CSS Flexbox §3: "float and clear do not create floating or
+					// clearance for flex items"; CSS Grid §3 has the same wording).
 					//
-					// 2026-08-03まで無視しておらず、flexコンテナの子に
-					// {@code float:left} があると<b>ページを跨げない浮動体</b>に
-					// なっていた。紙面を超える内容がその中にあると、全部が1枚目に
-					// 積まれて残りが紙の外へ出る——<b>内容の消失</b>である。
+					// Until 2026-08-03 it was not ignored, so {@code float:left} on a flex container's
+					// child made it a <b>float that could not span pages</b>.
+					// Content exceeding the sheet was all stacked on the first page, with the rest
+					// outside the paper: <b>content loss</b>.
 					//
-					// Sphinxのclassicテーマがまさにこの形
+					// Sphinx's classic theme uses exactly this pattern
 					// ({@code div.document{display:flex}} +
-					// {@code div.documentwrapper{float:left;width:100%}})で、
-					// Python公式ドキュメントを取り込んだところ23ページ分の本文が
-					// 1ページに潰れた。技術文書の多くがSphinx製なので影響は広い。
-					// 回帰は files/unittest/0510-flex/float-item.html。
-					// (inline-flex/inline-gridは未実装なのでここには来ない)
+					// {@code div.documentwrapper{float:left;width:100%}});
+					// importing Python's official documentation collapsed 23 pages of body text
+					// onto one page. Many technical documents use Sphinx, so the impact is broad.
+					// Regression: files/unittest/0510-flex/float-item.html.
+					// (inline-flex/inline-grid are not implemented and do not reach here.)
 					if (parentDisplay == DisplayValue.FLEX || parentDisplay == DisplayValue.GRID) {
 						style.set(CSSFloat.INFO, CSSFloatValue.NONE_VALUE, CSSStyle.MODE_IMPORTANT);
 					}
 					switch (display) {
 					case DisplayValue.TABLE_CELL: {
 						// CSS 2.1 17.2.1 #1
-						// テーブルセルの上にテーブル行を挿入
+						// Insert a table row above a table cell
 						if (parentDisplay != DisplayValue.TABLE_ROW) {
 							final CSSStyle row = style.insertAnonStyle(CSSElement.ANON_TR);
 							row.set(Display.INFO, DisplayValue.TABLE_ROW_VALUE);
@@ -443,7 +442,7 @@ public final class StyleBoxEmitter {
 
 					case DisplayValue.TABLE_ROW: {
 						// CSS 2.1 17.2.1 #2
-						// テーブル行の上にテーブル行グループを挿入
+						// Insert a table row group above a table row
 						if (parentDisplay != DisplayValue.TABLE_ROW_GROUP
 								&& parentDisplay != DisplayValue.TABLE_HEADER_GROUP
 								&& parentDisplay != DisplayValue.TABLE_FOOTER_GROUP) {
@@ -463,7 +462,7 @@ public final class StyleBoxEmitter {
 					case DisplayValue.TABLE_HEADER_GROUP:
 					case DisplayValue.TABLE_FOOTER_GROUP: {
 						// CSS 2.1 17.2.1 #2
-						// テーブルカラムグループ、行グループの上にテーブルを挿入
+						// Insert a table above a table column group or row group
 						if (parentDisplay != DisplayValue.TABLE && parentDisplay != DisplayValue.INLINE_TABLE) {
 							CSSStyle table = style.insertAnonStyle(CSSElement.ANON_TBODY);
 							if (parentDisplay == DisplayValue.INLINE) {
@@ -477,7 +476,7 @@ public final class StyleBoxEmitter {
 						break;
 
 					case DisplayValue.TABLE_COLUMN: {
-						// テーブルカラムの上にテーブルを挿入
+						// Insert a table above a table column
 						if (parentDisplay != DisplayValue.TABLE && parentDisplay != DisplayValue.INLINE_TABLE
 								&& parentDisplay != DisplayValue.TABLE_COLUMN_GROUP) {
 							CSSStyle table = style.insertAnonStyle(CSSElement.ANON_TABLE);
@@ -501,7 +500,7 @@ public final class StyleBoxEmitter {
 						case DisplayValue.TABLE_ROW:
 							break;
 						default:
-							// テーブルキャプションをブロックに変換
+							// Convert a table caption to a block
 							style.set(Display.INFO, DisplayValue.BLOCK_VALUE, CSSStyle.MODE_IMPORTANT);
 							break;
 						}
@@ -515,7 +514,7 @@ public final class StyleBoxEmitter {
 					case DisplayValue.INLINE_TABLE:
 					case DisplayValue.INLINE:
 					case DisplayValue.INLINE_BLOCK:
-						// テーブル内のテーブル、ブロック、インラインの上にセルを挿入
+						// Insert a cell above tables, blocks, and inlines inside a table
 						switch (parentDisplay) {
 						case DisplayValue.INLINE_TABLE:
 						case DisplayValue.TABLE:
@@ -530,7 +529,7 @@ public final class StyleBoxEmitter {
 						break;
 
 					case DisplayValue.CONTENTS:
-						// contents要素自身は箱を作らないので補完も不要
+						// A contents element itself creates no box, so needs no completion
 						break;
 
 					default:
@@ -552,16 +551,17 @@ public final class StyleBoxEmitter {
 	}
 
 	/**
-	 * 絶対配置のグリッド/Flexで、外側の絶対配置の箱と内側の匿名コンテナの
-	 * 2つを開いた要素のスタイル(2026-09-02、E-3)。閉じるときに2つ閉じる。
+	 * Style of an absolutely positioned Grid/Flex element that opens two boxes:
+	 * an outer absolutely positioned box and an inner anonymous container
+	 * (2026-09-02, E-3). Close both when the element ends.
 	 */
 	private final java.util.Set<CSSStyle> wrappedContainers = java.util.Collections
 			.newSetFromMap(new java.util.IdentityHashMap<>());
 
 	/**
-	 * 包まれる内側の匿名コンテナの箱パラメータから、外側の箱が受け持つ
-	 * 枠・背景・寸法を外します。トラック・アイテム整列などのコンテナ固有の
-	 * 値はそのまま残る。
+	 * Removes the frame, background, and dimensions handled by the outer box from the
+	 * wrapped inner anonymous container's box parameters. Leaves container-specific
+	 * values, such as tracks and item alignment, unchanged.
 	 */
 	private static void anonymizeWrappedParams(final BlockParams inner) {
 		inner.frame = net.zamasoft.foliojet.layout.box.params.RectFrame.NULL_FRAME;
@@ -571,29 +571,29 @@ public final class StyleBoxEmitter {
 		inner.boxSizing = net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX;
 	}
 
-	/** 開く1レベル分の捕捉(補正時点のdisplay/position/htmlRoot)。 */
+	/** Captured data for one opening level (display/position/htmlRoot at correction time). */
 	private record OpenStep(CSSStyle style, boolean htmlRoot, byte display, byte position) {
 	}
 
-	/** 1レベル分のボックス送出(旧_startStyleのdispatch部を逐語移動)。 */
+	/** Emits boxes for one level (dispatch part of the old _startStyle, moved verbatim). */
 	private void openBox(final OpenStep step) {
 		this.sink.beginSource(step.style().getCSSElement());
-		// startColumns(段組ラッパー)がstyleを差し替えるため非final(旧コードと同じ)
+		// Non-final because startColumns (multi-column wrapper) replaces style (same as the old code)
 		CSSStyle style = step.style();
 		final boolean htmlRoot = step.htmlRoot();
 		final byte display = step.display();
 		final byte position = step.position();
-		// 配置の設定
+		// Set up positioning
 		byte floating = CSSFloat.get(style);
 
-		// ボックスの種類ごとの処理
+		// Process each box type
 		switch (display) {
 		case DisplayValue.BLOCK:
 		case DisplayValue.INLINE_BLOCK: {
-			// ブロック
+			// Block
 			final Image image = CSSJInternalImage.getImage(style);
 			if (image != null) {
-				// 画像
+				// Image
 				final AbstractReplacedBox replacedBox;
 				boolean inline = false;
 				ReplacedParams params;
@@ -611,8 +611,8 @@ public final class StyleBoxEmitter {
 					inline = true;
 					replacedBox = new InlineReplacedBox(params, pos);
 				} else if (floating != CSSFloatValue.NONE && !CSSFloatValue.isPageLevel(floating)) {
-					// 置換要素のページ単位float(脚注・ページフロート)は
-					// 通常フローへ(ブロック要素で包めば従来どおり効く)
+					// Page-level floats (footnotes/page floats) on replaced elements fall back to
+					// normal flow (wrapping in a block element still makes them work as before).
 					final FloatPos pos = new FloatPos();
 					params = new ReplacedParams();
 					this.mapper.setupReplacedParams(image, params, style, this.context.isInBody(), this.pageSequence);
@@ -635,11 +635,11 @@ public final class StyleBoxEmitter {
 				}
 				this.sink.replaced(replacedBox);
 			} else {
-				// ブロックボックス
+				// Block box
 				final BlockParams params = new BlockParams();
 				this.mapper.setupBlockParams(params, style, this.context.getCurrentStyle(), this.context.isInBody(), this.pageSequence);
 				final AbstractBlockBox blockBox = this.createBlockBox(style, params, position, display, floating);
-				// HTMLのルートは出力を保留する
+				// Defer output of the HTML root
 				if (blockBox.getPos().getType() == PosType.FLOW && htmlRoot) {
 					this.context.setHtmlRootBlock((FlowBlockBox) blockBox);
 					break;
@@ -650,7 +650,7 @@ public final class StyleBoxEmitter {
 				}
 				this.sink.start(blockBox);
 
-				// 段組みの開始
+				// Start multi-column layout
 				style = this.startColumns(style, blockBox);
 			}
 			this.context.setInTextBlock(false);
@@ -661,7 +661,7 @@ public final class StyleBoxEmitter {
 			Image image = CSSJInternalImage.getImage(style);
 			InlinePos pos = new InlinePos();
 			if (image != null) {
-				// インラインの画像
+				// Inline image
 				ReplacedParams params = new ReplacedParams();
 				this.mapper.setupReplacedParams(image, params, style, this.context.isInBody(), this.pageSequence);
 				this.mapper.setupInlinePos(pos, style);
@@ -670,7 +670,7 @@ public final class StyleBoxEmitter {
 				this.context.checkMarker();
 				this.sink.replaced(replaced);
 			} else {
-				// インラインボックス
+				// Inline box
 				InlineParams params = new InlineParams();
 				this.mapper.setupInlineParams(params, style, this.context.isInBody(), this.pageSequence);
 				this.mapper.setupInlinePos(pos, style);
@@ -681,7 +681,7 @@ public final class StyleBoxEmitter {
 		}
 			break;
 		case DisplayValue.LIST_ITEM: {
-			// リストアイテム
+			// List item
 			final BlockParams params = new BlockParams();
 			this.mapper.setupBlockParams(params, style, this.context.getCurrentStyle(), this.context.isInBody(), this.pageSequence);
 			final AbstractBlockBox listItem = this.createBlockBox(style, params, position, display, floating);
@@ -691,10 +691,10 @@ public final class StyleBoxEmitter {
 			break;
 
 		case DisplayValue.FLEX: {
-			// Flex F0b(consult-codex-2026-08-02-flexbox.txt): 通常フロー
-			// 文脈のみFlexBox(PageAtomicBox=常時分割不可)。float/absolute/
-			// fixedのFlexコンテナは初期サブセット外で通常blockへフォール
-			// バック(内容は失わない)。内容配置はF1まで単一列フロー
+			// Flex F0b (consult-codex-2026-08-02-flexbox.txt): FlexBox only in normal flow
+			// contexts (PageAtomicBox=always unbreakable). Floated/absolute/fixed Flex containers
+			// are outside the initial subset and fall back to ordinary blocks
+			// (no content loss). Content uses single-column flow until F1.
 			final net.zamasoft.foliojet.layout.box.params.FlexParams params = new net.zamasoft.foliojet.layout.box.params.FlexParams();
 			this.mapper.setupFlexParams(params, style, this.context.getCurrentStyle(), this.context.isInBody(),
 					this.pageSequence);
@@ -711,7 +711,7 @@ public final class StyleBoxEmitter {
 				blockBox = new net.zamasoft.foliojet.layout.box.impl.FlexBox(params, pos);
 			} else if ((position == PositionValue.ABSOLUTE || position == PositionValue.FIXED)
 					&& floating == CSSFloatValue.NONE) {
-				// 絶対配置のFlexコンテナもグリッドと同じ包み(2026-09-02)
+				// Wrap absolutely positioned Flex containers the same way as Grid (2026-09-02)
 				final net.zamasoft.foliojet.layout.box.params.FlexParams inner = new net.zamasoft.foliojet.layout.box.params.FlexParams();
 				this.mapper.setupFlexParams(inner, style, this.context.getCurrentStyle(), this.context.isInBody(),
 						this.pageSequence);
@@ -720,8 +720,8 @@ public final class StyleBoxEmitter {
 				this.wrappedContainers.add(style);
 				blockBox = new net.zamasoft.foliojet.layout.box.impl.FlexBox(inner, new FlowPos());
 			} else {
-				// 黙って落とさない(2026-08-29の利用者報告): 宣言は読めているのに
-				// 文脈のせいで効かないことを2823で知らせる
+				// Do not silently discard (user report, 2026-08-29): report with 2823 that the
+				// declaration was parsed but its context prevents it from taking effect.
 				if (!this.flexFallbackReported) {
 					this.flexFallbackReported = true;
 					this.ua.message(net.zamasoft.foliojet.message.MessageCodes.WARN_INEFFECTIVE_CSS_COMBINATION,
@@ -736,10 +736,10 @@ public final class StyleBoxEmitter {
 			break;
 
 		case DisplayValue.GRID: {
-			// Grid G0(consult-codex-2026-07-31-grid.txt §1.1): 通常フロー
-			// 文脈のみGridBox(PageAtomicBox=常時分割不可)。float/absolute/
-			// fixedのGridコンテナは初期サブセット外で通常blockへフォール
-			// バック(内容は失わない)
+			// Grid G0 (consult-codex-2026-07-31-grid.txt §1.1): GridBox only in normal flow
+			// contexts (PageAtomicBox=always unbreakable). Floated/absolute/fixed Grid containers
+			// are outside the initial subset and fall back to ordinary blocks
+			// (no content loss).
 			final net.zamasoft.foliojet.layout.box.params.GridParams params = new net.zamasoft.foliojet.layout.box.params.GridParams();
 			this.mapper.setupGridParams(params, style, this.context.getCurrentStyle(), this.context.isInBody(),
 					this.pageSequence);
@@ -756,11 +756,11 @@ public final class StyleBoxEmitter {
 				blockBox = new net.zamasoft.foliojet.layout.box.impl.GridBox(params, pos);
 			} else if ((position == PositionValue.ABSOLUTE || position == PositionValue.FIXED)
 					&& floating == CSSFloatValue.NONE) {
-				// E-3(2026-09-02): 絶対配置のグリッドコンテナ。印刷では用紙の中に
-				// 版面を絶対配置するのが定型なので、対象外にしておけない。
-				// 絶対配置の箱(枠・背景・寸法はこちら)の中に**匿名の静的な
-				// グリッド箱**を1つ作って包む。insetで寸法が決まるので包含
-				// ブロックは確定していて素直に組める。要素の終わりで2つ閉じる
+				// E-3 (2026-09-02): absolutely positioned Grid containers. Absolute positioning of a
+				// type area within a sheet is a standard print pattern, so cannot be excluded.
+				// Wrap one **anonymous static Grid box** inside an absolutely positioned box
+				// (which handles frame/background/dimensions). Insets determine the dimensions,
+				// so the containing block is definite and layout is straightforward. Close both at element end.
 				final net.zamasoft.foliojet.layout.box.params.GridParams inner = new net.zamasoft.foliojet.layout.box.params.GridParams();
 				this.mapper.setupGridParams(inner, style, this.context.getCurrentStyle(), this.context.isInBody(),
 						this.pageSequence);
@@ -784,7 +784,7 @@ public final class StyleBoxEmitter {
 
 		case DisplayValue.TABLE:
 		case DisplayValue.INLINE_TABLE: {
-			// テーブル
+			// Table
 			final TableParams params = new TableParams();
 			this.mapper.setupTableParams(params, style, this.context.getCurrentStyle(), this.context.isInBody(), this.pageSequence);
 			final AbstractBlockBox blockBox = this.createBlockBox(style, params, position, display, floating);
@@ -802,7 +802,7 @@ public final class StyleBoxEmitter {
 			break;
 
 		case DisplayValue.TABLE_CAPTION: {
-			// テーブルキャプション
+			// Table caption
 			final TableCaptionPos pos = new TableCaptionPos();
 			final BlockParams params = new BlockParams();
 			this.mapper.setupTableCaptionPos(pos, style, this.context.isRightSide());
@@ -826,7 +826,7 @@ public final class StyleBoxEmitter {
 			break;
 
 		case DisplayValue.TABLE_COLUMN_GROUP: {
-			// テーブル列グループ
+			// Table column group
 			final TableColumnPos pos = new TableColumnPos();
 			final InnerTableParams params = new InnerTableParams();
 			this.mapper.setupTableColumn(params, pos, style);
@@ -837,7 +837,7 @@ public final class StyleBoxEmitter {
 			break;
 
 		case DisplayValue.TABLE_COLUMN: {
-			// テーブル列
+			// Table column
 			TableColumnPos pos = new TableColumnPos();
 			InnerTableParams params = new InnerTableParams();
 			this.mapper.setupTableColumn(params, pos, style);
@@ -848,7 +848,7 @@ public final class StyleBoxEmitter {
 			break;
 
 		case DisplayValue.TABLE_HEADER_GROUP: {
-			// テーブルヘッダグループ
+			// Table header group
 			final TableRowGroupPos pos = new TableRowGroupPos();
 			final InnerTableParams params = new InnerTableParams();
 			this.mapper.setupTableRowGroup(params, pos, style, RowGroupType.HEADER, this.context.isRightSide());
@@ -860,7 +860,7 @@ public final class StyleBoxEmitter {
 			break;
 
 		case DisplayValue.TABLE_ROW_GROUP: {
-			// テーブル行グループ
+			// Table row group
 			final TableRowGroupPos pos = new TableRowGroupPos();
 			final InnerTableParams params = new InnerTableParams();
 			this.mapper.setupTableRowGroup(params, pos, style, RowGroupType.BODY, this.context.isRightSide());
@@ -872,7 +872,7 @@ public final class StyleBoxEmitter {
 			break;
 
 		case DisplayValue.TABLE_FOOTER_GROUP: {
-			// テーブルフッタグループ
+			// Table footer group
 			TableRowGroupPos pos = new TableRowGroupPos();
 			InnerTableParams params = new InnerTableParams();
 			this.mapper.setupTableRowGroup(params, pos, style, RowGroupType.FOOTER, this.context.isRightSide());
@@ -884,7 +884,7 @@ public final class StyleBoxEmitter {
 			break;
 
 		case DisplayValue.TABLE_ROW: {
-			// テーブル行
+			// Table row
 			TableRowPos pos = new TableRowPos();
 			InnerTableParams params = new InnerTableParams();
 			this.mapper.setupTableRow(params, pos, style, this.context.isRightSide());
@@ -899,7 +899,7 @@ public final class StyleBoxEmitter {
 			break;
 
 		case DisplayValue.TABLE_CELL: {
-			// テーブルセル
+			// Table cell
 			final TableCellPos pos = new TableCellPos();
 			final BlockParams params = new BlockParams();
 			this.mapper.setupTableCellPos(pos, style, this.context.isRightSide());
@@ -912,17 +912,17 @@ public final class StyleBoxEmitter {
 				slots.placeCell(pos.colspan, pos.rowspan);
 			}
 
-			// 段組みの開始
+			// Start multi-column layout
 			style = this.startColumns(style, cell);
 		}
 			break;
 
 		case DisplayValue.CONTENTS:
-			// display:contents(CSS Display 3 §2.5、2026-08-07)。要素自身の
-			// 箱は作らず、子は現在開いている箱(最も近い非contents祖先の箱)へ
-			// そのまま流れる。スタイルはスタックへ積む——子のスタイル解決は
-			// このスタイルを親として継承する。直下のテキストは
-			// StyleEventMachine.charactersが匿名インラインで包む
+			// display:contents (CSS Display 3 §2.5, 2026-08-07). Creates no box for the element
+			// itself; children flow directly into the currently open box (the nearest non-contents
+			// ancestor's box). Push the style onto the stack: children inherit from it during
+			// style resolution. StyleEventMachine.characters wraps direct text
+			// in an anonymous inline.
 			break;
 
 		default:
@@ -948,12 +948,12 @@ public final class StyleBoxEmitter {
 			this._startStyle(style);
 		}
 		final byte endDisplay = Display.get(style);
-		// contentsは開くときに箱を作っていない(openBoxのCONTENTS分岐)ので
-		// 閉じる箱もない
+		// contents created no box when opened (CONTENTS branch in openBox),
+		// so there is no box to close.
 		if (CSSJInternalImage.getImage(style) == null && endDisplay != DisplayValue.CONTENTS) {
 			this.sink.end();
 			if (this.wrappedContainers.remove(style)) {
-				// 絶対配置のグリッド/Flex: 内側の匿名箱の次に外側の絶対配置の箱を閉じる
+				// Absolutely positioned Grid/Flex: close the inner anonymous box, then the outer absolutely positioned box
 				this.sink.end();
 			}
 		}
@@ -998,8 +998,8 @@ public final class StyleBoxEmitter {
 	}
 
 	/**
-	 * 行を閉じる前に、当行のセルの後ろで上から続く rowspan の手前にある空き桁を、空の匿名セルで埋めます
-	 * (2026-09-29。{@link TableSlotTracker}に理由を書いた)。
+	 * Before closing a row, fills empty columns after this row's cells and before continuing
+	 * rowspans with empty anonymous cells (2026-09-29; rationale in {@link TableSlotTracker}).
 	 */
 	private void fillSlotGaps(final CSSStyle row) {
 		final TableSlotTracker slots = this.tableSlots.peek();
@@ -1009,7 +1009,7 @@ public final class StyleBoxEmitter {
 		while (slots.hasGapBeforeCarried()) {
 			final CSSStyle cell = row.inheritAnonStyle(CSSElement.ANON_TD);
 			cell.set(Display.INFO, DisplayValue.TABLE_CELL_VALUE);
-			// 行の書字方向を継ぐと、行が表と直交する指定のとき直交セルになり、行の分割の扱いが変わる
+			// Inheriting a row direction orthogonal to the table makes cells orthogonal too, changing row splitting.
 			cell.set(BlockFlow.INFO, slots.table.get(BlockFlow.INFO));
 			this._startStyle(cell);
 			this._endStyle();

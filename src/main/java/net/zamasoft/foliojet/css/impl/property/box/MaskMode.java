@@ -14,16 +14,16 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code mask-mode}(css-masking-1 §7.10)。カンマ区切りの各値を受理・保持する。
+ * {@code mask-mode} (css-masking-1 §7.10). Accepts and retains each comma-separated value.
  *
- * <p>現在のマスク描画は既存のアルファ相当の近似経路だけを持つため、
- * {@code alpha}/{@code luminance}/{@code match-source}による描画の切替は
- * 行わない。未実装値を別のモードへ近似して見た目を変えないためである。</p>
+ * <p>Current mask rendering has only the existing alpha-equivalent approximation path,
+ * so {@code alpha}/{@code luminance}/{@code match-source} do not switch rendering modes.
+ * This avoids changing the appearance by approximating unimplemented values with another mode.</p>
  */
 public final class MaskMode extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MaskMode();
 
-	/** mask-modeの各キーワード。 */
+	/** mask-mode keywords. */
 	public enum ModeValue implements Value {
 		ALPHA("alpha"), LUMINANCE("luminance"), MATCH_SOURCE("match-source");
 
@@ -39,7 +39,7 @@ public final class MaskMode extends AbstractPrimitivePropertyInfo {
 		}
 	}
 
-	/** 多層マスクの値（先頭が最前面）。 */
+	/** Values for multiple mask layers (frontmost first). */
 	public record LayersValue(ModeValue[] layers) implements Value {
 		@Override
 		public String toString() {
@@ -51,13 +51,13 @@ public final class MaskMode extends AbstractPrimitivePropertyInfo {
 		super("mask-mode");
 	}
 
-	/** 単層ならキーワード値、多層ならレイヤ値にまとめる。 */
+	/** Returns a keyword value for a single layer, or bundles multiple layers into a layer value. */
 	public static Value toValue(List<ModeValue> values) {
 		return values.size() == 1 ? values.get(0)
 				: new LayersValue(values.toArray(new ModeValue[values.size()]));
 	}
 
-	/** キーワードトークンを値へ変換する。 */
+	/** Converts a keyword token to a value. */
 	public static ModeValue fromToken(CssToken token) {
 		if (!(token instanceof CssToken.Ident ident)) {
 			return null;

@@ -13,16 +13,16 @@ import net.zamasoft.foliojet.css.value.css3.LineBreakValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code line-break}です(css-text-3 §5.2、2026-08-29新設)。
+ * {@code line-break} (css-text-3 §5.2, added 2026-08-29).
  *
  * <p>
- * {@code auto | loose | normal | strict | anywhere}。継承、既定
- * {@code auto}。禁則の強さは{@code LanguageProfile_ja}が
- * {@code word-break}と組み合わせて{@code JlreqBreakingRules}へ渡す。
- * {@code auto}はUA裁量(仕様)で、本実装ではJLREQの行頭・行末禁則を
- * そのまま使う{@code strict}相当——印刷物向けの既定を保つため
- * (ブラウザの{@code auto}は{@code normal}相当で、拗促音・長音の
- * 行頭を許す)。
+ * {@code auto | loose | normal | strict | anywhere}. Inherited; defaults to
+ * {@code auto}. {@code LanguageProfile_ja} combines kinsoku (line-breaking rules) strictness
+ * with {@code word-break} and passes it to {@code JlreqBreakingRules}.
+ * {@code auto} is at UA discretion (per the specification); this implementation treats it
+ * as {@code strict}, using JLREQ line-start and line-end restrictions unchanged
+ * to preserve the print-oriented default (browser {@code auto} is equivalent to {@code normal},
+ * allowing small kana and prolonged sound marks at line starts).
  * </p>
  */
 public class LineBreak extends AbstractPrimitivePropertyInfo {

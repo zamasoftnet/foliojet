@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * table,inline-table,table-caption,table-cell以外のテーブル関連ボックスのパラメータです。
+ * Parameters for table-related boxes other than table, inline-table, table-caption, and table-cell.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: InnerTableParams.java 1552 2018-04-26 01:43:24Z miyabe $

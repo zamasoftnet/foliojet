@@ -1,12 +1,11 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * カウンタスタイルのコードを持つ値です(2026-08-02——組み込みの
- * {@link ListStyleTypeValue}と著者定義の{@link CounterStyleValue}を
- * 同じ口で扱うため)。
+ * A value with a counter-style code (2026-08-02). Provides a common interface
+ * for built-in {@link ListStyleTypeValue} and author-defined {@link CounterStyleValue}.
  */
 public interface ListStyleTypeSource extends Value {
 
-	/** カウンタスタイルのコードです。 */
+	/** The counter-style code. */
 	public short getListStyleType();
 }

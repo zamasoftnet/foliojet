@@ -3,40 +3,39 @@ package net.zamasoft.foliojet.layout.builder;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 「直接子をitem化して終端で一括配置する」構築coordinatorの共通契約です
- * (2026-08-02——Grid/Flexで鏡像実装されていたDocumentBuilderのフック
- * (直下待ち判定・匿名item・element itemの畳み込み・終端finish)を
- * 一般化する。{@code TableBuilder}は行/セルの独自プロトコルを持つため
- * 対象外)。
+ * Common contract for construction coordinators that turn direct children into items and lay them
+ * out together at the end (2026-08-02). Generalizes the DocumentBuilder hooks previously mirrored
+ * in Grid/Flex: checking for pending direct children, anonymous items, folding element items,
+ * and finish at the end. Excludes {@code TableBuilder}, which has its own row/cell protocol.
  *
  * <p>
- * 実装は{@code DocumentBuilder.builderStack}に積まれるが{@code Builder}
- * ではない。itemの中身は{@code requireAnonymousItem(anchor)}等が返すitem builder
- * (通常は{@code TwoPassBlockBuilder})が受け、coordinator自身は録画の
- * 保持と終端の配置だけを担う。
+ * Implementations are pushed onto {@code DocumentBuilder.builderStack} but are not {@code Builder}s.
+ * Item builders returned by {@code requireAnonymousItem(anchor)}, etc. (usually
+ * {@code TwoPassBlockBuilder}) receive item content; the coordinator itself only retains recordings
+ * and performs final placement.
  * </p>
  */
 public interface ItemCoordinator {
 
-	/** coordinatorが構築中のコンテナboxです(直下待ち判定のboxStack照合用)。 */
+	/** Container box being constructed by the coordinator (for matching boxStack when checking pending direct children). */
 	public IBox getItemHostBox();
 
-	/** itemが開いているか(elementまたは匿名)。 */
+	/** Whether an item is open (element or anonymous). */
 	public boolean hasOpenItem();
 
-	/** element itemが開いているか。 */
+	/** Whether an element item is open. */
 	public boolean hasOpenElementItem();
 
 	/**
-	 * 直接テキスト/インライン用の匿名itemを開きます。既に匿名itemが
-	 * 開いていればnull(積み直し不要)。
-	 * sourceAnchorは合成StartのEventId。独立再生では-1です。
+	 * Opens an anonymous item for direct text/inlines. Returns null if an anonymous item is already
+	 * open (no need to push it again). sourceAnchor is the EventId of the synthetic Start;
+	 * -1 for independent replay.
 	 */
 	public Builder requireAnonymousItem(long sourceAnchor);
 
-	/** 開いているitemを確定します(録画完了点)。 */
+	/** Finalizes the open item (recording completion point). */
 	public void itemClosed();
 
-	/** コンテナ終端です(実行計画としてホストへ渡す)。 */
+	/** Container end (passes an execution plan to the host). */
 	public void finish();
 }

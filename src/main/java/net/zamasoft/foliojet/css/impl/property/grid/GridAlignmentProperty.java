@@ -13,19 +13,19 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * Box Alignment系プロパティです(Grid G5a、2026-07-31——
- * consult-codex-2026-07-31-grid-g5.txt Q1)。サブセット:
+ * Box Alignment properties (Grid G5a, 2026-07-31:
+ * consult-codex-2026-07-31-grid-g5.txt Q1). Subset:
  * <ul>
- * <li>justify-items / align-items: normal | start | center | end | stretch(既定normal)</li>
- * <li>justify-self / align-self: auto+同上(既定auto)</li>
- * <li>justify-content / align-content: normal | start | center | end | stretch(既定normal)</li>
+ * <li>justify-items / align-items: normal | start | center | end | stretch (default normal)</li>
+ * <li>justify-self / align-self: auto + the above (default auto)</li>
+ * <li>justify-content / align-content: normal | start | center | end | stretch (default normal)</li>
  * </ul>
- * 2026-08-29(実サイト50件中22件・約300回が不受理だった): baseline系
- * ({@code baseline}/{@code first baseline}/{@code last baseline})は
- * {@code flex-start}へ、{@code self-start}/{@code self-end}は
- * {@code start}/{@code end}へ、justify-*の{@code left}/{@code right}は
- * {@code start}/{@code end}へ丸め、先頭の{@code safe}/{@code unsafe}は
- * 読み捨てる(紙にはスクロールが無く、overflow時の挙動差は無い)。
+ * 2026-08-29 (about 300 occurrences on 22 of 50 real sites were rejected): maps baseline variants
+ * ({@code baseline}/{@code first baseline}/{@code last baseline}) to {@code flex-start},
+ * {@code self-start}/{@code self-end} to {@code start}/{@code end},
+ * and {@code left}/{@code right} for justify-* to {@code start}/{@code end}.
+ * Reads and discards leading {@code safe}/{@code unsafe}
+ * (paper has no scrolling, so overflow behavior does not differ).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -39,7 +39,7 @@ public class GridAlignmentProperty extends AbstractPrimitivePropertyInfo {
 			BoxAlignmentValue.NORMAL, BoxAlignmentValue.START, BoxAlignmentValue.CENTER, BoxAlignmentValue.END,
 			BoxAlignmentValue.STRETCH, BoxAlignmentValue.FLEX_START, BoxAlignmentValue.FLEX_END);
 
-	/** content系(justify-content/align-content)はspace-*も受理(Flex F3a)。 */
+	/** Content properties (justify-content/align-content) also accept space-* (Flex F3a). */
 	private static final List<BoxAlignmentValue> CONTENT_VALUES = List.of(BoxAlignmentValue.NORMAL,
 			BoxAlignmentValue.START, BoxAlignmentValue.CENTER, BoxAlignmentValue.END, BoxAlignmentValue.STRETCH,
 			BoxAlignmentValue.FLEX_START, BoxAlignmentValue.FLEX_END, BoxAlignmentValue.SPACE_BETWEEN,
@@ -93,26 +93,26 @@ public class GridAlignmentProperty extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final BoxAlignmentValue value = this.eatValue(tokens);
 		if (value == null || tokens.hasNext()) {
-			// 未知キーワード、またはsafe/unsafe等の複合はサブセット外(宣言無効)
+			// Unknown keywords or combinations such as safe/unsafe are outside the subset (invalid declaration).
 			throw new PropertyException();
 		}
 		return value;
 	}
 
 	/**
-	 * ストリーム先頭が受理可能なキーワードなら消費して返します
-	 * (place-*ショートハンド用。2026-08-09)。無ければnull。
+	 * Consumes and returns an accepted keyword at the start of the stream
+	 * (for place-* shorthands, 2026-08-09). Returns null if absent.
 	 */
 	public BoxAlignmentValue eatValue(final TokenStream tokens) {
 		final int mark = tokens.position();
-		// <overflow-position>(safe|unsafe)は読み捨てる(2026-08-29)
+		// Read and discard <overflow-position> (safe|unsafe) (2026-08-29).
 		final boolean overflow = tokens.eat("safe") || tokens.eat("unsafe");
 		for (final BoxAlignmentValue value : this.accepted) {
 			if (tokens.eat(value.toString())) {
 				return value;
 			}
 		}
-		// <baseline-position>: [first|last]? baseline → flex-start近似
+		// <baseline-position>: [first|last]? baseline → flex-start approximation.
 		if (!overflow) {
 			final boolean firstLast = tokens.eat("first") || tokens.eat("last");
 			if (tokens.eat("baseline")) {

@@ -10,11 +10,11 @@ import net.zamasoft.foliojet.css.token.VarSubstitution;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * var()を含む宣言値です。個別プロパティの型は宣言解析時点(スタイルシート
- * 解析時、文書全体で1回・共有)では確定できません——var()の実際の値は
- * カスケード適用時(要素ごと)に異なりうるためです。生トークン列を保持し、
- * 実際の解釈({@link PropertyInfo#parse})を{@link #applyProperty}
- * (要素ごとに呼ばれるカスケード適用の時点)まで遅延します。
+ * A declaration value containing var(). An individual property's type cannot be
+ * determined when parsing declarations (once per document, shared, during stylesheet
+ * parsing), because the actual var() value can differ when applying the cascade to each
+ * element. Retains the raw token sequence and defers interpretation ({@link PropertyInfo#parse})
+ * until {@link #applyProperty} (cascade application, called for each element).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -49,17 +49,16 @@ public final class DeferredProperty implements Property {
 	}
 
 	/**
-	 * var()を要素ごとに解決してから、通常のプロパティ解析を再実行します。
-	 * 参照先のカスタムプロパティが見つからない(フォールバックも無い)場合、
-	 * 循環参照、または解決後のトークン列がこのプロパティとして解釈できない
-	 * 場合は、CSS仕様の「使用値計算時に無効」に従い
-	 * <b>{@code unset}を指定したのと同じ扱い</b>にします
-	 * ({@link #applyInvalidAtComputedValueTime}参照。2026-08-03に修正——
-	 * 従来は何もsetしなかったため、カスケードで負けたはずの下位の宣言が
-	 * 生き残っていた)。
-	 * 要素ごとに発生しうる失敗のため、通常の宣言解析失敗と異なり警告は
-	 * 出しません(同じ規則が数千要素にマッチする場合に警告が氾濫するのを
-	 * 避けるため)。
+	 * Resolves var() for each element, then reruns ordinary property parsing.
+	 * If the referenced custom property is absent (with no fallback), references form a
+	 * cycle, or the resolved tokens cannot be interpreted as this property, follows the CSS
+	 * specification's invalid-at-computed-value-time rule and <b>treats the declaration as
+	 * if {@code unset} were specified</b> (see {@link #applyInvalidAtComputedValueTime};
+	 * fixed on 2026-08-03: previously nothing was set, leaving lower-priority declarations
+	 * that should have lost the cascade in effect).
+	 * Unlike ordinary declaration parsing failures, these failures produce no warnings
+	 * because they can occur for each element (to avoid flooding warnings when the same
+	 * rule matches thousands of elements).
 	 */
 	public void applyProperty(CSSStyle style) {
 		List<CssToken> substituted = VarSubstitution.substitute(this.tokens, style);
@@ -80,35 +79,35 @@ public final class DeferredProperty implements Property {
 	}
 
 	/**
-	 * 「使用値計算時に無効」を適用します(2026-08-03)。
+	 * Applies the invalid-at-computed-value-time rule (2026-08-03).
 	 *
 	 * <p>
-	 * <b>何もしないのでは足りない。</b> 従来はここで {@code return} していた
-	 * ため、同じ要素の<b>下位の宣言が生き残って</b>いた——
-	 * {@code p { color: blue; color: var(--未定義) }} で青のままになる。
-	 * カスケードで勝ったのは {@code var()} の側なので、青は既に負けており、
-	 * 復活してはならない。
+	 * <b>Doing nothing is insufficient.</b> Previously, {@code return} here left
+	 * <b>lower-priority declarations on the same element in effect</b>:
+	 * {@code p { color: blue; color: var(--未定義) }} stayed blue.
+	 * The {@code var()} declaration won the cascade, so blue has already lost and
+	 * must not be revived.
 	 * </p>
 	 *
 	 * <p>
-	 * 仕様(CSS Variables 1「invalid at computed-value time」)では、この宣言は
-	 * {@code unset} を指定したのと同じ扱いになる——継承特性なら継承値、
-	 * 非継承特性なら初期値。{@link CSSStyle}は{@code unset}をそのとおりに
-	 * 解決するので、明示的に置く。Chrome・Firefoxとも同じ挙動
-	 * (2026-08-03に確認)。
+	 * The specification (CSS Variables 1, "invalid at computed-value time") treats this
+	 * declaration as if {@code unset} were specified: the inherited value for inherited
+	 * properties and the initial value for non-inherited properties. Set it explicitly,
+	 * since {@link CSSStyle} resolves {@code unset} exactly this way. Chrome and Firefox
+	 * behave the same way (confirmed on 2026-08-03).
 	 * </p>
 	 */
 	private void applyInvalidAtComputedValueTime(final CSSStyle style) {
-		// 一括指定(shorthand)もあるので、値を直に置かず**同じ解析器へ
-		// `unset` を通す**。そうすれば一括指定は自分の個別指定すべてへ
-		// 展開してくれる(CSS全体キーワードはどのプロパティも受け付ける)
+		// Shorthands are also possible, so **pass `unset` through the same parser**
+		// instead of setting a value directly. Each shorthand then expands it to all
+		// of its longhands (every property accepts CSS-wide keywords).
 		final Property unset;
 		try {
 			unset = this.propertyInfo.parse(new TokenStream(java.util.List.of(CssToken.Keyword.UNSET)), this.ua,
 					this.uri, this.important);
 		} catch (PropertyException e) {
-			// 全体キーワードを拒むプロパティは無い想定。仮に来ても、
-			// 従来どおり何もしないより悪くはならない
+			// No property is expected to reject a CSS-wide keyword. Even if one does,
+			// this is no worse than the previous behavior of doing nothing.
 			return;
 		}
 		if (unset != null) {

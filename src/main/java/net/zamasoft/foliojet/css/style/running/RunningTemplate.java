@@ -2,12 +2,12 @@ package net.zamasoft.foliojet.css.style.running;
 
 import java.util.List;
 
-/** 生成内容を未評価のまま保持する、liveスタイルから独立した不変の部分木です。 */
+/** An immutable subtree independent of live styles, retaining generated content unevaluated. */
 public final class RunningTemplate {
 	public sealed interface Event permits Start, End, Text, Token {
 	}
 
-	/** 疑似要素も開始・終了イベントで表し、疑似名はbefore/after/first-letter、実要素はnullです。 */
+	/** Pseudo-elements also use start/end events; pseudo names are before/after/first-letter, or null for real elements. */
 	public record Start(StyleSnapshot style, String pseudo) implements Event {
 	}
 
@@ -17,7 +17,7 @@ public final class RunningTemplate {
 	public record Text(String text) implements Event {
 	}
 
-	/** 内側のrunningは独立に代入し、外側には名前と文書順だけを残します。 */
+	/** Assigns inner running content independently, retaining only its name and document order in the outer content. */
 	public record Token(String name, long order) implements Event {
 	}
 
@@ -41,7 +41,7 @@ public final class RunningTemplate {
 		return this.events;
 	}
 
-	/** コピーしたペイロードの予算消費量です(文字列はUTF-16バイト数)。 */
+	/** Budget consumed by the copied payload (strings counted in UTF-16 bytes). */
 	public int textBytes() {
 		return this.textBytes;
 	}

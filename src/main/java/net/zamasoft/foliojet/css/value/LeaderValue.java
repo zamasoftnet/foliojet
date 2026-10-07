@@ -1,11 +1,11 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code content}プロパティの{@code leader()}です(css-content-3、
- * consult-codex-2026-07-31-leader.txt)。パターンはパース時に正規化
- * する: {@code dotted}→"." / {@code solid}→"_" / {@code space}→" " /
- * カスタム文字列はそのまま(空文字列は構文エラー——ゼロ周期の無限
- * 反復を避ける)。
+ * {@code leader()} in the {@code content} property (css-content-3,
+ * consult-codex-2026-07-31-leader.txt). Parsing normalizes the pattern:
+ * {@code dotted} to "." / {@code solid} to "_" / {@code space} to " " /
+ * custom strings remain unchanged (an empty string is a syntax error, to avoid
+ * infinite repetition with a zero period).
  *
  * @author MIYABE Tatsuhiko
  */

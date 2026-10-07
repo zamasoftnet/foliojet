@@ -13,77 +13,75 @@ public interface PageGenerator {
 
 	public PageBox nextPage();
 
-	/** ページ開始の幾何を通知します。Cの初回だけは予約・子の入力より先に呼びます。 */
+	/** Reports page-start geometry. Only the first call in C precedes reservations and child input. */
 	public default void pageStarted(final PageBox page, final double innerWidth, final double innerHeight) {
 	}
 
 	/**
-	 * 現在のページ名です(名前付きページN2。null=無名)。
+	 * Current page name (named pages N2; null = unnamed).
 	 */
 	public default String getPageName() {
 		return null;
 	}
 
 	/**
-	 * 次に生成されるページからのページ名を設定します(名前付きページN2。
-	 * scratch計測等のページ概念を持たない実装ではno-op)。
+	 * Sets the page name from the next generated page onward (named pages N2).
+	 * A no-op for implementations without a page concept, such as scratch measurement.
 	 */
 	public default void setPageName(String pageName) {
 	}
 
 	/**
-	 * ページを出力します。
+	 * Outputs a page.
 	 *
 	 * <p>
-	 * <b>何も描かないページは出力されません</b>(css-break-3 §4.4、
-	 * 2026-07-28)。落とされたページは番号も面(recto/verso)も消費しない
-	 * ため、呼び出し側がページの並びを数えているなら返り値を見る必要が
-	 * あります。
+	 * <b>Pages that paint nothing are not output</b> (css-break-3 §4.4, 2026-07-28).
+	 * Dropped pages consume neither a page number nor a side (recto/verso), so callers tracking
+	 * the page sequence must check the return value.
 	 * </p>
 	 *
-	 * @param page     確定したページ
-	 * @param lastPage このページが<b>文書の最後</b>か(2026-07-29新設)。
-	 *                 何も描かないページを落としてよいかの判定に使う——
-	 *                 最後でなければ後続の内容があるので落としてよいが、
-	 *                 最後なら落とすと0ページのPDFになりうる
-	 * @param closedByForcedBreak このページを閉じたのが<b>強制改ページ</b>か。
-	 *                 先頭要素の{@code page-break-before:always}のように、
-	 *                 作者が要求した結果としての白紙は残す
-	 * @return 実際に出力したなら true、何も描かないので落としたなら false
+	 * @param page     finalized page
+	 * @param lastPage whether this is <b>the document's last page</b> (added 2026-07-29).
+	 *                 Used to decide whether a page that paints nothing may be dropped: if it is not
+	 *                 last, subsequent content exists, so it may be dropped; dropping the last page
+	 *                 could produce a zero-page PDF
+	 * @param closedByForcedBreak whether a <b>forced page break</b> closed this page.
+	 *                 Preserves blank pages explicitly requested by the author, such as those caused
+	 *                 by {@code page-break-before:always} on the first element
+	 * @return true if actually output; false if dropped because it paints nothing
 	 */
 	public boolean drawPage(PageBox page, boolean lastPage, boolean closedByForcedBreak) throws GraphicsException;
 
 	/**
-	 * レイアウトソースログを返します(M6b v3)。持たない実装は null。
+	 * Returns the layout source log (M6b v3). null for implementations without one.
 	 */
 	public default net.zamasoft.foliojet.layout.fragment.LayoutSource getLayoutSource() {
 		return null;
 	}
 
-	/** 生入力として配達中のイベントを含む可視終端(排他的)。先読みログの末尾とは別です。 */
+	/** Visible end (exclusive), including the event being delivered as live input. Distinct from the read-ahead log's end. */
 	public default long getDeliveredEventEnd() {
 		return Long.MAX_VALUE;
 	}
 
-	/** bottom+縦組みの本番だけが、初回入力前からキューと予約計画を使います。 */
+	/** Only production bottom + vertical writing uses the queue and reservation plan before initial input. */
 	public default boolean isFootnotePageProbeEnabled() {
 		return false;
 	}
 
-	/** ページ開始で一度だけ受け取り、採用・不採用とも生成器側の保持を消費します。 */
+	/** Receives once at page start; consumes the generator's retained value whether accepted or rejected. */
 	public default net.zamasoft.foliojet.layout.FootnotePageProbeReport getFootnotePageProbeReport(final long generation) {
 		return null;
 	}
 
-	/** 報告なしでも、未確定と正常終端後を区別できます。いずれも持ち越しだけで進めます。 */
+	/** Even without a report, distinguishes pending from normal completion. Both proceed only by carrying forward. */
 	public default boolean isFootnotePageProbeFinished() {
 		return true;
 	}
 
 	/**
-	 * レイアウトソースログを水位で刈り込みます(M6b v3)。
-	 * watermark が Long.MAX_VALUE の場合は全て(開いている StartBlock を
-	 * 除く)破棄してよいことを意味します。
+	 * Prunes the layout source log at the watermark (M6b v3).
+	 * Long.MAX_VALUE as the watermark means everything except open StartBlock entries may be discarded.
 	 */
 	public default void compactLayoutSource(long watermark) {
 	}

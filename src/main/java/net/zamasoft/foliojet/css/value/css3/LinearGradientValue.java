@@ -14,14 +14,14 @@ import net.zamasoft.pdfg2d.gc.paint.LinearGradient;
 import net.zamasoft.pdfg2d.gc.paint.Paint;
 
 /**
- * {@code linear-gradient()}/{@code repeating-linear-gradient()}です。
+ * {@code linear-gradient()}/{@code repeating-linear-gradient()}.
  *
  * <p>
- * 勾配線はcss-images-3 §3.1.1どおり、箱の中心を通り角度{@code angle}
- * (0=上向き、時計回り)の向きで、長さ{@code |w·sinθ|+|h·cosθ|}——
- * 始点・終点の垂線が箱の角を通る長さ(2026-08-29に修正。それまでは
- * 向きによらず箱の高さを勾配線の長さにしていたため、{@code to right}
- * では横長の箱で端の色が箱の内側に来ていた)。
+ * Following css-images-3 §3.1.1, the gradient line passes through the box center in direction
+ * {@code angle} (0=up, clockwise), with length {@code |w·sinθ|+|h·cosθ|}:
+ * the length at which perpendiculars at the start and end pass through the box corners.
+ * Corrected on 2026-08-29; previously, the gradient line always used the box height,
+ * regardless of direction, placing endpoint colors inside wide boxes for {@code to right}.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -58,11 +58,11 @@ public class LinearGradientValue implements PaintValue {
 	}
 
 	/**
-	 * 塗りを作ります。繰り返しは、出力先が周期の繰り返しを持てば
-	 * 1周期+{@code SpreadMethod.REPEAT}(厳密)、持たなければ勾配線の範囲へ
-	 * 展開する(64周期で打ち切ったときだけ2822を報告。2026-08-29)。
+	 * Creates the paint. If the destination supports periodic repetition, uses one period
+	 * plus {@code SpreadMethod.REPEAT} (exact); otherwise, expands over the gradient line
+	 * (reports 2822 only when capped at 64 periods; 2026-08-29).
 	 *
-	 * @param gc 描画先(能力の問い合わせと報告用。nullなら展開)
+	 * @param gc the drawing destination (for capability queries and reporting; null means expansion)
 	 */
 	private Paint paint(final Rectangle2D box, final GC gc) {
 		final double w = box.getWidth(), h = box.getHeight();

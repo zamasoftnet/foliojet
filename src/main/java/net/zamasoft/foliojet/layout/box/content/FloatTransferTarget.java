@@ -1,19 +1,19 @@
 package net.zamasoft.foliojet.layout.box.content;
 
 /**
- * {@code Container.splitFloatings}の呼び出し側が指定する、移動float台帳の
- * 行き先です(2026-07-24新設、排除域P2のP2-4。
- * 設計相談§2.2の型)。
- * 旧APIのnullableな{@code Container nextBox}引数のsentinel
- * (null / this / 既存コンテナ)を置き換えます。
+ * The destination of a moved-float ledger specified by the caller of
+ * {@code Container.splitFloatings} (added 2026-07-24, exclusion area P2, P2-4;
+ * the type from design consultation §2.2).
+ * Replaces the sentinels in the old API's nullable {@code Container nextBox} argument
+ * (null / this / existing container).
  *
  * @author MIYABE Tatsuhiko
  */
 public sealed interface FloatTransferTarget {
-	/** 行き先コンテナ未定(旧 null)。移動があれば新しいFlowContainerを生成する。 */
+	/** Destination container undecided (formerly null). Creates a new FlowContainer if any floats move. */
 	FloatTransferTarget KEEP = new Keep();
 
-	/** owner自身が丸ごと次のフラグメントへ移動する文脈(旧 this)。 */
+	/** A context where the entire owner moves to the next fragment (formerly this). */
 	FloatTransferTarget MOVE_OWNER = new MoveOwner();
 
 	record Keep() implements FloatTransferTarget {
@@ -23,9 +23,9 @@ public sealed interface FloatTransferTarget {
 	}
 
 	/**
-	 * 既存の次フラグメント側コンテナへ装着します(旧 nextBox指定)。
+	 * Attaches to an existing next-fragment container (formerly specifying nextBox).
 	 *
-	 * @param container 次フラグメント側のコンテナ
+	 * @param container the next-fragment container
 	 */
 	record Existing(FlowContainer container) implements FloatTransferTarget {
 	}

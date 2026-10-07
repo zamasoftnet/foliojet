@@ -13,15 +13,15 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code font-variant-caps}(CSS Fonts)です。
+ * {@code font-variant-caps} (CSS Fonts).
  *
  * <p>
- * 従来の{@code font-variant: small-caps}が保持していた
- * {@link FontVariantValue}へ直接つなぎ、OpenTypeの
- * {@code smcp/c2sc/pcap/c2pc/unic/titl}を描画段へ搬送します。
- * {@code all-small-caps}等も対応する大文字・小文字用featureを併用するため、
- * 近似ではなくフォントが持つ字形を使用します。featureの無いフォントに対する
- * small-caps合成は未実装です。
+ * Connects directly to the {@link FontVariantValue} previously stored by
+ * {@code font-variant: small-caps}, and carries OpenType
+ * {@code smcp/c2sc/pcap/c2pc/unic/titl} to rendering.
+ * {@code all-small-caps}, etc. combine the corresponding uppercase and lowercase features,
+ * so they use the font's glyphs rather than approximations.
+ * Small-caps synthesis for fonts without these features is not implemented.
  * </p>
  */
 public final class FontVariantCaps extends AbstractPrimitivePropertyInfo {

@@ -5,8 +5,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * トークン列のカーソルです。プロパティハンドラの値解釈を単純化するための
- * 読み取りヘルパーを提供します。ヘルパーは「マッチした場合のみ消費」が原則です。
+ * A cursor over a token sequence. Provides reading helpers to simplify value parsing
+ * in property handlers. Helpers consume tokens only on a match as a general rule.
  */
 public final class TokenStream {
 	private final List<CssToken> tokens;
@@ -17,45 +17,45 @@ public final class TokenStream {
 		this.tokens = tokens;
 	}
 
-	/** 全トークン数(位置に関係なく)。 */
+	/** Total token count (regardless of position). */
 	public int size() {
 		return this.tokens.size();
 	}
 
-	/** 未読トークンがあるか。 */
+	/** Whether unread tokens remain. */
 	public boolean hasNext() {
 		return this.pos < this.tokens.size();
 	}
 
-	/** 次のトークン(消費しない)。無ければ null。 */
+	/** The next token without consuming it, or null if absent. */
 	public CssToken peek() {
 		return this.pos < this.tokens.size() ? this.tokens.get(this.pos) : null;
 	}
 
-	/** 次のトークンを消費して返す。無ければ null。 */
+	/** Consumes and returns the next token, or null if absent. */
 	public CssToken next() {
 		return this.pos < this.tokens.size() ? this.tokens.get(this.pos++) : null;
 	}
 
-	/** 現在位置。 */
+	/** Current position. */
 	public int position() {
 		return this.pos;
 	}
 
-	/** 位置を戻す(先読みの取り消し用)。 */
+	/** Restores the position (for undoing lookahead). */
 	public void rewind(int position) {
 		this.pos = position;
 	}
 
-	/** 値全体が単独の inherit か。 */
+	/** Whether the entire value is a standalone inherit. */
 	public boolean isInherit() {
 		return this.tokens.size() == 1 && this.tokens.get(0) == CssToken.Keyword.INHERIT;
 	}
 
 	/**
-	 * 値全体が単独のCSS全体キーワード(inherit/initial/unset)なら対応する
-	 * {@link net.zamasoft.foliojet.css.value.KeywordValue} を返します。
-	 * それ以外は null。
+	 * Returns the corresponding {@link net.zamasoft.foliojet.css.value.KeywordValue}
+	 * if the entire value is a standalone CSS-wide keyword (inherit/initial/unset).
+	 * Otherwise returns null.
 	 */
 	public net.zamasoft.foliojet.css.value.KeywordValue globalKeyword() {
 		if (this.tokens.size() != 1) {
@@ -74,7 +74,7 @@ public final class TokenStream {
 		return null;
 	}
 
-	/** 次が識別子ならその名前を消費して返す。それ以外は null。 */
+	/** Consumes and returns the next token's name if it is an identifier; otherwise null. */
 	public String ident() {
 		if (this.peek() instanceof CssToken.Ident ident) {
 			++this.pos;
@@ -83,7 +83,7 @@ public final class TokenStream {
 		return null;
 	}
 
-	/** 次が指定キーワード(大文字小文字無視)なら消費して true。 */
+	/** Consumes the next token and returns true if it is the given keyword (case-insensitive). */
 	public boolean eat(String keyword) {
 		if (this.peek() instanceof CssToken.Ident ident && ident.is(keyword)) {
 			++this.pos;
@@ -92,7 +92,7 @@ public final class TokenStream {
 		return false;
 	}
 
-	/** 次がコンマなら消費して true。 */
+	/** Consumes the next token and returns true if it is a comma. */
 	public boolean eatComma() {
 		if (this.peek() == CssToken.Op.COMMA) {
 			++this.pos;
@@ -101,7 +101,7 @@ public final class TokenStream {
 		return false;
 	}
 
-	/** 次がスラッシュなら消費して true。 */
+	/** Consumes the next token and returns true if it is a slash. */
 	public boolean eatSlash() {
 		if (this.peek() == CssToken.Op.SLASH) {
 			++this.pos;
@@ -110,7 +110,7 @@ public final class TokenStream {
 		return false;
 	}
 
-	/** 次が数値なら消費して返す。それ以外は null。 */
+	/** Consumes and returns the next token if it is a number; otherwise null. */
 	public CssToken.Num number() {
 		if (this.peek() instanceof CssToken.Num num) {
 			++this.pos;
@@ -119,7 +119,7 @@ public final class TokenStream {
 		return null;
 	}
 
-	/** 次が文字列なら消費して返す。それ以外は null。 */
+	/** Consumes and returns the next token if it is a string; otherwise null. */
 	public String string() {
 		if (this.peek() instanceof CssToken.Str str) {
 			++this.pos;
@@ -128,7 +128,7 @@ public final class TokenStream {
 		return null;
 	}
 
-	/** 次が指定名の関数なら消費して返す。それ以外は null。 */
+	/** Consumes and returns the next token if it is a function with the given name; otherwise null. */
 	public CssToken.Func func(String name) {
 		if (this.peek() instanceof CssToken.Func func && func.is(name)) {
 			++this.pos;
@@ -138,8 +138,8 @@ public final class TokenStream {
 	}
 
 	/**
-	 * 残りのトークンをコンマで分割して返します(消費します)。
-	 * コンマ自体は結果に含まれません。空のグループは除かれます。
+	 * Consumes the remaining tokens and returns them split at commas.
+	 * Commas themselves are excluded. Empty groups are omitted.
 	 */
 	public List<TokenStream> splitComma() {
 		List<TokenStream> groups = new ArrayList<TokenStream>();
@@ -161,7 +161,7 @@ public final class TokenStream {
 		return groups;
 	}
 
-	/** 残りのトークンからコンマを除いた列を消費して返します。 */
+	/** Consumes and returns the remaining token sequence without commas. */
 	public List<CssToken> restIgnoringCommas() {
 		List<CssToken> result = new ArrayList<CssToken>();
 		while (this.hasNext()) {

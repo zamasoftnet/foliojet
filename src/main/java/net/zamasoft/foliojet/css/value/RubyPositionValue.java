@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.css.value;
 
-/** CSS Rubyの{@code ruby-position}値。 */
+/** The CSS Ruby {@code ruby-position} value. */
 public enum RubyPositionValue implements Value {
 	ALTERNATE("alternate", true, true, false),
 	OVER("over", false, true, false),

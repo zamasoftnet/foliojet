@@ -12,9 +12,9 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code container-type}プロパティです(css-contain-3、2026-08-15段2——
+ * {@code container-type} property (css-contain-3, 2026-08-15 stage 2:
  * development record §5).
- * {@code normal | inline-size | size}。値の意味は{@link ContainerTypeValue}参照。
+ * {@code normal | inline-size | size}. See {@link ContainerTypeValue} for value semantics.
  *
  * @author MIYABE Tatsuhiko
  */

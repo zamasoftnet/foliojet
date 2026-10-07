@@ -20,12 +20,12 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.internal.CSSJImageValue;
 
 /**
- * 計算済みのCSS値を、数値・文字列・不変の列と辞書だけへ切り離したスナップショットです。
- * プロパティの型名と各成分を保存し、contentの式も評価せず保存します。
- * 絶対長はUAを必要としないpt値へ正規化します。
+ * Snapshot of computed CSS values detached into numbers, strings, and immutable sequences/maps only.
+ * Stores property type names and components, including content expressions without evaluating them.
+ * Normalizes absolute lengths to pt values that do not require a UA.
  */
 public final class StyleSnapshot {
-	/** 元の値型と、その値を構成する切り離し済み成分です。 */
+	/** Original value type and the detached components that form its value. */
 	public record FrozenValue(String type, Map<String, Object> fields) {
 		public FrozenValue {
 			fields = Collections.unmodifiableMap(new LinkedHashMap<String, Object>(fields));
@@ -71,12 +71,12 @@ public final class StyleSnapshot {
 		this.textBytes = textBytes;
 	}
 
-	/** カスケード済みの値と属性をコピーします。liveオブジェクトは一切保存しません。 */
+	/** Copies cascaded values and attributes. Stores no live objects. */
 	public static StyleSnapshot capture(final CSSStyle style) {
 		return new Copier().capture(style, RunningCapture.MAX_TEXT_BYTES);
 	}
 
-	/** コピー前に残予算を確認する。型名・成分名など共有するスキーマは含めません。 */
+	/** Checks the remaining budget before copying. Excludes shared schema such as type/component names. */
 	private static final class Budget {
 		final long limit;
 		long used;
@@ -100,7 +100,7 @@ public final class StyleSnapshot {
 		}
 	}
 
-	/** 捕捉中だけ、特性ごとの直近値を共有します。キャッシュは特性数を超えません。 */
+	/** Shares each property's most recent value only during capture. The cache never exceeds the property count. */
 	static final class Copier {
 		private record Entry(Value value, FrozenValue frozen, List<String> images, long bytes) {
 		}
@@ -113,7 +113,7 @@ public final class StyleSnapshot {
 			final Set<String> declared = new java.util.HashSet<String>();
 			final List<String> images = new ArrayList<String>();
 			for (final PrimitivePropertyInfo info : ElementPropertySet.getPrimitiveProperties()) {
-				// 画像本体は共有しない。インラインSVGは下の切り離したXMLを保持する。
+				// Do not share image objects. For inline SVG, retain the detached XML below.
 				if (info == CSSJInternalImage.INFO && style.get(info) instanceof CSSJImageValue) {
 					continue;
 				}
@@ -244,7 +244,7 @@ public final class StyleSnapshot {
 			}
 			return Collections.unmodifiableMap(items);
 		}
-		// 値モデル以外が混入したら参照を共有せず、捕捉を失敗させる。
+		// If anything outside the value model appears, fail capture instead of sharing its reference.
 		final String type = value.getClass().getName();
 		if (!(value instanceof Value) && !type.startsWith("net.zamasoft.foliojet.css.value.")
 				&& !type.startsWith("net.zamasoft.pdfg2d.gc.")) {
@@ -269,12 +269,12 @@ public final class StyleSnapshot {
 		return this.attributes;
 	}
 
-	/** 論理/物理プロパティ等の優先判定に使う、原位置での明示宣言です。 */
+	/** Explicit declarations at the original position, used to determine priority of logical/physical properties, etc. */
 	public Set<String> declared() {
 		return this.declared;
 	}
 
-	/** 全プロパティ・属性・画像ソースのコピー時に消費した予算です。 */
+	/** Budget consumed when copying all properties, attributes, and image sources. */
 	public long textBytes() {
 		return this.textBytes;
 	}
@@ -283,12 +283,12 @@ public final class StyleSnapshot {
 		return this.language;
 	}
 
-	/** 捕捉時の文書URIです。EPUBの章が進んでも相対参照の基底を維持します。 */
+	/** Document URI at capture time. Preserves the relative-reference base even as EPUB chapters advance. */
 	public String baseURI() {
 		return this.baseURI;
 	}
 
-	/** R2はこのXMLと基底URIから新品のSVG画像を読み込みます。DOM/GVTは保持しません。 */
+	/** R2 loads a fresh SVG image from this XML and base URI. Does not retain DOM/GVT. */
 	public CSSJImageValue.SvgSource svgSource() {
 		return this.svgSource;
 	}

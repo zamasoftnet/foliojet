@@ -4,8 +4,8 @@ import net.zamasoft.pdfg2d.gc.font.FontFamily;
 import net.zamasoft.pdfg2d.gc.font.FontFamilyList;
 
 /**
- * フォントファミリーです。
- * 
+ * A font family.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class FontFamilyValue implements Value {

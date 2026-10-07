@@ -1,28 +1,20 @@
 package net.zamasoft.foliojet.epub;
 
 /**
- * META-INFO/container.xmlファイルに相当する情報です。
- * 
+ * Information corresponding to the META-INFO/container.xml file.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class Container {
-	/**
-	 * ルートファイルの情報です。
-	 */
+	/** Root file information. */
 	public static class Rootfile {
-		/**
-		 * データ形式です。
-		 */
+		/** The data format. */
 
 		public String mediaType;
-		/**
-		 * アーカイブ内でのファイルパスです。
-		 */
+		/** The file path within the archive. */
 		public String fullPath;
 	}
 
-	/**
-	 * 全てのルートファイルです。
-	 */
+	/** All root files. */
 	public Rootfile[] rootfiles;
 }

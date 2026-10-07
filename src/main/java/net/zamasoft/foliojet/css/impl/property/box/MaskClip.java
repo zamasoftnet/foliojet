@@ -15,18 +15,18 @@ import net.zamasoft.foliojet.layout.box.params.Background;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code mask-clip}(css-masking-1 §7.5)。カンマ区切りの各マスクレイヤの
- * 切り抜き基準を保持する。
+ * {@code mask-clip} (css-masking-1 §7.5). Holds the clipping reference for each
+ * comma-separated mask layer.
  *
- * <p>{@code padding-box}/{@code content-box}はURLマスクの描画へ反映する。
- * 初期値の{@code border-box}は従来の出力経路を保つ。SVG固有の3値と
- * {@code no-clip}は値を受理・保持するが、現在のHTMLボックス用マスク描画には
- * 反映しない。</p>
+ * <p>Applies {@code padding-box}/{@code content-box} to URL mask rendering.
+ * The initial {@code border-box} retains the existing output path. Accepts and retains
+ * the three SVG-specific values and {@code no-clip}, but does not apply them to the current
+ * HTML box mask rendering.</p>
  */
 public final class MaskClip extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MaskClip();
 
-	/** mask-clipの各キーワード。 */
+	/** mask-clip keywords. */
 	public enum ClipValue implements Value {
 		BORDER_BOX("border-box", Background.BORDER_BOX),
 		PADDING_BOX("padding-box", Background.PADDING_BOX),
@@ -44,12 +44,12 @@ public final class MaskClip extends AbstractPrimitivePropertyInfo {
 			this.backgroundClip = (byte) backgroundClip;
 		}
 
-		/** Backgroundの切り抜き基準へ変換可能ならtrue。 */
+		/** True if convertible to a Background clipping reference. */
 		public boolean isPaintSupported() {
 			return this.backgroundClip >= 0;
 		}
 
-		/** Backgroundの切り抜き基準。{@link #isPaintSupported()}がfalseなら使えない。 */
+		/** Background clipping reference. Unusable if {@link #isPaintSupported()} is false. */
 		public byte getBackgroundClip() {
 			return this.backgroundClip;
 		}
@@ -60,7 +60,7 @@ public final class MaskClip extends AbstractPrimitivePropertyInfo {
 		}
 	}
 
-	/** 多層マスクの値（先頭が最前面）。 */
+	/** Values for multiple mask layers (frontmost first). */
 	public record LayersValue(ClipValue[] layers) implements Value {
 		@Override
 		public String toString() {
@@ -72,24 +72,24 @@ public final class MaskClip extends AbstractPrimitivePropertyInfo {
 		super("mask-clip");
 	}
 
-	/** 全レイヤの値を返す（先頭が最前面）。 */
+	/** Returns values for all layers (frontmost first). */
 	public static ClipValue[] getLayers(CSSStyle style) {
 		final Value value = style.get(INFO);
 		return value instanceof LayersValue layers ? layers.layers() : new ClipValue[] { (ClipValue) value };
 	}
 
-	/** 現在描画対象にしている先頭レイヤの値を返す。 */
+	/** Returns the value of the first layer, which is currently rendered. */
 	public static ClipValue get(CSSStyle style) {
 		return getLayers(style)[0];
 	}
 
-	/** 単層ならキーワード値、多層ならレイヤ値にまとめる。 */
+	/** Returns a keyword value for a single layer, or bundles multiple layers into a layer value. */
 	public static Value toValue(List<ClipValue> values) {
 		return values.size() == 1 ? values.get(0)
 				: new LayersValue(values.toArray(new ClipValue[values.size()]));
 	}
 
-	/** キーワードトークンを値へ変換する。 */
+	/** Converts a keyword token to a value. */
 	public static ClipValue fromToken(CssToken token) {
 		if (!(token instanceof CssToken.Ident ident)) {
 			return null;

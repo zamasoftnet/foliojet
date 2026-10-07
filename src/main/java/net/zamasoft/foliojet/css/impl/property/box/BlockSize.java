@@ -15,8 +15,8 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * block-size 特性(論理プロパティ)です。writing-modeにより width か
- * height のいずれかに対応します(inline-sizeと逆軸。{@link InlineSize}参照)。
+ * block-size property (logical property). Maps to width or height according to
+ * writing-mode (the opposite axis to inline-size; see {@link InlineSize}).
  */
 public final class BlockSize extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BlockSize();
@@ -42,7 +42,7 @@ public final class BlockSize extends AbstractPrimitivePropertyInfo {
 		if (ValueUtils.isAuto(lu)) {
 			return KeywordValue.AUTO;
 		}
-		// 固有寸法キーワード max-content/min-content/fit-content(L)(2026-08-29)
+		// Intrinsic sizing keywords max-content/min-content/fit-content(L) (2026-08-29).
 		final Value intrinsic = BoxValueUtils.toIntrinsicSize(ua, lu);
 		if (intrinsic != null) {
 			return intrinsic;

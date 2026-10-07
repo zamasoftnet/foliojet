@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.css.value;
 
-/** CSS Rubyの{@code ruby-align}値。 */
+/** The CSS Ruby {@code ruby-align} value. */
 public enum RubyAlignValue implements Value {
 	START("start"),
 	CENTER("center"),

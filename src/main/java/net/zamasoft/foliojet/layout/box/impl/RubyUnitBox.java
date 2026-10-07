@@ -31,90 +31,90 @@ import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
 
 /**
- * ルビ1単位です(注釈付きテキスト方式、2026-07-25新設——仕様裁定は
- * 開発記録)。
+ * One ruby unit (annotated-text approach, added 2026-07-25;
+ * see the development log for specification decisions).
  *
  * <p>
- * 親文字列+ふりがな文字列のペアを、行内で分割不可のatomic inline
- * (インラインブロック扱い)として組みます。幅はmax(親文字幅,
- * ふりがな幅)で、狭い方は単位内で均等配置。ふりがなは親の半分の
- * フォントサイズで、横書きは行の上側、縦書きは行の右側に付きます。
+ * Lays out a pair of base text and ruby text as an indivisible atomic inline
+ * (treated as an inline block). Its width is max(base text width, ruby text width);
+ * the narrower text is distributed evenly within the unit. Ruby text uses half the base
+ * font size, placed above the line in horizontal writing or to its right in vertical writing.
  * </p>
  *
  * <p>
- * 単位の寸法(=行高への寄与)は<b>親文字のみ</b>です(2026-07-25
- * 仕様修正——F-2品質確認で「ルビを含む行だけ行送りが広がる」ことが
- * 日本語組版の原則(行送り一定、ルビは行間に置く)に反すると裁定
- * された)。ふりがなは箱の外(横書きは上端の上、縦書きは右端の右=
- * 行間の余白)へはみ出して描かれます。行間の確保はデザイナー責任
- * (ルビを使う文書はline-heightを広めに取る)。基底線は
- * {@code TextBuilder}のBLOCK経路が{@code getLastDescent()}で親文字の
- * 基底線に合わせるため、行送りは周囲のテキストと完全に一致します。
+ * The unit's dimensions (= its contribution to line height) include <b>only the base text</b>.
+ * Specification revised 2026-07-25: F-2 quality review judged widening line pitch only on lines
+ * with ruby to violate Japanese typesetting principles (constant line pitch, ruby placed
+ * between lines). Ruby text is drawn outside the box: above the top in horizontal writing,
+ * or to the right of the right edge in vertical writing, in the inter-line space.
+ * The designer must provide that space (use a larger line-height in documents with ruby).
+ * The {@code TextBuilder} BLOCK path uses {@code getLastDescent()} to align the baseline
+ * with the base text, so line pitch exactly matches the surrounding text.
  * </p>
  *
  * <p>
- * 中身は子ボックスではなく、構築時に整形済みのグリフ列(親文字+
- * 半サイズの注釈)を自前で描画します。コンテナは空のまま
- * ({@code InlineBlockBox}の分割・finishLayout等の既存機構と衝突
- * しない)。
+ * The content is not child boxes: this unit draws its own glyph sequences, shaped during
+ * construction (base text plus half-size annotations). The container remains empty,
+ * avoiding conflicts with existing {@code InlineBlockBox} mechanisms such as splitting
+ * and finishLayout.
  * </p>
  *
  * <p>
- * {@code params.element}は<b>null</b>です。この箱はDOM要素に対応する
- * 箱ではなく、ルビ範囲の文字から合成されたものだからです。ルビ要素
- * 自身のidentity(id・ハイパーリンク・Tagged PDFロール)は、通常の
- * インラインとして残る外側の{@code InlineBox}が持ちます
- * (codex独立レビュー 2026-07-25の設計裁定(d))。rb/rt個別の
- * アンカーやPDFのRuby/RB/RT構造型は、将来の専用メタデータの課題です。
+ * {@code params.element} is <b>null</b>: this box corresponds to no DOM element and is
+ * synthesized from characters in the ruby range. The ruby element's identity
+ * (id, hyperlink, Tagged PDF role) belongs to the outer {@code InlineBox}, which remains
+ * a normal inline (codex independent review 2026-07-25, design decision (d)).
+ * Individual rb/rt anchors and PDF Ruby/RB/RT structure types remain future work
+ * requiring dedicated metadata.
  * </p>
  */
 public class RubyUnitBox extends InlineBlockBox {
 
-	/** 単位内の均等配置で許容する最小の余りです(これ未満は配分しない)。 */
+	/** The minimum surplus allowed for even distribution within a unit (do not distribute less than this). */
 	private static final double DISTRIBUTE_EPSILON = 0.0001;
 
 	private final TextImpl[] baseTexts;
 
-	/** 複数段・両側を含む注釈です。 */
+	/** Annotations, including multiple levels and both sides. */
 	private final RubyAnnotation[] annotations;
 
-	/** 親文字の色です(nullなら継承色のまま)。 */
+	/** The base text color (null retains the inherited color). */
 	private final Color baseColor;
 
 	/**
-	 * 書字方向です。ふりがなを置く側(=行の「上」側)の決定に使います。
-	 * 縦書き({@link WritingMode#RL}/{@link WritingMode#LR})では、本エンジンは
-	 * 基底線の左に descent・右に ascent を取る({@code TextBuilder}の
-	 * 縦書き経路がRL/LRを同一に扱う)ため、どちらも<b>+x側</b>が文字の
-	 * 上側になります。ふりがなはその上側=+x方向へ置きます。
+	 * The writing direction, used to determine the side for ruby text (the line's "over" side).
+	 * In vertical writing ({@link WritingMode#RL}/{@link WritingMode#LR}), this engine places
+	 * descent to the left of the baseline and ascent to its right (the {@code TextBuilder}
+	 * vertical path treats RL/LR alike), so <b>+x</b> is the over side in both cases.
+	 * Place ruby text on that over side, toward +x.
 	 */
 	private final WritingMode flow;
 
-	/** 親文字の基底線上側(縦書きは右側)の寸法です。 */
+	/** The base text extent above the baseline (to its right in vertical writing). */
 	private final double baseAscent;
 
-	/** 親文字の基底線下側(縦書きは左側)の寸法です。 */
+	/** The base text extent below the baseline (to its left in vertical writing). */
 	private final double baseDescent;
 
-	/** 注釈の整列用仮想幅と、実際のatomic inline幅との差。 */
+	/** The difference between the virtual annotation-alignment width and the actual atomic inline width. */
 	private final double annotationOrigin;
 
-	/** 左右(縦組では行頭・行末)へ許した張り出し量。 */
+	/** Allowed overhang on the left/right (line start/end in vertical writing). */
 	private final double startHang, endHang;
 
-	/** 行頭側を予約した際に、親文字と注釈を箱内へ戻す移動量。 */
+	/** The shift that brings base text and annotations back inside the box when reserving the line-start side. */
 	private double contentShift = 0;
 
 	private boolean startHangReserved = false, endHangReserved = false;
 
-	/** テキスト抽出・禁則判定用の文字列(親文字、無ければふりがな)です。 */
+	/** Text for extraction and kinsoku (line-breaking rules) checks (base text, or ruby text if no base exists). */
 	private final String text;
 
 	/**
-	 * この単位が消費したソース文字の範囲です(生成内容など出所が無ければ
-	 * どちらも-1)。改ページの部分再生で「単位の途中から再開しない」ことを
-	 * 保証するために使います({@code AbstractTextBox.lastCharEnd()}/
-	 * {@code firstCharOffset()}・配達済み終端の前進)。
+	 * The source character range consumed by this unit (both -1 when there is no source,
+	 * such as generated content). Used to ensure that partial replay at a page break never
+	 * resumes in the middle of a unit ({@code AbstractTextBox.lastCharEnd()}/
+	 * {@code firstCharOffset()} and advancement of the delivered end).
 	 */
 	private final int sourceStart, sourceEnd;
 
@@ -137,17 +137,17 @@ public class RubyUnitBox extends InlineBlockBox {
 		this.text = text;
 		this.sourceStart = sourceStart;
 		this.sourceEnd = sourceEnd;
-		// ページ方向の寸法=親文字のみ(仕様修正2026-07-25: 行送り一定。
-		// ふりがなは箱の外——行間の余白——へはみ出して描く)
+		// Page-axis size = base text only (specification revised 2026-07-25: constant line pitch;
+		// draw ruby text outside the box in the inter-line space).
 		final double pageExtent = baseDescent + baseAscent;
 		if (flow.isVertical()) {
-			// 縦書き: 行方向=縦、ページ方向=横。左からbaseDescent, 基底線,
-			// baseAscent。ふりがな列は右端の右外
+			// Vertical writing: line axis = vertical, page axis = horizontal. From left: baseDescent, baseline,
+			// baseAscent. The ruby column sits outside the right edge.
 			this.width = pageExtent;
 			this.height = lineExtent;
 		} else {
-			// 横書き: 上から親文字のascent、基底線、親文字のdescent。
-			// ふりがな行は上端の上外
+			// Horizontal writing: from top, base ascent, baseline, base descent.
+			// The ruby line sits above the top edge.
 			this.width = lineExtent;
 			this.height = pageExtent;
 		}
@@ -155,8 +155,8 @@ public class RubyUnitBox extends InlineBlockBox {
 	}
 
 	/**
-	 * 行頭側の隣接字形と衝突しうるため、張り出しを箱内へ予約します。
-	 * quadが下流へ渡る前に呼ぶことを想定します。
+	 * Reserves overhang inside the box because it may collide with the neighboring glyph
+	 * on the line-start side. Intended to be called before passing the quad downstream.
 	 */
 	public void reserveStartOverhang() {
 		if (this.startHangReserved || this.startHang <= 0) {
@@ -171,7 +171,7 @@ public class RubyUnitBox extends InlineBlockBox {
 		}
 	}
 
-	/** 行末側の隣接字形と衝突しうるため、張り出し分を幅へ戻します。 */
+	/** Adds overhang back to the width because it may collide with the neighboring glyph on the line-end side. */
 	public void reserveEndOverhang() {
 		if (this.endHangReserved || this.endHang <= 0) {
 			return;
@@ -185,21 +185,21 @@ public class RubyUnitBox extends InlineBlockBox {
 	}
 
 	/**
-	 * 常にtrueです。ルビ単位は構築時に整形済みで寸法が確定しており、
-	 * shrink-to-fitの実測(ネストしたビルダー)を必要としません。
+	 * Always true. Ruby units are shaped and sized during construction and do not need
+	 * actual shrink-to-fit measurement (a nested builder).
 	 */
 	public boolean isPreMeasured() {
 		return true;
 	}
 
 	/**
-	 * この単位が消費したソース文字の終端(exclusive)です(無ければ-1)。
+	 * The exclusive end of source characters consumed by this unit (-1 if none).
 	 */
 	public int getSourceEnd() {
 		return this.sourceEnd;
 	}
 
-	/** コレクタから渡す注釈入力。levelは0始まりです。 */
+	/** Annotation input from the collector. level is zero-based. */
 	public record AnnotationInput(String text, InlineParams params, int charOffset, int level) {
 	}
 
@@ -221,7 +221,10 @@ public class RubyUnitBox extends InlineBlockBox {
 		}
 	}
 
-	/** 親文字と0個以上の注釈レベルからatomic inlineを組み立てます。親文字・各注釈は独立した小段落として視覚順にする。 */
+	/**
+	 * Builds an atomic inline from base text and zero or more annotation levels.
+	 * Reorders each as an independent small paragraph.
+	 */
 	public static RubyUnitBox create(final InlineParams container, final String baseText, final InlineParams baseParams,
 			final int baseOffset, final List<AnnotationInput> annotationInputs, final int sourceStart,
 			final int sourceEnd) {
@@ -259,8 +262,8 @@ public class RubyUnitBox extends InlineBlockBox {
 			return null;
 		}
 
-		// CSS Rubyは張り出し量をUA裁量とする。JLREQ/JISの上限を越えない
-		// よう、注釈フォントの0.5ic(=親文字の0.25em)までを各側へ許す。
+		// CSS Ruby leaves overhang to the UA. Allow up to 0.5ic of the annotation font (=0.25em of the base text)
+		// on each side to stay within JLREQ/JIS limits.
 		final double desiredHang = Math.max(0, (visualExtent - baseAdvance) / 2.0);
 		final double hang = overhang && baseAdvance > 0 ? Math.min(baseFs.getSize() / 4.0, desiredHang) : 0;
 		final double lineExtent = Math.max(baseAdvance, visualExtent - hang * 2.0);
@@ -312,7 +315,7 @@ public class RubyUnitBox extends InlineBlockBox {
 				annotationOrigin, hang, hang, text, sourceStart, sourceEnd);
 	}
 
-	/** 自己完結整形です(2026-08-01にRunCollector+TrimmedRunsへ一本化)。 */
+	/** Self-contained shaping (unified on RunCollector+TrimmedRuns on 2026-08-01). */
 	private static TextImpl[] shape(final InlineParams src, final FontStyle fontStyle, final String text,
 			final int charOffset) {
 		final TextImpl[] runs = net.zamasoft.foliojet.layout.text.spacing.TrimmedRuns.shape(src.fontManager, fontStyle,
@@ -346,7 +349,7 @@ public class RubyUnitBox extends InlineBlockBox {
 		return descent;
 	}
 
-	/** CSS {@code ruby-align}に従って、列の余りをグリフ前進量へ配分します。 */
+	/** Distributes surplus in a text sequence to glyph advances according to CSS {@code ruby-align}. */
 	private static void align(final TextImpl[] texts, final double extra, final RubyAlignValue alignment) {
 		if (extra <= DISTRIBUTE_EPSILON || alignment == RubyAlignValue.START) {
 			return;
@@ -387,14 +390,13 @@ public class RubyUnitBox extends InlineBlockBox {
 	}
 
 	/**
-	 * テキスト抽出で<b>親文字</b>を返します(ふりがなは読みの注釈であり
-	 * 本文ではないため出さない——リンクの代替テキスト・string-setの
-	 * content()・ブックマーク見出し・target-text()に共通の方針)。
-	 * 親文字が無い単位(malformed)だけはふりがなを本文の代わりに出します。
+	 * Returns the <b>base text</b> for text extraction. Ruby text is a reading annotation,
+	 * not body text, so it is not emitted. This policy is shared by link alternative text,
+	 * string-set content(), bookmark headings, and target-text().
+	 * Only malformed units with no base text emit ruby text in its place.
 	 *
 	 * <p>
-	 * コンテナ({@code FlowContainer})は空なので、抽出はこの上書きだけが
-	 * 担います。
+	 * The container ({@code FlowContainer}) is empty, so this override alone handles extraction.
 	 * </p>
 	 */
 	public void pushGetTextSteps(final StringBuilder textBuff, final java.util.Deque<GetTextStep> worklist) {
@@ -415,8 +417,8 @@ public class RubyUnitBox extends InlineBlockBox {
 	}
 
 	/**
-	 * 親文字グリフ列+半サイズの注釈グリフ列を描画します。(x, y)は
-	 * 単位ボックスの左上です。
+	 * Draws the base glyph sequence and half-size annotation glyph sequences.
+	 * (x, y) is the unit box's top-left corner.
 	 */
 	protected static class RubyUnitDrawable extends AbstractDrawable {
 		private final RubyUnitBox box;
@@ -492,7 +494,7 @@ public class RubyUnitBox extends InlineBlockBox {
 					}
 					this.drawRun(gc, box.baseTexts, box.baseColor, box.contentShift, 0, false);
 				} else if (box.flow.isVertical()) {
-					// 縦書き: over=右、under=左。複数段は外側へ積む。
+					// Vertical writing: over=right, under=left. Stack multiple levels outward.
 					final double baseX = x + box.baseDescent;
 					this.drawRun(gc, box.baseTexts, box.baseColor, baseX, y + box.contentShift, true);
 					double over = 0, under = 0;
@@ -509,7 +511,7 @@ public class RubyUnitBox extends InlineBlockBox {
 								y + box.contentShift + box.annotationOrigin, true);
 					}
 				} else {
-					// 横書き: over=上、under=下。inter-characterは右側へ縦置き。
+					// Horizontal writing: over=above, under=below. Place inter-character vertically on the right.
 					double over = 0, under = 0;
 					for (final RubyAnnotation annotation : box.annotations) {
 						if (annotation.interCharacter) {
@@ -557,11 +559,10 @@ public class RubyUnitBox extends InlineBlockBox {
 	}
 
 	/**
-	 * 空のコンテナです。基底線
-	 * ({@code getFirstAscent()}/{@code getLastDescent()})は単位の親文字
-	 * 基底線を返します(インラインブロックの既存機構——
-	 * {@code TextBuilder}のBLOCK経路——がそのまま基底線を合わせられる
-	 * ように)。
+	 * An empty container. The baseline
+	 * ({@code getFirstAscent()}/{@code getLastDescent()}) is the unit's base-text baseline,
+	 * so the existing inline-block mechanism (the {@code TextBuilder} BLOCK path)
+	 * can align it unchanged.
 	 */
 	protected static class RubyUnitContainer extends FlowContainer {
 		private double firstAscent, lastDescent;

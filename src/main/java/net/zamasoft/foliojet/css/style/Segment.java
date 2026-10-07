@@ -3,21 +3,21 @@ package net.zamasoft.foliojet.css.style;
 import net.zamasoft.foliojet.css.CSSStyle;
 
 /**
- * 本流のスタイル窓の件数・深さ・世代です。
+ * Event count, depth, and generation of the main-flow style window.
  *
  * <p>
- * 再レイアウトは凍結済みの {@code LayoutSource/BoxRecipe} を使います。
- * この旧M6a窓に閉じた要素のスタイルや文字を読む消費者はありません。
- * ページ境界までStart/Endを残すと、auto表ではPass B開始まで全td/trの
- * {@code CSSStyle.values/computedValues}を保持してしまいます。
+ * Relayout uses frozen {@code LayoutSource/BoxRecipe} data. No consumer reads styles
+ * or characters of closed elements from this legacy M6a window. Retaining Start/End
+ * until a page boundary would retain every td/tr's {@code CSSStyle.values/computedValues}
+ * until Pass B starts for auto tables.
  * </p>
  *
  * <p>
- * <b>保持の不変条件</b>: スタイルと文字への参照を持たず、数値だけを更新します。
- * CSSStyle自体の計算値は変更しないので、
- * ::afterの評価・匿名箱の終了処理など、呼び出し側の残りの処理は影響を受けません。
- * 再スタイルは入力の再走査、running/page-contentは独立したStyleSnapshotを
- * 使い、この窓へ閉じたスタイルを残す必要はありません。
+ * <b>Retention invariant</b>: holds no style or character references; updates numbers only.
+ * Does not change CSSStyle's own computed values, so the caller's remaining work,
+ * such as ::after evaluation and anonymous-box closing, is unaffected.
+ * Restyling rescans input; running/page-content use independent StyleSnapshot instances,
+ * so this window need not retain closed styles.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -28,7 +28,7 @@ public class Segment {
 	protected int depth = 0;
 
 	/**
-	 * ページ境界ごとに進む窓の世代です。再生アンカーはLayoutSourceが所有します。
+	 * Window generation, advanced at every page boundary. LayoutSource owns replay anchors.
 	 */
 	protected int epoch = 0;
 
@@ -37,7 +37,7 @@ public class Segment {
 	}
 
 	/**
-	 * 現在の窓のイベント数を返します。イベント本体は保持しません。
+	 * Returns the current window's event count. Does not retain event objects.
 	 */
 	public int size() {
 		return this.eventCount;
@@ -49,7 +49,7 @@ public class Segment {
 	}
 
 	public void characters(int offset, char[] ch, int off, int len) {
-		// 文字の唯一の再生元はRecordingLayoutSinkが記録するLayoutSource。
+		// LayoutSource, recorded by RecordingLayoutSink, is the sole source for character replay.
 		++this.eventCount;
 	}
 
@@ -59,8 +59,8 @@ public class Segment {
 	}
 
 	/**
-	 * ページ境界で窓を開要素のStart件数だけに戻し、世代を更新します。
-	 * depthは変化しません。
+	 * At a page boundary, resets the window to the Start count for open elements and advances
+	 * the generation. Does not change depth.
 	 */
 	public void trimToOpenElements() {
 		this.eventCount = this.depth;

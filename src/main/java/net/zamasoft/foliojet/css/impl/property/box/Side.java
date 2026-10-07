@@ -1,13 +1,13 @@
 package net.zamasoft.foliojet.css.impl.property.box;
 
 /**
- * ボックスの4辺です。
+ * The four sides of a box.
  *
  * <p>
- * 2026-07-20: 独自拡張{@code -cssj-direction-mode}による「物理プロパティの
- * 回転」機構は廃止した(実世界のCSS/ブラウザには存在しない挙動であり、
- * 縦書き対応は標準の論理プロパティ({@link LogicalSide})へ一本化した)。
- * 恒等写像として残していた{@code resolve}は2026-10-04に削除した。
+ * 2026-07-20: Abolished the "physical property rotation" mechanism provided by the proprietary
+ * {@code -cssj-direction-mode} extension (real-world CSS/browsers have no such behavior;
+ * vertical writing support was consolidated into standard logical properties ({@link LogicalSide})).
+ * Removed {@code resolve}, which had remained as an identity mapping, on 2026-10-04.
  * </p>
  */
 public enum Side {

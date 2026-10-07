@@ -3,76 +3,76 @@ package net.zamasoft.foliojet.layout.box.params;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * 背景画像です。
+ * Background image.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: BackgroundImage.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class BackgroundImage implements Background.Layer {
 	/**
-	 * 背景を繰り返しません。
+	 * Does not repeat the background.
 	 */
 	public static final byte REPEAT_NO = 0;
 
 	/**
-	 * 背景を水平方向に繰り返します。
+	 * Repeats the background horizontally.
 	 */
 	public static final byte REPEAT_X = 1;
 
 	/**
-	 * 背景を垂直方向に繰り返します。
+	 * Repeats the background vertically.
 	 */
 	public static final byte REPEAT_Y = 2;
 
 	/**
-	 * 背景をタイル状に繰り返します。
+	 * Repeats the background as tiles.
 	 */
 	public static final byte REPEAT = 3;
 
 	/**
-	 * 背景の位相をページに合わせます。
+	 * Aligns the background phase with the page.
 	 */
 	public static final byte ATTACHMENT_SCROLL = 0;
 
 	/**
-	 * 背景の位相をボックスに合わせます。
+	 * Aligns the background phase with the box.
 	 */
 	public static final byte ATTACHMENT_FIXED = ATTACHMENT_SCROLL + 1;
 
 	/**
-	 * 背景画像です。
+	 * Background image.
 	 */
 	public final Image image;
 
 	/**
-	 * 背景画像の繰り返し方法です。
+	 * Background-image repetition mode.
 	 * <p>
-	 * REPEAT_X定数を使用してください。
+	 * Use a REPEAT_X constant.
 	 * </p>
 	 */
 	public final byte repeat;
 
 	/**
-	 * 背景画像の貼り付け方法です。
+	 * Background-image attachment mode.
 	 * <p>
-	 * ATTACHMENT_X定数を使用してください。
+	 * Use an ATTACHMENT_X constant.
 	 * </p>
 	 */
 	public final byte attachment;
 
 	/**
-	 * 背景画像の位置です。
+	 * Background-image position.
 	 */
 	public final Offset position;
 
 	/**
-	 * 背景画像の大きさです。{@link #fit}が{@code NONE}以外の時は無視されます。
+	 * Background-image size. Ignored when {@link #fit} is not {@code NONE}.
 	 */
 	public final Dimension size;
 
 	/**
-	 * background-sizeの{@code contain}/{@code cover}キーワード形式です。
-	 * {@code NONE}の場合は{@link #size}を使う通常の解決です。
+	 * The {@code contain}/{@code cover} keyword forms of background-size.
+	 * {@code NONE} uses ordinary resolution with {@link #size}.
 	 */
 	public final BackgroundFit fit;
 

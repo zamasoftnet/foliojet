@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code paint-order}の値です。省略された要素は通常順
- * ({@code fill stroke markers})で末尾へ補います。
+ * A {@code paint-order} value. Appends omitted components
+ * in the normal order ({@code fill stroke markers}).
  */
 public final class PaintOrderValue implements Value {
 	public static final byte FILL = 1;
@@ -42,7 +42,7 @@ public final class PaintOrderValue implements Value {
 		return this.normal;
 	}
 
-	/** ストロークを塗りより先に描く指定ならtrueです。 */
+	/** True if the stroke is specified to be drawn before the fill. */
 	public boolean isStrokeBeforeFill() {
 		for (final byte value : this.order) {
 			if (value == STROKE) {

@@ -15,20 +15,21 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code line-clamp} / {@code -webkit-line-clamp}(css-overflow-4、2026-08-29)。
+ * {@code line-clamp} / {@code -webkit-line-clamp} (css-overflow-4, 2026-08-29).
  *
  * <p>
- * 「N行で切って以降を隠す」指定。50サイト中24サイトが抜粋や見出しの省略に
- * 使う({@code display:-webkit-box; -webkit-box-orient:vertical;
- * -webkit-line-clamp:3; overflow:hidden} の定番)。行数で切る機構は無いので、
- * {@code BoxStyleMapper}で高さの上限 N×line-height と overflow:hidden へ
- * 近似する。省略記号は付かない。捨てると抜粋の全文が露出して後続に重なる。
+ * Specifies "truncate at N lines and hide the rest". Used by 24 of 50 sites to truncate
+ * excerpts or headings (the standard idiom {@code display:-webkit-box; -webkit-box-orient:vertical;
+ * -webkit-line-clamp:3; overflow:hidden}). There is no line-count truncation mechanism,
+ * so {@code BoxStyleMapper} approximates it with a height limit of N×line-height and
+ * overflow:hidden. Adds no ellipsis. Discarding it exposes the entire excerpt, overlapping
+ * subsequent content.
  * </p>
  */
 public class LineClamp extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new LineClamp();
 
-	/** 行数。none なら0。 */
+	/** Line count. 0 for none. */
 	public static int get(final CSSStyle style) {
 		final Value value = style.get(INFO);
 		return value instanceof IntegerValue integer ? integer.getInteger() : 0;

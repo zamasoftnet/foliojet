@@ -6,12 +6,12 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
- * 複数のプロパティの組み合わせです。
- * 
+ * A combination of multiple properties.
+ *
  * <p>
- * shorthandプロパティを実装するために用います。
+ * Used to implement shorthand properties.
  * </p>
- * 
+ *
  * @author MIYABE Tatsuhiko
  */
 public class CompositeProperty implements Property {
@@ -53,7 +53,7 @@ public class CompositeProperty implements Property {
 		return this.name;
 	}
 
-	/** 展開された最小単位の特性と値(テスト・検査用、2026-08-29)。 */
+	/** Expanded primitive properties and values (for testing and inspection, 2026-08-29). */
 	public Entry[] getEntries() {
 		return this.entries.clone();
 	}
@@ -67,7 +67,7 @@ public class CompositeProperty implements Property {
 	}
 
 	/**
-	 * プロパティを適用します。
+	 * Applies the property.
 	 */
 	public void applyProperty(CSSStyle style) {
 		for (int i = 0; i < this.entries.length; ++i) {

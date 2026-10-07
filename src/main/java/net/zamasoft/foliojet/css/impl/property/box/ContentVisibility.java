@@ -13,8 +13,8 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * content-visibilityプロパティです(css-contain-2、2026-08-10)。
- * 適用のされ方は{@link ContentVisibilityValue}参照。
+ * content-visibility property (css-contain-2, 2026-08-10).
+ * See {@link ContentVisibilityValue} for how it is applied.
  *
  * @author MIYABE Tatsuhiko
  */

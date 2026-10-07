@@ -23,9 +23,9 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 public class StyleBuilder implements PageGenerator, StyleBuildContext {
 
 	/**
-	 * 総ページ数カウンタ名。css-page-3 §6.1相当のUA予約カウンタとして扱い、
-	 * 著者の{@code counter-reset}/{@code counter-increment}からは保護する
-	 * ({@link #isReservedCounterName(String)}参照)。
+	 * Total page count counter name. Treated as a UA-reserved counter corresponding to
+	 * css-page-3 §6.1 and protected from author {@code counter-reset}/{@code counter-increment}
+	 * (see {@link #isReservedCounterName(String)}).
 	 */
 	private static final String PAGES_COUNTER_NAME = "pages";
 
@@ -46,48 +46,47 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 	private boolean inTextBlock = false;
 
 	/**
-	 * 本流のスタイル窓の件数です。スタイルと文字への参照は保持しません。
-	 * 再生にはsinkのLayoutSourceを使い、疑似要素・生成内容も凍結済みです。
+	 * Event count of the main-flow style window. Retains no style or character references.
+	 * Replay uses the sink's LayoutSource; pseudo-elements and generated content are frozen too.
 	 */
 	private final Segment segment = new Segment();
 
 	/**
-	 * M6b v3 のレイアウトソースプロトコルtee(記録+docへの引き渡し)。
-	 * 記録の契約・{@code LayoutSource}の寿命は{@link RecordingLayoutSink}参照
-	 * (StyleBuilder解体・増分1で抽出、2026-07-30)。
+	 * M6b v3 layout source protocol tee (recording + delivery to doc).
+	 * See {@link RecordingLayoutSink} for the recording contract and {@code LayoutSource}
+	 * lifetime (extracted in increment 1 of StyleBuilder decomposition, 2026-07-30).
 	 */
 	private final RecordingLayoutSink sink;
 
 	/**
-	 * ページのライフサイクル(作成・@pageカウンタ・白紙判定と
-	 * 巻き戻し・描画・面付け終了)。StyleBuilder解体・増分2で抽出
-	 * (2026-07-30)。PageGeneratorの実装は引き続きStyleBuilderで、
-	 * ページ系のメソッドはここへ委譲する。
+	 * Page lifecycle (creation, @page counters, blank-page checks and rollback, drawing,
+	 * and imposition completion). Extracted in increment 2 of StyleBuilder decomposition
+	 * (2026-07-30). StyleBuilder still implements PageGenerator, delegating page methods here.
 	 */
 	private final PageSequence pageSequence;
 
 	/**
-	 * CSS計算値→Params/Pos/RectFrameの写像群。StyleBuilder解体・
-	 * 増分3で抽出(2026-07-30)。
+	 * Mappings from computed CSS values to Params/Pos/RectFrame. Extracted in increment 3
+	 * of StyleBuilder decomposition (2026-07-30).
 	 */
 	private final BoxStyleMapper mapper;
 
 	/**
-	 * displayによるボックスdispatchと匿名表補完。StyleBuilder解体・
-	 * 増分4aで抽出(2026-07-30。逐語移動——匿名表の再帰は残存し、
-	 * 反復化は増分4b。状態は{@link StyleBuildContext}経由で共有)。
+	 * Box dispatch by display and anonymous table completion. Extracted in increment 4a
+	 * of StyleBuilder decomposition (2026-07-30; moved verbatim, retaining anonymous-table
+	 * recursion; iteration follows in increment 4b. State shared through {@link StyleBuildContext}).
 	 */
 	private final StyleBoxEmitter emitter;
 
 	/**
-	 * スタイルイベントの状態機械(カウンタ・string-set・マーカー・quotes・
-	 * generated content・::first-letter)。StyleBuilder解体・増分5で抽出
-	 * (2026-07-30、逐語移動)。
+	 * Style event state machine (counters, string-set, markers, quotes, generated content,
+	 * ::first-letter). Extracted in increment 5 of StyleBuilder decomposition
+	 * (2026-07-30, moved verbatim).
 	 */
 	private final StyleEventMachine eventMachine;
 
 	/**
-	 * レイアウトソースログを返します(M6b v3)。
+	 * Returns the layout source log (M6b v3).
 	 */
 	public LayoutSource getLayoutSource() {
 		return this.sink.source();
@@ -120,9 +119,9 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 	}
 
 	/**
-	 * レイアウトソースのspillストア(一時ファイル)を閉じます
-	 * (E-6増分3b-2)。変換の終了経路——成功・例外を問わずformatterの
-	 * finallyから{@code CSSProcessor.dispose()}経由で呼ばれる。冪等。
+	 * Closes the layout source spill store (temporary file) (E-6 increment 3b-2).
+	 * Called at conversion end via {@code CSSProcessor.dispose()} from the formatter's
+	 * finally, on success or exception. Idempotent.
 	 */
 	public void closeLayoutSource() {
 		this.sink.close();
@@ -133,25 +132,25 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 		this.ua = ua;
 		this.imposition = imposition;
 		this.doc = new DocumentBuilder(this);
-		// E-6増分3b-2: text payloadのspill予算(bytes)はsinkが注入する
+		// E-6 increment 3b-2: the sink injects the text payload spill budget (bytes)
 		this.sink = new RecordingLayoutSink(this.doc, UAProps.PROCESSING_TEXT_SPILL_BUDGET.getLong(ua));
 		this.sink.setAssignments(ua.getPassContext().getRunningRegistry());
 
 		byte pageMode = 0;
-		// 自動高さ
+		// Automatic height
 		if (UAProps.OUTPUT_AUTO_HEIGHT.getBoolean(ua)) {
 			pageMode |= DocumentBuilder.PAGE_MODE_CONTINUOUS;
 		}
 
-		// 改ページ禁止
+		// Prohibit page breaks
 		if (UAProps.OUTPUT_NO_PAGE_BREAK.getBoolean(ua)) {
 			pageMode |= DocumentBuilder.PAGE_MODE_NO_BREAK;
 		}
 		this.doc.setPageMode(pageMode);
 
-		// ページ幅・高さ・マージン・最大ページ数の初期化は
-		// PageSequenceのコンストラクタへ移動(増分2、2026-07-30。
-		// 警告メッセージの順序も従来と同一)
+		// Initialization of page width, height, margins, and maximum page count
+		// moved to the PageSequence constructor (increment 2, 2026-07-30;
+		// warning message order is also unchanged).
 		this.pageSequence = new PageSequence(ua, styleContext, imposition, this.doc, this.segment,
 				this::warnReservedCounter);
 		this.mapper = new BoxStyleMapper(ua, styleContext);
@@ -190,7 +189,7 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 		this.eventMachine.checkMarker();
 	}
 
-	/** PageSequenceの予約カウンタ警告の委譲先(実体は増分5で機械側へ)。 */
+	/** Delegate for PageSequence reserved-counter warnings (implementation moved to the machine in increment 5). */
 	void warnReservedCounter(final String name) {
 		this.eventMachine.warnReservedCounter(name);
 	}
@@ -227,15 +226,15 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 		this.sink.finishProbes();
 		this.doc.end();
 		this.pageSequence.finish();
-		// E-6増分3b-2: 最終ページ確定後はソース再生が発生しないため、
-		// spillストアの一時ファイルをここで早期解放する(例外経路は
-		// formatterのfinally→CSSProcessor.dispose→closeLayoutSourceが清算)
+		// E-6 increment 3b-2: no source replay occurs after the final page is finalized,
+		// so release the spill store temporary file early here (on exceptions,
+		// formatter finally→CSSProcessor.dispose→closeLayoutSource cleans up).
 		this.sink.close();
 	}
 
-	// ---- StyleBuildContext(増分4a)——状態の物理置き場は当面ここのまま ----
+	// ---- StyleBuildContext (increment 4a): state remains physically here for now ----
 
-	// getCurrentStyle()は既存のpublicメソッドを流用(StyleBuildContext実装)
+	// Reuse the existing public getCurrentStyle() method (StyleBuildContext implementation)
 
 	@Override
 	public void setCurrentStyle(final CSSStyle style) {

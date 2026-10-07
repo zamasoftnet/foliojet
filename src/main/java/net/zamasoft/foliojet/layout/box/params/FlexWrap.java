@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * Flexコンテナの折り返しモードです(Flex F1a、2026-08-02)。CSS側の
- * {@code FlexWrapValue}と同名対応(マッピングはBoxStyleMapper)。
+ * Flex container wrapping mode (Flex F1a, 2026-08-02). Corresponds by name to the CSS-side
+ * {@code FlexWrapValue} (mapping in BoxStyleMapper).
  *
  * @author MIYABE Tatsuhiko
  */

@@ -15,19 +15,18 @@ import net.zamasoft.foliojet.layout.box.params.Background;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code mask-origin}(css-masking-1 §7.5)。カンマ区切りの各マスクレイヤの
- * 配置基準を保持する。
+ * {@code mask-origin} (css-masking-1 §7.5). Holds the positioning reference for each
+ * comma-separated mask layer.
  *
- * <p>{@code padding-box}/{@code content-box}はURLマスクの描画へ反映する。
- * 初期値の{@code border-box}は、未指定時の従来出力をバイト単位で維持するため
- * 従来の配置経路を保つ。SVG固有の{@code fill-box}/{@code stroke-box}/
- * {@code view-box}は値を受理・保持するが、現在のHTMLボックス用マスク描画には
- * 反映しない。</p>
+ * <p>Applies {@code padding-box}/{@code content-box} to URL mask rendering.
+ * The initial {@code border-box} retains the existing positioning path to preserve output
+ * byte for byte when unspecified. Accepts and retains SVG-specific {@code fill-box}/{@code stroke-box}/
+ * {@code view-box} values, but does not apply them to the current HTML box mask rendering.</p>
  */
 public final class MaskOrigin extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MaskOrigin();
 
-	/** mask-originの各キーワード。 */
+	/** mask-origin keywords. */
 	public enum OriginValue implements Value {
 		BORDER_BOX("border-box", Background.BORDER_BOX),
 		PADDING_BOX("padding-box", Background.PADDING_BOX),
@@ -44,12 +43,12 @@ public final class MaskOrigin extends AbstractPrimitivePropertyInfo {
 			this.backgroundOrigin = (byte) backgroundOrigin;
 		}
 
-		/** Backgroundの配置基準へ変換可能ならtrue。 */
+		/** True if convertible to a Background positioning reference. */
 		public boolean isPaintSupported() {
 			return this.backgroundOrigin >= 0;
 		}
 
-		/** Backgroundの配置基準。{@link #isPaintSupported()}がfalseなら使えない。 */
+		/** Background positioning reference. Unusable if {@link #isPaintSupported()} is false. */
 		public byte getBackgroundOrigin() {
 			return this.backgroundOrigin;
 		}
@@ -60,7 +59,7 @@ public final class MaskOrigin extends AbstractPrimitivePropertyInfo {
 		}
 	}
 
-	/** 多層マスクの値（先頭が最前面）。 */
+	/** Values for multiple mask layers (frontmost first). */
 	public record LayersValue(OriginValue[] layers) implements Value {
 		@Override
 		public String toString() {
@@ -72,24 +71,24 @@ public final class MaskOrigin extends AbstractPrimitivePropertyInfo {
 		super("mask-origin");
 	}
 
-	/** 全レイヤの値を返す（先頭が最前面）。 */
+	/** Returns values for all layers (frontmost first). */
 	public static OriginValue[] getLayers(CSSStyle style) {
 		final Value value = style.get(INFO);
 		return value instanceof LayersValue layers ? layers.layers() : new OriginValue[] { (OriginValue) value };
 	}
 
-	/** 現在描画対象にしている先頭レイヤの値を返す。 */
+	/** Returns the value of the first layer, which is currently rendered. */
 	public static OriginValue get(CSSStyle style) {
 		return getLayers(style)[0];
 	}
 
-	/** 単層ならキーワード値、多層ならレイヤ値にまとめる。 */
+	/** Returns a keyword value for a single layer, or bundles multiple layers into a layer value. */
 	public static Value toValue(List<OriginValue> values) {
 		return values.size() == 1 ? values.get(0)
 				: new LayersValue(values.toArray(new OriginValue[values.size()]));
 	}
 
-	/** キーワードトークンを値へ変換する。 */
+	/** Converts a keyword token to a value. */
 	public static OriginValue fromToken(CssToken token) {
 		if (!(token instanceof CssToken.Ident ident)) {
 			return null;

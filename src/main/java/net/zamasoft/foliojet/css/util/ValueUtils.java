@@ -30,35 +30,35 @@ public final class ValueUtils {
 	}
 
 	/**
-	 * 識別子キーワード(大文字小文字無視)であれば true を返します。
+	 * Returns true for an identifier keyword (case-insensitive).
 	 */
 	public static boolean isKeyword(CssToken token, String keyword) {
 		return token instanceof CssToken.Ident ident && ident.is(keyword);
 	}
 
 	/**
-	 * auto であればtrueを返します。
+	 * Returns true for auto.
 	 */
 	public static boolean isAuto(CssToken token) {
 		return isKeyword(token, "auto");
 	}
 
 	/**
-	 * none であればtrueを返します。
+	 * Returns true for none.
 	 */
 	public static boolean isNone(CssToken token) {
 		return isKeyword(token, "none");
 	}
 
 	/**
-	 * normal であればtrueを返します。
+	 * Returns true for normal.
 	 */
 	public static boolean isNormal(CssToken token) {
 		return isKeyword(token, "normal");
 	}
 
 	/**
-	 * &lt;length&gt; を値に変換します。
+	 * Converts &lt;length&gt; to a value.
 	 */
 	public static LengthValue toLength(UserAgent ua, CssToken token) {
 		if (token instanceof CssToken.Dim dim) {
@@ -79,9 +79,9 @@ public final class ValueUtils {
 				return RelativeLengthValue.rlh(dim.value());
 			case CQW:
 			case CQI:
-				// コンテナクエリ単位(段6、2026-08-15)。RelativeLengthValueと
-				// 同じく解析時には解決せず、emExToAbsoluteLengthで使用値
-				// 計算時に解決する
+				// Container query units (stage 6, 2026-08-15). Like RelativeLengthValue,
+				// do not resolve at parse time; resolve during used-value computation
+				// in emExToAbsoluteLength.
 				return net.zamasoft.foliojet.css.value.ContainerRelativeLengthValue.of(dim.unit(), dim.value());
 			default:
 				break;
@@ -91,12 +91,12 @@ public final class ValueUtils {
 	}
 
 	/**
-	 * 文字列表現を長さに変換します。
+	 * Converts a string representation to a length.
 	 */
 	public static LengthValue toLength(UserAgent ua, boolean legacy, String s) {
 		try {
 			s = s.toLowerCase(java.util.Locale.ROOT).trim();
-			// rem は em より先に見る(2026-10-04 までは後ろにあり、"2rem" が em の分岐で "2r" を数として読んで無効になっていた)
+			// Check rem before em (until 2026-10-04, it came later: the em branch read "2r" from "2rem" as a number and rejected it)
 			if (s.endsWith("rem")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 3));
 				return RelativeLengthValue.rem(len);
@@ -121,7 +121,7 @@ public final class ValueUtils {
 	}
 
 	/**
-	 * 文字列表現を長さに変換します。
+	 * Converts a string representation to a length.
 	 */
 	public static AbsoluteLengthValue toAbsoluteLength(UserAgent ua, boolean legacy, String s) {
 		if (s == null) {
@@ -166,31 +166,31 @@ public final class ValueUtils {
 	}
 
 	/**
-	 * valueがEM_LENGTHかEX_LENGTHならstyleのフォント情報を基準に絶対長さに変換します。
+	 * If value is EM_LENGTH or EX_LENGTH, converts it to an absolute length using style's font information.
 	 */
 	public static Value emExToAbsoluteLength(Value value, CSSStyle style) {
 		if (value instanceof RelativeLengthValue relative) {
 			return relative.toAbsoluteLength(style);
 		}
-		// コンテナクエリ単位(段6、2026-08-15)。RelativeLengthValueと同じ経路
+		// Container query units (stage 6, 2026-08-15). Same path as RelativeLengthValue
 		if (value instanceof net.zamasoft.foliojet.css.value.ContainerRelativeLengthValue containerRelative) {
 			return containerRelative.toAbsoluteLength(style);
 		}
-		// **calc()の中のフォント相対単位もここで解く**(2026-08-03)。
-		// 解析時には要素のfont-sizeが無いので、絶対成分・割合成分と分けたまま
-		// ここまで持ち回っている({@link CalcFontRelativeValue})
+		// **Resolve font-relative units inside calc() here too** (2026-08-03).
+		// The element's font-size is unavailable at parse time, so carry them here
+		// separately from absolute and ratio components ({@link CalcFontRelativeValue}).
 		if (value instanceof CalcFontRelativeValue calc) {
 			return calc.resolve(style);
 		}
-		// 型付き attr()(2026-08-03)。属性を読んで値にする。解決できず
-		// フォールバックも無い場合は null を返し、呼び出し側(DeferredProperty)が
-		// 「使用値計算時に無効」として unset 相当に落とす
+		// Typed attr() (2026-08-03). Reads an attribute to produce a value. If resolution
+		// fails with no fallback, return null; the caller (DeferredProperty) treats it as
+		// invalid at computed-value time, falling back to the equivalent of unset.
 		if (value instanceof TypedAttrValue attr) {
 			final Value resolved = attr.resolve(style);
 			return resolved == null ? KeywordValue.NONE : emExToAbsoluteLength(resolved, style);
 		}
-		// fit-content(<length-percentage>)の引数(2026-08-29)。calc()の
-		// フォント相対成分と同じく、要素のfont-sizeが分かるここで解く
+		// fit-content(<length-percentage>) argument (2026-08-29). Like calc() font-relative
+		// components, resolve here where the element's font-size is known.
 		if (value instanceof net.zamasoft.foliojet.css.value.FitContentValue fit) {
 			final Value argument = emExToAbsoluteLength(fit.argument(), style);
 			return argument == fit.argument() ? fit
@@ -200,7 +200,7 @@ public final class ValueUtils {
 	}
 
 	/**
-	 * フォント相対長さ以外の &lt;length&gt; を値に変換します。
+	 * Converts &lt;length&gt; other than font-relative lengths to a value.
 	 */
 	public static AbsoluteLengthValue toAbsoluteLength(UserAgent ua, CssToken token) {
 		if (token instanceof CssToken.Dim dim) {
@@ -217,11 +217,11 @@ public final class ValueUtils {
 			case VH:
 			case VMIN:
 			case VMAX:
-				// ビューポート単位(2026-08-29)。ページ媒体では版面寸法が
-				// 解析時に確定している(UAプロパティ由来)ので、rem等と
-				// 違って絶対長さへ即時に解決できる——calc()/min()/max()の
-				// 葉(CalcValueUtils.evaluateLeaf)もこの経路を通るため、
-				// 数式の中でも同じ値になる
+				// Viewport units (2026-08-29). In paged media, type area dimensions are known
+				// at parse time (from UA properties), so unlike rem, etc.,
+				// they can be resolved immediately to absolute lengths. Leaves in calc()/min()/max()
+				// (CalcValueUtils.evaluateLeaf) also follow this path,
+				// so values are identical inside expressions.
 				return ViewportUnits.resolve(ua, dim.unit(), dim.value());
 			default:
 				return null;
@@ -234,7 +234,7 @@ public final class ValueUtils {
 	}
 
 	/**
-	 * &lt;percentage&gt; を値に変換します。
+	 * Converts &lt;percentage&gt; to a value.
 	 */
 	public static PercentageValue toPercentage(CssToken token) {
 		if (token instanceof CssToken.Percent percent) {
@@ -244,7 +244,7 @@ public final class ValueUtils {
 	}
 
 	/**
-	 * &lt;number&gt; を値に変換します。
+	 * Converts &lt;number&gt; to a value.
 	 */
 	public static RealValue toReal(CssToken token) {
 		if (token instanceof CssToken.Num num) {
@@ -254,7 +254,7 @@ public final class ValueUtils {
 	}
 
 	/**
-	 * &lt;uri&gt; を値に変換します。
+	 * Converts &lt;uri&gt; to a value.
 	 */
 	public static URIValue toURI(UserAgent ua, URI baseURI, CssToken token) throws URISyntaxException {
 		if (token instanceof CssToken.Uri uri) {
@@ -263,29 +263,30 @@ public final class ValueUtils {
 		return null;
 	}
 
-	/** {@code url()}または{@code image-set()}のトークンか(2026-08-29)。 */
+	/** Whether this is a {@code url()} or {@code image-set()} token (2026-08-29). */
 	public static boolean isImage(CssToken token) {
 		return token instanceof CssToken.Uri || token instanceof CssToken.Func func
 				&& (func.is("image-set") || func.is("-webkit-image-set"));
 	}
 
-	/** 警告メッセージ用にトークンのURI文字列(image-set()は関数全体)を返します。 */
+	/** Returns the token's URI string (the entire function for image-set()) for warning messages. */
 	public static String uriText(CssToken token) {
 		return token instanceof CssToken.Uri uri ? uri.uri() : String.valueOf(token);
 	}
 
 	/**
-	 * &lt;image&gt;({@code url()}または{@code image-set()})を画像URIに変換します
-	 * (css-images-4 §4.1、2026-08-29)。
+	 * Converts &lt;image&gt; ({@code url()} or {@code image-set()}) to an image URI
+	 * (css-images-4 §4.1, 2026-08-29).
 	 *
 	 * <p>
-	 * {@code image-set(<image> <resolution>? type(<string>)?, ...)}
-	 * (接頭辞{@code -webkit-image-set(url() 1x, url() 2x)}も同じ)からは
-	 * 出力解像度({@code UAProps.OUTPUT_RESOLUTION}=
-	 * {@link UserAgent#getPixelsPerInch()}。1x=96dpi、2x=192dpi)に最も近い
-	 * 候補を選ぶ: 出力解像度を超えない最大の解像度、無ければ超える中で最小。
-	 * 解像度省略は1x。{@code image()}関数・グラデーション・未対応MIMEの
-	 * {@code type()}付き候補は飛ばす(候補が一つも無ければnull=宣言無効)。
+	 * From {@code image-set(<image> <resolution>? type(<string>)?, ...)}
+	 * (and prefixed {@code -webkit-image-set(url() 1x, url() 2x)}), selects the candidate
+	 * closest to output resolution ({@code UAProps.OUTPUT_RESOLUTION}=
+	 * {@link UserAgent#getPixelsPerInch()}; 1x=96 dpi, 2x=192 dpi): the highest resolution
+	 * not exceeding output resolution, or if none, the lowest above it. Omitted resolution
+	 * means 1x. Skips {@code image()} functions, gradients, and candidates whose
+	 * {@code type()} specifies an unsupported MIME type (null if none remain, invalidating
+	 * the declaration).
 	 * </p>
 	 */
 	public static URIValue toImage(UserAgent ua, URI baseURI, CssToken token) throws URISyntaxException {
@@ -306,7 +307,7 @@ public final class ValueUtils {
 			} else if (image instanceof CssToken.Str str) {
 				href = str.value();
 			} else {
-				continue; // image()・グラデーション等
+				continue; // image(), gradients, etc.
 			}
 			double dpi = 96;
 			boolean supported = true;
@@ -347,7 +348,7 @@ public final class ValueUtils {
 		return createURIValue(ua.getDocumentContext().getEncoding(), baseURI, chosen);
 	}
 
-	/** {@code type()}のMIMEが描画できる画像形式か(不明な形式の候補は飛ばす)。 */
+	/** Whether the {@code type()} MIME type is a renderable image format (skip unknown-format candidates). */
 	private static boolean isSupportedImageType(final String mime) {
 		switch (mime.trim().toLowerCase(java.util.Locale.ROOT)) {
 		case "image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp", "image/svg+xml", "image/webp",
@@ -359,23 +360,23 @@ public final class ValueUtils {
 	}
 
 	/**
-	 * 参照文字列を基底URIで解決してURI値にします。
+	 * Resolves a reference string against the base URI to create a URI value.
 	 */
 	public static URIValue createURIValue(String encoding, URI baseURI, String href) throws URISyntaxException {
 		URI uri;
 		try {
 			uri = URIHelper.resolve(encoding, baseURI, href);
 		} catch (URISyntaxException e) {
-			// **URIHelper.resolve()の不正文字サニタイズはbaseURIがhttp/https
-			// の時にしか効かない**(2026-08-06、実物のyahoo.co.jpで発覚)。
-			// アイコン用SVGを`url("data:image/svg+xml;charset=utf-8,
-			// %3Csvg width='80' height='80'...")`のようにリテラル空白混じり
-			// で埋め込むのはブラウザ向けCSSでは普通に見る書き方——ブラウザは
-			// 常に許容するが、こちらはbaseURIがfile://(ローカルHTML変換や
-			// インライン&lt;style&gt;)だとURI構文エラーで例外になり、
-			// 背景画像がまるごと消える。base URIのスキームに関係なくブラウザ
-			// と同じ寛容さにするため、例外時だけ最小限の不正文字を
-			// %エンコードして一度だけ再試行する
+			// **URIHelper.resolve() sanitizes invalid characters only when baseURI uses
+			// http/https** (discovered on the actual yahoo.co.jp site, 2026-08-06).
+			// Embedding icon SVGs in `url("data:image/svg+xml;charset=utf-8,
+			// %3Csvg width='80' height='80'...")` with literal spaces is common
+			// in browser CSS. Browsers always allow it, but here a file:// baseURI
+			// (local HTML conversion or inline &lt;style&gt;) caused a URI syntax exception,
+			// making the entire background image disappear.
+			// To match browser tolerance regardless of the base URI scheme,
+			// percent-encode only the minimum invalid characters on an exception
+			// and retry once.
 			String sanitized = sanitizeForURI(href);
 			if (sanitized.equals(href)) {
 				throw e;
@@ -386,13 +387,12 @@ public final class ValueUtils {
 	}
 
 	/**
-	 * URIとして不正な(未エスケープの)文字を%エンコードします。
+	 * Percent-encodes invalid (unescaped) URI characters.
 	 *
 	 * <p>
-	 * {@code '}のようなRFC3986のsub-delimsは正当な文字なので触らない
-	 * ——実際に例外を起こすのは空白等、常にエスケープが必要な文字。
-	 * 既存の{@code %XX}エスケープは対象にせず素通りさせる(二重エンコード
-	 * を避ける)。
+	 * Leaves valid RFC3986 sub-delims such as {@code '} unchanged: exceptions are actually
+	 * caused by characters such as spaces that always need escaping. Passes existing
+	 * {@code %XX} escapes through unchanged to avoid double encoding.
 	 * </p>
 	 */
 	private static String sanitizeForURI(String href) {

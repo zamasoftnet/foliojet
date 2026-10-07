@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.css.value.css3;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
- * background-origin のボックスです。
+ * The box for background-origin.
  *
  * @author MIYABE Tatsuhiko
  */

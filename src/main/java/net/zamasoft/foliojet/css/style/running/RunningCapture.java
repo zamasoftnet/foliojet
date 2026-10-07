@@ -22,7 +22,7 @@ import net.zamasoft.foliojet.css.value.RunningPositionValue;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** 部分木の捕捉状態です。深さは通常のスタイル状態機械と独立に管理します。 */
+/** Subtree capture state. Depth is managed independently of the normal style state machine. */
 public final class RunningCapture {
 	public static final int MAX_EVENTS = 10_000;
 	public static final int MAX_TEXT_BYTES = 100 * 1024;
@@ -65,17 +65,17 @@ public final class RunningCapture {
 		return !this.frames.isEmpty();
 	}
 
-	/** 入力側の親スタイル解決専用です。完成テンプレートには参照を渡しません。 */
+	/** Only for resolving parent styles on the input side. Does not pass references to completed templates. */
 	public CSSStyle currentStyle() {
 		return this.styles.peek();
 	}
 
-	/** runningの根または捕捉中の子ならtrueを返し、通常処理を迂回させます。 */
+	/** Returns true for a running root or a child being captured, bypassing normal processing. */
 	public boolean start(final CSSStyle style) {
 		final CSSElement ce = style.getCSSElement();
 		if ((ce == CSSElement.FOOTNOTE_CALL || ce == CSSElement.FOOTNOTE_MARKER)
 				&& style.get(CSSPosition.INFO) instanceof RunningPositionValue) {
-			// callの箱は脚注の所属頁を決めるアンカー。捕捉の入口で適用対象外にする。
+			// The call box anchors the footnote to its page. Exclude it at the capture entry point.
 			this.ua.message(MessageCodes.WARN_INEFFECTIVE_CSS_COMBINATION, "position: running()",
 					"running() is not applicable to ::footnote-call/::footnote-marker");
 			style.set(CSSPosition.INFO, net.zamasoft.foliojet.css.value.PositionValue.STATIC_VALUE,
@@ -92,7 +92,7 @@ public final class RunningCapture {
 				this.add(new RunningTemplate.Token(name, order));
 			}
 			this.frames.push(new Frame(name, order));
-			// 全ての入れ子を同じ原位置の非描画アンカーへ渡す。
+			// Pass all nested levels to the same non-drawing anchor at the original position.
 			this.token.accept(order);
 		}
 		this.styles.push(style);
@@ -158,7 +158,7 @@ public final class RunningCapture {
 				HTMLStyle.applyAfterStyle(style);
 			}
 			if (br) {
-				// 通常のHTML経路と同じ改行を、未評価contentのまま保存する。
+				// Save the same line breaks as the normal HTML path, keeping content unevaluated.
 				style.set(Content.INFO, new net.zamasoft.foliojet.css.value.ValueListValue(
 						new net.zamasoft.foliojet.css.value.Value[] { new net.zamasoft.foliojet.css.value.StringValue("\n") }));
 				style.set(net.zamasoft.foliojet.css.impl.property.box.Clear.INFO,
@@ -168,7 +168,7 @@ public final class RunningCapture {
 				declaration.applyProperties(style);
 			}
 			if (Display.get(style) != DisplayValue.NONE && !this.hasElementContent(style)) {
-				// 通常の子と同じ入口を通し、running疑似要素も独立登録する。
+				// Use the same entry point as normal children; register running pseudo-elements independently too.
 				this.start(style);
 				this.end();
 			}

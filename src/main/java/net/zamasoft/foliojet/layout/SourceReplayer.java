@@ -25,23 +25,21 @@ import net.zamasoft.foliojet.layout.segment.SegmentExecutor;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
- * レイアウトソースの再生ドライバです(M6b v3)。
+ * A layout-source replay driver (M6b v3).
  *
  * <p>
- * 改ページ残余のうち「丸ごと次ページへ移動した閉じた部分木」を、
- * LayoutSource の記録から再スタイルなしで再レイアウトします。
- * ライブの StyleBuilder/DocumentBuilder の状態には一切触れず、
- * 新品の DocumentBuilder を既存のルートビルダーへ向けて駆動します
- * (doc プロトコルの対称性 pop→open→push が新品の unitizer 上で
- * 完結するため、v1 の再入クラッシュは構造的に起きません)。
- * ボックスは記録済みの params/pos から再インスタンス化されるため、
- * 新しいページ文脈(利用可能幅・フロート)で完全に再レイアウトされます。
+ * Relays out closed subtrees moved wholly to the next page among page-break remainders,
+ * using LayoutSource records without restyling. Drives a fresh DocumentBuilder toward
+ * an existing root builder without touching the live StyleBuilder/DocumentBuilder state.
+ * The doc protocol's symmetric pop→open→push sequence completes on a fresh unitizer,
+ * structurally preventing v1's reentrancy crash. Boxes are reinstantiated from recorded
+ * params/pos and therefore fully relaid out in the new page context (available width and floats).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class SourceReplayer {
-	/** 再生の全期間にわたりRootの平行移動を禁止する例外安全なスコープです。 */
+	/** An exception-safe scope that prohibits Root translation throughout replay. */
 	private static final class TranslateBlockScope implements AutoCloseable {
 		private final RootBuilder root;
 
@@ -60,33 +58,29 @@ public final class SourceReplayer {
 		}
 	}
 
-	/**
-	 * 閉部分木のソース再生の発火計測です(移行カバレッジの証明・診断用)。
-	 */
+	/** Counts activations of source replay for closed subtrees (proof of migration coverage and diagnostics). */
 	public static final AtomicLong SUBTREE_REPLAYS = new AtomicLong();
 
 	/**
-	 * 吸収済み再生範囲(C1c prefixItems)経由の発火計測です
-	 * (SUBTREE_REPLAYS の内数。ボックス運搬なしの経路が実際に
-	 * 通っていることの移行カバレッジ)。
+	 * Counts activations through absorbed replay ranges (C1c prefixItems).
+	 * A subset of SUBTREE_REPLAYS, providing migration coverage that the path without box transport
+	 * is actually exercised.
 	 */
 	public static final AtomicLong PREFIX_REPLAYS = new AtomicLong();
 
-	/**
-	 * カラムバランスのソース再生の発火計測です(M6c)。
-	 */
+	/** Counts activations of source replay for column balancing (M6c). */
 	public static final AtomicLong BALANCE_REPLAYS = new AtomicLong();
 
 	/**
-	 * 現在のスレッドで駆動中の部分木範囲です(2026-08-23)。
+	 * Subtree ranges currently being replayed on this thread (2026-08-23).
 	 *
 	 * <p>
-	 * 再生した部分木が駆動完了前に改ページすると、継続側に同じ
-	 * SourceAnchorが再付与された新品の箱が現れ、その範囲がもう一度
-	 * 刻印・再生される。再開位置が部分木のStartまで巻き戻り、同じ内容を
-	 * ページごとに作り直す(v2生成器 seed 30: 匿名セル入りの縦書き表が
-	 * 34ページに複製された)。同じ範囲への再入だけを拒否し、呼び出し側の
-	 * box-restyleフォールバック(replayFromSource==false)へ戻す。
+	 * If a replayed subtree triggers a page break before replay completes, a fresh box with the same
+	 * SourceAnchor reattached appears in the continuation, and that range is stamped and replayed again.
+	 * The resume position rewinds to the subtree's Start, recreating the same content on every page
+	 * (v2 generator seed 30: a vertical-writing table with anonymous cells was duplicated over 34 pages).
+	 * Rejects only reentry into the same range, returning to the caller's box-restyle fallback
+	 * (replayFromSource==false).
 	 * </p>
 	 */
 	private record ActiveReplay(LayoutSource source, long fromId, long toId) {
@@ -99,47 +93,43 @@ public final class SourceReplayer {
 	}
 
 	/**
-	 * capture 済み範囲のイベントを doc へそのまま再駆動します
-	 * (共有ドライバ)。slice は検証済みの streaming ビュー(リース付き。
-	 * E-6増分3a)のため、駆動中の入れ子改ページによる compact の影響を
-	 * 受けません(未読範囲はリースが守る)。
+	 * Replays events from a captured range directly into doc (shared driver).
+	 * The slice is a validated streaming view with a lease (E-6 increment 3a), so compaction
+	 * from nested page breaks during replay cannot affect it; the lease protects unread ranges.
 	 *
 	 * <p>
-	 * E-6増分3b-1(2026-07-24): 駆動本体(ボックス構築・SourceAnchor
-	 * 再付与・Chars の fresh copy 駆動)は
-	 * {@link SegmentExecutor} へ一元化した。E-6増分3b-6: live型
-	 * ({@code ReplacedLive})の撤去により過渡の {@code executeLive}
-	 * 経路も撤去され、{@code LayoutSource.Event} をオンザフライで
-	 * {@link SegmentEvent} へ変換して単一の
-	 * {@link SegmentExecutor#execute(SegmentEvent)} で駆動する。
-	 * 範囲に {@code Opaque} が
-	 * 含まれる場合は Barrier 変換 → execute が即時失敗する——適格判定
-	 * ({@code containsOpaque})は呼び出し側の契約。
+	 * E-6 increment 3b-1 (2026-07-24): centralized execution (box construction, SourceAnchor
+	 * reattachment, and replay with fresh Chars copies) in {@link SegmentExecutor}.
+	 * E-6 increment 3b-6: removing the live type ({@code ReplacedLive}) also removed the transitional
+	 * {@code executeLive} path. Converts {@code LayoutSource.Event} to {@link SegmentEvent}
+	 * on the fly and drives everything through the single {@link SegmentExecutor#execute(SegmentEvent)}.
+	 * If a range contains {@code Opaque}, conversion to Barrier followed by execute fails immediately;
+	 * eligibility checking ({@code containsOpaque}) is the caller's contract.
 	 * </p>
 	 */
 	private static void drive(final DocumentBuilder doc, final LayoutSource.ReplaySlice slice) {
-		// slice の EventId は fromId からの連番(capture が検証済み)。
-		// 再生インスタンスにはイベントIDから SourceAnchor を再付与する
-		// (P0: アンカーはボックス個体に属する — 次の破断で再び
-		// 再生可能になるための系譜)
+		// Slice EventIds are consecutive from fromId (validated by capture).
+		// Reattach SourceAnchor to replay instances from event IDs
+		// (P0: anchors belong to individual boxes, providing the lineage
+		// needed to make them replayable again at the next break).
 		final SegmentExecutor executor = new SegmentExecutor(doc, slice.fromId());
 		slice.replay(event -> executor.execute(LayoutSourceEventConverter.convert(event)));
 	}
 
 	/**
-	 * ログ範囲を scratch ページへ再生し、実レイアウトで計測します(M2c)。
-	 * ライブの状態には一切触れず、新品のボックス木を作って測るため、
-	 * 何度でも・任意の寸法で呼べます。
+	 * Replays a log range into scratch pages and measures through actual layout (M2c).
+	 * Creates and measures a fresh box tree without touching live state, so it can be called
+	 * repeatedly with arbitrary dimensions.
 	 *
-	 * @param log      ソースログ
-	 * @param fromId   範囲の先頭 EventId
-	 * @param toId     範囲の末尾 EventId
-	 * @param template 書体等を引き継ぐ計算済みパラメータ
-	 * @param ua       ユーザーエージェント
-	 * @param width    scratch ページ幅(max-content 測定は十分大きな値)
-	 * @param height   scratch ページ高さ
-	 * @param paginate 破断を許すか(収まりのプローブは true、寸法測定は false)
-	 * @return 測定結果を保持する生成器(最終ページ・ページ数)
+	 * @param log      the source log
+	 * @param fromId   the first EventId in the range
+	 * @param toId     the last EventId in the range
+	 * @param template computed parameters supplying fonts, etc.
+	 * @param ua       the user agent
+	 * @param width    the scratch page width (sufficiently large for max-content measurement)
+	 * @param height   the scratch page height
+	 * @param paginate whether to allow breaks (true for fit probes, false for size measurement)
+	 * @return the generator holding measurement results (last page and page count)
 	 */
 	public static MeasurePageGenerator measure(final LayoutSource log, final long fromId, final long toId,
 			final BlockParams template, final net.zamasoft.foliojet.ua.UserAgent ua, final double width,
@@ -160,14 +150,14 @@ public final class SourceReplayer {
 		if (!paginate) {
 			doc.setPageMode(DocumentBuilder.PAGE_MODE_NO_BREAK);
 		}
-		// 子範囲を裸のまま scratch ページ直下へ流すと、フロート等が
-		// ページボックスに係留されようとして壊れる。元のブロックに相当する
-		// ラッパーブロックで包んで、係留文脈を通常構築と同型にする
+		// Feeding a bare child range directly under a scratch page breaks when floats, etc.
+		// try to anchor to the page box. Enclose it in a wrapper block corresponding
+		// to the original block, making the anchoring context match normal construction.
 		doc.startBox(createMeasureWrapper(template));
 		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
 		if (slice == null) {
-			// 計測はフォールバック経路を持たない(範囲は呼び出し側が
-			// 生きているうちに確定させる契約)
+			// Measurement has no fallback path (the caller must determine the range
+			// while it is still live).
 			throw new IllegalStateException("measure range is not intact: [" + fromId + ", " + toId + "]");
 		}
 		try (slice) {
@@ -178,7 +168,7 @@ public final class SourceReplayer {
 		return pg;
 	}
 
-	/** 子範囲の外にあるGrid/FlexのStartに相当する配置文脈も復元します。 */
+	/** Also restores the placement context corresponding to a Grid/Flex Start outside the child range. */
 	private static FlowBlockBox createMeasureWrapper(final BlockParams template) {
 		final BlockParams common = createMeasureWrapperParams(template);
 		if (template instanceof GridParams grid) {
@@ -189,14 +179,14 @@ public final class SourceReplayer {
 		if (template instanceof FlexParams flex) {
 			final FlexParams params = FlexParamsTemplate.freeze(flex).materialize();
 			BlockParamsTemplate.freeze(common).materializeInto(params);
-			// columnの適格性と配置に必要な主軸寸法は保持する。行寸法・枠は中立。
+			// Retain main-axis sizes needed for column eligibility and placement. Neutralize inline size and frame.
 			params.size = net.zamasoft.foliojet.layout.box.params.Dimension.create(
 					flex.flow.isVertical() ? flex.size.getWidth() : 0,
 					flex.flow.isVertical() ? 0 : flex.size.getHeight(),
 					flex.flow.isVertical() ? flex.size.getWidthType() : net.zamasoft.foliojet.layout.box.params.LengthType.AUTO,
 					flex.flow.isVertical() ? net.zamasoft.foliojet.layout.box.params.LengthType.AUTO : flex.size.getHeightType());
 			if (!flex.flexDirection.isRow() && flex.flexWrap.isWrap()) {
-				// column wrapは両軸definiteが適格条件。中立化でcoordinatorを失わない。
+				// column wrap requires both axes to be definite. Do not lose the coordinator through neutralization.
 				params.size = flex.size;
 			}
 			return new FlexBox(params, new FlowPos());
@@ -204,7 +194,7 @@ public final class SourceReplayer {
 		return new FlowBlockBox(common, new FlowPos());
 	}
 
-	/** scratch 再生を包む匿名ブロックへ、元のテキスト文脈を写します。 */
+	/** Copies the original text context into the anonymous block wrapping scratch replay. */
 	static BlockParams createMeasureWrapperParams(final BlockParams template) {
 		final BlockParams wrapperParams = new BlockParams();
 		wrapperParams.fontStyle = template.fontStyle;
@@ -215,18 +205,19 @@ public final class SourceReplayer {
 		wrapperParams.direction = template.direction;
 		wrapperParams.unicodeBidi = template.unicodeBidi;
 		wrapperParams.bidiSemanticAlias = template.bidiSemanticAlias;
-		// ラッパー直下へ裸のテキストが流れると、そのテキスト状態は行頭で
-		// ラッパーの params から取り直される(BuilderGlyphHandler)。元
-		// ブロックのテキスト組版パラメータを写さないと autospace や
-		// letter-spacing が脱落し、実測が模倣計測より痩せて折返しを誤る
-		// (kabutan「2,980.0円」2026-08-08)。組版に効く継承フィールドを写す
+		// When bare text flows directly under the wrapper, its text state is reloaded from
+		// the wrapper's params at line start (BuilderGlyphHandler). Without copying
+		// the original block's text-layout parameters, autospace or letter-spacing
+		// is lost, making actual measurement narrower than simulated measurement and causing wrong wraps
+		// (kabutan "2,980.0円", 2026-08-08). Copy inherited fields that affect layout.
 		wrapperParams.letterSpacing = template.letterSpacing;
 		wrapperParams.wordSpacing = template.wordSpacing;
 		wrapperParams.textTransform = template.textTransform;
 		wrapperParams.whiteSpace = template.whiteSpace;
 		wrapperParams.wordWrap = template.wordWrap;
 		wrapperParams.textWrapStyle = template.textWrapStyle;
-		// T5b(2026-09-06): strut 規約も写す。写さないとラッパー直下の atomic 行が MAIN と違う高さで実測される(codex レビュー P2)
+		// T5b (2026-09-06): also copy the strut convention; otherwise, atomic lines directly under the wrapper
+		// measure at a different height from MAIN (codex review P2).
 		wrapperParams.strictLineBox = template.strictLineBox;
 		wrapperParams.tabSize = template.tabSize;
 		wrapperParams.tabSizeIsMultiple = template.tabSizeIsMultiple;
@@ -256,15 +247,15 @@ public final class SourceReplayer {
 	}
 
 	/**
-	 * 子範囲の再駆動({@link #replayChildren})が可能かを判定します
-	 * (2026-07-24分離、排除域P2のM6c-2——バランスの実プローブが反復の前に
-	 * 一度だけ検査するため。判定条件は従来の{@code replayChildren}冒頭と
-	 * 完全に同一)。
+	 * Determines whether child-range replay ({@link #replayChildren}) is possible.
+	 * Extracted on 2026-07-24, M6c-2 of exclusion area P2, so actual balancing probes
+	 * can check once before iteration. Conditions are exactly the same as the former
+	 * checks at the beginning of {@code replayChildren}.
 	 *
-	 * @param log    ソースログ
-	 * @param selfId 親ボックスの Start の EventId
-	 * @param flow   再生先の書字方向
-	 * @return 再駆動可能なら true
+	 * @param log    the source log
+	 * @param selfId the EventId of the parent box's Start
+	 * @param flow   the destination writing direction
+	 * @return true if replay is possible
 	 */
 	public static boolean canReplayChildren(final LayoutSource log, final long selfId,
 			final net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
@@ -273,24 +264,24 @@ public final class SourceReplayer {
 		}
 		if (log.get(selfId) instanceof LayoutSource.Start start
 				&& start.recipe() instanceof net.zamasoft.foliojet.layout.segment.BoxRecipe.PlacedTable) {
-			// 配置宿主の子は表構造。TABLE Startを含めて表ビルダーを開く必要がある。
+			// The placement host's children are table structure. Include TABLE Start to open the table builder.
 			return false;
 		}
 		final long endId = log.endOf(selfId);
 		if (endId < 0 || endId <= selfId + 1) {
 			return false;
 		}
-		// フロート・絶対配置の係留、入れ子段組・縦横混在の再現は未検証の
-		// ためフォールバック(絶対配置は増分4e以前はOpaque記録で
-		// containsOpaqueが捕捉していた——挙動維持のゲート分離)。
-		// 表(表セット、2026-07-30): recipe記録化以前はOpaque記録で
-		// containsOpaqueが捕捉していた。バランス再駆動での表全体再構築
-		// (auto列幅の再確定を含む)は未検証のため、表専用のゲートで
-		// 従来挙動を維持する(MeasuredIntrinsicsと同型)。
-		// containsCaption(caption recipe化C1): 表根(restyleItem case TABLEの
-		// 直接replay)の内容にキャプションが現れうる——containsTableは入れ子
-		// 表しか見ないため、recipe化後はここで明示的に弾く(C2の
-		// context-complete検証で解禁するまでrouting不変)
+		// Fall back because float/absolute anchoring, nested multi-column layout,
+		// and mixed writing directions are unverified (before increment 4e, absolute positioning
+		// was recorded as Opaque and caught by containsOpaque; separate the gate to preserve behavior).
+		// Tables (table set, 2026-07-30): before recipe recording, they were recorded as Opaque
+		// and caught by containsOpaque. Rebuilding entire tables during balancing replay,
+		// including recalculating auto column widths, is unverified, so a table-specific gate
+		// preserves previous behavior (the same form as MeasuredIntrinsics).
+		// containsCaption (caption recipes C1): captions can appear in a table root's contents
+		// (direct replay in restyleItem case TABLE). containsTable sees only nested tables,
+		// so explicitly reject them here after recipe conversion (routing remains unchanged
+		// until C2's context-complete validation permits them).
 		return !(log.containsOpaque(selfId + 1, endId - 1) || log.observeCaptionGate(selfId + 1, endId - 1)
 				|| log.containsTable(selfId + 1, endId - 1)
 				|| log.containsFloat(selfId + 1, endId - 1) || log.containsAbsolute(selfId + 1, endId - 1)
@@ -298,15 +289,15 @@ public final class SourceReplayer {
 	}
 
 	/**
-	 * 閉じたブロックの「子イベント範囲」を指定ビルダーへ再駆動します
-	 * (M6c: カラムバランス。multicol は endFlowBlock 時点で閉部分木
-	 * なので、その内容をソースから ColumnBuilder へ再構築できる)。
+	 * Replays a closed block's child-event range into the specified builder
+	 * (M6c: column balancing; multicol is a closed subtree at endFlowBlock, so its contents
+	 * can be rebuilt from source into ColumnBuilder).
 	 *
-	 * @param log        ソースログ
-	 * @param selfId     ブロック自身の StartBlock の EventId
-	 * @param target     再生先ビルダー(ColumnBuilder 等)
-	 * @param pageGenerator ページ生成器
-	 * @return 再駆動できた場合 true(範囲不明・Opaque 含みは false)
+	 * @param log        the source log
+	 * @param selfId     the EventId of the block's own StartBlock
+	 * @param target     the destination builder (ColumnBuilder, etc.)
+	 * @param pageGenerator the page generator
+	 * @return true if replay succeeds (false for missing ranges or ranges containing Opaque)
 	 */
 	public static boolean replayChildren(final LayoutSource log, final long selfId, final BlockBuilder target,
 			final PageGenerator pageGenerator) {
@@ -317,7 +308,7 @@ public final class SourceReplayer {
 		if (endId >= pageGenerator.getDeliveredEventEnd()) return false;
 		final LayoutSource.ReplaySlice slice = log.capture(selfId + 1, endId - 1);
 		if (slice == null) {
-			// 範囲が欠けていればボックス再生へフォールバック
+			// Fall back to box replay if the range is incomplete.
 			return false;
 		}
 		try (TranslateBlockScope scope = new TranslateBlockScope(target)) {
@@ -329,15 +320,15 @@ public final class SourceReplayer {
 		return true;
 	}
 
-	/** 子範囲を直接指定する既存の再生入口。リースの所有・終端は呼び出し側が担います。 */
+	/** The existing replay entry point specifying a child range directly. The caller owns and closes the lease. */
 	public static void bindTwoPassRange(final LayoutSource log, final long fromId, final long toId,
 			final BlockBuilder target, final PageGenerator pageGenerator) {
 		bindTwoPassRange(log, fromId, toId, target, pageGenerator, ReplayIntent.current());
 	}
 
 	/**
-	 * MEASUREでは新品のDocumentBuilderを駆動し、その間に取得した一時リースを
-	 * finallyで破棄します。呼び出し元のセルハンドルのリースは所有しません。
+	 * For MEASURE, drives a fresh DocumentBuilder and releases temporary leases acquired during replay
+	 * in finally. Does not own the lease of the caller's cell handle.
 	 */
 	public static void bindTwoPassRange(final LayoutSource log, final long fromId, final long toId,
 			final BlockBuilder target, final PageGenerator pageGenerator, final ReplayIntent intent) {
@@ -349,13 +340,13 @@ public final class SourceReplayer {
 		bindTwoPassRange(slice, target, pageGenerator, intent);
 	}
 
-	/** 本体のリース付きビューと、セルの不変文字sliceを同じドライバで再生する。 */
+	/** Replays the body's leased view and the cell's immutable character slice with the same driver. */
 	public static void bindTwoPassRange(final LayoutSource.ReplaySlice slice,
 			final BlockBuilder target, final PageGenerator pageGenerator, final ReplayIntent intent) {
-		// -Dfoliojet.debug.floatTrace=1 で浮動体の一生を追う(2026-08-03新設)。
-		// 「入れ子の浮動体で内容が消える」
-		// (files/fuzz-repro/nested-float-content-loss.html)の切り分けに使った
-		// ——受理(BlockBuilder)・配置・再生(Floatings)と対で読むこと。
+		// Trace float lifetimes with -Dfoliojet.debug.floatTrace=1 (added on 2026-08-03).
+		// Used to diagnose content loss in nested floats
+		// (files/fuzz-repro/nested-float-content-loss.html).
+		// Read alongside acceptance (BlockBuilder), placement, and replay (Floatings) traces.
 		if (DebugFlags.FLOAT_TRACE) {
 			final StringBuilder where = new StringBuilder();
 			final StackTraceElement[] st = new Throwable().getStackTrace();
@@ -377,17 +368,17 @@ public final class SourceReplayer {
 	}
 
 	/**
-	 * [fromId, toId] の閉じた部分木列を再駆動します。
-	 * 範囲は Opaque を含まないこと(呼び出し側が containsOpaque で検査)。
+	 * Replays the sequence of closed subtrees in [fromId, toId].
+	 * The range must not contain Opaque (checked by the caller with containsOpaque).
 	 *
-	 * @param log           ソースログ
-	 * @param fromId        先頭 StartBlock の EventId
-	 * @param toId          対応する EndBlock の EventId
-	 * @param rootBuilder   再生先のルートビルダー(現在のページ文脈)
-	 * @param pageGenerator ページ生成器
-	 * @return 再駆動した場合 true。範囲が欠けていれば駆動前に false
-	 *         (呼び出し側の契約: box フォールバックがある経路は false を
-	 *         フォールバックへ、ない経路(C1c prefix)は失敗にする)
+	 * @param log           the source log
+	 * @param fromId        the EventId of the first StartBlock
+	 * @param toId          the EventId of the corresponding EndBlock
+	 * @param rootBuilder   the destination root builder (current page context)
+	 * @param pageGenerator the page generator
+	 * @return true if replay occurs; false before execution if the range is incomplete
+	 *         (caller contract: paths with a box fallback route false to it;
+	 *         paths without one (C1c prefix) treat false as a failure)
 	 */
 	public static boolean replay(final LayoutSource log, final long fromId, final long toId,
 			final BlockBuilder rootBuilder, final PageGenerator pageGenerator) {
@@ -396,8 +387,8 @@ public final class SourceReplayer {
 		if (active != null) {
 			for (final ActiveReplay replay : active) {
 				if (replay.source() == log && replay.fromId() == fromId && replay.toId() == toId) {
-					// 駆動中の範囲への再入(ACTIVE_REPLAYSのコメント参照)。
-					// 呼び出し側が保持している箱をrestyle/addBoundする
+					// Reentry into a range currently being replayed (see the ACTIVE_REPLAYS comment).
+					// The caller restyles/addBounds its retained box.
 					return false;
 				}
 			}
@@ -406,16 +397,16 @@ public final class SourceReplayer {
 		if (slice == null) {
 			return false;
 		}
-		// 段組ゲートの再確認は capture の後(2026-07-27)。
-		// containsMulticol は「範囲が保持されていない」を判定不能として
-		// true に倒す(indexOf<0 で即 true)ため、compact で範囲が失われた
-		// だけの正常なフォールバックを invariant 違反と誤認していた
-		// (刻印〜消費の間に入れ子改ページが compact を走らせる。
-		// stampRanges 時点では段組なし・intact と確認済みで、範囲を失う
-		// ことは呼び出し側が想定している——RootBuilder.replayFromSource は
-		// ボックスを残しており box-restyle へ落ちる)。capture が成功した
-		// 後なら intact が保証されるので、ここでの true は本当に段組を
-		// 含んでいることを意味する
+		// Recheck the multi-column gate after capture (2026-07-27).
+		// containsMulticol treats an unretained range as indeterminate and returns
+		// true (immediately when indexOf<0), misclassifying a normal fallback
+		// caused only by compaction losing the range as an invariant violation.
+		// (Nested page breaks compact between stamping and consumption.
+		// stampRanges already verified that the range was intact and had no multi-column layout.
+		// The caller expects possible range loss: RootBuilder.replayFromSource
+		// retains boxes and falls back to box-restyle.) After capture succeeds,
+		// the range is guaranteed intact, so true here really means
+		// it contains multi-column layout.
 		assert !log.containsMulticol(fromId, toId) : "段組を含む範囲がソース再生されようとしました: [" + fromId + ", " + toId + "]";
 		if (active == null) {
 			active = new java.util.ArrayDeque<>();

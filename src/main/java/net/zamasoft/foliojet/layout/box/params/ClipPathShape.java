@@ -9,28 +9,25 @@ import java.awt.geom.RoundRectangle2D;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * {@code clip-path}の基本形状です(css-shapes-1、2026-08-22新設)。
+ * Basic {@code clip-path} shapes (css-shapes-1, added 2026-08-22).
  *
  * <p>
- * スタイル計算時に長さを{@link Length}(絶対/割合/混在)へ確定した形で
- * 保持し、描画時に参照ボックスの実寸で{@link #resolve}して
- * {@link java.awt.Shape}を得る。PDF側のクリップは任意形状に対応済み
- * ({@code PDFGC.applyClip}がPathIteratorをW/W*で書く)なので、
- * ここで作ったShapeはそのまま流れる。
+ * Stores lengths as {@link Length} (absolute/percentage/mixed), determined during style computation;
+ * at draw time, uses {@link #resolve} with the reference box's actual dimensions to obtain a
+ * {@link java.awt.Shape}. PDF clipping already supports arbitrary shapes
+ * ({@code PDFGC.applyClip} writes a PathIterator using W/W*), so the resulting Shape passes through as is.
  * </p>
  *
  * <p>
- * <b>第1弾の範囲</b>: {@code inset()}(roundつき、コーナー半径はx=y)・
- * {@code circle()}・{@code ellipse()}・{@code polygon()}と参照ボックス
- * 4種。{@code path()}は2026-08-29に追加({@link Path})。{@code url()}
- * 参照・インライン要素への適用は未対応(マニュアル5300参照)。
- * ページ跨ぎで分割されたボックスは
- * 断片ごとに自身の参照ボックスで解決する(仕様の「ボックス全体で1つの
- * 形状」とは異なる割り切り)。
+ * <b>Initial scope</b>: {@code inset()} (with round, corner radii x=y), {@code circle()},
+ * {@code ellipse()}, {@code polygon()}, and four reference box types. {@code path()} was added
+ * 2026-08-29 ({@link Path}). {@code url()} references and application to inline elements are
+ * unsupported (see manual 5300). Boxes split across pages resolve each fragment against its own
+ * reference box (an intentional tradeoff that differs from the specification's one shape for the whole box).
  * </p>
  */
 public abstract class ClipPathShape {
-	/** 参照ボックス(css-shapes-1の&lt;geometry-box&gt;のうちshape-box)。 */
+	/** Reference box (shape-box among css-shapes-1 &lt;geometry-box&gt; values). */
 	public enum ReferenceBox {
 		BORDER_BOX, PADDING_BOX, CONTENT_BOX, MARGIN_BOX
 	}
@@ -42,19 +39,19 @@ public abstract class ClipPathShape {
 	}
 
 	/**
-	 * 参照ボックスの実寸で形状を解決します。
+	 * Resolves the shape using the reference box's actual dimensions.
 	 *
-	 * @param x 参照ボックス左上のx(物理座標)
-	 * @param y 参照ボックス左上のy(物理座標)
-	 * @param w 参照ボックスの幅
-	 * @param h 参照ボックスの高さ
+	 * @param x x coordinate of the reference box's top-left corner (physical coordinates)
+	 * @param y y coordinate of the reference box's top-left corner (physical coordinates)
+	 * @param w reference box width
+	 * @param h reference box height
 	 */
 	public abstract Shape resolve(double x, double y, double w, double h);
 
 	/** {@code inset(top right bottom left round r1 r2 r3 r4)}。 */
 	public static final class Inset extends ClipPathShape {
 		private final Length top, right, bottom, left;
-		/** 角丸半径(TL, TR, BR, BL。x=y)。丸めなしはnull。 */
+		/** Corner radii (TL, TR, BR, BL; x=y). null for no rounding. */
 		private final Length[] radii;
 
 		public Inset(final ReferenceBox referenceBox, final Length top, final Length right, final Length bottom,
@@ -78,11 +75,11 @@ public abstract class ClipPathShape {
 			if (this.radii == null) {
 				return new Rectangle2D.Double(x + l, y + t, rw, rh);
 			}
-			// 単一半径(TL)のみRoundRectangleへ、それ以外はパスで組む
+			// Only a single radius (TL) uses RoundRectangle; otherwise, construct a path.
 			final double[] rr = new double[4];
 			for (int i = 0; i < 4; ++i) {
-				// 半径の%は参照ボックスの対応軸だが、x=y簡略化に合わせて
-				// 短辺基準で解決する(css-shapesの厳密解釈との既知の差)
+				// Percentage radii refer to the corresponding reference-box axis, but to match
+				// the x=y simplification, resolve against the shorter side (a known difference from strict css-shapes).
 				rr[i] = Math.max(0, LayoutUtils.computeLength(this.radii[i], Math.min(rw, rh)));
 				rr[i] = Math.min(rr[i], Math.min(rw, rh) / 2);
 			}
@@ -93,10 +90,10 @@ public abstract class ClipPathShape {
 		}
 	}
 
-	/** 4隅の半径(x=y)つき角丸矩形パス。 */
+	/** Rounded-rectangle path with radii at all four corners (x=y). */
 	static Shape roundedRectPath(final double x, final double y, final double w, final double h, final double[] rr) {
 		final Path2D.Double p = new Path2D.Double();
-		final double k = 0.5522847498; // 円弧の3次ベジェ近似係数
+		final double k = 0.5522847498; // Coefficient for cubic Bezier approximation of an arc
 		p.moveTo(x + rr[0], y);
 		p.lineTo(x + w - rr[1], y);
 		if (rr[1] > 0) {
@@ -118,9 +115,9 @@ public abstract class ClipPathShape {
 		return p;
 	}
 
-	/** {@code circle(r at cx cy)}。半径キーワードはr==nullで表す。 */
+	/** {@code circle(r at cx cy)}. r==null represents a radius keyword. */
 	public static final class Circle extends ClipPathShape {
-		/** null=キーワード(closestSideで判別)。 */
+		/** null = keyword (distinguished by closestSide). */
 		private final Length radius;
 		private final boolean farthestSide;
 		private final Length cx, cy;
@@ -140,7 +137,7 @@ public abstract class ClipPathShape {
 			final double py = LayoutUtils.computeLength(this.cy, h);
 			final double r;
 			if (this.radius != null) {
-				// %の基準はsqrt(w^2+h^2)/sqrt(2)(css-shapes-1 §3.1.1)
+				// Percentages refer to sqrt(w^2+h^2)/sqrt(2) (css-shapes-1 §3.1.1).
 				r = LayoutUtils.computeLength(this.radius, Math.sqrt(w * w + h * h) / Math.sqrt(2));
 			} else if (this.farthestSide) {
 				r = Math.max(Math.max(px, w - px), Math.max(py, h - py));
@@ -211,8 +208,8 @@ public abstract class ClipPathShape {
 	}
 
 	/**
-	 * {@code path("...")}(2026-08-29)。SVGパスデータをpx座標のまま保持し、
-	 * 描画時に参照ボックス左上へ平行移動しpx→pt倍率を掛ける。
+	 * {@code path("...")} (2026-08-29). Stores SVG path data in px coordinates; at draw time,
+	 * translates it to the reference box's top-left corner and applies the px → pt scale.
 	 */
 	public static final class Path extends ClipPathShape {
 		private final boolean evenOdd;
@@ -238,7 +235,7 @@ public abstract class ClipPathShape {
 		}
 	}
 
-	/** 形状なし(参照ボックスだけの指定、例: {@code clip-path: content-box})。 */
+	/** No shape (reference box only, e.g., {@code clip-path: content-box}). */
 	public static final class BoxOnly extends ClipPathShape {
 		public BoxOnly(final ReferenceBox referenceBox) {
 			super(referenceBox);

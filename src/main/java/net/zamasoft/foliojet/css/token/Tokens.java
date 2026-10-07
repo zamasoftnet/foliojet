@@ -23,7 +23,7 @@ import com.helger.css.decl.ICSSExpressionMathMember;
 import com.helger.css.decl.ICSSExpressionMember;
 
 /**
- * ph-css の式(CSSExpression)を {@link CssToken} 列に変換します。
+ * Converts ph-css expressions (CSSExpression) to {@link CssToken} sequences.
  */
 public final class Tokens {
 	private Tokens() {
@@ -31,18 +31,18 @@ public final class Tokens {
 	}
 
 	/**
-	 * 関数呼び出しの入れ子段数の上限。{@code fromExpression}/{@code convert}は
-	 * 関数の引数を再帰的にトークン化する(ph-cssの式木の構造上、この境界だけは
-	 * 既存コードから再帰を使っている——CSS作者が実際に書いた構文の入れ子段数
-	 * そのものであり、HTML文書のような外部データ由来の非有界な深さとは性質が
-	 * 異なる)。calc()/min()/max()/clamp()の追加で入れ子が実際に踏まれやすく
-	 * なったため、明示的な上限で安全弁を設ける(2026-07-19、外部レビューで
-	 * 指摘)。
+	 * Maximum function-call nesting depth. {@code fromExpression}/{@code convert}
+	 * recursively tokenize function arguments (the structure of ph-css expression trees
+	 * requires the existing recursion at this boundary: this is the syntax nesting depth
+	 * actually written by the CSS author, unlike unbounded depth from external data such
+	 * as HTML documents). Adding calc()/min()/max()/clamp() made nesting more likely in
+	 * practice, so impose an explicit limit as a safeguard (noted in an external review,
+	 * 2026-07-19).
 	 */
 	private static final int MAX_NESTING_DEPTH = 64;
 
 	/**
-	 * 式をトークン列に変換します。空の式は空リストを返します。
+	 * Converts an expression to tokens. Returns an empty list for an empty expression.
 	 */
 	public static List<CssToken> fromExpression(CSSExpression expression) {
 		return fromExpression(expression, 0);
@@ -53,7 +53,7 @@ public final class Tokens {
 			return Collections.emptyList();
 		}
 		if (depth > MAX_NESTING_DEPTH) {
-			// 深すぎる入れ子は無視する(安全弁。実用的なCSSでは到達しない)
+			// Ignore excessively deep nesting (safeguard; practical CSS does not reach it)
 			return Collections.emptyList();
 		}
 		List<CssToken> tokens = new ArrayList<CssToken>();
@@ -87,38 +87,37 @@ public final class Tokens {
 			}
 		}
 		if (member instanceof CSSExpressionMemberLineNames lineNames) {
-			// Gridの行名[a b](2026-08-29。従来は未知メンバーとして捨てていた
-			// ——CssToken.LineNamesのjavadoc参照)
+			// Grid line names [a b] (2026-08-29; previously discarded as unknown members:
+			// see CssToken.LineNames Javadoc)
 			return new CssToken.LineNames(List.copyOf(lineNames.getAllMembers()));
 		}
 		if (member instanceof CSSExpressionMemberMath math) {
 			List<CssToken> rpn = convertCalc(math, depth);
-			// 解釈できない項を含む場合はcalc()全体を無効値として扱う(CssToken.Func自体は
-			// 返すが空引数にし、CalcValueUtils側で「評価不能」として処理する)
+			// Treat all of calc() as invalid if any term cannot be interpreted (still return CssToken.Func
+			// but with empty arguments, so CalcValueUtils handles it as unevaluable).
 			return new CssToken.Func("calc", rpn != null ? rpn : Collections.emptyList());
 		}
-		// 未知のメンバーは無視する
+		// Ignore unknown members
 		return null;
 	}
 
 	/**
-	 * calc() の数式木(ph-cssの{@link CSSExpressionMemberMath})を、逆ポーランド記法
-	 * (RPN)の{@link CssToken}列に変換します。
+	 * Converts the calc() expression tree (ph-css {@link CSSExpressionMemberMath}) to
+	 * {@link CssToken} tokens in reverse Polish notation (RPN).
 	 * <p>
-	 * {@link CSSExpressionMemberMath}(和のレベル)・{@link CSSExpressionMemberMathProduct}
-	 * (積のレベル)・{@link CSSExpressionMemberMathUnitProduct}(丸括弧で明示的に
-	 * グループ化された積)・入れ子の{@link CSSExpressionMemberMath}(ネストしたcalc())は
-	 * いずれも「[被演算項, 演算子, 被演算項, ...]」という平坦なメンバー列を持つ点で
-	 * 同型であるため、単一の反復ループ(明示的スタック上の{@link Frame})で
-	 * 中置記法から後置記法への変換ができる(このメソッド自身の呼び出し中に
-	 * 再帰は使わない。{@link Frame}がJavaの呼び出しスタックの代わりを果たす)。
-	 * 関数呼び出し(var()・min()等)がcalc()の項として現れる場合は、その関数自体を
-	 * 1つの不透明な項(CssToken.Func)として葉ノード扱いする(関数の引数自体の変換は
-	 * 既存の{@link #fromExpression}に委譲する——通常の関数引数はcalc()のような
-	 * 深い数式木にはならないため、既存コードの再帰は変更しない)。
+	 * {@link CSSExpressionMemberMath} (sum level), {@link CSSExpressionMemberMathProduct}
+	 * (product level), {@link CSSExpressionMemberMathUnitProduct} (product explicitly
+	 * grouped by parentheses), and nested {@link CSSExpressionMemberMath} (nested calc())
+	 * all have the same structure: a flat [operand, operator, operand, ...] member sequence.
+	 * A single iterative loop ({@link Frame} on an explicit stack) can therefore convert
+	 * infix to postfix notation (no recursion within this method; {@link Frame} replaces
+	 * the Java call stack). If a function call (var(), min(), etc.) occurs as a calc() term,
+	 * treat the function itself as one opaque leaf (CssToken.Func). Delegate conversion
+	 * of its arguments to the existing {@link #fromExpression}: ordinary function arguments
+	 * do not form deep expression trees like calc(), so keep the existing recursion.
 	 * </p>
 	 *
-	 * @return 変換に失敗した場合(未知の項がある場合)はnull
+	 * @return null if conversion fails (an unknown term is present)
 	 */
 	private static List<CssToken> convertCalc(CSSExpressionMemberMath math, int depth) {
 		Deque<Frame> stack = new ArrayDeque<Frame>();
@@ -176,7 +175,7 @@ public final class Tokens {
 		}
 	}
 
-	/** {@link #convertCalc}が使う、明示的スタック上の1フレーム(再帰呼び出し1段分に相当)。 */
+	/** One explicit-stack frame used by {@link #convertCalc} (equivalent to one recursive call level). */
 	private static final class Frame {
 		final Iterator<? extends ICSSExpressionMathMember> it;
 		final List<CssToken> out = new ArrayList<CssToken>();
@@ -187,7 +186,7 @@ public final class Tokens {
 		}
 	}
 
-	/** 子フレームで完成した1つの被演算項の後置記法列を、親フレームの出力へ合流させる。 */
+	/** Merges the postfix sequence for one operand completed by a child frame into the parent frame's output. */
 	private static void receiveOperand(Frame frame, List<CssToken> operandRpn) {
 		frame.out.addAll(operandRpn);
 		if (frame.pendingOp != null) {
@@ -196,7 +195,7 @@ public final class Tokens {
 		}
 	}
 
-	/** calc()数式木の葉(数値項または関数呼び出し項)を{@link CssToken}に変換する。 */
+	/** Converts a calc() expression-tree leaf (numeric term or function-call term) to {@link CssToken}. */
 	private static CssToken convertMathLeaf(ICSSExpressionMathMember member, int depth) {
 		if (member instanceof CSSExpressionMemberMathUnitSimple simple) {
 			return parseNumber(simple.getText().trim());
@@ -242,9 +241,9 @@ public final class Tokens {
 	}
 
 	/**
-	 * 16進の色。3桁・6桁に加えて、CSS Color 4の<b>4桁・8桁(透明度つき)</b>
-	 * を受ける(2026-08-29)。{@code #RRGGBBAA}は実サイトで広く使われ、
-	 * 落とすと背景色・文字色の宣言が丸ごと無効になっていた。
+	 * Hex colors. Accepts CSS Color 4 <b>four/eight-digit forms (with alpha)</b> as well as
+	 * three/six digits (2026-08-29). {@code #RRGGBBAA} is widely used on real sites;
+	 * dropping it previously invalidated entire background/text color declarations.
 	 */
 	private static CssToken parseHexColor(String value) {
 		final int[] rgba = hexOctets(value.substring(1));
@@ -252,7 +251,7 @@ public final class Tokens {
 			return null;
 		}
 		if (rgba[3] >= 0) {
-			// 実数表記のアルファは0〜1として読まれる(ColorValueUtils.toColorComponent)
+			// A real-number alpha value is read as 0–1 (ColorValueUtils.toColorComponent)
 			return new CssToken.Func("rgba", List.of(
 					new CssToken.Num(rgba[0], true),
 					new CssToken.Num(rgba[1], true),
@@ -266,12 +265,14 @@ public final class Tokens {
 	}
 
 	/**
-	 * 16進の色の桁(# を除いた 3・4・6・8 桁)を 0〜255 の {r, g, b, a} にします。透明度の桁が無ければ a は -1、
-	 * 桁数か字が違えば null。3・4 桁は各桁を 17 倍する(#abc = #aabbcc)。
+	 * Converts hex color digits (3/4/6/8 digits excluding #) to {r, g, b, a} in 0–255.
+	 * Without alpha digits, a is -1; invalid length or characters yield null.
+	 * For 3/4 digits, multiply each digit by 17 (#abc = #aabbcc).
 	 *
 	 * <p>
-	 * CSS の字句とHTMLの属性値({@code bgcolor} など、{@code ColorValueUtils.parseRGBHexColor})の唯一の定義
-	 * (2026-10-04。属性値の側は 3 桁を 17 倍せず、{@code bgcolor="#fff"} がほぼ黒になっていた)。
+	 * Single definition for CSS tokens and HTML attribute values ({@code bgcolor}, etc.,
+	 * {@code ColorValueUtils.parseRGBHexColor}) (2026-10-04: the attribute path did not
+	 * multiply three-digit values by 17, making {@code bgcolor="#fff"} almost black).
 	 * </p>
 	 */
 	public static int[] hexOctets(final String hex) {
@@ -330,7 +331,7 @@ public final class Tokens {
 		if (unitText.equals("%")) {
 			return new CssToken.Percent(number);
 		}
-		// 単位がCSS識別子でない場合は数値として扱わない
+		// Do not treat as a number if the unit is not a CSS identifier
 		for (int i = 0; i < unitText.length(); ++i) {
 			char c = Character.toLowerCase(unitText.charAt(i));
 			if ((c < 'a' || c > 'z') && c != '-' && c != '_' && (c < '0' || c > '9')) {
@@ -351,12 +352,14 @@ public final class Tokens {
 	}
 
 	/**
-	 * CSS のエスケープを解きます(CSS Syntax の「エスケープされた符号位置」)。16 進は最大 6 桁で、続く空白 1 つを区切り
-	 * として消費し、0・サロゲート・範囲外は U+FFFD にする。ほかの字は {@code \} を外してそのまま。
+	 * Decodes CSS escapes (CSS Syntax's "escaped code point"). Hex escapes have at most six
+	 * digits and consume one following whitespace delimiter; zero, surrogates, and out-of-range
+	 * values become U+FFFD. For other characters, simply remove {@code \}.
 	 *
 	 * <p>
-	 * 文字列・識別子・セレクタの唯一の定義(2026-10-04。3 か所の写しが範囲外の値・エスケープの後ろの空白を別々に扱い、
-	 * {@code "\FFFFFF"} やセレクタの {@code .\110000} は例外になっていた)。
+	 * Single definition for strings, identifiers, and selectors (2026-10-04: three copies
+	 * handled out-of-range values and whitespace after escapes differently;
+	 * {@code "\FFFFFF"} and selector {@code .\110000} threw exceptions).
 	 * </p>
 	 */
 	public static String unescape(final String s) {
@@ -391,7 +394,7 @@ public final class Tokens {
 		return buf.toString();
 	}
 
-	/** CSS の空白(改行の正規化の前の CR・FF を含む)です。 */
+	/** CSS whitespace (including CR/FF before newline normalization). */
 	private static boolean isWhiteSpace(final char c) {
 		return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
 	}

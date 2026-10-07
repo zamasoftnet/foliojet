@@ -7,9 +7,9 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.token.CssToken;
 
 /**
- * カスタムプロパティ(--name)の宣言です。通常のプロパティと異なり型検証を
- * 一切行わず、宣言値の生トークン列をそのまま保持します(var()の解決まで
- * 遅延するため。{@link DeferredProperty}参照)。
+ * A custom property (--name) declaration. Unlike ordinary properties, this performs
+ * no type validation and retains the declaration's raw token sequence unchanged
+ * (to defer processing until var() resolution; see {@link DeferredProperty}).
  *
  * @author MIYABE Tatsuhiko
  */

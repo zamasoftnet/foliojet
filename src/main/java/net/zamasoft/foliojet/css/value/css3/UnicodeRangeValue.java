@@ -5,8 +5,8 @@ import net.zamasoft.pdfg2d.gc.font.UnicodeRangeList;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
- * Unicode-Range です。
- * 
+ * Unicode-Range.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class UnicodeRangeValue implements Value {

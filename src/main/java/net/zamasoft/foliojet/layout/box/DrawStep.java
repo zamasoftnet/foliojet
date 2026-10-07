@@ -3,17 +3,17 @@ package net.zamasoft.foliojet.layout.box;
 import java.util.Deque;
 
 /**
- * {@link IBox#draw}の反復化(2026-07-20、ARCHITECTURE.md不変条件6。
- * finishLayoutと同じ理由でStackOverflowErrorを起こしていた)用の
- * ワークリスト単位です。
+ * A worklist unit for the iterative implementation of {@link IBox#draw}
+ * (2026-07-20, ARCHITECTURE.md invariant 6; it caused StackOverflowError for the same
+ * reason as finishLayout).
  *
  * <p>
- * draw系はfinishLayoutと違い、「局所処理→子へ委譲」という単純な二分割
- * ではなく、局所描画(テキストラン等)と子の描画が同一ループ内で
- * 交互に現れる箇所がある({@link AbstractTextBox#pushDrawSteps}等)。
- * このため各ボックス型は、自身が生成すべき手順(局所描画のクロージャ・
- * 子ボックスの手順)を元の実行順のまま組み立て、それを**逆順**で
- * {@code worklist}へpushする({@link IBox#pushDrawSteps}参照)。
+ * Unlike finishLayout, drawing is not a simple split into "local processing, then delegate
+ * to children": some loops alternate local drawing (such as text runs) with child drawing
+ * (e.g., {@link AbstractTextBox#pushDrawSteps}). Each box type therefore assembles its
+ * steps (local drawing closures and child box steps) in their original execution order,
+ * then pushes them onto {@code worklist} in **reverse order**
+ * (see {@link IBox#pushDrawSteps}).
  * </p>
  */
 @FunctionalInterface

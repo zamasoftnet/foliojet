@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.css.parser;
 import java.io.Reader;
 
 /**
- * CSSの入力ソース。
+ * A CSS input source.
  */
 public class InputSource {
 	private final Reader reader;

@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.css.value.BorderImageRepeatValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** {@code border-image-repeat} です。 */
+/** {@code border-image-repeat}. */
 public final class BorderImageRepeat extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BorderImageRepeat();
 

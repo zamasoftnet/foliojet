@@ -14,16 +14,16 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * outline-style 特性です(CSS UI 3 §4、2026-08-29)。値は
- * {@code auto | <outline-line-style>}(border-styleからhiddenを除いたもの)。
- * {@code auto}はUA任せのフォーカスリング表現なので、solidとして扱う。
+ * outline-style property (CSS UI 3 §4, 2026-08-29). Values are
+ * {@code auto | <outline-line-style>} (border-style without hidden).
+ * Treat {@code auto} as solid because it leaves focus ring rendering to the UA.
  *
  * @author MIYABE Tatsuhiko
  */
 public class OutlineStyle extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new OutlineStyle();
 
-	/** {@link net.zamasoft.foliojet.layout.box.params.Border}のスタイル定数を返します。 */
+	/** Returns a style constant from {@link net.zamasoft.foliojet.layout.box.params.Border}. */
 	public static short get(CSSStyle style) {
 		return ((BorderStyleValue) style.get(INFO)).getBorderStyle();
 	}
@@ -54,8 +54,8 @@ public class OutlineStyle extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * {@code auto | <outline-line-style>}を値に変換します。該当しなければnull。
-	 * outlineショートハンドと共用。
+	 * Converts {@code auto | <outline-line-style>} to a value. Returns null if it does not match.
+	 * Shared with the outline shorthand.
 	 */
 	public static BorderStyleValue toOutlineStyle(CssToken token) {
 		if (token instanceof CssToken.Ident ident && ident.lower().equals("auto")) {
@@ -63,7 +63,7 @@ public class OutlineStyle extends AbstractPrimitivePropertyInfo {
 		}
 		final BorderStyleValue value = BorderValueUtils.toBorderStyle(token);
 		if (value == BorderStyleValue.HIDDEN_VALUE) {
-			// hiddenはoutline-styleに存在しない
+			// hidden does not exist in outline-style.
 			return null;
 		}
 		return value;

@@ -10,15 +10,14 @@ import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 測定用のページ生成器です(M2c)。
+ * A page generator for measurement (M2c).
  *
  * <p>
- * 指定寸法の scratch ページを生成し、描画は何もしません。
- * ソースイベントの範囲を {@link SourceReplayer} でこの生成器へ再生する
- * ことで、実レイアウトによる計測(min/max-content、収まりのプローブ)を
- * ライブの状態に一切触れずに行えます。scratch 再生は新品のボックスを
- * 作るため、旧2パス計測が抱えていた「可変ボックスの共有・一回消費」の
- * 制約(M2 再ステージの原因)はここには存在しません。
+ * Generates scratch pages of the specified size without drawing. Replaying a range of source
+ * events into this generator via {@link SourceReplayer} allows measurement through actual layout
+ * (min/max-content and fit probes) without touching live state. Scratch replay creates fresh
+ * boxes, so it avoids the shared-mutable-box and single-consumption restrictions of the old
+ * two-pass measurement (the reason M2 was restaged).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -43,7 +42,7 @@ public final class MeasurePageGenerator implements PageGenerator {
 	private java.util.function.Consumer<PageMeasurement> pageObserver;
 	private java.util.function.LongConsumer compactionObserver;
 
-	/** draw時点の値。次のページや後着本文で書き換えません。 */
+	/** Values at draw time. Not modified by subsequent pages or bodies arriving later. */
 	record PageMeasurement(long generation, String pageName, boolean emitted, double innerWidth, double innerHeight,
 			net.zamasoft.foliojet.layout.box.params.WritingMode flow, double h0, java.util.Set<Long> callIds,
 			java.util.Map<Long, Double> heights, java.util.Set<Long> unmeasuredIds, boolean lastPage) { }
@@ -58,7 +57,7 @@ public final class MeasurePageGenerator implements PageGenerator {
 
 	@Override
 	public void compactLayoutSource(final long watermark) {
-		// Bの水位はpinの前進にだけ使う。主ログのcompactはCの要求に限る。
+		// Use B's watermark only to advance the pin. Compact the main log only at C's request.
 		if (this.compactionObserver != null) this.compactionObserver.accept(watermark);
 	}
 
@@ -73,25 +72,25 @@ public final class MeasurePageGenerator implements PageGenerator {
 	}
 
 	/**
-	 * 測定用ページ生成器を作ります。
+	 * Creates a page generator for measurement.
 	 *
-	 * @param ua       ユーザーエージェント
-	 * @param template 書体・書字方向等を引き継ぐ計算済みパラメータ
-	 * @param width    scratch ページの幅
-	 * @param height   scratch ページの高さ
+	 * @param ua       the user agent
+	 * @param template computed parameters supplying fonts, writing direction, etc.
+	 * @param width    the scratch page width
+	 * @param height   the scratch page height
 	 */
 	public MeasurePageGenerator(final UserAgent ua, final BlockParams template, final double width,
 			final double height) {
 		this(ua, template, width, height, null);
 	}
 
-	/** 再生元を借用します。scratch側から追記・compact・closeはしません。 */
+	/** Borrows the replay source. The scratch side does not append, compact, or close it. */
 	public MeasurePageGenerator(final UserAgent ua, final BlockParams template, final double width,
 			final double height, final LayoutSource layoutSource) {
 		this(ua, template, width, height, layoutSource, true);
 	}
 
-	/** マージンボックス・runningのミニレイアウトだけは文字会計から除外します。 */
+	/** Excludes only margin-box and running-element mini-layouts from character accounting. */
 	public MeasurePageGenerator(final UserAgent ua, final BlockParams template, final double width,
 			final double height, final LayoutSource layoutSource, final boolean countRetainedText) {
 		this.ua = ua;
@@ -110,7 +109,7 @@ public final class MeasurePageGenerator implements PageGenerator {
 		this.pageParams = params;
 	}
 
-	/** 生のtee専用。用紙の余白を含まない予約前の版面を複製します。 */
+	/** For the raw tee only. Duplicates the type area before reservations, excluding paper margins. */
 	MeasurePageGenerator(final UserAgent ua,
 			final net.zamasoft.foliojet.layout.segment.BlockParamsTemplate template,
 			final double width, final double height, final LayoutSource source) {
@@ -147,7 +146,10 @@ public final class MeasurePageGenerator implements PageGenerator {
 		return this.probeTemplate != null;
 	}
 
-	/** TwoPass本文のMEASURE bind完了後にだけ登録します。番号の解決・本番登録はしません。 */
+	/**
+	 * Registers only after MEASURE bind completes for a TwoPass body.
+	 * Does not resolve numbers or register for actual layout.
+	 */
 	public void measureFootnote(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox box) {
 		if (this.footnoteMeasurements != null && box.getParams().footnoteId >= 0) {
 			this.footnoteMeasurements.putIfAbsent(box.getParams().footnoteId,
@@ -155,7 +157,7 @@ public final class MeasurePageGenerator implements PageGenerator {
 		}
 	}
 
-	/** 再生可能な入力範囲とpending台帳の両方から外れた注だけを忘れます。 */
+	/** Forgets only notes outside both the replayable input range and the pending ledger. */
 	public void forgetFootnote(final long id) {
 		if (this.footnoteMeasurements != null) this.footnoteMeasurements.remove(id);
 	}
@@ -182,7 +184,7 @@ public final class MeasurePageGenerator implements PageGenerator {
 		this.pageName = this.pendingPageName;
 		final BlockParams params = this.probeTemplate == null ? this.pageParams : this.probeTemplate.materialize();
 		this.namedPageGeometry |= this.pageName != null;
-		// 無名だけの既存文書は初回幾何を維持する。名前遷移後は無名へ戻る場合も照会する。
+		// Unnamed-only documents keep initial geometry. After a named transition, query even returns to unnamed pages.
 		if (this.pageGeometry != null && this.namedPageGeometry) {
 			final var geometry = this.pageGeometry.apply(this.pageName, this.emittedPages);
 			params.size = Dimension.create(geometry.width(), geometry.height(), LengthType.ABSOLUTE, LengthType.ABSOLUTE);
@@ -196,8 +198,8 @@ public final class MeasurePageGenerator implements PageGenerator {
 
 	public boolean drawPage(final PageBox page, final boolean lastPage, final boolean closedByForcedBreak) {
 		if (!this.isFootnoteProbe()) return true;
-		// 描画はしない。本文・強制改頁・最後の一枚によるB自身の出力資格を記録する。
-		// 柱等はBに無いため、Cの出力有無と一致するという契約ではない。
+		// Do not draw. Record B's own output eligibility from body content, forced page breaks, and the final page.
+		// B lacks running headers, etc., so its output presence is not guaranteed to match C's.
 		final boolean paints = page.paintsAnything();
 		final boolean emitted = !(page.isNamedTransitionClosed() && !paints)
 				&& (paints || page.isForcedBreakOrigin() || (this.emittedPages == 0 && lastPage));
@@ -218,21 +220,17 @@ public final class MeasurePageGenerator implements PageGenerator {
 		return emitted;
 	}
 
-	/**
-	 * 生成されたページ数を返します(収まりのプローブ用)。
-	 */
+	/** Returns the number of generated pages (for fit probes). */
 	public int getPageCount() {
 		return this.pageCount;
 	}
 
-	/**
-	 * 最後に生成されたページを返します(内容の実測用)。
-	 */
+	/** Returns the last generated page (for actual content measurements). */
 	public PageBox getLastPage() {
 		return this.lastPage;
 	}
 
-	/** 名前付きページへ遷移したBの現在幅。未遷移時は従来のCの幅を使います。 */
+	/** B's current width after transitioning to a named page. Before any transition, uses C's width as before. */
 	double namedPageWidth() {
 		return this.namedPageGeometry && this.lastPage != null ? this.pageInnerWidth : Double.NaN;
 	}

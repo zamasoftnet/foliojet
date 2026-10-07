@@ -117,8 +117,8 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * width, height属性を適用します。
-	 * 
+	 * Applies the width and height attributes.
+	 *
 	 * @param style
 	 */
 	public static void applyWidthHeight(String elem, CSSStyle style) {
@@ -151,8 +151,8 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * hspace, vspace属性を適用します。
-	 * 
+	 * Applies the hspace and vspace attributes.
+	 *
 	 * @param style
 	 */
 	static void applyHSpaceVSpace(String elem, CSSStyle style) {
@@ -224,8 +224,8 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * 画像のalign属性を適用します。
-	 * 
+	 * Applies the align attribute of an image.
+	 *
 	 * @param style
 	 */
 	static void applyImageAlign(String elem, CSSStyle style) {
@@ -295,8 +295,8 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * テーブルのalign属性を適用します。
-	 * 
+	 * Applies the align attribute of a table.
+	 *
 	 * @param style
 	 */
 	static void applyTableAlign(String elem, CSSStyle style) {
@@ -337,8 +337,8 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * ブロックのalign属性を適用します。
-	 * 
+	 * Applies the align attribute of a block.
+	 *
 	 * @param style
 	 */
 	static void applyBlockAlign(String elem, CSSStyle style) {
@@ -368,8 +368,8 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * valign属性を適用します。
-	 * 
+	 * Applies the valign attribute.
+	 *
 	 * @param style
 	 */
 	static void applyVAlign(String elem, CSSStyle style, String valign) {
@@ -393,8 +393,8 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * フォントsize属性を適用します。
-	 * 
+	 * Applies the font size attribute.
+	 *
 	 * @param style
 	 */
 	static void applyFontSize(String elem, CSSStyle style) {
@@ -500,8 +500,8 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * フォントface属性を適用します。
-	 * 
+	 * Applies the font face attribute.
+	 *
 	 * @param style
 	 */
 	static void applyFontFace(CSSStyle style) {
@@ -537,8 +537,8 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * フォントcolor属性を適用します。
-	 * 
+	 * Applies the font color attribute.
+	 *
 	 * @param style
 	 */
 	static void applyFontColor(String elem, CSSStyle style) {
@@ -556,8 +556,8 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * bgcolor属性を適用します。
-	 * 
+	 * Applies the bgcolor attribute.
+	 *
 	 * @param style
 	 */
 	static void applyBGColor(String elem, CSSStyle style) {
@@ -575,8 +575,8 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * background属性を適用します。
-	 * 
+	 * Applies the background attribute.
+	 *
 	 * @param style
 	 */
 	static void applyBackground(String elem, CSSStyle style) {

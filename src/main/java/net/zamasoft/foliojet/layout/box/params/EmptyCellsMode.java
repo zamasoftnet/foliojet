@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 空セルの描画(empty-cells)です。
+ * Empty-cell painting (empty-cells).
  *
  * @author MIYABE Tatsuhiko
  */

@@ -18,9 +18,9 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
- * 2026-07-20: {@code -cssj-direction-mode}廃止に伴い、縦書き時のx/y軸
- * 入れ替え(実世界のCSS/ブラウザには存在しない挙動)を削除した。
- * transform-originは常に物理座標のまま扱う。
+ * 2026-07-20: Removed the x/y axis swap in vertical writing when
+ * {@code -cssj-direction-mode} was abolished (real-world CSS/browsers have no such behavior).
+ * transform-origin always uses physical coordinates.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -54,7 +54,7 @@ public class TransformOrigin extends AbstractCompositePrimitivePropertyInfo {
 	}
 
 	/**
-	 * 計算値はPercentageValueまたはAbsoluteLengthです。
+	 * Computed values are PercentageValue or AbsoluteLength.
 	 */
 	public Value getComputedValue(Value value, CSSStyle style) {
 		return ValueUtils.emExToAbsoluteLength(value, style);

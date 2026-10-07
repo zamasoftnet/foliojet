@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * box-sizingプロパティの値です。
+ * Values of the box-sizing property.
  *
  * @author MIYABE Tatsuhiko
  */

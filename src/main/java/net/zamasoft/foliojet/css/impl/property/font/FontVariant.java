@@ -20,13 +20,12 @@ import net.zamasoft.foliojet.css.value.FontVariantValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code font-variant}ショートハンドです。
+ * {@code font-variant} shorthand.
  *
  * <p>
- * 旧実装ではCSS2の{@code normal | small-caps}だけを単一プロパティとして
- * 保持していました。現在はcaps/ligatures/alternates/numeric/east-asianの
- * 各ロングハンドへ展開し、旧{@code small-caps}値は
- * {@link FontVariantCaps}へそのまま接続します。
+ * The old implementation stored only CSS2 {@code normal | small-caps} as a single property.
+ * Now expands into the caps/ligatures/alternates/numeric/east-asian longhands,
+ * and connects the legacy {@code small-caps} value directly to {@link FontVariantCaps}.
  * </p>
  */
 public final class FontVariant extends AbstractShorthandPropertyInfo {

@@ -1,9 +1,10 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code hanging-punctuation}の実装済み組合せです。
- * {@code first}と行末方式({@code allow-end}/{@code force-end})は順不同で
- * 併用できる。{@code last}は別途、要素の真の最終行判定が必要なため未実装。
+ * The supported combinations of {@code hanging-punctuation}.
+ * {@code first} and an end-of-line mode ({@code allow-end}/{@code force-end}) can appear together
+ * in either order. {@code last} is unimplemented because it separately requires identifying
+ * the element's actual last line.
  */
 public enum HangingPunctuationValue implements Value {
 	NONE("none", false, false, false),

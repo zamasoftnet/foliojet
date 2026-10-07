@@ -8,9 +8,9 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.layout.box.params.Offset;
 
 /**
- * {@code mask-position}(css-masking-1 §7.6、2026-08-29)。&lt;position&gt;の
- * 文法と解決は{@link BackgroundPosition}を共有し、{@code url()}のマスク画像
- * ({@link MaskImage})の配置に使う。
+ * {@code mask-position} (css-masking-1 §7.6, 2026-08-29). Shares &lt;position&gt;
+ * grammar and resolution with {@link BackgroundPosition}, and uses them to position
+ * {@code url()} mask images ({@link MaskImage}).
  */
 public class MaskPosition extends BackgroundPosition {
 	public static final PrimitivePropertyInfo INFO_X = new MaskPosition();
@@ -23,7 +23,7 @@ public class MaskPosition extends BackgroundPosition {
 		return BoxValueUtils.toOffset(xValue, yValue);
 	}
 
-	/** 既定(0% 0%)のままか。既定なら従来の「箱いっぱいに描く」近似を使う。 */
+	/** Whether the value is still the default (0% 0%). If so, use the existing "fill the box" approximation. */
 	public static boolean isDefault(final CSSStyle style) {
 		return style.get(INFO_X) == net.zamasoft.foliojet.css.value.PercentageValue.ZERO
 				&& style.get(INFO_Y) == net.zamasoft.foliojet.css.value.PercentageValue.ZERO;

@@ -6,13 +6,14 @@ import net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox;
 import net.zamasoft.foliojet.layout.sizing.FixedColumnWidths;
 
 /**
- * {@code table-layout:fixed}の列幅解決です(A-3、2026-07-30)。
- * Incremental/Retained両ビルダーにあった同型ブロックの共有純関数。
+ * Column width resolution for {@code table-layout:fixed} (A-3, 2026-07-30).
+ * Shared pure function for the equivalent blocks in the Incremental/Retained builders.
  *
  * <p>
- * <b>Boxを変更しない。</b> colgroupの表への装着・{@code columnSizes}への
- * 反映・表幅の適用は呼び出し側に残す。加算・分配の演算順は旧実装の
- * ループをそのまま移した(浮動小数点の結果を変えない——golden既定)。
+ * <b>Does not modify Boxes.</b> The caller still attaches colgroup to the table,
+ * updates {@code columnSizes}, and applies the table width. Addition and distribution
+ * preserve the old loops' operation order (keep floating-point results unchanged —
+ * the golden default).
  * </p>
  */
 final class FixedTableSizing {
@@ -20,25 +21,25 @@ final class FixedTableSizing {
 	}
 
 	/**
-	 * 先頭行のセルからSpecを導出します。Incrementalは指定寸法つきセルの
-	 * {@code prepareLayout}という副作用を伴うため、導出そのものは
-	 * 呼び出し側から注入する。
+	 * Derives a Spec from first-row cells. Incremental has the side effect of
+	 * {@code prepareLayout} on cells with specified sizes, so the caller injects
+	 * the derivation itself.
 	 */
 	interface CellSpecFactory {
 		FixedColumnWidths.Spec spec(CellContent cell, double refSize);
 	}
 
 	/**
-	 * colgroup・先頭行セルの指定から列幅を分配します。
+	 * Distributes column widths from colgroup and first-row cell specifications.
 	 *
-	 * @param innerSize 表の内容領域の行方向寸法(フレーム控除済み)
+	 * @param innerSize line-axis size of the table content area (frame already subtracted)
 	 */
 	static FixedColumnWidths.Result resolve(final TableColumnGroupBox columnGroup,
 			final List<CellContent> firstRowCells, final int columnCount, final double innerSize,
 			final boolean separateBorders, final double lineBorderSpacing, final CellSpecFactory cellSpec) {
 		double refSize = innerSize;
 		if (separateBorders) {
-			// 分離境界
+			// Separate borders
 			refSize -= columnCount * lineBorderSpacing;
 		}
 		refSize = Math.max(0, refSize);

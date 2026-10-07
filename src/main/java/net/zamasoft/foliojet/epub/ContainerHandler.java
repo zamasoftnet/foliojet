@@ -9,7 +9,7 @@ import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
-//container.xmlの読み込み
+// Read container.xml.
 class ContainerHandler extends DefaultHandler {
 	final List<Rootfile> list = new ArrayList<Rootfile>();
 

@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * overflowプロパティの値です。
+ * Values of the overflow property.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -9,12 +9,11 @@ public enum OverflowMode {
 	VISIBLE, HIDDEN, SCROLL, AUTO;
 
 	/**
-	 * はみ出した描画をボックスでクリップするか(2026-08-09)。CSSの
-	 * スクロールコンテナ(scroll/auto)は画面ではスクロールバーで中身に
-	 * 到達できるが、印刷ではブラウザ同様「見えている範囲」で切り取る
-	 * (オーナー裁定——従来ははみ出しをそのまま描いており、絶対配置の
-	 * タブ見出し等が全展開の中身と重なっていた。asahi.comの速報ニュース欄)。
-	 * BFC成立・float封じ込めなどのレイアウト効果は従来どおりHIDDENのみ。
+	 * Whether to clip overflowing drawing at the box (2026-08-09). On screen, CSS scroll containers
+	 * (scroll/auto) allow access to content via scrollbars, but in print, clip to the visible area as
+	 * browsers do (owner decision: previously, overflow was drawn as is, causing absolutely positioned
+	 * tab headings, etc. to overlap fully expanded content in asahi.com's breaking-news section).
+	 * Layout effects such as establishing a BFC and containing floats remain limited to HIDDEN.
 	 */
 	public boolean clipsPaint() {
 		return this != VISIBLE;

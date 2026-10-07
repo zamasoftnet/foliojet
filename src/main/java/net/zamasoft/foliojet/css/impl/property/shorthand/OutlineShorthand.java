@@ -16,10 +16,10 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * outline ショートハンドです(CSS UI 3 §4、2026-08-29)。
- * {@code <outline-width> || <outline-style> || <outline-color>}を順不同で受ける。
- * outline-offsetは含まない。border-topと同じ組み立てで、styleに{@code auto}、
- * colorに{@code invert}が加わるだけ。
+ * outline shorthand (CSS UI 3 §4, 2026-08-29).
+ * Accepts {@code <outline-width> || <outline-style> || <outline-color>} in any order.
+ * Does not include outline-offset. Assembled like border-top, with only {@code auto} added
+ * for style and {@code invert} for color.
  *
  * @author MIYABE Tatsuhiko
  */

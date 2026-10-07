@@ -52,7 +52,7 @@ class InputLimitedSource extends SourceWrapper {
 
 	@Override
 	public boolean isFile() throws IOException {
-		// ファイルを直接開くと予算を迂回するため、常にSourceのstream経路を使う。
+		// Always use Source's stream path, since opening the file directly would bypass the budget.
 		return this.budget == null && super.isFile();
 	}
 }

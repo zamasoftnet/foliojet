@@ -15,8 +15,8 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code flex-basis}です(Flex F1a、2026-08-02)。
- * {@code auto | content | <length-percentage 非負>}(§7.2.3)。
+ * {@code flex-basis} (Flex F1a, 2026-08-02).
+ * {@code auto | content | <nonnegative length-percentage>} (§7.2.3).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -55,7 +55,7 @@ public class FlexBasisProperty extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	/** 1つの&lt;flex-basis&gt;を読み取ります(flexショートハンドと共用)。不正はnull。 */
+	/** Reads one &lt;flex-basis&gt; (shared with the flex shorthand). Null if invalid. */
 	public static FlexBasisValue parseBasis(final TokenStream tokens, final UserAgent ua) {
 		if (tokens.eat("auto")) {
 			return FlexBasisValue.AUTO_VALUE;

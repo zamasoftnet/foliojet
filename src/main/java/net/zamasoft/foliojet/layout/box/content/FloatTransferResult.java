@@ -1,39 +1,35 @@
 package net.zamasoft.foliojet.layout.box.content;
 
 /**
- * {@code Container.splitFloatings}の型付き結果です(2026-07-24新設、
- * 排除域P2のP2-4。設計相談
- * §2.2の型)。旧APIの返り値sentinel(nextBoxそのまま / this / 新コンテナ)を
- * 置き換えます。分岐表の正本:
- * 開発記録の
- * 「public 3引数版」の表。
+ * The typed result of {@code Container.splitFloatings} (added 2026-07-24, exclusion area P2,
+ * P2-4; the type from design consultation §2.2). Replaces the old API's return sentinels
+ * (nextBox unchanged / this / new container). The authoritative branch table is the
+ * "public three-argument version" table in the development log.
  *
  * <p>
- * <b>語彙対応(E-4)</b>: {@code Owner}接尾辞は「呼び出し対象の
- * ownerコンテナ自身」の粒度を表す——{@code KeepOwner}は「floatの移動
- * なし」(ownerには何も起きない)、{@code MoveOwner}は「owner自身が
- * 丸ごと次フラグメントへ移動」であり、台帳全体粒度の
- * {@link FloatSplitResult}のKeepAll/MoveAll、box 1個粒度の
- * {@code SplitResult.Keep}/{@code Move}とは意図的に区別している。
- * {@code Remainder}は{@link FloatSplitResult.Partition}の残余台帳を
- * コンテナへ装着した「転送先」を運ぶ。全体表は{@code SplitResult}の
- * javadoc参照。
+ * <b>Terminology map (E-4)</b>: The {@code Owner} suffix refers to the called owner container itself:
+ * {@code KeepOwner} means no floats move (nothing happens to the owner),
+ * and {@code MoveOwner} means the entire owner moves to the next fragment.
+ * These are intentionally distinct from KeepAll/MoveAll in {@link FloatSplitResult}
+ * for the whole ledger, and {@code SplitResult.Keep}/{@code Move} for one box.
+ * {@code Remainder} carries the transfer destination: a container with the remainder ledger
+ * from {@link FloatSplitResult.Partition} attached. See the {@code SplitResult} Javadoc for the full map.
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public sealed interface FloatTransferResult {
 	/**
-	 * 移動するfloatなし(旧「引数nextBoxをそのまま返す」)。呼び出し側は
-	 * 自分の{@link FloatTransferTarget}が指すコンテナをそのまま使い続ける。
+	 * No floats move (formerly returning the nextBox argument unchanged).
+	 * The caller continues to use the container indicated by its {@link FloatTransferTarget}.
 	 */
 	FloatTransferResult KEEP_OWNER = new KeepOwner();
 
 	/**
-	 * owner自身が丸ごと次のフラグメントへ移動する(旧 this)。
-	 * {@code MOVE_OWNER}指定時のMoveAll、および「空コンテナ全体をfloatごと
-	 * 移動する特例」({@code KEEP}指定・非FIRST・innerPageExtent&lt;=0)。
-	 * float台帳はownerに付いたまま。
+	 * The entire owner moves to the next fragment (formerly this).
+	 * Used for MoveAll with {@code MOVE_OWNER}, and for the special case of moving an entire
+	 * empty container together with its floats ({@code KEEP}, non-FIRST, innerPageExtent&lt;=0).
+	 * The float ledger remains attached to the owner.
 	 */
 	FloatTransferResult MOVE_OWNER = new MoveOwner();
 
@@ -44,11 +40,11 @@ public sealed interface FloatTransferResult {
 	}
 
 	/**
-	 * 移動float台帳を装着したコンテナです(旧「nextBoxまたは新
-	 * FlowContainerを返す」)。{@link FloatTransferTarget.Existing}指定時は
-	 * その同じコンテナ、それ以外は新しいFlowContainer。
+	 * A container with the moved-float ledger attached (formerly returning nextBox or a new
+	 * FlowContainer). With {@link FloatTransferTarget.Existing}, this is that same container;
+	 * otherwise, it is a new FlowContainer.
 	 *
-	 * @param container 移動float台帳を装着したコンテナ
+	 * @param container the container with the moved-float ledger attached
 	 */
 	record Remainder(FlowContainer container) implements FloatTransferResult {
 	}

@@ -15,8 +15,8 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * min-block-size 特性(論理プロパティ)です。writing-modeにより
- * min-width か min-height のいずれかに対応します(min-inline-sizeと逆軸)。
+ * min-block-size property (logical property). Maps to min-width or min-height
+ * according to writing-mode (the opposite axis to min-inline-size).
  */
 public final class MinBlockSize extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MinBlockSize();
@@ -39,14 +39,14 @@ public final class MinBlockSize extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
-		// 固有寸法キーワード max-content/min-content/fit-content(L)(2026-08-29)
+		// Intrinsic sizing keywords max-content/min-content/fit-content(L) (2026-08-29).
 		final Value intrinsic = BoxValueUtils.toIntrinsicSize(ua, lu);
 		if (intrinsic != null) {
 			return intrinsic;
 		}
 		if (ValueUtils.isAuto(lu)) {
-			// auto(css-sizing-3の初期値)は通常フローでは0と等価。flex/grid
-			// itemの「自動最小寸法」はレイアウト側が別途持つ(2026-08-29)
+			// auto (the css-sizing-3 initial value) equals 0 in normal flow. Layout handles
+			// the "automatic minimum size" of flex/grid items separately (2026-08-29).
 			return AbsoluteLengthValue.ZERO;
 		}
 		Value value = BoxValueUtils.toPositiveLength(ua, lu);

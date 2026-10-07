@@ -13,39 +13,40 @@ import java.util.Properties;
 import net.zamasoft.foliojet.ua.props.UAProps;
 
 /**
- * 運用者が決めた、利用者が<b>緩められない</b>上限です(2026-10-03、共有サービスの資源の上限 増分2。
- * {@code copperpdf4/docs/design/shared-service-limits-design.md} §3-2)。
+ * Operator-defined limits that users <b>cannot relax</b> (2026-10-03, shared-service resource limits increment 2;
+ * {@code copperpdf4/docs/design/shared-service-limits-design.md} §3-2).
  *
  * <p>
- * プロファイル({@code jp.cssj.driver.default})の値は「クライアントが送らなかったときの既定」にすぎず、
- * クライアントの指定や文書中の処理命令で外せる。ここに書いた上限は、どこで設定された値に対しても
- * <b>小さい方</b>を取る——厳しくすることはできるが、緩めることはできない。
+ * Profile ({@code jp.cssj.driver.default}) values are merely defaults when clients supply none,
+ * and clients or document processing instructions can remove them. The limits here take
+ * <b>the smaller value</b> regardless of where a setting originates: it can be tightened but never relaxed.
  * </p>
  *
  * <p>
- * 置き場所は{@value #FILE_KEY}(システムプロパティ)で指す{@code .properties}ファイル。書けるのは
- * 下の表の数値の上限だけで、表に無い名前・読めない値は{@link IOException}(サーバーは起動しない)。
- * 「無制限」の表し方はプロパティごとに違うので、比較の規則も表で決める:
+ * Stored in the {@code .properties} file named by {@value #FILE_KEY} (a system property). Only
+ * the numeric limits in the table below are allowed; unknown names or unreadable values cause
+ * {@link IOException} (the server does not start). Since each property represents unlimited differently,
+ * the table also defines comparison rules:
  * </p>
  * <ul>
- * <li>入力・資源・画素数・出力の大きさ・頁数: 負=無制限、0 は「0 まで」</li>
- * <li>{@code processing.time-limit}・{@code processing.retained-text-limit}: 0 以下=無制限</li>
- * <li>{@code processing.concurrency}: 0 以下=自動(min(コア数, 4))</li>
+ * <li>Input, resources, pixel count, output size, page count: negative=unlimited; zero means a limit of zero</li>
+ * <li>{@code processing.time-limit} and {@code processing.retained-text-limit}: zero or less=unlimited</li>
+ * <li>{@code processing.concurrency}: zero or less=automatic (min(core count, 4))</li>
  * </ul>
  */
 public final class OperatorLimits {
-	/** 上限ファイルを指すシステムプロパティ。 */
+	/** The system property pointing to the limits file. */
 	public static final String FILE_KEY = "jp.cssj.driver.limits";
 
-	/** 上限なし。 */
+	/** No limits. */
 	public static final OperatorLimits NONE = new OperatorLimits(Collections.emptyMap());
 
 	private enum Kind {
-		/** 負が無制限。 */
+		/** Negative means unlimited. */
 		NEGATIVE_UNLIMITED,
-		/** 0以下が無制限。 */
+		/** Zero or less means unlimited. */
 		NONPOSITIVE_UNLIMITED,
-		/** 0以下が自動(min(コア数, 4))。 */
+		/** Zero or less means automatic (min(core count, 4)). */
 		CONCURRENCY
 	}
 
@@ -84,17 +85,17 @@ public final class OperatorLimits {
 		this.ceilings = ceilings;
 	}
 
-	/** 上限ファイルに書ける(数値の上限の)名前か。 */
+	/** Whether the name is an allowed numeric limit in the limits file. */
 	public static boolean isLimitProperty(final String name) {
 		return SPECS.containsKey(name);
 	}
 
-	/** 上限を1つも持たないか。 */
+	/** Whether no limits are present. */
 	public boolean isEmpty() {
 		return this.ceilings.isEmpty();
 	}
 
-	/** 上限を持つプロパティ名と上限値。 */
+	/** Property names with limits and their limit values. */
 	public Map<String, Long> ceilings() {
 		return this.ceilings;
 	}
@@ -104,10 +105,10 @@ public final class OperatorLimits {
 	private static OperatorLimits cached;
 
 	/**
-	 * {@value #FILE_KEY}が指す上限ファイルを読みます。指していなければ{@link #NONE}。
-	 * 同じファイルは更新時刻が変わるまで読み直しません。
+	 * Reads the limits file named by {@value #FILE_KEY}. Returns {@link #NONE} if none is specified.
+	 * Does not reread the same file until its modification time changes.
 	 *
-	 * @throws IOException 読めない、表に無い名前、数値でない値
+	 * @throws IOException if unreadable, a name is unknown, or a value is nonnumeric
 	 */
 	public static synchronized OperatorLimits current() throws IOException {
 		final String path = System.getProperty(FILE_KEY);
@@ -131,11 +132,11 @@ public final class OperatorLimits {
 	}
 
 	/**
-	 * 上限の表を作ります。
+	 * Builds the limits table.
 	 *
-	 * @param props  名前と上限値
-	 * @param origin エラーに出す出どころ
-	 * @throws IOException 表に無い名前、数値でない値
+	 * @param props  names and limit values
+	 * @param origin the source to report in errors
+	 * @throws IOException if a name is unknown or a value is nonnumeric
 	 */
 	public static OperatorLimits parse(final Properties props, final String origin) throws IOException {
 		final Map<String, Long> ceilings = new HashMap<>();
@@ -154,11 +155,12 @@ public final class OperatorLimits {
 	}
 
 	/**
-	 * 設定値に上限を掛けた実効値を返します。上限の無い名前はそのまま返します。
+	 * Returns the effective value after applying the limit to the setting.
+	 * Returns values unchanged for names without limits.
 	 *
-	 * @param name  プロパティ名
-	 * @param value 設定値(未設定ならnull。読めない値は上限そのものになる)
-	 * @return 実効値
+	 * @param name  the property name
+	 * @param value the setting (null if unset; an unreadable value becomes the limit itself)
+	 * @return the effective value
 	 */
 	public String clamp(final String name, final String value) {
 		final Long ceiling = this.ceilings.get(name);
@@ -177,9 +179,7 @@ public final class OperatorLimits {
 		return String.valueOf(min(spec.kind, requested, ceiling.longValue()));
 	}
 
-	/**
-	 * 指定がこのサーバーの上限より緩いかを返します(警告を出すため)。
-	 */
+	/** Returns whether the setting is less restrictive than this server's limit (for warnings). */
 	public boolean loosens(final String name, final String value) {
 		final Long ceiling = this.ceilings.get(name);
 		if (ceiling == null || value == null || value.isEmpty()) {
@@ -188,9 +188,7 @@ public final class OperatorLimits {
 		return !String.valueOf(value.trim()).equals(this.clamp(name, value));
 	}
 
-	/**
-	 * プロパティの表に上限を掛けた写しを返します(上限の名前は未設定でも実効値が入る)。
-	 */
+	/** Returns a copy of the property table with limits applied (limited properties get effective values even if unset). */
 	public Map<String, String> clampAll(final Map<String, String> props) {
 		if (this.ceilings.isEmpty()) {
 			return props;

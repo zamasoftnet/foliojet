@@ -13,13 +13,13 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code @page { marks }}です(CSS Paged Media 3、2026-08-02)。
- * 値は{@code none | [crop || cross]}。
+ * {@code @page { marks }} (CSS Paged Media 3, 2026-08-02).
+ * Values are {@code none | [crop || cross]}.
  *
  * <p>
- * <b>既定は「入出力プロパティに従う」</b>({@code size: auto}が
- * {@code output.page-width/height}へ委ねるのと同じ考え方)。CSSで
- * 明示した場合だけ{@code output.marks}を上書きする。
+ * <b>Defaults to following the I/O property</b> (the same idea as
+ * {@code size: auto} delegating to {@code output.page-width/height}).
+ * Overrides {@code output.marks} only when explicitly specified in CSS.
  * </p>
  *
  * @author MIYABE Tatsuhiko

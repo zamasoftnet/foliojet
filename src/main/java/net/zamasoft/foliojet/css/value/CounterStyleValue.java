@@ -1,14 +1,14 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * 著者定義カウンタスタイル({@code @counter-style})を指す
- * {@code list-style-type}の値です(2026-08-02)。
+ * A {@code list-style-type} value referencing an author-defined counter style
+ * ({@code @counter-style}) (2026-08-02).
  *
  * <p>
- * 実体(記号の並べ方)は文書ごとの登録簿が持ち、値はコードだけを運ぶ
- * ——組み込みスタイルと同じ持ち回り方にすることで、カウンタを扱う
- * 既存の経路({@code counter()}・マーカー・{@code target-counter()})が
- * そのまま著者定義スタイルにも効く。
+ * The per-document registry holds the definition (how symbols are arranged); the value
+ * carries only a code. Using the same representation as built-in styles allows existing
+ * counter paths ({@code counter()}, markers, {@code target-counter()}) to work unchanged
+ * with author-defined styles.
  * </p>
  */
 public final class CounterStyleValue implements ListStyleTypeSource {

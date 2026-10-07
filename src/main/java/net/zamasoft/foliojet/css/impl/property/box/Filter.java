@@ -21,23 +21,23 @@ import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
 /**
- * {@code filter}です(filter-effects-1 §7、2026-08-29新設。それまでは
- * 意図的無視(2821)の対象だった)。
+ * {@code filter} (filter-effects-1 §7, added 2026-08-29; previously
+ * intentionally ignored (2821)).
  *
  * <p>
- * 非継承・既定{@code none}。関数列を{@link FilterValue}へ畳む。
- * {@code url()}(SVGフィルタ)は読み飛ばす(受理はするが効果なし)。
- * {@code backdrop-filter}は引き続き無視する。
+ * Not inherited; defaults to {@code none}. Collapses a function sequence into {@link FilterValue}.
+ * Skips {@code url()} (SVG filters): accepted, but has no effect.
+ * {@code backdrop-filter} remains ignored.
  * </p>
  *
  * <p>
- * <b>近似</b>({@link FilterValue}参照): 色系の関数は単色の塗り
- * (背景・境界・文字・グラデーションの色停止)とラスタ画像の画素に
- * 同じ色行列を掛ける。{@code blur()}はラスタ画像だけに効く(ベクタの
- * ぼかしはPDFに無い)。{@code drop-shadow()}は箱の境界形状の影
- * (box-shadowと同じ階段状の近似)、ラスタ画像では不透明度の
- * シルエットをぼかした影。{@code opacity()}は{@code opacity}と同じ
- * グループ不透明度。SVG画像の画素・ぼかしは対象外。
+ * <b>Approximation</b> (see {@link FilterValue}): color functions apply the same color matrix
+ * to solid paints (backgrounds, borders, text, and gradient color stops) and raster image pixels.
+ * {@code blur()} affects only raster images (PDF has no vector blur).
+ * {@code drop-shadow()} produces a shadow of the box border shape
+ * (the same stepped approximation as box-shadow), or a blurred opacity silhouette for raster images.
+ * {@code opacity()} uses the same group opacity as {@code opacity}.
+ * SVG image pixels and blur are outside the scope.
  * </p>
  */
 public class Filter extends AbstractPrimitivePropertyInfo {
@@ -69,7 +69,7 @@ public class Filter extends AbstractPrimitivePropertyInfo {
 		if (inherited.isNone()) {
 			return own;
 		}
-		// 子孫の描画要素へ親の効果を届ける(FilterValue冒頭の近似の説明参照)
+		// Pass parent effects to descendant drawing elements (see the approximation at the start of FilterValue).
 		return inherited.compose(own);
 	}
 
@@ -86,7 +86,7 @@ public class Filter extends AbstractPrimitivePropertyInfo {
 		while (tokens.hasNext()) {
 			final CssToken token = tokens.next();
 			if (token instanceof CssToken.Uri) {
-				// SVGフィルタ参照。効果なし
+				// SVG filter reference. No effect.
 				text.add("url()");
 				continue;
 			}
@@ -188,7 +188,7 @@ public class Filter extends AbstractPrimitivePropertyInfo {
 				throw new PropertyException();
 			}
 			if (m != null) {
-				// 後の関数は前の結果に掛かる
+				// Each later function applies to the result of the preceding functions.
 				matrix = matrix == null ? m : FilterValue.multiply(m, matrix);
 			}
 		}
@@ -198,7 +198,7 @@ public class Filter extends AbstractPrimitivePropertyInfo {
 		return new FilterValue(opacity, matrix, blur, shadow, String.join(" ", text));
 	}
 
-	/** {@code <number> | <percentage>}(省略時1)。負は不可、{@code max}で切る。 */
+	/** {@code <number> | <percentage>} (1 if omitted). No negatives; clamp at {@code max}. */
 	private static float amount(final TokenStream args, final float max) throws PropertyException {
 		if (!args.hasNext()) {
 			return 1f;
@@ -218,7 +218,7 @@ public class Filter extends AbstractPrimitivePropertyInfo {
 		return Math.min(v, max);
 	}
 
-	/** {@code drop-shadow([<color>]? <length>{2,3} [<color>]?)}。 */
+	/** {@code drop-shadow([<color>]? <length>{2,3} [<color>]?)}. */
 	private static FilterValue.DropShadow parseDropShadow(final UserAgent ua, final TokenStream args)
 			throws PropertyException {
 		Color color = null;

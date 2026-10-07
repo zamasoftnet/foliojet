@@ -19,8 +19,8 @@ import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/box.html#propdef-border-top"> border-top
- * 特性 </a>です。
- * 
+ * property </a>.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class BorderTopShorthand extends AbstractShorthandPropertyInfo {

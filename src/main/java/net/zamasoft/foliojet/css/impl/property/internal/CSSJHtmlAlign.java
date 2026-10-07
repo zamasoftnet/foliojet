@@ -15,8 +15,8 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
- * HTMLの水平アラインメント相当する内部特性です。
- * 
+ * Internal property corresponding to HTML horizontal alignment.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class CSSJHtmlAlign extends AbstractPrimitivePropertyInfo {
@@ -43,7 +43,7 @@ public class CSSJHtmlAlign extends AbstractPrimitivePropertyInfo {
 		return true;
 	}
 
-	/** CSSから書けるようにした(2026-08-03)。start | end | center。 */
+	/** Made writable from CSS (2026-08-03). start | end | center. */
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (lu instanceof CssToken.Ident ident) {

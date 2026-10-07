@@ -9,8 +9,8 @@ import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * {@code mask-size}(css-masking-1 §7.9、2026-08-29)。文法と解決は
- * {@link BackgroundSize}を共有する。
+ * {@code mask-size} (css-masking-1 §7.9, 2026-08-29). Shares grammar and resolution
+ * with {@link BackgroundSize}.
  */
 public class MaskSize extends BackgroundSize {
 	public static final PrimitivePropertyInfo INFO_WIDTH = new MaskSize();
@@ -25,7 +25,7 @@ public class MaskSize extends BackgroundSize {
 		return get(style, image, INFO_WIDTH, INFO_HEIGHT);
 	}
 
-	/** 既定(auto auto)のままか。 */
+	/** Whether the value is still the default (auto auto). */
 	public static boolean isDefault(final CSSStyle style) {
 		return style.get(INFO_WIDTH) == KeywordValue.AUTO && style.get(INFO_HEIGHT) == KeywordValue.AUTO;
 	}

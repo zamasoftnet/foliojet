@@ -32,22 +32,22 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 		return value.getTransform();
 	}
 
-	/** {@code translate()}の割合成分(要素の幅に掛ける)。 */
+	/** Percentage component of {@code translate()} (multiplied by the element width). */
 	public static double getTxRatio(CSSStyle style) {
 		return ((TransformValue) style.get(INFO)).getTxRatio();
 	}
 
-	/** {@code translate()}の割合成分(要素の高さに掛ける)。 */
+	/** Percentage component of {@code translate()} (multiplied by the element height). */
 	public static double getTyRatio(CSSStyle style) {
 		return ((TransformValue) style.get(INFO)).getTyRatio();
 	}
 
-	/** 交差成分(高さ→x)。{@link TransformValue#getTxRatioH()} */
+	/** Cross component (height→x). {@link TransformValue#getTxRatioH()} */
 	public static double getTxRatioH(CSSStyle style) {
 		return ((TransformValue) style.get(INFO)).getTxRatioH();
 	}
 
-	/** 交差成分(幅→y)。{@link TransformValue#getTyRatioW()} */
+	/** Cross component (width→y). {@link TransformValue#getTyRatioW()} */
 	public static double getTyRatioW(CSSStyle style) {
 		return ((TransformValue) style.get(INFO)).getTyRatioW();
 	}
@@ -73,11 +73,11 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		AffineTransform at = null;
-		// translate()の割合成分。要素の寸法が要るので行列へ畳めない
-		// (TransformValueのjavadoc参照)。割合が回転・拡大の後ろに来ても
-		// 線形分解して係数ベクトルへ足し込む(2026-08-29): 割合つき平行移動
-		// T(v)の前に合成済みの行列Aがあるとき、A·T(v)·B = A·B + A_lin·v
-		// なので、v=(px·W, py·H)の係数 px·A_lin·e1 と py·A_lin·e2 を積む
+		// Percentage components of translate(). Cannot fold them into the matrix because they need element dimensions
+		// (see the TransformValue Javadoc). Even after rotation/scaling, decompose percentages
+		// linearly and add to the coefficient vector (2026-08-29): if the accumulated matrix A precedes
+		// a percentage translation T(v), A·T(v)·B = A·B + A_lin·v,
+		// so accumulate coefficients px·A_lin·e1 and py·A_lin·e2 for v=(px·W, py·H).
 		// ratio[0]=W→x, ratio[1]=H→y, ratio[2]=H→x, ratio[3]=W→y
 		final double[] ratio = new double[4];
 		while (tokens.hasNext()) {
@@ -106,7 +106,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 					at.concatenate(t);
 				}
 			} else if (func.is("matrix3d")) {
-				// 4x4のうち2D成分(a b / c d / tx ty)だけを使う。zは無視
+				// Use only the 2D components (a b / c d / tx ty) of the 4x4 matrix. Ignore z.
 				final double[] m = new double[16];
 				for (int i = 0; i < 16; ++i) {
 					m[i] = getFloatValue(params);
@@ -132,7 +132,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 				} else {
 					sy = getFloatValue(params);
 					if (params.hasNext()) {
-						getFloatValue(params); // scale3dのz
+						getFloatValue(params); // z of scale3d
 					}
 				}
 				if (at == null) {
@@ -190,7 +190,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 				} else {
 					ty = getLengthOrRatio(ua, params, pct, 1);
 					if (params.hasNext()) {
-						getLengthValue(ua, params); // translate3dのz
+						getLengthValue(ua, params); // z of translate3d
 					}
 				}
 				accumulateRatio(at, pct, ratio);
@@ -219,10 +219,10 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 				}
 			} else if (func.is("translateZ") || func.is("perspective") || func.is("rotateX")
 					|| func.is("rotateY") || func.is("rotate3d") || func.is("scaleZ")) {
-				// 3D変換は紙面に射影できない。GPU合成のヒント(translateZ(0)等)
-				// として書かれることが大半なので、他の関数を活かすために
-				// この関数だけを無視する(2026-08-29)。rotateX/Yは真の3D回転
-				// なので近似しない
+				// 3D transforms cannot be projected onto paper. Most are GPU compositing hints
+				// (translateZ(0), etc.), so ignore only this function to preserve
+				// the others (2026-08-29). rotateX/Y are true 3D rotations
+				// and are not approximated.
 				while (params.hasNext()) {
 					params.next();
 				}
@@ -241,9 +241,9 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * 割合つき平行移動 (px·W, py·H) を、ここまでの合成行列の線形部で
-	 * 写して係数ベクトルへ足します。{@code ratio}は
-	 * [W→x, H→y, H→x, W→y]。
+	 * Maps a percentage translation (px·W, py·H) through the linear part of the matrix
+	 * accumulated so far and adds it to the coefficient vector. {@code ratio} is
+	 * [W→x, H→y, H→x, W→y].
 	 */
 	private static void accumulateRatio(final AffineTransform prefix, final double[] pct, final double[] ratio) {
 		if (pct[0] == 0 && pct[1] == 0) {
@@ -253,10 +253,10 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 		final double m10 = prefix == null ? 0 : prefix.getShearY();
 		final double m01 = prefix == null ? 0 : prefix.getShearX();
 		final double m11 = prefix == null ? 1 : prefix.getScaleY();
-		// W成分: px·A_lin·e1 = px·(m00, m10)
+		// W component: px·A_lin·e1 = px·(m00, m10)
 		ratio[0] += pct[0] * m00;
 		ratio[3] += pct[0] * m10;
-		// H成分: py·A_lin·e2 = py·(m01, m11)
+		// H component: py·A_lin·e2 = py·(m01, m11)
 		ratio[2] += pct[1] * m01;
 		ratio[1] += pct[1] * m11;
 	}
@@ -275,9 +275,9 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * {@code <angle>}をラジアンにします。deg/grad/rad/turnの4単位
-	 * (css-values-4)と、単位なしの0(または数値。旧構文の互換)を受ける。
-	 * 個別プロパティ{@code rotate}と共有する(2026-08-29)。
+	 * Converts {@code <angle>} to radians. Accepts the four units deg/grad/rad/turn
+	 * (css-values-4) and unitless 0 (or a number for legacy syntax compatibility).
+	 * Shared with the individual {@code rotate} property (2026-08-29).
 	 */
 	static double toAngle(final CssToken token) throws PropertyException {
 		if (token instanceof CssToken.Dim dim) {
@@ -318,8 +318,8 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * 平行移動の量。<b>割合はここでは解かず</b>{@code ratio}へ積む
-	 * ——その要素自身の境界箱が基準なので、解析時には寸法が無い。
+	 * Translation amount. <b>Does not resolve percentages here</b>; accumulates them in {@code ratio}.
+	 * They are relative to the element's own border box, whose dimensions are unavailable during parsing.
 	 */
 	private double getLengthOrRatio(UserAgent ua, TokenStream params, double[] ratio, int axis)
 			throws PropertyException {
@@ -327,19 +327,19 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * {@code <length-percentage>}の1トークンを、絶対長さ(戻り値)と割合
-	 * ({@code ratio[axis]}へ加算)に分けます。個別プロパティ
-	 * {@code translate}と共有する(2026-08-29)。
+	 * Splits one {@code <length-percentage>} token into an absolute length (the return value)
+	 * and a percentage (added to {@code ratio[axis]}). Shared with the individual
+	 * {@code translate} property (2026-08-29).
 	 */
 	static double lengthOrRatio(UserAgent ua, CssToken token, double[] ratio, int axis) throws PropertyException {
 		if (token instanceof CssToken.Percent percent) {
 			ratio[axis] += percent.value() / 100.0;
 			return 0;
 		}
-		// **calc(%±長さ)を分解して受ける**(2026-08-19)。実物のWebは
-		// リストマーカー等を translateX(calc(-100% - 0.5em)) で自要素幅ぶん
-		// 外へ出す(shower-demo)。従来はPropertyExceptionでtransform指定
-		// 全体が無効になり、マーカーが本文の上に残って重なっていた
+		// **Accept calc(%±length) by decomposing it** (2026-08-19). Real sites move
+		// list markers, etc. outward by their own element width using translateX(calc(-100% - 0.5em))
+		// (shower-demo). Previously, PropertyException invalidated the entire transform
+		// declaration, leaving markers overlapping the body text.
 		final net.zamasoft.foliojet.css.value.Value calc = net.zamasoft.foliojet.css.util.CalcValueUtils.toCalc(ua, token);
 		if (calc != null) {
 			if (calc instanceof net.zamasoft.foliojet.css.value.PercentageValue percent) {
@@ -354,7 +354,7 @@ public class Transform extends AbstractPrimitivePropertyInfo {
 				return mixed.getAbsolute();
 			}
 			if (calc instanceof net.zamasoft.foliojet.css.value.CalcFontRelativeValue fontRel) {
-				// フォント相対成分は既定フォント寸法で近似(同メソッドjavadoc)
+				// Approximate font-relative components using the default font size (see this method's Javadoc).
 				ratio[axis] += fontRel.getRatio();
 				return fontRel.approximateAbsolute(ua);
 			}

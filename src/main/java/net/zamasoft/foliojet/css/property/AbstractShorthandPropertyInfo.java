@@ -10,8 +10,8 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
- * Shorthand特性です。
- * 
+ * A shorthand property.
+ *
  * @author MIYABE Tatsuhiko
  *          miyabe $
  */
@@ -21,8 +21,8 @@ public abstract class AbstractShorthandPropertyInfo extends AbstractPropertyInfo
 	}
 
 	/**
-	 * 最小単位の特性と値のリストです。
-	 * 
+	 * A list of primitive properties and their values.
+	 *
 	 * @author MIYABE Tatsuhiko
 	 *          miyabe $
 	 */
@@ -41,7 +41,7 @@ public abstract class AbstractShorthandPropertyInfo extends AbstractPropertyInfo
 			this.entries.add(entry);
 		}
 
-		/** 設定済みの値。無ければnull(2026-08-29、多層背景の合成に使う)。 */
+		/** The value already set, or null if absent (2026-08-29, used to compose multilayer backgrounds). */
 		public Value get(PrimitivePropertyInfo info) {
 			for (final Entry e : this.entries) {
 				if (e.getPrimitivePropertyInfo() == info) {
@@ -62,15 +62,15 @@ public abstract class AbstractShorthandPropertyInfo extends AbstractPropertyInfo
 	}
 
 	/**
-	 * このショートハンドが展開する最小単位の特性。{@code inherit}/
-	 * {@code initial}/{@code unset}を全体キーワードとして受けるために使う
-	 * (2026-08-29)。null(既定)なら{@link #parseValues}が自分で扱う
-	 * ({@code background}等は既にそうしている)。
+	 * The primitive properties this shorthand expands into. Used to accept
+	 * {@code inherit}/{@code initial}/{@code unset} as CSS-wide keywords
+	 * (2026-08-29). If null (the default), {@link #parseValues} handles them itself
+	 * (as {@code background}, etc. already do).
 	 *
 	 * <p>
-	 * 以前は{@code padding: inherit}等が「不正値」として捨てられていた。
-	 * 値パーサが{@code Keyword}トークンを長さとして解釈できずnullを返し、
-	 * その後の{@code == KeywordValue.INHERIT}判定へ届かなかったため。
+	 * Previously, declarations such as {@code padding: inherit} were discarded as invalid values.
+	 * The value parser could not interpret a {@code Keyword} token as a length and returned null,
+	 * so execution never reached the subsequent {@code == KeywordValue.INHERIT} check.
 	 * </p>
 	 */
 	protected PrimitivePropertyInfo[] longhands() {
@@ -93,7 +93,7 @@ public abstract class AbstractShorthandPropertyInfo extends AbstractPropertyInfo
 	}
 
 	/**
-	 * 宣言値のトークン列を分解し、対応する単純プロパティ群を設定します。
+	 * Decomposes the declaration's token sequence and sets the corresponding primitive properties.
 	 */
 	public abstract void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives)
 			throws PropertyException;

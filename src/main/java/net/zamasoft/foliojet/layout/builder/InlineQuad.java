@@ -15,11 +15,11 @@ public abstract class InlineQuad extends Quad {
 	public static final byte INLINE_ABSOLUTE = 5;
 
 	/**
-	 * 文字を持たない原子インライン(代替文字の無い画像・数式、空のインライン
-	 * ブロック)の分かち書き用の文字(2026-10-04、TECH-20261003-004 の⑧)。
-	 * CSS Text の「原子インラインは U+FFFC として扱う」に合わせる。以前は
-	 * {@code BREAK}(無条件の改行機会)で、直後の「、」「。」の行頭禁則が
-	 * 効かず、数式の直後で改行して次の行が「、」で始まった。
+	 * Character used for word segmentation of atomic inlines with no text (images/formulas without
+	 * alternative text and empty inline blocks) (2026-10-04, TECH-20261003-004 ⑧). Follows CSS Text's rule
+	 * to treat atomic inlines as U+FFFC. Previously used {@code BREAK} (an unconditional break opportunity),
+	 * which bypassed line-start kinsoku (line-breaking rules) for an immediately following 「、」 or 「。」,
+	 * so a line broke immediately after a formula and the next line began with 「、」.
 	 */
 	static final String OBJECT_REPLACEMENT = "￼";
 
@@ -54,7 +54,7 @@ public abstract class InlineQuad extends Quad {
 	}
 
 	/**
-	 * インラインの開始です。
+	 * Start of an inline.
 	 * 
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: InlineQuad.java 1552 2018-04-26 01:43:24Z miyabe $
@@ -84,7 +84,7 @@ public abstract class InlineQuad extends Quad {
 	}
 
 	/**
-	 * インラインの終了です。
+	 * End of an inline.
 	 * 
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: InlineQuad.java 1552 2018-04-26 01:43:24Z miyabe $
@@ -114,7 +114,7 @@ public abstract class InlineQuad extends Quad {
 	}
 
 	/**
-	 * 置換可能/あるいはブロックレベルのインラインです。
+	 * A replaced or block-level inline.
 	 * 
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: InlineQuad.java 1552 2018-04-26 01:43:24Z miyabe $
@@ -145,7 +145,7 @@ public abstract class InlineQuad extends Quad {
 	}
 
 	/**
-	 * インラインブロックです。
+	 * An inline block.
 	 * 
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: InlineQuad.java 1552 2018-04-26 01:43:24Z miyabe $

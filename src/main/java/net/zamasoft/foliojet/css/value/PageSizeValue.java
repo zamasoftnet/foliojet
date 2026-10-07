@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code @page { size }}の値です(名前付きページN3/N4、2026-07-31——
- * consult-codex-2026-07-31-named-pages.txt Q3)。
+ * An {@code @page { size }} value (named pages N3/N4, 2026-07-31:
+ * consult-codex-2026-07-31-named-pages.txt Q3).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -14,10 +14,10 @@ public final class PageSizeValue implements Value {
 
 	public static final byte ORIENTATION_PORTRAIT = 2;
 
-	/** {@code size: auto}(出力既定寸法)。 */
+	/** {@code size: auto} (the default output size). */
 	public static final PageSizeValue AUTO = new PageSizeValue(-1, -1, ORIENTATION_NONE);
 
-	/** 幅・高さ(pt。0以下=既定寸法を使う)。 */
+	/** Width and height (pt; zero or less uses the default size). */
 	public final double width, height;
 
 	public final byte orientation;
@@ -29,11 +29,11 @@ public final class PageSizeValue implements Value {
 	}
 
 	/**
-	 * 実寸を解決します(orientation適用込み——landscapeは長辺を幅に、
-	 * portraitは短辺を幅にする)。
+	 * Resolves the actual size, including orientation: landscape uses the longer side
+	 * as the width, and portrait uses the shorter side.
 	 *
-	 * @param defaultWidth  size:autoのUA既定幅
-	 * @param defaultHeight 同高さ
+	 * @param defaultWidth  the UA's default width for size:auto
+	 * @param defaultHeight the corresponding default height
 	 * @return {width, height}
 	 */
 	public double[] resolve(final double defaultWidth, final double defaultHeight) {

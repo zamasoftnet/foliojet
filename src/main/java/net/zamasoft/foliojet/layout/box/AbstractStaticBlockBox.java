@@ -27,8 +27,8 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
- * ブロックボックスの実装です。
- * 
+ * Implements a block box.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: AbstractStaticBlockBox.java 1552 2018-04-26 01:43:24Z miyabe $
  */
@@ -47,15 +47,15 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	public abstract AbstractStaticPos getStaticPos();
 
 	/**
-	 * 縦中横({@code text-combine-upright: all})の水平圧縮率です。
-	 * 1なら圧縮なし。{@link #compressTextCombine}が設定する。
+	 * The horizontal compression factor for tate-chu-yoko ({@code text-combine-upright: all}).
+	 * 1 means no compression. Set by {@link #compressTextCombine}.
 	 */
 	private double textCombineScaleX = 1;
 
-	/** 圧縮後のセル内で内容を中央へ寄せる物理Xのずれです。 */
+	/** The physical X offset that centers the content within the compressed cell. */
 	private double textCombineOffsetX = 0;
 
-	/** {@link #compressTextCombine}で1emのセルへ収め終えたか。 */
+	/** Whether {@link #compressTextCombine} has already fitted the content into the 1em cell. */
 	private boolean textCombineFitted = false;
 
 	protected final double internalScaleX() {
@@ -67,29 +67,29 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	}
 
 	/**
-	 * 縦中横の内容を1emのセルへ収めます(css-writing-modes-4 §9.1.3、
-	 * 2026-08-11)。
+	 * Fits tate-chu-yoko content into a 1em cell (css-writing-modes-4 §9.1.3,
+	 * 2026-08-11).
 	 *
 	 * <p>
-	 * 自然幅{@code W}で組み終えた<b>あと</b>に呼ぶこと。箱の幅を
-	 * {@code cellExtent}(=1em)へ差し替え、内容には
-	 * {@code min(1, cellExtent/W)}の水平アフィンを掛ける。先に幅を1emにして
-	 * 組むと数字が折り返してしまうため、この順序でなければならない。
-	 * 2〜4文字では字形化前に{@code hwid/twid/qwid}を要求しており、ここで
-	 * 見る自然幅はその再計量結果です。featureが無いフォントだけが
-	 * アフィン圧縮へフォールバックする。
-	 * 自然幅が1emより狭いときは等倍のままセル内で中央へ寄せる。
+	 * Call <b>after</b> layout at the natural width {@code W}. Replace the box width with
+	 * {@code cellExtent} (=1em) and apply a horizontal affine transform of
+	 * {@code min(1, cellExtent/W)} to the content. This order is required because laying out
+	 * at a width of 1em first would wrap the digits. For 2–4 characters, {@code hwid/twid/qwid}
+	 * is requested before shaping, so the natural width here is the remeasured result.
+	 * Only fonts without those features fall back to affine compression.
+	 * If the natural width is less than 1em, keep the scale at 1 and center the content in the cell.
 	 * </p>
 	 *
 	 * <p>
-	 * 二度呼ばれても壊れないよう、収め終えた箱では何もしない——2パス構成・段組の均衡では同じ箱が
-	 * 再度行へ積まれることがある。以前は圧縮済み(scaleX≠1)かで判定していたため、圧縮しない1字は
-	 * 二度目に寄せ済みの字面で寄せ直してずれが0に戻り、字の右端が行の中心に来た(2026-10-06、
-	 * jigensha の報告。段組の中の縦中横の「2」「1」が約0.25em左へ寄った)。
+	 * Do nothing for a box already fitted, so repeated calls are safe: two-pass layout and column balancing
+	 * may place the same box into a line again. Previously, the check tested whether it was compressed
+	 * (scaleX≠1), so an uncompressed single character was centered again using its already centered glyph bounds
+	 * on the second call. The offset reverted to 0, placing the character's right edge at the line center
+	 * (2026-10-06, jigensha report: tate-chu-yoko "2" and "1" in columns shifted about 0.25 em to the left).
 	 * </p>
 	 *
-	 * @param cellExtent セルの幅(通常は1em)
-	 * @param inkBounds  圧縮前のローカル座標における字面の輪郭。取得できない場合はnull
+	 * @param cellExtent the cell width (normally 1em)
+	 * @param inkBounds  the glyph outline in local coordinates before compression, or null if unavailable
 	 */
 	public final void compressTextCombine(final double cellExtent, final Rectangle2D inkBounds) {
 		if (this.textCombineFitted || cellExtent <= 0) {
@@ -103,10 +103,10 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			this.textCombineScaleX = cellExtent / natural;
 		}
 		if (inkBounds != null && !inkBounds.isEmpty()) {
-			// 送り幅ではなく実際の墨の中心を1emセルの中心へ置く。
-			// 数字は同じadvanceでも左右サイドベアリングが字形ごとに異なるため、
-			// 左端基準で縮小すると二桁ページ番号が数字ごとに横へ揺れる
-			// (2026-08-13、実書籍の目次で41/43/45を1200dpi実測)。
+			// Center the actual glyph bounds (ink), rather than the advance, in the 1em cell.
+			// Digits with the same advance have different left/right side bearings depending on the glyph,
+			// so scaling from the left edge made two-digit page numbers shift sideways depending on the digits
+			// (2026-08-13: measured 41/43/45 at 1200 dpi in the table of contents of an actual book).
 			this.textCombineOffsetX = cellExtent / 2.0
 					- this.textCombineScaleX * inkBounds.getCenterX();
 		} else if (natural <= cellExtent) {
@@ -121,12 +121,12 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	}
 
 	/**
-	 * {@code aspect-ratio}から求めたページ方向のcontent-box寸法です
-	 * (2026-08-29、css-sizing-4 §5)。比率は物理の幅/高さで、
-	 * {@code box-sizing}の箱(border-boxならpadding+border込み)に掛かる。
+	 * The page-axis content-box size derived from {@code aspect-ratio}
+	 * (2026-08-29, css-sizing-4 §5). The ratio is physical width/height and applies to the
+	 * {@code box-sizing} box (including padding+border for border-box).
 	 *
-	 * @param lineExtent 行方向のcontent-box寸法
-	 * @return ページ方向のcontent-box寸法(比率指定が無ければNONE)
+	 * @param lineExtent the line-axis content-box size
+	 * @return the page-axis content-box size (NONE if no ratio is specified)
 	 */
 	protected final double aspectRatioPageExtent(final double lineExtent) {
 		final double ratio = this.params.aspectRatio;
@@ -137,15 +137,15 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		final double lineFrame = borderBox ? this.frame.getBorderLineExtent(this.params.flow) : 0;
 		final double pageFrame = borderBox ? this.frame.getBorderPageExtent(this.params.flow) : 0;
 		final double outerLine = Math.max(0, lineExtent) + lineFrame;
-		// 横書き: 行軸=幅→高さ=幅/比率。縦書き: 行軸=高さ→幅=高さ×比率
+		// Horizontal writing: line axis = width, so height = width / ratio. Vertical: height, so width = height × ratio.
 		final double outerPage = this.params.flow.isVertical() ? outerLine * ratio : outerLine / ratio;
 		return Math.max(0, outerPage - pageFrame);
 	}
 
 	/**
-	 * {@code aspect-ratio}から求めた行方向のcontent-box寸法です
-	 * ({@link #aspectRatioPageExtent}の逆——ページ方向だけが確定している
-	 * ときに使う。2026-08-29)。
+	 * The line-axis content-box size derived from {@code aspect-ratio}
+	 * (the inverse of {@link #aspectRatioPageExtent}, used when only the page-axis size
+	 * is definite; 2026-08-29).
 	 */
 	protected final double aspectRatioLineExtent(final double pageExtent) {
 		final double ratio = this.params.aspectRatio;
@@ -168,18 +168,21 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		this.shrinkToFit(layoutStack, sizes, table, LayoutUtils.NONE);
 	}
 
-	/** 段注専用の包含ブロック行長。NONEなら頁注を含む従来の計測。 */
+	/**
+	 * Containing-block line length for column footnotes only.
+	 * NONE uses the existing measurement, including page footnotes.
+	 */
 	public void shrinkToFit(LayoutStack layoutStack, IntrinsicSizes sizes, boolean table, final double hostLineSize) {
 		final boolean columnFootnote = !LayoutUtils.isNone(hostLineSize);
 		final double minLineAxis = sizes.minContent(), maxLineAxis = sizes.maxContent();
 		final AbstractContainerBox containerBox;
 		if (this.getPos().getType() == PosType.FLOW) {
 			if (table) {
-				// テーブル
+				// Table
 				BlockBuilder builder = (BlockBuilder) layoutStack;
 				containerBox = builder.getFlow(builder.getFlowCount() - 2).box;
 			} else {
-				// 書字方向の混在
+				// Mixed writing directions
 				containerBox = layoutStack.getFlowBox();
 			}
 		} else {
@@ -193,12 +196,12 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		final WritingMode flow = this.params.flow;
 		{
 			final LengthType pageType = this.params.size.getPageType(flow);
-			// 直交ブロック(親と書字方向の軸が違う)のページ軸%の基準は
-			// 親の線軸で、これは常に確定している——ここを親のページ軸
-			// (isSpecifiedPageSize)で判定すると縦書き文書内の横ブロックの
-			// height:100%が未確定扱い→AUTOフォールスルーで0になり、
-			// firstPassLayoutが親線軸基準で出した正しい値を潰す(2026-08-10、
-			// 実書籍の資料図版ページ全滅で発見)
+			// An orthogonal block (whose writing-mode axis differs from its parent's) uses the parent's line axis
+			// as the basis for page-axis percentages, and that axis is always definite. Checking the parent's
+			// page axis (isSpecifiedPageSize) here treated height:100% on horizontal blocks in vertical documents
+			// as indefinite, falling through to AUTO and becoming 0.
+			// This overwrote the correct value firstPassLayout had derived from the parent's line axis (2026-08-10:
+			// discovered when all reference illustration pages in an actual book failed).
 			final boolean orthogonal = cParams.flow.isVertical() != flow.isVertical();
 			this.specifiedPageAxis = pageType == LengthType.ABSOLUTE || (pageType.needsReference() && (!table
 					&& (this.getPos().getType() == PosType.INLINE || orthogonal
@@ -206,32 +209,32 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		}
 
 		//
-		// ■ パディングの計算
+		// ■ Calculate padding
 		//
 		LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
 		//
-		// ■ マージンの計算
+		// ■ Calculate margins
 		//
 		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineSize);
 
 		//
-		// ■ 行方向幅の計算
+		// ■ Calculate the line-axis size
 		//
-		// 論理軸(行方向/ページ方向)で計算し、末尾で物理寸法へ書き戻す。
+		// Calculate on logical axes (line/page) and write back to physical dimensions at the end.
 		final SizingContext context = this.fitContentContext(layoutStack, containerBox, table);
-		// **親と同軸の通常フローがここへ来るのは固有寸法キーワード付きの
-		// ときだけ**(width:max-content等、2026-08-29。DocumentBuilder.startBox
-		// の振り分け)。利用可能寸法と%の基準は包含ブロックの行寸法で、
-		// 浮動体用のgetFixedWidth()ではない
+		// **Normal flow on the same axis as the parent reaches here only with intrinsic sizing keywords**
+		// (width:max-content, etc., 2026-08-29; dispatched by DocumentBuilder.startBox).
+		// The available size and percentage basis are the containing block's line size,
+		// not getFixedWidth(), which is for floats.
 		final boolean sameAxisFlow = !table && this.getPos().getType() == PosType.FLOW
 				&& cParams.flow.isVertical() == flow.isVertical();
 		final double cLine = columnFootnote ? hostLineSize : sameAxisFlow ? lineSize : context.availableLine();
 
-		// 行方向: fit-content と min/max クランプ
+		// Line axis: fit-content and min/max clamping
 		double lineExtent = LayoutUtils.computeDimensionLine(this.size, flow, cLine);
-		// aspect-ratio: 行方向autoでページ方向が絶対長なら、fit-contentでは
-		// なく比率で行方向を決める(2026-08-29。height:40px;aspect-ratio:2の
-		// float/inline-blockは幅80px)
+		// aspect-ratio: If the line-axis size is auto and the page-axis size is an absolute length,
+		// derive the line-axis size from the ratio instead of fit-content (2026-08-29: a float/inline-block
+		// with height:40px;aspect-ratio:2 has width 80px).
 		boolean ratioLine = false;
 		if (LayoutUtils.isNone(lineExtent) && this.params.aspectRatio > 0
 				&& this.size.getPageType(flow) == LengthType.ABSOLUTE) {
@@ -254,56 +257,56 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		if (this.size.getLineType(flow) == LengthType.AUTO && !ratioLine) {
 			final IntrinsicSize intrinsic = table ? null : this.params.intrinsicLine;
 			if (intrinsic != null) {
-				// 固有寸法キーワード(2026-08-29): max-content/min-contentは
-				// 実測値そのもの、fit-content(L)は上限をLに差し替えた
-				// shrink-to-fit。紙幅の制限(下の段数倍クランプ)は掛けない
-				// ——作者が内容幅を明示した箱で、はみ出すなら仕様どおり
+				// Intrinsic sizing keywords (2026-08-29): max-content/min-content use the measured values themselves;
+				// fit-content(L) uses shrink-to-fit with L as the upper bound.
+				// Do not apply the paper-width limit (the column-count inflation clamp below):
+				// the author explicitly specifies the content width, so any overflow follows the specification.
 				lineExtent = this.resolveIntrinsicLine(intrinsic, minLineAxis, maxLineAxis, limitLine, cLine);
 			} else if (sameAxisFlow) {
-				// width:autoでmin/maxだけが固有寸法の通常フロー: 幅は
-				// 通常どおり包含ブロックを充填し、下のmin/maxで挟む
+				// Normal flow with width:auto and intrinsic sizing only in min/max: fill the containing block
+				// as usual, then clamp with min/max below.
 				lineExtent = limitLine;
 			} else {
 				lineExtent = Sizing.fitContent(minLineAxis, lineExtent, limitLine);
 				if (!table && sizes.columnInflated() && limitLine > 0 && lineExtent > limitLine) {
-					// **段数倍で膨らんだ最小内容寸法で紙の行軸を超えない**
-					// (2026-07-28)。
+					// **Do not let the minimum content size inflated by the column count exceed the paper's line axis**
+					// (2026-07-28).
 					//
-					// `fit-content`は`max(min-content, min(available, max-content))`
-					// なので、**最小内容寸法が使える空間より大きいとそれがそのまま
-					// 採用される**。画面のブラウザではそれで正しい——はみ出した
-					// ぶんはスクロールで読める。しかし紙には続きがない。しかも
-					// **行軸は分割できない**(ページ分割はページ軸にしか効かない)
-					// ので、行軸をはみ出した内容は次のページへ送られるのではなく、
-					// 紙の外の座標にそのまま描かれる。
+					// `fit-content` is `max(min-content, min(available, max-content))`,
+					// so **if the minimum content size exceeds the available space, it is used as is**.
+					// This is correct for an on-screen browser: the overflow remains readable by scrolling.
+					// Paper, however, has no continuation beyond its edge. Moreover,
+					// **the line axis cannot be split** (pagination applies only to the page axis),
+					// so content overflowing the line axis is drawn at coordinates outside the paper
+					// instead of moving to the next page.
 					//
-					// 段組の最小内容寸法は「段数 × 中身の最小内容寸法 + 段間」
-					// ——**段数倍に膨らみ**、入れ子にすれば積で効く。実測
-					// (2026-07-28、seed 25503): 200pt紙に高さ823ptのフロート
-					// (= 4段 × 196pt + 3 × 13pt)ができ、内容が y=-623 に
-					// 描かれた。**段は狭くできる**(行軸を段数で割り直すだけ)
-					// ので、この下限は守らなくてよい。段は細くなるが紙には載る
-					// ——横書きがこの欠陥を1件も出さないのと同じ状態になる。
+					// The minimum content size of a multi-column layout is "column count × minimum content size + gaps":
+					// **it grows with the column count**, and nesting multiplies the effect. Measurements
+					// (2026-07-28, seed 25503) showed an 823 pt tall float on 200 pt paper
+					// (= 4 columns × 196 pt + 3 × 13 pt), with content drawn at y=-623.
+					// **Columns can be narrowed** (simply divide the line axis by the column count again),
+					// so this lower bound need not be honored. The columns become narrower but fit on the paper,
+					// matching horizontal writing, which never exhibited this defect.
 					//
-					// **段数倍が効いたときだけ**にするのが肝心
-					// ({@code columnInflated})。`height:150mm`の画像のように
-					// 作者が明示した不可分な箱から来た最小内容寸法まで縮めると、
-					// 箱だけ縮んで中身は縮まず、**はみ出しが増える**。実測で
-					// 400pt紙の`writing-mode:vertical-rl`の箱が425.2→316ptに
-					// 縮み、画像が段送りされずその場ではみ出した
-					// (`WritingModeColumnTest`)。
+					// It is essential to apply this **only when column-count inflation occurs**
+					// ({@code columnInflated}). If the minimum content size instead comes from an explicitly sized,
+					// indivisible box such as an image with `height:150mm`, shrinking it only shrinks the box,
+					// not its contents, **increasing overflow**. Measurements showed that a
+					// `writing-mode:vertical-rl` box on 400 pt paper shrank from 425.2 to 316 pt,
+					// and its image overflowed in place instead of moving to the next column.
+					// (`WritingModeColumnTest`).
 					//
-					// 明示された`min-*`は下でこの値を上書きするので、作者の
-					// 指定は従来どおり通る。
+					// An explicit `min-*` overrides this value below, so the author's setting
+					// still takes effect as before.
 					lineExtent = limitLine;
 				}
 			}
 		}
-		// min/max-width は box-sizing のスケールで書かれている。lineExtent は
-		// 内容幅なので、border-box なら境界+パディングを引いてから比べる
-		// (2026-08-29)。従来は引いておらず、`min-width:100px; padding-inline:8px;
-		// box-sizing:border-box` のピルが116pxに広がった(padding-inlineの
-		// 対応で顕在化。0510-flex/min-width-nested-containerの期待は75pt)
+		// min/max-width use the box-sizing scale. lineExtent is the content width,
+		// so subtract borders + padding for border-box before comparing
+		// (2026-08-29). Previously, these were not subtracted, so a pill with `min-width:100px; padding-inline:8px;
+		// box-sizing:border-box` grew to 116px (exposed by support for padding-inline;
+		// 0510-flex/min-width-nested-container expects 75 pt).
 		final double borderBoxLine = this.params.boxSizing == BoxSizingMode.BORDER_BOX
 				? this.frame.getBorderLineExtent(flow)
 				: 0;
@@ -312,7 +315,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			maxLine = Math.max(0, maxLine - borderBoxLine);
 		}
 		if (!table && this.params.intrinsicMaxLine != null) {
-			// max-width: max-content 等(2026-08-29)。Dimension側はAUTO(none)
+			// max-width: max-content, etc. (2026-08-29). The Dimension value is AUTO (none).
 			maxLine = this.resolveIntrinsicLine(this.params.intrinsicMaxLine, minLineAxis, maxLineAxis, limitLine,
 					cLine);
 		}
@@ -324,7 +327,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			minLine = Math.max(0, minLine - borderBoxLine);
 		}
 		if (!table && this.params.intrinsicMinLine != null) {
-			// min-width: max-content 等(2026-08-29)。Dimension側はAUTO(0)
+			// min-width: max-content, etc. (2026-08-29). The Dimension value is AUTO (0).
 			minLine = this.resolveIntrinsicLine(this.params.intrinsicMinLine, minLineAxis, maxLineAxis, limitLine,
 					cLine);
 		}
@@ -332,10 +335,10 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			lineExtent = minLine;
 		}
 
-		// 段注は短文・作者のinline min/maxによらず、宿主の行長を満たす。
+		// Column footnotes fill the host's line length regardless of short text or the author's inline min/max.
 		if (columnFootnote) lineExtent = limitLine;
 
-		// ページ方向: min/max と指定寸法。%は percentBasePage が確定している場合のみ解決する
+		// Page axis: min/max and the specified size. Resolve percentages only when percentBasePage is definite.
 		double minPage;
 		switch (this.minSize.getPageType(flow)) {
 		case RELATIVE:
@@ -343,7 +346,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				minPage = this.minSize.getPageLength(flow) * context.percentBasePage();
 				break;
 			}
-			// percentBasePage未確定ならAUTOへフォールスルー(既存の意図的な仕様)
+			// Fall through to AUTO if percentBasePage is indefinite (existing intentional behavior)
 		case AUTO:
 			minPage = 0;
 			break;
@@ -367,7 +370,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				maxPage = this.params.maxSize.getPageLength(flow) * context.percentBasePage();
 				break;
 			}
-			// percentBasePage未確定ならAUTOへフォールスルー(既存の意図的な仕様)
+			// Fall through to AUTO if percentBasePage is indefinite (existing intentional behavior)
 		case AUTO:
 			maxPage = Double.MAX_VALUE;
 			break;
@@ -385,10 +388,10 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		default:
 			throw new IllegalStateException();
 		}
-		// ページ方向のmin/max指定もbox-sizingのスケール。border-boxなら枠を
-		// 引いて内寸スケールへ揃えてから比べる(2026-08-29。行方向の
-		// borderBoxLineと対。従来はminPageAxis/maxPageAxisが枠込みのまま
-		// 残り、setPageAxisが内容高を枠込みの下限まで押し上げていた)
+		// Page-axis min/max also use the box-sizing scale. For border-box, subtract the frame
+		// to match the inner-size scale before comparing (2026-08-29; paired with line-axis
+		// borderBoxLine). Previously, minPageAxis/maxPageAxis still included the frame,
+		// so setPageAxis raised the content height to the lower bound including the frame.
 		if (this.params.boxSizing == BoxSizingMode.BORDER_BOX) {
 			final double borderBoxPage = this.getFrame().getBorderPageExtent(flow);
 			minPage = Math.max(0, minPage - borderBoxPage);
@@ -409,10 +412,10 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				minPage = maxPage = pageExtent;
 				break;
 			}
-			// percentBasePage未確定ならAUTOへフォールスルー(既存の意図的な仕様)
+			// Fall through to AUTO if percentBasePage is indefinite (existing intentional behavior)
 		case AUTO:
-			// 台帳#4 解消(2026-07-17): 旧実装は縦書きのテーブル時のみ
-			// 既値を維持していた。横書きと同じく常に0(内容が後で決める)
+			// Ledger #4 resolved (2026-07-17): The old implementation retained the existing value only
+			// for tables in vertical writing. Always use 0, as in horizontal writing (content determines it later).
 			pageExtent = 0;
 			break;
 		case ABSOLUTE:
@@ -441,10 +444,10 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			throw new IllegalStateException();
 		}
 		if (this.params.aspectRatio > 0 && !this.specifiedPageAxis) {
-			// aspect-ratio: ページ方向がautoなら行方向から比率で決める
-			// (2026-08-29)。内容が比率高より高いときはoverflow:visibleなら
-			// 内容に合わせて伸びる(仕様のmin-height:auto=内容寸法の近似)
-			// ——minPageを比率高、maxPageは可視のとき無制限のまま
+			// aspect-ratio: If the page-axis size is auto, derive it from the line axis and the ratio
+			// (2026-08-29). With overflow:visible, grow to fit content taller than the ratio-derived height
+			// (an approximation of the specified min-height:auto = content size).
+			// Set minPage to the ratio-derived height, leaving maxPage unbounded when overflow is visible.
 			double page = this.aspectRatioPageExtent(lineExtent);
 			page = Math.max(page, minPage);
 			page = Math.min(page, maxPage);
@@ -458,7 +461,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		this.minPageAxis = minPage;
 		this.maxPageAxis = maxPage;
 
-		// 物理寸法へ書き戻し
+		// Write back to physical dimensions
 		if (flow.isVertical()) {
 			this.height = lineExtent;
 			this.width = pageExtent;
@@ -468,19 +471,19 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		}
 		assert !LayoutUtils.isNone(this.width);
 		assert !LayoutUtils.isNone(this.height);
-		// 通常フローのautoマージン(margin:0 auto の中央寄せ)はここでは
-		// 触らない——BlockBuilder.addBoundがresolvedAlignとともに解決する
-		// (直交フローと同じ経路、2026-08-29)
+		// Leave auto margins in normal flow (centering with margin:0 auto) untouched here:
+		// BlockBuilder.addBound resolves them together with resolvedAlign
+		// (the same path as orthogonal flow, 2026-08-29).
 	}
 
 	/**
-	 * 行方向の利用可能寸法(content-box)を返します(2026-08-29に
-	 * {@link #shrinkToFit}から切り出し。min/maxの固有寸法解決でも使う)。
+	 * Returns the available line-axis size (content-box). Extracted from {@link #shrinkToFit}
+	 * on 2026-08-29; also used to resolve intrinsic sizes for min/max.
 	 *
-	 * @param layoutStack  レイアウトスタック
-	 * @param containerBox 包含ブロック
-	 * @param cLine        包含ブロックの行方向寸法
-	 * @return 利用可能寸法
+	 * @param layoutStack  the layout stack
+	 * @param containerBox the containing block
+	 * @param cLine        the containing block's line-axis size
+	 * @return the available size
 	 */
 	private double availableLineExtent(final LayoutStack layoutStack, final AbstractContainerBox containerBox,
 			final double cLine) {
@@ -488,10 +491,10 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		if (containerBox.getBlockParams().flow.isVertical() == flow.isVertical() || containerBox.isSpecifiedPageSize()) {
 			return cLine - this.frame.getFrameLineExtent(flow);
 		}
-		// 親の幅が不確定の場合はページ寸法を限度とする。基準は
-		// ページの**内容域**(マージンの内側)——物理寸法を使うと
-		// fit-contentがマージンへ食い込む幅を許してしまう
-		// (2026-08-10、縦書き書籍の資料図版ページで実測)
+		// If the parent's width is indefinite, use the page size as the limit. The basis is
+		// the page's **content area** (inside the margins): using physical dimensions would
+		// let fit-content extend into the margins
+		// (2026-08-10: measured on reference illustration pages in a book in vertical writing).
 		final AbstractContainerBox fixedLineBox = flow.isVertical() ? layoutStack.getFixedHeightFlowBox()
 				: layoutStack.getFixedWidthFlowBox();
 		if (DebugFlags.LINE_BASIS) {
@@ -504,58 +507,58 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 					+ " frame=" + this.frame.getFrameLineExtent(flow));
 		}
 		return (fixedLineBox != null ? fixedLineBox.getInnerLineExtent(flow)
-				// 明示寸法の祖先が無ければフラグメンテナ(ページ)の内容域
-				// (2026-09-16、LayoutStack.getOrthogonalLineBasis)
+				// If no ancestor has an explicit size, use the fragmentainer (page) content area
+				// (2026-09-16, LayoutStack.getOrthogonalLineBasis)
 				: layoutStack.getOrthogonalLineBasis(flow))
 				- this.frame.getFrameLineExtent(flow);
 	}
 
 	/**
-	 * fit-content サイズ決定のための制約空間を包含コンテキストから導出します。
-	 * 呼び出し前に specifiedPageAxis が確定している必要があります。
+	 * Derives the constraint space for fit-content sizing from the containing context.
+	 * specifiedPageAxis must be determined before this call.
 	 *
-	 * @param layoutStack  レイアウトスタック
-	 * @param containerBox 包含ブロック
-	 * @param table        テーブル文脈であればtrue
-	 * @return 制約空間
+	 * @param layoutStack  the layout stack
+	 * @param containerBox the containing block
+	 * @param table        true in a table context
+	 * @return the constraint space
 	 */
 	private SizingContext fitContentContext(LayoutStack layoutStack, AbstractContainerBox containerBox, boolean table) {
 		final WritingMode flow = this.params.flow;
-		// ページ方向の基準ボックス。
+		// Reference box for the page axis.
 		AbstractContainerBox fixedPageBox = flow.isVertical() ? layoutStack.getFixedWidthFlowBox()
 				: layoutStack.getFixedHeightFlowBox();
 		if (fixedPageBox == null) {
 			fixedPageBox = containerBox;
 		}
-		// 台帳#3 解消(2026-07-17): 旧実装は縦書きでも InnerHeight を参照
-		// していた。ページ方向%の基準は論理ページ軸の内寸(縦書き=幅)。
-		// ただし直交ブロックのページ軸は親の線軸に一致するため、基準は
-		// 包含ブロックの線軸内寸(2026-08-10、specifiedPageAxisの直交条件と対)
+		// Ledger #3 resolved (2026-07-17): The old implementation referenced InnerHeight even in vertical
+		// writing. Page-axis percentages use the logical page-axis inner size (width in vertical writing).
+		// However, an orthogonal block's page axis matches the parent's line axis, so use the containing
+		// block's inner line-axis size (2026-08-10; paired with the orthogonal condition in specifiedPageAxis).
 		final BlockParams cParams = containerBox.getBlockParams();
 		final double cPage = (cParams.flow.isVertical() != flow.isVertical())
 				? containerBox.getInnerLineExtent(cParams.flow)
 				: fixedPageBox.getInnerPageExtent(flow);
 		double cLine = table ? containerBox.getInnerLineExtent(flow)
-				// 同上(直交フローで 0 になると fit-content が 0 幅になる)
+				// Same as above (0 in orthogonal flow makes fit-content produce zero width)
 				: layoutStack.getOrthogonalLineBasis(flow);
 		if (LayoutUtils.isNone(cLine) || LayoutUtils.compare(cLine, 0) <= 0) {
-			// 表文脈でも、包含ブロックの線軸内寸が直交フローでは基準にならない
-			// (縦組みの body の「幅」は 0 のまま渡ってくる)。0 を線軸の百分率の
-			// 基準にすると `max-width: 90%` が 0 になり、幅 0 の表から内容が
-			// 紙面外へあふれる(2026-09-16 に実測。掃過の「全描画が紙面外」)
+			// Even in a table context, the containing block's inner line-axis size cannot be the basis in orthogonal
+			// flow (the "width" of a body in vertical writing is passed as 0). Using 0 as the line-axis percentage
+			// basis makes `max-width: 90%` zero, causing content to overflow from a zero-width table
+			// beyond the paper (measured on 2026-09-16; "all drawing outside the paper" in the sweep).
 			cLine = layoutStack.getOrthogonalLineBasis(flow);
 		}
-		// ページ方向の%は基準が確定している場合のみ解決する
+		// Resolve page-axis percentages only when the basis is definite
 		final double pagePercentBase = (!table && this.isSpecifiedPageSize()) ? cPage : LayoutUtils.NONE;
 		return new SizingContext(SizingMode.FIT_CONTENT, cLine, cLine, pagePercentBase);
 	}
 
 	public void finishLayoutSelf(IFramedBox containerBox) {
-		// 位置の計算
+		// Calculate the position
 		AbstractStaticPos pos = this.getStaticPos();
 		if (pos.offset != null) {
 			//
-			// ■ 相対配置の位置の計算
+			// ■ Calculate the relative position
 			//
 			this.offsetX = LayoutUtils.computeOffsetX(pos.offset, containerBox);
 			this.offsetY = LayoutUtils.computeOffsetY(pos.offset, containerBox);

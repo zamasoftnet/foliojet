@@ -159,7 +159,7 @@ public final class ElementPropertySet extends PropertySet {
 		return CODE_SIZE;
 	}
 
-	/** 計算済みスタイルの値コピーに使う、登録済みの基本特性です。 */
+	/** Registered primitive properties used to copy computed style values. */
 	public static java.util.Set<PrimitivePropertyInfo> getPrimitiveProperties() {
 		return PRIMITIVE_PROPERTIES;
 	}
@@ -178,8 +178,8 @@ public final class ElementPropertySet extends PropertySet {
 	}
 
 	/**
-	 * 複合特性の2つ目以降の構成要素を登録します。
-	 * 名前は代表(最初の構成要素)のみに紐づけ、カスケード用のコードだけを割り当てます。
+	 * Registers the second and subsequent components of a composite property.
+	 * Only the representative (first component) is associated with the name; the others receive cascade codes only.
 	 */
 	private void regCode(PrimitivePropertyInfo info) {
 		CODES.put(info, (short) CODE_SIZE++);
@@ -251,13 +251,13 @@ public final class ElementPropertySet extends PropertySet {
 		reg(ContentVisibility.INFO);
 		reg(Overflow.INFO_X);
 		reg(Overflow.INFO_Y);
-		// 論理軸(css-overflow-3、2026-08-30)
+		// Logical axes (css-overflow-3, 2026-08-30)
 		reg(Overflow.INFO_BLOCK);
 		reg(Overflow.INFO_INLINE);
 		reg(Clip.INFO);
 		reg(MaskImage.INFO);
-		// maskの各longhandとショートハンド。mask-imageだけあって残りを
-		// 落とすと、意図と逆の見た目に倒れる。
+		// The mask longhands and shorthand. Keeping only mask-image and dropping
+		// the others can produce the opposite of the intended appearance.
 		reg(net.zamasoft.foliojet.css.impl.property.box.MaskPosition.INFO_X);
 		regCode(net.zamasoft.foliojet.css.impl.property.box.MaskPosition.INFO_Y);
 		reg(net.zamasoft.foliojet.css.impl.property.box.MaskSize.INFO_WIDTH);
@@ -295,8 +295,8 @@ public final class ElementPropertySet extends PropertySet {
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.ROW_START);
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridPlacement.ROW_END);
 		reg(net.zamasoft.foliojet.css.impl.property.grid.RowGap.INFO);
-		// Grid拡張(2026-08-29、50サイト掃過): grid-template-areas・
-		// grid-auto-flow・grid-auto-columns/rows・aspect-ratio
+		// Grid extensions (2026-08-29, 50-site sweep): grid-template-areas,
+		// grid-auto-flow, grid-auto-columns/rows, aspect-ratio
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridTemplateAreas.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridAutoFlow.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.grid.GridTemplateTracks.AUTO_COLUMNS);
@@ -318,7 +318,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(net.zamasoft.foliojet.css.impl.property.flex.OrderProperty.INFO);
 		reg(TextIndent.INFO);
 		reg(TextAlign.INFO);
-		// text-decoration-line(2026-08-29に短縮形から分離)と、色・付帯指定
+		// text-decoration-line (separated from the shorthand on 2026-08-29), color, and related settings
 		reg(TextDecoration.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextDecorationColor.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextDecorationAux.STYLE);
@@ -327,13 +327,13 @@ public final class ElementPropertySet extends PropertySet {
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextUnderlinePosition.INFO);
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.TextDecorationShorthand.INFO);
 		reg(LetterSpacing.INFO);
-		// 和文詰めA1/T1b(consult-codex-2026-07-31-text-spacing.txt)
+		// Japanese text spacing A1/T1b (consult-codex-2026-07-31-text-spacing.txt)
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextAutospace.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextSpacingTrim.INFO);
-		// 縦中横の種別(内部——TextCombineShorthandが設定する)
+		// Tate-chu-yoko type (internal: set by TextCombineShorthand)
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextCombineMode.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.HangingPunctuation.INFO);
-		// 名前付きページN1b(consult-codex-2026-07-31-named-pages.txt)
+		// Named pages N1b (consult-codex-2026-07-31-named-pages.txt)
 		reg(net.zamasoft.foliojet.css.impl.property.page.PageProperty.INFO);
 		reg(WordSpacing.INFO);
 		reg(TextTransform.INFO);
@@ -407,10 +407,10 @@ public final class ElementPropertySet extends PropertySet {
 		put(BackgroundShorthand.INFO);
 		put(ListStyleShorthand.INFO);
 
-		// 互換性
+		// Compatibility
 		alias("windows", Widows.INFO);
-		// css-break-3の正式名(page-break-*は旧css2名)。値パーサは
-		// page/column/recto/verso等のLevel 3値を既に受ける(2026-08-22)
+		// Official css-break-3 names (page-break-* are legacy css2 names). The value parser
+		// already accepts Level 3 values such as page/column/recto/verso (2026-08-22).
 		alias("break-before", PageBreakBefore.INFO);
 		alias("break-after", PageBreakAfter.INFO);
 		alias("break-inside", PageBreakInside.INFO);
@@ -429,7 +429,7 @@ public final class ElementPropertySet extends PropertySet {
 		reg(net.zamasoft.foliojet.css.impl.property.text.RubyOverhang.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.RubyPosition.INFO);
 		reg(BoxSizing.INFO);
-		// CSS Images 3: 置換要素の内容の収め方(2026-08-27)
+		// CSS Images 3: fitting the content of replaced elements (2026-08-27)
 		reg(net.zamasoft.foliojet.css.impl.property.box.ObjectFit.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.box.ObjectPosition.INFO_X);
 		regCode(net.zamasoft.foliojet.css.impl.property.box.ObjectPosition.INFO_Y);
@@ -443,9 +443,9 @@ public final class ElementPropertySet extends PropertySet {
 		put(TextWrapShorthand.INFO);
 		reg(Hyphens.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.HyphenateCharacter.INFO);
-		// line-break / tab-size(css-text-3)、font-stretch(css-fonts-4では
-		// font-width)、個別変換 translate/rotate/scale(css-transforms-2)、
-		// zoom(css-viewport)。2026-08-29
+		// line-break / tab-size (css-text-3), font-stretch (font-width in css-fonts-4),
+		// individual transforms translate/rotate/scale (css-transforms-2),
+		// zoom (css-viewport). 2026-08-29
 		reg(net.zamasoft.foliojet.css.impl.property.text.LineBreak.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.TabSize.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontStretch.INFO);
@@ -469,13 +469,13 @@ public final class ElementPropertySet extends PropertySet {
 		reg(TextEmphasisColor.INFO);
 		reg(TextEmphasisPosition.INFO);
 		reg(Opacity.INFO);
-		// mix-blend-mode/isolation(compositing-1)とtext-overflow(css-overflow-3)、2026-08-29
+		// mix-blend-mode/isolation (compositing-1) and text-overflow (css-overflow-3), 2026-08-29
 		reg(net.zamasoft.foliojet.css.impl.property.box.MixBlendMode.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.box.Isolation.INFO);
-		// filter(filter-effects-1)、2026-08-29
+		// filter (filter-effects-1), 2026-08-29
 		reg(net.zamasoft.foliojet.css.impl.property.box.Filter.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextOverflow.INFO);
-		// @container G2(2026-08-15段2、開発記録)
+		// @container G2 (2026-08-15 stage 2, development record)
 		reg(ContainerType.INFO);
 		reg(ContainerName.INFO);
 		put(ContainerShorthand.INFO);
@@ -504,9 +504,9 @@ public final class ElementPropertySet extends PropertySet {
 		reg(TextFillColor.INFO);
 		reg(PaintOrder.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.InitialLetter.INFO);
-		// font-variation-settings: 適用は@font-faceディスクリプタのみ
-		// (FontVariationSettingsのjavadoc)。要素側はカスケード用コードの
-		// 割当のために登録する(CSSStyle.setがコード無しだと黙って落ちる罠)
+		// font-variation-settings: applies only as an @font-face descriptor
+		// (FontVariationSettings Javadoc). Register it on elements to assign a cascade
+		// code (pitfall: CSSStyle.set silently drops it if no code exists).
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontVariationSettings.INFO);
 		put(TextStrokeShorthand.INFO);
 		reg(TextShadow.INFO);
@@ -538,8 +538,8 @@ public final class ElementPropertySet extends PropertySet {
 		alias("-webkit-shape-image-threshold",
 				net.zamasoft.foliojet.css.impl.property.box.ShapeImageThreshold.INFO);
 
-		// ベンダ接頭辞つきの段組(2026-08-29)。標準名は実装済みで、実サイトは
-		// 後方互換のため-webkit-/-moz-を併記する。別名を受けるだけ
+		// Vendor-prefixed multi-column layout (2026-08-29). Standard names are implemented;
+		// real sites also specify -webkit-/-moz- for backward compatibility. Accept aliases only.
 		for (final String prefix : new String[] { "-webkit-", "-moz-" }) {
 			alias(prefix + "column-count", ColumnCount.INFO);
 			alias(prefix + "column-width", ColumnWidth.INFO);
@@ -551,35 +551,35 @@ public final class ElementPropertySet extends PropertySet {
 			alias(prefix + "column-span", ColumnSpan.INFO);
 			alias(prefix + "column-rule", ColumnRuleShorthand.INFO);
 			alias(prefix + "columns", ColumnsShorthand.INFO);
-			// 旧-webkit-column-break-*はbreak-*の前身。値の集合は同じ
+			// Legacy -webkit-column-break-* preceded break-*. The value sets are identical.
 			alias(prefix + "column-break-before", PageBreakBefore.INFO);
 			alias(prefix + "column-break-after", PageBreakAfter.INFO);
 			alias(prefix + "column-break-inside", PageBreakInside.INFO);
 		}
-		// 論理ショートハンド(2026-08-29)
+		// Logical shorthands (2026-08-29)
 		for (final net.zamasoft.foliojet.css.property.ShorthandPropertyInfo info : //
 				net.zamasoft.foliojet.css.impl.property.shorthand.LogicalBoxShorthand.all()) {
 			put(info);
 		}
 		reg(net.zamasoft.foliojet.css.impl.property.font.FontKerning.INFO);
-		// -webkit-line-clamp / line-clamp(2026-08-29、実サイト24サイト)。
-		// 高さの上限+overflow:hiddenへ近似する(BoxStyleMapper参照)
+		// -webkit-line-clamp / line-clamp (2026-08-29, 24 real sites).
+		// Approximate with a height limit + overflow:hidden (see BoxStyleMapper).
 		reg(net.zamasoft.foliojet.css.impl.property.box.LineClamp.INFO);
 		alias("-webkit-line-clamp", net.zamasoft.foliojet.css.impl.property.box.LineClamp.INFO);
-		// all(css-cascade-4)。全体キーワードだけを受け、全longhandへ配る
+		// all (css-cascade-4). Accepts only CSS-wide keywords and distributes them to all longhands.
 		put(net.zamasoft.foliojet.css.impl.property.shorthand.AllShorthand.INFO);
-		// 論理境界ショートハンド border-inline-start 等(2026-08-29)
+		// Logical border shorthands such as border-inline-start (2026-08-29)
 		for (final net.zamasoft.foliojet.css.property.ShorthandPropertyInfo info : //
 				net.zamasoft.foliojet.css.impl.property.shorthand.LogicalBorderShorthand.all()) {
 			put(info);
 		}
-		// 論理境界の両側まとめ border-block / border-inline 等(2026-08-30)
+		// Shorthands for both logical borders, such as border-block / border-inline (2026-08-30)
 		for (final net.zamasoft.foliojet.css.property.ShorthandPropertyInfo info : //
 				net.zamasoft.foliojet.css.impl.property.shorthand.LogicalBorderAxisShorthand.all()) {
 			put(info);
 		}
-		// ベンダ接頭辞つきの別名(2026-08-29、50サイトの実測)。標準名は実装済みで、
-		// サイトは後方互換のために接頭辞つきを併記する。別名を受けるだけ
+		// Vendor-prefixed aliases (2026-08-29, observations from 50 sites). Standard names
+		// are implemented; sites also specify prefixes for backward compatibility. Accept aliases only.
 		alias("-webkit-box-sizing", BoxSizing.INFO);
 		alias("-moz-box-sizing", BoxSizing.INFO);
 		alias("-ms-transform", Transform.INFO);
@@ -607,7 +607,7 @@ public final class ElementPropertySet extends PropertySet {
 		alias("-webkit-margin-after", Margin.BLOCK_END);
 		alias("-webkit-padding-before", Padding.BLOCK_START);
 		alias("-webkit-padding-after", Padding.BLOCK_END);
-		// Flexbox(-webkit-/-ms-の2012年版接頭辞。値の集合は標準と同じ)
+		// Flexbox (2012 -webkit-/-ms- prefixes; the value sets match the standard)
 		alias("-webkit-flex-direction", net.zamasoft.foliojet.css.impl.property.flex.FlexDirectionProperty.INFO);
 		alias("-ms-flex-direction", net.zamasoft.foliojet.css.impl.property.flex.FlexDirectionProperty.INFO);
 		alias("-webkit-flex-wrap", net.zamasoft.foliojet.css.impl.property.flex.FlexWrapProperty.INFO);
@@ -628,13 +628,13 @@ public final class ElementPropertySet extends PropertySet {
 		alias("-webkit-align-items", net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_ITEMS);
 		alias("-webkit-align-self", net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_SELF);
 		alias("-webkit-align-content", net.zamasoft.foliojet.css.impl.property.grid.GridAlignmentProperty.ALIGN_CONTENT);
-		// -ms-flex-pack/-ms-flex-align等(2011年版)は値の語彙が違う(start/end/
-		// justify/distribute)ので、読み替えてから標準名へ落とす(2026-08-29)
+		// -ms-flex-pack/-ms-flex-align, etc. (2011 version) use different value names
+		// (start/end/justify/distribute), so translate them to the standard names (2026-08-29).
 		for (final net.zamasoft.foliojet.css.impl.property.flex.LegacyFlexAlignmentAlias info : //
 				net.zamasoft.foliojet.css.impl.property.flex.LegacyFlexAlignmentAlias.all()) {
 			put(info);
 		}
-		// 論理角丸(css-logical-1)。横書き・ltrの物理角へ写す近似
+		// Logical corner radii (css-logical-1). Approximate by mapping to physical corners in horizontal writing, ltr.
 		alias("border-start-start-radius", BorderRadius.TOP_LEFT);
 		alias("border-start-end-radius", BorderRadius.TOP_RIGHT);
 		alias("border-end-start-radius", BorderRadius.BOTTOM_LEFT);
@@ -676,15 +676,15 @@ public final class ElementPropertySet extends PropertySet {
 		alias("column-fill", ColumnFill.INFO);
 		alias("column-span", ColumnSpan.INFO);
 		alias("column-rule", ColumnRuleShorthand.INFO);
-		// 旧接頭辞付きのgap(2026-08-29、50サイト掃過で59/51/51回)。
-		// css-align-3 §8.4のlegacy alias——grid-*-gapは同名の
-		// gap/column-gap/row-gapと同じ宣言として扱う
+		// Legacy prefixed gap (2026-08-29, 59/51/51 occurrences in the 50-site sweep).
+		// Legacy aliases from css-align-3 §8.4: treat grid-*-gap as the corresponding
+		// gap/column-gap/row-gap declaration.
 		alias("grid-gap", net.zamasoft.foliojet.css.impl.property.shorthand.GapShorthand.INFO);
 		alias("grid-column-gap", ColumnGap.INFO);
 		alias("grid-row-gap", net.zamasoft.foliojet.css.impl.property.grid.RowGap.INFO);
 		alias("columns", ColumnsShorthand.INFO);
 
-		// 論理境界プロパティ(2026-08-03)。border-block-start-* ほか12個
+		// Logical border properties (2026-08-03). The 12 border-block-start-* and related properties.
 		for (net.zamasoft.foliojet.css.impl.property.border.LogicalBorder info : //
 				net.zamasoft.foliojet.css.impl.property.border.LogicalBorder.all()) {
 			reg(info);
@@ -704,8 +704,8 @@ public final class ElementPropertySet extends PropertySet {
 		reg(CSSJInternalImage.INFO);
 		reg(CSSJInternalLink.INFO);
 
-		// @page専用特性: カスケード用コードのみ割り当てる(名前解決は
-		// PagePropertySetに限定し、要素へのsize指定は受け付けない)
+		// @page-only properties: assign cascade codes only (limit name resolution to
+		// PagePropertySet; do not accept size on elements).
 		regCode(PageSize.INFO);
 		regCode(PageMarks.INFO);
 		regCode(PageBleed.INFO);

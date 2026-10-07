@@ -11,23 +11,22 @@ import net.zamasoft.foliojet.layout.segment.ReplacedRecipe;
 import net.zamasoft.foliojet.layout.util.TextUtils;
 
 /**
- * M6b v3 のレイアウトソースプロトコルtee——doc入力プロトコル
- * (StartBlock/Chars/EndBlock)を{@link LayoutSource}へ記録し、
- * {@link DocumentBuilder}へ渡します。既定文書は記録直後に直通し、
- * bottom+縦組みだけBへ即時配達してCを待ち行列で遅らせます。
+ * M6b v3 layout source protocol tee: records the doc input protocol
+ * (StartBlock/Chars/EndBlock) in {@link LayoutSource} and forwards it to
+ * {@link DocumentBuilder}. Default documents pass through immediately after recording;
+ * only bottom + vertical writing delivers immediately to B and delays C with a queue.
  *
  * <p>
- * 記録と引き渡しの<b>順序とfreeze時点が契約</b>である——記録は
- * {@code LayoutSource.append/freeze}で入力を凍結してから配達する。
- * 改ページ残余の再生はこのログから、ライブ状態に無干渉な専用ドライバ
- * ({@code SourceReplayer})が行う。
+ * <b>Order and freeze timing are the contract</b> for recording and delivery:
+ * freeze input with {@code LayoutSource.append/freeze} before delivery.
+ * A dedicated driver ({@code SourceReplayer}) replays page-break remainders from this
+ * log without interfering with live state.
  * </p>
  *
  * <p>
- * {@link LayoutSource}の寿命は変換1回に一致し、closeは
- * {@code StyleBuilder.finish()}(成功経路の早期解放)と
- * {@code CSSProcessor.dispose()}(formatterのfinally——例外時清算)の
- * 両方から保証される(冪等)。
+ * {@link LayoutSource} lives for one conversion. Both {@code StyleBuilder.finish()}
+ * (early release on success) and {@code CSSProcessor.dispose()} (formatter finally:
+ * cleanup on exceptions) guarantee close (idempotent).
  * </p>
  */
 final class RecordingLayoutSink {
@@ -73,7 +72,7 @@ final class RecordingLayoutSink {
 		this.assignments = assignments;
 	}
 
-	/** 組版入力を一切発生させず、直前の文字か次の配置内容へtokenを結びます。 */
+	/** Attaches a token to the preceding character or next placed content without producing layout input. */
 	void assignment(final long order) {
 		this.layoutSource.append(new LayoutSource.Assignment(order));
 		if (this.anchors.isEmpty()) {
@@ -87,24 +86,24 @@ final class RecordingLayoutSink {
 		}
 	}
 
-	/** string-setは代入元の開始アンカーへ結び、runningと同じcommit経路を通します。 */
+	/** Attaches string-set to its source start anchor and uses the same commit path as running. */
 	void stringAssignments(final java.util.List<net.zamasoft.foliojet.ua.PendingStringSet> strings,
 			final net.zamasoft.foliojet.css.CSSStyle style, final net.zamasoft.foliojet.layout.box.IBox source) {
 		final long order = strings.get(0).order;
 		this.layoutSource.append(new LayoutSource.Assignment(order));
 		if (source != null) {
-			// 完成テキストはこのアンカーの配置断片から読む(元のInlineBoxは再組版され得る)。
+			// Read completed text from this anchor's placed fragment (the original InlineBox may be laid out again).
 			this.assignments.strings(order, strings);
 			this.assignments.bindBox(order, source.getAssignmentAnchor());
 		} else {
-			// display:contentsには自身の箱がない。自身の入力だけを集め、次の配置へ結ぶ。
+			// display:contents has no box of its own. Collect only its own input and attach it to the next placement.
 			if (strings.stream().anyMatch(value -> value.parts.contains(net.zamasoft.foliojet.ua.PendingStringSet.CONTENT))) {
 				final StringBuilder text = new StringBuilder();
 				this.contentsSources.put(style, text);
 				this.assignments.strings(order, strings, buffer -> {
 					buffer.append(text);
-					// 配置待ちは完成テキストだけを必要とする。閉じたstyleと親の
-					// 計算値配列をlambdaから保持しない(StringBuilderはidentity比較)。
+					// Pending placement needs only the completed text. Do not retain closed styles or
+					// parent computed-value arrays through the lambda (StringBuilder uses identity comparison).
 					this.contentsSources.values().remove(text);
 				});
 			} else {
@@ -127,8 +126,8 @@ final class RecordingLayoutSink {
 	}
 
 	/**
-	 * レイアウトソースプロトコルログです(M6b v3)。E-6増分3b-2:
-	 * text payloadのspill予算(processing.text-spill-budget)を注入する。
+	 * Layout source protocol log (M6b v3). E-6 increment 3b-2:
+	 * inject the text payload spill budget (processing.text-spill-budget).
 	 */
 	private final LayoutSource layoutSource;
 	private FootnotePageProbe probe;
@@ -139,7 +138,7 @@ final class RecordingLayoutSink {
 	private long resolvedReportGeneration;
 	private long reportEventId = -1, windowEventId = -1;
 	private long windowDeliveries;
-	/** B/Cの世代がずれても入力窓・主ログの保持量を観測できる値だけのhook。 */
+	/** Value-only hook to observe retained input window/main log data even when B/C generations differ. */
 	static volatile java.util.function.Consumer<FootnotePageProbe.WindowRetention> windowObserver;
 	private final java.util.NavigableMap<Long, net.zamasoft.foliojet.layout.FootnotePageProbeReport> reports = new java.util.TreeMap<>();
 	private record Delivery(DocumentBuilder.DispatchEvent type, long id, LayoutSource.Event boundary,
@@ -151,7 +150,7 @@ final class RecordingLayoutSink {
 	private net.zamasoft.foliojet.layout.RetainedTextLimit.PageWindow pageWindow;
 	private boolean splitCharacters;
 
-	/** Cの初回ページは子を開く前に幾何とpinを確保し、Bの入力から駆動します。 */
+	/** Before opening children on C's first page, secure geometry and pins, then drive it from B's input. */
 	void pageStarted(final net.zamasoft.foliojet.layout.box.impl.PageBox page,
 			final double width, final double height, final String pageName,
 			final java.util.function.BiFunction<String, Integer, FootnotePageProbe.PageGeometry> geometry) {
@@ -161,7 +160,7 @@ final class RecordingLayoutSink {
 				|| !page.getUserAgent().getUAContext().getFootnoteArea().isPageBand()) return;
 		this.pageWindow = page.getUserAgent().getRetainedTextLimit().pageWindow();
 		this.deliveryLease = this.layoutSource.retainFrom(0);
-		// NFCは入力呼び出し単位で適用されるので、その場合だけ元の文字境界を保つ。
+		// NFC applies per input call, so preserve original character boundaries only in that case.
 		this.splitCharacters = !net.zamasoft.foliojet.ua.props.UAProps.INPUT_NORMALIZE_TEXT.getBoolean(page.getUserAgent());
 		final net.zamasoft.foliojet.ua.UserAgent ua = page.getUserAgent();
 		this.probe = new FootnotePageProbe(FootnotePageProbe.PageStart.capture(page, width, height, pageName), this.layoutSource, report -> {
@@ -192,9 +191,10 @@ final class RecordingLayoutSink {
 	}
 
 	/**
-	 * 世代対応で待てない場合も、Bの一つ前の確定ページの入力までは配達する。
-	 * 名前付きページの幾何差でCが多く改頁しても窓を文書全体へ広げない。
-	 * 1配達内の複数改頁は止めず、報告のないbeginPageは持ち越しだけで進む。
+	 * Even when waiting by matching generations is impossible, deliver input through B's
+	 * previous finalized page. Do not expand the window to the whole document when named-page
+	 * geometry differences cause more page breaks in C. Do not stop multiple page breaks in
+	 * one delivery; beginPage without a report advances using carryover only.
 	 */
 	private void drain(final boolean endOfInput) {
 		while (!this.deliveries.isEmpty()
@@ -204,7 +204,7 @@ final class RecordingLayoutSink {
 			this.doc.startFootnoteInput();
 			final Delivery delivery = this.deliveries.peekFirst();
 			this.deliveredEventEnd = delivery.id() + 1;
-			// 記録済み境界の元IDで、C自身のlive境界を判定する。再追記はしない。
+			// Determine C's own live boundary using the original ID of the recorded boundary. Do not append again.
 			final LayoutSource.Event boundary = this.doc.preDispatch(delivery.type(), delivery.box(), delivery.fromId());
 			if (!java.util.Objects.equals(delivery.boundary(), boundary)) {
 				throw new IllegalStateException("B/Cの匿名境界が一致しません: " + delivery.fromId());
@@ -245,8 +245,9 @@ final class RecordingLayoutSink {
 	}
 
 	/**
-	 * Cの開始時に一度だけ消費します。採用・幾何不一致等の不採用とも以後は不要です。
-	 * 報告なしで計画を固定した世代への後着報告も保持しません。
+	 * Consumed only once when C starts. No longer needed whether adopted or rejected due to
+	 * geometry mismatch, etc. Do not retain late reports for generations whose plan was fixed
+	 * without a report.
 	 */
 	net.zamasoft.foliojet.layout.FootnotePageProbeReport report(final long generation) {
 		this.resolvedReportGeneration = Math.max(this.resolvedReportGeneration, generation);
@@ -276,10 +277,10 @@ final class RecordingLayoutSink {
 	}
 
 	/**
-	 * @param doc 構築<b>完了済み</b>のDocumentBuilder——StyleBuilderは
-	 *            doc→sinkの順で構築するため、DocumentBuilderのコンストラクタに
-	 *            {@code getLayoutSource()}を呼ぶコールバックを将来足すと
-	 *            NPEになる(2026-07-30、agyレビュー指摘の前提明文化)
+	 * @param doc a DocumentBuilder whose construction is <b>complete</b>: StyleBuilder constructs
+	 *            doc before sink, so adding a future callback that calls {@code getLayoutSource()}
+	 *            to the DocumentBuilder constructor would cause an NPE (2026-07-30: explicitly
+	 *            documented the premise noted in the agy review)
 	 */
 	RecordingLayoutSink(final DocumentBuilder doc, final long textSpillBudget) {
 		this.doc = doc;
@@ -287,7 +288,7 @@ final class RecordingLayoutSink {
 		this.events = null;
 	}
 
-	/** 反復内容の展開専用です。主ログ・DocumentBuilder・代入状態を所有しません。 */
+	/** For repeated-content expansion only. Owns neither the main log, DocumentBuilder, nor assignment state. */
 	RecordingLayoutSink(final java.util.function.Consumer<net.zamasoft.foliojet.layout.segment.SegmentEvent> events) {
 		this.doc = null;
 		this.layoutSource = null;
@@ -298,7 +299,7 @@ final class RecordingLayoutSink {
 		return this.layoutSource;
 	}
 
-	/** 境界判定 → 合成境界追記 → 実イベント追記 → dispatchのlive専用プロトコル。 */
+	/** Live-only protocol: boundary check → append synthetic boundary → append real event → dispatch. */
 	private LayoutSource.Event preDispatch(final DocumentBuilder.DispatchEvent event,
 			final net.zamasoft.foliojet.layout.box.IBox box) {
 		if (!this.inputDelivered) this.doc.prepareFootnotePage();
@@ -321,14 +322,14 @@ final class RecordingLayoutSink {
 	}
 
 	/**
-	 * レイアウトソースのspillストア(一時ファイル)を閉じます
-	 * (E-6増分3b-2)。冪等。
+	 * Closes the layout source spill store (temporary file)
+	 * (E-6 increment 3b-2). Idempotent.
 	 */
 	void close() {
-		// 入力の停止(以後 B を作らない)と清算を分ける。清算が例外で途中終了しても
-		// 後続の dispose の再呼び出しで残りを続けられるよう、`closed` で清算を
-		// 省かない(discardProbe は probe を先に null にし、layoutSource.close は
-		// 冪等——codex F-2a-2 レビューの必須 1)
+		// Separate stopping input (no further B construction) from cleanup. Do not skip cleanup
+		// based on `closed`, so a subsequent dispose call can resume it if an exception interrupts
+		// the first attempt (discardProbe nulls probe first, and layoutSource.close is idempotent:
+		// required item 1 in the codex F-2a-2 review).
 		this.closed = true;
 		try {
 			this.discardProbe();
@@ -350,17 +351,16 @@ final class RecordingLayoutSink {
 	}
 
 	/**
-	 * ボックスの開始をログに記録してから doc に渡します(M6b v3)。
+	 * Records a box start in the log before passing it to doc (M6b v3).
 	 *
 	 * <p>
-	 * E-6増分3b-4(2026-07-24): 記録時に{@code BoxRecipe.freeze}で
-	 * 凍結し、liveのparams/pos参照({@code CSSElement}グラフ含む)を
-	 * ログに残さない。params/posの変異は全てこの記録前のStyleBuilder
-	 * フェーズに閉じる(codex設計§1.1・独立cross-check済み)ため、
-	 * 記録時freezeは従来の再生時共有と同値。freezeは
-	 * {@link #boxKind}で列挙する既知kindを網羅し、未知の箱は例外にする。
-	 * {@code ReplacedRecipe.freeze}と違い失敗変種({@code StartLive})は
-	 * 必要ない。
+	 * E-6 increment 3b-4 (2026-07-24): freeze with {@code BoxRecipe.freeze} at recording
+	 * time so the log retains no live params/pos references (including the {@code CSSElement}
+	 * graph). All params/pos mutations are confined to StyleBuilder before recording
+	 * (codex design §1.1; independently cross-checked), so freezing at recording time is
+	 * equivalent to the previous sharing at replay time. Freeze covers all known kinds
+	 * enumerated by {@link #boxKind} and throws for unknown boxes.
+	 * Unlike {@code ReplacedRecipe.freeze}, no failure variant ({@code StartLive}) is needed.
 	 * </p>
 	 */
 	void start(final INonReplacedBox box) {
@@ -372,7 +372,7 @@ final class RecordingLayoutSink {
 		if (this.sourceBox == null && box.getParams().element == this.sourceElement) {
 			this.sourceBox = box;
 		}
-		// 主ログもrunningも同じ凍結契約。未知の箱・配置は明確に失敗させる。
+		// The main log and running use the same freeze contract. Fail explicitly for unknown boxes/positions.
 		final LayoutSource.Event boundary = this.preDispatch(DocumentBuilder.DispatchEvent.START_BOX, box);
 		final BoxRecipe recipe = this.recordRecipe(box);
 		box.setSourceAnchor(this.layoutSource.append(new LayoutSource.Start(recipe)));
@@ -386,23 +386,22 @@ final class RecordingLayoutSink {
 	}
 
 	/**
-	 * 置換要素をログに記録してから doc に渡します(M6b v3)。
-	 * 記録しないと、置換要素を含む部分木が「再生可能」に見えて内容が
-	 * 失われる(サイレントホールの防止)。
+	 * Records a replaced element in the log before passing it to doc (M6b v3).
+	 * Without recording, a subtree containing a replaced element would appear replayable
+	 * and lose content (prevents silent holes).
 	 *
 	 * <p>
-	 * E-6増分3b-3(2026-07-24): 記録時に{@code ReplacedRecipe.freeze}で
-	 * 凍結し、liveボックスへの参照をログに残さない(params/posの変異は
-	 * この記録前のStyleBuilderフェーズに閉じるため、記録時freezeは
-	 * 従来の再生時共有と同値——codex設計§1.5・独立cross-check済み)。
-	 * E-6増分3b-6: {@code ReplacedBoxImage}参照のボックスもduplicate
-	 * ベースでfreezeできるようになり(live型{@code ReplacedLive}は撤去)、
-	 * freezeが空を返すのは未知の{@code AbstractReplacedBox}サブクラス
-	 * のみ(現存4実装では構造的にゼロ)。その場合はfail closedで
-	 * replay不能マーカー({@code Opaque}+対の{@code EndBlock}——
-	 * {@code Opaque}は開始イベントとして{@code EndBlock}と対を成す規約
-	 * のため単独では積めない)として位置を占有し、範囲にこれを含む
-	 * TwoPassのsealは変換失敗になる。
+	 * E-6 increment 3b-3 (2026-07-24): freeze with {@code ReplacedRecipe.freeze} at recording
+	 * time so the log retains no live box reference. Params/pos mutations are confined to
+	 * StyleBuilder before recording, so freezing at recording time is equivalent to the
+	 * previous sharing at replay time (codex design §1.5; independently cross-checked).
+	 * E-6 increment 3b-6: boxes referencing {@code ReplacedBoxImage} can now be frozen by
+	 * duplication (the live type {@code ReplacedLive} was removed). Freeze returns empty
+	 * only for unknown {@code AbstractReplacedBox} subclasses (structurally impossible for
+	 * the four existing implementations). In that case, fail closed by occupying the
+	 * position with an unreplayable marker ({@code Opaque} + matching {@code EndBlock};
+	 * {@code Opaque} is a start event paired with {@code EndBlock} by contract and cannot
+	 * be added alone). Sealing a TwoPass range containing it fails the conversion.
 	 * </p>
 	 */
 	void replaced(final AbstractReplacedBox box) {
@@ -436,7 +435,7 @@ final class RecordingLayoutSink {
 	}
 
 	/**
-	 * ボックスの終了をログに記録してから doc に渡します(M6b v3)。
+	 * Records a box end in the log before passing it to doc (M6b v3).
 	 */
 	void end() {
 		if (this.events != null) {
@@ -466,7 +465,7 @@ final class RecordingLayoutSink {
 	}
 
 	/**
-	 * {@code leader()}をログに記録してから doc に渡します(leader() L1)。
+	 * Records {@code leader()} in the log before passing it to doc (leader() L1).
 	 */
 	void leader(final String pattern) {
 		if (this.events != null) {
@@ -479,7 +478,7 @@ final class RecordingLayoutSink {
 	}
 
 	/**
-	 * テキストをログに記録してから doc に渡します(M6b v3)。
+	 * Records text in the log before passing it to doc (M6b v3).
 	 */
 	void characters(final int charOffset, final char[] ch, final int off, final int len, final boolean fixed) {
 		if (this.events != null) {
@@ -505,14 +504,14 @@ final class RecordingLayoutSink {
 			final AnchorFrame frame = this.anchors.peek();
 			for (int i = 0; i < len; ++i) {
 				if (ch[off + i] == '\n' && preserved('\n', frame.whiteSpace, fixed)) {
-					// br等の生成改行にはソース文字がない。古い行のアンカーを再利用しない。
+					// Generated line breaks such as br have no source character. Do not reuse the old line's anchor.
 					frame.lastChar = frame.tailChar = -1;
 				}
 			}
 		}
 		if (!this.anchors.isEmpty() && charOffset >= 0 && len > 0) {
 			final AnchorFrame frame = this.anchors.peek();
-			// pre系の空白/改行は配置されるControl。縮退する行端空白だけを除く。
+			// Whitespace/line breaks in pre modes are placed Controls. Exclude only collapsing line-end spaces.
 			int first = 0;
 			while (first < len && !preserved(ch[off + first], frame.whiteSpace, fixed)) {
 				++first;
@@ -528,12 +527,12 @@ final class RecordingLayoutSink {
 				frame.waiting.clear();
 				frame.lastChar = frame.tailChar = charOffset + last;
 				if (ch[off + last] == '\n') {
-					// 改行の後の原位置は次の行。改行自身が既に出力済みでも次の配置を待つ。
+					// The original position after a break is on the next line. Wait for placement even after break output.
 					frame.lastChar = -1;
 				}
 			}
 		}
-		// E-6増分3b-2: 防御コピー・spill判定(予算制)はLayoutSourceが行う
+		// E-6 increment 3b-2: LayoutSource handles defensive copying and budget-based spill decisions
 		final LayoutSource.Event boundary = this.preDispatch(DocumentBuilder.DispatchEvent.TEXT, null);
 		final long bytes = this.probe == null ? 0 : 2L * len;
 		if (this.pageWindow != null) this.pageWindow.add(bytes);
@@ -555,7 +554,7 @@ final class RecordingLayoutSink {
 	}
 
 
-	/** 主ログと独立再生で共有する総関数。未知の箱・配置は変換失敗。 */
+	/** Total function shared by the main log and independent replay. Unknown boxes/positions fail conversion. */
 	private BoxRecipe recordRecipe(final INonReplacedBox box) {
 		try {
 			return boxRecipe(box);
@@ -597,7 +596,7 @@ final class RecordingLayoutSink {
 		};
 	}
 
-	/** 非sealed階層なので既知の実クラスを列挙し、未知のsubclassも拒否する。 */
+	/** The hierarchy is not sealed, so enumerate known concrete classes and reject unknown subclasses too. */
 	private static LayoutSource.BoxKind boxKind(final INonReplacedBox box) {
 		return switch (box) {
 		case net.zamasoft.foliojet.layout.box.impl.FlowBlockBox known

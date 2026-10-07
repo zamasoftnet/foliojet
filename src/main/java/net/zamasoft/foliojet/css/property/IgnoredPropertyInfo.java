@@ -6,12 +6,12 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 受理はするが何もしないプロパティ(2026-08-29)。
+ * A property that is accepted but does nothing (2026-08-29).
  *
  * <p>
- * {@code @font-face}の{@code font-display}・{@code size-adjust}等、値の
- * 検証をする価値も警告する価値もない記述子に使う。どんな値でも成功し、
- * 展開結果は空。
+ * Used for descriptors such as {@code @font-face} {@code font-display} and
+ * {@code size-adjust}, whose values warrant neither validation nor warnings.
+ * Succeeds for any value and expands to an empty result.
  * </p>
  */
 public final class IgnoredPropertyInfo extends AbstractPropertyInfo {

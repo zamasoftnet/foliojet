@@ -20,7 +20,7 @@ import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** border-image の各値文法をlonghandとshorthandで共有するためのパーサです。 */
+/** Parser shared by longhands and the shorthand for each border-image value grammar. */
 public final class BorderImageValueUtils {
 	private BorderImageValueUtils() {
 	}

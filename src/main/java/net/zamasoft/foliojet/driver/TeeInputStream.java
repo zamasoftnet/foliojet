@@ -3,14 +3,14 @@ package net.zamasoft.foliojet.driver;
 import java.io.IOException;
 import java.io.InputStream;
 
-// 2026-09-02 に MyHttpSourceResolver.java から分けた(本文は移しただけ。設計レビュー「10クラス 1,560行」)。
+// Split from MyHttpSourceResolver.java on 2026-09-02 (body only moved; design review: 10 classes, 1,560 lines).
 /**
- * 読まれたバイトを写し取り、末尾まで読み切ったら渡します(2026-08-28)。
+ * Copies bytes as they are read and delivers the copy once EOF is reached (2026-08-28).
  *
  * <p>
- * 上限を超えたら写しを捨てます(控えないだけで、読み出しは素通し)。
- * 途中で捨てられた・読み切られなかった場合は何もしません——欠けた写しを
- * 次の変換で使うと、黙って壊れた結果が出るためです。
+ * Discards the copy if the limit is exceeded (only stops retaining; reads still pass through).
+ * Does nothing if discarded midway or not read to the end: using an incomplete copy
+ * for the next conversion would silently produce broken output.
  * </p>
  */
 final class TeeInputStream extends InputStream {

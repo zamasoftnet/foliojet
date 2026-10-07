@@ -3,13 +3,13 @@ package net.zamasoft.foliojet.css.value;
 import net.zamasoft.pdfg2d.gc.font.FontFeatureSet;
 
 /**
- * {@code font-feature-settings}の値です。正規化済みの
- * {@link FontFeatureSet}(pdfg2dへそのまま搬送される形)を包みます。
+ * A {@code font-feature-settings} value. Wraps a normalized
+ * {@link FontFeatureSet} (the form passed directly to pdfg2d).
  *
  * @author MIYABE Tatsuhiko
  */
 public final class FontFeatureSettingsValue implements Value {
-	/** {@code normal}(どのfeatureも指定しない)。 */
+	/** {@code normal} (no features specified). */
 	public static final FontFeatureSettingsValue NORMAL_VALUE = new FontFeatureSettingsValue(FontFeatureSet.EMPTY);
 
 	private final FontFeatureSet features;

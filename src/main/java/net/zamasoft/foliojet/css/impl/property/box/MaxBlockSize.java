@@ -15,8 +15,8 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * max-block-size 特性(論理プロパティ)です。writing-modeにより
- * max-width か max-height のいずれかに対応します(max-inline-sizeと逆軸)。
+ * max-block-size property (logical property). Maps to max-width or max-height
+ * according to writing-mode (the opposite axis to max-inline-size).
  */
 public final class MaxBlockSize extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MaxBlockSize();
@@ -26,7 +26,7 @@ public final class MaxBlockSize extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getDefault(CSSStyle style) {
-		// **初期値は none**(2026-08-17、max-heightと同じ理由)。
+		// **The initial value is none** (2026-08-17, for the same reason as max-height).
 		return KeywordValue.NONE;
 	}
 
@@ -43,7 +43,7 @@ public final class MaxBlockSize extends AbstractPrimitivePropertyInfo {
 		if (ValueUtils.isNone(lu)) {
 			return KeywordValue.NONE;
 		}
-		// 固有寸法キーワード max-content/min-content/fit-content(L)(2026-08-29)
+		// Intrinsic sizing keywords max-content/min-content/fit-content(L) (2026-08-29).
 		final Value intrinsic = BoxValueUtils.toIntrinsicSize(ua, lu);
 		if (intrinsic != null) {
 			return intrinsic;

@@ -4,8 +4,8 @@ import java.awt.geom.AffineTransform;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
- * transform です。
- * 
+ * transform.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class TransformValue implements Value {
@@ -14,43 +14,43 @@ public class TransformValue implements Value {
 	private final AffineTransform transform;
 
 	/**
-	 * {@code translate()}の<b>割合成分</b>(2026-08-03新設)。
+	 * The <b>percentage components</b> of {@code translate()} (added on 2026-08-03).
 	 *
 	 * <p>
-	 * CSS Transformsの{@code translate()}の割合は<b>その要素自身の境界箱</b>を
-	 * 基準にするので、解析時には解けない(要素の寸法がまだ無い)。行列へ畳めない
-	 * この分だけを別に持ち、描画時に箱の寸法を掛けて足す
-	 * ({@code AbstractBox.transform})。{@code transform-origin}の割合が既に
-	 * 同じ扱いになっている。
+	 * Percentages in CSS Transforms' {@code translate()} refer to <b>the element's own border box</b>,
+	 * so parsing cannot resolve them (the element's dimensions are still unknown). Retains only
+	 * these components, which cannot be folded into the matrix, separately; at rendering time,
+	 * multiplies them by the box dimensions and adds them ({@code AbstractBox.transform}).
+	 * Percentages in {@code transform-origin} already use the same approach.
 	 *
 	 * <p>
-	 * <b>平行移動だけで組まれた指定に限る。</b>回転や拡大と混ざると順序が効いて
-	 * 畳めないため、その場合は従来どおり指定全体を無効にする。実地で使われるのは
-	 * {@code translate(-50%,-50%)}(中央寄せ)や{@code translateX(-100%)}
-	 * (画面外へ逃がすメニュー)がほとんどで、これらは平行移動だけである。
+	 * <b>Limited to specifications containing only translations.</b> When mixed with rotations or scales,
+	 * order matters and folding is impossible, so the entire specification is invalidated as before.
+	 * Most real-world uses are {@code translate(-50%,-50%)} (centering) and
+	 * {@code translateX(-100%)} (off-screen menus), both of which contain only translations.
 	 */
 	private final double txRatio, tyRatio;
 
 	/**
-	 * 割合の平行移動が回転・拡大・傾斜の<b>後ろ</b>に来たときの交差成分
-	 * (2026-08-29)。
+	 * Cross components when percentage translations appear <b>after</b> rotations, scales, or skews
+	 * (2026-08-29).
 	 *
 	 * <p>
-	 * 関数列 {@code f1 … fk … fn} のk番目が割合つき平行移動 T(v) のとき、
-	 * 全体は A·T(v)·B = (A·B) + A_lin·v と分解できる(Aは前半の合成、
-	 * A_linはその線形部)。v=(px·W, py·H) は箱の寸法に比例するので、
-	 * A_lin·v = W·px·A_lin·e1 + H·py·A_lin·e2 ——つまり<b>Wの係数ベクトルと
-	 * Hの係数ベクトル</b>を足し込んでおけば、行列は畳んだまま、寸法が
-	 * 決まる描画時に平行移動を1回足すだけで済む。従来の
-	 * {@code txRatio}(W→x)・{@code tyRatio}(H→y)に、{@code txRatioH}(H→x)・
-	 * {@code tyRatioW}(W→y)を加えた4係数で任意の並びを表せる。平行移動だけ
-	 * なら交差成分は0で、従来と同じ値になる。
+	 * When the kth function in {@code f1 … fk … fn} is a percentage translation T(v),
+	 * the whole transform decomposes as A·T(v)·B = (A·B) + A_lin·v, where A is the composition
+	 * of preceding functions and A_lin is its linear part. Since v=(px·W, py·H) is proportional
+	 * to the box dimensions, A_lin·v = W·px·A_lin·e1 + H·py·A_lin·e2. Accumulating
+	 * <b>the coefficient vectors for W and H</b> keeps the matrix folded and requires adding
+	 * only one translation at rendering time, when dimensions are known. Adding
+	 * {@code txRatioH} (H→x) and {@code tyRatioW} (W→y) to the existing
+	 * {@code txRatio} (W→x) and {@code tyRatio} (H→y) gives four coefficients that represent
+	 * any ordering. For translations alone, the cross components are zero, giving the same values as before.
 	 * </p>
 	 *
 	 * <p>
-	 * これで {@code translate(-50%,-50%) scale(1.1)}(中央寄せの定番書法)が
-	 * 丸ごと無効になる問題が解けた。以前は「順序が効くので畳めない」として
-	 * 宣言全体を捨てていた。
+	 * This resolved the problem where {@code translate(-50%,-50%) scale(1.1)}
+	 * (a common centering idiom) was invalidated entirely. Previously, the whole declaration
+	 * was discarded on the grounds that order mattered and folding was impossible.
 	 * </p>
 	 */
 	private final double txRatioH, tyRatioW;
@@ -88,12 +88,12 @@ public class TransformValue implements Value {
 		this.tyRatioW = tyRatioW;
 	}
 
-	/** 箱の高さに掛けてxの平行移動へ足す係数(交差成分)。 */
+	/** The coefficient multiplied by the box height and added to x translation (cross component). */
 	public double getTxRatioH() {
 		return this.txRatioH;
 	}
 
-	/** 箱の幅に掛けてyの平行移動へ足す係数(交差成分)。 */
+	/** The coefficient multiplied by the box width and added to y translation (cross component). */
 	public double getTyRatioW() {
 		return this.tyRatioW;
 	}

@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.css.parser;
 
 /**
- * CSSの解析エラー。
+ * A CSS parsing error.
  */
 public class CSSException extends RuntimeException {
 	public CSSException(String message) {

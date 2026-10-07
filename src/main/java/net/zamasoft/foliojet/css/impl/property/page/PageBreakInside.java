@@ -48,10 +48,10 @@ public class PageBreakInside extends AbstractPrimitivePropertyInfo {
 			if (ident.equals("auto")) {
 				return PageBreakInsideValue.AUTO_VALUE;
 			} else if (ident.equals("avoid") || ident.equals("avoid-page") || ident.equals("avoid-column")) {
-				// avoid-page/avoid-columnは、それぞれの分割文脈での回避
-				// (css-break-3 §3.2)。この実装の回避はページ・段のどちらの
-				// 分割にも効くので、いずれもavoidとして扱う(2026-08-29)。
-				// 捨てると段組内の図版が段をまたいで割れていた
+				// avoid-page/avoid-column avoid breaks in their respective fragmentation contexts
+				// (css-break-3 §3.2). This implementation's avoidance applies to both page and column
+				// breaks, so treat both as avoid (2026-08-29).
+				// Discarding them caused figures in multi-column layout to split across columns.
 				return PageBreakInsideValue.AVOID_VALUE;
 			}
 		}

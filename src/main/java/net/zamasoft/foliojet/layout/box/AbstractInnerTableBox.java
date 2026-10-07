@@ -64,10 +64,10 @@ public abstract class AbstractInnerTableBox extends AbstractBox implements INonR
 	}
 
 	/**
-	 * 枠を描画します(2026-07-20、反復化——{@link AbstractContainerBox#frames}
-	 * と同じ理由・同じ規約。テーブル内部系統(行・行グループ・列・列グループ)
-	 * は{@link AbstractContainerBox}を継承しない独立の系統のため、この
-	 * 共通の親クラスに入口メソッドを置く)。
+	 * Draws frames (made iterative on 2026-07-20, for the same reason and under the same contract
+	 * as {@link AbstractContainerBox#frames}). Table internals (rows, row groups, columns, column groups)
+	 * form a separate hierarchy that does not extend {@link AbstractContainerBox},
+	 * so this common parent class provides the entry point.
 	 */
 	public final void frames(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
 			double y) {
@@ -78,19 +78,16 @@ public abstract class AbstractInnerTableBox extends AbstractBox implements INonR
 		}
 	}
 
-	/**
-	 * {@code box}の{@link #pushFramesSteps}を実行する1つの{@link FramesStep}を
-	 * 作ります。
-	 */
+	/** Creates one {@link FramesStep} that executes {@code box}'s {@link #pushFramesSteps}. */
 	public static FramesStep framesStep(final AbstractInnerTableBox box, final PageBox pageBox, final Drawer drawer,
 			final Shape clip, final AffineTransform transform, final double x, final double y) {
 		return worklist -> box.pushFramesSteps(pageBox, drawer, clip, transform, x, y, worklist);
 	}
 
 	/**
-	 * このボックス(とその子孫)の枠描画手順を{@code worklist}へ積みます。
-	 * {@link IBox#pushDrawSteps}と同じ規約(元の走査順を保つため**逆順**で
-	 * push)に従ってください。
+	 * Pushes frame-drawing steps for this box and its descendants onto {@code worklist}.
+	 * Follow the same convention as {@link IBox#pushDrawSteps}: push in **reverse order**
+	 * to preserve the original traversal order.
 	 */
 	public abstract void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform,
 			double x, double y, Deque<FramesStep> worklist);

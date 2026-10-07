@@ -12,12 +12,12 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code font-variant-east-asian}(css-fonts-3)です。
- * {@code normal | [ <east-asian-variant-values> || <east-asian-width-values> || ruby ]}。
- * 異体字系(jis78/jis83/jis90/jis04/simplified/traditional)と
- * 字幅系(full-width/proportional-width)は各カテゴリ最大1つ、順序任意。
- * 内部ではOpenType featureタグへ正規化して搬送します
- * ({@link FontVariantEastAsianValue#featureSet()})。
+ * {@code font-variant-east-asian} (css-fonts-3).
+ * {@code normal | [ <east-asian-variant-values> || <east-asian-width-values> || ruby ]}.
+ * Accepts at most one from each category, in any order: variant forms
+ * (jis78/jis83/jis90/jis04/simplified/traditional) and widths (full-width/proportional-width).
+ * Internally normalizes and carries them as OpenType feature tags
+ * ({@link FontVariantEastAsianValue#featureSet()}).
  *
  * @author MIYABE Tatsuhiko
  */

@@ -3,23 +3,24 @@ package net.zamasoft.foliojet.css.util;
 import java.awt.geom.Path2D;
 
 /**
- * SVG 1.1のパスデータ({@code d}属性の文法)を{@link Path2D.Double}へ
- * 変換します(2026-08-29新設、{@code clip-path: path()}用)。
+ * Converts SVG 1.1 path data ({@code d} attribute grammar) to {@link Path2D.Double}
+ * (added 2026-08-29 for {@code clip-path: path()}).
  *
  * <p>
- * M/m L/l H/h V/v C/c S/s Q/q T/t A/a Z/z の全コマンドと暗黙の反復
- * (コマンド文字なしで座標が続く形。Mの反復はLとして扱う)に対応する。
- * 楕円弧は SVG 実装ノート F.6.5 の端点→中心パラメータ化で3次ベジェへ
- * 近似する(90°以下ずつ分割)。座標はそのまま(単位変換しない)。
- * 文法エラーは{@link IllegalArgumentException}で報告し、呼び出し側
- * (ClipPath)がPropertyExceptionへ読み替えて宣言ごと無視する。
+ * Supports all M/m L/l H/h V/v C/c S/s Q/q T/t A/a Z/z commands and implicit repetition
+ * (coordinates continuing without a command letter; repeated M is treated as L).
+ * Approximates elliptical arcs with cubic Bezier curves using endpoint-to-center
+ * parameterization in SVG implementation notes F.6.5 (split into spans of 90° or less).
+ * Coordinates are unchanged (no unit conversion). Reports syntax errors with
+ * {@link IllegalArgumentException}; the caller (ClipPath) converts these to
+ * PropertyException and ignores the entire declaration.
  * </p>
  */
 public final class SvgPathData {
 	private final String s;
 	private int pos;
 	private final Path2D.Double path = new Path2D.Double();
-	// 現在点・サブパス開始点・直前の制御点(S/Tの反射用)
+	// Current point, subpath start, and previous control point (for S/T reflection)
 	private double cx, cy, sx, sy, pcx, pcy;
 	private char prevCmd = 0;
 
@@ -28,11 +29,11 @@ public final class SvgPathData {
 	}
 
 	/**
-	 * パスデータを解析します。
+	 * Parses path data.
 	 *
-	 * @param d パスデータ文字列
-	 * @return 解析結果(空文字列なら空のパス)
-	 * @throws IllegalArgumentException 文法エラー
+	 * @param d path data string
+	 * @return parsed result (empty path for an empty string)
+	 * @throws IllegalArgumentException on syntax errors
 	 */
 	public static Path2D.Double parse(final String d) {
 		final SvgPathData p = new SvgPathData(d == null ? "" : d);
@@ -87,7 +88,7 @@ public final class SvgPathData {
 					this.sx = x;
 					this.sy = y;
 				} else {
-					// 暗黙の反復はlineto
+					// Implicit repetition is lineto
 					this.path.lineTo(x, y);
 				}
 				firstPair = false;
@@ -150,7 +151,7 @@ public final class SvgPathData {
 					x += this.cx;
 					y += this.cy;
 				}
-				// 直前がC/Sならその第2制御点の反射、それ以外は現在点
+				// Reflect the second control point if the previous command is C/S; otherwise use the current point
 				final boolean reflect = this.prevCmd == 'C' || this.prevCmd == 'S';
 				final double x1 = reflect ? 2 * this.cx - this.pcx : this.cx;
 				final double y1 = reflect ? 2 * this.cy - this.pcy : this.cy;
@@ -229,19 +230,19 @@ public final class SvgPathData {
 	}
 
 	/**
-	 * 楕円弧(SVG 1.1 F.6.5/F.6.6)。端点パラメータを中心パラメータへ
-	 * 変換し、90°以下の区間ごとに3次ベジェで近似する。
+	 * Elliptical arc (SVG 1.1 F.6.5/F.6.6). Converts endpoint parameters to center
+	 * parameters and approximates each span of 90° or less with a cubic Bezier curve.
 	 */
 	private void arcTo(double rx, double ry, final double rotDeg, final boolean largeArc, final boolean sweep,
 			final double x, final double y) {
 		final double x0 = this.cx, y0 = this.cy;
 		if (x0 == x && y0 == y) {
-			return; // F.6.2: 端点が一致する弧は省略
+			return; // F.6.2: omit an arc with identical endpoints
 		}
 		rx = Math.abs(rx);
 		ry = Math.abs(ry);
 		if (rx == 0 || ry == 0) {
-			this.lineTo(x, y); // F.6.2: 半径0は直線
+			this.lineTo(x, y); // F.6.2: zero radius means a straight line
 			return;
 		}
 		final double phi = Math.toRadians(rotDeg);
@@ -250,7 +251,7 @@ public final class SvgPathData {
 		final double dx2 = (x0 - x) / 2, dy2 = (y0 - y) / 2;
 		final double x1p = cosPhi * dx2 + sinPhi * dy2;
 		final double y1p = -sinPhi * dx2 + cosPhi * dy2;
-		// F.6.6.2: 半径が小さすぎれば拡大
+		// F.6.6.2: enlarge radii if too small
 		final double lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
 		if (lambda > 1) {
 			final double k = Math.sqrt(lambda);
@@ -270,7 +271,7 @@ public final class SvgPathData {
 		// F.6.5.3
 		final double cX = cosPhi * cxp - sinPhi * cyp + (x0 + x) / 2;
 		final double cY = sinPhi * cxp + cosPhi * cyp + (y0 + y) / 2;
-		// F.6.5.4〜6
+		// F.6.5.4–6
 		final double ux = (x1p - cxp) / rx, uy = (y1p - cyp) / ry;
 		final double vx = (-x1p - cxp) / rx, vy = (-y1p - cyp) / ry;
 		final double theta1 = Math.atan2(uy, ux);
@@ -280,7 +281,7 @@ public final class SvgPathData {
 		} else if (sweep && dtheta < 0) {
 			dtheta += 2 * Math.PI;
 		}
-		// 90°以下の区間へ分割してベジェ近似
+		// Split into spans of 90° or less for Bezier approximation
 		final int segments = Math.max(1, (int) Math.ceil(Math.abs(dtheta) / (Math.PI / 2) - 1e-9));
 		final double delta = dtheta / segments;
 		final double t = 4.0 / 3.0 * Math.tan(delta / 4);
@@ -289,7 +290,7 @@ public final class SvgPathData {
 			final double cos1 = Math.cos(theta), sin1 = Math.sin(theta);
 			final double theta2 = theta + delta;
 			final double cos2 = Math.cos(theta2), sin2 = Math.sin(theta2);
-			// 単位円上の制御点(回転前・楕円スケール前)
+			// Control points on the unit circle (before rotation and elliptical scaling)
 			final double e1x = cos1 - t * sin1, e1y = sin1 + t * cos1;
 			final double e2x = cos2 + t * sin2, e2y = sin2 - t * cos2;
 			final double[] p1 = ellipsePoint(cX, cY, rx, ry, cosPhi, sinPhi, e1x, e1y);
@@ -312,7 +313,7 @@ public final class SvgPathData {
 		return new double[] { cX + cosPhi * ex - sinPhi * ey, cY + sinPhi * ex + cosPhi * ey };
 	}
 
-	// ---- 字句 ----
+	// ---- Tokenization ----
 
 	private void skipWsp() {
 		while (this.pos < this.s.length() && isWsp(this.s.charAt(this.pos))) {
@@ -324,7 +325,7 @@ public final class SvgPathData {
 		return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
 	}
 
-	/** 引数区切り(空白・カンマ)を読み飛ばし、次に数値が続くならtrue。 */
+	/** Skips argument separators (whitespace/commas) and returns true if a number follows. */
 	private boolean moreArgs() {
 		this.skipWsp();
 		int p = this.pos;
@@ -334,7 +335,7 @@ public final class SvgPathData {
 				++p;
 			}
 			this.pos = p;
-			return true; // カンマの後は必ず数値
+			return true; // A number must follow a comma
 		}
 		return p < this.s.length() && startsNumber(this.s.charAt(p));
 	}
@@ -390,7 +391,7 @@ public final class SvgPathData {
 		return Double.parseDouble(this.s.substring(start, p));
 	}
 
-	/** 弧のフラグ(1文字の0/1。"a1 1 0 00 10"のように連結できる)。 */
+	/** Arc flag (single character 0/1; can be concatenated as in "a1 1 0 00 10"). */
 	private boolean flag() {
 		this.separator();
 		if (this.pos >= this.s.length()) {

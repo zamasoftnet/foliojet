@@ -5,11 +5,11 @@ import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
- * box-shadow の指定値です(CSS Backgrounds 3 §7、2026-08-29)。
+ * The specified value of box-shadow (CSS Backgrounds 3 §7, 2026-08-29).
  *
  * <p>
- * 長さはem等の相対単位のまま保持し、使用値への解決は
- * {@code BoxShadow.get(style)}で行う(text-shadowと同じ流儀)。
+ * Retains lengths in relative units such as em. {@code BoxShadow.get(style)} resolves
+ * them to used values (the same approach as text-shadow).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -20,10 +20,10 @@ public class BoxShadowValue implements Value {
 	public static final class Shadow {
 		public final LengthValue x, y;
 
-		/** ぼかし半径・広がり。省略時はnull(=0)。 */
+		/** Blur radius and spread. Null when omitted (=0). */
 		public final LengthValue blur, spread;
 
-		/** 省略時はnull(=currentColor)。 */
+		/** Null when omitted (=currentColor). */
 		public final ColorValue color;
 
 		public final boolean inset;

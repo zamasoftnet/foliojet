@@ -18,7 +18,7 @@ import net.zamasoft.foliojet.css.impl.property.box.Side;
 
 /**
  * border-top-color / border-right-color / border-bottom-color /
- * border-left-color 特性です。
+ * border-left-color properties.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -56,12 +56,12 @@ public final class BorderColor extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		// **型付き attr() をここで解く**(2026-08-04)。解かずに通すと
-		// BorderColor.get() の ColorValue へのキャストで落ちる
-		// (<table border bordercolor> で実際に落ちた)
+		// **Resolve typed attr() here** (2026-08-04). Passing it through unresolved
+		// causes the cast to ColorValue in BorderColor.get() to fail
+		// (an actual failure with <table border bordercolor>).
 		value = ValueUtils.emExToAbsoluteLength(value, style);
 		if (value == KeywordValue.DEFAULT || value == KeywordValue.NONE) {
-			// DEFAULT は currentColor。NONE は解決できなかった attr()
+			// DEFAULT is currentColor. NONE is an attr() that could not be resolved.
 			value = style.get(CSSColor.INFO);
 		}
 		return value;
@@ -69,7 +69,7 @@ public final class BorderColor extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
-		// 型付き attr()(2026-08-03)。属性から罫線の幅・色を取る
+		// Typed attr() (2026-08-03). Get border width/color from attributes.
 		final Value attrValue = net.zamasoft.foliojet.css.util.AttrValueUtils.toTypedAttr(ua, lu, net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.COLOR);
 		if (attrValue != null) {
 			return attrValue;

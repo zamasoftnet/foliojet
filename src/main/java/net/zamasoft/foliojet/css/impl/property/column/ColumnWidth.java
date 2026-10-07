@@ -18,8 +18,8 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/box.html#propdef-border-left-width">
- * border-left-width 特性 </a>です。
- * 
+ * border-left-width property </a>.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class ColumnWidth extends AbstractPrimitivePropertyInfo {

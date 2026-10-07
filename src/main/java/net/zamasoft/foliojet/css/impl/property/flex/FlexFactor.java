@@ -13,8 +13,8 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code flex-grow}(既定0)/{@code flex-shrink}(既定1)です
- * (Flex F1a、2026-08-02)。非負の数値のみ(負は宣言無効——§7.2.1/7.2.2)。
+ * {@code flex-grow} (default 0) / {@code flex-shrink} (default 1)
+ * (Flex F1a, 2026-08-02). Nonnegative numbers only (negatives invalidate the declaration; §7.2.1/7.2.2).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -54,7 +54,7 @@ public class FlexFactor extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	/** 1つの非負数値を読み取ります(flexショートハンドと共用)。不正はnull。 */
+	/** Reads one nonnegative number (shared with the flex shorthand). Null if invalid. */
 	public static RealValue parseFactor(final TokenStream tokens) {
 		if (tokens.peek() instanceof CssToken.Num num && num.value() >= 0) {
 			tokens.next();

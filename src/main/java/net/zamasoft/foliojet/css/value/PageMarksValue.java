@@ -1,12 +1,12 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code @page { marks }}の値です(2026-08-02)。
+ * An {@code @page { marks }} value (2026-08-02).
  *
  * <p>
- * {@link #UNSPECIFIED}は「CSSで指定されていない=入出力プロパティ
- * {@code output.marks}に従う」ことを表す({@code size: auto}が
- * {@code output.page-width/height}へ委ねるのと同じ)。
+ * {@link #UNSPECIFIED} means "not specified in CSS: follow the I/O property
+ * {@code output.marks}" (just as {@code size: auto} delegates
+ * to {@code output.page-width/height}).
  * </p>
  */
 public enum PageMarksValue implements Value {

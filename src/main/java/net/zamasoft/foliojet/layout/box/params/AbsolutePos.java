@@ -1,24 +1,24 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 絶対配置の配置パラメータです。
+ * Parameters for absolute positioning.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: AbsolutePos.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class AbsolutePos implements Pos {
 	/**
-	 * 上下左右の位置指定です。
+	 * Position settings for the top, bottom, left, and right.
 	 */
 	public Insets location = Insets.AUTO_INSETS;
 
 	/**
-	 * locationがAUTOの場合の位置です。
+	 * Position when location is AUTO.
 	 */
 	public AutoPosition autoPosition = AutoPosition.BLOCK;
 
 	/**
-	 * 配置の基準です。
+	 * Positioning reference.
 	 */
 	public Fiducial fiducial = Fiducial.CONTEXT;
 
@@ -26,7 +26,7 @@ public class AbsolutePos implements Pos {
 		return PosType.ABSOLUTE;
 	}
 
-	/** 静的位置が必要な論理ブロック軸。縦組みでは左右の inset を調べる。 */
+	/** Logical block axis requiring a static position. In vertical writing, checks the left/right insets. */
 	public boolean usesStaticPageAxis(final WritingMode flow) {
 		return flow.isVertical()
 				? this.location.getLeftType() == LengthType.AUTO && this.location.getRightType() == LengthType.AUTO

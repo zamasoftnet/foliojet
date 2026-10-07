@@ -23,24 +23,25 @@ import net.zamasoft.foliojet.layout.rescue.VisualRescueFloatBox;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * 配置済み浮動体の{@code shape-outside}を排除形状
- * ({@link ExclusionShape}、論理座標)へ解決します(css-shapes-1、
- * 2026-08-29新設。{@code BlockBuilder.snapshotExclusions}が使う)。
+ * Resolves a placed float's {@code shape-outside} to an exclusion shape
+ * ({@link ExclusionShape}, logical coordinates) (css-shapes-1, introduced 2026-08-29;
+ * used by {@code BlockBuilder.snapshotExclusions}).
  *
  * <p>
- * 浮動体の寸法は配置後にしか確定しない(auto幅・画像の内在寸法)ので、
- * スタイル段階では{@link ShapeOutsideParams}(長さ・%のまま)を運び、
- * 台帳のスナップショット時にここで実寸へ落とす。解決は台帳が変わる
- * たびに走るが、1浮動体あたりArea演算1〜2回+平坦化で済み、行ごとの
- * 照会はスナップショットのキャッシュに乗る。
+ * Float dimensions resolve only after placement (auto width, intrinsic image dimensions),
+ * so the style phase carries {@link ShapeOutsideParams} as lengths/percentages, and this
+ * resolver converts them to used sizes when taking the ledger snapshot. Resolution runs
+ * whenever the ledger changes, but needs only one or two Area operations plus flattening
+ * per float. Per-line queries use the snapshot cache.
  * </p>
  *
  * <p>
- * <b>ページ跨ぎ</b>: 救済分割の続き断片({@link VisualRescueFloatBox})は
- * 元ボックスの全体形状を{@code offset}だけ上へずらし、断片の矩形で
- * 切り抜く(次ページ先頭に円の下半分が現れる)。ブロック浮動体の
- * 通常分割(SplitOnCommit)の続き断片は元の寸法・位置を持たないため、
- * その断片ではマージンボックス矩形へ退避する(既知の制限)。
+ * <b>Across pages</b>: continuation fragments from rescue splitting
+ * ({@link VisualRescueFloatBox}) shift the original box's entire shape upward by
+ * {@code offset} and clip it to the fragment rectangle (the circle's lower half appears
+ * at the start of the next page). Continuation fragments from normal block float splitting
+ * (SplitOnCommit) lack the original dimensions and position, so they fall back to the
+ * margin-box rectangle (a known limitation).
  * </p>
  */
 final class FloatShapeResolver {
@@ -48,12 +49,12 @@ final class FloatShapeResolver {
 	}
 
 	/**
-	 * @param box                配置済み浮動体
-	 * @param lineStart          排除帯の行方向開始(論理座標)
-	 * @param pageStart          排除帯のページ方向開始(論理座標)
-	 * @param ownerParams        包含ブロックの組版方向
-	 * @param containingLineSize 包含ブロックの行方向幅(shape-marginの%基準)
-	 * @return 解決した形状。矩形と等価・解決不能ならnull
+	 * @param box                placed float
+	 * @param lineStart          line-axis start of the exclusion band (logical coordinates)
+	 * @param pageStart          page-axis start of the exclusion band (logical coordinates)
+	 * @param ownerParams        containing block's writing mode
+	 * @param containingLineSize containing block's line-axis width (% basis for shape-margin)
+	 * @return resolved shape, or null if equivalent to a rectangle or unresolvable
 	 */
 	static ExclusionShape resolve(final IFloatBox box, final double lineStart, final double pageStart,
 			final AbstractTextParams ownerParams, final double containingLineSize) {
@@ -77,7 +78,7 @@ final class FloatShapeResolver {
 		if (frame == null) {
 			return null;
 		}
-		// 物理座標: マージンボックス左上=(0,0)
+		// Physical coordinates: top left of the margin box = (0,0)
 		final double width = geometry.getWidth(), height = geometry.getHeight();
 		double margin = LayoutUtils.computeLength(params.margin, containingLineSize);
 		if (LayoutUtils.isNone(margin) || margin < 0) {
@@ -97,8 +98,8 @@ final class FloatShapeResolver {
 		if (shape instanceof ClipPathShape.BoxOnly) {
 			final double[][] radii = cornerRadii(shape.referenceBox, frame, width, height);
 			if (radii == null && margin == 0) {
-				// 角丸なしのマージンボックス=従来の矩形。形状を持たせない方が
-				// 照会が軽く、既存文書の挙動も完全に保存される
+				// A margin box without rounded corners is the existing rectangle. Omitting the shape
+				// makes queries cheaper and fully preserves existing document behavior.
 				if (shape.referenceBox == ClipPathShape.ReferenceBox.MARGIN_BOX) {
 					return null;
 				}
@@ -124,9 +125,9 @@ final class FloatShapeResolver {
 	}
 
 	/**
-	 * 物理座標(x右・y下)から論理座標(u=行方向・v=ページ方向)への変換。
-	 * {@code LayoutUtils.drawX/drawY}の逆——RLはページ方向が右→左なので
-	 * v = width - x。
+	 * Transforms physical coordinates (x right, y down) to logical coordinates
+	 * (u = line axis, v = page axis). Inverse of {@code LayoutUtils.drawX/drawY}:
+	 * in RL the page axis runs right → left, so v = width - x.
 	 */
 	static AffineTransform physicalToLogical(final WritingMode flow, final double width) {
 		return switch (flow) {
@@ -136,7 +137,7 @@ final class FloatShapeResolver {
 		};
 	}
 
-	/** 行内進行を含む物理座標→論理座標変換。 */
+	/** Transforms physical to logical coordinates, including inline progression. */
 	static AffineTransform physicalToLogical(final AbstractTextParams params, final double width,
 			final double height) {
 		final boolean bottomToTop = params.flow.isVertical()
@@ -153,7 +154,7 @@ final class FloatShapeResolver {
 		};
 	}
 
-	/** 参照ボックスの矩形(マージンボックス左上原点の物理座標)。 */
+	/** Reference box rectangle (physical coordinates with origin at the margin box top left). */
 	static Rectangle2D.Double referenceRect(final ClipPathShape.ReferenceBox box, final AbsoluteRectFrame frame,
 			final double width, final double height) {
 		final double ml = frame.margin.left, mt = frame.margin.top, mr = frame.margin.right, mb = frame.margin.bottom;
@@ -173,11 +174,10 @@ final class FloatShapeResolver {
 	}
 
 	/**
-	 * 参照ボックスの角半径([hr[4], vr[4]]、TL・TR・BR・BLの順)。
-	 * 全て0ならnull。border-boxの半径からpadding/content-boxは
-	 * 内側の辺の幅を引き、margin-boxはcss-shapes-1 §3.3の式で外側へ
-	 * 広げる(比r/m≧1ならr+m、そうでなければr·(1+(r/m−1)³)。r=0なら0
-	 * のまま=角は直角)。
+	 * Reference box corner radii ([hr[4], vr[4]], in TL, TR, BR, BL order).
+	 * Returns null if all are 0. Starting with border-box radii, subtract inner edge widths
+	 * for padding/content-box, and expand outward for margin-box using css-shapes-1 §3.3
+	 * (r+m if r/m≧1, otherwise r·(1+(r/m−1)³). A radius of r=0 stays 0, a square corner).
 	 */
 	static double[][] cornerRadii(final ClipPathShape.ReferenceBox box, final AbsoluteRectFrame frame,
 			final double width, final double height) {
@@ -190,7 +190,7 @@ final class FloatShapeResolver {
 		final RectBorder.Radius[] rs = { border.getTopLeft().resolve(bw, bh), border.getTopRight().resolve(bw, bh),
 				border.getBottomRight().resolve(bw, bh), border.getBottomLeft().resolve(bw, bh) };
 		final double[] hr = new double[4], vr = new double[4];
-		// 各角に接する辺: [左/右のborder幅, 上/下のborder幅, 左/右padding, 上/下padding, 左/右margin, 上/下margin]
+		// Edges at each corner: [L/R border width, T/B border width, L/R padding, T/B padding, L/R margin, T/B margin]
 		final double[][] edges = {
 				{ border.getLeft().width, border.getTop().width, frame.padding.left, frame.padding.top,
 						frame.margin.left, frame.margin.top },
@@ -237,7 +237,7 @@ final class FloatShapeResolver {
 		return radius * (1 + Math.pow(ratio - 1, 3));
 	}
 
-	/** 楕円角の角丸矩形(半径は矩形に収まるよう一律に縮める——CSS Backgrounds §5.5)。 */
+	/** Rounded rectangle with elliptical corners (uniformly shrink radii to fit — CSS Backgrounds §5.5). */
 	static Shape roundedRect(final Rectangle2D.Double r, final double[] hrIn, final double[] vrIn) {
 		final double[] hr = hrIn.clone(), vr = vrIn.clone();
 		double f = 1;
@@ -268,11 +268,11 @@ final class FloatShapeResolver {
 	}
 
 	/**
-	 * 画像形状。画像はコンテンツボックスに合わせて拡縮して置く
-	 * (css-shapes-1 §3.2「used content box sizeを幅・高さとする置換要素の
-	 * ように配置」)。走査線はページ方向に沿って取り、shape-marginは
-	 * 行方向±m・ページ方向±m(角が丸でなく四角になる近似——円板との
-	 * ミンコフスキー和の外接、誤差は角で最大(√2−1)m)。
+	 * Image shape. Scale and place the image to fit the content box
+	 * (css-shapes-1 §3.2: "positioned like a replaced element whose width and height are the
+	 * used content box size"). Take scanlines along the page axis. Approximate shape-margin
+	 * by ±m on both the line and page axes (square rather than round corners: an outer bound
+	 * of the Minkowski sum with a disk, with maximum corner error (√2−1)m).
 	 */
 	private static ExclusionShape imageProfile(final ShapeOutsideParams.ShapeImage image,
 			final AbsoluteRectFrame frame, final double width, final double height, final double margin,
@@ -289,13 +289,13 @@ final class FloatShapeResolver {
 			return null;
 		}
 		final double sx = content.width / image.width(), sy = content.height / image.height();
-		// 走査線の並び(v昇順)と、各走査線の行方向範囲(u)
+		// Scanlines (ascending v) and the line-axis range (u) of each scanline
 		final int n;
 		final double vStart, vStep;
 		final double[] minU, maxU;
 		switch (flow) {
 		case TB -> {
-			// v=y(画像の行)、u=x
+			// v=y (image row), u=x
 			n = image.height();
 			vStart = content.y;
 			vStep = sy;
@@ -311,7 +311,7 @@ final class FloatShapeResolver {
 			}
 		}
 		case LR, RL -> {
-			// v=x(画像の列; RLは右→左なので列を逆順に)、u=y
+			// v=x (image column; reverse column order for RL, which runs right → left), u=y
 			n = image.width();
 			vStep = sx;
 			vStart = flow == WritingMode.LR ? content.x : width - content.x - content.width;
@@ -334,7 +334,7 @@ final class FloatShapeResolver {
 		}
 		default -> throw new IllegalStateException();
 		}
-		// shape-margin: u方向は±m、v方向は近傍m以内の走査線の和
+		// shape-margin: ±m along u; union of scanlines within distance m along v
 		if (margin > 0) {
 			final int reach = (int) Math.ceil(margin / vStep);
 			final double[] dMin = new double[n], dMax = new double[n];
@@ -356,7 +356,7 @@ final class FloatShapeResolver {
 			System.arraycopy(dMin, 0, minU, 0, n);
 			System.arraycopy(dMax, 0, maxU, 0, n);
 		}
-		// 論理座標へ平行移動し、断片の排除矩形で切り抜く
+		// Translate to logical coordinates and clip to the fragment exclusion rectangle.
 		final double uLo = lineSpan.start(), uHi = lineSpan.end();
 		int first = -1, last = -1;
 		for (int k = 0; k < n; ++k) {

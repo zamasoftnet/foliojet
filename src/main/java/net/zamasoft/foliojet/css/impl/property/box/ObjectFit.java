@@ -16,7 +16,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * <a href="https://drafts.csswg.org/css-images-3/#the-object-fit">object-fit
- * 特性</a>です。置換要素の内容のボックスへの収め方を決めます。
+ * property</a>. Determines how replaced element content fits into its box.
  *
  * @author MIYABE Tatsuhiko
  */

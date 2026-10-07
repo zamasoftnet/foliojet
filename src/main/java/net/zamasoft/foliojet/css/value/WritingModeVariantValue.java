@@ -2,9 +2,7 @@ package net.zamasoft.foliojet.css.value;
 
 import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 
-/**
- * 書字方向の字形回転種別を運ぶ内部値です。
- */
+/** An internal value carrying the glyph rotation variant for the writing direction. */
 public enum WritingModeVariantValue implements Value {
 	NORMAL_VALUE(WritingModeVariant.NORMAL),
 

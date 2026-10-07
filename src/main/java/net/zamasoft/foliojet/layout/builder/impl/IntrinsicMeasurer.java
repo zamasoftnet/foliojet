@@ -32,25 +32,27 @@ import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.pdfg2d.gc.text.layout.control.LineBreak;
 
 /**
- * 固有寸法(IntrinsicSizes)の計測器です。TwoPassBlockBuilder(レコーダ)から
- * イベントを受け取り、min/max の内容寸法を累積します(理想設計 §5.2b の
- * SizingMode 消費者スロットの実体化。M2c で実レイアウト再生に置換予定)。
+ * Measurer for intrinsic sizes (IntrinsicSizes). Receives events from TwoPassBlockBuilder
+ * (the recorder) and accumulates min/max content sizes (implements the SizingMode consumer
+ * slot in the ideal design §5.2b; planned replacement with actual layout replay in M2c).
  */
 final class IntrinsicMeasurer {
-	/** flowStack 由来の文脈参照用。 */
+	/** For context references from flowStack. */
 	private final TwoPassBlockBuilder builder;
 
 	/**
-	 * 最小行幅、最大行幅、最小ページ高さ
+	 * Minimum line width, maximum line width, minimum page height
 	 */
 	private double minLineSize = 0, maxLineSize = 0, minPageSize = 0;
 
 	private double maxStartFloatAdvance = 0, maxEndFloatAdvance = 0;
 
 	/**
-	 * 直交する子(書字方向の軸が違う表・ブロック)の行方向の寄与です(2026-10-05)。模倣計測はその子の行方向の寸法
-	 * (縦組みの親では高さ)を知らず、表の幅や 1 行ぶんで代わりにしている。{@link #sizes()} は従来どおり含めて返し、
-	 * {@link #sizesWithoutOrthogonal()} は含めずに返す——組んで測り直す側(DocumentBuilder)が実寸と差し替える。
+	 * Line-axis contributions of orthogonal children (tables/blocks with a different writing-mode
+	 * axis) (2026-10-05). Emulated measurement does not know that child's line-axis dimension
+	 * (height for a vertical-writing parent), so it substitutes table width or one line.
+	 * {@link #sizes()} includes these as before; {@link #sizesWithoutOrthogonal()} excludes them.
+	 * The caller that lays out and remeasures (DocumentBuilder) substitutes actual sizes.
 	 */
 	private double orthogonalMinLine = 0, orthogonalMaxLine = 0;
 
@@ -59,14 +61,13 @@ final class IntrinsicMeasurer {
 	private int columnCount = 1;
 
 	/**
-	 * {@link #minLineSize}が段数倍を含むか(2026-07-28)。
-	 * {@link net.zamasoft.foliojet.layout.sizing.IntrinsicSizes#columnInflated()}
-	 * を参照。
+	 * Whether {@link #minLineSize} includes multiplication by the column count (2026-07-28).
+	 * See {@link net.zamasoft.foliojet.layout.sizing.IntrinsicSizes#columnInflated()}.
 	 */
 	private boolean columnInflated = false;
 
 	/**
-	 * 現在の行幅。
+	 * Current line width.
 	 */
 	private double lineAxis = 0;
 
@@ -79,7 +80,7 @@ final class IntrinsicMeasurer {
 	private boolean blockHead;
 
 	/**
-	 * 通常のフローのブロックボックスの枠部分の行方向の幅、ページ方向の幅。
+	 * Line-axis and page-axis frame widths of normal-flow block boxes.
 	 */
 	private double lineFrame = 0, pageFrame = 0;
 
@@ -88,17 +89,18 @@ final class IntrinsicMeasurer {
 	private final List<IBox> inlineStack = new ArrayList<IBox>();
 
 	/**
-	 * フローに入る直前の{@link #minLineSize}/{@link #maxLineSize}と、そのフローが
-	 * 外側へ差し出す行方向の寸法(祖先の枠込み)を積む(2026-08-04)。
+	 * Stacks {@link #minLineSize}/{@link #maxLineSize} from just before entering a flow,
+	 * and the line-axis size that flow contributes outward (including ancestor frames)
+	 * (2026-08-04).
 	 *
 	 * <p>
-	 * <b>固定幅のフローは、外から見た寸法をその幅で確定させる</b>——中の内容が
-	 * はみ出していても外へは漏らさない。従来はこれを{@code endFlow}で
-	 * {@code maxLineSize = minLineSize = flowBox.getWidth()}と<b>代入</b>して
-	 * 実現しており、<b>先に測った兄弟の寸法まで消していた</b>。子が
-	 * 「広い箱→狭い箱」の順に並ぶと最後の狭い箱の幅が全体の幅になり、
-	 * 表のセル・絶対配置・フレックス項目が内容より狭く作られていた
-	 * (material-web のタブ見出しが重なって発覚)。
+	 * <b>A fixed-width flow fixes its externally visible size to that width</b>, without
+	 * propagating overflowing inner content outward. Previously, {@code endFlow} did this
+	 * by <b>assigning</b> {@code maxLineSize = minLineSize = flowBox.getWidth()}, which
+	 * <b>also erased previously measured sibling sizes</b>. With children ordered
+	 * "wide box → narrow box", the last narrow box's width became the overall width,
+	 * making table cells, absolutely positioned boxes, and flex items narrower than
+	 * their content (found when material-web tab headings overlapped).
 	 */
 	private final List<double[]> flowSizeStack = new ArrayList<double[]>();
 
@@ -111,12 +113,12 @@ final class IntrinsicMeasurer {
 				Math.max(this.maxLineSize, this.orthogonalMaxLine), this.minPageSize, this.columnInflated);
 	}
 
-	/** 直交する子の寄与を除いた固有寸法です({@link #orthogonalMinLine} を参照)。 */
+	/** Intrinsic sizes excluding orthogonal child contributions (see {@link #orthogonalMinLine}). */
 	IntrinsicSizes sizesWithoutOrthogonal() {
 		return new IntrinsicSizes(this.minLineSize, this.maxLineSize, this.minPageSize, this.columnInflated);
 	}
 
-	/** 直交する子(表・ブロック)を含むか。 */
+	/** Whether there are orthogonal children (tables/blocks). */
 	boolean hasOrthogonalContent() {
 		return this.orthogonalContent;
 	}
@@ -134,22 +136,22 @@ final class IntrinsicMeasurer {
 		FlowPos pos = (FlowPos) flowBox.getPos();
 		this.clearFloatAdvance(pos.clear);
 
-		// 段組の中の内容は、外側から見ると段数倍の行方向寸法を要する。
-		// **拡大するのは新しく足す分だけ**——{@link #lineFrame}は祖先の枠を
-		// 積んだ累積値で、各階層で既に拡大済みである。従来はこれを各
-		// startFlowで掛け直しており、入れ子の深さに対して**指数的に**
-		// 膨らんでいた(2026-07-26に修正)。
+		// From outside, multi-column content needs its line-axis size multiplied by the column count.
+		// **Scale only the newly added portion**: {@link #lineFrame} accumulates ancestor frames,
+		// already scaled at each level. Previously, each startFlow
+		// multiplied this again, causing **exponential** growth with nesting depth
+		// (fixed 2026-07-26).
 		//
-		// 実測: 4段の中に2段を入れた文書で
-		// lineFrame 33 → 132 → 532 → 4256 と膨らみ、その途中値から
-		// maxLineSizeを採っていた。結果、収縮幅の測定が紙面の31倍を返し、
-		// 段が紙面の外へ並んだ(REVIEW-STATISTICS §12)。
+		// Observed in a document with two columns nested inside four:
+		// lineFrame grew 33 → 132 → 532 → 4256, and
+		// maxLineSize used those intermediate values. The resulting shrink-to-fit measurement was
+		// 31 times the sheet size, placing columns outside the sheet (REVIEW-STATISTICS §12).
 		double frameAdd = flowBox.getFrame().getFrameLineExtent(params.flow);
 		if (flowBox.getColumnCount() > 0) {
 			frameAdd += flowBox.getBlockParams().columns.gap * (flowBox.getColumnCount() - 1);
 		}
 		final double lineSize = this.lineFrame + flowBox.getLineExtent(params.flow) * this.columnCount;
-		// 中に入る前の値と、このフロー自身が差し出す寸法を控える(endFlowで使う)
+		// Save the values before entry and the size this flow itself contributes (used by endFlow).
 		this.flowSizeStack.add(new double[] { this.minLineSize, this.maxLineSize, lineSize });
 		this.lineFrame += frameAdd * this.columnCount;
 		this.pageFrame += flowBox.getFrame().getFramePageExtent(params.flow);
@@ -167,29 +169,29 @@ final class IntrinsicMeasurer {
 		this.blockHead = true;
 
 		if (flowBox.getColumnCount() >= 2 || flowBox.getBlockParams().columns.count >= 2) {
-			// ここから内側の最小内容寸法は段数倍で積まれる(2026-07-28)。
-			// **auto高さの段組はgetColumnCount()が1のまま**(段数は
-			// ColumnsContainer側が持つ)なので、指定段数(columns.count)でも
-			// 立てる——立てないとshrinkToFitの段組クランプが効かず、
-			// 縦書きの段組内float:rightが行頭より前(紙面の外)へ置かれた
-			// (2026-08-21、掃過seed 615921)
+			// From here, inner minimum content sizes accumulate multiplied by the column count (2026-07-28).
+			// **For auto-height multi-column layout, getColumnCount() stays 1** (ColumnsContainer
+			// holds the count), so also set the flag from the specified count (columns.count).
+			// Otherwise the shrinkToFit multi-column clamp does not apply,
+			// placing float:right inside vertical-writing columns before line start (outside the sheet)
+			// (2026-08-21, sweep seed 615921).
 			this.columnInflated = true;
 		}
 		this.columnCount *= flowBox.getColumnCount();
-		// 元コードでは flowStack.add(flowBox) 後の getFlowBox().getLineSize() を参照していたが、
-		// push 後の getFlowBox() は flowBox 自身なので等価。
+		// The original code read getFlowBox().getLineSize() after flowStack.add(flowBox),
+		// but getFlowBox() after the push is flowBox itself, so this is equivalent.
 		this.letterSpacing = LayoutUtils.computeLength(flowBox.getBlockParams().letterSpacing,
 				flowBox.getLineSize());
 	}
 
 	void endFlow(final AbstractBlockBox flowBox) {
 		assert this.inlineStack.isEmpty();
-		// builder.getFlowBox() は flowStack.remove 後の親ボックス。
+		// builder.getFlowBox() is the parent box after flowStack.remove.
 		AbstractContainerBox containerBox = this.builder.getFlowBox();
 		BlockParams params = containerBox.getBlockParams();
 		BlockParams flowParams = flowBox.getBlockParams();
 		this.columnCount /= flowBox.getColumnCount();
-		// startFlowと対称に、**足した分だけ**を同じ倍率で戻す
+		// Symmetrically with startFlow, remove **only the added portion**, using the same multiplier.
 		if (flowBox.getColumnCount() > 0) {
 			this.lineFrame -= flowBox.getBlockParams().columns.gap * (flowBox.getColumnCount() - 1)
 					* this.columnCount;
@@ -199,14 +201,14 @@ final class IntrinsicMeasurer {
 		final boolean fixedLineSize;
 		switch (params.flow) {
 		case WritingMode.TB:
-			// 横書き
+			// Horizontal writing
 			this.lineFrame -= flowBox.getFrame().getFrameWidth() * this.columnCount;
 			this.pageFrame -= flowBox.getFrame().getFrameHeight();
 			fixedLineSize = flowParams.size.getWidthType() == LengthType.ABSOLUTE;
 			break;
 		case WritingMode.LR:
 		case WritingMode.RL:
-			// 縦書き
+			// Vertical writing
 			this.lineFrame -= flowBox.getFrame().getFrameHeight() * this.columnCount;
 			this.pageFrame -= flowBox.getFrame().getFrameWidth();
 			fixedLineSize = flowParams.size.getHeightType() == LengthType.ABSOLUTE;
@@ -215,18 +217,18 @@ final class IntrinsicMeasurer {
 			throw new IllegalStateException();
 		}
 		if (fixedLineSize) {
-			// **固定幅フロー**。中の内容は外へ漏らさず、このフロー自身が
-			// 差し出す寸法だけを残す。**兄弟の寸法は消さない**(2026-08-04)
+			// **Fixed-width flow**. Do not propagate inner content outward; retain only the size
+			// this flow itself contributes. **Do not erase sibling sizes** (2026-08-04).
 			this.minLineSize = Math.max(entered[0], entered[2]);
 			this.maxLineSize = Math.max(entered[1], entered[2]);
 		}
 		{
-			// min-width(絶対長のみ)は最小内容寸法の床になる(2026-08-08、
-			// css-sizingのouter contribution)。最大側は解決済み幅の提供値
-			// (startFlowのlineSize)が自然に運ぶが、最小側は内容minのみで、
-			// min-width:100pxの入れ子grid(NHKナビのセクションピル)の
-			// ラッパーがテキスト幅までflex-shrinkされてピル背景が隣の
-			// タブへ重なっていた。%・calcは基準未確定のため数えない
+			// min-width (absolute lengths only) sets a floor on minimum content size (2026-08-08,
+			// css-sizing outer contribution). The maximum naturally carries it through the resolved width
+			// (lineSize in startFlow), but the minimum used content min only,
+			// so a nested grid with min-width:100px (NHK navigation section pills)
+			// had its wrapper flex-shrunk to text width, overlapping pill backgrounds with adjacent
+			// tabs. Do not count %/calc because their basis is unresolved.
 			final WritingMode selfFlow = flowParams.flow;
 			final net.zamasoft.foliojet.layout.box.params.Dimension minSpec = flowParams.minSize;
 			if (minSpec.getLineType(selfFlow) == LengthType.ABSOLUTE && minSpec.getLineLength(selfFlow) > 0) {
@@ -248,21 +250,21 @@ final class IntrinsicMeasurer {
 	}
 
 	/**
-	 * 置換要素の行方向min-content寄与です(2026-08-08)。行方向寸法が
-	 * %(循環パーセント)の置換要素は、解決値(自然寸法由来)でなく0を
-	 * 寄与とする(css-sizingの循環%の扱い、Chromeと同じ)——旧実装は
-	 * width:100%の大判画像が自然幅でminを吊り上げ、flexコンテナのitemが
-	 * 縮めなくなって隣のflex-shrink:0の固定幅サイドバーを紙面外へ押し出す
-	 * 実バグになっていた(asahi.comトップの速報ニュース欄)。calc(絶対+%)は
-	 * 絶対成分だけを寄与とする。
+	 * Line-axis min-content contribution of replaced elements (2026-08-08). For replaced
+	 * elements with a percentage line-axis size (cyclic percentage), contribute 0 instead
+	 * of the resolved value (from natural dimensions), following css-sizing's cyclic %
+	 * handling and Chrome. Previously, a large width:100% image raised the minimum to its
+	 * natural width, preventing a flex container item from shrinking and pushing its adjacent
+	 * fixed-width flex-shrink:0 sidebar off the sheet (the real bug in the breaking-news section
+	 * on the asahi.com home page). calc(absolute + %) contributes only the absolute component.
 	 *
 	 * <p>
-	 * <b>max側の循環%も同じ扱い</b>(2026-08-10)。寸法がautoでも
-	 * max-width:100%等の%上限が付いていれば要素は容器に合わせて縮められる
-	 * ので、min寄与は0(MIXEDは絶対成分を上限としてクランプ)。旧実装は
-	 * 自然寸法由来の解決値がminを吊り上げ、fit-contentの容器
-	 * (縦書き書籍の資料図版ページ=直交ブロック)が紙幅制限に勝って
-	 * 紙面からはみ出す実バグになっていた。
+	 * <b>Handle cyclic % in max sizes the same way</b> (2026-08-10). Even with auto size,
+	 * a % limit such as max-width:100% lets the element shrink to its container, so its min
+	 * contribution is 0 (for MIXED, clamp to the absolute component as the upper bound).
+	 * Previously, the value resolved from natural dimensions raised min, allowing a fit-content
+	 * container (a reference illustration page in a vertical-writing book = an orthogonal block)
+	 * to override the paper width limit and overflow the sheet.
 	 */
 	private static double lineMinContribution(final double usedLine,
 			final LengthType lineType, final double lineSpecAbsolute,
@@ -285,7 +287,7 @@ final class IntrinsicMeasurer {
 	void bound(final AbstractReplacedBox replacedBox) {
 		switch (replacedBox.getPos().getType()) {
 		case FLOW: {
-			// 静的・相対配置
+			// Static/relative positioning
 			AbstractContainerBox containerBox = this.builder.getFlowBox();
 			IFlowBox flowBox = (IFlowBox) replacedBox;
 			FlowPos pos = (FlowPos) flowBox.getPos();
@@ -295,7 +297,7 @@ final class IntrinsicMeasurer {
 			double minLineAxis, maxLineAxis = 0, minPageAxis;
 			BlockParams params = containerBox.getBlockParams();
 			if (params.flow.isVertical()) {
-				// 縦書き
+				// Vertical writing
 				minLineAxis = lineMinContribution(replacedBox.getHeight(),
 						replacedBox.getReplacedParams().size.getHeightType(),
 						replacedBox.getReplacedParams().size.getHeight(),
@@ -306,7 +308,7 @@ final class IntrinsicMeasurer {
 						? replacedBox.getReplacedParams().size.getHeight()
 						: replacedBox.getHeight();
 			} else {
-				// 横書き
+				// Horizontal writing
 				minLineAxis = lineMinContribution(replacedBox.getWidth(),
 						replacedBox.getReplacedParams().size.getWidthType(),
 						replacedBox.getReplacedParams().size.getWidth(),
@@ -337,19 +339,19 @@ final class IntrinsicMeasurer {
 		}
 			break;
 		case FLOAT: {
-			// 浮動体
+			// Float
 			AbstractContainerBox containerBox = this.builder.getFlowBox();
 			IFloatBox floatingBox = (IFloatBox) replacedBox;
 			this.clearFloatAdvance(floatingBox.getFloatPos().clear);
 			LayoutUtils.calculateReplacedSize(this.builder, replacedBox);
 
-			// フロートの排除域(advance)は使用寸法で数える——minLineSizeへの
-			// 寄与だけ%を0にする(下のusedLineAxis/minLineAxisの使い分け)
+			// Count the float exclusion area (advance) using used sizes; treat % as 0 only for
+			// the minLineSize contribution (the usedLineAxis/minLineAxis distinction below).
 			double minLineAxis, minPageAxis, maxLineAxis = 0;
 			final double usedLineAxis;
 			BlockParams params = containerBox.getBlockParams();
 			if (params.flow.isVertical()) {
-				// 縦書き
+				// Vertical writing
 				usedLineAxis = replacedBox.getHeight();
 				minLineAxis = lineMinContribution(usedLineAxis,
 						replacedBox.getReplacedParams().size.getHeightType(),
@@ -361,7 +363,7 @@ final class IntrinsicMeasurer {
 					maxLineAxis = replacedBox.getReplacedParams().size.getHeight();
 				}
 			} else {
-				// 横書き
+				// Horizontal writing
 				usedLineAxis = replacedBox.getWidth();
 				minLineAxis = lineMinContribution(usedLineAxis,
 						replacedBox.getReplacedParams().size.getWidthType(),
@@ -406,7 +408,7 @@ final class IntrinsicMeasurer {
 			break;
 
 		case ABSOLUTE:
-			// 絶対配置
+			// Absolute positioning
 			replacedBox.calculateFrame(this.builder.getFlowBox().getLineSize());
 			break;
 
@@ -416,16 +418,15 @@ final class IntrinsicMeasurer {
 	}
 
 	/**
-	 * 表・Grid・Flexのcontent-box contributionです。
+	 * Content-box contributions of tables, Grid, and Flex.
 	 * <p>
-	 * **{@link #lineFrame}(自箱と祖先の枠の累積)を必ず足すこと**
-	 * (2026-08-08)。これを足していなかったため、padding/borderを持つ
-	 * flexコンテナ(やその祖先ラッパー)が表の自動レイアウトのセル計測で
-	 * 枠のぶん過小に数えられ、bind時に枠を引かれて**内容が枠ぶんだけ
-	 * 常に狭くなっていた**。GitHubのファイル一覧(padding-right:16pxの
-	 * flex列)でファイル名がクリップされる欠陥として発覚。浮動体の
-	 * 寄与({@code floating})は従来からlineFrameを足しており、その形に
-	 * 揃える。
+	 * **Always add {@link #lineFrame} (accumulated frames of this box and its ancestors)**
+	 * (2026-08-08). Omitting it undercounted flex containers (or their ancestor wrappers)
+	 * with padding/borders by the frame size during cell measurement for auto table layout.
+	 * Subtracting the frame at bind time then made **content consistently narrower by that
+	 * frame size**. Found as clipped filenames in GitHub file listings (a flex column with
+	 * padding-right:16px). Float contributions ({@code floating}) already add lineFrame;
+	 * use the same structure here.
 	 */
 	private void spannedContribution(final IntrinsicSizes sizes) {
 		this.spannedContribution(sizes, null);
@@ -436,12 +437,12 @@ final class IntrinsicMeasurer {
 		double min = sizes.minContent();
 		double max = sizes.maxContent();
 		if (box != null) {
-			// コンテナ自身のwidth/min-width/max-width(絶対長のみ)で寄与を
-			// クランプする(2026-08-08、css-sizingのouter contribution)。
-			// これが無いと min-width:100px の入れ子grid(NHKのナビの
-			// セクションピル)のラッパーがテキスト幅までflex-shrinkされ、
-			// 100pxで描かれるピルの背景が隣のタブへ重なっていた。
-			// %・calcはコンテナ主軸未確定のため従来どおり数えない
+			// Clamp the contribution using the container’s own width/min-width/max-width
+			// (absolute lengths only) (2026-08-08, css-sizing outer contribution).
+			// Without this, a nested grid wrapper with min-width:100px (NHK navigation
+			// section pills) was flex-shrunk to text width,
+			// making the pill background drawn at 100 px overlap the adjacent tab.
+			// As before, do not count %/calc while the container main axis is unresolved.
 			final WritingMode flow = box.getBlockParams().flow;
 			final double bb = box.getBlockParams().boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
 					? box.getFrame().getBorderLineExtent(flow)
@@ -469,7 +470,7 @@ final class IntrinsicMeasurer {
 
 	void table(final IntrinsicSizes tableSizes, final boolean orthogonal) {
 		if (orthogonal) {
-			// 直交する表の固有寸法は表の行方向(表の幅)で、親の行方向ではない。従来どおりの寄与は別に持つ
+			// Orthogonal table sizes follow its line axis (width), not the parent's. Track the old contribution separately.
 			this.orthogonalContent = true;
 			this.columnInflated |= tableSizes.columnInflated();
 			this.orthogonalMinLine = Math.max(this.orthogonalMinLine,
@@ -478,16 +479,16 @@ final class IntrinsicMeasurer {
 					tableSizes.maxContent() * this.columnCount + this.lineFrame);
 			return;
 		}
-		// 表の幅は表側のアルゴリズムが持つため従来どおりクランプしない
+		// As before, do not clamp table widths; the table algorithm owns them.
 		this.spannedContribution(tableSizes);
 	}
 
-	/** Grid全体のcontent-box contributionです(Grid G3d2——tableと同型)。 */
+	/** Content-box contribution of the entire Grid (Grid G3d2; same structure as table). */
 	void grid(final IntrinsicSizes gridSizes, final AbstractContainerBox gridBox) {
 		this.spannedContribution(gridSizes, gridBox);
 	}
 
-	/** Flex全体のcontent-box contributionです(Flex F1f——gridと同型)。 */
+	/** Content-box contribution of the entire Flex (Flex F1f; same structure as grid). */
 	void flex(final IntrinsicSizes flexSizes, final AbstractContainerBox flexBox) {
 		this.spannedContribution(flexSizes, flexBox);
 	}
@@ -500,9 +501,9 @@ final class IntrinsicMeasurer {
 		BlockParams flowParams = this.builder.getFlowBox().getBlockParams();
 		final WritingMode floatFlow = flowParams.flow;
 		double minLineAxis, maxLineAxis;
-		// 台帳#1 解消(2026-07-17): 旧実装は縦書きの min だけページ方向の
-		// フレーム(FrameWidth)を加算していた(max は行方向)。論理軸
-		// アクセサで縦横を統合し、min/max とも行方向フレームに揃える
+		// Resolved ledger #1 (2026-07-17): previously, only min in vertical writing added the
+		// page-axis frame (FrameWidth), while max used the line axis. Logical axis
+		// accessors unify both writing modes and use the line-axis frame for both min/max.
 		if (params.size.getLineType(floatFlow) != LengthType.AUTO) {
 			minLineAxis = maxLineAxis = floatingBox.getLineExtent(floatFlow);
 		} else {
@@ -536,11 +537,11 @@ final class IntrinsicMeasurer {
 	}
 
 	/**
-	 * ネストしたshrink-to-fitブロックのouter contributionを親へ加えます。
+	 * Adds the outer contribution of a nested shrink-to-fit block to the parent.
 	 *
-	 * <p>直交フローでは子のページ軸が親の行軸になるため、min/max-contentを
-	 * そのまま足してはならない。インラインブロックの計測
-	 * ({@link #control(TextControl, TwoPass)})と同じ軸変換を行う。</p>
+	 * <p>For orthogonal flow, the child's page axis becomes the parent's line axis,
+	 * so min/max-content must not be added directly. Apply the same axis conversion
+	 * as inline-block measurement ({@link #control(TextControl, TwoPass)}).</p>
 	 */
 	void fitBlock(final TwoPassBlockBuilder childBuilder) {
 		final AbstractContainerBox block = childBuilder.getRootBox();
@@ -559,10 +560,10 @@ final class IntrinsicMeasurer {
 			maxLine = childSizes.maxContent() + frameLine;
 			minPage = childSizes.minPage() + framePage;
 		} else {
-			// 子のページ方向の最小厚みが、親から見た行方向の幅になる。
+			// The child’s minimum page-axis thickness becomes its line-axis width as seen by the parent.
 			minLine = maxLine = childSizes.minPage() + frameLine;
 			minPage = childSizes.minContent() + framePage;
-			// 最小厚み(1 行ぶん)は子の実際の高さではない。組んで測り直す側のために別に持つ(2026-10-05)
+			// One-line minimum thickness is not the child's actual height; track it for layout remeasurement (2026-10-05).
 			this.orthogonalContent = true;
 			this.orthogonalMinLine = Math.max(this.orthogonalMinLine, minLine * this.columnCount + this.lineFrame);
 			this.orthogonalMaxLine = Math.max(this.orthogonalMaxLine, maxLine * this.columnCount + this.lineFrame);
@@ -578,23 +579,26 @@ final class IntrinsicMeasurer {
 	}
 
 	/**
-	 * 1グリフ分の幅を計上します。CSS幅式の成分の定義は
-	 * {@link GlyphMeasureStep}(唯一の定義。85点計画増分5でintrinsic系統を
-	 * 接続し、幅会計3系統の統合が完了)。
+	 * Accounts for the width of one glyph. {@link GlyphMeasureStep} defines CSS width
+	 * formula components (the sole definition; connecting the intrinsic path in increment 5
+	 * of the 85-point plan completed unification of the three width accounting paths).
 	 *
 	 * <p>
-	 * <b>intrinsic計測の方針は行会計と2点違う</b>ので、
-	 * {@code baseAndSpacing()+adjustment()}の正規2段ではなく成分別に足す:
+	 * <b>Intrinsic measurement differs from line accounting in two ways</b>, so add components
+	 * separately rather than using the canonical two stages,
+	 * {@code baseAndSpacing()+adjustment()}:
 	 * </p>
 	 *
 	 * <ul>
-	 * <li>和文詰めA2: 境界gapは<b>max-content(行)にのみ</b>計上する
-	 * ——和欧文境界は分割機会でgapは分割時に消えるため、min-content
-	 * (atomic unit)には入れない(高々0.125icの過小は安全側の近似として
-	 * 記録)。trimはmin/max両方(trim pairは禁則で不可分、T1a)</li>
-	 * <li>加算順は従来を保存する: gap→(base−trim)+letter-spacing。
-	 * 正規順(base+letter-spacing)と最終ULPが変わりうるため、golden
-	 * 全件バイト一致(再生成禁止)の完了条件の下では順序を動かせない</li>
+	 * <li>Japanese spacing adjustment A2: count boundary gaps <b>only in max-content (lines)</b>.
+	 * A Japanese/Latin boundary is a break opportunity whose gap disappears at the break,
+	 * so exclude it from min-content (atomic units). The underestimate of at most 0.125 ic
+	 * is recorded as a conservative approximation. Count trim in both min/max
+	 * (trim pairs are indivisible under kinsoku (line-breaking rules), T1a).</li>
+	 * <li>Preserve the old addition order: gap → (base−trim)+letter-spacing.
+	 * The last ULP can differ from the canonical order (base+letter-spacing), so the order
+	 * cannot change under the completion requirement that all golden files match byte for
+	 * byte (regeneration prohibited).</li>
 	 * </ul>
 	 */
 	void glyph(final double baseAdvance, final double autospaceGap, final double punctuationTrim) {
@@ -614,8 +618,8 @@ final class IntrinsicMeasurer {
 	}
 
 	void control(final TextControl quad, final TwoPass inlineBlockMeasure) {
-		// 元コードでは toLineFeed の設定は記録(records.add)より前だったが、
-		// 計測状態と records は独立のため順序を入れ替えても等価。
+		// The original code set toLineFeed before recording (records.add), but
+		// measurement state and records are independent, so reordering is equivalent.
 		if (quad instanceof LineBreak) {
 			this.toLineFeed = (LineBreak) quad;
 		}
@@ -625,7 +629,7 @@ final class IntrinsicMeasurer {
 			final InlineQuad inlineQuad = (InlineQuad) quad;
 			final BlockParams cParams = this.builder.getFlowBox().getBlockParams();
 			if (quad instanceof InlineReplacedQuad) {
-				// 画像
+				// Image
 				final AbstractReplacedBox box = (AbstractReplacedBox) inlineQuad.getBox();
 				maxAdvance = quad.getAdvance();
 				assert LayoutUtils.isDrawable(maxAdvance) : "置換要素の未確定な行寸法が固有寸法へ混入しました: advance="
@@ -638,7 +642,7 @@ final class IntrinsicMeasurer {
 							+ box.getReplacedParams().image.getHeight();
 				minAdvance = 0;
 				if (cParams.flow.isVertical()) {
-					// 縦書き
+					// Vertical writing
 					if (!box.getReplacedParams().size.getHeightType().needsReference()
 							&& !box.getReplacedParams().maxSize.getHeightType().needsReference()) {
 						minAdvance = maxAdvance;
@@ -650,7 +654,7 @@ final class IntrinsicMeasurer {
 					}
 					pageSize = box.getWidth();
 				} else {
-					// 横書き
+					// Horizontal writing
 					if (!box.getReplacedParams().size.getWidthType().needsReference()
 							&& !box.getReplacedParams().maxSize.getWidthType().needsReference()) {
 						minAdvance = maxAdvance;
@@ -663,18 +667,18 @@ final class IntrinsicMeasurer {
 					pageSize = box.getHeight();
 				}
 			} else if (quad instanceof InlineBlockQuad) {
-				// インラインブロック
+				// Inline block
 				final AbstractContainerBox box = (AbstractContainerBox) inlineQuad.getBox();
 				final double lineFrame = box.getFrame().getFrameLineExtent(cParams.flow);
 				final double pageFrame = box.getFrame().getFramePageExtent(cParams.flow);
-				// インラインブロック
+				// Inline block
 				final BlockParams params = (BlockParams) box.getParams();
 				final TwoPass stfBuilder = inlineBlockMeasure;
 				if (stfBuilder == null) {
-					// 実測ビルダーを持たない合成箱(ルビ単位)。寸法は
-					// 構築時に確定しているので箱の実寸だけを使う
-					// (2026-07-25、TwoPassBlockBuilder.controlの
-					// isPreMeasured分岐と対)
+					// Synthetic box without a measurement builder (ruby unit). Its dimensions
+					// resolve during construction, so use only the box’s actual size
+					// (2026-07-25; paired with the isPreMeasured branch
+					// in TwoPassBlockBuilder.control).
 					minAdvance = maxAdvance = lineFrame;
 					pageSize = pageFrame;
 				} else {
@@ -685,7 +689,7 @@ final class IntrinsicMeasurer {
 						maxAdvance = stfSizes.maxContent() + lineFrame;
 						pageSize = stfSizes.minPage() + pageFrame;
 					} else {
-						// 縦中横/横中縦
+						// Tate-chu-yoko / vertical text in horizontal writing
 						minAdvance = maxAdvance = stfSizes.minPage() + pageFrame;
 						pageSize = stfSizes.minContent() + lineFrame;
 					}
@@ -715,8 +719,8 @@ final class IntrinsicMeasurer {
 				pageSize = inlineQuad.getBox().getPageExtent(cParams.flow);
 			}
 		} else if (quad instanceof net.zamasoft.foliojet.layout.text.LeaderQuad leader) {
-			// leader() L1: min-content/max-contentともにパターン1周期分
-			// (割り付け済みadvanceを読まない——再計測時の漏れ防止)
+			// leader() L1: both min-content/max-content use one pattern cycle
+			// (do not read the allocated advance, to prevent leakage during remeasurement).
 			minAdvance = maxAdvance = leader.minAdvance;
 			pageSize = 0;
 		} else {

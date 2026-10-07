@@ -26,9 +26,9 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BackgroundImage();
 
 	/**
-	 * 多層背景の値(2026-08-29)。各レイヤは{@link URIValue}、
-	 * {@link PaintValue}(グラデーション)、または位置合わせ用のnoneで、先頭が最前面。単層は
-	 * 値をそのまま持つのでこの型にならない。
+	 * Value for multiple backgrounds (2026-08-29). Each layer is a {@link URIValue},
+	 * a {@link PaintValue} (gradient), or none to preserve positional correspondence; the first is frontmost.
+	 * A single layer holds its value directly and does not use this type.
 	 */
 	public record LayersValue(Value[] layers) implements Value {
 		@Override
@@ -37,7 +37,7 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 		}
 	}
 
-	/** 全レイヤ(先頭が最前面)。noneなら空。 */
+	/** All layers (frontmost first). Empty for none. */
 	public static Value[] getLayers(CSSStyle style) {
 		final Value value = style.get(INFO);
 		if (value instanceof LayersValue layers) {
@@ -50,11 +50,11 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * レイヤの画像を読み込みます。読めなければnull。
+	 * Loads a layer image. Returns null if it cannot be read.
 	 *
 	 * <p>
-	 * 読み込んだ画像には{@code image-orientation}(2026-08-30)を適用する。
-	 * 背景・マスク・{@code border-image}はいずれもこの入口を通る。
+	 * Applies {@code image-orientation} (2026-08-30) to the loaded image.
+	 * Backgrounds, masks, and {@code border-image} all use this entry point.
 	 */
 	public static Image load(CSSStyle style, URIValue uriValue) {
 		return net.zamasoft.foliojet.css.impl.property.image.ImageOrientation.apply(style, loadRaw(style, uriValue));
@@ -83,8 +83,8 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
-		// 多層(コンマ区切り、2026-08-29)。noneもレイヤ位置の対応を
-		// 保つためリスト内には残す(全レイヤnoneのときだけ単一noneへ畳む)
+		// Multiple layers (comma-separated, 2026-08-29). Keep none entries in the list
+		// to preserve layer positions (collapse to a single none only when all layers are none).
 		final java.util.List<Value> layers = new java.util.ArrayList<Value>();
 		boolean hasImage = false;
 		for (final TokenStream layer : tokens.splitComma()) {
@@ -108,19 +108,19 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 		return new LayersValue(layers.toArray(new Value[layers.size()]));
 	}
 
-	/** 1レイヤ({@code none}・url()・グラデーション)。読めなければnull。 */
+	/** One layer ({@code none}, url(), or gradient). Returns null if it cannot be parsed. */
 	public static Value parseLayer(UserAgent ua, URI uri, CssToken lu) {
 		if (ValueUtils.isNone(lu)) {
 			return KeywordValue.NONE;
 		}
 		try {
-			// url()とimage-set()(2026-08-29、出力解像度に最も近い候補)
+			// url() and image-set() (2026-08-29, the candidate closest to the output resolution).
 			final URIValue value = ValueUtils.toImage(ua, uri, lu);
 			if (value != null) {
 				return value;
 			}
 			if (ValueUtils.isImage(lu)) {
-				return null; // 採れる候補の無いimage-set()(呼び出し側で宣言無効)
+				return null; // image-set() with no usable candidate (the caller invalidates the declaration).
 			}
 		} catch (URISyntaxException e) {
 			ua.message(MessageCodes.WARN_BAD_LINK_URI, ValueUtils.uriText(lu));

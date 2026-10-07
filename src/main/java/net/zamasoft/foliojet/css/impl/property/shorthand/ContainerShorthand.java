@@ -18,10 +18,10 @@ import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code container}ショートハンドです(css-contain-3、2026-08-15段2——
- * 開発記録 §5)。
- * {@code <container-name> [/ <container-type>]?}——typeを省略すると
- * {@code normal}。
+ * {@code container} shorthand (css-contain-3, 2026-08-15 stage 2:
+ * development record §5).
+ * {@code <container-name> [/ <container-type>]?}; omitted type defaults to
+ * {@code normal}.
  *
  * @author MIYABE Tatsuhiko
  */

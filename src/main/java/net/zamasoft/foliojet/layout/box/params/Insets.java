@@ -11,7 +11,7 @@ public class Insets {
 	private final double right;
 	private final double bottom;
 	private final double left;
-	/** MIXED(calc()の絶対+割合混在)の場合のみ意味を持つ割合成分。それ以外は常に0。 */
+	/** Percentage component, meaningful only for MIXED (absolute + percentage in calc()). Always 0 otherwise. */
 	private final double topRatio;
 	private final double rightRatio;
 	private final double bottomRatio;
@@ -23,7 +23,7 @@ public class Insets {
 		return create(top, 0, right, 0, bottom, 0, left, 0, topType, rightType, bottomType, leftType);
 	}
 
-	/** 各辺がMIXEDの場合の割合成分付きの生成。 */
+	/** Creates insets with percentage components for sides whose type is MIXED. */
 	public static Insets create(double top, double topRatio, double right, double rightRatio, double bottom,
 			double bottomRatio, double left, double leftRatio, LengthType topType, LengthType rightType,
 			LengthType bottomType, LengthType leftType) {
@@ -89,8 +89,8 @@ public class Insets {
 	}
 
 	public boolean isNull() {
-		// MIXEDはcreate()が絶対・割合いずれか0なら単純型へ縮退させるため、
-		// 実際にMIXED型である値は常に両成分非0=非ゼロと分かっている。
+		// For MIXED, create() reduces the value to a simple type if either the absolute or percentage part is 0,
+		// so a value that actually has type MIXED always has two nonzero components and is known to be nonzero.
 		return (this.getTopType() != LengthType.AUTO && this.getTopType() != LengthType.MIXED && this.getTop() == 0)
 				&& (this.getRightType() != LengthType.AUTO && this.getRightType() != LengthType.MIXED
 						&& this.getRight() == 0)

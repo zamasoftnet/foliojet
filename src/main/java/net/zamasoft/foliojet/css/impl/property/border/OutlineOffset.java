@@ -15,8 +15,8 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * outline-offset 特性です(CSS UI 3 §4、2026-08-29)。境界辺からアウトラインの
- * 内縁までの距離。負なら境界の内側へ入る。
+ * outline-offset property (CSS UI 3 §4, 2026-08-29). Distance from the border edge
+ * to the inner edge of the outline. Negative values move it inside the border.
  *
  * @author MIYABE Tatsuhiko
  */

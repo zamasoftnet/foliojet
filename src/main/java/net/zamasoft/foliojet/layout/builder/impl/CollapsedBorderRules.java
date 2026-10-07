@@ -13,20 +13,20 @@ import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.TableCollapsedBorders;
 
 /**
- * つぶし境界の適用規則です(P2-5 (b): §5.2b 表ビルダー統一)。
+ * Rules for applying collapsed borders (P2-5 (b): table builder unification in §5.2b).
  *
  * <p>
- * 「1行分の境界を H(前/後)・V 配列へ載せる」規則。層順(表→列グループ→
- * 行グループ→行→セル)は collapse の同点先勝ちに合わせて固定。OnePass の
- * ストリーミング蓄積から純化したもので、TwoPass の全表一括
- * (createBorders)をこの規則のループへ置換するのが次段。
+ * Rules for putting one row's borders into the H (before/after) and V arrays. The layer order
+ * (table → column group → row group → row → cell) is fixed to match collapse's first-wins tie rule.
+ * Extracted as pure rules from OnePass streaming accumulation; the next step is to replace
+ * TwoPass whole-table processing (createBorders) with a loop over these rules.
  * </p>
  *
  * <p>
- * 行グループの前後 H はグループ境界行のみに適用し、次行 peek は
- * 実際の次行の params を使う(旧 OnePass は単位全行への適用と保留行
- * 参照の固有規約を持っていた —
- * 0330-table-border/collapse-group-inner-lines.html で是正)。
+ * Apply the row group's before/after H borders only to the group's boundary rows, and use
+ * the actual next row's params for next-row peeking (old OnePass had its own conventions:
+ * applying borders to every row in the unit and referencing the pending row —
+ * corrected in 0330-table-border/collapse-group-inner-lines.html).
  * </p>
  */
 final class CollapsedBorderRules {
@@ -35,8 +35,8 @@ final class CollapsedBorderRules {
 	}
 
 	/**
-	 * 行単位で蓄積した境界(行=リスト、列=配列)を TableCollapsedBorders の
-	 * 列優先配列へ転置した行グループ分です。
+	 * One row group's borders, transposed from row-wise accumulation (rows = list,
+	 * columns = array) to the column-major arrays of TableCollapsedBorders.
 	 */
 	record GroupBorders(double[] rowSizes, Border[][] hborders, Border[][] vborders) {
 		static final GroupBorders NONE = new GroupBorders(null, null, null);
@@ -65,7 +65,7 @@ final class CollapsedBorderRules {
 	}
 
 	/**
-	 * 分離境界のセル間隔(境界間隔の半分)です。
+	 * Cell spacing for separate borders (half the border spacing).
 	 */
 	static AbsoluteInsets separateSpacing(final TableParams tableParams) {
 		final double v = tableParams.borderSpacingV / 2.0;
@@ -74,8 +74,8 @@ final class CollapsedBorderRules {
 	}
 
 	/**
-	 * つぶし境界のセル間隔です(グリッド読み — 全表の境界確定後)。
-	 * 連結範囲の境界半幅の最大を各辺に採る。
+	 * Cell spacing for collapsed borders (grid access, after all table borders resolve).
+	 * Use the maximum border half-width over the span for each edge.
 	 */
 	static AbsoluteInsets gridSpacing(final TableCollapsedBorders borders, final int row, final int col,
 			final int rowspan, final int colspan, final int rowCount, final int columnCount, final boolean vertical) {
@@ -106,18 +106,17 @@ final class CollapsedBorderRules {
 	}
 
 	/**
-	 * 境界の半幅を返します。{@code null}は「そこに境界がない」を表す正当な
-	 * 値なので0を返します(2026-07-25、ランダム文書生成で発見)。
+	 * Returns half the border width. {@code null} is a valid value meaning "no border here",
+	 * so return 0 (found by random document generation, 2026-07-25).
 	 *
 	 * <p>
 	 * {@link TableCollapsedBorders#getHBorder}/{@link
-	 * TableCollapsedBorders#getVBorder}は、ヘッダ・フッタ・本体の境目で
-	 * 両側の配列が空のとき{@code null}を返します。他の読み手——
-	 * {@link #streamSpacing}・{@code BorderRenderer}・{@code TableBox}の
-	 * 診断出力——はいずれも{@code null}検査を持っており、
-	 * <b>{@link #gridSpacing}だけが素で参照していた</b>。
-	 * 表がページ分割されて継続表の境界グリッドが縮む場合などに
-	 * {@code NullPointerException}になる。
+	 * TableCollapsedBorders#getVBorder} return {@code null} at header/footer/body boundaries
+	 * when the arrays on both sides are empty. All other readers —
+	 * {@link #streamSpacing}, {@code BorderRenderer}, and {@code TableBox} diagnostic output —
+	 * check for {@code null}; <b>only {@link #gridSpacing} dereferenced it unconditionally</b>.
+	 * This causes a {@code NullPointerException}, for example when a page break in a table
+	 * shrinks the continuation table's border grid.
 	 * </p>
 	 */
 	private static double halfWidth(final Border border) {
@@ -125,8 +124,8 @@ final class CollapsedBorderRules {
 	}
 
 	/**
-	 * つぶし境界のセル間隔です(ストリーム読み — 行単位蓄積の窓)。
-	 * グリッド読みと同じ規則を蓄積リストから読む。
+	 * Cell spacing for collapsed borders (stream access, a window of row-wise accumulation).
+	 * Read the same rules as grid access from the accumulation lists.
 	 */
 	static AbsoluteInsets streamSpacing(final List<Border[]> hborders, final List<Border[]> vborders,
 			final int borderRow, final int col, final int rowspan, final int colspan, final int columnCount,
@@ -152,14 +151,14 @@ final class CollapsedBorderRules {
 				break;
 			}
 			final Border[] rowLine = vborders.get(rr);
-			// 列数を超える colspan では添字が溢れうる。gridSpacing 側には
-			// `rightIndex <= columnCount` のガードがあるのに、こちらだけ
-			// 無かった(2026-07-26、独立レビュー指摘)。
-			// **再現は取れていない**——上流(IncrementalTableBuilder の
-			// TABLE_CELL 追加)で colspan が残り列数へ丸められるため、
-			// 現状この経路へ溢れた値は届かない。ただし同型の欠落は
-			// collapseRow では実際に到達し ArrayIndexOutOfBounds になった
-			// (5000シードの掃過で検出)ので、防御として揃えておく
+			// A colspan exceeding the column count can overflow the index. gridSpacing has
+			// a `rightIndex <= columnCount` guard, but this path alone
+			// lacked it (independent review finding, 2026-07-26).
+			// **Not reproduced**: upstream (TABLE_CELL addition in IncrementalTableBuilder)
+			// clamps colspan to the remaining column count, so
+			// an overflowing value currently cannot reach this path. However, the same omission
+			// was actually reachable in collapseRow and caused ArrayIndexOutOfBounds
+			// (detected in a 5000-seed sweep), so add the same defensive guard.
 			if (col < rowLine.length && rowLine[col] != null) {
 				lineStart = Math.max(lineStart, rowLine[col].width / 2.0);
 			}
@@ -180,26 +179,26 @@ final class CollapsedBorderRules {
 	}
 
 	/**
-	 * 1行分のつぶし境界を配列へ載せます。
+	 * Puts one row's collapsed borders into the arrays.
 	 *
-	 * @param firstBorder   行の前側 H 境界(列数)
-	 * @param lastBorder    行の後側 H 境界(列数)
-	 * @param lineBorder    行の V 境界(列数+1)
-	 * @param ax            辺選択
-	 * @param tableParams   表のパラメータ
-	 * @param colgroup      列グループ(なければ null)
-	 * @param rowGroupParams 行グループのパラメータ
-	 * @param rowBox        当行
-	 * @param cells         当行のセル列
-	 * @param nextRowBox    次行(hasNextRow のとき非 null)
-	 * @param nextCells     次行のセル列
-	 * @param tableFirst    表の最初の行
-	 * @param tableLast     表の最後の行
-	 * @param groupFirst    行グループの先頭境界行
-	 * @param groupLast     行グループの末尾境界行
-	 * @param rowFirst      単位の最初の行
-	 * @param hasNextRow    次行の peek を行う(グループが続くか単位内に次行)
-	 * @param columnCount   列数
+	 * @param firstBorder   H border before the row (column count)
+	 * @param lastBorder    H border after the row (column count)
+	 * @param lineBorder    row's V borders (column count + 1)
+	 * @param ax            edge selection
+	 * @param tableParams   table parameters
+	 * @param colgroup      column group (null if absent)
+	 * @param rowGroupParams row group parameters
+	 * @param rowBox        current row
+	 * @param cells         current row's cells
+	 * @param nextRowBox    next row (non-null when hasNextRow is true)
+	 * @param nextCells     next row's cells
+	 * @param tableFirst    first row of the table
+	 * @param tableLast     last row of the table
+	 * @param groupFirst    first boundary row of the row group
+	 * @param groupLast     last boundary row of the row group
+	 * @param rowFirst      first row of the unit
+	 * @param hasNextRow    peek at the next row (the group continues, or the unit has a next row)
+	 * @param columnCount   column count
 	 */
 	static void collapseRow(final Border[] firstBorder, final Border[] lastBorder, final Border[] lineBorder,
 			final BorderAxes ax, final TableParams tableParams, final TableColumnGroupBox colgroup,
@@ -207,7 +206,7 @@ final class CollapsedBorderRules {
 			final TableRowBox nextRowBox, final List<CellContent> nextCells, final boolean tableFirst,
 			final boolean tableLast, final boolean groupFirst, final boolean groupLast, final boolean rowFirst,
 			final boolean hasNextRow, final int columnCount) {
-		// テーブル境界
+		// Table borders
 		lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0],
 				ax.vStart().apply(tableParams.frame.border));
 		lineBorder[lineBorder.length - 1] = TableCollapsedBorders.collapseBorder(lineBorder[lineBorder.length - 1],
@@ -225,8 +224,8 @@ final class CollapsedBorderRules {
 			}
 		}
 
-		// カラムグループ境界
-		// カラム境界
+		// Column group borders
+		// Column borders
 		if (colgroup != null) {
 			colgroup.eachColumn((column, col, colspan) -> {
 				final InnerTableParams colParams = column.getInnerTableParams();
@@ -251,7 +250,7 @@ final class CollapsedBorderRules {
 			});
 		}
 
-		// 行グループ境界
+		// Row group borders
 		lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0], ax.vStart().apply(rowGroupParams.border));
 		lineBorder[lineBorder.length - 1] = TableCollapsedBorders.collapseBorder(lineBorder[lineBorder.length - 1],
 				ax.vEnd().apply(rowGroupParams.border));
@@ -268,14 +267,14 @@ final class CollapsedBorderRules {
 			}
 		}
 
-		// 行境界
+		// Row borders
 		final InnerTableParams rowParams = rowBox.getInnerTableParams();
 		lineBorder[0] = TableCollapsedBorders.collapseBorder(lineBorder[0], ax.vStart().apply(rowParams.border));
 		lineBorder[lineBorder.length - 1] = TableCollapsedBorders.collapseBorder(lineBorder[lineBorder.length - 1],
 				ax.vEnd().apply(rowParams.border));
-		// 境界の配列は**列数**の長さ。行のセル数はそれを超えうる
-		// (連結の繰り越しが列数を押し出す)ため、必ず頭打ちにする
-		// (2026-07-25、セル連結のランダム検査で ArrayIndexOutOfBounds を検出)
+		// The border arrays have length **column count**. A row can have more cells
+		// (carried-over spans push cells beyond the column count), so always cap the index
+		// (2026-07-25: random cell span checks detected ArrayIndexOutOfBounds).
 		for (int j = 0, n = Math.min(cells.size(), columnCount); j < n; ++j) {
 			final CellContent cell = cells.get(j);
 			if (cell.rowspan == 1) {
@@ -283,7 +282,7 @@ final class CollapsedBorderRules {
 						ax.hEnd().apply(rowParams.border));
 			}
 		}
-		// 次の行の上
+		// Above the next row
 		if (hasNextRow) {
 			final InnerTableParams nextRowParams = nextRowBox.getInnerTableParams();
 			for (int j = 0, n = Math.min(nextCells.size(), columnCount); j < n; ++j) {
@@ -296,22 +295,22 @@ final class CollapsedBorderRules {
 			}
 		}
 		if (groupFirst && rowFirst) {
-			// 最初の行の上
+			// Above the first row
 			for (int j = 0, n = Math.min(cells.size(), columnCount); j < n; ++j) {
 				firstBorder[j] = TableCollapsedBorders.collapseBorder(firstBorder[j],
 						ax.hStart().apply(rowParams.border));
 			}
 		}
 
-		// セル境界
+		// Cell borders
 		for (int j = 0, n = Math.min(cells.size(), columnCount); j < n; ++j) {
 			final CellContent cell = cells.get(j);
 			final BlockParams cellParams = cell.getCellBox().getBlockParams();
 			lineBorder[j] = TableCollapsedBorders.collapseBorder(lineBorder[j],
 					ax.vStart().apply(cellParams.frame.border));
-			// 連結内側の V 線は非表示だが非 null を保証する(不正な表で
-			// rowspan が連結内側を跨いだときの読み取りに備える)。
-			// lineBorder は列数+1(列と列の間)なので、そちらでも頭打ちにする
+			// V lines inside a span are hidden but guaranteed non-null (for reads when
+			// a rowspan crosses the inside of a span in a malformed table).
+			// lineBorder has column count + 1 entries (between columns), so cap its index too.
 			for (int l = 1; l < cell.colspan && j + l < lineBorder.length; ++l) {
 				lineBorder[j + l] = TableCollapsedBorders.collapseBorder(lineBorder[j + l], Border.NONE_BORDER);
 			}
@@ -322,7 +321,7 @@ final class CollapsedBorderRules {
 			}
 		}
 		if (groupFirst && rowFirst) {
-			// 最初の行の上
+			// Above the first row
 			for (int j = 0, n = Math.min(cells.size(), columnCount); j < n; ++j) {
 				final CellContent cell = cells.get(j);
 				final BlockParams cellParams = cell.getCellBox().getBlockParams();
@@ -340,7 +339,7 @@ final class CollapsedBorderRules {
 				lastBorder[j] = TableCollapsedBorders.collapseBorder(lastBorder[j], Border.NONE_BORDER);
 			}
 		}
-		// 次の行の上
+		// Above the next row
 		if (hasNextRow) {
 			for (int j = 0, n = Math.min(nextCells.size(), columnCount); j < n; ++j) {
 				final CellContent cell = nextCells.get(j);

@@ -6,13 +6,13 @@ import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.QuantityValue;
 
 /**
- * グラデーションの位置・寸法(解析時に持ち回る{@link QuantityValue})を、
- * 塗る箱が決まった時点でptへ落とす小道具です(2026-08-29)。
+ * A utility that converts gradient positions and sizes ({@link QuantityValue} objects
+ * retained during parsing) to pt once the box to fill is known (2026-08-29).
  *
  * <p>
- * em等のフォント相対長は{@code background-image}の計算値では解決されない
- * (値をそのまま保持する)ので、ここへ来ても絶対長にできない。その場合は
- * 0として扱う(記録済みの近似)。
+ * Font-relative lengths such as em are not resolved in the computed value of
+ * {@code background-image} (it retains the values as is), so they cannot be made absolute
+ * even here. Treats them as zero in that case (a documented approximation).
  * </p>
  */
 final class GradientGeometry {
@@ -20,7 +20,7 @@ final class GradientGeometry {
 		// unused
 	}
 
-	/** 量を基準長{@code ref}(pt)に対して解決します。解決できなければ0。 */
+	/** Resolves a quantity against the reference length {@code ref} (pt). Zero if it cannot be resolved. */
 	static double resolve(final QuantityValue value, final double ref) {
 		if (value == null) {
 			return 0;
@@ -37,7 +37,7 @@ final class GradientGeometry {
 		return 0;
 	}
 
-	/** ダンプ用の短い表記。 */
+	/** A short representation for dumps. */
 	static String describe(final QuantityValue value) {
 		if (value == null) {
 			return "auto";

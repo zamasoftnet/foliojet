@@ -67,10 +67,10 @@ public class Content extends AbstractPrimitivePropertyInfo {
 
 		ArrayList<Value> values = new ArrayList<Value>();
 		while (tokens.hasNext()) {
-			// css-content-3: visual contentの後ろには、音声・アクセシビリティ用の
-			// 代替文字列を`/`で続けられる。これは視覚媒体へ生成する内容ではない。
-			// MDNは互換用の旧宣言を先に置き、次の現代構文で上書きしているため、
-			// slashを拒否すると旧宣言の" (external)"がPDFへ露出していた。
+			// css-content-3: visual content may be followed by `/` and alternative text
+			// for speech/accessibility. This is not content generated for visual media.
+			// MDN puts a legacy compatibility declaration first and overrides it with modern syntax,
+			// so rejecting the slash exposed " (external)" from the legacy declaration in the PDF.
 			if (tokens.eatSlash()) {
 				if (values.isEmpty()) {
 					throw new PropertyException();
@@ -126,7 +126,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 				} else if (func.is("string")) {
 					values.add(parseStringFunc(func.argStream()));
 				} else if (func.is("element")) {
-					// element() は content の唯一の値でなければならない。
+					// element() must be the sole value of content.
 					if (!values.isEmpty() || tokens.hasNext()) {
 						throw new PropertyException();
 					}
@@ -154,8 +154,8 @@ public class Content extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * {@code / [ <string> | <counter> | <attr()> ]+}を検証して消費する。
-	 * 現在の出力媒体は視覚媒体なので、代替値は生成boxへ入れない。
+	 * Validates and consumes {@code / [ <string> | <counter> | <attr()> ]+}.
+	 * The current output media are visual, so do not include alternatives in generated boxes.
 	 */
 	private static void parseAlternativeText(final TokenStream tokens, final UserAgent ua)
 			throws PropertyException {
@@ -190,7 +190,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		return new AttrValue(name);
 	}
 
-	/** package-visible: {@link StringSet}が{@code counter()}パースを再利用する。 */
+	/** package-visible: {@link StringSet} reuses {@code counter()} parsing. */
 	static CounterValue parseCounter(TokenStream params, UserAgent ua) throws PropertyException {
 		final String id = params.ident();
 		if (id == null) {
@@ -207,7 +207,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		return new CounterValue(id, CounterStyles.styleCode(ua, listStyle));
 	}
 
-	/** package-visible: {@link StringSet}が{@code counters()}パースを再利用する。 */
+	/** package-visible: {@link StringSet} reuses {@code counters()} parsing. */
 	static CountersValue parseCounters(TokenStream params, UserAgent ua) throws PropertyException {
 		final String id = params.ident();
 		if (id == null) {
@@ -238,7 +238,7 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		return new StringFunctionValue(name, parseAssignmentMode(params));
 	}
 
-	/** string()/element() に共通する頁内解決方針です。 */
+	/** Page-local resolution policy shared by string()/element(). */
 	private static Mode parseAssignmentMode(final TokenStream params) throws PropertyException {
 		Mode mode = Mode.FIRST;
 		if (params.hasNext()) {
@@ -273,10 +273,10 @@ public class Content extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * {@code leader(dotted|solid|space|<string>)}(css-content-3、
-	 * consult-codex-2026-07-31-leader.txt)。キーワードは正規化し、
-	 * 改行除去後に空になる文字列は構文エラー(ゼロ周期の無限反復を
-	 * 避ける)。
+	 * {@code leader(dotted|solid|space|<string>)} (css-content-3,
+	 * consult-codex-2026-07-31-leader.txt). Normalizes keywords.
+	 * A string that becomes empty after removing line breaks is a syntax error
+	 * (to avoid infinite repetition with a zero-length period).
 	 */
 	private static LeaderValue parseLeader(TokenStream params) throws PropertyException {
 		final CssToken first = params.hasNext() ? params.next() : null;
@@ -305,14 +305,14 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		throw new PropertyException();
 	}
 
-	/** ref/attr()解決先の型+ID文字列。 */
+	/** Type of the ref/attr() resolution target plus its ID string. */
 	private record TargetRef(byte type, String ref) {
 	}
 
 	/**
-	 * 参照先の解決(ident/string/url()はREF、attr()はATTR)。
-	 * {@code -cssj-page-ref()}・{@code target-counter()}・
-	 * {@code target-counters()}・{@code target-text()}で共通。
+	 * Resolves a reference target (REF for ident/string/url(), ATTR for attr()).
+	 * Shared by {@code -cssj-page-ref()}, {@code target-counter()},
+	 * {@code target-counters()}, and {@code target-text()}.
 	 */
 	private static TargetRef parseTargetRef(TokenStream params) throws PropertyException {
 		final CssToken first = params.next();
@@ -423,10 +423,10 @@ public class Content extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * {@code target-text(target, target-property?)}。v1では
-	 * {@code target-property}は既定の{@code content}のみ対応
-	 * (仕様上の{@code before}/{@code after}/{@code first-letter}は未対応、
-	 * CSS-SUPPORT.md参照)。
+	 * {@code target-text(target, target-property?)}. In v1, {@code target-property}
+	 * supports only the default {@code content} (the specified
+	 * {@code before}/{@code after}/{@code first-letter} are unsupported;
+	 * see CSS-SUPPORT.md).
 	 */
 	private static TargetTextValue parseTargetText(TokenStream params) throws PropertyException {
 		final TargetRef target = parseTargetRef(params);

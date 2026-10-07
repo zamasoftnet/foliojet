@@ -97,16 +97,15 @@ public enum ListStyleTypeValue implements ListStyleTypeSource {
 	public static final short _CSSJ_CJK_DECIMAL = 22;
 
 	/**
-	 * 著者定義カウンタスタイル({@code @counter-style})に割り当てる
-	 * コードの先頭です(2026-08-02)。これ以上のコードは
-	 * {@code CounterStyles}(文書ごとの登録簿)が名前ごとに配る。
-	 * 組み込みの追加余地を空けてある。
+	 * The first code assigned to author-defined counter styles ({@code @counter-style})
+	 * (2026-08-02). {@code CounterStyles} (the per-document registry) assigns codes
+	 * from this value onward by name. Leaves room for additional built-in styles.
 	 */
 	public static final short FIRST_CUSTOM = 1000;
 
 	private final short listStyleType;
 
-	/** CSS の名前と別名。先頭が {@link #toString} の名前。 */
+	/** CSS names and aliases. The first is the name used by {@link #toString}. */
 	private final String[] names;
 
 	private ListStyleTypeValue(final short listStyleType, final String... names) {
@@ -118,12 +117,15 @@ public enum ListStyleTypeValue implements ListStyleTypeSource {
 		return this.listStyleType;
 	}
 
-	/** CSS の名前です(解析の {@link #forName} と同じ表から。2026-10-04 まで別の switch で、upper-latin が抜けて例外になっていた)。 */
+	/**
+ * The CSS name (from the same table as parsing's {@link #forName}). Until 2026-10-04,
+ * a separate switch omitted upper-latin and threw an exception.
+ */
 	public String toString() {
 		return this.names[0];
 	}
 
-	/** CSS の名前(小文字)か別名に当たる値です。無ければ null。 */
+	/** The value matching a CSS name (lowercase) or alias. Null if none matches. */
 	public static ListStyleTypeValue forName(final String name) {
 		return ByName.MAP.get(name);
 	}

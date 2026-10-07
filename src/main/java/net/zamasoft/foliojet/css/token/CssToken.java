@@ -4,12 +4,12 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * CSS宣言値のトークンです。パーサー(ph-css)の式から {@link Tokens} が生成する不変値で、
- * プロパティハンドラは {@link TokenStream} を通してこれを読み取ります。
+ * A CSS declaration value token. An immutable value created by {@link Tokens} from the
+ * parser's (ph-css) expressions; property handlers read it through {@link TokenStream}.
  */
 public sealed interface CssToken {
 
-	/** 単位のない数値。 */
+	/** A unitless number. */
 	record Num(double value, boolean integer) implements CssToken {
 		public int intValue() {
 			return (int) this.value;
@@ -20,28 +20,28 @@ public sealed interface CssToken {
 		}
 	}
 
-	/** 単位付きの寸法。 */
+	/** A dimension with a unit. */
 	record Dim(double value, Unit unit, String unitText) implements CssToken {
 		public String toString() {
 			return this.value + this.unitText;
 		}
 	}
 
-	/** パーセント値。 */
+	/** A percentage. */
 	record Percent(double value) implements CssToken {
 		public String toString() {
 			return this.value + "%";
 		}
 	}
 
-	/** 識別子。 */
+	/** An identifier. */
 	record Ident(String name) implements CssToken {
-		/** 大文字小文字を無視して比較します。 */
+		/** Compares case-insensitively. */
 		public boolean is(String keyword) {
 			return this.name.equalsIgnoreCase(keyword);
 		}
 
-		/** 小文字化した名前を返します。 */
+		/** Returns the lowercased name. */
 		public String lower() {
 			return this.name.toLowerCase(Locale.ROOT);
 		}
@@ -51,21 +51,21 @@ public sealed interface CssToken {
 		}
 	}
 
-	/** 引用符つき文字列。 */
+	/** A quoted string. */
 	record Str(String value) implements CssToken {
 		public String toString() {
 			return "\"" + this.value + "\"";
 		}
 	}
 
-	/** url() 参照。 */
+	/** A url() reference. */
 	record Uri(String uri) implements CssToken {
 		public String toString() {
 			return "url(" + this.uri + ")";
 		}
 	}
 
-	/** 関数(rgb、counter、attr、-cssj-* など)。引数はコンマ区切りを含むトークン列。 */
+	/** A function (rgb, counter, attr, -cssj-*, etc.). Arguments are tokens including comma separators. */
 	record Func(String name, List<CssToken> args) implements CssToken {
 		public boolean is(String functionName) {
 			return this.name.equalsIgnoreCase(functionName);
@@ -88,12 +88,12 @@ public sealed interface CssToken {
 	}
 
 	/**
-	 * Gridの行名{@code [name1 name2]}です(2026-08-29)。ph-cssは角括弧を
-	 * {@code CSSExpressionMemberLineNames}として式木に載せるが、従来の
-	 * {@link Tokens}は未知メンバーとして黙って捨てていた——
-	 * {@code grid-template-columns: [full-start] 1fr [full-end]}が
-	 * {@code 1fr}として受理され、{@code grid-column: full-start / full-end}
-	 * (線名の参照)が解決不能になっていた。空の{@code []}は空リスト。
+	 * Grid line names {@code [name1 name2]} (2026-08-29). ph-css puts brackets in the
+	 * expression tree as {@code CSSExpressionMemberLineNames}, but {@link Tokens}
+	 * previously silently discarded them as unknown members. Thus
+	 * {@code grid-template-columns: [full-start] 1fr [full-end]} was accepted as
+	 * {@code 1fr}, leaving {@code grid-column: full-start / full-end} (line name references)
+	 * unresolvable. Empty {@code []} yields an empty list.
 	 */
 	record LineNames(List<String> names) implements CssToken {
 		public String toString() {
@@ -101,7 +101,7 @@ public sealed interface CssToken {
 		}
 	}
 
-	/** unicode-range(U+xxxx 形式のテキストを保持)。 */
+	/** unicode-range (retains text in U+xxxx form). */
 	record UnicodeRange(String text) implements CssToken {
 		public String toString() {
 			return this.text;
@@ -109,8 +109,8 @@ public sealed interface CssToken {
 	}
 
 	/**
-	 * 区切り記号・演算子。PLUS/MINUS/TIMESはcalc()のRPN化(Tokens.convertCalc)でのみ
-	 * 生成される(通常のトークン化では算術演算子は出現しない)。
+	 * Delimiters and operators. PLUS/MINUS/TIMES are generated only when converting
+	 * calc() to RPN (Tokens.convertCalc); arithmetic operators do not appear in ordinary tokenization.
 	 */
 	enum Op implements CssToken {
 		COMMA, SLASH, PLUS, MINUS, TIMES;
@@ -126,7 +126,7 @@ public sealed interface CssToken {
 		}
 	}
 
-	/** 特別なキーワード。 */
+	/** Special keywords. */
 	enum Keyword implements CssToken {
 		INHERIT, INITIAL, UNSET;
 

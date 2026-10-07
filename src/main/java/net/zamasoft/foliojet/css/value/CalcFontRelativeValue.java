@@ -6,47 +6,51 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.token.Unit;
 
 /**
- * <b>フォント相対単位を含む calc() の途中結果</b>です(2026-08-03新設)。
+ * <b>Intermediate calc() result containing font-relative units</b> (added 2026-08-03).
  *
  * <p>
- * {@code calc(3.5rem - 26px)} のような式は、解析時には解けない——{@code em}は
- * その要素の、{@code rem}は根要素の、確定した{@code font-size}が要るためである。
- * この値は絶対成分・割合成分・フォント相対成分を分けたまま計算値の段階まで
- * 持ち回り、{@link net.zamasoft.foliojet.css.util.ValueUtils#emExToAbsoluteLength}
- * (35個のプロパティが計算値時に通る単一の窓口)で解決される。
+ * Expressions such as {@code calc(3.5rem - 26px)} cannot be resolved at parse time:
+ * {@code em} requires the element's finalized {@code font-size}; {@code rem} requires
+ * the root's. This value carries absolute, ratio, and font-relative components separately
+ * to the computed-value stage, where
+ * {@link net.zamasoft.foliojet.css.util.ValueUtils#emExToAbsoluteLength}
+ * (the single entry point used by 35 properties at computed-value time) resolves it.
  *
  * <p>
- * <b>2026-08-03まではフォント相対単位を含む calc() を丸ごと無効にしていた。</b>
- * その結果、W3C仕様書の自己リンク記号(¶)を左余白へ出す
- * {@code left: calc(-1 * (3.5rem - 26px))} が効かず、記号が本文に重なっていた。
- * {@code rem}を含むcalc()は現代のCSSでは極めてありふれており、実物大の文書を
- * 取り込んだ第1波で見つかった(PLAN §3)。
+ * <b>Until 2026-08-03, calc() containing font-relative units was entirely invalidated.</b>
+ * As a result, {@code left: calc(-1 * (3.5rem - 26px))}, used to put W3C specification
+ * self-link symbols (¶) in the left margin, did not work, and symbols overlapped body text.
+ * calc() with {@code rem} is extremely common in modern CSS; discovered in the first
+ * wave of full-scale document imports (PLAN §3).
  *
  * <p>
- * 成分は単位ごとの名前付きフィールドだったが、{@code cap}/{@code rlh}の追加で
- * 位置引数が9個になったため{@link #UNITS}添字の配列へ改めた(2026-08-30)。
- * 加減は成分ごと、数との乗除は全成分に効く——どちらもフォント寸法に対して
- * 線形なので、後で寸法を掛けても等価である。
+ * Components were named fields per unit, but adding {@code cap}/{@code rlh} brought the
+ * positional argument count to nine, so they became an array indexed by {@link #UNITS}
+ * (2026-08-30). Addition/subtraction act per component; multiplication/division by numbers
+ * act on all components. Both are linear in font metrics, so multiplying by metrics later
+ * is equivalent.
  *
  * <p>
- * 線形でない min()・max()・clamp() の部分は{@link Term}として別に持つ(2026-10-04)。
+ * Nonlinear min()/max()/clamp() parts are held separately as {@link Term} (2026-10-04).
  */
 public final class CalcFontRelativeValue implements QuantityValue {
 	/**
-	 * 大小がフォント寸法で決まる min()・max() の部分です(2026-10-04、出版の報告: {@code min(10mm, 3em)} が
-	 * 不正な値になっていた)。
+	 * Parts of min()/max() whose ordering depends on font metrics (2026-10-04, publishing
+	 * report: {@code min(10mm, 3em)} was considered invalid).
 	 *
 	 * <p>
-	 * {@code min(10mm, 3em)} は em の寸法が定まるまでどちらを取るか分からないので、線形の成分と分けて
-	 * 持ち、解くときに選ぶ。{@code unit} は{@link #UNITS}の i 番目の単位 1 つ分の長さ(pt)を返す。
-	 * 引数はいつもすべて評価してから選ぶ——どの単位を使うかを問い合わせで知るため({@link #uses})。
+	 * For {@code min(10mm, 3em)}, the choice is unknown until the em dimension is known,
+	 * so retain it separately from linear components and select during resolution.
+	 * {@code unit} returns the length (pt) of one unit at index i in {@link #UNITS}.
+	 * Always evaluate all arguments before selection to learn which units are used through
+	 * queries ({@link #uses}).
 	 * </p>
 	 */
 	@FunctionalInterface
 	public interface Term {
 		double length(IntToDoubleFunction unit);
 
-		/** {@code absolute + Σ font[i]·unit(i) + term} です。 */
+		/** {@code absolute + Σ font[i]·unit(i) + term}. */
 		static Term linear(double absolute, double[] font, Term term) {
 			final double[] components = font.clone();
 			return unit -> {
@@ -60,7 +64,7 @@ public final class CalcFontRelativeValue implements QuantityValue {
 			};
 		}
 
-		/** a と b の小さい方(min)・大きい方です。 */
+		/** The smaller (min) or larger of a and b. */
 		static Term extremum(boolean min, Term a, Term b) {
 			return unit -> {
 				final double x = a.length(unit);
@@ -69,7 +73,7 @@ public final class CalcFontRelativeValue implements QuantityValue {
 			};
 		}
 
-		/** {@code a + sign·b} です。どちらかが null ならもう一方だけ。 */
+		/** {@code a + sign·b}. If either is null, uses only the other. */
 		static Term sum(Term a, Term b, double sign) {
 			if (b == null) {
 				return a;
@@ -84,7 +88,7 @@ public final class CalcFontRelativeValue implements QuantityValue {
 			return term == null ? null : unit -> factor * term.length(unit);
 		}
 
-		/** 単位の添字 i を使うかどうかです。 */
+		/** Whether unit index i is used. */
 		static boolean uses(Term term, int i) {
 			final boolean[] used = { false };
 			term.length(j -> {
@@ -96,13 +100,13 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	}
 
 
-	/** 成分配列の並びです。{@link #indexOf}で添字を引きます。 */
+	/** Component array order. Look up indexes with {@link #indexOf}. */
 	public static final Unit[] UNITS = { Unit.EM, Unit.EX, Unit.REM, Unit.CH, Unit.LH, Unit.CAP, Unit.RLH };
 
-	/** {@link Unit#LH}の添字です(line-height自身の自己参照回避で特別扱いする)。 */
+	/** Index of {@link Unit#LH} (special handling avoids self-reference in line-height itself). */
 	private static final int LH = 4;
 
-	/** この単位の成分添字を返します。フォント相対でなければ -1。 */
+	/** Returns this unit's component index, or -1 if not font-relative. */
 	public static int indexOf(Unit unit) {
 		for (int i = 0; i < UNITS.length; ++i) {
 			if (UNITS[i] == unit) {
@@ -112,7 +116,7 @@ public final class CalcFontRelativeValue implements QuantityValue {
 		return -1;
 	}
 
-	/** 成分がすべて0の配列を作ります。 */
+	/** Creates an array with all components zero. */
 	public static double[] newComponents() {
 		return new double[UNITS.length];
 	}
@@ -120,7 +124,7 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	private final double absolute;
 	private final double ratio;
 	private final double[] font;
-	/** 線形でない部分です。無ければ null。 */
+	/** Nonlinear part, or null if absent. */
 	private final Term term;
 
 	public static Value create(double absolute, double ratio, double[] font) {
@@ -139,7 +143,8 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	}
 
 	/**
-	 * フォント相対成分をstyleで解決し、絶対成分と割合成分だけの値へ畳みます。
+	 * Resolves font-relative components using style and folds them into a value with
+	 * only absolute and ratio components.
 	 */
 	public Value resolve(CSSStyle style) {
 		double abs = this.absolute;
@@ -154,12 +159,12 @@ public final class CalcFontRelativeValue implements QuantityValue {
 		return CalcLengthValue.create(style.getUserAgent(), abs, this.ratio);
 	}
 
-	/** lh を使うかどうかです(line-height自身の自己参照回避用)。 */
+	/** Whether lh is used (to avoid self-reference in line-height itself). */
 	public boolean usesLh() {
 		return this.font[LH] != 0 || this.term != null && Term.uses(this.term, LH);
 	}
 
-	/** {@code 100% - <unit値>}を表す値です(&lt;position&gt;の端オフセット用)。 */
+	/** Value representing {@code 100% - <unit value>} (for &lt;position&gt; edge offsets). */
 	public static Value fullMinus(Unit unit, double v) {
 		final int i = indexOf(unit);
 		if (i < 0) {
@@ -170,13 +175,13 @@ public final class CalcFontRelativeValue implements QuantityValue {
 		return new CalcFontRelativeValue(0, 1, font, null);
 	}
 
-	/** {@code 100% - この値}を返します(&lt;position&gt;の端オフセット用)。 */
+	/** Returns {@code 100% - this value} (for &lt;position&gt; edge offsets). */
 	public Value subtractedFromFull() {
 		return new CalcFontRelativeValue(-this.absolute, 1 - this.ratio, negated(this.font),
 				Term.scaled(this.term, -1));
 	}
 
-	/** lh成分を、与えられた基準line-heightで絶対成分へ畳んだ値を返します。 */
+	/** Returns a value with the lh component folded into the absolute component using the given reference line-height. */
 	public Value resolveLh(net.zamasoft.foliojet.ua.UserAgent ua, double lineHeight) {
 		if (!this.usesLh()) {
 			return this;
@@ -195,17 +200,18 @@ public final class CalcFontRelativeValue implements QuantityValue {
 		return new CalcFontRelativeValue(abs, this.ratio, font, null);
 	}
 
-	/** 割合成分です(2026-08-19、transformのtranslate%分解用)。 */
+	/** Ratio component (2026-08-19, for decomposing transform translate%). */
 	public double getRatio() {
 		return this.ratio;
 	}
 
 	/**
-	 * フォント相対成分を<b>UAの既定フォント寸法(medium)で近似解決</b>した
-	 * 絶対成分を返します(2026-08-19)。要素のfont-size文脈が無い解析段階
-	 * (transformのtranslate等)のための近似で、メディアクエリのem/rem
-	 * ({@code CSSStyleSheetBuilder.mediaFontRelativeLength})と同じ扱い。
-	 * ex/chは慣行どおりemの半分、capは0.7em、lh/rlhはUAのnormalとみなす。
+	 * Returns the absolute component after <b>approximately resolving font-relative
+	 * components with UA default font metrics (medium)</b> (2026-08-19).
+	 * An approximation for parse-time contexts without element font-size (e.g. transform
+	 * translate), matching em/rem in media queries
+	 * ({@code CSSStyleSheetBuilder.mediaFontRelativeLength}). Treats ex/ch as half em
+	 * by convention, cap as 0.7em, and lh/rlh as UA normal.
 	 */
 	public double approximateAbsolute(net.zamasoft.foliojet.ua.UserAgent ua) {
 		final double medium = ua.getFontSize(net.zamasoft.foliojet.ua.AbsoluteFontSize.MEDIUM);
@@ -238,14 +244,16 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	}
 
 	/**
-	 * 絶対成分だけを倍率倍した値を返します。font-sizeプロパティはズーム倍率
-	 * ({@link net.zamasoft.foliojet.ua.UserAgent#getFontMagnification})を絶対
-	 * 長さにだけ適用する規約で、フォント相対成分は基準のフォント寸法自体が
-	 * 倍率適用済みのため掛けない。
+	 * Returns a value with only the absolute component scaled. The font-size property
+	 * applies zoom ({@link net.zamasoft.foliojet.ua.UserAgent#getFontMagnification}) only
+	 * to absolute lengths by convention; font-relative components already use scaled
+	 * reference font metrics, so are not multiplied.
 	 * <p>
-	 * min()・max() の項の中の絶対長さにも掛ける。項は絶対長さと単位の長さの両方を同じ正の数倍すると
-	 * その数倍になる(min・max・加減・数との乗除のどれも保つ)ので、単位の長さを倍率で割って解き、
-	 * 結果に倍率を掛ければよい。
+	 * Also scales absolute lengths inside min()/max() terms. Multiplying both absolute
+	 * lengths and unit lengths in a term by the same positive factor scales the result by
+	 * that factor (preserved by min/max, addition/subtraction, and multiplication/division
+	 * by numbers). Thus resolve with unit lengths divided by the factor, then multiply
+	 * the result by it.
 	 * </p>
 	 */
 	public Value scaleAbsolute(double factor) {
@@ -258,17 +266,19 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	}
 
 	/**
-	 * <b>フォント寸法が定まるまで零かどうかは分からない</b>ので、全成分が0の
-	 * ときだけ零と答える(この型はそもそも成分が非零のときにしか作られない)。
+	 * <b>Whether the value is zero is unknown until font metrics are known</b>, so reports
+	 * zero only if every component is 0 (this type is only created for nonzero components
+	 * in the first place).
 	 */
 	public boolean isZero() {
 		return this.absolute == 0 && this.ratio == 0 && !hasFont(this.font) && this.term == null;
 	}
 
 	/**
-	 * <b>負であることが確実に分かるときだけ</b>真を返します——フォント寸法は
-	 * 常に正なので、全成分が負(または0)なら結果も負である。混在しているときは
-	 * 解決するまで決まらないので偽を返す(CalcLengthValueと同じ規約)。
+	 * Returns true <b>only when the value is certainly negative</b>. Font metrics are always
+	 * positive, so if all components are negative (or zero), the result is negative too.
+	 * For mixed signs, the result is unknown until resolution, so returns false
+	 * (same contract as CalcLengthValue).
 	 */
 	public boolean isNegative() {
 		if (this.term != null || this.absolute > 0 || this.ratio > 0) {
@@ -308,7 +318,7 @@ public final class CalcFontRelativeValue implements QuantityValue {
 	}
 
 	public String toString() {
-		// 負のゼロ(-1を掛けた0成分)は0として書く。表示の揺れを避けるため
+		// Write negative zero (a zero component multiplied by -1) as 0 to avoid display variation
 		final StringBuilder buff = new StringBuilder("calc(").append(z(this.absolute)).append("pt + ")
 				.append(z(this.ratio * 100)).append('%');
 		for (int i = 0; i < UNITS.length; ++i) {

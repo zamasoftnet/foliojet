@@ -1,22 +1,22 @@
 package net.zamasoft.foliojet.layout.box;
 
 /**
- * 通常のフローに配置されるボックスです。
- * 
+ * A box placed in normal flow.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: IFlowBox.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public interface IFlowBox extends IBox {
 	/**
-	 * 直前で改ページ禁止されていればtrueを返します。
-	 * 
+	 * Returns true if a page break immediately before this box is prohibited.
+	 *
 	 * @return
 	 */
 	public boolean avoidBreakBefore();
 
 	/**
-	 * 直後で改ページ禁止されていればtrueを返します。
-	 * 
+	 * Returns true if a page break immediately after this box is prohibited.
+	 *
 	 * @return
 	 */
 	public boolean avoidBreakAfter();

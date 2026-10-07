@@ -3,33 +3,33 @@ package net.zamasoft.foliojet.layout.builder;
 import net.zamasoft.foliojet.layout.box.params.Params;
 
 /**
- * {@link TableBuilder}がDocumentBuilder側のインライン文脈操作を呼び出す
- * ための狭いコールバックです(C4-C深化、2026-07-19)。
+ * Narrow callback through which {@link TableBuilder} invokes inline-context operations
+ * on DocumentBuilder (C4-C refinement, 2026-07-19).
  *
  * <p>
- * DocumentBuilderの非公開実装詳細(インラインボックスの一時退避スタック・
- * StyledTextUnitizerのコンテナ入れ子カウンタ)を丸ごと公開する代わりに、
- * 表の構築で実際に必要な3操作だけをこの狭いインターフェース経由で公開する。
- * 実装はDocumentBuilder自身が持ち、呼び出し元(TableBuilder実装)は
- * この3操作が具体的に何をしているかを知る必要がない——「表に入る/出る際に
- * 必要なら呼ぶ」という契約だけを知っていればよい(tell-don't-ask)。
+ * Instead of exposing DocumentBuilder's private implementation details wholesale (the temporary
+ * inline-box stack and StyledTextUnitizer's container-nesting counter), exposes only the three
+ * operations actually needed for table construction through this narrow interface.
+ * DocumentBuilder itself owns the implementation; callers (TableBuilder implementations) need not
+ * know what the three operations do internally, only the contract to call them as needed when
+ * entering/leaving a table (tell-don't-ask).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public interface TableBuilderHost {
 	/**
-	 * 開いているインラインボックスを閉じて後で復元できるよう退避します。
+	 * Closes open inline boxes and saves them for later restoration.
 	 */
 	void closeInlines(Params params);
 
 	/**
-	 * 現在のコンテナのテキスト整形文脈を終えます。
+	 * Ends the current container's text-formatting context.
 	 */
 	void endContainer();
 
 	/**
-	 * 新しいコンテナのテキスト整形文脈を開始します。
+	 * Starts a new container's text-formatting context.
 	 */
 	void startContainer();
 }

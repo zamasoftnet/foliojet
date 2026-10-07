@@ -12,34 +12,34 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code text-spacing-trim}です(和文詰めT1b、2026-07-31——
- * consult-codex-2026-07-31-text-spacing.txt)。継承プロパティ。
- * {@code normal}/{@code space-all}/{@code space-first}/{@code trim-start}/
- * {@code trim-both}/{@code auto}をCSS Text 4の意味で実装する。
- * {@code auto}はUAの高品質設定として{@code trim-both}相当。
- * {@code trim-all}は文字ごとの詰めを実装するまで宣言無効。
+ * {@code text-spacing-trim} (Japanese text spacing T1b, 2026-07-31:
+ * consult-codex-2026-07-31-text-spacing.txt). Inherited property.
+ * Implements {@code normal}/{@code space-all}/{@code space-first}/{@code trim-start}/
+ * {@code trim-both}/{@code auto} with CSS Text 4 semantics.
+ * {@code auto} equals {@code trim-both} as the UA's high-quality setting.
+ * {@code trim-all} invalidates the declaration until per-character trimming is implemented.
  *
  * @author MIYABE Tatsuhiko
  */
 public class TextSpacingTrim extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new TextSpacingTrim();
 
-	/** {@code space-all}(詰めなし)ならtrueです。 */
+	/** True for {@code space-all} (no trimming). */
 	public static boolean isSpaceAll(CSSStyle style) {
 		return ((TextSpacingTrimValue) style.get(INFO)).isSpaceAll();
 	}
 
-	/** 行頭の全角始め括弧を天付きにする値ならtrueです。 */
+	/** True if the value places full-width opening brackets flush at the line start. */
 	public static boolean trimsLineStart(CSSStyle style) {
 		return ((TextSpacingTrimValue) style.get(INFO)).trimsLineStart();
 	}
 
-	/** 行末の全角終わり約物を常に半角化する値ならtrueです。 */
+	/** True if the value always reduces full-width closing punctuation at line ends to half width. */
 	public static boolean trimsLineEnd(CSSStyle style) {
 		return ((TextSpacingTrimValue) style.get(INFO)).trimsLineEnd();
 	}
 
-	/** 初行・強制改行直後だけ行頭約物を全角のままにする値ならtrueです。 */
+	/** True if the value preserves full-width line-start punctuation only on the first line and after forced breaks. */
 	public static boolean spacesFirstLine(CSSStyle style) {
 		return ((TextSpacingTrimValue) style.get(INFO)).spacesFirstLine();
 	}

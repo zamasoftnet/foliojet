@@ -42,12 +42,12 @@ public final class PagePropertySet extends PropertySet {
 		put(BoxSidesShorthand.BORDER_WIDTH, BorderWidth.TOP, BorderWidth.LEFT, BorderWidth.RIGHT,
 				BorderWidth.BOTTOM);
 		put(BoxSidesShorthand.PADDING, Padding.TOP, Padding.LEFT, Padding.RIGHT, Padding.BOTTOM);
-		// 複合特性は代表(最初の構成要素)のみ名前に紐づける
+		// Associate only the representative (first component) of a composite property with its name
 		put(BackgroundShorthand.INFO, BackgroundColor.INFO, BackgroundImage.INFO, BackgroundRepeat.INFO,
 				BackgroundAttachment.INFO, BackgroundPosition.INFO_X);
 		put(CounterIncrement.INFO, CounterReset.INFO);
 		put(BackgroundSize.INFO_WIDTH);
-		// 名前付きページN3/N4(consult-codex-2026-07-31-named-pages.txt)
+		// Named pages N3/N4 (consult-codex-2026-07-31-named-pages.txt)
 		put(PageSize.INFO);
 		put(PageMarks.INFO);
 		put(PageBleed.INFO);

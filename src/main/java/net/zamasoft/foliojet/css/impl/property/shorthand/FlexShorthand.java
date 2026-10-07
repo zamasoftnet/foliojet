@@ -16,12 +16,12 @@ import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code flex}ショートハンドです(Flex F1a、2026-08-02)。
- * {@code none | [ <flex-grow> <flex-shrink>? || <flex-basis> ]}(§7.1)。
- * 省略時の値は各プロパティの初期値ではなくショートハンド既定
- * (grow=1・shrink=1・basis=0)——{@code flex: auto}=1 1 auto、
- * {@code flex: 2}=2 1 0。{@code none}=0 0 auto。
- * 2因子の後の単位なし0はbasis 0(§7.1の構文注記)。
+ * {@code flex} shorthand (Flex F1a, 2026-08-02).
+ * {@code none | [ <flex-grow> <flex-shrink>? || <flex-basis> ]} (§7.1).
+ * Omitted values use shorthand defaults (grow=1, shrink=1, basis=0),
+ * not each property's initial value: {@code flex: auto}=1 1 auto,
+ * {@code flex: 2}=2 1 0. {@code none}=0 0 auto.
+ * Unitless 0 after two factors is basis 0 (syntax note in §7.1).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -68,7 +68,7 @@ public class FlexShorthand extends AbstractShorthandPropertyInfo {
 					}
 					continue;
 				}
-				// 2因子の後の単位なし0はbasis 0
+				// Unitless 0 after two factors is basis 0.
 				if (basis == null && num.value() == 0) {
 					tokens.next();
 					basis = FlexBasisValue.size(AbsoluteLengthValue.ZERO);
@@ -87,7 +87,7 @@ public class FlexShorthand extends AbstractShorthandPropertyInfo {
 		if (grow == null && shrink == null && basis == null) {
 			throw new PropertyException();
 		}
-		// shrinkだけの指定は構文上ない(数値1つ目はgrow)
+		// There is no shrink-only syntax (the first number is grow).
 		primitives.set(FlexFactor.GROW, grow != null ? grow : RealValue.ONE);
 		primitives.set(FlexFactor.SHRINK, shrink != null ? shrink : RealValue.ONE);
 		primitives.set(FlexBasisProperty.INFO,

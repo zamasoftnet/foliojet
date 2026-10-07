@@ -4,9 +4,9 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
 
 /**
- * {@link StyleBoxEmitter}が必要とするスタイル構築状態への狭い窓口です
- * (StyleBuilder解体・増分4a、2026-07-30)。状態の物理置き場は
- * 当面StyleBuilderのままで、契約だけを型にする。
+ * A narrow interface to the style-building state needed by {@link StyleBoxEmitter}
+ * (StyleBuilder decomposition, increment 4a, 2026-07-30). State remains physically in
+ * StyleBuilder for now; only the contract becomes a type.
  */
 interface StyleBuildContext {
 	CSSStyle getCurrentStyle();
@@ -29,6 +29,6 @@ interface StyleBuildContext {
 
 	void setRightSide(boolean rightSide);
 
-	/** 保留中のリストマーカーの出力(増分5領域への唯一の接点)。 */
+	/** Outputs the pending list marker (the sole connection to the increment 5 area). */
 	void checkMarker();
 }

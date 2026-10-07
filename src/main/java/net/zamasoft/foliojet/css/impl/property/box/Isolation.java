@@ -13,18 +13,18 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code isolation: auto | isolate}です(compositing-1 §3、2026-08-29新設)。
+ * {@code isolation: auto | isolate} (compositing-1 §3, added 2026-08-29).
  *
  * <p>
- * 受理するだけで効果はない(警告も出さない)。{@code mix-blend-mode}を
- * 描画要素ごとに適用する近似({@link MixBlendMode}参照)では分離
- * グループを作らないため、現状では意味を持たせられない。
+ * Accepted, but has no effect (and emits no warning). The approximation that applies
+ * {@code mix-blend-mode} to individual drawing elements (see {@link MixBlendMode})
+ * does not create isolation groups, so this currently cannot have meaningful behavior.
  * </p>
  */
 public class Isolation extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new Isolation();
 
-	/** {@code isolate}のキーワード値。 */
+	/** Keyword value for {@code isolate}. */
 	public static final Value ISOLATE = new Value() {
 		@Override
 		public String toString() {

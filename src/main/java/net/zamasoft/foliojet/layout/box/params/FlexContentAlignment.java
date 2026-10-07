@@ -1,12 +1,11 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * Flexのcontent distribution(justify-content/align-content)です
- * (Flex F3a、2026-08-02——consult-codex-2026-08-02-flexbox.txt Q2)。
- * {@link BoxAlignment}(self alignment)とは別型——space-*系はGridの
- * stretch解決({@code BoxAlignment.resolve})と混ざらない。
- * flex-start/flex-endはF5bのreverse導入までSTART/ENDへ写像される
- * (マッピングはBoxStyleMapper)。
+ * Flex content distribution (justify-content/align-content)
+ * (Flex F3a, 2026-08-02; consult-codex-2026-08-02-flexbox.txt Q2).
+ * A separate type from {@link BoxAlignment} (self alignment): space-* values do not mix with
+ * Grid stretch resolution ({@code BoxAlignment.resolve}). flex-start/flex-end map to START/END
+ * until reverse is introduced in F5b (mapping in BoxStyleMapper).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -14,9 +13,9 @@ public enum FlexContentAlignment {
 	NORMAL, START, CENTER, END, STRETCH, SPACE_BETWEEN, SPACE_AROUND, SPACE_EVENLY;
 
 	/**
-	 * n個の断片へ余白{@code free}を分配したときの先頭オフセットです
-	 * (justify-content §9.5/align-content §9.6の共通算術。負余白は
-	 * 0=safe start)。
+	 * Leading offset when distributing free space {@code free} among n fragments
+	 * (shared arithmetic for justify-content §9.5/align-content §9.6;
+	 * negative free space becomes 0 = safe start).
 	 */
 	public double leadingOffset(final double free, final int count) {
 		if (free <= 0 || count <= 0) {
@@ -27,11 +26,11 @@ public enum FlexContentAlignment {
 		case END -> free;
 		case SPACE_AROUND -> count > 1 ? free / (count * 2) : free / 2;
 		case SPACE_EVENLY -> free / (count + 1);
-		default -> 0; // NORMAL/START/STRETCH/SPACE_BETWEEN(単数はstart)
+		default -> 0; // NORMAL/START/STRETCH/SPACE_BETWEEN (a single fragment uses start)
 		};
 	}
 
-	/** 断片間へ挿入される追加間隔です(同上)。 */
+	/** Additional spacing inserted between fragments (as above). */
 	public double betweenOffset(final double free, final int count) {
 		if (free <= 0 || count <= 1) {
 			return 0;

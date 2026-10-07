@@ -55,22 +55,22 @@ import net.zamasoft.foliojet.layout.util.DoubleList;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * 固定レイアウトのテーブルを構築します。
- * 
+ * Builds fixed-layout tables.
+ *  
  * @author MIYABE Tatsuhiko
  * @version $Id: IncrementalTableBuilder.java 1613 2021-08-18 03:55:13Z miyabe $
  */
 public class IncrementalTableBuilder implements TableBuilder {
 
 	/**
-	 * キャプションを表の外周(margin)ぶんだけ内側へ寄せる幅です(行方向先頭側)。
+	 * Inset that shifts captions inward by the table's outer margin (line-axis start side).
 	 *
 	 * <p>
-	 * CSS 2.1 §17.4: 表要素の{@code margin}は表そのものではなくラッパー箱に付き、
-	 * キャプションの包含ブロックはラッパーの内容箱、すなわち<b>表のborder box</b>。
-	 * copper4はラッパーの内容幅を表のmargin box({@code tableInnerSize + tableFrame}、
-	 * {@code tableFrame}にはmarginが入る)にしているため、差し込まないと
-	 * キャプションが表のマージンぶん外へ広がる(2026-08-30)。
+	 * CSS 2.1 §17.4: the table element's {@code margin} belongs to the wrapper box, not the
+	 * table itself. The caption's containing block is the wrapper's content box, namely
+	 * <b>the table's border box</b>. copper4 uses the table margin box as the wrapper content
+	 * width ({@code tableInnerSize + tableFrame}, where {@code tableFrame} includes margins),
+	 * so without this inset captions extend outward by the table margin (2026-08-30).
 	 * </p>
 	 */
 	private double captionInsetStart() {
@@ -78,15 +78,15 @@ public class IncrementalTableBuilder implements TableBuilder {
 		return this.vertical ? margin.top : margin.left;
 	}
 
-	/** キャプションの行方向末尾側の差し込み幅。理由は{@link #captionInsetStart()}。 */
+	/** Caption inset at the line-axis end. See {@link #captionInsetStart()} for the reason. */
 	private double captionInsetEnd() {
 		final AbsoluteInsets margin = this.tableBox.getFrame().margin;
 		return this.vertical ? margin.bottom : margin.right;
 	}
 
 	/**
-	 * 構築中のテーブルセルです。
-	 * 
+	 * Table cell under construction.
+	 *  
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: IncrementalTableBuilder.java 1613 2021-08-18 03:55:13Z miyabe $
 	 */
@@ -107,36 +107,36 @@ public class IncrementalTableBuilder implements TableBuilder {
 	private DoubleList bodyRowSizes = null;
 	private DoubleList footerRowSizes = null;
 
-	// カラムの幅のリストです。
+	// List of column widths.
 	private double[] columnSizes = null;
-	// 構築中の行グループです。
+	// Row group under construction.
 	private TableRowGroupBox rowGroupBox = null;
-	// セルボックス(TableCellBox)と元セル(TableRowBox.Cell)の対応です。
+	// Mapping from cell boxes (TableCellBox) to original cells (TableRowBox.Cell).
 	private final Map<TableCellBox, Cell> cellToSource = new HashMap<TableCellBox, Cell>();
 
-	// 一区切りに含まれるセルのリストのリストです。
+	// List of cell lists in one unit.
 	private final List<List<CellContent>> cellsUnit = new ArrayList<List<CellContent>>();
 	private final List<TableRowBox> rowsUnit = new ArrayList<TableRowBox>();
 
-	// 次の行で前の区切りを構築するフラグです。
+	// Flag to build the previous unit on the next row.
 	private boolean bindUnit = false;
-	// 最初の行を示すフラグです。
+	// Flag indicating the first row.
 	private boolean firstRow = true;
-	// 最初の行グループを示すフラグです。
+	// Flag indicating the first row group.
 	private boolean groupFirst = true;
-	// 最後に構築済みの行グループです。
+	// Last completed row group.
 	private TableRowGroupBox bindRowGroupBox = null;
 
-	// 構築中の行です。
+	// Row under construction.
 	private TableRowBox rowBox = null;
-	// 構築中の行のセルリストです。
+	// Cell list of the row under construction.
 	private List<CellContent> cells = null;
 
 	/**
-	 * 直前に{@link #newContext}で開いたセルです(DP増分1、2026-07-30——
-	 * Retained実装のE-6増分5aと同型)。close時sealの対象として
-	 * {@link #sealCellContext}が消費する。セルは行内で逐次(同時に
-	 * 開くセルは1つ)のため単一フィールドでよい。
+	 * Cell most recently opened by {@link #newContext} (DP increment 1, 2026-07-30;
+	 * same structure as E-6 increment 5a in Retained). {@link #sealCellContext} consumes it
+	 * as the seal-on-close target. Cells are processed sequentially within a row
+	 * (only one is open at a time), so a single field suffices.
 	 */
 	private CellContent pendingSealCell;
 
@@ -154,7 +154,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 		switch (box.getType()) {
 		case TABLE_COLUMN:
 		case TABLE_COLUMN_GROUP: {
-			// 列
+			// Column
 			final TableColumnBox column = (TableColumnBox) box;
 			if (this.innerTableStack.isEmpty()) {
 				if (this.columnGroupBox == null) {
@@ -170,24 +170,24 @@ public class IncrementalTableBuilder implements TableBuilder {
 		}
 			break;
 		case TABLE_ROW_GROUP: {
-			// 行グループ
+			// Row group
 			this.rowGroupBox = (TableRowGroupBox) box;
 			if (this.bindRowGroupBox == null) {
 				this.bindRowGroupBox = this.rowGroupBox;
 			}
-			// rowspanは行グループを越えられない(CSS 2.1 §17.5)。
-			// RetainedTableBuilderは行グループ開始で upperRow = null に
-			// しているが、Incremental側は繰り越しを切っておらず、
-			// thead末尾のrowspanがtbody先頭列を占有していた——
-			// table-layout:fixed では占有された列に落ちるセルが
-			// 「列数外」と判定され**内容ごと消えて**いた
-			// (2026-07-25、独立レビューで発見)
+			// rowspan cannot cross row groups (CSS 2.1 §17.5).
+			// RetainedTableBuilder sets upperRow = null at row group start,
+			// but Incremental did not stop carryover, so
+			// a rowspan at the end of thead occupied the first columns of tbody.
+			// With table-layout:fixed, cells landing in those occupied columns
+			// were considered "beyond the column count" and **disappeared with all their content**
+			// (found by independent review, 2026-07-25).
 			this.rowGroupBoundary = true;
 		}
 			break;
 
 		case TABLE_ROW: {
-			// 行
+			// Row
 			this.rowBox = (TableRowBox) box;
 			this.cells = new ArrayList<CellContent>();
 			this.complementRowspan();
@@ -200,19 +200,19 @@ public class IncrementalTableBuilder implements TableBuilder {
 	}
 
 	private double getSpecificRowSize(TableRowBox rowBox) {
-		// 導出は共有核(P2-5 (c))。旧実装は %指定を常に 0 としていたが、
-		// rowSpec は %>0 でも 0 を返すため同値
+		// Use the shared core for derivation (P2-5 (c)). The old implementation always treated % as 0;
+		// rowSpec returns 0 even for %>0, so this is equivalent.
 		return RowLayoutEngine.rowSpec(rowBox.getInnerTableParams()).size();
 	}
 
 	private void firstLayout() {
-		// レイアウト開始
+		// Start layout
 		final TableParams tableParams = this.tableBox.getTableParams();
 		final FlowBlockBox flowBox = (FlowBlockBox) this.tableBox.getBlockBox();
 
-		// 直下はテーブルの匿名ボックスなのでその上を取る
+		// The immediate box is the anonymous table box, so use the one above it.
 		final AbstractContainerBox containerBox = this.builder.getFlow(this.builder.getFlowCount() - 2).box;
-		// コンテナの幅をゼロとして、外周を計算
+		// Calculate the frame with container width set to zero.
 		this.tableBox.calculateFrame(containerBox.getLineSize());
 
 		final BlockParams flowParams = flowBox.getBlockParams();
@@ -259,11 +259,11 @@ public class IncrementalTableBuilder implements TableBuilder {
 		this.columnSizes = result.sizes();
 		tableInnerSize = result.innerSize();
 
-		// テーブルのレイアウト
+		// Table layout
 		final double tableSize = tableInnerSize + tableFrame;
 		flowBox.shrinkToFit(this.builder, new IntrinsicSizes(tableSize, tableSize, 0), true);
 
-		// 上部キャプション
+		// Top caption
 		for (int i = 0; i < this.topCaptions.size(); ++i) {
 			TwoPassBlockBuilder captionBuilder = (TwoPassBlockBuilder) this.topCaptions.get(i);
 			FlowBlockBox captionBox = (FlowBlockBox) captionBuilder.getRootBox();
@@ -273,7 +273,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 		}
 		this.tableInnerSize = tableInnerSize;
 
-		// カラム幅設定
+		// Set column widths
 		if (this.columnGroupBox != null) {
 			this.columnGroupBox.eachColumn((column, col, span) -> {
 				double size = 0;
@@ -291,17 +291,17 @@ public class IncrementalTableBuilder implements TableBuilder {
 		switch (box.getType()) {
 		case TABLE_COLUMN:
 		case TABLE_COLUMN_GROUP: {
-			// 列
+			// Column
 		}
 			break;
 		case TABLE_ROW_GROUP: {
-			// 行グループ
+			// Row group
 			this.rowGroupBox = null;
 		}
 			break;
 
 		case TABLE_ROW: {
-			// 行
+			// Row
 			final boolean firstRow = (this.columnSizes == null);
 			if (firstRow) {
 				this.firstLayout();
@@ -313,11 +313,11 @@ public class IncrementalTableBuilder implements TableBuilder {
 				}
 				this.bindUnit = false;
 			} else {
-				// 行グループが替わったら、閉じていない rowspan があっても前のグループの単位を確定する
-				// (2026-09-29)。rowspan は行グループを越えない(CSS 2.1 §17.5)。見送ると新しいグループの
-				// 行まで同じ単位に入り、前のグループへ足されて、ぶち抜きの高さもそこまで伸びていた
-				// (thead の最後の行の rowspan で tbody の行が thead の行に重なった)。確定する単位の行数で
-				// rowspan は切られる(bindTableRowContent の Math.min)。Retained は行グループごとに組むので起きない
+				// When the row group changes, finalize the previous group’s unit even if a rowspan remains open
+				// (2026-09-29). rowspan does not cross row groups (CSS 2.1 §17.5). Deferring this included new-group
+				// rows in the same unit, added them to the previous group, and extended the spanning cell height through them
+				// (a rowspan in the last thead row made tbody rows overlap thead rows). The finalized unit’s row count
+				// caps rowspan (Math.min in bindTableRowContent). Retained builds per row group, so this cannot occur there.
 				if (this.bindUnit || (!this.cellsUnit.isEmpty() && this.rowGroupBox != this.bindRowGroupBox)) {
 					this.bindTableRow(false);
 				}
@@ -332,9 +332,9 @@ public class IncrementalTableBuilder implements TableBuilder {
 			}
 			this.cellsUnit.add(this.cells);
 			this.rowsUnit.add(this.rowBox);
-			// 行グループの最初の行が終わった(以降の行は同じグループの上の行から繰り越す)
+			// The first row of the row group has ended (subsequent rows carry over from rows in the same group).
 			this.rowGroupBoundary = false;
-			// fixed ストリーミングの保持上限の観測(P2-1 保存契約)
+			// Observe the retention bound of fixed streaming (P2-1 preservation contract).
 			TableBuildStats.reportRowRetention(this.rowsUnit.size());
 		}
 			break;
@@ -357,13 +357,13 @@ public class IncrementalTableBuilder implements TableBuilder {
 	}
 
 	/**
-	 * 行のかたまりをレイアウトします。
-	 * 
+	 * Lays out a group of rows.
+	 *  
 	 * @param lastRow
 	 */
 	private void bindTableRow(boolean lastRow) {
 		final RetainedTextLimit limit = RetainedTextLimit.get(this.builder);
-		// rowspan・行グループの指定高がある場合、cellsUnitが不可分な配置単位。
+		// With rowspan or a specified row group height, cellsUnit is an indivisible placement unit.
 		try (var retained = limit == null || this.rowsUnit.isEmpty() ? null
 				: limit.enter(RetainedTextLimit.elementName(this.rowsUnit.get(0).getParams(), "table-row"))) {
 			this.bindTableRowContent(lastRow);
@@ -383,7 +383,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 				|| (lastRow && this.tableBox.getTableFooter() == null);
 
 		if (tableParams.borderCollapse == TableParams.BORDER_COLLAPSE) {
-			// つぶし境界
+			// Collapsed borders
 			final List<Border[]> vborders, hborders;
 			switch (rowGroupPos.rowGroupType) {
 			case RowGroupType.HEADER: {
@@ -439,7 +439,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 
 				final boolean unitLastRow = row == this.cellsUnit.size() - 1;
 				final List<CellContent> nextCells = unitLastRow ? this.cells : this.cellsUnit.get(row + 1);
-				// 次行はまず単位内、単位末尾ではストリーミング側の保留行
+				// Use the next row within the unit first; at unit end, use the streaming path’s pending row.
 				final TableRowBox nextRowBox = unitLastRow ? this.rowBox : this.rowsUnit.get(row + 1);
 				CollapsedBorderRules.collapseRow(firstBorder, lastBorder, lineBorder, ax, tableParams,
 						this.columnGroupBox, rowGroupParams, this.rowsUnit.get(row), cells, nextRowBox,
@@ -448,7 +448,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 			}
 		}
 
-		// セルのレイアウト
+		// Cell layout
 		for (int row = 0; row < this.cellsUnit.size(); ++row) {
 			final List<CellContent> cells = this.cellsUnit.get(row);
 			final TableRowBox rowBox = this.rowsUnit.get(row);
@@ -462,7 +462,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 					continue;
 				}
 				final TableCellBox cellBox = cell.getCellBox();
-				// セル間隔(共有核 — P2-5 (c))
+				// Cell spacing (shared core — P2-5 (c))
 				final AbsoluteInsets cellSpacing;
 				if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
 					cellSpacing = CollapsedBorderRules.separateSpacing(tableParams);
@@ -490,13 +490,13 @@ public class IncrementalTableBuilder implements TableBuilder {
 				}
 				cellBox.prepareLayout(this.builder.getFlowBox().getLineSize(), this.tableBox, cellSpacing);
 
-				// 直交書字方向のセルの行方向寸法は内容の実測から
-				// (TwoPass と同じ規約 — 共有核 TableCellMetrics 参照)
+				// Derive the line-axis size of orthogonal-writing cells from measured content
+				// (the same convention as TwoPass; see the shared TableCellMetrics core).
 				final double size = TableCellMetrics.spannedLineSize(this.columnSizes, i, span);
 				i += span - 1;
-				// DP増分1: seal済みセル(RangeContent)にも対応する
-				// CellContent経由へ一本化(Retainedのbind共有核と同じ入口。
-				// 再生元の分岐とseal:bind 1:1カウンタはCellContentが担う)
+				// DP increment 1: unify access through CellContent to also support sealed cells
+				// (RangeContent), using the same entry as Retained’s shared bind core.
+				// CellContent handles replay source branching and the 1:1 seal:bind counter.
 				TableCellMetrics.applyLineAxis(cellBox, () -> cell.getIntrinsicSizes(), size,
 						this.vertical, tableParams);
 				final BlockBuilder cellBindBuilder = new BlockBuilder(this.builder, cellBox);
@@ -507,7 +507,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 			}
 		}
 		if (this.cellsUnit.size() == 1) {
-			// rowspanによる連結がない場合の高さ計算
+			// Calculate heights without rowspan spans.
 			final List<CellContent> cells = this.cellsUnit.get(0);
 			final TableRowBox rowBox = this.rowsUnit.get(0);
 			double rowSize = this.getSpecificRowSize(rowBox);
@@ -537,15 +537,15 @@ public class IncrementalTableBuilder implements TableBuilder {
 			rowBox.setLineSize(this.tableInnerSize);
 			rowBox.setPageSize(rowSize);
 			this.bindRowGroupBox.addTableRow(rowBox);
-			// 行1つの確定は**実際に進んだ仕事**(2026-07-27、締切の進捗信号)
+			// Finalizing one row is **actual work completed** (2026-07-27, progress signal for the deadline).
 			this.noteTableProgress();
 			if (tableParams.borderCollapse == TableParams.BORDER_COLLAPSE) {
-				// つぶし境界
+				// Collapsed borders
 				this.addBorderRowSize(rowSize);
 			}
 			this.pageSize += rowSize;
 		} else {
-			// rowspanによる連結がある場合の高さ計算
+			// Calculate heights with rowspan spans.
 			Map<Rowspan, Rowspan> rowspans = new HashMap<Rowspan, Rowspan>();
 			List<Rowspan> rowspanList = new ArrayList<Rowspan>();
 			boolean[] noAdjRows = new boolean[this.cellsUnit.size()];
@@ -556,7 +556,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 				TableRowBox rowBox = this.rowsUnit.get(row);
 				final RowLayoutEngine.RowSpec rowSpec = RowLayoutEngine.rowSpec(rowBox.getInnerTableParams());
 				double rowSize = rowSpec.size();
-				// 0% 指定も自動行として扱う(共有核 rowSpec の規約に統一)
+				// Treat 0% as an auto row too (consistent with the shared rowSpec convention).
 				if (rowSpec.auto()) {
 					autoRows[row] = true;
 				}
@@ -570,18 +570,18 @@ public class IncrementalTableBuilder implements TableBuilder {
 					final TableCellBox cellBox = cell.getCellBox();
 					cellBox.baseline(rowAscent);
 					final BlockParams cellParams = cellBox.getBlockParams();
-					// 要求寸法は共有核へ(A-4)。縦書きのページ軸は物理幅
+					// Use the shared core for requested sizes (A-4). In vertical writing, the page axis is physical width.
 					final double cellSize = RowLayoutEngine.demandPageSize(
 							RowLayoutEngine.measuredRowspanPageSize(cellBox, this.vertical), cellParams, cellBox,
 							this.vertical);
 
 					int cellRowspan = Math.min(this.cellsUnit.size() - row, cell.rowspan);
 					if (cellRowspan <= 1) {
-						// 連結されない行
+						// Non-spanning rows
 						noAdjRows[row] = true;
 						rowSize = Math.max(rowSize, cellSize);
 					} else {
-						// 連結された行(登録は共有核へ — A-4)
+						// Spanning rows (registration uses the shared core — A-4)
 						RowLayoutEngine.addSpannedDemand(rowspans, rowspanList, row, cellRowspan, cellSize);
 					}
 					i += cell.colspan - 1;
@@ -589,7 +589,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 				rowBox.setPageSize(rowSize);
 			}
 
-			// rowspanで連結された行の高さの計算(共有エンジン — P2-2)
+			// Calculate heights of rows joined by rowspan (shared engine — P2-2).
 			Collections.sort(rowspanList, Rowspan.SPAN_COMPARATOR);
 			{
 				final double[] rowSizes = new double[this.rowsUnit.size()];
@@ -607,7 +607,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 				}
 			}
 
-			// 行グループ高さ(共有エンジン — P2-4)
+			// Row group height (shared engine — P2-4)
 			if (rowGroupParams.size.getType() == LengthType.ABSOLUTE) {
 				final double[] rowSizes = new double[this.rowsUnit.size()];
 				for (int row = 0; row < this.rowsUnit.size(); ++row) {
@@ -619,15 +619,15 @@ public class IncrementalTableBuilder implements TableBuilder {
 				}
 			}
 
-			// 行の追加
+			// Add rows
 			for (int row = 0; row < this.rowsUnit.size(); ++row) {
 				TableRowBox rowBox = this.rowsUnit.get(row);
 				this.bindRowGroupBox.addTableRow(rowBox);
-				// 行1つの確定は**実際に進んだ仕事**(2026-07-27、締切の進捗信号)
+				// Finalizing one row is **actual work completed** (2026-07-27, progress signal for the deadline).
 				this.noteTableProgress();
 			}
 
-			// セルの高さ設定(共有核 — P2-5 (c)。baseline は寸法収集時に適用済み)
+			// Set cell heights (shared core — P2-5 (c); baseline already applied during size collection).
 			{
 				final double[] unitRowSizes = new double[this.rowsUnit.size()];
 				for (int i = 0; i < this.rowsUnit.size(); ++i) {
@@ -638,7 +638,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 				}
 			}
 			if (tableParams.borderCollapse == TableParams.BORDER_COLLAPSE) {
-				// つぶし境界
+				// Collapsed borders
 				for (int i = 0; i < this.rowsUnit.size(); ++i) {
 					TableRowBox rowBox = this.rowsUnit.get(i);
 					double rowSize = rowBox.getPageSize();
@@ -663,7 +663,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 				;
 		}
 		if (groupLast) {
-			// 新しいグループの開始
+			// Start a new group
 			switch (this.bindRowGroupBox.getTableRowGroupPos().rowGroupType) {
 			case RowGroupType.HEADER:
 				this.tableBox.setTableHeader(this.bindRowGroupBox);
@@ -682,13 +682,13 @@ public class IncrementalTableBuilder implements TableBuilder {
 		}
 		if (this.builder.mode != BreakableBuilder.MODE_NO_BREAK && this.bindRowGroupBox != null
 				&& this.bindRowGroupBox.getTableRowGroupPos().rowGroupType == RowGroupType.BODY) {
-			// 自動改ページチェック
+			// Check automatic page breaks
 			for (;;) {
 				this.builder.getPageContext().getPageGenerator().getUserAgent()
 						.checkAbort(jp.cssj.cti2.CTISession.ABORT_FORCE);
 				double pageBottom = this.builder.getPageLimit() - this.builder.getPageAxis();
 				if (LayoutUtils.compare(this.pageSize, pageBottom) > 0) {
-					// 行グループを分割
+					// Split the row group
 					double pageLimit = this.builder.getPageLimit();
 					pageLimit -= this.builder.getPageAxis();
 					pageLimit -= this.tableBox.getFrame().getFramePageStart(this.tableBox.getTableParams().flow);
@@ -703,7 +703,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 						pageLimit -= this.tableBox.getTableBody(i).getPageSize();
 					}
 					byte flags = this.tableBox.getTableBodyCount() == 0 ? IPageBreakableBox.FLAGS_FIRST : (byte) 0;
-					// フラグメンテナ容量を渡す(2026-08-27。checkBreak側と同じ)
+					// Pass fragmentainer capacity (2026-08-27; same as the checkBreak path).
 					if (this.pageBreak(BreakMode.AutoBreakMode.withCapacity(this.builder.getPageLimit()), pageLimit,
 							flags)) {
 						continue;
@@ -746,19 +746,19 @@ public class IncrementalTableBuilder implements TableBuilder {
 			if (row > 0) {
 				breakMode = pos.pageBreakBefore;
 				if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
-					// 行の直前の改ページ
+					// Page break just before the row
 					--row;
 					box = this.bindRowGroupBox.getTableRow(row);
 					break;
 				}
 			}
 			if (row == this.bindRowGroupBox.getTableRowCount() - 1) {
-				// 末尾の場合はループから抜ける
+				// Exit the loop at the end
 				break;
 			}
 			breakMode = pos.pageBreakAfter;
 			if (breakMode == PageBreakMode.PAGE || breakMode == PageBreakMode.COLUMN) {
-				// 行の直後の改ページ
+				// Page break just after the row
 				box = rowBox;
 				break;
 			}
@@ -769,18 +769,18 @@ public class IncrementalTableBuilder implements TableBuilder {
 			return this.pageBreak(mode, pageLimit, (byte) 0);
 		}
 
-		// 自動改ページチェック
+		// Check automatic page breaks
 		if (LayoutUtils.compare(pageLimit, 0) > 0) {
-			// 行グループを分割
-			// フラグメンテナ容量を渡す(2026-08-27)。行境界の切断の優先
-			// (TableCutter.rowPreDecide——切断線が掛かった行が新しいページに
-			// 丸ごと収まるなら行ごと持ち越す)がこの経路でも効くように
+			// Split the row group
+			// Pass fragmentainer capacity (2026-08-27) so this path also prefers
+			// splitting at row boundaries (TableCutter.rowPreDecide: if the row intersected by
+			// the split line fits intact on a new page, carry over the whole row).
 			if (this.pageBreak(BreakMode.AutoBreakMode.withCapacity(this.builder.getPageLimit()), pageLimit, flags)) {
 				return true;
 			}
 		}
 
-		// 強制改ページチェック
+		// Check forced page breaks
 		if (groupLast && this.bindRowGroupBox != null && this.rowGroupBox != null) {
 			boolean forceBreak = true;
 			for (;;) {
@@ -809,8 +809,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 				break;
 			}
 			if (forceBreak) {
-				// 行グループの直前の改ページ
-				// 行グループの直後の改ページ
+				// Page break just before the row group
+				// Page break just after the row group
 				TableForceBreakMode mode = new TableForceBreakMode(this.bindRowGroupBox, breakMode, 0, -1);
 				this.pageBreak(mode, pageLimit, (byte) 0);
 			}
@@ -826,11 +826,11 @@ public class IncrementalTableBuilder implements TableBuilder {
 		int rowCount = rowGroupBox.getTableRowCount();
 		if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0
 				&& this.tableBox.getTableParams().pageBreakInside == PageBreakMode.AVOID) {
-			// テーブルの改ページ禁止
+			// Page breaks prohibited in the table
 			return false;
 		}
 		if (!(rowGroupBox.split(pageLimit, mode, flags) instanceof SplitResult.Split(final IPageBreakableBox groupRemainder))) {
-			// 分割不可能
+			// Cannot split
 			return false;
 		}
 		TableRowGroupBox nextRowGroupBox = (TableRowGroupBox) groupRemainder;
@@ -838,7 +838,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 
 		TableParams tableParams = this.tableBox.getTableParams();
 		if (tableParams.borderCollapse == TableParams.BORDER_COLLAPSE) {
-			// つぶし境界の処理
+			// Process collapsed borders
 			int nextRowCount = nextRowGroupBox.getTableRowCount();
 			List<Border[]> nextBodyHborders = new ArrayList<Border[]>();
 			List<Border[]> nextBodyVborders = new ArrayList<Border[]>();
@@ -850,7 +850,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 			}
 			nextBodyHborders.add(0, this.bodyHborders.get(this.bodyHborders.size() - 1));
 			if (nextRowCount + rowGroupBox.getTableRowCount() > rowCount) {
-				// 途中で切断されている場合
+				// When split in the middle
 				this.bodyVborders.add(nextBodyVborders.get(0));
 				Border[] hborders = new Border[((Border[]) nextBodyHborders.get(0)).length];
 				this.bodyHborders.add(hborders);
@@ -922,10 +922,11 @@ public class IncrementalTableBuilder implements TableBuilder {
 	}
 
 	/**
-	 * 行グループの最初の行を組んでいる間か(境界ではrowspanを繰り越さない)。補完は行の始めだけでなく
-	 * セルを足すたびにも呼ばれるので、印は行の終わりまで保つ(2026-09-29。行の始めの1回で消していたため、
-	 * 最初のセルの後の補完が前のグループの最後の行からrowspanを持ち込み、固定レイアウトでは後ろのセルが
-	 * 列数外として消えていた。codexレビューで発見)。
+	 * Whether the first row of a row group is under construction (do not carry rowspan across
+	 * the boundary). Completion runs not only at row start but on each cell addition, so keep
+	 * the flag until row end (2026-09-29). Previously, clearing it after the first call at row
+	 * start let completion after the first cell import rowspan from the previous group's last
+	 * row. In fixed layout, later cells disappeared as beyond the column count. Found by codex review.
 	 */
 	private boolean rowGroupBoundary = false;
 
@@ -934,31 +935,30 @@ public class IncrementalTableBuilder implements TableBuilder {
 			return;
 		}
 		if (!this.cellsUnit.isEmpty()) {
-			// rowspanで連結されたセルの補完(共有核 — P2-2)
+			// Fill in cells joined by rowspan (shared core — P2-2).
 			CellContent.complementRowspan(this.cells, this.cellsUnit.get(this.cellsUnit.size() - 1));
 		}
 	}
 
 	/**
-	 * セルclose(録画完了点)時のrange sealです(DP増分1、2026-07-30——
-	 * Retained実装のE-6増分5a {@code RetainedTableBuilder.sealCellContext}
-	 * と同型。TableBuilder既定のno-opを置き換える)。適格判定は
-	 * {@code TwoPassBlockBuilder.sealBodyForRangeBind}と同一のfail closed。
-	 * Incrementalのセルは行単位flushの{@code cell.bind()}で一度だけ
-	 * bindされ、ヘッダ/フッタのページ反復はbind済みボックスの複製で
-	 * 行われる(再bindしない)ため、seal→単一bindのリース寿命は
-	 * float/absolute(DocumentBuilder close時seal)と同じ。
+	 * Seals the range at cell close (recording completion point) (DP increment 1, 2026-07-30;
+	 * same structure as {@code RetainedTableBuilder.sealCellContext} from E-6 increment 5a
+	 * in Retained; replaces TableBuilder's default no-op). Eligibility fails closed in the same
+	 * way as {@code TwoPassBlockBuilder.sealBodyForRangeBind}. Incremental cells bind exactly
+	 * once through {@code cell.bind()} in row-wise flush. Header/footer repetition on pages
+	 * copies already bound boxes rather than rebinding, so the seal → single-bind lease
+	 * lifetime matches float/absolute (sealed at DocumentBuilder close).
 	 */
 	@Override
 	public void sealCellContext(final Builder cellBuilder) {
 		final CellContent cell = this.pendingSealCell;
 		if (cell == null) {
-			// キャプション等、seal対象のセルが開いていないコンテキスト
+			// Context without an open cell to seal, such as a caption
 			return;
 		}
 		this.pendingSealCell = null;
 		if (cell.isExtended() || cell.getBuilder() != cellBuilder) {
-			// 構造的には起きない(セルは逐次)が、fail closedで無視する
+			// Structurally impossible (cells are sequential), but ignore it to fail closed.
 			return;
 		}
 		cell.sealForRangeBind();
@@ -968,7 +968,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 		Builder builder;
 		switch (box.getType()) {
 		case BLOCK: {
-			// キャプション
+			// Caption
 			FlowBlockBox caption = (FlowBlockBox) box;
 			builder = new TwoPassBlockBuilder(this.builder, caption);
 			((TwoPassBlockBuilder) builder).tagRootKind(
@@ -989,7 +989,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 			break;
 
 		case TABLE_CELL: {
-			// セル
+			// Cell
 			TableCellBox cellBox = (TableCellBox) box;
 			builder = new TwoPassBlockBuilder(this.builder, cellBox);
 			((TwoPassBlockBuilder) builder).tagRootKind(
@@ -1008,10 +1008,10 @@ public class IncrementalTableBuilder implements TableBuilder {
 				this.cells.add(new CellContent(cell.getCellBox(), cell.rowspan, i));
 			}
 			this.complementRowspan();
-			// DP増分1: close時sealの対象として記憶する(列数超過で捨てられた
-			// セル(上のremainder<=0のbreak)はCellContent化されないため
-			// ここへ到達せず、sealもされない——bindされないビルダーをsealすると
-			// リースが解放されないままになるので、この非対称が正しい)
+			// DP increment 1: remember the seal-on-close target. Cells discarded for exceeding the
+			// column count (the remainder<=0 break above) never become CellContent,
+			// so they never reach here and are not sealed. Sealing a builder that will not bind
+			// would leave its lease unreleased, so this asymmetry is correct.
 			this.pendingSealCell = cell;
 		}
 			break;
@@ -1031,11 +1031,11 @@ public class IncrementalTableBuilder implements TableBuilder {
 	}
 
 	/**
-	 * ストリーミング中に行単位で蓄積した境界(行=リスト、列=配列)を、
-	 * TableCollapsedBorders の列優先配列へ転置した行グループ分です。
+	 * One row group's borders, transposed from row-wise streaming accumulation
+	 * (rows = list, columns = array) to TableCollapsedBorders column-major arrays.
 	 */
 	private void makeBorder() {
-		// つぶし境界
+		// Collapsed borders
 		final int columnCount = this.columnSizes == null ? 0 : this.columnSizes.length;
 		final CollapsedBorderRules.GroupBorders header = CollapsedBorderRules.GroupBorders.of(this.headerRowSizes == null ? null : this.headerRowSizes.toArray(), this.headerHborders, this.headerVborders,
 				columnCount);
@@ -1064,7 +1064,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 		}
 		this.builder.addBound(this.tableBox);
 
-		// 下部キャプション
+		// Bottom caption
 		for (int i = 0; i < this.bottomCaptions.size(); ++i) {
 			TwoPassBlockBuilder captionBuilder = (TwoPassBlockBuilder) this.bottomCaptions.get(i);
 			FlowBlockBox captionBox = (FlowBlockBox) captionBuilder.getRootBox();
@@ -1078,15 +1078,15 @@ public class IncrementalTableBuilder implements TableBuilder {
 	}
 
 	public void finish(final net.zamasoft.foliojet.layout.builder.Builder host) {
-		// Incrementalは行単位で既にコミット済み。残余の確定だけを行う
+		// Incremental has already committed row by row. Finalize only the remainder.
 		this.endLayout();
 	}
 
 	/**
-	 * Incrementalは外側のDocumentBuilderと同じストリーミング機構で
-	 * セルを構築するため、newContext呼び出し前にインライン文脈を
-	 * 閉じ直す必要がある(段組span境界のstartColumnSpan/endColumnSpanと
-	 * 同型の「フロー境界跨ぎ」ブラケット、C4-C深化・2026-07-19)。
+	 * Incremental constructs cells using the same streaming mechanism as the outer
+	 * DocumentBuilder, so it must close the inline context before calling newContext.
+	 * This brackets "crossing a flow boundary", like startColumnSpan/endColumnSpan at
+	 * multi-column span boundaries (C4-C deepening, 2026-07-19).
 	 */
 	@Override
 	public void prepareEnterCell(final TableBuilderHost host) {
@@ -1107,15 +1107,15 @@ public class IncrementalTableBuilder implements TableBuilder {
 	}
 
 	/**
-	 * 固定レイアウトでの先頭行セル由来の列指定を返します(AUTOはnull)。
-	 * 指定はセルの colspan で均等割りされます。指定がある場合は
-	 * パディングの%を無視してセルの外周を先に計算します(prepareLayout)。
+	 * Returns a column specification from a first-row cell in fixed layout (null for AUTO).
+	 * Divide the specification equally by the cell's colspan. If specified, first calculate
+	 * the cell frame ignoring padding percentages (prepareLayout).
 	 *
-	 * @param cell              セル
-	 * @param refSize           %指定の基準寸法
-	 * @param containerBox      包含ブロック
-	 * @param lineBorderSpacing 行方向の境界間隔
-	 * @return 列指定
+	 * @param cell              cell
+	 * @param refSize           reference size for percentage specifications
+	 * @param containerBox      containing block
+	 * @param lineBorderSpacing line-axis border spacing
+	 * @return column specification
 	 */
 	private FixedColumnWidths.Spec fixedCellSpec(final CellContent cell, final double refSize,
 			final AbstractContainerBox containerBox, final double lineBorderSpacing) {
@@ -1124,7 +1124,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 		final TableParams tableParams = this.tableBox.getTableParams();
 		final WritingMode tableFlow = tableParams.flow;
 		if (cellParams.size.getLineType(tableFlow) != LengthType.AUTO) {
-			// パディングの%を無視してセルの外周を計算
+			// Calculate the cell frame ignoring padding percentages.
 			final double space;
 			if (tableParams.borderCollapse == TableParams.BORDER_SEPARATE) {
 				space = lineBorderSpacing / 2.0;
@@ -1135,24 +1135,25 @@ public class IncrementalTableBuilder implements TableBuilder {
 					: new AbsoluteInsets(0, space, 0, space);
 			cellBox.prepareLayout(containerBox.getLineSize(), this.tableBox, cellSpacing);
 		}
-		// 指定の導出は FixedColumnWidths に統合(P2-2)
+		// Specification derivation is unified in FixedColumnWidths (P2-2).
 		return FixedColumnWidths.cellSpec(cellBox, cell.colspan, tableFlow, refSize);
 	}
 
 	/**
-	 * 表の行を1つ確定したことを記録します(2026-07-27新設)。
+	 * Records that one table row has been finalized (introduced 2026-07-27).
 	 *
 	 * <p>
-	 * 締切({@code AbstractUserAgent}の「進捗が止まったら中断する」)は
-	 * ページの出力を進捗とみなすが、<b>巨大な自動表の測定パスでは
-	 * ページが出ないまま長く走る</b>。実測で40万行=37.5秒、外挿すると
-	 * 100万行で約94秒に達し、既定の120秒に迫っていた(2026-07-27)。
+	 * The deadline ({@code AbstractUserAgent}'s "abort when progress stops") treats page
+	 * output as progress, but <b>measurement passes for huge auto-layout tables run a long
+	 * time without emitting pages</b>. Measurement showed 400,000 rows took 37.5 seconds;
+	 * extrapolating to 1 million rows gave about 94 seconds, approaching the default
+	 * 120 seconds (2026-07-27).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>「コードが動いた」ではなく「仕事が終わった」を数えること。</b>
-	 * 行の確定は各行1回きりの単調な仕事なので、空回りするループが
-	 * 進捗を偽装できない。
+	 * <b>Count "work completed", not "code executed".</b>
+	 * Row finalization is monotonic work done once per row, so an idle loop cannot
+	 * fake progress.
 	 * </p>
 	 */
 	private void noteTableProgress() {
@@ -1162,8 +1163,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 }
 
 /**
- * 結合された行です。
- * 
+ * Joined rows.
+ *  
  * @author MIYABE Tatsuhiko
  * @version $Id: IncrementalTableBuilder.java 1613 2021-08-18 03:55:13Z miyabe $
  */

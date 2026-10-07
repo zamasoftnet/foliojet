@@ -14,15 +14,15 @@ import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code container-name}プロパティです(css-contain-3、2026-08-15段2——
+ * {@code container-name} property (css-contain-3, 2026-08-15 stage 2:
  * development record §5).
- * {@code none | <custom-ident>+}(空白区切り、複数可)。
+ * {@code none | <custom-ident>+} (space-separated; multiple names allowed).
  *
  * <p>
- * {@code none}は{@link KeywordValue#NONE}、それ以外は{@link ValueListValue}
- * (中身は{@link StringValue}の並び)として保持する。名前解決(段6で
- * {@code @container <name> (...)}の名前と照合する側)は本クラスの
- * 責務外——ここでは構文の受理と保持だけを行う。
+ * Stores {@code none} as {@link KeywordValue#NONE}, otherwise as {@link ValueListValue}
+ * (a sequence of {@link StringValue}). Name resolution (matching the name in
+ * {@code @container <name> (...)} in stage 6) is outside this class's responsibility;
+ * this class only accepts and stores the syntax.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -30,7 +30,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 public class ContainerName extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new ContainerName();
 
-	/** 値が{@code none}なら空配列、それ以外は名前の並びを返します。 */
+	/** Returns an empty array for {@code none}, otherwise a sequence of names. */
 	public static String[] get(CSSStyle style) {
 		Value value = style.get(INFO);
 		if (value == KeywordValue.NONE) {

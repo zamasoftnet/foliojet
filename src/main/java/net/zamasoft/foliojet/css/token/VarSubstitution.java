@@ -9,9 +9,9 @@ import java.util.Set;
 import net.zamasoft.foliojet.css.CSSStyle;
 
 /**
- * var()カスタムプロパティの参照をトークン列内で置換します(CSS仕様どおりの
- * トークン置換モデル: var(--name)をそのカスタムプロパティの値の生トークン列で
- * 置き換えてから、通常のプロパティ解析を再実行する)。
+ * Substitutes var() custom property references in token sequences (the CSS-specified
+ * token substitution model: replace var(--name) with the custom property's raw value
+ * tokens, then rerun normal property parsing).
  */
 public final class VarSubstitution {
 	private VarSubstitution() {
@@ -19,19 +19,19 @@ public final class VarSubstitution {
 	}
 
 	/**
-	 * カスタムプロパティの連鎖(--a: var(--b); --b: var(--c); ...)が異常に
-	 * 深い場合の安全弁。循環参照自体はresolving集合で検出するため、これは
-	 * 長い非循環チェーンに対する追加の防御({@link Tokens#fromExpression}の
-	 * MAX_NESTING_DEPTHと同じ方針)。
+	 * Safeguard for abnormally deep custom property chains
+	 * (--a: var(--b); --b: var(--c); ...). The resolving set detects cycles themselves;
+	 * this additionally protects against long acyclic chains (same policy as
+	 * MAX_NESTING_DEPTH in {@link Tokens#fromExpression}).
 	 */
 	private static final int MAX_DEPTH = 64;
 
-	/** tokensがvar()呼び出しを(入れ子の関数引数も含め)含むかを返します。 */
+	/** Returns whether tokens contain a var() call (including nested function arguments). */
 	public static boolean containsVarReference(List<CssToken> tokens) {
 		return containsFunction(tokens, "var");
 	}
 
-	/** tokensがenv()呼び出しを(入れ子の関数引数も含め)含むかを返します(2026-08-29)。 */
+	/** Returns whether tokens contain an env() call (including nested function arguments; 2026-08-29). */
 	public static boolean containsEnvReference(List<CssToken> tokens) {
 		return containsFunction(tokens, "env");
 	}
@@ -51,20 +51,20 @@ public final class VarSubstitution {
 	}
 
 	/**
-	 * tokens内のenv(&lt;name&gt;[, fallback])をすべて置換した新しいトークン列を
-	 * 返します(2026-08-29、css-env-1)。var()と違って要素の文脈に依存しない
-	 * ので、宣言解析時(スタイルシート解析、文書全体で1回)に置換できる。
-	 * 未知の名前でフォールバックも無い場合は null(宣言全体が無効——
-	 * 仕様どおり)。
+	 * Returns a new token sequence with every env(&lt;name&gt;[, fallback]) substituted
+	 * (2026-08-29, css-env-1). Unlike var(), it does not depend on element context, so
+	 * substitution can occur during declaration parsing (once per document when parsing
+	 * the stylesheet). An unknown name with no fallback yields null (invalidates the
+	 * whole declaration, as specified).
 	 *
 	 * <p>
-	 * 既知の名前は{@code safe-area-inset-*}(iOSのノッチ回避)と
-	 * {@code titlebar-area-*}(PWAのウィンドウ制御)で、紙には該当する
-	 * 領域が無いのでいずれも{@code 0px}に解決する。実サイト50件中32件で
-	 * {@code max(16px, env(safe-area-inset-right))}のようにcalc()の中に
-	 * 現れていた——置換は関数の引数の中まで再帰するので、calc()のRPN列
-	 * (Tokens.convertCalc)の葉も同じ経路で置き換わる(1トークン→1トークン
-	 * なので後置記法の構造は保たれる)。
+	 * Known names are {@code safe-area-inset-*} (iOS notch avoidance) and
+	 * {@code titlebar-area-*} (PWA window controls). Paper has no corresponding regions,
+	 * so all resolve to {@code 0px}. They appeared inside calc(), e.g.
+	 * {@code max(16px, env(safe-area-inset-right))}, on 32 of 50 real sites.
+	 * Substitution recurses into function arguments, so leaves in calc() RPN sequences
+	 * (Tokens.convertCalc) are replaced through the same path (one token to one token,
+	 * preserving postfix structure).
 	 * </p>
 	 */
 	public static List<CssToken> substituteEnv(List<CssToken> tokens) {
@@ -100,7 +100,7 @@ public final class VarSubstitution {
 		return result;
 	}
 
-	/** env(name[, fallback...])を解決した置換トークン列を返す。解決できなければnull。 */
+	/** Returns replacement tokens after resolving env(name[, fallback...]), or null if resolution fails. */
 	private static List<CssToken> resolveEnv(CssToken.Func func, int depth) {
 		List<CssToken> args = func.args();
 		if (args.isEmpty() || !(args.get(0) instanceof CssToken.Ident nameToken)) {
@@ -108,11 +108,11 @@ public final class VarSubstitution {
 		}
 		final String name = nameToken.lower();
 		int commaIndex = indexOfComma(args);
-		// safe-area-inset-top のような既知の名前(添字付きのtitlebar-area-x
-		// 等も含める)。値は紙では常に0
+		// Known names such as safe-area-inset-top (including indexed names such as
+		// titlebar-area-x). Values are always 0 on paper.
 		if (name.startsWith("safe-area-inset-") || name.startsWith("titlebar-area-")) {
-			// 仕様上、既知の名前の後ろに添字(整数)が続く形もあるが、
-			// 値はどれも0pxで同じなので読み捨てる
+			// The specification allows integer indexes after known names, but
+			// all values are 0px, so read and discard the indexes.
 			return Collections.singletonList(ZERO_PX);
 		}
 		if (commaIndex != -1) {
@@ -122,10 +122,10 @@ public final class VarSubstitution {
 	}
 
 	/**
-	 * tokens内のvar(--name[, fallback])をすべて置換した新しいトークン列を
-	 * 返します。参照先が見つからずフォールバックも無い場合、循環参照を検出
-	 * した場合、入れ子上限を超えた場合は null(CSS仕様の「使用値計算時に
-	 * 無効」に相当——呼び出し側はこの宣言全体を無視すべき)。
+	 * Returns a new token sequence with every var(--name[, fallback]) substituted.
+	 * Returns null if a reference is missing with no fallback, a cycle is detected, or
+	 * the nesting limit is exceeded (equivalent to CSS invalid at computed-value time:
+	 * the caller should ignore this entire declaration).
 	 */
 	public static List<CssToken> substitute(List<CssToken> tokens, CSSStyle style) {
 		return substitute(tokens, style, Collections.emptySet(), 0);
@@ -146,8 +146,8 @@ public final class VarSubstitution {
 					}
 					result.addAll(resolved);
 				} else if (func.is("env")) {
-					// カスタムプロパティの値(生トークン列)に書かれたenv()は
-					// var()経由でここへ来る(2026-08-29)
+					// env() in custom property values (raw tokens) reaches here
+					// through var() (2026-08-29).
 					List<CssToken> resolved = resolveEnv(func, depth);
 					if (resolved == null) {
 						return null;
@@ -167,12 +167,12 @@ public final class VarSubstitution {
 		return result;
 	}
 
-	/** var(--name[, fallback...])を解決した置換トークン列を返す。解決できなければnull。 */
+	/** Returns replacement tokens after resolving var(--name[, fallback...]), or null if resolution fails. */
 	private static List<CssToken> resolveVar(CssToken.Func func, CSSStyle style, Set<String> resolving, int depth) {
 		List<CssToken> args = func.args();
 		if (args.isEmpty() || !(args.get(0) instanceof CssToken.Ident nameToken)
 				|| !nameToken.name().startsWith("--")) {
-			// 構文として不正(var()の第1引数はカスタムプロパティ名)
+			// Invalid syntax (var()'s first argument must be a custom property name)
 			return null;
 		}
 		String name = nameToken.name();
@@ -182,12 +182,12 @@ public final class VarSubstitution {
 			fallback = args.subList(commaIndex + 1, args.size());
 		}
 		if (!resolving.contains(name)) {
-			// **宣言した要素の文脈で解決する**(2026-08-03)。カスタム
-			// プロパティの計算値は「var()を置換した後のトークン列」であり、
-			// 継承より前に計算される(CSS Variables 1)。祖先で
-			// `--y: calc(var(--x) + 1px)` と書き、子で `--x` だけ変えても、
-			// 継承した `--y` は**祖先の** `--x` で計算された値のままになる。
-			// 従来は現在の要素で解決していたため、子で再評価されていた
+			// **Resolve in the declaring element's context** (2026-08-03). The computed
+			// value of a custom property is its token sequence after var() substitution,
+			// computed before inheritance (CSS Variables 1). If an ancestor declares
+			// `--y: calc(var(--x) + 1px)` and a child changes only `--x`, inherited `--y`
+			// still holds the value computed using **the ancestor's** `--x`.
+			// Previously resolution used the current element, reevaluating it on the child.
 			final CSSStyle owner = style.getCustomPropertyOwner(name);
 			List<CssToken> declared = owner == null ? null : owner.getCustomProperty(name);
 			if (declared != null) {
@@ -197,9 +197,9 @@ public final class VarSubstitution {
 				if (resolvedDeclared != null) {
 					return resolvedDeclared;
 				}
-				// 宣言はあったが(循環参照・入れ子上限等で)解決できなかった
-				// 場合もフォールバックへ進む(CSS仕様上、循環参照に陥った
-				// カスタムプロパティは「未設定」と同じ扱いになる)
+				// Also use the fallback if a declaration exists but cannot be resolved
+				// (cycle, nesting limit, etc.). The CSS specification treats custom properties
+				// involved in a cycle as unset.
 			}
 		}
 		if (fallback != null) {

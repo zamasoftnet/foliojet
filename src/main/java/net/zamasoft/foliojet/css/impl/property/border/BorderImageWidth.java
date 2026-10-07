@@ -13,7 +13,7 @@ import net.zamasoft.foliojet.css.value.BorderImageWidthValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** {@code border-image-width} です。 */
+/** {@code border-image-width}. */
 public final class BorderImageWidth extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BorderImageWidth();
 

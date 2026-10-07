@@ -7,9 +7,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 
-/**
- * フォント相対の長さ(em / ex / rem / ch / lh / cap / rlh)です。
- */
+/** A font-relative length (em / ex / rem / ch / lh / cap / rlh). */
 public final class RelativeLengthValue implements LengthValue {
 	private final Unit unit;
 
@@ -20,7 +18,7 @@ public final class RelativeLengthValue implements LengthValue {
 		this.value = value;
 	}
 
-	/** 単位を指定して生成します(calc()のフォント相対成分の解決に使う)。 */
+	/** Creates a value with the specified unit (used to resolve font-relative components of calc()). */
 	public static RelativeLengthValue of(Unit unit, double value) {
 		return new RelativeLengthValue(unit, value);
 	}
@@ -73,7 +71,7 @@ public final class RelativeLengthValue implements LengthValue {
 		}
 		case EX:
 		case CH: {
-			// ch は x-height 近似(従来実装踏襲)
+			// ch uses an x-height approximation (retains the previous implementation).
 			UserAgent ua = style.getUserAgent();
 			FontStyle fontStyle = style.getFontStyle();
 			FontListMetrics flm = ua.getFontManager().getFontListMetrics(fontStyle);
@@ -81,33 +79,33 @@ public final class RelativeLengthValue implements LengthValue {
 			return AbsoluteLengthValue.create(ua, xheight * this.value);
 		}
 		case CAP: {
-			// SPEC css-values-4: <b>第一</b>利用可能フォントのcap-height。
-			// フォントソースは1/1000em単位で持つ(OpenTypeFontSourceは'H'の
-			// グリフ実データから得る)。ex/chがリスト中の最大を採るのと違い
-			// 先頭だけを見るのは仕様どおり——和文フォールバックのcap-heightは
-			// 表意文字の高さ(ほぼ1em)になり、最大を採ると1emへ潰れる
+			// SPEC css-values-4: the cap-height of the <b>first</b> available font.
+			// Font sources hold it in 1/1000 em units (OpenTypeFontSource obtains it from the actual
+			// glyph data for 'H'). Unlike ex/ch, which take the maximum in the list,
+			// checking only the first font follows the specification: the cap-height of a Japanese fallback
+			// is the ideograph height (nearly 1 em), so taking the maximum reduces it to 1 em.
 			UserAgent ua = style.getUserAgent();
 			FontListMetrics flm = ua.getFontManager().getFontListMetrics(style.getFontStyle());
 			double fontSize = FontSize.get(style);
 			double capRatio = flm.getLength() == 0 ? 0
 					: flm.getFontMetrics(0).getFontSource().getCapHeight() / 1000.0;
 			if (capRatio <= 0) {
-				// メトリクスが取れないときはUAの既定比(AbstractFontSourceと同じ0.7)
+				// If metrics are unavailable, use the UA's default ratio (0.7, as in AbstractFontSource).
 				capRatio = 0.7;
 			}
 			return AbsoluteLengthValue.create(ua, fontSize * capRatio * this.value);
 		}
 		case LH: {
-			// SPEC css-values-4: 自要素の計算済みline-height。line-height
-			// 特性自身に書かれた場合の自己参照はLineHeight.getComputedValueが
-			// 先に継承値基準で畳むため、ここへは到達しない
+			// SPEC css-values-4: this element's computed line-height. A self-reference in the
+			// line-height property itself does not reach here: LineHeight.getComputedValue
+			// first folds it using the inherited value as the reference.
 			double lineHeight = net.zamasoft.foliojet.css.impl.property.font.LineHeight.get(style);
 			return AbsoluteLengthValue.create(style.getUserAgent(), lineHeight * this.value);
 		}
 		case RLH: {
-			// SPEC css-values-4: 根要素の計算済みline-height。根は先に計算
-			// されるので子孫からは安全に読める。根自身のline-heightに書かれた
-			// 場合の自己参照はLineHeight.getComputedValueが畳むため到達しない
+			// SPEC css-values-4: the root element's computed line-height. The root is computed first,
+			// so descendants can read it safely. A self-reference in the root's own line-height
+			// does not reach here because LineHeight.getComputedValue folds it.
 			double lineHeight = net.zamasoft.foliojet.css.impl.property.font.LineHeight
 					.get(style.getRootStyle());
 			return AbsoluteLengthValue.create(style.getUserAgent(), lineHeight * this.value);

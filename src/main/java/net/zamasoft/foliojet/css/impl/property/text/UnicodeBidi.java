@@ -50,16 +50,16 @@ public class UnicodeBidi extends AbstractPrimitivePropertyInfo {
 			} else if (ident.equals("bidi-override")) {
 				return UnicodeBidiValue.BIDI_OVERRIDE_VALUE;
 			} else if (ident.equals("isolate")) {
-				// css-writing-modes-3 §2.2。段落単位のUBA(2026-09-04、
-				// bidi-isolation-design.md)まで値をそのまま保つ。旧近似(embed
-				// への潰し込み)はレイアウト側のflag OFF経路が担う
+				// css-writing-modes-3 §2.2. Preserve the value unchanged through to paragraph-level UBA
+				// (2026-09-04, bidi-isolation-design.md). The old approximation (collapsing to embed)
+				// is handled by the layout-side flag-OFF path.
 				return UnicodeBidiValue.ISOLATE_VALUE;
 			} else if (ident.equals("isolate-override")) {
 				return UnicodeBidiValue.ISOLATE_OVERRIDE_VALUE;
 			} else if (ident.equals("plaintext")) {
 				return UnicodeBidiValue.PLAINTEXT_VALUE;
 			}
-			// 接頭辞つき別名(2026-08-29)は標準の値と同じ
+			// Prefixed aliases (2026-08-29) are equivalent to standard values.
 			switch (ident) {
 			case "-moz-isolate":
 			case "-webkit-isolate":

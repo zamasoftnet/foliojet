@@ -1,21 +1,21 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * CSS の{@code bookmark-level}・{@code bookmark-label}(css-gcpm-3)の計算値です
- * (2026-10-04、TECH-20261003-004 の⑤)。どちらも既定のままなら箱には付けず
- * ({@code Params.bookmark == null})、しおりは従来どおり h1〜h6 の段数と
- * 見出しの文字から作る。
+ * Computed values of CSS {@code bookmark-level} and {@code bookmark-label} (css-gcpm-3)
+ * (2026-10-04, TECH-20261003-004 ⑤). If both retain their defaults, they are not attached to the box
+ * ({@code Params.bookmark == null}); bookmarks (PDF outline) are created from h1–h6 levels and
+ * heading text as before.
  *
- * @param level しおりの段数。0 なら作らない({@code none})、-1 なら文書の
- *              見出しの段数(h1〜h6)に従う({@code auto})
- * @param label しおりの文字の部品。{@code null}の要素はその要素の文字
- *              ({@code content()})。配列が{@code null}なら要素の文字だけ
+ * @param level bookmark level. 0 means no bookmark ({@code none}); -1 follows the document's
+ *              heading level (h1–h6) ({@code auto})
+ * @param label components of the bookmark text. A {@code null} entry means the element's text
+ *              ({@code content()}). A {@code null} array means only the element's text
  */
 public record BookmarkSpec(int level, String[] label) implements java.io.Serializable {
-	/** 段数を文書の見出しに任せる値。 */
+	/** Value that delegates the level to the document's heading. */
 	public static final int LEVEL_AUTO = -1;
 
-	/** しおりの文字を組み立てます。 */
+	/** Assembles the bookmark text. */
 	public String title(final String elementText) {
 		if (this.label == null) {
 			return elementText;

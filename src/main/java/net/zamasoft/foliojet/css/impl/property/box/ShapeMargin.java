@@ -17,12 +17,12 @@ import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code shape-margin}です(css-shapes-1 §4.3、2026-08-29新設)。
+ * {@code shape-margin} (css-shapes-1 §4.3, added 2026-08-29).
  *
  * <p>
- * {@code <length-percentage>}(非負)。{@code shape-outside}の形状を
- * この距離だけ外側へ膨らませる。%は包含ブロックの行方向幅が基準
- * (レイアウト側で解決する)。既定0・非継承。
+ * {@code <length-percentage>} (nonnegative). Expands the {@code shape-outside} shape outward
+ * by this distance. % is relative to the containing block's inline width
+ * (resolved during layout). Defaults to 0; not inherited.
  * </p>
  */
 public class ShapeMargin extends AbstractPrimitivePropertyInfo {

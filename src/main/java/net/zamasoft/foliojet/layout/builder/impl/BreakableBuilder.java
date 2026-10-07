@@ -38,12 +38,11 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
- * 改ページ・改段の編成(自動/強制/段組)を担う抽象ビルダーです
- * (2026-07-19訂正: 旧javadocはRootBuilderからのコピー残りで
- * 「ドキュメント全体を構築します」という不正確な説明だった。実際には
- * ARCHITECTURE.md命名台帳§8で指摘の通り、ファイル本体の大半が
- * 自動/強制/段の切断編成に費やされている)。{@link RootBuilder}が
- * ドキュメントルート向けの具象サブクラス。
+ * Abstract builder that coordinates page/column breaks (automatic, forced, and multi-column).
+ * Correction on 2026-07-19: the old Javadoc was left over from RootBuilder and incorrectly
+ * said "Builds the entire document". As noted in ARCHITECTURE.md naming ledger §8,
+ * most of this file actually coordinates automatic/forced/column splits.
+ * {@link RootBuilder} is the concrete subclass for the document root.
  *
  * @author MIYABE Tatsuhiko
  * @version $Id: BreakableBuilder.java 1561 2018-07-04 11:44:21Z miyabe $
@@ -56,7 +55,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	public static final byte MODE_PAGE_BREAK = 2;
 
 	/**
-	 * 改ページモードです。
+	 * Page break mode.
 	 */
 	protected byte mode;
 
@@ -65,30 +64,30 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	protected int breakDepth = -1;
 
 	/**
-	 * 次ページに先送り可能な行数のカウントです。
+	 * Count of lines that can be deferred to the next page.
 	 */
 	protected int widows = 0;
 
 	/**
-	 * 次のポイントでpage-break-afterによる改ページを適用するフラグです。
+	 * Flag to apply a page-break-after break at the next point.
 	 */
 	protected PageBreakMode breakAfter = null;
 
 	/**
-	 * 直前での強制改ページを許可するフラグです。
+	 * Flag allowing a forced break immediately before.
 	 */
 	protected boolean canBreakBefore = true;
 
 	/**
-	 * ブロック間の自然改ページを許可するフラグです。
+	 * Flag allowing a natural page break between blocks.
 	 */
 	protected boolean interflowBreak = true;
 
 	/**
-	 * 再レイアウト(破断残余の再開)の入れ子深さです。再生した内容が
-	 * 新ページを溢れさせると再開の中で改ページが入れ子で起きるため、
-	 * boolean では内側の終了が外側の再開文脈を解除してしまう
-	 * (外部レビュー指摘)。
+	 * Nesting depth of relayout (resuming the remainder after a break).
+	 * When replayed content overflows the new page, another page break occurs inside resume.
+	 * With a boolean, completion of the inner resume would clear the outer resume context
+	 * (external review finding).
 	 */
 	private int restyleNesting = 0;
 
@@ -111,21 +110,21 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 	private IncompleteTableResult incompleteTable;
 
-	/** 直近の受理・追記・完了操作の結果。分割後にも溢れが残れば UNSPLITTABLE。 */
+	/** Result of the latest accept/append/complete operation. UNSPLITTABLE if overflow remains after splitting. */
 	public enum IncompleteTableStatus {
 		UNSUPPORTED, UNSPLIT, MOVED, SPLIT, UNSPLITTABLE
 	}
 
 	/**
-	 * 親が配置済みの最終残余を所有するハンドルです。
-	 * 呼び側は remainder() を addBound し直したり splitTableBox() したりしません。
-	 * body() に addTableRow した後、rowsAppended() を一度呼びます。
-	 * 最後の追記は rowsAppended() を省いて complete() で計上できます。
-	 * 各操作で残余・本文グループが替わるので、次の追記先は必ず取り直してください。
-	 * complete() まで他のフロー内容を挟まず、表を直接 complete() しません。
-	 * 負の終端フレームが改頁結果を変える最終追記は、必ず complete() へ渡します。
-	 * 大きな負マージンがそれ以前の分割にも影響する場合、受理・追記通知の送出を
-	 * 保留する条件は B-2b の呼び側が全体計画から判定します。送出済みの分割は戻せません。
+	 * Handle whose parent owns the placed final remainder.
+	 * The caller must not addBound remainder() again or call splitTableBox().
+	 * After addTableRow on body(), call rowsAppended() once.
+	 * The final append can be accounted for by complete(), omitting rowsAppended().
+	 * Each operation can replace the remainder/body group; always retrieve the next append target again.
+	 * Do not interleave other flow content before complete(), or directly complete() the table.
+	 * Always pass the final append to complete() if a negative end frame changes the page break result.
+	 * If a large negative margin also affects earlier splits, the B-2b caller uses the whole plan
+	 * to decide when to defer emission of accept/append notifications. Emitted splits cannot be undone.
 	 */
 	public final class IncompleteTableResult {
 		private IncompleteTableStatus status;
@@ -145,7 +144,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			return this.status;
 		}
 
-		/** 直近の受理・追記・完了で改頁時に前頁へ送った実断片数。全体移動は数えません。 */
+		/** Actual fragments sent to the previous page by the latest accept/append/complete; excludes whole-box moves. */
 		public int emittedFragments() {
 			return this.emittedFragments;
 		}
@@ -154,7 +153,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			return this.status != IncompleteTableStatus.UNSUPPORTED;
 		}
 
-		/** 対象外の場合だけ null。完了後は最後に配置した完成断片です。 */
+		/** Null only if unsupported. After completion, this is the last placed completed fragment. */
 		public TableBox remainder() {
 			return this.remainder;
 		}
@@ -164,16 +163,18 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		/**
-		 * 未通知行を含む可視範囲で通知後の切断が確定するか(B-2b-6)。B-2bの送出前保留用。
-		 * pageAxisは通知済み外寸を含むため残り容量の始点には使わず、配置時のpageStartを使います。
-		 * TableBoxが枠・ヘッダの控除後に実装と同じ切断走査をdry-runします。
+		 * Whether post-notification splitting is determined within the visible range, including
+		 * unnotified rows (B-2b-6). Used by B-2b to defer emission.
+		 * pageAxis includes notified outer sizes, so use pageStart from placement as the starting
+		 * point for remaining capacity. TableBox dry-runs the same split scan as the implementation
+		 * after subtracting the frame/header.
 		 */
 		public boolean hasRowEmissionOverflow() {
 			this.requireActive();
 			return this.remainder.emissionCutDetermined(BreakableBuilder.this.getPageLimit() - this.pageStart);
 		}
 
-		/** 現在の残余の仮想全行計画。B-2a 単独の受理では null です。 */
+		/** Virtual whole-row plan for the current remainder. Null for standalone B-2a acceptance. */
 		public net.zamasoft.foliojet.layout.box.impl.IncompleteTablePlan plan() {
 			return this.remainder == null ? null : this.remainder.getIncompletePlan();
 		}
@@ -190,10 +191,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		/**
-		 * 追加済みの行だけを計上し、親が必要な改頁と残余の再配置を行います。
-		 * 終端フレーム復元前に判定するので、それが分割結果を変える最終追記には
-		 * この操作を使わず complete() を呼びます。
-		 * 新しい行のない二重通知、受理前・完了後の通知は IllegalStateException。
+		 * Accounts only for appended rows; the parent performs needed page breaks and repositions
+		 * the remainder. Checks before restoring the end frame, so use complete() instead for
+		 * a final append whose restored frame changes the split result.
+		 * Duplicate notifications without new rows, notifications before acceptance, and
+		 * notifications after completion throw IllegalStateException.
 		 */
 		public IncompleteTableStatus rowsAppended() {
 			this.requireActive();
@@ -206,11 +208,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		/**
-		 * 未通知の最終追記を計上し、終端フレーム・末尾会計を復元してから、
-		 * 最終の改頁判定を一度だけ行います。追記は rowsAppended() と同じ条件で検査します。
-		 * 全行を通知済みでも呼べ、その行を二重計上しません。先行通知による分割が
-		 * 完了時の結果を変えない場合、直接 complete() と rowsAppended() 後の complete()
-		 * は同値です。負の終端フレームが分割を取り消す場合は直接呼んでください。
+		 * Accounts for the unnotified final append, restores the end frame and trailing accounting,
+		 * then checks the final page break exactly once. Appends are checked under the same conditions
+		 * as rowsAppended(). May be called even if all rows were notified; they are not counted twice.
+		 * If splitting from an earlier notification does not affect the completion result, direct
+		 * complete() and complete() after rowsAppended() are equivalent.
+		 * Call directly when a negative end frame cancels a split.
 		 */
 		public IncompleteTableStatus complete() {
 			this.requireActive();
@@ -232,8 +235,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		private void updateExtent() {
-			// 初回配置で相殺・浮動体回避を済ませた始点から外寸を置き換える。
-			// (oldCursor + (newExtent - oldExtent)) の丸めと二重配置を避ける。
+			// Replace the outer size from the start position after initial margin collapse and float avoidance.
+			// Avoid rounding in (oldCursor + (newExtent - oldExtent)) and duplicate placement.
 			BreakableBuilder.this.pageAxis = this.pageStart + this.remainder.getHeight();
 			if (this.flow.box instanceof FlowBlockBox flowBox) {
 				flowBox.updateIncompleteTableExtent(BreakableBuilder.this.pageAxis - this.flow.pageAxis,
@@ -252,23 +255,24 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 	}
 
-	/** Pass B 後の判定と受理入口で共有する、実宿主の状態です。 */
+	/** Actual host state shared by the post-Pass B check and the acceptance entry point. */
 	final boolean supportsIncompleteTableIntake() {
 		return this.mode == MODE_PAGE_BREAK && this.breakDepth == -1 && !this.isRestyling()
 				&& this.textSession == null && this.textBuilder == null && this.canFragmentFurther();
 	}
 
 	/**
-	 * 未完表の専用入口です。初回のマージン相殺・浮動体回避は BlockBuilder、
-	 * 強制・自動分割は完成 Retained 表と同じ firstTableForceBreak / autoBreak
-	 * (その下の TableBox.split) が担当します。残余は親が再配置まで済ませます。
-	 * 呼び側は splitTableBox() を呼ばず、返されたハンドルで追記・完了してください。
+	 * Dedicated entry point for unfinished tables. BlockBuilder handles initial margin collapse
+	 * and float avoidance. Forced/automatic splits use firstTableForceBreak / autoBreak
+	 * (and TableBox.split beneath them), as for completed Retained tables.
+	 * The parent also repositions the remainder. The caller must use the returned handle to
+	 * append/complete, without calling splitTableBox().
 	 *
-	 * MODE_PAGE_BREAK の横組み通常フローだけを受理します。continuous は
-	 * DocumentBuilder が MODE_NO_BREAK にするため対象外です。本文は1グループ、
-	 * フッタ・collapse は対象外。Pass C の計画適格性の判定・呼び出しは B-2b。
-	 * 本文高以外の指定高を積んだ箱も対象外です。対象外なら配置せず UNSUPPORTED
-	 * を返します。呼び側は未受理の箱を complete() してから従来経路へ戻せます。
+	 * Accepts only normal horizontal-writing flow in MODE_PAGE_BREAK. Continuous mode is excluded
+	 * because DocumentBuilder uses MODE_NO_BREAK. Requires one body group; excludes footers/collapse.
+	 * B-2b checks Pass C plan eligibility and calls this entry point. Boxes carrying specified height
+	 * other than body height are also excluded. Returns UNSUPPORTED without placement if ineligible.
+	 * The caller can complete() the unaccepted box and then return to the old path.
 	 */
 	public final IncompleteTableResult acceptIncompleteTable(final TableBox tableBox) {
 		if (!this.supportsIncompleteTableIntake() || this.getRootBox().getBlockParams().flow.isVertical()
@@ -286,7 +290,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				|| this.lastTableBox == tableBox) {
 			throw new IllegalStateException("Expected a new incomplete table with no active intake");
 		}
-		// TablePos の before/after は AUTO。既存入口と同じく、先行する強制改頁を先に処理する。
+		// TablePos before/after are AUTO. As at the existing entry point, handle a preceding forced break first.
 		final boolean namedTransition = this.resolveNamedPageTransition(tableBox);
 		final boolean forcedBreak = this.breakAfter != null;
 		if (forcedBreak) {
@@ -318,7 +322,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 	}
 
-	/** 既存 addBound の Retained ループを変更せず、未完表操作の結果を捕捉します。 */
+	/** Captures unfinished-table operation results without changing the existing Retained loop in addBound. */
 	private IncompleteTableStatus breakIncompleteTable(final IncompleteTableResult result) {
 		result.emittedFragments = 0;
 		IncompleteTableStatus status = IncompleteTableStatus.UNSPLIT;
@@ -341,7 +345,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 			if (this.lastTableBox == null) {
 				if (result.completed) {
-					// 完成表が前頁に残り、次頁に表残余を持たない場合は従来ループ同様ここで終える。
+					// If the completed table stays on the previous page with no remainder on the next, stop as in the old loop.
 					++result.emittedFragments;
 					if (this.getPageContext() != null) this.getPageContext().noteRetainedTableFragmentEmitted();
 					return status;
@@ -352,13 +356,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				++result.emittedFragments;
 				if (this.getPageContext() != null) {
 					this.getPageContext().noteRetainedTableFragmentEmitted();
-					// RootのpageBreakは前頁の描画と残余の再開を終えてから返る。
-					// MOVEでは同じ箱が次頁に必要なので、異なる残余が返った場合だけ手放す。
+					// Root pageBreak returns after drawing the previous page and resuming the remainder.
+					// MOVE needs the same box on the next page, so release it only if a different remainder is returned.
 					tableBox.releaseDrawnRowFragment();
 				}
 				status = IncompleteTableStatus.SPLIT;
 			} else if (force != null) {
-				// 強制の行間切断で残余が替わらなければ進捗なし。再試行し続けない。
+				// If a forced inter-row split leaves the remainder unchanged, there is no progress. Do not keep retrying.
 				return IncompleteTableStatus.UNSPLITTABLE;
 			} else if (status == IncompleteTableStatus.UNSPLIT) {
 				status = IncompleteTableStatus.MOVED;
@@ -385,13 +389,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * 自動テーブルの強制改ページ。
-	 * 
+	 * Forced page break for an auto-layout table.
+	 *  
 	 * @param tableBox
 	 * @return
 	 */
 	private TableForceBreakMode firstTableForceBreak(TableBox tableBox) {
-		// *** テーブルにはヘッダとフッタがあるので、左右指定した改ページは適用しない
+		// *** Tables have headers and footers, so do not apply left/right page break specifications.
 		if (tableBox.getTableBodyCount() <= 0) {
 			return null;
 		}
@@ -400,7 +404,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (tableBox.isIncomplete() && tableBox.getIncompletePlan() != null) {
 			last = tableBox.incompleteForceBreakStart(this.incompleteTable.pageStart);
 		} else if (tableBox.isIncomplete()) {
-			// 未完表の配置では終端フレームを積んでいない。
+			// Placement of an unfinished table does not add the end frame.
 			last -= tableBox.getInnerPageExtent(tableFlow);
 		} else {
 			last -= tableBox.getInnerPageExtent(tableFlow) + tableBox.getFrame().getFramePageEnd(tableFlow);
@@ -411,7 +415,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (tableBox.getTableFooter() != null) {
 			last += tableBox.getTableFooter().getPageSize();
 		}
-		// 走査は TableCutter に純化(C4-T3)
+		// Scan extracted into pure TableCutter logic (C4-T3).
 		final int groupCount = tableBox.getTableBodyCount();
 		final double[][] rowSizes = new double[groupCount][];
 		final PageBreakMode[] groupBefore = new PageBreakMode[groupCount];
@@ -444,38 +448,38 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * 名前付きページの遷移をサポートするかです(N2a——ページ文脈の
-	 * {@code RootBuilder}のみtrue。列分割等の{@code ColumnBuilder}は
-	 * ページ名の裁定に関与しない)。
+	 * Whether named page transitions are supported (N2a: true only for {@code RootBuilder},
+	 * which owns page context). {@code ColumnBuilder} for column splitting, etc. does not
+	 * participate in page-name decisions.
 	 */
 	protected boolean supportsNamedPages() {
 		return false;
 	}
 
-	/** 現在のページ名です(N2a。{@link #supportsNamedPages}がtrueのときのみ)。 */
+	/** Current page name (N2a; only when {@link #supportsNamedPages} is true). */
 	protected String currentPageName() {
 		return null;
 	}
 
-	/** 次に生成されるページからのページ名を設定します(N2a)。 */
+	/** Sets the page name starting with the next generated page (N2a). */
 	protected void setNextPageName(final String pageName) {
 	}
 
 	/**
-	 * ページ名遷移の改ページを送ります(N2b)。{@code namedTransition}印付き
-	 * のため、閉じられるページが白紙なら出力から落ちる。
+	 * Issues a page break for a page-name transition (N2b). The {@code namedTransition} flag
+	 * omits the closing page from output if it is blank.
 	 */
 	private void namedTransitionBreak() {
 		this.forceBreak(new ForceBreakMode(this.getFlowBox(), PageBreakMode.PAGE, true));
 	}
 
 	/**
-	 * page-break-beforeの裁定です(2026-08-01、{@code startFlowBlock}と
-	 * {@code addBound}に逐語重複していたswitchの一本化)。強制改ページ
-	 * すべきモードを返す。AVOIDの副作用({@code interflowBreak}解除、
-	 * {@code startFlowBlock}側のみ)は呼び出し側に残す。
+	 * Decides page-break-before (2026-08-01: unified the switches duplicated verbatim in
+	 * {@code startFlowBlock} and {@code addBound}). Returns the mode requiring a forced break.
+	 * The caller retains AVOID side effects (clearing {@code interflowBreak}, only on the
+	 * {@code startFlowBlock} path).
 	 *
-	 * @return {@code forceBreak}すべきモード、改ページ不要なら{@code null}
+	 * @return mode for {@code forceBreak}, or {@code null} if no break is needed
 	 */
 	private PageBreakMode resolveForcedBreakBefore(final PageBreakMode pageBreakBefore) {
 		switch (pageBreakBefore) {
@@ -510,14 +514,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * page-break-afterの裁定です(2026-08-01、{@code addBound}と
-	 * {@code endFlowBlock}で食い違っていたswitchの一本化)。PAGE/COLUMNと
-	 * 同面のVERSO/RECTOは次の境界まで遅延({@code breakAfter})、反対面の
-	 * VERSO/RECTOとIF_*は即時改ページ。従来{@code addBound}側は
-	 * IF_VERSO/IF_RECTOのcaseを持たず、正規のCSS値(浮動体の
-	 * {@code page-break-after: if-recto}等)でIllegalStateExceptionに
-	 * 落ちていた——{@code endFlowBlock}側の裁定へ統一して解消。
-	 * AVOIDの副作用({@code interflowBreak}解除)は呼び出し側に残す。
+	 * Decides page-break-after (2026-08-01: unified the inconsistent switches in
+	 * {@code addBound} and {@code endFlowBlock}). Defer PAGE/COLUMN and same-side
+	 * VERSO/RECTO until the next boundary ({@code breakAfter}); break immediately for
+	 * opposite-side VERSO/RECTO and IF_*. Previously, {@code addBound} lacked
+	 * IF_VERSO/IF_RECTO cases, so valid CSS values (such as {@code page-break-after: if-recto}
+	 * on floats) caused IllegalStateException. Resolved by adopting the
+	 * {@code endFlowBlock} decision rules. The caller retains the AVOID side effect
+	 * (clearing {@code interflowBreak}).
 	 */
 	private void applyBreakAfter(final PageBreakMode pageBreakAfter) {
 		switch (pageBreakAfter) {
@@ -552,12 +556,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * class-A境界のページ名遷移を裁定します(名前付きページN2a——
-	 * consult-codex-2026-07-31-named-pages.txt Q2)。名前が変わるとき、
-	 * 名前を先に切り替えてtrueを返す(呼び出し側は明示改ページの処理後、
-	 * まだ改ページしていなければ遷移用の改ページを1回行う——author
-	 * breakとの合成で二重に送らない)。合成ボックス(element==null)は
-	 * 境界に関与しない。
+	 * Decides page-name transitions at class-A boundaries (named pages N2a:
+	 * consult-codex-2026-07-31-named-pages.txt Q2). If the name changes, switch it first
+	 * and return true. After processing explicit breaks, the caller issues one transition
+	 * break if no break has occurred yet, avoiding a double break when combined with an
+	 * author break. Synthetic boxes (element==null) do not participate in the boundary.
 	 */
 	private boolean resolveNamedPageTransition(final net.zamasoft.foliojet.layout.box.IBox box) {
 		if (!this.supportsNamedPages() || this.isRestyling() || box.getParams().element == null
@@ -578,7 +581,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		switch (flowBox.getType()) {
 		case BLOCK:
 			AbstractBlockBox blockBox = flowBox;
-			// 境界前でのpage-break-afterの適用を許す
+			// Allow page-break-after before the boundary.
 			if (this.getRootBox().getBlockParams().flow.isVertical()) {
 				canBreakAfter = !blockBox.getFrame().frame.border.getRight().isNull();
 			} else {
@@ -588,19 +591,19 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
-			// clearによる改ページ
+			// Page break due to clear
 			final FlowPos pos = (FlowPos) flowBox.getPos();
 			while (this.breakByClear(pos))
 				;
 
-			// 直前での強制改ページチェック
+			// Check forced page break immediately before.
 			if (this.mode == MODE_PAGE_BREAK) {
-				// 名前付きページN2a: 名前を先に切り替える(以降の改ページは
-				// どれも新しい名前でページを作る)
+				// Named pages N2a: switch the name first (all subsequent breaks
+				// create pages with the new name).
 				final boolean namedTransition = this.resolveNamedPageTransition(flowBox);
 				boolean forcedBreak = false;
 				if (this.breakAfter != null && canBreakAfter) {
-					// 前のpage-break-afterによる改ページ
+					// Page break from the preceding page-break-after
 					this.forceBreak(this.breakAfter);
 					forcedBreak = true;
 				}
@@ -612,22 +615,22 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					this.interflowBreak = false;
 				}
 				if (namedTransition && !forcedBreak) {
-					// 明示改ページが無ければ遷移自身が1回送る。ページ先頭
-					// (canBreakBefore=false)でも送る——旧ページは白紙なら
-					// drawPageのnamedTransition判定で落ち、面もカウンタも
-					// 消費しない=旧名の未確定ページを新名で作り直す差し替えと
-					// 等価(N2b)。可視インクが既にあればページとして残る
+					// If no explicit break occurs, the transition issues one itself, even at page start
+					// (canBreakBefore=false). If the old page is blank, drawPage’s namedTransition check
+					// drops it without consuming a page side or counter.
+					// This is equivalent to replacing the unresolved old-name page with a new-name page
+					// (N2b). If it already has visible ink, retain it as a page.
 					this.namedTransitionBreak();
 				}
 			}
 		}
 
 		if (this.breakDepth == -1) {
-			// 改ページ契約(2026-07-22、開発記録
-			// -contract-consultation.md参照): 軸違い(TB⇄RL/LR)だけでなく
-			// 同軸内の方向違い(RL⇄LR)もこの祖先チェーンをatomicにする
-			// (直交writing-mode表と同じ扱いを、通常フローのブロックにも
-			// 一般化する)。判定はPaginationContractが正本
+			// Pagination contract (2026-07-22, development record
+			// -contract-consultation.md): both axis changes (TB⇄RL/LR) and
+			// direction changes on the same axis (RL⇄LR) make this ancestor chain atomic.
+			// Generalize the treatment of orthogonal-writing-mode tables to normal-flow
+			// blocks as well. PaginationContract is the authoritative decision point.
 			if (net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(
 					this.getFlow().box.getBlockParams().flow, flowBox)) {
 				this.breakDepth = 0;
@@ -636,8 +639,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			++this.breakDepth;
 		}
 		super.startFlowBlock(flowBox);
-		// 段組でない箱(本文・セルの大多数)は宿主の候補にならない。ここで抜けて
-		// 8,000 行の表で毎セルの適格判定を走らせない。
+		// Non-multicolumn boxes (most body/cell boxes) cannot be hosts. Exit here to avoid
+		// running eligibility checks for every cell in an 8,000-row table.
 		if (flowBox.getColumnCount() > 1) {
 			final RootBuilder footnoteRoot = this.getPageContext();
 			if (footnoteRoot != null) footnoteRoot.openFootnoteColumn(this, this.getFlow());
@@ -649,7 +652,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	private final boolean breakByClear(final FlowPos pos) {
-		// ブロックのclearによる改ページ
+		// Page break due to block clear
 		this.checkAbort();
 		this.requireNoOpenTextBuilder("(no context)");
 		boolean breakFloats = false;
@@ -686,7 +689,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			LOG.fine("page break [block clear]");
 		}
 
-		// 切断させるため高さを拡張
+		// Extend the height to force a split.
 		double savePageAxis = this.pageAxis;
 		this.pageAxis = this.getPageLimit() + 1;
 		boolean breaked = this.autoBreak();
@@ -696,25 +699,25 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.textBuilder != null) {
 			this.endTextBlock();
 		}
-		// **改ページできなかったなら false を返す**(2026-07-29)。
+		// **Return false if the page break fails** (2026-07-29).
 		//
-		// 呼び出し側({@link #startFlowBlock})は
-		// {@code while (this.breakByClear(pos));} と回す。改ページに
-		// 失敗したときは`pageAxis`を巻き戻して**呼ぶ前と全く同じ状態**へ
-		// 戻すので、ここで true を返すと同じ呼び出しが永久に繰り返される。
-		// `this.breakFloats`も変わらないため、分岐の結果も毎回同じになる。
+		// The caller ({@link #startFlowBlock}) loops with
+		// {@code while (this.breakByClear(pos));}. If the break fails,
+		// rewinding `pageAxis` restores **exactly the state before the call**,
+		// so returning true here repeats the same call forever.
+		// `this.breakFloats` is unchanged too, so the branch result is identical each time.
 		//
-		// 実測(seed 213026): 1ページも出ないまま120秒回り続け、
-		// 内側であきらめが17,522回起きていた。`autoBreak`が false を
-		// 返す道は、フロートのライブロックを検出した前進保証ガード
-		// ({@code ContinuationStats.guardBreakProgress})が改ページを
-		// 放棄したときに通る。
+		// Observed (seed 213026): looped for 120 seconds without emitting a page,
+		// with 17,522 abandoned attempts inside. `autoBreak` returns false
+		// when the progress guarantee guard detects float livelock
+		// ({@code ContinuationStats.guardBreakProgress}) and
+		// abandons the page break.
 		return breaked;
 	}
 
 	public final void addBound(IBox box) {
-		// M3c: 改ページ検査(forceBreak等)がK-P蓄積とインターリーブ
-		// しないよう、蓄積中なら検査より前にlegacyへ確定させる
+		// M3c: prevent page break checks (forceBreak, etc.) from interleaving with K-P accumulation;
+		// if accumulating, finalize via legacy before checking.
 		if (this.textSession != null) {
 			this.textSession.abortToLegacy();
 		}
@@ -726,25 +729,25 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		PageBreakMode pageBreakBefore, pageBreakAfter;
 		switch (box.getPos().getType()) {
 		case FLOW: {
-			// 通常のフロー
+			// Normal flow
 			this.requireNoOpenTextBuilder("(no context)");
 			final FlowPos pos = (FlowPos) box.getPos();
 			pageBreakBefore = pos.pageBreakBefore;
 			pageBreakAfter = pos.pageBreakAfter;
-			// clearによる改ページ
+			// Page break due to clear
 			while (this.breakByClear(pos))
 				;
 			break;
 		}
 		case FLOAT: {
-			// 浮動ボックス
+			// Floating box
 			final FloatPos pos = (FloatPos) box.getPos();
 			pageBreakBefore = pos.pageBreakBefore;
 			pageBreakAfter = pos.pageBreakAfter;
 			break;
 		}
 		case ABSOLUTE: {
-			// 絶対配置
+			// Absolute positioning
 			super.addBound(box);
 			return;
 		}
@@ -756,13 +759,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			throw new IllegalStateException();
 		}
 
-		// 直前での強制改ページチェック
+		// Check forced page break immediately before.
 		if (this.mode == MODE_PAGE_BREAK) {
-			// 名前付きページN2a: startFlowBlockと同じ裁定(float/表/置換)
+			// Named pages N2a: same decision as startFlowBlock (floats/tables/replaced elements).
 			final boolean namedTransition = this.resolveNamedPageTransition(box);
 			boolean forcedBreak = false;
 			if (this.breakAfter != null) {
-				// 前のpage-break-afterによる改ページ
+				// Page break from the preceding page-break-after
 				this.forceBreak(this.breakAfter);
 				forcedBreak = true;
 			}
@@ -781,27 +784,27 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			switch (box.getType()) {
 			case TABLE:
 				TableBox tableBox = (TableBox) box;
-				// 2026-07-21(M6b Phase B5e後始末): 従来はLayoutUtils
-				// .needsIntrinsicSizing(TableBox)という別実装(旧4条件)で
-				// 再判定していたが、これはTableBuildPlanner.plan()と
-				// 完全に重複しており、B5eで追加したORTHOGONAL_WRITING_MODE
-				// 条件がこちらには反映されない食い違いを生んでいた
-				// (実測では実害なしを確認済みだったが、今後同種の条件が
-				// 増えるたびに再発するリスクがあるため解消する)。単一の
-				// 判定点(TableBuildPlanner.plan())へ統一する。
+				// 2026-07-21 (M6b Phase B5e cleanup): previously, a separate implementation,
+				// LayoutUtils.needsIntrinsicSizing(TableBox), rechecked the old four conditions.
+				// It duplicated TableBuildPlanner.plan() completely,
+				// but lacked the ORTHOGONAL_WRITING_MODE condition added in B5e,
+				// creating an inconsistency between the two.
+				// Measurements had confirmed no actual harm, but adding similar conditions
+				// would risk repeating the problem, so eliminate it by using the single
+				// decision point, TableBuildPlanner.plan().
 				if (!tableBox.isIncomplete()
 						&& TableBuildPlanner.plan(this, tableBox).mode() != TableBuildPlan.Mode.RETAINED) {
-					// Incremental(fixedレイアウト等)の場合は
-					// IncrementalTableBuilderが再配置する
+					// For Incremental (fixed layout, etc.),
+					// IncrementalTableBuilder handles repositioning.
 					break;
 				}
 				if (tableBox.isIncomplete()) {
-					// 無分割でも現在の残余を保持する。分割時の更新は既存の再配置側が行う。
+					// Retain the current remainder even without splitting. Existing repositioning code updates it on a split.
 					this.lastTableBox = tableBox;
 				}
 				for (;;) {
 					this.checkAbort();
-					// テーブルの強制改ページチェック
+					// Check forced table page breaks
 					if (this.mode == MODE_PAGE_BREAK) {
 						TableForceBreakMode mode = this.firstTableForceBreak(tableBox);
 						if (mode != null) {
@@ -815,13 +818,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 						break;
 					}
 
-					// 自動改ページ
+					// Automatic page break
 					if (LOG.isLoggable(Level.FINE)) {
 						LOG.fine("page break [in table]");
 					}
 					this.lastTableBox = null;
 					if (!this.autoBreak()) {
-						// テーブルのヘッダとフッタがおさまらないケースがある
+						// Table headers and footers may not fit.
 						if (tableBox.isIncomplete()) {
 							this.lastTableBox = tableBox;
 						}
@@ -837,10 +840,10 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			case BLOCK:
 				break;
 			case RESCUE:
-				// 2026-07-25(救済分割・増分7): 救済断片がaddBoundを通るのは
-				// <b>浮動体の残余だけ</b>(通常フローの残余は専用入口
-				// addRescueBound()を通る)。浮動体はページ方向カーソルを
-				// 進めないので、ここでの自動改ページ検査は要らない
+				// 2026-07-25 (rescue splitting, increment 7): rescue fragments pass through addBound
+				// <b>only for float remainders</b> (normal-flow remainders
+				// use the dedicated addRescueBound() entry point). Floats do not advance
+				// the page-axis cursor, so no automatic page break check is needed here.
 				assert box.getPos().getType() == PosType.FLOAT : box;
 				break;
 			case REPLACED: {
@@ -852,7 +855,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					if (LayoutUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
 						break;
 					}
-					// 自動改ページ
+					// Automatic page break
 					if (LOG.isLoggable(Level.FINE)) {
 						LOG.fine("page break [interflow image]");
 					}
@@ -874,14 +877,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 
 		if (box instanceof TableBox tableBox && tableBox.isIncomplete()) {
-			// 後続行が未受理なので、表の直後の境界・avoid はまだ確定しない。
+			// Subsequent rows are not yet accepted, so the boundary/avoid immediately after the table is not final.
 			this.interflowBreak = false;
 			return;
 		}
 		this.canBreakBefore = true;
 		this.interflowBreak = true;
 
-		// 直後での強制改ページチェック
+		// Check forced page break immediately after.
 		if (this.mode == MODE_PAGE_BREAK) {
 			if (pageBreakAfter == PageBreakMode.AVOID) {
 				this.interflowBreak = false;
@@ -891,15 +894,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * 救済分割(visual rescue split)の残余断片をフローへ載せ、まだ
-	 * はみ出していれば改ページします(2026-07-25新設、増分5)。
+	 * Places a visual rescue split remainder in the flow and breaks the page if it still
+	 * overflows (introduced 2026-07-25, increment 5).
 	 *
 	 * <p>
-	 * ループは{@code addBound()}の{@code case REPLACED}と同型です。
-	 * {@code autoBreak()}が{@code false}(改ページ点なし)を返したら
-	 * <b>必ず</b>抜けるため、ここで無限ループにはなりません。前進は
-	 * {@code VisualRescuePlanner}が構造的に保証します(各改ページで
-	 * 必ず正の量を消費する)。
+	 * The loop has the same structure as {@code case REPLACED} in {@code addBound()}.
+	 * It <b>always</b> exits if {@code autoBreak()} returns {@code false} (no page break point),
+	 * so it cannot loop forever here. {@code VisualRescuePlanner} structurally guarantees
+	 * progress (each page break consumes a strictly positive amount).
 	 * </p>
 	 */
 	@Override
@@ -925,8 +927,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 	protected final void requireTextBlock() {
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1 && this.breakAfter != null) {
-			// 直前での強制改ページチェック
-			// 前のpage-break-afterによる改ページ
+			// Check forced page break immediately before.
+			// Page break from the preceding page-break-after
 			this.forceBreak(this.breakAfter);
 		}
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
@@ -936,9 +938,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					break;
 				}
 				this.checkAbort();
-				// ページフロートの排除で最初の行が版面内に作れない。
-				// 空のTextBlockBoxを作る前に通常のフラグメント切断へ送り、
-				// 次ページでは交換済みのページ排除域で再判定する。
+				// Page float exclusions prevent the first line from fitting in the type area.
+				// Before creating an empty TextBlockBox, use normal fragment splitting,
+				// then recheck on the next page with its replaced page exclusions.
 				final double savedPageAxis = this.pageAxis;
 				this.pageAxis = pageLimit + 1;
 				if (!this.autoBreak()) {
@@ -946,18 +948,18 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					break;
 				}
 				if (this.textBuilder != null) {
-					// **改ページ処理でつくられたテキストブロックを終了**(2026-09-17)。
-					// 継続の終端は深さ規約(OpenShape.of)で常に開きテキストなので、再開は
-					// 末尾の TextBlockBox を開いたまま戻す——ここへ来るのはテキストが
-					// 開いていないとき(textBuilder==null)だから、それは**既に終了処理を
-					// 済ませたテキストブロック(断片)**である(論理段落が終わったとは限らない
-					// ——flush() は続きのあるテキストも一度閉じる。続きは呼び出し中の
-					// イベントとして、この後に作る新しいブロックへ届く)。`endTextBlock()`・`breakByClear()`・浮動体の切断
-					// ループは皆この後始末を持つのに、この改ページだけ欠けていて、
-					// super.requireTextBlock() が「ブロック境界でテキストビルダーが開いた
-					// まま」で変換を失敗させていた(掃過 wild の 6 件。ページフロートの
-					// 排除で 1 行目が入らない頁)。開いたまま使い回すのは誤り——届きかけの
-					// control が前のブロックへ入り、インラインの開始が二重になる
+					// **Close the text block created by page break processing** (2026-09-17).
+					// By the depth convention (OpenShape.of), the continuation always ends in open text, so resume
+					// returns with the trailing TextBlockBox open. This point is reached when no text is open
+					// (textBuilder==null), so that is **a text block (fragment) already closed earlier**.
+					// The logical paragraph need not have ended:
+					// flush() also temporarily closes text that has a continuation. The continuation arrives as the
+					// event in the current call, at the new block created next. `endTextBlock()`, `breakByClear()`, and float splitting
+					// loops all had this cleanup, but this page break alone lacked it.
+					// super.requireTextBlock() then failed conversion because "the text builder remained open
+					// at a block boundary" (six wild sweep cases: pages where page float
+					// exclusions prevented the first line from fitting). Reusing it open is wrong:
+					// the incoming control would enter the previous block, duplicating inline starts.
 					this.endTextBlock();
 				}
 			}
@@ -966,29 +968,29 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	public final void flush() {
-		// M3c: K-P蓄積中はflushイベントを記録するだけ(行間改ページ検査は
-		// セッション終了時の再生がこのメソッドを通るときに行われる)
+		// M3c: while K-P accumulates, only record flush events (inter-line page break checks
+		// run when replay at session end passes through this method).
 		if (this.textSession != null && this.textSession.recordFlush()) {
 			return;
 		}
 		if (this.textBuilder == null) {
-			// テキストブロックが空(textBuilderが生成されていない)ときの
-			// flushは何もしない。BlockBuilder.flush()と同じnullガード。
-			// 到達例: `div`直下がsoft hyphen(U+00AD)単独のとき、
-			// StyledTextUnitizerはtextShaperを作るがWordHyphenatorが
-			// Markerを黙って落とす(hyphens:manualでfontMetrics未設定)ため、
-			// ビルダーへはglyphもcontrolも届かないまま、shaperのclose連鎖が
-			// flush()だけを呼ぶ。BlockBuilder側は2026-07-24に修正済みで、
-			// こちらは同型のまま残っていた(2026-07-25)
+			// If the text block is empty (textBuilder has not been created),
+			// flush does nothing. Same null guard as BlockBuilder.flush().
+			// Reachable example: a `div` containing only a soft hyphen (U+00AD) directly.
+			// StyledTextUnitizer creates a textShaper, but WordHyphenator
+			// silently drops the Marker (hyphens:manual with no fontMetrics),
+			// so no glyph/control reaches the builder; the shaper close chain
+			// calls only flush(). BlockBuilder was fixed on 2026-07-24,
+			// but this equivalent path remained unchanged (2026-07-25).
 			return;
 		}
 		while (this.textBuilder.flush()) {
-			// 改行発生
+			// Line break occurred
 			if (this.mode == MODE_NO_BREAK || this.breakDepth != -1) {
 				continue;
 			}
 
-			// 改行された場合の行間改ページチェック
+			// Check inter-line page breaks after a line break.
 			TextBuilder tbb = this.textBuilder;
 			double pageAxis = this.pageAxis;
 			pageAxis += this.textBuilder.getPageAxis();
@@ -997,30 +999,30 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				this.interflowBreak = true;
 			}
 
-			// 自動改ページ
+			// Automatic page break
 			if (LayoutUtils.compare(pageAxis, this.getPageLimit()) <= 0) {
-				// まだはみ出していない
+				// No overflow yet
 				continue;
 			}
 			++this.widows;
 
 			final BlockParams params = this.textBuilder.textBlockBox.getBlockParams();
 			if (this.widows < Math.max(2, params.widows)) {
-				// widowsが足りない
+				// Insufficient widows
 				continue;
 			}
 
 			if (!this.canFragmentFurther()) {
-				// もう断片を作れない(段組が段を使い切った)。ここで
-				// テキストブロックを閉じると、開き直せないまま
-				// this.textBuilder が null で使われる。**閉じずに**
-				// その場であふれさせる(2026-07-28)
+				// No more fragments can be created (multi-column layout exhausted its columns).
+				// Closing the text block here leaves it unable to reopen,
+				// and this.textBuilder would be used while null. **Do not close it**;
+				// let content overflow in place (2026-07-28).
 				continue;
 			}
 
-			// 本文の終端ではなく、版面が満杯になったため現在の断片を閉じる。
-			// SoftHyphen がこの断片の行末なら、通常の折返しと同じく
-			// hyphenate-character を実体化する必要がある。
+			// Close the current fragment because the type area is full, not because the body has ended.
+			// If SoftHyphen is at this fragment’s line end, materialize
+			// hyphenate-character as for normal wrapping.
 			super.endTextBlock(true);
 
 			if (LOG.isLoggable(Level.FINE)) {
@@ -1028,17 +1030,17 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 			final boolean broke = this.autoBreak();
 			if (!broke || this.textBuilder == null) {
-				// RootBuilder.pageBreak()は、切断対象がKEEP/MOVEで改ページ点を
-				// 作れない場合にfalseを返す。この時点で元のTextBuilderは
-				// endTextBlock()により現在の断片へ確定済みなので、空の継続
-				// TextBuilderを作ってはいけない。次のrunが実際に来れば
-				// startTextRun()が通常どおり遅延生成する。改ページに成功しても
-				// 切断行に残余イベントが無ければ再開側はTextBuilderを作らない。
-				// この場合も同様に、存在しないrunを合成せずflushを終える。
+				// RootBuilder.pageBreak() returns false when the split target is KEEP/MOVE
+				// and no page break point can be created. The original TextBuilder
+				// has already been finalized into the current fragment by endTextBlock(),
+				// so do not create an empty continuation TextBuilder. If another run actually arrives,
+				// startTextRun() lazily creates it as usual. Even on a successful page break,
+				// resume creates no TextBuilder if the split line has no remaining events.
+				// In that case too, finish flush without synthesizing a nonexistent run.
 				return;
 			}
 
-			// TextRunを復帰
+			// Restore TextRun
 			this.textBuilder.startTextRun(tbb.fontStyle, tbb.fontMetrics);
 		}
 	}
@@ -1055,13 +1057,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			if (!this.interflowBreak || LayoutUtils.compare(pageLimit, this.pageAxis) >= 0) {
 				return;
 			}
-			// 自動改ページ
+			// Automatic page break
 			if (LOG.isLoggable(Level.FINE)) {
 				LOG.fine("page break [after text]" + pageLimit + "/" + this.pageAxis);
 			}
 			if (this.autoBreak()) {
 				if (this.textBuilder != null) {
-					// 改ページ処理でつくられたテキストブロックを終了
+					// Close the text block created by page break processing.
 					this.endTextBlock();
 				}
 			}
@@ -1080,9 +1082,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		Flow flow = (Flow) this.flowStack.get(this.flowStack.size() - 1);
 
 		if (this.breakDepth == -1 && flow.box.canColumnBreak()) {
-			// マルチカラムの下の境界がページをはみ出ていたら改ページ
+			// Break the page if the bottom border of the multi-column layout extends beyond the page.
 			final double columnLimit = flow.pageAxis + flow.box.getInnerHeight();
-			// 下部の枠の幅を計算します。
+			// Calculate the bottom frame width.
 			final double lastFrame = this.lastFrame(flow, 1);
 			if (LayoutUtils.compare(columnLimit, this.getPageOwnerLimit() - lastFrame) > 0) {
 				final BreakMode mode = new AutoBreakMode(flow.box, this.getPageOwnerLimit());
@@ -1094,17 +1096,17 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		boolean canBreakAfter = false;
 		switch (flow.box.getType()) {
 		case RESCUE:
-			// 2026-07-25(救済分割・増分5で確認): ここで見ているのは
-			// flowStack の先頭=いま閉じようとしている「コンテナボックス」で
-			// あり、救済断片がflowStackへ積まれることは構造的にない
-			// (断片は分割不能な葉として flows に載るだけで、開かれない)。
-			// したがってこの分岐は到達不能。仮に到達したら、切断面には装飾を
-			// 付けない=断片自身が「境界直後の改ページを許す枠線」を持つ
-			// ことはない、という設計判断を明示的に足すこと
+			// 2026-07-25 (confirmed in rescue splitting, increment 5): this checks
+			// the first box in flowStack, the "container box" currently being closed.
+			// Rescue fragments structurally cannot be pushed onto flowStack
+			// (fragments are only placed in flows as indivisible leaves; they are never opened).
+			// Thus this branch is unreachable. If it ever becomes reachable, explicitly add
+			// the design rule that split edges have no decoration, so the fragment itself
+			// never has a "border permitting a page break immediately after the boundary".
 			throw new IllegalStateException("救済断片はコンテナとして開かれない: " + flow.box);
 		case BLOCK:
 			AbstractBlockBox blockBox = (AbstractBlockBox) flow.box;
-			// 境界直後でのpage-break-afterによる強制改ページを許す
+			// Allow forced page-break-after immediately after the boundary.
 			if (this.getRootBox().getBlockParams().flow.isVertical()) {
 				if (!blockBox.getFrame().frame.border.getLeft().isNull()) {
 					this.canBreakBefore = true;
@@ -1119,36 +1121,36 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				}
 			}
 			if (blockBox instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox) {
-				// **flex/gridを閉じたら、末尾のはみ出し検査を必ず有効にする**
-				// (2026-08-17)。中身はTwoPass録画(MODE_NO_BREAK)で組まれ、
-				// addBound()の先頭のearly-returnを通るため、通常ブロックと
-				// 違いinterflowBreakを一度も立てないまま閉じる。bindで
-				// カーソルが一括で進むこれらのボックスにとって、この後の
-				// interflow検査は**唯一の自動改ページ機会**——直前の内容が
-				// フラグをfalseのまま残していると(実測: pandocマニュアルの
-				// navの後の.container{display:flex})検査がスキップされ、
-				// 本文全体130,000ptが1ページに積み上がって紙外へ流出した。
-				// 直前に通常のaddBoundがあれば偶然動くため、発症が文書構造に
-				// 依存して見えづらい。
+				// **Always enable the trailing overflow check when closing flex/grid**
+				// (2026-08-17). Their content is built by TwoPass recording (MODE_NO_BREAK)
+				// and takes the early return at the start of addBound(), so unlike normal blocks
+				// they close without ever setting interflowBreak. For these boxes, whose bind advances
+				// the cursor all at once, the following interflow check is
+				// **the only automatic page break opportunity**. If preceding content leaves
+				// the flag false (observed in the pandoc manual’s
+				// .container{display:flex} after nav), the check is skipped,
+				// piling the entire 130,000 pt body onto one page and overflowing off the sheet.
+				// A preceding normal addBound makes it work by chance, so the document-structure
+				// dependency obscures the defect.
 				this.canBreakBefore = true;
 				this.interflowBreak = true;
 			}
 			break;
 		}
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
-			// 末尾の境界直前での強制改ページチェック
+			// Check forced page breaks immediately before the trailing boundary.
 			if (this.breakAfter != null && canBreakAfter) {
 				this.forceBreak(this.breakAfter);
 			}
-			// ルートボックス内の浮動ボックスを切断
+			// Split floating boxes inside the root box.
 			if (this.flowStack.size() == 1) {
 				while (!this.breakFloats.isEmpty()) {
 					this.checkAbort();
 					if (!this.canFragmentFurther()) {
-						// もう断片を作れない(段組が段を使い切った)。
-						// 予約を消さずに抜けると**無限ループ**する
-						// (breakFloatsはbeginBreak()でしか空にならない)。
-						// 浮動体は最後の段の中に残してあふれさせる
+						// No more fragments can be created (multi-column layout exhausted its columns).
+						// Exiting without clearing reservations causes an **infinite loop**
+						// (only beginBreak() clears breakFloats).
+						// Leave floats in the last column and let them overflow.
 						// (2026-07-28)
 						this.breakFloats.clear();
 						break;
@@ -1156,23 +1158,23 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					if (LOG.isLoggable(Level.FINE)) {
 						LOG.fine("page break [floats]");
 					}
-					// 必ず切断させるため高さを拡張
+					// Extend the height to ensure a split.
 					this.pageAxis = this.getPageLimit() + 1;
 					this.autoBreak();
 					if (this.textBuilder != null) {
-						// 切断したfloatが次の断片でもはみ出す場合、継続の再生が
-						// テキストブロックを開き、breakFloatsをもう一度予約する。
-						// 次のループ反復は再びブロック境界から改段するので、
-						// breakByClear()と同じく各切断直後に閉じておく。
+						// If a split float still overflows the next fragment, continuation replay
+						// opens a text block and reserves breakFloats again.
+						// The next loop iteration again breaks the column at a block boundary,
+						// so close it immediately after each split, as in breakByClear().
 						this.endTextBlock();
 					}
 				}
 			}
 
-			// 改ページ後のフローのオブジェクトを取得する
+			// Retrieve the flow object after the page break.
 			flow = (Flow) this.flowStack.get(this.flowStack.size() - 1);
 			if (this.textBuilder != null) {
-				// 改ページ処理でつくられたテキストブロックを終了
+				// Close the text block created by page break processing.
 				this.endTextBlock();
 			}
 		}
@@ -1182,7 +1184,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				&& footnoteRoot.isEligibleFootnoteColumnOwner(this, flow.box);
 		if (footnoteRoot != null) footnoteRoot.closeFootnoteColumn(flow.box);
 		super.endFlowBlock();
-		// balance 後に段組の高さが決まってから、回収した段の注の収容を判定する(増分6)。
+		// After balance resolves the multi-column height, check whether the collected column notes fit (increment 6).
 		if (footnoteRoot != null && closesColumnOwner) footnoteRoot.settleRecoveredFootnotes(this.pageAxis);
 		if (this.breakDepth != -1) {
 			--this.breakDepth;
@@ -1198,19 +1200,19 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				this.interflowBreak = false;
 			}
 			if (this.interflowBreak) {
-				// 一番下のボックスの境界下辺がページの内底辺をはみ出していた場合
-				// 自動改ページ。**閉じたのがflex/grid(PageAtomicBox)なら
-				// 入るまで繰り返す**(2026-08-17)。従来は1回だけだったため、
-				// 複数ページぶんの分割不能ボックス——
-				// body{display:flex;flex-direction:column}の実文書など——が
-				// 救済分割を1回受けた後、残余が2ページ目に置かれたまま
-				// 再検査されず、はみ出したまま終わっていた。TABLEのaddBoundの
-				// for(;;)と同じ形で、これらのボックスにはここが唯一の
-				// 自動改ページ機会だから繰り返しもここが担う。通常ブロックは
-				// 行単位の検査が別にあるので従来どおり1回(無条件のループは
-				// 白紙ページ抑止・fuzzの既存挙動を壊すと実測で確認済み)。
-				// autoBreakがfalse(前進保証ガードの放棄等)を返したら抜ける
-				// ので無限ループにはならない
+				// If the lowest box’s bottom border extends beyond the page’s inner bottom edge
+				// Automatic page break. **If the closed box is flex/grid (PageAtomicBox),
+				// repeat until it fits** (2026-08-17). Previously this ran only once,
+				// so an indivisible box spanning multiple pages, such as
+				// a real document with body{display:flex;flex-direction:column},
+				// received one rescue split, then its remainder stayed on page 2
+				// without another check, leaving overflow at the end. Like the for(;;)
+				// in TABLE addBound, this is the only automatic page break opportunity
+				// for these boxes, so it must also handle repetition. Normal blocks have separate
+				// per-line checks, so keep their single attempt (measurements confirmed that an unconditional
+				// loop breaks blank-page suppression and existing fuzz behavior).
+				// Exit when autoBreak returns false (for example, abandonment by the progress guarantee guard),
+				// so the loop cannot run forever.
 				final boolean repeat = flowBox instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox;
 				for (;;) {
 					final double pageAxis = this.pageAxis - (this.poLastMargin + this.neLastMargin);
@@ -1222,23 +1224,23 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					}
 					this.checkAbort();
 					if (!this.autoBreak() || !repeat || this.flowStack.isEmpty()) {
-						// autoBreakは改ページ中にflowStackを空にすることがある
-						// (fuzzで実測: 空のまま再取得するとIndexOutOfBounds)
+						// autoBreak can empty flowStack during a page break
+						// (observed in fuzzing: retrieving from the empty stack causes IndexOutOfBounds).
 						break;
 					}
-					// 改ページ後のフローを取り直す(切断で作り直されている)。
-					// **ボックスも取り直すこと**(2026-08-19)——切断後の末尾は
-					// 継続断片(別インスタンス)で、古い参照(保持側)は
-					// もう収まっているためpaintsBeyondPageが偽になり、
-					// 残余が紙面を越えたまま検査が終わっていた(stripe-docsの
-					// 末尾3,000pt超の積み上がりで実測)
+					// Retrieve the flow again after the page break (the split recreated it).
+					// **Retrieve the box again too** (2026-08-19): the trailing box after splitting is
+					// a continuation fragment (a different instance). The old reference (retained side)
+					// already fits, so paintsBeyondPage returns false,
+					// ending the check while the remainder still exceeds the sheet (observed in stripe-docs
+					// with over 3,000 pt piled up at the end).
 					flow = (Flow) this.flowStack.get(this.flowStack.size() - 1);
 					flowBox = (FlowBlockBox) flow.box;
 				}
 			}
 
-			// 直後での強制改ページチェック(AVOIDのinterflowBreak解除は上で
-			// 済んでいる)
+			// Check forced page break immediately after (AVOID already cleared interflowBreak
+			// above).
 			if (this.mode == MODE_PAGE_BREAK) {
 				this.applyBreakAfter(pos.pageBreakAfter);
 			}
@@ -1246,12 +1248,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * flow blockを閉じ、{@link #breakDepth}を戻した直後のフックです。
-	 * 既定では何もしません。RootBuilderは、ブロック間のoverflow検査より前に
-	 * 現ページ上端フロートの平行移動を試します。
+	 * Hook immediately after closing a flow block and restoring {@link #breakDepth}.
+	 * Does nothing by default. RootBuilder attempts to translate top floats on the current
+	 * page before the inter-block overflow check.
 	 */
 	protected void afterFlowBlockClosed() {
-		// ColumnBuilderなど、ページ全体を所有しないbuilderでは何もしない。
+		// Do nothing for builders that do not own the whole page, such as ColumnBuilder.
 	}
 
 	protected void addStartFloat(IFloatBox box) {
@@ -1271,10 +1273,10 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * clearによる先送り判定です(2026-07-23、排除域P1増分4——旧
-	 * addStartFloat/addEndFloatが重複して持っていたswitchの一本化。
-	 * 既に先送り済みのfloatをclear対象に指定しているfloatは、探索なしで
-	 * 次フラグメントへ先送りする)。副作用なし。
+	 * Checks deferral due to clear (2026-07-23, exclusion area P1 increment 4: unifies the
+	 * switches duplicated in the old addStartFloat/addEndFloat). A float that clears
+	 * an already deferred float is deferred to the next fragment without searching.
+	 * No side effects.
 	 */
 	private boolean deferredByClear(final ClearMode clear) {
 		switch (clear) {
@@ -1292,10 +1294,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * clear先送りの配置計画を作ります(2026-07-23、排除域P1増分4——
-	 * フラグメント境界(pageLimit)へ置いて次フラグメントへ送る。
-	 * 副作用なし、commitは{@code commitFloatPlacement}の
-	 * {@code MOVE_BY_CLEAR}分岐)。
+	 * Creates a placement plan for deferral due to clear (2026-07-23, exclusion area P1
+	 * increment 4). Place at the fragment boundary (pageLimit) and send to the next fragment.
+	 * No side effects; {@code commitFloatPlacement}'s {@code MOVE_BY_CLEAR} branch commits it.
 	 */
 	private FloatPlacementDelta deferByClear(final IFloatBox box, final FloatSide side) {
 		final WritingMode progression = this.getRootBox().getBlockParams().flow;
@@ -1307,12 +1308,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * このfloatが現在のページ/段の実効先頭にあるかを返します。
+	 * Returns whether this float is at the effective start of the current page/column.
 	 *
 	 * <p>
-	 * float自身がowner内の先頭にあるだけでは足りません。開いている各ownerが
-	 * 親断片の先頭flowであることを外側から合成し、分割時の
-	 * {@code FLAGS_FIRST && fragmentHead}と同じ条件にします(2026-09-04)。
+	 * Being at the start within its own owner is insufficient. Combine, from the outside inward,
+	 * whether each open owner is the first flow of its parent fragment, matching the
+	 * {@code FLAGS_FIRST && fragmentHead} condition used in splitting (2026-09-04).
 	 * </p>
 	 */
 	final boolean isFloatAtFragmentStart(final double pageStart) {
@@ -1320,8 +1321,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		for (int i = 1; i < this.getFlowCount(); ++i) {
 			final Flow parent = this.getFlow(i - 1);
 			final Flow child = this.getFlow(i);
-			// flowStackの箱はAbstractContainerBox型だが、flowとして積まれる
-			// ものはIFlowBox(FlowBlockBox)——それ以外は先頭とみなさない
+			// Boxes in flowStack are AbstractContainerBox, but those pushed as flows are
+			// IFlowBox (FlowBlockBox); treat anything else as not at the start.
 			ancestorsFirst = FloatMeasurement.isFragmentStart(ancestorsFirst,
 					child.box instanceof net.zamasoft.foliojet.layout.box.IFlowBox childFlow
 							&& parent.box.getContainer().isFirstFlow(childFlow));
@@ -1334,7 +1335,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				LayoutUtils.compare(pageStart - owner.pageAxis, 0) <= 0);
 	}
 
-	/** 分割不能floatだけに適用する実効終端。通常は断片終端そのもの。 */
+	/** Effective end applied only to indivisible floats. Normally the fragment end itself. */
 	protected double getUnsplittableFloatPageLimit() {
 		return this.getPageLimit();
 	}
@@ -1343,11 +1344,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 * {@inheritDoc}
 	 *
 	 * <p>
-	 * 2026-07-23(排除域P1増分2): 従来の{@code transferFloatToNextPage}
-	 * (判定名だが{@code breakFloats.add}の副作用を持っていた)を、
-	 * この副作用のない分類と{@link #recordBreakFloat}へ分解した。
-	 * 分類は実測の物理位置(フラグメント境界へのはみ出し・ページ先頭に
-	 * いるか)だけで決まる。
+	 * 2026-07-23 (exclusion area P1 increment 2): split the former
+	 * {@code transferFloatToNextPage} (named as a predicate but with the side effect
+	 * {@code breakFloats.add}) into this side-effect-free classification and
+	 * {@link #recordBreakFloat}. Classification depends only on measured physical position
+	 * (overflow beyond the fragment boundary and whether it is at page start).
 	 * </p>
 	 */
 	@Override
@@ -1364,37 +1365,37 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				LOG.fine("float placed unconditionally (column band): " + box.getParams().element + " builder="
 						+ this.getClass().getSimpleName());
 			}
-			// 段組の中の浮動体(2026-07-26)。ここでのページ軸は
-			// **段に分割される前の「帯」の座標**なので、ページの上限と
-			// 比べても意味がない——帯は段の数だけ長くなるのが正常である。
+			// Floats in multi-column layout (2026-07-26). The page axis here uses
+			// **coordinates of the "band" before column splitting**, so comparison with the page limit
+			// is meaningless: the band is supposed to be as long as the combined columns.
 			//
-			// 判定は段の{@link ColumnBuilder}が自分の上限(=段の長さ)で
-			// 行う。両方が記録すると、段側で正しく処理された後もルート側の
-			// 予約が残り、{@link #endFlowBlock()}の浮動体切断ループが
-			// **描くもののないページを1枚作る**。
+			// The column’s {@link ColumnBuilder} classifies using its own limit (= column length).
+			// If both record it, the root reservation remains even after the column handles it correctly,
+			// causing the float splitting loop in {@link #endFlowBlock()} to
+			// **create a page with nothing to draw**.
 			//
-			// 実測(2026-07-26、6,000シード): 末尾の空ページが47件→32件。
-			// 「帯の座標をページの上限と比べていた」ことは計測で確認した
-			// ——同じ浮動体が、ルート側では{@code pageStart=176.08}
-			// (上限190)、段側では{@code pageStart=58.24}(上限58.24)と
-			// 二重に分類されていた。
+			// Observed (2026-07-26, 6,000 seeds): trailing blank pages decreased from 47 cases to 32.
+			// Measurements confirmed "band coordinates were compared with the page limit":
+			// the same float was classified twice, at {@code pageStart=176.08}
+			// (limit 190) on the root side and {@code pageStart=58.24} (limit 58.24)
+			// on the column side.
 			return FloatCommitKind.PLACED;
 		}
 
-		// 2026-07-28: ここは長らく「箱の幾何」(getPageExtent)だけを見て
-		// いた。**箱がページに収まっていても、中身が箱をはみ出して紙の外へ
-		// 出ることがある**——ページ軸方向の寸法を明示した浮動体
-		// (縦書きのwidth、横書きのheight)がそれで、指定寸法を超えた中身は
-		// overflow:visibleのまま描かれる。幾何だけで「収まっている」と
-		// 判定すると切断が予約されず、**改ページが一度も起きないまま**
-		// 中身が紙の外まで並ぶ(local/shrink/strict-149858-min.html:
-		// float:right;width:0pt の中身が120pt幅の紙で x=-145 まで進む)。
+		// 2026-07-28: this long checked only "box geometry" (getPageExtent).
+		// **Even if the box fits on the page, its content can overflow the box and the sheet**.
+		// This occurs for floats with explicit page-axis dimensions
+		// (width in vertical writing, height in horizontal writing): content beyond the specified size
+		// is still drawn with overflow:visible. Declaring it "fits" from geometry alone
+		// does not reserve a split, so content extends off the sheet
+		// **without a single page break** (local/shrink/strict-149858-min.html:
+		// content of float:right;width:0pt reaches x=-145 on paper 120 pt wide).
 		//
-		// 判定は{@link #paintsNothingBeyondPage}——「はみ出した先に紙へ
-		// 残るものがあるか」——だけでよい。これは幾何より小さくも大きくも
-		// なりうる正しい実測で、旧・幾何判定はこの実測が幾何と一致する
-		// 場合の重複でしかなかった(幾何>上限・実測<=上限は下の判定が、
-		// 幾何<=上限・実測<=上限は同じくPLACEDを返す)。
+		// Only {@link #paintsNothingBeyondPage} is needed: "does the overflow contain anything
+		// that remains on paper?" This is the correct measurement and can be smaller or larger than
+		// geometry. The old geometry check merely duplicated cases where this measurement equaled
+		// geometry (geometry>limit, measured<=limit uses the check below;
+		// geometry<=limit, measured<=limit likewise returns PLACED).
 		final WritingMode ownerFlow = this.getFlow().box.getBlockParams().flow;
 		final double localStart = pageStart - this.getFlow().pageAxis;
 		final boolean first = this.isFloatAtFragmentStart(pageStart);
@@ -1414,23 +1415,23 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 			if (LayoutUtils.compare(pageLimit, physicalPageLimit) < 0
 					&& LayoutUtils.compare(occupiedEnd, pageLimit) > 0) {
-				// 2-D bottomの実配置帯にはpainted-sliver許容を適用しない。
-				// atomic floatは途中で切れないため、少しでも入れば丸ごと送る。
+				// Do not apply the painted-sliver tolerance to the actual placement band of a 2-D bottom float.
+				// An atomic float cannot split in the middle; even a slight intrusion moves it intact.
 				if (LOG.isLoggable(Level.FINE)) {
 					LOG.fine("transfer unsplittable float before reserved bottom band: " + box.getParams().element);
 				}
 				return FloatCommitKind.MOVE_TO_NEXT;
 			}
 			if (first) {
-				// 分割不能でもページ先頭ならはみ出しを許して残す
+				// Even if indivisible, retain it with overflow when at page start.
 				return FloatCommitKind.PLACED;
 			}
-			// 分割不能な浮動体は、改ページ時の{@code FloatSplitPlan.classify}と
-			// **同じ測度**(占有寸法=幾何と描画実測の大きい方)で判定する
-			// (2026-09-04)。描画実測だけで見ると、margin だけが紙の外へ
-			// 出る図版(実文書 cti.li: `margin: 0 1.5em 1.2em` の直交 figure)が
-			// ここでは PLACED になり、排除域で行を短くした後に改ページで
-			// 丸ごと Move されて跡地が残る。
+			// Classify indivisible floats with the **same measure** as page-break-time {@code FloatSplitPlan.classify}:
+			// occupied size = max(geometry, measured paint extent)
+			// (2026-09-04). Looking only at painted extent marks an illustration whose margins alone
+			// exceed the sheet (real cti.li document: orthogonal figure with `margin: 0 1.5em 1.2em`)
+			// as PLACED here. After its exclusion area shortens lines, the page break
+			// Moves it intact, leaving an empty footprint.
 			if (FloatMeasurement.fitsPageUnsplittable(occupiedEnd, pageLimit)) {
 				return FloatCommitKind.PLACED;
 			}
@@ -1445,104 +1446,102 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (first && this.getPageContext() != null
 				&& !this.getPageContext().fragmentStartFloatSplitProgresses(box.getParams().element,
 						FloatMeasurement.occupiedPageExtent(box, ownerFlow))) {
-			// 前回のページ先頭分割から縮んでいない=切っても前進しない。
-			// はみ出したまま置く(RootBuilder.fragmentStartFloatSplitProgresses)
+			// No shrinkage since the last page-start split means another split makes no progress.
+			// Place it with overflow (RootBuilder.fragmentStartFloatSplitProgresses).
 			LOG.warning("float does not shrink across pages; placed overflowing: " + box.getParams().element);
 			if (box instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBlock) {
-				// 改ページ時の分類(FloatSplitPlan.classify)にも伝える——PLACED だけでは
-				// 実際の改ページで再び分割され、同じ寸法の残余が続く
+				// Also inform page-break-time classification (FloatSplitPlan.classify). PLACED alone
+				// allows another split at the actual page break, producing remainders of the same size.
 				floatBlock.markSplitMakesNoProgress();
 			}
 			return FloatCommitKind.PLACED;
 		}
-		// 同軸のBLOCKだけを切断する(avoidもページ先頭なら分割可能)
+		// Split only same-axis BLOCK floats (even avoid is splittable at page start).
 		return FloatCommitKind.SPLIT_AT_BREAK;
 	}
 
 	/**
-	 * この浮動体の<b>ページからはみ出した部分に、紙へ残るものが何もない</b>
-	 * かを返します(2026-07-26新設)。
+	 * Returns whether <b>the part of this float beyond the page contains nothing that
+	 * remains on paper</b> (introduced 2026-07-26).
 	 *
 	 * <p>
-	 * <b>絶対要件「意図しない白紙ページを作らない」の直接の原因。</b>
-	 * 浮動体が紙をはみ出すと切断が予約され、{@link #endFlowBlock()}の
-	 * 浮動体切断ループが<b>必ず1ページ作る</b>。ところが、はみ出しているのが
-	 * <b>箱だけ</b>(=内容はこのページに収まっている・枠線も背景もない)の
-	 * ときは、その断片は何も描かないので<b>白紙のページが1枚増えるだけ</b>に
-	 * なる。最小形は次のとおり:
+	 * <b>The direct cause relevant to the absolute requirement "no unintended blank pages".</b>
+	 * An overflowing float reserves a split, and the float splitting loop in
+	 * {@link #endFlowBlock()} <b>always creates a page</b>. But when <b>only the box</b>
+	 * overflows (content fits on this page, with no border/background), the fragment draws
+	 * nothing and <b>merely adds one blank page</b>. Minimal example:
 	 * </p>
 	 *
 	 * <pre>
-	 * &lt;!-- 60x60ptの紙、writing-mode:vertical-rl --&gt;
+	 * &lt;!-- 60x60 pt paper, writing-mode:vertical-rl --&gt;
 	 * &lt;div style="float:left;width:79pt"&gt;T9&lt;/div&gt;
 	 * </pre>
 	 *
 	 * <p>
-	 * 縦書きなので{@code width}はページ軸。内容の"T9"は1ページ目に収まるが、
-	 * 箱は19ptはみ出す。この19ptには何もない。
+	 * In vertical writing, {@code width} is on the page axis. Content "T9" fits on page 1,
+	 * but the box overflows by 19 pt. Those 19 pt contain nothing.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>判定は安全側へ倒す</b>——次のどれかに当たれば「描く」とみなして
-	 * 従来どおり切断する:
+	 * <b>Err on the conservative side</b>: treat any of the following as "paints" and
+	 * split as before:
 	 * </p>
 	 * <ul>
-	 * <li>コンテナでない(置換要素など。中身を問えない)</li>
-	 * <li>枠線・背景が見える(断片にも描くものがある)</li>
-	 * <li>書字方向がページ進行方向と違う(ページ軸が一致しないので比較できない)</li>
+	 * <li>Not a container (replaced elements, etc.; content cannot be queried)</li>
+	 * <li>Visible border/background (the fragment has something to paint)</li>
+	 * <li>Writing mode differs from page progression (page axes do not match, so cannot compare)</li>
 	 * </ul>
 	 *
 	 * <p>
-	 * <b>2026-07-27</b>: 判定の実測を{@code getContentSize()}から
-	 * {@link Container#paintedPageEnd()}へ替えた。{@code getContentSize()}は
-	 * <b>入れ子の浮動体を含まない</b>ため、浮動体を持つ箱では
-	 * 「はみ出した先に何かある可能性を否定できない」として判定を諦めていた
-	 * ——ところが生成器が作る文書では<b>浮動体の中身がまた浮動体</b>という形が
-	 * ごく普通に出る(掃過20,000件の白紙ページ18件中5件がこの形)。
-	 * {@code paintedPageEnd()}は入れ子の浮動体も、枠線を持たない箱の
-	 * 「中身の後ろの余り」も正しく数えるので、諦める必要がなくなった。
+	 * <b>2026-07-27</b>: replaced {@code getContentSize()} with
+	 * {@link Container#paintedPageEnd()} for measurement. {@code getContentSize()}
+	 * <b>excludes nested floats</b>, so for boxes containing floats the check used to give up
+	 * because it could not rule out something beyond the page. But generator documents
+	 * commonly have <b>floats whose content is itself floats</b> (5 of 18 blank-page cases
+	 * in a 20,000-document sweep). {@code paintedPageEnd()} correctly counts both nested
+	 * floats and "space after content" in boxes without borders, so giving up is no longer needed.
 	 * </p>
 	 */
 	private boolean paintsNothingBeyondPage(final IFloatBox box, final double pageStart) {
 		final WritingMode progression = this.getRootBox().getBlockParams().flow;
 		final double contentEnd = pageStart + box.paintedPageExtent(progression);
-		// 1pt未満のはみ出しは「何も描かない」に含める(2026-08-10)。
-		// px→pt換算の0.75刻み端数の集積で、視覚上無意味なスリバー
-		// (実測0.5625pt——pc.watch.impress.co.jp)がページ限界を越えると、
-		// SPLIT予約→後続clearの強制改ページ→(中身が空のheight箱だけで
-		// 分割点が無い場合)float全体の次ページ移設、という連鎖で本文が
-		// 丸ごと1〜2ページ落ちていた。判定は描画実測(paintedPageExtent)の
-		// ままなので、幾何が小さく中身が紙外へ伸びる形(OffPageFloatTestが
-		// 保護する2026-07-28の欠陥)は従来どおり切断される
+		// Treat overflow under 1 pt as "paints nothing" (2026-08-10).
+		// Accumulated 0.75-step fractions from px→pt conversion could leave a visually meaningless sliver
+		// (observed 0.5625 pt at pc.watch.impress.co.jp) beyond the page limit, triggering
+		// a SPLIT reservation → forced page break from a later clear → relocation of the whole float
+		// to the next page (when only an empty height box remained with no split point).
+		// This moved the entire body down 1–2 pages. The check still measures painted extent
+		// (paintedPageExtent), so small geometry with content extending off the sheet (the 2026-07-28
+		// defect protected by OffPageFloatTest) still splits as before.
 		return contentEnd - this.getPageLimit() < 1.0;
 	}
 
 	/**
-	 * いま閉じたブロックが<b>ページの内終端より先に何かを描く</b>かを返します
-	 * (2026-07-27新設)。
+	 * Returns whether the just-closed block <b>paints anything beyond the inner page end</b>
+	 * (introduced 2026-07-27).
 	 *
 	 * <p>
-	 * {@link #endFlowBlock()}のブロック間自動改ページ(interflow)は
-	 * <b>カーソル位置</b>——すなわち箱の幾何——だけを見ていた。ところが
-	 * 「箱はページをはみ出しているが、はみ出した先には何も描かれない」形が
-	 * 実在する。段組の段の高さが空き容量より大きく決まる場合が代表例で、
-	 * その6ptの余りには内容も枠線もない。ここで改ページすると、継続断片には
-	 * <b>描くものが1つもない</b>ため<b>白紙のページが1枚増えるだけ</b>になる
-	 * (css-break-3 §4.4「各フラグメンテナは0でない量の内容を取る」違反)。
+	 * Inter-block automatic page breaks (interflow) in {@link #endFlowBlock()} previously checked
+	 * only the <b>cursor position</b>, i.e. box geometry. Yet real cases have a box that extends
+	 * beyond the page with nothing painted in the overflow. A typical example is multi-column
+	 * height resolved larger than the available capacity, leaving 6 pt with neither content
+	 * nor borders. A page break here produces a continuation fragment with <b>nothing to paint</b>,
+	 * <b>merely adding one blank page</b> (violates css-break-3 §4.4:
+	 * "each fragmentainer takes a nonzero amount of content").
 	 * </p>
 	 *
 	 * <p>
-	 * 判定は浮動体の{@link #paintsNothingBeyondPage}と同じ原理・同じ実測
-	 * ({@link net.zamasoft.foliojet.layout.box.IBox#paintedPageExtent})で、
-	 * 枠線・背景を持つ箱や書字方向の違う箱では従来どおり幾何寸法を使う
-	 * (安全側=改ページする)。
+	 * Uses the same principle and measurement as float {@link #paintsNothingBeyondPage}
+	 * ({@link net.zamasoft.foliojet.layout.box.IBox#paintedPageExtent}).
+	 * For boxes with borders/backgrounds or a different writing mode, keep using geometric
+	 * dimensions (conservative: break the page).
 	 * </p>
 	 */
 	private boolean paintsBeyondPage(final Flow flow, final FlowBlockBox flowBox, final double pageLimit) {
 		final WritingMode progression = this.getRootBox().getBlockParams().flow;
 		final double painted = flowBox.paintedPageExtent(progression);
 		if (LayoutUtils.compare(painted, 0) <= 0) {
-			// 何も描かない箱。位置によらず改ページの理由にならない
+			// A box that paints nothing cannot justify a page break, regardless of position.
 			return false;
 		}
 		return LayoutUtils.compare(flow.pageAxis + painted, pageLimit) > 0;
@@ -1554,24 +1553,23 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * {@link #getPageLimit()}のページ方向容量の下限です(2026-07-24に
-	 * 定数化)。
+	 * Lower bound on page-axis capacity from {@link #getPageLimit()} (made a constant on 2026-07-24).
 	 */
 	public static final double MIN_PAGE_LIMIT = 20;
 
-	/** 内容の溢れ・切断・表の残容量。Rootでは現在段の予約も含みます。 */
+	/** Capacity for content overflow, splits, and tables. At Root, includes reservations for the current column. */
 	public double getPageLimit() {
 		final AbstractContainerBox rootBox = this.getRootBox();
 		final BlockParams params = rootBox.getBlockParams();
 		double pageLimit = rootBox.getInnerPageExtent(params.flow);
 		if (pageLimit < MIN_PAGE_LIMIT) {
-			// 20ポイントより小さなページ高さは無視
+			// Ignore page heights below 20 points.
 			pageLimit = MIN_PAGE_LIMIT;
 		}
 		return pageLimit;
 	}
 
-	/** 箱寸法・owner閉鎖検査の基点。局所ColumnBuilderでは自身の容量です。 */
+	/** Basis for box dimensions and owner closure checks. A local ColumnBuilder uses its own capacity. */
 	public double getPageOwnerLimit() {
 		return this.getPageLimit();
 	}
@@ -1581,22 +1579,22 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * 強制改ページ
-	 * 
+	 * Forced page break
+	 *  
 	 * @param breakMode
 	 */
 	public void forceBreak(ForceBreakMode breakMode) {
 		if (breakMode.breakType == PageBreakMode.COLUMN) {
-			// 改カラム可能なブロックを検索
+			// Find a block that permits a column break.
 			final ColumnBreakPoint columnBreak = this.findColumnBreak();
 			if (columnBreak != null) {
 				final double lastFrame = this.lastFrame(columnBreak.flow(), columnBreak.depth());
-				// 2026-07-21: 従来はcolumnBreak()の戻り値(boolean)を無視して
-				// 無条件にreturnしていた——newColumn()がno-cut(null)を返すと、
-				// 改段も行われず、autoBreak()と違いPAGEへのfallbackもされない
-				// サイレントno-opになっていた(ChatGPT Pro相談で発見・検証済み、
-				// 設計相談)。
-				// {@link #autoBreak()}と同じfallback規則に揃える。
+				// 2026-07-21: previously ignored the boolean returned by columnBreak()
+				// and returned unconditionally. When newColumn() returned no-cut (null),
+				// no column break occurred and, unlike autoBreak(), there was no PAGE fallback,
+				// causing a silent no-op (found and verified in a ChatGPT Pro consultation,
+				// design consultation).
+				// Use the same fallback rules as {@link #autoBreak()}.
 				if (this.columnBreak(columnBreak.flow(), breakMode, IPageBreakableBox.FLAGS_FIRST, lastFrame,
 						columnBreak.depth())) {
 					return;
@@ -1615,11 +1613,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * 自動改ページ
-	 * 
+	 * Automatic page break
+	 *  
 	 * @return
 	 */
-	/** 破断の時点で開いている箱(flowStack の箱、外→内)。 */
+	/** Boxes open at the break (flowStack boxes, outer → inner). */
 	protected final java.util.List<net.zamasoft.foliojet.layout.box.IBox> openFlowBoxes() {
 		final java.util.List<net.zamasoft.foliojet.layout.box.IBox> boxes = new java.util.ArrayList<>();
 		if (this.flowStack != null) {
@@ -1637,7 +1635,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					+ (this.flowStack == null ? 0 : this.flowStack.size()));
 		}
 		byte flags = IPageBreakableBox.FLAGS_FIRST;
-		// 改カラム可能なブロックを検索
+		// Find a block that permits a column break.
 		final ColumnBreakPoint columnBreak = this.findColumnBreak();
 
 		final BreakMode mode;
@@ -1659,25 +1657,23 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	protected abstract boolean pageBreak(BreakMode mode, byte flags);
 
 	/**
-	 * このビルダーが<b>まだ断片(ページ/段)を作れる</b>かを返します
-	 * (2026-07-28新設)。
+	 * Returns whether this builder <b>can still create a fragment (page/column)</b>
+	 * (introduced 2026-07-28).
 	 *
 	 * <p>
-	 * <b>「要求した改ページは必ず起きる」はこのファイルの各所の前提</b>で、
-	 * それが破れるとどこかが壊れます({@code RootBuilder.pageBreak()}は
-	 * 以前から「改ページ点なし」で{@code false}を返しており、前提のほうが
-	 * 嘘だった)——{@link #flush()}の行間改ページは
-	 * 直後に{@link #textBuilder}を無検査で使い、{@link #endFlowBlock()}の
-	 * 浮動体切断ループは{@code breakFloats}が空になるまで回り続けます。
-	 * {@code pageBreak()}の戻り値を後から見て取り繕うのではなく、
-	 * <b>飛ぶ前に訊く</b>ためのフックです。
+	 * <b>"A requested page break always happens" is assumed throughout this file</b>,
+	 * and violating it breaks something ({@code RootBuilder.pageBreak()} has long returned
+	 * {@code false} for "no page break point"; the assumption itself was false).
+	 * The inter-line page break in {@link #flush()} uses {@link #textBuilder} immediately
+	 * afterward without checking, and the float splitting loop in {@link #endFlowBlock()}
+	 * keeps running until {@code breakFloats} is empty. This hook <b>asks before jumping</b>,
+	 * instead of checking {@code pageBreak()}'s result afterward and patching things up.
 	 * </p>
 	 *
 	 * <p>
-	 * 既定は{@code true}——{@link RootBuilder}は紙を何枚でも作れる
-	 * (作れない場合は{@code pageBreak()}が{@code false}を返し、そこは
-	 * 従来どおり呼び出し側が処理する)。{@link ColumnBuilder}だけが、
-	 * {@code column-count}を使い切ったときに{@code false}を返します。
+	 * Defaults to {@code true}: {@link RootBuilder} can create arbitrarily many sheets
+	 * (if it cannot, {@code pageBreak()} returns {@code false}, handled by the caller as before).
+	 * Only {@link ColumnBuilder} returns {@code false} when it exhausts {@code column-count}.
 	 * </p>
 	 */
 	protected boolean canFragmentFurther() {
@@ -1685,8 +1681,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * 改ページ・改段の共通前処理です。断片(ページ/段)をまたぐ際に
-	 * リセットされる切断待ち状態を初期化します(M5)。
+	 * Shared preparation for page/column breaks. Initializes pending split state that
+	 * resets when crossing a fragment (page/column) boundary (M5).
 	 */
 	protected final void beginBreak() {
 		this.requireNoOpenTextBuilder("(no context)");
@@ -1697,12 +1693,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * 次の断片へ進む際のカーソル状態のリセットです。改ページと改段は
-	 * 「断片容器(フラグメンテナ)があふれたので次の断片へ進む」という
-	 * 同一操作であり(ARCHITECTURE.md §5)、リセットもここに一元化します(M5)。
+	 * Resets cursor state when advancing to the next fragment. Page and column breaks
+	 * are the same operation: "the fragment container (fragmentainer) overflowed, so advance
+	 * to the next fragment" (ARCHITECTURE.md §5). Centralize their reset here too (M5).
 	 *
-	 * @param pageAxis 新しい断片のページ方向カーソル位置
-	 * @param lineAxis 新しい断片の行方向カーソル位置
+	 * @param pageAxis page-axis cursor position in the new fragment
+	 * @param lineAxis line-axis cursor position in the new fragment
 	 */
 	protected final void resetFragmentCursor(final double pageAxis, final double lineAxis) {
 		this.pageAxis = pageAxis;
@@ -1715,15 +1711,15 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * 改段可能な最も内側のフローと、その深さです(M5)。
+	 * Innermost flow allowing column breaks, and its depth (M5).
 	 */
 	protected record ColumnBreakPoint(Flow flow, int depth) {
 	}
 
 	/**
-	 * スタック上の改段可能な最も内側のフローを探します。
+	 * Finds the innermost flow on the stack that allows column breaks.
 	 *
-	 * @return 改段可能なフローがなければ null
+	 * @return null if no flow allows a column break
 	 */
 	protected final ColumnBreakPoint findColumnBreak() {
 		if (this.flowStack == null) {
@@ -1739,13 +1735,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * COLUMN継続の相対open path(index 0 = owner)を捕捉します
-	 * (2026-07-21新設、M6b Phase B4-Step3。2026-07-25時点で配線済み)。owner自身が
-	 * flowStack内にある通常経路({@link #findColumnBreak()})と、
-	 * {@code ColumnBuilder.contextFlow}がflowStack外にある経路の両方を
-	 * 扱う(ChatGPT Pro相談、
-	 * 設計相談
-	 * 参照)。
+	 * Captures the relative open path for a COLUMN continuation (index 0 = owner)
+	 * (introduced 2026-07-21, M6b Phase B4-Step3; wired as of 2026-07-25).
+	 * Handles both the normal path where the owner itself is in flowStack
+	 * ({@link #findColumnBreak()}) and the path where {@code ColumnBuilder.contextFlow}
+	 * is outside flowStack (see ChatGPT Pro consultation,
+	 * design consultation).
 	 */
 	private java.util.List<AbstractContainerBox> captureColumnOpenPath(final Flow breakFlow) {
 		if (this.flowStack != null) {
@@ -1774,7 +1769,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	protected double lastFrame(Flow breakFlow, int depth) {
-		// 下部の枠の幅を計算します。
+		// Calculate the bottom frame width.
 		double lastFrame = 0;
 		if (this.flowStack == null) {
 			return lastFrame;
@@ -1787,8 +1782,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * 改段を実行します。
-	 * 
+	 * Performs a column break.
+	 *  
 	 * @param breakFlow
 	 * @param mode
 	 * @param flags
@@ -1797,26 +1792,26 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 */
 	protected boolean columnBreak(final Flow breakFlow, final BreakMode mode, byte flags, final double lastFrame,
 			int depth) {
-		// 表セルの再計測などページ文脈を持たないbuilderには、継続断片を
-		// 登録・再開するRootBuilderがない。入口が複数あるため、ここを最後の
-		// 共通防壁にし、自動改段は「改段点なし」として呼出側へ返す。
-		// 強制改段はforceBreak側のfail-closed判定へ委ねる。
+		// Builders without page context, such as table cell remeasurement, have no RootBuilder
+		// to register/resume continuation fragments. There are multiple entry points, so use this
+		// as the final shared barrier; return automatic column breaks as "no column break point".
+		// Leave forced column breaks to the fail-closed check in forceBreak.
 		if (this.getPageContext() == null) {
 			this.beginBreak();
 			return false;
 		}
-		// 2026-07-21: この改段(COLUMN)経路はRootBuilder.pageBreak()の
-		// BreakPlan機構を迂回する独立経路(ChatGPT Pro相談で発見、
-		// 設計相談)。
-		// 2026-07-30(増分4c): worklist一本化に伴い深さ64の例外ガードは
-		// 退役し、観測用の最大深さ記録だけを残した。
+		// 2026-07-21: this COLUMN break path is independent of and bypasses
+		// the BreakPlan mechanism in RootBuilder.pageBreak() (found in a ChatGPT Pro consultation,
+		// design consultation).
+		// 2026-07-30 (increment 4c): worklist unification retired the depth-64 exception guard;
+		// only maximum-depth recording for observation remains.
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenDepth(depth, true);
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordLastColumnOwnerColumnCount(breakFlow.box.getColumnCount());
 		this.beginBreak();
 
-		// 2026-07-21(M6b Phase B4): 相対open pathを捕捉し、深さがdepth
-		// パラメータと整合するかを検証する(Step3で観測用に導入、Step4で
-		// 実際の切断(prepareColumnCut)へも渡すよう配線した)。
+		// 2026-07-21 (M6b Phase B4): capture the relative open path and verify that its depth
+		// matches the depth parameter (introduced for observation in Step3; wired in Step4
+		// to also pass it to the actual split, prepareColumnCut).
 		final net.zamasoft.foliojet.layout.fragment.OpenPathScan columnScan;
 		{
 			final java.util.List<AbstractContainerBox> columnOpenPath = this.captureColumnOpenPath(breakFlow);
@@ -1828,16 +1823,16 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			columnScan.snapshot().firstBarrier()
 					.ifPresent(barrier -> net.zamasoft.foliojet.layout.fragment.ContinuationStats
 							.recordColumnCapabilityScanStop(barrier.reason()));
-			// **再開が積み直せない段が開いているなら改段しない**(2026-09-16)。
-			// 再開は承認された前置きと、多段の native 降下で扱える段しか積み直さない。
-			// `ContinuationCapability.MULTICOL` は「素の FlowBlockBox ではない」の
-			// 総称で、本物の多段だけでなく grid/flex の箱もここに入る——後者が
-			// 障壁になったまま刈り込んで続行すると、あとで
-			// `endBreakableFlowBlock` が空のスタックを掴む・浮動体が宿主を失う
-			// といった別の場所で落ちる(掃過の wild seed 2375324・2678725)。
-			// 入れ子の多段は native 降下が扱える(`MulticolWorklistScopeTest`)ので
-			// 通す。改段を断れば呼び側が頁の改ページへ落とす
-			// (`autoBreak`・`forceBreak` は false を受けて `pageBreak` を呼ぶ)
+			// **Do not break columns if an open column cannot be restacked on resume** (2026-09-16).
+			// Resume restacks only the approved prefix and columns supported by native multi-column descent.
+			// `ContinuationCapability.MULTICOL` collectively means "not a plain FlowBlockBox",
+			// including grid/flex boxes as well as real multi-column boxes. Pruning and continuing
+			// while the former remain a barrier causes failures elsewhere later:
+			// `endBreakableFlowBlock` accesses an empty stack, or a float loses its host
+			// (wild sweep seeds 2375324 and 2678725).
+			// Allow nested multi-column layout: native descent handles it (`MulticolWorklistScopeTest`).
+			// Refusing the column break makes the caller fall back to a page break
+			// (`autoBreak`/`forceBreak` receive false and call `pageBreak`).
 			final java.util.Optional<net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.CapabilityBarrier> barrier = columnScan
 					.snapshot().firstBarrier();
 			if (barrier.isPresent()) {
@@ -1856,7 +1851,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		final double contentLimit = this.getPageLimit() - breakFlow.pageAxis - lastFrame;
 		final double ownerExtent = this.getPageOwnerLimit() - breakFlow.pageAxis - lastFrame;
 
-		// ページの先頭かどうかの判断
+		// Determine whether this is at page start.
 		if (LayoutUtils.compare(
 				breakFlow.pageAxis - breakFlow.box.getFrame().getFramePageStart(breakFlow.box.getBlockParams().flow),
 				0) > 0) {
@@ -1865,29 +1860,29 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		final RootBuilder root = this.getPageContext();
 
-		// 2026-07-21(M6b Phase B4-Step4): 相対open pathの収集可能プレフィックス
-		// (自動改段のPLAIN_FLOWのみ、force改段では常に空——
-		// ContinuationCapability.supportsColumnSplitThrough参照)を型付き
-		// 継続として切断する。強制改段では常に空チェーンになるため、
-		// この呼び出しはmode問わず安全(旧plan=nullと同じ結果になる)。
+		// 2026-07-21 (M6b Phase B4-Step4): split the collectable prefix of the relative open path
+		// (PLAIN_FLOW only for automatic column breaks; always empty for forced breaks —
+		// see ContinuationCapability.supportsColumnSplitThrough) as a typed
+		// continuation. Forced column breaks always have an empty chain,
+		// so this call is safe for any mode (same result as the old plan=null).
 		final net.zamasoft.foliojet.layout.fragment.BreakPlan relativePlan = columnScan.toBreakPlan();
 		final net.zamasoft.foliojet.layout.fragment.ColumnCutResult cutResult;
-		// 切断の間、開いている箱を写す(計画に選ばれない開いた箱も救済しない。OpenBoxes)
+		// Snapshot open boxes during the split (do not rescue open boxes omitted from the plan either; OpenBoxes).
 		try (var open = net.zamasoft.foliojet.layout.fragment.OpenBoxes.scope(this.openFlowBoxes())) {
 			cutResult = breakFlow.box.prepareColumnCut(contentLimit, ownerExtent, mode, flags, relativePlan);
 		}
 		if (!(cutResult instanceof net.zamasoft.foliojet.layout.fragment.ColumnCutResult.Cut(
 				final net.zamasoft.foliojet.layout.fragment.PreparedColumnCut prepared))) {
-			// Keep/Move: 改段ポイントがない(旧newColumn()のnull相当)
+			// Keep/Move: no column break point (equivalent to null from the old newColumn()).
 			return false;
 		}
 
-		// 検証 → column commit → executor開始、の順序を守る
-		// (検証失敗時にownerへcommitしていない状態で安全に止まれる)
+		// Preserve the order: validate → column commit → start executor
+		// (validation failure can safely stop before committing to the owner).
 		final net.zamasoft.foliojet.layout.fragment.ColumnContinuation continuation = root.prepareColumnContinuation(
 				breakFlow.box.getBlockParams().flow, prepared, columnScan.snapshot());
 		breakFlow.box.commitPreparedColumn(prepared);
-		// balance・固定高さ段組の局所ColumnBuilderは頁の改段履歴に含めない。
+		// Exclude local ColumnBuilders for balance/fixed-height multi-column layout from page column-break history.
 		boolean pageColumn = true;
 		for (LayoutStack stack = this; stack != null; stack = stack.getParentBuilder()) {
 			if (stack instanceof ColumnBuilder) {
@@ -1897,23 +1892,23 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		if (pageColumn) root.columnCommitted(this, breakFlow, prepared);
 
-		// 再開後の深さ検査用に、刈り込む前の owner の位置を控える(下記)
+		// Save the owner position before pruning for the post-resume depth check (below).
 		final int ownerStackIndex = this.flowStack == null ? -1 : this.flowStack.indexOf(breakFlow);
 		this.pruneFlowStackTo(breakFlow);
 		this.resetFragmentCursor(breakFlow.pageAxis, breakFlow.lineAxis);
-		// 2026-07-23(排除域P1増分1): 保持されたhidden flow分の空台帳を
-		// 積み直す(rootless経路と同じ)。
+		// 2026-07-23 (exclusion area P1 increment 1): restack empty ledgers for retained
+		// hidden flows (same as the rootless path).
 		this.rebuildNoOverflowFloatingScopes();
 		root.resumeColumn(this, continuation);
-		// **再開後の相対開き深さを検査する**(2026-09-16)。PAGE 側には
-		// `RootBuilder.pageBreak` の「flowStack深さ≠継続深さ」があるが、改段には
-		// 同じ検査が無く、開いた箱が閉じた残余(救済分割)へ置き換わって積み直され
-		// なくても、そのまま true を返して続行していた(codex レビューで確認できた
-		// 検査の欠落)。破断前と同じ相対深さに戻っていなければ、内容の所属と終了
-		// イベントの対応が崩れているので fail closed で止める
-		// 再開は owner の Flow を作り直すので identity では引けない
-		// (`captureColumnOpenPath` を再呼び出しすると「owner が flowStack にも
-		// contextFlow にも無い」で落ちる)。添字で数える
+		// **Check relative open depth after resume** (2026-09-16). The PAGE path checks
+		// "flowStack depth ≠ continuation depth" in `RootBuilder.pageBreak`, but column breaks
+		// lacked the same check. Even when an open box became a closed remainder (rescue split)
+		// and was not restacked, it returned true and continued (missing check
+		// confirmed by codex review). If the pre-break relative depth is not restored, content ownership
+		// and end-event correspondence are broken, so stop by failing closed.
+		// Resume recreates the owner Flow, so identity lookup cannot find it
+		// (calling `captureColumnOpenPath` again fails with "owner is in neither flowStack nor
+		// contextFlow"). Count by index.
 		final int resumedDepth = ownerStackIndex >= 0
 				? (this.flowStack == null ? 0 : this.flowStack.size()) - ownerStackIndex
 				: 1 + (this.flowStack == null ? 0 : this.flowStack.size());
@@ -1931,7 +1926,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		return true;
 	}
 
-	/** flowStackを{@code breakFlow}まで刈り込みます(改段先より内側を捨てる)。 */
+	/** Prunes flowStack to {@code breakFlow} (discards flows inside the column break destination). */
 	private void pruneFlowStackTo(final Flow breakFlow) {
 		if (this.flowStack != null) {
 			for (int i = this.flowStack.size() - 1; i >= 0; --i) {

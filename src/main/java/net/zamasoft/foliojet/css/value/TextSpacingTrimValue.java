@@ -1,11 +1,11 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code text-spacing-trim}の実装済み値です。
+ * The supported {@code text-spacing-trim} values.
  *
- * <p>CSS Text 4の意味に合わせ、{@code normal}は行中の隣接約物を詰めるが
- * 行頭の始め括弧は全角のまま、{@code trim-start}は行頭も天付き、
- * {@code space-all}は約物を全角のままにする。</p>
+ * <p>Following CSS Text 4 semantics, {@code normal} trims adjacent punctuation within a line
+ * but leaves opening brackets at the line start full-width. {@code trim-start} also trims
+ * the line start flush, while {@code space-all} leaves punctuation full-width.</p>
  */
 public enum TextSpacingTrimValue implements Value {
 	NORMAL("normal", false, false, false, false),
@@ -18,7 +18,7 @@ public enum TextSpacingTrimValue implements Value {
 
 	TRIM_BOTH("trim-both", false, true, true, false),
 
-	/** UAの高品質既定としてtrim-bothを採用する。 */
+	/** Uses trim-both as the UA's high-quality default. */
 	AUTO("auto", false, true, true, false);
 
 	private final String text;

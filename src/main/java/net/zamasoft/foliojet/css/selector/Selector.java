@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.css.selector;
 
 
 /**
- * 内部セレクタモデル。パーサー(ph-css)の構文木から変換されます。
+ * Internal selector model, converted from the parser's (ph-css) syntax tree.
  */
 public interface Selector {
 	public enum SelectorType {
@@ -13,7 +13,7 @@ public interface Selector {
 	public SelectorType getSelectorType();
 
 	/**
-	 * このセレクタの右端の単純セレクタを返します。単純セレクタ自身はそれ自体を返します。
+	 * Returns this selector's rightmost simple selector. A simple selector returns itself.
 	 */
 	public SimpleSelector getSimpleSelector();
 

@@ -21,8 +21,8 @@ public interface LayoutStack {
 	public double getFixedHeight();
 
 	/**
-	 * 幅が決まっているフローを返します。
-	 * 
+	 * Returns a flow whose width is determined.
+	 *
 	 * @return
 	 */
 	public AbstractContainerBox getFixedWidthFlowBox();
@@ -30,23 +30,24 @@ public interface LayoutStack {
 	public AbstractContainerBox getFixedHeightFlowBox();
 
 	/**
-	 * <b>直交フローの線軸(inline)の百分率の基準</b>です(2026-09-16 新設)。
+	 * <b>Percentage reference for the line (inline) axis of an orthogonal flow</b> (added 2026-09-16).
 	 *
 	 * <p>
-	 * {@link #getFixedWidth()}/{@link #getFixedHeight()} は「明示寸法を持つ祖先」を
-	 * 遡る仕組みなので、縦組み文書の中の横組みの箱のように該当が無いと <b>0</b> を返す。
-	 * 0 を基準にすると {@code max-width: 90%} が 0 になり、幅 0 の箱から内容が
-	 * <b>紙面外へあふれる</b>(掃過の「全描画が紙面外」)。用紙の寸法は確定値なので、
-	 * css-writing-modes-4 §7.3 のとおりフラグメンテナ(ページ)の内容域を最後の基準にする。
+	 * {@link #getFixedWidth()}/{@link #getFixedHeight()} walk ancestors with explicit dimensions,
+	 * so they return <b>0</b> when none qualifies, as for a horizontal-writing box inside a vertical-writing
+	 * document. Using 0 as the reference makes {@code max-width: 90%} equal 0, and content from the
+	 * zero-width box <b>overflows off the page</b> (the sweep's "all drawing outside the page" finding).
+	 * Since paper dimensions are definite, use the fragmentainer (page) content area as the final
+	 * reference, per css-writing-modes-4 §7.3.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>この判断はここだけに置く。</b>同じ退避を各所で書くと、直したはずの軸が
-	 * 別経路で 0 に戻る(実際、表の寸法解決だけ直しても
-	 * {@code AbstractStaticBlockBox} の fit-content 側が 0 のままだった)。
+	 * <b>Keep this decision only here.</b> Duplicating the fallback lets an axis thought to be fixed revert
+	 * to 0 on another path (indeed, fixing only table sizing left fit-content in
+	 * {@code AbstractStaticBlockBox} at 0).
 	 * </p>
 	 *
-	 * @param flow 基準を測る軸を決める書字方向(その箱自身の書字方向)
+	 * @param flow writing mode determining the axis on which to measure the reference (the box's own writing mode)
 	 */
 	public default double getOrthogonalLineBasis(final net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
 		final double fixed = flow.isVertical() ? this.getFixedHeight() : this.getFixedWidth();

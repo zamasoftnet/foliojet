@@ -1,27 +1,28 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * ページフロート({@code float: top} / {@code float: bottom})の配置です
- * (2026-08-02——PLAN §2の1位。書籍組版の図表をページ端へ寄せる)。
+ * Page float positioning ({@code float: top} / {@code float: bottom})
+ * (2026-08-02; top priority in PLAN §2. Aligns figures and tables to page edges in book typesetting).
  *
  * <p>
- * {@link FootnotePos}と同じく{@link FloatPos}を継承して
- * {@code PosType.FLOAT}のまま流し、分離builderのライフサイクル
- * (container builderのpush/pop・rangeのseal)を再利用する。終了時に
- * 親への{@code addBound}ではなくページ台帳({@code RootBuilder})へ
- * 渡る点だけが左右floatと異なる。上端フロートは配置後、Root座標の
- * 行走査に限って二次元排除域として使われる。
+ * Like {@link FootnotePos}, extends {@link FloatPos} and flows through as {@code PosType.FLOAT},
+ * reusing the separate builder's lifecycle (container-builder push/pop and range sealing).
+ * Differs from left/right floats only at completion, when it goes to the page registry
+ * ({@code RootBuilder}) instead of {@code addBound} on the parent. After placement, top floats
+ * serve as two-dimensional exclusion areas only for line scanning in Root coordinates.
  * </p>
  */
 public final class PageFloatPos extends FloatPos {
 
-	/** ページ上端へ寄せるか(falseは下端)。 */
+	/** Whether to align to the page top (false means bottom). */
 	public final boolean top;
 
 	/**
-	 * 上下が物理の向きか({@code top}・{@code bottom}。falseは論理の {@code block-start}・{@code block-end})。
-	 * 横組みでは同じ。縦組みの下端は、物理なら用紙の下(行の進む向きの末尾)に置いて行を短くし、論理なら
-	 * ブロックの末尾(縦書きの左端/右端)に置く(2026-10-05)。縦組みの上端はどちらも行の始まり側で同じ。
+	 * Whether top/bottom are physical directions ({@code top}/{@code bottom}; false means logical
+	 * {@code block-start}/{@code block-end}). They coincide in horizontal writing. In vertical writing,
+	 * a physical bottom float sits at the bottom of the sheet (the end of inline progression) and shortens
+	 * lines, while a logical one sits at the block end (the left/right edge in vertical writing)
+	 * (2026-10-05). Both top variants in vertical writing sit on the line-start side.
 	 */
 	public final boolean physical;
 

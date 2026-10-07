@@ -7,8 +7,8 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 
 /**
- * 画像ボックスの実装です。
- * 
+ * Implements an image box.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: InlineReplacedBox.java 1552 2018-04-26 01:43:24Z miyabe $
  */

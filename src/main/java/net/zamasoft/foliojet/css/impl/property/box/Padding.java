@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * padding-top / padding-right / padding-bottom / padding-left 特性です。
+ * padding-top / padding-right / padding-bottom / padding-left properties.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -29,7 +29,7 @@ public final class Padding extends AbstractPrimitivePropertyInfo {
 
 	private static final Padding[] BY_SIDE = { TOP, RIGHT, BOTTOM, LEFT };
 
-	/** padding-block-start/end・padding-inline-start/end(論理プロパティ)。 */
+	/** padding-block-start/end and padding-inline-start/end (logical properties). */
 	public static final Padding BLOCK_START = new Padding("padding-block-start");
 
 	public static final Padding BLOCK_END = new Padding("padding-block-end");

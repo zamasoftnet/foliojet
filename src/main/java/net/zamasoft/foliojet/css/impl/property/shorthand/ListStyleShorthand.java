@@ -43,7 +43,7 @@ public class ListStyleShorthand extends AbstractShorthandPropertyInfo {
 			final CssToken lu = tokens.next();
 			if (ValueUtils.isImage(lu)) {
 				try {
-					// url()とimage-set()(2026-08-29)
+					// url() and image-set() (2026-08-29).
 					final URIValue imageUri = ValueUtils.toImage(ua, uri, lu);
 					if (imageUri == null) {
 						throw new PropertyException();
@@ -61,8 +61,8 @@ public class ListStyleShorthand extends AbstractShorthandPropertyInfo {
 
 				final Value position = GeneratedValueUtils.toListStylePosition(ident.name());
 				if (position == null) {
-					// 組み込みでも位置キーワードでもない識別子は
-					// 著者定義カウンタスタイルの名前とみなす
+					// Treat an identifier that is neither built in nor a position keyword
+					// as an author-defined counter style name.
 					primitives.set(ListStyleType.INFO, CounterStyles.styleValue(ua, ident.name()));
 					continue;
 				}

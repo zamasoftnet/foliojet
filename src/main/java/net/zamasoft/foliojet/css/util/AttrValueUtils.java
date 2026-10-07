@@ -9,23 +9,23 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * <b>型付き {@code attr()}</b>(CSS Values 5)を解析します(2026-08-03新設)。
+ * Parses <b>typed {@code attr()}</b> (CSS Values 5) (added 2026-08-03).
  *
  * <p>
- * 受け付ける形は<b>Chromeが出荷している構文</b>に合わせる(133以降)。
+ * Accepted forms match <b>the syntax shipped by Chrome</b> (133 and later).
  *
  * <ul>
- * <li>{@code attr(width px)} —— 単位の短縮形。単位の付いていない属性値に
- * その単位を補う({@code width="200"} → {@code 200px})</li>
- * <li>{@code attr(width type(<length>))} —— 型指定。単位は属性値が持つ</li>
- * <li>{@code attr(bgcolor type(<color>))}・{@code attr(cols type(<integer>))}</li>
- * <li>いずれも {@code , フォールバック} を後置できる
+ * <li>{@code attr(width px)}: unit shorthand. Adds the unit to a unitless attribute
+ * value ({@code width="200"} → {@code 200px})</li>
+ * <li>{@code attr(width type(<length>))}: type annotation. The attribute value supplies the unit</li>
+ * <li>{@code attr(bgcolor type(<color>))}, {@code attr(cols type(<integer>))}</li>
+ * <li>Each can be followed by {@code , fallback}
  * ({@code attr(width px, auto)})</li>
  * </ul>
  *
  * <p>
- * <b>{@code url()}の中では使えない</b>(仕様どおり。情報の持ち出し経路になる)。
- * ここは長さ・色・数値の文脈からのみ呼ばれる。
+ * <b>Cannot be used inside {@code url()}</b> (as specified, since it could exfiltrate information).
+ * Called only from length, color, and numeric contexts.
  */
 public final class AttrValueUtils {
 	private AttrValueUtils() {
@@ -33,9 +33,9 @@ public final class AttrValueUtils {
 	}
 
 	/**
-	 * トークンが型付き{@code attr()}なら未解決値を返します。そうでなければnull。
+	 * Returns an unresolved value if the token is a typed {@code attr()}, otherwise null.
 	 *
-	 * @param defaultKind 型指定が無いときに仮定する型(長さ文脈ならLENGTH)
+	 * @param defaultKind type assumed if no type is specified (LENGTH in a length context)
 	 */
 	public static Value toTypedAttr(UserAgent ua, CssToken token, TypedAttrValue.Kind defaultKind) {
 		if (!(token instanceof CssToken.Func func) || !func.is("attr")) {
@@ -49,7 +49,7 @@ public final class AttrValueUtils {
 		int i = 1;
 		TypedAttrValue.Kind kind = null;
 		Unit unit = Unit.PX;
-		// 型または単位(カンマの手前まで)
+		// Type or unit (up to the comma)
 		if (i < args.size() && args.get(i) != CssToken.Op.COMMA) {
 			final CssToken typeToken = args.get(i);
 			if (typeToken instanceof CssToken.Ident ident) {
@@ -71,15 +71,15 @@ public final class AttrValueUtils {
 		if (kind == null) {
 			kind = defaultKind;
 		}
-		// フォールバック
+		// Fallback
 		Value fallback = null;
 		if (i < args.size() && args.get(i) == CssToken.Op.COMMA) {
 			++i;
 			if (i < args.size()) {
 				fallback = parseFallback(ua, args.get(i), kind);
 				if (fallback == null) {
-					// フォールバックが解釈できない指定は宣言ごと無効にする
-					// (黙って無視すると、意図しない既定値で組まれる)
+					// Invalidate the entire declaration if its fallback cannot be interpreted
+					// (silently ignoring it would lay out using an unintended default).
 					return null;
 				}
 			}
@@ -88,9 +88,9 @@ public final class AttrValueUtils {
 	}
 
 	private static TypedAttrValue.Kind kindOf(List<CssToken> args) {
-		// **山括弧は字句として別に来ることがある**(2026-08-03に実測)。
-		// `type(<length>)` が Ident 1個で来るとは限らないので、引数の中から
-		// 型名の識別子を拾う
+		// **Angle brackets may arrive as separate tokens** (observed on 2026-08-03).
+		// `type(<length>)` does not always arrive as a single Ident, so pick the type-name
+		// identifier out of the arguments.
 		for (final CssToken token : args) {
 			if (!(token instanceof CssToken.Ident ident)) {
 				continue;

@@ -4,9 +4,9 @@ import net.zamasoft.foliojet.css.value.PaintValue;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * 計算済みの {@code border-image-*} を描画層へ渡すパラメータです。
+ * Parameters that pass computed {@code border-image-*} values to the drawing layer.
  *
- * <p>現時点では値の受け渡しまでで、9スライス描画は未実装です。</p>
+ * <p>Currently only passes values; nine-slice drawing is not yet implemented.</p>
  */
 public final class BorderImage {
 	public sealed interface Source permits ImageSource, PaintSource {
@@ -28,7 +28,7 @@ public final class BorderImage {
 		}
 	}
 
-	/** 数値の解釈。MIXEDは {@code absolute + ratio * 基準寸法} です。 */
+	/** Numeric interpretation. MIXED is {@code absolute + ratio * referenceDimension}. */
 	public enum Unit {
 		NUMBER, ABSOLUTE, RELATIVE, MIXED, AUTO
 	}

@@ -20,22 +20,22 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
- * 通常のフロー以外のボックスを一括管理します。
- * 
+ * Manages out-of-flow boxes together.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: Floatings.java 1554 2018-04-26 03:34:02Z miyabe $
  */
 public class Floatings {
 	/**
-	 * 配置された浮動ボックスです。
-	 * 
+	 * A placed float box.
+	 *
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: Floatings.java 1554 2018-04-26 03:34:02Z miyabe $
 	 */
 	public static class Floating extends BoxHolder {
 		public final IFloatBox box;
 		public final double lineAxis, pageAxis;
-		/** 2-D bottom帯との交差で確定した、一回限りの次断片移送。 */
+		/** One-time transfer to the next fragment, determined by intersection with the 2-D bottom band. */
 		boolean moveToNext;
 
 		public Floating(int serial, IFloatBox box, double lineAxis, double pageAxis) {
@@ -55,8 +55,8 @@ public class Floatings {
 		}
 
 		/**
-		 * serial、ボックス、行軸位置と一回限りの移送状態を保ったまま、
-		 * ページ軸位置だけを平行移動した不変値を返します。
+		 * Returns an immutable value with only the page-axis position translated,
+		 * preserving the serial, box, line-axis position, and one-time transfer state.
 		 */
 		Floating shiftedPageAxis(final double dy) {
 			return new Floating(this.serial, this.box, this.lineAxis, this.pageAxis + dy, this.moveToNext);
@@ -65,8 +65,8 @@ public class Floatings {
 		public void restyle(BlockBuilder builder) {
 			switch (this.box.getType()) {
 			case BLOCK: {
-				// ブロックボックス
-				// 匿名ボックス
+				// Block box
+				// Anonymous box
 				AbstractContainerBox floatBox = (AbstractContainerBox) this.box;
 				if (DebugFlags.FLOAT_TRACE) {
 					final net.zamasoft.foliojet.layout.box.content.Container c = floatBox.getContainer();
@@ -81,17 +81,17 @@ public class Floatings {
 			}
 				break;
 			case REPLACED: {
-				// 置換されたボックス
+				// Replaced box
 				AbstractReplacedBox floatBox = (AbstractReplacedBox) this.box;
 				builder.addBound(floatBox);
 			}
 				break;
 			case RESCUE: {
-				// 2026-07-25(救済分割・増分7): 救済断片の残余。元ボックスは
-				// レイアウト済みなので内容のrestyleは行わず、配置だけを
-				// やり直す(答申§5「tailは次fragmentで通常のfloat配置を
-				// 再実行」)。通常のaddBound経路を通るため、
-				// commitFloatPlacementの副作用順は一切変わらない
+				// 2026-07-25 (rescue splitting, increment 7): Remainder of a rescue fragment. The original box
+				// is already laid out, so do not restyle its content; only redo placement
+				// (recommendation §5: rerun normal float placement for the tail in the next fragment).
+				// This uses the normal addBound path, so the order of side effects in
+				// commitFloatPlacement remains completely unchanged.
 				builder.addBound(this.box);
 			}
 				break;
@@ -102,13 +102,13 @@ public class Floatings {
 	}
 
 	/**
-	 * 浮動ボックス。
+	 * Float boxes.
 	 */
 	private final List<Floating> floatings = new ArrayList<Floating>();
 
 	/**
-	 * 浮動ボックスを追加します。
-	 * 
+	 * Adds a float box.
+	 *
 	 * @param floating
 	 */
 	public void addFloating(Floating floating) {
@@ -127,16 +127,16 @@ public class Floatings {
 	}
 
 	/**
-	 * drawの反復化(2026-07-20、IBox.drawと同じ理由)。各浮動ボックスの
-	 * 描画手順を、元の走査順のまま**逆順**で{@code worklist}へ積みます。
+	 * Iterative draw (2026-07-20, for the same reason as IBox.draw). Pushes each float box's
+	 * drawing steps onto {@code worklist} in **reverse order** to preserve traversal order.
 	 */
 	public void pushDraw(AbstractContainerBox box, PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			Deque<DrawStep> worklist) {
 		assert !LayoutUtils.isNone(x) : "Undefined x";
 		assert !LayoutUtils.isNone(y) : "Undefined y";
-		// 浮動体。論理位置→物理座標は LayoutUtils.drawX/drawY に集約
-		// (2026-07-25、vertical-lr対応。従来はRL専用式を手書きしていた)
+		// Floats. Centralize logical-to-physical coordinate conversion in LayoutUtils.drawX/drawY
+		// (2026-07-25, vertical-lr support; previously used handwritten RL-only formulas).
 		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = box.getBlockParams().flow;
 		final double parentPageExtent = box.getInnerWidth();
 		final double parentLineExtent = box.getInnerHeight();
@@ -151,7 +151,7 @@ public class Floatings {
 		}
 	}
 
-	/** 段の脚注をbalance前に回収するための取り外し(増分6)。見つからなければfalse。 */
+	/** Detaches column footnotes for collection before balancing (increment 6). Returns false if not found. */
 	public boolean removeFloating(final IFloatBox box) {
 		for (int i = 0; i < this.floatings.size(); ++i) {
 			if (this.floatings.get(i).box == box) {
@@ -171,12 +171,12 @@ public class Floatings {
 	}
 
 	/**
-	 * 全浮動体のページ軸位置を平行移動します。リスト順、serial、ボックス、
-	 * 行軸位置と{@link Floating#moveToNext}は保ち、{@code keep}に含まれる
-	 * ボックスの要素は同じインスタンスのまま残します。
+	 * Translates the page-axis positions of all floats. Preserves list order, serials, boxes,
+	 * line-axis positions, and {@link Floating#moveToNext}. Entries for boxes in {@code keep}
+	 * remain the same instances.
 	 *
-	 * @param dy   ページ軸方向の移動量
-	 * @param keep 移動せず現在位置に留めるボックス(identityで判定する集合)
+	 * @param dy   the translation along the page axis
+	 * @param keep boxes to leave at their current positions (an identity-based set)
 	 */
 	public void shiftPageAxis(final double dy, final java.util.Set<IBox> keep) {
 		for (int i = 0; i < this.floatings.size(); ++i) {
@@ -188,12 +188,12 @@ public class Floatings {
 	}
 
 	/**
-	 * 全floatの実測値を元順序で採取します(2026-07-24、P2-1。読み取り専用
-	 * ——このリストにもボックスにも一切影響しない)。ordinalは採取時点の
-	 * 安定序数(=このリストのindex)である。
+	 * Collects measurements of all floats in their original order (2026-07-24, P2-1; read-only,
+	 * affecting neither this list nor the boxes). ordinal is the stable ordinal at collection
+	 * time (= the index in this list).
 	 *
-	 * @param ownerFlow ownerの書字方向
-	 * @return 実測値のリスト(変更不可)
+	 * @param ownerFlow the owner's writing direction
+	 * @return the immutable list of measurements
 	 */
 	public List<FloatMeasurement> measure(final net.zamasoft.foliojet.layout.box.params.WritingMode ownerFlow) {
 		final List<FloatMeasurement> measurements = new ArrayList<>(this.floatings.size());
@@ -204,28 +204,26 @@ public class Floatings {
 	}
 
 	/**
-	 * 浮動ボックスをページ分割します(2026-07-24、P2-3でplan駆動commitへ
-	 * 切替、P2-5で旧sentinel契約(null=KeepAll / this=MoveAll / 新=
-	 * Partition)のadapterを撤去して型付き結果へ一本化。分岐表の正本:
-	 * 開発記録)。
+	 * Paginates float boxes (2026-07-24). P2-3 switched to plan-driven commit; P2-5 removed
+	 * the adapter for the old sentinel contract (null=KeepAll / this=MoveAll / new=Partition),
+	 * unifying on typed results. The authoritative branch table is in the development log.
 	 *
 	 * <p>
-	 * 実装は「{@link FloatSplitPlan#planDirect}で分類(純判定・副作用なし)
-	 * →plan駆動のcommit(codex設計§2.3)」の2段。commitはordinal順に一度
-	 * だけ走り、{@code SplitOnCommit}はここで一度だけ
-	 * {@code containerBox.splitFloatFragment}を実行してKeep/Move/Preparedへ
-	 * 確定する(A-3a-2: 残余boxは即時構築せず、受け側Floatingへの接続時に
-	 * 一度だけmaterialize)。旧実装との等価性は
-	 * {@code FloatingsSplitPageAxisTest}の分岐表テストとP2-2 shadow比較
-	 * (SMOKEコーパス不一致0)、および{@code PreparedFloatFragmentTest}の
-	 * twin等価テストで固定済み。
+	 * Two phases: classify via {@link FloatSplitPlan#planDirect} (pure decisions, no side effects),
+	 * then commit according to the plan (codex design §2.3). Commit runs once in ordinal order.
+	 * {@code SplitOnCommit} executes {@code containerBox.splitFloatFragment} exactly once here,
+	 * resolving to Keep/Move/Prepared (A-3a-2: do not build the remainder box immediately;
+	 * materialize it once when attached to the receiving Floating). Equivalence with the old
+	 * implementation is locked down by the branch-table tests in {@code FloatingsSplitPageAxisTest},
+	 * the P2-2 shadow comparison (0 mismatches in the SMOKE corpus), and the twin equivalence
+	 * tests in {@code PreparedFloatFragmentTest}.
 	 * </p>
 	 *
 	 * <p>
-	 * 結果の意味({@link FloatSplitResult}参照):
-	 * KeepAll/MoveAllでは元リストは無傷(MoveAllの台帳付け替えはownerが
-	 * 行う遅延表現)。Partitionでのみ元リストを「KEEP+SPLIT元」へ組み替え、
-	 * remainder台帳(MOVEの元Floating+SPLIT残余、元順序)を返す。
+	 * Result meanings (see {@link FloatSplitResult}):
+	 * KeepAll/MoveAll leave the original list untouched (MoveAll is deferred; the owner reassigns
+	 * the ledger). Only Partition rebuilds the original list as "KEEP + SPLIT sources" and returns
+	 * a remainder ledger (original MOVE Floatings + SPLIT remainders, in original order).
 	 * </p>
 	 */
 	public FloatSplitResult splitPageAxis(final AbstractContainerBox box, final double pageLimit,
@@ -240,16 +238,16 @@ public class Floatings {
 			System.err.println("[float] 分割呼出 台帳=" + System.identityHashCode(this) + " 数="
 					+ this.floatings.size() + where);
 		}
-		// 入口final snapshot(addBound事故の教訓——codex設計§2.5)。
-		// 分類はここで全floatについて確定する。旧実装はfloat iのsplit実行後に
-		// float i+1を分類していたが、各floatのboxは独立でsplitは他floatの
-		// 実測に影響しないため等価(P2-2 shadowで確認済み)。
+		// Final snapshot at entry (lesson from the addBound incident; codex design §2.5).
+		// Finalize classification for every float here. The old implementation classified float i+1
+		// after splitting float i, but each float box is independent and a split does not affect other
+		// floats' measurements, so this is equivalent (confirmed by the P2-2 shadow comparison).
 		final int originalFloatCount = this.floatings.size();
 		final FloatSplitPlan plan = FloatSplitPlan.planDirect(this, box.getBlockParams().flow, pageLimit, flags);
 		assert plan.direct().size() == originalFloatCount;
-		// commit(codex設計§2.3): ordinal順に一度だけ。source側(KEEP+
-		// SPLIT元)とremainder側(MOVE+SPLIT残余)のリストを構築する。
-		// ordinalは安定序数——旧実装のようなremove/--iによるindex変異はない。
+		// Commit (codex design §2.3): Once in ordinal order. Build the source list (KEEP +
+		// SPLIT sources) and the remainder list (MOVE + SPLIT remainders).
+		// ordinal is stable; no index mutation via remove/--i as in the old implementation.
 		final List<Floating> sourceSide = new ArrayList<Floating>(originalFloatCount);
 		final List<Floating> remainderSide = new ArrayList<Floating>();
 		boolean allWholeMoves = true;
@@ -259,26 +257,26 @@ public class Floatings {
 			assert item.expected().box() == floating.box : "plan/commitのidentity不一致 ordinal=" + ordinal;
 			switch (item) {
 			case FloatSplitPlan.FloatItemPlan.Keep keep -> {
-				// 分岐表1、および4→5フォールスルーのfirst: 元に残す
+				// Branch table 1 and first in the 4→5 fall-through: Keep in the source.
 				sourceSide.add(floating);
 				allWholeMoves = false;
 			}
 			case FloatSplitPlan.FloatItemPlan.Move move -> {
-				// 分岐表2、および4→5フォールスルーの非first: 丸ごと送る。
-				// 配置時から渡された強制移送はここで一度だけ消費する。
+				// Branch table 2 and non-first in the 4→5 fall-through: Move the whole float.
+				// Consume a forced transfer passed from placement exactly once here.
 				floating.moveToNext = false;
 				remainderSide.add(floating);
 			}
 			case FloatSplitPlan.FloatItemPlan.RescueOnCommit(final FloatMeasurement rescued,
 					final net.zamasoft.foliojet.layout.rescue.RescueDecision.Slice slice) -> {
-				// 分岐表5-R(2026-07-25、救済分割・増分7): 元台帳をhead、
-				// 残余台帳をtailにする(答申§5)。元ボックスには一切触れない
-				// ——断片は描画時のクリップと座標移動だけの短命なデコレータで、
-				// レイアウト寸法は変わらない
+				// Branch table 5-R (2026-07-25, rescue splitting, increment 7): Put head in the source ledger
+				// and tail in the remainder ledger (recommendation §5). Leave the original box untouched.
+				// Fragments are short-lived decorators that only clip and translate at draw time;
+				// layout dimensions remain unchanged.
 				final net.zamasoft.foliojet.layout.box.IFloatBox source;
 				final double sourcePageExtent;
 				if (floating.box instanceof net.zamasoft.foliojet.layout.rescue.VisualRescueFloatBox fragment) {
-					// 救済済み断片の続き(断片の断片は作らない)
+					// Continuation of an already rescued fragment (do not create fragments of fragments)
 					source = (net.zamasoft.foliojet.layout.box.IFloatBox) fragment.getSource();
 					sourcePageExtent = fragment.getSourcePageExtent();
 				} else {
@@ -288,14 +286,14 @@ public class Floatings {
 				final net.zamasoft.foliojet.layout.box.params.WritingMode progression = plan.ownerFlow();
 				final double tailOffset = slice.nextOffset();
 				final double tailExtent = sourcePageExtent - tailOffset;
-				// 前進保証(計画側で確定済み——RescueOnCommitはlastFragmentを
-				// 受け付けず、FloatSplitPlan.rescueが残余>0を実行時にも検査
-				// する)。破れていればVisualRescueFloatBoxのコンストラクタが
-				// 即座に落ちる=無限ループにはならない
+				// Progress is guaranteed (established by the plan: RescueOnCommit rejects lastFragment,
+				// and FloatSplitPlan.rescue also checks at runtime that the remainder is >0).
+				// If violated, the VisualRescueFloatBox constructor fails immediately,
+				// so no infinite loop is possible.
 				assert tailOffset > slice.offset() && tailExtent > 0 : slice;
-				// headは元の位置のまま(排除域のページ方向の高さがsliceExtentに
-				// なる)。tailは座標(0,0)=次フラグメント先頭・serial引き継ぎで
-				// 残余台帳へ入り、次フラグメントで通常のfloat配置をやり直す
+				// head stays at the original position (the exclusion area's page-axis height becomes sliceExtent).
+				// tail enters the remainder ledger at (0,0), the next fragment start, with its serial inherited,
+				// and undergoes normal float placement again in the next fragment.
 				sourceSide.add(new Floating(floating.serial,
 						new net.zamasoft.foliojet.layout.rescue.VisualRescueFloatBox(source, progression,
 								sourcePageExtent, slice.offset(), slice.sliceExtent()),
@@ -308,11 +306,11 @@ public class Floatings {
 			}
 			case FloatSplitPlan.FloatItemPlan.SplitOnCommit(final FloatMeasurement expected, final double innerLimit,
 					final byte splitFlags) -> {
-				// 分岐表3: ここで一度だけ切断し、Keep/Move/Preparedへ確定。
-				// A-3a-2: 残余boxは切断内部で即時構築せず、材料
-				// (PreparedFloatFragment)で受け取り、受け側Floatingへ接続
-				// するこの場で一度だけmaterializeする(構築は旧即時経路と
-				// 同一のcontinueFragmentによる)
+				// Branch table 3: Split exactly once here and resolve to Keep/Move/Prepared.
+				// A-3a-2: Do not build the remainder box immediately inside the split. Receive its material
+				// (PreparedFloatFragment) and materialize it exactly once here, when attaching it
+				// to the receiving Floating (construction uses the same continueFragment
+				// as the old immediate path).
 				final net.zamasoft.foliojet.layout.box.AbstractBlockBox containerBox = (net.zamasoft.foliojet.layout.box.AbstractBlockBox) floating.box;
 				switch (containerBox.splitFloatFragment(floating.serial, innerLimit, BreakMode.DEFAULT_BREAK_MODE,
 						splitFlags)) {
@@ -324,8 +322,8 @@ public class Floatings {
 					remainderSide.add(floating);
 				case net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.Prepared(
 						final net.zamasoft.foliojet.layout.fragment.PreparedFloatFragment fragment) -> {
-					// 元のFloatingはthis側に残り、残余は座標(0,0)=
-					// 次フラグメント先頭、serial引き継ぎでnext側へ
+					// The original Floating stays on this side; the remainder moves to next at (0,0),
+					// the next fragment start, with its serial inherited.
 					sourceSide.add(floating);
 					final net.zamasoft.foliojet.layout.box.IFloatBox tailBox = fragment.materialize();
 					if (DebugFlags.FLOAT_TRACE) {
@@ -341,11 +339,11 @@ public class Floatings {
 		}
 		final FloatSplitResult result;
 		if (remainderSide.isEmpty()) {
-			// 全KEEP——元リストは無傷
+			// All KEEP: Leave the original list untouched.
 			result = FloatSplitResult.KEEP_ALL;
 		} else if (allWholeMoves) {
-			// 全floatが丸ごとMOVE——遅延表現(元リストから動かさない。
-			// 台帳ごとの付け替えはownerが行う)
+			// All floats MOVE in their entirety: Deferred representation (leave them in the original list;
+			// the owner reassigns the entire ledger).
 			result = FloatSplitResult.MOVE_ALL;
 		} else {
 			this.floatings.clear();
@@ -354,8 +352,8 @@ public class Floatings {
 			remainder.floatings.addAll(remainderSide);
 			result = new FloatSplitResult.Partition(remainder);
 		}
-		// commit結果の分類がplanと整合することの検査(P2-3でP2-2のshadow
-		// 比較を置き換えたもの。assert無効の本番ではFINE診断のみ)
+		// Check that the committed classification agrees with the plan (replaced the P2-2 shadow comparison
+		// in P2-3; only FINE diagnostics in production with assertions disabled).
 		final boolean consistent = commitConsistentWithPlan(plan, result);
 		assert consistent : "commit結果がplanと不整合: pageLimit=" + pageLimit + " flags=" + flags;
 		assert !(result instanceof FloatSplitResult.Partition(final Floatings r) && r.floatings.isEmpty());
@@ -363,11 +361,11 @@ public class Floatings {
 	}
 
 	/**
-	 * commit結果の分類がplanの分類と整合するかを検査します(P2-3)。
-	 * {@code SplitOnCommit}は結果を予言しないため制約を緩める:
-	 * Moveを含むplanはKeepAllになれず、Keepを含むplanはMoveAllになれず、
-	 * PartitionはMoveまたはSplitOnCommitなしには生じない。不整合は
-	 * FINEログにも出す(本番でassertが無効でも観測できるように)。
+	 * Checks whether the committed classification agrees with the plan's classification (P2-3).
+	 * Relax the constraints for {@code SplitOnCommit}, which does not predict its result:
+	 * a plan containing Move cannot yield KeepAll; one containing Keep cannot yield MoveAll;
+	 * Partition cannot occur without Move or SplitOnCommit. Also log inconsistencies at FINE
+	 * so they remain observable in production with assertions disabled.
 	 */
 	private static boolean commitConsistentWithPlan(final FloatSplitPlan plan, final FloatSplitResult result) {
 		boolean anyKeepPlan = false;
@@ -378,7 +376,7 @@ public class Floatings {
 			case FloatSplitPlan.FloatItemPlan.Keep keep -> anyKeepPlan = true;
 			case FloatSplitPlan.FloatItemPlan.Move move -> anyMovePlan = true;
 			case FloatSplitPlan.FloatItemPlan.SplitOnCommit splitOnCommit -> anySplitPlan = true;
-			// 救済も「source側とremainder側の両方へ入る」ため分割と同じ扱い
+			// Treat rescue like splitting, since it also places entries on both the source and remainder sides.
 			case FloatSplitPlan.FloatItemPlan.RescueOnCommit rescueOnCommit -> anySplitPlan = true;
 			}
 		}

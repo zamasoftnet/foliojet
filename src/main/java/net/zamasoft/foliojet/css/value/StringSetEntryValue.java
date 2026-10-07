@@ -1,10 +1,9 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code string-set}の1エントリ({@code <ident> <value>+}の1組)。
- * {@code parts}は{@link StringValue}/{@link CounterValue}/
- * {@link CountersValue}/{@link AttrValue}/{@link ContentFunctionValue}
- * の混在リスト。
+ * One {@code string-set} entry (a single {@code <ident> <value>+} pair).
+ * {@code parts} is a mixed list of {@link StringValue}/{@link CounterValue}/
+ * {@link CountersValue}/{@link AttrValue}/{@link ContentFunctionValue}.
  *
  * @author MIYABE Tatsuhiko
  */

@@ -14,16 +14,16 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code mask-composite}(css-masking-1 §7.8)。カンマ区切りの各値を受理・保持する。
+ * {@code mask-composite} (css-masking-1 §7.8). Accepts and retains each comma-separated value.
  *
- * <p>現在のマスク描画は単一マスクを既存のアルファ/add相当で扱う近似であり、
- * 複数マスク間の{@code subtract}/{@code intersect}/{@code exclude}合成は行わない。
- * 未実装値を別の演算へ近似して見た目を変えないためである。</p>
+ * <p>Current mask rendering approximates a single mask using the existing alpha/add equivalent;
+ * it does not perform {@code subtract}/{@code intersect}/{@code exclude} compositing between masks.
+ * This avoids changing the appearance by approximating unimplemented values with another operation.</p>
  */
 public final class MaskComposite extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MaskComposite();
 
-	/** mask-compositeの各キーワード。 */
+	/** mask-composite keywords. */
 	public enum CompositeValue implements Value {
 		ADD("add"), SUBTRACT("subtract"), INTERSECT("intersect"), EXCLUDE("exclude");
 
@@ -39,7 +39,7 @@ public final class MaskComposite extends AbstractPrimitivePropertyInfo {
 		}
 	}
 
-	/** 多層マスクの値（先頭が最前面）。 */
+	/** Values for multiple mask layers (frontmost first). */
 	public record LayersValue(CompositeValue[] layers) implements Value {
 		@Override
 		public String toString() {
@@ -51,13 +51,13 @@ public final class MaskComposite extends AbstractPrimitivePropertyInfo {
 		super("mask-composite");
 	}
 
-	/** 単層ならキーワード値、多層ならレイヤ値にまとめる。 */
+	/** Returns a keyword value for a single layer, or bundles multiple layers into a layer value. */
 	public static Value toValue(List<CompositeValue> values) {
 		return values.size() == 1 ? values.get(0)
 				: new LayersValue(values.toArray(new CompositeValue[values.size()]));
 	}
 
-	/** キーワードトークンを値へ変換する。 */
+	/** Converts a keyword token to a value. */
 	public static CompositeValue fromToken(CssToken token) {
 		if (!(token instanceof CssToken.Ident ident)) {
 			return null;

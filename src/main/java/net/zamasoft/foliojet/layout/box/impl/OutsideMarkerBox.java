@@ -20,19 +20,19 @@ public class OutsideMarkerBox extends InlineBlockBox {
 	private double lineAxis;
 
 	/**
-	 * 行が縦組みか。<b>マーカー自身の{@code params.flow}では決められない</b>
-	 * (2026-09-01)。{@code ::marker}へ{@code text-combine-upright: all}を掛けると
-	 * {@code TextCombineShorthand}が{@code block-flow}を横組みへ展開するので、
-	 * 縦組みのページでもマーカーのflowだけが{@code TB}になる。それを軸の判定に
-	 * 使うと、送りをゼロにする軸も、描画でずらす軸も入れ替わる——縦組みの
-	 * 番号付きリストで数字が行から外れて出る原因だった。
-	 * 判定は<b>マーカーを含む箱</b>の書字方向で行い、その結果をここへ持つ。
+	 * Whether the line uses vertical writing. <b>The marker's own {@code params.flow} cannot
+	 * determine this</b> (2026-09-01). Applying {@code text-combine-upright: all} to {@code ::marker}
+	 * makes {@code TextCombineShorthand} expand {@code block-flow} to horizontal writing, so only
+	 * the marker's flow becomes {@code TB}, even on a vertical page. Using it to determine the axis
+	 * swaps both the axis whose advance is zeroed and the axis shifted during drawing.
+	 * This caused numbers to appear outside their lines in numbered lists in vertical writing.
+	 * Determine this from the writing direction of <b>the box containing the marker</b> and store it here.
 	 */
 	private boolean verticalLine;
 
 	/**
-	 * 表がlist-itemの先頭子であるため、表の外で先行出力されたマーカーか。
-	 * この場合のマーカー専用行は表の先頭位置へ重ね、通常フローを進めない。
+	 * Whether the marker is emitted ahead of a table, outside it, because the table is the list-item's
+	 * first child. Overlay this marker-only line at the table start without advancing normal flow.
 	 */
 	private boolean overlaysFollowingBlock;
 
@@ -53,9 +53,9 @@ public class OutsideMarkerBox extends InlineBlockBox {
 	public void firstPassLayout(AbstractContainerBox containerBox) {
 		super.firstPassLayout(containerBox);
 		this.verticalLine = containerBox.getBlockParams().flow.isVertical();
-		// **ずらす軸は行(=含む箱)、ゼロにする成分はマーカー自身の書字方向**
-		// で決まる。縦中横のマーカーは縦組みの行の中で横に組まれるので、
-		// 行方向の送りはマーカーの`width`が担う。
+		// **The line (containing box) determines the shift axis; the marker's writing direction determines
+		// which component to zero**. Tate-chu-yoko markers are laid out horizontally in vertical lines,
+		// so the marker's `width` supplies its line-axis advance.
 		if (this.params.flow.isVertical()) {
 			this.height = 0;
 		} else {
@@ -67,9 +67,9 @@ public class OutsideMarkerBox extends InlineBlockBox {
 		super.shrinkToFit(builder, sizes, table);
 		this.lineAxis = sizes.maxContent();
 		if (this.params.textCombine == net.zamasoft.foliojet.css.value.TextCombineValue.ALL) {
-			// 縦中横(all)は1emのセルへ収まる(css-writing-modes-3 §9.1)。
-			// 送りは`startInline`が圧縮した後の1emなので、圧縮前の自然幅で
-			// ずらすと3桁のマーカーだけ0.5em行方向へ浮く
+			// Tate-chu-yoko (all) fits into a 1em cell (css-writing-modes-3 §9.1).
+			// The advance is 1em after `startInline` compression; shifting by the natural width before
+			// compression made only three-digit markers float 0.5 em along the line axis.
 			this.lineAxis = Math.min(this.lineAxis, this.params.fontStyle.getSize());
 		}
 		final AbstractContainerBox containerBox = builder.getFlowBox();
@@ -80,9 +80,9 @@ public class OutsideMarkerBox extends InlineBlockBox {
 			this.lineAxis += containerBox.getFrame().getFrameLeft();
 		}
 		if (this.params.textCombine == net.zamasoft.foliojet.css.value.TextCombineValue.ALL) {
-			// **送りをゼロにする前に1emセルへ収める**。`startInline`の圧縮は
-			// 自然幅(`width`)を見るので、先にゼロにすると早期に戻って
-			// 圧縮が走らない——3桁のマーカーが1emに収まらない原因だった。
+			// **Fit into the 1em cell before zeroing the advance**. Compression in `startInline` checks
+			// the natural width (`width`), so zeroing it first caused an early return and skipped
+			// compression, which was why three-digit markers failed to fit into 1em.
 			this.compressTextCombine(this.params.fontStyle.getSize(), null);
 		}
 		if (this.params.flow.isVertical()) {

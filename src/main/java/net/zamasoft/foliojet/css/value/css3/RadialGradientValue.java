@@ -14,19 +14,19 @@ import net.zamasoft.pdfg2d.gc.paint.Paint;
 import net.zamasoft.pdfg2d.gc.paint.RadialGradient;
 
 /**
- * {@code radial-gradient()}/{@code repeating-radial-gradient()}です
- * (css-images-3 §3.2、2026-08-29新設)。
+ * {@code radial-gradient()}/{@code repeating-radial-gradient()}
+ * (css-images-3 §3.2, added on 2026-08-29).
  *
  * <p>
- * pdfg2dの{@link RadialGradient}は円しか表せない(PDFのType 3シェーディングも
- * 同じ)。楕円は半径{@code rx}の円を、中心を固定して縦に{@code ry/rx}倍する
- * 変換をパターン行列に載せて描く。PDF・SVG({@code gradientTransform})の
- * どちらも行列を受け付けるので、pdfg2d側の変更は要らない。
+ * pdfg2d's {@link RadialGradient} can represent only circles (as can PDF Type 3 shading).
+ * Draws an ellipse by adding a transform to the pattern matrix that scales a circle
+ * of radius {@code rx} vertically by {@code ry/rx} while keeping its center fixed.
+ * Both PDF and SVG ({@code gradientTransform}) accept matrices, so no pdfg2d changes are needed.
  * </p>
  *
  * <p>
- * 寸法キーワード(closest-side等)と割合は塗る箱が決まって初めて解決できる
- * ので、{@link #getPaint}まで{@link QuantityValue}のまま持ち回る。
+ * Size keywords (closest-side, etc.) and percentages resolve only once the box to fill is known,
+ * so they remain {@link QuantityValue} objects until {@link #getPaint}.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -38,7 +38,7 @@ public class RadialGradientValue implements PaintValue {
 
 	protected final boolean circle;
 	protected final Size size;
-	/** 明示寸法(EXPLICITのとき)。円は{@code sizeX}のみ。 */
+	/** Explicit sizes (for EXPLICIT). Circles use only {@code sizeX}. */
 	protected final QuantityValue sizeX, sizeY;
 	protected final QuantityValue posX, posY;
 	protected final GradientStops stops;
@@ -78,11 +78,11 @@ public class RadialGradientValue implements PaintValue {
 	}
 
 	/**
-	 * 塗りを作ります。繰り返しは、出力先が周期の繰り返しを持てば
-	 * 1周期+{@code SpreadMethod.REPEAT}(厳密)、持たなければ最遠の角まで
-	 * 展開する(64周期で打ち切ったときだけ2822を報告。2026-08-29)。
+	 * Creates the paint. If the destination supports periodic repetition, uses one period
+	 * plus {@code SpreadMethod.REPEAT} (exact); otherwise, expands to the farthest corner
+	 * (reports 2822 only when capped at 64 periods; 2026-08-29).
 	 *
-	 * @param gc 描画先(能力の問い合わせと報告用。nullなら展開)
+	 * @param gc the drawing destination (for capability queries and reporting; null means expansion)
 	 */
 	private Paint paint(final Rectangle2D box, final GC gc) {
 		final double w = box.getWidth(), h = box.getHeight();
@@ -91,7 +91,7 @@ public class RadialGradientValue implements PaintValue {
 		final double[] radii = this.radii(box, cx, cy);
 		final double rx = radii[0], ry = radii[1];
 		if (!(rx > 0) || !(ry > 0)) {
-			// 仕様: 半径0は極小の形として扱い、端の色で全面が塗られる
+			// Specification: treat a zero radius as an infinitesimal shape, filling the entire area with the end color.
 			return this.stops.lastColor();
 		}
 		final AffineTransform at = new AffineTransform();
@@ -109,8 +109,8 @@ public class RadialGradientValue implements PaintValue {
 		}
 		double cover = 1;
 		if (this.repeating) {
-			// 最遠の角まで周期を展開する。楕円は縦をrx/ry倍して円の
-			// 座標系で距離を測る
+			// Expand periods to the farthest corner. For ellipses, scale vertically by rx/ry and
+			// measure distance in the circle's coordinate system.
 			cover = Math.max(1, farthestCorner(box, cx, cy, rx / ry) / rx);
 		}
 		final GradientStops.Resolved r = this.stops.resolve(rx, this.repeating, cover);
@@ -126,7 +126,7 @@ public class RadialGradientValue implements PaintValue {
 		gc.fill(shape);
 	}
 
-	/** 中心から箱の最遠の角までの距離(縦を{@code k}倍した座標系)。 */
+	/** Distance from the center to the box's farthest corner (in coordinates scaled vertically by {@code k}). */
 	private static double farthestCorner(final Rectangle2D box, final double cx, final double cy, final double k) {
 		double max = 0;
 		for (int i = 0; i < 4; ++i) {
@@ -137,7 +137,7 @@ public class RadialGradientValue implements PaintValue {
 		return max;
 	}
 
-	/** 終了形状の半径[rx, ry]をptで返します(css-images-3 §3.2.1の寸法規則)。 */
+	/** Returns the ending shape's radii [rx, ry] in pt (the sizing rules in css-images-3 §3.2.1). */
 	private double[] radii(final Rectangle2D box, final double cx, final double cy) {
 		final double w = box.getWidth(), h = box.getHeight();
 		if (this.size == Size.EXPLICIT) {
@@ -148,7 +148,7 @@ public class RadialGradientValue implements PaintValue {
 		final double left = cx - box.getMinX(), right = box.getMaxX() - cx;
 		final double top = cy - box.getMinY(), bottom = box.getMaxY() - cy;
 		final boolean closest = this.size == Size.CLOSEST_SIDE || this.size == Size.CLOSEST_CORNER;
-		// 辺までの距離(負=中心が箱の外。その辺の距離は絶対値で測る)
+		// Distances to sides (negative means the center is outside the box; use the absolute distance to that side).
 		final double sx = closest ? Math.min(Math.abs(left), Math.abs(right))
 				: Math.max(Math.abs(left), Math.abs(right));
 		final double sy = closest ? Math.min(Math.abs(top), Math.abs(bottom))
@@ -176,7 +176,7 @@ public class RadialGradientValue implements PaintValue {
 		case FARTHEST_SIDE:
 			return new double[] { sx, sy };
 		default: {
-			// 角を通り、closest-side/farthest-sideと同じ縦横比の楕円
+			// An ellipse through a corner, with the same aspect ratio as closest-side/farthest-side.
 			if (!(sx > 0) || !(sy > 0)) {
 				return new double[] { 0, 0 };
 			}
@@ -188,8 +188,9 @@ public class RadialGradientValue implements PaintValue {
 	}
 
 	/**
-	 * 中心から箱の角までの距離(横を{@code 1/k}倍した座標系——楕円を横方向に
-	 * 縮めて円として測り、横の尺へ戻す)。{@code closest}なら最近、でなければ最遠。
+	 * Distance from the center to a box corner (in coordinates scaled horizontally by {@code 1/k}:
+	 * shrink the ellipse horizontally to measure it as a circle, then restore the horizontal scale).
+	 * Uses the closest corner if {@code closest}, otherwise the farthest.
 	 */
 	private static double cornerDistance(final Rectangle2D box, final double cx, final double cy, final double k,
 			final boolean closest) {

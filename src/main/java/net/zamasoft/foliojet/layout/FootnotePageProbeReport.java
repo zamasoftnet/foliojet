@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.layout;
 
-/** Bのページ確定時に値へ写す報告。木・資源・可変ラベルは保持しません。 */
+/** A report copied into values when B finalizes a page. Retains no trees, resources, or mutable labels. */
 public record FootnotePageProbeReport(long generation, String pageName, boolean emitted,
 		long eventId, int charOffset, double innerWidth, double innerHeight,
 		net.zamasoft.foliojet.layout.box.params.WritingMode flow,
@@ -15,7 +15,7 @@ public record FootnotePageProbeReport(long generation, String pageName, boolean 
 		unmeasuredIds = java.util.Set.copyOf(unmeasuredIds);
 	}
 
-	/** 確定木に載った呼び出しの既知の高さだけ。未計測IDを0と判断してはいけません。 */
+	/** Only known heights of calls on the finalized tree. Never interpret an unmeasured ID as zero. */
 	public double measuredHeight() {
 		double height = 0;
 		for (final long id : new java.util.TreeSet<>(this.callIds)) {

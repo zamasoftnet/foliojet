@@ -29,8 +29,8 @@ public class MaxHeight extends AbstractPrimitivePropertyInfo {
 		if (style.isDeclared(INFO)) {
 			return style.get(INFO);
 		}
-		// 2026-07-20、-cssj-direction-mode廃止によりmax-inline-size/
-		// max-block-sizeへ一本化。
+		// 2026-07-20: abolished -cssj-direction-mode and consolidated support into max-inline-size/
+		// max-block-size.
 		if (!image) {
 			PrimitivePropertyInfo logicalInfo = BlockFlow.get(style).isVertical() ? MaxInlineSize.INFO : MaxBlockSize.INFO;
 			if (style.isDeclared(logicalInfo)) {
@@ -49,12 +49,12 @@ public class MaxHeight extends AbstractPrimitivePropertyInfo {
 	}
 
 	private Value getDefault(UserAgent ua) {
-		// **初期値は none**(2026-08-17)。以前は UA の
-		// {@code getMaxSize()}(=14400pt。PDFの<b>用紙</b>寸法の限界)を
-		// 返していたが、これは箱の高さの上限ではない。14400ptより高い
-		// ブロック(長い表など)は{@code AbstractBlockBox}でこの値へ
-		// 切り詰められ、改ページが永久に進まなくなる——w3c-jlreqの用語表が
-		// 32回の無進捗改ページでライブロックし、変換が失敗していた。
+		// **The initial value is none** (2026-08-17). Previously this returned the UA's
+		// {@code getMaxSize()} (=14400 pt, the PDF <b>paper</b> dimension limit),
+		// but that is not a box height limit. Blocks taller than 14400 pt
+		// (long tables, etc.) were truncated to this value by {@code AbstractBlockBox},
+		// preventing pagination from ever advancing. The w3c-jlreq glossary table
+		// livelocked after 32 page breaks without progress, failing the conversion.
 		return KeywordValue.NONE;
 	}
 
@@ -75,7 +75,7 @@ public class MaxHeight extends AbstractPrimitivePropertyInfo {
 		if (ValueUtils.isNone(lu)) {
 			return this.getDefault(ua);
 		}
-		// 固有寸法キーワード max-content/min-content/fit-content(L)(2026-08-29)
+		// Intrinsic sizing keywords max-content/min-content/fit-content(L) (2026-08-29).
 		final Value intrinsic = BoxValueUtils.toIntrinsicSize(ua, lu);
 		if (intrinsic != null) {
 			return intrinsic;

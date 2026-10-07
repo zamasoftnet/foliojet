@@ -10,8 +10,8 @@ import net.zamasoft.foliojet.layout.box.params.Offset;
 
 /**
  * <a href="https://drafts.csswg.org/css-images-3/#the-object-position">
- * object-position 特性</a>です。&lt;position&gt;の文法と解決は
- * {@link BackgroundPosition}を共有し、既定値(50% 50%)だけが異なります。
+ * object-position property</a>. Shares &lt;position&gt; grammar and resolution with
+ * {@link BackgroundPosition}; only the default (50% 50%) differs.
  *
  * @author MIYABE Tatsuhiko
  */

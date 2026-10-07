@@ -16,9 +16,9 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code gap}ショートハンドです(Grid G0)。
- * {@code <row-gap> [<column-gap>]}——1値なら両方に適用。固定長と
- * {@code normal}のみ。
+ * {@code gap} shorthand (Grid G0).
+ * {@code <row-gap> [<column-gap>]}; one value applies to both.
+ * Only fixed lengths and {@code normal}.
  *
  * @author MIYABE Tatsuhiko
  */

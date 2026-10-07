@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.css.value;
 
-/** {@code text-emphasis-position}の正規化済みの値です。 */
+/** A normalized {@code text-emphasis-position} value. */
 public enum TextEmphasisPositionValue implements Value {
 	OVER_RIGHT("over right", false, false),
 	OVER_LEFT("over left", false, true),

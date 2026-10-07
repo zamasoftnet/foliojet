@@ -13,19 +13,19 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code font-synthesis-weight}です(css-fonts-4、2026-08-20新設)。
+ * {@code font-synthesis-weight} (css-fonts-4, added 2026-08-20).
  *
  * <p>
- * {@code none}のとき、太字フォントが見つからない場合の疑似ボールド
- * (輪郭のストローク太らせ)を行わず、手持ちの太さのまま描く。
- * 既定は{@code auto}(従来どおり疑似化する)。フォント選択には影響しない
- * (css-fonts-4 §7.4)。ショートハンドは{@code font-synthesis}。
+ * With {@code none}, if no bold font is found, draws with the available weight
+ * without synthetic bold (thickening the outline stroke).
+ * Defaults to {@code auto} (synthesizes as before). Does not affect font selection
+ * (css-fonts-4 §7.4). The shorthand is {@code font-synthesis}.
  * </p>
  */
 public class FontSynthesisWeight extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new FontSynthesisWeight();
 
-	/** 疑似ボールドを許すか。 */
+	/** Whether synthetic bold is allowed. */
 	public static boolean get(final CSSStyle style) {
 		return style.get(INFO) != KeywordValue.NONE;
 	}

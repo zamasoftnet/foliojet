@@ -32,8 +32,8 @@ public final class FontValueUtils {
 	}
 
 	/**
-	 * font-familyを値に変換します。SPEC CSS2.1 15.3
-	 * 
+	 * Converts font-family to a value. SPEC CSS2.1 15.3
+	 *
 	 * @param lu
 	 * @return
 	 */
@@ -42,12 +42,12 @@ public final class FontValueUtils {
 		while (tokens.hasNext()) {
 			CssToken token = tokens.next();
 			if (token instanceof CssToken.Ident ident) {
-				// SPEC css-fonts §2.1: コンマまでの連続するidentは空白で
-				// 結合した1つのファミリ名(2026-08-27)。従来はident毎に
-				// 別ファミリへ分割しており、`font-family: Zilla Slab`の
-				// ような未引用の多語名が先頭語だけの照合になって
-				// 解決できなかった(Google Fonts収録Dockerで実害)。
-				// 単独identのときだけ総称ファミリのキーワードになる
+				// SPEC css-fonts §2.1: consecutive idents up to a comma form one family name
+				// joined with spaces (2026-08-27). Previously each ident became a separate family,
+				// so unquoted multiword names such as `font-family: Zilla Slab` matched only
+				// the first word and could not resolve
+				// (actual failure in Docker with Google Fonts).
+				// Only a standalone ident can be a generic-family keyword.
 				StringBuilder joined = null;
 				while (tokens.peek() instanceof CssToken.Ident next) {
 					tokens.next();
@@ -79,7 +79,7 @@ public final class FontValueUtils {
 						list.add(FontFamily.SERIF_VALUE);
 						break;
 					default:
-						// 一般のファミリ名
+						// Ordinary family name
 						list.add(new FontFamily(ident.name()));
 						break;
 					}
@@ -102,8 +102,8 @@ public final class FontValueUtils {
 	}
 
 	/**
-	 * font-styleを値に変換します。SPEC CSS2.1 15.4
-	 * 
+	 * Converts font-style to a value. SPEC CSS2.1 15.4
+	 *
 	 * @param lu
 	 * @return
 	 */
@@ -122,8 +122,8 @@ public final class FontValueUtils {
 	}
 
 	/**
-	 * -cssj-font-policyを値に変換します。
-	 * 
+	 * Converts -cssj-font-policy to a value.
+	 *
 	 * @param lu
 	 * @return
 	 */
@@ -258,9 +258,9 @@ public final class FontValueUtils {
 	}
 
 	/**
-	 * font-variant-caps(およびfontショートハンド内のCSS2互換caps値)を
-	 * 値に変換します。
-	 * 
+	 * Converts font-variant-caps (and CSS2-compatible caps values in the font shorthand)
+	 * to a value.
+	 *
 	 * @param lu
 	 * @return
 	 */
@@ -287,8 +287,8 @@ public final class FontValueUtils {
 	}
 
 	/**
-	 * font-weightを値に変換します。SPEC CSS2.1 15.6
-	 * 
+	 * Converts font-weight to a value. SPEC CSS2.1 15.6
+	 *
 	 * @param lu
 	 * @return
 	 */
@@ -317,8 +317,8 @@ public final class FontValueUtils {
 	}
 
 	/**
-	 * フォントサイズ値に変換します。
-	 * 
+	 * Converts to a font-size value.
+	 *
 	 * @param lu
 	 * @return
 	 */
@@ -364,15 +364,15 @@ public final class FontValueUtils {
 			case CH:
 				return RelativeLengthValue.ch(dim.value());
 			case LH:
-				// SPEC css-values-4: font-sizeのlhは親のline-height基準
-				// (FontSize.getComputedValueがparentStyleで解決する)
+				// SPEC css-values-4: lh in font-size uses the parent's line-height
+				// (FontSize.getComputedValue resolves it with parentStyle)
 				return RelativeLengthValue.lh(dim.value());
 			case CAP:
 				return RelativeLengthValue.cap(dim.value());
 			case RLH:
 				return RelativeLengthValue.rlh(dim.value());
 			default:
-				// 絶対長さはフォント倍率を適用する
+				// Apply font magnification to absolute lengths
 				return ValueUtils.toAbsoluteLength(ua,
 						new CssToken.Dim(dim.value() * ua.getFontMagnification(), dim.unit(), dim.unitText()));
 			}
@@ -381,12 +381,12 @@ public final class FontValueUtils {
 			return AbsoluteLengthValue.create(ua, 0, Unit.PX);
 		}
 		if (token instanceof CssToken.Func) {
-			// calc()/min()/max()/clamp()。絶対長さ成分にはfont-size固有の
-			// ズーム倍率(getFontMagnification)を適用する必要があるが、
-			// CalcValueUtils自体はfont-size専用の規約を知らないため、
-			// 評価結果の絶対成分にここで後掛けする(calc()の+,-,*は絶対成分に
-			// ついて線形なので、個々の入力を先に倍率適用してから合成するのと
-			// 数学的に等価)。
+			// calc()/min()/max()/clamp(). Absolute length components need font-size-specific
+			// zoom (getFontMagnification), but CalcValueUtils itself does not know
+			// font-size conventions, so multiply the evaluated absolute component here
+			// (calc() +,-,* are linear in the absolute component, so this is mathematically
+			// equivalent to applying magnification to each input first and then
+			// combining them).
 			Value calc = CalcValueUtils.toCalc(ua, token);
 			if (calc instanceof AbsoluteLengthValue length) {
 				return AbsoluteLengthValue.create(ua, length.getLength() * ua.getFontMagnification());
@@ -398,10 +398,10 @@ public final class FontValueUtils {
 				return percentage.isNegative() ? null : percentage;
 			}
 			if (calc instanceof CalcFontRelativeValue fontRelative) {
-				// em/rem等のフォント相対成分は計算値の段階(FontSize.getComputedValue)
-				// で親のフォントを基準に解く。現代のCSSリセットは根要素へ
-				// font-size: calc(1em * 0.625) (=62.5%相当)と書くことがあり、
-				// ここで捨てると全rem寸法が1.6倍になる(e-govで実測)
+				// Resolve font-relative components such as em/rem at the computed-value stage
+				// (FontSize.getComputedValue) against the parent's font. Modern CSS resets sometimes
+				// specify font-size: calc(1em * 0.625) (=62.5%) on the root; dropping it here
+				// makes all rem dimensions 1.6 times larger (observed on e-gov).
 				return fontRelative.isNegative() ? null : fontRelative.scaleAbsolute(ua.getFontMagnification());
 			}
 			return null;
@@ -410,8 +410,8 @@ public final class FontValueUtils {
 	}
 
 	/**
-	 * font-familyを値に変換します。
-	 * 
+	 * Converts font-family to a value.
+	 *
 	 * @param str
 	 * @return
 	 */

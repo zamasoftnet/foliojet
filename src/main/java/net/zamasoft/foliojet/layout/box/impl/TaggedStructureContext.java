@@ -8,41 +8,39 @@ import java.util.Set;
 import net.zamasoft.pdfg2d.pdf.StructureRef;
 
 /**
- * タグ付きPDFの構造要素のページ横断レジストリです(欠陥②の修正、
- * 2026-07-30——codex相談
- * 分割時の構造要素の扱いを検討した結果)。
+ * Cross-page registry of tagged PDF structure elements (defect ② fix, 2026-07-30:
+ * the result of a codex consultation on how to handle structure elements when splitting).
  *
  * <p>
- * <b>何の欠陥か</b>: StructElemの重複抑止は従来{@code PageBox}単位
- * (ページごとに新しいインスタンス)だったため、同じ論理要素の継続断片が
- * 次ページで描かれると未宣言と判断され、{@code declareStructElement}が
- * 再実行されて<b>1要素が複数のStructElemに分裂</b>していた。pdfg2dの
- * {@code StructureTreeBuilder}は1つのElemに複数ページのMCID
- * ({@code /Type /MCR /Pg})を保持・出力できるため、初出時に宣言した
- * {@link StructureRef}をページを跨いで再利用すれば1要素=1 StructElemになる。
+ * <b>The defect</b>: StructElem deduplication was previously scoped to {@code PageBox}
+ * (a new instance per page). When a continuation fragment of the same logical element was drawn
+ * on the next page, it was considered undeclared, so {@code declareStructElement} ran again,
+ * <b>splitting one element into multiple StructElems</b>. pdfg2d's {@code StructureTreeBuilder}
+ * can retain and output MCIDs from multiple pages ({@code /Type /MCR /Pg}) in one Elem, so reusing
+ * the {@link StructureRef} declared at first occurrence across pages gives one StructElem per element.
  * </p>
  *
  * <p>
- * <b>寿命</b>: {@code PageSequence}が文書(=PDF writer)単位で1つ保持し、
- * 各ページの{@code PageBox}へ{@code setStructOutput}で渡す。エントリは
- * ページ末({@link #endPage})に「そのページで宣言または再利用された
- * もの」だけを残して破棄する——継続断片は常に直後のページに現れるため
- * 2ページ分の窓で足り、巨大文書でも保持量はページ内要素数に有界。
+ * <b>Lifetime</b>: {@code PageSequence} holds one registry per document (= PDF writer), passing it
+ * to each page's {@code PageBox} via {@code setStructOutput}. At page end ({@link #endPage}), discards
+ * all entries except those declared or reused on that page. Continuation fragments always appear
+ * on the immediately following page, so a two-page window suffices; even for huge documents,
+ * retention is bounded by the number of elements on a page.
  * </p>
  *
  * <p>
- * <b>キー</b>: {@code StructureElement.elementKey() >= 0}(文書順の通し
- * 番号=論理identity)のみ。負値は匿名・擬似要素でオブジェクトidentity
- * 比較が契約のため、レジストリの対象外(従来どおりページ内管理)。
+ * <b>Keys</b>: Only {@code StructureElement.elementKey() >= 0} (a document-order sequence number =
+ * logical identity). Negative values represent anonymous/pseudo-elements whose contract requires
+ * object-identity comparison, so they are excluded from the registry (managed within a page as before).
  * </p>
  */
 public final class TaggedStructureContext {
 
 	/**
-	 * 1論理要素ぶんの宣言済み参照の束です。{@code LI}だけは
-	 * {@code LBody}を伴う2段のため、スタックへ積む参照列
-	 * ({@code refs})と描画先({@code contentRef}=末尾)を分けて持つ。
-	 * hit時の同一性検証用にrole・scope・親も保持する。
+	 * Bundle of declared references for one logical element. Only {@code LI} has two levels with
+	 * {@code LBody}, so the reference sequence pushed onto the stack ({@code refs}) and the drawing
+	 * target ({@code contentRef} = the last reference) are stored separately.
+	 * Also retains role, scope, and parent to verify identity on a hit.
 	 */
 	record Binding(StructureRef[] refs, String role, String scope, StructureRef parent) {
 		StructureRef contentRef() {
@@ -52,12 +50,12 @@ public final class TaggedStructureContext {
 
 	private final Map<Long, Binding> byKey = new HashMap<>();
 
-	/** このページで宣言または再利用されたキー(endPageの生存判定)。 */
+	/** Keys declared or reused on this page (for the endPage liveness check). */
 	private final Set<Long> touched = new HashSet<>();
 
 	/**
-	 * 既存の宣言を返します(なければnull)。返した場合そのキーはこの
-	 * ページの生存対象になる。
+	 * Returns an existing declaration (null if absent).
+	 * If returned, its key becomes eligible for retention on this page.
 	 */
 	Binding lookup(final long elementKey) {
 		final Binding binding = this.byKey.get(elementKey);
@@ -67,16 +65,16 @@ public final class TaggedStructureContext {
 		return binding;
 	}
 
-	/** 初出宣言を登録します。 */
+	/** Registers a declaration at first occurrence. */
 	void register(final long elementKey, final Binding binding) {
 		this.byKey.put(elementKey, binding);
 		this.touched.add(elementKey);
 	}
 
 	/**
-	 * ページ境界の清算です({@code PageSequence.drawPage}の末尾)。
-	 * このページで触れられなかったエントリ(=次ページに継続断片が
-	 * 現れない要素)を破棄し、保持量を有界に保つ。
+	 * Performs page-boundary cleanup (at the end of {@code PageSequence.drawPage}).
+	 * Discards entries untouched on this page (= elements with no continuation fragment on the next page)
+	 * to keep retention bounded.
 	 */
 	public void endPage() {
 		this.byKey.keySet().retainAll(this.touched);

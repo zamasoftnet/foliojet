@@ -24,7 +24,7 @@ public class Direction extends AbstractPrimitivePropertyInfo {
 
 	public static FontStyle.Direction getFontDirection(CSSStyle style) {
 		if (TypesettingMode.isHorizontal(BlockFlow.get(style), WritingModeVariant.get(style))) {
-			// 横組版(horizontal-tb と sideways-*)
+			// Horizontal writing (horizontal-tb and sideways-*).
 			switch (Direction.get(style)) {
 			case AbstractTextParams.DIRECTION_LTR:
 				return FontStyle.Direction.LTR;
@@ -34,7 +34,7 @@ public class Direction extends AbstractPrimitivePropertyInfo {
 				throw new IllegalStateException();
 			}
 		}
-		// 通常の vertical-* だけが縦組版。
+		// Only ordinary vertical-* modes use vertical writing.
 		return FontStyle.Direction.TB;
 	}
 

@@ -17,7 +17,7 @@ import net.zamasoft.foliojet.layout.box.params.RectBorder.Radius;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * border-*-radius 特性(4隅)です。
+ * border-*-radius properties (four corners).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -38,7 +38,7 @@ public final class BorderRadius extends AbstractPrimitivePropertyInfo {
 
 	public static Radius get(CSSStyle style, Corner corner) {
 		final BorderRadiusValue r = (BorderRadiusValue) style.get(BY_CORNER[corner.ordinal()]);
-		// パーセント成分は寸法確定後の描画時に解決するため比率のまま運ぶ
+		// Keep percentage components as ratios; resolve them during rendering once dimensions are known.
 		final double hr, hrRatio, vr, vrRatio;
 		if (r.hr instanceof PercentageValue percent) {
 			hr = 0;
@@ -67,7 +67,7 @@ public final class BorderRadius extends AbstractPrimitivePropertyInfo {
 
 	public Value getComputedValue(Value value, CSSStyle style) {
 		final BorderRadiusValue r = (BorderRadiusValue) value;
-		// パーセントは計算値でも比率のまま(emExToAbsoluteLengthは%を素通し)
+		// Percentages remain ratios even in computed values (emExToAbsoluteLength passes % through).
 		final QuantityValue hr = (QuantityValue) ValueUtils.emExToAbsoluteLength(r.hr, style);
 		final QuantityValue vr = (QuantityValue) ValueUtils.emExToAbsoluteLength(r.vr, style);
 		return BorderRadiusValue.create(hr, vr);

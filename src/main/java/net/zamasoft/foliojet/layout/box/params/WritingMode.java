@@ -1,23 +1,23 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * ブロック進行方向(writing-mode / -cssj-block-flow)です。
- * TB=横書き、RL=縦書き(右→左)、LR=縦書き(左→右)。
+ * Block progression direction (writing-mode / -cssj-block-flow).
+ * TB = horizontal writing, RL = vertical writing (right → left), LR = vertical writing (left → right).
  *
  * @author MIYABE Tatsuhiko
  */
 public enum WritingMode {
-	/** 横書き(ブロックは上から下へ進行)。 */
+	/** Horizontal writing (blocks progress from top to bottom). */
 	TB,
-	/** 縦書き(ブロックは右から左へ進行)。 */
+	/** Vertical writing (blocks progress from right to left). */
 	RL,
-	/** 縦書き(ブロックは左から右へ進行)。 */
+	/** Vertical writing (blocks progress from left to right). */
 	LR;
 
 	/**
-	 * 縦書きであればtrueを返します。
+	 * Returns true for vertical writing.
 	 *
-	 * @return 縦書きであればtrue
+	 * @return true for vertical writing
 	 */
 	public boolean isVertical() {
 		return this != TB;

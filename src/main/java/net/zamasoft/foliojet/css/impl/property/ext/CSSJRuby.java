@@ -28,12 +28,12 @@ public class CSSJRuby extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		// ルビは注釈付きテキスト(文字に付く飾り)であり箱ではない
-		// (2026-07-25仕様裁定、開発記録
-		// spec-decision.md)。役割マーカー(ruby/rb/rt)はdisplayに
-		// 依存しない——ルビ関連要素はStyleBuilderが常にINLINEへ強制し、
-		// 単位の組み立ては文字処理層(StyledTextUnitizer)が行う。
-		// 旧箱方式のdisplayガード(INLINE_BLOCK/BLOCK要求)は撤去した。
+		// Ruby is annotated text (decoration attached to characters), not a box
+		// (2026-07-25 specification decision; development record
+		// spec-decision.md). Role markers (ruby/rb/rt) do not depend on display.
+		// StyleBuilder always forces ruby-related elements to INLINE,
+		// and the text processing layer (StyledTextUnitizer) assembles the units.
+		// Removed display guards (requiring INLINE_BLOCK/BLOCK) from the old box-based approach.
 		return value;
 	}
 

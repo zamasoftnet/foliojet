@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 行のパラメータです。
+ * Line parameters.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: FirstLineParams.java 1552 2018-04-26 01:43:24Z miyabe $

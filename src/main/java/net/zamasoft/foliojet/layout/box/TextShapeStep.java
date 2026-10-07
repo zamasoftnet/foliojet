@@ -3,11 +3,11 @@ package net.zamasoft.foliojet.layout.box;
 import java.util.Deque;
 
 /**
- * {@link IBox#textShape}の反復化(2026-07-20、drawと同じ理由)用の
- * ワークリスト単位です。textShapeは(クリップ用の{@code GeneralPath}へ
- * 幾何を積み上げるだけで描画順に意味がないため)drawほど厳密な
- * push順の管理は不要ですが、他の反復化と実装を揃えるため同じ規約
- * (子は**逆順**でpush)に従います。
+ * A worklist unit for the iterative implementation of {@link IBox#textShape}
+ * (2026-07-20, for the same reason as draw). textShape does not need push-order control
+ * as strict as draw, since it only accumulates geometry in a clipping {@code GeneralPath}
+ * and drawing order does not matter. It follows the same convention (push children
+ * in **reverse order**) to keep the implementation consistent with the other iterative methods.
  */
 @FunctionalInterface
 public interface TextShapeStep {

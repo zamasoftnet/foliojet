@@ -34,13 +34,13 @@ import net.zamasoft.foliojet.css.impl.property.box.MaskOrigin.OriginValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code mask}ショートハンド(css-masking-1 §7.11、2026-08-29)。
+ * {@code mask} shorthand (css-masking-1 §7.11, 2026-08-29).
  *
-	 * <p>
-	 * 実サイトは{@code -webkit-mask: url(icon.svg) no-repeat center / contain}の
-	 * 形でアイコンを型抜きする。画像・repeat・position・{@code / size}に加え、
-	 * mode・2つまでの幾何ボックス・clip・compositeを各レイヤのlonghandへ展開する。
-	 * 描画側の近似範囲は各longhandのjavadocを参照。
+ * <p>
+ * Real sites cut out icons with {@code -webkit-mask: url(icon.svg) no-repeat center / contain}.
+ * Expands image, repeat, position, {@code / size}, mode, up to two geometry boxes,
+ * clip, and composite into each layer's longhands.
+ * See each longhand's Javadoc for the scope of rendering approximations.
  * </p>
  */
 public class MaskShorthand extends AbstractShorthandPropertyInfo {
@@ -144,7 +144,7 @@ public class MaskShorthand extends AbstractShorthandPropertyInfo {
 		primitives.set(MaskClip.INFO, MaskClip.toValue(clips));
 		primitives.set(MaskMode.INFO, MaskMode.toValue(modes));
 		primitives.set(MaskComposite.INFO, MaskComposite.toValue(composites));
-		// 複数レイヤーは最初のレイヤーだけを使う(MaskImageと同じ近似)
+		// Use only the first of multiple layers (the same approximation as MaskImage).
 		final TokenStream layer = layers.get(0);
 		boolean image = false, position = false;
 		while (layer.hasNext()) {
@@ -166,7 +166,7 @@ public class MaskShorthand extends AbstractShorthandPropertyInfo {
 				continue;
 			}
 			if (lu == CssToken.Op.SLASH) {
-				// サイズはlonghandのパーサに任せる(cover/contain/2値)
+				// Delegate size to the longhand parser (cover/contain/two values).
 				final List<CssToken> rest = new ArrayList<>();
 				while (layer.hasNext() && BackgroundShorthand.isPositionToken(ua, layer.peek())
 						|| layer.hasNext() && layer.peek() instanceof CssToken.Ident sizeKw

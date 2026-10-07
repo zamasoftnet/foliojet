@@ -3,14 +3,14 @@ package net.zamasoft.foliojet.css.impl.lang;
 import net.zamasoft.foliojet.css.value.css3.LineBreakValue;
 
 /**
- * {@code line-break: anywhere}の行分割規則です(css-text-3 §5.2、
- * 2026-08-29新設)。
+ * Line-breaking rules for {@code line-break: anywhere} (css-text-3 §5.2,
+ * added 2026-08-29).
  *
  * <p>
- * 全ての文字の間を分割候補にする——約物の前後も、欧文単語の途中も、
- * 禁則を一切見ない({@code word-break: break-all}は約物の禁則を残す
- * ので、それより緩い)。{@code canSeparate}(justifyのアキ配分)は
- * JLREQのまま。
+ * Allows breaks between all characters, including around punctuation and within Latin words,
+ * without applying any kinsoku (line-breaking rules). This is less restrictive than
+ * {@code word-break: break-all}, which retains punctuation restrictions.
+ * {@code canSeparate} (spacing distribution for justification) still follows JLREQ.
  * </p>
  */
 public class AnywhereBreakingRules extends JlreqBreakingRules {

@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.layout;
 
-/** Bまたは報告listenerの失敗。部分出力を正常終了させる設定の対象にはしない。 */
+/** A failure in B or a report listener. Excluded from settings that allow partial output to finish successfully. */
 public final class FootnoteProbeException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
 

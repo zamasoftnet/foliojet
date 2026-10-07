@@ -22,9 +22,9 @@ public class LanguageProfile_ja implements LanguageProfile {
 			new Value[] { new QuotesValue("「", "」"), new QuotesValue("『", "』"), });
 
 	/**
-	 * {@code line-break}の強さ(strict/normal/loose)ごとの規則(2026-08-29)。
-	 * 添字は{@link #levelIndex}。{@code anywhere}は禁則を見ないので
-	 * {@code word-break}によらず1つ。
+	 * Rules for each {@code line-break} strictness level (strict/normal/loose) (2026-08-29).
+	 * Indices are given by {@link #levelIndex}. {@code anywhere} ignores kinsoku (line-breaking rules),
+	 * so there is only one instance regardless of {@code word-break}.
 	 */
 	private final TextBreakingRules[] normalHyph = { new JlreqBreakingRules(LineBreakValue.STRICT),
 			new JlreqBreakingRules(LineBreakValue.NORMAL), new JlreqBreakingRules(LineBreakValue.LOOSE) };
@@ -39,8 +39,8 @@ public class LanguageProfile_ja implements LanguageProfile {
 	private final TextBreakingRules anywhereHyph = new AnywhereBreakingRules();
 
 	/**
-	 * {@code line-break}の値をJLREQ規則の強さへ写します。{@code auto}は
-	 * {@code strict}相当(印刷物向けの既定——{@code LineBreak}のjavadoc)。
+	 * Maps a {@code line-break} value to the JLREQ rule strictness. {@code auto} is equivalent
+	 * to {@code strict} (the default for print; see the {@code LineBreak} Javadoc).
 	 */
 	static LineBreakValue effectiveLevel(final LineBreakValue value) {
 		return value == LineBreakValue.AUTO ? LineBreakValue.STRICT : value;
@@ -72,24 +72,24 @@ public class LanguageProfile_ja implements LanguageProfile {
 	public int countFirstLetter(char[] ch, int off, int len) {
 		int i = 0;
 
-		// 空白文字は飛ばす
+		// Skip whitespace.
 		for (; i < len; ++i) {
 			if (!isWhitespace(ch[off + i])) {
 				break;
 			}
 		}
 
-		// 括弧と次の文字、数字は分割されないようにする
+		// Prevent breaks between brackets and the next character, and within numbers.
 		short state = 0;
 		for (; i < len; ++i) {
 			int type = Character.getType(ch[off + i]);
 			switch (state) {
-			case 0: {// 初期状態
+			case 0: {// Initial state
 				switch (type) {
 				case Character.START_PUNCTUATION:
 				case Character.END_PUNCTUATION:
 				case Character.OTHER_PUNCTUATION: {
-					// 括弧
+					// Brackets
 					state = 0;
 				}
 					break;
@@ -97,7 +97,7 @@ public class LanguageProfile_ja implements LanguageProfile {
 				case Character.DECIMAL_DIGIT_NUMBER:
 				case Character.LETTER_NUMBER:
 				case Character.OTHER_NUMBER: {
-					// 数字
+					// Digits
 					state = 1;
 				}
 					break;
@@ -109,7 +109,7 @@ public class LanguageProfile_ja implements LanguageProfile {
 			}
 				break;
 
-			case 1: {// 数字が見つかった
+			case 1: {// Found a digit.
 				switch (type) {
 				case Character.DECIMAL_DIGIT_NUMBER:
 				case Character.LETTER_NUMBER:
@@ -132,8 +132,8 @@ public class LanguageProfile_ja implements LanguageProfile {
 	}
 
 	public TextBreakingRules getTextBreakingRules(final CSSStyle style) {
-		// 禁則処理。line-break(css-text-3 §5.2)の強さをword-breakの
-		// 各規則へ重ねる(2026-08-29)。anywhereは禁則そのものを見ない
+		// Kinsoku processing. Apply the line-break strictness (css-text-3 §5.2) to each
+		// word-break rule (2026-08-29). anywhere ignores kinsoku entirely.
 		final LineBreakValue level = effectiveLevel(LineBreak.get(style));
 		if (level == LineBreakValue.ANYWHERE) {
 			return this.anywhereHyph;

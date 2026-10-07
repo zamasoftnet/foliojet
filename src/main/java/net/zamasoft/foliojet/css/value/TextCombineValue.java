@@ -1,16 +1,16 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * 縦中横の指定の内部表現です(2026-08-11)。
+ * Internal representation of tate-chu-yoko settings (2026-08-11).
  *
  * <p>
- * {@code -cssj-text-combine}/{@code -epub-text-combine}の{@code horizontal}と、
- * 標準の{@code text-combine-upright: all}は、どちらも「縦組みの中で数字等を
- * 横に組む」指定だが、<b>幅の扱いが違う</b>。前者は自然幅のまま(はみ出す)、
- * 後者は1em幅へ収める(css-writing-modes-3 §9.1「the combined text is
- * scaled to fit within 1em」)。ショートハンドの展開先(direction・
- * writing-mode・text-indent・line-height)だけでは両者を区別できないため、
- * この内部プロパティで区別を運ぶ。
+ * {@code horizontal} in {@code -cssj-text-combine}/{@code -epub-text-combine} and
+ * the standard {@code text-combine-upright: all} both specify horizontal layout of digits, etc.
+ * within vertical writing, but <b>handle width differently</b>. The former retains the natural
+ * width (overflowing); the latter fits within a width of 1 em (css-writing-modes-3 §9.1:
+ * "the combined text is scaled to fit within 1em"). The properties expanded from the shorthand
+ * (direction, writing-mode, text-indent, line-height) cannot distinguish the two,
+ * so this internal property carries the distinction.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -22,13 +22,13 @@ public enum TextCombineValue implements Value {
 
 	ALL_VALUE(TextCombineValue.ALL);
 
-	/** 縦中横ではない。 */
+	/** No tate-chu-yoko. */
 	public static final byte NONE = 0;
 
-	/** 従来の縦中横(自然幅のまま組む)。 */
+	/** Traditional tate-chu-yoko (laid out at its natural width). */
 	public static final byte HORIZONTAL = 1;
 
-	/** 標準の{@code text-combine-upright: all}(1em幅へ収める)。 */
+	/** The standard {@code text-combine-upright: all} (fits within a width of 1 em). */
 	public static final byte ALL = 2;
 
 	private final byte textCombine;

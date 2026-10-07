@@ -9,18 +9,18 @@ import java.util.Map;
 import net.zamasoft.foliojet.css.value.ColorValue;
 
 /**
- * 文書中の{@code @font-palette-values}定義の登録簿です。
+ * Registry of {@code @font-palette-values} definitions in the document.
  *
- * <p><b>FolioJet/pdfg2dにはカラーフォントのパレット選択機構がないため、
- * この登録簿は規則の解析と{@code font-palette}からの名前解決だけを行い、
- * 定義を描画には反映しません。</b></p>
+ * <p><b>FolioJet/pdfg2d has no mechanism for selecting color font palettes,
+ * so this registry only parses rules and resolves names from {@code font-palette};
+ * it does not apply the definitions to rendering.</b></p>
  */
 public final class FontPaletteValues {
 	public enum BasePaletteKind {
 		INDEX, LIGHT, DARK
 	}
 
-	/** 基底パレットです。{@code INDEX}のときだけindexを使います。 */
+	/** Base palette. Uses index only for {@code INDEX}. */
 	public record BasePalette(BasePaletteKind kind, int index) {
 		public BasePalette {
 			if (kind == null || index < 0) {
@@ -41,7 +41,7 @@ public final class FontPaletteValues {
 		}
 	}
 
-	/** 1つの名前付きパレット定義です。 */
+	/** A named palette definition. */
 	public record Definition(List<String> fontFamilies, BasePalette basePalette,
 			Map<Integer, ColorValue> overrideColors) {
 		public Definition {
@@ -55,7 +55,7 @@ public final class FontPaletteValues {
 
 	private final Map<String, Definition> definitions = new HashMap<>();
 
-	/** 同名規則は文書順で最後の有効な規則に置き換えます。 */
+	/** Replaces a rule with the same name with the last valid rule in document order. */
 	public void define(final String name, final Definition definition) {
 		this.definitions.put(name, definition);
 	}

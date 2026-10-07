@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.css.selector;
 
 /**
- * 結合子(子・子孫・隣接・一般兄弟)によるセレクタ。
- * ancestor が左側の文脈、simple が右側の単純セレクタです。
+ * A selector using a combinator (child, descendant, adjacent sibling, general sibling).
+ * ancestor is the context on the left; simple is the simple selector on the right.
  */
 public final class CombinatorSelector implements Selector {
 	private final SelectorType type;

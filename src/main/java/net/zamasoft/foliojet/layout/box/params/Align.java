@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * ブロックの行方向の寄せです。
+ * Block alignment in the line direction.
  *
  * @author MIYABE Tatsuhiko
  */

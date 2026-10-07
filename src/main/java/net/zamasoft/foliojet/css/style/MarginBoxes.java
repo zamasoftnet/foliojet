@@ -64,24 +64,23 @@ import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.css.style.running.RunningRenderer;
 
 /**
- * ページマージンボックス(css-page-3 §7)の組版と描画です。
+ * Layout and drawing of page margin boxes (css-page-3 §7).
  *
  * <p>
- * ページ確定(drawPage)時に呼ばれます。ライブの StyleBuilder /
- * DocumentBuilder / LayoutSource には一切触れず、ボックスごとに新品の
- * DocumentBuilder による隔離ミニレイアウトで組みます(M6b v3 の
- * SourceReplayer と同じ隔離原則)。
+ * Called when a page is finalized (drawPage). Does not touch the live StyleBuilder /
+ * DocumentBuilder / LayoutSource. Lays out each box in an isolated mini-layout with a
+ * fresh DocumentBuilder (same isolation principle as SourceReplayer in M6b v3).
  * </p>
  *
  * <p>
- * 現段階の対応: content の文字列・counter()/counters()(ページレベルの
- * カウンタ=page/pages と @page の counter-* によるもの)・
- * string()(GCPM、PageAssignmentStateを読む)、フォント・色・text-align・
- * vertical-align(top/middle/bottom)、margin/border/padding/background。
- * 縦書き(writing-mode)は 2026-09-06 から: vertical-align は天地、行の束は帯の中央、
- * 背景は領域全体(Vivliostyle 実測に一致)。未対応(FINE ログ): url() 画像・引用符・
- * attr()・page-ref・width/height。幅配分は css-page-3 §7.3 の基本形(センター優先、なければ
- * max-content 比例)。
+ * Currently supports: content strings; counter()/counters() (page-level counters:
+ * page/pages and those from @page counter-*); string() (GCPM, reads PageAssignmentState);
+ * fonts, color, text-align, vertical-align (top/middle/bottom), margin/border/padding/background.
+ * Vertical writing (writing-mode) since 2026-09-06: vertical-align controls top/bottom alignment,
+ * the group of lines is centered in the band, and the background fills the region
+ * (matching Vivliostyle observations). Unsupported (FINE log): url() images, quotes,
+ * attr(), page-ref, width/height. Width distribution uses the basic css-page-3 §7.3 form
+ * (center takes precedence; otherwise proportional to max-content).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -89,7 +88,7 @@ import net.zamasoft.foliojet.css.style.running.RunningRenderer;
 final class MarginBoxes {
 	private static final Logger LOG = Logger.getLogger(MarginBoxes.class.getName());
 
-	/** max-content 測定に使う「十分に広い」寸法です。 */
+	/** A sufficiently large dimension for max-content measurement. */
 	private static final double INFINITE = 1e6;
 
 	private MarginBoxes() {
@@ -97,15 +96,15 @@ final class MarginBoxes {
 	}
 
 	/**
-	 * ページのマージンボックスを組んで描画します。
+	 * Lays out and draws the page's margin boxes.
 	 *
-	 * @param ua           ユーザーエージェント
-	 * @param styleContext スタイル文脈(マージンボックス宣言の取得)
-	 * @param pageElement  現在のページ擬似要素(:left/:right/:first)
-	 * @param pageBox      確定したページ
-	 * @param drawer       描画先(座標系はページ内容領域原点)
-	 * @param visitor      ビジタ
-	 * @param blank        強制改ページで生じた内容の無いページか({@code @page :blank})
+	 * @param ua           user agent
+	 * @param styleContext style context (obtains margin box declarations)
+	 * @param pageElement  current page pseudo-element (:left/:right/:first)
+	 * @param pageBox      finalized page
+	 * @param drawer       drawing destination (coordinates originate at the page content area)
+	 * @param visitor      visitor
+	 * @param blank        whether this is an empty page caused by a forced page break ({@code @page :blank})
 	 */
 	static void draw(final UserAgent ua, final StyleContext styleContext, final CSSElement pageElement,
 			final String pageName, final PageBox pageBox, final Drawer drawer, final Visitor visitor,
@@ -126,19 +125,19 @@ final class MarginBoxes {
 			return;
 		}
 
-		// drawer 座標系はページ内容領域原点(用紙原点は (-margin.left, -margin.top))。
-		// PageBox の width/height は用紙全体なのでマージンを控除する
+		// Drawer coordinates originate at the page content area (paper origin is (-margin.left, -margin.top)).
+		// PageBox width/height cover the whole sheet, so subtract margins.
 		final AbsoluteInsets margin = pageBox.getFrame().margin;
 		final double contentW = pageBox.getWidth() - margin.left - margin.right;
 		final double contentH = pageBox.getHeight() - margin.top - margin.bottom;
 
-		// 上下バンド(コーナー間の内容領域幅)
+		// Top/bottom bands (content area width between corners)
 		band(ua, boxes, MarginBoxName.TOP_LEFT, MarginBoxName.TOP_CENTER, MarginBoxName.TOP_RIGHT, 0, -margin.top,
 				contentW, margin.top, drawer, visitor);
 		band(ua, boxes, MarginBoxName.BOTTOM_LEFT, MarginBoxName.BOTTOM_CENTER, MarginBoxName.BOTTOM_RIGHT, 0,
 				contentH, contentW, margin.bottom, drawer, visitor);
 
-		// コーナー
+		// Corners
 		place(ua, boxes.get(MarginBoxName.TOP_LEFT_CORNER), -margin.left, -margin.top, margin.left, margin.top,
 				drawer, visitor);
 		place(ua, boxes.get(MarginBoxName.TOP_RIGHT_CORNER), contentW, -margin.top, margin.right, margin.top, drawer,
@@ -148,7 +147,7 @@ final class MarginBoxes {
 		place(ua, boxes.get(MarginBoxName.BOTTOM_RIGHT_CORNER), contentW, contentH, margin.right, margin.bottom,
 				drawer, visitor);
 
-		// 側面カラム(コーナー間の内容領域高さ)
+		// Side columns (content area height between corners)
 		column(ua, boxes, MarginBoxName.LEFT_TOP, MarginBoxName.LEFT_MIDDLE, MarginBoxName.LEFT_BOTTOM, -margin.left,
 				0, margin.left, contentH, drawer, visitor);
 		column(ua, boxes, MarginBoxName.RIGHT_TOP, MarginBoxName.RIGHT_MIDDLE, MarginBoxName.RIGHT_BOTTOM, contentW,
@@ -156,8 +155,8 @@ final class MarginBoxes {
 	}
 
 	/**
-	 * 上下バンドの3ボックスの幅を配分して置きます(css-page-3 §7.3 の基本形:
-	 * センターがあれば中央固定で両側均等、なければ max-content 比例)。
+	 * Distributes widths and places the three boxes in a top/bottom band (basic css-page-3 §7.3:
+	 * if a center box exists, fix it at the center with equal sides; otherwise proportional to max-content).
 	 */
 	private static void band(final UserAgent ua, final Map<MarginBoxName, Box> boxes, final MarginBoxName leftName,
 			final MarginBoxName centerName, final MarginBoxName rightName, final double x, final double y,
@@ -188,7 +187,7 @@ final class MarginBoxes {
 	}
 
 	/**
-	 * 側面カラムの3ボックスの高さを配分して置きます(バンドの縦版)。
+	 * Distributes heights and places the three boxes in a side column (vertical version of a band).
 	 */
 	private static void column(final UserAgent ua, final Map<MarginBoxName, Box> boxes, final MarginBoxName topName,
 			final MarginBoxName middleName, final MarginBoxName bottomName, final double x, final double y,
@@ -219,7 +218,7 @@ final class MarginBoxes {
 	}
 
 	/**
-	 * ボックスを矩形に組んで描画します(縦位置は vertical-align)。
+	 * Lays out and draws a box in a rectangle (vertical position follows vertical-align).
 	 */
 	private static void place(final UserAgent ua, final Box box, final double x, final double y, final double w,
 			final double h, final Drawer drawer, final Visitor visitor) {
@@ -232,21 +231,21 @@ final class MarginBoxes {
 			return;
 		}
 		final boolean vertical = box.params.flow.isVertical();
-		// 寄せは物理軸で行う(2026-09-06、利用者申し送り §4、Vivliostyle 実測):
-		// vertical-align は横書き・縦書きとも天地(y)の寄せ。縦書きでは行が x に
-		// 積まれるので、行の束は帯の中央に置く(text-align は行方向の寄せとして
-		// 縦書きでは使わない。Box.create で start に固定してある)。padding・margin は
-		// 左右方向の padding・margin は内容箱を狭めるだけで折り返しには影響しない
-		// (天地方向のものは行長を削る)。
-		// 縦書きのミニページは行長=領域高で 1 回だけ組む(百分率 padding の基準が
-		// 配置と同じになる)。枠(背景・罫線)は領域全体に置いたまま、内容だけを
-		// dy でずらす(Vivliostyle と同じ: マージンボックスの背景は領域いっぱい)。
-		// 行頭が物理下端(sideways-lr、縦書き rtl)なら内容は既に地側にあるので
-		// dy は余りの分だけ天側へ。running テンプレートは自身の text-align で
-		// 行方向に寄るので dy は付けない(内部の寄せと二重にならないように)
-		// 文字列ボックスは箱を領域に固定してあるので、寄せは padding の内側(内容箱)で
-		// 内側の container の実寸から決める。running テンプレートは従来どおり
-		// (箱は内容の大きさ、ミニページの外寸で寄せる)
+		// Align on physical axes (2026-09-06, user handoff §4, Vivliostyle observations):
+		// vertical-align controls top/bottom (y) alignment in both horizontal and vertical writing.
+		// Vertical writing stacks lines along x, so center the group of lines in the band
+		// (do not use text-align for inline-axis alignment in vertical writing; Box.create fixes it to start).
+		// Horizontal padding/margins only narrow the content box and do not affect wrapping;
+		// vertical padding/margins shorten the line length.
+		// Lay out a vertical mini-page once with line length=region height (so percentage
+		// padding uses the same basis as placement). Keep the frame (background/borders)
+		// over the whole region and shift only the content by dy (as in Vivliostyle: the background fills the region).
+		// If line start is the physical bottom (sideways-lr, vertical rtl), content is already
+		// at the bottom, so shift dy toward the top by the remaining space. Running templates
+		// align along the inline axis using their own text-align; do not add dy and double the alignment.
+		// String boxes are fixed to the region, so determine alignment inside padding (the content box)
+		// from the inner container's actual size. Running templates retain the previous behavior
+		// (box matches content size; alignment uses the mini-page's outer dimensions).
 		final RectFrame frame = box.params.frame;
 		final Container inner = text ? innerContainer(mini) : null;
 		final double innerW = text ? Math.max(0, w - frame.margin.getLeft() - frame.margin.getRight()
@@ -266,7 +265,7 @@ final class MarginBoxes {
 			dy = slack;
 			break;
 		default:
-			// MIDDLE / BASELINE(マージンボックスでは middle 扱い)
+			// MIDDLE / BASELINE (treated as middle in margin boxes)
 			dy = slack / 2;
 			break;
 		}
@@ -274,20 +273,20 @@ final class MarginBoxes {
 			dy -= slack;
 		}
 		final double dx = vertical ? Math.max(0, (innerW - blockSize) / 2) : 0;
-		// frames が背景・ボーダー層、draw が内容層(PageBox.drawFlow と同じ二層)。
-		// 縦書き RL のミニページは右端から行を積むので x は左へ寄せる
+		// frames is the background/border layer; draw is the content layer (same two layers as PageBox.drawFlow).
+		// A vertical RL mini-page stacks lines from the right edge, so shift x to the left.
 		final double drawX = x + (box.params.flow == WritingMode.RL ? -dx : dx);
 		final double drawY = y + dy;
 		if (box.running != null) {
 			RunningRenderer.draw(mini, drawer, drawX, drawY);
 		} else {
-			// 枠(背景・罫線)は領域に固定した箱をそのまま、内容だけを寄せて描く
+			// Keep the frame (background/borders) in the box fixed to the region; align only the drawn content.
 			mini.frames(mini, drawer, null, new AffineTransform(), x, y);
 			mini.draw(mini, drawer, visitor, null, new AffineTransform(), drawX, drawY, drawX, drawY);
 		}
 	}
 
-	/** ミニページの最初のブロック箱(マージンボックス本体)の内側 container。 */
+	/** The inner container of the mini-page's first block box (the margin box itself). */
 	private static Container innerContainer(final PageBox mini) {
 		final AbstractContainerBox[] found = { null };
 		mini.getContainer().eachFlowBox(b -> {
@@ -299,11 +298,11 @@ final class MarginBoxes {
 	}
 
 	/**
-	 * 縦書きのミニページで行頭が物理下端に来るか(内容が既に地側に寄っているか)。
-	 * 条件は行ボックスの実際の反転と同じにする: sideways は
-	 * {@code LayoutUtils.inlineToPhysical} が進行方向 BOTTOM_TO_TOP で無条件に反転、
-	 * 通常の縦書き rtl は {@code AbstractLineBox} が段落 bidi 有効時だけ start/end を
-	 * 交換する(codex レビュー 3 回目、2026-09-06)。
+	 * Whether line start is the physical bottom in a vertical mini-page (content already at the bottom).
+	 * Use the same conditions as actual line-box reversal: for sideways,
+	 * {@code LayoutUtils.inlineToPhysical} always reverses BOTTOM_TO_TOP progression;
+	 * for ordinary vertical rtl, {@code AbstractLineBox} swaps start/end only when paragraph
+	 * bidi is enabled (third codex review, 2026-09-06).
 	 */
 	private static boolean inlineStartsAtBottom(final BlockParams params) {
 		if (TypesettingMode.usesSidewaysInlineAxis(params.flow, params.writingModeVariant)) {
@@ -314,7 +313,7 @@ final class MarginBoxes {
 	}
 
 	/**
-	 * 1個のマージンボックスの合成結果(スタイル+内容テキスト)です。
+	 * The composed result for one margin box (style + content text).
 	 */
 	private static final class Box {
 		final BlockParams params;
@@ -334,15 +333,15 @@ final class MarginBoxes {
 		}
 
 		/**
-		 * 宣言からボックスを合成します。内容が生成されない場合は null。
+		 * Composes a box from declarations. Returns null if no content is generated.
 		 */
 		static Box create(final UserAgent ua, final MarginBoxName name, final Declaration declaration,
 				final RunningRenderer renderer) {
 			final CSSStyle style = CSSStyle.getCSSStyle(ua, null, CSSElement.BEFORE);
-			// 根要素で宣言した変数を引けるように(var())
+			// Allow variables declared on the root element to be referenced (var())
 			style.setCustomPropertyFallback(ua.getDocumentContext().getRootStyle());
-			// ボックス位置ごとの UA 既定(css-page-3 Appendix A 相当)。
-			// 宣言が上書きできるよう applyProperties より先に設定する
+			// UA defaults for each box position (equivalent to css-page-3 Appendix A).
+			// Set before applyProperties so declarations can override them.
 			style.set(TextAlign.INFO, defaultTextAlign(name));
 			style.set(VerticalAlign.INFO, defaultVerticalAlign(name));
 			declaration.applyProperties(style);
@@ -396,9 +395,9 @@ final class MarginBoxes {
 			params.flow = net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style);
 			params.writingModeVariant = net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant.get(style);
 			if (params.flow.isVertical()) {
-				// 縦書きの行方向(天地)の寄せは place() が vertical-align で行う。
-				// ミニページの行長は帯の高さそのものなので、ここで center に
-				// すると vertical-align: top の柱が天地中央へ行ってしまう
+				// place() uses vertical-align for inline-axis (top/bottom) alignment in vertical writing.
+				// The mini-page line length is exactly the band height, so setting center here
+				// would move a vertical-align: top running header to the vertical center.
 				params.textAlign = net.zamasoft.foliojet.layout.box.params.AbstractLineParams.TEXT_ALIGN_START;
 				params.textAlignLast = net.zamasoft.foliojet.layout.box.params.AbstractLineParams.TEXT_ALIGN_START;
 			} else {
@@ -413,7 +412,7 @@ final class MarginBoxes {
 		}
 
 		/**
-		 * max-content 幅を実レイアウトで測ります(結果はキャッシュ)。
+		 * Measures max-content width through actual layout (caches the result).
 		 */
 		double preferredWidth(final UserAgent ua) {
 			if (this.preferredWidth < 0) {
@@ -426,9 +425,10 @@ final class MarginBoxes {
 		}
 
 		/**
-		 * 与えられた幅で組んだときの内容高さを測ります。縦書きは行長=利用可能な高さで
-		 * 組む(百分率 padding の基準を配置時と揃える。無限高だと padding だけで
-		 * 領域を占有する——codex レビュー 3 回目)。横書きは高さ無限で自然な高さ
+		 * Measures content height when laid out at the given width. For vertical writing,
+		 * uses line length=available height (same percentage-padding basis as placement;
+		 * infinite height would let padding alone fill the region: third codex review).
+		 * For horizontal writing, uses infinite height to obtain the natural height.
 		 */
 		double preferredHeight(final UserAgent ua, final double width, final double availableHeight) {
 			final PageBox mini = this.layout(ua, width, this.params.flow.isVertical() ? availableHeight : INFINITE);
@@ -438,18 +438,18 @@ final class MarginBoxes {
 		}
 
 		/**
-		 * 隔離ミニレイアウトで内容を組みます。
+		 * Lays out the content in an isolated mini-layout.
 		 */
 		PageBox layout(final UserAgent ua, final double width, final double height) {
 			return this.layout(ua, width, height, false);
 		}
 
 		/**
-		 * 隔離ミニレイアウトで内容を組みます。{@code fill} なら箱を領域(width×height、
-		 * margin を除く)の大きさに固定する——背景・罫線が領域全体に描かれ、内容の
-		 * 寄せは {@link MarginBoxes#place} が行う(Vivliostyle 実測 2026-09-06: マージン
-		 * ボックスの背景は縦横とも割り当て領域いっぱい)。測定(preferredWidth/Height)は
-		 * 自然な寸法が要るので固定しない。
+		 * Lays out the content in an isolated mini-layout. With {@code fill}, fixes the box size
+		 * to the region (width×height, excluding margin): background and borders cover the entire
+		 * region, and {@link MarginBoxes#place} aligns the content (Vivliostyle observations,
+		 * 2026-09-06: margin box backgrounds fill the allocated region in both writing modes).
+		 * Measurement (preferredWidth/Height) needs natural dimensions, so does not fix the size.
 		 */
 		PageBox layout(final UserAgent ua, final double width, final double height, final boolean fill) {
 			if (this.running != null) {
@@ -479,10 +479,10 @@ final class MarginBoxes {
 		}
 
 		private static int counterValue(final UserAgent ua, final String name) {
-			// マージンボックスはページレベル(level 0)のカウンタを見る
-			// (page / pages / @page の counter-*)。文書ツリー内のカウンタは
-			// 改ページ位置のスナップショットが必要なため未対応(FINE ログなし:
-			// 未定義カウンタの 0 は仕様通り)
+			// Margin boxes use page-level (level 0) counters
+			// (page / pages / @page counter-*). Document-tree counters are unsupported
+			// because they need a snapshot at the page break (no FINE log:
+			// zero for an undefined counter is as specified).
 			final CounterScope scope = ua.getPassContext().getCounterScope(0, false);
 			if (scope != null && scope.defined(name)) {
 				return scope.get(name);
@@ -497,7 +497,7 @@ final class MarginBoxes {
 			case TOP_LEFT, BOTTOM_LEFT -> TextAlignValue.LEFT_VALUE;
 			case TOP_CENTER, BOTTOM_CENTER -> TextAlignValue.CENTER_VALUE;
 			case TOP_RIGHT, BOTTOM_RIGHT -> TextAlignValue.RIGHT_VALUE;
-			// 側面ボックスは中央
+			// Side boxes are centered
 			default -> TextAlignValue.CENTER_VALUE;
 			};
 		}

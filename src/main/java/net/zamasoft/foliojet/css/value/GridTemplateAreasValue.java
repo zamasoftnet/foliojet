@@ -3,20 +3,18 @@ package net.zamasoft.foliojet.css.value;
 import java.util.List;
 
 /**
- * {@code grid-template-areas}の値です(css-grid-1 §7.3、2026-08-29)。
- * 文字列の行列から求めた名前付き領域(zero-basedのトラック範囲)と、
- * 行列が定める明示グリッドの行数・列数を持つ。解析時に矩形性と
- * 行ごとの列数一致を検証済み(不正は宣言無効)。
+ * A {@code grid-template-areas} value (css-grid-1 §7.3, 2026-08-29).
+ * Holds named areas (zero-based track ranges) derived from the string matrix,
+ * and the explicit grid's row and column counts defined by that matrix. Parsing has already
+ * validated rectangularity and equal column counts in each row (invalid input invalidates the declaration).
  *
  * @author MIYABE Tatsuhiko
  */
 public final class GridTemplateAreasValue implements Value {
-	/** {@code none}(既定)。 */
+	/** {@code none} (the default). */
 	public static final GridTemplateAreasValue NONE_VALUE = new GridTemplateAreasValue(List.of(), 0, 0);
 
-	/**
-	 * 名前付き領域(zero-basedトラック番号、endは排他的)。
-	 */
+	/** A named area (zero-based track indices, with an exclusive end). */
 	public record Area(String name, int rowStart, int columnStart, int rowEnd, int columnEnd) {
 	}
 
@@ -46,12 +44,12 @@ public final class GridTemplateAreasValue implements Value {
 		return this.areas;
 	}
 
-	/** 行列が定める行数。 */
+	/** The row count defined by the matrix. */
 	public int getRowCount() {
 		return this.rowCount;
 	}
 
-	/** 行列が定める列数。 */
+	/** The column count defined by the matrix. */
 	public int getColumnCount() {
 		return this.columnCount;
 	}

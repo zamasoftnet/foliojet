@@ -6,13 +6,12 @@ import net.zamasoft.foliojet.layout.box.params.Offset;
 
 public abstract class AbstractBox implements IBox {
 	/**
-	 * この内容を生んだ LayoutSource のイベントIDです(SourceAnchor。
-	 * P0: provenance の style params からの分離 — 外部レビュー指摘)。
-	 * 記録時に一度だけ付与され、以後不変。断片・未記録の内容は -1 のまま
-	 * — レシピ構築の断片は最初からアンカーを持たないため、旧
-	 * params.sourceEventId の「-1 書き込みによる無効化」プロトコルは
-	 * 不要になった。再生インスタンスにはドライバがイベントIDから
-	 * 再付与する(SourceReplayer.drive)。
+	 * The LayoutSource event ID that produced this content (SourceAnchor; P0: separates provenance
+	 * from style params, as noted in external review). Assigned once during recording and immutable
+	 * thereafter. Fragments and unrecorded content retain -1. Since recipe-built fragments have no
+	 * anchor from the outset, the old params.sourceEventId protocol of invalidating by writing -1
+	 * is unnecessary. The driver reattaches anchors to replay instances from event IDs
+	 * (SourceReplayer.drive).
 	 */
 	private long sourceAnchor = -1;
 	private long assignmentAnchor = -1;
@@ -22,29 +21,28 @@ public abstract class AbstractBox implements IBox {
 		return this.assignmentAnchor >= 0 ? this.assignmentAnchor : this.sourceAnchor;
 	}
 
-	/** 元のソース再生適格性には触れず、配置の代入元だけを引き継ぎます。 */
+	/** Inherits only the placement assignment source, leaving original source-replay eligibility untouched. */
 	public final void setAssignmentAnchor(final long anchor) {
 		this.assignmentAnchor = anchor;
 	}
 
 	/**
-	 * この箱が既に切断され、内容の一部を継続断片へ渡したかどうかです
-	 * (2026-07-28新設)。{@link #getSourceAnchor()}は「この箱を生んだ
-	 * 要素の開始イベント」であり、<b>切断後も前断片側に残り続ける</b>
-	 * ——継続断片はレシピ構築でアンカーを持たないので、切断で無効化
-	 * されるのは<b>後ろ半分だけ</b>だった。前断片をソースから再生すると
-	 * <b>要素全体</b>(=継続断片が持っている残りを含む)が組み直され、
-	 * 継続断片の再開と二重になる。
+	 * Whether this box has already been split and passed some content to a continuation fragment
+	 * (added on 2026-07-28). {@link #getSourceAnchor()} is the start event of the element that
+	 * created this box and <b>remains on the preceding fragment even after a split</b>.
+	 * Since recipe-built continuation fragments have no anchor, splitting invalidated
+	 * <b>only the trailing half</b>. Replaying the preceding fragment from source rebuilds
+	 * <b>the entire element</b>, including the remainder held by the continuation fragment,
+	 * duplicating content when the continuation resumes.
 	 */
 	private boolean fragmented = false;
 
 	/**
-	 * ソース区間からの再構築を禁じるか(2026-08-23)。断片化(fragmented)
-	 * とは独立——断片化は表フッタ反復などの意味も持つため流用しない。
-	 * 表全体のMOVEで立てる: 表の字句的ソース区間には、HTMLのfoster
-	 * parentingで既に表の**外**へ確定した内容(表直下の裸テキスト)が
-	 * 含まれうるため、MOVE後にその区間を再生すると確定済み内容が複製される
-	 * (v2生成器 seed 30の縮小で発見)。
+	 * Whether to prohibit reconstruction from the source range (2026-08-23). Independent of
+	 * fragmented status, which also controls semantics such as repeated table footers and is not reused.
+	 * Set when the entire table MOVEs: its lexical source range can contain content already finalized
+	 * **outside** the table by HTML foster parenting (bare text directly under the table). Replaying
+	 * that range after MOVE duplicates finalized content (found while minimizing v2 generator seed 30).
 	 */
 	private boolean sourceReplayInvalidated = false;
 
@@ -59,13 +57,13 @@ public abstract class AbstractBox implements IBox {
 
 	public final boolean isSourceReplayable() {
 		if (this instanceof net.zamasoft.foliojet.layout.box.impl.TableBox table && table.isIncomplete()) {
-			// 未完断片のアンカーは全表を指すため、全表ソース再生の対象にしない。
+			// An unfinished fragment's anchor points to the whole table, so exclude it from whole-table source replay.
 			return false;
 		}
 		return this.sourceAnchor >= 0 && !this.fragmented && !this.sourceReplayInvalidated;
 	}
 
-	/** 構築済みの内容を保持したまま運ぶため、ソース再生だけを無効化します。 */
+	/** Disables only source replay, so already-built content can be carried intact. */
 	public final void invalidateSourceReplay() {
 		this.sourceReplayInvalidated = true;
 	}
@@ -75,26 +73,25 @@ public abstract class AbstractBox implements IBox {
 	}
 
 	/**
-	 * この箱が切断済み(前断片側)かを返します(タグ付きPDF欠陥②の修正、
-	 * 2026-07-30——表の反復フッタ判定「切断された断片のフッタは反復表示」
-	 * が使う)。
+	 * Returns whether this box has been split (the preceding fragment) (tagged-PDF defect ② fix,
+	 * 2026-07-30). Used by the table-footer rule that repeats footers on split fragments.
 	 */
 	public final boolean isFragmented() {
 		return this.fragmented;
 	}
 
 	/**
-	 * エンジン内部の水平圧縮率です(縦中横の1em収めなど。既定1=なし)。
-	 * 作者のCSS {@code transform}とは別物で、こちらが内側に掛かる。
+	 * The engine's internal horizontal compression ratio (e.g., fitting tate-chu-yoko into 1 em; default 1=none).
+	 * Separate from the author's CSS {@code transform}; this applies on the inside.
 	 */
 	protected double internalScaleX() {
 		return 1;
 	}
 
 	/**
-	 * この箱を内容として保持している{@code FlowContainer}(2026-08-29)。
-	 * {@code hasNonDecorationContent}のメモを、変更のあった箱の祖先だけ
-	 * 無効化するために使う。保持先が変わるたびに付け直される。
+	 * The {@code FlowContainer} holding this box as content (2026-08-29).
+	 * Used to invalidate the {@code hasNonDecorationContent} memo only for ancestors of changed boxes.
+	 * Reassigned whenever the holding container changes.
 	 */
 	private net.zamasoft.foliojet.layout.box.content.FlowContainer contentParent;
 
@@ -106,15 +103,15 @@ public abstract class AbstractBox implements IBox {
 		this.contentParent = parent;
 	}
 
-	/** 内部圧縮後に内容を中央へ寄せる物理Xのずれです(既定0)。 */
+	/** The physical X offset that centers content after internal compression (default 0). */
 	protected double internalOffsetX() {
 		return 0;
 	}
 
 	/**
-	 * {@code transform-origin}・割合の{@code translate()}の基準箱(border box)を
-	 * 得るための margin です。margin を持たない箱は null(=(x, y) と
-	 * getWidth()/getHeight() がそのまま基準箱)。
+	 * Margins used to obtain the reference box (border box) for {@code transform-origin}
+	 * and percentage {@code translate()}. Null for boxes without margins, where (x, y)
+	 * and getWidth()/getHeight() directly define the reference box.
 	 */
 	protected net.zamasoft.foliojet.layout.part.AbsoluteInsets transformReferenceMargin() {
 		return null;
@@ -134,19 +131,19 @@ public abstract class AbstractBox implements IBox {
 			return transform;
 		}
 		transform = new AffineTransform(transform);
-		// transform-origin と translate() の割合の基準箱は border box
-		// (css-transforms-1 §3: reference box は border-box)。(x, y) は margin box
-		// の原点、getWidth()/getHeight() は margin 込みなので、margin を除いて
-		// 基準箱を取る(2026-09-03。margin 付きの箱で原点が margin box 基準に
-		// ずれていた——filter 層の配置試験で発見)
+		// The reference box for transform-origin and translate() percentages is the border box
+		// (css-transforms-1 §3: reference box is border-box). (x, y) is the margin-box
+		// origin and getWidth()/getHeight() include margins, so remove margins
+		// to obtain the reference box (2026-09-03; boxes with margins had their origin incorrectly
+		// based on the margin box, found in filter-layer placement tests).
 		final net.zamasoft.foliojet.layout.part.AbsoluteInsets margin = this.transformReferenceMargin();
 		final double bx = margin == null ? x : x + margin.left;
 		final double by = margin == null ? y : y + margin.top;
 		final double bw = margin == null ? this.getWidth() : this.getWidth() - margin.getFrameWidth();
 		final double bh = margin == null ? this.getHeight() : this.getHeight() - margin.getFrameHeight();
 		if (zoom != 1) {
-			// zoom(2026-08-29)は境界箱の左上を原点に、作者のtransformの外側で
-			// 拡大する(Zoomのjavadoc: レイアウトには効かない近似)
+			// zoom (2026-08-29) scales around the border box's top-left corner, outside the author's
+			// transform (Zoom's Javadoc: an approximation that does not affect layout).
 			transform.translate(x, y);
 			transform.scale(zoom, zoom);
 			transform.translate(-x, -y);
@@ -167,9 +164,9 @@ public abstract class AbstractBox implements IBox {
 		default:
 			throw new IllegalStateException();
 		}
-		// 注: 以下のswitchはoffset.getXType()を条件にしているが本体はY成分を
-		// 計算している(既存コードの不整合。MIXED追加のスコープ外のため
-		// 挙動は変えず、既存条件式のまま維持する)。
+		// Note: the switch below tests offset.getXType(), but its body calculates the Y component
+		// (an existing code inconsistency outside the scope of adding MIXED;
+		// retain the existing condition without changing behavior).
 		switch (offset.getXType()) {
 		case ABSOLUTE:
 			ay += offset.getY();
@@ -186,10 +183,10 @@ public abstract class AbstractBox implements IBox {
 
 		transform.translate(ax, ay);
 		if (txRatio != 0 || tyRatio != 0 || txRatioH != 0 || tyRatioW != 0) {
-			// **割合の平行移動はここで解く**(2026-08-03)。基準はこの箱自身の
-			// 寸法。関数列の中の位置は解析時に線形分解して係数へ畳んであり
-			// (TransformValue、2026-08-29)、その結果は合成行列の**外側**
-			// (concatenateの前)に足す1回の平行移動になる
+			// **Resolve percentage translations here** (2026-08-03), relative to this box's own
+			// dimensions. Their positions within the function sequence are linearly decomposed
+			// into coefficients during parsing (TransformValue, 2026-08-29). The result is a single
+			// translation added **outside** the composed matrix (before concatenate).
 			final double w = bw;
 			final double h = bh;
 			transform.translate(w * txRatio + h * txRatioH, w * tyRatioW + h * tyRatio);
@@ -197,8 +194,8 @@ public abstract class AbstractBox implements IBox {
 		transform.concatenate(ct);
 		transform.translate(-ax, -ay);
 		if (isx != 1 || iox != 0) {
-			// 内部圧縮は箱の左端(x)を基準に掛ける。内容は自然幅で組まれて
-			// いるので、これで [x, x+セル幅] へちょうど収まる
+			// Apply internal compression relative to the box's left edge (x). Content is laid out
+			// at its natural width, so this fits it exactly into [x, x+cell width].
 			transform.translate(x + iox, 0);
 			transform.scale(isx, 1);
 			transform.translate(-x, 0);

@@ -50,30 +50,30 @@ public class CSSFloat extends AbstractPrimitivePropertyInfo {
 			} else if (ident.equals("right")) {
 				return CSSFloatValue.RIGHT_VALUE;
 			} else if (ident.equals("start") || ident.equals("inline-start")) {
-				// inline-startはcss-logical-1の正式名(2026-08-29)。directionで
-				// 左右を決める既存のstartと同じ
+				// inline-start is the standard css-logical-1 name (2026-08-29). Same as the existing
+				// start, which uses direction to choose left/right.
 				return CSSFloatValue.START_VALUE;
 			} else if (ident.equals("end") || ident.equals("inline-end")) {
 				return CSSFloatValue.END_VALUE;
 			} else if (ident.equals("top")) {
-				// ページフロート(GCPM/Prince系、2026-08-02)
+				// Page floats (GCPM/Prince family, 2026-08-02).
 				return CSSFloatValue.PAGE_TOP_VALUE;
 			} else if (ident.equals("bottom")) {
 				return CSSFloatValue.PAGE_BOTTOM_VALUE;
 			} else if (ident.equals("block-start")) {
-				// css-page-floats の論理の向き(2026-10-05)。縦組みで top/bottom を物理の上下にしたので、
-				// それまでの縦組みの置き方(ブロックの先頭・末尾)はこちらで書く
+				// Logical directions in css-page-floats (2026-10-05). top/bottom now mean physical top/bottom in vertical writing,
+				// so use these for the previous vertical placement (block start/end).
 				return CSSFloatValue.PAGE_BLOCK_START_VALUE;
 			} else if (ident.equals("block-end")) {
 				return CSSFloatValue.PAGE_BLOCK_END_VALUE;
 			} else if (ident.equals("footnote")) {
-				// GCPM/Prince系の脚注float(F0、2026-07-31)
+				// GCPM/Prince-style footnote float (F0, 2026-07-31).
 				return CSSFloatValue.FOOTNOTE_VALUE;
 			} else if (ident.equals("-cssj-note-start")) {
-				// JLREQの並列注（横組の傍注・縦組の頭注）
+				// JLREQ parallel notes (sidenotes in horizontal writing; headnotes in vertical writing).
 				return CSSFloatValue.PAGE_NOTE_START_VALUE;
 			} else if (ident.equals("-cssj-note-end")) {
-				// JLREQの並列注（横組の傍注・縦組の脚注）
+				// JLREQ parallel notes (sidenotes in horizontal writing; footnotes in vertical writing).
 				return CSSFloatValue.PAGE_NOTE_END_VALUE;
 			}
 		}

@@ -5,9 +5,9 @@ import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
- * border-radiusの1隅の半径(水平・垂直)です。各成分は
- * {@code <length-percentage>}(パーセントは対応する辺の寸法基準で、
- * 描画時に解決される)。
+ * The horizontal and vertical radii for one border-radius corner. Each component is
+ * a {@code <length-percentage>} (percentages refer to the corresponding side's size
+ * and resolve at rendering time).
  *
  * @author MIYABE Tatsuhiko
  */

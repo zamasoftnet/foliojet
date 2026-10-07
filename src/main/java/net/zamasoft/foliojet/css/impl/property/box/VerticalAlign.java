@@ -24,8 +24,8 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/visudet.html#propdef-vertical-align">
- * vertical-align 特性 </a>です。
- * 
+ * vertical-align property </a>.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class VerticalAlign extends AbstractPrimitivePropertyInfo {
@@ -90,8 +90,8 @@ public class VerticalAlign extends AbstractPrimitivePropertyInfo {
 			} else if (ident.equals("middle")) {
 				return VerticalAlignValue.MIDDLE_VALUE;
 			} else if (ident.equals("central")) {
-				// central baselineを独立して持たないため、行の中央軸に
-				// 揃える既存のmiddleへ写す(css-inline-3)。
+				// No separate central baseline is available, so map to the existing middle,
+				// which aligns to the line's central axis (css-inline-3).
 				return VerticalAlignValue.MIDDLE_VALUE;
 			} else if (ident.equals("sub")) {
 				return VerticalAlignValue.SUB_VALUE;

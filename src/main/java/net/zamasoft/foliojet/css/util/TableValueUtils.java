@@ -16,7 +16,7 @@ public final class TableValueUtils {
 	}
 
 	/**
-	 * caption-side を値に変換します。SPEC CSS2 17.4.1
+	 * Converts caption-side to a value. SPEC CSS2 17.4.1
 	 */
 	public static Value toCaptionSide(CssToken token) {
 		if (token instanceof CssToken.Ident ident) {
@@ -35,7 +35,7 @@ public final class TableValueUtils {
 	}
 
 	/**
-	 * table-layout を値に変換します。(CSS2 17.5.2)
+	 * Converts table-layout to a value. (CSS2 17.5.2)
 	 */
 	public static Value toTableLayout(CssToken token) {
 		if (token instanceof CssToken.Ident ident) {
@@ -50,7 +50,7 @@ public final class TableValueUtils {
 	}
 
 	/**
-	 * border-collapse を値に変換します。(CSS2 17.6)
+	 * Converts border-collapse to a value. (CSS2 17.6)
 	 */
 	public static Value toBorderCollapse(CssToken token) {
 		if (token instanceof CssToken.Ident ident) {
@@ -65,7 +65,7 @@ public final class TableValueUtils {
 	}
 
 	/**
-	 * empty-cells を値に変換します。(CSS2 17.6.1)
+	 * Converts empty-cells to a value. (CSS2 17.6.1)
 	 */
 	public static Value toEmptyCells(CssToken token) {
 		if (token instanceof CssToken.Ident ident) {

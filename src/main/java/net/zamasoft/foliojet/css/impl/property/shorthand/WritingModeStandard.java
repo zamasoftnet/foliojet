@@ -15,11 +15,11 @@ import net.zamasoft.foliojet.css.value.WritingModeVariantValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * CSS Writing Modes の標準 {@code writing-mode} です。
+ * The standard CSS Writing Modes {@code writing-mode}.
  *
  * <p>
- * {@code direction} は独立したプロパティなので、この shorthand からは変更しません。
- * 旧来の結合した展開は {@link WritingModeShorthand} にだけ残します。
+ * {@code direction} is an independent property, so this shorthand does not change it.
+ * The legacy combined expansion remains only in {@link WritingModeShorthand}.
  * </p>
  */
 public class WritingModeStandard extends AbstractShorthandPropertyInfo {

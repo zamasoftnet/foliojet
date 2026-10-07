@@ -37,57 +37,57 @@ import net.zamasoft.foliojet.layout.sizing.Sizing;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * Flexの構築coordinatorです(Flex F1d〜F6、2026-08-02——
- * consult-codex-2026-08-02-flexbox.txt。{@code GridBuilder}と同型で
- * {@code DocumentBuilder.builderStack}に積まれるが{@code Builder}ではない)。
- * 直接子ごとに{@link FlexItemBox}+item builder(TwoPass録画)を開き、
- * Flex終端で§9.7を解決して配置する。
+ * Coordinator for Flex construction (Flex F1d–F6, 2026-08-02 —
+ * consult-codex-2026-08-02-flexbox.txt. Like {@code GridBuilder}, it is pushed onto
+ * {@code DocumentBuilder.builderStack} but is not a {@code Builder}).
+ * Opens a {@link FlexItemBox} and item builder (TwoPass recording) for each direct child,
+ * then resolves §9.7 and places the items at Flex end.
  *
  * <p>
- * bindの骨格はrow/column共通で、主軸の違いは{@link MainAxis}
- * (Dimension/Insets/枠の論理アクセサ束)が一点で吸収する(2026-08-02の
- * 一本化——旧bindLines/bindColumnの同型二重実装を、共有の
- * 計測({@link #buildMetrics})・行分割({@link #breakMainLines})・
- * §9.7適用({@link #resolveMainSizes})・cross分配
- * ({@link #distributeCross})・主軸分配({@link MainDistribution})へ
- * 統合)。残る差は配置の物理写像(rowは主軸=線offset・cross=addFlow、
- * columnは逆)と、rowだけが持つ実測cross(bind後のstretch・§9.4・
- * auto margin)で、それぞれ{@link #placeRow}/{@link #placeColumn}が担う。
+ * The bind structure is shared by row/column. {@link MainAxis} centralizes their main-axis
+ * differences (logical accessors for Dimension/Insets/frame). The 2026-08-02 unification
+ * replaced duplicate bindLines/bindColumn implementations with shared measurement
+ * ({@link #buildMetrics}), line breaking ({@link #breakMainLines}), §9.7 application
+ * ({@link #resolveMainSizes}), cross-axis distribution ({@link #distributeCross}), and
+ * main-axis distribution ({@link MainDistribution}). The remaining differences are the
+ * physical placement mapping (row uses line offset for the main axis and addFlow for cross;
+ * column reverses them) and row-only measured cross sizes (post-bind stretch, §9.4, and
+ * auto margins). {@link #placeRow}/{@link #placeColumn} handle these respectively.
  * </p>
  *
  * <p>
- * columnの内容依存basis(auto高item)は恒久サブセット外
- * (F4c裁定=consult-codex-2026-08-02-flexbox-f4c.txt)——classifierが
- * コンテナ単位で単一列縮退させる(item単位の縮退は禁止)。
+ * Content-dependent column basis (auto-height items) is permanently outside the subset
+ * (F4c decision = consult-codex-2026-08-02-flexbox-f4c.txt). The classifier falls back
+ * to a single column for the entire container (per-item fallback is prohibited).
  * </p>
  */
 public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.layout.builder.ItemCoordinator {
 
-	/** 構築した項目の総数。TwoPassの本文記録数ではない。 */
+	/** Total items constructed, not the number of TwoPass body records. */
 	public static final AtomicLong FLEX_ITEM_RECORDS = new AtomicLong();
 
-	/** bindされたitem数(fallback経路も数える)。 */
+	/** Number of bound items (including fallback paths). */
 	public static final AtomicLong FLEX_ITEM_BINDS = new AtomicLong();
 
-	/** 空の匿名itemを破棄した数。 */
+	/** Number of empty anonymous items discarded. */
 	public static final AtomicLong FLEX_ITEM_EMPTY_ANON_DROPS = new AtomicLong();
 
-	/** columnのbasis:contentによるコンテナ単位fallback数(F4c——恒久サブセット外)。 */
+	/** Container fallbacks due to column basis:content (F4c: permanently outside the subset). */
 	public static final AtomicLong FLEX_COLUMN_FALLBACKS_CONTENT_BASIS = new AtomicLong();
 
-	/** columnのbasis:auto+主軸auto(内容高要求)によるfallback数(F4c)。 */
+	/** Fallbacks due to column basis:auto + auto main size (requires content height) (F4c). */
 	public static final AtomicLong FLEX_COLUMN_FALLBACKS_AUTO_MAIN = new AtomicLong();
 
 	private final Builder host;
 
-	/** item builderの親LayoutStack({@code host}と同一インスタンス)。 */
+	/** Parent LayoutStack for item builders (the same instance as {@code host}). */
 	private final LayoutStack hostStack;
 
 	private final FlexBox flexBox;
 
 	private final List<FlexItemContent> items = new ArrayList<>();
 
-	/** 開いているitemのbuilder(elementまたは匿名)。閉じているときnull。 */
+	/** Builder for the open item (element or anonymous), or null when none is open. */
 	private TwoPassBlockBuilder openItemBuilder;
 
 	private FlexItemBox openItemBox;
@@ -96,11 +96,11 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 
 	private FlexItemSpec openItemSpec = FlexItemSpec.DEFAULT;
 
-	/** takeover元のauthored box(endBoxの対応付け用。中立/匿名itemではnull)。 */
+	/** Original authored box for takeover (matches endBox; null for neutral/anonymous items). */
 	private FlowBlockBox openItemSource;
 	private long openItemAnchor = -1;
 
-	/** bindは一度きり。 */
+	/** Bind runs only once. */
 	private boolean bound;
 
 	FlexBuilder(final Builder host, final FlexBox flexBox) {
@@ -127,20 +127,21 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return this.openItemBuilder != null;
 	}
 
-	/** {@code box}が開いているtakeover element itemの元boxかを返します。 */
+	/** Returns whether {@code box} is the original box of the open takeover element item. */
 	public boolean isElementItemSource(final Object box) {
 		return this.openItemSource != null && this.openItemSource == box;
 	}
 
-	/** 中立itemのparams({@link NeutralItemParams})。 */
+	/** Params for a neutral item ({@link NeutralItemParams}). */
 	private BlockParams itemParams() {
 		return NeutralItemParams.of(this.flexBox.getFlexParams());
 	}
 
 	/**
-	 * plainなブロック直下子のelement itemを開きます(takeover——authored
-	 * childのparams/posをitem box自身へ引き継ぎ、元の外箱は構築しない。
-	 * 答申の最重要プロトタイプ条件)。返るbuilderを積むのは呼び出し側。
+	 * Opens an element item for a plain block direct child (takeover: the item box itself
+	 * inherits the authored child's params/pos; the original outer box is not constructed.
+	 * This is the recommendation's most important prototype requirement).
+	 * The caller pushes the returned builder.
 	 */
 	public TwoPassBlockBuilder startElementItem(final FlowBlockBox source, final FlexItemSpec spec) {
 		final TwoPassBlockBuilder builder = this.startItem(
@@ -151,8 +152,8 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
-	 * 中立wrapperへ引き取るauthored寸法の束です(2026-08-09にBlockParams
-	 * 直渡しから一般化——置換要素のReplacedParamsはBlockParamsではない)。
+	 * Authored dimensions taken over by a neutral wrapper (generalized from direct
+	 * BlockParams passing on 2026-08-09: a replaced element's ReplacedParams is not BlockParams).
 	 */
 	public record NeutralTransfer(Dimension size, Dimension minSize, Dimension maxSize, BoxSizingMode boxSizing,
 			Insets margin) {
@@ -161,13 +162,14 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		}
 
 		/**
-		 * 置換要素からの引き取り(2026-08-09)。これが無いとwrapperが常に
-		 * size:autoになり、flex base sizeがmaxContent=二パス計測値へ落ちる。
-		 * 置換要素の%幅は二パス計測時に基準が無く(LayoutUtils.
-		 * calculateReplacedSizeがtwoPass中はrefWidth=NONE)、内在寸法の
-		 * 無いsvg(viewBoxのみ・width=100%)は0で測られるため、item主軸0
-		 * →幅0へ潰れていた(NHKニュースのナビのシェブロンが消えた実バグの
-		 * 後半)。bind時はwrapperの確定幅がlineSizeとして子の%基準になる。
+		 * Takeover from a replaced element (2026-08-09). Without this, the wrapper always has
+		 * size:auto and the flex base size falls back to maxContent, the two-pass measurement.
+		 * A replaced element's % width has no basis during two-pass measurement
+		 * (LayoutUtils.calculateReplacedSize uses refWidth=NONE during twoPass), so an svg
+		 * without intrinsic dimensions (viewBox only, width=100%) measures as 0. The item's
+		 * main size is then 0 and its width collapses to 0 (the second half of the real bug
+		 * that made NHK News navigation chevrons disappear). At bind time, the wrapper's resolved
+		 * width serves as lineSize, the child's % basis.
 		 */
 		public static NeutralTransfer of(final net.zamasoft.foliojet.layout.box.params.ReplacedParams p) {
 			return new NeutralTransfer(p.size, p.minSize, p.maxSize, p.boxSizing, p.frame.margin);
@@ -175,20 +177,20 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
-	 * 非plain子(表・入れ子コンテナ等)用の中立wrapper element itemを開きます。
-	 * {@code sourceAnchor}はauthored childのアンカーです。
+	 * Opens a neutral wrapper element item for a non-plain child (table, nested container, etc.).
+	 * {@code sourceAnchor} is the authored child's anchor.
 	 *
 	 * <p>
-	 * {@code authored}(非null時)はauthored childのparamsで、<b>行方向の
-	 * 寸法指定(size/min/max)をwrapperへ引き取る</b>(2026-08-08)。
-	 * 旧実装はwrapperが常にsize:autoで、入れ子flexコンテナの
-	 * {@code width:50%}等が丸ごと落ちてshrink-to-fitへ潰れていた
-	 * (asahi.comトップの高校野球ストリップが1文字幅の縦積みになった
-	 * 実バグ)。子側の二重解決は{@link FlexItemBox#markNeutralLineFill}の
-	 * フラグ経由で充填(auto)扱いにして防ぐ——子paramsの直接変異は
-	 * item本体の再生(再具現化)で失われるため使えない。page方向は
-	 * wrapperをautoのままにして子の指定を生かす(wrapperだけが伸びると
-	 * 背景・枠が子から乖離する)。
+	 * When non-null, {@code authored} contains the authored child's params.
+	 * <b>Take over its line-axis size specifications (size/min/max) into the wrapper</b>
+	 * (2026-08-08). The old wrapper always had size:auto, losing specifications such as
+	 * {@code width:50%} on nested flex containers and collapsing to shrink-to-fit
+	 * (the real bug that stacked the high-school baseball strip on the asahi.com home page
+	 * at one-character width). Prevent double resolution in the child by treating it as
+	 * fill (auto) via {@link FlexItemBox#markNeutralLineFill}; direct mutation of child params
+	 * is unusable because item body replay (rematerialization) loses it. Keep the wrapper
+	 * auto on the page axis so the child's specification applies (stretching only the wrapper
+	 * would separate its background/frame from the child).
 	 * </p>
 	 */
 	public TwoPassBlockBuilder startNeutralElementItem(final FlexItemSpec spec, final NeutralTransfer authored,
@@ -201,11 +203,11 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			wrapper.minSize = lineOnly(authored.minSize(), vertical);
 			wrapper.maxSize = lineOnly(authored.maxSize(), vertical);
 			wrapper.boxSizing = authored.boxSizing();
-			// autoマージンはitem(wrapper)レベルの自由空間を吸収する(§8.1)
-			// ため、autoの辺だけwrapperへ引き取る(2026-08-09——Bootstrapの
-			// navbar .ml-auto、入れ子コンテナが右端へ寄らない実バグ)。
-			// 内側に残るautoはwrapper内の自由空間が0のため無害(二重シフト
-			// しない)。非autoのマージンは内側で視覚上等価のため移さない
+			// Auto margins absorb free space at the item (wrapper) level (§8.1),
+			// so take over only auto edges into the wrapper (2026-08-09: the real bug where
+			// a nested Bootstrap navbar .ml-auto container did not align to the right edge).
+			// Auto margins left inside are harmless because the wrapper has no internal free space
+			// (no double shift). Non-auto margins are visually equivalent inside, so leave them there.
 			final Insets margin = authored.margin();
 			if (margin.getTopType() == LengthType.AUTO || margin.getRightType() == LengthType.AUTO
 					|| margin.getBottomType() == LengthType.AUTO || margin.getLeftType() == LengthType.AUTO) {
@@ -227,17 +229,17 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return builder;
 	}
 
-	/** 行方向成分だけ残したDimension(page方向はauto。縦書きの行方向=高さ)。 */
+	/** Dimension retaining only the line-axis component (page axis auto; line axis is height in vertical writing). */
 	private static Dimension lineOnly(final Dimension d, final boolean vertical) {
 		return vertical
 				? Dimension.create(0, 0, d.getHeight(), d.getHeightRatio(), LengthType.AUTO, d.getHeightType())
 				: Dimension.create(d.getWidth(), d.getWidthRatio(), 0, 0, d.getWidthType(), LengthType.AUTO);
 	}
 
-	/** 直接テキスト用の匿名itemを開きます(開いていれば再利用)。 */
+	/** Opens an anonymous item for direct text (reuses it if already open). */
 	public TwoPassBlockBuilder requireAnonymousItem(final long sourceAnchor) {
 		if (this.openItemBuilder != null && this.openItemAnonymous) {
-			return null; // 既に開いている(積み直し不要)
+			return null; // Already open (no need to push again)
 		}
 		final TwoPassBlockBuilder builder = this.startItem(new FlexItemBox(this.itemParams(), new FlowPos()), true,
 				FlexItemSpec.DEFAULT);
@@ -259,7 +261,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return builder;
 	}
 
-	/** 開いているitemを確定します(録画完了点)。空の匿名itemは破棄。 */
+	/** Finalizes the open item (recording completion point). Discards empty anonymous items. */
 	public void itemClosed() {
 		final TwoPassBlockBuilder builder = this.openItemBuilder;
 		final FlexItemBox itemBox = this.openItemBox;
@@ -288,9 +290,9 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
-	 * Flex終端です(F1f): 実行計画としてホストへ渡す。BlockBuilderは
-	 * 即時{@link #bind}、TwoPassはownership ledgerに保持して幅確定後に
-	 * bindする。
+	 * Flex end (F1f): passes the execution plan to the host. BlockBuilder calls
+	 * {@link #bind} immediately; TwoPass retains it in the ownership ledger and binds
+	 * after width resolution.
 	 */
 	public void finish() {
 		assert this.openItemBuilder == null : "item未クローズでFlex終端に到達";
@@ -298,27 +300,27 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	// ------------------------------------------------------------------
-	// 論理軸
+	// Logical axes
 
-	/** コンテナの書字方向(論理軸写像の基準——F6)。 */
+	/** Container writing mode (basis for logical axis mapping — F6). */
 	private WritingMode flow() {
 		return this.flexBox.getFlexParams().flow;
 	}
 
 	/**
-	 * 主軸の論理アクセサ束です(2026-08-02の一本化)。rowの主軸=線軸、
-	 * columnの主軸=page軸——Dimension/Insets/border/最小auto判定の
-	 * 軸選択をここへ一点集約し、bind骨格を共通化する。
-	 * {@code marginBase}はInsets%の解決基準で、CSSの規定により
-	 * 縦横どちらのmargin/paddingもインライン寸法(コンテナ行内寸)基準。
+	 * Logical main-axis accessors (unified on 2026-08-02). The row main axis is the line axis;
+	 * the column main axis is the page axis. Centralize axis selection for Dimension/Insets/
+	 * border/automatic minimum checks here to share the bind structure.
+	 * {@code marginBase} is the basis for resolving Insets percentages. CSS uses the inline
+	 * size (container inner line-axis size) for both horizontal and vertical margins/padding.
 	 */
 	private final class MainAxis {
 		final boolean mainIsLine;
 
-		/** 主軸寸法(width/height系)の%基準。 */
+		/** Percentage basis for main-axis dimensions (width/height). */
 		final double mainBase;
 
-		/** margin/padding%の基準(常にコンテナ行内寸)。 */
+		/** Percentage basis for margins/padding (always the container inner line-axis size). */
 		final double marginBase;
 
 		MainAxis(final boolean mainIsLine, final double mainBase, final double marginBase) {
@@ -337,30 +339,30 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			return this.mainIsLine ? params.rowGap : params.columnGap;
 		}
 
-		/** 主軸の寸法値(auto=NaN、%は{@code mainBase}で解決)。 */
+		/** Main-axis dimension (auto = NaN; resolve % against {@code mainBase}). */
 		double mainValue(final Dimension size) {
 			return this.mainIsLine ? lineValue(size, this.mainBase) : pageValue(size, this.mainBase);
 		}
 
-		/** 主軸のmax寸法(なし=+∞)。 */
+		/** Main-axis maximum size (none = +∞). */
 		double mainMaxValue(final Dimension size) {
 			final double value = this.mainValue(size);
 			return Double.isNaN(value) ? Double.POSITIVE_INFINITY : Math.max(0, value);
 		}
 
-		/** 主軸のborder+padding合計。 */
+		/** Sum of main-axis borders and padding. */
 		double mainFrame(final RectFrame frame) {
 			return this.mainIsLine ? insetsLine(frame.padding, this.marginBase) + borderLine(frame)
 					: insetsPage(frame.padding, this.marginBase) + borderPage(frame);
 		}
 
-		/** 主軸のmargin合計(autoは0)。 */
+		/** Sum of main-axis margins (auto counts as 0). */
 		double mainMargin(final RectFrame frame) {
 			return this.mainIsLine ? insetsLine(frame.margin, this.marginBase)
 					: insetsPage(frame.margin, this.marginBase);
 		}
 
-		/** 主軸のmin-size:auto判定(§4.5——FlexItemSpecが宣言有無を運ぶ)。 */
+		/** Checks main-axis min-size:auto (§4.5; FlexItemSpec records whether it was declared). */
 		boolean minMainAuto(final FlexItemSpec spec) {
 			final boolean vertical = FlexBuilder.this.flow().isVertical();
 			return this.mainIsLine == !vertical ? spec.minWidthAuto() : spec.minHeightAuto();
@@ -368,13 +370,13 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	// ------------------------------------------------------------------
-	// bind骨格(row/column共通)
+	// Bind structure (shared by row/column)
 
 	/**
-	 * Flexの組み立てです(全itemをFlexItemMetricsResolverで数値化し、
-	 * §9.7=FlexLengthResolverで主軸寸法を解決して配置)。ホストの
-	 * active flowが当のFlexBoxである間に呼ぶこと(liveはDocumentBuilderの
-	 * FLOW終端、範囲再生もStartFlow(FlexBox)とEndFlowの間)。
+	 * Assembles Flex (converts all items to numeric values with FlexItemMetricsResolver,
+	 * resolves main-axis sizes through §9.7 = FlexLengthResolver, and places them).
+	 * Call while the host's active flow is this FlexBox (at DocumentBuilder FLOW end for
+	 * live processing; likewise between StartFlow(FlexBox) and EndFlow for range replay).
 	 */
 	@Override
 	public void bind(final Builder hostBuilder) {
@@ -385,10 +387,10 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		final boolean mainIsLine = params.flexDirection.isRow();
 		final double innerLine = this.flexBox.getLineSize();
 		if (!mainIsLine && !this.columnMainResolvable(target)) {
-			return; // コンテナ単位fallback済み(F4c)
+			return; // Container fallback already applied (F4c)
 		}
-		// columnの主軸内寸=指定高(eligibleで絶対長を保証)は
-		// getInnerPageExtentが返す(G5eの手筋)
+		// getInnerPageExtent returns the column inner main size, its specified height
+		// (eligibility guarantees an absolute length; the G5e technique).
 		final MainAxis axis = new MainAxis(mainIsLine,
 				mainIsLine ? innerLine : this.flexBox.getInnerPageExtent(params.flow), innerLine);
 		// Lines are collected in order-modified document order (css-flexbox-1 §9.3); a reverse main axis only
@@ -410,15 +412,15 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
-	 * columnの主軸寸法が全item数値化できるかの事前走査です(F4c——
-	 * 内容依存basisは恒久サブセット外。一件でも不適格なら本文を一度も
-	 * bindせずコンテナ単位fallback。判定は論理page軸=縦書きcolumnの
-	 * 主軸は物理width)。
+	 * Pre-scans whether every item's column main-axis size can be represented numerically
+	 * (F4c: content-dependent basis is permanently outside the subset). If any item is
+	 * ineligible, fall back for the entire container without binding any body.
+	 * Check the logical page axis: the main axis of a vertical-writing column is physical width.
 	 */
 	private boolean columnMainResolvable(final BlockBuilder target) {
 		for (final FlexItemContent item : this.items) {
 			if (item.spec.basis().isContent()) {
-				// basis:contentは主軸指定に関係なく内容高を要求する
+				// basis:content requires content height regardless of the main-axis specification.
 				FLEX_COLUMN_FALLBACKS_CONTENT_BASIS.incrementAndGet();
 				this.bindFallback(target);
 				return false;
@@ -433,15 +435,15 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return true;
 	}
 
-	/** 視覚順の全itemを§9.7の入力(主軸計測値)へ数値化します。 */
+	/** Converts all items in visual order to §9.7 inputs (main-axis measurements). */
 	private List<FlexItemMetrics> buildMetrics(final int[] seq, final MainAxis axis) {
 		final List<FlexItemMetrics> metrics = new ArrayList<>(seq.length);
 		for (final int oi : seq) {
 			final FlexItemContent item = this.items.get(oi);
 			final BlockParams p = item.itemBox.getBlockParams();
-			// columnの主軸内在サイズはminPageのみ(min-main:autoのminPage
-			// 利用はF4bの既知近似——正確なcontent minimumは幅依存、
-			// F4c答申に記録)
+			// For column, the intrinsic main size uses only minPage (using minPage for min-main:auto
+			// is a known F4b approximation; the exact content minimum depends on width,
+			// as recorded in the F4c recommendation).
 			final double minContent = axis.mainIsLine ? item.sizes.minContent() : item.sizes.minPage();
 			final double maxContent = axis.mainIsLine ? item.sizes.maxContent() : item.sizes.minPage();
 			metrics.add(FlexItemMetricsResolver.resolve(new FlexItemMetricsResolver.Input(oi,
@@ -455,7 +457,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return metrics;
 	}
 
-	/** 主軸の行(rowの行/columnの列)分割です(§9.3。nowrapは単一行)。 */
+	/** Breaks main-axis lines (rows for row, columns for column) (§9.3; nowrap is a single line). */
 	private List<FlexLineBreaker.Line> breakMainLines(final List<FlexItemMetrics> metrics, final MainAxis axis) {
 		if (this.flexBox.getFlexParams().flexWrap.isWrap()) {
 			return FlexLineBreaker.breakLines(metrics, axis.mainBase, axis.mainGap());
@@ -466,7 +468,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return List.of(new FlexLineBreaker.Line(0, this.items.size()));
 	}
 
-	/** 行ごとに§9.7を解決し、使用主軸寸法をソースindexで引ける形にします。 */
+	/** Resolves §9.7 per line, making used main-axis sizes accessible by source index. */
 	private double[] resolveMainSizes(final int[] seq, final List<FlexItemMetrics> metrics,
 			final List<FlexLineBreaker.Line> lines, final MainAxis axis) {
 		final double[] byOriginal = new double[this.items.size()];
@@ -481,10 +483,10 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
-	 * 主軸の余白分配です(§9.5+§8.1)。auto marginはjustify-contentより
-	 * 先に余白を消費する(1つでもあればjustifyは働かない。columnは
-	 * auto marginサブセット外のため{@code autoMargins}=0で渡す)。
-	 * 負余白はsafe start(0)、stretchはjustify-contentではflex-start扱い。
+	 * Distributes main-axis free space (§9.5 + §8.1). Auto margins consume free space before
+	 * justify-content (any auto margin disables justification; column excludes auto margins
+	 * from its subset and passes {@code autoMargins}=0).
+	 * Negative free space uses safe start (0); justify-content treats stretch as flex-start.
 	 */
 	private record MainDistribution(double leading, double between, double autoShare) {
 	}
@@ -500,9 +502,9 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
-	 * cross軸の行群分配です(§9.6——wrap時のみ。normal/stretchは各行へ
-	 * 均等加算し、他はFlexContentAlignmentの算術でleading/betweenへ)。
-	 * {@code extents}は行のcross寸法(破壊的に加算される)。
+	 * Distributes lines on the cross axis (§9.6, wrap only). normal/stretch adds equally to
+	 * each line; other values use FlexContentAlignment arithmetic for leading/between space.
+	 * {@code extents} holds line cross sizes (modified by addition).
 	 */
 	private record CrossDistribution(double leading, double between) {
 	}
@@ -533,10 +535,10 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
-	 * align-self:auto→align-itemsの合成used value(§9.6)。wrap-reverse
-	 * (cross軸反転)ではstart/endを交換する——無印start/endも
-	 * flex-start/endと同扱い(flexでの慣用が圧倒的にflex-*のため。
-	 * 厳密な書字方向基準start/endはサブセット外)。
+	 * Combines align-self:auto → align-items into the used value (§9.6). For wrap-reverse
+	 * (cross-axis reversal), swap start/end. Plain start/end are treated as flex-start/end,
+	 * since flex-* overwhelmingly dominates flex usage. Strict writing-mode-relative
+	 * start/end is outside the subset.
 	 */
 	private BoxAlignment resolveAlign(final FlexItemContent item, final boolean crossReversed) {
 		final BoxAlignment align = BoxAlignment.resolve(item.spec.alignSelf(),
@@ -549,26 +551,27 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	// ------------------------------------------------------------------
-	// 配置(物理写像がrow/columnで逆——ここだけが二枚)
+	// Placement (row/column reverse the physical mapping; only this part has two implementations)
 
 	/**
-	 * rowの配置です。cross寸法は実測(bind後のitem page extent)——
-	 * §9.7の主軸寸法でソース順に全item bindしてから、行cross=行内最大、
-	 * §9.4(単一行nowrap+definite crossの行高=コンテナ内cross)、
-	 * align-content、stretch伸長(takeoverによりauthored背景が追随)、
-	 * cross/主軸auto margin、wrap-reverseの行順+start/end反転を適用する。
+	 * Places row items. Cross sizes are measured (item page extents after bind).
+	 * Bind all items in source order with the §9.7 main sizes, then apply line cross size =
+	 * maximum within the line, §9.4 (single nowrap line + definite cross size uses the
+	 * container inner cross size as line height), align-content, stretch growth (takeover
+	 * makes authored backgrounds follow), cross/main-axis auto margins, and wrap-reverse
+	 * line order plus start/end reversal.
 	 */
 	private void placeRow(final BlockBuilder target, final MainAxis axis, final int[] seq,
 			final List<FlexItemMetrics> metrics, final List<FlexLineBreaker.Line> lines,
 			final double[] mainSizeByOriginal) {
 		final FlexParams params = this.flexBox.getFlexParams();
 		this.flexBox.markFlexLayout();
-		// bindはソース順(F5a——Tagged PDFの読み順・構造をソース順に保つ)
+		// Bind in source order (F5a: preserve source order for Tagged PDF reading order and structure).
 		for (int i = 0; i < this.items.size(); ++i) {
 			this.items.get(i).bind(target, mainSizeByOriginal[i], axis.marginBase);
 			FLEX_ITEM_BINDS.incrementAndGet();
 		}
-		// 行ごとの主軸配置(線offset)。crossは行分配後
+		// Main-axis placement per line (line offset). Cross placement follows line distribution.
 		final double[] lineExtents = new double[lines.size()];
 		for (int li = 0; li < lines.size(); ++li) {
 			final FlexLineBreaker.Line line = lines.get(li);
@@ -589,7 +592,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				if (this.mainMarginAuto(item, false)) {
 					lineCursor += dist.autoShare();
 				}
-				// 自然位置は自margin込みのため、offsetは先行分の累積
+				// The natural position includes the item margin, so offset accumulates preceding items.
 				final double physicalLine = LayoutUtils.inlineToPhysical(params, axis.mainBase, lineCursor,
 						lineCursor + item.itemBox.getLineExtent(params.flow));
 				item.itemBox.setFlexLineOffset(physicalLine, params.flow.isVertical());
@@ -598,9 +601,9 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 						+ (k < line.to() - 1 ? dist.between() : 0);
 			}
 		}
-		// cross軸の行分配(F3d)。内容cross合計を仮確定した上でdefinite
-		// crossとの差=freeを得る(getInnerPageExtentは指定高があれば
-		// それを返す——G5eの手筋)
+		// Cross-axis line distribution (F3d). Provisionally resolve the total content cross size,
+		// then obtain free space as the difference from the definite cross size
+		// (getInnerPageExtent returns the specified height if present — the G5e technique).
 		double content = lines.size() > 1 ? axis.crossGap() * (lines.size() - 1) : 0;
 		for (final double extent : lineExtents) {
 			content += extent;
@@ -611,17 +614,17 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		if (params.flexWrap.isWrap()) {
 			dist = this.distributeCross(lineExtents, innerCross, axis.crossGap());
 		} else if (lines.size() == 1 && innerCross > lineExtents[0]) {
-			// §9.4: 単一行(nowrap)+definite crossの行高=コンテナ内cross
+			// §9.4: single line (nowrap) + definite cross size uses the container inner cross size as line height.
 			lineExtents[0] = innerCross;
 		}
-		// cross整列(F3c——分配後の行高に対して行う)。wrap-reverse(F5c)は
-		// 行の視覚順を反転
+		// Cross alignment (F3c: use line heights after distribution). wrap-reverse (F5c)
+		// reverses the visual order of lines.
 		final boolean crossReversed = params.flexWrap == FlexWrap.WRAP_REVERSE;
 		double crossCursor = dist.leading();
-		// **改ページ用の行境界の記録**(2026-08-07、Bug C)。addFlowと同じ
-		// 順序でitemを積んでおくことで、FlexBox.splitが「どのitemがどの行に
-		// 属すか」をコンテナ越しに探さず直接引ける(TableRowGroupBoxの
-		// rows/cellsリストと同じ役割)
+		// **Record line boundaries for page breaks** (2026-08-07, Bug C). Store items in the same
+		// order as addFlow so FlexBox.split can directly look up "which item belongs to which line"
+		// without searching across containers (the same role as the
+		// rows/cells lists in TableRowGroupBox).
 		final List<FlexBox.Line> flexLines = new ArrayList<>(lines.size());
 		final List<FlexItemBox> flexLineItems = new ArrayList<>(this.items.size());
 		for (int v = 0; v < lines.size(); ++v) {
@@ -633,8 +636,8 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			for (int k = line.from(); k < line.to(); ++k) {
 				final FlexItemContent item = this.items.get(seq[k]);
 				final BoxAlignment align = this.resolveAlign(item, crossReversed);
-				// cross軸auto marginはalign-self/stretchより先(§8.1、F3e):
-				// start側autoで終端寄せ、両側autoで中央
+				// Cross-axis auto margins precede align-self/stretch (§8.1, F3e):
+				// auto at start aligns to the end; auto on both sides centers.
 				final boolean crossStartAuto = this.crossMarginAuto(item, false);
 				final boolean crossEndAuto = this.crossMarginAuto(item, true);
 				double crossOffset = 0;
@@ -644,8 +647,8 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 					crossOffset = crossStartAuto && crossEndAuto ? freeCross / 2
 							: crossStartAuto ? freeCross : 0;
 				} else if (align == BoxAlignment.STRETCH) {
-					// cross autoのitemだけ行高まで伸長——takeover設計により
-					// authoredの背景・枠がそのまま追随する(F1dの狙い)
+					// Stretch only items with auto cross size to line height. The takeover design
+					// makes authored backgrounds and frames follow unchanged (the F1d goal).
 					if (item.itemBox.getBlockParams().size.getPageType(params.flow) == LengthType.AUTO) {
 						final double deficit = lineExtent - item.itemBox.getPageExtent(params.flow);
 						if (deficit > 0) {
@@ -670,12 +673,13 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
-	 * columnの配置です。cross寸法は事前計算(F4c答申の処理順——本文高さを
-	 * 一切読まずに、列cross=列内itemの明示幅/fit-contentの最大、
-	 * align-content分配、stretch itemの列幅追随まで確定してからbindする)。
-	 * 主軸寸法はbind後にsetPageAxisで課す(§9.7の結果——指定高より優先)。
-	 * auto marginはcolumnサブセット外。wrap-reverseは列順とitem整列の
-	 * start/endをrowと対称に反転する。
+	 * Places column items. Cross sizes are computed in advance (the F4c recommendation's
+	 * processing order): without reading body height, resolve column cross size as the
+	 * maximum item explicit width/fit-content, align-content distribution, and stretch items
+	 * following column width, then bind. After bind, impose the main size with setPageAxis
+	 * (the §9.7 result takes precedence over specified height). Auto margins are outside
+	 * the column subset. wrap-reverse reverses column order and item alignment start/end,
+	 * symmetrically with row.
 	 */
 	private void placeColumn(final BlockBuilder target, final MainAxis axis, final int[] seq,
 			final List<FlexItemMetrics> metrics, final List<FlexLineBreaker.Line> cols,
@@ -684,7 +688,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		this.flexBox.markFlexLayout();
 		final double innerLine = axis.marginBase;
 		final int count = this.items.size();
-		// 列cross幅=列内itemのcross(明示幅/stretch/fit-content)最大
+		// Column cross width = maximum item cross size (explicit width/stretch/fit-content) within the column
 		final double[] crossWidthByOriginal = new double[count];
 		final double[] itemCrossExtras = new double[count];
 		final double[] colCross = new double[cols.size()];
@@ -700,14 +704,14 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				final BoxAlignment align = this.resolveAlign(item, false);
 				final double crossWidth;
 				if (p.size.getLineType(params.flow) != LengthType.AUTO) {
-					// 明示幅(border-boxは枠を引いて内寸へ。marginは含まない)
+					// Explicit width (for border-box, subtract the frame to obtain inner size; excludes margins)
 					final double borderBoxAdjust = p.boxSizing == BoxSizingMode.BORDER_BOX
 							? lineExtras - insetsLine(frame.margin, innerLine)
 							: 0;
 					crossWidth = Math.max(0, lineValue(p.size, innerLine) - borderBoxAdjust);
 				} else if (align == BoxAlignment.STRETCH && !params.flexWrap.isWrap()) {
-					// nowrap単一列のstretchはコンテナ内寸いっぱい。
-					// wrapの列stretchは列幅確定後(下)
+					// Stretch for a single nowrap column fills the container inner size.
+					// Column stretch with wrap happens after column width resolution (below).
 					crossWidth = Math.max(0, innerLine - lineExtras);
 				} else {
 					crossWidth = Sizing.fitContent(item.sizes.minContent(), item.sizes.maxContent(),
@@ -718,7 +722,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				colCross[ci] = Math.max(colCross[ci], crossWidth + lineExtras);
 			}
 		}
-		// 列群のcross分配(wrap時のみ)+stretch itemの確定列幅への追随
+		// Cross distribution of columns (wrap only) + stretch items following the resolved column width
 		CrossDistribution dist = new CrossDistribution(0, cols.size() > 1 ? axis.crossGap() : 0);
 		if (params.flexWrap.isWrap()) {
 			dist = this.distributeCross(colCross, innerLine, axis.crossGap());
@@ -735,16 +739,16 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				}
 			}
 		}
-		// bindはソース順(F5a——Tagged PDFの読み順・構造をソース順に保つ)
+		// Bind in source order (F5a: preserve source order for Tagged PDF reading order and structure).
 		for (int i = 0; i < count; ++i) {
 			this.items.get(i).bind(target, crossWidthByOriginal[i], axis.marginBase);
 			FLEX_ITEM_BINDS.incrementAndGet();
 		}
-		// 配置は視覚順。列はcross方向へ積む(wrap-reverseは列順反転)
+		// Place in visual order. Stack columns along the cross axis (wrap-reverse reverses column order).
 		final boolean crossReversed = params.flexWrap == FlexWrap.WRAP_REVERSE;
 		double crossCursor = dist.leading();
 		double lastMainEnd = 0;
-		// 単一列(nowrap)のitem開始offset——ページ軸帳簿の合成用(下)
+		// Item start offsets in a single column (nowrap), for synthesizing the page-axis ledger (below)
 		final double[] singleColStarts = cols.size() == 1 ? new double[count] : null;
 		double singleColLeading = 0;
 		final List<FlexItemBox> singleColItems = cols.size() == 1 ? new ArrayList<>(count) : null;
@@ -761,11 +765,11 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			singleColLeading = main.leading();
 			for (int k = col.from(); k < col.to(); ++k) {
 				final FlexItemContent item = this.items.get(seq[k]);
-				// 主軸(page)寸法を確定(§9.7の結果——指定高より優先)
+				// Resolve the main (page) size (the §9.7 result takes precedence over specified height).
 				item.itemBox.setPageAxis(mainSizeByOriginal[seq[k]]);
-				// cross整列(line軸): 列内の残余+列開始位置。wrap-reverseは
-				// rowと対称にstart/endを反転(2026-08-02——一本化の照合で
-				// 発見した非対称の解消)
+				// Cross alignment (line axis): remaining space in the column + column start position.
+				// wrap-reverse swaps start/end symmetrically with row (2026-08-02: removed
+				// an asymmetry found while checking the unification).
 				final double freeCross = Math.max(0, colCross[ci] - item.itemBox.getLineExtent(params.flow));
 				final BoxAlignment align = this.resolveAlign(item, crossReversed);
 				final double crossOffset = align == BoxAlignment.CENTER ? freeCross / 2
@@ -786,12 +790,12 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			crossCursor += colCross[ci] + (v < cols.size() - 1 ? dist.between() : 0);
 		}
 		this.flexBox.setPageAxis(count == 0 ? 0 : Math.max(axis.mainBase, lastMainEnd));
-		// **ページ軸帳簿の合成**(2026-08-18): 単一列のcolumnはitemがページ軸へ
-		// 積まれるだけなので、item1つを1行とする帳簿を渡せばrow方向と同じ
-		// 行分割機構({@code FlexBox.split})がそのまま働く——従来はatomicで
-		// 救済分割(帯クリップ)に落ち、実文書の37%(app shell型のbody flex)で
-		// 行が帯境界でスライスされていた。行のstartを帳簿に
-		// 持つため主軸整列leading>0(center等)もそのまま扱える(2026-08-19)。
+		// **Synthesize the page-axis ledger** (2026-08-18): a single column simply stacks items
+		// on the page axis, so passing a ledger with one item per line lets the same
+		// line splitting mechanism as row ({@code FlexBox.split}) work unchanged. Previously it was atomic
+		// and fell back to rescue splitting (band clipping), slicing lines at band boundaries
+		// in 37% of real documents (app-shell body flex). Storing line starts in the ledger
+		// also handles main-axis alignment with leading>0 (center, etc.) directly (2026-08-19).
 		if (singleColItems != null && !singleColItems.isEmpty()) {
 			final List<FlexBox.Line> flexLines = new ArrayList<>(singleColItems.size());
 			for (int k = 0; k < singleColItems.size(); ++k) {
@@ -804,8 +808,9 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
-	 * 単一列縮退です(F4c——columnの内容依存basis時。itemはコンテナ
-	 * 内寸いっぱいのブロックとして縦積み。マージン相殺は行わない)。
+	 * Single-column fallback (F4c, for content-dependent column basis).
+	 * Stack items vertically as blocks filling the container inner size.
+	 * Do not collapse margins.
 	 */
 	private void bindFallback(final BlockBuilder target) {
 		final FlexParams params = this.flexBox.getFlexParams();
@@ -822,8 +827,8 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			FLEX_ITEM_BINDS.incrementAndGet();
 			this.flexBox.getContainer().addFlow(item.itemBox, pageCursor);
 			final double extent = item.itemBox.getPageExtent(params.flow);
-			// item1つ=1行のページ軸帳簿(2026-08-18——placeColumnの合成と同じ。
-			// 縮退経路も縦積みなので行分割機構がそのまま適用できる)
+			// Page-axis ledger with one item per line (2026-08-18, as synthesized in placeColumn).
+			// The fallback path also stacks vertically, so the line splitting mechanism applies unchanged.
 			flexLines.add(new FlexBox.Line(flexLineItems.size(), 1, pageCursor, extent));
 			flexLineItems.add(item.itemBox);
 			pageCursor += extent;
@@ -836,15 +841,15 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	// ------------------------------------------------------------------
-	// RetainedFlex(TwoPass宿主・親range吸収)
+	// RetainedFlex (TwoPass host, absorption into parent range)
 
 	/**
-	 * Flex全体のcontent-box固有寸法contributionです(F1f——§9.9の
-	 * 単一行row近似)。行方向: min=Σ(item min-content+枠の絶対部)、
-	 * max=Σ(item max-content+同)。%枠は基準未確定のため絶対部のみ
-	 * (控えめな近似——確定幅はbind時に正確に解決される)。ページ方向
-	 * min=item minPageの最大(単一行)。frameは含めない(計測器の
-	 * 通常経路が一度だけ加算する)。
+	 * Intrinsic content-box size contribution of the entire Flex (F1f: single-row
+	 * approximation of §9.9). Line axis: min=Σ(item min-content + absolute frame portion),
+	 * max=Σ(item max-content + same). For % frames, only the absolute portion counts because
+	 * the basis is unresolved (a conservative approximation; bind resolves the width exactly).
+	 * Page-axis min is the maximum item minPage (single line). Excludes the frame
+	 * (the measurer's normal path adds it exactly once).
 	 */
 	@Override
 	public IntrinsicSizes getIntrinsicSizes() {
@@ -855,13 +860,13 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			final BlockParams itemParams = item.itemBox.getBlockParams();
 			final RectFrame frame = itemParams.frame;
 			final double extra = insetsLine(frame.margin, 0) + insetsLine(frame.padding, 0) + borderLine(frame);
-			// **項目自身が宣言した寸法を数えること**(2026-08-05)。
-			// これを見ずに中身の寸法だけを足していたため、`width:20pt` を
-			// 持つが中身が空の項目は0と数えられ、**入れ子のフレックス容器の
-			// 内在寸法が文字ぶんだけ**になっていた。すると外側から見た
-			// 主軸の空きが負になり、既定の flex-shrink で中の項目が
-			// 幅0に潰れる——「入れ子のフレックスで子が消える」の正体。
-			// bind時(FlexItemMetricsResolver)と同じく flex-basis を優先する。
+			// **Count dimensions declared by the item itself** (2026-08-05).
+			// Previously, only content dimensions were added, ignoring these declarations, so an empty
+			// item with `width:20pt` counted as 0. **Nested flex containers then had intrinsic
+			// sizes accounting only for text**. From outside, this made
+			// the main-axis free space negative, and default flex-shrink
+			// collapsed inner items to width 0: the cause of "children disappear in nested flex".
+			// Prioritize flex-basis as at bind time (FlexItemMetricsResolver).
 			final double declared = declaredLineBase(item);
 			double itemMin = item.sizes.minContent();
 			double itemMax = item.sizes.maxContent();
@@ -872,7 +877,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				itemMin = Math.max(itemMin, outer - insetsLine(frame.padding, 0) - borderLine(frame));
 				itemMax = Math.max(itemMax, outer - insetsLine(frame.padding, 0) - borderLine(frame));
 			}
-			// wrap時のminは「最大item」(行ごとに折り返せる)、nowrapは総和
+			// With wrap, min is the "largest item" (each item can wrap to a new line); with nowrap, use the sum.
 			min = wrap ? Math.max(min, itemMin + extra) : min + itemMin + extra;
 			max += itemMax + extra;
 			minPage = Math.max(minPage, item.sizes.minPage());
@@ -889,24 +894,24 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
-	 * 項目が<b>自分で宣言した</b>線方向の基準寸法です(不定ならNaN)。
-	 * {@code flex-basis} を {@code width} より優先するのは
-	 * {@link FlexItemMetricsResolver} と同じ順序です。
+	 * Line-axis base size <b>declared by the item itself</b> (NaN if indefinite).
+	 * Prioritize {@code flex-basis} over {@code width}, in the same order as
+	 * {@link FlexItemMetricsResolver}.
 	 */
 	private double declaredLineBase(final FlexItemContent item) {
 		final net.zamasoft.foliojet.css.value.FlexBasisValue basis = item.spec.basis();
 		if (!basis.isAuto() && !basis.isContent()
 				&& basis.getSize() instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue length) {
-			// 割合の基準は容器の内寸で、この段階では未確定なので数えない
+			// The percentage basis is the container inner size, unresolved at this stage, so do not count it.
 			return length.getLength();
 		}
 		return lineValue(item.itemBox.getBlockParams().size, 0);
 	}
 
 	/**
-	 * 親range化の検証相です(F1f——GridBuilder.collectAbsorbableItemsと
-	 * 同型、副作用なし)。全itemの本文を通常のネストビルダーとして
-	 * 検証・列挙する。bind済みは吸収不可(fail closed)。
+	 * Validation phase for converting the parent to a range (F1f; same structure as
+	 * GridBuilder.collectAbsorbableItems, no side effects). Validate and list all item bodies
+	 * as ordinary nested builders. Already bound items cannot be absorbed (fail closed).
 	 */
 	boolean collectAbsorbableItems(final LayoutSource log, final long fromId, final long toId,
 			final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
@@ -924,38 +929,38 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	// ------------------------------------------------------------------
-	// 物理軸ヘルパ(WritingModeが向きを吸収)
+	// Physical-axis helpers (WritingMode handles orientation)
 
-	/** Dimensionの線方向値(auto=NaN。%は基準寸法で解決。縦書き=高さ)。 */
+	/** Line-axis Dimension value (auto = NaN; resolve % against the reference size; height in vertical writing). */
 	private double lineValue(final Dimension size, final double base) {
 		return axisValue(size.getLineType(this.flow()), size.getLineLength(this.flow()),
 				size.getLineRatio(this.flow()), base);
 	}
 
-	/** Dimensionのpage方向値(auto=NaN。%は基準寸法で解決。縦書き=幅)。 */
+	/** Page-axis Dimension value (auto = NaN; resolve % against the reference size; width in vertical writing). */
 	private double pageValue(final Dimension size, final double base) {
 		return axisValue(size.getPageType(this.flow()), size.getPageLength(this.flow()),
 				size.getPageRatio(this.flow()), base);
 	}
 
 	/**
-	 * 寸法値の解決です。
+	 * Resolves dimension values.
 	 *
 	 * <p>
-	 * <b>{@link LengthType#RELATIVE}(純粋な割合)は値の欄に割合が入る</b>
-	 * ({@code Length.create(ratio, RELATIVE)})。割合の欄が使われるのは
-	 * {@link LengthType#MIXED}(calc()で絶対長と割合が混ざった場合)だけである。
+	 * <b>{@link LengthType#RELATIVE} (a pure percentage) stores the ratio in the value field</b>
+	 * ({@code Length.create(ratio, RELATIVE)}). Only {@link LengthType#MIXED}
+	 * (calc() combining an absolute length and a percentage) uses the ratio field.
 	 *
 	 * <p>
-	 * 2026-08-03まで、ここは型を見ずに「長さ+割合×基準」で計算していた。
-	 * その結果<b>{@code width: 66.66%} のflexアイテムが「0.67pt」と読まれ、
-	 * 自動最小サイズに切り上げられてmin-content幅へ潰れていた</b>。
-	 * Bootstrap 5のグリッドは {@code .row > * { width: 100% }} と
-	 * {@code .col-N { width: X% }} で組まれているため、<b>Bootstrapで作られた
-	 * 文書は全部が1語ずつ改行される版面になっていた</b>。実物大の文書を
-	 * 取り込んだ第0波の1件目で発覚(PLAN §3)。掃過2000万文書は一度も
-	 * 捕まえていない——生成器がflexアイテムに%幅を書かないため。
-	 * 回帰は files/unittest/3120-FLEXBOX/percentage-width.html。
+	 * Until 2026-08-03, this calculated "length + ratio × basis" without inspecting the type.
+	 * As a result, <b>a flex item with {@code width: 66.66%} was read as "0.67 pt", raised
+	 * to the automatic minimum size, and collapsed to min-content width</b>.
+	 * Bootstrap 5 grids use {@code .row > * { width: 100% }} and
+	 * {@code .col-N { width: X% }}, so <b>every Bootstrap document ended up with a type area
+	 * that broke after every word</b>. Found in the first document of wave 0, which imported
+	 * full-scale documents (PLAN §3). A sweep of 20 million documents never caught it:
+	 * the generator does not specify % widths on flex items.
+	 * Regression: files/unittest/3120-FLEXBOX/percentage-width.html.
 	 */
 	private static double axisValue(final LengthType type, final double length, final double ratio,
 			final double base) {
@@ -977,23 +982,23 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return Double.isNaN(value) ? 0 : value;
 	}
 
-	/** 線方向のInsets合計(絶対部+比率×基準。autoは0。縦書き=上下)。 */
+	/** Line-axis Insets sum (absolute part + ratio × basis; auto = 0; top/bottom in vertical writing). */
 	private double insetsLine(final Insets insets, final double base) {
 		return insetsAxis(insets, base, this.flow().isVertical());
 	}
 
-	/** page方向のInsets合計(絶対部+比率×基準。autoは0。縦書き=左右)。 */
+	/** Page-axis Insets sum (absolute part + ratio × basis; auto = 0; left/right in vertical writing). */
 	private double insetsPage(final Insets insets, final double base) {
 		return insetsAxis(insets, base, !this.flow().isVertical());
 	}
 
 	/**
-	 * 指定物理軸のInsets合計(horizontal=true: 上下、false: 左右)。
+	 * Insets sum on the specified physical axis (horizontal=true: top/bottom; false: left/right).
 	 *
 	 * <p>
-	 * 割合の読み方は{@link #axisValue}と同じ落とし穴がある——{@code RELATIVE}は
-	 * 値の欄に割合が入る。{@code padding: 5%} のflexアイテムが0.05pt扱いに
-	 * なっていた(2026-08-03に幅の件と一緒に修正)。
+	 * Reading percentages has the same pitfall as {@link #axisValue}: {@code RELATIVE}
+	 * stores the ratio in the value field. Flex items with {@code padding: 5%} were treated
+	 * as 0.05 pt (fixed along with the width issue on 2026-08-03).
 	 */
 	private static double insetsAxis(final Insets insets, final double base, final boolean horizontal) {
 		double sum = 0;
@@ -1007,7 +1012,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return sum;
 	}
 
-	/** Insetsの1辺(autoは0として合計に寄与しない)。 */
+	/** One edge of Insets (auto is 0 and contributes nothing to the sum). */
 	private static double insetValue(final LengthType type, final double length, final double ratio,
 			final double base) {
 		if (type == LengthType.AUTO) {
@@ -1016,19 +1021,19 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return axisValue(type, length, ratio, base);
 	}
 
-	/** 線方向のborder幅合計(縦書き=上下)。 */
+	/** Sum of line-axis border widths (top/bottom in vertical writing). */
 	private double borderLine(final RectFrame frame) {
 		return this.flow().isVertical() ? frame.border.getTop().width + frame.border.getBottom().width
 				: frame.border.getLeft().width + frame.border.getRight().width;
 	}
 
-	/** page方向のborder幅合計(縦書き=左右)。 */
+	/** Sum of page-axis border widths (left/right in vertical writing). */
 	private double borderPage(final RectFrame frame) {
 		return this.flow().isVertical() ? frame.border.getLeft().width + frame.border.getRight().width
 				: frame.border.getTop().width + frame.border.getBottom().width;
 	}
 
-	/** 主軸(行方向)marginがautoかを返します(F3e。end=進行方向の後側。縦書き=上下)。 */
+	/** Returns whether a main-axis (line-axis) margin is auto (F3e; end = trailing; top/bottom in vertical writing). */
 	private boolean mainMarginAuto(final FlexItemContent item, final boolean end) {
 		final Insets margin = item.itemBox.getBlockParams().frame.margin;
 		if (this.flow().isVertical()) {
@@ -1037,7 +1042,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return (end ? margin.getRightType() : margin.getLeftType()) == LengthType.AUTO;
 	}
 
-	/** cross軸marginがautoかを返します(F3e。縦書き=左右)。 */
+	/** Returns whether a cross-axis margin is auto (F3e; left/right in vertical writing). */
 	private boolean crossMarginAuto(final FlexItemContent item, final boolean end) {
 		final Insets margin = item.itemBox.getBlockParams().frame.margin;
 		if (this.flow().isVertical()) {
@@ -1088,7 +1093,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return result;
 	}
 
-	/** ホストflowカーソルの同期(GridBuilder.bind末尾と同型)。 */
+	/** Synchronizes the host flow cursor (same structure as the end of GridBuilder.bind). */
 	private void syncHostCursor(final BlockBuilder target, final FlexParams params) {
 		final LayoutContext.Flow active = target.getFlow();
 		assert active.box == this.flexBox : "Flex bindでactive flowがFlexではない: " + active.box;

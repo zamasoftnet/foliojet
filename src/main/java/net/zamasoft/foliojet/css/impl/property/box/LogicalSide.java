@@ -9,15 +9,14 @@ import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
- * 論理的な辺(block-start/end・inline-start/end)です。writing-mode
- * ({@link BlockFlow})とdirection({@link Direction})の両方から物理的な辺
- * ({@link Side})への対応を解決します。
+ * Logical sides (block-start/end and inline-start/end). Resolves physical sides
+ * ({@link Side}) using both writing-mode ({@link BlockFlow}) and direction ({@link Direction}).
  * <p>
- * {@link Side}自体は辺の回転を行わない(foliojet4独自の物理プロパティ「回転」
- * 機構{@code -cssj-direction-mode}は2026-07-20に廃止した)。{@link LogicalSide}は
- * それとは別に、block軸だけでなくinline軸(方向性、RTLでの左右反転)も
- * 考慮して物理側を解決する、CSS仕様どおりの論理プロパティ機構です
- * (2026-07-19実装)。
+ * {@link Side} itself does not rotate sides (foliojet4's proprietary physical-property
+ * "rotation" mechanism {@code -cssj-direction-mode} was abolished on 2026-07-20).
+ * Separately, {@link LogicalSide} implements CSS logical properties by resolving physical
+ * sides using not only the block axis but also the inline axis
+ * (directionality, including left/right reversal for RTL) (implemented 2026-07-19).
  * </p>
  */
 public enum LogicalSide {
@@ -26,15 +25,15 @@ public enum LogicalSide {
 	static final LogicalSide[] VALUES = values();
 
 	/**
-	 * 現在のwriting-mode/directionのもとで、この論理辺が対応する物理的な辺を
-	 * 返します。
+	 * Returns the physical side corresponding to this logical side under the current
+	 * writing-mode/direction.
 	 */
 	public Side toPhysical(CSSStyle style) {
-		// 縦中横(text-combine-upright)の展開は要素自身の block-flow を横(TB)へ
-		// 上書きするが、要素の writing-mode は変わらない(css-writing-modes-3
-		// §9.1: 組んだ文字は縦の行の中の 1 文字)。論理辺は親=行の書字方向で
-		// 解く。そうしないと margin-inline-start が物理の左に効いていた
-		// (2026-09-08 に柱の縦中横ノンブルで発見、2026-09-11 修正)
+		// Expanding tate-chu-yoko (text-combine-upright) overrides the element's block-flow to horizontal (TB),
+		// but its writing-mode does not change (css-writing-modes-3
+		// §9.1: the combined text is one character in a vertical line). Resolve logical sides using the
+		// parent/line writing direction. Otherwise margin-inline-start affected the physical left side
+		// (found in tate-chu-yoko page numbers in running headers on 2026-09-08, fixed 2026-09-11).
 		if (net.zamasoft.foliojet.css.impl.property.text.TextCombineMode
 				.get(style) != net.zamasoft.foliojet.css.value.TextCombineValue.NONE
 				&& style.getParentStyle() != null) {
@@ -49,7 +48,7 @@ public enum LogicalSide {
 						== TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
 		switch (flow) {
 		case TB:
-			// 横書き: block軸=上下、inline軸=左右
+			// Horizontal writing: block axis=top/bottom, inline axis=left/right.
 			switch (this) {
 			case BLOCK_START:
 				return Side.TOP;
@@ -63,7 +62,7 @@ public enum LogicalSide {
 				throw new IllegalStateException();
 			}
 		case RL:
-			// 縦書き(右→左): block軸=左右、inline軸=上下
+			// Vertical writing (right→left): block axis=left/right, inline axis=top/bottom.
 			switch (this) {
 			case BLOCK_START:
 				return Side.RIGHT;
@@ -77,8 +76,8 @@ public enum LogicalSide {
 				throw new IllegalStateException();
 			}
 		case LR:
-			// 縦書き(左→右): block軸=左右、inline軸=上下(縦書きでは
-			// RL/LRいずれもinline軸の向きは同じ、CSS Writing Modes仕様どおり)
+			// Vertical writing (left→right): block axis=left/right, inline axis=top/bottom
+			// (in vertical writing, RL/LR have the same inline direction, per CSS Writing Modes).
 			switch (this) {
 			case BLOCK_START:
 				return Side.LEFT;
@@ -97,24 +96,23 @@ public enum LogicalSide {
 	}
 
 	/**
-	 * 物理・論理いずれのプロパティが明示指定されているかに基づいて値を
-	 * 解決します。物理側(例: margin-top)が明示指定されていればそちらを
-	 * 優先し、無ければ対応する論理側(例: writing-mode/directionにより
-	 * margin-topに解決されるmargin-block-start等)を見て、両方とも
-	 * 未指定なら物理側の既定値を返します。
+	 * Resolves the value based on which physical or logical property is explicitly specified.
+	 * If the physical property (e.g. margin-top) is explicit, it takes precedence.
+	 * Otherwise, checks the corresponding logical property (e.g. margin-block-start,
+	 * which resolves to margin-top depending on writing-mode/direction).
+	 * If neither is specified, returns the physical property's default.
 	 * <p>
-	 * CSS仕様が要求する「カスケード出現順で後から宣言された方が勝つ」
-	 * という物理⇔論理間の厳密な優先順位までは実装していません(この
-	 * 実装の値保存モデルがプロパティ名ごとに独立したスロットを持つため、
-	 * 異なるスロット間の出現順比較には対応していない)。「物理指定が
-	 * あれば常に物理が勝つ」という単純化した規則を採用しています
-	 * (開発計画参照)。
+	 * Does not implement the strict physical/logical precedence required by CSS,
+	 * where the later declaration in cascade order wins. This implementation stores
+	 * each property name in an independent slot and cannot compare source order across slots.
+	 * Instead, it uses the simplified rule "an explicit physical property always wins"
+	 * (see the development plan).
 	 * </p>
 	 *
-	 * @param style           対象スタイル
-	 * @param requestedSide   呼び出し側が求めている物理的な辺(回転前)
-	 * @param physicalBySide  {@link Side#ordinal()}で引く物理プロパティの配列
-	 * @param logicalBySide   {@link LogicalSide#ordinal()}で引く論理プロパティの配列
+	 * @param style           target style
+	 * @param requestedSide   physical side requested by the caller (before rotation)
+	 * @param physicalBySide  array of physical properties indexed by {@link Side#ordinal()}
+	 * @param logicalBySide   array of logical properties indexed by {@link LogicalSide#ordinal()}
 	 */
 	public static net.zamasoft.foliojet.css.value.Value resolve(CSSStyle style, Side requestedSide,
 			PrimitivePropertyInfo[] physicalBySide, PrimitivePropertyInfo[] logicalBySide) {

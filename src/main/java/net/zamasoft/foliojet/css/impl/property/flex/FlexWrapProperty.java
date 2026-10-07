@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code flex-wrap}です(Flex F1a、2026-08-02)。
+ * {@code flex-wrap} (Flex F1a, 2026-08-02).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -47,7 +47,7 @@ public class FlexWrapProperty extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	/** 1つのキーワードを読み取ります(flex-flowと共用)。不正はnull。 */
+	/** Reads one keyword (shared with flex-flow). Null if invalid. */
 	public static FlexWrapValue parseKeyword(final TokenStream tokens) {
 		if (tokens.eat("nowrap")) {
 			return FlexWrapValue.NOWRAP;

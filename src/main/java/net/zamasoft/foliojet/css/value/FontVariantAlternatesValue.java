@@ -8,13 +8,13 @@ import net.zamasoft.foliojet.css.font.FontFeatureValues.Type;
 import net.zamasoft.pdfg2d.gc.font.FontFeatureSet;
 
 /**
- * {@code font-variant-alternates}の値です。
+ * A {@code font-variant-alternates} value.
  *
  * <p>
- * {@code historical-forms}はOpenType {@code hist}へ変換し、単一置換として
- * 実装されているフォントでは描画まで反映します。名前付き関数は要素の
- * 第一フォントファミリに対応する{@code @font-feature-values}を参照し、
- * OpenType機能タグと値へ変換します。
+ * {@code historical-forms} maps to OpenType {@code hist} and affects rendering for fonts
+ * that implement it as a single substitution. Named functions refer to the
+ * {@code @font-feature-values} for the element's first font family and map
+ * to OpenType feature tags and values.
  * </p>
  */
 public final class FontVariantAlternatesValue implements Value {
@@ -53,7 +53,7 @@ public final class FontVariantAlternatesValue implements Value {
 		return this.alternates;
 	}
 
-	/** 名前表が無い文書で、従来どおり{@code hist}だけを返します。 */
+	/** Returns only {@code hist}, as before, for documents without a name table. */
 	public FontFeatureSet featureSet() {
 		if (!this.historicalForms) {
 			return FontFeatureSet.EMPTY;
@@ -62,9 +62,9 @@ public final class FontVariantAlternatesValue implements Value {
 	}
 
 	/**
-	 * 第一フォントファミリの名前表を解決してOpenType機能列を返します。
-	 * 未定義の名前を含む関数だけを無視し、他の関数と
-	 * {@code historical-forms}は維持します。
+	 * Resolves the name table for the first font family and returns the OpenType feature sequence.
+	 * Ignores only functions containing undefined names, preserving the other functions
+	 * and {@code historical-forms}.
 	 */
 	public FontFeatureSet featureSet(final FontFeatureValues definitions, final String familyName) {
 		final List<Integer> tags = new ArrayList<>();

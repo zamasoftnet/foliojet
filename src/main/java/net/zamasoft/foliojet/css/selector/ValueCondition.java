@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.css.selector;
 
 /**
- * 値のみを持つ条件(クラス・ID・擬似クラス・言語)。
+ * A condition that holds only a value (class, ID, pseudo-class, language).
  */
 public final class ValueCondition implements Condition {
 	private final ConditionType type;

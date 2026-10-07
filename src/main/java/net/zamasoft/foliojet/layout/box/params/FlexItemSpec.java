@@ -3,17 +3,17 @@ package net.zamasoft.foliojet.layout.box.params;
 import net.zamasoft.foliojet.css.value.FlexBasisValue;
 
 /**
- * Flex itemの伸縮・整列指定です(Flex F1a、2026-08-02——
- * consult-codex-2026-08-02-flexbox.txt Q2)。{@link GridItemSpec}と同じく
- * {@link FlowPos}に1参照として載り、FlowPosTemplate経由でソース再生・
- * レシピにも運ばれる(再生決定性)。全既定は{@link #DEFAULT} singletonを
- * 共有するため、非Flex要素の常時保持コストは参照1個。
+ * Flex item sizing and alignment settings (Flex F1a, 2026-08-02;
+ * consult-codex-2026-08-02-flexbox.txt Q2). Like {@link GridItemSpec}, occupies one reference in
+ * {@link FlowPos} and is also carried into source replay and recipes via FlowPosTemplate
+ * (replay determinism). All-default settings share the {@link #DEFAULT} singleton, so the permanent
+ * retention cost for non-Flex elements is one reference.
  *
  * <p>
- * {@code minWidthAuto}/{@code minHeightAuto}は自動最小サイズ(§4.5)の
- * 復元用——{@code BlockParams.minSize}は通常ブロック用にautoを0へ落とす
- * ため、著者がmin-width/min-heightを宣言していない事実をここで保つ。
- * alignSelfはF3c、orderはF5aで解析される(それまで既定値)。
+ * {@code minWidthAuto}/{@code minHeightAuto} restore the automatic minimum size (§4.5).
+ * Since {@code BlockParams.minSize} converts auto to 0 for ordinary blocks, these preserve the fact
+ * that the author has not declared min-width/min-height. alignSelf is parsed in F3c, order in F5a
+ * (default values until then).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -21,7 +21,7 @@ import net.zamasoft.foliojet.css.value.FlexBasisValue;
 public record FlexItemSpec(double grow, double shrink, FlexBasisValue basis, BoxAlignment alignSelf, int order,
 		boolean minWidthAuto, boolean minHeightAuto) {
 
-	/** 全既定(grow 0・shrink 1・basis auto・alignSelf auto・order 0・min両auto)。 */
+	/** All defaults (grow 0, shrink 1, basis auto, alignSelf auto, order 0, both minima auto). */
 	public static final FlexItemSpec DEFAULT = new FlexItemSpec(0, 1, FlexBasisValue.AUTO_VALUE,
 			BoxAlignment.AUTO, 0, true, true);
 

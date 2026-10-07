@@ -18,7 +18,7 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code grid}ショートハンドです(css-grid-1 §7.8、2026-08-29)。
+ * {@code grid} shorthand (css-grid-1 §7.8, 2026-08-29).
  *
  * <pre>
  * &lt;'grid-template'&gt;
@@ -27,10 +27,10 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * </pre>
  *
  * <p>
- * 明示トラック(rows/columns/areas)と暗黙トラック(auto-rows/auto-columns/
- * auto-flow)の6 longhandを全て設定する——指定しなかった側は初期値へ戻す
- * (仕様の「gridはgrid-template-*とgrid-auto-*の両方をリセットする」)。
- * {@code auto-flow}がどちら側にあるかで形式を判別する。
+ * Sets all six longhands for explicit tracks (rows/columns/areas) and implicit tracks
+ * (auto-rows/auto-columns/auto-flow), resetting unspecified components to initial values
+ * (the specification states that grid resets both grid-template-* and grid-auto-*).
+ * Determines the form by which side contains {@code auto-flow}.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -61,7 +61,7 @@ public class GridShorthand extends AbstractShorthandPropertyInfo {
 		final boolean flowBefore = hasAutoFlow(before);
 		final boolean flowAfter = after != null && hasAutoFlow(after);
 		if (!flowBefore && !flowAfter) {
-			// <'grid-template'>: 暗黙トラック側は初期値へ
+			// <'grid-template'>: reset implicit track properties to initial values.
 			tokens.rewind(start);
 			GridTemplateShorthand.parseTemplate(tokens, ua, uri, primitives);
 			primitives.set(GridTemplateTracks.AUTO_ROWS, GridTrackListValue.NONE_VALUE);
@@ -80,17 +80,17 @@ public class GridShorthand extends AbstractShorthandPropertyInfo {
 		while (consumed < flowSide.size() && flowSide.get(consumed) instanceof CssToken.Ident ident
 				&& (ident.is("auto-flow") || ident.is("dense"))) {
 			if (ident.is("auto-flow") ? autoFlow : dense) {
-				throw new PropertyException(); // 重複
+				throw new PropertyException(); // Duplicate
 			}
 			autoFlow |= ident.is("auto-flow");
 			dense |= ident.is("dense");
 			++consumed;
 		}
 		if (!autoFlow) {
-			throw new PropertyException(); // auto-flowはトラックより前
+			throw new PropertyException(); // auto-flow precedes tracks.
 		}
 		final List<CssToken> autoTracks = flowSide.subList(consumed, flowSide.size());
-		// (解析結果はcomputed前の中間形なのでValueのまま運ぶ)
+		// (The parsed result is an intermediate form before computation, so carry it as Value.)
 		final net.zamasoft.foliojet.css.value.Value implicit = autoTracks.isEmpty()
 				? GridTrackListValue.NONE_VALUE
 				: ((GridTemplateTracks) GridTemplateTracks.AUTO_ROWS).parseValue(new TokenStream(autoTracks), ua, uri);

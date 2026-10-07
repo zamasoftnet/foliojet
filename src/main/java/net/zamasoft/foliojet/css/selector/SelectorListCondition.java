@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * セレクタのリストを引数に取る条件(:not / :is / :where)。
+ * A condition taking a list of selectors as its argument (:not / :is / :where).
  */
 public final class SelectorListCondition implements Condition {
 	private final ConditionType type;
@@ -42,8 +42,8 @@ public final class SelectorListCondition implements Condition {
 	}
 
 	public Specificity getSpecificity() {
-		// :where()は引数の内容によらず常に詳細度ゼロ(CSS Selectors4仕様)。
-		// :not()/:is()/:has()は引数リスト中最大の詳細度を採る。
+		// :where() always has zero specificity, regardless of its arguments (CSS Selectors4 specification).
+		// :not()/:is()/:has() take the greatest specificity in the argument list.
 		if (this.type == ConditionType.WHERE_CONDITION) {
 			return new Specificity(0, 0, 0);
 		}

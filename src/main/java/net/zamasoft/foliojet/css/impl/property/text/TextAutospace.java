@@ -12,18 +12,18 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code text-autospace}です(和文詰めA1、2026-07-31——
- * consult-codex-2026-07-31-text-spacing.txt)。継承プロパティ。
- * computed initialは仕様どおり{@code normal}だが、UAスタイルシートが
- * {@code html { text-autospace: no-autospace }}を与えるため既存文書の
- * 見た目は変わらない(既定on化は将来UAの1行変更で行う——答申Q4)。
+ * {@code text-autospace} (Japanese text spacing A1, 2026-07-31:
+ * consult-codex-2026-07-31-text-spacing.txt). Inherited property.
+ * The computed initial value is {@code normal}, as specified, but the UA stylesheet sets
+ * {@code html { text-autospace: no-autospace }}, so existing documents look unchanged
+ * (enabling it by default later requires one UA line change; recommendation Q4).
  *
  * @author MIYABE Tatsuhiko
  */
 public class TextAutospace extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new TextAutospace();
 
-	/** 実効フラグ({@code TextAutospaceValue.ALPHA}|{@code NUMERIC})。 */
+	/** Effective flags ({@code TextAutospaceValue.ALPHA}|{@code NUMERIC}). */
 	public static byte getFlags(CSSStyle style) {
 		return ((TextAutospaceValue) style.get(INFO)).getFlags();
 	}
@@ -57,7 +57,7 @@ public class TextAutospace extends AbstractPrimitivePropertyInfo {
 			}
 			return TextAutospaceValue.NO_AUTOSPACE;
 		}
-		// ideograph-alpha || ideograph-numeric(順不同・重複不可)
+		// ideograph-alpha || ideograph-numeric (any order; no duplicates).
 		byte flags = 0;
 		while (tokens.hasNext()) {
 			if (tokens.eat("ideograph-alpha")) {
@@ -71,7 +71,7 @@ public class TextAutospace extends AbstractPrimitivePropertyInfo {
 				}
 				flags |= TextAutospaceValue.NUMERIC;
 			} else {
-				// auto/punctuation/insert/replace等はサブセット外(宣言無効)
+				// auto/punctuation/insert/replace, etc. are outside the subset (invalid declaration).
 				throw new PropertyException();
 			}
 		}

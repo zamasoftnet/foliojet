@@ -3,49 +3,56 @@ package net.zamasoft.foliojet.css.style;
 import java.util.Arrays;
 
 /**
- * 表の格子の桁が上の行の rowspan で占められているかを、HTML の表の置き方で追います(2026-09-29)。
+ * Tracks columns occupied by rowspans from earlier rows using HTML table placement rules (2026-09-29).
  *
  * <p>
- * 表ビルダーは行ごとのセル列の添字を列として扱い、上の行の rowspan を
- * {@code CellContent.complementRowspan} で「セル列の終わりから連続する位置だけ」引き継ぐ。
- * 行が短く、行の最後のセルと上から続く rowspan の間に空き桁があると、その先の rowspan は
- * 当行にも以降の行にも引き継がれず、後ろの行のセルが格子より左の列へ入って、ぶち抜きのセルに
- * 重なって描かれていた(36M 掃過の分類の副産物、copperpdf4 の triage §13)。
+ * The table builder treats each row's cell-sequence indexes as columns, carrying over
+ * rowspans from above with {@code CellContent.complementRowspan} only at contiguous
+ * positions after the end of the cell sequence. If a short row has an empty column
+ * between its last cell and a continuing rowspan, the farther rowspan is not carried
+ * to this or later rows. Cells in subsequent rows were then placed left of their grid
+ * columns, overlapping spanning cells (a byproduct of 36M sweep classification,
+ * copperpdf4 triage §13).
  * </p>
  *
  * <p>
- * 空き桁を<b>空の匿名セル</b>で埋めれば、ビルダーの引き継ぎはそのまま格子と一致する。匿名セルは
- * カスケードを通らない(継承値と初期値だけ)ので枠・余白・背景を持たず、空き桁と同じく何も描かれない。
- * このクラスは空き桁の検出にだけ使い、箱の寸法や配置には関わらない。行グループの境界では、
- * ビルダーと同じく rowspan を引き継がない。
+ * Filling empty columns with <b>empty anonymous cells</b> makes the builder's existing
+ * carryover match the grid. Anonymous cells bypass the cascade (inherited and initial
+ * values only), so have no border, margin, or background and draw nothing, like empty
+ * columns. This class only detects empty columns; it does not affect box dimensions or
+ * placement. Like the builder, it does not carry rowspans across row-group boundaries.
  * </p>
  *
  * <p>
- * <b>限界</b>: 固定レイアウトの表で、1 行目で決まった列数を超えるセルを Incremental ビルダーは捨てる
- * (内容ごと消える既存の制限)。ここはその切り詰めを知らないので、捨てられたセルの rowspan の手前にも
- * 匿名セルを置くことがある。影響は、その行に見えない空のセルが 1 つ増えること(空行なら
- * {@code border-spacing} の分だけ高さが付く)にとどまる(2026-09-29 の codex レビュー)。
+ * <b>Limitation</b>: for fixed-layout tables, the Incremental builder discards cells beyond
+ * the column count set by the first row (an existing limitation that also loses their content).
+ * This class does not know about that truncation, so it may add anonymous cells before
+ * rowspans of discarded cells. The only effect is one extra invisible empty cell in that
+ * row (an empty row gains {@code border-spacing} height; codex review, 2026-09-29).
  * </p>
  */
 final class TableSlotTracker {
-	/** 表の要素のスタイル。匿名セルの書字方向を表に揃えるのに使う(行の書字方向を継ぐと直交セルになる)。 */
+	/**
+	 * Table element style. Aligns anonymous cell writing direction with the table
+	 * (inheriting the row's could make cells orthogonal).
+	 */
 	final net.zamasoft.foliojet.css.CSSStyle table;
 
 	TableSlotTracker(final net.zamasoft.foliojet.css.CSSStyle table) {
 		this.table = table;
 	}
 
-	/** 桁ごとに、当行より後の行を上のセルが占め続ける行数。 */
+	/** For each column, number of rows after this one still occupied by a cell above. */
 	private int[] carry = new int[8];
-	/** 当行で占められた桁(上から続くものと当行のセル)。 */
+	/** Columns occupied in this row (continuations from above and this row's cells). */
 	private boolean[] occupied = new boolean[8];
-	/** 当行の始めに上から続いていた桁の最大+1。 */
+	/** Maximum column continuing from above at this row's start, plus one. */
 	private int carriedEnd = 0;
-	/** 当行の次のセルを探し始める桁。 */
+	/** Column at which to start searching for this row's next cell. */
 	private int cursor = 0;
 	private boolean inRow = false;
 
-	/** 行グループの始まり。rowspan はグループを越えない。 */
+	/** Start of a row group. Rowspans do not cross groups. */
 	void beginRowGroup() {
 		Arrays.fill(this.carry, 0);
 	}
@@ -63,7 +70,7 @@ final class TableSlotTracker {
 		}
 	}
 
-	/** 当行のセルを、占められていない最初の桁に置きます。 */
+	/** Places this row's cell in the first unoccupied column. */
 	void placeCell(final int colspan, final int rowspan) {
 		if (!this.inRow) {
 			return;
@@ -80,8 +87,8 @@ final class TableSlotTracker {
 	}
 
 	/**
-	 * 当行のセルの後ろ、上から続く rowspan の桁より手前に空き桁があるか。あれば、次に
-	 * {@link #placeCell}(1, 1) で置く匿名セルがその空き桁に入る。
+	 * Whether an empty column exists after this row's cells and before a continuing rowspan.
+	 * If so, the next anonymous cell placed with {@link #placeCell}(1, 1) occupies that column.
 	 */
 	boolean hasGapBeforeCarried() {
 		if (!this.inRow) {

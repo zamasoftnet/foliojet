@@ -13,19 +13,19 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code aspect-ratio}です(css-sizing-4 §5、2026-08-29)。
- * {@code auto | <ratio> | auto && <ratio>}、{@code <ratio>}は
- * {@code <number> [ / <number> ]?}(非負)。非継承、既定{@code auto}。
- * 50サイトの変換掃過で424回(23サイト)出現——16:9サムネイル
- * (yomiuri/cnn/cookpad)の高さがこれだけで決まっている。
+ * {@code aspect-ratio} (css-sizing-4 §5, 2026-08-29).
+ * {@code auto | <ratio> | auto && <ratio>}, where {@code <ratio>} is
+ * {@code <number> [ / <number> ]?} (nonnegative). Not inherited; defaults to {@code auto}.
+ * Occurred 424 times (23 sites) in a conversion sweep of 50 sites; this alone determines
+ * the height of 16:9 thumbnails (yomiuri/cnn/cookpad).
  *
  * <p>
- * 印刷向けの意味づけ: 置換要素は{@code auto}併記なら固有比率を優先
- * ({@code AbstractReplacedBox})、非置換ボックスは行方向が確定して
- * いてページ方向が{@code auto}なら比率で高さを決める
- * ({@code FlowBlockBox}/{@code AbstractStaticBlockBox})。内容が比率高
- * より高いときは{@code overflow:visible}なら内容に合わせて伸びる
- * (仕様の{@code min-height:auto}=内容寸法の近似)。
+ * Semantics for print: replaced elements prefer their intrinsic ratio when {@code auto}
+ * is also specified ({@code AbstractReplacedBox}). Non-replaced boxes use the ratio to
+ * determine height when the inline dimension is definite and the page-direction dimension
+ * is {@code auto} ({@code FlowBlockBox}/{@code AbstractStaticBlockBox}). If content exceeds
+ * the ratio-derived height, {@code overflow:visible} lets the box grow to fit the content
+ * (an approximation of the specification's {@code min-height:auto}=content size).
  * </p>
  *
  * @author MIYABE Tatsuhiko

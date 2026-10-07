@@ -12,15 +12,15 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code grid-area}ショートハンドです(css-grid-1 §8.4、2026-08-29——
- * 50サイト掃過で701回/15サイト)。
- * {@code <grid-line> [ / <grid-line> ]{0,3}}を
- * row-start / column-start / row-end / column-endの順に展開する。省略時は
- * 仕様の補完則: 対応するstartが線名単独ならその名前、そうでなければ
- * {@code auto}(column-startの省略はrow-startが線名単独なら4値全てに
- * その名前)。{@code grid-area: header}のような領域名参照はこの補完で
- * 4値とも{@code header}になり、レイアウト側が{@code header-start}/
- * {@code header-end}の暗黙線へ解決する。
+ * {@code grid-area} shorthand (css-grid-1 §8.4, 2026-08-29:
+ * 701 occurrences on 15 sites in a 50-site sweep).
+ * Expands {@code <grid-line> [ / <grid-line> ]{0,3}} in
+ * row-start / column-start / row-end / column-end order.
+ * Fills omissions as specified: use the corresponding start's name if it is a bare line name,
+ * otherwise {@code auto} (if column-start is omitted and row-start is a bare line name,
+ * all four values use that name). Thus, an area reference such as {@code grid-area: header}
+ * fills all four values with {@code header}, which layout resolves to the implicit
+ * {@code header-start}/{@code header-end} lines.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -69,7 +69,7 @@ public class GridAreaShorthand extends AbstractShorthandPropertyInfo {
 		primitives.set(GridPlacement.COLUMN_END, columnEnd);
 	}
 
-	/** 省略値の補完: 線名単独ならその名前、それ以外はauto(grid-column/rowと共用)。 */
+	/** Fills an omitted value: the same name for a bare line name, otherwise auto (shared with grid-column/row). */
 	static GridLineValue sameName(final GridLineValue start) {
 		return start.isNameOnly() ? start : GridLineValue.AUTO_VALUE;
 	}

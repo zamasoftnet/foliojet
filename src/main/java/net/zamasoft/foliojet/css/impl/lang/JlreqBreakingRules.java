@@ -5,48 +5,53 @@ import net.zamasoft.pdfg2d.gc.text.breaking.impl.CharacterSet;
 import net.zamasoft.pdfg2d.gc.text.breaking.impl.JapaneseBreakingRules;
 
 /**
- * JLREQの禁則に{@code line-break}の強さ(css-text-3 §5.2)を重ねた
- * 行分割規則です(2026-08-29新設)。
+ * Line-breaking rules that apply the {@code line-break} strictness (css-text-3 §5.2)
+ * on top of JLREQ kinsoku (line-breaking rules) (added 2026-08-29).
  *
  * <p>
- * pdfg2dの{@link JapaneseBreakingRules}は{@code strict}に相当する
- * (拗促音・長音・繰返し記号・中点類・ハイフン類が全て行頭禁則)。
- * {@code normal}/{@code loose}は仕様の表にある文字だけ禁則から外す
- * ——判定は{@code requiresBefore}/{@code requiresAfter}の手前で行い、
- * 外す文字には{@link CharacterSet#NOTHING}を返す。分割の可否は
- * {@code atomic()}だけが決める(canSeparateはjustify専用、2026-08-22)。
+ * pdfg2d's {@link JapaneseBreakingRules} corresponds to {@code strict}
+ * (small kana, prolonged sound marks, iteration marks, middle-dot-like punctuation,
+ * and hyphens are all prohibited at line starts).
+ * {@code normal}/{@code loose} remove restrictions only for the characters in the specification's
+ * table. Checks run before {@code requiresBefore}/{@code requiresAfter}, returning
+ * {@link CharacterSet#NOTHING} for exempt characters. Only {@code atomic()} determines
+ * whether a break is allowed (canSeparate is for justification only, 2026-08-22).
  * </p>
  *
  * <p>
- * 仕様の書字系条件(「中国語・日本語のとき」)は、本エンジンの
- * 言語プロファイルが全言語でJLREQ規則を使っている(
- * {@code LanguageProfileBundle})ため常に満たすものとして扱う。
+ * The specification's writing-system condition ("for Chinese and Japanese") is treated as
+ * always satisfied because this engine's language profiles use JLREQ rules for all languages
+ * ({@code LanguageProfileBundle}).
  * </p>
  *
  * <ul>
- * <li>{@code normal}で許す行頭: 小書き仮名・長音(UAX#14 CJ)、
- * 〜 U+301C・゠ U+30A0</li>
- * <li>{@code loose}でさらに許す行頭: ‐ U+2010・– U+2013、繰返し記号
- * 々〻ゝゞヽヾ、中点類 ・：；･‼⁇⁈⁉！？、接尾辞 ％℃¢°‰′″℉。
- * 行末: 接頭辞 ￥＄￡＃№¥$£#€ の直後、分離禁止文字 ‥… の同字連続の間</li>
+ * <li>Allowed at line starts in {@code normal}: small kana and prolonged sound marks (UAX#14 CJ),
+ * 〜 U+301C and ゠ U+30A0</li>
+ * <li>Additionally allowed at line starts in {@code loose}: ‐ U+2010, – U+2013, iteration marks
+ * 々〻ゝゞヽヾ, middle-dot-like punctuation ・：；･‼⁇⁈⁉！？, and suffixes ％℃¢°‰′″℉.
+ * At line ends: immediately after prefixes ￥＄￡＃№¥$£#€, and between identical consecutive
+ * inseparable characters ‥…</li>
  * </ul>
  */
 public class JlreqBreakingRules extends JapaneseBreakingRules {
-	/** UAX#14のCJ(小書き仮名・長音。半角形も)。normal以上で行頭を許す。 */
+	/**
+	 * UAX#14 CJ (small kana and prolonged sound marks, including half-width forms).
+	 * Allowed at line starts in normal or looser modes.
+	 */
 	private static final String CJ = "ぁぃぅぇぉゕゖっゃゅょゎァィゥェォヵㇰヶㇱㇲッㇳㇴㇵㇶㇷㇸㇹㇺャュョㇻㇼㇽㇾㇿヮー"
 			+ "ｧｨｩｪｫｬｭｮｯｰ";
 
-	/** CJK類のハイフン様文字。normal以上で行頭を許す。 */
+	/** CJK hyphen-like characters. Allowed at line starts in normal or looser modes. */
 	private static final String NORMAL_HYPHENS = "〜゠";
 
-	/** looseで行頭を許す: ハイフン・繰返し記号・中点類・接尾辞。 */
+	/** Allowed at line starts in loose: hyphens, iteration marks, middle-dot-like punctuation, and suffixes. */
 	private static final String LOOSE_BEFORE = "‐–" + "々〻ゝゞヽヾ" + "・：；･‼⁇⁈⁉！？"
 			+ "％℃¢°‰′″℉";
 
-	/** looseで直後の分割を許す接頭辞。 */
+	/** Prefixes after which loose allows a break. */
 	private static final String LOOSE_AFTER = "￥＄￡＃№¥$£#€";
 
-	/** looseで同字連続の間の分割を許す分離禁止文字(UAX#14 IN)。 */
+	/** Inseparable characters (UAX#14 IN) between whose identical repetitions loose allows breaks. */
 	private static final String LOOSE_INSEPARABLE = "‥…";
 
 	private final LineBreakValue level;

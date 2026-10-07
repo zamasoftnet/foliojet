@@ -3,23 +3,22 @@ package net.zamasoft.foliojet.layout.builder;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 
 /**
- * {@code line-clamp}の行数の状態です(css-overflow-4 §5、2026-08-29)。
+ * Line-count state for {@code line-clamp} (css-overflow-4 §5, 2026-08-29).
  *
  * <p>
- * 打ち切るブロックの{@link LayoutContext.Flow}に1つ置き、その内側の
- * テキストブロック({@code TextBuilder})が行を確定するたびに数える。
- * 仕様の「ブロックコンテナの行ボックス」は入れ子のブロックの行も含む
- * ので、同じビルダーのフロースタック上にある最も近い打ち切りブロックを
- * {@link #find}で探し、深さに関係なく同じ状態へ数える。浮動体・絶対配置・
- * flex/gridアイテムは別ビルダーになるため数えない(仕様どおりin-flowの
- * 行だけ)。
+ * One instance lives in the clamping block's {@link LayoutContext.Flow}; text blocks inside it
+ * ({@code TextBuilder}) increment the count whenever they finalize a line. The specification's
+ * "line boxes of a block container" includes lines in nested blocks, so {@link #find} locates the
+ * nearest clamping block on the same builder's flow stack and counts into the same state regardless
+ * of depth. Floats, absolutely positioned content, and flex/grid items use separate builders and
+ * are not counted (only in-flow lines, as specified).
  * </p>
  *
  * <p>
- * N行目は「後続の内容がある」と分かるまで切らない(N行ちょうどの段落に
- * 省略記号を付けてはいけない)。N行目を閉じた時点では{@link #setPending}
- * で切り方だけ預かり、N+1行目以降が捨てられた瞬間({@link #truncatePending})
- * に実行する。捨てられる行が無ければ預かったまま終わる=省略記号なし。
+ * Do not truncate line N until subsequent content is known to exist (a paragraph with exactly N lines
+ * must not receive an ellipsis). When line N closes, {@link #setPending} stores only the truncation
+ * action; execute it when line N+1 or later is discarded ({@link #truncatePending}). If no line is
+ * discarded, the action remains pending until completion, yielding no ellipsis.
  * </p>
  */
 public final class LineClampState {
@@ -34,7 +33,7 @@ public final class LineClampState {
 	}
 
 	/**
-	 * 最も近い打ち切りブロックの状態を返します(無ければnull)。
+	 * Returns the nearest clamping block's state (null if absent).
 	 */
 	public static LineClampState find(final LayoutContext context) {
 		for (int i = context.getFlowCount() - 1; i >= 0; --i) {
@@ -53,23 +52,23 @@ public final class LineClampState {
 		return null;
 	}
 
-	/** N行に達していて、これ以上の行は捨てるべきか。 */
+	/** Whether N lines have been reached and further lines should be discarded. */
 	public boolean exhausted() {
 		return this.count >= this.limit;
 	}
 
-	/** 行を1つ数えます。ちょうどN行目ならtrue。 */
+	/** Counts one line. true if it is exactly line N. */
 	public boolean countLine() {
 		++this.count;
 		return this.count == this.limit;
 	}
 
-	/** N行目の切り方を預かります(後続が出たら実行)。 */
+	/** Stores the truncation action for line N (runs when subsequent content appears). */
 	public void setPending(final Runnable truncate) {
 		this.pending = truncate;
 	}
 
-	/** 後続の内容が出たので、預かっていたN行目の切り詰めを実行します。 */
+	/** Subsequent content has appeared, so executes the pending truncation of line N. */
 	public void truncatePending() {
 		final Runnable truncate = this.pending;
 		if (truncate != null) {

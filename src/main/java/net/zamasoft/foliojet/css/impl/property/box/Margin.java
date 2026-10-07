@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * margin-top / margin-right / margin-bottom / margin-left 特性です。
+ * margin-top / margin-right / margin-bottom / margin-left properties.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -29,7 +29,7 @@ public final class Margin extends AbstractPrimitivePropertyInfo {
 
 	private static final Margin[] BY_SIDE = { TOP, RIGHT, BOTTOM, LEFT };
 
-	/** margin-block-start/end・margin-inline-start/end(論理プロパティ)。 */
+	/** margin-block-start/end and margin-inline-start/end (logical properties). */
 	public static final Margin BLOCK_START = new Margin("margin-block-start");
 
 	public static final Margin BLOCK_END = new Margin("margin-block-end");

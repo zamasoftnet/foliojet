@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.css.value.FontVariantNumericValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** {@code font-variant-numeric}(CSS Fonts Level 3)です。 */
+/** {@code font-variant-numeric} (CSS Fonts Level 3). */
 public final class FontVariantNumeric extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new FontVariantNumeric();
 

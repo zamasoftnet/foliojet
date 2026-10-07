@@ -14,14 +14,14 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code all}(css-cascade-4 §3.1、2026-08-29)。
+ * {@code all} (css-cascade-4 §3.1, 2026-08-29).
  *
  * <p>
- * 値は全体キーワード({@code inherit}/{@code initial}/{@code unset}、
- * {@code revert}系は宣言ごと無視)だけで、{@code direction}と
- * {@code unicode-bidi}を除く全longhandへ配る。実サイトはボタンの
- * リセット({@code all: unset})に使う。longhandの一覧は最初の呼び出し時に
- * 登録簿から集める(登録順序の都合で構築時には揃っていない)。
+ * Accepts only CSS-wide keywords ({@code inherit}/{@code initial}/{@code unset};
+ * {@code revert} variants cause the entire declaration to be ignored) and distributes them
+ * to all longhands except {@code direction} and {@code unicode-bidi}.
+ * Real sites use it to reset buttons ({@code all: unset}). Collects the longhand list
+ * from the registry on the first call (registration order means it is incomplete at construction time).
  * </p>
  */
 public final class AllShorthand extends AbstractShorthandPropertyInfo {
@@ -54,7 +54,7 @@ public final class AllShorthand extends AbstractShorthandPropertyInfo {
 	@Override
 	public void parseValues(final TokenStream tokens, final UserAgent ua, final URI uri, final Primitives primitives)
 			throws PropertyException {
-		// 全体キーワード以外は不正(基底が全体キーワードを処理済み)
+		// Anything other than a CSS-wide keyword is invalid (the base class already handled CSS-wide keywords).
 		throw new PropertyException();
 	}
 }

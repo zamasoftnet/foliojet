@@ -15,10 +15,10 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontFeatureSet;
 
 /**
- * {@code font-feature-settings}(css-fonts-3)です。
- * {@code normal | <feature-tag-value>#}——各エントリは引用符つきの4文字タグと
- * 任意の値({@code on}=1、{@code off}=0、非負整数。省略は1)。
- * 重複タグは後勝ちで、{@link FontFeatureSet}の正規形へ畳みます。
+ * {@code font-feature-settings} (css-fonts-3).
+ * {@code normal | <feature-tag-value>#}: each entry is a quoted four-character tag
+ * and an optional value ({@code on}=1, {@code off}=0, or a nonnegative integer; defaults to 1).
+ * Later duplicate tags win; collapses into the canonical form of {@link FontFeatureSet}.
  *
  * @author MIYABE Tatsuhiko
  */

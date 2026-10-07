@@ -5,7 +5,7 @@ import java.lang.Character.UnicodeBlock;
 import net.zamasoft.foliojet.css.value.css3.LineBreakValue;
 
 public class JapaneseKeepAllHyphenation extends JlreqBreakingRules {
-	/** 禁則の強さ({@code line-break})を重ねる(2026-08-29)。 */
+	/** Applies the kinsoku (line-breaking rules) strictness ({@code line-break}) on top (2026-08-29). */
 	public JapaneseKeepAllHyphenation(final LineBreakValue level) {
 		super(level);
 	}

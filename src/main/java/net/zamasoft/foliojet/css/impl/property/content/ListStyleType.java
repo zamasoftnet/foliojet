@@ -51,9 +51,9 @@ public class ListStyleType extends AbstractPrimitivePropertyInfo {
 		} else {
 			throw new PropertyException();
 		}
-		// 組み込みにない名前は著者定義カウンタスタイル(@counter-style)
-		// として扱う。定義が後から現れても、定義がまったく無くても
-		// (その場合はdecimalへ落ちる)よい——CSSに出現順の制約はない
+		// Treat names that are not built in as author-defined counter styles (@counter-style).
+		// The definition may appear later or be absent entirely
+		// (falling back to decimal); CSS imposes no source-order restriction.
 		return CounterStyles.styleValue(ua, text);
 	}
 

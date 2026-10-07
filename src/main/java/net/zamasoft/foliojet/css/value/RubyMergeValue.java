@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.css.value;
 
-/** CSS Rubyの{@code ruby-merge}値。 */
+/** The CSS Ruby {@code ruby-merge} value. */
 public enum RubyMergeValue implements Value {
 	SEPARATE("separate"), MERGE("merge"), AUTO("auto");
 

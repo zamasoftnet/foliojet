@@ -17,36 +17,36 @@ import net.zamasoft.zstream.resolver.util.SourceWrapper;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 
 /**
- * 主文書の読み先行バッファと外部リソースの発見・先読み(input.prefetch、
- * 2026-08-27)。
+ * Read-ahead buffering of the main document and discovery/prefetch of external resources
+ * (input.prefetch, 2026-08-27).
  *
  * <p>
- * Copperのストリームレイアウトはパーサ駆動スレッド=レイアウトスレッドで、
- * 画像・CSSは消費点で直列に同期解決される。パーサがリソース待ちで
- * 止まっている間、主文書の受信も止まり、直列のHTTP往復がそのまま
- * wall-clockになる(実測: wikipedia記事1.1MB・画像約90点で、本文取得0.7秒の
- * ところ変換21秒。リソース解決を遮断すると1.3秒)。
+ * In Copper's streaming layout, the parser-driving thread is the layout thread, and images
+ * and CSS resolve synchronously in sequence at their consumption points. While the parser
+ * waits for resources, main-document reception also stops, so serial HTTP round trips
+ * directly determine wall-clock time. Measured: a 1.1 MB Wikipedia article with about 90 images
+ * took 21 s to convert despite a 0.7 s body fetch, or 1.3 s with resource resolution blocked.
  * </p>
  *
  * <p>
- * 対策として、専用の仮想スレッドが主文書を有界バッファへ先行して読み、
- * パーサはバッファから読む。読んだバイトはその場で軽量走査し、
- * <b>エンジンが確実に要求するURL</b>(stylesheetのhref、imgのsrc/srcset——
- * srcset候補の選択規則は{@link HTMLStyle#pickFromSrcset}と同一)だけを
- * {@link MySourceResolver#prefetch}へ渡す。パーサ側のreadを待たせる要素は
- * なく(バッファ満杯時は読み手側が待つ=ネットワークへの背圧)、走査の
- * 失敗は走査を止めるだけで変換には影響しない。単純なコピーteeでは
- * パーサがリソース待ちで止まると先読み窓が開かない(パーサが読んだ
- * バイトしか流れてこない)ため、読み手を分離した先行バッファが本質
- * (2026-08-27レビュー、grok/codex)。
+ * As a countermeasure, a dedicated virtual thread reads the main document ahead into a bounded
+ * buffer, and the parser reads from that buffer. Immediately scans read bytes lightly,
+ * passing only <b>URLs the engine will definitely request</b> (stylesheet href and img src/srcset;
+ * the srcset selection rules match {@link HTMLStyle#pickFromSrcset}) to
+ * {@link MySourceResolver#prefetch}. Nothing in this scan makes the parser's read wait
+ * (when the buffer fills, the upstream reader waits, providing network backpressure).
+ * A scan failure only stops scanning and does not affect conversion. A simple copying tee
+ * cannot open a prefetch window while the parser waits for resources, since only bytes already
+ * read by the parser pass through. Thus, a read-ahead buffer with a separate reader is essential
+ * (2026-08-27 review, grok/codex).
  * </p>
  *
  * <p>
- * 発見の取りこぼし(バッファ上限・不明なエンコーディング・書式の癖)は
- * 性能が同期経路へ退化するだけで、正しさは変わらない。逆に誤検出
- * (コメント内のURL等)は、ACLを通過した余分な取得が上限
- * (リゾルバ側の件数・並列度)の範囲で起きるだけである。UTF-16系の
- * 文書は走査しない(バイト走査がASCII互換前提のため)。
+ * Missed discoveries (buffer limit, unknown encoding, formatting quirks) merely degrade
+ * performance to the synchronous path without affecting correctness. False positives
+ * (e.g., URLs in comments) only cause extra ACL-approved fetches within the resolver's count
+ * and concurrency limits. Does not scan UTF-16 documents, since byte scanning assumes
+ * an ASCII-compatible encoding.
  * </p>
  */
 final class ResourcePrefetcher {
@@ -55,18 +55,18 @@ final class ResourcePrefetcher {
 		// utility
 	}
 
-	/** 読み先行バッファの容量。この分だけ主文書の先を発見できる。 */
+	/** Read-ahead buffer capacity. This is how far ahead in the main document discovery can look. */
 	private static final int BUFFER_SIZE = 2 * 1024 * 1024;
 
-	/** 1回の下位readの単位。 */
+	/** The size of one underlying read. */
 	private static final int CHUNK_SIZE = 64 * 1024;
 
-	/** 走査で先読みへ渡すURIの上限(リゾルバ側にも独自の上限がある)。 */
+	/** The maximum URIs passed to prefetch by scanning (the resolver also has its own limit). */
 	private static final int MAX_URIS = 256;
 
 	/**
-	 * 主文書Sourceを読み先行+発見走査つきに包みます。走査できない
-	 * 種別(明らかに非HTML/XML、UTF-16系)はそのまま返します。
+	 * Wraps the main-document Source with read-ahead buffering and discovery scanning.
+	 * Returns unscannable types unchanged (clearly non-HTML/XML or UTF-16).
 	 */
 	static Source wrap(final Source source, final MySourceResolver resolver) {
 		String mimeType = null;
@@ -96,7 +96,7 @@ final class ResourcePrefetcher {
 		return new PrefetchingSource(source, scanner);
 	}
 
-	/** 最初のgetInputStream()だけを読み先行ストリームへ差し替えるSource。 */
+	/** A Source that replaces only the first getInputStream() with a read-ahead stream. */
 	private static final class PrefetchingSource extends SourceWrapper {
 		private final Scanner scanner;
 		private boolean used;
@@ -118,8 +118,8 @@ final class ResourcePrefetcher {
 
 		@Override
 		public Reader getReader() throws IOException {
-			// 走査はバイト列に対して行うため、Reader要求もgetInputStream()を
-			// 通して包む(委譲のままだと先行バッファを素通りする)
+			// Scanning operates on bytes, so route Reader requests through getInputStream()
+			// as well (plain delegation would bypass the read-ahead buffer).
 			final String encoding = this.getEncoding();
 			if (encoding == null) {
 				return super.getReader();
@@ -129,10 +129,10 @@ final class ResourcePrefetcher {
 	}
 
 	/**
-	 * 専用の仮想スレッドが下位ストリームを有界リングバッファへ先行して
-	 * 読み、その場で走査へ流すInputStream。読み手(パーサ)はバッファから
-	 * 読む。下位のIOException・EOFはバッファを飲み切った後に伝える
-	 * (順序を保つ)。
+	 * An InputStream whose dedicated virtual thread reads ahead from the underlying stream
+	 * into a bounded ring buffer and passes bytes to scanning immediately. The reader (parser)
+	 * reads from the buffer. Reports underlying IOExceptions and EOF only after the buffer
+	 * is exhausted, preserving order.
 	 */
 	static final class ReadAheadInputStream extends InputStream {
 		private final InputStream delegate;
@@ -181,7 +181,7 @@ final class ResourcePrefetcher {
 						try {
 							active.feed(chunk, 0, n);
 						} catch (final Throwable t) {
-							// 走査は任意——以降の走査だけを止める
+							// Scanning is optional: stop only further scanning.
 							active = null;
 						}
 					}
@@ -214,7 +214,7 @@ final class ResourcePrefetcher {
 				}
 			} finally {
 				synchronized (this.lock) {
-					// 何があっても読み手を待たせたままにしない
+					// Never leave the reader waiting, whatever happens.
 					if (!this.eof && this.error == null && !this.closed) {
 						this.error = new IOException("prefetch read-ahead terminated");
 					}
@@ -281,21 +281,20 @@ final class ResourcePrefetcher {
 				this.closed = true;
 				this.lock.notifyAll();
 			}
-			// **読み手のスレッドに割り込まない**(2026-09-28)。仮想スレッドがソケットの読み取りで
-			// 待っているところに割り込むと、そのソケットが閉じる(JDK 21)。CTIP の本文では
-			// それが client との接続そのものなので、中断や変換の失敗で本文の途中で閉じると
-			// client の接続が切れていた。読みかけの 1 回が返れば closed を見て抜ける
-			// (CTIP の本文の残りは受け口が client の EOF まで読み捨てる)。
-			// ほかの下位ストリームは close() で読み取りが解ける
+			// **Do not interrupt the reader thread** (2026-09-28). Interrupting a virtual thread waiting on
+			// a socket read closes that socket (JDK 21). For a CTIP body, it is the client connection itself,
+			// so closing midway through the body on an abort or conversion failure
+			// disconnected the client. After the current read returns, the thread sees closed and exits.
+			// (The CTIP body receiver discards the rest of the body through the client's EOF.)
+			// For other underlying streams, close() releases the read.
 			this.delegate.close();
 		}
 	}
 
 	/**
-	 * 増分バイト走査のHTMLスキャナ。コメント・script/styleの生テキストを
-	 * 状態機械で読み飛ばし、base/link/imgのタグだけを取り出す。タグ文字列は
-	 * UTF-8(置換つき)で復号する——URLはほぼASCIIで、ASCII互換
-	 * エンコーディングなら属性の区切りを壊さない。
+	 * An incremental byte-scanning HTML scanner. A state machine skips comments and script/style
+	 * raw text, extracting only base/link/img tags. Decodes tag text as UTF-8 with replacement:
+	 * URLs are mostly ASCII, and ASCII-compatible encodings preserve attribute delimiters.
 	 */
 	static final class Scanner {
 		private static final int STATE_DATA = 0;
@@ -303,7 +302,7 @@ final class ResourcePrefetcher {
 		private static final int STATE_COMMENT = 2;
 		private static final int STATE_RAWTEXT = 3;
 
-		/** 1タグの最大蓄積(暴走防止)。 */
+		/** The maximum buffered size for one tag (prevents runaway growth). */
 		private static final int MAX_TAG_BYTES = 64 * 1024;
 
 		private final MySourceResolver resolver;
@@ -314,7 +313,7 @@ final class ResourcePrefetcher {
 
 		private int state = STATE_DATA;
 		private final StringBuilder tag = new StringBuilder();
-		/** COMMENT/RAWTEXT終端検出用の直近文字。 */
+		/** Recent characters used to detect COMMENT/RAWTEXT endings. */
 		private final StringBuilder tailWindow = new StringBuilder();
 		private String rawTextEnd;
 
@@ -345,7 +344,7 @@ final class ResourcePrefetcher {
 							this.tailWindow.setLength(0);
 						}
 					} else {
-						// 異常に長いタグは捨てて同期し直す
+						// Discard abnormally long tags and resynchronize.
 						this.state = STATE_DATA;
 					}
 					break;
@@ -364,7 +363,7 @@ final class ResourcePrefetcher {
 						this.tailWindow.deleteCharAt(0);
 					}
 					if (this.tailWindow.indexOf(this.rawTextEnd) >= 0) {
-						// 終了タグの名前まで読んだ——残り(空白と>)はDATAで無害
+						// The closing tag name has been read; the remainder (whitespace and >) is harmless in DATA.
 						this.state = STATE_DATA;
 					}
 					break;
@@ -374,7 +373,7 @@ final class ResourcePrefetcher {
 			}
 		}
 
-		/** '>'まで蓄積したタグ内容を処理します。 */
+		/** Processes tag contents accumulated through '>'. */
 		private void endTag() {
 			this.state = STATE_DATA;
 			final String text = this.tag.toString();
@@ -390,7 +389,7 @@ final class ResourcePrefetcher {
 			switch (name) {
 			case "script":
 			case "style":
-				// 生テキスト要素の中はタグとして解釈しない
+				// Do not interpret raw-text element contents as tags.
 				if (!text.endsWith("/")) {
 					this.state = STATE_RAWTEXT;
 					this.rawTextEnd = "</" + name;
@@ -398,7 +397,7 @@ final class ResourcePrefetcher {
 				}
 				return;
 			case "base": {
-				// 最初のbaseだけが効く(HTML仕様)
+				// Only the first base takes effect (HTML specification).
 				if (!this.baseSeen) {
 					this.baseSeen = true;
 					final String href = attr(text, p, "href");
@@ -406,7 +405,7 @@ final class ResourcePrefetcher {
 						try {
 							this.base = URIHelper.resolve(this.encoding, this.base, href);
 						} catch (final URISyntaxException e) {
-							// baseが読めないなら以降の相対URLは当てにならない
+							// If base cannot be parsed, subsequent relative URLs are unreliable.
 							this.base = null;
 						}
 					}
@@ -422,10 +421,10 @@ final class ResourcePrefetcher {
 				return;
 			}
 			case "img": {
-				// エンジンの選択(HTMLStyle HTMLCodes.IMG、2026-08-20)は
-				// srcsetの最高解像度候補、無ければsrc。同じ画像がsrcだけの
-				// <img>でも現れる実サイト(wikipediaの地図マーカー等)が
-				// あるため、両方を先読みする(どちらも実際に要求され得る)
+				// The engine's selection (HTMLStyle HTMLCodes.IMG, 2026-08-20) uses the highest-resolution
+				// srcset candidate, or src if absent. Real sites sometimes also reference the same image
+				// in an <img> with only src (e.g., Wikipedia map markers),
+				// so prefetch both (both can actually be requested).
 				this.prefetch(HTMLStyle.pickFromSrcset(attr(text, p, "srcset")));
 				this.prefetch(attr(text, p, "src"));
 				return;
@@ -447,7 +446,7 @@ final class ResourcePrefetcher {
 					this.resolver.prefetch(uri);
 				}
 			} catch (final URISyntaxException | RuntimeException e) {
-				// 発見の失敗は無視(実要求の正規経路が正)
+				// Ignore discovery failures (the actual request's normal path is authoritative).
 			}
 		}
 
@@ -456,8 +455,8 @@ final class ResourcePrefetcher {
 		}
 
 		/**
-		 * タグ文字列から属性値を取り出します(引用符・無引用対応、
-		 * 大文字小文字非区別)。値の文字参照は主要なもののみ復号。
+		 * Extracts attribute values from tag text (quoted or unquoted, case-insensitive).
+		 * Decodes only common character references in values.
 		 */
 		private static String attr(final String tag, final int from, final String name) {
 			final String lower = tag.toLowerCase(Locale.ROOT);
@@ -467,7 +466,7 @@ final class ResourcePrefetcher {
 				if (at < 0) {
 					return null;
 				}
-				// 属性名の前は空白、後は(空白*)=(空白*)値
+				// An attribute name is preceded by whitespace, then followed by (whitespace*)=(whitespace*)value.
 				final int before = at - 1;
 				final int after = at + name.length();
 				if (before >= 0 && !isSpace(tag.charAt(before))) {
@@ -509,7 +508,7 @@ final class ResourcePrefetcher {
 			return null;
 		}
 
-		/** URL中に現れる主要な文字参照だけを復号します。 */
+		/** Decodes only common character references that occur in URLs. */
 		private static String decodeEntities(final String s) {
 			if (s.indexOf('&') < 0) {
 				return s.trim();
@@ -544,7 +543,7 @@ final class ResourcePrefetcher {
 							repl = new String(Character.toChars(cp));
 						}
 					} catch (final RuntimeException e) {
-						// 復号できない参照はそのまま
+						// Leave undecodable references unchanged.
 					}
 				}
 				if (repl != null) {

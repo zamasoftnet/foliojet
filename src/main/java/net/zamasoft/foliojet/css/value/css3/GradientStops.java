@@ -9,35 +9,35 @@ import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 import net.zamasoft.pdfg2d.util.ColorUtils;
 
 /**
- * グラデーションの色停止列です(css-images-3 §3.4、2026-08-29新設)。
+ * A sequence of gradient color stops (css-images-3 §3.4, added on 2026-08-29).
  *
  * <p>
- * 停止位置は解析時には確定しない——{@code 50%}は勾配線の長さに対する割合、
- * {@code 10px}は絶対長で、勾配線の長さは塗る箱が決まって初めて分かる。
- * そこで割合({@link #ratio})と絶対長({@link #abs}、pt)を別々に持ち、
- * {@link #resolve}で箱の寸法から0..1の位置へ落とす。位置を省いた停止は
- * {@link #auto}で、仕様どおり前後の停止の間に等間隔で置く。
+ * Stop positions are not determined during parsing: {@code 50%} is a ratio to the gradient line's
+ * length, whereas {@code 10px} is an absolute length. The gradient line's length is known only
+ * once the box to fill is determined. Thus, stores ratios ({@link #ratio}) and absolute lengths
+ * ({@link #abs}, pt) separately; {@link #resolve} converts them to positions in 0..1 using the box size.
+ * Stops with omitted positions use {@link #auto} and are spaced evenly between surrounding stops,
+ * as the specification requires.
  * </p>
  *
  * <p>
- * <b>繰り返し</b>({@code repeating-*-gradient})はPDFのシェーディングに
- * 無いので、周期(最初と最後の停止の間隔)を勾配線が覆う範囲まで展開した
- * 停止列にする。展開は{@link #MAX_REPEATS}周期で打ち切る(周期が極端に
- * 短い指定で停止が爆発するのを防ぐ。それより細かい縞は印刷でも見えない。
- * 打ち切ったときだけ近似——{@link Resolved#capped()}で知らせる)。
- * 出力先が周期の繰り返し({@code REPEATING_GRADIENT}——Java2D・SVG)を
- * 持つなら、{@link #resolvePeriod}で1周期だけを作り{@code SpreadMethod.REPEAT}
- * で塗るのが厳密(2026-08-29)。
+ * PDF shading has no <b>repetition</b> ({@code repeating-*-gradient}), so expands the period
+ * (the distance between the first and last stops) into a stop sequence covering the gradient line.
+ * Caps expansion at {@link #MAX_REPEATS} periods to prevent an explosion of stops for extremely
+ * short periods. Finer stripes are invisible even in print. Only the capped case is an approximation,
+ * reported through {@link Resolved#capped()}. If the destination supports periodic repetition
+ * ({@code REPEATING_GRADIENT}: Java2D and SVG), the exact approach is to create just one period
+ * with {@link #resolvePeriod} and paint with {@code SpreadMethod.REPEAT} (2026-08-29).
  * </p>
  */
 public final class GradientStops {
-	/** 繰り返しの展開上限(周期数)。 */
+	/** The repetition expansion limit (number of periods). */
 	public static final int MAX_REPEATS = 64;
 
 	/**
-	 * AWT/PDFが要求する「厳密に増加する位置」のための最小差。ハードストップ
-	 * ({@code red 50%, blue 50%})を保ったまま満たす(2026-08-16の
-	 * normalizeGradientStopsから移設)。
+	 * The minimum gap for the strictly increasing positions required by AWT/PDF. Meets this
+	 * requirement while preserving hard stops ({@code red 50%, blue 50%})
+	 * (moved from normalizeGradientStops of 2026-08-16).
 	 */
 	private static final double EPSILON = 1e-5;
 
@@ -47,8 +47,8 @@ public final class GradientStops {
 	private final boolean[] auto;
 
 	/**
-	 * 解決済みの停止列(位置は0..1で厳密に増加)。{@code capped}は繰り返しの
-	 * 展開が{@link #MAX_REPEATS}で打ち切られた(=覆いきれず近似になった)こと。
+	 * A resolved stop sequence (positions strictly increase within 0..1). {@code capped} means
+	 * repetition expansion hit {@link #MAX_REPEATS} (coverage is incomplete and thus approximate).
 	 */
 	public record Resolved(double[] fractions, Color[] colors, boolean capped) {
 		public Resolved(final double[] fractions, final Color[] colors) {
@@ -57,13 +57,13 @@ public final class GradientStops {
 	}
 
 	/**
-	 * 繰り返しの1周期ぶんの停止列(2026-08-29)。位置は周期を0..1へ写した
-	 * もので、勾配線の始点(位相0)から始まる——元の停止が0以外から
-	 * 始まっていても、周期で折り返して位相を合わせてある。
+	 * A stop sequence for one repetition period (2026-08-29). Positions map the period to 0..1
+	 * and start at the gradient line's start (phase 0). Even if the original stops start elsewhere,
+	 * wrapping by the period aligns the phase.
 	 *
-	 * @param fractions 0..1(厳密に増加)
-	 * @param colors    各位置の色
-	 * @param length    周期の長さ(勾配線の長さに対する割合)
+	 * @param fractions 0..1 (strictly increasing)
+	 * @param colors    the color at each position
+	 * @param length    the period length (as a ratio to the gradient line's length)
 	 */
 	public record Period(double[] fractions, Color[] colors, double length) {
 	}
@@ -79,7 +79,7 @@ public final class GradientStops {
 		this.auto = auto;
 	}
 
-	/** 位置が全て割合(または自動)で確定している停止列を作ります。 */
+	/** Creates a stop sequence with all positions specified as ratios (or auto). */
 	public static GradientStops ofFractions(final double[] fractions, final Color[] colors) {
 		final double[] abs = new double[fractions.length];
 		final boolean[] auto = new boolean[fractions.length];
@@ -98,14 +98,14 @@ public final class GradientStops {
 	}
 
 	/**
-	 * 停止位置を確定します。
+	 * Determines stop positions.
 	 *
-	 * @param length    勾配線の長さ(pt)。割合と絶対長の換算に使う。0以下なら
-	 *                  絶対長は無視する
-	 * @param repeating 繰り返すか
-	 * @param cover     塗りが覆うべき範囲(勾配線の長さの倍数、1以上)。
-	 *                  返す位置はこの範囲を0..1へ縮めたもの——放射の
-	 *                  繰り返しで、最遠の角まで周期を展開するために使う
+	 * @param length    the gradient line's length (pt), used to convert ratios and absolute lengths;
+	 *                  if zero or less, ignores absolute lengths
+	 * @param repeating whether to repeat
+	 * @param cover     the range the paint must cover (a multiple of the gradient line's length, at least 1);
+	 *                  returned positions scale this range to 0..1, used for radial repetition
+	 *                  to expand periods as far as the most distant corner
 	 */
 	public Resolved resolve(final double length, final boolean repeating, final double cover) {
 		final int n = this.colors.length;
@@ -116,7 +116,7 @@ public final class GradientStops {
 		final double period = pos[n - 1] - pos[0];
 		boolean capped = false;
 		if (repeating && period > 1e-6) {
-			// 周期を0以下から始めてcoverを越えるまで並べる
+			// Repeat periods starting at or below zero until they extend past cover.
 			int first = (int) Math.floor(-pos[0] / period);
 			int last = (int) Math.ceil((span - pos[0]) / period);
 			if (last - first > MAX_REPEATS) {
@@ -125,8 +125,8 @@ public final class GradientStops {
 			}
 			for (int k = first; k <= last; ++k) {
 				final double offset = k * period;
-				// 周期の継ぎ目では前の周期の末尾と同じ位置に先頭の色が並ぶ
-				// (ハードストップとして折り返る)。normalizeが最小差を空ける
+				// At period boundaries, the first color shares the position of the previous period's last color
+				// (wraps as a hard stop). normalize inserts the minimum gap.
 				for (int i = 0; i < n; ++i) {
 					positions.add(new double[] { pos[i] + offset });
 					colorList.add(this.colors[i]);
@@ -147,11 +147,11 @@ public final class GradientStops {
 	}
 
 	/**
-	 * 繰り返しの1周期を、勾配線の始点から始まる位相で返します。周期が
-	 * 潰れている(全停止が同じ位置)ならnull——呼び出し側は{@link #resolve}の
-	 * 展開へ落とす。
+	 * Returns one repetition period with its phase starting at the gradient line's start.
+	 * If the period collapses (all stops at the same position), returns null; the caller
+	 * falls back to expansion with {@link #resolve}.
 	 *
-	 * @param length 勾配線の長さ(pt)
+	 * @param length the gradient line's length (pt)
 	 */
 	public Period resolvePeriod(final double length) {
 		final int n = this.colors.length;
@@ -160,17 +160,17 @@ public final class GradientStops {
 		if (!(period > 1e-6)) {
 			return null;
 		}
-		// 元の停止の周期内の位置(先頭を0とする)
+		// Original stop positions within the period (the first is zero).
 		final double[] offset = new double[n];
 		for (int i = 0; i < n; ++i) {
 			offset[i] = pos[i] - pos[0];
 		}
-		// 勾配線の始点(絶対位置0)は周期内のどこか: shift = pos[0] mod period
+		// Where the gradient line's start (absolute position 0) lies in the period: shift = pos[0] mod period.
 		final double shift = pos[0] - Math.floor(pos[0] / period) * period;
 		if (shift <= 1e-9) {
-			// 位相がそろっている(勾配線の始点が周期の始点)。折り返さず
-			// そのまま1周期にする——折り返すと末尾の停止が位置0へ回り込み、
-			// ハードストップの前後関係が壊れる(2026-08-29に実測で発見)
+			// The phase is aligned (the gradient line starts at the period's start). Use one period
+			// as is without wrapping: wrapping moves the last stop to position zero and breaks
+			// the ordering across the hard stop (found by measurement on 2026-08-29).
 			final double[] direct = new double[n];
 			for (int i = 0; i < n; ++i) {
 				direct[i] = offset[i] / period;
@@ -178,9 +178,9 @@ public final class GradientStops {
 			normalize(direct);
 			return new Period(direct, this.colors.clone(), period);
 		}
-		// 各停止を「始点から始まる周期」の位置へ折り返す。回り込んだ停止は
-		// 同じ位置では回り込んでいない停止より前に置く——回り込んだ側は
-		// その位置へ「左から」入ってくる色(=直前の色)を表すため
+		// Wrap each stop to its position in a period starting at the line's start. At the same position,
+		// place wrapped stops before unwrapped stops: the wrapped side represents the color
+		// entering that position from the left (=the immediately preceding color).
 		final List<double[]> folded = new ArrayList<double[]>(n + 2);
 		for (int i = 0; i < n; ++i) {
 			double t = offset[i] + shift;
@@ -192,12 +192,12 @@ public final class GradientStops {
 		}
 		folded.sort((a, b) -> a[0] != b[0] ? Double.compare(a[0], b[0])
 				: a[1] != b[1] ? Double.compare(a[1], b[1]) : Double.compare(a[2], b[2]));
-		// 両端は周期関数としての始点の色(shift=0なら先頭色と末尾色)
+		// Both ends use the periodic function's color at the start (first and last colors if shift=0).
 		final double u = shift > 0 ? period - shift : 0;
 		final List<Double> outPos = new ArrayList<Double>(n + 2);
 		final List<Color> outColors = new ArrayList<Color>(n + 2);
 		outPos.add(0.0);
-		// 始点は「そこから先へ進む色」——ハードストップの上では右側の色
+		// The start uses the color proceeding forward from there: the right-hand color at a hard stop.
 		outColors.add(colorAtRight(offset, this.colors, u));
 		for (final double[] f : folded) {
 			outPos.add(f[0] / period);
@@ -213,7 +213,7 @@ public final class GradientStops {
 		return new Period(fractions, outColors.toArray(new Color[outColors.size()]), period);
 	}
 
-	/** 停止位置を確定します(css-images-3 §3.4.3の補正込み、繰り返し展開前)。 */
+	/** Determines stop positions (including css-images-3 §3.4.3 fixup, before repetition expansion). */
 	private double[] positions(final double length) {
 		final int n = this.colors.length;
 		final double[] pos = new double[n];
@@ -224,8 +224,8 @@ public final class GradientStops {
 				pos[i] = this.ratio[i] + (length > 0 ? this.abs[i] / length : 0);
 			}
 		}
-		// css-images-3 §3.4.3 の補正: 先頭・末尾の省略は0・1、後退は前の
-		// 位置まで引き上げ、省略は前後の間に等間隔
+		// css-images-3 §3.4.3 fixup: omitted first/last positions become 0/1; raise backward positions
+		// to the preceding position; space omitted positions evenly between surrounding stops.
 		if (Double.isNaN(pos[0])) {
 			pos[0] = 0;
 		}
@@ -259,16 +259,16 @@ public final class GradientStops {
 	}
 
 	/**
-	 * 位置列を[lo,hi]へ切り詰めて0..1へ写します。範囲外の停止は落とし、
-	 * 端には補間した色を置く(絶対長の停止で勾配線を越えた場合や、
-	 * 繰り返しの展開で0未満・cover超になった周期に要る)。
+	 * Clips the position sequence to [lo,hi] and maps it to 0..1. Drops stops outside the range
+	 * and adds interpolated colors at the ends (needed when absolute-length stops extend beyond
+	 * the gradient line, or expanded repetition periods extend below zero or above cover).
 	 */
 	private static Resolved clip(final double[] pos, final Color[] colors, final double lo, final double hi) {
 		final int n = pos.length;
 		final List<Double> outPos = new ArrayList<Double>(n + 2);
 		final List<Color> outColors = new ArrayList<Color>(n + 2);
 		final double range = hi - lo;
-		// 端の色
+		// Endpoint colors.
 		if (pos[0] > lo) {
 			outPos.add(0.0);
 			outColors.add(colors[0]);
@@ -298,7 +298,7 @@ public final class GradientStops {
 		return new Resolved(fractions, outColors.toArray(new Color[outColors.size()]));
 	}
 
-	/** 位置{@code t}での補間色(位置は非減少であること)。 */
+	/** The interpolated color at position {@code t} (positions must be nondecreasing). */
 	public static Color colorAt(final double[] pos, final Color[] colors, final double t) {
 		if (t <= pos[0]) {
 			return colors[0];
@@ -320,9 +320,9 @@ public final class GradientStops {
 	}
 
 	/**
-	 * ハードストップの上では<b>右側</b>(そこから先へ進む方)の色を返します。
-	 * {@link #colorAt}は左側(そこへ入ってくる方)を返すので、周期の始点の
-	 * ように「ここから先の色」が要るときはこちらを使う(2026-08-29)。
+	 * At a hard stop, returns the <b>right-hand</b> color (the one proceeding forward from there).
+	 * {@link #colorAt} returns the left-hand color (the one entering the position), so use this
+	 * when the color from this point onward is needed, such as at a period's start (2026-08-29).
 	 */
 	private static Color colorAtRight(final double[] pos, final Color[] colors, final double t) {
 		for (int i = colors.length - 1; i >= 0; --i) {
@@ -333,7 +333,7 @@ public final class GradientStops {
 		return colorAt(pos, colors, t);
 	}
 
-	/** 2色を{@code f}(0で前者、1で後者)で混ぜます(プリマルチプライド補間)。 */
+	/** Mixes two colors by {@code f} (0 for the first, 1 for the second), using premultiplied interpolation. */
 	public static Color mix(final Color a, final Color b, final double f) {
 		final float fa = (float) f, ia = 1 - fa;
 		final float aa = a.getAlpha(), ab = b.getAlpha();
@@ -351,24 +351,24 @@ public final class GradientStops {
 	}
 
 	/**
-	 * カラーストップの位置を<b>厳密な単調増加</b>へ正規化します(2026-08-16)。
+	 * Normalizes color-stop positions to <b>strictly increasing order</b> (2026-08-16).
 	 *
 	 * <p>
-	 * CSSでは前のストップより小さい位置は前の位置まで引き上げられ、
-	 * <b>同じ位置を重ねることも正当</b>です(いわゆるハードストップ——
-	 * {@code linear-gradient(red 50%, blue 50%)}で境界をくっきり切る書き方)。
-	 * ところが実際に塗る{@code java.awt.MultipleGradientPaint}は位置が
-	 * 厳密に増加していることを要求し、そうでなければ
-	 * {@code IllegalArgumentException: Keyframe fractions must be increasing}
-	 * を投げます。これは描画の失敗では済まず、<b>そのページの変換ごと
-	 * 中断させて内容を全て失わせていました</b>(実サイトのコーパスで
-	 * elife-art・shadcn-docsの2件が丸ごと変換不能だった原因)。
+	 * CSS raises any position smaller than the previous stop's to the previous position, and
+	 * <b>multiple stops at the same position are valid</b> (hard stops, such as
+	 * {@code linear-gradient(red 50%, blue 50%)}, which create a sharp boundary).
+	 * However, {@code java.awt.MultipleGradientPaint}, which performs the actual painting,
+	 * requires strictly increasing positions; otherwise, it throws
+	 * {@code IllegalArgumentException: Keyframe fractions must be increasing}.
+	 * This went beyond a drawing failure: <b>it aborted conversion of the entire page,
+	 * losing all its content</b> (the reason elife-art and shadcn-docs in the real-site corpus
+	 * failed conversion completely).
 	 * </p>
 	 *
 	 * <p>
-	 * そこで、重なった位置には表現可能な最小の差だけを与えて追い出します。
-	 * 差は{@code 1e-5}で、幅1000ptの版面でも0.01pt未満——見た目の
-	 * ハードストップは保ったまま、AWTの要求を満たせます。
+	 * Therefore, shifts coincident positions apart by only the smallest representable gap.
+	 * The gap is {@code 1e-5}, less than 0.01 pt even for a 1000 pt-wide type area,
+	 * satisfying AWT's requirement while visually preserving hard stops.
 	 * </p>
 	 */
 	public static void normalize(final double[] ds) {
@@ -382,12 +382,12 @@ public final class GradientStops {
 				ds[i] = 1;
 			}
 			if (i > 0 && ds[i] <= ds[i - 1]) {
-				// CSSは後退を許さない(前の位置まで引き上げる)。その上で
-				// AWTのために最小差を空ける
+				// CSS disallows backward positions (raises them to the preceding position). Then
+				// insert the minimum gap for AWT.
 				ds[i] = ds[i - 1] + EPSILON;
 			}
 		}
-		// 末尾が1を超えたら、後ろから詰め直して1以下に収める
+		// If the last position exceeds 1, pack backward to keep all positions at or below 1.
 		if (ds[ds.length - 1] > 1) {
 			ds[ds.length - 1] = 1;
 			for (int i = ds.length - 2; i >= 0; --i) {
@@ -401,7 +401,7 @@ public final class GradientStops {
 		}
 	}
 
-	/** 表示リストのダンプ用。色数と位置指定の要約。 */
+	/** For display-list dumps. A summary of the color count and position specifications. */
 	@Override
 	public String toString() {
 		final StringBuilder s = new StringBuilder();

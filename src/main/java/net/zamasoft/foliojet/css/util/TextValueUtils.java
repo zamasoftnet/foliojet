@@ -18,8 +18,8 @@ public final class TextValueUtils {
 	}
 
 	/**
-	 * &lt;text-align&gt; を値に変換します。
-	 * 
+	 * Converts &lt;text-align&gt; to a value.
+	 *
 	 * @param ident
 	 * @return
 	 */
@@ -45,8 +45,9 @@ public final class TextValueUtils {
 	}
 
 	/**
-	 * direction による従来の start/end 交換を使う組版なら true。
-	 * sideways は論理座標を LTR と同じ向きで組み、物理化時にだけ反転する。
+	 * True if layout uses the traditional direction-based start/end swap.
+	 * sideways lays out logical coordinates in the same direction as LTR and reverses only
+	 * when converting to physical coordinates.
 	 */
 	public static boolean usesLegacyRtlAlignment(CSSStyle style) {
 		return Direction.get(style) == AbstractTextParams.DIRECTION_RTL

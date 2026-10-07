@@ -1,9 +1,9 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code target-text(target, target-property?)}。v1では
- * {@code target-property}は{@code content}(既定)のみ対応
- * (CSS-SUPPORT.md参照)。
+ * {@code target-text(target, target-property?)}. In v1,
+ * only {@code content} (the default) is supported for {@code target-property}
+ * (see CSS-SUPPORT.md).
  *
  * @author MIYABE Tatsuhiko
  */

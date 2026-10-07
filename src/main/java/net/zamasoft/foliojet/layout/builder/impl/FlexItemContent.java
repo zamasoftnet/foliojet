@@ -7,10 +7,10 @@ import net.zamasoft.foliojet.layout.fragment.ReplayIntent;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
 /**
- * Flexのitem 1件分の保持です(Flex F1d、2026-08-02——
- * {@code GridItemContent}と同型)。本文(TwoPass録画)・close時点の
-	 * 固有寸法スナップショット・item boxを所有する。要素・匿名項目の範囲リースは
-	 * closeからFlex終端bindまで保持する。不適格は変換を失敗させる。
+ * Retained content for one Flex item (Flex F1d, 2026-08-02; same structure as
+ * {@code GridItemContent}). Owns the body (TwoPass recording), intrinsic size snapshot
+ * at close, and item box. Retains range leases for elements and anonymous items from
+ * close until bind at Flex end. Ineligible cases fail the conversion.
  */
 final class FlexItemContent {
 
@@ -18,19 +18,19 @@ final class FlexItemContent {
 
 	final RangeHandle body;
 
-	/** 空本文・独立再生も確定本文だけを持ち、実測builderは手放す。 */
+	/** Empty bodies and independent replay also retain only finalized bodies, releasing the measurement builder. */
 	private final TwoPassBlockBuilder.DeferredBind content;
 
 	private final net.zamasoft.foliojet.layout.builder.PageGenerator pageGenerator;
 	private final ContinuationStats.TwoPassCensusTag censusTag;
 	private final java.util.Set<Long> ownedAbsoluteAnchors;
 
-	/** close時点の固有寸法(auto/content の basis に使う)。 */
+	/** Intrinsic sizes at close (used for auto/content basis). */
 	final IntrinsicSizes sizes;
 
 	final boolean anonymous;
 
-	/** 伸縮指定(authored childのFlowPos.flexItemからのスナップショット)。 */
+	/** Flex sizing properties (snapshot of the authored child's FlowPos.flexItem). */
 	final net.zamasoft.foliojet.layout.box.params.FlexItemSpec spec;
 
 	FlexItemContent(final FlexItemBox itemBox, final TwoPassBlockBuilder body, final IntrinsicSizes sizes,
@@ -47,27 +47,27 @@ final class FlexItemContent {
 	}
 
 	/**
-	 * 確定した主軸内寸で本文を一度だけbindします(録画→計測→bindの
-	 * TwoPassライフサイクル。{@code GridItemContent.bind}と同型)。
+	 * Binds the body exactly once with the resolved inner main-axis size
+	 * (the TwoPass record → measure → bind lifecycle; same as {@code GridItemContent.bind}).
 	 */
 	void bind(final BlockBuilder host, final double mainSize, final double insetBase) {
-		// **枠の実寸解決**(2026-08-04)。通常のフローの箱は
-		// firstPassLayout / calculateSize が padding・margin の相対値(%・em)を
-		// 実寸(AbsoluteInsets)へ直すが、**flexアイテムの箱はそのどちらも
-		// 通らない**ため実寸が0のままだった。結果、行方向のflexアイテムは
-		// パディングもマージンも丸ごと消えていた——Bootstrapのグリッドは
-		// `.row > * { padding-inline: … }` で組まれているので、実在の
-		// ページでは列の内容が枠に貼りついていた(実地コーパス第6波の
-		// checkout-form でラベルの1文字目が切れて発覚)。
+		// **Resolve used frame sizes** (2026-08-04). For normal flow boxes,
+		// firstPassLayout / calculateSize converts relative padding/margin values (% and em)
+		// to used sizes (AbsoluteInsets). **Flex item boxes pass through neither**,
+		// so their used sizes remained 0. As a result, row flex items lost
+		// all padding and margins. Bootstrap grids use
+		// `.row > * { padding-inline: … }`, so on real pages,
+		// column content touched the frame (found in checkout-form in the sixth real-world
+		// corpus wave, where the first character of labels was clipped).
 		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = this.itemBox.getFrame();
 		net.zamasoft.foliojet.layout.util.LayoutUtils.computePaddings(frame.padding, frame.frame.padding,
 				insetBase);
 		net.zamasoft.foliojet.layout.util.LayoutUtils.computeMarginsAutoToZero(frame.margin, frame.frame.margin,
 				insetBase);
 		this.itemBox.setFlexMainSize(mainSize, this.itemBox.getBlockParams().flow.isVertical());
-		// aspect-ratio(2026-08-29): flex itemはcalculateSizeを通らないので、
-		// 行方向寸法が入ったここでページ方向を比率で決める(内容が高ければ
-		// overflow:visibleに限り伸びる——FlowBlockBox.calculateSizeと同じ規則)
+		// aspect-ratio (2026-08-29): flex items skip calculateSize, so once the line-axis size is set,
+		// derive the page-axis size from the ratio here (if content is taller, grow only for
+		// overflow:visible — the same rule as FlowBlockBox.calculateSize).
 		this.itemBox.applyAspectRatio(mainSize);
 		final BlockBuilder target = new BlockBuilder(host, this.itemBox);
 		if (this.body == null) {
@@ -85,10 +85,10 @@ final class FlexItemContent {
 		}
 		target.close();
 		if (ReplayIntent.current() == ReplayIntent.MEASURE && this.body != null) this.body.completeScratchHost();
-		// takeover item(authored paramsを引き継いだ根box)は指定高を
-		// 自己適用する——通常flowでは親のstartFlowBlockが適用するが、
-		// bind builderの根には適用者がいない(F1d: 絶対長のみ。
-		// %・min/max・border-boxの正規化はF1eでcross実測へ一本化)
+		// A takeover item (root box inheriting authored params) applies its specified height
+		// itself. In normal flow, the parent startFlowBlock applies it, but
+		// a bind builder root has no such caller (F1d: absolute lengths only;
+		// F1e unifies %, min/max, and border-box normalization in cross-axis measurement).
 		final net.zamasoft.foliojet.layout.box.params.BlockParams params = this.itemBox.getBlockParams();
 		final boolean vertical = params.flow.isVertical();
 		final net.zamasoft.foliojet.layout.box.params.LengthType pageType = vertical
@@ -99,7 +99,7 @@ final class FlexItemContent {
 		}
 	}
 
-	/** 検証だけを行い、親リース取得後に終端する一覧へ列挙します。 */
+	/** Validates only and lists items to terminate after acquiring the parent lease. */
 	boolean collectAbsorbable(final net.zamasoft.foliojet.layout.fragment.LayoutSource log,
 			final long fromId, final long toId, final java.util.List<RangeHandle> outRanges,
 			final java.util.Set<Long> anchors) {

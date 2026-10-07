@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 配置パラメータです。
+ * Positioning parameters.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: PagePos.java 1552 2018-04-26 01:43:24Z miyabe $

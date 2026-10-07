@@ -14,20 +14,20 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontFeatureSet;
 
 /**
- * {@code font-kerning: auto | normal | none}(css-fonts-4 §6.3、2026-08-29)。
+ * {@code font-kerning: auto | normal | none} (css-fonts-4 §6.3, 2026-08-29).
  *
  * <p>
- * カーニング本体は実装済みで、{@code none}で切る制御だけが無かった
- * (実サイトの警告で確認)。{@code none}は{@code kern}機能の明示offとして
- * フォントの機能列へ渡す——pdfg2dの{@code FontMetricsImpl}は明示offの
- * ときだけペア調整を無効にする。{@code font-feature-settings}の明示指定は
- * これより後に重ねるので、そちらが優先する。
+ * Kerning itself was implemented; only the control to disable it with {@code none} was missing
+ * (confirmed by warnings on real sites). Pass {@code none} to the font feature sequence
+ * as explicit {@code kern} off; pdfg2d's {@code FontMetricsImpl} disables pair adjustment
+ * only when explicitly off. Explicit {@code font-feature-settings} are applied afterward
+ * and therefore take precedence.
  * </p>
  */
 public class FontKerning extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new FontKerning();
 
-	/** {@code kern}を明示offにする機能列。 */
+	/** Feature sequence that explicitly turns {@code kern} off. */
 	private static final FontFeatureSet KERN_OFF = FontFeatureSet.of(new int[] { FontFeatureSet.packTag("kern") },
 			new int[] { 0 });
 
@@ -35,7 +35,7 @@ public class FontKerning extends AbstractPrimitivePropertyInfo {
 		return (FontKerningValue) style.get(INFO);
 	}
 
-	/** {@code none}なら{@code kern} 0、それ以外は空(何も上書きしない)。 */
+	/** {@code kern} 0 for {@code none}; otherwise empty (overrides nothing). */
 	public static FontFeatureSet featureSet(final CSSStyle style) {
 		return get(style) == FontKerningValue.NONE_VALUE ? KERN_OFF : FontFeatureSet.EMPTY;
 	}

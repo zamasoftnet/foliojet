@@ -13,7 +13,7 @@ import net.zamasoft.foliojet.css.value.BorderImageOutsetValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** {@code border-image-outset} です。 */
+/** {@code border-image-outset}. */
 public final class BorderImageOutset extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BorderImageOutset();
 

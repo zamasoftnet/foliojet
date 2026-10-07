@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 絶対配置ボックスの基準(旧FODUCIAL_定数、原綴りのタイポを修正)です。
+ * Reference for absolutely positioned boxes (formerly FODUCIAL_ constants; original spelling typo corrected).
  *
  * @author MIYABE Tatsuhiko
  */

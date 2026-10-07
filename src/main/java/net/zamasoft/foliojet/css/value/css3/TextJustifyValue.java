@@ -4,14 +4,15 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 
 /**
- * CSS Text 3 の {@code text-justify} の値です(2026-09-02新設)。
+ * A CSS Text 3 {@code text-justify} value (added on 2026-09-02).
  *
  * <p>
- * 両端揃えで行の余りを<b>どこへ配るか</b>。{@code auto}は言語で決める
- * ——和文は JLREQ の段階的な配分、韓国語は語間だけ(Chrome と同じ)、
- * それ以外は従来の分離可能境界。{@code inter-word}は語間(空白)だけ、
- * {@code inter-character}(別名 {@code distribute})は文字間にも配る。
- * {@code none}は両端揃えをしない。
+ * Determines <b>where to distribute</b> a line's remaining space for justification.
+ * {@code auto} depends on the language: Japanese uses JLREQ's staged distribution,
+ * Korean uses only word spaces (as in Chrome), and other languages use the existing
+ * separable boundaries. {@code inter-word} uses only word spaces (whitespace);
+ * {@code inter-character} (alias {@code distribute}) also distributes between characters.
+ * {@code none} disables justification.
  * </p>
  */
 public enum TextJustifyValue implements Value {

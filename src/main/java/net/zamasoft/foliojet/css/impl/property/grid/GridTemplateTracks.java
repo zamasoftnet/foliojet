@@ -19,41 +19,41 @@ import net.zamasoft.foliojet.css.util.CalcValueUtils;
 import net.zamasoft.foliojet.css.value.LengthValue;
 
 /**
- * {@code grid-template-columns}/{@code grid-template-rows}および
- * {@code grid-auto-columns}/{@code grid-auto-rows}です(Grid G0、
- * consult-codex-2026-07-31-grid.txt §2)。
- * {@code none | <track-size>+}——track-sizeは固定長・{@code auto}・
- * {@code <number>fr}。{@code repeat(<正整数>, <track-size>+)}は解析時に
- * 展開する(展開後4096トラック上限=資源防御。超過は宣言無効)。
+ * {@code grid-template-columns}/{@code grid-template-rows} and
+ * {@code grid-auto-columns}/{@code grid-auto-rows} (Grid G0,
+ * consult-codex-2026-07-31-grid.txt §2).
+ * {@code none | <track-size>+}: track-size is a fixed length, {@code auto}, or
+ * {@code <number>fr}. Expands {@code repeat(<positive integer>, <track-size>+)} during parsing
+ * (limit of 4096 expanded tracks for resource protection; exceeding it invalidates the declaration).
  *
  * <p>
- * 2026-08-29の拡張(50サイト掃過で見つかった未対応値):
- * {@code %}(コンテナ内容幅基準、{@link GridTrackListValue.Percentage})、
- * {@code min-content}/{@code max-content}、線名{@code [a b]}、
- * {@code repeat(auto-fill|auto-fit, ...)}(コンテナ幅が決まるレイアウト時に
- * 展開、{@link GridTrackListValue.AutoRepeat})、{@code fit-content(x)}
- * (→{@code auto}の近似)、{@code subgrid}。{@code grid-auto-*}(implicit)では
- * 線名・{@code none}・{@code subgrid}・{@code repeat()}を受理しない。
+ * Extensions on 2026-08-29 (unsupported values found in the 50-site sweep):
+ * {@code %} (relative to container content width, {@link GridTrackListValue.Percentage}),
+ * {@code min-content}/{@code max-content}, line names {@code [a b]},
+ * {@code repeat(auto-fill|auto-fit, ...)} (expanded during layout once container width is known,
+ * {@link GridTrackListValue.AutoRepeat}), {@code fit-content(x)}
+ * (approximated as {@code auto}), and {@code subgrid}. {@code grid-auto-*} (implicit)
+ * rejects line names, {@code none}, {@code subgrid}, and {@code repeat()}.
  * </p>
  *
  * <p>
- * {@code minmax(min, max)}は2026-08-29から両端を保持する
- * ({@link GridTrackListValue.MinMax})——{@code BasicGridTrackSizing}が
- * css-grid-1 §11.5のtrack sizing algorithm(base size=min側、growth
- * limit=max側)で解く。それまでは最大値だけを採る近似だった
- * (2026-08-06、yahoo.co.jpの{@code minmax(30px,auto)}等)。
- * {@code repeat(auto-fill, minmax(min, max))}の回数判定にはminを使う。
- * {@code subgrid <line-name-list>?}は{@link GridTrackListValue#createSubgrid}
- * ——親gridの跨ぐトラックをレイアウト時に継ぐ({@code GridBuilder.bind}。
- * 継げない場合の近似はそちらのjavadoc)。
+ * Since 2026-08-29, {@code minmax(min, max)} retains both bounds
+ * ({@link GridTrackListValue.MinMax}). {@code BasicGridTrackSizing} resolves them using
+ * the css-grid-1 §11.5 track sizing algorithm (base size=min, growth limit=max).
+ * Previously, it approximated using only the maximum
+ * (2026-08-06, e.g. {@code minmax(30px,auto)} on yahoo.co.jp).
+ * Uses min to determine the count for {@code repeat(auto-fill, minmax(min, max))}.
+ * {@code subgrid <line-name-list>?} uses {@link GridTrackListValue#createSubgrid},
+ * inheriting the spanned parent grid tracks during layout ({@code GridBuilder.bind};
+ * see its Javadoc for the approximation when inheritance is impossible).
  * </p>
  *
  * <p>
- * <b>{@code max()}/{@code min()}は仕様外の近似対応</b>(2026-08-06):
- * 長さの引数だけを対象に、比較して1本の固定長トラックへ畳み込む
- * (yahoo.co.jpの{@code max(44px,4.4rem)}のような単純な用途のみ。
- * 開発計画ではなく本クラスのjavadocのみに記録——正式な
- * サブセット定義には含めない)。
+ * <b>{@code max()}/{@code min()} have nonstandard approximate support</b> (2026-08-06):
+ * compares only length arguments and collapses them into a single fixed-length track
+ * (for simple uses such as {@code max(44px,4.4rem)} on yahoo.co.jp).
+ * Recorded only in this class's Javadoc, not in the development plan;
+ * excluded from the formal subset definition.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -63,13 +63,13 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 
 	public static final PrimitivePropertyInfo ROWS = new GridTemplateTracks("grid-template-rows", false);
 
-	/** {@code grid-auto-columns}(2026-08-29)。既定{@code auto}(=NONE_VALUE)。 */
+	/** {@code grid-auto-columns} (2026-08-29). Defaults to {@code auto} (=NONE_VALUE). */
 	public static final PrimitivePropertyInfo AUTO_COLUMNS = new GridTemplateTracks("grid-auto-columns", true);
 
-	/** {@code grid-auto-rows}(2026-08-29)。既定{@code auto}(=NONE_VALUE)。 */
+	/** {@code grid-auto-rows} (2026-08-29). Defaults to {@code auto} (=NONE_VALUE). */
 	public static final PrimitivePropertyInfo AUTO_ROWS = new GridTemplateTracks("grid-auto-rows", true);
 
-	/** 展開後トラック数の上限(資源防御——レイアウト仕様ではない)。 */
+	/** Maximum expanded track count (resource protection, not a layout specification). */
 	public static final int MAX_TRACKS = 4096;
 
 	public static GridTrackListValue getColumns(CSSStyle style) {
@@ -84,7 +84,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		return (GridTrackListValue) style.get(info);
 	}
 
-	/** implicitトラック用({@code grid-auto-*})か。 */
+	/** Whether this is for implicit tracks ({@code grid-auto-*}). */
 	private final boolean implicit;
 
 	protected GridTemplateTracks(final String name, final boolean implicit) {
@@ -101,7 +101,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		// 解析時はfont相対長が未解決(RawFixed)——computedで絶対化する
+		// Font-relative lengths are unresolved during parsing (RawFixed); make them absolute at computation.
 		if (!(value instanceof RawTrackList raw)) {
 			return value;
 		}
@@ -137,7 +137,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		return tracks;
 	}
 
-	/** minmax()の片側(TrackSizeまたは長さValue)を絶対化します。 */
+	/** Converts one minmax() bound (TrackSize or length Value) to an absolute value. */
 	private static GridTrackListValue.TrackSize resolveLeaf(final Object raw, final CSSStyle style) {
 		if (raw instanceof GridTrackListValue.TrackSize sized) {
 			return sized;
@@ -150,14 +150,14 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		return ((AbsoluteLengthValue) abs).getLength();
 	}
 
-	/** 解析結果の中間形(固定長トラックはValueのまま=computedで絶対化)。 */
+	/** Intermediate parsed form (fixed-length tracks remain Value; made absolute at computation). */
 	private record RawTrackList(List<Object> tracks, List<List<String>> lineNames) implements Value {
 	}
 
 	/**
-	 * {@code max()}/{@code min()}をトラックサイズとして使った場合の中間形
-	 * (仕様外の近似対応、クラスjavadoc参照)。引数はcomputedで絶対化してから
-	 * 比較する(em/rem混在を正しく解決するため、解析時に比較しない)。
+	 * Intermediate form for {@code max()}/{@code min()} used as a track size
+	 * (nonstandard approximation; see class Javadoc). Makes arguments absolute at computation
+	 * before comparing them (not during parsing, to resolve mixed em/rem correctly).
 	 */
 	private record RawMinMaxFunc(boolean isMax, List<Value> args) implements Value {
 		double resolve(CSSStyle style) {
@@ -173,26 +173,26 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * {@code minmax(min, max)}の中間形(2026-08-29)。両側はTrackSize
-	 * (auto/min-content/max-content/fr/%)または未絶対化の長さValue。
+	 * Intermediate form for {@code minmax(min, max)} (2026-08-29). Each bound is a TrackSize
+	 * (auto/min-content/max-content/fr/%) or a length Value not yet made absolute.
 	 */
 	private record RawMinMax(Object min, Object max) implements Value {
 	}
 
 	/**
-	 * {@code repeat(auto-fill|auto-fit, ...)}の中間形(2026-08-29)。
-	 * {@code mins}は回数判定用の各unitトラックの最小幅
-	 * (長さ{@code Value}または%比{@code Double})。
+	 * Intermediate form for {@code repeat(auto-fill|auto-fit, ...)} (2026-08-29).
+	 * {@code mins} contains each unit track's minimum width for determining the count
+	 * (a length {@code Value} or percentage ratio {@code Double}).
 	 */
 	private record RawAutoRepeat(List<Object> unit, List<List<String>> unitLineNames, List<Object> mins,
 			boolean fit) implements Value {
 	}
 
-	/** 解析中のトラック列と線名列(names.size()==tracks.size()+1を保つ)。 */
+	/** Track and line-name sequences during parsing (maintains names.size()==tracks.size()+1). */
 	private static final class Accumulator {
 		final List<Object> tracks = new ArrayList<>();
 		final List<List<String>> names = new ArrayList<>();
-		/** auto-repeat内での最小幅収集先(auto-repeat外ではnull)。 */
+		/** Destination for collecting minimum widths inside auto-repeat (null outside auto-repeat). */
 		final List<Object> mins;
 		boolean hasAutoRepeat;
 
@@ -204,7 +204,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		void addTrack(final Object track, final Object min) throws PropertyException {
 			if (this.mins != null) {
 				if (min == null) {
-					// auto-repeatのunitは固定幅(またはminmaxの片側が固定)のみ
+					// auto-repeat units must have fixed widths (or one fixed minmax bound).
 					throw new PropertyException();
 				}
 				this.mins.add(min);
@@ -226,8 +226,8 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			return GridTrackListValue.NONE_VALUE;
 		}
 		if (!this.implicit && tokens.peek() instanceof CssToken.Ident ident && ident.is("subgrid")) {
-			// subgrid <line-name-list>?(css-grid-2 §7.1、2026-08-29)。線名は
-			// 先頭の線から順に並ぶ。repeat()付きの線名列は未対応(捨てる)
+			// subgrid <line-name-list>? (css-grid-2 §7.1, 2026-08-29). Line names run
+			// in order from the first line. Line-name lists with repeat() are unsupported (discarded).
 			tokens.next();
 			final List<List<String>> lineNames = new ArrayList<>();
 			while (tokens.hasNext()) {
@@ -258,7 +258,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		return new RawTrackList(acc.tracks, acc.names);
 	}
 
-	/** 1トラック(またはrepeat())を読み取ってaccへ追加します。 */
+	/** Reads one track (or repeat()) and adds it to acc. */
 	private void parseTrack(final TokenStream tokens, final UserAgent ua, final Accumulator acc,
 			final boolean allowRepeat) throws PropertyException {
 		final CssToken token = tokens.peek();
@@ -280,7 +280,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 					throw new PropertyException();
 				}
 				if (acc.hasAutoRepeat || acc.mins != null) {
-					throw new PropertyException(); // auto-repeatは1つまで・入れ子不可
+					throw new PropertyException(); // At most one auto-repeat; no nesting.
 				}
 			} else if (!count.integer() || count.intValue() < 1) {
 				throw new PropertyException();
@@ -318,10 +318,10 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			return;
 		}
 		if (token instanceof CssToken.Func func && func.is("minmax")) {
-			// minmax(min, max)は両端を保持する(2026-08-29。以前は最大値だけの
-			// 近似)。min∈{長さ,%,min-content,max-content,auto}、
-			// max∈{長さ,%,fr,min-content,max-content,auto}。auto-repeat内では
-			// 固定側(min、無ければmax)を回数判定に使う
+			// minmax(min, max) retains both bounds (2026-08-29; previously approximated
+			// using only the maximum). min∈{length,%,min-content,max-content,auto},
+			// max∈{length,%,fr,min-content,max-content,auto}. Inside auto-repeat,
+			// use the fixed bound (min, otherwise max) to determine the count.
 			tokens.next();
 			final List<TokenStream> args = func.argStream().splitComma();
 			if (args.size() != 2) {
@@ -348,8 +348,8 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			return;
 		}
 		if (token instanceof CssToken.Func func && (func.is("max") || func.is("min"))) {
-			// 仕様外の近似: 長さの引数だけを対象に比較し、1本の固定長
-			// トラックへ畳み込む(クラスjavadoc参照)
+			// Nonstandard approximation: compare only length arguments and collapse them
+			// into a single fixed-length track (see class Javadoc).
 			tokens.next();
 			final boolean isMax = func.is("max");
 			final List<TokenStream> args = func.argStream().splitComma();
@@ -373,7 +373,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			return;
 		}
 		if (token instanceof CssToken.Func func && func.is("fit-content")) {
-			// fit-content(x)はautoの近似(2026-08-29。引数の上限は捨てる)
+			// fit-content(x) approximates auto (2026-08-29; discards the upper-bound argument).
 			tokens.next();
 			acc.addTrack(GridTrackListValue.Auto.INSTANCE, null);
 			return;
@@ -383,8 +383,8 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * minmax()の片側トークンを中間形にします(2026-08-29): auto/min-content/
-	 * max-content/fr/%はTrackSize、長さは未絶対化のValue。それ以外はnull。
+	 * Converts one minmax() bound token to an intermediate form (2026-08-29): auto/min-content/
+	 * max-content/fr/% become TrackSize; lengths remain non-absolute Value. Null otherwise.
 	 */
 	private static Object rawLeaf(final UserAgent ua, final CssToken token) throws PropertyException {
 		if (token instanceof CssToken.Ident ident) {
@@ -418,11 +418,11 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * トラック片の長さを解決します。{@code calc()}等の数式も他の長さ
-	 * プロパティと同じ窓口({@link CalcValueUtils#toCalc})へ通します
-	 * (2026-08-30。以前は{@code ValueUtils.toLength}だけを見ていたため
-	 * {@code grid-template-columns: calc(20mm - 5mm) …}が宣言ごと捨てられ、
-	 * 余白列が0になって版面が横へずれた——利用者報告E-2)。
+	 * Resolves a track component length. Passes expressions such as {@code calc()} through
+	 * the same entry point as other length properties ({@link CalcValueUtils#toCalc})
+	 * (2026-08-30). Previously, only {@code ValueUtils.toLength} was tried, so
+	 * {@code grid-template-columns: calc(20mm - 5mm) …} was discarded entirely;
+	 * the spacer column became 0 and the type area shifted sideways (user report E-2).
 	 */
 	private static Value toTrackLength(final UserAgent ua, final CssToken token) {
 		final Value length = ValueUtils.toLength(ua, token);
@@ -433,7 +433,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		return calc instanceof LengthValue ? calc : null;
 	}
 
-	/** 固定幅トークン(長さ・%)の回数判定用の値です(長さValueまたは%比Double。それ以外null)。 */
+	/** Fixed-width token (length or %) for count calculation: length Value or % ratio Double; null otherwise. */
 	private static Object fixedExtent(final UserAgent ua, final CssToken token) {
 		if (token instanceof CssToken.Percent percent) {
 			return percent.value() / 100.0;
@@ -445,10 +445,10 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * {@code auto}・{@code <flex>}・{@code min-content}・{@code max-content}・
-	 * {@code %}・{@code <length>}の単一トラック片を読み取ってaccへ追加します。
+	 * Reads a single track component of {@code auto}, {@code <flex>}, {@code min-content},
+	 * {@code max-content}, {@code %}, or {@code <length>} and adds it to acc.
 	 *
-	 * @param minOverride auto-repeat内で使う最小幅(nullなら自身の固定幅)
+	 * @param minOverride minimum width inside auto-repeat (its own fixed width if null)
 	 */
 	private void parseLeafToken(final CssToken token, final UserAgent ua, final Accumulator acc,
 			final Object minOverride) throws PropertyException {

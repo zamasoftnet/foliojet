@@ -6,25 +6,25 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 
 /**
- * ビューポート単位({@code vw}/{@code vh}/{@code vmin}/{@code vmax}と、
- * {@link Unit#of}が同じ値へ畳むsmall/large/dynamic系とvi/vb)を絶対長さへ解決します
- * (2026-08-29)。
+ * Resolves viewport units ({@code vw}/{@code vh}/{@code vmin}/{@code vmax}, plus
+ * small/large/dynamic variants and vi/vb folded into the same values by {@link Unit#of})
+ * to absolute lengths (2026-08-29).
  *
  * <p>
- * ページ媒体の初期包含ブロックは<b>ページ領域</b>(ページ箱から
- * {@code @page}マージンを除いた版面)なので、その1%を1単位とします。
- * 解析時点では{@code @page}規則の集計が済んでいないため、寸法は
- * UAプロパティ({@code output.page-width}/{@code output.page-height}/
- * {@code output.page-margins}——メディアクエリの幅判定と同じ源泉)から
- * 取ります。文書側の{@code @page { size; margin }}で版面を変えた場合は
- * ずれる(記録済みの近似)。
+ * The initial containing block in paged media is the <b>page area</b> (the type area
+ * remaining after {@code @page} margins are removed from the page box), so one unit
+ * is 1% of that area. Since {@code @page} rules have not been aggregated at parse time,
+ * uses UA properties ({@code output.page-width}/{@code output.page-height}/
+ * {@code output.page-margins}, the same source as media-query width checks).
+ * Values diverge if the document changes the type area with {@code @page { size; margin }}
+ * (a documented approximation).
  * </p>
  *
  * <p>
- * 実サイト50件の変換で、{@code min(192px, 100vh)}や
- * {@code calc(100vw - 2rem)}のようにcalc()の中に現れる例が多かった
- * (565件/45サイト)。calc()の葉は{@code ValueUtils.toAbsoluteLength}
- * を通るので、そこから呼ばれる本クラスで一元的に解決する。
+ * Conversions of 50 real sites frequently encountered these inside calc(), e.g.
+ * {@code min(192px, 100vh)} and {@code calc(100vw - 2rem)} (565 occurrences on 45 sites).
+ * Since calc() leaves pass through {@code ValueUtils.toAbsoluteLength}, this class,
+ * called from there, centralizes resolution.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -34,17 +34,17 @@ public final class ViewportUnits {
 		// utility
 	}
 
-	/** UAプロパティが読めない場合の既定(A4、余白12.7mm)。 */
+	/** Defaults if UA properties cannot be read (A4, 12.7 mm margins). */
 	private static final double DEFAULT_WIDTH_PT = 210 / 25.4 * 72;
 	private static final double DEFAULT_HEIGHT_PT = 297 / 25.4 * 72;
 	private static final double DEFAULT_MARGIN_PT = 12.7 / 25.4 * 72;
 
 	/**
-	 * 単位1つ分を解決します。
+	 * Resolves one unit.
 	 *
-	 * @param ua    UA(ページ寸法のプロパティを読む)
-	 * @param unit  VW/VH/VMIN/VMAXのいずれか
-	 * @param value 単位に掛ける数
+	 * @param ua    UA (reads page-dimension properties)
+	 * @param unit  one of VW/VH/VMIN/VMAX
+	 * @param value multiplier for the unit
 	 */
 	public static AbsoluteLengthValue resolve(final UserAgent ua, final Unit unit, final double value) {
 		final double[] area = contentArea(ua);
@@ -68,11 +68,11 @@ public final class ViewportUnits {
 		return AbsoluteLengthValue.create(ua, base * value / 100);
 	}
 
-	/** 版面(ページ領域)の幅と高さ(pt)。 */
+	/** Type area (page area) width and height (pt). */
 	static double[] contentArea(final UserAgent ua) {
 		double width = length(ua, UAProps.OUTPUT_PAGE_WIDTH, DEFAULT_WIDTH_PT);
 		double height = length(ua, UAProps.OUTPUT_PAGE_HEIGHT, DEFAULT_HEIGHT_PT);
-		// 余白はCSSのmarginと同じ1〜4値(上 右 下 左)
+		// Margins use 1–4 values (top right bottom left), like CSS margin
 		double top = DEFAULT_MARGIN_PT, right = DEFAULT_MARGIN_PT, bottom = DEFAULT_MARGIN_PT,
 				left = DEFAULT_MARGIN_PT;
 		final String margins = property(ua, UAProps.OUTPUT_PAGE_MARGINS);
@@ -108,8 +108,8 @@ public final class ViewportUnits {
 	}
 
 	/**
-	 * UAプロパティを読みます。単体テストのProxy UAのように
-	 * {@code getProperty}を実装しない場合は既定値へ落とす。
+	 * Reads a UA property. Falls back to the default when {@code getProperty} is not
+	 * implemented, as in unit-test Proxy UAs.
 	 */
 	private static String property(final UserAgent ua, final net.zamasoft.foliojet.ua.props.StringPropManager prop) {
 		try {

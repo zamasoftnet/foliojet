@@ -14,8 +14,8 @@ import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 import net.zamasoft.pdfg2d.pdf.gc.PDFGroupImage;
 
 /**
- * 印刷には現われない、バッテン画像です。
- * 
+ * A cross image that does not appear in print.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class UnprintBrokenImage extends BrokenImage {
@@ -24,7 +24,7 @@ public class UnprintBrokenImage extends BrokenImage {
 	}
 
 	public void drawTo(GC gc) throws GraphicsException {
-		// 包み紙(ApproximationGC等)越しでもPDFへ辿る(2026-08-29)
+		// Reach the PDF even through wrappers (ApproximationGC, etc.) (2026-08-29).
 		gc = net.zamasoft.foliojet.layout.util.DelegatingGC.unwrap(gc);
 		if (!(gc instanceof PDFGC)) {
 			return;
@@ -50,7 +50,7 @@ public class UnprintBrokenImage extends BrokenImage {
 				UnprintBrokenImage.super.drawTo(gc);
 				group.close();
 
-				// もし、印刷時だけ表示したいならこうする
+				// To display it only when printing, do this instead.
 				// out.writeName("F");
 				// out.writeInt(0x24);
 				// out.breakBefore();

@@ -22,7 +22,7 @@ import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.PageAssignmentState.Presence;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** 確定頁のマージンボックスへrunningを組版します。所有する作業状態の寿命は一頁です。 */
+/** Lays out running content in a finalized page's margin boxes. Owned working state lives for one page. */
 public final class RunningRenderer {
 	private final UserAgent ua;
 	private final TemplateExpander expander;
@@ -33,7 +33,7 @@ public final class RunningRenderer {
 		this.expander = new TemplateExpander(ua, page);
 	}
 
-	/** 解決済みのイベントです。測定と本配置は毎回新品のDocumentBuilderを使います。 */
+	/** Resolved events. Measurement and actual placement each use a fresh DocumentBuilder. */
 	public final class Content {
 		private final List<SegmentEvent> events;
 
@@ -53,7 +53,7 @@ public final class RunningRenderer {
 		}
 	}
 
-	/** 値のある参照だけを展開します。同名の複数参照は個別に再生できます。 */
+	/** Expands only references with values. Multiple references to the same name can be replayed separately. */
 	public Content prepare(final ElementFunctionValue reference, final CSSStyle container) {
 		final var value = this.ua.getPassContext().getRunningState().resolve(reference.name(), reference.mode());
 		if (value.presence() != Presence.VALUE) {
@@ -62,7 +62,7 @@ public final class RunningRenderer {
 		return this.prepare(value.value(), container);
 	}
 
-	/** 解決済みテンプレートを展開します。 */
+	/** Expands a resolved template. */
 	public Content prepare(final RunningTemplate template, final CSSStyle container) {
 		if (!this.active.add(template)) {
 			this.warn("recursive element(" + template.name() + ")");
@@ -83,7 +83,7 @@ public final class RunningRenderer {
 				String.valueOf(this.ua.getDocumentContext().getBaseURI()), "running: " + message);
 	}
 
-	/** 背景・罫線と内容をartifactとして描きます。visitから文書への登録は行いません。 */
+	/** Draws background/borders and content as artifacts. Does not register with the document from visit. */
 	public static void draw(final PageBox mini, final Drawer drawer, final double x, final double y) {
 		mini.setReplayOrigin(x, y);
 		final Drawer artifact = drawer.artifactView();

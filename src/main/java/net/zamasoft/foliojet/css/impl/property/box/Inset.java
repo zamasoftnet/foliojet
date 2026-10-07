@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * top / right / bottom / left 特性です。
+ * top / right / bottom / left properties.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -29,7 +29,7 @@ public final class Inset extends AbstractPrimitivePropertyInfo {
 
 	private static final Inset[] BY_SIDE = { TOP, RIGHT, BOTTOM, LEFT };
 
-	/** inset-block-start/end・inset-inline-start/end(論理プロパティ)。 */
+	/** inset-block-start/end and inset-inline-start/end (logical properties). */
 	public static final Inset BLOCK_START = new Inset("inset-block-start");
 
 	public static final Inset BLOCK_END = new Inset("inset-block-end");

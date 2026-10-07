@@ -15,25 +15,25 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code font-variation-settings}です(css-fonts-4、2026-08-20新設)。
+ * {@code font-variation-settings} (css-fonts-4, added 2026-08-20).
  *
  * <p>
- * <b>@font-faceディスクリプタとして</b>対応する——指定の軸座標
- * (例: {@code "wdth" 75, "slnt" -10})で可変フォントを固定インスタンス化
- * する({@code VariableFontInstancer})。wght軸が明示されていれば
- * ウェイト掃引はせずその1本を生成する。<b>要素プロパティとしての適用は
- * 未対応</b>(静的インスタンス方式では要素ごとの軸適用が高価。
- * 要素ごとにはfont-weightの通常機構を使う)。
+ * Supported <b>as an @font-face descriptor</b>: creates a fixed instance of a variable font
+ * at the specified axis coordinates (e.g. {@code "wdth" 75, "slnt" -10})
+ * ({@code VariableFontInstancer}). If wght is explicit, generates only that instance
+ * without sweeping weights. <b>Application as an element property is unsupported</b>
+ * (per-element axis application is expensive with static instances;
+ * use the normal font-weight mechanism per element).
  * </p>
  */
 public class FontVariationSettings extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new FontVariationSettings();
 
-	/** 軸タグ→座標のリスト値。 */
+	/** List value of axis tag→coordinate mappings. */
 	public record AxesValue(Map<String, Double> axes) implements Value {
 	}
 
-	/** 指定の軸マップ(normal/未指定はnull)。 */
+	/** Specified axis map (null for normal/unspecified). */
 	public static Map<String, Double> get(final CSSStyle style) {
 		final Value value = style.get(FontVariationSettings.INFO);
 		return value instanceof AxesValue v ? v.axes() : null;

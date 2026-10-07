@@ -13,19 +13,19 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code font-synthesis-style}です(css-fonts-4、2026-08-20新設)。
+ * {@code font-synthesis-style} (css-fonts-4, added 2026-08-20).
  *
  * <p>
- * {@code none}のとき、イタリック体フォントが見つからない場合の疑似イタリック
- * (機械的なシアー)を行わず、直立のまま描く。
- * 既定は{@code auto}(従来どおり疑似化する)。フォント選択には影響しない
- * (css-fonts-4 §7.4)。ショートハンドは{@code font-synthesis}。
+ * With {@code none}, if no italic font is found, draws upright without synthetic italics
+ * (mechanical shear). Defaults to {@code auto} (synthesizes as before).
+ * Does not affect font selection (css-fonts-4 §7.4).
+ * The shorthand is {@code font-synthesis}.
  * </p>
  */
 public class FontSynthesisStyle extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new FontSynthesisStyle();
 
-	/** 疑似イタリックを許すか。 */
+	/** Whether synthetic italics are allowed. */
 	public static boolean get(final CSSStyle style) {
 		return style.get(INFO) != KeywordValue.NONE;
 	}

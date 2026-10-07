@@ -115,7 +115,7 @@ public class ColumnsContainer implements Container {
 
 	@Override
 	public void eachFloatingBox(final java.util.function.Consumer<IFloatBox> consumer) {
-		// 段順と各段内の列挙順を保つ。絶対配置のbindは呼び出し側に任せる。
+		// Preserve column order and enumeration order within each column. Leave absolute-position binding to the caller.
 		for (final Container column : this.columns) {
 			column.eachFloatingBox(consumer);
 		}
@@ -149,7 +149,7 @@ public class ColumnsContainer implements Container {
 	}
 
 	public double paintedPageEnd() {
-		// 段は同じページ軸範囲に並ぶので、最も深くまで描く段を採る
+		// Columns share the same page-axis range, so use the one that paints farthest.
 		double end = 0;
 		for (int i = 0; i < this.columns.size(); ++i) {
 			end = Math.max(end, this.columns.get(i).paintedPageEnd());
@@ -158,7 +158,7 @@ public class ColumnsContainer implements Container {
 	}
 
 	public boolean paintsAnything() {
-		// 段間罫(column-rule)は中身がなくても引かれる
+		// Draw column rules (column-rule) even without content.
 		if (this.box.getBlockParams().columns.rule.isVisible()) {
 			return true;
 		}
@@ -188,9 +188,9 @@ public class ColumnsContainer implements Container {
 			Drawable drawable = new ColumnRuleDrawable(pageBox, clip, params.opacity, transform, x, y).withBlendMode(params.blendMode).withFilter(params.filter);
 			drawer.visitDrawable(drawable, x, y);
 		}
-		// カラムは行軸に沿って並び、下から上への行内進行だけ物理化時に反転する。
-		// カラム数は小さく固定なので直接呼び出してよい(走査順を保つため
-		// 逆順で処理する)
+		// Columns run along the line axis; only bottom-to-top inline progression reverses in physical coordinates.
+		// The column count is small and fixed, so direct calls are safe
+		// (process in reverse order to preserve traversal order).
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
 			final double lineStart = LayoutUtils.inlineToPhysical(params, this.box.getInnerHeight(), i * columnSize,
@@ -204,9 +204,9 @@ public class ColumnsContainer implements Container {
 			double contextX, double contextY, double x, double y, Deque<DrawStep> worklist) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		// カラムは行軸に沿って並び、下から上への行内進行だけ物理化時に反転する。
-		// カラム数は小さく固定なので、直接呼び出しても(逆順にせずとも)
-		// スタック深さは問題にならないが、走査順を保つため逆順で処理する
+		// Columns run along the line axis; only bottom-to-top inline progression reverses in physical coordinates.
+		// The column count is small and fixed, so direct calls (even without reversal) pose no
+		// stack-depth problem, but process in reverse order to preserve traversal order.
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
 			final double lineStart = LayoutUtils.inlineToPhysical(params, this.box.getInnerHeight(), i * columnSize,
@@ -221,7 +221,7 @@ public class ColumnsContainer implements Container {
 			Deque<DrawStep> worklist) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		// 行内進行が下から上なら物理化時に反転する
+		// Reverse bottom-to-top inline progression when converting to physical coordinates.
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
 			final double lineStart = LayoutUtils.inlineToPhysical(params, this.box.getInnerHeight(), i * columnSize,
@@ -236,7 +236,7 @@ public class ColumnsContainer implements Container {
 			Deque<DrawStep> worklist) {
 		final BlockParams params = this.box.getBlockParams();
 		final double columnSize = this.box.getLineSize() + params.columns.gap;
-		// 行内進行が下から上なら物理化時に反転する
+		// Reverse bottom-to-top inline progression when converting to physical coordinates.
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final FlowContainer container = (FlowContainer) this.columns.get(i);
 			final double lineStart = LayoutUtils.inlineToPhysical(params, this.box.getInnerHeight(), i * columnSize,
@@ -247,7 +247,7 @@ public class ColumnsContainer implements Container {
 	}
 
 	public void pushFinishLayoutChildren(final IFramedBox containerBox, final Deque<FinishLayoutStep> worklist) {
-		// 元の走査順(先頭カラムから)を保つため、スタックへは逆順(末尾カラムから)でpushする
+		// Push columns onto the stack in reverse order (last first) to preserve the original traversal order (first first).
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			final Container container = this.columns.get(i);
 			worklist.push(w -> container.pushFinishLayoutChildren(containerBox, w));
@@ -255,8 +255,8 @@ public class ColumnsContainer implements Container {
 	}
 
 	public void pushGetTextSteps(StringBuilder textBuff, Deque<GetTextStep> worklist) {
-		// カラム数は小さく固定なので直接呼び出してよい(走査順を保つため
-		// 逆順で処理する)
+		// The column count is small and fixed, so direct calls are safe
+		// (process in reverse order to preserve traversal order).
 		for (int i = this.columns.size() - 1; i >= 0; --i) {
 			FlowContainer container = (FlowContainer) this.columns.get(i);
 			container.pushGetTextSteps(textBuff, worklist);
@@ -303,13 +303,13 @@ public class ColumnsContainer implements Container {
 	}
 
 	public FloatTransferResult splitFloatings(FloatTransferTarget target, double pageLimit, byte flags) {
-		// 段組コンテナはこの経路でfloatを移動しない(旧APIのnextBox
-		// そのまま返し=移動なしと同じ)
+		// A multi-column container does not move floats through this path (equivalent to the old API
+		// returning nextBox unchanged, meaning no movement).
 		return FloatTransferResult.KEEP_OWNER;
 	}
 
 	public java.util.Optional<Floatings> detachMovedFloatings(double pageLimit, byte flags) {
-		// 段組コンテナはこの経路でfloatを移動しない(3引数版と同じ理由)
+		// A multi-column container does not move floats through this path (same reason as the three-argument version).
 		return java.util.Optional.empty();
 	}
 
@@ -326,42 +326,39 @@ public class ColumnsContainer implements Container {
 	}
 
 	/**
-	 * 段に分かれた内容を組み直します。
+	 * Reflows content divided into columns.
 	 *
 	 * <p>
-	 * <b>読みながら書いてはいけない</b>(2026-07-27修正)。従来は生きた
-	 * {@link #columns}を走査しながら、その同じリストへ組み直していた:
+	 * <b>Do not write while reading</b> (fixed 2026-07-27). Previously, the implementation traversed
+	 * the live {@link #columns} while reflowing into that same list:
 	 * </p>
 	 *
 	 * <ul>
-	 * <li>{@link #addFlow}は常に<b>現在の最終カラム</b>へ書き込む
+	 * <li>{@link #addFlow} always writes to the <b>current last column</b>
 	 * ({@link #getLastColumn()})</li>
-	 * <li>{@link #newColumn()}は走査中のリストへ追加する</li>
-	 * <li>再生側の{@code FlowContainer}は自分の{@code flows}を取り出して
-	 * {@code null}にする</li>
+	 * <li>{@link #newColumn()} appends to the list being traversed</li>
+	 * <li>The replaying {@code FlowContainer} takes out its own {@code flows} and sets it to {@code null}</li>
 	 * </ul>
 	 *
 	 * <p>
-	 * 結果、<b>読み出して空にしている容器と、組み直し先が同一</b>になり、
-	 * 内容が黙って消えていた。先に写しを取り、空のカラムを1つ据えてから
-	 * 写しを読む——{@code AbstractContainerBox.balance()}が既に踏んでいる
-	 * 手順と同じ形である。
+	 * As a result, <b>the container being read and emptied was also the reflow destination</b>,
+	 * silently losing content. Take a snapshot first, install one empty column, then read
+	 * the snapshot: the same procedure already used by {@code AbstractContainerBox.balance()}.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>開いた尾({@code shape})を渡してよいのは最終カラムだけ。</b>
-	 * {@code shape}はこのボックスの論理フロー全体の「開いた尾」を表すので、
-	 * 最終カラム以外に渡すと{@code FlowContainer.restyleItem}が
-	 * open-chain降下を選び、{@code FlowBlockBox.restyle}が
-	 * <b>{@code endFlowBlock()}を意図的に省く</b>ため、そのボックスが
-	 * {@code flowStack}に開いたまま残る。次のカラムはその中に組まれ、
-	 * {@code <ol>}が自分の{@code <li>}の中に入る、という壊れ方をする。
+	 * <b>Only the last column may receive the open tail ({@code shape}).</b>
+	 * {@code shape} represents the open tail of this box's entire logical flow. Passing it to
+	 * another column makes {@code FlowContainer.restyleItem} choose open-chain descent,
+	 * and {@code FlowBlockBox.restyle} <b>intentionally omits {@code endFlowBlock()}</b>,
+	 * leaving that box open on {@code flowStack}. The next column is then laid out inside it,
+	 * corrupting the structure, for example by placing an {@code <ol>} inside its own {@code <li>}.
 	 * </p>
 	 *
 	 * <p>
-	 * 実測(2026-07-27、10万文書の掃過で発見。20,000文書に1件):
-	 * 3重に入れ子にした段組で、内側の内容が丸ごと消えていた。
-	 * 入れ子の多段組で内容が消える不具合（2026-07-27）への対応。
+	 * Measured on 2026-07-27, discovered in a 100,000-document sweep (1 in 20,000 documents):
+	 * all inner content disappeared in three levels of nested multi-column layout.
+	 * Addresses the content-loss defect in nested multi-column layout (2026-07-27).
 	 * </p>
 	 */
 	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
@@ -376,11 +373,10 @@ public class ColumnsContainer implements Container {
 	}
 
 	/**
-	 * 組み直しscopeの開始: 全段のsnapshot→元リストのclear→空の先頭段の
-	 * 据え付け、をこの順で行い、再生すべき旧段の写しを返します
-	 * (2026-07-30、legacy再帰撤去=増分1で{@link #restyle}から抽出。
-	 * worklist executorのMULTICOL native降下と二重実装しないための
-	 * 共有部品)。
+	 * Begins a reflow scope: snapshot all columns, clear the original list, and install
+	 * an empty first column, in that order. Returns the snapshot of old columns to replay.
+	 * Extracted from {@link #restyle} on 2026-07-30 in increment 1 of legacy recursion removal;
+	 * shared with MULTICOL native descent in the worklist executor to avoid duplicate implementations.
 	 */
 	List<Container> beginRestyleScope() {
 		final List<Container> snapshot = new ArrayList<Container>(this.columns);

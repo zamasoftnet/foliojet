@@ -4,8 +4,8 @@ import java.net.URI;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
- * Unicode-Range です。
- * 
+ * Unicode-Range.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class SrcValue implements Value {

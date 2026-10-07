@@ -14,14 +14,14 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code font-synthesis}です(css-fonts-4、2026-08-20新設)。
+ * {@code font-synthesis} (css-fonts-4, added 2026-08-20).
  *
  * <p>
- * {@code none | [ weight || style || small-caps || position ]}。列挙に
- * 含まれない種類の合成を禁じる(例えば {@code font-synthesis: style} は
- * 疑似ボールド禁止・疑似イタリック許可)。本エンジンが実際に合成するのは
- * weight(ストローク太らせ)とstyle(シアー)のみで、small-caps/positionは
- * 構文として受理するが対応する合成機構がないため効果を持たない。
+ * {@code none | [ weight || style || small-caps || position ]}.
+ * Prohibits synthesis types not listed (e.g. {@code font-synthesis: style} prohibits synthetic bold
+ * and permits synthetic italics). This engine actually synthesizes only weight
+ * (stroke thickening) and style (shear). It accepts small-caps/position syntactically,
+ * but they have no effect because the corresponding synthesis mechanisms do not exist.
  * </p>
  */
 public class FontSynthesisShorthand extends AbstractShorthandPropertyInfo {
@@ -70,7 +70,7 @@ public class FontSynthesisShorthand extends AbstractShorthandPropertyInfo {
 			} else if (ident.is("small-caps")) {
 				smallCaps = true;
 			} else if (ident.is("position")) {
-				// 受理のみ(対応する合成機構なし)
+				// Accepted only (no corresponding synthesis mechanism).
 			} else {
 				throw new PropertyException();
 			}

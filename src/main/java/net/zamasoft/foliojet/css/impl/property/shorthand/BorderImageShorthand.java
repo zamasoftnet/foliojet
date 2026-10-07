@@ -26,7 +26,7 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** {@code border-image} ショートハンドです。 */
+/** {@code border-image} shorthand. */
 public final class BorderImageShorthand extends AbstractShorthandPropertyInfo {
 	public static final ShorthandPropertyInfo INFO = new BorderImageShorthand();
 
@@ -90,7 +90,7 @@ public final class BorderImageShorthand extends AbstractShorthandPropertyInfo {
 			throw new PropertyException();
 		}
 
-		// slashを使う構文はsliceに従属するため、slash前のslice値が必須。
+		// Slash syntax depends on slice, so a slice value before the slash is required.
 		if (groups.size() > 1 && groups.get(0).isEmpty()) {
 			throw new PropertyException("/の前にsliceがありません");
 		}

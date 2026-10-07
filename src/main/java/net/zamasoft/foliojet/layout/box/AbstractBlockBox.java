@@ -27,8 +27,8 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
- * ブロックボックスの実装です。
- * 
+ * A block box implementation.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: AbstractBlockBox.java 1631 2022-05-15 05:43:49Z miyabe $
  */
@@ -71,22 +71,20 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	}
 
 	/**
-	 * 固有寸法キーワード(2026-08-29)を行方向の使用寸法(content-box)へ
-	 * 解きます。
+	 * Resolves intrinsic size keywords (2026-08-29) to a used inline size (content-box).
 	 *
 	 * <p>
-	 * {@code fit-content(L)}の引数Lはborder-box指定ならボーダー・
-	 * パディングを差し引いてから上限にする。max-content/min-contentは
-	 * 内容の実測値そのものなので{@code box-sizing}の影響を受けない
-	 * (css-sizing-3 §4.1)。
+	 * For border-box sizing, subtracts borders and padding from the {@code fit-content(L)}
+	 * argument L before using it as the limit. max-content/min-content are actual content measurements,
+	 * so {@code box-sizing} does not affect them (css-sizing-3 §4.1).
 	 * </p>
 	 *
-	 * @param intrinsic   キーワード
-	 * @param minContent  最小内容寸法
-	 * @param maxContent  最大内容寸法
-	 * @param available   引数無しfit-contentの上限(利用可能寸法)
-	 * @param percentBase 引数Lの%の基準
-	 * @return 使用寸法
+	 * @param intrinsic   the keyword
+	 * @param minContent  the min-content size
+	 * @param maxContent  the max-content size
+	 * @param available   the limit for argument-free fit-content (available size)
+	 * @param percentBase the percentage reference for argument L
+	 * @return the used size
 	 */
 	protected final double resolveIntrinsicLine(final IntrinsicSize intrinsic, final double minContent,
 			final double maxContent, final double available, final double percentBase) {
@@ -108,29 +106,29 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		final double lineSize = containerBox.getLineSize();
 
 		//
-		// ■ パディングの計算
+		// ■ Calculate padding.
 		//
 		LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
 		//
-		// ■ マージンの計算
+		// ■ Calculate margins.
 		//
 		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineSize);
 
 		//
-		// ■ 幅と高さの計算
+		// ■ Calculate width and height.
 		//
-		// width/min/max-width は box-sizing のスケールで書かれている。ここで
-		// 決めるのは内容幅なので、border-box なら境界+パディングを引く
-		// (2026-08-29)。この基底版は行幅0の計測パスでも使われ、従来は引いて
-		// いなかったため `min-width:100px; padding-inline:8px;
-		// box-sizing:border-box` のピルが116pxで計測されていた
-		// (padding-inlineの対応で顕在化)
+		// width/min/max-width use the box-sizing scale. This determines content width,
+		// so subtract borders + padding for border-box
+		// (2026-08-29). This base implementation is also used for measurement passes with zero inline size.
+		// Previously, no subtraction occurred, so pills with `min-width:100px; padding-inline:8px;
+		// box-sizing:border-box` measured as 116px
+		// (exposed by padding-inline support).
 		final double borderBoxLine = params.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
 				? this.frame.getBorderLineExtent(containerParams.flow)
 				: 0;
 		switch (containerParams.flow) {
 		case WritingMode.TB:
-			// 横書き
+			// Horizontal writing.
 			this.width = LayoutUtils.computeDimensionWidth(this.size, lineSize);
 			if (LayoutUtils.isNone(this.width)) {
 				this.width = 0;
@@ -148,7 +146,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			break;
 		case WritingMode.RL:
 		case WritingMode.LR:
-			// 縦書き
+			// Vertical writing.
 			this.height = LayoutUtils.computeDimensionHeight(this.size, lineSize);
 			if (LayoutUtils.isNone(this.height)) {
 				this.height = 0;
@@ -173,8 +171,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 
 	public final void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
 			double y, Deque<FramesStep> worklist) {
-		// 相対配置のずらしをここでも確定させる(包含ブロックを使わない値なので
-		// いつ呼んでも同じ。理由は resolveRelativeOffset の説明)
+		// Resolve relative-positioning offsets here too (the values do not use the containing block,
+		// so any call produces the same result; see resolveRelativeOffset for the reason).
 		if (this.getPos() instanceof net.zamasoft.foliojet.layout.box.params.AbstractStaticPos sp) {
 			this.resolveRelativeOffset(sp.offset);
 		}
@@ -195,7 +193,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			else {
 				textClip = null;
 			}
-			// clip-pathは自箱の背景・境界も切る(overflowと違う)
+			// clip-path also clips the box's own background and border (unlike overflow).
 			final Drawable drawable = new AbsoluteRectFrameDrawable(pageBox, this.clipWithClipPath(clip, x, y),
 					this.params.opacity, transform, this.frame,
 					this.getWidth(), this.getHeight(), textClip).withBlendMode(this.params.blendMode).withFilter(this.params.filter);
@@ -248,8 +246,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 
 		final Shape absolutesClip = contextBox ? clip : null;
 		final double fx = x, fy = y;
-		// 元の実行順(floatings→flows→absolutes→endStruct)を保つため、
-		// スタックへは逆順でpushする
+		// Push onto the stack in reverse order to preserve the original execution order
+		// (floatings→flows→absolutes→endStruct).
 		worklist.push(w -> pageBox.endStruct(drawer, this.params.element, structCount, fx, fy));
 		this.container.pushDrawAbsolutes(pageBox, drawer, visitor, absolutesClip, transform, contextX, contextY,
 				contentBoxX, contentBoxY, worklist);
@@ -259,9 +257,9 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	}
 
 	/**
-	 * 断片ボックスの再構成レシピを返します(C1d-B)。実装は必要な値を
-	 * キャプチャし、this への参照を保持しないこと(FragmentRecipe の
-	 * 規約参照)。splitPageState がアンカーを無効化する前に取得すること。
+	 * Returns a reconstruction recipe for a fragment box (C1d-B). Implementations must capture
+	 * the required values without retaining a reference to this (see the FragmentRecipe contract).
+	 * Obtain it before splitPageState invalidates the anchor.
 	 */
 	public abstract net.zamasoft.foliojet.layout.fragment.FragmentRecipe fragmentRecipe();
 
@@ -281,11 +279,10 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	}
 
 	/**
-	 * チェーンメンバーの継続化切断です(C1d-C)。plan がこのボックスを
-	 * 選択している破断で、切断が内部を貫通した場合、断片ボックスを
-	 * 構築せず ContinuationFrame を {@link SplitResult.Frame} で返します
-	 * (親が返り値でさらに外へ伝播する)。KEEP/MOVE はそのまま。
-	 * Split(box) は返らない。
+	 * Cuts a chain member into a continuation (C1d-C). When the plan selects this box
+	 * and the break cuts through its interior, returns a ContinuationFrame in {@link SplitResult.Frame}
+	 * without constructing a fragment box (the parent propagates it outward via return values).
+	 * KEEP/MOVE remain unchanged. Never returns Split(box).
 	 */
 	public final net.zamasoft.foliojet.layout.fragment.SplitResult splitForContinuation(double pageLimit,
 			final net.zamasoft.foliojet.layout.box.content.BreakMode mode, final byte flags,
@@ -300,19 +297,19 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame childFrame;
 		if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(
 				final Container chainStopContainer, final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
-			// chainStopContainerが実際にflow/floatを保持している場合
-			// (MOVEなら常に、KEEPでも兄弟の浮動体オーバーフローがあれば
-			// 起こりうる——force-branchのsplitFloatings(pageLimit, flags,
-			// index)はKEEP/MOVEどちらでも兄弟の浮動体を検分するため)、
-			// 破棄すると内容が消える。containerが空の場合のみreasonを
-			// そのままbareなKEEP/MOVEとして返し、実内容がある場合は下の
-			// 共通Frame構築ロジックへ合流させる(tailは常にOpenTailShape
-			// ——MOVE/KEEPどちらでも同じ「開いたまま続く」を表す。専用の
-			// MovedOpen型は2026-07-22に撤去した、
-			// 開発記録
-			// 参照)。詳細は
-			// 開発記録
-			// 参照
+			// If chainStopContainer actually retains flows/floats
+			// (always possible for MOVE, and also for KEEP if sibling floats overflow:
+			// the force-branch splitFloatings(pageLimit, flags,
+			// index) examines sibling floats for both KEEP and MOVE),
+			// discarding it loses content. Return the reason as bare KEEP/MOVE
+			// only when the container is empty; otherwise, route actual content
+			// through the common Frame construction below (tail is always OpenTailShape:
+			// both MOVE and KEEP represent the same still-open continuation. The dedicated
+			// MovedOpen type was removed on 2026-07-22;
+			// see the development log
+			// for reference). For details,
+			// see the development log
+			// for reference.
 			final boolean hasContent = chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
 					&& (fc.hasFlows() || fc.hasFloatings());
 			if (!hasContent) {
@@ -334,16 +331,16 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			return net.zamasoft.foliojet.layout.fragment.SplitResult.KEEP;
 		}
 		if (nextContainer == this.splitMoveSentinel()) {
-			// 段組コンテナは切断を最終段へ委譲するので、MOVEの目印は
-			// 最終段になる(splitMoveSentinel参照)。ここを this.container
-			// とだけ比べていたため、段組の最終段が「残余」と誤読され、
-			// **段組の中に残ったまま**継続断片としても組まれていた
-			// (2026-07-28、local/shrink/strict-739-min.html)
+			// A multi-column container delegates cutting to the last column, so the MOVE sentinel
+			// is the last column (see splitMoveSentinel). Comparing only with this.container
+			// misread that last column as a remainder, rebuilding it as a continuation fragment
+			// **while it still remained inside the multi-column container**
+			// (2026-07-28, local/shrink/strict-739-min.html).
 			assert childFrame == null;
 			return net.zamasoft.foliojet.layout.fragment.SplitResult.MOVE;
 		}
-		// 貫通 = 継続化。レシピは splitPageState(アンカー無効化)より前に
-		// 取得する(C1d-B)。prefixItems は pageBreak が水位計算の後に吸収
+		// An interior cut becomes a continuation. Obtain the recipe before splitPageState invalidates
+		// the anchor (C1d-B). pageBreak absorbs prefixItems after calculating the watermark.
 		final boolean vertical = this.getBlockParams().flow.isVertical();
 		final double crossExtent = vertical ? this.getInnerHeight() : this.getInnerWidth();
 		final net.zamasoft.foliojet.layout.fragment.FragmentRecipe recipe = this.fragmentRecipe();
@@ -360,32 +357,30 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	}
 
 	/**
-	 * ブロックfloat専用のページ方向切断です(2026-07-24、排除域A-3a)。
-	 * {@link AbstractContainerBox#split}のfloat変種で、内部切断(Split)の
-	 * 残余boxを即時構築({@code splitPage})せず、材料
-	 * ({@link net.zamasoft.foliojet.layout.fragment.PreparedFloatFragment})
-	 * のまま返します。残余boxの構築は受け側{@code Floatings}へ接続する
-	 * 時点で一度だけ行われる。
+	 * A page-axis cut exclusively for block floats (2026-07-24, exclusion area A-3a).
+	 * A float variant of {@link AbstractContainerBox#split}: for an interior cut (Split),
+	 * returns the ingredients ({@link net.zamasoft.foliojet.layout.fragment.PreparedFloatFragment})
+	 * without immediately constructing the remainder box ({@code splitPage}). The remainder box
+	 * is constructed only once, when attached to the receiving {@code Floatings}.
 	 *
 	 * <p>
-	 * 材料の取り方は即時経路と同一: 切断判定はコンテナの
-	 * {@code splitPageAxis}、前断片のmutationと断片状態は
-	 * {@code splitPageState}の実出力(再計算しない)、crossExtentは
-	 * mutation前のraw寸法({@code splitPage}と同じ)。recipeは
-	 * {@code splitPageState}の前に取得する({@code splitForContinuation}と
-	 * 同じC1d-Bの規約。即時経路はmutation後に取得するが、FloatBlockBoxの
-	 * recipeは不変のparams/posのみをキャプチャするため等価)。
+	 * Obtains the ingredients exactly as the immediate path does: the container's {@code splitPageAxis}
+	 * decides the cut; mutation of the preceding fragment and fragment state come from the actual
+	 * output of {@code splitPageState} (no recalculation); crossExtent is the raw size before mutation
+	 * (as in {@code splitPage}). Obtains the recipe before {@code splitPageState}, following the same
+	 * C1d-B contract as {@code splitForContinuation}. The immediate path obtains it after mutation,
+	 * but FloatBlockBox's recipe captures only immutable params/pos, so the two are equivalent.
 	 * </p>
 	 *
-	 * @param serial 呼び出し側({@code Floatings})が管理するfloatの識別子
+	 * @param serial the float identifier managed by the caller ({@code Floatings})
 	 */
 	public net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit splitFloatFragment(final int serial,
 			double pageLimit, final net.zamasoft.foliojet.layout.box.content.BreakMode mode, final byte flags) {
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		final net.zamasoft.foliojet.layout.box.content.BreakMode xmode = net.zamasoft.foliojet.layout.box.content.BreakMode
 				.absorbColumn(mode, this.getColumnCount());
-		// planなし切断は常にPlain(legacy契約: null=KEEP/sentinel=MOVE/他=残余)。
-		// 旧3引数splitPageAxisはこのPlain写像のwrapperだった(増分5で一本化)
+		// Cuts without a plan always use Plain (legacy contract: null=KEEP/sentinel=MOVE/other=remainder).
+		// The old three-argument splitPageAxis wrapped this Plain mapping (unified in increment 5).
 		final Container nextContainer = ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) this.container
 				.splitPageAxis(pageLimit, xmode, flags, null)).container();
 		if (DebugFlags.FLOAT_TRACE) {
@@ -412,18 +407,17 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	}
 
 	/**
-	 * ページ方向切断の前断片側を確定し、継続断片の状態を返します(C1a)。
-	 * 従来 splitPage(断片ボックス構築込み)が一体で行っていた処理の
-	 * 前側半分: 自箱をページ使用量まで切りつめ、終端側フレームを落とす。
-	 * 継続断片の構築は {@link #continueFragment} が(必要なら resume 時に)
-	 * 行う。
+	 * Finalizes the preceding fragment of a page-axis cut and returns the continuation fragment's state (C1a).
+	 * This is the first half of the former unified splitPage operation (which also constructed
+	 * the fragment box): trims this box to page usage and removes the end-side frame.
+	 * {@link #continueFragment} constructs the continuation fragment, at resume time if necessary.
 	 */
 	public final net.zamasoft.foliojet.layout.fragment.FragmentState splitPageState(final double pageLimit,
 			final boolean columnSpanning) {
 		return this.splitPageState(pageLimit, columnSpanning, false);
 	}
 
-	/** 内容を取れたかの検査と、ownerの断片寸法を分離します。 */
+	/** Separates the check for whether any content was taken from the owner's fragment dimensions. */
 	public final net.zamasoft.foliojet.layout.fragment.FragmentState splitPageState(final double contentLimit,
 			final double ownerExtent, final boolean columnSpanning) {
 		return this.splitPageState(contentLimit, ownerExtent, columnSpanning, false);
@@ -436,24 +430,24 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 
 	private net.zamasoft.foliojet.layout.fragment.FragmentState splitPageState(final double contentLimit,
 			final double ownerExtent, final boolean columnSpanning, final boolean preserveSpecifiedPageSize) {
-		// 分割されたボックスの断片は「継続物」(フレーム切断・内容消費が進行)
-		// であり、ソースから新品を再生してはならない。SourceAnchor は
-		// ボックス個体に属し(P0)、レシピ構築の断片は最初からアンカーを
-		// 持たないため、旧 params.sourceEventId=-1 の無効化は不要
-		// (無効化しないと再生が分割進捗を巻き戻し無限改ページ、という
-		// 危険は「断片にアンカーが継承されない」ことで構造的に防がれる)
+		// Fragments of a split box are continuations (frame cutting and content consumption have advanced),
+		// so do not replay them fresh from source. SourceAnchor belongs to each individual
+		// box (P0), and recipe-built fragments have no anchor from the outset,
+		// making the old params.sourceEventId=-1 invalidation unnecessary.
+		// (The risk of replay rewinding split progress and causing infinite page breaks
+		// is structurally prevented because fragments do not inherit anchors.)
 		//
-		// 2026-07-28: 上の「構造的に防がれる」は**後ろ半分にしか効かない**。
-		// 前断片(this)はアンカーを持ったまま残るので、これをソースから
-		// 再生すると要素全体——継続断片が持っている残りを含む——が
-		// 組み直され、継続断片の再開と内容が二重になる。通常は前断片が
-		// 前ページ/前段に残って二度と再開されないので表に出ないが、
-		// 入れ子段組の段バランスでは`ColumnsContainer.restyle`が全段を
-		// 一本に組み直すため、前断片と継続断片が**同じ残余に並ぶ**。
-		// そこで改段が起きると前断片は「丸ごと移動する閉じた部分木」と
-		// 見なされ、`stampRanges`→`replayFromSource`で要素全体が再生
-		// される(実測: local/shrink/strict-347-min.html で `<li>` が
-		// 同じページに二度描かれる)。切断した側でここを塞ぐ。
+		// 2026-07-28: the structural prevention above **applies only to the trailing half**.
+		// The preceding fragment (this) keeps its anchor, so source replay rebuilds
+		// the entire element, including the remainder held by the continuation fragment,
+		// duplicating content when the continuation resumes. Normally, the preceding fragment
+		// stays on the previous page/column and never resumes, hiding the issue. However,
+		// in nested multi-column balancing, `ColumnsContainer.restyle` rebuilds all columns
+		// as one stack, placing the preceding and continuation fragments **in the same remainder**.
+		// A column break there treats the preceding fragment as a closed subtree moving wholly,
+		// so `stampRanges`→`replayFromSource` replays the entire element
+		// (measured: `<li>` drawn twice on the same page in
+		// local/shrink/strict-347-min.html). Block this on the side that was cut.
 		this.markFragmented();
 		final boolean vertical = this.params.flow.isVertical();
 		final net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
@@ -470,8 +464,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	}
 
 	/**
-	 * 強制分割で実内容を1つも取らず、内容が丸ごと次断片へ移った固定寸法箱か。
-	 * 背景・枠や実際に消費した空きを複製しない。
+	 * Whether this is a fixed-size box whose forced split took no actual content, moving all content to the next fragment.
+	 * Does not duplicate backgrounds, borders, or space actually consumed.
 	 */
 	private boolean shouldPreserveSpecifiedPageSize(final Container nextContainer) {
 		final boolean specified = this.isSpecifiedPageSize();
@@ -484,19 +478,19 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		if (!preserve) {
 			return false;
 		}
-		// inline-blockは行ボックス内に入り、通常フローのBLOCKだけを辿る
-		// 判定では置換画像まで到達できない。前断片が内容も位置も0で、継続側に
-		// 実内容があるという断片境界そのものを条件にする。
+		// Inline blocks sit inside line boxes; a check traversing only normal-flow BLOCKs
+		// cannot reach replaced images. Use the fragment boundary itself as the condition:
+		// the preceding fragment has zero content and position, while the continuation has actual content.
 		return true;
 	}
 
 	/**
-	 * 断片状態から継続断片ボックスを構成します(C1a)。
+	 * Constructs a continuation fragment box from fragment state (C1a).
 	 *
-	 * @param state       断片状態({@link #splitPageState} の返値)
-	 * @param container   継続断片の内容
-	 * @param crossExtent 切断時点の交差軸(行方向)寸法
-	 * @return 継続断片
+	 * @param state       fragment state (returned by {@link #splitPageState})
+	 * @param container   the continuation fragment's content
+	 * @param crossExtent the cross-axis (inline) size at the cut
+	 * @return the continuation fragment
 	 */
 	public final AbstractBlockBox continueFragment(final net.zamasoft.foliojet.layout.fragment.FragmentState state,
 			final Container container, final double crossExtent) {
@@ -504,8 +498,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	}
 
 	/**
-	 * レシピから継続断片ボックスを構成します(C1d-B。resume が
-	 * ContinuationFrame の消費に使う — 旧ボックスへの仮想呼び出しなし)。
+	 * Constructs a continuation fragment box from a recipe (C1d-B; resume uses this
+	 * to consume a ContinuationFrame, without a virtual call on the old box).
 	 */
 	public static AbstractBlockBox continueFragment(final net.zamasoft.foliojet.layout.fragment.FragmentRecipe recipe,
 			final net.zamasoft.foliojet.layout.fragment.FragmentState state, final Container container,

@@ -37,7 +37,7 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 
 /**
- * テーブルセルの実装です。
+ * Table cell implementation.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: TableCellBox.java 1631 2022-05-15 05:43:49Z miyabe $
@@ -112,7 +112,7 @@ public class TableCellBox extends AbstractContainerBox {
 		switch (this.pos.verticalAlign) {
 		case CellAlign.START:
 		case CellAlign.BASELINE:
-			// 上寄せ・ベースライン
+			// Top alignment / baseline
 			return;
 		}
 		double pageSize;
@@ -124,11 +124,11 @@ public class TableCellBox extends AbstractContainerBox {
 		double diff = Math.max(0, pageSize - this.pageSize);
 		switch (this.pos.verticalAlign) {
 		case CellAlign.END:
-			// 下寄せ
+			// Bottom alignment
 			this.verticalAlign = diff;
 			break;
 		case CellAlign.MIDDLE:
-			// 中央寄せ
+			// Center alignment
 			this.verticalAlign = diff / 2.0;
 			break;
 		default:
@@ -137,9 +137,9 @@ public class TableCellBox extends AbstractContainerBox {
 	}
 
 	/**
-	 * セル内容へ適用する論理ブロック軸の整列量です。明示された
-	 * {@code align-content} は、HTML/CSS2由来の {@code vertical-align}
-	 * より優先します。通常値では従来のセル整列をそのまま保ちます。
+	 * Alignment offset along the logical block axis applied to cell content. An explicit
+	 * {@code align-content} takes precedence over {@code vertical-align} from HTML/CSS2.
+	 * The normal value preserves the existing cell alignment.
 	 */
 	private double contentAlignmentOffset() {
 		return this.params.blockAlignContent == net.zamasoft.foliojet.layout.box.params.BoxAlignment.NORMAL
@@ -160,20 +160,20 @@ public class TableCellBox extends AbstractContainerBox {
 	}
 
 	/**
-	 * 表Pass B(行計測)用のscratch複製を作ります(E-6増分5b-1、2026-07-24——
-	 * codex設計§4.4「確定列幅でセルrangeを再生し寸法だけ取得して破棄」の
-	 * 計測プリミティブの部品)。prepareLayout・列幅適用
-	 * (setWidth/setHeight)済みの自分と同じレイアウト初期状態
-	 * (フレーム・min/maxページ方向寸法・つぶし境界フラグ・両軸の内寸)を
-	 * 持つ新品を返す。フレームは防御コピー(複製側のレイアウトが
-	 * 自分の状態へ触れない)。段組セル(非FlowContainer)は未対応でnull
-	 * (呼び出し側がPass B対象外として扱う)。
+	 * Creates a scratch replica for table Pass B (row measurement) (E-6 increment 5b-1, 2026-07-24:
+	 * a component of the measurement primitive in codex design §4.4, "replay the cell range at the
+	 * final column width, obtain only dimensions, and discard"). Returns a fresh cell with the same
+	 * initial layout state as this cell after prepareLayout and column-width application
+	 * (setWidth/setHeight): frame, min/max page-direction size, collapsed-border flag, and inner sizes
+	 * along both axes. Copies the frame defensively so replica layout does not touch this cell's state.
+	 * Multi-column cells (non-FlowContainer) are unsupported and return null
+	 * (the caller treats them as ineligible for Pass B).
 	 *
-	 * @return 複製セル。段組セルはnull
+	 * @return the replica cell, or null for a multi-column cell
 	 */
 	public final TableCellBox newMeasureReplica() {
 		if (!this.canMeasureReplica()) {
-			// 段組セルのコンテナ複製は未対応(Pass B対象外)
+			// Container replication for multi-column cells is unsupported (ineligible for Pass B).
 			return null;
 		}
 		final AbsoluteRectFrame frameCopy = new AbsoluteRectFrame(this.frame.frame);
@@ -191,10 +191,9 @@ public class TableCellBox extends AbstractContainerBox {
 	}
 
 	/**
-	 * {@link #newMeasureReplica()}が複製を作れるか(=段組セルでないか)を
-	 * 複製を作らずに判定します(E-6増分5b-2、2026-07-24——表Pass Cの
-	 * 表単位適格判定{@code RetainedTableBuilder.isRowSequentialBindEligible}
-	 * がbind前スキャンで使う)。
+	 * Checks whether {@link #newMeasureReplica()} can create a replica (i.e., this is not a multi-column
+	 * cell) without creating one (E-6 increment 5b-2, 2026-07-24). Table Pass C's per-table eligibility
+	 * check, {@code RetainedTableBuilder.isRowSequentialBindEligible}, uses this in its pre-bind scan.
 	 */
 	public final boolean canMeasureReplica() {
 		return this.container instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer;
@@ -334,15 +333,15 @@ public class TableCellBox extends AbstractContainerBox {
 		transform = this.transform(transform, x, y);
 
 		if (this.params.overflow.clipsPaint()) {
-			// クリッピング
+			// Clipping
 			clip = this.clip(clip, x, y);
 		}
 		x += this.frame.getFrameLeft();
 		y += this.frame.getFrameTop();
 		x = this.blockAlignedX(x);
 		y = this.blockAlignedY(y);
-		// floatsはIBox.drawと同じく完結した1つの入口点なので、自前の
-		// ワークリストを作って最後まで消化してから返る(2026-07-20)
+		// Like IBox.draw, floats is a self-contained entry point, so create a worklist
+		// and drain it completely before returning (2026-07-20).
 		final java.util.Deque<DrawStep> worklist = new java.util.ArrayDeque<>();
 		this.container.pushDrawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y,
 				worklist);
@@ -397,8 +396,8 @@ public class TableCellBox extends AbstractContainerBox {
 		final double fx = x, fy = y, fcontextX = contextX, fcontextY = contextY;
 		final Shape flowsClip = clip;
 		final Shape absolutesClip = contextBox ? clip : null;
-		// 元の実行順(floatings[contextBoxのみ]→flows→absolutes→endStruct)を
-		// 保つため、スタックへは逆順でpushする
+		// To preserve the original execution order (floatings[contextBox only] → flows → absolutes → endStruct),
+		// push onto the stack in reverse order.
 		worklist.push(w -> pageBox.endStruct(fdrawer, this.params.element, structCount, fx, fy));
 		this.container.pushDrawAbsolutes(pageBox, drawer, visitor, absolutesClip, transform, fcontextX, fcontextY, x,
 				y, worklist);
@@ -462,12 +461,12 @@ public class TableCellBox extends AbstractContainerBox {
 
 	protected final AbstractContainerBox splitPage(Container container, double pageLimit, boolean columnSpanning) {
 		final boolean vertical = this.params.flow.isVertical();
-		// 断片状態の計算は TableCutter に純化(C4-T2)
+		// Fragment-state calculation extracted into pure logic in TableCutter (C4-T2).
 		final net.zamasoft.foliojet.layout.fragment.TableCutter.CellFragmentState state = net.zamasoft.foliojet.layout.fragment.TableCutter
 				.cellFragmentState(vertical, this.size, this.minSize, this.frame,
 						vertical ? this.width : this.height, pageLimit);
 
-		// 分割断片は継続物(アンカーなし — 新品として再生されない。P0)
+		// A split fragment is a continuation (no anchor; not replayed as a fresh box. P0).
 		final TableCellBox cell = new TableCellBox(this.params, this.pos, state.nextSize(), state.nextMinSize(),
 				state.nextFrame(), container);
 		cell.collapse = this.collapse;
@@ -486,27 +485,27 @@ public class TableCellBox extends AbstractContainerBox {
 
 	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
-		// A-3bのアラインメント物理契約: セル内容へ渡す切断位置は
-		// 「行の物理分割線 - verticalAlign(実測の確定セル高と内容高の
-		// 差から計算される内容開始オフセット)」。継続セルは
-		// verticalAlign=0から始まる——元セルの先頭側余白は前断片で
-		// 消費済みであり、残余内容を再アラインしない(2026-07-24文書化、
-		// 開発記録参照)。
-		// ただし整列余白は「セル全体が1つの断片に収まる」前提でしか意味を
-		// 持たない。確定セル高がrowspanや背の高い隣接セルのせいで内容より
-		// ずっと大きいと、**余白だけで切断線を越えてしまい**、内容が1単位も
-		// 前断片に残らない。前ページには境界だけ・文字は次ページ、という
-		// 読み順の逆転になる(2026-07-27、不変条件7で検出。seed 130 では
-		// 行2が[ ][ ][T12]と[T10][T11][ ]に割れた)。
-		// そこで**先頭の不可分単位(先頭行)が前断片に残る範囲まで**しか
-		// 余白を残さない。余白が足りている通常のセルには当たらない
-		// (条件が成立するのは、余白のせいで前断片が内容ゼロになる場合だけ)。
+		// A-3b physical alignment contract: The cut position passed to cell content is
+		// "the row's physical split line - verticalAlign (the content-start offset computed
+		// from the difference between the measured final cell height and content height)".
+		// Continuation cells start with verticalAlign=0: the preceding fragment has already
+		// consumed the original cell's leading space, and the remaining content is not realigned
+		// (documented 2026-07-24; see the development record).
+		// However, alignment space is meaningful only when the entire cell fits in one fragment.
+		// When rowspan or a tall adjacent cell makes the final cell height much larger than the content,
+		// **the space alone can exceed the cut line**, leaving no content unit
+		// in the preceding fragment. Only borders remain on the previous page, with text on the next:
+		// this reverses reading order (2026-07-27, detected by invariant 7; for seed 130,
+		// row 2 split into [ ][ ][T12] and [T10][T11][ ]).
+		// Therefore, retain space **only to the extent that the first indivisible unit (first line)
+		// remains in the preceding fragment**. Ordinary cells with sufficient space are unaffected
+		// (the condition holds only when the space would leave the preceding fragment with no content).
 		final double savedVerticalAlign = this.verticalAlign;
 		if (this.verticalAlign > 0) {
 			final double fragmentInner = pageLimit - this.frame.getFramePageStart(this.params.flow);
-			// getCutPoint(0) は「0以上で最初に現れる切断可能位置」= 先頭の
-			// 不可分単位の下端(純粋な問い合わせ。段組の均し
-			// AbstractContainerBox でも同じ意味で使っている)
+			// getCutPoint(0) is the first available cut position at or beyond 0: the bottom of
+			// the first indivisible unit (a pure query, used with the same meaning for
+			// multi-column balancing in AbstractContainerBox).
 			final double firstUnitEnd = this.container.getCutPoint(0);
 			if (LayoutUtils.compare(this.verticalAlign + firstUnitEnd, fragmentInner) > 0) {
 				this.verticalAlign = Math.max(0, fragmentInner - firstUnitEnd);
@@ -517,35 +516,35 @@ public class TableCellBox extends AbstractContainerBox {
 		try {
 			result = super.split(pageLimit, mode, flags);
 		} catch (RuntimeException | Error e) {
-			// 途中で失敗したら詰めた整列余白を戻す(縮んだままだと、
-			// 失敗後にこのセルを描く経路で余白が失われる)
+			// If an intermediate step fails, restore the reduced alignment space (leaving it reduced
+			// would lose space on paths that draw this cell after the failure).
 			this.verticalAlign = savedVerticalAlign;
 			throw e;
 		}
 		if (!(result instanceof SplitResult.Split(final IPageBreakableBox remainder))) {
-			// 切断されなかった(丸ごと残る・丸ごと移動する)場合、セルは
-			// 確定高のまま描かれるので整列余白を元に戻す
+			// If no cut occurs (the whole cell stays or moves), restore the alignment space
+			// because the cell is drawn at its final height.
 			this.verticalAlign = savedVerticalAlign;
 			assert (flags & IPageBreakableBox.FLAGS_SPLIT) == 0;
 			return result;
 		}
-		// **浮動体をここで移送し直さない**(2026-08-03)。
+		// **Do not transfer floats again here** (2026-08-03).
 		//
-		// 上の super.split() は AbstractContainerBox.split →
-		// FlowContainer.splitPageAxis と降りていき、その最後で
-		// splitFloatings(Existing(残余のcontainer), ...) まで済ませている。
-		// ここでもう一度 splitFloatings を呼ぶと、次の二重の害がある:
+		// super.split() above descends through AbstractContainerBox.split →
+		// FlowContainer.splitPageAxis and, at the end, has already completed
+		// splitFloatings(Existing(remainder container), ...).
+		// Calling splitFloatings again here has two harmful effects:
 		//
-		// 1. **既に切断済みの浮動体をもう一度切断する。** 1回目で内容は
-		//    残余断片へ移っているので、2回目は**中身が空の断片**を作る
-		// 2. **移送先の台帳を上書きする。** FlowContainer.remainderWith は
-		//    `container.floatings = moved` と代入するので、1回目に移した
-		//    内容入りの断片が、2回目の空の断片で置き換わる
+		// 1. **It cuts already-cut floats again.** The first call has moved their content
+		//    into remainder fragments, so the second creates **fragments with no content**.
+		// 2. **It overwrites the destination registry.** FlowContainer.remainderWith assigns
+		//    `container.floatings = moved`, so the content-bearing fragments from the first
+		//    transfer are replaced with the empty fragments from the second.
 		//
-		// 結果として、浮動体の中身が出力から**黙って消えていた**。再現は
-		// files/fuzz-repro/nested-float-content-loss.html(細い箱・表・
-		// 右寄せ・左寄せの4つが揃うと内側の浮動体の文字が消える)。
-		// 原因の特定にはcodex・agyへの独立相談が効いた。
+		// As a result, float content **silently disappeared** from output. Reproducer:
+		// files/fuzz-repro/nested-float-content-loss.html (with narrow boxes, tables,
+		// right alignment, and left alignment all present, text in the inner float disappears).
+		// Independent consultations with codex and agy helped identify the cause.
 		return result;
 	}
 }

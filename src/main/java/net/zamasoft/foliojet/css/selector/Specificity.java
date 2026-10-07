@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.css.selector;
 
 
 /**
- * セレクタの固有性(specificity)です。a=ID、b=クラス・属性・擬似クラス、c=要素・擬似要素。
+ * Selector specificity. a=IDs, b=classes/attributes/pseudo-classes, c=elements/pseudo-elements.
  */
 public final class Specificity implements Comparable<Specificity> {
 	private final int a, b, c;

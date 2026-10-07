@@ -13,17 +13,18 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 縦中横の種別を運ぶ内部プロパティです(2026-08-11)。
+ * Internal property carrying the type of tate-chu-yoko (2026-08-11).
  *
  * <p>
- * {@code -cssj-text-combine}ショートハンド(標準名{@code
- * text-combine-upright}のエイリアスを含む)が展開時に設定する。作者が
- * 直接書くためのものではないが、他の内部プロパティと同じく解析可能に
- * しておく(値は{@code none}/{@code horizontal}/{@code all})。
- * 継承しない——縦中横は指定した要素だけの性質である。
+ * Set when the {@code -cssj-text-combine} shorthand (including its standard-name alias {@code
+ * text-combine-upright}) expands. Not intended for authors to write directly,
+ * but kept parseable like other internal properties
+ * (values are {@code none}/{@code horizontal}/{@code all}).
+ * Not inherited; tate-chu-yoko applies only to the specified element.
  * </p>
  *
  * @see net.zamasoft.foliojet.css.value.TextCombineValue
+ *
  * @author MIYABE Tatsuhiko
  */
 public class TextCombineMode extends AbstractPrimitivePropertyInfo {

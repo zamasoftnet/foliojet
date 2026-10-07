@@ -16,31 +16,31 @@ import net.zamasoft.foliojet.layout.box.params.ClipPathShape;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code clip-path}です(css-shapes-1/css-masking-1、2026-08-22新設)。
+ * {@code clip-path} (css-shapes-1/css-masking-1, added 2026-08-22).
  *
  * <p>
- * {@code none | [<basic-shape> || <geometry-box>]}。basic-shapeは
- * {@code inset()}(round・角半径x=y)・{@code circle()}・{@code ellipse()}・
- * {@code polygon()}に対応する。{@code path()}と{@code url()}参照は未対応
- * (宣言ごと無視)。描画は{@code AbstractContainerBox.clip()}が参照
- * ボックスの実寸で形状を解決し、既存のクリップ伝播(overflow:hidden・
- * mask-image近似と同じ経路)へ流す。
+ * {@code none | [<basic-shape> || <geometry-box>]}. Supported basic-shapes are
+ * {@code inset()} (round, corner radii x=y), {@code circle()}, {@code ellipse()}, and
+ * {@code polygon()}. {@code path()} and {@code url()} references are unsupported
+ * (the entire declaration is ignored). During rendering, {@code AbstractContainerBox.clip()}
+ * resolves the shape using the actual reference box dimensions and feeds it into existing
+ * clip propagation (the same path as overflow:hidden and the mask-image approximation).
  * </p>
  *
  * <p>
- * {@code <basic-shape>}の解析・絶対化・形状化は{@code shape-outside}と
- * 共有するため{@link BasicShapes}へ移した(2026-08-29)。ここに残るのは
- * 値型と参照ボックスの既定(border-box)だけ。
+ * Moved {@code <basic-shape>} parsing, absolute-length conversion, and shape construction
+ * to {@link BasicShapes} to share them with {@code shape-outside} (2026-08-29).
+ * Only the value type and the default reference box (border-box) remain here.
  * </p>
  */
 public class ClipPath extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new ClipPath();
 
 	/**
-	 * パース済みの形状指定です。
+	 * Parsed shape specification.
 	 *
-	 * @param shape    形状(nullなら参照ボックスのみの指定)
-	 * @param box      参照ボックス(未指定はborder-box)
+	 * @param shape    shape (null means only a reference box is specified)
+	 * @param box      reference box (border-box if unspecified)
 	 */
 	public record ClipPathValue(ShapeSpec shape, ClipPathShape.ReferenceBox box) implements Value {
 	}
@@ -49,7 +49,7 @@ public class ClipPath extends AbstractPrimitivePropertyInfo {
 		return style.get(INFO);
 	}
 
-	/** computed valueからレイアウト用の形状を作ります(noneはnull)。 */
+	/** Creates a layout shape from the computed value (null for none). */
 	public static ClipPathShape toShape(final Value value) {
 		if (!(value instanceof ClipPathValue v)) {
 			return null;
@@ -73,7 +73,7 @@ public class ClipPath extends AbstractPrimitivePropertyInfo {
 		if (!(value instanceof ClipPathValue v) || v.shape() == null) {
 			return value;
 		}
-		// em等のフォント相対長をここで絶対化する(%はそのまま)
+		// Convert font-relative lengths such as em to absolute lengths here (leave % unchanged).
 		return new ClipPathValue(BasicShapes.absolutize(v.shape(), style), v.box());
 	}
 

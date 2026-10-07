@@ -12,7 +12,7 @@ import net.zamasoft.foliojet.css.value.BorderImageSliceValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** {@code border-image-slice} です。 */
+/** {@code border-image-slice}. */
 public final class BorderImageSlice extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BorderImageSlice();
 

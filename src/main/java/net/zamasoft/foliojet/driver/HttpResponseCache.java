@@ -4,54 +4,53 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 変換をまたぐHTTP応答キャッシュです(2026-08-10)。
+ * An HTTP response cache shared across conversions (2026-08-10).
  *
  * <p>
- * 動機は「毎変換、同じ外部リソースを取り直す」遅延の解消——実測では
- * ヘッドCSSの{@code @import url(https://fonts.googleapis.com/...)}が
- * 変換のたびにネットワーク往復し、開始までの体感遅延の主因だった
- * (law3、2026-08-09)。取得を{@code input.exclude}で塞ぐ案は
- * フォント消失という劣化を招くため却下済み(オーナー判断)。
+ * Motivated by eliminating the delay of fetching the same external resources on every conversion.
+ * Measurements showed that {@code @import url(https://fonts.googleapis.com/...)} in head CSS
+ * made a network round trip for every conversion and caused most of the perceived startup delay
+ * (law3, 2026-08-09). Blocking retrieval with {@code input.exclude} was rejected because
+ * it degraded output by losing fonts (owner's decision).
  * </p>
  *
- * <h2>安全条件(何を絶対にキャッシュしないか)</h2>
+ * <h2>Safety conditions (what must never be cached)</h2>
  *
  * <p>
- * デーモンは複数の利用者の変換を同居させるため、<b>利用者固有の応答が
- * 別の利用者へ漏れない</b>ことが正しさの条件になる。判定は2段:
+ * The daemon handles conversions for multiple users, so correctness requires
+ * <b>user-specific responses never to leak to another user</b>. Checks occur in two stages:
  * </p>
  *
  * <ul>
- * <li><b>要求側</b>({@code MyHttpSourceResolver.resolve}): 認証情報
- * (Authorizationヘッダ・当該ホストに一致する資格情報)または送信される
- * Cookieを伴う要求は、最初からキャッシュ対象にしない。</li>
- * <li><b>応答側</b>({@code MyHttpSourceResolver.MyHttpSource}): 200以外、
- * {@code Set-Cookie}付き、{@code Cache-Control}に
- * no-store/no-cache/private を含む応答、{@code Vary: *}は保存しない。</li>
+ * <li><b>Request side</b> ({@code MyHttpSourceResolver.resolve}): requests with authentication
+ * (an Authorization header or credentials matching the host), or outgoing cookies,
+ * are ineligible for caching from the outset.</li>
+ * <li><b>Response side</b> ({@code MyHttpSourceResolver.MyHttpSource}): does not store non-200 responses,
+ * responses with {@code Set-Cookie}, {@code Cache-Control} containing no-store/no-cache/private,
+ * or {@code Vary: *}.</li>
  * </ul>
  *
  * <p>
- * キーは<b>URI+送信ヘッダ全体</b>。User-Agent・Referer・管理者設定の
- * カスタムヘッダが違えば別エントリになるため、{@code Vary}で応答が
- * 変わるサーバー(hotlink保護のReferer判定等)にも安全側で働く
- * (送らないヘッダは常に送らないので、キーに含める必要があるのは
- * 送るものだけ)。
+ * The key is <b>URI + all outgoing headers</b>. Different User-Agent, Referer, or administrator-defined
+ * custom headers produce separate entries, conservatively handling servers whose responses vary
+ * with {@code Vary} (e.g., Referer-based hotlink protection). Headers not sent remain absent,
+ * so only outgoing headers need to be included in the key.
  * </p>
  *
- * <h2>鮮度</h2>
+ * <h2>Freshness</h2>
  *
  * <p>
- * 保存時に応答の{@code max-age}を記録し、参照時に「呼び出し側のTTL
- * ({@code input.http.cache.ttl})とmax-ageの短い方」を超えたエントリは
- * 捨てる。TTLを参照時に評価するのは、変換ごとにTTL設定が違っても
- * それぞれの設定で正しく判定するため。
+ * Records the response's {@code max-age} on storage. On lookup, discards entries older than
+ * the shorter of the caller's TTL ({@code input.http.cache.ttl}) and max-age.
+ * Evaluates TTL at lookup time so that each conversion uses its own setting correctly,
+ * even when TTL settings differ across conversions.
  * </p>
  *
- * <h2>容量</h2>
+ * <h2>Capacity</h2>
  *
  * <p>
- * エントリ4MB・全体64MBのLRU。上限を超える本文は保存せず素通しする
- * (呼び出し側が判断)。
+ * An LRU with a 4 MB per-entry limit and a 64 MB total limit. Bodies exceeding the limit
+ * pass through without storage (the caller decides).
  * </p>
  */
 final class HttpResponseCache {
@@ -60,17 +59,17 @@ final class HttpResponseCache {
 		// unused
 	}
 
-	/** 1エントリの本文上限(これを超える本文は保存しない)。 */
+	/** The per-entry body limit (larger bodies are not stored). */
 	static final int MAX_ENTRY_BYTES = 4 * 1024 * 1024;
 
-	/** 全エントリ合計の上限(超過分は古い順に捨てる)。 */
+	/** The total limit for all entries (evicts the oldest entries when exceeded). */
 	static final long MAX_TOTAL_BYTES = 64L * 1024 * 1024;
 
-	/** キャッシュされた応答です(本文は解凍済みバイト列)。 */
+	/** A cached response (body contains decompressed bytes). */
 	record Entry(byte[] body, String mimeType, String encoding, long lastModified, long storedAtMillis,
 			long maxAgeSeconds) {
 
-		/** 呼び出し側TTL(秒)の下で、今なお新鮮ならtrueを返します。 */
+		/** Returns true if the entry is still fresh under the caller's TTL (seconds). */
 		boolean isFresh(final int ttlSeconds, final long nowMillis) {
 			long limit = ttlSeconds;
 			if (this.maxAgeSeconds >= 0 && this.maxAgeSeconds < limit) {
@@ -84,10 +83,10 @@ final class HttpResponseCache {
 	private static long totalBytes = 0;
 
 	/**
-	 * 新鮮なエントリを返します。期限切れはこの場で捨てて{@code null}。
+	 * Returns a fresh entry. Discards expired entries here and returns {@code null}.
 	 *
-	 * @param key        キャッシュキー(URI+送信ヘッダ)
-	 * @param ttlSeconds 呼び出し側のTTL(秒)
+	 * @param key        the cache key (URI + outgoing headers)
+	 * @param ttlSeconds the caller's TTL (seconds)
 	 */
 	static synchronized Entry get(final String key, final int ttlSeconds) {
 		final Entry entry = ENTRIES.get(key);
@@ -102,7 +101,7 @@ final class HttpResponseCache {
 		return entry;
 	}
 
-	/** エントリを保存します(容量超過分は古い順に追い出す)。 */
+	/** Stores an entry (evicts oldest entries when capacity is exceeded). */
 	static synchronized void put(final String key, final Entry entry) {
 		if (entry.body().length > MAX_ENTRY_BYTES) {
 			return;
@@ -121,7 +120,7 @@ final class HttpResponseCache {
 		}
 	}
 
-	/** テスト専用: 全エントリを破棄します。 */
+	/** For tests only: discards all entries. */
 	static synchronized void clear() {
 		ENTRIES.clear();
 		totalBytes = 0;

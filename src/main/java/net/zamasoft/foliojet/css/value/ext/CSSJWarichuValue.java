@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.css.value.ext;
 
 import net.zamasoft.foliojet.css.value.Value;
 
-/** CopperPDFの割注指定。CSSに標準プロパティがないため独自拡張。 */
+/** CopperPDF's warichu setting. A proprietary extension because CSS has no standard property. */
 public enum CSSJWarichuValue implements Value {
 	NONE("none"), AUTO("auto");
 

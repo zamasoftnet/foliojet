@@ -15,19 +15,21 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code tab-size}です(css-text-3 §3.2、2026-08-29新設)。
+ * {@code tab-size} (css-text-3 §3.2, added 2026-08-29).
  *
  * <p>
- * {@code <number [0,∞]> | <length [0,∞]>}。継承、既定8。数値は空白文字
- * (U+0020)の送り幅の倍数、長さはそのままタブ幅になる。タブ位置は行頭
- * からタブ幅の整数倍({@code TextBuilder.control})。仕様の数値は
- * 「空白の送り+letter-spacing+word-spacing」だが、本実装は空白の
- * 送り幅だけを掛ける(近似)。
+ * {@code <number [0,∞]> | <length [0,∞]>}. Inherited; defaults to 8.
+ * A number is a multiple of the space character (U+0020) advance; a length is the tab width directly.
+ * Tab positions are integer multiples of the tab width from the line start
+ * ({@code TextBuilder.control}). The specification multiplies
+ * "space advance + letter-spacing + word-spacing", but this implementation multiplies
+ * only the space advance (an approximation).
  * </p>
  *
  * <p>
- * 2026-08-29より前は固定24pt(既定フォント12pt×2文字分)だった。
- * 既定8の空白幅倍は、和文既定の空白幅(12pt→3pt前後)では24ptと同程度。
+ * Before 2026-08-29, the width was fixed at 24 pt (default 12 pt font × two characters).
+ * The default multiplier 8 is about 24 pt with the default Japanese space advance
+ * (roughly 3 pt for a 12 pt font).
  * </p>
  */
 public class TabSize extends AbstractPrimitivePropertyInfo {
@@ -35,12 +37,12 @@ public class TabSize extends AbstractPrimitivePropertyInfo {
 
 	private static final RealValue DEFAULT = RealValue.create(8);
 
-	/** 値が空白幅の倍数({@code <number>})か。 */
+	/** Whether the value is a multiple of the space width ({@code <number>}). */
 	public static boolean isMultiple(final CSSStyle style) {
 		return style.get(INFO) instanceof RealValue;
 	}
 
-	/** 倍数なら倍率、長さなら絶対長さ(pt)。 */
+	/** The multiplier for a number, or the absolute length (pt) for a length. */
 	public static double get(final CSSStyle style) {
 		final Value value = style.get(INFO);
 		if (value instanceof RealValue real) {

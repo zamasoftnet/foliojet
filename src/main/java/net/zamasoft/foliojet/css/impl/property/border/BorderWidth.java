@@ -18,7 +18,7 @@ import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 
 /**
  * border-top-width / border-right-width / border-bottom-width /
- * border-left-width 特性です。
+ * border-left-width properties.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -58,7 +58,7 @@ public final class BorderWidth extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
-		// 型付き attr()(2026-08-03)。属性から罫線の幅・色を取る
+		// Typed attr() (2026-08-03). Get border width/color from attributes.
 		final Value attrValue = net.zamasoft.foliojet.css.util.AttrValueUtils.toTypedAttr(ua, lu, net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.LENGTH);
 		if (attrValue != null) {
 			return attrValue;

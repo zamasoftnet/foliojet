@@ -18,10 +18,10 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 論理境界ショートハンド {@code border-block-start} / {@code border-block-end} /
- * {@code border-inline-start} / {@code border-inline-end}(css-logical-1 §4.4、
- * 2026-08-29)。論理longhand({@code border-inline-start-width}等)は
- * 実装済みで、{@code border-top}と同じ文法で3つへ配るだけ。
+ * Logical border shorthands {@code border-block-start} / {@code border-block-end} /
+ * {@code border-inline-start} / {@code border-inline-end} (css-logical-1 §4.4,
+ * 2026-08-29). Logical longhands ({@code border-inline-start-width}, etc.) already exist;
+ * this simply distributes to three of them using the same grammar as {@code border-top}.
  */
 public final class LogicalBorderShorthand extends AbstractShorthandPropertyInfo {
 	private final PrimitivePropertyInfo width, style, color;

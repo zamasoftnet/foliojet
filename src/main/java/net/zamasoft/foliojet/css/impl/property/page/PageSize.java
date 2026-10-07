@@ -15,12 +15,12 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code @page { size }}です(名前付きページN3/N4、2026-07-31——
- * consult-codex-2026-07-31-named-pages.txt Q3)。サブセット:
+ * {@code @page { size }} (named pages N3/N4, 2026-07-31:
+ * consult-codex-2026-07-31-named-pages.txt Q3). Subset:
  * {@code auto | <length>{1,2} | <page-size> [portrait|landscape] |
- * portrait | landscape}。規格名はISO A3-A5/B4-B5・JIS B4/B5・
- * letter/legal/ledger。相対長(em等)はサブセット外(宣言無効)。
- * {@code size:auto}の寸法はoutput.page-width/height(UA既定)。
+ * portrait | landscape}. Standard names: ISO A3-A5/B4-B5, JIS B4/B5,
+ * and letter/legal/ledger. Relative lengths (em, etc.) are outside the subset (invalid declaration).
+ * Dimensions for {@code size:auto} come from output.page-width/height (UA defaults).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -49,7 +49,7 @@ public class PageSize extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	/** 規格名の寸法(pt、縦置き)。未知はnull。 */
+	/** Dimensions for a standard name (pt, portrait). Null if unknown. */
 	private static double[] namedSize(final String name) {
 		switch (name.toLowerCase()) {
 		case "a3":
@@ -114,11 +114,11 @@ public class PageSize extends AbstractPrimitivePropertyInfo {
 			final CssToken lu = tokens.next();
 			final Value length = ValueUtils.toLength(ua, lu);
 			if (!(length instanceof AbsoluteLengthValue absolute) || named != null || lengths >= 2) {
-				// 相対長・過剰値はサブセット外
+				// Relative lengths and excess values are outside the subset.
 				throw new PropertyException();
 			}
 			if (lengths == 0) {
-				w = h = absolute.getLength(); // 一長さは正方形
+				w = h = absolute.getLength(); // One length specifies a square.
 			} else {
 				h = absolute.getLength();
 			}
@@ -129,7 +129,7 @@ public class PageSize extends AbstractPrimitivePropertyInfo {
 		}
 		if (lengths > 0) {
 			if (orientation != PageSizeValue.ORIENTATION_NONE) {
-				// lengthsとorientationの併用は仕様外
+				// Combining lengths with orientation is outside the specification.
 				throw new PropertyException();
 			}
 			return new PageSizeValue(w, h, PageSizeValue.ORIENTATION_NONE);

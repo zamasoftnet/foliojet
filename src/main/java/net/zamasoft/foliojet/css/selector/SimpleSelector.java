@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.css.selector;
 
 /**
- * 単純セレクタ(要素セレクタまたは擬似要素セレクタ)。
+ * A simple selector (an element selector or pseudo-element selector).
  */
 public interface SimpleSelector extends Selector {
 	// marker

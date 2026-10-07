@@ -16,7 +16,7 @@ import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
 
 /**
- * bidi の視覚順だけに使う inline 断片。論理 {@code contents} には挿入しない。
+ * An inline fragment used only for bidi visual order. Never inserted into logical {@code contents}.
  */
 public final class InlineFragmentView extends InlineBox {
 	private final InlineBox source;
@@ -57,7 +57,7 @@ public final class InlineFragmentView extends InlineBox {
 		return this.bidiSlices.get(visualContent);
 	}
 
-	/** 視覚断片の内容を追加する。 */
+	/** Adds content to the visual fragment. */
 	public void append(final Object content) {
 		if (content instanceof Text text) {
 			this.addText(text);
@@ -66,8 +66,8 @@ public final class InlineFragmentView extends InlineBox {
 			this.addControl(control);
 			this.addAdvance(control.getAdvance());
 		} else if (content instanceof AbstractTextBox.Inline inline) {
-			// flatten() が作った複製をそのまま置く(BidiSlice の鍵と同一の参照でなければ
-			// ならない。ここで再複製すると ruby/warichu 等の atomic の slice が引けない)
+			// Place the copy made by flatten() as is (it must be the same reference as the BidiSlice key;
+			// copying again here would prevent lookup of atomic slices such as ruby/warichu).
 			this.add(inline);
 			this.addAdvance(inline.box.getLineExtent(this.getTextParams().flow));
 		} else if (content instanceof IAbsoluteBox absolute) {
@@ -80,13 +80,13 @@ public final class InlineFragmentView extends InlineBox {
 		}
 	}
 
-	/** 子 fragment を順序だけ先に登録する。幅は子の edge 確定後に加える。 */
+	/** Registers only the child fragment order first. Adds its width after the child edges are finalized. */
 	public void appendFragment(final AbstractTextBox.Inline inline) {
 		this.add(inline);
 	}
 
 	/**
-	 * 元 inline の論理的な始端・終端を含む断片にだけ該当 edge を残す。
+	 * Retains each edge only in the fragment containing the original inline's logical start or end.
 	 */
 	public void finishEdges(final boolean keepStart, final boolean keepEnd, final double lineSize) {
 		if (this.finished) {
@@ -97,12 +97,12 @@ public final class InlineFragmentView extends InlineBox {
 		this.keepsEndEdge = keepEnd;
 		this.setFragmentCutHead(!keepStart);
 		final WritingMode flow = this.getTextParams().flow;
-		// 論理側の行分割は LTR 前提で左=start の値だけを残しているので、元 inline の
-		// 未切断 frame(params.frame)から margin/padding を再計算してから、方向に応じた側を切る
+		// Logical line splitting assumes LTR and retains only left=start values. Recompute margin/padding
+		// from the original inline's unsplit frame (params.frame), then cut the appropriate side for the direction.
 		this.frame.frame = this.getInlineParams().frame;
 		this.fixLineAxis(flow.isVertical(), lineSize);
-		// 論理 start/end 辺は実際の行内進行から物理化する。direction だけで決めると
-		// SIDEWAYS_CCW の LTR/RTL で top/bottom が逆になる。
+		// Convert logical start/end edges to physical ones from actual inline progression. Using direction alone
+		// reverses top/bottom for SIDEWAYS_CCW in LTR/RTL.
 		final TypesettingMode.InlineProgression progression = TypesettingMode.inlineProgression(flow,
 				this.getTextParams().writingModeVariant, this.getTextParams().direction);
 		final boolean reversed = progression == TypesettingMode.InlineProgression.RIGHT_TO_LEFT
@@ -132,7 +132,7 @@ public final class InlineFragmentView extends InlineBox {
 		return this.keepsEndEdge;
 	}
 
-	/** visitor の意味処理で使う、視覚順へ変えていない論理 inline 全体の文字列。 */
+	/** The entire logical inline text, without visual reordering, for visitor semantics. */
 	public void appendSemanticText(final StringBuilder text) {
 		if (this.semanticText == null) {
 			this.source.getText(text);
@@ -145,13 +145,13 @@ public final class InlineFragmentView extends InlineBox {
 	public void pushDrawSteps(final PageBox pageBox, final Drawer drawer, final Visitor visitor, final Shape clip,
 			final AffineTransform transform, final double contextX, final double contextY, final double x,
 			final double y, final java.util.Deque<DrawStep> worklist) {
-		// visual tree は段落解決時、position:relative の used offset はその後の
-		// finishLayoutSelf で確定するため、描画直前に論理 source から同期する。
+		// The visual tree is built at paragraph resolution, but position:relative used offsets are determined later
+		// by finishLayoutSelf, so synchronize from the logical source immediately before drawing.
 		this.source.copyResolvedOffsetTo(this);
 		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 	}
 
-	/** 親 fragment が子 fragment の確定幅を会計する。 */
+	/** Lets the parent fragment account for the child fragment's finalized width. */
 	public void addFragmentAdvance(final IInlineBox child) {
 		this.addAdvance(child.getLineExtent(this.getTextParams().flow));
 	}

@@ -1,33 +1,32 @@
 package net.zamasoft.foliojet.layout.builder;
 
 /**
- * Retained実行計画の表(表全体を保持してからコミットする——
- * {@code table-layout:auto}相当)が、ホストのビルダーへ自分を
- * 組み込むための契約です(A-2、2026-07-30)。
+ * Contract for a table retained execution plan (retains the entire table before committing,
+ * equivalent to {@code table-layout:auto}) to incorporate itself into the host builder
+ * (A-2, 2026-07-30).
  *
  * <p>
- * それまで{@code Builder.addTable(TableBuilder)}は、全実装が
- * {@code RetainedTableBuilder}へハードキャストしてから
- * {@code prepareLayout()}/{@code bind()}を呼んでいた——Retainedしか
- * 到達しないという知識が呼び出し側の暗黙の前提だった。この前提を
- * 型に昇格し、キャストを排除する。
+ * Previously, every implementation of {@code Builder.addTable(TableBuilder)} hard-cast to
+ * {@code RetainedTableBuilder} before calling {@code prepareLayout()}/{@code bind()}.
+ * The knowledge that only Retained reached this point was an implicit caller assumption.
+ * Promotes this assumption into the type system and eliminates casts.
  * </p>
  *
- * @see TableBuilder#finish(Builder) 実行計画ごとの終端処理の入口
+ * @see TableBuilder#finish(Builder) entry point for each execution plan's completion processing
  */
 public interface RetainedTable extends TableBuilder, TwoPass {
-	/** 行送出後も参照できる、表計画のソース識別子です。 */
+	/** Source identifier of the table plan, accessible even after rows are emitted. */
 	public default long getSourceAnchor() {
 		return this.getTableBox().getSourceAnchor();
 	}
 
 	/**
-	 * 全行の読み取りが終わったあと、bindに先立って寸法・列幅を確定します。
+	 * Finalizes dimensions and column widths after all rows have been read and before bind.
 	 */
 	public void prepareLayout();
 
 	/**
-	 * 構築済みの表をホストへ組み込みます(実測済み内容の再駆動)。
+	 * Incorporates the constructed table into the host (reruns already measured content).
 	 */
 	public void bind(Builder host);
 }

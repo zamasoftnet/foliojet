@@ -1,16 +1,14 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * background-sizeの{@code contain}/{@code cover}キーワード形式です
- * (2026-08-06)。
+ * The {@code contain}/{@code cover} keyword forms of background-size (2026-08-06).
  *
  * <p>
- * この2つは箱の実寸(paddingボックス)と画像の縦横比を比較しないと解決
- * できないため、{@code <length>|<percentage>|auto}用の{@link Dimension}
- * (LengthTypeが4値ちょうどで2ビットへ詰められており、Length/Insets/Offset
- * とも共用する既存の枠組みを壊せない)には乗せられない。箱の実寸が分かる
- * 描画時点({@code Background}の塗り処理)まで種別だけ運び、そこで初めて
- * 実寸を計算する。
+ * These require comparing the box's actual size (padding box) with the image's aspect ratio, so they
+ * cannot use {@link Dimension} for {@code <length>|<percentage>|auto}. LengthType has exactly four
+ * values packed into two bits, and the existing framework shared with Length/Insets/Offset must
+ * remain intact. Carry only the type until draw time (the {@code Background} painting operation),
+ * when the box's actual size is known, and calculate the actual image size there.
  * </p>
  */
 public enum BackgroundFit {

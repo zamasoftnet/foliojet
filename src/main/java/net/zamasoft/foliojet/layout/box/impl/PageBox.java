@@ -32,8 +32,8 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * ページです。
- * 
+ * A page.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: PageBox.java 1561 2018-07-04 11:44:21Z miyabe $
  */
@@ -41,9 +41,9 @@ public class PageBox extends AbstractBlockBox {
 	protected final UserAgent ua;
 
 	/**
-	 * 塗り足し(bleed)の幅です(2026-09-02)。{@code @page} の背景は仕上り線で
-	 * 止めず、この幅だけ外へ描く——裁ち落としで白い縁が出ないように。
-	 * {@code PageSequence} がページ生成時に与える。
+	 * The bleed width (2026-09-02). Draw the {@code @page} background this far beyond the trim line
+	 * instead of stopping there, to avoid white edges after trimming.
+	 * Supplied by {@code PageSequence} when creating the page.
 	 */
 	private double bleed = 0;
 
@@ -51,12 +51,12 @@ public class PageBox extends AbstractBlockBox {
 		this.bleed = Math.max(0, bleed);
 	}
 
-	/** {@code @page}の背景。通常のframe背景(canvas背景)とは別に用紙全面へ描く。 */
+	/** The {@code @page} background, drawn across the entire sheet separately from the normal frame (canvas) background. */
 	private final Background pageBackground;
 
 	/**
-	 * 固定配置ブロックです。
-	 * 
+	 * A fixed-position block.
+	 *
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: PageBox.java 1561 2018-07-04 11:44:21Z miyabe $
 	 */
@@ -72,29 +72,29 @@ public class PageBox extends AbstractBlockBox {
 	}
 
 	/**
-	 * 固定位置指定されたコンテンツ。
+	 * Fixed-position content.
 	 */
 	protected List<Fixed> fixeds = null;
 
 	protected List<Fixed> toAddFixeds = null;
 
 	/**
-	 * 表示上のサイズ。
+	 * The visual size.
 	 */
 	protected double visualWidth = 0, visualHeight = 0;
 
-	/** 地の脚注帯。用紙の余白と外寸を保ち、本文の内寸だけを縮めます。 */
+	/** The bottom footnote band. Preserves sheet margins and outer size, reducing only the body text's inner size. */
 	private double footInset = 0;
 	private double footAreaPageHeight, footAreaVisualHeight;
 
-	/** ページ開始時、子の寸法を決める前に一度だけ呼びます。 */
+	/** Called once at page start, before determining child dimensions. */
 	public void reserveFootArea(final double inset) {
 		assert this.footInset == 0;
 		if (inset == 0) {
 			return;
 		}
 		assert inset > 0 && inset <= this.height;
-		// 引いた量の足し戻しではなく元の外寸を保存し、丸め誤差も持ち込まない。
+		// Save the original outer size rather than adding back the subtracted amount, avoiding rounding errors too.
 		this.footAreaPageHeight = super.getHeight();
 		this.footAreaVisualHeight = this.getVisualHeight();
 		this.footInset = inset;
@@ -107,27 +107,26 @@ public class PageBox extends AbstractBlockBox {
 	}
 
 	/**
-	 * 天の脚注帯(頭注、2026-09-11)。
+	 * The top footnote band (headnotes, 2026-09-11).
 	 *
 	 * <p>
-	 * 地の帯は版面の<b>高さを縮めるだけ</b>で足りる——本文は上端から
-	 * 始まったまま短くなり、注は縮んだ分の下へ置ける。天の帯はそれに
-	 * 加えて<b>本文の開始を帯の分だけ下げる</b>必要がある。
+	 * A bottom band needs only to <b>reduce the type area's height</b>: body text still starts
+	 * at the top but becomes shorter, and notes can sit below the reduced area.
+	 * A top band must additionally <b>lower the body text start by the band size</b>.
 	 * </p>
 	 *
 	 * <p>
-	 * 下げ方は<b>版面のpadding-topを増やす</b>。{@code getFrameTop()}が
-	 * 内容原点の位置そのものなので、これで本文の行頭が帯の下から始まる。
-	 * 同時に内寸を同じだけ縮めるので、{@code getHeight()}
-	 * ({@code = height + frame.getFrameHeight()})も
-	 * {@code getVisualHeight()}も<b>値が変わらない</b>——用紙の外寸と余白は
-	 * そのまま保たれ、地の帯のように元の寸法を控えておく必要がない。
+	 * Do this by <b>increasing the type area's padding-top</b>. {@code getFrameTop()} is the content
+	 * origin's position, so body text lines now start below the band. Reduce the inner size by
+	 * the same amount; {@code getHeight()} ({@code = height + frame.getFrameHeight()})
+	 * and {@code getVisualHeight()} therefore <b>remain unchanged</b>. Sheet outer size and margins
+	 * are preserved, with no need to save the original size as for the bottom band.
 	 * </p>
 	 *
 	 * <p>
-	 * 注は内容原点より上、すなわち<b>負の行方向位置</b>へ置く
-	 * ({@code RootBuilder}が{@code lineAxis = -inset}から並べる)。
-	 * 地の帯が内寸より下(正の外側)へ置くのと対称。
+	 * Place notes above the content origin, at <b>negative line-axis positions</b>
+	 * ({@code RootBuilder} lays them out starting at {@code lineAxis = -inset}).
+	 * This mirrors the bottom band's placement below the inner size, outside on the positive side.
 	 * </p>
 	 */
 	public void reserveHeadArea(final double inset) {
@@ -142,7 +141,7 @@ public class PageBox extends AbstractBlockBox {
 		this.frame.padding.top += inset;
 	}
 
-	/** 天の脚注帯。本文の内容原点をこの分だけ下げてあります。 */
+	/** The top footnote band. The body content origin has been lowered by this amount. */
 	private double headInset = 0;
 
 	public double getHeadInset() {
@@ -160,7 +159,10 @@ public class PageBox extends AbstractBlockBox {
 	private boolean replayPage;
 	private double replayX, replayY;
 
-	/** 独立ミニ頁の配置原点です。fixedの基準もここへ移し、余白寸法では切りません。 */
+	/**
+	 * The placement origin of an independent mini-page. Moves the fixed-position reference here too;
+	 * does not clip by margins.
+	 */
 	public void setReplayOrigin(final double x, final double y) {
 		this.replayPage = true;
 		this.replayX = x;
@@ -194,13 +196,13 @@ public class PageBox extends AbstractBlockBox {
 		double lineWidth;
 		switch (params.flow) {
 		case WritingMode.TB:
-			// 横書き
+			// Horizontal writing
 			assert this.size.getWidthType() == LengthType.ABSOLUTE;
 			lineWidth = this.size.getWidth();
 			break;
 		case WritingMode.LR:
 		case WritingMode.RL:
-			// 縦書き
+			// Vertical writing
 			assert this.size.getHeightType() == LengthType.ABSOLUTE;
 			lineWidth = this.size.getHeight();
 			break;
@@ -280,8 +282,8 @@ public class PageBox extends AbstractBlockBox {
 			this.frame.margin.right = right;
 			this.frame.margin.bottom = bottom;
 			this.frame.margin.left = left;
-			// 内側余白(`@page`のpadding、2026-09-03)。余白と同じ規則で絶対値にする
-			// (以前は解決されず0のままで、枠線だけが引かれていた)
+			// Padding (`@page` padding, 2026-09-03). Resolve to absolute lengths by the same rules as margins
+			// (previously left unresolved at 0, so only borders were drawn).
 			final double[] padding = resolveInsets(frame.padding, lineWidth);
 			this.frame.padding.top = padding[0];
 			this.frame.padding.right = padding[1];
@@ -321,44 +323,44 @@ public class PageBox extends AbstractBlockBox {
 	 * currently open, deduplicated by their logical identity (elementKey).
 	 *
 	 * <p>
-	 * E-6増分4b(2026-07-24): TwoPass range bindでは、liveの祖先ボックス
-	 * ({@code CSSElement}保持)と再生された子孫ボックス
-	 * ({@code StructureToken}保持)が同じ論理要素を指すことがある
-	 * (例: {@code <li>}のprincipal box(live)とmarker box(range再生)。
-	 * 従来は同一{@code CSSElement}インスタンスの共有で識別していた)。
-	 * 参照identityでは再生境界をまたぐ共有を表現できないため、実要素は
-	 * {@code elementKey}(文書順の通し番号=論理identity)で重複開きを
-	 * 防ぐ。live同士では同じ論理要素は常に同じインスタンスを共有する
-	 * (fragmentはparamsを共有する)ため、この変更でlive挙動は変わらない。
+	 * E-6 increment 4b (2026-07-24): In TwoPass range binding, live ancestor boxes
+	 * (holding {@code CSSElement}) and replayed descendant boxes (holding {@code StructureToken})
+	 * may refer to the same logical element: for example, a {@code <li>}'s principal box (live)
+	 * and marker box (range replay). Previously, they were identified by sharing the same
+	 * {@code CSSElement} instance. Reference identity cannot express sharing across replay boundaries,
+	 * so real elements use {@code elementKey} (a document-order serial number = logical identity)
+	 * to prevent duplicate opens. Live boxes for the same logical element always share the same
+	 * instance (fragments share params), so this change does not affect live behavior.
 	 * </p>
 	 */
 	private final java.util.Set<Long> openStructKeys = new java.util.HashSet<>();
 
 	/**
-	 * タグ付きPDFの構造宣言先(B-3、2026-07-30)。PageSequence.drawPageが
-	 * 表示リスト構築の前に設定する。untagged・非PDF出力ではnullのまま
-	 * (declareは呼ばれずnull参照が流れる=従来のno-opと同じ)。
+	 * The declaration target for tagged-PDF structure (B-3, 2026-07-30).
+	 * PageSequence.drawPage sets it before display-list construction.
+	 * Remains null for untagged or non-PDF output (declare is not called and null references
+	 * propagate, equivalent to the previous no-op).
 	 */
 	private net.zamasoft.pdfg2d.pdf.PDFPageOutput structOut = null;
 
 	/**
-	 * 構造要素のページ横断レジストリです(欠陥②の修正、2026-07-30)。
-	 * {@code PageSequence}が文書単位で保持し、ページごとにここへ渡される。
-	 * untagged時はnull。
+	 * The cross-page structure-element registry (fix for defect ②, 2026-07-30).
+	 * {@code PageSequence} holds it per document and passes it here for each page.
+	 * Null for untagged output.
 	 */
 	private TaggedStructureContext structContext = null;
 
 	/**
-	 * 反復表示(表の繰り返しヘッダ/フッタ)の描画中の深さです(欠陥②の
-	 * 修正、2026-07-30)。正の間、{@link #beginStruct}はページ横断
-	 * レジストリを迂回する——反復は「同じ要素の再表示」であって継続では
-	 * ないため、併合すると1つのStructElemに同じ内容がページ数ぶん重複する。
-	 * 従来どおりページごとの独立した宣言に留める(反復のartifact化は
-	 * 別増分で検討)。
+	 * The depth while drawing repeated content (repeated table headers/footers;
+	 * fix for defect ②, 2026-07-30). While positive, {@link #beginStruct} bypasses the cross-page
+	 * registry: repetition redisplays the same element rather than continuing it, so merging
+	 * would duplicate the same content in one StructElem for every page.
+	 * Keep independent per-page declarations as before (consider making repetitions artifacts
+	 * in a separate increment).
 	 */
 	private int structRepetitionDepth = 0;
 
-	/** 文書順の構造の入れ子(宣言済みrefのスタック)。 */
+	/** Document-order structure nesting (a stack of declared refs). */
 	private final java.util.ArrayDeque<net.zamasoft.pdfg2d.pdf.StructureRef> structStack = new java.util.ArrayDeque<>();
 
 	public void setStructOutput(final net.zamasoft.pdfg2d.pdf.PDFPageOutput structOut,
@@ -367,23 +369,23 @@ public class PageBox extends AbstractBlockBox {
 		this.structContext = structContext;
 	}
 
-	/** 反復表示(繰り返しヘッダ/フッタ)区間の開始(worklist stepから)。 */
+	/** Begins a repeated-content section (repeated header/footer; from a worklist step). */
 	public void pushStructRepetition() {
 		++this.structRepetitionDepth;
 	}
 
-	/** {@link #pushStructRepetition}の対の終了。 */
+	/** The matching end for {@link #pushStructRepetition}. */
 	public void popStructRepetition() {
 		--this.structRepetitionDepth;
 	}
 
-	/** 現在の構造の親(スタック頂上。空・番兵はnull=StructTreeRoot直下)。 */
+	/** The current structure parent (stack top; empty/sentinel means null, directly under StructTreeRoot). */
 	private net.zamasoft.pdfg2d.pdf.StructureRef structParent() {
 		final var top = this.structStack.peek();
 		return top == NULL_STRUCT ? null : top;
 	}
 
-	/** structStackはnullを積めない(ArrayDeque)ので、番兵で包む。 */
+	/** Wrap in a sentinel because structStack (ArrayDeque) cannot hold null. */
 	private net.zamasoft.pdfg2d.pdf.StructureRef declareStruct(final String role, final String scope) {
 		if (this.structOut == null) {
 			return null;
@@ -391,7 +393,7 @@ public class PageBox extends AbstractBlockBox {
 		return this.structOut.declareStructElement(this.structParent(), role, scope);
 	}
 
-	/** ArrayDequeはnull要素を許さないための番兵(untagged時の占位)。 */
+	/** Sentinel because ArrayDeque disallows null entries (placeholder for untagged output). */
 	private static final net.zamasoft.pdfg2d.pdf.StructureRef NULL_STRUCT = new net.zamasoft.pdfg2d.pdf.StructureRef() {
 	};
 
@@ -427,22 +429,22 @@ public class PageBox extends AbstractBlockBox {
 	 */
 	public int beginStruct(final Drawer drawer, final Object element, final double x, final double y) {
 		if (drawer.isArtifact()) {
-			// 2026-07-25(救済分割・増分5、答申§3): artifact drawer(=救済
-			// 分割の継続断片)は「見た目は内容、意味の上では先頭断片に
-			// 属する」。構造要素は先頭断片が一度だけ開くため、ここは
-			// 素通りさせる(elementKey dedupはページごとにsetが別なので
-			// 継続断片の抑止には使えない)
+			// 2026-07-25 (rescue splitting, increment 5, recommendation §3): An artifact drawer
+			// (a continuation fragment of rescue splitting) is visually content but semantically belongs
+			// to the head fragment. Only the head fragment opens structure elements once,
+			// so bypass this here (elementKey dedup uses a separate set per page
+			// and cannot suppress continuation fragments).
 			return 0;
 		}
 		final String role = net.zamasoft.foliojet.ua.props.TaggedPdf.roleIfActive(this.ua, element);
 		if (role == null || !this.openStruct(element)) {
 			return 0;
 		}
-		// 欠陥②の修正(2026-07-30): 継続断片は初出時に宣言済みの
-		// StructureRefを再利用し、1論理要素=1 StructElemにする(内容の
-		// MCIDが複数ページに跨る——pdfg2dの/Type /MCR /Pg)。反復表示
-		// (structRepetitionDepth>0)と匿名・擬似要素(elementKey<0)は
-		// 対象外で、従来どおりページごとに宣言する
+		// Fix for defect ② (2026-07-30): Continuation fragments reuse the StructureRef declared
+		// at first occurrence, giving one StructElem per logical element (content MCIDs
+		// span pages via pdfg2d's /Type /MCR /Pg). Repetitions
+		// (structRepetitionDepth>0) and anonymous/pseudo-elements (elementKey<0) are excluded;
+		// declare them per page as before.
 		final long elementKey = this.structRepetitionDepth == 0 && this.structContext != null
 				&& element instanceof net.zamasoft.foliojet.css.StructureElement se ? se.elementKey() : -1;
 		final String scope = role.equals("TH") ? net.zamasoft.foliojet.ua.props.TaggedPdf.headerScope(element) : null;
@@ -452,25 +454,25 @@ public class PageBox extends AbstractBlockBox {
 				if (java.util.Objects.equals(binding.role(), role)
 						&& java.util.Objects.equals(binding.scope(), scope)
 						&& binding.parent() == this.structParent()) {
-					// 継続: 再宣言せず既存refへ内容を継ぎ足す
+					// Continuation: Append content to the existing ref without redeclaring.
 					for (final var ref : binding.refs()) {
 						this.structStack.push(ref == null ? NULL_STRUCT : ref);
 					}
 					drawer.setCurrentStructRef(binding.contentRef());
 					return binding.refs().length;
 				}
-				// role/scope/親の不一致——構造が変わる再宣言は欠陥②の再発
-				// なので本来は不変条件違反だが、クラッシュ排除の絶対要件に
-				// 従い警告の上で従来どおりの新規宣言(=旧挙動)へ倒す
+				// A role/scope/parent mismatch: Redeclaring a changed structure repeats defect ②
+				// and should be an invariant violation. However, the absolute no-crash requirement
+				// takes precedence, so warn and fall back to a new declaration as before (old behavior).
 				java.util.logging.Logger.getLogger(PageBox.class.getName())
 						.warning("tagged-PDF continuation mismatch for elementKey=" + elementKey + ": declared=("
 								+ binding.role() + "," + binding.scope() + ") now=(" + role + "," + scope
 								+ "); falling back to a fresh StructElem (element split across pages)");
 			}
 		}
-		// B-3(2026-07-30): 構造はこの走査(文書順)で即宣言し、描画は
-		// PaintCommandが保持する参照へルーティングする。z-indexで別の
-		// stacking contextに積まれても、/Kの論理順はここで確定済み
+		// B-3 (2026-07-30): Declare structure immediately in this document-order traversal, and route drawing
+		// to the reference held by PaintCommand. Even if z-index puts it in a different
+		// stacking context, the logical /K order is already settled here.
 		final var parent = this.structParent();
 		final var ref = this.declareStruct(role, scope);
 		this.structStack.push(ref == null ? NULL_STRUCT : ref);
@@ -520,46 +522,45 @@ public class PageBox extends AbstractBlockBox {
 	}
 
 	/**
-	 * このページが<b>強制改ページで始まった</b>か(2026-07-28新設)。
+	 * Whether this page <b>started with a forced page break</b> (added 2026-07-28).
 	 *
 	 * <p>
-	 * {@code page-break-before/after: always|left|right} は「白紙でも1枚出す」
-	 * ことを作者が明示した指定です。何も描かないページを落とす規則
-	 * (css-break-3 §4.4、{@code StyleBuilder.drawPage})は、この印がある
-	 * ページには適用しません。
+	 * {@code page-break-before/after: always|left|right} explicitly requests a page even if blank.
+	 * The rule omitting pages that paint nothing (css-break-3 §4.4, {@code StyleBuilder.drawPage})
+	 * does not apply to pages with this marker.
 	 * </p>
 	 */
 	private boolean forcedBreakOrigin = false;
 
 	/**
-	 * このページが強制改ページで始まったことを記録します
-	 * ({@code RootBuilder.pageBreak} 専用)。
+	 * Records that this page started with a forced page break
+	 * (for {@code RootBuilder.pageBreak} only).
 	 */
 	public final void markForcedBreakOrigin() {
 		this.forcedBreakOrigin = true;
 	}
 
 	/**
-	 * このページが強制改ページで始まったなら true を返します。
+	 * Returns true if this page started with a forced page break.
 	 */
 	public final boolean isForcedBreakOrigin() {
 		return this.forcedBreakOrigin;
 	}
 
 	/**
-	 * ページ先頭でのページ名遷移により閉じられたことの印です(名前付き
-	 * ページN2b)。この印があり、かつ何も描いていないページは、柱の宣言や
-	 * {@link #isForcedBreakOrigin()}に関わらず出力から落とす——旧名の
-	 * ページを捨てて新名で作り直す「未確定ページの差し替え」と等価になる。
+	 * Marks closure due to a page-name transition at page start (named pages N2b).
+	 * If marked and nothing is painted, omit the page regardless of running-header declarations
+	 * or {@link #isForcedBreakOrigin()}. This is equivalent to replacing an unfinalized page:
+	 * discard the page with the old name and recreate it with the new one.
 	 */
 	private boolean namedTransitionClosed = false;
 
-	/** ページ名遷移による閉鎖を記録します({@code RootBuilder.pageBreak}専用)。 */
+	/** Records closure due to a page-name transition (for {@code RootBuilder.pageBreak} only). */
 	public final void markNamedTransitionClosed() {
 		this.namedTransitionClosed = true;
 	}
 
-	/** このページがページ名遷移で閉じられたなら true を返します。 */
+	/** Returns true if this page was closed by a page-name transition. */
 	public final boolean isNamedTransitionClosed() {
 		return this.namedTransitionClosed;
 	}
@@ -568,9 +569,9 @@ public class PageBox extends AbstractBlockBox {
 	 * {@inheritDoc}
 	 *
 	 * <p>
-	 * ページには本文のほかに<b>固定配置</b>({@code position:fixed})が
-	 * 載ります。これは前のページの描画で登録され、以後の全ページに
-	 * 描かれるため、コンテナを歩いても見つかりません。
+	 * Besides body text, a page holds <b>fixed-position content</b> ({@code position:fixed}).
+	 * It is registered while drawing a preceding page and drawn on every subsequent page,
+	 * so container traversal cannot find it.
 	 * </p>
 	 */
 	@Override
@@ -601,7 +602,7 @@ public class PageBox extends AbstractBlockBox {
 		final BlockParams params = this.getBlockParams();
 		switch (params.flow) {
 		case WritingMode.TB: {
-			// 横書き
+			// Horizontal writing
 			this.visualHeight = Math.max(this.visualHeight, newSize);
 			if (this.size.getHeightType() != LengthType.AUTO || newSize <= this.height) {
 				return;
@@ -612,7 +613,7 @@ public class PageBox extends AbstractBlockBox {
 			break;
 		case WritingMode.LR:
 		case WritingMode.RL: {
-			// 縦書き
+			// Vertical writing
 			this.visualWidth = Math.max(this.visualWidth, newSize);
 			if (this.size.getWidthType() != LengthType.AUTO || newSize <= this.width) {
 				return;
@@ -672,7 +673,7 @@ public class PageBox extends AbstractBlockBox {
 		return (state, container) -> new PageBox(params, ua, pageBackground, container);
 	}
 
-	/** 余白・内側余白の指定値を行幅を基準に絶対値へ(上・右・下・左)。AUTOは0。 */
+	/** Resolves margin/padding values against line width to absolute lengths (top, right, bottom, left). AUTO is 0. */
 	private static double[] resolveInsets(final Insets insets, final double lineWidth) {
 		final double[] out = new double[4];
 		final LengthType[] types = { insets.getTopType(), insets.getRightType(), insets.getBottomType(),
@@ -696,10 +697,10 @@ public class PageBox extends AbstractBlockBox {
 		double x = -this.frame.margin.left;
 		double y = -this.frame.margin.top;
 		if (this.pageBackground.isVisible()) {
-			// PageSequenceはGCを余白分だけ平行移動するので、この座標が用紙原点。
-			// frame.drawと違ってmarginを控除せず、@page背景を用紙全面へ描く。
-			// 塗り足しがあれば、その幅だけ仕上り線の外まで塗る(2026-09-02——以前は
-			// 仕上り線で止まり、裁ち口の帯が白いまま出ていた)
+			// PageSequence translates the GC by the margins, so these coordinates are the sheet origin.
+			// Unlike frame.draw, draw the @page background across the entire sheet without subtracting margins.
+			// If bleed is present, extend beyond the trim line by that width (2026-09-02;
+			// previously stopped at the trim line, leaving a white band at the cut edge).
 			final double b = this.bleed;
 			drawer.visitDrawable(new BackgroundBorderDrawable(this, null, 1f, new AffineTransform(),
 					this.pageBackground, null, null, this.getWidth() + b * 2, this.getHeight() + b * 2), x - b, y - b);
@@ -709,9 +710,9 @@ public class PageBox extends AbstractBlockBox {
 	}
 
 	/**
-	 * 脚注separator罫線のページ方向位置です(脚注F6/F7答申①、2026-07-31。
-	 * 版面内辺原点の論理container座標——RootBuilderがaddFloatingへ渡す
-	 * (0,pageAxis)と同じ座標系)。脚注の無いページは-1。
+	 * The page-axis position of the footnote separator rule (footnote F6/F7 recommendation ①, 2026-07-31).
+	 * Uses logical container coordinates originating at the type area's inner edge, the same coordinate
+	 * system as (0,pageAxis) passed by RootBuilder to addFloating. -1 on pages without footnotes.
 	 */
 	private double footnoteSeparatorAxis = -1;
 	private record ColumnFootnoteSeparator(Object owner, WritingMode flow, double lineOrigin, double pageOrigin,
@@ -724,7 +725,7 @@ public class PageBox extends AbstractBlockBox {
 		this.columnFootnoteSeparators.add(new ColumnFootnoteSeparator(owner, flow, lineOrigin, pageOrigin, lineSize, pageAxis));
 	}
 
-	/** balance前に段の脚注を回収した段組の罫線を外します(増分6)。 */
+	/** Removes rules of multi-column layouts whose column footnotes were collected before balancing (increment 6). */
 	public void removeColumnFootnoteSeparators(final Object owner) {
 		if (this.columnFootnoteSeparators != null) this.columnFootnoteSeparators.removeIf(separator -> separator.owner() == owner);
 	}
@@ -734,12 +735,12 @@ public class PageBox extends AbstractBlockBox {
 	}
 
 	/**
-	 * 用紙の端の帯の罫線位置(本文内辺原点の行方向)と、領域の向きです。
+	 * The rule position of a sheet-edge band (along the line axis from the body text's inner-edge origin)
+	 * and the area's orientation.
 	 *
 	 * <p>
-	 * 天の帯では内容原点より上、すなわち<b>負</b>になる(2026-09-11)。
-	 * 未設定は{@code NaN}で表す——負を番兵にしていたので頭注の罫線が
-	 * 黙って消えていた。
+	 * For a top band, this is above the content origin, hence <b>negative</b> (2026-09-11).
+	 * Use {@code NaN} for unset: using a negative sentinel silently hid headnote rules.
 	 * </p>
 	 */
 	private double footnoteSeparatorLineAxis = Double.NaN;
@@ -750,18 +751,18 @@ public class PageBox extends AbstractBlockBox {
 		this.footnoteSeparatorFlow = flow;
 	}
 
-	/** separator罫線の太さと、版面行方向幅に対する長さの割合(UA固定)。 */
+	/** Separator rule thickness and its length as a fraction of the type area's line-axis width (fixed by the UA). */
 	private static final double FOOTNOTE_SEPARATOR_THICKNESS = 0.5;
 
 	/**
-	 * 脚注separator罫線を描きます({@code PageSequence.drawPage}のflow後・
-	 * fixed前)。装飾なのでartifact(タグ付きPDFの構造要素に入れない)。
-	 * ページのframeはmarginのみのため本文コンテナ原点は(0,0)
-	 * (答申の座標対応)。
+	 * Draws footnote separator rules (after flow and before fixed in {@code PageSequence.drawPage}).
+	 * They are decoration, so use artifacts (exclude them from tagged-PDF structure elements).
+	 * The page frame contains only margins, so the body container origin is (0,0)
+	 * (the recommendation's coordinate mapping).
 	 */
 	public void drawFootnoteSeparator(final Drawer drawer) {
-		// @footnote の border-top(2026-10-04): 指定があれば領域の幅いっぱいに
-		// その太さ・色、太さ 0 なら引かない。指定が無ければUAの既定の線
+		// @footnote border-top (2026-10-04): If specified, span the area's full width using its thickness
+		// and color; draw nothing if thickness is 0. If unspecified, use the UA default rule.
 		final net.zamasoft.foliojet.ua.FootnoteArea.Separator spec = this.getUserAgent().getUAContext()
 				.getFootnoteArea().separator;
 		final double thickness = spec == null ? FOOTNOTE_SEPARATOR_THICKNESS : spec.thickness();
@@ -807,21 +808,21 @@ public class PageBox extends AbstractBlockBox {
 		final double axis = this.footnoteSeparatorAxis - thickness / 2;
 		final java.awt.geom.Rectangle2D.Double rect;
 		if (!flow.isVertical()) {
-			// TB: 版面下端寄りの水平線(行方向の始端から。既定は1/3)
+			// TB: A horizontal line near the type area bottom (from the line-axis start; default 1/3).
 			rect = new java.awt.geom.Rectangle2D.Double(0, axis, length, thickness);
 		} else if (flow == net.zamasoft.foliojet.layout.box.params.WritingMode.RL) {
-			// vertical-rl: block-end=左端側の垂直線
+			// vertical-rl: A vertical line on the block-end = left side.
 			rect = new java.awt.geom.Rectangle2D.Double(
 					this.getInnerPageExtent(flow) - axis - thickness, 0,
 					thickness, length);
 		} else {
-			// vertical-lr: block-end=右端側の垂直線
+			// vertical-lr: A vertical line on the block-end = right side.
 			rect = new java.awt.geom.Rectangle2D.Double(axis, 0, thickness, length);
 		}
 		drawer.artifactView().visitDrawable(new FootnoteSeparatorDrawable(this, rect, color), rect.x, rect.y);
 	}
 
-	/** separator罫線のdrawableです(装飾。構造要素に入れない)。 */
+	/** The separator-rule drawable (decoration; excluded from structure elements). */
 	private static final class FootnoteSeparatorDrawable
 			extends net.zamasoft.foliojet.layout.draw.AbstractDrawable {
 		private final java.awt.geom.Rectangle2D.Double rect;

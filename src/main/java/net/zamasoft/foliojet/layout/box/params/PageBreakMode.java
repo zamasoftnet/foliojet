@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 改ページ・改段の種別(page-break-before/after/inside)です。
+ * Page-break/column-break types (page-break-before/after/inside).
  *
  * @author MIYABE Tatsuhiko
  */

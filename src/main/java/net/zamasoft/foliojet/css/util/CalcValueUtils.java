@@ -19,24 +19,26 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * calc()・min()・max()・clamp()とCSS Values 4の数学関数を評価します。
+ * Evaluates calc(), min(), max(), clamp(), and CSS Values 4 math functions.
  * <p>
- * 対応する被演算子は {@code <number>}・絶対単位の{@code <length>}(px/pt/in/cm/mm/Q/pc)・
- * {@code <percentage>}です。絶対長さと割合が混在する結果(例:
- * {@code calc(50% + 10px)})は{@link CalcLengthValue}として返し、実際の解決は
- * レイアウト時({@link net.zamasoft.foliojet.layout.box.params.LengthType#MIXED}経由)
- * に行います。
+ * Supported operands are {@code <number>}, absolute-unit {@code <length>}
+ * (px/pt/in/cm/mm/Q/pc), and {@code <percentage>}. Results mixing absolute lengths
+ * and percentages (e.g. {@code calc(50% + 10px)}) are returned as {@link CalcLengthValue};
+ * actual resolution occurs during layout
+ * (via {@link net.zamasoft.foliojet.layout.box.params.LengthType#MIXED}).
  * </p>
  * <p>
- * フォント相対単位(em/rem 等)は係数として持ち越し、計算値の段階で解く
- * ({@link CalcFontRelativeValue})。絶対長さとフォント相対単位を比べる min()/max()/clamp()
- * (例: {@code min(10mm, 3em)})も、そこで大小を選ぶ(2026-10-04)。
+ * Font-relative units (em/rem, etc.) are carried as coefficients and resolved at the
+ * computed-value stage ({@link CalcFontRelativeValue}). min()/max()/clamp() comparing
+ * absolute lengths and font-relative units (e.g. {@code min(10mm, 3em)}) also select
+ * the smaller/larger value at that stage (2026-10-04).
  * </p>
  * <p>
- * <b>現時点で非対応(評価失敗としてnullを返す)</b>: var()(カスケード時
- * 解決が必要な別アーキテクチャのため別途対応)、割合と他の長さを比べる
- * min()/max()/clamp()(例: {@code min(10px, 50%)}。基準値が定まる使用値計算時まで
- * 大小が確定しないため)。
+ * <b>Currently unsupported (returns null as evaluation failure)</b>: var() (handled
+ * separately because it requires a different architecture for cascade-time resolution);
+ * min()/max()/clamp() comparing percentages and other lengths (e.g.
+ * {@code min(10px, 50%)}, since ordering is unknown until used-value computation
+ * establishes the reference value).
  * </p>
  */
 public final class CalcValueUtils {
@@ -45,21 +47,20 @@ public final class CalcValueUtils {
 	}
 
 	/**
-	 * 関数呼び出し(calc()等)のネスト深さの上限。calc(min(calc(...)))のような
-	 * 関数境界をまたぐネストでのみ増える(1つのcalc()内の項数では増えない)。
-	 * この深さはCSS作者が実際に書いた構文の入れ子段数そのものであり、
-	 * HTML文書のような外部データ由来の非有界な深さとは性質が異なるため
-	 * (無限再帰の心配はなく、上限は純粋な安全弁)、ここに限り再帰呼び出しを
-	 * 使う。ただし上限を明示することでStackOverflowErrorは構造的に起こり得ない。
+	 * Maximum nesting depth of function calls (calc(), etc.). Increases only for nesting
+	 * across function boundaries, e.g. calc(min(calc(...))), not for the number of terms
+	 * within one calc(). This is the syntax nesting depth actually written by the CSS
+	 * author, unlike unbounded depth from external data such as HTML documents (no risk
+	 * of infinite recursion; the limit is purely a safeguard), so recursion is used only
+	 * here. The explicit limit makes StackOverflowError structurally impossible.
 	 */
 	private static final int MAX_FUNCTION_DEPTH = 32;
 
 	/**
-	 * トークンがcalc()/min()/max()/clamp()関数呼び出しであれば評価し、その結果の
-	 * Value(RealValue/AngleValue/AbsoluteLengthValue/PercentageValue/CalcLengthValueの
-	 * いずれか)を返します。それ以外のトークン、または評価に失敗した場合はnullを
-	 * 返します(呼び出し側は「解釈できないトークン」として通常のフォールバック
-	 * 処理を続行できる)。
+	 * Evaluates a token if it is a calc()/min()/max()/clamp() call and returns the resulting
+	 * Value (RealValue/AngleValue/AbsoluteLengthValue/PercentageValue/CalcLengthValue).
+	 * Returns null for other tokens or evaluation failures (the caller can continue normal
+	 * fallback processing for an uninterpretable token).
 	 */
 	public static Value toCalc(UserAgent ua, CssToken token) {
 		if (!(token instanceof CssToken.Func func)) {
@@ -70,12 +71,13 @@ public final class CalcValueUtils {
 	}
 
 	/**
-	 * 内部評価通貨: {@code <number>}か{@code <length-percentage>}のいずれか。
+	 * Internal evaluation representation: either {@code <number>} or {@code <length-percentage>}.
 	 *
 	 * <p>
-	 * <b>フォント相対単位(em/ex/rem/ch)は解析時には解けない</b>ので、単位ごとの
-	 * 係数として別に持つ(2026-08-03)。加減は成分ごと、数との乗除は全成分に効く
-	 * ——どちらもフォント寸法に対して線形なので、後で寸法を掛けても等価である。
+	 * <b>Font-relative units (em/ex/rem/ch) cannot be resolved at parse time</b>, so retain
+	 * separate coefficients per unit (2026-08-03). Addition/subtraction act per component;
+	 * multiplication/division by numbers act on all components. Both are linear in font
+	 * metrics, so multiplying by metrics later is equivalent.
 	 */
 	private static final class Quantity {
 		private enum Kind {
@@ -86,9 +88,9 @@ public final class CalcValueUtils {
 		final double number;
 		final double absolute;
 		final double ratio;
-		/** フォント相対成分。{@link CalcFontRelativeValue#UNITS}と同じ並び。 */
+		/** Font-relative components, in the same order as {@link CalcFontRelativeValue#UNITS}. */
 		final double[] font;
-		/** 大小がフォント寸法で決まる min()/max() の部分。無ければ null。 */
+		/** Parts of min()/max() whose ordering depends on font metrics, or null if none. */
 		final Term term;
 
 		static Quantity number(double v) {
@@ -123,7 +125,7 @@ public final class CalcValueUtils {
 			return new Quantity(Kind.LENGTH, 0, absolute, ratio, font, term);
 		}
 
-		/** フォント相対単位1つ分。 */
+		/** One font-relative unit. */
 		static Quantity font(Unit unit, double v) {
 			final int i = CalcFontRelativeValue.indexOf(unit);
 			if (i < 0) {
@@ -143,7 +145,7 @@ public final class CalcValueUtils {
 			this.term = term;
 		}
 
-		/** フォント寸法が定まるまで解けない部分があるかどうか。 */
+		/** Whether any part remains unresolved until font metrics are known. */
 		boolean hasFont() {
 			if (this.term != null) {
 				return true;
@@ -156,7 +158,7 @@ public final class CalcValueUtils {
 			return false;
 		}
 
-		/** 成分ごとに二項演算した配列を返します。 */
+		/** Returns an array with a binary operation applied component-wise. */
 		static double[] zip(double[] a, double[] b, java.util.function.DoubleBinaryOperator op) {
 			final double[] result = new double[a.length];
 			for (int i = 0; i < a.length; ++i) {
@@ -165,7 +167,7 @@ public final class CalcValueUtils {
 			return result;
 		}
 
-		/** 全成分を定数倍(除算はfactorに逆数を渡す)した配列を返します。 */
+		/** Returns an array with all components multiplied by a constant (pass its reciprocal as factor for division). */
 		double[] scaled(double factor) {
 			final double[] result = new double[this.font.length];
 			for (int i = 0; i < this.font.length; ++i) {
@@ -182,7 +184,7 @@ public final class CalcValueUtils {
 				return AngleValue.create(this.number);
 			}
 			if (this.hasFont()) {
-				// フォント寸法が定まる計算値の段階で解く
+				// Resolve at the computed-value stage, when font metrics are known
 				return CalcFontRelativeValue.create(this.absolute, this.ratio, this.font, this.term);
 			}
 			return CalcLengthValue.create(ua, this.absolute, this.ratio);
@@ -226,14 +228,14 @@ public final class CalcValueUtils {
 	}
 
 	/**
-	 * 数値を返す1引数の数学関数(css-values-4)です。
+	 * Single-argument math functions returning numbers (css-values-4).
 	 *
 	 * <p>
-	 * {@code sqrt()} {@code exp()} は{@code <number>}を取って{@code <number>}を返し、
-	 * {@code sin()} {@code cos()} {@code tan()} は{@code <angle>}または
-	 * {@code <number>}(ラジアン)を取って{@code <number>}を返します。
-	 * 定義域外(例: {@code sqrt(-1)})やオーバーフローは、既存の評価失敗と同じく
-	 * {@code null}(＝不正値)にします——NaN/Infinityを版面の寸法へ流さないため。
+	 * {@code sqrt()} and {@code exp()} take {@code <number>} and return {@code <number>};
+	 * {@code sin()}, {@code cos()}, and {@code tan()} take {@code <angle>} or
+	 * {@code <number>} (radians) and return {@code <number>}. Out-of-domain inputs
+	 * (e.g. {@code sqrt(-1)}) and overflow yield {@code null} (=invalid value), like existing
+	 * evaluation failures, to keep NaN/Infinity out of type area dimensions.
 	 * </p>
 	 */
 	private static Quantity evaluateMath1(UserAgent ua, CssToken.Func func, int depth, String name) {
@@ -259,7 +261,7 @@ public final class CalcValueUtils {
 		return finite(r);
 	}
 
-	/** 数値を返す2引数の数学関数({@code pow()})です。 */
+	/** Two-argument math function returning a number ({@code pow()}). */
 	private static Quantity evaluateMath2(UserAgent ua, CssToken.Func func, int depth, String name) {
 		List<TokenStream> groups = func.argStream().splitComma();
 		if (groups.size() != 2) {
@@ -273,7 +275,7 @@ public final class CalcValueUtils {
 		return finite("pow".equals(name) ? Math.pow(a, b) : Double.NaN);
 	}
 
-	/** 逆三角関数で、結果はdegの{@code <angle>}として保持する。 */
+	/** Inverse trigonometric functions; retains results as {@code <angle>} in deg. */
 	private static Quantity evaluateInverseTrig(UserAgent ua, CssToken.Func func, int depth, String name) {
 		List<TokenStream> groups = func.argStream().splitComma();
 		int expected = "atan2".equals(name) ? 2 : 1;
@@ -295,7 +297,7 @@ public final class CalcValueUtils {
 		return Quantity.angle(Math.toDegrees(radians));
 	}
 
-	/** {@code log(A)}(自然対数)と{@code log(A, B)}(底B)です。 */
+	/** {@code log(A)} (natural logarithm) and {@code log(A, B)} (base B). */
 	private static Quantity evaluateLog(UserAgent ua, CssToken.Func func, int depth) {
 		List<TokenStream> groups = func.argStream().splitComma();
 		if (groups.isEmpty() || groups.size() > 2) {
@@ -316,9 +318,9 @@ public final class CalcValueUtils {
 	}
 
 	/**
-	 * {@code hypot()}です。引数は{@code <number>}のみ受け付けます
-	 * (仕様は同じ型の長さ等も取れますが、Quantityの各成分ごとの二乗和は
-	 * 型変換が必要になるため、数値に限っています)。
+	 * {@code hypot()}. Accepts only {@code <number>} arguments (the specification also
+	 * allows lengths, etc. of the same type, but a sum of squares for Quantity's individual
+	 * components requires type conversion, so this is limited to numbers).
 	 */
 	private static Quantity evaluateHypot(UserAgent ua, CssToken.Func func, int depth) {
 		List<TokenStream> groups = func.argStream().splitComma();
@@ -336,7 +338,7 @@ public final class CalcValueUtils {
 		return finite(result);
 	}
 
-	/** 引数を{@code <number>}として評価します。数値でなければnull。 */
+	/** Evaluates an argument as {@code <number>}. Returns null if it is not numeric. */
 	private static Double numberArg(UserAgent ua, TokenStream group, int depth) {
 		final Quantity q = evaluateSingleArg(ua, group, depth);
 		if (q == null || q.kind != Quantity.Kind.NUMBER) {
@@ -346,8 +348,8 @@ public final class CalcValueUtils {
 	}
 
 	/**
-	 * 三角関数の引数をラジアンとして評価します。{@code <number>}はそのまま
-	 * ラジアン、{@code deg}/{@code grad}/{@code rad}は換算します。
+	 * Evaluates a trigonometric argument in radians. {@code <number>} is already radians;
+	 * converts {@code deg}/{@code grad}/{@code rad}.
 	 */
 	private static Double radiansArg(UserAgent ua, TokenStream group, int depth) {
 		final CssToken token = group.next();
@@ -373,16 +375,16 @@ public final class CalcValueUtils {
 		return q.kind == Quantity.Kind.ANGLE ? Math.toRadians(q.number) : null;
 	}
 
-	/** 有限値だけをQuantityにします。NaN/Infinityは評価失敗(null)。 */
+	/** Converts only finite values to Quantity. NaN/Infinity means evaluation failure (null). */
 	private static Quantity finite(double v) {
 		return Double.isFinite(v) ? Quantity.number(v) : null;
 	}
 
 	/**
-	 * calc()の中身(逆ポーランド記法、{@link net.zamasoft.foliojet.css.token.Tokens}が
-	 * 変換済み)を明示的スタックで評価します(この段自体には再帰を使わない。
-	 * 関数呼び出しの葉に当たった場合のみ{@link #evaluateFunc}を介して
-	 * {@link #MAX_FUNCTION_DEPTH}で上限を切った再帰に入る)。
+	 * Evaluates calc() content (RPN, already converted by
+	 * {@link net.zamasoft.foliojet.css.token.Tokens}) using an explicit stack.
+	 * This stage itself is not recursive; only a function-call leaf enters recursion
+	 * via {@link #evaluateFunc}, bounded by {@link #MAX_FUNCTION_DEPTH}.
 	 */
 	private static Quantity evaluateCalcRpn(UserAgent ua, List<CssToken> rpn, int depth) {
 		if (rpn.isEmpty()) {
@@ -416,8 +418,8 @@ public final class CalcValueUtils {
 		switch (op) {
 		case PLUS:
 			if (a.kind != b.kind) {
-				// CSSでは単位なしの0はどちらの側でも中立元として扱ってよい
-				// (例: calc(0 + 10px)・calc(10px + 0))。それ以外の型混在は無効。
+				// In CSS, unitless zero can act as the identity on either side
+				// (e.g. calc(0 + 10px), calc(10px + 0)). Other type mixtures are invalid.
 				if (a.kind == Quantity.Kind.NUMBER && a.number == 0) {
 					return b;
 				}
@@ -459,7 +461,7 @@ public final class CalcValueUtils {
 				return Quantity.length(a.absolute * b.number, a.ratio * b.number, a.scaled(b.number),
 						Term.scaled(a.term, b.number));
 			}
-			// length同士の掛け算はCSS仕様上も無効
+			// Multiplying lengths is also invalid under the CSS specification
 			return null;
 		case SLASH:
 			if (b.kind != Quantity.Kind.NUMBER || b.number == 0) {
@@ -474,7 +476,7 @@ public final class CalcValueUtils {
 		}
 	}
 
-	/** calc()数式木の葉(数値・寸法・パーセント・入れ子の関数呼び出し)を評価する。 */
+	/** Evaluates a calc() expression-tree leaf (number, dimension, percentage, or nested function call). */
 	private static Quantity evaluateLeaf(UserAgent ua, CssToken token, int depth) {
 		if (token instanceof CssToken.Num num) {
 			return Quantity.number(num.value());
@@ -489,8 +491,8 @@ public final class CalcValueUtils {
 			}
 			AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, token);
 			if (length == null) {
-				// **フォント相対単位は係数として持ち越す**(2026-08-03)。
-				// 未知の単位はここでもnull(評価失敗)
+				// **Carry font-relative units as coefficients** (2026-08-03).
+				// Unknown units yield null (evaluation failure) here too.
 				return Quantity.font(dim.unit(), dim.value());
 			}
 			return Quantity.length(length.getLength(), 0);
@@ -543,7 +545,7 @@ public final class CalcValueUtils {
 		if (min == null || val == null || max == null) {
 			return null;
 		}
-		// 仕様どおり clamp(MIN, VAL, MAX) = max(MIN, min(VAL, MAX))
+		// As specified: clamp(MIN, VAL, MAX) = max(MIN, min(VAL, MAX))
 		Quantity innerMin = pick(val, max, true);
 		if (innerMin == null) {
 			return null;
@@ -554,15 +556,15 @@ public final class CalcValueUtils {
 	private static Quantity evaluateSingleArg(UserAgent ua, TokenStream group, int depth) {
 		CssToken token = group.next();
 		if (token == null || group.hasNext()) {
-			// min()/max()/clamp()の各引数は単一の値または関数呼び出しでなければならない
+			// Each min()/max()/clamp() argument must be a single value or function call
 			return null;
 		}
 		return evaluateLeaf(ua, token, depth);
 	}
 
 	/**
-	 * aとbを比較できる場合のみ小さい方(isMin=true)/大きい方(isMin=false)を返します。
-	 * 比較できない場合はnull。
+	 * Returns the smaller (isMin=true) or larger (isMin=false) of a and b only if comparable.
+	 * Returns null otherwise.
 	 */
 	private static Quantity pick(Quantity a, Quantity b, boolean isMin) {
 		Integer cmp = compare(a, b);
@@ -576,9 +578,10 @@ public final class CalcValueUtils {
 	}
 
 	/**
-	 * 絶対長さとフォント相対単位を比べる min()/max() を、フォント寸法が定まる計算値の段階で選ぶ値にします
-	 * (2026-10-04、出版の報告: {@code min(10mm, 3em)} が不正な値になっていた)。割合を含む引数は、基準の
-	 * 長さがレイアウトまで決まらないので評価できない(null)。
+	 * Converts min()/max() comparing absolute lengths and font-relative units to a value
+	 * selected at the computed-value stage, when font metrics are known (2026-10-04,
+	 * publishing report: {@code min(10mm, 3em)} was considered invalid). Cannot evaluate
+	 * arguments containing percentages (null), whose reference length is unknown until layout.
 	 */
 	private static Quantity pickLater(Quantity a, Quantity b, boolean isMin) {
 		if (a.kind != Quantity.Kind.LENGTH || b.kind != Quantity.Kind.LENGTH || a.ratio != 0 || b.ratio != 0) {
@@ -589,11 +592,11 @@ public final class CalcValueUtils {
 	}
 
 	/**
-	 * 静的に比較できる場合のみ大小関係を返します(a&lt;b:負、a&gt;b:正、等しい:0)。
-	 * numberはnumber同士のみ、length-percentageは「絶対長さ同士(割合成分が
-	 * いずれも0)」または「割合同士(絶対成分がいずれも0)」の場合のみ、基準値refに
-	 * 依存せず静的に比較できる。それ以外(pxと%の混在等)は使用値計算時まで
-	 * 大小が確定しないため、現時点では非対応としてnullを返す。
+	 * Returns ordering only when statically comparable (a&lt;b: negative, a&gt;b: positive, equal: 0).
+	 * Numbers can only be compared with numbers. Length-percentages can be compared statically,
+	 * independently of reference value ref, only for two absolute lengths (both ratio components 0)
+	 * or two percentages (both absolute components 0). Other cases (mixed px and %, etc.) have
+	 * no known ordering until used-value computation, so are currently unsupported and return null.
 	 */
 	private static Integer compare(Quantity a, Quantity b) {
 		if (a.kind != b.kind) {
@@ -602,9 +605,9 @@ public final class CalcValueUtils {
 		if (a.kind == Quantity.Kind.NUMBER || a.kind == Quantity.Kind.ANGLE) {
 			return Double.compare(a.number, b.number);
 		}
-		// フォント相対成分(em/ex/rem/ch/lh)が残っている値は、フォント寸法が
-		// 定まるまで大小が確定しない(2026-08-27。従来は成分を無視して
-		// absolute/ratioだけで比較しており、max(1em, 1px)が1pxになっていた)
+		// Values with remaining font-relative components (em/ex/rem/ch/lh) cannot be ordered
+		// until font metrics are known (2026-08-27: previously these components were ignored
+		// and only absolute/ratio compared, making max(1em, 1px) yield 1px).
 		if (a.hasFont() || b.hasFont()) {
 			return null;
 		}

@@ -55,7 +55,7 @@ import net.zamasoft.pdfg2d.gc.font.FontFamilyList;
 import net.zamasoft.pdfg2d.gc.font.FontPolicyList;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
-/** 未評価の生成内容を表示頁の値で解決し、新しい組版イベント列へ展開します。 */
+/** Resolves unevaluated generated content using the displayed page's values and expands it to new layout events. */
 public final class TemplateExpander {
 	private final UserAgent ua;
 	private final PageValueSnapshot page;
@@ -70,7 +70,7 @@ public final class TemplateExpander {
 		this.page = page;
 	}
 
-	/** 警告して既定値へ落とした特性名です。診断用の不変コピーを返します。 */
+	/** Names of properties that fell back to defaults with warnings. Returns an immutable copy for diagnostics. */
 	public Set<String> droppedProperties() {
 		return Set.copyOf(this.dropped);
 	}
@@ -97,7 +97,7 @@ public final class TemplateExpander {
 				}
 				final CSSStyle style = this.restore(start.style(), parent, start.pseudo());
 				if (!stack.isEmpty()) {
-					// 層で適用済みの効果をidentityで除外できるよう、復元した親へ結び直す。
+					// Relink to the restored parent so effects already applied in a layer can be excluded by identity.
 					final var info = net.zamasoft.foliojet.css.impl.property.box.Filter.INFO;
 					final var inherited = (net.zamasoft.foliojet.css.value.css3.FilterValue) parent.get(info);
 					final var own = ((net.zamasoft.foliojet.css.value.css3.FilterValue) style.get(info)).own();
@@ -131,7 +131,7 @@ public final class TemplateExpander {
 				}
 			}
 			case RunningTemplate.Token token -> {
-				// 内側runningは独立に代入済みです。外側からは再生しません。
+				// Inner running content was assigned independently. Do not replay it from the outer content.
 			}
 			}
 		}
@@ -141,7 +141,10 @@ public final class TemplateExpander {
 		return List.copyOf(events);
 	}
 
-	/** 計算値と明示宣言の区別を復元します。カスケードや継承の再計算は行いません。 */
+	/**
+	 * Restores the distinction between computed values and explicit declarations.
+	 * Does not recalculate cascade or inheritance.
+	 */
 	public CSSStyle restore(final StyleSnapshot snapshot, final CSSStyle parent, final String pseudo) {
 		final AttributesImpl attributes = new AttributesImpl();
 		snapshot.attributes().forEach((name, value) -> attributes.addAttribute("", name, name, "CDATA", value));
@@ -301,7 +304,10 @@ public final class TemplateExpander {
 				String.valueOf(this.ua.getDocumentContext().getBaseURI()), "running: " + message);
 	}
 
-	/** 値型の完全なコンストラクタです。引数順が異なる型は下の型別分岐で復元します。 */
+	/**
+	 * Full constructor for the value type. Types with a different argument order
+	 * are restored in type-specific branches below.
+	 */
 	private record Shape(List<Field> fields, Constructor<?> constructor) {
 	}
 
@@ -366,7 +372,7 @@ public final class TemplateExpander {
 				return new CSSJFontPolicyValue(policies);
 			}
 			if (type == net.zamasoft.pdfg2d.gc.font.FontFeatureSet.class) {
-				// hashは派生成分なので、正規化する公開factoryで再計算します。
+				// hash is derived, so recalculate it with the normalizing public factory.
 				return net.zamasoft.pdfg2d.gc.font.FontFeatureSet.of(
 						(int[]) this.thaw(value.fields().get("tags"), int[].class),
 						(int[]) this.thaw(value.fields().get("values"), int[].class));

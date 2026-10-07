@@ -1,43 +1,42 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
 /**
- * 新規floatの配置確定の種別です(2026-07-23新設、排除域P1増分2——
- * `設計相談`の設計)。
+ * Kinds of placement commits for new floats (introduced 2026-07-23, exclusion area P1
+ * increment 2 — design in `設計相談`).
  *
  * <p>
- * 従来の{@code transferFloatToNextPage}(判定名だが{@code breakFloats}
- * への追加という副作用を持っていた)を、副作用のない分類
- * ({@code BlockBuilder.classifyFloatPlacement})と記録hook
- * ({@code BlockBuilder.recordBreakFloat})へ分解した際の分類結果。
- * 物理的な実測位置(フラグメント境界に対するはみ出し・ページ先頭か
- * どうか)だけから決まり、論理的な由来は持ち込まない。
+ * Classification result from splitting the former {@code transferFloatToNextPage}
+ * (named as a predicate, but with the side effect of adding to {@code breakFloats})
+ * into side-effect-free classification ({@code BlockBuilder.classifyFloatPlacement})
+ * and a recording hook ({@code BlockBuilder.recordBreakFloat}).
+ * Depends only on the measured physical position (overflow relative to the fragment
+ * boundary and whether it is at page start), without introducing logical provenance.
  * </p>
  */
 enum FloatCommitKind {
 	/**
-	 * 通常配置: 排除域台帳へ登録し、{@code breakFloats}は変更しない
-	 * (はみ出していない、またはREPLACEDがページ先頭で残される場合)。
+	 * Normal placement: register in the exclusion area ledger without changing {@code breakFloats}
+	 * (no overflow, or a REPLACED float retained at page start).
 	 */
 	PLACED,
 	/**
-	 * 分割前提の配置: 排除域台帳へ登録し、{@code breakFloats}へも追加
-	 * する(はみ出したBLOCK型floatを後続の{@code splitFloatings}が
-	 * フラグメント境界で切る)。
+	 * Placement pending a split: register in the exclusion area ledger and add to
+	 * {@code breakFloats} (the subsequent {@code splitFloatings} splits an overflowing
+	 * BLOCK float at the fragment boundary).
 	 */
 	SPLIT_AT_BREAK,
 	/**
-	 * 丸ごと次フラグメントへ: 排除域台帳へは登録せず、
-	 * {@code breakFloats}へ追加する(avoid指定のBLOCK、またはページ
-	 * 先頭でないREPLACED)。
+	 * Move intact to the next fragment: add to {@code breakFloats} without registering
+	 * in the exclusion area ledger (a BLOCK with avoid, or a REPLACED float not at page start).
 	 */
 	MOVE_TO_NEXT,
 	/**
-	 * clearによる先送り: 既に先送り済みのfloatに対するclear指定を持つ
-	 * floatを、探索なしでフラグメント境界(pageLimit)へ置いて次
-	 * フラグメントへ送る。排除域台帳へは登録せず{@code breakFloats}へ
-	 * 追加する。親extentの更新は通常の{@code extendParents}ではなく
-	 * root直下のみという現行規則を保存する(2026-07-23、codex設計——
-	 * この非対称をP1で黙って正規化しない)。
+	 * Defer due to clear: place a float that clears an already deferred float at the
+	 * fragment boundary (pageLimit) without searching, and send it to the next fragment.
+	 * Add it to {@code breakFloats} without registering in the exclusion area ledger.
+	 * Preserve the current rule that updates parent extent only directly under the root,
+	 * rather than via normal {@code extendParents} (2026-07-23, codex design:
+	 * do not silently normalize this asymmetry in P1).
 	 */
 	MOVE_BY_CLEAR
 }

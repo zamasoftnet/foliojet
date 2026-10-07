@@ -7,47 +7,47 @@ import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.fragment.ScratchReplayScope;
 
 /**
- * 表Pass B(行計測)の計測プリミティブです(E-6増分5b-1、2026-07-24——
- * 設計相談
- * §4.4「確定列幅でセルrangeを一つずつ再生し、使用ページ方向寸法・
- * first ascentだけを取得してcell box treeを破棄する」)。
+ * Measurement primitive for table Pass B (row measurement) (E-6 increment 5b-1, 2026-07-24 —
+ * design consultation
+ * §4.4: "Replay cell ranges one by one at the resolved column widths, obtain only the used
+ * page-axis size and first ascent, then discard the cell box tree").
  *
  * <p>
- * <b>計測文脈はbind文脈そのもの</b>: Pass Bは表終端(列幅確定後、
- * {@code RetainedTableBuilder.bindRows}と同じ時点)で走るため、
- * 汎用wrapper+scratchページ({@code SourceReplayer.measure}の
- * MeasurePageGenerator)ではなく、<b>本bindと同一の機構</b>——列幅適用済み
- * セルboxの複製({@link TableCellBox#newMeasureReplica})の上の
- * {@code BlockBuilder}を、同じlive {@code LayoutStack}・同じ
- * {@code PageGenerator}でSegmentExecutor駆動——で計測する。scratchページ
- * 方式はwrapperのパラメータ写し(line-height・text-indent等)と祖先文脈
- * (%解決の{@code getFixedWidth/Height}連鎖)の再現が原理的に不完全で、
- * Pass Cが実際には要求しない困難を持ち込むため採らない。ボックス木は
- * 複製の上に作られ、値の採取後に到達不能(破棄)——「幅固定・高さ無限」は
- * セルbindの構造そのもの(セルはbind中に改ページしない)。
+ * <b>The measurement context is the bind context itself</b>: Pass B runs at table end
+ * (after column widths resolve, at the same point as {@code RetainedTableBuilder.bindRows}).
+ * Measure with <b>the same mechanism as the real bind</b>, rather than a generic wrapper
+ * and scratch page (MeasurePageGenerator in {@code SourceReplayer.measure}): SegmentExecutor
+ * drives a {@code BlockBuilder} on a replica of the cell box with its column width applied
+ * ({@link TableCellBox#newMeasureReplica}), using the same live {@code LayoutStack} and
+ * {@code PageGenerator}. The scratch-page approach inherently cannot fully reproduce wrapper
+ * parameters (line-height, text-indent, etc.) or ancestor context (the
+ * {@code getFixedWidth/Height} chain for % resolution). Reject it because it introduces
+ * difficulties that Pass C does not actually require. Build the box tree on the replica;
+ * after collecting values it becomes unreachable (discarded). "Fixed width, infinite height"
+ * is the cell bind structure itself (cells do not break across pages during bind).
  * </p>
  *
  * <p>
- * <b>非破壊性</b>: 再生はrangeの再captureで行い(リースは保持したまま)、
- * liveのボックス・ビルダー状態には触れない。従って計測→本bindの順で
- * 同じセルを二度再生できる(shadow検証{@code RetainedCellPassBShadowTest}
- * はこれをdisplay list parityでも固定する)。
+ * <b>Non-destructive</b>: replay recaptures the range (while retaining the lease) and leaves
+ * live box/builder state untouched. Thus the same cell can be replayed twice, first for
+ * measurement and then for the real bind (the shadow check
+ * {@code RetainedCellPassBShadowTest} also enforces this through display list parity).
  * </p>
  */
 final class CellPassBMeasurer {
 	/**
-	 * Pass B計測の結果です。行高計算({@code bindRows})がbind済みセルboxから
-	 * 読む値の全て:
+	 * Pass B measurement result. All values that row height calculation ({@code bindRows})
+	 * reads from the bound cell box:
 	 * <ul>
-	 * <li>{@code pageAxisSize}: 使用ページ方向寸法(横表={@code getHeight()}、
-	 * 縦表={@code getWidth()}。フレーム込みの外寸——rowspan最小寸法・
-	 * 行高maxの両方がこの値を読む)</li>
-	 * <li>{@code firstAscent}: 先頭アセント({@code getFirstAscent()}。
-	 * baseline整列の{@code maxFirstAscent}が読む。無ければNaN)</li>
+	 * <li>{@code pageAxisSize}: used page-axis size ({@code getHeight()} for horizontal tables,
+	 * {@code getWidth()} for vertical tables). This is the outer size including the frame;
+	 * both the rowspan minimum size and the row height maximum read this value.</li>
+	 * <li>{@code firstAscent}: first ascent ({@code getFirstAscent()}).
+	 * Read by {@code maxFirstAscent} for baseline alignment; NaN if absent.</li>
 	 * </ul>
-	 * セル内容整列({@code verticalAlign()})が読む内容ページ寸法
-	 * ({@code TableCellBox.pageSize})はPass Cの本bindが自前で再設定する
-	 * ため転送不要(採取対象外)。
+	 * The content page-axis size ({@code TableCellBox.pageSize}) read by cell content alignment
+	 * ({@code verticalAlign()}) needs no transfer (is not collected), because the real bind
+	 * in Pass C sets it again itself.
 	 */
 	record Result(double pageAxisSize, double firstAscent) {
 	}
@@ -57,21 +57,21 @@ final class CellPassBMeasurer {
 	}
 
 	/**
-	 * seal済みセルの本文rangeを確定列幅でscratch再生し、行高計算が必要と
-	 * する値を計測します。
+	 * Replays a sealed cell's body range in scratch state at the resolved column width and
+	 * measures the values needed by row height calculation.
 	 *
-	 * @param cell        計測対象セル(列幅適用済み——
-	 *                    {@code bindRows}のsetWidth/setHeight後)
-	 * @param layoutStack 本bindと同じlive layoutStack
-	 * @param vertical    表が縦書きならtrue(ページ方向軸の選択)
-	 * @return 計測結果。Pass B対象外(records保持の未sealセル・段組セル)は
-	 *         null。records空の未sealセル(空セル——E-6増分5b-2)は本文
-	 *         非依存のためclose-onlyで計測する
+	 * @param cell        cell to measure (column width already applied:
+	 *                    after setWidth/setHeight in {@code bindRows})
+	 * @param layoutStack the same live layoutStack as the real bind
+	 * @param vertical    true for a vertical table (selects the page axis)
+	 * @return measurement result, or null for cells outside Pass B (unsealed cells retaining records,
+	 *         or multi-column cells). Unsealed cells with empty records (empty cells —
+	 *         E-6 increment 5b-2) are measured by close-only, as they do not depend on the body
 	 */
 	static Result measure(final CellContent cell, final LayoutStack layoutStack, final boolean vertical) {
 		final TwoPassBlockBuilder.DeferredBind body = cell.rangeBody();
 		if (body == null && !cell.isPassBMeasurable()) {
-			// records保持の未sealセル・extendedセルはPass B対象外
+			// Unsealed cells retaining records and extended cells are outside Pass B.
 			return null;
 		}
 		final TableCellBox replica = cell.getCellBox().newMeasureReplica();
@@ -86,7 +86,7 @@ final class CellPassBMeasurer {
 			if (body != null) {
 				body.measureInto(builder);
 			}
-			// bodyがnullの適格セルはrecords空(bindが何も再演しない)——close-only
+			// An eligible cell with a null body has empty records (bind replays nothing): close-only.
 			builder.close();
 		}
 		return new Result(vertical ? replica.getWidth() : replica.getHeight(), replica.getFirstAscent());

@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 浮動体の寄せ側(float)です。
+ * Side to which a float is aligned (float).
  *
  * @author MIYABE Tatsuhiko
  */

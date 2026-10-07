@@ -14,8 +14,8 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
- * 画像(置換ボックス)の内部特性です。
- * 
+ * Internal property for an image (replaced box).
+ *
  * @author MIYABE Tatsuhiko
  */
 public class CSSJInternalLink extends AbstractPrimitivePropertyInfo {

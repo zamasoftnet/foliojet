@@ -18,27 +18,26 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 論理境界の<b>両側まとめ</b>ショートハンド(css-logical-1 §4.5、2026-08-30)。
+ * Logical border shorthands for <b>both sides together</b> (css-logical-1 §4.5, 2026-08-30).
  *
  * <ul>
- * <li>{@code border-block} / {@code border-inline} —
- * {@code border-block-start}と同じ文法を読み、その軸の<b>両側</b>へ配る</li>
- * <li>{@code border-block-width} / {@code -style} / {@code -color} と
- * {@code border-inline-*} — 値を{@code {1,2}}個取り、1つなら両側へ、
- * 2つなら start / end の順に配る</li>
+ * <li>{@code border-block} / {@code border-inline}:
+ * read the same grammar as {@code border-block-start} and distribute to <b>both sides</b> of the axis</li>
+ * <li>{@code border-block-width} / {@code -style} / {@code -color} and
+ * {@code border-inline-*}: take {@code {1,2}} values; one applies to both sides,
+ * two apply in start / end order</li>
  * </ul>
  *
  * <p>
- * 片側の{@link LogicalBorderShorthand}({@code border-block-start}等)と
- * longhand({@code border-inline-start-width}等)は実装済みで、ここは
- * それらへ配るだけ。両側まとめだけが抜けていた(2026-08-30の
- * MDN Baseline棚卸しで発見)。
+ * Single-side {@link LogicalBorderShorthand} ({@code border-block-start}, etc.) and longhands
+ * ({@code border-inline-start-width}, etc.) already exist; this only distributes values to them.
+ * Only the both-sides shorthands were missing (found in the MDN Baseline inventory on 2026-08-30).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class LogicalBorderAxisShorthand extends AbstractShorthandPropertyInfo {
-	/** 軸(block/inline)と、その start / end。 */
+	/** Axis (block/inline) and its start / end. */
 	private enum Axis {
 		BLOCK("block", LogicalSide.BLOCK_START, LogicalSide.BLOCK_END),
 		INLINE("inline", LogicalSide.INLINE_START, LogicalSide.INLINE_END);
@@ -53,7 +52,7 @@ public final class LogicalBorderAxisShorthand extends AbstractShorthandPropertyI
 		}
 	}
 
-	/** null なら {@code border-block} 形(width/style/colorを一度に読む)。 */
+	/** Null means the {@code border-block} form (reads width/style/color together). */
 	private final Aspect aspect;
 
 	private final PrimitivePropertyInfo startWidth, startStyle, startColor;
@@ -72,7 +71,7 @@ public final class LogicalBorderAxisShorthand extends AbstractShorthandPropertyI
 		this.endColor = LogicalBorder.of(Aspect.COLOR, axis.end);
 	}
 
-	/** 8つ({@code border-block}/{@code border-inline} × 4形)を作ります。 */
+	/** Creates eight shorthands ({@code border-block}/{@code border-inline} × four forms). */
 	public static ShorthandPropertyInfo[] all() {
 		final Aspect[] aspects = { null, Aspect.WIDTH, Aspect.STYLE, Aspect.COLOR };
 		final ShorthandPropertyInfo[] infos = new ShorthandPropertyInfo[Axis.values().length * aspects.length];
@@ -105,7 +104,7 @@ public final class LogicalBorderAxisShorthand extends AbstractShorthandPropertyI
 			this.parseBorder(tokens, ua, primitives);
 			return;
 		}
-		// {1,2}: 1つなら両側、2つなら start / end
+		// {1,2}: one value for both sides, two for start / end.
 		final Value first = this.parseAspect(tokens, ua);
 		if (first == null) {
 			throw new PropertyException();
@@ -133,7 +132,7 @@ public final class LogicalBorderAxisShorthand extends AbstractShorthandPropertyI
 		}
 	}
 
-	/** {@code border-block: 1px solid red} 形。両側へ同じ値を配る。 */
+	/** {@code border-block: 1px solid red} form. Distributes the same values to both sides. */
 	private void parseBorder(final TokenStream tokens, final UserAgent ua, final Primitives primitives)
 			throws PropertyException {
 		Value width = null, style = null, color = null;
@@ -162,7 +161,7 @@ public final class LogicalBorderAxisShorthand extends AbstractShorthandPropertyI
 		primitives.set(this.endColor, color);
 	}
 
-	/** 個別形({@code -width}/{@code -style}/{@code -color})の1値を読みます。 */
+	/** Reads one value of an individual form ({@code -width}/{@code -style}/{@code -color}). */
 	private Value parseAspect(final TokenStream tokens, final UserAgent ua) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (lu == null) {

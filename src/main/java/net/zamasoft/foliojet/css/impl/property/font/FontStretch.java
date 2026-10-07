@@ -13,35 +13,36 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code font-stretch}(css-fonts-4では{@code font-width}、
- * {@code font-stretch}は旧名)です(2026-08-29新設)。
+ * {@code font-stretch} ({@code font-width} in css-fonts-4;
+ * {@code font-stretch} is the legacy name) (added 2026-08-29).
  *
  * <p>
  * {@code normal | ultra-condensed | extra-condensed | condensed |
  * semi-condensed | semi-expanded | expanded | extra-expanded |
- * ultra-expanded | <percentage [0,∞]>}。継承、既定{@code normal}(100%)。
- * 値は割合({@link PercentageValue})で持ち、{@link #getWidthClass}で
- * OpenType OS/2の{@code usWidthClass}(1..9)へ丸める(仕様§2.3の対応表。
- * 表にない割合は最も近い級)。
+ * ultra-expanded | <percentage [0,∞]>}. Inherited; defaults to {@code normal} (100%).
+ * Stores the value as a percentage ({@link PercentageValue}); {@link #getWidthClass}
+ * rounds it to OpenType OS/2 {@code usWidthClass} (1..9)
+ * (the mapping table in §2.3; percentages not in the table use the nearest class).
  * </p>
  *
  * <p>
- * <b>効き方</b>: 幅級は{@code FontStyleImpl.widthClass}として運ばれ、
- * pdfg2dの書体選択({@code PDFFontSourceManager.lookup})がitalic/weightの
- * 同点の中から幅級の近い面を選ぶ(要求が通常幅以下なら狭い側を先に、
- * 広ければ広い側を先に——css-fonts-4 §5.2)。面の幅級は{@code <font-dir>}
- * 走査ではOS/2 {@code usWidthClass}、{@code @font-face}では
- * {@code font-stretch}ディスクリプタから来る。幅の合成(字形の伸縮)は
- * しないので、幅級の違う面が無ければ見た目は変わらない。
+ * <b>Effect</b>: carries the width class as {@code FontStyleImpl.widthClass}.
+ * pdfg2d font selection ({@code PDFFontSourceManager.lookup}) chooses the face with the
+ * nearest width class among italic/weight ties (narrower first for a request at or below
+ * normal width, wider first otherwise; css-fonts-4 §5.2).
+ * A face's width class comes from OS/2 {@code usWidthClass} during {@code <font-dir>} scanning
+ * or from the {@code font-stretch} descriptor in {@code @font-face}.
+ * Width synthesis (stretching/compressing glyphs) is not performed, so appearance is unchanged
+ * if no face with a different width class exists.
  * </p>
  */
 public class FontStretch extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new FontStretch();
 
-	/** {@code normal}に対応するusWidthClass。 */
+	/** usWidthClass corresponding to {@code normal}. */
 	public static final int NORMAL_WIDTH_CLASS = 5;
 
-	/** usWidthClass 1..9 に対応する割合(css-fonts-4 §2.3)。 */
+	/** Percentages corresponding to usWidthClass 1..9 (css-fonts-4 §2.3). */
 	private static final double[] CLASS_PERCENTAGES = { 50, 62.5, 75, 87.5, 100, 112.5, 125, 150, 200 };
 
 	private static final String[] KEYWORDS = { "ultra-condensed", "extra-condensed", "condensed", "semi-condensed",
@@ -51,7 +52,7 @@ public class FontStretch extends AbstractPrimitivePropertyInfo {
 		return (PercentageValue) style.get(INFO);
 	}
 
-	/** 計算値の割合をOS/2 usWidthClass(1..9)へ丸めます。 */
+	/** Rounds the computed percentage to OS/2 usWidthClass (1..9). */
 	public static int getWidthClass(final CSSStyle style) {
 		return toWidthClass(get(style).getPercentage());
 	}

@@ -51,7 +51,7 @@ public class WritingModeShorthand extends AbstractShorthandPropertyInfo {
 			} else {
 				throw new PropertyException();
 			}
-			// legacy shorthand の既存値は、sideways 状態を必ず解除する。
+			// Existing legacy shorthand values always clear the sideways state.
 			primitives.set(WritingModeVariant.INFO, WritingModeVariantValue.NORMAL_VALUE);
 			return;
 		}

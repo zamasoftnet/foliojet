@@ -66,7 +66,7 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
  * @version $Id: DocumentBuilder.java 1622 2022-05-02 06:22:56Z miyabe $
  */
 public class DocumentBuilder implements TableBuilderHost {
-	/** absolute 表が TABLE 入口を通ったことを確認する試験用観測点。 */
+	/** A test observation point confirming that an absolute table passed through the TABLE entry point. */
 	static volatile java.util.function.Consumer<TableBox> absoluteTableObserver;
 
 	public static final byte PAGE_MODE_CONTINUOUS = 1;
@@ -84,8 +84,8 @@ public class DocumentBuilder implements TableBuilderHost {
 		}
 
 		/**
-		 * テキスト出力のためのインタフェースを返します。
-		 * 
+		 * Returns the interface for text output.
+		 *
 		 * @return
 		 */
 		public StyledTextUnitizer getStyledTextUnitizer() {
@@ -96,15 +96,13 @@ public class DocumentBuilder implements TableBuilderHost {
 		}
 	}
 
-	/**
-	 * ページ生成オブジェクト。
-	 */
+	/** The page generator. */
 	private final PageGenerator pageGenerator;
-	/** 途中破棄できるscratchは、この所有者を接続して生成・入力します。 */
+	/** Connects this owner when creating and feeding scratch state that can be discarded midway. */
 	private final net.zamasoft.foliojet.layout.fragment.ScratchOwner scratchOwner;
 	private boolean discarded;
 
-	/** recipe構築時の失敗にも、seal拒否と同じ文書・所有状態を付ける。 */
+	/** Attaches the same document and ownership state to recipe-construction failures as to seal rejections. */
 	public String sourceOwnerContext() {
 		final Builder builder = this.builderStack.isEmpty() ? null : this.containerBuilder().builder;
 		return "uri=" + this.pageGenerator.getUserAgent().getDocumentContext().getBaseURI()
@@ -118,26 +116,26 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	private final List<Object> builderStack = new ArrayList<Object>();
 
-	/** builderStack上の非root entryと、平行移動禁止スコープを所有するRootの対応。 */
+	/** Maps non-root entries on builderStack to the Root owning their translation-prohibition scopes. */
 	private final java.util.IdentityHashMap<Object, RootBuilder> translateScopeRoots = new java.util.IdentityHashMap<>();
 
 	private final List<Object> inlineStack = new ArrayList<Object>();
 
 	private final List<Object> columnSpanStack = new ArrayList<Object>();
 
-	/** 一時計測では入れ子の本文も消費せず、ページ外への係留を省きます。 */
+	/** During temporary measurement, does not consume nested bodies either and skips out-of-page anchoring. */
 	private final ReplayIntent replayIntent;
 
-	/** AnchorMode.NONE専用。主文書のアンカーやLayoutSourceとは共有しません。 */
+	/** For AnchorMode.NONE only. Not shared with main-document anchors or LayoutSource. */
 	private boolean replayOnly;
 	private SegmentEvent replayEvent;
 	private long replayOrdinal = -1;
-	/** 子範囲だけを再生するとき、Start/Endが範囲外にあるGrid/Flexの根。 */
+	/** The Grid/Flex root whose Start/End lie outside the range when replaying only a child range. */
 	private AbstractContainerBox replayItemHost;
 
 	/**
-	 * 独立再生の一イベントを開始します。既存の本文には先に追記し、
-	 * このイベントで開閉する本文はstart/endContainerBuilderで境界を補正します。
+	 * Begins one independent replay event. Appends to existing bodies first;
+	 * start/endContainerBuilder adjusts boundaries for bodies opened or closed by this event.
 	 */
 	public void startReplayOnlyEvent(final SegmentEvent event, final long ordinal) {
 		this.requireNotDiscarded();
@@ -151,7 +149,10 @@ public class DocumentBuilder implements TableBuilderHost {
 		}
 	}
 
-	/** executor以外からの終了処理を、直前イベントの境界と混同しないための対称終了です。 */
+	/**
+	 * The matching end operation prevents cleanup outside the executor
+	 * from being confused with the preceding event boundary.
+	 */
 	public void finishReplayOnlyEvent() {
 		this.requireNotDiscarded();
 		this.replayEvent = null;
@@ -167,16 +168,15 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * 改ページ残余のソース再生用に、既存のルートビルダーへ向けた
-	 * ドキュメントビルダーを作ります(M6b v3)。ライブの DocumentBuilder
-	 * の unitizer・コンテナ状態には一切触れず、新品の状態で記録済み
-	 * プロトコルを再駆動するためのものです。
+	 * Creates a document builder targeting an existing root builder for source replay of
+	 * the remainder after a page break (M6b v3). Replays the recorded protocol with fresh state,
+	 * without touching the live DocumentBuilder's unitizer or container state.
 	 */
 	public DocumentBuilder(PageGenerator pageGenerator, BlockBuilder existingRoot) {
 		this(pageGenerator, existingRoot, ReplayIntent.current());
 	}
 
-	/** 本配置と一時計測の意図を明示した再生用ビルダーです。 */
+	/** A replay builder that explicitly distinguishes actual placement from temporary measurement. */
 	public DocumentBuilder(final PageGenerator pageGenerator, final BlockBuilder existingRoot, final ReplayIntent intent) {
 		this.pageGenerator = pageGenerator;
 		this.scratchOwner = pageGenerator instanceof MeasurePageGenerator
@@ -191,9 +191,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		this.startContainer();
 	}
 
-	/**
-	 * ソース再生を終了し、テキスト文脈を対称に閉じます(M6b v3)。
-	 */
+	/** Finishes source replay and closes text contexts symmetrically (M6b v3). */
 	public void finishReplay() {
 		this.requireNotDiscarded();
 		if (this.replayItemHost != null) {
@@ -206,8 +204,8 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * 現在のコンテナの配達済みソース文字終端を返します(M6b v3)。
-	 * shaper 内の未配達文字はこれ以降にある。
+	 * Returns the end of delivered source characters in the current container (M6b v3).
+	 * Undelivered characters in the shaper lie beyond this point.
 	 */
 	public int getDeliveredCharEnd() {
 		if (this.builderStack.isEmpty()) {
@@ -217,8 +215,8 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * ソース再生を、ビルダーのテキストブロックを開いたまま終えます
-	 * (shaper の保留を流すだけ。続く SAX ストリームが同じテキストブロックへ流れ込む)。
+	 * Ends source replay while leaving the builder's text block open
+	 * (only flushes the shaper's pending content; the following SAX stream enters the same text block).
 	 */
 	public void finishReplayKeepText() {
 		this.requireNotDiscarded();
@@ -246,7 +244,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		this.startContainer();
 	}
 
-	/** 先読みする文書は、子の箱を開く前に初回ページの幾何だけを確保します。 */
+	/** For documents using read-ahead, establishes only the first page's geometry before opening child boxes. */
 	public void prepareFootnotePage() {
 		if (this.pageGenerator.isFootnotePageProbeEnabled()) this.requirePage();
 	}
@@ -255,7 +253,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		return this.builderStack.isEmpty() ? 1 : this.pageContext().getPageGeneration();
 	}
 
-	/** キューの最初の配達直前。ここまでは初回ページに子の寸法を確定していません。 */
+	/** Immediately before the queue's first delivery. Child sizes on the first page remain undetermined until here. */
 	public void startFootnoteInput() {
 		this.pageContext().startFootnoteInput();
 	}
@@ -279,7 +277,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		this.pushScopedBuilder(entry);
 	}
 
-	/** 非root builderを積み、同じ寿命の平行移動禁止スコープを開始します。 */
+	/** Pushes a non-root builder and opens a translation-prohibition scope with the same lifetime. */
 	private void pushScopedBuilder(final Object entry) {
 		final RootBuilder root = this.pageContext();
 		if (root != null) {
@@ -294,7 +292,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		}
 	}
 
-	/** finish/bindまで完了した非root builderのスコープを必ず閉じます。 */
+	/** Always closes the scope of a non-root builder after finish/bind completes. */
 	private void finishTranslateBlockScope(final Object entry) {
 		if (entry instanceof ContainerBuilderEntry container && container.builder instanceof BlockBuilder block) {
 			block.finishRetainedContext();
@@ -309,12 +307,12 @@ public class DocumentBuilder implements TableBuilderHost {
 		int index = this.builderStack.size() - 1;
 		Object o = this.builderStack.get(index);
 		while (o instanceof TableBuilder || o instanceof net.zamasoft.foliojet.layout.builder.ItemCoordinator) {
-			// テーブル内でセル外のinline, block, テキスト等をテーブルの前に置くため
-			// 一般的なブラウザの動作による
-			// GridBuilderのskipは安全網(答申はskip不要としたが、item外へ
-			// 漏れた経路がcastで落ちるより宿主へ流す方が頑健。捕捉すべき
-			// 内容は3つの入口——startBox/characters/addReplacedBox——で
-			// item化するので、ここへ落ちるのは未配線経路のみ)
+			// Place inline, block, text, etc. inside a table but outside cells before the table,
+			// following common browser behavior.
+			// Skipping GridBuilder is a safety net (the recommendation said skipping was unnecessary,
+			// but routing escaped paths to the host is more robust than a failed cast).
+			// The three entry points, startBox/characters/addReplacedBox, turn all content that
+			// must be captured into items, so only unwired paths reach here.
 			--index;
 			assert index >= 0 : "builderStack が全て TableBuilder で、周囲のコンテナが見つかりません";
 			o = this.builderStack.get(index);
@@ -322,7 +320,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		return (ContainerBuilderEntry) o;
 	}
 
-	/** 段落 UBA 有効時だけ、外側の配置イベントを container の queue へ記録する。 */
+	/** Records outer placement events in the container queue only when paragraph UBA is enabled. */
 	private void noteBidiBarrier(final Object payload) {
 		if (!this.builderStack.isEmpty() && this.containerBuilder().builder instanceof BlockBuilder blockBuilder) {
 			blockBuilder.noteBidiBarrier(payload);
@@ -340,15 +338,14 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * ビルダースタックの根(通常はページ文脈の{@code RootBuilder})を
-	 * 返します。二段階(two-pass)構築のbind先ビルダーの親として使う。
+	 * Returns the root of the builder stack (normally the page context's {@code RootBuilder}).
+	 * Used as the parent of the builder that two-pass construction binds to.
 	 *
 	 * <p>
-	 * 2026-07-24(M6c-5): 型を{@code RootBuilder}から{@link BlockBuilder}へ
-	 * 緩和した。live構築ではスタックの根は常に{@code RootBuilder}のため
-	 * 挙動は不変だが、rootlessなソース再生では旧castが
-	 * {@code ClassCastException}になり得た。呼び出し側はいずれも
-	 * {@code LayoutStack}/{@code getRootBox()}としてしか使わない。
+	 * 2026-07-24 (M6c-5): relaxed the type from {@code RootBuilder} to {@link BlockBuilder}.
+	 * Live construction always has a {@code RootBuilder} at the stack root, so behavior is unchanged,
+	 * but rootless source replay could make the old cast throw {@code ClassCastException}.
+	 * All callers use it only as {@code LayoutStack} or via {@code getRootBox()}.
 	 * </p>
 	 */
 	private BlockBuilder pageContextBuilder() {
@@ -356,17 +353,17 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * ページ台帳({@code RootBuilder})を返します。無ければ{@code null}。
+	 * Returns the page ledger ({@code RootBuilder}), or {@code null} if absent.
 	 *
 	 * <p>
-	 * live構築ではスタックの根がそのまま{@code RootBuilder}だが、
-	 * <b>表のセルや絶対配置の箱の内容はソース再生で組み直され</b>、そのときの
-	 * 根はセルのbind先の{@code BlockBuilder}になる。以前は根が
-	 * {@code RootBuilder}でなければ脚注・ページフロート・並列注を台帳へ渡さず
-	 * 黙って捨てていたので、<b>表のセルの中の脚注は本文がどこにも出ず、
-	 * 呼び出しの番号も文書通番のままだった</b>(cti.liの報告、2026-09-01)。
-	 * 根から{@code LayoutStack}を辿れば本物の台帳に着く。scratch計測は
-	 * 呼び出し側が先に除いている。
+	 * In live construction, the stack root itself is a {@code RootBuilder}, but <b>table-cell
+	 * and absolutely positioned box contents are rebuilt by source replay</b>, whose root is
+	 * the cell's bind-target {@code BlockBuilder}. Previously, when the root was not
+	 * {@code RootBuilder}, footnotes, page floats, and parallel notes were silently discarded
+	 * instead of passed to the ledger. Thus, <b>footnote bodies inside table cells appeared nowhere,
+	 * and call numbers remained document-wide sequence numbers</b> (cti.li report, 2026-09-01).
+	 * Following {@code LayoutStack} from the root reaches the actual ledger. The caller already
+	 * excludes scratch measurement.
 	 * </p>
 	 */
 	private RootBuilder pageContext() {
@@ -374,7 +371,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		return root instanceof RootBuilder r ? r : root.getPageContext();
 	}
 
-	/** 注の開始時に、配置と同じ適格判定で段組の案内を選ぶ。 */
+	/** Selects multi-column guidance at note start using the same eligibility check as placement. */
 	public boolean isEligibleFootnoteColumnOwner() {
 		if (this.builderStack.isEmpty()) return false;
 		final Builder parent = this.containerBuilder().builder;
@@ -395,11 +392,11 @@ public class DocumentBuilder implements TableBuilderHost {
 			if (!entry.builder.isTwoPass()) {
 				((BlockBuilder) entry.builder).close();
 			}
-			// 不変条件: containerBuilder() が探し当てたエントリは builderStack の
-			// 末尾でなければならない(末尾に TableBuilder が残ったまま末尾要素を
-			// 取り除くと、containerBuilder() が返した entry とは別物を消してしまい、
-			// スタックが静かに壊れる — 表キャプション単独再生クラッシュ
-			// (2026-07-18)の調査で発見した builderStack 系の脆さの類例)。
+			// Invariant: the entry found by containerBuilder() must be the last entry on builderStack.
+			// If a TableBuilder remains at the end, removing the last element
+			// removes a different entry from the one returned by containerBuilder(),
+			// silently corrupting the stack: another example of the builderStack fragility found
+			// while investigating the standalone table-caption replay crash (2026-07-18).
 			assert this.builderStack.get(this.builderStack.size() - 1) == entry : //
 			"containerBuilder() の結果が末尾要素と一致しません: entry=" + entry + ", stack=" + this.builderStack;
 			this.builderStack.remove(this.builderStack.size() - 1);
@@ -412,15 +409,15 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	private TableBuilder tableBuilder() {
 		Object top = this.builderStack.get(this.builderStack.size() - 1);
-		// 不変条件: このメソッドが呼ばれる時点で、同一の再生/構築セッション内で
-		// 対応する TABLE 種別のボックスが先に開始され TableBuilder が積まれて
-		// いなければならない。破れていると builderStack の末尾はただの
-		// ContainerBuilderEntry のままキャストに失敗する(表キャプションの
-		// 単独ソース再生クラッシュ、2026-07-18 で実際に発生・修正済み)。
-		// caption recipe化C2(2026-08-01): assert無効の本番でも黙って
-		// ClassCastExceptionにせず、通常の実行時例外として型付きで止める
-		// (G-1再発防止の本体は範囲適格のcontext-complete検証と
-		// SegmentExecutorのkindスタック——これは最終防衛)
+		// Invariant: when this method is called, a corresponding TABLE box must already
+		// have started and pushed a TableBuilder in the same replay/construction session.
+		// Otherwise, the end of builderStack remains an ordinary
+		// ContainerBuilderEntry and the cast fails (actually occurred in the standalone
+		// table-caption source-replay crash, 2026-07-18; fixed).
+		// Caption recipes C2 (2026-08-01): even in production with assertions disabled,
+		// stop with a typed regular runtime exception instead of an unexplained ClassCastException.
+		// (The primary G-1 prevention is context-complete validation of range eligibility
+		// and SegmentExecutor's kind stack; this is the final defense.)
 		if (!(top instanceof TableBuilder tableBuilder)) {
 			throw new IllegalStateException(
 					"表構造の外(先行する TABLE 開始イベントなし)で TABLE_CELL/TABLE_ROW/CAPTION 系ボックスを"
@@ -444,12 +441,11 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * Grid直下(boxStack末尾が当のGridBox)で次の内容を待っている
-	 * {@link GridBuilder}を返します(Grid G1b、2026-07-31——
-	 * consult-codex-2026-07-31-grid-g1.txt §3)。builderStack末尾が
-	 * GridBuilder本体のとき、または末尾が開いているitemのentryで
-	 * その直下がGridBuilderのとき(itemの中の入れ子内容は末尾boxが
-	 * GridBoxでないため対象外になる)。
+	 * Returns the {@link GridBuilder} waiting for the next content directly under a Grid
+	 * (the last boxStack entry is that GridBox) (Grid G1b, 2026-07-31:
+	 * consult-codex-2026-07-31-grid-g1.txt §3). Applies when the last builderStack entry
+	 * is the GridBuilder itself, or an open item entry immediately above a GridBuilder.
+	 * Nested content inside an item is excluded because the last box is not the GridBox.
 	 */
 	private net.zamasoft.foliojet.layout.builder.ItemCoordinator coordinatorAwaitingDirectChild() {
 		if (this.boxStack.isEmpty() || this.builderStack.isEmpty()) {
@@ -469,7 +465,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		return null;
 	}
 
-	/** {@code box}の終端で畳むべきcoordinatorを返します。 */
+	/** Returns the coordinator to close at the end of {@code box}. */
 	private net.zamasoft.foliojet.layout.builder.ItemCoordinator coordinatorEndingAt(final IBox box) {
 		final int index = this.builderStack.size() - 1;
 		final Object top = this.builderStack.get(index);
@@ -484,7 +480,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		return null;
 	}
 
-	/** live構築と、Startを含まない子範囲再生で同じcoordinatorを積みます。 */
+	/** Pushes the same coordinator for live construction and child-range replay without Start. */
 	private boolean startItemCoordinator(final Builder builder, final AbstractContainerBox box) {
 		if (box instanceof GridBox grid && GridBuilderLifecycle.eligible(grid, builder)) {
 			this.pushScopedBuilder(GridBuilderLifecycle.start(builder, grid));
@@ -498,7 +494,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		return false;
 	}
 
-	/** hostのflowが有効な間に項目を閉じて配置し、開始時のscopeを解放します。 */
+	/** Closes and places items while the host flow is active, then releases the scope opened at start. */
 	private void finishItemCoordinator(final IBox box) {
 		final net.zamasoft.foliojet.layout.builder.ItemCoordinator ending = this.coordinatorEndingAt(box);
 		if (ending == null) {
@@ -514,7 +510,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		}
 	}
 
-	/** 開いている全Gridへ、部分木内のpage-margin-noteを記録します。 */
+	/** Records page-margin-note entries in the subtree for all open Grids. */
 	private void notePageMarginNoteInGrids() {
 		for (final Object entry : this.builderStack) {
 			if (entry instanceof GridBuilder grid) {
@@ -523,15 +519,15 @@ public class DocumentBuilder implements TableBuilderHost {
 		}
 	}
 
-	/** live入力の種別。位置種別はfreeze前の実boxから判定する(Opaqueにも対応)。 */
+	/** The live input kind. Determines positioning kind from the actual box before freeze (also supports Opaque). */
 	public enum DispatchEvent { START_BOX, REPLACED, TEXT, LEADER, END_BOX }
 
-	/** live記録の第1段階で確保した合成Start。実際の開閉は従来のdispatch内で行う。 */
+	/** Synthetic Start reserved in the first stage of live recording. Actual opening/closing occurs in the existing dispatch. */
 	private long pendingAnonymousAnchor = -1;
 
 	/**
-	 * 実イベントの追記前に匿名境界だけを判定します。ログには書かず、sinkが返値を
-	 * 実イベントより先に追記する。SegmentExecutorはこのlive専用入口を呼びません。
+	 * Determines only anonymous boundaries before appending the actual event. Does not write to the log;
+	 * the sink appends the returned value before the actual event. SegmentExecutor does not call this live-only entry point.
 	 */
 	public net.zamasoft.foliojet.layout.fragment.LayoutSource.Event preDispatch(
 			final DispatchEvent event, final IBox box, final long nextId) {
@@ -562,7 +558,7 @@ public class DocumentBuilder implements TableBuilderHost {
 				? new net.zamasoft.foliojet.layout.fragment.LayoutSource.AnonymousItemEnd() : null;
 	}
 
-	/** 合成境界の再生。項目単独bindでは既存の項目箱が根なので開き直さない。 */
+	/** Replays synthetic boundaries. A standalone item bind has the existing item box as root, so does not reopen it. */
 	public void startAnonymousItem(final long anchor) {
 		this.requireNotDiscarded();
 		if (this.coordinatorAwaitingDirectChild() == null && !this.isItemReplayTarget()) {
@@ -591,7 +587,7 @@ public class DocumentBuilder implements TableBuilderHost {
 				|| entry.builder.getRootBox() instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox;
 	}
 
-	/** 開いている匿名item(直接テキスト用)を畳みます。element itemは対象外。 */
+	/** Closes an open anonymous item (for direct text). Does not apply to element items. */
 	private void closeAnonymousItem(final net.zamasoft.foliojet.layout.builder.ItemCoordinator c) {
 		if (c.hasOpenItem() && !c.hasOpenElementItem()) {
 			this.endContainer();
@@ -604,7 +600,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		}
 	}
 
-	/** coordinator直下の直接テキスト/インライン用に匿名itemを用意します。 */
+	/** Prepares an anonymous item for direct text/inline content immediately under the coordinator. */
 	private void requireCoordinatorAnonymousItem() {
 		final long anchor = this.pendingAnonymousAnchor;
 		this.pendingAnonymousAnchor = -1;
@@ -614,8 +610,8 @@ public class DocumentBuilder implements TableBuilderHost {
 	private void requireCoordinatorAnonymousItem(final long anchor, final boolean includeOpeningEvent) {
 		final net.zamasoft.foliojet.layout.builder.ItemCoordinator c = this.coordinatorAwaitingDirectChild();
 		if (c != null && !c.hasOpenItem()) {
-			// 合成anchorは本文同定専用。wrapperへ付けると改頁時のstampRangesが
-			// coordinatorを欠く匿名項目単体を通常の部分木として吸収してしまう。
+			// Synthetic anchors only identify bodies. Attaching one to the wrapper makes stampRanges
+			// absorb the standalone anonymous item without its coordinator as an ordinary subtree at a page break.
 			final Builder builder = c.requireAnonymousItem(anchor);
 			this.startContainerBuilder(builder, includeOpeningEvent);
 			this.startContainer();
@@ -623,9 +619,9 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * Grid直下にelement itemを開きます(開いている匿名itemは畳む)。
-	 * {@code spec}はauthored childのFlowPosからの明示配置スナップショット
-	 * (G4a——consult-codex-2026-07-31-grid-g4.txt Q1)。
+	 * Opens an element item directly under a Grid (closes any open anonymous item).
+	 * {@code spec} is an explicit-placement snapshot from the authored child's FlowPos
+	 * (G4a: consult-codex-2026-07-31-grid-g4.txt Q1).
 	 */
 	private GridBuilder startGridElementItem(final net.zamasoft.foliojet.layout.box.params.GridItemSpec spec,
 			final long sourceAnchor) {
@@ -644,12 +640,11 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * Grid itemの行方向min-content寄与の上限を求めます(2026-08-19、
-	 * css-grid §6.6のautomatic minimum size。
-	 * {@code GridItemContent.minContributionCap}参照)。
-	 * スクロールコンテナは0、行軸のmin寸法が明示宣言(FlexItemSpecの
-	 * F1a判定を流用)されABSOLUTEならその値。それ以外は無制限(-1)。
-	 * %のminは基準未確定のため数えない(IntrinsicMeasurerと同じ規約)。
+	 * Determines the cap on a Grid item's inline min-content contribution (2026-08-19,
+	 * automatic minimum size in css-grid §6.6; see {@code GridItemContent.minContributionCap}).
+	 * Zero for scroll containers; uses the inline minimum size if explicitly declared
+	 * (reuses FlexItemSpec's F1a check) and ABSOLUTE. Otherwise unlimited (-1).
+	 * Percentage minima do not count because the reference is indefinite (same convention as IntrinsicMeasurer).
 	 */
 	private static double gridItemMinContributionCap(final IBox box) {
 		final net.zamasoft.foliojet.layout.box.params.BlockParams params;
@@ -681,7 +676,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		return -1;
 	}
 
-	/** boxの明示配置指定を取り出します(FlowPosを持たない配置はauto)。 */
+	/** Extracts explicit placement settings from a box (auto for positions without FlowPos). */
 	private static net.zamasoft.foliojet.layout.box.params.GridItemSpec gridItemSpecOf(final IBox box) {
 		if (box.getPos() instanceof FlowPos flowPos) {
 			return flowPos.gridItem;
@@ -692,7 +687,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		return net.zamasoft.foliojet.layout.box.params.GridItemSpec.AUTO;
 	}
 
-	/** element itemの一件分を畳みます(one-shot経路と子endBox後の共通処理)。 */
+	/** Closes one element item (shared by the one-shot path and post-child-endBox processing). */
 	private void endCoordinatorElementItem(final net.zamasoft.foliojet.layout.builder.ItemCoordinator c) {
 		this.endContainer();
 		final ContainerBuilderEntry entry = this.endContainerBuilder(true);
@@ -704,8 +699,8 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * {@code box}を元とするtakeover element itemが末尾で開いていれば
-	 * そのGridBuilderを返します(G7、2026-08-29——{@link #flexItemEndingAt}と同型)。
+	 * Returns the GridBuilder if its takeover element item originating from {@code box}
+	 * is open at the end (G7, 2026-08-29: same form as {@link #flexItemEndingAt}).
 	 */
 	private GridBuilder gridItemEndingAt(final IBox box) {
 		final int index = this.builderStack.size() - 1;
@@ -718,12 +713,12 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * {@code box}を元とするtakeover element itemが末尾で開いていれば
-	 * そのFlexBuilderを返します(Flex F1d——authored boxのendBox対応付け)。
+	 * Returns the FlexBuilder if its takeover element item originating from {@code box}
+	 * is open at the end (Flex F1d: matching the authored box's endBox).
 	 */
 	private FlexBuilder flexItemEndingAt(final IBox box) {
-		// takeover(authored boxをitem boxへ引き継ぐ)はFlex固有のため
-		// coordinator一般化の対象外
+		// Takeover (transferring an authored box to an item box) is Flex-specific,
+		// so it is outside coordinator generalization.
 		final int index = this.builderStack.size() - 1;
 		if (index > 0 && this.builderStack.get(index) instanceof ContainerBuilderEntry
 				&& this.builderStack.get(index - 1) instanceof FlexBuilder flex //
@@ -734,9 +729,10 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * Flex直下に中立wrapperのelement itemを開きます(非plain子・表・置換用)。
-	 * {@code authored}(非null)はchildのparamsで、行方向の寸法指定を
-	 * wrapperが引き取る({@link FlexBuilder#startNeutralElementItem}参照)。
+	 * Opens an element item with a neutral wrapper directly under Flex
+	 * (for non-plain children, tables, and replaced content).
+	 * {@code authored} (non-null) contains the child's params; the wrapper takes over inline size settings
+	 * (see {@link FlexBuilder#startNeutralElementItem}).
 	 */
 	private FlexBuilder startFlexNeutralElementItem(final net.zamasoft.foliojet.layout.box.params.FlexItemSpec spec,
 			final FlexBuilder.NeutralTransfer authored, final long sourceAnchor) {
@@ -749,7 +745,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		return null;
 	}
 
-	/** boxの伸縮指定を取り出します(FlowPosを持たない配置は既定)。 */
+	/** Extracts flex sizing settings from a box (defaults for positions without FlowPos). */
 	private static net.zamasoft.foliojet.layout.box.params.FlexItemSpec flexItemSpecOf(final IBox box) {
 		if (box.getPos() instanceof FlowPos flowPos) {
 			return flowPos.flexItem;
@@ -761,10 +757,9 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * {@link TableBuilderHost}実装(C4-C深化、2026-07-19)。
-	 * {@link TableBuilder}実装(現状は{@link IncrementalTableBuilder}のみ)が
-	 * 表のセル/カラム/行グループ/行に入る前後で必要なインライン文脈操作を
-	 * 呼び出すための公開経路。
+	 * The {@link TableBuilderHost} implementation (C4-C deepening, 2026-07-19).
+	 * The public path for {@link TableBuilder} implementations (currently only {@link IncrementalTableBuilder})
+	 * to invoke inline-context operations needed before and after entering table cells, columns, row groups, and rows.
 	 */
 	@Override
 	public void closeInlines(Params params) {
@@ -805,27 +800,27 @@ public class DocumentBuilder implements TableBuilderHost {
 			return;
 		}
 
-		// **ここでインラインを開き直さない**(2026-07-28)。
+		// **Do not reopen inlines here** (2026-07-28).
 		//
-		// かつては各周回の最後に {@code restoreInlines(blockBox.getParams())}
-		// を呼んでいたが、これは {@code startBox(blockBox)} の
-		// {@code closeInlines(params)} と対になるべき登録を**先取り**する
-		// もので、対の相手は本来 {@code endBox(blockBox)} 側の
-		// {@code restoreInlines} である。
+		// Previously, each iteration ended by calling {@code restoreInlines(blockBox.getParams())},
+		// but this **prematurely consumed** the registration that should pair
+		// with {@code closeInlines(params)} in {@code startBox(blockBox)}.
+		// Its proper counterpart is {@code restoreInlines}
+		// in {@code endBox(blockBox)}.
 		//
-		// 先取りするとインラインが**開いたまま**次の周回の
-		// {@code endContainer()} を跨ぐ。{@code endContainer()}は
-		// {@code textParamsStack}の先頭を「コンテナのparams」と決めて外し、
-		// さらに{@code textShaper}を捨てる(=その先の
-		// {@code InlineParamsStack}も消える)ので、開いていたインラインを
-		// 閉じるときに **3つのスタックが同時にずれる**。
-		// 症状は{@code InlineParamsStack.current}の`Index -1`
-		// (WPT css-multicol/multicol-span-all-children-height-010 等)。
+		// Consuming it early leaves inlines **open** across the next iteration's
+		// {@code endContainer()}. {@code endContainer()} removes the first
+		// {@code textParamsStack} entry as the container's params,
+		// then discards {@code textShaper} (and thus its
+		// {@code InlineParamsStack}), so closing the previously open inlines
+		// **misaligns three stacks simultaneously**.
+		// The symptom is `Index -1` in {@code InlineParamsStack.current}
+		// (WPT css-multicol/multicol-span-all-children-height-010, etc.).
 		//
-		// 開き直さなければ、登録は {@code endBox(blockBox)} が通常どおり
-		// 消費する——ぶち抜きでない場合とまったく同じ経路になる。
-		// これに合わせて {@code endColumnSpan} 側の {@code closeInlines}
-		// (開き直した分を閉じ直すための対)も外した。
+		// Without reopening, {@code endBox(blockBox)} consumes the registration normally,
+		// following exactly the same path as the non-spanning case.
+		// Accordingly, also removed {@code closeInlines} in {@code endColumnSpan},
+		// the counterpart that closed the reopened inlines.
 		final List<AbstractBlockBox> flows = new ArrayList<AbstractBlockBox>();
 		for (;;) {
 			final AbstractBlockBox blockBox = (AbstractBlockBox) builder.getFlowBox();
@@ -859,8 +854,8 @@ public class DocumentBuilder implements TableBuilderHost {
 		final List<?> flows = (List<?>) this.columnSpanStack.remove(this.columnSpanStack.size() - 1);
 		for (int i = flows.size() - 1; i >= 0; --i) {
 			FlowBlockBox flowBox = (FlowBlockBox) flows.get(i);
-			// {@code startColumnSpan}が開き直さなくなったので、ここで
-			// 閉じ直すものも無い(対で外した。理由は同関数のコメント)
+			// Since {@code startColumnSpan} no longer reopens inlines, nothing needs closing
+			// again here (removed as a pair; see that function's comment for the reason).
 			this.endContainer();
 			if (flowBox.getColumnCount() > 1) {
 				flowBox = new MulticolumnBlockBox(flowBox.getBlockParams(), flowBox.getFlowPos());
@@ -889,17 +884,17 @@ public class DocumentBuilder implements TableBuilderHost {
 	public void startBox(final INonReplacedBox box) {
 		this.requireNotDiscarded();
 		this.requirePage();
-		// Grid直下の子はitem(固定トラック幅の合成ボックス)へ包んでから
-		// 既存switchへ流す(Grid G1b)。ブロックレベル(FLOW/TABLE)は
-		// element item、インラインは匿名itemへ。float/absoluteはG1では
-		// item化せず宿主文脈のまま(記録して先送り——CSS的にはfloatは
-		// grid itemだが、固定トラックのG1では位置決めが未定義)
+		// Wrap direct Grid children in items (synthetic boxes with fixed track widths)
+		// before the existing switch (Grid G1b). Block-level content (FLOW/TABLE) becomes
+		// element items; inlines become anonymous items. In G1, float/absolute content
+		// stays in the host context without becoming items (recorded and deferred: CSS treats
+		// floats as grid items, but positioning is undefined in fixed-track G1).
 		switch (box.getPos().getType()) {
 		case FLOW:
-			// plainなブロック直下子はtakeover(G7、2026-08-29): authoredの
-			// params/posをGridItemBoxへ引き継ぎ、元の外箱は構築しない。
-			// これでitemがauthoredな箱そのものになり、行高までのstretchに
-			// 背景・枠が追随する(Flexが先に採った形と同じ)
+			// Take over plain direct block children (G7, 2026-08-29): transfer authored
+			// params/pos to GridItemBox without constructing the original outer box.
+			// This makes the item the authored box itself, so backgrounds and borders follow
+			// stretching to the row height (the same form adopted earlier by Flex).
 			if (this.coordinatorAwaitingDirectChild() instanceof GridBuilder gridHost
 					&& box.getClass() == FlowBlockBox.class
 					&& ((FlowBlockBox) box).getBlockParams().flow == gridHost.getGridBox().getGridParams().flow) {
@@ -919,17 +914,17 @@ public class DocumentBuilder implements TableBuilderHost {
 			this.startGridElementItem(gridItemSpecOf(box), gridItemMinContributionCap(box), box.getSourceAnchor());
 			break;
 		case INLINE:
-			// 直接インラインの匿名item化はGrid/Flex共通(coordinator一般化)
+			// Anonymous items for direct inlines are shared by Grid/Flex (coordinator generalization).
 			this.requireCoordinatorAnonymousItem();
 			break;
 		default:
 			break;
 		}
-		// Flex直下の子はitem化してから既存switchへ流す(Flex F1d)。
-		// plainなブロックはtakeover(authoredのparams/posをFlexItemBoxへ
-		// 引き継ぎ、元の外箱は構築しない——答申の最重要プロトタイプ条件)。
-		// 非plain(表・入れ子コンテナ・縦書き)は中立wrapper、インラインは
-		// 匿名itemへ。float/absoluteはGrid同様に宿主文脈のまま
+		// Turn direct Flex children into items before the existing switch (Flex F1d).
+		// Take over plain blocks (transfer authored params/pos to FlexItemBox
+		// without building the original outer box: the recommendation's most critical prototype condition).
+		// Non-plain children (tables, nested containers, vertical writing) use neutral wrappers; inlines
+		// use anonymous items. float/absolute content stays in the host context, as with Grid.
 		if (this.coordinatorAwaitingDirectChild() instanceof FlexBuilder flexHost) {
 			switch (box.getPos().getType()) {
 			case FLOW:
@@ -951,7 +946,7 @@ public class DocumentBuilder implements TableBuilderHost {
 								: null, box.getSourceAnchor());
 				break;
 			case TABLE:
-				// 表の寸法解決は表側の機構が担うため引き取らない
+				// Do not take over table sizing; the table's own mechanism resolves it.
 				this.startFlexNeutralElementItem(flexItemSpecOf(box), null, box.getSourceAnchor());
 				break;
 			default:
@@ -960,10 +955,10 @@ public class DocumentBuilder implements TableBuilderHost {
 		}
 		switch (box.getPos().getType()) {
 		case TABLE: {
-			// テーブル
+			// Table.
 			final TableBox tableBox = (TableBox) box;
-			// absolute宿主の所有証明は、live/SegmentExecutorの双方で表のStartに揃える。
-			// float/inlineの合成宿主には本文再生用のanchorを付けない(子は表構造)。
+			// Align ownership proof for absolute hosts with the table Start in both live processing and SegmentExecutor.
+			// Do not attach body-replay anchors to synthetic float/inline hosts (their children are table structure).
 			if (tableBox.getBlockBox() instanceof AbsoluteBlockBox absolute) {
 				absolute.setSourceAnchor(tableBox.getSourceAnchor());
 				final var observer = absoluteTableObserver;
@@ -981,8 +976,8 @@ public class DocumentBuilder implements TableBuilderHost {
 				this.startContainer();
 				break;
 			}
-			// ビルダー選択(fixed/auto)と開始処理は
-			// TableBuilderLifecycle(旧TableLayout、C4準備の継ぎ目、2026-07-19。2026-07-21命名訂正)へ委譲。挙動は不変。
+			// Delegate builder selection (fixed/auto) and startup to
+			// TableBuilderLifecycle (formerly TableLayout; C4 preparatory seam, 2026-07-19; renamed 2026-07-21). Behavior is unchanged.
 			final TableBuilder tableBuilder = net.zamasoft.foliojet.layout.builder.impl.TableBuilderLifecycle.start(builder,
 					tableBox);
 			this.pushScopedBuilder(tableBuilder);
@@ -991,8 +986,8 @@ public class DocumentBuilder implements TableBuilderHost {
 
 		case TABLE_CELL:
 		case TABLE_CAPTION: {
-			// テーブルセル
-			// キャプション
+			// Table cell.
+			// Caption.
 			final TableBuilder tableBuilder = this.tableBuilder();
 			tableBuilder.prepareEnterCell(this);
 			final AbstractContainerBox containerBox = (AbstractContainerBox) box;
@@ -1005,10 +1000,10 @@ public class DocumentBuilder implements TableBuilderHost {
 		case TABLE_COLUMN:
 		case TABLE_ROW_GROUP:
 		case TABLE_ROW: {
-			// テーブルカラムグループ
-			// テーブルカラム
-			// テーブル行グループ
-			// テーブル行
+			// Table column group.
+			// Table column.
+			// Table row group.
+			// Table row.
 			final TableBuilder tableBuilder = this.tableBuilder();
 			tableBuilder.prepareEnterTrack(this);
 			final AbstractInnerTableBox innerTableBox = (AbstractInnerTableBox) box;
@@ -1018,12 +1013,12 @@ public class DocumentBuilder implements TableBuilderHost {
 			break;
 
 		case INLINE: {
-			// インライン
+			// Inline.
 			if (box.getType() == BoxType.INLINE) {
 				final InlineBox inlineBox = (InlineBox) box;
 				this.containerBuilder().getStyledTextUnitizer().startInline(inlineBox);
 			} else {
-				// インラインブロック
+				// Inline block.
 				final InlineBlockBox inlineBlockBox = (InlineBlockBox) box;
 				final Builder builder = this.containerBuilder().builder;
 				final StyledTextUnitizer parentUnitizer = this.containerBuilder().getStyledTextUnitizer();
@@ -1032,7 +1027,7 @@ public class DocumentBuilder implements TableBuilderHost {
 				this.startContainer();
 				if (inlineBlockBox.getBlockParams().textCombine != net.zamasoft.foliojet.css.value.TextCombineValue.NONE
 						&& parentUnitizer.isCollectingRuby()) {
-					// ルビの親字の中の縦中横は、字を親字へ渡す(箱はルビの側で捨てられる、2026-10-06)
+					// For tate-chu-yoko inside a ruby base, pass the characters to the base (ruby discards the box, 2026-10-06).
 					this.containerBuilder().getStyledTextUnitizer().forwardTextCombineToRuby(parentUnitizer);
 				}
 			}
@@ -1040,45 +1035,45 @@ public class DocumentBuilder implements TableBuilderHost {
 			break;
 
 		case FLOW: {
-			// 通常のフローのボックス
+			// Normal-flow box.
 			final FlowBlockBox blockBox = (FlowBlockBox) box;
 			final BlockParams params = blockBox.getBlockParams();
 
-			// ぶちぬき
+			// Column spanning.
 			final FlowPos pos = blockBox.getFlowPos();
-			// **インラインを閉じるのが先**(2026-07-28)。開いているインラインは
-			// ぶち抜き前の文脈で開かれたものなので、その文脈で閉じなければ
-			// ならない。{@code startColumnSpan}は段組を抜けるために
-			// {@code endFlowBlock}まで戻す——つまり{@code containerBuilder}が
-			// 差し替わり、{@code closeInlines}が出す{@code endInline}は
-			// **対応する{@code startInline}を見ていない新しい
-			// StyledTextUnitizer**へ届く。そのInlineParamsStackは根しか
-			// 積んでいないので、popが根を外して
-			// {@code InlineParamsStack.current}が空リストを引く
-			// (WPTのcolumn-span:all文書10件がここで落ちていた:
-			// css-multicol/multicol-span-all-019 等)
+			// **Close inlines first** (2026-07-28). Open inlines were opened in the pre-span
+			// context and must close in that context.
+			// {@code startColumnSpan} unwinds through {@code endFlowBlock}
+			// to leave multi-column layout, replacing {@code containerBuilder}.
+			// Thus, {@code endInline} emitted by {@code closeInlines} reaches
+			// a **new StyledTextUnitizer that never saw the matching
+			// {@code startInline}**. Its InlineParamsStack contains only the root,
+			// so pop removes that root and
+			// {@code InlineParamsStack.current} accesses an empty list
+			// (10 WPT column-span:all documents failed here:
+			// css-multicol/multicol-span-all-019, etc.).
 			this.closeInlines(params);
 			if (pos.columnSpan == FlowPos.COLUMN_SPAN_ALL) {
 				this.startColumnSpan(pos);
 			}
 			this.endContainer();
 			final Builder builder = this.containerBuilder().builder;
-			// 固有寸法キーワード(width:max-content等、2026-08-29)を持つ
-			// ブロックは内容を測ってから幅が決まるので、直交フローと同じ
-			// 2パス経路(newBuilder→TwoPass→shrinkToFit)へ回す。ストリーム
-			// 制約上、浮動体と同じく内容をいったん溜める
+			// Blocks with intrinsic size keywords (width:max-content, etc.; 2026-08-29)
+			// get their widths only after measuring content, so route them through
+			// the same two-pass path as orthogonal flows (newBuilder→TwoPass→shrinkToFit).
+			// Streaming constraints require buffering their contents temporarily, as for floats.
 			if (params.flow.isVertical() == builder.getRootBox().getBlockParams().flow.isVertical()
 					&& !blockBox.isFixedMulticolumn() && !params.hasIntrinsicLine()) {
 				builder.startFlowBlock(blockBox);
-				// Grid本体の開始: 適格なら構築coordinatorを積み、以後の
-				// 直接子をitem化する(Grid G1b)。不適格ならBlockBox同然の
-				// フォールバック(G0)のまま
+				// Start the Grid itself: if eligible, push a construction coordinator and turn
+				// subsequent direct children into items (Grid G1b). Otherwise, retain
+				// the BlockBox-like fallback (G0).
 				this.startItemCoordinator(builder, blockBox);
 			} else {
-				// ページ進行方向が違う場合
+				// When page progression directions differ.
 				final Builder newBuilder = builder.newBuilder(blockBox);
 				this.startContainerBuilder(newBuilder);
-				// 直交フロー・固有寸法キーワードでもGrid/Flex自身がTwoPass根になる。
+				// Grid/Flex itself becomes the TwoPass root even for orthogonal flows or intrinsic size keywords.
 				this.startItemCoordinator(newBuilder, blockBox);
 			}
 			this.startContainer();
@@ -1090,7 +1085,7 @@ public class DocumentBuilder implements TableBuilderHost {
 			if (box.getPos().getType() == PosType.FLOAT) {
 				this.containerBuilder().getStyledTextUnitizer().flushText();
 			}
-			// 絶対位置指定
+			// Absolute positioning.
 			final AbstractBlockBox stfBox = (AbstractBlockBox) box;
 			this.noteBidiBarrier(stfBox);
 			final Builder builder = this.contextBuilder().builder;
@@ -1118,7 +1113,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		IBox box = (IBox) this.boxStack.remove(this.boxStack.size() - 1);
 		switch (box.getPos().getType()) {
 		case TABLE: {
-			// テーブル
+			// Table.
 			final TableBuilder tableBuilder = this.endTableBuilder();
 			try {
 				TableBox tableBox = tableBuilder.getTableBox();
@@ -1134,13 +1129,13 @@ public class DocumentBuilder implements TableBuilderHost {
 					this.containerBuilder().getStyledTextUnitizer().flushText();
 					break;
 				}
-				// FLOWのfinishは行送出中に改頁する。終端に要らない元の表・ラッパーを手放す。
+				// FLOW finish can break pages while emitting lines. Release the original table/wrapper, no longer needed at the end.
 				tableBox = null;
 				box = null;
 				if (tablePosition == PosType.FLOW) tableBlock = null;
 				final Builder builder = this.containerBuilder().builder;
-				// 終了処理もTableBuilderLifecycleへ委譲(開始側のルーティング結果と一致させるため、
-				// 条件を再計算せずtableBuilder自身に問うのは従来どおり)。挙動は不変。
+				// Delegate cleanup to TableBuilderLifecycle too (as before, ask tableBuilder itself instead of recomputing
+				// conditions to match startup routing). Behavior is unchanged.
 				net.zamasoft.foliojet.layout.builder.impl.TableBuilderLifecycle.finish(tableBuilder, builder);
 				switch (tablePosition) {
 				case FLOW:
@@ -1165,26 +1160,26 @@ public class DocumentBuilder implements TableBuilderHost {
 			break;
 		case TABLE_CELL:
 		case TABLE_CAPTION: {
-			// テーブルセル
-			// キャプション
+			// Table cell.
+			// Caption.
 			this.endContainer();
 			final ContainerBuilderEntry entry = this.endContainerBuilder();
 			try {
 				if (box.getPos().getType() == net.zamasoft.foliojet.layout.box.params.PosType.TABLE_CAPTION
 						&& entry.builder instanceof TwoPassBlockBuilder sealable) {
-					// caption recipe化C3(2026-08-01、consult-codex-2026-08-01-
-					// caption-recipe.txt): キャプション本文の録画完了点での
-					// range seal(float/inline-blockのclose時sealと同型)。
-					// C1のrecipe記録化でendOf(anchor)が引けるようになり、body
-					// レンジ[anchor+1, endId-1]は箱自身のStartを含まないため
-					// 単独CAPTION再生(G-1)の形にはならない。caption builder
-					// 自身はtop/bottomCaptionsに保持され、後で通常どおり
-					// bind(anonBuilder)される——そのbindがrange駆動になる
+					// Caption recipes C3 (2026-08-01, consult-codex-2026-08-01-
+					// caption-recipe.txt): seal the range when caption-body recording finishes
+					// (the same form as sealing on float/inline-block close).
+					// C1 recipe recording makes endOf(anchor) available. The body
+					// range [anchor+1, endId-1] excludes the box's own Start,
+					// so this is not standalone CAPTION replay (G-1). The caption builder
+					// itself stays in top/bottomCaptions and later undergoes
+					// bind(anonBuilder) as usual; that bind becomes range-driven.
 					sealable.sealBodyForRangeBind();
 				} else {
-					// E-6増分5a(2026-07-24): セルの録画完了点でのrange seal
-					// (Retained実装のみ。CellContentが計測builderを解放し、
-					// range+lease保持へ切り替わる)
+					// E-6 increment 5a (2026-07-24): seal the range when cell recording finishes
+					// (Retained implementation only; CellContent releases its measurement builder
+					// and switches to retaining a range + lease).
 					this.tableBuilder().sealCellContext(entry.builder);
 				}
 				assert this.builderStack.size() != 1;
@@ -1196,31 +1191,31 @@ public class DocumentBuilder implements TableBuilderHost {
 		case TABLE_COLUMN:
 		case TABLE_ROW_GROUP:
 		case TABLE_ROW: {
-			// テーブル列グループ
-			// テーブル列
-			// テーブル行グループ
-			// テーブル行
+			// Table column group.
+			// Table column.
+			// Table row group.
+			// Table row.
 			this.tableBuilder().endInnerTable();
 		}
 			break;
 
 		case INLINE: {
 			if (box.getType() == BoxType.INLINE) {
-				// インライン
+				// Inline.
 				this.containerBuilder().getStyledTextUnitizer().endInline();
 			} else {
-				// インラインブロック
+				// Inline block.
 				this.endContainer();
 				final ContainerBuilderEntry entry = this.endContainerBuilder();
 				try {
 					if (entry.builder instanceof TwoPassBlockBuilder sealable) {
-						// 入力完了点でrange seal。不適格は変換を失敗させる
+						// Seal the range when input completes. Ineligibility fails conversion.
 						sealable.sealBodyForRangeBind();
 					}
 					final InlineBlockBox inlineBlockBox = (InlineBlockBox) entry.builder.getRootBox();
 					final Builder parentBuilder = this.containerBuilder().builder;
 					if (!parentBuilder.isTwoPass() && entry.builder.isTwoPass()) {
-						// インラインブロックボックスの幅が明示されてなかった場合
+						// When the inline-block box width was not explicitly specified.
 						final TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) entry.builder;
 						inlineBlockBox.shrinkToFit(parentBuilder,
 								this.shrinkToFitSizes(inlineBlockBox, stfBuilder, parentBuilder), false);
@@ -1237,8 +1232,8 @@ public class DocumentBuilder implements TableBuilderHost {
 			break;
 
 		case FLOW: {
-			// Flexのtakeover element item終端(Flex F1d): authored boxは
-			// 構築されていないため、通常のendFlowBlockではなくitemを畳む
+			// End of a Flex takeover element item (Flex F1d): the authored box was not
+			// constructed, so close the item instead of using the normal endFlowBlock.
 			final GridBuilder gridItemHost = this.gridItemEndingAt(box);
 			if (gridItemHost != null) {
 				this.endContainer();
@@ -1265,12 +1260,12 @@ public class DocumentBuilder implements TableBuilderHost {
 				this.restoreInlines(box.getParams());
 				break;
 			}
-			// coordinator終端(Grid G1b/Flex F1d共通): 匿名itemを畳み、
-			// coordinatorを外して配置を確定する。finish()はhostのactive
-			// flowがまだ当のコンテナである間——下のendFlowBlockより前——に
-			// 呼ぶ(itemの配置と親カーソル同期はそのflowに対して行うため)
+			// End of the coordinator (shared by Grid G1b/Flex F1d): close the anonymous item,
+			// remove the coordinator, and finalize placement. Call finish() while the host's active
+			// flow is still this container, before endFlowBlock below,
+			// since item placement and parent-cursor synchronization target that flow.
 			this.finishItemCoordinator(box);
-			// 通常のフロー
+			// Normal flow.
 			this.endContainer();
 			final FlowBlockBox blockBox = (FlowBlockBox) box;
 			final Builder builder = this.containerBuilder().builder;
@@ -1286,7 +1281,7 @@ public class DocumentBuilder implements TableBuilderHost {
 					}
 					if (!parentBuilder.isTwoPass()) {
 						if (entry.builder.isTwoPass()) {
-							// ビルド
+							// Build.
 							final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
 							blockBox.shrinkToFit(parentBuilder, this.shrinkToFitSizes(blockBox, contentBuilder, parentBuilder),
 									false);
@@ -1296,9 +1291,9 @@ public class DocumentBuilder implements TableBuilderHost {
 						}
 						parentBuilder.addBound(blockBox);
 					} else if (entry.builder.isTwoPass()) {
-						// 親も計測中なら、再生イベントの記録だけでなく子のouter
-						// contributionを親の固有寸法へ渡す。特に直交フローでは
-						// 子ページ軸→親行軸の変換が必要になる。
+						// If the parent is also measuring, pass the child's outer contribution to
+						// the parent's intrinsic sizes as well as recording replay events. Orthogonal
+						// flows in particular need conversion from the child's page axis to the parent's inline axis.
 						((TwoPassBlockBuilder) parentBuilder).fitBlock((TwoPassBlockBuilder) entry.builder);
 					}
 				} finally {
@@ -1308,36 +1303,36 @@ public class DocumentBuilder implements TableBuilderHost {
 			}
 
 			final FlowPos pos = blockBox.getFlowPos();
-			// ぶち抜き復帰
+			// Return from column spanning.
 			if (pos.columnSpan == FlowPos.COLUMN_SPAN_ALL) {
 				this.endColumnSpan(pos);
 			}
-			// **インラインの復元は最後**(2026-07-28)。startBoxで
-			// closeInlines→startColumnSpanの順にしたので、その鏡像として
-			// endColumnSpan→restoreInlinesの順でなければ入れ子が交差する
+			// **Restore inlines last** (2026-07-28). Since startBox orders operations as
+			// closeInlines→startColumnSpan, the mirror order must be
+			// endColumnSpan→restoreInlines to avoid crossed nesting.
 			this.restoreInlines(box.getParams());
 		}
 			break;
 
 		case FLOAT: {
-			// 浮動体
+			// Float.
 			this.endContainer();
 			final ContainerBuilderEntry entry = this.endContainerBuilder();
 			try {
 				if (entry.builder instanceof TwoPassBlockBuilder sealable) {
-					// 入力完了点でrange seal。不適格は変換を失敗させる
+					// Seal the range when input completes. Ineligibility fails conversion.
 					sealable.sealBodyForRangeBind();
 				}
 				final Builder parentBuilder = this.containerBuilder().builder;
 				this.noteBidiBarrier(box);
 				if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos pageFloatPos) {
-					// ページフロート(2026-08-02): 脚注と同じ経路で本文から
-					// 分離し、ページ台帳へ渡す。台帳が無い文脈(scratch計測・
-					// 再生)ではどこにも置かれない=測定等価
+					// Page floats (2026-08-02): separate from the body text through the same path
+					// as footnotes and pass to the page ledger. In contexts without a ledger
+					// (scratch measurement or replay), place nowhere, preserving measurement equivalence.
 					final FloatBlockBox pageFloatBox = (FloatBlockBox) entry.builder.getRootBox();
 					if (parentBuilder.isTwoPass() || this.replayIntent == ReplayIntent.MEASURE) {
-						// TwoPass本文では専用recordへ保留し、bind時に一度だけページ台帳へ
-						// 渡す。scratchではページ外要素なので計測へ寄与せず破棄する。
+						// In a TwoPass body, defer in a dedicated record and pass to the page ledger only once at bind.
+						// In scratch, discard it without contributing to measurement because it is an out-of-page element.
 						if (!parentBuilder.isTwoPass() && entry.builder instanceof TwoPassBlockBuilder body) {
 							body.completeScratchHost();
 						}
@@ -1348,7 +1343,7 @@ public class DocumentBuilder implements TableBuilderHost {
 						pageFloatBox.shrinkToFit(parentBuilder,
 								this.shrinkToFitSizes(pageFloatBox, contentBuilder, parentBuilder), false);
 						final BlockBuilder pageFloatBuilder = new BlockBuilder(this.pageContextBuilder(), pageFloatBox);
-						// 浮動体・脚注と同じ理由で、使い捨て計測の最中は消費しない
+						// Do not consume during disposable measurement, for the same reason as floats and footnotes.
 						contentBuilder.bind(pageFloatBuilder, this.replayIntent);
 						pageFloatBuilder.close();
 					}
@@ -1359,8 +1354,8 @@ public class DocumentBuilder implements TableBuilderHost {
 					break;
 				}
 				if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos notePos) {
-					// JLREQ 4.2.7の並列注。ページフロートと同じ分離builderで
-					// 組み、本文の現在位置に近い版面外の注領域へ渡す。
+					// Parallel notes in JLREQ 4.2.7. Build with the same separate builder as page floats,
+					// then pass to the note area outside the type area near the current body-text position.
 					this.notePageMarginNoteInGrids();
 					final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
 					if (parentBuilder.isTwoPass() || this.replayIntent == ReplayIntent.MEASURE) {
@@ -1383,18 +1378,18 @@ public class DocumentBuilder implements TableBuilderHost {
 					break;
 				}
 				if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos) {
-					// 脚注F2/F3(2026-07-31、consult-codex-2026-07-31-footnote.txt
-					// §3): 本文は親のflowへ入れない(呼び出し位置にはF1の
-					// ::footnote-callだけが残る)。組み上がった本文ボックスを
-					// ページ脚注台帳(RootBuilder)へ渡し、ページ下端領域に
-					// 描かれる。scratch計測・再生等でRootBuilderが根に無い
-					// 文脈では台帳が無い=どこにも置かれない(本文はflow外
-					// なので測定等価。two-passのseal→bindは通常どおり対に
-					// なりリースは孤児化しない)
+					// Footnotes F2/F3 (2026-07-31, consult-codex-2026-07-31-footnote.txt
+					// §3): keep the footnote body out of the parent's flow (only F1's
+					// ::footnote-call remains at the call position). Pass the completed body box
+					// to the page-footnote ledger (RootBuilder) for drawing
+					// in the page-bottom area. Contexts without RootBuilder at the root, such as
+					// scratch measurement/replay, have no ledger and place it nowhere (the body
+					// is out of flow, so measurement is equivalent; two-pass seal→bind remain
+					// paired normally, leaving no orphaned leases).
 					final FloatBlockBox noteBox = (FloatBlockBox) entry.builder.getRootBox();
 					if (this.replayIntent == ReplayIntent.MEASURE
 							&& this.pageGenerator instanceof MeasurePageGenerator measure && measure.isFootnoteProbe()) {
-						// TwoPass親の中では、その親のMEASURE再生時に本文を完成させる。
+						// Inside a TwoPass parent, complete the body during that parent's MEASURE replay.
 						if (!parentBuilder.isTwoPass()) {
 							if (entry.builder instanceof TwoPassBlockBuilder contentBuilder) {
 								noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
@@ -1410,7 +1405,7 @@ public class DocumentBuilder implements TableBuilderHost {
 						break;
 					}
 					if (parentBuilder.isTwoPass() || this.replayIntent == ReplayIntent.MEASURE) {
-						// PageFloatPosと同じく、親の実レイアウトまで分離配置を保留する。
+						// As with PageFloatPos, defer separate placement until the parent's actual layout.
 						if (!parentBuilder.isTwoPass() && entry.builder instanceof TwoPassBlockBuilder body) {
 							body.completeScratchHost();
 						}
@@ -1427,7 +1422,7 @@ public class DocumentBuilder implements TableBuilderHost {
 							noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false, hostLineSize);
 						}
 						final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
-						// 浮動体と同じ理由で、使い捨て計測の最中は消費しない
+						// Do not consume during disposable measurement, for the same reason as floats.
 						contentBuilder.bind(noteBuilder, this.replayIntent);
 						noteBuilder.close();
 					}
@@ -1441,13 +1436,13 @@ public class DocumentBuilder implements TableBuilderHost {
 					final BlockBuilder boundBuilder = (BlockBuilder) parentBuilder;
 					final FloatBlockBox floatBox = (FloatBlockBox) entry.builder.getRootBox();
 					if (entry.builder.isTwoPass()) {
-						// ビルド
+						// Build.
 						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
 						floatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
 						final BlockBuilder floatBuilder = new BlockBuilder(this.pageContextBuilder(), floatBox);
-						// **使い捨て計測の最中は本文を消費しない**(2026-08-03)。
-						// ここで本番のbindをすると使用権が閉じ、あとの本番では
-						// 空になる(内容消失。TwoPassBlockBuilder.bindのjavadoc参照)
+						// **Do not consume the body during disposable measurement** (2026-08-03).
+						// An actual bind here closes the usage right, leaving it empty for the later
+						// actual layout (content loss; see TwoPassBlockBuilder.bind's Javadoc).
 						contentBuilder.bind(floatBuilder, this.replayIntent);
 						floatBuilder.close();
 					}
@@ -1466,7 +1461,7 @@ public class DocumentBuilder implements TableBuilderHost {
 						this.restoreInlines(box.getParams());
 					}
 				} else if (entry.builder.isTwoPass()) {
-					// STFコンテキスト内
+					// Inside an STF context.
 					TwoPassBlockBuilder stfBuilder = (TwoPassBlockBuilder) parentBuilder;
 					TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
 					stfBuilder.fitFloating(contentBuilder);
@@ -1478,30 +1473,30 @@ public class DocumentBuilder implements TableBuilderHost {
 			break;
 
 		case ABSOLUTE: {
-			// 絶対位置指定
+			// Absolute positioning.
 			this.endContainer();
 			ContainerBuilderEntry entry = this.endContainerBuilder();
 			try {
 				if (this.replayIntent == ReplayIntent.MEASURE) {
 					if (this.pageGenerator instanceof MeasurePageGenerator measure && measure.isFootnoteProbe()
 							&& entry.builder instanceof TwoPassBlockBuilder body) {
-						// 長寿命Bでは捨てる絶対配置の子範囲も親に集約して寿命を閉じる。
-						// TwoPass親が残る場合は、そのsealによる吸収まで所有を保つ。
+						// For long-lived B, also aggregate discarded absolute-positioned child ranges into the parent to close their lifetimes.
+						// If a TwoPass parent remains, retain ownership until its seal absorbs them.
 						body.sealBodyForRangeBind();
 						if (!this.contextBuilder().builder.isTwoPass()) body.completeScratchHost();
 						break;
 					}
-					// 使い捨て計測(表Pass B)駆動: seal・prepareBind・係留を
-					// スキップし、子builderをreplicaごと破棄する(sealすると
-					// 本物のリースを取得したまま破棄されリース孤児化する。
-					// 絶対配置はflow外で計測値に寄与しないため計測等価——
-					// absolute吸収=codex増分9、2026-07-30)
+					// Disposable measurement (table Pass B): skip seal, prepareBind, and anchoring;
+					// discard the child builder with its replica (sealing would acquire a real lease
+					// that becomes orphaned when discarded). Absolute positioning is out of flow
+					// and does not contribute to measurements, so measurement remains equivalent
+					// (absolute absorption = codex increment 9, 2026-07-30).
 					break;
 				}
 				if (entry.builder instanceof TwoPassBlockBuilder sealable) {
-					// E-6増分4a/4b: 録画完了点でのrange seal。E-6増分4eの
-					// recipe記録化により絶対配置も適格になる(旧NO_RANGE=81の解消)。
-					// 適格な本文は下のprepareBindでDeferredBindへ持ち出される
+					// E-6 increments 4a/4b: seal the range at recording completion. Recipe recording
+					// in E-6 increment 4e also makes absolute positioning eligible (eliminates old NO_RANGE=81).
+					// prepareBind below transfers eligible bodies into DeferredBind.
 					sealable.sealBodyForRangeBind();
 				}
 				Builder builder = this.contextBuilder().builder;
@@ -1509,10 +1504,10 @@ public class DocumentBuilder implements TableBuilderHost {
 					BlockBuilder boundBuilder = (BlockBuilder) builder;
 					AbsoluteBlockBox absoluteBox = (AbsoluteBlockBox) entry.builder.getRootBox();
 					if (entry.builder.isTwoPass()) {
-						// ビルド
+						// Build.
 						TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
 						if (absoluteBox.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
-							// position: fixed; の場合、ここで構築
+							// For position: fixed;, build here.
 							IFramedBox containerBox = this.pageContextBuilder().getRootBox();
 							absoluteBox.shrinkToFit(containerBox, contentBuilder.intrinsicSizesMeasured());
 							BlockBuilder absoluteBuilder = new BlockBuilder(this.pageContextBuilder(), absoluteBox);
@@ -1523,7 +1518,7 @@ public class DocumentBuilder implements TableBuilderHost {
 								absoluteBuilder.close();
 							}
 						} else {
-							// position: absolute; は後で構築
+							// Build position: absolute; later.
 							absoluteBox.prepareBind(contentBuilder);
 						}
 					}
@@ -1548,10 +1543,10 @@ public class DocumentBuilder implements TableBuilderHost {
 			throw new IllegalStateException();
 		}
 
-		// coordinator直下のelement itemは子box一つで完結する——子のendBox
-		// 直後に畳む(Grid G1b/Flex F1d共通。入れ子の子は末尾boxが当の
-		// コンテナでないため反応しない。Flexのtakeover itemはendBoxの
-		// FLOW分岐で畳み済み)
+		// An element item directly under the coordinator consists of one child box; close it
+		// immediately after the child's endBox (shared by Grid G1b/Flex F1d). Nested children
+		// do not trigger this because the last box is not that container. Flex takeover items
+		// are already closed in endBox's FLOW branch.
 		final net.zamasoft.foliojet.layout.builder.ItemCoordinator tail = this.coordinatorAwaitingDirectChild();
 		if (tail != null && tail.hasOpenElementItem()) {
 			this.endCoordinatorElementItem(tail);
@@ -1562,17 +1557,17 @@ public class DocumentBuilder implements TableBuilderHost {
 		this.requireNotDiscarded();
 		this.requirePage();
 
-		// Grid直下の置換要素はitem化する(Grid G1b): ブロックレベルは
-		// one-shotのelement item、インラインは匿名itemへ
+		// Turn replaced elements directly under Grid into items (Grid G1b): block-level
+		// elements become one-shot element items; inline elements become anonymous items.
 		net.zamasoft.foliojet.layout.builder.ItemCoordinator oneShot = null;
 		switch (replacedBox.getPos().getType()) {
 		case FLOW:
 			oneShot = this.startGridElementItem(gridItemSpecOf(replacedBox), replacedBox.getSourceAnchor());
 			if (oneShot == null) {
-				// 行方向の寸法指定はwrapperへ引き取る(FlexBuilder.NeutralTransfer
-				// 参照——%幅のsvg等は二パス計測で0になるため、wrapperが引き取ら
-				// ないとflex base sizeが0へ潰れる)。寸法解決自体は従来どおり
-				// 置換側の機構(calculateReplacedSize)が担う
+				// Transfer inline size settings to the wrapper (see FlexBuilder.NeutralTransfer:
+				// percentage-width SVGs, etc. measure as zero in two-pass measurement, so without
+				// this transfer the flex base size collapses to zero). Size resolution itself
+				// still belongs to the replaced-content mechanism (calculateReplacedSize).
 				oneShot = this.startFlexNeutralElementItem(flexItemSpecOf(replacedBox),
 						FlexBuilder.NeutralTransfer.of(replacedBox.getReplacedParams()), replacedBox.getSourceAnchor());
 			}
@@ -1586,12 +1581,12 @@ public class DocumentBuilder implements TableBuilderHost {
 
 		switch (replacedBox.getPos().getType()) {
 		case FLOW: {
-			// 通常のフロー
-			// ぶちぬき
+			// Normal flow.
+			// Column spanning.
 			final FlowPos pos = ((FlowReplacedBox) replacedBox).getFlowPos();
-			// インラインを閉じるのが先(理由はstartBoxのFLOWと同じ)。
-			// builderの取得は**startColumnSpanの後**——段組を抜けると
-			// containerBuilderが差し替わるので、addBound先は新しい方
+			// Close inlines first (same reason as FLOW in startBox).
+			// Obtain the builder **after startColumnSpan**: leaving multi-column layout
+			// replaces containerBuilder, so addBound must target the new one.
 			this.closeInlines(replacedBox.getParams());
 			if (pos.columnSpan == FlowPos.COLUMN_SPAN_ALL) {
 				this.startColumnSpan(pos);
@@ -1601,7 +1596,7 @@ public class DocumentBuilder implements TableBuilderHost {
 			builder.addBound(replacedBox);
 			this.startContainer();
 
-			// ぶち抜き復帰
+			// Return from column spanning.
 			if (pos.columnSpan == FlowPos.COLUMN_SPAN_ALL) {
 				this.endColumnSpan(pos);
 			}
@@ -1610,7 +1605,7 @@ public class DocumentBuilder implements TableBuilderHost {
 			break;
 
 		case FLOAT: {
-			// 浮動体
+			// Float.
 			final Builder context = this.containerBuilder().builder;
 			final FloatPos pos = (FloatPos) replacedBox.getPos();
 			boolean pageBreak = (this.pageMode == 0 && ((pos.pageBreakBefore != PageBreakMode.AUTO
@@ -1631,7 +1626,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		}
 			break;
 		case ABSOLUTE: {
-			// 絶対位置指定
+			// Absolute positioning.
 			final Builder context = this.containerBuilder().builder;
 			final IAbsoluteBox absoluteBox = (IAbsoluteBox) replacedBox;
 			this.noteBidiBarrier(replacedBox);
@@ -1649,7 +1644,7 @@ public class DocumentBuilder implements TableBuilderHost {
 			break;
 
 		case INLINE: {
-			// インライン
+			// Inline.
 			this.containerBuilder().getStyledTextUnitizer().addInlineReplaced(replacedBox);
 		}
 			break;
@@ -1674,15 +1669,15 @@ public class DocumentBuilder implements TableBuilderHost {
 		}
 		
 		this.requirePage();
-		// Grid直下の直接テキストは匿名itemへ(Grid G1b)
+		// Direct text under Grid goes into an anonymous item (Grid G1b).
 		this.requireCoordinatorAnonymousItem();
 		this.containerBuilder().getStyledTextUnitizer().characters(charOffset, ch, off, len, lineFeed);
 	}
 
 	/**
-	 * {@code leader()}を現在のインライン文脈へ流します(leader() L1——
-	 * consult-codex-2026-07-31-leader.txt)。shape・幅の割り付けは
-	 * {@code StyledTextUnitizer.leader}以降が駆動のたびに行う。
+	 * Feeds {@code leader()} into the current inline context (leader() L1:
+	 * consult-codex-2026-07-31-leader.txt). {@code StyledTextUnitizer.leader} and later
+	 * processing perform shaping and width allocation on each execution.
 	 */
 	public void addLeader(final String pattern) {
 		this.requirePage();
@@ -1692,9 +1687,9 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	public void end() {
 		this.requirePage();
-		// output.page-limit等が入力処理を途中で打ち切ると、SAXのendElementを
-		// 受けないまま文書終端へ来る。通常のendBox経路で内側から畳み、
-		// Flex/Grid coordinatorやtwo-pass builderも対称に確定させる。
+		// If output.page-limit, etc. stops input midway, document end arrives without SAX
+		// endElement events. Close from the inside through the normal endBox path,
+		// symmetrically finalizing Flex/Grid coordinators and two-pass builders too.
 		while (!this.boxStack.isEmpty()) {
 			this.endBox();
 		}
@@ -1705,7 +1700,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		assert this.translateScopeRoots.isEmpty() : "document end後もtranslate scopeが残っています";
 	}
 
-	/** Bのpin用。入力中と、pop後まだbind中のTwoPass宿主の最古の開始IDです。 */
+	/** For B's pin: the oldest start ID among TwoPass hosts receiving input or still binding after being popped. */
 	public long oldestUnfinishedSourceId() {
 		long oldest = Long.MAX_VALUE;
 		for (final Object entry : this.builderStack) oldest = Math.min(oldest, unfinishedSourceId(entry));
@@ -1716,8 +1711,8 @@ public class DocumentBuilder implements TableBuilderHost {
 	private static long unfinishedSourceId(final Object entry) {
 		final long anchor;
 		if (entry instanceof ContainerBuilderEntry container && container.builder instanceof TwoPassBlockBuilder body) {
-			// seal前の本文だけをpinで保護する。TwoPassはBlockBuilderの派生ではない。
-			// seal後に表等へ預けた本文はRangeHandle自身のリースと寿命通知で保護する。
+			// Protect only unsealed bodies with the pin. TwoPass does not derive from BlockBuilder.
+			// Sealed bodies entrusted to tables, etc. are protected by RangeHandle's own lease and lifetime notifications.
 			anchor = body.getRootBox().getSourceAnchor();
 		} else if (entry instanceof RetainedTableBuilder table) {
 			anchor = table.getSourceAnchor();
@@ -1727,7 +1722,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		return anchor < 0 ? Long.MAX_VALUE : anchor;
 	}
 
-	/** 途中破棄時の報告用。終了処理を呼ばずに未完のRetained表だけを数えます。 */
+	/** For discard reporting: counts only unfinished Retained tables, without invoking cleanup. */
 	public int getOpenRetainedTableCount() {
 		int count = 0;
 		for (final Object entry : this.builderStack) {
@@ -1737,12 +1732,13 @@ public class DocumentBuilder implements TableBuilderHost {
 	}
 
 	/**
-	 * dispatchから戻った後、未完のscratchを破棄します。生成時の所有者に登録した
-	 * 全ビルダーのハンドル・リース・会計スコープを解放し、seal/bind/配置はしません。
-	 * 長寿命の文書ごとに専用のScratchOwnerを使い、生成と入力の間だけ接続してください。
-	 * 所有者の接続が外れた状態でも呼べます。本番のページ生成器では使えません。
-	 * 実文字を保持するGrid/Flexの未完項目やReplayOnlyも正常終端せず、参照を外します。
-	 * 解放通知が失敗しても残りの資源を清算し、以後の入力・end・再discardは拒否します。
+	 * Discards unfinished scratch state after dispatch returns. Releases handles, leases, and accounting
+	 * scopes for all builders registered with their owner at creation, without sealing, binding, or placing.
+	 * Use a dedicated ScratchOwner for each long-lived document, connected only during creation and input.
+	 * May be called with the owner disconnected. Cannot be used with a production page generator.
+	 * Also detaches unfinished Grid/Flex items and ReplayOnly objects retaining actual characters,
+	 * without normal completion. Even if a release notification fails, cleans up remaining resources
+	 * and rejects subsequent input, end, and repeated discard.
 	 */
 	public void discard() {
 		this.requireNotDiscarded();
@@ -1782,10 +1778,12 @@ public class DocumentBuilder implements TableBuilderHost {
 		if (this.discarded) throw new IllegalStateException("破棄済み文書への入力");
 	}
 	/**
-	 * shrink-to-fit の箱の固有寸法です(2026-10-05)。直交する中身(縦組みの入れ物の中の横組みの表・段落など)が
-	 * あれば、計測用の再生(本文を消費しない)で箱に一度組み、直交する子の実際の広がりを読んで、模倣計測の代用値
-	 * (表の幅・1 行ぶん)と差し替える。組んだ中身は捨てて空に戻す。jigensha の報告: 縦組みの float: bottom の
-	 * 入れ物の中の横組みの表が、表の幅を入れ物の高さとして数えられ、版面の下へはみ出した。
+	 * Intrinsic sizes of a shrink-to-fit box (2026-10-05). If contents are orthogonal (e.g., a horizontal-writing
+	 * table or paragraph inside a vertical-writing container), measurement replay (without consuming the body)
+	 * first lays them out in the box, reads the orthogonal child's actual extent, and substitutes it for
+	 * the simulated measurement's proxy values (table width or one line). Discards the laid-out contents,
+	 * leaving the box empty again. jigensha report: a horizontal-writing table inside a vertical-writing
+	 * float: bottom container had its width counted as the container's height and overflowed below the type area.
 	 */
 	private net.zamasoft.foliojet.layout.sizing.IntrinsicSizes shrinkToFitSizes(
 			final net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox box, final TwoPassBlockBuilder content,

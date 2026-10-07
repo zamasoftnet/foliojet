@@ -12,7 +12,7 @@ public enum WordBreakValue implements Value {
 
 	KEEP_ALL_VALUE(WordBreakValue.KEEP_ALL),
 
-	/** {@code break-word}(css-text-3の旧値。normal+overflow-wrap:anywhere、2026-08-29)。 */
+	/** {@code break-word} (legacy css-text-3 value: normal+overflow-wrap:anywhere, 2026-08-29). */
 	BREAK_WORD_VALUE(WordBreakValue.BREAK_WORD);
 	public static final byte NORMAL = 1;
 

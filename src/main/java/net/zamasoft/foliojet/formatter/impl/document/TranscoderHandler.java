@@ -235,7 +235,7 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 				// STRUCTURE_SCAN: A lightweight preliminary scan that performs no box construction
 				// or layout. Bypasses CSSProcessor (style resolution and box construction)
 				// and receives events directly through a dedicated lightweight walker
-				// (see the development plan "2パス制御モード"). Shares the upstream filter
+				// (see the development plan "2パス制御モード" (two-pass control mode)). Shares the upstream filter
 				// chain (CSSJML and input filters) with the LAYOUT pass
 				// so that ElementKey numbering stays consistent between the two passes.
 				exitPoint.setXMLHandler(new StructureScanHandler(this.ua.getUAContext().getSelectorFacts()));

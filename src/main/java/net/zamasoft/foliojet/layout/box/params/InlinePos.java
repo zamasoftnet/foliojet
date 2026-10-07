@@ -4,14 +4,14 @@ import net.zamasoft.foliojet.layout.box.content.CSSVerticalAlignPolicy;
 import net.zamasoft.foliojet.layout.box.content.VerticalAlignPolicy;
 
 /**
- * インラインレベルの配置パラメータです。
+ * Inline-level positioning parameters.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: InlinePos.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class InlinePos extends AbstractStaticPos implements Pos {
 	/**
-	 * 垂直方向アラインメントです。
+	 * Vertical alignment.
 	 */
 	public VerticalAlignPolicy verticalAlign = CSSVerticalAlignPolicy.BASELINE_POLICY;
 

@@ -1,27 +1,27 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code grid-column-start/end}・{@code grid-row-start/end}の1値です
- * (Grid G0)。{@code auto}・整数線番号(負可・0不可)・{@code span 正整数}
- * に加え、2026-08-29から線名({@code <custom-ident>})を持てる:
- * {@code name}単独・{@code N name}(N番目のその名の線)・
- * {@code span N name}。線名の数値化はレイアウト側
- * ({@code GridLineNameResolver})が行う——ここは構文の写しに徹する。
+ * A value for {@code grid-column-start/end} or {@code grid-row-start/end}
+ * (Grid G0). In addition to {@code auto}, integer line numbers (negative allowed, zero forbidden),
+ * and {@code span positive-integer}, line names ({@code <custom-ident>}) are supported since 2026-08-29:
+ * {@code name} alone, {@code N name} (the Nth line with that name), and
+ * {@code span N name}. The layout layer ({@code GridLineNameResolver}) resolves line names
+ * to numbers; this class only represents the syntax.
  *
  * @author MIYABE Tatsuhiko
  */
 public final class GridLineValue implements Value {
-	/** {@code auto}。 */
+	/** {@code auto}. */
 	public static final GridLineValue AUTO_VALUE = new GridLineValue(true, 0, false, null);
 
 	private final boolean auto;
 
-	/** 線番号(非span、非0)またはspan数(span時、正)。線名単独のときは0。 */
+	/** Line number (non-span, nonzero) or span count (positive for spans). Zero for a name alone. */
 	private final int number;
 
 	private final boolean span;
 
-	/** 線名(無ければnull)。 */
+	/** The line name (null if absent). */
 	private final String name;
 
 	private GridLineValue(final boolean auto, final int number, final boolean span, final String name) {
@@ -39,17 +39,17 @@ public final class GridLineValue implements Value {
 		return new GridLineValue(false, count, true, null);
 	}
 
-	/** {@code name}単独(2026-08-29)。 */
+	/** {@code name} alone (2026-08-29). */
 	public static GridLineValue named(final String name) {
 		return new GridLineValue(false, 0, false, name);
 	}
 
-	/** {@code N name}(2026-08-29)。 */
+	/** {@code N name} (2026-08-29). */
 	public static GridLineValue line(final int number, final String name) {
 		return new GridLineValue(false, number, false, name);
 	}
 
-	/** {@code span N name}(2026-08-29)。 */
+	/** {@code span N name} (2026-08-29). */
 	public static GridLineValue span(final int count, final String name) {
 		return new GridLineValue(false, count, true, name);
 	}
@@ -62,12 +62,12 @@ public final class GridLineValue implements Value {
 		return this.span;
 	}
 
-	/** 線名を持つか(2026-08-29)。 */
+	/** Whether a line name is present (2026-08-29). */
 	public boolean isNamed() {
 		return this.name != null;
 	}
 
-	/** 線名単独({@code <custom-ident>}だけ。grid-areaの省略補完の判定用)。 */
+	/** A line name alone (only {@code <custom-ident>}; used to fill omitted grid-area components). */
 	public boolean isNameOnly() {
 		return this.name != null && !this.span && this.number == 0;
 	}

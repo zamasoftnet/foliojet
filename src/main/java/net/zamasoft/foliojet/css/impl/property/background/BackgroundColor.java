@@ -43,12 +43,12 @@ public class BackgroundColor extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		// 型付き attr()(2026-08-03)。色も属性から取れる(bgcolor/text/link等の
-		// 移送に要る)。解決の窓口は長さと同じ
+		// Typed attr() (2026-08-03). Colors can also come from attributes (needed to move
+		// bgcolor/text/link, etc.). Uses the same resolution entry point as lengths.
 		value = ValueUtils.emExToAbsoluteLength(value, style);
-		// CSS Color 4: background-colorのcurrentcolorは、この要素のcolorの
-		// computed valueへ解決する。MaskImage等の利用側へ未解決キーワードを
-		// 漏らさず、通常の背景描画にも同じ色実体を渡す。
+		// CSS Color 4: resolve background-color currentcolor to the computed value of
+		// this element's color. Do not leak unresolved keywords to consumers such as
+		// MaskImage; pass the same concrete color to normal background rendering.
 		if (value == KeywordValue.DEFAULT) {
 			return style.get(CSSColor.INFO);
 		}

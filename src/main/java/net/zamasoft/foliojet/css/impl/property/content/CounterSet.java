@@ -18,14 +18,14 @@ import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code counter-set}です(CSS Lists 3、2026-08-02)。
+ * {@code counter-set} (CSS Lists 3, 2026-08-02).
  *
  * <p>
- * {@code counter-reset}との違いは<b>新しい入れ子のカウンタを作らない</b>
- * こと。既にどこかで定義されているカウンタは、その一番内側のものへ値を
- * 設定する({@code counter-increment}と同じ探索で、加算ではなく代入)。
- * どこにも無ければ、その要素に作る。省略時の値は0
- * ({@code counter-reset}と同じで、{@code counter-increment}の1とは違う)。
+ * Unlike {@code counter-reset}, this <b>does not create a new nested counter</b>.
+ * If a counter is already defined anywhere, sets the innermost one's value
+ * (using the same search as {@code counter-increment}, but assigning rather than adding).
+ * If none exists, creates one on the element. The omitted value is 0
+ * (as with {@code counter-reset}, unlike the 1 used by {@code counter-increment}).
  * </p>
  *
  * @author MIYABE Tatsuhiko

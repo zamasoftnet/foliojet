@@ -21,7 +21,7 @@ public class CSSPosition extends AbstractPrimitivePropertyInfo {
 
 	public static byte get(CSSStyle style) {
 		final Value value = style.get(INFO);
-		// R1a では running の値を保持し、レイアウトは static として扱う。
+		// R1a retains the running value and treats it as static during layout.
 		return value instanceof PositionValue position ? position.getPosition() : PositionValue.STATIC;
 	}
 
@@ -64,11 +64,11 @@ public class CSSPosition extends AbstractPrimitivePropertyInfo {
 			} else if (ident.equals("fixed")) {
 				return PositionValue.FIXED_VALUE;
 			} else if (ident.equals("sticky") || ident.equals("-webkit-sticky")) {
-				// -webkit-stickyはSafari向けの別名(2026-08-29)
-				// 紙にはスクロールポートが無いため、relativeと同じ包含ブロックを
-				// 作る一方でinsetによる移動量は0とする。RELATIVE_VALUEへ潰すと
-				// bottom等が通常の相対移動として効き、改ページ後の断片が版面外へ
-				// 送られるため、computed valueではstickyを区別して運ぶ。
+				// -webkit-sticky is the Safari alias (2026-08-29).
+				// Paper has no scrollport, so create the same containing block as relative
+				// but use zero inset displacement. Collapsing to RELATIVE_VALUE would make
+				// bottom, etc. act as normal relative offsets, sending fragments after page breaks
+				// outside the type area. Thus, retain sticky as a distinct computed value.
 				return PositionValue.STICKY_VALUE;
 			}
 		}

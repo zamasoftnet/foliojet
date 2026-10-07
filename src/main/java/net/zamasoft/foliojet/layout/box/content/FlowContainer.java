@@ -53,8 +53,8 @@ import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 public class FlowContainer implements Container {
 	/**
-	 * 通常のフローのコンテンツです。
-	 * 
+	 * Normal-flow content.
+	 *
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: FlowContainer.java 1631 2022-05-15 05:43:49Z miyabe $
 	 */
@@ -74,8 +74,8 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 吸収された閉部分木の再生範囲です(C1c)。ボックスを持たず、
-	 * restyle 走行の serial 合流順にソース再駆動を発火させます。
+	 * The replay range of an absorbed closed subtree (C1c). Holds no box;
+	 * triggers source replay in the serial merge order of the restyle traversal.
 	 */
 	private static class Replay extends BoxHolder {
 		final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range;
@@ -95,7 +95,7 @@ public class FlowContainer implements Container {
 	protected int serial = 0;
 
 	/**
-	 * 通常のフローのコンテンツ。
+	 * Normal-flow content.
 	 */
 	protected List<Flow> flows = null;
 
@@ -166,14 +166,14 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 段の末尾に最終添付した脚注を、段組のbalance(容器の再生)より前に取り外します
-	 * (増分6)。再生は添付物を保たないので、頁の宿主へ移してから再生する。
+	 * Detaches footnotes finally attached at column ends before column balancing (container replay)
+	 * (increment 6). Replay does not preserve attachments, so move them to the page host first.
 	 */
 	public final boolean removeFloating(final IFloatBox box) {
 		return this.floatings != null && this.floatings.removeFloating(box);
 	}
 
-	/** 配置時に確定した一回限りの次断片移送を伴ってfloatを保持します。 */
+	/** Holds a float with a one-time transfer to the next fragment determined at placement. */
 	public final void addFloating(IFloatBox box, double lineAxis, double pageAxis, boolean moveToNext) {
 		if (this.floatings == null) {
 			this.floatings = new Floatings();
@@ -184,16 +184,15 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * このコンテナが直接持つページ座標を{@code dy}だけ平行移動します。
-	 * 通常フローはserialとボックスを保った新しい要素へ置き換え、浮動体は
-	 * serial、行軸位置、{@code moveToNext}を保って作り直します。絶対配置は
-	 * ページコンテナの書字方向に従う物理的な静的位置だけを動かします
-	 * ({@link Absolutes#shiftPageAxis(double, WritingMode, java.util.Set)}参照)。
-	 * いずれもリスト順を変えず、{@code keep}に含まれるボックスは元の要素と
-	 * 座標をそのまま残します。
+	 * Translates page coordinates held directly by this container by {@code dy}.
+	 * Replaces normal flows with new entries preserving their serials and boxes; rebuilds floats
+	 * preserving their serials, line-axis positions, and {@code moveToNext}.
+	 * For absolutely positioned boxes, moves only physical static positions according to the page
+	 * container's writing direction (see {@link Absolutes#shiftPageAxis(double, WritingMode, java.util.Set)}).
+	 * All lists retain their order, and boxes in {@code keep} retain their original entries and coordinates.
 	 *
-	 * @param dy   ページ軸方向の移動量
-	 * @param keep 移動せず現在位置に留めるボックスの集合
+	 * @param dy   the translation along the page axis
+	 * @param keep the set of boxes to leave at their current positions
 	 */
 	public final void shiftPageAxis(final double dy, final java.util.Set<IBox> keep) {
 		if (this.flows != null) {
@@ -213,11 +212,11 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * このコンテナが直接持つ通常フローのページ軸終端の最大値を返します。
-	 * リスト末尾が幾何上も最後とは限らないため、全要素を走査します。
+	 * Returns the maximum page-axis end of normal flows held directly by this container.
+	 * Scans all entries because the last list entry is not necessarily last geometrically.
 	 *
-	 * @param flow このコンテナのページ軸を決める書字方向
-	 * @return 通常フローがなければ0、あればその終端の最大値
+	 * @param flow the writing direction that determines this container's page axis
+	 * @return 0 if there are no normal flows, otherwise their maximum end
 	 */
 	public final double maxNormalFlowPageEnd(final WritingMode flow) {
 		double pageEnd = 0;
@@ -230,11 +229,11 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * このコンテナへ並列注として登録された浮動体のページ軸終端の最大値を
-	 * 返します。通常floatやページフロートは対象に含めません。
+	 * Returns the maximum page-axis end of floats registered as parallel notes in this container.
+	 * Excludes normal floats and page floats.
 	 *
-	 * @param flow このコンテナのページ軸を決める書字方向
-	 * @return 配置済み並列注がなければ0、あればその終端の最大値
+	 * @param flow the writing direction that determines this container's page axis
+	 * @return 0 if there are no placed parallel notes, otherwise their maximum end
 	 */
 	public final double maxPageMarginNotePageEnd(final WritingMode flow) {
 		double pageEnd = 0;
@@ -260,11 +259,12 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 直交する子孫(書字方向の軸が {@code flow} と違う箱)が {@code flow} の行方向に占める広がりの最大です
-	 * (内容域の始端から、2026-10-05)。shrink-to-fit の箱を一度組んで測り直すのに使う
-	 * ({@code DocumentBuilder})。直交する子はボーダーボックスに auto でない余白を足した寸法(auto の余白は
-	 * 寸法の決まる前に解決されることがあるので数えない)、同じ向きのブロックは枠を足して中を辿る。文字の行は数えない
-	 * (模倣計測が正しく測っている)。
+	 * The maximum extent occupied along {@code flow}'s line axis by orthogonal descendants
+	 * (boxes whose writing-mode axis differs from {@code flow}), measured from the content-area start
+	 * (2026-10-05). Used to lay out shrink-to-fit boxes once and remeasure ({@code DocumentBuilder}).
+	 * For orthogonal children, use border-box size plus non-auto margins (exclude auto margins,
+	 * which may be resolved before sizing). For blocks in the same direction, add the frame and traverse
+	 * their contents. Exclude text lines (the simulated measurement already measures them correctly).
 	 */
 	public final double orthogonalLineExtent(final WritingMode flow) {
 		double max = 0;
@@ -305,19 +305,19 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 「装飾でない内容があるか」のメモ(2026-08-29)。
+	 * Memoizes whether non-decorative content exists (2026-08-29).
 	 *
 	 * <p>
-	 * 改ページの分割は親から子へ1段ずつ降り、各段でこの問いを立てる。
-	 * 素朴に部分木を歩くと深さの二乗になり、深さ5000の正当な文書で
-	 * 1ページに120秒以上かかってテストハーネスの無進捗watchdogに
-	 * 「ハング」と誤認されていた(実測: 深さ1000で18秒、その93%が
-	 * この走査)。内容の追加・移動・除去をしたコンテナから
-	 * {@link #invalidateNonDecorationContent()}で<b>祖先だけ</b>を
-	 * 無効化する(箱は{@code AbstractBox.getContentParent()}で保持先を
-	 * 覚えている)ので、ある段の分割が下の段のメモを捨てることはなく、
-	 * 1段あたりO(1)になる。保持先を覚えられない箱(AbstractBoxでない
-	 * 実装)を受けたときは全体の版を進めて安全側に倒す。
+	 * Page splitting descends from parent to child one level at a time, asking this question at each level.
+	 * Naively traversing the subtree makes cost quadratic in depth; a valid document 5000 levels deep
+	 * took over 120 seconds per page and was misidentified as hung by the test harness's no-progress
+	 * watchdog (measured: 18 seconds at depth 1000, 93% spent in this traversal).
+	 * From the container where content is added, moved, or removed,
+	 * {@link #invalidateNonDecorationContent()} invalidates <b>only ancestors</b>
+	 * (boxes remember their container via {@code AbstractBox.getContentParent()}).
+	 * Splitting at one level therefore never discards lower-level memos, giving O(1) per level.
+	 * If a box cannot remember its container (an implementation other than AbstractBox),
+	 * advance the global generation to err on the safe side.
 	 * </p>
 	 */
 	private boolean nonDecorationCached;
@@ -325,13 +325,14 @@ public class FlowContainer implements Container {
 	private long nonDecorationVersion;
 
 	/**
-	 * 保持先を覚えられない箱の変更に備えた全体の版。
+	 * The global generation for changes to boxes that cannot remember their container.
 	 *
 	 * <p>
-	 * プロセス全体で1つなので、変換が並列に走ると複数スレッドが進める。
-	 * {@code volatile long}の{@code ++}は読み・足し・書きの3手で、同時に
-	 * 進めると片方が失われ、古い版と一致した記憶が生き残る(2026-09-02の
-	 * 設計レビューで指摘)。EPUBの項目を並列に組む前提として原子的にする。
+	 * One generation covers the whole process, so multiple threads advance it during parallel conversions.
+	 * {@code ++} on a {@code volatile long} has three steps: read, add, write. Concurrent increments
+	 * can lose one update, leaving a memo with a matching stale generation alive
+	 * (identified in the 2026-09-02 design review).
+	 * Make it atomic as a prerequisite for laying out EPUB items in parallel.
 	 * </p>
 	 */
 	private static final java.util.concurrent.atomic.AtomicLong STRUCTURE_VERSION = new java.util.concurrent.atomic.AtomicLong();
@@ -342,7 +343,7 @@ public class FlowContainer implements Container {
 	 */
 	public static final java.util.concurrent.atomic.AtomicLong PUSHED_LINE_MOVES = new java.util.concurrent.atomic.AtomicLong();
 
-	/** このコンテナとその祖先のメモを捨てる。既に捨ててある祖先で止まる。 */
+	/** Invalidates this container's memo and its ancestors'. Stops at an already invalidated ancestor. */
 	public final void invalidateNonDecorationContent() {
 		FlowContainer c = this;
 		while (c != null && c.nonDecorationCached) {
@@ -351,7 +352,7 @@ public class FlowContainer implements Container {
 		}
 	}
 
-	/** 箱をこのコンテナの内容として受け入れ、祖先のメモを捨てる。 */
+	/** Accepts a box as content of this container and invalidates ancestor memos. */
 	private void adopt(final IBox box) {
 		if (box instanceof net.zamasoft.foliojet.layout.box.AbstractBox abstractBox) {
 			abstractBox.setContentParent(this);
@@ -436,20 +437,20 @@ public class FlowContainer implements Container {
 	}
 
 	private static boolean hasNonDecorationContent(final IBox box) {
-		// 空のTextBlockBoxは、通常の内容消失防止判定では「将来描くかも
-		// しれない」ため paintsAnything()==true になる。しかし断片化済みの
-		// 前半に行がないこと自体は確定しており、固定高を消費した実内容には
-		// 数えない。Yahoo!ニュースのinline wrapperがこの形になる。
+		// An empty TextBlockBox returns paintsAnything()==true in the normal content-loss prevention check
+		// because it may paint something later. However, a fragmented head with no lines
+		// is definitively empty, so do not count it as actual content that consumed fixed height.
+		// Inline wrappers on Yahoo! News take this form.
 		if (box.getType() == BoxType.TEXT_BLOCK) {
 			return LayoutUtils.compare(((TextBlockBox) box).getPageSize(), 0) > 0;
 		}
 		if (box.getType() != BoxType.BLOCK) {
 			return box.paintsAnything();
 		}
-		// ブロック箱のpaintsAnything()は「枠が見える || 中身が描く」で、
-		// 中身に装飾でない内容があれば中身は描く。だから
-		// 「paintsAnything && (枠 || 中身の内容)」は「枠 || 中身の内容」に
-		// 等しく、部分木を二度歩く必要はない(2026-08-29)
+		// A block box's paintsAnything() is "visible frame || contents paint", and non-decorative
+		// content implies that the contents paint. Thus
+		// "paintsAnything && (frame || content within)" equals "frame || content within",
+		// so there is no need to traverse the subtree twice (2026-08-29).
 		final AbstractContainerBox containerBox = (AbstractContainerBox) box;
 		return containerBox.getFrame().isVisible() || containerBox.getContainer().hasNonDecorationContent();
 	}
@@ -506,15 +507,15 @@ public class FlowContainer implements Container {
 
 		switch (this.box.getBlockParams().flow) {
 		case WritingMode.TB:
-			// 横書き
+			// Horizontal writing
 			ascent += this.box.getFrame().getFrameTop();
 			break;
 		case WritingMode.RL:
-			// 縦書き(モンゴル)
+			// Vertical writing (Mongolian)
 			ascent += this.box.getFrame().getFrameLeft();
 			break;
 		case WritingMode.LR:
-			// 縦書き(日本)
+			// Vertical writing (Japanese)
 			ascent += this.box.getFrame().getFrameRight();
 			break;
 		default:
@@ -559,15 +560,15 @@ public class FlowContainer implements Container {
 
 		switch (this.box.getBlockParams().flow) {
 		case WritingMode.TB:
-			// 横書き
+			// Horizontal writing
 			descent += this.box.getFrame().getFrameBottom();
 			break;
 		case WritingMode.RL:
-			// 縦書き(日本)
+			// Vertical writing (Japanese)
 			descent += this.box.getFrame().getFrameLeft();
 			break;
 		case WritingMode.LR:
-			// 縦書き(モンゴル)
+			// Vertical writing (Mongolian)
 			descent += this.box.getFrame().getFrameRight();
 			break;
 		default:
@@ -590,10 +591,10 @@ public class FlowContainer implements Container {
 		if (LayoutUtils.compare(contentSize, 0) <= 0 || this.flows == null || this.flows.isEmpty()) {
 			return contentSize;
 		}
-		// 固定高wrapperが入れ子の場合、内側wrapperの内容が丸ごと次頁へ
-		// 移っても、外側からは「空の前断片boxの高さ」がcontentSizeに見える。
-		// これは実際に消費した空きではない。開始位置0にある、断片化済みで
-		// 描画内容を持たない殻だけなら、継続高から差し引かない。
+		// With nested fixed-height wrappers, even if all inner-wrapper content moves to the next page,
+		// the outer wrapper sees the height of the empty preceding-fragment box as contentSize.
+		// This is not space actually consumed. If only a fragmented shell with no painted content
+		// remains at start position 0, do not subtract it from the continuation height.
 		for (int i = 0; i < this.flows.size(); ++i) {
 			final Flow flow = this.flows.get(i);
 			if (LayoutUtils.compare(flow.pageAxis, 0) > 0
@@ -611,20 +612,20 @@ public class FlowContainer implements Container {
 		if (this.flows == null) {
 			return 0;
 		}
-		// 同軸逆進行(RL⇄LR)の子は改ページ契約でatomic——段境界で内部
-		// 切断できないため、その全長より段容量を小さくしてはならない。
-		// 従来は容量探索(getCutPointBelow)が逆進行の子の内部境界を
-		// 返し、balance()が子より狭いmaxPageAxisを固定→再構築後の
-		// contentSize(子の指定幅)が箱幅へ反映されず、親のカーソルも
-		// 狭いまま→RL端寄せ配置で内容が紙面外に描かれた(2026-08-22、
-		// 掃過seed 1871636/1106107)
+		// Same-axis reverse-progression children (RL⇄LR) are atomic under the pagination contract.
+		// They cannot split internally at column boundaries, so column capacity must not be below their full extent.
+		// Previously, the capacity search (getCutPointBelow) returned an internal boundary of a reverse-progression
+		// child, and balance() fixed maxPageAxis below the child size. After rebuilding,
+		// contentSize (the child's specified width) did not update the box width, leaving the parent cursor
+		// narrow too. RL edge alignment then drew content outside the paper (2026-08-22,
+		// sweep seeds 1871636/1106107).
 		//
-		// 直交する子(縦の段組の中の横書き、横の段組の中の縦書き)も同じく
-		// atomicで、容量探索はその子の行の境目(軸違い)を切れ目として返す。
-		// 床が無いと縦の段組は子より細く組まれて内容が紙面の外へ、横の
-		// 段組は子より低く組まれて後続と重なった。同じ書字方向の子の中に
-		// あっても同じなので、そこは降りて探す(2026-10-03、掃過seed
-		// 11587843)。深い入れ子でスタックを食わないよう作業リストで辿る
+		// Orthogonal children (horizontal writing in vertical columns, or vertical writing in horizontal columns)
+		// are also atomic, but the capacity search returns their line boundaries on a different axis as cut points.
+		// Without a floor, vertical columns became narrower than their children, drawing content off-paper;
+		// horizontal columns became shorter than their children, overlapping subsequent content. This also applies
+		// when nested inside same-writing-direction children, so descend into them to search (2026-10-03, sweep seed
+		// 11587843). Traverse with a worklist to avoid stack consumption in deep nesting.
 		final WritingMode outer = this.box.getBlockParams().flow;
 		double floor = 0;
 		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
@@ -657,8 +658,8 @@ public class FlowContainer implements Container {
 
 	public double paintedPageEnd() {
 		if (this.absolutes != null) {
-			// 絶対配置は静的位置と無関係に描かれうる。読み切れないので
-			// 「箱いっぱいに描く」と見なす(安全側)
+			// Absolutely positioned boxes may paint independently of their static positions. Since this is unpredictable,
+			// assume they paint throughout the box (conservative).
 			return this.box.getInnerPageExtent(this.box.getBlockParams().flow);
 		}
 		final WritingMode flow = this.box.getBlockParams().flow;
@@ -680,8 +681,8 @@ public class FlowContainer implements Container {
 
 	public boolean paintsAnything() {
 		if (this.absolutes != null) {
-			// 絶対配置は静的位置と無関係に描かれうる。読み切れないので
-			// 「描く」と見なす(安全側)
+			// Absolutely positioned boxes may paint independently of their static positions. Since this is unpredictable,
+			// assume they paint (conservative).
 			return true;
 		}
 		if (this.flows != null) {
@@ -702,9 +703,9 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 何も描かない子({@code paintedPageExtent==0})は<b>位置によらず0</b>を
-	 * 寄与します——「ページの奥に置かれた、何も描かない箱」で
-	 * {@link #paintedPageEnd()}が0でなくなるのを防ぎます。
+	 * A child that paints nothing ({@code paintedPageExtent==0}) contributes <b>0 regardless
+	 * of position</b>. Prevents a box that paints nothing but sits deep in the page
+	 * from making {@link #paintedPageEnd()} nonzero.
 	 */
 	private static double paintedEndOf(final double pageAxis, final IBox box, final WritingMode flow) {
 		final double extent = box.paintedPageExtent(flow);
@@ -752,7 +753,7 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 浮動体の行方向寸法の最大値を返します(M2c: 使用行寸法の読み取り用)。
+	 * Returns the maximum line-axis size of floats (M2c: for reading the used line size).
 	 */
 	public double floatingsLineExtent(final WritingMode flow) {
 		double max = 0;
@@ -774,11 +775,11 @@ public class FlowContainer implements Container {
 				final Flow f = (Flow) this.flows.get(i);
 				final double bottom = f.pageAxis + f.box.getPageExtent(flow);
 				if (LayoutUtils.compare(bottom, pageAxis) <= 0) {
-					// 完全に手前に収まるフロー
+					// A flow that fits entirely before the position
 					result = bottom;
 					continue;
 				}
-				// 提案位置に跨るフロー: 内部の境界を探す
+				// A flow spanning the proposed position: search for an internal boundary.
 				if (f.box.getType() == BoxType.BLOCK) {
 					final FlowBlockBox blockBox = (FlowBlockBox) f.box;
 					if (blockBox.getBlockParams().pageBreakInside != PageBreakMode.AVOID) {
@@ -789,7 +790,7 @@ public class FlowContainer implements Container {
 							result = Math.max(result, f.pageAxis + frameStart + inner);
 						}
 					}
-					// 内部に境界がない場合はブロックの前(直前の result)で切る
+					// If there is no internal boundary, cut before the block (the preceding result).
 				} else if (f.box.getType() == BoxType.TEXT_BLOCK) {
 					final double inner = ((TextBlockBox) f.box).getCutPointBelow(pageAxis - f.pageAxis);
 					if (LayoutUtils.compare(inner, 0) > 0) {
@@ -805,7 +806,7 @@ public class FlowContainer implements Container {
 				final double top = floating.pageAxis;
 				final double bottom = top + floating.box.getPageExtent(flow);
 				if (LayoutUtils.compare(top, result) < 0 && LayoutUtils.compare(bottom, result) > 0) {
-					// 切断位置に跨る浮動体の前まで引き下げる
+					// Lower the cut position to before any float spanning it.
 					result = top;
 				}
 			}
@@ -854,14 +855,12 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * {@code avoidBreakBefore}/{@code avoidBreakAfter}の反復化用ワーク
-	 * リストの1フレームです(2026-07-20、ARCHITECTURE.md不変条件6)。
-	 * ある{@code FlowContainer}の{@code flows}を末尾または先頭から順に
-	 * 見ている状態を表します。{@code awaitingChild}は、現在の
-	 * {@code index}の{@link FlowBlockBox}が持つ内部コンテナへ降りるため
-	 * 子フレームをpushした直後で、その子フレームの解決(popされて
-	 * このフレームへ戻ってきた=trueは見つからなかった)を待っている
-	 * ことを表します。
+	 * One worklist frame for iterative {@code avoidBreakBefore}/{@code avoidBreakAfter}
+	 * (2026-07-20, ARCHITECTURE.md invariant 6).
+	 * Represents traversal of a {@code FlowContainer}'s {@code flows} from the end or start.
+	 * {@code awaitingChild} means a child frame has just been pushed to descend into the internal
+	 * container of the {@link FlowBlockBox} at the current {@code index}, and this frame awaits
+	 * that child's resolution (popped back to this frame, meaning no true result was found).
 	 */
 	private static final class AvoidBreakFrame {
 		final List<Flow> flows;
@@ -883,26 +882,26 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * {@code avoidBreakBefore}/{@code avoidBreakAfter}の実装です。
+	 * Implements {@code avoidBreakBefore}/{@code avoidBreakAfter}.
 	 *
 	 * <p>
-	 * 旧実装は{@code FlowContainer.avoidBreak{Before,After}()}が
-	 * {@code flow.box.avoidBreak{Before,After}()}を呼び、それが
-	 * {@link FlowBlockBox}であれば自分の内部コンテナ(通常は別の
-	 * {@code FlowContainer})へ委譲する、というポリモーフィックな相互
-	 * 再帰で、深いネスト文書(改ページを跨ぐ開いた祖先チェーン)で
-	 * {@code StackOverflowError}を起こしていた(2026-07-20、
-	 * {@code DeepNestingRestyleTest}で確認。restyle系の反復化に着手する
-	 * 前に、この別系統の再帰も同じ不変条件6違反として発見された)。
+	 * The old implementation used polymorphic mutual recursion:
+	 * {@code FlowContainer.avoidBreak{Before,After}()} called
+	 * {@code flow.box.avoidBreak{Before,After}()}, which, for a {@link FlowBlockBox},
+	 * delegated to its internal container (normally another {@code FlowContainer}).
+	 * This caused {@code StackOverflowError} in deeply nested documents
+	 * (open ancestor chains crossing page breaks), confirmed on 2026-07-20 in
+	 * {@code DeepNestingRestyleTest}. Before work began on iterative restyle, this separate
+	 * recursion path was also found to violate invariant 6.
 	 * </p>
 	 *
 	 * <p>
-	 * 本メソッドは、{@link FlowBlockBox}への降下だけを明示的
-	 * {@link Deque}のワークリストへ置き換える(finishLayout等と同じ
-	 * 反復DFSパターン)。{@link IFlowBox}の他の実装
-	 * ({@link TableBox}・{@link TextBlockBox}・{@link net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox})
-	 * と{@link Container}の他の実装({@link ColumnsContainer})はいずれも
-	 * 末端(再帰しない)であることを確認済みのため、それらは直接呼び出す。
+	 * This method replaces only descent into {@link FlowBlockBox} with an explicit
+	 * {@link Deque} worklist (the same iterative DFS pattern as finishLayout).
+	 * Other {@link IFlowBox} implementations
+	 * ({@link TableBox}, {@link TextBlockBox}, {@link net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox})
+	 * and other {@link Container} implementations ({@link ColumnsContainer}) are all
+	 * confirmed nonrecursive leaves, so call them directly.
 	 * </p>
 	 */
 	private boolean walkAvoidBreak(final boolean after) {
@@ -921,9 +920,9 @@ public class FlowContainer implements Container {
 			final IFlowBox box = flow.box;
 			boolean result;
 			if (frame.awaitingChild) {
-				// 子コンテナへの降下から戻ってきた。子がtrueを見つけて
-				// いれば、その時点で既にreturn trueしているため、ここに
-				// 来るのはfalseで確定した場合のみ。
+				// Returned from descending into a child container. If the child had found true,
+				// the method would already have returned true there, so this point
+				// is reached only when the result is definitively false.
 				frame.awaitingChild = false;
 				result = false;
 			} else if (box instanceof FlowBlockBox) {
@@ -937,8 +936,8 @@ public class FlowContainer implements Container {
 				if (inner instanceof FlowContainer) {
 					final FlowContainer innerFlowContainer = (FlowContainer) inner;
 					if (innerFlowContainer.flows != null && !innerFlowContainer.flows.isEmpty()) {
-						// 子コンテナへ降りる。戻ってきたら上のawaitingChild
-						// 分岐で続き(高さ判定・次の候補への移動)を処理する。
+						// Descend into the child container. On return, the awaitingChild branch above
+						// handles the continuation (height check and advancement to the next candidate).
 						frame.awaitingChild = true;
 						stack.push(new AvoidBreakFrame(innerFlowContainer.flows,
 								after ? innerFlowContainer.flows.size() - 1 : 0));
@@ -946,11 +945,11 @@ public class FlowContainer implements Container {
 					}
 					result = false;
 				} else {
-					// ColumnsContainer等: 再帰しないことを確認済みの末端
+					// ColumnsContainer, etc.: leaves confirmed to be nonrecursive
 					result = after ? inner.avoidBreakAfter() : inner.avoidBreakBefore();
 				}
 			} else {
-				// TableBox/TextBlockBox/FlowReplacedBox: 再帰しない末端
+				// TableBox/TextBlockBox/FlowReplacedBox: nonrecursive leaves
 				result = after ? box.avoidBreakAfter() : box.avoidBreakBefore();
 			}
 			if (result) {
@@ -970,8 +969,8 @@ public class FlowContainer implements Container {
 			containerBox = (IFramedBox) this.box;
 		}
 		final IFramedBox childContainerBox = containerBox;
-		// 元の走査順(flows→floatings→absolutes、各々先頭から)を保つため、
-		// スタックへは逆順(absolutes→floatings→flows、各々末尾から)でpushする
+		// To preserve traversal order (flows→floatings→absolutes, each from the start),
+		// push onto the stack in reverse order (absolutes→floatings→flows, each from the end).
 		if (this.absolutes != null) {
 			for (int i = this.absolutes.getCount() - 1; i >= 0; --i) {
 				final Absolute c = this.absolutes.getAbsolute(i);
@@ -997,11 +996,11 @@ public class FlowContainer implements Container {
 		if (this.flows == null) {
 			return;
 		}
-		// 論理位置→物理座標の変換は LayoutUtils.drawX/drawY に集約する
-		// (2026-07-25、vertical-lr対応。従来はここで RL 専用式を手書きしていた)
+		// Centralize logical-to-physical coordinate conversion in LayoutUtils.drawX/drawY
+		// (2026-07-25, vertical-lr support; previously used handwritten RL-only formulas here).
 		final WritingMode flow = this.box.getBlockParams().flow;
 		final double parentPageExtent = this.box.getInnerWidth();
-		// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
+		// Normal flows (push onto the stack in reverse order to preserve traversal order)
 		for (int i = this.flows.size() - 1; i >= 0; --i) {
 			final Flow c = (Flow) this.flows.get(i);
 			final boolean rescued = isRescuedFrameOwner(c.box);
@@ -1013,8 +1012,8 @@ public class FlowContainer implements Container {
 					c.pageAxis + c.box.getWidth(), 0);
 			final double cy = LayoutUtils.drawY(flow, y, c.pageAxis, 0);
 			if (rescued) {
-				// 2026-07-25(救済分割・増分6): ブロックを元にした断片は
-				// 枠(背景・ボーダー)もこのフレームパスで描かれる
+				// 2026-07-25 (rescue splitting, increment 6): Block-derived fragments also have
+				// their frames (backgrounds and borders) drawn in this frame pass.
 				((net.zamasoft.foliojet.layout.rescue.VisualRescueBox) c.box).pushSourceFramesSteps(pageBox, drawer,
 						clip, transform, cx, cy, worklist);
 			} else {
@@ -1025,15 +1024,15 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 救済断片のうち、枠(背景・ボーダー)をフレームパスで描くべきもので
-	 * あればtrueを返します(2026-07-25、増分6)。
+	 * Returns true for a rescue fragment whose frame (background and border)
+	 * should be drawn in the frame pass (2026-07-25, increment 6).
 	 *
 	 * <p>
-	 * 判定は元ボックスの配置が通常フローの{@code offset == null}
-	 * (=相対配置でない)かどうかで、非救済のブロックとまったく同じ条件
-	 * です。テキストブロックを元にした断片は{@code FlowPos}を持たない
-	 * ためここでfalseになり、置換要素を元にした断片は自分の描画で枠を
-	 * 描くため{@code pushSourceFramesSteps}側で何も積みません。
+	 * Checks whether the original box's normal-flow position has {@code offset == null}
+	 * (i.e., is not relatively positioned), exactly the same condition as non-rescue blocks.
+	 * Fragments derived from text blocks lack {@code FlowPos}, so return false here.
+	 * Fragments derived from replaced elements draw their own frames,
+	 * so {@code pushSourceFramesSteps} pushes nothing for them.
 	 * </p>
 	 */
 	private static boolean isRescuedFrameOwner(final IFlowBox box) {
@@ -1046,10 +1045,10 @@ public class FlowContainer implements Container {
 		if (this.flows == null) {
 			return;
 		}
-		// 論理位置→物理座標は LayoutUtils.drawX/drawY に集約(2026-07-25)
+		// Centralize logical-to-physical coordinates in LayoutUtils.drawX/drawY (2026-07-25).
 		final WritingMode flow = this.box.getBlockParams().flow;
 		final double parentPageExtent = this.box.getInnerWidth();
-		// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
+		// Normal flows (push onto the stack in reverse order to preserve traversal order)
 		for (int i = this.flows.size() - 1; i >= 0; --i) {
 			final Flow c = (Flow) this.flows.get(i);
 			worklist.push(IBox.drawStep(c.box, pageBox, drawer, visitor, clip, transform, contextX, contextY,
@@ -1063,10 +1062,10 @@ public class FlowContainer implements Container {
 		if (this.flows == null) {
 			return;
 		}
-		// 論理位置→物理座標は LayoutUtils.drawX/drawY に集約(2026-07-25)
+		// Centralize logical-to-physical coordinates in LayoutUtils.drawX/drawY (2026-07-25).
 		final WritingMode flow = this.box.getBlockParams().flow;
 		final double parentPageExtent = this.box.getInnerWidth();
-		// 通常のフロー(元の走査順を保つため、スタックへは逆順でpushする)
+		// Normal flows (push onto the stack in reverse order to preserve traversal order)
 		for (int i = this.flows.size() - 1; i >= 0; --i) {
 			final Flow c = (Flow) this.flows.get(i);
 			worklist.push(IBox.textShapeStep(c.box, pageBox, path, transform,
@@ -1096,13 +1095,12 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 自動改ページ主ループの1回の切断試行で観測した結果です
-	 * (二相分離・増分2、2026-08-01)。従来のIFlowBox sentinel
-	 * (null=Keep、元ボックスidentity=Move、その他=Split残余)を型に
-	 * 置換した。「Probe(検分)」であって最終配置ではない——Keepは
-	 * 牽引(i&lt;lastOrphan)でMoveへ変換されうるし、pushback巻き戻しで
-	 * 同じフローが2回検分されうる。Frame(チェーン継続)は即時terminal
-	 * のため型に含めない。
+	 * The result observed in one split attempt of the automatic page-break main loop
+	 * (two-phase separation, increment 2, 2026-08-01). Replaces the old IFlowBox sentinels
+	 * (null=Keep, original box identity=Move, other=Split remainder) with types.
+	 * This is a Probe, not final placement: pulling (i&lt;lastOrphan) may convert Keep to Move,
+	 * and pushback rewind may probe the same flow twice.
+	 * Frame (chain continuation) is immediately terminal, so is not included in this type.
 	 */
 	private sealed interface ProbeOutcome {
 		enum MoveReason {
@@ -1111,15 +1109,15 @@ public class FlowContainer implements Container {
 			UNFULFILLABLE_AVOID
 		}
 
-		/** ボックス全体をthis側に残す(暫定)。 */
+		/** Keeps the entire box on this side (provisional). */
 		record Keep() implements ProbeOutcome {
 		}
 
-		/** ボックス全体を次断片へ送る。 */
+		/** Sends the entire box to the next fragment. */
 		record Move(MoveReason reason) implements ProbeOutcome {
 		}
 
-		/** 切断され、残余を次断片へ送る(変異済み先頭はthis側に残る)。 */
+		/** Splits and sends the remainder to the next fragment (the mutated head stays on this side). */
 		record Split(IFlowBox remainder) implements ProbeOutcome {
 		}
 
@@ -1139,16 +1137,16 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 継続化計画付きのページ方向切断です(C1d-C)。単一実装(旧3引数版
-	 * =Plain写像のwrapperは増分5で撤去し、呼び出し側がPlainを直接
-	 * 剥がす)。plan が選択したチェーンメンバー(常に末尾フロー)の
-	 * 断片は WithFrame の返り値で親へ伝播する。
+	 * Page-axis splitting with a continuation plan (C1d-C). A single implementation:
+	 * the old three-argument wrapper mapping to Plain was removed in increment 5;
+	 * callers now unwrap Plain directly. Fragments of chain members selected by plan
+	 * (always the last flow) propagate to the parent in a WithFrame return value.
 	 */
 	public net.zamasoft.foliojet.layout.fragment.ContainerCut splitPageAxis(double pageLimit, final BreakMode mode,
 			final byte flags, net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
 		if (plan != null && plan.columnLimit() != null && plan.columnLimit().owner() == this.box) {
 			pageLimit = plan.contentLimit(this.box, pageLimit);
-			// ColumnsContainerは最終段へ委譲する。対象段で一度だけ引き、子には渡さない。
+			// ColumnsContainer delegates to the last column. Subtract once in that column; do not pass it to children.
 			plan = plan.withColumnLimit(null);
 		}
 		final boolean vertical = this.box.getBlockParams().flow.isVertical();
@@ -1174,23 +1172,23 @@ public class FlowContainer implements Container {
 		}
 
 		final double prevPageSize = pageLimit;
-		// 主ループ前の判定は FlowCutter に純化されている(M4-A2)。
+		// Pre-loop decisions are pure functions in FlowCutter (M4-A2).
 		//
-		// 寸法は箱の幾何ではなく、**箱から溢れた通常フローまで含めた**値で
-		// 渡す(2026-10-02)。ページ軸の寸法を明示した箱(縦書きのwidth、横書きの
-		// height)の中身はoverflow:visibleのまま箱の外へ続くので、幾何だけで
-		// 「切断線が内底辺より先=前ページに残す」と決めると、溢れた中身が紙の
-		// 外まで並ぶ。組み立て中の通常フローはFLAGS_LASTでこの判定を通らないが、
-		// 閉じた箱として切られるページ先頭の浮動体はFLAGS_FIRSTだけで来る
-		// (掃過 seed 11065158、OffPageFloatTest)。
+		// Pass a size **including normal flow overflowing the box**, not just box geometry
+		// (2026-10-02). Content in a box with an explicit page-axis size (width in vertical writing,
+		// height in horizontal writing) continues outside the box with overflow:visible. If geometry alone
+		// determines "cut line beyond inner bottom = keep on preceding page", overflowing content extends
+		// beyond the paper. Normal flow under construction bypasses this check via FLAGS_LAST,
+		// but a page-start float split as a closed box arrives with only FLAGS_FIRST
+		// (sweep seed 11065158, OffPageFloatTest).
 		//
-		// 溢れの測度は下の主ループと同じ computeFlowBottoms()(子の幾何と子の
-		// 中身の終わりの大きいほう)。ここが溢れを見て主ループへ進めても、主ループが
-		// 別の測度なら切られない。浮動体のはみ出しは数えない——それは KeepFloats
-		// (持ち主を残して浮動体だけ送る)の仕事で、描画実測(paintedPageEnd())で
-		// 数えると段落からはみ出す浮動画像の文書(0110-clear/avoid-before-block)で
-		// 見出しの改ページ回避が崩れた。箱自身が切り抜くなら溢れは描かれないので
-		// 数えない(切ると断片が頁いっぱいに広がり、隠れた中身が見える)
+		// Use the same overflow measure as the main loop below: computeFlowBottoms() (the larger of child geometry
+		// and the child content end). Even if overflow here leads to the main loop, it will not split if the loop
+		// uses a different measure. Exclude float overflow: KeepFloats handles it
+		// (keep the owner and move only floats). Counting it via paintedPageEnd() broke heading break avoidance
+		// in a document with floating images protruding from paragraphs (0110-clear/avoid-before-block).
+		// If the box itself clips, its overflow is not painted, so exclude it
+		// (splitting would expand the fragment to fill the page and reveal hidden content).
 		final BlockParams params = this.box.getBlockParams();
 		final boolean hasFlows = this.flows != null && !this.flows.isEmpty();
 		final double[] flowBottoms = hasFlows ? this.computeFlowBottoms(params) : null;
@@ -1202,19 +1200,19 @@ public class FlowContainer implements Container {
 		}
 		final FlowCutter.PreDecision pre = FlowCutter.preDecide(pageLimit, Math.max(pageSize, overflowEnd),
 				Math.max(pageInnerSize, overflowEnd), frameStart, flags, hasFlows);
-		// **開いたままの末尾フローがあるなら「このページに残す」を選べない**
-		// (2026-08-03)。planが選んでいる末尾フローは、まだ組み立て中で
-		// 開いているフロー(継続チェーンの一員)である。ここで
-		// KeepFloats(=所有者はこのページに残し、溢れた浮動体だけ送る)を
-		// 選ぶと、そのフローは次のページに存在しなくなるのに文書としては
-		// まだ閉じていない——再開後の流し込みスタックが継続の深さより
-		// 浅くなり、ContinuationInvariantViolationException になる。
+		// **Cannot choose "keep on this page" when the last flow is still open**
+		// (2026-08-03). The last flow selected by plan is still being built
+		// and remains open (a member of the continuation chain). Choosing
+		// KeepFloats here (= keep the owner on this page and move only overflowing floats)
+		// would remove that flow from the next page even though the document has not closed it.
+		// The resumed flow stack would then be shallower than the continuation depth,
+		// causing ContinuationInvariantViolationException.
 		//
-		// 起きるのは「本文は尽きたが、ページフロートや脚注の都合で改ページが
-		// 要る」とき(このとき残り高さは0になる)。実際に
-		// files/fuzz-repro/flowstack-depth-pagefloat-footnote.html の2回目の
-		// 改ページがこれで、vertical-lr + float:top + float:footnote +
-		// float:left の4つが揃ったときだけ再現した。
+		// This happens when body text is exhausted but page floats or footnotes still require a page break
+		// (remaining height is then 0). The second page break in
+		// files/fuzz-repro/flowstack-depth-pagefloat-footnote.html exhibited this,
+		// reproducing only with all four of vertical-lr + float:top + float:footnote +
+		// float:left present.
 		final boolean openTailSelected = plan != null && this.flows != null && !this.flows.isEmpty()
 				&& plan.selects(((Flow) this.flows.get(this.flows.size() - 1)).box);
 		if (openTailSelected && pre instanceof FlowCutter.PreDecision.KeepFloats(final double keepLimit)) {
@@ -1235,11 +1233,11 @@ public class FlowContainer implements Container {
 			pageLimit = adjustedPageLimit;
 		}
 
-		// 通常のフローで指定位置にさしかかっているボックスを特定
-		// (flowBottoms は主ループ前の判定で計算済み。ここへ来るのはフローがあるときだけ)
+		// Find the normal-flow box reaching the specified position.
+		// (flowBottoms was computed by the pre-loop check; this point is reached only when flows exist.)
 		int lastOrphan = FlowCutter.lastOrphan(flowBottoms, pageLimit);
 
-		// FlowCutter へ渡す純データ(avoid 押し戻し・後段判定用の計測)
+		// Pure data for FlowCutter (measurements for avoid pushback and subsequent decisions)
 		final FlowMeasurements flowMeasurements = this.measureFlows(params);
 		final double[] flowPageStarts = flowMeasurements.pageStarts();
 		final double[] flowPageExtents = flowMeasurements.pageExtents();
@@ -1255,21 +1253,21 @@ public class FlowContainer implements Container {
 				floatUncut) ? (byte) (flags | IPageBreakableBox.FLAGS_FLOAT_CROSSES) : flags;
 
 		if (lastOrphan == this.flows.size()) {
-			// 切断線以下のフローがない場合
+			// When there is no flow at or beyond the cut line
 			//
-			// **開いたままの末尾フローは、動かす内容が無くても継続させる**
-			// (2026-08-03)。planが選んでいる末尾フローは「まだ組み立て中で
-			// 開いている」フロー(継続チェーンの一員)である。ここで
-			// 「前のページに残す」と、そのフローは次のページに存在しなく
-			// なるのに、文書としてはまだ閉じていない——再開後の流し込み
-			// スタックが継続の深さより浅くなり、
-			// ContinuationInvariantViolationException になる。
+			// **Continue a still-open last flow even when there is no content to move**
+			// (2026-08-03). The last flow selected by plan is still being built
+			// and remains open (a member of the continuation chain).
+			// Keeping it on the preceding page here would remove that flow from the next page
+			// even though the document has not closed it. The resumed flow stack
+			// would be shallower than the continuation depth,
+			// causing ContinuationInvariantViolationException.
 			//
-			// 起きるのは「本文は尽きたが、ページフロートや脚注の都合で
-			// 改ページが要る」ときで、実際に
-			// files/fuzz-repro/flowstack-depth-pagefloat-footnote.html の
-			// 2回目の改ページがこれだった(vertical-lr + float:top +
-			// float:footnote + float:left の組み合わせ)。
+			// This happens when body text is exhausted but page floats or footnotes
+			// still require a page break. It occurred at
+			// the second page break in files/fuzz-repro/flowstack-depth-pagefloat-footnote.html
+			// with the combination vertical-lr + float:top +
+			// float:footnote + float:left.
 			if ((flags & IPageBreakableBox.FLAGS_LAST) == 0 && !openTailSelected) {
 				if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0 || (flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
 					return plain(this.cutTail(prevPageSize, flags));
@@ -1277,10 +1275,10 @@ public class FlowContainer implements Container {
 				final double contentHeight = flowPageStarts[this.flows.size() - 1]
 						+ flowPageExtents[this.flows.size() - 1];
 				if (LayoutUtils.compare(pageInnerSize, contentHeight) > 0) {
-					// 自然の高さより高いボックスは切断
+					// Split a box taller than its natural height.
 					return plain(this.cutTail(prevPageSize, flags));
 				}
-				// 前のページに残す
+				// Keep on the preceding page.
 				return plain(this.splitFloatingsKeepingOwner(prevPageSize, flags));
 			}
 			lastOrphan = this.flows.size() - 1;
@@ -1290,27 +1288,27 @@ public class FlowContainer implements Container {
 		boolean ignoreAvoid = false;
 		int relaxInsideIndex = -1;
 		double savePageLimit = pageLimit;
-		// B5c-2 Step3(自動改ページ主ループ、2026-07-22再挑戦): plan選択
-		// 済みチェーンメンバー(常にthis.flowsの末尾)が一度でも検分され
-		// たかどうか。チェーンメンバー自身のKeep/Moveの生値はここでは
-		// 使わない(pushback巻き戻しで2回検分されうる非純粋呼び出しの
-		// ため、switch直後の値は最終配置と食い違いうると判明——詳細は
-		// 開発記録
-		// 参照)。かわりに、コンテナ全体の結論が確定する「nextBox+
-		// splitFloatings」の最終returnでのみ、その時点で確定している
-		// 事実(nextBoxがチェーンメンバー単体だけを含むか)から
-		// PlainWithChainStopを付与するか判断する(force-branchと同型の
-		// 状況に限定——複数flowが絡む部分継続は単純な二値では表現できない
-		// ため、それ以外はplain()のまま、既存のcontainer-identity比較
-		// フォールバックに委ねる)。
+		// B5c-2 Step3 (automatic page-break main loop, retried 2026-07-22): Whether the chain member
+		// selected by plan (always the last entry in this.flows) has been probed at least once.
+		// Do not use the chain member's raw Keep/Move result here:
+		// this impure call may be probed twice after pushback rewind,
+		// and the value immediately after the switch was found to differ from final placement
+		// (see the development log
+		// for details). Instead, only at the final "nextBox + splitFloatings" return,
+		// where the entire container's outcome is settled, use the facts established at that point
+		// (whether nextBox contains only the chain member)
+		// to decide whether to attach PlainWithChainStop. Limit this to cases isomorphic to force-branch:
+		// partial continuations involving multiple flows cannot be expressed as a simple binary state.
+		// Leave other cases as plain() and defer to the existing
+		// container-identity comparison fallback.
 		boolean sawChainMember = false;
 		// A text block whose first line was pushed below the cut by a float that continues on the next page
 		// (2026-10-07, see the TEXT_BLOCK case)
 		boolean pushedBelowFloat = false;
-		// 上から下へチェックする
+		// Check from top to bottom.
 		for (int i = lastOrphan; i < this.flows.size(); ++i) {
 			Flow prevFlow = (Flow) this.flows.get(i);
-			// フラグ計算は FlowCutter に純化(二相分離・増分1、2026-08-01)
+			// Flag calculation is pure in FlowCutter (two-phase separation, increment 1, 2026-08-01).
 			final FlowCutter.StepFlags step = FlowCutter.stepFlags(pageLimit, prevFlow.pageAxis, i, this.flows.size(),
 					((AutoBreakMode) mode).box == this.box, innerFlags);
 			final double splitLine = step.splitLine();
@@ -1355,22 +1353,22 @@ public class FlowContainer implements Container {
 						break;
 					}
 				}
-				// 2026-07-25(救済分割・増分6): 巨大な行。答申§1のとおり
-				// TextBlockBox.split()を呼ぶ**前に**行の物理下端を検査する。
-				// LineCutterはフラグメント先頭で実質1行しかなければ無条件に
-				// KEEPを返す(=行分割では前進しない)ため、切断結果からは
-				// その非進行を区別できないからである。巨大フォント・背の
-				// 高いインラインブロック・インラインテーブル・ルビ単位・
-				// インライン置換要素は、すべて「背の高い1行」としてこの
-				// 一点で捕捉される——個別の分岐は作らない
+				// 2026-07-25 (rescue splitting, increment 6): An oversized line. As recommendation §1 states,
+				// check its physical bottom **before** calling TextBlockBox.split().
+				// LineCutter unconditionally returns KEEP when effectively only one line exists at the fragment start
+				// (line splitting makes no progress), so the split result
+				// cannot distinguish this non-progress case. Huge fonts, tall inline blocks,
+				// inline tables, ruby units, and inline replaced elements are all
+				// caught at this single point as one tall line;
+				// do not create separate branches for them.
 				if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0
 						&& prevFlow.box instanceof net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock) {
 					final double unbreakableEnd = textBlock.getUnbreakableLinePageEnd();
 					if (!LayoutUtils.isNone(unbreakableEnd) && LayoutUtils.compare(splitLine, unbreakableEnd) < 0) {
 						final IFlowBox rescued = this.rescueSplit(i, prevFlow, splitLine, prevPageSize);
 						if (rescued != null) {
-							// rescueSplitは成功時にthis.flows[i]を先頭断片へ
-							// 置換済み——残余tailはSplitの残余と同じ扱い
+							// On success, rescueSplit has already replaced this.flows[i] with the head fragment;
+							// treat the tail remainder like a Split remainder.
 							outcome = new ProbeOutcome.Split(rescued);
 							break;
 						}
@@ -1389,22 +1387,22 @@ public class FlowContainer implements Container {
 				break;
 			case BLOCK:
 				BlockParams cParams = ((AbstractContainerBox) prevFlow.box).getBlockParams();
-				// **フラグメンテナ丸ごとでも収まらないavoidは履行不能**
-				// (2026-08-20、css-break)。送っても結局内部で切ることになり、
-				// 送り元のページに大きな空白だけが残る(w3c-jlreqの
-				// 二重言語の巨大figure——版面756ptに対し760pt超——で実測)。
-				// 同軸ならその場で内部を切り、直交フローのMoveには理由を残す
-				// 改ページ禁止でかつページの頭でない場合(§5.11)、または軸が
-				// 食い違う場合(PaginationContract.splitsInPageAxis=false、
-				// §5.10ルール3)は内部で改ページせずREPLACEDと同じatomic経路へ
+				// **An avoid constraint is impossible to honor if the box cannot fit even in a whole fragmentainer**
+				// (2026-08-20, css-break). Moving it still requires an internal split,
+				// leaving only a large blank area on the source page (measured with oversized bilingual
+				// figures in w3c-jlreq: over 760 pt in a 756 pt type area).
+				// Split internally in place if on the same axis; record a reason for Move on orthogonal flows.
+				// If page breaks are prohibited and the box is not at the page start (§5.11), or the axes
+				// differ (PaginationContract.splitsInPageAxis=false,
+				// §5.10 rule 3), use the atomic REPLACED path without an internal page break.
 				if ((cParams.pageBreakInside != PageBreakMode.AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0
 						|| unfulfillableAvoid)
 						&& net.zamasoft.foliojet.layout.fragment.PaginationContract.splitsInPageAxis(vertical,
 								(AbstractContainerBox) prevFlow.box)) {
 					if (plan != null && plan.selects(prevFlow.box)) {
-						// C1d-C: チェーンメンバーの継続化。断片はボックスでは
-						// なくフレームとして返り値で親へ伝播する
-						// (チェーン子は常に末尾のため後続フローの移送はない)
+						// C1d-C: Continue a chain member. Fragments propagate to the parent in the return value
+						// as frames, not boxes
+						// (chain children are always last, so no subsequent flows need transfer).
 						if (i != this.flows.size() - 1) {
 							throw new IllegalStateException("continuation frame child is not the open-tail flow");
 						}
@@ -1415,9 +1413,9 @@ public class FlowContainer implements Container {
 						case SplitResult.Move move -> outcome = moveOutcome;
 						case SplitResult.Frame(
 								final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f) -> {
-							// Existing指定では結果は常にcollectedNext自身
-							// (移動があれば台帳が装着される)——旧APIの
-							// 返り値(=nextBox)と同じ
+							// With Existing, the result is always collectedNext itself
+							// (a ledger is attached if anything moves), matching the old API's
+							// return value (=nextBox).
 							final FlowContainer collectedNext = new FlowContainer();
 							this.splitFloatings(new FloatTransferTarget.Existing(collectedNext), prevPageSize, flags);
 							return new net.zamasoft.foliojet.layout.fragment.ContainerCut.WithFrame(collectedNext, f);
@@ -1438,30 +1436,30 @@ public class FlowContainer implements Container {
 					break;
 				}
 				if ((xflags & IPageBreakableBox.FLAGS_LAST) != 0) {
-					// 末尾の場合、改ページ禁止は必ず送る
+					// At the end, always move boxes with a page-break prohibition.
 					outcome = moveOutcome;
 					break;
 				}
 			case RESCUE:
-				// 2026-07-25(救済分割・増分5): 救済断片の続き。断片は
-				// 「元ボックスの残余」を表す不可分な箱なので、置換要素と
-				// まったく同じ判定でよい(先頭なら再度救済、収まるなら
-				// そのまま残す、途中なら丸ごと次フラグメンテナへ)
+				// 2026-07-25 (rescue splitting, increment 5): Continuation of a rescue fragment.
+				// A fragment is an indivisible box representing the original box's remainder,
+				// so use exactly the replaced-element decision (rescue again if first,
+				// keep if it fits, otherwise move it whole to the next fragmentainer if in the middle).
 			case REPLACED: {
-				// 置換されたボックス
+				// Replaced box
 				double prevFlowPageSize = prevFlow.box.getPageExtent(this.box.getBlockParams().flow);
 				if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0
 						|| LayoutUtils.compare(splitLine, prevFlowPageSize) >= 0) {
-					// ページの先頭にある場合、ページ下辺にかかっていない場合は残す
+					// Keep it if at the page start or if it does not intersect the page bottom.
 					if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0
 							&& LayoutUtils.compare(splitLine, prevFlowPageSize) < 0) {
-						// 2026-07-25(救済分割・増分4/5): 「フラグメント先頭・
-						// 分割不能・なお超過」——現在はここで「はみ出したまま
-						// 描画」に落ちる唯一の非進行点(答申§1)
-						// 容量の基準は「調整前の切断線」= このコンテナの
-						// 始端からフラグメンテナ終端までの距離。コンテナ
-						// 自身の内寸(pageInnerSize)は自動高さだと内容に
-						// つれて伸びるため基準にならない
+						// 2026-07-25 (rescue splitting, increment 4/5): "Fragment start,
+						// indivisible, still overflowing" is the sole non-progress point here
+						// currently falling through to drawing with overflow (recommendation §1).
+						// Capacity is based on the unadjusted cut line: the distance from this container's
+						// start to the fragmentainer end. The container's own inner size
+						// (pageInnerSize) cannot be the basis because with auto height
+						// it grows with its content.
 						final IFlowBox rescued = this.rescueSplit(i, prevFlow, splitLine, prevPageSize);
 						if (rescued != null) {
 							outcome = new ProbeOutcome.Split(rescued);
@@ -1470,7 +1468,7 @@ public class FlowContainer implements Container {
 					}
 					outcome = ProbeOutcome.KEEP;
 				} else {
-					// 次ページに送る
+					// Send to the next page.
 					outcome = moveOutcome;
 				}
 			}
@@ -1484,8 +1482,8 @@ public class FlowContainer implements Container {
 				break;
 			}
 			if (outcome instanceof ProbeOutcome.Keep) {
-				// Keepの解決規則はFlowCutterに純化(二相分離・増分3)。
-				// TREAT_AS_MOVE=牽引によるMove化はProbeが最終配置でない代表例
+				// Keep resolution rules are pure in FlowCutter (two-phase separation, increment 3).
+				// TREAT_AS_MOVE, conversion to Move by pulling, is a prime example of a Probe not being final placement.
 				switch (FlowCutter.resolveKeep(i, lastOrphan, xflags)) {
 				case KEEP_ALL:
 					return plain(null);
@@ -1500,8 +1498,8 @@ public class FlowContainer implements Container {
 				if (move.reason() == ProbeOutcome.MoveReason.UNFULFILLABLE_AVOID) {
 					relaxInsideIndex = Math.max(relaxInsideIndex, i);
 				}
-				// 分割不可能な場合。解決規則はFlowCutterに純化(二相分離・
-				// 増分4)——ここは決定の適用だけを行う
+				// When splitting is impossible. Resolution rules are pure in FlowCutter (two-phase separation,
+				// increment 4); this code only applies the decision.
 				final FlowCutter.MoveResolution resolution = FlowCutter.resolveMove(lflags, flags, i, lastOrphan,
 						ignoreAvoid, relaxInsideIndex, prevPageSize, pageLimit, ((AutoBreakMode) mode).fragmentCapacity,
 						flowPageStarts, flowPageExtents, avoidBefore, avoidAfter,
@@ -1512,22 +1510,22 @@ public class FlowContainer implements Container {
 				}
 				switch (resolution) {
 				case FlowCutter.MoveResolution.Terminal(final FlowCutter.PreDecision action):
-					// **開いたままの末尾フローは前ページに置き去りにできない**
-					// (2026-08-21、掃過seed 46342ほか30件)。CutTail/KeepFloats
-					// はどちらも「フローはこのページに残し、浮動体だけ次へ送る」
-					// 決定である(cutTailは空のnextBoxへ浮動体台帳を移すだけで
-					// フローを1つも移さない)。planが選んでいる末尾フローは
-					// まだ組み立て中で開いており、次ページに存在しなくなると
-					// 再開後の流し込みスタックが継続の深さより浅くなって
-					// ContinuationInvariantViolationExceptionになる。
-					// 2026-08-03にpreDecide側の同じ穴は塞いだが、主ループの
-					// resolveMove→Terminalが残っていた。開いた末尾があるときは
-					// ownerごと次ページへ送って継続させる
+					// **A still-open last flow cannot be left behind on the preceding page**
+					// (2026-08-21, sweep seed 46342 and 30 other cases). CutTail and KeepFloats
+					// both decide to keep flows on this page and move only floats to the next
+					// (cutTail merely transfers the float ledger to an empty nextBox
+					// without moving any flows). The last flow selected by plan
+					// is still under construction and open. If absent from the next page,
+					// the resumed flow stack becomes shallower than the continuation depth,
+					// causing ContinuationInvariantViolationException.
+					// The same hole in preDecide was closed on 2026-08-03, but the main loop's
+					// resolveMove→Terminal remained. If the last flow is open, move the owner
+					// together with it to the next page and continue.
 					if (openTailSelected && (action instanceof FlowCutter.PreDecision.CutTail
 							|| action instanceof FlowCutter.PreDecision.KeepFloats)) {
-						// コンテナごと次ページへ送る(MoveAll相当)。
-						// splitFloatingsMovingOwnerはRemainder時に空コンテナを
-						// 返しフローを落とすため使えない(実測)
+						// Send the whole container to the next page (equivalent to MoveAll).
+						// Cannot use splitFloatingsMovingOwner: on Remainder it returns an empty container
+						// and drops the flows (measured).
 						return plain(this);
 					}
 					return plain(switch (action) {
@@ -1539,27 +1537,27 @@ public class FlowContainer implements Container {
 					default -> throw new IllegalStateException(String.valueOf(action));
 					});
 				case FlowCutter.MoveResolution.RestartIgnoringAvoid(final int nextIndex):
-					// 改ページ禁止を無視して再走(切断線は再開用値へ巻き戻す)
+					// Rerun ignoring break avoidance (rewind the cut line to the resume value).
 					pageLimit = savePageLimit;
-					i = nextIndex - 1; // forの++i前提
+					i = nextIndex - 1; // Assumes the for loop's ++i.
 					ignoreAvoid = true;
 					continue;
 				case FlowCutter.MoveResolution.RelaxInside(final int index, final int fallbackIndex): {
-					// 境界avoidは保ったまま、末尾のモノリシックなボックスだけを
-					// 幾何分割する。target.pageAxisには新しいfragmentainer上で
-					// 先行する見出しが消費した量が含まれるため、先頭からの容量
-					// ではなく見出し後の残量で切る
+					// Preserve boundary avoid and geometrically split only the last monolithic box.
+					// target.pageAxis includes the amount consumed by the preceding heading on the new fragmentainer,
+					// so split using the space remaining after that heading,
+					// not the capacity from the start.
 					final Flow target = this.flows.get(index);
 					final double available = savePageLimit - target.pageAxis;
-					// **開いたままの箱は救済分割しない**(2026-09-16)。継続チェーンの
-					// メンバーは現在の破断点の祖先として開いており、まだ内容が届く。
-					// 視覚的に切って閉じた残余へ置き換えると、再開が addRescueBound で
-					// 閉じた箱として戻すため flowStack が積み直されず、継続の開き段数と
-					// 食い違う(不変条件「flowStack深さ≠継続深さ」——掃過で最多の欠陥、
-					// STRICT 2,459/WILD 1,570 件)。この場合は下の従来経路
-					// (境界 avoid を緩和して内側で切る=継続フレームを作る)へ落とす
-					// 計画に選ばれていなくても、破断の時点で開いている箱は同じ理由で救済しない
-					// (2026-10-07、OpenBoxes。計画の無い降下では plan が null で渡る)
+					// **Do not rescue-split still-open boxes** (2026-09-16). Continuation-chain members
+					// remain open as ancestors of the current break point and will receive more content.
+					// If visually cut and replaced with a closed remainder, resume restores it via addRescueBound
+					// as a closed box without rebuilding flowStack, causing a mismatch with the continuation's
+					// open depth (invariant: flowStack depth ≠ continuation depth; the most frequent sweep defect,
+					// STRICT 2,459/WILD 1,570 cases). Fall through to the existing path below in this case:
+					// relax boundary avoid and split internally, creating a continuation frame.
+					// For the same reason, do not rescue boxes open at the break point even if not selected by the plan
+					// (2026-10-07, OpenBoxes; descent without a plan receives plan=null).
 					final boolean selected = plan != null && plan.selects(target.box);
 					final boolean open = !selected
 							&& net.zamasoft.foliojet.layout.fragment.OpenBoxes.isOpen(target.box);
@@ -1573,7 +1571,7 @@ public class FlowContainer implements Container {
 						nextBox = this.applyPartition(index, new ProbeOutcome.Split(rescued));
 						break;
 					}
-					// 有用な断片を作れない場合は従来どおり境界avoidを緩和する
+					// If no useful fragment can be made, relax boundary avoid as before.
 					pageLimit = savePageLimit;
 					i = fallbackIndex - 1;
 					ignoreAvoid = true;
@@ -1583,19 +1581,19 @@ public class FlowContainer implements Container {
 					if (resumeIndex + 1 == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0
 							&& LayoutUtils.compare(flowPageStarts[0], 0) <= 0
 							&& !this.hasInFlowContentBefore(newPageLimit)) {
-						// 前進の確保(2026-09-19): 押し戻しの連鎖がページ先頭(コンテナが FIRST で、最初の流れが
-						// 始端に接する)から始まり、切断線より前に通常フローの内容候補が一つも無いなら、
-						// それより前に改ページできる位置は無い。CSS の break-before:avoid の意味どおり
-						// avoid を無視して、この流れ以降を送る。押し戻すと先頭ブロックの枠の中(1pt)で切る
-						// ことになり、そのブロックが抱える浮動体も 1pt ずつしか進まない(掃過 strict の
-						// seed 8471349: 内容が空の枠付き div の浮動体の後ろに ul(UA 既定
-						// page-break-before:avoid)。207pt の浮動体が 1pt ずつ 207 ページ)。
-						// 背景付きの空ブロックは内容候補に数えない——そのブロックは残るので白紙にはならず、
-						// 1pt の断片を送るだけの押し戻しをやめる(0500-twopass-range/t4b-flex-middle-pushed)
+						// Progress (2026-09-19): If the pushback chain starts at the page start (container FIRST
+						// and the first flow touches its start) and no normal-flow content candidate precedes the cut line,
+						// there is no earlier page-break position. Following CSS break-before:avoid semantics,
+						// ignore avoid and move this flow and those after it. Pushback would split inside the first block's
+						// frame (1 pt), making its float advance by only 1 pt at a time too (strict sweep
+						// seed 8471349: a float in an empty framed div followed by a ul with the UA default
+						// page-break-before:avoid; a 207 pt float took 207 pages at 1 pt per page).
+						// Do not count empty blocks with backgrounds as content candidates: the block remains, so the page
+						// is not blank. Stop pushback of mere 1 pt fragments (0500-twopass-range/t4b-flex-middle-pushed).
 						nextBox = this.applyPartition(i, outcome);
 						break;
 					}
-					// ブロック間の改ページ禁止の場合
+					// When a page break between blocks is prohibited
 					i = resumeIndex;
 					pageLimit = newPageLimit;
 					continue;
@@ -1610,7 +1608,7 @@ public class FlowContainer implements Container {
 		}
 
 		if (nextBox == null) {
-			// ブロックを残す(末尾のブロックを残すことはない)。判定は FlowCutter に純化
+			// Keep the block (never keep the last block). The decision is pure in FlowCutter.
 			assert !((flags & IPageBreakableBox.FLAGS_LAST) != 0 && ((AutoBreakMode) mode).box != this.box);
 			final double lastFlowBottom = flowPageStarts[this.flows.size() - 1]
 					+ flowPageExtents[this.flows.size() - 1];
@@ -1625,14 +1623,14 @@ public class FlowContainer implements Container {
 			});
 		}
 
-		// nextBoxがチェーンメンバー一つだけを含む(=force-branchと同型の
-		// 「識別では判別できない素の全体move」)場合に限り
-		// PlainWithChainStopを付与する。複数flowが絡む場合(pushback巻き
-		// 戻しで途中の兄弟が実際の切断点になったケース等)は既存の
-		// container-identity比較へ安全にフォールバックさせる
+		// Attach PlainWithChainStop only if nextBox contains exactly the chain member,
+		// isomorphic to force-branch's plain whole-box move that identity cannot distinguish.
+		// When multiple flows are involved (for example, pushback rewind made an intermediate sibling
+		// the actual cut point), safely fall back to the existing
+		// container-identity comparison.
 		final boolean chainMemberAlone = sawChainMember && nextBox.flows != null && nextBox.flows.size() == 1;
-		// Existing指定では結果は常にnextBox自身(移動があれば台帳が装着
-		// される)——旧APIの返り値(=nextBox)と同じ
+		// With Existing, the result is always nextBox itself (a ledger is attached if anything moves),
+		// matching the old API's return value (=nextBox).
 		this.splitFloatings(new FloatTransferTarget.Existing(nextBox), prevPageSize, flags);
 		final Container splitResult = nextBox;
 		return chainMemberAlone
@@ -1642,8 +1640,9 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 強制改ページ・改段での切断です(2026-10-05 に {@link #splitPageAxis} から切り出した。本文は移しただけ)。
-	 * 自分が改ページの持ち主でなければ末尾のフローを切り、持ち主なら流れは送らず浮動体だけを集約する。
+	 * Splits for a forced page or column break (extracted from {@link #splitPageAxis} on 2026-10-05;
+	 * the body was only moved). If this container does not own the break, split the last flow;
+	 * if it does, aggregate only floats without moving flows.
 	 */
 	private net.zamasoft.foliojet.layout.fragment.ContainerCut splitForced(final double pageLimit,
 			final ForceBreakMode force, final byte flags, final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
@@ -1660,8 +1659,8 @@ public class FlowContainer implements Container {
 			}
 			final Flow flow = this.flows.get(index);
 			if (plan != null && plan.selects(flow.box)) {
-				// C1d-C: チェーンメンバーの継続化。断片はボックスではなく
-				// フレームとして返り値で親へ伝播する
+				// C1d-C: Continue a chain member. Fragments propagate to the parent in the return value
+				// as frames, not boxes.
 				switch (((AbstractBlockBox) flow.box).splitForContinuation(pageLimit - flow.pageAxis, force,
 						(byte) (lflags & flags), plan)) {
 				case SplitResult.Frame(
@@ -1670,17 +1669,17 @@ public class FlowContainer implements Container {
 				case SplitResult.Split(final IPageBreakableBox remainder) -> throw new IllegalStateException(
 						"チェーンメンバーは Split を返さない");
 				case SplitResult.Keep keep -> {
-					// 継続化不成立(chainFrame は null のまま)。box 全体を
-					// this 側に残す — 末尾の chainFrame==null 分岐が
-					// PlainWithChainStop(nextBox) へ自然にフォールバックする
+					// Continuation failed (chainFrame remains null). Keep the entire box
+					// on this side; the final chainFrame==null branch naturally
+					// falls back to PlainWithChainStop(nextBox).
 					chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.KEEP;
 				}
 				case SplitResult.Move move -> {
-					// box全体をnextBox側へ送る。自動改ページ主ループ
-					// ({@link #applyPartition})と同様、this.flows側からも除去
-					// しないと同一boxが前後ページに二重に残ってしまう
-					// (除去自体は下のsplitFloatings呼び出しの後——
-					// そちらがthis.flowsの元のサイズを前提にしている)
+					// Send the entire box to nextBox. As in the automatic page-break main loop
+					// ({@link #applyPartition}), also remove it from this.flows;
+					// otherwise, the same box remains on both the preceding and following pages.
+					// (Perform removal after the splitFloatings call below,
+					// which assumes the original size of this.flows.)
 					nextBox.addFlow(flow.serial, flow.box, 0);
 					moved = true;
 					chainStopReason = net.zamasoft.foliojet.layout.fragment.ChainStopReason.MOVE;
@@ -1695,11 +1694,11 @@ public class FlowContainer implements Container {
 						(IFlowBox) remainder, 0);
 				case SplitResult.Frame frame -> throw new IllegalStateException("継続化は plan の選択なしには起きない");
 				case SplitResult.Keep keep -> {
-					// box 全体を this 側に残す(nextBox には何も加えない)
+					// Keep the entire box on this side (add nothing to nextBox).
 				}
 				case SplitResult.Move move -> {
-					// 同上: this.flows側からも除去する(除去はsplitFloatings
-					// 呼び出しの後)
+					// As above: also remove it from this.flows (after the splitFloatings
+					// call).
 					nextBox.addFlow(flow.serial, flow.box, 0);
 					moved = true;
 				}
@@ -1710,10 +1709,10 @@ public class FlowContainer implements Container {
 		}
 		final FloatAggregate aggregate = this.aggregateFloatings(pageLimit, flags, index);
 		if (moved) {
-			// aggregateFloatings(pageLimit, flags, index) は呼び出し時点の
-			// this.flows.size()==index+1 を前提に0..index-1を走査する
-			// ため、除去はその呼び出しの後に行う(先に除去すると
-			// FLAGS_LAST判定がずれる)
+			// aggregateFloatings(pageLimit, flags, index) scans 0..index-1 assuming
+			// this.flows.size()==index+1 at call time,
+			// so remove after that call (removing first would
+			// skew the FLAGS_LAST check).
 			this.flows.remove(index);
 			this.invalidateNonDecorationContent();
 		}
@@ -1734,13 +1733,13 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 主ループの結論を実際のフロー移送として適用する唯一のcommit地点です
-	 * (二相分離・増分6、2026-08-01)。
+	 * The sole commit point applying the main loop's conclusion as actual flow transfer
+	 * (two-phase separation, increment 6, 2026-08-01).
 	 *
 	 * <p>
-	 * Move: 現在のフローを<b>含めて</b>後続を次断片へ送る(B3b-2の
-	 * 「Moveなのに元側から除去せず二重描画」の再発をここで構造的に防ぐ)。
-	 * Split: 変異済み先頭はthis側に残し、残余+後続を送る。
+	 * Move: send subsequent flows <b>including</b> the current flow to the next fragment
+	 * (structurally prevents recurrence of B3b-2: Move without removal from the source caused duplicate drawing).
+	 * Split: keep the mutated head on this side and send the remainder plus subsequent flows.
 	 * </p>
 	 */
 	private FlowContainer applyPartition(final int index, final ProbeOutcome outcome) {
@@ -1767,39 +1766,37 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 救済分割(visual rescue split)の、通常フローにおける唯一の差し込み
-	 * 地点です(2026-07-25新設。仕様と設計判断の根拠は
-	 * {@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}の
-	 * クラス説明に集約しています)。
+	 * The sole insertion point for visual rescue splitting in normal flow
+	 * (added 2026-07-25). The specification and rationale for design decisions are centralized
+	 * in the class documentation of {@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}.
 	 *
 	 * <p>
-	 * 呼ばれるのは「フラグメント先頭・分割不能・なお超過」という
-	 * <b>非進行点</b>——現在「はみ出したまま描画」に落ちる唯一の地点——
-	 * だけです。通常経路(収まる/一度の延期で収まる)は一切通りません。
+	 * Called only at the <b>non-progress point</b> "fragment start, indivisible, still overflowing":
+	 * the sole point currently falling through to drawing with overflow.
+	 * Normal paths (fits, or fits after one deferral) never reach this method.
 	 * </p>
 	 *
 	 * <p>
-	 * 断片の運搬は<b>既存の残余運搬機構にそのまま乗ります</b>:
-	 * {@code this.flows}の当該要素を先頭断片(head)へ差し替え、残余断片
-	 * (tail)を戻り値として返すと、呼び出し側の
-	 * {@code SplitResult.Split(remainder)}と同じ経路で次フラグメンテナの
-	 * コンテナへ載ります。答申§2の「全断片を先に作らず、各改ページで
-	 * head一個とtail一個だけ作る」がそのまま実現されます。
+	 * Fragment transport <b>uses the existing remainder transport mechanism unchanged</b>:
+	 * replace the relevant {@code this.flows} entry with the head fragment and return the tail
+	 * fragment. The caller places it in the next fragmentainer's container through the same path as
+	 * {@code SplitResult.Split(remainder)}. This directly implements recommendation §2:
+	 * do not build all fragments in advance; create only one head and one tail at each page break.
 	 * </p>
 	 *
-	 * @param index     {@code this.flows}での位置(head へ差し替える)
-	 * @param prevFlow  非進行点に到達したフロー
-	 * @param available このフラグメンテナで使えるページ方向の量
-	 * @param capacity  フラグメンテナのページ方向内寸(極小断片の判定用)
-	 * @return 次フラグメンテナへ送る残余断片。救済しないなら{@code null}
+	 * @param index     the position in {@code this.flows} to replace with head
+	 * @param prevFlow  the flow that reached a non-progress point
+	 * @param available the available page-axis amount in this fragmentainer
+	 * @param capacity  the fragmentainer's inner page-axis size (for detecting tiny fragments)
+	 * @return the remainder fragment to send to the next fragmentainer, or {@code null} if no rescue applies
 	 */
 	private IFlowBox rescueSplit(final int index, final Flow prevFlow, final double available, final double capacity) {
 		return this.rescueSplit(index, prevFlow, available, capacity, true, false);
 	}
 
 	/**
-	 * 通常のフラグメント先頭判定と、履行不能なavoidだけに許す例外を
-	 * 明示して救済分割します。
+	 * Performs rescue splitting with an explicit normal fragment-start check
+	 * and an exception allowed only for impossible-to-honor avoid constraints.
 	 */
 	private IFlowBox rescueSplit(final int index, final Flow prevFlow, final double available, final double capacity,
 			final boolean atFragmentStart, final boolean relaxUnfulfillableAvoid) {
@@ -1809,8 +1806,8 @@ public class FlowContainer implements Container {
 		final double sourcePageExtent;
 		final double offset;
 		if (box instanceof net.zamasoft.foliojet.layout.rescue.VisualRescueFlowBox fragment) {
-			// 救済済み断片の続き。区間はoffset/sliceExtentだけで表す
-			// (断片の断片は作らない)
+			// Continuation of an already rescued fragment. Represent the interval only with offset/sliceExtent
+			// (do not create fragments of fragments).
 			source = (IFlowBox) fragment.getSource();
 			sourcePageExtent = fragment.getSourcePageExtent();
 			offset = fragment.getOffset();
@@ -1827,21 +1824,21 @@ public class FlowContainer implements Container {
 			return null;
 		}
 		if (!net.zamasoft.foliojet.layout.rescue.RescuePolicy.isEnabled()) {
-			// テスト専用の注入点(従来の挙動との比較用)。本番は常に有効
+			// Test-only injection point (for comparison with previous behavior). Always enabled in production.
 			return null;
 		}
 		if (!isRescueEnabled(box)) {
 			return null;
 		}
 		if (slice.lastFragment()) {
-			// 呼び出し条件(なお超過)からここには来ない。念のため救済しない
+			// The calling condition (still overflowing) excludes this case. Do not rescue, as a precaution.
 			return null;
 		}
 		final double tailOffset = slice.nextOffset();
 		final double tailExtent = sourcePageExtent - tailOffset;
-		// 実行時の前進検査(答申§5「offsetの厳密増加を実行時にも検査し、
-		// 失敗時はtailを作らない」)。判定器の不変条件と二重になるが、
-		// 無限ループの不在は絶対要件なので実行時にも守る
+		// Runtime progress check (recommendation §5: check strict increase of offset at runtime too,
+		// and create no tail on failure). Duplicates the planner invariant, but the absence
+		// of infinite loops is an absolute requirement, so enforce it at runtime too.
 		if (!(tailOffset > offset) || !(tailExtent > 0)) {
 			return null;
 		}
@@ -1864,36 +1861,36 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 救済分割を実際に有効にする範囲です。仕様と設計判断の根拠は
-	 * {@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}の
-	 * クラス説明に集約しています(ここには置きません)。
+	 * The scope where rescue splitting is actually enabled. The specification and design rationale
+	 * are centralized in the class documentation of
+	 * {@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}, not here.
 	 *
 	 * <p>
-	 * <b>ここはクラス列挙ではありません</b>。この判定に到達する時点で
-	 * 「フラグメント先頭・分割不能・なお超過」というエンジン自身の分類は
-	 * 済んでいます(答申§4)——
+	 * <b>This is not a class enumeration.</b> By the time this check is reached,
+	 * the engine has already classified the case as "fragment start, indivisible, still overflowing"
+	 * (recommendation §4):
 	 * </p>
 	 *
 	 * <ul>
-	 * <li>{@code REPLACED}は元から分割の入口を持たない。</li>
-	 * <li>{@code TEXT_BLOCK}は「先頭行が容量を超えている」という、行分割
-	 * では前進できない形でだけここへ来る(呼び出し元の事前検査)。</li>
-	 * <li>{@code BLOCK}は、書字方向が幹と食い違う等でエンジンが
-	 * <b>atomicに分類してREPLACED経路へフォールスルーさせた</b>ものだけが
-	 * ここへ来る。通常の(幹と同方向の)ブロックは自分のコンテナで再帰的に
-	 * 分割されるため、この地点には到達しない。</li>
-	 * <li>{@code RESCUE}は救済済み断片の続き。</li>
+	 * <li>{@code REPLACED} has no splitting entry point to begin with.</li>
+	 * <li>{@code TEXT_BLOCK} reaches here only when its first line exceeds capacity,
+	 * so line splitting cannot make progress (checked beforehand by the caller).</li>
+	 * <li>{@code BLOCK} reaches here only when the engine <b>classifies it as atomic and lets it
+	 * fall through to the REPLACED path</b>, for example because its writing direction differs
+	 * from the main flow. Normal blocks in the same direction split recursively within their
+	 * own containers and never reach this point.</li>
+	 * <li>{@code RESCUE} is a continuation of an already rescued fragment.</li>
 	 * </ul>
 	 *
 	 * <p>
-	 * フラグメンテナの種類(ページ・段・表セル)による差はありません。
-	 * 段組の中・表セルの中でも、判定({@code prevPageSize}=そのフラグメン
-	 * テナ容量)も運搬(残余を戻り値で親へ返す)もまったく同一の経路です。
+	 * The fragmentainer type (page, column, or table cell) makes no difference.
+	 * Within columns and table cells, both the decision ({@code prevPageSize} = that fragmentainer's
+	 * capacity) and transport (return the remainder to the parent) use exactly the same path.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>有効化していないもの</b>: {@code TABLE}(表全体を幾何学的に切る
-	 * 経路)。理由は{@code VisualRescuePlanner}のクラス説明§4。
+	 * <b>Not enabled</b>: {@code TABLE}, the path that geometrically cuts an entire table.
+	 * See §4 of the {@code VisualRescuePlanner} class documentation for the reason.
 	 * </p>
 	 */
 	private static boolean isRescueEnabled(final IFlowBox box) {
@@ -1906,22 +1903,23 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * splitPageAxis の切断判定に渡すフロー計測値(FlowCutter.avoidPushback/tailDecide 用の純データ)。
+	 * Flow measurements passed to splitPageAxis decisions (pure data for FlowCutter.avoidPushback/tailDecide).
 	 */
 	private record FlowMeasurements(double[] pageStarts, double[] pageExtents, boolean[] avoidBefore,
 			boolean[] avoidAfter, double[] pageEndFrames) {
 	}
 
 	/**
-	 * splitPageAxis の切断判定に渡すフロート計測値。フロートが無い場合は全フィールド null(旧コードの契約を維持)。
+	 * Float measurements passed to splitPageAxis decisions. All fields are null if there are no floats
+	 * (preserving the old code's contract).
 	 */
 	private record FloatMeasurements(double[] pageStarts, double[] pageExtents, boolean[] uncut) {
 	}
 
 	/**
-	 * 各フローの「内容の下端(ページ軸上の到達位置)」を計算します。
-	 * この製品の内部規約(縦書きの pageAxis は常に右→左、LR は描画段で反転)により、
-	 * RL/LR は別枝で境界フレームの辺を選びます。
+	 * Calculates each flow's content bottom (its reach along the page axis).
+	 * Under this product's internal convention (vertical pageAxis always runs right-to-left;
+	 * LR reverses at drawing time), separate RL/LR branches choose the frame edge.
 	 */
 	private double[] computeFlowBottoms(final BlockParams params) {
 		final double[] flowBottoms = new double[this.flows.size()];
@@ -1932,19 +1930,19 @@ public class FlowContainer implements Container {
 				final FlowBlockBox flowBlock = (FlowBlockBox) flow.box;
 				switch (params.flow) {
 				case WritingMode.TB: {
-					// 横書き
+					// Horizontal writing
 					lastBottom += Math.max(flowBlock.getInnerHeight(), flowBlock.getContentSize())
 							+ flowBlock.getFrame().getFrameTop();
 					break;
 				}
 				case WritingMode.RL: {
-					// 縦書き(日本語)
+					// Vertical writing (Japanese)
 					lastBottom += Math.max(flowBlock.getInnerWidth(), flowBlock.getContentSize())
 							+ flowBlock.getFrame().getFrameRight();
 					break;
 				}
 				case WritingMode.LR: {
-					// 縦書き(モンゴル)
+					// Vertical writing (Mongolian)
 					lastBottom += Math.max(flowBlock.getInnerWidth(), flowBlock.getContentSize())
 							+ flowBlock.getFrame().getFrameLeft();
 					break;
@@ -1961,11 +1959,14 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 切断線より前に<b>通常フローの内容候補</b>(テキスト・表・置換要素・grid/flex・直交フローの箱、
-	 * すなわち同軸の素の FlowContainer を持つ FlowBlockBox 以外)が一つでもあるかを返します。
-	 * 背景・枠・空の指定寸法・浮動体・絶対配置は数えない。同軸の入れ子には降り、各候補の位置で判定する
-	 * (負のマージンで後続が切断線より前へ戻ることがあるので、切断線以後の流れに出会っても打ち切らない。
-	 * 直交フローは座標系が違うので降りず、箱ごと候補にする)。avoid の押し戻しの前進確保に使う。
+	 * Returns whether there is any <b>normal-flow content candidate</b> before the cut line
+	 * (text, tables, replaced elements, grid/flex, or orthogonal-flow boxes: anything other than
+	 * a FlowBlockBox with a plain, same-axis FlowContainer).
+	 * Excludes backgrounds, frames, empty specified sizes, floats, and absolutely positioned boxes.
+	 * Descends into same-axis nesting and checks each candidate's position; encountering a flow
+	 * after the cut line does not end the search, since negative margins can bring later flows back
+	 * before it. Orthogonal flows use a different coordinate system, so treat the whole box
+	 * as a candidate without descending. Used to ensure progress during avoid pushback.
 	 */
 	private boolean hasInFlowContentBefore(final double limit) {
 		if (this.flows == null) {
@@ -2021,10 +2022,10 @@ public class FlowContainer implements Container {
 			final Floating floating = this.floatings.getFloating(k);
 			floatPageStarts[k] = floating.pageAxis;
 			floatPageExtents[k] = floating.box.getPageExtent(params.flow);
-			// RESCUE(救済断片)は通常の意味では切断不能——行・行グループの
-			// ような内部の切断点を持たない。幾何学的な救済切断はこの
-			// avoid押し戻しの判断とは別の話なので、置換要素とまったく
-			// 同じ扱いにする(2026-07-25、増分7)
+			// RESCUE fragments cannot split in the normal sense: they have no internal cut points
+			// such as rows or row groups. Geometric rescue splitting is separate
+			// from this avoid-pushback decision, so treat them
+			// exactly like replaced elements (2026-07-25, increment 7).
 			floatUncut[k] = floating.box.getType() == BoxType.REPLACED || floating.box.getType() == BoxType.RESCUE
 					|| ((AbstractContainerBox) floating.box).getBlockParams().pageBreakInside == PageBreakMode.AVOID;
 		}
@@ -2032,23 +2033,22 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 浮動ボックス(直接保持分+子flowの再帰集約)をページ分割し、移動分の
-	 * 行き先を型で返します(2026-07-24、P2-4。分岐表の正本:
-	 * 開発記録の
-	 * 「public 3引数版」の表と1:1対応)。
+	 * Paginates float boxes (directly held floats plus recursive aggregation from child flows)
+	 * and returns a typed destination for the moved portion (2026-07-24, P2-4).
+	 * Corresponds one-to-one with the authoritative branch table, the "public three-argument version"
+	 * table in the development log.
 	 *
 	 * <table>
-	 * <caption>行き先の写像</caption>
-	 * <tr><td>移動なし</td><td>{@link FloatTransferResult#KEEP_OWNER}
-	 * (呼び出し側はtargetのコンテナをそのまま使う)</td></tr>
-	 * <tr><td>MoveAllかつtarget=MOVE_OWNER</td>
+	 * <caption>Destination mapping</caption>
+	 * <tr><td>No movement</td><td>{@link FloatTransferResult#KEEP_OWNER}
+	 * (the caller continues using the target container)</td></tr>
+	 * <tr><td>MoveAll and target=MOVE_OWNER</td>
 	 * <td>{@link FloatTransferResult#MOVE_OWNER}</td></tr>
-	 * <tr><td>MoveAllかつtarget=KEEPかつ非FIRSTかつinnerPageExtent&lt;=0</td>
-	 * <td>{@link FloatTransferResult#MOVE_OWNER}(<b>空コンテナ全体を
-	 * floatごと移動する特例</b>——台帳はownerに付いたまま)</td></tr>
-	 * <tr><td>その他(移動あり)</td><td>{@code Remainder}(targetが
-	 * Existingならそのコンテナへ、KEEP/MOVE_OWNERなら新FlowContainerへ
-	 * 台帳を装着)</td></tr>
+	 * <tr><td>MoveAll and target=KEEP and non-FIRST and innerPageExtent&lt;=0</td>
+	 * <td>{@link FloatTransferResult#MOVE_OWNER} (<b>special case: move the entire empty container
+	 * together with its floats</b>; the ledger stays attached to the owner)</td></tr>
+	 * <tr><td>Otherwise, with movement</td><td>{@code Remainder} (attach the ledger to the target
+	 * container for Existing, or to a new FlowContainer for KEEP/MOVE_OWNER)</td></tr>
 	 * </table>
 	 */
 	public FloatTransferResult splitFloatings(final FloatTransferTarget target, final double pageLimit,
@@ -2064,7 +2064,7 @@ public class FlowContainer implements Container {
 			}
 			if (target instanceof FloatTransferTarget.Keep && (flags & IPageBreakableBox.FLAGS_FIRST) == 0
 					&& LayoutUtils.compare(this.box.getInnerPageExtent(this.box.getBlockParams().flow), 0) <= 0) {
-				// 空コンテナ全体をfloatごと移動する特例(分岐表)
+				// Special case: move an entire empty container with its floats (branch table).
 				yield FloatTransferResult.MOVE_OWNER;
 			}
 			final Floatings moved = this.floatings;
@@ -2076,10 +2076,9 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * target={@code KEEP}での型付き呼び出しを、切断経路の既存Container契約
-	 * (null=移動なし / this=owner丸ごと移動 / 新=残余コンテナ)へ写す補助
-	 * です(P2-4)。この契約の消費側({@code ContainerCut.Plain})はP2の
-	 * 対象外。
+	 * Maps a typed call with target={@code KEEP} to the splitting path's existing Container
+	 * contract (null=no movement / this=move the whole owner / new=remainder container) (P2-4).
+	 * The consumer of this contract ({@code ContainerCut.Plain}) is outside P2's scope.
 	 */
 	private Container splitFloatingsKeepingOwner(final double pageLimit, final byte flags) {
 		return switch (this.splitFloatings(FloatTransferTarget.KEEP, pageLimit, flags)) {
@@ -2090,10 +2089,9 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * target={@code MOVE_OWNER}(owner自身が丸ごと次フラグメントへ移動する
-	 * 文脈)での型付き呼び出しの補助です(P2-4)。移動なしでもownerが移動
-	 * するため、KeepOwner/MoveOwnerのどちらもthisになる(旧APIで
-	 * {@code nextBox==this}を渡していた契約と同一)。
+	 * Helper for a typed call with target={@code MOVE_OWNER}, where the whole owner moves
+	 * to the next fragment (P2-4). The owner moves even if no floats move, so both KeepOwner
+	 * and MoveOwner map to this (the same contract as passing {@code nextBox==this} to the old API).
 	 */
 	private Container splitFloatingsMovingOwner(final double pageLimit, final byte flags) {
 		return switch (this.splitFloatings(FloatTransferTarget.MOVE_OWNER, pageLimit, flags)) {
@@ -2120,7 +2118,7 @@ public class FlowContainer implements Container {
 		return switch (this.aggregateFloatings(pageLimit, flags, flowCount)) {
 		case FloatAggregate.None none -> java.util.Optional.empty();
 		case FloatAggregate.OwnerAll ownerAll -> {
-			// 自分の台帳をdetachして返す(子flow再帰の内部契約)
+			// Detach and return this container's ledger (internal contract for child-flow recursion).
 			final Floatings moved = this.floatings;
 			this.floatings = null;
 			yield java.util.Optional.of(moved);
@@ -2130,24 +2128,24 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 再帰集約の内部結果です(P2-4。codex設計§2.3の局所状態
-	 * {@code NONE/OWNER_ALL/DETACHED}を型で表す。外へは公開しない)。
+	 * The internal result of recursive aggregation (P2-4). Represents the local state
+	 * {@code NONE/OWNER_ALL/DETACHED} from codex design §2.3 as types; not exposed externally.
 	 */
 	private sealed interface FloatAggregate {
-		/** 移動するfloatなし。 */
+		/** No floats move. */
 		record None() implements FloatAggregate {
 		}
 
 		/**
-		 * ownerの直接保持分が丸ごと移動——台帳はまだownerに付いたまま
-		 * (遅延detach。付け替えは呼び出し側が確定する)。
+		 * All directly held floats of the owner move; the ledger remains attached to the owner
+		 * (deferred detach; the caller finalizes reassignment).
 		 */
 		record OwnerAll() implements FloatAggregate {
 		}
 
 		/**
-		 * 移動台帳(ownerからdetach済みの自台帳、直接分割のremainder、
-		 * または子から引き取ったFloatings)。
+		 * A moved ledger (the owner's own detached ledger, a direct split's remainder,
+		 * or Floatings taken from a child).
 		 */
 		record Detached(Floatings floatings) implements FloatAggregate {
 		}
@@ -2156,37 +2154,37 @@ public class FlowContainer implements Container {
 	private static final FloatAggregate AGGREGATE_NONE = new FloatAggregate.None();
 	private static final FloatAggregate AGGREGATE_OWNER_ALL = new FloatAggregate.OwnerAll();
 
-	/** 診断用: 保持しているフロー数と直接の浮動体数。 */
+	/** Diagnostics: the number of held flows and directly held floats. */
 	int flowCountForDebug() {
 		return (this.flows == null ? 0 : this.flows.size()) * 100
 				+ (this.floatings == null ? 0 : this.floatings.getCount());
 	}
 
 	/**
-	 * 直接保持分と子flow [0..index) の浮動ボックスを分割・集約します
-	 * (P2-4で旧private 3引数版のsentinel状態機械を型付きへ置換)。
+	 * Splits and aggregates directly held float boxes and those in child flows [0..index)
+	 * (P2-4 replaced the old private three-argument sentinel state machine with types).
 	 */
 	private FloatAggregate aggregateFloatings(final double pageLimit, final byte flags, final int index) {
-		// 入口final snapshot(addBound事故の教訓——codex設計§2.5)。
-		// lflagsのLAST判定は旧実装では「現在の」this.flows.size()を見ていた
-		// (ループ上限indexは呼び出し時点のスナップショットという非対称)。
-		// このメソッドの実行中this.flowsは変異しない(子再帰は子自身の
-		// containerのみを変異させる)ため、入口snapshotと現在値は常に一致
-		// し、snapshot化は等価。呼び出し元の変異順序もこの前提を守っている
-		// (force-branchの「flow除去はsplitFloatings呼び出しの後」コメント)。
+		// Final snapshot at entry (lesson from the addBound incident; codex design §2.5).
+		// The old lflags LAST check read the current this.flows.size(),
+		// whereas the loop bound index was a snapshot from call time.
+		// this.flows does not mutate during this method (child recursion mutates only the child's own
+		// container), so the entry snapshot always equals the current value,
+		// making the snapshot equivalent. Caller mutation order also preserves this assumption
+		// (see force-branch's comment: remove flows after the splitFloatings call).
 		final int originalFlowCount = this.flows == null ? 0 : this.flows.size();
 		assert index <= originalFlowCount;
 		FloatAggregate state;
 		if (this.floatings != null) {
-			// 直接保持分を分割
+			// Split directly held floats.
 			state = switch (this.floatings.splitPageAxis(this.box, pageLimit, flags)) {
 			case FloatSplitResult.KeepAll keepAll -> AGGREGATE_NONE;
 			case FloatSplitResult.MoveAll moveAll -> AGGREGATE_OWNER_ALL;
 			case FloatSplitResult.Partition(final Floatings remainder) -> new FloatAggregate.Detached(remainder);
 			};
 			if (this.floatings.getCount() == 0) {
-				// 旧実装からの防御(plan駆動commitのPartitionはsource側を
-				// 空にしないため、現行では到達しない)
+				// A defensive check from the old implementation (unreachable now, because Partition
+				// in plan-driven commit does not empty the source side).
 				this.floatings = null;
 			}
 		} else {
@@ -2203,33 +2201,33 @@ public class FlowContainer implements Container {
 			}
 			switch (flow.box.getType()) {
 			case RESCUE:
-				// 2026-07-25(救済分割・増分6): 救済断片は排除域の台帳を
-				// 持たず、子コンテナへも降りない。増分6で自前のコンテナを
-				// 持つ元ボックス(書字方向が食い違うブロック・テキスト
-				// ブロック)が来るようになったが、<b>何もしないのが正しい</b>。
+				// 2026-07-25 (rescue splitting, increment 6): Rescue fragments hold no exclusion-area ledger
+				// and do not descend into child containers. Increment 6 introduced source boxes
+				// with their own containers (blocks with differing writing directions and text blocks),
+				// but <b>doing nothing is correct</b>.
 				//
-				// 理由: 救済断片は「元ボックス全体を、消費済み量だけずらして
-				// クリップして描く」ものである(答申§2)。元ボックスの中の
-				// フロートは、その元ボックスの描画の一部として、各断片の
-				// クリップ内に見える範囲だけが描かれる。ここで
-				// detachMovedFloatings して次フラグメントの台帳へ移すと、
-				// (a) 元ボックスからフロートが失われるため先頭断片で消え、
-				// (b) 次フラグメントでは元の幾何を無視した新しい位置へ
-				// 置き直される——「レイアウト計算は変えない。同じ箱を
-				// ずらしてクリップするだけ」という設計の核を破る。
+				// Reason: A rescue fragment draws the entire original box shifted by the consumed amount
+				// and clipped (recommendation §2). Floats inside the original box
+				// are drawn as part of that box, only in the range visible
+				// within each fragment's clip. Calling detachMovedFloatings here
+				// to move them into the next fragment's ledger would
+				// (a) remove floats from the original box, making them disappear in the head fragment,
+				// and (b) place them at new positions in the next fragment, ignoring the original geometry.
+				// This violates the core design: do not change layout calculations;
+				// only translate and clip the same box.
 				//
-				// 断片がフラグメント上で占める量(=この断片の排除域の高さ)は
-				// sliceExtent であり、それは flow.box.getPageExtent() が
-				// 返す値そのものなので、追加の帳簿は要らない。残余(tail)は
-				// 次フラグメントで通常どおり配置され、そこで同じ規則が
-				// 適用される(答申§5)。
+				// The amount the fragment occupies (= its exclusion-area height) is
+				// sliceExtent, exactly the value returned by flow.box.getPageExtent(),
+				// so no additional ledger is needed. The tail remainder
+				// is placed normally in the next fragment, where the same rule
+				// applies (recommendation §5).
 				assert flow.box instanceof net.zamasoft.foliojet.layout.rescue.VisualRescueBox : flow.box;
 				break;
 			case BLOCK:
 				final AbstractContainerBox blockBox = (AbstractContainerBox) flow.box;
 				double pageAxis = pageLimit - flow.pageAxis;
 				pageAxis -= blockBox.getFrame().getFramePageStart(blockBox.getBlockParams().flow);
-				// 子は自分の台帳をdetachして返す(detachMovedFloatingsの再帰)
+				// The child detaches and returns its own ledger (detachMovedFloatings recursion).
 				final java.util.Optional<Floatings> childDetached = blockBox.getContainer()
 						.detachMovedFloatings(pageAxis, (byte) (lflags & flags));
 				if (childDetached.isEmpty()) {
@@ -2238,10 +2236,10 @@ public class FlowContainer implements Container {
 				final Floatings childFloatings = childDetached.get();
 				switch (state) {
 				case FloatAggregate.None none ->
-					// 子のFloatingsオブジェクトをそのまま採用(コンテナごと引き取り)
+					// Adopt the child's Floatings object as is (take over the whole container).
 					state = new FloatAggregate.Detached(childFloatings);
 				case FloatAggregate.OwnerAll ownerAll -> {
-					// 子float追加時に初めてownerからdetachが確定する
+					// Detach from the owner only when adding a child float.
 					final Floatings owned = this.floatings;
 					this.floatings = null;
 					for (int j = 0; j < childFloatings.getCount(); ++j) {
@@ -2275,8 +2273,8 @@ public class FlowContainer implements Container {
 			}
 			this.invalidateNonDecorationContent();
 		}
-		// flowsは先にnextBoxへ移送済みのため、集約対象は直接保持分のみ
-		// (index=0。this.flows==nullなのでLAST判定にも影響しない)
+		// Flows have already been transferred to nextBox, so aggregate only directly held floats
+		// (index=0; this.flows==null, so the LAST check is unaffected).
 		this.attachAggregate(nextBox, this.aggregateFloatings(pageLimit, flags, 0));
 		return nextBox;
 	}
@@ -2289,8 +2287,8 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 集約結果の移動台帳を{@code nextBox}へ装着します(P2-4。旧
-	 * 「nextBox.floatings代入+identity比較でthis.floatings=null」の置換)。
+	 * Attaches the aggregated moved ledger to {@code nextBox} (P2-4; replaces
+	 * "assign nextBox.floatings, then set this.floatings=null based on identity comparison").
 	 */
 	private void attachAggregate(final FlowContainer nextBox, final FloatAggregate aggregate) {
 		switch (aggregate) {
@@ -2308,23 +2306,22 @@ public class FlowContainer implements Container {
 		if (this.flows == null) {
 			return;
 		}
-		// 元の走査順を保つため、スタックへは逆順でpushする
+		// Push onto the stack in reverse order to preserve traversal order.
 		for (int i = this.flows.size() - 1; i >= 0; --i) {
-			// 通常のフロー
+			// Normal flow
 			Flow c = (Flow) this.flows.get(i);
 			worklist.push(IBox.getTextStep(c.box, textBuff));
 		}
 	}
 
 	/**
-	 * stampRanges 済みの閉部分木をコンテナから吸収します(C1c)。最上位の
-	 * 閉じた plain ブロック(restyle 走行で replay-subtree になるもの:
-	 * BLOCK・非フロート・書字方向一致)のうち再生範囲が記録されたものを
-	 * フローから除去し、serial 付きの再生範囲として返します。resume は
-	 * これを {@link #restyle(BlockBuilder, int, boolean, List)} の prefix に
-	 * 渡し、serial 順で残アイテムと合流させて再駆動します。
-	 * 呼び出しはソースログ水位の計算後であること(吸収されたアイテムは
-	 * コンテナを歩く水位計算から見えなくなるため)。
+	 * Absorbs closed subtrees already processed by stampRanges from the container (C1c).
+	 * Removes top-level closed plain blocks with recorded replay ranges from the flows
+	 * (those that become replay-subtree during restyle: BLOCK, non-float, matching writing direction)
+	 * and returns them as replay ranges with serials. resume passes these as the prefix to
+	 * {@link #restyle(BlockBuilder, int, boolean, List)}, merges them with remaining items by serial,
+	 * and replays them. Call after calculating the source-log watermark, since absorbed items
+	 * are no longer visible to the watermark calculation that traverses the container.
 	 */
 	public final List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> extractReplayable(
 			final java.util.Map<IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges,
@@ -2333,18 +2330,18 @@ public class FlowContainer implements Container {
 			return List.of();
 		}
 		List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix = null;
-		// walkDepth >= 1 のとき末尾フローは開いた継続(depth>1 なら moved-open
-		// チェーン子、depth==1 なら開きテキスト)であり、たとえソースログ上で
-		// 閉じていても(イベント全着)flowStack への再積みが必要なため吸収
-		// しない。また末尾を抜くと開き判定(lastFlow)が前のアイテムへ
-		// ずれる — C1b までは walk 時の lastFlow 判定が replay より先に
-		// 効いて守られていた条件の、記録時への移し替え
+		// When walkDepth >= 1, the last flow is an open continuation (a moved-open chain child
+		// if depth>1, or open text if depth==1). Even if closed in the source log
+		// (all events received), it must be pushed back onto flowStack, so do not absorb it.
+		// Removing the last item would also shift the open check (lastFlow) to the preceding item.
+		// This moves to recording time the condition previously protected through C1b
+		// by the lastFlow check during walk taking effect before replay.
 		int limit = walkDepth >= 1 ? this.flows.size() - 1 : this.flows.size();
 		for (int i = 0; i < limit;) {
 			final Flow flow = this.flows.get(i);
 			if (flow.box.getType() != BoxType.BLOCK || flow.box.getPos().getType() == PosType.FLOAT
 					|| ((AbstractContainerBox) flow.box).getBlockParams().flow.isVertical() != rootVertical) {
-				// 表・置換・テキスト・縦横混在は従来経路のまま
+				// Tables, replaced elements, text, and mixed writing axes retain the existing path.
 				++i;
 				continue;
 			}
@@ -2377,19 +2374,18 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 吸収された再生範囲(C1c)を serial 順で合流させながら再開します。
+	 * Resumes while merging absorbed replay ranges (C1c) in serial order.
 	 *
 	 * <p>
-	 * 2026-07-30(legacy再帰撤去=増分4a): worklist executorが唯一の
-	 * driverになった。従来はここに{@code isWorklistMode()}分岐と旧再帰
-	 * driver(forループ+{@code RECURSIVE_DESCENDER})が並存し、
-	 * {@code RootBuilder}が継続ごとに適格判定(WorklistTailGate)して
-	 * 選んでいた——増分1でMULTICOL native scope降下のバイト等価を証明、
-	 * 増分2でgateをMULTICOL許可へ拡張、増分3でrootless COLUMNも接続し、
-	 * legacy駆動へ入る入口が消えたため分岐ごと撤去した(codex相談
-	 * 設計相談)。
-	 * TEXT/BLOCK/TABLE/REPLACEDの意味は{@link #restyleItem}が担い、
-	 * OpenChain降下だけが明示スタック(worklist)で駆動される。
+	 * 2026-07-30 (legacy recursion removal, increment 4a): The worklist executor became the sole driver.
+	 * Previously, an {@code isWorklistMode()} branch and the old recursive driver
+	 * (for loop + {@code RECURSIVE_DESCENDER}) coexisted here; {@code RootBuilder} selected one for
+	 * each continuation via the WorklistTailGate eligibility check. Increment 1 proved byte
+	 * equivalence for MULTICOL native scope descent; increment 2 extended the gate to allow MULTICOL;
+	 * increment 3 connected rootless COLUMN. With no remaining entry to legacy execution,
+	 * the branch and driver were removed (codex consultation, design consultation).
+	 * {@link #restyleItem} handles TEXT/BLOCK/TABLE/REPLACED semantics;
+	 * only OpenChain descent uses the explicit stack (worklist).
 	 * </p>
 	 */
 	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
@@ -2399,18 +2395,17 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * worklist executorのスタック要素です(2026-07-30、legacy再帰撤去=
-	 * 増分1で導入)。従来は{@link RestyleFrame}単型だったが、MULTICOL
-	 * native降下({@link MulticolRestyleScope})を再帰なしで表すため
-	 * 和型へ一般化した。
+	 * A worklist executor stack entry (introduced 2026-07-30, legacy recursion removal, increment 1).
+	 * Previously only {@link RestyleFrame}, generalized to a sum type to represent
+	 * MULTICOL native descent ({@link MulticolRestyleScope}) without recursion.
 	 */
 	private sealed interface WorklistStep permits RestyleFrame, MulticolRestyleScope {
 	}
 
 	/**
-	 * worklist executorの1段です(2026-07-22新設、B6a1)。sort済み
-	 * {@code items}・次に処理するindex・その段の{@code lastFlow}/
-	 * {@code shape}/trace用{@code depth}を保持する可変クラス。
+	 * One level of the worklist executor (added 2026-07-22, B6a1). A mutable class holding
+	 * sorted {@code items}, the next index to process, and this level's {@code lastFlow},
+	 * {@code shape}, and tracing {@code depth}.
 	 */
 	private static final class RestyleFrame implements WorklistStep {
 		final List<BoxHolder> items;
@@ -2418,10 +2413,10 @@ public class FlowContainer implements Container {
 		final net.zamasoft.foliojet.layout.fragment.OpenShape shape;
 		final int depth;
 		/**
-		 * 処理開始時点のitems数(2026-07-30、増分4a)。旧forループが
-		 * ループ前に{@code int size}を固定していた契約の正確な保存——
-		 * {@code size}は次itemの終端アンカー判定にも渡るため、都度
-		 * {@code items.size()}を読み直すと途中変更に対する意味が変わる。
+		 * The item count at processing start (2026-07-30, increment 4a). Precisely preserves
+		 * the old for loop's contract of fixing {@code int size} before the loop.
+		 * Since {@code size} also reaches the next item's end-anchor check, rereading
+		 * {@code items.size()} each time would change semantics for mid-processing mutations.
 		 */
 		final int size;
 		int nextIndex = 0;
@@ -2437,20 +2432,19 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * {@link ColumnsContainer#restyle}の状態機械を再帰なしで表すscopeです
-	 * (2026-07-30、増分1)。{@code ColumnsContainer.beginRestyleScope()}
-	 * 済みの旧段snapshotを保持し、executorが段をindex昇順に1つずつ
-	 * {@link RestyleFrame}としてpushする——親frameをpauseしたままLIFOで
-	 * 積むことで、旧経路(MULTICOL全体を深さ優先で完了してから親の後続
-	 * itemへ戻る)と同じ順序を保存する。全段完了でpopする。
+	 * A scope representing the {@link ColumnsContainer#restyle} state machine without recursion
+	 * (2026-07-30, increment 1). Holds the old-column snapshot after
+	 * {@code ColumnsContainer.beginRestyleScope()}. The executor pushes columns one at a time
+	 * as {@link RestyleFrame}s in ascending index order. Pushing LIFO while the parent frame
+	 * remains paused preserves the old order: finish all MULTICOL depth-first, then return
+	 * to the parent's subsequent item. Pop when all columns finish.
 	 *
 	 * <p>
-	 * 開いた尾({@code inner})を渡すのは最終段だけ・それ以前は
-	 * {@code CLOSED}——{@link ColumnsContainer#restyle}と同じ境界
-	 * (最終段以外に渡すと開いたままの他人のボックスの中へ組まれる)。
-	 * MULTICOL ownerの{@code endFlowBlock()}は呼ばない({@code inner}は
-	 * OpenChain/OpenTextで決してClosedにならないため、legacyの
-	 * {@code FlowBlockBox.restyle()}と同じく省く)。
+	 * Only the last column receives the open tail ({@code inner}); earlier columns receive
+	 * {@code CLOSED}, the same boundary as {@link ColumnsContainer#restyle}.
+	 * Passing it to another column would lay out content inside someone else's still-open box.
+	 * Do not call {@code endFlowBlock()} on the MULTICOL owner: {@code inner} is OpenChain/OpenText,
+	 * never Closed, so omit it as legacy {@code FlowBlockBox.restyle()} does.
 	 * </p>
 	 */
 	private static final class MulticolRestyleScope implements WorklistStep {
@@ -2465,37 +2459,35 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * {@code OpenChain}を明示スタックで駆動するworklist executor本体
-	 * です(2026-07-22新設、B6a1——`設計相談
-	 * -explicit-worklist-executor-codex.txt`の設計をそのまま実装。
-	 * 2026-07-30の増分4で<b>唯一のdriver</b>となった——旧再帰driverとの
-	 * 並存期の経緯は{@link #restyle}のjavadoc参照)。
-	 * TEXT/BLOCK/TABLE/REPLACEDの意味は{@link #restyleItem}が担い、
-	 * {@code OpenChain}降下は{@link #descendWorklist}が
-	 * {@link RestyleFrame}(plain flow)または
-	 * {@link MulticolRestyleScope}(段組)としてこの{@code Deque}へ
-	 * pushする。
+	 * The worklist executor that drives {@code OpenChain} with an explicit stack
+	 * (added 2026-07-22, B6a1; directly implements the design in
+	 * `設計相談
+	 * -explicit-worklist-executor-codex.txt`).
+	 * Became the <b>sole driver</b> in increment 4 on 2026-07-30; see the {@link #restyle}
+	 * Javadoc for the period of coexistence with the old recursive driver.
+	 * {@link #restyleItem} handles TEXT/BLOCK/TABLE/REPLACED semantics;
+	 * {@link #descendWorklist} pushes {@code OpenChain} descent onto this {@code Deque}
+	 * as {@link RestyleFrame} (plain flow) or {@link MulticolRestyleScope} (multi-column layout).
 	 *
 	 * <p>
-	 * <b>2026-07-22の実バグ修正</b>:
-	 * {@code containerBox.restyle(builder, inner)}は{@code
-	 * AbstractContainerBox.restyle()}ではなく{@code FlowBlockBox
-	 * .restyle()}(オーバーライド)へ多態的に解決される——そちらは
-	 * {@code builder.startFlowBlock(this)}を呼んだ**後で**
-	 * {@code this.container.restyle(...)}へ委譲し、{@code shape}が
-	 * {@code Closed}のときだけ{@code builder.endFlowBlock()}を呼ぶ
-	 * (`FlowBlockBox.java:628`付近)。最初の実装はこの
-	 * {@code startFlowBlock}呼び出しを素通りして{@code containerBox
-	 * .getContainer()}のitemsを直接dequeへpushしていたため、
-	 * {@code flowStack}が正しい深さまで育たず`ContinuationInvariant
+	 * <b>Actual bug fixed on 2026-07-22</b>:
+	 * {@code containerBox.restyle(builder, inner)} resolves polymorphically to the override
+	 * {@code FlowBlockBox
+	 * .restyle()}, not {@code
+	 * AbstractContainerBox.restyle()}. It delegates to {@code this.container.restyle(...)}
+	 * **after** calling {@code builder.startFlowBlock(this)}, and calls
+	 * {@code builder.endFlowBlock()} only when {@code shape} is {@code Closed}
+	 * (near `FlowBlockBox.java:628`). The first implementation skipped this
+	 * {@code startFlowBlock} call and pushed the items of {@code containerBox
+	 * .getContainer()} directly onto the deque. As a result, {@code flowStack} failed to reach
+	 * the correct depth and caused `ContinuationInvariant
 	 * ViolationException(flowStack.size() != continuation.depth())`
-	 * を引き起こした(`開発記録
-	 * -bug-found-and-reverted.md`参照)。{@code OpenChain}降下の
-	 * {@code inner}は`OpenShape.of()`の構成上常にOpenChainかOpenText
-	 * であり決してClosedにならないため、対応する{@code endFlowBlock}
-	 * 呼び出しは(legacy再帰と同じく)不要——{@code startFlowBlock}
-	 * だけをこのpush分岐へ追加すれば`FlowBlockBox.restyle()`と同じ
-	 * 効果になる。
+	 * (see `開発記録
+	 * -bug-found-and-reverted.md`). By construction of `OpenShape.of()`,
+	 * {@code inner} during {@code OpenChain} descent is always OpenChain or OpenText, never Closed.
+	 * The corresponding {@code endFlowBlock} call is therefore unnecessary, as in legacy recursion.
+	 * Adding only {@code startFlowBlock} to this push branch has the same effect as
+	 * `FlowBlockBox.restyle()`.
 	 * </p>
 	 */
 	private void restyleWorklist(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
@@ -2506,14 +2498,14 @@ public class FlowContainer implements Container {
 			final WorklistStep step = stack.peek();
 			if (step instanceof MulticolRestyleScope scope) {
 				if (scope.nextColumn >= scope.snapshot.size()) {
-					// 全段完了
+					// All columns complete
 					stack.pop();
 					continue;
 				}
 				final int c = scope.nextColumn++;
 				final FlowContainer column = (FlowContainer) scope.snapshot.get(c);
-				// 開いた尾は最終段だけ・それ以前はCLOSED
-				// (ColumnsContainer.restyleと同じ境界)
+				// Only the last column receives the open tail; earlier ones receive CLOSED
+				// (the same boundary as ColumnsContainer.restyle).
 				final net.zamasoft.foliojet.layout.fragment.OpenShape columnShape = c == scope.snapshot.size() - 1
 						? scope.inner
 						: net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED;
@@ -2526,10 +2518,10 @@ public class FlowContainer implements Container {
 				continue;
 			}
 			final int i = frame.nextIndex++;
-			// restyleItem()はthisのインスタンス状態を一切参照しない
-			// (items/lastFlow/shape等パラメータのみで完結する)ため、
-			// frameがどのFlowContainerに由来するかによらず同じ呼び出しで
-			// 正しく動く——呼び出し先はthis固定でよい。
+			// restyleItem() does not reference any instance state of this
+			// (it uses only parameters such as items/lastFlow/shape),
+			// so the same call works regardless of which FlowContainer produced the frame.
+			// The receiver can remain fixed as this.
 			this.restyleItem(builder, frame.items, i, frame.size, frame.lastFlow, frame.shape, frame.depth,
 					stack);
 		}
@@ -2547,34 +2539,33 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * <b>開いたまま降りるボックスは、必ず最後に処理する</b>(2026-07-27新設)。
+	 * <b>Always process a box descended into while still open last</b> (added 2026-07-27).
 	 *
 	 * <p>
-	 * {@link #collectItems}はfloatとflowを1つのリストへ合流し、呼び出し側が
-	 * serial順に並べる。ところが{@code aggregateFloatings}が子から引き取った
-	 * floatは<b>子の採番のまま</b>入るため、親子の採番が混ざり、
-	 * {@code lastFlow}が末尾に来る保証がない。
+	 * {@link #collectItems} merges floats and flows into one list, which the caller sorts by serial.
+	 * However, floats taken from children by {@code aggregateFloatings} retain <b>the child's serials</b>,
+	 * mixing parent and child numbering, so {@code lastFlow} is not guaranteed to come last.
 	 * </p>
 	 *
 	 * <p>
-	 * {@code lastFlow}が開いた尾のとき{@code FlowBlockBox.restyle}は
-	 * <b>{@code endFlowBlock()}を意図的に省く</b>ので、その後ろに残った項目は
-	 * <b>開いたままの他人のボックスの中へ</b>組まれる。flowはボックスの同一性で
-	 * 再係留されるので影響を受けないが、<b>floatは「そのとき開いているフロー」へ
-	 * 位置的に係留される</b>({@code BlockBuilder.commitFloatPlacement})ため、
-	 * 順序の誤りだけで別の部分木へ移ってしまう。その部分木が
-	 * {@code balance()}のソース再駆動で捨てられると、内容が黙って消える。
+	 * When {@code lastFlow} is an open tail, {@code FlowBlockBox.restyle}
+	 * <b>intentionally omits {@code endFlowBlock()}</b>, so any remaining items after it are laid out
+	 * <b>inside someone else's still-open box</b>. Flows are reanchored by box identity and are unaffected,
+	 * but <b>floats are positionally anchored to the currently open flow</b>
+	 * ({@code BlockBuilder.commitFloatPlacement}). Wrong order alone therefore moves them into
+	 * a different subtree. If {@code balance()} discards that subtree during source replay,
+	 * the content silently disappears.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>{@code OpenText}は対象外。</b>ライブ構築の{@code toAddFloating}と
-	 * 同じ保留になるため並べ替えは不要で、実測では並べ替えると
-	 * {@code FloatPagebreakTest}・{@code ImageAfterAvoidTest}が落ちる。
+	 * <b>{@code OpenText} is excluded.</b> It is deferred in the same way as {@code toAddFloating}
+	 * in live construction, so reordering is unnecessary; measurements showed that reordering
+	 * failed {@code FloatPagebreakTest} and {@code ImageAfterAvoidTest}.
 	 * </p>
 	 *
 	 * <p>
-	 * 実測(2026-07-27、20万文書の掃過で発見。50,000文書に1件):
-	 * 段組の中のフロートの内容が丸ごと消えていた。
+	 * Measured on 2026-07-27, discovered in a 200,000-document sweep (1 in 50,000 documents):
+	 * all content of a float inside multi-column layout disappeared.
 	 * </p>
 	 */
 	private static void moveOpenChainTailLast(final List<BoxHolder> items, final Flow lastFlow,
@@ -2582,7 +2573,7 @@ public class FlowContainer implements Container {
 		if (lastFlow == null || !(shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenChain)) {
 			return;
 		}
-		// BoxHolder は equals を上書きしないので indexOf は同一性比較
+		// BoxHolder does not override equals, so indexOf compares identity.
 		final int at = items.indexOf(lastFlow);
 		if (at < 0 || at == items.size() - 1) {
 			return;
@@ -2592,29 +2583,29 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * {@link #collectItems}の戻り値です(2026-07-22、B6a1準備)。sort済み
-	 * ではない生の合流結果——呼び出し側がsortする。
+	 * The result of {@link #collectItems} (2026-07-22, B6a1 preparation).
+	 * The raw, unsorted merge result; the caller sorts it.
 	 */
 	private record CollectedItems(List<BoxHolder> items, Flow lastFlow) {
 	}
 
 	/**
-	 * floatings・(有効なら)absolutes・flows・prefixを1つの{@code items}
-	 * リストへ合流します(2026-07-22、B6a1準備で{@code restyle()}から
-	 * 抽出——挙動は一切変えていない純粋な関数抽出)。{@code this
-	 * .floatings}/{@code this.absolutes}/{@code this.flows}を消費して
-	 * null化する副作用は元のまま維持する。worklist executor
-	 * (`restyleWorklist`)が子{@code FlowContainer}へ降りる際も同じ
-	 * メソッドを呼ぶことで、合流ロジックの二重実装を避ける。
+	 * Merges floatings, absolutes (if enabled), flows, and prefix into one {@code items} list.
+	 * Extracted from {@code restyle()} on 2026-07-22 for B6a1 preparation: purely a function
+	 * extraction with no behavior changes. Preserves the side effects of consuming and nulling
+	 * {@code this
+	 * .floatings}/{@code this.absolutes}/{@code this.flows}.
+	 * The worklist executor (`restyleWorklist`) calls the same method when descending into
+	 * a child {@code FlowContainer}, avoiding duplicate merge logic.
 	 */
 	private CollectedItems collectItems(BlockBuilder builder, boolean restyleAbsolutes,
 			List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix) {
-		// フロートは最近接ブロック祖先のコンテナに係留されるため、移動した
-		// 部分木の内部フロートは部分木と一緒に動き、ソース再駆動でも二重
-		// 生成されない(golden: float-in-moved)。絶対配置ボックスを含む
-		// 部分木は stampRanges の containsAbsolute ゲート(E-6増分4e以前は
-		// Opaque記録によるcontainsOpaque)が部分木単位で正しくフォールバック
-		// させる — 階層単位のゲートは不要
+		// Floats are anchored to their nearest block ancestor's container, so internal floats move
+		// with a moved subtree and are not duplicated during source replay
+		// (golden: float-in-moved). For subtrees with absolutely positioned boxes,
+		// stampRanges' containsAbsolute gate (containsOpaque via Opaque recording before E-6 increment 4e)
+		// correctly falls back for the whole subtree;
+		// no per-hierarchy gate is needed.
 		List<BoxHolder> items = null;
 		if (this.floatings != null) {
 			Floatings floatings = this.floatings;
@@ -2657,7 +2648,7 @@ public class FlowContainer implements Container {
 		}
 
 		if (!prefix.isEmpty()) {
-			// C1c: 吸収された閉部分木を serial 順の合流に加える
+			// C1c: Include absorbed closed subtrees in the serial-order merge.
 			if (items == null) {
 				items = new ArrayList<BoxHolder>();
 			}
@@ -2669,36 +2660,34 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 互換フォールバック({@link #descendWorklist})を警告済みの
-	 * box/containerクラス対です(2026-07-30、増分4b。同じ対の大量ログを
-	 * 防ぐ——初回だけWARNINGを出す)。
+	 * Box/container class pairs already warned about for the compatibility fallback
+	 * ({@link #descendWorklist}; 2026-07-30, increment 4b).
+	 * Prevents repeated logs for the same pair; emits WARNING only on the first occurrence.
 	 */
 	private static final java.util.Set<String> WARNED_FALLBACK_PAIRS = java.util.concurrent.ConcurrentHashMap
 			.newKeySet();
 
 	/**
-	 * {@code OpenChain}の子孫へ1段降ります(2026-07-30、増分4bで
-	 * {@code ChainDescender} interface+2実装のlambdaから具体helperへ
-	 * 畳み込み——worklist driverが唯一のdriverになり、差し替え点としての
-	 * 意味が消えたため)。
+	 * Descends one level into {@code OpenChain} descendants (2026-07-30, increment 4b).
+	 * Collapsed the {@code ChainDescender} interface and two lambda implementations into
+	 * a concrete helper, since the worklist driver became the sole driver and the replacement
+	 * point no longer served a purpose.
 	 *
 	 * <ul>
-	 * <li>plain flow({@link FlowContainer}子): legacy再帰
-	 * ({@code FlowBlockBox.restyle()})が暗黙に行うstartFlowBlockを
-	 * 明示的に再現し、frameをpushする(2026-07-22の実バグ修正——
-	 * 素通りすると{@code flowStack}が育たずinvariant違反)</li>
-	 * <li>MULTICOL({@link ColumnsContainer}子): native scope降下
-	 * (増分1)。startFlowBlock→beginRestyleScope→scopeをpush。
-	 * endFlowBlockはinnerが決してClosedにならないため呼ばない</li>
-	 * <li>未知の組み合わせ: <b>互換フォールバック</b>——カウンタ+初回
-	 * 警告の上で{@code containerBox.restyle(builder, inner)}の多態的
-	 * 意味を維持する。fail closed例外にしないのはクラッシュ排除の絶対
-	 * 要件による(「非PLAIN/MULTICOL tailは構造的に不可能」の証明は
-	 * 全入口に対しては強くない——codex相談
-	 * consult-codex-2026-07-30-increment4-removal-spec.txt §3。
-	 * 将来の未知FlowBlockBoxサブタイプはMULTICOLへ分類されるが
-	 * containerがColumnsContainerである型保証もない)。再入した
-	 * restyle()は無条件worklistなので旧driverは復活しない</li>
+	 * <li>Plain flow ({@link FlowContainer} child): explicitly reproduces startFlowBlock,
+	 * which legacy recursion ({@code FlowBlockBox.restyle()}) calls implicitly, and pushes a frame.
+	 * Actual bug fixed on 2026-07-22: skipping it leaves {@code flowStack} too shallow and violates the invariant.</li>
+	 * <li>MULTICOL ({@link ColumnsContainer} child): native scope descent (increment 1).
+	 * startFlowBlock → beginRestyleScope → push scope.
+	 * Do not call endFlowBlock, since inner is never Closed.</li>
+	 * <li>Unknown combination: <b>compatibility fallback</b>. Increment a counter, warn on the first
+	 * occurrence, and preserve the polymorphic semantics of {@code containerBox.restyle(builder, inner)}.
+	 * Do not fail closed with an exception, because eliminating crashes is an absolute requirement.
+	 * The proof that non-PLAIN/MULTICOL tails are structurally impossible is not strong enough
+	 * for all entry points (codex consultation consult-codex-2026-07-30-increment4-removal-spec.txt §3).
+	 * A future unknown FlowBlockBox subtype is classified as MULTICOL, but there is no type guarantee
+	 * that its container is ColumnsContainer. Reentered restyle() unconditionally uses the worklist,
+	 * so the old driver does not return.</li>
 	 * </ul>
 	 */
 	private static void descendWorklist(Deque<WorklistStep> stack, BlockBuilder builder,
@@ -2727,28 +2716,26 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * sort済み{@code items}の1件を処理する共有dispatchです(2026-07-22、
-	 * B6a1準備で{@code restyle()}のforループ本体から抽出——挙動は一切
-	 * 変えていない純粋な関数抽出(旧{@code continue}は{@code return}へ
-	 * 機械的に置換しただけ)。将来のworklist executor
-	 * (`開発記録`
-	 * 参照)が、この共有dispatchを複製せずそのまま呼べるようにする
-	 * ための下ごしらえ——TEXT/BLOCK/TABLE/REPLACEDの意味を二重実装
-	 * しない、というcodex設計相談の要件(却下案「switch全体を新
-	 * executor側へコピーする」)に対応する。{@code OpenChain}降下は
-	 * {@link #descendWorklist}が明示スタック({@code stack})へ積む
-	 * (増分4bでdescender差し替え機構を畳んだ——worklistが唯一のdriver)。
+	 * Shared dispatch for one entry in sorted {@code items} (2026-07-22).
+	 * Extracted from the {@code restyle()} for-loop body for B6a1 preparation: purely a function
+	 * extraction with no behavior changes (old {@code continue} statements were mechanically
+	 * replaced with {@code return}). Prepares for the future worklist executor
+	 * (see `開発記録`) to call this shared dispatch unchanged instead of duplicating it.
+	 * Meets the codex design consultation requirement to avoid duplicate TEXT/BLOCK/TABLE/REPLACED
+	 * semantics (rejected proposal: copy the entire switch into the new executor).
+	 * {@link #descendWorklist} pushes {@code OpenChain} descent onto the explicit {@code stack}
+	 * (increment 4b removed the replaceable descender mechanism; worklist is the sole driver).
 	 */
 	private void restyleItem(BlockBuilder builder, List<BoxHolder> items, int i, int size, Flow lastFlow,
 			net.zamasoft.foliojet.layout.fragment.OpenShape shape, int depth, Deque<WorklistStep> stack) {
-		// 以下2重の{}は抽出前のインデント(if/forの2階層)をそのまま残す
-		// ための意図的なもの——大量行の再インデントによる誤りを避けた
+		// The two nested {} blocks below intentionally preserve the pre-extraction indentation
+		// (two if/for levels), avoiding errors from reindenting many lines.
 		{
 			{
 				BoxHolder holder = (BoxHolder) items.get(i);
 				if (DebugFlags.RESUME_DETAIL) {
-					// 再開の各アイテムの出自(2026-09-17、診断用)。ResumeTrace は golden で
-					// 固定されているので文面を変えず、別スイッチで stderr へ出す
+					// Provenance of each resumed item (2026-09-17, diagnostics). ResumeTrace wording is fixed by goldens,
+					// so leave it unchanged and emit this to stderr under a separate switch.
 					final IBox b = holder instanceof Replay ? null : holder.getBox();
 					System.err.println("[resumeDetail] depth=" + depth + " i=" + i + "/" + size + " serial=" + holder.serial
 							+ (holder instanceof Replay r ? " REPLAY range=" + r.range
@@ -2760,8 +2747,8 @@ public class FlowContainer implements Container {
 									: String.valueOf(this.box.getParams().element)));
 				}
 				if (holder instanceof Replay replay) {
-					// C1c: 吸収された閉部分木のソース再駆動(再生可否は
-					// 破断時に判定済みのため無条件。op は従来と同一)
+					// C1c: Replay the source of an absorbed closed subtree (unconditional, since replay eligibility
+					// was established at the break point; op is unchanged).
 					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "replay-subtree",
 							"serial=" + holder.serial);
 					builder.getPageContext().replaySubtree(replay.range, builder);
@@ -2769,15 +2756,15 @@ public class FlowContainer implements Container {
 				}
 				switch (holder.getBox().getType()) {
 				case TEXT_BLOCK: {
-					// テキストブロックボックス
+					// Text block box
 					final TextBlockBox textBlock = (TextBlockBox) holder.getBox();
 					final boolean open = lastFlow == holder
 							&& shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenText;
 					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth,
 							open ? "restyle-text-open" : "restyle-text", "serial=" + holder.serial);
 					if (open) {
-						// M3b Phase 1: スライス運搬経由(restyle 内部で
-						// record→replay)。Phase 2/3 の TextTail 型付き化の実測
+						// M3b Phase 1: Via slice transport (record→replay inside restyle).
+						// Measurements for typed TextTail in Phase 2/3.
 						net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenTextHandoff();
 					}
 					textBlock.restyle(builder);
@@ -2790,16 +2777,16 @@ public class FlowContainer implements Container {
 					if (holder.getBox().getPos().getType() != PosType.FLOAT) {
 						AbstractContainerBox containerBox = (AbstractContainerBox) holder.getBox();
 						if (containerBox.getBlockParams().flow.isVertical() != builder.getRootBox().getBlockParams().flow.isVertical()) {
-							// 書字方向が違う場合
+							// When writing directions differ
 							builder.addBound(containerBox);
 						} else {
-							// ブロックボックス
-							// 匿名ボックス
-							// テーブルキャプション
+							// Block box
+							// Anonymous box
+							// Table caption
 							if (lastFlow == holder
 									&& shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenChain(
 											final net.zamasoft.foliojet.layout.fragment.OpenShape inner)) {
-								// 開いたままの祖先チェーン
+								// Still-open ancestor chain
 								net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-chain",
 										"serial=" + holder.serial);
 								net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordChainFiring();
@@ -2808,9 +2795,9 @@ public class FlowContainer implements Container {
 									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
 									&& builder.getPageContext() != null
 									&& builder.getPageContext().replayFromSource(containerBox, builder))) {
-								// 丸ごと移動した閉じた部分木はソース再駆動される(M6b
-								// segment-restyle)。false ならボックス再生でフォールバック。
-								// lastFlow && OpenText の末尾も閉じたボックス(次段は Closed)
+								// Replay wholly moved closed subtrees from source (M6b segment-restyle).
+								// If false, fall back to box replay.
+								// The lastFlow && OpenText tail is also a closed box (the next level is Closed).
 								net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-box",
 										"serial=" + holder.serial);
 								containerBox.restyle(builder,
@@ -2829,15 +2816,15 @@ public class FlowContainer implements Container {
 					break;
 
 				case TABLE: {
-					// テーブル
+					// Table
 					TableBox tableBox = (TableBox) holder.getBox();
-					// 表セット T-c(2026-07-30、ユーザー承認によるG-1裁定の更新):
-					// 破断時に刻印済み(stampRangesのTABLE根範囲)の表は
-					// ソース再駆動で作り直す——BLOCK分岐のreplayFromSourceと
-					// 同型のfail closed(範囲なし・範囲欠損・非Root/Column文脈は
-					// 従来どおりbox-restyle=addBoundへ)。これがG-1で不在だった
-					// 「表recipeの消費者」であり、TABLE_REPLAYSカウンタが
-					// 非空振りを検出する
+					// Table set T-c (2026-07-30, user-approved update to the G-1 decision):
+					// Rebuild tables stamped at the break point (stampRanges TABLE root range)
+					// by source replay. Like replayFromSource in the BLOCK branch,
+					// fail closed: no range, missing range data, or a non-Root/Column context
+					// uses box-restyle=addBound as before. This is the table-recipe consumer
+					// missing in G-1; the TABLE_REPLAYS counter detects
+					// that replay actually occurs.
 					if ((builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
 							|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
 							&& builder.getPageContext() != null
@@ -2852,11 +2839,11 @@ public class FlowContainer implements Container {
 				}
 					break;
 				case RESCUE: {
-					// 2026-07-25(救済分割・増分5): 救済断片の残余。BoxType
-					// を偽装せず専用の入口へ明示dispatchする(答申§5——
-					// 通常のaddBound()へ流すとParamsのキャストで落ちる)
+					// 2026-07-25 (rescue splitting, increment 5): Remainder of a rescue fragment.
+					// Dispatch explicitly to its dedicated entry point instead of impersonating another BoxType
+					// (recommendation §5: passing it to normal addBound() fails on a Params cast).
 					if (holder.getBox().getPos().getType() == PosType.FLOAT) {
-						// 増分7: 浮動体の残余は通常のfloat配置をやり直す
+						// Increment 7: Rerun normal float placement for float remainders.
 						net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "restyle-float-rescue",
 								"serial=" + holder.serial);
 						((Floating) holder).restyle(builder);
@@ -2870,7 +2857,7 @@ public class FlowContainer implements Container {
 					break;
 				}
 				case REPLACED: {
-					// 置換されたボックス
+					// Replaced box
 					AbstractReplacedBox replacedBox = (AbstractReplacedBox) holder.getBox();
 					if (replacedBox.getPos().getType() != PosType.FLOAT) {
 						net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth, "bound-replaced",

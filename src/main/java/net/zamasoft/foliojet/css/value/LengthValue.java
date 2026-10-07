@@ -2,9 +2,7 @@ package net.zamasoft.foliojet.css.value;
 
 import net.zamasoft.foliojet.css.CSSStyle;
 
-/**
- * &lt;length&gt; の値です。単位は {@link net.zamasoft.foliojet.css.token.Unit} で表します。
- */
+/** A &lt;length&gt; value. {@link net.zamasoft.foliojet.css.token.Unit} represents the unit. */
 public interface LengthValue extends Value, QuantityValue {
 	public boolean isZero();
 

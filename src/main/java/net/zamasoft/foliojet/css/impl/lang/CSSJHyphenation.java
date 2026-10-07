@@ -9,8 +9,8 @@ public class CSSJHyphenation extends JlreqBreakingRules {
 	final private CSSJBreakRuleValue exclude;
 
 	/**
-	 * 作者指定の禁則文字の追加・除外は{@code line-break}の緩和より優先する
-	 * (2026-08-29)。
+	 * Author-specified additions and exclusions of kinsoku (line-breaking rules) characters
+	 * take precedence over relaxation by {@code line-break} (2026-08-29).
 	 */
 	public CSSJHyphenation(CSSJBreakRuleValue include, CSSJBreakRuleValue exclude, final LineBreakValue level) {
 		super(level);

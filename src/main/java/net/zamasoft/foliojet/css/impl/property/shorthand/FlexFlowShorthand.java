@@ -14,8 +14,8 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code flex-flow}ショートハンドです(Flex F1a、2026-08-02)。
- * {@code <flex-direction> || <flex-wrap>}——省略側は初期値。
+ * {@code flex-flow} shorthand (Flex F1a, 2026-08-02).
+ * {@code <flex-direction> || <flex-wrap>}; omitted components use initial values.
  *
  * @author MIYABE Tatsuhiko
  */

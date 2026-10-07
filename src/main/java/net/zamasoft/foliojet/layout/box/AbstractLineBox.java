@@ -24,8 +24,8 @@ import net.zamasoft.foliojet.layout.util.SidewaysGeometry;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
- * 行ボックスの実装です。
- * 
+ * A line box implementation.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: AbstractLineBox.java 1640 2023-10-04 03:06:26Z miyabe $
  */
@@ -33,26 +33,22 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	private static final java.util.concurrent.atomic.AtomicLong NEXT_LINE_ID =
 			new java.util.concurrent.atomic.AtomicLong();
 
-	/**
-	 * 行方向アラインメントです。
-	 */
+	/** Inline-axis alignment. */
 	protected double lineAlign = 0;
-	/** alignに渡された行内軸の物理寸法。 */
+	/** The physical inline-axis size passed to align. */
 	private double inlineExtent;
 
-	/**
-	 * 行末またはブロックの末です。
-	 */
+	/** The end of a line or block. */
 	protected boolean last = false;
 
-	/** 段落 UBA が有効なときの描画専用 tree。論理 contents は不変。 */
+	/** A drawing-only tree when paragraph UBA is enabled. Logical contents remain unchanged. */
 	private List<Object> visualContents;
 	private java.util.Map<Object, net.zamasoft.foliojet.layout.text.bidi.BidiSlice> bidiSlices = java.util.Map.of();
 	private byte bidiBaseDirection = AbstractTextParams.DIRECTION_LTR;
 	private long bidiParagraphId;
 	private net.zamasoft.foliojet.layout.text.bidi.LogicalLineEmission logicalLineEmission;
 	private String logicalLineVisualText;
-	/** TextReplaySlice が段落途中から再開するときの、先行行の論理文脈。 */
+	/** The logical context of preceding lines when TextReplaySlice resumes midway through a paragraph. */
 	private net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix bidiReplayPrefix =
 			net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix.EMPTY;
 
@@ -179,7 +175,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	}
 
 	public void addAscentDescent(double ascent, double descent) {
-		// アセントディセントの拡大
+		// Expand ascent and descent.
 		if (ascent > this.ascent) {
 			this.ascent = ascent;
 		}
@@ -190,21 +186,21 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	}
 
 	/**
-	 * 行末の詰め/ぶら下げ分です(和文詰めT2/H1——
-	 * consult-codex-2026-07-31-text-spacing.txt)。行の配置・均等割りは
-	 * この分を除いた実効行幅を基準にし、glyph自体は通常どおり描画される
-	 * (ぶら下げ句読点・半角化された行末約物のはみ出しはink扱い)。
+	 * The amount of end-of-line trimming/hanging (Japanese text spacing T2/H1:
+	 * consult-codex-2026-07-31-text-spacing.txt). Line placement and justification use
+	 * the effective inline size excluding this amount, while glyphs themselves draw normally
+	 * (overflow from hanging punctuation and half-width end-of-line punctuation counts as ink).
 	 */
 	private double endHangAdvance;
 
 	/**
-	 * {@code text-overflow: ellipsis}の省略記号(なければnull。2026-08-29、
-	 * TextBuilder.applyTextOverflow)。行の内容とは別に持ち、描画時に
-	 * 行末をクリップして追加描画する。
+	 * The ellipsis for {@code text-overflow: ellipsis} (null if absent; 2026-08-29,
+	 * TextBuilder.applyTextOverflow). Retained separately from line content; at drawing time,
+	 * clips the line end and draws the ellipsis additionally.
 	 */
 	private net.zamasoft.pdfg2d.gc.text.Text ellipsis;
 
-	/** 行原点(lineAlign適用前)から測った、内容を描く行方向の長さ。 */
+	/** The inline extent in which to draw content, measured from the line origin before lineAlign. */
 	private double ellipsisClipExtent;
 
 	public void setEllipsis(final net.zamasoft.pdfg2d.gc.text.Text ellipsis, final double clipExtent) {
@@ -216,7 +212,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		return this.ellipsis;
 	}
 
-	/** 行原点から内容の先頭までの行方向のずれ({@link #align}で決まる)。 */
+	/** The inline offset from the line origin to the content start (determined by {@link #align}). */
 	public double getLineAlign() {
 		return this.lineAlign;
 	}
@@ -230,26 +226,26 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	}
 
 	/**
-	 * 行方向アラインメントを適用します。
-	 * 
-	 * @param textIndent  インデント
-	 * @param offset      浮動ボックス等によるずれ
-	 * @param maxLineAxis 最大行幅
-	 * @param last        ブロックの末尾または改行された行
+	 * Applies inline-axis alignment.
+	 *
+	 * @param textIndent  the indent
+	 * @param offset      the offset caused by floats, etc.
+	 * @param maxLineAxis the maximum inline size
+	 * @param last        a line at the block end or ended by a line break
 	 */
 	public void align(double textIndent, double offset, double maxLineAxis, boolean last) {
-		// 行方向アラインメント
+		// Inline-axis alignment.
 		assert this.contents != null && !this.contents.isEmpty();
-		// 双方向の並べ替えは段落の終端で別の visualContents を構成するので、論理 contents に触れない
+		// Bidi reordering builds separate visualContents at paragraph end, leaving logical contents untouched.
 		this.last = last;
 		this.inlineExtent = maxLineAxis;
 		AbstractLineParams params = this.getLineParams();
-		// T2/H1: 実効行幅(行末の詰め/ぶら下げ分を除く)
+		// T2/H1: effective inline size (excluding end-of-line trimming/hanging).
 		double lineWidth = this.lineSize - this.endHangAdvance + textIndent;
 		textIndent += offset;
 		byte textAlign = last ? params.textAlignLast : params.textAlign;
-		// sideways は LTR と同じ論理 offset を作り、描画時の inlineToPhysical で
-		// 一度だけ物理化する。通常組版の RTL だけ従来の start/end 交換を残す。
+		// sideways uses the same logical offset as LTR, mapped to physical coordinates only once
+		// by inlineToPhysical at drawing time. Keep the existing start/end swap only for RTL in normal layout.
 		if (this.bidiBaseDirection == AbstractTextParams.DIRECTION_RTL
 				&& !TypesettingMode.usesSidewaysInlineAxis(params.flow, params.writingModeVariant)) {
 			if (textAlign == AbstractLineParams.TEXT_ALIGN_START) {
@@ -260,17 +256,17 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		}
 		switch (textAlign) {
 		case AbstractLineParams.TEXT_ALIGN_CENTER:
-			// 中央合わせ
+			// Center.
 			this.lineAlign = (maxLineAxis - lineWidth) / 2.0 + textIndent;
 			break;
 
 		case AbstractLineParams.TEXT_ALIGN_END:
-			// 行末に合わせる
+			// Align to line end.
 			this.lineAlign = maxLineAxis - lineWidth + textIndent;
 			break;
 
 		case AbstractLineParams.TEXT_ALIGN_JUSTIFY: {
-			// 両方合わせ
+			// Justify.
 			double remainderAdvance = maxLineAxis - lineWidth;
 			if (remainderAdvance > 0) {
 				this.justifyByWritingSystem(remainderAdvance);
@@ -280,12 +276,12 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 			break;
 
 		case AbstractLineParams.TEXT_ALIGN_START:
-			// 行頭に合わせる
+			// Align to line start.
 			this.lineAlign = textIndent;
 			break;
 
 		case AbstractLineParams.TEXT_ALIGN_X_JUSTIFY_CENTER:
-			// 中央-両合わせ
+			// Center-justify.
 			double remainderAdvance = maxLineAxis - lineWidth;
 			if (remainderAdvance <= 0) {
 				this.lineAlign = (maxLineAxis - lineWidth) / 2.0 + textIndent;
@@ -313,17 +309,17 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 			throw new IllegalStateException();
 		}
 
-		// ページ方向アラインメント
+		// Page-axis alignment.
 		super.verticalAlign(this, 0);
 	}
 
 	/**
-	 * 行の余りを配ります。配り方は{@code text-justify}(2026-09-02):
-	 * {@code none}は配らない、{@code inter-word}は語間だけ、
-	 * {@code inter-character}は文字間へ(和文行は JLREQ の段階、他は分離可能境界)、
-	 * {@code auto}は言語で決める——和文行は JLREQ、韓国語({@code lang=ko})は
-	 * 語間だけ(Chrome の実測: 空白だけが伸び、音節の送りは動かない)、
-	 * それ以外は従来の分離可能境界。
+	 * Distributes the line's remaining space according to {@code text-justify} (2026-09-02):
+	 * {@code none} distributes nothing; {@code inter-word} uses only word spaces;
+	 * {@code inter-character} uses character spaces (JLREQ stages for Japanese lines, separable
+	 * boundaries for others). {@code auto} depends on language: JLREQ for Japanese lines,
+	 * word spaces only for Korean ({@code lang=ko}; measured in Chrome: only whitespace expands,
+	 * syllable advances stay unchanged), and the existing separable boundaries for other languages.
 	 */
 	private void justifyByWritingSystem(final double remainder) {
 		if (remainder <= 0) {
@@ -341,10 +337,10 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 				return;
 			}
 			if (mode == AbstractTextParams.TEXT_JUSTIFY_INTER_WORD) {
-				// 語間が無い行は動かさない(css-text-3 §7.3)
+				// Leave lines without word spaces unchanged (css-text-3 §7.3).
 				return;
 			}
-			// 韓国語の auto で語間が無い行だけ、文字間へ落とす
+			// Fall back to character spacing only for Korean auto lines without word spaces.
 		}
 		if (this.containsJapaneseComposition()) {
 			this.justifyByJlreqPriorities(remainder);
@@ -356,14 +352,14 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		}
 	}
 
-	/** この行の言語が韓国語か({@code lang}が{@code ko})。 */
+	/** Whether this line's language is Korean ({@code lang} is {@code ko}). */
 	private boolean isKorean() {
 		final java.util.Locale lang = this.getTextParams().fontStyle == null ? null
 				: this.getTextParams().fontStyle.getLang();
 		return lang != null && "ko".equals(lang.getLanguage());
 	}
 
-	/** JLREQ 3.8.4の4段階で行の余りを配分する。 */
+	/** Distributes the line's remaining space in the four stages of JLREQ 3.8.4. */
 	private void justifyByJlreqPriorities(double remainder) {
 		if (remainder <= 0) {
 			return;
@@ -379,7 +375,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 			remainder -= used;
 		}
 		if (remainder > 0.0001) {
-			// 欧文の字間は、auto では配る所がほかに無い行だけ(JUSTIFY_LETTERS)
+			// For Latin letter spacing, auto distributes only on lines with no other opportunities (JUSTIFY_LETTERS).
 			int priority = this.getTextParams().textJustify == AbstractTextParams.TEXT_JUSTIFY_INTER_CHARACTER
 					? JUSTIFY_LETTERS : JUSTIFY_FALLBACK;
 			double weight = this.justificationCapacity(priority, new JustificationState());
@@ -401,9 +397,9 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y, java.util.Deque<DrawStep> worklist) {
 		if (this.ellipsis != null) {
-			// text-overflow: ellipsis(2026-08-29)。内容は行末側を
-			// ellipsisClipExtentで切り、省略記号を元のクリップで最後に描く
-			// (worklistはLIFOなので先にpushすると子の後で実行される)
+			// text-overflow: ellipsis (2026-08-29). Clip content at the line end
+			// using ellipsisClipExtent, then draw the ellipsis last with the original clip.
+			// (The worklist is LIFO, so pushing first executes after the children.)
 			final AbstractLineParams lineParams = this.getLineParams();
 			final boolean sideways = lineParams.writingModeVariant != WritingModeVariant.NORMAL;
 			final boolean vertical = lineParams.flow.isVertical();
@@ -455,13 +451,13 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		}
 		switch (this.getLineParams().flow) {
 		case WritingMode.TB:
-			// 横書き
+			// Horizontal writing.
 			x += this.lineAlign;
 			break;
 
 		case WritingMode.LR:
 		case WritingMode.RL:
-			// 縦書き
+			// Vertical writing.
 			y += LayoutUtils.inlineToPhysical(this.getLineParams(), this.inlineExtent, this.lineAlign,
 					this.lineAlign + this.lineSize);
 			break;
@@ -478,13 +474,13 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 			java.util.Deque<TextShapeStep> worklist) {
 		switch (this.getLineParams().flow) {
 		case WritingMode.TB:
-			// 横書き
+			// Horizontal writing.
 			x += this.lineAlign;
 			break;
 
 		case WritingMode.LR:
 		case WritingMode.RL:
-			// 縦書き
+			// Vertical writing.
 			y += LayoutUtils.inlineToPhysical(this.getLineParams(), this.inlineExtent, this.lineAlign,
 					this.lineAlign + this.lineSize);
 			break;

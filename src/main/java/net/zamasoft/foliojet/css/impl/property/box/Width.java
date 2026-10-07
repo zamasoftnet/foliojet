@@ -20,9 +20,9 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
- * <a href="http://www.w3.org/TR/CSS21/visudet.html#propdef-width"> width 特性
- * </a>です。
- * 
+ * <a href="http://www.w3.org/TR/CSS21/visudet.html#propdef-width"> width property
+ * </a>.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class Width extends AbstractPrimitivePropertyInfo {
@@ -33,10 +33,10 @@ public class Width extends AbstractPrimitivePropertyInfo {
 		if (style.isDeclared(INFO)) {
 			return style.get(INFO);
 		}
-		// widthが明示指定されていなければ、標準の論理プロパティ
-		// inline-size/block-sizeをフォールバックとして見る(画像には
-		// 適用しない。2026-07-20、-cssj-direction-mode廃止によりinline-size/
-		// block-sizeへ一本化)。
+		// If width is not explicitly specified, fall back to the standard logical properties
+		// inline-size/block-size (does not apply to images). On 2026-07-20,
+		// -cssj-direction-mode was abolished and support was consolidated into inline-size/
+		// block-size.
 		if (!image) {
 			PrimitivePropertyInfo logicalInfo = BlockFlow.get(style).isVertical() ? BlockSize.INFO : InlineSize.INFO;
 			if (style.isDeclared(logicalInfo)) {
@@ -63,23 +63,21 @@ public class Width extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * <b>負の長さは無効値として初期値へ落とします</b>(2026-08-05)。
+	 * <b>Rejects negative lengths as invalid and falls back to the initial value</b> (2026-08-05).
 	 *
 	 * <p>
-	 * CSSでは width/height に負の値は書けず、{@link #parseValue} の
-	 * {@code toPositiveLength} が弾いている。ところが {@code attr()} と
-	 * {@code calc()} は<b>その要素の属性・文脈が要る</b>ので解決は計算値の
-	 * 段階になり、構文解析時の検査を素通りする。
+	 * CSS forbids negative width/height, and {@code toPositiveLength} in {@link #parseValue}
+	 * rejects them. However, {@code attr()} and {@code calc()} <b>need the element's attributes
+	 * and context</b>, so they resolve at the computed-value stage and bypass parsing-time checks.
 	 * </p>
 	 *
 	 * <p>
-	 * 実害: 2026-08-03に表の表現属性をUA CSSへ移送して
-	 * {@code table[width] { width: attr(width px) }} としたとき、
-	 * {@code <table width="-500">} が幅16.5pt(最小内容幅)へ潰れ、
-	 * セルの文字が1文字ずつ縦に折れるようになった。同じ意味を
-	 * {@code style="width:-500px"} と書けば正しく無視される、という
-	 * 経路依存の食い違いだった。<b>基準画像の差は0.35%で、
-	 * imageTest の許容2%に隠れていた</b>(2026-08-05に目視で発見)。
+	 * Actual impact: when table presentational attributes were moved to UA CSS on 2026-08-03
+	 * as {@code table[width] { width: attr(width px) }}, {@code <table width="-500">}
+	 * collapsed to 16.5 pt wide (the minimum content width), wrapping cell text vertically
+	 * one character at a time. The equivalent {@code style="width:-500px"} was correctly ignored,
+	 * so behavior differed depending on the path. <b>The baseline image difference was 0.35%,
+	 * hidden by imageTest's 2% tolerance</b> (found visually on 2026-08-05).
 	 * </p>
 	 */
 	public Value getComputedValue(Value value, CSSStyle style) {
@@ -99,7 +97,7 @@ public class Width extends AbstractPrimitivePropertyInfo {
 			return KeywordValue.AUTO;
 		}
 
-		// 固有寸法キーワード max-content/min-content/fit-content(L)(2026-08-29)
+		// Intrinsic sizing keywords max-content/min-content/fit-content(L) (2026-08-29).
 		final Value intrinsic = BoxValueUtils.toIntrinsicSize(ua, lu);
 		if (intrinsic != null) {
 			return intrinsic;

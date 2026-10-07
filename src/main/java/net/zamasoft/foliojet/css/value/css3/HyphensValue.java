@@ -4,7 +4,7 @@ import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
- * hyphensプロパティの値です。
+ * A hyphens property value.
  *
  * @author MIYABE Tatsuhiko
  */

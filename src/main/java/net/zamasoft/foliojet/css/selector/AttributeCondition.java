@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.css.selector;
 
 /**
- * 属性条件([attr]、[attr=v]、[attr~=v]、[attr|=v]、[attr^=v]、[attr$=v]、[attr*=v])。
+ * An attribute condition ([attr], [attr=v], [attr~=v], [attr|=v], [attr^=v], [attr$=v], [attr*=v]).
  */
 public final class AttributeCondition implements Condition {
 	private final ConditionType type;

@@ -31,8 +31,8 @@ import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * 通常のフローを含むことができるボックスです。
- * 
+ * A box that can contain normal flow.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: AbstractContainerBox.java 1631 2022-05-15 05:43:49Z miyabe $
  */
@@ -49,42 +49,38 @@ public abstract class AbstractContainerBox extends AbstractBox
 	protected double offsetX = 0, offsetY = 0;
 
 	/**
-	 * <b>Flex/Gridの主軸配置(行/トラック開始位置)</b>(2026-08-06新設)。
+	 * <b>Flex/Grid main-axis placement (line/track start position)</b> (added on 2026-08-06).
 	 *
 	 * <p>
-	 * {@code offsetX}/{@code offsetY}は本来{@code position:relative}の
-	 * ずらし量専用の場所だが、{@code FlexItemBox.setFlexLineOffset}/
-	 * {@code GridItemBox.setGridLineOffset}が同じ場所へ直接書き込んでいた
-	 * ——Flex/Gridアイテムには通常フローのカーソル位置という概念が無く、
-	 * 既存の{@code offsetX}を使い回すのが簡便だったため。ここへ
-	 * {@link #resolveRelativeOffset}が{@code position:relative}のずらし量を
-	 * <b>代入</b>すると、Flex/Gridが計算した配置が丸ごと消える(実地: 検索
-	 * ボタンが左右逆転・アイコンが原点へ集まる)。この{@code baseOffsetX}/
-	 * {@code baseOffsetY}へFlex/Gridの配置を退避し、
-	 * {@code resolveRelativeOffset}はこの上へ<b>加算</b>することで両立する。
+	 * {@code offsetX}/{@code offsetY} were originally reserved for {@code position:relative} offsets,
+	 * but {@code FlexItemBox.setFlexLineOffset}/{@code GridItemBox.setGridLineOffset} wrote directly
+	 * to the same fields. Flex/Grid items have no normal-flow cursor position, so reusing
+	 * {@code offsetX} was convenient. If {@link #resolveRelativeOffset} <b>assigns</b>
+	 * {@code position:relative} offsets there, the entire placement computed by Flex/Grid disappears
+	 * (observed: search buttons swapped left/right and icons gathered at the origin).
+	 * Keep Flex/Grid placement in {@code baseOffsetX}/{@code baseOffsetY}, and make
+	 * {@code resolveRelativeOffset} <b>add</b> its offsets on top, allowing both to coexist.
 	 * </p>
 	 */
 	protected double baseOffsetX = 0, baseOffsetY = 0;
 
 	/**
-	 * <b>相対配置のずらしを確定します</b>(2026-08-06新設)。
+	 * <b>Resolves relative-positioning offsets</b> (added on 2026-08-06).
 	 *
 	 * <p>
-	 * この計算は<b>包含ブロックを一切必要としません</b>——
-	 * {@code LayoutUtils.computeOffsetX/Y} は引数の容器を使わず、
-	 * 絶対長ならその値、割合とautoなら0を返すだけである(割合は未実装の
-	 * まま。既存のTODO)。したがって<b>いつ呼んでも同じ値</b>になる
-	 * ({@link #baseOffsetX}/{@link #baseOffsetY}を基準に毎回同じ結果へ
-	 * 収束するため、複数回呼んでも安全)。
+	 * This calculation <b>does not need the containing block at all</b>: {@code LayoutUtils.computeOffsetX/Y}
+	 * does not use its container argument, simply returning the value for absolute lengths and zero
+	 * for percentages or auto (percentages remain unimplemented, an existing TODO). Thus,
+	 * <b>the result is the same whenever called</b>. It converges to the same result relative to
+	 * {@link #baseOffsetX}/{@link #baseOffsetY} each time, so repeated calls are safe.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>なぜ寸法決めの走査任せにしないか。</b> ストリーミングでは、
-	 * 確定したページの容器が走査から外れることがあり、そこに居た箱は
-	 * {@code finishLayoutSelf}を通らない。ずらし量には番兵値が無いので
-	 * <b>0のまま静かに出て誰も気づかない</b>(実測: github-readmeで
-	 * {@code top:20pt}を与えてもずれない)。包含ブロックが要らない値まで
-	 * 走査に預ける理由は無いので、描画の直前にも確定させる。
+	 * <b>Why not leave this to the sizing traversal?</b> In streaming, containers on finalized pages
+	 * can leave that traversal, so their boxes never pass through {@code finishLayoutSelf}.
+	 * Offsets have no sentinel value, so <b>they silently remain zero and go unnoticed</b>
+	 * (measured: {@code top:20pt} had no effect in github-readme). Values that do not need
+	 * a containing block need not depend on traversal; resolve them immediately before drawing too.
 	 * </p>
 	 */
 	protected final void resolveRelativeOffset(final net.zamasoft.foliojet.layout.box.params.Offset offset) {
@@ -118,20 +114,20 @@ public abstract class AbstractContainerBox extends AbstractBox
 	 * {@inheritDoc}
 	 *
 	 * <p>
-	 * 枠線・背景が見える箱は箱いっぱいに描きます。見えない箱は<b>中身が描く
-	 * ところまで</b>しか描かず、中身が何も描かなければ<b>0</b>になります
-	 * (余った指定寸法・内容の後ろの余白は何も描かない)。
-	 * 書字方向が問い合わせ側と違う箱はページ軸が一致しないため、
-	 * 幾何寸法をそのまま返します(安全側)。
+	 * Boxes with visible borders/backgrounds draw across the whole box. Invisible boxes draw
+	 * only <b>as far as their contents draw</b>, or <b>zero</b> if contents draw nothing
+	 * (unused specified size and trailing space after content draw nothing). If the box's writing
+	 * direction differs from the caller's, the page axes do not match, so conservatively
+	 * returns the geometric size unchanged.
 	 * </p>
 	 *
 	 * <p>
-	 * 中身が箱から溢れて描かれるときは、枠線・背景が見える箱でも<b>溢れの
-	 * 先まで</b>を返します(2026-10-02)。従来は見える箱を箱いっぱいで
-	 * 打ち切っていたため、ページ軸の寸法を明示した縁取りの浮動体
-	 * ({@code float:right;height:96pt;border:1pt solid})の溢れた中身を
-	 * 配置時の判定({@code FloatMeasurement.occupiedPageExtent})が数えず、
-	 * 切断されないまま紙の外へ並んでいた。見えない箱は前からこの値だった。
+	 * When contents draw beyond the box, returns <b>the full overflow extent</b> even for boxes
+	 * with visible borders/backgrounds (2026-10-02). Previously, visible boxes were capped
+	 * at their own size, so placement checks ({@code FloatMeasurement.occupiedPageExtent})
+	 * ignored overflowing content of bordered floats with explicit page-axis sizes
+	 * ({@code float:right;height:96pt;border:1pt solid}). Content was placed off the paper
+	 * without splitting. Invisible boxes already used this value.
 	 * </p>
 	 */
 	@Override
@@ -144,7 +140,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final boolean framed = this.frame.isVisible();
 		final double inner = this.container.paintedPageEnd();
 		if (LayoutUtils.compare(inner, 0) <= 0) {
-			// 中身が何も描かない = 枠線・背景だけを描く(見えなければ何も描かない)
+			// Contents draw nothing: draw only borders/backgrounds (nothing if they are invisible).
 			return framed ? full : 0;
 		}
 		final double painted = this.frame.getFramePageStart(flow) + inner;
@@ -158,9 +154,9 @@ public abstract class AbstractContainerBox extends AbstractBox
 	 * {@inheritDoc}
 	 *
 	 * <p>
-	 * 枠線・背景を持つ箱は描きます。持たない箱は<b>中身が描くかどうか</b>が
-	 * そのまま答えです(余った指定寸法・内容の後ろの余白は何も描かない)。
-	 * 不透明度0は「描かない」ですが、あえて見ません——安全側だからです。
+	 * Boxes with borders/backgrounds draw. Otherwise, the answer is <b>whether their contents draw</b>
+	 * (unused specified size and trailing space after content draw nothing). Zero opacity means
+	 * no drawing, but deliberately ignores it to stay conservative.
 	 * </p>
 	 */
 	@Override
@@ -169,29 +165,29 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	/**
-	 * コンテナボックスのパラメータを返します。
-	 * 
+	 * Returns the container box parameters.
+	 *
 	 * @return
 	 */
 	public abstract BlockParams getBlockParams();
 
 	/**
-	 * ページ方向に拡張します。
-	 * 
+	 * Expands along the page axis.
+	 *
 	 * @param newSize
 	 */
 
 	public void setPageAxis(final double newSize) {
 		final BlockParams params = this.getBlockParams();
 		if (params.flow.isVertical()) {
-			// 縦書き
+			// Vertical writing.
 			if (newSize <= this.width) {
 				return;
 			}
 			this.width = Math.max(this.minPageAxis, newSize);
 			this.width = Math.min(this.maxPageAxis, this.width);
 		} else {
-			// 横書き
+			// Horizontal writing.
 			if (newSize <= this.height) {
 				return;
 			}
@@ -201,23 +197,23 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	/**
-	 * ページ方向サイズが明示されていればtrueを返します。
-	 * 
+	 * Returns true if the page-axis size is explicitly specified.
+	 *
 	 * @return
 	 */
 	public abstract boolean isSpecifiedPageSize();
 
 	/**
-	 * 絶対配置の基準となるボックスではtrueを返します。
-	 * 
+	 * Returns true for a box that serves as the reference for absolute positioning.
+	 *
 	 * @return
 	 */
 	public abstract boolean isContextBox();
 
 	/**
-	 * 枠を描画します(2026-07-20、反復化——drawと同じ理由。深いネストでの
-	 * StackOverflowErrorを避けるため、明示的な{@link Deque}をワークリストと
-	 * して使う反復DFSに置き換えた)。
+	 * Draws frames (made iterative on 2026-07-20, for the same reason as draw).
+	 * Replaced recursion with iterative DFS using an explicit {@link Deque} worklist
+	 * to avoid StackOverflowError in deep nesting.
 	 *
 	 * @param pageBox
 	 *            TODO
@@ -237,26 +233,23 @@ public abstract class AbstractContainerBox extends AbstractBox
 		}
 	}
 
-	/**
-	 * {@code box}の{@link #pushFramesSteps}を実行する1つの{@link FramesStep}を
-	 * 作ります。
-	 */
+	/** Creates one {@link FramesStep} that executes {@code box}'s {@link #pushFramesSteps}. */
 	public static FramesStep framesStep(final AbstractContainerBox box, final PageBox pageBox, final Drawer drawer,
 			final Shape clip, final AffineTransform transform, final double x, final double y) {
 		return worklist -> box.pushFramesSteps(pageBox, drawer, clip, transform, x, y, worklist);
 	}
 
 	/**
-	 * このボックス(とその子孫)の枠描画手順を{@code worklist}へ積みます。
-	 * {@link IBox#pushDrawSteps}と同じ規約(元の走査順を保つため**逆順**で
-	 * push)に従ってください。
+	 * Pushes frame-drawing steps for this box and its descendants onto {@code worklist}.
+	 * Follow the same convention as {@link IBox#pushDrawSteps}: push in **reverse order**
+	 * to preserve the original traversal order.
 	 */
 	public abstract void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform,
 			double x, double y, java.util.Deque<FramesStep> worklist);
 
 	/**
-	 * 行幅を返します。
-	 * 
+	 * Returns the inline size.
+	 *
 	 * @return
 	 */
 	public final double getLineSize() {
@@ -264,10 +257,10 @@ public abstract class AbstractContainerBox extends AbstractBox
 		double lineSize = LayoutUtils.getMaxAdvance(this);
 		final int columnCount = this.getColumnCount();
 		if (columnCount >= 2) {
-			// マルチカラム。**0未満にはしない**(css-multicolの used
-			// column-width は非負。gapが容器より大きい入れ子段組で負の
-			// 行幅になると、行組みが逆走して内容が紙面外へ出る——
-			// 2026-08-21、掃過seed 615921)
+			// Multi-column layout. **Never go below zero** (css-multicol requires nonnegative
+			// used column-width). In nested multi-column layout with gaps wider than the container,
+			// a negative inline size makes line layout run backward and places content off the paper
+			// (2026-08-21, sweep seed 615921).
 			lineSize = Math.max(0, (lineSize + params.columns.gap) / columnCount - params.columns.gap);
 		}
 		return lineSize;
@@ -277,9 +270,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return 1;
 	}
 
-	/**
-	 * 行方向サイズが AUTO(内容依存)であれば true を返します(M2c)。
-	 */
+	/** Returns true if the inline size is AUTO (content-dependent) (M2c). */
 	public final boolean isAutoLineSize() {
 		return this.size.getLineType(this.getBlockParams().flow) == LengthType.AUTO;
 	}
@@ -320,16 +311,16 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	/**
-	 * 組んだ中身を捨てて空に戻します(2026-10-05)。shrink-to-fit の寸法を一度組んで測り直すとき
-	 * ({@code DocumentBuilder})、計測の再生で積んだ中身を本番の前に消す。{@link #balance} と同じく新しい
-	 * FlowContainer に替える。
+	 * Discards laid-out contents, leaving the box empty again (2026-10-05). When shrink-to-fit sizes
+	 * are remeasured by actual layout ({@code DocumentBuilder}), clears contents added by measurement replay
+	 * before actual layout. Replaces the container with a fresh FlowContainer, as in {@link #balance}.
 	 */
 	public final void resetContentForRelayout() {
 		this.container = new FlowContainer();
 		this.container.setBox(this);
 	}
 
-	/** 組んだ中身のうち直交する子孫の行方向の広がり({@link FlowContainer#orthogonalLineExtent})。 */
+	/** The inline extent of orthogonal descendants in laid-out contents ({@link FlowContainer#orthogonalLineExtent}). */
 	public final double orthogonalContentLineExtent() {
 		return this.container instanceof FlowContainer flows ? flows.orthogonalLineExtent(this.getBlockParams().flow)
 				: 0;
@@ -343,27 +334,27 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final boolean vertical = this.getBlockParams().flow.isVertical();
 		double pageSize;
 		if (acc >= 2) {
-			// 既に複数段に分かれて構築済みの場合は元の単一スタックが失われて
-			// いるため、旧来の均等割り(総量/段数の一回スナップ)を使う
+			// If already built across multiple columns, the original single stack is lost,
+			// so use the old equal division (one-shot total/column-count estimate).
 			final double total = oldCont.getContentSize() + (vertical ? this.width : this.height) * (acc - 1);
 			pageSize = oldCont.getCutPoint(total / columnCount);
 		} else {
-			// 単一スタックの切り下げ境界で実切断を模擬し、全段に収まる
-			// 最小容量を探索する(M5-B)
+			// Simulate actual cuts at the single stack's rounded-down boundaries and search
+			// for the minimum capacity that fits all columns (M5-B).
 			pageSize = ColumnBalancer.balance(oldCont::getCutPointBelow, oldCont.getContentSize(), columnCount);
 		}
-		// atomicな同軸逆進行の子は段境界で切れない——ColumnBalancerの
-		// 「境界なしなら提案位置まで進んだとみなす」近似より床を優先する
-		// (Container.balancePageSizeFloor参照。2026-08-22)
+		// Atomic children on the same axis with reverse progression cannot split at column boundaries.
+		// Prefer the floor over ColumnBalancer's approximation that assumes progress to the proposed
+		// position when no boundary exists (see Container.balancePageSizeFloor; 2026-08-22).
 		pageSize = Math.max(pageSize, oldCont.balancePageSizeFloor());
 
-		// 2026-07-25(排除域P2の撤回): 上の容量計算に加えて隔離セッションで
-		// 中身を丸ごと組み直す「バランスプローブ」(M6c-2〜M6c-5)は全撤去した。
-		// 同じ問い(段が収まる最小容量)を二重に解いており、重い試行20回分の
-		// コストと隔離機構(専用builder/PageGenerator/実行パスThreadLocal)に
-		// 見合わない——独立3者レビュー全員一致+ユーザー裁定。段の高さの
-		// 揃え精度はColumnBalancerの一発勝負ぶん下がるが、フロートを含む
-		// 段組で多少不揃いになるのは許容(段組×float領域は妥協が許される)
+		// 2026-07-25 (withdrawal of exclusion area P2): removed all balance probes (M6c-2 through
+		// M6c-5) that rebuilt all contents in an isolated session in addition to the capacity calculation above.
+		// They solved the same question (minimum capacity fitting the columns) twice, not justifying
+		// the cost of 20 expensive trials and the isolation machinery (dedicated builder/PageGenerator/
+		// execution-pass ThreadLocal): unanimous agreement of three independent reviewers + user's decision.
+		// Height alignment becomes less precise because ColumnBalancer gets only one attempt,
+		// but some unevenness with floats is acceptable (multi-column × float handling permits compromises).
 		if (vertical) {
 			this.maxPageAxis = this.width = pageSize;
 		} else {
@@ -374,18 +365,18 @@ public abstract class AbstractContainerBox extends AbstractBox
 		this.container.setBox(this);
 
 		final ColumnBuilder columnBuilder = new ColumnBuilder(builder, this);
-		// バランス時この multicol は閉じた部分木(直後が SAX ヘッド)なので、
-		// 内容をソースから再構築できる(M6c)。ボックス再生と違い非破壊で、
-		// 将来は容量プローブの反復にも使える。範囲不明・Opaque 含み・
-		// 分割済み(アンカー無効)の場合はボックス再生へフォールバック
-		// ——「アンカー無効」は継続断片側にしか効かないので、前断片側は
-		// isSourceReplayable()で明示的に外す(2026-07-28。切断済みの
-		// multicol を子範囲から組み直すと、継続断片が持っている残りまで
-		// この断片に入り、内容が二重になる)
+		// At balancing time, this multicol is a closed subtree (the SAX head follows immediately),
+		// so its contents can be rebuilt from source (M6c). Unlike box replay, this is nondestructive
+		// and could support repeated capacity probes in the future. Fall back to box replay for
+		// unknown ranges, Opaque contents, or already-split boxes (invalid anchors).
+		// Since anchor invalidation affects only continuation fragments, explicitly exclude
+		// preceding fragments with isSourceReplayable() (2026-07-28). Rebuilding a split
+		// multicol from its child range would put the remainder held by the continuation
+		// fragment into this fragment too, duplicating content.
 		final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = builder.getPageContext();
 		final net.zamasoft.foliojet.layout.RetainedTextLimit limit =
 				net.zamasoft.foliojet.layout.RetainedTextLimit.get(builder);
-		// 内容は初回の組版で数え済み。ソース・ボックスのどちらの再生も加算しない。
+		// Content was counted during initial layout. Neither source nor box replay adds to the total.
 		try (var suspended = limit == null ? null : limit.suspend()) {
 			final boolean replayed = root != null && this.isSourceReplayable()
 					&& net.zamasoft.foliojet.layout.SourceReplayer.replayChildren(
@@ -524,9 +515,9 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	/**
-	 * 通常ブロックの {@code align-content} が内容原点へ加える論理ブロック軸量。
-	 * 明示寸法に余白がある場合だけ働き、オーバーフロー時は仕様のsafe既定に
-	 * 従ってstart(0)へ戻す。Flex/Gridは固有ビルダーで配置済みなので除外する。
+	 * The logical block-axis offset that a normal block's {@code align-content} adds to its content origin.
+	 * Applies only when explicit sizing leaves free space; overflow falls back to start (0), following
+	 * the specification's safe default. Excludes Flex/Grid, already placed by their dedicated builders.
 	 */
 	protected final double blockContentAlignmentOffset() {
 		final BlockParams params = this.getBlockParams();
@@ -548,13 +539,13 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return alignment == net.zamasoft.foliojet.layout.box.params.BoxAlignment.CENTER ? free / 2 : free;
 	}
 
-	/** 論理ブロック軸の整列量を物理座標へ反映する。 */
+	/** Maps the logical block-axis alignment offset to physical coordinates. */
 	protected double blockAlignedX(final double x) {
 		final WritingMode flow = this.getBlockParams().flow;
 		return flow.isVertical() ? x + LayoutUtils.pageAxisSign(flow) * this.blockContentAlignmentOffset() : x;
 	}
 
-	/** 論理ブロック軸の整列量を物理座標へ反映する。 */
+	/** Maps the logical block-axis alignment offset to physical coordinates. */
 	protected double blockAlignedY(final double y) {
 		return this.getBlockParams().flow.isVertical() ? y : y + this.blockContentAlignmentOffset();
 	}
@@ -575,11 +566,11 @@ public abstract class AbstractContainerBox extends AbstractBox
 			staticY = LayoutUtils.inlineToPhysical(params, this.getInnerHeight(), logicalLine, logicalLine);
 		} else if (params.flow.isVertical()) {
 			final double logicalLine = staticX, logicalPage = staticY;
-			// absolute台帳は物理座標を保持するため、縦組みの論理line/pageを
-			// ここでY/Xへ写す。LRでは物理X=論理page位置。RLでは右端からの
-			// 論理page位置をそのまま持ち、描画時に所有箱の幅と絶対配置箱の幅から
-			// 物理Xへ写す(登録時点ではどちらの幅も未確定のため。
-			// Absolutes.pushDraw の blockStartAnchored、2026-09-05)。
+			// The absolute ledger stores physical coordinates, so map logical line/page in vertical writing
+			// to Y/X here. In LR, physical X = logical page position. In RL, retain the logical
+			// page position from the right edge, then map it to physical X at drawing time using
+			// the owner box and absolutely positioned box widths (both are still unknown at registration).
+			// See blockStartAnchored in Absolutes.pushDraw, 2026-09-05.
 			staticX = logicalPage;
 			staticY = logicalLine;
 			this.container.addAbsolute(box, staticX, staticY,
@@ -594,8 +585,8 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	/**
-	 * このクラス自体に局所処理は無い(2026-07-20、finishLayout反復化。
-	 * 局所処理を持つ具象サブクラスはこれをオーバーライドする)。
+	 * This class itself has no local processing (2026-07-20, iterative finishLayout).
+	 * Concrete subclasses with local processing override this.
 	 */
 	public void finishLayoutSelf(IFramedBox containerBox) {
 	}
@@ -622,7 +613,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 					this.height + this.frame.padding.getFrameHeight());
 		}
 		if (clipPath != null) {
-			// clip-path(2026-08-22): 参照ボックスの実寸で形状を解決する
+			// clip-path (2026-08-22): resolve the shape using the reference box's actual size.
 			final Rectangle2D.Double ref = this.clipPathReferenceRect(clipPath.referenceBox, x, y);
 			final Shape shape = clipPath.resolve(ref.x, ref.y, ref.width, ref.height);
 			newClip = newClip == null ? shape : intersectClips(newClip, shape);
@@ -634,10 +625,9 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	/**
-	 * {@code clip-path}だけを合成したクリップです(overflowクリップは
-	 * 含めない)。overflowは自箱の背景・枠を切らないが、clip-pathは
-	 * 自箱の描画全体(背景・境界含む)を切る(css-masking-1)——枠の
-	 * Drawable生成前にこちらを使う。
+	 * A clip combining only {@code clip-path}, excluding the overflow clip. overflow does not clip
+	 * the box's own background/frame, whereas clip-path clips all of its drawing, including
+	 * background and borders (css-masking-1). Use this before creating the frame Drawable.
 	 */
 	protected final Shape clipWithClipPath(final Shape clip, final double x, final double y) {
 		final net.zamasoft.foliojet.layout.box.params.ClipPathShape clipPath = this.getBlockParams().clipPath;
@@ -649,7 +639,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return clip == null ? shape : intersectClips(shape, clip);
 	}
 
-	/** {@code clip-path}の参照ボックス矩形(物理座標)です。 */
+	/** The {@code clip-path} reference-box rectangle (physical coordinates). */
 	private Rectangle2D.Double clipPathReferenceRect(
 			final net.zamasoft.foliojet.layout.box.params.ClipPathShape.ReferenceBox box, final double x,
 			final double y) {
@@ -673,9 +663,9 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	/**
-	 * クリップ同士の交差です。両方矩形なら軽量な矩形交差、どちらかが
-	 * 任意形状なら{@link java.awt.geom.Area}で交差する(2026-08-22、
-	 * clip-path対応で矩形前提を一般化)。
+	 * Intersects clips. Uses lightweight rectangle intersection if both are rectangles;
+	 * if either is an arbitrary shape, intersects with {@link java.awt.geom.Area}
+	 * (2026-08-22: generalized the rectangle assumption for clip-path support).
 	 */
 	private static Shape intersectClips(final Shape a, final Shape b) {
 		if (a instanceof Rectangle2D ra && b instanceof Rectangle2D rb) {
@@ -694,24 +684,22 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	/**
-	 * 改段の切断だけを行い、ownerへの新column追加・builder resume開始は
-	 * まだcommitしません(2026-07-21新設、M6b Phase B4-Step2)。
+	 * Performs only the column-break cut, without yet committing addition of a new column to the owner
+	 * or starting builder resume (added on 2026-07-21, M6b Phase B4-Step2).
 	 *
 	 * <p>
-	 * 「prepare」は完全に副作用のないdry-runという意味ではない——
-	 * {@code ownerContainer.splitPageAxis()}による元active columnの切断は
-	 * ここで既に行われる。正確な意味は「ownerへの新column追加とbuilder
-	 * resume開始をまだcommitしていない切断結果」である(ChatGPT Pro相談、
-	 * 設計相談
-	 * 参照)。split後の構造検証失敗は変換全体を中断すべきであり、legacy
-	 * 経路へrollbackして再実行してはいけない。
+	 * Prepare does not mean a completely side-effect-free dry run: {@code ownerContainer.splitPageAxis()}
+	 * already cuts the original active column here. Precisely, it is a cut result whose addition
+	 * of a new column to the owner and builder resume have not yet been committed
+	 * (ChatGPT Pro consultation; see the design consultation). Structural validation failure
+	 * after splitting must abort the entire conversion; do not roll back to the legacy path and retry.
 	 * </p>
 	 *
-	 * @param contentLimit 内辺から始まる内容の切断限界
-	 * @param ownerExtent 段予約を引く前のownerのページ軸寸法
-	 * @param mode      改段モード
+	 * @param contentLimit the content cut limit starting at the inner edge
+	 * @param ownerExtent the owner's page-axis size before subtracting column reservations
+	 * @param mode      the column-break mode
 	 * @param flags     {@code IPageBreakableBox.FLAGS_*}
-	 * @param plan      収集可能プレフィックスの計画(未対応の間はnull)
+	 * @param plan      the collectable-prefix plan (null while unsupported)
 	 */
 	public ColumnCutResult prepareColumnCut(final double contentLimit, final double ownerExtent,
 			final BreakMode mode, final byte flags,
@@ -726,14 +714,14 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final Continuation.ContinuationFrame childFrame;
 		if (cut instanceof ContainerCut.PlainWithChainStop(final Container chainStopContainer,
 				final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
-			// AbstractBlockBox.splitForContinuationと同じ理由(コンテンツ
-			// 消失リスク)。containerが空の場合のみbareなKEEP/MOVEとして
-			// 返し、実内容がある場合は下の共通Cut構築ロジックへ合流させる
-			// (childFrameは常にnull——専用のMovedOpen型は2026-07-22に撤去
-			// した、開発記録
-			// -consultation.md参照)。詳細は
-			// 開発記録
-			// 参照
+			// Same reason as AbstractBlockBox.splitForContinuation (risk of content loss).
+			// Return bare KEEP/MOVE only for an empty container; actual content
+			// joins the common Cut construction below
+			// (childFrame is always null; the dedicated MovedOpen type was removed on 2026-07-22,
+			// see the development log
+			// -consultation.md). For details,
+			// see the development log
+			// for reference.
 			final boolean hasContent = chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
 					&& (fc.hasFlows() || fc.hasFloatings());
 			if (!hasContent) {
@@ -762,17 +750,15 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	/**
-	 * {@link #prepareColumnCut}が返した{@link ColumnCutResult.Cut}を
-	 * ownerへcommitします(2026-07-21新設、M6b Phase B4-Step2)——
-	 * ownerを実際に{@link ColumnsContainer}へラップし(未ラップなら)、
-	 * page軸寸法を更新し、新しい空columnを追加します。
+	 * Commits the {@link ColumnCutResult.Cut} returned by {@link #prepareColumnCut} to the owner
+	 * (added on 2026-07-21, M6b Phase B4-Step2). Actually wraps the owner in {@link ColumnsContainer}
+	 * if not already wrapped, updates its page-axis size, and adds a new empty column.
 	 *
 	 * <p>
-	 * prepare後にowner状態が変化していないかを、commit前に全て検証する
-	 * (owner identity・container identity・実段数)——codexレビューで
-	 * 指摘された、{@code expectedActiveColumn}を保持するのに検証しない
-	 * 欠落を修正済み。commit後は新column追加が正確に1回だけ行われたことも
-	 * 確認する。
+	 * Before committing, validates that all owner state remains unchanged since prepare
+	 * (owner identity, container identity, and actual column count). Fixed the omission noted
+	 * in codex review: retaining {@code expectedActiveColumn} without checking it. After committing,
+	 * also verifies that exactly one new column was added.
 	 * </p>
 	 */
 	public void commitPreparedColumn(final PreparedColumnCut cut) {
@@ -814,25 +800,24 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	/**
-	 * {@code this.container.splitPageAxis()}が返す<b>MOVE の目印</b>
-	 * (「全部移動した」を表す自己参照)と比較すべきコンテナを返します
-	 * (2026-07-28新設)。
+	 * Returns the container to compare with the <b>MOVE sentinel</b> returned by
+	 * {@code this.container.splitPageAxis()} (a self-reference meaning everything moved)
+	 * (added on 2026-07-28).
 	 *
 	 * <p>
-	 * {@link ColumnsContainer}は切断を<b>最終段へ委譲してその結果を
-	 * そのまま返す</b>ので、MOVEの目印は段組コンテナ自身ではなく
-	 * <b>最終段</b>になる。{@code this.container}と比べると一致せず、
-	 * <b>最終段が「残余コンテナ」として解釈される</b>——ところがその
-	 * 最終段は<b>段組コンテナの中に残ったまま</b>なので、同じ内容が
-	 * 前の段と継続断片の両方から描かれる(2026-07-28実測、
-	 * local/shrink/strict-739-min.html: 入れ子段組で T4 が二度描かれる)。
+	 * {@link ColumnsContainer} <b>delegates cutting to the last column and returns its result
+	 * unchanged</b>, so the MOVE sentinel is <b>the last column</b>, not the multi-column container
+	 * itself. Comparing with {@code this.container} does not match, causing <b>the last column
+	 * to be interpreted as a remainder container</b>. Yet that column <b>still remains inside
+	 * the multi-column container</b>, so the same content is drawn by both the previous column
+	 * and the continuation fragment (measured on 2026-07-28, local/shrink/strict-739-min.html:
+	 * T4 drawn twice in nested multi-column layout).
 	 * </p>
 	 *
 	 * <p>
-	 * {@link #prepareColumnCut}は最初からこの比較を行っている
-	 * ({@code activeColumn})。{@code ContainerCut.Plain}のjavadocが
-	 * 「層ごとに何とidentity比較するかが違う」と記していた差の、
-	 * 誤っていた側をこちらへ揃える。
+	 * {@link #prepareColumnCut} has always made this comparison ({@code activeColumn}).
+	 * The {@code ContainerCut.Plain} Javadoc noted that identity-comparison targets differ by layer;
+	 * this corrects the erroneous side of that difference to match.
 	 * </p>
 	 */
 	protected final Container splitMoveSentinel() {
@@ -843,13 +828,13 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return this.split(pageLimit, mode, flags, null);
 	}
 
-	/** 通常分割にも対象段の内容限界を伝える。planの継続チェーンは空。 */
+	/** Passes the target column's content limit to ordinary splitting too. The plan's continuation chain is empty. */
 	public SplitResult split(double pageLimit, final BreakMode mode, final byte flags, final BreakPlan plan) {
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		final BreakMode xmode = BreakMode.absorbColumn(mode, this.getColumnCount());
-		// コンテナ側の三義的返値の解釈はここに集約(コンテナ内部の型付けは M4-A3b)。
-		// planなし切断は常にPlain——旧3引数splitPageAxisはこのPlain写像の
-		// wrapperだった(増分5で一本化)
+		// Centralize interpretation of the container's three-way return value here (typing inside containers is M4-A3b).
+		// Cuts without a plan always use Plain; the old three-argument splitPageAxis wrapped
+		// this Plain mapping (unified in increment 5).
 		final Container nextContainer = ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) this.container
 				.splitPageAxis(pageLimit, xmode, flags, plan)).container();
 		if (nextContainer == null) {
@@ -864,14 +849,13 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	/**
-	 * コンテナの内容からテキストを抽出します。
+	 * Extracts text from container contents.
 	 *
 	 * <p>
-	 * 2026-07-25: {@code final}を外した。{@code RubyUnitBox}は子ボックスを
-	 * 持たず(コンテナは空)、整形済みグリフ列を自前で持つ合成箱のため、
-	 * 抽出を上書きしないと親からの反復抽出(リンクの代替テキスト・
-	 * string-setのcontent()・ブックマーク見出し・target-text())で
-	 * ルビの親文字が丸ごと落ちる。
+	 * 2026-07-25: removed {@code final}. {@code RubyUnitBox} is a synthetic box with no child boxes
+	 * (an empty container) that holds its own shaped glyph sequence. Without overriding extraction,
+	 * iterative extraction from the parent (link alternative text, string-set's content(),
+	 * bookmark headings, target-text()) loses the entire ruby base text.
 	 * </p>
 	 */
 	public void pushGetTextSteps(StringBuilder textBuff, java.util.Deque<GetTextStep> worklist) {

@@ -14,35 +14,36 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * {@code image-orientation}(css-images-3 §5.3、2026-08-30)。
+ * {@code image-orientation} (css-images-3 §5.3, 2026-08-30).
  *
  * <p>
- * ラスタ画像のEXIFの向きを尊重するか({@code from-image}、初期値)、
- * 無視して素の画素の並びで描くか({@code none})。継承する。
+ * Whether to honor a raster image's EXIF orientation ({@code from-image}, the initial value)
+ * or ignore it and draw the raw pixel order ({@code none}). Inherited.
  *
  * <p>
- * この製品は読み込みの時点でEXIFの向きを適用しているので、{@code none}は
- * <b>適用済みの向きを外す</b>操作になる。{@link net.zamasoft.foliojet.ua.impl.image.RasterImageLoader}
- * が向きの包みに専用の型を付けているので、それだけを取り除けばよい
- * ({@code withoutOrientation})。固有寸法もこれで元へ戻る。
+ * This product applies EXIF orientation when loading, so {@code none} means
+ * <b>removing the already applied orientation</b>.
+ * {@link net.zamasoft.foliojet.ua.impl.image.RasterImageLoader} uses a dedicated type
+ * for the orientation wrapper, so removing just that wrapper is enough
+ * ({@code withoutOrientation}). This also restores the intrinsic dimensions.
  *
  * <p>
- * <b>角度指定は受け付けない。</b>css-images-3の初期の草案には
- * {@code 90deg}等があったが、現行仕様で落ちている(実ブラウザも解釈しない)。
+ * <b>Angle values are rejected.</b> Early css-images-3 drafts had values such as
+ * {@code 90deg}, but the current specification dropped them (real browsers do not parse them either).
  */
 public class ImageOrientation extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new ImageOrientation();
 
 	/**
-	 * EXIFの向きを尊重するかを返します。
+	 * Returns whether EXIF orientation is honored.
 	 */
 	public static boolean isFromImage(final CSSStyle style) {
 		return style.get(INFO) != KeywordValue.NONE;
 	}
 
 	/**
-	 * このスタイルの{@code image-orientation}に従って画像を整えます。
-	 * {@code from-image}(初期値)なら同じ実体をそのまま返します。
+	 * Adjusts an image according to this style's {@code image-orientation}.
+	 * For {@code from-image} (the initial value), returns the same instance unchanged.
 	 */
 	public static Image apply(final CSSStyle style, final Image image) {
 		if (image == null || isFromImage(style)) {

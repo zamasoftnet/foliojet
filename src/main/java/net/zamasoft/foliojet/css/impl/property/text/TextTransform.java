@@ -41,8 +41,8 @@ public class TextTransform extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * {@code none | [capitalize | uppercase | lowercase] || full-width}(css-text-3。{@code full-width} は
-	 * 2026-10-06、{@code full-size-kana}・{@code math-auto} は未対応)。
+	 * {@code none | [capitalize | uppercase | lowercase] || full-width} (css-text-3;
+	 * {@code full-width} added 2026-10-06; {@code full-size-kana} and {@code math-auto} are unsupported).
 	 */
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		if (tokens.eat("none")) {

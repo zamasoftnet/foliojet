@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.css.value;
 
 import net.zamasoft.foliojet.ua.PageAssignmentState.Mode;
 
-/** マージンボックスから参照する running 要素の名前と解決方針です。 */
+/** The name and resolution policy of a running element referenced from a margin box. */
 public record ElementFunctionValue(String name, Mode mode) implements Value {
 	public String getName() {
 		return this.name;

@@ -58,12 +58,12 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
- * 表を実行計画Retained(全体を保持してからコミットする方式)で構築します
- * (2026-07-19訂正: table-layout:autoに限らず、非FLOW配置・ページ軸寸法
- * 指定・行軸auto寸法等{@link TableRetentionReason}の理由でもこちらへ
- * ルーティングされる。固定列幅も{@code this.fixed}フィールドで扱う——
- * 「自動レイアウト専用」ではない。詳細はTableLayoutのjavadoc・
- * 開発計画「C4」参照)。
+ * Builds tables using the Retained execution plan (retain the whole table before committing).
+ * Correction on 2026-07-19: routing here is not limited to table-layout:auto; it also follows
+ * {@link TableRetentionReason}, such as non-FLOW placement, specified page-axis size, or
+ * auto line-axis size. Fixed column widths are handled by {@code this.fixed} too:
+ * this is not "auto layout only". See the TableLayout Javadoc and development plan "C4"
+ * for details.
  *
  * @author MIYABE Tatsuhiko
  * @version $Id: RetainedTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
@@ -71,14 +71,14 @@ import net.zamasoft.foliojet.layout.util.DebugFlags;
 public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builder.RetainedTable {
 
 	/**
-	 * キャプションを表の外周(margin)ぶんだけ内側へ寄せる幅です(行方向先頭側)。
+	 * Inset that shifts captions inward by the table's outer margin (line-axis start side).
 	 *
 	 * <p>
-	 * CSS 2.1 §17.4: 表要素の{@code margin}は表そのものではなくラッパー箱に付き、
-	 * キャプションの包含ブロックはラッパーの内容箱、すなわち<b>表のborder box</b>。
-	 * copper4はラッパーの内容幅を表のmargin box({@code tableInnerSize + tableFrame}、
-	 * {@code tableFrame}にはmarginが入る)にしているため、差し込まないと
-	 * キャプションが表のマージンぶん外へ広がる(2026-08-30)。
+	 * CSS 2.1 §17.4: the table element's {@code margin} belongs to the wrapper box, not the
+	 * table itself. The caption's containing block is the wrapper's content box, namely
+	 * <b>the table's border box</b>. copper4 uses the table margin box as the wrapper content
+	 * width ({@code tableInnerSize + tableFrame}, where {@code tableFrame} includes margins),
+	 * so without this inset captions extend outward by the table margin (2026-08-30).
 	 * </p>
 	 */
 	private double captionInsetStart() {
@@ -87,7 +87,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		return this.vertical ? margin.top : margin.left;
 	}
 
-	/** キャプションの行方向末尾側の差し込み幅。理由はcaptionInsetStartと同じ。 */
+	/** Caption inset at the line-axis end. Same reason as captionInsetStart. */
 	private double captionInsetEnd() {
 		if (this.tableBox == null) return this.rowEmissionCaptionInsetEnd;
 		final AbsoluteInsets margin = this.tableBox.getFrame().margin;
@@ -95,8 +95,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * 構築中のテーブルセルです。
-	 * 
+	 * Table cell under construction.
+	 *  
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: RetainedTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
 	 */
@@ -105,7 +105,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	private final boolean sliceCellText;
 	private final LayoutStack layoutStack;
 	private TableBox tableBox;
-	/** 送出後の下部captionが使う行方向の差し込み幅。表・フレームの所有は残さない。 */
+	/** Line-axis insets used by the bottom caption after emission. Retains no ownership of the table or frame. */
 	private double rowEmissionCaptionInsetStart, rowEmissionCaptionInsetEnd;
 	private long tableSourceAnchor = -1;
 	private BreakableBuilder.IncompleteTableResult rowEmission;
@@ -126,49 +126,48 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	private TableCollapsedBorders borders = null;
 
 	/**
-	 * 現在開いているセルのCellContentです(E-6増分5a、2026-07-24)。
-	 * newContext(TABLE_CELL)で設定し、セルclose時の
-	 * {@link #sealCellContext}が消費する。セルは行内で逐次(同時に
-	 * 1つしか開かない)、ネストした表は自分のRetainedTableBuilderを
-	 * 持つため、単一フィールドで足りる。
+	 * CellContent for the currently open cell (E-6 increment 5a, 2026-07-24).
+	 * Set by newContext(TABLE_CELL) and consumed by {@link #sealCellContext} at cell close.
+	 * Cells are sequential within a row (only one open at a time), and nested tables have
+	 * their own RetainedTableBuilder, so a single field suffices.
 	 */
 	private CellContent pendingSealCell = null;
 
 	/**
-	 * 右の境界の中央から左の中央までを基準としたカラムの最小幅、指定幅、推奨幅です。
+	 * Minimum, specified, and preferred column widths, measured between the centers of the right and left borders.
 	 */
 	private AutoColumnWidths.Result columnWidths;
 
 	/**
-	 * 表Pass B(行計測)のshadow検証フックです(E-6増分5b-1、2026-07-24、
-	 * テスト専用——3b-2のLayoutSourceTestHooks流儀)。productionでは
-	 * nullのままで挙動不変。shadowテストがセルbindの直前・直後を観測し、
-	 * {@link CellPassBMeasurer}の独立計測とbind実寸の一致を検証する。
-	 * 設定したテストはfinallyで必ず解除すること(static共有のため)。
+	 * Shadow verification hook for table Pass B (row measurement) (E-6 increment 5b-1,
+	 * 2026-07-24; test-only, following LayoutSourceTestHooks in 3b-2). Remains null in
+	 * production with no behavioral change. Shadow tests observe immediately before/after
+	 * cell bind and verify that independent {@link CellPassBMeasurer} measurements match
+	 * actual bound dimensions. Tests setting this must always clear it in finally (shared static state).
 	 */
 	interface CellBindShadow {
-		/** セルbind({@code cell.bind})の直前(列幅適用済み)。 */
+		/** Immediately before cell bind ({@code cell.bind}); column widths already applied. */
 		void beforeCellBind(CellContent cell, TableCellBox cellBox, LayoutStack layoutStack, boolean vertical);
 
-		/** セルbind+builder closeの直後。 */
+		/** Immediately after cell bind + builder close. */
 		void afterCellBind(CellContent cell, TableCellBox cellBox, boolean vertical);
 	}
 
-	/** テスト専用shadow観測フック(production=null)。 */
+	/** Test-only shadow observation hook (production=null). */
 	static CellBindShadow cellBindShadow = null;
 
-	/** T5aの段階別観測。DirectSessionの変換スレッドから呼ぶ(試験専用)。 */
+	/** T5a observations by stage. Called from the DirectSession conversion thread (test-only). */
 	static volatile java.util.function.BiConsumer<String, net.zamasoft.foliojet.layout.fragment.LayoutSource> retentionObserver;
 
-	/** 同じ観測点で計画参照の解放を検査する(試験専用、保存・復元して使う)。 */
+	/** Checks release of plan references at the same observation points (test-only; save and restore when using). */
 	static volatile java.util.function.BiConsumer<String, RetainedTableBuilder> retentionPlanObserver;
 
-	/** B-2c 用。現在頁は親所有の本文、反復分は共有ヘッダ/フッタで、各欄は重複しない。 */
+	/** For B-2c. The parent owns current-page bodies; repetitions share headers/footers. The fields do not overlap. */
 	public record RowRetention(int pendingRows, int pendingCells, int boundRows, int boundCells,
 			int currentPageRows, int currentPageCells, int repeatedRows, int repeatedCells) {
 	}
 
-	/** 観測時だけ木を数える。未処理計画と bind 済み本文木を混同しない。 */
+	/** Count trees only when observing. Do not confuse pending plans with bound body trees. */
 	public RowRetention rowRetention() {
 		int pendingCells = 0;
 		for (final List<CellContent> cells : this.rowToCells.values()) {
@@ -198,12 +197,12 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		return count;
 	}
 
-	/** null は Pass B 前。それ以降は理由付きの通常経路選択、空集合なら送出候補。 */
+	/** Null before Pass B. Thereafter, reasons for choosing the normal path; an empty set means an emission candidate. */
 	public java.util.Set<TableBuildPlanner.RowEmissionExclusion> rowEmissionExclusions() {
 		return this.rowEmissionExclusions == null ? null : Collections.unmodifiableSet(this.rowEmissionExclusions);
 	}
 
-	/** 直近の親への通知が切り離した実断片数。受理前は0です。 */
+	/** Actual fragments detached by the latest parent notification. 0 before acceptance. */
 	public int rowEmittedFragments() {
 		return this.rowEmission == null ? 0 : this.rowEmission.emittedFragments();
 	}
@@ -226,8 +225,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		this.fixed = tableParams.layout == TableParams.LAYOUT_FIXED
 				&& ((this.vertical ? tableParams.size.getHeightType()
 						: tableParams.size.getWidthType()) != LengthType.AUTO);
-		// RootBuilder直下の通常フロー表は親TwoPassに吸収されず、その場でbindする。
-		// 段組・配置付き表・セル内/浮動体内の表は従来のリースを維持する。
+		// A normal-flow table directly under RootBuilder is not absorbed into a parent TwoPass; it binds in place.
+		// Tables in multi-column layout, positioned tables, and tables in cells/floats retain their existing leases.
 		this.sliceCellText = layoutStack instanceof RootBuilder && layoutStack.getMulticolumnBox() == null
 				&& tableBox.getBlockBox() instanceof FlowBlockBox;
 	}
@@ -235,7 +234,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	private void compactCellText(final boolean force) {
 		if (!this.sliceCellText) return;
 		final var generator = this.layoutStack.getPageContext().getPageGenerator();
-		// scratchの借用ログには、まだ本配置していない入力も含まれる。
+		// The scratch borrowing log also contains inputs not yet placed for real.
 		if (net.zamasoft.foliojet.layout.fragment.ReplayIntent.current()
 				== net.zamasoft.foliojet.layout.fragment.ReplayIntent.MEASURE
 				|| generator instanceof net.zamasoft.foliojet.layout.MeasurePageGenerator) return;
@@ -248,7 +247,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		final TableParams tableParams = this.tableBox.getTableParams();
 		double min = this.columnWidths == null ? 0 : this.columnWidths.minLineSize();
 		double max = this.columnWidths == null ? 0 : this.columnWidths.maxLineSize();
-		// 表自体の指定寸法は固有寸法の下限になる
+		// The table’s own specified size sets a lower bound on intrinsic size.
 		if (this.vertical) {
 			if (tableParams.size.getHeightType() == LengthType.ABSOLUTE) {
 				min = Math.max(min, tableParams.size.getHeight());
@@ -263,7 +262,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		return new IntrinsicSizes(min, max, 0);
 	}
 
-	/** MAINの行送出で所有を親へ渡した後はnull。計画識別にはgetSourceAnchorを使う。 */
+	/** Null after MAIN row emission transfers ownership to the parent. Use getSourceAnchor to identify the plan. */
 	public final TableBox getTableBox() {
 		return this.tableBox;
 	}
@@ -279,7 +278,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		switch (box.getType()) {
 		case TABLE_COLUMN:
 		case TABLE_COLUMN_GROUP: {
-			// 列
+			// Column
 			final TableColumnBox column = (TableColumnBox) box;
 			if (this.innerTableStack.isEmpty()) {
 				if (this.columnGroupBox == null) {
@@ -295,7 +294,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		}
 			break;
 		case TABLE_ROW_GROUP: {
-			// 行グループ
+			// Row group
 			final TableRowGroupBox rowGroup = (TableRowGroupBox) box;
 			this.rowGroupToRows.put(rowGroup, new ArrayList<TableRowBox>());
 			switch (rowGroup.getTableRowGroupPos().rowGroupType) {
@@ -315,15 +314,15 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			break;
 
 		case TABLE_ROW: {
-			// 行
+			// Row
 			final TableRowGroupBox rowGroup = (TableRowGroupBox) this.innerTableStack
 					.get(this.innerTableStack.size() - 1);
 			final TableRowBox row = (TableRowBox) box;
 			final List<TableRowBox> rows = this.rowGroupToRows.get(rowGroup);
 			rows.add(row);
-			// 行1つの収集は**実際に進んだ仕事**。保持型の表は全行を読み終える
-			// まで1ページも出さないので、ここが進捗の唯一の信号になる
-			// (2026-07-27、40万行=37.5秒の無出力区間の正体)
+			// Collecting one row is **actual work completed**. A retained table emits no pages
+			// until all rows are read, so this is its only progress signal
+			// (2026-07-27: the cause of the 37.5-second no-output interval for 400,000 rows).
 			this.noteTableProgress();
 			this.rowToCells.put(row, new ArrayList<CellContent>());
 		}
@@ -341,25 +340,25 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		switch (box.getType()) {
 		case TABLE_COLUMN:
 		case TABLE_COLUMN_GROUP: {
-			// 列
+			// Column
 		}
 			break;
 		case TABLE_ROW_GROUP: {
-			// 行グループ
+			// Row group
 			this.upperRow = null;
 			this.observeRetention("before-table-end");
 		}
 			break;
 
 		case TABLE_ROW: {
-			// 行
+			// Row
 			final TableRowBox rowBox = (TableRowBox) box;
 			this.complementRowspan(rowBox);
 			this.upperRow = rowBox;
 			if (this.firstRowBox == null) {
 				this.firstRowBox = rowBox;
 			}
-			// 表終端より前の生存数を同じ変換スレッドで採る(試験時のみ)。
+			// Collect live counts before table end on the same conversion thread (test-only).
 			if ((retentionObserver != null || retentionPlanObserver != null) && this.rowToCells.size() % 2000 == 0) {
 				this.observeRetention("after-input-rows-" + this.rowToCells.size());
 			}
@@ -372,7 +371,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 	private void complementRowspan(TableRowBox row) {
 		if (this.upperRow != null) {
-			// rowspanで連結されたセルの補完(共有核 — P2-2)
+			// Fill in cells joined by rowspan (shared core — P2-2).
 			CellContent.complementRowspan(this.rowToCells.get(row), this.rowToCells.get(this.upperRow));
 		}
 	}
@@ -384,7 +383,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				: net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassRootKind.RETAINED_CAPTION);
 		switch (box.getType()) {
 		case BLOCK: {
-			// キャプション
+			// Caption
 			switch (((TableCaptionPos) box.getPos()).captionSide) {
 			case CaptionSideMode.BEFORE:
 				this.topCaptions.add(builder);
@@ -401,8 +400,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			break;
 
 		case TABLE_CELL: {
-			// セル
-			// TODO よこテーブルに縦がある場合は、BlockBuilderで行幅を制限してやらないといけない
+			// Cell
+			// TODO For vertical content in a horizontal table, BlockBuilder must constrain the line width.
 			final TableRowBox rowBox = (TableRowBox) this.innerTableStack.get(this.innerTableStack.size() - 1);
 			List<CellContent> cells = (ArrayList<CellContent>) this.rowToCells.get(rowBox);
 			this.complementRowspan(rowBox);
@@ -411,7 +410,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			for (int colspan = cell.colspan; colspan > 1; --colspan) {
 				cells.add(new CellContent(cell.getCellBox(), cell.rowspan, colspan));
 			}
-			// E-6増分5a: セルclose時sealの対象として記憶する
+			// E-6 increment 5a: remember the seal-on-cell-close target.
 			this.pendingSealCell = cell;
 		}
 			break;
@@ -422,24 +421,24 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * 親のrange化に吸収済みかです(表吸収=codex増分5、2026-07-30)。
-	 * trueのとき{@link #prepareLayout}/{@link #bind}は契約違反——親の
-	 * 範囲再生がソースから表全体を再構築するため、この計画が使われる
-	 * ことはない。
+	 * Whether absorbed into the parent's range representation (table absorption = codex
+	 * increment 5, 2026-07-30). If true, {@link #prepareLayout}/{@link #bind} violate the
+	 * contract: parent range replay reconstructs the entire table from source, so this
+	 * plan is never used.
 	 */
 	private boolean abandoned;
 
 	/**
-	 * 表吸収の検証相です(codex増分5、2026-07-30。<b>副作用なし</b>)。
-	 * この記録済みRetained計画が親のrange化に吸収可能かを判定し、
-	 * 未sealセルビルダー(とその孫)を{@code out}へ列挙します。
-	 * 吸収可能条件(fail closed):
+	 * Validation phase of table absorption (codex increment 5, 2026-07-30;
+	 * <b>no side effects</b>). Determines whether this recorded Retained plan can be absorbed
+	 * into the parent's range representation, and lists unsealed cell builders (and their
+	 * descendants) in {@code out}. Eligibility conditions (fail closed):
 	 * <ul>
-	 * <li>キャプションなし(キャプション付き表の親範囲はキャプションの
-	 * Opaque記録によりOPAQUE_RANGEで先にrejectされるため構造的に
-	 * 到達しないはずだが、二重防壁)</li>
-	 * <li>seal済みセルのリースが同一LayoutSource上かつ親範囲に包含</li>
-	 * <li>未sealセルの孫records・キャプション等が全て吸収可能</li>
+	 * <li>No captions (a parent's range containing a captioned table should already be rejected
+	 * with OPAQUE_RANGE due to the caption's Opaque record, making this structurally
+	 * unreachable, but this is a second barrier)</li>
+	 * <li>Sealed cell leases are on the same LayoutSource and contained in the parent range</li>
+	 * <li>All descendant records, captions, etc. of unsealed cells are absorbable</li>
 	 * </ul>
 	 */
 	boolean collectAbsorbableInto(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId,
@@ -449,11 +448,11 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		if (this.abandoned) {
 			return false;
 		}
-		// caption recipe化C4(2026-08-01): キャプションも親range化の吸収対象
-		// (C3のclose時sealでSourceRangeBody保持——検証相で親範囲内リースで
-		// あることを確かめ、コミット相は親のsubsumeが処理する。吸収された
-		// 表計画はabandonForParentRangeでbindRowsごと破棄されるため、
-		// subsumed後のcaption bindは発生しない)
+		// Caption recipes C4 (2026-08-01): captions are also absorbed into the parent range
+		// (C3 seal-on-close retains SourceRangeBody; validation checks that its lease is within
+		// the parent range, and parent subsume handles the commit phase). Absorbed
+		// table plans are discarded together with bindRows by abandonForParentRange,
+		// so caption bind never runs after subsumption.
 		for (int c = 0; c < this.topCaptions.size(); ++c) {
 			if (!(this.topCaptions.get(c) instanceof TwoPassBlockBuilder caption)
 					|| !caption.collectAbsorbableSelf(log, fromId, toId, out, outTables, outRanges, ownedAbsoluteAnchors, seen)) {
@@ -494,10 +493,10 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * 親のrange化への吸収です(表吸収=codex増分5のコミット相)。
-	 * seal済みセルのリースを解放し、以後のprepareLayout/bindを契約違反へ。
-	 * 未sealセルビルダーは検証相が親の吸収一覧へ列挙済みで、親側の
-	 * コミットがsubsumeするためここでは触れない。
+	 * Absorption into the parent's range representation (commit phase of table absorption,
+	 * codex increment 5). Release sealed cell leases and make subsequent prepareLayout/bind
+	 * a contract violation. Validation already listed unsealed cell builders for parent
+	 * absorption, and the parent's commit subsumes them, so leave them untouched here.
 	 */
 	void abandonForParentRange() {
 		this.abandoned = true;
@@ -513,27 +512,27 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * セルclose(録画完了点)時のrange sealです(E-6増分5a、2026-07-24——
-	 * codex設計§4.2/§4.3)。直前にnewContextで開いたセルのCellContentを、
-	 * 適格なら「IntrinsicSizes数値+SourceRange(+lease)」保持へ切り替え、
-	 * records(TextImpl glyph列・liveボックス)を手放す。適格判定は
-	 * {@code TwoPassBlockBuilder.sealBodyForRangeBind}と同一のfail
-	 * closed(セル内の表・float等のネストビルダーはNESTED_BUILDERで
-	 * 不適格)。列幅計算({@link #prepareLayout})へはseal時に確定した
-	 * 模倣計測(IntrinsicMeasurer)の数値がそのまま渡る——tape再読で
-	 * 列幅を出すことはしない。キャプションはOpaque記録のため対象外
-	 * (ビルダー保持を継続。pendingセルなしで呼ばれるためここでは無視)。
+	 * Seals the range at cell close (recording completion point) (E-6 increment 5a, 2026-07-24;
+	 * codex design §4.2/§4.3). If eligible, switch CellContent for the cell just opened by
+	 * newContext to retain "IntrinsicSizes values + SourceRange (+lease)" and release
+	 * records (TextImpl glyph sequences/live boxes). Eligibility fails closed in the same
+	 * way as {@code TwoPassBlockBuilder.sealBodyForRangeBind} (nested builders such as tables
+	 * and floats inside cells are ineligible with NESTED_BUILDER). Column width calculation
+	 * ({@link #prepareLayout}) receives the emulated measurement (IntrinsicMeasurer) values
+	 * resolved at seal time unchanged; it does not reread the tape to derive column widths.
+	 * Captions are excluded because they use Opaque records (continue retaining their builders;
+	 * calls without a pending cell are ignored here).
 	 */
 	@Override
 	public void sealCellContext(final Builder cellBuilder) {
 		final CellContent cell = this.pendingSealCell;
 		if (cell == null) {
-			// キャプション等、seal対象のセルが開いていないコンテキスト
+			// Context without an open cell to seal, such as a caption
 			return;
 		}
 		this.pendingSealCell = null;
 		if (cell.isExtended() || cell.getBuilder() != cellBuilder) {
-			// 構造的には起きない(セルは逐次)が、fail closedで無視する
+			// Structurally impossible (cells are sequential), but ignore it to fail closed.
 			return;
 		}
 		cell.sealForRangeBind(this.sliceCellText);
@@ -541,9 +540,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * つぶし境界を生成します。適用規則は CollapsedBorderRules.collapseRow
-	 * (OnePass のストリーミング蓄積と同一)で、ここでは全行を一括で
-	 * ループするだけ。行・列寸法は assemble で後から設定される。
+	 * Creates collapsed borders. The rules are in CollapsedBorderRules.collapseRow
+	 * (the same as OnePass streaming accumulation); this method simply loops over all rows
+	 * at once. assemble sets row/column dimensions later.
 	 */
 	private TableCollapsedBorders createBorders(int columnCount, int headerRowCount, int bodyRowCount,
 			int footerRowCount, List<List<TableRowBox>> rowLists, List<List<CellContent>> cellLists) {
@@ -611,18 +610,18 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * テーブルと各カラムの最大幅、最小幅を確定します。 内側のテーブルから順に実行します。
+	 * Resolves maximum/minimum widths for the table and each column, starting with innermost tables.
 	 */
 	public void prepareLayout() {
 		if (this.abandoned) {
-			// 表吸収(codex増分5): 親の範囲再生が表を再構築するため到達しない
+			// Table absorption (codex increment 5): unreachable because parent range replay reconstructs the table.
 			throw new IllegalStateException("親のrange化に吸収済みの表計画へのprepareLayout");
 		}
 		this.observeRetention("before-pass-b");
 		this.compactCellText(true);
 		TableParams tableParams = this.tableBox.getTableParams();
 
-		// 行の順番をならす
+		// Normalize row order
 		if (this.headerGroup != null) {
 			this.rowGroups.add(this.headerGroup);
 		}
@@ -633,8 +632,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			this.rowGroups.add(this.footerGroup);
 		}
 
-		// テーブルの自動レイアウト SPEC CSS 2.1 17.5.2.2
-		// カラム数と行数のカウント(葉のカラム位置+スパンの最大)
+		// Automatic table layout: SPEC CSS 2.1 17.5.2.2
+		// Count columns and rows (maximum leaf column position + span).
 		int columnCount = 0;
 		if (this.columnGroupBox != null) {
 			this.tableBox.setTableColumnGroup(this.columnGroupBox);
@@ -672,9 +671,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		}
 		int rowCount = headerRowCount + bodyRowCount + footerRowCount;
 
-		// 境界線
+		// Borders
 		if (tableParams.borderCollapse == TableParams.BORDER_COLLAPSE) {
-			// つぶし境界
+			// Collapsed borders
 			this.borders = this.createBorders(columnCount, headerRowCount, bodyRowCount, footerRowCount, rowLists,
 					cellLists);
 			this.tableBox.setCollapsedBorders(this.borders);
@@ -692,9 +691,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 		// CSS 2.1 17.5.2.2 [Column widths are determined as follows] #1,#2
 		final AutoColumnWidths widths = new AutoColumnWidths(columnCount);
-		// カラムグループの幅計算
+		// Calculate column group widths
 		if (this.columnGroupBox != null) {
-			// 指定幅
+			// Specified width
 			this.columnGroupBox.eachColumn((column, col, span) -> {
 				final InnerTableParams colParams = column.getInnerTableParams();
 				switch (colParams.size.getType()) {
@@ -705,9 +704,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					widths.specPercent(col, span, colParams.size.getLength());
 					break;
 				case MIXED:
-					// calc()による絶対長さ+割合混在の列幅は、このAUTO-layout列幅
-					// 指定APIが前提とする「絶対 or 割合の二択」に収まらないため
-					// 未対応。AUTO(指定なし)として扱い安全側に倒す(開発計画参照)。
+					// Column widths combining absolute lengths and percentages via calc() are unsupported
+					// because this AUTO-layout column specification API assumes either absolute or percentage.
+					// Treat them conservatively as AUTO (unspecified); see the development plan.
 				case AUTO:
 					// ignore
 					break;
@@ -723,13 +722,13 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			});
 		}
 
-		// セルの幅計算
+		// Calculate cell widths
 		int row = 0;
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
 			List<TableRowBox> rows = this.rowGroupToRows.get(this.rowGroups.get(i));
 			for (int j = 0; j < rows.size(); ++j) {
 				List<CellContent> cells = this.rowToCells.get(rows.get(j));
-				// 指定幅
+				// Specified width
 				for (int col = 0; col < cells.size(); ++col) {
 					final CellContent cell = cells.get(col);
 					if (cell.isExtended()) {
@@ -739,7 +738,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					final TableCellBox cellBox = cell.getCellBox();
 					final BlockParams cellParams = cellBox.getBlockParams();
 					final TableCellPos cellPos = cellBox.getTableCellPos();
-					// セル間隔(共有核 — P2-5 (c))
+					// Cell spacing (shared core — P2-5 (c))
 					final AbsoluteInsets cellSpacing = tableParams.borderCollapse == TableParams.BORDER_SEPARATE
 							? CollapsedBorderRules.separateSpacing(tableParams)
 							: CollapsedBorderRules.gridSpacing(this.borders, row, col, cellPos.rowspan,
@@ -752,8 +751,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					} else {
 						cellFrame = cellBox.getFrame().getFrameWidth();
 					}
-					// E-6増分5a: seal済みセルはclose時に確定した模倣計測の
-					// スナップショットを読む(従来のビルダー経由読みと同値)
+					// E-6 increment 5a: for sealed cells, read the emulated measurement snapshot
+					// resolved at close (equivalent to the old read through the builder).
 					final IntrinsicSizes cellSizes = cell.getIntrinsicSizes();
 					double min, des;
 					if (cellParams.flow.isVertical() != this.vertical) {
@@ -765,12 +764,12 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					min += cellFrame;
 					des += cellFrame;
 					if (cellSizes.columnInflated()) {
-						// 段数倍で膨らんだ最小内容幅は列の床にしない(段は
-						// 狭くできる——AbstractStaticBlockBoxのclamp・
-						// GridBuilderのinflatedCapと同じ理由)。表の
-						// min-content保証は作者由来の不可分内容にだけ残す
-						// (2026-08-22、掃過seed 1931755: display:table内の
-						// 入れ子段組が表を紙面の3.3倍へ押し広げた)
+						// Do not use minimum content widths inflated by the column count as a column floor
+						// (columns can shrink; the same reason as the clamp in AbstractStaticBlockBox
+						// and inflatedCap in GridBuilder). Keep the table’s min-content guarantee
+						// only for authored indivisible content
+						// (2026-08-22, sweep seed 1931755: nested multi-column layout inside display:table
+						// expanded the table to 3.3 times the sheet size).
 						final double avail = this.layoutStack.getFlowBox().getLineSize() - tableFrame;
 						if (avail > 0 && min > avail) {
 							min = avail;
@@ -790,9 +789,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 							spec = cellParams.size.getHeight();
 							break;
 						case MIXED:
-							// calc()混在の表セル高さはAUTO-layoutの列高さ交渉アルゴリズムが
-							// 前提とする「絶対 or 割合の二択」に収まらないため未対応。
-							// AUTOと同じ扱いにして安全側に倒す(開発計画参照)。
+							// Table cell heights mixing components via calc() are unsupported because AUTO-layout’s
+							// column height negotiation assumes either absolute or percentage.
+							// Treat them conservatively as AUTO (see the development plan).
 						case AUTO:
 							spec = des;
 							break;
@@ -823,9 +822,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 							spec = cellParams.size.getWidth();
 							break;
 						case MIXED:
-							// calc()混在の表セル幅はAUTO-layoutの列幅交渉アルゴリズムが
-							// 前提とする「絶対 or 割合の二択」に収まらないため未対応。
-							// AUTOと同じ扱いにして安全側に倒す(開発計画参照)。
+							// Table cell widths mixing components via calc() are unsupported because AUTO-layout’s
+							// column width negotiation assumes either absolute or percentage.
+							// Treat them conservatively as AUTO (see the development plan).
 						case AUTO:
 							spec = des;
 							break;
@@ -858,8 +857,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 		this.columnWidths = widths.finish(tableFrame);
 
-		// E-6増分1(2026-07-24): 保持形状のhigh-water観測。spill閾値・
-		// 対象選定の実測基盤(読み取り・max更新のみ、挙動には影響しない)
+		// E-6 increment 1 (2026-07-24): observe retained-shape high-water marks. Measurement basis
+		// for spill thresholds and target selection (only reads/updates maxima; no behavioral effect).
 		int realCellCount = 0;
 		for (int i = 0; i < cellLists.size(); ++i) {
 			final List<CellContent> cells = cellLists.get(i);
@@ -874,26 +873,26 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				footerRowCount, widths.colspanConstraintCount());
 	}
 
-	/** 表の形(寸法・列幅・匿名ブロック)です(bind の段間受け渡し)。 */
+	/** Table geometry (dimensions, column widths, anonymous block), passed between bind stages. */
 	private record TableShape(BlockBuilder anonBuilder, PosType position, AbstractBlockBox blockBox, double tableSize,
 			double[] columnSizes, double specifiedPageSize, double tableInnerSize) {
 	}
 
 	/**
-	 * テーブルを構築します。 外側のテーブルから順に実行します。
-	 * 
+	 * Builds the table, starting with outermost tables.
+	 *  
 	 * @param builder
 	 */
 	public void bind(final net.zamasoft.foliojet.layout.builder.Builder host) {
 		if (this.abandoned) {
-			// 表吸収(codex増分5): 親の範囲再生が表を再構築するため到達しない
+			// Table absorption (codex increment 5): unreachable because parent range replay reconstructs the table.
 			throw new IllegalStateException("親のrange化に吸収済みの表計画へのbind");
 		}
-		// bindは実測済み内容を実レイアウトへ再駆動する操作で、hostは常に
-		// BlockBuilder(直接のaddTableでも、TwoPassBlockBuilderのTableEvent
-		// 再生でも、渡ってくるのは実ビルダー)。ここで一度だけ絞り込む。
-		// 完全な型伝播(bind連鎖とSourceReplayer.bindTwoPassRangeの
-		// Builder化)はA-2bとしてPLAN.md §1.5に記録済み
+		// bind drives measured content through actual layout again; the host is always
+		// BlockBuilder (both direct addTable and TwoPassBlockBuilder TableEvent
+		// replay pass a real builder). Narrow the type once here.
+		// Full type propagation (making the bind chain and SourceReplayer.bindTwoPassRange
+		// use Builder) is recorded as A-2b in PLAN.md §1.5.
 		final BlockBuilder builder = (BlockBuilder) host;
 		this.tableSourceAnchor = this.tableBox.getSourceAnchor();
 		final TableShape shape = this.resolveShape(builder);
@@ -910,14 +909,14 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * 表と列の寸法を解決し、匿名ブロックを開きます(P2-5 (a): bind 第1段)。
+	 * Resolves table/column sizes and opens the anonymous block (P2-5 (a): bind stage 1).
 	 */
 	private TableShape resolveShape(final BlockBuilder builder) {
 		final TableParams tableParams = this.tableBox.getTableParams();
 		final AbstractContainerBox containerBox = this.layoutStack.getFlowBox();
 		final boolean sameAxis = containerBox.getBlockParams().flow.isVertical() == tableParams.flow.isVertical();
-		// 直交フローの基準は LayoutStack.getOrthogonalLineBasis(明示寸法の祖先が
-		// 無ければフラグメンテナ)。判断はそこだけに置く
+		// Orthogonal flow uses LayoutStack.getOrthogonalLineBasis (fragmentainer if no ancestor
+		// has an explicit size). Keep that decision in one place.
 		final double lineSize = sameAxis ? containerBox.getLineSize()
 				: this.layoutStack.getOrthogonalLineBasis(tableParams.flow);
 		if (DebugFlags.TABLE_BASIS) {
@@ -926,13 +925,13 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					+ containerBox.getBlockParams().flow.isVertical() + " tableFlowVertical=" + tableParams.flow.isVertical()
 					+ " size=" + tableParams.size + " maxSize=" + tableParams.maxSize);
 		}
-		// テーブル幅
+		// Table width
 		double tableSize;
-		// 幅 auto の表にも効かせるため、上限は解決後も残す(下の自動レイアウト)
+		// Retain the upper bound after resolution so it also applies to auto-width tables (auto layout below).
 		double lineMaxSize;
 		final double tableFrame, lineBorderSpacing;
 		if (this.vertical) {
-			// 縦書き
+			// Vertical writing
 			tableSize = LayoutUtils.computeDimensionHeight(tableParams.size, lineSize);
 			double minSize = LayoutUtils.computeDimensionHeight(tableParams.minSize, lineSize);
 			tableSize = Math.max(minSize, tableSize);
@@ -947,7 +946,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			tableFrame = this.tableBox.getFrame().getFrameHeight();
 			lineBorderSpacing = tableParams.borderSpacingV;
 		} else {
-			// 横書き
+			// Horizontal writing
 			tableSize = LayoutUtils.computeDimensionWidth(tableParams.size, lineSize);
 			double minSize = LayoutUtils.computeDimensionWidth(tableParams.minSize, lineSize);
 			tableSize = Math.max(minSize, tableSize);
@@ -963,7 +962,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			lineBorderSpacing = tableParams.borderSpacingH;
 		}
 
-		// 匿名ブロック開始
+		// Start anonymous block
 		final AbstractBlockBox blockBox = this.tableBox.getBlockBox();
 		BlockBuilder anonBuilder = null;
 		switch (blockBox.getPos().getType()) {
@@ -998,15 +997,15 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		}
 			break;
 		default:
-			// 2026-08-01: throw漏れを修正(例外を生成して捨てていた)。
-			// FLOW/INLINE/FLOAT/ABSOLUTE以外の配置で表が来るのは論理エラー
+			// 2026-08-01: fixed a missing throw (the exception was constructed and discarded).
+			// A table with placement other than FLOW/INLINE/FLOAT/ABSOLUTE is a logic error.
 			throw new IllegalStateException(String.valueOf(blockBox.getPos().getType()));
 		}
 
 		final int columnCount = this.columnWidths.mins().length;
 		double[] columnSizes;
 		if (this.fixed) {
-			// 固定レイアウト
+			// Fixed layout
 			if (LayoutUtils.isNone(tableSize)) {
 				tableSize = lineSize;
 			}
@@ -1014,9 +1013,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			if (this.columnGroupBox != null) {
 				this.tableBox.setTableColumnGroup(this.columnGroupBox);
 			}
-			// 行方向の境界間隔は論理軸で採る(旧実装は縦書きでも
-			// borderSpacingH を加算していた — OnePass と同じ論理軸へ正規化。
-			// 0390-writing-mode/vert-fixed-colgroup-spacing.html で固定)
+			// Obtain line-axis border spacing along the logical axis (the old implementation added
+			// borderSpacingH even in vertical writing; normalized to the same logical axis as OnePass).
+			// Pinned by 0390-writing-mode/vert-fixed-colgroup-spacing.html.
 			final FixedColumnWidths.Result result = FixedTableSizing.resolve(this.columnGroupBox,
 					this.rowToCells.get(this.firstRowBox), columnCount, tableSize,
 					tableParams.borderCollapse == TableParams.BORDER_SEPARATE, lineBorderSpacing,
@@ -1024,11 +1023,11 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			columnSizes = result.sizes();
 			tableSize = result.innerSize() + tableFrame;
 		} else {
-			// 自動レイアウト(共有核 — P2-4)
-			// **max-width は幅 auto の表にも効く**(2026-09-16、CSS 2.1 §17.5.2 の
-			// used width)。従来は「寸法が確定しているときだけ min を採る」形で、
-			// 幅 auto の表では上限を捨てて利用可能幅いっぱいに広げていた
-			// (用紙 200pt・`max-width: 50%` で 200pt になっていた)
+			// Auto layout (shared core — P2-4)
+			// **max-width also applies to auto-width tables** (2026-09-16, CSS 2.1 §17.5.2
+			// used width). Previously, min was taken only when the size was definite,
+			// discarding the upper bound for auto-width tables and expanding them to all available width
+			// (on 200 pt paper, `max-width: 50%` became 200 pt).
 			double available = blockBox.getLineSize();
 			if (!LayoutUtils.isNone(lineMaxSize) && LayoutUtils.isNone(tableSize)
 					&& LayoutUtils.compare(lineMaxSize, available) < 0) {
@@ -1042,7 +1041,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 		final double specifiedPageSize;
 		if (this.vertical) {
-			// 縦書き
+			// Vertical writing
 			switch (tableParams.size.getWidthType()) {
 			case ABSOLUTE:
 				specifiedPageSize = tableParams.size.getWidth() - this.tableBox.getFrame().getFrameWidth();
@@ -1059,7 +1058,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				throw new IllegalStateException();
 			}
 		} else {
-			// 横書き
+			// Horizontal writing
 			switch (tableParams.size.getHeightType()) {
 			case ABSOLUTE:
 				specifiedPageSize = tableParams.size.getHeight() - this.tableBox.getFrame().getFrameHeight();
@@ -1110,16 +1109,16 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		default:
 			throw new IllegalStateException();
 		}
-		// FLOW の元ラッパーは改頁で置き換わる。段間の値から前頁の本文木を保持しない。
+		// Page breaks replace the original FLOW wrapper. Do not retain the previous page’s body tree between stages.
 		return new TableShape(anonBuilder, blockBox.getPos().getType(),
 				blockBox.getPos().getType() == PosType.FLOW ? null : blockBox,
 				tableSize, columnSizes, specifiedPageSize, tableInnerSize);
 	}
 
 	/**
-	 * キャプションと行群をバインドし、行高を確定します(bind 第2段)。
+	 * Binds captions and row groups, resolving row heights (bind stage 2).
 	 *
-	 * @return 境界寸法の適用まで保持する確定行高(ヘッダ・内容・フッタ順)
+	 * @return resolved row heights retained until border dimensions are applied (header, body, footer order)
 	 */
 	private double[] bindRows(final TableShape shape) {
 		final TableParams tableParams = this.tableBox.getTableParams();
@@ -1127,7 +1126,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		final double[] columnSizes = shape.columnSizes();
 		final double specifiedPageSize = shape.specifiedPageSize();
 		final double tableInnerSize = shape.tableInnerSize();
-		// 上部キャプション
+		// Top caption
 		this.observeRetention("before-top-captions");
 		for (int i = 0; i < this.topCaptions.size(); ++i) {
 			TwoPassBlockBuilder captionBuilder = (TwoPassBlockBuilder) this.topCaptions.get(i);
@@ -1139,51 +1138,51 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 		this.observeRetention("after-top-captions");
 
-		// ヘッダ・内容・フッタ
-		int rowCount = 0; // 行数
+		// Header, body, footer
+		int rowCount = 0; // Row count
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
 			List<TableRowBox> rows = this.rowGroupToRows.get(rowGroups.get(i));
 			rowCount += rows.size();
 		}
 
-		// E-6増分5b-2(2026-07-24): 表Pass C(行単位逐次bind)の適格判定
-		// (表単位、fail closed——codex設計§4.4)。適格なら以降の行高計算は
-		// bindせずPass Bのscratch計測値だけを読み、bindは行高確定後の
-		// 「セル高さ確定」ループで行ごとに行う(Pass C)。不適格なら従来の
-		// 「行高計算前の全セル一括bind」のまま(計算コードは両経路共有——
-		// 差し替わるのは入力源とbind時点だけ)
+		// E-6 increment 5b-2 (2026-07-24): check eligibility for table Pass C (row-wise sequential bind)
+		// per table, failing closed (codex design §4.4). If eligible, subsequent row height calculation
+		// reads only scratch measurements from Pass B without binding. Bind runs row by row
+		// in the "finalize cell heights" loop after row heights resolve (Pass C). Otherwise, retain
+		// the old "bind all cells before row height calculation" path. Calculation code is shared:
+		// only the input source and bind timing change.
 		final boolean rowSequentialBind = this.isRowSequentialBindEligible();
 		if (rowSequentialBind) {
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTablePassC();
 		} else {
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTableLegacyBindRows();
 		}
-		// Pass B計測値(実セルboxごとの使用ページ方向寸法)。従来経路ではnull
+		// Pass B measurements (used page-axis size for each actual cell box). Null on the old path.
 		Map<TableCellBox, Double> measuredPageAxis = rowSequentialBind
 				? new IdentityHashMap<TableCellBox, Double>()
 				: null;
 
-		// 行高さの計算
-		double[] rowRatios = new double[rowCount]; // パーセント高さ
-		double rowSizeSum = 0; // 行高さの合計
+		// Calculate row heights
+		double[] rowRatios = new double[rowCount]; // Percentage heights
+		double rowSizeSum = 0; // Sum of row heights
 		{
 			int rowIndex = 0;
 			for (int i = 0; i < this.rowGroups.size(); ++i) {
 				TableRowGroupBox rowGroupBox = (TableRowGroupBox) rowGroups.get(i);
 				List<TableRowBox> rows = this.rowGroupToRows.get(rowGroupBox);
 
-				// 連結された行
+				// Spanning rows
 				Map<Rowspan, Rowspan> rowspans = new HashMap<Rowspan, Rowspan>();
 				List<Rowspan> rowspanList = new ArrayList<Rowspan>();
 				boolean[] noAdjRows = new boolean[rows.size()];
 				boolean[] autoRows = new boolean[rows.size()];
 
-				// 行高さ/セルのレイアウト
+				// Row height/cell layout
 				for (int j = 0; j < rows.size(); ++j) {
 					TableRowBox rowBox = rows.get(j);
 					double rowSize;
 
-					// 指定された行高さの計算(共有核 — P2-5 (c))
+					// Calculate specified row heights (shared core — P2-5 (c))
 					final RowLayoutEngine.RowSpec rowSpec = RowLayoutEngine.rowSpec(rowBox.getInnerTableParams());
 					rowSize = rowSpec.size();
 					rowRatios[rowIndex] = rowSpec.ratio();
@@ -1191,7 +1190,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 						autoRows[j] = true;
 					}
 
-					// セル内のレイアウト
+					// Layout inside cells
 					List<CellContent> cells = this.rowToCells.get(rowBox);
 					for (int k = 0; k < cells.size(); ++k) {
 						CellContent cell = cells.get(k);
@@ -1222,40 +1221,40 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 							}
 						}
 
-						// セルの中身を再構築(軸寸法は共有核 TableCellMetrics)
+						// Reconstruct cell content (axis dimensions use the shared TableCellMetrics core).
 						final double size = TableCellMetrics.spannedLineSize(columnSizes, k, span);
 						k += span - 1;
 						TableCellMetrics.applyLineAxis(cellBox, cell::getIntrinsicSizes, size, this.vertical,
 								tableParams);
 						if (measuredPageAxis != null) {
-							// E-6増分5b-2 Pass B: bindせずscratch計測(複製box上に
-							// 作った木は値の採取後に破棄——この時点でbind済みセル
-							// 本文木は1つも存在しない)。行高計算はこの計測値だけを
-							// 読む。bind実寸とのbit一致は5b-1の
-							// RetainedCellPassBShadowTestで実証済み
+							// E-6 increment 5b-2, Pass B: scratch measurement without bind (discard the tree
+							// built on the replica box after collecting values; at this point,
+							// no bound cell body trees exist). Row height calculation reads only
+							// these measurements. Bit-for-bit equality with actual bound sizes was proved in 5b-1
+							// by RetainedCellPassBShadowTest.
 							final CellPassBMeasurer.Result measured = CellPassBMeasurer.measure(cell, this.layoutStack,
 									this.vertical);
 							if (measured == null) {
-								// isRowSequentialBindEligibleで適格判定済みのため起きない
+								// Cannot occur: isRowSequentialBindEligible already checked eligibility.
 								throw new IllegalStateException("Pass C適格表のセルがPass B計測できません");
 							}
 							measuredPageAxis.put(cellBox, measured.pageAxisSize());
 							net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTablePassBCellMeasure();
 						} else {
-							// 従来経路: 行高計算前の一括bind
-							// E-6増分5a: seal済みセルはSegmentExecutor範囲駆動、
-							// 不適格セルは従来のrecords再演(CellContent.bindが分岐)
+							// Old path: bind all cells before row height calculation.
+							// E-6 increment 5a: sealed cells use SegmentExecutor range execution;
+							// ineligible cells use the old records replay (CellContent.bind selects the path).
 							this.bindCell(cell, cellBox);
 						}
 
 						this.cellToSource.put(cellBox, rowBox.addTableSourceCell(cellBox));
 						int cellRowspan = Math.min(rows.size() - j, cell.rowspan);
 						if (cellRowspan <= 1) {
-							// 連結されない行
+							// Non-spanning rows
 							noAdjRows[j] = true;
 						} else {
-							// 連結された行(連結では％高さはautoとする)
-							// 要求寸法・登録とも共有核へ(A-4)
+							// Spanning rows (treat % heights as auto for spans)
+							// Use the shared core for both requested sizes and registration (A-4).
 							final double cellSize = RowLayoutEngine.demandPageSize(
 									this.boundPageAxisSize(measuredPageAxis, cellBox), cellParams, cellBox,
 									this.vertical);
@@ -1263,7 +1262,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 						}
 					}
 
-					// ベースラインをそろえる
+					// Align baselines
 					for (int k = 0; k < cells.size(); ++k) {
 						final CellContent cell = cells.get(k);
 						if (cell.isExtended()) {
@@ -1295,11 +1294,11 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					++rowIndex;
 				}
 
-				// rowspanで連結された行の高さの計算(共有エンジン — P2-2)。
-				// rowRatios はグローバル添字で書かれるため、当グループの
-				// スライスを渡す(旧実装は 0 起点=先頭グループの比率を
-				// 読んでおり、2つ目以降のグループの %行に分配されなかった。
-				// 0242-table-height/percent-rowspan-groups.html で是正)
+				// Calculate heights of rows joined by rowspan (shared engine — P2-2).
+				// rowRatios is written with global indices, so pass a slice for this group.
+				// The old implementation started at 0, reading the first group’s ratios,
+				// so percentage rows in second and subsequent groups received no distribution.
+				// Corrected in 0242-table-height/percent-rowspan-groups.html.
 				Collections.sort(rowspanList, Rowspan.SPAN_COMPARATOR);
 				{
 					final int groupStart = rowIndex - rows.size();
@@ -1313,7 +1312,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 						rows.get(j).setPageSize(rowSizes[j]);
 					}
 				}
-				// 内容の高さ計算
+				// Calculate content height
 				for (int j = 0; j < rows.size(); ++j) {
 					TableRowBox rowBox = rows.get(j);
 					rowSizeSum += rowBox.getPageSize();
@@ -1321,10 +1320,10 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			}
 		}
 
-		// 全行のsource/extended構築が完了。以後は行自身のCell連鎖だけを読む。
+		// source/extended construction is complete for all rows. From now on, read only each row’s own Cell chain.
 		this.cellToSource.clear();
 
-		// 行のパーセント高さ計算(共有エンジン — P2-4)
+		// Calculate percentage row heights (shared engine — P2-4)
 		{
 			final double[] rowSizes = new double[rowCount];
 			int rowIndex = 0;
@@ -1345,7 +1344,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			}
 		}
 
-		// 行グループ高さを適用(共有エンジン — P2-4)
+		// Apply row group heights (shared engine — P2-4)
 		this.observeRetention("before-group-page-size");
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
 			TableRowGroupBox rowGroupBox = (TableRowGroupBox) rowGroups.get(i);
@@ -1358,9 +1357,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			for (int j = 0; j < rows.size(); ++j) {
 				rowSizes[j] = rows.get(j).getPageSize();
 			}
-			// 戻り値(増分)は以降どこにも読まれないため破棄する(P2、外部設計レビュー2026-07-19で発見:
-			// 直後の「テーブル高さを適用」ブロックはrowBox.getPageSize()から都度読み直すため
-			// rowSizeSumのこれ以降の値は死んでいた)
+			// Discard the return value (increment); nothing reads it afterward (P2, external design review 2026-07-19).
+			// The immediately following "apply table height" block rereads rowBox.getPageSize() each time,
+			// so later values of rowSizeSum were dead.
 			RowLayoutEngine.distributeGroupSize(rowSizes, params.size.getLength());
 			for (int j = 0; j < rows.size(); ++j) {
 				rows.get(j).setPageSize(rowSizes[j]);
@@ -1369,10 +1368,10 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 		this.observeRetention("after-group-page-size");
 
-		// テーブル高さを適用(共有エンジン — P2-4)。自動行の判定は
-		// 指定型の直判定(%0 指定行を自動行に数えた旧 autoRowCount とは
-		// 分岐条件が異なり得るが、分配対象の選別とは元々不整合だった —
-		// 一貫した直判定へ正規化)
+		// Apply table height (shared engine — P2-4). Identify auto rows by directly checking
+		// the specified type. This can branch differently from the old autoRowCount, which counted
+		// rows specifying %0 as auto, but that already disagreed with selection for distribution;
+		// normalize to a consistent direct check.
 		final double[] rowSizes = new double[rowCount];
 		{
 			final boolean[] autoRows = new boolean[rowCount];
@@ -1396,7 +1395,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			}
 		}
 
-		// Pass Cのbind・行高適用は計測mapを読まない。経路判定だけを残す。
+		// Pass C bind and row height application do not read the measurement map. Retain only the path decision.
 		measuredPageAxis = null;
 		this.rowEmissionExclusions = this.rowEmissionExclusions(shape, rowSequentialBind);
 		if (rowSequentialBind
@@ -1409,7 +1408,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		this.observeRetention("after-pass-b");
 		final boolean emitRows = this.rowEmissionExclusions.isEmpty();
 		this.compactCellText(true);
-		// セル高さ確定(共有核 — P2-5 (c))
+		// Finalize cell heights (shared core — P2-5 (c))
 		final boolean releaseRowPlans = net.zamasoft.foliojet.layout.fragment.ReplayIntent.current()
 				== net.zamasoft.foliojet.layout.fragment.ReplayIntent.MAIN;
 		int boundRows = 0;
@@ -1434,24 +1433,24 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				} else {
 					this.rowEmission.body().addTableRow(rowBox);
 				}
-				// 行1つの確定は**実際に進んだ仕事**(2026-07-27、締切の進捗信号)
+				// Finalizing one row is **actual work completed** (2026-07-27, progress signal for the deadline).
 				this.noteTableProgress();
 				final List<CellContent> cells = this.rowToCells.get(rowBox);
 				if (rowSequentialBind) {
-					// E-6増分5b-2 Pass C: 行単位の逐次bind。確定行高の適用
-					// (applyCellExtents)・baseline整列(maxFirstAscent)の直前に
-					// 当行の実セルをbindする——bind後のセル実寸・firstAscentは
-					// Pass B計測値とbit一致のため、以降が読む値は従来経路と
-					// 同一。bind順(行順・行内セル順)も従来と同一
+					// E-6 increment 5b-2, Pass C: row-wise sequential bind. Bind the current row’s actual
+					// cells just before applying resolved row heights (applyCellExtents) and
+					// baseline alignment (maxFirstAscent). Actual cell sizes and firstAscent after bind
+					// match Pass B measurements bit for bit, so subsequent reads get the same values
+					// as the old path. Bind order (row order, then cell order within a row) is unchanged too.
 					this.bindRowCells(cells);
 				}
 				CellContent.applyCellExtents(cells, groupRowSizes, j, CellContent.maxFirstAscent(cells),
 						this.vertical);
-				// assembleのborder-collapseは行高だけを読む。完成した行・本文木は
-				// rowGroupが保持し、後続行のrowspanはgroupRowSizesとCell連鎖を使う。
+				// border-collapse in assemble reads only row heights. rowGroup retains completed rows/body trees;
+				// rowspan in subsequent rows uses groupRowSizes and the Cell chain.
 				rowSizes[boundRows++] = rowBox.getPageSize();
 				if (releaseRowPlans) {
-					// MEASUREでは本文所有が残り、親の吸収・終端処理が計画を読む。
+					// MEASURE retains body ownership, and parent absorption/termination reads the plan.
 					this.rowToCells.remove(rowBox);
 					cells.clear();
 					rows.set(j, null);
@@ -1460,7 +1459,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					boolean notified = false;
 					if (this.rowEmission != null) {
 						anonBuilder.getPageContext().noteRetainedTableRowsBound(1);
-						// 通知後の切断は戻せない。境界内の可視末尾は、後続行かcompleteまで保留する。
+						// Splits after notification cannot be undone. Defer the visible end within the boundary until later rows or complete.
 						if (j == rows.size() - 1 || this.rowEmission.hasRowEmissionOverflow()) {
 							this.observeRetention("before-row-emission");
 							if (j == rows.size() - 1) this.rowEmission.complete();
@@ -1470,24 +1469,24 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					} else if (j < rows.size() - 1 && this.tableBox.emissionCutDetermined(
 							((BreakableBuilder) anonBuilder).getPageLimit() - anonBuilder.getPageAxis(), rowGroup,
 							this.headerGroup == null ? -1 : this.headerGroup.getPageSize())) {
-						// bind後の宿主状態も、終端を抑止する前に確認する。
+						// Check the host state after bind too, before suppressing termination.
 						if (!((BreakableBuilder) anonBuilder).supportsIncompleteTableIntake()) {
 							this.rowEmissionExclusions.add(TableBuildPlanner.RowEmissionExclusion.UNSUPPORTED_HOST);
 							emitBody = false;
 						} else {
-							// 切断に必要な後続行まで見えた。切断・移動・終端の判断は親が行う。
+							// Enough subsequent rows are visible to split. The parent decides splitting, movement, and termination.
 							this.observeRetention("before-row-emission");
 							this.attachGroups();
 							this.sizeColumns(columnSizes);
 							this.tableBox.markIncomplete();
 							this.tableBox.setIncompletePlan(new IncompleteTablePlan(groupRowSizes,
 									this.headerGroup == null ? 0 : this.headerGroup.getPageSize()));
-							// 受理中にも前断片を描く。本文グループ・列木・表への所有を先に渡す。
+							// Acceptance also draws the preceding fragment. Transfer body group, column tree, and table ownership first.
 							this.bodyGroups.clear();
 							this.rowGroups.set(i, null);
 							rowGroup = null;
 							this.columnGroupBox = null;
-							// 受理へ渡す初回のbind済み本文行。送出を始めない短表では進めない。
+							// First bound body row passed to acceptance. Do not advance for short tables that never start emission.
 							anonBuilder.getPageContext().noteRetainedTableRowsBound(j + 1);
 							this.rowEmission = this.acceptRows((BreakableBuilder) anonBuilder);
 							notified = true;
@@ -1512,8 +1511,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 	private BreakableBuilder.IncompleteTableResult acceptRows(final BreakableBuilder host) {
 		final TableBox table = this.tableBox;
-		// 受理中に改頁・描画まで進むため、所有を渡す前に必要な数値だけ保存する。
-		// 行方向のマージンは表の分割で変わらない。完成表は従来どおり自身の枠を読む。
+		// Acceptance proceeds through page breaks and drawing, so save only required values before transferring ownership.
+		// Line-axis margins do not change on table splits. Completed tables read their own frame as before.
 		this.rowEmissionCaptionInsetStart = this.captionInsetStart();
 		this.rowEmissionCaptionInsetEnd = this.captionInsetEnd();
 		this.tableBox = null;
@@ -1533,22 +1532,23 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * 表Pass C(行単位逐次bind)の表単位適格判定です(E-6増分5b-2、
-	 * 2026-07-24——codex設計§4.4のPass B/C。fail closed)。適格条件:
+	 * Table-wide eligibility for Pass C (row-wise sequential bind) (E-6 increment 5b-2,
+	 * 2026-07-24; Pass B/C in codex design §4.4; fail closed). Eligibility:
 	 * <ul>
-	 * <li>全実セルがPass B計測可能({@link CellContent#isPassBMeasurable}:
-	 * seal済みrange、またはrecords空の空セル。ネストビルダー含みセル等の
-	 * seal不適格セル・段組セルが1つでもあれば表全体を従来経路へ)</li>
+	 * <li>All actual cells support Pass B measurement ({@link CellContent#isPassBMeasurable}:
+	 * sealed ranges or empty cells with no records). Any cell ineligible for sealing,
+	 * such as one with nested builders, or any multi-column cell sends the whole table
+	 * to the old path.</li>
 	 * </ul>
 	 *
 	 * <p>
-	 * 2026-07-30(DP増分5): 旧「キャプションなし」条件は撤去した。
-	 * キャプションのbindは行処理の完全に外側(上部=行高計算前・下部=
-	 * addBound後)にあり、Pass C切替の影響を受けない——
-	 * {@code RetainedCellPassBShadowTest}のキャプション付き表fixtureで
-	 * Pass B計測値とlegacy一括bind実寸のbit一致(maxDiff=0.0)を証明の上で
-	 * 解禁した。キャプション自身のbind(records再演)はこの判定の対象外の
-	 * ままである。
+	 * 2026-07-30 (DP increment 5): removed the former "no captions" condition.
+	 * Caption bind lies entirely outside row processing (top: before row height calculation;
+	 * bottom: after addBound), so switching to Pass C does not affect it.
+	 * Enabled after a captioned-table fixture in {@code RetainedCellPassBShadowTest}
+	 * proved bit-for-bit equality (maxDiff=0.0) between Pass B measurements and actual
+	 * sizes from legacy all-at-once bind. Caption bind itself (records replay)
+	 * remains outside this eligibility check.
 	 * </p>
 	 */
 	private boolean isRowSequentialBindEligible() {
@@ -1571,9 +1571,10 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * 行高計算が読むセルの使用ページ方向寸法です(E-6増分5b-2)。Pass C表
-	 * ({@code measured != null})ではPass Bのscratch計測値(bind実寸との
-	 * bit一致は5b-1で実証済み)、従来経路ではbind済みセルboxの実寸。
+	 * Used cell page-axis size read by row height calculation (E-6 increment 5b-2).
+	 * Pass C tables ({@code measured != null}) use Pass B scratch measurements
+	 * (bit-for-bit equality with actual bound sizes proved in 5b-1);
+	 * the old path uses actual sizes from bound cell boxes.
 	 */
 	private double boundPageAxisSize(final Map<TableCellBox, Double> measured, final TableCellBox cellBox) {
 		if (measured != null) {
@@ -1583,11 +1584,11 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * セル1つをbindします(従来経路の一括bindとPass Cの行順bindの共有核。
-	 * E-6増分5a: seal済みセルはSegmentExecutor範囲駆動、不適格セルは
-	 * records再演——{@code CellContent.bind}が分岐。E-6増分5b-1:
-	 * shadow検証フック(テスト専用、production=null)はbindの直前・直後を
-	 * 観測する)。
+	 * Binds one cell (shared core for the old all-at-once bind and Pass C row-order bind).
+	 * E-6 increment 5a: sealed cells use SegmentExecutor range execution; ineligible cells
+	 * replay records, selected by {@code CellContent.bind}. E-6 increment 5b-1:
+	 * the shadow verification hook (test-only, production=null) observes immediately
+	 * before and after bind.
 	 */
 	private void bindCell(final CellContent cell, final TableCellBox cellBox) {
 		final CellBindShadow shadow = cellBindShadow;
@@ -1603,8 +1604,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * 行の実セルを行内セル順にbindします(E-6増分5b-2 Pass C)。extended
-	 * (rowspan/colspan継続slot)は持ち主の行・列でbind済み/される。
+	 * Binds a row's actual cells in cell order (E-6 increment 5b-2, Pass C).
+	 * Extended slots (rowspan/colspan continuations) are or will be bound at their owning row/column.
 	 */
 	private void bindRowCells(final List<CellContent> cells) {
 		for (int k = 0; k < cells.size(); ++k) {
@@ -1617,7 +1618,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * 行グループを表に組み付け、列・境界寸法を適用して閉じます(bind 第3段)。
+	 * Assembles row groups into the table, applies column/border dimensions, and closes it (bind stage 3).
 	 */
 	private void assemble(final TableShape shape, final double[] rowSizes) {
 		final TableParams tableParams = this.tableBox.getTableParams();
@@ -1635,11 +1636,11 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			}
 		}
 
-		// カラム
+		// Columns
 		this.sizeColumns(columnSizes);
 
 		if (tableParams.borderCollapse == TableParams.BORDER_COLLAPSE) {
-			// つぶし境界
+			// Collapsed borders
 			for (int i = 0; i < columnSizes.length; ++i) {
 				assert !LayoutUtils.isNone(columnSizes[i]);
 				this.borders.setColumnSize(i, columnSizes[i]);
@@ -1672,14 +1673,14 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		});
 	}
 
-	/** 完成表の投入後、または未完表ハンドルの完了後に一度だけ閉じる。 */
+	/** Closes exactly once after submitting a completed table or completing an unfinished-table handle. */
 	private void finishTable(final BlockBuilder builder, final TableShape shape,
 			final RetainedTextLimit.Scope retained) {
 		final BlockBuilder anonBuilder = shape.anonBuilder();
 		final AbstractBlockBox blockBox = shape.blockBox();
 		if (retained != null) retained.close();
 
-		// 下部キャプション
+		// Bottom caption
 		for (int i = 0; i < this.bottomCaptions.size(); ++i) {
 			TwoPassBlockBuilder captionBuilder = (TwoPassBlockBuilder) this.bottomCaptions.get(i);
 			FlowBlockBox captionBox = (FlowBlockBox) captionBuilder.getRootBox();
@@ -1694,7 +1695,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			break;
 		case INLINE:
 			anonBuilder.close();
-			// DocumentBuilderで追加
+			// Added by DocumentBuilder
 			break;
 		case FLOAT:
 			anonBuilder.close();
@@ -1708,7 +1709,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				builder.addBound(absoluteBox);
 				break;
 			case AutoPosition.INLINE:
-				// DocumentBuilderで追加
+				// Added by DocumentBuilder
 				break;
 			default:
 				throw new IllegalStateException();
@@ -1720,38 +1721,38 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	public void finish(final net.zamasoft.foliojet.layout.builder.Builder host) {
-		// Retainedは全行を読み終えて初めてコミットできる(A-2)
+		// Retained can commit only after all rows have been read (A-2).
 		host.addTable(this);
 	}
 
 	/**
-	 * 固定レイアウトでの先頭行セル由来の列指定を返します(AUTOはnull)。
-	 * 指定はセルの colspan で均等割りされます。
+	 * Returns a column specification from a first-row cell in fixed layout (null for AUTO).
+	 * Divide the specification equally by the cell's colspan.
 	 *
-	 * @param cell    セル
-	 * @param refSize %指定の基準寸法
-	 * @return 列指定
+	 * @param cell    cell
+	 * @param refSize reference size for percentage specifications
+	 * @return column specification
 	 */
 	private FixedColumnWidths.Spec fixedCellSpec(final CellContent cell, final double refSize) {
-		// 指定の導出は FixedColumnWidths に統合(P2-2)
+		// Specification derivation is unified in FixedColumnWidths (P2-2).
 		return FixedColumnWidths.cellSpec(cell.getCellBox(), cell.colspan,
 				this.tableBox.getTableParams().flow, refSize);
 	}
 
 	/**
-	 * 表の行を1つ確定したことを記録します(2026-07-27新設)。
+	 * Records that one table row has been finalized (introduced 2026-07-27).
 	 *
 	 * <p>
-	 * 締切({@code AbstractUserAgent}の「進捗が止まったら中断する」)は
-	 * ページの出力を進捗とみなすが、<b>巨大な自動表の測定パスでは
-	 * ページが出ないまま長く走る</b>。実測で40万行=37.5秒、外挿すると
-	 * 100万行で約94秒に達し、既定の120秒に迫っていた(2026-07-27)。
+	 * The deadline ({@code AbstractUserAgent}'s "abort when progress stops") treats page
+	 * output as progress, but <b>measurement passes for huge auto-layout tables run a long
+	 * time without emitting pages</b>. Measurement showed 400,000 rows took 37.5 seconds;
+	 * extrapolating to 1 million rows gave about 94 seconds, approaching the default
+	 * 120 seconds (2026-07-27).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>「コードが動いた」ではなく「仕事が終わった」を数えること。</b>
-	 * 行の確定は各行1回きりの単調な仕事なので、空回りするループが
-	 * 進捗を偽装できない。
+	 * <b>Count "work completed", not "code executed".</b>
+	 * Row finalization is monotonic work done once per row, so an idle loop cannot fake progress.
 	 * </p>
 	 */
 	private void noteTableProgress() {
@@ -1761,8 +1762,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 }
 
 /**
- * 結合された列です。
- * 
+ * Joined columns.
+ *  
  * @author MIYABE Tatsuhiko
  * @version $Id: RetainedTableBuilder.java 1552 2018-04-26 01:43:24Z miyabe $
  */

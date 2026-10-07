@@ -29,8 +29,8 @@ public class MinWidth extends AbstractPrimitivePropertyInfo {
 		if (style.isDeclared(INFO)) {
 			return style.get(INFO);
 		}
-		// 2026-07-20、-cssj-direction-mode廃止によりmin-inline-size/
-		// min-block-sizeへ一本化。
+		// 2026-07-20: abolished -cssj-direction-mode and consolidated support into min-inline-size/
+		// min-block-size.
 		if (!image) {
 			PrimitivePropertyInfo logicalInfo = BlockFlow.get(style).isVertical() ? MinBlockSize.INFO : MinInlineSize.INFO;
 			if (style.isDeclared(logicalInfo)) {
@@ -62,14 +62,14 @@ public class MinWidth extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
-		// 固有寸法キーワード max-content/min-content/fit-content(L)(2026-08-29)
+		// Intrinsic sizing keywords max-content/min-content/fit-content(L) (2026-08-29).
 		final Value intrinsic = BoxValueUtils.toIntrinsicSize(ua, lu);
 		if (intrinsic != null) {
 			return intrinsic;
 		}
 		if (ValueUtils.isAuto(lu)) {
-			// auto(css-sizing-3の初期値)は通常フローでは0と等価。flex/grid
-			// itemの「自動最小寸法」はレイアウト側が別途持つ(2026-08-29)
+			// auto (the css-sizing-3 initial value) equals 0 in normal flow. Layout handles
+			// the "automatic minimum size" of flex/grid items separately (2026-08-29).
 			return AbsoluteLengthValue.ZERO;
 		}
 		Value value = BoxValueUtils.toPositiveLength(ua, lu);

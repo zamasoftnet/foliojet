@@ -21,9 +21,9 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
- * GCPM {@code string-set: <ident> <value>+ [, <ident> <value>+]*}。
- * {@code <value>}は{@code <string>}/{@code counter()}/{@code counters()}/
- * {@code attr()}/{@code content()}。
+ * GCPM {@code string-set: <ident> <value>+ [, <ident> <value>+]*}.
+ * {@code <value>} is {@code <string>}/{@code counter()}/{@code counters()}/
+ * {@code attr()}/{@code content()}.
  *
  * @author MIYABE Tatsuhiko
  */

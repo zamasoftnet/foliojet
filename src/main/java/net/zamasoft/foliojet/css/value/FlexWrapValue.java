@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code flex-wrap}のキーワード値です(Flex F1a、2026-08-02)。
- * layout側の{@code FlexWrap}と同名対応(マッピングはBoxStyleMapper)。
+ * A {@code flex-wrap} keyword value (Flex F1a, 2026-08-02).
+ * Names correspond to {@code FlexWrap} in the layout layer (mapped by BoxStyleMapper).
  *
  * @author MIYABE Tatsuhiko
  */

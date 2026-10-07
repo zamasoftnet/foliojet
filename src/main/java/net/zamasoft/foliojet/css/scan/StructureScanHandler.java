@@ -12,27 +12,26 @@ import net.zamasoft.foliojet.ua.SelectorFacts;
 import net.zamasoft.foliojet.xml.XMLHandler;
 
 /**
- * {@code STRUCTURE_SCAN}パス(実レイアウトを組まない軽量な事前走査)の
- * 終端ハンドラです。{@code :last-child}/{@code :only-child}/{@code :empty}/
- * {@code :nth-last-child()}/{@code :nth-last-of-type()}はいずれもCSS
- * カスケードを一切必要としない、DOM構造(親子・兄弟関係と要素名)だけで
- * 決まる疑似クラスのため、{@link net.zamasoft.foliojet.css.CSSProcessor}
- * (スタイル解決・ボックス構築)を経由せず、この軽量な専用walkerだけで
- * 解決する(開発計画「2パス制御モード」の設計確定 v3参照)。
+ * Terminal handler for the {@code STRUCTURE_SCAN} pass (a lightweight preliminary
+ * scan without actual layout). The pseudo-classes {@code :last-child}/{@code :only-child}/
+ * {@code :empty}/{@code :nth-last-child()}/{@code :nth-last-of-type()} depend only on
+ * DOM structure (parent-child and sibling relationships, and element names) and require
+ * no CSS cascade. Resolve them with this lightweight dedicated walker, bypassing
+ * {@link net.zamasoft.foliojet.css.CSSProcessor} (style resolution and box construction;
+ * see finalized design v3 in the development plan, "2パス制御モード").
  * <p>
- * {@code display:none}の部分木も対象に含める(セレクタは要素にマッチし、
- * ボックスにはマッチしないため)。バッファするのは「1つの親の直接の子の
- * 列(ElementKeyと要素名のみ)」で、親が閉じた時点で末尾からの位置を確定
- * させてから捨てる——内容(テキスト・属性値等)は一切保持しないため、
- * 保持量は「1つの親の子の数」に比例するだけで、部分木のサイズには
- * 比例しない。
+ * Includes {@code display:none} subtrees (selectors match elements, not boxes).
+ * Buffers only the sequence of one parent's direct children (ElementKey and element
+ * name only), finalizes their positions from the end when the parent closes, then
+ * discards it. Retains no content (text, attribute values, etc.), so retained data is
+ * proportional only to one parent's child count, not to subtree size.
  * </p>
  * <p>
- * ElementKeyの採番は{@code CSSProcessor}と同じ規約(文書順に0始まりで
- * 漏れなく増分、擬似要素は対象外)で行い、両者が同じ入力を同じ順序で
- * 走査する限り値が一致する({@code CSSProcessor}側もdisplay:none/
- * インラインオブジェクト内部の要素についてキー空間だけは消費するよう
- * 修正済み)。
+ * Assigns ElementKey values with the same convention as {@code CSSProcessor}
+ * (zero-based, incremented without gaps in document order, excluding pseudo-elements).
+ * Values agree as long as both scan the same input in the same order
+ * ({@code CSSProcessor} was also fixed to consume the key space for display:none
+ * and elements inside inline objects).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -84,8 +83,8 @@ public final class StructureScanHandler extends DefaultHandler2 implements XMLHa
 	public void endElement(String uri, String lName, String qName) {
 		Frame frame = this.current;
 		if (frame == null) {
-			// 開始タグより先に終了タグが来ることは無い想定だが、
-			// 防御的にガードしておく
+			// An end tag is not expected before a start tag,
+			// but guard defensively.
 			return;
 		}
 		if (!frame.sawContent) {

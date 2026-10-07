@@ -5,8 +5,8 @@ import java.util.Locale;
 import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
 
 /**
- * hyphens:auto のための言語別分綴器(Liangアルゴリズム)の解決です。
- * パターンを持たない言語には null を返します。
+ * Resolves language-specific word hyphenators (Liang algorithm) for hyphens:auto.
+ * Returns null for languages without patterns.
  *
  * @author MIYABE Tatsuhiko
  */

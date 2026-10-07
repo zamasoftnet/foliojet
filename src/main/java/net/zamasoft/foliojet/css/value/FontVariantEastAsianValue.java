@@ -3,23 +3,23 @@ package net.zamasoft.foliojet.css.value;
 import net.zamasoft.pdfg2d.gc.font.FontFeatureSet;
 
 /**
- * {@code font-variant-east-asian}の値です。CSS層ではカテゴリ構造
- * (異体字系・字幅系・ルビ)のまま保持し、{@code CSSStyle.getFontStyle()}が
- * OpenType featureタグ列({@link #featureSet()})へ正規化します。
+ * A {@code font-variant-east-asian} value. The CSS layer retains its category structure
+ * (variants, widths, and ruby), and {@code CSSStyle.getFontStyle()} normalizes it
+ * into an OpenType feature tag sequence ({@link #featureSet()}).
  *
  * @author MIYABE Tatsuhiko
  */
 public final class FontVariantEastAsianValue implements Value {
-	/** {@code normal}。 */
+	/** {@code normal}. */
 	public static final FontVariantEastAsianValue NORMAL_VALUE = new FontVariantEastAsianValue(null, null, false);
 
-	/** 異体字系(jp78/jp83/jp90/jp04/smpl/trad)のOpenTypeタグ。無指定はnull。 */
+	/** The OpenType variant tag (jp78/jp83/jp90/jp04/smpl/trad). Null if unspecified. */
 	private final String variant;
 
-	/** 字幅系(fwid/pwid)のOpenTypeタグ。無指定はnull。 */
+	/** The OpenType width tag (fwid/pwid). Null if unspecified. */
 	private final String width;
 
-	/** ルビ用グリフ(ruby)。 */
+	/** Ruby glyphs (ruby). */
 	private final boolean ruby;
 
 	private FontVariantEastAsianValue(final String variant, final String width, final boolean ruby) {
@@ -39,7 +39,7 @@ public final class FontVariantEastAsianValue implements Value {
 		return this == NORMAL_VALUE;
 	}
 
-	/** OpenType featureタグ列へ正規化します(いずれも値1)。 */
+	/** Normalizes to an OpenType feature tag sequence (all with value 1). */
 	public FontFeatureSet featureSet() {
 		if (this.isNormal()) {
 			return FontFeatureSet.EMPTY;

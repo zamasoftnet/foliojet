@@ -13,28 +13,28 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.BlendMode;
 
 /**
- * {@code mix-blend-mode}です(compositing-1 §4、2026-08-29新設)。
+ * {@code mix-blend-mode} (compositing-1 §4, added 2026-08-29).
  *
  * <p>
- * 非継承・既定{@code normal}。16種のブレンドモードを受け、描画時に
- * pdfg2dの{@code GC.setBlendMode}(PDFではExtGStateの{@code /BM})へ
- * 流す。
+ * Not inherited; defaults to {@code normal}. Accepts 16 blend modes and passes them to
+ * pdfg2d's {@code GC.setBlendMode} during rendering ({@code /BM} in PDF ExtGState).
  * </p>
  *
  * <p>
- * <b>近似</b>: 仕様では要素全体を1つのグループとして背景と合成するが、
- * 本実装はopacityと同じ流儀で、要素と子孫の各描画要素(背景・境界・
- * テキスト・画像)ごとにモードを適用する。子孫へ届けるためcomputed
- * valueは「自身がnormalなら親の値」とする(opacityが親の値を掛け込む
- * のと同型)。要素内で重なる描画同士も背景と同じモードで合成される
- * 点が仕様と異なる(不透明な単色背景+文字の典型例では差は出ない)。
- * {@code isolation}は受理するだけで効果はない。
+ * <b>Approximation</b>: the specification composites the entire element with the backdrop as one group,
+ * but this implementation, like opacity, applies the mode to each drawing element
+ * (background, border, text, image) of the element and its descendants. To pass it to descendants,
+ * the computed value is "the parent's value if this element is normal"
+ * (analogous to opacity multiplying by the parent's value).
+ * Unlike the specification, overlapping drawings within the element are also composited
+ * using the same mode as the backdrop (there is no difference in the typical case of an opaque
+ * solid background plus text). {@code isolation} is accepted but has no effect.
  * </p>
  */
 public class MixBlendMode extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MixBlendMode();
 
-	/** ブレンドモードの値。 */
+	/** Blend mode value. */
 	public record BlendModeValue(BlendMode mode) implements Value {
 		@Override
 		public String toString() {
@@ -45,8 +45,8 @@ public class MixBlendMode extends AbstractPrimitivePropertyInfo {
 	private static final BlendModeValue NORMAL = new BlendModeValue(BlendMode.NORMAL);
 
 	/**
-	 * {@code <blend-mode>} 1個を解析します。背景レイヤのブレンドも同じ
-	 * キーワード集合を使うため、値変換をここで共有します。
+	 * Parses one {@code <blend-mode>}. Background layer blending uses the same keyword set,
+	 * so value conversion is shared here.
 	 */
 	public static BlendMode parseBlendMode(final CssToken token) {
 		if (token instanceof CssToken.Ident ident) {
@@ -76,7 +76,7 @@ public class MixBlendMode extends AbstractPrimitivePropertyInfo {
 		if (parent == null || ((BlendModeValue) value).mode() != BlendMode.NORMAL) {
 			return value;
 		}
-		// 子孫の描画要素へ親のモードを届ける(クラス冒頭の近似の説明参照)
+		// Pass the parent mode to descendant drawing elements (see the approximation at the start of this class).
 		return parent.get(INFO);
 	}
 

@@ -4,14 +4,15 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
 
 /**
- * 内部マーカー(list-style-position: inside)です。
+ * An inside marker (list-style-position: inside).
  *
  * <p>
- * 実体はインラインブロックですが、マーカー文字列は末尾空白を含み、
- * その advance がマーカーと本文の隙間を作る(旧セマンティクス)ため、
- * 実レイアウト計測(MeasuredIntrinsics — 行末空白を正しく落とす)の
- * 対象外として型で区別します。明示ギャップによるマーカー配置の再設計
- * (css-lists ::marker)までこの区別を維持します。
+ * Although implemented as an inline block, its marker text includes trailing whitespace
+ * whose advance creates the gap between the marker and body text (legacy semantics).
+ * Distinguish it by type to exclude it from actual layout measurement
+ * (MeasuredIntrinsics, which correctly removes trailing whitespace).
+ * Keep this distinction until marker placement is redesigned with an explicit gap
+ * (css-lists ::marker).
  * </p>
  *
  * @author MIYABE Tatsuhiko

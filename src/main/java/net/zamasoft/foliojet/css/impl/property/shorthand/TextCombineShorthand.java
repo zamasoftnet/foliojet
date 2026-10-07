@@ -36,13 +36,13 @@ public class TextCombineShorthand extends AbstractShorthandPropertyInfo {
 	public void parseValues(TokenStream tokens, UserAgent ua, URI uri, Primitives primitives) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (lu instanceof CssToken.Ident ident) {
-			// all は text-combine-upright(標準名)の値、horizontal は
-			// -cssj-text-combine/-epub-text-combine の値(2026-08-02)。
-			// 縦中横として同じ意味なので同じ処理へ寄せる。仕様の
-			// digits <integer> は未対応
+			// all is a value of text-combine-upright (the standard name); horizontal is a value
+			// of -cssj-text-combine/-epub-text-combine (2026-08-02).
+			// Both mean tate-chu-yoko, so use the same processing. The specified
+			// digits <integer> is unsupported.
 			if (ident.is("none")) {
-				// 初期値 none(2026-09-04、利用者報告: `body.horizontal .tcy { text-combine-upright: none }` が
-				// 2816 で落ちていた)。縦中横を解除するだけで、方向・行送り等の longhand は触らない
+				// Initial value none (2026-09-04, user report: `body.horizontal .tcy { text-combine-upright: none }`
+				// failed with 2816). Only disables tate-chu-yoko; leaves longhands such as direction and line pitch unchanged.
 				primitives.set(TextCombineMode.INFO, TextCombineValue.NONE_VALUE);
 			} else if (ident.is("horizontal") || ident.is("all")) {
 				primitives.set(Direction.INFO, DirectionValue.LTR_VALUE);
@@ -50,16 +50,16 @@ public class TextCombineShorthand extends AbstractShorthandPropertyInfo {
 				primitives.set(WritingModeVariant.INFO, WritingModeVariantValue.NORMAL_VALUE);
 				primitives.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);
 				primitives.set(LineHeight.INFO, PercentageValue.FULL);
-				// **縦中横の中では字間・語間を無効にする**(2026-08-11)。
-				// 組んだ数字は1文字分の枠に収める「一つの文字」なので、
-				// 親の字間が中に入ると末尾に余白が付き、枠の中で左へ寄る
-				// (書籍の部扉「第2部」の2が左寄りだった)
+				// **Disable letter and word spacing inside tate-chu-yoko** (2026-08-11).
+				// The combined digits are "one character" fitted into a single-character frame.
+				// Inherited letter spacing adds trailing space and shifts the text left inside the frame
+				// (the 2 in "第2部" on a book's part title page was shifted left).
 				primitives.set(LetterSpacing.INFO, AbsoluteLengthValue.ZERO);
 				primitives.set(WordSpacing.INFO, AbsoluteLengthValue.ZERO);
-				// **allとhorizontalの違いは幅の扱い**(2026-08-11)。allは
-				// 1em幅へ収める(css-writing-modes-3 §9.1)、horizontalは
-				// 自然幅のまま。展開先の4プロパティでは区別が残らないので
-				// 内部プロパティで運ぶ
+				// **all and horizontal differ in width handling** (2026-08-11). all fits into
+				// 1em (css-writing-modes-3 §9.1), while horizontal retains
+				// the natural width. The four expanded properties lose this distinction,
+				// so carry it in an internal property.
 				primitives.set(TextCombineMode.INFO,
 						ident.is("all") ? TextCombineValue.ALL_VALUE : TextCombineValue.HORIZONTAL_VALUE);
 			} else {

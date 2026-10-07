@@ -15,11 +15,11 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.css3.BackgroundOriginValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** background-origin。 */
+/** background-origin. */
 public class BackgroundOrigin extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BackgroundOrigin();
 
-	/** 多層背景の各レイヤの origin（先頭が最前面）。 */
+	/** Origin of each background layer (frontmost first). */
 	public record LayersValue(BackgroundOriginValue[] layers) implements Value {
 		@Override
 		public String toString() {
@@ -28,8 +28,8 @@ public class BackgroundOrigin extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * 各レイヤの origin を返します。指定数が画像数より少ない場合は描画側で
-	 * CSS のリスト規則に従って循環させます。
+	 * Returns the origin of each layer. If fewer values are specified than there are images,
+	 * the renderer cycles through them according to the CSS list rules.
 	 */
 	public static byte[] get(CSSStyle style) {
 		final Value value = style.get(INFO);
@@ -44,7 +44,7 @@ public class BackgroundOrigin extends AbstractPrimitivePropertyInfo {
 		return new byte[] { ((BackgroundOriginValue) value).getBackgroundOrigin() };
 	}
 
-	/** 単層ならその値、多層ならレイヤ値にまとめます。 */
+	/** Returns the value for a single layer, or bundles multiple layers into a layer value. */
 	public static Value toValue(List<BackgroundOriginValue> values) {
 		if (values.size() == 1) {
 			return values.get(0);

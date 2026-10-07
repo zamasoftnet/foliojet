@@ -14,23 +14,23 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code text-overflow: clip | ellipsis}です(css-overflow-3 §4、
- * 2026-08-29新設)。
+ * {@code text-overflow: clip | ellipsis} (css-overflow-3 §4,
+ * added 2026-08-29).
  *
  * <p>
- * 非継承・既定{@code clip}。{@code ellipsis}はブロックコンテナの
- * {@code overflow}が{@code visible}以外のとき、行の内容が行方向に
- * はみ出す行(典型は{@code white-space: nowrap}、または分割できない
- * 長い語)の末尾を切り詰めて省略記号"…"(U+2026、フォントに無ければ
- * "...")を置く。実装は{@code TextBuilder.applyTextOverflow}参照。
- * 2値形式({@code text-overflow: clip ellipsis})と文字列値は未対応
- * (宣言ごと無視)。
+ * Not inherited; defaults to {@code clip}. When the block container's {@code overflow}
+ * is not {@code visible}, {@code ellipsis} truncates the end of lines that overflow
+ * in the inline direction (typically {@code white-space: nowrap} or long unbreakable words)
+ * and inserts "…" (U+2026, or "..." if absent from the font).
+ * See {@code TextBuilder.applyTextOverflow} for the implementation.
+ * Two-value syntax ({@code text-overflow: clip ellipsis}) and string values are unsupported
+ * (the entire declaration is ignored).
  * </p>
  */
 public class TextOverflow extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new TextOverflow();
 
-	/** {@code ellipsis}のキーワード値(KeywordValueにはないので専用)。 */
+	/** Keyword value for {@code ellipsis} (dedicated because KeywordValue has none). */
 	public static final Value ELLIPSIS = new Value() {
 		@Override
 		public String toString() {

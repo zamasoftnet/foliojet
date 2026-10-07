@@ -13,26 +13,25 @@ import net.zamasoft.foliojet.css.value.BoxAlignmentValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 2011年版Flexbox({@code -ms-flex-pack}等)の整列プロパティを標準名へ
- * 写す別名です(2026-08-29新設、実サイト50件中18箇所)。
+ * Aliases mapping 2011 Flexbox alignment properties ({@code -ms-flex-pack}, etc.)
+ * to standard names (added 2026-08-29; 18 occurrences across 50 real sites).
  *
  * <p>
- * 値の語彙が違う({@code start}/{@code end}/{@code justify}/
- * {@code distribute})ので単純な{@code alias()}では受けられない。
- * {@code start}→{@code flex-start}、{@code end}→{@code flex-end}、
- * {@code justify}→{@code space-between}、{@code distribute}→
- * {@code space-around}に読み替えてから標準プロパティの解析へ委ねる
- * (longhand1つのショートハンドとして実装。全体キーワードも通る)。
- * {@code center}/{@code stretch}/{@code baseline}/{@code auto}は
- * そのまま通る。
+ * The value vocabulary differs ({@code start}/{@code end}/{@code justify}/
+ * {@code distribute}), so a simple {@code alias()} cannot handle it.
+ * Maps {@code start}→{@code flex-start}, {@code end}→{@code flex-end},
+ * {@code justify}→{@code space-between}, and {@code distribute}→
+ * {@code space-around}, then delegates parsing to the standard property
+ * (implemented as a shorthand for one longhand; CSS-wide keywords also pass through).
+ * {@code center}/{@code stretch}/{@code baseline}/{@code auto} pass through unchanged.
  * </p>
  *
  * <p>
- * 2009年版の{@code -webkit-box-pack}/{@code -webkit-box-align}/
- * {@code -webkit-box-orient}は対象外——{@code display: -webkit-box}を
- * blockへ写している(flex容器にならない)ので、整列だけ写しても意味が
- * なく、無視リスト({@code PropertySet.IGNORED_PROPERTIES}の
- * {@code box-pack}等)に残す。
+ * The 2009 {@code -webkit-box-pack}/{@code -webkit-box-align}/
+ * {@code -webkit-box-orient} are excluded: {@code display: -webkit-box} maps to block
+ * (not a flex container), so mapping alignment alone would be meaningless.
+ * They remain on the ignore list ({@code box-pack}, etc. in
+ * {@code PropertySet.IGNORED_PROPERTIES}).
  * </p>
  */
 public final class LegacyFlexAlignmentAlias extends AbstractShorthandPropertyInfo {
@@ -68,7 +67,7 @@ public final class LegacyFlexAlignmentAlias extends AbstractShorthandPropertyInf
 		return new PrimitivePropertyInfo[] { this.target };
 	}
 
-	/** 2011年版の語彙を標準の語彙へ。該当しなければそのまま。 */
+	/** Maps 2011 vocabulary to standard vocabulary. Leaves other values unchanged. */
 	static String translate(final String keyword) {
 		switch (keyword) {
 		case "start":

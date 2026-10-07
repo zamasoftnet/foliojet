@@ -40,9 +40,9 @@ public class CSSFontFamily extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
-		// 型付き attr()(2026-08-03)。<font face="..."> の移送に要る。
-		// 属性の中身は font-family の値そのもの(カンマ区切りの並び)として
-		// 解釈するので、解決は計算値の段階で行う
+		// Typed attr() (2026-08-03). Needed to move <font face="...">.
+		// Interpret the attribute contents as a font-family value itself (a comma-separated list),
+		// so resolve at the computed-value stage.
 		final CssToken first = tokens.peek();
 		if (first instanceof CssToken.Func func && func.is("attr")) {
 			tokens.next();

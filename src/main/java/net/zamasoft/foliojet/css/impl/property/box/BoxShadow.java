@@ -23,13 +23,13 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 
 /**
- * box-shadow 特性です(CSS Backgrounds 3 §7、2026-08-29)。
+ * box-shadow property (CSS Backgrounds 3 §7, 2026-08-29).
  *
  * <p>
- * 構文は {@code none | <shadow>#}、
- * {@code <shadow> = inset? && <length>{2,4} && <color>?}。長さの順は
- * offset-x, offset-y, blur-radius, spread-radius。ぼかし半径は負を
- * 拒否する。色はtransparentなら影そのものを落とす(text-shadowと同じ)。
+ * Syntax: {@code none | <shadow>#},
+ * {@code <shadow> = inset? && <length>{2,4} && <color>?}. Lengths are ordered as
+ * offset-x, offset-y, blur-radius, spread-radius. Reject negative blur radii.
+ * Discard the shadow itself when the color is transparent (as with text-shadow).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -38,7 +38,7 @@ public class BoxShadow extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BoxShadow();
 
 	/**
-	 * 使用値の影の列を返します。影が無ければnull。先頭の影が最前面。
+	 * Returns the sequence of shadows as used values. Null if there are no shadows. The first shadow is frontmost.
 	 */
 	public static net.zamasoft.foliojet.layout.box.params.BoxShadow[] get(CSSStyle style) {
 		final BoxShadowValue value = (BoxShadowValue) style.get(INFO);
@@ -98,12 +98,12 @@ public class BoxShadow extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * 1つの影を解析します。transparentの影はnull(描いても見えない)。
+	 * Parses one shadow. A transparent shadow is null (it would be invisible if drawn).
 	 */
 	private static Shadow parseShadow(TokenStream tokens, UserAgent ua) throws PropertyException {
 		final LengthValue[] lengths = new LengthValue[4];
 		int count = 0;
-		// 長さは連続していなければならない(色やinsetを挟んだら打ち切り)
+		// Lengths must be consecutive (stop if interrupted by a color or inset).
 		boolean lengthsClosed = false;
 		Value color = null;
 		boolean inset = false;
@@ -124,7 +124,7 @@ public class BoxShadow extends AbstractPrimitivePropertyInfo {
 				if (lengthsClosed || count >= 4) {
 					throw new PropertyException();
 				}
-				// ぼかし半径(3つ目)は負を許さない
+				// The blur radius (third value) cannot be negative.
 				if (count == 2 && length.isNegative()) {
 					throw new PropertyException();
 				}

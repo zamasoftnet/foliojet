@@ -16,8 +16,8 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 /**
  * <a href=
  * "http://www.w3.org/TR/CSS21/colors.html#propdef-background-attachment">
- * backgropund-attachment 特性 </a>です。
- * 
+ * backgropund-attachment property </a>.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class BackgroundAttachment extends AbstractPrimitivePropertyInfo {

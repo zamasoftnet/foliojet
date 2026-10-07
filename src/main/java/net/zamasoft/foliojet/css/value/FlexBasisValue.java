@@ -1,22 +1,22 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code flex-basis}の1値です(Flex F1a、2026-08-02——
- * consult-codex-2026-08-02-flexbox.txt Q2)。{@code auto | content |
- * <length-percentage>}。寸法はcomputed時に絶対化された
- * {@link QuantityValue}(長さまたはパーセント)を保持し、doubleへ早期に
- * 潰さない(パーセントは使用時にコンテナ主軸で解決)。
+ * A {@code flex-basis} value (Flex F1a, 2026-08-02:
+ * consult-codex-2026-08-02-flexbox.txt Q2). {@code auto | content |
+ * <length-percentage>}. The size retains a {@link QuantityValue} (length or percentage),
+ * with lengths made absolute at the computed-value stage, rather than reducing it to a double early
+ * (percentages resolve against the container's main axis at use time).
  *
  * @author MIYABE Tatsuhiko
  */
 public final class FlexBasisValue implements Value {
-	/** {@code auto}(width/heightプロパティへ委譲——§7.2.3)。 */
+	/** {@code auto} (delegates to the width/height property: §7.2.3). */
 	public static final FlexBasisValue AUTO_VALUE = new FlexBasisValue(null);
 
-	/** {@code content}(内容の最大内在サイズ——§7.2.3)。 */
+	/** {@code content} (the content's maximum intrinsic size: §7.2.3). */
 	public static final FlexBasisValue CONTENT_VALUE = new FlexBasisValue(null);
 
-	/** 寸法(auto/content時はnull)。 */
+	/** The size (null for auto/content). */
 	private final QuantityValue size;
 
 	private FlexBasisValue(final QuantityValue size) {

@@ -67,7 +67,7 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 			String ident = systemFont.lower();
 			if (ident.equals("caption") || ident.equals("icon") || ident.equals("menu") || ident.equals("message-box")
 					|| ident.equals("small-caption") || ident.equals("status-bar")) {
-				// あまり重要ではない
+				// Not very important.
 				final FontFamilyValue defaultFamily = ua.getDefaultFontFamily();
 				primitives.set(CSSFontStyle.INFO, FontStyleValue.NORMAL_VALUE);
 				primitives.set(FontVariantCaps.INFO, FontVariantValue.NORMAL_VALUE);
@@ -155,8 +155,8 @@ public class FontShorthand extends AbstractShorthandPropertyInfo {
 		}
 		primitives.set(FontWeight.INFO, fontWeight);
 		primitives.set(CSSFontFamily.INFO, fontFamily);
-		// css-fonts-4 §5.9: fontショートハンドは対象外のfont系プロパティも
-		// 初期値へリセットする(font-paletteはLevel 4で加わった。2026-08-30)
+		// css-fonts-4 §5.9: the font shorthand also resets font properties outside its syntax
+		// to their initial values (font-palette was added in Level 4, 2026-08-30).
 		primitives.set(FontFeatureSettings.INFO, FontFeatureSettingsValue.NORMAL_VALUE);
 		primitives.set(FontVariantLigatures.INFO, FontVariantLigaturesValue.NORMAL_VALUE);
 		primitives.set(FontVariantAlternates.INFO, FontVariantAlternatesValue.NORMAL_VALUE);

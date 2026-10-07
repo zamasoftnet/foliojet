@@ -7,28 +7,28 @@ import net.zamasoft.foliojet.layout.box.params.FlexWrap;
 import net.zamasoft.foliojet.layout.builder.Builder;
 
 /**
- * Flex構築ライフサイクルの入口です(Flex F1d——{@code GridBuilderLifecycle}と
- * 同じ薄い形)。不適格は単一列フロー(F0)へ落とす。
+ * Entry point for the Flex construction lifecycle (Flex F1d, the same thin structure as
+ * {@code GridBuilderLifecycle}). Ineligible cases fall back to single-column flow (F0).
  */
 public final class FlexBuilderLifecycle {
 	private FlexBuilderLifecycle() {
-		// 静的ユーティリティ
+		// Static utility
 	}
 
 	/**
-	 * row配置を適用できるFlexかを判定します(consult-codex-2026-08-02-
-	 * flexbox.txt「段階的fallback規則」F1: TB+row+nowrapのみ)。
-	 * 宿主はBlockBuilderに加えてTwoPass(F1f——実行計画をFlexEventとして
-	 * 録画し幅確定後にbind)も適格(column=F4、reverse/wrap=F2/F5、
-	 * 縦書き=F6)。
+	 * Checks whether Flex row placement applies (consult-codex-2026-08-02-
+	 * flexbox.txt, "phased fallback rules", F1: TB+row+nowrap only).
+	 * Eligible hosts include BlockBuilder and TwoPass (F1f: record the execution plan as
+	 * a FlexEvent and bind after width resolution; column = F4, reverse/wrap = F2/F5,
+	 * vertical writing = F6).
 	 */
 	public static boolean eligible(final FlexBox flexBox, final Builder builder) {
 		final FlexParams params = flexBox.getFlexParams();
 		if (!params.flexDirection.isRow()) {
-			// F4b/F4d: columnはdefinite主軸(絶対長)のみ(内容依存basisは
-			// F4c裁定で恒久サブセット外——bindColumnのclassifierが弾く)。
-			// wrapはさらにcross(線方向)も絶対長のとき解禁(F4c答申の
-			// 適格条件——列幅の事前cross sizingが要るため)
+			// F4b/F4d: column requires a definite main axis (absolute length). Content-dependent basis
+			// is permanently outside the subset by the F4c decision; the bindColumn classifier rejects it.
+			// wrap additionally requires an absolute cross (line-axis) length (F4c recommendation:
+			// eligibility requires sizing the column width on the cross axis in advance).
 			if (params.size.getPageType(params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 				return false;
 			}
@@ -44,14 +44,14 @@ public final class FlexBuilderLifecycle {
 		if (params.flexWrap.isWrap()
 				&& crossType != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
 				&& crossType != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
-			// F3d: wrapのdefinite crossは絶対長のみ解禁(%crossは
-			// サブセット外のまま)
+			// F3d: a definite cross size for wrap is allowed only for absolute lengths (% cross sizes
+			// remain outside the subset).
 			return false;
 		}
 		return builder instanceof BlockBuilder || builder instanceof TwoPassBlockBuilder;
 	}
 
-	/** FlexBuilderを開始します(適格判定済みであること)。 */
+	/** Starts a FlexBuilder (eligibility must already be checked). */
 	public static FlexBuilder start(final Builder builder, final FlexBox flexBox) {
 		return new FlexBuilder(builder, flexBox);
 	}

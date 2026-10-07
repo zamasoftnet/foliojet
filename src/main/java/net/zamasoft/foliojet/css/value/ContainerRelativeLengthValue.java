@@ -8,29 +8,29 @@ import net.zamasoft.foliojet.ua.ContainerFacts;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * コンテナクエリ単位({@code cqw} / {@code cqi})の長さです(2026-08-15段6——
- * css-contain-3、開発記録 §5)。
- * {@code RelativeLengthValue}(em/ex/rem/ch)と同じく、解析時には解決せず
- * 使用値計算時(computed value)に{@link #toAbsoluteLength}で絶対長さへ
- * 変換する({@code ValueUtils.emExToAbsoluteLength}が両方を扱う——45箇所の
- * プロパティ実装が既にそこを通るため、個々のプロパティを変更していない)。
+ * A length in container query units ({@code cqw} / {@code cqi}) (2026-08-15 stage 6;
+ * css-contain-3, development record §5). Like {@code RelativeLengthValue} (em/ex/rem/ch),
+ * not resolved at parse time; converted to absolute length by {@link #toAbsoluteLength}
+ * at used-value computation (computed value). {@code ValueUtils.emExToAbsoluteLength}
+ * handles both; 45 property implementations already use it, so individual properties
+ * were not changed.
  *
  * <p>
- * 仕様上、{@code cqw}は物理的な幅軸、{@code cqi}は書字方向のインライン軸
- * (縦書きでは高さ)を指し、{@code container-type: size}のコンテナでは
- * 別々の値になりうる。本実装は{@code container-type: inline-size}だけを
- * 対象とし(設計§4)、{@code ContainerFacts}が保持する事実も
- * used inline-size 1個だけなので、<b>{@code cqw}と{@code cqi}は同じ値に
- * 解決する</b>単純化を取る。{@code container-type: size}コンテナへの対応
- * (両軸の区別)は将来の課題。
+ * The specification defines {@code cqw} as the physical width axis and {@code cqi} as
+ * the writing mode's inline axis (height in vertical writing); they can differ for
+ * {@code container-type: size} containers. This implementation supports only
+ * {@code container-type: inline-size} (design §4), and {@code ContainerFacts} stores
+ * only one used inline-size, so it simplifies by <b>resolving {@code cqw} and {@code cqi}
+ * to the same value</b>. Supporting {@code container-type: size} containers
+ * (distinguishing both axes) is future work.
  * </p>
  *
  * <p>
- * 最も近い祖先のクエリコンテナ(名前指定なし、{@code container-type:
- * inline-size}であること)を{@code CSSStyle.getParentStyle()}チェーンで
- * 探す。見つからない、または実測値が未確定({@code NaN}、パス1相当)なら
- * 仕様どおり0として解決する(CSS Containment 3「コンテナが無ければ
- * cqw/cqi等は0として計算する」)。
+ * Searches the {@code CSSStyle.getParentStyle()} chain for the nearest ancestor query
+ * container (no name specified; must have {@code container-type: inline-size}).
+ * If absent, or its measured value is unknown ({@code NaN}, equivalent to pass 1),
+ * resolves to 0 as specified (CSS Containment 3: without a container, cqw/cqi, etc.
+ * compute to 0).
  * </p>
  *
  * @author MIYABE Tatsuhiko

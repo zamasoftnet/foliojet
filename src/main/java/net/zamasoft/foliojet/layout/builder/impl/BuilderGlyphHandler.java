@@ -25,8 +25,8 @@ import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
 import net.zamasoft.pdfg2d.gc.text.layout.control.SoftHyphen;
 
 /**
- * 改行を処理し、インラインボックスの幅を確定します。
- * 
+ * Handles line breaks and resolves inline box widths.
+ *  
  * @author MIYABE Tatsuhiko
  * @version $Id: BuilderGlyphHandler.java 1593 2019-12-03 07:02:17Z miyabe $
  */
@@ -37,19 +37,19 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	private List<AbstractTextParams> textParamsStack = null;
 
 	/**
-	 * 次のインラインまたはテキストの追加で改行することを示すフラグ。
+	 * Flag indicating a line break on the next inline or text addition.
 	 */
 	private boolean toLineFeed = false, wrap;
 
 	/**
-	 * 直前の文字と次の文字の間にインライン境界がある場合、その二文字の
-	 * 最も近い共通祖先で折り返しが許可されるかを保持します。
+	 * When an inline boundary lies between the previous and next characters, stores whether
+	 * their nearest common ancestor allows wrapping.
 	 *
-	 * <p>改行機会は次の文字が届いた時に判定されます。その時点の
-	 * {@link #wrap} は次の文字を包む子要素の値なので、これをそのまま使うと
-	 * 兄弟の {@code white-space:nowrap} が項目間の改行まで抑制してしまいます。
-	 * 開始タグが連続する間は最初の祖先値を保ち、終了タグが連続する間は
-	 * pop 後の（より外側の）祖先値へ更新します。</p>
+	 * <p>Break opportunities are evaluated when the next character arrives. At that point,
+	 * {@link #wrap} holds the value of the child containing that character. Using it directly
+	 * would let a sibling's {@code white-space:nowrap} suppress breaks between items as well.
+	 * Keep the first ancestor value across consecutive start tags; across consecutive end tags,
+	 * update it to the (outer) ancestor value after each pop.</p>
 	 */
 	private Boolean boundaryWrap = null;
 	private WritingMode progression;
@@ -59,7 +59,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 		this.changeTextState(this.builder.getFlowBox().getBlockParams());
 	}
 
-	/** TextReplaySlice が保持した段落先行行を、再生先の resolver へ渡す。 */
+	/** Passes the preceding paragraph lines retained by TextReplaySlice to the replay destination resolver. */
 	public void seedBidiReplayPrefix(
 			final net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix prefix) {
 		if (this.builder instanceof BlockBuilder blockBuilder) {
@@ -123,40 +123,40 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	}
 
 	/**
-	 * これまでに配達された最後のソース文字の終端オフセットです(M6b v3)。
-	 * shaper 内に保留中(未配達)の文字はこれ以降にあり、切断段落の
-	 * 尾部再生はここで打ち切ることで live パイプラインとの二重供給を防ぐ。
+	 * End offset of the last source character delivered so far (M6b v3).
+	 * Characters pending (undelivered) in the shaper lie after this offset. Stop tail replay of
+	 * a split paragraph here to prevent duplicate delivery from the live pipeline.
 	 *
 	 * <p>
-	 * 注意: この値は {@link #glyph} でしか進まない — 最後のグリフの後に
-	 * 配達された control(空白・改行・SoftHyphen)や inline quad は
-	 * 反映されない。「正規化イベントの配達境界」としては不完全であり、
-	 * open 段落の接合キーには使えない(C3 完遂形は正規化イベント列の
-	 * 値渡し — ARCHITECTURE §5.9、codex 相談 2026-07-17)。
+	 * Note: only {@link #glyph} advances this value. It does not reflect controls
+	 * (spaces, newlines, SoftHyphen) or inline quads delivered after the last glyph.
+	 * It is incomplete as a "normalized event delivery boundary" and cannot serve as the
+	 * join key for an open paragraph (the complete C3 solution passes the normalized event
+	 * sequence by value — ARCHITECTURE §5.9, codex consultation 2026-07-17).
 	 * </p>
 	 */
 	private int deliveredCharEnd = 0;
 
 	/**
-	 * 境界イベントの shadow journal です(M3b Phase 0。挙動不変の観測)。
+	 * Shadow journal of boundary events (M3b Phase 0: observation without behavioral changes).
 	 */
 	private final TextEventJournal journal = new TextEventJournal();
 
 	/**
-	 * 境界イベントの journal を返します(M3b Phase 0)。
+	 * Returns the boundary event journal (M3b Phase 0).
 	 */
 	public TextEventJournal getJournal() {
 		return this.journal;
 	}
 
 	/**
-	 * 配達済みソース文字の終端オフセットを返します(M6b v3)。
+	 * Returns the end offset of delivered source characters (M6b v3).
 	 *
 	 * <p>
-	 * M3c: K-P行分割セッション({@code text-wrap-style: pretty})が
-	 * イベントを蓄積・再生している間は、「物理的にTextBuilderへ届いた」
-	 * 境界になるよう未配達イベントの先頭ソース位置でclampされる(既定の
-	 * legacy経路ではセッションが存在せず、値は従来のまま)。
+	 * M3c: while a K-P line-breaking session ({@code text-wrap-style: pretty}) accumulates
+	 * and replays events, clamp this to the first source position of undelivered events so
+	 * it marks the boundary "physically delivered to TextBuilder" (the default legacy path
+	 * has no session, so the value remains unchanged).
 	 * </p>
 	 */
 	public int getDeliveredCharEnd() {
@@ -182,12 +182,12 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	public void control(final TextControl quad) {
 		boolean consumesBoundary = true;
 		if (quad instanceof InlineQuad) {
-			// インラインボックス
+			// Inline box
 			this.journal.inline();
 			final InlineQuad inlineQuad = (InlineQuad) quad;
 			switch (inlineQuad.getType()) {
 			case InlineQuad.INLINE_START: {
-				// インライン開始
+				// Inline start
 				if (this.boundaryWrap == null) {
 					this.boundaryWrap = Boolean.valueOf(this.wrap);
 				}
@@ -207,7 +207,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 				break;
 
 			case InlineQuad.INLINE_END:
-				// インライン終了
+				// Inline end
 				InlineEndQuad inlineEndQuad = (InlineEndQuad) inlineQuad;
 				this.endTextBox();
 				this.boundaryWrap = Boolean.valueOf(this.wrap);
@@ -223,7 +223,7 @@ public class BuilderGlyphHandler implements GlyphHandler {
 				break;
 
 			case InlineQuad.INLINE_REPLACED: {
-				// 置換可能なインライン
+				// Replaced inline
 				InlineReplacedQuad inlineReplacedQuad = (InlineReplacedQuad) inlineQuad;
 				LayoutUtils.calculateReplacedSize(this.builder, inlineReplacedQuad.box);
 				inlineReplacedQuad.advance = inlineReplacedQuad.box.getLineExtent(this.progression);
@@ -231,21 +231,21 @@ public class BuilderGlyphHandler implements GlyphHandler {
 				break;
 
 			case InlineQuad.INLINE_BLOCK:
-				// インラインブロック
+				// Inline block
 				inlineQuad.advance = inlineQuad.getBox().getLineExtent(this.progression);
 				if (inlineQuad.getBox() instanceof RubyUnitBox rubyUnit) {
-					// ルビ単位の文字はCollectorへ横取りされ glyph() を通らない
-					// ため、配達済み終端はここで単位のソース終端まで進める
-					// (2026-07-25。進めないと切断段落の尾部再生が
-					// 「ルビの手前」で打ち切られ、ルビ範囲がliveと再生の
-					// 双方から供給されうる)
+					// The Collector intercepts ruby unit characters, so they do not pass through glyph().
+					// Advance the delivered end to the source end of the unit here
+					// (2026-07-25: otherwise, tail replay of a split paragraph
+					// stops "before the ruby", allowing the ruby range to be delivered
+					// by both the live pipeline and replay).
 					final int end = rubyUnit.getSourceEnd();
 					if (end >= 0) {
 						this.deliveredCharEnd = Math.max(this.deliveredCharEnd, end);
 					}
 				} else if (inlineQuad.getBox() instanceof WarichuUnitBox warichuUnit) {
-					// 割注もCollectorが文字を横取りする合成箱なので、ルビと
-					// 同様にソース終端を明示的に前進させる。
+					// Warichu is also a composite box whose characters the Collector intercepts, so
+					// explicitly advance the source end as for ruby.
 					final int end = warichuUnit.getSourceEnd();
 					if (end >= 0) {
 						this.deliveredCharEnd = Math.max(this.deliveredCharEnd, end);
@@ -254,16 +254,16 @@ public class BuilderGlyphHandler implements GlyphHandler {
 				break;
 
 			case InlineQuad.INLINE_ABSOLUTE:
-				// 絶対配置
+				// Absolute positioning
 				break;
 			default:
 				throw new IllegalStateException();
 			}
 		} else if (quad instanceof net.zamasoft.foliojet.layout.text.LeaderQuad) {
-			// leader() L1: shape済み・最小幅設定済み——ここでの計算は不要
+			// leader() L1: already shaped and assigned a minimum width; no calculation is needed here.
 			this.journal.inline();
 		} else {
-			// 制御コード
+			// Control code
 			Control control = (Control) quad;
 			this.journal.control(control.getCharOffset());
 			switch (control.getControlChar()) {

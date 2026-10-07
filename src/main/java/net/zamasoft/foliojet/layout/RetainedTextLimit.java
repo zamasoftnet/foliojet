@@ -12,23 +12,23 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 
 /**
- * 溜め込みの上限({@code processing.retained-text-limit})の会計です。
+ * Accounting for the retention limit ({@code processing.retained-text-limit}).
  *
  * <p>
- * 寸法が決まるまで中身を溜める要素(auto 表・TwoPass 宿主・計測用複製・grid/flex 宿主・
- * balance 段組・絶対配置・固定幅 float/inline-block/直交ブロック)が開いている間、
- * 最も外側の要素の累計に組版済み文字の payload(2×charCount)を足す。閉じたら忘れる。
- * 保持量の上限の設計（D1）による。
+ * While elements that buffer contents until dimensions are known remain open (auto tables, TwoPass hosts,
+ * measurement copies, grid/flex hosts, balanced multi-column layout, absolute positioning, and fixed-width
+ * floats/inline blocks/orthogonal blocks), adds laid-out character payload (2×charCount) to the outermost
+ * element's cumulative total. Forgets it on close, following the retained-amount limit design (D1).
  * </p>
  */
 public final class RetainedTextLimit implements AutoCloseable {
-	/** 診断・試験用。制限の判定には使いません。 */
+	/** For diagnostics and tests. Not used to enforce the limit. */
 	public static final AtomicLong HIGH_WATER = new AtomicLong();
 
-	/** 診断・試験用。再生中の加算保留に入った回数です。 */
+	/** For diagnostics and tests. Counts entries into suspended accounting during replay. */
 	public static final AtomicLong SUSPEND_ENTRIES = new AtomicLong();
 
-	/** Pass B終了後・MAIN開始前の観測だけに使います。試験は保存・復元すること。 */
+	/** Used only for observation after Pass B ends and before MAIN starts. Tests must save and restore it. */
 	public static volatile java.util.function.Consumer<RetainedTextLimit> beforeTableMainBind;
 
 	private final UserAgent ua;
@@ -41,7 +41,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 		this.limit = UAProps.PROCESSING_RETAINED_TEXT_LIMIT.getLong(ua);
 	}
 
-	/** ページ文脈のない単体ビルダーと柱のミニレイアウトには会計を作りません。 */
+	/** Creates no accounting for standalone builders without a page context or running-header mini-layouts. */
 	public static RetainedTextLimit get(final LayoutStack stack) {
 		final RootBuilder root = stack == null ? null : stack.getPageContext();
 		if (root == null) return null;
@@ -50,7 +50,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 		return generator.getUserAgent().getRetainedTextLimit();
 	}
 
-	/** 変換開始時だけ呼びます。同一変換内の複数パスとstaticの観測値はリセットしません。 */
+	/** Called only at conversion start. Does not reset between passes of the same conversion or reset static observations. */
 	public void reset() {
 		this.close();
 		this.accounting = new Accounting(null);
@@ -107,7 +107,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 		return this.accounting.currentBytes + this.accounting.windowBytes;
 	}
 
-	/** 宿主スタックを開かずに、未配達文字だけを所有するpage-windowです。 */
+	/** A page-window owning only undelivered characters, without opening a host stack. */
 	public PageWindow pageWindow() {
 		return new PageWindow();
 	}
@@ -117,7 +117,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 		private long bytes;
 		private boolean closed;
 
-		/** 保持する前に呼ぶ。Bの独立会計の接続外でだけ使用します。 */
+		/** Call before retaining. Use only while B's independent accounting is disconnected. */
 		public void add(final long bytes) {
 			if (this.closed || bytes < 0) throw new IllegalStateException("不正なpage-window加算");
 			this.bytes = Math.addExact(this.bytes, bytes);
@@ -147,7 +147,10 @@ public final class RetainedTextLimit implements AutoCloseable {
 		return this.highWater;
 	}
 
-	/** 独立した子UAの診断値だけを集約します。累計と上限は変更しません。呼び出し側で排他します。 */
+	/**
+	 * Aggregates only diagnostics from independent child UAs.
+	 * Does not change totals or limits. The caller provides synchronization.
+	 */
 	public void mergeHighWater(final RetainedTextLimit child) {
 		this.highWater = Math.max(this.highWater, child.getHighWater());
 	}
@@ -157,20 +160,23 @@ public final class RetainedTextLimit implements AutoCloseable {
 	}
 
 	/**
-	 * 破棄する複製の会計。MAINの親へ計測量を持ち越しません。
-	 * 親のbind中にPass Bが走るため、通常の入れ子と異なりスタックごと退避します。
-	 * high-waterと上限は共有し、計測中も同じ上限で検査します。
+	 * Accounting for disposable copies. Does not carry measured amounts over to the MAIN parent.
+	 * Since Pass B runs while the parent binds, saves the entire stack, unlike ordinary nesting.
+	 * Shares the high-water mark and limit, enforcing the same limit during measurement.
 	 */
 	public Measurement measurement(final String elementName) {
 		return new Measurement(elementName);
 	}
 
-	/** 接続を外しても累計・スコープ・加算保留を保持する、scratch専用の会計です。 */
+	/** Scratch-only accounting that retains totals, scopes, and suspended-accounting state even when disconnected. */
 	public MeasurementAccount measurementAccount(final String elementName) {
 		return new MeasurementAccount(elementName);
 	}
 
-	/** 数え済みの内容の再生中だけ加算を保留します。入れ子可、独立計測には引き継ぎません。 */
+	/**
+	 * Suspends additions only while replaying already-counted content.
+	 * May be nested; independent measurements do not inherit it.
+	 */
 	public Suspension suspend() {
 		return new Suspension();
 	}
@@ -182,7 +188,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 		}
 	}
 
-	/** スタック・累計・加算保留を同じ会計に所属させます。 */
+	/** Associates the stack, total, and suspended-accounting state with the same accounting context. */
 	private static final class Accounting {
 		private Accounting previous;
 		private final Deque<Scope> elements = new ArrayDeque<>();
@@ -222,7 +228,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 		@Override
 		public void close() {
 			this.accounting.close();
-			// 外側の計測が先に閉じても、現在の別会計を畳まない。
+			// If an outer measurement closes first, do not close the current, different accounting context.
 			while (RetainedTextLimit.this.accounting.closed && !RetainedTextLimit.this.accounting.attached
 					&& RetainedTextLimit.this.accounting.previous != null) {
 				RetainedTextLimit.this.accounting = RetainedTextLimit.this.accounting.previous;
@@ -230,7 +236,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 		}
 	}
 
-	/** 同一スレッドで、MAINの会計と交互に接続します。上限・high-waterは従来どおり共有します。 */
+	/** Connects alternately with MAIN accounting on the same thread. Shares the limit and high-water mark as before. */
 	public final class MeasurementAccount implements AutoCloseable {
 		private final Accounting accounting = new Accounting(null);
 		private MeasurementAttachment attachment;
@@ -249,7 +255,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 			return this.attachment;
 		}
 
-		/** 連続probeではページを最外要素相当とし、子スコープを保ったまま累計を区切ります。 */
+		/** In continuous probes, treats the page as the outermost element, delimiting totals while preserving child scopes. */
 		public long finishPage() {
 			if (this.accounting.closed) throw new IllegalStateException("解放済みの計測会計");
 			final long bytes = this.accounting.currentBytes;
@@ -261,7 +267,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 			return this.accounting.currentBytes;
 		}
 
-		/** 累計はMAINへ加算せずに捨て、共有high-waterは残します。冪等。 */
+		/** Discards totals without adding to MAIN, retaining the shared high-water mark. Idempotent. */
 		public void release() {
 			this.accounting.close();
 		}
@@ -272,7 +278,10 @@ public final class RetainedTextLimit implements AutoCloseable {
 		}
 	}
 
-	/** 計測会計への一時接続。closeで前の会計へ戻し、計測会計自体は畳みません。 */
+	/**
+	 * A temporary connection to measurement accounting. close restores the previous accounting
+	 * without closing measurement accounting itself.
+	 */
 	public final class MeasurementAttachment implements AutoCloseable {
 		private final MeasurementAccount owner;
 		private boolean closed;
@@ -294,7 +303,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 			this.owner.accounting.previous = null;
 			this.owner.accounting.attached = false;
 			this.owner.attachment = null;
-			// 外側の従来型Measurementが先に閉じられていたら、その会計は復活させない。
+			// If the outer legacy Measurement was already closed, do not revive that accounting context.
 			while (RetainedTextLimit.this.accounting.closed && !RetainedTextLimit.this.accounting.attached
 					&& RetainedTextLimit.this.accounting.previous != null) {
 				RetainedTextLimit.this.accounting = RetainedTextLimit.this.accounting.previous;
@@ -319,7 +328,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 		}
 	}
 
-	/** SAXの途中で失敗した場合も、未完の子要素とともにfinallyで閉じます。 */
+	/** Closes in finally along with unfinished child elements, even on failure midway through SAX input. */
 	public final class Scope implements AutoCloseable {
 		private final Accounting accounting;
 		private final String elementName;

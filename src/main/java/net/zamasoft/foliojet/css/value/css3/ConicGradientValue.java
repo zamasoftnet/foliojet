@@ -17,30 +17,28 @@ import net.zamasoft.pdfg2d.gc.paint.Paint;
 import net.zamasoft.pdfg2d.gc.paint.SpreadMethod;
 
 /**
- * {@code conic-gradient()}/{@code repeating-conic-gradient()}です
- * (css-images-4 §3.3、2026-08-29新設)。
+ * {@code conic-gradient()}/{@code repeating-conic-gradient()}
+ * (css-images-4 §3.3, added on 2026-08-29).
  *
  * <p>
- * {@code Paint}ではなく{@link #fill}を上書きし、出力先が円錐グラデーション
- * ({@code CONIC_GRADIENT}——Java2D・PDFのType 4メッシュ)を持てば
- * {@link ConicGradient}で厳密に塗る。持たなければ(SVGのpaint serverなど)
- * 2822を報告して
- * 中心から放射する扇形を色停止の補間色で塗り分ける。扇形は
- * {@link #MAX_WEDGE}(2°)以下に刻み、色停止の位置には必ず境界を置く
- * (ハードストップがぼやけない)。180枚の扇形は1枚40バイト程度の
- * パス塗りで、PDFの大きさへの影響は無視できる。
+ * Overrides {@link #fill} instead of using {@code Paint}. If the destination supports conic gradients
+ * ({@code CONIC_GRADIENT}: Java2D and PDF Type 4 meshes), fills exactly with {@link ConicGradient}.
+ * Otherwise (e.g., SVG paint servers), reports 2822 and fills wedges radiating from the center
+ * with colors interpolated between color stops. Each wedge spans at most {@link #MAX_WEDGE} (2°),
+ * and boundaries always fall on color stops (so hard stops remain sharp).
+ * The 180 wedges use path fills of about 40 bytes each, with negligible impact on PDF size.
  * </p>
  *
  * <p>
- * 隣り合う扇形の継ぎ目にビューアのアンチエイリアスで髪の毛ほどの隙間が
- * 出るのを防ぐため、各扇形を{@link #OVERLAP}だけ次へ重ねる。半透明の
- * 色停止では重なりが二重に合成されるが、幅0.03°未満で見えない。
+ * To prevent hairline gaps from viewer antialiasing at the seams between adjacent wedges,
+ * each wedge overlaps the next by {@link #OVERLAP}. With semitransparent color stops,
+ * the overlap is composited twice, but its width is less than 0.03° and is invisible.
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public class ConicGradientValue implements PaintValue {
-	/** 扇形の最大角(ラジアン、2°)。 */
+	/** Maximum wedge angle (in radians, 2°). */
 	private static final double MAX_WEDGE = Math.PI / 90;
 	private static final double OVERLAP = 0.0005;
 
@@ -71,8 +69,8 @@ public class ConicGradientValue implements PaintValue {
 	}
 
 	/**
-	 * {@code Paint}では表せないので、直接塗れない経路では最後の色で近似
-	 * します({@link #fill}が本来の描画)。
+	 * Since {@code Paint} cannot represent this gradient, paths that cannot fill directly
+	 * approximate it with the last color ({@link #fill} performs the actual rendering).
 	 */
 	public Paint getPaint(Rectangle2D box) {
 		return this.stops.lastColor();
@@ -83,7 +81,7 @@ public class ConicGradientValue implements PaintValue {
 		final double w = box.getWidth(), h = box.getHeight();
 		final double cx = box.getX() + GradientGeometry.resolve(this.posX, w);
 		final double cy = box.getY() + GradientGeometry.resolve(this.posY, h);
-		// 中心から最遠の角より外まで扇形を伸ばす(shapeでクリップする)
+		// Extend wedges beyond the corner farthest from the center (clip to shape).
 		double radius = 0;
 		for (int i = 0; i < 4; ++i) {
 			final double dx = ((i & 1) == 0 ? box.getMinX() : box.getMaxX()) - cx;
@@ -91,8 +89,8 @@ public class ConicGradientValue implements PaintValue {
 			radius = Math.max(radius, Math.sqrt(dx * dx + dy * dy));
 		}
 		radius = radius / Math.cos(MAX_WEDGE / 2) + 1;
-		// 1周は有限なので繰り返しも1周ぶん展開する(64周期の打ち切りに
-		// 掛かったときだけ近似)
+		// A full turn is finite, so expand repetitions over one turn as well (approximate only
+		// when the 64-period cap is reached).
 		final GradientStops.Resolved r = this.stops.resolve(1, this.repeating, 1);
 		if (r.capped()) {
 			ApproximationGC.report(gc, "background-image", "2822.repeat-capped-conic");
@@ -108,7 +106,7 @@ public class ConicGradientValue implements PaintValue {
 		ApproximationGC.report(gc, "background-image", "2822.conic-wedges");
 		final double[] pos = r.fractions();
 		final Color[] colors = r.colors();
-		// 扇形の境界: 色停止の位置と、2°刻み
+		// Wedge boundaries: color-stop positions and 2° intervals.
 		final TreeSet<Double> bounds = new TreeSet<Double>();
 		bounds.add(0.0);
 		bounds.add(1.0);

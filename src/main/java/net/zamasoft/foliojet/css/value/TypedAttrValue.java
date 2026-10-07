@@ -5,45 +5,45 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.token.Unit;
 
 /**
- * <b>型付き {@code attr()}</b>(CSS Values 5)の未解決値です(2026-08-03新設)。
+ * An unresolved value for <b>typed {@code attr()}</b> (CSS Values 5; added on 2026-08-03).
  *
  * <p>
- * {@code width: attr(width px, auto)} のように、要素の属性を任意のプロパティで
- * 使えるようにする。属性はその要素のものなので、値が決まるのは計算値の段階
- * ——{@link net.zamasoft.foliojet.css.util.ValueUtils#emExToAbsoluteLength}
- * (35個のプロパティが通る単一の窓口)で解決する。{@code em}/{@code rem}や
- * {@code calc()}のフォント相対成分と同じ置き場所である。
+ * Allows element attributes in arbitrary properties, as in {@code width: attr(width px, auto)}.
+ * Since the attribute belongs to the element, the value is determined at the computed-value stage:
+ * {@link net.zamasoft.foliojet.css.util.ValueUtils#emExToAbsoluteLength}
+ * (the single entry point used by 35 properties) resolves it. This is the same place
+ * that resolves {@code em}/{@code rem} and font-relative components of {@code calc()}.
  *
  * <p>
- * <b>なぜ実装するか</b>: HTMLの表現属性({@code <td width=200>}等)の写像は、
- * 3エンジンともC++のコードで書かれている。この製品はそれをCSSで書けるように
- * したい——Javaの中に埋もれた既定値は誰も見ないまま残るからである(2026-08-03に
- * {@code <button>}の{@code height:1em}で実際に踏んだ)。Chromeは133で型付き
- * {@code attr()}を出荷しており、<b>実在の仕様・実在の実装がある</b>。
- * 各社が長く動かなかった最大の理由(属性が動的に変わったときの再計算)は、
- * スクリプトを持たないこのエンジンには存在しない。
+ * <b>Why implement this</b>: all three engines map HTML presentational attributes
+ * (such as {@code <td width=200>}) in C++ code. This product aims to express those mappings in CSS,
+ * because defaults buried in Java remain unnoticed (encountered in practice on 2026-08-03
+ * with {@code height:1em} on {@code <button>}). Chrome shipped typed {@code attr()} in 133,
+ * so <b>both a real specification and a real implementation exist</b>.
+ * The main reason vendors delayed it for so long (recalculation when attributes change dynamically)
+ * does not apply to this engine, which has no scripting.
  *
  * <p>
- * <b>URLは作れない</b>(仕様どおり)。情報の持ち出し経路になるため、
- * {@code url()}の中では使えない。ここでは長さ・色・数値だけを扱う。
+ * <b>Cannot construct URLs</b> (as specified). It cannot be used inside {@code url()},
+ * as that would provide a path for data exfiltration. Only lengths, colors, and numbers are handled here.
  */
 public final class TypedAttrValue implements QuantityValue, PaintValue {
-	/** 取り出す型。 */
+	/** The type to extract. */
 	public enum Kind {
 		LENGTH, COLOR, NUMBER, INTEGER,
 		/**
-		 * 属性の中身を<b>font-familyの値そのもの</b>(カンマ区切りの並び)として
-		 * 解釈する(2026-08-03、{@code <font face>}の移送用)。CSS Values 5には
-		 * 無い独自の型で、{@code type(<custom-ident>+)}の代わりに使う。
+		 * Interprets the attribute contents as <b>the font-family value itself</b> (a comma-separated list)
+		 * (2026-08-03, for mapping {@code <font face>}). This proprietary type is absent from CSS Values 5
+		 * and is used instead of {@code type(<custom-ident>+)}.
 		 */
 		FONT_FAMILY
 	}
 
 	private final String name;
 	private final Kind kind;
-	/** {@link Kind#LENGTH}のとき、単位の付いていない数値に補う単位。 */
+	/** For {@link Kind#LENGTH}, the unit to add to unitless numbers. */
 	private final Unit unit;
-	/** 属性が無い・解釈できないときの値(未指定ならnull=宣言ごと無効)。 */
+	/** The value when the attribute is absent or cannot be parsed (if unspecified, null invalidates the declaration). */
 	private final Value fallback;
 
 	public static TypedAttrValue create(String name, Kind kind, Unit unit, Value fallback) {
@@ -70,9 +70,9 @@ public final class TypedAttrValue implements QuantityValue, PaintValue {
 	}
 
 	/**
-	 * 属性を読んで値へ解決します。属性が無い・解釈できない場合はフォールバック、
-	 * フォールバックも無ければ null(<b>使用値計算時に無効</b>——呼び出し側は
-	 * この宣言を無視する)。
+	 * Reads the attribute and resolves it to a value. If it is absent or cannot be parsed,
+	 * returns the fallback, or null if no fallback exists (<b>invalid at used-value computation time</b>:
+	 * the caller ignores this declaration).
 	 */
 	public Value resolve(CSSStyle style) {
 		final CSSElement ce = style.getCSSElement();
@@ -94,7 +94,7 @@ public final class TypedAttrValue implements QuantityValue, PaintValue {
 		case FONT_FAMILY:
 			return net.zamasoft.foliojet.css.util.FontValueUtils.toFontFamily(raw);
 		case COLOR: {
-			// HTMLのbgcolor等は「red」も「#ff0000」も「ff0000」も来る
+			// HTML bgcolor, etc. can contain "red", "#ff0000", or "ff0000".
 			Value named = net.zamasoft.foliojet.css.util.ColorValueUtils.toColorValue(raw);
 			if (named != null) {
 				return named;
@@ -109,13 +109,13 @@ public final class TypedAttrValue implements QuantityValue, PaintValue {
 		}
 		case LENGTH:
 		default: {
-			// **割合も受ける**(2026-08-03)。HTMLの width="50%" は日常的
+			// **Accept percentages too** (2026-08-03). HTML width="50%" is common.
 			if (raw.endsWith("%")) {
 				final double pct = parseNumber(raw.substring(0, raw.length() - 1).trim(), false);
 				return Double.isNaN(pct) ? null : PercentageValue.create(pct);
 			}
-			// 単位が付いていれば尊重し、無ければ指定された単位を補う
-			// (HTMLの width="200" は 200px の意味)
+			// Honor an explicit unit, or supply the specified unit if absent.
+			// (HTML width="200" means 200px.)
 			final Value length = net.zamasoft.foliojet.css.util.ValueUtils.toLength(style.getUserAgent(), false, raw);
 			if (length != null) {
 				return length;
@@ -124,9 +124,9 @@ public final class TypedAttrValue implements QuantityValue, PaintValue {
 			if (Double.isNaN(v)) {
 				return null;
 			}
-			// **フォント相対単位は絶対長として作らない**(2026-08-03)。
-			// em/ex/rem/ch はフォント寸法が要るので、相対長のまま返して
-			// 同じ窓口(emExToAbsoluteLength)に解かせる
+			// **Do not construct font-relative units as absolute lengths** (2026-08-03).
+			// em/ex/rem/ch need font sizes, so return relative lengths and let
+			// the same entry point (emExToAbsoluteLength) resolve them.
 			switch (this.unit) {
 			case EM:
 			case EX:
@@ -154,20 +154,20 @@ public final class TypedAttrValue implements QuantityValue, PaintValue {
 	}
 
 	/**
-	 * <b>解決前に塗りは取れない</b>。色の文脈でもこの型を返せるように
-	 * {@link PaintValue}を名乗るが、ここへ来るのは計算値の解決を通っていない
-	 * 場合だけで、それは実装の誤りである。
+	 * <b>Paint is unavailable before resolution</b>. Implements {@link PaintValue} so that this type
+	 * can also be returned in color contexts. Reaching here means computed-value resolution
+	 * has not run, which is an implementation error.
 	 */
 	public net.zamasoft.pdfg2d.gc.paint.Paint getPaint(java.awt.geom.Rectangle2D box) {
 		throw new IllegalStateException("attr()が解決されないまま塗りとして使われた: " + this);
 	}
 
-	/** 解決前は零かどうか分からない。 */
+	/** Whether the value is zero is unknown before resolution. */
 	public boolean isZero() {
 		return false;
 	}
 
-	/** 解決前は負かどうか分からない(負を拒む文脈では解決後に判定される)。 */
+	/** Whether the value is negative is unknown before resolution (checked afterward in contexts that reject negatives). */
 	public boolean isNegative() {
 		return false;
 	}

@@ -16,7 +16,7 @@ import net.zamasoft.zstream.resolver.cache.CachedSourceResolver;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 import net.zamasoft.zstream.resolver.restricted.RestrictedSourceResolver;
 
-// 2026-09-02 に MyHttpSourceResolver.java から分けた(本文は移しただけ。設計レビュー「10クラス 1,560行」)。
+// Split from MyHttpSourceResolver.java on 2026-09-02 (body only moved; design review: 10 classes, 1,560 lines).
 class MySourceResolver implements SourceResolver {
 	protected CachedSourceResolver cachedResolver = new CachedSourceResolver();
 	protected SourceResolver userResolver = null;
@@ -27,36 +27,34 @@ class MySourceResolver implements SourceResolver {
 	private final Set<URI> resourceUris = new HashSet<>();
 
 	/**
-	 * {@code input.include} / {@code input.exclude} が1つでも設定されたか。
+	 * Whether any {@code input.include} / {@code input.exclude} setting has been supplied.
 	 *
 	 * <p>
-	 * <b>設定されているなら、それが全スキームの取得を縛る。</b> 設定が
-	 * 無いときは縛りが存在しないので、差し込まれたリゾルバを先に使う従来の
-	 * 順序のままにする(制限の既定は「一致するものが無ければ拒否」なので、
-	 * 無条件に先へ出すと設定していない利用者の取得が全部止まる)。
+	 * <b>If configured, it constrains retrieval for all schemes.</b> Without configuration,
+	 * no restriction exists, so retains the previous order of trying the injected resolver first.
+	 * The restriction defaults to denying unmatched resources; putting it first unconditionally
+	 * would block all retrieval for users who have not configured it.
 	 * </p>
 	 */
 	private boolean restricted = false;
 
-	/**
-	 * 遠隔から取得してよいスキーム。これ以外は「ローカル資源」として扱う。
-	 */
+	/** Schemes allowed for remote retrieval. All others are treated as local resources. */
 	private static final Set<String> REMOTE_SCHEMES = Set.of("http", "https", "data");
 
 	/**
-	 * ローカル資源({@code file:}など)の取得を許すか。
+	 * Whether to allow retrieval of local resources (such as {@code file:}).
 	 *
 	 * <p>
-	 * <b>これは入出力プロパティではない。</b> クライアントからは変更できず、
-	 * サーバー(デーモン)が認証済みの利用者ごとに決める。既定は許可で、
-	 * 組み込み利用とコマンドラインの動作は変わらない——それらを動かす主体は
-	 * 元々そのプロセスのファイルを読めるので、制限しても意味がない。
+	 * <b>This is not an I/O property.</b> Clients cannot change it; the server (daemon)
+	 * decides for each authenticated user. Defaults to allowing access, so embedded use
+	 * and command-line behavior remain unchanged: the principals running them can already
+	 * read files accessible to the process, making such restrictions pointless.
 	 * </p>
 	 *
 	 * <p>
-	 * {@code input.include}/{@code input.exclude}ではこの用途を満たせない。
-	 * それらはクライアントが自分を縛るためのもので、セッションごとに
-	 * {@link #reset()}され、しかも主文書は{@code force}でACLを迂回する。
+	 * {@code input.include}/{@code input.exclude} cannot serve this purpose. They let clients
+	 * restrict themselves, are {@link #reset()} for each session, and the main document
+	 * bypasses the ACL with {@code force}.
 	 * </p>
 	 */
 	private boolean localAccessAllowed = true;
@@ -66,47 +64,47 @@ class MySourceResolver implements SourceResolver {
 	}
 
 	/**
-	 * ローカル資源を許していない利用者に対して、このURIを拒むかどうかです。
+	 * Whether to reject this URI for users without permission to access local resources.
 	 *
 	 * <p>
-	 * スキームで「遠隔かどうか」を見るだけでは足りません。{@code http:}でも
-	 * <b>宛先がサーバー自身やその隣のネットワークなら、サーバーを踏み台にして
-	 * 内側へ届いてしまう</b>からです(2026-09-08)。名前を解決して、
-	 * ループバック・リンクローカル・私設アドレスなら拒みます。
+	 * Checking the scheme for remote access is insufficient. Even with {@code http:},
+	 * <b>a destination on the server itself or its adjacent network lets callers use the server
+	 * to reach internal resources</b> (2026-09-08). Resolves the name and rejects
+	 * loopback, link-local, and private addresses.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>公開アドレスは通します。</b>許可されている外部の資源は今までどおり取れます。
+	 * <b>Allows public addresses.</b> Permitted external resources remain retrievable as before.
 	 * </p>
 	 *
 	 * <p>
-	 * 判定した時刻と実際に接続する時刻は違うので、その間に名前解決の結果が
-	 * 変われば擦り抜けます(DNSリバインディング)。それを塞ぐには解決した
-	 * アドレスを固定して接続する必要があり、ここでは扱いません。
+	 * The check and actual connection occur at different times, so a change in name resolution
+	 * between them can bypass the check (DNS rebinding). Preventing this requires connecting
+	 * to the pinned resolved address, which is outside the scope here.
 	 * </p>
 	 */
 	boolean resolvesToLocalNetwork(final URI uri) {
-		// **ホストを持つネットワークのスキームだけが対象**。data: のように
-		// ホストの無いものは、そもそもどこへも接続しないので判定しない
-		// (ここを「内側」と誤判定して埋め込み画像を拒む回帰を出した。2026-09-08)
+		// **Only network schemes with hosts are subject to this check.** Hostless schemes
+		// such as data: do not connect anywhere, so do not check them.
+		// (Misclassifying them as internal caused a regression rejecting embedded images. 2026-09-08.)
 		final String scheme = uri.getScheme();
 		if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
 			return false;
 		}
 		final String host = uri.getHost();
 		if (host == null || host.isEmpty()) {
-			// http(s) なのにホストを取り出せない形は通さない
+			// Do not allow http(s) forms from which the host cannot be extracted.
 			return true;
 		}
 		final java.net.InetAddress[] addresses;
 		try {
 			addresses = java.net.InetAddress.getAllByName(host);
 		} catch (final java.net.UnknownHostException e) {
-			// **確かめられないものは内側とみなす。** かつては「解決できない
-			// ものは取得しても失敗する」として通していたが、判定の時刻と
-			// 接続の時刻は違う。ここで解決できなくても、接続の時点では
-			// 解決できることがある(DNSのキャッシュ、split-horizon)。
-			// 検証が失敗したら拒むのがこの判定の筋(2026-09-08)
+			// **Treat unverifiable destinations as internal.** Previously allowed unresolved names
+			// on the assumption that retrieval would fail anyway, but the check and connection
+			// occur at different times. A name unresolved here may resolve
+			// at connection time (DNS caching, split-horizon).
+			// Rejecting failed verification is consistent with this check's purpose (2026-09-08).
 			return true;
 		}
 		for (final java.net.InetAddress address : addresses) {
@@ -114,7 +112,7 @@ class MySourceResolver implements SourceResolver {
 					|| address.isSiteLocalAddress() || address.isMulticastAddress()) {
 				return true;
 			}
-			// IPv4射影・変換アドレスで私設アドレスを包んだ形も見る
+			// Also check private addresses wrapped in IPv4-mapped or translated addresses.
 			final byte[] raw = address.getAddress();
 			if (raw.length == 16 && isUniqueLocalIPv6(raw)) {
 				return true;
@@ -123,20 +121,19 @@ class MySourceResolver implements SourceResolver {
 		return false;
 	}
 
-	/** IPv6のユニークローカル(fc00::/7)かどうかです。 */
+	/** Whether the address is IPv6 unique-local (fc00::/7). */
 	private static boolean isUniqueLocalIPv6(final byte[] raw) {
 		return (raw[0] & 0xFE) == 0xFC;
 	}
 
 	/**
-	 * <b>この URL へ実際に接続してよいか</b>を返します。
+	 * Returns <b>whether an actual connection to this URL is allowed</b>.
 	 *
 	 * <p>
-	 * 押し込み資源や差し込まれたリゾルバを
-	 * <b>考慮しません</b>。転送先のように「これから網へ出る宛先」を判定するための
-	 * もので、そこは呼び出し側が供給しうる余地がないからです。
-	 * 「差し込まれたリゾルバがあるから許す」という緩い判定を使うと、
-	 * 何でも許してしまいます(2026-09-08に実測)。
+	 * <b>Does not consider</b> uploaded resources or injected resolvers. This checks destinations
+	 * about to be accessed over the network, such as redirect targets, where the caller
+	 * has no opportunity to supply the resource. A permissive check that allows access merely
+	 * because an injected resolver exists would allow everything (measured on 2026-09-08).
 	 * </p>
 	 */
 	boolean permitsNetworkTarget(final URI uri) {
@@ -150,8 +147,8 @@ class MySourceResolver implements SourceResolver {
 	}
 
 	/**
-	 * 遠隔から取ってよいスキームか。スキームを持たないURIは現在の作業
-	 * ディレクトリのファイルを指しうるので「ローカル」として扱います。
+	 * Whether the scheme allows remote retrieval. Treats schemeless URIs as local,
+	 * since they can refer to files in the current working directory.
 	 */
 	private static boolean isRemoteScheme(final URI uri) {
 		final String scheme = uri.getScheme();
@@ -168,10 +165,10 @@ class MySourceResolver implements SourceResolver {
 		CompositeSourceResolver resolver = CompositeSourceResolver.createGenericCompositeSourceResolver();
 		MyHttpSourceResolver httpResolver = new MyHttpSourceResolver();
 		this.httpResolver = httpResolver;
-		// **転送先も同じ判定に掛ける**(2026-09-08)。HttpClient に追従を任せると、
-		// 許可した公開ホストがサーバーの内側へ 302 したときに判定を通らない。
-		// ローカル資源を許している利用者は従来どおり HttpClient に任せる
-		// ACL は要求の設定が進んでから決まるので、判定するかどうかは遅延評価にする
+		// **Apply the same check to redirect targets** (2026-09-08). Letting HttpClient follow redirects
+		// bypasses the check when an allowed public host sends a 302 into the server's internal network.
+		// For users allowed local resources, delegate to HttpClient as before.
+		// Evaluate whether to check lazily, since the ACL is determined as request configuration progresses.
 		httpResolver.setRedirectGuard(target -> this.permitsNetworkTarget(target),
 				() -> !this.localAccessAllowed || this.restricted);
 		httpResolver.setMainUri(uri);
@@ -179,7 +176,7 @@ class MySourceResolver implements SourceResolver {
 			httpResolver.setReferer(uri);
 		}
 
-		// ヘッダー
+		// Headers.
 		for (int i = 0;; ++i) {
 			String prefix = UAProps.INPUT_HTTP_HEADER + i + ".";
 			String name = (String) props.get(prefix + "name");
@@ -196,7 +193,7 @@ class MySourceResolver implements SourceResolver {
 				? UAProps.INPUT_HTTP_CACHE_TTL.getInteger(props, mh)
 				: 0);
 
-		// プロクシ
+		// Proxy.
 		String proxyHost = UAProps.INPUT_HTTP_PROXY_HOST.getString(props);
 		if (proxyHost != null) {
 			int proxyPort = UAProps.INPUT_HTTP_PROXY_PORT.getInteger(props, mh);
@@ -211,7 +208,7 @@ class MySourceResolver implements SourceResolver {
 			}
 		}
 
-		// 認証
+		// Authentication.
 		boolean preemptive = UAProps.INPUT_HTTP_AUTHENTICATION_PREEMPTIVE.getBoolean(props, mh);
 		httpResolver.setPreemptiveAuthentication(preemptive);
 		for (int i = 0;; ++i) {
@@ -310,22 +307,21 @@ class MySourceResolver implements SourceResolver {
 	}
 
 	/**
-	 * 外部リソースの非同期先読みを要求します(input.prefetch、2026-08-27)。
-	 * 対象はhttp(s)のみで、同期経路と同じ判定を通す: クライアントが
-	 * CTIPで送ってきた資源(cachedResolver)はネットワーク不要なので
-	 * 対象外、ACL(input.include/exclude——httpは常にACL先行)を通過した
-	 * URLだけをhttpリゾルバへ渡す。拒否・失敗は黙って捨てる(実要求時に
-	 * 正規のSecurityException等が出る)。資源バイト・件数の予算は先読みでは
-	 * 計上しない——文書が実際に要求したときに従来どおり一度だけ計上する。
+	 * Requests asynchronous prefetch of external resources (input.prefetch, 2026-08-27).
+	 * Targets only http(s), using the same checks as the synchronous path: resources sent by
+	 * the client over CTIP (cachedResolver) need no network access and are excluded. Passes only
+	 * URLs allowed by the ACL (input.include/exclude; ACL always comes first for http) to the HTTP
+	 * resolver. Silently discards denials and failures (the actual request raises the normal
+	 * SecurityException, etc.). Prefetch does not count against resource-byte or resource-count
+	 * budgets; counts only once, as before, when the document actually requests the resource.
 	 */
 	public void prefetch(final URI uri) {
 		this.prefetch(uri, true);
 	}
 
 	/**
-	 * @param scanCss 取得したスタイルシートの{@code url()}/{@code @import}を
-	 *                深さ1だけ追って先読みするか(CSSから発見したURLの
-	 *                再帰を止めるためのフラグ)
+	 * @param scanCss whether to follow {@code url()}/{@code @import} in retrieved stylesheets
+	 *                for one level of prefetch (a flag to stop recursion on URLs discovered in CSS)
 	 */
 	void prefetch(final URI uri, final boolean scanCss) {
 		final MyHttpSourceResolver http = this.httpResolver;
@@ -341,7 +337,7 @@ class MySourceResolver implements SourceResolver {
 			this.cachedResolver.release(cached);
 			return;
 		} catch (final FileNotFoundException e) {
-			// クライアント押し込み資源ではない——先読み対象
+			// Not a client-uploaded resource: eligible for prefetch.
 		} catch (final IOException e) {
 			return;
 		}
@@ -357,14 +353,14 @@ class MySourceResolver implements SourceResolver {
 		http.prefetch(uri, scanCss ? this : null);
 	}
 
-	/** 先読みの動きを追うためのロガー(FINEで各判定・合流を出す)。 */
+	/** Logger for tracing prefetch activity (FINE logs each decision and join). */
 	static final java.util.logging.Logger PREFETCH_LOG = java.util.logging.Logger
 			.getLogger("net.zamasoft.foliojet.driver.prefetch");
 
 	/**
-	 * 次の順でリソースを探します。
+	 * Looks for resources in this order.
 	 *
-	 * 1. キャッシュされたリソース 2. 設定されたリゾルバ 3. サーバー側リソース
+	 * 1. Cached resources 2. Configured resolver 3. Server-side resources
 	 */
 	public Source resolve(URI uri) throws IOException, FileNotFoundException {
 		return this.resolve(uri, false);
@@ -372,28 +368,28 @@ class MySourceResolver implements SourceResolver {
 
 	public Source resolve(URI uri, boolean force) throws IOException, SecurityException {
 		try {
-			// クライアントが CTISession.resource() で送ってきた資源。
-			// これは**クライアント自身の内容**なので、URIが file: でも
-			// サーバーのファイルを読むことにはならない
+			// Resources sent by the client with CTISession.resource().
+			// These are **the client's own contents**, so even a file: URI
+			// does not read a server file.
 			Source source = this.cachedResolver.resolve(uri);
 			return this.wrap(source, this.cachedResolver, force);
 		} catch (FileNotFoundException e) {
-			// **HTTP/HTTPSは設定済みのリゾルバを優先する**(2026-08-02)。
-			// 差し込まれたリゾルバ(CLIやCTIドライバがsetSourceResolverで
-			// 入れる汎用リゾルバ)が先に取ってしまうと、入出力プロパティで
-			// 設定したUser-Agent・ヘッダ・プロキシ・Cookie・認証が
-			// **どれも効かない**。実測: 既定のUser-Agent(CopperPDF)も
-			// input.http.header.*の指定も送られず、JDK既定の
-			// Java/21.0.11が飛んでいた(Wikipediaが403で取得できない)
+			// **Prefer the configured resolver for HTTP/HTTPS** (2026-08-02).
+			// If an injected resolver (the general resolver installed by the CLI or CTI driver
+			// via setSourceResolver) fetches first, **none** of the User-Agent, headers, proxy,
+			// cookies, or authentication configured with I/O properties
+			// take effect. Measured: neither the default User-Agent (CopperPDF)
+			// nor input.http.header.* settings were sent; instead, the JDK default
+			// Java/21.0.11 was sent (Wikipedia returned 403 and could not be fetched).
 			final String scheme = uri.getScheme();
 			final boolean http = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
-			// **制限が設定されているなら、それを先に効かせる**(2026-08-03、
-			// オーナー裁定)。差し込まれたリゾルバが先にローカルファイルを
-			// 解決してしまうと、input.include/input.excludeが素通りになる。
-			// コマンドラインもウェブアプリも汎用リゾルバを差し込むため、
-			// 信頼できないHTMLを変換するサーバー用途でローカルファイルの
-			// 読み出しを止められない状態だった。拒否(SecurityException)は
-			// ここで確定し、差し込まれたリゾルバへは回さない
+			// **Apply configured restrictions first** (2026-08-03, owner's decision).
+			// If an injected resolver resolves local files first,
+			// input.include/input.exclude are bypassed.
+			// Both the command line and webapp inject general resolvers, so
+			// servers converting untrusted HTML could not prevent
+			// local file reads. Decide denial (SecurityException)
+			// here and do not pass the request to the injected resolver.
 			final boolean aclFirst = this.restricted || http;
 			if (this.userResolver != null && !aclFirst) {
 				try {
@@ -403,14 +399,14 @@ class MySourceResolver implements SourceResolver {
 					// ignore
 				}
 			}
-			// **ここから先はサーバー自身のファイルシステムを引く**。
-			// 遠隔の利用者に許していなければ、この経路へは入らせない。
-			// 差し込まれたリゾルバ(CTIPでは「サーバーから要求された資源を
-			// クライアントが都度送る」経路)は**クライアント自身の資源**なので
-			// 塞がず、そちらだけを試す
-			// **遠隔スキームだが宛先がサーバーの内側**。ここで確定して拒む。
-			// 差し込まれたリゾルバへ回してはいけない——汎用リゾルバなら
-			// そのままネットワークへ取りに行ってしまう(2026-09-08に実測)
+			// **Beyond this point, retrieval accesses the server's own filesystem.**
+			// Do not enter this path for remote users without permission.
+			// The injected resolver (in CTIP, the path where the client sends each resource
+			// when the server requests it) supplies **the client's own resources**,
+			// so leave it open and try only that path.
+			// **A remote scheme whose destination is internal to the server.** Reject it definitively here.
+			// Do not pass it to the injected resolver: a general resolver would
+			// fetch it over the network directly (measured on 2026-09-08).
 			if (!this.localAccessAllowed && this.resolvesToLocalNetwork(uri)) {
 				throw new SecurityException(
 						"Access to the server's own network is not permitted for this user: " + uri);
@@ -421,7 +417,7 @@ class MySourceResolver implements SourceResolver {
 						Source source = this.userResolver.resolve(uri);
 						return this.wrap(source, this.userResolver, force);
 					} catch (FileNotFoundException e2) {
-						// クライアントも持っていない
+						// The client does not have it either.
 					}
 				}
 				throw new SecurityException("Access to local resources is not permitted for this user: " + uri);
@@ -433,14 +429,14 @@ class MySourceResolver implements SourceResolver {
 				if (this.userResolver == null || !aclFirst) {
 					throw e2;
 				}
-				// **許可されているが取れなかった**ものは、差し込まれた
-				// リゾルバ(独自の取得手段を持つ埋め込み利用、CTIPなら
-				// クライアントへの要求)へ回す。拒否された場合は
-				// SecurityExceptionなのでここへ来ない。
-				// FileNotFoundException以外も回すのは、独自スキームが
-				// MalformedURLException("unknown protocol")になるため
-				// (2026-08-16)。クライアントだけが解決できるURIを
-				// input.includeと併用できなかった
+				// Pass resources **allowed but not retrieved** to the injected
+				// resolver (embedded use with a custom retrieval mechanism, or
+				// a request to the client in CTIP). Denials throw
+				// SecurityException and never reach here.
+				// Pass exceptions besides FileNotFoundException as well because custom schemes
+				// produce MalformedURLException("unknown protocol")
+				// (2026-08-16). URIs resolvable only by the client could not
+				// be used with input.include.
 				Source source = this.userResolver.resolve(uri);
 				return this.wrap(source, this.userResolver, force);
 			}

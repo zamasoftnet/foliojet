@@ -14,13 +14,13 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code hyphenate-character: auto | <string>}です(css-text-4)。
- * {@code auto}は従来どおりU+2010(表示できなければASCIIハイフン)を使う。
+ * {@code hyphenate-character: auto | <string>} (css-text-4).
+ * {@code auto} uses U+2010 as before (ASCII hyphen if it cannot be displayed).
  */
 public class HyphenateCharacter extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new HyphenateCharacter();
 
-	/** {@code auto}ならnull、文字列指定ならその文字列を返します。 */
+	/** Returns null for {@code auto}, or the specified string. */
 	public static String get(final CSSStyle style) {
 		final Value value = style.get(INFO);
 		return value instanceof StringValue string ? string.getString() : null;

@@ -13,12 +13,12 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code font-palette}(CSS Fonts)です。
+ * {@code font-palette} (CSS Fonts).
  *
  * <p>
- * {@code normal | light | dark | <palette-identifier>}を受理し、継承値として
- * 保持します。FolioJet/pdfg2dはカラーフォントのパレット選択に未対応のため、
- * 現時点では描画へ反映しません。
+ * Accepts {@code normal | light | dark | <palette-identifier>} and stores it as an inherited value.
+ * FolioJet/pdfg2d does not support color font palette selection,
+ * so this currently has no rendering effect.
  * </p>
  */
 public final class FontPalette extends AbstractPrimitivePropertyInfo {

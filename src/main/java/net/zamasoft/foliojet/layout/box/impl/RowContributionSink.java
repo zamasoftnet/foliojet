@@ -1,14 +1,14 @@
 package net.zamasoft.foliojet.layout.box.impl;
 
-/** row subgridが親へ行寄与と最終化処理を登録する窓口です(2026-09-03)。 */
+/** The interface through which row subgrids register row contributions and finalization with the parent (2026-09-03). */
 public interface RowContributionSink {
 
 	/**
-	 * 子ローカルの{@code row}から{@code span}行を跨ぐ寄与を登録します。
-	 * 親座標への変換は境界側が一度だけ行います。
+	 * Registers a contribution spanning {@code span} rows from child-local {@code row}.
+	 * The boundary converts to parent coordinates exactly once.
 	 */
 	void contribute(int row, int span, double extent);
 
-	/** 親の行が確定した後に呼ぶ処理を登録します。 */
+	/** Registers processing to run after the parent rows are finalized. */
 	void whenRowsResolved(RowGeometryFinalizer finalizer);
 }

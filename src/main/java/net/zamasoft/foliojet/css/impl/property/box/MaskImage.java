@@ -26,43 +26,43 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 
 /**
- * <b>mask-imageのグラデーション形の近似</b>です(2026-08-09新設)。
+ * <b>Approximation of gradient forms of mask-image</b> (added 2026-08-09).
  *
  * <p>
- * 実サイトは「本文の抜粋を{@code max-height}で固定し、
- * {@code mask-image: linear-gradient(#000 60%, transparent)}で下端を
- * フェードアウトさせる」抜粋イディオムを使う({@code overflow: hidden}は
- * 書かないことがある——マスクがはみ出しを透明にするため画面では困らない)。
- * マスクを丸ごと無視すると、はみ出した本文がそのまま描かれて後続の内容に
- * 重なる(5ch.ioのスレッド一覧で実測)。
+ * Real sites use an excerpt idiom that fixes the body text excerpt with {@code max-height}
+ * and fades its bottom edge with {@code mask-image: linear-gradient(#000 60%, transparent)}.
+ * They sometimes omit {@code overflow: hidden}; the mask makes overflow transparent,
+ * so this works on screen. Ignoring the mask entirely renders overflowing body text
+ * over subsequent content (measured on the 5ch.io thread list).
  * </p>
  *
  * <p>
- * 完全なアルファマスク合成はPDF出力の大工事になるため、<b>グラデーションの
- * マスクをペイントのボックスクリップへ近似</b>する: 値にグラデーション関数を
- * 含むとき{@link KeywordValue#CLIP}を計算値とし、
- * {@code BlockParams.paintClip}経由で{@code overflow: hidden}と同じ
- * ペイントクリップだけを適用する(BFC成立などのレイアウト効果は持たない)。
- * ボックス内の描画はフェードなしで残る——印刷ではフェードよりも
- * 「はみ出しが見えない」ことが本質のため、この妥協を選ぶ。
- * {@code url()}のマスク(アイコン型抜き等)はクリップでは近似できないため
- * 従来どおり無視する({@link KeywordValue#NONE})。
+ * Full alpha mask compositing would require major PDF output changes, so <b>approximate gradient
+ * masks with a paint box clip</b>: when the value contains a gradient function,
+ * use {@link KeywordValue#CLIP} as the computed value and apply only the same paint clip
+ * as {@code overflow: hidden} via {@code BlockParams.paintClip}
+ * (with no layout effects such as establishing a BFC).
+ * Drawing inside the box remains unfaded. This compromise prioritizes hiding overflow
+ * over fading for print.
+ * {@code url()} masks (icon cutouts, etc.) cannot be approximated by clipping,
+ * so they remain ignored ({@link KeywordValue#NONE}).
  * </p>
  */
 public class MaskImage extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MaskImage();
 
-	/** グラデーションマスクの近似としてペイントをボックスへクリップするか。 */
+	/** Whether to clip painting to the box as an approximation of a gradient mask. */
 	public static boolean isClip(CSSStyle style) {
 		return style.get(INFO) == KeywordValue.CLIP;
 	}
 
 	/**
-	 * URLマスクを、背景色で着色したSVG画像として返します。
+	 * Returns a URL mask as an SVG image tinted with the background color.
 	 *
-	 * <p>PDFの任意画像アルファマスクではなく、透明背景の単色SVGを直接描く
-	 * 近似です。MDN等のアイコン用マスクでは同じ見た目になり、従来の
-	 * 「背景色の四角だけが残る」欠陥を避けます。</p>
+	 * <p>This approximation directly draws a solid-color SVG on a transparent background,
+	 * rather than using a PDF alpha mask for an arbitrary image.
+	 * It gives the same appearance for icon masks on MDN and similar sites,
+	 * avoiding the previous defect where only a background-colored rectangle remained.</p>
 	 */
 	public static Image getImage(final CSSStyle style) {
 		final Value value = style.get(INFO);
@@ -120,7 +120,7 @@ public class MaskImage extends AbstractPrimitivePropertyInfo {
 			return KeywordValue.NONE;
 		}
 		try {
-			// url()とimage-set()(2026-08-29)
+			// url() and image-set() (2026-08-29).
 			final URIValue uriValue = ValueUtils.toImage(ua, uri, first);
 			if (uriValue != null) {
 				if (tokens.hasNext()) {
@@ -136,8 +136,8 @@ public class MaskImage extends AbstractPrimitivePropertyInfo {
 			throw new PropertyException();
 		}
 
-		// 複数レイヤー(カンマ区切り)を含め全トークンを読み、1つでも
-		// グラデーション関数があればクリップ近似を適用する。
+		// Read all tokens, including multiple comma-separated layers. If any gradient
+		// function is present, apply the clipping approximation.
 		boolean clip = false;
 		if (first instanceof CssToken.Func func
 				&& func.name().toLowerCase(Locale.ROOT).endsWith("gradient")) {

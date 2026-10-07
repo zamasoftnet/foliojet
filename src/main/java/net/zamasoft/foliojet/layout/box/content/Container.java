@@ -24,7 +24,7 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 public interface Container {
 
-	/** 頁割当のcommit用に、配置済みの直接の子を論理順で列挙します。 */
+	/** Enumerates placed direct children in logical order for page-assignment commit. */
 	public void forEachAssignmentChild(java.util.function.Consumer<IBox> action);
 
 	public void setBox(AbstractContainerBox box);
@@ -34,8 +34,8 @@ public interface Container {
 	public void addAbsolute(IAbsoluteBox box, double staticX, double staticY);
 
 	/**
-	 * 縦組みRLで{@code staticX}が箱の右端(block-start辺)を指す静的位置として登録します。
-	 * 既定では通常の{@link #addAbsolute(IAbsoluteBox, double, double)}へ委ねます。
+	 * Registers a static position where {@code staticX} points to the box's right (block-start) edge in vertical RL.
+	 * By default, delegates to the normal {@link #addAbsolute(IAbsoluteBox, double, double)}.
 	 */
 	public default void addAbsolute(IAbsoluteBox box, double staticX, double staticY, boolean blockStartAnchored) {
 		this.addAbsolute(box, staticX, staticY);
@@ -47,22 +47,22 @@ public interface Container {
 
 	public boolean hasFloatings();
 
-	/** この断片で、指定した通常フローが先頭ならtrue。 */
+	/** True if the specified normal flow is first in this fragment. */
 	public default boolean isFirstFlow(final IFlowBox box) {
 		return false;
 	}
 
 	/**
-	 * 固定寸法箱の断片化で、前断片が実内容を取ったかを返します。
-	 * {@code ::before}/{@code ::after}だけの装飾は内容の消費に数えません。
+	 * Returns whether the preceding fragment took actual content when fragmenting a fixed-size box.
+	 * Decoration consisting only of {@code ::before}/{@code ::after} does not count as consumed content.
 	 */
 	public default boolean hasNonDecorationContent() {
 		return this.paintsAnything();
 	}
 
 	/**
-	 * 指定した配置済みfloatだけを除き、装飾でない内容があるかを返します。
-	 * PageBoxのページフロート台帳による空ページ判定用です。
+	 * Returns whether there is non-decorative content, excluding only the specified placed floats.
+	 * Used to detect empty pages with PageBox's page-float ledger.
 	 */
 	public default boolean hasNonDecorationContentExcludingFloatings(
 			final java.util.Set<? extends IFloatBox> excluded) {
@@ -76,78 +76,78 @@ public interface Container {
 	public double getContentSize();
 
 	/**
-	 * 固定寸法箱の継続高から差し引く、前断片で実際に消費したページ方向寸法です。
-	 * 通常は{@link #getContentSize()}と同じですが、内容を次頁へ丸ごと送った結果だけを
-	 * 保持する空の断片殻は消費に数えません。
+	 * The page-axis size actually consumed in the preceding fragment, subtracted from a fixed-size
+	 * box's continuation height. Normally equals {@link #getContentSize()}, but an empty fragment
+	 * shell left only as a result of moving all content to the next page does not count as consumption.
 	 */
 	public default double getConsumedPageSizeForFragmentation() {
 		return this.getContentSize();
 	}
 
 	/**
-	 * 段組バランスが下回ってはならないページ軸容量です(2026-08-22)。
-	 * 改ページ契約上atomicな子(同軸逆進行・直交する書字方向。同じ書字方向の
-	 * 子の中にあるものを含む、2026-10-03)は段境界で内部切断できない
-	 * ——その全長が容量の床になる。該当する子がなければ0。
+	 * The minimum page-axis capacity for column balancing (2026-08-22).
+	 * Children that are atomic under the pagination contract (same-axis reverse progression or orthogonal
+	 * writing directions, including those nested in children with the same writing direction; 2026-10-03)
+	 * cannot split internally at column boundaries, so their full extent sets the capacity floor.
+	 * 0 if there are no such children.
 	 */
 	public default double balancePageSizeFloor() {
 		return 0;
 	}
 
 	/**
-	 * この内容が<b>実際に紙へ描く</b>ページ方向の終端(内辺基準)を返します。
+	 * Returns the page-axis end (relative to the inner edge) of what this content
+	 * <b>actually paints on paper</b>.
 	 *
 	 * <p>
-	 * {@link #getContentSize()}が「最後のフローの箱の終わり」という<b>箱の
-	 * 幾何</b>を返すのに対し、こちらは<b>描画の実測</b>です。両者は次の2点で
-	 * ずれます:
+	 * Where {@link #getContentSize()} returns <b>box geometry</b>, "the end of the last flow box,"
+	 * this returns <b>measured painting extent</b>. They differ in two ways:
 	 * </p>
 	 * <ul>
-	 * <li>浮動体は{@code getContentSize()}に入らないが、紙には描かれる</li>
-	 * <li>枠線も背景も持たない箱の余った寸法(内容より大きい指定寸法・
-	 * 内容の後ろの余白)は、箱としては存在しても<b>何も描かない</b></li>
+	 * <li>Floats are excluded from {@code getContentSize()} but are painted on paper</li>
+	 * <li>Unused size in a box without borders or background (specified size larger than its content,
+	 * or space after its content) exists geometrically but <b>paints nothing</b></li>
 	 * </ul>
 	 *
 	 * <p>
-	 * 「ページからはみ出した部分に描くものがあるか」の判定にはこちらを使い
-	 * ます——描くものがないのに断片を作ると、<b>白紙のページが1枚増える</b>
-	 * (css-break-3 §4.4「各フラグメンテナは0でない量の内容を取る」違反)。
+	 * Use this to determine whether there is anything to paint beyond the page.
+	 * Creating a fragment with nothing to paint <b>merely adds one blank page</b>
+	 * (violating css-break-3 §4.4: each fragmentainer takes a nonzero amount of content).
 	 * </p>
 	 *
-	 * @return 描画が及ぶページ方向の終端(内辺基準。何も描かなければ0)
+	 * @return the page-axis end of painting (relative to the inner edge; 0 if nothing is painted)
 	 */
 	public double paintedPageEnd();
 
 	/**
-	 * この内容が<b>紙に何か描くか</b>を返します(2026-07-28新設)。
+	 * Returns whether this content <b>paints anything on paper</b> (added 2026-07-28).
 	 *
 	 * <p>
-	 * {@link #paintedPageEnd()}が「ページ方向のどこまで描くか」という距離を
-	 * 答えるのに対し、こちらは有無だけを答えます。距離0は「何も描かない」と
-	 * ほぼ同義ですが、<b>ほぼ</b>でしかありません(行方向にだけ広がる枠、
-	 * 段間罫)。何も描かないページを出力から落とす判定
-	 * ({@code StyleBuilder.drawPage}、css-break-3 §4.4)には、
-	 * ずれのないこちらを使います。
+	 * Where {@link #paintedPageEnd()} answers a distance, "how far painting extends on the page axis,"
+	 * this answers only presence. A distance of 0 is almost equivalent to painting nothing,
+	 * but only <b>almost</b> (frames extending only along the line axis, column rules).
+	 * Use this method, which has no such discrepancy, to omit pages that paint nothing
+	 * ({@code StyleBuilder.drawPage}, css-break-3 §4.4).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>判定は必ず安全側(=描く)へ倒します。</b>
+	 * <b>Always err on the safe side (= paints).</b>
 	 * </p>
 	 *
-	 * @return 紙に何か描く(かもしれない)なら true
+	 * @return true if the content paints (or may paint) anything on paper
 	 */
 	public boolean paintsAnything();
 
 	public double getCutPoint(double pageAxis);
 
 	/**
-	 * 提案位置の直前の実行可能な切断位置を返します(M5-B)。
-	 * getCutPoint が直後の境界へ切り上げるのに対し、こちらは実際の切断
-	 * (はみ出す内容を次の断片へ送る)をボックスを変異させずに見積もる
-	 * 切り下げです。提案位置より前に境界がなければ 0 を返します。
+	 * Returns the feasible cut position immediately before the proposed position (M5-B).
+	 * Where getCutPoint rounds up to the next boundary, this rounds down to estimate the actual
+	 * split (moving overflowing content to the next fragment) without mutating boxes.
+	 * Returns 0 if there is no boundary before the proposed position.
 	 *
-	 * @param pageAxis 提案位置(内容の始端からの距離)
-	 * @return 直前の切断位置(なければ 0)
+	 * @param pageAxis the proposed position (distance from the content start)
+	 * @return the preceding cut position (0 if none)
 	 */
 	public double getCutPointBelow(double pageAxis);
 
@@ -156,70 +156,67 @@ public interface Container {
 	public boolean avoidBreakAfter();
 
 	/**
-	 * {@code finishLayout}の反復化(2026-07-20、IBox.finishLayoutと同じ
-	 * 理由)。子(flows/floatings/absolutes、またはcolumns)の処理
-	 * ステップを、元の再帰と同じ走査順になるよう**逆順**で
-	 * {@code worklist}へ積みます。
+	 * Iterative {@code finishLayout} (2026-07-20, for the same reason as IBox.finishLayout).
+	 * Pushes child processing steps (flows/floatings/absolutes, or columns) onto {@code worklist}
+	 * in **reverse order** to preserve the original recursive traversal order.
 	 */
 	public void pushFinishLayoutChildren(IFramedBox containerBox, Deque<FinishLayoutStep> worklist);
 
 	/**
-	 * framesの反復化(2026-07-20、IBox.pushDrawStepsと同じ理由)。通常フローの
-	 * 子の枠描画手順を、元の走査順のまま**逆順**で{@code worklist}へ積みます。
+	 * Iterative frames (2026-07-20, for the same reason as IBox.pushDrawSteps). Pushes normal-flow
+	 * child frame-drawing steps onto {@code worklist} in **reverse order** to preserve traversal order.
 	 */
 	public void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
 			double y, Deque<FramesStep> worklist);
 
 	/**
-	 * drawの反復化(2026-07-20、IBox.drawと同じ理由)。通常フローの子の
-	 * 描画手順を、元の走査順のまま**逆順**で{@code worklist}へ積みます。
+	 * Iterative draw (2026-07-20, for the same reason as IBox.draw). Pushes normal-flow child
+	 * drawing steps onto {@code worklist} in **reverse order** to preserve traversal order.
 	 */
 	public void pushDrawFlows(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y, Deque<DrawStep> worklist);
 
 	/**
-	 * 浮動ボックスについての{@link #pushDrawFlows}相当です。
+	 * The equivalent of {@link #pushDrawFlows} for float boxes.
 	 */
 	public void pushDrawFloatings(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			Deque<DrawStep> worklist);
 
 	/**
-	 * 絶対配置ボックスについての{@link #pushDrawFlows}相当です。
+	 * The equivalent of {@link #pushDrawFlows} for absolutely positioned boxes.
 	 */
 	public void pushDrawAbsolutes(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			Deque<DrawStep> worklist);
 
 	/**
-	 * 浮動ボックス(直接保持分+子flowの再帰集約)をページ分割し、移動分の
-	 * 行き先を型で返します(2026-07-24、P2-4)。
+	 * Paginates float boxes (directly held floats plus recursive aggregation from child flows)
+	 * and returns a typed destination for the moved portion (2026-07-24, P2-4).
 	 */
 	public FloatTransferResult splitFloatings(FloatTransferTarget target, double pageLimit, byte flags);
 
 	/**
-	 * 浮動ボックスをページ分割し、移動分の台帳を自分からdetachして返します
-	 * (子flow再帰専用の内部契約——親の
-	 * {@code FlowContainer.aggregateFloatings}だけが呼ぶ。旧2引数
-	 * {@code splitFloatings}のnullable返し(null=移動なし)をOptionalへ
-	 * 置換、2026-07-24 E-4)。3引数版
-	 * {@link #splitFloatings(FloatTransferTarget, double, byte)}と違い、
-	 * 移動float台帳をコンテナへ装着せず生のまま返す(装着先は親が決める)。
+	 * Paginates float boxes, detaches the ledger of moved floats from this container, and returns it
+	 * (an internal contract only for child-flow recursion, called only by the parent's
+	 * {@code FlowContainer.aggregateFloatings}). Replaces the old two-argument {@code splitFloatings}
+	 * nullable return (null = no movement) with Optional (2026-07-24 E-4).
+	 * Unlike the three-argument {@link #splitFloatings(FloatTransferTarget, double, byte)}, returns
+	 * the raw moved-float ledger without attaching it to a container (the parent chooses the destination).
 	 *
-	 * @return 移動するfloatがなければempty、あればdetach済みの非空台帳
+	 * @return empty if no floats move, otherwise the detached nonempty ledger
 	 */
 	public java.util.Optional<Floatings> detachMovedFloatings(double pageLimit, byte flags);
 
 	/**
-	 * getTextの反復化(2026-07-20、IBox.pushDrawStepsと同じ理由)。子の
-	 * テキスト抽出手順を、元の走査順のまま**逆順**で{@code worklist}へ
-	 * 積みます。
+	 * Iterative getText (2026-07-20, for the same reason as IBox.pushDrawSteps). Pushes child text
+	 * extraction steps onto {@code worklist} in **reverse order** to preserve traversal order.
 	 */
 	public void pushGetTextSteps(StringBuilder textBuff, Deque<GetTextStep> worklist);
 
 	/**
-	 * textShapeの反復化(2026-07-20、IBox.pushDrawStepsと同じ理由)。子の
-	 * 輪郭手順を{@code worklist}へ積みます。
+	 * Iterative textShape (2026-07-20, for the same reason as IBox.pushDrawSteps).
+	 * Pushes child outline steps onto {@code worklist}.
 	 */
 	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
 			Deque<TextShapeStep> worklist);
@@ -228,51 +225,49 @@ public interface Container {
 			boolean restyleAbsolutes);
 
 	/**
-	 * 継続化計画付きのページ方向切断です(C1d-C)。plan が選択した
-	 * チェーンメンバーの断片は ContinuationFrame として返り値で伝播する。
-	 * plan が null なら従来の切断(Plain のみ)。
+	 * Page-axis splitting with a continuation plan (C1d-C). Fragments of chain members selected
+	 * by plan propagate in the return value as ContinuationFrames.
+	 * If plan is null, uses the existing split behavior (Plain only).
 	 */
 	public net.zamasoft.foliojet.layout.fragment.ContainerCut splitPageAxis(double pageLimit, BreakMode mode,
 			byte flags, net.zamasoft.foliojet.layout.fragment.BreakPlan plan);
 
 	/**
-	 * 通常フローの子ボックスを順に渡します(M6b診断用)。
+	 * Passes normal-flow child boxes in order (for M6b diagnostics).
 	 */
 	public void eachFlowBox(java.util.function.Consumer<IFlowBox> consumer);
 
 	/**
-	 * 配置された絶対配置の箱を順に渡します(2026-09-02、脚注の呼び出し走査用)。
-	 * 既定は何も渡さない。
+	 * Passes placed absolutely positioned boxes in order (2026-09-02, for footnote-call traversal).
+	 * The default passes none.
 	 */
 	public default void eachAbsoluteBox(java.util.function.Consumer<IAbsoluteBox> consumer) {
-		// 絶対配置を持たない容れ物
+		// A container without absolutely positioned boxes
 	}
 
 	/**
-	 * 浮動ボックスを順に渡します(読み取り専用。脚注F4のcall走査用——
-	 * float内に置かれた脚注呼び出しも数えられるように)。
+	 * Passes float boxes in order (read-only; for footnote F4 call traversal,
+	 * so footnote calls placed inside floats can also be counted).
 	 */
 	public default void eachFloatingBox(java.util.function.Consumer<IFloatBox> consumer) {
-		// 既定は浮動なし
+		// No floats by default
 	}
 
 	/**
-	 * 保持しているflowの個数を返します(2026-08-07、Flex行分割用
-	 * {@code FlexBox.split})。
+	 * Returns the number of flows held (2026-08-07, for Flex row splitting in {@code FlexBox.split}).
 	 */
 	public default int getFlowCount() {
 		throw new UnsupportedOperationException(this.getClass().getName());
 	}
 
 	/**
-	 * flow一覧のうち{@code fromIndex}(0基点、追加順)以降を{@code dest}へ
-	 * 移し、このコンテナ自身は先頭からfromIndex個だけを残します
-	 * (2026-08-07、Flex行分割専用——テーブルの行グループが独自の
-	 * {@code rows}リストを直接操作するのと同じ理由で、複数の兄弟を
-	 * 一括して次の断片へ持ち越す必要があり、単一子継続を前提とする
-	 * 共通のFragmentRecipe/splitPageAxis経路には乗らない)。
-	 * 移った側は{@code pageAxis}から{@code crossShift}を引いた値で
-	 * 再登録する(継続コンテナの原点は切断線)。
+	 * Moves flows from {@code fromIndex} onward (zero-based, insertion order) to {@code dest},
+	 * leaving only the first fromIndex flows in this container (2026-08-07, for Flex row splitting only).
+	 * For the same reason table row groups manipulate their own {@code rows} lists directly,
+	 * multiple siblings must carry over together to the next fragment. This does not use
+	 * the common FragmentRecipe/splitPageAxis path, which assumes a single-child continuation.
+	 * Re-register moved flows at {@code pageAxis} minus {@code crossShift}
+	 * (the continuation container's origin is the cut line).
 	 */
 	public default void migrateFlowsFrom(int fromIndex, Container dest, double crossShift) {
 		throw new UnsupportedOperationException(this.getClass().getName());

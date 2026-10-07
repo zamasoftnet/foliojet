@@ -4,8 +4,8 @@ import net.zamasoft.foliojet.layout.box.AbstractLineBox;
 import net.zamasoft.foliojet.layout.box.AbstractTextBox;
 
 /**
- * 絶対位置指定の垂直位置合わせです。
- * 
+ * Vertical alignment with an absolute position.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: AbsoluteVerticalAlignPolicy.java 3804 2012-07-10 06:53:45Z
  *          miyabe $

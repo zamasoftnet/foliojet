@@ -77,8 +77,8 @@ public class FontWeightValue implements Value, Serializable {
 	}
 
 	/**
-	 * スタイルコードを返します。
-	 * 
+	 * Returns the style code.
+	 *
 	 * @return
 	 */
 	public short getFontWeight() {

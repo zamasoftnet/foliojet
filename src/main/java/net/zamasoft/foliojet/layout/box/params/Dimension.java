@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * サイズを表すオブジェクトです。
+ * An object representing a size.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -12,7 +12,7 @@ public class Dimension {
 
 	private final double width;
 	private final double height;
-	/** MIXED(calc()の絶対+割合混在)の場合のみ意味を持つ割合成分。それ以外は常に0。 */
+	/** Percentage component, meaningful only for MIXED (absolute + percentage in calc()). Always 0 otherwise. */
 	private final double widthRatio;
 	private final double heightRatio;
 	private final byte flags;
@@ -21,7 +21,7 @@ public class Dimension {
 		return create(width, 0, height, 0, widthType, heightType);
 	}
 
-	/** widthType/heightTypeがMIXEDの場合のwidthRatio/heightRatio付きの生成。 */
+	/** Creates a dimension with widthRatio/heightRatio when widthType/heightType is MIXED. */
 	public static Dimension create(double width, double widthRatio, double height, double heightRatio,
 			LengthType widthType, LengthType heightType) {
 		if (widthType == LengthType.AUTO && heightType == LengthType.AUTO) {
@@ -68,60 +68,62 @@ public class Dimension {
 	}
 
 	/**
-	 * 与えられた書字方向での行方向寸法の型を返します(横書き=幅、縦書き=高さ)。
+	 * Returns the line-direction size type for the given writing mode (horizontal writing = width;
+	 * vertical writing = height).
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return 行方向寸法の型
+	 * @param flow writing mode that determines the axes
+	 * @return line-direction size type
 	 */
 	public LengthType getLineType(WritingMode flow) {
 		return flow.isVertical() ? this.getHeightType() : this.getWidthType();
 	}
 
 	/**
-	 * 与えられた書字方向でのページ方向寸法の型を返します(横書き=高さ、縦書き=幅)。
+	 * Returns the page-direction size type for the given writing mode (horizontal writing = height;
+	 * vertical writing = width).
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return ページ方向寸法の型
+	 * @param flow writing mode that determines the axes
+	 * @return page-direction size type
 	 */
 	public LengthType getPageType(WritingMode flow) {
 		return flow.isVertical() ? this.getWidthType() : this.getHeightType();
 	}
 
 	/**
-	 * 与えられた書字方向での行方向の寸法値を返します。
+	 * Returns the line-direction size value for the given writing mode.
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return 行方向の寸法値
+	 * @param flow writing mode that determines the axes
+	 * @return line-direction size value
 	 */
 	public double getLineLength(WritingMode flow) {
 		return flow.isVertical() ? this.getHeight() : this.getWidth();
 	}
 
 	/**
-	 * 与えられた書字方向でのページ方向の寸法値を返します。
+	 * Returns the page-direction size value for the given writing mode.
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return ページ方向の寸法値
+	 * @param flow writing mode that determines the axes
+	 * @return page-direction size value
 	 */
 	public double getPageLength(WritingMode flow) {
 		return flow.isVertical() ? this.getWidth() : this.getHeight();
 	}
 
 	/**
-	 * 与えられた書字方向での行方向のMIXED割合成分を返します(それ以外の型では0)。
+	 * Returns the line-direction MIXED percentage component for the given writing mode (0 for other types).
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return 行方向の割合成分
+	 * @param flow writing mode that determines the axes
+	 * @return line-direction percentage component
 	 */
 	public double getLineRatio(WritingMode flow) {
 		return flow.isVertical() ? this.getHeightRatio() : this.getWidthRatio();
 	}
 
 	/**
-	 * 与えられた書字方向でのページ方向のMIXED割合成分を返します(それ以外の型では0)。
+	 * Returns the page-direction MIXED percentage component for the given writing mode (0 for other types).
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return ページ方向の割合成分
+	 * @param flow writing mode that determines the axes
+	 * @return page-direction percentage component
 	 */
 	public double getPageRatio(WritingMode flow) {
 		return flow.isVertical() ? this.getWidthRatio() : this.getHeightRatio();

@@ -22,8 +22,8 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/visudet.html#propdef-line-height"> line-
- * height 特性 </a>です。
- * 
+ * height property </a>.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class LineHeight extends AbstractPrimitivePropertyInfo {
@@ -53,9 +53,9 @@ public class LineHeight extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		// SPEC css-inline-3: line-heightは負にならない。calc()のlh折り込み等で
-		// 負へ落ちた結果は宣言無効ではなく0へクランプする(css-values-4の
-		// range checking。2026-08-27)
+		// SPEC css-inline-3: line-height cannot be negative. Clamp negative results from folding lh into calc(), etc.
+		// to 0 rather than invalidating the declaration (css-values-4
+		// range checking, 2026-08-27)
 		return clampNonNegative(this.computeValue(value, style));
 	}
 
@@ -67,9 +67,9 @@ public class LineHeight extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * この単位がline-height自身の値として自己参照になるかを返します。
-	 * {@code lh}は常に、{@code rlh}は根要素のline-heightに書かれたときだけ
-	 * 自己参照になる(子孫からは計算済みの根の値を安全に読める)。
+	 * Returns whether this unit is self-referential as a value of line-height itself.
+	 * {@code lh} always is; {@code rlh} is only when used in the root element's line-height
+	 * (descendants can safely read the root's computed value).
 	 */
 	private static boolean isSelfReferentialLineHeightUnit(net.zamasoft.foliojet.css.token.Unit unit,
 			CSSStyle style) {
@@ -83,11 +83,11 @@ public class LineHeight extends AbstractPrimitivePropertyInfo {
 		if (value == KeywordValue.NORMAL || value instanceof RealValue) {
 			return value;
 		}
-		// lh単位がline-height自身に書かれた場合は、自己参照を避けるため
-		// 継承値(親のline-height、根ではUAのnormal)を基準に先に畳む
-		// (SPEC css-values-4 §6.1.2)。ここで畳んでおくことで、他プロパティの
-		// lh解決(RelativeLengthValue.toAbsoluteLength→LineHeight.get)が
-		// 再帰しないことが保証される
+		// When lh appears in line-height itself, first fold it against the inherited value
+		// (parent line-height, or UA normal at the root) to avoid self-reference
+		// (SPEC css-values-4 §6.1.2). Folding here guarantees that resolving lh
+		// in other properties (RelativeLengthValue.toAbsoluteLength→LineHeight.get)
+		// does not recurse.
 		if (value instanceof RelativeLengthValue rel && isSelfReferentialLineHeightUnit(rel.getUnit(), style)) {
 			return AbsoluteLengthValue.create(style.getUserAgent(), inheritedLineHeight(style) * rel.getValue());
 		}
@@ -95,20 +95,20 @@ public class LineHeight extends AbstractPrimitivePropertyInfo {
 			value = lhCalc.resolveLh(style.getUserAgent(), inheritedLineHeight(style));
 		}
 		if (value instanceof CalcFontRelativeValue fontRelative) {
-			// フォント相対成分を自要素のフォントで解いてから、残った%成分を
-			// 下の分岐で解決する。ここで解かずに末尾のemExToAbsoluteLengthへ
-			// 落とすと、%が残ったCalcLengthValueが計算値として確定してしまい、
-			// LineHeight.getのキャストで落ちる(calc(50% + 0.5em)で実測)
+			// Resolve font-relative components using this element's font, then resolve remaining % components
+			// in the branches below. Deferring to emExToAbsoluteLength at the end would
+			// finalize a CalcLengthValue with a remaining % as the computed value,
+			// causing the cast in LineHeight.get to fail (observed with calc(50% + 0.5em)).
 			value = fontRelative.resolve(style);
 		}
 		if (value instanceof PercentageValue percentage) {
 			return AbsoluteLengthValue.create(style.getUserAgent(), percentage.getRatio() * FontSize.get(style));
 		}
 		if (value instanceof CalcLengthValue calc) {
-			// calc()が絶対長さと割合を混在させた場合(例: calc(50% + 10pt))。
-			// line-heightの%はfont-size同様、親ではなく自要素のfont-sizeを
-			// 基準に今ここで解決できるため、PercentageValueと同じ扱いにして
-			// AbsoluteLengthValueへ完全に還元する。
+			// When calc() mixes absolute lengths and percentages (e.g. calc(50% + 10pt)).
+			// Like font-size percentages, line-height percentages can be resolved here, but against
+			// this element's font-size rather than its parent's. Treat them like PercentageValue
+			// and reduce completely to AbsoluteLengthValue.
 			return AbsoluteLengthValue.create(style.getUserAgent(),
 					calc.getAbsolute() + calc.getRatio() * FontSize.get(style));
 		}
@@ -116,14 +116,14 @@ public class LineHeight extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * lh単位の基準になる継承line-height(根要素ではUAのnormal相当)です。
+	 * Inherited line-height used as the lh reference (UA normal at the root element).
 	 *
 	 * <p>
-	 * 深い継承連鎖(特にボックスを作らない{@code display:contents}の連鎖)で
-	 * 各層が{@code line-height:1lh}を持つと、素朴な{@code get(parent)}の
-	 * 再帰は祖先の数だけスタックを積む。ルート側から順に計算値を確定させて
-	 * キャッシュを埋めることで、再帰深度を親1段に抑える(2026-08-27、
-	 * 独立レビュー指摘)。
+	 * In deep inheritance chains (especially boxless {@code display:contents} chains),
+	 * if each level has {@code line-height:1lh}, naive {@code get(parent)} recursion
+	 * adds a stack frame for every ancestor. Finalize computed values from the root downward
+	 * to populate the cache and limit recursion depth to one parent level
+	 * (2026-08-27, noted in an independent review).
 	 * </p>
 	 */
 	private static double inheritedLineHeight(CSSStyle style) {

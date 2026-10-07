@@ -18,20 +18,20 @@ import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 文字装飾の付帯的な個別指定——{@code text-decoration-style}・
- * {@code text-decoration-thickness}・{@code text-underline-offset}
- * (css-text-decoration-3/4)です(2026-08-29新設)。
+ * Additional text-decoration longhands: {@code text-decoration-style},
+ * {@code text-decoration-thickness}, and {@code text-underline-offset}
+ * (css-text-decoration-3/4, added 2026-08-29).
  *
  * <p>
- * 同日中に描画へも配線した: 線種は{@link #getStyle}、太さは
- * {@link #getThickness}(絶対長、autoなら0)、下線のずらしは
- * {@link #getUnderlineOffset}(絶対長、autoならNaN)で
- * {@code AbstractTextParams}へ運び、{@code AbstractTextBox}の装飾線描画が
- * 読む。割合はいずれも1em(その要素のフォントサイズ)に対して解決する
- * (css-text-decoration-4)。{@code from-font}はpdfg2dの{@code FontSource}
- * が下線の太さ・位置を公開していないため{@code auto}と同じ。太さ・位置は
- * {@code auto}/{@code from-font}/長さ/割合を、線種は
- * {@code solid|double|dotted|dashed|wavy}を受けます。
+ * Also connected to rendering the same day: line style via {@link #getStyle},
+ * thickness via {@link #getThickness} (absolute length, 0 for auto),
+ * and underline offset via {@link #getUnderlineOffset} (absolute length, NaN for auto)
+ * are carried to {@code AbstractTextParams} and read by decoration rendering in {@code AbstractTextBox}.
+ * All percentages resolve against 1em (the element's font size) (css-text-decoration-4).
+ * {@code from-font} is equivalent to {@code auto} because pdfg2d's {@code FontSource}
+ * does not expose underline thickness/position. Thickness and position accept
+ * {@code auto}/{@code from-font}/length/percentage; line style accepts
+ * {@code solid|double|dotted|dashed|wavy}.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -43,10 +43,10 @@ public final class TextDecorationAux extends AbstractPrimitivePropertyInfo {
 
 	public static final TextDecorationAux UNDERLINE_OFFSET = new TextDecorationAux("text-underline-offset", false);
 
-	/** {@code text-decoration-style}の値。 */
+	/** Value of {@code text-decoration-style}. */
 	public static final Set<String> STYLES = Set.of("solid", "double", "dotted", "dashed", "wavy");
 
-	/** {@link #STYLE}の既定{@code solid}を表す値。 */
+	/** Value representing the {@code solid} default of {@link #STYLE}. */
 	public static final Value SOLID = new StyleKeyword("solid");
 
 	private record StyleKeyword(String name) implements Value {
@@ -74,7 +74,7 @@ public final class TextDecorationAux extends AbstractPrimitivePropertyInfo {
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
-	/** {@code text-decoration-style}の線種({@code AbstractTextParams.DECORATION_STYLE_*})。 */
+	/** Line style of {@code text-decoration-style} ({@code AbstractTextParams.DECORATION_STYLE_*}). */
 	public static byte getStyle(final CSSStyle style) {
 		final Value value = style.get(STYLE);
 		if (value instanceof StyleKeyword keyword) {
@@ -94,12 +94,12 @@ public final class TextDecorationAux extends AbstractPrimitivePropertyInfo {
 		return AbstractTextParams.DECORATION_STYLE_SOLID;
 	}
 
-	/** {@code text-decoration-thickness}の絶対長。{@code auto}/{@code from-font}なら0。 */
+	/** Absolute length of {@code text-decoration-thickness}. 0 for {@code auto}/{@code from-font}. */
 	public static double getThickness(final CSSStyle style) {
 		return resolveLength(style.get(THICKNESS), style, 0);
 	}
 
-	/** {@code text-underline-offset}の絶対長。{@code auto}ならNaN。 */
+	/** Absolute length of {@code text-underline-offset}. NaN for {@code auto}. */
 	public static double getUnderlineOffset(final CSSStyle style) {
 		return resolveLength(style.get(UNDERLINE_OFFSET), style, Double.NaN);
 	}
@@ -109,15 +109,15 @@ public final class TextDecorationAux extends AbstractPrimitivePropertyInfo {
 			return length.getLength();
 		}
 		if (value instanceof PercentageValue percentage) {
-			// 割合は1em(css-text-decoration-4 §2.5/§2.7)
+			// Percentages are relative to 1em (css-text-decoration-4 §2.5/§2.7).
 			return percentage.getRatio() * style.getFontStyle().getSize();
 		}
 		return fallback;
 	}
 
 	/**
-	 * 1トークンをこの個別指定の値として読みます(短縮形からも使う)。
-	 * 該当しなければ null。
+	 * Reads one token as this longhand's value (also used by the shorthand).
+	 * Returns null if it does not match.
 	 */
 	public Value toValue(final UserAgent ua, final CssToken token) {
 		if (this.isStyle) {
@@ -136,7 +136,7 @@ public final class TextDecorationAux extends AbstractPrimitivePropertyInfo {
 			return null;
 		}
 		if (this == UNDERLINE_OFFSET) {
-			// 負の値も許される(線を上へ寄せる)
+			// Negative values are also allowed (move the line upward).
 			Value value = net.zamasoft.foliojet.css.util.CalcValueUtils.toCalc(ua, token);
 			if (value == null) {
 				value = ValueUtils.toPercentage(token);

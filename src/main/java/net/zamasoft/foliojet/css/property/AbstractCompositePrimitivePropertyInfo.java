@@ -9,8 +9,8 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
- * 複合特性です。
- * 
+ * A composite property.
+ *
  * @author MIYABE Tatsuhiko
  *          07:03:19Z miyabe $
  */
@@ -30,7 +30,7 @@ public abstract class AbstractCompositePrimitivePropertyInfo extends AbstractPro
 		Entry[] entries;
 		KeywordValue global = tokens.globalKeyword();
 		if (global != null) {
-			// inherit / initial / unset(CSSStyle.getで解決される)
+			// inherit / initial / unset (resolved by CSSStyle.get)
 			PrimitivePropertyInfo[] primitives = this.getPrimitives();
 			entries = new Entry[primitives.length];
 			for (int i = 0; i < entries.length; ++i) {

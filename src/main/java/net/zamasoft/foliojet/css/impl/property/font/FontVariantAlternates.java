@@ -19,13 +19,13 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code font-variant-alternates}(CSS Fonts)です。
+ * {@code font-variant-alternates} (CSS Fonts).
  *
  * <p>
- * {@code historical-forms}はOpenType {@code hist}として描画段へ搬送します。
- * {@code stylistic()/styleset()/character-variant()/swash()/ornaments()/annotation()}
- * は第一フォントファミリの{@code @font-feature-values}を参照してOpenType機能へ
- * 解決します。未定義名を含む関数だけを無視します。
+ * Carries {@code historical-forms} to rendering as OpenType {@code hist}.
+ * Resolves {@code stylistic()/styleset()/character-variant()/swash()/ornaments()/annotation()}
+ * into OpenType features by looking up {@code @font-feature-values} for the first font family.
+ * Ignores only functions that contain undefined names.
  * </p>
  */
 public final class FontVariantAlternates extends AbstractPrimitivePropertyInfo {

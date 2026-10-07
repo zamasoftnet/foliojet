@@ -4,14 +4,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
 
-// 2026-09-02 に MyHttpSourceResolver.java から分けた(本文は移しただけ。設計レビュー「10クラス 1,560行」)。
+// Split from MyHttpSourceResolver.java on 2026-09-02 (body only moved; design review: 10 classes, 1,560 lines).
 /**
- * 読み取り毎にストール上限を課すラッパーです(2026-08-08)。
- * {@code java.net.http}の応答ボディ({@code HttpResponseInputStream})は
- * ソケットタイムアウトに相当する仕組みを持たず、配信が止まると
- * {@code read}が永久にブロックする。読み取りを仮想スレッドへ委ねて
- * 時限を課し、超過時は下位ストリームを閉じて{@link IOException}にする
- * (閉じないと委ねた読み取りが残り続ける)。
+ * A wrapper that imposes a stall limit on each read (2026-08-08).
+ * The {@code java.net.http} response body ({@code HttpResponseInputStream}) has no mechanism
+ * equivalent to a socket timeout, so {@code read} blocks forever if delivery stops.
+ * Delegates reading to a virtual thread with a time limit, then closes the underlying stream
+ * and raises {@link IOException} if exceeded (otherwise the delegated read would remain pending).
  */
 final class StallGuardInputStream extends InputStream {
 	private final InputStream delegate;
@@ -41,7 +40,7 @@ final class StallGuardInputStream extends InputStream {
 			try {
 				this.delegate.close();
 			} catch (final IOException ignore) {
-				// 停止したストリームの後始末失敗は握りつぶす
+				// Ignore cleanup failures for the stopped stream.
 			}
 			throw new IOException("応答の読み取りが " + this.timeoutMillis + "ms 停止しました", e);
 		} catch (final InterruptedException e) {

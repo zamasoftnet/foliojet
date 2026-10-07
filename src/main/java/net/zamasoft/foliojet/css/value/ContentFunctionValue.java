@@ -1,9 +1,9 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * GCPM {@code content()}(引数なし)。{@code string-set}の値リスト内
- * でのみ生成される——代入元要素自身の描画テキストに置き換わる
- * マーカーで、{@code content:}プロパティの評価には一切流れない。
+ * GCPM {@code content()} (no arguments). Created only within {@code string-set}
+ * value lists: a marker replaced with the assigning element's own rendered text.
+ * Never enters evaluation of the {@code content:} property.
  *
  * @author MIYABE Tatsuhiko
  */

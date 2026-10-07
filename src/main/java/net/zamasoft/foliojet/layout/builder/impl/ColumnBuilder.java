@@ -16,30 +16,30 @@ public class ColumnBuilder extends BreakableBuilder {
 	 * {@inheritDoc}
 	 *
 	 * <p>
-	 * 段組の中では、最後の手段は{@link #pageBreak}=この段組への改段である。
-	 * したがって{@code column-count}を使い切ったら<b>もう断片は作れない</b>。
+	 * Within multi-column layout, the last resort is {@link #pageBreak}, a column break
+	 * in this multi-column box. Thus, once {@code column-count} is exhausted,
+	 * <b>no more fragments can be created</b>.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>入れ子の段組を当てにしてはいけない</b>(2026-07-28、50,000シードの
-	 * 掃過で実測)。当初は{@code findColumnBreak() != null}も真として
-	 * いたが、{@code flowStack}に改段できるボックスが<b>あっても</b>
-	 * {@code columnBreak()}は{@code Keep}/{@code Move}で失敗しうる。
-	 * 失敗すると{@link #pageBreak}へ落ち、そこで段を使い切っていれば
-	 * {@code false}が返って{@link BreakableBuilder#flush()}の
-	 * {@code assert this.textBuilder != null}が発火する
-	 * (strict 3件 + wild 5件。seed 2928が最小)。<b>この判定は
-	 * 「試せば必ず成功する」ではなく「失敗しても壊れない」を保証する
-	 * 側に倒す</b>——見送った改段のぶん内容はその場であふれるだけで、
-	 * 消えることも紙面外へ飛ぶこともない。
+	 * <b>Do not rely on nested multi-column layout</b> (observed in a 50,000-seed sweep,
+	 * 2026-07-28). Initially, {@code findColumnBreak() != null} also counted as true,
+	 * but {@code columnBreak()} can fail with {@code Keep}/{@code Move} <b>even when</b>
+	 * {@code flowStack} contains a box that allows column breaks. Failure falls back to
+	 * {@link #pageBreak}; if its columns are exhausted, it returns {@code false} and
+	 * triggers {@code assert this.textBuilder != null} in {@link BreakableBuilder#flush()}
+	 * (3 strict + 5 wild cases; seed 2928 was the smallest). <b>This check errs on the
+	 * side of guaranteeing "failure is safe", rather than "every attempt succeeds"</b>.
+	 * The skipped column break merely lets content overflow in place; it neither
+	 * disappears nor jumps outside the sheet.
 	 * </p>
 	 */
 	@Override
 	protected final boolean canFragmentFurther() {
-		// 表セルの再計測など、ページ文脈を持たないbuilderでは継続先を
-		// RootBuilderへ登録できない。ここで「改段可能」と答えると
-		// columnBreak()まで進んでからrootless不変条件違反になる。
-		// 計測用の閉じた断片では、その場であふれさせるのが安全である。
+		// A builder without page context, such as one remeasuring table cells, cannot register
+		// a continuation destination with RootBuilder. Reporting "column break available" here
+		// would proceed to columnBreak() and then violate the rootless invariant.
+		// For a closed measurement fragment, letting content overflow in place is safe.
 		return this.getPageContext() != null && this.contextFlow.box.canColumnBreak();
 	}
 
@@ -47,46 +47,42 @@ public class ColumnBuilder extends BreakableBuilder {
 	 * {@inheritDoc}
 	 *
 	 * <p>
-	 * <b>段組の中では「改ページ」は改段である。</b>ここは
-	 * {@code BreakableBuilder.autoBreak()}が改段点を見つけられなかった
-	 * ときの最後の手段であり、{@code contextFlow}(=段組ボックス自身)へ
-	 * 無条件に段を足していた。{@link BreakableBuilder#findColumnBreak()}が
-	 * {@code flowStack}しか見ないのに対し、段組のownerは
-	 * {@code contextFlow}であって{@code flowStack}にいないため、
-	 * <b>{@code column-count}の上限を見る場所がこの経路には1つもなかった</b>
-	 * (2026-07-28)。
+	 * <b>Within multi-column layout, a "page break" is a column break.</b> This is the last resort
+	 * when {@code BreakableBuilder.autoBreak()} finds no column break point. It used to
+	 * unconditionally add a column to {@code contextFlow} (the multi-column box itself).
+	 * {@link BreakableBuilder#findColumnBreak()} only inspects {@code flowStack}, whereas
+	 * the multi-column owner is {@code contextFlow}, outside {@code flowStack}, so
+	 * <b>nothing on this path checked the {@code column-count} limit</b> (2026-07-28).
 	 * </p>
 	 *
 	 * <p>
-	 * 段は<b>行方向</b>に並ぶ(段{@code i}は{@code i×(段幅+段間)})。行方向は
-	 * 分割できないので、段が増えるほど内容はまっすぐ紙の外へ出ていく——
-	 * seed 46577では{@code column-count:4}が<b>14段</b>になり、842ptの紙に
-	 * 対して y=2,835 へ描かれていた。
+	 * Columns are arranged along the <b>line axis</b> (column {@code i} is at
+	 * {@code i×(column width+column gap)}). The line axis cannot be fragmented, so adding
+	 * columns sends content straight off the sheet. For seed 46577, {@code column-count:4}
+	 * became <b>14 columns</b>, drawn at y=2,835 on an 842 pt sheet.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>自動改ページのときだけ</b>上限を守る。強制改ページ
-	 * ({@link ForceBreakMode})は<b>作者が段を要求した</b>ものなので数えない
-	 * ——{@code ContinuationStats.guardBreakProgress}が自動改ページだけを
-	 * 見張るのと同じ理由である。
+	 * Observe the limit <b>only for automatic page breaks</b>. Forced page breaks
+	 * ({@link ForceBreakMode}) mean <b>the author requested a column</b>, so do not count them —
+	 * the same reason {@code ContinuationStats.guardBreakProgress} monitors only automatic breaks.
 	 * </p>
 	 *
 	 * <p>
-	 * {@code false}を返す際は{@link BreakableBuilder#beginBreak()}を
-	 * <b>必ず先に呼ぶ</b>。これは{@code RootBuilder.pageBreak()}が
-	 * 「改ページ点なし」で{@code false}を返すときと同じ契約で、
-	 * {@code breakFloats}が空になることが
-	 * {@link BreakableBuilder#endFlowBlock()}の浮動体切断ループの停止条件に
-	 * なっている(空にせずに{@code false}を返すと<b>無限ループ</b>する。
-	 * 2026-07-28に実測)。
+	 * When returning {@code false}, call {@link BreakableBuilder#beginBreak()}
+	 * <b>first, without exception</b>. This is the same contract as {@code RootBuilder.pageBreak()} returning
+	 * {@code false} for "no page break point". An empty {@code breakFloats} is the termination
+	 * condition of the float splitting loop in {@link BreakableBuilder#endFlowBlock()}
+	 * (returning {@code false} without clearing it causes an <b>infinite loop</b>,
+	 * observed on 2026-07-28).
 	 * </p>
 	 */
 	protected final boolean pageBreak(BreakMode mode, byte flags) {
 		if (mode instanceof AutoBreakMode
 				&& (this.getPageContext() == null || !this.contextFlow.box.canColumnBreak())) {
-			// 段を使い切った。ここで段を足すと行方向へ紙の外まで伸びるので、
-			// 最後の段の中であふれさせる(ブラウザが column-count を
-			// 使い切ったときと同じ振る舞い)
+			// All columns are exhausted. Adding another would extend content off the sheet along the line axis,
+			// so let it overflow within the last column (the same behavior as browsers
+			// when they exhaust column-count).
 			this.beginBreak();
 			return false;
 		}

@@ -50,27 +50,27 @@ public class Src extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * <b>読めない形式の{@code src}は候補から外します</b>(2026-08-05)。
+	 * <b>Excludes unreadable {@code src} formats from the candidates</b> (2026-08-05).
 	 *
 	 * <p>
-	 * フォントの読み込みは非同期(FutureTask)なので、{@code addFontFace}が
-	 * 後から失敗しても<b>呼び出し側は成功したと思って次の候補へ進まない</b>。
-	 * つまり `src: url(a.woff2) format("woff2"), url(a.woff) format("woff")` と
-	 * 書かれていると、WOFF2で失敗したきり<b>WOFFへ落ちずに</b>既定フォントに
-	 * なる。実地コーパスではwoff2が1265件・woffが323件で、現代のサイトの
-	 * ほとんどがこの形。
+	 * Font loading is asynchronous (FutureTask), so even if {@code addFontFace} fails later,
+	 * <b>the caller assumes success and does not try the next candidate</b>.
+	 * Thus, with `src: url(a.woff2) format("woff2"), url(a.woff) format("woff")`,
+	 * a WOFF2 failure led to the default font <b>without falling back to WOFF</b>.
+	 * The real-world corpus had 1265 woff2 and 323 woff occurrences;
+	 * most modern sites use this pattern.
 	 * </p>
 	 *
 	 * <p>
-	 * 対応しているのは sfnt(truetype/opentype)・WOFF・WOFF2・
-	 * TrueType Collection。<b>EOTとSVGフォントは未対応</b>。
+	 * Supported formats are sfnt (truetype/opentype), WOFF, WOFF2, and
+	 * TrueType Collection. <b>EOT and SVG fonts are unsupported</b>.
 	 * </p>
 	 */
 	private static boolean unsupportedFormat(String format) {
 		switch (format.toLowerCase(java.util.Locale.ROOT)) {
-		// **WOFF2は2026-08-06に対応したので、ここから外した。**
-		// 外し忘れると、実在サイトのほとんど(`format("woff2")` を先頭に
-		// 書く)で新しい実装が一度も使われない
+		// **WOFF2 support was added on 2026-08-06, so it was removed from here.**
+		// Forgetting to remove it would leave the new implementation unused on most real sites,
+		// which put `format("woff2")` first.
 		case "svg":
 		case "embedded-opentype":
 			return true;
@@ -79,7 +79,7 @@ public class Src extends AbstractPrimitivePropertyInfo {
 		}
 	}
 
-	/** ヒントが無いときの保険。拡張子だけで判断する(あくまで補助)。 */
+	/** Fallback when no hint exists. Uses only the extension (strictly a supplementary check). */
 	private static boolean unsupportedExtension(URI uriv) {
 		final String path = uriv.getPath();
 		if (path == null) {
@@ -91,7 +91,7 @@ public class Src extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		List<URI> list = new ArrayList<URI>();
-		// 直前に足したURLの位置(format()はそのURLに掛かる)。-1=無し
+		// Position of the URL just added (format() applies to that URL). -1=none.
 		int lastUri = -1;
 		while (tokens.hasNext()) {
 			final CssToken lu = tokens.next();
@@ -147,7 +147,7 @@ public class Src extends AbstractPrimitivePropertyInfo {
 					}
 				}
 			}
-			// その他のトークン(コンマ等)は無視
+			// Ignore other tokens (commas, etc.).
 		}
 		return new SrcValue((URI[]) list.toArray(new URI[list.size()]));
 	}

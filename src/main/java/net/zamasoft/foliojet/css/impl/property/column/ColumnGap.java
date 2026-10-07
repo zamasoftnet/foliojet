@@ -19,18 +19,18 @@ import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/box.html#propdef-border-left-width">
- * border-left-width 特性 </a>です。
- * 
+ * border-left-width property </a>.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class ColumnGap extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new ColumnGap();
 
 	/**
-	 * 段組用の使用値です({@code normal}=1em。従来挙動)。Grid G0で
-	 * {@code normal}をcomputed valueに残す形へ変更した——multicolは
-	 * ここで1emへ、Gridは{@link #getForGrid}で0へ解決する
-	 * (consult-codex-2026-07-31-grid.txt §2)。
+	 * Used value for multi-column layout ({@code normal}=1em, the existing behavior).
+	 * Grid G0 changed this to retain {@code normal} in the computed value:
+	 * multicol resolves it to 1em here, and Grid resolves it to 0 via {@link #getForGrid}
+	 * (consult-codex-2026-07-31-grid.txt §2).
 	 */
 	public static double get(CSSStyle style) {
 		final Value value = style.get(INFO);
@@ -40,7 +40,7 @@ public class ColumnGap extends AbstractPrimitivePropertyInfo {
 		return ((AbsoluteLengthValue) value).getLength();
 	}
 
-	/** Grid用の使用値です({@code normal}=0)。 */
+	/** Used value for Grid ({@code normal}=0). */
 	public static double getForGrid(CSSStyle style) {
 		final Value value = style.get(INFO);
 		if (value == net.zamasoft.foliojet.css.value.KeywordValue.NORMAL) {
@@ -49,7 +49,7 @@ public class ColumnGap extends AbstractPrimitivePropertyInfo {
 		return ((AbsoluteLengthValue) value).getLength();
 	}
 
-	/** computed valueが{@code normal}か。Gridの使用値0とは区別して保持する。 */
+	/** Whether the computed value is {@code normal}. Retain it separately from the Grid used value 0. */
 	public static boolean isNormal(final CSSStyle style) {
 		return style.get(INFO) == net.zamasoft.foliojet.css.value.KeywordValue.NORMAL;
 	}
@@ -78,9 +78,9 @@ public class ColumnGap extends AbstractPrimitivePropertyInfo {
 		if (ValueUtils.isNormal(lu)) {
 			return net.zamasoft.foliojet.css.value.KeywordValue.NORMAL;
 		}
-		// **calc() を通すこと**(2026-08-04)。column-gap は multicol と Grid/Flex で
-		// 共用しており、それまで BorderValueUtils.toBorderWidth しか通していな
-		// かったので calc() を書くと宣言ごと落ちていた。窓口は GapValueUtils
+		// **Accept calc()** (2026-08-04). column-gap is shared by multicol and Grid/Flex.
+		// Previously, it only passed through BorderValueUtils.toBorderWidth, so
+		// calc() caused the entire declaration to be discarded. The entry point is GapValueUtils.
 		final Value value = GapValueUtils.toGap(ua, lu);
 		if (value == null) {
 			throw new PropertyException();

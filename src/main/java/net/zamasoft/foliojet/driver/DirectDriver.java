@@ -14,9 +14,7 @@ import jp.cssj.cti2.CTISession;
 public class DirectDriver implements CTIDriver {
 	protected static final URI DIRECT_URI = URI.create("copper:direct:");
 
-	/**
-	 * デフォルトの設定ファイルです。
-	 */
+	/** The default configuration file. */
 	public static final String DEFAULT_PROFILE_FILE_KEY = "jp.cssj.driver.default";
 
 	private static final String DEFAULT_PROFILE_DIR = "conf/profiles";

@@ -14,15 +14,16 @@ import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code text-underline-position}(css-text-decoration-3 §2.7)です
- * (2026-08-29新設。従来は無視リストにあった)。
+ * {@code text-underline-position} (css-text-decoration-3 §2.7)
+ * (added 2026-08-29; previously on the ignore list).
  *
  * <p>
- * {@code auto | [ from-font | under ] || [ left | right ]}。描画へ効くのは
- * {@code under}(横書きで下線をディセントの下へ置く)と、縦書きでの
- * {@code right}(下線を文字の右側へ置く)。{@code from-font}はフォントの
- * 下線位置を取れないため{@code auto}と同じ、{@code left}は縦書きの既定側
- * なので{@code auto}と同じ。継承する。
+ * {@code auto | [ from-font | under ] || [ left | right ]}.
+ * Rendering is affected by {@code under} (places underlines below the descent in horizontal writing)
+ * and {@code right} in vertical writing (places underlines to the right of the text).
+ * {@code from-font} equals {@code auto} because the font's underline position is unavailable;
+ * {@code left} equals {@code auto} because it is the default side in vertical writing.
+ * Inherited.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -30,7 +31,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 public final class TextUnderlinePosition extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new TextUnderlinePosition();
 
-	/** 解析結果。{@code under}と側({@code left}/{@code right}/なし)を別々に持つ。 */
+	/** Parsed result. Stores {@code under} separately from the side ({@code left}/{@code right}/absent). */
 	private record Position(boolean under, byte side) implements Value {
 		public String toString() {
 			final StringBuilder s = new StringBuilder();
@@ -48,8 +49,8 @@ public final class TextUnderlinePosition extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * レイアウトへ渡す位置({@code AbstractTextParams.UNDERLINE_POSITION_*})。
-	 * 縦書きだけに意味がある{@code right}を優先し、次に{@code under}。
+	 * Position passed to layout ({@code AbstractTextParams.UNDERLINE_POSITION_*}).
+	 * Prioritizes {@code right}, which matters only in vertical writing, then {@code under}.
 	 */
 	public static byte get(final CSSStyle style) {
 		final Value value = style.get(INFO);
@@ -125,7 +126,7 @@ public final class TextUnderlinePosition extends AbstractPrimitivePropertyInfo {
 			throw new PropertyException();
 		}
 		if (!under && side == AbstractTextParams.UNDERLINE_POSITION_AUTO) {
-			// from-font 単独は auto と同じ
+			// from-font alone is equivalent to auto.
 			return KeywordValue.AUTO;
 		}
 		return new Position(under, side);

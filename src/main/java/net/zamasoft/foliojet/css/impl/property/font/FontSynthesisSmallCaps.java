@@ -13,12 +13,12 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code font-synthesis-small-caps}です(css-fonts-4、2026-08-30新設)。
+ * {@code font-synthesis-small-caps} (css-fonts-4, added 2026-08-30).
  *
  * <p>
- * 値は{@code auto | none}、既定は{@code auto}で継承する。
- * 本エンジンにはスモールキャップの合成機構がないため、プロパティの受理・
- * カスケード・継承だけを行い、合成の実処理にはまだ使用しない。
+ * Values are {@code auto | none}; defaults to {@code auto} and is inherited.
+ * This engine has no small-caps synthesis mechanism, so the property is only accepted,
+ * cascaded, and inherited; it is not yet used for actual synthesis.
  * </p>
  */
 public class FontSynthesisSmallCaps extends AbstractPrimitivePropertyInfo {

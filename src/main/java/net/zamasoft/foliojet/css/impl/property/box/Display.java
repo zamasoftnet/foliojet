@@ -33,10 +33,10 @@ public class Display extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * display:contentsの祖先を飛ばした、箱の木の上での実質の親displayを
-	 * 返します(2026-08-07)。contents要素は箱を作らないため、匿名箱の補完や
-	 * flex/gridアイテム化の判定は最も近い非contents祖先を親と見なす必要が
-	 * あります。親が無ければNONEを返します(呼び出し側の既定分岐に落ちる)。
+	 * Returns the effective parent display in the box tree, skipping display:contents ancestors
+	 * (2026-08-07). Since contents elements create no box, anonymous box completion and flex/grid
+	 * item detection must treat the nearest non-contents ancestor as the parent.
+	 * Returns NONE if there is no parent (falls through to the caller's default branch).
 	 */
 	public static byte getFlattenedParentDisplay(CSSStyle style) {
 		for (CSSStyle p = style.getParentStyle(); p != null; p = p.getParentStyle()) {
@@ -51,10 +51,10 @@ public class Display extends AbstractPrimitivePropertyInfo {
 	public Value getComputedValue(Value value, CSSStyle style) {
 		byte display = ((DisplayValue) value).getDisplay();
 
-		// display:contents(CSS Display 3 §2.5)。要素自身の箱を作らない。
-		// 置換要素(img等)のcontentsは「中身」が置換内容そのものなので
-		// noneと同じ振る舞いになる(仕様どおり)。float/positionは箱が
-		// 無いので適用されない——以下の変換は全て通らない
+		// display:contents (CSS Display 3 §2.5). Do not create a box for the element itself.
+		// For replaced elements (img, etc.), the "contents" are the replaced content itself,
+		// so contents behaves like none (per the specification). No box means float/position
+		// do not apply; skip all conversions below.
 		if (display == DisplayValue.CONTENTS) {
 			if (CSSJInternalImage.getImage(style) != null) {
 				return DisplayValue.NONE_VALUE;
@@ -62,16 +62,16 @@ public class Display extends AbstractPrimitivePropertyInfo {
 			return DisplayValue.CONTENTS_VALUE;
 		}
 
-		// **ページ単位のfloat(脚注・ページフロート)はブロック化する**
-		// (2026-08-02、掃過で発覚)。これらは版面から切り離して置くため
-		// 常にブロック箱として作られる。displayがtable系のまま残ると、
-		// 子のtbody/trが「表の箱」を要求して構築に失敗していた
-		// ——絶対配置のdisplayブロック化と同じ理由(CSS Display 3 §2.7)
+		// **Blockify floats placed at page level (footnotes and page floats)**
+		// (2026-08-02, found during a sweep). They are placed separately from the type area
+		// and always created as block boxes. If display remained a table type,
+		// child tbody/tr elements required a "table box" and construction failed
+		// for the same reason that absolute positioning blockifies display (CSS Display 3 §2.7).
 		if (display != DisplayValue.NONE && CSSFloatValue.isPageLevel(CSSFloat.get(style))) {
 			return DisplayValue.BLOCK_VALUE;
 		}
 
-		// 浮動体のための変換
+		// Conversion for floats.
 		switch (display) {
 		case DisplayValue.INLINE_TABLE: {
 			final byte position = CSSPosition.get(style);
@@ -109,7 +109,7 @@ public class Display extends AbstractPrimitivePropertyInfo {
 		}
 			break;
 		case DisplayValue.TABLE_CAPTION:
-			// テーブル外のキャプションはブロック扱い
+			// Treat captions outside tables as blocks.
 			final CSSStyle parentStyle = style.getParentStyle();
 			if (parentStyle != null) {
 				switch (Display.getFlattenedParentDisplay(style)) {
@@ -155,14 +155,14 @@ public class Display extends AbstractPrimitivePropertyInfo {
 			throw new IllegalStateException();
 		}
 
-		// Grid/Flex直接子のblock化(Grid G0——css-grid-1 §6、Flex F0a——
-		// css-flexbox-1 §4「flex itemはblockify」。inline系の子は
-		// 匿名itemではなくブロックへ昇格させる)
+		// Blockify direct Grid/Flex children (Grid G0: css-grid-1 §6; Flex F0a:
+		// css-flexbox-1 §4, "flex items are blockified"). Promote inline children
+		// to blocks instead of anonymous items.
 		if (display == DisplayValue.INLINE || display == DisplayValue.INLINE_BLOCK) {
 			final CSSStyle flexParent = style.getParentStyle();
 			if (flexParent != null) {
-				// contents祖先は飛ばす——contentsの子はflex/gridの直接の
-				// アイテムになる(CSS Display 3 §2.5)
+				// Skip contents ancestors; their children become direct
+				// flex/grid items (CSS Display 3 §2.5).
 				final byte parentDisplay = Display.getFlattenedParentDisplay(style);
 				if (parentDisplay == DisplayValue.GRID || parentDisplay == DisplayValue.FLEX) {
 					value = DisplayValue.BLOCK_VALUE;
@@ -171,7 +171,7 @@ public class Display extends AbstractPrimitivePropertyInfo {
 			}
 		}
 
-		// 置換ボックスのための変換
+		// Conversion for replaced boxes.
 		switch (display) {
 		case DisplayValue.INLINE_TABLE:
 			if (CSSJInternalImage.getImage(style) != null) {
@@ -215,7 +215,7 @@ public class Display extends AbstractPrimitivePropertyInfo {
 			throw new IllegalStateException();
 		}
 
-		// 縦中横/横中縦のための変換
+		// Conversion for tate-chu-yoko / vertical text within horizontal text.
 		if (display == DisplayValue.INLINE) {
 			CSSStyle parentStyle = style.getParentStyle();
 			if (parentStyle != null && BlockFlow.get(parentStyle).isVertical() != BlockFlow.get(style).isVertical()) {
@@ -252,8 +252,8 @@ public class Display extends AbstractPrimitivePropertyInfo {
 				return DisplayValue.CONTENTS_VALUE;
 			} else if (ident.equals("flow-root")) {
 				return DisplayValue.FLOW_ROOT_VALUE;
-				// run-in は非対応(4で廃止。CSS Display 3 でも at-risk)。
-				// 未対応値として宣言ごと無効にする(モダンブラウザと同じ)
+				// run-in is unsupported (removed in 4; also at-risk in CSS Display 3).
+				// Invalidate the entire declaration as an unsupported value (as modern browsers do).
 			} else {
 				if (ident.equals("table")) {
 					return DisplayValue.TABLE_VALUE;
@@ -279,45 +279,45 @@ public class Display extends AbstractPrimitivePropertyInfo {
 					// Flex F0a(consult-codex-2026-08-02-flexbox.txt)
 					return DisplayValue.FLEX_VALUE;
 				} else if (ident.equals("inline-flex")) {
-					// **インラインレベルのflex/gridはブロックレベルで近似**
-					// (2026-08-11)。真のinline-flexは「行の中に置ける原子箱の
-					// 中身をflexで組む」もので、外=inline-block・内=flexの
-					// 二重箱が要る。それまでは宣言ごと捨てる旧挙動より近い
-					// ——捨てるとflexコンテナがただのブロックに戻り、横に
-					// 並ぶはずのナビ13項目が縦に積まれて本文の上へ507pt
-					// 覆いかぶさっていた(sankei.comのグローバルナビで実測)。
-					// 行の中に置かれた小さなinline-flex(バッジ等)は本来より
-					// 行が分かれる——どちらの誤差を採るかはimageTestの実測で
-					// 決めた
+					// **Approximate inline-level flex/grid with block-level flex/grid**
+					// (2026-08-11). True inline-flex lays out the contents of an atomic inline box
+					// using flex, requiring two boxes: outer inline-block and inner flex.
+					// Until then, this is closer than the old behavior of discarding the declaration:
+					// discarding it reverted the flex container to a plain block, so 13 navigation
+					// items that should have been horizontal stacked vertically and covered 507 pt
+					// of body text (measured on sankei.com global navigation).
+					// Small inline-flex elements within a line (badges, etc.) produce more line breaks
+					// than intended. The choice between these errors was based on
+					// imageTest measurements.
 					return DisplayValue.FLEX_VALUE;
 				} else if (ident.equals("inline-grid")) {
-					// inline-flexと同じ近似(上のコメント参照)
+					// Same approximation as inline-flex (see above).
 					return DisplayValue.GRID_VALUE;
 				} else if (ident.equals("table-caption")) {
 					return DisplayValue.TABLE_CAPTION_VALUE;
 				}
-				// 接頭辞つきの別名(2026-08-29)。実サイト50件中33件・4777回
-				// と、未対応値の中で群を抜いて多かった
+				// Prefixed aliases (2026-08-29). By far the most frequent unsupported values:
+				// 4777 occurrences on 33 of 50 real sites.
 				switch (ident) {
 				case "-webkit-flex":
 				case "-moz-flex":
 				case "-ms-flexbox":
 				case "-webkit-inline-flex":
 				case "-ms-inline-flexbox":
-					// 2012年版flexbox。現行のflexと同じ(inline-*は上の
-					// inline-flexと同じ近似)
+					// 2012 flexbox. Same as current flex (inline-* uses the same approximation
+					// as inline-flex above).
 					return DisplayValue.FLEX_VALUE;
 				case "-ms-grid":
 					return DisplayValue.GRID_VALUE;
 				case "-webkit-box":
 				case "-moz-box":
 				case "-webkit-inline-box":
-					// 2009年版flexbox。**flexへは写さない**——
-					// `display:-webkit-box; -webkit-line-clamp:N` の行数
-					// 切り詰め慣用句は箱がブロックであることに依存し、
-					// flexにすると中身が1行に並ぶ。実サイトは必ず直後に
-					// 現行の `display:flex` を重ねて書くので、flexが要る
-					// 場面ではカスケード順でそちらが勝つ
+					// 2009 flexbox. **Do not map to flex**.
+					// The `display:-webkit-box; -webkit-line-clamp:N` line-clamping
+					// idiom depends on the box being a block;
+					// flex would arrange its contents in one row. Real sites always follow it with
+					// the current `display:flex`, so where flex is needed,
+					// that declaration wins by cascade order.
 					return DisplayValue.BLOCK_VALUE;
 				default:
 					break;

@@ -18,20 +18,20 @@ public final class GeneratedValueUtils {
 	}
 
 	/**
-	 * &lt;list-style-type&gt; を値に変換します。
-	 * 
+	 * Converts &lt;list-style-type&gt; to a value.
+	 *
 	 * @param ident
 	 * @return
 	 */
 	public static ListStyleTypeValue toListStyleType(String ident) {
-		// hebrew/armenian/georgianは字形を持たず算用数字で表す(format/periodが3つともDECIMALへ落ちる)。
-		// 実際の記号が要るなら@counter-styleで定義できる
+		// hebrew/armenian/georgian lack glyphs and use Arabic numerals (format/period fall back to DECIMAL for all three).
+		// Define an @counter-style if the actual symbols are needed.
 		return ListStyleTypeValue.forName(ident.toLowerCase(java.util.Locale.ROOT));
 	}
 
 	/**
-	 * &lt;list-style-position&gt; を値に変換します。
-	 * 
+	 * Converts &lt;list-style-position&gt; to a value.
+	 *
 	 * @param ident
 	 * @return
 	 */
@@ -82,7 +82,7 @@ public final class GeneratedValueUtils {
 			return null;
 		default:
 			if (listStyleType >= ListStyleTypeValue.FIRST_CUSTOM) {
-				// 著者定義カウンタスタイルは常に文字列で表す
+				// Author-defined counter styles are always represented as strings
 				return null;
 			}
 			throw new IllegalArgumentException(String.valueOf(listStyleType));
@@ -90,10 +90,10 @@ public final class GeneratedValueUtils {
 	}
 
 	/**
-	 * カウンタおよび番号付リストをフォーマットします。
-	 * 
+	 * Formats counters and numbered lists.
+	 *
 	 * SPEC CSS2 12.6.2
-	 * 
+	 *
 	 * @param number
 	 * @param listStyleType
 	 * @return
@@ -240,8 +240,8 @@ public final class GeneratedValueUtils {
 			{ "", "C", "CC", "CCC", "CD", "D", "DC", "DCC", "DCCC", "CM" }, { "", "M", "MM", "MMM" } };
 
 	/**
-	 * ローマ数字。
-	 * 
+	 * Roman numerals.
+	 *
 	 * @param number
 	 * @return
 	 */
@@ -272,8 +272,8 @@ public final class GeneratedValueUtils {
 			{ "", "一千", "二千", "三千", "四千", "五千", "六千", "七千", "八千", "九千" }, };
 
 	/**
-	 * 漢数字
-	 * 
+	 * Kanji numerals.
+	 *
 	 * @param number
 	 * @return
 	 */
@@ -295,8 +295,8 @@ public final class GeneratedValueUtils {
 	}
 
 	/**
-	 * カウンタおよび番号付リストの装飾の終了記号を返します。
-	 * 
+	 * Returns the closing decoration symbol for counters and numbered lists.
+	 *
 	 * @param listStyleType
 	 * @return
 	 */

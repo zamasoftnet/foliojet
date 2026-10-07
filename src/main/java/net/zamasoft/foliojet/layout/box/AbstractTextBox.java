@@ -55,12 +55,12 @@ import net.zamasoft.pdfg2d.pdf.font.cid.missing.MissingCIDFontSource;
 
 public abstract class AbstractTextBox extends AbstractBox {
 	/**
-	 * テキストの部分を25%灰色の枠で囲みます。
+	 * Surrounds text with a 25% gray frame.
 	 */
 
 	/**
-	 * テキストボックス内に配置されたインラインです。
-	 * 
+	 * An inline placed inside a text box.
+	 *
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: AbstractTextBox.java 1633 2023-02-12 03:22:32Z miyabe $
 	 */
@@ -80,17 +80,17 @@ public abstract class AbstractTextBox extends AbstractBox {
 	protected Decoration decoration;
 
 	/**
-	 * 内部に含まれるテキストとインラインボックスです。 要素は Text, Control, Inline, IAbsoluteBox のいずれかです。
+	 * The text and inline boxes contained within. Each element is a Text, Control, Inline, or IAbsoluteBox.
 	 */
 	protected List<Object> contents = null;
 
-	/** bidi 解決が論理 tree を平坦化するための読み取り専用 view。 */
+	/** A read-only view for bidi resolution to flatten the logical tree. */
 	public final List<Object> getLogicalContents() {
 		return this.contents == null ? java.util.Collections.emptyList()
 				: java.util.Collections.unmodifiableList(this.contents);
 	}
 
-	/** 描画に使う内容。通常は論理 tree、bidi 行だけ視覚 tree。 */
+	/** The content used for drawing: normally the logical tree, but the visual tree for bidi lines. */
 	protected List<Object> getDrawingContents() {
 		return this.contents;
 	}
@@ -110,11 +110,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	/**
-	 * 直接の子インラインボックスを列挙します(読み取り専用。脚注F4の
-	 * call走査用に公開——consult-codex-2026-07-31-footnote-f4.txt)。
-	 * 入れ子のインラインへは降りない(呼び出し側が反復DFSで降りる)。
+	 * Enumerates direct child inline boxes (read-only; exposed for footnote F4 call traversal:
+	 * consult-codex-2026-07-31-footnote-f4.txt).
+	 * Does not descend into nested inlines (the caller descends with iterative DFS).
 	 *
-	 * @param action 各子インラインに適用する処理
+	 * @param action the action to apply to each child inline
 	 */
 	public final void forEachInlineBox(final java.util.function.Consumer<IInlineBox> action) {
 		if (this.contents == null) {
@@ -128,9 +128,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	/**
-	 * この箱が「後続ブロックへ重ねる外置きマーカー」だけを含むかを返す。
-	 * list-itemの先頭子が表である場合、マーカーを表セルへ混入させず、かつ
-	 * マーカー専用行で表を1行分送らないための構造判定に使う。
+	 * Returns whether this box contains only an outside marker that overlays the following block.
+	 * Used as a structural check when the first child of a list-item is a table, to keep the marker
+	 * out of table cells without a marker-only line pushing the table down by one line.
 	 */
 	public final boolean containsOnlyOverlayOutsideMarker() {
 		if (this.contents == null || this.contents.size() != 1) {
@@ -165,9 +165,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 			overline = decoration.overline;
 			lineThrough = decoration.lineThrough;
 		}
-		// text-decoration-color(2026-08-29): 指定があれば装飾線はその色、
-		// 無ければ従来どおり文字色。線種・太さ・下線位置もこの要素(線の
-		// 所有者)のparamsから取り、子孫へはそのまま伝播する
+		// text-decoration-color (2026-08-29): Use the specified color for decoration lines,
+		// or the text color as before if none is specified. Read line style, thickness, and underline position
+		// from this element's (the line owner's) params as well, and propagate them unchanged to descendants.
 		final Color color = params.decorationColor != null ? params.decorationColor : params.color;
 		final Decoration.Line own = color == null ? null : Decoration.Line.of(color, params);
 		underline = ((flags & AbstractTextParams.DECORATION_UNDERLINE) != 0) ? own : underline;
@@ -177,27 +177,28 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	/**
-	 * 行末に実体化した分綴ハイフンのうち、**その行の最後の内容になっていない
-	 * もの**を取り除きます(2026-08-31)。
+	 * Removes materialized line-end hyphenation hyphens **that are no longer the last content
+	 * of their line** (2026-08-31).
 	 *
 	 * <p>
-	 * 分綴の分割機会でハイフンを実体化した行が、改頁で溢れて組み直されると、
-	 * 実体化済みのハイフンが組み直し後の内容へ残ることがある。結果として
-	 * 「折らなかった位置のハイフンが語の途中に出る」——226頁の書籍で10箇所
-	 * ({@code Bu-reau}が行頭に、{@code orga-}/{@code niza-tions}は続きの側にも)。
-	 * ハイフンは行の最後にしか意味を持たないので、そうでないものは誤植であり
-	 * 落として構わない。実体化を止める方向で直そうとすると、正しい位置の
-	 * ハイフンまで消えて「ハイフン無しで語が割れる」欠陥に化ける(実測149箇所)。
+	 * When a line with a hyphen materialized at a hyphenation opportunity overflows at a page break
+	 * and is laid out again, that hyphen may remain in the reflowed content. This leaves a hyphen
+	 * inside a word where no break occurred: 10 occurrences in a 226-page book
+	 * ({@code Bu-reau} at a line start, and {@code orga-}/{@code niza-tions} on the continuation side too).
+	 * A hyphen is meaningful only at the end of a line, so others are typographical errors
+	 * and can be removed. Trying to fix this by preventing materialization also removes hyphens
+	 * at correct positions, turning it into a defect where words split without hyphens
+	 * (149 occurrences measured).
 	 * </p>
 	 *
-	 * @return 取り除いた幅の合計
+	 * @return the total width removed
 	 */
 	public final double removeStrayHyphens() {
 		if (this.contents == null) {
 			return 0;
 		}
 		double removed = 0;
-		// 末尾から見て、最後の可視内容より前にあるハイフンだけを落とす。
+		// Scan backward and remove only hyphens that precede the last visible content.
 		boolean seenVisible = false;
 		for (int i = this.contents.size() - 1; i >= 0; --i) {
 			final Object content = this.contents.get(i);
@@ -216,7 +217,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				continue;
 			}
 			if (content instanceof Control control) {
-				// 幅0の境界・つぶれた空白はハイフンが行末であることを妨げない
+				// Zero-width boundaries and collapsed spaces do not prevent a hyphen from being at the line end.
 				if (control.getAdvance() != 0) {
 					seenVisible = true;
 				}
@@ -251,11 +252,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	/**
-	 * 内部の最後のテキストのソース文字終端(オフセット+文字数)を
-	 * 返します(M6b v3)。切断で前断片に残った内容の終端=残余の再開
-	 * 位置の構造的に正確な導出に使います。
+	 * Returns the source character end (offset + character count) of the last text within
+	 * (M6b v3). Used to derive the end of the content left in the preceding fragment after a split,
+	 * i.e., the remainder's resume position, with structural accuracy.
 	 *
-	 * @return 最後のテキストの文字終端(テキストがなければ -1)
+	 * @return the character end of the last text, or -1 if there is no text
 	 */
 	public final int lastCharEnd() {
 		if (this.contents != null) {
@@ -265,11 +266,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 					return text.getCharOffset() + text.getCharCount();
 				}
 				if (content instanceof Inline inline) {
-					// ルビ単位は合成箱で、文字は箱の中に整形済みで入って
-					// いる(グリフとしては行に現れない)。単位の途中を
-					// 再開位置にすると、部分再生がruby開始イベントを
-					// 含まない位置から始まって二重供給になるため、
-					// 単位全体のソース終端を返す(2026-07-25)
+					// A ruby unit is a composite box containing already shaped text
+					// (its glyphs do not appear directly in the line). Resuming partway through
+					// the unit would start partial replay at a position without the ruby start event,
+					// feeding the content twice. Return the source end of the entire unit
+					// instead (2026-07-25).
 					if (inline.box instanceof net.zamasoft.foliojet.layout.box.impl.RubyUnitBox rubyUnit) {
 						final int end = rubyUnit.getSourceEnd();
 						if (end >= 0) {
@@ -306,20 +307,20 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 	public final double getWidth() {
 		if (this.getTextParams().flow.isVertical()) {
-			// 縦書き
+			// Vertical writing
 			return this.getPageSize();
 		} else {
-			// 横書き
+			// Horizontal writing
 			return this.lineSize;
 		}
 	}
 
 	public final double getHeight() {
 		if (this.getTextParams().flow.isVertical()) {
-			// 縦書き
+			// Vertical writing
 			return this.lineSize;
 		} else {
-			// 横書き
+			// Horizontal writing
 			return this.getPageSize();
 		}
 	}
@@ -341,14 +342,14 @@ public abstract class AbstractTextBox extends AbstractBox {
 		this.add(control);
 	}
 
-	/** {@code leader()}を追加します(leader() L1、幅は割り付け済み)。 */
+	/** Adds {@code leader()} (leader() L1; width already allocated). */
 	public final void addLeader(final net.zamasoft.foliojet.layout.text.LeaderQuad leader) {
 		this.add(leader);
 	}
 
 	/**
-	 * インラインを追加します。
-	 * 
+	 * Adds an inline.
+	 *
 	 * @param box
 	 */
 	public final void addInline(IInlineBox box) {
@@ -369,21 +370,24 @@ public abstract class AbstractTextBox extends AbstractBox {
 		this.lineSize += advance;
 	}
 
-	/** JLREQ 3.8.4の追出し優先段階。 */
+	/** The expansion-priority stages of JLREQ 3.8.4. */
 	protected static final int JUSTIFY_WORD_SPACE = 1;
 	protected static final int JUSTIFY_AUTOSPACE = 2;
 	protected static final int JUSTIFY_GENERAL = 3;
 	protected static final int JUSTIFY_FALLBACK = 4;
 	/**
-	 * 最後の段で欧文の字間にも配る(JLREQ 3.8.4 の d。欧文用文字の字間を含めるかは JIS X 4051 で処理系定義)。
-	 * {@code text-justify: auto} では、和字間・語間など{@link #JUSTIFY_FALLBACK}で配る所が無い行だけ(2026-10-06、
-	 * jigensha の報告: 「T o r B r o w s e r」と欧文の字間まで空いた)。{@code inter-character} は最初から含める。
+	 * In the final stage, also distribute space between Latin characters (JLREQ 3.8.4 d;
+	 * JIS X 4051 makes inclusion of Latin inter-character spacing implementation-defined).
+	 * With {@code text-justify: auto}, do so only on lines with no opportunities for {@link #JUSTIFY_FALLBACK},
+	 * such as Japanese inter-character or word spacing (2026-10-06, jigensha report: even Latin letters
+	 * were spaced out as "T o r B r o w s e r"). {@code inter-character} includes these from the start.
 	 */
 	protected static final int JUSTIFY_LETTERS = 5;
 
 	/**
-	 * この行／インラインが和文組版を含むかを返す。JLREQの段階的な行長調整は
-	 * 和文行にだけ適用し、純欧文のjustifyは従来どおり欧文の分離可能境界へ配分する。
+	 * Returns whether this line/inline contains Japanese typesetting. Apply JLREQ's staged line-length
+	 * adjustments only to Japanese lines; for purely Latin justification, distribute space to separable
+	 * Latin boundaries as before.
 	 */
 	protected final boolean containsJapaneseComposition() {
 		if (this.contents == null) {
@@ -414,7 +418,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 			}
 			default -> {
-				// 配置物・leaderは文字組版の判定に影響しない。
+				// Placed objects and leaders do not affect text typesetting classification.
 			}
 			}
 		}
@@ -426,13 +430,13 @@ public abstract class AbstractTextBox extends AbstractBox {
 				== net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.Kind.IDEOGRAPH) {
 			return true;
 		}
-		// CJK約物・縦書き互換形・全角形も和文組版の一部として扱う。
+		// Treat CJK punctuation, vertical compatibility forms, and fullwidth forms as Japanese typesetting too.
 		return cp >= 0x3000 && cp <= 0x303F || cp >= 0xFE10 && cp <= 0xFE1F
 				|| cp >= 0xFE30 && cp <= 0xFE4F || cp >= 0xFF01 && cp <= 0xFF60
 				|| cp >= 0xFFE0 && cp <= 0xFFE6;
 	}
 
-	/** 純欧文・一般文字列における従来のjustify候補数。 */
+	/** The existing number of justification candidates in purely Latin or general text. */
 	protected final int countGeneralJustificationPoints(final JustificationState state) {
 		if (this.contents == null) {
 			return 0;
@@ -467,7 +471,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 			}
 			default -> {
-				// 配置物・leaderは伸長点を作らない。
+				// Placed objects and leaders do not create expansion opportunities.
 			}
 			}
 		}
@@ -475,9 +479,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	/**
-	 * 語間(空白の直後)の伸長点の数({@code text-justify: inter-word}と韓国語の
-	 * 既定、2026-09-02)。空白は{@code Control}で、その次の字形の手前のアキ
-	 * ({@code xadvance})を伸ばす。
+	 * The number of word-space expansion opportunities (immediately after whitespace), used for
+	 * {@code text-justify: inter-word} and the Korean default (2026-09-02). Whitespace is a
+	 * {@code Control}; expand the space ({@code xadvance}) before the next glyph.
 	 */
 	protected final int countWordSpaceJustificationPoints(final JustificationState state) {
 		if (this.contents == null) {
@@ -506,14 +510,17 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 			}
 			default -> {
-				// 配置物・leaderは伸長点を作らない。
+				// Placed objects and leaders do not create expansion opportunities.
 			}
 			}
 		}
 		return count;
 	}
 
-	/** 語間の各伸長点へ同じアキを加える({@link #countWordSpaceJustificationPoints}と対)。 */
+	/**
+	 * Adds equal space to each word-space expansion opportunity
+	 * (paired with {@link #countWordSpaceJustificationPoints}).
+	 */
 	protected final void justifyWordSpaces(final double unitSpacing, final JustificationState state) {
 		if (this.contents == null) {
 			return;
@@ -545,7 +552,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 			}
 			default -> {
-				// 配置物・leaderは伸長しない。
+				// Placed objects and leaders do not expand.
 			}
 			}
 			if (advance != 0) {
@@ -554,7 +561,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 	}
 
-	/** 純欧文・一般文字列の各justify候補へ同じアキを加える。 */
+	/** Adds equal space to each justification candidate in purely Latin or general text. */
 	protected final void justifyGeneral(final double unitSpacing, final JustificationState state) {
 		if (this.contents == null) {
 			return;
@@ -595,7 +602,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 			}
 			default -> {
-				// 配置物・leaderは伸長しない。
+				// Placed objects and leaders do not expand.
 			}
 			}
 			if (advance != 0) {
@@ -612,8 +619,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	/**
-	 * 指定した追出し段階で利用できる総調整量（pt）を返す。第4段階だけは
-	 * 上限でなく、1emの均等配分に対する重みを返す。
+	 * Returns the total available adjustment (pt) at the specified expansion stage.
+	 * Only stage 4 returns a weight for uniform distribution of 1em instead of an upper bound.
 	 */
 	protected final double justificationCapacity(final int priority, JustificationState state) {
 		if (this.contents == null) {
@@ -624,7 +631,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 		for (int i = 0; i < this.contents.size(); ++i) {
 			switch (this.contents.get(i)) {
 			case Text text -> {
-				// テキスト
+				// Text
 				int glen = text.getGlyphCount();
 				if (glen <= 0) {
 					break;
@@ -645,7 +652,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 
 			case Inline content -> {
-				// インライン
+				// Inline
 				if (content.box.getType() == BoxType.INLINE) {
 					InlineBox inline = (InlineBox) content.box;
 					capacity += inline.justificationCapacity(priority, state);
@@ -654,7 +661,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 			case Control ctrl -> {
 				if (i > 0 && ctrl.getControlChar() != SoftHyphen.CHAR) {
-					// 幅0のソフトハイフンは語中の伸長点を作らない
+					// Zero-width soft hyphens do not create expansion opportunities within words.
 					if (ctrl instanceof net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace) {
 						state.beforeWordSpaceCodePoint = state.prevCodePoint;
 						state.beforeWordSpaceFontSize = state.prevFontSize;
@@ -666,11 +673,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 
 			case IAbsoluteBox absoluteBox -> {
-				// 位置に影響しない
+				// Does not affect position
 			}
 
 			case net.zamasoft.foliojet.layout.text.LeaderQuad leader -> {
-				// leaderは残余を先に消費するので伸長点を作らない
+				// A leader consumes the remaining space first, so it does not create expansion opportunities.
 			}
 
 			default -> throw new IllegalStateException();
@@ -679,7 +686,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 		return capacity;
 	}
 
-	/** 指定段階の各点へ、段階上限（第4段階は1em）×ratioを加える。 */
+	/** Adds stage limit (1em for stage 4) × ratio to each opportunity in the specified stage. */
 	protected final void justify(final int priority, final double ratio, JustificationState state) {
 		if (this.contents == null) {
 			return;
@@ -689,15 +696,15 @@ public abstract class AbstractTextBox extends AbstractBox {
 			double da = 0;
 			switch (this.contents.get(i)) {
 			case Text text -> {
-				// テキスト
+				// Text
 				int glen = text.getGlyphCount();
 				if (glen <= 0) {
 					break;
 				}
 				char[] ch = text.getChars();
 				byte[] clens = text.getClusterLengths();
-				// 和文詰めT1a: 既存の調整(約物詰め・autospace gap)を保全して
-				// 均等割りを上乗せする(addXAdvanceは加算——リセットしない)
+				// Japanese text spacing T1a: Preserve existing adjustments (punctuation compression and autospace gaps)
+				// and add uniform spacing on top (addXAdvance adds to the value; do not reset it).
 				final net.zamasoft.pdfg2d.gc.text.TextImpl textImpl = (net.zamasoft.pdfg2d.gc.text.TextImpl) text;
 				int k = 0;
 				for (int j = 0; j < glen; ++j) {
@@ -718,7 +725,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 
 			case Inline inline -> {
-				// インライン
+				// Inline
 				if (inline.box.getType() == BoxType.INLINE) {
 					InlineBox inlineBox = (InlineBox) inline.box;
 					da = inlineBox.getLineSize();
@@ -729,7 +736,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 
 			case Control ctrl -> {
 				if (i > 0 && ctrl.getControlChar() != SoftHyphen.CHAR) {
-					// 幅0のソフトハイフンは語中の伸長点を作らない
+					// Zero-width soft hyphens do not create expansion opportunities within words.
 					if (ctrl instanceof net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace) {
 						state.beforeWordSpaceCodePoint = state.prevCodePoint;
 						state.beforeWordSpaceFontSize = state.prevFontSize;
@@ -741,11 +748,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 
 			case IAbsoluteBox absoluteBox -> {
-				// 位置に影響しない
+				// Does not affect position
 			}
 
 			case net.zamasoft.foliojet.layout.text.LeaderQuad leader -> {
-				// 割り付け済み——justifyの伸長対象外
+				// Already allocated; excluded from justification expansion
 			}
 
 			default -> throw new IllegalStateException();
@@ -756,7 +763,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 	}
 
-	/** 1つの境界が指定段階で持つ上限／重み（pt）。 */
+	/** The upper bound/weight (pt) of a boundary at the specified stage. */
 	private static double justificationWeight(final JustificationState state, final int next,
 			final double nextFontSize, final TextBreakingRules rules, final int priority) {
 		final int prev = state.prevCodePoint;
@@ -767,7 +774,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 			final double size = Math.min(state.beforeWordSpaceFontSize > 0
 					? state.beforeWordSpaceFontSize : nextFontSize, nextFontSize);
-			// JLREQ 3.8.4: 欧文語間を通常値から最大二分まで広げる。
+			// JLREQ 3.8.4: Expand Latin word spacing from its normal value up to half an em.
 			return Math.max(0, size / 2.0 - state.wordSpaceAdvance);
 		}
 		if (prev < 0 || !net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver
@@ -833,19 +840,19 @@ public abstract class AbstractTextBox extends AbstractBox {
 			containerBox = (IFramedBox) this;
 		}
 		final IFramedBox childContainerBox = containerBox;
-		// 元の走査順(先頭から)を保つため、スタックへは逆順(末尾から)でpushする
+		// Push onto the stack in reverse order (from the end) to preserve the original traversal order (from the start).
 		for (int i = this.contents.size() - 1; i >= 0; --i) {
 			switch (this.contents.get(i)) {
 			case IAbsoluteBox absoluteBox ->
-				// 絶対配置
+				// Absolute positioning
 				worklist.push(IBox.step(absoluteBox, childContainerBox));
 
 			case Inline inline ->
-				// インライン
+				// Inline
 				worklist.push(IBox.step(inline.box, childContainerBox));
 
 			default -> {
-				// テキスト
+				// Text
 			}
 			}
 		}
@@ -858,21 +865,21 @@ public abstract class AbstractTextBox extends AbstractBox {
 		final AbstractLineParams lineParams = lineBox.getLineParams();
 		for (int i = 0; i < this.contents.size(); ++i) {
 			if (this.contents.get(i) instanceof Inline inline) {
-				// インライン
+				// Inline
 				final IInlineBox inlineBox = inline.box;
 				final InlinePos pos = inlineBox.getInlinePos();
 				double ascent;
 				double descent;
 				switch (inlineBox.getType()) {
 				case INLINE: {
-					// 普通のインライン
+					// Normal inline
 					final InlineBox box = (InlineBox) inlineBox;
 					ascent = box.getAscent();
 					descent = box.getDescent();
 				}
 					break;
 				case BLOCK: {
-					// インラインブロック
+					// Inline block
 					final AbstractContainerBox box = (AbstractContainerBox) inlineBox;
 					final boolean verticalLine = lineParams.flow.isVertical();
 					descent = box.inlineDescent(lineParams);
@@ -880,12 +887,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 					break;
 				case REPLACED: {
-					// 画像
+					// Image
 					if (lineParams.flow.isVertical()) {
-						// 縦書き
+						// Vertical writing
 						ascent = descent = inlineBox.getWidth() / 2.0;
 					} else {
-						// 横書き(基準線を持つ画像=数式は下端より上が基準線)
+						// Horizontal writing (images with a baseline, i.e., formulas, have it above the bottom edge)
 						descent = ((AbstractReplacedBox) inlineBox).getBaselineDescent();
 						ascent = inlineBox.getHeight() - descent;
 					}
@@ -1016,7 +1023,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
-			// 影
+			// Shadow
 			if (this.params.textShadows != null) {
 				for (int i = this.params.textShadows.length - 1; i >= 0; --i) {
 					TextShadow shadow = params.textShadows[i];
@@ -1030,8 +1037,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 								if (outline != null) {
 									gc.fill(outline);
 								} else {
-									// 字形データが手元に無いフォント。テキストで
-									// 描くしかないが、せめて装飾として印を付ける
+									// A font whose glyph data is unavailable locally. It must be drawn as text,
+									// but at least mark it as decoration.
 									this.drawText(gc, x + shadow.x, y + shadow.y);
 								}
 							}
@@ -1040,7 +1047,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 			}
 
-			// テキスト本体
+			// Text itself
 			try (final var gcState = gc.begin()) {
 				if (this.params.color != null) {
 					gc.setFillPaint(this.params.color);
@@ -1052,8 +1059,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 					gc.setStrokePaint(this.params.textStrokeColor);
 					if (this.params.strokeBeforeFill) {
 						gc.setTextMode(GC.TextMode.STROKE);
-						// 先行する輪郭は装飾です。タグ付きPDFの論理文字列へ
-						// 同じ本文を二重に入れないようartifactとして描く。
+						// The preceding outline is decoration. Draw it as an artifact to avoid inserting
+						// the same body text twice into the logical text of a tagged PDF.
 						try (final var artifact = gc.beginArtifactScope()) {
 							this.drawText(gc, x, y);
 						}
@@ -1066,7 +1073,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 		}
 
-		/** 本文を論理行のscopeへ1回だけ出します。 */
+		/** Emits the body text exactly once to the logical line's scope. */
 		private void drawMainText(final GC gc, final double x, final double y) throws GraphicsException {
 			if (this.logicalLine == null) {
 				this.drawText(gc, x, y);
@@ -1085,17 +1092,17 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 
 		/**
-		 * ぼかし付きの影(2026-08-29)。Java2D・SVGは従来どおり文字を群画像へ
-		 * 描いて効果を掛け、透明を使えるPDFは字形の輪郭から影だけをラスタ化する。
-		 * どちらも使えない場合は{@code box-shadow}と同じ12段の半透明近似
-		 * ({@link net.zamasoft.foliojet.layout.util.BoxDecorationRenderer#BLUR_STEPS})
-		 * を行う: 字形を段ごとに「塗り+外側へ2d幅の縁取り」
-		 * (d=段の縁の位置、σ=blur/2)で重ね描きし、各段のアルファは全段が
-		 * 重なる中心で指定色のアルファ(0.98で頭打ち)になる{@code 1-(1-α)^(1/N)}。内側へ
-		 * 縮めた段は字形を縮められないので塗りだけ(=中心は常に指定の濃さ、
-		 * 輪郭のすぐ内側は縁取りと塗りが重なりやや濃い——本体の字形の
-		 * 下になる領域なので実用上見えない)。ぼかし0は従来どおり1回描く
-		 * (既存出力を変えない)。
+		 * A blurred shadow (2026-08-29). Java2D and SVG draw text into a group image and apply effects
+		 * as before; PDF with transparency support rasterizes only the shadow from glyph outlines.
+		 * If neither is available, use the same 12-layer translucent approximation as {@code box-shadow}
+		 * ({@link net.zamasoft.foliojet.layout.util.BoxDecorationRenderer#BLUR_STEPS}):
+		 * overlay each layer's glyphs with "fill + outward stroke of width 2d"
+		 * (d = the layer edge position, σ = blur/2). Each layer's alpha is {@code 1-(1-α)^(1/N)},
+		 * so the center, where all layers overlap, reaches the specified color's alpha (capped at 0.98).
+		 * Inward-shrunk layers use only a fill because glyphs cannot be shrunk (the center always has
+		 * the specified opacity; just inside the outline, the stroke and fill overlap and are slightly
+		 * darker, but this lies under the text glyph itself and is invisible in practice).
+		 * For zero blur, draw once as before (preserving existing output).
 		 */
 		private void drawBlurredShadow(GC gc, TextShadow shadow, double x, double y) throws GraphicsException {
 			final float alpha = shadow.color.getAlpha();
@@ -1123,9 +1130,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 			net.zamasoft.foliojet.layout.util.ApproximationGC.report(gc, "text-shadow", "2822.text-blur-rings");
 			final double[] steps = net.zamasoft.foliojet.layout.util.BoxDecorationRenderer.BLUR_STEPS;
 			final int n = steps.length;
-			// 不透明な影(α=1)では1段あたりのアルファも1になり、外縁まで
-			// べた塗りの塊になってしまう。中心の合成アルファを0.98で頭打ちに
-			// して、不透明色でも縁が薄れるようにする(1段あたり約0.28)
+			// An opaque shadow (α=1) would also have alpha 1 per layer,
+			// producing a solid mass all the way to the outer edge. Cap the center's composite alpha at 0.98
+			// so even opaque colors fade at the edges (about 0.28 per layer).
 			final float layerAlpha = (float) (1 - Math.pow(1 - Math.min(alpha, 0.98), 1.0 / n));
 			gc.setStrokePaint(shadow.color);
 			gc.setFillAlpha(layerAlpha);
@@ -1144,8 +1151,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 						gc.setTextMode(GC.TextMode.FILL);
 					}
 					if (outline != null) {
-						// 段ごとに塗り(+縁取り)。テキストで12回描くと
-						// 本文がPDFへ12重に入ってしまう(下のtextOutline参照)
+						// Fill (+ stroke) each layer. Drawing as text 12 times would insert the body text
+						// into the PDF 12 times (see textOutline below).
 						if (d > 0) {
 							gc.fillDraw(outline);
 						} else {
@@ -1159,9 +1166,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 
 		/**
-		 * 厳密なぼかし付きの影(2026-08-29)。出力先がガウスぼかしを持つ
-		 * (Java2D・SVG)ときは、影の文字を文字の範囲+3σの余白ぶんのグループ
-		 * 画像へ描き、{@link GroupEffects}のぼかしを掛けて置く。
+		 * An exact blurred shadow (2026-08-29). When the output supports Gaussian blur (Java2D and SVG),
+		 * draw the shadow text into a group image covering the text bounds plus a 3σ margin,
+		 * apply the blur from {@link GroupEffects}, and place it.
 		 */
 		private void drawExactBlurredShadow(GC gc, TextShadow shadow, double x, double y) throws GraphicsException {
 			final double sigma = shadow.blur / 2;
@@ -1187,7 +1194,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				w = vertical ? thickness : advance;
 				h = vertical ? advance : thickness;
 			}
-			// 字形のはみ出し(斜体・アクセント)ぶんも余白に含める
+			// Include glyph overhang (italics and accents) in the margin as well.
 			final double pad = sigma * 3 + thickness * 0.5 + 1;
 			final double ox = minX - pad, oy = minY - pad;
 			final net.zamasoft.pdfg2d.gc.image.GroupImageGC ggc = gc.createGroupImage(w + pad * 2, h + pad * 2);
@@ -1204,30 +1211,28 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 
 		/**
-		 * この描画単位のテキストを<b>字形の輪郭(パス)</b>として組み立てます
-		 * (2026-08-30)。輪郭を取れないフォントが1つでも混ざっていたら
-		 * {@code null}を返し、呼び出し側は従来どおりテキストで描きます。
+		 * Builds this drawing unit's text as <b>glyph outlines (paths)</b>
+		 * (2026-08-30). If even one font cannot supply outlines, return {@code null};
+		 * the caller then draws text as before.
 		 *
 		 * <p>
-		 * <b>影をテキストで描くと、そのままPDFの抽出テキストへ入る。</b>
-		 * 鮮明な影なら本文が2回、ぼかし付きの影は12段の重ね描きなので13回、
-		 * さらに圏点({@code text-emphasis})が付くと描画単位が1文字ごとに
-		 * 割れるため「減減税税と と…」と1文字ずつ交互に出る——縦組みの
-		 * 実文書で報告された(2026-08-30)。影は装飾であって本文ではないので、
-		 * 字形情報を持たないパスで描き、さらにタグ付きPDFでは
-		 * {@code /Artifact}で囲う。
+		 * <b>Drawing a shadow as text inserts it directly into the PDF's extracted text.</b>
+		 * A sharp shadow duplicates the body text; a blurred shadow overlays 12 layers, producing 13 copies.
+		 * With emphasis marks ({@code text-emphasis}), drawing units split into individual characters,
+		 * so they alternate character by character as "減減税税と と…": reported in an actual document
+		 * in vertical writing (2026-08-30). Shadows are decoration, not body text, so draw them as paths
+		 * without character information, and also wrap them in {@code /Artifact} for tagged PDF.
 		 *
 		 * <p>
-		 * 座標の取り方は{@link #drawText}と同じ(縦書きは{@code x+descent}を
-		 * 基準に送り、横書きは{@code y+ascent})。輪郭の組み立て自体は
-		 * {@code FontUtils.addTextPath}が字送り・カーニング・字間・縦書きの
-		 * 回転までまとめて行う。
+		 * Coordinates follow {@link #drawText} (advance from {@code x+descent} in vertical writing
+		 * and from {@code y+ascent} in horizontal writing). {@code FontUtils.addTextPath} builds
+		 * the outlines, handling advance, kerning, letter spacing, and rotation for vertical writing.
 		 *
 		 * <p>
-		 * <b>取れない場合</b>: Core-14のType1フォント({@code ShapedFont}を
-		 * 実装しない)、輪郭がnullの字形、画像字形・カラー字形のフォント。
-		 * {@link FontUtils#addTextPath}は欠けた字形を黙って省くため、全GIDを
-		 * 事前検査し、1つでも該当すればテキスト描画の近似へ落とす。
+		 * <b>When outlines are unavailable</b>: Core-14 Type1 fonts (which do not implement
+		 * {@code ShapedFont}), glyphs with null outlines, and fonts with image or color glyphs.
+		 * {@link FontUtils#addTextPath} silently omits missing glyphs, so check every GID beforehand
+		 * and fall back to the text-drawing approximation if any qualifies.
 		 */
 		private GeneralPath textOutline(double x, double y) {
 			final GeneralPath path = new GeneralPath();
@@ -1292,7 +1297,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					}
 				}
 			} else if (this.params.flow.isVertical()) {
-				// 縦書き
+				// Vertical writing
 				for (int i = 0; i < this.len; ++i) {
 					final Text text = (Text) this.contents.get(i + this.off);
 					if (text.getFontMetrics().getFontSource() == MissingCIDFontSource.INSTANCES_TB) {
@@ -1302,7 +1307,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					y += text.getAdvance();
 				}
 			} else {
-				// 横書き
+				// Horizontal writing
 				for (int i = 0; i < this.len; ++i) {
 					final Text text = (Text) this.contents.get(i + this.off);
 					if (text.getFontMetrics().getFontSource() == MissingCIDFontSource.INSTANCES_LTR) {
@@ -1345,12 +1350,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	/**
-	 * {@code leader()}の反復描画です(leader() L2——
-	 * consult-codex-2026-07-31-leader.txt Q3)。shape済みパターン1周期を
-	 * 「論理的な行末」を原点とする固定グリッドへ反復描画する(同じ行末
-	 * 座標を持つ複数行のドットが縦に揃う)。グリッドへ完全に入るセル
-	 * だけを描き、タグ付きPDFではartifact(装飾)として囲む。論理
-	 * テキストへは反復文字列を混入させない。
+	 * Repeated drawing of {@code leader()} (leader() L2:
+	 * consult-codex-2026-07-31-leader.txt Q3). Repeat one period of the shaped pattern on a fixed
+	 * grid whose origin is the logical line end (dots on lines sharing the same line-end
+	 * coordinate align vertically). Draw only cells that fit completely in the grid,
+	 * and wrap them as artifacts (decoration) in tagged PDF. Keep the repeated characters
+	 * out of the logical text.
 	 */
 	protected static class LeaderDrawable extends AbstractDrawable {
 		private final net.zamasoft.foliojet.layout.text.LeaderQuad leader;
@@ -1368,12 +1373,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 			this.descent = descent;
 		}
 
-		/** グリッドのセル区間 [kmin, kmax](コピー数はkmax-kmin+1)。 */
+		/** Grid cell interval [kmin, kmax] (number of copies is kmax-kmin+1). */
 		private long[] cellRange() {
 			final double p = this.leader.minAdvance;
 			final double end = this.leader.advance;
 			final double gridOrigin = end + this.leader.endOffset;
-			// セルk: [gridOrigin-(k+1)p, gridOrigin-kp)。完全に[0,end]内のみ
+			// Cell k: [gridOrigin-(k+1)p, gridOrigin-kp). Only cells entirely within [0,end].
 			final long kmin = (long) Math.ceil((gridOrigin - end) / p - 0.0001);
 			final long kmax = (long) Math.floor((gridOrigin) / p - 1 + 0.0001);
 			return new long[] { kmin, kmax };
@@ -1480,8 +1485,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 					gc.setFillPaint(color);
 				}
 
-				// 装飾。太さは線ごとの指定(text-decoration-thickness)、無ければ
-				// フォントサイズ比の既定(2026-08-29)
+				// Decoration. Use the specified thickness per line (text-decoration-thickness),
+				// or the default font-size ratio if none is specified (2026-08-29).
 				final double fontSize = this.params.fontStyle.getSize();
 				final double autoThickness = fontSize * this.params.decorationThickness;
 				final net.zamasoft.pdfg2d.gc.font.FontListMetrics flm = this.params.getFontListMetrics();
@@ -1516,13 +1521,13 @@ public abstract class AbstractTextBox extends AbstractBox {
 								0, lineY, lineAxis, lineY, false);
 					}
 				} else if (this.params.flow.isVertical()) {
-					// 縦書き進行
+					// Vertical writing progression
 					x += this.descent;
 					final double lineAxis = this.height;
 					final Decoration.Line underline = this.decoration.underline;
 					if (underline != null) {
-						// 下線。既定は文字の左側、text-underline-position: right なら右側。
-						// text-underline-offset は文字から遠ざかる向きへ
+						// Underline. On the left of the text by default; on the right with text-underline-position: right.
+						// text-underline-offset moves away from the text.
 						final double t = thicknessOf(underline, autoThickness);
 						final boolean right = underline.position() == AbstractTextParams.UNDERLINE_POSITION_RIGHT;
 						double lineX = right ? x + flm.getMaxAscent() : x - flm.getMaxDescent();
@@ -1533,54 +1538,54 @@ public abstract class AbstractTextBox extends AbstractBox {
 					}
 					final Decoration.Line overline = this.decoration.overline;
 					if (overline != null) {
-						// 上線
+						// Overline
 						final double lineX = x + flm.getMaxAscent();
 						drawDecorationLine(gc, overline, thicknessOf(overline, autoThickness), lineX, y, lineX,
 								y + lineAxis, true);
 					}
 					final Decoration.Line lineThrough = this.decoration.lineThrough;
 					if (lineThrough != null) {
-						// 打ち消し線
+						// Line-through
 						drawDecorationLine(gc, lineThrough, thicknessOf(lineThrough, autoThickness), x, y, x,
 								y + lineAxis, true);
 					}
 				} else {
-					// 横書き進行
+					// Horizontal writing progression
 					y += this.ascent;
 					double lineAxis = this.width;
 					final Decoration.Line underline = this.decoration.underline;
 					if (underline != null) {
-						// 下線
+						// Underline
 						final double t = thicknessOf(underline, autoThickness);
 						final double descent = flm.getMaxDescent();
 						double lineY;
 						if (underline.position() == AbstractTextParams.UNDERLINE_POSITION_UNDER) {
-							// under: ディセントの下端に線の上辺を付け、offsetがあれば
-							// その分さらに下げる(css-text-decoration-4 §2.7/§2.8)
+							// under: Place the line's top edge at the bottom of the descent, and move it farther down
+							// by the offset if specified (css-text-decoration-4 §2.7/§2.8).
 							lineY = y + descent + t / 2 + (Double.isNaN(underline.offset()) ? 0 : underline.offset());
 						} else if (!Double.isNaN(underline.offset())) {
-							// auto位置+offset: ベースラインを零位置として線の上辺をずらす
+							// auto position + offset: Shift the line's top edge using the baseline as zero.
 							lineY = y + underline.offset() + t / 2;
 						} else {
 							lineY = y + descent;
-							// 行の下端から線の太さだけ上がった位置で押さえる
+							// Clamp to one line thickness above the bottom of the line box.
 							lineY = Math.min(y + this.descent - t, lineY);
 						}
 						drawDecorationLine(gc, underline, t, x, lineY, x + lineAxis, lineY, false);
 					}
 					final Decoration.Line overline = this.decoration.overline;
 					if (overline != null) {
-						// 上線
+						// Overline
 						final double t = thicknessOf(overline, autoThickness);
 						final double ascent = flm.getMaxAscent();
 						double lineY = y - ascent;
-						// 行の上端から線の太さだけ下がった位置で押さえる
+						// Clamp to one line thickness below the top of the line box.
 						lineY = Math.max(y - this.ascent + t, lineY);
 						drawDecorationLine(gc, overline, t, x, lineY, x + lineAxis, lineY, false);
 					}
 					final Decoration.Line lineThrough = this.decoration.lineThrough;
 					if (lineThrough != null) {
-						// 打ち消し線
+						// Line-through
 						final double xHeight = flm.getMaxXHeight();
 						final double lineY = y - xHeight / 2.0;
 						drawDecorationLine(gc, lineThrough, thicknessOf(lineThrough, autoThickness), x, lineY,
@@ -1596,16 +1601,17 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 
 		/**
-		 * 装飾線1本を線種に従って描きます(2026-08-29)。
+		 * Draws one decoration line according to its style (2026-08-29).
 		 *
 		 * <ul>
-		 * <li>solid: 従来どおりの1本線</li>
-		 * <li>double: 太さと同じ間隔を空けた2本(全体で太さの3倍)</li>
-		 * <li>dotted/dashed: GCの線パターン(点=太さ角、破線=太さの3倍)</li>
-		 * <li>wavy: 振幅=太さ・周期=太さの4倍の2次曲線の連なり</li>
+		 * <li>solid: a single line as before</li>
+		 * <li>double: two lines separated by their thickness (total width is three times the thickness)</li>
+		 * <li>dotted/dashed: the GC line pattern (square dots of side = thickness;
+		 * dashes = three times the thickness)</li>
+		 * <li>wavy: a sequence of quadratic curves with amplitude = thickness and period = four times the thickness</li>
 		 * </ul>
-		 * 線パターンや線端はこのDrawableの{@code gc.begin()}ブロック内なので
-		 * 後続の描画へ漏れない。
+		 * Line patterns and caps stay within this Drawable's {@code gc.begin()} block
+		 * and do not leak into subsequent drawing.
 		 */
 		private static void drawDecorationLine(final GC gc, final Decoration.Line line, final double t,
 				final double x0, final double y0, final double x1, final double y1, final boolean vertical)
@@ -1630,8 +1636,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 				gc.draw(new Line2D.Double(x0, y0, x1, y1));
 				break;
 			case AbstractTextParams.DECORATION_STYLE_WAVY: {
-				// 半周期2t・振幅tの2次曲線(制御点を±2tに置くと頂点が±tになる)。
-				// 端数の最後の半周期は長さに比例して振幅を落として端で線上に戻す
+				// Quadratic curve with half-period 2t and amplitude t (control points at ±2t give extrema at ±t).
+				// For the final partial half-period, scale amplitude with length so the curve ends on the line.
 				final double length = vertical ? y1 - y0 : x1 - x0;
 				final double half = t * 2;
 				final java.awt.geom.Path2D.Double path = new java.awt.geom.Path2D.Double();
@@ -1682,10 +1688,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 		if (this.contents == null) {
 			return;
 		}
-		// テキスト抽出は文書順を保つ必要があるため、局所的な追記(Text/
-		// Control)も子への委譲(Inline/IAbsoluteBox)も同じ手順列として
-		// 組み立て、最後に**逆順**でworklistへpushする(2026-07-20、
-		// drawと同じ理由)
+		// Text extraction must preserve document order, so build local appends (Text/
+		// Control) and delegation to children (Inline/IAbsoluteBox) into the same sequence
+		// of steps, then push them onto the worklist in **reverse order** (2026-07-20,
+		// for the same reason as draw).
 		final List<GetTextStep> localSteps = new ArrayList<>();
 		for (int i = 0; i < this.contents.size(); ++i) {
 			switch (this.contents.get(i)) {
@@ -1693,10 +1699,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 			case Inline inline -> localSteps.add(IBox.getTextStep(inline.box, textBuff));
 			case IAbsoluteBox absoluteBox -> localSteps.add(IBox.getTextStep(absoluteBox, textBuff));
 			case Control control ->
-				// 空白
+				// Whitespace
 				localSteps.add(w -> textBuff.append(control.getControlChar()));
 			case net.zamasoft.foliojet.layout.text.LeaderQuad leader ->
-				// 反復ドット列は論理テキストへ混入させない——単一の空白のみ
+				// Keep repeated dot sequences out of the logical text; insert only a single space.
 				localSteps.add(w -> textBuff.append(' '));
 			default -> throw new IllegalStateException();
 			}
@@ -1712,12 +1718,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 		if (drawingContents == null || drawingContents.isEmpty()) {
 			return;
 		}
-		// 局所描画(テキストラン・装飾)と子(インライン・絶対配置)の描画が
-		// 同一ループ内で交互に現れるため、両方をこの順番のまま局所リストへ
-		// 積み、最後に**逆順**で共有workリストへpushする(2026-07-20、
-		// IBox.pushDrawStepsと同じ理由での反復化)。局所描画をここで
-		// 即座に実行してしまうと、まだ実行されていない子の描画より先に
-		// なってしまい、描画順が崩れる。
+		// Local drawing (text runs and decoration) and child drawing (inline and absolutely positioned boxes)
+		// alternate within the same loop, so accumulate both in a local list in this order,
+		// then push them onto the shared worklist in **reverse order** (2026-07-20:
+		// converted to iteration for the same reason as IBox.pushDrawSteps). Executing local drawing
+		// immediately here would put it ahead of child drawing that has not run yet,
+		// breaking the drawing order.
 		final List<DrawStep> localSteps = new ArrayList<>();
 		int off = 0;
 		int len = 0;
@@ -1732,11 +1738,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 				&& TypesettingMode.inlineProgression(lineParams.flow, lineParams.writingModeVariant,
 						lineParams.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
 		final double inlineExtent = vertical ? this.getInnerHeight() : this.getInnerWidth();
-		// テキストとインラインの描画
+		// Draw text and inline boxes
 		for (int i = 0; i < drawingContents.size(); ++i) {
 			switch (drawingContents.get(i)) {
 			case Text text -> {
-				// テキスト
+				// Text
 				if (len == 0) {
 					off = i;
 					tx = xx;
@@ -1749,16 +1755,16 @@ public abstract class AbstractTextBox extends AbstractBox {
 				}
 				++len;
 				if (vertical) {
-					// 縦書き
+					// Vertical writing
 					yy += text.getAdvance();
 				} else {
-					// 横書き
+					// Horizontal writing
 					xx += text.getAdvance();
 				}
 			}
 
 			case Inline inline -> {
-				// インライン
+				// Inline
 				if (lineParams.opacity != 0 && len > 0) {
 					final int foff = off, flen = len;
 					final double ftx = tx;
@@ -1770,7 +1776,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					len = 0;
 				}
 				if (decoration) {
-					// 装飾
+					// Decoration
 					if (this.decoration != null) {
 						final double width = xx - dx;
 						final double height = yy - dy;
@@ -1792,24 +1798,24 @@ public abstract class AbstractTextBox extends AbstractBox {
 				double ascent;
 				switch (inlineBox.getType()) {
 				case INLINE: {
-					// 普通のインライン
+					// Normal inline
 					final InlineBox box = (InlineBox) inlineBox;
 					ascent = box.getAscent();
 				}
 					break;
 				case BLOCK: {
-					// インラインブロック
+					// Inline block
 					final AbstractContainerBox box = (AbstractContainerBox) inlineBox;
 					ascent = (vertical ? inlineBox.getWidth() : inlineBox.getHeight()) - box.inlineDescent(lineParams);
 				}
 					break;
 				case REPLACED: {
-					// 画像
+					// Image
 					if (vertical) {
-						// 縦書き
+						// Vertical writing
 						ascent = inlineBox.getWidth() / 2.0;
 					} else {
-						// 横書き(基準線を持つ画像=数式は下端より上が基準線)
+						// Horizontal writing (images with a baseline, i.e., formulas, have it above the bottom edge)
 						ascent = inlineBox.getHeight() - ((AbstractReplacedBox) inlineBox).getBaselineDescent();
 					}
 				}
@@ -1818,12 +1824,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 					throw new IllegalStateException();
 				}
 
-				// ベースラインに合わせる
-				// インラインのアセントはベースラインから内変への長さなので
-				// 境界とマージンを考慮する
+				// Align to the baseline
+				// Inline ascent is the distance from the baseline to the inner edge,
+				// so account for borders and margins.
 				double voffset = (ascent - this.ascent);
 				if (vertical) {
-					// 縦書き(日本)
+					// Vertical writing (Japanese)
 					final double drawX;
 					if (lineParams.writingModeVariant == WritingModeVariant.SIDEWAYS_CCW) {
 						drawX = xx + this.ascent - ascent - inline.verticalAlign;
@@ -1840,7 +1846,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 							contextY, drawX, drawY));
 					yy += inlineBox.getHeight();
 				} else {
-					// 横書き
+					// Horizontal writing
 					final double drawX = xx, drawY = yy - voffset - inline.verticalAlign;
 					localSteps.add(IBox.drawStep(inlineBox, pageBox, drawer, visitor, clip, transform, contextX,
 							contextY, drawX, drawY));
@@ -1849,7 +1855,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 
 			case IAbsoluteBox absoluteBox -> {
-				// 絶対配置
+				// Absolute positioning
 				if (lineParams.opacity != 0 && len > 0) {
 					final int foff = off, flen = len;
 					final double ftx = tx;
@@ -1879,7 +1885,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 
 			case Control control -> {
-				// 空白
+				// Whitespace
 				if (lineParams.opacity != 0 && len > 0) {
 					final int foff = off, flen = len;
 					final double ftx = tx;
@@ -1896,17 +1902,17 @@ public abstract class AbstractTextBox extends AbstractBox {
 					decoration = true;
 				}
 				if (vertical) {
-					// 縦書き
+					// Vertical writing
 					yy += control.getAdvance();
 				} else {
-					// 横書き
+					// Horizontal writing
 					xx += control.getAdvance();
 				}
 			}
 
 			case net.zamasoft.foliojet.layout.text.LeaderQuad leader -> {
-				// leader() L2: 反復パターンの描画(グリフ列としては実体化
-				// しない——行末原点の固定グリッドで位相を揃える)
+				// leader() L2: Draw the repeated pattern (do not materialize it as a glyph sequence;
+				// align its phase to a fixed grid with its origin at the line end).
 				if (lineParams.opacity != 0 && len > 0) {
 					final int foff = off, flen = len;
 					final double ftx = tx;
@@ -1967,7 +1973,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 				});
 			}
 		}
-		// 元の実行順を保つため、共有worklistへは逆順でpushする
+		// Push onto the shared worklist in reverse order to preserve the original execution order.
 		for (int i = localSteps.size() - 1; i >= 0; --i) {
 			worklist.push(localSteps.get(i));
 		}
@@ -1988,9 +1994,9 @@ public abstract class AbstractTextBox extends AbstractBox {
 		if (drawingContents == null || drawingContents.isEmpty()) {
 			return;
 		}
-		// クリップ用のpathへの追記は描画順に意味がないため、テキストは
-		// その場で即座に追記してよい。子(インライン)の輪郭だけを
-		// worklistへ積む(2026-07-20、反復化——drawと同じ理由)
+		// Drawing order does not matter for appends to a clipping path, so text can be appended
+		// immediately here. Only push child (inline) outlines onto
+		// the worklist (2026-07-20: converted to iteration for the same reason as draw).
 		final List<TextShapeStep> localSteps = new ArrayList<>();
 		double xx = x, yy = y;
 
@@ -2001,11 +2007,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 				&& TypesettingMode.inlineProgression(lineParams.flow, lineParams.writingModeVariant,
 						lineParams.direction) == TypesettingMode.InlineProgression.BOTTOM_TO_TOP;
 		final double inlineExtent = vertical ? this.getInnerHeight() : this.getInnerWidth();
-		// テキストとインラインの描画
+		// Draw text and inline boxes
 		for (int i = 0; i < drawingContents.size(); ++i) {
 			switch (drawingContents.get(i)) {
 			case Text text -> {
-				// テキスト
+				// Text
 				Font font = ((FontMetricsImpl) text.getFontMetrics()).getFont();
 				if (sideways) {
 					if (font instanceof ShapedFont) {
@@ -2024,7 +2030,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					}
 					yy += text.getAdvance();
 				} else if (vertical) {
-					// 縦書き
+					// Vertical writing
 					if (font instanceof ShapedFont) {
 						final double drawY = bottomToTop
 								? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, yy - y,
@@ -2041,7 +2047,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					}
 					yy += text.getAdvance();
 				} else {
-					// 横書き
+					// Horizontal writing
 					if (font instanceof ShapedFont) {
 						AffineTransform at = AffineTransform.getTranslateInstance(xx, yy + this.ascent);
 						at.preConcatenate(transform);
@@ -2057,29 +2063,29 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 
 			case Inline inline -> {
-				// インライン
+				// Inline
 				final IInlineBox inlineBox = inline.box;
 				double ascent;
 				switch (inlineBox.getType()) {
 				case INLINE: {
-					// 普通のインライン
+					// Normal inline
 					final InlineBox box = (InlineBox) inlineBox;
 					ascent = box.getAscent();
 				}
 					break;
 				case BLOCK: {
-					// インラインブロック
+					// Inline block
 					final AbstractContainerBox box = (AbstractContainerBox) inlineBox;
 					ascent = (vertical ? inlineBox.getWidth() : inlineBox.getHeight()) - box.inlineDescent(lineParams);
 				}
 					break;
 				case REPLACED: {
-					// 画像
+					// Image
 					if (vertical) {
-						// 縦書き
+						// Vertical writing
 						ascent = inlineBox.getWidth() / 2.0;
 					} else {
-						// 横書き(基準線を持つ画像=数式は下端より上が基準線)
+						// Horizontal writing (images with a baseline, i.e., formulas, have it above the bottom edge)
 						ascent = inlineBox.getHeight() - ((AbstractReplacedBox) inlineBox).getBaselineDescent();
 					}
 				}
@@ -2088,12 +2094,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 					throw new IllegalStateException();
 				}
 
-				// ベースラインに合わせる
-				// インラインのアセントはベースラインから内変への長さなので
-				// 境界とマージンを考慮する
+				// Align to the baseline
+				// Inline ascent is the distance from the baseline to the inner edge,
+				// so account for borders and margins.
 				double voffset = (ascent - this.ascent);
 				if (vertical) {
-					// 縦書き(日本)
+					// Vertical writing (Japanese)
 					final double sx;
 					if (lineParams.writingModeVariant == WritingModeVariant.SIDEWAYS_CCW) {
 						sx = xx + this.ascent - ascent - inline.verticalAlign;
@@ -2109,7 +2115,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 					localSteps.add(IBox.textShapeStep(inlineBox, pageBox, path, transform, sx, sy));
 					yy += inlineBox.getHeight();
 				} else {
-					// 横書き
+					// Horizontal writing
 					final double sx = xx, sy = yy - voffset - inline.verticalAlign;
 					localSteps.add(IBox.textShapeStep(inlineBox, pageBox, path, transform, sx, sy));
 					xx += inlineBox.getWidth();
@@ -2117,23 +2123,23 @@ public abstract class AbstractTextBox extends AbstractBox {
 			}
 
 			case IAbsoluteBox absoluteBox -> {
-				// 絶対配置
+				// Absolute positioning
 				// ignore
 			}
 
 			case Control control -> {
-				// 空白
+				// Whitespace
 				if (vertical) {
-					// 縦書き
+					// Vertical writing
 					yy += control.getAdvance();
 				} else {
-					// 横書き
+					// Horizontal writing
 					xx += control.getAdvance();
 				}
 			}
 
 			case net.zamasoft.foliojet.layout.text.LeaderQuad leader -> {
-				// leaderは字形選択に関与しない——幅だけ進める
+				// A leader does not affect glyph selection; only advance by its width.
 				if (vertical) {
 					yy += leader.getAdvance();
 				} else {
@@ -2144,7 +2150,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 			default -> throw new IllegalStateException();
 			}
 		}
-		// 元の実行順を保つため、共有worklistへは逆順でpushする
+		// Push onto the shared worklist in reverse order to preserve the original execution order.
 		for (int i = localSteps.size() - 1; i >= 0; --i) {
 			worklist.push(localSteps.get(i));
 		}
@@ -2165,23 +2171,23 @@ public abstract class AbstractTextBox extends AbstractBox {
 		for (int i = 0; i < this.contents.size(); ++i) {
 			switch (this.contents.get(i)) {
 			case Text text -> {
-				// テキスト
+				// Text
 				assert text.getGlyphCount() > 0;
 				if (text instanceof TextImpl impl && impl.materializedHyphen) {
-					// **行末に実体化した分綴ハイフンは再生しない**(2026-08-31)。
-					// 改頁で捨てた行をイベント列へ書き戻すこの経路は、組版の
-					// 決定ではなくソース相当の内容を運ぶ約束になっている。
-					// ハイフンを混ぜると、組み直し後に折らなかった位置へ
-					// ハイフンが残る——226頁の書籍で10箇所、`Bu-reau`が行頭に、
-					// `orga-`/`niza-tions`は続きの側にも出ていた。分割機会は
-					// 直後のSoftHyphen(制御)が運ぶので、再生しなくても失われない
+					// **Do not replay hyphenation hyphens materialized at line ends** (2026-08-31).
+					// This path writes lines discarded at a page break back into the event sequence.
+					// Its contract is to carry source-equivalent content, not layout decisions.
+					// Including hyphens would leave them at positions where reflow no longer breaks the line:
+					// this occurred 10 times in a 226-page book, with `Bu-reau` at a line start
+					// and `orga-`/`niza-tions` on the continuation side too. The immediately following SoftHyphen (control)
+					// carries the break opportunity, so it is preserved even without replaying the hyphen.
 					break;
 				}
 				text.toGlyphs(gh);
 			}
 
 			case Inline content -> {
-				// インライン
+				// Inline
 				switch (content.box.getType()) {
 				case INLINE: {
 					final InlineBox inlineBox = (InlineBox) content.box;
@@ -2216,7 +2222,7 @@ public abstract class AbstractTextBox extends AbstractBox {
 			case Control control -> gh.control(control);
 
 			case net.zamasoft.foliojet.layout.text.LeaderQuad leader ->
-				// 再駆動でquadを流し直す(幅はdrawLineが割り付け直す)
+				// Feed the quad again on rerun (drawLine reallocates the width).
 				gh.control(leader);
 
 			default -> throw new IllegalStateException();

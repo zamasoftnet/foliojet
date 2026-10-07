@@ -65,8 +65,8 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 		primitives.set(BackgroundSize.INFO_HEIGHT, KeywordValue.AUTO);
 		primitives.set(BackgroundClip.INFO, BackgroundClipValue.BORDER_BOX_VALUE);
 		primitives.set(BackgroundOrigin.INFO, BackgroundOriginValue.PADDING_BOX_VALUE);
-		// 多層背景(コンマ区切り、2026-08-29): 最初のレイヤだけを採る。
-		// 最終レイヤにだけ許される<color>は拾って背景色にする
+		// Multiple backgrounds (comma-separated, 2026-08-29): take only the first layer.
+		// Collect <color>, allowed only in the final layer, as the background color.
 		final java.util.List<TokenStream> layers = tokens.splitComma();
 		if (layers.isEmpty()) {
 			throw new PropertyException();
@@ -87,12 +87,12 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 					}
 				}
 			}
-			// 続く画像・origin解析でも同じ最終レイヤを読む。
+			// The following image/origin parsing reads the same final layer.
 			last.rewind(mark);
 		}
-		// 2層目以降は画像・グラデーション・noneだけを拾う(2026-08-29)。
-		// レイヤごとの繰り返し・位置・寸法は先頭レイヤの値を共有する
-		// (Background参照——記録済みの近似)
+		// From the second layer onward, collect only images, gradients, and none (2026-08-29).
+		// Repeat, position, and size values are shared from the first layer
+		// (see Background; a documented approximation).
 		final java.util.List<Value> extraLayers = new java.util.ArrayList<Value>();
 		final java.util.List<BackgroundOriginValue> extraOrigins = new java.util.ArrayList<BackgroundOriginValue>();
 		for (int i = 1; i < layers.size(); ++i) {
@@ -139,15 +139,15 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				continue;
 			}
 			if (ColorValueUtils.isCurrentColor(lu)) {
-				// currentcolor(2026-08-29)。BackgroundColorと同じDEFAULT番兵
+				// currentcolor (2026-08-29). Same DEFAULT sentinel as BackgroundColor.
 				primitives.set(BackgroundColor.INFO, KeywordValue.DEFAULT);
 				continue;
 			}
 			Value value = ColorValueUtils.toGradient(ua, lu);
 			if (value != null) {
-				// グラデーションは画像レイヤ(BackgroundImage.getPaint)。従来は
-				// 背景色の枠に入れていたが、`linear-gradient(...), #fff` のように
-				// 色と共存させるため分ける(2026-08-29)
+				// Gradients are image layers (BackgroundImage.getPaint). Previously stored
+				// in the background color slot; separate them so they can coexist with a color,
+				// as in `linear-gradient(...), #fff` (2026-08-29).
 				if (uriValue) {
 					throw new PropertyException("urlが2度指定されています");
 				}
@@ -174,7 +174,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				continue;
 			}
 			try {
-				// url()とimage-set()(2026-08-29)
+				// url() and image-set() (2026-08-29).
 				value = ValueUtils.toImage(ua, uri, lu);
 				if (value != null) {
 					if (uriValue) {
@@ -240,12 +240,12 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 				Value w, h;
 
 				final CssToken wToken = tokens.next();
-				// contain/coverキーワード(css-backgrounds-3 §3.9、単独値のみ)。
-				// longhand側(BackgroundSize.parseValues)と対。従来未対応で
-				// PropertyExceptionにより**background宣言全体が破棄**され、
-				// 別途longhandで指定されたbackground-imageだけが残って
-				// 原寸・既定位置の暗部クロップになっていた
-				// (asahi.comの動画ランキングのサムネイルが黒く見えた、2026-08-27)
+				// contain/cover keywords (css-backgrounds-3 §3.9, standalone values only).
+				// Paired with the longhand parser (BackgroundSize.parseValues). Previously unsupported:
+				// PropertyException **discarded the entire background declaration**,
+				// leaving only background-image specified separately as a longhand,
+				// cropped to a dark area at its intrinsic size and default position
+				// (asahi.com video ranking thumbnails appeared black, 2026-08-27).
 				if (wToken instanceof CssToken.Ident sizeKw
 						&& ("cover".equals(sizeKw.lower()) || "contain".equals(sizeKw.lower()))) {
 					final Value kw = "cover".equals(sizeKw.lower()) ? KeywordValue.COVER : KeywordValue.CONTAIN;
@@ -301,11 +301,11 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 			}
 			position = true;
 
-			// <position>はlonghandのパーサに任せる(2026-08-29)。従来は
-			// 1〜2値だけを手で解いており、css-values-3の4値構文
-			// (right 10px bottom 20px)や3値構文でbackground宣言全体が
-			// 捨てられていた(実サイトで4件)。位置に使えるトークンが続く
-			// 限り、最大4つまで集めて渡す
+			// Delegate <position> to the longhand parser (2026-08-29). Previously, only
+			// one/two values were parsed manually, so css-values-3 four-value syntax
+			// (right 10px bottom 20px) and three-value syntax caused the entire background
+			// declaration to be discarded (four cases on real sites). Collect up to four
+			// consecutive tokens usable in a position and pass them to the parser.
 			if (!isPositionToken(ua, lu)) {
 				throw new PropertyException();
 			}
@@ -320,7 +320,7 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 			}
 		}
 		if (!extraLayers.isEmpty()) {
-			// 先頭レイヤの画像の後ろへ2層目以降を並べる(先頭が最前面)
+			// Append the second and subsequent layers after the first layer image (frontmost first).
 			final Value first = primitives.get(BackgroundImage.INFO);
 			if (first != null) {
 				extraLayers.add(0, first);
@@ -339,13 +339,13 @@ public class BackgroundShorthand extends AbstractShorthandPropertyInfo {
 		}
 	}
 
-	/** &lt;position&gt;の成分になれるトークン(キーワードまたは長さ・割合)か。 */
+	/** Whether a token can be a &lt;position&gt; component (keyword, length, or percentage). */
 	static boolean isPositionToken(final UserAgent ua, final CssToken token) {
 		if (token instanceof CssToken.Ident ident) {
 			return isPositionKeyword(ident.lower());
 		}
 		if (token instanceof CssToken.Func) {
-			// calc()等
+			// calc(), etc.
 			return ValueUtils.toPercentage(token) != null || ValueUtils.toLength(ua, token) != null;
 		}
 		return token instanceof CssToken.Percent || token instanceof CssToken.Dim || token instanceof CssToken.Num;

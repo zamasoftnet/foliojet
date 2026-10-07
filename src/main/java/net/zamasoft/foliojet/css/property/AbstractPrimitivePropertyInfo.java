@@ -10,7 +10,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
- * 分解不可能なプロパティです。
+ * A property that cannot be decomposed.
  *
  * @author MIYABE Tatsuhiko
  *          miyabe $
@@ -26,7 +26,7 @@ public abstract class AbstractPrimitivePropertyInfo extends AbstractPropertyInfo
 		Value value;
 		KeywordValue global = tokens.globalKeyword();
 		if (global != null) {
-			// inherit / initial / unset(CSSStyle.getで解決される)
+			// inherit / initial / unset (resolved by CSSStyle.get)
 			value = global;
 		} else {
 			value = this.parseValue(tokens, ua, uri);
@@ -39,13 +39,13 @@ public abstract class AbstractPrimitivePropertyInfo extends AbstractPropertyInfo
 	}
 
 	/**
-	 * 宣言値のトークン列を単一の値に解釈します。
+	 * Parses the declaration's token sequence as a single value.
 	 *
-	 * @param tokens 宣言値(inherit は処理済み)
+	 * @param tokens declaration value (inherit has already been handled)
 	 * @param ua
 	 * @param uri
 	 * @return
-	 * @throws PropertyException 値を解釈できない場合
+	 * @throws PropertyException if the value cannot be interpreted
 	 */
 	public abstract Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException;
 }

@@ -22,24 +22,27 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 4 辺のショートハンド {@code margin} / {@code padding} / {@code border-width} / {@code border-style} /
- * {@code border-color} / {@code inset} です。1〜4 個の値を上・右・下・左へ配る(1 個は全辺、2 個は上下・左右、3 個は
- * 上・左右・下)。全体キーワードは基底の{@link #longhands()}で受ける。
+ * Four-side shorthands {@code margin} / {@code padding} / {@code border-width} / {@code border-style} /
+ * {@code border-color} / {@code inset}. Distributes one to four values to top, right, bottom, and left
+ * (one: all sides; two: top/bottom and left/right; three: top, left/right, bottom).
+ * The base class handles CSS-wide keywords via {@link #longhands()}.
  *
  * <p>
- * 2026-10-04 まで 6 つのクラスに同じ配り方の写しがあり、届かない{@code inherit}の分岐と、全体キーワードの扱いの
- * 3 通りの流儀(border-color だけが自前で受けていた)を持っていた。論理側の{@link LogicalBoxShorthand}と同じ形にした。
- * 5 個以上の値は不正(以前は 5 個目以降を黙って無視していた)。
+ * Until 2026-10-04, six classes duplicated this distribution logic, with unreachable {@code inherit} branches
+ * and three styles of CSS-wide keyword handling (only border-color handled them itself).
+ * Aligned the structure with the logical {@link LogicalBoxShorthand}.
+ * Five or more values are invalid (previously the fifth and later values were silently ignored).
  * </p>
  *
  * <p>
- * {@code inset}(css-logical §4.4)は論理軸ではなく物理辺へ展開する(仕様どおり)。未対応だと
- * {@code inset:0; margin:auto}の絶対配置センタリング(実地で頻出の中央寄せイディオム)が丸ごと落ち、要素が
- * 静的位置(左上)へ張り付く(asahi.comの動画再生アイコンが左上へ寄った、2026-08-27)。
+ * {@code inset} (css-logical §4.4) expands to physical sides, not logical axes, as specified.
+ * Without support, absolute centering via {@code inset:0; margin:auto}
+ * (a common real-world centering idiom) was discarded entirely, pinning the element to its static position
+ * (top-left; asahi.com video play icons moved to the top-left, 2026-08-27).
  * </p>
  */
 public final class BoxSidesShorthand extends AbstractShorthandPropertyInfo {
-	/** 値の型ごとの読み方。 */
+	/** Parsing strategy for each value type. */
 	@FunctionalInterface
 	private interface Reader {
 		Value read(UserAgent ua, CssToken token) throws PropertyException;
@@ -102,7 +105,7 @@ public final class BoxSidesShorthand extends AbstractShorthandPropertyInfo {
 		if (ColorValueUtils.isTransparent(token)) {
 			return KeywordValue.TRANSPARENT;
 		}
-		// currentcolor は DEFAULT 番兵(2026-08-29)
+		// currentcolor is the DEFAULT sentinel (2026-08-29).
 		return ColorValueUtils.toColorOrCurrent(ua, token);
 	}
 }

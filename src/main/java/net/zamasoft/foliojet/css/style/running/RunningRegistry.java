@@ -15,8 +15,8 @@ import net.zamasoft.foliojet.ua.PageAssignmentState;
 import net.zamasoft.foliojet.ua.PendingStringSet;
 
 /**
- * runningとstring-setの配置待ちアンカー、およびrunningの三候補を所有します。
- * ログ上のtokenはorderだけを持ち、確定した代入のpayloadはここから解放します。
+ * Owns pending placement anchors for running and string-set, and the three running candidates.
+ * Log tokens hold only order; finalized assignment payloads are released here.
  */
 public final class RunningRegistry {
 	private static final class Pending {
@@ -31,7 +31,7 @@ public final class RunningRegistry {
 		}
 	}
 
-	/** ページビルダーが確定した所属頁・先頭の事実をvisitorへ渡すメタデータです。 */
+	/** Metadata that passes page ownership/start facts finalized by the page builder to the visitor. */
 	public record Placement(long order, RunningTemplate template, List<PendingStringSet> strings,
 			IBox box, boolean beginsPage, String sourceText) {
 		public Placement {
@@ -59,7 +59,10 @@ public final class RunningRegistry {
 		return this.state;
 	}
 
-	/** パスを通じて単調増加する、疑似要素やEPUB章境界にも衝突しない文書順です。 */
+	/**
+	 * Document order increases monotonically throughout a pass, without collisions
+	 * at pseudo-elements or EPUB chapter boundaries.
+	 */
 	public long nextOrder() {
 		return this.order++;
 	}
@@ -77,7 +80,7 @@ public final class RunningRegistry {
 		this.pending.computeIfAbsent(order, Pending::new).strings = List.copyOf(strings);
 	}
 
-	/** 代入元のテキストと配置先を分離します。参照はpendingの寿命内だけ保持します。 */
+	/** Separates assignment source text from its placement destination. Retains references only during the pending lifetime. */
 	public void strings(final long order, final List<PendingStringSet> strings,
 			final java.util.function.Consumer<StringBuilder> source) {
 		this.strings(order, strings);
@@ -95,9 +98,10 @@ public final class RunningRegistry {
 	}
 
 	/**
-	 * 切断・移送後のページ木を論理順で走査し、座標を参照せず配置をcommitします。
-	 * 継続断片は新しい開始アンカーを持たず、absolute/fixedとその子は先頭になりません。
-	 * 文書のラッパー(html/body)と匿名箱は先頭判定を消費しません。
+	 * Traverses the split/transferred page tree in logical order and commits placement without
+	 * consulting coordinates. Continuation fragments have no new start anchor; absolute/fixed
+	 * boxes and their children cannot be first. Document wrappers (html/body) and anonymous
+	 * boxes do not consume the first-content check.
 	 */
 	public List<Placement> commitPage(final IBox page) {
 		if (this.pending.isEmpty()) {
@@ -114,7 +118,7 @@ public final class RunningRegistry {
 			final IBox box = step.box();
 			final boolean outside = step.outsideFlow() || box instanceof IAbsoluteBox;
 			if (step.count() >= 0) {
-				// この箱に実在するText/Controlだけを回収する。子や別配置の穴を跨がない。
+				// Collect only Text/Control actually present in this box. Do not cross children or gaps with different placement.
 				if (step.offset() >= 0 && step.count() > 0) {
 					final var range = this.characters.subMap(step.offset(), true,
 							step.offset() + step.count(), false);
@@ -147,7 +151,7 @@ public final class RunningRegistry {
 					if (item instanceof net.zamasoft.pdfg2d.gc.text.Text run) {
 						work.push(new Step(box, outside, false, run.getCharOffset(), run.getCharCount()));
 					} else if (item instanceof net.zamasoft.pdfg2d.gc.text.layout.control.Control control) {
-						// 縮退した空白や未実体化のsoft hyphenは頁先頭の内容を消費しない。
+						// Collapsed spaces and unrealized soft hyphens do not consume the page's first-content position.
 						if (control.getControlChar() == '\n' || control.getAdvance() != 0) {
 							work.push(new Step(box, outside, false, control.getCharOffset(), 1));
 						}
@@ -190,7 +194,7 @@ public final class RunningRegistry {
 		}
 	}
 
-	/** visitorから、配置を確定したテンプレートを登録します。 */
+	/** Registers a template whose placement is finalized, from the visitor. */
 	public void assign(final Placement placement) {
 		if (placement.template() != null) {
 			this.state.assign(placement.template().name(), placement.template(),
@@ -199,7 +203,7 @@ public final class RunningRegistry {
 		}
 	}
 
-	/** 診断用: 指定名で保持するentry/first/lastの候補数です(最大3)。 */
+	/** Diagnostic: number of entry/first/last candidates retained for the given name (maximum 3). */
 	public int retainedCandidateCount(final String name) {
 		final var snapshot = this.state.snapshot(name);
 		return (snapshot.entry() == null ? 0 : 1) + (snapshot.first() == null ? 0 : 1)
@@ -222,7 +226,7 @@ public final class RunningRegistry {
 		this.state.endPage();
 	}
 
-	/** 入力終了/失敗時、出力頁を持たなかったアンカーを解放します。 */
+	/** Releases anchors that had no output page at input completion/failure. */
 	public void discardPending() {
 		this.pending.clear();
 		this.boxes.clear();

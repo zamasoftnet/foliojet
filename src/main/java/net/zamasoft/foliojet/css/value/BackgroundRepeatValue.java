@@ -3,8 +3,8 @@ package net.zamasoft.foliojet.css.value;
 import net.zamasoft.foliojet.layout.box.params.BackgroundImage;
 
 /**
- * 背景の繰り返し方法です。
- * 
+ * The background repeat method.
+ *
  * @author MIYABE Tatsuhiko
  */
 public enum BackgroundRepeatValue implements Value {

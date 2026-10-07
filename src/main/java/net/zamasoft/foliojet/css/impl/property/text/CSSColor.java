@@ -40,23 +40,23 @@ public class CSSColor extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
-		// 型付き attr()(2026-08-03)。色も属性から取れる(bgcolor/text/link等の
-		// 移送に要る)。解決の窓口は長さと同じ
+		// Typed attr() (2026-08-03). Colors can also come from attributes (needed to move
+		// bgcolor/text/link, etc.). Uses the same resolution entry point as lengths.
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
-		// 型付き attr()(2026-08-03)。ColorValueUtils.toColor は具象の
-		// ColorValue を返す契約なので、未解決値はここで受ける
+		// Typed attr() (2026-08-03). ColorValueUtils.toColor is contracted to return
+		// a concrete ColorValue, so handle unresolved values here.
 		final Value attr = net.zamasoft.foliojet.css.util.AttrValueUtils.toTypedAttr(ua, lu,
 				net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.COLOR);
 		if (attr != null) {
 			return attr;
 		}
 		if (ColorValueUtils.isCurrentColor(lu)) {
-			// color自身のcurrentcolorは親の(継承した)色(CSS Color 4 §7.1)。
-			// CSSStyle.getはINHERITの生値を親への委譲として扱う(2026-08-29)
+			// currentcolor on color itself means the parent's (inherited) color (CSS Color 4 §7.1).
+			// CSSStyle.get treats raw INHERIT as delegation to the parent (2026-08-29).
 			return KeywordValue.INHERIT;
 		}
 		final Value value = ColorValueUtils.toColor(ua, lu);

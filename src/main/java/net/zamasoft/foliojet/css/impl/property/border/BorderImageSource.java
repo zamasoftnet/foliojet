@@ -13,7 +13,7 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** {@code border-image-source: none | <image>} です。 */
+/** {@code border-image-source: none | <image>}. */
 public final class BorderImageSource extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BorderImageSource();
 

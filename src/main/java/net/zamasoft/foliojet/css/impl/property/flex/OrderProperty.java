@@ -13,10 +13,10 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code order}です(Flex F5a、2026-08-02——
- * consult-codex-2026-08-02-flexbox.txt F5a)。整数(負可)、既定0。
- * 視覚順序のみを変える——Tagged PDFの読み順・構造はソース順のまま
- * (FlexBuilderのbindがソース順を維持する)。
+ * {@code order} (Flex F5a, 2026-08-02:
+ * consult-codex-2026-08-02-flexbox.txt F5a). Integer (negative allowed), default 0.
+ * Changes only visual order; Tagged PDF reading order and structure remain in source order
+ * (FlexBuilder bind preserves source order).
  *
  * @author MIYABE Tatsuhiko
  */

@@ -3,17 +3,17 @@ package net.zamasoft.foliojet.layout.box.params;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 
 /**
- * 物理的な行・ブロック軸と、行の内部で使う組版モデルを分離します。
+ * Separates physical line/block axes from the typesetting model used within lines.
  *
  * <p>
- * {@code vertical-*} は縦組版ですが、{@code sideways-*} は物理的には縦の行へ
- * 水平組版した字形列を回転して置きます。したがって {@link WritingMode#isVertical()}
- * は箱の物理軸を選ぶときだけ使い、font metrics・bidi・vertical-align 等はこの
- * クラスの組版モード判定を使います。
+ * {@code vertical-*} uses vertical typesetting, whereas {@code sideways-*} places a horizontally
+ * typeset glyph run into physically vertical lines by rotating it. Therefore,
+ * {@link WritingMode#isVertical()} is used only to select the box's physical axes; font metrics,
+ * bidi, vertical-align, etc. use this class's typesetting-mode checks.
  * </p>
  */
 public final class TypesettingMode {
-	/** 行内の物理的な進行方向です。 */
+	/** Physical inline progression direction. */
 	public enum InlineProgression {
 		LEFT_TO_RIGHT(1),
 		RIGHT_TO_LEFT(-1),
@@ -26,13 +26,13 @@ public final class TypesettingMode {
 			this.sign = sign;
 		}
 
-		/** 物理軸の正方向なら {@code 1}、負方向なら {@code -1}。 */
+		/** {@code 1} along the positive physical axis, {@code -1} along the negative axis. */
 		public int sign() {
 			return this.sign;
 		}
 	}
 
-	/** 回転後の水平組版 baseline に対する over(ascent)側です。 */
+	/** The over (ascent) side of the rotated horizontal-typesetting baseline. */
 	public enum PhysicalSide {
 		TOP,
 		RIGHT,
@@ -43,30 +43,30 @@ public final class TypesettingMode {
 	private TypesettingMode() {
 	}
 
-	/** 水平組版なら {@code true}。sideways は物理 flow にかかわらず水平組版です。 */
+	/** {@code true} for horizontal typesetting. sideways uses horizontal typesetting regardless of physical flow. */
 	public static boolean isHorizontal(final WritingMode flow, final WritingModeVariant variant) {
 		return !flow.isVertical() || variant != WritingModeVariant.NORMAL;
 	}
 
-	/** {@code vertical-*} の通常字形による縦組版だけなら {@code true}。 */
+	/** {@code true} only for vertical typesetting with the ordinary glyphs of {@code vertical-*}. */
 	public static boolean isVertical(final WritingMode flow, final WritingModeVariant variant) {
 		return flow.isVertical() && variant == WritingModeVariant.NORMAL;
 	}
 
-	/** 物理的な縦の行へ sideways の論理行内座標を使う場合は {@code true}。 */
+	/** {@code true} when using sideways logical inline coordinates for physically vertical lines. */
 	public static boolean usesSidewaysInlineAxis(final WritingMode flow, final WritingModeVariant variant) {
 		return flow.isVertical() && variant != WritingModeVariant.NORMAL;
 	}
 
-	/** sideways 行へ適用する回転です。{@link WritingModeVariant#NORMAL} は回転なしです。 */
+	/** Rotation applied to sideways lines. {@link WritingModeVariant#NORMAL} means no rotation. */
 	public static WritingModeVariant glyphRotation(final WritingModeVariant variant) {
 		return variant;
 	}
 
 	/**
-	 * FontStyle へ渡す used {@code text-orientation}を返します。sideways は作者指定の
-	 * computed value を変更せず、行全体の回転と重ならないよう used value だけ
-	 * {@link FontStyle.TextOrientation#MIXED}へ正規化します。
+	 * Returns the used {@code text-orientation} passed to FontStyle. For sideways, preserves the author's
+	 * computed value and normalizes only the used value to {@link FontStyle.TextOrientation#MIXED}
+	 * to avoid compounding it with rotation of the entire line.
 	 */
 	public static FontStyle.TextOrientation usedTextOrientation(final WritingModeVariant variant,
 			final FontStyle.TextOrientation computed) {
@@ -74,17 +74,17 @@ public final class TypesettingMode {
 	}
 
 	/**
-	 * 行内の物理的な進行方向を返します。
+	 * Returns the physical inline progression direction.
 	 *
 	 * <p>
-	 * sideways の四象限は、水平 run の {@code direction} と回転だけから導けます。
-	 * CW×LTR=上→下、CW×RTL=下→上、CCW×LTR=下→上、CCW×RTL=上→下です。
-	 * RL/LR はブロック進行を表すため、この四象限の行内進行には影響しません。
+	 * The four sideways cases follow solely from the horizontal run's {@code direction} and rotation:
+	 * CW×LTR = top → bottom, CW×RTL = bottom → top, CCW×LTR = bottom → top, CCW×RTL = top → bottom.
+	 * RL/LR describe block progression, so they do not affect inline progression in these four cases.
 	 * </p>
 	 *
 	 * <p>
-	 * {@link WritingMode#TB} と sideways variant の組は内部 longhand でだけ作れる
-	 * 非標準の組合せです。この場合は物理的な横の行軸を優先します。
+	 * Combining {@link WritingMode#TB} with a sideways variant is nonstandard and possible only through
+	 * internal longhands. In this case, the physically horizontal line axis takes precedence.
 	 * </p>
 	 */
 	public static InlineProgression inlineProgression(final WritingMode flow,
@@ -109,16 +109,16 @@ public final class TypesettingMode {
 		return ltr ? InlineProgression.TOP_TO_BOTTOM : InlineProgression.BOTTOM_TO_TOP;
 	}
 
-	/** 行内進行が物理軸の正方向(右または下)なら {@code 1}、負方向なら {@code -1}。 */
+	/** {@code 1} for inline progression along the positive physical axis (right or down), {@code -1} for negative. */
 	public static int inlineProgressionSign(final WritingMode flow,
 			final WritingModeVariant variant, final byte direction) {
 		return inlineProgression(flow, variant, direction).sign();
 	}
 
 	/**
-	 * 組版 baseline の over(ascent)側に対応する物理辺を返します。
-	 * CW の over は右、CCW の over は左なので、SIDEWAYS_CCW では
-	 * SIDEWAYS_CW に対して ascent/descent の物理側が反転します。
+	 * Returns the physical edge corresponding to the over (ascent) side of the typesetting baseline.
+	 * Over is right for CW and left for CCW, so SIDEWAYS_CCW reverses the physical sides of ascent/descent
+	 * relative to SIDEWAYS_CW.
 	 */
 	public static PhysicalSide overSide(final WritingMode flow, final WritingModeVariant variant) {
 		return switch (variant) {

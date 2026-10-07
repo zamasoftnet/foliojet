@@ -13,23 +13,23 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code zoom}です(css-viewport-1 §4、2026-08-29新設)。
+ * {@code zoom} (css-viewport-1 §4, added 2026-08-29).
  *
  * <p>
- * {@code <number [0,∞]> | <percentage [0,∞]> | normal | reset}。非継承、
- * 既定1。0は仕様どおり1と同じ(旧IEは非表示だったが、現行仕様は
- * {@code 0}=1)。
+ * {@code <number [0,∞]> | <percentage [0,∞]> | normal | reset}. Not inherited;
+ * defaults to 1. As specified, 0 equals 1 (old IE hid the element, but the current specification
+ * defines {@code 0}=1).
  * </p>
  *
  * <p>
- * <b>近似</b>: 仕様の{@code zoom}はレイアウトに効く(要素と子孫の
- * 計算値の長さが全て倍率で掛かり、周囲の配置も押し広げる)が、本実装は
- * 描画時の拡大——要素の<b>境界箱の左上</b>を原点に、要素とその子孫の
- * 描画を倍率で拡大する({@code AbstractBox.transform}。作者の
- * {@code transform}の外側、{@code transform-origin}は関与しない)。
- * 周囲のレイアウトは変わらないので、拡大した分は隣接内容に重なる。
- * 実サイトでは{@code zoom:1}(IEのhasLayoutトリガ)がほとんどで、これは
- * 恒等なので無害。
+ * <b>Approximation</b>: the specified {@code zoom} affects layout (multiplying all computed
+ * lengths of the element and its descendants and pushing surrounding content outward),
+ * but this implementation scales during rendering. It scales drawing of the element and
+ * its descendants about the <b>top-left of the element's border box</b>
+ * ({@code AbstractBox.transform}; outside the author's {@code transform},
+ * unaffected by {@code transform-origin}).
+ * Surrounding layout is unchanged, so the enlarged part overlaps adjacent content.
+ * Real sites mostly use {@code zoom:1} (IE's hasLayout trigger), which is identity and harmless.
  * </p>
  */
 public class Zoom extends AbstractPrimitivePropertyInfo {
@@ -66,7 +66,7 @@ public class Zoom extends AbstractPrimitivePropertyInfo {
 		} else if (token instanceof CssToken.Percent percent) {
 			zoom = percent.value() / 100.0;
 		} else if (token instanceof CssToken.Ident ident && (ident.is("normal") || ident.is("reset"))) {
-			// reset(旧WebKit: 祖先のzoomを打ち消す)は祖先を辿らないので1
+			// reset (old WebKit: cancel ancestor zoom) is 1 because ancestors are not traversed.
 			return RealValue.ONE;
 		} else {
 			throw new PropertyException();

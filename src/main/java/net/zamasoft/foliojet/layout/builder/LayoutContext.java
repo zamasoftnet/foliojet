@@ -8,7 +8,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 public interface LayoutContext extends LayoutStack {
 	/**
-	 * 配置された浮動体です。
+	 * A placed float.
 	 * 
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: LayoutContext.java 1552 2018-04-26 01:43:24Z miyabe $
@@ -32,11 +32,11 @@ public interface LayoutContext extends LayoutStack {
 		}
 
 		/**
-		 * ボックスと行軸範囲を保ったまま、ページ軸範囲だけを平行移動した
-		 * 不変値を返します。
+		 * Returns an immutable value with only the page-axis range translated, preserving the box
+		 * and line-axis range.
 		 *
-		 * @param dy ページ軸方向の移動量
-		 * @return 移動後の浮動体台帳要素
+		 * @param dy translation along the page axis
+		 * @return translated float-registry entry
 		 */
 		public Floating shiftedPageAxis(final double dy) {
 			return new Floating(this.box, this.lineStart, this.pageStart + dy, this.lineEnd, this.pageEnd + dy);
@@ -44,33 +44,32 @@ public interface LayoutContext extends LayoutStack {
 	}
 
 	/**
-	 * 通常のフローのボックスです。
+	 * A normal-flow box.
 	 * 
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: LayoutContext.java 1552 2018-04-26 01:43:24Z miyabe $
 	 */
 	public static class Flow {
 		public final AbstractContainerBox box;
-		/** ボックスの内辺の位置です。 */
+		/** Position of the box's inner edge. */
 		public final double lineAxis, pageAxis;
 		/**
-		 * このフローを積むときに行方向カーソルへ足した量です(2026-08-05)。
+		 * Amount added to the line-direction cursor when pushing this flow (2026-08-05).
 		 *
 		 * <p>
-		 * <b>積むときと降ろすときで同じ値を使うために持つ。</b> 降ろす側で
-		 * {@code frame.getFrameLeft()} を取り直すと、自動マージンのように
-		 * <b>フローの内側で解決される</b>量が入ったときに積んだ量と食い違い、
-		 * 行方向カーソルが差の分だけ永久にずれる。{@code margin: auto} の表の
-		 * 直後に置いた浮動体が紙の左外へ飛ぶ欠陥がこれだった。
+		 * <b>Stored to use the same value when pushing and popping.</b> Reading {@code frame.getFrameLeft()}
+		 * again on pop can include values <b>resolved inside the flow</b>, such as auto margins. This differs
+		 * from the amount pushed and permanently shifts the line-direction cursor by the difference.
+		 * This caused the defect where a float immediately after a {@code margin: auto} table jumped
+		 * outside the sheet's left edge.
 		 * </p>
 		 */
 		public final double frameHead;
 
 		/**
-		 * このフローの箱が{@code line-clamp}を持つときの行数の状態です
-		 * (2026-08-29、{@link LineClampState#find}が遅延生成)。フローの
-		 * 寿命=箱の組版中なので、ページ継続で箱が作り直されると数え直しに
-		 * なる(既知の制限)。
+		 * Line-count state when this flow's box has {@code line-clamp}
+		 * (2026-08-29; lazily created by {@link LineClampState#find}). The flow lives only while the box
+		 * is being laid out, so recreating the box for page continuation restarts the count (known limitation).
 		 */
 		public LineClampState lineClamp;
 
@@ -86,11 +85,11 @@ public interface LayoutContext extends LayoutStack {
 		}
 
 		/**
-		 * ボックス、行軸位置、積載時の枠量と{@code line-clamp}の可変状態を
-		 * 保ったまま、ページ軸位置だけを平行移動したフローを返します。
+		 * Returns a flow with only its page-axis position translated, preserving the box, line-axis position,
+		 * frame amount at push time, and mutable {@code line-clamp} state.
 		 *
-		 * @param dy ページ軸方向の移動量
-		 * @return 移動後のフロー
+		 * @param dy translation along the page axis
+		 * @return translated flow
 		 */
 		public Flow shiftedPageAxis(final double dy) {
 			final Flow shifted = new Flow(this.box, this.lineAxis, this.pageAxis + dy, this.frameHead);

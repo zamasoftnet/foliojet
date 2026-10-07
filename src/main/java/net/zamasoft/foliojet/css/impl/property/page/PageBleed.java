@@ -15,14 +15,14 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code @page { bleed }}です(CSS Paged Media 3、2026-08-02)。
- * 値は{@code auto | <length>}で、断ち代(トンボの外側へ伸ばす量)を
- * 4辺へ同じだけ取る。
+ * {@code @page { bleed }} (CSS Paged Media 3, 2026-08-02).
+ * Values are {@code auto | <length>}; adds the same bleed
+ * (the amount extending beyond crop marks) on all four sides.
  *
  * <p>
- * {@code auto}(既定)は<b>入出力プロパティに従う</b>
- * ({@code output.trims} / {@code output.htrim} / {@code output.vtrim})。
- * 相対長(em等)はサブセット外——宣言を無効にする。
+ * {@code auto} (the default) <b>follows the I/O properties</b>
+ * ({@code output.trims} / {@code output.htrim} / {@code output.vtrim}).
+ * Relative lengths (em, etc.) are outside the subset and invalidate the declaration.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -30,7 +30,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
 public class PageBleed extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new PageBleed();
 
-	/** CSSで指定されていなければ負(=入出力プロパティに従う)。 */
+	/** Negative if not specified in CSS (=follows the I/O properties). */
 	public static double get(final CSSStyle style) {
 		final Value value = style.get(INFO);
 		if (value instanceof AbsoluteLengthValue length) {

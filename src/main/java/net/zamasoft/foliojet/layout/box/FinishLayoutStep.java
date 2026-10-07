@@ -3,24 +3,22 @@ package net.zamasoft.foliojet.layout.box;
 import java.util.Deque;
 
 /**
- * {@link IBox#finishLayout}の反復化(2026-07-20、再帰禁止方針
- * ——ARCHITECTURE.md不変条件6——への対応)における、ワークリスト上の
- * 1ステップです。
+ * One worklist step in the iterative implementation of {@link IBox#finishLayout}
+ * (2026-07-20, to follow the no-recursion policy: ARCHITECTURE.md invariant 6).
  *
  * <p>
- * 旧実装は{@code IBox.finishLayout(IFramedBox)}がポリモーフィックに
- * 子を直接再帰呼び出ししており、深いネスト文書(1000段超)で
- * StackOverflowErrorを起こしていた(実文書=法令ページで確認済み)。
- * 本インターフェースは、JVMコールスタックの代わりに明示的な
- * {@link Deque}をワークリストとして使う反復DFSへ置き換えるための
- * 型で、「このステップを実行し、必要なら後続ステップを{@code worklist}
- * へ積む」という契約を持つ。
+ * The old implementation used polymorphic direct recursion from
+ * {@code IBox.finishLayout(IFramedBox)} to children, causing StackOverflowError in deeply nested
+ * documents (over 1000 levels; confirmed on an actual legislation page). This interface supports
+ * replacing that recursion with iterative DFS using an explicit {@link Deque} worklist
+ * instead of the JVM call stack. Its contract is "execute this step and push subsequent
+ * steps onto {@code worklist} if needed."
  * </p>
  *
  * <p>
- * 元の再帰の走査順(深さ優先、兄弟は先頭から)を保つため、複数の子を
- * 積む実装は**逆順**で{@code push}すること(スタックとして使うため、
- * 最後にpushしたものが最初にpopされる)。
+ * To preserve the original recursive traversal order (depth-first, siblings from the start),
+ * implementations that enqueue multiple children must {@code push} in **reverse order**
+ * (the worklist is a stack, so the last pushed item is popped first).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -28,8 +26,8 @@ import java.util.Deque;
 @FunctionalInterface
 public interface FinishLayoutStep {
 	/**
-	 * このステップを実行します。後続ステップ(子の処理)があれば
-	 * {@code worklist}へ積みます。
+	 * Executes this step. Pushes subsequent steps (child processing) onto
+	 * {@code worklist}, if any.
 	 */
 	void run(Deque<FinishLayoutStep> worklist);
 }

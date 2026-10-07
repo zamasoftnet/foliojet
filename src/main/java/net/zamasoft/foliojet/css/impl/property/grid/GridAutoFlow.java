@@ -12,10 +12,10 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code grid-auto-flow}です(css-grid-1 §7.7、2026-08-29——50サイト掃過で
- * 81回/13サイト)。{@code [ row | column ] || dense}。{@code column}は
- * 自動配置を列方向(行を埋めてから次の列)にし、必要な列を暗黙に作る。
- * {@code dense}は各itemの探索をグリッド先頭から始める。
+ * {@code grid-auto-flow} (css-grid-1 §7.7, 2026-08-29: 81 occurrences on 13 sites
+ * in a 50-site sweep). {@code [ row | column ] || dense}. {@code column} places items
+ * automatically by column (fills rows before moving to the next column), creating implicit columns
+ * as needed. {@code dense} starts the search for each item from the beginning of the grid.
  *
  * @author MIYABE Tatsuhiko
  */

@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.css.value;
 
-/**
- * CSSプロパティの値です。種類の判別は instanceof で行います。
- */
+/** A CSS property value. Use instanceof to determine its type. */
 public interface Value {
 }

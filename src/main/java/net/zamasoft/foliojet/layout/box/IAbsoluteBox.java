@@ -3,15 +3,15 @@ package net.zamasoft.foliojet.layout.box;
 import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
 
 /**
- * 絶対位置指定されたボックスです。
- * 
+ * An absolutely positioned box.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: IAbsoluteBox.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public interface IAbsoluteBox extends IBox {
 	/**
-	 * 絶対位置指定されたボックスの配置パラメータを返します。
-	 * 
+	 * Returns the positioning parameters of the absolutely positioned box.
+	 *
 	 * @return
 	 */
 	public AbsolutePos getAbsolutePos();

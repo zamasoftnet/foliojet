@@ -16,17 +16,17 @@ import net.zamasoft.foliojet.css.value.css3.TransformValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 個別変換プロパティ{@code rotate}です(css-transforms-2 §7、
- * 2026-08-29新設)。
+ * Individual transform property {@code rotate} (css-transforms-2 §7,
+ * added 2026-08-29).
  *
  * <p>
- * {@code none | <angle> | [ x | y | z | <number>{3} ] && <angle>}。
- * 紙面に射影できるのはz軸回りだけなので、{@code x}/{@code y}、および
- * 軸ベクトルがz軸に沿わない{@code <number>{3}}は構文として受理して
- * 恒等にする(宣言を無効にすると併記の{@code translate}/{@code scale}
- * まで消えるわけではないが、作者の意図は「3D回転」であり近似しない
- * ——{@code transform}の{@code rotateX/Y}と同じ扱い)。軸ベクトルの
- * z成分が負なら角度の符号を反転する。
+ * {@code none | <angle> | [ x | y | z | <number>{3} ] && <angle>}.
+ * Only rotation around the z axis can be projected onto paper, so {@code x}/{@code y}
+ * and {@code <number>{3}} whose axis vector is not aligned with z are accepted syntactically
+ * but treated as identity. Invalidating the declaration would not remove accompanying
+ * {@code translate}/{@code scale}, but the author's intent is "3D rotation", so no approximation
+ * is made, as with {@code rotateX/Y} in {@code transform}.
+ * A negative z component of the axis vector reverses the angle's sign.
  * </p>
  */
 public class Rotate extends AbstractPrimitivePropertyInfo {
@@ -63,8 +63,8 @@ public class Rotate extends AbstractPrimitivePropertyInfo {
 			}
 			return KeywordValue.NONE;
 		}
-		// 角度と軸は順不同(&&)。角度は<angle>(単位なし0も可)、軸は
-		// x|y|z か数値3つ
+		// Angle and axis may appear in either order (&&). The angle is <angle> (unitless 0 allowed);
+		// the axis is x|y|z or three numbers.
 		Double angle = null;
 		double zSign = 1;
 		boolean axisSeen = false;
@@ -93,7 +93,7 @@ public class Rotate extends AbstractPrimitivePropertyInfo {
 				} else if (z < 0) {
 					zSign = -1;
 				} else if (z == 0) {
-					// 零ベクトルは回転しない(仕様: 恒等)
+					// A zero vector does not rotate (identity per the specification).
 					zSign = 0;
 				}
 			} else if (angle == null) {

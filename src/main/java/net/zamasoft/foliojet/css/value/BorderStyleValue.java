@@ -3,8 +3,8 @@ package net.zamasoft.foliojet.css.value;
 import net.zamasoft.foliojet.layout.box.params.Border;
 
 /**
- * 境界線のスタイルです。 DOUBLE以下の値はSPEC CSS2 17.6.2 規則3の順に並べられています。
- * 
+ * Border style. Values from DOUBLE downward are ordered according to SPEC CSS2 17.6.2, rule 3.
+ *
  * @author MIYABE Tatsuhiko
  */
 public enum BorderStyleValue implements Value {

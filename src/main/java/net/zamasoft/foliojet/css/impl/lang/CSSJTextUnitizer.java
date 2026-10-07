@@ -13,9 +13,9 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.breaking.impl.TextAtomizer;
 
 /**
- * インライン境界(InlineQuad)を追跡して行分割規則を切り替える unitizer です。
- * パイプラインの先頭ステージとして InlineParamsStack を駆動し、
- * 下流ステージ(WordHyphenator 等)は同じスタックを共有して読み取ります。
+ * Unitizer that tracks inline boundaries (InlineQuad) to switch line-breaking rules.
+ * Drives InlineParamsStack as the first pipeline stage;
+ * downstream stages (WordHyphenator, etc.) share and read the same stack.
  */
 public class CSSJTextUnitizer extends TextAtomizer implements Cloneable {
 
@@ -25,7 +25,7 @@ public class CSSJTextUnitizer extends TextAtomizer implements Cloneable {
 	private char[] pendingChars = new char[0];
 	private int pendingStart, pendingCharOffset;
 
-	/** shaper へ渡した文字のうち、まだ glyph() が来ていない末尾だけを保持する。 */
+	/** Keeps only the trailing characters passed to the shaper for which glyph() has not yet arrived. */
 	public void characters(final TextShaper shaper, final int charOffset, final char[] ch, final int off,
 			final int len) {
 		final int retained = this.pendingChars.length - this.pendingStart;
@@ -43,10 +43,11 @@ public class CSSJTextUnitizer extends TextAtomizer implements Cloneable {
 	}
 
 	/**
-	 * 未確定クラスタを計量用に配達する。本文の shaper は flush しない。
-	 * 選択済みフォントで末尾クラスタの字形だけを再現し、禁則状態の複製へ渡す。
-	 * 現行 TextShaper は末尾の1クラスタだけを保留する。フォント選択はやり直さない。
-	 * 終端 flush は発行せず、字間の正規の分割判定だけを複製側で行う。
+	 * Delivers the pending cluster for measurement without flushing the body text shaper.
+	 * Reproduces only the glyphs of the trailing cluster with the selected font and passes them
+	 * to a copy of the kinsoku (line-breaking rules) state. The current TextShaper holds only
+	 * the last cluster pending. Does not repeat font selection.
+	 * Does not issue a terminal flush; the copy only performs normal inter-character break checks.
 	 */
 	public void deliverText(final GlyphHandler measurement) {
 		if (this.pendingStart == this.pendingChars.length) {

@@ -1,10 +1,10 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code -cssj-page-ref()}(独自拡張)と標準の{@code target-counter()}/
- * {@code target-counters()}が共通で使う値。id/attr参照先の{@code PageRef}
- * フラグメントからカウンタ値を読み出す点で3構文とも同じデータ形状のため、
- * 同じクラスで表現する。
+ * A value shared by {@code -cssj-page-ref()} (a proprietary extension) and the standard
+ * {@code target-counter()}/{@code target-counters()}. All three syntaxes read counter values
+ * from {@code PageRef} fragments referenced by id/attr, so they share the same data shape
+ * and use the same class.
  *
  * @author MIYABE Tatsuhiko
  */

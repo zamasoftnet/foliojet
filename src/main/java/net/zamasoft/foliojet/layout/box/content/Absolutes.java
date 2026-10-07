@@ -22,15 +22,15 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
- * 通常のフロー以外のボックスを一括管理します。
- * 
+ * Manages out-of-flow boxes together.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: Absolutes.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class Absolutes {
 	/**
-	 * 絶対位置指定されたボックスです。
-	 * 
+	 * An absolutely positioned box.
+	 *
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: Absolutes.java 1552 2018-04-26 01:43:24Z miyabe $
 	 */
@@ -38,9 +38,10 @@ public class Absolutes {
 		public final IAbsoluteBox box;
 		public final double x, y;
 		/**
-		 * 縦組みRLで、{@code x}が物理Xでなく「所有箱の右端からの論理page位置」か。
-		 * 登録時には所有箱の幅も絶対配置箱の幅も未確定なので、描画時に
-		 * {@code ownerPageExtent - x - box.getWidth()} で物理Xへ写す。
+		 * Whether {@code x} in vertical RL is a logical page position from the owner box's right edge,
+		 * rather than a physical X coordinate. Neither the owner's width nor the absolutely positioned
+		 * box's width is definite at registration time, so convert to physical X at drawing time using
+		 * {@code ownerPageExtent - x - box.getWidth()}.
 		 */
 		public final boolean blockStartAnchored;
 
@@ -57,7 +58,7 @@ public class Absolutes {
 	}
 
 	/**
-	 * 絶対位置指定されたボックス。
+	 * Absolutely positioned boxes.
 	 */
 	private List<Absolute> absolutes = null;
 
@@ -66,8 +67,8 @@ public class Absolutes {
 	}
 
 	/**
-	 * 絶対位置指定されたボックスを追加します。
-	 * 
+	 * Adds an absolutely positioned box.
+	 *
 	 * @param box
 	 * @param staticX
 	 * @param staticY
@@ -77,7 +78,7 @@ public class Absolutes {
 	}
 
 	/**
-	 * @param blockStartAnchored 縦組みRLで{@code staticX}が箱の右端(block-start辺)を指すならtrue
+	 * @param blockStartAnchored true if {@code staticX} points to the box's right (block-start) edge in vertical RL
 	 */
 	public void addAbsolute(IAbsoluteBox box, double staticX, double staticY, boolean blockStartAnchored) {
 		assert !LayoutUtils.isNone(staticX) : "Undefined x";
@@ -97,14 +98,14 @@ public class Absolutes {
 	}
 
 	/**
-	 * drawの反復化(2026-07-20、IBox.drawと同じ理由)。固定配置ボックスの
-	 * 登録(pageBox.addFixed)はこの場のDrawer列に描画を加えず、別ページ
-	 * サイクルで扱われるため、走査順に関係なく即座に行ってよい。context
-	 * 配置のボックスの描画手順だけを、元の走査順のまま**逆順**で
-	 * {@code worklist}へ積む(逆順走査により、削除時のインデックス補正が
-	 * 不要になる)。
+	 * Iterative drawing (2026-07-20, for the same reason as IBox.draw). Registering fixed-position
+	 * boxes (pageBox.addFixed) adds no drawing to the current Drawer sequence; a separate page
+	 * cycle handles it, so registration may run immediately regardless of traversal order.
+	 * Push only the drawing steps of context-positioned boxes onto {@code worklist} in
+	 * **reverse order** to preserve the original traversal order (reverse traversal eliminates
+	 * the need to adjust indices on removal).
 	 *
-	 * @param ownerPageExtent 所有箱の物理幅(縦組みRLの{@link Absolute#blockStartAnchored}の変換に使う)
+	 * @param ownerPageExtent the owner's physical width (used to convert {@link Absolute#blockStartAnchored} in vertical RL)
 	 */
 	public void pushDraw(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y, double ownerPageExtent, Deque<DrawStep> worklist) {
@@ -115,17 +116,17 @@ public class Absolutes {
 		}
 		for (int i = this.absolutes.size() - 1; i >= 0; --i) {
 			final Absolute c = (Absolute) this.absolutes.get(i);
-			// block-start辺基準(縦組みRL)の静的位置は、確定した箱の幅を引いて原点へ
-			// 縦組みRLの静的位置は右端からの論理page位置。確定した幅で物理Xへ
+			// For a block-start-anchored static position (vertical RL), subtract the final box width to get the origin.
+			// In vertical RL, static position is logical page position from the right edge; use final width for physical X.
 			final double xx = LayoutUtils.isNone(c.x) ? contextX
 					: x + (c.blockStartAnchored ? ownerPageExtent - c.x - c.box.getWidth() : c.x);
 			final double yy = LayoutUtils.isNone(c.y) ? contextY : y + c.y;
 			if (c.box.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
-				// 固定配置。登録・初回描画(pageBox.addFixed)は他の項目との
-				// 相対順序を保つため、リストからの除去だけ即座に行い、
-				// 実際の登録・描画はworklistへ積んで遅延させる(2026-07-20、
-				// FixedOrderTest回帰で発見: 即座に描画すると、混在する
-				// 非固定配置の項目より先に描画されてしまい元の走査順が崩れる)
+				// Fixed positioning. To preserve the order of registration and initial drawing (pageBox.addFixed)
+				// relative to other items, only remove the item from the list immediately;
+				// defer actual registration and drawing by pushing it onto the worklist (2026-07-20:
+				// discovered in the FixedOrderTest regression. Immediate drawing preceded interspersed
+				// non-fixed items, breaking the original traversal order).
 				this.absolutes.remove(i);
 				worklist.push(w -> pageBox.addFixed(drawer, visitor, c.box, xx, yy));
 			} else {
@@ -147,17 +148,17 @@ public class Absolutes {
 	}
 
 	/**
-	 * 静的位置をページ軸方向へ平行移動し、元の順序で台帳を作り直します。
-	 * 物理座標に格納された静的位置は、横書きでは{@code y + dy}、
-	 * 縦書きLRでは{@code x + dy}、縦書きRLでは{@code x - dy}とします。
-	 * ページ方向の値が{@link LayoutUtils#NONE}なら、その軸は明示した
-	 * {@code top/bottom}または{@code left/right}で決まり静的位置ではないため
-	 * 動かしません。{@link Fiducial#CONTEXT}以外の固定配置と、{@code keep}に
-	 * 含まれるボックスもページに固定されたまま動かしません。
+	 * Translates static positions along the page axis and rebuilds the ledger in the original order.
+	 * For static positions stored as physical coordinates, use {@code y + dy} in horizontal writing,
+	 * {@code x + dy} in vertical LR, and {@code x - dy} in vertical RL.
+	 * If the page-axis value is {@link LayoutUtils#NONE}, that axis is determined by explicit
+	 * {@code top/bottom} or {@code left/right}, not a static position, so leave it unchanged.
+	 * Fixed-position boxes other than {@link Fiducial#CONTEXT} and boxes in {@code keep}
+	 * also remain fixed on the page without moving.
 	 *
-	 * @param dy   ページ軸方向の移動量
-	 * @param flow この台帳を持つページコンテナの書字方向
-	 * @param keep 移動せず現在位置に留めるボックスの集合
+	 * @param dy   the translation along the page axis
+	 * @param flow the writing direction of the page container holding this ledger
+	 * @param keep the set of boxes to keep at their current positions without moving
 	 */
 	public void shiftPageAxis(final double dy, final WritingMode flow, final java.util.Set<IBox> keep) {
 		if (this.absolutes == null) {
@@ -187,7 +188,7 @@ public class Absolutes {
 				if (LayoutUtils.isNone(absolute.x)) {
 					continue;
 				}
-				// 右端基準の論理page位置は+dy、物理Xなら-dy
+				// Use +dy for a logical page position relative to the right edge, or -dy for physical X.
 				shifted = new Absolute(absolute.box, absolute.blockStartAnchored ? absolute.x + dy : absolute.x - dy,
 						absolute.y, absolute.blockStartAnchored);
 				break;

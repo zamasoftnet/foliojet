@@ -10,32 +10,31 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
- * 浮動体のページ分割の純計画です(2026-07-24新設、排除域P2のP2-2。
- * 設計相談§2.1の型)。
+ * A pure plan for float pagination (added 2026-07-24, exclusion area P2, P2-2;
+ * the type from design consultation §2.1).
  *
  * <p>
- * {@link Floatings#splitPageAxis}の分岐表
- * (開発記録)の
- * 分類部だけを純関数({@link #classify})へ写した計画で、破壊的なbox
- * splitは含まない——{@link FloatItemPlan.SplitOnCommit}は「commit時に
- * 一度だけ{@code split}を呼ぶ」という印であり、その結果
- * (Keep/Move/Split)を<b>予言しない</b>(codex設計§2.1「全
- * {@code IPageBreakableBox.split}の純化までP2へ持ち込まない」)。
+ * Copies only the classification part of the branch table (development log) for
+ * {@link Floatings#splitPageAxis} into a pure function ({@link #classify}).
+ * Includes no destructive box splitting: {@link FloatItemPlan.SplitOnCommit} marks
+ * "call {@code split} exactly once at commit time" and <b>does not predict</b> its result
+ * (Keep/Move/Split). This follows codex design §2.1: do not extend P2 to make all
+ * {@code IPageBreakableBox.split} implementations pure.
  * </p>
  *
  * <p>
- * P2-3以降、{@link Floatings#splitPageAxis}はこの計画で駆動される
- * (planDirect→ordinal順commit)。子flowのfloatは実行時に各コンテナが独立に
- * plan+commitする(FlowContainerの型付き再帰集約、P2-4)。計画の階層化
- * (子flowの計画を持つ欄)は使われないまま残っていたので2026-10-04に削除した——
- * 必要になった時点で足す。
+ * Since P2-3, {@link Floatings#splitPageAxis} is driven by this plan
+ * (planDirect, then commit in ordinal order). Each container independently plans and commits
+ * child-flow floats at runtime (FlowContainer's typed recursive aggregation, P2-4).
+ * The unused plan hierarchy (a field for child-flow plans) was removed on 2026-10-04;
+ * add it when needed.
  * </p>
  *
- * @param expectedSource 計画の対象{@link Floatings}(identity anchor)
- * @param pageLimit      切断線(owner座標)
- * @param flags          {@code IPageBreakableBox.FLAGS_*}のスナップショット
- * @param ownerFlow      ownerの書字方向
- * @param direct         直接保持するfloatの計画(安定序数順)
+ * @param expectedSource the target {@link Floatings} (identity anchor)
+ * @param pageLimit      the cut line (owner coordinates)
+ * @param flags          a snapshot of {@code IPageBreakableBox.FLAGS_*}
+ * @param ownerFlow      the owner's writing direction
+ * @param direct         plans for directly held floats (in stable ordinal order)
  */
 public record FloatSplitPlan(
 		Floatings expectedSource,
@@ -45,63 +44,57 @@ public record FloatSplitPlan(
 		List<FloatItemPlan> direct) {
 
 	/**
-	 * 単一floatの行き先計画です。{@code Keep}/{@code Move}はfloat 1個
-	 * 粒度(台帳全体粒度の{@link FloatSplitResult}のKeepAll/MoveAllとは
-	 * 別——切断結果型ファミリの語彙対応表は{@code SplitResult}のjavadoc
-	 * 参照)。
+	 * A destination plan for one float. {@code Keep}/{@code Move} apply to a single float,
+	 * distinct from KeepAll/MoveAll in {@link FloatSplitResult}, which apply to the entire ledger.
+	 * See the {@code SplitResult} Javadoc for the terminology map of the split-result type family.
 	 */
 	public sealed interface FloatItemPlan {
-		/** 計画対象floatの実測スナップショット。 */
+		/** A measurement snapshot of the target float. */
 		FloatMeasurement expected();
 
-		/** 元のフラグメントに残す(分岐表1、および4→5フォールスルーのfirst)。 */
+		/** Keeps the float in the original fragment (branch table 1 and first in the 4→5 fall-through). */
 		public record Keep(FloatMeasurement expected) implements FloatItemPlan {
 		}
 
-		/** 丸ごと次のフラグメントへ送る(分岐表2、および4→5フォールスルーの非first)。 */
+		/** Sends the whole float to the next fragment (branch table 2 and non-first in the 4→5 fall-through). */
 		public record Move(FloatMeasurement expected) implements FloatItemPlan {
 		}
 
 		/**
-		 * commit時に一度だけ
-		 * {@code splitFloatFragment(serial, innerLimit, DEFAULT, splitFlags)}を
-		 * 呼ぶ(分岐表3。A-3a-2以降——残余boxは即時構築されず、材料
-		 * {@code PreparedFloatFragment}を受け側Floatingへの接続時に一度だけ
-		 * materializeする)。結果(Keep/Move/Prepared)は予言しない。
+		 * Calls {@code splitFloatFragment(serial, innerLimit, DEFAULT, splitFlags)}
+		 * exactly once at commit time (branch table 3). Since A-3a-2, the remainder box is not
+		 * built immediately: its material, {@code PreparedFloatFragment}, is materialized once
+		 * when attached to the receiving Floating. Does not predict the result (Keep/Move/Prepared).
 		 *
-		 * @param expected   計画対象floatの実測スナップショット
-		 * @param innerLimit float座標系の切断線({@code pageLimit - pageStart}。
-		 *                   frame控除は切断内部で行われる)
-		 * @param splitFlags {@code FLAGS_FIRST}(物理first)または
-		 *                   {@code FLAGS_SPLIT}
+		 * @param expected   a measurement snapshot of the target float
+		 * @param innerLimit the cut line in float coordinates ({@code pageLimit - pageStart};
+		 *                   the frame is subtracted inside the split)
+		 * @param splitFlags {@code FLAGS_FIRST} (physical first) or {@code FLAGS_SPLIT}
 		 */
 		public record SplitOnCommit(FloatMeasurement expected, double innerLimit, byte splitFlags)
 				implements FloatItemPlan {
 		}
 
 		/**
-		 * commit時に救済分割(visual rescue split)を行う印です
-		 * (2026-07-25新設、増分7。答申§5。
-		 * 開発記録)。
+		 * Marks a visual rescue split at commit time
+		 * (added 2026-07-25, increment 7; recommendation §5; development log).
 		 *
 		 * <p>
-		 * 分岐表5の「first ははみ出し許容でKeep」——すなわちフラグメント
-		 * 先頭で分割不能な浮動体がなお超過している、<b>現在はみ出したまま
-		 * 描画している唯一の非進行点</b>——だけを置き換えます。commitでは
-		 * 元台帳(source側)に先頭断片(head)を、残余台帳(remainder側)に
-		 * 続きの断片(tail)を入れます。tailは次フラグメントで通常の
-		 * float配置をやり直します。
+		 * Replaces only branch table 5's "first: Keep with overflow allowed": an indivisible float
+		 * at the fragment start that still overflows, <b>the only non-progress point currently
+		 * drawn with overflow</b>. Commit puts the head fragment in the source ledger
+		 * and the tail fragment in the remainder ledger. The tail undergoes normal float
+		 * placement again in the next fragment.
 		 * </p>
 		 *
 		 * <p>
-		 * {@link SplitOnCommit}と違い、こちらは結果を<b>完全に予言します</b>
-		 * ——救済は元ボックスに触れず(幾何を切るだけ)、判定は
-		 * {@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}の
-		 * 純関数だからです。
+		 * Unlike {@link SplitOnCommit}, this <b>fully predicts the result</b>:
+		 * rescue does not touch the original box (it cuts only geometry), and the decision
+		 * uses the pure function in {@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}.
 		 * </p>
 		 *
-		 * @param expected 計画対象floatの実測スナップショット
-		 * @param slice    切り出す区間(前進保証つき)
+		 * @param expected a measurement snapshot of the target float
+		 * @param slice    the interval to cut out (with guaranteed progress)
 		 */
 		public record RescueOnCommit(FloatMeasurement expected,
 				net.zamasoft.foliojet.layout.rescue.RescueDecision.Slice slice) implements FloatItemPlan {
@@ -110,8 +103,8 @@ public record FloatSplitPlan(
 					throw new IllegalArgumentException("slice");
 				}
 				if (slice.lastFragment()) {
-					// tailを作らない区間は救済の意味がない(非進行点は
-					// 「なお超過している」ことが前提)
+					// An interval without a tail is not a meaningful rescue (a non-progress point
+					// presupposes that it still overflows).
 					throw new IllegalArgumentException("残余のない救済: " + slice);
 				}
 			}
@@ -119,14 +112,14 @@ public record FloatSplitPlan(
 	}
 
 	/**
-	 * 直接保持分のみの純計画を作ります(読み取り専用——{@code source}にも
-	 * 各ボックスにも一切影響しない)。
+	 * Creates a pure plan for directly held floats only (read-only;
+	 * affects neither {@code source} nor any of its boxes).
 	 *
-	 * @param source    対象の{@link Floatings}
-	 * @param ownerFlow ownerの書字方向
-	 * @param pageLimit 切断線(owner座標)
+	 * @param source    the target {@link Floatings}
+	 * @param ownerFlow the owner's writing direction
+	 * @param pageLimit the cut line (owner coordinates)
 	 * @param flags     {@code IPageBreakableBox.FLAGS_*}
-	 * @return 純計画
+	 * @return the pure plan
 	 */
 	public static FloatSplitPlan planDirect(final Floatings source, final WritingMode ownerFlow, final double pageLimit,
 			final byte flags) {
@@ -139,15 +132,15 @@ public record FloatSplitPlan(
 	}
 
 	/**
-	 * 分岐表の分類部の純関数版です。{@link Floatings#splitPageAxis}の
-	 * ループ本体の分岐(分岐表1・2・3・4→5)と1:1対応する——4→5の
-	 * caseフォールスルー(BLOCKでavoid非first・書字軸不一致はREPLACEDと
-	 * 同じ処理へ落ちる)もここで明示的に写している。
+	 * The pure-function version of branch-table classification. Corresponds one-to-one with
+	 * the branches in the {@link Floatings#splitPageAxis} loop (branch table 1, 2, 3, 4→5).
+	 * Explicitly reproduces the 4→5 case fall-through as well (BLOCK with avoid and non-first,
+	 * or a mismatched writing axis, falls through to the same processing as REPLACED).
 	 *
-	 * @param m         対象floatの実測値
-	 * @param pageLimit 切断線(owner座標)
+	 * @param m         measurements of the target float
+	 * @param pageLimit the cut line (owner coordinates)
 	 * @param flags     {@code IPageBreakableBox.FLAGS_*}
-	 * @return 行き先計画
+	 * @return the destination plan
 	 */
 	public static FloatItemPlan classify(final FloatMeasurement m, final double pageLimit, final byte flags) {
 		final FloatItemPlan plan = classify0(m, pageLimit, flags);
@@ -164,42 +157,42 @@ public record FloatSplitPlan(
 		final boolean first = FloatMeasurement.isFragmentStart(
 				(flags & IPageBreakableBox.FLAGS_FIRST) != 0, m.fragmentHead());
 		if (m.moveToNext()) {
-			// 配置時に2-D bottom帯との交差が確定済み。物理ページ端で
-			// Keepへ戻さず、この分割で一度だけ次断片へ送る。
+			// Placement already determined intersection with the 2-D bottom band. Do not revert to Keep
+			// at the physical page edge; send it to the next fragment exactly once in this split.
 			return new FloatItemPlan.Move(m);
 		}
 		if (LayoutUtils.compare(m.pageEnd(), pageLimit) <= 0) {
-			// 分岐表1: 全体が切断線以前(従来の比較を変更しない)
+			// Branch table 1: Entirely before the cut line (preserve the existing comparison)
 			return new FloatItemPlan.Keep(m);
 		}
 		if (!first && LayoutUtils.compare(pageLimit, m.pageStart()) < 0) {
-			// 分岐表2: 全体が切断線より後
+			// Branch table 2: Entirely after the cut line
 			return new FloatItemPlan.Move(m);
 		}
-		// monolithic: 配置時の前進検査で「分割しても縮まない」と判明した浮動体は、分割可能な
-		// BLOCK でも分岐表5/5-R(救済分割か、はみ出したまま置く)へ落とす(2026-09-17)
+		// monolithic: If the placement progress check found that a float does not shrink when split, even a splittable
+		// BLOCK falls through to branch table 5/5-R (rescue split or leave overflowing; 2026-09-17).
 		if (!m.monolithic()
 				&& !FloatMeasurement.isUnsplittable(m.boxType(), m.sameWritingAxis(), m.pageBreakInside(), first)) {
-			// 分岐表3: commit時に一度だけsplitする印(結果は予言しない)
+			// Branch table 3: Mark for a single split at commit time (do not predict the result)
 			final byte splitFlags = first ? IPageBreakableBox.FLAGS_FIRST : IPageBreakableBox.FLAGS_SPLIT;
 			return new FloatItemPlan.SplitOnCommit(m, pageLimit - m.pageStart(), splitFlags);
 		}
 		if (FloatMeasurement.fitsPageUnsplittable(m.pageEnd(), pageLimit)) {
-			// 分岐表4→5: 分割不能floatだけは1pt未満のpainted sliverを残す。
+			// Branch table 4→5: Only indivisible floats may leave a painted sliver below 1 pt.
 			return new FloatItemPlan.Keep(m);
 		}
 		switch (m.boxType()) {
 		case BLOCK:
 		case REPLACED:
 		case RESCUE:
-			// 分岐表5: firstならはみ出し許容で残し、非firstなら丸ごと送る
+			// Branch table 5: Keep with overflow allowed if first; otherwise move the whole float.
 			if (!first) {
 				return new FloatItemPlan.Move(m);
 			}
-			// 分岐表5-R(2026-07-25、救済分割・増分7): 「フラグメント先頭・
-			// 分割不能・なお超過」——ここが浮動体で「はみ出したまま描画」に
-			// 落ちる唯一の非進行点(答申§1・§5)。救済できるならKeepの
-			// かわりに幾何学的に切る
+			// Branch table 5-R (2026-07-25, rescue splitting, increment 7): "Fragment start,
+			// indivisible, still overflowing" is the only non-progress point for floats that falls through
+			// to drawing with overflow (recommendation §1 and §5). If rescue is possible, cut geometrically
+			// instead of Keep.
 			final FloatItemPlan rescue = rescue(m, pageLimit);
 			return rescue != null ? rescue : new FloatItemPlan.Keep(m);
 		default:
@@ -208,21 +201,21 @@ public record FloatSplitPlan(
 	}
 
 	/**
-	 * 非進行点の浮動体を救済分割する計画を返します(救済しないなら
-	 * {@code null})。判定そのものは
-	 * {@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}の
-	 * 純関数に集約されており(答申§4)、ここが持つのは
-	 * 「元ボックス・元寸法・消費済み量をどう取るか」だけです。
+	 * Returns a rescue split plan for a float at a non-progress point
+	 * (or {@code null} if no rescue applies). The decision itself is centralized in the pure
+	 * function of {@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}
+	 * (recommendation §4). This method only determines how to obtain the original box,
+	 * original size, and consumed amount.
 	 *
-	 * @param m         対象floatの実測値(first・超過が確定している)
-	 * @param pageLimit 切断線(owner座標)。フラグメンテナ容量でもある
-	 *                  ——firstは物理的にフラグメント先頭を意味するため
+	 * @param m         measurements of the target float (first and overflow already established)
+	 * @param pageLimit the cut line (owner coordinates), also the fragmentainer capacity,
+	 *                  since first means physically at the fragment start
 	 */
 	private static FloatItemPlan rescue(final FloatMeasurement m, final double pageLimit) {
 		final double sourcePageExtent;
 		final double offset;
 		if (m.box() instanceof net.zamasoft.foliojet.layout.rescue.VisualRescueFloatBox fragment) {
-			// 救済済み断片の続き(断片の断片は作らない)
+			// Continuation of an already rescued fragment (do not create fragments of fragments)
 			sourcePageExtent = fragment.getSourcePageExtent();
 			offset = fragment.getOffset();
 		} else {
@@ -237,15 +230,15 @@ public record FloatSplitPlan(
 			return null;
 		}
 		if (!net.zamasoft.foliojet.layout.rescue.RescuePolicy.isEnabled()) {
-			// テスト専用の注入点(従来の挙動との比較用)。本番は常に有効
+			// Test-only injection point (for comparison with previous behavior). Always enabled in production.
 			return null;
 		}
 		if (slice.lastFragment()) {
-			// 呼び出し条件(なお超過)からここには来ない。念のため救済しない
+			// The calling condition (still overflowing) excludes this case. Do not rescue, as a precaution.
 			return null;
 		}
-		// 実行時の前進検査(答申§5)。判定器の不変条件と二重になるが、
-		// 無限ループの不在は絶対要件なので実行時にも守る
+		// Runtime progress check (recommendation §5). Duplicates the planner invariant, but
+		// the absence of infinite loops is an absolute requirement, so enforce it at runtime too.
 		if (!(slice.nextOffset() > offset) || !(sourcePageExtent - slice.nextOffset() > 0)) {
 			return null;
 		}

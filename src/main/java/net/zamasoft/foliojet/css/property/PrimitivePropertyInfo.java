@@ -4,29 +4,29 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
- * 分解不可能なプロパティです。
- * 
+ * A property that cannot be decomposed.
+ *
  * @author MIYABE Tatsuhiko
  */
 public interface PrimitivePropertyInfo extends PropertyInfo {
 	/**
-	 * デフォルトで親要素の値を継承する場合はtrueを返します。
-	 * 
+	 * Returns true if the parent element's value is inherited by default.
+	 *
 	 * @return
 	 */
 	public boolean isInherited();
 
 	/**
-	 * isInheritがfalseの場合はデフォルトの値を、isInheritがtrueの場合はルート要素の値を返します。
-	 * 
+	 * Returns the default value if isInherit is false, or the root element's value if isInherit is true.
+	 *
 	 * @param style
 	 * @return
 	 */
 	public Value getDefault(CSSStyle style);
 
 	/**
-	 * 計算済みの値を返します。
-	 * 
+	 * Returns the computed value.
+	 *
 	 * @param value
 	 * @param style
 	 * @return

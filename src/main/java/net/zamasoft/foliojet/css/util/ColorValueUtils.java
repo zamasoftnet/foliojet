@@ -666,7 +666,7 @@ public final class ColorValueUtils {
 	public static final ColorValue POWDERBLUE = fromRGBOctets(176, 224, 230);
 
 	/**
-	 * {@code rebeccapurple}のRGB色です。
+	 * The RGB color for {@code rebeccapurple}.
 	 */
 	public static final ColorValue REBECCAPURPLE = fromRGBOctets(102, 51, 153);
 
@@ -1065,9 +1065,10 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * HTMLの属性値({@code bgcolor} など)と {@code attr(… type(color))} の 16 進色(# を除いた桁)です。
-	 * 桁の読み方は CSS と同じ({@link Tokens#hexOctets})。属性値の慣行として、7 桁と 9 桁以上は先頭 6 桁、5 桁は
-	 * 先頭 3 桁、{@code "0"} は黒として読む。
+	 * Hex colors (digits excluding #) in HTML attribute values ({@code bgcolor}, etc.)
+	 * and {@code attr(… type(color))}. Digits are parsed as in CSS ({@link Tokens#hexOctets}).
+	 * Following attribute conventions, reads the first six digits for lengths 7 or 9 and above,
+	 * the first three digits for length 5, and {@code "0"} as black.
 	 */
 	public static ColorValue parseRGBHexColor(String color) {
 		if (color.equals("0")) {
@@ -1085,15 +1086,15 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * rgb の引数をRGBColorValueに変換します。
+	 * Converts rgb arguments to RGBColorValue.
 	 */
 	private static ColorValue toRGBColorValue(TokenStream args) {
 		try {
 			float red = toColorComponent(nextComponent(args));
 			float green = toColorComponent(nextComponent(args));
 			float blue = toColorComponent(nextComponent(args));
-			// CSS Color 4の空白区切り構文 rgb(0 0 0 / 50%)(2026-08-29)。
-			// 従来は第4成分を読み捨てていたため不透明になっていた
+			// CSS Color 4 space-separated syntax rgb(0 0 0 / 50%) (2026-08-29).
+			// Previously the fourth component was discarded, making the result opaque.
 			if (args.eatSlash()) {
 				return fromMaybeAlpha(red, green, blue, toUnitNumber(nextComponent(args)));
 			}
@@ -1104,14 +1105,14 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * rgba の引数をRGBAColorValueに変換します。
+	 * Converts rgba arguments to RGBAColorValue.
 	 */
 	private static ColorValue toRGBAColorValue(TokenStream args) {
 		try {
 			float red = toColorComponent(nextComponent(args));
 			float green = toColorComponent(nextComponent(args));
 			float blue = toColorComponent(nextComponent(args));
-			// rgba(0 0 0 / .5) の別名構文も受ける(2026-08-29)
+			// Also accept the alias syntax rgba(0 0 0 / .5) (2026-08-29)
 			args.eatSlash();
 			float alpha = toUnitNumber(nextComponent(args));
 			return fromRGBAComponents(red, green, blue, alpha);
@@ -1121,7 +1122,7 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * -cssj-cmyk の引数をCMYKColorValueに変換します。
+	 * Converts -cssj-cmyk arguments to CMYKColorValue.
 	 */
 	private static ColorValue toCMYKColorValue(TokenStream args) {
 		try {
@@ -1147,14 +1148,13 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * -cssj-spot(版名, 代替色 [, 網点率%] [, standard|illustrator]) を
-	 * スポットカラーに変換します。-cssj-spot(registration) は
-	 * レジストレーションカラー("All" 版)です。
+	 * Converts -cssj-spot(plate name, alternate color [, tint%] [, standard|illustrator])
+	 * to a spot color. -cssj-spot(registration) is the registration color ("All" plate).
 	 */
 	private static ColorValue toSpotColorValue(UserAgent ua, TokenStream args) {
 		try {
 			CssToken first = nextComponent(args);
-			// レジストレーションカラー
+			// Registration color
 			if (first instanceof CssToken.Ident ident && ident.is("registration")) {
 				return new ColorValue(SpotColor.REGISTRATION);
 			}
@@ -1192,10 +1192,10 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * @param legacy 接頭辞つき旧構文か(2026-08-29)。旧構文では向きの
-	 *               キーワードが{@code to}無しで<b>開始辺</b>を表し
-	 *               ({@code top}=現行の{@code to bottom})、角度は東を0とする
-	 *               反時計回り(現行=90deg−旧)
+	 * @param legacy whether this is legacy prefixed syntax (2026-08-29). In legacy syntax,
+	 *               direction keywords without {@code to} denote the <b>starting side</b>
+	 *               ({@code top}=modern {@code to bottom}); angles are counterclockwise
+	 *               with east as zero (modern=90deg−legacy).
 	 */
 	private static PaintValue toLinearGradient(UserAgent ua, TokenStream args, boolean legacy) {
 		return toLinearGradient(ua, args, legacy, false);
@@ -1213,7 +1213,7 @@ public final class ColorValueUtils {
 					prelude = true;
 					continue;
 				}
-				// 方向指定(<angle> | to <side> [<side>])。補間指定とは順不同。
+				// Direction (<angle> | to <side> [<side>]); order relative to interpolation is arbitrary.
 				final CssToken first = args.peek();
 				final Double radians = direction ? null : toAngleRadians(first);
 				if (radians != null) {
@@ -1242,7 +1242,7 @@ public final class ColorValueUtils {
 					}
 					angle = gradientAngle(a, b);
 					if (startSide) {
-						// 旧構文の「開始辺」→現行の「終了辺」は正反対
+						// Legacy starting side and modern ending side are opposite
 						angle += Math.PI;
 					}
 					direction = true;
@@ -1274,7 +1274,7 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * linear-gradient の to 方向を角度(ラジアン)に変換します。
+	 * Converts a linear-gradient to direction to an angle (radians).
 	 */
 	private static double gradientAngle(String a, String b) {
 		final int deg;
@@ -1306,7 +1306,7 @@ public final class ColorValueUtils {
 		}
 	}
 
-	/** 引数列からコンマを読み飛ばして次のトークンを返します。 */
+	/** Skips commas in the argument sequence and returns the next token. */
 	private static CssToken nextComponent(TokenStream args) {
 		while (args.eatComma()) {
 			// skip
@@ -1319,13 +1319,13 @@ public final class ColorValueUtils {
 			return (float) (percent.value() / 100.0);
 		}
 		if (token instanceof CssToken.Num num) {
-			// 整数表記は0〜255、実数表記は0〜1として扱う(旧実装と同じ)
+			// Treat integer notation as 0–255 and real-number notation as 0–1 (same as the old implementation)
 			return num.integer() ? (float) (num.value() / 255.0) : (float) num.value();
 		}
 		throw new IllegalArgumentException();
 	}
 
-	/** 色相トークン(数値または角度)を度で返します。 */
+	/** Returns a hue token (number or angle) in degrees. */
 	private static double toHueDegrees(final CssToken token) throws IllegalArgumentException {
 		if (token instanceof CssToken.Num num) {
 			return num.value();
@@ -1347,9 +1347,9 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * 0..1の単位数値です(%は/100、数値はそのまま——Color 4系関数用。
-	 * 旧toColorComponentの「整数は/255」ヒューリスティックはrgbレガシー
-	 * 専用のためここでは使わない)。
+	 * A unit numeric value in 0..1 (% divided by 100; numbers unchanged, for Color 4
+	 * functions). Do not use the old toColorComponent heuristic of dividing integers by 255,
+	 * which is specific to legacy rgb.
 	 */
 	private static float toUnitNumber(final CssToken token) throws IllegalArgumentException {
 		if (token instanceof CssToken.Percent percent) {
@@ -1361,7 +1361,7 @@ public final class ColorValueUtils {
 		throw new IllegalArgumentException();
 	}
 
-	/** 省略可能な「/ アルファ」を読みます(なければ1)。 */
+	/** Reads optional "/ alpha" (1 if absent). */
 	private static float toOptionalAlpha(final TokenStream args) throws IllegalArgumentException {
 		if (args.eatSlash()) {
 			return toUnitNumber(nextComponent(args));
@@ -1370,8 +1370,8 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * hsl/hslaです(CSS Color 3——Web由来CSSの入力互換。旧カンマ構文と
-	 * 現代のスペース+スラッシュ構文の両方を受ける)。
+	 * hsl/hsla (CSS Color 3, input compatibility with web CSS). Accepts both legacy comma
+	 * syntax and modern space + slash syntax.
 	 */
 	private static ColorValue toHSLColorValue(final TokenStream args) {
 		try {
@@ -1391,7 +1391,7 @@ public final class ColorValueUtils {
 		}
 	}
 
-	/** HSLをsRGB成分へ変換します。hueは0以上360未満の度数です。 */
+	/** Converts HSL to sRGB components. hue is in degrees from 0 inclusive to 360 exclusive. */
 	private static double[] hslToSRGB(final double hue, final double saturation, final double lightness) {
 		final double c = (1 - Math.abs(2 * lightness - 1)) * saturation;
 		final double x = c * (1 - Math.abs((hue / 60) % 2 - 1));
@@ -1408,7 +1408,7 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * hwbです(CSS Color 4)。HSLの純色をwhiteness/blacknessでsRGBへ写します。
+	 * hwb (CSS Color 4). Maps the pure HSL color to sRGB using whiteness/blackness.
 	 */
 	private static ColorValue toHWBColorValue(final TokenStream args) {
 		try {
@@ -1436,9 +1436,8 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * oklch/oklabです(CSS Color 4)。L=数値0..1または%、C=数値または
-	 * %(基準0.4)、H=角度。sRGBへ変換して保持する(印刷パイプラインは
-	 * RGB/CMYK——広色域はsRGBへクリップ)。
+	 * oklch/oklab (CSS Color 4). L=number 0..1 or %, C=number or % (basis 0.4), H=angle.
+	 * Converts to sRGB for storage (the print pipeline is RGB/CMYK; wide gamut is clipped to sRGB).
 	 */
 	private static ColorValue toOKColorValue(final TokenStream args, final boolean lch) {
 		try {
@@ -1470,7 +1469,7 @@ public final class ColorValueUtils {
 		}
 	}
 
-	/** oklabのa/b軸(数値または%——基準±0.4)。 */
+	/** oklab a/b axes (number or %, basis ±0.4). */
 	private static double toOKLabAxis(final CssToken token) throws IllegalArgumentException {
 		if (token instanceof CssToken.Percent percent) {
 			return percent.value() / 100.0 * 0.4;
@@ -1482,8 +1481,8 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * lab/lchです(CSS Color 4)。D50のCIE LabをBradford変換でD65へ順応し、
-	 * sRGBへ変換して保持します。Labのa/bは100%=125、LCHのCは100%=150です。
+	 * lab/lch (CSS Color 4). Adapts D50 CIE Lab to D65 with Bradford conversion, then
+	 * converts to sRGB for storage. Lab a/b use 100%=125; LCH C uses 100%=150.
 	 */
 	private static ColorValue toLabColorValue(final TokenStream args, final boolean lch) {
 		try {
@@ -1507,7 +1506,7 @@ public final class ColorValueUtils {
 		}
 	}
 
-	/** lab/lchのL軸(数値は0..100、100%=100)。範囲外は仕様どおりクリップ。 */
+	/** lab/lch L axis (numbers 0..100, 100%=100). Clips out-of-range values as specified. */
 	private static double toLabLightness(final CssToken token) throws IllegalArgumentException {
 		final double lightness;
 		if (token instanceof CssToken.Percent percent) {
@@ -1520,7 +1519,7 @@ public final class ColorValueUtils {
 		return Math.min(100, Math.max(0, lightness));
 	}
 
-	/** Lab/LCH成分。percentageScaleは100%に対応する値です。 */
+	/** Lab/LCH component. percentageScale is the value corresponding to 100%. */
 	private static double toLabComponent(final CssToken token, final double percentageScale)
 			throws IllegalArgumentException {
 		if (token instanceof CssToken.Percent percent) {
@@ -1532,7 +1531,7 @@ public final class ColorValueUtils {
 		throw new IllegalArgumentException();
 	}
 
-	/** CIE Lab(D50)→XYZ(D50)→XYZ(D65)→sRGB(ガンマ符号化+0..1クリップ)。 */
+	/** CIE Lab(D50)→XYZ(D50)→XYZ(D65)→sRGB (gamma encoding + clipping to 0..1). */
 	private static double[] labToSRGB(final double lightness, final double a, final double b) {
 		final double epsilon = 216.0 / 24389.0;
 		final double kappa = 24389.0 / 27.0;
@@ -1553,9 +1552,8 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * CSS Color 4の{@code color()}です。定義済みRGB色空間とXYZ(D50/D65)を
-	 * sRGBへ変換して保持します。出力色域外の成分は単純にsRGBの0..1へ
-	 * クランプします。
+	 * CSS Color 4 {@code color()}. Converts predefined RGB color spaces and XYZ (D50/D65)
+	 * to sRGB for storage. Simply clamps out-of-gamut components to sRGB 0..1.
 	 */
 	private static ColorValue toColorFunction(final TokenStream args) {
 		try {
@@ -1639,7 +1637,7 @@ public final class ColorValueUtils {
 		}
 	}
 
-	/** {@code color()}の色成分です。数値はそのまま、%は0..1へ正規化します。 */
+	/** {@code color()} color component. Numbers unchanged; % normalized to 0..1. */
 	private static double toColorFunctionComponent(final CssToken token) throws IllegalArgumentException {
 		if (token instanceof CssToken.Percent percent) {
 			return percent.value() / 100.0;
@@ -1672,7 +1670,7 @@ public final class ColorValueUtils {
 				: Math.copySign(Math.pow((absolute + alpha - 1) / alpha, 1 / 0.45), encoded);
 	}
 
-	/** Bradford色順応(D50→D65)。 */
+	/** Bradford chromatic adaptation (D50→D65). */
 	private static double[] d50ToD65(final double x50, final double y50, final double z50) {
 		return new double[] { 0.955473421488075 * x50 - 0.02309845494876471 * y50
 				+ 0.06325924320057072 * z50,
@@ -1680,7 +1678,7 @@ public final class ColorValueUtils {
 				0.012314014864481998 * x50 - 0.020507649298898964 * y50 + 1.330365926242124 * z50 };
 	}
 
-	/** XYZ(D65)→sRGB。色域外は各成分を0..1へクランプします。 */
+	/** XYZ(D65)→sRGB. Clamps out-of-gamut components to 0..1. */
 	private static double[] xyzD65ToSRGB(final double x65, final double y65, final double z65) {
 		return linearSRGBToSRGB(3.2409699419045226 * x65 - 1.537383177570094 * y65
 				- 0.4986107602930034 * z65,
@@ -1688,7 +1686,7 @@ public final class ColorValueUtils {
 				0.05563007969699366 * x65 - 0.20397695888897652 * y65 + 1.0569715142428786 * z65);
 	}
 
-	/** OKLab→sRGB(標準行列。ガンマ符号化+0..1クリップ)。 */
+	/** OKLab→sRGB (standard matrix; gamma encoding + clipping to 0..1). */
 	private static double[] oklabToSRGB(final double lightness, final double a, final double b) {
 		final double l_ = lightness + 0.3963377774 * a + 0.2158037573 * b;
 		final double m_ = lightness - 0.1055613458 * a - 0.0638541728 * b;
@@ -1702,7 +1700,7 @@ public final class ColorValueUtils {
 		return new double[] { gammaEncode(lr), gammaEncode(lg), gammaEncode(lb) };
 	}
 
-	/** sRGB→OKLab(color-mixの補間空間用)。 */
+	/** sRGB→OKLab (for the color-mix interpolation space). */
 	private static double[] srgbToOKLab(final double red, final double green, final double blue) {
 		final double lr = gammaDecode(red);
 		final double lg = gammaDecode(green);
@@ -1724,7 +1722,7 @@ public final class ColorValueUtils {
 		return encoded <= 0.04045 ? encoded / 12.92 : Math.pow((encoded + 0.055) / 1.055, 2.4);
 	}
 
-	/** sRGBの拡張伝達関数です({@code color()}の範囲外成分を変換途中まで保持)。 */
+	/** Extended sRGB transfer function (retains out-of-range {@code color()} components during conversion). */
 	private static double gammaDecodeExtended(final double encoded) {
 		final double absolute = Math.abs(encoded);
 		return absolute <= 0.04045 ? encoded / 12.92
@@ -1740,9 +1738,8 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * color-mixです(CSS Color 5のうちin srgb/oklab/oklch——Tailwind v4の
-	 * 透明度ユーティリティが多用する。補間は仕様どおり
-	 * アルファpremultiplied)。
+	 * color-mix (CSS Color 5, in srgb/oklab/oklch; heavily used by Tailwind v4 opacity
+	 * utilities). Interpolation uses premultiplied alpha as specified.
 	 */
 	private static ColorValue toColorMix(final UserAgent ua, final TokenStream args) {
 		try {
@@ -1789,8 +1786,8 @@ public final class ColorValueUtils {
 				break;
 			case "oklab":
 			case "oklch":
-				// oklchの色相最短弧は実装簡略化のためoklab直線補間で代替
-				// (無彩色・近色相では同一。記録済みの近似)
+				// Approximate the shortest hue arc in oklch with linear oklab interpolation for simplicity
+				// (identical for achromatic/nearby hues; documented approximation).
 				c1 = srgbToOKLab(color1.getRed(), color1.getGreen(), color1.getBlue());
 				c2 = srgbToOKLab(color2.getRed(), color2.getGreen(), color2.getBlue());
 				break;
@@ -1799,7 +1796,7 @@ public final class ColorValueUtils {
 			}
 			final double[] mixed = new double[3];
 			for (int i = 0; i < 3; ++i) {
-				// アルファpremultiplied補間(CSS Color 4 §interpolation)
+				// Premultiplied-alpha interpolation (CSS Color 4 §interpolation)
 				mixed[i] = (c1[i] * a1 * w1 + c2[i] * a2 * w2) / alpha;
 			}
 			final double[] rgb = space.equalsIgnoreCase("srgb") ? mixed
@@ -1810,7 +1807,7 @@ public final class ColorValueUtils {
 		}
 	}
 
-	/** 直後の%トークンがあれば0..1で返します(なければnull)。 */
+	/** Returns the immediately following % token as 0..1, or null if absent. */
 	private static Float eatPercent(final TokenStream args) {
 		while (args.eatComma()) {
 			// skip
@@ -1823,10 +1820,9 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * color-mix/light-darkの引数の色です(transparentをrgba(0,0,0,0)として
-	 * 受ける——Tailwind v4の透明度ユーティリティが多用する。単独の色指定
-	 * としてのtransparentは従来どおり各プロパティ側のisTransparentが扱い、
-	 * toColor本体の挙動は変えない)。
+	 * Color argument for color-mix/light-dark (accepts transparent as rgba(0,0,0,0),
+	 * heavily used by Tailwind v4 opacity utilities). Each property's isTransparent still
+	 * handles standalone transparent color values; toColor itself is unchanged.
 	 */
 	private static ColorValue toMixArgColor(final UserAgent ua, final CssToken token) {
 		if (isTransparent(token)) {
@@ -1836,25 +1832,24 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * transparent であればtrueを返します。
+	 * Returns true for transparent.
 	 */
 	public static boolean isTransparent(CssToken token) {
 		return token instanceof CssToken.Ident ident && ident.is("transparent");
 	}
 
 	/**
-	 * currentcolor であればtrueを返します(2026-08-29)。
+	 * Returns true for currentcolor (2026-08-29).
 	 */
 	public static boolean isCurrentColor(CssToken token) {
 		return token instanceof CssToken.Ident ident && ident.is("currentcolor");
 	}
 
 	/**
-	 * &lt;color&gt; を値に変換します。{@code currentcolor}は
-	 * {@link net.zamasoft.foliojet.css.value.KeywordValue#DEFAULT}を返す
-	 * (2026-08-29)——border-color等が既定値「その要素のcolor」を表すのに
-	 * 使っている番兵で、各プロパティの{@code getComputedValue}が
-	 * {@code color}の計算値へ解決する。
+	 * Converts &lt;color&gt; to a value. {@code currentcolor} returns
+	 * {@link net.zamasoft.foliojet.css.value.KeywordValue#DEFAULT} (2026-08-29):
+	 * the sentinel used by border-color, etc. for the default, the element's color.
+	 * Each property's {@code getComputedValue} resolves it to the computed {@code color}.
 	 */
 	public static Value toColorOrCurrent(UserAgent ua, CssToken token) {
 		if (isCurrentColor(token)) {
@@ -1864,7 +1859,7 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * &lt;color&gt; を値に変換します。
+	 * Converts &lt;color&gt; to a value.
 	 */
 	public static ColorValue toColor(UserAgent ua, CssToken token) {
 		if (token instanceof CssToken.Ident ident) {
@@ -1886,8 +1881,8 @@ public final class ColorValueUtils {
 			if (func.is("-cssj-gray")) {
 				return toGrayColorValue(func.argStream());
 			}
-			// CSS Color 3/4(2026-08-02、PLAN §2の3位——Tailwind v4が
-			// oklchを既定採用し、未対応だと色宣言が全滅する入力互換対応)
+			// CSS Color 3/4 (2026-08-02, third in PLAN §2: input compatibility for Tailwind v4,
+			// which defaults to oklch; lack of support invalidates all color declarations)
 			if (func.is("hsl") || func.is("hsla")) {
 				return toHSLColorValue(func.argStream());
 			}
@@ -1913,8 +1908,8 @@ public final class ColorValueUtils {
 				return toColorMix(ua, func.argStream());
 			}
 			if (func.is("light-dark")) {
-				// 印刷は常にlight(ページメディアにダークモードはない——
-				// 第2引数は読み捨て)
+				// Print always uses light (paged media has no dark mode;
+				// read and discard the second argument).
 				return toMixArgColor(ua, nextComponent(func.argStream()));
 			}
 		}
@@ -1922,11 +1917,11 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * &lt;background-color&gt; を値に変換します。
+	 * Converts &lt;background-color&gt; to a value.
 	 */
 	public static PaintValue toPaint(UserAgent ua, CssToken token) {
-		// 型付き attr()(2026-08-03)。属性から色を取る(bgcolor/text/link等の
-		// 移送に要る)。解決は計算値の段階で、長さと同じ窓口が行う
+		// Typed attr() (2026-08-03). Reads colors from attributes (needed to transfer bgcolor/text/link,
+		// etc.). Resolves at the computed-value stage through the same entry point as lengths.
 		Value attr = AttrValueUtils.toTypedAttr(ua, token,
 				net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.COLOR);
 		if (attr instanceof PaintValue paint) {
@@ -1940,24 +1935,26 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * グラデーション関数を塗りに変換します(2026-08-29に対応範囲を拡張——
-	 * 実サイト50件中31件・約1100回が不受理だった。同日夜に放射・円錐・
-	 * 繰り返しを本実装にした)。対応外のトークンは null。
+	 * Converts gradient functions to paint (coverage expanded on 2026-08-29:
+	 * about 1100 occurrences on 31 of 50 real sites had been rejected; radial, conic, and
+	 * repeating gradients gained full implementations that evening). Returns null for unsupported tokens.
 	 *
 	 * <ul>
-	 * <li>{@code linear-gradient()}: 現行構文</li>
+	 * <li>{@code linear-gradient()}: modern syntax</li>
 	 * <li>{@code -webkit-}/{@code -moz-}/{@code -o-linear-gradient()}:
-	 * 旧構文({@code to}無しの向きは<b>開始辺</b>、角度は東から反時計回り)</li>
-	 * <li>{@code -webkit-gradient(linear|radial, ...)}: 2008年版のSafari構文。
-	 * 2点から角度を出して線形へ、2円から中心と半径を出して放射へ写す</li>
-	 * <li>{@code radial-gradient()}: 形状(circle/ellipse)・寸法(4つの
-	 * キーワード・長さ・長さ2つ)・{@code at <position>}。接頭辞つき旧構文
-	 * ({@code -webkit-radial-gradient(center, ellipse cover, ...)})も受ける</li>
-	 * <li>{@code conic-gradient()}: {@code from <angle>}・{@code at <position>}。
-	 * 角度の色停止(deg/turn/%)</li>
-	 * <li>{@code repeating-*}: 周期を箱を覆うまで展開({@link GradientStops})</li>
-	 * <li>{@code in <color-space>}と任意のhue補間指定は構文として受理する。
-	 * 現在の描画値は既存形式を保つため、指定にかかわらずsRGB補間へフォールバックする</li>
+	 * legacy syntax (direction without {@code to} is the <b>starting side</b>;
+	 * angles run counterclockwise from east)</li>
+	 * <li>{@code -webkit-gradient(linear|radial, ...)}: 2008 Safari syntax.
+	 * Maps two points to a linear angle, or two circles to a radial center/radius</li>
+	 * <li>{@code radial-gradient()}: shape (circle/ellipse), size (four keywords, one length,
+	 * or two lengths), and {@code at <position>}. Also accepts legacy prefixed syntax
+	 * ({@code -webkit-radial-gradient(center, ellipse cover, ...)})</li>
+	 * <li>{@code conic-gradient()}: {@code from <angle>} and {@code at <position>}.
+	 * Angular color stops (deg/turn/%)</li>
+	 * <li>{@code repeating-*}: expands periods until the box is covered ({@link GradientStops})</li>
+	 * <li>Accepts {@code in <color-space>} and optional hue interpolation as syntax.
+	 * To retain the existing drawing-value format, currently falls back to sRGB interpolation
+	 * regardless of the specification</li>
 	 * </ul>
 	 */
 	public static PaintValue toGradient(UserAgent ua, CssToken token) {
@@ -1994,11 +1991,11 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * 色停止列を読みます(css-images-3 §3.4.1 / css-images-4の色ヒントは
-	 * 読み飛ばす)。各項は{@code <color> [<pos> [<pos>]]?}。旧実装の寛容さで
-	 * 位置が色の前に書かれた形も受ける。
+	 * Reads color stops (css-images-3 §3.4.1; skips css-images-4 color hints).
+	 * Each entry is {@code <color> [<pos> [<pos>]]?}. Retains the old implementation's
+	 * tolerance for positions written before colors.
 	 *
-	 * @param angular 円錐(位置は角度か%)
+	 * @param angular conic (positions are angles or %)
 	 */
 	private static GradientStops parseStops(final UserAgent ua, final List<TokenStream> groups,
 			final boolean angular) {
@@ -2019,7 +2016,7 @@ public final class ColorValueUtils {
 			}
 			final CssToken colorToken = group.next();
 			if (colorToken == null) {
-				// 色ヒント(`red, 30%, blue`)の項。補間の中点は未対応——読み飛ばす
+				// Color hint entry (`red, 30%, blue`). Interpolation midpoints are unsupported; skip it.
 				continue;
 			}
 			final ColorValue cv = toColor(ua, colorToken);
@@ -2067,9 +2064,9 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * CSS Images 4の{@code in <color-space> [<hue-interpolation-method> hue]?}を
-	 * 消費します。指定は構文互換のため受理し、実際の色停止補間は既存のsRGBへ
-	 * フォールバックします。
+	 * Consumes CSS Images 4 {@code in <color-space> [<hue-interpolation-method> hue]?}.
+	 * Accepts the specification for syntax compatibility; actual color-stop interpolation
+	 * falls back to the existing sRGB behavior.
 	 */
 	private static boolean consumeGradientInterpolation(final TokenStream tokens) {
 		if (!tokens.eat("in")) {
@@ -2109,8 +2106,8 @@ public final class ColorValueUtils {
 
 	/**
 	 * {@code radial-gradient([ <ending-shape> || <size> ]? [ at <position> ]?, <color-stop-list>)}
-	 * および旧構文{@code -webkit-radial-gradient([<position>,]? [<shape> || <size>,]? <stops>)}
-	 * (寸法キーワード{@code contain}/{@code cover}を含む)。
+	 * and legacy {@code -webkit-radial-gradient([<position>,]? [<shape> || <size>,]? <stops>)}
+	 * (including size keywords {@code contain}/{@code cover}).
 	 */
 	private static PaintValue toRadialGradient(final UserAgent ua, final TokenStream args, final boolean legacy,
 			final boolean repeating) {
@@ -2188,11 +2185,11 @@ public final class ColorValueUtils {
 							circle = false;
 						}
 					} else if (!shapeGiven) {
-						// 長さ1つは円の半径
+						// One length is the circle radius
 						circle = true;
 					}
 					if (circle && sizeX instanceof PercentageValue) {
-						// 円の半径に%は不可(仕様)
+						// % is invalid for a circle radius (specification)
 						throw new IllegalArgumentException();
 					}
 					if (!circle && sizeY == null) {
@@ -2213,7 +2210,7 @@ public final class ColorValueUtils {
 		}
 	}
 
-	/** 旧構文の先頭項が位置(center/left/...・長さ・%だけ)か。 */
+	/** Whether the first legacy-syntax entry is a position (only center/left/..., lengths, %). */
 	private static boolean isPositionGroup(final TokenStream group) {
 		final int mark = group.position();
 		try {
@@ -2244,7 +2241,7 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * {@code conic-gradient([ from <angle> ]? [ at <position> ]?, <angular-color-stop-list>)}。
+	 * {@code conic-gradient([ from <angle> ]? [ at <position> ]?, <angular-color-stop-list>)}.
 	 */
 	private static PaintValue toConicGradient(final UserAgent ua, final TokenStream args, final boolean repeating) {
 		try {
@@ -2291,8 +2288,8 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * {@code -webkit-gradient(linear, x0 y0, x1 y1, from(c), color-stop(p, c), to(c))}
-	 * (2008年版WebKit構文)を線形グラデーションへ写します。
+	 * Maps {@code -webkit-gradient(linear, x0 y0, x1 y1, from(c), color-stop(p, c), to(c))}
+	 * (2008 WebKit syntax) to a linear gradient.
 	 */
 	private static PaintValue toWebkitGradient(UserAgent ua, TokenStream args) {
 		final List<TokenStream> groups = args.splitComma();
@@ -2314,7 +2311,7 @@ public final class ColorValueUtils {
 		if (p0 == null || p1 == null) {
 			return null;
 		}
-		// CSSの角度: 0deg=上向き、時計回り(画面座標はy下向き)
+		// CSS angles: 0deg points up, clockwise (screen coordinates have y pointing down)
 		final double dx = p1[0] - p0[0];
 		final double dy = p1[1] - p0[1];
 		final double angle = (dx == 0 && dy == 0) ? Math.PI : Math.atan2(dx, -dy);
@@ -2325,7 +2322,7 @@ public final class ColorValueUtils {
 		return new LinearGradientValue(angle, stops, false);
 	}
 
-	/** -webkit-gradientの点(left/center/right・top/center/bottom・%・数)を0..1へ。 */
+	/** Converts -webkit-gradient points (left/center/right, top/center/bottom, %, numbers) to 0..1. */
 	private static double[] toWebkitPoint(final TokenStream group) {
 		final double[] point = new double[2];
 		for (int axis = 0; axis < 2; ++axis) {
@@ -2357,7 +2354,7 @@ public final class ColorValueUtils {
 		return point;
 	}
 
-	/** 角度トークンをラジアンで返します(deg/rad/grad/turn)。角度でなければnull。 */
+	/** Returns an angle token in radians (deg/rad/grad/turn), or null if it is not an angle. */
 	public static Double toAngleRadians(final CssToken token) {
 		if (token instanceof CssToken.Dim dim) {
 			switch (dim.unit()) {
@@ -2376,14 +2373,14 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * 色停止の位置を{@code [割合, 絶対長pt, 自動なら1]}で返します(2026-08-29に
-	 * 絶対長を保持するよう変更——それまでは長さの位置を等間隔補間に落として
-	 * いたので、{@code repeating-linear-gradient(#fff, #000 10px)}の周期が
-	 * 消えていた)。em等のフォント相対長は計算値の段階で解決されないため
-	 * 自動として近似する。calc()は割合と絶対の両成分を使う。
-	 * 位置として読めなければnull。
+	 * Returns a color stop position as {@code [ratio, absolute length in pt, 1 if automatic]}
+	 * (changed to retain absolute lengths on 2026-08-29; previously length positions fell
+	 * back to evenly spaced interpolation, losing the period of
+	 * {@code repeating-linear-gradient(#fff, #000 10px)}). Font-relative lengths such as em
+	 * are not resolved at the computed-value stage, so approximate them as automatic.
+	 * calc() uses both ratio and absolute components. Returns null if not readable as a position.
 	 *
-	 * @param angular 円錐の停止(角度を1周=1の割合へ写す)
+	 * @param angular conic stop (maps angles to ratios with one turn=1)
 	 */
 	private static double[] toStopPosition(final UserAgent ua, final CssToken token, final boolean angular) {
 		if (token instanceof CssToken.Percent percent) {
@@ -2423,10 +2420,10 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * {@code -webkit-gradient(radial, x0 y0, r0, x1 y1, r1, stops)}。外側の円
-	 * (中心x1 y1・半径r1)を終了形状にし、内側の円は無視する(焦点は
-	 * PDFのType 3で表せるが、旧構文の実例はほぼ同心なので使わない)。
-	 * 半径の数はCSS px。
+	 * {@code -webkit-gradient(radial, x0 y0, r0, x1 y1, r1, stops)}. Uses the outer circle
+	 * (center x1 y1, radius r1) as the ending shape and ignores the inner circle
+	 * (PDF Type 3 can represent the focal point, but legacy examples are almost always
+	 * concentric, so it is unused). Numeric radii are CSS px.
 	 */
 	private static PaintValue toWebkitRadialGradient(final UserAgent ua, final List<TokenStream> groups) {
 		if (groups.size() < 6) {
@@ -2446,7 +2443,7 @@ public final class ColorValueUtils {
 				PercentageValue.create(center[0] * 100), PercentageValue.create(center[1] * 100), stops, false);
 	}
 
-	/** {@code from()/to()/color-stop()}の列を停止列にします。読めなければnull。 */
+	/** Converts a sequence of {@code from()/to()/color-stop()} to color stops. Null if unreadable. */
 	private static GradientStops toWebkitStops(final UserAgent ua, final List<TokenStream> groups) {
 		final List<Color> colors = new ArrayList<Color>();
 		final DoubleList fracs = new DoubleList();
@@ -2487,7 +2484,7 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * &lt;background-repeat&gt; を値に変換します。
+	 * Converts &lt;background-repeat&gt; to a value.
 	 */
 	public static BackgroundRepeatValue toBackgroundRepeat(CssToken token) {
 		if (token instanceof CssToken.Ident ident) {
@@ -2506,7 +2503,7 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * &lt;background-attachment&gt; を値に変換します。
+	 * Converts &lt;background-attachment&gt; to a value.
 	 */
 	public static BackgroundAttachmentValue toBackgroundAttachment(CssToken token) {
 		if (token instanceof CssToken.Ident ident) {
@@ -2521,7 +2518,7 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * &lt;background-clip&gt; を値に変換します。
+	 * Converts &lt;background-clip&gt; to a value.
 	 */
 	public static BackgroundClipValue toBackgroundClip(CssToken token) {
 		if (token instanceof CssToken.Ident ident) {
@@ -2540,7 +2537,7 @@ public final class ColorValueUtils {
 	}
 
 	/**
-	 * &lt;background-origin&gt; を値に変換します。
+	 * Converts &lt;background-origin&gt; to a value.
 	 */
 	public static net.zamasoft.foliojet.css.value.css3.BackgroundOriginValue toBackgroundOrigin(CssToken token) {
 		if (token instanceof CssToken.Ident ident) {

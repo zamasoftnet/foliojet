@@ -21,7 +21,7 @@ public enum PositionValue implements Value {
 
 	public static final byte FIXED = 3;
 
-	/** paged mediaでは相対配置の包含ブロックだけを作り、insetによる移動はしない。 */
+	/** In paged media, only establishes a containing block for relative positioning; insets do not move it. */
 	public static final byte STICKY = 4;
 
 	private final byte position;

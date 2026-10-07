@@ -13,8 +13,8 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
- * HTMLのテーブルborderに相当する内部特性です。
- * 
+ * Internal property corresponding to HTML table border.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class CSSJHtmlTableBorder extends AbstractPrimitivePropertyInfo {
@@ -30,9 +30,9 @@ public class CSSJHtmlTableBorder extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * <b>宣言した表で解いてから継承させる</b>(2026-08-03)。属性由来の値
-	 * ({@code attr(border px)})は要素依存なので、未解決のまま継承すると
-	 * セル側で解けない。
+	 * <b>Resolve on the declaring table before inheritance</b> (2026-08-03).
+	 * Attribute-derived values ({@code attr(border px)}) depend on the element,
+	 * so they cannot resolve on cells if inherited unresolved.
 	 */
 	public Value getComputedValue(Value value, CSSStyle style) {
 		if (value instanceof Unresolved unresolved) {
@@ -42,8 +42,8 @@ public class CSSJHtmlTableBorder extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * 解析直後の未解決値。{@code attr()}を含みうるので、具象化は計算値の
-	 * 段階({@link #getComputedValue})で行う。
+	 * Unresolved value immediately after parsing. May contain {@code attr()},
+	 * so make it concrete at the computed-value stage ({@link #getComputedValue}).
 	 */
 	private record Unresolved(Value width, Value color) implements Value {
 		Value resolve(CSSStyle style) {
@@ -67,10 +67,10 @@ public class CSSJHtmlTableBorder extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * <b>CSSから書けるようにした</b>(2026-08-03)。構文は
-	 * {@code -cssj-html-table-border: <length> <color>?}。
-	 * 表の {@code border}/{@code bordercolor} 属性をCSSへ移送するために要る
-	 * ——この値は表からセルへ罫線の幅と色を配る内部の通り道である。
+	 * <b>Made writable from CSS</b> (2026-08-03). Syntax:
+	 * {@code -cssj-html-table-border: <length> <color>?}.
+	 * Needed to move table {@code border}/{@code bordercolor} attributes to CSS;
+	 * this value is the internal path for distributing border width and color from tables to cells.
 	 */
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();

@@ -13,8 +13,9 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code background-position-y}です。カンマ区切りは既存の多層背景と同じく
- * 全レイヤを検証し、描画で共有する先頭レイヤの値をY成分だけへ設定する。
+ * {@code background-position-y}. For comma-separated values, validates all layers
+ * as with existing multiple backgrounds, and sets only the Y component to the first layer's value
+ * shared during rendering.
  */
 public class BackgroundPositionY extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new BackgroundPositionY();

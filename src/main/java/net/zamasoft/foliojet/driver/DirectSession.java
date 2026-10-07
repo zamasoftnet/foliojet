@@ -85,21 +85,21 @@ public class DirectSession extends AbstractCTISession
 
 	private static final Set<String> SPECIAL_PROPERTIES = Set.of(UAProps.INPUT_INCLUDE, UAProps.INPUT_EXCLUDE);
 
-	/** バージョン情報のURIです。 */
+	/** The URI for version information. */
 	private static final URI VERSION_INFO_URI = URI.create("http://www.cssj.jp/ns/ctip/version");
 
-	/** 出力データ形式情報のURIです。 */
+	/** The URI for output format information. */
 	private static final URI OUTPUT_TYPES_INFO_URI = URI.create("http://www.cssj.jp/ns/ctip/output-types");
 
-	/** 利用可能なフォント情報のURIです。 */
+	/** The URI for available font information. */
 	private static final URI FONTS_INFO_URI = URI.create("http://www.cssj.jp/ns/ctip/fonts");
 
 	/**
-	 * <b>フォント一覧の軽量版</b>(B-4、2026-08-29)。{@link #FONTS_INFO_URI}は
-	 * 1書体ごとに別名まで並べるので、書体選択のUIを作るには重すぎる
-	 * (内蔵フォントを載せた構成で4MB超)。こちらは<b>利用者が
-	 * {@code font-family}へ書ける名前</b>(本名と別名)ごとに1件へ畳み、
-	 * ウェイト・斜体・書体分類・対応スクリプトをまとめて返す。
+	 * <b>A lightweight font list</b> (B-4, 2026-08-29). {@link #FONTS_INFO_URI} lists
+	 * aliases for every font face, making it too heavy for a font-selection UI
+	 * (over 4 MB with the bundled fonts). This list groups entries by each <b>name users
+	 * can specify in {@code font-family}</b> (primary names and aliases),
+	 * returning combined weights, italics, font classifications, and supported scripts.
 	 */
 	private static final URI FONT_FAMILIES_INFO_URI = URI.create("http://www.cssj.jp/ns/ctip/fonts/families");
 
@@ -121,7 +121,7 @@ public class DirectSession extends AbstractCTISession
 
 	private IOException pipeException = null;
 
-	/** 現在の文書変換の単調時刻による締切。0は無制限。 */
+	/** The current document conversion's deadline on the monotonic clock. Zero means unlimited. */
 	private volatile long processingDeadlineNanos;
 
 	private File profileFile;
@@ -130,14 +130,14 @@ public class DirectSession extends AbstractCTISession
 			.synchronizedMap(new LRUCache<File, FontSourceManager>(32));
 
 	/**
-	 * 変換のUA。結果集合を受け取れる({@link RandomResultUserAgent})ことを型で
-	 * 言う(2026-09-02)。以前は{@code UserAgent}で持ち、使うたびにキャストしていた。
+	 * The conversion UA. Its type states that it accepts a result set ({@link RandomResultUserAgent})
+	 * (2026-09-02). Previously stored as {@code UserAgent} and cast at every use.
 	 */
 	private RandomResultUserAgent ua;
 
 	/**
-	 * Paged SVGのフォントサブセットをセッション内の次の変換へ持ち越す控え
-	 * (2026-08-29)。UAは変換ごとに作り直すので、ここで寿命を保つ。
+	 * Retains Paged SVG font subsets for the next conversion in the session
+	 * (2026-08-29). Since the UA is recreated for each conversion, this keeps them alive.
 	 */
 	private net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry pagedSvgFontCarry = new net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry();
 
@@ -146,9 +146,9 @@ public class DirectSession extends AbstractCTISession
 	private boolean aborted = false;
 
 	/**
-	 * {@link #abort(byte)}で渡された中断の種類({@link AbortException#ABORT_NORMAL}か
-	 * {@code ABORT_FORCE})。中断で入出力が畳まれたあとに上がってくる例外を、
-	 * 入出力エラーではなく中断として報告するために覚えておく(2026-09-21)。
+	 * The abort type passed to {@link #abort(byte)} ({@link AbortException#ABORT_NORMAL}
+	 * or {@code ABORT_FORCE}). Retains it to report exceptions raised after abort closes down I/O
+	 * as an abort instead of an I/O error (2026-09-21).
 	 */
 	private byte abortMode = 0;
 
@@ -186,7 +186,7 @@ public class DirectSession extends AbstractCTISession
 			tr.setOutputProperty(OutputKeys.INDENT, "yes");
 			AttributesImpl atts = new AttributesImpl();
 			if (uri.equals(VERSION_INFO_URI)) {
-				// バージョン情報
+				// Version information.
 				handler.startDocument();
 				handler.startElement("", "version", "version", atts);
 				{
@@ -228,7 +228,7 @@ public class DirectSession extends AbstractCTISession
 				handler.endElement("", "version", "version");
 				handler.endDocument();
 			} else if (uri.equals(OUTPUT_TYPES_INFO_URI)) {
-				// 出力形式
+				// Output formats.
 				handler.startDocument();
 				handler.startElement("", "output-types", "output-types", atts);
 				for (UserAgentFactory uaf : PluginRegistry.getInstance().plugins(UserAgentFactory.class)) {
@@ -245,10 +245,10 @@ public class DirectSession extends AbstractCTISession
 				handler.endElement("", "output-types", "output-types");
 				handler.endDocument();
 			} else if (uri.equals(FONT_FAMILIES_INFO_URI)) {
-				// フォント(ファミリ単位に畳んだ軽量版)
+				// Fonts (lightweight list grouped by family).
 				this.writeFontFamilies(handler, atts);
 			} else if (uri.equals(FONTS_INFO_URI)) {
-				// フォント
+				// Fonts.
 				final FontSourceManager fsm = this.getFontSourceManager();
 				FontSource[] fonts = fsm.lookup(null);
 
@@ -279,9 +279,9 @@ public class DirectSession extends AbstractCTISession
 					};
 					atts.addAttribute("", "direction", "direction", "CDATA", String.valueOf(directionStr));
 
-					// 書体分類と対応スクリプト(2026-08-27)。webappのフォント
-					// 一覧の「書体」「言語」絞り込みが使う。分類はPanose/IBM
-					// familyClassからの推定で、無指定のフォントでは付かない
+					// Font classification and supported scripts (2026-08-27). Used by the webapp font list's
+					// font-type and language filters. Classification is inferred from Panose/IBM
+					// familyClass and is omitted for fonts without that information.
 					final String generic = genericOf(font);
 					if (generic != null) {
 						atts.addAttribute("", "generic", "generic", "CDATA", generic);
@@ -316,20 +316,20 @@ public class DirectSession extends AbstractCTISession
 	}
 
 	/**
-	 * ファミリ単位に畳んだフォント一覧を書き出します(B-4、2026-08-29)。
+	 * Writes the font list grouped by family (B-4, 2026-08-29).
 	 *
 	 * <p>
-	 * 畳む鍵は<b>利用者が{@code font-family}へ書ける名前</b>——書体の本名と
-	 * 別名の両方。別名で畳むのはCSSの照合と同じ考え方で、
-	 * {@code font-family: Arial}がHelveticaに当たる関係をそのまま出す。
-	 * ウェイトは昇順、斜体は「その名前に斜体があるか」、
-	 * 書体分類と対応スクリプトは合併。
+	 * Groups by <b>names users can specify in {@code font-family}</b>: both primary names
+	 * and aliases. Grouping by aliases follows CSS matching, directly expressing how
+	 * {@code font-family: Arial} matches Helvetica. Weights are in ascending order;
+	 * italics indicates whether the name has an italic face; font classifications and
+	 * supported scripts are merged.
 	 * </p>
 	 */
 	private void writeFontFamilies(final TransformerHandler handler, final AttributesImpl atts)
 			throws IOException, SAXException {
-		// 軽量版なので整形しない——属性1つごとに改行と字下げが付くと、
-		// 中身より空白のほうが大きくなる(実測4.4MB→1.9MB→0.5MB)
+		// Do not pretty-print the lightweight list: a newline and indent for every attribute
+		// makes whitespace larger than the data (measured: 4.4 MB → 1.9 MB → 0.5 MB).
 		handler.getTransformer().setOutputProperty(OutputKeys.INDENT, "no");
 		final FontSourceManager fsm = this.getFontSourceManager();
 		final FontSource[] fonts = fsm.lookup(null);
@@ -338,10 +338,10 @@ public class DirectSession extends AbstractCTISession
 		}
 		final Map<String, Family> families = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 		for (final FontSource font : fonts) {
-			// 畳む鍵は**別名**——別名がファミリ名(「Noto Sans JP」)で、
-			// 本名は面ごとの名前(「NotoSansJP-Bold」)だから、本名まで鍵に
-			// すると畳めない(実測: 14,959面が13,738件にしかならなかった)。
-			// 別名を持たない書体だけ本名で立てる
+			// Group by **aliases**: an alias is the family name ("Noto Sans JP"),
+			// whereas the primary name identifies a face ("NotoSansJP-Bold"). Including primary names
+			// as keys prevents effective grouping (measured: 14,959 faces shrank to only 13,738 entries).
+			// Use primary names only for fonts without aliases.
 			final java.util.List<String> names = new java.util.ArrayList<>();
 			for (final String alias : font.getAliases()) {
 				names.add(alias);
@@ -356,9 +356,9 @@ public class DirectSession extends AbstractCTISession
 					continue;
 				}
 				if (name.indexOf(';') >= 0) {
-					// 壊れたname表から来た版数の文字列(「0.000;NONE;…」)。
-					// CSSのfont-familyへは書けない(宣言が途中で終わる)ので、
-					// 選択UI向けの一覧からは落とす。素の一覧には残る
+					// Version strings from broken name tables ("0.000;NONE;…").
+					// They cannot be specified in CSS font-family (the declaration ends midway),
+					// so omit them from the selection UI list. Keep them in the raw list.
 					continue;
 				}
 				final Family family = families.computeIfAbsent(name,
@@ -371,7 +371,7 @@ public class DirectSession extends AbstractCTISession
 					family.generic()[0] = generic;
 				}
 				if (!scripts.isEmpty()) {
-					// scriptsOfは空白区切り。畳むときに重複を落とす
+					// scriptsOf is space-separated. Remove duplicates when grouping.
 					for (final String script : scripts.split("\s+")) {
 						if (!script.isEmpty()) {
 							family.scripts().add(script);
@@ -412,17 +412,16 @@ public class DirectSession extends AbstractCTISession
 	}
 
 	/**
-	 * 代表コードポイントによるスクリプト判定表(ctip/fontsのscripts属性、
-	 * 2026-08-27)。ラベルは言語でなく文字体系。cmap照会だけなので
-	 * フォントあたり数十回のルックアップで済む。
+	 * A script-detection table based on representative code points (the scripts attribute of ctip/fonts,
+	 * 2026-08-27). Labels identify writing systems, not languages. Uses only cmap queries,
+	 * requiring just a few dozen lookups per font.
 	 *
 	 * <p>
-	 * 体系ごとに複数字を並べ、**すべて表示できるときだけ**その体系を
-	 * 名乗ります(2026-09-01)。1字だけの判定では、その体系の一部しか
-	 * 持たないフォントが「対応」を名乗り、実際に組むと字が抜けたり
-	 * 別のフォントが混ざったりしました——Gothic A1はΩを持つのに
-	 * ά(アクセント付き)を持たず、JejuGothicは漢を含む漢字の字形が
-	 * 空でした。選ぶ字はその文字体系で日常的に出るものにしています。
+	 * Lists several characters per script and reports support **only when all can be displayed**
+	 * (2026-09-01). With a single-character check, fonts supporting only part of a script
+	 * claimed support, but actual layout produced missing characters or mixed fonts.
+	 * Gothic A1 had Ω but not ά (accented), and JejuGothic had empty kanji glyphs, including 漢.
+	 * The selected characters are common in each writing system.
 	 * </p>
 	 */
 	private static final Object[][] SCRIPT_PROBES = { //
@@ -459,9 +458,9 @@ public class DirectSession extends AbstractCTISession
 	}
 
 	/**
-	 * Panose(familyType/serifStyle/proportion)とOS/2のIBM familyClassから
-	 * 書体分類を推定します(ctip/fontsのgeneric属性、2026-08-27)。
-	 * どちらも無指定(ゼロ)のフォントはnull。
+	 * Infers font classification from Panose (familyType/serifStyle/proportion) and OS/2's
+	 * IBM familyClass (the generic attribute of ctip/fonts, 2026-08-27).
+	 * Returns null for fonts with neither specified (both zero).
 	 */
 	private static String genericOf(final FontSource font) {
 		net.zamasoft.pdfg2d.gc.font.Panose p = null;
@@ -495,7 +494,7 @@ public class DirectSession extends AbstractCTISession
 			if (serif >= 2 && serif <= 10) {
 				return "serif";
 			}
-			// serifStyle 0/1(any/no fit)はIBM familyClassへ委ねる
+			// For serifStyle 0/1 (any/no fit), defer to IBM familyClass.
 		}
 		if (ibm == 8) {
 			return "sans-serif";
@@ -563,26 +562,26 @@ public class DirectSession extends AbstractCTISession
 
 	public void property(String name, String value) throws IOException {
 		if (name != null && name.startsWith(SERVER_PROPERTY_PREFIX)) {
-			// **サーバ側の設定はクライアントから触らせない**(2026-09-02の
-			// 設計レビュー)。system.fontsはプロファイルからの相対パスとして
-			// 任意のファイルをフォント設定として読み、隣に索引(.db)まで
-			// 書くので、要求側が指定できると経路になる。プロファイルは
-			// profileProperty()で入れる
+			// **Do not let clients change server-side settings** (design review on 2026-09-02).
+			// system.fonts reads any file as font configuration via a path relative to the profile
+			// and even writes an index (.db) beside it, so allowing requests to set it
+			// would provide an access path. Load profile settings through
+			// profileProperty().
 			this.message(MessageCodes.WARN_CANNOT_OVERRIDE_PROPERTY, new String[] { name });
 			return;
 		}
 		if (this.operatorLimits.loosens(name, value)) {
-			// 値はそのまま受け取り、読むときに上限を掛ける(OperatorLimits)
+			// Accept the value as is and apply the limit when reading it (OperatorLimits).
 			this.message(MessageCodes.WARN_OPERATOR_LIMIT,
 					new String[] { name, String.valueOf(this.operatorLimits.ceilings().get(name)), value });
 		}
 		this.profileProperty(name, value);
 	}
 
-	/** 要求側が設定してはならない、サーバ側の設定の接頭辞。 */
+	/** The prefix for server-side settings that requests must not set. */
 	private static final String SERVER_PROPERTY_PREFIX = "system.";
 
-	/** プロファイル(サーバ側の設定ファイル)からの設定。{@code system.*}も受け付ける。 */
+	/** Settings from the profile (server-side configuration file). Also accepts {@code system.*}. */
 	private void profileProperty(String name, String value) {
 		if (SPECIAL_PROPERTIES.contains(name)) {
 			this.specialProperty(name, value);
@@ -601,7 +600,7 @@ public class DirectSession extends AbstractCTISession
 
 	private void specialProperty(String name, String value) {
 		if (name.equals(UAProps.INPUT_INCLUDE)) {
-			// URIのエンコーディングはUTF-8で固定
+			// URI encoding is fixed to UTF-8.
 			try {
 				URI uri = URIHelper.create("UTF-8", value);
 				this.resolver.include(uri);
@@ -635,20 +634,20 @@ public class DirectSession extends AbstractCTISession
 	}
 
 	/**
-	 * このセッションがローカル資源({@code file:}など)を取得してよいかを決めます。
+	 * Determines whether this session may retrieve local resources (such as {@code file:}).
 	 *
 	 * <p>
-	 * <b>入出力プロパティではありません。</b> クライアントからは変更できず、
-	 * サーバー(デーモン)が認証済みの利用者ごとに決めます。既定は許可なので、
-	 * 組み込み利用とコマンドラインの動作は変わりません——それらを動かす主体は
-	 * 元々そのプロセスのファイルを読めるためです。
+	 * <b>This is not an I/O property.</b> Clients cannot change it; the server (daemon)
+	 * decides for each authenticated user. Defaults to allowing access, so embedded use
+	 * and command-line behavior stay the same: the principals running them can already
+	 * read files accessible to the process.
 	 * </p>
 	 *
 	 * <p>
-	 * 遠隔の利用者に許すと、変換対象として任意のローカルファイルを指定でき、
-	 * サーバーの設定・鍵・{@code /proc}が読み出せます。公開するサーバーでは
-	 * 許可しないでください。クライアント自身が資源を送る経路(CTIPの
-	 * リソース送信・要求時送信)は、この指定に関わらず使えます。
+	 * Allowing remote users access lets them specify arbitrary local files for conversion
+	 * and read server configuration, keys, and {@code /proc}. Do not allow it on public servers.
+	 * Clients can still send resources themselves (CTIP resource upload and on-demand transfer)
+	 * regardless of this setting.
 	 * </p>
 	 */
 	public void setLocalAccessAllowed(boolean allowed) {
@@ -661,22 +660,22 @@ public class DirectSession extends AbstractCTISession
 		try {
 			source = this.resolveMainDocument(uri);
 		} catch (final TranscoderException e) {
-			// 用意したUAを捨てる。残すと次の変換が prepareTranscode を飛ばし、既定の性質・取得の許可・中断の
-			// 印を整えないまま組んでいた(2026-10-04)
+			// Discard the prepared UA. Keeping it made the next conversion skip prepareTranscode and run without resetting
+			// default properties, retrieval permissions, or the abort flag (2026-10-04).
 			this.discardUserAgent();
 			throw e;
 		}
 		this.transcodeResolved(uri, source);
 	}
 
-	/** 主文書を取得します。取得できなければ、利用者に伝える中断にする。 */
+	/** Retrieves the main document. If retrieval fails, aborts with a message for the user. */
 	private Source resolveMainDocument(final URI uri) throws TranscoderException {
 		try {
 			return this.resolver.resolve(uri, true);
 		} catch (SecurityException e) {
-			// 遠隔の利用者にサーバーの内側の宛先などを拒んだ(MySourceResolver)。以前は RuntimeException のまま
-			// CTIP サーバーを突き抜けて接続が切れ、利用者には "EOF within CTIP response" しか
-			// 届かなかった(2026-09-14、TECH-20260911-008)。メッセージ付きの中断にする
+			// Denied a remote user access to a server-internal destination, etc. (MySourceResolver). Previously, RuntimeException
+			// escaped through the CTIP server and disconnected the client, which received only "EOF within CTIP response"
+			// (2026-09-14, TECH-20260911-008). Turn it into an abort with a message.
 			throw this.serverSideDocumentError(MessageCodes.ERROR_FORBIDDEN_SERVERSIDE_DOCUMENT, uri, e);
 		} catch (FileNotFoundException e) {
 			throw this.serverSideDocumentError(MessageCodes.ERROR_MISSING_SERVERSIDE_DOCUMENT, uri, null);
@@ -686,11 +685,11 @@ public class DirectSession extends AbstractCTISession
 	}
 
 	private void transcodeResolved(final URI uri, final Source source) throws IOException, TranscoderException {
-		// 進行通知用に先開きしたストリームは自分で閉じる(2026-08-27)。
-		// resolver.release(source)はSourceオブジェクトを返すだけで、
-		// getInputStream()で開いた実ストリームまでは閉じない。閉じ漏れる
-		// と、ローカルファイル変換後もOSのファイルロックが残り続けた
-		// (webappでfile:のHTMLを変換すると削除できなくなる実害)
+		// Close the stream opened in advance for progress notifications ourselves (2026-08-27).
+		// resolver.release(source) only returns the Source object; it does not close
+		// the actual stream opened by getInputStream(). Leaving it open kept
+		// the OS file lock in place even after local file conversion finished
+		// (in practice, file: HTML converted in the webapp could no longer be deleted).
 		InputStream progressIn = null;
 		final List<InputStream> progressStreams = new ArrayList<>();
 		try {
@@ -702,12 +701,12 @@ public class DirectSession extends AbstractCTISession
 						this.progressListener.sourceLength(srcLength);
 					}
 					if (source.isFile()) {
-						// **ファイルの読み直せる性質を保つ**(2026-09-02)。以前は
-						// 進捗を数えるためにStreamSourceへ包み直していたが、それは
-						// getInputStream()の呼び直しを8KiBのmarkに縛る契約なので、
-						// 主文書が画像だと先頭を覗いた後の読み直しで落ちた
-						// (cti.liの報告、2026-09-01)。ファイルは開き直せば
-						// 先頭から読めるので、開くたびに進捗を数える包みにする
+						// **Preserve the ability to reread files** (2026-09-02). Previously,
+						// rewrapping in StreamSource to count progress constrained subsequent
+						// getInputStream() calls to an 8 KiB mark, so image main documents
+						// failed when reread after peeking at their beginning
+						// (cti.li report, 2026-09-01). Reopening a file allows reading from
+						// the beginning, so wrap each opened stream to count progress.
 						final ProgressListener listener = this.progressListener;
 						xsource = new net.zamasoft.zstream.resolver.util.SourceWrapper(source) {
 							@Override
@@ -729,7 +728,7 @@ public class DirectSession extends AbstractCTISession
 				} catch (FileNotFoundException e) {
 					throw this.serverSideDocumentError(MessageCodes.ERROR_MISSING_SERVERSIDE_DOCUMENT, uri, null);
 				} catch (IOException e) {
-					// 接続拒否・切断など。以前は FileNotFoundException に化けて「ありません」と出ていた
+					// Connection refusal, disconnection, etc. Previously became FileNotFoundException and reported "not found".
 					throw this.serverSideDocumentError(MessageCodes.ERROR_UNREACHABLE_SERVERSIDE_DOCUMENT, uri, e);
 				}
 			}
@@ -739,16 +738,16 @@ public class DirectSession extends AbstractCTISession
 				try {
 					progressIn.close();
 				} catch (IOException e) {
-					// closeの失敗は変換結果に影響しない
+					// A close failure does not affect the conversion result.
 				}
 			}
-			// 開き直した分も閉じる。閉じ漏れるとWindowsでファイルロックが残る
+			// Close reopened streams too. Leaks leave file locks on Windows.
 			synchronized (progressStreams) {
 				for (final InputStream in : progressStreams) {
 					try {
 						in.close();
 					} catch (IOException e) {
-						// 同上
+						// Same as above.
 					}
 				}
 			}
@@ -757,8 +756,8 @@ public class DirectSession extends AbstractCTISession
 	}
 
 	/**
-	 * サーバー側のメインドキュメントを取れなかったときの中断(STATE_BROKEN)を、メッセージを通知してから作ります。
-	 * cause が無い code(3806)は引数 1 つ、ある code(3810/3811)は理由を 2 つ目の引数にします。
+	 * Reports a message, then creates an abort (STATE_BROKEN) when the server cannot retrieve the main document.
+	 * A code without a cause (3806) takes one argument; codes with a cause (3810/3811) take the reason as the second.
 	 */
 	private TranscoderException serverSideDocumentError(final short code, final URI uri, final Exception cause) {
 		final String[] args = cause == null ? new String[] { uri.toString() }
@@ -780,8 +779,8 @@ public class DirectSession extends AbstractCTISession
 				DirectSession.this.flush();
 			}
 		};
-		// 本文の型は呼び出し側が渡した型(無ければ HTML)。2026-10-04 までは出力の型(application/pdf・image/png)を
-		// 渡していて、XHTML・Markdown・画像の本文も HTML として読み、画像出力では本文を画像として読もうとした
+		// Use the caller's body type (HTML if absent). Until 2026-10-04, passed the output type (application/pdf, image/png),
+		// reading XHTML/Markdown/image bodies as HTML and, for image output, trying to read the body as an image.
 		final String inputType = metaSource.getMimeType() == null ? "text/html" : metaSource.getMimeType();
 		final PipedInputStream in = new PipedInputStream(out, PIPE_BUFFER_SIZE);
 		this.pipeOut = out;
@@ -800,7 +799,8 @@ public class DirectSession extends AbstractCTISession
 			} catch (IOException e) {
 				DirectSession.this.pipeException = e;
 			} catch (RuntimeException e) {
-				// 検査されない例外も失敗として flush() へ伝える(2026-10-04 まではスレッドと一緒に消え、成功と報告していた)
+				// Pass unchecked exceptions to flush() as failures too (until 2026-10-04, they died with the thread
+				// and success was reported).
 				DirectSession.this.pipeException = new IOException(e);
 			}
 		});
@@ -826,10 +826,10 @@ public class DirectSession extends AbstractCTISession
 	}
 
 	/**
-	 * フォント索引({@code fonts-print.xml.db})の置き場所。既定は設定ファイルの隣だが、
-	 * {@code jp.cssj.font.index.dir}を指定するとそのディレクトリへ置く(2026-08-29)。
-	 * フォントを読み取り専用でマウントするコンテナ構成では設定ファイルの隣に書けず、
-	 * 索引が保存できないまま毎回の起動で全フォントを読み直していた。
+	 * The font index ({@code fonts-print.xml.db}) location. Defaults to beside the configuration file,
+	 * but {@code jp.cssj.font.index.dir} places it in that directory (2026-08-29).
+	 * Containers mounting fonts read-only could not write beside the configuration file,
+	 * so the index could not be saved and all fonts were reread on every startup.
 	 */
 	static File fontIndexFile(final File profileDir, final String systemFonts) throws IOException {
 		final String indexDir = System.getProperty("jp.cssj.font.index.dir");
@@ -840,8 +840,8 @@ public class DirectSession extends AbstractCTISession
 		if (!dir.isDirectory() && !dir.mkdirs()) {
 			throw new IOException("cannot create the font index directory: " + dir);
 		}
-		// 設定ファイル名だけでは fonts/fonts-print.xml と別の設定が衝突しうるので、
-		// 区切りを畳んだ相対パス(system.fontsの値)をそのまま名前にする。
+		// The configuration filename alone could collide between fonts/fonts-print.xml and another configuration,
+		// so use the relative path (the system.fonts value) as the name, with separators flattened.
 		return new File(dir, systemFonts.replace('/', '-') + ".db");
 	}
 
@@ -849,7 +849,7 @@ public class DirectSession extends AbstractCTISession
 		URI uri = source.getURI();
 		this.prepareTranscode(uri);
 
-		// UAのセットアップ
+		// UA setup.
 		this.ua.setSourceResolver(this.resolver);
 		this.ua.setMessageHandler(this);
 		this.ua.setProperties(this.props);
@@ -858,10 +858,10 @@ public class DirectSession extends AbstractCTISession
 		final FontSourceManager fsm = this.getFontSourceManager();
 		this.ua.getUAContext().setFontSourceManager(fsm);
 
-		// continuousでも変換ごとに上限を読み直し、high-waterを初期化する。
+		// Reread limits and reset the high-water mark for every conversion, even in continuous mode.
 		this.ua.getRetainedTextLimit().reset();
-		// 変換を実行。締切は複数パス全体で共有し、各パスごとに
-		// リセットしない。
+		// Run conversion. Share the deadline across all passes;
+		// do not reset it for each pass.
 		final long timeLimitMillis = UAProps.PROCESSING_TIME_LIMIT.getLong(this.ua);
 		if (timeLimitMillis > 0) {
 			final long now = System.nanoTime();
@@ -878,7 +878,7 @@ public class DirectSession extends AbstractCTISession
 				this.ua.finish();
 			}
 		} catch (AbortException e) {
-			// 中断
+			// Abort.
 			this.continuous = false;
 			short code = CTIMessageCodes.INFO_ABORT;
 			String mes = MessageCodeUtils.toString(code, null);
@@ -899,7 +899,7 @@ public class DirectSession extends AbstractCTISession
 					|| net.zamasoft.foliojet.layout.FootnoteProbeException.findIn(e) != null) {
 				throw failure(e.getCode(), e.getMessage(), e);
 			}
-			// 中断
+			// Abort.
 			if (e.getState() == TranscoderException.STATE_READABLE) {
 				try {
 					this.ua.finish();
@@ -921,8 +921,8 @@ public class DirectSession extends AbstractCTISession
 			this.continuous = false;
 			final RetainedTextLimitException retained = RetainedTextLimitException.findIn(t);
 			if (retained != null) throw failure(retained.getCode(), retained.getMessage(), t);
-			// 描画層に包まれて届いた、コード付きの失敗(設定の誤りなど、メッセージは報告済み)はそのコードで返す
-			// (2026-10-05 までは PDF/X の出力インテント・PDF/UA の言語の誤りも 4001 になっていた)
+			// Return the original code for coded failures wrapped by the drawing layer (e.g., configuration errors already reported).
+			// (Until 2026-10-05, PDF/X output-intent errors and PDF/UA language errors also became 4001.)
 			final TranscoderException coded = codedCause(t);
 			if (coded != null) throw failure(coded.getCode(), coded.getMessage(), t);
 			this.ua.message(CTIMessageCodes.FATAL_UNEXPECTED, t.getMessage());
@@ -939,10 +939,10 @@ public class DirectSession extends AbstractCTISession
 				}
 				return;
 			}
-			// **原因を繋ぐ**(2026-08-02): ログには出していたが呼び出し側へ
-			// 渡す例外には原因が付いておらず、掃過の分類が
-			// 「TranscoderException@DirectSession.transcode」1種類へ潰れて
-			// いた。何種類の欠陥が残っているかが数えられない
+			// **Chain the cause** (2026-08-02): it was logged, but the exception passed
+			// to the caller lacked its cause, collapsing sweep classifications into
+			// a single "TranscoderException@DirectSession.transcode" category.
+			// This made it impossible to count the distinct remaining defects.
 			throw failure(code, mes, t);
 		} finally {
 			this.processingDeadlineNanos = 0;
@@ -950,7 +950,7 @@ public class DirectSession extends AbstractCTISession
 		}
 	}
 
-	/** 連続変換でなければ、UAを後始末して外します。 */
+	/** Cleans up and detaches the UA unless this is continuous conversion. */
 	private void discardUserAgent() {
 		if (!this.continuous && this.ua != null) {
 			this.ua.dispose();
@@ -958,7 +958,7 @@ public class DirectSession extends AbstractCTISession
 		}
 	}
 
-	/** 原因の連鎖の中の、予期しない失敗(4001)でないコード付きの例外です。 */
+	/** A coded exception in the cause chain whose code is not unexpected failure (4001). */
 	private static TranscoderException codedCause(final Throwable thrown) {
 		for (Throwable t = thrown; t != null; t = t.getCause() == t ? null : t.getCause()) {
 			if (t instanceof TranscoderException te && te.getCode() != CTIMessageCodes.FATAL_UNEXPECTED) {
@@ -968,7 +968,7 @@ public class DirectSession extends AbstractCTISession
 		return null;
 	}
 
-	/** 予期しない失敗を、原因を保ったまま包みます。 */
+	/** Wraps an unexpected failure while preserving its cause. */
 	private static TranscoderException failure(final short code, final String mes, final Throwable cause) {
 		final RetainedTextLimitException retained = RetainedTextLimitException.findIn(cause);
 		final TranscoderException e = new TranscoderException(TranscoderException.STATE_BROKEN, code,
@@ -989,10 +989,10 @@ public class DirectSession extends AbstractCTISession
 			Entry<?, ?> e = (Entry<?, ?>) i.next();
 			String name = (String) e.getKey();
 			String value = (String) e.getValue();
-			// CTIクライアントが先に指定した値を、後から読むプロファイルの
-			// 既定値で上書きしてはならない。特にフォント方針をプロファイルが
-			// 持つ場合、output.pdf.fonts.policy=outlines が無視されていた。
-			// include/exclude は累積指定なので従来どおり追加する。
+			// Do not overwrite values already set by the CTI client with defaults
+			// from a profile read later. In particular, when the profile contained
+			// a font policy, output.pdf.fonts.policy=outlines was ignored.
+			// include/exclude are cumulative, so append them as before.
 			if (SPECIAL_PROPERTIES.contains(name) || !this.props.containsKey(name)) {
 				this.profileProperty(name, value);
 			}
@@ -1036,7 +1036,7 @@ public class DirectSession extends AbstractCTISession
 			this.ua = asResultUserAgent(factory.createUserAgent());
 			this.applyOperatorLimits(this.ua);
 		} else {
-			// 設定の誤りなので、セッションは使える状態のまま断る(2026-10-05 までは予期しない例外で落ちた)
+			// Reject configuration errors while leaving the session usable (until 2026-10-05, failed with an unexpected exception).
 			final short code = MessageCodes.ERROR_UNSUPPORTED_OUTPUT_TYPE;
 			final String[] args = { outputType };
 			this.message(code, args);
@@ -1079,7 +1079,7 @@ public class DirectSession extends AbstractCTISession
 		} catch (BrokenResultException e) {
 			short code = CTIMessageCodes.FATAL_UNEXPECTED;
 			String mes = MessageCodeUtils.toString(code, new String[] { e.getMessage() });
-			// 原因を繋ぐ(2026-10-04 までは捨てていた)
+			// Chain the cause (discarded until 2026-10-04).
 			throw failure(code, mes, e);
 		} finally {
 			this.ua.dispose();
@@ -1100,10 +1100,10 @@ public class DirectSession extends AbstractCTISession
 		this.prepareDefaultProperties();
 	}
 
-	/** 運用者が決めた、利用者が緩められない上限(2026-10-03)。{@link #setup()}で読む。 */
+	/** Operator-defined limits that users cannot relax (2026-10-03). Read in {@link #setup()}. */
 	private OperatorLimits operatorLimits = OperatorLimits.NONE;
 
-	/** UAに運用者の上限を渡します。 */
+	/** Passes the operator's limits to the UA. */
 	private void applyOperatorLimits(final UserAgent ua) {
 		if (ua instanceof net.zamasoft.foliojet.ua.impl.AbstractUserAgent abstractUa) {
 			abstractUa.setOperatorLimits(this.operatorLimits);
@@ -1123,7 +1123,7 @@ public class DirectSession extends AbstractCTISession
 			this.ua = null;
 			this.middlePath = false;
 			this.props.clear();
-			// セッションの状態を捨てる指示なので、持ち越しも捨てる
+			// The instruction discards session state, so discard retained state too.
 			this.pagedSvgFontCarry = new net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry();
 			this.prepareDefaultProperties();
 			this.resolver.reset();
@@ -1134,74 +1134,73 @@ public class DirectSession extends AbstractCTISession
 		this.reset();
 	}
 
-	/** {@link #runOnLargeStack}へ渡す、実際のformat呼び出し1回分です。 */
+	/** One actual format invocation passed to {@link #runOnLargeStack}. */
 	@FunctionalInterface
 	private interface LargeStackTask {
 		void run() throws AbortException, TranscoderException;
 	}
 
 	/**
-	 * レイアウトを実行するスレッドのstackサイズです(2026-07-26に定数化)。
+	 * The stack size of the thread that runs layout (made a constant on 2026-07-26).
 	 *
-	 * <h2>なぜ常にこのスレッドを使うのか</h2>
+	 * <h2>Why always use this thread</h2>
 	 *
 	 * <p>
-	 * 改ページ・継続の機構には<b>反復化されていない相互再帰</b>が残っており、
-	 * 深い文書でJVM既定のstackを超えて{@code StackOverflowError}になります。
-	 * 該当するのは2系統で、いずれも反復化を検討したうえで見送っています——
-	 * {@code FlowContainer.splitPageAxis}↔{@code AbstractBlockBox
-	 * .splitForContinuation}(2026-07-22の調査)と、
-	 * {@code RootBuilder.restyleFrame}→再生→{@code pageBreak}→再開→
-	 * {@code restyleFrame}の循環(2026-07-26に独立2者へ相談。
-	 * 「レイアウト構築とイベント再生全体を協調的状態機械へ全面書き換え」が
-	 * 必要で、難度は見送った{@code splitPageAxis}より上、という評価で一致)。
+	 * The page-break and continuation mechanisms still contain <b>mutual recursion that has not
+	 * been made iterative</b>, exceeding the JVM's default stack in deep documents and causing
+	 * {@code StackOverflowError}. There are two such paths; iteration was considered and deferred
+	 * for both: {@code FlowContainer.splitPageAxis}↔{@code AbstractBlockBox
+	 * .splitForContinuation} (investigated on 2026-07-22), and the cycle
+	 * {@code RootBuilder.restyleFrame} → replay → {@code pageBreak} → resume →
+	 * {@code restyleFrame}. Two independent consultations on 2026-07-26 agreed that this would
+	 * require rewriting all layout construction and event replay as a cooperative state machine,
+	 * which was harder than the already-deferred {@code splitPageAxis} change.
 	 * </p>
 	 *
 	 * <p>
-	 * 従来は{@code processing.large-stack-thread}というオプトインでしたが、
-	 * <b>既定で無効だと利用者が事故に遭ってから設定することになる</b>ため、
-	 * 常時有効の定数へ変更しました。
+	 * Previously opt-in via {@code processing.large-stack-thread}, it became an always-enabled
+	 * constant because <b>disabling it by default forces users to configure it only after a failure</b>.
 	 * </p>
 	 *
-	 * <h2>値の根拠(2026-07-26の実測)</h2>
+	 * <h2>Basis for the value (measurements on 2026-07-26)</h2>
 	 *
 	 * <table border="1">
-	 * <caption>ネスト深さと必要stackサイズ(同一プロセスで2回連続変換)</caption>
-	 * <tr><th>文書</th><th>必要stack</th></tr>
-	 * <tr><td>ネスト深さ200</td><td>1MB</td></tr>
-	 * <tr><td>ネスト深さ1000(実文書規模——e-gov法令ページ相当)</td><td>2MB</td></tr>
-	 * <tr><td>ネスト深さ5000</td><td>8MB</td></tr>
-	 * <tr><td>段組の入れ子+極小ページ(restyle循環が216段)</td><td>2MB</td></tr>
+	 * <caption>Nesting depth and required stack size (two consecutive conversions in the same process)</caption>
+	 * <tr><th>Document</th><th>Required stack</th></tr>
+	 * <tr><td>Nesting depth 200</td><td>1 MB</td></tr>
+	 * <tr><td>Nesting depth 1000 (real-document scale: comparable to an e-gov legislation page)</td><td>2 MB</td></tr>
+	 * <tr><td>Nesting depth 5000</td><td>8 MB</td></tr>
+	 * <tr><td>Nested multi-column layout + tiny pages (216 levels of the restyle cycle)</td><td>2 MB</td></tr>
 	 * </table>
 	 *
 	 * <p>
-	 * 実測の最大が8MBなので、<b>64MBは8倍の余裕</b>があります。stackサイズは
-	 * OSへの<b>予約</b>であって、実際に触れたページ分しかコミットされません。
-	 * したがって並行変換しても実メモリは再帰の深さ分しか増えません。
+	 * The measured maximum is 8 MB, so <b>64 MB provides an eightfold margin</b>. Stack size is
+	 * a <b>reservation</b> from the OS; only pages actually touched are committed. Thus, even with
+	 * concurrent conversions, physical memory grows only in proportion to recursion depth.
 	 * </p>
 	 *
-	 * <h2>コスト(実測)</h2>
+	 * <h2>Cost (measured)</h2>
 	 *
 	 * <p>
-	 * 変換ごとにスレッドを1つ作るコストは<b>+0.34 ms/変換</b>
-	 * (小さい文書で5.05→5.39 ms、約6.7%)。実文書は1変換あたり数百ms〜
-	 * なので相対的には無視できます。
+	 * Creating one thread per conversion costs <b>+0.34 ms/conversion</b>
+	 * (5.05 → 5.39 ms for small documents, about 6.7%). Real documents take hundreds of ms
+	 * or more per conversion, so the relative cost is negligible.
 	 * </p>
 	 */
 	private static final int LAYOUT_STACK_SIZE = net.zamasoft.foliojet.layout.util.LayoutThreadContext.LAYOUT_STACK_SIZE;
 
 	/**
-	 * {@code task}(実際には{@code formatter.format(...)}の1呼び出し)を、
-	 * {@link #LAYOUT_STACK_SIZE}のstackを持つ専用スレッドで実行します。
+	 * Runs {@code task} (in practice, one {@code formatter.format(...)} call)
+	 * on a dedicated thread with a stack of {@link #LAYOUT_STACK_SIZE}.
 	 */
 	private void runOnLargeStack(final LargeStackTask task) throws AbortException, TranscoderException {
 		final int stackSize = LAYOUT_STACK_SIZE;
 		final Throwable[] failure = new Throwable[1];
-		// 別スレッドで走らせるので、**呼び出し側スレッドのThreadLocalは
-		// 引き継がない**。外から設定される方針だけを明示的に渡す
-		// (2026-07-26に常時有効化した際、RescuePolicyの引き継ぎ漏れで
-		// テストが4件落ちて発覚)。何を運ぶかはLayoutThreadContextが1箇所で
-		// 決める(2026-09-02)——EPUBの項目のワーカーも同じものを運ぶ
+		// Running on another thread means **the caller thread's ThreadLocal values are not
+		// inherited**. Explicitly pass only externally set policies.
+		// (When this became always enabled on 2026-07-26, four test failures exposed
+		// the missing RescuePolicy transfer.) LayoutThreadContext defines what is transferred
+		// in one place (2026-09-02); EPUB item workers transfer the same context.
 		final net.zamasoft.foliojet.layout.util.LayoutThreadContext context = net.zamasoft.foliojet.layout.util.LayoutThreadContext
 				.capture();
 		final Thread worker = new Thread(null, () -> {
@@ -1212,11 +1211,11 @@ public class DirectSession extends AbstractCTISession
 			}
 		}, "foliojet-layout", stackSize);
 		worker.start();
-		// 割り込まれてもworkerの完了までjoinし続ける(2026-07-25)。
-		// 途中で抜けると、呼び出し側がsessionをcloseし入力ストリームを
-		// 閉じたあともworkerが同じUA・同じ結果出力へ書き続けうる——
-		// 出力破損・sessionとの競合・非daemonスレッドによるJVM残留の経路。
-		// 割り込みは握りつぶさず、完了後に呼び出し元スレッドへ復元する。
+		// Keep joining until the worker finishes, even when interrupted (2026-07-25).
+		// Leaving early could let the worker keep writing to the same UA and result output
+		// after the caller closes the session and input stream, providing a path to
+		// output corruption, races with the session, and a non-daemon thread keeping the JVM alive.
+		// Do not swallow the interrupt; restore it on the caller thread after completion.
 		boolean interrupted = false;
 		boolean timedOut = false;
 		for (;;) {
@@ -1229,8 +1228,8 @@ public class DirectSession extends AbstractCTISession
 				final long remaining = deadline - System.nanoTime();
 				if (remaining <= 0) {
 					timedOut = true;
-					// abortは協調的中断の真実源。interruptはHTTP読み取り等の
-					// 待機を早く解除する補助であり、workerの終了までは必ずjoinする。
+					// abort is the source of truth for cooperative cancellation. interrupt only helps
+					// release waits such as HTTP reads sooner; always join until the worker exits.
 					this.ua.abort(ABORT_FORCE);
 					worker.interrupt();
 					continue;
@@ -1267,7 +1266,7 @@ public class DirectSession extends AbstractCTISession
 	}
 
 	/**
-	 * 文書を変換します。
+	 * Converts a document.
 	 *
 	 * @param source
 	 * @throws AbortException
@@ -1282,14 +1281,14 @@ public class DirectSession extends AbstractCTISession
 		final Formatter formatter = PluginRegistry.getInstance().search(Formatter.class, source);
 		MySourceResolver.PREFETCH_LOG.fine(() -> "input.prefetch=" + UAProps.INPUT_PREFETCH.getBoolean(this.ua));
 		if (UAProps.INPUT_PREFETCH.getBoolean(this.ua)) {
-			// 外部リソースの非同期先読み(input.prefetch)。主文書を読み
-			// 先行バッファ越しに流し、発見したstylesheet/imgをACL検査の上で
-			// 並列取得する。詳細はResourcePrefetcherのjavadoc
+			// Asynchronous prefetch of external resources (input.prefetch). Read the main document
+			// through a read-ahead buffer and fetch discovered stylesheet/img resources in parallel
+			// after ACL checks. See ResourcePrefetcher's Javadoc for details.
 			source = ResourcePrefetcher.wrap(source, this.resolver);
 		}
 		Results results = this.results;
 		long limit = UAProps.OUTPUT_SIZE_LIMIT.getLong(this.ua);
-		// 負は無制限(-1 だけではない。2026-10-05 までは -2 以下で即座に中断した)
+		// Negative means unlimited (not just -1; until 2026-10-05, values below -1 aborted immediately).
 		if (limit >= 0) {
 			results = new LimitedResults(results, limit, this.ua);
 		}
@@ -1297,10 +1296,10 @@ public class DirectSession extends AbstractCTISession
 		try {
 			if (formatter instanceof MultiDocumentFormatter multi
 					&& this.ua instanceof MultiDocumentOutput multiOut) {
-				// 複数の文書(EPUBのspine項目)を独立した単位として組める組み合わせ
-				// (2026-09-02)。パス駆動は項目ごとにフォーマッタの中で回るので、
-				// ここでは親を1回準備するだけ。項目は並列に組まれ、結果は
-				// spine順に解放される
+				// A combination that can lay out multiple documents (EPUB spine items) as independent units
+				// (2026-09-02). The formatter drives passes for each item, so
+				// prepare the parent only once here. Items are laid out in parallel,
+				// and results are released in spine order.
 				this.ua.setResults(results);
 				this.middlePath = false;
 				this.ua.prepare(PrepareMode.DOCUMENT);
@@ -1311,7 +1310,7 @@ public class DirectSession extends AbstractCTISession
 				return;
 			}
 			if (passCount == 1) {
-				// 1パス
+				// Single pass.
 				PrepareMode mode = PrepareMode.DOCUMENT;
 				boolean middlePath = UAProps.PROCESSING_MIDDLE_PASS.getBoolean(this.ua);
 				if (this.middlePath != middlePath) {
@@ -1328,25 +1327,25 @@ public class DirectSession extends AbstractCTISession
 				this.ua.getDocumentContext().setBaseURI(source.getURI());
 				this.ua.getUAContext().setPassCount(passCount);
 				this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(passCount));
-				// source はこのメソッドの中で入力上限のラッパへ再代入されるので
-				// effectively final ではない。ラムダで直接捕捉できないため写しを取る
+				// source is reassigned to an input-limit wrapper within this method, so it is not
+				// effectively final. Take a copy because the lambda cannot capture it directly.
 				final Source formatSource = source;
 				this.runOnLargeStack(() -> formatter.format(formatSource, this.ua));
 			} else {
-				// 複数パス
+				// Multiple passes.
 				this.ua.setResults(results);
 				File tmpFile = null;
 				try {
 					tmpFile = File.createTempFile("copper", ".tmp");
-					// STRUCTURE_SCAN: ボックス構築・レイアウトを一切行わない
-					// 軽量な事前走査(:has()/:last-child系の解決用、
-					// 開発計画「2パス制御モード」参照)。
-					// processing.pass-countの反復回数には数えない、独立した
-					// 1回だけの追加フェーズ。sourceを一度だけ読み切り、
-					// 以降の全パスが使うテンポラリファイルへ保存する
-					// (sourceは1回しか読めない前提のため、以降は必ず
-					// tmpFileから読む——保存とMIDDLE_PASSを兼ねていた旧処理を
-					// この専用ステップへ分離した)。
+					// STRUCTURE_SCAN: a lightweight preliminary scan with no box construction or layout
+					// (for resolving :has()/:last-child variants;
+					// see the development plan "2パス制御モード" (two-pass control mode)).
+					// An independent, one-time additional phase that does not count toward
+					// processing.pass-count. Read source to the end once and save it
+					// to a temporary file used by all subsequent passes.
+					// (Since source is assumed to be readable only once, all later reads
+					// must use tmpFile. The old processing combined saving with MIDDLE_PASS;
+					// this dedicated step now handles saving separately.)
 					this.ua.prepare(PrepareMode.STRUCTURE_SCAN);
 					this.ua.getDocumentContext().setBaseURI(source.getURI());
 					try (final FileOutputStream out = new FileOutputStream(tmpFile);
@@ -1355,7 +1354,7 @@ public class DirectSession extends AbstractCTISession
 								source.getEncoding());
 						this.runOnLargeStack(() -> formatter.format(fileSource, this.ua));
 					}
-					// 中間処理
+					// Intermediate processing.
 					for (int remaining = passCount; remaining > 1; --remaining) {
 						this.ua.prepare(PrepareMode.MIDDLE_PASS);
 						this.ua.getDocumentContext().setBaseURI(source.getURI());
@@ -1367,7 +1366,7 @@ public class DirectSession extends AbstractCTISession
 							this.runOnLargeStack(() -> formatter.format(fileSource, this.ua));
 						}
 					}
-					// 目的物生成
+					// Generate the output.
 					this.ua.prepare(PrepareMode.LAST_PASS);
 					this.ua.getDocumentContext().setBaseURI(source.getURI());
 					try (final InputStream in = new FileInputStream(tmpFile)) {
@@ -1377,25 +1376,25 @@ public class DirectSession extends AbstractCTISession
 						this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
 						this.runOnLargeStack(() -> formatter.format(fileSource, this.ua));
 					}
-					// 収束の報告(2026-08-02): 最終パスで前方参照が読んだ
-					// 値が、そのパスのうちに変わっていたら pass-count が
-					// 足りない。前方参照そのものは正常なので警告しない
+					// Report convergence (2026-08-02): if values read by forward references
+					// during the final pass changed within that pass, pass-count
+					// is insufficient. Forward references themselves are normal and do not trigger warnings.
 					if (this.ua.getUAContext().getPageRef().isUnconverged()) {
 						LOG.warning("target-counter()/target-counters()/target-text() resolved to a value"
 								+ " that changed during the final layout pass;"
 								+ " consider increasing processing.pass-count.");
 					}
-					// @container G5(2026-08-15段5、設計§3/§4): 最終パスで
-					// コンテナのused inline-sizeが直前の値から不動点に達して
-					// いなければ、黙って出さず診断する(出力自体は最終パスの
-					// 値のまま使う——設計§4「fail closedを破らない」)
+					// @container G5 (2026-08-15 stage 5, design §3/§4): if the container's
+					// used inline-size has not reached a fixed point relative to the previous value
+					// in the final pass, report a diagnostic instead of silently outputting it
+					// (output still uses final-pass values: design §4 "fail closedを破らない" (preserve fail-closed behavior)).
 					if (!this.ua.getUAContext().getContainerFacts().isConverged()) {
 						LOG.warning("@container query evaluated against a container inline-size that"
 								+ " changed during the final layout pass;"
 								+ " consider increasing processing.pass-count.");
 					}
-					// 振動(周期2)は狭いほうへ固定して確定させた。紙面は破綻
-					// しないが、著者の書いたクエリのとおりには組まれていない
+					// A period-2 oscillation was resolved by fixing it to the narrower size. The page
+					// does not break, but layout no longer follows the author's query exactly.
 					if (this.ua.getUAContext().getContainerFacts().hasOscillation()) {
 						LOG.warning("@container query oscillated between two container inline-sizes;"
 								+ " pinned the narrower one. The layout is stable but may not match"
@@ -1403,8 +1402,8 @@ public class DirectSession extends AbstractCTISession
 					}
 				} finally {
 					if (tmpFile != null) {
-						// 削除失敗を黙殺しない(2026-07-24アーキレビューE-1)。
-						// 本処理は完了しているため例外は伝播させずWARNのみ
+						// Do not silently ignore deletion failures (2026-07-24 architecture review E-1).
+						// Main processing is complete, so only WARN; do not propagate the exception.
 						try {
 							java.nio.file.Files.deleteIfExists(tmpFile.toPath());
 						} catch (IOException | RuntimeException e) {
@@ -1418,17 +1417,17 @@ public class DirectSession extends AbstractCTISession
 			if (retained != null) throw retained;
 			final ContinuationInvariantViolationException invariant = ContinuationInvariantViolationException.findIn(e);
 			if (invariant != null) throw invariant;
-			// **中断は入出力エラーではない**(2026-09-21)。abort()が来ると本文の
-			// 受け口が畳まれるので、パーサ側には普通の IOException(先読みの打ち切り等)
-			// として見える。それを ERROR_IO で包むと、client には中断が
-			// 「I/O error. prefetch read-ahead terminated」として届いていた。
-			// 中断の報告は AbortException の経路に一本化する。
+			// **An abort is not an I/O error** (2026-09-21). abort() closes down the body
+			// input, so the parser sees a plain IOException (e.g., terminated prefetch).
+			// Wrapping it in ERROR_IO caused clients to receive an abort as
+			// "I/O error. prefetch read-ahead terminated".
+			// Use the AbortException path for all abort reporting.
 			if (this.aborted) {
 				throw new AbortException(this.abortMode == 0 ? AbortException.ABORT_FORCE : this.abortMode);
 			}
-			// 既に型のついた失敗(TranscoderException)を ERROR_IO で包み直すと、
-			// 組み立て済みの本文がさらに前置きを受けて「I/O error. I/O error. ...」に
-			// なる。元の符号と状態を保って素通しする
+			// Rewrapping an already typed failure (TranscoderException) in ERROR_IO
+			// adds another prefix to the already composed message, producing "I/O error. I/O error. ...".
+			// Pass it through, preserving the original code and state.
 			if (e instanceof TranscoderException) {
 				throw (TranscoderException) e;
 			}

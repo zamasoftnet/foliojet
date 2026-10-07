@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.css.value.css3;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
- * {@code line-break}の値です(css-text-3 §5.2、2026-08-29新設)。
+ * A {@code line-break} value (css-text-3 §5.2, added on 2026-08-29).
  *
  * @author MIYABE Tatsuhiko
  */

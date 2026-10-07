@@ -13,12 +13,12 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code font-variant-ligatures}(CSS Fonts)です。
+ * {@code font-variant-ligatures} (CSS Fonts).
  *
  * <p>
- * 値をOpenTypeの{@code liga/clig/dlig/hlig/calt}へ変換してFontStyleまで
- * 搬送します。ただし現在のpdfg2dは合字・文脈置換lookupを処理しないため、
- * 描画上は受理・保持相当です。
+ * Converts values to OpenType {@code liga/clig/dlig/hlig/calt} and carries them to FontStyle.
+ * However, current pdfg2d does not process ligature or contextual substitution lookups,
+ * so for rendering this amounts to accepting and storing the values.
  * </p>
  */
 public final class FontVariantLigatures extends AbstractPrimitivePropertyInfo {

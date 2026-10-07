@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.css.selector;
 
 /**
- * 擬似要素セレクタ(::before 等)。
+ * A pseudo-element selector (::before, etc.).
  */
 public final class PseudoElementSelector implements SimpleSelector {
 	private final String localName;

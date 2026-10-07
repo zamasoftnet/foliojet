@@ -38,45 +38,47 @@ public enum CSSFloatValue implements Value {
 	public static final byte END = 4;
 
 	/**
-	 * 脚注float(GCPM/Prince系)です(F0、2026-07-31——設計は
-	 * consult-codex-2026-07-31-footnote.txt)。レイアウト配線(F3)までは
-	 * 通常フローとして描かれる。
+	 * Footnote float (GCPM/Prince family) (F0, 2026-07-31;
+	 * design: consult-codex-2026-07-31-footnote.txt). Drawn in normal flow
+	 * until layout is wired in F3.
 	 */
 	public static final byte FOOTNOTE = 5;
 
 	/**
-	 * ページフロート(GCPM/Prince系の{@code float: top})です
-	 * (2026-08-02——PLAN §2の1位)。版面の上端へ寄せる。上下は物理の向きで、縦組みでも用紙の上
-	 * (2026-10-05、css-page-floats の「書字方向に応じて block-start か inline-start」)。
+	 * Page float (GCPM/Prince {@code float: top})
+	 * (2026-08-02; first in PLAN §2). Aligns to the top of the type area. Top/bottom are
+	 * physical directions, so this is the sheet top even in vertical writing
+	 * (2026-10-05, css-page-floats: block-start or inline-start depending on writing direction).
 	 */
 	public static final byte PAGE_TOP = 6;
 
 	/**
-	 * ページフロート({@code float: bottom})です。版面の下端
-	 * (脚注があればその上)へ寄せる。縦組みでも用紙の下で、行の末尾側に置いて行を短くする
-	 * (2026-10-05。それまでは縦組みでブロックの末尾=左端に置いていた。その置き方は {@link #PAGE_BLOCK_END})。
+	 * Page float ({@code float: bottom}). Aligns to the bottom of the type area
+	 * (above footnotes if present). Uses the sheet bottom even in vertical writing,
+	 * placing at line end and shortening lines (2026-10-05; previously vertical writing
+	 * used block-end=left edge. That placement is {@link #PAGE_BLOCK_END}).
 	 */
 	public static final byte PAGE_BOTTOM = 7;
 
-	/** 版面の論理行頭側に置く並列注（横組=左、縦組=上）。 */
+	/** Parallel note at the type area's logical inline-start (left in horizontal writing, top in vertical writing). */
 	public static final byte PAGE_NOTE_START = 8;
 
-	/** 版面の論理行末側に置く並列注（横組=右、縦組=下）。 */
+	/** Parallel note at the type area's logical inline-end (right in horizontal writing, bottom in vertical writing). */
 	public static final byte PAGE_NOTE_END = 9;
 
-	/** 版面のブロックの先頭へ寄せるページフロート({@code float: block-start})。横組では top と同じ。 */
+	/** Page float aligned to type-area block-start ({@code float: block-start}). Same as top in horizontal writing. */
 	public static final byte PAGE_BLOCK_START = 10;
 
-	/** 版面のブロックの末尾へ寄せるページフロート({@code float: block-end})。横組では bottom と同じ。 */
+	/** Page float aligned to type-area block-end ({@code float: block-end}). Same as bottom in horizontal writing. */
 	public static final byte PAGE_BLOCK_END = 11;
 
-	/** ページ単位で配置するフロート(脚注・ページフロート)か。 */
+	/** Whether this is a float placed per page (footnote/page float). */
 	public static boolean isPageLevel(final byte floating) {
 		return floating == FOOTNOTE || isPageFloat(floating) || floating == PAGE_NOTE_START
 				|| floating == PAGE_NOTE_END;
 	}
 
-	/** 版面の端へ寄せるページフロート(top・bottom・block-start・block-end)か。 */
+	/** Whether this is a page float aligned to a type-area edge (top/bottom/block-start/block-end). */
 	public static boolean isPageFloat(final byte floating) {
 		return floating == PAGE_TOP || floating == PAGE_BOTTOM || floating == PAGE_BLOCK_START
 				|| floating == PAGE_BLOCK_END;

@@ -13,10 +13,11 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code grid-column}/{@code grid-row}ショートハンドです(Grid G0)。
- * {@code <grid-line> [/ <grid-line>]}——endを省略すると{@code auto}、
- * ただしstartが線名単独ならendも同じ名前(css-grid-1 §8.4、2026-08-29
- * ——{@code grid-column: content}は{@code content-start / content-end})。
+ * {@code grid-column}/{@code grid-row} shorthands (Grid G0).
+ * {@code <grid-line> [/ <grid-line>]}; an omitted end is {@code auto},
+ * except when start is a bare line name, in which case end uses the same name
+ * (css-grid-1 §8.4, 2026-08-29:
+ * {@code grid-column: content} means {@code content-start / content-end}).
  *
  * @author MIYABE Tatsuhiko
  */

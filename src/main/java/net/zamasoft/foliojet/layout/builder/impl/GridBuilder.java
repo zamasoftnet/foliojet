@@ -28,150 +28,154 @@ import net.zamasoft.foliojet.layout.sizing.Sizing;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * Gridの構築coordinatorです(Grid G1b、2026-07-31——
- * consult-codex-2026-07-31-grid-g1.txt §1)。{@code TableBuilder}と同じく
- * {@code DocumentBuilder.builderStack}に積まれるが{@code Builder}ではない。
- * 直接子ごとに固定幅の{@link GridItemBox}+item builderを開き、
- * Grid終端で{@link FixedGridLayout}の結果に従って配置する。
+ * Coordinator for Grid construction (Grid G1b, 2026-07-31 —
+ * consult-codex-2026-07-31-grid-g1.txt §1). Like {@code TableBuilder}, it is pushed onto
+ * {@code DocumentBuilder.builderStack} but is not a {@code Builder}.
+ * Opens a fixed-width {@link GridItemBox} and item builder for each direct child,
+ * then places them at Grid end according to {@link FixedGridLayout}.
  *
  * <p>
- * G3a(consult-codex-2026-07-31-grid-g3.txt): itemの本文は
- * {@link TwoPassBlockBuilder}で録画し、Grid終端に「幅確定→bind→
- * 行高計測→配置」の順で組む。固定列では幅は構築時から不変のため
- * 結果はG1(直接構築)と同一——固有寸法スナップショットは
- * auto/fr列(G3b/c)の下準備。副作用: TwoPass内のGridは不活性の
- * ため、item内へネストしたGridはG0(単一列)へ退行する
- * (G3d1のGridEventで回復予定)。
+ * G3a (consult-codex-2026-07-31-grid-g3.txt): record item bodies with
+ * {@link TwoPassBlockBuilder}, then assemble them at Grid end in the order
+ * "resolve widths → bind → measure row heights → place".
+ * For fixed columns, widths remain unchanged from construction, so results match
+ * G1 (direct construction). Intrinsic size snapshots prepare for auto/fr columns (G3b/c).
+ * Side effect: Grid is inactive within TwoPass, so a Grid nested in an item falls back
+ * to G0 (single column), to be restored by GridEvent in G3d1.
  * </p>
  *
  * <p>
- * G3d1(RetainedGrid化): 宿主がBlockBuilderなら{@code finish()}→
- * {@code addGrid}が即時{@link #bind}を呼ぶ。TwoPass宿主(幅なし
- * float等)では録画の{@code GridEvent}に保持され、幅確定後の
- * 範囲再生では計画を再構築して同じ{@link #bind}を通る。
- * 固有寸法contribution({@link #getIntrinsicSizes})はG3d2。
+ * G3d1 (RetainedGrid): with a BlockBuilder host, {@code finish()} →
+ * {@code addGrid} immediately calls {@link #bind}. With a TwoPass host
+ * (such as a float without width), the recording's {@code GridEvent} retains it.
+ * Range replay after width resolution reconstructs the plan and uses the same
+ * {@link #bind}. Intrinsic size contributions ({@link #getIntrinsicSizes}) are G3d2.
  * </p>
  *
  * <p>
- * サブセット: 列はfixed/auto/fr/minmax等・行はauto(行内item実高の最大)
- * または固定高・source-order row auto-placement。適格判定は
- * {@link GridBuilderLifecycle#eligible}。
+ * Subset: fixed/auto/fr/minmax/etc. columns; auto rows (maximum actual item height in the row)
+ * or fixed-height rows; source-order row auto-placement.
+ * Eligibility is checked by {@link GridBuilderLifecycle#eligible}.
  * </p>
  *
  * <p>
- * <b>subgrid(css-grid-2、2026-08-29/09-03)</b>: {@code grid-template-columns:
- * subgrid}のgridは、bind時に自分が直下にあるitem({@link GridItemBox})から
- * 親gridの跨ぐ列の解決済み幅・gap・線名を受け取り({@link #resolveSubgrid})、
- * それを固定トラックとして使う。行軸は子孫itemの寄与を親へ逆流させ、
- * 親の行解決後に子の配置・寸法・行台帳を最終化する。子自身は親itemで
- * 常にstretchし、指定高とalign-self/align-contentは無視する。自分の
- * border/padding/marginは端の寄与と使用可能な行高へ反映する。
- * <b>単一autoトラックの近似へ落ちる場合</b>: (a)子gridの固有寸法計測
- * ({@link #getIntrinsicSizes}——録画時、親のトラック解決前。親への
- * contributionだけがこの近似で、最終配置は本物のトラックで行う)、
- * (b)子gridがitemの直下でない(divで包まれている、itemが匿名=直接テキスト、
- * inline化されている等: bind時のhost builderのcontext flowがGridItemBoxで
- * ないか、間に別のflowがある)、(c)親gridがトラック配置を走らせていない
- * (縦書きのG0退行)、(d)親側の列解決が無い経路(親が{@code display:grid}で
- * ないのに{@code subgrid}を書いた場合——仕様でも{@code none}相当)。
- * 縦書きは適格判定でG0へ退行するため対象外。row subgrid内の並列注はbind
- * 時点のページ位置から後で動かせないため、2823で検出して元の位置へ残す。
+ * <b>subgrid (css-grid-2, 2026-08-29/09-03)</b>: at bind time, a grid with
+ * {@code grid-template-columns: subgrid} receives resolved widths, gaps, and line names
+ * of the parent grid columns it spans from its immediate containing item
+ * ({@link GridItemBox}) ({@link #resolveSubgrid}), then uses them as fixed tracks.
+ * On the row axis, pass descendant item contributions back to the parent; after the
+ * parent resolves its rows, finalize child placement, sizes, and the row ledger.
+ * The child itself always stretches in the parent item, ignoring specified height and
+ * align-self/align-content. Its own border/padding/margin affect edge contributions and
+ * available row heights. <b>Cases that fall back to a single-auto-track approximation</b>:
+ * (a) intrinsic size measurement of the child grid ({@link #getIntrinsicSizes}, during
+ * recording before parent track resolution; only the parent contribution uses this
+ * approximation, while final placement uses real tracks),
+ * (b) the child grid is not directly under an item (wrapped in a div, anonymous item =
+ * direct text, made inline, etc.: the host builder's context flow at bind time is not
+ * GridItemBox, or another flow intervenes),
+ * (c) the parent grid has not run track placement (G0 fallback for vertical writing),
+ * (d) paths without parent column resolution ({@code subgrid} specified when the parent
+ * is not {@code display:grid}; equivalent to {@code none} in the spec as well).
+ * Vertical writing is excluded because eligibility falls back to G0. Parallel notes
+ * inside a row subgrid cannot move from their page positions at bind time, so detect
+ * them with 2823 and leave them at their original positions.
  * </p>
  */
 public final class GridBuilder
 		implements net.zamasoft.foliojet.layout.builder.RetainedGrid, net.zamasoft.foliojet.layout.builder.ItemCoordinator {
 
-	/** 構築した項目の総数。TwoPassの本文記録数ではない。 */
+	/** Total items constructed, not the number of TwoPass body records. */
 	public static final AtomicLong GRID_ITEM_RECORDS = new AtomicLong();
 
-	/** bindされたitem数。 */
+	/** Number of bound items. */
 	public static final AtomicLong GRID_ITEM_BINDS = new AtomicLong();
 
-	/** 空の匿名itemを破棄した数(slot非消費)。 */
+	/** Number of empty anonymous items discarded (without consuming slots). */
 	public static final AtomicLong GRID_ITEM_EMPTY_ANON_DROPS = new AtomicLong();
 
 	/**
-	 * 明示配置が未対応でcontainer単位のsource-order配置へ戻した数
-	 * (G4b——silent capの禁止。1件だけauto化しない=答申Q5)。
+	 * Number of containers reverted to source-order placement due to unsupported explicit
+	 * placement (G4b: no silent cap; do not make just one item auto — recommendation Q5).
 	 */
 	public static final AtomicLong GRID_PLACEMENT_FALLBACKS = new AtomicLong();
 
 	private final Builder host;
 
-	/** item builderの親LayoutStack({@code host}と同一インスタンス)。 */
+	/** Parent LayoutStack for item builders (the same instance as {@code host}). */
 	private final LayoutStack hostStack;
 
 	private final GridBox gridBox;
 
 	/**
-	 * 列トラック(fixed/auto/fr/%/min-content/max-content)。
-	 * {@link #placementPlan}で確定する——auto-repeatの展開・暗黙列の
-	 * 補完・auto-fitの末尾潰しを含む(2026-08-29)。それまでは
-	 * テンプレートそのまま(%は{@link #sizingTracks}が解決する)。
+	 * Column tracks (fixed/auto/fr/%/min-content/max-content).
+	 * Resolved by {@link #placementPlan}, including auto-repeat expansion, implicit column
+	 * completion, and collapsing trailing auto-fit tracks (2026-08-29).
+	 * Until then, retain the template unchanged ({@link #sizingTracks} resolves percentages).
 	 */
 	private List<GridTrackListValue.TrackSize> tracks;
 
-	/** 列軸の線名表(zero-based線index→名前。areasの暗黙名込み。2026-08-29)。 */
+	/** Column-axis line names (zero-based line index → names, including implicit area names; 2026-08-29). */
 	private List<List<String>> columnLines = List.of();
 
-	/** 行軸の線名表(zero-based線index→名前。areasの暗黙名・暗黙行込み)。 */
+	/** Row-axis line names (zero-based line index → names, including implicit area names and implicit rows). */
 	private List<List<String>> rowLines = List.of();
 
-	/** 明示行数(grid-template-rowsとgrid-template-areasの大きいほう。2026-08-29)。 */
+	/** Explicit row count (the greater of grid-template-rows and grid-template-areas; 2026-08-29). */
 	private int explicitRows;
 
-	/** 展開後の明示列数(grid-auto-columnsの周期の基準。2026-08-29)。 */
+	/** Expanded explicit column count (basis for the grid-auto-columns cycle; 2026-08-29). */
 	private int explicitColumns;
 
-	/** {@link #placementPlan}を確定したときのコンテナ行幅(auto-repeatの再展開判定用)。 */
+	/** Container line width when {@link #placementPlan} was resolved (checks whether to re-expand auto-repeat). */
 	private double planAvailable = Double.NaN;
 
 	private double columnGap, rowGap;
 
 	/**
-	 * subgridで親から継いだ列トラック(bind時に{@link #resolveSubgrid}が
-	 * 設定。nullなら通常のテンプレート)。
+	 * Column tracks inherited from the parent for subgrid (set by {@link #resolveSubgrid}
+	 * at bind time; null means use the normal template).
 	 */
 	private List<GridTrackListValue.TrackSize> subgridColumns;
 
-	/** {@link #subgridColumns}の線名(列数+1要素。親の線名+自分の{@code subgrid [a]}名)。 */
+	/** Line names for {@link #subgridColumns} (column count + 1 entries; parent names + own {@code subgrid [a]} names). */
 	private List<List<String>> subgridColumnLines;
 
-	/** subgridで親から継いだ行トラック。nullなら通常の行テンプレート。 */
+	/** Row tracks inherited from the parent for subgrid. Null means use the normal row template. */
 	private List<GridTrackListValue.TrackSize> subgridRows;
 
-	/** {@link #subgridRows}の線名(行数+1要素)。 */
+	/** Line names for {@link #subgridRows} (row count + 1 entries). */
 	private List<List<String>> subgridRowLines;
 
-	/** 親row subgridとの一回限りの接続。nullなら通常grid。 */
+	/** One-time connection to the parent row subgrid. Null for a normal grid. */
 	private RowSubgridLink rowSubgridLink;
 
-	/** {@link #rowSubgridLink}を所有する合成item。最終寸法もここへ書く。 */
+	/** Synthetic item owning {@link #rowSubgridLink}. Final dimensions are also written here. */
 	private GridItemBox rowSubgridOwner;
 
-	/** 親gapとの差の半分。子itemの内側辺へ寄与・配置ともに適用する。 */
+	/** Half the difference from the parent gap. Applied to inner item edges for both contributions and placement. */
 	private double rowSubgridGapShim;
 
-	/** 構築時にこのGridの部分木でpage-margin-noteを見つけたか。 */
+	/** Whether construction found a page-margin-note in this Grid subtree. */
 	private boolean containsPageMarginNote;
 
-	/** 子row subgridの最終化登録です(座標はこのGridのローカル行)。 */
+	/** Finalization registrations for child row subgrids (coordinates are local rows of this Grid). */
 	private record PendingRowFinalizer(int rowStart, int span, RowGeometryFinalizer finalizer) {
 	}
 
 	private final List<GridItemContent> items = new ArrayList<>();
 
-	/** 開いているitemのbuilder(elementまたは匿名)。閉じているときnull。 */
+	/** Builder for the open item (element or anonymous), or null when none is open. */
 	private TwoPassBlockBuilder openItemBuilder;
 
 	private GridItemBox openItemBox;
 
 	private double openItemMinCap = -1;
 
-	/** 開いているitemが匿名(直接テキスト)か。 */
+	/** Whether the open item is anonymous (direct text). */
 	private boolean openItemAnonymous;
 
-	/** 開いているitemの明示配置指定(G4a)。 */
+	/** Explicit placement specification of the open item (G4a). */
 	private GridItemSpec openItemSpec = GridItemSpec.AUTO;
 
 	GridBuilder(final Builder host, final GridBox gridBox) {
@@ -179,8 +183,8 @@ public final class GridBuilder
 		this.hostStack = (LayoutStack) host;
 		this.gridBox = gridBox;
 		final GridParams params = gridBox.getGridParams();
-		// template無しは暗黙の単一autoカラム(2026-08-09、
-		// GridBuilderLifecycle.eligible参照)
+		// No template means a single implicit auto column (2026-08-09;
+		// see GridBuilderLifecycle.eligible).
 		this.tracks = params.templateColumns.isEmpty()
 				? List.of(net.zamasoft.foliojet.css.value.GridTrackListValue.Auto.INSTANCE)
 				: params.templateColumns;
@@ -197,36 +201,37 @@ public final class GridBuilder
 	}
 
 	/**
-	 * 合成itemのparams({@link NeutralItemParams}。Gridの文字属性を継承し、frame等は中立へ戻す)。
-	 * G3a追補(答申Q1): Grid本体のwidth/min/max-widthがitemの固有寸法へ
-	 * 混入しないようsize系も中立化する。
+	 * Params for a synthetic item ({@link NeutralItemParams}); inherit Grid text attributes
+	 * and reset frame, etc. to neutral.
+	 * G3a addendum (recommendation Q1): also neutralize size properties so Grid's own
+	 * width/min/max-width do not leak into item intrinsic sizes.
 	 */
 	private BlockParams itemParams() {
 		return NeutralItemParams.of(this.gridBox.getGridParams());
 	}
 
-	/** takeover元のauthored box(endBoxの対応付け用。中立/匿名itemではnull)。 */
+	/** Original authored box for takeover (matches endBox; null for neutral/anonymous items). */
 	private net.zamasoft.foliojet.layout.box.impl.FlowBlockBox openItemSource;
 	private long openItemAnchor = -1;
 
 	/**
-	 * {@code box}を元とするtakeover element itemが開いているかを返します
-	 * (2026-08-29、G7——FlexBuilder.isElementItemSourceと同型)。
+	 * Returns whether a takeover element item sourced from {@code box} is open
+	 * (2026-08-29, G7; same structure as FlexBuilder.isElementItemSource).
 	 */
 	public boolean isElementItemSource(final net.zamasoft.foliojet.layout.box.IBox box) {
 		return this.openItemSource != null && this.openItemSource == box;
 	}
 
 	/**
-	 * <b>takeover</b>でelement itemを開きます(2026-08-29、G7)。
+	 * Opens an element item through <b>takeover</b> (2026-08-29, G7).
 	 *
 	 * <p>
-	 * authoredなブロックのparams/posを{@link GridItemBox}へ引き継ぎ、
-	 * <b>元の外箱は構築しない</b>——itemがauthoredな箱そのものになるので、
-	 * 行高までのstretchに背景・枠が追随する。包み箱のままではstretchが
-	 * 中の子へ届かず、{@code grid-template-rows}や{@code grid-row: span}が
-	 * 「効かない」ように見えていた(利用者報告A-7)。Flexが同じ形で先に
-	 * 解いている({@link FlexBuilder#startElementItem})。
+	 * Transfer the authored block's params/pos to {@link GridItemBox} and
+	 * <b>do not construct the original outer box</b>. The item becomes the authored box itself,
+	 * so backgrounds and frames follow stretching to row height. With a wrapper, stretch
+	 * did not reach the inner child, making {@code grid-template-rows} and
+	 * {@code grid-row: span} appear ineffective (user report A-7).
+	 * Flex already solves this in the same way ({@link FlexBuilder#startElementItem}).
 	 * </p>
 	 */
 	public TwoPassBlockBuilder startElementItem(final net.zamasoft.foliojet.layout.box.impl.FlowBlockBox source,
@@ -240,10 +245,10 @@ public final class GridBuilder
 	}
 
 	/**
-	 * 次のitem(element用)を開きます。返るbuilderを積むのは呼び出し側。
-	 * {@code minContributionCap}はmin-content寄与の上限
-	 * ({@link GridItemContent#minContributionCap}参照。負=無制限)、
-	 * {@code sourceAnchor}はauthored childのアンカーです。
+	 * Opens the next item (for an element). The caller pushes the returned builder.
+	 * {@code minContributionCap} caps the min-content contribution
+	 * (see {@link GridItemContent#minContributionCap}; negative = unlimited);
+	 * {@code sourceAnchor} is the authored child's anchor.
 	 */
 	public TwoPassBlockBuilder startElementItem(final GridItemSpec spec, final double minContributionCap,
 			final long sourceAnchor) {
@@ -252,10 +257,10 @@ public final class GridBuilder
 		return builder;
 	}
 
-	/** 直接テキスト用の匿名itemを開きます(開いていれば再利用)。 */
+	/** Opens an anonymous item for direct text (reuses it if already open). */
 	public TwoPassBlockBuilder requireAnonymousItem(final long sourceAnchor) {
 		if (this.openItemBuilder != null && this.openItemAnonymous) {
-			return null; // 既に開いている(積み直し不要)
+			return null; // Already open (no need to push again)
 		}
 		final TwoPassBlockBuilder builder = this.startItem(true, GridItemSpec.AUTO, -1);
 		this.openItemAnchor = sourceAnchor;
@@ -264,8 +269,8 @@ public final class GridBuilder
 
 	private TwoPassBlockBuilder startItem(final boolean anonymous, final GridItemSpec spec,
 			final double minContributionCap) {
-		// 幅は暫定(auto列は未解決)。録画・計測は幅非依存で、確定幅は
-		// finish()のbind直前にsetTrackWidthで入る(G3b)
+		// The width is provisional (auto columns are unresolved). Recording and measurement are width-independent;
+		// setTrackWidth supplies the resolved width just before bind in finish() (G3b).
 		return this.startItem(new GridItemBox(this.itemParams(), new FlowPos(), 0), anonymous, spec,
 				minContributionCap);
 	}
@@ -274,7 +279,7 @@ public final class GridBuilder
 			final GridItemSpec spec, final double minContributionCap) {
 		assert this.openItemBuilder == null : "前のitemが閉じられていない";
 		final TwoPassBlockBuilder builder = new TwoPassBlockBuilder(this.hostStack, itemBox);
-		// Grid/Flex項目由来のbindをTOPLEVELから分ける。
+		// Distinguish binds originating from Grid/Flex items from TOPLEVEL.
 		builder.tagRootKind(
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassRootKind.GRID_ITEM);
 		this.openItemBuilder = builder;
@@ -287,9 +292,9 @@ public final class GridBuilder
 	}
 
 	/**
-	 * 開いているitemを確定します(録画完了点)。空の匿名item(空白のみ等)は
-	 * slotを消費させず破棄する。要素項目はauthored範囲を、匿名項目は
-	 * 合成境界内の本文をsealする。
+	 * Finalizes the open item (recording completion point). Discard empty anonymous items
+	 * (whitespace-only, etc.) without consuming a slot. Seal the authored range for element
+	 * items, or the body within synthetic boundaries for anonymous items.
 	 */
 	public void itemClosed() {
 		final TwoPassBlockBuilder builder = this.openItemBuilder;
@@ -320,9 +325,9 @@ public final class GridBuilder
 	}
 
 	/**
-	 * Grid終端です(G3d1): 実行計画としてホストへ渡す。BlockBuilderは
-	 * 即時{@link #bind}、TwoPassはownership ledgerに保持して幅確定後に
-	 * bindする。
+	 * Grid end (G3d1): passes the execution plan to the host. BlockBuilder calls
+	 * {@link #bind} immediately; TwoPass retains it in the ownership ledger and binds
+	 * after width resolution.
 	 */
 	public void finish() {
 		assert this.openItemBuilder == null : "item未クローズでGrid終端に到達";
@@ -339,15 +344,15 @@ public final class GridBuilder
 		return this.gridBox;
 	}
 
-	/** 確定済み配置plan(G4b——getIntrinsicSizesとbindが必ず共有する)。 */
+	/** Resolved placement plan (G4b: always shared by getIntrinsicSizes and bind). */
 	private GridPlacementResolver.Plan placementPlan;
 
 	/**
-	 * 配置planを一度だけ確定します(G4b、答申Q3)。明示配置が未対応
-	 * (implicit column・負行・上限超過)またはrowSpan&gt;1(G4d予定)の
-	 * ときはcontainer単位でG3のsource-order配置(col=i%n、row=i/n)へ
-	 * 戻す——1件だけauto化するとoccupancy/cursor経由で後続全itemが
-	 * ずれるため(答申Q5の最重要則)。
+	 * Resolves the placement plan exactly once (G4b, recommendation Q3). For unsupported
+	 * explicit placement (implicit columns, negative rows, exceeding limits) or rowSpan&gt;1
+	 * (planned for G4d), revert the entire container to G3 source-order placement
+	 * (col=i%n, row=i/n). Making just one item auto would shift every subsequent item
+	 * through occupancy/cursor state (the most important rule in recommendation Q5).
 	 */
 	private GridPlacementResolver.Plan placementPlan() {
 		if (this.placementPlan != null) {
@@ -356,14 +361,14 @@ public final class GridBuilder
 		final GridParams params = this.gridBox.getGridParams();
 		final double available = Math.max(0, this.gridBox.getLineSize());
 		this.planAvailable = available;
-		// (1) 明示列の展開(2026-08-29): auto-repeatは「収まるだけ」の回数、
-		// 線名はトラックと並走させる。テンプレート無しは暗黙の単一autoカラム
+		// (1) Expand explicit columns (2026-08-29): repeat auto-repeat as many times as fit,
+		// keeping line names alongside tracks. No template means a single implicit auto column.
 		final List<GridTrackListValue.TrackSize> cols = new ArrayList<>();
 		final List<List<String>> lines = new ArrayList<>();
 		lines.add(new ArrayList<>());
 		boolean autoFit = false;
 		if (this.subgridColumns != null) {
-			// subgrid: 親から継いだ固定トラックと線名(2026-08-29)
+			// subgrid: fixed tracks and line names inherited from the parent (2026-08-29)
 			cols.addAll(this.subgridColumns);
 			lines.clear();
 			for (final List<String> names : this.subgridColumnLines) {
@@ -371,9 +376,9 @@ public final class GridBuilder
 			}
 			this.explicitColumns = cols.size();
 		} else if (params.templateColumns.isEmpty()) {
-			// 明示列0本: 最初の1列も暗黙列(grid-auto-columnsの寸法。無ければ
-			// 従来どおりauto)。列フローで暗黙列が増えるときに1列目だけ
-			// autoで残余を取ってしまわないため
+			// Zero explicit columns: the first column is also implicit (uses grid-auto-columns size,
+			// or auto as before if absent). This prevents only the first column from remaining auto
+			// and taking the leftover space as column flow adds implicit columns.
 			this.explicitColumns = 0;
 			this.addImplicitColumn(cols, lines);
 		} else {
@@ -381,7 +386,7 @@ public final class GridBuilder
 					lines);
 			this.explicitColumns = cols.size();
 		}
-		// (2) grid-template-areasが定める列数・暗黙線名(name-start/name-end)
+		// (2) Column count and implicit line names (name-start/name-end) defined by grid-template-areas
 		final net.zamasoft.foliojet.css.value.GridTemplateAreasValue areas = params.templateAreas;
 		while (cols.size() < areas.getColumnCount()) {
 			this.addImplicitColumn(cols, lines);
@@ -403,15 +408,15 @@ public final class GridBuilder
 		}
 		this.explicitRows = this.subgridRows != null ? this.subgridRows.size()
 				: Math.max(params.templateRows.size(), areas.getRowCount());
-		// (3) 線名の数値化
+		// (3) Convert line names to numbers
 		final List<GridItemSpec> specs = new ArrayList<>(this.items.size());
 		for (final GridItemContent item : this.items) {
 			specs.add(net.zamasoft.foliojet.layout.sizing.GridLineNameResolver.resolve(item.spec, lines, rowLines));
 		}
-		// (4) 行フローで明示列の外を指す線・spanには暗黙列を足す
-		// (grid-auto-columnsの寸法。従来はfail closedでsource-order配置へ
-		// 戻していた——1件だけauto化しない原則はそのまま、列を増やして
-		// 解決可能にする)
+		// (4) In row flow, add implicit columns for lines/spans referring beyond the explicit columns
+		// (using grid-auto-columns sizes). Previously this failed closed and reverted to source-order
+		// placement. Retain the rule against making just one item auto;
+		// instead, add columns so the placement can resolve.
 		if (!params.autoFlowColumn) {
 			final int needed = Math.min(GridPlacementResolver.LIMIT, requiredColumns(specs));
 			while (cols.size() < needed) {
@@ -425,8 +430,8 @@ public final class GridBuilder
 				: GridPlacementResolver.resolve(specs, cols.size(), this.explicitRows, params.autoFlowColumn,
 						params.autoFlowDense, this.rowSubgridLink.span());
 		if (placement instanceof GridPlacementResolver.Result.Resolved resolved) {
-			plan = resolved.plan(); // rowSpanはGridRowSizingの不足分配で対応(G4d)
-			// 列フローが作った暗黙列
+			plan = resolved.plan(); // Handle rowSpan with GridRowSizing deficit distribution (G4d).
+			// Implicit columns created by column flow
 			while (cols.size() < plan.columnCount()) {
 				this.addImplicitColumn(cols, lines);
 			}
@@ -444,7 +449,7 @@ public final class GridBuilder
 					? Math.max((fallback.length + n - 1) / n, this.explicitRows)
 					: this.rowSubgridLink.span());
 		}
-		// (5) auto-fit: itemの無い末尾トラックを(gapごと)潰す
+		// (5) auto-fit: collapse trailing tracks without items, including their gaps
 		if (autoFit) {
 			int used = 1;
 			for (final GridPlacementResolver.GridArea area : plan.areas()) {
@@ -467,25 +472,26 @@ public final class GridBuilder
 	}
 
 	/**
-	 * 明示列テンプレートを展開します(2026-08-29)。auto-repeatは
-	 * 「他の固定幅トラックとgapを引いた残りに収まるだけ」の回数(最低1回。
-	 * 基準幅が未確定なら1回=仕様の固有寸法計測時の扱い)。
+	 * Expands the explicit column template (2026-08-29). Repeat auto-repeat as many times
+	 * as fit after subtracting other fixed-width tracks and gaps (at least once).
+	 * If the reference width is unresolved, repeat once, as the spec requires for intrinsic
+	 * size measurement.
 	 *
-	 * @return auto-fitを含むか
+	 * @return whether it includes auto-fit
 	 */
 	private static boolean expandTracks(final List<GridTrackListValue.TrackSize> template,
 			final List<List<String>> templateLines, final double available, final double gap,
 			final List<GridTrackListValue.TrackSize> cols, final List<List<String>> lines) {
 		boolean autoFit = false;
-		// auto-repeat以外の固定幅の合計(回数判定の残り幅)
+		// Total fixed widths outside auto-repeat (remaining width for the repetition count)
 		double fixedSum = 0;
 		int fixedCount = 0;
 		for (final GridTrackListValue.TrackSize t : template) {
 			if (t instanceof GridTrackListValue.AutoRepeat) {
 				continue;
 			}
-			// 仕様(§7.2.3.2): 回数判定では各トラックをmax側が確定ならその値、
-			// そうでなければmin側で数える(内容依存はgapだけ)
+			// Spec (§7.2.3.2): count each track by its max size if definite,
+			// otherwise its min size (for content-dependent tracks, count only the gap).
 			fixedSum += definiteExtent(t, available);
 			++fixedCount;
 		}
@@ -525,9 +531,9 @@ public final class GridBuilder
 	}
 
 	/**
-	 * auto-repeatの回数判定に使うトラックの確定幅です(2026-08-29): 固定長・
-	 * %はその値、minmax()はmax側が確定ならmax、そうでなければmin側。
-	 * 内容依存は0。
+	 * Definite track width used to determine the auto-repeat count (2026-08-29).
+	 * Use the value for fixed lengths/percentages; for minmax(), use max if definite,
+	 * otherwise min. Content-dependent sizes count as 0.
 	 */
 	private static double definiteExtent(final GridTrackListValue.TrackSize t, final double available) {
 		if (t instanceof GridTrackListValue.Fixed f) {
@@ -545,7 +551,7 @@ public final class GridBuilder
 		return 0;
 	}
 
-	/** grid-auto-columnsの周期で暗黙列を1本足します(空ならauto)。 */
+	/** Adds one implicit column using the grid-auto-columns cycle (auto if empty). */
 	private void addImplicitColumn(final List<GridTrackListValue.TrackSize> cols, final List<List<String>> lines) {
 		final List<GridTrackListValue.TrackSize> autoColumns = this.gridBox.getGridParams().autoColumns;
 		final int implicitIndex = cols.size() - this.explicitColumns;
@@ -555,8 +561,9 @@ public final class GridBuilder
 	}
 
 	/**
-	 * 行フローで各itemの列指定が要求する列数です(正の線番号とspanのみ。
-	 * 負番号は明示末端基準なので数えない)。
+	 * Column count required by each item's column specification in row flow
+	 * (positive line numbers and spans only; negative numbers are relative to the explicit
+	 * end and do not count).
 	 */
 	private static int requiredColumns(final List<GridItemSpec> specs) {
 		int needed = 1;
@@ -580,9 +587,9 @@ public final class GridBuilder
 	}
 
 	/**
-	 * トラック解決に渡す列です(2026-08-29): %はコンテナ行幅で絶対化する
-	 * (基準幅が未確定=固有寸法計測ではautoとして扱う——
-	 * {@code BasicGridTrackSizing}側)。
+	 * Columns passed to track resolution (2026-08-29): convert % to absolute lengths
+	 * using the container line width (unresolved reference width, as in intrinsic measurement,
+	 * is treated as auto by {@code BasicGridTrackSizing}).
 	 */
 	private List<GridTrackListValue.TrackSize> sizingTracks(final double available) {
 		if (!(available > 0)) {
@@ -597,7 +604,7 @@ public final class GridBuilder
 			} else if (t instanceof GridTrackListValue.MinMax m
 					&& (m.min() instanceof GridTrackListValue.Percentage
 							|| m.max() instanceof GridTrackListValue.Percentage)) {
-				// minmax()の片側の%(2026-08-29)
+				// Percentage on either side of minmax() (2026-08-29)
 				r = new GridTrackListValue.MinMax(
 						m.min() instanceof GridTrackListValue.Percentage p
 								? new GridTrackListValue.Fixed(p.ratio() * available)
@@ -617,13 +624,13 @@ public final class GridBuilder
 	}
 
 	/**
-	 * subgridの列トラックとrow subgrid接続を親から継ぎます(css-grid-2、
-	 * 2026-08-29/09-03。クラス
-	 * javadocの「単一autoトラックの近似へ落ちる場合」参照)。
+	 * Inherits subgrid column tracks and the row subgrid connection from the parent
+	 * (css-grid-2, 2026-08-29/09-03). See "Cases that fall back to a single-auto-track
+	 * approximation" in the class Javadoc.
 	 *
-	 * @param target bind先(context flowが自分のitemのGridItemBoxで、その上に
-	 *               自分のGridBoxだけが積まれているときに限り継ぐ)
-	 * @return 継いだか
+	 * @param target bind destination (inherit only if its context flow is this item's GridItemBox
+	 *               and only this GridBox is stacked above it)
+	 * @return whether inheritance succeeded
 	 */
 	private boolean resolveSubgrid(final BlockBuilder target) {
 		final GridParams params = this.gridBox.getGridParams();
@@ -635,10 +642,10 @@ public final class GridBuilder
 			return false;
 		}
 		if (item.isTakeover()) {
-			// takeover itemはauthoredな要素そのもの。その中のgridは
-			// **item直下ではない**ので親の列は継げない(G7、2026-08-29。
-			// 包み箱のころはflow段数だけで区別できていた。
-			// files/unittest/0500-grid/subgrid.htmlの#s3が回帰)
+			// A takeover item is the authored element itself. A grid inside it is
+			// **not directly under the item**, so it cannot inherit parent columns (G7, 2026-08-29).
+			// When items were wrappers, flow depth alone distinguished these cases.
+			// Regression: #s3 in files/unittest/0500-grid/subgrid.html.
 			return false;
 		}
 		final GridItemBox.SubgridTracks parent = item.getSubgridTracks();
@@ -690,10 +697,10 @@ public final class GridBuilder
 			if (span == 1) {
 				cols.add(new GridTrackListValue.Fixed(line));
 			} else {
-				// 自分のborder/padding/marginは先頭・末尾トラックに食い込む。
-				// 末尾側は「親のarea幅−先頭側の縁−自分のcontent幅」で求める
-				// (justify-self:stretch以外でitem幅がarea幅より狭いときは末尾
-				// トラックがその分だけ狭くなる=内側の線は親と揃ったまま)
+				// Own border/padding/margin intrude into the first and last tracks.
+				// Compute the trailing side as "parent area width − leading edge − own content width"
+				// (when justify-self is not stretch and the item is narrower than its area, the last
+				// track shrinks by that amount, keeping inner lines aligned with the parent).
 				final double startInset = this.gridBox.getFrame().getFrameLineStart(params.flow);
 				double sum = parent.columnGap() * (span - 1);
 				for (final double w : widths) {
@@ -728,14 +735,14 @@ public final class GridBuilder
 		return columnsResolved || rowsResolved;
 	}
 
-	/** row subgrid化した場合に2823を出すため、並列注の存在を記録します。 */
+	/** Records the presence of parallel notes so 2823 can be reported if this becomes a row subgrid. */
 	public void notePageMarginNote() {
 		this.containsPageMarginNote = true;
 	}
 
 	/**
-	 * 行rのテンプレート寸法です(明示行は{@code grid-template-rows}、暗黙行は
-	 * {@code grid-auto-rows}の周期。無ければnull=内容高。2026-08-29)。
+	 * Template size of row r (explicit rows use {@code grid-template-rows}; implicit rows
+	 * cycle through {@code grid-auto-rows}; null if absent = content height; 2026-08-29).
 	 */
 	private GridTrackListValue.TrackSize rowTrack(final int r) {
 		final GridParams params = this.gridBox.getGridParams();
@@ -764,8 +771,8 @@ public final class GridBuilder
 	}
 
 	/**
-	 * itemのauthoredな行方向寸法(content-box)です。auto・未指定はNaN
-	 * (G7、2026-08-29)。{@code box-sizing: border-box}は枠を引いて内寸へ直す。
+	 * Item's authored line-axis size (content-box); auto/unspecified is NaN (G7, 2026-08-29).
+	 * For {@code box-sizing: border-box}, subtract the frame to obtain the inner size.
 	 */
 	private static double authoredLineSize(final GridItemBox itemBox,
 			final net.zamasoft.foliojet.layout.box.params.WritingMode flow,
@@ -791,7 +798,7 @@ public final class GridBuilder
 		return Math.max(0, value - borderBoxAdjust);
 	}
 
-	/** 行rの固定高(fixedまたは基準確定の%。それ以外=内容高ならNONE)。 */
+	/** Fixed height of row r (fixed, or % with a resolved basis; otherwise NONE for content height). */
 	private double fixedRowHeight(final int r) {
 		final GridTrackListValue.TrackSize track = this.rowTrack(r);
 		if (track instanceof GridTrackListValue.Fixed f) {
@@ -804,8 +811,8 @@ public final class GridBuilder
 	}
 
 	/**
-	 * item bind前に確定している行高だけを控えます。未確定行はNONEのままにし、
-	 * bind後の{@code GridRowSizing.resolve}へseedとして渡さない。
+	 * Retains only row heights resolved before item bind. Leave unresolved rows as NONE
+	 * and do not pass them as seeds to post-bind {@code GridRowSizing.resolve}.
 	 */
 	private double[] preResolvedRowHeights(final GridPlacementResolver.Plan plan) {
 		final double[] heights = new double[Math.max(1, plan.rowCount())];
@@ -816,7 +823,7 @@ public final class GridBuilder
 		return heights;
 	}
 
-	/** 全itemがrowSpan=1か(G6行分割の適格条件)。 */
+	/** Whether every item has rowSpan=1 (G6 row splitting eligibility). */
 	private static boolean allSingleRowSpan(final GridPlacementResolver.Plan plan, final int count) {
 		for (int i = 0; i < count; ++i) {
 			if (plan.areas().get(i).rowSpan() != 1) {
@@ -826,7 +833,7 @@ public final class GridBuilder
 		return true;
 	}
 
-	/** ソース順のままで行番号が非減少か(G6)。 */
+	/** Whether row numbers are nondecreasing in source order (G6). */
 	private static boolean isRowMajor(final GridPlacementResolver.Plan plan, final int count) {
 		int prevRow = -1;
 		for (int i = 0; i < count; ++i) {
@@ -839,8 +846,10 @@ public final class GridBuilder
 		return true;
 	}
 
-	/** いずれかのitem同士がグリッド領域で重なるか(G6——重なりがあれば
-	 * flow登録順の並べ替えが描画順=文書順の仕様を壊すため対象外)。 */
+	/**
+	 * Whether any items overlap in grid areas (G6: exclude overlaps because reordering flow
+	 * registration would violate the specified paint order = document order).
+	 */
 	private static boolean hasOverlap(final GridPlacementResolver.Plan plan, final int count) {
 		for (int a = 0; a < count; ++a) {
 			final GridPlacementResolver.GridArea x = plan.areas().get(a);
@@ -857,22 +866,22 @@ public final class GridBuilder
 		return false;
 	}
 
-	/** planに基づく各itemの列contributionです(G4d——span込み)。 */
+	/** Column contribution of each item based on the plan (G4d, including spans). */
 	private List<BasicGridTrackSizing.ItemContribution> columnContributions(
 			final GridPlacementResolver.Plan plan) {
 		return this.columnContributions(plan, -1);
 	}
 
 	/**
-	 * @param inflatedCap 段数倍で膨らんだitem min-content
-	 *                    ({@code columnInflated})の上限(負=キャップなし)。
-	 *                    トラック解決時はGridコンテナのcontent-box行幅を
-	 *                    渡す——段は狭くできるため膨張分の床は守らなくて
-	 *                    よい(AbstractStaticBlockBoxのclampと同じ理由。
-	 *                    2026-08-22、掃過seed 1879802: grid内の段組表の
-	 *                    min-contentがトラックを紙面の2.7倍へ押し広げ、
-	 *                    第2段が紙面外に描かれた)。固有寸法計測
-	 *                    (intrinsics)側はキャップせずflagを上へ運ぶ
+	 * @param inflatedCap cap for item min-content inflated by the column count
+	 *                    ({@code columnInflated}); negative means uncapped.
+	 *                    During track resolution, pass the Grid container content-box line width.
+	 *                    Columns can shrink, so the inflated minimum need not be honored
+	 *                    (same reason as the clamp in AbstractStaticBlockBox).
+	 *                    On 2026-08-22, sweep seed 1879802 had a multi-column table in a grid
+	 *                    whose min-content expanded the track to 2.7 times the sheet size,
+	 *                    drawing the second column outside the sheet. Intrinsic measurement
+	 *                    does not cap it, but propagates the flag upward
 	 */
 	private List<BasicGridTrackSizing.ItemContribution> columnContributions(
 			final GridPlacementResolver.Plan plan, final double inflatedCap) {
@@ -880,7 +889,7 @@ public final class GridBuilder
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
 			final GridItemContent item = this.items.get(i);
-			// 自動最小サイズの上書き(GridItemContent.minContributionCap参照)
+			// Override the automatic minimum size (see GridItemContent.minContributionCap).
 			double itemMin = item.minContributionCap >= 0
 					? Math.min(item.sizes.minContent(), item.minContributionCap)
 					: item.sizes.minContent();
@@ -889,9 +898,9 @@ public final class GridBuilder
 			}
 			double itemMax = item.sizes.maxContent();
 			if (item.takeover) {
-				// takeoverではauthored rootの枠と宣言幅が録画本文の外にある
-				// (G7、2026-08-29)。足し直さないと、幅を持つitemのトラックが
-				// 内容だけの細さで解決される(place-shorthandのDで実測)
+				// In takeover, the authored root's frame and declared width lie outside the recorded body
+				// (G7, 2026-08-29). Unless added back, a sized item has its track resolved
+				// to the narrow content-only size (observed in D of place-shorthand).
 				final net.zamasoft.foliojet.layout.box.params.WritingMode flow = this.gridBox.getGridParams().flow;
 				final BlockParams ip = item.itemBox.getBlockParams();
 				final double declared = ip.size.getLineType(flow) == LengthType.ABSOLUTE
@@ -916,12 +925,12 @@ public final class GridBuilder
 	}
 
 	/**
-	 * Grid全体のcontent-box固有寸法contributionです(G3d2、答申Q2/G3d2)。
-	 * 行方向: min=gap+Σ(fixed長|列内item min-contentの最大)、
-	 * max=gap+Σ(fixed長|列内item max-contentの最大)(auto/frとも——
-	 * frのmax-content contributionは内容由来)。ページ方向minは
-	 * 行ごとのitem minPage最大の合計+rowGap。frameは含めない
-	 * (計測器の通常経路が一度だけ加算する)。
+	 * Intrinsic content-box size contribution of the entire Grid (G3d2, recommendation Q2/G3d2).
+	 * Line axis: min=gap+Σ(fixed length|maximum item min-content in the column),
+	 * max=gap+Σ(fixed length|maximum item max-content in the column) (for both auto/fr;
+	 * the fr max-content contribution comes from content). Page-axis min is the sum of
+	 * each row's maximum item minPage + rowGap. Excludes the frame
+	 * (the measurer's normal path adds it exactly once).
 	 */
 	@Override
 	public IntrinsicSizes getIntrinsicSizes() {
@@ -933,8 +942,8 @@ public final class GridBuilder
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridItemContent item = this.items.get(i);
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
-			// rowSpanは各行へ均等の近似(不足分配の粗い相当——bind後の
-			// 実高解決はGridRowSizingが正確に行う)
+			// Approximate rowSpan by equal distribution to each row (a rough equivalent of deficit distribution;
+			// GridRowSizing resolves actual heights precisely after bind).
 			final double perRow = item.sizes.minPage() / area.rowSpan();
 			for (int r = area.row(); r < area.row() + area.rowSpan(); ++r) {
 				rowMinPage[r] = Math.max(rowMinPage[r], perRow);
@@ -943,7 +952,7 @@ public final class GridBuilder
 		}
 		double minPage = plan.rowCount() > 1 ? this.rowGap * (plan.rowCount() - 1) : 0;
 		for (int r = 0; r < rowMinPage.length; ++r) {
-			// 固定高の明示・暗黙行はその高さ(2026-08-29)
+			// Use the specified heights of fixed-height explicit and implicit rows (2026-08-29).
 			final double fixed = this.fixedRowHeight(r);
 			minPage += net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(fixed) ? rowMinPage[r] : fixed;
 		}
@@ -951,11 +960,11 @@ public final class GridBuilder
 	}
 
 	/**
-	 * 親range化の検証相です(Grid G3d3——consult-codex-2026-07-31-grid-g3.txt
-	 * Q3のG3d3、副作用なし)。全itemの本文を通常のネストビルダーとして
-	 * 検証・列挙する。itemの本文がseal済み子(float等)のリースを含む
-	 * 場合も、この再帰で親範囲への包含が証明される。bind済みのGridは
-	 * 吸収不可(構造的に到達しないがfail closed)。
+	 * Validation phase for converting the parent to a range (Grid G3d3:
+	 * consult-codex-2026-07-31-grid-g3.txt Q3, G3d3; no side effects). Validate and list
+	 * all item bodies as ordinary nested builders. If an item body contains leases for
+	 * sealed children (floats, etc.), this recursion proves containment in the parent range.
+	 * An already bound Grid cannot be absorbed (structurally unreachable, but fail closed).
 	 */
 	boolean collectAbsorbableItems(final net.zamasoft.foliojet.layout.fragment.LayoutSource log, final long fromId,
 			final long toId, final List<TwoPassBlockBuilder> out, final List<RetainedTableBuilder> outTables,
@@ -972,7 +981,7 @@ public final class GridBuilder
 		return true;
 	}
 
-	/** frame調整済みstartsを持つrow subgrid内の行群寸法です。 */
+	/** Row-group sizes within a row subgrid, with frame-adjusted starts. */
 	private static double rowAreaExtent(final GridPlacementResolver.GridArea area, final double[] rowHeights,
 			final double[] rowStarts) {
 		final int last = area.row() + area.rowSpan() - 1;
@@ -980,8 +989,8 @@ public final class GridBuilder
 	}
 
 	/**
-	 * 子finalizerへ、このGridのローカル行sliceを渡します。row subgrid内から
-	 * 呼ぶ場合は、そのitemの内側辺へ現在のgap shimも一度だけ適用します。
+	 * Passes this Grid's local row slice to a child finalizer. When called from within a
+	 * row subgrid, also apply the current gap shim exactly once to that item's inner edges.
 	 */
 	private static void runRowFinalizers(final List<PendingRowFinalizer> finalizers, final double[] rowHeights,
 			final double[] rowStarts, final double rowGap, final double gapShim) {
@@ -1002,8 +1011,9 @@ public final class GridBuilder
 	}
 
 	/**
-	 * このrow subgridの子孫寄与を一段上へ渡します。frame/gapはこの境界で
-	 * 一度だけ足し、空の端行には最寄り占有行の寄与をspan拡張して複製します。
+	 * Passes descendant contributions of this row subgrid up one level. Add frame/gap
+	 * exactly once at this boundary. For empty edge rows, duplicate the nearest occupied
+	 * row's contribution with an expanded span.
 	 */
 	private void forwardRowSubgridContributions(final List<GridRowSizing.Contribution> local) {
 		final RowSubgridLink link = this.rowSubgridLink;
@@ -1012,7 +1022,7 @@ public final class GridBuilder
 		final double startFrame = frame.getFramePageStart(this.gridBox.getGridParams().flow);
 		final double endFrame = frame.getFramePageEnd(this.gridBox.getGridParams().flow);
 		if (local.isEmpty()) {
-			// 完全に空ならframeだけ。子gapやhypothetical itemは作らない。
+			// If completely empty, use only the frame. Do not create child gaps or hypothetical items.
 			link.sink().contribute(0, rowCount, Math.max(0, startFrame + endFrame));
 			return;
 		}
@@ -1057,7 +1067,7 @@ public final class GridBuilder
 		}
 	}
 
-	/** 親行確定後にrow subgridの直接item、孫、行台帳の順で最終化します。 */
+	/** After parent rows resolve, finalizes row subgrid direct items, grandchildren, then the row ledger. */
 	private void finalizeRowSubgrid(final GridPlacementResolver.Plan plan, final FixedGridLayout layout,
 			final double contentX, final double[] itemXOffsets, final BoxAlignment[] aligns,
 			final double[] boundExtents, final boolean[] rowSubgridItems,
@@ -1124,7 +1134,7 @@ public final class GridBuilder
 			this.gridBox.getContainer().addFlow(itemBox, rowStarts[area.row()] + yOffset);
 		}
 
-		// 直接itemを最終位置へ登録してから、孫の正確な寸法・幾何を確定する。
+		// Register direct items at their final positions, then resolve exact grandchild sizes and geometry.
 		runRowFinalizers(childFinalizers, rowHeights, rowStarts, this.rowGap, this.rowSubgridGapShim);
 		for (int i = 0; i < count; ++i) {
 			boundExtents[i] = this.items.get(i).itemBox.getPageExtent(params.flow);
@@ -1166,47 +1176,47 @@ public final class GridBuilder
 		this.rowSubgridOwner = null;
 	}
 
-	/** 実行計画のbindは一度きり。 */
+	/** Bind the execution plan only once. */
 	private boolean bound;
 
 	/**
-	 * Gridの組み立てです(G3a: 幅確定→bind→行高計測→配置の四段)。
-	 * 全itemをトラック座標でGridコンテナへ追加し、Grid内高とホストflow
-	 * カーソルを同期する(独立item builderは親カーソルを進めないため、
-	 * 同期しないと後続ブロックが重なる——G1答申の補正点)。ホストの
-	 * active flowが当のGridBoxである間に呼ぶこと(liveはDocumentBuilder
-	 * のFLOW終端、範囲再生もStartFlow(GridBox)とEndFlowの間)。
+	 * Assembles Grid (G3a: resolve widths → bind → measure row heights → place).
+	 * Add all items to the Grid container at track coordinates, and synchronize the Grid
+	 * inner height and host flow cursor (independent item builders do not advance the parent
+	 * cursor; without synchronization, subsequent blocks overlap — a correction in the
+	 * G1 recommendation). Call while the host's active flow is this GridBox (at DocumentBuilder
+	 * FLOW end for live processing; likewise between StartFlow(GridBox) and EndFlow for range replay).
 	 */
 	@Override
 	public void bind(final Builder hostBuilder) {
 		assert !this.bound : "Gridの二重bind";
 		this.bound = true;
-		// 原子契約の有効化(G6): トラック配置が走らないG0退行gridは
-		// 原子扱いしない(PageAtomicBox.isPageAtomicNow参照)
+		// Enable the atomic contract (G6): a G0 fallback grid that does not run track placement
+		// is not treated as atomic (see PageAtomicBox.isPageAtomicNow).
 		this.gridBox.markTrackLayout();
 		final BlockBuilder target = (BlockBuilder) hostBuilder;
 		final GridParams params = this.gridBox.getGridParams();
 		if (this.resolveSubgrid(target)) {
-			// 固有寸法計測で作った単一autoのplanは捨て、親の線で配置し直す
-			// (2026-08-29。plan共有の原則G4bは同じトラック集合の中でのみ)
+			// Discard the single-auto plan made during intrinsic measurement and place using parent lines
+			// (2026-08-29; G4b plan sharing applies only within the same set of tracks).
 			this.placementPlan = null;
 		}
 		if (this.placementPlan != null && this.planAvailable != Math.max(0, this.gridBox.getLineSize())
 				&& hasAutoRepeat(params.templateColumns)) {
-			// auto-repeatの回数はコンテナ幅で決まる(2026-08-29)。固有寸法
-			// 計測(幅未確定=1回)で作ったplanは、幅確定後のbindで作り直す
-			// ——仕様でも不確定幅の計測時は1回、確定幅では収まるだけ、と
-			// 別の値になる。plan共有の原則(G4b)は同一幅の中でのみ成り立つ
+			// The auto-repeat count depends on container width (2026-08-29). Rebuild the plan made during
+			// intrinsic measurement (unresolved width = one repetition) at bind after width resolution.
+			// The spec also uses distinct counts: once for measurement at indefinite width, as many as fit
+			// at definite width. The plan sharing rule (G4b) applies only within the same width.
 			this.placementPlan = null;
 		}
 		final GridPlacementResolver.Plan plan = this.placementPlan();
 		final double[] preResolvedRowHeights = this.preResolvedRowHeights(plan);
-		// トラック幅解決(G3b/c): planに基づく列contribution(G4b)から、
-		// fixed=指定長・auto=base/growth limit+stretch・fr=find-frで
-		// 確定する。基準幅はGridコンテナのcontent-box行幅
-		// (TwoPass経由ではshrink-to-fit確定後の幅)
-		// G5c: justify-contentのused value。positional(start/center/end)の
-		// ときauto列の残余stretchを止め、残余をトラック群のoffsetへ回す
+		// Track width resolution (G3b/c): use plan-based column contributions (G4b),
+		// resolving fixed=specified length, auto=base/growth limit+stretch, fr=find-fr.
+		// The reference width is the Grid container content-box line width
+		// (after shrink-to-fit resolution on the TwoPass path).
+		// G5c: justify-content used value. Positional values (start/center/end)
+		// disable leftover stretch for auto columns and use that space as the track-group offset.
 		final BoxAlignment justifyContent = BoxAlignment.resolve(BoxAlignment.AUTO, params.justifyContent);
 		final double[] widths = BasicGridTrackSizing.resolve(this.sizingTracks(this.gridBox.getLineSize()),
 				this.columnContributions(plan, Math.max(0, this.gridBox.getLineSize())),
@@ -1219,11 +1229,11 @@ public final class GridBuilder
 		final double freeLine = Math.max(0, this.gridBox.getLineSize() - trackLineExtent);
 		final double contentX = justifyContent == BoxAlignment.CENTER ? freeLine / 2
 				: justifyContent == BoxAlignment.END ? freeLine : 0;
-		// G5b: itemごとのjustify used value・bind幅・行方向オフセットを
-		// bind前に全件確定する(途中bind後のフォールバックは不可能——
-		// 答申Q3)。stretch=area幅(現行)、start/center/end=fit-content幅
-		// (min-content床——max(min, min(area, max)))+余白×{0,0.5,1}。
-		// 負余白は0へ丸める(印刷向けsafe: start側overflow)
+		// G5b: resolve each item’s justify used value, bind width, and line-axis offset
+		// for all items before bind (fallback after binding some items is impossible —
+		// recommendation Q3). stretch=area width (current); start/center/end=fit-content width
+		// (min-content floor: max(min, min(area, max))) + free space × {0,0.5,1}.
+		// Clamp negative free space to 0 (safe for print: overflow on the start side).
 		final int count = this.items.size();
 		final double[] itemWidths = new double[count];
 		final double[] itemXOffsets = new double[count];
@@ -1237,9 +1247,9 @@ public final class GridBuilder
 			}
 			final BoxAlignment justify = BoxAlignment.resolve(item.spec.justifySelf(), params.justifyItems);
 			aligns[i] = BoxAlignment.resolve(item.spec.alignSelf(), params.alignItems);
-			// takeover item(G7、2026-08-29)は**自分の枠**を持つ。areaWidthは
-			// マージン箱の幅、setTrackWidthが受け取るのは内寸なので、枠の分を
-			// 引いてから渡す。枠の%・emもここで実寸へ直す(基準はグリッド領域)
+			// A takeover item (G7, 2026-08-29) has **its own frame**. areaWidth is the margin-box
+			// width, while setTrackWidth takes the inner size, so subtract the frame before
+			// passing it. Resolve frame %/em to used sizes here too (using the grid area as the basis).
 			double lineExtras = 0;
 			if (item.takeover) {
 				final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = item.itemBox.getFrame();
@@ -1250,8 +1260,8 @@ public final class GridBuilder
 				lineExtras = frame.getFrameLineExtent(params.flow);
 			}
 			final double innerArea = Math.max(0, areaWidth - lineExtras);
-			// 明示幅はstretchにも優先する(css-grid §6.6)——包み箱のころは
-			// 中の子が自分で適用していたので、ここで見なければ落ちる
+			// Explicit width takes precedence over stretch (css-grid §6.6). With wrappers,
+			// the inner child applied it itself; it is now lost unless handled here.
 			final double authoredLine = authoredLineSize(item.itemBox, params.flow, innerArea);
 			if (!Double.isNaN(authoredLine)) {
 				itemWidths[i] = authoredLine;
@@ -1265,8 +1275,8 @@ public final class GridBuilder
 					: justify == BoxAlignment.END ? freeLineInArea : 0;
 			assert itemWidths[i] >= 0 && !Double.isNaN(itemWidths[i]) : "不正なitem幅: " + itemWidths[i];
 		}
-		// 幅確定→本文bind。PageAtomicBox契約によりGrid flowがactiveな間に
-		// 全bindが完了する(ページbreakは走らない)
+		// Resolve width → bind body. The PageAtomicBox contract ensures all binds complete while
+		// the Grid flow is active (no page breaks run).
 		final double[] extents = new double[count];
 		final boolean[] rowSubgridItems = new boolean[count];
 		final List<GridRowSizing.Contribution> rowContributions = new ArrayList<>();
@@ -1279,7 +1289,7 @@ public final class GridBuilder
 			for (int i = 0; i < count; ++i) {
 				final int itemIndex = i;
 				final GridItemContent item = this.items.get(i);
-				// 列トラックと、行寄与を親座標へ一度だけ変換する一時linkを渡す。
+				// Pass column tracks and a temporary link that converts row contributions to parent coordinates once.
 				final GridPlacementResolver.GridArea area = plan.areas().get(i);
 				final RowContributionSink sink = new RowContributionSink() {
 					@Override
@@ -1310,7 +1320,7 @@ public final class GridBuilder
 				item.bind(target, itemWidths[i]);
 				GRID_ITEM_BINDS.incrementAndGet();
 				extents[i] = item.itemBox.getPageExtent(params.flow);
-				// row subgridでなかったitemのclosureも永続boxへ残さない。
+				// Do not leave closures on persistent boxes for items that were not row subgrids either.
 				item.itemBox.getSubgridTracks().consumeRowSubgridLink();
 			}
 		} finally {
@@ -1340,8 +1350,8 @@ public final class GridBuilder
 			assert active.box == this.gridBox : "Grid bindでactive flowがGridではない: " + active.box;
 			return;
 		}
-		// 行高解決(G4d: rowSpanの不足分配込み——GridRowSizing。
-		// 空行は高さ0だが隣接rowGapは残る=仕様のgutter挙動)
+		// Row height resolution (G4d: includes rowSpan deficit distribution via GridRowSizing).
+		// Empty rows have height 0 but retain adjacent rowGap, as required by the spec for gutters.
 		List<GridPlacementResolver.GridArea> sizingAreas = plan.areas();
 		double[] sizingExtents = extents;
 		int ordinaryCount = 0;
@@ -1365,10 +1375,10 @@ public final class GridBuilder
 		}
 		final double[] rowHeights = GridRowSizing.resolve(sizingAreas, sizingExtents, plan.rowCount(), this.rowGap,
 				rowContributions);
-		// 固定高の行(grid-template-rows/grid-auto-rowsの絶対長・基準確定の%)
-		// はその高さに固定する(2026-08-29。内容が高ければitemがはみ出す=
-		// 仕様どおり。auto/fr/min-content等は内容高のまま——高さautoの
-		// Gridではfr行もautoに等しい)
+		// Fixed-height rows (absolute lengths or % with a resolved basis in grid-template-rows/grid-auto-rows)
+		// stay at that height (2026-08-29; taller content overflows the item,
+		// as specified). auto/fr/min-content, etc. keep content height;
+		// in an auto-height Grid, fr rows are equivalent to auto.
 		final boolean[] fixedRow = new boolean[rowHeights.length];
 		for (int r = 0; r < rowHeights.length; ++r) {
 			final double fixed = preResolvedRowHeights[r];
@@ -1377,8 +1387,8 @@ public final class GridBuilder
 				fixedRow[r] = true;
 			}
 		}
-		// G5e: align-content——明示高Gridの余白。content distributionが先、
-		// item self alignmentは後(調整後の行高を参照する)
+		// G5e: align-content, free space in a Grid with explicit height. Distribute content first,
+		// then apply item self alignment (using adjusted row heights).
 		double trackPageExtent = plan.rowCount() > 1 ? this.rowGap * (plan.rowCount() - 1) : 0;
 		for (final double h : rowHeights) {
 			trackPageExtent += h;
@@ -1397,7 +1407,7 @@ public final class GridBuilder
 					}
 				}
 				if (alignContent == BoxAlignment.STRETCH && stretchable > 0) {
-					// auto行へ均等分配(空行も対象。固定高の行は伸ばさない——2026-08-29)
+					// Distribute equally to auto rows (including empty rows; do not stretch fixed-height rows — 2026-08-29).
 					final double share = freePage / stretchable;
 					for (int r = 0; r < rowHeights.length; ++r) {
 						if (!fixedRow[r]) {
@@ -1419,22 +1429,22 @@ public final class GridBuilder
 				cursor += this.rowGap;
 			}
 		}
-		// 親の行が確定してから、直接itemの配置より先に子subgridを最終化する。
+		// After parent rows resolve, finalize child subgrids before placing direct items.
 		runRowFinalizers(rowFinalizers, rowHeights, rowStarts, this.rowGap, 0);
 		for (int i = 0; i < count; ++i) {
 			extents[i] = this.items.get(i).itemBox.getPageExtent(params.flow);
 		}
-		// G5d: align used valueによるページ方向オフセット(areaは
-		// span行群+内側gap。stretchは現行互換の上詰め近似——真の
-		// used-height stretchは後続。負余白は0へ丸める)
-		// 行分割(G6)の適格判定と、必要なら行優先へのflow登録順の並べ替え。
-		// 帳簿(GridBox.Row)はflow一覧の連続範囲で行を表すため、行優先順で
-		// 登録されている必要がある。ソース順が行優先でない明示配置
-		// (gigazine.netの.content——grid-rowで先頭へピン留めされたitemが
-		// DOM後方に来る)は、**itemの重なりが無い場合に限り**行優先へ
-		// 並べ替える。行内はソース順を保つ安定ソート——重なるitemの描画順は
-		// CSS仕様で文書順のため、重なりのあるgridは並べ替えず従来どおり
-		// atomicへ落とす(explicit-overlapの回帰を守る)
+		// G5d: page-axis offset from the align used value (area = spanned rows + inner gaps).
+		// stretch uses a top-aligned approximation compatible with current behavior;
+		// true used-height stretch follows later. Clamp negative free space to 0.
+		// Check row splitting eligibility (G6) and reorder flow registration to row-major order if needed.
+		// The ledger (GridBox.Row) represents rows as contiguous ranges in the flow list,
+		// so registration must be row-major. For explicit placement whose source order is not row-major
+		// (gigazine.net .content: an item pinned to the first row by grid-row appears later
+		// in the DOM), reorder to row-major **only if items do not overlap**.
+		// Use a stable sort to preserve source order within rows. CSS specifies document order
+		// for painting overlapping items, so grids with overlaps retain their order and
+		// fall back to atomic as before (preserves the explicit-overlap regression).
 		final boolean ledgerEligible = !this.items.isEmpty() && contentY == 0
 				&& allSingleRowSpan(plan, count);
 		Integer[] order = new Integer[count];
@@ -1459,14 +1469,14 @@ public final class GridBuilder
 			for (int r = area.row(); r < area.row() + area.rowSpan(); ++r) {
 				areaHeight += rowHeights[r];
 			}
-			// 既定のstretch: itemを行(spanするときは跨ぐ範囲)の高さまで伸ばす
-			// (G7、2026-08-29の利用者報告A-7)。takeoverでitemはauthoredな箱
-			// そのものなので、背景・枠がここで伸びる。列側のjustify: stretchが
-			// itemWidths=areaWidthとするのと対称
+			// Default stretch: stretch the item to the height of its row (the spanned range for spanning items)
+			// (G7, user report A-7 on 2026-08-29). Takeover makes the item the authored box
+			// itself, so its background/frame stretch here. This is symmetric with column-side
+			// justify: stretch setting itemWidths=areaWidth.
 			if (aligns[i] == BoxAlignment.STRETCH && areaHeight > extents[i]
 					&& itemBox.getBlockParams().size.getPageType(params.flow) == LengthType.AUTO) {
-				// 不足分を**内寸**へ足す(codexの指摘)。areaHeightをそのまま
-				// 内容高にすると、枠のあるitemでpadding/borderが上積みされる
+				// Add the deficit to the **inner size** (codex finding). Using areaHeight directly
+				// as content height would add padding/borders on top for framed items.
 				final double deficit = areaHeight - itemBox.getPageExtent(params.flow);
 				itemBox.setPageAxis(itemBox.getInnerPageExtent(params.flow) + deficit);
 			}
@@ -1474,19 +1484,19 @@ public final class GridBuilder
 			final double yOffset = aligns[i] == BoxAlignment.CENTER ? free / 2
 					: aligns[i] == BoxAlignment.END ? free : 0;
 			this.gridBox.getContainer().addFlow(itemBox, rowStarts[area.row()] + yOffset);
-			// 行分割(G6)のslack判定用: 行開始からのitemが**実際に描く**端
-			// (2026-08-29、G7)。背景・枠が無ければ内容末端、あれば伸ばした
-			// 箱全体——後者を空白扱いで切ると背景の継続が消える
+			// For the row splitting (G6) slack check: the end **actually painted** by an item relative to row start
+			// (2026-08-29, G7). Without a background/frame, use the content end; otherwise use
+			// the whole stretched box. Splitting the latter as whitespace loses the continued background.
 			itemPageEnds[i] = yOffset + itemBox.paintedPageExtent(params.flow);
 		}
 		this.gridBox.setPageAxis(this.items.isEmpty() ? 0 : cursor);
-		// **改ページ用の行境界の記録**(2026-08-10、G6行分割——
-		// FlexBuilder.placeRowと同型)。対象はflow順(=ソース順)が行優先で
-		// 連続し、全itemがrowSpan=1、align-contentの先頭余白が無い構成だけ
-		// (縦組みも対象——2026-10-05。従来は除いていたので、頁に収まらない
-		// 縦組みのgridが丸ごと次頁へ送られた)。帳簿を付けなければGridBox.splitは呼ばれず、従来
-		// どおりPageAtomicBoxのatomic経路(丸ごと送り/visual rescue)に
-		// 落ちるので、ゲートに引っかかっても今より悪くならない
+		// **Record row boundaries for page breaks** (2026-08-10, G6 row splitting;
+		// same structure as FlexBuilder.placeRow). Only applies when flow order (= source order) is
+		// contiguous row-major, all items have rowSpan=1, and align-content has no leading space
+		// (includes vertical writing — 2026-10-05. Previously excluded, which caused a vertical-writing
+		// grid too large for a page to move intact to the next page). Without a ledger, GridBox.split
+		// is not called; the existing PageAtomicBox atomic path (move intact/visual rescue)
+		// applies, so failing this eligibility gate cannot make behavior worse than before.
 		if (rowMajor) {
 			final java.util.List<GridBox.Row> gridRows = new ArrayList<>();
 			final java.util.List<GridItemBox> gridRowItems = new ArrayList<>(count);

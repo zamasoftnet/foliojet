@@ -15,197 +15,195 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 public interface IBox {
 
-	/** 頁割当のcommit用に、配置済みの直接の子を論理順で列挙します。 */
+	/** Enumerates placed direct children in logical order for page-assignment commit. */
 	public default void forEachAssignmentChild(final java.util.function.Consumer<IBox> action) {
 	}
 
 	/**
-	 * この内容を生んだ LayoutSource のイベントIDを返します
-	 * (SourceAnchor。記録時に一度だけ付与され不変。断片・未記録は -1)。
+	 * Returns the LayoutSource event ID that produced this content
+	 * (SourceAnchor; assigned once during recording and immutable; -1 for fragments or unrecorded content).
 	 */
 	public long getSourceAnchor();
 
-	/** 再組版で箱を作り直しても維持する、代入元の論理アンカーです。 */
+	/** The logical anchor of the assignment source, retained even if reflow rebuilds the box. */
 	public default long getAssignmentAnchor() {
 		return this.getSourceAnchor();
 	}
 
 	/**
-	 * SourceAnchor を付与します(記録時・再生時のドライバ専用。
-	 * 一度だけ)。
+	 * Assigns the SourceAnchor (only once; for the recording/replay driver only).
 	 */
 	public void setSourceAnchor(long id);
 
 	/**
-	 * この箱を<b>丸ごとソースから再生してよい</b>かを返します
-	 * (2026-07-28新設)。アンカーを持ち、かつ<b>まだ切断されていない</b>
-	 * ことが条件です。
+	 * Returns whether this box <b>may be replayed in its entirety from source</b>
+	 * (added 2026-07-28). It must have an anchor and <b>must not yet have been split</b>.
 	 *
 	 * <p>
-	 * 切断された箱の前断片はアンカーを持ち続けます(アンカーは箱の個体に
-	 * 属し、継続断片の側がレシピ構築でアンカーを持たない、という非対称)。
-	 * その前断片をアンカーから再生すると<b>要素全体</b>が組み直され、
-	 * 別に再開される継続断片と内容が二重になります——入れ子段組の
-	 * 段バランスでは前断片と継続断片が同じ残余に並ぶため、実際に起きます。
+	 * The preceding fragment of a split box retains its anchor (an asymmetry: the anchor belongs
+	 * to the box instance, while the continuation fragment has no anchor when built from the recipe).
+	 * Replaying that preceding fragment from its anchor rebuilds <b>the entire element</b>,
+	 * duplicating content with the continuation fragment that resumes separately. This actually
+	 * occurs in nested column balancing, where the preceding and continuation fragments
+	 * appear together in the same remainder.
 	 * </p>
 	 */
 	public boolean isSourceReplayable();
 
 	/**
-	 * この箱が切断され、内容の残りを継続断片へ渡したことを記録します
-	 * (切断の実行者専用)。以後 {@link #isSourceReplayable()} は false。
+	 * Records that this box has been split and passed its remaining content to a continuation
+	 * fragment (for the split executor only). Afterward, {@link #isSourceReplayable()} is false.
 	 */
 	public void markFragmented();
 
 	/**
-	 * ボックスのタイプを返します。
+	 * Returns the box type.
 	 *
 	 * @return
 	 */
 	public BoxType getType();
 
 	/**
-	 * 内容のパラメータを返します。
-	 * 
+	 * Returns the content parameters.
+	 *
 	 * @return
 	 */
 	public Params getParams();
 
 	/**
-	 * 位置のパラメータを返します。
-	 * 
+	 * Returns the position parameters.
+	 *
 	 * @return
 	 */
 	public Pos getPos();
 
 	/**
-	 * ボックスの現在の幅を返します。
-	 * 
+	 * Returns the current width of the box.
+	 *
 	 * @return
 	 */
 	public double getWidth();
 
 	/**
-	 * ボックスの現在の高さを返します。
-	 * 
+	 * Returns the current height of the box.
+	 *
 	 * @return
 	 */
 	public double getHeight();
 
 	/**
-	 * ボックスの現在の内部幅を返します。
+	 * Returns the current inner width of the box.
 	 *
 	 * @return
 	 */
 	public double getInnerWidth();
 
 	/**
-	 * ボックスの現在の内部高さを返します。
+	 * Returns the current inner height of the box.
 	 *
 	 * @return
 	 */
 	public double getInnerHeight();
 
 	/**
-	 * 与えられた書字方向での行方向の寸法を返します(横書き=幅、縦書き=高さ)。
+	 * Returns the line-axis size for the given writing direction (width in horizontal writing, height in vertical).
 	 *
-	 * @param flow 軸を決める書字方向(通常は包含ブロックのもの)
-	 * @return 行方向の寸法
+	 * @param flow the writing direction that determines the axes (normally that of the containing block)
+	 * @return the line-axis size
 	 */
 	public default double getLineExtent(WritingMode flow) {
 		return flow.isVertical() ? this.getHeight() : this.getWidth();
 	}
 
 	/**
-	 * 与えられた書字方向でのページ方向の寸法を返します(横書き=高さ、縦書き=幅)。
+	 * Returns the page-axis size for the given writing direction (height in horizontal writing, width in vertical).
 	 *
-	 * @param flow 軸を決める書字方向(通常は包含ブロックのもの)
-	 * @return ページ方向の寸法
+	 * @param flow the writing direction that determines the axes (normally that of the containing block)
+	 * @return the page-axis size
 	 */
 	public default double getPageExtent(WritingMode flow) {
 		return flow.isVertical() ? this.getWidth() : this.getHeight();
 	}
 
 	/**
-	 * この箱が<b>実際に紙へ描く</b>ページ方向の寸法を返します(2026-07-27新設)。
+	 * Returns the page-axis extent that this box <b>actually paints on paper</b> (added 2026-07-27).
 	 *
 	 * <p>
-	 * {@link #getPageExtent(WritingMode)}が<b>箱の幾何</b>を返すのに対し、
-	 * こちらは<b>描画の実測</b>です。既定は「箱いっぱいに描く」——テキスト・
-	 * 置換要素・枠線や背景を持つ箱はこれで正しい。中身を問える箱
-	 * ({@link AbstractContainerBox})だけが、中身の描く範囲まで縮めます。
+	 * Where {@link #getPageExtent(WritingMode)} returns <b>box geometry</b>, this returns
+	 * <b>measured painting extent</b>. The default is "paint throughout the box," which is correct
+	 * for text, replaced elements, and boxes with borders or backgrounds. Only boxes whose contents
+	 * can be queried ({@link AbstractContainerBox}) reduce it to the extent their contents paint.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>0を返すことは「何も描かない」を意味します。</b>
-	 * ページからはみ出した部分に描くものがあるかの判定に使います——
-	 * 描くものがないのに断片を作ると白紙のページが1枚増えるだけです
-	 * (css-break-3 §4.4)。
+	 * <b>Returning 0 means "paints nothing."</b>
+	 * Used to determine whether anything is painted in the part overflowing the page.
+	 * Creating a fragment when there is nothing to paint merely adds a blank page
+	 * (css-break-3 §4.4).
 	 * </p>
 	 *
-	 * @param flow 軸を決める書字方向(通常は包含ブロックのもの)
-	 * @return 描画が及ぶページ方向の寸法(何も描かなければ0)
+	 * @param flow the writing direction that determines the axes (normally that of the containing block)
+	 * @return the page-axis extent of painting (0 if nothing is painted)
 	 */
 	public default double paintedPageExtent(WritingMode flow) {
 		return this.getPageExtent(flow);
 	}
 
 	/**
-	 * この箱が<b>紙に何か描くか</b>を返します(2026-07-28新設)。
+	 * Returns whether this box <b>paints anything on paper</b> (added 2026-07-28).
 	 *
 	 * <p>
-	 * {@link #paintedPageExtent(WritingMode)}が「ページ方向のどこまで描くか」
-	 * という<b>距離</b>を答えるのに対し、こちらは「そもそも描くものがあるか」
-	 * という<b>有無</b>だけを答えます。別の問いなので別のメソッドにしてあります
-	 * ——距離の問いは軸(書字方向)に依存し、軸が違えば「測れないので箱いっぱい」
-	 * と答える必要がありますが、有無の問いに軸は関係ありません。また距離は
-	 * 「行方向にだけ描く箱」(ページ方向の寸法が0の枠つき箱)を0と答えますが、
-	 * それは「何も描かない」ではありません。
+	 * Where {@link #paintedPageExtent(WritingMode)} answers a <b>distance</b>, "how far painting
+	 * extends on the page axis," this answers only <b>presence</b>, "whether anything is painted
+	 * at all." These are different questions, so they have separate methods. Distance depends
+	 * on the axis (writing direction); a different axis requires answering "cannot measure, so
+	 * use the entire box." Presence does not depend on the axis. Also, distance returns 0 for
+	 * a box that paints only along the line axis (a framed box with zero page-axis size),
+	 * but that does not mean it paints nothing.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>判定は必ず安全側(=描く)へ倒します。</b> 中身を問えない箱は無条件で
-	 * {@code true} です。これを {@code false} と誤ると、
-	 * 何か描くページを捨ててしまい<b>内容が消えます</b>。
-	 * 用途は css-break-3 §4.4——<b>何も描かないページは出力しない</b>——の
-	 * 判定だけです({@code StyleBuilder.drawPage})。
+	 * <b>Always err on the safe side (= paints).</b> Boxes whose contents cannot be queried
+	 * unconditionally return {@code true}. Incorrectly returning {@code false} would discard
+	 * a page with painting and <b>lose content</b>.
+	 * Used only for the css-break-3 §4.4 check: <b>do not output pages that paint nothing</b>
+	 * ({@code StyleBuilder.drawPage}).
 	 * </p>
 	 *
-	 * @return 紙に何か描く(かもしれない)なら true
+	 * @return true if the box paints (or may paint) anything on paper
 	 */
 	public default boolean paintsAnything() {
 		return true;
 	}
 
 	/**
-	 * 与えられた書字方向での行方向の内部寸法を返します。
+	 * Returns the inner line-axis size for the given writing direction.
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return 行方向の内部寸法
+	 * @param flow the writing direction that determines the axes
+	 * @return the inner line-axis size
 	 */
 	public default double getInnerLineExtent(WritingMode flow) {
 		return flow.isVertical() ? this.getInnerHeight() : this.getInnerWidth();
 	}
 
 	/**
-	 * 与えられた書字方向でのページ方向の内部寸法を返します。
+	 * Returns the inner page-axis size for the given writing direction.
 	 *
-	 * @param flow 軸を決める書字方向
-	 * @return ページ方向の内部寸法
+	 * @param flow the writing direction that determines the axes
+	 * @return the inner page-axis size
 	 */
 	public default double getInnerPageExtent(WritingMode flow) {
 		return flow.isVertical() ? this.getInnerWidth() : this.getInnerHeight();
 	}
 
 	/**
-	 * ページ方向の幅を確定します(2026-07-20、反復化——ARCHITECTURE.md
-	 * 不変条件6。旧実装はポリモーフィックな相互再帰で、深いネスト文書
-	 * (1000段超)でStackOverflowErrorを起こしていた——実文書=法令ページで
-	 * 確認済み)。JVMコールスタックの代わりに明示的な{@link Deque}を
-	 * ワークリストとして使う反復DFSに置き換えた。個々のボックス型は
-	 * {@link #finishLayoutSelf}(局所処理)と
-	 * {@link #pushFinishLayoutChildren}(子の登録)だけを実装すればよく、
-	 * このdefaultメソッド自体を書き換える必要はない。
+	 * Finalizes the page-axis size (2026-07-20, converted to iteration: ARCHITECTURE.md invariant 6).
+	 * The old implementation used polymorphic mutual recursion, causing StackOverflowError in deeply
+	 * nested documents (over 1000 levels; confirmed on an actual legislation page). Replaced with
+	 * iterative DFS using an explicit {@link Deque} worklist instead of the JVM call stack.
+	 * Each box type only needs to implement {@link #finishLayoutSelf} (local processing) and
+	 * {@link #pushFinishLayoutChildren} (registering children); there is no need to override
+	 * this default method itself.
 	 *
 	 * @param containerBox
 	 */
@@ -218,9 +216,9 @@ public interface IBox {
 	}
 
 	/**
-	 * {@code box}の{@link #finishLayoutSelf}実行後に
-	 * {@link #pushFinishLayoutChildren}を行う、1つの{@link FinishLayoutStep}
-	 * を作ります(IBoxの子をワークリストへ積む共通ヘルパー)。
+	 * Creates one {@link FinishLayoutStep} that calls {@link #pushFinishLayoutChildren}
+	 * after {@link #finishLayoutSelf} on {@code box}
+	 * (a common helper for pushing IBox children onto the worklist).
 	 */
 	public static FinishLayoutStep step(final IBox box, final IFramedBox containerBox) {
 		return worklist -> {
@@ -230,26 +228,25 @@ public interface IBox {
 	}
 
 	/**
-	 * このボックス自身の局所処理(位置・寸法の確定等、子を持たない部分)
-	 * だけを行います。子の処理は{@link #pushFinishLayoutChildren}が
-	 * 別途担当します。
+	 * Performs only this box's local processing (finalizing position and size, etc., excluding children).
+	 * {@link #pushFinishLayoutChildren} handles child processing separately.
 	 */
 	public void finishLayoutSelf(IFramedBox containerBox);
 
 	/**
-	 * 子ボックス(または{@code Container})の処理ステップを{@code worklist}
-	 * へ積みます。子を複数持つ場合は、元の再帰と同じ走査順になるよう
-	 * **逆順**でpushしてください(スタックとして使うため)。
+	 * Pushes processing steps for child boxes (or {@code Container}) onto {@code worklist}.
+	 * For multiple children, push in **reverse order** to preserve the original recursive
+	 * traversal order (the worklist is a stack).
 	 */
 	public void pushFinishLayoutChildren(IFramedBox containerBox, Deque<FinishLayoutStep> worklist);
 
 	/**
-	 * 描画可能なコンテンツを追加します(2026-07-20、反復化——finishLayoutと
-	 * 同じ理由。深いネストでのStackOverflowErrorを避けるため、明示的な
-	 * {@link Deque}をワークリストとして使う反復DFSに置き換えた)。
+	 * Adds drawable content (2026-07-20, converted to iteration for the same reason as finishLayout).
+	 * Replaced with iterative DFS using an explicit {@link Deque} worklist to avoid
+	 * StackOverflowError with deep nesting.
 	 *
 	 * <p>
-	 * 与えられる座標系はページの左上を基点とします。
+	 * The supplied coordinate system has its origin at the page's top-left corner.
 	 * </p>
 	 *
 	 * @param pageBox
@@ -273,8 +270,8 @@ public interface IBox {
 	}
 
 	/**
-	 * {@code box}の{@link #pushDrawSteps}を実行する1つの{@link DrawStep}を
-	 * 作ります(子ボックスの描画をworklistへ積む共通ヘルパー)。
+	 * Creates one {@link DrawStep} that calls {@link #pushDrawSteps} on {@code box}
+	 * (a common helper for pushing child box drawing onto the worklist).
 	 */
 	public static DrawStep drawStep(final IBox box, final PageBox pageBox, final Drawer drawer, final Visitor visitor,
 			final Shape clip, final AffineTransform transform, final double contextX, final double contextY,
@@ -284,19 +281,19 @@ public interface IBox {
 	}
 
 	/**
-	 * このボックス(とその子孫)の描画手順を{@code worklist}へ積みます。
-	 * 元の{@code draw}の実行順を保つため、局所的な描画(このボックス自身の
-	 * 背景・枠・テキストラン等)と子ボックスの描画手順を、実行順のまま
-	 * 組み立てたうえで**逆順**でpushしてください(スタックとして使うため。
-	 * 局所描画が子の描画と交互に現れる場合は、局所描画もその場で即座に
-	 * 実行するのではなく、正しい位置に挿し込まれるステップとして
-	 * pushする必要があります——{@link AbstractTextBox}参照)。
+	 * Pushes drawing steps for this box (and its descendants) onto {@code worklist}.
+	 * To preserve the original {@code draw} execution order, assemble local drawing
+	 * (this box's background, frame, text runs, etc.) and child box drawing steps in execution
+	 * order, then push in **reverse order** (the worklist is a stack).
+	 * When local drawing alternates with child drawing, local drawing must also be pushed
+	 * as a step at the correct position instead of executing immediately;
+	 * see {@link AbstractTextBox}.
 	 */
 	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y, Deque<DrawStep> worklist);
 
 	/**
-	 * 内部のテキストを返します(2026-07-20、反復化——drawと同じ理由)。
+	 * Returns the text within (2026-07-20, converted to iteration for the same reason as draw).
 	 */
 	public default void getText(StringBuilder textBuff) {
 		final Deque<GetTextStep> worklist = new ArrayDeque<>();
@@ -307,23 +304,22 @@ public interface IBox {
 	}
 
 	/**
-	 * {@code box}の{@link #pushGetTextSteps}を実行する1つの
-	 * {@link GetTextStep}を作ります。
+	 * Creates one {@link GetTextStep} that calls {@link #pushGetTextSteps} on {@code box}.
 	 */
 	public static GetTextStep getTextStep(final IBox box, final StringBuilder textBuff) {
 		return worklist -> box.pushGetTextSteps(textBuff, worklist);
 	}
 
 	/**
-	 * このボックス(とその子孫)のテキスト抽出手順を{@code worklist}へ
-	 * 積みます。{@link #pushDrawSteps}と同じ規約(元の走査順を保つため
-	 * **逆順**でpush)に従ってください。
+	 * Pushes text extraction steps for this box (and its descendants) onto {@code worklist}.
+	 * Follow the same convention as {@link #pushDrawSteps}: push in **reverse order**
+	 * to preserve the original traversal order.
 	 */
 	public void pushGetTextSteps(StringBuilder textBuff, Deque<GetTextStep> worklist);
 
 	/**
-	 * クリップ用の輪郭を{@code path}へ積み上げます(2026-07-20、反復化——drawと
-	 * 同じ理由)。
+	 * Accumulates clipping outlines in {@code path}
+	 * (2026-07-20, converted to iteration for the same reason as draw).
 	 */
 	public default void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d) {
 		final Deque<TextShapeStep> worklist = new ArrayDeque<>();
@@ -334,8 +330,8 @@ public interface IBox {
 	}
 
 	/**
-	 * 輪郭を計測目的で収集します。字形輪郭を提供しないフォントは無視し、
-	 * {@code background-clip:text}用の警告を出しません。
+	 * Collects outlines for measurement. Ignores fonts that do not provide glyph outlines
+	 * and does not emit the warning for {@code background-clip:text}.
 	 */
 	public default void textShapeQuiet(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d) {
 		TextShapeContext.beginQuiet();
@@ -347,8 +343,7 @@ public interface IBox {
 	}
 
 	/**
-	 * {@code box}の{@link #pushTextShapeSteps}を実行する1つの
-	 * {@link TextShapeStep}を作ります。
+	 * Creates one {@link TextShapeStep} that calls {@link #pushTextShapeSteps} on {@code box}.
 	 */
 	public static TextShapeStep textShapeStep(final IBox box, final PageBox pageBox, final GeneralPath path,
 			final AffineTransform transform, final double x, final double y) {
@@ -356,9 +351,9 @@ public interface IBox {
 	}
 
 	/**
-	 * このボックス(とその子孫)の輪郭手順を{@code worklist}へ積みます。
-	 * {@link #pushDrawSteps}と同じ規約(元の走査順を保つため**逆順**で
-	 * push)に従ってください。
+	 * Pushes outline steps for this box (and its descendants) onto {@code worklist}.
+	 * Follow the same convention as {@link #pushDrawSteps}: push in **reverse order**
+	 * to preserve the original traversal order.
 	 */
 	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
 			Deque<TextShapeStep> worklist);

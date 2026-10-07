@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.css.property;
 
 /**
- * 可能なプロパティです。
- * 
+ * A possible property.
+ *
  * @author MIYABE Tatsuhiko
  */
 public interface ShorthandPropertyInfo extends PropertyInfo {

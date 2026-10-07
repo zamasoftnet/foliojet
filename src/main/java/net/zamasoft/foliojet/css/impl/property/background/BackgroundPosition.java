@@ -24,18 +24,18 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
  * <a href="http://www.w3.org/TR/CSS21/colors.html#propdef-background-position">
- * backgropund-position 特性 </a>です。
+ * backgropund-position property </a>.
  * <p>
- * 2026-07-20: {@code -cssj-direction-mode}廃止に伴い、縦書き時のx/y軸
- * 入れ替え(実世界のCSS/ブラウザには存在しない挙動)を削除した。
- * background-positionは常に物理座標のまま扱う。
+ * 2026-07-20: Removed the x/y axis swap in vertical writing when
+ * {@code -cssj-direction-mode} was abolished (real-world CSS/browsers have no such behavior).
+ * background-position always uses physical coordinates.
  * </p>
  * <p>
- * 2026-08-27: &lt;position&gt;文法を全面書き直し。object-positionとの共有
- * (派生は{@code getPrimitives()}で対象を差し替える)、calc()等の
- * &lt;length-percentage&gt;、3〜4値の端キーワード+オフセット構文
- * (例: {@code right 10px bottom 20px}——端からのオフセットはMIXED値
- * {@code 100% - 10px}へ畳む)、単一値の2つ目=center(css-values-4)に対応した。
+ * 2026-08-27: Rewrote the &lt;position&gt; grammar completely. Added sharing with object-position
+ * (derived properties replace the targets via {@code getPrimitives()}),
+ * &lt;length-percentage&gt; such as calc(), three/four-value edge-keyword + offset syntax
+ * (e.g. {@code right 10px bottom 20px}; offsets from the edge collapse into MIXED values
+ * such as {@code 100% - 10px}), and center as the second component for a single value (css-values-4).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -57,7 +57,7 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 		this("background-position");
 	}
 
-	/** object-position等、同じ&lt;position&gt;文法を使う特性のための派生用です。 */
+	/** For derived properties such as object-position that use the same &lt;position&gt; grammar. */
 	protected BackgroundPosition(String name) {
 		super(name);
 	}
@@ -75,31 +75,31 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 	}
 
 	/**
-	 * 計算値はPercentageValueまたはAbsoluteLengthです。
+	 * Computed values are PercentageValue or AbsoluteLength.
 	 */
 	public Value getComputedValue(Value value, CSSStyle style) {
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 
 	/**
-	 * ショートハンド({@code background}・{@code mask})から&lt;position&gt;の
-	 * トークン列を渡すための公開入口(2026-08-29)。4値構文
-	 * ({@code right 10px bottom 20px})もここで解ける。
+	 * Public entry point for passing &lt;position&gt; tokens from shorthands
+	 * ({@code background} and {@code mask}) (2026-08-29). Also resolves four-value syntax
+	 * ({@code right 10px bottom 20px}).
 	 */
 	public Entry[] parsePositionValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		return this.parseValues(tokens, ua, uri);
 	}
 
 	protected Entry[] parseValues(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
-		// 派生特性(object-position)からも使うため、対象primitiveは
-		// getPrimitives()経由で決める
+		// Choose the target primitives via getPrimitives() so derived properties
+		// (object-position) can also use this.
 		final PrimitivePropertyInfo infoX = this.getPrimitives()[0];
 		final PrimitivePropertyInfo infoY = this.getPrimitives()[1];
 		if (tokens.isInherit()) {
 			return new Entry[] { new Entry(infoX, KeywordValue.INHERIT), new Entry(infoY, KeywordValue.INHERIT) };
 		}
 
-		// 成分(キーワードまたは<length-percentage>)を最大4つ読む
+		// Read up to four components (keywords or <length-percentage>).
 		final String[] kw = new String[4];
 		final Value[] val = new Value[4];
 		int n = 0;
@@ -128,7 +128,7 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 
 		final Value x, y;
 		if (n == 1) {
-			// SPEC css-values <position>: 値が1つだけの場合の2つ目はcenter
+			// SPEC css-values <position>: when only one value is specified, the second is center.
 			if (kw[0] != null) {
 				switch (kw[0]) {
 				case "left":
@@ -156,7 +156,7 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 				y = PercentageValue.HALF;
 			}
 		} else if (n == 2 && (kw[0] == null || kw[1] == null)) {
-			// 値を含む2値構文: 1つ目=x、2つ目=y。キーワードは軸が固定される
+			// Two-value syntax containing a value: first=x, second=y. Keywords have fixed axes.
 			if (kw[0] != null) {
 				x = keywordAxis(kw[0], true);
 			} else {
@@ -168,7 +168,7 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 				y = val[1];
 			}
 		} else if (n == 2) {
-			// キーワード2つ: 順不同で各軸へ割り当てる
+			// Two keywords: assign to each axis in either order.
 			String kx = null, ky = null;
 			int centers = 0;
 			for (int i = 0; i < 2; ++i) {
@@ -201,7 +201,7 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 			x = keywordAxis(kx, true);
 			y = keywordAxis(ky, false);
 		} else {
-			// 3〜4値: [端キーワード オフセット?] の組。centerはオフセット不可
+			// Three/four values: pairs of [edge keyword offset?]. center cannot have an offset.
 			Value xv = null, yv = null;
 			boolean centerPending = false;
 			int i = 0;
@@ -272,8 +272,8 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 	}
 
 	/**
-	 * 個別軸プロパティの値を読みます。多層背景は既存の描画モデルに合わせ、
-	 * 全レイヤを検証した上で先頭レイヤの値を全画像で共有します。
+	 * Reads a value for an individual axis property. For multiple backgrounds, validates all layers
+	 * and shares the first layer's value across all images to match the existing rendering model.
 	 */
 	static Value parseAxisValues(final TokenStream tokens, final UserAgent ua, final boolean horizontal)
 			throws PropertyException {
@@ -311,7 +311,7 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 		return first;
 	}
 
-	/** 2値構文でのキーワードの軸解決です。horizontal軸にtop/bottomは書けません。 */
+	/** Resolves keyword axes in two-value syntax. top/bottom cannot be used on the horizontal axis. */
 	private static Value keywordAxis(String keyword, boolean horizontal) throws PropertyException {
 		switch (keyword) {
 		case "left":
@@ -331,7 +331,7 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 		}
 	}
 
-	/** &lt;length-percentage&gt;(calc含む)を読みます。解釈できなければnull。 */
+	/** Reads &lt;length-percentage&gt; (including calc). Returns null if it cannot be parsed. */
 	private static Value toOffsetValue(UserAgent ua, CssToken token) {
 		Value v = ValueUtils.toPercentage(token);
 		if (v == null) {
@@ -348,8 +348,8 @@ public class BackgroundPosition extends AbstractCompositePrimitivePropertyInfo {
 	}
 
 	/**
-	 * 端キーワード(right/bottom)からのオフセットを、開始端基準の
-	 * {@code 100% - オフセット}へ畳みます。
+	 * Converts an offset from an edge keyword (right/bottom) to
+	 * {@code 100% - offset}, relative to the start edge.
 	 */
 	private static Value flipFromFull(UserAgent ua, Value off) throws PropertyException {
 		if (off instanceof PercentageValue p) {

@@ -83,16 +83,16 @@ import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 import net.zamasoft.foliojet.ua.CompatibleMode;
 public class HTMLStyle {
 	/**
-	 * 画像参照を URI にします。data: は文書基底に依存しない。従来どおりまず素の
-	 * URI として解釈し(base64 の + / = をそのまま保つ——imageTest の
-	 * legacy/0070-image/040-DATA と 070-TRANSPARENT が壊れた 2026-09-05)、
-	 * 空白入りの SVG data: URI のように解釈できないときだけ符号化する。
+	 * Converts an image reference to a URI. data: does not depend on the document base.
+	 * As before, first parse it as a raw URI (preserving base64 + / = unchanged;
+	 * imageTest legacy/0070-image/040-DATA and 070-TRANSPARENT broke on 2026-09-05).
+	 * Encode only when parsing fails, as with an SVG data: URI containing spaces.
 	 *
-	 * @param encoding 多バイト文字の符号化
-	 * @param baseURI  文書の基底 URI
-	 * @param src      参照文字列
+	 * @param encoding the multibyte character encoding
+	 * @param baseURI  the document base URI
+	 * @param src      the reference string
 	 * @return URI
-	 * @throws URISyntaxException 解釈できない場合
+	 * @throws URISyntaxException if parsing fails
 	 */
 	public static URI imageURI(final String encoding, final URI baseURI, final String src) throws URISyntaxException {
 		if (src.regionMatches(true, 0, "data:", 0, 5)) {
@@ -175,16 +175,16 @@ public class HTMLStyle {
 			// <SELECT>
 			UserAgent ua = style.getUserAgent();
 			CSSStyle parent = style.getParentStyle();
-			// **矢印の寸法はpt(版面の単位)で作る**(2026-08-02)。従来は
-			// PXへ変換した値を渡していたため、pt座標へ置かれた矢印が
-			// 1/0.75倍に膨らんでいた(10pt指定が13.33ptで描かれる)
+			// **Construct arrow dimensions in pt (the type area unit)** (2026-08-02). Previously,
+			// values converted to PX were passed, so arrows placed in pt coordinates were
+			// enlarged by 1/0.75 (a 10 pt size rendered at 13.33 pt).
 			double size = Height.getLength(parent).getLength();
 			style.set(CSSPosition.INFO, PositionValue.ABSOLUTE_VALUE);
 			double border = BorderWidth.get(parent, Side.TOP);
-			// **箱の内側へ置く**(2026-08-02)。SELECT本体は右に1em分の
-			// paddingを確保しているのに、矢印は負のinsetで箱の外へ出て
-			// おり、後続の内容と重なっていた(実測: 幅31ptの箱に対して
-			// 矢印がx=25..41)
+			// **Place it inside the box** (2026-08-02). SELECT reserves 1em of right
+			// padding, but negative insets placed the arrow outside the box,
+			// overlapping subsequent content (measured: for a 31 pt wide box,
+			// the arrow occupied x=25..41).
 			style.set(Inset.TOP, AbsoluteLengthValue.create(ua, border));
 			style.set(Inset.RIGHT, AbsoluteLengthValue.create(ua, border));
 			CSSJInternalImage.setImage(style, new SelectImage(parentCe.atts.getValue("disabled") != null, size));
@@ -202,12 +202,12 @@ public class HTMLStyle {
 		switch (code) {
 		case HTMLCodes.BUTTON: {
 			// <BUTTON>
-			// 空ボタンでも高さ(ベースライン)を確保するためのZWSP。ただし
-			// flex/gridコンテナのボタンでは、この::beforeが独立itemになって
-			// 1行/1セルを占有し、実内容(アイコン等)を箱の外へ押し出す
-			// (NHKニュースのナビのシェブロンが空箱になった実バグ、
-			// 2026-08-09)。Chromeにこの注入は無いので、flex/gridでは
-			// 注入しない
+			// ZWSP ensures height (a baseline) even for an empty button. However,
+			// in a flex/grid container button, this ::before becomes a separate item
+			// occupying a row/cell and pushes the actual content (icons, etc.) outside the box
+			// (an actual bug that turned chevrons in NHK News navigation into empty boxes,
+			// 2026-08-09). Chrome does not inject this, so skip injection for
+			// flex/grid.
 			final byte display = Display.get(style.getParentStyle());
 			if (display != DisplayValue.FLEX && display != DisplayValue.GRID) {
 				style.set(Content.INFO, WBR);
@@ -241,9 +241,10 @@ public class HTMLStyle {
 	}
 
 	/**
-	 * {@code srcset}から印刷向けの候補(最高解像度)を選びます
-	 * (2026-08-20)。密度記述子(2x)は最大密度、幅記述子(640w)は
-	 * 最大幅を選ぶ。記述子なしは1x。パースできなければnull。
+	 * Selects the print candidate (highest resolution) from {@code srcset}
+	 * (2026-08-20). Chooses the highest density for density descriptors (2x)
+	 * and the greatest width for width descriptors (640w). No descriptor means 1x.
+	 * Returns null if parsing fails.
 	 */
 	public static String pickFromSrcset(final String srcset) {
 		if (srcset == null || srcset.isEmpty()) {
@@ -268,8 +269,8 @@ public class HTMLStyle {
 					if (desc.endsWith("x")) {
 						score = Double.parseDouble(desc.substring(0, desc.length() - 1));
 					} else if (desc.endsWith("w")) {
-						// 幅記述子は密度と別スケール——密度勝負にならないよう
-						// 1000で割って同程度の桁にする(最大幅を選べれば十分)
+						// Width descriptors use a different scale from density; divide by 1000 to keep
+						// the magnitudes comparable rather than letting density dominate (choosing the widest is enough).
 						score = Double.parseDouble(desc.substring(0, desc.length() - 1)) / 1000.0;
 					}
 				} catch (final NumberFormatException e) {
@@ -284,7 +285,7 @@ public class HTMLStyle {
 		return bestUrl;
 	}
 
-	/** 変換系が読める画像typeか(type属性なしは可)。 */
+	/** Whether the conversion system can read the image type (a missing type attribute is allowed). */
 	public static boolean isSupportedImageType(final String type) {
 		if (type == null || type.isEmpty()) {
 			return true;
@@ -299,16 +300,16 @@ public class HTMLStyle {
 		case "image/bmp":
 			return true;
 		default:
-			// image/avif・image/jxl等の未対応形式はスキップ
+			// Skip unsupported formats such as image/avif and image/jxl.
 			return false;
 		}
 	}
 
 	/**
 	 * @param fallbackContent
-	 *            要素がHTML仕様のフォールバック内容(子要素)を持つか
-	 *            (object/applet)。既定のbroken-image=noneでは置換ボックスを
-	 *            作らず、子=フォールバックを描かせる
+	 *             whether the element has HTML-specified fallback content (children)
+	 *             (object/applet). With the default broken-image=none, do not create
+	 *             a replaced box; let the children (fallback content) render.
 	 */
 	private static void applyBrokenImage(CSSStyle style, String alt, boolean fallbackContent) {
 		UserAgent ua = style.getUserAgent();
@@ -331,20 +332,20 @@ public class HTMLStyle {
 			CSSJInternalImage.setImage(style, new NullImage(alt));
 			return;
 		case NONE:
-			// **objectとappletは置換ボックス化してはならない**(2026-08-07)。
-			// これらの子要素はHTML仕様の正規のフォールバック手段で、置換
-			// ボックスにすると子が丸ごと描かれない——acid2の目(失敗する
-			// objectの中の入れ子objectのdata:PNG)が消える退行として発覚した
-			// (2026-08-06のAltTextImage導入で混入、bisectで特定)。
+			// **Do not turn object or applet into replaced boxes** (2026-08-07).
+			// Their children are the standard HTML fallback mechanism; a replaced
+			// box would suppress all children. This surfaced as a regression that removed
+			// the acid2 eyes (a nested object with data:PNG inside a failing object)
+			// (introduced with AltTextImage on 2026-08-06, identified by bisect).
 			if (fallbackContent) {
 				return;
 			}
-			// **画像を全く設定しないと置換ボックスにならず、CSSのwidth/height
-			// が無視されて縮退する**(2026-08-06、woocommerce.comのdisplay:table
-			// 図キャプションが単語ごとの縦長列に潰れる欠陥で発覚。詳細は
-			// AltTextImageのjavadoc参照)。CSSJInternalImageは画像とテキストを
-			// 同じ枠で管理する(排他)——setText()の代わりにsetImage()して
-			// alt文字列はAltTextImage自身に描かせる
+			// **Setting no image prevents a replaced box, so CSS width/height
+			// are ignored and the box collapses** (2026-08-06, found when a display:table
+			// figure caption on woocommerce.com collapsed into a tall column of single words;
+			// see the AltTextImage Javadoc). CSSJInternalImage stores an image or text
+			// in the same slot (mutually exclusive). Use setImage() instead of setText()
+			// and let AltTextImage draw the alt string itself.
 			CSSJInternalImage.setImage(style, new AltTextImage(ua, alt));
 			return;
 		default:
@@ -353,17 +354,17 @@ public class HTMLStyle {
 	}
 
 	/**
-	 * ボタンの既定値は<b>html-ua.cssへ移送済み</b>(2026-08-03)。属性由来の
-	 * 既定値(presentational hint)ではなくUAスタイルシートの規則になったので、
-	 * 著者CSSが上書きできる——本来の強さ関係である。
+	 * Button defaults <b>were moved to html-ua.css</b> (2026-08-03). They are now
+	 * UA stylesheet rules rather than attribute-derived defaults (presentational hints),
+	 * so author CSS can override them, as the cascade should allow.
 	 *
 	 * <p>
-	 * 移送前はここに {@code height: 1em} が埋まっており、行の高さや上下
-	 * パディングを持つボタンでラベルが箱の外へはみ出していた。<b>Javaの中の
-	 * 既定値は誰も見ないまま残る</b>という教訓の実例。
+	 * Previously, {@code height: 1em} was hardcoded here, causing labels to overflow
+	 * buttons with line height or vertical padding. This illustrates the lesson that
+	 * <b>defaults in Java can linger without anyone noticing</b>.
 	 */
 	private static void applyButton(CSSStyle style, boolean disabled) {
-		// 移送済み(html-ua.css の button / input[type=button] ほか)
+		// Moved (button / input[type=button], etc. in html-ua.css).
 	}
 
 	private static void applyImage(CSSStyle style, String src, final String type, String alt) {
@@ -383,8 +384,8 @@ public class HTMLStyle {
 			}
 			HTMLStyle.applyBrokenImage(style, alt, fallbackContent);
 			if (fallbackContent && CSSJInternalImage.getImage(style) == null) {
-				// フォールバック内容(子)を描かせる——altでContentを
-				// 上書きすると子が消える
+				// Let fallback content (children) render; overriding Content with alt
+				// would hide the children.
 				return;
 			}
 		}
@@ -394,17 +395,17 @@ public class HTMLStyle {
 	}
 
 	/**
-	 * テーブルセルのレイアウトを指定します。
-	 * 
+	 * Specifies table cell layout.
+	 *
 	 * @param style
 	 */
 	private static void applyTableCell(String elem, CSSStyle style) {
 		UserAgent ua = style.getUserAgent();
 		CSSElement ce = style.getCSSElement();
-		// display/page-break-inside/vertical-alignの既定、自分のvalign・align、
-		// width/height/bgcolor/nowrapはhtml-ua.cssへ移送済み(2026-08-04)
+		// Defaults for display/page-break-inside/vertical-align, own valign/align,
+		// and width/height/bgcolor/nowrap were moved to html-ua.css (2026-08-04).
 		if (ce.atts.getValue("valign") == null) {
-			// **祖先のうち最も近いvalignを継ぐ**。セレクタでは「近さ」を表せない
+			// **Inherit valign from the nearest ancestor that has it**. Selectors cannot express "nearest".
 			CSSStyle parentStyle = style.getParentStyle();
 			LOOP: while (parentStyle != null) {
 				CSSElement parentCe = parentStyle.getCSSElement();
@@ -488,8 +489,8 @@ public class HTMLStyle {
 	}
 
 	private static void applyTableColumn(String elem, CSSStyle style) {
-		// bgcolor/width/align/valignはhtml-ua.cssへ移送済み(2026-08-04)。
-		// 表からセルへ配るcellpaddingだけが残る
+		// bgcolor/width/align/valign were moved to html-ua.css (2026-08-04).
+		// Only cellpadding, distributed from the table to its cells, remains.
 		LengthValue cellpadding = CSSJHtmlCellPadding.get(style);
 		style.set(Padding.TOP, cellpadding, CSSStyle.MODE_WEAK);
 		style.set(Padding.RIGHT, cellpadding, CSSStyle.MODE_WEAK);
@@ -498,10 +499,10 @@ public class HTMLStyle {
 	}
 
 	/**
-	 * <b>擬似要素のボタン</b>({@code <input type=file>}の「選択...」)。
-	 * 要素側のボタンの既定値はhtml-ua.cssへ移送したが(2026-08-03)、
-	 * {@code ::before}で作るボタンにはその選択子が届かないのでここに残る。
-	 * 値は移送前のapplyButtonと同じ。
+	 * <b>Pseudo-element button</b> ("Choose..." for {@code <input type=file>}).
+	 * Element button defaults were moved to html-ua.css (2026-08-03),
+	 * but those selectors cannot reach buttons created with {@code ::before}, so this remains here.
+	 * The values match applyButton before the move.
 	 */
 	private static void applyPseudoButton(CSSStyle style, boolean disabled) {
 		final UserAgent ua = style.getUserAgent();
@@ -528,9 +529,10 @@ public class HTMLStyle {
 	}
 
 	/**
-	 * <b>擬似要素の入力欄の幅</b>。要素側の幅はhtml-ua.cssへ移送したが
-	 * (2026-08-03)、{@code ::before}で作る入力欄にはその選択子が届かない
-	 * ——擬似要素は元の要素の属性を持たないため。ここだけJavaに残る。
+	 * <b>Pseudo-element input width</b>. Element widths were moved to html-ua.css
+	 * (2026-08-03), but those selectors cannot reach inputs created with {@code ::before}
+	 * because pseudo-elements do not have the originating element's attributes.
+	 * Only this part remains in Java.
 	 */
 	private static void applyPseudoFieldWidth(CSSStyle style, String size) {
 		if (size != null) {
@@ -547,10 +549,10 @@ public class HTMLStyle {
 	private static void applyTextField(CSSStyle style, boolean disabled, String size) {
 		UserAgent ua = style.getUserAgent();
 		style.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
-		// 幅は html-ua.css へ移送済み(2026-08-03、型付きattr()の実装で
-		// 書けるようになった)。**既定の20exもCSS側に置く**——ここで
-		// style.set すると属性由来の層(UAシートより強い)になり、CSSの
-		// 規則が負けるため
+		// Width was moved to html-ua.css (2026-08-03, made expressible by typed attr()).
+		// **Keep the default 20ex in CSS too**. Calling style.set here
+		// would place it in the attribute-derived layer (stronger than the UA sheet),
+		// causing the CSS rule to lose.
 
 		style.set(Height.INFO, KeywordValue.AUTO);
 		if (disabled) {
@@ -603,11 +605,11 @@ public class HTMLStyle {
 	private ColorValue linkColor = null;
 
 	/**
-	 * {@code <picture>}内で選択待ちの{@code <source>}のURLです
-	 * (2026-08-20新設)。pictureの開始でリストが有効化され、対応可能な
-	 * typeの{@code <source srcset>}から選んだ候補が積まれる。直後の
-	 * {@code <img>}が先頭候補を消費する。video/audioの{@code <source>}を
-	 * 誤って拾わないよう、picture外ではnull。
+	 * URLs of {@code <source>} candidates awaiting selection inside {@code <picture>}
+	 * (added 2026-08-20). The list becomes active at the start of picture and accumulates
+	 * candidates selected from {@code <source srcset>} elements with supported types.
+	 * The following {@code <img>} consumes the first candidate. Null outside picture
+	 * to avoid accidentally collecting {@code <source>} from video/audio.
 	 */
 	private java.util.List<String> pictureSources = null;
 
@@ -650,14 +652,14 @@ public class HTMLStyle {
 			}
 		}
 			break;
-		// ABBR/ACRONYM: 属性駆動のロジックがなく既定値も無いため、Javaケース自体が不要
-		// ADDRESS: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
+		// ABBR/ACRONYM: no attribute-driven logic or defaults, so no Java case is needed.
+		// ADDRESS: defaults moved to the UA default stylesheet (html-ua.css) (2026-07-19).
 		case HTMLCodes.APPLET: {
 			// <APPLET width height hspace vspace alt align>
 			HTMLStyleUtils.applyWidthHeight("APPLET", style);
 			HTMLStyleUtils.applyHSpaceVSpace("APPLET", style);
 			HTMLStyleUtils.applyImageAlign("APPLET", style);
-			// appletの子もobjectと同じフォールバック内容
+			// applet children are fallback content, just like object children.
 			HTMLStyle.applyBrokenImage(style, ce.atts.getValue("alt"), true);
 		}
 			break;
@@ -673,10 +675,10 @@ public class HTMLStyle {
 			String shape = ce.atts.getValue("shape");
 			String coords = ce.atts.getValue("coords");
 			Shape realShape = null;
-			// shape="default"(および shape/coords 省略)は「画像全体」を表す。
-			// 形が作れなかった場合(未知のshape・座標不足)は、画像全体では
-			// なく**そのareaを捨てる**——不正な入力を「全体リンク」へ昇格
-			// させると意図しない広域リンクになる(2026-07-25)
+			// shape="default" (or omitted shape/coords) means "the entire image".
+			// If no shape can be created (unknown shape or insufficient coordinates),
+			// **discard that area** instead of using the entire image. Promoting invalid input
+			// to a whole-image link creates an unintended broad link (2026-07-25).
 			final boolean wholeImage = shape == null || shape.equalsIgnoreCase("default") || coords == null;
 			if (wholeImage) {
 				realShape = null;
@@ -694,9 +696,9 @@ public class HTMLStyle {
 				}
 				try {
 					if (shape.startsWith("circ")) {
-						// coords="cx,cy,r" の外接矩形は (cx-r, cy-r, 2r, 2r)。
-						// 従来は cx-r/2 で、中心が半径の1/2ずれていた
-						// (2026-07-25、独立レビューで発見)
+						// The bounding rectangle of coords="cx,cy,r" is (cx-r, cy-r, 2r, 2r).
+						// Previously cx-r/2 shifted the center by half the radius
+						// (2026-07-25, found in an independent review).
 						realShape = new Ellipse2D.Double(realCoords[0] - realCoords[2], realCoords[1] - realCoords[2],
 								realCoords[2] * 2, realCoords[2] * 2);
 					} else if (shape.startsWith("rect")) {
@@ -718,7 +720,7 @@ public class HTMLStyle {
 				}
 			}
 			if (realShape == null && !wholeImage) {
-				// 形が作れなかった(未知のshape・座標不足)。警告は上で出済み
+				// Could not create a shape (unknown shape or insufficient coordinates). Already warned above.
 				break;
 			}
 			try {
@@ -730,16 +732,16 @@ public class HTMLStyle {
 			}
 		}
 			break;
-		// HTML5セクショニング/フローコンテンツ要素・メタデータ非表示要素の
-		// display既定値はUAデフォルトスタイルシート(html-ua.css)に移行した
-		// (2026-07-18)。
+		// Display defaults for HTML5 sectioning/flow content elements and hidden metadata elements
+		// were moved to the UA default stylesheet (html-ua.css).
+		// (2026-07-18).
 		case HTMLCodes.BDI:
-			// dir省略時のbdiは先頭のstrong文字から方向を決める独立範囲。
+			// bdi without dir is an isolated range whose direction comes from its first strong character.
 			if (ce.atts.getValue("dir") == null) {
 				style.set(UnicodeBidi.INFO, UnicodeBidiValue.PLAINTEXT_VALUE);
 			}
 			break;
-		// B/BASE: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
+		// B/BASE: defaults moved to the UA default stylesheet (html-ua.css) (2026-07-19).
 		case HTMLCodes.BASEFONT: {
 			// <BASEFONT size color face>
 			HTMLStyleUtils.applyFontSize("BASEFONT", style);
@@ -747,18 +749,18 @@ public class HTMLStyle {
 			HTMLStyleUtils.applyFontColor("BASEFONT", style);
 		}
 			break;
-		// BGSOUND: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
+		// BGSOUND: defaults moved to the UA default stylesheet (html-ua.css) (2026-07-19).
 		case HTMLCodes.BDO:
-			// dir属性のisolateよりbdo固有のoverrideを優先する。
+			// Prefer the bdo-specific override over the dir attribute isolate.
 			style.set(UnicodeBidi.INFO, UnicodeBidiValue.ISOLATE_OVERRIDE_VALUE);
 			break;
 		case HTMLCodes.BODY: {
 			// <BODY background bgproperties link -vlink -alink>
 			//
-			// **余白属性(marginwidth/marginheight/topmargin/rightmargin/
-			// leftmargin/bottommargin)・bgcolor・text は html-ua.css へ移送済み**
-			// (2026-08-03、型付きattr())。ここに残るのは背景画像の資源解決と、
-			// 子孫へ配る必要のある link 色。
+			// **Margin attributes (marginwidth/marginheight/topmargin/rightmargin/
+			// leftmargin/bottommargin), bgcolor, and text were moved to html-ua.css**
+			// (2026-08-03, typed attr()). Only background image resource resolution and
+			// link colors that must be distributed to descendants remain here.
 			{
 				String str = ce.atts.getValue("bgproperties");
 				if (str != null && str.equalsIgnoreCase("fixed")) {
@@ -778,28 +780,28 @@ public class HTMLStyle {
 		}
 			break;
 		case HTMLCodes.BR:
-			// <BR clear> は html-ua.css へ移送済み(2026-08-03)
+			// <BR clear> was moved to html-ua.css (2026-08-03).
 			break;
 		case HTMLCodes.BUTTON: {
 			// <BUTTON disabled>
-			// font-size: mediumはhtml-ua.cssに移行(2026-08-02)
+			// font-size: medium moved to html-ua.css (2026-08-02).
 			HTMLStyle.applyButton(style, ce.atts.getValue("disabled") != null);
 		}
 			break;
 		case HTMLCodes.CAPTION:
-			// <CAPTION align valign> は html-ua.css へ移送済み(2026-08-03)
+			// <CAPTION align valign> was moved to html-ua.css (2026-08-03).
 			break;
 		case HTMLCodes.CENTER: {
-			// <CENTER> text-align: centerはhtml-ua.cssに移行(2026-08-02)。
-			// -cssj-html-alignは内部プロパティ(CSSテキストから設定不可)のため残す
+			// <CENTER> text-align: center moved to html-ua.css (2026-08-02).
+			// Keep -cssj-html-align because it is an internal property (not settable from CSS text).
 			style.set(CSSJHtmlAlign.INFO, CSSJHtmlAlignValue.CENTER_VALUE);
 		}
 			break;
-		// CITE: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
+		// CITE: defaults moved to the UA default stylesheet (html-ua.css) (2026-07-19).
 		case HTMLCodes.CODE: {
 			// <CODE>
-			// font-familyのCSS化はFontValueUtils.toFontFamily()のフォールバック追加と
-			// 非対称になるため見送り(html-ua.cssのコメント参照)。Java側に残す。
+			// Moving font-family to CSS was deferred because of the asymmetry with fallback insertion
+			// in FontValueUtils.toFontFamily() (see the html-ua.css comment). Keep it in Java.
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 		}
 			break;
@@ -830,21 +832,21 @@ public class HTMLStyle {
 			applyTableColumn("COL", style);
 		}
 			break;
-		// COMMENT: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
-		// DD: 既定値(margin-inline-start/page-break-before)はhtml-ua.cssに移行(2026-08-02)
-		// DEL: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
-		// DFN: 属性駆動のロジックがなく既定値も無いため、Javaケース自体が不要
+		// COMMENT: defaults moved to the UA default stylesheet (html-ua.css) (2026-07-19).
+		// DD: defaults (margin-inline-start/page-break-before) moved to html-ua.css (2026-08-02).
+		// DEL: defaults moved to the UA default stylesheet (html-ua.css) (2026-07-19).
+		// DFN: no attribute-driven logic or defaults, so no Java case is needed.
 		case HTMLCodes.DIR:
-			// <DIR type> は html-ua.css へ移送済み(2026-08-03、先頭1文字判定は
-			// 前方一致の属性セレクタで同値)
+			// <DIR type> was moved to html-ua.css (2026-08-03; testing the first character
+			// is equivalent to using a prefix-matching attribute selector).
 			break;
 		case HTMLCodes.DIV: {
 			// <DIV align>
 			HTMLStyleUtils.applyBlockAlign("DIV", style);
 		}
 			break;
-		// DL: 既定値(margin-block/page-break-before)はhtml-ua.cssに移行(2026-08-02)
-		// DT/EM: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
+		// DL: defaults (margin-block/page-break-before) moved to html-ua.css (2026-08-02).
+		// DT/EM: defaults moved to the UA default stylesheet (html-ua.css) (2026-07-19).
 		case HTMLCodes.EMBED: {
 			// <EMBED border
 			// width height type
@@ -860,8 +862,8 @@ public class HTMLStyle {
 		}
 			break;
 		case HTMLCodes.FIELDSET: {
-			// <FIELDSET align> 静的既定値(margin-block/padding/border)は
-			// html-ua.cssに移行(2026-08-02)
+			// <FIELDSET align> static defaults (margin-block/padding/border)
+			// moved to html-ua.css (2026-08-02).
 			HTMLStyleUtils.applyBlockAlign("FIELDSET", style);
 		}
 			break;
@@ -887,44 +889,44 @@ public class HTMLStyle {
 		}
 			break;
 		case HTMLCodes.H1: {
-			// <H1 align> 静的既定値はhtml-ua.cssに移行(2026-08-02)
+			// <H1 align> static defaults moved to html-ua.css (2026-08-02).
 			HTMLStyleUtils.applyBlockAlign("H1", style);
 		}
 			break;
 		case HTMLCodes.H2: {
-			// <H2 align> 静的既定値はhtml-ua.cssに移行(2026-08-02)
+			// <H2 align> static defaults moved to html-ua.css (2026-08-02).
 			HTMLStyleUtils.applyBlockAlign("H2", style);
 		}
 			break;
 		case HTMLCodes.H3: {
-			// <H3 align> 静的既定値はhtml-ua.cssに移行(2026-08-02)
+			// <H3 align> static defaults moved to html-ua.css (2026-08-02).
 			HTMLStyleUtils.applyBlockAlign("H3", style);
 		}
 			break;
 		case HTMLCodes.H4: {
-			// <H4 align> 静的既定値はhtml-ua.cssに移行(2026-08-02)
+			// <H4 align> static defaults moved to html-ua.css (2026-08-02).
 			HTMLStyleUtils.applyBlockAlign("H4", style);
 		}
 			break;
 		case HTMLCodes.H5: {
-			// <H5 align> 静的既定値はhtml-ua.cssに移行(2026-08-02)
+			// <H5 align> static defaults moved to html-ua.css (2026-08-02).
 			HTMLStyleUtils.applyBlockAlign("H5", style);
 		}
 			break;
 		case HTMLCodes.H6: {
-			// <H6 align> 静的既定値はhtml-ua.cssに移行(2026-08-02)
+			// <H6 align> static defaults moved to html-ua.css (2026-08-02).
 			HTMLStyleUtils.applyBlockAlign("H6", style);
 		}
 			break;
-		// HEAD: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
+		// HEAD: defaults moved to the UA default stylesheet (html-ua.css) (2026-07-19).
 		case HTMLCodes.HR:
-			// <HR align color noshade size width> は html-ua.css へ移送済み
-			// (2026-08-03)。片側罫線は border-block-end-* を実装して書けるように
-			// なった
+			// <HR align color noshade size width> was moved to html-ua.css
+			// (2026-08-03). Implementing border-block-end-* made it possible
+			// to express a border on only one side.
 			break;
 		case HTMLCodes.IFRAME:
 			// <IFRAME width height hspace vspace align marginwidth marginheight
-			// frameborder> は html-ua.css へ移送済み(2026-08-03)
+			// frameborder> was moved to html-ua.css (2026-08-03).
 			break;
 		case HTMLCodes.IMG: {
 			// <IMG src srcset alt border width height hspace vspace align usemap>
@@ -932,8 +934,8 @@ public class HTMLStyle {
 			HTMLStyleUtils.applyHSpaceVSpace("IMG", style);
 			HTMLStyleUtils.applyImageAlign("IMG", style);
 			String src = ce.atts.getValue("src");
-			// picture>sourceの選択候補が先(HTML仕様の選択順)。無ければ
-			// 自身のsrcsetから最高解像度候補、それも無ければsrc(2026-08-20)
+			// Prefer the picture>source candidate (HTML selection order). If absent, use the highest
+			// resolution from the image itself via srcset; if that is absent too, use src (2026-08-20).
 			if (this.pictureSources != null && !this.pictureSources.isEmpty()) {
 				src = this.pictureSources.get(0);
 			} else {
@@ -941,8 +943,8 @@ public class HTMLStyle {
 				if (fromSrcset != null && (src == null || src.isEmpty())) {
 					src = fromSrcset;
 				} else if (fromSrcset != null) {
-					// srcとsrcsetの両方がある場合も、印刷では高解像度候補を
-					// 優先する(密度記述子は同一画像の解像度違いが前提)
+					// Even when both src and srcset exist, prefer the high-resolution candidate for print
+					// (density descriptors assume different resolutions of the same image).
 					src = fromSrcset;
 				}
 			}
@@ -955,9 +957,9 @@ public class HTMLStyle {
 		case HTMLCodes.INPUT: {
 			// <INPUT type disabled size src border width height align>
 			//
-			// **font-size・hidden・align・一行入力欄の見た目は html-ua.css へ
-			// 移送済み**(2026-08-03)。ここに残るのは資源解決(type=image)と、
-			// 内部で描くチェックボックス・ラジオボタンの絵。
+			// **font-size, hidden, align, and single-line input appearance were moved to
+			// html-ua.css** (2026-08-03). Only resource resolution (type=image) and
+			// internally drawn checkbox/radio button images remain here.
 			byte type = HTMLStyleUtils.getInputType(ce.atts.getValue("type"));
 			switch (type) {
 			case HTMLStyleUtils.INPUT_IMAGE: {
@@ -983,14 +985,14 @@ public class HTMLStyle {
 			break;
 		case HTMLCodes.KBD: {
 			// <KBD>
-			// font-familyのCSS化はFontValueUtils.toFontFamily()のフォールバック追加と
-			// 非対称になるため見送り(html-ua.cssのコメント参照)。Java側に残す。
+			// Moving font-family to CSS was deferred because of the asymmetry with fallback insertion
+			// in FontValueUtils.toFontFamily() (see the html-ua.css comment). Keep it in Java.
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 		}
 			break;
 		case HTMLCodes.LEGEND: {
-			// <LEGEND> position/margin-topはhtml-ua.cssに移行(2026-08-02)。
-			// 背景色の祖先継承はCSSで表現できないため残す
+			// <LEGEND> position/margin-top moved to html-ua.css (2026-08-02).
+			// Keep background color inheritance from ancestors because CSS cannot express it.
 			CSSStyle parent = style;
 			for (;;) {
 				Value color = parent.get(BackgroundColor.INFO);
@@ -1007,12 +1009,12 @@ public class HTMLStyle {
 		}
 			break;
 		case HTMLCodes.LI:
-			// <LI type> は html-ua.css へ移送済み(2026-08-03、先頭1文字判定は
-			// 前方一致の属性セレクタで同値)
+			// <LI type> was moved to html-ua.css (2026-08-03; testing the first character
+			// is equivalent to using a prefix-matching attribute selector).
 			break;
 		case HTMLCodes.LISTING: {
-			// <LISTING> white-space/text-alignはhtml-ua.cssに移行(2026-08-02)。
-			// font-familyはtoFontFamily()の非対称性のためJava側に残す
+			// <LISTING> white-space/text-align moved to html-ua.css (2026-08-02).
+			// font-family remains in Java because of the toFontFamily() asymmetry.
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 		}
 			break;
@@ -1036,9 +1038,9 @@ public class HTMLStyle {
 			HTMLStyleUtils.applyHSpaceVSpace("MARQUEE", style);
 		}
 			break;
-		// MENU: 既定値(margin/page-break-before)はhtml-ua.cssに移行(2026-08-02)
-		// NOBR: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
-		// NOEMBED/NOFRAMES/NOLAYER/NOSCRIPT: 属性駆動のロジックがなく既定値も無いため、Javaケース自体が不要
+		// MENU: defaults (margin/page-break-before) moved to html-ua.css (2026-08-02).
+		// NOBR: defaults moved to the UA default stylesheet (html-ua.css) (2026-07-19).
+		// NOEMBED/NOFRAMES/NOLAYER/NOSCRIPT: no attribute-driven logic or defaults, so no Java case is needed.
 		case HTMLCodes.OBJECT: {
 			// <OBJECT border width height hspace vspace alt align usemap>
 			HTMLStyleUtils.applyWidthHeight("OBJECT", style);
@@ -1047,28 +1049,28 @@ public class HTMLStyle {
 			String src = ce.atts.getValue("data");
 			String type = ce.atts.getValue("type");
 			String alt = ce.atts.getValue("alt");
-			// objectの子はHTML仕様のフォールバック内容(applyBrokenImage参照)
+			// object children are HTML-specified fallback content (see applyBrokenImage).
 			HTMLStyle.applyImage(style, src, type, alt, true);
 			HTMLStyleUtils.applyImageBorder("OBJECT", style);
 		}
 			break;
 		case HTMLCodes.OL:
-			// <OL type> は html-ua.css へ移送済み(2026-08-03、先頭1文字判定は
-			// 前方一致の属性セレクタで同値)
+			// <OL type> was moved to html-ua.css (2026-08-03; testing the first character
+			// is equivalent to using a prefix-matching attribute selector).
 			break;
 		case HTMLCodes.PICTURE:
-			// <PICTURE>: 中のsourceの選択候補リストを有効化する(2026-08-20)
+			// <PICTURE>: activate the list of source selection candidates inside it (2026-08-20).
 			this.pictureSources = new java.util.ArrayList<>();
 			break;
 		case HTMLCodes.SOURCE: {
-			// <SOURCE srcset type media>(picture用。video/audioの中は
-			// pictureSourcesがnullのため拾わない)
+			// <SOURCE srcset type media> (for picture; sources inside video/audio
+			// are not collected because pictureSources is null).
 			if (this.pictureSources != null) {
 				final String type = ce.atts.getValue("type");
 				final String media = ce.atts.getValue("media");
-				// media付きのバリアントはアートディレクション用——印刷の
-				// 静的評価では保守的にスキップし、無条件のsourceかimgへ
-				// 落とす。typeは変換系が読める形式のみ受ける
+				// Variants with media are for art direction. Conservatively skip them during
+				// static evaluation for print and fall back to an unconditional source or img.
+				// Accept only types the conversion system can read.
 				if (media == null && isSupportedImageType(type)) {
 					final String picked = pickFromSrcset(ce.atts.getValue("srcset"));
 					if (picked != null) {
@@ -1079,21 +1081,21 @@ public class HTMLStyle {
 		}
 			break;
 		case HTMLCodes.P: {
-			// <P align> margin-blockはhtml-ua.cssに移行(2026-08-02)
+			// <P align> margin-block moved to html-ua.css (2026-08-02).
 			HTMLStyleUtils.applyBlockAlign("P", style);
 		}
 			break;
 		case HTMLCodes.PLAINTEXT: {
-			// <PLAINTEXT> white-space/text-alignはhtml-ua.cssに移行(2026-08-02)。
-			// font-familyはtoFontFamily()の非対称性のためJava側に残す
+			// <PLAINTEXT> white-space/text-align moved to html-ua.css (2026-08-02).
+			// font-family remains in Java because of the toFontFamily() asymmetry.
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 		}
 			break;
 		case HTMLCodes.PRE: {
-			// <PRE cols width wrap> は html-ua.css へ移送済み(2026-08-03)。
-			// **font-family だけ残る**——FontValueUtils.toFontFamily() が
-			// 既定ファミリを暗黙に足すため、CSSで monospace と書くと値が
-			// 変わってしまう(既知の非対称性)
+			// <PRE cols width wrap> was moved to html-ua.css (2026-08-03).
+			// **Only font-family remains**. FontValueUtils.toFontFamily() implicitly
+			// adds the default family, so writing monospace in CSS would change
+			// the value (a known asymmetry).
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 		}
 			break;
@@ -1103,7 +1105,7 @@ public class HTMLStyle {
 		}
 			break;
 		case HTMLCodes.RB: {
-			// <RB> XHTML5では非標準
+			// <RB> is nonstandard in XHTML5.
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RB_VALUE);
 		}
 			break;
@@ -1113,49 +1115,49 @@ public class HTMLStyle {
 		}
 			break;
 		case HTMLCodes.RTC: {
-			// <RTC>: CSS Rubyの注釈レベルコンテナ
+			// <RTC>: annotation level container in CSS Ruby.
 			style.set(CSSJRuby.INFO, CSSJRubyValue.RTC_VALUE);
 		}
 			break;
-		// S/SCRIPT: 既定値はUAデフォルトスタイルシート(html-ua.css)に移行(2026-07-19)
+		// S/SCRIPT: defaults moved to the UA default stylesheet (html-ua.css) (2026-07-19).
 		case HTMLCodes.SAMP: {
 			// <SAMP>
-			// font-familyのCSS化はFontValueUtils.toFontFamily()のフォールバック追加と
-			// 非対称になるため見送り(html-ua.cssのコメント参照)。Java側に残す。
+			// Moving font-family to CSS was deferred because of the asymmetry with fallback insertion
+			// in FontValueUtils.toFontFamily() (see the html-ua.css comment). Keep it in Java.
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 		}
 			break;
 		case HTMLCodes.SELECT: {
 			// <SELECT size> display/position/overflow/line-height/background/
-			// border/white-spaceの既定はhtml-ua.cssに移行(2026-08-02)。
-			// size(高さ)とdisabledの配色もhtml-ua.cssへ移送済み(2026-08-04)。
-			// **パディングだけ残る**——右のパディングは矢印の実寸に合わせた
-			// 装置単位の値で、CSSの長さでは書けない
+			// border/white-space defaults moved to html-ua.css (2026-08-02).
+			// size (height) and disabled colors were also moved to html-ua.css (2026-08-04).
+			// **Only padding remains**. The right padding is a device-unit value matching
+			// the actual arrow size and cannot be expressed as a CSS length.
 			LengthValue thin = ua.getBorderWidth(BorderWidthKeyword.THIN);
 			style.set(Padding.TOP, thin, CSSStyle.MODE_IMPORTANT);
-			// **矢印の実際の描画幅ぶん空ける**(2026-08-02)。SelectImageは
-			// 16単位固定の座標で描かれる(幅は定数16)ため、1emだけ空けても
-			// 小さいフォントでは選択中の文字と重なっていた。描画側を比例化
-			// するのが本筋だが、視覚回帰の危険があるので確保量を実寸へ合わせる
+			// **Reserve the actual rendered arrow width** (2026-08-02). SelectImage uses
+			// fixed 16-unit coordinates (constant width 16), so reserving only 1em
+			// overlapped the selected text at small font sizes. Scaling the drawing is the proper
+			// fix, but risks visual regressions, so match the reserved space to the actual size.
 			style.set(Padding.RIGHT, AbsoluteLengthValue.create(ua, 16),
 					CSSStyle.MODE_IMPORTANT);
 			style.set(Padding.BOTTOM, thin, CSSStyle.MODE_IMPORTANT);
 			style.set(Padding.LEFT, thin, CSSStyle.MODE_IMPORTANT);
 		}
 			break;
-		// SMALL/SPAN/STRIKE/STRONG/STYLE/SUB/SUP: 既定値はUAデフォルトスタイルシート
-		// (html-ua.css)に移行(2026-07-19)。SPANは属性駆動のロジックがなく既定値も無いため
-		// Javaケース自体が不要だった
+		// SMALL/SPAN/STRIKE/STRONG/STYLE/SUB/SUP: defaults moved to the UA default stylesheet
+		// (html-ua.css) (2026-07-19). SPAN had no attribute-driven logic or defaults,
+		// so no Java case was needed.
 		case HTMLCodes.TABLE: {
-			// <TABLE background> のみ残る。
+			// Only <TABLE background> remains.
 			//
-			// **cellspacing・cellpadding・border・bordercolor・frame・rules・
-			// width・height・hspace・vspace・bgcolor・align は html-ua.css へ
-			// 移送済み**(2026-08-03)。値をセルへ配る内部プロパティ
-			// (-cssj-html-table-border / -cssj-html-cell-padding)はCSSから
-			// 書けるようにし、attr()を計算値の段階で解くようにした。
+			// **cellspacing, cellpadding, border, bordercolor, frame, rules,
+			// width, height, hspace, vspace, bgcolor, and align were moved to html-ua.css**
+			// (2026-08-03). The internal properties that distribute values to cells
+			// (-cssj-html-table-border / -cssj-html-cell-padding) were made writable from CSS,
+			// and attr() now resolves at the computed-value stage.
 			//
-			// font-size は互換モードでのみ設定するのでここに残る。
+			// font-size remains here because it is set only in compatibility mode.
 			if (style.getUserAgent().getDocumentContext().getCompatibleMode() == CompatibleMode.NORMAL) {
 				style.set(FontSize.INFO, AbsoluteLengthValue.create(ua, ua.getFontSize(AbsoluteFontSize.MEDIUM)));
 			}
@@ -1174,35 +1176,35 @@ public class HTMLStyle {
 			// <TH bordercolor background bgcolor
 			// align valign height width nowrap colspan rowspan
 			// -charoff,-bordercolordark,-bordercolorlight>
-			// font-weight/text-alignはhtml-ua.cssに移行(2026-08-02)
+			// font-weight/text-align moved to html-ua.css (2026-08-02).
 			HTMLStyle.applyTableCell("TH", style);
 		}
 			break;
 		case HTMLCodes.TR: {
 			// <TR bordercolor background bgcolor align valign height
 			// -charoff,-bordercolordark,-bordercolorlight>
-			// align/bgcolor/height/rules=rowsはhtml-ua.cssへ移送済み
-			// (2026-08-04)。backgroundだけは資源の解決が要るので残る
+			// align/bgcolor/height/rules=rows were moved to html-ua.css
+			// (2026-08-04). Only background remains because it requires resource resolution.
 			HTMLStyleUtils.applyBackground("TR", style);
 		}
 			break;
 		case HTMLCodes.TT: {
 			// <TT>
-			// font-familyのCSS化はFontValueUtils.toFontFamily()のフォールバック追加と
-			// 非対称になるため見送り(html-ua.cssのコメント参照)。Java側に残す。
+			// Moving font-family to CSS was deferred because of the asymmetry with fallback insertion
+			// in FontValueUtils.toFontFamily() (see the html-ua.css comment). Keep it in Java.
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 		}
 			break;
 		case HTMLCodes.TEXTAREA:
-			// <TEXTAREA cols rows disabled wrap> は html-ua.css へ移送済み
+			// <TEXTAREA cols rows disabled wrap> was moved to html-ua.css.
 			// (2026-08-03)
 			break;
 		case HTMLCodes.UL:
-			// <UL type> は html-ua.css へ移送済み(2026-08-03、先頭1文字判定は
-			// 前方一致の属性セレクタで同値)
+			// <UL type> was moved to html-ua.css (2026-08-03; testing the first character
+			// is equivalent to using a prefix-matching attribute selector).
 			break;
 		case HTMLCodes.VIDEO: {
-			// <VIDEO width height poster>(display:inline-blockはhtml-ua.cssへ移行)
+			// <VIDEO width height poster> (display:inline-block moved to html-ua.css).
 			HTMLStyleUtils.applyWidthHeight("VIDEO", style);
 			String poster = ce.atts.getValue("poster");
 			if (poster != null) {
@@ -1210,12 +1212,12 @@ public class HTMLStyle {
 			}
 		}
 			break;
-		// WBR: 属性駆動のロジックがなく既定値も無いため、Javaケース自体が不要
+		// WBR: no attribute-driven logic or defaults, so no Java case is needed.
 		case HTMLCodes.XMP: {
 			// <XMP>
-			// display/white-space/text-alignはUAデフォルトスタイルシート(html-ua.css)に
-			// 移行済み(2026-07-19)。font-familyのみFontValueUtils.toFontFamily()の
-			// フォールバック追加との非対称性を避けてJava側に残す。
+			// display/white-space/text-align were moved to the UA default stylesheet (html-ua.css)
+			// (2026-07-19). Only font-family remains in Java to avoid the asymmetry
+			// with fallback insertion in FontValueUtils.toFontFamily().
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 		}
 			break;
@@ -1229,13 +1231,13 @@ public class HTMLStyle {
 			}
 		}
 
-		// @popover(Popover API、2026-08-07)。UA既定は
-		// `[popover]:not(:popover-open){display:none}`——:popover-openは
-		// JSでshowPopover()が呼ばれて初めて成立する状態で、静的なHTML
-		// (このエンジンの入力)には反映されないため、popover属性がある
-		// 要素は常にdisplay:noneが正しい既定値になる(実地: vercel.comの
-		// ロゴクリックメニュー・製品メガメニューがpage内容に重なって
-		// 描かれていた——popover属性の既定非表示が未実装だった)。
+		// @popover (Popover API, 2026-08-07). The UA default is
+		// `[popover]:not(:popover-open){display:none}`. :popover-open becomes true
+		// only after JS calls showPopover(), a state not reflected in static HTML
+		// (this engine's input). Thus, display:none is always the correct default
+		// for elements with a popover attribute (observed on vercel.com: the logo-click
+		// menu and product mega-menu rendered over page content because
+		// the popover attribute's default hiding behavior was not implemented).
 		{
 			String popover = ce.atts.getValue("popover");
 			if (popover != null) {

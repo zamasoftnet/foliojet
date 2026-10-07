@@ -15,8 +15,8 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.token.Unit;
 
 /**
- * HTMLのテーブルcellpaddingに相当する内部特性です。
- * 
+ * Internal property corresponding to HTML table cellpadding.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class CSSJHtmlCellPadding extends AbstractPrimitivePropertyInfo {
@@ -32,9 +32,9 @@ public class CSSJHtmlCellPadding extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * <b>宣言した要素(表)で解いてから継承させる</b>(2026-08-03)。
-	 * {@code attr(cellpadding px)} や {@code em} は要素依存なので、
-	 * 未解決のまま継承するとセル側で別の値になってしまう。
+	 * <b>Resolve on the declaring element (table) before inheritance</b> (2026-08-03).
+	 * {@code attr(cellpadding px)} and {@code em} depend on the element,
+	 * so inheriting them unresolved would produce different values on cells.
 	 */
 	public Value getComputedValue(Value value, CSSStyle style) {
 		return net.zamasoft.foliojet.css.util.ValueUtils.emExToAbsoluteLength(value, style);
@@ -48,7 +48,7 @@ public class CSSJHtmlCellPadding extends AbstractPrimitivePropertyInfo {
 		return true;
 	}
 
-	/** CSSから書けるようにした(2026-08-03)。{@code <length>}(attr()も可)。 */
+	/** Made writable from CSS (2026-08-03). {@code <length>} (attr() also allowed). */
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
 		final Value value = net.zamasoft.foliojet.css.util.BoxValueUtils.toPositiveLength(ua, lu);

@@ -24,52 +24,51 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.WrappedImage;
 
 /**
- * {@code shape-outside}です(css-shapes-1 §4.1、2026-08-29新設)。
+ * {@code shape-outside} (css-shapes-1 §4.1, added 2026-08-29).
  *
  * <p>
- * {@code none | [<basic-shape> || <shape-box>] | <shape-box> | <image>}。
- * basic-shapeの解析は{@code clip-path}と共通の{@link BasicShapes}。
- * basic-shapeだけを書いた場合の参照ボックスは仕様どおりmargin-box
- * ({@code clip-path}のborder-boxとは既定が異なる)。{@code <image>}は
- * {@code url()}のみ(グラデーション等は未対応=宣言ごと無視)。
+ * {@code none | [<basic-shape> || <shape-box>] | <shape-box> | <image>}.
+ * Parses basic-shape with {@link BasicShapes}, shared with {@code clip-path}.
+ * When only basic-shape is specified, the reference box is margin-box, as specified
+ * (unlike the border-box default for {@code clip-path}). {@code <image>} supports
+ * only {@code url()} (gradients, etc. are unsupported; the entire declaration is ignored).
  * </p>
  *
  * <p>
- * 浮動体(float:left/right)以外に指定しても効果はない(仕様どおり)。
- * レイアウトへの反映は{@code BoxStyleMapper.setupFloatPos}が
- * {@link #toParams}で{@code FloatPos.shapeOutside}へ載せ、行の配置
- * ({@code TextBuilder.locateLine}→{@code ExclusionSpace.scanLineBand})
- * だけがそれを見る——他の浮動体やBFCを作るブロックの回避は仕様どおり
- * マージンボックスのまま(§4.1「float positioning and stacking are not
- * affected」)。
+ * Has no effect on anything other than floats (float:left/right), as specified.
+ * For layout, {@code BoxStyleMapper.setupFloatPos} sets {@code FloatPos.shapeOutside}
+ * via {@link #toParams}. Only line placement
+ * ({@code TextBuilder.locateLine}→{@code ExclusionSpace.scanLineBand}) consults it.
+ * Other floats and blocks establishing a BFC still avoid the margin box, as specified
+ * (§4.1: "float positioning and stacking are not affected").
  * </p>
  */
 public class ShapeOutside extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new ShapeOutside();
 
 	/**
-	 * パース済みの値です。{@code image}が非nullなら画像指定で、
-	 * {@code shape}/{@code box}は使わない。
+	 * Parsed value. A non-null {@code image} specifies an image;
+	 * {@code shape}/{@code box} are then unused.
 	 *
-	 * @param shape 形状(nullなら参照ボックスのみ)
-	 * @param box   参照ボックス(basic-shapeのみの指定はmargin-box)
-	 * @param image {@code url()}画像
+	 * @param shape shape (null means only a reference box)
+	 * @param box   reference box (margin-box if only basic-shape is specified)
+	 * @param image {@code url()} image
 	 */
 	public record ShapeOutsideValue(ShapeSpec shape, ClipPathShape.ReferenceBox box, URIValue image)
 			implements Value {
 	}
 
 	/**
-	 * computed valueから浮動体パラメータを作ります(noneはnull)。
-	 * {@code shape-margin}・{@code shape-image-threshold}もここで束ねる。
+	 * Creates float parameters from the computed value (null for none).
+	 * Also bundles {@code shape-margin} and {@code shape-image-threshold} here.
 	 *
 	 * <p>
-	 * 画像指定は、この時点でUAから画素が得られる場合だけ画像形状になる。
-	 * 計測パス・構造走査パスは寸法だけのスタブ画像を返す
-	 * ({@code AbstractUserAgent.loadImage})ので、そこでは画素が無く
-	 * margin-boxへ退避する——計測パスと本レイアウトで行の折返しが
-	 * 変わりうるが、pass-count≧2の文書でも本レイアウトの結果が最終出力
-	 * なので実害は計測値のずれに留まる(既知の制限、マニュアル参照)。
+	 * An image specification becomes an image shape only if the UA can provide pixels at this point.
+	 * Measurement and structural scan passes return dimension-only stub images
+	 * ({@code AbstractUserAgent.loadImage}), so no pixels are available and they fall back to
+	 * margin-box. Line wrapping can therefore differ between measurement and actual layout.
+	 * Even for documents with pass-count≧2, actual layout determines final output, so the impact
+	 * is limited to measurement discrepancies (a known limitation; see the manual).
 	 * </p>
 	 */
 	public static ShapeOutsideParams toParams(final CSSStyle style) {
@@ -90,7 +89,7 @@ public class ShapeOutside extends AbstractPrimitivePropertyInfo {
 		return new ShapeOutsideParams(BasicShapes.toShape(v.shape(), v.box()), null, margin);
 	}
 
-	/** 画像を読み、閾値で輪郭範囲を抽出します。画素が得られなければnull。 */
+	/** Loads the image and extracts contour ranges using the threshold. Returns null if pixels are unavailable. */
 	private static ShapeOutsideParams.ShapeImage loadShapeImage(final CSSStyle style, final URIValue uriValue,
 			final double threshold) {
 		final UserAgent ua = style.getUserAgent();
@@ -103,7 +102,7 @@ public class ShapeOutside extends AbstractPrimitivePropertyInfo {
 		while (original instanceof WrappedImage wrapped) {
 			original = wrapped.getImage();
 		}
-		// SVG等のラスタでない画像・寸法だけのスタブは画素を持たない
+		// Non-raster images such as SVG and dimension-only stubs have no pixels.
 		if (!(original instanceof net.zamasoft.pdfg2d.g2d.image.RasterImage raster)) {
 			return null;
 		}

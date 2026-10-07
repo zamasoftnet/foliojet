@@ -1,11 +1,11 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 長さ値の指定方法です。Length/Dimension/Insets/Offsetで共用します。
+ * How a length value is specified. Shared by Length/Dimension/Insets/Offset.
  * <p>
- * MIXEDはcalc()が絶対長さと割合を混在させた結果(例: calc(50% + 10px))。
- * 実長さ = absolute + ratio * ref。4値ちょうどで2ビットパッキング
- * (Dimension/Insets/Offsetのflags)に収まる。
+ * MIXED is the result of calc() combining an absolute length and a percentage (e.g., calc(50% + 10px)).
+ * Actual length = absolute + ratio * ref. Exactly four values fit in two-bit packing
+ * (the flags in Dimension/Insets/Offset).
  * </p>
  */
 public enum LengthType {
@@ -14,9 +14,9 @@ public enum LengthType {
 	static final LengthType[] VALUES = values();
 
 	/**
-	 * 実際の長さを得るのに基準値(コンテナサイズ等)が要るかどうか。
-	 * RELATIVE(純粋な割合)とMIXED(calc()による絶対長さと割合の混在)は
-	 * いずれも基準値に依存する。ABSOLUTE/AUTOは依存しない。
+	 * Whether obtaining the actual length requires a reference value (container size, etc.).
+	 * RELATIVE (pure percentage) and MIXED (absolute length plus percentage via calc()) both depend
+	 * on a reference value. ABSOLUTE/AUTO do not.
 	 */
 	public boolean needsReference() {
 		return this == RELATIVE || this == MIXED;

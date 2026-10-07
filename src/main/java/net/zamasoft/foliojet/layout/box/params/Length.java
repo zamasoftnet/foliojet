@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 長さを表すオブジェクトです。
+ * An object representing a length.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -24,8 +24,8 @@ public class Length {
 	}
 
 	/**
-	 * calc()による絶対長さと割合の混在値(例: calc(50% + 10px))を生成します。
-	 * どちらか一方が0なら通常のABSOLUTE/RELATIVEへ縮退します。
+	 * Creates a mixed absolute-length/percentage value from calc() (e.g., calc(50% + 10px)).
+	 * Reduces to ordinary ABSOLUTE/RELATIVE if either component is 0.
 	 */
 	public static Length createMixed(double absolute, double ratio) {
 		if (ratio == 0) {
@@ -47,12 +47,12 @@ public class Length {
 		return this.type;
 	}
 
-	/** ABSOLUTE時は絶対長さ、RELATIVE時は割合、MIXED時は絶対成分。 */
+	/** Absolute length for ABSOLUTE, percentage for RELATIVE, absolute component for MIXED. */
 	public double getLength() {
 		return this.length;
 	}
 
-	/** MIXED時のみ意味を持つ割合成分(それ以外は常に0)。 */
+	/** Percentage component, meaningful only for MIXED (always 0 otherwise). */
 	public double getRatio() {
 		return this.ratio;
 	}

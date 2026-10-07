@@ -30,8 +30,8 @@ public final class BoxValueUtils {
 	}
 
 	/**
-	 * &lt;margin-width&gt; を値に変換します。
-	 * 
+	 * Converts &lt;margin-width&gt; to a value.
+	 *
 	 * @param ua
 	 * @param lu
 	 * @return
@@ -40,15 +40,15 @@ public final class BoxValueUtils {
 		if (token instanceof CssToken.Ident ident) {
 			return ident.is("auto") ? KeywordValue.AUTO : null;
 		}
-		// 型付き attr()(2026-08-03)。属性はその要素のものなので、解決は計算値の
-		// 段階(ValueUtils.emExToAbsoluteLength)で行う
+		// Typed attr() (2026-08-03). Attributes belong to the element, so resolve at the computed-value
+		// stage (ValueUtils.emExToAbsoluteLength).
 		Value attr = AttrValueUtils.toTypedAttr(ua, token, TypedAttrValue.Kind.LENGTH);
 		if (attr != null) {
 			return attr;
 		}
 		Value calc = CalcValueUtils.toCalc(ua, token);
 		if (calc != null) {
-			// <length-percentage>文脈なので単位なし数値のcalc()結果(例: calc(1 + 2))は無効
+			// A <length-percentage> context rejects unitless numeric calc() results (e.g. calc(1 + 2))
 			return calc instanceof RealValue ? null : calc;
 		}
 		if (token instanceof CssToken.Percent percent) {
@@ -58,10 +58,10 @@ public final class BoxValueUtils {
 	}
 
 	/**
-	 * Length/Dimension/Insets/Offsetの主フィールド(getLength()/getWidth()等)に
-	 * 格納すべき値を返します。意味はtypeに依存する(Length.create/createMixedと
-	 * 同じ規約): ABSOLUTE→絶対長さそのもの、RELATIVE→割合そのもの、
-	 * MIXED→絶対成分(割合成分は{@link #extraRatioPart}が別途持つ)。
+	 * Returns the value to store in the primary field of Length/Dimension/Insets/Offset
+	 * (getLength()/getWidth(), etc.). Meaning depends on type (same contract as
+	 * Length.create/createMixed): ABSOLUTE→absolute length, RELATIVE→ratio,
+	 * MIXED→absolute component (the ratio component is held separately by {@link #extraRatioPart}).
 	 */
 	private static double primaryPart(Value value) {
 		if (value instanceof CalcLengthValue calc) {
@@ -77,9 +77,9 @@ public final class BoxValueUtils {
 	}
 
 	/**
-	 * MIXED(calc()の絶対+割合混在)の場合のみ意味を持つ、主フィールドとは別枠の
-	 * 割合成分を返します。RELATIVE単体の場合は割合が既に{@link #primaryPart}に
-	 * 入っているため、ここは常に0です。
+	 * Returns the ratio component stored separately from the primary field, meaningful
+	 * only for MIXED (absolute + percentage in calc()). For plain RELATIVE, the ratio is
+	 * already in {@link #primaryPart}, so this always returns 0.
 	 */
 	private static double extraRatioPart(Value value) {
 		if (value instanceof CalcLengthValue calc) {
@@ -89,7 +89,7 @@ public final class BoxValueUtils {
 	}
 
 	/**
-	 * ValueからDimensionとして取得します。
+	 * Obtains a Dimension from a Value.
 	 */
 	public static Dimension toDimension(Value widthValue, Value heightValue) {
 		return Dimension.create(primaryPart(widthValue), extraRatioPart(widthValue), primaryPart(heightValue),
@@ -97,19 +97,19 @@ public final class BoxValueUtils {
 	}
 
 	/**
-	 * min-width/min-heightのValueからLengthを生成します(2026-08-29)。
-	 * 固有寸法キーワードはmin側の既定と同じ0({@link #toMinDimension}と同じ理由)。
+	 * Creates a Length from a min-width/min-height Value (2026-08-29).
+	 * Intrinsic size keywords become 0, the min-side default (same reason as {@link #toMinDimension}).
 	 */
 	public static Length toMinLength(Value value) {
 		return isIntrinsic(value) ? Length.ZERO_LENGTH : toLength(value);
 	}
 
 	/**
-	 * min-width/min-heightのValueからDimensionとして取得します(2026-08-29)。
-	 * 固有寸法キーワードは{@link #toDimension}だとAUTOになるが、min-*で
-	 * AUTO型は従来あり得ず(初期値は0)、firstPassLayout等がNONE扱いして
-	 * 寸法がNONEに化ける。min側の既定と同じ0にしておき、実体は
-	 * BlockParams.intrinsicMinLineが運ぶ。
+	 * Obtains a Dimension from a min-width/min-height Value (2026-08-29).
+	 * {@link #toDimension} converts intrinsic size keywords to AUTO, but min-* previously
+	 * never had type AUTO (initial value 0). firstPassLayout, etc. treat it as NONE, turning
+	 * the dimension into NONE. Use 0, the min-side default, and carry the actual value in
+	 * BlockParams.intrinsicMinLine.
 	 */
 	public static Dimension toMinDimension(Value widthValue, Value heightValue) {
 		return toDimension(isIntrinsic(widthValue) ? AbsoluteLengthValue.ZERO : widthValue,
@@ -117,8 +117,9 @@ public final class BoxValueUtils {
 	}
 
 	/**
-	 * Value(AbsoluteLengthValue/PercentageValue/CalcLengthValue/AUTO系キーワード)から
-	 * 対応するLengthTypeを求めます。Dimension/Insets/Offsetのtype判定で共用します。
+	 * Determines the LengthType corresponding to a Value
+	 * (AbsoluteLengthValue/PercentageValue/CalcLengthValue/AUTO keywords).
+	 * Shared by Dimension/Insets/Offset type checks.
 	 */
 	private static LengthType lengthType(Value value) {
 		if (value instanceof CalcLengthValue) {
@@ -131,17 +132,17 @@ public final class BoxValueUtils {
 			return LengthType.RELATIVE;
 		}
 		if (value == KeywordValue.NONE || value == KeywordValue.AUTO || isIntrinsic(value)) {
-			// 固有寸法キーワードはDimension上ではAUTO(2026-08-29)。実体は
-			// BlockParams.intrinsicLine等が別枠で運び、shrinkToFitで解く。
-			// 行方向以外・ブロック以外の消費者はautoとして扱えばよい
+			// Intrinsic size keywords are AUTO in Dimension (2026-08-29). BlockParams.intrinsicLine,
+			// etc. carry the actual values separately, resolved by shrinkToFit.
+			// Consumers outside the inline axis or outside blocks can treat them as auto.
 			return LengthType.AUTO;
 		}
 		throw new IllegalStateException(String.valueOf(value));
 	}
 
 	/**
-	 * 固有寸法キーワード(max-content/min-content/fit-content/
-	 * fit-content(L))であればtrueを返します(2026-08-29)。
+	 * Returns true for intrinsic size keywords (max-content/min-content/fit-content/
+	 * fit-content(L)) (2026-08-29).
 	 */
 	public static boolean isIntrinsic(Value value) {
 		return value == KeywordValue.MAX_CONTENT || value == KeywordValue.MIN_CONTENT
@@ -149,8 +150,8 @@ public final class BoxValueUtils {
 	}
 
 	/**
-	 * 固有寸法キーワードをレイアウト側の{@link IntrinsicSize}へ変換します
-	 * (2026-08-29)。キーワードでなければnull。
+	 * Converts an intrinsic size keyword to the layout-side {@link IntrinsicSize}
+	 * (2026-08-29). Returns null for other values.
 	 */
 	public static IntrinsicSize toIntrinsicSize(Value value) {
 		if (value == KeywordValue.MAX_CONTENT) {
@@ -164,7 +165,7 @@ public final class BoxValueUtils {
 		}
 		if (value instanceof FitContentValue fit) {
 			final Value argument = fit.argument();
-			// attr()の解決失敗等で長さでなくなった引数は引数無しと同じ
+			// An argument no longer representing a length, e.g. after failed attr() resolution, means no argument
 			final Length bound = (argument instanceof AbsoluteLengthValue || argument instanceof PercentageValue
 					|| argument instanceof CalcLengthValue) ? toLength(argument) : Length.AUTO_LENGTH;
 			return IntrinsicSize.fitContent(bound);
@@ -173,15 +174,15 @@ public final class BoxValueUtils {
 	}
 
 	/**
-	 * 固有寸法キーワードを解析します(css-sizing-3、2026-08-29)。
+	 * Parses intrinsic size keywords (css-sizing-3, 2026-08-29):
 	 * {@code max-content}/{@code min-content}/{@code fit-content}/
-	 * {@code fit-content(<length-percentage>)}。該当しなければnull
-	 * (呼び出し側が通常の長さ解析へ進む)。
+	 * {@code fit-content(<length-percentage>)}. Returns null if none matches
+	 * (the caller proceeds with normal length parsing).
 	 *
-	 * @param ua    ユーザーエージェント
-	 * @param token トークン
-	 * @return キーワード値。該当しなければnull
-	 * @throws PropertyException fit-content()の引数が不正
+	 * @param ua    user agent
+	 * @param token token
+	 * @return keyword value, or null if none matches
+	 * @throws PropertyException if the fit-content() argument is invalid
 	 */
 	public static Value toIntrinsicSize(UserAgent ua, CssToken token) throws PropertyException {
 		if (ValueUtils.isKeyword(token, "max-content")) {
@@ -208,7 +209,7 @@ public final class BoxValueUtils {
 	}
 
 	/**
-	 * ValueからLengthを生成します。
+	 * Creates a Length from a Value.
 	 */
 	public static Length toLength(Value value) {
 		if (value == KeywordValue.NONE || value == KeywordValue.AUTO || isIntrinsic(value)) {
@@ -227,8 +228,8 @@ public final class BoxValueUtils {
 	}
 
 	/**
-	 * 正のパーセント値またはLengthを返します。
-	 * 
+	 * Returns a positive percentage or Length.
+	 *
 	 * @param ua
 	 * @param lu
 	 * @return
@@ -241,7 +242,7 @@ public final class BoxValueUtils {
 		Value calc = CalcValueUtils.toCalc(ua, token);
 		QuantityValue value;
 		if (calc instanceof RealValue) {
-			// <length-percentage>文脈なので単位なし数値のcalc()結果(例: calc(1 + 2))は無効
+			// A <length-percentage> context rejects unitless numeric calc() results (e.g. calc(1 + 2))
 			return null;
 		} else if (calc != null) {
 			value = (QuantityValue) calc;

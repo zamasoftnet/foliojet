@@ -35,7 +35,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
- * テーブル行グループの実装です。
+ * Table row group implementation.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: TableRowGroupBox.java 1622 2022-05-02 06:22:56Z miyabe $
@@ -47,13 +47,13 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 
 	protected List<TableRowBox> rows = null;
 
-	/** 自動切断の dry-run(B-2b-6)。表の枠・ヘッダの控除は {@code TableBox} が行います。 */
+	/** Dry run of automatic cutting (B-2b-6). {@code TableBox} deducts the table frame and header. */
 	public boolean emissionCutDetermined(final double pageLimit) {
 		return net.zamasoft.foliojet.layout.builder.impl.TableBuildPlanner.cutDetermined(this.rowPageSizes(),
 				this.getPageSize(), pageLimit);
 	}
 
-	/** 各行のページ方向寸法を切断走査と同じ順で返す。行が無ければ空配列。 */
+	/** Returns each row's page-direction size in cut-traversal order. An empty array if there are no rows. */
 	public double[] rowPageSizes() {
 		if (this.rows == null) return new double[0];
 		final double[] sizes = new double[this.rows.size()];
@@ -61,7 +61,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		return sizes;
 	}
 
-	/** TableBox と同じ計画。完成表には設定しません。 */
+	/** The same plan as TableBox. Not set on complete tables. */
 	IncompleteTablePlan incompletePlan;
 
 	void updateIncompleteSize() {
@@ -118,7 +118,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		return (TableRowBox) this.rows.get(i);
 	}
 
-	/** 表示される行背景またはセル内容を持つか。匿名の空行は false。 */
+	/** Whether the group has a visible row background or cell content. False for anonymous empty rows. */
 	@Override
 	public boolean paintsAnything() {
 		if (this.params.opacity == 0) {
@@ -139,7 +139,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 	}
 
 	public final void pushFinishLayoutChildren(final IFramedBox containerBox, final Deque<FinishLayoutStep> worklist) {
-		// 元の走査順(先頭行から)を保つため、スタックへは逆順(末尾行から)でpushする
+		// Push in reverse order (last row first) to preserve the original traversal order (first row first).
 		for (int j = this.getTableRowCount() - 1; j >= 0; --j) {
 			worklist.push(IBox.step(this.getTableRow(j), containerBox));
 		}
@@ -164,10 +164,10 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		if (this.rows == null) {
 			return;
 		}
-		// 行の描画座標を先に(副作用なく)計算してから、元の走査順を保つため
-		// **逆順**でpushする
-		// 論理位置→物理座標は LayoutUtils.drawX/drawY に集約(2026-07-25、
-		// vertical-lr対応。従来はここでRL専用式を手書きしていた)
+		// First calculate row drawing coordinates without side effects, then push
+		// in **reverse order** to preserve the original traversal order.
+		// Centralized logical-position → physical-coordinate conversion in LayoutUtils.drawX/drawY
+		// (2026-07-25, vertical-lr support; previously used handwritten RL-only formulas here).
 		final int n = this.rows.size();
 		final double[] xs = new double[n];
 		final double[] ys = new double[n];
@@ -226,8 +226,8 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 			return;
 		}
 		final int structCount = pageBox.beginStruct(drawer, this.params.element, x, y);
-		// 行の描画座標を先に(副作用なく)計算してから、元の走査順を保つため
-		// **逆順**でpushする
+		// First calculate row drawing coordinates without side effects, then push
+		// in **reverse order** to preserve the original traversal order.
 		final int n = this.rows.size();
 		final double[] drawXs = new double[n];
 		final double[] drawYs = new double[n];
@@ -252,7 +252,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		if (this.rows == null) {
 			return;
 		}
-		// 元の走査順を保つため、スタックへは逆順でpushする
+		// Push onto the stack in reverse order to preserve the original traversal order.
 		for (int i = this.rows.size() - 1; i >= 0; --i) {
 			IBox box = (IBox) this.rows.get(i);
 			worklist.push(IBox.getTextStep(box, textBuff));
@@ -278,22 +278,22 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 	private SplitResult splitRows(double pageLimit, BreakMode mode, final byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		if (mode instanceof BreakMode.ForceBreakMode) {
-			// 強制改ページ
+			// Forced page break
 			TableForceBreakMode force = (TableForceBreakMode) mode;
 			TableRowGroupBox nextRowGroup = this.splitTableRowGroup();
 			int row = force.row;
 			if (row != -1) {
-				// 持ち越す際に縦に連結されたセルを分割する。自動改ページ経路
-				// (下の prevRow.cutRowspanCells())だけが呼んでおり、強制
-				// 改ページ経路は呼んでいなかった——次ページへ移った行が前
-				// ページのsourceセルを指すextendedセルのままになり、連結セルの
-				// 背景・境界・残余内容が次ページに描かれなかった
-				// (2026-07-25、独立レビューで発見)
+				// Split vertically spanning cells when carrying them forward. Only the automatic page-break
+				// path (prevRow.cutRowspanCells() below) called this; the forced page-break path did not.
+				// As a result, rows moved to the next page still held extended cells that referenced
+				// source cells on the previous page, so the spanning cells' backgrounds, borders,
+				// and remaining content were not drawn on the next page
+				// (found in an independent review, 2026-07-25).
 				if (row + 1 < this.rows.size()) {
 					final TableRowBox movedHead = (TableRowBox) this.rows.get(row + 1);
 					movedHead.cutRowspanCells();
-					// 拡張エントリの無い連結セルも切る(自動改ページ経路と対。
-					// TableRowBox.cutUnextendedRowspanCells参照)
+					// Also cut spanning cells without extension entries (paired with the automatic page-break path;
+					// see TableRowBox.cutUnextendedRowspanCells).
 					double above = 0;
 					for (int k = row; k >= 0; --k) {
 						final TableRowBox keptRow = (TableRowBox) this.rows.get(k);
@@ -314,43 +314,43 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		}
 
 		if (LayoutUtils.compare(pageLimit, 0) < 0) {
-			// 切断線より下にある場合
+			// If below the cut line
 			return SplitResult.KEEP;
 		}
 		if (LayoutUtils.compare(pageLimit, this.getPageSize()) >= 0) {
-			// 移動なし
+			// No movement
 			return SplitResult.KEEP;
 		}
 		InnerTableParams con = this.params;
 		if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0
 				&& (con.pageBreakInside == PageBreakMode.AVOID || LayoutUtils.compare(pageLimit, 0) < 0)) {
-			// 全部移動
+			// Move everything
 			return SplitResult.MOVE;
 		}
 
-		// 空の場合
+		// If empty
 		if (this.rows == null || this.rows.isEmpty()) {
 			return net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
 		}
 
-		// はみ出した行を移動
+		// Move the overflowing row
 		TableRowGroupBox nextRowGroup = null;
 		int i;
 		boolean ignoreBreakAvoid = false;
 		final double savePageLimit = pageLimit;
-		// 上から下にチェック
+		// Check from top to bottom.
 		for (i = 0; i < this.rows.size(); ++i) {
 			final TableRowBox prevRow = (TableRowBox) this.rows.get(i);
 			double prevRowSize = prevRow.getPageSize();
 			if (i < this.rows.size() - 1 && LayoutUtils.compare(pageLimit, prevRowSize) > 0) {
-				// 切断線がかかっている行まですすむ
+				// Advance to the row intersected by the cut line.
 				pageLimit -= prevRowSize;
 				continue;
 			}
 			byte xflags = (byte) (flags & (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT));
 			{
-				// ページ先頭での行フラグ(判定は TableCutter に純化)。
-				// 連結したセルが先頭行にあるかチェック
+				// Row flags at the start of a page (decision extracted into pure logic in TableCutter).
+				// Check whether the first row has spanning cells.
 				boolean linkedToTop = false;
 				if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0 && i > 0) {
 					final TableRowBox topRow = (TableRowBox) this.rows.get(0);
@@ -367,7 +367,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 			final SplitResult rowResult = prevRow.split(pageLimit, mode, xflags);
 			if (rowResult instanceof SplitResult.Keep) {
 				if (!ignoreBreakAvoid && i == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
-					// ページ先頭の場合は改ページ禁止を無視してやりなおす
+					// At the start of a page, retry while ignoring page-break avoidance.
 					ignoreBreakAvoid = true;
 					pageLimit = savePageLimit;
 					i = -1;
@@ -376,16 +376,16 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 				pageLimit -= prevRowSize;
 				continue;
 			}
-			// 一度分割されたら、以降は持ち越し
+			// Once a split occurs, carry subsequent rows forward.
 			if (rowResult instanceof SplitResult.Move) {
 				if (i == 0) {
-					// 先頭の場合は全体を移動
+					// At the start, move everything.
 					assert ((xflags & IPageBreakableBox.FLAGS_FIRST) == 0);
 					return SplitResult.MOVE;
 				}
 				TableRowBox beforeRow = (TableRowBox) this.rows.get(i - 1);
 				if (!ignoreBreakAvoid) {
-					// 行間の改ページ禁止(判定は TableCutter に純化)
+					// Page-break avoidance between rows (decision extracted into pure logic in TableCutter).
 					final boolean tableVertical = this.tableParams.flow.isVertical();
 					final boolean[] cuttable = new boolean[beforeRow.getCellCount()];
 					final boolean[] extended = new boolean[beforeRow.getCellCount()];
@@ -394,9 +394,9 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 						final Cell cell = beforeRow.getCell(j);
 						final BlockParams cellParams = cell.getCellBox().getBlockParams();
 						flowMatch[j] = cellParams.flow.isVertical() == tableVertical;
-						// rowspan行間のavoid相当(説明書4550)からのオプトアウトは
-						// 著者が明示宣言したautoに限る(2026-08-27。UA既定の
-						// セルavoid撤去後は計算値AUTOが既定になったため)
+						// Only an explicit author declaration of auto opts out of the avoid-equivalent behavior
+						// between rowspan rows (manual 4550) (2026-08-27: the computed value AUTO became the default
+						// after removal of the UA's default cell avoid).
 						cuttable[j] = cellParams.pageBreakInside == PageBreakMode.AUTO
 								&& cell.getCellBox().getTableCellPos().breakInsideDeclaredAuto && flowMatch[j];
 						extended[j] = cell.getNextExtendedCell() != null;
@@ -404,22 +404,22 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 					if (net.zamasoft.foliojet.layout.fragment.TableCutter.rowBreakAvoid(i,
 							(flags & IPageBreakableBox.FLAGS_FIRST) != 0, beforeRow.getTableRowPos().pageBreakAfter,
 							prevRow.getTableRowPos().pageBreakBefore, cuttable, extended, flowMatch)) {
-						// 行の改ページ禁止
+						// Row page-break avoidance
 						if ((xflags & IPageBreakableBox.FLAGS_FIRST_ROW) != 0) {
-							// ページ先頭行の場合は改ページ禁止を無視してやりなおす
+							// For the first row on a page, retry while ignoring page-break avoidance.
 							ignoreBreakAvoid = true;
 							pageLimit = savePageLimit;
 							i = -1;
 							continue;
 						}
-						// 一つ戻って前の行を末尾で切る
+						// Go back one row and cut the previous row at its end.
 						pageLimit = beforeRow.getPageSize() - LayoutUtils.THRESHOLD * 2;
 						i -= 2;
 						continue;
 					}
 				}
 
-				// 書字方向が違えば必ず改ページしない(判定は TableCutter に純化)
+				// Never break if writing modes differ (decision extracted into pure logic in TableCutter).
 				{
 					final boolean tableVertical = this.tableParams.flow.isVertical();
 					final boolean[] flowMatch = new boolean[prevRow.getCellCount()];
@@ -432,11 +432,11 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 					}
 				}
 
-				// 持ち越す際に縦に連結されたセルを分割する
+				// Split vertically spanning cells when carrying them forward.
 				prevRow.cutRowspanCells();
-				// 拡張エントリの無い連結セル(空trの谷間の穴)は移動行に
-				// エントリが無く上では拾われない——保持側の行から直接切る
-				// (TableRowBox.cutUnextendedRowspanCells参照)
+				// Spanning cells without extension entries (gaps among empty tr elements) have no entry
+				// in the moving row, so the above misses them. Cut them directly from the retained rows
+				// (see TableRowBox.cutUnextendedRowspanCells).
 				{
 					double above = 0;
 					for (int k = i - 1; k >= 0; --k) {
@@ -474,7 +474,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 	}
 
 	private TableRowGroupBox splitTableRowGroup() {
-		// 分割断片は継続物(アンカーなし — 新品として再生されない。P0)
+		// A split fragment is a continuation (no anchor; not replayed as a fresh box. P0).
 		final TableRowGroupBox nextRowGroup = new TableRowGroupBox(this.params, this.pos);
 		nextRowGroup.setTableParams(this.tableParams);
 		nextRowGroup.lineSize = this.lineSize;

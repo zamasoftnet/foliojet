@@ -13,12 +13,12 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code page}プロパティです(名前付きページN1b、2026-07-31——
- * consult-codex-2026-07-31-named-pages.txt Q1)。値は
- * {@code auto | <custom-ident>}。非継承だが、used valueは最も近い
- * 非autoの祖先から伝播する(CSS Page 3——通常の継承フラグではなく
- * {@link #getUsed}で解決する)。名前はCSS識別子として大文字小文字を
- * 区別し、{@code auto}のみ予約。
+ * {@code page} property (named pages N1b, 2026-07-31:
+ * consult-codex-2026-07-31-named-pages.txt Q1).
+ * Values are {@code auto | <custom-ident>}. Not inherited, but the used value propagates
+ * from the nearest non-auto ancestor (CSS Page 3; resolved via {@link #getUsed}
+ * instead of the normal inheritance flag). Names are case-sensitive CSS identifiers;
+ * only {@code auto} is reserved.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -26,8 +26,8 @@ public class PageProperty extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new PageProperty();
 
 	/**
-	 * used value(最も近い非autoの祖先のページ名)です。無ければnull
-	 * (=無名ページ)。
+	 * Used value (page name of the nearest non-auto ancestor). Null if absent
+	 * (=unnamed page).
 	 */
 	public static String getUsed(CSSStyle style) {
 		for (CSSStyle s = style; s != null; s = s.getParentStyle()) {

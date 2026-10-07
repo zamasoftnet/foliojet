@@ -113,15 +113,15 @@ import net.zamasoft.foliojet.css.impl.property.box.Margin;
 import net.zamasoft.foliojet.css.impl.property.box.Inset;
 
 /**
- * スタイルイベント(startStyle/characters/endStyle)の状態機械です
- * (StyleBuilder解体・増分5、2026-07-30。本体はStyleBuilderから逐語移動
- * ——挙動不変)。カウンタ・named string・target参照・リストマーカー・
- * quotes・generated content・::first-letterの状態を所有する。
+ * State machine for style events (startStyle/characters/endStyle)
+ * (StyleBuilder decomposition, increment 5, 2026-07-30; bodies moved verbatim from
+ * StyleBuilder, with unchanged behavior). Owns state for counters, named strings,
+ * target references, list markers, quotes, generated content, and ::first-letter.
  *
  * <p>
- * ::before/::after/::first-letterの合成イベントは自己の
- * {@code startStyle}/{@code endStyle}への再入(深さは疑似要素の
- * 入れ子で有界)。M6a Segmentの記録点は旧コードの位置のまま。
+ * Synthetic ::before/::after/::first-letter events reenter this object's
+ * {@code startStyle}/{@code endStyle} (depth bounded by pseudo-element nesting).
+ * M6a Segment recording points remain at their original positions.
  * </p>
  */
 final class StyleEventMachine {
@@ -141,14 +141,14 @@ final class StyleEventMachine {
 	private final PageSequence pageSequence;
 	private final UserAgent ua;
 
-	/** 生成コンテンツの参照解決(string-set/target-*系、増分14で分離)。 */
+	/** Generated-content reference resolution (string-set/target-* family, separated in increment 14). */
 	private final GeneratedContentResolver generated;
 	private final StyleContext styleContext;
 
 	private boolean warnedReservedCounter = false;
 	private int depth = 0;
 	private int quoteLevel = 0;
-	/** リストアイテム用のカウンタ。要素は int[]{深さ, 値} 。 */
+	/** Counter for list items. Each entry is int[]{depth, value}. */
 	private final List<int[]> listCounterStack = new ArrayList<int[]>();
 	private Marker marker = null;
 	private boolean firstLetter = false;
@@ -182,11 +182,11 @@ final class StyleEventMachine {
 			return;
 		}
 
-		// @container G4(2026-08-15段4、開発記録 §2):
-		// container-type: inline-sizeの要素は、この時点(スタイル確定・
-		// レイアウトより前)で「クエリコンテナである」ことと名前を記録する。
-		// 実測inline-sizeはレイアウト確定後(AbstractVisitor.visitBox)で
-		// 別途書き込む。擬似要素はelementKeyが安定しない(-1)ため対象外
+		// @container G4 (2026-08-15 stage 4, development record §2):
+		// For a container-type: inline-size element, record that it is a query container
+		// and its name now (style finalized, before layout).
+		// Write its measured inline-size separately after layout is finalized
+		// (AbstractVisitor.visitBox). Exclude pseudo-elements: their elementKey is unstable (-1).
 		if (!ce.isPseudoElement() && ce.elementKey >= 0
 				&& net.zamasoft.foliojet.css.impl.property.container.ContainerType.get(style) //
 						== net.zamasoft.foliojet.css.value.ContainerTypeValue.INLINE_SIZE) {
@@ -195,7 +195,7 @@ final class StyleEventMachine {
 		}
 
 		if (!ce.isPseudoElement()) {
-			// 本流のセグメント記録(M6a)
+			// Record the main-flow segment (M6a)
 			this.segment.startStyle(style);
 		}
 		this.closeAnonymousStyles(style, explDisplay);
@@ -222,8 +222,8 @@ final class StyleEventMachine {
 
 		this.emitGeneratedContent(style, ce, depth);
 
-		// 脚注F1: 本文先頭へ::footnote-marker(番号)を合成する。
-		// リストマーカー→footnote-marker→::beforeの順で本文頭に並ぶ
+		// Footnotes F1: synthesize ::footnote-marker (number) at the start of the body text.
+		// Order at body text start: list marker → footnote-marker → ::before.
 		if (footnote) {
 			this.footnotePseudo(style, CSSElement.FOOTNOTE_MARKER);
 		}
@@ -232,22 +232,22 @@ final class StyleEventMachine {
 	}
 
 	/**
-	 * 匿名スタイル(表の匿名箱)を、始まる要素の display に応じて閉じます。
-	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 * Closes anonymous styles (anonymous table boxes) according to the starting element's display.
+	 * (Extracted from startStyle on 2026-09-02; body moved unchanged.)
 	 */
 	private void closeAnonymousStyles(final CSSStyle style, final short explDisplay) {
 		if (this.context.getCurrentStyle() != null) {
 			WHILE: while (this.context.getCurrentStyle().isAnonStyle()) {
-				// 匿名スタイルの終了
+				// Close anonymous styles
 
-				// 静的要素のみに適用
+				// Apply only to static elements
 				final byte pos = CSSPosition.get(style);
 				if (pos != PositionValue.STATIC && pos != PositionValue.RELATIVE && pos != PositionValue.STICKY) {
 					break WHILE;
 				}
 
 				{
-					// テーブル関係
+					// Table-related
 					final short anonDisplay = Display.get(this.context.getCurrentStyle());
 					switch (explDisplay) {
 					case DisplayValue.TABLE_HEADER_GROUP:
@@ -306,19 +306,19 @@ final class StyleEventMachine {
 	}
 
 	/**
-	 * {@code <br>} のクリアランス・強制改ページを空のブロックで実行します。
-	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 * Performs {@code <br>} clearance and forced page breaks with an empty block.
+	 * (Extracted from startStyle on 2026-09-02; body moved unchanged.)
 	 */
 	private void emitBrClearance(final CSSStyle style, final CSSElement ce) {
 		// BR
 		if (XHTML.BR_ELEM.equalsElement(ce)) {
-			// クリアランス、強制改ページは後にブロックを生成する
+			// Clearance and forced page breaks generate a block afterward
 			ClearMode clear = Clear.get(style);
 			PageBreakMode pageBreakBefore = this.mapper.toPageBreak(PageBreakBefore.get(style), this.context.isRightSide());
 			PageBreakMode pageBreakAfter = this.mapper.toPageBreak(PageBreakAfter.get(style), this.context.isRightSide());
 			if (clear != ClearMode.NONE || pageBreakBefore != PageBreakMode.AUTO
 					|| pageBreakAfter != PageBreakMode.AUTO) {
-				// クリアランス等の実行
+				// Perform clearance, etc.
 				final FlowPos pos = new FlowPos();
 				pos.clear = clear;
 				pos.pageBreakBefore = pageBreakBefore;
@@ -336,7 +336,7 @@ final class StyleEventMachine {
 						LengthType.ABSOLUTE, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
 				params.frame = RectFrame.create(margin, RectBorder.NONE_RECT_BORDER,
 						Background.NULL_BACKGROUND, Insets.NULL_INSETS);
-				// テーブル内で問題が起こるので、匿名ボックスの処理をした後で挿入する
+				// Insert after anonymous-box processing to avoid problems inside tables
 				FlowBlockBox flowBox = new FlowBlockBox(params, pos);
 				this.sink.start(flowBox);
 				this.sink.end();
@@ -345,30 +345,31 @@ final class StyleEventMachine {
 	}
 
 	/**
-	 * {@code float: footnote} の要素なら脚注番号を進め、呼び出し(::footnote-call)を親のインライン流へ合成します。
+	 * For a {@code float: footnote} element, advances the footnote number and synthesizes a call
+	 * (::footnote-call) into the parent's inline flow.
 	 *
-	 * @return 脚注として扱うなら {@code true}
-	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 * @return {@code true} if treated as a footnote
+	 * (Extracted from startStyle on 2026-09-02; body moved unchanged.)
 	 */
 	private boolean startFootnote(final CSSStyle style, final CSSElement ce, final short explDisplay) {
-		// 脚注F1(2026-07-31、consult-codex-2026-07-31-footnote.txt §3):
-		// float:footnoteの要素は開始時に脚注番号(engine-ownedの文書通番、
-		// globalスコープの"footnote"カウンタ)を進め、呼び出し位置=親の
-		// インライン流へ::footnote-callを合成する。ページごとのリセットは
-		// ページローカル再生増分(F5)まで保留。本文のページ下端への移動は
-		// F3で配線——それまで本文はその場に描かれる
-		// display:contentsは箱を作らないのでfloatも適用されない(CSS Display 3)
+		// Footnotes F1 (2026-07-31, consult-codex-2026-07-31-footnote.txt §3):
+		// At the start of a float:footnote element, advance the footnote number
+		// (engine-owned document sequence, global "footnote" counter) and synthesize
+		// ::footnote-call at the call site in the parent's inline flow. Per-page reset
+		// is deferred until the page-local replay increment (F5). Moving body text to the
+		// page bottom is wired in F3; until then, it is drawn in place.
+		// display:contents creates no box, so float does not apply either (CSS Display 3)
 		boolean footnote = !ce.isPseudoElement() && explDisplay != DisplayValue.NONE
 				&& explDisplay != DisplayValue.CONTENTS
 				&& CSSFloat.get(style) == CSSFloatValue.FOOTNOTE;
 		if (footnote && inTableStructure(style)) {
-			// **表の構造の内側(行・行グループ・列)では脚注にしない**
-			// (2026-08-02、掃過で発覚)。呼び出し(::footnote-call)は
-			// インラインとして親へ合成されるが、表の構造の直下は
-			// インラインを置けず、TableBuilderを要求する箱の構築に
-			// 落ちて変換が失敗していた。セルの中は従来どおり脚注になる。
-			// 表の構造の直下のインラインを匿名セルへ包む機構へ載せるのが
-			// 本筋(PLANの脚注残)——それまでは通常のfloat扱いへ縮退する
+			// **Do not create footnotes inside table structure (rows, row groups, columns)**
+			// (discovered in a sweep, 2026-08-02). The call (::footnote-call) is synthesized
+			// as an inline in the parent, but inlines cannot sit directly under table structure.
+			// This fell into construction of a box requiring TableBuilder,
+			// failing conversion. Inside cells, footnotes still work as before.
+			// The proper solution is to use the mechanism that wraps inlines directly under table
+			// structure in anonymous cells (remaining footnote work in PLAN); until then, fall back to normal floats.
 			if (!this.warnedFootnoteInTableStructure) {
 				this.warnedFootnoteInTableStructure = true;
 				LOG.warning("float: footnote inside a table structure (row/row-group/column)"
@@ -380,7 +381,7 @@ final class StyleEventMachine {
 			final net.zamasoft.foliojet.ua.FootnoteArea area = this.ua.getUAContext().getFootnoteArea();
 			final boolean bottomBand = area.isPageBand()
 					&& this.pageSequence.getProgression().isVertical();
-			// 地の帯はページ開始時に一度予約するので、段ごとの容量差を作らない。
+			// Reserve the bottom band once at page start to avoid different capacities across columns.
 			for (CSSStyle ancestor = style.getParentStyle(); !bottomBand && ancestor != null; ancestor = ancestor
 					.getParentStyle()) {
 				if (ColumnCount.get(ancestor) > 1) {
@@ -392,21 +393,21 @@ final class StyleEventMachine {
 					break;
 				}
 			}
-			// F4: 論理ID(表示番号とは独立)を元要素と::footnote-callの両方へ。
-			// ページ確定時の「callがこのページに残ったか」の集合判定に使う
+			// F4: attach a logical ID (independent of the displayed number) to both the original element and ::footnote-call.
+			// Used for set membership checks at page finalization: did the call remain on this page?
 			style.footnoteId = this.nextFootnoteId++;
 			this.ua.getPassContext().getCounterScope(0, true).increment("footnote", 1);
 			this.footnotePseudo(style, CSSElement.FOOTNOTE_CALL);
-			// **注の本文は頁の脚注領域の書字方向で組む**(2026-09-03、cti.li の
-			// 報告)。縦組みの本の横組みの図(直交フロー)の説明に注があると、
-			// 注は図の向き(横組み)を継いで横に組まれ、その横幅が頁方向の
-			// 占有量になって版面の大半(実文書で 232pt/202pt)を予約していた。
-			// 図と注が同じ頁に入らず図は送られ続け、停滞の安全弁が注を
-			// 呼び出しの無い頁に置いて番号も通番に落ちた。脚注領域は頁の
-			// ものなので、注の向きは元の位置ではなく頁に従う(呼び出しは
-			// 上で合成済みなので元の位置の向きのまま)。作者が注に別の
-			// writing-mode を書いても無視する。@footnoteで領域の向きを
-			// 指定したときだけ、頁に代えてその向きで組む(F-1)。
+			// **Lay out footnote body text in the page footnote area's writing direction**
+			// (2026-09-03, cti.li report). A note in a horizontal figure's caption (orthogonal flow)
+			// inside a vertical book inherited the figure's horizontal direction; its width
+			// became page-axis occupancy, reserving most of the type area (232pt/202pt in a real document).
+			// The figure and note could not fit on the same page, so the figure kept being deferred.
+			// The stagnation safeguard placed the note on a page without its call, and numbering
+			// fell back to document sequence. The footnote area belongs to the page, so the note
+			// follows the page's direction, not its original position (the call was already synthesized
+			// above and keeps the original direction). Ignore even an author's writing-mode on the note.
+			// Only when @footnote specifies the area's direction does that direction replace the page's (F-1).
 			final WritingMode page = area.flow == null ? this.pageSequence.getProgression() : area.flow;
 			if (BlockFlow.get(style) != page) {
 				style.set(BlockFlow.INFO, switch (page) {
@@ -417,16 +418,16 @@ final class StyleEventMachine {
 			}
 			if (area.isPageBand()
 					&& this.pageSequence.getProgression().isVertical() && page == WritingMode.TB) {
-				// 箱と再生用recipeが寸法を捕捉する前に、横書きの行長を版面幅へ。
-				// 縦組み本文の行長や、図・表など元の宿主の幅は使わない。
-				// 帯の行長は用紙の横方向の内寸(物理)。ページ箱の flow で軸を
-				// 選ぶと、進行方向が確定する前に作られた最初のページ箱(TB)で
-				// 縦方向の内寸を拾う
-				// 幅は注の border-box として与え、左右の margin は 0(帯は用紙の
-				// 幅いっぱいなので、作者の padding/border を足して帯からはみ出さ
-				// ない——codex F-1 レビュー)。持ち越し先のページの幅が違う
-				// (名前付きページ)場合も呼び出しのページの幅のまま置く。
-				// 入力が先行する名前付きページはBの現在幅を使い、遅れているCの幅を凍結しない。
+				// Before the box and replay recipe capture dimensions, set horizontal line length to the type area width.
+				// Do not use vertical body text line length or the original host's width (figure, table, etc.).
+				// The band's line length is the sheet's horizontal inner dimension (physical). Choosing
+				// the axis from page box flow would select the vertical inner dimension on the first
+				// page box (TB), created before progression direction is finalized.
+				// Supply width as the note's border-box and set left/right margins to 0 (the band spans
+				// the sheet width, so adding author padding/borders must not overflow it:
+				// codex F-1 review). Even if the carryover page has a different width
+				// (named pages), retain the width of the call's page.
+				// For named pages with input ahead, use B's current width; do not freeze delayed C's width.
 				final PageBox pageBox = this.pageSequence.getCurrentPage();
 				if (pageBox != null) {
 					style.set(Width.INFO, AbsoluteLengthValue.create(this.ua, this.sink.footnoteLineWidth(pageBox)),
@@ -440,13 +441,13 @@ final class StyleEventMachine {
 			if (area.isPageBand()
 					&& this.pageSequence.getProgression().isVertical() && page.isVertical()
 					&& area.isHeightFixed()) {
-				// 縦組みの地の帯(2026-09-11)。帯の中も縦組みのとき、注の
-				// **行長は帯の用紙縦方向の内寸**になる——縦組みでは inline 軸が
-				// 物理の高さなので、横帯の width に当たるのは height。
-				// これを与えないと行長が宿主や版面から来て、注が版面の下へ
-				// はみ出して切れる(実測: 220ptの紙で y=86→230 まで伸びた)。
+				// Bottom band in vertical writing (2026-09-11). When the band itself uses vertical
+				// writing, the note's **line length is the band's inner dimension along sheet height**:
+				// the inline axis is physical height, so height corresponds to width for a horizontal band.
+				// Without this, line length comes from the host or type area, and the note extends
+				// below the type area and is clipped (observed: y=86→230 on 220pt paper).
 				//
-				// 帯の寸法記述子は間隙込みなので、行長は間隙を引いた分。
+				// Band dimension descriptors include the gap, so subtract it for line length.
 				final double band = area.height.doubleValue() - FOOTNOTE_BAND_GAP;
 				if (band > 0) {
 					style.set(Height.INFO, AbsoluteLengthValue.create(this.ua, band), CSSStyle.MODE_IMPORTANT);
@@ -460,20 +461,20 @@ final class StyleEventMachine {
 		return footnote;
 	}
 
-	/** 地の帯と本文の間の空きです({@code RootBuilder.FOOTNOTE_GAP}と同値)。 */
+	/** Gap between the bottom band and body text (equal to {@code RootBuilder.FOOTNOTE_GAP}). */
 	private static final double FOOTNOTE_BAND_GAP = 6;
 
 	/**
-	 * 表を開く前に外置きリストマーカーを確定させます(セル内容への混入を防ぐ)。
-	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 * Finalizes an outside list marker before opening a table (prevents it from entering cell content).
+	 * (Extracted from startStyle on 2026-09-02; body moved unchanged.)
 	 */
 	private void settleMarkerBeforeTable(final short explDisplay) {
-		// 外置きリストマーカーは通常、最初の文字が作る行へ遅延して置く。
-		// ただし最初の子が表なら、その文字は最初のセルの中で初めて現れる。
-		// そこまで遅延するとマーカーがセル内容に混入し、行分割時に
-		// 「マーカーだけ前断片、セル本文は後断片」となって隣のセルより
-		// 本文が後のページへ逆転する(seed 455)。表を開く前、まだ
-		// list-item の直下にいる時点でマーカーを確定させる。
+		// Outside list markers are normally deferred to the line created by the first character.
+		// If the first child is a table, however, that character first appears in its first cell.
+		// Deferring that far mixes the marker into cell content; splitting a row can then leave
+		// only the marker in the earlier fragment and the cell body in the later fragment,
+		// moving the body to a later page than neighboring cells (seed 455). Finalize the marker
+		// before opening the table, while still directly under list-item.
 		if (this.marker != null
 				&& (explDisplay == DisplayValue.TABLE || explDisplay == DisplayValue.INLINE_TABLE)) {
 			if (this.marker.box instanceof OutsideMarkerBox outsideMarker) {
@@ -484,11 +485,11 @@ final class StyleEventMachine {
 	}
 
 	/**
-	 * {@code counter-reset} / {@code counter-set} / {@code counter-increment} を適用します。
-	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 * Applies {@code counter-reset} / {@code counter-set} / {@code counter-increment}.
+	 * (Extracted from startStyle on 2026-09-02; body moved unchanged.)
 	 */
 	private void applyCounterProperties(final CSSStyle style, final int depth) {
-		// カウンターリセット
+		// Reset counters
 		Value[] resets = CounterReset.get(style);
 		if (resets != null) {
 			final PassContext pc = this.ua.getPassContext();
@@ -509,9 +510,9 @@ final class StyleEventMachine {
 			}
 		}
 
-		// カウンターの設定(counter-set、CSS Lists 3——2026-08-02)。
-		// 新しい入れ子は作らず、一番内側の既存カウンタへ代入する
-		// (探索はcounter-incrementと同じ。無ければこの要素に作る)
+		// Set counters (counter-set, CSS Lists 3; 2026-08-02).
+		// Assign to the innermost existing counter without creating a new nesting level
+		// (same lookup as counter-increment; create on this element if absent).
 		final Value[] sets = CounterSet.get(style);
 		if (sets != null) {
 			final PassContext pc = this.ua.getPassContext();
@@ -532,7 +533,7 @@ final class StyleEventMachine {
 				if (level == 0) {
 					final CounterScope root = pc.getCounterScope(0, false);
 					if (root == null || !root.defined(name)) {
-						// どこにも無い——この要素に作る
+						// Not found anywhere: create on this element
 						level = depth;
 					}
 				}
@@ -540,7 +541,7 @@ final class StyleEventMachine {
 			}
 		}
 
-		// カウンター加算
+		// Increment counters
 		final Value[] increments = CounterIncrement.get(style);
 		if (increments != null) {
 			final PassContext pc = this.ua.getPassContext();
@@ -565,15 +566,16 @@ final class StyleEventMachine {
 	}
 
 	/**
-	 * counter/attr等は入力時に解決し、全代入を配置アンカーへ渡します。
-	 * 本文の生成内容からの先行参照は、確定頁の状態と別のbuildStringStateで扱います。
+	 * Resolves counter/attr, etc. at input time and passes every assignment to a placement anchor.
+	 * Handles forward references from generated content in body text with buildStringState,
+	 * separate from finalized page state.
 	 */
 	private void applyStringSets(final CSSStyle style, final CSSElement ce, final int depth) {
 		final Value[] stringSets = StringSet.get(style);
 		if (stringSets != null) {
 			final long order = this.ua.getPassContext().getRunningRegistry().nextOrder();
 			final List<PendingStringSet> assignments = new ArrayList<PendingStringSet>();
-			// 同一要素の同名指定は後の値で置換し、同じ (name, order) を二重登録しない
+			// Later values replace same-name assignments on the same element; do not register the same (name, order) twice
 			final java.util.LinkedHashMap<String, List<Object>> byName = new java.util.LinkedHashMap<String, List<Object>>();
 			for (int i = 0; i < stringSets.length; ++i) {
 				final StringSetEntryValue entry = (StringSetEntryValue) stringSets[i];
@@ -595,7 +597,7 @@ final class StyleEventMachine {
 				assignments.add(new PendingStringSet(name, resolvedParts, order));
 				this.ua.getPassContext().getBuildStringState().begin(name, order);
 				if (!resolvedParts.contains(PendingStringSet.CONTENT)) {
-					// 同じ頁の本文側 string() が読めるよう build 時にも即時登録する
+					// Register immediately at build time too, so body-side string() on the same page can read it
 					final StringBuilder buff = new StringBuilder();
 					for (final Object part : resolvedParts) {
 						buff.append((String) part);
@@ -611,11 +613,11 @@ final class StyleEventMachine {
 	}
 
 	/**
-	 * {@code display: list-item} のマーカー(::marker)を作ります。
-	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 * Creates the marker (::marker) for {@code display: list-item}.
+	 * (Extracted from startStyle on 2026-09-02; body moved unchanged.)
 	 */
 	private void startListMarker(final CSSStyle style, final short explDisplay, final int depth) {
-		// マーカー
+		// Marker
 		if (explDisplay == DisplayValue.LIST_ITEM) {
 			int[] counter = null;
 			if (!this.listCounterStack.isEmpty()) {
@@ -667,12 +669,12 @@ final class StyleEventMachine {
 
 			int number = counter[1];
 			InlinePos pos = new InlinePos();
-			// 2026-07-21新設: ::marker(CSS Lists)。BEFORE/AFTERと同じ
-			// 仕組みでCSSElement.MARKERをカスケード解決し、限定的な
-			// プロパティ(color/font-*等)だけliの実スタイルへ上書きする。
-			// list-style-type/list-style-position等は::markerの対象
-			// プロパティではないため、常にliの実スタイル(style)から
-			// 読む(仕様どおり)。
+			// Added 2026-07-21: ::marker (CSS Lists). Resolve the cascade for CSSElement.MARKER
+			// using the same mechanism as BEFORE/AFTER, then override only limited properties
+			// (color/font-*, etc.) in li's actual style.
+			// list-style-type/list-style-position, etc. do not apply to ::marker,
+			// so always read them from li's actual style (style),
+			// as specified.
 			this.styleContext.startElement(CSSElement.MARKER);
 			final Declaration markerDeclaration = this.styleContext.merge(null);
 			CSSStyle markerStyle = style;
@@ -697,8 +699,8 @@ final class StyleEventMachine {
 				String str = counterStyles.format(number, listStyleType);
 				if (str != null) {
 					marker = new Marker();
-					// 前後の記号は組み込みなら従来の句点、著者定義なら
-					// prefix/suffix記述子(既定は".")を使う
+					// Use the previous period for built-in types; for author-defined types,
+					// use prefix/suffix descriptors (default ".").
 					marker.text = (counterStyles.prefix(listStyleType) + str
 							+ counterStyles.suffix(listStyleType) + ' ').toCharArray();
 				}
@@ -712,12 +714,12 @@ final class StyleEventMachine {
 			if (marker != null) {
 				switch (ListStylePosition.get(style)) {
 				case ListStylePositionValue.INSIDE:
-					// 内部マーカー
+					// Inside marker
 					marker.box = new net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox(params, pos);
 					this.marker(marker);
 					break;
 				case ListStylePositionValue.OUTSIDE:
-					// 外部マーカー
+					// Outside marker
 					marker.box = new OutsideMarkerBox(params, pos);
 					this.marker = marker;
 					break;
@@ -729,11 +731,11 @@ final class StyleEventMachine {
 	}
 
 	/**
-	 * ::before / ::after の {@code content} を発行します。
-	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 * Emits ::before / ::after {@code content}.
+	 * (Extracted from startStyle on 2026-09-02; body moved unchanged.)
 	 */
 	private void emitGeneratedContent(final CSSStyle style, final CSSElement ce, final int depth) {
-		// element() はマージンボックス専用。通常要素・疑似要素の宣言は警告して捨てる。
+		// element() is for margin boxes only. Warn and discard declarations on normal elements/pseudo-elements.
 		final Value[] contents = Content.get(style);
 		if (contents != null) {
 			for (final Value value : contents) {
@@ -743,15 +745,15 @@ final class StyleEventMachine {
 				}
 			}
 		}
-		// コンテンツ生成(脚注のcall/markerはF5でfootnotePseudo側の
-		// ラベルコンパイルへ移った——番号を文字として焼き込まないため)
+		// Generate content (footnote call/marker moved to footnotePseudo label compilation
+		// in F5 to avoid baking numbers into text).
 		if (ce == CSSElement.AFTER || ce == CSSElement.BEFORE) {
 			if (contents != null) {
 				for (int i = 0; i < contents.length; ++i) {
 					final Value v = contents[i];
 					switch (v) {
 					case StringValue stringValue: {
-						// 文字列
+						// String
 						String str = stringValue.getString();
 						if (str.length() > 0) {
 							char[] ch = str.toCharArray();
@@ -761,7 +763,7 @@ final class StyleEventMachine {
 					}
 						break;
 					case URIValue uriValue: {
-						// 画像
+						// Image
 						URI uri = uriValue.getURI();
 						Image image = ImageLoadDiagnostics.load(this.ua, uri,
 								(resolvedUri, source) -> this.ua.getImage(source));
@@ -778,7 +780,7 @@ final class StyleEventMachine {
 						break;
 
 					case CounterValue counter: {
-						// カウンタ
+						// Counter
 						final String name = counter.getName();
 						final short counterStyle = counter.getStyle();
 						int number = 0;
@@ -795,7 +797,7 @@ final class StyleEventMachine {
 						break;
 
 					case CountersValue counters: {
-						// カウンタ
+						// Counter
 						final String name = counters.getName();
 						final String delim = counters.getDelimiter();
 						final short counterStyle = counters.getStyle();
@@ -818,7 +820,7 @@ final class StyleEventMachine {
 						break;
 
 					case QuoteValue quote: {
-						// 引用符
+						// Quotes
 						Value[] quotesList = Quotes.get(style);
 
 						switch (quote.getQuote()) {
@@ -870,7 +872,7 @@ final class StyleEventMachine {
 					}
 						break;
 					case AttrValue attr: {
-						// 属性
+						// Attribute
 						CSSElement parentCe = style.getParentStyle().getCSSElement();
 						if (parentCe.atts != null) {
 							String str = parentCe.atts.getValue(attr.getName());
@@ -895,7 +897,7 @@ final class StyleEventMachine {
 					}
 						break;
 					case TargetCounterValue pageRefFunc: {
-						// ページ番号
+						// Page number
 						String ref = GeneratedContentResolver.targetRef(pageRefFunc.getType(), pageRefFunc.getRef(), style);
 						if (ref != null) {
 							this.pageRef(pageRefFunc, ref, style);
@@ -903,7 +905,7 @@ final class StyleEventMachine {
 					}
 						break;
 					case TargetTextValue targetText: {
-						// ターゲットのテキスト
+						// Target text
 						String ref = GeneratedContentResolver.targetRef(targetText.getType(), targetText.getRef(), style);
 						if (ref != null) {
 							this.targetText(targetText, ref);
@@ -911,8 +913,8 @@ final class StyleEventMachine {
 					}
 						break;
 					case net.zamasoft.foliojet.css.value.LeaderValue leader: {
-						// leader() L1: 正規化済みパターンをそのまま搬送する
-						// (shape・幅の割り付けはレイアウト側)
+						// leader() L1: carry the normalized pattern unchanged
+						// (shaping and width allocation belong to layout).
 						this.checkMarker();
 						this.sink.leader(leader.getPattern());
 					}
@@ -925,13 +927,13 @@ final class StyleEventMachine {
 		}
 	}
 
-	/** {@code content: element()} の警告は文書ごとに 1 回。 */
+	/** Warn about {@code content: element()} once per document. */
 	private boolean elementFunctionWarned = false;
 
 	/**
-	 * 疑似要素の {@code content} が生成に使えるかを返します。{@code element()} は
-	 * マージンボックス専用なので、含む宣言は警告して疑似要素ごと作らない
-	 * (箱・counter・string-set の副作用を残さない。codex レビュー 2026-09-05 R1a #4)。
+	 * Returns whether a pseudo-element's {@code content} can be generated. {@code element()}
+	 * is for margin boxes only, so warn and omit the entire pseudo-element when a declaration
+	 * contains it (leave no box/counter/string-set side effects; codex review 2026-09-05 R1a #4).
 	 */
 	private boolean usableGeneratedContent(final CSSStyle pseudoStyle) {
 		final Value[] contents = Content.get(pseudoStyle);
@@ -957,11 +959,11 @@ final class StyleEventMachine {
 	}
 
 	/**
-	 * 要素の ::before を合成します(合成擬似要素自身には作らない)。
-	 * (2026-09-02 に startStyle から抽出。本文は移しただけで変えていない)
+	 * Synthesizes the element's ::before (not for a synthetic pseudo-element itself).
+	 * (Extracted from startStyle on 2026-09-02; body moved unchanged.)
 	 */
 	private void synthesizeBefore(final CSSStyle style, final CSSElement ce) {
-		// before(合成擬似要素自身には::before/::afterを作らない)
+		// before (do not create ::before/::after for synthetic pseudo-elements themselves)
 		if (!ce.isPseudoElement()
 				&& CSSJInternalImage.getImage(style) == null) {
 			// :before
@@ -984,10 +986,10 @@ final class StyleEventMachine {
 	}
 
 	/**
-	 * {@code string-set}の値リストの1要素(build時に確定できるもの、
-	 * {@link ContentFunctionValue}は呼び出し側で個別に扱う)を文字列へ
-	 * 解決する。画像ベースの{@code list-style-type}は文字列として意味を
-	 * 持たないため空文字列として扱う。
+	 * Resolves one entry in the {@code string-set} value list to a string (entries that
+	 * can be finalized at build time; the caller handles {@link ContentFunctionValue}
+	 * separately). Treats image-based {@code list-style-type} as an empty string because
+	 * it has no meaning as text.
 	 */
 
 	private void counter(int number, short counterStyle, CSSStyle style) {
@@ -995,7 +997,7 @@ final class StyleEventMachine {
 		if (str != null) {
 			char[] ch = str.toCharArray();
 			this.checkMarker();
-			// カウンタ
+			// Counter
 			this.sink.characters(-1, ch, 0, ch.length, true);
 		} else {
 			final ReplacedParams rparams = new ReplacedParams();
@@ -1010,10 +1012,10 @@ final class StyleEventMachine {
 	}
 
 	/**
-	 * {@code counter-reset}/{@code counter-increment}で予約カウンタ名
-	 * ({@code pages})が指定された場合の警告(1文書につき1回のみ)。
-	 * css-page-3 §6.1の{@code pages}はUA予約であり、著者が明示しても
-	 * 無視して継続する(警告+縮退、例外にはしない方針)。
+	 * Warns when {@code counter-reset}/{@code counter-increment} specifies a reserved
+	 * counter name ({@code pages}); only once per document. css-page-3 §6.1 reserves
+	 * {@code pages} for the UA, so ignore explicit author declarations and continue
+	 * (policy: warning + fallback, not an exception).
 	 */
 	void warnReservedCounter(String name) {
 		if (!this.warnedReservedCounter) {
@@ -1023,14 +1025,14 @@ final class StyleEventMachine {
 		}
 	}
 
-	/** 頁参照が無効なときの警告は1文書に1回。 */
+	/** Warn about disabled page references once per document. */
 	private boolean warnedPageReferencesDisabled = false;
 
 	/**
-	 * 頁参照({@code processing.page-references})が無効なのに
-	 * {@code target-counter()}等を使ったことを知らせます(2026-10-04、
-	 * TECH-20261003-004 の⑩)。以前は黙って空になり、目次の頁番号が
-	 * 抜けたまま出力された。
+	 * Reports use of {@code target-counter()}, etc. while page references
+	 * ({@code processing.page-references}) are disabled (2026-10-04,
+	 * TECH-20261003-004 item ⑩). Previously this silently became empty, leaving page
+	 * numbers absent from the output table of contents.
 	 */
 	private void warnPageReferencesDisabled() {
 		if (!this.warnedPageReferencesDisabled) {
@@ -1061,7 +1063,7 @@ final class StyleEventMachine {
 			}
 			char[] ch = frag.text.toCharArray();
 			this.checkMarker();
-			// ターゲットテキスト
+			// Target text
 			this.sink.characters(-1, ch, 0, ch.length, true);
 		} catch (URISyntaxException e) {
 			this.ua.message(MessageCodes.WARN_BAD_LINK_URI, e.getMessage());
@@ -1069,9 +1071,10 @@ final class StyleEventMachine {
 	}
 
 	/**
-	 * 1パスのPDFで、{@code target-counter()}を固定幅の欄として組めるか
-	 * (2026-10-04、docs/design/one-pass-target-counter-design.md)。初版は
-	 * 十進の番号・横書き・柱の取り込みの外だけ。
+	 * Whether {@code target-counter()} can be laid out as a fixed-width field in a
+	 * one-pass PDF (2026-10-04, docs/design/one-pass-target-counter-design.md).
+	 * The initial version supports only decimal numbers, horizontal writing, and use
+	 * outside running header capture.
 	 */
 	private boolean targetCounterSlot(final TargetCounterValue pageRefFunc, final CSSStyle style) {
 		if (pageRefFunc.getSeparator() != null || this.runningCapture.isCapturing()) {
@@ -1085,8 +1088,8 @@ final class StyleEventMachine {
 		if (!net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage.available(this.ua)) {
 			return false;
 		}
-		// 縦書きの中は対象外。縦中横(text-combine-upright)の要素は自分の向きが
-		// 横になるので、祖先まで見る
+		// Exclude vertical writing. Tate-chu-yoko (text-combine-upright) elements have a
+		// horizontal direction themselves, so check ancestors too.
 		for (CSSStyle s = style; s != null; s = s.getParentStyle()) {
 			if (BlockFlow.get(s).isVertical()) {
 				return false;
@@ -1109,8 +1112,8 @@ final class StyleEventMachine {
 			URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
 					this.ua.getDocumentContext().getBaseURI(), ref);
 			if (slot) {
-				// 番号の値に依存しない欄を組み、値は描くとき(後ろの頁なら文書を
-				// 閉じるとき)に入れる
+				// Lay out a field independent of the number value, and insert the value at drawing
+				// time (at document close for references to later pages).
 				final ReplacedParams rparams = new ReplacedParams();
 				this.mapper.setupParams(rparams, style);
 				rparams.image = new net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage(this.ua, uri,
@@ -1165,7 +1168,7 @@ final class StyleEventMachine {
 				ch = buff.toString().toCharArray();
 			}
 			this.checkMarker();
-			// ページ参照
+			// Page reference
 			this.sink.characters(-1, ch, 0, ch.length, true);
 		} catch (URISyntaxException e) {
 			this.ua.message(MessageCodes.WARN_BAD_LINK_URI, e.getMessage());
@@ -1181,17 +1184,17 @@ final class StyleEventMachine {
 			return;
 		}
 		if (this.context.getHtmlRootBlock() == null && this.context.getCurrentStyle() != null) {
-			// 本文の中
-			this.segment.characters(charOffset, ch, off, len); // 本流のセグメント記録(M6a)
+			// Inside body text
+			this.segment.characters(charOffset, ch, off, len); // Record the main-flow segment (M6a)
 			if (!this.context.isInTextBlock()) {
-				// ブロック補完のためにテキストブロックの開始をチェック
-				// net.zamasoft.foliojet.layoutパッケージを直接利用する場合のために、
-				// StyledTextUnitizerでも同じ処理をしています。
+				// Check text block start for block completion
+				// StyledTextUnitizer performs the same processing for direct use
+				// of the net.zamasoft.foliojet.layout package.
 				final CSSStyle style = this.context.getCurrentStyle();
 				TEXTBLOCK: switch (WhiteSpace.get(style)) {
 				case AbstractTextParams.WHITE_SPACE_NORMAL:
 				case AbstractTextParams.WHITE_SPACE_NOWRAP:
-					// 空白か制御コード以外の文字が必要
+					// Require a character other than whitespace or a control code
 					for (int i = 0; i < len; ++i) {
 						char c = ch[i + off];
 						if (!TextUtils.isWhiteSpace(c)) {
@@ -1201,7 +1204,7 @@ final class StyleEventMachine {
 					return;
 
 				case AbstractTextParams.WHITE_SPACE_PRE_LINE:
-					// 改行コードか空白か制御コード以外の文字が必要
+					// Require a newline or a character other than whitespace or a control code
 					for (int i = 0; i < len; ++i) {
 						char c = ch[i + off];
 						if (!TextUtils.isWhiteSpace(c) || c == '\n') {
@@ -1229,8 +1232,8 @@ final class StyleEventMachine {
 					final CSSStyle firstLetterStyle = CSSStyle.getCSSStyle(this.ua, this.context.getCurrentStyle(),
 							CSSElement.FIRST_LETTER);
 					declaration.applyProperties(firstLetterStyle);
-					// initial-letter(css-inline-3)はここでfloat+文字寸法へ
-					// 脱糖して既存機構に載せる(2026-08-20)
+					// Desugar initial-letter (css-inline-3) here into float + character dimensions
+					// and use the existing mechanism (2026-08-20).
 					net.zamasoft.foliojet.css.impl.property.text.InitialLetter.desugar(firstLetterStyle,
 							this.context.getCurrentStyle());
 					if (Display.get(firstLetterStyle) != DisplayValue.NONE) {
@@ -1258,7 +1261,7 @@ final class StyleEventMachine {
 
 			if (this.context.getCurrentStyle() != null) {
 				WHILE: while (this.context.getCurrentStyle().isAnonStyle()) {
-					// 匿名スタイルの終了
+					// Close anonymous styles
 					final short anonDisplay = Display.get(this.context.getCurrentStyle());
 					switch (anonDisplay) {
 					case DisplayValue.TABLE_ROW:
@@ -1277,11 +1280,11 @@ final class StyleEventMachine {
 				}
 			}
 
-			// display:contentsの直下のテキストは、contents要素のスタイルを
-			// 継承する匿名インラインで包む(2026-08-07)。contentsは箱を
-			// 作らないため、素通しにするとテキストが外側の箱のパラメータ
-			// (=contentsより上の祖先のスタイル)で組まれ、contents要素に
-			// 書かれたcolor/font等の継承が失われる
+			// Wrap text directly under display:contents in an anonymous inline inheriting
+			// the contents element's style (2026-08-07). contents creates no box,
+			// so passing text through unchanged would lay it out with the outer box's parameters
+			// (the style of an ancestor above contents), losing inherited color/font, etc.
+			// specified on the contents element.
 			final boolean inContents = Display.get(this.context.getCurrentStyle()) == DisplayValue.CONTENTS;
 			if (inContents) {
 				final CSSStyle contentsInline = this.context.getCurrentStyle().inheritAnonStyle(CSSElement.ANON);
@@ -1292,7 +1295,7 @@ final class StyleEventMachine {
 			if (em == null || em.length() == 0) {
 				this.sink.characters(charOffset, ch, off, len, false);
 			} else {
-				// 圏点
+				// Emphasis marks
 				final char[] emc = em.toCharArray();
 				final net.zamasoft.foliojet.layout.box.params.WritingMode flow =
 						BlockFlow.get(this.context.getCurrentStyle());
@@ -1345,7 +1348,7 @@ final class StyleEventMachine {
 				}
 			}
 			if (inContents) {
-				// contents直下テキストの匿名インラインを閉じる
+				// Close the anonymous inline for text directly under contents
 				this.emitter._endStyle();
 			}
 		}
@@ -1356,7 +1359,7 @@ final class StyleEventMachine {
 		if (this.marker == null) {
 			return;
 		}
-		// 外部マーカー
+		// Outside marker
 		Marker marker = this.marker;
 		this.marker = null;
 		this.marker(marker);
@@ -1365,7 +1368,7 @@ final class StyleEventMachine {
 	private void marker(Marker marker) {
 		this.sink.start(marker.box);
 		if (marker.text != null) {
-			// マーカーのテキスト
+			// Marker text
 			this.sink.characters(-1, marker.text, 0, marker.text.length, false);
 		} else if (marker.imageBox != null) {
 			this.sink.replaced(marker.imageBox);
@@ -1373,13 +1376,13 @@ final class StyleEventMachine {
 		this.sink.end();
 	}
 
-	/** 脚注の論理ID採番(F4。表示番号のcounter "footnote"とは独立)。 */
+	/** Assigns logical footnote IDs (F4; independent of the display-number counter "footnote"). */
 	private long nextFootnoteId = 0;
 
 	/**
-	 * インラインを直接置けない表の構造(表・行・行グループ・列)の中か。
-	 * 間に{@code display:inline}が挟まることがあるので、<b>インラインを
-	 * 置ける祖先</b>(ブロック・セル・flex等)に当たるまで遡る。
+	 * Whether inside table structure that cannot directly contain inlines (table, row,
+	 * row group, column). {@code display:inline} can intervene, so walk up until reaching
+	 * <b>an ancestor that can contain inlines</b> (block, cell, flex, etc.).
 	 */
 	private static boolean inTableStructure(final CSSStyle style) {
 		for (CSSStyle parent = style.getParentStyle(); parent != null; parent = parent.getParentStyle()) {
@@ -1395,7 +1398,7 @@ final class StyleEventMachine {
 		return false;
 	}
 
-	/** インラインを直接置けない表の構造か。 */
+	/** Whether this is table structure that cannot directly contain inlines. */
 	private static boolean isTableStructure(final byte display) {
 		switch (display) {
 		case DisplayValue.TABLE:
@@ -1412,19 +1415,19 @@ final class StyleEventMachine {
 		}
 	}
 
-	/** 表構造内の脚注の警告は1文書に1回。 */
+	/** Warn about footnotes in table structure once per document. */
 	private boolean warnedFootnoteInTableStructure = false;
 
-	/** 脚注ラベルの未対応の内容の警告は1文書に1回。 */
+	/** Warn about unsupported footnote label content once per document. */
 	private boolean warnedFootnoteLabelContent = false;
 
 	/**
-	 * {@code ::footnote-call}/{@code ::footnote-marker}を合成します(脚注F1、
-	 * 2026-07-31——consult-codex-2026-07-31-footnote.txt §3)。利用者の同名
-	 * 擬似要素規則をカスケードし、{@code content}指定があればそれを
-	 * ({@link #startStyle}の生成機構で)、無ければUA既定=脚注番号
-	 * (globalスコープの"footnote"カウンタ、markerは区切り付き)を発行する。
-	 * callのUA既定は上付きの小さな番号(利用者規則が後から上書きする)。
+	 * Synthesizes {@code ::footnote-call}/{@code ::footnote-marker} (footnotes F1,
+	 * 2026-07-31; consult-codex-2026-07-31-footnote.txt §3). Cascades user pseudo-element
+	 * rules with these names. If {@code content} is specified, emits it using
+	 * {@link #startStyle}'s generation mechanism; otherwise emits the UA default:
+	 * the footnote number (global "footnote" counter, with delimiters for marker).
+	 * The UA default for call is a small superscript number (user rules override it later).
 	 */
 	private void footnotePseudo(final CSSStyle style, final CSSElement pseudoCe) {
 		this.styleContext.startElement(pseudoCe);
@@ -1439,35 +1442,35 @@ final class StyleEventMachine {
 			declaration.applyProperties(pseudoStyle);
 		}
 		if (pseudoCe == CSSElement.FOOTNOTE_CALL) {
-			// F4: ::footnote-callは**常にinline**へ強制する(意図的仕様逸脱)。
-			// callのインラインボックスはページ確定時の所属判定の唯一の事実で、
-			// 消すと脚注の配置先が決められない
-			// (consult-codex-2026-07-31-footnote-f4.txt)。
-			// **2026-08-02に「display:noneのときだけ」から拡張した**——
-			// displayの計算値は親に依存し(表の匿名整形)、
-			// `display:table`の要素にfloat:footnoteを付けると、この擬似要素が
-			// table-cellへ計算されてTableBuilderを要求し、変換が失敗していた。
-			// callは親のフローに置かれるインライン原子なので、脚注要素の
-			// 表整形を継がせてはならない
+			// F4: force ::footnote-call to **always be inline** (deliberate specification deviation).
+			// The call's inline box is the sole fact used to determine page ownership at finalization;
+			// removing it makes the footnote's placement destination indeterminate
+			// (consult-codex-2026-07-31-footnote-f4.txt).
+			// **Expanded on 2026-08-02 from only when display:none**:
+			// computed display depends on the parent (anonymous table formatting).
+			// With float:footnote on a `display:table` element, this pseudo-element computed
+			// to table-cell, required TableBuilder, and failed conversion.
+			// A call is an inline atom placed in the parent's flow, so it must not inherit
+			// table formatting from the footnote element.
 			pseudoStyle.set(Display.INFO, DisplayValue.INLINE_VALUE, CSSStyle.MODE_IMPORTANT);
 		} else if (Display.get(pseudoStyle) == DisplayValue.NONE) {
-			// markerは消してよい
+			// The marker may be hidden
 			this.styleContext.endElement();
 			return;
 		}
 		this.startStyle(pseudoStyle);
-		// F5(2026-07-31、consult-codex-2026-07-31-footnote-f5.txt): 番号を
-		// 文字として焼き込まず、footnoteId付きの未解決ラベル原子
-		// (FootnoteLabelImageを持つInlineReplacedBox)として発行する。
-		// ページ確定時にRootBuilderが「callが残ったページ」ごとに1から
-		// 採番して解決する。欄幅は桁数に依存しない固定欄(意図的仕様逸脱)
+		// F5 (2026-07-31, consult-codex-2026-07-31-footnote-f5.txt): do not bake the number
+		// into text; emit an unresolved label atom with footnoteId
+		// (an InlineReplacedBox holding FootnoteLabelImage).
+		// At page finalization, RootBuilder resolves numbering from 1 on each page where
+		// calls remain. Field width is fixed regardless of digit count (deliberate specification deviation).
 		final boolean isMarker = pseudoCe == CSSElement.FOOTNOTE_MARKER;
 		String prefix = "";
 		String suffix = isMarker ? ". " : "";
 		final Value[] labelContents = Content.get(pseudoStyle);
 		if (labelContents != null) {
-			// 受け付けるのは literal* counter(footnote,decimal) literal* のみ。
-			// それ以外は型付きunsupported——黙って文書通番を焼き込まない
+			// Accept only literal* counter(footnote,decimal) literal*.
+			// Everything else is typed unsupported; do not silently bake in document-wide numbering.
 			final StringBuilder pre = new StringBuilder();
 			final StringBuilder post = new StringBuilder();
 			boolean seenCounter = false;
@@ -1478,16 +1481,16 @@ final class StyleEventMachine {
 						&& cv.getStyle() == net.zamasoft.foliojet.css.value.ListStyleTypeValue.DECIMAL) {
 					seenCounter = true;
 				} else if (!this.warnedFootnoteLabelContent) {
-					// 仕様の制限は変換の失敗ではなく警告にする(設計レビュー 2026-09-02
-					// §1-6)。対応していない内容は無視して、番号と文字列だけで組む
+					// Treat specification limitations as warnings, not conversion failures (design review 2026-09-02
+					// §1-6). Ignore unsupported content and lay out only numbers and strings.
 					this.warnedFootnoteLabelContent = true;
 					this.ua.message(MessageCodes.WARN_INEFFECTIVE_CSS_COMBINATION, "::footnote-call content",
 							net.zamasoft.foliojet.message.MessageCodeUtils.detail("2823.footnote-label"));
 				}
 			}
 			if (!seenCounter) {
-				// 番号を含まないliteralのみのラベルは通常の生成内容として発行
-				// (ページ採番の対象にしない——記号脚注等)
+				// Emit literal-only labels without numbers as ordinary generated content
+				// (exclude from page numbering; e.g. symbolic footnotes).
 				final String text = pre.toString();
 				if (!text.isEmpty()) {
 					final char[] chars = text.toCharArray();
@@ -1525,8 +1528,8 @@ final class StyleEventMachine {
 		final CSSElement ce = style.getCSSElement();
 		if (!ce.isPseudoElement()
 				&& CSSJInternalImage.getImage(style) == null) {
-			// :after(合成擬似要素自身には作らない——脚注F1でce判定を
-			// AFTER/BEFORE個別からisPseudoElementへ一般化)
+			// :after (do not create for synthetic pseudo-elements themselves: footnotes F1
+			// generalized the ce check from separate AFTER/BEFORE checks to isPseudoElement)
 			boolean br = XHTML.BR_ELEM.equalsElement(ce);
 			CSSElement afterCe = CSSElement.AFTER;
 			this.styleContext.startElement(afterCe);
@@ -1559,34 +1562,34 @@ final class StyleEventMachine {
 			this.styleContext.endElement();
 		}
 
-		// 匿名スタイルを終了
+		// Close anonymous styles
 		while (this.context.getCurrentStyle().isAnonStyle()) {
 			this.emitter._endStyle();
 		}
 
-		// 明示されたスタイルを終了
+		// Close the explicit style
 		style = this.context.getCurrentStyle();
 		if (!style.getCSSElement().isPseudoElement()) {
-			// 本流のセグメント記録(M6a)
+			// Record the main-flow segment (M6a)
 			this.segment.endStyle(style);
 		}
 		this.emitter._endStyle();
 		if (this.context.getCurrentStyle() != null) {
 			short explDisplay = Display.get(style);
 			WHILE: while (this.context.getCurrentStyle().isInsertedAnonStyle()) {
-				// 匿名スタイルの終了
+				// Close anonymous styles
 				final short anonDisplay = Display.get(this.context.getCurrentStyle());
 				switch (explDisplay) {
 				case DisplayValue.TABLE_CELL:
 					switch (anonDisplay) {
 					case DisplayValue.TABLE_ROW:
-						// セルを終わるときは行で止める
+						// Stop at the row when closing a cell
 						break WHILE;
 					}
 					break;
 				case DisplayValue.TABLE_ROW:
 					switch (anonDisplay) {
-					// 行を終わるときは行グループで止める
+					// Stop at the row group when closing a row
 					case DisplayValue.TABLE_ROW_GROUP:
 						break WHILE;
 					}
@@ -1598,7 +1601,7 @@ final class StyleEventMachine {
 				case DisplayValue.TABLE:
 				case DisplayValue.INLINE_TABLE:
 					switch (anonDisplay) {
-					// 匿名セルが生成されている場合は行で止める
+					// Stop at the row if an anonymous cell was generated
 					case DisplayValue.TABLE_ROW:
 						break WHILE;
 					}
@@ -1612,7 +1615,7 @@ final class StyleEventMachine {
 		}
 
 		if (!style.getCSSElement().isPseudoElement()) {
-			// リスト用カウンタのクリア
+			// Clear list counters
 			if (!this.listCounterStack.isEmpty()) {
 				int[] counter = (int[]) this.listCounterStack.get(this.listCounterStack.size() - 1);
 				if (counter[0] > this.depth) {

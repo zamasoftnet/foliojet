@@ -14,9 +14,9 @@ import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
- * 2026-07-20: {@code -cssj-direction-mode}廃止に伴い、縦書き時のX/Y入れ替え
- * (実世界のCSS/ブラウザには存在しない挙動)を削除した。background-repeatは
- * 常に物理軸のまま扱う。
+ * 2026-07-20: Removed the X/Y swap in vertical writing when {@code -cssj-direction-mode}
+ * was abolished (real-world CSS/browsers have no such behavior).
+ * background-repeat always uses physical axes.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -31,7 +31,7 @@ public class BackgroundRepeat extends AbstractPrimitivePropertyInfo {
 		this("background-repeat");
 	}
 
-	/** mask-repeat等、同じ文法を使う特性のための派生用(2026-08-29)。 */
+	/** For derived properties such as mask-repeat that use the same grammar (2026-08-29). */
 	protected BackgroundRepeat(String name) {
 		super(name);
 	}

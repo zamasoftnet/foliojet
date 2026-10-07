@@ -1,6 +1,6 @@
 package net.zamasoft.foliojet.css.value;
 
-/** CSS Rubyの{@code ruby-overhang}値。 */
+/** The CSS Ruby {@code ruby-overhang} value. */
 public enum RubyOverhangValue implements Value {
 	AUTO("auto"), NONE("none");
 

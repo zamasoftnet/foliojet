@@ -13,11 +13,12 @@ import net.zamasoft.foliojet.css.value.WritingModeVariantValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * sideways の種別を独立して運ぶ内部プロパティです。
+ * Internal property carrying the sideways variant independently.
  *
  * <p>
- * 標準 {@code writing-mode} からの設定は後続段階で有効にします。この段階では
- * params・再生・断片化を通して状態を失わないための hidden longhand です。
+ * Settings from the standard {@code writing-mode} are enabled at a later stage.
+ * At this stage, this is a hidden longhand that preserves state through params,
+ * replay, and fragmentation.
  * </p>
  */
 public class WritingModeVariant extends AbstractPrimitivePropertyInfo {

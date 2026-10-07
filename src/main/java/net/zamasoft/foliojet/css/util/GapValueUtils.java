@@ -5,39 +5,37 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code row-gap} / {@code column-gap} / {@code gap} の値を読む窓口です。
+ * Entry point for reading {@code row-gap} / {@code column-gap} / {@code gap} values.
  *
  * <p>
- * <b>3箇所が同じ形を読む</b>({@code RowGap}・{@code ColumnGap}・
- * {@code GapShorthand})ので、変換をここへ集める。散らばっていたために
- * <b>calc() を受けるようにしたつもりで1箇所だけ直す</b>という間違いが
- * 起きやすい形だった。
+ * <b>Three places read the same form</b> ({@code RowGap}, {@code ColumnGap},
+ * {@code GapShorthand}), so centralize conversion here. Scattered handling made it
+ * easy to <b>change only one place while believing calc() support had been added</b>.
  *
  * <p>
- * <b>calc() を必ず通すこと</b>(2026-08-04、実地コーパス第9波)。それまで
- * {@code gap} は素の長さしか読まず、{@code calc()} を書くと宣言ごと捨てて
- * いた。**Tailwind CSS v4 は {@code gap-4} を
- * {@code gap: calc(var(--spacing) * 4)} に展開する**ので、
- * <b>Tailwind v4 のページは間隔が軒並みゼロ</b>になる。同じ {@code calc()}
- * が {@code margin}・{@code padding} では効いていたぶん気づきにくかった。
- * 回帰は {@code files/unittest/0510-flex/gap-calc.html}。
+ * <b>Always allow calc()</b> (2026-08-04, real-world corpus wave 9). Until then,
+ * {@code gap} read only plain lengths and discarded the whole declaration for
+ * {@code calc()}. **Tailwind CSS v4 expands {@code gap-4} to
+ * {@code gap: calc(var(--spacing) * 4)}**, so <b>gaps on Tailwind v4 pages all became zero</b>.
+ * This was harder to notice because the same {@code calc()} worked in {@code margin}
+ * and {@code padding}. Regression: {@code files/unittest/0510-flex/gap-calc.html}.
  *
  * @author MIYABE Tatsuhiko
  */
 public final class GapValueUtils {
 
 	private GapValueUtils() {
-		// ユーティリティ
+		// Utility
 	}
 
 	/**
-	 * 間隔の値({@code <length>} か {@code calc()})を読みます。負の値と
-	 * 単位なしの数値は無効(仕様どおり)。読めなければ{@code null}。
+	 * Reads a gap value ({@code <length>} or {@code calc()}). Negative values and
+	 * unitless numbers are invalid (as specified). Returns {@code null} if unreadable.
 	 */
 	public static Value toGap(UserAgent ua, CssToken token) {
 		final Value calc = CalcValueUtils.toCalc(ua, token);
 		if (calc != null) {
-			// <length>文脈なので単位なし数値のcalc()結果(例: calc(1 + 2))は無効
+			// A <length> context rejects unitless numeric calc() results (e.g. calc(1 + 2))
 			if (calc instanceof net.zamasoft.foliojet.css.value.RealValue) {
 				return null;
 			}

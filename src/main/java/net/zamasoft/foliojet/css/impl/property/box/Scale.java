@@ -16,12 +16,12 @@ import net.zamasoft.foliojet.css.value.css3.TransformValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 個別変換プロパティ{@code scale}です(css-transforms-2 §7、
- * 2026-08-29新設)。
+ * Individual transform property {@code scale} (css-transforms-2 §7,
+ * added 2026-08-29).
  *
  * <p>
- * {@code none | [ <number> | <percentage> ]{1,3}}。1値は等方、2値はx/y、
- * 3つ目(z)は読み捨てる。{@code 150%}は{@code 1.5}と同じ。
+ * {@code none | [ <number> | <percentage> ]{1,3}}. One value is uniform; two values are x/y.
+ * Reads and discards the third (z). {@code 150%} equals {@code 1.5}.
  * </p>
  */
 public class Scale extends AbstractPrimitivePropertyInfo {

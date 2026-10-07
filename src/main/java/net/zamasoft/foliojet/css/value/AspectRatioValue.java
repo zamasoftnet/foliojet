@@ -1,16 +1,16 @@
 package net.zamasoft.foliojet.css.value;
 
 /**
- * {@code aspect-ratio}の値です(css-sizing-4 §5、2026-08-29)。
- * {@code auto | <ratio> | auto && <ratio>}——{@code ratio}は幅/高さ
- * (0=比率指定なし)。{@code auto}併記は置換要素で「固有比率があれば
- * それを優先し、無ければ指定比率を使う」意味になる。退化した比率
- * ({@code 0}・無限大)は仕様どおり{@code auto}と同じ扱いにする。
+ * An {@code aspect-ratio} value (css-sizing-4 §5, 2026-08-29).
+ * {@code auto | <ratio> | auto && <ratio>}: {@code ratio} is width/height
+ * (0=no specified ratio). For replaced elements, accompanying {@code auto} means
+ * prefer the intrinsic ratio if present, otherwise use the specified ratio.
+ * Treat degenerate ratios ({@code 0}, infinity) as {@code auto}, as specified.
  *
  * @author MIYABE Tatsuhiko
  */
 public final class AspectRatioValue implements Value {
-	/** {@code auto}(既定)。 */
+	/** {@code auto} (default). */
 	public static final AspectRatioValue AUTO_VALUE = new AspectRatioValue(true, 0);
 
 	private final boolean auto;
@@ -23,8 +23,8 @@ public final class AspectRatioValue implements Value {
 	}
 
 	/**
-	 * @param auto  {@code auto}が併記されているか
-	 * @param ratio 幅/高さ(退化した値はautoへ畳む)
+	 * @param auto  whether {@code auto} accompanies the ratio
+	 * @param ratio width/height (fold degenerate values into auto)
 	 */
 	public static AspectRatioValue create(final boolean auto, final double ratio) {
 		if (!(ratio > 0) || Double.isInfinite(ratio)) {
@@ -33,17 +33,17 @@ public final class AspectRatioValue implements Value {
 		return new AspectRatioValue(auto, ratio);
 	}
 
-	/** {@code auto}が(単独または併記で)指定されているか。 */
+	/** Whether {@code auto} is specified (alone or with a ratio). */
 	public boolean isAuto() {
 		return this.auto;
 	}
 
-	/** 指定比率があるか。 */
+	/** Whether a ratio is specified. */
 	public boolean hasRatio() {
 		return this.ratio > 0;
 	}
 
-	/** 幅/高さ(無ければ0)。 */
+	/** Width/height (0 if absent). */
 	public double getRatio() {
 		return this.ratio;
 	}

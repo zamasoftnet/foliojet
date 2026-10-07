@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 行のパラメータです。
+ * Line parameters.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: AbstractLineParams.java 1552 2018-04-26 01:43:24Z miyabe $
@@ -24,7 +24,7 @@ public abstract class AbstractLineParams extends AbstractTextParams {
 	public Length textIndent = Length.ZERO_LENGTH;;
 
 	/**
-	 * 行の高さです。
+	 * Line height.
 	 */
 	public double lineHeight = 0;
 

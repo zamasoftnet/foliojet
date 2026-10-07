@@ -29,8 +29,8 @@ public class MaxWidth extends AbstractPrimitivePropertyInfo {
 		if (style.isDeclared(INFO)) {
 			return style.get(INFO);
 		}
-		// 2026-07-20、-cssj-direction-mode廃止によりmax-inline-size/
-		// max-block-sizeへ一本化。
+		// 2026-07-20: abolished -cssj-direction-mode and consolidated support into max-inline-size/
+		// max-block-size.
 		if (!image) {
 			PrimitivePropertyInfo logicalInfo = BlockFlow.get(style).isVertical() ? MaxBlockSize.INFO : MaxInlineSize.INFO;
 			if (style.isDeclared(logicalInfo)) {
@@ -49,9 +49,9 @@ public class MaxWidth extends AbstractPrimitivePropertyInfo {
 	}
 
 	private Value getDefault(UserAgent ua) {
-		// **初期値は none**(2026-08-17、max-heightと同じ理由)。
-		// UAの{@code getMaxSize()}はPDFの用紙寸法の限界であって、
-		// 箱の寸法の上限ではない。
+		// **The initial value is none** (2026-08-17, for the same reason as max-height).
+		// The UA's {@code getMaxSize()} is the PDF paper dimension limit,
+		// not a box dimension limit.
 		return KeywordValue.NONE;
 	}
 
@@ -73,7 +73,7 @@ public class MaxWidth extends AbstractPrimitivePropertyInfo {
 			return this.getDefault(ua);
 		}
 
-		// 固有寸法キーワード max-content/min-content/fit-content(L)(2026-08-29)
+		// Intrinsic sizing keywords max-content/min-content/fit-content(L) (2026-08-29).
 		final Value intrinsic = BoxValueUtils.toIntrinsicSize(ua, lu);
 		if (intrinsic != null) {
 			return intrinsic;

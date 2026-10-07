@@ -20,24 +20,24 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * <b>論理境界プロパティ</b>です(2026-08-03新設)——
- * {@code border-block-start-*} / {@code border-block-end-*} /
- * {@code border-inline-start-*} / {@code border-inline-end-*} の12個。
+ * <b>Logical border properties</b> (added 2026-08-03):
+ * the 12 {@code border-block-start-*} / {@code border-block-end-*} /
+ * {@code border-inline-start-*} / {@code border-inline-end-*} properties.
  *
  * <p>
- * 書字方向によってどの物理辺になるかが変わる({@link LogicalSide})。
- * {@code block-size}/{@code inline-size}と同じ扱いで、<b>物理側が宣言されて
- * いればそちらが勝つ</b>——CSSの規定では出現順で決まるが、この実装は
- * 既存の論理寸法プロパティに合わせる(既知の逸脱)。
+ * The physical side depends on the writing direction ({@link LogicalSide}).
+ * As with {@code block-size}/{@code inline-size}, <b>a declared physical property wins</b>.
+ * CSS specifies source order, but this implementation follows the existing logical dimension
+ * properties (a known deviation).
  *
  * <p>
- * <b>なぜ要るか</b>: HTMLの{@code <hr noshade>}は「block方向の終端側だけに
- * 罫線を引く」という指定で、これを表現する語彙がCSS側に無かったためJavaに
- * 残っていた(2026-08-03のHTMLStyle移送で判明)。論理プロパティ自体は
- * Baselineに入っている標準機能で、利用者にも直接役立つ。
+ * <b>Why these are needed</b>: HTML {@code <hr noshade>} requests a border only at the block-end
+ * side. This remained in Java because CSS lacked the vocabulary to express it
+ * (found during the 2026-08-03 HTMLStyle move). Logical properties themselves are standard
+ * features in Baseline and directly useful to users.
  */
 public final class LogicalBorder extends AbstractPrimitivePropertyInfo {
-	/** 何を指定するか。 */
+	/** What the property specifies. */
 	public enum Aspect {
 		WIDTH("width"), STYLE("style"), COLOR("color");
 
@@ -63,7 +63,7 @@ public final class LogicalBorder extends AbstractPrimitivePropertyInfo {
 		return BY_ASPECT_SIDE[aspect.ordinal()][side.ordinal()];
 	}
 
-	/** 登録用に全12個を返します。 */
+	/** Returns all 12 properties for registration. */
 	public static LogicalBorder[] all() {
 		final LogicalBorder[] all = new LogicalBorder[Aspect.values().length * LogicalSide.values().length];
 		int i = 0;
@@ -76,8 +76,8 @@ public final class LogicalBorder extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * 物理辺{@code side}に対応する論理プロパティが宣言されていればそれを返し、
-	 * 無ければnull。物理側の宣言が優先されるかは呼び出し側が決める。
+	 * Returns the logical property corresponding to physical {@code side} if declared,
+	 * or null otherwise. The caller decides whether a physical declaration takes precedence.
 	 */
 	public static Value declaredFor(CSSStyle style, Aspect aspect, Side side) {
 		for (final LogicalSide logical : LogicalSide.values()) {
@@ -131,8 +131,8 @@ public final class LogicalBorder extends AbstractPrimitivePropertyInfo {
 		if (this.aspect == Aspect.STYLE) {
 			return value;
 		}
-		// 幅も色も型付き attr() を解く(2026-08-04)。色は解けなければ
-		// currentColor へ落とす——BorderColor.get() は ColorValue を要求する
+		// Resolve typed attr() for both widths and colors (2026-08-04). Fall back to
+		// currentColor for unresolved colors; BorderColor.get() requires a ColorValue.
 		value = ValueUtils.emExToAbsoluteLength(value, style);
 		if (this.aspect == Aspect.COLOR && (value == KeywordValue.NONE || value == KeywordValue.DEFAULT)) {
 			value = style.get(net.zamasoft.foliojet.css.impl.property.text.CSSColor.INFO);
@@ -142,7 +142,7 @@ public final class LogicalBorder extends AbstractPrimitivePropertyInfo {
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
-		// 型付き attr()(2026-08-03)。属性から罫線の幅・色を取る
+		// Typed attr() (2026-08-03). Get border width/color from attributes.
 		final Value attrValue = net.zamasoft.foliojet.css.util.AttrValueUtils.toTypedAttr(ua, lu, this.aspect == Aspect.COLOR ? net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.COLOR
 						: net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.LENGTH);
 		if (attrValue != null) {

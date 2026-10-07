@@ -3,12 +3,12 @@ package net.zamasoft.foliojet.css.value;
 import net.zamasoft.pdfg2d.gc.font.FontFeatureSet;
 
 /**
- * {@code font-variant-caps}の値です。
+ * A {@code font-variant-caps} value.
  *
  * <p>
- * 旧CSS2の{@code font-variant: small-caps}が使っていた値型を引き継ぎ、
- * CSS Fontsのcapsロングハンド全体を表します。指定値はOpenType featureへ
- * 変換され、{@code CSSStyle.getFontStyle()}からpdfg2dへ搬送されます。
+ * Carries forward the value type used by the old CSS2 {@code font-variant: small-caps}
+ * and represents the full CSS Fonts caps longhand. Specified values map to OpenType features
+ * and pass from {@code CSSStyle.getFontStyle()} to pdfg2d.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -48,8 +48,8 @@ public enum FontVariantValue implements Value {
 	}
 
 	/**
-	 * バーリアントコードを返します。
-	 * 
+	 * Returns the variant code.
+	 *
 	 * @return
 	 */
 	public byte getFontVariant() {
@@ -57,9 +57,8 @@ public enum FontVariantValue implements Value {
 	}
 
 	/**
-	 * 対応するOpenType featureタグを返します。{@code all-*}は小文字用と
-	 * 大文字用の両タグを有効にします。フォントに該当featureが無い場合は
-	 * pdfg2d側で自然に無効果になります。
+	 * Returns the corresponding OpenType feature tags. {@code all-*} enables both the lowercase
+	 * and uppercase tags. If the font lacks the feature, it naturally has no effect in pdfg2d.
 	 */
 	public FontFeatureSet featureSet() {
 		return switch (this.fontVariant) {

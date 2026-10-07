@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.layout.box.params;
 
 /**
- * 通常のフローの配置パラメータです。
+ * Normal-flow positioning parameters.
  * 
  * @author MIYABE Tatsuhiko
  * @version $Id: FlowPos.java 1552 2018-04-26 01:43:24Z miyabe $
@@ -11,24 +11,24 @@ public class FlowPos extends AbstractNormalFlowPos implements Pos {
 	public static final byte COLUMN_SPAN_ALL = -1;
 
 	/**
-	 * ボックスの水平方向配置です。
+	 * Horizontal box alignment.
 	 */
 	public Align align = Align.START;
 
 	/**
-	 * マルチカラムの連結です。
+	 * Multi-column spanning.
 	 */
 	public byte columnSpan = COLUMN_SPAN_SINGLE;
 
 	/**
-	 * Grid itemの明示配置です(Grid G4a)。Grid直下の子としてitem化
-	 * されるときだけ参照される(それ以外の要素では無視)。
+	 * Explicit Grid item placement (Grid G4a). Read only when the element becomes an item as a direct
+	 * child of a Grid container (ignored for other elements).
 	 */
 	public GridItemSpec gridItem = GridItemSpec.AUTO;
 
 	/**
-	 * Flex itemの伸縮・整列指定です(Flex F1a)。Flex直下の子として
-	 * item化されるときだけ参照される(それ以外の要素では無視)。
+	 * Flex item sizing and alignment settings (Flex F1a). Read only when the element becomes an item
+	 * as a direct child of a Flex container (ignored for other elements).
 	 */
 	public FlexItemSpec flexItem = FlexItemSpec.DEFAULT;
 

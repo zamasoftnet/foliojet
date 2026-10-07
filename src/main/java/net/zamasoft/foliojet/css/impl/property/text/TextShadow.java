@@ -48,10 +48,10 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 			if (src[i].y == null) {
 				y = 0;
 			} else {
-				// **src[i].yを使う**(2026-08-18修正)。従来はコピーミスでxを
-				// 参照しており、`text-shadow: 0 1px`の影が本体と同座標に
-				// 落ちて二重描画になっていた(reveal.jsドキュメントの
-				// コードブロックで監査が重なり319対を報告した実欠陥)
+				// **Use src[i].y** (fixed 2026-08-18). A copy error previously referenced x,
+				// placing the `text-shadow: 0 1px` shadow at the same coordinates as the text
+				// and drawing it twice (an actual defect where the audit reported 319 overlapping
+				// pairs in code blocks in the reveal.js documentation).
 				y = ((AbsoluteLengthValue) ValueUtils.emExToAbsoluteLength(src[i].y, style)).getLength();
 			}
 			if (src[i].color == null) {
@@ -59,7 +59,7 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 			} else {
 				color = src[i].color.getColor();
 			}
-			// ぼかし半径(2026-08-29)。従来は解析だけして捨てていた
+			// Blur radius (2026-08-29). Previously parsed and discarded.
 			final double blur = src[i].blur == null ? 0
 					: Math.max(0, ((AbsoluteLengthValue) ValueUtils.emExToAbsoluteLength(src[i].blur, style)).getLength());
 			shadows[i] = new net.zamasoft.foliojet.layout.box.params.TextShadow(x, y, blur, color);
@@ -108,11 +108,11 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 				color = null;
 				continue;
 			}
-			// 色は長さの前後どちらにも書ける(css-text-decoration-3)。
-			// 2026-08-29: 実サイトの `0 -1px 0 rgba(0,0,0,.3)` は3つ目の長さ
-			// (ぼかし半径)で解析失敗していた。ぼかしは2026-08-29から描画にも
-			// 反映する(box-shadowと同じ多段の半透明近似)。currentcolorは
-			// 色なし(=描画時にその要素のcolor)と同じ
+			// Color may appear before or after lengths (css-text-decoration-3).
+			// 2026-08-29: real-world `0 -1px 0 rgba(0,0,0,.3)` failed to parse at the third length
+			// (blur radius). Since 2026-08-29, blur also affects rendering
+			// (the same multi-step translucent approximation as box-shadow). currentcolor
+			// equals an omitted color (=the element's color at rendering time).
 			if (color == null && ColorValueUtils.isCurrentColor(lu)) {
 				color = KeywordValue.DEFAULT;
 				continue;
@@ -146,7 +146,7 @@ public class TextShadow extends AbstractPrimitivePropertyInfo {
 			throw new PropertyException();
 		}
 		if (x == null || y == null) {
-			// 影にはx/yの2つの長さが要る(色だけ・長さ1つは無効)
+			// A shadow needs two lengths, x/y (color only or one length is invalid).
 			throw new PropertyException();
 		}
 		if (color == null || color != KeywordValue.TRANSPARENT) {
