@@ -1407,6 +1407,68 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
+	/**
+	 * A document excluded one by one from the off-paper checks (invariants 6 and 10) when its overflow is the
+	 * author's but no predicate can state it (2026-10-08, user decision). Only off-paper checks; every other
+	 * invariant still applies. The predicates come first, so this catches only documents they do not exclude.
+	 *
+	 * <p>
+	 * Matched by the document (generator version and seed in its title, no extreme scenarios), not by the sweep
+	 * seed: fit maps a sweep seed to the first candidate the predicates do not excuse ({@link #generateFit}), so
+	 * changing a predicate can map the same sweep seed to another document. {@code seed} and {@code profile} record
+	 * where the document stopped the sweep; {@code FuzzOraclePredicateTest} checks that they still lead to it.
+	 * </p>
+	 *
+	 * @param seed     sweep seed that stopped
+	 * @param profile  generator profile of that sweep ({@link #generatorProfile})
+	 * @param document generator seed of the document (the number in its title)
+	 * @param reason   why the overflow is the author's (part of the aggregation category name)
+	 * @param date     date of the decision
+	 */
+	record IndividualExclusion(int seed, String profile, int document, String reason, String date) {
+	}
+
+	static final List<IndividualExclusion> INDIVIDUAL_EXCLUSIONS = List.of(
+			// Triage §23: column-reverse wrapping flex items with min-width:8em in a table cell inside an inline-block on
+			// vertical-lr paper 120 pt wide make the unbreakable box more than three sheets wide (Chrome too).
+			new IndividualExclusion(12_180_614, "fit-v1", 239_490_920, "割れない箱の中のcolumnのflexが紙3枚より広い",
+					"2026-10-08"));
+
+	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
+
+	/** The individual exclusion for this document, or {@code null}. */
+	static IndividualExclusion individualExclusion(final String html) {
+		final Matcher title = DOCUMENT_TITLE.matcher(html);
+		if (!title.find() || Integer.parseInt(title.group(1)) != GENERATOR_VERSION
+				|| html.contains("data-fuzz-profile=\"extreme-v")) {
+			return null;
+		}
+		final int document = Integer.parseInt(title.group(2));
+		for (final IndividualExclusion exclusion : INDIVIDUAL_EXCLUSIONS) {
+			if (exclusion.document() == document) {
+				return exclusion;
+			}
+		}
+		return null;
+	}
+
+	private static final class ExcludedIndividually extends AssertionError {
+		private static final long serialVersionUID = 1L;
+		final IndividualExclusion exclusion;
+
+		ExcludedIndividually(final String message, final IndividualExclusion exclusion) {
+			super(message);
+			this.exclusion = exclusion;
+		}
+	}
+
+	private static void throwIfIndividuallyExcluded(final Generated doc, final String detail) {
+		final IndividualExclusion exclusion = individualExclusion(doc.html());
+		if (exclusion != null) {
+			throw new ExcludedIndividually(detail + " [個別: " + exclusion.reason() + "]", exclusion);
+		}
+	}
+
 	/** Roughly extract the category (defect class) from a failure message. */
 	static String classify(final Throwable t) {
 		for (Throwable c = t; c != null; c = c.getCause()) {
@@ -1434,6 +1496,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		if (t instanceof ExcludedByUnfittableContent) {
 			return "(除外)収まらない内容: " + ((ExcludedByUnfittableContent) t).reason;
+		}
+		if (t instanceof ExcludedIndividually) {
+			return "(除外)個別: " + ((ExcludedIndividually) t).exclusion.reason();
 		}
 		// We catch a wrapper (AssertionError), so concatenate **all messages in the cause chain**
 		// for classification. Looking only at t.getMessage() always yields the wrapper message,
@@ -3020,6 +3085,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (orthogonalAxisChanges(doc.html()) >= 2) {
 			throw new ExcludedByNestedOrthogonalFlow(detail + " [直交フロー3段以上]");
 		}
+		throwIfIndividuallyExcluded(doc, detail);
 		fail(detail);
 	}
 
@@ -3163,6 +3229,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (orthogonalAxisChanges(doc.html()) >= 2) {
 			throw new ExcludedByNestedOrthogonalFlow(detail + " [直交フロー3段以上]");
 		}
+		throwIfIndividuallyExcluded(doc, detail);
 		fail(detail);
 	}
 
@@ -3851,6 +3918,26 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * This identifies only strict seeds 132786 (126 pt float in 99 pt) and 143513
 	 * (89 pt float in an approximately 25.3 pt column) as untypesettable widths caused by author declarations.
 	 * </p>
+	 *
+	 * <p>
+	 * Widths are read as bounds (2026-10-08, fit seeds 12002121 and 12248803: a 107 pt float inside a box with
+	 * {@code width:8em;min-width:8em;max-width:90%} = 48 pt, and a 119 pt float inside such a 64 pt float).
+	 * Previously only the first {@code width} in pt was read, both as the float's width and as the containing
+	 * width, so em widths were invisible and widths that {@code max-width} or {@code min-width} override were
+	 * taken as exact. A float or descendant counts with its width lower bound ({@link #widthLowerBound}); a box
+	 * narrows the width available to its descendants only with an exact width, the larger of its last
+	 * {@code width} and last {@code min-width} (both pt/em), which bounds {@code max(min, min(width, max))} from
+	 * above. Only boxes that width declarations size count: floats are blockified (CSS 2.1 §9.7) unless they are
+	 * tables; non-replaced inline boxes, table parts and flex items (which grow and shrink; only their
+	 * {@code min-width} is a lower bound) do not. em uses the body font size and is not read inside boxes whose
+	 * font size changes (a style declaration or a UA font size, {@link #UA_FONT_SIZE_TAGS}). The comparison is
+	 * physical: a box wider than a box with an exact width cannot fit in it, whatever writing modes lie between
+	 * (in 12002121 an orthogonal {@code horizontal-tb} box lies between, and Chrome puts the float at
+	 * x=-58.99 like Copper's -59.0). Only column division needs the container itself to be no wider than that
+	 * width. Two codex reviews that day found six counterexamples outside the generator's shapes (column-count on
+	 * flex/grid containers, inline boxes and orthogonal blocks; display:contents/none; absolute positioning);
+	 * {@code FuzzOraclePredicateTest} pins them down.
+	 * </p>
 	 */
 	static boolean hasOverwideFloat(final String html) {
 		final Matcher pageWidthMatcher = PAGE_WIDTH_PROPERTY.matcher(html);
@@ -3863,11 +3950,29 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (!(pageContentWidth > 0)) {
 			return false;
 		}
+		// Boxes that are not generated or not laid out in flow have other containing blocks (codex review 2026-10-08;
+		// neither occurs in STRICT documents).
+		if (html.contains("display:none") || OUT_OF_FLOW.matcher(html).find()) {
+			return false;
+		}
+		final Matcher fm = FONT_SIZE.matcher(html);
+		final double font = fm.find() ? Double.parseDouble(fm.group(1)) : Double.NaN;
 
 		final java.util.ArrayDeque<Double> childWidths = new java.util.ArrayDeque<>();
 		final java.util.ArrayDeque<Double> floatLimits = new java.util.ArrayDeque<>();
+		final java.util.ArrayDeque<Boolean> flexParents = new java.util.ArrayDeque<>();
+		final java.util.ArrayDeque<Boolean> fontChanged = new java.util.ArrayDeque<>();
+		final java.util.ArrayDeque<Boolean> verticals = new java.util.ArrayDeque<>();
+		// Is the element's width at most the width it passes on (childWidths before multicol division)? Only then may
+		// columns divide that width.
+		final java.util.ArrayDeque<Boolean> bounded = new java.util.ArrayDeque<>();
+		final Matcher bm = BODY_WRITING_MODE.matcher(html);
 		childWidths.push(Double.valueOf(pageContentWidth));
 		floatLimits.push(Double.valueOf(Double.POSITIVE_INFINITY));
+		flexParents.push(Boolean.FALSE);
+		fontChanged.push(Boolean.FALSE);
+		verticals.push(Boolean.valueOf(bm.find() && bm.group(1).startsWith("vertical")));
+		bounded.push(Boolean.TRUE);
 		final int bodyAt = html.indexOf("<body");
 		final Matcher tag = TAG_OR_WM.matcher(html);
 		if (bodyAt >= 0) {
@@ -3878,6 +3983,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 				if (childWidths.size() > 1) {
 					childWidths.pop();
 					floatLimits.pop();
+					flexParents.pop();
+					fontChanged.pop();
+					verticals.pop();
+					bounded.pop();
 				}
 				continue;
 			}
@@ -3885,23 +3994,54 @@ public class RandomDocumentFuzzTest extends TestCase {
 			if (attrs.endsWith("/")) {
 				continue;
 			}
+			final String name = String.valueOf(tag.group(2)).toLowerCase(java.util.Locale.ROOT);
 			final double containingWidth = childWidths.peek().doubleValue();
-			final Matcher widthMatcher = STYLE_WIDTH.matcher(attrs);
-			final Double explicitWidth = widthMatcher.find() ? Double.valueOf(widthMatcher.group(1)) : null;
-			final boolean floating = STYLE_FLOAT.matcher(attrs).find();
-			if (explicitWidth != null && explicitWidth.doubleValue() > floatLimits.peek().doubleValue()) {
+			final boolean flexItem = flexParents.peek().booleanValue();
+			final boolean ownFont = fontChanged.peek().booleanValue()
+					|| STYLE_FONT_SIZE_DECLARATION.matcher(attrs).find() || UA_FONT_SIZE_TAGS.contains(name);
+			final double em = ownFont ? Double.NaN : font;
+			// display:contents generates no box; a flex item does not float (float does not apply to flex items).
+			final boolean noBox = STYLE_DISPLAY_CONTENTS.matcher(attrs).find();
+			final boolean floating = !flexItem && !noBox && STYLE_FLOAT.matcher(attrs).find();
+			final boolean sized = !flexItem && !noBox && !TABLE_PARTS.contains(name)
+					&& (floating ? !STYLE_DISPLAY_TABLE.matcher(attrs).find()
+							: !STYLE_DISPLAY_UNSIZED.matcher(attrs).find()
+									&& (!INLINE_BY_DEFAULT.contains(name) || STYLE_DISPLAY_SIZED.matcher(attrs).find()));
+			final double lower = flexItem ? zeroIfNaN(lastLength(STYLE_MIN_WIDTH_DECLARATION, attrs, em, 0))
+					: sized ? widthLowerBound(attrs, em) : 0;
+			if (lower > floatLimits.peek().doubleValue()) {
 				// Descendant explicit widths make an auto-width float's shrink-to-fit width exceed its containing width
 				// (seed 865035). Widths in other branches are absent from the stack.
 				return true;
 			}
-			if (explicitWidth != null && floating
-					&& explicitWidth.doubleValue() > containingWidth) {
+			if (floating && lower > containingWidth) {
 				return true;
 			}
+			final double exact = sized ? exactWidthUpperBound(attrs, em) : Double.NaN;
 
-			double availableForChildren = explicitWidth == null ? containingWidth : explicitWidth.doubleValue();
+			double availableForChildren = Double.isNaN(exact) ? containingWidth : exact;
+			boolean vertical = verticals.peek().booleanValue();
+			final Matcher wm = STYLE_WRITING_MODE.matcher(attrs);
+			if (wm.find()) {
+				vertical = wm.group(1).startsWith("vertical");
+			}
+			// Columns divide the width only in horizontal writing (vertical columns stack along the height), only for a
+			// block container (column-count does not apply to flex/grid containers, tables or non-replaced inline boxes;
+			// codex review 2026-10-08), and only for a width that bounds the container: an exact width, or an in-flow
+			// block that fills its container (a shrink-to-fit container widens with its content's minimum width).
+			final boolean inlineBox = !floating && (STYLE_DISPLAY_INLINE.matcher(attrs).find()
+					|| INLINE_BY_DEFAULT.contains(name) && !STYLE_DISPLAY_SIZED.matcher(attrs).find());
+			final boolean blockContainer = !noBox && !inlineBox && !TABLE_PARTS.contains(name)
+					&& !STYLE_DISPLAY_NOT_MULTICOL.matcher(attrs).find();
+			// A block fills its container only in flow, not shrinking to fit, in horizontal writing within horizontal writing
+			// (an orthogonal block's auto width is fit-content, codex review 2026-10-08). Inline boxes and boxes that are not
+			// generated pass their container's width through.
+			final boolean parentBounded = bounded.peek().booleanValue();
+			final boolean fills = blockContainer && !floating && !flexItem && !vertical && !verticals.peek().booleanValue()
+					&& !STYLE_DISPLAY_SHRINK_TO_FIT.matcher(attrs).find();
+			final boolean boundedHere = !Double.isNaN(exact) || parentBounded && (fills || inlineBox || noBox);
 			final Matcher countMatcher = STYLE_COLUMN_COUNT.matcher(attrs);
-			if (countMatcher.find()) {
+			if (!vertical && blockContainer && boundedHere && countMatcher.find()) {
 				final int count = Integer.parseInt(countMatcher.group(1));
 				final Matcher gapMatcher = STYLE_COLUMN_GAP.matcher(attrs);
 				final double gap = gapMatcher.find() ? Double.parseDouble(gapMatcher.group(1)) : 0;
@@ -3911,10 +4051,56 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			childWidths.push(Double.valueOf(availableForChildren));
 			floatLimits.push(Double.valueOf(floating
-					? (explicitWidth == null ? containingWidth : explicitWidth.doubleValue())
+					? (Double.isNaN(exact) ? containingWidth : exact)
 					: floatLimits.peek().doubleValue()));
+			flexParents.push(Boolean.valueOf(STYLE_FLEX.matcher(attrs).find()));
+			fontChanged.push(Boolean.valueOf(ownFont));
+			verticals.push(Boolean.valueOf(vertical));
+			bounded.push(Boolean.valueOf(boundedHere));
 		}
 		return false;
+	}
+
+	private static final Pattern STYLE_DISPLAY_CONTENTS = Pattern
+			.compile("(?:^|[;\\s\"])display\\s*:\\s*contents\\s*(?:;|\"|'|$)");
+	private static final Pattern STYLE_DISPLAY_INLINE = Pattern
+			.compile("(?:^|[;\\s\"])display\\s*:\\s*inline\\s*(?:;|\"|'|$)");
+	/** Display values whose box is not a block container, so column-count does not apply (css-multicol-1 §3). */
+	private static final Pattern STYLE_DISPLAY_NOT_MULTICOL = Pattern.compile(
+			"(?:^|[;\\s\"])display\\s*:\\s*(?:inline|(?:inline-)?(?:flex|grid|table[a-z-]*)|table[a-z-]*|none|contents)"
+					+ "\\s*(?:;|\"|'|$)");
+	/** Display values whose box is sized to its content (shrink-to-fit) rather than filling its container. */
+	private static final Pattern STYLE_DISPLAY_SHRINK_TO_FIT = Pattern.compile(
+			"(?:^|[;\\s\"])display\\s*:\\s*(?:inline|inline-[a-z]+|table[a-z-]*)\\s*(?:;|\"|'|$)");
+
+	/** Tags whose UA style sets a font size ({@code html-ua.css}); em inside them is not the body font size. */
+	static final Set<String> UA_FONT_SIZE_TAGS = Set.of("big", "small", "sub", "sup", "h1", "h2", "h3", "h5", "h6",
+			"button", "select", "input", "textarea");
+	/** Table display values (a floated table stays a table, whose width is only a minimum). */
+	private static final Pattern STYLE_DISPLAY_TABLE = Pattern
+			.compile("(?:^|[;\\s\"])display\\s*:\\s*(?:inline-)?table[a-z-]*\\s*(?:;|\"|'|$)");
+
+	/**
+	 * Upper bound (pt) of the width of a box that width declarations size: the larger of its last {@code width}
+	 * and last {@code min-width} (pt/em), since {@code max-width} only narrows. {@code NaN} if the last
+	 * {@code width} is not a pt/em length (auto, percentages, keywords, {@code calc()}) or a {@code min-width}
+	 * is declared that is not one.
+	 */
+	static double exactWidthUpperBound(final String attrs, final double font) {
+		final double width = lastLength(STYLE_WIDTH_DECLARATION, attrs, font, Double.NaN);
+		if (Double.isNaN(width)) {
+			return Double.NaN;
+		}
+		final boolean minDeclared = STYLE_MIN_WIDTH_DECLARATION.matcher(attrs).find();
+		final double min = lastLength(STYLE_MIN_WIDTH_DECLARATION, attrs, font, Double.NaN);
+		if (minDeclared && Double.isNaN(min)) {
+			return Double.NaN;
+		}
+		return minDeclared ? Math.max(width, min) : width;
+	}
+
+	private static double zeroIfNaN(final double value) {
+		return Double.isNaN(value) ? 0 : value;
 	}
 
 	/** Whether a table descends from a layout with at least two columns inside a flex ancestor. */
@@ -4324,15 +4510,20 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final java.util.ArrayDeque<Boolean> flexParents = new java.util.ArrayDeque<>();
 		// The generator selects the border model in document style rules (table{border-collapse:…}).
 		final boolean collapsedTables = STYLE_BORDER_COLLAPSE.matcher(html).find();
-		verticals.push(Boolean.valueOf(bm.find() && bm.group(1).startsWith("vertical")));
+		final String rootMode = bm.find() ? bm.group(1) : "horizontal-tb";
+		verticals.push(Boolean.valueOf(rootMode.startsWith("vertical")));
 		extents.push(new double[] { Double.parseDouble(widthProperty.group(1)) - 2 * margin,
 				Double.parseDouble(heightProperty.group(1)) - 2 * margin });
 		flexParents.push(Boolean.FALSE);
+		// Do this element and all its ancestors keep the body's writing mode (the same block progression)?
+		final java.util.ArrayDeque<Boolean> bodyModePaths = new java.util.ArrayDeque<>();
+		bodyModePaths.push(Boolean.TRUE);
 		// Are all ancestors from body to here divs with only frames and margins ({@link #isPlainWrapper})? The table start
 		// cannot precede the content start, and available width cannot exceed the paper's content width.
 		final java.util.ArrayDeque<Boolean> plainPaths = new java.util.ArrayDeque<>();
 		plainPaths.push(Boolean.TRUE);
-		// Direction of a float allowed to wrap a table directly, with only wrapper-div ancestors ({@link #floatWrapperSide}; horizontal only).
+		// Direction of a float allowed to wrap a table directly, with only wrapper-div ancestors ({@link #floatWrapperSide};
+		// horizontal floats only; one in vertical writing is END_ANCHORED or 'L' by the block progression).
 		final java.util.ArrayDeque<Character> floatSides = new java.util.ArrayDeque<>();
 		floatSides.push(Character.valueOf(NOT_FLOATED));
 		final double[] pageExtent = extents.peek();
@@ -4350,6 +4541,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 					flexParents.pop();
 					plainPaths.pop();
 					floatSides.pop();
+					bodyModePaths.pop();
 				}
 				continue;
 			}
@@ -4436,12 +4628,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 					}
 				}
 			}
+			char side = plainPaths.peek().booleanValue() && !vertical ? floatWrapperSide(name, attrs) : NOT_FLOATED;
+			if (side != NOT_FLOATED && verticals.peek().booleanValue()) {
+				// A horizontal float in vertical writing (an orthogonal flow): its table's columns run along the paper's
+				// block axis, anchored by the block progression, whatever side it floats to.
+				side = !bodyModePaths.peek().booleanValue() ? NOT_FLOATED
+						: rootMode.equals("vertical-rl") ? END_ANCHORED : 'L';
+			}
+			final boolean parentVertical = verticals.peek().booleanValue();
 			verticals.push(Boolean.valueOf(vertical));
 			extents.push(new double[] { width, height });
 			flexParents.push(Boolean.valueOf(STYLE_FLEX.matcher(attrs).find()));
-			floatSides.push(Character.valueOf(plainPaths.peek().booleanValue() && !vertical
-					? floatWrapperSide(name, attrs) : NOT_FLOATED));
-			plainPaths.push(Boolean.valueOf(plainPaths.peek().booleanValue() && isPlainWrapper(name, attrs, vertical)));
+			floatSides.push(Character.valueOf(side));
+			plainPaths.push(Boolean.valueOf(plainPaths.peek().booleanValue()
+					&& isPlainWrapper(name, attrs, vertical, parentVertical)));
+			bodyModePaths.push(Boolean.valueOf(bodyModePaths.peek().booleanValue()
+					&& (!wm.find(0) || wm.group(1).equals(rootMode))));
 		}
 		return minWidth ? UNFITTABLE_MIN_WIDTH
 				: column ? UNFITTABLE_COLUMN
@@ -4952,6 +5154,25 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * ({@code width} properties for vertical writing, {@code height} properties for horizontal writing).
 	 */
 	static boolean isPlainWrapper(final String name, final String attrs, final boolean vertical) {
+		return !STYLE_WRITING_MODE.matcher(attrs).find() && isPlainWrapper(name, attrs, vertical, vertical);
+	}
+
+	/** Declarations that only control fragmentation or restate a div's default display. */
+	private static final Pattern NEUTRAL_WRAPPER_DECLARATION = Pattern
+			.compile("\\s*(?:display\\s*:\\s*block|page-break-inside\\s*:\\s*[a-z]+)\\s*");
+	private static final Pattern WRITING_MODE_DECLARATION = Pattern
+			.compile("\\s*writing-mode\\s*:\\s*([a-z-]+)\\s*");
+
+	/**
+	 * Extend {@link #isPlainWrapper(String, String, boolean)} with {@code display:block},
+	 * {@code page-break-inside} and a {@code writing-mode} that keeps the parent's axis ({@code parentVertical})
+	 * (2026-10-08, fit seed 12137870: a table in {@code <div style="page-break-inside:avoid;margin:0pt">} and
+	 * {@code <div style="display:block;writing-mode:vertical-lr;">} on {@code vertical-rl} paper). Between
+	 * {@code vertical-rl} and {@code vertical-lr} only the block progression reverses; lines still start at the
+	 * top and the line length stays the parent's, so a table's columns still run from the content start.
+	 */
+	static boolean isPlainWrapper(final String name, final String attrs, final boolean vertical,
+			final boolean parentVertical) {
 		if (!name.equalsIgnoreCase("div")) {
 			return false;
 		}
@@ -4965,7 +5186,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 		for (final String declaration : style.group(1).split(";")) {
 			if (declaration.isBlank() || declaration.trim().equals("float:none") || declaration.trim().equals("position:static")
 					|| (vertical ? BLOCK_SIZE_DECLARATION_VERTICAL : BLOCK_SIZE_DECLARATION_HORIZONTAL).matcher(declaration)
-							.matches()) {
+							.matches()
+					|| NEUTRAL_WRAPPER_DECLARATION.matcher(declaration).matches()) {
+				continue;
+			}
+			final Matcher mode = WRITING_MODE_DECLARATION.matcher(declaration);
+			if (mode.matches()) {
+				if (mode.group(1).startsWith("vertical") != parentVertical) {
+					return false;
+				}
 				continue;
 			}
 			final Matcher frame = FRAME_DECLARATION.matcher(declaration);
@@ -5066,10 +5295,24 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (grid == null || boundaryLowerBounds(grid)[grid.columns()] <= TABLE_SHRINK_TOLERANCE * extent) {
 			return false;
 		}
+		if (floatSide == END_ANCHORED) {
+			return cellBeforeFromEnd(grid, extent, -margin);
+		}
 		final boolean bordered = !collapsedTables && html.contains(SOLID_CELL_BORDER);
 		final boolean fromStart = cellBeyondFromStart(html, grid, 0, extent + margin, font, collapsedTables, bordered);
 		return floatSide == 'R' ? fromStart && cellBeforeFromEnd(grid, extent, -margin) : fromStart;
 	}
+
+	/**
+	 * For {@link #tableColumnBeyondPage}, a float whose right edge cannot pass the content's right edge (2026-10-08,
+	 * fit seed 12072875): a {@code horizontal-tb} float on {@code vertical-rl} paper, every ancestor keeping the
+	 * paper's writing mode. Its block-start edge is its right edge, placed at or after (left of) the content's start,
+	 * whichever side it floats to; the table starts at its left content edge and is no wider than it (shrink-to-fit
+	 * is at least the table's minimum width). Only end-side evidence holds. A float on {@code vertical-lr} paper
+	 * starts at or after the content's left edge, as {@code 'L'}. Copper put the 150 pt table of 12072875 at
+	 * x=-90.58 to 59.25 on 60 pt paper; Chrome put it left of the list before it (T4 x=-123).
+	 */
+	static final char END_ANCHORED = 'E';
 
 	/**
 	 * Lower bounds on column-boundary positions from table start: boundary j starts column j;
@@ -5152,6 +5395,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 				if (!declaration.isBlank() && !TABLE_PART_DECLARATION.matcher(declaration).matches()) {
 					return false;
 				}
+				// A negative margin moves the table out of its float or before the content start (codex review 2026-10-08).
+				if (declaration.trim().startsWith("margin") && declaration.substring(declaration.indexOf(':') + 1).contains("-")) {
+					return false;
+				}
 			}
 		}
 		return true;
@@ -5215,10 +5462,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	/** Float side ({@code float:left|right}). */
 	private static final Pattern FLOAT_SIDE_DECLARATION = Pattern.compile("\\s*float\\s*:\\s*(left|right)\\s*");
+	/** Declarations that do not move or size a float ({@link #floatWrapperSide}). */
+	private static final Pattern FLOAT_NEUTRAL_DECLARATION = Pattern
+			.compile("\\s*(?:display\\s*:\\s*(?:inline|block)|writing-mode\\s*:\\s*horizontal-tb)\\s*");
 
 	/**
 	 * Whether a float may directly wrap a table: a div whose only attribute is style,
-	 * with only {@code float:left|right} and {@code position:static} declarations (no width/margins).
+	 * with only {@code float:left|right} and {@code position:static} declarations (no width/margins), plus
+	 * {@code display:inline|block} and {@code writing-mode:horizontal-tb}.
 	 * Return the side as {@code 'L'}/{@code 'R'}, or {@link #NOT_FLOATED} if ineligible.
 	 */
 	static char floatWrapperSide(final String name, final String attrs) {
@@ -5231,7 +5482,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		char side = NOT_FLOATED;
 		for (final String declaration : style.group(1).split(";")) {
-			if (declaration.isBlank() || declaration.trim().equals("position:static")) {
+			// A float is blockified (CSS 2.1 §9.7), so display:inline/block do not change it (2026-10-08, fit seed
+			// 12072875). writing-mode:horizontal-tb is allowed; the caller checks the axis against the parent's.
+			if (declaration.isBlank() || declaration.trim().equals("position:static")
+					|| FLOAT_NEUTRAL_DECLARATION.matcher(declaration).matches()) {
 				continue;
 			}
 			final Matcher f = FLOAT_SIDE_DECLARATION.matcher(declaration);

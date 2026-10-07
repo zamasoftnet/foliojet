@@ -1047,6 +1047,161 @@ public class FuzzOraclePredicateTest extends TestCase {
 				"<div style=\"writing-mode:vertical-lr;width:48pt;display:flex\"><div style=\"width:58pt\">T0</div></div>")));
 	}
 
+	// 2026-10-08, fit 12,000,000 onward stopped (BUILD 80e89977).
+
+	/**
+	 * fit seeds 12002121 (v2 755060702) and 12248803 (v2 260686428): a 107 pt right float in a {@code horizontal-tb}
+	 * box inside a {@code vertical-rl} box with {@code width:8em;min-width:8em;max-width:90%} (48 pt at 6 pt), and a
+	 * 119 pt {@code vertical-rl} float inside a {@code vertical-lr} float with the same widths (64 pt at 8 pt).
+	 * Every drawing lies off the paper in Copper (x=-59.0 and x=235.4) and in Chrome (x=-58.99 and x=236.74).
+	 */
+	public void testSeedFloatWiderThanEmSizedBoxIsExcluded() {
+		assertTrue(RandomDocumentFuzzTest
+				.hasOverwideFloat(RandomDocumentFuzzTest.generate(755_060_702, true, false, false).html()));
+		assertTrue(RandomDocumentFuzzTest
+				.hasOverwideFloat(RandomDocumentFuzzTest.generate(260_686_428, true, false, false).html()));
+	}
+
+	/** Widths are bounds: em at the body font size, min-width over width, and max-width that may narrow. */
+	public void testOverwideFloatReadsWidthBounds() {
+		final String sized = "<div style=\"width:8em;min-width:8em;max-width:90%\">";
+		assertTrue(RandomDocumentFuzzTest
+				.hasOverwideFloat(shrinkerDoc(sized + "<div style=\"float:right;width:49pt\">T0</div></div>")));
+		assertFalse(RandomDocumentFuzzTest
+				.hasOverwideFloat(shrinkerDoc(sized + "<div style=\"float:right;width:48pt\">T0</div></div>")));
+		// A floated inline box is blockified, so its width applies.
+		assertTrue(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
+				"<div style=\"display:inline;float:left;width:8em\"><div style=\"float:left;width:49pt\">T0</div></div>")));
+		// min-width wins over a narrower width.
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
+				"<div style=\"width:30pt;min-width:45pt\"><div style=\"float:right;width:40pt\">T0</div></div>")));
+		// max-width may narrow the float below its width; min-width stays a lower bound.
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
+				"<div style=\"width:30pt\"><div style=\"float:right;width:40pt;max-width:90%\">T0</div></div>")));
+		assertTrue(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
+				"<div style=\"width:30pt\"><div style=\"float:right;width:40pt;min-width:6em;max-width:90%\">T0</div></div>")));
+		// The last width wins: a percentage after a pt width is not an exact width.
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
+				"<div style=\"width:20pt;width:80%\"><div style=\"float:right;width:40pt\">T0</div></div>")));
+		// em inside a box whose font size changes is not the body font size.
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc("<div style=\"font-size:20pt\">" + sized
+				+ "<div style=\"float:right;width:49pt\">T0</div></div></div>")));
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(
+				shrinkerDoc("<small>" + sized + "<div style=\"float:right;width:49pt\">T0</div></div></small>")));
+		// Widths of non-replaced inline boxes and flex items (which can grow) do not bound their descendants.
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(
+				shrinkerDoc("<span style=\"width:20pt\"><span style=\"float:right;width:40pt\">T0</span></span>")));
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
+				"<div style=\"display:flex\"><div style=\"width:20pt\"><div style=\"float:right;width:40pt\">T0</div></div></div>")));
+	}
+
+	/** Columns divide the width only in horizontal writing and only for a container that does not shrink to fit. */
+	public void testOverwideFloatColumnsOnlyNarrowFillingHorizontalContainers() {
+		assertTrue(RandomDocumentFuzzTest.hasOverwideFloat(
+				shrinkerDoc("<div style=\"column-count:2\"><div style=\"float:right;width:30pt\">T0</div></div>")));
+		// Vertical columns stack along the height.
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
+				"<div style=\"writing-mode:vertical-rl;column-count:2\"><div style=\"float:right;width:30pt\">T0</div></div>")));
+		// An inline-block multicol container widens to its columns' minimum widths.
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
+				"<div style=\"display:inline-block;column-count:2\"><div style=\"float:right;width:30pt\">T0</div></div>")));
+		assertTrue(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
+				"<div style=\"display:inline-block;width:50pt;column-count:2\"><div style=\"float:right;width:30pt\">T0</div></div>")));
+		// column-count applies only to block containers (codex review 2026-10-08): not to flex/grid containers or
+		// non-replaced inline boxes, whose floats fit the 50 pt paper.
+		final String float48 = "<div style=\"float:left;width:8em;min-width:8em;max-width:90%\">T0</div>";
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(
+				shrinkerDoc("<div style=\"display:flex;column-count:2;column-gap:0pt\"><div>" + float48 + "</div></div>")));
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(
+				shrinkerDoc("<div style=\"display:grid;column-count:2;column-gap:0pt\"><div>" + float48 + "</div></div>")));
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc("<span style=\"column-count:2;column-gap:0pt\">"
+				+ "<span style=\"float:left;width:8em;min-width:8em;max-width:90%\">T0</span></span>")));
+		// Second round: an orthogonal block's auto width is fit-content, so its columns widen to the float.
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(verticalShrinkerDoc("vertical-lr",
+				"<div style=\"writing-mode:horizontal-tb\"><div style=\"column-count:2;column-gap:0pt\">" + float48
+						+ "</div></div>")));
+		// An inline box passes its container's width through.
+		assertTrue(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
+				"<span><div style=\"column-count:2;column-gap:0pt\">" + float48 + "</div></span>")));
+	}
+
+	/** Boxes that are not generated, or are positioned out of flow, have other containing blocks (codex review 2026-10-08). */
+	public void testOverwideFloatIgnoresBoxesOutOfFlow() {
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
+				"<div style=\"display:contents;width:8em\"><div style=\"float:right;width:49pt\">T0</div></div>")));
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
+				"<div style=\"width:8em\"><div style=\"display:none\"><div style=\"float:left;min-width:10em\">T0</div></div></div><p>T1</p>")));
+		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc("<div style=\"position:relative;width:8em\">"
+				+ "<div style=\"position:absolute;left:0pt\"><div style=\"float:left;width:49pt\">T0</div></div></div>")));
+	}
+
+	/**
+	 * Each individual exclusion's sweep seed and profile still lead to its document, and no predicate excludes that
+	 * document (otherwise the record is stale: fix the seed, or drop the record). Other documents do not match.
+	 */
+	public void testIndividualExclusionsStillMatchTheirSeeds() {
+		for (final RandomDocumentFuzzTest.IndividualExclusion e : RandomDocumentFuzzTest.INDIVIDUAL_EXCLUSIONS) {
+			final RandomDocumentFuzzTest.Generated doc = switch (e.profile()) {
+			case "fit-v1" -> RandomDocumentFuzzTest.generateFit(e.seed(), true);
+			case "standard" -> RandomDocumentFuzzTest.generate(e.seed(), true, false, false);
+			default -> throw new AssertionError("unknown profile " + e.profile());
+			};
+			assertTrue(String.valueOf(e), doc.html().contains("<title>fuzz v2 " + e.document() + "</title>"));
+			assertSame(e, RandomDocumentFuzzTest.individualExclusion(doc.html()));
+			assertFalse(String.valueOf(e), RandomDocumentFuzzTest.offPageCheckExcused(doc));
+		}
+		assertNull(RandomDocumentFuzzTest.individualExclusion(RandomDocumentFuzzTest.generate(12_180_614, true, false, false).html()));
+		assertNull(RandomDocumentFuzzTest.individualExclusion(shrinkerDoc("T0")));
+	}
+
+	/**
+	 * fit seed 12137870 (v2 1658974826): a table on {@code vertical-rl} paper (line length 60 pt) inside
+	 * {@code <div style="page-break-inside:avoid;margin:0pt">} and {@code <div style="display:block;writing-mode:vertical-lr;">}.
+	 * T12 is at y=120.72 (Chrome lays the columns out up to y≈127 too).
+	 */
+	public void testSeedTableInSameAxisWrapperIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(1_658_974_826, true, false, false).html()));
+		assertTrue(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"page-break-inside:avoid;margin:0pt\"", true, true));
+		assertTrue(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:block;writing-mode:vertical-lr;\"", true,
+				true));
+		// An orthogonal writing mode changes the line length; the three-argument form allows no writing mode.
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"writing-mode:horizontal-tb\"", false, true));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"writing-mode:vertical-rl\"", true, false));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"writing-mode:vertical-lr\"", true));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:inline-block\"", true, true));
+	}
+
+	/**
+	 * fit seed 12072875 (v2 2124912302): on {@code vertical-rl} paper 60 pt wide, a
+	 * {@code display:inline;float:left;writing-mode:horizontal-tb} float holds a table about 150 pt wide (a nested
+	 * table in one cell). Copper puts its right edge at the content's right edge and T4 at x=-88.83; Chrome puts it
+	 * left of the list before it (T4 x=-123).
+	 */
+	public void testSeedTableInOrthogonalFloatIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(2_124_912_302, true, false, false).html()));
+		final String floated = "<div style=\"float:right;writing-mode:horizontal-tb\">";
+		// vertical-rl: the float is anchored at the right, so only end-side evidence counts (T10 ends before the paper).
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(verticalShrinkerDoc("vertical-rl", floated + TABLE_OVER + "</div>")));
+		final String noEndEvidence = TABLE_OVER.replace("<td>T10</td>", "<td><b>T10</b></td>");
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(verticalShrinkerDoc("vertical-rl", floated + noEndEvidence + "</div>")));
+		// vertical-lr: anchored at the left, so start-side evidence counts (T15 starts beyond the paper).
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(verticalShrinkerDoc("vertical-lr", floated + noEndEvidence + "</div>")));
+		final String noStartEvidence = TABLE_OVER.replace("<td>T15</td>", "<td><b>T15</b></td>");
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(verticalShrinkerDoc("vertical-lr", floated + noStartEvidence + "</div>")));
+		// An ancestor with the reversed block progression anchors the float on the other side.
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(verticalShrinkerDoc("vertical-rl",
+				"<div style=\"writing-mode:vertical-lr\">" + floated + TABLE_OVER + "</div></div>")));
+		// A negative table margin lets the table pass the float's edge (codex review 2026-10-08).
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(verticalShrinkerDoc("vertical-rl", floated + TABLE_OVER + "</div>")
+				.replace("</style>", "table{margin-right:-40pt}</style>")));
+	}
+
 	/**
 	 * Seed 10760020 (2026-09-29): a table in a div with only frame and margins
 	 * ({@code margin:7pt;padding:2pt;border:1pt solid black}) has a nested table in column 4's cell.
@@ -1181,6 +1336,12 @@ public class FuzzOraclePredicateTest extends TestCase {
 				+ "<?jp.cssj.property name=\"output.page-height\" value=\"60pt\"?>"
 				+ "<html><head><style>@page{margin:5pt}body{margin:0;font:normal 6pt/1.2 serif}</style></head>"
 				+ "<body>" + body + "</body></html>";
+	}
+
+	/** {@link #shrinkerDoc} on paper whose body has the writing mode {@code mode}. */
+	private static String verticalShrinkerDoc(final String mode, final String body) {
+		return shrinkerDoc(body).replace("font:normal 6pt/1.2 serif}",
+				"font:normal 6pt/1.2 serif;writing-mode:" + mode + "}");
 	}
 
 	private static RandomDocumentFuzzTest.Generated generated() {
