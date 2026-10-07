@@ -336,6 +336,12 @@ public class FlowContainer implements Container {
 	 */
 	private static final java.util.concurrent.atomic.AtomicLong STRUCTURE_VERSION = new java.util.concurrent.atomic.AtomicLong();
 
+	/**
+	 * How many times a text block whose first line was pushed below the cut by a fragmented float was moved to
+	 * the next fragmentainer (2026-10-07, for tests).
+	 */
+	public static final java.util.concurrent.atomic.AtomicLong PUSHED_LINE_MOVES = new java.util.concurrent.atomic.AtomicLong();
+
 	/** このコンテナとその祖先のメモを捨てる。既に捨ててある祖先で止まる。 */
 	public final void invalidateNonDecorationContent() {
 		FlowContainer c = this;
@@ -1244,6 +1250,9 @@ public class FlowContainer implements Container {
 		final double[] floatPageStarts = floatMeasurements.pageStarts();
 		final double[] floatPageExtents = floatMeasurements.pageExtents();
 		final boolean[] floatUncut = floatMeasurements.uncut();
+		// Pass down whether a cuttable float here or in an enclosing container crosses the cut (2026-10-07)
+		final byte innerFlags = FlowCutter.hasCrossingCuttableFloat(pageLimit, floatPageStarts, floatPageExtents,
+				floatUncut) ? (byte) (flags | IPageBreakableBox.FLAGS_FLOAT_CROSSES) : flags;
 
 		if (lastOrphan == this.flows.size()) {
 			// 切断線以下のフローがない場合
@@ -1295,12 +1304,15 @@ public class FlowContainer implements Container {
 		// ため、それ以外はplain()のまま、既存のcontainer-identity比較
 		// フォールバックに委ねる)。
 		boolean sawChainMember = false;
+		// A text block whose first line was pushed below the cut by a float that continues on the next page
+		// (2026-10-07, see the TEXT_BLOCK case)
+		boolean pushedBelowFloat = false;
 		// 上から下へチェックする
 		for (int i = lastOrphan; i < this.flows.size(); ++i) {
 			Flow prevFlow = (Flow) this.flows.get(i);
 			// フラグ計算は FlowCutter に純化(二相分離・増分1、2026-08-01)
 			final FlowCutter.StepFlags step = FlowCutter.stepFlags(pageLimit, prevFlow.pageAxis, i, this.flows.size(),
-					((AutoBreakMode) mode).box == this.box, flags);
+					((AutoBreakMode) mode).box == this.box, innerFlags);
 			final double splitLine = step.splitLine();
 			final byte lflags = step.positionMask();
 			final byte xflags = step.splitFlags();
@@ -1324,6 +1336,25 @@ public class FlowContainer implements Container {
 			switch (prevFlow.box.getType()) {
 			case TABLE:
 			case TEXT_BLOCK: {
+				// A line that did not fit beside a float is located below the float's end, which can lie past the
+				// cut when the float spans fragmentainers (2026-10-07, fit sweep seed 11885076). At the start of a
+				// fragmentainer the line cutter keeps a single line unconditionally and the rescue split below
+				// treats it as one tall line, so the real line stayed off this page and only artifact copies
+				// reached the following pages. When the first line starts at or after the cut and a cuttable float
+				// of this or an enclosing container crosses the cut (FLAGS_FLOAT_CROSSES), move the text block on:
+				// the float's head stays in this fragmentainer (progress), and the moved block is laid out again
+				// against the float's continuation, so the line lands where the float actually ends.
+				if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0 && (xflags & IPageBreakableBox.FLAGS_FLOAT_CROSSES) != 0
+						&& prevFlow.box instanceof net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock) {
+					final double firstLineStart = textBlock.getFirstLinePageStart();
+					if (!LayoutUtils.isNone(firstLineStart) && LayoutUtils.compare(firstLineStart, 0) > 0
+							&& LayoutUtils.compare(firstLineStart, splitLine) >= 0) {
+						PUSHED_LINE_MOVES.incrementAndGet();
+						pushedBelowFloat = true;
+						outcome = ProbeOutcome.MOVE;
+						break;
+					}
+				}
 				// 2026-07-25(救済分割・増分6): 巨大な行。答申§1のとおり
 				// TextBlockBox.split()を呼ぶ**前に**行の物理下端を検査する。
 				// LineCutterはフラグメント先頭で実質1行しかなければ無条件に
@@ -1448,6 +1479,10 @@ public class FlowContainer implements Container {
 				throw new IllegalStateException(prevFlow.box.toString());
 			}
 
+			if (pushedBelowFloat) {
+				nextBox = this.applyPartition(i, outcome);
+				break;
+			}
 			if (outcome instanceof ProbeOutcome.Keep) {
 				// Keepの解決規則はFlowCutterに純化(二相分離・増分3)。
 				// TREAT_AS_MOVE=牽引によるMove化はProbeが最終配置でない代表例

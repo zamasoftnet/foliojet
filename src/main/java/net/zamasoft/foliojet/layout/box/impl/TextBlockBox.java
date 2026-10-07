@@ -308,6 +308,17 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return lineEnds[0];
 	}
 
+	/**
+	 * Returns where the first line starts, from the top of this box ({@code NONE} without lines). It is above
+	 * zero only when the line was pushed down past floats while it was located.
+	 */
+	public final double getFirstLinePageStart() {
+		if (this.lines.isEmpty()) {
+			return LayoutUtils.NONE;
+		}
+		return ((Line) this.lines.get(0)).pageAxis;
+	}
+
 	/** 各行の上辺・底辺(このボックスの上端からの距離)を採取します。 */
 	private void measureLines(final double[] lineStarts, final double[] lineEnds) {
 		for (int i = 0; i < this.lines.size(); ++i) {

@@ -428,19 +428,8 @@ public final class FlowCutter {
 			// (置換要素/page-break-inside:avoid=floatUncut)なcrossing
 			// floatは従来どおりMoveAllを妨げない——avoidPushbackの
 			// 不変条件と同型
-			if (floatPageStarts != null) {
-				for (int k = 0; k < floatPageStarts.length; ++k) {
-					if (LayoutUtils.compare(floatPageStarts[k], pageLimit) >= 0) {
-						continue;
-					}
-					if (LayoutUtils.compare(floatPageStarts[k] + floatPageExtents[k], pageLimit) <= 0) {
-						continue;
-					}
-					if (floatUncut[k]) {
-						continue;
-					}
-					return new MoveResolution.Partition();
-				}
+			if (hasCrossingCuttableFloat(pageLimit, floatPageStarts, floatPageExtents, floatUncut)) {
+				return new MoveResolution.Partition();
 			}
 			return new MoveResolution.Terminal(new PreDecision.MoveAll());
 		}
@@ -453,6 +442,38 @@ public final class FlowCutter {
 			}
 		}
 		return new MoveResolution.Partition();
+	}
+
+	/**
+	 * Whether the container's float ledger has a cuttable float that crosses the cut line: it starts before
+	 * {@code pageLimit} and ends after it, and is neither replaced, a rescue fragment nor
+	 * {@code page-break-inside: avoid}. Such a float is split by {@code splitFloatings} and its head stays in this
+	 * fragmentainer, so moving the flows that follow it still makes progress.
+	 *
+	 * @param pageLimit        the cut line, from the container's start
+	 * @param floatPageStarts  float starts (null when there are no floats)
+	 * @param floatPageExtents float extents
+	 * @param floatUncut       floats that cannot be cut
+	 * @return true if such a float exists
+	 */
+	public static boolean hasCrossingCuttableFloat(final double pageLimit, final double[] floatPageStarts,
+			final double[] floatPageExtents, final boolean[] floatUncut) {
+		if (floatPageStarts == null) {
+			return false;
+		}
+		for (int k = 0; k < floatPageStarts.length; ++k) {
+			if (LayoutUtils.compare(floatPageStarts[k], pageLimit) >= 0) {
+				continue;
+			}
+			if (LayoutUtils.compare(floatPageStarts[k] + floatPageExtents[k], pageLimit) <= 0) {
+				continue;
+			}
+			if (floatUncut[k]) {
+				continue;
+			}
+			return true;
+		}
+		return false;
 	}
 
 	/** 空のフラグメンテナに移してもavoid連鎖全体が収まらないかを判定します。 */

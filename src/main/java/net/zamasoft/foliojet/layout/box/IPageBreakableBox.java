@@ -40,6 +40,13 @@ public interface IPageBreakableBox extends IBox {
 	public static final byte FLAGS_FIRST_ROW = 8;
 
 	/**
+	 * A cuttable float of this container or of an enclosing container crosses the cut line (2026-10-07). Its head
+	 * stays in the current fragmentainer, so moving content that was pushed below the cut by floats still makes
+	 * progress. Set by {@code FlowContainer} and passed down unchanged.
+	 */
+	public static final byte FLAGS_FLOAT_CROSSES = 16;
+
+	/**
 	 * ボックスをページ方向に分割します(M4-A3: SplitResult ネイティブ)。
 	 *
 	 * @param pageLimit ボックスの外辺(ページ方向始端)から分割位置までの長さです。
