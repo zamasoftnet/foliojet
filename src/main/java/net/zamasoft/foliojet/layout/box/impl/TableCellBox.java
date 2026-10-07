@@ -4,8 +4,6 @@ import net.zamasoft.foliojet.layout.box.params.CellAlign;
 
 import net.zamasoft.foliojet.layout.box.params.EmptyCellsMode;
 
-import net.zamasoft.foliojet.layout.box.params.OverflowMode;
-
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
@@ -13,12 +11,10 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.FramesStep;
-import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.box.content.Container;
-import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.Background;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
@@ -31,7 +27,6 @@ import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.box.params.TableParams;
 
 import net.zamasoft.foliojet.layout.draw.BackgroundBorderDrawable;
-import net.zamasoft.foliojet.layout.draw.DebugDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
@@ -40,7 +35,6 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
-import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
 /**
  * テーブルセルの実装です。
@@ -49,7 +43,6 @@ import net.zamasoft.pdfg2d.gc.paint.RGBColor;
  * @version $Id: TableCellBox.java 1631 2022-05-15 05:43:49Z miyabe $
  */
 public class TableCellBox extends AbstractContainerBox {
-	private static final boolean DEBUG = false;
 
 	protected final BlockParams params;
 	private Drawer pendingDrawer = null;
@@ -111,7 +104,6 @@ public class TableCellBox extends AbstractContainerBox {
 	}
 
 	public final void setHeight(double height) {
-		//System.out.println("setInnerHeight:"+this.height+"/"+height);
 		assert !LayoutUtils.isNone(height);
 		this.height = height - this.frame.getFrameHeight();
 	}
@@ -276,7 +268,6 @@ public class TableCellBox extends AbstractContainerBox {
 	}
 
 	public final void baseline(double rowAscent) {
-		// System.err.println("baseline: " + rowAscent);
 		if (this.pos.verticalAlign != CellAlign.BASELINE) {
 			return;
 		}
@@ -363,10 +354,6 @@ public class TableCellBox extends AbstractContainerBox {
 	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			java.util.Deque<DrawStep> worklist) {
-		if (DEBUG) {
-			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(0, 1, 1));
-			drawer.visitDrawable(drawable, x, y);
-		}
 		if (this.isContextBox()) {
 			this.frames(pageBox, drawer, clip, transform, x, y);
 		}
@@ -424,9 +411,6 @@ public class TableCellBox extends AbstractContainerBox {
 	}
 
 	private final boolean draw() {
-		if (DEBUG) {
-			return true;
-		}
 		if (!this.frame.isVisible()) {
 			return false;
 		}
@@ -538,9 +522,6 @@ public class TableCellBox extends AbstractContainerBox {
 			this.verticalAlign = savedVerticalAlign;
 			throw e;
 		}
-		// System.err.println("CELL A: pageLimit=" + pageLimit + "/mode=" + mode
-		// + "/flags=" + flags + "/" + (nextBox == null) + "/"
-		// + (nextBox == this));
 		if (!(result instanceof SplitResult.Split(final IPageBreakableBox remainder))) {
 			// 切断されなかった(丸ごと残る・丸ごと移動する)場合、セルは
 			// 確定高のまま描かれるので整列余白を元に戻す

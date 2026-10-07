@@ -2,8 +2,6 @@ package net.zamasoft.foliojet.css.style;
 
 import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
-import java.util.logging.Logger;
-
 import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.StyleContext;
@@ -23,9 +21,6 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
  * @author MIYABE Tatsuhiko
  */
 public class StyleBuilder implements PageGenerator, StyleBuildContext {
-	private static final boolean DEBUG = false;
-
-	private static final Logger LOG = Logger.getLogger(StyleBuilder.class.getName());
 
 	/**
 	 * 総ページ数カウンタ名。css-page-3 §6.1相当のUA予約カウンタとして扱い、
@@ -96,10 +91,6 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 	 */
 	public LayoutSource getLayoutSource() {
 		return this.sink.source();
-	}
-
-	public int getDeliveredCharEnd() {
-		return this.doc.getDeliveredCharEnd();
 	}
 
 	@Override

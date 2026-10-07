@@ -4,7 +4,6 @@ import net.zamasoft.foliojet.layout.fragment.BreakOpportunity;
 
 import net.zamasoft.foliojet.layout.box.content.BreakToken;
 
-
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.constraint.FloatExclusion;
 
@@ -34,7 +33,6 @@ import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineAbsoluteQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineEndQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineReplacedQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
-import net.zamasoft.foliojet.layout.builder.LayoutContext;
 import net.zamasoft.foliojet.layout.builder.LayoutContext.Flow;
 import net.zamasoft.foliojet.layout.constraint.ExclusionSpace;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
@@ -250,7 +248,6 @@ public class TextBuilder {
 		// 和文詰めH1: 行末句読点のぶら下げ(hanging-punctuation: allow-end)
 		this.hangingEnd = params.hangingPunctuationEnd;
 
-		// System.err.println("CHANGE_TEXT: " + this.wrap + "/" + this.breakWord);
 	}
 
 	/** いまの行に文字(Text・目に見える Control・leader)が入ったか。 */
@@ -700,8 +697,6 @@ public class TextBuilder {
 		this.maxLineSize = this.builder.getFlowBox().getLineSize();
 		if (this.builder.hasLineExclusions()) {
 			final double lineHeight = this.lineBox.getLineParams().lineHeight;
-			// System.out.println("TB-locateLine1:" + pageStart + "/"
-			// + this.builder.floatings.size() + "/" + lineHeight);
 			final double lineEnd0 = this.builder.lineAxis + this.maxLineSize;
 			// 通常floatとページフロートは別々の不変スナップショットとして
 			// 各反復で走査される。
@@ -746,7 +741,6 @@ public class TextBuilder {
 		this.pageAxis = pageStart - this.builder.pageAxis;
 		assert !LayoutUtils.isNone(this.pageAxis);
 		this.minLineAxis = lineStart - this.builder.lineAxis;
-		// System.out.println("NewLine:"+lineStart+"/"+this.maxLineSize);
 
 		// 天付き(和文詰めS1/JLREQ cl-01)。横書き・縦書きとも、全角相当の
 		// 始め括弧が持つ行頭側の二分アキを行外へ出す。CSS Text 4に従い
@@ -811,8 +805,6 @@ public class TextBuilder {
 		} else if (this.inlineStack.isEmpty()) {
 			baseline = 0;
 		} else {
-			// System.out.println(this.textParamStack.size()+"/"+this.inlineStack
-			// .size());
 			Inline parentInline = (Inline) this.inlineStack.get(this.inlineStack.size() - 1);
 			baseline = parentInline.baseline;
 		}
@@ -1150,7 +1142,6 @@ public class TextBuilder {
 	 * @param last
 	 */
 	private boolean newLine(boolean last) {
-		// System.out.println("endLine: " + this.textBuffer);
 		// 和文詰めA2: 実際の行分割はpairを断つ(行を跨ぐgapは入らない)
 		this.autospace.reset();
 		// 和文詰めT2/H1: この行の行末詰め/ぶら下げ量(align前に設定)
@@ -1167,7 +1158,6 @@ public class TextBuilder {
 
 			// StringBuilder text = new StringBuilder();
 			// lineBox.getText(text);
-			// System.out.println("endLine: " + this.maxLineAxis+"/"+text);
 
 			// 改頁で組み直された行に、前の組みで実体化したハイフンが残ることが
 			// ある(2026-08-31)。ハイフンは行末にしか意味を持たないので、
@@ -1230,7 +1220,6 @@ public class TextBuilder {
 			this.lineHead = false;
 			break;
 		}
-		// System.out.println("nextLine: " + this.textBuffer);
 		return lineAdded;
 	}
 
@@ -1933,7 +1922,6 @@ public class TextBuilder {
 	}
 
 	public void startTextRun(FontStyle fontStyle, FontMetrics fontMetrics) {
-		// System.err.println("TBBR: "+fontStyle);
 		assert this.text == null;
 		// assert fontStyle != null;
 		this.fontStyle = fontStyle;
@@ -2033,7 +2021,6 @@ public class TextBuilder {
 			this.endTextRun();
 			this.startTextRun(this.fontStyle, this.fontMetrics);
 		}
-		// System.err.println("TB glyph: " + this.breakWord + ":" + advance + "/" + new String(ch, coff, clen));
 	}
 
 	public void endTextRun() {
@@ -2181,13 +2168,11 @@ public class TextBuilder {
 			// M3c: 最適化再生中はK-Pが選択したflushでのみ改行する
 			return this.plannedFlush();
 		}
-		//System.err.println("TB FLUSH: " + this.wrap);
 		this.unitAdvance = 0;
 		if (this.textBuffer.isEmpty()) {
 			return false;
 		}
 		if (this.lineAxis > 0) {
-			//System.err.println("TB flush: " + lineAxis + "/" + textUnitElementCount);
 			if (this.firstUnit) {
 				this.locateLine();
 				this.firstUnit = false;
@@ -2195,7 +2180,6 @@ public class TextBuilder {
 			if (this.opportunity.elementCount() > 0) {
 				double lineAxis = this.lineAxis - this.lastSpaceAdvance;
 				double maxLineAxis = this.maxLineSize - this.textIndent;
-				// System.err.println("TB flush: " + lineAxis + "/" + maxLineAxis);
 				if (LayoutUtils.compare(lineAxis, maxLineAxis) > 0) {
 					// JLREQ 3.8.3: 現候補が優先段階どおりの追込みで収まるなら
 					// バッファ全体をこの行へ残す。収まらなければ変更せず従来候補へ送る。

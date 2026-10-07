@@ -368,37 +368,19 @@ public class ColumnsContainer implements Container {
 			boolean restyleAbsolutes) {
 		final List<Container> snapshot = this.beginRestyleScope();
 		final int last = snapshot.size() - 1;
-		try {
-			for (int i = 0; i <= last; ++i) {
-				final FlowContainer container = (FlowContainer) snapshot.get(i);
-				container.restyle(builder,
-						i == last ? shape : net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, restyleAbsolutes);
-			}
-		} finally {
-			endRestyleScope();
+		for (int i = 0; i <= last; ++i) {
+			final FlowContainer container = (FlowContainer) snapshot.get(i);
+			container.restyle(builder,
+					i == last ? shape : net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, restyleAbsolutes);
 		}
 	}
 
 	/**
 	 * 組み直しscopeの開始: 全段のsnapshot→元リストのclear→空の先頭段の
-	 * 据え付け→尾部再生の封印、をこの順で行い、再生すべき旧段の写しを
-	 * 返します(2026-07-30、legacy再帰撤去=増分1で{@link #restyle}から
-	 * 抽出。worklist executorのMULTICOL native降下と二重実装しないための
+	 * 据え付け、をこの順で行い、再生すべき旧段の写しを返します
+	 * (2026-07-30、legacy再帰撤去=増分1で{@link #restyle}から抽出。
+	 * worklist executorのMULTICOL native降下と二重実装しないための
 	 * 共有部品)。
-	 *
-	 * <p>
-	 * 必ず{@link #endRestyleScope()}と対にすること(legacyはtry/finally、
-	 * worklistはscope popまたはexecutorのfinally清算)。
-	 * </p>
-	 *
-	 * <p>
-	 * 尾部封印の理由: 段の組み直しでは、どの段の断片も「自分が記録した
-	 * 分しか持っていない」——切断テキストの尾部再生(charOffsetから
-	 * ソース末尾まで)を全段で封じる。開いた尾は{@code shape}が最終段へ
-	 * 運び、{@code restyleItem}の{@code open}分岐が元々尾部再生を通さない
-	 * (2026-07-28。封じないと段2が"T2 T3 T4"、段3が"T3 T4"を描く:
-	 * local/shrink/strict-118665-min.html)
-	 * </p>
 	 */
 	List<Container> beginRestyleScope() {
 		final List<Container> snapshot = new ArrayList<Container>(this.columns);
@@ -406,12 +388,6 @@ public class ColumnsContainer implements Container {
 		final FlowContainer fresh = new FlowContainer();
 		fresh.setBox(this.box);
 		this.columns.add(fresh);
-		FlowContainer.pushTailSeal();
 		return snapshot;
-	}
-
-	/** {@link #beginRestyleScope()}に対応する終了(尾部封印の解除)。 */
-	static void endRestyleScope() {
-		FlowContainer.popTailSeal();
 	}
 }

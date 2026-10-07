@@ -195,8 +195,7 @@ public final class LayoutSource implements AutoCloseable {
 	/**
 	 * {@link Chars}のテキスト本体です(E-6増分3b-2)。UTF-16長
 	 * ({@link #utf16Length()})はSpilledでもheapメタデータとして持ち、
-	 * {@link LayoutSource#findCharsAt(int)}等の範囲計算がdecodeなしで
-	 * 成立する(挙動不変の保証)。
+	 * 範囲計算がdecodeなしで成立する(挙動不変の保証)。
 	 */
 	public sealed interface TextPayload permits TextPayload.Inline, TextPayload.Spilled {
 		/** UTF-16単位の文字数です(heapメタデータ——decode不要で読める)。 */
@@ -939,118 +938,6 @@ public final class LayoutSource implements AutoCloseable {
 	}
 
 	/**
-	 * 指定のソース文字オフセットを含む Chars イベントの id を返します
-	 * (M6b v3 テキスト尾部再開)。parser の charOffset は文書全体で
-	 * 単調のため一意です。生成内容(charOffset=-1)は対象外。
-	 *
-	 * @param charOffset ソース文字オフセット
-	 * @return 該当 Chars の id。なければ -1
-	 */
-	public long findCharsAt(final int charOffset) {
-		for (final Entry entry : this.entries) {
-			// utf16LengthはSpilledでもheapメタデータ(decode不要——挙動不変)
-			if (entry.event() instanceof Chars(final int off, final TextPayload payload, final boolean fixed)
-					&& off >= 0 && charOffset >= off && charOffset < off + payload.utf16Length()) {
-				return entry.id();
-			}
-		}
-		return -1;
-	}
-
-	/**
-	 * テキスト尾部の終端を返します(M6b v3): fromId から前方走査し、
-	 * 範囲内で開かれていない EndBlock(=囲みブロックの終了)または
-	 * ブロック級の兄弟の Start(=段落の終わり。インライン級の Start は
-	 * 段落の続きなので通過)に当たればその id、capExclusive まで
-	 * 当たらなければ capExclusive。
-	 *
-	 * <p>
-	 * ブロック級 Start での停止(2026-07-17)により、終端導出は次兄弟の
-	 * ソースアンカーに依存しない — 兄弟が分割断片(アンカー無効)でも
-	 * 尾部再生できる。
-	 * </p>
-	 *
-	 * @param fromId       走査開始位置
-	 * @param capExclusive 上限(これ以上は走査しない)
-	 * @return 尾部の終端(exclusive)
-	 */
-	public long tailBound(final long fromId, final long capExclusive) {
-		int index = this.indexOf(fromId);
-		if (index < 0) {
-			return fromId;
-		}
-		int depth = 0;
-		for (; index < this.entries.size(); ++index) {
-			final Entry entry = this.entries.get(index);
-			if (entry.id() >= capExclusive) {
-				break;
-			}
-			switch (entry.event()) {
-			// Opaque は EndBlock と対の開始イベント(compact と同じ対称性)
-			case Start(final BoxRecipe recipe) -> {
-				if (depth == 0 && isBlockLevel(recipe.kind())) {
-					// 段落の次のブロック級兄弟 = 尾部の終わり
-					return entry.id();
-				}
-				++depth;
-			}
-			case Opaque opaque -> ++depth;
-			case AnonymousItemStart start -> {
-				if (depth == 0) {
-					return entry.id();
-				}
-				++depth;
-			}
-			case AnonymousItemEnd end -> {
-				if (depth == 0) {
-					return entry.id();
-				}
-				--depth;
-			}
-			case EndBlock end -> {
-				if (depth == 0) {
-					return entry.id();
-				}
-				--depth;
-			}
-			case Chars chars -> {
-			}
-			case Replaced replaced -> {
-			}
-			case Assignment assignment -> {
-			}
-			case Leader leader -> {
-			}
-			}
-		}
-		return capExclusive;
-	}
-
-	/**
-	 * ブロック級(段落を終わらせる)種別かを返します。インライン級
-	 * (INLINE/INLINE_BLOCK/各マーカー)は段落の続きとして通過させます。
-	 */
-	private static boolean isBlockLevel(final net.zamasoft.foliojet.layout.segment.BoxKind kind) {
-		// フロートは段落を終わらせない(ソース位置は段落中)。尾部範囲に
-		// フロートが入る場合の再生可否は呼び出し側の containsFloat ゲートが
-		// 判定する(再生は係留を再実行するため二重化の危険がある)
-		return switch (kind) {
-		// TABLE: 表は段落を終わらせるブロック級(G-1実装と同一。旧Opaque
-		// 記録時代は++depth貫通だったが、尾部が表を含めばcontainsTable/
-		// containsOpaqueゲートが再生を拒否していたため、早期停止で尾部を
-		// 表の手前で切る方が適格範囲が広がるだけで出力は不変——G-1が
-		// 436文書byte-parityで実証済み)
-		// CAPTION: 表キャプションも段落を終わらせるブロック級(caption
-		// recipe化C4——depth 0のCAPTION Startを尾部が含むと、キャプション
-		// 全体がtext-tail範囲へ紛れ込む。表と同じく早期停止で手前で切る)
-		// FLEX: Flexコンテナも段落を終わらせるブロック級(Flex F0c。
-		// GRIDと同じ扱い)
-		case FLOW, MULTICOL, TABLE, GRID, CAPTION, FLEX -> true;
-		default -> false;
-		};
-	}
-
-	/**
 	 * [fromId, toId] の範囲に Opaque(再生非対応)イベントが
 	 * 含まれていれば true を返します。
 	 */
@@ -1073,9 +960,7 @@ public final class LayoutSource implements AutoCloseable {
 	 * キャプションは文脈依存kind(再生に囲みTableBuilderが必要)のため、
 	 * C1では従来のOpaque記録と同じ範囲を同じ判定で弾く(routing不変)。
 	 * C2でcontext-complete検証(範囲内に対応するTABLE Startの確立)へ
-	 * 置換する。なお{@code replayTextTail}の尾部範囲はこの検査を
-	 * 持たない——キャプションStartへ到達する前に必ずTABLE Start
-	 * (block級)で{@code tailBound}が停止するため構造的に含まれない。
+	 * 置換する。
 	 * </p>
 	 */
 	public boolean containsCaption(final long fromId, final long toId) {

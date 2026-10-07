@@ -41,10 +41,6 @@ public class LayoutSourceTextSpillTest extends TestCase {
 			final LayoutSource.TextPayload inline = payloadOf(log, first);
 			assertNotSame(inline.freshChars(), inline.freshChars());
 
-			// findCharsAtはSpilled側にもheapメタデータ(utf16Length)で効く
-			assertEquals(first, log.findCharsAt(2));
-			assertEquals(second, log.findCharsAt(5));
-			assertEquals(-1, log.findCharsAt(8));
 		}
 	}
 

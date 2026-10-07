@@ -24,11 +24,6 @@ import net.zamasoft.foliojet.ua.UserAgent;
 public class FontSynthesisSmallCaps extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new FontSynthesisSmallCaps();
 
-	/** スモールキャップ合成を許す指定か。 */
-	public static boolean get(final CSSStyle style) {
-		return style.get(INFO) != KeywordValue.NONE;
-	}
-
 	protected FontSynthesisSmallCaps() {
 		super("font-synthesis-small-caps");
 	}

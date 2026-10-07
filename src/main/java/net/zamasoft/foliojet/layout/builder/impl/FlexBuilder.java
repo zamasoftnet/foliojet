@@ -176,6 +176,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 
 	/**
 	 * 非plain子(表・入れ子コンテナ等)用の中立wrapper element itemを開きます。
+	 * {@code sourceAnchor}はauthored childのアンカーです。
 	 *
 	 * <p>
 	 * {@code authored}(非null時)はauthored childのparamsで、<b>行方向の
@@ -190,11 +191,6 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 * 背景・枠が子から乖離する)。
 	 * </p>
 	 */
-	public TwoPassBlockBuilder startNeutralElementItem(final FlexItemSpec spec, final NeutralTransfer authored) {
-		return this.startNeutralElementItem(spec, authored, -1);
-	}
-
-	/** 中立wrapperのauthored childのアンカーを保持します。 */
 	public TwoPassBlockBuilder startNeutralElementItem(final FlexItemSpec spec, final NeutralTransfer authored,
 			final long sourceAnchor) {
 		final BlockParams wrapper = this.itemParams();
@@ -899,13 +895,6 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			return length.getLength();
 		}
 		return lineValue(item.itemBox.getBlockParams().size, 0);
-	}
-
-	@Override
-	public void abandonForParentRange() {
-		// 親rangeの範囲再生がFlex全体を再構築する(GridBuilderと同型)。
-		// 検証相で列挙した項目・子のリースは親のコミット相がsubsumeする。
-		this.items.clear();
 	}
 
 	/**

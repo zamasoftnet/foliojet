@@ -37,16 +37,6 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 		}
 	}
 
-	/** 最前面の画像を返します(単層時代からの窓口)。 */
-	public static Image get(CSSStyle style) {
-		for (final Value layer : getLayers(style)) {
-			if (layer instanceof URIValue uri) {
-				return load(style, uri);
-			}
-		}
-		return null;
-	}
-
 	/** 全レイヤ(先頭が最前面)。noneなら空。 */
 	public static Value[] getLayers(CSSStyle style) {
 		final Value value = style.get(INFO);
@@ -74,21 +64,6 @@ public class BackgroundImage extends AbstractPrimitivePropertyInfo {
 		UserAgent ua = style.getUserAgent();
 		URI uri = uriValue.getURI();
 		return ImageLoadDiagnostics.loadImage(ua, uri, true);
-	}
-
-	/**
-	 * グラデーションの塗りを返します(2026-08-29)。{@code background-image}に
-	 * グラデーション関数が書かれた場合は、画像(url())ではなく
-	 * {@link PaintValue}として保持する——描画側(BoxStyleMapper.createBackground)
-	 * が背景色の代わりに塗る。画像・none のときは null。
-	 */
-	public static PaintValue getPaint(CSSStyle style) {
-		for (final Value layer : getLayers(style)) {
-			if (layer instanceof PaintValue paint) {
-				return paint;
-			}
-		}
-		return null;
 	}
 
 	protected BackgroundImage() {

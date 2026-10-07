@@ -11,7 +11,6 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
-import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox;
 import net.zamasoft.foliojet.layout.box.DrawStep;
@@ -29,14 +28,11 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
 
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
-import net.zamasoft.foliojet.layout.draw.DebugDrawable;
-import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
-import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
 /**
  * ブロックボックスの実装です。
@@ -45,7 +41,6 @@ import net.zamasoft.pdfg2d.gc.paint.RGBColor;
  * @version $Id: FlowBlockBox.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
-	private static final boolean DEBUG = false;
 
 	protected final FlowPos pos;
 
@@ -924,10 +919,6 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 
 	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y, java.util.Deque<DrawStep> worklist) {
-		if (DEBUG) {
-			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(.5f, 1f, .5f));
-			drawer.visitDrawable(drawable, x, y);
-		}
 
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
 			final Drawer newDrawer = new Drawer(this.params, transform);

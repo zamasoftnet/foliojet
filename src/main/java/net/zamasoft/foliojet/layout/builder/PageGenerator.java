@@ -60,15 +60,6 @@ public interface PageGenerator {
 		return null;
 	}
 
-	/**
-	 * live テキストパイプラインの配達済みソース文字終端を返します
-	 * (M6b v3)。切断段落の尾部再生はここで打ち切る(それ以降は
-	 * live のバッファが供給するため、再生すると二重になる)。
-	 */
-	public default int getDeliveredCharEnd() {
-		return Integer.MAX_VALUE;
-	}
-
 	/** 生入力として配達中のイベントを含む可視終端(排他的)。先読みログの末尾とは別です。 */
 	public default long getDeliveredEventEnd() {
 		return Long.MAX_VALUE;

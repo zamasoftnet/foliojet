@@ -2,9 +2,7 @@ package net.zamasoft.foliojet.css;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -94,41 +92,6 @@ public class CSSStyleSheet {
 	 */
 	public int registerAnonymousLayer() {
 		return this.nextLayerOrder++;
-	}
-
-	/**
-	 * ルールを追加します(cascade originはAUTHOR、レイヤーに属さない)。
-	 *
-	 * @param selectors
-	 * @param declaration
-	 */
-	public void addRule(List<Selector> selectors, Declaration declaration) {
-		this.addRule(selectors, declaration, Origin.AUTHOR, Rule.NO_LAYER);
-	}
-
-	/**
-	 * ルールを追加します(レイヤーに属さない)。
-	 *
-	 * @param selectors
-	 * @param declaration
-	 * @param origin cascade origin
-	 */
-	public void addRule(List<Selector> selectors, Declaration declaration, Origin origin) {
-		this.addRule(selectors, declaration, origin, Rule.NO_LAYER);
-	}
-
-	/**
-	 * ルールを追加します。
-	 *
-	 * @param selectors
-	 * @param declaration
-	 * @param origin cascade origin
-	 * @param layer {@link #registerNamedLayer}/{@link #registerAnonymousLayer}
-	 *              が返した優先順位番号(レイヤーに属さないなら
-	 *              {@link Rule#NO_LAYER})
-	 */
-	public void addRule(List<Selector> selectors, Declaration declaration, Origin origin, int layer) {
-		this.addRule(selectors, declaration, origin, layer, null);
 	}
 
 	/**
@@ -269,15 +232,6 @@ public class CSSStyleSheet {
 			buckets.add(this.universalRules);
 		}
 		return buckets;
-	}
-
-	/**
-	 * 全規則(文書順・変更不可)を返します。
-	 *
-	 * @return
-	 */
-	public List<Rule> getRules() {
-		return Collections.unmodifiableList(this.rules);
 	}
 
 	/**

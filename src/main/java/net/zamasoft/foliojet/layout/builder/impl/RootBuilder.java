@@ -219,54 +219,6 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 切断段落の尾部ソース再生(M6b v3)。<b>既定無効</b>
-	 * (2026-07-28。{@code -Dfoliojet.segmentRestyle.textTail=true} で有効化)。
-	 *
-	 * <p>
-	 * <b>この機構には上限が無い。</b> 尾部再生は「{@code breakToken} の
-	 * 文字位置から<b>ソースの末尾まで</b>」を流す({@code replayTextTail})。
-	 * 断片が流れの最後なら正しいが、<b>そうでないことを知る手段が無い</b>
-	 * ——終端は次の兄弟の {@code SourceAnchor} から導く設計だったが、
-	 * 継続断片はレシピ構築でアンカーを持たない({@code -1})。しかも
-	 * 実測すると次の断片は<b>同じ items に並ばない</b>(別の段・別の
-	 * コンテナにいる)ため、そもそも兄弟として見えない。結果
-	 * {@code cap} がログ末尾になり、後続の断片が組む分まで先に組む。
-	 * </p>
-	 *
-	 * <p>
-	 * {@code ColumnsContainer.restyle} の {@code pushTailSeal} はこの穴の
-	 * <b>一部</b>(段の組み直しの最中)しか塞いでいない。残りは外側の
-	 * PAGE 再開で {@code sealed=false} のまま発火する。
-	 * </p>
-	 *
-	 * <p>
-	 * <b>実測(2026-07-28)</b>: 掃過で最後まで残っていた「内容の複製」
-	 * 3件(seed 115029 / 184116 / 186070)は<b>いずれもこれ単独が原因</b>で、
-	 * 無効化すると3件とも複製も消失もゼロになる。さらに、この機構の
-	 * <b>専用の基準出力そのものが複製を焼き込んでいた</b>——
-	 * {@code 0460-segment-restyle/nested-break-in-replay.html} の
-	 * {@code <p id="b1">} は 12×4+8=<b>56文字</b>だが、基準は
-	 * <b>59文字</b>を描いており「ろはに」が二重になっている。無効時は
-	 * ちょうど56文字になる。基準は2026-07-17に、この欠陥を含んだまま
-	 * 採取されていた。
-	 * </p>
-	 *
-	 * <p>
-	 * 無効化の代償は<b>測って無い</b>: 430クラス890テストのうち、出力が
-	 * 変わったのは上記の専用文書<b>1件だけ</b>(と、その再開トレース)。
-	 * 断片は自分の {@code TextReplaySlice} を持っており境界付きで権威が
-	 * あるので、ボックス再生へ落ちても内容は失われない。
-	 * </p>
-	 *
-	 * <p>
-	 * <b>再有効化するなら上限を与えること</b>——断片に「自分の内容が
-	 * 終わるソース文字位置」を持たせ、event-id ではなく<b>文字レベル</b>の
-	 * 上限として {@code replayTextTail} へ渡す。
-	 * </p>
-	 */
-	private static final boolean TEXT_TAIL_RESTYLE = Boolean.getBoolean("foliojet.segmentRestyle.textTail");
-
-	/**
 	 * 破断(改ページ・改段)の残余再構築スコープのスタックです(M6b。
 	 * 各要素は破断時に一括記録された閉部分木の再生範囲 = C2)。
 	 * 破断は常に構築ヘッドで起きるため「ヘッド=祖先チェーン」の再開
@@ -707,8 +659,7 @@ public class RootBuilder extends BreakableBuilder {
 				// られた側とあわせて<b>二度組まれる</b>(実測:
 				// local/shrink/strict-29708-min.html ほか。float内の
 				// "T3 T4" が同じページに二度描かれる)。
-				// {@code SourceReplayer.canReplayChildren}と
-				// {@code replayTextTail}は最初からこのゲートを持っており、
+				// {@code SourceReplayer.canReplayChildren}は最初からこのゲートを持っており、
 				// 「係留の再実行(二重化)の危険」を同じ理由で避けている——
 				// ここだけ抜けていた。ボックス再生へ落とす
 				// containsTable(表セット、2026-07-30): 表のrecipe記録化により
@@ -1654,40 +1605,6 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		});
 		return min[0];
-	}
-
-	/**
-	 * 切断段落の尾部再開をソース再駆動で試みます(M6b v3)。
-	 * 継続トークンが位置(charOffset)を持つ場合のみ再駆動されます。
-	 *
-	 * @param textBlock    切断残余のテキストブロック
-	 * @param endId        尾部の終端(次の兄弟の EventId。負ならログ末尾)
-	 * @param keepTextOpen 再生後もテキストを開いたままにする
-	 * @return 再駆動した場合 true
-	 */
-	public boolean replayTextFrom(final net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock, final long endId,
-			final boolean keepTextOpen) {
-		if (!TEXT_TAIL_RESTYLE || this.resumeScopes.isEmpty()) {
-			return false;
-		}
-		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = this.pageGenerator.getLayoutSource();
-		if (log == null) {
-			return false;
-		}
-		final net.zamasoft.foliojet.layout.box.content.BreakToken token = textBlock.getBreakToken();
-		final int charOffset = switch (token) {
-		case net.zamasoft.foliojet.layout.box.content.BreakToken.MidFlow(final int offset) -> offset;
-		case net.zamasoft.foliojet.layout.box.content.BreakToken.MidLine(final int offset) -> offset;
-		default -> -1;
-		};
-		if (charOffset < 0) {
-			return false;
-		}
-		// 再駆動が作るテキストは継続(text-indent/:first-line 抑制)。
-		// TextBuilder が生成時に builder の breakToken を消費する
-		this.setBreakToken(token);
-		return net.zamasoft.foliojet.layout.SourceReplayer.replayTextTail(log, charOffset, endId, keepTextOpen, this,
-				this.pageGenerator);
 	}
 
 	protected void finishLayout() {

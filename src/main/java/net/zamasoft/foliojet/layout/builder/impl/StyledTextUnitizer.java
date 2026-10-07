@@ -34,7 +34,6 @@ import net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace;
 
 // TODO ブロックの末尾のスペースをつぶす
 public class StyledTextUnitizer {
-	private static final boolean DEBUG = false;
 
 	private final Builder builder;
 
@@ -198,9 +197,6 @@ public class StyledTextUnitizer {
 		this.followingChar = '\u0020';
 		final BlockParams params = this.builder.getFlowBox().getBlockParams();
 		this.textParamsStack.add(params);
-		if (DEBUG) {
-			System.out.println(this.textParamsStack.size() + "/startContainer|" + params.element);
-		}
 		if (this.gh == null) {
 			this.gh = new BuilderGlyphHandler(builder);
 		} else {
@@ -260,9 +256,6 @@ public class StyledTextUnitizer {
 				blockBuilder.pendingText = measurement -> { };
 			}
 			this.gh.builder.endTextBlock();
-		}
-		if (DEBUG) {
-			System.out.println(this.textParamsStack.size() + "/endContainer|" + params.element);
 		}
 		if (this.textParamsStack.size() >= 1) {
 			this.gh.endTextBox();

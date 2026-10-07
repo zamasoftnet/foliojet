@@ -7,14 +7,12 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractTextBox;
 import net.zamasoft.foliojet.layout.box.DrawStep;
-import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.IInlineBox;
 import net.zamasoft.foliojet.layout.box.INonReplacedBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
-import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
@@ -22,21 +20,18 @@ import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
 import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.draw.AbsoluteRectFrameDrawable;
-import net.zamasoft.foliojet.layout.draw.DebugDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
-import net.zamasoft.pdfg2d.gc.paint.GrayColor;
 import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 
 public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplacedBox {
 	/**
 	 * ボックスの外辺を灰色の枠で囲みます。
 	 */
-	private static final boolean DEBUG = false;
 
 	protected final InlineParams params;
 
@@ -284,10 +279,6 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			java.util.Deque<DrawStep> worklist) {
-		if (DEBUG) {
-			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), GrayColor.create(.7f));
-			drawer.visitDrawable(drawable, x, y);
-		}
 		x += this.offsetX;
 		y += this.offsetY;
 

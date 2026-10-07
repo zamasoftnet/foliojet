@@ -27,9 +27,4 @@ public interface RetainedFlex extends TwoPass {
 	 */
 	public void bind(Builder host);
 
-	/**
-	 * 親のrange化に吸収されるとき、保持しているitem本文の所有を終端します
-	 * (範囲再生が同じソースからFlex全体を再構築する)。
-	 */
-	public void abandonForParentRange();
 }

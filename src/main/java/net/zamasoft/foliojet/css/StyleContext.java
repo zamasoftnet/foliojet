@@ -28,8 +28,6 @@ public class StyleContext {
 
 	private static final Logger LOG = Logger.getLogger(StyleContext.class.getName());
 
-	private static final boolean DEBUG = false;
-
 	/** 上位の要素のリスト。 */
 	private final List<CSSElement> elementStack = new ArrayList<CSSElement>();
 
@@ -55,34 +53,12 @@ public class StyleContext {
 		this.containerFacts = containerFacts;
 	}
 
-	public StyleContext copy(int up) {
-		StyleContext styleContext = new StyleContext(this.styleSheet, this.selectorFacts, this.containerFacts);
-		for (int i = 0; i < this.elementStack.size() - up; ++i) {
-			styleContext.elementStack.add(this.elementStack.get(i));
-		}
-		return styleContext;
-	}
-
-	private static String elementStr(CSSElement ce) {
-		StringBuilder buff = new StringBuilder();
-		if (ce.lName != null) {
-			buff.append(ce.lName);
-		} else {
-			buff.append(ce.pseudoClasses);
-		}
-		buff.append('/');
-		return buff.toString();
-	}
-
 	/**
 	 * 要素の開始を通知します。
 	 *
 	 * @param ce
 	 */
 	public void startElement(CSSElement ce) {
-		if (DEBUG) {
-			System.out.println(elementStr(ce));
-		}
 		this.elementStack.add(ce);
 	}
 
@@ -91,16 +67,6 @@ public class StyleContext {
 	 */
 	public void endElement() {
 		CSSElement ce = (CSSElement) this.elementStack.remove(this.elementStack.size() - 1);
-		if (DEBUG) {
-			System.out.println("/" + elementStr(ce));
-		}
-	}
-
-	/**
-	 * ページの開始に対して、対応するスタイル宣言を返します(無名ページ)。
-	 */
-	public Declaration nextPage(CSSElement page) {
-		return this.nextPage(page, null);
 	}
 
 	/**
@@ -181,37 +147,10 @@ public class StyleContext {
 	}
 
 	/**
-	 * 合致した規則を合成します。
-	 *
-	 * <p>
-	 * {@code userAgentOut} を渡すと、<b>UA既定スタイルシート
-	 * ({@code html-ua.css})の規則だけをそこへ分離</b>し、戻り値には著者側
-	 * だけを合成します。HTMLの属性由来の既定値(presentational hints)を
-	 * 両者の<b>間</b>に挟むためです——HTML仕様では属性由来の指定はUA既定より
-	 * 強く、著者スタイルシートより弱い。1つに合成すると{@code html-ua.css}が
-	 * {@code cellspacing="0"}のような属性を上書きしてしまう(2026-08-01の
-	 * HTMLStyle移行で実際に起きた。表の行が2pxずつ高くなり、基準画像が
-	 * 3件食い違った——原因の特定は2026-08-03)。
-	 * </p>
-	 *
-	 * @param userAgentOut 非nullなら、UA出所の規則をその要素0へ分離する。
-	 */
-	public Declaration merge(Declaration declaration, Declaration[] userAgentOut) {
-		return this.merge(declaration, userAgentOut, null);
-	}
-
-	/**
 	 * @param importantOut 非nullなら、レイヤーを使った規則があるとき
 	 *                     important宣言を反転順で合成したものをその要素0へ置く
 	 */
 	public Declaration merge(Declaration declaration, Declaration[] userAgentOut, Declaration[] importantOut) {
-		if (DEBUG) {
-			for (int i = 0; i < this.elementStack.size(); ++i) {
-				CSSElement ce = (CSSElement) this.elementStack.get(i);
-				System.out.print(elementStr(ce));
-			}
-			System.out.println();
-		}
 
 		if (this.elementStack.isEmpty()) {
 			return declaration;

@@ -59,10 +59,6 @@ public class ShapeOutside extends AbstractPrimitivePropertyInfo {
 			implements Value {
 	}
 
-	public static Value get(final CSSStyle style) {
-		return style.get(INFO);
-	}
-
 	/**
 	 * computed valueから浮動体パラメータを作ります(noneはnull)。
 	 * {@code shape-margin}・{@code shape-image-threshold}もここで束ねる。

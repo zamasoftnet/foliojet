@@ -513,7 +513,6 @@ final class IntrinsicMeasurer {
 			maxLineAxis = childSizes.maxContent() + frameLine;
 		}
 		assert !LayoutUtils.isNone(maxLineAxis);
-		// System.err.println(this.minLineAxis + "/" + this.maxLineAxis);
 		if (minLineAxis > this.minLineSize) {
 			this.minLineSize = minLineAxis;
 		}

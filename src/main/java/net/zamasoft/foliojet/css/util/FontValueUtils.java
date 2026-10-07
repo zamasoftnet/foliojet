@@ -10,7 +10,6 @@ import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.FontStyleValue;
 import net.zamasoft.foliojet.css.value.FontVariantValue;
 import net.zamasoft.foliojet.css.value.FontWeightValue;
-import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.RelativeSizeValue;
 import net.zamasoft.foliojet.css.value.Value;
@@ -227,7 +226,6 @@ public final class FontValueUtils {
 			}
 		}
 		CSSJFontPolicyValue result = new CSSJFontPolicyValue(codes.toArray(new FontPolicy[codes.size()]));
-		// System.err.println(str+"/"+result);
 		return result;
 	}
 
@@ -256,7 +254,6 @@ public final class FontValueUtils {
 			}
 		}
 		CSSJFontPolicyValue result = new CSSJFontPolicyValue(codes.toArray(new FontPolicy[codes.size()]));
-		// System.err.println(str+"/"+result);
 		return result;
 	}
 

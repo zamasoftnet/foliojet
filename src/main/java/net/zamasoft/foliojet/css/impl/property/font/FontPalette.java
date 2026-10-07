@@ -24,10 +24,6 @@ import net.zamasoft.foliojet.ua.UserAgent;
 public final class FontPalette extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new FontPalette();
 
-	public static FontPaletteValue get(final CSSStyle style) {
-		return (FontPaletteValue) style.get(INFO);
-	}
-
 	private FontPalette() {
 		super("font-palette");
 	}

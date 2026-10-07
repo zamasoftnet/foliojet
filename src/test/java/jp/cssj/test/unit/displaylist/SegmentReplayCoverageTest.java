@@ -53,22 +53,6 @@ public class SegmentReplayCoverageTest extends TestCase {
 				SourceReplayer.PREFIX_REPLAYS.get() > prefixBefore);
 	}
 
-	public void testTextTailReplayFires() throws Exception {
-		if (!Boolean.getBoolean("foliojet.segmentRestyle.textTail")) {
-			// 尾部再生は2026-07-28から**既定無効**(上限を与えられないため
-			// 内容を複製する。理由は RootBuilder.TEXT_TAIL_RESTYLE)。
-			// 明示的に有効化したときだけ、カバレッジの非空性を検証する
-			// ——再有効化に取り組む人が「実は一度も発火していない」空虚な
-			// 緑を掴まないようにするため、検査自体は残す
-			return;
-		}
-		// avoid押し戻しで段落が中割りされ、残余に後続兄弟が入る文書
-		final long before = SourceReplayer.TEXT_TAIL_REPLAYS.get();
-		this.transcode(new File("files/unittest/0460-segment-restyle/text-tail-avoid.html"), "coverage-texttail");
-		assertTrue("切断段落の尾部ソース再駆動が一度も発火していません",
-				SourceReplayer.TEXT_TAIL_REPLAYS.get() > before);
-	}
-
 	private void transcode(File source, String name) throws Exception {
 		File pdf = new File("local/unittest/display-list/" + name + ".pdf");
 		pdf.getParentFile().mkdirs();

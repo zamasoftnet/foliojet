@@ -22,7 +22,6 @@ import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Decoration;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
-import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.TextShadow;
 import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
 import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
@@ -46,7 +45,6 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.GroupEffects;
 import net.zamasoft.pdfg2d.gc.font.util.FontUtils;
 import net.zamasoft.pdfg2d.gc.paint.Color;
-import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
 import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
@@ -59,7 +57,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 	/**
 	 * テキストの部分を25%灰色の枠で囲みます。
 	 */
-	private static final boolean DEBUG = false;
 
 	/**
 	 * テキストボックス内に配置されたインラインです。
@@ -299,61 +296,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 		return -1;
 	}
 
-	@Override
-	public boolean hasTextBeforeAssignmentChild(final IBox child) {
-		boolean text = false;
-		if (this.contents != null) {
-			for (final Object content : this.contents) {
-				if (content instanceof Inline inline && inline.box == child || content == child) {
-					return text;
-				}
-				if (content instanceof Text value && value.getCharCount() > 0) {
-					text = true;
-				}
-			}
-		}
-		return text;
-	}
-
-	/**
-	 * 内部の最初のテキストのソース文字オフセットを返します(M6b)。
-	 * セグメント再駆動の再開位置(BreakToken)の導出に使います。
-	 *
-	 * @return 最初のテキストの文字オフセット(テキストがなければ -1)
-	 */
-	public final int firstCharOffset() {
-		if (this.contents != null) {
-			for (final Object content : this.contents) {
-				if (content instanceof Text text) {
-					return text.getCharOffset();
-				}
-				if (content instanceof Inline inline) {
-					if (inline.box instanceof net.zamasoft.foliojet.layout.box.impl.RubyUnitBox rubyUnit) {
-						final int offset = rubyUnit.getSourceStart();
-						if (offset >= 0) {
-							return offset;
-						}
-						continue;
-					}
-					if (inline.box instanceof net.zamasoft.foliojet.layout.box.impl.WarichuUnitBox warichuUnit) {
-						final int offset = warichuUnit.getSourceStart();
-						if (offset >= 0) {
-							return offset;
-						}
-						continue;
-					}
-					if (inline.box instanceof AbstractTextBox nested) {
-						final int offset = nested.firstCharOffset();
-						if (offset >= 0) {
-							return offset;
-						}
-					}
-				}
-			}
-		}
-		return -1;
-	}
-
 	public final double getLineSize() {
 		return this.lineSize;
 	}
@@ -396,7 +338,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 	}
 
 	public final void addControl(Control control) {
-		// System.out.println(control);
 		this.add(control);
 	}
 
@@ -1372,10 +1313,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 						this.drawTextLeaf(gc, text, localX, 0, i, mainText);
 						localX += text.getAdvance();
 					}
-					if (DEBUG) {
-						gc.setStrokePaint(RGBColor.create(63, 63, 63));
-						gc.draw(new Rectangle2D.Double(0, -this.ascent, localX, this.ascent + this.descent));
-					}
 				}
 			} else if (this.params.flow.isVertical()) {
 				// 縦書き
@@ -1386,12 +1323,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 					}
 					this.drawTextLeaf(gc, text, x + this.descent, y, i, mainText);
 					y += text.getAdvance();
-					if (DEBUG) {
-						try (final var gcState = gc.begin()) {
-							gc.setStrokePaint(RGBColor.create(63, 63, 63));
-							gc.draw(new Rectangle2D.Double(xx, yy, this.ascent + this.descent, y - yy));
-						}
-					}
 				}
 			} else {
 				// 横書き
@@ -1402,12 +1333,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 					}
 					this.drawTextLeaf(gc, text, x, y + this.ascent, i, mainText);
 					x += text.getAdvance();
-					if (DEBUG) {
-						try (final var gcState = gc.begin()) {
-							gc.setStrokePaint(RGBColor.create(63, 63, 63));
-							gc.draw(new Rectangle2D.Double(xx, y, x - xx, this.ascent + this.descent));
-						}
-					}
 				}
 			}
 		}
@@ -1946,8 +1871,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 				// インラインのアセントはベースラインから内変への長さなので
 				// 境界とマージンを考慮する
 				double voffset = (ascent - this.ascent);
-				// System.err.println(ascent + "/" + this.ascent + "/"
-				// + inline.verticalAlign);
 				if (vertical) {
 					// 縦書き(日本)
 					final double drawX;
@@ -2244,8 +2167,6 @@ public abstract class AbstractTextBox extends AbstractBox {
 				// インラインのアセントはベースラインから内変への長さなので
 				// 境界とマージンを考慮する
 				double voffset = (ascent - this.ascent);
-				// System.err.println(ascent + "/" + this.ascent + "/"
-				// + inline.verticalAlign);
 				if (vertical) {
 					// 縦書き(日本)
 					final double sx;

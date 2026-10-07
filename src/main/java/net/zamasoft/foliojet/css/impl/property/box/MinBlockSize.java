@@ -12,7 +12,6 @@ import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
@@ -21,17 +20,6 @@ import net.zamasoft.foliojet.ua.UserAgent;
  */
 public final class MinBlockSize extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MinBlockSize();
-
-	public static Value get(CSSStyle style) {
-		PrimitivePropertyInfo physicalInfo = BlockFlow.get(style).isVertical() ? MinWidth.INFO : MinHeight.INFO;
-		if (style.isDeclared(physicalInfo)) {
-			return style.get(physicalInfo);
-		}
-		if (style.isDeclared(INFO)) {
-			return style.get(INFO);
-		}
-		return style.get(physicalInfo);
-	}
 
 	private MinBlockSize() {
 		super("min-block-size");

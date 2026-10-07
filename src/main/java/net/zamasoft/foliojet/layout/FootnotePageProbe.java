@@ -105,8 +105,6 @@ public final class FootnotePageProbe {
 		this.generator.setCompactionObserver(watermark -> this.pageFrom = Math.min(this.pageFrom, watermark));
 		this.root = new RootBuilder(this.generator, BreakableBuilder.MODE_PAGE_BREAK);
 		this.doc = new DocumentBuilder(this.generator, this.root);
-		// Cの終端やChars全長ではなく、Bのshaperが配達した現在値で打ち切る。
-		this.generator.setDeliveredCharEnd(this.doc::getDeliveredCharEnd);
 		this.generator.setDeliveredEventEnd(() -> this.eventId + 1);
 	}
 

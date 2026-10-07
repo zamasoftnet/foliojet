@@ -82,10 +82,6 @@ public final class WarichuUnitBox extends InlineBlockBox {
 		return true;
 	}
 
-	public int getSourceStart() {
-		return this.sourceStart;
-	}
-
 	public int getSourceEnd() {
 		return this.sourceEnd;
 	}

@@ -239,20 +239,12 @@ public final class GridBuilder
 		return builder;
 	}
 
-	/** 次のitem(element用)を開きます。返るbuilderを積むのは呼び出し側。 */
-	public TwoPassBlockBuilder startElementItem(final GridItemSpec spec) {
-		return this.startItem(false, spec, -1);
-	}
-
 	/**
-	 * min-content寄与の上限つきでelement itemを開きます
-	 * ({@link GridItemContent#minContributionCap}参照。負=無制限)。
+	 * 次のitem(element用)を開きます。返るbuilderを積むのは呼び出し側。
+	 * {@code minContributionCap}はmin-content寄与の上限
+	 * ({@link GridItemContent#minContributionCap}参照。負=無制限)、
+	 * {@code sourceAnchor}はauthored childのアンカーです。
 	 */
-	public TwoPassBlockBuilder startElementItem(final GridItemSpec spec, final double minContributionCap) {
-		return this.startElementItem(spec, minContributionCap, -1);
-	}
-
-	/** 中立wrapperのauthored childのアンカーを保持します。 */
 	public TwoPassBlockBuilder startElementItem(final GridItemSpec spec, final double minContributionCap,
 			final long sourceAnchor) {
 		final TwoPassBlockBuilder builder = this.startItem(false, spec, minContributionCap);
@@ -958,13 +950,6 @@ public final class GridBuilder
 		return new IntrinsicSizes(line.min(), line.max(), minPage, columnInflated);
 	}
 
-	@Override
-	public void abandonForParentRange() {
-		// 検証相で列挙した項目・子のリースは親のコミット相がsubsumeする。
-		// その後、親の範囲再生がGrid全体を再構築する。
-		this.items.clear();
-	}
-
 	/**
 	 * 親range化の検証相です(Grid G3d3——consult-codex-2026-07-31-grid-g3.txt
 	 * Q3のG3d3、副作用なし)。全itemの本文を通常のネストビルダーとして
@@ -1227,8 +1212,6 @@ public final class GridBuilder
 				this.columnContributions(plan, Math.max(0, this.gridBox.getLineSize())),
 				this.gridBox.getLineSize(), this.columnGap, justifyContent == BoxAlignment.STRETCH);
 		final FixedGridLayout layout = new FixedGridLayout(widths, this.columnGap, this.rowGap);
-		// 解決済み列の公開(subgridの子・診断用、2026-08-29)
-		this.gridBox.setResolvedColumnTracks(widths, this.columnGap);
 		double trackLineExtent = this.columnGap * (this.tracks.size() - 1);
 		for (final double w : widths) {
 			trackLineExtent += w;

@@ -12,7 +12,6 @@ import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
@@ -21,17 +20,6 @@ import net.zamasoft.foliojet.ua.UserAgent;
  */
 public final class MaxInlineSize extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MaxInlineSize();
-
-	public static Value get(CSSStyle style) {
-		PrimitivePropertyInfo physicalInfo = BlockFlow.get(style).isVertical() ? MaxHeight.INFO : MaxWidth.INFO;
-		if (style.isDeclared(physicalInfo)) {
-			return style.get(physicalInfo);
-		}
-		if (style.isDeclared(INFO)) {
-			return style.get(INFO);
-		}
-		return style.get(physicalInfo);
-	}
 
 	private MaxInlineSize() {
 		super("max-inline-size");

@@ -51,12 +51,6 @@ public final class MaskComposite extends AbstractPrimitivePropertyInfo {
 		super("mask-composite");
 	}
 
-	/** 全レイヤの値を返す（先頭が最前面）。描画側ではまだ参照しない。 */
-	public static CompositeValue[] getLayers(CSSStyle style) {
-		final Value value = style.get(INFO);
-		return value instanceof LayersValue layers ? layers.layers() : new CompositeValue[] { (CompositeValue) value };
-	}
-
 	/** 単層ならキーワード値、多層ならレイヤ値にまとめる。 */
 	public static Value toValue(List<CompositeValue> values) {
 		return values.size() == 1 ? values.get(0)

@@ -10,9 +10,7 @@ import java.util.Deque;
 import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.content.FlowContainer;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
-import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.ParamsType;
-import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.Background;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
@@ -21,13 +19,11 @@ import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.draw.AbsoluteRectFrameDrawable;
-import net.zamasoft.foliojet.layout.draw.DebugDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
-import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
@@ -37,7 +33,6 @@ import net.zamasoft.foliojet.layout.util.DebugFlags;
  * @version $Id: AbstractBlockBox.java 1631 2022-05-15 05:43:49Z miyabe $
  */
 public abstract class AbstractBlockBox extends AbstractContainerBox {
-	private static final boolean DEBUG = false;
 
 	protected final BlockParams params;
 
@@ -228,11 +223,6 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		drawer.adoptTransform(this.params, transform);
 
 		visitor.visitBox(transform, this, drawer, x, y);
-
-		if (DEBUG) {
-			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(0, 0, 1));
-			drawer.visitDrawable(drawable, x, y);
-		}
 
 		clip = this.clip(clip, x, y);
 

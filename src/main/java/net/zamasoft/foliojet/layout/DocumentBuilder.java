@@ -10,7 +10,6 @@ import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
 
 import net.zamasoft.foliojet.layout.fragment.ReplayIntent;
 import net.zamasoft.foliojet.layout.segment.SegmentEvent;
@@ -67,11 +66,8 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
  * @version $Id: DocumentBuilder.java 1622 2022-05-02 06:22:56Z miyabe $
  */
 public class DocumentBuilder implements TableBuilderHost {
-	private static final boolean DEBUG = false;
 	/** absolute 表が TABLE 入口を通ったことを確認する試験用観測点。 */
 	static volatile java.util.function.Consumer<TableBox> absoluteTableObserver;
-
-	private static final Logger LOG = Logger.getLogger(DocumentBuilder.class.getName());
 
 	public static final byte PAGE_MODE_CONTINUOUS = 1;
 	public static final byte PAGE_MODE_NO_BREAK = 1 << 1;
@@ -222,8 +218,7 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	/**
 	 * ソース再生を、ビルダーのテキストブロックを開いたまま終えます
-	 * (M6b v3: 切断段落の尾部再生。続く SAX ストリームが同じ
-	 * テキストブロックへ流れ込む — box-restyle と同じ継ぎ目意味論)。
+	 * (shaper の保留を流すだけ。続く SAX ストリームが同じテキストブロックへ流れ込む)。
 	 */
 	public void finishReplayKeepText() {
 		this.requireNotDiscarded();
@@ -789,15 +784,9 @@ public class DocumentBuilder implements TableBuilderHost {
 			this.inlineStack.add(NumberUtils.intValue(count));
 			this.inlineStack.add(params);
 		}
-		if (DEBUG) {
-			System.err.println(count + ":" + params.element);
-		}
 	}
 
 	private void restoreInlines(Params params) {
-		if (DEBUG) {
-			System.err.println("/:" + params.element);
-		}
 		if (this.inlineStack.isEmpty() || this.inlineStack.get(this.inlineStack.size() - 1) != params) {
 			return;
 		}
@@ -899,9 +888,6 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	public void startBox(final INonReplacedBox box) {
 		this.requireNotDiscarded();
-		if (DEBUG) {
-			System.err.println("startBox: " + box.getParams().element);
-		}
 		this.requirePage();
 		// Grid直下の子はitem(固定トラック幅の合成ボックス)へ包んでから
 		// 既存switchへ流す(Grid G1b)。ブロックレベル(FLOW/TABLE)は
@@ -1130,9 +1116,6 @@ public class DocumentBuilder implements TableBuilderHost {
 	public void endBox() {
 		this.requireNotDiscarded();
 		IBox box = (IBox) this.boxStack.remove(this.boxStack.size() - 1);
-		if (DEBUG) {
-			System.err.println("endBox: " + box.getParams().element);
-		}
 		switch (box.getPos().getType()) {
 		case TABLE: {
 			// テーブル
@@ -1690,9 +1673,6 @@ public class DocumentBuilder implements TableBuilderHost {
 			len = s.length();
 		}
 		
-		if (DEBUG) {
-			System.err.println(charOffset + "/" + new String(ch, off, len));
-		}
 		this.requirePage();
 		// Grid直下の直接テキストは匿名itemへ(Grid G1b)
 		this.requireCoordinatorAnonymousItem();

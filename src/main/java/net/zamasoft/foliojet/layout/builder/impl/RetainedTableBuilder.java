@@ -2,12 +2,9 @@ package net.zamasoft.foliojet.layout.builder.impl;
 
 import net.zamasoft.foliojet.layout.RetainedTextLimit;
 
-import net.zamasoft.foliojet.layout.box.params.WritingMode;
-
 import net.zamasoft.foliojet.layout.sizing.AutoColumnWidths;
 import net.zamasoft.foliojet.layout.sizing.FixedColumnWidths;
 
-import net.zamasoft.foliojet.layout.sizing.ColumnDistribution;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
 import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
@@ -22,7 +19,6 @@ import net.zamasoft.foliojet.layout.box.params.CaptionSideMode;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -32,7 +28,6 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
-import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
@@ -48,12 +43,8 @@ import net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Border;
-import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
-import net.zamasoft.foliojet.layout.box.params.Length;
-import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.PosType;
-import net.zamasoft.foliojet.layout.box.params.RectBorder;
 import net.zamasoft.foliojet.layout.box.params.TableCaptionPos;
 import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
@@ -61,12 +52,9 @@ import net.zamasoft.foliojet.layout.box.params.TableParams;
 
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
-import net.zamasoft.foliojet.layout.builder.TableBuilder;
-import net.zamasoft.foliojet.layout.builder.TwoPass;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.TableCollapsedBorders;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
-import net.zamasoft.pdfg2d.util.NumberUtils;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
@@ -286,7 +274,6 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	public final void startInnerTable(final AbstractInnerTableBox box) {
-		// System.out.println(box.getClass());
 
 		box.setTableParams(this.tableBox.getTableParams());
 		switch (box.getType()) {
@@ -350,7 +337,6 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	public final void endInnerTable() {
 		final AbstractInnerTableBox box = (AbstractInnerTableBox) this.innerTableStack
 				.remove(this.innerTableStack.size() - 1);
-		// System.out.println("/"+box.getClass());
 
 		switch (box.getType()) {
 		case TABLE_COLUMN:
@@ -1214,7 +1200,6 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 						if (cell.isExtended()) {
 							k += span - 1;
 							Cell rcell = (Cell) this.cellToSource.get(cellBox);
-							// System.err.println(j+"/"+k+"/"+rcell.getSource());
 							this.cellToSource.put(cellBox, rowBox.addTableExtendedCell(rcell));
 							continue;
 						}
@@ -1285,7 +1270,6 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 							continue;
 						}
 						final TableCellBox cellBox = cell.getCellBox();
-						// System.err.println(rowIndex+"/"+rowAscent);
 						int cellRowspan = Math.min(rows.size() - j, cell.rowspan);
 						if (cellRowspan <= 1) {
 							final BlockParams cellParams = cellBox.getBlockParams();

@@ -32,12 +32,9 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.TextBlockPos;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.BuilderGlyphHandler;
-import net.zamasoft.foliojet.layout.draw.DebugDrawable;
-import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
-import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 import net.zamasoft.pdfg2d.gc.text.FilterGlyphHandler;
 
 /**
@@ -50,7 +47,6 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	/**
 	 * ボックスの外辺を薄紫色の枠で囲みます。
 	 */
-	private static final boolean DEBUG = false;
 
 	/**
 	 * 配置された行です。
@@ -364,10 +360,6 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		assert !LayoutUtils.isNone(y);
 		visitor.visitBox(transform, this, drawer, x, y);
 
-		if (DEBUG) {
-			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(1, .5f, 1));
-			drawer.visitDrawable(drawable, x, y);
-		}
 		// 元の走査順(先頭行から)を保つため、スタックへは逆順(末尾行から)でpushする
 		for (int i = this.lines.size() - 1; i >= 0; --i) {
 			Line line = (Line) this.lines.get(i);

@@ -8,8 +8,6 @@ import net.zamasoft.foliojet.layout.sizing.FixedColumnWidths;
 
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 
-import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
-
 import net.zamasoft.foliojet.layout.box.params.RowGroupType;
 
 import net.zamasoft.foliojet.layout.box.params.CaptionSideMode;
@@ -18,15 +16,12 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractInnerTableBox;
-import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.box.content.BreakMode;
@@ -44,12 +39,8 @@ import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.PosType;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Border;
-import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
-import net.zamasoft.foliojet.layout.box.params.Length;
-import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.TableCaptionPos;
-import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
 import net.zamasoft.foliojet.layout.box.params.TableParams;
 import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
@@ -62,7 +53,6 @@ import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.TableCollapsedBorders;
 import net.zamasoft.foliojet.layout.util.DoubleList;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
-import net.zamasoft.pdfg2d.util.NumberUtils;
 
 /**
  * 固定レイアウトのテーブルを構築します。
@@ -381,7 +371,6 @@ public class IncrementalTableBuilder implements TableBuilder {
 	}
 
 	private void bindTableRowContent(boolean lastRow) {
-		// System.out.println(this.cellsUnit.size());
 		final TableParams tableParams = this.tableBox.getTableParams();
 		final InnerTableParams rowGroupParams = this.bindRowGroupBox.getInnerTableParams();
 		final TableRowGroupPos rowGroupPos = this.bindRowGroupBox.getTableRowGroupPos();
@@ -698,12 +687,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 				this.builder.getPageContext().getPageGenerator().getUserAgent()
 						.checkAbort(jp.cssj.cti2.CTISession.ABORT_FORCE);
 				double pageBottom = this.builder.getPageLimit() - this.builder.getPageAxis();
-				// System.err.println(this.pageAxis + "/" + pageBottom);
 				if (LayoutUtils.compare(this.pageSize, pageBottom) > 0) {
 					// 行グループを分割
-					// System.out.println("A;" + this.pageAxis + "/"
-					// + this.bindRowGroupBox.getHeight() + "/"
-					// + this.bindRowGroupBox.getTableRowCount());
 					double pageLimit = this.builder.getPageLimit();
 					pageLimit -= this.builder.getPageAxis();
 					pageLimit -= this.tableBox.getFrame().getFramePageStart(this.tableBox.getTableParams().flow);
@@ -785,12 +770,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 		}
 
 		// 自動改ページチェック
-		// System.err.println("OPT A: "+ pageLimit);
 		if (LayoutUtils.compare(pageLimit, 0) > 0) {
 			// 行グループを分割
-			// System.out.println("OPT A:" + pageLimit + "/"
-			// + this.bindRowGroupBox.getHeight() + "/"
-			// + this.bindRowGroupBox.getTableRowCount());
 			// フラグメンテナ容量を渡す(2026-08-27)。行境界の切断の優先
 			// (TableCutter.rowPreDecide——切断線が掛かった行が新しいページに
 			// 丸ごと収まるなら行ごと持ち越す)がこの経路でも効くように
@@ -843,8 +824,6 @@ public class IncrementalTableBuilder implements TableBuilder {
 		}
 		TableRowGroupBox rowGroupBox = this.bindRowGroupBox;
 		int rowCount = rowGroupBox.getTableRowCount();
-		// System.err.println("Page Break." + mode + "/" + pageLimit + "/"
-		// + this.tableBox.getHeight());
 		if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0
 				&& this.tableBox.getTableParams().pageBreakInside == PageBreakMode.AVOID) {
 			// テーブルの改ページ禁止
@@ -855,8 +834,6 @@ public class IncrementalTableBuilder implements TableBuilder {
 			return false;
 		}
 		TableRowGroupBox nextRowGroupBox = (TableRowGroupBox) groupRemainder;
-		// System.out.println("B;" + +rowGroupBox.getHeight() + "/"
-		// + rowGroupBox.getTableRowCount());
 		this.tableBox.addTableBody(rowGroupBox);
 
 		TableParams tableParams = this.tableBox.getTableParams();

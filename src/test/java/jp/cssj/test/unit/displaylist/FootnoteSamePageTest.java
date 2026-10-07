@@ -119,50 +119,6 @@ public final class FootnoteSamePageTest extends TestCase {
 		}
 	}
 
-	public void testTextTailDoesNotReplayUndeliveredInlineOrReplacedEvents() throws Exception {
-		try (final Pages pages = new Pages(null, true);
-				final var source = new net.zamasoft.foliojet.layout.fragment.LayoutSource();
-				final var fonts = new net.zamasoft.pdfg2d.pdf.font.FontManagerImpl(
-						net.zamasoft.pdfg2d.pdf.font.ConfigurablePDFFontSourceManager.getDefaultFontSourceManager())) {
-			pages.fonts = fonts;
-			pages.visibleEnd = 1;
-			final Root root = pages.root();
-			source.append(new net.zamasoft.foliojet.layout.fragment.LayoutSource.Chars(0, "ab".toCharArray(), false));
-			final var inline = new net.zamasoft.foliojet.layout.box.params.InlineParams();
-			inline.fontStyle = params(WritingMode.TB).fontStyle;
-			inline.fontManager = fonts;
-			// InlineBox は fontStyle/lineBreakRules/fontManager の未設定を assert する
-			inline.lineBreakRules = new net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules() {
-				public boolean atomic(final char before, final char after) { return false; }
-				public boolean canSeparate(final char before, final char after) { return false; }
-			};
-			inline.element = new net.zamasoft.foliojet.layout.segment.StructureToken(1, "span", null,
-					new org.xml.sax.helpers.AttributesImpl());
-			source.append(new net.zamasoft.foliojet.layout.fragment.LayoutSource.Start(
-					net.zamasoft.foliojet.layout.segment.BoxRecipe.freeze(
-							net.zamasoft.foliojet.layout.fragment.LayoutSource.BoxKind.INLINE,
-							new net.zamasoft.foliojet.layout.box.impl.InlineBox(inline,
-									new net.zamasoft.foliojet.layout.box.params.InlinePos()))));
-			final var image = new net.zamasoft.foliojet.layout.box.params.ReplacedParams();
-			image.fontStyle = inline.fontStyle;
-			image.element = net.zamasoft.foliojet.css.CSSElement.FOOTNOTE_CALL;
-			image.footnoteId = 77;
-			image.image = new net.zamasoft.pdfg2d.g2d.image.RasterImageImpl(
-					new java.awt.image.BufferedImage(4, 4, java.awt.image.BufferedImage.TYPE_INT_RGB));
-			source.append(new net.zamasoft.foliojet.layout.fragment.LayoutSource.Replaced(
-					net.zamasoft.foliojet.layout.segment.ReplacedRecipe.freeze(
-							new net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox(image,
-									new net.zamasoft.foliojet.layout.box.params.InlinePos())).orElseThrow()));
-			source.append(new net.zamasoft.foliojet.layout.fragment.LayoutSource.EndBlock());
-			assertTrue(net.zamasoft.foliojet.layout.SourceReplayer.replayTextTail(source, 0, -1, false, root, pages));
-			final StringBuilder text = new StringBuilder();
-			root.getCurrentPageBox().getText(text);
-			assertEquals("配達済み文字だけを再生", "ab", text.toString());
-			assertTrue("後続の置換callを先に再生しない", RootBuilder.collectFootnoteCalls(root.getCurrentPageBox()).isEmpty());
-			assertEquals("尾部sliceのリースも解放", 0, source.retentionSnapshot().leases());
-		}
-	}
-
 	private static BlockParams params(final WritingMode flow) {
 		final BlockParams params = new BlockParams();
 		params.fontStyle = new FontStyleImpl(FontFamilyList.SERIF, 12, FontStyle.Style.NORMAL, FontStyle.Weight.W_400,
@@ -248,7 +204,6 @@ public final class FootnoteSamePageTest extends TestCase {
 		public boolean isFootnotePageProbeEnabled() { return true; }
 		public boolean isFootnotePageProbeFinished() { return this.finished; }
 		public long getDeliveredEventEnd() { return this.visibleEnd; }
-		public int getDeliveredCharEnd() { return 2; }
 		public FootnotePageProbeReport getFootnotePageProbeReport(final long generation) {
 			return this.heights == null ? null : new FootnotePageProbeReport(generation, null, this.emitted, 0, 0, this.reportWidth, 200,
 					WritingMode.RL, this.heights.keySet(), this.heights, Set.of(), 0, 1,

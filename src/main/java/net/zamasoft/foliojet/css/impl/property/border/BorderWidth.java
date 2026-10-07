@@ -44,14 +44,6 @@ public final class BorderWidth extends AbstractPrimitivePropertyInfo {
 				.getLength();
 	}
 
-	/**
-	 * 物理的な辺に対応するborder-widthプロパティを返します(2026-07-20、
-	 * UAデフォルトスタイルの論理プロパティ一本化用)。
-	 */
-	public static BorderWidth forSide(Side side) {
-		return BY_SIDE[side.ordinal()];
-	}
-
 	public Value getDefault(CSSStyle style) {
 		return style.getUserAgent().getBorderWidth(BorderWidthKeyword.MEDIUM);
 	}

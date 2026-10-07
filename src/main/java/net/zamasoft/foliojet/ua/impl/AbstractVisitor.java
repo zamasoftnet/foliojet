@@ -469,8 +469,6 @@ public abstract class AbstractVisitor implements Visitor {
 					}
 					this.ua.message(MessageCodes.INFO_HEADING_TITLE, title == null ? "" : title);
 
-					// System.out.println(level+"/"+state.sectionLevel
-					// +"/"+state.sectionDepth);
 					for (int j = state.sectionLevel - level; j >= 0 && state.sectionDepth > 0; --j) {
 						// 見出し終了
 						if (this.bookmarks) {

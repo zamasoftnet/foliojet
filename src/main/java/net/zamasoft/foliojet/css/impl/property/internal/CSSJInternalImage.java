@@ -52,10 +52,6 @@ public class CSSJInternalImage extends AbstractPrimitivePropertyInfo {
 		style.set(INFO, new CSSJImageValue(image));
 	}
 
-	public static void setText(CSSStyle style, String text) {
-		style.set(INFO, new StringValue(text));
-	}
-
 	public CSSJInternalImage() {
 		super("-cssj-internal-image");
 	}

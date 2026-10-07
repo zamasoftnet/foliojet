@@ -25,10 +25,6 @@ public class CSSJHtmlTableBorder extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public static void set(CSSStyle style, CSSJHtmlTableBorderValue value) {
-		style.set(INFO, value);
-	}
-
 	public CSSJHtmlTableBorder() {
 		super("-cssj-html-table-border");
 	}

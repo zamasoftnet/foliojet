@@ -46,11 +46,10 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * {@code isSourceReplayable()}で塞ぐ。</li>
  *
  * <li><b>切断済みテキストの尾部再生</b>({@code seed 118665}):
- * {@code replayTextFrom}は{@code breakToken}の文字位置から<b>ソースの
- * 末尾まで</b>を流す。断片が流れの最後なら正しいが、段の組み直しでは
+ * 尾部再生は{@code breakToken}の文字位置から<b>ソースの
+ * 末尾まで</b>を流していた。断片が流れの最後なら正しいが、段の組み直しでは
  * 先頭の段の断片も同じ走行の中で再開されるので、後続の段の分まで組む。
- * {@code ColumnsContainer.restyle}の間は尾部再生を封じる
- * ({@code FlowContainer.pushTailSeal})。</li>
+ * 尾部再生は2026-07-28に既定で無効化し、2026-10-07に撤去した。</li>
  *
  * <li><b>MOVE の目印の取り違え</b>({@code seed 739}):
  * {@code ColumnsContainer.splitPageAxis}は切断を<b>最終段へ委譲</b>して
@@ -65,7 +64,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * 移動しても元の段に残る。その部分木をソースから再生すると、引き上げ
  * られた側とあわせて二度組まれる。{@code stampRanges}に
  * {@code containsFloat}ゲートを足す
- * ({@code canReplayChildren}/{@code replayTextTail}は最初から持っていた)。</li>
+ * ({@code canReplayChildren}は最初から持っていた)。</li>
  * </ol>
  *
  * <p>
@@ -196,9 +195,8 @@ public class NestedMulticolDuplicationTest extends TestCase {
 	 * 経路5: <b>上限の無い尾部再生</b>({@code seed 186070}、2026-07-28追加)。
 	 *
 	 * <p>
-	 * 経路2の{@code pushTailSeal}は{@code ColumnsContainer.restyle}の中しか
-	 * 覆っていない。この文書は<b>外側のPAGE再開</b>で尾部再生が発火するので
-	 * 封印をすり抜ける。{@code <p>T17 T18 T19 T20</p>}の断片が
+	 * 段組の組み直しの中だけを封じても、この文書は<b>外側のPAGE再開</b>で
+	 * 尾部再生が発火していた。{@code <p>T17 T18 T19 T20</p>}の断片が
 	 * {@code breakToken}の文字位置から<b>ソース末尾まで</b>を流し、
 	 * 後続の断片が組む{@code T18 T19 T20}を先に組んでしまう。
 	 * </p>

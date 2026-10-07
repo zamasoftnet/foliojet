@@ -31,7 +31,6 @@ import net.zamasoft.pdfg2d.gc.text.layout.control.SoftHyphen;
  * @version $Id: BuilderGlyphHandler.java 1593 2019-12-03 07:02:17Z miyabe $
  */
 public class BuilderGlyphHandler implements GlyphHandler {
-	private static final boolean DEBUG = false;
 
 	final Builder builder;
 
@@ -74,16 +73,10 @@ public class BuilderGlyphHandler implements GlyphHandler {
 		}
 		this.textParamsStack.add(params);
 		this.changeTextState(params);
-		if (DEBUG) {
-			System.out.println(this.textParamsStack.size() + "/start|" + params.element);
-		}
 	}
 
 	public void endTextBox() {
 		AbstractTextParams params = (AbstractTextParams) this.textParamsStack.remove(this.textParamsStack.size() - 1);
-		if (DEBUG) {
-			System.out.println(this.textParamsStack.size() + "/end|" + params.element);
-		}
 		if (this.textParamsStack.isEmpty()) {
 			params = this.builder.getFlowBox().getBlockParams();
 		} else {
@@ -178,7 +171,6 @@ public class BuilderGlyphHandler implements GlyphHandler {
 		if (charOffset >= 0) {
 			this.deliveredCharEnd = Math.max(this.deliveredCharEnd, charOffset + clen);
 		}
-		// System.out.print(new String(ch, coff, clen));
 		this.builder.glyph(charOffset, ch, coff, clen, gid);
 		this.boundaryWrap = null;
 	}
@@ -189,7 +181,6 @@ public class BuilderGlyphHandler implements GlyphHandler {
 
 	public void control(final TextControl quad) {
 		boolean consumesBoundary = true;
-		// System.out.println(quad);
 		if (quad instanceof InlineQuad) {
 			// インラインボックス
 			this.journal.inline();
@@ -298,7 +289,6 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	public void flush() {
 		final boolean boundaryOrCurrentWrap = this.boundaryWrap == null
 				? this.wrap : this.boundaryWrap.booleanValue();
-		//System.err.println("BGH FLUSH: "+boundaryOrCurrentWrap);
 		if (!boundaryOrCurrentWrap && !this.toLineFeed) {
 			return;
 		}

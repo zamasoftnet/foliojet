@@ -22,11 +22,6 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 public class Clip extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new Clip();
 
-	public static RectValue get(CSSStyle style) {
-		Value value = style.get(INFO);
-		return value == KeywordValue.AUTO ? null : (RectValue) value;
-	}
-
 	private Clip() {
 		super("clip");
 	}

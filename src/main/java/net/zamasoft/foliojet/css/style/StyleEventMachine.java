@@ -1,26 +1,8 @@
 package net.zamasoft.foliojet.css.style;
 
-import net.zamasoft.foliojet.layout.box.params.Fiducial;
-
-import net.zamasoft.foliojet.layout.box.params.AutoPosition;
-
-import net.zamasoft.foliojet.layout.box.params.RowGroupType;
-
-import net.zamasoft.foliojet.layout.box.params.CaptionSideMode;
-
-import net.zamasoft.foliojet.layout.box.params.Align;
-
-import net.zamasoft.foliojet.layout.box.params.FloatSide;
-
-import net.zamasoft.foliojet.layout.box.params.OverflowMode;
-
 import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
-
 import net.zamasoft.foliojet.layout.box.params.ClearMode;
-
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
-
-import java.awt.geom.AffineTransform;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -29,7 +11,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
-
 import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.Declaration;
@@ -37,22 +18,17 @@ import net.zamasoft.foliojet.css.StyleContext;
 import net.zamasoft.foliojet.css.html.HTMLStyle;
 import net.zamasoft.foliojet.css.lang.LanguageProfile;
 import net.zamasoft.foliojet.css.lang.LanguageProfileBundle;
-import net.zamasoft.foliojet.css.lang.WordHyphenatorBundle;
-import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.counterstyle.CounterStyles;
 import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
-import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.AttrValue;
 import net.zamasoft.foliojet.css.value.CSSFloatValue;
-import net.zamasoft.foliojet.css.value.CaptionSideValue;
 import net.zamasoft.foliojet.css.value.ContentFunctionValue;
 import net.zamasoft.foliojet.css.value.CounterSetValue;
 import net.zamasoft.foliojet.css.value.CounterValue;
 import net.zamasoft.foliojet.css.value.CountersValue;
 import net.zamasoft.foliojet.css.value.DisplayValue;
 import net.zamasoft.foliojet.css.value.ListStylePositionValue;
-import net.zamasoft.foliojet.css.value.PageBreakValue;
 import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.PositionValue;
 import net.zamasoft.foliojet.css.value.QuoteValue;
@@ -67,19 +43,9 @@ import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.css.value.URIValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
-import net.zamasoft.foliojet.css.value.VisibilityValue;
-import net.zamasoft.foliojet.css.value.ext.CSSJRubyValue;
-import net.zamasoft.foliojet.css.impl.property.background.BackgroundAttachment;
-import net.zamasoft.foliojet.css.impl.property.background.BackgroundColor;
-import net.zamasoft.foliojet.css.impl.property.background.BackgroundImage;
-import net.zamasoft.foliojet.css.impl.property.background.BackgroundPosition;
-import net.zamasoft.foliojet.css.impl.property.background.BackgroundRepeat;
-import net.zamasoft.foliojet.css.impl.property.table.BorderCollapse;
-import net.zamasoft.foliojet.css.impl.property.table.BorderSpacing;
 import net.zamasoft.foliojet.css.impl.property.text.CSSColor;
 import net.zamasoft.foliojet.css.impl.property.box.CSSFloat;
 import net.zamasoft.foliojet.css.impl.property.box.CSSPosition;
-import net.zamasoft.foliojet.css.impl.property.table.CaptionSide;
 import net.zamasoft.foliojet.css.impl.property.box.Clear;
 import net.zamasoft.foliojet.css.impl.property.content.Content;
 import net.zamasoft.foliojet.css.impl.property.content.CounterIncrement;
@@ -88,133 +54,47 @@ import net.zamasoft.foliojet.css.impl.property.content.CounterSet;
 import net.zamasoft.foliojet.css.impl.property.content.StringSet;
 import net.zamasoft.foliojet.css.impl.property.text.Direction;
 import net.zamasoft.foliojet.css.impl.property.box.Display;
-import net.zamasoft.foliojet.css.impl.property.table.EmptyCells;
 import net.zamasoft.foliojet.css.impl.property.font.FontSize;
-import net.zamasoft.foliojet.css.impl.property.box.BlockSize;
 import net.zamasoft.foliojet.css.impl.property.box.Height;
-import net.zamasoft.foliojet.css.impl.property.text.Hyphens;
-import net.zamasoft.foliojet.css.impl.property.text.LetterSpacing;
 import net.zamasoft.foliojet.css.impl.property.font.LineHeight;
 import net.zamasoft.foliojet.css.impl.property.content.ListStyleImage;
 import net.zamasoft.foliojet.css.impl.property.content.ListStylePosition;
 import net.zamasoft.foliojet.css.impl.property.content.ListStyleType;
-import net.zamasoft.foliojet.css.impl.property.box.MaxHeight;
-import net.zamasoft.foliojet.css.impl.property.box.MaxWidth;
-import net.zamasoft.foliojet.css.impl.property.box.MinHeight;
-import net.zamasoft.foliojet.css.impl.property.box.MinWidth;
-import net.zamasoft.foliojet.css.impl.property.page.Orphans;
-import net.zamasoft.foliojet.css.impl.property.box.Overflow;
 import net.zamasoft.foliojet.css.impl.property.page.PageBreakAfter;
 import net.zamasoft.foliojet.css.impl.property.page.PageBreakBefore;
-import net.zamasoft.foliojet.css.impl.property.page.PageBreakInside;
 import net.zamasoft.foliojet.css.impl.property.content.Quotes;
-import net.zamasoft.foliojet.css.impl.property.table.TableLayout;
 import net.zamasoft.foliojet.css.impl.property.text.TextAlign;
-import net.zamasoft.foliojet.css.impl.property.text.TextDecoration;
 import net.zamasoft.foliojet.css.impl.property.text.TextIndent;
-import net.zamasoft.foliojet.css.impl.property.text.TextTransform;
 import net.zamasoft.foliojet.css.impl.property.box.VerticalAlign;
-import net.zamasoft.foliojet.css.impl.property.box.Visibility;
 import net.zamasoft.foliojet.css.impl.property.text.WhiteSpace;
-import net.zamasoft.foliojet.css.impl.property.page.Widows;
 import net.zamasoft.foliojet.css.impl.property.box.Width;
-import net.zamasoft.foliojet.css.impl.property.text.WordSpacing;
-import net.zamasoft.foliojet.css.impl.property.box.ZIndex;
-import net.zamasoft.foliojet.css.impl.property.background.BackgroundClip;
-import net.zamasoft.foliojet.css.impl.property.background.BackgroundSize;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
 import net.zamasoft.foliojet.css.impl.property.box.BoxSizing;
 import net.zamasoft.foliojet.css.impl.property.column.ColumnCount;
-import net.zamasoft.foliojet.css.impl.property.column.ColumnFill;
-import net.zamasoft.foliojet.css.impl.property.column.ColumnGap;
-import net.zamasoft.foliojet.css.impl.property.column.ColumnRuleColor;
-import net.zamasoft.foliojet.css.impl.property.column.ColumnRuleStyle;
-import net.zamasoft.foliojet.css.impl.property.column.ColumnRuleWidth;
-import net.zamasoft.foliojet.css.impl.property.column.ColumnSpan;
-import net.zamasoft.foliojet.css.impl.property.column.ColumnWidth;
-import net.zamasoft.foliojet.css.impl.property.box.Opacity;
-import net.zamasoft.foliojet.css.impl.property.text.TextAlignLast;
 import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisColor;
 import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisPosition;
 import net.zamasoft.foliojet.css.impl.property.text.TextEmphasisStyle;
 import net.zamasoft.foliojet.css.impl.property.text.TextFillColor;
-import net.zamasoft.foliojet.css.impl.property.text.TextShadow;
-import net.zamasoft.foliojet.css.impl.property.text.TextStrokeColor;
-import net.zamasoft.foliojet.css.impl.property.text.TextStrokeWidth;
-import net.zamasoft.foliojet.css.impl.property.box.Transform;
-import net.zamasoft.foliojet.css.impl.property.box.TransformOrigin;
-import net.zamasoft.foliojet.css.impl.property.text.TextWrapStyle;
-import net.zamasoft.foliojet.css.impl.property.text.WordWrap;
-import net.zamasoft.foliojet.layout.fragment.LayoutSource;
-import net.zamasoft.foliojet.css.impl.property.ext.CSSJRuby;
-import net.zamasoft.foliojet.css.impl.property.internal.CSSJHtmlAlign;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.ImageLoadDiagnostics;
-import net.zamasoft.foliojet.layout.DocumentBuilder;
-import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
-import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
-import net.zamasoft.foliojet.layout.box.content.FlowContainer;
-import net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox;
-import net.zamasoft.foliojet.layout.box.impl.AbsoluteReplacedBox;
-import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
-import net.zamasoft.foliojet.layout.box.impl.FloatReplacedBox;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
-import net.zamasoft.foliojet.layout.box.impl.FlowReplacedBox;
-import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
-import net.zamasoft.foliojet.layout.box.impl.InlineBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineReplacedBox;
-import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
-import net.zamasoft.foliojet.layout.box.impl.TableBox;
-import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
-import net.zamasoft.foliojet.layout.box.impl.TableColumnBox;
-import net.zamasoft.foliojet.layout.box.impl.TableColumnGroupBox;
-import net.zamasoft.foliojet.layout.box.impl.TableRowBox;
-import net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
-import net.zamasoft.foliojet.layout.box.params.PosType;
-import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
-import net.zamasoft.foliojet.layout.box.params.AbstractLineParams;
-import net.zamasoft.foliojet.layout.box.params.AbstractStaticPos;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.Background;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
-import net.zamasoft.foliojet.layout.box.params.Border;
-import net.zamasoft.foliojet.layout.box.params.Columns;
-import net.zamasoft.foliojet.layout.box.params.Dimension;
-import net.zamasoft.foliojet.layout.box.params.FirstLineParams;
-import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
-import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
-import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.Insets;
-import net.zamasoft.foliojet.layout.box.params.Offset;
-import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.RectBorder;
-import net.zamasoft.foliojet.layout.box.params.RectBorder.Radius;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
-import net.zamasoft.foliojet.layout.box.params.TableCaptionPos;
-import net.zamasoft.foliojet.layout.box.params.TableCellPos;
-import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
-import net.zamasoft.foliojet.layout.box.params.TableParams;
-import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
-import net.zamasoft.foliojet.layout.box.params.TableRowPos;
-
-import net.zamasoft.foliojet.layout.builder.PageGenerator;
-import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
-import net.zamasoft.foliojet.layout.draw.Drawer;
-import net.zamasoft.foliojet.layout.imposition.Imposition;
-import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.pdfg2d.util.IntList;
-import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.util.TextUtils;
-import net.zamasoft.foliojet.layout.visitor.Visitor;
-import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.CounterScope;
 import net.zamasoft.foliojet.ua.PageAssignmentState;
 import net.zamasoft.foliojet.css.value.ElementFunctionValue;
@@ -223,27 +103,14 @@ import net.zamasoft.foliojet.ua.PageRef.Fragment;
 import net.zamasoft.foliojet.ua.PassContext;
 import net.zamasoft.foliojet.ua.PendingStringSet;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.ua.props.OutputPageLimitAbort;
-import net.zamasoft.foliojet.ua.props.OutputPrintMode;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.vocab.XHTML;
 import net.zamasoft.zstream.resolver.util.URIHelper;
-import net.zamasoft.pdfg2d.gc.GC;
-import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.RelativeLengthValue;
-import net.zamasoft.foliojet.css.impl.property.border.BorderWidth;
-import net.zamasoft.foliojet.css.impl.property.border.BorderStyle;
-import net.zamasoft.foliojet.css.impl.property.border.BorderRadius;
-import net.zamasoft.foliojet.css.impl.property.box.Padding;
 import net.zamasoft.foliojet.css.impl.property.box.Margin;
-import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
 import net.zamasoft.foliojet.css.impl.property.box.Inset;
-import net.zamasoft.foliojet.css.impl.property.border.Corner;
-import net.zamasoft.foliojet.css.impl.property.box.Side;
-import net.zamasoft.foliojet.ua.AbsoluteFontSize;
-import net.zamasoft.foliojet.ua.BoundSide;
 
 /**
  * スタイルイベント(startStyle/characters/endStyle)の状態機械です
@@ -259,8 +126,6 @@ import net.zamasoft.foliojet.ua.BoundSide;
  */
 final class StyleEventMachine {
 	private static final Logger LOG = Logger.getLogger(StyleEventMachine.class.getName());
-
-	private static final boolean DEBUG = false;
 
 	private static final ValueListValue LF = new ValueListValue(new Value[] { new StringValue("\n") });
 
@@ -310,9 +175,6 @@ final class StyleEventMachine {
 	}
 
 	void startStyle(CSSStyle style) {
-		if (DEBUG) {
-			System.err.println(style.path());
-		}
 		final CSSElement ce = style.getCSSElement();
 
 		short explDisplay = Display.get(style);
@@ -1659,9 +1521,6 @@ final class StyleEventMachine {
 			return;
 		}
 		CSSStyle style = this.context.getCurrentStyle();
-		if (DEBUG) {
-			System.err.println("/" + style.path());
-		}
 
 		final CSSElement ce = style.getCSSElement();
 		if (!ce.isPseudoElement()

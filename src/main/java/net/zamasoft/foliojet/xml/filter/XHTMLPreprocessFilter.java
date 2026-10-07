@@ -162,7 +162,6 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 	}
 
 	public void startElement(String uri, String lName, String qName, Attributes atts) throws SAXException {
-		// System.err.println(lName);
 		if (uri.equals(XHTML.URI)) {
 			String[] pi = null;
 			if (XHTML.H1_ELEM.lName.equals(lName) || XHTML.H2_ELEM.lName.equals(lName)
@@ -378,7 +377,6 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 	}
 
 	public void characters(char[] ch, int off, int len) throws SAXException {
-		// System.out.println(new String(ch, off, len));
 		if (this.events == null) {
 			super.characters(ch, off, len);
 		} else {
@@ -413,7 +411,6 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 	}
 
 	public void endElement(String uri, String lName, String qName) throws SAXException {
-		// System.err.println("/"+lName);
 		if (uri.equals(XHTML.URI)) {
 			String[] pi = null;
 			if (lName.equals(XHTML.STYLE_ELEM.lName)) {

@@ -44,29 +44,6 @@ public class TableCollapsedBorders {
 	}
 
 	/**
-	 * カラム幅が全てゼロで、全ての境界が非表示のインスタンスを生成します。
-	 * 
-	 * @param columnCount
-	 * @param headerCount
-	 * @param bodyCount
-	 * @param footerCount
-	 */
-	public TableCollapsedBorders(int columnCount, int headerCount, int bodyCount, int footerCount) {
-		// System.out.println(columnCount + "/" + headerCount + "/" + bodyCount
-		// + "/" + footerCount);
-		this.columnSizes = new double[columnCount];
-		this.headerRowSizes = new double[headerCount];
-		this.headerVborders = new Border[headerCount][columnCount + 1];
-		this.headerHborders = new Border[columnCount][headerCount + 1];
-		this.bodyRowSizes = new double[bodyCount];
-		this.bodyVborders = new Border[bodyCount][columnCount + 1];
-		this.bodyHborders = new Border[columnCount][bodyCount + 1];
-		this.footerRowSizes = new double[footerCount];
-		this.footerVborders = new Border[footerCount][columnCount + 1];
-		this.footerHborders = new Border[columnCount][footerCount + 1];
-	}
-
-	/**
 	 * カラム幅と各境界を配列で指定したインスタンスを生成します。
 	 * 
 	 * @param columnWidths

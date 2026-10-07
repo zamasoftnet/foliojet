@@ -1305,12 +1305,6 @@ public class FlowContainer implements Container {
 			final byte lflags = step.positionMask();
 			final byte xflags = step.splitFlags();
 
-			// System.err.println("M: xflags=" + xflags + "/flags=" + flags
-			// + "/flows.size=" + this.flows.size() + "/i=" + i
-			// + "/this==box=" + (((AutoBreakMode) mode).box == this)
-			// + "/this.box=" + this.box.getParams().element
-			// + "/prevFlow=" + prevFlow.box.getParams().element);
-
 			final boolean monolithicAvoid;
 			final boolean unfulfillableAvoid;
 			if (prevFlow.box.getType() == BoxType.BLOCK) {
@@ -1454,10 +1448,6 @@ public class FlowContainer implements Container {
 				throw new IllegalStateException(prevFlow.box.toString());
 			}
 
-			// System.err.println("ACB H: leave=" + (outcome instanceof ProbeOutcome.Keep)
-			// + "/pass=" + (outcome instanceof ProbeOutcome.Move) + "/i=" + i
-			// + "/lastOrphan="+lastOrphan+ "/xflags="+xflags+"/" +
-			// this.box.getParams().element);
 			if (outcome instanceof ProbeOutcome.Keep) {
 				// Keepの解決規則はFlowCutterに純化(二相分離・増分3)。
 				// TREAT_AS_MOVE=牽引によるMove化はProbeが最終配置でない代表例
@@ -2374,74 +2364,6 @@ public class FlowContainer implements Container {
 	}
 
 	/**
-	 * 「この組み直しは尾部ではない」区間の深さです(2026-07-28新設)。
-	 *
-	 * <p>
-	 * 切断されたテキストブロックの尾部再生({@code replayTextFrom})は、
-	 * 断片の{@code breakToken}が持つ文字位置から<b>ソースの末尾まで</b>を
-	 * 流す。断片が「その流れの最後の断片」であるかぎり正しい——残りは
-	 * 全部その断片のものだからである。
-	 * </p>
-	 *
-	 * <p>
-	 * ところが{@link ColumnsContainer#restyle}は<b>全ての段を一本に
-	 * 組み直す</b>。先頭の段の断片も、最後の段の断片も、同じ組み直しの
-	 * 中で再開される。先頭側の断片に「末尾まで」を流させると、後続の段の
-	 * 断片が持っている分まで組まれ、<b>同じページに同じ文字が二度描かれる</b>
-	 * (実測: local/shrink/strict-118665-min.html。段2が "T2 T3 T4"、
-	 * 段3が "T3 T4" を描いていた)。
-	 * </p>
-	 *
-	 * <p>
-	 * 断片は流れを分割して持っているので、<b>最後の段以外は自分の分しか
-	 * 持っていない</b>。最後の段だけが「末尾まで」を名乗れる——
-	 * {@code ColumnsContainer.restyle}が開いた尾({@code shape})を
-	 * 最終段にだけ渡すのと同じ理由・同じ境界である。ここが立っている間、
-	 * 尾部再生は行わずボックス再生(自分の行だけを再演)へ落とす。
-	 * </p>
-	 *
-	 * <p>
-	 * ThreadLocalなのは{@code ContinuationStats}の継続経路スタックと同じ理由(複数変換の
-	 * 並行実行)。カウンタなのは入れ子の段組で対称にpush/popするため。
-	 * </p>
-	 */
-	private static final ThreadLocal<int[]> tailSealDepth = ThreadLocal.withInitial(() -> new int[1]);
-
-	/**
-	 * {@link #tailSealDepth}を1増やします。必ず{@link #popTailSeal}と
-	 * try/finallyで対にすること。
-	 */
-	public static void pushTailSeal() {
-		++tailSealDepth.get()[0];
-	}
-
-	/** {@link #tailSealDepth}を1減らします。 */
-	public static void popTailSeal() {
-		final int[] depth = tailSealDepth.get();
-		if (depth[0] <= 0) {
-			tailSealDepth.remove();
-			throw new IllegalStateException("popTailSeal without a matching push");
-		}
-		if (--depth[0] == 0) {
-			tailSealDepth.remove();
-		}
-	}
-
-	private static boolean isTailSealed() {
-		return tailSealDepth.get()[0] > 0;
-	}
-
-	/**
-	 * 現スレッドに尾部封印({@link #tailSealDepth})が残っているかを
-	 * 返します(2026-07-30、増分1)。正常なら変換完了後は必ずfalse——
-	 * trueが残るとそのスレッドの以後の変換で尾部再生が全て封じられる
-	 * ため、テストがリーク検査に使う。
-	 */
-	public static boolean hasOpenTailSeal() {
-		return isTailSealed();
-	}
-
-	/**
 	 * worklist executorのスタック要素です(2026-07-30、legacy再帰撤去=
 	 * 増分1で導入)。従来は{@link RestyleFrame}単型だったが、MULTICOL
 	 * native降下({@link MulticolRestyleScope})を再帰なしで表すため
@@ -2485,8 +2407,7 @@ public class FlowContainer implements Container {
 	 * 済みの旧段snapshotを保持し、executorが段をindex昇順に1つずつ
 	 * {@link RestyleFrame}としてpushする——親frameをpauseしたままLIFOで
 	 * 積むことで、旧経路(MULTICOL全体を深さ優先で完了してから親の後続
-	 * itemへ戻る)と同じ順序を保存する。全段完了で
-	 * {@code ColumnsContainer.endRestyleScope()}(尾部封印の解除)。
+	 * itemへ戻る)と同じ順序を保存する。全段完了でpopする。
 	 *
 	 * <p>
 	 * 開いた尾({@code inner})を渡すのは最終段だけ・それ以前は
@@ -2546,50 +2467,36 @@ public class FlowContainer implements Container {
 			boolean restyleAbsolutes, List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix) {
 		final Deque<WorklistStep> stack = new ArrayDeque<>();
 		this.pushWorklistFrame(stack, builder, shape, restyleAbsolutes, prefix);
-		try {
-			while (!stack.isEmpty()) {
-				final WorklistStep step = stack.peek();
-				if (step instanceof MulticolRestyleScope scope) {
-					if (scope.nextColumn >= scope.snapshot.size()) {
-						// 全段完了。pop→封印解除の順(逆にすると解除が
-						// 例外を投げた場合にfinally清算と二重解除になる)
-						stack.pop();
-						ColumnsContainer.endRestyleScope();
-						continue;
-					}
-					final int c = scope.nextColumn++;
-					final FlowContainer column = (FlowContainer) scope.snapshot.get(c);
-					// 開いた尾は最終段だけ・それ以前はCLOSED
-					// (ColumnsContainer.restyleと同じ境界)
-					final net.zamasoft.foliojet.layout.fragment.OpenShape columnShape = c == scope.snapshot.size() - 1
-							? scope.inner
-							: net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED;
-					column.pushWorklistFrame(stack, builder, columnShape, false, List.of());
-					continue;
-				}
-				final RestyleFrame frame = (RestyleFrame) step;
-				if (frame.items == null || frame.nextIndex >= frame.size) {
+		while (!stack.isEmpty()) {
+			final WorklistStep step = stack.peek();
+			if (step instanceof MulticolRestyleScope scope) {
+				if (scope.nextColumn >= scope.snapshot.size()) {
+					// 全段完了
 					stack.pop();
 					continue;
 				}
-				final int i = frame.nextIndex++;
-				// restyleItem()はthisのインスタンス状態を一切参照しない
-				// (items/lastFlow/shape等パラメータのみで完結する)ため、
-				// frameがどのFlowContainerに由来するかによらず同じ呼び出しで
-				// 正しく動く——呼び出し先はthis固定でよい。
-				this.restyleItem(builder, frame.items, i, frame.size, frame.lastFlow, frame.shape, frame.depth,
-						stack);
+				final int c = scope.nextColumn++;
+				final FlowContainer column = (FlowContainer) scope.snapshot.get(c);
+				// 開いた尾は最終段だけ・それ以前はCLOSED
+				// (ColumnsContainer.restyleと同じ境界)
+				final net.zamasoft.foliojet.layout.fragment.OpenShape columnShape = c == scope.snapshot.size() - 1
+						? scope.inner
+						: net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED;
+				column.pushWorklistFrame(stack, builder, columnShape, false, List.of());
+				continue;
 			}
-		} finally {
-			// 例外時の清算: スタックに残ったMulticolRestyleScopeの
-			// 尾部封印を必ず解除する(正常完了時はスタック空でno-op)。
-			// 放置するとThreadLocalのtailSealDepthが正のまま残り、
-			// 以後この変換の尾部再生が全て封じられる。
-			while (!stack.isEmpty()) {
-				if (stack.pop() instanceof MulticolRestyleScope) {
-					ColumnsContainer.endRestyleScope();
-				}
+			final RestyleFrame frame = (RestyleFrame) step;
+			if (frame.items == null || frame.nextIndex >= frame.size) {
+				stack.pop();
+				continue;
 			}
+			final int i = frame.nextIndex++;
+			// restyleItem()はthisのインスタンス状態を一切参照しない
+			// (items/lastFlow/shape等パラメータのみで完結する)ため、
+			// frameがどのFlowContainerに由来するかによらず同じ呼び出しで
+			// 正しく動く——呼び出し先はthis固定でよい。
+			this.restyleItem(builder, frame.items, i, frame.size, frame.lastFlow, frame.shape, frame.depth,
+					stack);
 		}
 	}
 
@@ -2831,51 +2738,15 @@ public class FlowContainer implements Container {
 					final TextBlockBox textBlock = (TextBlockBox) holder.getBox();
 					final boolean open = lastFlow == holder
 							&& shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.OpenText;
-					boolean replayed = false;
-					// open(live ストリームが続きを流し込む)場合の尾部再生は
-					// box-restyle に委ねる。かつての理由「charOffset の±1」は
-					// 整形器バグとして根治済み(2026-07-17)だが、解禁実験は
-					// 多数の失敗を示した — 残る実質は live shaper の保留
-					// バッファと builder テキスト状態の受け渡し(deliveredCharEnd
-					// と unitizer 保留の境界)であり、M3b のトークン再開で回収する
-					// isTailSealed(2026-07-28): 段の組み直しの最中は、どの
-					// 断片も「自分が記録した分しか持っていない」ので、
-					// charOffsetからソース末尾までを流す尾部再生をしては
-					// いけない({@code FlowContainer.pushTailSeal}参照)
-					if (!open && !isTailSealed()
-							&& (builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
-									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
-							&& builder.getPageContext() != null) {
-						final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = builder.getPageContext();
-						// 尾部の終端: 次の item のアンカーがあれば上限として使う。
-						// なくても tailBound がログ構造(囲みブロックの EndBlock
-						// またはブロック級兄弟の Start)から終端を導出するため、
-						// 次兄弟が分割断片(アンカー無効)でも再生できる(2026-07-17)
-						long endId = -1;
-						if (i + 1 < size) {
-							// 次アイテムが吸収済み再生範囲(C1c)なら fromId が
-							// そのボックスのアンカーと同値
-							final BoxHolder next = (BoxHolder) items.get(i + 1);
-							endId = next instanceof Replay replay ? replay.range.fromId()
-									: next.getBox().getSourceAnchor();
-						}
-						// 切断段落の尾部をソース再駆動(M6b v3)
-						replayed = root.replayTextFrom(textBlock, endId, open);
-					}
 					net.zamasoft.foliojet.layout.fragment.ResumeTrace.op(depth,
-							replayed ? "text-tail" : (open ? "restyle-text-open" : "restyle-text"),
-							"serial=" + holder.serial);
-					if (!replayed) {
-						if (open) {
-							// M3b Phase 1: スライス運搬経由(restyle 内部で
-							// record→replay)。Phase 2/3 の TextTail 型付き化の実測
-							net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenTextHandoff();
-						}
-						textBlock.restyle(builder);
+							open ? "restyle-text-open" : "restyle-text", "serial=" + holder.serial);
+					if (open) {
+						// M3b Phase 1: スライス運搬経由(restyle 内部で
+						// record→replay)。Phase 2/3 の TextTail 型付き化の実測
+						net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenTextHandoff();
 					}
-					// System.err.println("endTextBlock"+depth);
-					if (!open && !replayed) {
-						// 再駆動時はドライバの finishReplay が既に閉じている
+					textBlock.restyle(builder);
+					if (!open) {
 						builder.endTextBlock();
 					}
 				}

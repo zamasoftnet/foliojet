@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.layout.segment;
 
-import java.util.Arrays;
-
 import net.zamasoft.foliojet.layout.DocumentBuilder;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.INonReplacedBox;
@@ -27,10 +25,7 @@ import net.zamasoft.foliojet.layout.box.INonReplacedBox;
  * 撤去されたため、{@link #execute(SegmentEvent)}へ一本化された。
  * 呼び出し側({@code SourceReplayer})は
  * {@code LayoutSource.Event}を{@code LayoutSourceEventConverter.convert}で
- * オンザフライ変換して駆動する。唯一の例外は切断段落の尾部再生の
- * 部分範囲プリミティブ({@link #executeCharsRange})で、これは
- * イベント境界内のトリミング(先頭skip・配達済み終端での打ち切り)という
- * 尾部特有の駆動であり、SegmentEventの語彙には含めない。
+ * オンザフライ変換して駆動する。
  * </p>
  *
  * <p>
@@ -217,24 +212,4 @@ public final class SegmentExecutor {
 		}
 	}
 
-	/**
-	 * Charsイベントを部分範囲だけ駆動します(切断段落の尾部再生
-	 * {@code SourceReplayer.replayTextTail}専用——先頭のskip・配達済み
-	 * 終端での打ち切りで範囲が空になることがあり、その場合も
-	 * ordinalは1イベントぶん進める)。駆動する場合はfreshなコピーを渡す。
-	 *
-	 * @param charOffset 駆動範囲のソース文字オフセット
-	 * @param ch         記録済み配列(変更しない)
-	 * @param off        配列内の開始位置
-	 * @param len        駆動する文字数(0以下なら駆動なしでordinalだけ進める)
-	 * @param fixed      docプロトコルの固定テキストフラグ
-	 */
-	public void executeCharsRange(final int charOffset, final char[] ch, final int off, final int len,
-			final boolean fixed) {
-		if (len > 0) {
-			final char[] fresh = Arrays.copyOfRange(ch, off, off + len);
-			this.doc.characters(charOffset, fresh, 0, len, fixed);
-		}
-		++this.eventId;
-	}
 }

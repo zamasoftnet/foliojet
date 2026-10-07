@@ -36,7 +36,6 @@ import net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalLink;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.layout.imposition.Imposition;
-import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.OutputPdfHyperlinksHref;
 import net.zamasoft.foliojet.ua.props.UAProps;
@@ -190,9 +189,7 @@ public class CSSProcessor implements XMLHandler {
 		URI uri;
 		try {
 			uri = this.applier.getBaseURI();
-			// System.err.println(uri+";"+href);
 			uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(), uri, href);
-			// System.err.println(uri+";"+href);
 		} catch (URISyntaxException e) {
 			this.ua.message(MessageCodes.WARN_MISSING_CSS_STYLESHEET, href);
 			return;
@@ -206,7 +203,6 @@ public class CSSProcessor implements XMLHandler {
 		if (apply && !this.ua.is(mediaTypes)) {
 			apply = false;
 		}
-		// System.err.println("LINK: "+uri+";"+mediaTypes+";"+apply);
 		if (apply) {
 			try {
 				final Source source = this.ua.resolve(uri);

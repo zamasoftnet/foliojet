@@ -9,8 +9,6 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.css.impl.property.box.Width;
-import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -26,10 +24,6 @@ public class CSSJAutoWidth extends AbstractPrimitivePropertyInfo {
 
 	public static Value get(CSSStyle style) {
 		return style.get(INFO);
-	}
-
-	public static Length getLength(CSSStyle style) {
-		return BoxValueUtils.toLength(Width.get(style));
 	}
 
 	protected CSSJAutoWidth() {

@@ -472,13 +472,6 @@ public class HTMLParser implements Parser {
 			return this.locator.getCharacterOffset();
 		}
 
-		public String getEncoding() {
-			return this.locator.getEncoding();
-		}
-
-		public String getXMLVersion() {
-			return this.locator.getXMLVersion();
-		}
 	}
 }
 

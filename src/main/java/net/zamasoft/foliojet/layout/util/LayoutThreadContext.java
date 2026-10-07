@@ -19,8 +19,7 @@ import net.zamasoft.foliojet.layout.rescue.RescuePolicy;
  * </p>
  *
  * <p>
- * 引き継がないもの: {@code FlowContainer.tailSealDepth}と
- * {@code ContinuationStats.continuationPathStack}は処理中の深さや経路の
+ * 引き継がないもの: {@code ContinuationStats.continuationPathStack}は処理中の経路の
  * 一時記録で、新しいスレッドは空から始めるのが正しい。
  * </p>
  */

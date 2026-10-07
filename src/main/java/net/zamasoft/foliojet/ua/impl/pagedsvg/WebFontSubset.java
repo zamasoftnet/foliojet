@@ -23,7 +23,6 @@ import net.zamasoft.pdfg2d.font.ShapedFont;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.text.Text;
-import net.zamasoft.pdfg2d.pdf.ObjectRef;
 import net.zamasoft.pdfg2d.pdf.PDFFragmentOutput;
 import net.zamasoft.pdfg2d.pdf.XRef;
 import net.zamasoft.pdfg2d.pdf.font.PDFEmbeddedFont;
@@ -510,17 +509,6 @@ final class WebFontSubset {
 	}
 
 	private record TableData(String tag, byte[] data) {
-		int checksum() {
-			long sum = 0;
-			for (int i = 0; i < this.data.length; i += 4) {
-				long word = 0;
-				for (int j = 0; j < 4; ++j) {
-					word = (word << 8) | (i + j < this.data.length ? this.data[i + j] & 0xFFL : 0);
-				}
-				sum = (sum + word) & 0xFFFFFFFFL;
-			}
-			return (int) sum;
-		}
 	}
 
 	private static final class Woff2 {

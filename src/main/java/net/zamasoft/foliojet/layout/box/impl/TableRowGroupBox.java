@@ -29,12 +29,10 @@ import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
 
 import net.zamasoft.foliojet.layout.draw.BackgroundBorderDrawable;
-import net.zamasoft.foliojet.layout.draw.DebugDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
-import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
 /**
  * テーブル行グループの実装です。
@@ -43,7 +41,6 @@ import net.zamasoft.pdfg2d.gc.paint.RGBColor;
  * @version $Id: TableRowGroupBox.java 1622 2022-05-02 06:22:56Z miyabe $
  */
 public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBreakableBox {
-	private static final boolean DEBUG = false;
 
 	protected final TableRowGroupPos pos;
 	private Drawer pendingDrawer = null;
@@ -225,10 +222,6 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 				drawer = newDrawer;
 			}
 		}
-		if (DEBUG) {
-			Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(.7f, .7f, 1));
-			drawer.visitDrawable(drawable, x, y);
-		}
 		if (this.rows == null) {
 			return;
 		}
@@ -284,9 +277,6 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 
 	private SplitResult splitRows(double pageLimit, BreakMode mode, final byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
-		// System.err.println("TRG A:" + pageLimit + "/" + mode
-		// + "/" + flags+"/"+this.getHeight() + "/"
-		// + (this.rows == null ? 0 : this.rows.size()));
 		if (mode instanceof BreakMode.ForceBreakMode) {
 			// 強制改ページ
 			TableForceBreakMode force = (TableForceBreakMode) mode;
@@ -344,8 +334,6 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 		}
 
 		// はみ出した行を移動
-		// System.err.println("B: flags=" + flags + "/" + this.rows.size() + "/"
-		// + pageLimit);
 		TableRowGroupBox nextRowGroup = null;
 		int i;
 		boolean ignoreBreakAvoid = false;
@@ -377,9 +365,6 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 				xflags = net.zamasoft.foliojet.layout.fragment.TableCutter.firstRowFlags(xflags, i, linkedToTop);
 			}
 			final SplitResult rowResult = prevRow.split(pageLimit, mode, xflags);
-			// System.err.println("TRG C: xflags=" + xflags + "/row=" + i
-			// + "/pageLimit=" + pageLimit + "/pass="
-			// + (nextRow == prevRow) + "/leave=" + (nextRow == null));
 			if (rowResult instanceof SplitResult.Keep) {
 				if (!ignoreBreakAvoid && i == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
 					// ページ先頭の場合は改ページ禁止を無視してやりなおす
@@ -466,15 +451,11 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 			nextRowGroup = this.splitTableRowGroup();
 			prevRowSize -= prevRow.getPageSize();
 			this.pageSize -= prevRowSize;
-			// System.err.println("D:" + prevRow.getHeight() +"/"+
-			// nextRow.getHeight()+"/"+(nextRow == prevRow));
 			nextRowGroup.addTableRow(net.zamasoft.foliojet.layout.fragment.TableCutter.requireSplitRemainder(rowResult,
 					TableRowBox.class, "TableRowBox.split at the row-group cut line"));
 			++i;
 			break;
 		}
-		// System.err.println("E:" + this.getHeight()+"/"+remove + "/" +
-		// this.rows.size());
 		if (nextRowGroup == null) {
 			return net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
 		}

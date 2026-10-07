@@ -503,17 +503,4 @@ public class CSSStyle {
 		return buff.toString();
 	}
 
-	public String path() {
-		// String disp = this.get(Display.INFO).toString();
-		// StringBuilder disp = new StringBuilder(this.ce.toString());
-		StringBuilder disp = new StringBuilder(String.valueOf(this.ce.lName));
-		if (this.isAnonStyle()) {
-			disp.insert(0, '(');
-			disp.append(')');
-		}
-		if (this.parentStyle == null) {
-			return disp.toString();
-		}
-		return this.parentStyle.path() + "/" + disp;
-	}
 }

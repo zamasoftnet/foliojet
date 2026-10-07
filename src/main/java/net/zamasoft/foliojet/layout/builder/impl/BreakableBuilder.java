@@ -30,9 +30,6 @@ import net.zamasoft.foliojet.layout.box.params.PosType;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
-import net.zamasoft.foliojet.layout.box.params.Pos;
-import net.zamasoft.foliojet.layout.box.params.TableRowGroupPos;
-import net.zamasoft.foliojet.layout.box.params.TableRowPos;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.constraint.AxisSpan;
 
@@ -1059,7 +1056,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				return;
 			}
 			// 自動改ページ
-			// System.err.println(pageLimit+"/"+this.pageAxis);
 			if (LOG.isLoggable(Level.FINE)) {
 				LOG.fine("page break [after text]" + pageLimit + "/" + this.pageAxis);
 			}
@@ -1088,8 +1084,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			final double columnLimit = flow.pageAxis + flow.box.getInnerHeight();
 			// 下部の枠の幅を計算します。
 			final double lastFrame = this.lastFrame(flow, 1);
-			// System.err.println(columnLimit+"/"+
-			// this.getPageLimit()+"/"+this.flowStack.size());
 			if (LayoutUtils.compare(columnLimit, this.getPageOwnerLimit() - lastFrame) > 0) {
 				final BreakMode mode = new AutoBreakMode(flow.box, this.getPageOwnerLimit());
 				final byte flags = IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_LAST;
@@ -1195,7 +1189,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		this.afterFlowBlockClosed();
 
-		// System.out.println(this.nobreak);
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
 			final double pageLimit = closesColumnOwner ? this.getPageOwnerLimit() : this.getPageLimit();
 			FlowBlockBox flowBox = (FlowBlockBox) flow.box;
@@ -1204,7 +1197,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			if (pos.pageBreakAfter == PageBreakMode.AVOID) {
 				this.interflowBreak = false;
 			}
-			// System.out.println(this.pageAxis+"/"+ pageLimit);
 			if (this.interflowBreak) {
 				// 一番下のボックスの境界下辺がページの内底辺をはみ出していた場合
 				// 自動改ページ。**閉じたのがflex/grid(PageAtomicBox)なら
@@ -1222,7 +1214,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				final boolean repeat = flowBox instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox;
 				for (;;) {
 					final double pageAxis = this.pageAxis - (this.poLastMargin + this.neLastMargin);
-					// System.err.println(pageAxis+"/"+pageLimit);
 					if (LayoutUtils.compare(pageAxis, pageLimit) <= 0 || !this.paintsBeyondPage(flow, flowBox, pageLimit)) {
 						break;
 					}

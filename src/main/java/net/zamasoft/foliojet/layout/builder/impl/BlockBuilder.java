@@ -60,7 +60,6 @@ import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineReplacedQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineStartQuad;
 import net.zamasoft.foliojet.layout.builder.LayoutContext;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
-import net.zamasoft.foliojet.layout.builder.TableBuilder;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
@@ -2057,7 +2056,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 	protected void requireTextBlock() {
 		// 新規テキストブロック
-		// System.err.println("requireTextBlock");
 		this.requireNoOpenTextBuilder("(no context)");
 		// textSessionは再生中の改ページ処理が新しいTextBuilderを作る間も
 		// 保持される(配達境界のclampのため)——記録中でないことだけを検査
@@ -2138,7 +2136,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.openRunFontStyle = fontStyle;
 		this.openRunFontMetrics = fontMetrics;
 		if (this.textBuilder == null) {
-			// System.err.println("begin1");
 			this.requireTextBlock();
 		}
 		if (this.textSession != null && this.textSession.recordRun(fontStyle, fontMetrics)) {
@@ -2148,7 +2145,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	public void glyph(int charOffset, char[] ch, int coff, byte clen, int gid) {
-		// System.err.println("glyph: "+new String(ch, coff, clen));
 		if (this.textSession != null && this.textSession.recordGlyph(charOffset, ch, coff, clen, gid)) {
 			return;
 		}
@@ -2217,13 +2213,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 		}
 		if (this.textBuilder == null) {
-			// System.err.println("begin2");
 			this.requireTextBlock();
 		}
 		if (this.textSession != null && this.textSession.recordControl(quad)) {
 			return;
 		}
-		// System.err.println(this+"/"+quad);
 		this.textBuilder.control(quad);
 	}
 
@@ -2276,7 +2270,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 		final Flow flow = this.getFlow();
 		flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
-		// System.err.println("endTextBlock");
 	}
 
 	/**

@@ -34,10 +34,6 @@ public class BackgroundSize extends AbstractCompositePrimitivePropertyInfo {
 
 	private static final PrimitivePropertyInfo[] PRIMITIVES = { INFO_WIDTH, INFO_HEIGHT };
 
-	public static net.zamasoft.foliojet.layout.box.params.BackgroundFit getFit(CSSStyle style) {
-		return getFit(style, INFO_WIDTH);
-	}
-
 	/** 対象primitiveを指定する版(mask-sizeが共有する、2026-08-29)。 */
 	protected static net.zamasoft.foliojet.layout.box.params.BackgroundFit getFit(CSSStyle style,
 			PrimitivePropertyInfo infoWidth) {

@@ -85,18 +85,5 @@ public class JAXPParser implements Parser {
 			return -1;
 		}
 
-		public String getEncoding() {
-			if (this.locator instanceof Locator2) {
-				return ((Locator2) this.locator).getEncoding();
-			}
-			return null;
-		}
-
-		public String getXMLVersion() {
-			if (this.locator instanceof Locator2) {
-				return ((Locator2) this.locator).getXMLVersion();
-			}
-			return null;
-		}
 	}
 }

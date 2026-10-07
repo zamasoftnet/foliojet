@@ -66,11 +66,6 @@ public final class SourceReplayer {
 	public static final AtomicLong SUBTREE_REPLAYS = new AtomicLong();
 
 	/**
-	 * 切断段落の尾部再生の発火計測です(実験フラグ制)。
-	 */
-	public static final AtomicLong TEXT_TAIL_REPLAYS = new AtomicLong();
-
-	/**
 	 * 吸収済み再生範囲(C1c prefixItems)経由の発火計測です
 	 * (SUBTREE_REPLAYS の内数。ボックス運搬なしの経路が実際に
 	 * 通っていることの移行カバレッジ)。
@@ -258,92 +253,6 @@ public final class SourceReplayer {
 		wrapperParams.lineHeight = template.lineHeight;
 		wrapperParams.firstLineStyle = template.firstLineStyle;
 		return wrapperParams;
-	}
-
-	/**
-	 * 切断段落の尾部(charOffset 以降)を再駆動します(M6b v3)。
-	 * ログから該当 Chars を charOffset の単調性で直接探索するため、
-	 * 分割でアンカーを失ったチェーンにも依存しません。
-	 *
-	 * @param log            ソースログ
-	 * @param charOffset     再開位置のソース文字オフセット
-	 * @param endIdExclusive 尾部の終端(次の兄弟の EventId。負ならログ末尾まで)
-	 * @param keepTextOpen   再生後もテキストブロックを開いたままにする
-	 *                       (続く SAX ストリームが流れ込む場合)
-	 * @param rootBuilder    再生先のルートビルダー
-	 * @param pageGenerator  ページ生成器
-	 * @return 再開位置を特定し再駆動した場合 true
-	 */
-	public static boolean replayTextTail(final LayoutSource log, final int charOffset, final long endIdExclusive,
-			final boolean keepTextOpen, final BlockBuilder rootBuilder, final PageGenerator pageGenerator) {
-		final long fromId = log.findCharsAt(charOffset);
-		if (fromId < 0) {
-			return false;
-		}
-		// 尾部は囲みブロックの EndBlock(=このテキストの終わり)または
-		// 次の兄弟アイテムの手前まで
-		final long cap = Math.min(endIdExclusive < 0 ? log.nextId() : endIdExclusive,
-				pageGenerator.getDeliveredEventEnd());
-		final long toId = log.tailBound(fromId, cap) - 1;
-		if (toId < fromId || log.containsOpaque(fromId, toId) || log.containsTable(fromId, toId)
-				|| log.containsFloat(fromId, toId) || log.containsAbsolute(fromId, toId)) {
-			// フロート・絶対配置を含む尾部の再生は係留の再実行(二重化)の
-			// 危険があるためフォールバック(replayChildren と同じゲート。
-			// 絶対配置は増分4e以前はOpaque記録でcontainsOpaqueが捕捉していた。
-			// 表は表セット——2026-07-30——のrecipe記録化以前はOpaque記録で
-			// 同様に捕捉されていた——尾部内での表再構築は未検証のため維持)
-			return false;
-		}
-		// live パイプライン(shaper)が未配達のまま保留している文字は
-		// break 後に live 側から供給されるため、再生はそこで打ち切る
-		final int charEndExclusive = pageGenerator.getDeliveredCharEnd();
-		if (charEndExclusive <= charOffset) {
-			// 再開位置全体が live 保留中: 再生不要(live が全て供給する)
-			return false;
-		}
-		final LayoutSource.ReplaySlice slice = log.capture(fromId, toId);
-		if (slice == null) {
-			// 範囲が欠けていれば box-restyle へフォールバック
-			return false;
-		}
-		try (slice; TranslateBlockScope scope = new TranslateBlockScope(rootBuilder)) {
-			final DocumentBuilder doc = new DocumentBuilder(pageGenerator, rootBuilder);
-			// E-6増分3b-1: 駆動本体は共有の SegmentExecutor へ。Chars だけは
-			// 尾部特有のトリミング(先頭 skip・配達済み終端での打ち切り)を
-			// ここで計算し、部分範囲プリミティブで駆動する(それ以外は
-			// 3b-6以降 drive と同じオンザフライ変換の単一 execute)
-			final SegmentExecutor executor = new SegmentExecutor(doc, slice.fromId());
-			final boolean[] first = { true };
-			slice.replay(event -> {
-				switch (event) {
-				case LayoutSource.Chars(final int off, final LayoutSource.TextPayload payload,
-						final boolean fixed) -> {
-					// E-6増分3b-2: payloadはspill済みのことがある。freshChars()は
-					// 毎回freshな配列(Inline=clone、Spilled=decode)を返す
-					final char[] ch = payload.freshChars();
-					int skip = 0;
-					if (first[0]) {
-						first[0] = false;
-						skip = charOffset - off;
-					}
-					int len = ch.length - skip;
-					if (off >= 0 && off + skip + len > charEndExclusive) {
-						// 配達済み終端で打ち切り(以降は live が供給)
-						len = charEndExclusive - off - skip;
-					}
-					executor.executeCharsRange(off + skip, ch, skip, len, fixed);
-				}
-				default -> executor.execute(LayoutSourceEventConverter.convert(event));
-				}
-			});
-			if (keepTextOpen) {
-				doc.finishReplayKeepText();
-			} else {
-				doc.finishReplay();
-			}
-			TEXT_TAIL_REPLAYS.incrementAndGet();
-			return true;
-		}
 	}
 
 	/**

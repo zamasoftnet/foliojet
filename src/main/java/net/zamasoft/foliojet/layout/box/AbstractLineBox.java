@@ -18,13 +18,10 @@ import net.zamasoft.foliojet.layout.box.params.LinePos;
 import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
 import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
-import net.zamasoft.foliojet.layout.draw.DebugDrawable;
-import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.util.SidewaysGeometry;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
-import net.zamasoft.pdfg2d.gc.paint.GrayColor;
 
 /**
  * 行ボックスの実装です。
@@ -33,7 +30,6 @@ import net.zamasoft.pdfg2d.gc.paint.GrayColor;
  * @version $Id: AbstractLineBox.java 1640 2023-10-04 03:06:26Z miyabe $
  */
 public abstract class AbstractLineBox extends AbstractTextBox {
-	private static final boolean DEBUG = false;
 	private static final java.util.concurrent.atomic.AtomicLong NEXT_LINE_ID =
 			new java.util.concurrent.atomic.AtomicLong();
 
@@ -475,14 +471,6 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		}
 
 		visitor.visitBox(transform, this, drawer, x, y);
-		if (DEBUG) {
-			// super(子)の描画より後に見えるよう、先にpushして最後にpopされるようにする
-			final double fx = x, fy = y;
-			worklist.push(w -> {
-				Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), GrayColor.create(.5f));
-				drawer.visitDrawable(drawable, fx, fy);
-			});
-		}
 		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 	}
 

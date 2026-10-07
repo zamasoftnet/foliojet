@@ -9,7 +9,4 @@ import org.xml.sax.Locator;
 public interface SourceLocator extends Locator {
 	public int getCharacterOffset();
 
-	public String getEncoding();
-
-	public String getXMLVersion();
 }

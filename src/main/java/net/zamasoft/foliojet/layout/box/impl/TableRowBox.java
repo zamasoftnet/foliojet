@@ -4,7 +4,6 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,9 +36,6 @@ import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
-import net.zamasoft.pdfg2d.gc.GC;
-import net.zamasoft.pdfg2d.gc.GraphicsException;
-import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
 /**
  * テーブル行の実装です。
@@ -48,7 +44,6 @@ import net.zamasoft.pdfg2d.gc.paint.RGBColor;
  * @version $Id: TableRowBox.java 1622 2022-05-02 06:22:56Z miyabe $
  */
 public class TableRowBox extends AbstractInnerTableBox implements IPageBreakableBox {
-	private static final boolean DEBUG = false;
 
 	protected final TableRowPos pos;
 	private Drawer pendingDrawer = null;
@@ -356,21 +351,6 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		if (this.params.opacity == 0) {
 			return;
 		}
-		if (DEBUG) {
-			drawer.visitDrawable(new Drawable() {
-				public void draw(GC gc, double x, double y) throws GraphicsException {
-					try (final var gcState = gc.begin()) {
-						gc.setStrokePaint(RGBColor.create(127, 127, 255));
-						double width = 0;
-						for (int i = 0; i < TableRowBox.this.cells.size(); ++i) {
-							Cell cell = (Cell) TableRowBox.this.cells.get(i);
-							width += cell.getCellBox().getWidth();
-						}
-						gc.draw(new Rectangle2D.Double(x, y, width, getHeight()));
-					}
-				}
-			}, x, y);
-		}
 		if (this.params.zIndexType == Params.Z_INDEX_SPECIFIED) {
 			if (this.pendingDrawer != null) {
 				drawer = this.pendingDrawer;
@@ -586,7 +566,6 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				return SplitResult.MOVE;
 			}
 		}
-		// System.err.println("TR B/flags=" + flags + "/" + pageLimit);
 		byte xflags = (byte) (flags & (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT));
 		final double pageWindow = this.pageSize - pageLimit;
 		TableRowBox nextRowBox = null;
@@ -603,11 +582,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			TableCellBox prevCellBox = cell.getCellBox();
 			TableCellBox nextCellBox;
 			final double cutPageAxis = cellCutPageAxis(cell, pageLimit);
-			// System.err.println(prevCellBox.getInnerHeight());
 			final SplitResult cellResult = prevCellBox.split(cutPageAxis, mode, xflags);
-			// System.err.println("TR C: " + i + "/" + xflags + "/pass="
-			// + (nextCellBox == prevCellBox) + "/leave="
-			// + (nextCellBox == null) + "/" + mode + "/" + cutPageAxis);
 			if (cellResult instanceof SplitResult.Split(final IPageBreakableBox cellRemainder)) {
 				if (!(cellRemainder instanceof TableCellBox typedRemainder)) {
 					throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
@@ -622,23 +597,17 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				byte xxflags = (byte) (xflags | IPageBreakableBox.FLAGS_SPLIT);
 				nextCellBox = forcedCellRemainder(prevCellBox, cutPageAxis, mode, xxflags);
 			}
-			// System.err.println("TR C: " + i + "/prevHeight="
-			// + prevCellBox.getInnerHeight() + "/" + cutPageAxis);
 			if (nextRowBox == null) {
 				nextRowBox = new TableRowBox(this.params, this.getTableRowPos());
 				nextRowBox.setTableParams(this.tableParams);
 				this.pageSize = pageLimit;
 				nextRowBox.pageSize = pageWindow;
-				// System.err.println("ROW Split:"+pageLimit+"/"+pageWindow);
 				for (int j = 0; j < i; ++j) {
 					Cell cell2 = (Cell) this.cells.get(j);
 					TableCellBox prevCell2 = cell2.getCellBox();
 					final double cutPageAxis2 = cellCutPageAxis(cell2, pageLimit);
 					byte xxflags = (byte) (xflags | IPageBreakableBox.FLAGS_SPLIT);
 					TableCellBox nextCell2 = forcedCellRemainder(prevCell2, cutPageAxis2, mode, xxflags);
-					// System.err.println("TR D: " + j + "/cell splitted ="
-					// + prevCell2.getInnerHeight() + "/"
-					// + nextCell2.getInnerHeight());
 					if (vertical) {
 						prevCell2.setWidth(cutPageAxis2);
 					} else {
@@ -680,8 +649,6 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			nextRowBox.pageSize = Math.max(nextRowBox.pageSize, nextCellBox.getPageExtent(this.tableParams.flow) / span);
 		}
 
-		// System.err.println("TR nextRowBox: pass=" + (nextRowBox ==
-		// null)+"/"+flags);
 		if (nextRowBox == null) {
 			if ((flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
 				return SplitResult.KEEP;
@@ -691,8 +658,6 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		}
 
 		// 分割の後処理
-		// System.err.println("ROW break:" + "/" + mode + "/" +
-		// nextRowBox.height);
 		for (int i = 0; i < nextRowBox.cells.size(); ++i) {
 			Cell cell = (Cell) nextRowBox.cells.get(i);
 			double rowSize = nextRowBox.pageSize;
@@ -700,7 +665,6 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				rowSize += xcell.getTableRow().getPageSize();
 			}
 			TableCellBox nextCell = cell.getCellBox();
-			// System.err.println("TR RowHeight:" + i + "/" + rowHeight);
 			if (vertical) {
 				nextCell.setWidth(rowSize);
 			} else {
@@ -791,7 +755,6 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				}
 				cutPageAxis += xcell.getTableRow().getPageSize();
 			}
-			// System.err.println(cutPageAxis);
 			TableCellBox nextCell = forcedCellRemainder(prevCell, cutPageAxis, BreakMode.DEFAULT_BREAK_MODE,
 					IPageBreakableBox.FLAGS_SPLIT);
 			if (vertical) {
@@ -815,8 +778,6 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			}
 			// 行の高さをセルの高さを行数で割ったもので更新
 			this.pageSize = Math.max(this.pageSize, nextCell.getPageExtent(this.tableParams.flow) / span);
-			// System.err.println("TR cutRowSpanCells: " + i + "/"
-			// + prevCell.getHeight());
 		}
 		for (int i = 0; i < this.cells.size(); ++i) {
 			Cell cell = (Cell) this.cells.get(i);

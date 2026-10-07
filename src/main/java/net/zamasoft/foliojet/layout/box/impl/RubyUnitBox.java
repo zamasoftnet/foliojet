@@ -26,13 +26,9 @@ import net.zamasoft.foliojet.css.value.RubyAlignValue;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
-import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.paint.Color;
-import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
-import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
-import net.zamasoft.pdfg2d.gc.text.TextShaper;
 
 /**
  * ルビ1単位です(注釈付きテキスト方式、2026-07-25新設——仕様裁定は
@@ -194,13 +190,6 @@ public class RubyUnitBox extends InlineBlockBox {
 	 */
 	public boolean isPreMeasured() {
 		return true;
-	}
-
-	/**
-	 * この単位が消費したソース文字の先頭オフセットです(無ければ-1)。
-	 */
-	public int getSourceStart() {
-		return this.sourceStart;
 	}
 
 	/**

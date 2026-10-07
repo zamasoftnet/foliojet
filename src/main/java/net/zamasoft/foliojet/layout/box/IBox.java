@@ -19,11 +19,6 @@ public interface IBox {
 	public default void forEachAssignmentChild(final java.util.function.Consumer<IBox> action) {
 	}
 
-	/** インライン内容で、この子より前に実際の文字があるかを返します。 */
-	public default boolean hasTextBeforeAssignmentChild(final IBox child) {
-		return false;
-	}
-
 	/**
 	 * この内容を生んだ LayoutSource のイベントIDを返します
 	 * (SourceAnchor。記録時に一度だけ付与され不変。断片・未記録は -1)。

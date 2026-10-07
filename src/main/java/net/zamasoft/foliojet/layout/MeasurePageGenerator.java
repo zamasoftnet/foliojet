@@ -33,7 +33,6 @@ public final class MeasurePageGenerator implements PageGenerator {
 	private PageBox lastPage;
 
 	private int pageCount = 0;
-	private java.util.function.IntSupplier deliveredCharEnd;
 	private net.zamasoft.foliojet.layout.segment.BlockParamsTemplate probeTemplate;
 	private java.util.Map<Long, Double> footnoteMeasurements;
 	private String pendingPageName, pageName;
@@ -127,16 +126,6 @@ public final class MeasurePageGenerator implements PageGenerator {
 		this.pageParams = params;
 		this.probeTemplate = net.zamasoft.foliojet.layout.segment.BlockParamsTemplate.freeze(params);
 		this.footnoteMeasurements = new java.util.LinkedHashMap<>();
-	}
-
-	/** 未配達のshaperバッファを尾部再生しないため、B自身の現在値を接続します。 */
-	public void setDeliveredCharEnd(final java.util.function.IntSupplier deliveredCharEnd) {
-		this.deliveredCharEnd = deliveredCharEnd;
-	}
-
-	@Override
-	public int getDeliveredCharEnd() {
-		return this.deliveredCharEnd == null ? Integer.MAX_VALUE : this.deliveredCharEnd.getAsInt();
 	}
 
 	void setPageGeometry(final java.util.function.BiFunction<String, Integer, FootnotePageProbe.PageGeometry> geometry) {

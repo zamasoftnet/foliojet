@@ -21,7 +21,6 @@ import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
-import net.zamasoft.foliojet.layout.box.content.FlowContainer;
 import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
@@ -42,8 +41,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * <li><b>内容保存</b>: インライン文書の期待トークン(T2等)が全ページを
  * 通して<b>ちょうど1回</b>描かれる——消失も複製もない
  * ({@code NestedMulticolDuplicationTest}と同型の検査)</li>
- * <li><b>リークなし</b>: 変換後に尾部封印(tailSeal)がThreadLocalへ
- * 残らない</li>
  * </ol>
  *
  * <p>
@@ -300,9 +297,6 @@ public class MulticolWorklistScopeTest extends TestCase {
 					CTISessionHelper.transcodeFile(session, input, "text/html", null);
 				} finally {
 					session.close();
-				}
-				if (FlowContainer.hasOpenTailSeal()) {
-					throw new AssertionError(name + ": 尾部封印がリークしています");
 				}
 			} catch (final Throwable t) {
 				failure[0] = t;

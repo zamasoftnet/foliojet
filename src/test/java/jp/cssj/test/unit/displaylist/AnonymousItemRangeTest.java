@@ -43,7 +43,6 @@ import net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassRootKind;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassCensusEvent;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassCensusKey;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassItemKind;
-import net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 import net.zamasoft.foliojet.layout.fragment.RangeHandle;
 import net.zamasoft.foliojet.layout.fragment.RangeHandle.ReplayMode;
@@ -474,8 +473,6 @@ public final class AnonymousItemRangeTest extends TestCase {
 			assertTrue(source.isContextCompleteRange(anon, anonEnd));
 			assertFalse(source.isContextCompleteRange(anon, childEnd));
 			assertFalse(source.isContextCompleteRange(text, anonEnd));
-			assertEquals(child, source.tailBound(text, source.nextId()));
-			assertEquals(anon, source.tailBound(anon, source.nextId()));
 			assertFalse(source.containsOpaque(root, rootEnd));
 			final List<SegmentEvent> events = new ArrayList<>();
 			source.replay(anon, anonEnd, event -> events.add(LayoutSourceEventConverter.convert(event)));

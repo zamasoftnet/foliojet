@@ -35,7 +35,6 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import net.zamasoft.foliojet.layout.draw.AbstractDrawable;
 import net.zamasoft.foliojet.layout.draw.BackgroundBorderDrawable;
-import net.zamasoft.foliojet.layout.draw.DebugDrawable;
 import net.zamasoft.foliojet.layout.draw.Drawable;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
@@ -45,7 +44,6 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
-import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
 /**
  * テーブルの実装です。
@@ -54,7 +52,6 @@ import net.zamasoft.pdfg2d.gc.paint.RGBColor;
  * @version $Id: TableBox.java 1631 2022-05-15 05:43:49Z miyabe $
  */
 public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox, INonReplacedBox {
-	private static final boolean DEBUG = false;
 
 	protected final TableParams params;
 
@@ -646,12 +643,6 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 		final Drawer fdrawer = drawer;
 		final double fx = x, fy = y;
-		if (DEBUG) {
-			worklist.push(w -> {
-				Drawable drawable = new DebugDrawable(this.getWidth(), this.getHeight(), RGBColor.create(1, 0, 1));
-				fdrawer.visitDrawable(drawable, fx, fy);
-			});
-		}
 		worklist.push(w -> pageBox.endStruct(fdrawer, this.params.element, structCount, fx, fy));
 		for (int i = contentBoxes.size() - 1; i >= 0; --i) {
 			final IBox content = contentBoxes.get(i);
@@ -817,11 +808,6 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 	private SplitResult splitTable(double pageLimit, BreakMode mode, byte flags) {
 		// assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
-		// System.err.println("TABLE A: flags=" + flags + "/pageLimit=" +
-		// pageLimit
-		// + "/mode=" + mode + "/height=" + this.getHeight() + "/bodies="
-		// + (this.bodyGroups == null ? 0 : this.bodyGroups.size()) + "/"
-		// + this.getParams().element);
 
 		final boolean vertical = this.params.flow.isVertical();
 		int origBodyRowCount = 0;
@@ -899,8 +885,6 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		int i;
 		boolean ignoreBreakAvoid = false;
 		double savePageLimit = pageLimit;
-		// System.err.println("C: " +pageLimit + "/" +
-		// this.getHeight());
 		for (i = 0; i < this.bodyGroups.size(); ++i) {
 			final TableRowGroupBox prevRowGroup = (TableRowGroupBox) this.bodyGroups.get(i);
 			double prevRowGroupSize = prevRowGroup.getPageSize();
@@ -914,9 +898,6 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			}
 			final SplitResult groupResult = prevRowGroup.split(pageLimit, mode, (byte) (lflags & flags));
 			assert nextTable == null || !(groupResult instanceof SplitResult.Keep);
-			// System.err.println("TABLE D:
-			// "+lflags+"/"+flags+"/"+index+"/"+(nextTable
-			// != null)+"/"+(nextRowGroup != null));
 			if (groupResult instanceof SplitResult.Keep) {
 				if (!ignoreBreakAvoid && i == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
 					// ページ先頭の場合は改ページ禁止を無視してやりなおす

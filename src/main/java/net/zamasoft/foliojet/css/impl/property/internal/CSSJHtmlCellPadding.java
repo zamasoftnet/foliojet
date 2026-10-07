@@ -27,10 +27,6 @@ public class CSSJHtmlCellPadding extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
-	public static void set(CSSStyle style, LengthValue value) {
-		style.set(INFO, value);
-	}
-
 	public CSSJHtmlCellPadding() {
 		super("-cssj-html-cellpadding");
 	}
