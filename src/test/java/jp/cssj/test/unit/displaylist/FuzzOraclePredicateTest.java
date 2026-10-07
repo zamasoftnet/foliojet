@@ -859,10 +859,6 @@ public class FuzzOraclePredicateTest extends TestCase {
 				.findUnfittableContent(shrinkerDoc("<p style=\"display:none\">T9</p>" + TABLE_OVER)));
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
 				shrinkerDoc(TABLE_OVER + "<div style=\"position:relative;left:-10pt\">T9</div>")));
-		// 2行目のT10(colspan 2)が1行目のT1(rowspan 2)の桁に重なる
-		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(TABLE_OVER
-				.replace("<td colspan=\"3\">T1</td>", "<td>T0</td><td rowspan=\"2\">T1</td><td>T3</td>")
-				.replace("<td>T10</td>", "<td colspan=\"2\">T10</td>"))));
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
 				shrinkerDoc(TABLE_OVER.replace("<td>T15</td>", "<td>T15<p style=\"margin-left:-60pt\">T16</p></td>"))));
 		assertNull(RandomDocumentFuzzTest
@@ -892,10 +888,11 @@ public class FuzzOraclePredicateTest extends TestCase {
 
 	/**
 	 * 2026-09-29のcodexレビュー2回目の反例: 2行目の右端のT7(rowspan 3)は、短い3行目の終わりの手前(T6の2桁目)に
-	 * rowspanが無いのでCopperでは3行目以降へ引き継がれず、4行目のT15はHTMLの格子の列7でなく列6に入る。
-	 * 格子どおりなら下限142.5pt>132pt・T15は123ptからだが、Copperは7列で縮めて紙に収める。どちらの見積もりも使わない。
+	 * rowspanが無いので当時のCopperでは3行目以降へ引き継がれず、4行目のT15は列6に入って紙に収まった。同じ日の
+	 * c803652d(空き桁を匿名のセルで埋める)からCopperも格子どおりT15を列7に置き(x=144.32、Chromeは140.16)、紙の外に出る。
+	 * 2026-10-07に、Copperの置き方の模擬をやめて「収まらない」に改めた(格子どおりなら下限142.5pt>132pt、T15は123ptから)。
 	 */
-	public void testTableWhereCopperPlacesCellsDifferentlyIsNotUnfittable() {
+	public void testTableWithGapBeforeRowspanIsUnfittable() {
 		final String html = "<?jp.cssj.property name=\"output.page-width\" value=\"120pt\"?>\n"
 				+ "<?jp.cssj.property name=\"output.page-height\" value=\"400pt\"?>\n"
 				+ "<html><head><style>\n@page{margin:0pt}\n"
@@ -906,13 +903,107 @@ public class FuzzOraclePredicateTest extends TestCase {
 				+ "<tr><td>T4</td><td colspan=\"3\">T5</td><td colspan=\"2\">T6</td><td rowspan=\"3\">T7</td></tr>\n"
 				+ "<tr><td>T8</td><td>T9</td><td colspan=\"2\" rowspan=\"2\">T10</td><td rowspan=\"2\">T11</td></tr>\n"
 				+ "<tr><td>T12</td><td>T13</td><td>T14</td><td>T15</td></tr>\n</tbody></table>\n</body></html>";
-		assertNull(RandomDocumentFuzzTest.findUnfittableContent(html));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(html));
 		final int from = html.indexOf("<table>") + "<table>".length();
-		assertEquals(0.0, RandomDocumentFuzzTest.tableMinContentLowerBound(html, from, 10, false), 0);
-		// 同じ表でも、3行目が右端まで埋まっていればCopperもT7を引き継ぎ、格子と一致する
-		assertTrue(RandomDocumentFuzzTest.tableMinContentLowerBound(
-				html.replace("<td rowspan=\"2\">T11</td>", "<td rowspan=\"2\">T11</td><td>T16</td>"), from, 10,
-				false) > 0);
+		assertTrue(RandomDocumentFuzzTest.tableMinContentLowerBound(html, from, 10, false) > 132);
+	}
+
+	/**
+	 * セルが重なる表(2行目のT10のcolspan 2が1行目のT1のrowspan 2の桁に掛かる)も、後ろのセルは格子どおりの列に置かれる
+	 * (Copper T15 x=124.24、Chrome 123.82。2026-10-07に実測)。以前は重なる表を判定しなかった。
+	 */
+	public void testTableWithOverlappingCellsIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc(TABLE_OVER.replace("<td colspan=\"3\">T1</td>", "<td>T0</td><td rowspan=\"2\">T1</td><td>T3</td>")
+						.replace("<td>T10</td>", "<td colspan=\"2\">T10</td>"))));
+	}
+
+	// 2026-10-07、fit 11,750,000〜 の停止(BUILD 9770c839)。生成器 v2 の seed は文書の title の番号
+
+	/**
+	 * fit seed 11766015(v2 791230356): 60pt の紙の表の最後の列のセル(T11)に入れ子の表があり、外の表のどのセルも紙の中から
+	 * 始まるが、入れ子の表の T20 が x=124.66(Chrome 124.18 から余白を引いた 119.18)に出る。入れ子の表のセルも証拠に見る。
+	 * 当時は「Copperの置き方の模擬」が格子と食い違うと誤って判定を止めていた(Copper も格子どおりに置いた)。
+	 */
+	public void testSeedNestedTableCellBeyondPageIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(791_230_356, true, false, false).html()));
+	}
+
+	/**
+	 * fit seed 11866613(v2 1797278838): 枠と余白だけのdivの中の{@code float:right}の直下の表。入れ子の表を持つのは
+	 * colspan 3 のセルだけで、列の下限は colspan のセルも数える。Copper は紙より広い右の浮動体を内容の始まりに寄せて
+	 * T20 を x=125.99 へ、Chrome は終わりに寄せて T0 を x=-81.94 へ出す(どちらも紙の外)。
+	 */
+	public void testSeedTableInRightFloatIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(1_797_278_838, true, false, false).html()));
+	}
+
+	/** 右の浮動体は、始まりと終わりの両方の側に証拠のセルがあるときだけ。左の浮動体は始まりの側だけでよい。 */
+	public void testTableInFloatNeedsEvidenceOnTheSideItCanOverflow() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<div style=\"float:right\">" + TABLE_OVER + "</div>")));
+		// 終わりに寄せたときに紙の始まりの手前で終わるのは T10 だけ。T10 が証拠にならなければ右の浮動体は言わない
+		final String noStartEvidence = TABLE_OVER.replace("<td>T10</td>", "<td><b>T10</b></td>");
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<div style=\"float:right\">" + noStartEvidence + "</div>")));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<div style=\"float:left\">" + noStartEvidence + "</div>")));
+		// 幅・余白を持つ浮動体、ほかにも浮動体がある文書は判定しない
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<div style=\"float:right;width:20pt\">" + TABLE_OVER + "</div>")));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(
+				"<div style=\"float:left\">T9</div><div style=\"float:right\">" + TABLE_OVER + "</div>")));
+		assertEquals('R', RandomDocumentFuzzTest.floatWrapperSide("div", " style=\"position:static;float:right;\""));
+		assertEquals(RandomDocumentFuzzTest.NOT_FLOATED, RandomDocumentFuzzTest.floatWrapperSide("div",
+				" style=\"float:left;margin-left:-30pt\""));
+	}
+
+	/**
+	 * fit seed 11898581(v2 249173394): 縦書きの紙(行長60pt)の{@code float:none;width:8em;min-width:8em;max-width:90%}の
+	 * divの中の表。縦書きの width 系はブロック軸の寸法で行長を変えない。T34 が y=144.16(Chrome 137.93)。
+	 */
+	public void testSeedTableInVerticalBlockSizedWrapperIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(249_173_394, true, false, false).html()));
+		final String sized = " style=\"float:none;width:8em;min-width:8em;max-width:90%;\"";
+		assertTrue(RandomDocumentFuzzTest.isPlainWrapper("div", sized, true));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", sized, false));
+		assertTrue(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"height:20pt\"", false));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"height:20pt\"", true));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"float:left\"", true));
+	}
+
+	/**
+	 * fit seed 11942560(v2 647052772)は除外しない: {@code vertical-rl}の紙の中の{@code vertical-lr}の箱に
+	 * {@code width:8em}(48pt)のインラインブロック、その中に{@code width:58pt}の箱と、後ろにルビの段落。Copper は
+	 * インラインブロックのベースラインを最初の行に揃えて溢れを紙の右の外(x=601.8〜、紙 595)へ出すが、CSS 2.1 §10.8.1
+	 * どおり最後の行に揃える Chrome は紙に収める(x=536〜594)。作者の溢れではなく Copper の差(triage §22)。
+	 */
+	public void testSeedInlineBlockBaselineInReversedRegionIsNotExcluded() {
+		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(
+				RandomDocumentFuzzTest.generate(647_052_772, true, false, false).html()));
+	}
+
+	/** 反転要素の明示幅を子孫の幅の下限が超えるときだけ。子孫の幅は max-width が狭めうるなら数えない。 */
+	public void testReversedElementWidthAgainstDescendantLowerBound() {
+		final String head = ";writing-mode:vertical-rl";
+		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
+				"<div style=\"writing-mode:vertical-lr;width:48pt\"><div style=\"width:58pt\">T0</div></div>")));
+		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
+				"<div style=\"writing-mode:vertical-lr;width:48pt\"><div style=\"min-width:10em\">T0</div></div>")));
+		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
+				"<div style=\"writing-mode:vertical-lr;width:48pt\"><div style=\"width:58pt;max-width:90%\">T0</div></div>")));
+		// 反転要素に幅が無ければ、その中の箱どうしの食い違いでは言わない(領域が紙の端にあるとは限らない)
+		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
+				"<div style=\"writing-mode:vertical-lr\"><div style=\"display:inline-block;width:8em\">"
+						+ "<div style=\"width:58pt\">T0</div></div></div>")));
+		// 幅の宣言が効かない箱(非置換のinline)、伸びうるflex項目
+		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
+				"<div style=\"writing-mode:vertical-lr;width:48pt\"><span style=\"width:58pt\">T0</span></div>")));
+		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
+				"<div style=\"writing-mode:vertical-lr;width:48pt;display:flex\"><div style=\"width:58pt\">T0</div></div>")));
 	}
 
 	/**
@@ -962,6 +1053,76 @@ public class FuzzOraclePredicateTest extends TestCase {
 				.getDeclaredField("MIN_OVERFLOW_TOLERANCE");
 		field.setAccessible(true);
 		assertEquals(field.getDouble(null), RandomDocumentFuzzTest.TABLE_SHRINK_TOLERANCE, 0);
+	}
+
+	/** codex の健全性の反例(2026-10-07)を固定する文書: 紙・余白・本文の字の大きさ・書字方向・追加の規則と本文。 */
+	private static String paperDoc(final int paper, final int margin, final int font, final String mode, final String css,
+			final String body) {
+		return "<?jp.cssj.property name=\"output.page-width\" value=\"" + paper + "pt\"?>\n"
+				+ "<?jp.cssj.property name=\"output.page-height\" value=\"" + paper + "pt\"?>\n"
+				+ "<html><head><style>\n@page{margin:" + margin + "pt}\nbody{margin:0;font:normal " + font
+				+ "pt/1.2 serif;writing-mode:" + mode + "}\np,div,td{margin:0;padding:0}\n" + css
+				+ "\n</style></head><body>\n" + body + "\n</body></html>";
+	}
+
+	/** codex の反例 1〜3: 逆に進む領域の食い違いが余白以下、既定で inline・表のタグ、継いだ字の大きさの em。 */
+	public void testReversedRegionCodexCounterexamples() {
+		final String within = "<div style=\"writing-mode:vertical-lr\"><div style=\"width:8em\"><div style=\"width:54pt\">T0</div>"
+				+ "</div></div>";
+		assertFalse(RandomDocumentFuzzTest
+				.hasUntypesettableOppositeProgression(paperDoc(200, 10, 6, "vertical-rl", "", within)));
+		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(paperDoc(200, 0, 6, "vertical-rl", "",
+				"<div style=\"writing-mode:vertical-lr\"><span style=\"width:8em\">T0<span style=\"width:10em\">T1</span>"
+						+ "</span></div>")));
+		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(paperDoc(200, 0, 6, "vertical-rl", "",
+				"<div style=\"writing-mode:vertical-lr\"><table style=\"width:8em\"><tbody><tr><td>"
+						+ "<div style=\"width:10em\">T0</div></td></tr></tbody></table></div>")));
+		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(paperDoc(200, 0, 6, "vertical-rl", "",
+				"<div style=\"writing-mode:vertical-lr;font-size:12pt\"><div style=\"width:8em\">"
+						+ "<div style=\"width:58pt\">T0</div></div></div>")));
+	}
+
+	/** codex の反例 4〜6: 表の規則の幅(固定レイアウト)、幅0の罫線、行の字の大きさ。 */
+	public void testTableColumnCodexCounterexamples() {
+		final StringBuilder twelve = new StringBuilder("<table><tbody><tr>");
+		for (int i = 10; i < 16; ++i) {
+			twelve.append("<td colspan=\"2\">T").append(i).append("</td>");
+		}
+		twelve.append("</tr></tbody></table>");
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(paperDoc(60, 5, 6, "horizontal-tb",
+				"table{table-layout:fixed;width:100%;border-collapse:separate;border-spacing:0}\ntd{border:1pt solid black;padding:0}",
+				twelve.toString())));
+		final StringBuilder sixteen = new StringBuilder("<table><tbody><tr>");
+		for (int i = 0; i < 8; ++i) {
+			sixteen.append("<td colspan=\"2\">T").append(i).append("</td>");
+		}
+		sixteen.append("</tr></tbody></table>");
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(paperDoc(60, 5, 6, "horizontal-tb",
+				"table{border-collapse:separate;border-spacing:0}\ntd{border:1pt none;padding:0}", sixteen.toString())));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(paperDoc(110, 5, 12, "horizontal-tb",
+				"table{border-collapse:separate;table-layout:auto}\ntd{border:1pt solid black;padding:0}",
+				"<div style=\"float:right\"><table><tbody><tr style=\"font-size:6pt\"><td>T10</td><td>T11</td><td>T12</td>"
+						+ "<td>T13</td><td>T14</td><td>T15</td></tr></tbody></table></div>")));
+		// 2 回目: セルの規則の max-width(セルの最小幅を抑える)、セルの中の small(UA で字が小さくなる)
+		final StringBuilder seven = new StringBuilder("<div style=\"float:right\"><table><tbody><tr>");
+		for (int i = 10; i < 17; ++i) {
+			seven.append("<td colspan=\"2\">T").append(i).append("</td>");
+		}
+		seven.append("</tr></tbody></table></div>");
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(paperDoc(70, 5, 6, "horizontal-tb",
+				"table{border-collapse:separate;border-spacing:0}\ntd{border:1pt solid black;max-width:6pt}",
+				seven.toString())));
+		final StringBuilder small = new StringBuilder("<table><tbody><tr>");
+		for (int i = 100; i < 108; ++i) {
+			small.append("<td colspan=\"2\"><small>T").append(i).append("</small></td>");
+		}
+		small.append("<td colspan=\"2\">T0</td></tr></tbody></table>");
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(paperDoc(100, 5, 6, "horizontal-tb",
+				"table{border-collapse:separate;border-spacing:0}", small.toString())));
+		assertTrue(RandomDocumentFuzzTest.plainTableRules(paperDoc(60, 5, 6, "horizontal-tb",
+				"table{border-collapse:collapse;table-layout:fixed}\ntd{border:1pt solid black}", "")));
+		assertFalse(RandomDocumentFuzzTest.plainTableRules(paperDoc(60, 5, 6, "horizontal-tb",
+				"table{table-layout:fixed;width:100%}", "")));
 	}
 
 	private static String shrinkerDoc(final String body) {
