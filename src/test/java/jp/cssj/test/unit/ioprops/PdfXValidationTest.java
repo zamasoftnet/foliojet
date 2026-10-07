@@ -37,13 +37,30 @@ public class PdfXValidationTest extends TestCase {
 		validate("1.4X-3", Flavour.X3);
 	}
 
+	/**
+	 * {@code <title>} の前後と途中の空白(2026-10-07)。HTML の document.title と同じく、前後を落として続く空白を
+	 * 1 つにまとめた値が Info の Title と XMP の dc:title の両方に入る。以前は末尾の空白が残り、dc:title を空白を
+	 * 落として読む検査(R4)と食い違った(全 HTML 掃過の 4000-BLOG/2650-text.html)。
+	 */
+	public void testPdfX4TitleWhitespace() throws Exception {
+		final byte[] pdf = validate("1.6X-4", Flavour.X4, " PDF/X\n\t title ");
+		try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+			assertEquals("PDF/X title", doc.getDocumentInformation().getTitle());
+		}
+	}
+
 	private static void validate(final String version, final Flavour flavour) throws Exception {
-		final byte[] pdf = PdfConversions.convert(PdfConversions.fixtureHtml("PDF/X"), version, false,
+		validate(version, flavour, "PDF/X");
+	}
+
+	private static byte[] validate(final String version, final Flavour flavour, final String title) throws Exception {
+		final byte[] pdf = PdfConversions.convert(PdfConversions.fixtureHtml(title), version, false,
 				"pdfx-validation-" + version);
 		final var violations = PdfXPreflight.check(pdf, flavour);
 		if (!violations.isEmpty()) {
 			fail("PdfXPreflight " + flavour + " (" + version + ") violations:\n" + violations.stream()
 					.map(v -> v.rule() + " " + v.message()).distinct().collect(Collectors.joining("\n")));
 		}
+		return pdf;
 	}
 }

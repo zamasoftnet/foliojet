@@ -85,7 +85,7 @@ Windows-31J, EUC_JP_Solarisの自動判別) という独自のエンコーディ
 
 HTMLのmeta要素から取得した情報を、PDFの文書情報として使用します。 文書情報はHTMLの
 <tt>&lt;meta name="名前" content="値"&gt;</tt>
-要素によって設定することができます。 ただし、TITLEはHTMLのtitle要素の内容も使われます。
+要素によって設定することができます。 ただし、TITLEはHTMLのtitle要素の内容も使われます(ブラウザのdocument.titleと同じく、前後の空白を除き、続く空白を1つにまとめます)。
 
 **meta要素による文書情報の設定**
 

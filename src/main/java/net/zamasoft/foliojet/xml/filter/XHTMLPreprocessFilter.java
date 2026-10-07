@@ -389,6 +389,29 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 		}
 	}
 
+	/**
+	 * HTML の {@code document.title} と同じく、ASCII の空白を前後で落とし、続く空白を 1 つの空白にまとめます
+	 * (2026-10-07)。以前は {@code <title>} の中身をそのまま文書情報にしていて、末尾の空白や改行が PDF の Title に
+	 * 残った(XMP の dc:title を空白を落として読む検査器と食い違った)。
+	 */
+	private static String stripAndCollapse(final String s) {
+		final StringBuilder buff = new StringBuilder(s.length());
+		boolean space = false;
+		for (int i = 0; i < s.length(); ++i) {
+			final char c = s.charAt(i);
+			if (c == ' ' || c == '\t' || c == '\n' || c == '\f' || c == '\r') {
+				space = buff.length() > 0;
+			} else {
+				if (space) {
+					buff.append(' ');
+					space = false;
+				}
+				buff.append(c);
+			}
+		}
+		return buff.toString();
+	}
+
 	public void endElement(String uri, String lName, String qName) throws SAXException {
 		// System.err.println("/"+lName);
 		if (uri.equals(XHTML.URI)) {
@@ -401,7 +424,8 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 				}
 			} else if (lName.equals(XHTML.TITLE_ELEM.lName)) {
 				if (this.useMetaInfo && this.contentBuff != null) {
-					String data = "name='title' value='" + XMLUtils.escapePseudeAttr(this.contentBuff.toString()) + "'";
+					String data = "name='title' value='"
+							+ XMLUtils.escapePseudeAttr(stripAndCollapse(this.contentBuff.toString())) + "'";
 					pi = new String[] { CSSJML.PI_DOCUMENT_INFO, data };
 					this.contentBuff = null;
 				}
