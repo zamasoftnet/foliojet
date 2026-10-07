@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex: reverse main axis with wrap (lines in document order, mirrored within each line)</title>
+<style type="text/css">
+body { font-size: 12pt; margin: 0; }
+div { margin: 0; }
+.r { display: flex; flex-direction: row-reverse; flex-wrap: wrap; }
+.h { height: 20pt; }
+.v { width: 20pt; }
+</style>
+</head>
+<body>
+<div class="r" style="width: 100pt">
+<div class="h" style="flex: 0 0 40pt" id="a">a</div>
+<div class="h" style="flex: 0 0 40pt" id="b">b</div>
+<div class="h" style="flex: 0 0 40pt" id="c">c</div>
+</div>
+<div class="r" style="width: 60pt">
+<div class="h" style="flex: 0 0 40pt" id="d">d</div>
+<div class="h" style="flex: 0 0 20pt" id="e">e</div>
+<div class="h" style="flex: 0 0 30pt" id="f">f</div>
+</div>
+<div style="writing-mode: vertical-rl; height: 120pt">
+<div class="r" style="height: 100pt">
+<div class="v" style="flex: 0 0 40pt" id="g">g</div>
+<div class="v" style="flex: 0 0 40pt" id="h">h</div>
+<div class="v" style="flex: 0 0 40pt" id="i">i</div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column-reverse; flex-wrap: wrap; align-content: flex-start; height: 100pt; width: 200pt">
+<div style="flex: 0 0 40pt; width: 30pt" id="j">j</div>
+<div style="flex: 0 0 40pt; width: 30pt" id="k">k</div>
+<div style="flex: 0 0 40pt; width: 30pt" id="l">l</div>
+</div>
+</body>
+</html>

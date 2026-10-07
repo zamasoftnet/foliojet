@@ -391,9 +391,15 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		// getInnerPageExtentが返す(G5eの手筋)
 		final MainAxis axis = new MainAxis(mainIsLine,
 				mainIsLine ? innerLine : this.flexBox.getInnerPageExtent(params.flow), innerLine);
-		final int[] seq = this.visualOrder();
-		final List<FlexItemMetrics> metrics = this.buildMetrics(seq, axis);
-		final List<FlexLineBreaker.Line> lines = this.breakMainLines(metrics, axis);
+		// Lines are collected in order-modified document order (css-flexbox-1 §9.3); a reverse main axis only
+		// mirrors the items inside each line. Reversing the whole sequence before breaking put the last item on
+		// the first line and could regroup the lines (fit sweep seed 11931726, 2026-10-07).
+		final int[] ordered = this.visualOrder();
+		final List<FlexItemMetrics> orderedMetrics = this.buildMetrics(ordered, axis);
+		final List<FlexLineBreaker.Line> lines = this.breakMainLines(orderedMetrics, axis);
+		final boolean reversed = params.flexDirection.isReverse();
+		final int[] seq = reversed ? reverseWithinLines(ordered, lines) : ordered;
+		final List<FlexItemMetrics> metrics = reversed ? reverseWithinLines(orderedMetrics, lines) : orderedMetrics;
 		final double[] mainSizeByOriginal = this.resolveMainSizes(seq, metrics, lines, axis);
 		if (mainIsLine) {
 			this.placeRow(target, axis, seq, metrics, lines, mainSizeByOriginal);
@@ -1041,10 +1047,10 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
-	 * 視覚順(order昇順、同値は録画順の安定ソート——§5.4)のindex列です
-	 * (F5a)。行分割・§9.7・配置は視覚順、bindはソース順(Tagged PDFの
-	 * 読み順・構造をソース順に保つ——答申F5a)。reverse主軸(F5b)は
-	 * 視覚並びを反転(justify側の反転はmapperのtoFlexJustify)。
+	 * Returns item indexes in order-modified document order (ascending {@code order}, ties kept in recording
+	 * order, §5.4) (F5a). Line breaking uses this order; a reverse main axis (F5b) then mirrors the items within
+	 * each line ({@link #reverseWithinLines}), and the justify side is mirrored by the mapper's toFlexJustify.
+	 * Binding stays in source order (keeps the Tagged PDF reading order and structure in source order, F5a).
 	 */
 	private int[] visualOrder() {
 		final Integer[] seq = new Integer[this.items.size()];
@@ -1054,9 +1060,30 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		Arrays.sort(seq,
 				(x, y) -> Integer.compare(this.items.get(x).spec.order(), this.items.get(y).spec.order()));
 		final int[] result = new int[seq.length];
-		final boolean reversed = this.flexBox.getFlexParams().flexDirection.isReverse();
 		for (int i = 0; i < seq.length; ++i) {
-			result[reversed ? seq.length - 1 - i : i] = seq[i];
+			result[i] = seq[i];
+		}
+		return result;
+	}
+
+	/** Mirrors each line's range of {@code seq} in place on a copy (reverse main axis, 2026-10-07). */
+	private static int[] reverseWithinLines(final int[] seq, final List<FlexLineBreaker.Line> lines) {
+		final int[] result = seq.clone();
+		for (final FlexLineBreaker.Line line : lines) {
+			for (int k = line.from(); k < line.to(); ++k) {
+				result[k] = seq[line.from() + line.to() - 1 - k];
+			}
+		}
+		return result;
+	}
+
+	/** The same mirroring for the per-position metrics. */
+	private static <T> List<T> reverseWithinLines(final List<T> list, final List<FlexLineBreaker.Line> lines) {
+		final List<T> result = new ArrayList<>(list);
+		for (final FlexLineBreaker.Line line : lines) {
+			for (int k = line.from(); k < line.to(); ++k) {
+				result.set(k, list.get(line.from() + line.to() - 1 - k));
+			}
 		}
 		return result;
 	}
