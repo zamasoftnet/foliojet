@@ -820,6 +820,16 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
+	 * 2026-10-07、fit seed 11606508(v2 の seed 2028400733): 60pt の紙の表のセルに、セルが重なる入れ子の表と
+	 * {@code <ul style="list-style-…">}が入る。リストの印の指定は幅を狭めず、重なる表も重ならない行の和は下限に
+	 * なるので、T5 の列は紙の外から始まる(Copper x=135、Chrome x=133.5)。以前は両方を 0 と見て欠陥と報告した。
+	 */
+	public void testSeedTableWithListAndOverlappingNestedTableIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(2_028_400_733, true, false, false).html()));
+	}
+
+	/**
 	 * 内容幅50pt・余白5pt、語の下限は T1x=9.6pt・間隔1.5pt: 列jは 1.5+11.1j から始まる。1行目は
 	 * colspanで行の和が小さく、2行目で列が決まる。T15の列(j=5)は57pt=紙の端(55pt)の外。
 	 */

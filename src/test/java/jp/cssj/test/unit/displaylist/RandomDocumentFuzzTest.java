@@ -4730,7 +4730,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 					final int colspan = spanOf(cellAttrs, "colspan");
 					final int rowspan = spanOf(cellAttrs, "rowspan");
 					double min = bordered ? 2 : 0;
-					if (!cellAttrs.contains("style") && !content.contains("style")) {
+					if (!cellAttrs.contains("style") && onlyListStyles(content)) {
 						// 中の表(入れ子)の最小幅も下限に入る。表の固有の最小幅は縮めずに報告される
 						// (RetainedTableBuilder の minLineSize)。seed 10760020(2026-09-29)
 						min += Math.max(longestWordAdvance(content) * font,
@@ -4775,9 +4775,33 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final boolean collapsedTables) {
 		double bound = 0;
 		for (int at = html.indexOf("<table>", from); at >= 0 && at < to; at = html.indexOf("<table>", at + 7)) {
-			bound = Math.max(bound, columnLowerBoundTotal(placeTableCells(html, at + 7, font, collapsedTables)));
+			// セルが重なる表は列の下限を出せない(0)が、重ならない行のセルの和は下限のまま使える
+			// (2026-10-07、fit seed 11606508: 入れ子の表の T22 colspan 3 が T21 rowspan 3 の列に重なり、
+			// 外の表の列の下限が入れ子の分を失って、紙の外の列の字を欠陥と報告した。Chrome でも同じ位置)
+			bound = Math.max(bound, Math.max(columnLowerBoundTotal(placeTableCells(html, at + 7, font, collapsedTables)),
+					tableMinContentLowerBound(html, at + 7, font, collapsedTables)));
 		}
 		return bound;
+	}
+
+	private static final Pattern STYLE_ATTRIBUTE_VALUE = Pattern.compile("style=\"([^\"]*)\"");
+
+	/**
+	 * 中身の{@code style}が、生成器のリストの{@code list-style-*}だけか(2026-10-07)。セルの最小幅の下限は、中に
+	 * 幅を狭め得る指定(明示幅の箱など)があれば見積もらないが、リストの印の種類と位置は幅を狭めない。以前は
+	 * {@code <ul style="list-style-position:…">}を含むセルも、それを含む入れ子の表のセルも0とした。
+	 */
+	private static boolean onlyListStyles(final String content) {
+		final Matcher m = STYLE_ATTRIBUTE_VALUE.matcher(content);
+		while (m.find()) {
+			for (final String declaration : m.group(1).split(";")) {
+				final String d = declaration.trim();
+				if (!d.isEmpty() && !d.startsWith("list-style-position:") && !d.startsWith("list-style-type:")) {
+					return false;
+				}
+			}
+		}
+		return !content.replaceAll("style=\"[^\"]*\"", "").contains("style");
 	}
 
 	/**
