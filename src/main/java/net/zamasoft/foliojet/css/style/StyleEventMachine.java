@@ -465,7 +465,7 @@ final class StyleEventMachine {
 				params.fontStyle = style.getFontStyle();
 				params.fontManager = this.ua.getFontManager();
 				params.lineBreakRules = LanguageProfileBundle
-						.getLanguageProfile(style.getCSSElement().lang).getTextBreakingRules(style);
+						.getLanguageProfile(style.getLang()).getTextBreakingRules(style);
 				params.direction = Direction.get(style);
 				params.flow = BlockFlow.get(style);
 				params.writingModeVariant = net.zamasoft.foliojet.css.impl.property.text.WritingModeVariant.get(style);
@@ -1374,7 +1374,7 @@ final class StyleEventMachine {
 					if (Display.get(firstLetterStyle) != DisplayValue.NONE) {
 						this.startStyle(firstLetterStyle);
 						final LanguageProfile lang = LanguageProfileBundle
-								.getLanguageProfile(this.context.getCurrentStyle().getCSSElement().lang);
+								.getLanguageProfile(this.context.getCurrentStyle().getLang());
 						int first = lang.countFirstLetter(ch, off, len);
 						if (this.runningCapture.isCapturing()) {
 							this.runningCapture.characters(ch, off, first);

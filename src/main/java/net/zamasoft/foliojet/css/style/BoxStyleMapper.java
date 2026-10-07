@@ -785,12 +785,12 @@ final class BoxStyleMapper {
 				paintOrder.isNormal() ? null : paintOrder.toString());
 		params.fontManager = this.ua.getFontManager();
 		final LanguageProfile lang = LanguageProfileBundle
-				.getLanguageProfile(style.getCSSElement().lang);
+				.getLanguageProfile(style.getLang());
 		params.lineBreakRules = lang.getTextBreakingRules(style);
 		params.hyphens = Hyphens.get(style);
 		params.hyphenateCharacter = HyphenateCharacter.get(style);
 		if (params.hyphens == AbstractTextParams.HYPHENS_AUTO) {
-			params.hyphenator = WordHyphenatorBundle.getHyphenator(style.getCSSElement().lang);
+			params.hyphenator = WordHyphenatorBundle.getHyphenator(style.getLang());
 		}
 		params.direction = Direction.get(style);
 		params.unicodeBidi = net.zamasoft.foliojet.css.impl.property.text.UnicodeBidi.get(style);

@@ -415,6 +415,21 @@ public class CSSStyle {
 		}
 	}
 
+	/**
+	 * 内容の言語です(2026-10-07)。疑似要素(::before・::after・::marker など)は共有の
+	 * {@link CSSElement}で言語を持たないので、親の要素の言語を返す。以前は null になり、汎用ファミリの
+	 * 言語別の連鎖・禁則・ハイフネーションが既定(日本語向け)に落ちた(lang=zh・ko の文書の
+	 * {@code content} の字に日本語の字形が出た)。
+	 */
+	public java.util.Locale getLang() {
+		for (CSSStyle style = this; style != null; style = style.parentStyle) {
+			if (style.ce != null && !style.ce.isPseudoElement()) {
+				return style.ce.lang;
+			}
+		}
+		return null;
+	}
+
 	public FontStyle getFontStyle() {
 		if (this.fontStyle != null) {
 			return this.fontStyle;
@@ -453,7 +468,7 @@ public class CSSStyle {
 				// 内容の言語(2026-08-31)。汎用ファミリの連鎖を言語別に選ぶために
 				// 運ぶ。既定の連鎖は日本語向けなので、これが無いと中国語に
 				// 日本語の字形が、韓国語のsans-serifに明朝が出る
-				this.ce == null ? null : this.ce.lang);
+				this.getLang());
 		return this.fontStyle;
 	}
 
