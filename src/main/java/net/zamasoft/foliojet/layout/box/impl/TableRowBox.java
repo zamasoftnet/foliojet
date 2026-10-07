@@ -60,6 +60,12 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		public ExtendedCell getNextExtendedCell();
 
 		public TableRowBox getTableRow();
+
+		/**
+		 * Line-axis offset of this cell from the row's line start, or {@code NaN} when the cell sits after the
+		 * preceding cells of the row (the usual case). See {@link TableRowBox#cutUnextendedRowspanCells}.
+		 */
+		public double getLineOffset();
 	}
 
 	public static interface ExtendedCell extends Cell {
@@ -85,14 +91,29 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		public TableRowBox getTableRow() {
 			return this.row;
 		}
+
+		public double getLineOffset() {
+			return Double.NaN;
+		}
 	}
 
 	protected static class SourceCellImpl extends AbstractCell {
 		protected final TableCellBox cell;
+		private final double lineOffset;
 
 		public SourceCellImpl(TableCellBox cell, TableRowBox row) {
+			this(cell, row, Double.NaN);
+		}
+
+		SourceCellImpl(TableCellBox cell, TableRowBox row, double lineOffset) {
 			super(row);
 			this.cell = cell;
+			this.lineOffset = lineOffset;
+		}
+
+		@Override
+		public double getLineOffset() {
+			return this.lineOffset;
 		}
 
 		public boolean isSource() {
@@ -160,9 +181,34 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	}
 
 	public final Cell addTableSourceCell(TableCellBox cellBox) {
-		Cell source = new SourceCellImpl(cellBox, this);
+		return this.addTableSourceCell(cellBox, Double.NaN);
+	}
+
+	/** Adds a source cell at an explicit line-axis offset ({@link Cell#getLineOffset}; {@code NaN} for none). */
+	private Cell addTableSourceCell(final TableCellBox cellBox, final double lineOffset) {
+		final Cell source = new SourceCellImpl(cellBox, this, lineOffset);
 		this.cells.add(source);
 		return source;
+	}
+
+	/**
+	 * Line-axis offset of cell {@code index} from the row's line start, accumulated the same way the drawing loops do:
+	 * the line extents of the preceding cells that have no explicit offset.
+	 */
+	private double lineOffsetOf(final int index) {
+		final double explicit = this.cells.get(index).getLineOffset();
+		if (!Double.isNaN(explicit)) {
+			return explicit;
+		}
+		final boolean vertical = this.tableParams.flow.isVertical();
+		double offset = 0;
+		for (int i = 0; i < index; ++i) {
+			final Cell cell = this.cells.get(i);
+			if (Double.isNaN(cell.getLineOffset())) {
+				offset += vertical ? cell.getCellBox().getHeight() : cell.getCellBox().getWidth();
+			}
+		}
+		return offset;
 	}
 
 	public final ExtendedCell addTableExtendedCell(Cell cell) {
@@ -261,6 +307,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			for (int i = 0; i < n; ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
+				final double line = Double.isNaN(cell.getLineOffset()) ? logicalLine : cell.getLineOffset();
 				if (cell.isSource() && cellBox.getTableCellPos().offset == null) {
 					sourceCells[count] = cellBox;
 					// Spanning cells exceed the row's page-axis size. Delegate direction handling to
@@ -270,26 +317,31 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 					// Found in an independent review, 2026-07-25).
 					xs[count] = LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, 0, cellBox.getWidth(), 0);
 					ys[count] = bottomToTop
-							? lineOrigin + LayoutUtils.inlineToPhysical(this.tableParams, this.getHeight(), logicalLine,
-									logicalLine + cellBox.getHeight())
-							: y;
+							? lineOrigin + LayoutUtils.inlineToPhysical(this.tableParams, this.getHeight(), line,
+									line + cellBox.getHeight())
+							: Double.isNaN(cell.getLineOffset()) ? y : lineOrigin + line;
 					++count;
 				}
-				y += cellBox.getHeight();
-				logicalLine += cellBox.getHeight();
+				if (Double.isNaN(cell.getLineOffset())) {
+					y += cellBox.getHeight();
+					logicalLine += cellBox.getHeight();
+				}
 			}
 		} else {
 			// Horizontal writing
+			final double lineOrigin = x;
 			for (int i = 0; i < n; ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource() && cellBox.getTableCellPos().offset == null) {
 					sourceCells[count] = cellBox;
-					xs[count] = x;
+					xs[count] = Double.isNaN(cell.getLineOffset()) ? x : lineOrigin + cell.getLineOffset();
 					ys[count] = y;
 					++count;
 				}
-				x += cellBox.getWidth();
+				if (Double.isNaN(cell.getLineOffset())) {
+					x += cellBox.getWidth();
+				}
 			}
 		}
 		for (int i = count - 1; i >= 0; --i) {
@@ -317,28 +369,35 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				// Vertical writing
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
+				final double line = Double.isNaN(cell.getLineOffset()) ? logicalLine : cell.getLineOffset();
 				if (cell.isSource() && cellBox.getTableCellPos().offset == null) {
 					final double drawY = bottomToTop
-							? lineOrigin + LayoutUtils.inlineToPhysical(this.tableParams, this.getHeight(), logicalLine,
-									logicalLine + cellBox.getHeight())
-							: y;
+							? lineOrigin + LayoutUtils.inlineToPhysical(this.tableParams, this.getHeight(), line,
+									line + cellBox.getHeight())
+							: Double.isNaN(cell.getLineOffset()) ? y : lineOrigin + line;
 					cellBox.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY,
 							LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, 0, cellBox.getWidth(), 0), drawY);
 
 				}
-				y += cellBox.getHeight();
-				logicalLine += cellBox.getHeight();
+				if (Double.isNaN(cell.getLineOffset())) {
+					y += cellBox.getHeight();
+					logicalLine += cellBox.getHeight();
+				}
 			}
 		} else {
 			// Horizontal writing
+			final double lineOrigin = x;
 			for (int i = 0; i < this.cells.size(); ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource() && cellBox.getTableCellPos().offset == null) {
-					cellBox.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y);
+					cellBox.floats(pageBox, drawer, visitor, clip, transform, contextX, contextY,
+							Double.isNaN(cell.getLineOffset()) ? x : lineOrigin + cell.getLineOffset(), y);
 
 				}
-				x += cellBox.getWidth();
+				if (Double.isNaN(cell.getLineOffset())) {
+					x += cellBox.getWidth();
+				}
 			}
 		}
 	}
@@ -383,30 +442,36 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			for (int i = 0; i < n; ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
+				final double line = Double.isNaN(cell.getLineOffset()) ? logicalLine : cell.getLineOffset();
 				if (cell.isSource()) {
 					sourceCells[sourceCount] = cellBox;
 					drawXs[sourceCount] = LayoutUtils.drawX(this.tableParams.flow, x, this.pageSize, 0, cellBox.getWidth(), 0);
 					drawYs[sourceCount] = bottomToTop
-							? lineOrigin + LayoutUtils.inlineToPhysical(this.tableParams, this.getHeight(), logicalLine,
-									logicalLine + cellBox.getHeight())
-							: y;
+							? lineOrigin + LayoutUtils.inlineToPhysical(this.tableParams, this.getHeight(), line,
+									line + cellBox.getHeight())
+							: Double.isNaN(cell.getLineOffset()) ? y : lineOrigin + line;
 					++sourceCount;
 				}
-				y += cellBox.getHeight();
-				logicalLine += cellBox.getHeight();
+				if (Double.isNaN(cell.getLineOffset())) {
+					y += cellBox.getHeight();
+					logicalLine += cellBox.getHeight();
+				}
 			}
 		} else {
 			// Horizontal writing
+			final double lineOrigin = x;
 			for (int i = 0; i < n; ++i) {
 				Cell cell = (Cell) this.cells.get(i);
 				TableCellBox cellBox = cell.getCellBox();
 				if (cell.isSource()) {
 					sourceCells[sourceCount] = cellBox;
-					drawXs[sourceCount] = x;
+					drawXs[sourceCount] = Double.isNaN(cell.getLineOffset()) ? x : lineOrigin + cell.getLineOffset();
 					drawYs[sourceCount] = y;
 					++sourceCount;
 				}
-				x += cellBox.getWidth();
+				if (Double.isNaN(cell.getLineOffset())) {
+					x += cellBox.getWidth();
+				}
 			}
 		}
 		final Drawer fdrawer = drawer;
@@ -610,7 +675,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 						prevCell2.setHeight(cutPageAxis2);
 					}
 					this.restyleCell(nextCell2);
-					Cell source = nextRowBox.addTableSourceCell(nextCell2);
+					Cell source = nextRowBox.addTableSourceCell(nextCell2, cell2.getLineOffset());
 					ExtendedCell xcell = cell2.getNextExtendedCell();
 					double span = 1;
 					if (xcell != null) {
@@ -631,7 +696,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				prevCellBox.setHeight(cutPageAxis);
 			}
 			this.restyleCell(nextCellBox);
-			Cell source = nextRowBox.addTableSourceCell(nextCellBox);
+			Cell source = nextRowBox.addTableSourceCell(nextCellBox, cell.getLineOffset());
 			ExtendedCell xcell = cell.getNextExtendedCell();
 			double span = 1;
 			if (xcell != null) {
@@ -682,8 +747,15 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	 * entries in the moving row), leaving the cell at full height on the previous page and reversing
 	 * reading order (sweep seeds 1472118/1173267). Here, cut directly from retained rows those cells whose
 	 * pos rowspan reaches the moving region but whose extension chain does not, and add their remainders
-	 * to the moving row. The remainders are appended to the row list, so their line-direction positions
-	 * are compressed by the intervening column gaps, but reading order and page assignment become correct.
+	 * to the moving row. The remainders are appended to the row list.
+	 * </p>
+	 *
+	 * <p>
+	 * A remainder keeps its cell's line-axis offset ({@link Cell#getLineOffset}, 2026-10-08). Placed by its list
+	 * position, it moved toward the line start by the column gaps, or, when the moving row's own cells cover its
+	 * column (a colspan overlapping the rowspan, an HTML table model error), past them out of the table: fit sweep
+	 * seed 12070374 put T5 at y=125.33 instead of 58.83 (Chrome 57.59) on 60 pt paper (triage §23). Chrome draws
+	 * such overlapping cells over each other, as now.
 	 * </p>
 	 *
 	 * @param rowsToCut   number of rows from this row to the moving row (the next row = 1)
@@ -716,6 +788,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				// The actual cell does not reach the cut line (remains empty).
 				continue;
 			}
+			final double lineOffset = this.lineOffsetOf(i);
 			final TableCellBox nextCell = forcedCellRemainder(cellBox, cutPageAxis, BreakMode.DEFAULT_BREAK_MODE,
 					IPageBreakableBox.FLAGS_SPLIT);
 			if (vertical) {
@@ -724,7 +797,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				cellBox.setHeight(cutPageAxis);
 			}
 			target.restyleCell(nextCell);
-			target.addTableSourceCell(nextCell);
+			target.addTableSourceCell(nextCell, lineOffset);
 			target.pageSize = Math.max(target.pageSize,
 					nextCell.getPageExtent(this.tableParams.flow) / Math.max(1,
 							cellBox.getTableCellPos().rowspan - rowsToCut));

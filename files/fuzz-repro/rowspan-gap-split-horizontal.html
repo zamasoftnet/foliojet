@@ -1,0 +1,19 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="60pt"?>
+<?jp.cssj.property name="output.page-height" value="60pt"?>
+<!-- Row 2 is short: an empty column lies before the rowspan cell, which splits across the page. Its continuation stays in its column (2026-10-08). -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>rowspan-gap-split-horizontal</title>
+<style>
+@page{margin:5pt}
+body{margin:0;font:normal 6pt/1.2 serif;writing-mode:horizontal-tb}
+p,div,td{margin:0;padding:0}
+table{border-collapse:collapse}
+td{border:1pt solid black}
+</style></head><body>
+<table><tbody>
+<tr><td>T0</td><td>T1</td><td rowspan="3"><p>T2</p><p>T3</p><p>T4</p><p>T5</p><p>T6</p><p>T7</p><p>T8</p><p>T9</p></td></tr>
+<tr><td>T10</td></tr>
+<tr><td>T11</td><td>T12</td></tr>
+</tbody></table>
+</body></html>
