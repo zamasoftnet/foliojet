@@ -22,13 +22,13 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * HTTP取得まわりの入出力プロパティが<b>実際にリクエストへ効くか</b>の
- * 検査です(2026-08-02新設、入出力プロパティ網羅の第2陣)。
+ * Tests that HTTP-fetching I/O properties <b>actually affect requests</b>
+ * (introduced on 2026-08-02, the second batch of comprehensive I/O property coverage).
  *
  * <p>
- * この層はテストが皆無で、User-Agentが一切送られない欠陥が長く残って
- * いた({@code HttpRequestHeaderTest}参照)。ここでは実際に飛んだ
- * リクエストをローカルのHTTPサーバで受け、ヘッダを検査する。
+ * This layer had no tests, so a defect that never sent User-Agent persisted for a long time
+ * (see {@code HttpRequestHeaderTest}). Here, receive actual requests using a local HTTP server
+ * and inspect their headers.
  * </p>
  */
 public class HttpIoPropertyTest extends TestCase {
@@ -36,17 +36,17 @@ public class HttpIoPropertyTest extends TestCase {
 
 	private HttpServer server;
 
-	/** 受け取ったリクエストのヘッダ(1行1ヘッダ、"名前: 値")。 */
+	/** Headers of the received request (one per line, "name: value"). */
 	private final List<String> received = Collections.synchronizedList(new ArrayList<String>());
 
-	/** 直近のリクエストのパス。 */
+	/** Path of the most recent request. */
 	private final List<String> paths = Collections.synchronizedList(new ArrayList<String>());
 
 	protected void setUp() throws Exception {
 		this.received.clear();
 		this.paths.clear();
 		this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-		// 認証が要る口(先行認証の往復検査用)。Authorizationが無ければ401
+		// Authentication endpoint (for preemptive-authentication round-trip checks). Returns 401 without Authorization.
 		this.server.createContext("/secure", exchange -> {
 			final String auth = exchange.getRequestHeaders().getFirst("Authorization");
 			this.received.add("Authorization: " + auth);
@@ -92,7 +92,7 @@ public class HttpIoPropertyTest extends TestCase {
 		return "http://127.0.0.1:" + this.server.getAddress().getPort();
 	}
 
-	/** {@code input.http.referer}: 副資源の取得にRefererが付くこと。 */
+	/** {@code input.http.referer}: subresource requests include Referer. */
 	public void testReferer() throws Exception {
 		this.convert(props("input.http.referer", "true"));
 		assertTrue("副資源(CSS)まで取得されていること", this.paths.contains("/sub.css"));
@@ -100,14 +100,14 @@ public class HttpIoPropertyTest extends TestCase {
 				this.received.stream().anyMatch(h -> h.toLowerCase().startsWith("referer: ")));
 	}
 
-	/** {@code input.http.referer=false}: Refererを送らないこと。 */
+	/** {@code input.http.referer=false}: do not send Referer. */
 	public void testRefererDisabled() throws Exception {
 		this.convert(props("input.http.referer", "false"));
 		assertFalse("Refererが送られないこと: " + this.received,
 				this.received.stream().anyMatch(h -> h.toLowerCase().startsWith("referer: ")));
 	}
 
-	/** {@code input.http.cookie.<n>.*}: Cookieが送られること。 */
+	/** {@code input.http.cookie.<n>.*}: send Cookie. */
 	public void testCookie() throws Exception {
 		this.convert(props("input.http.cookie.0.domain", "127.0.0.1", "input.http.cookie.0.path", "/",
 				"input.http.cookie.0.name", "probe", "input.http.cookie.0.value", "PROBE-COOKIE"));
@@ -117,22 +117,22 @@ public class HttpIoPropertyTest extends TestCase {
 	}
 
 	/**
-	 * {@code input.http.authentication.*}+{@code preemptive}: 最初から
-	 * Authorizationを送ること(401を待たない)。
+	 * {@code input.http.authentication.*}+{@code preemptive}: send Authorization immediately (do not wait for
+	 * 401).
 	 */
 	public void testPreemptiveAuthentication() throws Exception {
 		this.convert(this.base() + "/secure", props("input.http.authentication.0.host", "127.0.0.1",
 				"input.http.authentication.0.port", String.valueOf(this.server.getAddress().getPort()),
 				"input.http.authentication.0.user", "u", "input.http.authentication.0.password", "p",
 				"input.http.authentication.preemptive", "true"));
-		// 401を返す口へ変換して成功すること=Authorizationが実際に届いている
+		// Successful conversion from the endpoint returning 401 proves that Authorization actually arrives.
 		assertTrue("認証が要る資源を取得できること(受信: " + this.received + ")",
 				this.received.stream().anyMatch(h -> h.startsWith("Authorization: Basic")));
 	}
 
-	/** {@code input.http.proxy.host/port}: プロキシへ要求が行くこと。 */
+	/** {@code input.http.proxy.host/port}: requests reach the proxy. */
 	public void testProxy() throws Exception {
-		// プロキシとして自分のサーバを指し、絶対URIで要求が来ることで判定する
+		// Point to our own server as the proxy and check that requests use absolute URIs.
 		this.convert("http://example.invalid/", props("input.http.proxy.host", "127.0.0.1",
 				"input.http.proxy.port", String.valueOf(this.server.getAddress().getPort())));
 		assertFalse("プロキシへ要求が届くこと", this.paths.isEmpty());

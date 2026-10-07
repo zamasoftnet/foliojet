@@ -16,16 +16,17 @@ import net.sourceforge.jeuclid.layout.LayoutStage;
 import net.sourceforge.jeuclid.layout.LayoutableNode;
 
 /**
- * 数式の字と演算子の間隔を固定します(2026-10-04、TECH-20261003-004 の⑪〜⑭。時限暗号の本で
- * カンマが前の字に接していた)。JEuclid(third_party/jeuclid-core)に手を入れた箇所です。
+ * Verify spacing between mathematical characters and operators (2026-10-04, TECH-20261003-004 items ⑪–⑭;
+ * commas touched preceding characters in the Jigen Ango book). These are changes to JEuclid (third_party/jeuclid-core).
  *
  * <ul>
- * <li>⑪ 字の幅を字形のインクの範囲で測り、右の余白(mo は左右とも)を捨てていた。字の送り幅で測る</li>
- * <li>⑫ em を字の大きさの 0.8389 倍にしていた。em は字の大きさ</li>
- * <li>⑬ U+2212(−)・U+00D7(×)が演算子の辞書に無く、既定の thickmathspace になっていた。
- * 辞書の値は mediummathspace(4/18 em)</li>
- * <li>⑭ 前置形が効かなかった(−が辞書に無い、math 直下の先頭を前置形と見ない)。前置形の − は
- * 左 0・右 veryverythinmathspace(1/18 em)</li>
+ * <li>⑪ Width measurement used glyph ink bounds, discarding right-side space (both sides for mo).
+ * Measure using character advances.</li>
+ * <li>⑫ em was 0.8389 times the font size. An em is the font size.</li>
+ * <li>⑬ U+2212 (−) and U+00D7 (×) were absent from the operator dictionary and used the default
+ * thickmathspace. Their dictionary value is mediummathspace (4/18 em).</li>
+ * <li>⑭ Prefix form did not work (− was missing from the dictionary; the first element directly under math
+ * was not treated as prefix). Prefix − has 0 on the left and veryverythinmathspace (1/18 em) on the right.</li>
  * </ul>
  */
 public class MathSpacingTest extends TestCase {
@@ -48,7 +49,7 @@ public class MathSpacingTest extends TestCase {
 		return layout(body).getWidth();
 	}
 
-	/** 本文の n 番目の要素(0 始まり、math 直下)の幅。 */
+	/** Width of the nth body element (zero-based, directly under math). */
 	private static float childWidth(final String body, final int index) throws Exception {
 		final JEuclidView view = layout(body);
 		Node child = ((Node) view.getDocument()).getFirstChild();
@@ -66,23 +67,23 @@ public class MathSpacingTest extends TestCase {
 		throw new AssertionError("no child " + index);
 	}
 
-	/** ⑪ 字の幅は送り幅: 「12」と「1」「2」の幅は同じ。 */
+	/** ⑪ Character width is advance width: "12" has the same width as "1" plus "2". */
 	public void testTokenWidthIsTheAdvance() throws Exception {
 		assertEquals(width("<mn>12</mn>"), width("<mn>1</mn><mn>2</mn>"), 0.01f);
 	}
 
-	/** ⑪ 余白 0 の演算子は字の送り幅だけを取る: 「1+2」と「1」「+」「2」の幅は同じ。 */
+	/** ⑪ A zero-space operator takes only its advance: "1+2" has the same width as "1", "+", and "2" together. */
 	public void testOperatorKeepsItsSideBearings() throws Exception {
 		assertEquals(width("<mn>1+2</mn>"), width("<mn>1</mn><mo lspace=\"0\" rspace=\"0\">+</mo><mn>2</mn>"),
 				0.01f);
 	}
 
-	/** ⑫ 1em は字の大きさ。 */
+	/** ⑫ 1em is the font size. */
 	public void testEmIsTheFontSize() throws Exception {
 		assertEquals(SIZE, childWidth("<mn>1</mn><mspace width=\"1em\"/><mn>2</mn>", 1), 0.01f);
 	}
 
-	/** ⑬ −・× の左右は mediummathspace(4/18 em)。 */
+	/** ⑬ Both sides of − and × use mediummathspace (4/18 em). */
 	public void testMinusAndTimesUseMediumMathSpace() throws Exception {
 		final float medium = SIZE * 4 / 18;
 		for (final String op : new String[] { "−", "×", "+" }) {
@@ -93,8 +94,8 @@ public class MathSpacingTest extends TestCase {
 	}
 
 	/**
-	 * 末尾の − は後置形だが、U+2212 には後置形が無い(MathML Core)ので中置形の空きになる
-	 * (時限暗号の本で、行で切った式の末尾の − が詰まった)。
+	 * A trailing − is postfix, but U+2212 has no postfix form (MathML Core), so use infix spacing
+	 * (a trailing − in a formula split across lines was cramped in the Jigen Ango book).
 	 */
 	public void testTrailingMinusKeepsInfixSpacing() throws Exception {
 		final float medium = SIZE * 4 / 18;
@@ -103,7 +104,7 @@ public class MathSpacingTest extends TestCase {
 		assertEquals(2 * medium, spaced - tight, 0.01f);
 	}
 
-	/** ⑭ 先頭の − は前置形: 左 0・右 veryverythinmathspace(1/18 em)。 */
+	/** ⑭ A leading − is prefix: 0 on the left, veryverythinmathspace (1/18 em) on the right. */
 	public void testLeadingMinusIsPrefix() throws Exception {
 		final float veryverythin = SIZE / 18;
 		final float bare = childWidth("<mo lspace=\"0\" rspace=\"0\">−</mo><mn>3</mn>", 0);

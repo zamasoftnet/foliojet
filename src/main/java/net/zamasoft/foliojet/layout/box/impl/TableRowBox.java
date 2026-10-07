@@ -434,7 +434,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	 * source row through this row: the cut line is relative to the cell's top edge.
 	 *
 	 * <p>
-	 * A-3b physical alignment contract (documented 2026-07-24; `開発記録` is the authoritative record):
+	 * A-3b physical alignment contract (documented 2026-07-24; `the development records` is the authoritative record):
 	 * All cells in a row are cut at **the same physical split line** (if a later cell first determines
 	 * the split, go back and force splits on the cells already processed). Each cell receives content
 	 * coordinates that further subtract {@code verticalAlign} (the difference between the measured final

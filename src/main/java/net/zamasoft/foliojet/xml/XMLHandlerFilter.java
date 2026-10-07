@@ -1,22 +1,22 @@
 package net.zamasoft.foliojet.xml;
 
 /**
- * ContentHandlerに対するフィルタリング処理をします。
- * 
+ * Filters ContentHandler events.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: XMLHandlerFilter.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public interface XMLHandlerFilter extends XMLHandler {
 	/**
-	 * 出力先のXMLHandlerを設定します。
-	 * 
+	 * Sets the destination XMLHandler.
+	 *
 	 * @param xmlHandler
 	 */
 	public void setXMLHandler(XMLHandler xmlHandler);
 
 	/**
-	 * 出力先のXMLHandlerを返します。
-	 * 
+	 * Returns the destination XMLHandler.
+	 *
 	 * @return
 	 */
 	public XMLHandler getXMLHandler();

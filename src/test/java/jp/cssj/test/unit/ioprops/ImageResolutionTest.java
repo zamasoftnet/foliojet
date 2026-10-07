@@ -23,11 +23,12 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 画像出力に解像度を書き込み、画素数を四捨五入することを固定します(2026-10-04、出版の報告)。
+ * Fix the requirement to write resolution in image output and round pixel counts to the nearest integer
+ * (2026-10-04, report from publishing).
  *
  * <p>
- * 解像度が無いと印刷所(製本直送の表紙は 300〜350dpi の画像で入稿)が寸法を読めない。画素数は切り捨てで、
- * 50mm×350dpi=688.98 が 688 画素になっていた。
+ * Without resolution, the print shop cannot determine dimensions (Seihon Chokuso covers are submitted as
+ * 300–350 dpi images). Pixel counts were truncated, turning 50 mm×350 dpi=688.98 into 688 pixels.
  * </p>
  */
 public class ImageResolutionTest extends TestCase {
@@ -50,7 +51,7 @@ public class ImageResolutionTest extends TestCase {
 		return out.toByteArray();
 	}
 
-	/** {幅, 高さ, 画像の native メタデータの木}。 */
+	/** {width, height, native image metadata tree}. */
 	private static Object[] read(final byte[] bytes) throws Exception {
 		try (ImageInputStream in = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
 			final Iterator<ImageReader> readers = ImageIO.getImageReaders(in);

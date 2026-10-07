@@ -7,19 +7,19 @@ import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * SVGの断片として保持した層(グループ画像)です(2026-08-29)。
+ * A layer (group image) retained as an SVG fragment (2026-08-29).
  *
  * <p>
- * 不透明度・filter・mix-blend-modeの層は、PDFでは透明化グループ、
- * Java2Dではラスタになるが、ブラウザが描くSVGでは{@code <g>}で包むだけで
- * よく、中身はベクタのまま残せる。{@code DirectPagedSVGGC.createGroupImage}
- * は層の中身を別のバッファへ書き、{@code finish()}でこの絵にする。
- * 描くときは{@code <g transform opacity filter style>}で包んで流し込む。
+ * Layers with opacity, filter, or mix-blend-mode become transparency groups in PDF and rasters
+ * in Java2D, but browser-rendered SVG only needs a {@code <g>} wrapper, keeping the contents
+ * as vectors. {@code DirectPagedSVGGC.createGroupImage} writes layer contents to a separate
+ * buffer, and {@code finish()} turns it into this image.
+ * Drawing wraps it in {@code <g transform opacity filter style>} and inserts it.
  * </p>
  *
  * <p>
- * 中身の文字(ページJSONの文字位置)は層の座標系で記録されているので、
- * 描く位置が決まったときに変換を掛けてページへ移す({@link #textRuns})。
+ * Text within the layer (text positions in page JSON) is recorded in layer coordinates;
+ * when the drawing position is known, transform and transfer it to the page ({@link #textRuns}).
  * </p>
  */
 final class SVGFragmentImage implements Image {
@@ -39,7 +39,7 @@ final class SVGFragmentImage implements Image {
 		return this.svg;
 	}
 
-	/** 層の座標系で記録された文字列。 */
+	/** Text runs recorded in layer coordinates. */
 	List<PagedSVGResources.TextRun> textRuns() {
 		return this.textRuns;
 	}
@@ -54,7 +54,7 @@ final class SVGFragmentImage implements Image {
 		return this.height;
 	}
 
-	/** SVGの断片はSVGにしか置けない。 */
+	/** SVG fragments can only be placed in SVG. */
 	@Override
 	public void drawTo(final GC gc) throws GraphicsException {
 		throw new UnsupportedOperationException("SVG fragment can only be drawn to the SVG writer");

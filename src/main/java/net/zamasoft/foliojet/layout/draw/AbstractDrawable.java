@@ -18,18 +18,16 @@ public abstract class AbstractDrawable implements Drawable {
 	protected final float opacity;
 	protected final AffineTransform transform;
 	/**
-	 * {@code mix-blend-mode}(2026-08-29)。出力先が層ごとのブレンド
-	 * ({@link GC.Capability#BLEND_GROUP})を持てばこの描画要素を1つの層に
-	 * してブレンドし、持たなければ描画命令ごとに適用する近似
-	 * (MixBlendMode参照)。paramsを受けない具象クラスは
-	 * {@link #withBlendMode}で生成直後に設定する。
+	 * {@code mix-blend-mode} (2026-08-29). If the output supports per-layer blending ({@link
+	 * GC.Capability#BLEND_GROUP}), blends this drawable as a single layer; otherwise approximates by applying blending
+	 * per drawing command (see MixBlendMode). Concrete classes that do not receive params set it immediately after
+	 * construction via {@link #withBlendMode}.
 	 */
 	protected net.zamasoft.pdfg2d.gc.paint.BlendMode blendMode = net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL;
 	/**
-	 * {@code filter}(2026-08-29)。要素全体の効果は{@link Drawer}が層に
-	 * まとめる。層を持てない描画要素では、塗りと画像をすり替える
-	 * {@link FilterGC}で描画命令ごとに掛ける近似へ戻す。
-	 * {@link #withFilter}で設定する。
+	 * {@code filter} (2026-08-29). {@link Drawer} groups element-wide effects into a layer. For drawables that cannot
+	 * use layers, falls back to per-command approximation through {@link FilterGC}, which substitutes paints and
+	 * images. Set through {@link #withFilter}.
 	 */
 	protected FilterValue filter = FilterValue.NONE;
 
@@ -41,13 +39,13 @@ public abstract class AbstractDrawable implements Drawable {
 		this.transform = transform;
 	}
 
-	/** ブレンドモードを設定して自身を返します(生成直後に呼ぶ)。 */
+	/** Sets the blend mode and returns this instance (call immediately after construction). */
 	public final AbstractDrawable withBlendMode(final net.zamasoft.pdfg2d.gc.paint.BlendMode mode) {
 		this.blendMode = mode == null ? net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL : mode;
 		return this;
 	}
 
-	/** フィルタを設定して自身を返します(生成直後に呼ぶ)。 */
+	/** Sets the filter and returns this instance (call immediately after construction). */
 	public final AbstractDrawable withFilter(final FilterValue filter) {
 		this.filter = filter == null ? FilterValue.NONE : filter;
 		return this;
@@ -61,12 +59,11 @@ public abstract class AbstractDrawable implements Drawable {
 	}
 
 	/**
-	 * 表示リストダンプ用に、非恒等のGC変換とフィルタを{@code describe}
-	 * 文字列へ追記します(2026-08-08)。ダンプの座標はGC変換前の値のため、
-	 * transformを含む回帰はこれが無いとgoldenに一切現れない
-	 * (ParamsFieldsの%translate脱落を10日間素通りさせた穴)。
-	 * 変換・フィルタを使わない既存goldenは不変。フィルタは宣言した
-	 * 要素の描画要素にだけ出す(継承で届いた子孫には出さない)。
+	 * Appends nonidentity GC transforms and filters to the {@code describe} string for display-list dumps
+	 * (2026-08-08). Dump coordinates are before GC transformation, so transform regressions otherwise leave no trace
+	 * in goldens (the gap that let ParamsFields' lost %translate pass for 10 days). Existing goldens without
+	 * transforms or filters remain unchanged. Emit filters only on drawables of the declaring element, not descendants
+	 * receiving them through inheritance.
 	 */
 	protected final String describeTransform(final String base) {
 		String s = base;
@@ -86,8 +83,7 @@ public abstract class AbstractDrawable implements Drawable {
 	 * {@inheritDoc}
 	 *
 	 * <p>
-	 * クリップ形状の外接矩形を出力します(2026-08-09)。クリップを使わない
-	 * 既存goldenは不変。
+	 * Outputs the clip shape's bounding rectangle (2026-08-09). Existing goldens without clipping remain unchanged.
 	 * </p>
 	 */
 	@Override
@@ -112,11 +108,11 @@ public abstract class AbstractDrawable implements Drawable {
 				gc.transform(this.transform);
 			}
 		}
-		// mix-blend-mode(2026-08-29)。出力先が層のブレンドを持てば、この
-		// 描画要素を丸ごと1つの層(グループ画像)にしてからブレンドする
-		// (厳密)。持たなければ透明化グループの外側で設定し、描画命令
-		// ごとにブレンドする(近似。グループ画像のDoにもモードが効く)。
-		// 終了時に元の値へ戻す
+		// mix-blend-mode (2026-08-29). If the output supports layer blending, put the entire
+		// drawable into a single layer (group image), then blend it
+		// (exact). Otherwise set it outside the transparency group and blend per drawing command
+		// (approximation; the mode also affects Do for the group image).
+		// Restore the original value at the end.
 		final net.zamasoft.pdfg2d.gc.paint.BlendMode outerBlend = gc.getBlendMode();
 		final boolean blends = this.blendMode != outerBlend;
 		final boolean blendGroup = blends && gc.supports(GC.Capability.BLEND_GROUP);
@@ -125,8 +121,8 @@ public abstract class AbstractDrawable implements Drawable {
 			gc.setBlendMode(this.blendMode);
 		}
 
-		// filter: opacity()はグループ不透明度に掛ける(仕様の順序は
-		// filter→opacityだが、どちらも同じグループへの掛け算なので同じ)
+		// filter: opacity() multiplies group opacity (the specified order is filter → opacity,
+		// but both multiply the same group, so the result is identical).
 		final float opacity = this.opacity * f.opacity;
 		if (f.needsGroup()) {
 			ApproximationGC.report(gc, "filter", "2822.per-drawable");
@@ -137,7 +133,7 @@ public abstract class AbstractDrawable implements Drawable {
 		final GroupImageGC ggc;
 		float alpha = gc.getFillAlpha();
 		if (blendGroup || opacity != 1f) {
-			// 透明化開始(層にまとめる)
+			// Begin transparency (group into a layer).
 			xgc = gc;
 			ggc = gc.createGroupImage(this.pageBox.getWidth(), this.pageBox.getHeight());
 			gc = ggc;
@@ -151,7 +147,7 @@ public abstract class AbstractDrawable implements Drawable {
 
 		/* NoAndroid begin */
 		if (ggc != null) {
-			// 透明化終了
+			// End transparency.
 			Image gi = ggc.finish();
 			if (blendGroup) {
 				xgc.setBlendMode(this.blendMode);
@@ -173,15 +169,15 @@ public abstract class AbstractDrawable implements Drawable {
 		}
 	}
 
-	/** filterを描画命令ごとに掛ける従来の近似経路。 */
+	/** Existing approximation path that applies filters per drawing command. */
 	private void drawFilterApproximation(final GC gc, final double x, final double y, final FilterValue f)
 			throws GraphicsException {
-		// drop-shadow()は内容の下、色変換の外(影の色は指定どおり)
+		// drop-shadow() goes below content, outside color conversion (preserve the specified shadow color).
 		if (f.shadow != null) {
 			this.drawFilterShadow(gc, x, y, f.shadow);
 		}
 		if (f.hasColorOps()) {
-			// 色行列・ぼかしは塗りと画像をすり替えるGCで内容全体に掛ける
+			// Apply color matrices and blur to all content through a GC that substitutes paints and images.
 			this.innerDraw(new FilterGC(gc, f), x, y);
 		} else {
 			this.innerDraw(gc, x, y);
@@ -189,10 +185,9 @@ public abstract class AbstractDrawable implements Drawable {
 	}
 
 	/**
-	 * {@code filter: drop-shadow()}の影を描きます(内容の前に呼ばれる。
-	 * 出力先が層への落とし影を持つときは呼ばれない)。
-	 * 既定は何もしない——形を知る具象クラス(枠・置換要素)が上書きする。
-	 * 文字列の描画要素には効かない({@code text-shadow}を使うこと、記録済み)。
+	 * Draws the shadow for {@code filter: drop-shadow()} (called before content; not called when the output supports
+	 * layer drop shadows). The default does nothing; concrete classes that know the shape (frames, replaced elements)
+	 * override it. Does not affect text drawables (use {@code text-shadow}; documented).
 	 */
 	protected void drawFilterShadow(final GC gc, final double x, final double y,
 			final FilterValue.DropShadow shadow) throws GraphicsException {

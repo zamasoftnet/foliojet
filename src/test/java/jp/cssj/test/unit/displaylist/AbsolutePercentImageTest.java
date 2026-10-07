@@ -19,22 +19,25 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 絶対配置の箱の中の画像の % の高さ(縦書きは幅)を固定します(2026-10-04)。
+ * Verifies the contract for percentage height of images inside absolutely positioned boxes
+ * (width in vertical writing) (2026-10-04).
  *
  * <p>
- * 絶対配置の箱は頁方向の大きさを中身を組んだ後に決めるので、組んでいるあいだの内寸は 0 だった。
- * {@code height: 100%} の画像は 0 になって描かれなかった(出版の表紙のひな形、枠の中の絵)。
- * 大きさが中身に依らず決まる(指定・両端の位置)ときは先に入れ、決まらないときは % を auto として解く。
+ * An absolutely positioned box determines its page-axis size after laying out its contents,
+ * so its inner size was 0 during layout. An image with {@code height: 100%} became 0 and was not drawn
+ * (an illustration inside a frame in a publishing cover template).
+ * Set the size beforehand when it is independent of content (explicit size or positions at both ends);
+ * otherwise, resolve percentages as auto.
  * </p>
  */
 public class AbsolutePercentImageTest extends TestCase {
-	/** 100×200 px(75×150 pt)の画像。 */
+	/** A 100×200 px (75×150 pt) image. */
 	private static final String IMAGE = "<img src=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'"
 			+ " width='100' height='200'%3E%3Crect width='100' height='200' fill='red'/%3E%3C/svg%3E\"/>";
 
 	private static final Pattern FRAME = Pattern.compile("AbsoluteRectFrame\\[w=([-0-9.]+) h=([-0-9.]+)\\]");
 
-	/** 画像の置かれた大きさ {幅, 高さ}。 */
+	/** The image's placed dimensions {width, height}. */
 	private static double[] imageSize(final String style) throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><style>"
 				+ "@page{size:400pt 200pt;margin:0} body{margin:0;position:relative;height:200pt}"

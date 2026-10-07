@@ -8,25 +8,24 @@ import java.nio.file.Paths;
 import java.util.stream.Stream;
 
 /**
- * ディレクトリ内のMarkdownファイル(*.md)を一括でHTMLへ変換するコマンドライン
- * ツールです。
+ * A command-line tool that converts Markdown files (*.md) in a directory to HTML in bulk.
  * <p>
- * 各種ドキュメントビルド（説明書等）がMarkdownを
- * 章のソースとして採用しつつ、既存のXSLT結合(XSLT 1.0の{@code document()}は
- * XMLしか読めない)をそのまま使い続けられるよう、ビルド時にHTMLへ事前変換する
- * ために用いる。変換そのものは{@link MarkdownParser#toHtml(String)}に委譲する
- * (実行時のMarkdown入力と同一の変換経路)。
+ * Used to preconvert Markdown to HTML at build time so document builds (manuals, etc.)
+ * can adopt Markdown chapter sources while retaining existing XSLT joining
+ * (XSLT 1.0 {@code document()} can read only XML).
+ * Delegates conversion to {@link MarkdownParser#toHtml(String)}
+ * (the same conversion path as runtime Markdown input).
  * </p>
  *
  * <p>
- * 使い方: {@code java -cp ... net.zamasoft.foliojet.xml.parser.MarkdownToHtmlMain <入力ディレクトリ> <出力ディレクトリ>}
- * 入力ディレクトリを再帰的に走査し、{@code *.md} を同名の{@code *.html}として
- * 出力ディレクトリへ相対パスを保ったまま書き出す。
+ * Usage: {@code java -cp ... net.zamasoft.foliojet.xml.parser.MarkdownToHtmlMain <input directory> <output directory>}
+ * Recursively scans the input directory and writes {@code *.md} as same-named {@code *.html}
+ * files in the output directory, preserving relative paths.
  * </p>
  */
 public final class MarkdownToHtmlMain {
 	private MarkdownToHtmlMain() {
-		// ユーティリティクラス
+		// Utility class
 	}
 
 	public static void main(String[] args) throws IOException {

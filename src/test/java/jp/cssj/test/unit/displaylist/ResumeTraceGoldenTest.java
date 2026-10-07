@@ -21,24 +21,24 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 改ページ・改段の再開操作トレースの golden 比較テストです。
+ * Golden comparison tests for resume operation traces at page and column breaks.
  *
  * <p>
- * Continuation 移行(ARCHITECTURE §5.7)の各スライスに対して、
- * 「再開の操作列(replay/box-restyle の分岐・順序・深さ)が変わらない」
- * ことを固定します。意図的な移行(例: restyle-box → replay-subtree)は
- * 該当 golden を削除して再生成し、差分をレビューしてコミットします。
+ * For each slice of the Continuation migration (ARCHITECTURE §5.7),
+ * verify that "the resume operation sequence (replay/box-restyle branches, order, and depth) stays unchanged."
+ * For intentional migrations (e.g., restyle-box → replay-subtree), delete and regenerate
+ * the relevant golden, review the diff, and commit it.
  * </p>
  */
 public class ResumeTraceGoldenTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 対象文書。改ページ・改段・フロート・表・尾部再開をカバーする。 */
+	/** Target documents. Cover page breaks, column breaks, floats, tables, and tail resume. */
 	private static final String[] DOCUMENTS = { //
 			"0460-segment-restyle/mid-paragraph.html", //
 			"0460-segment-restyle/moved-blocks.html", //
-			// 脚注(F4/F5): 予約起因のavoid移動と本文短縮の再開操作列を固定
-			// (脚注機構の追加でreplay/restyle分岐が意図せず変わらないこと)
+			// Footnotes (F4/F5): pin down resume sequences for avoid moves caused by reservations and body shortening.
+			// (Adding the footnote mechanism must not unintentionally change replay/restyle branches.)
 			"0125-footnote/footnote-avoidmove.html", //
 			"0125-footnote/footnote-pagelimit.html", //
 			"0460-segment-restyle/text-tail-avoid.html", //
@@ -51,22 +51,22 @@ public class ResumeTraceGoldenTest extends TestCase {
 			"0400-column-count/simple.html", //
 			"0400-column-count/columns-float.html", //
 			"0215-pagebreak-table/auto-page-break-margin.html", //
-			// ルビ段落のページまたぎ(2026-07-25、注釈付きテキスト方式)。
-			// ルビ単位の文字はCollectorへ横取りされglyph()を通らないため、
-			// 尾部再開の位置(単位のソース終端)が壊れていないことをここで
-			// 固定する
+			// Ruby paragraphs across pages (2026-07-25, annotated-text approach).
+			// Ruby-unit characters are intercepted by the Collector and bypass glyph(), so
+			// verify here that the tail resume position (the unit's source end)
+			// remains intact.
 			"3060-RUBY/ruby-split-through.html", //
 	};
 
 	public void testResumeTraces() throws Exception {
 		List<String> failures = new ArrayList<>();
-		// 2026-07-21(M6b Phase B5d-0)新設のColumnsContainer系カウンタの
-		// 固定。B5d本実装の要否判断自体は2026-07-22にclose済みで、現在は
-		// ContainerCut.Plainのsentinel解釈差の観測(E-4)として残置——
-		// 退役条件はContinuationStats.COLUMNS_LAST_COLUMN_MOVE_CANDIDATE
-		// のjavadoc参照。B5c由来のCHAIN_MEMBER_KEEP/MOVE頻度assertは
-		// 2026-07-24(E-5)に退役した(Keep/Move経路の挙動自体は本テストの
-		// resume-trace golden比較が固定している)。
+		// Pin down the ColumnsContainer counters introduced on 2026-07-21 (M6b Phase B5d-0).
+		// The decision on whether to implement B5d was closed on 2026-07-22; these now
+		// remain to observe differences in ContainerCut.Plain sentinel interpretation (E-4).
+		// See the Javadoc of ContinuationStats.COLUMNS_LAST_COLUMN_MOVE_CANDIDATE
+		// for retirement criteria. The B5c-derived CHAIN_MEMBER_KEEP/MOVE frequency assertions
+		// were retired on 2026-07-24 (E-5). The Keep/Move paths' behavior itself is pinned down
+		// by this test's resume-trace golden comparison.
 		long totalColumnsSplitAttempts = 0;
 		long totalColumnsLastColumnMoveCandidate = 0;
 		for (String doc : DOCUMENTS) {
@@ -93,7 +93,7 @@ public class ResumeTraceGoldenTest extends TestCase {
 			assertTrue("再開トレースが出力されていません: " + doc, breaks.length > 0);
 
 			if (!goldenDir.isDirectory()) {
-				// 基準データの初回生成
+				// Generate the baseline data for the first time.
 				goldenDir.mkdirs();
 				for (File b : breaks) {
 					Files.copy(b.toPath(), new File(goldenDir, b.getName()).toPath());
@@ -118,21 +118,21 @@ public class ResumeTraceGoldenTest extends TestCase {
 				}
 			}
 		}
-		// 2026-07-21(M6b Phase B5d-0): ColumnsContainer(2列以上に実体化
-		// 済みの段組)自体がsplitPageAxisを呼ばれる回数自体がこの
-		// fixture集合では1回のみ(多くの段組は1列のまま完結し、
-		// ColumnsContainerへ遅延ラップされる前にページが閉じるため)。
-		// そのうち最後列自体が丸ごとMOVEした候補は0件——B5d(段組全体
-		// move型付け)の優先度が低いという既存判断を裏付ける実測値。
+		// 2026-07-21 (M6b Phase B5d-0): in this fixture set, splitPageAxis is called
+		// on a ColumnsContainer itself (multi-column layout materialized as two or more columns)
+		// only once. Most multi-column layouts finish with one column, and the page closes
+		// before they are lazily wrapped in a ColumnsContainer.
+		// Of those, zero candidates MOVE the entire last column itself. This measurement
+		// supports the existing low priority of B5d (typing moves of the entire multi-column layout).
 		//
-		// **2026-08-06: 1→3に変更**。読み込みに失敗した<img>がCSSの
-		// width/heightを無視して0x0に縮退していた欠陥を修正(HTMLStyle.
-		// applyBrokenImage、AltTextImage新設)。0400-column-count/
-		// columns-float.htmlのcircle.svgは元々unittestに存在しない
-		// (壊れた参照)ため、修正後は`img{width:20mm}`が正しく効いて
-		// 浮動画像が実寸を持つようになり、段組があふれて実際に
-		// ColumnsContainerへ実体化される箇所が1件から3件に増えた
-		// (目視確認済み、段組・浮動そのものは壊れていない)
+		// **2026-08-06: changed 1→3**. Fixed a defect where an <img> that failed to load
+		// ignored CSS width/height and collapsed to 0x0 (HTMLStyle.
+		// applyBrokenImage; introduced AltTextImage). The circle.svg referenced by 0400-column-count/
+		// columns-float.html never existed in unittest
+		// (broken reference), so after the fix, `img{width:20mm}` correctly applies
+		// and gives the floating image real dimensions. Multi-column overflow increased
+		// the number of actual ColumnsContainer materializations from 1 to 3.
+		// (Visually verified; multi-column layout and floats themselves are intact.)
 		assertEquals("ColumnsContainer.splitPageAxisの呼び出し回数はこのfixture集合で3回のみのはずです", 3,
 				totalColumnsSplitAttempts);
 		assertEquals("最後列丸ごとMOVEの候補はこのfixture集合では発生しないはずです", 0,

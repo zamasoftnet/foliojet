@@ -8,10 +8,10 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Grid G3d2のテストです。幅なしfloat内の幅なしGrid[60pt auto]:
- * slot0の#p(40pt)はfixed列、slot1の#q(30pt)がauto列のcontribution。
- * Grid全体のmax-content=60+30=90がfloatのshrink-to-fit幅になり、
- * auto列はbind時に90-60=30で解決される。2列目開始=+60。
+ * Grid G3d2 test. A Grid [60pt auto] without a specified width inside a float without a specified width:
+ * #p (40 pt) in slot0 occupies the fixed column; #q (30 pt) in slot1 contributes to the auto column.
+ * The whole Grid's max-content=60+30=90 becomes the float's shrink-to-fit width,
+ * and the auto column resolves to 90-60=30 at bind time. The second column starts at +60.
  */
 public class GridInFloatShrinkTest extends AbstractTestCase {
 	public GridInFloatShrinkTest(String name) {
@@ -25,7 +25,7 @@ public class GridInFloatShrinkTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** floatの幅=Grid max-content=90(shrink-to-fitへの伝播)。 */
+	/** Float width = Grid max-content=90 (propagation to shrink-to-fit). */
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(90.0, box.getWidth(), 0.1);

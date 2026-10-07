@@ -8,10 +8,11 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Grid G3bのauto列テストです。列[80pt auto]・gap10/5・コンテナ幅300pt。
- * item内容は明示幅ブロック(min=max-contentが決定的): col1のcontribution
- * max=70だが、残余はstretchでauto列=300-80-10=210になる。行高=
- * 行内item実高の最大(行1=max(20,30)=30、行2開始=30+gap5=35)。
+ * Grid G3b auto-column test. Columns [80pt auto], gap 10/5, container width 300 pt.
+ * Item contents are explicit-width blocks (min=max-content is deterministic): col1's maximum
+ * contribution is 70, but stretch distributes the remainder so the auto column is 300-80-10=210.
+ * Row height is the maximum actual item height in the row
+ * (row 1=max(20,30)=30; row 2 starts at 30+gap 5=35).
  */
 public class GridAutoColumnsTest extends AbstractTestCase {
 	public GridAutoColumnsTest(String name) {
@@ -34,7 +35,7 @@ public class GridAutoColumnsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** auto列(2列目)の開始=80+gap10。 */
+	/** The auto column (second column) starts at 80+gap 10. */
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 90, x, 0.1);
@@ -62,7 +63,7 @@ public class GridAutoColumnsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** Grid総高=30+5+25=60(親カーソル同期)。 */
+	/** Total Grid height = 30+5+25=60 (parent cursor synchronization). */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);

@@ -48,73 +48,70 @@ public final class LayoutUtils {
 	}
 
 	/**
-	 * 「この箱が紙のどこまで描くかは測れない」を表す番兵です(2026-07-27新設)。
+	 * Sentinel meaning "how far this box paints on the sheet cannot be measured" (added 2026-07-27).
 	 *
 	 * <p>
-	 * {@link net.zamasoft.foliojet.layout.box.IBox#paintedPageExtent}が返す
-	 * 値で、<b>まだ中身が確定していない断片</b>(ソースからの再生を待つ
-	 * テキストブロックの尾部など)に使います。判定側では「どこまでも描く」
-	 * ように振る舞うので、白紙ページの抑止判定は必ず<b>安全側</b>
-	 * (=改ページする・断片を捨てない)へ倒れます。
+	 * Returned by {@link net.zamasoft.foliojet.layout.box.IBox#paintedPageExtent} for
+	 * <b>fragments whose contents are not yet finalized</b> (such as a text block tail awaiting
+	 * source replay). Decisions treat it as "paints without limit," so blank-page suppression
+	 * always chooses the <b>safe side</b> (= make the page break; do not discard the fragment).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>この値をレイアウトの寸法として使ってはいけません。</b>
-	 * 用途は「描くものがあるか」の比較だけです。
+	 * <b>Do not use this value as a layout dimension.</b>
+	 * Use it only in comparisons that ask "is there anything to paint?"
 	 * </p>
 	 */
 	public static final double PAINTS_UNKNOWN = Double.POSITIVE_INFINITY;
 
 	/**
-	 * 表示リストに載ってよい座標・寸法の絶対値の上限(ポイント)。
+	 * Maximum absolute coordinate/dimension allowed in a display list (points).
 	 *
 	 * <p>
-	 * 1e8pt は約3,500km。PDFのページ寸法の上限14,400pt(200インチ)の
-	 * 7,000倍近くあり、正当なレイアウトが届く値ではありません。逆に、
-	 * {@link #NONE}(10<sup>308</sup>級)やそれに算術を施した値、
-	 * {@code Double.MAX_VALUE}を「制約なし」として持ち回った値が
-	 * 位置や確定寸法へ漏れた場合は必ずこれを超えます。
+	 * 1e8 pt is about 3,500 km, nearly 7,000 times the PDF page-size limit of 14,400 pt (200 inches),
+	 * well beyond any legitimate layout. Conversely, {@link #NONE} (around 10<sup>308</sup>),
+	 * values derived from it by arithmetic, or {@code Double.MAX_VALUE} carried as "unconstrained"
+	 * always exceed this limit if they leak into positions or finalized dimensions.
 	 * </p>
 	 */
 	public static final double DRAWABLE_LIMIT = 1e8;
 
 	/**
-	 * 描画へ渡してよい値か(有限で、印刷物としてあり得る範囲か)を返します。
+	 * Returns whether a value is safe to pass to drawing (finite and plausible for printed material).
 	 *
 	 * <p>
-	 * <b>{@link #isNone(double)}では足りない理由。</b>
-	 * {@code isNone}は<b>番兵値そのもの</b>としか一致しないので、
-	 * <b>倍率が変わる演算を通った番兵</b>({@code NONE / 2}、
-	 * {@code -NONE}、座標変換のスケール)を検出できません——値は
-	 * 10<sup>307</sup>級のゴミ座標のままなのに素通りします。
-	 * {@code NaN}も同じ穴を通ります({@code NaN != NONE}なので
-	 * {@code isNone(NaN)}は偽)。どちらも例外にはならず、
-	 * <b>内容が紙面のどこにも現れないまま静かに欠落する</b>形で出ます。
-	 * 帳票用途ではこれが最悪の壊れ方なので、範囲で弾きます。
+	 * <b>Why {@link #isNone(double)} is insufficient.</b>
+	 * {@code isNone} matches only <b>the sentinel itself</b>, so it cannot detect
+	 * <b>a sentinel transformed by scaling arithmetic</b> ({@code NONE / 2},
+	 * {@code -NONE}, or a coordinate-transform scale). These pass through despite remaining
+	 * garbage coordinates around 10<sup>307</sup>. {@code NaN} passes through the same hole
+	 * ({@code isNone(NaN)} is false because {@code NaN != NONE}).
+	 * Neither causes an exception; instead, <b>content silently disappears without appearing
+	 * anywhere on the sheet</b>. This is the worst failure mode for business forms,
+	 * so reject out-of-range values.
 	 * </p>
 	 *
 	 * <p>
-	 * ({@code NONE + 10}のような加算は逃げ道になりません。この規模の
-	 * doubleの刻み幅は10<sup>292</sup>程度あり、値が1ビットも変わらない
-	 * ためです。)
+	 * (Addition such as {@code NONE + 10} is not an escape route: double spacing at this magnitude
+	 * is around 10<sup>292</sup>, so not a single bit changes.)
 	 * </p>
 	 *
 	 * <p>
-	 * {@code NaN}は全ての比較が偽になるため、この2つの不等式で自動的に
-	 * 弾かれます(明示的な{@code isNaN}は不要)。
+	 * All comparisons with {@code NaN} are false, so these two inequalities reject it automatically
+	 * (no explicit {@code isNaN} is needed).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>守れない穴。</b>{@code NONE - NONE}は0になります。番兵同士の差は
-	 * もっともらしい座標に化けるので、範囲では検出できません
-	 * (テスト{@code DrawableRangeGuardTest}に記録済み)。
+	 * <b>Unprotected hole.</b> {@code NONE - NONE} becomes zero. A difference between sentinels
+	 * can turn into a plausible coordinate, so a range check cannot detect it
+	 * (documented in {@code DrawableRangeGuardTest}).
 	 * </p>
 	 *
 	 * <p>
-	 * 用途は<b>assertによるfail closed</b>です。本番ではassertが無効なので
-	 * コストはゼロ。制約値({@code max-width}の「上限なし」を表す
-	 * {@code Double.MAX_VALUE}など)にこれを掛けてはいけません——制約は
-	 * 正当に巨大です。掛けてよいのは<b>位置と確定した寸法</b>だけです。
+	 * Used to <b>fail closed through assertions</b>. Assertions are disabled in production, so the cost
+	 * is zero. Do not apply this to constraints (e.g., {@code Double.MAX_VALUE} meaning "no upper limit"
+	 * for {@code max-width}); constraints are legitimately huge.
+	 * Apply it only to <b>positions and finalized dimensions</b>.
 	 * </p>
 	 */
 	public static final boolean isDrawable(double v) {
@@ -124,19 +121,20 @@ public final class LayoutUtils {
 	public static final double THRESHOLD = .5;
 
 	/**
-	 * a &lt; bなら負、a &gt; bなら正、a = bならゼロを返します。<br>
-	 * 計算誤差による判定間違いを防ぐため、 行の折り返し、浮動ボックス、行の位置指定、改ページ制御のための比較はこれを使用します。
-	 * 
+	 * Returns a negative value for a &lt; b, positive for a &gt; b, and zero for a = b.<br>
+	 * Use this for comparisons in line wrapping, floats, line positioning, and page-break control
+	 * to prevent incorrect decisions due to numerical error.
+	 *
 	 * @param a
 	 * @param b
 	 * @return
 	 */
 	public static int compare(double a, double b) {
-		// 0.5未満の差は同一と見なします
-		// IEでは切り落とし、Firefoxは小数点以下1桁でまるめている模様
-		// 注：まるめてから比較する実装では、差が同じでも判定が変わるため、
-		// 内容がページをはみ出していると判定された場合でも
-		// ボックスの分割の途中で判定が矛盾することがあった
+		// Treat differences below 0.5 as equal
+		// IE appears to truncate, while Firefox rounds to one decimal place
+		// Note: rounding before comparison can produce different decisions for the same difference,
+		// so even after determining that content overflows the page,
+		// decisions could contradict each other during box splitting
 		double diff = a - b;
 		if (diff < THRESHOLD && diff > -THRESHOLD) {
 			return 0;
@@ -145,27 +143,29 @@ public final class LayoutUtils {
 	}
 
 	/**
-	 * ボックスの行方向寸法が内容に依存する(実測パスが必要)であればtrueを返します。
-	 * 2パス化の判定はこの述語ファミリに一元化されます(ARCHITECTURE.md §5.2b)。
-	 * 絶対配置は ABSOLUTE 指定のみを固定とみなします(%やインセット由来は内容依存)。
+	 * Returns true if the box's line-axis size depends on content (requiring a measurement pass).
+	 * This predicate family centralizes two-pass decisions (ARCHITECTURE.md §5.2b).
+	 * For absolute positioning, only ABSOLUTE specifications count as fixed
+	 * (percentages and inset-derived sizes depend on content).
 	 *
 	 * <p>
-	 * 軸は<b>ボックス自身の書字方向</b>で判定する(2026-08-10)。shrinkToFitの
-	 * 内部軸系(this.params.flow)と同じ軸でなければならない——親のflowで
-	 * 判定すると直交ブロックで軸がずれ、「自身の線軸はautoなのにページ軸の
-	 * 指定を見て実測不要」と誤判定し、線軸fit-contentが空実測の0になって
-	 * 内容ごと消えていた(縦書き文書内のheight付き横ブロック)。
-	 * 親と同軸のボックスでは従来と同値。
+	 * Determine axes from <b>the box's own writing direction</b> (2026-08-10).
+	 * They must match shrinkToFit's internal axes (this.params.flow). Using the parent's flow
+	 * misaligns axes for orthogonal blocks, incorrectly concluding "no measurement needed from
+	 * the specified page-axis size, even though the box's own line axis is auto."
+	 * The line-axis fit-content then became zero from empty measurements, making the box and content
+	 * disappear (a horizontal block with height inside a vertical writing document).
+	 * Equivalent to the old behavior for boxes sharing the parent's axes.
 	 *
-	 * @param blockBox 対象ボックス
-	 * @return 実測が必要であればtrue
+	 * @param blockBox target box
+	 * @return true if measurement is required
 	 */
 	public static boolean needsIntrinsicSizing(AbstractContainerBox blockBox) {
 		final BlockParams params = blockBox.getBlockParams();
 		if (params.hasIntrinsicLine()) {
-			// width/min-width/max-widthのいずれかが固有寸法キーワード
-			// (2026-08-29): width:10pt; min-width:max-content のように幅が
-			// 確定していても、min/maxの実測が要る
+			// An intrinsic-size keyword in any of width/min-width/max-width
+			// (2026-08-29): even if width is definite, as in width:10pt; min-width:max-content,
+			// min/max still require measurement
 			return true;
 		}
 		final LengthType lineType = params.size.getLineType(params.flow);
@@ -176,8 +176,8 @@ public final class LayoutUtils {
 	}
 
 	/**
-	 * テキストを描画します。
-	 * 
+	 * Draws text.
+	 *
 	 * @param gc
 	 * @param fontSize
 	 * @param text
@@ -208,8 +208,8 @@ public final class LayoutUtils {
 	}
 
 	/**
-	 * 長さを計算します。
-	 * 
+	 * Calculates a length.
+	 *
 	 * @param length
 	 * @param ref
 	 * @return
@@ -233,8 +233,8 @@ public final class LayoutUtils {
 	}
 
 	/**
-	 * AUTOをゼロとしてインセットを計算します。
-	 * 
+	 * Calculates insets, treating AUTO as zero.
+	 *
 	 * @param ainsets
 	 * @param insets
 	 * @param refSize
@@ -378,8 +378,8 @@ public final class LayoutUtils {
 	}
 
 	/**
-	 * Dimensionの幅を計算します。 AUTOの場合はNaNを返します。
-	 * 
+	 * Calculates the width of a Dimension. Returns NaN for AUTO.
+	 *
 	 * @param size
 	 * @param ref
 	 * @return
@@ -406,8 +406,8 @@ public final class LayoutUtils {
 	}
 
 	/**
-	 * Dimensionの高さを計算します。 AUTOの場合はNaNを返します。
-	 * 
+	 * Calculates the height of a Dimension. Returns NaN for AUTO.
+	 *
 	 * @param size
 	 * @param ref
 	 * @return
@@ -434,59 +434,61 @@ public final class LayoutUtils {
 	}
 
 	/**
-	 * Dimensionの行方向の寸法を計算します。 AUTOの場合はNONEを返します。
+	 * Calculates the line-axis size of a Dimension. Returns NONE for AUTO.
 	 *
-	 * @param size 寸法
-	 * @param flow 軸を決める書字方向
-	 * @param ref  相対値の基準
-	 * @return 行方向の寸法
+	 * @param size dimensions
+	 * @param flow writing direction determining the axes
+	 * @param ref  reference for relative values
+	 * @return line-axis size
 	 */
 	public static double computeDimensionLine(Dimension size, WritingMode flow, double ref) {
 		return flow.isVertical() ? computeDimensionHeight(size, ref) : computeDimensionWidth(size, ref);
 	}
 
 	/**
-	 * 親の物理原点 x から、論理位置(行方向 childLineStart、ページ方向
-	 * childPageStart/childPageEnd)に置かれる子の物理X座標を返します。
+	 * Returns the physical X coordinate of a child placed at logical coordinates
+	 * (line axis: childLineStart; page axis: childPageStart/childPageEnd)
+	 * relative to the parent's physical origin x.
 	 *
-	 * <h2>ページ軸の向きはここと {@link #drawY} だけが知っている</h2>
+	 * <h2>Only this method and {@link #drawY} know the page-axis direction</h2>
 	 *
 	 * <p>
-	 * 書字方向は<b>2つの独立した属性</b>で表せます——<b>どの物理次元が
-	 * ページ軸か</b>と、<b>その軸が正負どちらへ進むか</b>。前者は
-	 * {@link WritingMode#isVertical()}が答え、コード全体に散っていますが、
-	 * <b>後者を物理座標へ変換するのは、main全体でこの関数と{@link #drawY}
-	 * だけです</b>(2026-07-25に実測確認)。
+	 * Writing direction consists of <b>two independent attributes</b>:
+	 * <b>which physical dimension is the page axis</b> and <b>whether that axis advances positively
+	 * or negatively</b>. {@link WritingMode#isVertical()} answers the former and is used throughout
+	 * the code, but <b>only this method and {@link #drawY} convert the latter into physical
+	 * coordinates across all of main</b> (verified by measurement on 2026-07-25).
 	 * </p>
 	 *
 	 * <table border="1">
-	 * <caption>ページ軸の次元と向き</caption>
-	 * <tr><th>書字方向</th><th>ページ軸</th><th>向き</th><th>X座標に足すもの</th></tr>
-	 * <tr><td>TB(横書き)</td><td>Y</td><td>正(上→下)</td><td>行方向のみ</td></tr>
-	 * <tr><td>RL(縦書き・右→左)</td><td>X</td><td><b>負</b></td><td>{@code parentPageExtent - childPageEnd}</td></tr>
-	 * <tr><td>LR(縦書き・左→右)</td><td>X</td><td>正</td><td>{@code childPageStart}</td></tr>
+	 * <caption>Page-axis dimension and direction</caption>
+	 * <tr><th>Writing direction</th><th>Page axis</th><th>Direction</th><th>Added to X</th></tr>
+	 * <tr><td>TB (horizontal writing)</td><td>Y</td><td>Positive (top → bottom)</td><td>Line axis only</td></tr>
+	 * <tr><td>RL (vertical writing, right → left)</td><td>X</td><td><b>Negative</b></td>
+	 * <td>{@code parentPageExtent - childPageEnd}</td></tr>
+	 * <tr><td>LR (vertical writing, left → right)</td><td>X</td><td>Positive</td><td>{@code childPageStart}</td></tr>
 	 * </table>
 	 *
 	 * <p>
-	 * LRがTBと同じ「始端を足すだけ」の形になるのは偶然ではなく、
-	 * <b>向きが正である</b>という同じ性質の現れです。
+	 * LR has the same "just add the start" form as TB not by coincidence,
+	 * but because both <b>advance in the positive direction</b>.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>この関数を迂回して自前で符号計算をしないこと。</b>
-	 * {@code x += 親の内寸; x - 子のpageAxis - 子の寸法}という手書きは
-	 * RL専用式であり、LRで誤ります(2026-07-25にLRを実装した際、
-	 * FlowContainer・Floatings・表・救済分割に計10箇所の手書きが見つかり、
-	 * すべてこの関数へ寄せた)。
+	 * <b>Do not bypass this method with custom sign calculations.</b>
+	 * Handwritten {@code x += parent inner size; x - child pageAxis - child size} is an RL-only
+	 * formula and fails for LR (when implementing LR on 2026-07-25, ten handwritten instances
+	 * were found across FlowContainer, Floatings, tables, and rescue splitting;
+	 * all were consolidated into this method).
 	 * </p>
 	 *
-	 * @param flow             書字方向
-	 * @param x                親の物理X原点
-	 * @param parentPageExtent 親のページ方向寸法
-	 * @param childPageStart   子のページ方向始端
-	 * @param childPageEnd     子のページ方向終端(始端+子の寸法)
-	 * @param childLineStart   子の行方向始端
-	 * @return 子の物理X座標
+	 * @param flow             writing direction
+	 * @param x                parent's physical X origin
+	 * @param parentPageExtent parent's page-axis size
+	 * @param childPageStart   child's page-axis start
+	 * @param childPageEnd     child's page-axis end (start + child size)
+	 * @param childLineStart   child's line-axis start
+	 * @return child's physical X coordinate
 	 */
 	public static double drawX(WritingMode flow, double x, double parentPageExtent, double childPageStart,
 			double childPageEnd, double childLineStart) {
@@ -498,52 +500,55 @@ public final class LayoutUtils {
 	}
 
 	/**
-	 * ページ軸の<b>向き</b>(+1 または -1)を返します。
+	 * Returns the page-axis <b>direction</b> (+1 or -1).
 	 *
 	 * <p>
-	 * {@link #drawX}が扱うのは「論理位置→物理座標」の変換ですが、
-	 * <b>すでに物理座標にあるものをページ方向へずらす</b>操作
-	 * (セルの{@code vertical-align}など)にも同じ向きが要ります。
-	 * TBとLRは正、<b>RLだけが負</b>です(2026-07-25、vertical-lr対応で新設。
-	 * それまでは{@code isVertical()}で分岐してRL専用に{@code -=}していた)。
+	 * {@link #drawX} converts "logical position → physical coordinate," but operations that
+	 * <b>shift something already in physical coordinates along the page axis</b>
+	 * (e.g., cell {@code vertical-align}) need the same direction.
+	 * TB and LR are positive; <b>only RL is negative</b>.
+	 * Added 2026-07-25 for vertical-lr support; previously, code branched on {@code isVertical()}
+	 * and used {@code -=} specifically for RL.
 	 * </p>
 	 *
-	 * @param flow 書字方向
-	 * @return ページ軸が正方向なら+1、負方向(RL)なら-1
+	 * @param flow writing direction
+	 * @return +1 for a positive page-axis direction, -1 for a negative direction (RL)
 	 */
 	public static double pageAxisSign(WritingMode flow) {
 		return flow == WritingMode.RL ? -1 : 1;
 	}
 
 	/**
-	 * 親の物理原点 y から、論理位置に置かれる子の物理Y座標を返します。
-	 * 向きの扱いは{@link #drawX}の説明を参照(縦書きではページ軸がXなので、
-	 * Yは常に行方向だけで決まり、RLとLRで違いはありません)。
+	 * Returns the physical Y coordinate of a child at a logical position relative to the
+	 * parent's physical origin y. See {@link #drawX} for direction handling
+	 * (in vertical writing the page axis is X, so Y always depends only on the line axis,
+	 * with no difference between RL and LR).
 	 *
-	 * @param flow           書字方向
-	 * @param y              親の物理Y原点
-	 * @param childPageStart 子のページ方向始端
-	 * @param childLineStart 子の行方向始端
-	 * @return 子の物理Y座標
+	 * @param flow           writing direction
+	 * @param y              parent's physical Y origin
+	 * @param childPageStart child's page-axis start
+	 * @param childLineStart child's line-axis start
+	 * @return child's physical Y coordinate
 	 */
 	public static double drawY(WritingMode flow, double y, double childPageStart, double childLineStart) {
 		return flow.isVertical() ? y + childLineStart : y + childPageStart;
 	}
 
 	/**
-	 * 論理行内区間 {@code [start, end]} の物理始端を返します。
+	 * Returns the physical start of the logical inline interval {@code [start, end]}.
 	 *
 	 * <p>
-	 * sideways の行内進行が下から上なら、論理位置はそのまま保ち、物理化するときだけ
-	 * {@code lineExtent - end} へ反転します。通常の縦組版は従来座標を保ちます。点を写す場合は
-	 * {@code start == end} として呼び出します。この写像は逆写像も同じです。
+	 * When sideways inline progression is bottom to top, preserves logical positions and reverses
+	 * to {@code lineExtent - end} only when converting to physical coordinates.
+	 * Normal vertical writing keeps its existing coordinates. To map a point, call with
+	 * {@code start == end}. The inverse mapping is the same.
 	 * </p>
 	 *
-	 * @param params     行の組版方向
-	 * @param lineExtent 行内軸の物理寸法
-	 * @param start      論理区間の始端
-	 * @param end        論理区間の終端
-	 * @return 物理上端からの位置
+	 * @param params     line's layout direction
+	 * @param lineExtent physical size of the inline axis
+	 * @param start      logical interval start
+	 * @param end        logical interval end
+	 * @return position from the physical top
 	 */
 	public static double inlineToPhysical(final AbstractTextParams params, final double lineExtent,
 			final double start, final double end) {
@@ -626,8 +631,8 @@ public final class LayoutUtils {
 			// this.offsetX = pos.offset.getX() * container.getInnerWidth();
 			// break;
 		case MIXED:
-			// RELATIVE同様、この経路は未実装(既存のTODO。MIXEDもさしあたり
-			// RELATIVEと同じ扱いにして例外だけは避ける)。
+			// Like RELATIVE, this path is unimplemented (existing TODO; for now, also treat MIXED
+			// like RELATIVE to at least avoid an exception).
 		case AUTO:
 			return 0;
 		default:
@@ -643,8 +648,8 @@ public final class LayoutUtils {
 			// this.offsetY = pos.offset.getY() * container.getInnerWidth();
 			// break;
 		case MIXED:
-			// RELATIVE同様、この経路は未実装(既存のTODO。MIXEDもさしあたり
-			// RELATIVEと同じ扱いにして例外だけは避ける)。
+			// Like RELATIVE, this path is unimplemented (existing TODO; for now, also treat MIXED
+			// like RELATIVE to at least avoid an exception).
 		case AUTO:
 			return 0;
 		default:
@@ -654,21 +659,21 @@ public final class LayoutUtils {
 
 	public static void calculateReplacedSize(Builder builder, AbstractReplacedBox replacedBox) {
 		//
-		// ■ 幅と高さの計算
+		// ■ Width and height calculation
 		//
 		double refWidth, refHeight, refMaxWidth, refMaxHeight;
 		final AbstractContainerBox containerBox = builder.getFlowBox();
 		final BlockParams params = containerBox.getBlockParams();
 		final double lineSize = containerBox.getLineSize();
-		// position:relativeの内側フローは絶対配置用のcontext boxにもなるが、
-		// 通常フローの置換要素の包含ブロックであることは変わらない。
-		// builder境界のroot自身がcontextの場合だけcontext側を検索し、入れ子の
-		// contextが持つ確定寸法をflow検索から落とさない。
+		// The inner flow of position:relative also serves as a context box for absolute positioning,
+		// but remains the containing block for normal-flow replaced elements.
+		// Search the context side only when the root at the builder boundary is itself the context;
+		// do not omit definite sizes held by nested contexts from the flow search.
 		final boolean rootContext = containerBox == builder.getRootBox()
 				&& containerBox == builder.getContextBox();
 		replacedBox.calculateFrame(lineSize);
 		if (params.flow.isVertical()) {
-			// 縦書き
+			// Vertical writing
 			AbstractContainerBox box;
 			if (rootContext) {
 				box = builder.getFixedWidthContextBox();
@@ -677,7 +682,7 @@ public final class LayoutUtils {
 			}
 			if (box == null) {
 				if (builder.getContextBox().getType() == BoxType.TABLE_CELL && builder instanceof BlockBuilder) {
-					// セル内でページ送りされた場合
+					// When a page break occurred inside a cell
 					return;
 				}
 				refMaxWidth = refWidth = LayoutUtils.NONE;
@@ -685,7 +690,7 @@ public final class LayoutUtils {
 			} else {
 				refWidth = box.getType()== BoxType.PAGE ? LayoutUtils.NONE : pageAxisReference(box, true);
 				refMaxWidth = pageAxisReference(box, true);
-				// 通常のフローでないため行幅があてにならない時はフローを探す
+				// Find a flow when line width is unreliable because this is not normal flow
 				if (builder.isTwoPass()) {
 					refMaxHeight =refHeight = LayoutUtils.NONE;
 				} else if (containerBox.getPos().getType() != PosType.FLOW
@@ -706,7 +711,7 @@ public final class LayoutUtils {
 				}
 			}
 		} else {
-			// 横書き
+			// Horizontal writing
 			AbstractContainerBox box;
 			if (rootContext) {
 				box = builder.getFixedHeightContextBox();
@@ -715,7 +720,7 @@ public final class LayoutUtils {
 			}
 			if (box == null) {
 				if (builder.getContextBox().getType() == BoxType.TABLE_CELL && builder instanceof BlockBuilder) {
-					// セル内でページ送りされた場合
+					// When a page break occurred inside a cell
 					return;
 				}
 				refMaxHeight = refHeight = LayoutUtils.NONE;
@@ -723,7 +728,7 @@ public final class LayoutUtils {
 			} else {
 				refHeight = box.getType()== BoxType.PAGE ? LayoutUtils.NONE : pageAxisReference(box, false);
 				refMaxHeight = pageAxisReference(box, false);
-				// 通常のフローでないため行幅があてにならない時はフローを探す
+				// Find a flow when line width is unreliable because this is not normal flow
 				if (builder.isTwoPass()) {
 					refMaxWidth = refWidth = LayoutUtils.NONE;
 				} else if (containerBox.getPos().getType() != PosType.FLOW
@@ -744,13 +749,13 @@ public final class LayoutUtils {
 				}
 			}
 		}
-		// 中立wrapper(flex item)の行方向充填(2026-08-09)。wrapperが
-		// authoredの%をflexコンテナ基準で解決済み(NeutralTransfer)のため、
-		// 子が同じ%をwrapper内寸へ再適用すると二重になる(width:50%が
-		// 25%相当へ縮む)。子の式がwrapper内寸ちょうどを返すよう%の基準を
-		// 差し替える——100%は不動点で従来と同値。絶対長は二重にならないので
-		// 触らない。子自身のmarginはアイコン用途で実質使われないため
-		// 考慮しない(使われた場合はみ出す側=安全でない側に倒れない)
+		// Fill the neutral wrapper (flex item) along the line axis (2026-08-09). The wrapper has
+		// already resolved authored percentages against the flex container (NeutralTransfer), so
+		// reapplying the same percentage to the wrapper's inner size in the child applies it twice
+		// (width:50% shrinks to the equivalent of 25%). Replace the percentage reference so the child's
+		// expression returns exactly the wrapper's inner size; 100% is a fixed point, unchanged. Absolute lengths
+		// are not applied twice, so leave them alone. Ignore the child's own margin, practically unused for icons
+		// (if used, this does not favor the unsafe outcome of overflow)
 		if (containerBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item
 				&& item.isNeutralLineFill()) {
 			final Dimension size = replacedBox.getReplacedParams().size;
@@ -774,10 +779,11 @@ public final class LayoutUtils {
 	}
 
 	/**
-	 * 置換要素の % の大きさの基準にする、包含ブロックの頁方向の内寸(2026-10-04)。絶対配置の箱は
-	 * 頁方向の大きさを中身を組んだ後で決め、組んでいるあいだの内寸は 0 なので、中身に依らず決まる
-	 * 大きさ(決まらなければ NONE=auto として解く)を使う。そのまま内寸を基準にすると
-	 * {@code height: 100%} の画像が 0 になって描かれなかった。
+	 * Containing block's inner page-axis size used as the percentage-size reference for replaced elements
+	 * (2026-10-04). An absolutely positioned box determines its page-axis size after laying out its content,
+	 * and its inner size is zero during layout, so use a size determined independently of the content
+	 * (if unavailable, resolve as NONE=auto). Using the inner size directly as the reference made
+	 * {@code height: 100%} images zero-sized and invisible.
 	 */
 	private static double pageAxisReference(final AbstractContainerBox box, final boolean vertical) {
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute
@@ -791,29 +797,27 @@ public final class LayoutUtils {
 		final BlockParams params = box.getBlockParams();
 		final double lineSize;
 		if (params.flow.isVertical()) {
-			// 縦書き
+			// Vertical writing
 			lineSize = box.getInnerHeight();
 		} else {
-			// 横書き
+			// Horizontal writing
 			lineSize = box.getInnerWidth();
 		}
 		return lineSize;
 	}
 
 	/**
-	 * {@code column-width}の<b>使用値</b>の下限(1px = 0.75pt)です。
+	 * Minimum <b>used value</b> of {@code column-width} (1 px = 0.75 pt).
 	 *
 	 * <p>
-	 * css-multicol-1 §3.1は「{@code column-width:0}は指定値・計算値としては
-	 * 正当だが、<b>使用値が1pxを下回ることはない</b>」と定めています。
-	 * 実ブラウザも同じです。
+	 * css-multicol-1 §3.1 states that "{@code column-width:0} is valid as a specified and computed value,
+	 * but <b>the used value never falls below 1 px</b>." Actual browsers behave the same way.
 	 * </p>
 	 *
 	 * <p>
-	 * これは体裁の問題ではなく<b>停止性の問題</b>です。0を通すと
-	 * {@link #getColumnCount}の除算が0除算になり、{@code (int)Infinity} =
-	 * 2,147,483,647段を作ろうとして事実上停止しません
-	 * (WPT {@code css-multicol/zero-column-width-layout.html})。
+	 * This concerns <b>termination, not appearance</b>. Allowing zero causes division by zero in
+	 * {@link #getColumnCount}, attempts to create {@code (int)Infinity} = 2,147,483,647 columns,
+	 * and effectively never terminates (WPT {@code css-multicol/zero-column-width-layout.html}).
 	 * </p>
 	 */
 	private static final double MIN_COLUMN_WIDTH = 0.75;
@@ -824,16 +828,16 @@ public final class LayoutUtils {
 			return params.columns.count;
 		}
 		final double lineSize = LayoutUtils.getMaxAdvance(box);
-		// 使用値の下限を効かせてから割る({@link #MIN_COLUMN_WIDTH}参照)。
-		// gapは負になりえないので、これで除数は必ず正になる
+		// Apply the used-value minimum before dividing (see {@link #MIN_COLUMN_WIDTH}).
+		// Since gap cannot be negative, the divisor is now always positive
 		final double width = Math.max(params.columns.width, MIN_COLUMN_WIDTH);
 		if (width >= lineSize) {
 			return 1;
 		}
 		final int count = (int) Math.floor((lineSize + params.columns.gap) / (width + params.columns.gap));
-		// 上の分岐で width < lineSize なので count >= 1 のはずだが、
-		// lineSize が NaN/巨大値のときに 0 や負に落ちないことを保証する
-		// ——段数0は呼び出し側が「段組でない」と読むので、意味が変わる
+		// The branch above has width < lineSize, so count should be >= 1, but
+		// ensure it cannot become zero or negative when lineSize is NaN or huge
+		// because callers interpret a column count of zero as "not multi-column," changing the meaning
 		return Math.max(1, count);
 	}
 

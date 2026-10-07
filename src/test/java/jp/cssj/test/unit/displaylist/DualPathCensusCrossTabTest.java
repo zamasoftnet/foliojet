@@ -12,11 +12,12 @@ import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassCensusEvent;
 
 /**
- * 全コーパスの範囲census。変換失敗も分母へ残す。
+ * Range census for the entire corpus. Keep failed conversions in the denominator.
  *
  * <p>
- * <b>{@value #SHARDS} 分割</b>(2026-10-05)。1 クラスで 2 分かかり試験全体の尾になっていたので、文書名の hash で分け、
- * このクラスが 0 番、{@code DualPathCensusCrossTabShardNTest} が残りを受け持つ。表は {@code crosstab-N.tsv}。
+ * <b>{@value #SHARDS} shards</b> (2026-10-05). One class took two minutes and became the suite's long tail,
+ * so partition by document-name hash. This class handles shard 0; {@code DualPathCensusCrossTabShardNTest}
+ * handles the rest. Tables are {@code crosstab-N.tsv}.
  * </p>
  */
 public final class DualPathCensusCrossTabTest extends TestCase {
@@ -26,7 +27,7 @@ public final class DualPathCensusCrossTabTest extends TestCase {
 		checkShard(0);
 	}
 
-	/** {@code shard} 番の受け持ちの文書で census を取ります(分割した試験クラスから呼ぶ)。 */
+	/** Take a census of documents assigned to {@code shard} (called by the sharded test classes). */
 	static void checkShard(final int shard) throws Exception {
 		final var documents = new java.util.TreeMap<>(TwoPassDigestParityTest.corpusDocuments());
 		documents.keySet().removeIf(doc -> Math.floorMod(doc.hashCode(), SHARDS) != shard);

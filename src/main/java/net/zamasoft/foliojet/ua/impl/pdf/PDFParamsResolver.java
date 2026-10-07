@@ -79,12 +79,11 @@ import net.zamasoft.foliojet.ua.BoundSide;
 import net.zamasoft.foliojet.ua.PrepareMode;
 
 /**
- * 入出力プロパティからPDFParamsを解決します(2026-08-01、85点計画
- * 増分15——PDFUserAgent.preparePDFWriter()約480行が設定解決とwriter
- * 生成を混在させていたのを分離した)。副作用は{@code ua.message()}への
- * 警告発行と{@code metaInfo}への日付設定のみで、writer・出力先の
- * 生成には一切触れない。プロパティ組合せのテストがwriter生成なしで
- * 可能になる。
+ * Resolves PDFParams from I/O properties (2026-08-01, increment 15 of the 85-point plan:
+ * separated configuration resolution from writer creation, previously mixed in about
+ * 480 lines of PDFUserAgent.preparePDFWriter()). The only side effects are warnings via
+ * {@code ua.message()} and setting dates on {@code metaInfo}; this does not create writers
+ * or output destinations. Property combinations can thus be tested without creating a writer.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -95,18 +94,18 @@ final class PDFParamsResolver {
 	}
 
 	/**
-	 * 入出力プロパティを解決したPDFParamsを返します。
+	 * Returns PDFParams resolved from I/O properties.
 	 *
-	 * @param ua       プロパティ源+警告先
-	 * @param metaInfo 文書メタ情報(日付プロパティをここへ設定する)
-	 * @return 解決済みパラメータ
-	 * @throws IOException 添付ファイル等の読み込みに失敗した場合
+	 * @param ua       property source and warning destination
+	 * @param metaInfo document metadata (date properties are set here)
+	 * @return resolved parameters
+	 * @throws IOException if reading attachments or similar resources fails
 	 */
 	static PDFParams resolve(final PDFUserAgent ua, final PDFMetaInfo metaInfo) throws IOException {
 		PDFParams params = PDFParams.createDefault();
 		params = params.withFontSourceManager(ua.getUAContext().getFontSourceManager());
 
-		// バージョン
+		// Version
 		switch (UAProps.OUTPUT_PDF_VERSION.get(ua)) {
 		case V1_2:
 			params = params.withVersion(PDFParams.Version.V_1_2);
@@ -163,7 +162,7 @@ final class PDFParamsResolver {
 			params = params.withVersion(PDFParams.Version.V_1_7);
 			break;
 		case V2_0UA2:
-			// PDF/UA-2(ISO 14289-2:2024)はPDF 2.0基底
+			// PDF/UA-2 (ISO 14289-2:2024) is based on PDF 2.0.
 			params = params.withVersion(PDFParams.Version.V_2_0);
 			break;
 		case V2_0:
@@ -173,15 +172,15 @@ final class PDFParamsResolver {
 			throw new IllegalStateException();
 		}
 
-		// タグ付き PDF / PDF/UA。level A の PDF/A（A-2a/A-3a）と PDF/UA-1 は
-		// 論理構造が必須なので自動で有効化し、それ以外は output.pdf.tagged で選ぶ。
+		// Tagged PDF / PDF/UA. Level A PDF/A (A-2a/A-3a) and PDF/UA-1 require
+		// logical structure, so enable it automatically; otherwise use output.pdf.tagged.
 		{
 			OutputPdfVersion versionCode = UAProps.OUTPUT_PDF_VERSION.get(ua);
 			if (net.zamasoft.foliojet.ua.props.TaggedPdf.isActive(ua)) {
 				String lang = UAProps.OUTPUT_PDF_TAGGED_LANG.getString(ua);
 				if ((versionCode == OutputPdfVersion.V1_7UA1 || versionCode == OutputPdfVersion.V2_0UA2)
 						&& (lang == null || lang.isBlank())) {
-					// PDF/UA は文書の言語が要る。2026-10-05 までは予期しない例外で落ちた
+					// PDF/UA requires a document language. Until 2026-10-05, this failed with an unexpected exception.
 					final short code = MessageCodes.ERROR_PDFUA_LANG;
 					final String[] args = { versionCode.ident() };
 					ua.message(code, args);
@@ -195,7 +194,7 @@ final class PDFParamsResolver {
 			}
 		}
 
-		// ファイルID
+		// File ID
 		String fileId = UAProps.OUTPUT_PDF_FILE_ID.getString(ua);
 		if (fileId != null) {
 			if (fileId.length() == 32) {
@@ -216,7 +215,7 @@ final class PDFParamsResolver {
 			}
 		}
 
-		// 日付
+		// Dates
 		String creationDate = UAProps.OUTPUT_PDF_META_CREATION_DATE.getString(ua);
 		String modDate = UAProps.OUTPUT_PDF_META_MOD_DATE.getString(ua);
 		if (creationDate != null || modDate != null) {
@@ -265,10 +264,10 @@ final class PDFParamsResolver {
 			}
 		}
 
-		// 電子インボイス(Factur-X/ZUGFeRD——2026-08-02、PLAN §2の時限1位)。
-		// conformance-levelの設定で有効化し、XMPのfx:拡張スキーマを出す。
-		// 請求書XML自体はoutput.pdf.attachments.*(relationship=alternative)
-		// で添付する——検証器はXMPと添付の両方を見る
+		// Electronic invoices (Factur-X/ZUGFeRD; 2026-08-02, top time-sensitive priority in PLAN §2).
+		// Enable via conformance-level and emit the fx: XMP extension schema.
+		// Attach the invoice XML itself with output.pdf.attachments.* (relationship=alternative).
+		// Validators inspect both XMP and the attachment.
 		final String facturXLevel = UAProps.OUTPUT_PDF_FACTURX_CONFORMANCE_LEVEL.getString(ua);
 		if (facturXLevel != null) {
 			metaInfo.setFacturX(new FacturX(UAProps.OUTPUT_PDF_FACTURX_DOCUMENT_TYPE.getString(ua),
@@ -276,14 +275,14 @@ final class PDFParamsResolver {
 					UAProps.OUTPUT_PDF_FACTURX_VERSION.getString(ua), facturXLevel));
 		}
 
-		// 出力インテント(PDF/X適合の実質要件——PLAN §2の2位、2026-08-02。
-		// WeasyPrint v67のPDF/X+ICC出荷で無償エンジンに並ばれた項目)
+		// Output intent (a substantive PDF/X conformance requirement; second priority in PLAN §2, 2026-08-02.
+		// WeasyPrint v67's release of PDF/X + ICC brought a free engine to parity on this feature.)
 		final String oiIdentifier = UAProps.OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER.getString(ua);
 		final String iccUri = UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.getString(ua);
 		final boolean pdfX = params.version().isPdfX();
 		if (oiIdentifier == null && iccUri != null && pdfX) {
-			// 識別子が無ければOutputIntentを作らない従来仕様は維持するが、
-			// PDF/XでICCだけを指定してもそのICCは使われないことを黙らせない。
+			// Keep the existing behavior of not creating OutputIntent without an identifier,
+			// but warn that specifying only an ICC profile for PDF/X leaves that profile unused.
 			ua.message(MessageCodes.WARN_BAD_IO_PROPERTY,
 					UAProps.OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER.name, "");
 		}
@@ -292,8 +291,8 @@ final class PDFParamsResolver {
 				throw pdfXOutputIntentError(ua, UAProps.OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER.name,
 						oiIdentifier, "380E.identifier");
 			}
-			// 識別名とレジストリ名は印刷条件の名前(ICC の登録名はすべて ASCII)。PDF/X では
-			// 印字可能な ASCII に限る(2026-10-07。以前は下位 8 ビットに切り詰めて黙って化けた)
+			// Identifiers and registry names describe printing conditions (all ICC registered names are ASCII). PDF/X
+			// allows printable ASCII only (2026-10-07; previously, truncating to the low 8 bits silently corrupted them).
 			final String oiRegistry = UAProps.OUTPUT_PDF_OUTPUT_INTENT_REGISTRY.getString(ua);
 			if (pdfX && !printableAscii(oiIdentifier)) {
 				throw pdfXOutputIntentError(ua, UAProps.OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER.name,
@@ -303,7 +302,7 @@ final class PDFParamsResolver {
 				throw pdfXOutputIntentError(ua, UAProps.OUTPUT_PDF_OUTPUT_INTENT_REGISTRY.name,
 						oiRegistry, "380E.identifier-ascii");
 			}
-			// PDF/X の出力インテントは DestOutputProfile が要る(以前は pdfg2d の素の例外で変換が落ちた)
+			// PDF/X output intents require DestOutputProfile (previously, a raw pdfg2d exception failed conversion).
 			if (pdfX && iccUri == null) {
 				throw pdfXOutputIntentError(ua, UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name, "",
 						"380E.missing-profile");
@@ -360,7 +359,7 @@ final class PDFParamsResolver {
 								|| (pdfX && profileComponents != 4)) {
 							errorDetail = "380E.component-count";
 						} else if (params.version().isPdfXOnPdf14() && profile.getMajorVersion() >= 4) {
-							// ICC v4はPDF 1.5以降。X-1a・X-3はPDF 1.4基底
+							// ICC v4 requires PDF 1.5 or later. X-1a and X-3 are based on PDF 1.4.
 							errorDetail = "380E.icc-version";
 						}
 						if (errorDetail != null) {
@@ -383,7 +382,7 @@ final class PDFParamsResolver {
 					UAProps.OUTPUT_PDF_OUTPUT_INTENT_INFO.getString(ua), icc, components));
 		}
 
-		// レンダリングインテント(コンテンツストリーム既定のri演算子)
+		// Rendering intent (the default ri operator in the content stream)
 		final String renderingIntent = UAProps.OUTPUT_PDF_RENDERING_INTENT.getString(ua);
 		if (renderingIntent != null) {
 			switch (renderingIntent.toLowerCase()) {
@@ -398,7 +397,7 @@ final class PDFParamsResolver {
 			}
 		}
 
-		// カラー
+		// Color
 		OutputColor color = UAProps.OUTPUT_COLOR.get(ua);
 		if (params.version() == PDFParams.Version.V_PDFX1A && color == OutputColor.RGB) {
 			ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_COLOR.name, "rgb", "PDF/X-1a");
@@ -418,7 +417,7 @@ final class PDFParamsResolver {
 			throw new IllegalStateException();
 		}
 
-		// 圧縮
+		// Compression
 		switch (UAProps.OUTPUT_PDF_COMPRESSION.get(ua)) {
 		case NONE:
 			params = params.withCompression(PDFParams.Compression.NONE);
@@ -433,7 +432,7 @@ final class PDFParamsResolver {
 			throw new IllegalStateException();
 		}
 
-		// ブックマーク
+		// Bookmarks (PDF outline)
 		if (UAProps.navigation(UAProps.OUTPUT_PDF_BOOKMARKS, ua)) {
 			params = params.withBookmarks(true);
 		}
@@ -441,7 +440,7 @@ final class PDFParamsResolver {
 			params = params.withActualTextReplacement(true);
 		}
 
-		// JPEG画像
+		// JPEG images
 		switch (UAProps.OUTPUT_PDF_JPEG_IMAGE.get(ua)) {
 		case RAW:
 			params = params.withJPEGImage(PDFParams.JPEGImage.RAW);
@@ -454,7 +453,7 @@ final class PDFParamsResolver {
 			throw new IllegalStateException();
 		}
 
-		// JPEG圧縮
+		// JPEG compression
 		switch (UAProps.OUTPUT_PDF_IMAGE_COMPRESSION.get(ua)) {
 		case FLATE:
 			params = params.withImageCompression(PDFParams.ImageCompression.FLATE);
@@ -469,32 +468,32 @@ final class PDFParamsResolver {
 			throw new IllegalStateException();
 		}
 
-		// ロスレス圧縮
+		// Lossless compression
 		params = params.withImageCompressionLossless(UAProps.OUTPUT_PDF_IMAGE_COMPRESSION_LOSSLESS.getInteger(ua));
 
-		// 最大画像サイズ
+		// Maximum image size
 		params = params.withMaxImageWidth(UAProps.OUTPUT_PDF_IMAGE_MAX_WIDTH.getInteger(ua));
 		params = params.withMaxImageHeight(UAProps.OUTPUT_PDF_IMAGE_MAX_HEIGHT.getInteger(ua));
-		// 画素数の上限(展開する前にヘッダの寸法で断る。2026-10-03)
+		// Pixel limit (reject by header dimensions before decoding; 2026-10-03)
 		params = params.withImagePixelLimit(UAProps.INPUT_IMAGE_PIXEL_LIMIT.getLong(ua));
 
-		// box-shadow/text-shadowの影だけをラスタ化するときの解像度
+		// Resolution for rasterizing only box-shadow/text-shadow shadows
 		params = params.withBlurRasterDpi(UAProps.OUTPUT_PDF_BLUR_RESOLUTION.getInteger(ua));
-		// filter付き要素だけをラスタ化するときの解像度
+		// Resolution for rasterizing only elements with filters
 		params = params.withFilterRasterDpi(UAProps.OUTPUT_PDF_FILTER_RESOLUTION.getInteger(ua));
 
-		// プラットフォームエンコーディング
+		// Platform encoding
 		params = params.withPlatformEncoding(platformEncoding(ua));
 
-		// 暗号化
-		// PDF 1.4基底のPDF/X(X-1a・X-3)の名前。暗号化は警告して付けない
+		// Encryption
+		// Names of PDF/X variants based on PDF 1.4 (X-1a, X-3). Warn and omit encryption.
 		final String pdf14PdfX = params.version().isPdfXOnPdf14() ? pdfxName(params.version()) : null;
 		switch (UAProps.OUTPUT_PDF_ENCRYPTION.get(ua)) {
 		case NONE:
 			break;
 
 		case V1:
-			// v1暗号化
+			// v1 encryption
 			if (params.version() == PDFParams.Version.V_PDFA1B) {
 				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v1",
 						"PDF/A-1");
@@ -511,7 +510,7 @@ final class PDFParamsResolver {
 			break;
 
 		case V2:
-			// v2暗号化
+			// v2 encryption
 			if (params.version() == PDFParams.Version.V_PDFA1B) {
 				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v2",
 						"PDF/A-1");
@@ -539,7 +538,7 @@ final class PDFParamsResolver {
 			break;
 
 		case V4:
-			// v4暗号化
+			// v4 encryption
 			if (params.version() == PDFParams.Version.V_PDFA1B) {
 				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v4",
 						"PDF/A-1");
@@ -582,7 +581,7 @@ final class PDFParamsResolver {
 			break;
 
 		case V5:
-			// AES-256 (V5/R6)。PDF 1.7 以上が必要。PDF/A・PDF/X では暗号化不可。
+			// AES-256 (V5/R6). Requires PDF 1.7 or later. PDF/A and PDF/X prohibit encryption.
 			if (params.version().isPdfA() || params.version().isPdfX()) {
 				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v5",
 						params.version().isPdfA() ? "PDF/A" : "PDF/X");
@@ -727,7 +726,7 @@ final class PDFParamsResolver {
 		String javaScript = UAProps.OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT.getString(ua);
 		if (javaScript != null) {
 			if (params.version().isPdfA() || params.version().isPdfX()) {
-				// PDF/A・PDF/Xはアクション(JavaScript)を禁止する。pdfg2dは例外にするので、ここで警告して落とす
+				// PDF/A and PDF/X prohibit actions (JavaScript). pdfg2d throws an exception, so warn and omit them here.
 				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,
 						UAProps.OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT.name, javaScript,
 						params.version().isPdfA() ? "PDF/A" : "PDF/X");
@@ -762,8 +761,9 @@ final class PDFParamsResolver {
 	}
 
 	/**
-	 * 警告に使うPDF/Xの名前です(X-1a・X-3は版の名前、ほかは"PDF/X")。書き出し中の版から
-	 * 引く——連続変換ではUAのプロパティが次の文書の値に変わっていることがある(codexレビュー2026-09-30)。
+	 * PDF/X name used in warnings (the version name for X-1a and X-3; otherwise "PDF/X").
+	 * Read it from the version being written: during continuous conversion, UA properties may already
+	 * have changed to the next document's values (codex review, 2026-09-30).
 	 */
 	static String pdfxName(final PDFParams.Version version) {
 		return switch (version) {
@@ -774,9 +774,10 @@ final class PDFParamsResolver {
 	}
 
 	/**
-	 * PDF の内部で名前を表す文字コードです。PDF の構文は ASCII で書くので、ASCII を同じバイトで表す文字コードだけを
-	 * 受け付け、それ以外は警告して既定に戻す(2026-10-05。それまでは知らない名前で変換ごと落ち、UTF-16 では
-	 * 構文ごと壊れた PDF を出した)。
+	 * Character encoding for names inside PDF. PDF syntax uses ASCII, so accept only encodings
+	 * that represent ASCII with the same bytes; otherwise warn and restore the default
+	 * (2026-10-05; previously, unknown names failed the entire conversion and UTF-16 produced
+	 * PDF with broken syntax).
 	 */
 	private static String platformEncoding(final PDFUserAgent ua) {
 		final String name = UAProps.OUTPUT_PDF_PLATFORM_ENCODING.getString(ua);
@@ -787,7 +788,7 @@ final class PDFParamsResolver {
 				return name;
 			}
 		} catch (final IllegalArgumentException | java.io.UnsupportedEncodingException e) {
-			// 下で警告する(IllegalCharsetNameException は IllegalArgumentException)
+			// Warn below (IllegalCharsetNameException is an IllegalArgumentException).
 		}
 		ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_PDF_PLATFORM_ENCODING.name, name);
 		return UAProps.OUTPUT_PDF_PLATFORM_ENCODING.getDefaultString();
@@ -797,7 +798,7 @@ final class PDFParamsResolver {
 		return s.chars().allMatch(c -> c >= 0x20 && c <= 0x7E);
 	}
 
-	/** 呼び出し側へコード付きで返す(2026-10-05 までは素の IOException で、予期しない例外 4001 として返っていた)。 */
+	/** Returns to the caller with a code (until 2026-10-05, a raw IOException was returned as unexpected exception 4001). */
 	private static IOException pdfXOutputIntentError(final PDFUserAgent ua, final String property,
 			final String value, final String detailKey) {
 		final short code = MessageCodes.ERROR_PDFX_OUTPUT_INTENT;

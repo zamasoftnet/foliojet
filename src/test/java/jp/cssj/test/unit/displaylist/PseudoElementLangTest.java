@@ -23,9 +23,11 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 疑似要素の字が要素の言語で組まれることを固定します(2026-10-07)。{@code ::before}・{@code ::after} は共有の
- * CSSElement で言語を持たず、汎用ファミリの言語別の連鎖・禁則・ハイフネーションが既定に落ちていた。ここでは
- * 言語で決まるハイフネーションで確かめる(lang=en の {@code content} の語だけ割れずに版面からはみ出した)。
+ * Verify that pseudo-element text uses the element's language (2026-10-07).
+ * {@code ::before}/{@code ::after} used shared CSSElement instances without language, falling back
+ * to defaults for language-specific generic-family chains, kinsoku (line-breaking rules), and hyphenation.
+ * Check through language-dependent hyphenation (only the lang=en {@code content} word failed to break
+ * and overflowed the type area).
  */
 public class PseudoElementLangTest extends TestCase {
 	private static final Pattern TEXT = Pattern.compile("Text\\[\"([^\"]*)\"");
@@ -47,12 +49,12 @@ public class PseudoElementLangTest extends TestCase {
 		while (m.find()) {
 			texts.add(m.group(1));
 		}
-		// 疑似要素の語も要素の語と同じく割れる(割れないと 1 語のまま残る)
+		// Pseudo-element words hyphenate like the element's words (otherwise they remain a single word).
 		assertFalse(texts.toString(), texts.contains("internationalization"));
 		assertEquals(texts.toString(), 2, texts.stream().filter(t -> t.endsWith("-")).count());
 	}
 
-	/** 変換して、全頁の表示リストをつないで返します。 */
+	/** Convert and return concatenated display lists for all pages. */
 	private static String convert(final String html) throws Exception {
 		final File dir = new File("local/pseudo-element-lang/" + Integer.toHexString(html.hashCode()));
 		dir.mkdirs();

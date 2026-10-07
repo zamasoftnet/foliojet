@@ -3,31 +3,29 @@ package net.zamasoft.foliojet.layout.segment;
 import java.io.IOException;
 
 /**
- * テストから{@link TextSpill}のpackage-private障害注入フックへ触るための
- * ブリッジです(E-6耐久試験、2026-07-24新設、テスト専用。
- * {@code LayoutSourceTestHooks}と同じ流儀)。
+ * A bridge for tests to access {@link TextSpill}'s package-private fault-injection hooks
+ * (E-6 endurance tests, added 2026-07-24, tests only; the same approach as {@code LayoutSourceTestHooks}).
  *
  * <p>
- * production経路はフックがnullのままなので挙動不変。設定したテストは
- * finallyで必ず{@link #clearFaultInjector()}すること(static共有のため)。
+ * Production behavior is unchanged because the hook remains null. A test that sets it must always
+ * call {@link #clearFaultInjector()} in finally, because it is shared statically.
  * </p>
  */
 public final class TextSpillTestHooks {
 	private TextSpillTestHooks() {
 	}
 
-	/** {@link IOException}を投げうるアクションです(注入する障害の記述)。 */
+	/** An action that may throw {@link IOException} (describes the fault to inject). */
 	@FunctionalInterface
 	public interface IOAction {
 		void run() throws IOException;
 	}
 
 	/**
-	 * spill I/O障害の注入を設定します。{@code null}のアクションは
-	 * 「その経路には注入しない」を意味します。
+	 * Sets up spill I/O fault injection. A {@code null} action means no injection on that path.
 	 *
-	 * @param beforeAppend spill書き込み直前に実行(nullなら注入なし)
-	 * @param beforeRead   spill読み出し直前に実行(nullなら注入なし)
+	 * @param beforeAppend runs just before a spill write (null means no injection)
+	 * @param beforeRead   runs just before a spill read (null means no injection)
 	 */
 	public static void setFaultInjector(final IOAction beforeAppend, final IOAction beforeRead) {
 		TextSpill.faultInjector = new TextSpill.IOFaultInjector() {
@@ -47,7 +45,7 @@ public final class TextSpillTestHooks {
 		};
 	}
 
-	/** 障害注入を解除します(冪等)。 */
+	/** Clears fault injection (idempotent). */
 	public static void clearFaultInjector() {
 		TextSpill.faultInjector = null;
 	}

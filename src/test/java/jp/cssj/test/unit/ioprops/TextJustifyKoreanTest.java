@@ -20,13 +20,13 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code text-justify}と韓国語の両端揃えの試験です(2026-09-02)。
+ * Tests for {@code text-justify} and Korean justification (2026-09-02).
  *
  * <p>
- * Chrome の実測(2026-09-01): 韓国語の両端揃えは<b>空白だけが伸び、音節の送りは
- * 1画素も動かない</b>。Copper は全ての文字間へ均等に配っていた。ページSVGの
- * {@code <text x="…">}は字形ごとのxを持つので、語の中の送りと語間の両方を
- * 測れる。
+ * Chrome measurements (2026-09-01): Korean justification <b>expands only spaces; syllable advances
+ * do not move even one pixel</b>. Copper distributed space uniformly between all characters.
+ * Page SVG {@code <text x="…">} contains x for each glyph, allowing measurement of both advances
+ * within words and spacing between words.
  * </p>
  */
 public class TextJustifyKoreanTest extends TestCase {
@@ -38,34 +38,34 @@ public class TextJustifyKoreanTest extends TestCase {
 			final String wordBreak) {
 		return "<!DOCTYPE html><html lang=\"" + lang + "\"><head><meta charset=\"UTF-8\"><style type=\"text/css\">"
 				+ "@page{size:200pt 120pt;margin:10pt}body{margin:0;font-size:10pt}"
-				// keep-all なら語の途中で折れないので、行に余りができる。normal なら
-				// 音節の間で折れて1行目はちょうど埋まる(2行目に余りが残る)
+				// keep-all prevents breaks within words, leaving unused line space. With normal,
+				// breaks between syllables fill the first line exactly (leaving unused space on the second).
 				+ "p{width:150pt;margin:0;word-break:" + wordBreak + ";text-align:" + textAlign + ";text-justify:"
 				+ textJustify + "}"
 				+ "</style></head><body><p>" + KOREAN + "</p></body></html>";
 	}
 
-	/** 1つの{@code <text>}: 字形のx列とy、元の文字列。 */
+	/** One {@code <text>}: glyph x sequence, y, and original text. */
 	private record Run(double[] xs, double y, String text) {
 	}
 
-	/** 韓国語の既定(auto)は語間だけを伸ばす。語の中の送りは左揃えと同じ。 */
+	/** Korean default (auto) expands only word spacing. Advances within words match left alignment. */
 	public void testKoreanAutoStretchesOnlyWordSpaces() throws Exception {
 		final List<Run> left = line(runs(convert(html("ko", "left", "auto", "keep-all"))), 0);
 		final List<Run> justified = line(runs(convert(html("ko", "justify", "auto", "keep-all"))), 0);
 		assertTrue("the first line must hold several words: " + left.size(), left.size() >= 3);
 		assertEquals("the same words must be on the first line", words(left), words(justified));
 		assertIntraWordAdvancesEqual(left, justified);
-		// 語間は伸びている
+		// Word spacing expands.
 		assertTrue("word gaps must grow: " + gaps(left) + " -> " + gaps(justified),
 				gaps(justified).get(0) > gaps(left).get(0) + 0.5);
-		// 行は右端まで届く(最後の語の最後の字形の後端が幅150ptに近い)
+		// The line reaches the right edge (the end of the last glyph in the last word is near the 150 pt width).
 		final Run last = justified.get(justified.size() - 1);
 		final double lastX = last.xs[last.xs.length - 1];
 		assertTrue("the justified line must reach the right edge: last glyph x=" + lastX, lastX > 150 - 10 - 1);
 	}
 
-	/** {@code inter-character}なら文字間にも配る(音節の送りが変わる)。 */
+	/** {@code inter-character} also distributes space between characters (syllable advances change). */
 	public void testInterCharacterDistributesBetweenSyllables() throws Exception {
 		final List<Run> left = line(runs(convert(html("ko", "left", "auto", "normal"))), 1);
 		final List<Run> distributed = line(runs(convert(html("ko", "justify", "inter-character", "normal"))), 1);
@@ -83,7 +83,7 @@ public class TextJustifyKoreanTest extends TestCase {
 		assertTrue("inter-character must widen the advances inside a word", changed);
 	}
 
-	/** {@code none}は両端揃えをしない(左揃えと同じ位置)。 */
+	/** {@code none} disables justification (same positions as left alignment). */
 	public void testNoneLeavesTheLineAlone() throws Exception {
 		final List<Run> left = line(runs(convert(html("ko", "left", "auto", "keep-all"))), 0);
 		final List<Run> none = line(runs(convert(html("ko", "justify", "none", "keep-all"))), 0);
@@ -93,7 +93,10 @@ public class TextJustifyKoreanTest extends TestCase {
 		}
 	}
 
-	/** 言語が無ければ従来どおり(文字間にも配る)。既存の版面を動かさない。 */
+	/**
+	 * Without a language, retain previous behavior (also distribute between characters). Preserve existing type
+	 * areas.
+	 */
 	public void testUntaggedTextKeepsTheGeneralDistribution() throws Exception {
 		final List<Run> left = line(runs(convert(html("", "left", "auto", "normal"))), 1);
 		final List<Run> justified = line(runs(convert(html("", "justify", "auto", "normal"))), 1);
@@ -129,7 +132,7 @@ public class TextJustifyKoreanTest extends TestCase {
 		return words;
 	}
 
-	/** 隣り合う語の間(前の語の最後の字形から次の語の最初の字形まで)。 */
+	/** Spacing between adjacent words (from the last glyph of one word to the first glyph of the next). */
 	private static List<Double> gaps(final List<Run> runs) {
 		final List<Double> gaps = new ArrayList<>();
 		for (int i = 1; i < runs.size(); ++i) {
@@ -139,7 +142,7 @@ public class TextJustifyKoreanTest extends TestCase {
 		return gaps;
 	}
 
-	/** 上から{@code index}番目の行のrun(xの順)。 */
+	/** Runs on the {@code index}-th line from the top (ordered by x). */
 	private static List<Run> line(final List<Run> runs, final int index) {
 		final List<Double> ys = new ArrayList<>();
 		for (final Run r : runs) {
@@ -220,7 +223,7 @@ public class TextJustifyKoreanTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

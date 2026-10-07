@@ -8,9 +8,9 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * {@code pages}はUA予約カウンタ(css-page-3 §6.1)であり、著者の
- * {@code counter-reset}/{@code counter-increment}で上書きされずに
- * 正しい総ページ数のまま解決することを確認する。
+ * Verifies that {@code pages} is a UA-reserved counter (css-page-3 §6.1):
+ * author {@code counter-reset}/{@code counter-increment} cannot override it,
+ * and it resolves to the correct total page count.
  */
 public class TotalPageCounterProtectedTest extends AbstractTestCase {
 	public TotalPageCounterProtectedTest(String name) {

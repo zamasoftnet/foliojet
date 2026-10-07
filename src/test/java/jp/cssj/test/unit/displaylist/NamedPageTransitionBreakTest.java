@@ -13,7 +13,7 @@ import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 明示改ページと名前付きページ遷移を同じ境界で1回にまとめます。 */
+/** Combine an explicit page break and named-page transition into one break at the same boundary. */
 public class NamedPageTransitionBreakTest extends TestCase {
 	public void testPaintedNamedPagesDoNotExposeDuplicateBreak() throws Exception {
 		final File dir = new File("local/unittest/named-page-transition-background");

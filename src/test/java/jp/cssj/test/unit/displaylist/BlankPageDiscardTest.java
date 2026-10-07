@@ -21,45 +21,43 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>何も描かないページは出力しない</b>——ただし作者が求めた白紙は残す
- * ——ことを固定します(2026-07-28新設、css-break-3 §4.4)。
+ * Verifies that <b>pages that draw nothing are not output</b>, while preserving author-requested
+ * blank pages (added on 2026-07-28, css-break-3 §4.4).
  *
  * <p>
- * {@link TrailingBlankPageTest}が<b>レイアウト側</b>の対策(そもそも
- * 白紙になる切断をしない)を固定するのに対し、こちらは<b>出力側</b>の規則を
- * 固定します: 版が組み上がった時点で紙に何も描かないページは、PDFのページを
- * 作る前に落とす({@code StyleBuilder.drawPage})。
+ * While {@link TrailingBlankPageTest} verifies the <b>layout-side</b> measure (avoid splits that would
+ * create blank pages in the first place), this test verifies the <b>output-side</b> rule:
+ * once page layout is complete, discard a page that draws nothing on paper before creating its
+ * PDF page ({@code StyleBuilder.drawPage}).
  * </p>
  *
  * <p>
- * <b>境界が4つあり、全部を検査します。</b>
+ * <b>There are four boundaries, and all are checked.</b>
  * </p>
  * <ol>
- * <li><b>末尾の自動白紙は消える</b>——内容が確かに紙をはみ出していて改ページ
- * 自体は正しく要求されるのに、切っても何も動かない形(掃過の seed 18717)。</li>
- * <li><b>文書の途中の自動白紙も消える</b>——白紙は位置によらず存在すべきで
- * ないため(掃過の seed 17726 を画像なしに直したもの)。</li>
- * <li><b>強制改ページの白紙は残る</b>——{@code page-break-after:always}で
- * 末尾に1枚出すのは正当な指定であり、この規則が踏み越えてはならない線。</li>
- * <li><b>落としたページは面(recto/verso)を消費しない</b>——消費すると
- * 以後のページが全部裏返り、両面印刷の面付けが静かに壊れる。
- * {@code @page:left}のマージンボックスを面の目印にして、
- * (4)スタイル選択の面と(4b)左右改ページの面の<b>両方</b>を検査する。</li>
+ * <li><b>Trailing automatic blank pages disappear</b>: content really extends beyond the paper,
+ * so a page break is correctly requested, but splitting moves nothing (sweep seed 18717).</li>
+ * <li><b>Automatic blank pages in the middle of documents also disappear</b>: blank pages should
+ * not exist regardless of position (sweep seed 17726 modified to remove images).</li>
+ * <li><b>Blank pages from forced page breaks remain</b>: requesting a trailing page with
+ * {@code page-break-after:always} is valid, and this rule must not cross that boundary.</li>
+ * <li><b>Discarded pages do not consume a side (recto/verso)</b>: otherwise all subsequent sides flip,
+ * silently breaking duplex imposition. Use the {@code @page:left} margin box as a side marker
+ * to check <b>both</b> (4) style-selection sides and (4b) left/right page-break sides.</li>
  * </ol>
  *
  * <p>
- * <b>文書はここで組み立てます</b>——外部ファイルにすると相対パスの画像参照で
- * 判定が変わる事故を起こします(教訓集 §6.9h)。画像を使わない形に
- * 直してあるのはそのためです。
+ * <b>Documents are assembled here</b>: external files risk changing the result through relative
+ * image references (lessons §6.9h). That is why these documents have been modified to use no images.
  * </p>
  *
  * <p>
- * <b>ページ数だけでなくトークンの残存も検査します。</b> 白紙ページは
- * 「内容を捨てる」ことでいくらでも消せるので、それでは退行の検出になりません。
+ * <b>Checks token preservation as well as page counts.</b> Any number of blank pages can be
+ * eliminated by discarding content, which would not detect regressions.
  * </p>
  */
 public class BlankPageDiscardTest extends TestCase {
-	/** 打ち切り時間。実測は1件あたり1秒未満。 */
+	/** Timeout. Measured runtime is under one second per case. */
 	private static final long WATCHDOG_MS = 60_000L;
 
 	public BlankPageDiscardTest(String name) {
@@ -67,8 +65,8 @@ public class BlankPageDiscardTest extends TestCase {
 	}
 
 	/**
-	 * 境界1: 末尾に自動改ページの白紙ができる形(掃過の seed 18717)。
-	 * 修正前は2ページで2枚目が白紙。
+	 * Boundary 1: an automatic page break creates a trailing blank page (sweep seed 18717).
+	 * Before the fix, there were two pages and the second was blank.
 	 */
 	private static final String AUTO_TRAILING = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
@@ -106,8 +104,9 @@ public class BlankPageDiscardTest extends TestCase {
 			""";
 
 	/**
-	 * 境界2: 文書の途中に自動改ページの白紙ができる形(掃過の seed 17726 の
-	 * 画像を同寸法の箱へ置き換えたもの)。修正前は5ページで2枚目が白紙。
+	 * Boundary 2: an automatic page break creates a blank page in the middle
+	 * (sweep seed 17726 with images replaced by same-sized boxes).
+	 * Before the fix, there were five pages and the second was blank.
 	 */
 	private static final String AUTO_MID_DOCUMENT = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
@@ -150,16 +149,15 @@ public class BlankPageDiscardTest extends TestCase {
 			""";
 
 	/**
-	 * 境界3: 作者が明示的に求めた末尾の白紙。落としてはならない。
+	 * Boundary 3: an explicitly author-requested trailing blank page. It must not be discarded.
 	 *
 	 * <p>
-	 * <b>{@code page-break-after:always}を文書の最後の要素に付けても、この
-	 * エンジンは末尾のページを作りません</b>(2026-07-28に実測。修正前後で
-	 * 同じ=この規則とは無関係の既存の振る舞い)。末尾に1枚出す指定は
-	 * 「空の箱に{@code page-break-before:always}」の形になります——
-	 * {@code files/unittest/0120-float/float-break-always.html}が使っている
-	 * 形で、特性値({@code files/unittest/blank-page-characterization.txt})に
-	 * 白紙ページとして載っているのもこれです。
+	 * <b>This engine does not create a trailing page even with {@code page-break-after:always} on the
+	 * document's last element</b> (measured on 2026-07-28; unchanged before/after the fix, existing behavior
+	 * unrelated to this rule). A trailing page is requested by putting {@code page-break-before:always}
+	 * on an empty box. This is the form used by
+	 * {@code files/unittest/0120-float/float-break-always.html} and recorded as a blank page in the
+	 * characterization values ({@code files/unittest/blank-page-characterization.txt}).
 	 * </p>
 	 */
 	private static final String FORCED_TRAILING = """
@@ -178,12 +176,12 @@ public class BlankPageDiscardTest extends TestCase {
 			""";
 
 	/**
-	 * 境界3b: 縦組みの末尾に、残り幅より大きい空の table box がある形。
+	 * Boundary 3b: an empty table box wider than the remaining width at the end of vertical-writing content.
 	 *
 	 * <p>
-	 * fuzz seed 5141 の縮小形。修正前は空表が {@code IBox.paintsAnything()}
-	 * の安全側既定値を返すため、2ページ目が白紙のまま残った。表に内容・背景・
-	 * 罫線がない場合だけ落とし、先行する本文は残す。
+	 * Reduced case of fuzz seed 5141. Before the fix, the empty table returned the conservative default
+	 * from {@code IBox.paintsAnything()}, leaving page 2 blank.
+	 * Discard the table only when it has no content, background, or borders; preserve preceding body text.
 	 * </p>
 	 */
 	private static final String EMPTY_TABLE_TRAILING = """
@@ -201,35 +199,35 @@ public class BlankPageDiscardTest extends TestCase {
 			""";
 
 	/**
-	 * 境界4: 境界2と同じ文書に、<b>面の目印</b>だけを足したもの。
+	 * Boundary 4: the same document as boundary 2, with only <b>side markers</b> added.
 	 *
 	 * <p>
-	 * この文書は縦組み(vertical-rl)なので右綴じ(1ページ目が verso)です。2026-09-04 に標準 writing-mode が direction と分離され vertical-lr は左綴じになったため、旧 fixture の vertical-lr を vertical-rl へ改めた。
-	 * {@code @page:left} のマージンボックスは verso のページにだけ "VERSO" を
-	 * 刷るので、<b>どのページが verso か</b>が表示リストに直接現れます。
-	 * マージンボックスは版面(内容領域)を変えないため、境界2の
-	 * レイアウトはそのままです——白紙ページも同じところにできます。
+	 * This document uses vertical writing (vertical-rl) and right binding (page 1 is verso).
+	 * On 2026-09-04, standard writing-mode was separated from direction, making vertical-lr left-bound,
+	 * so the old fixture's vertical-lr was changed to vertical-rl.
+	 * The {@code @page:left} margin box prints "VERSO" only on verso pages, directly revealing
+	 * <b>which pages are verso</b> in the display list. Margin boxes do not change the type area
+	 * (content area), so boundary 2's layout is unchanged, including the location of the blank page.
 	 * </p>
 	 *
 	 * <p>
-	 * 目印を {@code :left} 側に置くのは、落とされる白紙ページが {@code :right}
-	 * だからです。マージンボックスの宣言があるページは「刷るものがある」と
-	 * 見なして落とさないので、{@code :right} 側に置くと検査したい discard
-	 * 自体が起きなくなります。
+	 * The marker goes on the {@code :left} side because the discarded blank page is {@code :right}.
+	 * A page with a margin-box declaration is considered to have something to print and is not discarded.
+	 * Putting it on {@code :right} would prevent the very discard this test needs to inspect.
 	 * </p>
 	 */
 	private static final String MID_DOCUMENT_WITH_SIDE_MARK = AUTO_MID_DOCUMENT.replace("@page{margin:5pt}",
 			"@page{margin:5pt}\n@page:left{@top-center{content:\"VERSO\"}}");
 
 	/**
-	 * 境界4b: 境界4の文書の末尾に {@code page-break-before:left}(verso指定)。
+	 * Boundary 4b: {@code page-break-before:left} (requesting verso) at the end of boundary 4's document.
 	 *
 	 * <p>
-	 * 面の追跡は<b>2か所</b>にあります。{@code PassContext}の面
-	 * ({@code @page:left/:right}のスタイル選択)と、{@code RootBuilder}の
-	 * {@code pageSide}(左右改ページの判断)です。境界4は前者を、こちらは
-	 * 後者を検査します——落としたページで {@code pageSide} を進めてしまうと、
-	 * verso指定の改ページが<b>recto</b>のページへ着きます。
+	 * Page sides are tracked in <b>two places</b>: the side in {@code PassContext}
+	 * (style selection for {@code @page:left/:right}) and {@code RootBuilder}'s
+	 * {@code pageSide} (left/right page-break decisions).
+	 * Boundary 4 checks the former; this checks the latter. If a discarded page advances
+	 * {@code pageSide}, a break requesting verso lands on a <b>recto</b> page.
 	 * </p>
 	 */
 	private static final String MID_DOCUMENT_FORCED_VERSO = MID_DOCUMENT_WITH_SIDE_MARK.replace("</body></html>",
@@ -243,13 +241,13 @@ public class BlankPageDiscardTest extends TestCase {
 	}
 
 	public void testAutomaticMidDocumentBlankPageIsNotEmitted() throws Exception {
-		// 修正前は4ページで2枚目が白紙(実測)
+		// Before the fix, there were four pages and the second was blank (measured).
 		final Pages pages = convert("auto-mid", AUTO_MID_DOCUMENT);
 		pages.assertNoBlank();
 		pages.assertTokens(20);
-		// 2026-08-20: 「フラグメンテナ丸ごとでも収まらないavoidは無視」の
-		// 導入で、この文書の巨大avoid divがその場分割されるようになり
-		// 3頁→2頁へ詰まった(白紙なし・トークン20の意図は不変)
+		// 2026-08-20: Introducing "ignore avoid when it cannot fit even in a whole fragmentainer"
+		// made this document's oversized avoid div split in place,
+		// compacting three pages to two (intent unchanged: no blank pages, 20 tokens).
 		assertEquals("auto-mid: ページ数", 2, pages.count());
 	}
 
@@ -268,26 +266,25 @@ public class BlankPageDiscardTest extends TestCase {
 	}
 
 	/**
-	 * 境界4: <b>落としたページは面(recto/verso)を消費しない。</b>
+	 * Boundary 4: <b>discarded pages do not consume a side (recto/verso).</b>
 	 *
 	 * <p>
-	 * 既定は両面印刷({@code output.print-mode=double-side})なので、出力された
-	 * ページの面は<b>1枚ずつ交互</b>でなければなりません。落としたページが面を
-	 * 消費すると、そこから先が全部裏返り、両面印刷の面付けが<b>静かに</b>
-	 * 壊れます——刷り上がるまで誰も気づきません。
+	 * The default is duplex printing ({@code output.print-mode=double-side}), so output page sides
+	 * must <b>alternate for every page</b>. If a discarded page consumes a side, all subsequent sides
+	 * flip and duplex imposition <b>silently</b> breaks: nobody notices until printing finishes.
 	 * </p>
 	 *
 	 * <p>
-	 * 実測(2026-07-28): {@code StyleBuilder.discardPage()}の
-	 * {@code setPageSide}の行を外すと、"VERSO" が
-	 * <b>1,2ページ目</b>(=verso が2枚続く)に出ます。正しくは<b>1,3ページ目</b>。
+	 * Measured on 2026-07-28: removing the {@code setPageSide} line from
+	 * {@code StyleBuilder.discardPage()} prints "VERSO" on <b>pages 1 and 2</b>
+	 * (two consecutive verso pages). The correct pages are <b>1 and 3</b>.
 	 * </p>
 	 */
 	public void testDiscardedPageDoesNotConsumeAPageSide() throws Exception {
 		final Pages pages = convert("mid-side-mark", MID_DOCUMENT_WITH_SIDE_MARK);
 		pages.assertNoBlank();
 		pages.assertTokens(20);
-		// 2026-08-20: 収まらないavoidのその場分割で3頁→2頁(auto-mid参照)
+		// 2026-08-20: Splitting non-fitting avoid in place reduced three pages to two (see auto-mid).
 		assertEquals("mid-side-mark: ページ数", 2, pages.count());
 		final List<Integer> verso = pages.pagesContaining("VERSO");
 		assertEquals("mid-side-mark: 出力されたページの面が交互になっていない"
@@ -295,22 +292,22 @@ public class BlankPageDiscardTest extends TestCase {
 	}
 
 	/**
-	 * 境界4b: 落としたページは<b>左右改ページの面の勘定</b>も進めない。
+	 * Boundary 4b: discarded pages also do not advance <b>side accounting for left/right page breaks</b>.
 	 *
 	 * <p>
-	 * 実測(2026-07-28): {@code RootBuilder.pageBreak}の {@code emitted &&} を
-	 * 外すと、{@code page-break-before:left} の内容が<b>4ページ目</b>——
-	 * "VERSO" の刷られない recto ——へ着きます(全4ページ)。正しくは
-	 * 5ページ目(verso)で、4ページ目は丁合合わせの白紙です。
+	 * Measured on 2026-07-28: removing {@code emitted &&} from {@code RootBuilder.pageBreak}
+	 * makes content with {@code page-break-before:left} land on <b>page 4</b>,
+	 * a recto page without "VERSO" (four pages total).
+	 * It should land on page 5 (verso), with page 4 blank for collation.
 	 * </p>
 	 */
 	public void testForcedVersoBreakStillLandsOnAVerso() throws Exception {
 		final Pages pages = convert("mid-forced-verso", MID_DOCUMENT_FORCED_VERSO);
 		pages.assertTokens(21);
-		// 2026-08-20: 収まらないavoidのその場分割で本文が2頁に詰まり、
-		// 次の左面(3頁目)が偶々そのまま来るため丁合合わせの白紙自体が
-		// 不要になった(auto-mid参照)。「面の勘定が正しい」検証は下の
-		// VERSO着地アサーションが引き続き担う
+		// 2026-08-20: Splitting non-fitting avoid in place compacted the body to two pages;
+		// the next left side (page 3) happens to follow immediately, so the collation blank
+		// is no longer needed (see auto-mid). The VERSO landing assertion below
+		// continues to verify correct side accounting.
 		assertEquals("mid-forced-verso: ページ数", 3, pages.count());
 		assertEquals("mid-forced-verso: 不要な白紙が入った", List.of(), pages.blanks());
 		final int landed = pages.pagesContaining("T20").get(0);
@@ -318,13 +315,13 @@ public class BlankPageDiscardTest extends TestCase {
 				+ " ——落としたページが面を消費している", pages.pagesContaining("VERSO").contains(landed));
 	}
 
-	/** 1文書分のページ表示リスト。 */
+	/** Page display lists for one document. */
 	private record Pages(String name, List<String> dumps) {
 		int count() {
 			return this.dumps.size();
 		}
 
-		/** 表示リストが空(描画命令ゼロ)のページ番号(1起点)。 */
+		/** Page numbers (1-based) with empty display lists (zero drawing commands). */
 		List<Integer> blanks() {
 			final List<Integer> blanks = new ArrayList<>();
 			for (int i = 0; i < this.dumps.size(); ++i) {
@@ -348,7 +345,7 @@ public class BlankPageDiscardTest extends TestCase {
 			assertTrue(this.name + ": 白紙ページ " + blanks + " (全" + this.count() + "ページ)", blanks.isEmpty());
 		}
 
-		/** T0..T(n-1) が全部どこかのページに現れること(内容を捨てて白紙を消す退行の検出)。 */
+		/** All T0..T(n-1) appear on some page (detects regressions that eliminate blank pages by dropping content). */
 		void assertTokens(final int tokenCount) {
 			final String all = String.join("", this.dumps);
 			final List<String> lost = new ArrayList<>();
@@ -360,7 +357,7 @@ public class BlankPageDiscardTest extends TestCase {
 			assertTrue(this.name + ": 内容が失われた " + lost, lost.isEmpty());
 		}
 
-		/** その文字列を含むページ番号(1起点)を全部返します。 */
+		/** Returns all page numbers (1-based) containing the string. */
 		List<Integer> pagesContaining(final String text) {
 			final List<Integer> found = new ArrayList<>();
 			for (int i = 0; i < this.dumps.size(); ++i) {
@@ -371,7 +368,7 @@ public class BlankPageDiscardTest extends TestCase {
 			return found;
 		}
 
-		/** {@code T1} が {@code T19} に一致しないよう、後ろの数字まで見る。 */
+		/** Checks following digits too, so {@code T1} does not match {@code T19}. */
 		private static boolean containsToken(final String text, final String token) {
 			for (int at = text.indexOf(token); at >= 0; at = text.indexOf(token, at + 1)) {
 				final int end = at + token.length();
@@ -384,11 +381,11 @@ public class BlankPageDiscardTest extends TestCase {
 	}
 
 	/**
-	 * 文書を変換し、ページごとの表示リストを返します。
+	 * Converts a document and returns per-page display lists.
 	 *
 	 * <p>
-	 * 変換は<b>別スレッド</b>で走らせて時間で打ち切ります——改ページが進まない
-	 * 退行はテストごと固まるため、失敗として見えるようにする必要があります。
+	 * Conversion runs on a <b>separate thread</b> with a timeout. A regression that prevents page-break
+	 * progress would hang the test itself, so it must be exposed as a failure.
 	 * </p>
 	 */
 	private static Pages convert(final String name, final String html) throws Exception {

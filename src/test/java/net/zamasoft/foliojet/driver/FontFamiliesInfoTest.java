@@ -7,12 +7,12 @@ import java.nio.charset.StandardCharsets;
 import junit.framework.TestCase;
 
 /**
- * <b>フォント一覧の軽量版</b>(B-4、2026-08-29)。
+ * <b>A lightweight font list</b> (B-4, 2026-08-29).
  *
  * <p>
- * 利用者報告(日本自由党川崎)より。{@code ctip/fonts}は1書体ごとに別名まで
- * 並べるので、書体選択のUIには重すぎる。{@code ctip/fonts/families}は
- * 利用者が{@code font-family}へ書ける名前ごとに1件へ畳む。
+ * Based on a user report (Japan Liberal Party Kawasaki). {@code ctip/fonts} lists each font face
+ * with its aliases, making it too heavy for a font-selection UI.
+ * {@code ctip/fonts/families} consolidates entries by the names users can put in {@code font-family}.
  * </p>
  */
 public class FontFamiliesInfoTest extends TestCase {
@@ -22,7 +22,7 @@ public class FontFamiliesInfoTest extends TestCase {
 		}
 	}
 
-	/** ファミリ単位に畳まれ、素の一覧より小さいこと。 */
+	/** Entries are consolidated by family and the list is smaller than the raw list. */
 	public void testFamiliesAreFoldedAndSmaller() throws Exception {
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
 				null);
@@ -40,7 +40,7 @@ public class FontFamiliesInfoTest extends TestCase {
 		assertTrue("ウェイトの一覧が無い", families.contains("weights=\""));
 		assertTrue("素の一覧より小さいこと: families=" + families.length() + " fonts=" + fonts.length(),
 				families.length() < fonts.length());
-		// 同じ名前が2件出ない(畳めていない兆候)
+		// No duplicate names (which would indicate failure to consolidate).
 		final java.util.regex.Matcher m = java.util.regex.Pattern.compile("<family name=\"([^\"]+)\"")
 				.matcher(families);
 		final java.util.Set<String> seen = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
@@ -51,8 +51,8 @@ public class FontFamiliesInfoTest extends TestCase {
 	}
 
 	/**
-	 * 面ごとの名前ではなく<b>別名(ファミリ名)</b>で畳むこと。
-	 * コア14の斜体・太字はすべて "Courier"・"Helvetica"・"Times" 等へ集まる。
+	 * Consolidate by <b>alias (family name)</b>, not individual face name.
+	 * Core 14 italic/bold faces all group under "Courier", "Helvetica", "Times", etc.
 	 */
 	public void testFoldedByAliasNotByFaceName() throws Exception {
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
@@ -72,7 +72,7 @@ public class FontFamiliesInfoTest extends TestCase {
 		assertTrue("太さが畳まれていません: " + m.group(1), m.group(1).contains(" "));
 	}
 
-	/** CSSへ書けない名前(版数の文字列など)は軽量版から落とすこと。 */
+	/** Exclude names unusable in CSS (such as version strings) from the lightweight list. */
 	public void testUnwritableNamesAreDropped() throws Exception {
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
 				null);

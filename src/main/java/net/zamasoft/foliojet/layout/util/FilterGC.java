@@ -11,24 +11,24 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.paint.Paint;
 
 /**
- * {@code filter}の色行列・ぼかしを、描画命令の途中で塗りと画像に
- * 掛ける{@link GC}の包み紙です(2026-08-29新設)。
+ * {@link GC} wrapper that applies {@code filter} color matrices and blur to paints and images
+ * during drawing commands (added 2026-08-29).
  *
  * <p>
- * 描画要素(背景・境界・文字・画像)は塗りを{@link #setFillPaint}/
- * {@link #setStrokePaint}で設定し、画像を{@link #drawImage}で描く。
- * この2箇所で{@link FilterOps}を通せば、描画要素の実装を一切触らずに
- * 効果が掛かる。文字の色も塗りなので同じ経路で変わる。
- * {@link #fillBlurred}と{@link #tryFillBlurred}は設定済みの
- * (=変換済みの)塗りで塗るので素通し。
+ * Drawables (backgrounds, borders, text, images) set paints through {@link #setFillPaint}/
+ * {@link #setStrokePaint} and draw images through {@link #drawImage}.
+ * Routing these two points through {@link FilterOps} applies effects without touching drawable
+ * implementations. Text color is also paint, so it changes through the same path.
+ * {@link #fillBlurred} and {@link #tryFillBlurred} use the already set
+ * (= transformed) paint and therefore pass through.
  * </p>
  *
  * <p>
- * {@link #createGroupImage}で作った子のGC(入れ子の不透明度)も包み、
- * 子の描画にも効果が届くようにする。それ以外は素通し
- * ({@link AbstractDelegatingGC})。出力先が{@code GROUP_FILTER}に対応する
- * ときはこの包み紙は使われず、{@code AbstractDrawable}が要素全体を
- * グループ画像にして{@link GroupEffects}で掛ける。
+ * Also wraps child GCs created by {@link #createGroupImage} (nested opacity) so effects reach
+ * child drawing. All other operations pass through ({@link AbstractDelegatingGC}).
+ * When the destination supports {@code GROUP_FILTER}, this wrapper is not used;
+ * {@code AbstractDrawable} turns the whole element into a group image and applies
+ * {@link GroupEffects}.
  * </p>
  */
 public final class FilterGC extends AbstractDelegatingGC {
@@ -39,7 +39,7 @@ public final class FilterGC extends AbstractDelegatingGC {
 		this.filter = filter;
 	}
 
-	/** 現在の変換での1画素あたりのpt(ぼかしの換算用)。 */
+	/** Pt per pixel under the current transform (for blur conversion). */
 	private double pixelScale() {
 		final AffineTransform at = this.gc.getTransform();
 		if (at == null) {
@@ -85,7 +85,7 @@ public final class FilterGC extends AbstractDelegatingGC {
 		return new Group(this.gc.createFilterGroup(width, height), this.filter);
 	}
 
-	/** 入れ子のグループにも効果を届ける包み紙。 */
+	/** Wrapper that propagates effects to nested groups. */
 	private static final class Group extends AbstractDelegatingGC implements GroupImageGC {
 		private final GroupImageGC group;
 

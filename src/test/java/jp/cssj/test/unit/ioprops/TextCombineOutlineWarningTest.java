@@ -16,7 +16,7 @@ import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 縦中横の字面計測ではCID-keyedフォントの輪郭欠落を警告しません。 */
+/** Measuring tate-chu-yoko glyph bounds (ink) does not warn about missing outlines in CID-keyed fonts. */
 public class TextCombineOutlineWarningTest extends TestCase {
 	public void testCidKeyedTextCombineDoesNotWarnAboutBackgroundClip() throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><style>"

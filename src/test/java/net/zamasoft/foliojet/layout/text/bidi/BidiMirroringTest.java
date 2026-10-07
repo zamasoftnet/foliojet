@@ -3,8 +3,8 @@ package net.zamasoft.foliojet.layout.text.bidi;
 import junit.framework.TestCase;
 
 /**
- * {@link BidiMirroring}(BidiMirroring-17.0.0.txt から生成、428 entries)の試験
- * (2026-09-04、bidi-isolation-design.md §0-22、batch A-1c-1)。
+ * Tests for {@link BidiMirroring} (generated from BidiMirroring-17.0.0.txt, 428 entries)
+ * (2026-09-04, bidi-isolation-design.md §0-22, batch A-1c-1).
  */
 public class BidiMirroringTest extends TestCase {
 	public void testMirroringTableSize() {

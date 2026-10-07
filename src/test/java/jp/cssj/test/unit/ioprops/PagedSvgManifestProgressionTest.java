@@ -20,13 +20,14 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * ページ分割SVGの {@code manifest.json} に頁の進む向きが入ること(2026-09-02、
- * cti.li の要望)。
+ * The page-split SVG {@code manifest.json} includes page progression direction
+ * (2026-09-02, requested by cti.li).
  *
  * <p>
- * 読み器が要るのは綴じ方向ではなく「頁がどちらへ進むか」で、{@code binding} が
- * {@code single}(印刷モード未指定)でも縦組みなら右から読む。以前は
- * {@code left} でなければ右綴じと判定して、横組みの英文が右から並んだ。
+ * Readers need the direction in which pages advance, not the binding direction. Vertical writing
+ * is read from the right even with {@code binding} set to {@code single} (print mode unspecified).
+ * Previously, anything other than {@code left} was interpreted as right binding, causing
+ * horizontally written English pages to be arranged from the right.
  * </p>
  */
 public class PagedSvgManifestProgressionTest extends TestCase {
@@ -89,7 +90,7 @@ public class PagedSvgManifestProgressionTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

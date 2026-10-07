@@ -36,12 +36,12 @@ import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** T5c: block absolute は先行行の後。本文の改行機会・字送りは変えない。 */
+/** T5c: a block absolute follows the preceding line. It does not change body-text break opportunities or advances. */
 public final class AbsoluteStaticPositionTest extends TestCase {
 	private static final double LINE = 16;
 	private static final double BORDER = 2;
 	private static final String ABS = "<div class='a'></div>";
-	// display:table の位置マーカーは TableBorder、通常ブロックと置換要素は AbsoluteRectFrame。
+	// The position marker for display:table is TableBorder; for normal blocks and replaced elements, AbsoluteRectFrame.
 	private static final Pattern FRAME = Pattern.compile(
 			"x=([-0-9.]+) y=([-0-9.]+) (?:artifact )?(?:AbsoluteRectFrame|TableBorder)\\[w=([-0-9.]+) h=([-0-9.]+)\\]");
 
@@ -51,7 +51,7 @@ public final class AbsoluteStaticPositionTest extends TestCase {
 				+ "@page{size:300pt 400pt;margin:10pt}body{margin:0;font:12pt/16pt serif}"
 				+ ".host{position:relative;width:200pt;min-width:200pt;max-width:200pt;border:2pt solid #888;"
 				+ (vertical ? "writing-mode:vertical-rl;height:200pt;min-height:200pt;max-height:200pt;" : "")
-				// 幅の制約を保ちつつ、最後の width:auto (縦組みは height:auto も)で必ず TwoPass にする。
+				// Preserve width constraints, but force TwoPass with the final width:auto (also height:auto in vertical writing).
 				+ (twoPass ? "float:left;width:auto;" + (vertical ? "height:auto;" : "") : "") + style + "}"
 				+ ".a,.ref{display:block;margin:0;padding:0;border:1pt solid red;"
 				+ (vertical ? "width:18pt;height:60pt" : "width:60pt;height:18pt") + "}"
@@ -71,13 +71,16 @@ public final class AbsoluteStaticPositionTest extends TestCase {
 				f.setAccessible(true);
 				return f.get(object);
 			} catch (final NoSuchFieldException e) {
-				// 継承元の描画属性を読む。
+				// Read inherited drawing attributes.
 			}
 		}
 		throw new NoSuchFieldException(name);
 	}
 
-	/** source offset / 段落 ID に依存せず、文字・座標・run・グリフごとの送りを比較する。 */
+	/**
+	 * Compares characters, coordinates, runs, and per-glyph advances without relying on source offsets or
+	 * paragraph IDs.
+	 */
 	private static void textGeometry(final Drawer drawer, final int page, final List<String> result,
 			final List<String> clusters)
 			throws ReflectiveOperationException {
@@ -114,7 +117,10 @@ public final class AbsoluteStaticPositionTest extends TestCase {
 		}
 	}
 
-	/** DirectSession は別スレッド。static volatile の既存観測点を期間限定で使う。 */
+	/**
+	 * DirectSession runs on a separate thread. Use the existing static volatile observation point for a
+	 * limited period.
+	 */
 	private static Rendering render(final String html, final File source, final boolean twoPass) throws Exception {
 		final List<String> pages = new ArrayList<>(), text = new ArrayList<>();
 		final List<String> clusters = new ArrayList<>();
@@ -212,7 +218,7 @@ public final class AbsoluteStaticPositionTest extends TestCase {
 		assertEquals("内容なし", 0, assertReference(twoPass, vertical, "", "", ABS), 0.02);
 		assertEquals("潰れる空白", 0, assertReference(twoPass, vertical, "", "   ", ABS), 0.02);
 		assertEquals("先行1字", LINE, assertReference(twoPass, vertical, "", "A", ABS), 0.02);
-		// br の metrics と和文フォントの metrics の合成で 16pt より僅かに高くなりうる。
+		// Combining br metrics with Japanese font metrics may produce a height slightly above 16 pt.
 		assertReference(twoPass, vertical, "", "いいいい<br/>", ABS);
 		assertEquals("明示2行", 2 * LINE, assertReference(twoPass, vertical, "", "A<br/>B", ABS), 0.02);
 		for (final String content : List.of(
@@ -296,7 +302,7 @@ public final class AbsoluteStaticPositionTest extends TestCase {
 				final Rendering reference = render(document(twoPass, false, "", sample[0] + sample[1]), null, twoPass);
 				final Rendering actual = render(document(twoPass, false, "", sample[0] + ABS + sample[1]), null, twoPass);
 				assertEquals("bidi のページ数", reference.pages().size(), actual.pages().size());
-				// barrier を挟むと段落の解決順は変わりうる。文字の欠落・重複だけを検査する。
+				// A barrier may change paragraph resolution order. Check only for missing or duplicated characters.
 				assertEquals("bidi の文字集合", codePoints(reference), codePoints(actual));
 				assertTrue("ヘブライ文字が描かれた", codePoints(actual).contains((int) 'א'));
 			}
@@ -317,7 +323,7 @@ public final class AbsoluteStaticPositionTest extends TestCase {
 				assertFalse("縦中横の本文なし", reference.text().isEmpty());
 				assertEquals("縦中横の文字の欠落・重複なし", codePoints(reference), codePoints(actual));
 				assertEquals("縦中横の圧縮後の本文の字形・位置", reference.text(), actual.text());
-				// 未確定の縦中横の静的位置と、最終的な圧縮寸法の一致は要求しない。
+				// Do not require the unresolved static position of tate-chu-yoko to match its final compressed dimensions.
 			}
 		}
 	}
@@ -346,9 +352,10 @@ public final class AbsoluteStaticPositionTest extends TestCase {
 	}
 
 	/**
-	 * 明示 inset の fixed.html は T5c の対象外。D7 全体の照合は既存ゲートで行う。
-	 * 修正前後の D7 全属性の実測差分は、p1/p2 の page.paint[0].contents の run 分割だけ。
-	 * 本文の原点は (0,0)/(0,10)、幅は 30+30=60pt。p3 は byte 一致。
+	 * fixed.html with explicit insets is outside T5c's scope. The existing gate checks all of D7.
+	 * Measured before/after differences across all D7 attributes are limited to run splitting in
+	 * page.paint[0].contents on p1/p2. Body origins are (0,0)/(0,10), with width 30+30=60 pt.
+	 * p3 is byte-identical.
 	 */
 	public void testExplicitInsetsKeepFixedDocumentText() throws Exception {
 		final Rendering actual = render(null, new File("files/unittest/0170-position/fixed.html"), false);

@@ -8,11 +8,11 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 脚注F1(call/marker合成と文書通番)のテストです
- * (consult-codex-2026-07-31-footnote.txt §5)。F3の配線までは本文は
- * その場に描かれるため、ここで固定するのは「本文先頭の::footnote-marker
- * (番号+区切り)」と「番号が文書通番で進むこと」。::footnote-callは
- * 親のインライン流に出るため本文ボックスのテキストには含まれない。
+ * Tests footnote F1 (call/marker synthesis and document-wide numbering)
+ * (consult-codex-2026-07-31-footnote.txt §5). Until F3 was wired up, the body was drawn in place,
+ * so this test verifies the contracts for "::footnote-marker at the start of the body (number + separator)"
+ * and "numbers advance throughout the document". ::footnote-call appears in the parent's inline flow,
+ * so it is not included in the body box's text.
  */
 public class FootnoteCallMarkerTest extends AbstractTestCase {
 	public FootnoteCallMarkerTest(String name) {
@@ -30,23 +30,23 @@ public class FootnoteCallMarkerTest extends AbstractTestCase {
 		return buff.toString();
 	}
 
-	/** float:footnoteはblock化され、本文頭にmarker(番号+区切り)が付く。 */
+	/** float:footnote becomes a block, with a marker (number + separator) at the start of its body. */
 	public boolean check_fn1(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			final String text = text(box);
 			assertTrue("marker must prefix the note body: " + text, text.startsWith("1. first note"));
-			// F3: 本文はページ下端の脚注領域へ移る(3件が文書順に積まれる)
-			// F5でmarkerが置換原子(固定欄ラベル)になり行高がわずかに変化。
-			// 2026-10-04 に番号の字の基準線を行の基準線に揃えた(以前は番号の
-			// 下端を基準線に置き、各行が番号の深さぶん高かった)ので、注の行が
-			// 低くなり、ページ下端から積む領域が下がった(721.61→726.69)
+			// F3: Bodies move to the footnote area at the bottom of the page (three notes stacked in document order).
+			// F5 made the marker a replaced atom (a label in a fixed field), slightly changing the line height.
+			// On 2026-10-04, the number's baseline was aligned with the line's baseline (previously,
+			// the number's bottom sat on the baseline, increasing each line's height by its descent). Note lines
+			// became shorter, lowering the area stacked from the page bottom (721.61→726.69).
 			assertEquals(726.69, y, 1);
 			return true;
 		}
 		return false;
 	}
 
-	/** 番号は文書通番で進む。 */
+	/** Numbers advance throughout the document. */
 	public boolean check_fn2(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			final String text = text(box);
@@ -67,7 +67,7 @@ public class FootnoteCallMarkerTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** ::footnote-callは呼び出し位置(親のインライン流)に番号を残す。 */
+	/** ::footnote-call leaves the number at the call site (the parent's inline flow). */
 	public boolean check_p1(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			final String text = text(box);
@@ -79,7 +79,7 @@ public class FootnoteCallMarkerTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 利用者の::footnote-call規則(content: counter(footnote))が上書きする。 */
+	/** The user's ::footnote-call rule (content: counter(footnote)) overrides it. */
 	public boolean check_p3(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			final String text = text(box);

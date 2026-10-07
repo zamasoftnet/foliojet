@@ -25,11 +25,12 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
 /**
- * 頁座標の平行移動 API({@code FlowContainer.shiftPageAxis} と、その下の
- * {@code Floatings}/{@code Absolutes})の試験(2026-09-05、`float: top` の現頁
- * 配置=translate の第1段)。serial・行軸位置・{@code moveToNext}・リスト順を
- * 保つこと、{@code keep} の箱と明示 offset({@code NONE})と fixed は動かない
- * こと、絶対配置の静的位置は書字方向ごとの物理軸で動くことを固定する。
+ * Tests for the page-coordinate translation API ({@code FlowContainer.shiftPageAxis} and its underlying
+ * {@code Floatings}/{@code Absolutes}) (2026-09-05, stage 1 of placing `float: top` on the current page
+ * via translation). Locks down preservation of serial, line-axis position, {@code moveToNext}, and list
+ * order; verifies that {@code keep} boxes, explicit offsets ({@code NONE}), and fixed boxes do not move;
+ * and checks that static positions of absolutely positioned boxes move along the physical axis for
+ * each writing direction.
  */
 public class ShiftPageAxisTest extends TestCase {
 
@@ -54,7 +55,7 @@ public class ShiftPageAxisTest extends TestCase {
 		return set;
 	}
 
-	/** 通常フローは serial と箱を保ち pageAxis だけ動く。keep の箱は動かない。 */
+	/** Normal flow preserves serial and box identity and moves only pageAxis. The keep box does not move. */
 	public void testFlowsShiftKeepingSerialAndOrder() {
 		final FlowContainer container = container(WritingMode.TB);
 		final FlowBlockBox a = new FlowBlockBox(blockParams(WritingMode.TB), new FlowPos());
@@ -74,7 +75,7 @@ public class ShiftPageAxisTest extends TestCase {
 		assertEquals(serialB, container.flows.get(1).serial);
 	}
 
-	/** 浮動体は serial・行軸位置・moveToNext を保って pageAxis だけ動く。 */
+	/** Floats preserve serial, line-axis position, and moveToNext and move only pageAxis. */
 	public void testFloatingsShiftKeepingMoveToNext() {
 		final FlowContainer container = container(WritingMode.TB);
 		final FloatBlockBox moved = new FloatBlockBox(blockParams(WritingMode.TB), new FloatPos());
@@ -95,13 +96,13 @@ public class ShiftPageAxisTest extends TestCase {
 		assertSame("keepの浮動体は同じインスタンス", keptBefore, container.floatings.getFloating(1));
 	}
 
-	/** 絶対配置の静的位置は書字方向ごとの物理軸で動き、NONE と fixed は動かない。 */
+	/** Absolute static positions move on the physical axis for each writing direction; NONE and fixed do not move. */
 	public void testAbsolutesShiftPerWritingMode() {
 		for (final WritingMode flow : new WritingMode[] { WritingMode.TB, WritingMode.LR, WritingMode.RL }) {
 			final FlowContainer container = container(flow);
 			final AbsoluteBlockBox statik = new AbsoluteBlockBox(blockParams(flow), new AbsolutePos());
-			// 明示 offset(横組みは top、縦組みは left)を持つ箱。addAbsolute がその軸の
-			// 静的位置を NONE に置き換える(Absolutes.addAbsolute)
+			// A box with an explicit offset (top in horizontal writing, left in vertical writing). addAbsolute replaces
+			// the static position on that axis with NONE (Absolutes.addAbsolute).
 			final AbsolutePos explicitPos = new AbsolutePos();
 			explicitPos.location = flow == WritingMode.TB
 					? Insets.create(0, 0, 0, 0, LengthType.ABSOLUTE, LengthType.AUTO, LengthType.AUTO, LengthType.AUTO)

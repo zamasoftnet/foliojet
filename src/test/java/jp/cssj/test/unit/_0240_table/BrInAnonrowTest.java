@@ -22,8 +22,8 @@ public class BrInAnonrowTest extends AbstractTestCase {
 			System.err.println("x/" + x);
 			System.err.println("y/" + y);
 			assertEquals(6, x, 0);
-			// 2026-09-02: 標準モード(DOCTYPE あり)では匿名 inline-table だけの行にも
-			// strut が入り、表の基底線の下に descent+半行送りが付く(第7陣)
+			// 2026-09-02: In standards mode (with a DOCTYPE), even a line containing only an anonymous inline-table
+			// has a strut, adding descent + half-leading below the table's baseline (batch 7).
 			assertEquals(23.89, y, 1);
 			return true;
 		}

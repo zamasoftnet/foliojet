@@ -8,8 +8,8 @@ import org.xml.sax.ext.DefaultHandler2;
 import org.xml.sax.ext.LexicalHandler;
 
 /**
- * ContentHandlerのフィルタです。
- * 
+ * A ContentHandler filter.
+ *
  * @author MIYABE Tatsuhiko
  */
 class CompositeXMLHandler implements XMLHandler {

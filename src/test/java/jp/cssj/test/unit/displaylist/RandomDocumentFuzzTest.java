@@ -31,66 +31,64 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * ランダムに生成した文書で<b>絶対要件</b>を検査します(2026-07-25新設)。
+ * Check <b>absolute requirements</b> using randomly generated documents (added 2026-07-25).
  *
  * <p>
- * これまでの検証は「人間が書いた固定の文書」(単体コーパス414文書・視覚
- * コーパス591文書)に依存しており、<b>誰も思いつかなかった組み合わせ</b>は
- * 原理的に踏めませんでした。本テストは入力空間を直接サンプリングします。
- * レビューが推定するのは「レビューで見つかりうる欠陥」だけなので、
- * これは<b>別の母集団</b>を測る手段です
- * 。
+ * Previous verification relied on "fixed documents written by humans" (414 unit-corpus documents
+ * and 591 visual-corpus documents), making <b>combinations nobody thought of</b> unreachable in principle.
+ * This test samples the input space directly. Reviews estimate only "defects discoverable by review",
+ * so this measures <b>a different population</b>.
  * </p>
  *
- * <h2>検査する不変条件</h2>
+ * <h2>Invariants to check</h2>
  *
  * <ol>
- * <li><b>例外で中断しない</b></li>
- * <li><b>停止する</b>(watchdog内に終わる)</li>
- * <li><b>ページ数が有界</b>(内容量に対して爆発しない)</li>
- * <li><b>内容が失われない</b>——文書に埋めた一意なトークンが、すべて
- * 出力の表示リストに現れる。STRICTモード限定(下記)</li>
- * <li><b>意図しない白紙ページがない</b>——STRICTモード限定</li>
- * <li><b>説明のつかない紙面外への配置がない</b>——はみ出し量が文書中の
- * 最大の明示サイズの2倍を超えない。CSSの{@code overflow}既定は
- * {@code visible}なので「紙面内」は要求できない。STRICTモード限定</li>
- * <li><b>読み順が保たれる</b>——文書順で先のトークンが、後のトークンより
- * 後のページに現れない。ページ<b>内</b>の描画順は実装の都合なので問わない。
- * フロートは正当に読み順を変えるので対象外。STRICTモード限定</li>
+ * <li><b>No exception aborts</b></li>
+ * <li><b>Termination</b> (finishes within the watchdog limit)</li>
+ * <li><b>Bounded page count</b> (does not explode relative to content volume)</li>
+ * <li><b>No content loss</b>: every unique token embedded in the document appears in the output display list.
+ * STRICT mode only (see below).</li>
+ * <li><b>No unintended blank pages</b>: STRICT mode only.</li>
+ * <li><b>No unexplained placement outside the paper</b>: overflow does not exceed twice the largest explicit
+ * size in the document. Since CSS {@code overflow} defaults to {@code visible}, we cannot require
+ * everything to stay inside the paper. STRICT mode only.</li>
+ * <li><b>Reading order is preserved</b>: a token earlier in document order does not appear on a later page
+ * than a subsequent token. Painting order <b>within</b> a page is an implementation detail and is not checked.
+ * Floats legitimately change reading order, so exclude them. STRICT mode only.</li>
  * </ol>
  *
- * <h2>2つのモード</h2>
+ * <h2>Two modes</h2>
  *
  * <p>
- * <b>STRICT</b>は「作者が白紙や消失を意図しようがない」部分集合だけを
- * 生成します——絶対配置・{@code visibility:hidden}・強制改ページ・
- * {@code overflow:hidden}を使いません。ここでは不変条件4・5まで検査できます。
+ * <b>STRICT</b> generates only a subset in which "the author cannot intend blank pages or content loss":
+ * no absolute positioning, {@code visibility:hidden}, forced page breaks, or {@code overflow:hidden}.
+ * Invariants 4 and 5 can also be checked here.
  * </p>
  *
  * <p>
- * <b>WILD</b>はそれらも含めて生成し、不変条件1〜3だけを検査します
- * (意図した白紙・意図したはみ出しと区別がつかないため)。
+ * <b>WILD</b> includes those features and checks only invariants 1–3
+ * (because intended blank pages and intended overflow cannot be distinguished).
  * </p>
  *
- * <h2>実行</h2>
+ * <h2>Running</h2>
  *
  * <p>
- * 既定は各モード{@value #DEFAULT_SEEDS}シードの回帰用。掃過するときは
- * {@code -Dfoliojet.fuzzSeeds=2000} のように増やす(件数はそのまま
- * 統計的な主張の根拠になるので、実行数を記録すること)。
- * 失敗したシードは再現用にHTMLを{@code local/fuzz/}へ残します。
+ * The default is {@value #DEFAULT_SEEDS} seeds per mode for regression checks.
+ * For sweeps, increase it, for example with {@code -Dfoliojet.fuzzSeeds=2000}
+ * (record the run count, since it directly grounds statistical claims).
+ * Save HTML for failed seeds in {@code local/fuzz/} for reproduction.
  * </p>
  */
 public class RandomDocumentFuzzTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/**
-	 * 生成器の入力分布の版。掃過manifestへこの値とコードの識別子を記録する。
-	 * v1のseedを正確に再現するときは、manifestに記録した旧タグをcheckoutする。
+	 * Version of the generator's input distribution. Record this and the code identifier in the sweep manifest.
+	 * To reproduce v1 seeds exactly, check out the old tag recorded in the manifest.
 	 */
 	static final int GENERATOR_VERSION = 2;
 
-	/** v2を変えずに重い局所構造を追加する、opt-in掃過プロファイルの版。 */
+	/** Version of the opt-in sweep profile that adds heavy local structures without changing v2. */
 	static final int EXTREME_PROFILE_VERSION = 1;
 
 	private static boolean extremeProfile() {
@@ -99,18 +97,20 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 紙面外の検査が生きる文書だけを組む、opt-in の掃過プロファイルの版(2026-10-07、{@code -Dfoliojet.fuzzFit=1})。
+	 * Version of the opt-in sweep profile that lays out only documents with active off-paper checks
+	 * (2026-10-07, {@code -Dfoliojet.fuzzFit=1}).
 	 *
 	 * <p>
-	 * v2 の文書は密で、紙面外の検査(不変条件6)が文書単位の除外に当たらないのは約 5% だけだった(紙が小さい・
-	 * 明示寸法が紙より大きい・直交フローの入れ子など)。fit は同じ seed から決まった順の派生 seed で v2 の文書を
-	 * 作り直し、除外に当たらない最初の文書を使う({@link #generateFit})。生成器も検査の判定も変えないので、
-	 * 誤検出は増えず、seed から決定的に再現できる。
+	 * v2 documents are dense; only about 5% avoided document-level exclusions for off-paper checks
+	 * (invariant 6), due to small paper, explicit dimensions larger than the paper, nested orthogonal flows, etc.
+	 * fit regenerates v2 documents using an ordered sequence of seeds derived from the same seed,
+	 * taking the first document without exclusions ({@link #generateFit}). Neither the generator nor
+	 * the check predicates change, so false positives do not increase and reproduction from a seed is deterministic.
 	 * </p>
 	 */
 	static final int FIT_PROFILE_VERSION = 1;
 
-	/** fit の試行回数。生きる文書が約 5% なら、64 回で見つからないのは約 4%。 */
+	/** fit attempt count. If about 5% of documents qualify, the chance of finding none in 64 attempts is about 4%. */
 	private static final int FIT_TRIES = 64;
 
 	private static boolean fitProfile() {
@@ -133,38 +133,38 @@ public class RandomDocumentFuzzTest extends TestCase {
 				: String.valueOf(GENERATOR_VERSION);
 	}
 
-	/** 既定のシード数(回帰用。掃過は -Dfoliojet.fuzzSeeds で増やす)。 */
+	/** Default seed count (regressions; increase sweeps with -Dfoliojet.fuzzSeeds). */
 	private static final int DEFAULT_SEEDS = 60;
 
-	/** 1文書あたりの上限時間。通常は1秒未満で終わる。 */
+	/** Time limit per document. Normally finishes in under one second. */
 	private static final long WATCHDOG_MS = Long.getLong("foliojet.fuzzWatchdogMs", 30_000L);
 
-	/** ページ数の上限。生成する内容量から見て明らかに過大な値。 */
+	/** Page-count limit. Clearly excessive relative to generated content volume. */
 	private static final int MAX_PAGES = Integer.getInteger("foliojet.fuzzMaxPages", 300);
 
-	/** extremeの絶対上限。通常は要素数×2のほうが先に効く。 */
+	/** Absolute extreme limit. Normally element count × 2 takes effect first. */
 	private static final int EXTREME_MAX_PAGES = Integer.getInteger("foliojet.fuzzExtremeMaxPages", 4_000);
 
 	private static int pageLimit(final Generated doc) {
-		// 版面が破綻した文書(紙が小さすぎる・明示寸法が紙より大きい)では、収まらない箱の
-		// 救済分割のスライスが要素ごとに数ページ分できる。seed 5729966(60x60pt に 13pt、
-		// 218 要素)は min-width:8em の行が 3 段の grid だけで 8 ページになり、全体で 315 ページで
-		// **有限に**終わった(2026-09-18)。固定 300 では内容量そのものを暴走扱いするので、
-		// extreme と同じ「要素数×3」を上限にする。本物の暴走(seed 2264275 は 27,820 ページ)は
-		// 今までどおり超える
+		// In documents with an unworkable type area (paper too small or explicit dimensions larger than paper),
+		// rescue-splitting oversized boxes can create several pages of slices per element. Seed 5729966 (13 pt on 60×60 pt,
+		// 218 elements) produced 8 pages from a grid with three rows of min-width:8em lines alone, and finished in 315 pages
+		// **in finite time** (2026-09-18). A fixed limit of 300 labels content volume itself as runaway, so
+		// use "element count × 3", as with extreme. Real runaways (seed 2264275 produced 27,820 pages)
+		// still exceed it as before.
 		if (!doc.html().contains("data-fuzz-profile=\"extreme-v") && !doc.beyondEngineControl()) {
 			return MAX_PAGES;
 		}
-		// 60x60pt・内容領域40x40ptのseed 541は1,066要素から1,242ページを
-		// 正常生成した。固定300ではextremeの内容量そのものを異常扱いする。
-		// 要素数は長いテキスト量を表さない。縦書き13ptのseed 8676は655要素から
-		// 1,443ページで正常停止した(2.20ページ/要素)ため、3倍まで許容する。
-		// 無制限に広げず、絶対上限4,000ページも残す。
+		// Seed 541, with 60×60 pt paper and a 40×40 pt content area, successfully generated 1,242 pages
+		// from 1,066 elements. A fixed limit of 300 treats extreme's content volume itself as abnormal.
+		// Element count does not express long text volume. Vertical-writing seed 8676 at 13 pt terminated normally
+		// with 1,443 pages from 655 elements (2.20 pages/element), so allow up to three times the count.
+		// Keep the absolute 4,000-page limit too, rather than allowing unbounded growth.
 		final int contentBound = Math.multiplyExact(inspectGeneratedStructure(doc.html()).elements(), 3);
 		return Math.max(MAX_PAGES, Math.min(EXTREME_MAX_PAGES, contentBound));
 	}
 
-	/** ページ数オラクルの上限で意図的に変換を止めた印。 */
+	/** Marker for deliberately stopping conversion at the page-count oracle limit. */
 	private static final class PageCountLimitExceeded extends AssertionError {
 		private static final long serialVersionUID = 1L;
 
@@ -175,30 +175,30 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 表示リストに現れる「文字として描かれたもの」を拾います。
+	 * Extract "content painted as text" from the display list.
 	 *
 	 * <p>
-	 * <b>ルビは{@code RubyUnit["親文字" ruby="ふりがな"]}という別表記で出る</b>
-	 * ため、{@code Text[...]}だけを見ると「消えた」と誤判定します
-	 * (2026-07-26、生成器にルビを足して発覚。エンジンではなく
-	 * <b>オラクル側の誤り</b>だった)。画像の{@code alt}は描かれないので、
-	 * 生成器はaltへトークンを埋めません。
+	 * <b>Ruby uses a separate notation, {@code RubyUnit["親文字" ruby="ふりがな"]}</b>,
+	 * so inspecting only {@code Text[...]} falsely reports "loss"
+	 * (2026-07-26, discovered when ruby was added to the generator).
+	 * This was <b>an oracle error</b>, not an engine error.
+	 * Image {@code alt} is not painted, so the generator embeds no tokens in alt.
 	 * </p>
 	 */
 	private static final Pattern TEXT_IN_DUMP = Pattern
 			.compile("(?:Text|RubyUnit)\\[\"([^\"]*)\"(?: ruby=\"([^\"]*)\")?");
-	/** 生成器の ordered list が生成するマーカー(本文の文字ではない)。 */
+	/** Markers generated by the generator's ordered lists (not body-text characters). */
 	private static final Pattern ORDERED_LIST_MARKER = Pattern
 			.compile("(?:[0-9]+|[ivxlcdm]+)\\.|[〇一二三四五六七八九十百千万]+、");
-	/** 生成器のフォーム部品が固定で描画する、fuzzトークンではない文字。 */
+	/** Fixed text painted by generated form controls, not fuzz tokens. */
 	private static final Set<String> GENERATED_CONTROL_TEXT = Set.of("x", "y", "mixed", "甲", "乙", "日本語", "العربية",
 			"日本語 العربية");
 
-	/** 表示リスト上の1つの文字実行と、そのページ番号(0基点)。 */
+	/** One text run in the display list and its page number (zero-based). */
 	private record ObservedText(String text, int page, boolean artifact) {
 	}
 
-	/** 詳細ダンプ中の、寸法を持つ描画物の外接矩形。 */
+	/** Bounding rectangle of a drawable with dimensions in the detailed dump. */
 	private static final Pattern DRAWING_GEOMETRY_IN_DUMP = Pattern.compile(
 			"x=(-?[\\d.]+) y=(-?[\\d.]+) (?:artifact )?[^\\n]*?w=([\\d.]+) h=([\\d.]+)");
 
@@ -216,7 +216,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		sweep(false);
 	}
 
-	/** v2で追加した構造とサイズ語彙が、固定範囲のseedから実際に到達できること。 */
+	/** Structures and size vocabulary added in v2 are actually reachable from a fixed seed range. */
 	public void testGeneratorV2VocabularyIsReachable() {
 		boolean cellChild = false, flex = false, grid = false, intrinsic = false;
 		boolean relativeSize = false, complexWild = false, longRuby = false;
@@ -245,7 +245,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		assertEquals("同一seedの生成結果が変動する", generate(12345, true), generate(12345, true));
 	}
 
-	/** extreme-v1の狙った高密度構造が、全seedで入り、かつ決定的であること。 */
+	/** The dense structures targeted by extreme-v1 occur in every seed and are deterministic. */
 	public void testExtremeProfileIsDenseAndDeterministic() {
 		for (int seed = 0; seed < 32; ++seed) {
 			final Generated strict = generate(seed, true, false, true);
@@ -273,7 +273,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				+ pageLimit(denseVertical), pageLimit(denseVertical) >= 1_443);
 	}
 
-	/** overflow-wrap:anywhere等でトークン内部が分割されても内容消失と誤判定しない。 */
+	/** Do not falsely report content loss when overflow-wrap:anywhere or similar rules split tokens internally. */
 	public void testContentOracleRestoresSplitTokensAcrossInterleavedDraws() {
 		final Set<String> expected = Set.of("T100", "T423", "T575", "T576", "T657", "T57");
 		final List<ObservedText> runs = List.of(new ObservedText("prefix T57", 0, false),
@@ -293,7 +293,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		assertEquals(0, firstObservedTokenPage("T57", runs, expected));
 	}
 
-	/** 部分一致や普通の本文越しをトークンの存在と誤認しない。 */
+	/** Do not mistake partial matches or matches across ordinary body text for token presence. */
 	public void testContentOracleRejectsPrefixAndTextSkipping() {
 		final Set<String> expected = Set.of("T9", "T57", "T91", "T575");
 		assertEquals(-1, firstObservedTokenPage("T57",
@@ -321,7 +321,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 						new ObservedText("7", 1, false), new ObservedText("6", 1, false)), expected));
 	}
 
-	/** 中断時checkpointにも分類件数だけでなく再現用seedを残す。 */
+	/** Interrupted checkpoints retain reproduction seeds as well as classification counts. */
 	public void testFuzzManifestCheckpointRetainsSeeds() throws Exception {
 		final Path manifest = Files.createTempFile("foliojet-fuzz-manifest-", ".json");
 		final String previous = System.getProperty("foliojet.fuzzManifest");
@@ -358,8 +358,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 2026-08-14の100万件掃過で「全描画が紙面外」になった先頭8シードを固定する。
-	 * 正常化して通るか、機械的に限定した専用除外になることだけを許す。
+	 * Pin down the first eight seeds with "all drawing outside the paper" in the million-case sweep of 2026-08-14.
+	 * Allow only normal successful layout or a mechanically bounded dedicated exclusion.
 	 */
 	public void testStrictHistoricalAllDrawingOffPageSeeds() throws Exception {
 		final int[] seeds = { 36607, 82162, 97953, 132786, 139166, 143513, 157106, 175497 };
@@ -383,8 +383,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 2026-08-15の修正後100万件再掃過に残った「全描画が紙面外」12件を固定する。
-	 * 作者指定で組版不能な3件は狭い専用除外、実装欠陥だった9件は正常完走を要求する。
+	 * Pin down the 12 "all drawing outside the paper" cases remaining in the post-fix million-case sweep of 2026-08-15.
+	 * Use narrow dedicated exclusions for three cases made untypesettable by author declarations;
+	 * require normal completion for the nine implementation defects.
 	 */
 	public void testStrictHistoricalRemainingAllDrawingOffPageSeeds() throws Exception {
 		final int[] seeds = { 266476, 324423, 372387, 591475, 763450, 778506,
@@ -410,13 +411,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 同じ縦軸でも進行方向が変われば独立BFCを作り、内側のfloatを包含する。
+	 * Even on the same vertical axis, a change in progression direction creates an independent BFC containing inner floats.
 	 *
 	 * <p>
-	 * strict seed 97953の最小形。以前は{@code vertical-rl}直下の
-	 * {@code vertical-lr}を同じビルダーへ流し、floatの文字が紙面の開始辺
-	 * ちょうどから外側へ出ていた。軸の縦横だけでなくwriting-mode値全体を
-	 * 比較する回帰を、百万件掃過とは独立して固定する。
+	 * Minimal case for strict seed 97953. Previously, {@code vertical-lr} directly under {@code vertical-rl}
+	 * flowed into the same builder, and float text extended outward from exactly the paper's start edge.
+	 * Independently of the million-case sweep, pin down comparison of the full writing-mode value,
+	 * rather than just vertical versus horizontal axes.
 	 * </p>
 	 */
 	public void testSameAxisWritingModeChangeContainsFloat() throws Exception {
@@ -447,12 +448,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 断片化後に開始のないインライン終了だけが残っても、空行を確定しない。
+	 * Do not finalize an empty line when fragmentation leaves only an inline end without a start.
 	 *
 	 * <p>
-	 * extreme-v1 WILD seed 7593の最小形。表の後に空の脚注を含む段組リストを
-	 * 置くと、回復処理が捨てたINLINE_ENDを{@code drawLine()}が内容ありと誤認し、
-	 * 空の行ボックスを{@code align()}して変換が失敗していた。
+	 * Minimal case for extreme-v1 WILD seed 7593. With a multi-column list containing an empty footnote after a table,
+	 * {@code drawLine()} mistook an INLINE_END discarded by recovery for content, called {@code align()}
+	 * on an empty line box, and failed conversion.
 	 * </p>
 	 */
 	public void testFragmentRecoveryDoesNotAlignEmptyLine() throws Exception {
@@ -495,14 +496,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 2026-08-14の百万件掃過で唯一の白紙ページだったseed 78906を固定する。
+	 * Pin down seed 78906, the only blank-page case in the million-case sweep of 2026-08-14.
 	 *
 	 * <p>
-	 * 2026-08-21まで「(除外)組版できない幅の浮動体」だったが、END側
-	 * フロートの行頭クランプ(帯より広いフロートを行頭より前=紙面の外へ
-	 * 出さない。BlockBuilder.tryFloatPlacement)により**正常に組める**
-	 * ようになった。除外が不要になったのはクランプの改善効果なので、
-	 * 新しい挙動(両モード成功)を固定する。
+	 * Until 2026-08-21, this was "(excluded) float with an untypesettable width". Clamping END-side floats
+	 * to the line start (preventing floats wider than the band from extending before the line start,
+	 * outside the paper; BlockBuilder.tryFloatPlacement) made it **lay out normally**.
+	 * Eliminating the exclusion is an improvement from clamping, so pin down the new behavior
+	 * (success in both modes).
 	 * </p>
 	 */
 	public void testStrictHistoricalBlankPageSeed() throws Exception {
@@ -511,9 +512,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 2026-09-18、仕切り直した掃過(seed 5,250,000〜)の最初の停止。版面が破綻した文書(60x60pt に 13pt)の
-	 * 収まらない箱のスライスで 315 ページになり、固定 300 の上限に掛かった。上限を要素数×3 にした後は
-	 * 「版面が破綻した文書の紙面外配置」の除外へ落ちる(有限に終わることの固定)。
+	 * 2026-09-18, the first stop in the restarted sweep (seeds 5,250,000 onward). Slices of boxes that did not fit
+	 * in an unworkable type area (13 pt on 60×60 pt) produced 315 pages and hit the fixed limit of 300.
+	 * With the limit changed to element count × 3, this becomes the "off-paper placement in a document with
+	 * an unworkable type area" exclusion (pinning down finite termination).
 	 */
 	public void testStrictBrokenLayoutDocumentFinishesWithinContentBound() throws Exception {
 		try {
@@ -523,7 +525,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
-	/** 2026-08-14の百万件掃過で「紙面外への配置」になった7シードを固定する。 */
+	/** Pin down the seven "off-paper placement" seeds from the million-case sweep of 2026-08-14. */
 	public void testStrictHistoricalOffPagePlacementSeeds() throws Exception {
 		final int[] seeds = { 321621, 473636, 473924, 526411, 651439, 776967, 867178 };
 		final List<String> unexpected = new ArrayList<>();
@@ -546,14 +548,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * {@code -Dfoliojet.fuzzImage}で差し替えた画像が、既定の画像と
-	 * <b>同じ寸法か</b>を確かめます(2026-08-02)。
+	 * Verify that an image substituted with {@code -Dfoliojet.fuzzImage} has <b>the same dimensions</b>
+	 * as the default image (2026-08-02).
 	 *
 	 * <p>
-	 * この指定はI/Oの速い場所へ画像を移すためのもので、<b>同じ画像の
-	 * 置き場所を変えるだけ</b>が前提である。寸法の違う画像を指すと版面が
-	 * 変わり、シード番号が指す文書が黙って別物になる——過去の掃過結果と
-	 * 突き合わせられなくなるため、続行せずに落とす。
+	 * This setting relocates an image for faster I/O; it assumes <b>only the location of the same image changes</b>.
+	 * Pointing to an image with different dimensions changes the layout and silently changes the document
+	 * identified by a seed. That prevents comparison with past sweep results, so fail rather than continue.
 	 * </p>
 	 */
 	private static void checkFuzzImage() throws Exception {
@@ -574,7 +575,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
-	/** PNGのIHDRから寸法を読みます(読めなければnull)。 */
+	/** Read dimensions from PNG IHDR (null if unreadable). */
 	private static int[] pngSize(final File file) throws Exception {
 		if (!file.isFile()) {
 			return null;
@@ -585,7 +586,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				return null;
 			}
 		}
-		// 8バイトの署名 + 長さ4 + "IHDR" + 幅4 + 高さ4
+		// 8-byte signature + 4-byte length + "IHDR" + 4-byte width + 4-byte height.
 		if (head[0] != (byte) 0x89 || head[12] != 'I' || head[13] != 'H' || head[14] != 'D'
 				|| head[15] != 'R') {
 			return null;
@@ -599,12 +600,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 掃過を開始するシード({@code -Dfoliojet.fuzzFrom})。
+	 * Starting seed for the sweep ({@code -Dfoliojet.fuzzFrom}).
 	 *
 	 * <p>
-	 * <b>100年目標の3,000万文書は1回で回せない</b>(6,000万文書=28時間前後)。
-	 * 生成器は決定的なので、100万件ずつ30回に分けても連続実行と同じ文書集合に
-	 * なる。途中で落ちても、そこまでの結果は積算できる。
+	 * <b>The 30 million documents for the 100-year target cannot run in one batch</b>
+	 * (60 million documents ≈ 28 hours). The generator is deterministic, so 30 batches of one million
+	 * cover the same document set as a continuous run. Results up to a crash can still be accumulated.
 	 * </p>
 	 */
 	private static int seedFrom() {
@@ -612,7 +613,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return v == null ? 0 : Integer.parseInt(v);
 	}
 
-	/** 途中経過を出す間隔。3,000万件で3,000行——落ちても到達点が残る。 */
+	/** Progress reporting interval. 3,000 lines for 30 million cases; the last reached point survives a crash. */
 	private static final int PROGRESS_EVERY = 10_000;
 
 	private static int seedCount() {
@@ -621,79 +622,77 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>既知の未解決</b>: 末尾に空ページが1枚余分に出るシード。
+	 * <b>Known unresolved</b>: seeds producing one extra trailing empty page.
 	 *
 	 * <p>
-	 * <b>2026-07-26に既定シードの範囲では解消したので空にした。</b>
-	 * 原因は{@code BreakableBuilder.classifyFloatPlacement}が
-	 * 「箱だけがはみ出しているのか、はみ出した先に描くものがあるのか」を
-	 * 区別していなかったこと。区別を入れた
-	 * ({@code paintsNothingBeyondPage})結果、6,000シードでの発生が
-	 * <b>88件→47件</b>へ減り、既定60シードでは0件になった。
+	 * <b>Emptied on 2026-07-26 because these were resolved within the default seed range.</b>
+	 * The cause was {@code BreakableBuilder.classifyFloatPlacement} failing to distinguish
+	 * "only the box overflows" from "there is something to paint beyond the page".
+	 * Adding that distinction ({@code paintsNothingBeyondPage}) reduced occurrences in 6,000 seeds
+	 * from <b>88 to 47</b>, and to zero in the default 60 seeds.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>残り47件は別の機序</b>で、まだ縮小できていない。既定シードには
-	 * 当たらないので回帰は緑のまま、掃過
-	 * ({@code -Dfoliojet.fuzzReport=1 -Dfoliojet.fuzzSeeds=6000})でだけ
-	 * 見える。**この集合へ安易に追加しないこと**——追加は「直せないと
-	 * 判断した」という意思表示であり、既定の回帰から永久に隠れる。
+	 * <b>The remaining 47 cases have a different mechanism</b> and have not yet been reduced.
+	 * They lie outside the default seed range, so regressions stay green; only a sweep
+	 * ({@code -Dfoliojet.fuzzReport=1 -Dfoliojet.fuzzSeeds=6000}) reveals them.
+	 * **Do not casually add to this set**: doing so declares "we have decided we cannot fix this"
+	 * and permanently hides it from default regression checks.
 	 * </p>
 	 */
 	private static final java.util.Set<Integer> KNOWN_TRAILING_BLANK_PAGE = java.util.Set.of();
 
 	/**
-	 * <b>既知の未解決</b>: 変換が例外で終わるシード(2026-07-26、
-	 * 語彙を広げた掃過で発見)。2種類の不変条件違反がある。
+	 * <b>Known unresolved</b>: seeds whose conversions end with exceptions
+	 * (2026-07-26, found in a sweep with expanded vocabulary). Two types of invariant violation:
 	 *
 	 * <ul>
-	 * <li><b>textBuilderが開いたまま</b>ブロック境界を越える
-	 * ({@code BlockBuilder.requireNoOpenTextBuilder})。strictで400文書に1件</li>
-	 * <li><b>flowStackの深さと継続の深さが食い違う</b>
-	 * ({@code RootBuilder.pageBreak}の"break flow failed")。strictで1,000文書に1件</li>
+	 * <li>Crossing a block boundary <b>with textBuilder still open</b>
+	 * ({@code BlockBuilder.requireNoOpenTextBuilder}). One in 400 strict documents.</li>
+	 * <li><b>flowStack depth differs from continuation depth</b>
+	 * ("break flow failed" in {@code RootBuilder.pageBreak}). One in 1,000 strict documents.</li>
 	 * </ul>
 	 *
 	 * <p>
-	 * <b>どちらもfail closed済み</b>(2026-07-26に確認)。assertではなく
-	 * {@code ContinuationInvariantViolationException}なので、<b>本番でも
-	 * 変換が失敗する</b>——黙って壊れた出力を出すことはない。
-	 * {@code -PnoAssertions}で掃過しても件数が変わらないことで確かめた。
+	 * <b>Both already fail closed</b> (confirmed 2026-07-26). These throw
+	 * {@code ContinuationInvariantViolationException}, not assertions, so <b>conversion also fails
+	 * in production</b>, rather than silently producing broken output.
+	 * Confirmed by unchanged counts in sweeps with {@code -PnoAssertions}.
 	 * </p>
 	 *
 	 * <p>
-	 * fail closed化する前は実際に内容が消えていた(seed 890で
-	 * {@code column-count:3}のブロックが丸ごと落ちた)。どちらも改ページ・
-	 * 継続機構の中枢なので、原因を特定してから直す。
+	 * Before failing closed, content actually disappeared (an entire {@code column-count:3} block
+	 * was lost in seed 890). Both involve the core page-break/continuation mechanism,
+	 * so identify the cause before fixing them.
 	 * </p>
 	 */
 	private static final java.util.Set<Integer> KNOWN_INVARIANT_VIOLATION = java.util.Set.of();
 
 	/**
-	 * 統計用の集計モード({@code -Dfoliojet.fuzzReport})。早期打ち切りを
-	 * せず全シードを走らせ、<b>失敗の種別ごとの件数と初出シード</b>を
-	 * 出力する。これが「あと何件残っているか」「次の失敗まで何回か」の
-	 * 推定の入力になる。
+	 * Statistical aggregation mode ({@code -Dfoliojet.fuzzReport}). Run all seeds without early termination
+	 * and output <b>counts and first seeds per failure type</b>. This supplies estimates for
+	 * "how many remain" and "how many runs until the next failure".
 	 */
 	/**
-	 * watchdogを超えて生き残ったスレッドの数。<b>止められないので数える</b>。
+	 * Count of threads surviving the watchdog. <b>Count them because they cannot be stopped.</b>
 	 */
 	private static final java.util.concurrent.atomic.AtomicInteger LEAKED_WORKERS =
 			new java.util.concurrent.atomic.AtomicInteger();
 
 	/**
-	 * これを超えたら掃過ごと止める。漏れた1本はレイアウト1件分のヒープと
-	 * 64MBのスタック予約を抱えるので、数本で測定条件が変わってしまう。
+	 * Stop the entire sweep above this limit. One leaked thread retains one layout's heap and a 64 MB
+	 * stack reservation, so just a few alter measurement conditions.
 	 */
 	private static final int MAX_LEAKED_WORKERS = 4;
 
 	/**
-	 * 規模に比例した漏れワーカーの上限(2026-07-28)。
+	 * Scale-proportional leaked-worker limit (2026-07-28).
 	 *
 	 * <p>
-	 * 2万件で4本という値は、3,000万件では<b>確率的に必ず踏む</b>。
-	 * ただし上限を撤廃してはいけない——漏れた1本はレイアウト1件分のヒープと
-	 * 64MBのスタック予約を抱えるので、放置すると自己増幅する(§10.3)。
-	 * 止める設計は維持し、閾値だけを規模に比例させる(10万件に1本)。
+	 * A rate of four per 20,000 will <b>inevitably be hit probabilistically</b> at 30 million.
+	 * Do not remove the limit: each leaked thread retains one layout's heap and a 64 MB stack reservation,
+	 * so leaving them unchecked causes self-amplification (§10.3).
+	 * Keep the stop mechanism; only scale the threshold with volume (one per 100,000 cases).
 	 * </p>
 	 */
 	private static int maxLeakedWorkers() {
@@ -705,8 +704,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 既存の文書単位被覆と局所被覆で共通に使う機能語彙。
-	 * 順番はビット番号でもあるため、既存項目の並べ替えや途中挿入をしない。
+	 * Shared feature vocabulary for existing document-level and local coverage.
+	 * Order also determines bit numbers, so do not reorder existing entries or insert between them.
 	 */
 	private static final List<String> LOCAL_FEATURES = List.of("display:flex", "display:grid",
 			"display:inline-block", "display:list-item", "display:table", "display:none", "position:absolute",
@@ -774,8 +773,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			});
 
 	/**
-	 * 生成HTMLをXMLイベントとして走査する。HTML文字列の正規表現近似ではなく、
-	 * 実際の要素の親子・兄弟関係を使う。
+	 * Scan generated HTML as XML events. Use actual parent-child and sibling element relationships,
+	 * not regular-expression approximations of the HTML string.
 	 */
 	private static GenerationStructure inspectGeneratedStructure(final String html) {
 		final int firstLf = html.indexOf('\n');
@@ -820,7 +819,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				try {
 					reader.close();
 				} catch (final javax.xml.stream.XMLStreamException ignore) {
-					// StringReaderなので解放対象はない
+					// Nothing to release for a StringReader.
 				}
 			}
 		}
@@ -986,8 +985,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * サンプルからではなく、現在の生成スキーマの選択肢から到達可能分母を作る。
-	 * 観測側と食い違った場合はreportのoutsideSchemaが非0になる。
+	 * Derive the reachable denominator from current generation-schema choices, not samples.
+	 * A mismatch with observation produces a nonzero outsideSchema in the report.
 	 */
 	private static java.util.Set<CoverageKey> reachableLocalCombos(final boolean strict) {
 		java.util.Set<Long> layout = java.util.Set.of(0L);
@@ -1157,9 +1156,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 						new java.util.concurrent.ConcurrentHashMap<>();
 
 		/**
-		 * 紙面外の検査(不変条件6)が生きている文書の数(2026-10-07)。除外の述語は文書単位なので、変換の前に
-		 * HTML から数えられる。両軸=どの除外にも当たらない、ページ軸=直交フローの行軸の除外だけ当たる
-		 * (ページ軸へのはみ出しは見る)。
+		 * Count documents with active off-paper checks (invariant 6) (2026-10-07). Exclusion predicates apply per document,
+		 * so count from HTML before conversion. Both axes = no exclusion applies; page axis = only the orthogonal-flow
+		 * inline-axis exclusion applies (still check page-axis overflow).
 		 */
 		final java.util.concurrent.atomic.LongAdder offPageDocs = new java.util.concurrent.atomic.LongAdder();
 		final java.util.concurrent.atomic.LongAdder offPageLive = new java.util.concurrent.atomic.LongAdder();
@@ -1192,21 +1191,20 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>紙面に収まらない箱を含む文書</b>で白紙ページが出た、という印
-	 * (2026-07-26新設)。失敗ではなく<b>除外</b>として扱う。
+	 * Marker for blank pages in a <b>document containing boxes that cannot fit on the paper</b>
+	 * (added 2026-07-26). Treat as an <b>exclusion</b>, not a failure.
 	 *
 	 * <p>
-	 * 2026-07-26のユーザー裁定: 「意図的にやらないとこうはならないと
-	 * 言えるレアケースは、デザイナの責任として取りこぼしてよい」。
-	 * 紙面より大きい不可分な箱を置いた文書は、エンジンがどう振る舞っても
-	 * ——はみ出させるか、次ページへ送るか——版面が破綻している。
+	 * User decision on 2026-07-26: "Rare cases that cannot occur without deliberate action
+	 * may be left to the designer's responsibility." A document placing an indivisible box
+	 * larger than the paper has an unworkable layout regardless of what the engine does:
+	 * allow overflow or move it to the next page.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>例外にしているのは、集計モードで件数を出すため。</b> 単に検査を
-	 * 飛ばすと、除外が増えたことに気づけなくなる。除外の増加は
-	 * 「生成器が変わった」か「本当の退行が除外に紛れ込んだ」かの
-	 * どちらかであり、どちらも見逃してはならない。
+	 * <b>Use an exception so aggregation mode can count these cases.</b> Simply skipping checks
+	 * hides growth in exclusions. More exclusions mean either "the generator changed" or
+	 * "a real regression slipped into exclusions"; neither should go unnoticed.
 	 * </p>
 	 */
 	private static final class ExcludedByOversizedBox extends AssertionError {
@@ -1218,34 +1216,32 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>直交フローが親の行軸へはみ出した</b>、という印(2026-07-28新設)。
-	 * 失敗ではなく<b>除外</b>として扱う。
+	 * Marker for <b>an orthogonal flow overflowing the parent's inline axis</b> (added 2026-07-28).
+	 * Treat as an <b>exclusion</b>, not a failure.
 	 *
 	 * <p>
-	 * 縦書きの中の横書き(またはその逆)は、2026-07-22の改ページ契約で
-	 * <b>原子的</b>と定めた({@code ContinuationCapability.ORTHOGONAL_FLOW}、
-	 * {@code supportsPageSplitThrough}が{@code false})。その箱が親の
-	 * <b>行軸</b>方向に紙面を超えると、エンジンには打つ手がない——
-	 * 改ページが進むのは<b>ページ軸</b>で、新しい紙は行軸に新しい空間を
-	 * 与えないからである(実測: 3ページ目へ送っても{@code y=0.00→100.80}
-	 * のまま1ptも変わらない)。
+	 * Horizontal writing inside vertical writing (or vice versa) is <b>atomic</b> under the page-break
+	 * contract of 2026-07-22 ({@code ContinuationCapability.ORTHOGONAL_FLOW},
+	 * {@code supportsPageSplitThrough} is {@code false}). If that box exceeds the paper along
+	 * the parent's <b>inline axis</b>, the engine has no remedy: page breaks advance along
+	 * the <b>page axis</b>, and a new sheet adds no inline-axis space
+	 * (measured: moving it to page 3 still left {@code y=0.00→100.80}, without even a 1 pt change).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>CSS標準はこれを「自動段組化」で解こうとしている</b>
-	 * (css-writing-modes-4 §7.3 auto-multicol: はみ出した内容を包含ブロックの
-	 * 流れ方向へ段として折り返し、T字型ドキュメントを避ける)。しかし
-	 * 当の仕様が<b>at-risk</b>(CR期間中に削除されうる)と認めており、
-	 * 「この要件は<b>すべてのブロックコンテナ</b>に多段組フローを自動的に
-	 * 発生させる」と自ら書いている。Blinkは旧実装の切り刻みを<b>やめて</b>
-	 * 単体内容を溢れさせる方針へ移り、WPTにも「長い直交フローが分断される」
-	 * ことを要求するテストは1件も無い(2026-07-28にコーパスを実査)。
+	 * <b>The CSS standard attempts to solve this with "automatic multi-column layout"</b>
+	 * (css-writing-modes-4 §7.3 auto-multicol: wrap overflowing content into columns along the containing
+	 * block's flow direction, avoiding T-shaped documents). However, the specification itself marks this
+	 * <b>at-risk</b> (subject to removal during CR) and states that "this requirement automatically creates
+	 * a multi-column flow in <b>every block container</b>." Blink <b>abandoned</b> its old slicing behavior
+	 * in favor of allowing atomic content to overflow. WPT also has no test requiring
+	 * "fragmentation of a long orthogonal flow" (corpus inspected on 2026-07-28).
 	 * </p>
 	 *
 	 * <p>
-	 * したがって<b>溢れさせるのは実ブラウザと同じ挙動</b>であり、
-	 * 組版を指定した側の責任とする(2026-07-28のユーザー裁定)。
-	 * ARCHITECTURE.md §5.13「仕様(=組版を指定した側の責任)」に連なる。
+	 * Thus <b>allowing overflow matches real browsers</b> and is the layout author's responsibility
+	 * (user decision on 2026-07-28). This follows ARCHITECTURE.md §5.13,
+	 * "Specification (= responsibility of the layout author)".
 	 * </p>
 	 */
 	private static final class ExcludedByOrthogonalLineAxis extends AssertionError {
@@ -1257,17 +1253,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>組版できない幅の浮動体または包含ブロック</b>から白紙ページ・
-	 * 紙面外配置が出た、という印
-	 * (2026-07-29新設)。失敗ではなく<b>除外</b>として扱う。
+	 * Marker for blank pages or off-paper placement from <b>a float or containing block with
+	 * an untypesettable width</b> (added 2026-07-29). Treat as an <b>exclusion</b>, not a failure.
 	 *
 	 * <p>
-	 * 判定は{@link #hasUntypesettableFloat}——明示した寸法が基準フォントの
-	 * 8倍(=約8文字)未満の浮動体、同じ下限未満の祖先に入った浮動体、または
-	 * 親・段幅より広い左右フロートがあること。欄が組版できない幅なら中身は
-	 * 必ず溢れ、CSSの{@code overflow:visible}によりそれは<b>正しい挙動</b>で
-	 * ある。{@code isTinyPage}(紙面が組版できない大きさ)と同じ物差しを
-	 * 欄に当てたもの。
+	 * {@link #hasUntypesettableFloat} checks for a float with an explicit dimension below eight times
+	 * the base font size (= about eight characters), a float within an ancestor below that same limit,
+	 * or a left/right float wider than its parent/column. If the area is too narrow for layout,
+	 * its content must overflow, which under CSS {@code overflow:visible} is <b>correct behavior</b>.
+	 * Apply the same criterion as {@code isTinyPage} (paper too small for layout) to an area.
 	 * </p>
 	 */
 	private static final class ExcludedByUntypesettableFloat extends AssertionError {
@@ -1279,39 +1273,39 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>直交フローが3段以上入れ子になった</b>文書での紙面外配置、という印
-	 * (2026-07-30新設)。失敗ではなく<b>除外</b>として扱う。
+	 * Marker for off-paper placement in a document with <b>three or more nested orthogonal-flow levels</b>
+	 * (added 2026-07-30). Treat as an <b>exclusion</b>, not a failure.
 	 *
 	 * <p>
-	 * 2026-07-30のユーザー裁定(seed 5448946)。{@code body}が
-	 * {@code vertical-rl}、その中が{@code horizontal-tb}、さらにその中が
-	 * {@code vertical-lr}——のように軸が2回以上入れ替わると、内容は紙の
-	 * 外へ出て<b>1文字も見えなくなる</b>。実測(60x60ptの紙):
+	 * User decision on 2026-07-30 (seed 5448946). When axes switch twice or more, for example
+	 * {@code body} is {@code vertical-rl}, with {@code horizontal-tb} inside and then
+	 * {@code vertical-lr} further inside, content extends outside the paper and <b>not a single character
+	 * is visible</b>. Measured on 60×60 pt paper:
 	 * </p>
 	 *
 	 * <pre>
-	 * T0 x= 60.50   T1 x= 93.66   T3 x=109.90   T4 x=126.14   (出力は1ページ)
+	 * T0 x= 60.50   T1 x= 93.66   T3 x=109.90   T4 x=126.14   (output: 1 page)
 	 * </pre>
 	 *
 	 * <p>
-	 * <b>これは座標変換の誤りではない。</b>{@code vertical-rl}のblock開始辺は
-	 * 紙の<b>右端</b>である。その中でblock方向が{@code +x}へ反転すれば、
-	 * 右端から外向きに進む。だから先頭が{@code 紙幅+0.5pt}に来る——
-	 * 向きの反転を素直に合成した結果であり、紙幅を変えるとずれも比例する
-	 * (200pt幅なら{@code x=200.5})。
+	 * <b>This is not a coordinate-transform error.</b> The block-start edge of {@code vertical-rl}
+	 * is the paper's <b>right edge</b>. Reversing the block direction to {@code +x} inside it
+	 * advances outward from that edge, putting the start at {@code paper width+0.5pt}.
+	 * This directly composes the direction reversals; changing paper width changes the offset proportionally
+	 * ({@code x=200.5} at 200 pt width).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>正解が定義できない。</b>直交フローの利用可能blockサイズは
-	 * css-writing-modes-4 §7.3でも曖昧で、実ブラウザ間でも一致しない。
-	 * ここが3段になると「どこで改ページすべきか」に定義が無い。
-	 * 400万文書に1件、現実の帳票や書籍では起きない形である。
+	 * <b>No correct result can be defined.</b> Available block size for orthogonal flows is ambiguous
+	 * even in css-writing-modes-4 §7.3 and differs across real browsers. With three levels,
+	 * "where to break pages" is undefined. This occurs once per four million documents,
+	 * in a structure absent from real forms or books.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>除外は狭く限定する。</b>判定は{@link #orthogonalAxisChanges}が2以上
-	 * ——軸が2回入れ替わることだけを見る。「直交フローを含む」まで広げると、
-	 * 普通の縦書き文書での本物の紙面外バグを見逃す。
+	 * <b>Keep the exclusion narrow.</b> Require {@link #orthogonalAxisChanges} of at least two,
+	 * checking only that the axes switch twice. Broadening it to "contains an orthogonal flow"
+	 * would miss real off-paper bugs in ordinary vertical-writing documents.
 	 * </p>
 	 */
 	private static final class ExcludedByNestedOrthogonalFlow extends AssertionError {
@@ -1323,29 +1317,29 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>組版できない幅の縦書きフローでページ進行方向を反転した</b>文書での
-	 * 紙面外配置、
-	 * という印(2026-08-15新設)。失敗ではなく<b>除外</b>として扱う。
+	 * Marker for off-paper placement in a document that <b>reverses page progression in a vertical flow
+	 * with an untypesettable width</b> (added 2026-08-15).
+	 * Treat as an <b>exclusion</b>, not a failure.
 	 *
 	 * <p>
-	 * seed 36607は{@code vertical-rl}の親の中に幅48ptの
-	 * {@code vertical-lr}を置き、その子へ幅86pt、さらに幅125ptの箱を置く。
-	 * 縮小した最小形は{@code vertical-rl}の親の中に
-	 * {@code writing-mode:vertical-lr;width:0pt}を置き、その子を再び
-	 * {@code vertical-rl}にする。幅0の辺が紙面右端にあり、そこでページ進行を
-	 * {@code +x}へ反転するため、子は右端から紙面外へ伸びる。Chromeでも同じ
-	 * 配置になるので、座標変換の欠陥ではなく、明示したゼロ幅と
-	 * {@code overflow:visible}の帰結である。
-	 * seed 82162の最小形は10pt文字に対して幅1ptの反転フローへ
-	 * {@code list-item}と表を詰めたものだった。
+	 * Seed 36607 places a 48 pt wide {@code vertical-lr} inside a {@code vertical-rl} parent,
+	 * then an 86 pt wide child box and a further 125 pt wide box inside it. The reduced minimal case
+	 * places {@code writing-mode:vertical-lr;width:0pt} inside a {@code vertical-rl} parent,
+	 * then makes its child {@code vertical-rl} again. The zero-width edge lies at the paper's right edge,
+	 * where page progression reverses to {@code +x}, so the child extends off-paper from that edge.
+	 * Chrome produces the same placement; this follows from the explicit zero width and
+	 * {@code overflow:visible}, not a coordinate-transform defect.
+	 * The minimal case for seed 82162 packs a {@code list-item} and a table into a reversed flow
+	 * 1 pt wide with 10 pt text.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>除外はこの形だけに限定する。</b>{@link #hasUntypesettableOppositeProgression}
-	 * は、同じ縦軸の親子で{@code vertical-rl}/{@code vertical-lr}が反転し、
-	 * 反転した要素自身の幅が基準フォント8文字分未満、またはその幅より広い
-	 * 明示幅の子孫がある場合だけ真になる。単なる同軸反転、組版できる幅、
-	 * 直交フロー、別軸の{@code height:0}は除外しない。
+	 * <b>Limit the exclusion to this shape.</b> {@link #hasUntypesettableOppositeProgression}
+	 * is true only when a parent-child pair on the same vertical axis reverses
+	 * {@code vertical-rl}/{@code vertical-lr}, and the reversed element's width is less than eight
+	 * base-font characters, or an explicitly wider descendant exists.
+	 * Do not exclude mere same-axis reversal, typesettable widths, orthogonal flows,
+	 * or {@code height:0} on another axis.
 	 * </p>
 	 */
 	private static final class ExcludedByUntypesettableOppositeProgression extends AssertionError {
@@ -1356,7 +1350,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
-	/** 軸を変えた子へ基準文字送り未満の幅を明示した組版不能入力。 */
+	/** Untypesettable input explicitly giving an axis-changing child a width below the base character advance. */
 	private static final class ExcludedByUntypesettableOrthogonalFlow extends AssertionError {
 		private static final long serialVersionUID = 1L;
 
@@ -1366,14 +1360,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * flex項目の自動最小幅に、段組表のmin-content幅が効いた紙面外配置。
+	 * Off-paper placement where a multi-column table's min-content width affects a flex item's automatic minimum width.
 	 *
 	 * <p>
-	 * CSS Flexbox §4.5では非スクロールflex項目の自動最小幅をcontent-based
-	 * minimumとする。seed 473924の最小形は単一flex項目の中に3段組と表を
-	 * 入れたもので、表のmin-content幅を段数分確保するため版面より広くなる。
-	 * {@code min-width:0}を指定しない作者側CSSの帰結なので専用除外にする。
-	 * 判定は{@link #hasFlexMulticolTable}の実際の祖先関係だけに限定する。
+	 * CSS Flexbox §4.5 defines the automatic minimum width of a non-scrollable flex item as content-based minimum.
+	 * The minimal case for seed 473924 puts three columns and a table inside one flex item.
+	 * Reserving the table's min-content width for each column exceeds the type area.
+	 * This follows from author CSS omitting {@code min-width:0}, so use a dedicated exclusion.
+	 * Limit the predicate to actual ancestry checked by {@link #hasFlexMulticolTable}.
 	 * </p>
 	 */
 	private static final class ExcludedByFlexMulticolMinContent extends AssertionError {
@@ -1385,21 +1379,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 版面に<b>物理的に収まらない内容</b>を置いた文書の紙面外配置(2026-09-17新設)。
+	 * Off-paper placement in documents containing <b>content that physically cannot fit</b> in the type area
+	 * (added 2026-09-17).
 	 *
 	 * <p>
-	 * 36M掃過(seed 2,000,000〜5,249,999)でエンジン側の欠陥を直し切ったあとに残った
-	 * 紙面外31件は、縮小すると「割れないルビが行より長い」「段が組版できない幅」
-	 * 「{@code min-width}が入れ物より広い」「狭い浮動体」へ収束した。2026-07-26の裁定
-	 * (収まらないものを置いた文書は除外。寸法を直すのは指定した側の責任)と同じ性質だが、
-	 * {@link #isOversized}は{@code width}/{@code height}/字の大きさしか見ないので漏れていた。
-	 * 2026-09-17のユーザー裁定で検出器を同じ性質の別表現へ広げた。
-	 * 判定は{@link #findUnfittableContent}の入れ子をたどった静的な下限見積りだけで行う。
+	 * After fixing all engine defects in the 36M sweep (seeds 2,000,000–5,249,999), the 31 remaining off-paper cases
+	 * reduced to "indivisible ruby longer than the line", "columns too narrow for layout",
+	 * "{@code min-width} wider than its container", or "narrow floats". These share the nature of the 2026-07-26
+	 * decision (exclude documents placing content that cannot fit; correcting dimensions is the author's
+	 * responsibility), but {@link #isOversized} missed them because it checks only {@code width}/{@code height}/font size.
+	 * The user decision on 2026-09-17 expanded the detector to other expressions of the same condition.
+	 * Use only static lower-bound estimates that follow nesting in {@link #findUnfittableContent}.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>紙面外の検査にだけ使う</b>(白紙・内容の消失・読み順・複製・変換の失敗には適用しない)。
-	 * 集計では理由ごとに別の種別として数える——除外の内訳が変わったことに気づくため。
+	 * <b>Use only for off-paper checks</b> (not blank pages, content loss, reading order, duplication, or conversion failure).
+	 * Aggregate each reason as a separate category to notice changes in the exclusion breakdown.
 	 * </p>
 	 */
 	private static final class ExcludedByUnfittableContent extends AssertionError {
@@ -1412,7 +1407,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
-	/** 失敗メッセージから種別(defect class)を粗く取り出す。 */
+	/** Roughly extract the category (defect class) from a failure message. */
 	static String classify(final Throwable t) {
 		for (Throwable c = t; c != null; c = c.getCause()) {
 			if (c instanceof PageCountLimitExceeded) {
@@ -1440,13 +1435,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (t instanceof ExcludedByUnfittableContent) {
 			return "(除外)収まらない内容: " + ((ExcludedByUnfittableContent) t).reason;
 		}
-		// 捕捉するのはラッパ(AssertionError)なので、**cause鎖の全メッセージ**を
-		// 連結して判定する。t.getMessage()だけを見ると常にラッパの文言に
-		// なり、種別が1つに潰れる(2026-07-26に踏んだ)
+		// We catch a wrapper (AssertionError), so concatenate **all messages in the cause chain**
+		// for classification. Looking only at t.getMessage() always yields the wrapper message,
+		// collapsing all categories into one (encountered on 2026-07-26).
 		if (t instanceof ExcludedByOversizedBox) {
-			// 除外の理由は同じ(版面が破綻した文書)だが、どちらの不変条件が
-			// 引っかかったのかは残す——除外の内訳が変わったことに
-			// 気づけなくなるため
+			// The exclusion reason is the same (unworkable type area), but retain which invariant
+			// triggered it; otherwise, changes in the exclusion breakdown
+			// would go unnoticed.
 			return String.valueOf(t.getMessage()).startsWith("白紙ページ") ? "(除外)版面が破綻した文書の白紙ページ"
 					: "(除外)版面が破綻した文書の紙面外配置";
 		}
@@ -1455,13 +1450,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			chain.append(String.valueOf(c.getMessage())).append('\0');
 		}
 		final String m = chain.toString();
-		// 変換エラーは**メッセージの形**で種別を分ける。もとの
-		// AssertionErrorのスタックはTranscoderExceptionへ包む段で
-		// 失われており(causeにも入らない)、発生箇所では分けられない。
-		// 種別を粗くすると「残り何件か」の推定が過小になる(2026-07-26)
+		// Classify conversion errors by **message shape**. The original AssertionError stack
+		// is lost when wrapping in TranscoderException
+		// (not preserved in cause either), so classification by failure location is impossible.
+		// Coarse categories underestimate "how many remain" (2026-07-26).
 		if (m.contains("auto page break repeated")) {
-			// livelockガードが止めたもの。`Unexpected error.`を含むので、
-			// 分けないとtextBuilderの枠に紛れて集計が嘘になる(2026-07-27)
+			// Stopped by the livelock guard. Includes `Unexpected error.`, so without a separate category
+			// it gets mixed into textBuilder, falsifying the aggregate (2026-07-27).
 			return "進捗のない自動改ページ(ガードが停止)";
 		}
 		if (m.contains("再生範囲") || m.contains("range is not intact")) {
@@ -1473,15 +1468,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (m.contains("text builder still open")) {
 			return "不変条件: textBuilderが開いたまま";
 		}
-		// **ここで`Unexpected error.`を丸めない**(2026-07-28)。
-		// これは TranscoderException の汎用ラッパ文言で、原因を問わず付く。
-		// 以前はこれを「textBuilderが開いたまま」と決めつけており、
-		// **まったく別の欠陥をその名前で報告していた**——実際に踏んだ:
-		// assert が落ちたのは `textBuilder != null` の側、つまり
-		// **開いていたのではなく null だった**のに、名前がそう言わないので
-		// 私(と修正者)は誤った機序を追いかけた。
-		// 名前の付いていない変換失敗は**発生箇所で分ける**(detailKey)。
-		// 同じ文言でも別の場所で落ちていれば別の欠陥である。
+		// **Do not collapse `Unexpected error.` here** (2026-07-28).
+		// It is a generic TranscoderException wrapper message, attached regardless of cause.
+		// Previously, we assumed it meant "textBuilder left open",
+		// **reporting completely different defects under that name**. An actual case:
+		// the failing assertion was on the `textBuilder != null` side, meaning
+		// **it was null, not open**. Since the label did not say that,
+		// I (and the fixer) pursued the wrong mechanism.
+		// Classify unnamed conversion failures **by their location** (detailKey).
+		// The same message at different failure locations represents different defects.
 		if (m.contains("白紙ページ")) {
 			return "白紙ページ";
 		}
@@ -1504,9 +1499,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 			return "掃過が過負荷(測定不能)";
 		}
 		if (m.contains("watchdog超過")) {
-			// **「停止しない」と言い切らない**。掃過が過負荷のときは正常な
-			// 文書でも超える(2026-07-27に実証)。無限ループの証拠には
-			// ならないので、種別名でそれを明示する
+			// **Do not assert "nontermination"**. Under an overloaded sweep, even normal documents
+			// exceed the limit (demonstrated on 2026-07-27). This does not prove an infinite loop,
+			// so make that clear in the category name.
 			return "watchdog超過(停止性は未確定)";
 		}
 		if (m.contains("ページ数が過大")) {
@@ -1521,9 +1516,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 例外の**発生箇所**(スタックの最上位のfoliojetフレーム)まで見て
-	 * 種別を分ける。同じ例外型でも別の欠陥なら別種として数えるため——
-	 * ここを粗くすると「残り何件か」の推定が過小になる。
+	 * Classify using the exception's **location** (the topmost foliojet stack frame) too,
+	 * so different defects with the same exception type count separately.
+	 * Coarse classification underestimates "how many remain".
 	 */
 	private static String detailKey(final Throwable t) {
 		Throwable c = t;
@@ -1576,14 +1571,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 集計モードの並列度({@code -Dfoliojet.fuzzThreads})。既定は
-	 * 「コア数-2」。数百万文書の掃過は並列化しないと現実的な時間に
-	 * 収まらない(2026-07-26に「20年間エラーなし」を目標化した際に追加)。
+	 * Aggregation-mode parallelism ({@code -Dfoliojet.fuzzThreads}). Defaults to "core count - 2".
+	 * Sweeping millions of documents takes an impractical time without parallelism
+	 * (added on 2026-07-26 when setting the goal of "20 years without errors").
 	 *
 	 * <p>
-	 * 変換は文書ごとに独立で、エンジン自身もサーバ用途で並行変換を
-	 * 前提にしている(状態はThreadLocal)。1文書=1スレッドという
-	 * 既存の構造をそのまま横に並べるだけで、判定内容は変えない。
+	 * Conversions are independent per document, and the engine itself assumes concurrent server conversions
+	 * (state is ThreadLocal). Simply run the existing one-document-per-thread structure side by side;
+	 * do not change the checks.
 	 * </p>
 	 */
 	private static int sweepThreads() {
@@ -1595,9 +1590,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 大規模掃過では、入力ごとに発生しうる既知のWARNINGを標準エラーへ流さない。
-	 * 旧ジョブは8万seedで20MBに達し、extremeは1文書の要素数が約1,000なので
-	 * ログI/Oが探索を支配する。例外・オラクル違反は別経路で必ず分類される。
+	 * In large sweeps, suppress known per-input WARNING messages on stderr.
+	 * The old job reached 20 MB at 80,000 seeds; extreme has about 1,000 elements per document,
+	 * so log I/O dominates exploration. Exceptions and oracle violations are always classified separately.
 	 */
 	private static void configureSweepLogging() {
 		configureFuzzLogging(java.util.logging.Level.SEVERE);
@@ -1612,8 +1607,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			for (final java.util.logging.Handler handler : root.getHandlers()) {
 				handler.setLevel(level);
 			}
-			// 既に独自handlerを持つ子loggerも塞ぐ。以後生成されるloggerは
-			// packageLoggerを継承し、root handlerでもWARNINGを捨てる。
+			// Also silence child loggers that already have their own handlers. Loggers created later inherit
+			// packageLogger, and the root handler also discards WARNING messages.
 			final java.util.logging.LogManager manager = java.util.logging.LogManager.getLogManager();
 			final java.util.Enumeration<String> names = manager.getLoggerNames();
 			while (names.hasMoreElements()) {
@@ -1630,7 +1625,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
-	/** 集計モードの並列掃過。判定は{@link #checkOne}で共通。 */
+	/** Parallel sweep in aggregation mode. Share checks through {@link #checkOne}. */
 	private void sweepParallel(final boolean strict, final int seeds) throws Exception {
 		configureSweepLogging();
 		final int threads = sweepThreads();
@@ -1659,9 +1654,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 					x -> new java.util.concurrent.atomic.AtomicInteger()).incrementAndGet();
 			rememberSeed(defectSeeds, normalized, seed);
 		};
-		// 依存ライブラリの遅延初期化を並列に競わせると、冷間起動時だけ
-		// DirectSessionの初期化が失敗することがある。最初の1件を直列に
-		// 完了させてからワーカーを放つ(このシードも集計件数に含む)。
+		// Racing lazy initialization of dependency libraries can cause DirectSession initialization
+		// to fail only on cold startup. Complete the first case serially
+		// before releasing workers (include this seed in the aggregate count too).
 		if (seeds > 0) {
 			try {
 				checkSweepDocument(from, strict, measurements);
@@ -1728,7 +1723,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		System.out.println("[fuzzReport] mode=" + mode + " 出力ページ数分布 "
 				+ measurements.pages.summary());
 		System.out.println("[fuzzReport] mode=" + mode + " 紙面外検査の生存 " + measurements.offPageSummary());
-		// 計画に選ばれない開いた箱の救済を止めた回数(2026-10-07、OpenBoxes。JVM 全体の累計)
+		// Count of prevented rescue attempts on open boxes not selected by the plan (2026-10-07, OpenBoxes; JVM-wide total).
 		System.out.println("[fuzzReport] mode=" + mode + " 開いた箱の救済の抑止(計画外) "
 				+ net.zamasoft.foliojet.layout.fragment.OpenBoxes.UNSELECTED_RESCUES_PREVENTED.get());
 		reportLocalCoverage(strict, measurements.coverage);
@@ -1981,14 +1976,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>1文書あたり何機能を網羅したか</b>を測ります(2026-08-02、ユーザー
-	 * 指摘)。「N文書・0失敗」は単機能の信頼度しか語らない——欠陥は機能の
-	 * <b>組み合わせ</b>に居るので、指標は<b>ペア被覆率</b>(全機能ペアのうち
-	 * 実際に同居したペアの割合)にする。
+	 * Measure <b>how many features each document covers</b> (2026-08-02, user feedback).
+	 * "N documents, zero failures" describes only single-feature reliability; defects live in
+	 * <b>combinations</b>, so use <b>pair coverage</b>: the fraction of all feature pairs
+	 * that actually co-occur.
 	 *
 	 * <p>
-	 * 文書の生成は決定的なので、掃過とは別に作り直して数えても同じ集合に
-	 * なる(変換はしないため安い)。標本は先頭2,000シードまで。
+	 * Document generation is deterministic, so regenerating and counting separately from a sweep
+	 * produces the same set (cheap because there is no conversion). Sample up to the first 2,000 seeds.
 	 * </p>
 	 */
 	private static void reportFeatureCoverage(final boolean strict, final int seeds, final int from) {
@@ -2033,7 +2028,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				+ tways + " (標本" + sample + "文書)");
 	}
 
-	/** {@code n}個から{@code t}個を選ぶ組の数です。 */
+	/** Number of combinations choosing {@code t} from {@code n}. */
 	private static long binomial(final int n, final int t) {
 		long v = 1;
 		for (int i = 0; i < t; ++i) {
@@ -2043,9 +2038,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 文書が持つ機能の集合から、t個の組(t=2..5)を全て列挙して記録します
-	 * (2026-08-02、ユーザー指摘——組み合わせはペアで止めない)。機能は
-	 * 63種以下なので、組は{@code long}のビットマスクで一意に表せる。
+	 * Enumerate and record every t-feature combination (t=2..5) from a document's feature set
+	 * (2026-08-02, user feedback: do not stop at pairs). With at most 63 features,
+	 * a {@code long} bitmask uniquely represents each combination.
 	 */
 	private static void recordCombos(final int[] present, final int count,
 			final java.util.Map<Integer, java.util.Set<Long>> combos) {
@@ -2080,14 +2075,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	private void sweep(final boolean strict) throws Exception {
-		// **失敗したシードを自動で最小化する入口**(2026-07-28新設)。
-		// 掃過は数分で終わるのに1件の診断に数時間かかるので、縮小は
-		// 機械にやらせる。述語の作り方は {@link FuzzShrinker} を参照
-		// ——ここを雑に書くと偽の最小形が出る(LESSONS.md §3.15)
+		// **Entry point for automatically minimizing a failed seed** (added 2026-07-28).
+		// Sweeps finish in minutes, but diagnosing one case takes hours; let the machine
+		// reduce it. See {@link FuzzShrinker} for predicate construction.
+		// Careless predicates produce false minimal cases (LESSONS.md §3.15).
 		final String shrinkSeed = System.getProperty("foliojet.fuzzShrink");
 		if (shrinkSeed != null) {
-			// 同じAssertionErrorを数千候補で再現するため、DirectSessionの
-			// SEVEREスタックを毎回流さない。縮小器の分類・進捗は標準出力。
+			// Reproducing the same AssertionError across thousands of candidates must not print
+			// DirectSession's SEVERE stack every time. Shrinker classifications and progress go to stdout.
 			configureFuzzLogging(java.util.logging.Level.OFF);
 			final String mode = System.getProperty("foliojet.fuzzShrinkMode", "strict");
 			if ("both".equals(mode) || strict == "strict".equals(mode)) {
@@ -2095,8 +2090,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			return;
 		}
-		// **ファイルを縮小する入口**(2026-07-28新設)。手で書いた再現文書や、
-		// 縮小器自身の検算(答えの分かっている文書を水増ししてから縮小させる)に使う
+		// **Entry point for reducing a file** (added 2026-07-28). Use for handwritten reproducers or
+		// checking the shrinker itself (inflate a document with a known answer, then reduce it).
 		final String shrinkFile = System.getProperty("foliojet.fuzzShrinkFile");
 		if (shrinkFile != null) {
 			if (strict) {
@@ -2104,9 +2099,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			return;
 		}
-		// **任意のHTMLを同じ検査にかける入口**(2026-07-28新設)。縮小した
-		// 文書が「生成器を通さない普通の経路」でも同じ種別で落ちることを
-		// 確かめるために使う
+		// **Entry point for applying the same checks to arbitrary HTML** (added 2026-07-28). Use it
+		// to verify that a reduced document also fails in the same category through
+		// the normal path that bypasses the generator.
 		final String checkFile = System.getProperty("foliojet.fuzzCheckFile");
 		if (checkFile != null) {
 			if (strict) {
@@ -2114,9 +2109,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			return;
 		}
-		// 修正後に既知の分類seedだけを一括再検査する入口。1seedずつGradleを
-		// 起動するとコンパイル・JVM起動が支配するため、カンマ区切りを同じ
-		// テストJVMで最後まで走らせ、実失敗だけをまとめて落とす。
+		// Entry point for batch rechecking only known classified seeds after a fix. Starting Gradle
+		// for each seed is dominated by compilation and JVM startup, so run a comma-separated list
+		// to completion in one test JVM and fail collectively only for actual failures.
 		final String selected = System.getProperty("foliojet.fuzzOnlySeeds");
 		if (selected != null) {
 			final boolean v1 = System.getProperty("foliojet.fuzzV1") != null;
@@ -2143,14 +2138,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			assertTrue(String.join("\n", failures), failures.isEmpty());
 			return;
 		}
-		// **特定のシードだけを走らせる入口**(2026-07-27新設)。
-		// 大規模な掃過では成果物を使い回して捨てるので、後から
-		// 「seed 27648で内容が消えた」と分かっても再現できなかった。
-		// 生成器は決定的なので、シードを指定すれば必ず同じ文書になる。
+		// **Entry point for running a specific seed only** (added 2026-07-27).
+		// Large sweeps reuse and discard artifacts, so discovering later
+		// that "content disappeared at seed 27648" previously left no reproducer.
+		// The generator is deterministic: specifying the seed always yields the same document.
 		final String only = System.getProperty("foliojet.fuzzOnlySeed");
 		if (only != null) {
 			final int seed = Integer.parseInt(only);
-			// -Dfoliojet.fuzzV1=1 でv1分布の再現(旧掲過seedの検証用)
+			// -Dfoliojet.fuzzV1=1 reproduces the v1 distribution (for verifying old sweep seeds).
 			final boolean v1 = System.getProperty("foliojet.fuzzV1") != null;
 			System.out.println("[fuzzOnly] generator=" + (v1 ? "1" : generatorLabel()) + " mode="
 					+ (strict ? "strict" : "wild") + " seed=" + seed);
@@ -2163,11 +2158,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 				System.out.println("[fuzzOnly]   通った");
 			} catch (final Throwable t) {
 				System.out.println("[fuzzOnly]   " + classify(t) + " : " + t);
-				// **必ず落とすこと**(2026-07-29)。以前はここで握り潰して
-				// いたため、このモードは失敗しても常に exit=0・failures=0 を
-				// 返した。「修正できた」と誤認する事故が実際に起きた
-				// (seed 213026。掃過は落ち続けていたのに、この入口で
-				// 確認して直ったと報告した)。表示だけの確認装置は嘘をつく。
+				// **Always fail** (2026-07-29). Previously, swallowing failures here made this mode
+				// always return exit=0 and failures=0,
+				// even on failure. This actually caused a false "fixed" conclusion
+				// (seed 213026: the sweep kept failing, but checking through this entry point
+				// led to reporting it fixed). A display-only checker lies.
 				throw new AssertionError("seed " + seed + " (" + (strict ? "strict" : "wild") + ") が失敗した: " + t, t);
 			}
 			return;
@@ -2192,7 +2187,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 							+ "KNOWN_TRAILING_BLANK_PAGE から外すこと");
 				}
 			} catch (final ExcludedByOversizedBox excluded) {
-				// 除外。集計モードでのみ数える(sweepParallel側で拾う)
+				// Exclusion. Count only in aggregation mode (caught by sweepParallel).
 				continue;
 			} catch (final Throwable t) {
 				if (report) {
@@ -2210,7 +2205,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				}
 				failures.add("seed=" + seed + " (" + (strict ? "strict" : "wild") + "): " + t);
 				if (failures.size() >= 5) {
-					break; // 最初の数件で十分。全件走らせても情報が増えない
+					break; // The first few cases suffice. Running all cases adds no information.
 				}
 			}
 		}
@@ -2238,19 +2233,19 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return checkOne(seed, strict, generate(seed, strict), null);
 	}
 
-	/** 歴史的seedの検査はv1の入力分布で行う(期待値がv1文書で記録済み)。 */
+	/** Check historical seeds using the v1 input distribution (expected results were recorded for v1 documents). */
 	private int checkOneV1(final int seed, final boolean strict) throws Exception {
 		return checkOne(seed, strict, generate(seed, strict, true), null);
 	}
 
 	private int checkOne(final int seed, final boolean strict, final Generated doc,
 			final java.util.function.IntConsumer pageObserver) throws Exception {
-		// 長時間掃過(数百万文書)では、シードごとの成果物を残すとディスクが
-		// 保たない。失敗したシードは同じシードで再実行すれば必ず再現する
-		// (生成器は決定的)ので、成功したシードの成果物は捨ててよい。
-		// 保存ディレクトリもシードで分けず使い回す(2026-07-26)
-		// 集計モードは規模にかかわらずワーカー単位のスロットを使い回す。
-		// 生成器は決定的なので、報告されたシードは単独再実行で復元できる。
+		// Long sweeps (millions of documents) cannot retain per-seed artifacts without exhausting disk.
+		// Failed seeds always reproduce by rerunning the same seed
+		// (the generator is deterministic), so successful-seed artifacts may be discarded.
+		// Reuse the output directory instead of creating one per seed (2026-07-26).
+		// Aggregation mode reuses per-worker slots regardless of sweep size.
+		// The generator is deterministic, so reported seeds can be restored by individual reruns.
 		final boolean keep = System.getProperty("foliojet.fuzzOnlySeed") != null || !reportMode();
 		final String slot = keep ? String.valueOf(seed) : Thread.currentThread().getName();
 		final File html = new File(workDir(), (strict ? "strict" : "wild") + "-" + slot + ".html");
@@ -2259,15 +2254,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>生成済みの文書</b>を1件検査する(2026-07-28に{@code checkOne}から分離)。
+	 * Check one <b>already generated document</b> (split from {@code checkOne} on 2026-07-28).
 	 *
 	 * <p>
-	 * 分離したのは{@link FuzzShrinker}の<b>述語</b>として使うため。縮小器が
-	 * 検査するのは<b>生成器が作った文書ではない</b>ので、{@link Generated}を
-	 * 外から渡せなければならない——ここを{@code seed}から作り直す設計にすると、
-	 * 縮小後の文書に<b>元の文書のトークン表</b>を当ててしまい、「削ったから
-	 * 消えた」を「内容の消失」と誤判定する(`LESSONS.md` §3.15 の6例目に
-	 * なるところだった)。
+	 * Separated for {@link FuzzShrinker} to use as a <b>predicate</b>. The shrinker checks
+	 * <b>documents not produced by the generator</b>, so {@link Generated} must be supplied externally.
+	 * Rebuilding it from {@code seed} would apply <b>the original document's token table</b>
+	 * to the reduced document, mistaking "removed by reduction" for "content loss"
+	 * (almost became the sixth example in `LESSONS.md` §3.15).
 	 * </p>
 	 */
 	static int checkDocument(final Generated doc, final File html, final File outDir, final boolean strict,
@@ -2304,38 +2298,38 @@ public class RandomDocumentFuzzTest extends TestCase {
 		worker.setDaemon(true);
 		worker.start();
 		worker.join(WATCHDOG_MS);
-		// 不変条件2: 停止する
+		// Invariant 2: termination.
 		if (worker.isAlive()) {
-			// **まず実際に止めにいく**(2026-07-27)。エンジンに協調的な
-			// 中断点(`UserAgent.checkAbort`)を入れたので、ページの途中でも
-			// 止まる。放置すると**レイアウト1件分のヒープと64MBのスタック
-			// 予約を抱えたまま**残り、掃過が自己増幅的に詰まる。
+			// **First, actually try to stop it** (2026-07-27). Cooperative interruption points
+			// (`UserAgent.checkAbort`) in the engine allow stopping even partway through a page.
+			// Leaving it running retains **one layout's heap and a 64 MB stack reservation**,
+			// causing the sweep to stall through self-amplification.
 			final DirectSession s = session[0];
 			if (s != null) {
 				try {
 					s.abort(jp.cssj.cti2.CTISession.ABORT_FORCE);
 					worker.join(5_000L);
 				} catch (final Exception ignore) {
-					// 中断要求が通らなくても以下の封じ込めへ進む
+					// Proceed to containment below even if the abort request fails.
 				}
 			}
 		}
 		if (worker.isAlive()) {
-			// 中断要求を出しても止まらなかった。Thread.stop()は現代のJavaでは
-			// 使えないので、ここから先は**数えて封じ込める**しかない。
+			// It did not stop after the abort request. Modern Java does not support Thread.stop(),
+			// so the only remaining option is to **count and contain**.
 			//
-			// これは自己増幅する(2026-07-27に10万文書の掃過が7時間停止して
-			// 発覚): ヒープ逼迫 → GCが回り続けて全体が遅くなる → watchdogを
-			// 超える文書が増える → さらに漏れる。**2万シードでは0件、
-			// 5万シードでは頻発**という、規模に依存した測定になっていた。
+			// This self-amplifies (discovered when a 100,000-document sweep stalled for seven hours on 2026-07-27):
+			// heap pressure → continuous GC slows everything → more documents
+			// exceed the watchdog → more leaks. The measurement depended on scale:
+			// **zero at 20,000 seeds, frequent at 50,000 seeds**.
 			//
-			// 止められない以上、せめて(a)優先度を落として掃過の足を
-			// 引っ張らせない (b)一定数を超えたら掃過ごと止める。
-			// **黙って遅くなるより、大きな音を立てて止まるほうがよい。**
+			// Since they cannot be stopped, at least (a) lower their priority so they do not slow the sweep,
+			// and (b) stop the entire sweep above a certain count.
+			// **Stopping loudly is better than silently slowing down.**
 			try {
 				worker.setPriority(Thread.MIN_PRIORITY);
 			} catch (final RuntimeException ignore) {
-				// 優先度を下げられなくても続行する
+				// Continue even if priority cannot be lowered.
 			}
 			final int leaked = LEAKED_WORKERS.incrementAndGet();
 			if (leaked > maxLeakedWorkers()) {
@@ -2345,7 +2339,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			fail("watchdog超過 " + (WATCHDOG_MS / 1000) + "秒 (" + html + ")");
 		}
-		// 不変条件1: 例外で中断しない
+		// Invariant 1: no exception aborts.
 		if (failure[0] != null) {
 			throw new AssertionError("変換が例外で終わった (" + html + ")", failure[0]);
 		}
@@ -2353,28 +2347,28 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final File[] pages = outDir.listFiles((d, n) -> n.endsWith(".txt"));
 		assertNotNull("ページが1枚も出ていない (" + html + ")", pages);
 		assertTrue("ページが1枚も出ていない (" + html + ")", pages.length > 0);
-		// 不変条件3: ページ数が有界
+		// Invariant 3: bounded page count.
 		assertTrue("ページ数が過大 " + pages.length + " (上限" + pageLimit + ", " + html + ")",
 				pages.length <= pageLimit);
 		if (pageObserver != null) {
 			pageObserver.accept(pages.length);
 		}
 
-		// **WILDはここまで**(2026-07-28)。不変条件4〜8はSTRICT限定なので、
-		// 以下の読み込み・解析はWILDでは結果を一切使わない——従来は全ページを
-		// 読んで解析してから捨てていた(早期returnは解析の**後**にあった)。
-		// 実測では誤差程度の差しか出なかったが、捨てる仕事を残す理由もない
+		// **WILD stops here** (2026-07-28). Invariants 4–8 are STRICT-only,
+		// so WILD uses none of the following read/parse results. Previously it read and parsed all pages
+		// before discarding them (the early return was **after** parsing).
+		// Measurements differed only within noise, but there is no reason to keep work whose results are discarded.
 		if (!strict) {
 			return pages.length;
 		}
 
 		java.util.Arrays.sort(pages);
 		final List<ObservedText> observedText = new ArrayList<>();
-		// トークンが**最初に現れたページ**(不変条件7)。ページ内の描画順は
-		// 実装の都合(rowspanのセルは跨ぐ行が確定してから描かれる)なので、
-		// ページ粒度でしか順序を問えない
+		// The **first page on which each token appears** (invariant 7). Within-page painting order
+		// is an implementation detail (rowspan cells are painted after their spanned rows are finalized),
+		// so order can only be checked at page granularity.
 		final java.util.Map<String, Integer> firstPage = new java.util.HashMap<String, Integer>();
-		// トークンごとの「1ページ内での最大描画回数」(不変条件8)
+		// Per-token "maximum painting count within one page" (invariant 8).
 		final java.util.Map<String, int[]> drawn = new java.util.HashMap<String, int[]>();
 		final List<Integer> blanks = new ArrayList<>();
 		for (int i = 0; i < pages.length; ++i) {
@@ -2389,17 +2383,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 			if (!drew) {
 				blanks.add(i + 1);
 			}
-			// **同一ページ内**で数える。字がページ境界を物理的に跨ぐと、
-			// 同じ字が前後のページに分けて描かれる——これは正当なので、
-			// ページを跨いだ合計で数えると誤検出になる(50,000文書で603件)
+			// Count **within the same page**. When a glyph physically crosses a page boundary,
+			// that glyph is painted in parts on the two pages. This is valid, so
+			// summing across pages causes false positives (603 in 50,000 documents).
 			final java.util.Map<String, int[]> onThisPage = new java.util.HashMap<String, int[]>();
 			for (final String raw : dump.split("\n")) {
 				final Matcher m = TEXT_IN_DUMP.matcher(raw);
-				// **artifact 印の描画は数えない**(不変条件8、2026-07-28)。
-				// タグ付きPDFの artifact は「論理構造に属さない描画」で、
-				// 救済分割などでエンジンが**意図的に**重複させたものである。
-				// これを複製として数えると50,000文書中7,227件(14.5%)が
-				// 誤検出になった(§12の素朴な「紙面内」11.9%と同型)。
+				// **Do not count painting marked artifact** (invariant 8, 2026-07-28).
+				// In tagged PDF, artifact means "painting outside the logical structure";
+				// the engine **intentionally** duplicates it for rescue splitting and similar operations.
+				// Counting it as duplication produced 7,227 false positives in 50,000 documents (14.5%),
+				// analogous to the naive "within paper" check's 11.9% in §12.
 				final boolean artifact = raw.contains(" artifact ");
 				while (m.find()) {
 					observedText.add(new ObservedText(m.group(1), i, artifact));
@@ -2407,7 +2401,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 						countTokens(m.group(1), onThisPage);
 					}
 					if (m.group(2) != null) {
-						// ルビのふりがな側
+						// Ruby annotation side.
 						observedText.add(new ObservedText(m.group(2), i, artifact));
 						if (!artifact) {
 							countTokens(m.group(2), onThisPage);
@@ -2421,17 +2415,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 		}
 
-		// 不変条件5: 意図しない白紙ページがない
+		// Invariant 5: no unintended blank pages.
 		//
-		// **紙面に収まらない箱を含む文書は除外する**(2026-07-26のユーザー裁定)。
-		// エンジンがどう振る舞っても版面は破綻しており——はみ出させるか、
-		// 次ページへ送るか——寸法を直すのは組版を指定した側の責任である。
-		// 除外は「見なかったことにする」ではなく**別の種別として数える**:
-		// 除外が増えたことに気づけなくなると、本当の退行を見落とす。
+		// **Exclude documents containing boxes that cannot fit on the paper** (user decision on 2026-07-26).
+		// Their layout is unworkable regardless of engine behavior: either allow overflow
+		// or move to the next page. Correcting dimensions is the layout author's responsibility.
+		// Exclusion does not mean ignoring it; **count it as a separate category**.
+		// If growth in exclusions goes unnoticed, real regressions can be missed.
 		//
-		// **除外は内容と宛先の消失を確かめてから投げる**(2026-10-07)。以前はここで投げて、後ろの
-		// 不変条件 4・9 を飛ばしていた(掃過の 25 万文書のうち約 1.1%)。版面が破綻していても
-		// 内容の消失は例外なくエンジンの欠陥(ARCHITECTURE §5.13)なので、除外の理由にならない
+		// **Throw exclusions only after checking for lost content and destinations** (2026-10-07). Previously, throwing here
+		// skipped invariants 4 and 9 below (about 1.1% of 250,000 sweep documents). Even with an unworkable type area,
+		// content loss is always an engine defect (ARCHITECTURE §5.13), never grounds for exclusion.
 		AssertionError deferredExclusion = null;
 		if (!blanks.isEmpty()) {
 			if (doc.beyondEngineControl()) {
@@ -2443,7 +2437,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				fail("白紙ページ " + blanks + " (" + html + ")");
 			}
 		}
-		// 不変条件4: 内容が失われない
+		// Invariant 4: no content loss.
 		final List<String> lost = new ArrayList<>();
 		final Set<String> expectedTokens = Set.copyOf(doc.tokens);
 		for (final String token : doc.tokens) {
@@ -2455,41 +2449,41 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 		}
 		assertTrue("内容が失われた " + lost + " (" + html + ")", lost.isEmpty());
-		// 不変条件9: PDFの宛先(id断片)が失われない
+		// Invariant 9: no loss of PDF destinations (id fragments).
 		checkFragments(doc, outDir, html);
 		if (deferredExclusion != null) {
-			// 白紙ページの除外(上)。残りの不変条件は版面の破綻の影響を受けるので見ない
+			// Blank-page exclusion (above). Skip remaining invariants because an unworkable type area affects them.
 			throw deferredExclusion;
 		}
-		// 不変条件8: 内容が複製されない(まだ報告のみ)
+		// Invariant 8: no content duplication (report-only for now).
 		checkNoDuplication(doc, drawn, html);
-		// 不変条件6: 説明のつかない紙面外への配置がない
+		// Invariant 6: no unexplained off-paper placement.
 		assertNoUnexplainedOffPage(doc, pages, html);
-		// 不変条件10: 少なくとも1つの本文描画が実際の紙面と交差する
+		// Invariant 10: at least one body-text drawing intersects the actual paper.
 		assertSomeDrawingOnPage(doc, pages, html);
-		// 不変条件7: 読み順が保たれる(まだ報告のみ)
+		// Invariant 7: reading order is preserved (report-only for now).
 		checkReadingOrder(doc, firstPage, html);
 		return pages.length;
 	}
 
 	/**
-	 * <b>不変条件9: PDFの宛先(id断片)が失われない</b>(2026-08-03新設)。
+	 * <b>Invariant 9: no loss of PDF destinations (id fragments)</b> (added 2026-08-03).
 	 *
 	 * <p>
-	 * 生成器は段落に{@code id="pN"}を振る({@code id}属性は版面に影響しない
-	 * ——生成する文書はidセレクタを使わないので、既存のシードの結果は
-	 * 変わらない)。名前付き宛先は{@code output.pdf.hyperlinks.fragment}の
-	 * 既定onで出るので、出力PDFには同じ名前の宛先が並ぶはずである。
-	 * <b>仮に組んだページを捨てる経路</b>で
-	 * 宛先の登録が取り消されないと、捨てたページの中で完結していた要素の
-	 * 宛先が失われる——表示リストには宛先が出てこないため、既存の検出器は
-	 * どれも素通りする(PLAN §3で「検出器未実装」としていた穴)。
+	 * The generator assigns {@code id="pN"} to paragraphs ({@code id} does not affect layout:
+	 * generated documents use no id selectors, so existing seed results remain unchanged).
+	 * Named destinations are output by default with {@code output.pdf.hyperlinks.fragment} on,
+	 * so the output PDF should list destinations with those names.
+	 * If <b>a path discarding a tentatively laid-out page</b> does not undo destination registration,
+	 * destinations for elements completed within that discarded page are lost.
+	 * Destinations do not appear in display lists, so all existing detectors miss this
+	 * (the gap marked "detector not implemented" in PLAN §3).
 	 * </p>
 	 *
 	 * <p>
-	 * 宛先は描画命令ではないので、ここだけは<b>出力PDFを実際に読む</b>
-	 * (PDFBox)。読めない場合は検査を飛ばす——PDFの健全性は他の検査の
-	 * 担当で、ここで二重に落とす意味がない。
+	 * Destinations are not drawing commands, so only here do we <b>actually read the output PDF</b>
+	 * (PDFBox). Skip the check if unreadable: other checks cover PDF validity,
+	 * and failing twice here serves no purpose.
 	 * </p>
 	 */
 	private static void checkFragments(final Generated doc, final File outDir, final File html) throws Exception {
@@ -2499,8 +2493,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			expected.add(m.group(1));
 		}
 		if (System.getProperty("foliojet.debug.noFragments") != null) {
-			// 検出器自身の検算用。この名前の宛先は決して出力されないので、
-			// これを付けて落ちなければ**検出器が空振りしている**と分かる
+			// For checking the detector itself. A destination with this name is never output, so
+			// if adding it does not fail, **the detector is ineffective**.
 			expected.add("p-not-emitted");
 		}
 		if (expected.isEmpty()) {
@@ -2517,13 +2511,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 		try (org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader.loadPDF(pdf)) {
 			final org.apache.pdfbox.pdmodel.PDDocumentNameDictionary names = document.getDocumentCatalog().getNames();
 			if (names == null || names.getDests() == null) {
-				// 宛先が1つも無い = 全部失われている
+				// No destinations = all destinations lost.
 				fail("PDFの宛先が1つも無い(期待 " + expected.size() + " 件): " + html);
 				return;
 			}
 			collectDestinationNamesRaw(names.getDests(), found);
 		} catch (final java.io.IOException e) {
-			// PDFとして読めない場合はここでは問わない
+			// Do not check PDF readability here.
 			return;
 		}
 		final java.util.List<String> lost = new ArrayList<>();
@@ -2535,7 +2529,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		assertTrue("PDFの宛先が失われた " + lost + " / 期待" + expected.size() + "件 (" + html + ")", lost.isEmpty());
 	}
 
-	/** 宛先の名前ツリーを再帰的に集めます。 */
+	/** Recursively collect the destination name tree. */
 	private static void collectDestinationNamesRaw(final org.apache.pdfbox.pdmodel.common.PDNameTreeNode<?> node,
 			final java.util.Set<String> out) throws java.io.IOException {
 		if (node.getNames() != null) {
@@ -2549,15 +2543,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * トークンが最初に描かれたページを返します。単一の文字実行内だけでなく、
-	 * {@code overflow-wrap:anywhere}等で複数の実行・ページへ分かれた場合も復元します。
-	 * floatやマーカーの描画順が分割片の間へ割り込むことがあるため、artifact、ordered listの数字マーカー、
-	 * 「別の完全なfuzzトークン」だけは飛ばします。普通の本文を越えた接続は、実損失を隠すので認めません。
+	 * Return the page where a token is first painted. Reconstruct tokens not only within a single text run,
+	 * but also across multiple runs/pages split by {@code overflow-wrap:anywhere} and similar rules.
+	 * Float or marker painting can interleave fragments, so skip only artifacts, ordered-list numeric markers,
+	 * and "other complete fuzz tokens". Do not connect across ordinary body text; that hides real loss.
 	 */
 	private static int firstObservedTokenPage(final String token, final List<ObservedText> runs,
 			final Set<String> expectedTokens) {
-		// 完全なトークンがどこかにあるなら、別トークンの短いprefixと数字を
-		// 繋いでより早いページを捏造しない(seed 5776のT1+1 => T11)。
+		// If a complete token exists somewhere, do not fabricate an earlier page by joining another token's
+		// short prefix with digits (T1+1 => T11 in seed 5776).
 		for (final ObservedText observed : runs) {
 			if (!observed.artifact() && containsWholeToken(observed.text(), token)) {
 				return observed.page();
@@ -2581,8 +2575,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 				for (int j = i + 1; j < runs.size() && matched < token.length(); ++j) {
 					final ObservedText observed = runs.get(j);
 					final String next = observed.text();
-					// 「T9」とordered-listの「1.」を接続してT91と誤認しない。
-					// マーカーはトークン断片ではなく、割り込みとして必ず飛ばす。
+					// Do not join "T9" and the ordered-list marker "1." and mistake them for T91.
+					// Markers are interruptions, not token fragments; always skip them.
 					if (ORDERED_LIST_MARKER.matcher(next).matches()) {
 						++skipped;
 						continue;
@@ -2618,7 +2612,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return bestPage;
 	}
 
-	/** {@code T57}を{@code T575}の部分文字列として数えない完全一致検索。 */
+	/** Exact-match search that does not count {@code T57} as a substring of {@code T575}. */
 	private static boolean containsWholeToken(final String run, final String token) {
 		int from = 0;
 		while (from <= run.length() - token.length()) {
@@ -2637,7 +2631,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return false;
 	}
 
-	/** 描画順に割り込んだ、別の完全な fuzz トークンだけの実行か。 */
+	/** Whether an interleaved run consists only of another complete fuzz token. */
 	private static boolean containsOnlyExpectedTokens(final String run, final Set<String> expectedTokens) {
 		final Matcher matcher = TOKEN.matcher(run);
 		int end = 0;
@@ -2653,17 +2647,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * トークン断片の間に描かれても文字内容を持たない空白・Unicode書式文字か。
-	 * 空のフォーム部品はゼロ幅スペース(U+200B)を描画することがあり、
-	 * ページ境界で分かれた{@code "T" + "417"}の間へ入っても内容の消失では
-	 * ない(extreme strict seed 3797)。普通の本文文字は決して飛ばさない。
+	 * Whether whitespace or Unicode format characters carry no textual content even between token fragments.
+	 * Empty form controls may paint a zero-width space (U+200B); inserting one between {@code "T" + "417"}
+	 * split across a page boundary is not content loss (extreme strict seed 3797).
+	 * Never skip ordinary body-text characters.
 	 */
 	private static boolean isIgnorableFormattingText(final String run) {
 		return run.codePoints().allMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c)
 				|| Character.getType(c) == Character.FORMAT);
 	}
 
-	/** トークン断片の間へ割り込む、生成器固有のフォーム表示か。 */
+	/** Whether this is a generator-specific form display interleaved between token fragments. */
 	private static boolean isGeneratedControlText(final String run) {
 		final StringBuilder visible = new StringBuilder(run.length());
 		run.codePoints().filter(c -> Character.getType(c) != Character.FORMAT).forEach(visible::appendCodePoint);
@@ -2671,13 +2665,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 表示リストの1つのテキスト実行からトークンを数えます。
+	 * Count tokens in one display-list text run.
 	 *
 	 * <p>
-	 * 実行は{@code Text["T0 T1 T2"]}のように<b>複数のトークンを含みうる</b>
-	 * ので、空白で割ってから数えます。部分一致で数えてはいけません——
-	 * {@code T1}は{@code T10}の部分文字列です(不変条件4の
-	 * {@code contains}はこの弱さを持っており、ここでは繰り返さない)。
+	 * Runs such as {@code Text["T0 T1 T2"]} <b>may contain multiple tokens</b>,
+	 * so split on whitespace before counting. Never count partial matches:
+	 * {@code T1} is a substring of {@code T10} (invariant 4's {@code contains}
+	 * has this weakness; do not repeat it here).
 	 * </p>
 	 */
 	private static void countTokens(final String run, final java.util.Map<String, int[]> drawn) {
@@ -2688,47 +2682,45 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
-	/** 生成器が埋めるトークンの形。 */
+	/** Shape of tokens embedded by the generator. */
 	private static final Pattern TOKEN = Pattern.compile("T[0-9]+");
 
 	/**
-	 * <b>不変条件8(まだ報告のみ)</b>: 内容が複製されないこと
-	 * (2026-07-28新設)。
+	 * <b>Invariant 8 (report-only for now)</b>: no content duplication (added 2026-07-28).
 	 *
 	 * <p>
-	 * <b>埋める穴。</b> 既存の不変条件はどれも「同じ内容が2回描かれる」ことを
-	 * 捕まえません——内容は失われず(4合格)、白紙もなく(5合格)、紙面内
-	 * (6合格)だからです。seed 118665 の最小形では入れ子段組が同じソース範囲を
-	 * 二重に再生し、ページ2に{@code T0, T2, T3, T4, T3, T4}——
-	 * <b>T3/T4が別の段へ二重に</b>——が出ていました。不変条件7(読み順)が
-	 * <b>偶然</b>引っかかっただけで、複製そのものは誰も見ていませんでした。
+	 * <b>The gap to fill.</b> None of the existing invariants catches "the same content is painted twice":
+	 * no content is lost (4 passes), no blank pages appear (5 passes), and content is within the paper (6 passes).
+	 * In the minimal case for seed 118665, nested multi-column layout replayed the same source range twice,
+	 * producing {@code T0, T2, T3, T4, T3, T4} on page 2:
+	 * <b>T3/T4 duplicated in separate columns</b>. Invariant 7 (reading order) caught this <b>by chance</b>;
+	 * nothing checked duplication itself.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>帳票では逆転より重い。</b> 金額の行が2回出る出力は、
-	 * 黙って壊れた出力の中でも最悪の部類です。
+	 * <b>For forms, this is worse than reversal.</b> Output showing an amount row twice
+	 * is among the worst kinds of silently corrupted output.
 	 * </p>
 	 *
 	 * <p>
-	 * 生成器のトークンは一意なので、<b>正しい出力では各トークンが1ページ内で
-	 * ちょうど1回</b>描かれます。表ヘッダの繰り返し({@code thead})を生成する
-	 * ようにしたら、そのトークンはここから除外すること——繰り返しは正当です。
+	 * Generator tokens are unique, so <b>correct output paints each token exactly once within a page</b>.
+	 * If the generator starts producing repeated table headers ({@code thead}),
+	 * exclude their tokens here: that repetition is valid.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>定式化を2回やり直した</b>(§6.9j)。50,000文書での誤検出:
+	 * <b>Reformulated twice</b> (§6.9j). False positives in 50,000 documents:
 	 * </p>
 	 *
 	 * <ol>
-	 * <li>素朴に「全ページ合計で2回以上」→ <b>7,227件(14.5%)</b>。
-	 * {@code artifact}印の描画を数えていた——タグ付きPDFの artifact は
-	 * 「論理構造に属さない描画」で、救済分割などでエンジンが<b>意図的に</b>
-	 * 重複させたものである</li>
-	 * <li>artifactを除いて合計で数える→ <b>603件(1.2%)</b>。字がページ境界を
-	 * <b>物理的に跨ぐ</b>と同じ字が前後のページに分けて描かれる。これは正当</li>
-	 * <li><b>同一ページ内</b>で数える→ <b>160件(0.32%)</b>。標本を確認した
-	 * ところ真陽性で、機序は<b>入れ子段組の二重再生</b>だった
-	 * (最小形: {@code column-count:2}の中の{@code column-count:2})</li>
+	 * <li>Naive "two or more across all pages" → <b>7,227 cases (14.5%)</b>.
+	 * This counted drawing marked {@code artifact}. In tagged PDF, artifact is "drawing outside
+	 * the logical structure", <b>intentionally</b> duplicated by the engine for rescue splitting, etc.</li>
+	 * <li>Exclude artifacts but count across pages → <b>603 cases (1.2%)</b>. When a glyph <b>physically crosses</b>
+	 * a page boundary, the same glyph is painted in parts on adjacent pages. This is valid.</li>
+	 * <li>Count <b>within the same page</b> → <b>160 cases (0.32%)</b>. Inspected samples were true positives,
+	 * caused by <b>double replay of nested multi-column layout</b>
+	 * (minimal case: {@code column-count:2} within {@code column-count:2}).</li>
 	 * </ol>
 	 */
 	private static void checkNoDuplication(final Generated doc, final java.util.Map<String, int[]> drawn,
@@ -2746,69 +2738,66 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>不変条件7(まだ報告のみ)</b>: 内容の読み順が保たれること
-	 * (2026-07-27新設)。
+	 * <b>Invariant 7 (report-only for now)</b>: content reading order is preserved (added 2026-07-27).
 	 *
 	 * <p>
-	 * <b>埋める穴。</b> 不変条件4はトークンが<b>どこかに</b>現れるかしか
-	 * 見ないので、{@code T5}が{@code T3}より前に描かれても通ります。
-	 * 帳票で表の行が入れ替わったら致命的ですが、この壊れ方を検出する手段が
-	 * 現在ひとつもありません。不変条件6が「現れるが<b>場所</b>が異常」を
-	 * 埋めたのと同じ構図で、ここは「現れるが<b>順序</b>が異常」を埋めます。
+	 * <b>The gap to fill.</b> Invariant 4 checks only that tokens appear <b>somewhere</b>,
+	 * so {@code T5} painted before {@code T3} passes. Swapped table rows in a form are critical,
+	 * yet no current detector catches this. Just as invariant 6 fills the gap "appears, but in an abnormal
+	 * <b>location</b>", this fills "appears, but in an abnormal <b>order</b>".
 	 * </p>
 	 *
 	 * <p>
-	 * <b>素朴な定義は使えません。</b> フロートは後続の宣言が前の行の横へ
-	 * 持ち上がり、絶対配置はどこへでも置けるので、全トークンで順序を
-	 * 要求すると正当な文書が軒並み落ちます(§12で素朴な「紙面内」が
-	 * 3000文書中356文書=11.9%を誤検出したのと同型)。そこで<b>生成器に
-	 * 記録させ</b>、フロート・絶対配置の部分木を除きます。段組・表・改ページは
-	 * 内容を順に流すだけなので対象に残します。
+	 * <b>A naive definition does not work.</b> Later-declared floats rise alongside earlier lines,
+	 * and absolute positioning can place content anywhere, so requiring order for all tokens rejects
+	 * valid documents wholesale (analogous to the naive "within paper" check's 356 false positives
+	 * out of 3000 documents = 11.9% in §12). Have <b>the generator record</b> the distinction
+	 * and exclude float/absolute subtrees. Keep multi-column layout, tables, and page breaks,
+	 * since they simply flow content in order.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>再出現は初出だけを見ます。</b> {@code seen}は描画順の
-	 * {@code LinkedHashSet}なので、同じトークンが複数ページに出ても
-	 * (将来{@code thead}の繰り返しを生成する場合など)最初の1回で判定します。
+	 * <b>For repeated appearances, check only the first.</b> {@code seen} is a painting-order
+	 * {@code LinkedHashSet}, so tokens appearing on multiple pages (e.g., if repeated {@code thead}
+	 * is generated in future) are judged on their first appearance.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>固定する前に測りました</b>(§6.9j)。報告のみのモードで20,000文書を
-	 * 掃過して<b>12件</b>——狙いの帯です。5件を個別に確認したところ
-	 * <b>例外なく単一の機序</b>で、いずれも真陽性でした。他の種別の件数は
-	 * 導入前と完全に一致しており、生成器の乱数列を乱していません。
+	 * <b>Measured before pinning down</b> (§6.9j). A report-only sweep of 20,000 documents
+	 * yielded <b>12 cases</b>, in the intended range. Five individually inspected cases
+	 * <b>all shared one mechanism</b> and were true positives. Other category counts matched
+	 * the pre-introduction counts exactly; the generator's random sequence was undisturbed.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>最初の定式化は捨てました</b>(1回目)。描画順で比べたところ
-	 * seed 0 で即発火し、原因は{@code rowspan}のセルが「跨ぐ行が確定してから
-	 * 描かれる」ことでした——<b>表示リストは描画順であって読み順ではない</b>。
-	 * ページ粒度に変えたのが現行(2回目)です。
+	 * <b>The first formulation was discarded</b> (attempt 1). Comparing painting order fired
+	 * immediately on seed 0 because {@code rowspan} cells are "painted after the spanned rows are finalized":
+	 * <b>a display list records painting order, not reading order</b>.
+	 * The current formulation (attempt 2) uses page granularity.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>見つけた欠陥</b>: 分割された{@code rowspan}セルの内容が、先頭の断片
-	 * ではなく<b>継続断片</b>に描かれる。seed 130では同じ行が2ページに出て、
-	 * 前ページが{@code [ ][ ][T12]}、次ページが{@code [T10][T11][ ]}になった
-	 * ——枠は両方にあるのに文字が片方にしかない。既存の検出器は全て素通り
-	 * する(トークンは現れる・白紙でない・紙面内)。
+	 * <b>Defect found</b>: split {@code rowspan} cell content appeared in the <b>continuation fragment</b>,
+	 * not the head fragment. Seed 130 put the same row on two pages: {@code [ ][ ][T12]} on the preceding page
+	 * and {@code [T10][T11][ ]} on the next. Frames appeared on both, but text on only one.
+	 * All existing detectors missed this (tokens appear, no blank page, within the paper).
 	 * </p>
 	 */
 	private static void checkReadingOrder(final Generated doc, final java.util.Map<String, Integer> firstPage,
 			final File html) {
-		// 表のセルは並列フロー(2026-08-23): 分割された表では各セルの内容が
-		// 同一切断線で独立にkept/移送へ分かれるため、セル間・(縦書き表では)
-		// 行間のページ前後は正当。v1生成器はセル=1トークンでほぼ顕在化
-		// しなかったが、v2の複雑セルで多発した(seed 30の実測: 幅8emの
-		// セルの内容が次ページ、隣の小さいセルが前ページ——Chromeと同じ
-		// 正しい組版)。そこで:
-		// (a) 全体走査は「最外の表に属するトークンのページ」を表全体の
-		//     maxページへ畳んで単調性を見る(表の後の内容が表の途中の
-		//     ページへ遡らないことは引き続き検査される)
-		// (b) 同一セル内のトークン列はページ単調でなければならない
-		// この緩和で「rowspanセルの内容が継続断片側に描かれる」(seed 130)
-		// 型のセル間比較による検出は失われる——別の検出器が要る場合は
-		// 断片ごとのセル内容の有無を直接見ること
+		// Table cells are parallel flows (2026-08-23): in a split table, each cell's content independently
+		// divides into kept/moved portions at the same cut line, so page-order reversals between cells
+		// and (in vertical tables) rows are valid. The v1 generator used one token per cell, mostly masking this,
+		// but v2's complex cells exposed it frequently (seed 30: the 8 em wide cell's content
+		// appeared on the next page, while the small adjacent cell stayed on the preceding page,
+		// a correct layout matching Chrome). Therefore:
+		// (a) In the overall scan, collapse "pages of tokens belonging to the outermost table" to
+		//     the entire table's max page, then check monotonicity (still verify that content after the table
+		//     does not move backward to a page in the middle of the table).
+		// (b) The token sequence within each cell must be page-monotonic.
+		// This relaxation loses cross-cell detection of "rowspan cell content appears in the continuation fragment"
+		// (seed 130). If another detector is needed,
+		// inspect the presence of cell content in each fragment directly.
 		final java.util.Map<String, int[]> tokenTable = tokenTableAndCell(doc.html());
 		final java.util.Map<Integer, Integer> tableMaxPage = new java.util.HashMap<>();
 		for (final String t : doc.orderedTokens()) {
@@ -2825,7 +2814,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		for (final String t : doc.orderedTokens()) {
 			final Integer at = firstPage.get(t);
 			if (at == null) {
-				continue; // 消失は不変条件4の担当
+				continue; // Invariant 4 handles loss.
 			}
 			final int[] tc = tokenTable.get(t);
 			final int effective = tc != null ? tableMaxPage.get(tc[0]).intValue() : at.intValue();
@@ -2836,7 +2825,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			prev = effective;
 			prevToken = t;
 			if (tc != null) {
-				// (b) セル内の単調性
+				// (b) Within-cell monotonicity.
 				final Integer cp = cellPrev.get(tc[1]);
 				if (cp != null && at.intValue() < cp.intValue()) {
 					throw new AssertionError("読み順が入れ替わった(セル内): " + t + "はページ" + (at.intValue() + 1)
@@ -2848,9 +2837,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 各トークンの[最外の表id, セルid]です(表の外のトークンは含まない)。
-	 * 構造はHTMLの簡易パース({@link FuzzShrinker#parseBody})から導く——
-	 * 生成器と縮小器の両方の出力に対して同じ真実源になる。
+	 * Each token's [outermost table id, cell id] (omit tokens outside tables).
+	 * Derive structure from a simple HTML parse ({@link FuzzShrinker#parseBody}),
+	 * providing the same source of truth for both generator and shrinker output.
 	 */
 	private static java.util.Map<String, int[]> tokenTableAndCell(final String html) {
 		final java.util.Map<String, int[]> result = new java.util.HashMap<>();
@@ -2866,7 +2855,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			if (n.tag == null) {
 				if (tableId >= 0 && n.text != null) {
 					final java.util.regex.Matcher m = java.util.regex.Pattern.compile("T\\d+").matcher(n.text);
-					// 直下の裸テキスト(匿名item相当)はそれ自身で1枝
+					// Direct bare text (equivalent to an anonymous item) forms its own branch.
 					final int branch = m.find() ? cellSeq[0]++ : cellId;
 					m.reset();
 					while (m.find()) {
@@ -2881,16 +2870,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final boolean parallelContainer = "table".equals(n.tag)
 					|| (style != null && (style.contains("display:flex") || style.contains("display:grid")));
 			if (parallelContainer && tableId < 0) {
-				// 最外の並列コンテナ(表・flex・grid)だけを単位にする
-				// (入れ子は外の並列性に包含)
+				// Use only the outermost parallel container (table/flex/grid) as the unit.
+				// (Nested parallelism is contained by the outer container.)
 				nextTable = tableSeq[0]++;
 			}
 			if ("td".equals(n.tag) || "th".equals(n.tag)) {
-				// セルごとに新しい枝(入れ子は最内のセル単位)
+				// New branch per cell (innermost cell for nesting).
 				nextCell = cellSeq[0]++;
 			} else if (tableId >= 0 && cellId < 0) {
-				// 並列コンテナ直下の子要素(flex/gridのitem、表のtbody/tr等の
-				// 中間要素は後でtdが上書き)ごとに枝を切る
+				// Create a branch for each direct child of a parallel container (flex/grid items; intermediate
+				// table elements such as tbody/tr are later overridden by td).
 				nextCell = cellSeq[0]++;
 			}
 			collectTableTokens(n.children, nextTable, nextCell, result, tableSeq, cellSeq);
@@ -2898,44 +2887,42 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>不変条件6</b>: 内容が、作者の指定では説明できないほど紙面の外へ
-	 * 出ていないこと(2026-07-26新設)。
+	 * <b>Invariant 6</b>: content does not extend beyond the paper by more than author declarations
+	 * can explain (added 2026-07-26).
 	 *
 	 * <p>
-	 * <b>なぜ「紙面内」では駄目か。</b>CSSの{@code overflow}の既定値は
-	 * {@code visible}で、<b>箱からはみ出した内容を紙の外に描くのは正しい
-	 * 挙動</b>である。生成器は60×60ptの紙に250ptの箱を置くような病的な
-	 * 文書を作るので、素朴に「紙面内」を要求すると3000文書中356文書
-	 * (11.9%)が引っかかり、そのほとんどが正当だった。
+	 * <b>Why "within paper" is insufficient.</b> CSS {@code overflow} defaults to {@code visible};
+	 * <b>painting overflowing box content outside the paper is correct behavior</b>.
+	 * The generator creates pathological documents, such as a 250 pt box on 60×60 pt paper.
+	 * Naively requiring "within paper" flagged 356 of 3000 documents (11.9%), most of them valid.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>そこで「作者が指定した大きさで説明できるか」で切る。</b> はみ出し量が
-	 * 文書中の最大の明示サイズの2倍以内なら、指定の帰結として説明できる
-	 * ものとして見逃す。この基準で切ると<b>横書きは1件も残らず、縦書きだけ
-	 * 19件残った</b>(3000文書)。詳細は
+	 * <b>Instead, ask "can the author's specified sizes explain it?"</b> Ignore overflow up to twice
+	 * the document's largest explicit size as explainable by the declarations. This criterion left
+	 * <b>no horizontal-writing cases, but 19 vertical-writing cases</b> (3000 documents). Details:
 	 * </p>
 	 *
 	 * <p>
-	 * <b>【訂正 2026-07-28】この非対称から「原因は実装側の縦書き固有の
-	 * 欠陥」と推論したのは誤りだった。生成器の語彙が作った偽の信号である。</b>
-	 * 下の case 2 を見れば分かるとおり、生成器はフロートに<b>{@code width}
-	 * しか指定しない</b>。縦書きでは{@code width}がページ軸(欠陥が出る)、
-	 * 横書きでは行軸(出ない)——非対称は書字方向ではなく<b>どちらの軸に
-	 * 明示寸法が乗るか</b>で決まっていた。実際、横書きで
-	 * {@code float:right;height:0pt}(=ページ軸を明示)にすると同一に再現する。
+	 * <b>[Correction 2026-07-28] Inferring "an implementation defect specific to vertical writing"
+	 * from this asymmetry was wrong. It was a false signal from the generator's vocabulary.</b>
+	 * As case 2 below shows, the generator specifies <b>only {@code width}</b> on floats.
+	 * In vertical writing, {@code width} is the page axis (defect occurs); in horizontal writing,
+	 * it is the inline axis (no defect). The asymmetry depended on <b>which axis received explicit dimensions</b>,
+	 * not writing direction. In fact, {@code float:right;height:0pt} in horizontal writing
+	 * (= explicit page-axis size) reproduces the same defect.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>教訓</b>: 生成器が特定の軸・特定の属性しか出さないとき、その偏りは
-	 * 掃過の統計に<b>実装の性質に見える偏り</b>として現れる。
-	 * 「A では出るが B では出ない」を実装の証拠として使う前に、
-	 * <b>生成器が A と B を対称に作っているか</b>を確かめること。
+	 * <b>Lesson</b>: when the generator emits only specific axes or attributes, that bias appears
+	 * in sweep statistics as <b>a bias seemingly belonging to the implementation</b>.
+	 * Before using "occurs in A but not B" as implementation evidence,
+	 * verify <b>that the generator treats A and B symmetrically</b>.
 	 * </p>
 	 *
 	 * <p>
-	 * 検査4「内容が失われない」はトークンが表示リストに<b>現れるか</b>しか
-	 * 見ないので、紙面外に描かれた内容を合格させる。ここはその穴を埋める。
+	 * Check 4, "no content loss", checks only whether tokens <b>appear</b> in the display list,
+	 * so it accepts content painted outside the paper. This fills that gap.
 	 * </p>
 	 */
 	private static void assertNoUnexplainedOffPage(final Generated doc, final File[] pages, final File html)
@@ -2948,19 +2935,19 @@ public class RandomDocumentFuzzTest extends TestCase {
 		for (final File page : pages) {
 			final String dump = Files.readString(Path.of(page.toURI()), StandardCharsets.UTF_8);
 			for (final String raw : dump.split("\n")) {
-				// **artifact 印の描画は数えない**(2026-07-29、不変条件8が
-				// 2026-07-28に同じ理由で入れたものと同型)。
+				// **Do not count painting marked artifact** (2026-07-29), analogous to the same exclusion
+				// added to invariant 8 for the same reason on 2026-07-28.
 				//
-				// 紙面より大きい不可分な箱は、各ページが**同じ箱を平行移動
-				// して**描くことで表現される——3ページに跨る箱なら、
-				// 3ページ目の原点は2ページ分**上**(縦書きなら左)にある。
-				// その座標は「紙面外への配置」ではなく、**箱が跨いでいる
-				// ことの正しい表現**である。
+				// An indivisible box larger than the paper is represented by **translating the same box**
+				// for drawing on each page. For a box spanning three pages,
+				// its origin on page 3 is two pages **above** (left in vertical writing).
+				// Those coordinates are not "off-paper placement", but **a correct representation
+				// of a spanning box**.
 				//
-				// 実測(seed 422410、最小形611バイト): 121.72ptの表が60ptの
-				// 紙に3ページで描かれ、2ページ目が y=-60、3ページ目が
-				// y=-120。どちらも artifact 印つきで、これを数えると
-				// 「紙面外60pt」と報告される。
+				// Measured (seed 422410, 611-byte minimal case): a 121.72 pt table occupies three pages
+				// on 60 pt paper, with y=-60 on page 2 and
+				// y=-120 on page 3. Both are marked artifact; counting them
+				// reports "60 pt outside the paper".
 				if (raw.contains(" artifact ")) {
 					continue;
 				}
@@ -2968,10 +2955,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 				while (m.find()) {
 				final double x = Double.parseDouble(m.group(1)), y = Double.parseDouble(m.group(2));
 				final double width = Double.parseDouble(m.group(3)), height = Double.parseDouble(m.group(4));
-				// 紙面をまるごと1枚分はみ出して初めて数える(端の1ptは論外に
-				// してよいが、そこを厳しくすると罫線の丸めで揺れる)。原点だけ
-				// ではなく外接矩形の近い辺で測る。seed 473636の入力欄は
-				// x=-70でも幅124ptあり、60pt紙面へ54pt分掛かっていた。
+				// Count only overflow by an entire sheet (a 1 pt edge excess can be disregarded;
+				// strict checking there fluctuates with border rounding). Measure from the bounding rectangle's
+				// nearest edge, not just its origin. Seed 473636's input field
+				// starts at x=-70 but is 124 pt wide, overlapping 54 pt of the 60 pt paper.
 				final double overX = distanceBeyondWholePage(x, width, doc.pageWidth());
 				final double overY = distanceBeyondWholePage(y, height, doc.pageHeight());
 				final double over = Math.max(overX, overY);
@@ -2991,45 +2978,45 @@ public class RandomDocumentFuzzTest extends TestCase {
 				+ Math.round(doc.pageHeight()) + "pt, 最大指定/UA既定サイズ"
 				+ Math.round(Math.max(doc.maxExplicitSize(), intrinsicControlSize)) + "pt, " + worstAt
 				+ ") (" + html + ")";
-		// 白紙ページと同じ除外基準を適用する(2026-07-26)。版面が破綻して
-		// いる文書ではエンジンの振る舞いを問えない
+		// Apply the same exclusion criteria as blank pages (2026-07-26). Engine behavior cannot be judged
+		// for documents with an unworkable type area.
 		if (doc.beyondEngineControl()) {
 			throw new ExcludedByOversizedBox(detail);
 		}
-		// 複数条件に該当するときも、より狭い同軸逆進行の分類を安定して残す。
+		// Even if multiple conditions apply, consistently retain the narrower same-axis reverse-progression category.
 		if (hasUntypesettableOppositeProgression(doc.html())) {
 			throw new ExcludedByUntypesettableOppositeProgression(detail + " [同軸逆進行フローの組版不能幅]");
 		}
 		if (hasUntypesettableOrthogonalFlow(doc.html())) {
 			throw new ExcludedByUntypesettableOrthogonalFlow(detail + " [直交フローの組版不能幅]");
 		}
-		// 組版できない幅の浮動体からの溢れも除外(2026-07-29)。
-		// {@link ExcludedByUntypesettableFloat}に理由を書いた
+		// Also exclude overflow from floats with untypesettable widths (2026-07-29).
+		// See {@link ExcludedByUntypesettableFloat} for the rationale.
 		if (hasUntypesettableFloat(doc.html())) {
 			throw new ExcludedByUntypesettableFloat(detail + " [組版できない幅の浮動体]");
 		}
 		if (hasFlexMulticolTable(doc.html())) {
 			throw new ExcludedByFlexMulticolMinContent(detail + " [flex内の段組表によるmin-content幅]");
 		}
-		// 版面に物理的に収まらない内容(2026-09-17のユーザー裁定。
-		// {@link ExcludedByUnfittableContent}に理由を書いた)
+		// Content that physically cannot fit in the type area (user decision on 2026-09-17;
+		// see {@link ExcludedByUnfittableContent} for the rationale).
 		final String unfittable = findUnfittableContent(doc.html());
 		if (unfittable != null) {
 			throw new ExcludedByUnfittableContent(detail + " [" + unfittable + "]", unfittable);
 		}
-		// 直交フローが親の**行軸**へ溢れた場合も除外(2026-07-28のユーザー
-		// 裁定。{@link ExcludedByOrthogonalLineAxis}に理由を書いた)。
-		// **ページ軸への溢れは除外しない**——そちらは改ページで直せるので、
-		// 直らなければエンジンの欠陥である。この区別を落とすと、
-		// 直交フローを含む文書のはみ出しを何でも見逃すことになる
+		// Also exclude orthogonal flows overflowing the parent's **inline axis** (user decision
+		// on 2026-07-28; see {@link ExcludedByOrthogonalLineAxis} for the rationale).
+		// **Do not exclude page-axis overflow**: page breaks can fix it,
+		// so failure to do so is an engine defect. Losing this distinction
+		// would ignore every overflow in documents containing orthogonal flows.
 		final boolean overflowInLineAxis = worstIsY != pageAxisIsY(doc.html());
 		if (overflowInLineAxis && hasOrthogonalFlow(doc.html())) {
 			throw new ExcludedByOrthogonalLineAxis(detail + " [直交フローの行軸]");
 		}
-		// 直交フローが3段以上入れ子になった文書も除外(2026-07-30のユーザー
-		// 裁定。{@link ExcludedByNestedOrthogonalFlow}に理由を書いた)。
-		// **2段は除外しない**——普通の縦書き中の横書きでの紙面外は
-		// 本物の欠陥である
+		// Also exclude documents with three or more nested orthogonal-flow levels (user decision
+		// on 2026-07-30; see {@link ExcludedByNestedOrthogonalFlow} for the rationale).
+		// **Do not exclude two levels**: off-paper placement in ordinary horizontal writing within vertical writing
+		// is a real defect.
 		if (orthogonalAxisChanges(doc.html()) >= 2) {
 			throw new ExcludedByNestedOrthogonalFlow(detail + " [直交フロー3段以上]");
 		}
@@ -3037,8 +3024,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 紙面外の検査を文書単位の述語で免除する文書か(行軸の直交フローの除外は、はみ出しの向きで決まるので
-	 * 含めない)。{@link #assertNoUnexplainedOffPage}の除外と同じ順の述語(2026-10-07、生存率の集計用)。
+	 * Whether document-level predicates exempt a document from off-paper checks (excluding the inline-axis
+	 * orthogonal-flow exclusion, which depends on overflow direction).
+	 * Same predicate order as {@link #assertNoUnexplainedOffPage} exclusions (2026-10-07, for active-check rate totals).
 	 */
 	static boolean offPageCheckExcused(final Generated doc) {
 		return doc.beyondEngineControl() || hasUntypesettableOppositeProgression(doc.html())
@@ -3047,7 +3035,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				|| orthogonalAxisChanges(doc.html()) >= 2;
 	}
 
-	/** 外接矩形全体が紙面からさらに1枚分離れている距離。0以下なら許容範囲。 */
+	/** Distance by which the entire bounding rectangle lies a further sheet's length beyond the paper. At most zero is allowed. */
 	static double distanceBeyondWholePage(final double origin, final double extent, final double pageExtent) {
 		return Math.max(-(origin + extent) - pageExtent, origin - 2 * pageExtent);
 	}
@@ -3058,20 +3046,20 @@ public class RandomDocumentFuzzTest extends TestCase {
 			Pattern.CASE_INSENSITIVE);
 	private static final Pattern INPUT_SIZE_VALUE = Pattern.compile("\\bsize\\s*=\\s*[\"']?(\\d+)",
 			Pattern.CASE_INSENSITIVE);
-	/** 試験用UA CSSのフォームコントロールは12pt。1ex=6pt、外枠は左右で4pt(既定の20ex=124ptと同じ式)。 */
+	/** Test UA CSS form controls use 12 pt. 1 ex = 6 pt; left/right frame total 4 pt (same formula as default 20 ex = 124 pt). */
 	private static final double TEXT_CONTROL_EX_PT = 6;
 	private static final double TEXT_CONTROL_FRAME_PT = 4;
-	/** 試験用UA CSSの一行入力欄/textarea既定20exに外枠を加えた実寸。 */
+	/** Actual default single-line input/textarea size: test UA CSS 20 ex plus the frame. */
 	private static final double DEFAULT_TEXT_CONTROL_WIDTH_PT = 124;
 
 	/**
-	 * 幅指定のない一行入力欄またはtextareaが持つUA既定幅。
+	 * UA default width of a single-line input or textarea without a specified width.
 	 *
 	 * <p>
-	 * {@code html-ua.css}はこれらを20exにする。固定試験フォントでは外枠込み
-	 * 124ptで、seed 473636/526411/651439の負座標・後続インライン位置を
-	 * そのまま説明する。checkbox/radio等へは広げない。{@code size}付きの入力欄は既定幅ではなく
-	 * 指定した{@code size}の実寸を使い、文書内で最も広いものを返す(2026-09-17)。
+	 * {@code html-ua.css} sets them to 20ex. With the fixed test font, this is 124 pt including the frame,
+	 * directly explaining negative coordinates and subsequent inline positions in seeds 473636/526411/651439.
+	 * Do not extend this to checkbox/radio, etc. For inputs with {@code size}, use the actual specified
+	 * {@code size}, not the default width; return the largest in the document (2026-09-17).
 	 * </p>
 	 */
 	static double defaultTextControlWidth(final String html) {
@@ -3088,9 +3076,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 					.contains(typeMatcher.group(1).toLowerCase(java.util.Locale.ROOT))) {
 				continue;
 			}
-			// size付きの一行入力欄は size×1ex(6pt)+外枠4pt。生成器v2はsize=1〜20を付けるので、
-			// 以前のように読み飛ばすと「作者が指定した大きさ」から漏れる(2026-09-17、seed 4608881:
-			// size=16=100ptの入力欄は縦書きでも回転しないので、60pt幅の紙に100pt厚の行ができる)
+			// A single-line input with size uses size×1 ex (6 pt) + 4 pt frame. Generator v2 assigns size=1–20, so
+			// skipping these as before misses an "author-specified size" (2026-09-17, seed 4608881:
+			// a size=16=100 pt input does not rotate even in vertical writing, creating a 100 pt thick line on 60 pt wide paper).
 			final Matcher size = INPUT_SIZE_VALUE.matcher(attrs);
 			widest = Math.max(widest, size.find() ? Integer.parseInt(size.group(1)) * TEXT_CONTROL_EX_PT
 					+ TEXT_CONTROL_FRAME_PT : DEFAULT_TEXT_CONTROL_WIDTH_PT);
@@ -3099,20 +3087,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>不変条件10</b>: 文書中のトークンを含む描画が、少なくとも1つは
-	 * 実際の紙面と交差すること。
+	 * <b>Invariant 10</b>: at least one drawing containing a document token intersects the actual paper.
 	 *
 	 * <p>
-	 * 不変条件6は、作者が明示した寸法で説明できる小さなはみ出しを許す。
-	 * そのため全トークンが紙面のすぐ外に並んでも、消失検査には現れ、
-	 * 紙面外検査の閾値には届かず合格できた。この検査は量を問わず、
-	 * <b>全内容が見えない</b>場合だけを別に捕捉する。
+	 * Invariant 6 permits small overflow explained by explicit author dimensions. Thus, even if every token
+	 * lay just outside the paper, tokens passed the loss check and stayed below the off-paper threshold.
+	 * Regardless of magnitude, this check separately catches only cases where <b>all content is invisible</b>.
 	 * </p>
 	 *
 	 * <p>
-	 * 座標点だけでは判定しない。原点が紙面外でも字形の矩形が紙面へ
-	 * かかる正当な描画があるため、掃過時だけ詳細ダンプへ付けた幅・高さとの
-	 * 矩形交差で判定する。
+	 * Do not judge by coordinate points alone. Valid drawing may have an off-paper origin while its glyph
+	 * rectangle overlaps the paper. Use rectangle intersection with widths/heights added to the detailed dump
+	 * only during sweeps.
 	 * </p>
 	 */
 	static void assertSomeDrawingOnPage(final Generated doc, final File[] pages, final File html)
@@ -3151,7 +3137,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (doc.beyondEngineControl()) {
 			throw new ExcludedByOversizedBox(detail);
 		}
-		// 複数条件に該当するときも、より狭い同軸逆進行の分類を安定して残す。
+		// Even if multiple conditions apply, consistently retain the narrower same-axis reverse-progression category.
 		if (hasUntypesettableOppositeProgression(doc.html())) {
 			throw new ExcludedByUntypesettableOppositeProgression(detail + " [同軸逆進行フローの組版不能幅]");
 		}
@@ -3164,8 +3150,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (hasFlexMulticolTable(doc.html())) {
 			throw new ExcludedByFlexMulticolMinContent(detail + " [flex内の段組表によるmin-content幅]");
 		}
-		// 版面に物理的に収まらない内容(2026-09-17のユーザー裁定。
-		// {@link ExcludedByUnfittableContent}に理由を書いた)
+		// Content that physically cannot fit in the type area (user decision on 2026-09-17;
+		// see {@link ExcludedByUnfittableContent} for the rationale).
 		final String unfittable = findUnfittableContent(doc.html());
 		if (unfittable != null) {
 			throw new ExcludedByUnfittableContent(detail + " [" + unfittable + "]", unfittable);
@@ -3180,7 +3166,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		fail(detail);
 	}
 
-	/** 正の面積を持つ2矩形として、紙面と交差するか。境界への接触だけは含めない。 */
+	/** Whether two positive-area rectangles intersect the paper. Mere boundary contact does not count. */
 	static boolean rectangleIntersectsPage(final double x, final double y, final double width, final double height,
 			final double pageWidth, final double pageHeight) {
 		return width > 0 && height > 0 && x < pageWidth && y < pageHeight && x + width > 0 && y + height > 0;
@@ -3191,17 +3177,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * @param sessionOut watchdogが中断要求を出せるよう、生成したセッションを
-	 *                   ここへ書き出す。<b>放置ではなく実際に止めるため</b>
-	 *                   (2026-07-27)——止められないスレッドはレイアウト1件分の
-	 *                   ヒープと64MBのスタック予約を抱えたまま残り、掃過が
-	 *                   自己増幅的に詰まる
+	 * @param sessionOut write the created session here so the watchdog can request an abort.
+	 *                   <b>Actually stop it rather than leave it running</b> (2026-07-27):
+	 *                   an unstoppable thread retains one layout's heap and a 64 MB stack reservation,
+	 *                   causing the sweep to stall through self-amplification
 	 */
 	private static void convert(final File html, final File outDir, final DirectSession[] sessionOut,
 			final int pageLimit)
 			throws Exception {
-		// 出力先はスレッド単位。システムプロパティだとプロセス全体で共有され、
-		// 並列掃過でダンプ先が互いに上書きされる(2026-07-26)
+		// Output destinations are per-thread. System properties are shared process-wide,
+		// so parallel sweeps would overwrite each other's dump destinations (2026-07-26).
 		try (AutoCloseable scope = DisplayListDumper.scopedDir(outDir.getPath());
 				AutoCloseable geometry = DisplayListDumper.scopedDetailedGeometry(true)) {
 			final File pdf = new File(outDir, "out.pdf");
@@ -3211,9 +3196,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 				sessionOut[0] = session;
 				try {
 					session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
-					// 数百万文書の掃過で全ページのINFOを標準エラーへ流すと、
-					// I/Oが測定時間とログ容量を支配する。ページ上限だけは型付きで
-					// 捕捉し、必要なときだけ-Dfoliojet.fuzzMessagesで全メッセージを出す。
+					// Printing per-page INFO to stderr during million-document sweeps lets
+					// I/O dominate measurement time and log size. Catch only the page limit with a typed marker;
+					// print all messages only when needed with -Dfoliojet.fuzzMessages.
 					session.setMessageHandler((code, args, mes) -> {
 						if (code == net.zamasoft.foliojet.message.MessageCodes.ERROR_OUT_OF_PAGE_LIMIT) {
 							pageLimitExceeded.set(true);
@@ -3225,15 +3210,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 					session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 					session.property("input.include", "**");
 					session.property("input.property-pi", "true");
-					// オラクルが許す最大枚数を超えた時点で変換自体を止める。
-					// 従来は完了後にファイル数を数えていたため、ページ爆発が
-					// 数千枚を生成してwatchdogとワーカー漏れを起こし、縮小器も
-					// 1候補30秒かかっていた(seed 7662)。上限+1枚目で停止すれば
-					// 不変条件3の意味を変えず、異常入力だけを早く封じ込められる。
+					// Stop conversion itself as soon as it exceeds the oracle's maximum page count.
+					// Previously, counting files only after completion let page explosions
+					// generate thousands of pages, trigger the watchdog, leak workers, and make the shrinker
+					// take 30 seconds per candidate (seed 7662). Stopping at limit+1 pages
+					// contains only abnormal inputs earlier without changing invariant 3's meaning.
 					session.property("output.page-limit", String.valueOf(pageLimit));
-					// 名前付き宛先(id断片)は `output.pdf.hyperlinks.fragment`
-					// の既定onで出るので、ここでの指定は要らない(2026-08-03に
-					// 確認。不変条件9=checkFragments が読む)
+					// Named destinations (id fragments) are output with `output.pdf.hyperlinks.fragment`
+					// on by default, so no explicit setting is needed here (confirmed on 2026-08-03;
+					// invariant 9 = checkFragments reads them).
 					try {
 						CTISessionHelper.transcodeFile(session, html, "text/html", null);
 					} catch (final jp.cssj.cti2.TranscoderException e) {
@@ -3250,31 +3235,30 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 生成器
+	// Generator
 	// ------------------------------------------------------------------
 
 	/**
-	 * @param pageWidth       紙面の幅(pt)
-	 * @param pageHeight      紙面の高さ(pt)
-	 * @param maxExplicitSize この文書が指定した{@code width}/{@code height}の
-	 *                        最大値(pt)。不変条件6で「作者が指定した大きさの
-	 *                        帰結として説明できるはみ出しか」を判定するのに使う
+	 * @param pageWidth       paper width (pt)
+	 * @param pageHeight      paper height (pt)
+	 * @param maxExplicitSize largest specified {@code width}/{@code height} in this document (pt).
+	 *                        Used by invariant 6 to decide whether overflow is explainable
+	 *                        as a consequence of author-specified sizes
 	 */
 	record Generated(String html, List<String> tokens, Set<String> reorderable, double pageWidth,
 			double pageHeight, double maxExplicitSize, boolean oversized, boolean tinyPage) {
 
-		/** 版面が破綻していて、エンジンの振る舞いを問えない文書か。 */
+		/** Whether the document has an unworkable type area that prevents judging engine behavior. */
 		boolean beyondEngineControl() {
 			return this.oversized || this.tinyPage;
 		}
 
 		/**
-		 * 読み順が保たれるべきトークンを<b>文書順に</b>返します。
+		 * Return tokens whose reading order must be preserved <b>in document order</b>.
 		 *
 		 * <p>
-		 * フロートと絶対配置の部分木は除きます——どちらも<b>正当に</b>
-		 * 読み順を変えるからです。段組・表・改ページは内容を順に流すだけ
-		 * なので対象に残します。
+		 * Exclude float and absolute-positioning subtrees: both <b>legitimately</b> change reading order.
+		 * Keep multi-column layout, tables, and page breaks, since they simply flow content in order.
 		 * </p>
 		 */
 		List<String> orderedTokens() {
@@ -3288,7 +3272,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
-	/** 生成器が出す明示サイズ({@code width:120pt}等)。 */
+	/** Explicit sizes emitted by the generator (e.g., {@code width:120pt}). */
 	static final Pattern EXPLICIT_SIZE = Pattern.compile("(?:width|height):(\\d+)pt");
 
 	private static final Pattern EXPLICIT_WIDTH = Pattern.compile("width:(\\d+)pt");
@@ -3299,66 +3283,60 @@ public class RandomDocumentFuzzTest extends TestCase {
 			.compile("name=\"output\\.page-width\"\\s+value=\"([\\d.]+)pt\"");
 
 	/**
-	 * 生成する文書が参照する画像の<b>絶対URI</b>(2026-07-27)。
+	 * <b>Absolute URI</b> of the image referenced by generated documents (2026-07-27).
 	 *
 	 * <p>
-	 * <b>相対パスにしてはいけない。</b>従来は
-	 * {@code ../../files/unittest/red.png}を埋めていたため、生成された文書は
-	 * <b>`local/fuzz/`に置いたときだけ画像が解決した</b>。縮小や再現のために
-	 * 他所へコピーすると<b>画像が黙って消え、別の文書になる</b>——失敗が
-	 * 再現しなくなり、「パスによって挙動が変わる」という誤った結論を招いた
-	 * (2026-07-27に実際に踏んだ)。
+	 * <b>Never use a relative path.</b> Previously, embedding {@code ../../files/unittest/red.png}
+	 * meant the image resolved <b>only when the document was under `local/fuzz/`</b>.
+	 * Copying it elsewhere for reduction or reproduction <b>silently removed the image, changing the document</b>.
+	 * The failure no longer reproduced, leading to the false conclusion "behavior changes with the path"
+	 * (actually encountered on 2026-07-27).
 	 * </p>
 	 *
 	 * <p>
-	 * 画像が入るかどうかでページ数が変わる(実測で2ページ↔3ページ)ので、
-	 * <b>再現性の前提そのもの</b>である。同型の脆さが{@code EnduranceTest}
-	 * にもある({@code ../../../}を決め打ち)。
+	 * Image presence changes page count (measured: 2 pages ↔ 3 pages), so this is
+	 * <b>a prerequisite for reproducibility itself</b>. {@code EnduranceTest} has the same fragility
+	 * (hard-coded {@code ../../../}).
 	 * </p>
 	 */
 	/**
-	 * 画像の位置は{@code -Dfoliojet.fuzzImage}で差し替えられます(2026-07-29)。
+	 * Override the image location with {@code -Dfoliojet.fuzzImage} (2026-07-29).
 	 *
 	 * <p>
-	 * 既定の{@code files/unittest/red.png}は{@code /mnt/f}(DrvFs)にあり、
-	 * <b>文書ごとに開いて復号し直す</b>ため掃過の主要な費用になっていた
-	 * (スレッドダンプで、働いているレイアウトスレッドのほとんどが
-	 * {@code PNGImageReader.readMetadata}だった)。tmpfsへ複製して
-	 * ここを指せば大きく落ちる。
+	 * The default {@code files/unittest/red.png} is on {@code /mnt/f} (DrvFs).
+	 * <b>Opening and decoding it for every document</b> became a major sweep cost
+	 * (thread dumps showed most active layout threads in {@code PNGImageReader.readMetadata}).
+	 * Copying it to tmpfs and pointing here substantially reduces that cost.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>再現性は損なわれない。</b> 失敗の再現は保存されたHTMLではなく
-	 * <b>シード番号</b>から行う({@code -Dfoliojet.fuzzOnlySeed})ので、
-	 * 生成時に有効な画像パスが使われれば足りる。絶対URIにする理由
-	 * (相対パスだと置き場所で文書が変わる)は従来どおり。
+	 * <b>Reproducibility is preserved.</b> Failures are reproduced from <b>seed numbers</b>
+	 * ({@code -Dfoliojet.fuzzOnlySeed}), not saved HTML, so a valid image path at generation time suffices.
+	 * The reason for absolute URIs remains unchanged: relative paths change the document with its location.
 	 * </p>
 	 */
-	/** 掃過に使う既定の画像です(差し替え時の寸法照合の原本)。 */
+	/** Default sweep image (reference for dimension checks when substituting it). */
 	private static final String DEFAULT_FUZZ_IMAGE = "files/unittest/red.png";
 
 	private static final String RED_PNG_URI = new File(
 			System.getProperty("foliojet.fuzzImage", DEFAULT_FUZZ_IMAGE)).getAbsoluteFile().toURI().toString();
 
 	/**
-	 * 掃過の作業ディレクトリ({@code -Dfoliojet.fuzzWorkDir})。既定は
-	 * {@code local/fuzz}。
+	 * Sweep working directory ({@code -Dfoliojet.fuzzWorkDir}). Defaults to {@code local/fuzz}.
 	 *
 	 * <p>
-	 * <b>掃過の律速はCPUではなくI/Oである</b>(2026-07-28に実測)。
-	 * 1文書ごとに文書HTML・表示リストのダンプ・PDFを書くため、既定の
-	 * {@code local/}が{@code /mnt/f}(WSLのDrvFs=Windowsファイルシステム)に
-	 * あると、12スレッドでもワーカーのCPU時間が経過時間の1.2倍にしかならず、
-	 * 残りはI/O待ちで積まれる。tmpfs({@code /dev/shm})やWSL側のext4
-	 * ({@code /}配下)を指すと大きく変わる。
+	 * <b>Sweeps are I/O-bound, not CPU-bound</b> (measured on 2026-07-28).
+	 * Each document writes HTML, display-list dumps, and a PDF. When default {@code local/}
+	 * is on {@code /mnt/f} (WSL DrvFs = Windows filesystem), even 12 threads consume only
+	 * 1.2 times elapsed time in worker CPU time; the rest accumulates in I/O wait.
+	 * Using tmpfs ({@code /dev/shm}) or WSL ext4 (under {@code /}) makes a major difference.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>失敗の再現性は損なわれない。</b> 生成器は決定的なので、
-	 * シード番号さえ分かれば{@code -Dfoliojet.fuzzOnlySeed}でいつでも
-	 * 同じ文書を作り直せる。文書が参照する画像は既に絶対URIなので
-	 * (下記{@link #RED_PNG_URI})、作業ディレクトリを移しても
-	 * 同じ文書になる。
+	 * <b>Failure reproducibility is preserved.</b> The generator is deterministic, so knowing the seed
+	 * lets {@code -Dfoliojet.fuzzOnlySeed} regenerate the same document anytime.
+	 * Image references already use absolute URIs (see {@link #RED_PNG_URI} below),
+	 * so relocating the working directory leaves the document unchanged.
 	 * </p>
 	 */
 	static File workDir() {
@@ -3367,7 +3345,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return dir;
 	}
 
-	/** ページ寸法の候補(極端に小さいものを含む)。 */
+	/** Candidate page dimensions (including extremely small ones). */
 	private static final int[][] PAGE_SIZES = { { 200, 200 }, { 300, 150 }, { 120, 400 }, { 595, 842 }, { 60, 60 } };
 
 	private static final String[] WRITING_MODES = { "horizontal-tb", "vertical-rl", "vertical-lr" };
@@ -3377,21 +3355,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * @param legacyV1 v1の入力分布で生成する(拡張を全て無効化)。
-	 *                 固定seed回帰の期待値はv1文書で記録されているため、
-	 *                 歴史的seedの検査はこちらを使う(2026-08-23)
+	 * @param legacyV1 generate using the v1 input distribution (disable all extensions).
+	 *                 Fixed-seed regression expectations were recorded for v1 documents,
+	 *                 so use this for historical seed checks (2026-08-23)
 	 */
 	static Generated generate(final int seed, final boolean strict, final boolean legacyV1) {
 		if (!legacyV1 && fitProfile()) {
-			generatorProfile(); // extreme との併用を拒む
+			generatorProfile(); // Reject combining with extreme.
 			return generateFit(seed, strict);
 		}
 		return generate(seed, strict, legacyV1, !legacyV1 && extremeProfile());
 	}
 
 	/**
-	 * fit-v1: 紙面外の検査が文書単位で免除されない v2 の文書({@link #FIT_PROFILE_VERSION})。1 回目は元の
-	 * seed のまま(標準の文書が既に生きていれば同じ文書)、2 回目以降は派生 seed。見つからなければ最後の文書。
+	 * fit-v1: v2 documents whose off-paper checks are not exempted at document level ({@link #FIT_PROFILE_VERSION}).
+	 * The first attempt uses the original seed (same document if the standard one already qualifies);
+	 * later attempts use derived seeds. If none qualifies, use the last document.
 	 */
 	static Generated generateFit(final int seed, final boolean strict) {
 		Generated doc = null;
@@ -3404,7 +3383,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return doc;
 	}
 
-	/** fit の k 回目の seed(決定的。k=0 は元の seed)。 */
+	/** Seed for fit attempt k (deterministic; k=0 is the original seed). */
 	static int fitSeed(final int seed, final int k) {
 		if (k == 0) {
 			return seed;
@@ -3415,36 +3394,36 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * @param extreme v2本文へextreme-v1の制約付き高密度シナリオを追加する。
-	 *                独立乱数列を使うのでfalse時のv2文書は一切変わらない。
+	 * @param extreme add constrained dense extreme-v1 scenarios to the v2 body.
+	 *                An independent random sequence leaves v2 documents completely unchanged when false.
 	 */
 	static Generated generate(final int seed, final boolean strict, final boolean legacyV1,
 			final boolean extreme) {
 		final long randomSeed = seed * 7919L + (strict ? 1 : 2);
 		final Random r = new Random(randomSeed);
-		// v1の乱数消費順を変えない。追加機能はこの独立系列だけを消費する。
-		// legacyV1のときnull=全拡張ゲートが不発火
+		// Preserve v1 random-consumption order. Added features consume only this independent sequence.
+		// With legacyV1, null means all extension gates stay inactive.
 		final Random extensionRandom = legacyV1 ? null
 				: new Random(randomSeed ^ 0x6A09E667F3BCC909L
 						^ ((long) GENERATOR_VERSION << 32));
-		// extremeはv2の乱数消費順を変えない第三系列。プロファイル版をseedへ
-		// 混ぜ、将来extreme-v2を作っても同じseedの意味を黙って変えない。
+		// extreme uses a third sequence, preserving v2 random-consumption order. Mix the profile version into the seed
+		// so a future extreme-v2 cannot silently change the meaning of the same seed.
 		final Random extremeRandom = extreme
 				? new Random(randomSeed ^ 0xBB67AE8584CAA73BL
 						^ ((long) EXTREME_PROFILE_VERSION << 40))
 				: null;
 		final List<String> tokens = new ArrayList<>();
-		// 並べ替えが正当なトークン(フロート・絶対配置の部分木の中)。
-		// 事後に表示リストから推定せず、**知っている側**に記録させる
+		// Tokens that may legitimately reorder (inside float/absolute-positioning subtrees).
+		// Have **the side that knows** record them, rather than inferring them afterward from display lists.
 		final Set<String> reorderable = new LinkedHashSet<String>();
 		final StringBuilder body = new StringBuilder();
 		final int[] counter = { 0 };
-		// **1文書あたりの機能数を指標にする**(2026-08-02、ユーザー指摘)。
-		// t個の機能の組は、機能k個の文書がC(k,t)個を一度に被覆する——
-		// つまり密度はtの次数で効く。「小さい文書×多数」では、文書数を
-		// いくら積んでも3組・4組は被覆されない。
-		// 3/4の文書は全種別を一巡半〜二巡ぶん詰め込み、1/4は小さいまま
-		// 残す(欠陥が出たときの切り分けを速く保つため)
+		// **Use feature count per document as a metric** (2026-08-02, user feedback).
+		// A document with k features covers C(k,t) combinations of t features at once;
+		// density therefore matters to degree t. No number of "many small documents"
+		// covers triples or quadruples.
+		// Pack 3/4 of documents with one-and-a-half to two rounds of every type; leave 1/4 small
+		// to keep diagnosis fast when defects occur.
 		final boolean dense = r.nextInt(4) != 0;
 		if (dense) {
 			final int kinds = nodeKinds(strict);
@@ -3505,8 +3484,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 		s.append(body);
 		s.append("\n</body></html>\n");
 		final String out = s.toString();
-		// 生成器が出した明示サイズの最大値。生成箇所が複数に散っているので、
-		// 引数で持ち回るより出来上がった文書から拾うほうが取りこぼさない
+		// Largest explicit size emitted by the generator. Generation sites are scattered, so
+		// extracting it from the finished document misses less than passing it through arguments.
 		double maxExplicit = 0;
 		final Matcher em = EXPLICIT_SIZE.matcher(out);
 		while (em.find()) {
@@ -3517,10 +3496,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * extreme-v1の制約付きシナリオ。単に乱数の深さを上げるとDOMが指数的に
-	 * 膨らみ、ほぼ全件がwatchdog/OOMという無意味な分布になる。そこで、過去の
-	 * 構造的な穴を毎文書へ有界に組み込む。v2本文とは独立乱数列なので標準
-	 * プロファイルのseed再現性を保つ。
+	 * Constrained extreme-v1 scenarios. Simply increasing random depth grows the DOM exponentially,
+	 * producing a useless distribution of almost all watchdog/OOM cases. Instead, incorporate past
+	 * structural gaps in bounded form into every document. A random sequence independent of the v2 body
+	 * preserves seed reproducibility for the standard profile.
 	 */
 	private static void appendExtremeDocument(final StringBuilder s, final Random r, final boolean strict,
 			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
@@ -3536,7 +3515,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		s.append("</div>\n");
 	}
 
-	/** 有効なspanを保ったthead/tbody/tfoot・複数複雑セルの表。 */
+	/** Table with thead/tbody/tfoot and multiple complex cells, preserving valid spans. */
 	private static void appendExtremeTable(final StringBuilder s, final Random r, final boolean strict,
 			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
 		s.append("<table data-fuzz-role=\"extreme-table\" style=\"width:90%;min-width:8em;max-width:100%;")
@@ -3572,7 +3551,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				.append("</td></tr></tfoot>\n</table>\n");
 	}
 
-	/** 6 itemのflexと明示配置gridを重ね、幅交渉・折返し・順序を必ず踏む。 */
+	/** Nest a six-item flex and explicitly placed grid to always exercise width negotiation, wrapping, and order. */
 	private static void appendExtremeLayout(final StringBuilder s, final Random r, final boolean strict,
 			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
 		final boolean reversed = !strict && r.nextBoolean();
@@ -3600,7 +3579,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		s.append("</div>\n");
 	}
 
-	/** list itemの中へruby・画像・form・段組を同居させる。 */
+	/** Combine ruby, images, forms, and multi-column layout within list items. */
 	private static void appendExtremeList(final StringBuilder s, final Random r, final boolean strict,
 			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
 		s.append("<ol data-fuzz-role=\"extreme-list\" style=\"list-style-position:outside;break-inside:auto\">\n")
@@ -3623,7 +3602,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		s.append("</li>\n</ol>\n");
 	}
 
-	/** 長語・連続空白・CJK・RTL/bidiを、多数の追跡トークンと同じ行へ置く。 */
+	/** Place long words, consecutive spaces, CJK, and RTL/bidi on the same lines as many tracking tokens. */
 	private static void appendExtremeText(final StringBuilder s, final Random r,
 			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
 		s.append("<div data-fuzz-role=\"extreme-text\" style=\"min-width:0;max-width:100%;")
@@ -3647,7 +3626,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				.append(token(tokens, counter, reorderable, false)).append("</p></div>\n");
 	}
 
-	/** 段バランス・avoid・深い入れ子の切断境界を有界に5枝作る。 */
+	/** Build five bounded branches covering column balance, avoid, and deeply nested cut boundaries. */
 	private static void appendExtremeFragmentation(final StringBuilder s, final Random r, final boolean strict,
 			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
 		s.append("<div data-fuzz-role=\"extreme-fragmentation\" style=\"column-count:3;column-fill:balance;")
@@ -3662,7 +3641,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		s.append("</div>\n");
 	}
 
-	/** WILDでだけ、強制改ページ・非表示・overflowの内側を複雑化する。 */
+	/** Only in WILD, add complexity inside forced page breaks, hidden content, and overflow. */
 	private static void appendExtremeWildBreak(final StringBuilder s, final Random r,
 			final List<String> tokens, final int[] counter, final Set<String> reorderable) {
 		s.append("<div data-fuzz-role=\"extreme-wild-break\" style=\"page-break-before:always;")
@@ -3676,28 +3655,26 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * この文書が<b>紙面の内容領域に収まらない箱</b>を含むかを返します
-	 * (2026-07-26新設)。
+	 * Return whether the document contains <b>boxes that cannot fit in the paper's content area</b>
+	 * (added 2026-07-26).
 	 *
 	 * <p>
-	 * <b>収まらないものを置いた文書は、白紙ページの検査から除外します。</b>
-	 * エンジンがどう振る舞っても版面は破綻しており(はみ出させるか、
-	 * 次ページへ送るか)、寸法を直すのは組版を指定した側の責任だからです
-	 * ——2026-07-26のユーザー裁定。
+	 * <b>Exclude documents placing content that cannot fit from blank-page checks.</b>
+	 * Their layout is unworkable regardless of engine behavior (overflow or moving to the next page);
+	 * correcting dimensions is the layout author's responsibility: user decision on 2026-07-26.
 	 * </p>
 	 *
 	 * <p>
-	 * 判定は生成器が出した値だけで行います。実測では、白紙ページを出す
-	 * 33文書のうち<b>28文書</b>がこれに該当しました。残り5件のうち2件は
-	 * 50x50pt(1.7cm角=切手より小さい)の紙で、これも実質同じ性質です。
-	 * 追うべきは残り3件——190x190pt・110x390pt・280x130pt という
-	 * <b>実在する寸法で、かつ全要素が紙面に収まる</b>文書です。
+	 * Judge only from generator-emitted values. Measurements showed <b>28 of 33 documents</b>
+	 * producing blank pages met this condition. Of the five remaining, two used 50×50 pt paper
+	 * (a 1.7 cm square, smaller than a postage stamp), essentially the same issue.
+	 * Pursue the remaining three: <b>realistic dimensions with every element fitting on the paper</b>,
+	 * at 190×190 pt, 110×390 pt, and 280×130 pt.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>除外は「見なかったことにする」ではありません。</b> 集計モードでは
-	 * 除外分も件数として出します——除外が増えたことに気づけなくなると、
-	 * 本当の退行を見落とすからです。
+	 * <b>Exclusion does not mean ignoring cases.</b> Aggregation mode also reports exclusion counts:
+	 * if growth in exclusions goes unnoticed, real regressions can be missed.
 	 * </p>
 	 */
 	static boolean isOversized(final String html, final int[] pageSize) {
@@ -3711,27 +3688,24 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (maxOf(EXPLICIT_HEIGHT, html) > contentHeight) {
 			return true;
 		}
-		// フォントサイズは行の高さになるので、ページ方向の寸法と比べる
+		// Font size determines line height, so compare it against the page-direction dimension.
 		return maxOf(FONT_SIZE, html) > contentHeight;
 	}
 
 	/**
-	 * この文書の紙面が<b>そもそも組版できない大きさ</b>かを返します
-	 * (2026-07-26新設)。
+	 * Return whether the paper is <b>fundamentally too small for layout</b> (added 2026-07-26).
 	 *
 	 * <p>
-	 * 基準は「内容領域が基準フォントサイズの{@value #MIN_PAGE_CHARS}倍
-	 * (=約{@value #MIN_PAGE_CHARS}文字)に満たない軸がある」。生成器は
-	 * 60x60ptの紙に13ptのフォントという文書を作る——<b>1行4文字</b>で、
-	 * 行分割も浮動体も段組も意味のある版面にならず、エンジンがどう
-	 * 振る舞っても正解がない。実在する最小の印刷物(ラベル・値札)でも
-	 * この比率にはならない。
+	 * The criterion is "some content-area axis is less than {@value #MIN_PAGE_CHARS} times the base font size
+	 * (= about {@value #MIN_PAGE_CHARS} characters)." The generator creates 13 pt text on 60×60 pt paper:
+	 * <b>four characters per line</b>, where line breaking, floats, and multi-column layout cannot form
+	 * a meaningful type area, and no engine behavior yields a correct result. Even the smallest real
+	 * printed items (labels/price tags) do not have this ratio.
 	 * </p>
 	 *
 	 * <p>
-	 * 除外されるのは実質「60x60ptかつフォント8pt以上」だけで、
-	 * 他の紙面(120x400・200x200・300x150・A4)は生成器が出す
-	 * フォントサイズの範囲(6〜13pt)では該当しない。
+	 * In practice, only "60×60 pt with font size at least 8 pt" is excluded. Other paper sizes
+	 * (120×400, 200×200, 300×150, A4) do not qualify within generated font sizes (6–13 pt).
 	 * </p>
 	 */
 	static boolean isTinyPage(final String html, final int[] pageSize) {
@@ -3746,37 +3720,36 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return pageSize[0] - 2 * margin < least || pageSize[1] - 2 * margin < least;
 	}
 
-	/** 「組版できる紙面」の下限を文字数で表したもの。 */
+	/** Lower bound for "paper suitable for layout", expressed in characters. */
 	private static final int MIN_PAGE_CHARS = 8;
 
-	/** 生成器が書く浮動体の明示寸法({@code float:left;width:64pt}等)。 */
+	/** Explicit float dimensions emitted by the generator (e.g., {@code float:left;width:64pt}). */
 	private static final Pattern FLOAT_EXPLICIT_SIZE = Pattern
 			.compile("float:[a-z]+;(?:width|height):(\\d+)pt");
 
 	/**
-	 * <b>組版できない幅の浮動体</b>を含むかを返します(2026-07-29新設)。
+	 * Return whether the document contains <b>a float with an untypesettable width</b> (added 2026-07-29).
 	 *
 	 * <p>
-	 * 基準は2つ。明示した寸法が基準フォントサイズの
-	 * {@value #MIN_PAGE_CHARS}倍(=約{@value #MIN_PAGE_CHARS}文字)に
-	 * 満たないか、明示した親幅・段幅より左右フロートが広いこと。
-	 * 紙面が組版できない大きさなら除外する、と決めたのと同じ理由で、
-	 * <b>欄が組版できない幅なら中身は必ず溢れる</b>。
+	 * Two criteria: an explicit dimension below {@value #MIN_PAGE_CHARS} times the base font size
+	 * (= about {@value #MIN_PAGE_CHARS} characters), or a left/right float wider than its explicit
+	 * parent/column width. For the same reason that paper too small for layout is excluded,
+	 * <b>content must overflow an area too narrow for layout</b>.
 	 * </p>
 	 *
 	 * <p>
-	 * 実測(2026-07-29): 掃過に残っていた紙面外3件は、いずれも
-	 * <b>3文字未満</b>の幅の浮動体に表や段組を詰め込んでいた——
-	 * 596520が29pt/13pt(2.2文字)、1412230が10pt/11pt(0.9文字)、
-	 * 1928901が15pt/10pt(1.5文字)。CSSの{@code overflow}既定は
-	 * {@code visible}なので、この中身が箱の外へ描かれるのは<b>正しい挙動</b>で
-	 * あり、エンジンの振る舞いを問えない。
+	 * Measurements (2026-07-29): all three remaining off-paper sweep cases packed tables or multi-column
+	 * layout into floats <b>less than three characters wide</b>:
+	 * 596520 at 29 pt / 13 pt (2.2 characters), 1412230 at 10 pt / 11 pt (0.9 characters),
+	 * and 1928901 at 15 pt / 10 pt (1.5 characters). CSS {@code overflow} defaults to {@code visible},
+	 * so painting this content outside the box is <b>correct behavior</b>;
+	 * engine behavior cannot be judged here.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>紙面外の検査にだけ使う。</b> 内容の消失・読み順・複製・変換の失敗には
-	 * 適用しない({@code ARCHITECTURE.md} §5.13が白紙ページと紙面外にだけ
-	 * 除外を認めているのと同じ線引き)。
+	 * <b>Use only for off-paper checks.</b> Do not apply to content loss, reading order, duplication,
+	 * or conversion failure (the same boundary as {@code ARCHITECTURE.md} §5.13,
+	 * which allows exclusions only for blank pages and off-paper placement).
 	 * </p>
 	 */
 	static boolean hasUntypesettableFloat(final String html) {
@@ -3795,13 +3768,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 左右フロート自身の明示幅が組版下限未満か(2026-09-17新設)。
+	 * Whether a left/right float's own explicit width is below the layout lower bound (added 2026-09-17).
 	 *
 	 * <p>
-	 * {@link #FLOAT_EXPLICIT_SIZE}は{@code float:…;width:…}の<b>隣接</b>を前提にしているが、
-	 * 生成器v2は間に{@code writing-mode}を挟む({@code float:right;writing-mode:horizontal-tb;width:26pt})。
-	 * 同じ裁定の同じ形なのに宣言順で漏れていたので、同じタグのstyleの中で照合する
-	 * (seed 3767082・4709606: 幅22〜26ptの右フロートにリスト。UA既定の字下げだけで紙面の外へ出る)。
+	 * {@link #FLOAT_EXPLICIT_SIZE} assumes {@code float:…;width:…} are <b>adjacent</b>, but generator v2
+	 * inserts {@code writing-mode} between them ({@code float:right;writing-mode:horizontal-tb;width:26pt}).
+	 * Declaration order missed the same shape covered by the same decision, so match within one tag's style
+	 * (seeds 3767082 and 4709606: lists in 22–26 pt wide right floats; UA default indentation alone goes off-paper).
 	 * </p>
 	 */
 	static boolean hasNarrowFloat(final String html, final double least) {
@@ -3818,7 +3791,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			if (!STYLE_FLOAT.matcher(attrs).find()) {
 				continue;
 			}
-			// 後勝ちの幅(最後が百分率等なら不明=除外しない)。min-widthが勝つならその幅になる
+			// Last width declaration wins (a final percentage, etc. is unknown: do not exclude). If min-width wins, use that width.
 			final double font = least / MIN_PAGE_CHARS;
 			final double width = Math.max(lastLength(STYLE_WIDTH_DECLARATION, attrs, font, Double.POSITIVE_INFINITY),
 					lastLength(STYLE_MIN_WIDTH_DECLARATION, attrs, font, 0));
@@ -3829,7 +3802,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return false;
 	}
 
-	/** 明示幅が組版下限未満の祖先に、左右フロートが実際に入っているか。 */
+	/** Whether a left/right float actually lies within an ancestor whose explicit width is below the layout lower bound. */
 	static boolean hasFloatInsideNarrowContainer(final String html, final double least) {
 		final java.util.ArrayDeque<Boolean> narrow = new java.util.ArrayDeque<>();
 		narrow.push(Boolean.FALSE);
@@ -3869,14 +3842,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			.compile("(?:^|[;\\s\"])display\\s*:\\s*(?:inline-)?flex\\s*(?:;|\"|'|$)");
 
 	/**
-	 * 明示した包含幅より広い左右フロートを含むかを返す。
+	 * Return whether a left/right float exceeds its explicitly specified containing width.
 	 *
 	 * <p>
-	 * 単に文書中の最大・最小を比べない。開始・終了タグをスタックでたどり、
-	 * 別の枝にある幅を結び付けない。段組はページ内容幅または親の明示幅から
-	 * {@code (幅 - 段間*(段数-1))/段数}を計算する。これでstrict seed
-	 * 132786(99pt中の126ptフロート)と143513(約25.3pt段中の89pt
-	 * フロート)だけを、作者指定による組版不能幅として識別できる。
+	 * Do not simply compare document-wide maxima and minima. Follow start/end tags with a stack
+	 * to avoid associating widths in different branches. For multi-column layout, use the page content width
+	 * or explicit parent width to calculate {@code (width - gap*(column count-1))/column count}.
+	 * This identifies only strict seeds 132786 (126 pt float in 99 pt) and 143513
+	 * (89 pt float in an approximately 25.3 pt column) as untypesettable widths caused by author declarations.
 	 * </p>
 	 */
 	static boolean hasOverwideFloat(final String html) {
@@ -3917,8 +3890,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final Double explicitWidth = widthMatcher.find() ? Double.valueOf(widthMatcher.group(1)) : null;
 			final boolean floating = STYLE_FLOAT.matcher(attrs).find();
 			if (explicitWidth != null && explicitWidth.doubleValue() > floatLimits.peek().doubleValue()) {
-				// 自動幅floatのshrink-to-fit幅を、子孫の明示幅が包含幅より
-				// 大きくしている(seed 865035)。別枝の幅はstack上に無い。
+				// Descendant explicit widths make an auto-width float's shrink-to-fit width exceed its containing width
+				// (seed 865035). Widths in other branches are absent from the stack.
 				return true;
 			}
 			if (explicitWidth != null && floating
@@ -3944,7 +3917,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return false;
 	}
 
-	/** flex祖先の中で、2段以上の段組の子孫にtableがあるか。 */
+	/** Whether a table descends from a layout with at least two columns inside a flex ancestor. */
 	static boolean hasFlexMulticolTable(final String html) {
 		final java.util.ArrayDeque<Boolean> flex = new java.util.ArrayDeque<>();
 		final java.util.ArrayDeque<Boolean> multicolInFlex = new java.util.ArrayDeque<>();
@@ -3982,27 +3955,25 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return false;
 	}
 
-	/** {@code writing-mode} の宣言(body・style属性のどちらも拾う)。 */
+	/** {@code writing-mode} declarations (capture both body and style attributes). */
 	private static final Pattern WRITING_MODE = Pattern.compile("writing-mode\\s*:\\s*([a-z-]+)");
 
 	/**
-	 * この文書が<b>直交フロー</b>(軸の異なる{@code writing-mode}の入れ子)を
-	 * 含むかを返します(2026-07-28新設)。
+	 * Return whether the document contains <b>orthogonal flows</b>
+	 * (nested {@code writing-mode} values with different axes) (added 2026-07-28).
 	 *
 	 * <p>
-	 * <b>述語は文書の字面だけから計算する</b>——3,000万文書の掃過では
-	 * 1件ずつ人が判断できない(ARCHITECTURE.md §5.13)。生成器は
-	 * {@code writing-mode}を{@code body}のスタイル規則と要素の
-	 * {@code style}属性にしか書かないので、宣言を全部拾って
-	 * <b>縦横の軸が2種類以上現れるか</b>だけを見れば足りる。
+	 * <b>Compute the predicate from document text alone</b>: humans cannot judge 30 million sweep documents
+	 * individually (ARCHITECTURE.md §5.13). The generator writes {@code writing-mode} only in
+	 * {@code body} style rules and element {@code style} attributes, so collect all declarations and check
+	 * only <b>whether both vertical and horizontal axes appear</b>.
 	 * </p>
 	 *
 	 * <p>
-	 * 入れ子関係(どちらが祖先か)は見ない。軸が2種類ある時点で、
-	 * どこかに必ず直交する境界があるからである。生成器が同じ軸の
-	 * 方向違い({@code vertical-rl}と{@code vertical-lr})しか出さない
-	 * 文書は、ここでは直交とみなさない——そちらは
-	 * {@code SAME_AXIS_DIRECTION_CHANGE}であり、行軸の長さは変わらない。
+	 * Do not inspect nesting (which is the ancestor): the presence of both axes guarantees an orthogonal
+	 * boundary somewhere. Documents containing only opposite directions on the same axis
+	 * ({@code vertical-rl} and {@code vertical-lr}) are not orthogonal here:
+	 * that is {@code SAME_AXIS_DIRECTION_CHANGE}, and inline-axis length does not change.
 	 * </p>
 	 */
 	static boolean hasOrthogonalFlow(final String html) {
@@ -4015,26 +3986,26 @@ public class RandomDocumentFuzzTest extends TestCase {
 				horizontal = true;
 			}
 		}
-		// bodyに宣言が無ければ既定(horizontal-tb)が効いている
+		// Without a body declaration, the default (horizontal-tb) applies.
 		return vertical && (horizontal || !BODY_WRITING_MODE.matcher(html).find());
 	}
 
-	/** 開始タグ・終了タグと、その{@code style}の{@code writing-mode}。 */
+	/** Start/end tags and {@code writing-mode} in their {@code style}. */
 	private static final Pattern TAG_OR_WM = Pattern
 			.compile("</(\\w+)>|<(\\w+)([^>]*)>");
 	private static final Pattern STYLE_WRITING_MODE = Pattern
 			.compile("writing-mode\\s*:\\s*([a-z-]+)");
-	/** 縦書きのページ軸に対する明示寸法。 */
+	/** Explicit dimensions along the page axis in vertical writing. */
 	private static final Pattern STYLE_WIDTH = Pattern
 			.compile("(?:^|[;\\s\"])width\\s*:\\s*([\\d.]+)(?:pt)?\\s*(?:;|\"|'|$)");
 
 	/**
-	 * 軸を変えた子に、基準文字送りの{@value #MIN_PAGE_CHARS}倍未満の
-	 * {@code width}を明示した箇所があるか。
+	 * Whether an axis-changing child has an explicit width below {@value #MIN_PAGE_CHARS} times
+	 * the base character advance, specified via {@code width}.
 	 *
-	 * <p>タグの入れ子をたどるため、別の枝にある狭幅とwriting-modeを
-	 * 結び付けない。単なる直交フロー、同軸の方向変更、{@code height:0}、
-	 * 幅指定のない自動サイズは対象外とする。</p>
+	 * <p>Follow tag nesting to avoid associating narrow widths and writing-mode in different branches.
+	 * Exclude mere orthogonal flow, same-axis direction changes, {@code height:0},
+	 * and auto sizes without specified widths from this predicate.</p>
 	 */
 	static boolean hasUntypesettableOrthogonalFlow(final String html) {
 		final Matcher bm = BODY_WRITING_MODE.matcher(html);
@@ -4079,25 +4050,27 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 同じ縦軸の親子でページ進行方向を反転し、反転要素の明示幅が基準文字の
-	 * {@value #MIN_PAGE_CHARS}倍未満か、その明示幅を子孫の明示幅が超える箇所を
-	 * 含むかを返します。物差しは{@link #isTinyPage}と
-	 * {@link #hasUntypesettableFloat}と同じです。
+	 * Return whether a same-vertical-axis parent-child pair reverses page progression and the reversed element's
+	 * explicit width is below {@value #MIN_PAGE_CHARS} base characters, or a descendant's explicit width exceeds it.
+	 * Use the same measure as {@link #isTinyPage} and {@link #hasUntypesettableFloat}.
 	 *
 	 * <p>
-	 * 子孫の幅は下限(2026-10-07): {@code min-width}と、{@code max-width}が無ければ{@code width}の最後の宣言(pt・em)。
-	 * 以前は最初の{@code width}の pt 値で比べ、{@code max-width}が狭める箱も数えていた。非置換の inline(既定で inline の
-	 * タグを含む)・表の部品の幅は数えず、flex 項目は{@code min-width}だけ、字の大きさを継いだ箱の em は読まない
-	 * (codex の健全性の反例)。同じ日に「紙と逆に進む領域の中の箱の明示幅を子孫が超えたら除外」を足しかけたが、
-	 * 領域が紙の端にあるとは限らず、溢れる側も揃え方で変わる(codex の 2 回目の反例)。その形で止まった fit seed
-	 * 11942560 は、Copper がインラインブロックのベースラインを最初の行に揃える(CSS 2.1 §10.8.1 とChromeは最後の行)
-	 * ことの帰結で、Chrome は紙に収める——作者の溢れではなかった(triage §22)。
+	 * Descendant widths are lower bounds (2026-10-07): the last {@code min-width}, and the last {@code width}
+	 * if there is no {@code max-width} (pt/em). Previously, comparison used the first {@code width} in pt,
+	 * counting boxes narrowed by {@code max-width} too. Ignore widths of non-replaced inline elements
+	 * (including tags inline by default) and table parts; flex items use only {@code min-width}.
+	 * Do not read em for boxes inheriting changed font sizes (codex soundness counterexamples).
+	 * That day, we almost added "exclude when a descendant exceeds a box's explicit width within a region
+	 * progressing opposite to the paper", but such a region need not touch the paper edge, and alignment
+	 * changes the overflow side (codex's second counterexample). Fit seed 11942560 stopped in that shape
+	 * because Copper aligned an inline-block baseline to its first line (CSS 2.1 §10.8.1 and Chrome use the last).
+	 * Chrome kept it on the paper: this was not author-caused overflow (triage §22).
 	 * </p>
 	 *
 	 * <p>
-	 * 文字列の出現だけではなく、生成器が作るHTMLの入れ子をスタックでたどる。
-	 * これにより、別々の枝にある{@code vertical-rl}・{@code vertical-lr}・
-	 * {@code width:0}を誤って一つの除外条件に結び付けない。
+	 * Follow generated HTML nesting with a stack, not mere string occurrences. This prevents incorrectly
+	 * combining {@code vertical-rl}, {@code vertical-lr}, and {@code width:0} in separate branches
+	 * into one exclusion condition.
 	 * </p>
 	 */
 	static boolean hasUntypesettableOppositeProgression(final String html) {
@@ -4108,9 +4081,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final double least = font * MIN_PAGE_CHARS;
 		final java.util.ArrayDeque<String> modes = new java.util.ArrayDeque<>();
 		final java.util.ArrayDeque<Double> reverseLimits = new java.util.ArrayDeque<>();
-		// 子の幅指定が幅を決めない入れ物(flex=項目が伸び縮みする)の直下か
+		// Direct child of a container where child width declarations do not determine width (flex items grow/shrink)?
 		final java.util.ArrayDeque<Boolean> flexParents = new java.util.ArrayDeque<>();
-		// 自分か祖先が字の大きさを変えたか(em を本文の字の大きさで読めない)
+		// Has this element or an ancestor changed font size (so em cannot use the body font size)?
 		final java.util.ArrayDeque<Boolean> fontChanged = new java.util.ArrayDeque<>();
 		modes.push(rootMode);
 		reverseLimits.push(Double.valueOf(Double.POSITIVE_INFINITY));
@@ -4144,8 +4117,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final Matcher widthMatcher = STYLE_WIDTH.matcher(attrs);
 			final Double width = widthMatcher.find() ? Double.valueOf(widthMatcher.group(1)) : null;
 			final double inheritedLimit = reverseLimits.peek().doubleValue();
-			// 幅の宣言が効く箱か: 非置換のinline(既定でinlineのタグを含む)と表の部品は幅を持たず、flex項目は
-			// 伸び縮みする(最小幅だけが効く)。字の大きさを継いだ箱は em を読まない
+			// Does the width declaration apply to this box? Non-replaced inline elements (including default-inline tags)
+			// and table parts have no width; flex items grow/shrink (only minimum width applies). Ignore em after font-size changes.
 			final String name = String.valueOf(m.group(2)).toLowerCase(java.util.Locale.ROOT);
 			final boolean unsized = STYLE_DISPLAY_UNSIZED.matcher(attrs).find()
 					|| (INLINE_BY_DEFAULT.contains(name) && !STYLE_DISPLAY_SIZED.matcher(attrs).find())
@@ -4155,7 +4128,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final double em = ownFont ? Double.NaN : font;
 			final double lower = unsized ? 0
 					: flexItem ? lastLength(STYLE_MIN_WIDTH_DECLARATION, attrs, em, 0) : widthLowerBound(attrs, em);
-			// 子孫の幅は下限で比べる(以前は最初の width の pt 値だけを見て、max-width が狭める箱も数えていた)
+			// Compare descendant width lower bounds (previously only the first width in pt was read, counting max-width-narrowed boxes too).
 			if (lower > inheritedLimit) {
 				return true;
 			}
@@ -4177,46 +4150,47 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	private static final Pattern STYLE_MAX_WIDTH_DECLARATION = Pattern
 			.compile("(?:^|[;\\s\"])max-width\\s*:\\s*([^;\"']*)");
-	/** 字の大きさを変える宣言。em の長さを本文の字の大きさで読めなくなる。 */
+	/** Declarations changing font size, making em lengths unreadable using the body font size. */
 	private static final Pattern STYLE_FONT_SIZE_DECLARATION = Pattern.compile("(?:^|[;\\s\"])font(?:-size)?\\s*:");
 
 	/**
-	 * 明示した幅の下限(pt): {@code min-width}の最後の宣言と、{@code max-width}が無ければ{@code width}の最後の宣言
-	 * (どちらもpt・em)の大きい方。無ければ0。幅の宣言が効く箱かは呼び出し側が確かめる。
+	 * Explicit width lower bound (pt): the larger of the last {@code min-width} and, if no {@code max-width}
+	 * exists, the last {@code width} (both pt/em). Zero if absent.
+	 * The caller checks whether width declarations apply to the box.
 	 */
 	static double widthLowerBound(final String attrs, final double font) {
 		final double min = lastLength(STYLE_MIN_WIDTH_DECLARATION, attrs, font, 0);
 		final double width = STYLE_MAX_WIDTH_DECLARATION.matcher(attrs).find() ? 0
 				: lastLength(STYLE_WIDTH_DECLARATION, attrs, font, 0);
-		// font が NaN(字の大きさが分からない)なら em の宣言は NaN になる。下限としては 0
+		// If font is NaN (unknown font size), an em declaration becomes NaN. Use zero as its lower bound.
 		return Math.max(Double.isNaN(min) ? 0 : min, Double.isNaN(width) ? 0 : width);
 	}
 
-	/** 既定で非置換のinlineになるタグ(幅の宣言が効かない)。生成器が使うもの。 */
+	/** Generator-used tags that default to non-replaced inline (width declarations do not apply). */
 	private static final Set<String> INLINE_BY_DEFAULT = Set.of("span", "a", "b", "i", "em", "strong", "small", "big",
 			"sub", "sup", "ruby", "rb", "rt", "rp", "label", "code", "q", "abbr", "cite");
-	/** 表の部品のタグ(幅の宣言は最小幅としてしか効かない)。 */
+	/** Table-part tags (width declarations apply only as minimum widths). */
 	private static final Set<String> TABLE_PARTS = Set.of("table", "thead", "tbody", "tfoot", "tr", "td", "th", "caption",
 			"col", "colgroup");
-	/** 幅の宣言が効く display(タグの既定のinlineを上書きする)。 */
+	/** display values that make width declarations apply (override a tag's default inline). */
 	private static final Pattern STYLE_DISPLAY_SIZED = Pattern.compile(
 			"(?:^|[;\\s\"])display\\s*:\\s*(?:block|inline-block|flex|grid|list-item|flow-root)\\s*(?:;|\"|'|$)");
 
 	/**
-	 * 入れ子をたどって、<b>軸(縦/横)が何回入れ替わるか</b>の最大値を返します。
+	 * Follow nesting and return the maximum <b>number of axis switches (vertical/horizontal)</b>.
 	 *
 	 * <p>
-	 * {@link #hasOrthogonalFlow}は「縦と横が同居するか」しか見ないので、
-	 * <b>2段</b>(普通の縦書き中の横書き)と<b>3段</b>
-	 * ({@code vertical-rl}→{@code horizontal-tb}→{@code vertical-lr})を
-	 * 区別できない。除外を後者だけに絞るために深さを数える。
+	 * {@link #hasOrthogonalFlow} checks only whether vertical and horizontal coexist,
+	 * so it cannot distinguish <b>two levels</b> (ordinary horizontal writing within vertical writing)
+	 * from <b>three levels</b> ({@code vertical-rl}→{@code horizontal-tb}→{@code vertical-lr}).
+	 * Count depth to limit exclusions to the latter.
 	 * </p>
 	 *
 	 * <p>
-	 * 属性を持たないタグは軸を変えないので、スタックには積むだけでよい。
-	 * 自己終了タグ({@code <br/>})は入れ子を作らないため、深さに影響しない
-	 * ——{@code style}に{@code writing-mode}を持たないので積んでも同じ値が
-	 * 続き、入れ替わり回数は増えない。
+	 * Tags without attributes do not change axes; just push them onto the stack.
+	 * Self-closing tags ({@code <br/>}) do not create nesting and thus do not affect depth.
+	 * Even pushing them retains the same value without increasing switch count,
+	 * since they have no {@code writing-mode} in {@code style}.
 	 * </p>
 	 */
 	static int orthogonalAxisChanges(final String html) {
@@ -4233,7 +4207,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			m.region(bodyAt, html.length());
 		}
 		while (m.find()) {
-			if (m.group(1) != null) {          // 終了タグ
+			if (m.group(1) != null) {          // End tag.
 				if (axis.size() > 1) {
 					axis.pop();
 					changes.pop();
@@ -4241,7 +4215,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				continue;
 			}
 			final String attrs = String.valueOf(m.group(3));
-			if (attrs.endsWith("/")) {         // 自己終了タグは入れ子を作らない
+			if (attrs.endsWith("/")) {         // Self-closing tags do not create nesting.
 				continue;
 			}
 			boolean vertical = axis.peek().booleanValue();
@@ -4269,13 +4243,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			.compile("(?:^|[;\\s\"])min-width\\s*:\\s*([^;\"']*)");
 	private static final Pattern PT_OR_EM_LENGTH = Pattern.compile("([\\d.]+)(pt|em)");
 	private static final Pattern STYLE_BORDER_COLLAPSE = Pattern.compile("border-collapse\\s*:\\s*collapse");
-	/** 明示した幅で箱が確定しないdisplay(非置換のinlineと表の部品)。 */
+	/** display values where explicit width does not finalize the box (non-replaced inline and table parts). */
 	private static final Pattern STYLE_DISPLAY_UNSIZED = Pattern
 			.compile("(?:^|[;\\s\"])display\\s*:\\s*(?:inline|table[a-z-]*|inline-table)\\s*(?:;|\"|'|$)");
 	private static final Pattern PAGE_HEIGHT_PROPERTY = Pattern
 			.compile("name=\"output\\.page-height\"\\s+value=\"([\\d.]+)pt\"");
 
-	/** {@link #findUnfittableContent}の理由。集計の種別名の一部になる。 */
+	/** Reasons from {@link #findUnfittableContent}; become part of aggregation category names. */
 	static final String UNFITTABLE_RUBY = "行より長い割れないルビ";
 	static final String UNFITTABLE_MIN_WIDTH = "入れ物より広いmin-width";
 	static final String UNFITTABLE_COLUMN = "組版できない幅の段";
@@ -4283,48 +4257,53 @@ public class RandomDocumentFuzzTest extends TestCase {
 	static final String UNFITTABLE_TABLE_COLUMN = "紙の行長を超える表の最小幅";
 
 	/**
-	 * 版面に物理的に収まらない内容があれば、その理由を返します(無ければ{@code null})。
-	 * 2026-09-17新設。{@link ExcludedByUnfittableContent}に経緯を書いた。
+	 * Return the reason if content physically cannot fit in the type area ({@code null} otherwise).
+	 * Added 2026-09-17. See {@link ExcludedByUnfittableContent} for the history.
 	 *
 	 * <p>
-	 * 開始・終了タグをスタックでたどり、要素ごとに<b>使える幅と高さの上限</b>を持ち回る
-	 * (紙面の内容領域→明示した{@code width}/{@code height}→段組の段幅。罫線を分ける表は
-	 * {@code border-spacing}の1.5pt×2、セルは罫線の1pt×2だけ狭める)。上限しか追わないので、
-	 * 百分率や内容依存の幅は「親と同じ」と見なす。幅の宣言は後勝ちで読み、幅で箱が確定しない要素
-	 * (非置換のinline・flex項目・表とセル)の幅指定では狭めない——収まる文書を収まらないと
-	 * 言わないため(2026-09-17のcodexレビューの反例を{@code FuzzOraclePredicateTest}に固定)。
-	 * 生成器のHTML(終了タグを省かない・{@code <br>}を出さない)を前提にした歩き方で、一般のHTMLの解析ではない。
+	 * Follow start/end tags with a stack, carrying <b>upper bounds on available width and height</b>
+	 * per element (paper content area → explicit {@code width}/{@code height} → column width).
+	 * Narrow separate-border tables by {@code border-spacing} of 1.5 pt × 2, and cells by borders of 1 pt × 2.
+	 * Since only upper bounds are tracked, treat percentage and content-dependent widths as "same as parent".
+	 * Read width declarations with last-wins precedence; do not narrow for elements whose width does not
+	 * finalize the box (non-replaced inline, flex items, tables, cells), to avoid declaring fitting documents
+	 * unfit (counterexamples from the 2026-09-17 codex review are pinned down in {@code FuzzOraclePredicateTest}).
+	 * This traversal assumes generated HTML (no omitted end tags, no {@code <br>}), not general HTML parsing.
 	 * </p>
 	 * <ul>
-	 * <li>{@link #UNFITTABLE_RUBY}: 長いルビ({@code fuzz-long-ruby})の親文字の幅の下限
-	 * (T 0.6em・数字 0.5em・空白 0.25em。試験書体の送り以下)が、その書字方向の行の上限を超える。copperはルビを行内で
-	 * 割らない。当初は「はみ出しの軸がルビの行軸と一致するときだけ」除外したが(31件の実測で
-	 * ルビを含む21件のうち20件が一致)、seed 7627539(2026-09-19)で、複数ページにまたがる浮動体の
-	 * 直後の収まらないルビの行が、救済分割の起点をページ軸の外に持ち、別の軸へ波及した。
-	 * 他の理由と同じく軸は問わない。</li>
-	 * <li>{@link #UNFITTABLE_MIN_WIDTH}: {@code min-width}が使える幅の上限より大きい。
-	 * {@code max-width}より{@code min-width}が勝つので、箱は必ず入れ物からはみ出す
-	 * ({@link #hasOverwideFloat}の「包含幅より広い明示幅」と同じ性質)。</li>
-	 * <li>{@link #UNFITTABLE_COLUMN}: 段幅が基準文字の{@value #MIN_PAGE_CHARS}倍未満。
-	 * {@link #isTinyPage}・{@link #hasUntypesettableFloat}と同じ物差し
-	 * (欄が組版できない幅なら中身は必ず溢れる)。<b>これは物理的に収まらないことの証明ではなく、
-	 * 除外方針の閾値である。</b></li>
-	 * <li>{@link #UNFITTABLE_FLEX_LINE}: 折り返さない行方向のflexで、項目の主軸サイズの下限の和が
-	 * 紙の行長を超える({@link #flexLineOverflows})。flex項目は自動最小サイズ(min-content)より
-	 * 縮まず、{@code flex-shrink:0}の項目は{@code flex-basis}より縮まない(Flexbox §4.5・§9.7)。
-	 * seed 9321740(2026-09-28): 縦書き・行長150ptの紙で、min-contentが行長を超える表と
-	 * {@code flex:1 0 35%}・{@code flex:2 0 calc(25% + 8pt)}の項目を並べ、ルビがy=307.76へ押し出された。
-	 * Chromeでも同じ形(y=300.77)で、エンジンの欠陥ではない。</li>
-	 * <li>{@link #UNFITTABLE_TABLE_COLUMN}: bodyの直下(か枠と余白だけのdivの中)の表で、列の最小幅の下限の和が紙の行長を超え、
-	 * 字のあるセルが紙の外の列から始まる({@link #tableColumnBeyondPage})。seed 10376223(2026-09-29): 120pt幅の紙に
-	 * 9列(1セルに入れ子の表)の表を置き、T20がx=269.48へ出た。Chromeでも同じ形(x=262.78)で、エンジンの欠陥ではない。</li>
+	 * <li>{@link #UNFITTABLE_RUBY}: a lower bound on the base-text width of long ruby ({@code fuzz-long-ruby})
+	 * (T 0.6 em, digits 0.5 em, spaces 0.25 em; at most the test font's advances) exceeds the line upper bound
+	 * for its writing direction. copper does not split ruby within a line. Initially excluded only when
+	 * "the overflow axis matches the ruby inline axis" (20 of 21 ruby cases among 31 measured cases matched),
+	 * but in seed 7627539 (2026-09-19), an unfit ruby line just after a multi-page float placed the rescue-split
+	 * origin outside the page axis, propagating to another axis. Like other reasons, do not restrict the axis.</li>
+	 * <li>{@link #UNFITTABLE_MIN_WIDTH}: {@code min-width} exceeds the available-width upper bound.
+	 * Since {@code min-width} wins over {@code max-width}, the box must overflow its container
+	 * (same condition as "explicit width exceeds containing width" in {@link #hasOverwideFloat}).</li>
+	 * <li>{@link #UNFITTABLE_COLUMN}: column width is below {@value #MIN_PAGE_CHARS} base characters.
+	 * Same measure as {@link #isTinyPage} and {@link #hasUntypesettableFloat}
+	 * (content must overflow an area too narrow for layout). <b>This is an exclusion-policy threshold,
+	 * not proof of physical inability to fit.</b></li>
+	 * <li>{@link #UNFITTABLE_FLEX_LINE}: in a non-wrapping row-direction flex, the sum of item main-size
+	 * lower bounds exceeds the paper's line length ({@link #flexLineOverflows}). Flex items do not shrink
+	 * below their automatic minimum size (min-content); {@code flex-shrink:0} items do not shrink below
+	 * {@code flex-basis} (Flexbox §4.5/§9.7). Seed 9321740 (2026-09-28): on vertical-writing paper with
+	 * 150 pt line length, a table whose min-content exceeded the line length sat beside
+	 * {@code flex:1 0 35%} and {@code flex:2 0 calc(25% + 8pt)} items, pushing ruby to y=307.76.
+	 * Chrome produced the same shape (y=300.77); this was not an engine defect.</li>
+	 * <li>{@link #UNFITTABLE_TABLE_COLUMN}: for a table directly under body (or inside divs with only frames
+	 * and margins), summed column minimum-width lower bounds exceed the paper's line length,
+	 * and a text-bearing cell starts in an off-paper column ({@link #tableColumnBeyondPage}).
+	 * Seed 10376223 (2026-09-29): a nine-column table (one cell contained a nested table) on 120 pt wide paper
+	 * placed T20 at x=269.48. Chrome produced the same shape (x=262.78); this was not an engine defect.</li>
 	 * </ul>
 	 *
 	 * <p>
-	 * <b>限界</b>: 除外は文書単位で、はみ出しの軸も問わない(段からの溢れが浮動体を押し出す等、
-	 * 別の軸へ波及する実例があった)。該当する文書の別の枝・別の軸にある本物の欠陥は隠れる。
-	 * 実測(seed 5,250,000〜の2万文書)では、従来の述語だけで93%強の文書がどちらの軸でも除外になり、
-	 * この述語による上乗せは1ポイント未満だった。
+	 * <b>Limitations</b>: exclusions apply per document, regardless of overflow axis (observed cases propagated
+	 * to another axis, such as column overflow pushing out a float). Real defects on other branches/axes
+	 * of qualifying documents are hidden. Measurements (20,000 documents from seed 5,250,000 onward) showed
+	 * existing predicates already excluded just over 93% of documents on both axes;
+	 * this predicate added less than one percentage point.
 	 * </p>
 	 */
 	static String findUnfittableContent(final String html) {
@@ -4341,19 +4320,19 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final Matcher bm = BODY_WRITING_MODE.matcher(html);
 		final java.util.ArrayDeque<Boolean> verticals = new java.util.ArrayDeque<>();
 		final java.util.ArrayDeque<double[]> extents = new java.util.ArrayDeque<>();
-		// 子の幅指定が「使える幅の上限」にならない入れ物(flex=項目が伸びる)の直下か
+		// Direct child of a container where child width declarations are not available-width upper bounds (flex items grow)?
 		final java.util.ArrayDeque<Boolean> flexParents = new java.util.ArrayDeque<>();
-		// 生成器は罫線の方式を文書のstyle規則で決める(table{border-collapse:…})
+		// The generator selects the border model in document style rules (table{border-collapse:…}).
 		final boolean collapsedTables = STYLE_BORDER_COLLAPSE.matcher(html).find();
 		verticals.push(Boolean.valueOf(bm.find() && bm.group(1).startsWith("vertical")));
 		extents.push(new double[] { Double.parseDouble(widthProperty.group(1)) - 2 * margin,
 				Double.parseDouble(heightProperty.group(1)) - 2 * margin });
 		flexParents.push(Boolean.FALSE);
-		// bodyからここまでの祖先が、枠と余白だけのdivか({@link #isPlainWrapper})。表の始まりは内容の始まりより
-		// 手前に出ず、使える幅は紙の内容幅を超えない
+		// Are all ancestors from body to here divs with only frames and margins ({@link #isPlainWrapper})? The table start
+		// cannot precede the content start, and available width cannot exceed the paper's content width.
 		final java.util.ArrayDeque<Boolean> plainPaths = new java.util.ArrayDeque<>();
 		plainPaths.push(Boolean.TRUE);
-		// 祖先が包むdivだけの、表を直に包んでよい浮動体の向き({@link #floatWrapperSide}。横書きだけ)
+		// Direction of a float allowed to wrap a table directly, with only wrapper-div ancestors ({@link #floatWrapperSide}; horizontal only).
 		final java.util.ArrayDeque<Character> floatSides = new java.util.ArrayDeque<>();
 		floatSides.push(Character.valueOf(NOT_FLOATED));
 		final double[] pageExtent = extents.peek();
@@ -4389,9 +4368,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			double width = extents.peek()[0];
 			double height = extents.peek()[1];
-			// 罫線を分ける表は、UA既定のborder-spacing(2px=1.5pt)×2とセルの罫線1pt×2を引ける
+			// For separate-border tables, subtract UA default border-spacing (2 px = 1.5 pt) × 2 and cell borders of 1 pt × 2.
 			if (collapsedTables) {
-				// 重ねた罫線(1pt)は半分ずつセルの内側に入る。間隔は無い
+				// Collapsed borders (1 pt) lie half inside each cell. No spacing.
 				if (cell) {
 					width -= 1;
 					height -= 1;
@@ -4404,8 +4383,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			if (minValue > width) {
 				minWidth = true;
 			}
-			// 明示した幅・高さが中身の上限になるのは、その寸法で箱が確定する要素だけ。
-			// 非置換のinlineは幅を持たず、flex項目は伸び、表・セルは内容に合わせて広がる
+			// Explicit width/height bounds content only for elements whose box is finalized by that dimension.
+			// Non-replaced inline elements have no width; flex items grow; tables/cells expand to their content.
 			final boolean sized = !flexItem && !table && !cell && !STYLE_DISPLAY_UNSIZED.matcher(attrs).find();
 			if (sized) {
 				width = lastLength(STYLE_WIDTH_DECLARATION, attrs, font, width);
@@ -4427,13 +4406,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 					column = true;
 				}
 			}
-			// bodyの直下(行長=紙の内容幅と確定する場所)のflexコンテナだけ
+			// Only flex containers directly under body (where line length is definitively the paper's content width).
 			if (!flexLine && verticals.size() == 1 && STYLE_FLEX.matcher(attrs).find() && flexLineOverflows(html,
 					tag.end(), attrs, vertical, vertical ? height : width, margin, font, collapsedTables)) {
 				flexLine = true;
 			}
-			// bodyの直下か枠と余白だけのdivの中(かその中の浮動体の直下)の、属性の無い表(紙の端は内容の始まりから
-			// 紙の内容幅+余白の位置)
+			// Attribute-free tables directly under body, inside divs with only frames/margins, or directly within floats there
+			// (paper edge = content start + paper content width + margin).
 			final char floatSide = floatSides.peek().charValue();
 			if (!tableColumn && (plainPaths.peek().booleanValue() || floatSide != NOT_FLOATED) && table
 					&& attrs.isBlank() && tableColumnBeyondPage(html, tag.end(), pageExtent[vertical ? 1 : 0], margin, font,
@@ -4445,10 +4424,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 				if (end >= 0) {
 					double base = 0;
 					for (int i = tag.end(); i < end; ++i) {
-						// 親文字は T+数字と単一空白だけ(appendNode の case 8)。試験の固定書体(Times-Roman)の
-						// 送りは T=0.611em、数字=0.5em、空白=0.25em で、これ以上にはならない。
-						// 字を一律 0.5em・空白 0.2em と見積もると 13 語で 197pt(実測 232pt)になり、
-						// 200pt の紙で見逃した(seed 9110300、2026-09-20)
+						// Base text contains only T+digits and single spaces (appendNode case 8). The fixed test font (Times-Roman)
+						// has advances T=0.611 em, digits=0.5 em, spaces=0.25 em; they do not exceed these values.
+						// Estimating every character at 0.5 em and spaces at 0.2 em gave 197 pt for 13 words (measured: 232 pt),
+						// missing overflow on 200 pt paper (seed 9110300, 2026-09-20).
 						final char c = html.charAt(i);
 						base += c == ' ' ? 0.25 : c == 'T' ? 0.6 : 0.5;
 					}
@@ -4472,56 +4451,61 @@ public class RandomDocumentFuzzTest extends TestCase {
 	private static final Pattern STYLE_FLEX_DIRECTION = Pattern.compile("flex-direction\\s*:\\s*([a-z-]+)");
 	private static final Pattern STYLE_FLEX_WRAP = Pattern.compile("flex-wrap\\s*:\\s*([a-z-]+)");
 	private static final Pattern STYLE_GAP_DECLARATION = Pattern.compile("(?:^|[;\\s\"])gap\\s*:\\s*([^;\"']*)");
-	/** {@code flex:<grow> <shrink> <basis>}(生成器の形)。 */
+	/** {@code flex:<grow> <shrink> <basis>} (generator form). */
 	private static final Pattern STYLE_FLEX_SHORTHAND = Pattern
 			.compile("(?:^|[;\\s\"])flex\\s*:\\s*(\\d+)\\s+(\\d+)\\s+([^;\"']*)");
 	private static final Pattern PERCENT_LENGTH = Pattern.compile("([\\d.]+)%");
 	private static final Pattern CALC_PERCENT_PLUS_PT = Pattern
 			.compile("calc\\(\\s*([\\d.]+)%\\s*\\+\\s*([\\d.]+)pt\\s*\\)");
-	/** 語の幅を下げうる(割れる・消える)指定。文書にあれば表の見積りを使わない。 */
+	/** Declarations that can reduce word width (break/hide text). Do not use table estimates if present in the document. */
 	private static final String[] BREAKABLE_TEXT_HINTS = { "display:none", "overflow-wrap:anywhere",
 			"overflow-wrap:break-word", "word-break:break", "line-break:anywhere" };
 
-	/** bodyの直下のflexコンテナに許す宣言(生成器の定型)。これ以外があれば行長が紙の内容幅と決まらない。 */
+	/** Allowed declarations on a flex container directly under body (generator template); others make paper content width uncertain as line length. */
 	private static final Pattern FLEX_CONTAINER_DECLARATION = Pattern.compile(
 			"\\s*(?:display\\s*:\\s*flex|position\\s*:\\s*(?:static|relative)|float\\s*:\\s*none"
 					+ "|flex-direction\\s*:\\s*[a-z-]+|flex-wrap\\s*:\\s*[a-z-]+|gap\\s*:\\s*[^;]*)\\s*");
 	private static final Pattern STYLE_ATTRIBUTE = Pattern.compile("style\\s*=\\s*\"([^\"]*)\"");
-	/** 行方向の広さを変えうる浮動体(none以外)。BFCのflexコンテナを狭める。 */
+	/** Floats that can change inline extent (anything except none). Narrow BFC flex containers. */
 	private static final Pattern FLOAT_NOT_NONE = Pattern.compile("float\\s*:\\s*(?!none)[a-z]");
 	private static final Pattern OUT_OF_FLOW = Pattern.compile("position\\s*:\\s*(?:absolute|fixed)");
-	/** 箱を描かれた位置から動かす変位(相対配置のtop/left等)。 */
+	/** Displacements moving boxes from their painted positions (relative-positioning top/left, etc.). */
 	private static final Pattern POSITION_OFFSET = Pattern.compile("(?:^|[;\\s\"])(?:top|left|right|bottom)\\s*:");
-	/** 描かれる字(生成器の語 T+数字)。 */
+	/** Painted text (generator words T+digits). */
 	private static final Pattern DRAWN_TOKEN = Pattern.compile("T\\d");
 
 	/**
-	 * bodyの直下にある折り返さない行方向のflexコンテナ(開始タグの直後が{@code from})で、字を含む項目が
-	 * 必ず紙の外に描かれるか——手前の項目の主軸サイズの下限とgapの和が{@code extent + margin}
-	 * (内容幅+余白。そこから先は紙の外)を超える位置から始まる項目に字があるか——を返します。
+	 * For a non-wrapping row-direction flex container directly under body ({@code from} immediately after its start tag),
+	 * return whether a text-bearing item must be painted off-paper: whether an item containing text starts
+	 * where the sum of preceding item main-size lower bounds and gaps exceeds {@code extent + margin}
+	 * (content width + margin; beyond this lies outside the paper).
 	 *
 	 * <p>
-	 * <b>行長が確定する場所に限る。</b>コンテナはbodyの直下で、宣言は生成器の定型
-	 * ({@link #FLEX_CONTAINER_DECLARATION})だけ、文書に浮動体・{@code display:none}・{@code visibility:hidden}・
-	 * 絶対配置・位置の変位({@code top}等)が無いこと。このときコンテナの行長は内容幅{@code extent}そのもので、
-	 * 項目は余白{@code margin}の位置から並ぶ。表の中・浮動体の横・flex項目の中では入れ物が内容に合わせて
-	 * 広がったり狭まったりし、変位や絶対配置は字を紙へ戻しうるので判定しない。
+	 * <b>Restrict to locations with definite line length.</b> The container must be directly under body,
+	 * with only generator-template declarations ({@link #FLEX_CONTAINER_DECLARATION}); the document must have
+	 * no floats, {@code display:none}, {@code visibility:hidden}, absolute positioning, or displacements
+	 * ({@code top}, etc.). Then the container's line length is exactly content width {@code extent},
+	 * and items start at {@code margin}. Do not judge inside tables, beside floats, or inside flex items:
+	 * containers can expand/shrink to content, and displacement/absolute positioning can bring text back onto paper.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>証拠にする項目は、字が項目の始まりより手前に出ないものに限る。</b>向きは{@code row}だけ
-	 * ({@code row-reverse}では、紙の外から始まる項目の長い字が行の終わり側=紙の側へ溢れて戻りうる)。
-	 * 項目自身の宣言は{@link #PLAIN_ITEM_DECLARATION}だけで、子孫にstyle・dirが無いこと(子孫の逆向きflexは
-	 * 字を開始側へ溢れさせる)。箱の和ではなく字のある項目の始まりで判定するのは、末尾の箱の空きだけが
-	 * はみ出して字は紙に収まる文書があるため。いずれも2026-09-28のcodexレビューの反例(3回)。
+	 * <b>Use only items whose text cannot extend before the item start as evidence.</b> Only {@code row} direction
+	 * qualifies (with {@code row-reverse}, long text in an off-paper item can overflow toward line end,
+	 * back toward the paper). The item itself may have only {@link #PLAIN_ITEM_DECLARATION}, and descendants
+	 * must have no style/dir (a reversed flex descendant can overflow text toward the start).
+	 * Check the start of a text-bearing item, not the sum of boxes, because some documents overflow only
+	 * empty space in the final box while text stays on-paper. All are counterexamples from three codex reviews
+	 * on 2026-09-28.
 	 * </p>
 	 *
 	 * <p>
-	 * 下限は{@code c + p×extent}。{@code flex-shrink:0}の項目は{@code flex-basis}
-	 * (pt・em・%・{@code calc(%+pt)}。{@code auto}等は0)、直下の属性の無い表は
-	 * {@link #tableMinContentLowerBound}、項目間は{@code gap}。主軸側の最大寸法({@code max-width}等)が
-	 * あるときは、basisと同じ形(どちらも%かどちらも定数)の場合だけ小さい方を採り、混ざれば0とする。
-	 * 下限しか足さないので、収まる文書を収まらないとは言わない。
+	 * The lower bound is {@code c + p×extent}. For {@code flex-shrink:0} items, use {@code flex-basis}
+	 * (pt, em, %, {@code calc(%+pt)}; zero for {@code auto}, etc.); for direct attribute-free tables,
+	 * use {@link #tableMinContentLowerBound}; between items, use {@code gap}.
+	 * If a main-axis maximum ({@code max-width}, etc.) exists, take the smaller value only when it has
+	 * the same form as basis (both percentages or both constants); mixed forms use zero.
+	 * Adding only lower bounds avoids declaring fitting documents unfit.
 	 * </p>
 	 */
 	static boolean flexLineOverflows(final String html, final int from, final String containerAttrs,
@@ -4543,7 +4527,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				return false;
 			}
 		}
-		// 項目の主軸は、コンテナが縦書きなら縦(max-height)、横書きなら横(max-width)
+		// The item's main axis is vertical (max-height) for a vertical-writing container, horizontal (max-width) otherwise.
 		final String maxMain = vertical ? "max-height" : "max-width";
 		final double gap = lastLength(STYLE_GAP_DECLARATION, containerAttrs, font, 0);
 		double c = 0, p = 0;
@@ -4563,10 +4547,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 				continue;
 			}
 			if (depth == 0) {
-				// この項目の箱は手前の項目とgapの後ろから始まる。そこが紙の端より先で、中に字があり、
-				// 中身が項目の始まりより手前へ出る指定(子孫のstyle・dir)が無ければ、字は必ず紙の外に
-				// 描かれる。末尾の箱の空きだけがはみ出す文書を除外しないため、箱の和ではなく描かれる
-				// 項目の始まりで判定する
+				// This item's box starts after preceding items and gaps. If that start lies beyond the paper edge and text exists inside,
+				// with no declarations allowing content before the item start (descendant style/dir), the text must be painted off-paper.
+				// Judge the painted item's start, not the sum of boxes, to avoid excluding documents where only
+				// empty space in the final box overflows.
 				if (c + p * extent + items * gap > extent + margin) {
 					final String inner = html.substring(tag.end(), elementEnd(html, tag.end()));
 					if (isPlainItem(attrs) && !inner.contains("style=") && !inner.contains("dir=")
@@ -4599,7 +4583,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				}
 				if (tag.group(2).equalsIgnoreCase("table") && attrs.isBlank()) {
 					final double table = tableMinContentLowerBound(html, tag.end(), font, collapsedTables);
-					// 行長はextentに確定しているので、そこでの値が大きい方を採る
+					// Line length is definitively extent, so choose the larger value evaluated there.
 					if (table > itemC + itemP * extent) {
 						itemC = table;
 						itemP = 0;
@@ -4613,11 +4597,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return false;
 	}
 
-	/** 項目自身に許す宣言。主軸上の位置を動かさず、中身の字を項目の始まりより手前へ出さない。 */
+	/** Allowed item declarations: no main-axis position changes or text extending before the item start. */
 	private static final Pattern PLAIN_ITEM_DECLARATION = Pattern
 			.compile("\\s*(?:flex|width|min-width|max-width)\\s*:[^;]*");
 
-	/** 項目の開始タグの属性が、styleを持たないか{@link #PLAIN_ITEM_DECLARATION}だけで、dirを持たないか。 */
+	/** Whether item start-tag attributes have no style or only {@link #PLAIN_ITEM_DECLARATION}, and no dir. */
 	private static boolean isPlainItem(final String attrs) {
 		if (attrs.contains("dir=")) {
 			return false;
@@ -4634,7 +4618,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return true;
 	}
 
-	/** 開始タグの直後{@code from}から、対応する終了タグの位置を返します(無ければ文書の末尾)。 */
+	/** From {@code from} just after a start tag, return its matching end-tag position (document end if absent). */
 	private static int elementEnd(final String html, final int from) {
 		int depth = 0;
 		final Matcher tag = TAG_OR_WM.matcher(html);
@@ -4653,7 +4637,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 長さを一次式{@code {定数pt, 割合}}で返します(pt・em・%・{@code calc(%+pt)})。読めなければ{0, 0}。
+	 * Return length as the linear expression {@code {constant pt, fraction}} (pt, em, %, {@code calc(%+pt)}). {0, 0} if unreadable.
 	 */
 	private static double[] linearLength(final String value, final double font) {
 		final Matcher length = PT_OR_EM_LENGTH.matcher(value);
@@ -4672,15 +4656,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 表(開始タグの直後が{@code from})のmin-content行長の下限を返します。
+	 * Return a lower bound on a table's min-content line length ({@code from} is just after its start tag).
 	 *
 	 * <p>
-	 * HTMLの表の格子の置き方(先の行のrowspanが占めた桁を飛ばす)でセルを置き、行ごとに、その行に掛かる
-	 * セルの最小幅の和と、セルの間と両端の{@code border-spacing}(UA既定1.5pt、罫線を分ける表だけ)を足す。
-	 * セルが重なる行(表のモデルの誤り)は数えない。セルの最小幅は、中の割れない語(T+数字。ルビの注記は除く)の
-	 * 送りの下限(T 0.6em・数字 0.5em)の最大と、罫線を分ける表なら{@code td}の罫線1pt×2。セルかその中に
-	 * style属性があれば(書体・書字方向・語の割れ方が変わりうる)語は数えず罫線だけにする。文書に語を割る・
-	 * 消す指定({@link #BREAKABLE_TEXT_HINTS})があれば0を返す。
+	 * Place cells using HTML table grid placement (skip columns occupied by rowspans from earlier rows).
+	 * For each row, sum minimum widths of cells spanning it, plus {@code border-spacing} between cells
+	 * and at both ends (UA default 1.5 pt; separate-border tables only). Ignore rows with overlapping cells
+	 * (table-model errors). Cell minimum width is the largest lower bound on an unbreakable word's advance
+	 * (T+digits, excluding ruby annotations; T 0.6 em, digits 0.5 em), plus {@code td} borders of 1 pt × 2
+	 * for separate-border tables. If the cell or its contents have style attributes
+	 * (font, writing direction, or word breaking may change), count only borders, not words.
+	 * Return zero if the document has declarations that break or hide words ({@link #BREAKABLE_TEXT_HINTS}).
 	 * </p>
 	 */
 	static double tableMinContentLowerBound(final String html, final int from, final double font,
@@ -4713,29 +4699,32 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 表の格子に置いたセル。{@code min}は最小幅の下限、{@code attrs}と{@code content}は開始タグの属性と中身、
-	 * {@code from}は中身の始まりの文書内の位置。
+	 * Cell placed in the table grid. {@code min} is the minimum-width lower bound;
+	 * {@code attrs}/{@code content} are start-tag attributes/content; {@code from} is the content's document offset.
 	 */
 	private record PlacedCell(int row, int column, int colspan, int rowspan, double min, String attrs, String content,
 			int from) {
 	}
 
-	/** 表の格子。{@code spacing}はセルの間と両端の{@code border-spacing}。 */
+	/** Table grid. {@code spacing} is {@code border-spacing} between cells and at both ends. */
 	private record TableGrid(List<PlacedCell> cells, int rows, int columns, java.util.BitSet overlappedRows,
 			double spacing) {
 	}
 
 	/**
-	 * 表(開始タグの直後が{@code from})のセルを、HTMLの表の格子の置き方(先の行のrowspanが占めた桁を飛ばす)で置きます。
-	 * 入れ子の表のセルは外側のセルの中身として扱う。語を割る・消す指定({@link #BREAKABLE_TEXT_HINTS})があれば{@code null}。
-	 * セルの最小幅の下限は{@link #tableMinContentLowerBound}に書いたとおり。
+	 * Place a table's cells ({@code from} just after its start tag) using HTML table grid placement
+	 * (skip columns occupied by rowspans from earlier rows). Treat nested-table cells as outer-cell content.
+	 * If declarations break/hide words ({@link #BREAKABLE_TEXT_HINTS}), return {@code null}.
+	 * Cell minimum-width lower bounds are described in {@link #tableMinContentLowerBound}.
 	 *
 	 * <p>
-	 * rowspanは行グループ(tbody等)の終わりで切れる。2026-09-29のcodexレビュー2回目の反例(短い行の終わりの手前に
-	 * 空き桁があるとCopperがその先のrowspanを引き継がず、セルが格子と違う列に入る)を受けて、Copperの置き方も並べて
-	 * 模擬し、食い違えば判定しなかった。同じ日のエンジンの修正 c803652d({@code TableSlotTracker}が空き桁を匿名の
-	 * セルで埋める)からCopperは格子どおりに置くので、2026-10-07に模擬をやめた(fit seed 11766015: 模擬が食い違いと
-	 * 誤って判定を止めた表を、Copper・Chromeとも格子どおりに組み、入れ子の表の字が紙の外に出た)。
+	 * Rowspans end at row-group boundaries (tbody, etc.). Following the second codex review counterexample
+	 * on 2026-09-29 (with an empty slot before a short row's end, Copper failed to carry forward a later rowspan,
+	 * putting cells in columns different from the grid), we also simulated Copper placement and withheld judgment
+	 * on disagreement. Since engine fix c803652d that day ({@code TableSlotTracker} fills empty slots with anonymous
+	 * cells), Copper follows the grid, so the simulation was removed on 2026-10-07 (fit seed 11766015:
+	 * the simulation wrongly reported disagreement and stopped checking, but Copper and Chrome both followed
+	 * the grid, placing nested-table text outside the paper).
 	 * </p>
 	 */
 	private static TableGrid placeTableCells(final String html, final int from, final double font,
@@ -4747,11 +4736,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		final boolean bordered = !collapsedTables && html.contains(SOLID_CELL_BORDER);
 		final double spacing = collapsedTables || html.contains("border-spacing") ? 0 : 1.5;
-		// 行→占有した桁
+		// Row → occupied columns.
 		final List<java.util.BitSet> occupied = new ArrayList<>();
 		final List<PlacedCell> cells = new ArrayList<>();
 		final java.util.BitSet overlapped = new java.util.BitSet();
-		// 行グループの最初のセル
+		// First cell of the row group.
 		int groupCell = 0;
 		int nested = 0, row = -1, column = 0, columns = 0, cellStart = -1;
 		String cellAttrs = "";
@@ -4774,14 +4763,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			if (nested > 0) {
 				continue;
 			}
-			// 行・行グループに属性があれば(字の大きさ・書字方向を変えうる。codex の反例 6)見積もらない
+			// Do not estimate if rows/row groups have attributes (can change font size/writing direction; codex counterexample 6).
 			if (!end && (name.equalsIgnoreCase("tr") || name.equalsIgnoreCase("tbody") || name.equalsIgnoreCase("thead")
 					|| name.equalsIgnoreCase("tfoot")) && !String.valueOf(tag.group(3)).isBlank()) {
 				return null;
 			}
 			if (end && (name.equalsIgnoreCase("tbody") || name.equalsIgnoreCase("thead")
 					|| name.equalsIgnoreCase("tfoot"))) {
-				// 行グループの境界ではrowspanを引き継がない: 最後の行より先を占めた桁を外し、セルのrowspanを切る
+				// Do not carry rowspans across row-group boundaries: remove occupied slots beyond the final row and truncate cell rowspans.
 				while (occupied.size() > row + 1) {
 					occupied.remove(occupied.size() - 1);
 				}
@@ -4812,8 +4801,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 					final int rowspan = spanOf(cellAttrs, "rowspan");
 					double min = bordered ? 2 : 0;
 					if (!cellAttrs.contains("style") && onlyListStyles(content) && plainCellTags(content)) {
-						// 中の表(入れ子)の最小幅も下限に入る。表の固有の最小幅は縮めずに報告される
-						// (RetainedTableBuilder の minLineSize)。seed 10760020(2026-09-29)
+						// Nested-table minimum widths also contribute to the lower bound. A table reports its intrinsic minimum width unshrunk
+						// (RetainedTableBuilder minLineSize). Seed 10760020 (2026-09-29).
 						min += Math.max(longestWordAdvance(content) * font,
 								nestedTablesLowerBound(html, cellStart, tag.start(), font, collapsedTables));
 					}
@@ -4842,16 +4831,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * セルの中身({@code from}〜{@code to})にある属性の無い表の、最小幅の下限の最大を返します(無ければ0)。
-	 * 呼び側はセルとその中身にstyleが無いことを確かめてある(入れ物が幅を狭めない)。
+	 * Return the largest minimum-width lower bound of attribute-free tables within cell content
+	 * ({@code from}–{@code to}), or zero if none. The caller has verified that the cell and its content
+	 * have no styles (containers do not narrow the width).
 	 */
 	private static double nestedTablesLowerBound(final String html, final int from, final int to, final double font,
 			final boolean collapsedTables) {
 		double bound = 0;
 		for (int at = html.indexOf("<table>", from); at >= 0 && at < to; at = html.indexOf("<table>", at + 7)) {
-			// セルが重なる表は列の下限を出せない(0)が、重ならない行のセルの和は下限のまま使える
-			// (2026-10-07、fit seed 11606508: 入れ子の表の T22 colspan 3 が T21 rowspan 3 の列に重なり、
-			// 外の表の列の下限が入れ子の分を失って、紙の外の列の字を欠陥と報告した。Chrome でも同じ位置)
+			// Overlapping-cell tables yield no column lower bound (zero), but cell sums for non-overlapping rows remain valid lower bounds.
+			// (2026-10-07, fit seed 11606508: nested-table T22 colspan 3 overlapped T21 rowspan 3's column,
+			// dropping the nested contribution from outer column bounds and falsely flagging off-paper text. Chrome used the same position.)
 			bound = Math.max(bound, Math.max(columnLowerBoundTotal(placeTableCells(html, at + 7, font, collapsedTables)),
 					tableMinContentLowerBound(html, at + 7, font, collapsedTables)));
 		}
@@ -4860,13 +4850,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	private static final Pattern STYLE_ATTRIBUTE_VALUE = Pattern.compile("style=\"([^\"]*)\"");
 
-	/** 語の送りの見積もり(本文の字の大きさの立体以上)を崩さないタグ。太字は立体より広い。斜体・small・sub などは狭い。 */
+	/** Tags preserving word-advance estimates (at least upright at body font size). Bold is wider; italic, small, sub, etc. are narrower. */
 	private static final Set<String> PLAIN_CELL_TAGS = Set.of("div", "p", "ul", "ol", "li", "table", "thead", "tbody",
 			"tfoot", "tr", "td", "th", "b", "strong", "ruby", "rb", "rt", "rp", "br");
 
 	/**
-	 * セルの中身のタグが{@link #PLAIN_CELL_TAGS}だけか(2026-10-07、codex の健全性の反例: {@code <small>}の UA の
-	 * {@code font-size:0.83em}で語が見積もりより狭くなる)。
+	 * Whether cell content uses only {@link #PLAIN_CELL_TAGS} (2026-10-07, codex soundness counterexample:
+	 * {@code <small>}'s UA {@code font-size:0.83em} makes words narrower than estimated).
 	 */
 	private static boolean plainCellTags(final String content) {
 		final Matcher tag = TAG_OR_WM.matcher(content);
@@ -4880,9 +4870,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 中身の{@code style}が、生成器のリストの{@code list-style-*}だけか(2026-10-07)。セルの最小幅の下限は、中に
-	 * 幅を狭め得る指定(明示幅の箱など)があれば見積もらないが、リストの印の種類と位置は幅を狭めない。以前は
-	 * {@code <ul style="list-style-position:…">}を含むセルも、それを含む入れ子の表のセルも0とした。
+	 * Whether content {@code style} contains only the generator's list {@code list-style-*} declarations (2026-10-07).
+	 * Do not estimate cell minimum-width lower bounds when inner declarations can narrow width
+	 * (e.g., explicitly sized boxes), but list marker type/position does not narrow it.
+	 * Previously, cells containing {@code <ul style="list-style-position:…">}, and cells of nested tables
+	 * containing them, were assigned zero.
 	 */
 	private static boolean onlyListStyles(final String content) {
 		final Matcher m = STYLE_ATTRIBUTE_VALUE.matcher(content);
@@ -4898,8 +4890,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 列ごとの幅の下限(単独のセルの最小幅+間隔の最大。単独のセルが無い列は0)。分離境界ではセルの両側に間隔の
-	 * 半分ずつが付き、colspanに覆われるだけの列はCopperでは間隔ごと0になりうる。
+	 * Per-column width lower bounds (maximum single-column cell minimum width + spacing; zero without such a cell).
+	 * With separate borders, half the spacing goes on each side of a cell. In Copper, columns covered only
+	 * by colspan cells may become zero, including spacing.
 	 */
 	private static double[] columnLowerBounds(final TableGrid grid) {
 		final double[] column = new double[grid.columns()];
@@ -4911,7 +4904,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return column;
 	}
 
-	/** 表の最小幅の下限(両端の間隔の半分ずつ+{@link #columnLowerBounds}の和)。セルが重なる表は0。 */
+	/** Table minimum-width lower bound (half-spacing at both ends + sum of {@link #columnLowerBounds}). Zero for overlapping cells. */
 	private static double columnLowerBoundTotal(final TableGrid grid) {
 		if (grid == null || !grid.overlappedRows().isEmpty()) {
 			return 0;
@@ -4924,36 +4917,39 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * Copperの自動表幅で、最小幅が使える幅のこの倍率以内なら列を比例縮小して収める(製品の
-	 * {@code AutoColumnWidths.MIN_OVERFLOW_TOLERANCE}。一致は{@code FuzzOraclePredicateTest}で確かめる)。
+	 * In Copper auto table sizing, if the minimum width is within this multiple of available width,
+	 * shrink columns proportionally to fit (production {@code AutoColumnWidths.MIN_OVERFLOW_TOLERANCE};
+	 * {@code FuzzOraclePredicateTest} verifies equality).
 	 */
 	static final double TABLE_SHRINK_TOLERANCE = 1.1;
 
 	private static final Pattern STYLE_ONLY_ATTRIBUTE = Pattern.compile("\\s*style\\s*=\\s*\"([^\"]*)\"\\s*");
-	/** 枠と余白の宣言({@code margin}・{@code padding}・{@code border}とその各辺)。 */
+	/** Frame and margin declarations ({@code margin}, {@code padding}, {@code border}, and their individual sides). */
 	private static final Pattern FRAME_DECLARATION = Pattern
 			.compile("\\s*(?:margin|padding|border)(?:-[a-z]+)*\\s*:\\s*([^;]*)");
 
 	/**
-	 * 表を包んでよい祖先か: 属性がstyleだけのdivで、宣言が枠と余白だけ(負の値・{@code calc()}なし)。
-	 * 表の始まりを右(縦書きでは下)へずらすだけで手前へは出さず、幅を指定しないので使える幅は親を超えない
-	 * (seed 10760020、2026-09-29: {@code margin:7pt;padding:2pt;border:1pt solid black}のdivの中の表)。
+	 * Whether an ancestor may wrap a table: a div whose only attribute is style, with only frame/margin declarations
+	 * (no negative values or {@code calc()}). It only shifts the table start right (down in vertical writing),
+	 * never backward; without width declarations, available width cannot exceed its parent's
+	 * (seed 10760020, 2026-09-29: table inside a div with {@code margin:7pt;padding:2pt;border:1pt solid black}).
 	 */
 	static boolean isPlainWrapper(final String name, final String attrs) {
 		return isPlainWrapper(name, attrs, false);
 	}
 
-	/** ブロック軸の寸法(縦書きの{@code width}・横書きの{@code height}と最小・最大)。行長を変えない。 */
+	/** Block-axis dimensions ({@code width} in vertical writing, {@code height} in horizontal, and min/max). Do not change line length. */
 	private static final Pattern BLOCK_SIZE_DECLARATION_VERTICAL = Pattern
 			.compile("\\s*(?:min-|max-)?width\\s*:[^;]*");
 	private static final Pattern BLOCK_SIZE_DECLARATION_HORIZONTAL = Pattern
 			.compile("\\s*(?:min-|max-)?height\\s*:[^;]*");
 
 	/**
-	 * {@link #isPlainWrapper(String, String)}に、行長も始まりの位置も変えない宣言を足した形(2026-10-07、fit seed
-	 * 11898581: 縦書きの{@code float:none;width:8em;min-width:8em;max-width:90%}のdivの中の表)。{@code float:none}・
-	 * {@code position:static}と、そのdivの書字方向でのブロック軸の寸法(縦書きなら{@code width}系、横書きなら
-	 * {@code height}系)を許す。
+	 * Extend {@link #isPlainWrapper(String, String)} with declarations changing neither line length nor start position
+	 * (2026-10-07, fit seed 11898581: table inside a vertical-writing div with
+	 * {@code float:none;width:8em;min-width:8em;max-width:90%}).
+	 * Allow {@code float:none}, {@code position:static}, and block-axis dimensions in the div's writing direction
+	 * ({@code width} properties for vertical writing, {@code height} properties for horizontal writing).
 	 */
 	static boolean isPlainWrapper(final String name, final String attrs, final boolean vertical) {
 		if (!name.equalsIgnoreCase("div")) {
@@ -4980,45 +4976,55 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return true;
 	}
 
-	/** 証拠のセルに許す属性(生成器の定型)。 */
+	/** Allowed attributes on a cell used as evidence (generator template). */
 	private static final Pattern PLAIN_CELL_ATTRIBUTES = Pattern
 			.compile("(?:\\s+(?:colspan|rowspan)\\s*=\\s*\"\\d+\")*\\s*");
 
 	/**
-	 * 属性の無い表(開始タグの直後が{@code from})で、字のあるセルが必ず紙の外に描かれるか——
-	 * 手前の列の最小幅の下限と{@code border-spacing}の和が{@code extent + margin}(内容幅+余白。そこから先は紙の外)を
-	 * 超える列から始まるセルに、語が直に書かれているか——を返します(seed 10376223、2026-09-29)。
+	 * For an attribute-free table ({@code from} just after its start tag), return whether a text-bearing cell
+	 * must be painted off-paper: whether a cell with directly written words starts in a column where
+	 * preceding column minimum-width lower bounds plus {@code border-spacing} exceed {@code extent + margin}
+	 * (content width + margin; beyond this lies off-paper) (seed 10376223, 2026-09-29).
 	 *
 	 * <p>
-	 * <b>列ごとに見る。</b>{@link #tableMinContentLowerBound}(行ごとのセルの和)は表の幅の下限にはなるが、
-	 * どのセルが紙の外から始まるかは言えない。列の最小幅の下限を手前から足せば、各セルの始まりの下限になる。
-	 * 列の最小幅の下限は、その列だけに入るセル(colspan 1)の最小幅の最大——colspanのセルが行をまとめていても、
-	 * 別の行のセルが列の幅を決める(seed 10376223 では T1 の colspan 3 の下の3列を T25〜T27 が決め、T4 の列は
-	 * 115pt から始まる)。表の幅が{@code auto}なら{@code table-layout:fixed}でも自動レイアウトになり
-	 * (CSS 2.1 §17.5.2.1)、列はそれより狭くならない。colspanのセルは数えないので下限のまま。
+	 * <b>Check per column.</b> {@link #tableMinContentLowerBound} (cell sums per row) bounds table width,
+	 * but cannot identify which cells start off-paper. Summing column minimum-width lower bounds from the start
+	 * bounds each cell's start. Each column's lower bound is the largest minimum width of a cell occupying
+	 * only that column (colspan 1). Even when colspan cells combine columns in a row, another row's cells
+	 * determine column widths (in seed 10376223, T25–T27 determine the three columns under T1's colspan 3,
+	 * and T4's column starts at 115 pt). With {@code auto} table width, even {@code table-layout:fixed}
+	 * uses automatic layout (CSS 2.1 §17.5.2.1), and columns cannot be narrower.
+	 * Ignoring colspan cells keeps this a lower bound.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>Copperの表幅の決め方に合わせる</b>(2026-09-29のcodexレビューの反例)。分離境界ではセルの両側に間隔の半分ずつ、
-	 * 表の両端にも半分ずつが付くので、列の下限は「セルの最小幅+間隔」、単独のセルが無い列は0とする。また表の最小幅が
-	 * 使える幅の{@link #TABLE_SHRINK_TOLERANCE}倍以内なら、Copperは列を比例縮小して版面に収める(印刷品質のための
-	 * 意図的なChromeとの差)ので、下限の合計がそれを超えるときだけ判定する。
+	 * <b>Match Copper's table-width rules</b> (codex review counterexample on 2026-09-29).
+	 * Separate borders place half-spacing on each cell side and at each table end, so the column bound is
+	 * "cell minimum width + spacing", or zero without a single-column cell.
+	 * If the table minimum width is within {@link #TABLE_SHRINK_TOLERANCE} times available width,
+	 * Copper shrinks columns proportionally to fit the type area (an intentional difference from Chrome
+	 * for print quality). Judge only when the summed lower bounds exceed that tolerance.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>表の置き場所が確定する場合に限る。</b>表は属性が無く(幅は内容で決まる)、bodyの直下か、枠と余白だけのdivの中
-	 * ({@link #isPlainWrapper}。seed 10760020)にあり、左端は内容の始まりかそれより後、列は書字方向の始まりから並ぶ。
-	 * 包むdivは幅を指定しないので使える幅は紙の内容幅以下で、許容比の判定は紙の内容幅で足りる。セルの中の入れ子の
-	 * 表は、その最小幅の下限がセルの最小幅の下限に入る({@link #placeTableCells})。{@link #flexLineOverflows}と同じく、文書に浮動体・{@code display:none}・
-	 * {@code visibility:hidden}/{@code collapse}・絶対配置・位置の変位があれば判定しない。証拠のセルは属性がcolspan・rowspanだけで、
-	 * 中身が語で始まり(生成器はセルの先頭に語を置く)、中にstyle・dirが無いこと(字をセルの始まりより手前へ出す指定が無い)。
+	 * <b>Restrict to definite table placement.</b> The table has no attributes (content determines width)
+	 * and is directly under body or within divs with only frames/margins ({@link #isPlainWrapper}; seed 10760020).
+	 * Its left edge is at or after the content start; columns run from the writing-direction start.
+	 * Wrapper divs specify no width, so available width is at most paper content width, which suffices
+	 * for the tolerance check. A nested table's minimum-width lower bound contributes to its cell's bound
+	 * ({@link #placeTableCells}). As with {@link #flexLineOverflows}, do not judge documents with floats,
+	 * {@code display:none}, {@code visibility:hidden}/{@code collapse}, absolute positioning, or displacements.
+	 * Evidence cells have only colspan/rowspan attributes, content beginning with a word
+	 * (the generator puts words first in cells), and no inner style/dir
+	 * (no declarations moving text before the cell start).
 	 * </p>
 	 *
 	 * <p>
-	 * 2026-10-07(fit 11,750,000〜 の停止)に広げた: 包むdivは書字方向のブロック軸の寸法も許し
-	 * ({@link #isPlainWrapper(String, String, boolean)})、表を直に包む浮動体も1つまで許し(下の多重定義)、列の境目の下限は
-	 * colspanのセルも数え({@link #boundaryLowerBounds})、セルが重なる表も判定し、入れ子の表のセルも証拠に見る
-	 * ({@link #cellBeyondFromStart})。
+	 * Expanded on 2026-10-07 (stops from fit 11,750,000 onward): wrapper divs also allow block-axis dimensions
+	 * for their writing direction ({@link #isPlainWrapper(String, String, boolean)}); allow up to one float
+	 * directly wrapping the table (overload below); column-boundary lower bounds include colspan cells
+	 * ({@link #boundaryLowerBounds}); judge overlapping-cell tables too, and use nested-table cells as evidence
+	 * ({@link #cellBeyondFromStart}).
 	 * </p>
 	 */
 	static boolean tableColumnBeyondPage(final String html, final int from, final double extent, final double margin,
@@ -5026,16 +5032,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return tableColumnBeyondPage(html, from, extent, margin, font, collapsedTables, NOT_FLOATED);
 	}
 
-	/** {@link #tableColumnBeyondPage}の{@code floatSide}: 表を包む浮動体が無い。 */
+	/** For {@link #tableColumnBeyondPage}, {@code floatSide} means no float wraps the table. */
 	static final char NOT_FLOATED = 0;
 
 	/**
-	 * {@link #tableColumnBeyondPage}に、表を直に包む浮動体({@link #floatWrapperSide}。横書きだけ)の側を足した形
-	 * (2026-10-07、fit seed 11866613)。文書の浮動体はその1つだけであること。左の浮動体は内容の始まりに寄るので
-	 * 浮動体の無い表と同じ。紙より広い右の浮動体は、Copperは内容の始まりに寄せて終わりの側へはみ出させ、Chromeは
-	 * CSS 2.1 §9.5.1の規則9のとおり終わりに寄せて始まりの側へはみ出させる。どちらに置かれても言えるよう、
-	 * 始まりの側の証拠(表の始まりからのセルの始まりの下限が紙の端の先)と、終わりの側の証拠(表の終わりを内容幅の
-	 * 位置に置いたときのセルの終わりの上限が紙の始まりの手前)の両方があるときだけ言う。
+	 * Extend {@link #tableColumnBeyondPage} with the side of a float directly wrapping the table
+	 * ({@link #floatWrapperSide}; horizontal writing only) (2026-10-07, fit seed 11866613).
+	 * It must be the document's only float. Left floats align to the content start, like un-floated tables.
+	 * For a right float wider than the paper, Copper aligns to content start and overflows toward the end,
+	 * while Chrome aligns to the end and overflows toward the start, per CSS 2.1 §9.5.1 rule 9.
+	 * To hold under either placement, require both start-side evidence (cell-start lower bound measured
+	 * from the table start lies beyond the paper edge) and end-side evidence
+	 * (cell-end upper bound lies before the paper start when table end is placed at content width).
 	 */
 	static boolean tableColumnBeyondPage(final String html, final int from, final double extent, final double margin,
 			final double font, final boolean collapsedTables, final char floatSide) {
@@ -5048,13 +5056,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 				|| POSITION_OFFSET.matcher(html).find()) {
 			return false;
 		}
-		// 表の部品(table・行・セル)の規則は、枠・余白・境界の宣言だけであること。幅(固定レイアウトになりうる)・
-		// max-width(セルの最小幅を抑える)・字の大きさなどがあれば見積もらない(codex の反例)
+		// Table-part rules (table/rows/cells) must contain only frame, margin, and border-model declarations. Do not estimate
+		// with width (can activate fixed layout), max-width (caps cell minimum width), font size, etc. (codex counterexample).
 		if (!plainTableRules(html)) {
 			return false;
 		}
 		final TableGrid grid = placeTableCells(html, from, font, collapsedTables);
-		// 表の最小幅が行長の許容比以内なら、Copperは列を縮めて収める
+		// If table minimum width is within the line-length tolerance, Copper shrinks columns to fit.
 		if (grid == null || boundaryLowerBounds(grid)[grid.columns()] <= TABLE_SHRINK_TOLERANCE * extent) {
 			return false;
 		}
@@ -5064,15 +5072,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 列の境目の位置の下限(表の始まりから。境目jは列jの始まり、境目{@code columns}は表の終わり=表の幅)。
-	 * 分離境界の表では、列jから{@code k}列にわたるセルの幅は列の幅と間の間隔の和で、セルの最小幅より狭くならないので、
-	 * 境目{@code j+k}は境目jから少なくとも「セルの最小幅+間隔」先にある。単独のセルだけでなくcolspanのセルも数える
-	 * (2026-10-07、fit seed 11866613: 入れ子の表の最小幅を持つのがcolspan 3のセルだけだった)。
+	 * Lower bounds on column-boundary positions from table start: boundary j starts column j;
+	 * boundary {@code columns} is table end = table width.
+	 * In a separate-border table, a cell spanning {@code k} columns from j has the sum of column widths
+	 * and intervening spacing, at least its minimum width. Thus boundary {@code j+k} is at least
+	 * "cell minimum width + spacing" beyond boundary j. Include colspan cells, not just single-column cells
+	 * (2026-10-07, fit seed 11866613: only a colspan 3 cell carried the nested table's minimum width).
 	 *
 	 * <p>
-	 * セルが重なる表(colspanが上の行のrowspanの桁に掛かる、表のモデルの誤り)も数える。セルの始まりの桁は、HTMLの表の
-	 * 置き方(占められた桁を飛ばした先から始め、colspanの分だけ進む)でCopper(c803652d から)・Chromeとも同じで、
-	 * 重なったセルも自分の幅を持つ(seed 11866613 で Copper・Chrome とも T20 は列7)。
+	 * Include overlapping-cell tables too (colspan overlaps a rowspan from above: a table-model error).
+	 * Copper (since c803652d) and Chrome use the same HTML cell-start placement: skip occupied columns,
+	 * start there, then advance by colspan. Overlapping cells still have their own widths
+	 * (in seed 11866613, T20 is in column 7 in both Copper and Chrome).
 	 * </p>
 	 */
 	private static double[] boundaryLowerBounds(final TableGrid grid) {
@@ -5093,7 +5104,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return s;
 	}
 
-	/** {@link #boundaryLowerBounds}を表の終わりから見た形: 表の終わりを{@code end}に置いたときの境目の位置の上限。 */
+	/** {@link #boundaryLowerBounds} viewed from table end: upper bounds on boundary positions with table end at {@code end}. */
 	private static double[] boundaryUpperBoundsFromEnd(final TableGrid grid, final double end) {
 		final int columns = grid.columns();
 		final double[] u = new double[columns + 1];
@@ -5112,18 +5123,19 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return u;
 	}
 
-	/** 文書の{@code <style>}の規則(セレクタと宣言)。 */
+	/** Document {@code <style>} rules (selectors and declarations). */
 	private static final Pattern STYLE_RULE = Pattern.compile("([^{}]*)\\{([^}]*)\\}");
-	/** 表の部品を選ぶセレクタ。 */
+	/** Selectors matching table parts. */
 	private static final Pattern TABLE_PART_SELECTOR = Pattern
 			.compile("(?<![\\w-])(?:table|caption|thead|tbody|tfoot|tr|td|th|col|colgroup)(?![\\w-])");
-	/** 表の部品の規則に許す宣言(枠・余白・境界の扱い)。幅を広げるか変えないものだけ。 */
+	/** Allowed table-part rule declarations (frames, margins, border model). Only those that widen or preserve width. */
 	private static final Pattern TABLE_PART_DECLARATION = Pattern
 			.compile("\\s*(?:border(?:-[a-z]+)*|margin(?:-[a-z]+)*|padding(?:-[a-z]+)*|table-layout)\\s*:[^;]*");
 
 	/**
-	 * 文書の{@code <style>}で表の部品を選ぶ規則が、枠・余白・境界の宣言と{@code table-layout}だけか。{@code table}の幅は
-	 * 固定レイアウトを効かせうる(列が内容で広がらない)ので許さない(2026-10-07、codex の健全性の反例)。
+	 * Whether document {@code <style>} rules selecting table parts contain only frame, margin, border-model declarations,
+	 * and {@code table-layout}. Disallow {@code table} width: it can activate fixed layout
+	 * (columns do not expand with content) (2026-10-07, codex soundness counterexample).
 	 */
 	static boolean plainTableRules(final String html) {
 		final int open = html.indexOf("<style>");
@@ -5144,25 +5156,26 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		return true;
 	}
-	/** 生成器のセルの罫線の規則。{@code none}などの罫線は幅0なので、solid のときだけ罫線の幅を数える(codex の反例 5)。 */
+	/** Generator cell-border rule. Borders such as {@code none} have zero width; count only solid borders (codex counterexample 5). */
 	private static final String SOLID_CELL_BORDER = "td{border:1pt solid";
 
-	/** 証拠のセル: 属性がcolspan・rowspanだけで、中身が語で始まり、中にstyle・dirが無い(字はセルの始まりより手前に出ない)。 */
+	/** Evidence cell: only colspan/rowspan attributes, starts with a word, no inner style/dir (text cannot precede cell start). */
 	private static boolean evidenceCell(final PlacedCell cell) {
 		return PLAIN_CELL_ATTRIBUTES.matcher(cell.attrs()).matches() && DRAWN_TOKEN.matcher(cell.content()).lookingAt()
 				&& !cell.content().contains("style=") && !cell.content().contains("dir=");
 	}
 
-	/** 生成器のセルの中の入れ子の表の形: 語のあとに属性が{@code data-fuzz-role="cell-child"}だけのdiv、その直下の属性の無い表。 */
+	/** Generator nested-table shape: word, then div with only {@code data-fuzz-role="cell-child"}, then a direct attribute-free table. */
 	private static final Pattern NESTED_TABLE_IN_CELL = Pattern
 			.compile("\\s*T\\d+\\s*<div data-fuzz-role=\"cell-child\">\\s*<table>");
 
 	/**
-	 * 表の始まりを{@code origin}に置いて、証拠のセルの始まりの下限が{@code limit}の先にあるか。入れ子の表
-	 * ({@link #NESTED_TABLE_IN_CELL}の形、セルの属性はcolspan・rowspanだけ)のセルは、外のセルの始まり(+罫線)を
-	 * 入れ子の表の始まりとして同じく見る(2026-10-07、fit seed 11766015: 外の表のどのセルも紙の中から始まるが、
-	 * 最後の列のセルの中の表の字が紙の外に出た)。外の表は縮められないので(許容比の判定)、セルは中の表の最小幅
-	 * より狭くならず、中の表も縮まない。
+	 * With table start at {@code origin}, whether an evidence cell's start lower bound lies beyond {@code limit}.
+	 * For nested-table cells ({@link #NESTED_TABLE_IN_CELL} shape, cell attributes only colspan/rowspan),
+	 * use the outer cell start (+ border) as the nested table start and apply the same check
+	 * (2026-10-07, fit seed 11766015: all outer cells started on-paper, but nested-table text
+	 * inside the final column's cell went off-paper). The outer table cannot shrink (tolerance check),
+	 * so cells cannot be narrower than the nested table's minimum width, and the inner table cannot shrink either.
 	 */
 	private static boolean cellBeyondFromStart(final String html, final TableGrid grid, final double origin,
 			final double limit, final double font, final boolean collapsedTables, final boolean bordered) {
@@ -5185,8 +5198,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * 表の終わりを{@code origin}に置いて、証拠のセルの終わりの上限が{@code limit}の手前にあるか。セルの終わりは
-	 * 表の終わりから後ろの列の実際の幅と間隔を引いた位置で、実際の列は下限より広いので、下限で引いた位置が上限になる。
+	 * With table end at {@code origin}, whether an evidence cell's end upper bound lies before {@code limit}.
+	 * Cell end is table end minus actual widths and spacing of later columns. Actual column widths exceed
+	 * their lower bounds, so subtracting lower bounds yields an upper bound.
 	 */
 	private static boolean cellBeforeFromEnd(final TableGrid grid, final double origin, final double limit) {
 		final double[] boundary = boundaryUpperBoundsFromEnd(grid, origin);
@@ -5199,12 +5213,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return false;
 	}
 
-	/** 浮動体の向き({@code float:left|right})。 */
+	/** Float side ({@code float:left|right}). */
 	private static final Pattern FLOAT_SIDE_DECLARATION = Pattern.compile("\\s*float\\s*:\\s*(left|right)\\s*");
 
 	/**
-	 * 表を直に包んでよい浮動体か: 属性がstyleだけのdivで、宣言が{@code float:left|right}と{@code position:static}だけ
-	 * (幅・余白を持たない)。向きを{@code 'L'}・{@code 'R'}で返す(違えば{@link #NOT_FLOATED})。
+	 * Whether a float may directly wrap a table: a div whose only attribute is style,
+	 * with only {@code float:left|right} and {@code position:static} declarations (no width/margins).
+	 * Return the side as {@code 'L'}/{@code 'R'}, or {@link #NOT_FLOATED} if ineligible.
 	 */
 	static char floatWrapperSide(final String name, final String attrs) {
 		if (!name.equalsIgnoreCase("div")) {
@@ -5233,7 +5248,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return m.find() ? Math.max(1, Integer.parseInt(m.group(1))) : 1;
 	}
 
-	/** 割れない語(T+数字の連なり)の送りの下限の最大(em)。タグは語を切り、ルビの注記は数えない。 */
+	/** Largest unbreakable-word advance lower bound (T+digit sequences), in em. Tags break words; omit ruby annotations. */
 	private static double longestWordAdvance(final String content) {
 		final String text = content.replaceAll("(?s)<rt>.*?</rt>", " ").replaceAll("<[^>]*>", " ");
 		double longest = 0, word = 0;
@@ -5252,9 +5267,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * styleの中で<b>最後に</b>書かれた宣言の長さ(pt)を返します。CSSは後勝ちで、生成器は
-	 * {@code width:30pt;width:80%}のように同じプロパティを重ねる。最後が百分率・{@code calc()}・
-	 * キーワードなら静的には決められないので{@code fallback}(=親と同じ)を返し、古いpt値を残さない。
+	 * Return the length (pt) of the <b>last</b> declaration in style. CSS is last-wins, and the generator repeats
+	 * properties, e.g., {@code width:30pt;width:80%}. If the last value is a percentage, {@code calc()}, or keyword,
+	 * it cannot be determined statically: return {@code fallback} (= same as parent), not the old pt value.
 	 */
 	static double lastLength(final Pattern declaration, final String attrs, final double font, final double fallback) {
 		final Matcher m = declaration.matcher(attrs);
@@ -5270,13 +5285,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 				: fallback;
 	}
 
-	/** {@code body}規則の{@code writing-mode}(紙面の軸を決める)。 */
+	/** {@code writing-mode} in the {@code body} rule (determines paper axes). */
 	private static final Pattern BODY_WRITING_MODE = Pattern
 			.compile("body\\s*\\{[^}]*writing-mode\\s*:\\s*([a-z-]+)");
 
 	/**
-	 * 紙面のページ軸が縦(y)かを返します。{@code body}が縦書きなら
-	 * ページ軸は<b>横(x)</b>、行軸が縦(y)になる。
+	 * Return whether the paper's page axis is vertical (y). If {@code body} uses vertical writing,
+	 * the page axis is <b>horizontal (x)</b>, and the inline axis is vertical (y).
 	 */
 	static boolean pageAxisIsY(final String html) {
 		final Matcher m = BODY_WRITING_MODE.matcher(html);
@@ -5292,7 +5307,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return max;
 	}
 
-	/** 一意なトークン(行分割で割れないよう空白を含めない)。 */
+	/** Unique token (no whitespace, to prevent splitting at line breaks). */
 	private static String token(final List<String> tokens, final int[] counter, final Set<String> reorderable,
 			final boolean inReorderable) {
 		final String t = "T" + (counter[0]++);
@@ -5304,25 +5319,24 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
-	 * <b>レイアウトを決めるプロパティを直交に振る修飾</b>です(2026-08-02)。
+	 * <b>Modifier that independently varies layout-determining properties</b> (2026-08-02).
 	 *
 	 * <p>
-	 * 生成器は「パターンごとに書かれたHTML」の集まりで、絶対配置の箱は
-	 * 常に素の{@code div}、フロートは常に{@code div}……とパターン内に
-	 * プロパティが焼き込まれていた。そのため<b>パターンをまたぐ組み合わせ
-	 * (position × display × float × writing-mode)が一度も生成されず</b>、
-	 * 200万文書を通しても`position:absolute`かつ`display:flex`が
-	 * クラッシュする欠陥に到達できなかった(2026-08-02、yahoo.co.jpで発覚)。
-	 * ここで独立に振ることで、パターン数を増やさずに直積を作る。
+	 * The generator is a collection of "HTML written per pattern", with properties baked into patterns:
+	 * absolutely positioned boxes were always plain {@code div}s, floats always {@code div}s, etc.
+	 * Thus <b>cross-pattern combinations (position × display × float × writing-mode) were never generated</b>;
+	 * even two million documents could not reach a crash with `position:absolute` and `display:flex`
+	 * (found on yahoo.co.jp on 2026-08-02). Vary these independently here to create the Cartesian product
+	 * without adding patterns.
 	 * </p>
 	 *
 	 * <p>
-	 * 内容を消す値(`display:none`・`visibility:hidden`)と紙面外へ飛ばす
-	 * 値はSTRICT(内容保存を検査する)では引かない。
+	 * STRICT (which checks content preservation) does not select values that hide content
+	 * (`display:none`, `visibility:hidden`) or move it off-paper.
 	 * </p>
 	 */
 	private static String layoutMods(final Random r, final Random extensionRandom, final boolean strict) {
-		// 半分は素のまま(素朴な文書も出続けるようにする)
+		// Leave half unmodified (keep generating simple documents too).
 		if (r.nextBoolean()) {
 			return "";
 		}
@@ -5335,17 +5349,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 			mods.append("display:").append(displays[r.nextInt(displays.length)]).append(';');
 		}
 		if (r.nextBoolean()) {
-			// **内容を紙面順から動かす値はSTRICTでは引かない**。絶対配置・
-			// ページfloat・脚注は「文書順に1度だけ現れる」というSTRICTの
-			// 前提(読み順・複製・消失の検査)を仕様どおりに壊すため、
-			// これらはWILD(クラッシュ・停止性・ページ数だけを見る)専用
+			// **Do not select values that move content out of paper order in STRICT.** Absolute positioning,
+			// page floats, and footnotes legitimately violate STRICT's assumption that content
+			// "appears exactly once in document order" (reading-order, duplication, and loss checks),
+			// so reserve them for WILD (only crashes, termination, and page count).
 			final String[] positions = strict ? new String[] { "static", "relative" }
 					: new String[] { "static", "relative", "absolute" };
 			final String position = positions[r.nextInt(positions.length)];
 			mods.append("position:").append(position).append(';');
-			// STRICTは「作者が内容を紙面外へ動かす意図を持ち得ない」集合。
-			// relative自体は残すが、top/leftを付けると縦書きの開始辺から
-			// 全内容を紙面外へ動かせるため、変位はWILDだけで生成する。
+			// STRICT covers documents where "the author cannot intend to move content off-paper".
+			// Keep relative itself, but top/left can move all content off-paper from the vertical-writing start edge,
+			// so generate displacements only in WILD.
 			if (!position.equals("static")) {
 				final int top = r.nextInt(40) - 10;
 				final int left = r.nextInt(40) - 10;
@@ -5355,7 +5369,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 		}
 		if (r.nextBoolean()) {
-			// footnote/top/bottomはページ単位のfloat(2026-07-31・08-02に追加)
+			// footnote/top/bottom are page-level floats (added 2026-07-31 and 08-02).
 			final String[] floats = strict ? new String[] { "none", "left", "right" }
 					: new String[] { "none", "left", "right", "footnote", "top", "bottom", "start", "end" };
 			mods.append("float:").append(floats[r.nextInt(floats.length)]).append(';');
@@ -5370,7 +5384,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (mods.length() == 0) {
 			return "";
 		}
-		// 寸法を与えないとflex/gridの経路が痩せるため、たまに付ける
+		// Occasionally specify dimensions; without them, flex/grid paths get sparse coverage.
 		if (r.nextBoolean()) {
 			mods.append("width:").append(20 + r.nextInt(120)).append("pt;");
 		}
@@ -5385,7 +5399,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return mods.toString();
 	}
 
-	/** v2のサイズ語彙。8emの床で組版不能な狭幅へ寄せない。 */
+	/** v2 size vocabulary. An 8 em floor avoids bias toward untypesettably narrow widths. */
 	private static String sizeMods(final Random r) {
 		return switch (r.nextInt(6)) {
 		case 0 -> "width:" + (30 + r.nextInt(51)) + "%;min-width:8em;max-width:90%;";
@@ -5397,7 +5411,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		};
 	}
 
-	/** flex/gridコンテナ固有の方向・折返し・track・gap。 */
+	/** Flex/grid-specific direction, wrapping, tracks, and gaps. */
 	private static void appendLayoutProperties(final StringBuilder mods, final Random r, final boolean grid) {
 		if (grid) {
 			final String[] tracks = { "repeat(2,minmax(12pt,1fr))", "24pt 1fr",
@@ -5413,7 +5427,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		mods.append("gap:").append(gaps[r.nextInt(gaps.length)]).append(';');
 	}
 
-	/** 生成できるノード種別の数です(STRICTは内容を動かす種別を含まない)。 */
+	/** Number of generatable node types (STRICT excludes types that move content). */
 	private static int nodeKinds(final boolean strict) {
 		return strict ? 13 : 15;
 	}
@@ -5429,27 +5443,27 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final Set<String> reorderable, final boolean inReorderable, final int forcedKind) {
 		final String mods = layoutMods(r, extensionRandom, strict);
 		if (!mods.isEmpty()) {
-			// 修飾は包む(パターン側の記述を壊さずに組み合わせを作る)
+			// Apply modifiers as wrappers (create combinations without breaking pattern declarations).
 			//
-			// **浮動体にしたなら、その中身は読み順の検査から外す**
-			// (2026-08-03)。フロートは入りきらなければ次のページへ送られ、
-			// 後続の本文はこのページに残る——文書順とページ順が食い違うのは
-			// CSSの仕様どおりで、欠陥ではない。専用の生成経路
-			// (`<div style="float:left;width:..">`)は既に
-			// {@code inReorderable=true}で子を作っていたが、こちらの修飾
-			// 経由でフロートになった場合が漏れていた。実際に strict の
-			// seed 6/9/12/15 が「読み順が入れ替わった」と誤検出していた
-			// (T28が`float:right`の中にあった)。
+			// **If made a float, exclude its contents from reading-order checks**
+			// (2026-08-03). A float that does not fit moves to the next page,
+			// while subsequent body text stays on the current page. Document/page order disagreement
+			// follows the CSS specification and is not a defect. The dedicated generation path
+			// (`<div style="float:left;width:..">`) already created
+			// children with {@code inReorderable=true}, but floats introduced
+			// through this modifier were missed. Strict seeds
+			// 6/9/12/15 actually produced false "reading order reversed" reports
+			// (T28 was inside `float:right`).
 			final boolean floated = mods.contains("float:") && !mods.contains("float:none");
 			final boolean positioned = mods.contains("position:absolute");
 			final boolean flex = mods.contains("display:flex;");
 			final boolean grid = mods.contains("display:grid;");
-			// reverse系flexは読み順を正当に変える(row/column-reverseは主軸、
-			// wrap-reverseは交差軸の行順)——float/absoluteと同じくreorderableへ
+			// Reverse flex legitimately changes reading order (row/column-reverse on the main axis,
+			// wrap-reverse for cross-axis line order). Mark reorderable like float/absolute.
 			final boolean reversedFlex = mods.contains("-reverse");
 			final int items = (flex || grid) && extensionRandom != null ? 2 + extensionRandom.nextInt(3) : 1;
 			s.append("<div style=\"").append(mods).append("\">\n");
-			// 第1 itemはv1と同じrで生成し、旧系列の消費順を維持する。
+			// Generate the first item using the same r as v1, preserving old-sequence consumption order.
 			appendPlainNode(s, r, extensionRandom, depth, strict, tokens, counter, reorderable,
 					inReorderable || floated || positioned || reversedFlex, forcedKind);
 			for (int i = 1; i < items; ++i) {
@@ -5463,7 +5477,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				forcedKind);
 	}
 
-	/** flex/gridの追加item。追加系列だけを使い、直接の子を2〜4個にする。 */
+	/** Extra flex/grid items. Use only the extension sequence, producing two to four direct children. */
 	private static void appendLayoutItem(final StringBuilder s, final Random r, final int depth,
 			final boolean strict, final List<String> tokens, final int[] counter, final Set<String> reorderable,
 			final boolean inReorderable, final boolean flex, final boolean grid) {
@@ -5483,7 +5497,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		s.append("</div>\n");
 	}
 
-	/** 表セルから明示的に生成する複数itemのflex/grid。 */
+	/** Multi-item flex/grid explicitly generated inside a table cell. */
 	private static void appendLayoutContainer(final StringBuilder s, final Random r, final int depth,
 			final boolean strict, final List<String> tokens, final int[] counter, final Set<String> reorderable,
 			final boolean inReorderable, final boolean grid) {
@@ -5513,7 +5527,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		final int kind = forcedKind >= 0 ? forcedKind : r.nextInt(nodeKinds(strict));
 		switch (kind) {
-		case 0 -> { // 段落(複数トークン)
+		case 0 -> { // Paragraph (multiple tokens).
 			s.append("<p id=\"p").append(counter[0]).append("\">");
 			final int n = 1 + r.nextInt(6);
 			for (int i = 0; i < n; ++i) {
@@ -5521,24 +5535,24 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			s.append("</p>\n");
 		}
-		case 1 -> { // 入れ子ブロック
+		case 1 -> { // Nested block.
 			s.append("<div style=\"margin:").append(r.nextInt(8)).append("pt;padding:").append(r.nextInt(6))
 					.append("pt;border:").append(r.nextInt(3)).append("pt solid black\">\n");
 			appendChildren(s, r, extensionRandom, depth, strict, tokens, counter, reorderable, inReorderable);
 			s.append("</div>\n");
 		}
-		case 2 -> { // フロート
+		case 2 -> { // Float.
 			s.append("<div style=\"float:").append(r.nextBoolean() ? "left" : "right").append(";width:")
 					.append(10 + r.nextInt(120)).append("pt\">\n");
-			// フロートの中身は**正当に**読み順が変わる(前の行の横へ持ち上がる)
-			// ので、不変条件7の対象から外す
+			// Float contents **legitimately** change reading order (rise alongside earlier lines),
+			// so exclude them from invariant 7.
 			appendChildren(s, r, extensionRandom, depth, strict, tokens, counter, reorderable, true);
 			s.append("</div>\n");
 		}
-		case 3 -> { // 表(rowspan/colspanつき。最大1セルに再帰的な子)
+		case 3 -> { // Table (rowspan/colspan; recursive children in at most one cell).
 			final int rows = 1 + r.nextInt(4);
 			final int cols = 1 + r.nextInt(4);
-			// 1表1セルまでにして、入れ子表でもDOM数が指数的に増えないようにする。
+			// Limit to one cell per table to prevent exponential DOM growth even with nested tables.
 			final int richCell = extensionRandom != null && depth > 1 && extensionRandom.nextInt(3) == 0
 					? extensionRandom.nextInt(rows * cols) : -1;
 			int cell = 0;
@@ -5564,24 +5578,24 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			s.append("</tbody></table>\n");
 		}
-		case 4 -> { // 段組
+		case 4 -> { // Multi-column layout.
 			s.append("<div style=\"column-count:").append(2 + r.nextInt(3)).append(";column-gap:")
 					.append(r.nextInt(20)).append("pt\">\n");
 			appendChildren(s, r, extensionRandom, depth, strict, tokens, counter, reorderable, inReorderable);
 			s.append("</div>\n");
 		}
-		case 5 -> { // 書字方向の入れ子
+		case 5 -> { // Nested writing directions.
 			s.append("<div style=\"writing-mode:").append(WRITING_MODES[r.nextInt(WRITING_MODES.length)])
 					.append("\">\n");
 			appendChildren(s, r, extensionRandom, depth, strict, tokens, counter, reorderable, inReorderable);
 			s.append("</div>\n");
 		}
-		case 6 -> { // インラインブロック・大きいフォント(救済分割の入口)
+		case 6 -> { // Inline-block / large font (entry point for rescue splitting).
 			s.append("<p><span style=\"display:inline-block;width:").append(10 + r.nextInt(200)).append("pt;height:")
 					.append(10 + r.nextInt(200)).append("pt\">").append(token(tokens, counter, reorderable, inReorderable))
 					.append("</span></p>\n");
 		}
-		case 7 -> { // リスト(マーカー・list-style)
+		case 7 -> { // List (markers / list-style).
 			final String tag = r.nextBoolean() ? "ul" : "ol";
 			s.append('<').append(tag).append(" style=\"list-style-position:")
 					.append(r.nextBoolean() ? "inside" : "outside").append(";list-style-type:")
@@ -5593,7 +5607,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			s.append("</").append(tag).append(">\n");
 		}
-		case 8 -> { // ルビ(短い単位と、行分割を要する長い単位)
+		case 8 -> { // Ruby (short units and long units requiring line breaks).
 			s.append("<p>");
 			final int n = 1 + r.nextInt(3);
 			for (int i = 0; i < n; ++i) {
@@ -5621,25 +5635,25 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			s.append("</p>\n");
 		}
-		case 9 -> { // 置換要素(画像。救済分割の本来の動機)
-			// altは描かれないのでトークンにしない(オラクルが誤検出する)
+		case 9 -> { // Replaced element (image; original motivation for rescue splitting).
+			// alt is not painted, so do not make it a token (would cause oracle false positives).
 			s.append("<p><img src=\"").append(RED_PNG_URI).append("\" alt=\"img\"")
 					.append(" style=\"display:").append(r.nextBoolean() ? "block" : "inline")
 					.append(";width:").append(10 + r.nextInt(250)).append("pt;height:")
 					.append(10 + r.nextInt(250)).append("pt\" /></p>\n");
 		}
-		case 10 -> { // clear と極端なフォントサイズ(floatと絡ませる)
+		case 10 -> { // clear and extreme font sizes (interact with floats).
 			s.append("<div style=\"clear:")
 					.append(new String[] { "left", "right", "both" }[r.nextInt(3)]).append("\">")
 					.append("<span style=\"font-size:").append(6 + r.nextInt(40)).append("pt\">")
 					.append(token(tokens, counter, reorderable, inReorderable)).append("</span></div>\n");
 		}
-		case 11 -> { // avoid ヒント(改ページ判定を揺さぶる)
+		case 11 -> { // avoid hints (exercise page-break decisions).
 			s.append("<div style=\"page-break-inside:avoid;margin:").append(r.nextInt(6)).append("pt\">\n");
 			appendChildren(s, r, extensionRandom, depth, strict, tokens, counter, reorderable, inReorderable);
 			s.append("</div>\n");
 		}
-		case 12 -> { // フォーム部品(値テキストは描画されないためトークンにしない)
+		case 12 -> { // Form controls (value text is not painted, so do not make it a token).
 			s.append("<form>");
 			final int n = 1 + r.nextInt(3);
 			for (int i = 0; i < n; ++i) {
@@ -5656,13 +5670,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			s.append("</form>\n");
 		}
-		case 13 -> { // WILDのみ: 絶対配置
+		case 13 -> { // WILD only: absolute positioning.
 			s.append("<div style=\"position:absolute;top:").append(r.nextInt(300) - 50).append("pt;left:")
 					.append(r.nextInt(300) - 50).append("pt\">").append("X").append("</div>\n");
 		}
-		default -> { // WILDのみ: 強制改ページ・非表示・overflowと複雑な部分木
+		default -> { // WILD only: forced page breaks, hidden content, overflow, and complex subtrees.
 			if (extensionRandom == null) {
-				// v1互換: 内容は固定のX
+				// v1 compatibility: content is a fixed X.
 				s.append("<div style=\"page-break-before:always;visibility:")
 						.append(r.nextBoolean() ? "hidden" : "visible").append(";overflow:hidden\">X</div>\n");
 			} else {
@@ -5679,7 +5693,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 	}
 
-	/** 表セル内に段組・float・flex/grid・list・image・入れ子表を1つ生成する。 */
+	/** Generate one of multi-column layout, float, flex/grid, list, image, or nested table inside a table cell. */
 	private static void appendRichCellChild(final StringBuilder s, final Random r, final int depth,
 			final boolean strict, final List<String> tokens, final int[] counter, final Set<String> reorderable,
 			final boolean inReorderable) {

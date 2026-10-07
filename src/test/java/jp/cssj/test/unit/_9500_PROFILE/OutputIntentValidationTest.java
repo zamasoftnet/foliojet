@@ -23,7 +23,10 @@ import net.zamasoft.pdfg2d.pdf.impl.PDFWriterImpl;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** PDF/Xの明示OutputIntent ICCを完全解析し、不正な指定をfail closedにする試験。 */
+/**
+ * Tests full parsing of explicit PDF/X OutputIntent ICC profiles and fail-closed handling of invalid
+ * specifications.
+ */
 public class OutputIntentValidationTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final String PDFX4 = "1.6X-4";
@@ -43,17 +46,23 @@ public class OutputIntentValidationTest extends TestCase {
 		assertFailedWithPdfXOutputIntentError(result);
 	}
 
-	/** 識別名は印刷条件の名前で、PDF/X では印字可能な ASCII に限る(2026-10-07。以前は黙って化けた)。 */
+	/**
+	 * The identifier names the printing condition; PDF/X restricts it to printable ASCII
+	 * (2026-10-07; previously it was silently garbled).
+	 */
 	public void testPdfXRejectsNonAsciiIdentifier() throws Exception {
 		assertFailedWithPdfXOutputIntentError(convert(PDFX4, "日本の印刷", cmykOutputProfile()));
 	}
 
-	/** PDF/X は DestOutputProfile が要る(2026-10-07。以前は pdfg2d の素の例外で、予期しない失敗として返った)。 */
+	/**
+	 * PDF/X requires DestOutputProfile
+	 * (2026-10-07; previously a raw pdfg2d exception was returned as an unexpected failure).
+	 */
 	public void testPdfXRejectsIdentifierWithoutProfile() throws Exception {
 		assertFailedWithPdfXOutputIntentError(convert(PDFX4, "FOGRA39", null));
 	}
 
-	/** 登録されていない識別名の出力インテントにも Info が付く(2026-10-07。PDF/X では必須)。 */
+	/** Output intents with unregistered identifiers also receive Info (2026-10-07; required for PDF/X). */
 	public void testPdfXWritesInfoForCustomIdentifier() throws Exception {
 		final Conversion result = convert(PDFX4, "MyPress", cmykOutputProfile());
 		assertNull(result.failure);
@@ -64,7 +73,7 @@ public class OutputIntentValidationTest extends TestCase {
 		}
 	}
 
-	/** 通常の PDF では非 ASCII の識別名を UTF-16 で書き、化けない(2026-10-07)。 */
+	/** Normal PDF writes non-ASCII identifiers in UTF-16 without garbling (2026-10-07). */
 	public void testRegularPdfKeepsNonAsciiIdentifier() throws Exception {
 		final Conversion result = convert("1.5", "日本の印刷", cmykOutputProfile());
 		assertNull(result.failure);
@@ -87,7 +96,7 @@ public class OutputIntentValidationTest extends TestCase {
 		assertTrue("埋め込んだCMYK ICCに/N 4が付くこと", pdf.contains("/N 4"));
 	}
 
-	/** PDF 1.4基底のX-1a・X-3はICC v4を拒否し、X-4は受け付ける(2026-09-30、PDF/X-3対応)。 */
+	/** PDF 1.4-based X-1a/X-3 reject ICC v4, while X-4 accepts it (2026-09-30, PDF/X-3 support). */
 	public void testPdf14BasedPdfXRejectsIccV4Profile() throws Exception {
 		final byte[] v4 = cmykOutputProfile();
 		v4[8] = 4;

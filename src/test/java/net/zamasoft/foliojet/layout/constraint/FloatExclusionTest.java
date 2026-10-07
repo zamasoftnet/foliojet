@@ -4,8 +4,8 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.box.params.FloatSide;
 
 /**
- * {@link FloatExclusion}/{@link AxisSpan}の値型としての基本契約
- * (構築時検証・値等価性)を固定する単体テストです(2026-07-23新設)。
+ * Unit tests that lock down the basic value-type contracts of {@link FloatExclusion}/{@link AxisSpan}
+ * (construction-time validation and value equality) (added 2026-07-23).
  */
 public class FloatExclusionTest extends TestCase {
 	public FloatExclusionTest(String name) {
@@ -13,9 +13,9 @@ public class FloatExclusionTest extends TestCase {
 	}
 
 	public void testAxisSpanAllowsInvertedRange() {
-		// 意図的に検証しない: 既存の排除域計算は浮動体の重なりが大きい
-		// 場合に負のline sizeを許容する既存挙動を持つため、この値型も
-		// それを忠実に再現できる必要がある(AxisSpan.java参照)。
+		// Deliberately not validated: existing exclusion-area calculations allow negative
+		// line sizes when floats overlap substantially, so this value type must faithfully
+		// reproduce that behavior as well (see AxisSpan.java).
 		final AxisSpan span = new AxisSpan(10, 5);
 		assertEquals(-5.0, span.extent(), 0);
 	}

@@ -17,7 +17,7 @@ import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 相対配置のinsetに割合と絶対長が混在するcalc()を使えることを固定する。 */
+/** Verify that relative-positioning insets accept calc() mixing percentages and absolute lengths. */
 public class RelativeInsetCalcTest extends TestCase {
 	public void testMixedCalcForBothInsetDirections() throws Exception {
 		final String html = "<!doctype html><html><head><meta charset='UTF-8'><style>"

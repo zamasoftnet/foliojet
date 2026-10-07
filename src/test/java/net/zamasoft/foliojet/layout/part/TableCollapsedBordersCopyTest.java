@@ -4,7 +4,7 @@ import java.lang.reflect.Method;
 
 import junit.framework.TestCase;
 
-/** 分割後の表で行数が元より増える場合にも、罫線配列のコピーを有界に保つ。 */
+/** Keeps border-array copying bounded even when splitting a table increases its row count. */
 public class TableCollapsedBordersCopyTest extends TestCase {
 
 	public TableCollapsedBordersCopyTest(final String name) {

@@ -6,8 +6,8 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 
 /**
- * Visitorのラッパークラスです。
- * 
+ * Wrapper class for Visitor.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: VisitorWrapper.java 1552 2018-04-26 01:43:24Z miyabe $
  */

@@ -32,7 +32,7 @@ import net.zamasoft.pdfg2d.gc.text.layout.control.LineBreak;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Tab;
 import net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace;
 
-// TODO ブロックの末尾のスペースをつぶす
+// TODO Collapse spaces at the end of a block.
 public class StyledTextUnitizer {
 
 	private final Builder builder;
@@ -40,30 +40,30 @@ public class StyledTextUnitizer {
 	private final List<AbstractTextParams> textParamsStack = new ArrayList<AbstractTextParams>();
 
 	/**
-	 * 使用する予定のInlineEndQuadのスタック。
+	 * Stack of InlineEndQuad instances to be used.
 	 */
 	private final List<Quad> inlineQuadStack = new ArrayList<Quad>();
 
 	private BuilderGlyphHandler gh;
 
 	/**
-	 * スペースのつぶし、LFコードの処理、折り返し。
+	 * Space collapsing, LF processing, and wrapping.
 	 */
 	private boolean collapseSpaces, lineFeed;
 	/**
-	 * 直前の文字
+	 * The preceding character.
 	 */
 	private char followingChar;
 
 	/**
-	 * word-spacingプロパティによるスペース幅です。
+	 * Space width from the word-spacing property.
 	 */
 	private double wordSpacing;
 
 	private TextShaper textShaper = null;
 	private CSSJTextUnitizer textUnitizer;
 
-	/** 縦中横の文字数が確定するまで保持する文字イベントです。 */
+	/** Character events retained until the tate-chu-yoko character count is known. */
 	private record TextCombineChars(int charOffset, char[] chars, boolean lineFeed) {
 	}
 
@@ -71,28 +71,28 @@ public class StyledTextUnitizer {
 	private int textCombineCharCount;
 
 	/**
-	 * ルビ単位バッファです(注釈付きテキスト方式、2026-07-25仕様裁定)。
-	 * ルビコンテナ({@code rubyRole == RUBY_CONTAINER}のINLINE)の開始で
-	 * 生成され、コンテナ終了で単位を配達して破棄されます。非null中は
-	 * ルビ範囲内のインライン・文字イベントを横取りします。
+	 * Ruby unit buffer (annotated-text approach, specification decision on 2026-07-25).
+	 * Created at the start of a ruby container (INLINE with {@code rubyRole == RUBY_CONTAINER}); delivers units and is
+	 * discarded at container end. Intercepts inline and character events in the ruby range while non-null.
 	 */
 	private RubyUnitCollector rubyCollector = null;
 
 	/**
-	 * ルビの親字の中の縦中横の字を渡す先(2026-10-06、jigensha の報告)。ルビの単位は字だけを持ち、縦中横の
-	 * インラインブロックは捨てられるので、字が消えていた(「2ちゃんねる」が「にちゃんねる」)。縦中横の中の字を
-	 * 全角にして、親字を集めている親の字の処理へ渡す(1em に詰める合成はしない近似)。
+	 * Destination for tate-chu-yoko characters inside ruby base text (2026-10-06, jigensha report). Ruby units retain
+	 * only characters and discard the tate-chu-yoko inline block, so characters disappeared ("2ちゃんねる" became
+	 * "にちゃんねる"). Convert tate-chu-yoko characters to fullwidth and pass them to the parent text processor collecting
+	 * base text (an approximation without synthesis that compresses them into 1 em).
 	 */
 	private StyledTextUnitizer rubyTextCombineTarget = null;
 
-	/** ルビの親字を集めている最中か。 */
+	/** Whether ruby base text is currently being collected. */
 	public boolean isCollectingRuby() {
 		return this.rubyCollector != null;
 	}
 
 	/**
-	 * この字の処理(ルビの親字の中の縦中横のインラインブロック)の字を、全角にして{@code parent}のルビの親字へ
-	 * 渡します。
+	 * Converts characters from this text processor (the tate-chu-yoko inline block inside ruby base text) to fullwidth
+	 * and passes them into {@code parent}'s ruby base text.
 	 */
 	public void forwardTextCombineToRuby(final StyledTextUnitizer parent) {
 		this.rubyTextCombineTarget = parent;
@@ -101,19 +101,20 @@ public class StyledTextUnitizer {
 
 	private WarichuCollector warichuCollector = null;
 
-	/** 行末側の隣接文字が確定するまで張り出し判定を保留する直前のルビ。 */
+	/** Preceding ruby whose overhang decision waits until the adjacent character toward line end is known. */
 	private RubyUnitBox pendingRubyEnd = null;
 	private InlineQuad pendingRubyQuad = null;
 
 	/**
-	 * 末尾の張り出しが決まるまで行へ渡さずに持っておく制御です(ルビの箱と、その後のインラインの開始・終わり。
-	 * 2026-10-06)。行は制御を受け取った時点の送りで長さを数えるので、渡した後で箱を広げると数え漏れ、
-	 * 行に流し込むときに広げた分が次の行の余地になった(jigensha の報告: 親字より長いルビのある行に br で
-	 * 続く行が、句読点を含むと約 2.5mm 長くなった)。
+	 * Controls retained instead of delivered to the line until trailing overhang is determined (the ruby box and
+	 * subsequent inline starts/ends; 2026-10-06). Lines count length using the advance at control receipt, so
+	 * expanding the box afterward omitted that extent; during line layout, the expansion became extra space for the
+	 * next line (jigensha report: a line following a br after ruby longer than its base text became about 2.5 mm
+	 * longer when it contained punctuation).
 	 */
 	private final List<Quad> pendingRubyControls = new ArrayList<Quad>();
 
-	/** 制御を行へ渡します。ルビの箱の張り出しが決まる前なら、決まるまで持っておく。 */
+	/** Delivers a control to the line. Retains it until the ruby box's overhang is determined if still pending. */
 	private void control(final Quad quad) {
 		if (this.pendingRubyControls.isEmpty()) {
 			this.textShaper.control(quad);
@@ -122,7 +123,7 @@ public class StyledTextUnitizer {
 		}
 	}
 
-	/** 持っておいた制御を順に行へ渡します。 */
+	/** Delivers retained controls to the line in order. */
 	private void emitPendingRubyControls() {
 		if (this.pendingRubyControls.isEmpty()) {
 			return;
@@ -208,15 +209,15 @@ public class StyledTextUnitizer {
 		}
 		this.changeTextState(params);
 		if (params.textCombine == net.zamasoft.foliojet.css.value.TextCombineValue.ALL) {
-			// hwid/twid/qwidの選択にはrun全体の文字数が必要なので、
-			// SAXの文字イベント境界を越えてコンテナ終端まで保持する。
+			// Selecting hwid/twid/qwid requires the character count of the whole run,
+			// so retain events across SAX character-event boundaries until the container ends.
 			this.textCombineChars = new ArrayList<TextCombineChars>();
 			this.textCombineCharCount = 0;
 		}
 	}
 
 	/**
-	 * 配達済みソース文字の終端オフセットを返します(M6b v3)。
+	 * Returns the end offset of delivered source characters (M6b v3).
 	 */
 	public int getDeliveredCharEnd() {
 		return this.gh == null ? 0 : this.gh.getDeliveredCharEnd();
@@ -227,7 +228,7 @@ public class StyledTextUnitizer {
 			return;
 		}
 		if (this.textShaper != null) {
-			// 張り出しはこの後の字で決める(従来どおり)。持っておいた制御だけ先に渡す
+			// Determine overhang from the following character, as before. Deliver only the retained controls first.
 			this.emitPendingRubyControls();
 			this.textShaper.flush();
 		}
@@ -239,11 +240,11 @@ public class StyledTextUnitizer {
 			this.warichuCollector.drain();
 		}
 		if (this.rubyCollector != null) {
-			// 防御: コンテナが閉じる前にルビが閉じていない(malformed——
-			// ルビの中にブロックが現れた等)場合は、たまっている分を
-			// その場で配達する。ただしコレクタは<b>捨てない</b>——
-			// 深さの追跡を続けないと、内側のインラインの終了が通常の
-			// インラインスタックを誤popしてスタックを壊す
+			// Defensive: if ruby has not closed before the container closes (malformed,
+			// e.g. a block appeared inside ruby), deliver the accumulated content
+			// immediately. However, <b>do not discard</b> the collector:
+			// without continued depth tracking, an inner inline end would incorrectly
+			// pop the normal inline stack and corrupt it.
 			this.rubyCollector.drain();
 		}
 		this.resolvePendingRubyEnd(false);
@@ -270,8 +271,8 @@ public class StyledTextUnitizer {
 			return;
 		}
 		if (this.rubyCollector != null) {
-			// ルビ範囲内のマークアップは箱にせず、深さとスタイルだけを数える
-			// (仕様: ルビ内は文字のみ)
+			// Do not create boxes for markup within ruby; track only depth and style
+			// (specification: ruby contains text only).
 			this.rubyCollector.startInline(inlineParams);
 			return;
 		}
@@ -289,10 +290,10 @@ public class StyledTextUnitizer {
 		this.changeTextState(params);
 
 		if (inlineParams.rubyRole == AbstractTextParams.RUBY_CONTAINER) {
-			// ルビコンテナ(ruby要素)は通常のインラインとして残したうえで
-			// (idやハイパーリンク等のidentityはこのInlineBoxが持つ)、
-			// 以降の内側の文字を単位バッファへ横取りする。設計裁定(d)
-			// ——codex独立レビュー2026-07-25
+			// Keep the ruby container (ruby element) as a normal inline
+			// (this InlineBox holds its identity, such as id and hyperlinks),
+			// then intercept subsequent inner characters into the unit buffer. Design decision (d),
+			// codex independent review 2026-07-25.
 			this.rubyCollector = new RubyUnitCollector(inlineParams,
 					(base, ruby) -> this.emitRubyUnit(inlineParams, base, ruby));
 		} else if (inlineParams.warichu) {
@@ -311,11 +312,11 @@ public class StyledTextUnitizer {
 			if (!this.rubyCollector.endInline()) {
 				return;
 			}
-			// ルビコンテナの終了: 残りの単位は配達済み。以降は通常の
-			// インライン終了処理(ruby要素のInlineBoxを閉じる)
+			// Ruby container end: remaining units have been delivered. Continue with normal
+			// inline-end processing (close the ruby element's InlineBox).
 			this.rubyCollector = null;
 		}
-		// ブロックでインラインが寸断されて復帰した直後にインラインが終わるときに、ここを実行する
+		// Run this when an inline ends immediately after resuming from interruption by a block.
 		this.requireTextShaper();
 
 		Quad end = (InlineEndQuad) this.inlineQuadStack.remove(this.inlineQuadStack.size() - 1);
@@ -329,7 +330,7 @@ public class StyledTextUnitizer {
 	public void addInlineReplaced(AbstractReplacedBox inlineReplacedBox) {
 		this.disableTextCombineWidthVariant();
 		if (this.warichuCollector != null || this.rubyCollector != null) {
-			// ルビ単位内は文字のみ(仕様)——置換要素は捨てる(F-1)
+			// Ruby units contain text only (specification); discard replaced elements (F-1).
 			return;
 		}
 		this.resolvePendingRubyEnd(false);
@@ -342,7 +343,7 @@ public class StyledTextUnitizer {
 	public void addInlineBlock(InlineBlockBox inlineBlockBox) {
 		this.disableTextCombineWidthVariant();
 		if (this.warichuCollector != null || this.rubyCollector != null) {
-			// ルビ単位内は文字のみ(仕様)——インラインブロックは捨てる(F-1)
+			// Ruby units contain text only (specification); discard inline blocks (F-1).
 			return;
 		}
 		this.resolvePendingRubyEnd(false);
@@ -355,7 +356,7 @@ public class StyledTextUnitizer {
 	public void addInlineAbsolute(final IAbsoluteBox absoluteBox) {
 		this.disableTextCombineWidthVariant();
 		if (this.warichuCollector != null || this.rubyCollector != null) {
-			// ルビ単位内は文字のみ(仕様)——絶対配置は捨てる(F-1)
+			// Ruby units contain text only (specification); discard absolute positioning (F-1).
 			return;
 		}
 		this.resolvePendingRubyEnd(false);
@@ -365,27 +366,25 @@ public class StyledTextUnitizer {
 	}
 
 	/**
-	 * {@code leader()}を配達します(leader() L1——
-	 * consult-codex-2026-07-31-leader.txt)。パターンを現在のスタイルで
-	 * 自己完結shapeし({@code RubyUnitBox.shape}と同型)、可変幅の
-	 * {@link net.zamasoft.foliojet.layout.text.LeaderQuad}を制御として
-	 * 流す。駆動のたびに新規生成する(記録再生間で割り付け幅を共有
-	 * しない)。
+	 * Delivers {@code leader()} (leader() L1; consult-codex-2026-07-31-leader.txt). Shapes the pattern independently
+	 * in the current style (same form as {@code RubyUnitBox.shape}) and emits a variable-width {@link
+	 * net.zamasoft.foliojet.layout.text.LeaderQuad} as a control. Creates a new instance on every execution (do not
+	 * share allocated widths between recording and replay).
 	 */
 	public void leader(final String pattern) {
 		this.disableTextCombineWidthVariant();
 		if (this.warichuCollector != null || this.rubyCollector != null) {
-			// ルビ単位内は文字のみ(仕様)
+			// Ruby units contain text only (specification).
 			return;
 		}
 		this.resolvePendingRubyEnd(false);
 		this.requireTextShaper();
 		final AbstractTextParams params = this.getTextParams();
-		// 一本化(2026-08-01): 自己完結shapeはRunCollector+TrimmedRunsへ
+		// Unification (2026-08-01): independent shaping now uses RunCollector+TrimmedRuns.
 		final net.zamasoft.pdfg2d.gc.text.TextImpl[] runs = net.zamasoft.foliojet.layout.text.spacing.TrimmedRuns
 				.shape(params.fontManager, params.fontStyle, pattern, -1, false);
 		if (runs.length == 0) {
-			// どのフォントにもグリフがない——埋め物なし
+			// No font contains a glyph; no filler.
 			return;
 		}
 		this.textShaper.control(new net.zamasoft.foliojet.layout.text.LeaderQuad(runs));
@@ -395,13 +394,12 @@ public class StyledTextUnitizer {
 
 
 	/**
-	 * 対応がついたルビ単位を1つ、atomic inline({@code RubyUnitBox}を
-	 * インラインブロック扱いのquadに載せる)として下流へ配達します
-	 * (2026-07-25、注釈付きテキスト方式)。
+	 * Delivers one paired ruby unit downstream as an atomic inline ({@code RubyUnitBox} carried by a quad treated as
+	 * an inline block) (2026-07-25, annotated-text approach).
 	 */
 	private void emitRubyUnit(final InlineParams container, final RubyUnitCollector.Segment base,
 			final List<RubyUnitCollector.Annotation> rubies) {
-		// ルビ同士は注釈が同じ行間を占めるため、境界で相互に張り出さない。
+		// Ruby annotations occupy the same interline space, so adjacent ruby units must not overhang one another.
 		this.resolvePendingRubyEnd(false);
 		final String baseText = base == null ? "" : base.text();
 		int sourceStart = -1, sourceEnd = -1;
@@ -429,7 +427,7 @@ public class StyledTextUnitizer {
 		}
 		this.requireTextShaper();
 		final InlineQuad quad = InlineQuad.createInlineBlockBoxQuad(box);
-		// 末尾の張り出しが決まるまで行へ渡さない(resolvePendingRubyEnd)
+		// Do not deliver to the line until trailing overhang is determined (resolvePendingRubyEnd).
 		this.pendingRubyControls.add(quad);
 		this.pendingRubyEnd = box;
 		this.pendingRubyQuad = quad;
@@ -474,14 +472,14 @@ public class StyledTextUnitizer {
 			return;
 		}
 		if (this.rubyCollector != null) {
-			// ルビ範囲内の文字は単位バッファへためる(F-1)
+			// Accumulate characters within ruby in the unit buffer (F-1).
 			this.rubyCollector.characters(charOffset, ch, off, len);
 			return;
 		}
 		this.resolvePendingRubyEnd(isSafeRubyOverhangNeighbor(Character.codePointAt(ch, off, off + len)));
 		final AbstractTextParams params = this.getTextParams();
 
-		// テキスト処理
+		// Text processing.
 		int ooff = 0;
 		FontListMetrics flm = params.getFontListMetrics();
 		for (int i = 0; i < len; ++i) {
@@ -490,7 +488,7 @@ public class StyledTextUnitizer {
 				TextControl quad = null;
 				switch (c) {
 				case '\n':
-					// 改行コード
+					// Line-break character.
 					if (lineFeed || this.lineFeed) {
 						quad = new LineBreak(flm, charOffset + i);
 					} else if (this.collapseSpaces) {
@@ -498,7 +496,7 @@ public class StyledTextUnitizer {
 						if (block == UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION
 								|| block == UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS || block == UnicodeBlock.HIRAGANA
 								|| block == UnicodeBlock.KATAKANA) {
-							// 1文字削除
+							// Remove one character.
 							if (i > ooff) {
 								this._characters(charOffset + ooff, ch, off + ooff, i - ooff);
 							}
@@ -508,14 +506,14 @@ public class StyledTextUnitizer {
 					}
 					break;
 				case '\t':
-					// タブ文字
+					// Tab character.
 					if (!this.collapseSpaces) {
 						quad = new Tab(flm, charOffset + i);
 					}
 					break;
 				}
 				if (quad != null) {
-					// 1文字削除
+					// Remove one character.
 					if (i > ooff) {
 						this._characters(charOffset + ooff, ch, off + ooff, i - ooff);
 					}
@@ -525,17 +523,17 @@ public class StyledTextUnitizer {
 					this.followingChar = c;
 					continue;
 				}
-				// 空白に変換
+				// Convert to a space.
 				c = '\u0020';
 			}
 			if (c == '\u0020') {
-				// 1文字削除
+				// Remove one character.
 				if (i > ooff) {
 					this._characters(charOffset + ooff, ch, off + ooff, i - ooff);
 				}
 				ooff = i + 1;
 				if (this.followingChar != '\u0020' || !this.collapseSpaces) {
-					// スペースの出力
+					// Output a space.
 					WhiteSpace ws = new WhiteSpace(flm, charOffset + i);
 					ws.setWordSpacing(this.wordSpacing);
 					this.requireTextShaper();
@@ -545,8 +543,8 @@ public class StyledTextUnitizer {
 				continue;
 			}
 			if (c == '\u00AD') {
-				// ソフトハイフンは字形化せず分割機会のマーカーに変換する
-				// 1文字削除
+				// Convert soft hyphens to break-opportunity markers without shaping them.
+				// Remove one character.
 				if (i > ooff) {
 					this._characters(charOffset + ooff, ch, off + ooff, i - ooff);
 				}
@@ -572,8 +570,8 @@ public class StyledTextUnitizer {
 		}
 		if (!safeNeighbor) {
 			this.pendingRubyEnd.reserveEndOverhang();
-			// BuilderGlyphHandlerはcontrol受理時にadvanceを写す。後から箱の
-			// 幅を戻した場合も、同じquadの送りを同期しないと描画だけ広がる。
+			// BuilderGlyphHandler copies advance when accepting a control. Even when restoring box width
+			// later, synchronize the same quad's advance; otherwise only drawing expands.
 			this.pendingRubyQuad.advance = this.pendingRubyEnd
 					.getLineExtent(this.pendingRubyEnd.getBlockParams().flow);
 		}
@@ -583,8 +581,8 @@ public class StyledTextUnitizer {
 	}
 
 	/**
-	 * JLREQの張り出し対象を安全側に限定する。仮名・漢字は字面が親文字側に
-	 * あり注釈行と衝突しないが、欧文・約物・別のルビ箱は予約する。
+	 * Conservatively restricts JLREQ overhang targets. Kana and kanji have glyph bounds on the base-text side and do
+	 * not collide with annotation lines, but reserve space for Latin text, punctuation, and other ruby boxes.
 	 */
 	private static boolean isSafeRubyOverhangNeighbor(final int codePoint) {
 		final Character.UnicodeScript script = Character.UnicodeScript.of(codePoint);
@@ -599,9 +597,9 @@ public class StyledTextUnitizer {
 	}
 
 	/**
-	 * 縦中横の文字数に対応するOpenType幅字形を優先して字形化します。
-	 * フォントがfeatureを持たない場合は送りが変わらないため、後段の
-	 * {@code compressTextCombine}が従来どおり1emへ圧縮します。
+	 * Shapes with preference for OpenType width variants matching the tate-chu-yoko character count.
+	 * If the font lacks the feature, advance remains unchanged, so the later {@code compressTextCombine} compresses to
+	 * 1 em as before.
 	 */
 	private void emitTextCombineChars() {
 		if (this.textCombineChars == null) {
@@ -619,7 +617,7 @@ public class StyledTextUnitizer {
 		}
 	}
 
-	/** 複雑な子要素を含む縦中横は従来のアフィン圧縮へ戻します。 */
+	/** Falls back to the existing affine compression for tate-chu-yoko with complex child elements. */
 	private void disableTextCombineWidthVariant() {
 		if (this.textCombineChars == null) {
 			return;
@@ -631,7 +629,7 @@ public class StyledTextUnitizer {
 		}
 	}
 
-	/** 文字数に対応する幅字形を追加した縦中横用スタイルを構築します。 */
+	/** Builds a tate-chu-yoko style with width variants matching the character count. */
 	static FontStyle textCombineFontStyle(final FontStyle base, final int charCount) {
 		final String tag = switch (charCount) {
 		case 2 -> "hwid";

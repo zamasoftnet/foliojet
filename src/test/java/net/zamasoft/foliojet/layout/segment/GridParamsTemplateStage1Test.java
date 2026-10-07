@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.layout.segment;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.box.params.GridParams;
 
-/** row subgrid Stage 1で追加したgap種別の録画再生テストです。 */
+/** Record/replay tests for gap types added in row subgrid Stage 1. */
 public class GridParamsTemplateStage1Test extends TestCase {
 
 	public void testGridGapNormalRoundTrips() {

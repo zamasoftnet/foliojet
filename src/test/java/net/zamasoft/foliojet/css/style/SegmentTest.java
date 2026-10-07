@@ -3,24 +3,24 @@ package net.zamasoft.foliojet.css.style;
 import junit.framework.TestCase;
 
 /**
- * Segment(スタイルイベント窓)の刈り込みのテストです(M6a)。
- * スタイル参照は窓機構に無関係のため null で代用します。
+ * Tests for pruning Segment (a style-event window) (M6a).
+ * Style references are irrelevant to the window mechanism, so substitute null.
  */
 public class SegmentTest extends TestCase {
 	public void testTrimKeepsOpenElements() {
 		final Segment segment = new Segment();
 		segment.startStyle(null); // html
 		segment.startStyle(null); // body
-		segment.startStyle(null); // p (閉じる)
+		segment.startStyle(null); // p (closed)
 		segment.characters(0, "hello".toCharArray(), 0, 5);
 		segment.endStyle(null); // /p
-		segment.startStyle(null); // div (開いたまま)
+		segment.startStyle(null); // div (left open)
 		segment.characters(5, "world".toCharArray(), 0, 5);
 		assertEquals(7, segment.size());
 		assertEquals(3, segment.getDepth());
 
 		segment.trimToOpenElements();
-		// html, body, div の Start だけが残る
+		// Only the Start events for html, body, and div remain.
 		assertEquals(3, segment.size());
 		assertEquals(3, segment.getDepth());
 	}
@@ -32,7 +32,7 @@ public class SegmentTest extends TestCase {
 		segment.trimToOpenElements();
 		assertEquals(2, segment.size());
 
-		// 前の窓で開いた要素を次の窓で閉じる
+		// Close an element in the next window that was opened in the previous window.
 		segment.endStyle(null); // /div
 		segment.characters(0, "x".toCharArray(), 0, 1);
 		segment.trimToOpenElements();

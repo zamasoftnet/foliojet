@@ -9,9 +9,9 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
- * stretch(align-items既定)の伸長テストです(Flex F3c——cross autoの
- * itemが行高40ptまで伸び、**authoredの背景がitemサイズへ追随する**
- * =takeover設計(F1d)の狙いの実証)。
+ * Tests stretch (the align-items default) (Flex F3c).
+ * An item with auto cross size stretches to the 40 pt line height, and **the authored background
+ * follows the item size**, demonstrating the purpose of the takeover design (F1d).
  */
 public class FlexStretchBackgroundTest extends AbstractTestCase {
 	public FlexStretchBackgroundTest(String name) {
@@ -23,7 +23,7 @@ public class FlexStretchBackgroundTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** 背景付きauto高itemが行高40ptへ伸長している。 */
+	/** An auto-height item with a background stretches to the 40 pt line height. */
 	public boolean check_card(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(40.0, box.getPageExtent(WritingMode.TB), 0.1);

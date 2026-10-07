@@ -6,24 +6,22 @@ import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * 脚注F4/F6の境界: どのページにも入らない<b>atomicな</b>巨大脚注
- * (800pt+page-break-inside:avoid——固定高ブロックは高さ切断できるため
- * avoidで分割を禁じたもの)の契約です。
+ * Boundary contract for footnote F4/F6: an oversized <b>atomic</b> footnote that fits on no page
+ * (800pt+page-break-inside:avoid; fixed-height blocks can split by height, so avoid prohibits splitting).
  *
  * <p>
- * <b>2026-08-02に契約が変わった。</b> 従来は型付きエラー
- * ({@code FootnoteOverflowException})で変換を失敗させていたが、
- * {@code ARCHITECTURE.md} §5.13(2026-07-26/27のユーザー裁定)が
- * 「<b>変換が失敗することは常にエンジンの不具合</b>。版面が破綻した文書の
- * 除外は変換の失敗には適用しない」と定めているため、<b>失敗させず、
- * 警告して溢れさせて置く</b>へ縮退させた。改良後の生成器による掃過では、
- * この型の失敗が2,000シード中531件(失敗全体の77%)を占めていた。
+ * <b>The contract changed on 2026-08-02.</b> Previously, conversion failed with a typed error
+ * ({@code FootnoteOverflowException}). However, {@code ARCHITECTURE.md} §5.13 (user decisions on
+ * 2026-07-26/27) states that "<b>a conversion failure is always an engine defect</b>; exclusions for
+ * documents with broken layout do not apply to conversion failures". The behavior therefore degrades to
+ * <b>warning and placing the note with overflow, without failing</b>. In a sweep using the improved
+ * generator, this failure type accounted for 531 of 2,000 seeds (77% of all failures).
  * </p>
  *
  * <p>
- * ここで固定するのは「<b>変換が成功すること</b>」だけである。置かれた結果
- * (紙面外へ溢れる)の見た目は問わない——版面より大きい脚注をどう見せるかは
- * 組版を指定した側の責任(§5.13)。
+ * This test verifies only the requirement that <b>conversion succeeds</b>. It does not assess the appearance
+ * of the placed result (which overflows the page). How to display a footnote larger than the type area
+ * is the responsibility of the layout author (§5.13).
  * </p>
  */
 public class FootnoteOversizedTest extends AbstractTestCase {

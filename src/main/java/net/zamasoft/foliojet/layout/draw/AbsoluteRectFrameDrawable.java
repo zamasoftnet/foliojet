@@ -16,8 +16,8 @@ public class AbsoluteRectFrameDrawable extends AbstractDrawable {
 	public AbsoluteRectFrameDrawable(PageBox pageBox, Shape clip, float opacity, AffineTransform transform,
 			AbsoluteRectFrame frame, double width, double height, Shape textClip) {
 		super(pageBox, clip, opacity, transform);
-		// 確定寸法に番兵の算術結果やNaNが漏れると、内容が紙面の
-		// どこにも現れないまま静かに欠落する(LayoutUtils.isDrawable参照)
+		// If sentinel arithmetic results or NaN leak into finalized dimensions, content silently
+		// disappears without appearing anywhere on the paper (see LayoutUtils.isDrawable).
 		assert net.zamasoft.foliojet.layout.util.LayoutUtils.isDrawable(width) : "描画幅が異常: " + width;
 		assert net.zamasoft.foliojet.layout.util.LayoutUtils.isDrawable(height) : "描画高が異常: " + height;
 		this.frame = frame;
@@ -31,8 +31,7 @@ public class AbsoluteRectFrameDrawable extends AbstractDrawable {
 	}
 
 	/**
-	 * {@code filter: drop-shadow()}: 境界箱(マージンの内側)の形で影を
-	 * 描きます(2026-08-29)。
+	 * {@code filter: drop-shadow()}: draws a shadow in the shape of the border box (inside the margins) (2026-08-29).
 	 */
 	@Override
 	protected void drawFilterShadow(GC gc, double x, double y,
@@ -47,7 +46,7 @@ public class AbsoluteRectFrameDrawable extends AbstractDrawable {
 	public String describe() {
 		final StringBuilder s = new StringBuilder(
 				String.format(java.util.Locale.ROOT, "AbsoluteRectFrame[w=%.2f h=%.2f]", this.width, this.height));
-		// 影・アウトラインは持つ箱だけに付記する(無い箱のgoldenを変えない)
+		// Append shadows/outlines only for boxes that have them (leave other boxes' goldens unchanged).
 		final net.zamasoft.foliojet.layout.box.params.RectFrame f = this.frame.frame;
 		if (f.shadows != null) {
 			for (final net.zamasoft.foliojet.layout.box.params.BoxShadow sh : f.shadows) {
@@ -59,8 +58,8 @@ public class AbsoluteRectFrameDrawable extends AbstractDrawable {
 			s.append(String.format(java.util.Locale.ROOT, " outline[style=%d w=%.2f offset=%.2f]",
 					f.outline.border.style, f.outline.border.width, f.outline.offset));
 		}
-		// グラデーションの背景は塗りの要約を付記する(2026-08-29。無い箱の
-		// goldenは不変)
+		// Append a fill summary for gradient backgrounds (2026-08-29; goldens for boxes
+		// without them remain unchanged).
 		s.append(f.background.describeGradients());
 		return this.describeTransform(s.toString());
 	}

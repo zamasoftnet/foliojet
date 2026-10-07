@@ -12,9 +12,9 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
 /**
- * builder 側の頁座標を持つ値({@code LayoutContext.Flow}/{@code Floating})の
- * 平行移動の試験(2026-09-05、translate の第1段)。{@code frameHead}・
- * {@code lineClamp}・行軸範囲を保つことを固定する。
+ * Tests translation of builder-side values with page coordinates
+ * ({@code LayoutContext.Flow}/{@code Floating}) (2026-09-05, stage 1 of translation).
+ * Locks down preservation of {@code frameHead}, {@code lineClamp}, and line-axis ranges.
  */
 public class LayoutContextShiftTest extends TestCase {
 

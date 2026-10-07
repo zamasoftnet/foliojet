@@ -8,20 +8,19 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 浮動体の{@code page-break-after: if-recto}の回帰テストです
- * (2026-08-01)。
+ * Regression test for {@code page-break-after: if-recto} on floats
+ * (2026-08-01).
  *
  * <p>
- * 従来、{@code addBound()}のbreak-after switchはIF_VERSO/IF_RECTOの
- * caseを持たず{@code default: throw new IllegalStateException()}に
- * 落ちていた(正規のCSS値でのクラッシュ)。フローブロックの
- * {@code endFlowBlock()}側と同じ裁定(現ページが該当面なら反対面へ
- * 即時改ページ)へ統一した。
+ * Previously, the break-after switch in {@code addBound()} had no IF_VERSO/IF_RECTO cases and fell
+ * through to {@code default: throw new IllegalStateException()} (a crash on valid CSS values).
+ * It now uses the same rule as {@code endFlowBlock()} for flow blocks: immediately break to the
+ * opposite side if the current page is on the specified side.
  * </p>
  *
  * <p>
- * 文書先頭ページはrecto(奇数ページ)のため、if-rectoの浮動体の後の
- * 内容は2ページ目へ送られる。
+ * The first page of the document is recto (an odd page), so content after the if-recto float
+ * moves to page 2.
  * </p>
  */
 public class FloatIfRectoTest extends AbstractTestCase {

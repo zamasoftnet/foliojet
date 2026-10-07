@@ -7,22 +7,22 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.WrappedImage;
 
 /**
- * 取得元のURIを添えた画像です(2026-08-28、Paged SVGの再変換用)。
+ * An image with its source URI attached (2026-08-28, for Paged SVG reconversion).
  *
  * <p>
- * 描画時に決まる資源の同一性(内容ハッシュ)を、<b>どのURIの画像だったか</b>と
- * 結び付けて{@code metrics.json}へ書くために使います。GCは
- * {@link WrappedImage}の連鎖を辿って中身へ届くので、ここに挟んでも
- * 描画の振る舞いは変わりません。
+ * Used to associate resource identity (content hash), determined during drawing,
+ * with <b>the image's source URI</b> in {@code metrics.json}.
+ * The GC follows the {@link WrappedImage} chain to its contents,
+ * so inserting this wrapper does not change drawing behavior.
  * </p>
  */
 final class SourcedImage extends WrappedImage {
 	final URI uri;
 
 	/**
-	 * 随伴の PDF が同じ取得元から作った絵(2026-09-03、PDF の同時出力)。PDF は
-	 * 取得元 URI で画像を重複排除し、JPEG は元のバイト列のまま埋めるので、
-	 * 従へはこちらを渡す。無ければ主の絵をそのまま。
+	 * Image created by the companion PDF from the same source (2026-09-03, simultaneous PDF output).
+	 * PDF deduplicates images by source URI and embeds original JPEG bytes,
+	 * so pass this to the secondary GC. If absent, use the primary image unchanged.
 	 */
 	Image companion;
 

@@ -8,8 +8,8 @@ import net.zamasoft.foliojet.ua.ImageMetricsCache;
 import net.zamasoft.foliojet.ua.ImageMetricsIO;
 
 /**
- * 画像寸法表の形式(JSON書き出し・JSON/XML両対応の読み取り)の検査です
- * (2026-08-28)。
+ * Tests for the image-dimension table format (JSON output and JSON/XML input)
+ * (2026-08-28).
  */
 public class ImageMetricsFormatTest extends TestCase {
 
@@ -44,7 +44,7 @@ public class ImageMetricsFormatTest extends TestCase {
 		assertNotNull("非ASCIIのURIも往復すべき", read.get("https://example.com/日本語.jpg"));
 	}
 
-	/** 解像度が違う寸法表は使わない(寸法の意味が変わるため)。 */
+	/** Do not use a dimension table with a different resolution (the meaning of the dimensions changes). */
 	public void testRejectsDifferentResolution() throws Exception {
 		final byte[] json = ImageMetricsIO.write(sample(), 96);
 		final ImageMetricsCache read = new ImageMetricsCache();

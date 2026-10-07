@@ -30,7 +30,7 @@ import net.zamasoft.pdfg2d.gc.font.FontPolicyList;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
-/** ページ分割の形に依存せず、予約不足・FIFO・後着・停滞の境界条件を固定します。 */
+/** Verify under-reservation, FIFO, late arrival, and stall boundaries independently of page-splitting shape. */
 public final class FootnoteSamePageTest extends TestCase {
 	public void testUnreservedHeadCannotBeReplacedByReservedLaterId() throws Exception {
 		try (final Pages pages = new Pages(Map.of(20L, 20.0), false)) {
@@ -128,7 +128,7 @@ public final class FootnoteSamePageTest extends TestCase {
 		return params;
 	}
 
-	/** 完成済み箱の計測値を与える。テキスト組版の挙動は実変換試験で検査します。 */
+	/** Supply measurements of completed boxes. Actual conversion tests check text layout behavior. */
 	private static FloatBlockBox note(final long id, final double extent) {
 		final BlockParams params = params(WritingMode.TB);
 		params.footnoteId = id;
@@ -159,7 +159,9 @@ public final class FootnoteSamePageTest extends TestCase {
 	private static final class Root extends RootBuilder {
 		Root(final Pages pages) { super(pages, BreakableBuilder.MODE_PAGE_BREAK); }
 
-		/** 既存のページ確定・開始を駆動し、分割アルゴリズムから独立してページ境界を与える。 */
+		/**
+		 * Drive existing page finalization/start to provide page boundaries independently of the splitting algorithm.
+		 */
 		void advance() throws Exception {
 			this.finishLayout();
 			this.getPageGenerator().drawPage(this.getCurrentPageBox(), false, false);

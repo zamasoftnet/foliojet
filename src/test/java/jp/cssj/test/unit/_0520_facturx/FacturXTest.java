@@ -8,10 +8,10 @@ import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * 電子インボイス(Factur-X/ZUGFeRD)出力のテストです(2026-08-02、
- * PLAN §2の時限1位——仏2026-09受信義務)。PDF/A-3B+添付XMLの
- * AFRelationship=Alternative+XMPのfx:拡張スキーマ(検証器が見る
- * 3点セット)を生成PDFのバイト列で固定する。
+ * Tests electronic invoice (Factur-X/ZUGFeRD) output (2026-08-02,
+ * PLAN §2's top deadline priority: France's 2026-09 receipt mandate).
+ * Checks the generated PDF bytes for PDF/A-3B, attached XML with AFRelationship=Alternative,
+ * and the XMP fx: extension schema (the three components validators inspect).
  */
 public class FacturXTest extends AbstractTestCase {
 	public FacturXTest(String name) {

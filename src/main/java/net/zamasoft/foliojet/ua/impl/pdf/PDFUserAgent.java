@@ -83,10 +83,10 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 	private final PDFMetaInfo metaInfo;
 	private Pattern watermark = null;
 	/**
-	 * 背面透かしのグループ画像です。ページ寸法ごとにキャッシュする——
-	 * {@code @page size}(名前付きページN3/N4)でページ毎に寸法が変わり得る
-	 * ため、最初のページの寸法で作った1個を使い回すと覆う範囲が不正になる
-	 * (N5、consult-codex-2026-07-31-named-pages.txt)。
+	 * Group image for the background watermark. Cache by page dimensions:
+	 * {@code @page size} (named pages N3/N4) can change dimensions between pages,
+	 * so reusing one image built for the first page covers the wrong area
+	 * (N5, consult-codex-2026-07-31-named-pages.txt).
 	 */
 	private final Map<String, PDFGroupImage> watermarkGroups = new HashMap<>();
 
@@ -109,10 +109,10 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		case DOCUMENT:
 			break;
 		case STRUCTURE_SCAN:
-			// ボックス構築・レイアウトを一切行わない軽量な事前走査。
-			// TranscoderHandlerがCSSProcessor(PDF生成に関わる状態を
-			// 使う側)自体を経由させないため、PDF固有の状態(results/
-			// pdfWriter/builder)には一切触れない。
+			// Lightweight prescan without any box construction or layout.
+			// TranscoderHandler bypasses CSSProcessor itself (which consumes
+			// PDF-generation state), so do not touch PDF-specific state
+			// (results/pdfWriter/builder) at all.
 			this.resetNonOutputResources();
 			break;
 		case MIDDLE_PASS:
@@ -121,7 +121,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 				this.xpdfWriter = this.pdfWriter;
 				this.xbuilder = this.builder;
 				this.middleStateSaved = true;
-				// 継続変換中の実出力を閉じずに一時退避する。
+				// Temporarily set aside the actual output during continuous conversion without closing it.
 				this.pdfWriter = null;
 				this.builder = null;
 			}
@@ -175,7 +175,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 	public void setBoundSide(BoundSide boundSide) {
 		super.setBoundSide(boundSide);
 
-		// 綴じ方向
+		// Binding direction
 		if (this.getBoundSide() != BoundSide.SINGLE && this.pdfWriter != null) {
 			ViewerPreferences vp = this.pdfWriter.getParams().viewerPreferences();
 			switch (this.getBoundSide()) {
@@ -195,10 +195,10 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		if (this.pdfWriter != null) {
 			return;
 		}
-		// PDFセットアップ
-		// 入出力プロパティ→PDFParamsの解決(警告発行のみの副作用)は
-		// PDFParamsResolverへ分離(85点計画・増分15)。ここは出力先と
-		// writerの生成だけを行う
+		// PDF setup
+		// Resolution of I/O properties to PDFParams (with only warnings as side effects)
+		// is separated into PDFParamsResolver (85-point plan, increment 15). This method
+		// only creates the output destination and writer.
 		PDFParams params = PDFParamsResolver.resolve(this, this.metaInfo);
 		SourceMetadata metaSource = new SimpleSourceMetadata(URIHelper.CURRENT_URI, "application/pdf", null, -1);
 		this.builder = this.results.nextBuilder(metaSource);
@@ -260,7 +260,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 					}
 
 					public void drawTo(GC gc) {
-						// 中間パスでは描画されない寸法専用画像。
+						// Dimensions-only image, not drawn in intermediate passes.
 					}
 
 					public String getAltString() {
@@ -274,17 +274,17 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		this.preparePDFWriter();
 		this.throwIfRefusedImage(source.getURI());
 		Image image;
-		// EXIFの向き(2026-08-30)。PDFの画像経路はPDFWriterが直に読むので
-		// RasterImageLoaderを通らず、**携帯で撮った横向きの写真が寝たまま
-		// 出ていた**。資源の先頭だけ覗いて向きを読み、同じストリームを
-		// 頭出しした状態でPDFWriterへ渡す(HTTPの資源を二度取りに行かない)
+		// EXIF orientation (2026-08-30). The PDF image path is read directly by PDFWriter,
+		// bypassing RasterImageLoader, so **landscape photos taken on phones
+		// were output sideways**. Peek at the resource's start to read orientation, and pass
+		// the same stream rewound to PDFWriter (avoid fetching HTTP resources twice).
 		final Object[] peeked = net.zamasoft.foliojet.ua.impl.image.RasterImageLoader.peekOrientation(source);
 		final int orientation = ((Integer) peeked[0]).intValue();
 		final Source imageSource = (Source) peeked[1];
 		try {
 			image = this.pdfWriter.loadImage(imageSource);
-			// filterの画素変換に備えて、復号は遅延させたまま画素への道を
-			// 添える(PixelBackedImage参照、2026-08-29)
+			// Attach a path to pixels for filter rasterization while keeping decoding lazy
+			// (see PixelBackedImage, 2026-08-29).
 			final URI uri = source.getURI();
 			if (uri != null) {
 				image = new PixelBackedImage(image, () -> {
@@ -301,13 +301,13 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 				}, uri);
 			}
 		} catch (net.zamasoft.pdfg2d.g2d.util.ImageTooLargeException e) {
-			// 画素数の上限で断った画像は、別の経路で全部展開し直さない
-			// (2026-10-03。上限の意味は画素を確保しないこと)
+			// Do not fully decode an image rejected by the pixel limit through another path
+			// (2026-10-03; the limit is meant to avoid allocating pixels).
 			this.noteRefusedImage(source.getURI(), e);
 			throw e;
 		} catch (IOException e) {
-			// ここはRasterImageLoaderを通るので向きは適用済み。二重に
-			// 掛けないよう、この経路では下の orient を通さない
+			// This path goes through RasterImageLoader, so orientation is already applied.
+			// Skip orient below on this path to avoid applying it twice.
 			image = this.loadImage(source);
 			AffineTransform fallbackPixelToUnit = this.getPixelToUnit();
 			return fallbackPixelToUnit.isIdentity() ? image : new TransformedImage(image, fallbackPixelToUnit);
@@ -351,7 +351,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 				h = PDFWriter.MAX_PAGE_HEIGHT;
 			}
 
-			// すかし
+			// Watermark
 			if (this.watermark == null) {
 				String uri = UAProps.OUTPUT_PDF_WATERMARK_URI.getString(this);
 				if (uri != null) {
@@ -372,7 +372,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			PDFGC gc = new PDFGC(page);
 			this.pageGenerated = true;
 			if (this.watermark != null) {
-				// 背面
+				// Background
 				OutputPdfWatermarkMode mode = UAProps.OUTPUT_PDF_WATERMARK_MODE.get(this);
 				if (mode == OutputPdfWatermarkMode.BACK) {
 					final String dims = w + "x" + h;
@@ -413,24 +413,24 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 	}
 
 	/**
-	 * 透かしパターンを塗って、グループ画像を閉じます(2026-08-06、85点計画
-	 * ua残増分)。
+	 * Fills the watermark pattern and closes the group image (2026-08-06,
+	 * remaining ua increment of the 85-point plan).
 	 *
 	 * <p>
-	 * 背面(BACK=ページ内容の下に直接描く)と前面(FRONT=注釈の
-	 * appearanceにする)は仕込み先が違うだけで、「パターンをopacityつきで
-	 * 矩形に塗る」部分と<b>opacityの規格警告(PDF/A-1・PDF/X-1aは透明を
-	 * 使えない)</b>は同一だった——ほぼ逐語の複製が2箇所にあり、警告を
-	 * 直すとき片方を忘れる形をしていた。ここが唯一の定義。
-	 * 仕込み先ごとの表示制御(BACKのOCGフラグ・FRONTの注釈Fフラグ)は
-	 * 機構が違うので呼び出し側に残る。
+	 * Background (BACK = drawn directly beneath page contents) and foreground
+	 * (FRONT = annotation appearance) differ only in destination. The "fill a rectangle
+	 * with a pattern and opacity" operation and <b>standards warning for opacity
+	 * (PDF/A-1 and PDF/X-1a prohibit transparency)</b> were identical: two almost verbatim
+	 * copies made it easy to miss one when fixing warnings. This is now the sole definition.
+	 * Destination-specific visibility controls (BACK's OCG flags, FRONT's annotation F flags)
+	 * use different mechanisms and remain in the caller.
 	 * </p>
 	 *
-	 * @param group      この上へ塗り、このメソッドが閉じる
-	 * @param scale      塗りに先立って適用する拡大(FRONTの注釈座標系。
-	 *                   BACKはnull)
-	 * @param maskWidth  塗る矩形の幅
-	 * @param maskHeight 塗る矩形の高さ
+	 * @param group      surface to fill; this method closes it
+	 * @param scale      scaling to apply before filling (FRONT's annotation coordinate system;
+	 *                   null for BACK)
+	 * @param maskWidth  width of the rectangle to fill
+	 * @param maskHeight height of the rectangle to fill
 	 */
 	private void paintWatermark(final PDFGroupImage group, final AffineTransform scale, final double maskWidth,
 			final double maskHeight) throws IOException {
@@ -466,7 +466,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			if (this.watermark != null) {
 				OutputPdfWatermarkMode mode = UAProps.OUTPUT_PDF_WATERMARK_MODE.get(this);
 				if (mode == OutputPdfWatermarkMode.FRONT) {
-					// 前面
+					// Foreground
 					Rectangle2D rect = new Rectangle2D.Double(0, 0, this.pageWidth, this.pageHeight);
 					final AffineTransform at = gc.getTransform();
 					if (at != null) {
@@ -486,7 +486,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 							}
 							paintWatermark(group, scale, PDFUserAgent.this.pageWidth, PDFUserAgent.this.pageHeight);
 
-							// 印刷時だけ表示するフラグ
+							// Flag for display only when printing
 							out.writeName("F");
 							int flags = 0;
 							if (!UAProps.OUTPUT_PDF_WATERMARK_VIEW.getBoolean(PDFUserAgent.this)) {
@@ -516,7 +516,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			}
 		}
 
-		// 中断チェック
+		// Check for abort.
 		this.checkAbort(CTISession.ABORT_NORMAL);
 	}
 
@@ -539,8 +539,8 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 	public void finish() throws BrokenResultException, IOException {
 		super.finish();
 		if (this.isMeasurePass()) {
-			// 中間パス(processing.middle-pass=true)は結果を作らない。続けて最後のパスを組むのは継続変換で、単発の
-			// セッションで中間パスだけを組んだときに「内容なし」(380D)で失敗していた(2026-10-05)
+			// Intermediate passes (processing.middle-pass=true) output nothing. Continuous conversion then runs a final pass;
+			// an intermediate-only standalone session failed with "no content" (380D) (2026-10-05).
 			return;
 		}
 		if (!this.pageGenerated) {
@@ -550,8 +550,8 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 			throw new TranscoderException(TranscoderException.STATE_BROKEN, code, null, mes);
 		}
 		try {
-			// PDF後処理
-			// ファイルの添付
+			// PDF postprocessing
+			// File attachments
 			byte[] buff = new byte[8192];
 			for (int i = 0;; ++i) {
 				String prefix = UAProps.OUTPUT_PDF_ATTACHMENTS + i + ".";
@@ -565,8 +565,8 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 				}
 				final PDFParams.Version version = this.pdfWriter.getParams().version();
 				if (!version.allowsAttachments()) {
-					// PDF/X全般・PDF/A-1/2・PDF/A-4(4f以外)は添付を禁止する。pdfg2dは例外にして
-					// 変換が失敗するので、ここで警告して添付しない(2026-09-30、X-4の失敗を実測)
+					// All PDF/X variants, PDF/A-1/2, and PDF/A-4 (except 4f) prohibit attachments. pdfg2d throws,
+					// failing conversion, so warn and omit attachments here (2026-09-30, observed failure with X-4).
 					this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, prefix + "uri", uriStr,
 							version.isPdfX() ? PDFParamsResolver.pdfxName(version) : "PDF/A-" + version.pdfaPart());
 					break;
@@ -599,7 +599,7 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 				}
 				String relationship = this.getProperty(prefix + "relationship");
 				if (relationship != null) {
-					// PDF/A-3のAFRelationship名へ正規化(電子インボイスは
+					// Normalize to PDF/A-3 AFRelationship names (electronic invoices use
 					// alternative——2026-08-02)
 					switch (relationship.toLowerCase()) {
 					case "alternative" -> relationship = "Alternative";

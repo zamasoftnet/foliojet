@@ -52,7 +52,7 @@ public class PagedSvgOutputTest extends TestCase {
 			session.property("output.type", "application/vnd.copper.paged-svg");
 			session.property("output.default-font-family", "'Noto Serif JP'");
 			session.property("processing.pass-count", "2");
-			// 既定はgzip(2026-08-28)。ページの中身を直接読むので縮めない
+			// The default is gzip (2026-08-28). Leave pages uncompressed to read their contents directly.
 			session.property("output.paged-svg.compression", "none");
 			CTISessionHelper.transcodeStream(session,
 					new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)),
@@ -125,14 +125,15 @@ public class PagedSvgOutputTest extends TestCase {
 	}
 
 	/**
-	 * 共有資源の抑止。同じ本を文字サイズだけ変えて組み直すとき、前回と同じ
-	 * フォントサブセットと画像を出し直さないための指定。参照とmanifestの
-	 * 記載は残るので、受け手は前回の出力から拾える。
+	 * Suppress shared resources. When relaying out the same book with only the font size changed,
+	 * this avoids re-emitting font subsets and images identical to the previous conversion.
+	 * References and manifest entries remain, allowing the recipient to retrieve them from the previous output.
 	 *
 	 * <p>
-	 * フォントは<b>受け手が持っているはずの版だけ</b>省く(2026-08-29)。
-	 * セッションの最初の変換では持っていないので出す。同じセッションの
-	 * 2回目は持ち越した版で足りるので出さず、manifestにomittedで記す。
+	 * Omit <b>only font versions the recipient should already have</b> (2026-08-29).
+	 * Emit them in the first conversion of a session because the recipient does not have them.
+	 * In the second conversion of the same session, the carried-over version suffices:
+	 * omit it and mark it omitted in the manifest.
 	 * </p>
 	 */
 	public void testResourceSuppression() throws Exception {
@@ -168,9 +169,9 @@ public class PagedSvgOutputTest extends TestCase {
 	}
 
 	/**
-	 * フォントサブセットの持ち越し(2026-08-29)。同じセッションで同じ本を
-	 * 組み直すと、前回のサブセットが<b>1ページ目より先に</b>そのまま出る。
-	 * 前回に無い字形が現れたときだけ、版を進めた別URIで末尾に出し直す。
+	 * Carry over font subsets (2026-08-29). Relaying out the same book in the same session emits
+	 * the previous subset unchanged <b>before the first page</b>. Only when a new glyph appears is
+	 * an updated version emitted again at the end under a different URI.
 	 */
 	public void testFontSubsetCarriedOverToNextConversion() throws Exception {
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
@@ -182,7 +183,7 @@ public class PagedSvgOutputTest extends TestCase {
 					first.order.indexOf("assets/fonts/font-0001.woff2") > first.order.indexOf("pages/0001.svg"));
 			final byte[] firstBytes = first.data.get("assets/fonts/font-0001.woff2").toByteArray();
 
-			// 同じ本を文字サイズだけ変えて組み直す
+			// Lay out the same book again with only the font size changed.
 			final CapturingResults second = run(session, simpleHtml(), Map.of("output.text-size", "150%"));
 			assertTrue("the carried subset must precede the first page: " + second.order,
 					second.order.indexOf("assets/fonts/font-0001.woff2") < second.order.indexOf("pages/0001.svg"));
@@ -192,7 +193,7 @@ public class PagedSvgOutputTest extends TestCase {
 					second.order.stream().filter(uri -> uri.startsWith("assets/fonts/")).count());
 			assertTrue(second.text("pages/0001.svg").contains("../assets/fonts/font-0001.woff2"));
 
-			// 新しい字形が現れると版が進み、前の版に加えて育った版が末尾に出る
+			// A new glyph advances the version; the expanded version is emitted at the end in addition to the previous one.
 			final CapturingResults third = run(session, simpleHtml().replace("ABC", "ABC XYZ"), Map.of());
 			final List<String> thirdFonts = third.order.stream().filter(uri -> uri.startsWith("assets/fonts/")).toList();
 			assertEquals(List.of("assets/fonts/font-0001.woff2", "assets/fonts/font-0001-2.woff2"), thirdFonts);
@@ -206,7 +207,7 @@ public class PagedSvgOutputTest extends TestCase {
 			assertTrue(manifest.contains("assets/fonts/font-0001.woff2"));
 			assertTrue(manifest.contains("assets/fonts/font-0001-2.woff2"));
 
-			// 育った版が次の持ち越しになる
+			// The expanded version becomes the next carried-over version.
 			final CapturingResults fourth = run(session, simpleHtml().replace("ABC", "ABC XYZ"), Map.of());
 			assertEquals(List.of("assets/fonts/font-0001-2.woff2"),
 					fourth.order.stream().filter(uri -> uri.startsWith("assets/fonts/")).toList());
@@ -216,7 +217,7 @@ public class PagedSvgOutputTest extends TestCase {
 		}
 	}
 
-	/** 抑止しても参照先のURIは変わらないこと——変われば受け手の再利用が壊れる。 */
+	/** Suppression does not change referenced URIs; a change would break reuse by the recipient. */
 	public void testSuppressedResourceUrisMatchEmittedOnes() throws Exception {
 		final CapturingResults emitted = run(simpleHtml(), Map.of());
 		final CapturingResults omitted = run(simpleHtml(),
@@ -226,8 +227,8 @@ public class PagedSvgOutputTest extends TestCase {
 	}
 
 	/**
-	 * 実ファイルの画像は寸法をmetrics.xmlに残し、それをinput.image-metricsで
-	 * 渡し直すと、寸法しか要らないパスでは画像を一度も開かずに同じ組版になる。
+	 * Record dimensions of actual image files in metrics.xml. Passing it back through input.image-metrics
+	 * produces the same layout without opening images in passes that need only dimensions.
 	 */
 	public void testImageMetricsJsonRoundTrip() throws Exception {
 		final File image = new File("files/unittest/kappa.png").getAbsoluteFile();
@@ -243,8 +244,8 @@ public class PagedSvgOutputTest extends TestCase {
 				json.contains(image.getName()));
 		assertTrue("the metrics file must be JSON: " + json, json.trim().startsWith("{"));
 
-		// 記録は出力単位(pt)なので、依拠したoutput.resolutionを併記する。
-		// 別の解像度の寸法表を混ぜると誤った寸法で組んでしまうため
+		// Records use output units (pt), so also record the output.resolution on which they depend.
+		// Mixing in a dimension table from a different resolution would produce layout with incorrect dimensions.
 		assertTrue("the resolution the sizes depend on must be recorded: " + json,
 				json.contains("\"resolution\""));
 		final BufferedImage actual = ImageIO.read(image);
@@ -252,7 +253,7 @@ public class PagedSvgOutputTest extends TestCase {
 				json.matches("(?s).*\"width\": [0-9.]+, \"height\": [0-9.]+.*"));
 		assertTrue("the fixture must be a real image", actual.getWidth() > 0);
 
-		// 寸法表を渡し直しても、ページの中身は1バイトも変わらない
+		// Supplying the dimension table again does not change a single byte of page contents.
 		final File file = Files.createTempFile("copper-metrics-", ".json").toFile();
 		try {
 			Files.write(file.toPath(), metrics);
@@ -265,7 +266,7 @@ public class PagedSvgOutputTest extends TestCase {
 		}
 	}
 
-	/** 寸法表が壊れていても、実測に戻って組版は続く。 */
+	/** Even if the dimension table is corrupt, fall back to actual measurement and continue layout. */
 	public void testBrokenImageMetricsFallsBackToMeasuring() throws Exception {
 		final File image = new File("files/unittest/kappa.png").getAbsoluteFile();
 		final String html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style type=\"text/css\">"
@@ -283,17 +284,17 @@ public class PagedSvgOutputTest extends TestCase {
 		}
 	}
 
-	/** data:の画像は寸法表に入れない——キーが画像本体と同じ大きさになるため。 */
+	/** Do not include data: images in the dimension table: the key would be as large as the image itself. */
 	public void testDataUriImagesAreNotRecordedAsMetrics() throws Exception {
 		final CapturingResults results = run(simpleHtml(), Map.of());
 		assertFalse("data: images must not produce a metrics file", results.data.containsKey("metrics.json"));
 	}
 
 	/**
-	 * ブラウザが描くSVGでは、PDFで近似になる効果を厳密に書く(2026-08-29):
-	 * box-shadow/text-shadowのぼかしはfeGaussianBlur、filterは層への
-	 * feColorMatrix/feDropShadow、繰り返しグラデーションはspreadMethod、
-	 * mix-blend-modeは層の<g>のstyle。層はラスタにせずベクタのまま残る。
+	 * In SVG rendered by browsers, write exact effects that are approximated in PDF (2026-08-29):
+	 * feGaussianBlur for box-shadow/text-shadow blur, feColorMatrix/feDropShadow on layers for filter,
+	 * spreadMethod for repeating gradients, and style on the layer's <g> for mix-blend-mode.
+	 * Layers remain vector rather than raster.
 	 */
 	public void testExactEffectsAreWrittenAsSvgFilters() throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style type=\"text/css\">"
@@ -339,7 +340,7 @@ public class PagedSvgOutputTest extends TestCase {
 				page.matches("(?s).*<g[^>]*style=\"mix-blend-mode:multiply\">.*"));
 		assertFalse("layers stay vector (no rasterized group image)", page.contains("<image"));
 		assertTrue("the text inside the layer keeps its page position", results.text("pages/0001.json").contains("ABC"));
-		// 円錐グラデーションだけはSVGに無いので扇形のまま。それだけが2822で報告される
+		// Only conic gradients remain sectors because SVG lacks them. Only those are reported with 2822.
 		final List<String[]> approximated = messages.stream()
 				.filter(m -> m[0].equals(Integer.toString(0x2822))).toList();
 		assertEquals("only conic-gradient is approximated for paged SVG: " + describe(messages), 1,
@@ -372,7 +373,7 @@ public class PagedSvgOutputTest extends TestCase {
 		}
 	}
 
-	/** 同じセッションで続けて変換する(持ち越しの検証用)。 */
+	/** Run consecutive conversions in the same session (for checking carryover). */
 	private CapturingResults run(final DirectSession session, final String html,
 			final Map<String, String> extraProps) throws Exception {
 		final CapturingResults results = new CapturingResults();
@@ -383,7 +384,7 @@ public class PagedSvgOutputTest extends TestCase {
 			session.property("output.type", "application/vnd.copper.paged-svg");
 			session.property("output.default-font-family", "'Noto Serif JP'");
 			session.property("processing.pass-count", "2");
-			// 既定はgzip(2026-08-28)。ページの中身を直接読むので縮めない
+			// The default is gzip (2026-08-28). Leave pages uncompressed to read their contents directly.
 			session.property("output.paged-svg.compression", "none");
 			for (final Map.Entry<String, String> entry : extraProps.entrySet()) {
 				session.property(entry.getKey(), entry.getValue());

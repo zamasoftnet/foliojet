@@ -9,16 +9,15 @@ import net.zamasoft.foliojet.layout.box.params.TextShadow;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * <b>text-shadowのx/yオフセットが独立に効く</b>ことを固定します
- * (2026-08-18新設)。
+ * Verifies that <b>the x/y offsets of text-shadow work independently</b>
+ * (added on 2026-08-18).
  *
  * <p>
- * {@code css.impl.property.text.TextShadow.get()}のy計算がコピーミスで
- * {@code src[i].x}を参照しており、yが常にxと同値になっていた。
- * {@code text-shadow: 0 1px}(Prismの定番配色)の影が本体と<b>完全に
- * 同座標</b>へ落ち、テキスト全体が二重描画になっていた——reveal.jsの
- * ドキュメントサイトのコードブロックで、版面監査が重なり319対を
- * 報告した実欠陥。
+ * A copy error made the y calculation in {@code css.impl.property.text.TextShadow.get()} read
+ * {@code src[i].x}, so y always equaled x. The shadow for {@code text-shadow: 0 1px}
+ * (a common Prism color scheme) fell at <b>exactly the same coordinates</b> as the text itself,
+ * drawing all text twice. This was a real defect: the type-area audit reported 319 overlapping pairs
+ * in code blocks on the reveal.js documentation site.
  * </p>
  */
 public class OffsetTest extends AbstractTestCase {

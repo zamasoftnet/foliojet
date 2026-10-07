@@ -36,7 +36,7 @@ import net.zamasoft.pdfg2d.gc.font.FontPolicyList;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
-/** B-2a: 直接組み立てた箱で親の契約を検査する。DirectSession の変換スレッドは使わない。 */
+/** B-2a: Check the parent contract with directly assembled boxes, without DirectSession's conversion thread. */
 public final class IncompleteTableIntakeTest extends TestCase {
 	public void testAcceptUnsplit() {
 		final TableBox table = table(7, 20, 30);
@@ -180,7 +180,7 @@ public final class IncompleteTableIntakeTest extends TestCase {
 	public void testUnsplitFractionalRowsPreserveAssemblyBits() {
 		final TableBox table = table(0.7, 10.1);
 		final TableRowGroupBox header = group(table.getTableParams(), 3.3);
-		// 完成経路と同じ header -> body の初期組付け順。
+		// Same initial header -> body assembly order as the completed path.
 		table.setSize(200, 0);
 		table.setTableHeader(header);
 		table.setSize(200, header.getHeight() + table.getTableBody(0).getHeight());
@@ -284,7 +284,7 @@ public final class IncompleteTableIntakeTest extends TestCase {
 		result.body().addTableRow(row(table.getTableParams(), 15));
 		result.rowsAppended();
 		assertColumnSizes(remainder, 55);
-		// 古い列高を注入し、追記を伴わない完了でも現在の列木を同期することを検査する。
+		// Inject stale column heights to check synchronization of the current column tree even on completion without appends.
 		columns(remainder).eachColumn((column, col, span) -> column.setPageSize(40));
 		result.complete();
 		assertColumnSizes(remainder, 55);
@@ -352,7 +352,7 @@ public final class IncompleteTableIntakeTest extends TestCase {
 			final PagingBuilder builder = new PagingBuilder(table.getTableParams(), 100);
 			switch (condition) {
 			case 0:
-				// DocumentBuilder の continuous もこのモードを選ぶ。
+				// DocumentBuilder's continuous mode also selects this mode.
 				builder.setMode(BreakableBuilder.MODE_NO_BREAK);
 				break;
 			case 1:
@@ -388,7 +388,7 @@ public final class IncompleteTableIntakeTest extends TestCase {
 	public void testTextSessionIsRejectedWithoutAbortingIt() throws Exception {
 		final TableBox table = table(0, 20);
 		final PagingBuilder builder = new PagingBuilder(table.getTableParams(), 100);
-		// 非公開セッションを直接置き、受理が再生・abort を起こさないことだけを検査する。
+		// Set a private session directly and check only that acceptance does not trigger replay or abort.
 		final var field = BlockBuilder.class.getDeclaredField("textSession");
 		field.setAccessible(true);
 		final var constructor = field.getType().getDeclaredConstructor(BlockBuilder.class, TextBuilder.class,
@@ -453,7 +453,7 @@ public final class IncompleteTableIntakeTest extends TestCase {
 	}
 
 	private static void assertColumnSizes(final TableBox table, final double pageSize) throws Exception {
-		// eachColumn は実列・列グループを訪問し、走査用の匿名根は含めない。
+		// eachColumn visits real columns and column groups, excluding the anonymous traversal root.
 		final int[] count = { 0 };
 		columns(table).eachColumn((column, col, span) -> {
 			assertBits(pageSize, column.getPageSize());
@@ -500,7 +500,7 @@ public final class IncompleteTableIntakeTest extends TestCase {
 		}
 	}
 
-	/** ページ出力だけを省く宿主。切断・残余再配置は実際の FlowContainer / TableBox を使う。 */
+	/** Host that omits only page output. Use real FlowContainer / TableBox for cutting and remainder repositioning. */
 	static class PagingBuilder extends BreakableBuilder {
 		private final TableParams params;
 		private final double limit;
@@ -533,7 +533,7 @@ public final class IncompleteTableIntakeTest extends TestCase {
 			this.contextFlow = new Flow(parent(this.params), 0, 0);
 			this.resetFragmentCursor(0, 0);
 			if (this.loseRemainder) {
-				// 残余の再配置漏れを注入し、親のハンドルが黙って成功しないことを検査する。
+				// Inject missing repositioning of a remainder and verify that the parent's handle does not silently succeed.
 				return true;
 			}
 			this.beginRestyling();

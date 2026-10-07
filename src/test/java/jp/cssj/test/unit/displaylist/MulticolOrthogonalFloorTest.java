@@ -21,29 +21,29 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>段組の高さ合わせ(column-fill: balance)で、直交する書字方向の子より段を
- * 小さくしない</b>ことを固定します(2026-10-03新設、掃過 seed 11587843)。
+ * Verify that <b>column balancing (column-fill: balance) never makes columns smaller
+ * than children with an orthogonal writing direction</b> (introduced 2026-10-03, sweep seed 11587843).
  *
  * <p>
- * 直交する子(縦の段組の中の横書き、横の段組の中の縦書き)は改ページ契約で
- * atomic——段境界で切れません。ところが容量探索
- * ({@code Container.getCutPointBelow})はその子の<b>行の境目</b>(軸違い)を
- * 切れ目として返すので、{@code ColumnBalancer}は子より小さい段容量を選び、
- * そのまま箱の寸法になっていました:
+ * Orthogonal children (horizontal writing in vertical columns or vertical writing in horizontal columns)
+ * are atomic under the pagination contract and cannot split at column boundaries.
+ * However, capacity search ({@code Container.getCutPointBelow}) returned the child's <b>line boundaries</b>
+ * on a different axis as cut points. {@code ColumnBalancer} then chose a column capacity
+ * smaller than the child and used it directly as the box size:
  * </p>
  * <ul>
- * <li>縦の段組(vertical-rl)は子より<b>細く</b>組まれ、子は段の右端(ブロック
- * の始まり)に寄せて置かれるので、左へはみ出す。本文が vertical-lr だと段組は
- * 紙の左端にあり、字が紙の外(x&lt;0)に描かれた。2 段で x=−26.90、4 段で
- * x=−62.09(Chrome はどちらも 0)</li>
- * <li>横の段組は子より<b>低く</b>組まれ、後ろの段落が子に重なった(高さ 88pt の
- * 子の後ろの段落が y=73.42。段組なしなら 100.32)</li>
+ * <li>Vertical columns (vertical-rl) became <b>narrower</b> than the child. The child aligned
+ * to the column's right edge (block start) and overflowed leftward. With vertical-lr body text,
+ * the columns sat at the paper's left edge, drawing text outside (x&lt;0): x=−26.90 with two columns
+ * and x=−62.09 with four (Chrome: 0 for both).</li>
+ * <li>Horizontal columns became <b>shorter</b> than the child, so the following paragraph overlapped it
+ * (after an 88 pt-tall child, the paragraph was at y=73.42; without columns, 100.32).</li>
  * </ul>
  *
  * <p>
- * 修正は{@code FlowContainer.balancePageSizeFloor}: 同軸逆進行(RL⇄LR)の子だけ
- * だった床(2026-08-22)を、書字方向が段組と違う子すべてへ広げ、同じ書字方向の
- * 子の中にあるものも辿る。
+ * Fix in {@code FlowContainer.balancePageSizeFloor}: extend the floor, previously limited to
+ * same-axis opposite-progression children (RL⇄LR, 2026-08-22), to all children with a writing direction
+ * different from the columns, traversing inside same-direction children too.
  * </p>
  */
 public class MulticolOrthogonalFloorTest extends TestCase {
@@ -74,7 +74,10 @@ public class MulticolOrthogonalFloorTest extends TestCase {
 
 	private static final String HORIZONTAL_CHILD = "<div style=\"writing-mode:horizontal-tb;width:88pt\">T0<br>T1</div>";
 
-	/** 縦の段組の中の横書きの子。段数を変えても字は紙の左端(x=0)から。 */
+	/**
+	 * Horizontal-writing child inside vertical columns. Text starts at the paper's left edge (x=0) regardless of
+	 * column count.
+	 */
 	public void testVerticalColumnsAreNotNarrowerThanHorizontalChild() throws Exception {
 		for (final int count : new int[] { 2, 3, 4 }) {
 			final String html = document("vertical-lr", "<div style=\"writing-mode:vertical-rl\"><div style=\"column-count:"
@@ -85,14 +88,14 @@ public class MulticolOrthogonalFloorTest extends TestCase {
 		}
 	}
 
-	/** 同じ書字方向の div で一段包んでも同じ。 */
+	/** The same holds with an extra div wrapper sharing the writing direction. */
 	public void testNestedHorizontalChildIsFound() throws Exception {
 		final String html = document("vertical-lr", "<div style=\"writing-mode:vertical-rl\"><div style=\"column-count:2\"><div>"
 				+ HORIZONTAL_CHILD + "</div></div></div>");
 		assertEquals("T0 の x(Chrome は 0)", 0.0, x(convert("vertical-nested", html), "T0"), 0.01);
 	}
 
-	/** 掃過で止まった元の文書(縮小前の 930 バイトそのまま)。Chrome は x=30.0。 */
+	/** Original document that stopped the sweep (all 930 unreduced bytes). Chrome gives x=30.0. */
 	public void testSweepSeed11587843() throws Exception {
 		final String html = document("vertical-lr", """
 				<div style="display:list-item;position:static;float:left;writing-mode:vertical-rl;">
@@ -109,7 +112,7 @@ public class MulticolOrthogonalFloorTest extends TestCase {
 		assertEquals("T0 の x(Chrome は 30.0)", 30.0, x(dump, "T0"), 0.01);
 	}
 
-	/** 横の段組の中の縦書きの子(高さ 88pt)。後ろの段落は子に重ならない。 */
+	/** Vertical-writing child inside horizontal columns (88 pt tall). The following paragraph does not overlap it. */
 	public void testHorizontalColumnsAreNotShorterThanVerticalChild() throws Exception {
 		final String html = document("horizontal-tb", "<div style=\"column-count:2\">"
 				+ "<div style=\"writing-mode:vertical-rl;height:88pt\">T2<br>T3</div></div><p>T5</p>");
@@ -135,7 +138,7 @@ public class MulticolOrthogonalFloorTest extends TestCase {
 		throw new AssertionError(token + " が描かれていない:\n" + dump);
 	}
 
-	/** 1 頁の文書を変換して、その頁の表示リストを返します。 */
+	/** Convert a one-page document and return its page's display list. */
 	private static String convert(final String name, final String html) throws Exception {
 		final File dir = new File("local/multicol-orthogonal-floor/" + name);
 		dir.mkdirs();

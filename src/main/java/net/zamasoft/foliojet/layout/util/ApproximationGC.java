@@ -11,25 +11,24 @@ import net.zamasoft.pdfg2d.gc.image.GroupImageGC;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * 「近似で描いた」ことを利用者へ知らせる経路を、ページのGCに載せる
- * 包み紙です(2026-08-29)。
+ * Wrapper that adds a path for notifying users of "approximate rendering" to a page's GC
+ * (2026-08-29).
  *
  * <p>
- * ぼかし・円錐グラデーション・繰り返しグラデーション・filter・
- * mix-blend-modeは、出力先が厳密に描けるか({@link GC#supports})を描画時に
- * 問い合わせ、できなければ近似する。近似したことは
- * {@link MessageCodes#WARN_APPROXIMATED_RENDERING}(2822)で知らせるが、
- * 描画要素は描画先のGCしか受け取らず、UAへの経路が無い。そこで
- * {@code PageSequence.drawPage}がページのGCをこれで包み、描画要素は
- * {@link #report}で(包み紙を辿って)報告する。同じ文書で同じ近似を
- * 何度も報告しないよう、報告済みの鍵は{@link net.zamasoft.foliojet.ua.UAContext}
- * (=変換1回の寿命)の集合に控える。
+ * Blur, conic gradients, repeating gradients, filter, and mix-blend-mode query whether the
+ * destination can render them exactly ({@link GC#supports}) at draw time; otherwise they
+ * approximate. Approximation is reported via {@link MessageCodes#WARN_APPROXIMATED_RENDERING}
+ * (2822), but drawables receive only the destination GC and have no route to the UA.
+ * Therefore, {@code PageSequence.drawPage} wraps the page's GC with this, and drawables report
+ * through {@link #report} (following the wrappers). To avoid reporting the same approximation
+ * repeatedly within a document, reported keys are stored in a set in
+ * {@link net.zamasoft.foliojet.ua.UAContext} (whose lifetime is one conversion).
  * </p>
  *
  * <p>
- * {@link FilterGC}のような他の包み紙の内側からでも辿れるよう、
- * {@link DelegatingGC#delegate()}を順に剥がして探す。グループ画像の
- * GCも同じ報告先を持つ包み紙で返す。
+ * Searches by unwrapping {@link DelegatingGC#delegate()} in sequence so it is reachable even
+ * from inside other wrappers such as {@link FilterGC}. Group image GCs are also returned
+ * wrapped with the same reporting destination.
  * </p>
  */
 public final class ApproximationGC extends AbstractDelegatingGC {
@@ -44,7 +43,7 @@ public final class ApproximationGC extends AbstractDelegatingGC {
 		this.reported = reported;
 	}
 
-	/** ページのGCを包みます。 */
+	/** Wraps a page's GC. */
 	public static GC wrap(final GC gc, final UserAgent ua) {
 		if (gc == null || gc instanceof ApproximationGC) {
 			return gc;
@@ -54,13 +53,13 @@ public final class ApproximationGC extends AbstractDelegatingGC {
 	}
 
 	/**
-	 * 近似で描いたことを報告します。{@code gc}が報告経路を持たなければ
-	 * (単体テストの素のGCなど)何もしない。
+	 * Reports approximate rendering. Does nothing if {@code gc} has no reporting path
+	 * (e.g., a bare GC in a unit test).
 	 *
-	 * @param gc       描画先(包み紙でもよい)
-	 * @param property  CSSのプロパティ名({@code box-shadow}など、字面のまま)
-	 * @param detailKey 近似の内容を表すメッセージカタログの鍵
-	 *                  ({@code 2822.blur-rings}など。文面は利用者の言語で出す)
+	 * @param gc       drawing destination (may be a wrapper)
+	 * @param property  CSS property name (literal spelling, such as {@code box-shadow})
+	 * @param detailKey message catalog key describing the approximation
+	 *                   (e.g., {@code 2822.blur-rings}; text is emitted in the user's language)
 	 */
 	public static void report(GC gc, final String property, final String detailKey) {
 		while (gc != null) {
@@ -89,7 +88,7 @@ public final class ApproximationGC extends AbstractDelegatingGC {
 		return new Group(this.gc.createFilterGroup(width, height), this);
 	}
 
-	/** グループ画像のGCにも同じ報告経路を載せる包み紙。 */
+	/** Wrapper that gives group image GCs the same reporting path. */
 	private static final class Group extends AbstractDelegatingGC implements GroupImageGC {
 		private final GroupImageGC group;
 

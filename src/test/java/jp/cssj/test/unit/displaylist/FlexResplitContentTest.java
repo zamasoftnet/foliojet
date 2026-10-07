@@ -7,28 +7,31 @@ import java.nio.file.Files;
 import junit.framework.TestCase;
 
 /**
- * <b>分割済みの flex/grid の頭がもう一度分割されても内容が複製されない</b>ことの回帰です
- * (2026-09-17、掃過 seed 2010872・2477193 の縮小形)。
+ * Regression verifying that <b>splitting the head of an already split flex/grid again does not duplicate content</b>
+ * (2026-09-17, reduced sweep seeds 2010872 and 2477193).
  *
  * <p>
- * {@code FlexBox.split}/{@code GridBox.split} は分割後も頭側の行記録
- * ({@code lines}/{@code lineItems}、{@code rows}/{@code rowItems})を切り詰めず、
- * 次断片へ移送済みの行と item を指し続けていた。多段の均衡のように同じ頭がもう一度
- * 分割されると、古い記録から境界行を選び、既に移送した item をもう一度分割して
- * 残余を作る——同じ内容が 2 つの断片に入る。seed 2010872 では「T106」が同じ頁の
- * 2 つの段に描かれ(内容の複製)、seed 2477193 では後ろの語が前の頁に出た(読み順の逆転)。
+ * {@code FlexBox.split}/{@code GridBox.split} did not truncate the head's line/row records
+ * ({@code lines}/{@code lineItems}, {@code rows}/{@code rowItems}) after splitting,
+ * leaving references to rows and items already transferred to the next fragment. When the same head
+ * split again, as during column balancing, stale records selected the boundary row and split an
+ * already transferred item again to produce a remainder, placing the same content in two fragments.
+ * Seed 2010872 drew "T106" in two columns on the same page (duplicate content); seed 2477193
+ * placed later words on an earlier page (reversed reading order).
  * </p>
  *
  * <p>
- * どちらの文書も成分を 1 つ外すと再現しない(15 変種で確認)ほど条件が狭いが、
- * 複製と読み順の崩れは絶対要件の違反なので固定する。
+ * Both documents reproduce only under narrow conditions: removing any one component prevents reproduction
+ * (checked with 15 variants). Still, duplication and broken reading order violate absolute requirements,
+ * so preserve these regressions.
  * </p>
  *
  * <p>
- * 2026-10-05 に seed 2010872 の縮小形の先頭の表の {@code width:76%} を {@code width:45.6pt} へ書き換えた。
- * 縦組みの中の % の基準が用紙の幅(60pt)から版面の幅(40pt)に直り、76% では表が細くなって後の浮動体が
- * 全部紙の外へ出て、分割の経路を通らなくなったため。45.6pt は旧い基準での 76% で、表示リストは書き換え前と同じ
- * (頁範囲の経路は元から版面の幅を基準にしていたので、そちらの digest は変わった)。
+ * On 2026-10-05, the first table in the reduced seed 2010872 changed from {@code width:76%} to
+ * {@code width:45.6pt}. The percentage reference in vertical writing was corrected from paper width (60 pt)
+ * to type-area width (40 pt). At 76%, the table narrowed, all later floats moved off the paper,
+ * and the splitting path was no longer exercised. 45.6 pt is 76% of the old reference, preserving the
+ * display list from before the change (the page-range path already used type-area width, so its digest changed).
  * </p>
  */
 public class FlexResplitContentTest extends TestCase {

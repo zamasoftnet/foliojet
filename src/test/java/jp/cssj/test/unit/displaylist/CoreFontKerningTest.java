@@ -25,16 +25,18 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 中核書体(AFM の Times-Roman)の kerning を、組版と描画で同じ組・同じ向きに掛けることを固定します
- * (2026-10-04)。
+ * Verifies that core-font kerning (AFM Times-Roman) uses the same pairs in the same direction
+ * for layout and rendering (2026-10-04).
  *
  * <p>
- * それまで描画は今の字と前の字の組(逆の組)を引き、「To」(KPX T o -80)が詰まらず「oT」が詰まっていた。
- * 組版は KPX の負(詰める)を正(詰める)の約束の呼び出し側へそのまま返し、「To」を広げていた。
+ * Previously, rendering looked up the current/previous character pair (reversed),
+ * so "To" (KPX T o -80) did not tighten, while "oT" did.
+ * Layout returned the negative KPX value (tightening) unchanged to callers expecting positive
+ * values for tightening, widening "To".
  * </p>
  */
 public class CoreFontKerningTest extends TestCase {
-	/** 1 つの BT〜ET: Td の x と、TJ の配列を字と数の並びにしたもの。 */
+	/** One BT–ET: Td's x and the TJ array expressed as a sequence of characters and numbers. */
 	private record Run(float x, String tj) {
 	}
 
@@ -88,7 +90,7 @@ public class CoreFontKerningTest extends TestCase {
 		assertEquals(runs.toString(), 2, runs.size());
 		assertEquals("To は KPX T o -80 で詰める", "(T) 80 (o)", runs.get(0).tj());
 		assertEquals("oT に組は無い", "(oT)", runs.get(1).tj());
-		// T 611 + o 500 - 80 = 1031 → 20.62pt、空白 250 → 5pt
+		// T 611 + o 500 - 80 = 1031 → 20.62 pt; space 250 → 5 pt.
 		assertEquals(20.62 + 5, runs.get(1).x() - runs.get(0).x(), 0.01);
 	}
 

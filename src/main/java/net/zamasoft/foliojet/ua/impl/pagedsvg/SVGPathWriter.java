@@ -5,34 +5,35 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.PathIterator;
 
 /**
- * {@link Shape}をSVGの{@code d}属性へ直します。
+ * Converts a {@link Shape} to an SVG {@code d} attribute.
  *
  * <p>
- * SVGのパス文法では<b>同じコマンドが続くならコマンド文字を省ける</b>ため、
- * 直前と同じ種類なら文字を出しません。区切りのカンマも省き、負数の前は
- * 符号が区切りを兼ねるので空白も省きます。長い文書ではこの差が効きます。
+ * SVG path syntax <b>allows command letters to be omitted for repeated commands</b>,
+ * so omit the letter when the type matches the previous command.
+ * Also omit separator commas and spaces before negative numbers, whose sign serves as a separator.
+ * This difference matters for long documents.
  * </p>
  *
  * <p>
- * <b>区切りが要るかは、直前に実際に書いた文字だけで決めること。</b>
- * 「コマンド文字を書いたはず」という前提で判断すると、コマンドを省いた回に
- * 区切りが落ちて{@code L300 0300.4}のように数が繋がり、<b>黙って別の図形に
- * なる</b>。XMLとしては妥当なままなので、整形式の検査では捕まらない。
+ * <b>Decide whether a separator is needed solely from the last character actually written.</b>
+ * Assuming a command letter was written loses the separator when the command is omitted,
+ * joining numbers as in {@code L300 0300.4} and <b>silently producing a different shape</b>.
+ * The XML remains valid, so well-formedness checks cannot catch this.
  * </p>
  *
  * <p>
- * 数値は指数表記を使いません。SVGの文法上は許されますが、読めない実装が
- * あるためです({@link SVGWriter#number}と同じ方針)。
+ * Do not use exponential notation for numbers. SVG syntax allows it, but some implementations
+ * cannot read it (the same policy as {@link SVGWriter#number}).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 final class SVGPathWriter {
 	private SVGPathWriter() {
-		// ユーティリティ
+		// Utility
 	}
 
-	/** 塗り規則。{@code d}とは別に{@code fill-rule}属性で指定します。 */
+	/** Fill rule. Specified in a {@code fill-rule} attribute separately from {@code d}. */
 	static String fillRule(final Shape shape) {
 		return shape.getPathIterator(null).getWindingRule() == PathIterator.WIND_EVEN_ODD ? "evenodd" : null;
 	}
@@ -45,7 +46,7 @@ final class SVGPathWriter {
 			switch (i.currentSegment(c)) {
 			case PathIterator.SEG_MOVETO -> {
 				d.append('M');
-				// moveto に続く座標対は暗黙に lineto。以降の L は省ける
+				// Coordinate pairs following moveto imply lineto. Subsequent L letters can be omitted.
 				last = 'L';
 				number(d, c[0]);
 				number(d, c[1]);
@@ -73,7 +74,7 @@ final class SVGPathWriter {
 			}
 			case PathIterator.SEG_CLOSE -> {
 				d.append('Z');
-				// closepath の後に暗黙の継続は無い。次はコマンドから書く
+				// No implicit continuation after closepath. Write a command next.
 				last = 0;
 			}
 			default -> throw new IllegalStateException("unknown path segment");
@@ -82,7 +83,7 @@ final class SVGPathWriter {
 		return d.toString();
 	}
 
-	/** 直前と違うコマンドなら文字を書き、同じなら省きます。 */
+	/** Writes a command letter if it differs from the previous one; otherwise omits it. */
 	private static char command(final StringBuilder d, final char last, final char wanted) {
 		if (last != wanted) {
 			d.append(wanted);
@@ -91,8 +92,8 @@ final class SVGPathWriter {
 	}
 
 	/**
-	 * 数を1つ書きます。区切りが要るのは「直前に書いた文字が数字か小数点で、
-	 * この数が負でない」ときだけです。
+	 * Writes one number. A separator is needed only when the last character written is a digit
+	 * or decimal point and this number is not negative.
 	 */
 	private static void number(final StringBuilder d, final double value) {
 		final String text = SVGWriter.number(value);

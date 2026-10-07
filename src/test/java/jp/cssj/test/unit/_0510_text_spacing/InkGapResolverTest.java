@@ -72,18 +72,19 @@ public class InkGapResolverTest extends TestCase {
 	}
 
 	/**
-	 * 合成斜体は shear の幾何どおりに片側ずつ広げる(横: x' = x − 0.25y なので
-	 * 上端(y<0)が右へ、下端(y>0)が左へ。縦: y' = y + 0.25x なので右端(x>0)が下へ)。
-	 * 両端を一律に広げると、autospace の追い込みの容量が不要に減って
-	 * 行内の配分が変わる(imageTest の 0060-inline/000-border で 0.245pt、2026-09-12)。
+	 * Synthetic italic expands each side according to shear geometry (horizontal: x' = x − 0.25y,
+	 * so the top (y<0) moves right and the bottom (y>0) left; vertical: y' = y + 0.25x,
+	 * so the right edge (x>0) moves down).
+	 * Expanding both ends uniformly unnecessarily reduces autospace compression capacity and changes
+	 * distribution within the line (0.245 pt in imageTest 0060-inline/000-border, 2026-09-12).
 	 */
 	public void testSyntheticItalicExpandsAlongTheShear() {
 		for (final var direction : new FontStyle.Direction[] {FontStyle.Direction.LTR, FontStyle.Direction.TB}) {
 			final var s = new FontStyleImpl(FontFamilyList.SERIF, 10, FontStyle.Style.ITALIC,
 					FontStyle.Weight.W_400, direction, FontPolicyList.FONT_POLICY_CORE_CID_KEYED_VALUE);
 			final var m = metrics(s, direction, gid -> new GlyphBounds(100, -700, 800, 100), 880, 0, 0);
-			// 横: 前端は下端(maxY=100)の分だけ左へ 0.25×100、後端は上端(−700)の分だけ右へ 0.25×700。
-			// 縦: 前端は minX が正なので動かず、後端は maxX=800 の分だけ下へ 0.25×800。
+			// Horizontal: leading edge moves left by 0.25×100 for bottom maxY=100; trailing edge right by 0.25×700 for top −700.
+			// Vertical: leading edge stays put because minX is positive; trailing edge moves down by 0.25×800 for maxX=800.
 			assertEquals(direction == FontStyle.Direction.TB ? 1.8 : .75, inkStart(m, 1, 10, s), 1e-9);
 			assertEquals(direction == FontStyle.Direction.TB ? 11.8 : 9.75, inkEnd(m, 1, 10, s), 1e-9);
 		}

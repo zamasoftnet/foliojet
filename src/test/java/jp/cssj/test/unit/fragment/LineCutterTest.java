@@ -5,11 +5,11 @@ import net.zamasoft.foliojet.layout.fragment.LineCutter;
 import net.zamasoft.foliojet.layout.fragment.LineCutter.Decision;
 
 /**
- * 行境界での切断判定(orphans/widows)のテストです。
- * 行高さ10の行が並ぶテキストブロックを想定します。
+ * Tests for cut decisions at line boundaries (orphans/widows).
+ * Assume a text block consisting of lines with height 10.
  */
 public class LineCutterTest extends TestCase {
-	/** n行(高さ10)の lineStarts/lineEnds を作ります。 */
+	/** Create lineStarts/lineEnds for n lines (height 10). */
 	private static double[][] lines(int n) {
 		final double[] starts = new double[n];
 		final double[] ends = new double[n];
@@ -26,56 +26,56 @@ public class LineCutterTest extends TestCase {
 	}
 
 	public void testKeepWhenFits() {
-		// 切断線が底辺以下なら全体が前ページに収まる
+		// If the cut line is at or below the bottom, the whole block fits on the previous page.
 		assertTrue(decide(4, 40, 2, 2, false) instanceof Decision.Keep);
 		assertTrue(decide(4, 100, 2, 2, false) instanceof Decision.Keep);
 	}
 
 	public void testSingleLineMovesUnlessFirst() {
-		// 1行だけの場合、ページ先頭でなければ全体移動
+		// For a single line, move the whole block unless it is at the top of the page.
 		assertTrue(decide(1, 5, 2, 2, false) instanceof Decision.Move);
-		// ページ先頭なら前ページに残す(無限ループ防止)
+		// At the top of the page, leave it on the previous page (prevent an infinite loop).
 		assertTrue(decide(1, 5, 2, 2, true) instanceof Decision.Keep);
 	}
 
 	public void testMoveWhenCutAboveFirstLine() {
-		// 切断線が最初の行の底辺より上なら全体移動
+		// If the cut line is above the bottom of the first line, move the whole block.
 		assertTrue(decide(4, 5, 1, 1, false) instanceof Decision.Move);
 	}
 
 	public void testSimpleCut() {
-		// 6行、切断線30 → 3行目の後で切断(orphans=2, widows=2 を満たす)
+		// 6 lines, cut line 30 → cut after line 3 (satisfies orphans=2, widows=2).
 		final Decision d = decide(6, 30, 2, 2, false);
 		assertTrue(d instanceof Decision.CutAfter);
 		assertEquals(2, ((Decision.CutAfter) d).lastLine());
 	}
 
 	public void testWidowsPushCutUp() {
-		// 4行、切断線35 → 3行残せるが widows=2 を満たすため2行に減らす
+		// 4 lines, cut line 35 → 3 lines fit, but reduce to 2 to satisfy widows=2.
 		final Decision d = decide(4, 35, 1, 2, false);
 		assertTrue(d instanceof Decision.CutAfter);
 		assertEquals(1, ((Decision.CutAfter) d).lastLine());
 	}
 
 	public void testOrphansForcesMove() {
-		// 4行、切断線15 → 1行しか残せず orphans=2 を満たせないため全体移動
+		// 4 lines, cut line 15 → only 1 line fits, violating orphans=2, so move the whole block.
 		assertTrue(decide(4, 15, 2, 2, false) instanceof Decision.Move);
 	}
 
 	public void testWidowsUnsatisfiableMoves() {
-		// 3行、切断線25、widows=3 → どこで切っても widows を満たせず全体移動
+		// 3 lines, cut line 25, widows=3 → no cut satisfies widows, so move the whole block.
 		assertTrue(decide(3, 25, 1, 3, false) instanceof Decision.Move);
 	}
 
 	public void testFirstKeepsAtLeastOneLine() {
-		// ページ先頭では widows を満たせなくても最低1行を前ページに残す
+		// At the top of the page, leave at least 1 line on the previous page even if widows cannot be satisfied.
 		final Decision d = decide(3, 25, 1, 3, true);
 		assertTrue(d instanceof Decision.CutAfter);
 		assertEquals(0, ((Decision.CutAfter) d).lastLine());
 	}
 
 	public void testFirstIgnoresOrphans() {
-		// ページ先頭では orphans を無視して切断できる
+		// At the top of the page, a cut may ignore orphans.
 		final Decision d = decide(4, 15, 2, 1, true);
 		assertTrue(d instanceof Decision.CutAfter);
 		assertEquals(0, ((Decision.CutAfter) d).lastLine());

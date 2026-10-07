@@ -20,42 +20,40 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>14400ptより高いブロックが改ページできる</b>ことを固定します(2026-08-17新設)。
+ * Verify that <b>blocks taller than 14400 pt can paginate</b> (added 2026-08-17).
  *
  * <p>
- * {@code max-height}の初期値がUAの{@code getMaxSize()}(=14400pt)だったため、
- * それより高いブロックは{@code AbstractBlockBox}でこの値へ<b>切り詰められて</b>
- * いました。14400ptはPDFの<b>用紙</b>寸法の限界であって、箱の高さの上限では
- * ありません。
+ * The initial {@code max-height} value was the UA's {@code getMaxSize()} (=14400 pt),
+ * so {@code AbstractBlockBox} <b>clamped</b> taller blocks to this value.
+ * 14400 pt is the PDF <b>paper</b> dimension limit, not a box height limit.
  * </p>
  *
- * <h2>機序</h2>
+ * <h2>Mechanism</h2>
  *
  * <p>
- * 切り詰められた箱は、紙面へ入りきらないまま「入りきらない」と分からなく
- * なります。ページ途中から始まる場合は次ページへ送られ、送った先でも同じ
- * 判定が出るため、<b>内容を1行も消費しないまま改ページだけが繰り返され</b>ます。
- * 前進保証ガード({@code ContinuationStats.guardBreakProgress})が32回目で
- * 自動改ページを放棄し、そこから先の内容は失われます——実測(この文書)で
- * 201ページが34ページになりました。実物では
- * {@code files/realworld/w3c-jlreq}の用語表がこれで壊れ、放棄後の
- * ビルダー状態から{@code NullPointerException}になって<b>変換ごと失敗</b>して
- * いました。
+ * A clamped box no longer recognizes that it does not fit on the paper, even though it still overflows.
+ * If it starts partway down a page, it moves to the next page, where the same decision recurs,
+ * so <b>page breaks repeat without consuming a single line of content</b>.
+ * The progress guard ({@code ContinuationStats.guardBreakProgress}) abandons automatic page breaks
+ * on the 32nd attempt, and subsequent content is lost: measured with this document,
+ * 201 pages became 34. In real documents, this broke the glossary table in
+ * {@code files/realworld/w3c-jlreq}; the builder state after abandonment caused
+ * {@code NullPointerException}, <b>failing the entire conversion</b>.
  * </p>
  *
- * <h2>判定について</h2>
+ * <h2>About the checks</h2>
  *
  * <p>
- * ページ数だけでなく<b>ガードが発火していないこと</b>も要求します。
- * ライブロックを「32回で見切って先へ進む」機構が働いた時点で内容は
- * 落ちているので、ページ数の判定より機序に近いところで気づけます。
+ * Require <b>that the guard does not fire</b>, as well as checking page count.
+ * Once the mechanism that "gives up after 32 attempts and moves on" handles a livelock,
+ * content is already lost. This detects the problem closer to its mechanism than a page-count check.
  * </p>
  */
 public class TallBlockPaginationTest extends TestCase {
-	/** 打ち切り時間。実測は5秒未満。 */
+	/** Timeout. Measured runtime is under 5 seconds. */
 	private static final long WATCHDOG_MS = 120_000L;
 
-	/** 行数。1行90pt+枠なので表全体は18,000pt超——14400ptの上限を確実に越える。 */
+	/** Row count. Each row is 90 pt plus borders, so the table exceeds 18,000 pt, definitely beyond the 14400 pt limit. */
 	private static final int ROWS = 200;
 
 	public TallBlockPaginationTest(final String name) {
@@ -63,8 +61,8 @@ public class TallBlockPaginationTest extends TestCase {
 	}
 
 	/**
-	 * ページ途中(150pt/紙面180pt)から始まる18,000pt超の表。修正前は
-	 * 34ページで内容が尽き、ガードが1回発火していた。
+	 * A table over 18,000 pt tall starting partway down the page (150 pt into a 180 pt content area).
+	 * Before the fix, content ended at page 34 and the guard fired once.
 	 */
 	public void testTableTallerThanPdfPageLimitPaginates() throws Exception {
 		final StringBuilder html = new StringBuilder();
@@ -93,27 +91,27 @@ public class TallBlockPaginationTest extends TestCase {
 
 		assertEquals("14400ptより高いブロックで前進保証ガードが発火した(内容が失われる)", alarms,
 				ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get());
-		// 1行90ptで紙面は180pt。行が紙面を跨いで組まれるので、ページ数は
-		// 行数と同程度になる。切り詰めが復活すると34ページ程度まで落ちる
+		// Each row is 90 pt and the page content area is 180 pt. Rows are laid out across page boundaries, so
+		// page count is comparable to row count. If clamping returns, it drops to about 34 pages.
 		assertTrue("表の内容が最後まで組まれていない(ページ数=" + pages + ")", pages >= ROWS);
 	}
 
 	/**
-	 * <b>ライブロックしても変換は完走する</b>(2026-08-17)。
+	 * <b>Conversion completes even with a livelock</b> (2026-08-17).
 	 *
 	 * <p>
-	 * 紙面の内容高を超える`max-height`を明示すると、初期値を直した後も
-	 * ライブロックは起きる(印刷では紙面より大きい`max-height`に意味が
-	 * ないので、内容が落ちること自体は文書側の責任と見なす)。
-	 * <b>ただし落ちる・止まるのは実装側の責任</b>なので、ガードが発火しても
-	 * 例外なく完走することを固定する。
+	 * Explicitly setting `max-height` above the page content height still causes livelock
+	 * after fixing the initial value. Since a `max-height` larger than the paper is meaningless
+	 * for printing, content loss itself is considered the document's responsibility.
+	 * <b>Crashes or hangs are the implementation's responsibility</b>, however,
+	 * so verify completion without exceptions even when the guard fires.
 	 * </p>
 	 *
 	 * <p>
-	 * 実物では放棄後の`TextBuilder`が開始のない`INLINE_END`とフォント未設定の
-	 * 字を受け取り、`NullPointerException`で変換ごと失敗していた
-	 * (w3c-jlreq)。合成文書では同じ落ち方をまだ作れていない——再現手順は
-	 * `開発記録`に残してある。
+	 * In a real document (w3c-jlreq), the abandoned `TextBuilder` received `INLINE_END`
+	 * without a start and characters without a font, causing `NullPointerException`
+	 * and failing the entire conversion. A synthetic document does not yet reproduce
+	 * the same crash; reproduction steps are recorded in `the development records`.
 	 * </p>
 	 */
 	public void testLivelockDegradesWithoutFailing() throws Exception {
@@ -147,17 +145,17 @@ public class TallBlockPaginationTest extends TestCase {
 		html.append("</section>\n</body></html>\n");
 
 		final long alarms = ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get();
-		// 2026-08-23: ソース再生の再入拒否+表全体MOVE時の再生無効化
-		// (SourceReplayer/TableBox)でこのライブロック自体が解消し、
-		// ガード発火なしで正しく改ページされるようになった(204ページ・
-		// 各行が1回ずつ)。従来はガードの縮退(34ページ・はみ出し配置)を
-		// 期待値にしていた。表の後のTrailing段落も同じ修正で復元したため、
-		// 下で行と後続内容の双方を固定する
+		// 2026-08-23: rejecting source replay reentry and disabling replay on entire-table MOVE
+		// (SourceReplayer/TableBox) eliminated this livelock itself.
+		// Pagination now works correctly without firing the guard (204 pages,
+		// each row exactly once). Previously, the expected result was the guard's degraded output
+		// (34 pages with overflowing placement). The same fix also restored the Trailing paragraph after the table,
+		// so pin down both the rows and subsequent content below.
 		final int pages = convert("livelock-degrade", html.toString());
 		assertTrue("ページが出ていない", pages > 0);
 		assertEquals("ライブロックガードが発火した(解消済みのはず)", alarms,
 				ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get());
-		// 全行が失われず、複製もないこと
+		// No rows are lost or duplicated.
 		final java.util.Map<String, Integer> count = new java.util.HashMap<>();
 		int trailing = 0;
 		int references = 0;
@@ -189,7 +187,7 @@ public class TallBlockPaginationTest extends TestCase {
 	}
 
 	/**
-	 * 変換して、表示リストのページ数を返します。
+	 * Convert and return the display-list page count.
 	 */
 	private static int convert(final String name, final String html) throws Exception {
 		final File dir = new File("local/" + name);

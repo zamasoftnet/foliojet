@@ -16,13 +16,13 @@ import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 改ページ境界のfloat内で、固定高ラッパーがatomic画像を切り捨てないこと。 */
+/** At a page boundary inside a float, a fixed-height wrapper must not truncate an atomic image. */
 public class FloatAtomicImageMoveTest extends TestCase {
 	public void testAtomicImageMovesWholeWithItsExplicitHeightWrappers() throws Exception {
 		assertFullImageOnSecondPage("atomic-explicit-height-page-break.html", 0);
 	}
 
-	/** Yahoo!ニュース同様の、先行内容を持つBFC内のfloatと固定高画像ラッパー構造。 */
+	/** A float and fixed-height image wrapper inside a BFC with preceding content, as in Yahoo! News. */
 	public void testAtomicImageMovesWholeThroughInlineWrappers() throws Exception {
 		assertFullImageOnSecondPage("atomic-inline-wrapper-page-break.html", 145);
 	}
@@ -42,11 +42,11 @@ public class FloatAtomicImageMoveTest extends TestCase {
 		try (PDDocument doc = Loader.loadPDF(out.toByteArray())) {
 			assertTrue("改ページ後のページがありません", doc.getNumberOfPages() >= 2);
 			final java.awt.image.BufferedImage page2 = new PDFRenderer(doc).renderImageWithDPI(1, 72);
-			// 中央1点だけでは、Yahoo!ニュースで実際に起きた「次ページに
-			// 先頭の細片だけ描いて残りをclipする」退行を見逃す。先頭と
-			// 下端近くの双方を要求し、画像全高が移動したことを固定する。
+			// Checking only the center misses the regression actually seen on Yahoo! News:
+			// only a thin top slice was drawn on the next page and the rest was clipped.
+			// Require both the top and a point near the bottom to verify that the full image height moved.
 			if (imageBottomY == 0) {
-				// 単純なblockラッパーの従来回帰。
+				// Existing regression with a simple block wrapper.
 				assertTrue("atomic画像が固定高ラッパーの残量へ切り詰められています",
 						isRed(page2.getRGB(35, 35)));
 			} else {

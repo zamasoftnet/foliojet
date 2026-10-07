@@ -52,13 +52,13 @@ final class WebFontSubset {
 	private final List<Shape> shapes = new ArrayList<>();
 	private final List<Short> widths = new ArrayList<>();
 	/**
-	 * 版。前回の変換から持ち越した字形の並びに無い字形が現れると1つ進み、
-	 * URIが変わる({@link PagedSvgFontCarry})。
+	 * Version. Advances by one when a glyph absent from the order carried from the previous
+	 * conversion appears, changing the URI ({@link PagedSvgFontCarry}).
 	 */
 	private int version;
-	/** 持ち越した字形の数(サブセットGID 1..seededCount)。0なら持ち越し無し。 */
+	/** Number of carried glyphs (subset GIDs 1..seededCount). 0 means no carryover. */
 	private int seededCount;
-	/** 持ち越した版のバイト列とSHA-256。育っていなければこれをそのまま出す。 */
+	/** Bytes and SHA-256 of the carried version. Emit unchanged if the subset has not grown. */
 	private byte[] seededBytes;
 	private String seededSha256;
 
@@ -86,10 +86,10 @@ final class WebFontSubset {
 	}
 
 	/**
-	 * 現在の版のURI。初版は{@code assets/fonts/font-0001.woff2}、育った版は
-	 * {@code assets/fonts/font-0001-2.woff2}のように版を添える。ページSVGは
-	 * 閉じる時点の値を書くので、育つ前に閉じたページは前の版を指したままで
-	 * よい(前の版でそのページの字形は揃っている)。
+	 * URI of the current version. The first version uses {@code assets/fonts/font-0001.woff2};
+	 * expanded versions add a version, as in {@code assets/fonts/font-0001-2.woff2}.
+	 * Page SVG writes the value at closing, so pages closed before growth can keep referencing
+	 * the previous version (which has all glyphs needed for those pages).
 	 */
 	String uri() {
 		return uri(this.id, this.version);
@@ -108,7 +108,7 @@ final class WebFontSubset {
 		return this.version;
 	}
 
-	/** 持ち越した版のURI。持ち越しが無ければnull。 */
+	/** URI of the carried version. Null without carryover. */
 	String seededUri() {
 		return this.seededCount == 0 ? null : uri(this.id, this.grown() ? this.version - 1 : this.version);
 	}
@@ -117,7 +117,7 @@ final class WebFontSubset {
 		return this.seededCount != 0;
 	}
 
-	/** 持ち越した字形の並びに無い字形が加わったか。 */
+	/** Whether any glyph absent from the carried glyph order has been added. */
 	boolean grown() {
 		return this.shapes.size() - 1 > this.seededCount;
 	}
@@ -130,16 +130,16 @@ final class WebFontSubset {
 		return this.seededSha256;
 	}
 
-	/** 持ち越しの鍵。{@code document}はこのサブセットの範囲になる文書(単一なら空)。 */
+	/** Carryover key. {@code document} defines this subset's document scope (empty for a standalone document). */
 	PagedSvgFontCarry.Key carryKey(final String document) {
 		return new PagedSvgFontCarry.Key(document, this.source.getFontName(), this.mode.name(),
 				this.syntheticOblique);
 	}
 
 	/**
-	 * 前回の変換の字形の並びを先に割り当てます。同じ順に並べるので、前回の
-	 * ページSVGと同じ私用領域符号になり、前回のバイト列がそのまま使えます。
-	 * 字形そのものは育って組み直すときにだけ取り出す({@link #build(int)})。
+	 * Assigns the previous conversion's glyph order in advance. The same order gives the same
+	 * private-use codes as the previous page SVG, allowing reuse of the previous bytes unchanged.
+	 * Extract the glyphs themselves only when growth requires rebuilding ({@link #build(int)}).
 	 */
 	void seed(final int[] gids, final byte[] bytes, final String sha256) {
 		if (this.shapes.size() != 1 || gids.length > MAX_MAPPED_GLYPHS) {
@@ -158,7 +158,7 @@ final class WebFontSubset {
 		this.seededSha256 = sha256;
 	}
 
-	/** サブセットGID順の元フォントGID。次の変換へ持ち越す。 */
+	/** Original font GIDs in subset GID order. Carried to the next conversion. */
 	int[] gids() {
 		final int[] gids = new int[this.sourceGidToSubset.size()];
 		int i = 0;
@@ -173,9 +173,9 @@ final class WebFontSubset {
 	}
 
 	/**
-	 * 組み上げた後に字形の輪郭を捨てます(2026-09-02)。ページごとの範囲では
-	 * 出したサブセットを二度と組まないので、輪郭を持ち続ける理由が無い。
-	 * 字形の数・幅・符号の並び(manifestと持ち越しに要る)は残す。
+	 * Discards glyph outlines after building (2026-09-02). In per-page scope, emitted subsets
+	 * are never rebuilt, so there is no reason to retain outlines.
+	 * Keep glyph counts, widths, and code-point order (needed for the manifest and carryover).
 	 */
 	void releaseShapes() {
 		for (int i = 1; i < this.shapes.size(); ++i) {
@@ -219,7 +219,7 @@ final class WebFontSubset {
 						+ MAX_MAPPED_GLYPHS + " glyphs");
 			}
 			if (this.seededCount != 0 && subsetGid == this.seededCount + 1) {
-				// 持ち越した並びに無い字形。版を進め、以後のページは育った版を指す
+				// New glyph outside the carried order. Advance the version; later pages reference the expanded version.
 				++this.version;
 			}
 			this.sourceGidToSubset.put(sourceGid, subsetGid);
@@ -241,7 +241,7 @@ final class WebFontSubset {
 		if (this.mode == Mode.VERTICAL_UPRIGHT) {
 			final double width = this.font.getWidth(gid);
 			final double dx = -500.0 + (FontSource.DEFAULT_UNITS_PER_EM - width) / 2.0;
-			// 縦原点は字形ごと(VORG / yMax+tsb。IPA P 系の比例縦送りの括弧は 880 でなく 450 前後。2026-09-12)
+			// Per-glyph vertical origin (VORG / yMax+tsb; IPA P proportional vertical brackets: about 450, not 880; 2026-09-12).
 			return AffineTransform.getTranslateInstance(dx, this.font.getVerticalOrigin(gid)).createTransformedShape(shape);
 		}
 		if (this.mode == Mode.VERTICAL_SIDEWAYS) {
@@ -255,14 +255,14 @@ final class WebFontSubset {
 	}
 
 	/**
-	 * WOFF2を組み立てます。
+	 * Builds WOFF2.
 	 *
-	 * @param quality Brotliの品質(1〜11)。11は極端に遅い割に小さくならない
-	 *                ({@code output.paged-svg.font-compression}参照)
+	 * @param quality Brotli quality (1–11). 11 is extremely slow for little size reduction
+	 *                (see {@code output.paged-svg.font-compression})
 	 */
 	byte[] build(final int quality) throws IOException {
 		if (this.seededCount != 0) {
-			// 持ち越した字形は符号だけ先に決めてある。組み直すときに取り出す
+			// Carried glyphs have only code points assigned in advance. Extract them when rebuilding.
 			int i = 1;
 			for (final Integer gid : this.sourceGidToSubset.keySet()) {
 				if (i > this.seededCount) {
@@ -435,9 +435,9 @@ final class WebFontSubset {
 			out.writeShort(FontSource.DEFAULT_UNITS_PER_EM);
 			out.writeShort(this.source.getWeight().w);
 			out.writeShort(5);
-			// サブセットを別ライセンスへ見せない。restricted/no-subsetting/
-			// bitmap-onlyは生成前に拒否されるが、preview&print/editable等の
-			// 許可ビットは元フォントの値をそのまま保持する。
+			// Do not make the subset appear to have a different license. restricted/no-subsetting/
+			// bitmap-only are rejected before generation, but retain permission bits such as
+			// preview&print/editable unchanged from the original font.
 			out.writeShort(this.embeddingLicenseFlags());
 			for (int i = 0; i < 11; ++i) {
 				out.writeShort(0);
@@ -616,8 +616,8 @@ final class WebFontSubset {
 		}
 
 		/**
-		 * WOFF2用のFONT modeで実圧縮する。未知のOS/CPUでは正しい非圧縮
-		 * RFC 7932 streamへ落とし、Paged SVG出力そのものは失わせない。
+		 * Performs actual compression in FONT mode for WOFF2. On unknown OS/CPU combinations,
+		 * falls back to a valid uncompressed RFC 7932 stream to preserve Paged SVG output.
 		 */
 		private static byte[] brotliCompress(final byte[] input, final int quality) throws IOException {
 			try {

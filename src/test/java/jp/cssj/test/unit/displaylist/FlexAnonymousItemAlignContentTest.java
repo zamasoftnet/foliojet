@@ -19,8 +19,9 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * flex の匿名 item(容れ物の直下の地の文字)が、行の高さまで伸びても容れ物の align-content で中身を寄せないことを
- * 固定します(2026-10-04、全体レビュー。grid には 2026-08-29 に入っていた中立化が flex の写しに無かった)。
+ * Verify that anonymous flex items (text directly inside the container) do not align their contents using
+ * the container's align-content even when stretched to the line height (2026-10-04, overall review).
+ * The neutralization added to grid on 2026-08-29 was missing from the flex copy.
  */
 public class FlexAnonymousItemAlignContentTest extends TestCase {
 	private static double textY(final String layout) throws Exception {
@@ -49,7 +50,7 @@ public class FlexAnonymousItemAlignContentTest extends TestCase {
 	}
 
 	public void testAnonymousItemContentStaysAtTheStart() throws Exception {
-		// 伸びた 80pt の中央(約 35pt)ではなく、上端に置く
+		// Place at the top, not the center (about 35 pt) of the stretched 80 pt height.
 		assertTrue("flex", textY("display:flex") < 10);
 		assertTrue("grid", textY("display:grid;grid-auto-flow:column") < 10);
 	}

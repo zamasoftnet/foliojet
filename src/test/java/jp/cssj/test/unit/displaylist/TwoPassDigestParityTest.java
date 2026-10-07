@@ -54,24 +54,26 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * TwoPass D7: 固定manifest全件の範囲側digestと例外台帳の採用値を検証する。
- * {@code -Dfoliojet.twopassDigest=regenerate} は候補だけを生成する。
- * manifest/digests/例外台帳の反映は差分レビュー後に人が行う。
- * regenerateでも例外台帳の範囲側照合を省かず、legacySha256は更新しない。
+ * TwoPass D7: verify range-side digests and accepted exception-ledger values for the entire fixed manifest.
+ * {@code -Dfoliojet.twopassDigest=regenerate} generates candidates only.
+ * A human updates the manifest/digests/exception ledger after reviewing the diff.
+ * Even regenerate verifies the exception ledger against the range side and does not update legacySha256.
  *
- * <p>WSL で {@code ./gradlew test --tests '*TwoPassDigestParity*' --rerun-tasks -i}。
- * ダンプは java.io.tmpdir に置き、文書ごとに削除する。頁の byte を正規化せず比較し、
- * SHA-256 も同じ byte から取る。頁数の差は例外で免除しない。</p>
+ * <p>In WSL, run {@code ./gradlew test --tests '*TwoPassDigestParity*' --rerun-tasks -i}.
+ * Store dumps in java.io.tmpdir and delete them per document. Compare page bytes without normalization,
+ * and calculate SHA-256 from those same bytes. Exceptions never waive page-count differences.</p>
  *
- * <p><b>{@value #SHARDS} 分割</b>(2026-10-05)。全件を 1 クラスで回すと 170 秒かかり、試験全体の最後の 2 分を
- * この 1 本だけが走っていた。文書名の hash で分け、このクラスが 0 番、{@code TwoPassDigestParityShard1Test}〜
- * が残りを受け持つ(Gradle はクラス単位で並列にする)。manifest の検査は 0 番だけ。check では分担した頁の
- * 観測値を {@code build/reports/twopass-digest/digests.actual.N.tsv} に書くので、digest が意図どおり変わったときは
- * 作り直しの実行をせずに {@code dev/tools/accept-digests.py} で台帳へ反映できる。regenerate は 0 番が全件を回す。</p>
+ * <p><b>{@value #SHARDS} shards</b> (2026-10-05). Running all cases in one class took 170 seconds, leaving this
+ * class alone running for the final two minutes of the suite. Partition by document name hash: this class
+ * handles shard 0, and {@code TwoPassDigestParityShard1Test} and later shards handle the rest
+ * (Gradle parallelizes by class). Only shard 0 checks the manifest. In check mode, each shard writes observed
+ * page values to {@code build/reports/twopass-digest/digests.actual.N.tsv}, so intentional digest changes can
+ * be accepted into the ledger with {@code dev/tools/accept-digests.py} without a regeneration run.
+ * In regenerate mode, shard 0 runs all documents.</p>
  */
 public final class TwoPassDigestParityTest extends TestCase {
 	private static final String PROPERTY = "foliojet.twopassDigest";
-	/** 分割数。{@code TwoPassDigestParityShardNTest}(N=1..SHARDS-1)と合わせる。 */
+	/** Shard count. Match {@code TwoPassDigestParityShardNTest} (N=1..SHARDS-1). */
 	static final int SHARDS = 4;
 	private static final Path DATA_DIR = Path.of("files/unittest/twopass-digest");
 	private static final Path REPORT_DIR = Path.of("build/reports/twopass-digest");
@@ -105,7 +107,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		checkShard(0);
 	}
 
-	/** {@code shard} 番の受け持ちを検査します(分割した試験クラスから呼ぶ)。 */
+	/** Check the portion assigned to {@code shard} (called by the sharded test classes). */
 	static void checkShard(final int shard) throws Exception {
 		final long started = System.nanoTime();
 		final Report report = new Report();
@@ -126,7 +128,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		return shard == 0 ? "summary.md" : "summary-" + shard + ".md";
 	}
 
-	/** 文書の受け持ちの番号。 */
+	/** Shard number assigned to a document. */
 	private static int shardOf(final String doc) {
 		return Math.floorMod(doc.hashCode(), SHARDS);
 	}
@@ -136,22 +138,22 @@ public final class TwoPassDigestParityTest extends TestCase {
 		require(Set.of("check", "strict", "regenerate").contains(mode), PROPERTY + " は check / strict / regenerate のみ");
 		final boolean regenerate = "regenerate".equals(mode);
 		if (regenerate && shard != 0) {
-			// 候補は全件を揃えて書くので、regenerate は 0 番が全件を回す
+			// Candidates must cover every document, so shard 0 runs all documents in regenerate mode.
 			return;
 		}
 		Files.createDirectories(REPORT_DIR);
 		Files.deleteIfExists(REPORT_DIR.resolve("digests.actual." + shard + ".tsv"));
 		if (regenerate) {
-			// 今回の生成が途中で止まっても前回の候補を誤って採用させない。
+			// Do not allow stale candidates to be accepted if this generation stops partway through.
 			Files.deleteIfExists(REPORT_DIR.resolve("manifest.candidate.tsv"));
 			Files.deleteIfExists(REPORT_DIR.resolve("digests.candidate.tsv"));
 		}
 		final Map<String, CorpusInput> discovered = corpusDocuments();
 		final Table manifestTable = readTable(DATA_DIR.resolve("manifest.tsv"));
 		final Map<String, CorpusInput> saved = readManifest(manifestTable);
-		// 列挙側に参照が残った既知入力の削除も REMOVED として検出する。
-		// 通常実行では失敗。regenerate だけが削除を候補へ反映する。
-		// **ただしリポジトリの外を指す入力は別**(external を見よ)。
+		// Also detect deleted known inputs still referenced by enumeration as REMOVED.
+		// Fail in normal mode. Only regenerate reflects deletions in candidates.
+		// **Inputs pointing outside the repository are an exception** (see external).
 		discovered.entrySet().removeIf(entry -> saved.containsKey(entry.getKey())
 				&& saved.get(entry.getKey()).source().equals(entry.getValue().source())
 				&& !Files.isRegularFile(Path.of(entry.getValue().source()))
@@ -190,9 +192,9 @@ public final class TwoPassDigestParityTest extends TestCase {
 				if (!discovered.containsKey(doc) || !Files.isRegularFile(Path.of(entry.getValue().source()))) {
 					++report.missing;
 					if (external(entry.getValue().source())) {
-						// **公開できない取り込み資料。**開発用の作業ツリーにだけあり、
-						// このリポジトリ単独の checkout では存在しない。無いことを
-						// 失敗にすると、単独 checkout でこの試験が常に赤くなる
+						// **Imported material that cannot be published.** It exists only in the development working tree,
+						// not in a standalone checkout of this repository. Treating its absence as failure
+						// would make this test always fail in standalone checkouts.
 						++report.externalMissing;
 					} else {
 						report.fail(doc + " MISSING manifest 文書が列挙にない、または保存条件の入力がない");
@@ -207,11 +209,11 @@ public final class TwoPassDigestParityTest extends TestCase {
 					++report.converted;
 					final long retainedAfter = net.zamasoft.foliojet.layout.RetainedTextLimit.HIGH_WATER.get();
 					if (retainedAfter > retainedBefore) {
-						// 溜め込み(processing.retained-text-limit)のコーパス最大を更新した文書(B1、2026-09-06)
+						// Document that raised the corpus maximum for retention (processing.retained-text-limit) (B1, 2026-09-06).
 						System.err.println("[D7] retainedTextHighWater=" + retainedAfter + " bytes at " + doc);
 					}
 				} catch (final Exception | AssertionError e) {
-					// 部分出力を基準にせず、失敗文書も分母に残して全件の診断を続ける。
+					// Do not baseline partial output; retain failed documents in the denominator and continue diagnosing all documents.
 					report.fail(doc + " CONVERSION " + causeChain(e));
 				}
 				if (report.candidates % 50 == 0) {
@@ -230,7 +232,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		if (report.candidates == 0) report.fail("変換対象が0件");
 		if (writeDigests) {
 			if (report.converted == manifest.size() && report.converted > 0) {
-				// 不一致があっても範囲側の候補は保存する。台帳は自動更新しない。
+				// Save range-side candidates even on mismatch. Do not update the ledger automatically.
 				writeDigests(actual, "digests.candidate.tsv");
 				report.digestsWritten = true;
 			} else {
@@ -239,7 +241,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 			}
 		}
 		if (!writeDigests) {
-			// 観測値(分担した頁全部)。意図どおりの変化なら作り直しの実行をせずに台帳へ反映できる
+			// Observations (all assigned pages). Intentional changes can be accepted into the ledger without a regeneration run.
 			writeDigests(actual, "digests.actual." + shard + ".tsv");
 		}
 		final String summary = summary(report, exceptions, manifest.size(), mode, started);
@@ -260,7 +262,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 			final ExceptionEntry exception = exceptions.get(key);
 			if (exception != null) {
 				visited.add(key);
-				// legacySha256は履歴証拠として凍結。採用した範囲側だけを検証する。
+				// Freeze legacySha256 as historical evidence. Verify only the accepted range side.
 				if (!exception.range().equals(digest)) report.fail(key + " 登録済み範囲digestから変化");
 				++report.acceptedPages;
 				report.accepted.computeIfAbsent(exception.reason(), unused -> new TreeSet<>()).add(doc);
@@ -288,7 +290,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		return message.toString();
 	}
 
-	/** Census と同じ全階層・include/source/skip。golden の pass-count を先に入れる。 */
+	/** Same full hierarchy and include/source/skip as Census. Apply golden pass-count first. */
 	static Map<String, CorpusInput> corpusDocuments() throws Exception {
 		final Map<String, CorpusInput> documents = new TreeMap<>();
 		require(Files.isDirectory(Path.of("files/unittest")), "unittest corpus がない");
@@ -296,8 +298,8 @@ public final class TwoPassDigestParityTest extends TestCase {
 			documents.put(doc.path(), input(Path.of("files/unittest", doc.path()), doc.passCount(), Map.of()));
 		}
 		addHtmlTree(documents, Path.of("files/unittest"), "");
-		// 同じ入力を別の変換条件で固定する。値は環境依存の絶対URIにせず、
-		// manifestのinput/output列へ保存し、変換入口でだけ解決する。
+		// Pin down the same input under different conversion conditions. Store values in manifest input/output columns,
+		// not environment-dependent absolute URIs; resolve them only at the conversion entry point.
 		documents.put("3200-line-breaker/parity-float.html@pretty", input(
 				Path.of("files/unittest/3200-line-breaker/parity-float.html"), 1,
 				Map.of("input.default-stylesheet", "files/unittest/3200-line-breaker/text-wrap-pretty.css")));
@@ -309,13 +311,13 @@ public final class TwoPassDigestParityTest extends TestCase {
 	}
 
 	/**
-	 * その入力がこのリポジトリの外にあるかどうかです。
+	 * Whether this input lies outside this repository.
 	 *
 	 * <p>
-	 * 台帳には、公開できない取り込み資料(実サイトのスナップショット等)を
-	 * 指す項目が含まれます。それらは開発用の作業ツリーにだけあるので、
-	 * <b>単独 checkout では欠けていてよい</b>。リポジトリの中を指す入力が
-	 * 欠けているのは削除であり、これまでどおり失敗にします。
+	 * The ledger includes entries pointing to imported material that cannot be published
+	 * (such as snapshots of real sites). These exist only in the development working tree,
+	 * so <b>they may be absent in a standalone checkout</b>. A missing input inside the repository
+	 * is a deletion and still causes failure as before.
 	 * </p>
 	 */
 	private static boolean external(final String source) {
@@ -408,14 +410,14 @@ public final class TwoPassDigestParityTest extends TestCase {
 	}
 
 	/**
-	 * D7 専用の値直列化。golden の describe/dump は使わない。
-	 * UTF-8/LF、属性パス順、double/float は IEEE 754 の16進ビット列。
-	 * 内部 Drawable は exact class の許可表と全フィールド名の照合で fail closed。
-	 * 外部/プラグイン型はクラス名、公開フィールド・bean getter・record 成分を名前順に記録。
-	 * 値は同じ規約で再帰し、Object.toString/identity hash・非公開状態の推測は使わない。
-	 * 画像/プラグイン描画は RecorderGC の命令も記録し、未知属性・循環・読取失敗はエラー。
-	 * 共有バッファの未使用部分・キャッシュ・UA/DOM/レイアウト木は描画属性ではない。
-	 * それらの参照は実際に描画が読む値へ射影し、参照の同一性は初出順で表す。
+	 * Value serialization dedicated to D7. Do not use golden describe/dump.
+	 * UTF-8/LF, attribute-path order, double/float as hexadecimal IEEE 754 bit patterns.
+	 * Internal Drawables fail closed via an exact-class allowlist and matching all field names.
+	 * For external/plugin types, record the class name, public fields, bean getters, and record components by name.
+	 * Recurse through values using the same conventions; do not use Object.toString/identity hashes or infer private state.
+	 * For image/plugin drawing, also record RecorderGC commands; unknown attributes, cycles, and read failures are errors.
+	 * Unused shared-buffer portions, caches, and UA/DOM/layout trees are not drawing attributes.
+	 * Project those references onto values actually read by drawing; represent reference identity by first appearance.
 	 */
 	private static final class DigestSerializer {
 		private static final String DRAW = "net.zamasoft.foliojet.layout.draw.";
@@ -485,8 +487,8 @@ public final class TwoPassDigestParityTest extends TestCase {
 		}
 
 		byte[] page(final Drawer root) throws Exception {
-			// Drawer.draw と同じ: 自分の装飾→負 z の子→残り→非負 z の子。
-			// 論理行の後続 command を省略しない。深い stacking context も反復で辿る。
+			// Same as Drawer.draw: own decoration → negative-z children → remainder → nonnegative-z children.
+			// Do not omit subsequent commands in a logical line. Traverse deep stacking contexts iteratively too.
 			record Step(Drawer drawer, String path, int from, int to, boolean paint) { }
 			final var work = new ArrayDeque<Step>();
 			work.push(new Step(root, "page", 0, 0, false));
@@ -592,10 +594,10 @@ public final class TwoPassDigestParityTest extends TestCase {
 					final int off = (int) get(drawable, "off"), len = (int) get(drawable, "len");
 					value(p, ((List<?>) v).subList(off, off + len));
 				}
-				case "off", "len" -> { /* contents は描画区間の値列として記録済み */ }
+				case "off", "len" -> { /* contents is already recorded as the value sequence for the drawing interval */ }
 				case "structRef" -> structure(p, v);
 				case "lineScope" -> require(v == null, "D7: 描画中の一時 scope を観測した");
-				case "action" -> { /* 閉包の処理対象は digestValues に保持する */ }
+				case "action" -> { /* retain the closure's processing targets in digestValues */ }
 				case "box" -> rubyOrWarichu(p, (IBox) v);
 				case "this$0" -> {
 					final var columns = (net.zamasoft.foliojet.layout.box.content.ColumnsContainer) v;
@@ -616,7 +618,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		}
 
 		private void textParams(final String path, final AbstractTextParams params) throws Exception {
-			// レイアウト前の strut/改行条件や DOM を比較せず、描画が読む全スタイルを固定する。
+			// Pin down all styles read by drawing, rather than comparing pre-layout strut/line-break conditions or DOM.
 			for (final String name : List.of("flow", "writingModeVariant", "direction", "fontStyle", "color",
 					"textStrokeWidth", "textStrokeColor", "strokeBeforeFill", "textShadows", "decorationThickness")) {
 				value(path + "." + name, get(params, name));
@@ -632,7 +634,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 			value(path + ".height", box.getHeight());
 			textParams(path + ".params", (AbstractTextParams) box.getParams());
 			for (final Field field : FIELDS.get(box.getClass())) {
-				// 合成 inline-block の実体・継続用木でなく、この型が持つ確定済み描画データ。
+				// Finalized drawing data held by this type, not the synthetic inline-block instance or continuation tree.
 				if (field.getDeclaringClass() == box.getClass()) value(path + "." + field.getName(), field.get(box));
 			}
 		}
@@ -666,7 +668,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 				} else if (v instanceof FontStyle font) {
 					font(path, font);
 				} else if (v instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue length) {
-					// AbsoluteLengthValueImpl の UA を辿らず、px の解像度も反映した描画長を固定。
+					// Pin down the drawing length, including px resolution, without traversing AbsoluteLengthValueImpl's UA.
 					value(path + ".pt", length.getLength());
 				} else if (v instanceof Image image) {
 					image(path, image);
@@ -720,7 +722,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 							|| v instanceof RecorderGC.Command,
 							"D7: 未知の描画属性 " + path + " " + name);
 					line(path, name);
-					// FilterScope の除外は値の等しさではなく own の同一性で決まる。
+					// FilterScope exclusion depends on own identity, not value equality.
 					if (v instanceof net.zamasoft.foliojet.css.value.css3.FilterValue) {
 						value(path + ".identity", this.filters.computeIfAbsent(v, unused -> this.filters.size()));
 					}
@@ -825,8 +827,8 @@ public final class TwoPassDigestParityTest extends TestCase {
 				if (decoded != null) {
 					value(path + ".pixels", decoded);
 				} else {
-					// JPEG2000 等、PDF が扱えても ImageIO の復号器がない形式。
-					// 資源名/URI は識別子にせず、元の符号化バイトを streaming SHA-256 にする。
+					// Formats such as JPEG2000 that PDF supports but ImageIO has no decoder for.
+					// Use streaming SHA-256 of the original encoded bytes, not the resource name/URI as an identifier.
 					require(pixels.getSourceURI() != null && this.userAgent != null,
 							"D7: PDF 画像の元資源を取得できない " + image.getClass().getName());
 					String hash = this.imageDigests.get(image);
@@ -846,8 +848,8 @@ public final class TwoPassDigestParityTest extends TestCase {
 					value(path + ".sourceSha256", hash);
 				}
 			} else if (image.getClass() == net.zamasoft.pdfg2d.pdf.gc.PDFImage.class) {
-				// 元資源の付かない PDFImage は、形式+冒頭の固有寸法で識別する。
-				// PDF の登録順で変わる name は含めない。通常の読込画像は上の内容 hash を使う。
+				// Identify a PDFImage without its original resource by format + intrinsic dimensions at the beginning.
+				// Exclude name, which varies with PDF registration order. Normally loaded images use the content hash above.
 				value(path + ".format", "PDF-image-XObject");
 			} else if (image instanceof net.zamasoft.pdfg2d.gc.image.util.TransformedImage transformed) {
 				value(path + ".transform", transformed.getTransform());
@@ -914,7 +916,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 						? (net.zamasoft.pdfg2d.gc.font.FontManager) get(image, "fontManager") : this.fontManager;
 				if (image instanceof net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage) {
 					checkFields(image.getClass(), LABEL_FIELDS);
-					// footnoteId/fontManager は描画参照。採番済み文字・字形・位置は commands に射影。
+					// footnoteId/fontManager are drawing references. Project numbered text, glyphs, and positions onto commands.
 					value(path + ".marker", get(image, "marker"));
 					value(path + ".resolvedNumber", get(image, "resolvedNumber"));
 				}
@@ -922,8 +924,8 @@ public final class TwoPassDigestParityTest extends TestCase {
 				image.drawTo(recorder);
 				value(path + ".commands", recorder.getPage().commands());
 			} else if (image instanceof net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage) {
-				// 1パスの target-counter() の欄(2026-10-04)。値は描くとき(後ろの頁なら PDF を閉じるとき)に
-				// 決まるので、表示リストには欄の仕様だけを射影する。ua・fontManager・fontStyle は描画参照
+				// One-pass target-counter() field (2026-10-04). Its value is decided at drawing time (at PDF close for a later page),
+				// so project only the field specification onto the display list. ua, fontManager, and fontStyle are drawing references.
 				checkFields(image.getClass(), LABEL_FIELDS);
 				value(path + ".uri", get(image, "uri"));
 				value(path + ".counter", get(image, "counter"));
@@ -957,7 +959,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		private void pluginProperties(final String path, final Object object) throws Exception {
 			final Class<?> type = object.getClass();
 			value(path + ".type", type.getName());
-			// フィールド/getter/record 成分を区別し、同名の継承フィールドも隠さない。
+			// Distinguish fields/getters/record components; do not hide inherited fields with the same name.
 			final Map<String, java.lang.reflect.AccessibleObject> properties = new TreeMap<>();
 			for (final Field field : type.getFields()) {
 				if (!Modifier.isStatic(field.getModifiers()) && !field.isSynthetic()) {
@@ -1025,8 +1027,8 @@ public final class TwoPassDigestParityTest extends TestCase {
 	private static Rendered render(final CorpusInput document) throws Exception {
 		final Path dir = Files.createTempDirectory("foliojet-t4a-");
 		boolean complete = false;
-		// 観測口は static volatile。DirectSession が例外を警告へ変換しても、
-		// 直列化の失敗を変換完了後に必ず検出する。
+		// The observer is static volatile. Even if DirectSession turns exceptions into warnings,
+		// always detect serialization failures after conversion completes.
 		final PageCapture capture = new PageCapture(dir);
 		try (final var observation = DisplayListDumper.observePages(capture::accept)) {
 			transcode(document);
@@ -1050,7 +1052,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		}
 	}
 
-	/** 固定manifestの変換条件。census・所有不変条件試験も同じ入口を使う。 */
+	/** Conversion conditions for the fixed manifest. Census and ownership-invariant tests use the same entry point. */
 	static Map<String, CorpusInput> fixedManifest() throws IOException {
 		final Table table = readTable(DATA_DIR.resolve("manifest.tsv"));
 		require(!table.bootstrap(), "固定manifestが未作成");
@@ -1070,7 +1072,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		}
 	}
 
-	/** D7の相対default-stylesheetはリポジトリ基準。output.*も他の値もそのまま渡す。 */
+	/** D7 relative default-stylesheet paths are repository-relative. Pass output.* and all other values unchanged. */
 	private static String conversionProperty(final String key, final String value) {
 		if (key.equals("input.default-stylesheet") && !URI.create(value).isAbsolute()) {
 			return Path.of(value).toUri().toString();
@@ -1096,7 +1098,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		void accept(final Drawer drawer, final int page) {
 			if (this.failure != null) return;
 			try {
-				// 画像の内容キャッシュは頁内だけ。頁間の内容変化や画像の保持延長を避ける。
+				// Cache image content only within a page. Avoid missing changes between pages or prolonging image retention.
 				final byte[] bytes = locationIndependent(new DigestSerializer(new IdentityHashMap<>()).page(drawer));
 				Files.write(this.directory.resolve(String.format(Locale.ROOT, "page-%04d.txt", page)), bytes,
 						java.nio.file.StandardOpenOption.CREATE_NEW, java.nio.file.StandardOpenOption.WRITE);
@@ -1107,8 +1109,9 @@ public final class TwoPassDigestParityTest extends TestCase {
 	}
 
 	/**
-	 * {@code -Dfoliojet.twopassDigestKeep=<文書名の一部>} に当たる文書の digest の元(頁ごとの直列化)を
-	 * {@code build/reports/twopass-digest/kept/} に残します(2026-10-05、digest のずれの中身を見るため)。
+	 * Retain digest inputs (per-page serialization) for documents matching
+	 * {@code -Dfoliojet.twopassDigestKeep=<part of document name>} in {@code build/reports/twopass-digest/kept/}
+	 * (2026-10-05, to inspect the substance of digest differences).
 	 */
 	private static void keepDump(final String doc, final List<Path> pages) throws IOException {
 		final String keep = System.getProperty("foliojet.twopassDigestKeep");
@@ -1122,12 +1125,13 @@ public final class TwoPassDigestParityTest extends TestCase {
 		}
 	}
 
-	/** copper4 の絶対パス(foliojet4 の親。試験は foliojet4 で走る)。 */
+	/** Absolute path to copper4 (parent of foliojet4; tests run in foliojet4). */
 	private static final String COPPER4_ROOT = Path.of("").toAbsolutePath().getParent().toString();
 
 	/**
-	 * 文書の場所を digest から外します(2026-10-05)。文書内のリンクの URI は文書の絶対パスを含むので、作業ツリーを
-	 * ext4 へ写して回す(dev/tools/wsl/mirror.sh)と digest が変わった。copper4 の絶対パスを {@code <copper4>} に置き換える。
+	 * Exclude document locations from digests (2026-10-05). In-document link URIs include the document's absolute path,
+	 * so running a working-tree copy on ext4 (dev/tools/wsl/mirror.sh) changed the digests.
+	 * Replace the absolute copper4 path with {@code <copper4>}.
 	 */
 	private static byte[] locationIndependent(final byte[] bytes) {
 		final String text = new String(bytes, StandardCharsets.UTF_8);
@@ -1279,7 +1283,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		return result.toString();
 	}
 
-	/** 全件を回す前に、台帳の許容が完全一致の1頁に限られることを検査する。 */
+	/** Before running all cases, verify that each ledger allowance is limited to one exactly matching page. */
 	public void testExceptionRules() throws Exception {
 		final String legacy = sha256("legacy".getBytes(StandardCharsets.UTF_8));
 		final String range = sha256("range".getBytes(StandardCharsets.UTF_8));
@@ -1385,7 +1389,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		}
 	}
 
-	/** main の成果物を走査するため、試験用/plugin の実装は一覧へ混ざらない。 */
+	/** Scan main artifacts, so test/plugin implementations do not enter the list. */
 	public void testDigestDrawableSchemaCoverage() throws Exception {
 		final Path root = Path.of(Drawable.class.getProtectionDomain().getCodeSource().getLocation().toURI());
 		final List<String> names;
@@ -1401,7 +1405,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		}
 		final Set<String> found = new TreeSet<>();
 		for (final String name : names) {
-			// layout/draw だけでは box の内部クラス(脚注/表/文字)が抜けるので layout 全体を含める。
+			// Include all of layout: layout/draw alone misses box inner classes (footnotes/tables/text).
 			if (!(name.startsWith("net/zamasoft/foliojet/layout/")
 					|| name.startsWith("net/zamasoft/foliojet/ua/impl/pdf/"))) continue;
 			final Class<?> type = Class.forName(name.substring(0, name.length() - 6).replace('/', '.'),
@@ -1655,7 +1659,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		}
 	}
 
-	/** 空/途中までの基準を初回扱いして退行を隠さない。bootstrap も候補の手動反映が必要。 */
+	/** Do not treat empty/partial baselines as first runs and hide regressions. Bootstrap also requires manual candidate acceptance. */
 	public void testDigestTableValidation() throws Exception {
 		final String hash = sha256(new byte[0]);
 		assertEquals("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", hash);

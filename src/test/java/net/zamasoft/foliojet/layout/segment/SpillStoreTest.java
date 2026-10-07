@@ -14,12 +14,12 @@ import java.util.logging.Logger;
 import junit.framework.TestCase;
 
 /**
- * {@link SpillStore}の単体テストです(E-6増分2、2026-07-24新設)。
- * append/範囲cursor/close時cleanup/不正データ検査/削除失敗WARNを
- * 検証する。production経路は未配線。
+ * Unit tests for {@link SpillStore} (E-6 increment 2, added 2026-07-24).
+ * Verifies append, range cursors, cleanup on close, invalid-data checks, and WARN on deletion failure.
+ * The production path is not wired in yet.
  */
 public class SpillStoreTest extends TestCase {
-	/** append→全範囲cursorでpayloadが順序・内容とも一致する(空recordを含む)。 */
+	/** append followed by a full-range cursor preserves payload order and content (including empty records). */
 	public void testAppendAndCursorRoundTrip() throws Exception {
 		try (SpillStore store = SpillStore.create()) {
 			final byte[][] records = { "hello".getBytes(StandardCharsets.UTF_8), new byte[0],
@@ -39,20 +39,20 @@ public class SpillStoreTest extends TestCase {
 				cursor.next();
 				fail("消費済みcursorのnextは失敗するはず");
 			} catch (final NoSuchElementException e) {
-				// 期待どおり
+				// As expected.
 			}
 		}
 	}
 
-	/** 部分範囲・空範囲・複数の独立cursorが正しく動く。 */
+	/** Partial ranges, empty ranges, and multiple independent cursors work correctly. */
 	public void testPartialRangeAndIndependentCursors() throws Exception {
 		try (SpillStore store = SpillStore.create()) {
 			for (int i = 0; i < 5; ++i) {
 				store.append(new byte[] { (byte) i });
 			}
-			// 部分範囲 [1, 4)
+			// Partial range [1, 4).
 			final SpillStore.Cursor partial = store.cursor(1, 4);
-			// 独立した2本目のcursor(同じストア、別の消費位置)
+			// A second, independent cursor (same store, different consumption position).
 			final SpillStore.Cursor full = store.cursor(0, 5);
 			assertEquals(1, partial.next()[0]);
 			assertEquals(0, full.next()[0]);
@@ -60,12 +60,12 @@ public class SpillStoreTest extends TestCase {
 			assertEquals(3, partial.next()[0]);
 			assertFalse(partial.hasNext());
 			assertEquals(1, full.next()[0]);
-			// 空範囲
+			// Empty range.
 			assertFalse(store.cursor(2, 2).hasNext());
 		}
 	}
 
-	/** 範囲外・逆転範囲はcursor作成時に失敗する。 */
+	/** Out-of-bounds and reversed ranges fail at cursor creation. */
 	public void testCursorRangeValidation() throws Exception {
 		try (SpillStore store = SpillStore.create()) {
 			store.append(new byte[] { 1 });
@@ -87,7 +87,7 @@ public class SpillStoreTest extends TestCase {
 		}
 	}
 
-	/** closeは一時ファイル(データ・index両方)を削除し、冪等である。 */
+	/** close deletes temporary files (both data and index) and is idempotent. */
 	public void testCloseDeletesTempFilesAndIsIdempotent() throws Exception {
 		final SpillStore store = SpillStore.create();
 		final File dataFile = store.dataFileForTest();
@@ -98,9 +98,9 @@ public class SpillStoreTest extends TestCase {
 		store.close();
 		assertFalse("データファイルが削除されていません", dataFile.exists());
 		assertFalse("indexファイルが削除されていません", indexFile.exists());
-		// 冪等(2回目のcloseで例外にならない)
+		// Idempotent (the second close does not throw).
 		store.close();
-		// close後の操作は失敗する
+		// Operations after close fail.
 		try {
 			store.append(new byte[] { 1 });
 			fail("close後のappendは失敗するはず");
@@ -114,8 +114,8 @@ public class SpillStoreTest extends TestCase {
 	}
 
 	/**
-	 * 例外注入: 途中データ破損(record長フィールドの改竄)は、cursorの
-	 * 駆動開始前(cursor作成時)に失敗する——1件もpayloadを返さない。
+	 * Fault injection: corruption within the data (tampering with a record length field) fails before
+	 * cursor traversal begins (at cursor creation), without returning a single payload.
 	 */
 	public void testCorruptedRecordLengthFailsBeforeIteration() throws Exception {
 		try (SpillStore store = SpillStore.create()) {
@@ -123,8 +123,8 @@ public class SpillStoreTest extends TestCase {
 			store.append(first);
 			store.append(new byte[] { 5, 6 });
 			store.append(new byte[] { 7 });
-			// record 1の長さフィールド(ヘッダ8 + [長さ4+payload4] の直後)を
-			// 巨大値へ改竄する
+			// Tamper with record 1's length field (immediately after header 8 + [length 4 + payload 4])
+			// by setting it to a huge value.
 			try (RandomAccessFile raf = new RandomAccessFile(store.dataFileForTest(), "rw")) {
 				raf.seek(8 + 4 + first.length);
 				raf.writeInt(Integer.MAX_VALUE);
@@ -133,14 +133,14 @@ public class SpillStoreTest extends TestCase {
 				store.cursor(0, 3);
 				fail("破損データのcursor作成は失敗するはず");
 			} catch (final IOException e) {
-				// 期待どおり: 駆動開始前に失敗(部分再生しない)
+				// As expected: fails before traversal starts (no partial replay).
 			}
-			// 破損recordを含まない範囲は引き続き読める
+			// Ranges without the corrupt record remain readable.
 			assertTrue(java.util.Arrays.equals(first, store.cursor(0, 1).next()));
 		}
 	}
 
-	/** 例外注入: ヘッダ(magic)破損もcursor作成時に失敗する。 */
+	/** Fault injection: corruption of the header (magic) also fails at cursor creation. */
 	public void testCorruptedMagicFailsBeforeIteration() throws Exception {
 		try (SpillStore store = SpillStore.create()) {
 			store.append(new byte[] { 1 });
@@ -157,8 +157,8 @@ public class SpillStoreTest extends TestCase {
 	}
 
 	/**
-	 * 例外注入: close時の一時ファイル削除失敗は黙殺せずWARNし、
-	 * closeそのものは例外を伝播させない(§2.5)。
+	 * Fault injection: failure to delete a temporary file on close produces a WARN rather than being
+	 * silently ignored, while close itself does not propagate the exception (§2.5).
 	 */
 	public void testDeleteFailureWarnsButDoesNotThrow() throws Exception {
 		final SpillStore store = new SpillStore(path -> {
@@ -189,13 +189,13 @@ public class SpillStoreTest extends TestCase {
 		logger.addHandler(handler);
 		try {
 			store.append(new byte[] { 1 });
-			store.close(); // 例外を投げないこと
+			store.close(); // Must not throw.
 			synchronized (warnings) {
 				assertEquals("削除失敗はデータ・index両ファイル分WARNされるはず", 2, warnings.size());
 			}
 		} finally {
 			logger.removeHandler(handler);
-			// 注入deleterは削除しないため後始末
+			// Clean up because the injected deleter does not delete anything.
 			Files.deleteIfExists(dataFile.toPath());
 			Files.deleteIfExists(indexFile.toPath());
 		}

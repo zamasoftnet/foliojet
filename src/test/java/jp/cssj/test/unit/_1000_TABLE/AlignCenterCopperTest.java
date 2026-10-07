@@ -20,7 +20,7 @@ public class AlignCenterCopperTest extends AbstractTestCase {
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.TABLE_CELL) {
-			// セルは左に配置される
+			// The cell is placed on the left.
 			assertEquals(1 + .5, x, 1);
 			return true;
 		}
@@ -29,7 +29,7 @@ public class AlignCenterCopperTest extends AbstractTestCase {
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.TABLE_CELL) {
-			// セルは中央に配置される
+			// The cell is centered.
 			assertEquals(1 + 100 / 2.0 - box.getWidth() / 2.0, x, 1);
 			return true;
 		}
@@ -38,7 +38,7 @@ public class AlignCenterCopperTest extends AbstractTestCase {
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.TABLE_CELL) {
-			// セルは右に配置される
+			// The cell is placed on the right.
 			assertEquals(1 + 100 - box.getWidth() - .5, x, 1);
 			return true;
 		}
@@ -47,7 +47,7 @@ public class AlignCenterCopperTest extends AbstractTestCase {
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.TABLE_CELL) {
-			// セルは中央に配置される
+			// The cell is centered.
 			assertEquals(1 + 100 / 2.0 - box.getWidth() / 2.0, x, 1);
 			return true;
 		}
@@ -56,7 +56,7 @@ public class AlignCenterCopperTest extends AbstractTestCase {
 
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.TABLE_CELL) {
-			// セルは中央に配置される
+			// The cell is centered.
 			assertEquals(1 + 100 / 2.0 - box.getWidth() / 2.0, x, 1);
 			return true;
 		}

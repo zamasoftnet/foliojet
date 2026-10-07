@@ -68,9 +68,9 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent;
 
 /**
- * B-2b-1: oracle は完成した実 TableBox と親の addBound。
- * 全残余は仮想計画同士、実箱は確定断片・完了時点で比較する。
- * 乱数試験の成功を、対象外の形まで含む一般的な同値証明とはしない。
+ * B-2b-1: The oracle is a completed real TableBox and the parent's addBound.
+ * Compare full remainders between virtual plans; compare real boxes at finalized fragments and completion.
+ * Passing randomized tests is not a general equivalence proof covering out-of-scope shapes.
  */
 public final class IncompleteTableNumericShadowTest extends TestCase {
 	public void testAutoSplitArithmeticWithoutHeader() throws Exception {
@@ -97,8 +97,8 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 	}
 
 	/**
-	 * 配分済みh[]の数値契約だけを検査する。実セルbind・表指定高を持つラッパーは
-	 * この合成箱にはなく、この試験の一致をGROUP_PAGE_SIZE解除の根拠にはしない。
+	 * Check only the numeric contract of allocated h[]. This synthetic box has neither real cell binds
+	 * nor a wrapper with specified table height, so equality here does not justify removing GROUP_PAGE_SIZE.
 	 */
 	public void testDistributedGroupAndTableHeightsUseFinalRows() throws Exception {
 		for (final boolean zero : new boolean[] { false, true }) {
@@ -172,7 +172,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		bits(expectedNext.getPageSize(), shadow.getIncompletePlan().cut().groupNext());
 	}
 
-	/** 行内分割しない高さでも、直交行のMOVEをグループはKEEPへ変える。 */
+	/** Even at heights requiring no intra-row split, the group changes an orthogonal row's MOVE to KEEP. */
 	public void testOrthogonalMoveAndPageFirstKeepArePreservedNumerically() throws Exception {
 		for (final WritingMode flow : new WritingMode[] { WritingMode.RL, WritingMode.LR }) {
 			for (final byte flags : new byte[] { 0, IPageBreakableBox.FLAGS_FIRST }) {
@@ -190,7 +190,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 							instanceof SplitResult.Keep);
 					bits(before, table.getTableBody(0).getPageSize());
 				}
-				// KEEP/MOVEの試行が演算履歴を消費しない。全行を見せて完了後の寸法も比較する。
+				// KEEP/MOVE attempts do not consume arithmetic history. Expose all rows and compare dimensions after completion too.
 				final var expected = oracle.split(15.2, AutoBreakMode.withCapacity(100), flags);
 				final var actual = shadow.split(15.2, AutoBreakMode.withCapacity(100), flags);
 				assertEquals(expected.getClass(), actual.getClass());
@@ -198,7 +198,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 				append(shadow, sizes, sizes.length);
 				shadow.complete();
 				assertEquals(fragment(oracle), fragment(shadow));
-				// 同じ残余を強制で複数回分割する(列木は完成経路でも分割しないので外す)。
+				// Force multiple splits of the same remainder (exclude the column tree, which the completed path also does not split).
 				oracle.setTableColumnGroup(null);
 				shadow.setTableColumnGroup(null);
 				final TableBox expectedNext = split(oracle, 100, 1, true);
@@ -298,13 +298,13 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 				.contains(IncompleteTableStatus.UNSPLITTABLE));
 	}
 
-	/** 実 Root.pageBreak の祖先寸法更新・切断・再開・drawPage を通します。 */
+	/** Exercise real Root.pageBreak ancestor-size updates, cutting, resumption, and drawPage. */
 	public void testRootAncestorAccountingAtEmissionAndCompletion() throws Exception {
 		parentShadow(sizes(29, 48), 7.3, 10.1, false, true);
 		parentShadow(sizes(31, 40), 7.3, 10.1, true, true);
 	}
 
-	/** 前断片の箱を観測者が持っていても、描画後の本文行を所有し続けない。 */
+	/** Even if an observer retains a previous fragment's box, it no longer owns body rows after drawing. */
 	public void testDrawnFragmentReleasesBodyAndPreservesRemainder() throws Exception {
 		final TableBox table = table(new double[] { 40, 40, 40, 40 }, 3, 7.3, 1.3, false, true);
 		final List<List<Long>> pages = new ArrayList<>();
@@ -328,14 +328,17 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 	public void testFramedRootAtHalfPointBoundariesAndChangingCapacity() throws Exception {
 		for (final double boundary : new double[] { 99.5, 100.5 }) {
 			for (final double total : new double[] { Math.nextDown(boundary), boundary, Math.nextUp(boundary) }) {
-				// 始端はmargin 0.7pt + border-spacingの半分0.3pt。
+				// Start = 0.7 pt margin + half of border-spacing, 0.3 pt.
 				final double[] sizes = { 10.1, total - 7.3 - 1.0 - 10.1, 12.3, 34.7, 40.1, 40.1, 10.1 };
 				parentShadow(sizes, 7.3, 0, false, true, 1.3, new double[] { 100, 80.5, 120.1 });
 			}
 		}
 	}
 
-	/** 上部はPlannerで除外、下部だけはcomplete後・ラッパー終端前の実Rootを比較する。 */
+	/**
+	 * Planner excludes top captions; compare the real Root after complete but before wrapper end for bottom-only
+	 * captions.
+	 */
 	public void testRootCaptionFallbackAndBottomCompletionOrder() throws Exception {
 		for (final boolean forced : new boolean[] { false, true }) {
 			for (final CaptionCase captions : new CaptionCase[] {
@@ -344,8 +347,8 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 						1.3, new double[] { 100, 80.5, 120.1 }, captions);
 			}
 		}
-		// 上部captionの反例を残す。第2行までの外寸から0.5ptとその隣接doubleで、
-		// Plannerの除外と完成経路への投入を検査する(未完経路の同値を主張しない)。
+		// Retain the top-caption counterexample. At 0.5 pt and its adjacent doubles relative to the outer size through row 2,
+		// check Planner exclusion and submission to the completed path (do not claim incomplete-path equivalence).
 		final double[] sizes = { 10.1, 40.3, 12.3, 34.7, 40.1, 40.1 };
 		final TableBox prefix = table(sizes, 2, 0, 0, false, false);
 		final BreakableBuilder probe = host(prefix, true, new ArrayList<>(), new ArrayList<>(), null);
@@ -366,7 +369,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 
 	private record CaptionCase(double top, double bottom) { }
 
-	/** B-2b-5: captionと独立した、非ゼロ始点でのKEEP→MOVE反例。 */
+	/** B-2b-5: KEEP→MOVE counterexample at a nonzero start, independent of captions. */
 	public void testDeferredEmissionAtHalfPointWithPrecedingContent() throws Exception {
 		final double[] sizes = { 10.1, 10.1, 10.1, 10.1, 10.0, 12.3, 14.7, 10.1, 10.1 };
 		final double prefix = 10.1 + 10.1 + 10.1 + 10.1 + 10.0;
@@ -387,7 +390,10 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		}
 	}
 
-	/** B-2b-6: 合計高は容量+0.5pt を超えるのに、切断走査の逐次減算では −0.4999… で KEEP になる反例。 */
+	/**
+	 * B-2b-6: Total height exceeds capacity+0.5 pt, yet sequential subtraction in the cut scan yields −0.4999… and
+	 * KEEP.
+	 */
 	public void testDeferredEmissionSequentialSubtractionRounding() throws Exception {
 		final double[] sizes = { 4.9, 13.2, 4.3, 12.3, 14.7, 10.1 };
 		final double capacity = 44.4 - 22.5;
@@ -402,7 +408,10 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		}
 	}
 
-	/** codex レビュー 2026-09-08 の反例: 微小行が同値幅の中で KEEP し続け、切断は後続行に依存する。 */
+	/**
+	 * codex review 2026-09-08 counterexample: tiny rows keep returning KEEP within the equality tolerance; cutting
+	 * depends on later rows.
+	 */
 	public void testDeferredEmissionHoldsWhileTinyRowsKeepWithinThreshold() throws Exception {
 		final double[] sizes = { 4.9, 0.5, 1.4, 0.3, 0.1, 0.2, 10, 10 };
 		final double limit = 20 - 13.1;
@@ -416,7 +425,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		assertEquals("第7行で初回受理、最終行で完了、完成側と同じ 2 ページ", List.of(7, 8), notifications);
 	}
 
-	/** 初回受理だけを修正しても通らない、追記通知のちょうど+0.5pt。 */
+	/** Exactly +0.5 pt at append notification; fixing only initial acceptance does not pass. */
 	public void testDeferredAppendAtHalfPointAndAdjacentDoubles() throws Exception {
 		for (final double boundary : new double[] { 50, 51 }) {
 			for (final double capacity : new double[] {
@@ -424,15 +433,18 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 				final List<Integer> notifications = deferredBoundaryShadow(
 						new double[] { 20, 20, 20, 20, 10.5, 10, 10 }, 0,
 						new double[] { 50, capacity, 120 }, false, 3);
-				// B-2b-6: 逐次減算の残りがちょうど −0.5(容量 50.0)は実走査でも KEEP に
-				// ならない(compare は ±0.5 を同値に含めない)ので第5行で受理できる。
-				// 残りが −0.4999…(nextUp(50))と 51 系は第6行まで保留。
+				// B-2b-6: A sequential-subtraction remainder of exactly −0.5 (capacity 50.0) is not KEEP
+				// even in the real scan (compare excludes ±0.5 from equality), so acceptance is possible at row 5.
+				// A remainder of −0.4999… (nextUp(50)) and the 51 series defer until row 6.
 				assertEquals(List.of(3, capacity <= 50 ? 5 : 6, 7), notifications);
 			}
 		}
 	}
 
-	/** 同じ反例を実Planner・Pass B/C・セルbindへ通し、既定offとopt-inをD7で比較する。 */
+	/**
+	 * Run the same counterexample through real Planner, Pass B/C, and cell bind; compare default-off and opt-in with
+	 * D7.
+	 */
 	public void testRetainedHalfPointBoundaryWithPrecedingContent() throws Exception {
 		for (final boolean caption : new boolean[] { false, true }) {
 			for (final double capacity : new double[] { Math.nextDown(72.4), 72.4, Math.nextUp(72.4) }) {
@@ -517,7 +529,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		final RootBuilder builder = new ShadowRoot(new Generator(table.getTableParams(), pages, capacities), breaks, true);
 		builder.startFlowBlock(parent(table.getTableParams()));
 		addPreceding(builder, table.getTableParams(), preceding);
-		builder.startFlowBlock(parent(table.getTableParams())); // 先行内容の後に匿名ラッパーを開く。
+		builder.startFlowBlock(parent(table.getTableParams())); // Open the anonymous wrapper after preceding content.
 		return builder;
 	}
 
@@ -528,11 +540,11 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		}
 	}
 
-	/** 実際の Retained Pass B/C・セル bind・フレーム描画を D7 の全 double 表現で比較する。 */
+	/** Compare real Retained Pass B/C, cell binds, and frame drawing using D7's full double representation. */
 	public void testRetainedEmissionWithRealCellsAndChangingPages() throws Exception {
 		emissionShadow(emissionDocument(48, "", ""), true, null);
 		emissionShadow(emissionDocument(48, "", "<colgroup><col><col></colgroup>"), true, null);
-		emissionShadow(emissionDocument(3, "", ""), false, null); // 受理前に全行完成
+		emissionShadow(emissionDocument(3, "", ""), false, null); // All rows complete before acceptance.
 		emissionShadow(emissionDocument(48, "tr:nth-child(7n){break-after:page}", ""), true, null);
 		emissionShadow(emissionDocument(48, "table{margin-bottom:-2pt}", ""), false,
 				RowEmissionExclusion.NEGATIVE_END_MARGIN);
@@ -557,13 +569,15 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 				RowEmissionExclusion.FLOATING_HOST);
 	}
 
-	/** 左右で幅・高さが違う現ページに、後続セルの画像寸法を依存させない。 */
+	/**
+	 * Later cells' image sizes must not depend on the current page, whose width/height differ between left and right.
+	 */
 	public void testPageDependentReplacedCellsUseOrdinaryPath() throws Exception {
 		for (final String css : new String[] { "max-height:5%", "max-width:5%", "height:5%", "width:5%",
 				"min-height:5%", "min-width:5%", "max-height:calc(1pt + 3%)", "max-width:calc(1pt + 3%)" }) {
 			emissionShadow(imageEmissionDocument(css), false, RowEmissionExclusion.PAGE_DEPENDENT_CELL_CONTENT);
 		}
-		// 固定画像の実セルは送出する。viewport単位も解析時に絶対長として凍結される。
+		// Emit real cells with fixed images. Viewport units also freeze as absolute lengths during parsing.
 		emissionShadow(imageEmissionDocument(""), true, null);
 		for (final String unit : new String[] { "vh", "vw", "vmin", "vmax" }) {
 			emissionShadow(imageEmissionDocument("max-height:0.5" + unit + ";max-width:0.5" + unit), true, null);
@@ -577,14 +591,14 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 				.replaceAll("<td>r[0-9]+a</td>", "<td><div><img src='" + image + "'></div></td>");
 	}
 
-	/** auto高のセル内でもinline-blockの高さ/min-heightは現在頁まで参照し得る。 */
+	/** Even in auto-height cells, inline-block height/min-height can reference as far out as the current page. */
 	public void testPageDependentInlineBlocksUseOrdinaryPath() throws Exception {
 		for (final String css : new String[] { "height:5%", "min-height:5%", "max-height:5%",
 				"height:calc(1pt + 3%)", "min-height:calc(1pt + 3%)", "max-height:calc(1pt + 3%)" }) {
 			emissionShadow(inlineBlockEmissionDocument(css), false, RowEmissionExclusion.PAGE_DEPENDENT_CELL_CONTENT);
 		}
 		emissionShadow(inlineBlockEmissionDocument(""), true, null);
-		// FlowBlockBoxの割合高さは直近の親を参照する別経路。
+		// FlowBlockBox percentage height uses a separate path referencing the nearest parent.
 		emissionShadow(inlineBlockEmissionDocument("min-height:5%").replace("display:inline-block", "display:block"),
 				true, null);
 	}
@@ -609,7 +623,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		}
 	}
 
-	/** 同じ入力位置で32回を超えて送出しても、実行した行の消費で指紋が進む。 */
+	/** Even after over 32 emissions at one input position, consuming executed rows advances the fingerprint. */
 	public void testLongEmissionMakesProgressAndMatchesOrdinaryPath() throws Exception {
 		final long alarms = net.zamasoft.foliojet.layout.fragment.ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get();
 		assertTrue("停滞検出の閾値を超える実断片が未観測",
@@ -638,7 +652,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 						+ "caption{margin:1.1pt 0 1.3pt}"
 						+ (forced ? "tr:nth-child(7n){break-after:page}" : ""), caption), false,
 						RowEmissionExclusion.GROUP_PAGE_SIZE);
-				// グループ高と独立に、上部の除外・下部だけの実送出を検査する。
+				// Independently of group height, check exclusion of top captions and actual emission with bottom captions only.
 				final boolean bottomOnly = caption.startsWith("<caption style=");
 				emissionShadow(emissionDocument(48, "caption{margin:1.1pt 0 1.3pt}"
 						+ (forced ? "tr:nth-child(7n){break-after:page}" : ""), caption), bottomOnly,
@@ -653,7 +667,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 			emissionShadow(emissionDocument(48, "tbody{" + css + "}", ""), false,
 					RowEmissionExclusion.GROUP_PAGE_SIZE);
 		}
-		// ABSOLUTEも行内分割を要する指定は解除しない。
+		// Do not relax ABSOLUTE declarations that require intra-row splitting either.
 		emissionShadow(emissionDocument(48, "tbody{height:2400pt}", ""), false, RowEmissionExclusion.ROW_SPLITTING);
 		emissionShadow(emissionDocument(48, "td{writing-mode:vertical-rl}", ""), false,
 				RowEmissionExclusion.ORTHOGONAL_CELL);
@@ -663,7 +677,9 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		}
 	}
 
-	/** 容量超過前の強制改頁でも、直前の未送出木を必ず採取する。 */
+	/**
+	 * Always capture the immediately preceding un-emitted tree even on a forced break before capacity is exceeded.
+	 */
 	public void testForcedEmissionAlwaysHasPreNotificationSample() throws Exception {
 		final int[] before = { -1 }, forced = { 0 };
 		final Path input = Files.createTempFile("b2c-forced-retention-", ".html");
@@ -820,7 +836,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 
 	private static String digest(final Drawer drawer) {
 		try {
-			// D7 の serializer 自体を oracle にする。座標を丸める golden dump では代用しない。
+			// Use the D7 serializer itself as the oracle, not a golden dump that rounds coordinates.
 			final Class<?> type = Class.forName(TwoPassDigestParityTest.class.getName() + "$DigestSerializer");
 			final var constructor = type.getDeclaredConstructor(Map.class);
 			constructor.setAccessible(true);
@@ -838,7 +854,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		final var facts = facts(false, false, false, false, false, false, false, 4, 1);
 		assertEquals(EnumSet.of(RowEmissionExclusion.NEGATIVE_END_MARGIN),
 				TableBuildPlanner.rowEmissionExclusionsAfterPassB(table, facts));
-		// 完成表なら100ptに収まる。3行で送出してから取り消す形には進まない。
+		// A completed table fits within 100 pt. Do not enter the path that emits at three rows and then retracts.
 		assertTrue(table.getHeight() < 100);
 	}
 
@@ -900,7 +916,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 						topCaption, false, false, false, false, false, forced, !forced));
 		assertEquals(topCaption ? EnumSet.of(RowEmissionExclusion.CAPTION)
 				: EnumSet.noneOf(RowEmissionExclusion.class), captionExclusions);
-		// 上部captionの0.5pt反例も残す。除外された形は未完表を作らず完成経路へ渡す。
+		// Retain the top-caption 0.5 pt counterexample too. Excluded shapes create no incomplete table and use the completed path.
 		final boolean emit = captionExclusions.isEmpty();
 		final TableBox shadow = table(sizes, emit ? 1 : sizes.length, header, margin, !forced, emit);
 		markForcedRows(oracle, 0, forced);
@@ -926,8 +942,8 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		expected.addBound(oracle);
 		final List<IncompleteTableStatus> statuses = new ArrayList<>();
 		if (emit) {
-			// 実装(RetainedTableBuilder)と同じ切断契約で受理・追記を通知する(B-2b-6):
-			// 可視行だけで切断が確定するまで受理せず、追記通知も確定するまで保留する。
+			// Notify acceptance/appends under the same cut contract as the implementation (RetainedTableBuilder) (B-2b-6):
+			// defer acceptance and append notification until visible rows alone determine the cut.
 			IncompleteTableResult handle = null;
 			for (int i = 0; i < sizes.length; ++i) {
 				if (i > 0) {
@@ -982,7 +998,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 			expected.endFlowBlock();
 			actual.endFlowBlock();
 			if (captions != null) {
-				// 匿名ラッパーを閉じてから後続本文を配置する。
+				// Close the anonymous wrapper before placing subsequent body text.
 				addPreceding(expected, oracle.getTableParams(), 12.3);
 				addPreceding(actual, shadow.getTableParams(), 12.3);
 				bits(expected.getPageAxis(), actual.getPageAxis());
@@ -1001,8 +1017,8 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		if (size == 0) return;
 		final BlockParams captionParams = new BlockParams();
 		captionParams.fontStyle = params.fontStyle;
-		// 高さだけの空箱はpaintsBeyondPageがfalseで、自動改頁の根拠にならない。
-		// 描画を持つcaptionにし、上部captionで改頁するケースを実際に通す。
+		// An empty height-only box has paintsBeyondPage=false and cannot justify an automatic page break.
+		// Use a painted caption to actually exercise a page break caused by a top caption.
 		final Background background = Background.create(
 				new net.zamasoft.foliojet.css.value.ColorValue(net.zamasoft.pdfg2d.gc.paint.RGBColor.create(0, 0, 0)),
 				(BackgroundImage) null, Background.BORDER_BOX);
@@ -1050,7 +1066,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 	private static TableBox table(final double[] sizes, final int visible, final double header,
 			final double bottomMargin, final boolean withColumns, final boolean incomplete) {
 		final TableParams params = IncompleteTableIntakeTest.table(0, 1).getTableParams();
-		// 演算試験は端数の始端・左右フレームと終端を持つ。境界選択試験は枠なし。
+		// Arithmetic tests have fractional start, side frames, and end. Boundary-selection tests have no frame.
 		final boolean framed = bottomMargin > 0;
 		params.borderSpacingV = framed ? 0.6 : 0;
 		params.borderSpacingH = framed ? 0.4 : 0;
@@ -1195,7 +1211,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		private final List<String> breaks;
 
 		ShadowBuilder(final TableParams params, final List<List<Long>> pages, final List<String> breaks) {
-			super(params, 100); // 成長する親の内寸を容量として使わない。
+			super(params, 100); // Do not use a growing parent's inner size as capacity.
 			this.pages = pages;
 			this.breaks = breaks;
 		}
@@ -1239,7 +1255,7 @@ public final class IncompleteTableNumericShadowTest extends TestCase {
 		}
 	}
 
-	/** drawPage 内で即座に採取し、rowsAppended が戻った後の補正では通らないようにする。 */
+	/** Capture immediately inside drawPage so corrections after rowsAppended returns cannot make the check pass. */
 	private static final class Generator implements PageGenerator {
 		private final UserAgent ua = new PDFUserAgent() { };
 		private final TableParams params;

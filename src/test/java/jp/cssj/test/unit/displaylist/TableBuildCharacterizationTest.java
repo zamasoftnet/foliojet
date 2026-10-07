@@ -20,17 +20,16 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 表構築の特性テストです(P2-1。§5.2b 表ビルダー統一の保存契約。
- * C4-A/B——ルーティングは「fixed対auto」ではなく「早期コミット可能
- * (Incremental)か表全体保持(Retained)か」の軸、{@link TableRetentionReason}
- * 参照)。
+ * Table-building characterization tests (P2-1; §5.2b preservation contract for table builder unification.
+ * C4-A/B: routing distinguishes "early commit possible (Incremental) or entire-table retention (Retained)",
+ * rather than "fixed versus auto"; see {@link TableRetentionReason}).
  *
  * <p>
- * golden 一致だけでは検出できない特性 — 定寸法・ページ軸auto・FLOW配置の
- * fixed表がIncrementalにルーティングされること、そのストリーミングが
- * 有界であること、autoやページ軸寸法指定・非FLOW配置の表がRetainedで
- * あること、分割・rowspan切断の経路が実際に通ること — をカウンタで
- * 固定します。P2の置換・C4の再設計はこれらを保存しなければならない。
+ * Use counters to pin down properties that golden equality alone cannot detect: fixed tables
+ * with definite dimensions, an auto page-axis size, and FLOW positioning route to Incremental;
+ * their streaming is bounded; tables with auto layout, specified page-axis dimensions, or non-FLOW
+ * positioning use Retained; split and rowspan-cut paths actually execute.
+ * The P2 replacement and C4 redesign must preserve these properties.
  * </p>
  */
 public class TableBuildCharacterizationTest extends TestCase {
@@ -45,8 +44,8 @@ public class TableBuildCharacterizationTest extends TestCase {
 				+ "ルーティングされていません", TableBuildStats.ONE_PASS_BUILDS.get() > onePass);
 		assertTrue("ページ跨ぎで表断片が生成されていません",
 				TableBuildStats.TABLE_FRAGMENTS.get() > fragments);
-		// Incrementalのストリーミングは有界: 9行の表で全行保持なら退化。
-		// 現行実装の実測値を保存契約として固定する(P2 置換後も維持)
+		// Incremental streaming is bounded: retaining all rows of a nine-row table is a regression.
+		// Pin down current measured values as a preservation contract (maintain them after the P2 replacement).
 		final long highWater = TableBuildStats.ONE_PASS_ROW_HIGH_WATER.get();
 		assertTrue("行保持の high-water が観測されていません", highWater > 0);
 		assertTrue("Incrementalストリーミングが全体保持に退化しています: high-water=" + highWater, highWater < 9);
@@ -60,11 +59,10 @@ public class TableBuildCharacterizationTest extends TestCase {
 	}
 
 	/**
-	 * table-layout:fixedでも、表にページ軸寸法(横書きならheight)が明示指定
-	 * されていればRetained(RetainedTableBuilder)へルーティングされる
-	 * ——ルーティングは「fixed対auto」ではなく「早期コミット可能か否か」の
-	 * 軸であることを固定する(TableRetentionReason.SPECIFIED_PAGE_SIZE、
-	 * C4-B・外部設計レビュー2026-07-19)。
+	 * Even with table-layout:fixed, a table with an explicitly specified page-axis dimension
+	 * (height in horizontal writing) routes to Retained (RetainedTableBuilder).
+	 * Verify that routing distinguishes "whether early commit is possible", not "fixed versus auto"
+	 * (TableRetentionReason.SPECIFIED_PAGE_SIZE, C4-B, external design review 2026-07-19).
 	 */
 	public void testFixedTableWithSpecifiedHeightUsesRetained() throws Exception {
 		final File dir = new File("local/unittest/generated");
@@ -96,12 +94,12 @@ public class TableBuildCharacterizationTest extends TestCase {
 	}
 
 	/**
-	 * 非FLOW配置(float)のtable-layout:fixed表は、RetainedTableBuilderのまま
-	 * 処理される(IncrementalTableBuilderへ回すとstartLayout()のFLOW前提
-	 * assert/castが破綻するため対象外にする必要がある——外部設計レビュー
-	 * 2026-07-19で発見、P0-1。修正前はneedsIntrinsicSizing()が非FLOW配置
-	 * でもtrueを返すため誤ってIncrementalへ回り、この文書はassert有効時に
-	 * AssertionErrorで失敗していたはず)。
+	 * A table-layout:fixed table with non-FLOW positioning (float) remains handled by RetainedTableBuilder.
+	 * Routing it to IncrementalTableBuilder breaks startLayout()'s FLOW assumption in an assert/cast,
+	 * so it must be excluded (found in external design review 2026-07-19, P0-1).
+	 * Before the fix, needsIntrinsicSizing() returned true even for non-FLOW positioning,
+	 * incorrectly routing it to Incremental; this document should have failed with AssertionError
+	 * when assertions were enabled.
 	 */
 	public void testNonFlowFixedTableStaysOnTwoPass() throws Exception {
 		final File dir = new File("local/unittest/generated");
@@ -124,10 +122,10 @@ public class TableBuildCharacterizationTest extends TestCase {
 	}
 
 	/**
-	 * 大規模(5,000行・rowspanなし)fixed表で、retained row high-waterが
-	 * 総行数に比例しないことを確認する(C4=表統一の前提条件。統一が
-	 * 見かけ上成功しても保持方式が退化していないかをこの不変条件で
-	 * 固定する。codex外部相談2026-07-19で指摘)。
+	 * Verify that retained row high-water does not scale with total row count for a large fixed table
+	 * (5,000 rows, no rowspan). This is a prerequisite for C4 table unification: even if unification
+	 * appears successful, this invariant detects regression in retention behavior
+	 * (raised in codex external consultation 2026-07-19).
 	 */
 	public void testFixedTableHighWaterIsBoundedAtScale() throws Exception {
 		final int totalRows = 5000;
@@ -142,9 +140,8 @@ public class TableBuildCharacterizationTest extends TestCase {
 	}
 
 	/**
-	 * rowspan=Nの結合セルがある場合、retained row high-waterはNに比例し、
-	 * 総行数には比例しないことを確認する(同上、codex外部相談2026-07-19で
-	 * 指摘)。
+	 * With a spanning cell of rowspan=N, verify that retained row high-water scales with N,
+	 * not total row count (likewise raised in codex external consultation 2026-07-19).
 	 */
 	public void testFixedTableHighWaterScalesWithRowspanNotTotalRows() throws Exception {
 		final int totalRows = 2000;
@@ -162,14 +159,13 @@ public class TableBuildCharacterizationTest extends TestCase {
 	}
 
 	/**
-	 * 絶対高さrow-group(&lt;tbody style="height:..."&gt;)は、その行グループが
-	 * 閉じるまで全行をrowsUnitへ蓄積し続ける(IncrementalTableBuilder.endInnerTable()の
-	 * bindUnit=falseがrow-group終了までリセットされないため)。table-layout:fixed
-	 * であっても、行グループの絶対高さ指定はtable-layout:auto以外の無限成長経路に
-	 * なりうることを観測して固定する(外部設計レビュー2026-07-19で発見、P0-2。
-	 * 修正の要否は未確定——row-group内の絶対高さ分配には行グループ全体が必要という
-	 * 意味では正当な保持だが、文書サイズに比例しうる経路であることは
-	 * CSS-SUPPORT.mdに明記する必要がある)。
+	 * An absolute-height row group (&lt;tbody style="height:..."&gt;) keeps accumulating all rows in rowsUnit
+	 * until the group closes (IncrementalTableBuilder.endInnerTable() does not reset bindUnit=false
+	 * until the row group ends). Observe and pin down that even with table-layout:fixed,
+	 * an absolute row-group height can create an unbounded growth path besides table-layout:auto
+	 * (found in external design review 2026-07-19, P0-2). Whether to fix this remains undecided:
+	 * retention is valid because distributing absolute height within a row group requires the whole group,
+	 * but CSS-SUPPORT.md must explicitly state that this path can scale with document size.
 	 */
 	public void testFixedTableAbsoluteHeightRowGroupRetainsWholeGroup() throws Exception {
 		final int totalRows = 3000;
@@ -185,13 +181,13 @@ public class TableBuildCharacterizationTest extends TestCase {
 	}
 
 	/**
-	 * table-layout:fixedの表を、指定行数・(任意で)先頭列のrowspanつきで
-	 * 生成する(大規模特性テスト用。golden比較対象ではないため
-	 * files/unittestへは置かず、local/unittestへ都度生成する)。
+	 * Generate a table-layout:fixed table with the specified row count and optional rowspan in the first column
+	 * (for large-scale characterization tests). Since it is not a golden comparison target,
+	 * generate it each time under local/unittest rather than storing it under files/unittest.
 	 *
-	 * @param name    生成ファイル名(拡張子なし)
-	 * @param rows    総行数
-	 * @param rowspan 1なら通常セル、2以上なら先頭行の第1列にrowspanを付与
+	 * @param name    generated file name (without extension)
+	 * @param rows    total row count
+	 * @param rowspan 1 for normal cells; 2 or more adds rowspan to the first column of the first row
 	 */
 	private static File generateFixedTable(String name, int rows, int rowspan) throws IOException {
 		final File dir = new File("local/unittest/generated");
@@ -210,7 +206,7 @@ public class TableBuildCharacterizationTest extends TestCase {
 				if (rowspan > 1 && i == 0) {
 					w.write("<td rowspan=\"" + rowspan + "\">span</td>");
 				} else if (rowspan > 1 && i < rowspan) {
-					// rowspanで覆われている行: 第1列のセルは出力しない
+					// Row covered by rowspan: do not output a cell in the first column.
 				} else {
 					w.write("<td>r" + i + "</td>");
 				}
@@ -222,8 +218,8 @@ public class TableBuildCharacterizationTest extends TestCase {
 	}
 
 	/**
-	 * table-layout:fixedの表を、絶対高さのtbody(1個)で全行を包んで生成する
-	 * (P0-2特性テスト用)。
+	 * Generate a table-layout:fixed table with all rows wrapped in a single absolute-height tbody
+	 * (for the P0-2 characterization test).
 	 */
 	private static File generateFixedTableWithAbsoluteRowGroup(String name, int rows) throws IOException {
 		final File dir = new File("local/unittest/generated");

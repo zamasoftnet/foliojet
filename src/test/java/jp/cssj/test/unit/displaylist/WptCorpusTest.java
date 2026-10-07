@@ -26,52 +26,49 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * WPT(web-platform-tests)のCSS文書を<b>不変条件1〜3だけ</b>にかけます。
+ * Run CSS documents from WPT (web-platform-tests) against <b>invariants 1–3 only</b>.
  *
  * <p>
- * <b>opt-inです</b>({@code -Dfoliojet.wptDir=<path>})。指定が無ければ
- * 何もせず通ります——コーパスはこのリポジトリの外(既定
- * {@code F:\dev\wpt-css})にあり、CIや通常のフルテストで走らせるものでは
- * ないからです。
+ * <b>This is opt-in</b> ({@code -Dfoliojet.wptDir=<path>}). Without the option, the test passes
+ * without doing anything: the corpus resides outside this repository (by default
+ * {@code F:\dev\wpt-css}) and is not intended for CI or regular full test runs.
  * </p>
  *
- * <h2>なぜ1〜3だけなのか</h2>
+ * <h2>Why only 1–3</h2>
  *
  * <p>
- * WPTは<b>仕様適合</b>を符号化したコーパスであり、この製品は仕様準拠を
- * 目的としていません(`教訓集` §1.2)。参照画像やセレクタ適合で
- * 判定すると、<b>意図的な非準拠</b>が大量に差分として出てきて、
- * 「直すべきもの」と「直さないと決めたもの」を区別できなくなります
- * (Acid2と同じ罠)。
- * </p>
- *
- * <p>
- * これに対し<b>不変条件1〜3</b>——例外で中断しない・停止する・ページ数が
- * 有界——は<b>仕様と無関係に</b>成り立つべき性質です。どんな入力に対しても
- * 落ちてはいけない。だからWPTを「未知の入力の供給源」としてだけ使います。
+ * WPT is a corpus that encodes <b>specification conformance</b>, which is not this product's goal
+ * (`教訓集` §1.2). Judging by reference images or selector conformance would produce many
+ * differences from <b>intentional nonconformance</b>, making it impossible to distinguish
+ * what should be fixed from what we decided not to fix (the same trap as Acid2).
  * </p>
  *
  * <p>
- * 不変条件4/7/8(消失・読み順・複製)は<b>一意トークンが前提</b>なので
- * 適用できません。不変条件5(白紙)は、外部参照の解決失敗と区別が
- * つかないうちは適用しません({@code /fonts/ahem.css}のような絶対参照が
- * 241件ある)。
- * </p>
- *
- * <h2>紙面寸法</h2>
- *
- * <p>
- * WPT文書は{@code height:100px}のような寸法を<b>ビューポートで見る</b>
- * 前提で書かれており、既定のA4に流すと<b>ほとんどが1ページに収まって
- * しまう</b>——それではこの製品の欠陥領域(ページ分割)に触れません。
- * {@code -Dfoliojet.wptPageSize=120x120}(pt)で紙面を小さくできます。
- * 生成器が60x60ptを使うのと同じ理由です。
+ * In contrast, <b>invariants 1–3</b>—no termination by exception, termination, and a bounded page count—
+ * must hold <b>regardless of the specification</b>. No input may crash the engine.
+ * WPT therefore serves only as a source of previously unknown inputs.
  * </p>
  *
  * <p>
- * <b>まず分割率を測ること。</b> このテストは種別ごとの件数だけでなく
- * <b>ページ数の分布</b>を報告します。分割が起きていなければ、この
- * コーパスは(この用途では)価値がありません。
+ * Invariants 4/7/8 (loss, reading order, duplication) cannot apply because they <b>require unique
+ * tokens</b>.
+ * Invariant 5 (blank pages) does not apply until blank pages can be distinguished from failures to
+ * resolve external references (there are 241 absolute references such as {@code /fonts/ahem.css}).
+ * </p>
+ *
+ * <h2>Page dimensions</h2>
+ *
+ * <p>
+ * WPT documents specify dimensions such as {@code height:100px} assuming <b>viewport rendering</b>.
+ * With the default A4 page, <b>almost all fit on one page</b>, which misses this product's defect
+ * area (pagination). {@code -Dfoliojet.wptPageSize=120x120} (pt) makes the page smaller,
+ * for the same reason that the generator uses 60x60 pt.
+ * </p>
+ *
+ * <p>
+ * <b>Measure the split rate first.</b> This test reports both counts by category and
+ * <b>the distribution of page counts</b>. If no splitting occurs, this corpus has no value for this
+ * purpose.
  * </p>
  *
  * <pre>
@@ -83,16 +80,16 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 public class WptCorpusTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 打ち切り時間。{@link RandomDocumentFuzzTest}と同じ値。 */
+	/** Timeout. The same value as {@link RandomDocumentFuzzTest}. */
 	private static final long WATCHDOG_MS = 30_000L;
 
-	/** 不変条件3の上限。{@link RandomDocumentFuzzTest}と同じ値。 */
+	/** Upper bound for invariant 3. The same value as {@link RandomDocumentFuzzTest}. */
 	private static final int MAX_PAGES = 300;
 
 	public void testWptInvariants() throws Exception {
 		final String dir = System.getProperty("foliojet.wptDir");
 		if (dir == null) {
-			// opt-in。コーパスはリポジトリ外にある
+			// Opt-in. The corpus resides outside the repository.
 			return;
 		}
 		final File root = new File(dir);
@@ -126,9 +123,9 @@ public class WptCorpusTest extends TestCase {
 				}
 			} else {
 				classCount.computeIfAbsent(r.failure, k -> new AtomicInteger()).incrementAndGet();
-				// **全件を残す**。違反はごく少数(実測17件/2,409)なので
-				// 打ち切る理由がなく、打ち切ると「残りは同じだろう」という
-				// 根拠のない推測を招く
+				// **Keep all results**. Violations are rare (17/2,409 measured), so
+				// there is no reason to stop early; doing so would invite the unsupported
+				// assumption that "the rest are probably the same."
 				examples.computeIfAbsent(r.failure, k -> new ArrayList<>())
 						.add(rel(root, doc) + (r.detail == null ? "" : " :: " + r.detail));
 				violations.add(rel(root, doc));
@@ -155,32 +152,33 @@ public class WptCorpusTest extends TestCase {
 			}
 		}
 
-		// 違反した文書の一覧を残す。全件の再走(1コアで6分半)をせずに
-		// 違反だけを再現できるよう、-Dfoliojet.wptOnly=<このファイル> で
-		// 読み直せる形式(root からの相対パス1行1件)にする
+		// Save the list of documents with violations. To reproduce just the violations without
+		// rerunning the entire corpus (6.5 minutes on one core), use a format that can be read with
+		// -Dfoliojet.wptOnly=<this file>: one path relative to root per line.
 		final File list = new File("local/wpt/violations.txt");
 		list.getParentFile().mkdirs();
 		Files.write(list.toPath(), violations);
 		System.out.println("[wpt] 違反した文書の一覧: " + list.getPath() + " (" + violations.size() + "件)");
 
-		// **報告だけで落とさない**のは既定の運用(掃過と同じ)。
-		// -Dfoliojet.wptFailOnViolation=true で赤にできる
+		// **Report without failing** by default (as in the sweep).
+		// Set -Dfoliojet.wptFailOnViolation=true to make the test fail.
 		if (Boolean.getBoolean("foliojet.wptFailOnViolation") && !classCount.isEmpty()) {
 			fail("不変条件1〜3の違反が" + classCount.values().stream().mapToInt(AtomicInteger::get).sum() + "件");
 		}
 	}
 
-	/** 1件の判定結果。{@code failure}が非nullなら不変条件違反。 */
+	/** Result for one document. A non-null {@code failure} indicates an invariant violation. */
 	private record Result(int pages, String failure, String detail) {
 	}
 
 	/**
-	 * 1件を変換して不変条件1〜3にかけます。
+	 * Convert one document and check invariants 1–3.
 	 *
 	 * <p>
-	 * {@link RandomDocumentFuzzTest#checkDocument}と<b>同じ定義</b>を使います
-	 * (watchdog 30秒・上限300ページ)。違う値を使うと「掃過では出ないのに
-	 * WPTでは出る」が測定の差なのか実装の差なのか分からなくなります。
+	 * Use <b>the same definitions</b> as {@link RandomDocumentFuzzTest#checkDocument}
+	 * (a 30-second watchdog and a 300-page limit). Different values would make it unclear whether
+	 * a failure seen in WPT but not in the sweep comes from measurement differences or implementation
+	 * differences.
 	 * </p>
 	 */
 	private static Result check(final File doc, final File outDir, final String pageSize) {
@@ -194,8 +192,8 @@ public class WptCorpusTest extends TestCase {
 
 		final Throwable[] failure = new Throwable[1];
 		final DirectSession[] session = new DirectSession[1];
-		// スタックサイズは掃過と揃える(深い入れ子でのStackOverflowを
-		// 「実装の欠陥」と誤認しないため)
+		// Match the sweep's stack size so StackOverflow in deeply nested input
+		// is not mistaken for an implementation defect.
 		final Thread worker = new Thread(null, () -> {
 			try {
 				convert(doc, outDir, session, pageSize);
@@ -211,17 +209,17 @@ public class WptCorpusTest extends TestCase {
 			Thread.currentThread().interrupt();
 			return new Result(0, "割り込まれた", null);
 		}
-		// 不変条件2: 停止する
+		// Invariant 2: termination
 		if (worker.isAlive()) {
-			// 放置せず実際に止めにいく(掃過と同じ。止められないスレッドは
-			// レイアウト1件分のヒープを抱えたまま残り、自己増幅的に詰まる)
+			// Actually attempt to stop it, rather than leave it running (as in the sweep: an unstoppable thread
+			// retains the heap for one layout, causing a self-amplifying resource jam).
 			final DirectSession s = session[0];
 			if (s != null) {
 				try {
 					s.abort(jp.cssj.cti2.CTISession.ABORT_FORCE);
 					worker.join(5_000L);
 				} catch (final Exception ignore) {
-					// 中断要求が通らなくても報告へ進む
+					// Proceed to reporting even if the interrupt request fails.
 				}
 			}
 			if (worker.isAlive()) {
@@ -229,7 +227,7 @@ public class WptCorpusTest extends TestCase {
 			}
 			return new Result(0, "停止しない(watchdog " + WATCHDOG_MS / 1000 + "秒超過)", null);
 		}
-		// 不変条件1: 例外で中断しない
+		// Invariant 1: no termination by exception
 		if (failure[0] != null) {
 			return new Result(0, "例外で中断: " + failure[0].getClass().getSimpleName(), summarize(failure[0]));
 		}
@@ -237,12 +235,12 @@ public class WptCorpusTest extends TestCase {
 		final File[] pages = outDir.listFiles((d, n) -> n.endsWith(".txt"));
 		final int count = pages == null ? 0 : pages.length;
 		if (count == 0) {
-			// **これは不変条件違反として数えない**——WPTには本文が空の
-			// 文書(参照用の骨組みだけ)があり、白紙抑止が正しく効いた
-			// 結果と区別できない(不変条件5を外したのと同じ理由)
+			// **Do not count this as an invariant violation**: WPT contains documents with empty bodies
+			// (only a reference skeleton), which cannot be distinguished from correct blank-page
+			// suppression (the same reason for excluding invariant 5).
 			return new Result(0, null, null);
 		}
-		// 不変条件3: ページ数が有界
+		// Invariant 3: bounded page count
 		if (count > MAX_PAGES) {
 			return new Result(count, "ページ数が過大(>" + MAX_PAGES + ")", count + "ページ");
 		}
@@ -276,14 +274,13 @@ public class WptCorpusTest extends TestCase {
 	}
 
 	/**
-	 * {@code -Dfoliojet.wptOnly=<path>}が指定されていれば、その一覧
-	 * (root からの相対パス1行1件)だけを対象にします。無ければ
-	 * {@link #collect}で全件を集めます。
+	 * If {@code -Dfoliojet.wptOnly=<path>} is specified, process only that list
+	 * (one path relative to root per line). Otherwise, gather all documents with {@link #collect}.
 	 *
 	 * <p>
-	 * 違反の再現・修正の反復に使います——全件は1コアで6分半かかるので、
-	 * 17件の再走に毎回それを払うのは無駄です(`教訓集`
-	 * 「反復を高速化せよ」)。
+	 * Use this to iterate on reproducing and fixing violations: the whole corpus takes 6.5 minutes on
+	 * one core, so paying that cost every time to rerun 17 documents is wasteful
+	 * (`教訓集`, "反復を高速化せよ").
 	 * </p>
 	 */
 	private static List<File> onlyList(final File root) throws Exception {
@@ -302,12 +299,11 @@ public class WptCorpusTest extends TestCase {
 	}
 
 	/**
-	 * 対象文書を集めます。
+	 * Collect target documents.
 	 *
 	 * <p>
-	 * <b>スクリプトとiframeを含む文書は除外します。</b> スクリプトはこの
-	 * 製品が実行せず、iframeは別文書の読み込みなので、どちらも「何を
-	 * 変換したか」が曖昧になります。
+	 * <b>Exclude documents containing scripts or iframes.</b> The product does not execute scripts,
+	 * and iframes load separate documents, so either makes it unclear what was converted.
 	 * </p>
 	 */
 	private static List<File> collect(final File root) throws Exception {

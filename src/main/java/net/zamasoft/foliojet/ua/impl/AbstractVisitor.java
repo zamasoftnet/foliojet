@@ -35,9 +35,9 @@ import net.zamasoft.foliojet.css.token.Unit;
 
 public abstract class AbstractVisitor implements Visitor {
 	/**
-	 * id を、文書の中への参照({@code #…})にします。URI に書けない字(空白・{@code %} など)は符号化する
-	 * (2026-10-06、jigensha の報告: {@code id="with space"} で警告 10252 が出た。リンクの側は
-	 * {@code href="#with%20space"} と符号化して書くので、それと同じ形にそろう)。
+	 * Converts an id to an in-document reference ({@code #…}). Encodes characters invalid in URIs
+	 * (spaces, {@code %}, etc.). 2026-10-06, jigensha report: {@code id="with space"} emitted warning 10252.
+	 * Links are written encoded as {@code href="#with%20space"}, so this produces the same form.
 	 */
 	private static String fragment(final String id) throws URISyntaxException {
 		return "#" + new URI(null, null, id).getRawFragment();
@@ -88,9 +88,8 @@ public abstract class AbstractVisitor implements Visitor {
 	private boolean processPageReference;
 
 	/**
-	 * 1パスのPDFで{@code target-counter()}の欄を後から埋めるために、id ごとの
-	 * カウンタだけを登録する(2026-10-04)。本文の取り込み・節は頁参照が有効な
-	 * ときだけ。
+	 * Registers only per-id counters to fill {@code target-counter()} slots later in single-pass PDF
+	 * (2026-10-04). Captures body text and sections only when page references are enabled.
 	 */
 	private final boolean slotCounters;
 	private boolean hyperlinks;
@@ -202,7 +201,7 @@ public abstract class AbstractVisitor implements Visitor {
 
 	protected abstract void startBookmark(String title, Point2D location);
 
-	/** 確定頁のアンカーから、runningと全string-setを一度だけ登録します。 */
+	/** Registers running and all string-set assignments exactly once from finalized page anchors. */
 	@Override
 	public void visitAssignment(final net.zamasoft.foliojet.css.style.running.RunningRegistry.Placement placement) {
 		this.ua.getPassContext().getRunningRegistry().assign(placement);
@@ -226,8 +225,8 @@ public abstract class AbstractVisitor implements Visitor {
 			}
 			this.ua.getPassContext().getStringState().assign(assignment.name, resolved.toString(),
 					assignment.order, placement.beginsPage());
-			// content() で完成した値は build 側の先行参照(本文の string())にも届ける。
-			// 文字列/counter だけの代入は build 時に同じ order で登録済み(後勝ちで同値)
+			// Also delivers values completed by content() to build-side forward references (string() in body text).
+			// String/counter-only assignments were registered at build time under this order (last-wins, same value)
 			this.ua.getPassContext().getBuildStringState().complete(assignment.name, resolved.toString(),
 					assignment.order);
 		}
@@ -241,7 +240,7 @@ public abstract class AbstractVisitor implements Visitor {
 		if (this.forms) {
 			this.flushForms();
 		}
-		// string-set(GCPM)は特定機能に相乗りしない独立機構のため無条件で処理する。
+		// Process string-set (GCPM) unconditionally: it is independent and does not piggyback on a specific feature.
 		this.ua.getPassContext().getStringState().endPage();
 		this.ua.getPassContext().getBuildStringState().endPage();
 		this.ua.getPassContext().getRunningRegistry().endPage();
@@ -249,20 +248,20 @@ public abstract class AbstractVisitor implements Visitor {
 
 	public void visitBox(AffineTransform transform, IBox box, Drawer drawer, double x, double y) {
 		this.drawer = drawer;
-		// E-6増分3b-4: ソース再生されたボックスのelementはStructureToken
-		// (CSSElementではない)——読み取りは共通契約StructureElement経由
+		// E-6 increment 3b-4: the element of a source-replayed box is a StructureToken
+		// (not CSSElement); read through the shared StructureElement contract
 		final StructureElement ce = box.getParams().element;
 		if (ce == null || ce.atts() == null) {
 			return;
 		}
 
-		// @container G4(2026-08-15段4、開発記録 §2):
-		// レイアウト確定後のこの時点で、クエリコンテナ(container-type:
-		// inline-size、StyleEventMachine.startStyleが先に記録済み)の
-		// used inline-sizeをContainerFactsへ書き込む。flow軸に応じて
-		// width/heightのどちらがインライン軸かを決める(縦書きはheight)。
-		// 次のパスのStyleContext.mergeが読む(このパス自身の後続要素の
-		// 評価には使わない——パスNの寸法はパスN+1のクエリ評価に使う設計)
+		// @container G4 (2026-08-15, stage 4, the development records §2):
+		// At this point after layout is finalized, write the query container's
+		// (container-type: inline-size, already recorded by StyleEventMachine.startStyle)
+		// used inline-size to ContainerFacts. The flow axis determines
+		// whether width or height is the inline axis (height in vertical writing).
+		// StyleContext.merge in the next pass reads it (not used to evaluate later elements
+		// in this pass: the design uses pass N dimensions for pass N+1 queries)
 		if (ce.elementKey() >= 0) {
 			final net.zamasoft.foliojet.ua.ContainerFacts containerFacts = this.ua.getUAContext()
 					.getContainerFacts();
@@ -282,7 +281,7 @@ public abstract class AbstractVisitor implements Visitor {
 				: this.ua.getUAContext().getPageRef();
 
 		final BoxType type = box.getType();
-		// ハイパーリンク
+		// Hyperlinks
 		if (this.hyperlinks && isHyperlinkBox(type)) {
 			// Anchor tag
 			String href = null;
@@ -320,18 +319,18 @@ public abstract class AbstractVisitor implements Visitor {
 					usemap = usemap.substring(1);
 					ImageMap imageMap = this.ua.getUAContext().getImageMaps().get(usemap);
 					if (imageMap != null) {
-						// 平行移動は物理座標、areaの座標は画像ローカルのpx。
-						// したがって translate → scale の順でなければならない
-						// (従来は scale→translate で、位置にまでpx→pt倍率が
-						// 掛かっていた。すぐ下のSVGリンク側は正しい順序で
-						// 書かれており、その反証になっていた。2026-07-25)
+						// Translation uses physical coordinates; area coordinates are image-local px.
+						// Therefore, the order must be translate → scale
+						// (previously scale → translate also applied the px → pt scale factor
+						// to the position. The SVG link code immediately below had the correct order
+						// and provided counterevidence. 2026-07-25)
 						final double f = LengthUtils.convert(this.ua, 1.0, Unit.PX, Unit.PT);
 						final AffineTransform t2 = AffineTransform.getTranslateInstance(x, y);
 						t2.scale(f, f);
 						for (ImageMap.Area area : imageMap) {
 							Shape s;
 							if (area.shape == null) {
-								// shape="default" = 画像全体。物理座標なのでt2を通さない
+								// shape="default" = entire image. Physical coordinates, so do not pass through t2
 								s = new java.awt.geom.Rectangle2D.Double(x, y, box.getWidth(), box.getHeight());
 							} else {
 								s = area.shape;
@@ -352,16 +351,16 @@ public abstract class AbstractVisitor implements Visitor {
 				ImageMap imageMap = this.ua.getUAContext().getImageMaps().remove(params.image);
 				if (imageMap != null && box.getInnerWidth() > 0 && box.getInnerHeight() > 0
 						&& params.image.getWidth() > 0 && params.image.getHeight() > 0) {
-					// object-fit/object-positionの実描画矩形に合わせる(描画の
-					// ReplacedBoxDrawableと同じ幾何を共有。2026-08-27)。
-					// 既定(fill・中央)では従来と同じ変換になる
+					// Match the actual drawing rectangle from object-fit/object-position (shares
+					// geometry with ReplacedBoxDrawable used for drawing; 2026-08-27).
+					// The default (fill, centered) yields the same transform as before
 					final double[] r = net.zamasoft.foliojet.layout.box.AbstractReplacedBox.objectFitRect(
 							params.objectFit, params.objectPosition, params.image.getWidth(),
 							params.image.getHeight(), box.getInnerWidth(), box.getInnerHeight());
 					AffineTransform t2 = AffineTransform.getTranslateInstance(x + r[0], y + r[1]);
 					t2.scale(r[2] / params.image.getWidth(), r[3] / params.image.getHeight());
-					// 内容ボックスからはみ出す部分(cover/none等)はクリップされて
-					// 見えないため、注釈も内容ボックスと交差させる
+					// Overflow outside the content box (cover/none, etc.) is clipped and invisible,
+					// so intersect annotations with the content box as well
 					final boolean fitOverflows = r[0] < -0.001 || r[1] < -0.001
 							|| r[0] + r[2] > box.getInnerWidth() + 0.001
 							|| r[1] + r[3] > box.getInnerHeight() + 0.001;
@@ -390,13 +389,13 @@ public abstract class AbstractVisitor implements Visitor {
 			}
 		}
 
-		// bidi の視覚断片は各 fragment のリンク矩形を残す一方、ID・参照文字列・
-		// string-set・bookmark 等の意味副作用は論理始端を含む断片で一度だけ行う。
+		// Bidi visual fragments retain each fragment's link rectangle, while semantic side effects
+		// (IDs, reference strings, string-set, bookmarks, etc.) run once in the fragment containing the logical start.
 		if (box instanceof InlineFragmentView fragment && !fragment.hasLineStartEdge()) {
 			return;
 		}
 
-		// フォーム部品を対話フォームフィールドとして出力
+		// Output form controls as interactive form fields
 		if (this.forms && (type == BoxType.REPLACED || type == BoxType.BLOCK) && ce.lName() != null
 				&& this.emittedControls.add(ce)) {
 			final String lName = ce.lName().toLowerCase(java.util.Locale.ROOT);
@@ -409,12 +408,12 @@ public abstract class AbstractVisitor implements Visitor {
 			}
 		}
 
-		// フラグメント
+		// Fragments
 		if ((this.fragments || counterRef != null) && isMarkupBox(type)) {
 			String id = XHTML.ID_ATTR.getValue(ce.atts());
 			if (id != null) {
 				if (this.fragments || pageRef != null) {
-					// ページ参照を使う場合はいずれにしてもフラグメントを出す
+					// When page references are used, emit fragments in either case
 					Point2D location = new Point2D.Double(x, y);
 					if (!transform.isIdentity()) {
 						location = transform.transform(location, location);
@@ -422,13 +421,13 @@ public abstract class AbstractVisitor implements Visitor {
 					this.addFragment(id, location);
 				}
 				if (counterRef != null) {
-					// ページ参照
+					// Page references
 					try {
 						URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
 								this.ua.getDocumentContext().getBaseURI(), fragment(id));
 						String text = null;
 						if (pageRef != null) {
-							// target-text()用にテキストも捕捉する
+							// Also capture text for target-text()
 							StringBuilder textBuff = new StringBuilder();
 							appendSemanticText(box, textBuff);
 							text = textBuff.length() == 0 ? null : textBuff.toString();
@@ -441,17 +440,17 @@ public abstract class AbstractVisitor implements Visitor {
 			}
 		}
 
-		// ブックマーク
+		// Bookmarks
 		if ((this.bookmarks || pageRef != null) && isMarkupBox(type)) {
 			String header = CSSJML.HEADER_ATTR.getValue(ce.atts());
-			// bookmark-level・bookmark-label(2026-10-04): 指定があれば見出しの
-			// 段数・文字より優先する。none(0)は見出しでもしおり・節にしない
+			// bookmark-level/bookmark-label (2026-10-04): when specified, take precedence over the heading's
+			// level/text. none (0) suppresses bookmarks/sections even for headings
 			final net.zamasoft.foliojet.layout.box.params.BookmarkSpec bookmark = box.getParams().bookmark;
 			if (bookmark != null && bookmark.level() != net.zamasoft.foliojet.layout.box.params.BookmarkSpec.LEVEL_AUTO) {
 				header = bookmark.level() == 0 ? null : String.valueOf(bookmark.level());
 			}
 			if (header != null) {
-				// 見出しの処理
+				// Heading processing
 				try {
 					int level = Integer.parseInt(header);
 					SectionState state = this.ua.getPassContext().getSectionState();
@@ -470,7 +469,7 @@ public abstract class AbstractVisitor implements Visitor {
 					this.ua.message(MessageCodes.INFO_HEADING_TITLE, title == null ? "" : title);
 
 					for (int j = state.sectionLevel - level; j >= 0 && state.sectionDepth > 0; --j) {
-						// 見出し終了
+						// End of heading
 						if (this.bookmarks) {
 							this.endBookmark();
 						}
@@ -491,13 +490,13 @@ public abstract class AbstractVisitor implements Visitor {
 						}
 					}
 
-					// 見出し開始
+					// Start of heading
 					if (this.bookmarks) {
-						// ブックマーク
+						// Bookmarks
 						this.startBookmark(title, location);
 					}
 					if (pageRef != null) {
-						// ページ参照
+						// Page references
 						try {
 							URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
 									this.ua.getDocumentContext().getBaseURI(), fragment(ref));
@@ -516,7 +515,7 @@ public abstract class AbstractVisitor implements Visitor {
 			}
 
 			if (ce.atts() != null) {
-				// アノテーション
+				// Annotations
 				String annot = CSSJML.ANNOT_ATTR.getValue(ce.atts());
 				if (annot != null) {
 					this.ua.message(MessageCodes.INFO_ANNOTATION, annot);

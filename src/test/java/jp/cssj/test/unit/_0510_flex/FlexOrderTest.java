@@ -8,9 +8,9 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * orderの視覚順テストです(Flex F5a——§5.4。ソース順a,b(-1),c(1),dが
- * 視覚順b,a,d,cになる。同値orderは録画順の安定ソート。bindはソース順の
- * まま=Tagged PDFの読み順・構造は不変——答申F5a)。
+ * Tests visual order from order (Flex F5a, §5.4). Source order a,b(-1),c(1),d becomes visual order
+ * b,a,d,c. Equal order values use a stable sort by recording order. Binding stays in source order,
+ * so Tagged PDF reading order and structure remain unchanged (recommendation F5a).
  */
 public class FlexOrderTest extends AbstractTestCase {
 	public FlexOrderTest(String name) {
@@ -24,7 +24,7 @@ public class FlexOrderTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** order:-1のbが視覚先頭。 */
+	/** b with order:-1 is visually first. */
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			this.baseX = x;
@@ -43,7 +43,7 @@ public class FlexOrderTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 同値order(0)のdはaの後(安定ソート)。 */
+	/** d with equal order (0) follows a (stable sort). */
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 80, x, 0.1);
@@ -53,7 +53,7 @@ public class FlexOrderTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** order:1のcが視覚末尾。 */
+	/** c with order:1 is visually last. */
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 120, x, 0.1);

@@ -17,16 +17,15 @@ import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 
 /**
- * background-sizeの{@code contain}/{@code cover}キーワード形式のテストです
- * (2026-08-06)。
+ * Tests for the {@code contain}/{@code cover} keyword forms of background-size
+ * (2026-08-06).
  *
  * <p>
- * これまで{@code <length>|<percentage>|auto}の2値構文しか対応しておらず、
- * {@code contain}/{@code cover}は{@link PropertyException}になって既定の
- * {@code auto auto}(画像の原寸表示)へ丸ごと落ちていた。実寸より大きい
- * 画像(スプライトシート等)を小さい箱に収めるアイコンで、原寸のごく
- * 一部だけがクリップされて見える欠陥になっていた
- * (yahoo.co.jpのサイドバーアイコンで発覚)。
+ * Previously, only the two-value {@code <length>|<percentage>|auto} syntax was supported.
+ * {@code contain}/{@code cover} threw {@link PropertyException} and fell back entirely to
+ * the default {@code auto auto} (the image's original size). For icons fitting a larger image
+ * (such as a sprite sheet) into a small box, this showed only a clipped, tiny part of the
+ * original-size image (discovered in yahoo.co.jp sidebar icons).
  * </p>
  */
 public class BackgroundSizeTest extends TestCase {
@@ -79,7 +78,7 @@ public class BackgroundSizeTest extends TestCase {
 		}
 	}
 
-	/** 既存の<length>|<percentage>|auto構文は退行しないこと。 */
+	/** The existing <length>|<percentage>|auto syntax does not regress. */
 	public void testExistingLengthSyntaxUnchanged() throws Exception {
 		Entry[] entries = parse("10px 20px");
 		assertEquals(2, entries.length);

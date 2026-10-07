@@ -22,13 +22,14 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * grid・flex の箱の margin-bottom が効くことを固定します(2026-10-04、TECH-20261003-004 の⑰)。
- * 箱を開くとき上の余白が「子と相殺する待ち」のまま残り、閉じるときにそれと下の余白を
- * 相殺していたので、下の余白が「下−上」に減っていた(上下同じなら 0)。grid・flex は独立した
- * 整形文脈で、余白は中身と相殺しない(css-flexbox-1 §3、css-grid-1 §3)。
+ * Verify that margin-bottom works on grid/flex boxes (2026-10-04, TECH-20261003-004 item ⑰).
+ * On opening the box, its top margin remained pending collapse with a child; on closing,
+ * it collapsed with the bottom margin, reducing the latter to "bottom−top" (0 if equal).
+ * Grid/flex establish independent formatting contexts, so their margins do not collapse
+ * with their contents (css-flexbox-1 §3, css-grid-1 §3).
  */
 public class FlexGridMarginTest extends TestCase {
-	/** 行の高さ 18pt。上下の余白 10pt の箱の後ろの段落は、箱の行から 28pt 下にあるはず。 */
+	/** Line height is 18 pt. A paragraph after a box with 10 pt top/bottom margins should be 28 pt below its line. */
 	private static final String HTML = """
 			<!DOCTYPE html>
 			<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/><style>
@@ -58,15 +59,16 @@ public class FlexGridMarginTest extends TestCase {
 		assertEquals("grid の下の余白", 28f, y.get("P1") - y.get("Ga"), 0.05f);
 		assertEquals("flex の下の余白", 28f, y.get("P2") - y.get("Fa"), 0.05f);
 		assertEquals("上下で違う余白(下 20pt)", 38f, y.get("P3") - y.get("Fb"), 0.05f);
-		// item の余白(3pt)は箱の中に残り、箱の余白とは相殺しない
+		// The item's margin (3 pt) stays inside the box and does not collapse with the box's margin.
 		assertEquals("item の余白は箱の中", 31f, y.get("Fc") - y.get("P3"), 0.05f);
 		assertEquals("item の余白+箱の下の余白", 31f, y.get("P4") - y.get("Fc"), 0.05f);
 		assertEquals("block は今までどおり", 28f, y.get("P5") - y.get("Bd"), 0.05f);
 	}
 
 	/**
-	 * overflow:hidden・display:flow-root の箱も独立した整形文脈で、上の余白は最初の子の余白と
-	 * 相殺しない(CSS 2.1 §8.3.1。2026-10-04、ユーザー決定)。普通の block は今までどおり相殺する。
+	 * overflow:hidden/display:flow-root boxes also establish independent formatting contexts;
+	 * their top margins do not collapse with the first child's margin (CSS 2.1 §8.3.1;
+	 * user decision on 2026-10-04). Ordinary blocks continue to collapse margins as before.
 	 */
 	private static final String BFC_HTML = """
 			<!DOCTYPE html>
@@ -118,7 +120,7 @@ public class FlexGridMarginTest extends TestCase {
 			final PDFTextStripper stripper = new PDFTextStripper() {
 				@Override
 				protected void writeString(final String text, final java.util.List<TextPosition> positions) {
-					// 同じ行の語は同じ基準線(grid の 2 列は 1 行に出る)
+					// Words on the same line share a baseline (the grid's two columns appear on one line).
 					for (final String token : text.trim().split("\\s+")) {
 						y.put(token, positions.get(0).getYDirAdj());
 					}

@@ -33,7 +33,7 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
 
 public class RasterImageLoader implements ImageLoader {
-	/** {@code -Dfoliojet.debug.imageTrace}: 画像の読み込みの診断出力(起動時に決まる)。 */
+	/** {@code -Dfoliojet.debug.imageTrace}: image loading diagnostics (determined at startup). */
 	private static final boolean IMAGE_TRACE = System.getProperty("foliojet.debug.imageTrace") != null;
 
 	public boolean match(Source key) {
@@ -52,7 +52,7 @@ public class RasterImageLoader implements ImageLoader {
 		} else {
 			imageIn = ImageIO.createImageInputStream(source.getInputStream());
 		}
-		try { // ImageIOによるラスタ画像の取得
+		try { // Load a raster image through ImageIO.
 			Iterator<ImageReader> iri = ImageIO.getImageReaders(imageIn);
 			if (iri != null && iri.hasNext()) {
 				return true;
@@ -64,19 +64,19 @@ public class RasterImageLoader implements ImageLoader {
 	}
 
 	/**
-	 * 描画しないパス向けに、画素を展開せず固有寸法とEXIF方向だけを読みます。
+	 * Reads only intrinsic dimensions and EXIF orientation without decoding pixels, for passes that do not draw.
 	 */
 	public Image loadImageForLayout(final Source source) throws IOException {
 		return this.loadImageForLayout(source, -1L);
 	}
 
 	/**
-	 * 描画しないパス向けに、画素を展開せず固有寸法とEXIF方向だけを読みます。
-	 * 画素数の上限({@code input.image-pixel-limit})を超える画像は、出力の
-	 * パスと同じく{@link ImageTooLargeException}で断ります——測定と出力で
-	 * 画像の有無が食い違わないように(2026-10-03)。
+	 * Reads only intrinsic dimensions and EXIF orientation without decoding pixels, for passes that do not draw.
+	 * Reject images above the pixel limit ({@code input.image-pixel-limit}) with
+	 * {@link ImageTooLargeException}, as in the output pass, so measurement and output agree
+	 * on whether an image is present (2026-10-03).
 	 *
-	 * @param pixelLimit 最大画素数。負数は無制限
+	 * @param pixelLimit maximum pixel count; a negative value means unlimited
 	 */
 	public Image loadImageForLayout(final Source source, final long pixelLimit) throws IOException {
 		final ImageInputStream imageIn;
@@ -85,7 +85,7 @@ public class RasterImageLoader implements ImageLoader {
 		} else {
 			imageIn = new FileCacheImageInputStream(source.getInputStream(), null) {
 				public void flushBefore(long pos) {
-					// EXIF走査のため先頭へ戻れる状態を保つ。
+					// Keep the stream rewindable for EXIF scanning.
 				}
 			};
 		}
@@ -118,7 +118,7 @@ public class RasterImageLoader implements ImageLoader {
 					orientation = directory.getInt(ExifIFD0Directory.TAG_ORIENTATION);
 				}
 			} catch (ImageProcessingException | MetadataException e) {
-				// 方向情報が無ければ通常方向として扱う。
+				// Treat missing orientation information as normal orientation.
 			}
 
 			final Image metrics = new Image() {
@@ -131,7 +131,7 @@ public class RasterImageLoader implements ImageLoader {
 				}
 
 				public void drawTo(net.zamasoft.pdfg2d.gc.GC gc) {
-					// 描画しないパスの寸法専用画像。
+					// Dimensions-only image for passes that do not draw.
 				}
 
 				public String getAltString() {
@@ -151,13 +151,13 @@ public class RasterImageLoader implements ImageLoader {
 		} else {
 			imageIn = new FileCacheImageInputStream(source.getInputStream(), null) {
 				public void flushBefore(long pos) throws IOException {
-					// 再読み込み不可能になることを防止するため、flushを無視する
+					// Ignore flush to keep the image rereadable.
 				}
 			};
 		}
-		// uaはnullで呼ばれることがある(寸法だけを見る試験・経路)
+		// ua may be null (tests and paths that only inspect dimensions).
 		final long pixelLimit = ua == null ? -1L : UAProps.INPUT_IMAGE_PIXEL_LIMIT.getLong(ua);
-		try { // ImageIOによるラスタ画像の取得
+		try { // Load a raster image through ImageIO.
 			JPEGImageReader cir = null;
 			ImageReader jdkJpeg = null;
 			Iterator<ImageReader> iri = ImageIO.getImageReaders(imageIn);
@@ -168,10 +168,10 @@ public class RasterImageLoader implements ImageLoader {
 			while (iri != null && iri.hasNext()) {
 				ir = iri.next();
 				ir.setInput(imageIn);
-				// 画素数の上限はICCや型の判定より前に、ヘッダの寸法で見る
-				// (2026-10-03)。大きいと分かったら他のリーダは試さない。
-				// 寸法を読めないリーダは従来どおり次へ回し、選んだリーダで
-				// 下でもう一度判定する
+				// Check the pixel limit against header dimensions before inspecting ICC or image type
+				// (2026-10-03). Once the image is known to be too large, do not try other readers.
+				// If a reader cannot read dimensions, try the next as before, then check again
+				// below with the selected reader.
 				try {
 					G2DUtils.checkPixelLimit(ir, pixelLimit);
 				} catch (final ImageTooLargeException e) {
@@ -197,10 +197,10 @@ public class RasterImageLoader implements ImageLoader {
 							continue;
 						}
 						if (ir.getClass().getName().startsWith("com.sun.imageio.plugins.jpeg.")) {
-							// JDK標準のJPEGリーダはCMYK(4成分)を読めないため
-							// 後回しにする。ImageIOレジストリの登録順は環境で
-							// 変わる(デーモンではJDKが先に並ぶことを実測)ので、
-							// 順序に依存せずTwelveMonkeys優先を保証する(2026-08-10)
+							// Defer the JDK's standard JPEG reader because it cannot read CMYK (4 components).
+							// ImageIO registry order varies by environment
+							// (the JDK reader came first in the daemon in actual measurements), so ensure
+							// TwelveMonkeys takes priority regardless of registration order (2026-08-10).
 							jdkJpeg = ir;
 							ir = null;
 							continue;
@@ -228,7 +228,7 @@ public class RasterImageLoader implements ImageLoader {
 					cir.dispose();
 				}
 			}
-			// 選んだリーダでの判定。寸法を読めなければ、上限があるときは断る
+			// Check with the selected reader. If it cannot read dimensions and a limit is set, reject the image.
 			try {
 				G2DUtils.checkPixelLimit(ir, pixelLimit);
 			} catch (final ImageTooLargeException e) {
@@ -240,7 +240,7 @@ public class RasterImageLoader implements ImageLoader {
 			try {
 				formatName = ir.getFormatName();
 			} catch (IOException e) {
-				// 形式名が取れない場合は従来どおり復号画像を使う。
+				// If the format name is unavailable, use the decoded image as before.
 			}
 			if (IMAGE_TRACE) {
 				System.err.println("[img] chosen=" + ir.getClass().getName());
@@ -251,7 +251,7 @@ public class RasterImageLoader implements ImageLoader {
 				Metadata metadata = ImageMetadataReader.readMetadata(new ImageInputStreamProxy(imageIn));
 				Directory directory = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
 				if (directory != null && directory.containsTag(ExifIFD0Directory.TAG_ORIENTATION)) {
-					// EXIFありかつ、画像方向ありの場合は取得する
+					// Read image orientation if EXIF and orientation information are present.
 					orientation = directory.getInt(ExifIFD0Directory.TAG_ORIENTATION);
 				}
 			} catch (ImageProcessingException e) {
@@ -274,18 +274,18 @@ public class RasterImageLoader implements ImageLoader {
 				System.err.println("[img] decoded " + decoded.getWidth() + "x" + decoded.getHeight() + " type="
 						+ decoded.getType());
 			}
-				// **元のバイト列をそのまま外へ出せるなら、焼き直さない**
-			// (2026-08-28)。ブラウザが読める形式に限る。判定はUAの能力で
-			// 行う——output.typeの文字列比較は、画像を読む時点では
-			// application/pdfが返るため一度も成立していなかった(実測)
-			// uaはnullで呼ばれることがある(寸法だけを見る試験・経路)
+				// **Do not re-encode if the original bytes can be emitted unchanged**
+			// (2026-08-28). Limit this to formats browsers can read. Check UA capabilities:
+			// comparing output.type strings never matched, because it returned
+			// application/pdf when images were loaded (observed).
+			// ua may be null (tests and paths that only inspect dimensions).
 			final boolean keepEncoded = ua != null && ua.keepsEncodedImages();
 			String[] passThrough = keepEncoded && orientation == 1 ? browserFormat(formatName) : null;
 			byte[] encoded = null;
 			if (passThrough != null) {
 				encoded = readAll(imageIn);
 				if ("jpg".equals(passThrough[1]) && jpegComponents(encoded) > 3) {
-					// CMYKのJPEG。主要なブラウザが正しく描けないので画素を使う
+					// CMYK JPEG: use pixels because major browsers cannot render it correctly.
 					passThrough = null;
 					encoded = null;
 				}
@@ -347,7 +347,7 @@ public class RasterImageLoader implements ImageLoader {
 		}
 	}
 
-	/** ブラウザがそのまま表示できる形式なら{@code {MIME型, 拡張子}}を返します。 */
+	/** Returns {@code {MIME type, extension}} for formats browsers can display directly. */
 	private static String[] browserFormat(final String formatName) {
 		if (formatName == null) {
 			return null;
@@ -362,13 +362,13 @@ public class RasterImageLoader implements ImageLoader {
 	}
 
 	/**
-	 * JPEGの成分数をSOFマーカから読みます(1=グレー、3=YCbCr、4=CMYK)。
+	 * Reads the number of JPEG components from the SOF marker (1 = gray, 3 = YCbCr, 4 = CMYK).
 	 *
 	 * <p>
-	 * ImageIOの{@code getRawImageType}に訊く手もあるが、読み手によっては
-	 * 例外を投げたり{@code null}を返したりして<b>判定が読み手依存になる</b>
-	 * (実測: TwelveMonkeysのJPEG読み手で通常のYCbCrでも判定できず、
-	 * パススルーが全て落ちていた)。バイト列から直に読めば読み手に依らない。
+	 * ImageIO's {@code getRawImageType} is another option, but some readers throw exceptions
+	 * or return {@code null}, making <b>detection reader-dependent</b>
+	 * (observed: TwelveMonkeys' JPEG reader failed to detect even normal YCbCr,
+	 * disabling all passthrough). Reading the bytes directly avoids reader dependencies.
 	 * </p>
 	 */
 	private static int jpegComponents(final byte[] jpeg) {
@@ -383,16 +383,16 @@ public class RasterImageLoader implements ImageLoader {
 				continue;
 			}
 			final int length = ((jpeg[i + 2] & 0xFF) << 8) | (jpeg[i + 3] & 0xFF);
-			// SOF0〜SOF15(DHT=0xC4・JPG=0xC8・DAC=0xCCを除く)に成分数がある
+			// SOF0–SOF15 (except DHT=0xC4, JPG=0xC8, and DAC=0xCC) contain the component count.
 			if (marker >= 0xC0 && marker <= 0xCF && marker != 0xC4 && marker != 0xC8 && marker != 0xCC) {
 				return jpeg[i + 9] & 0xFF;
 			}
 			if (marker == 0xDA) {
-				break; // 画像本体。ここまでに無ければ判定できない
+				break; // Image payload. If no count was found by this point, detection is impossible.
 			}
 			i += 2 + Math.max(length, 2);
 		}
-		return 3; // 判定できないときは通常のカラーとして扱う
+		return 3; // Treat undetectable images as normal color images.
 	}
 
 	private static byte[] readAll(final ImageInputStream imageIn) throws IOException {
@@ -410,56 +410,56 @@ public class RasterImageLoader implements ImageLoader {
 		final double width = image.getWidth();
 		final double height = image.getHeight();
 		switch (orientation) {
-		case 2: // 左右反転
+		case 2: // Flip horizontally.
 			at.scale(-1, 1);
 			at.translate(-width, 0);
 			break;
-		case 3: // 180度回転
+		case 3: // Rotate 180 degrees.
 			at.rotate(Math.PI, width / 2.0, height / 2.0);
 			break;
-		case 4: // 上下反転
+		case 4: // Flip vertically.
 			at.scale(1, -1);
 			at.translate(0, -height);
 			break;
-		case 5: // 左右反転して時計回り90度
+		case 5: // Flip horizontally, then rotate 90 degrees clockwise.
 			at.rotate(Math.PI / 2);
 			at.scale(-1, 1);
 			at.translate(0, -height);
 			break;
-		case 6: // 時計回り90度
+		case 6: // Rotate 90 degrees clockwise.
 			at.rotate(Math.PI / 2);
 			at.translate(0, -height);
 			break;
-		case 7: // 左右反転して時計回り270度
+		case 7: // Flip horizontally, then rotate 270 degrees clockwise.
 			at.rotate(-Math.PI / 2);
 			at.scale(-1, 1);
 			at.translate(-width, 0);
 			break;
-		case 8: // 時計回り270度
+		case 8: // Rotate 270 degrees clockwise.
 			at.rotate(-Math.PI / 2);
 			at.translate(-width, 0);
 			break;
-		default: // 通常
+		default: // Normal
 			return image;
 		}
 		return new OrientedImage(image, at);
 	}
 
 	/**
-	 * EXIFの向きを読み取るために先読みするバイト数です。
+	 * Number of bytes to read ahead for EXIF orientation.
 	 *
 	 * <p>
-	 * JPEGのEXIFはAPP1セグメント(最大64KB)に入り、必ず先頭付近にある。
-	 * 余裕を見て256KBまで覗けば、実用上取りこぼさない。
+	 * JPEG EXIF is in an APP1 segment (up to 64 KB), always near the start.
+	 * Reading up to 256 KB provides enough margin to avoid missing it in practice.
 	 */
 	private static final int ORIENTATION_HEADER = 256 * 1024;
 
 	/**
-	 * 先頭のバイト列からEXIFの向きを読みます。読めなければ1(通常)。
+	 * Reads EXIF orientation from the leading bytes. Returns 1 (normal) if unavailable.
 	 *
 	 * <p>
-	 * 途中で切れたバイト列を渡されることを前提にしており、解析に失敗しても
-	 * 例外は投げない——向きが読めないことは、画像が読めないことではない。
+	 * Assumes the byte sequence may be truncated and does not throw on parsing failure:
+	 * failure to read orientation does not mean the image is unreadable.
 	 */
 	public static int readOrientation(final byte[] header) {
 		try {
@@ -470,22 +470,21 @@ public class RasterImageLoader implements ImageLoader {
 				return directory.getInt(ExifIFD0Directory.TAG_ORIENTATION);
 			}
 		} catch (final Exception e) {
-			// 向きが読めないものは通常の向きとして扱う
+			// Treat unreadable orientation as normal.
 		}
 		return 1;
 	}
 
 	/**
-	 * 資源の先頭を覗いてEXIFの向きを読み、<b>同じストリームを頭出しした状態で
-	 * 返す資源</b>と一緒に返します(2026-08-30)。
+	 * Peeks at the start of a resource to read EXIF orientation, and returns it with
+	 * <b>a resource that returns the same stream rewound to its start</b> (2026-08-30).
 	 *
 	 * <p>
-	 * {@code Source#getInputStream}は呼び直せば先頭から読み直せる契約だが、
-	 * HTTPの資源では<b>もう一度取りに行く</b>ことになる。ここでは1本の
-	 * ストリームを{@code mark}/{@code reset}で覗くだけにして、取得を二度
-	 * 起こさない。
+	 * {@code Source#getInputStream} promises to restart reading on each call, but for HTTP resources
+	 * that means <b>fetching again</b>. Here, peek into a single stream using
+	 * {@code mark}/{@code reset} to avoid fetching twice.
 	 *
-	 * @return {@code {向き, 資源}}。覗けなかったときは向き1と元の資源
+	 * @return {@code {orientation, resource}}; orientation 1 and the original resource if peeking fails
 	 */
 	public static Object[] peekOrientation(final Source source) {
 		try {
@@ -499,14 +498,14 @@ public class RasterImageLoader implements ImageLoader {
 				System.err.println("[img] peek orientation=" + orientation + " header=" + header.length
 						+ " source=" + source.getURI());
 			}
-			// **向きが無くても、覗いたストリームを持つ資源を返す**(2026-09-02)。
-			// 以前は向き1なら元の資源をそのまま返していたが、CTIPで主文書として
-			// 流れてくる資源はStreamSourceで、getInputStream()を呼び直すと
-			// 8KiBのmarkへresetする契約になっている。ここで256KiBを読んだ後に
-			// 元の資源を読み直すと"Resetting to invalid mark"で落ち、**8KiBを
-			// 超える画像を主文書にすると変換できなかった**(cti.liの報告、
-			// 2026-09-01: 8,022Bは通り9,108Bで落ちる)。覗いた分は手元の
-			// バッファに残っているので、それを頭出しして渡せば読み直しが起きない
+			// **Return the resource holding the peeked stream even without orientation** (2026-09-02).
+			// Previously, orientation 1 returned the original resource, but a main-document resource
+			// streamed over CTIP is a StreamSource, whose getInputStream() contract
+			// resets to an 8 KiB mark on subsequent calls. After reading 256 KiB here,
+			// rereading the original resource failed with "Resetting to invalid mark", so **images
+			// larger than 8 KiB could not be converted as main documents** (cti.li report,
+			// 2026-09-01: 8,022 B succeeded, 9,108 B failed). The peeked bytes remain in the local
+			// buffer; rewind and pass it on to avoid rereading.
 			return new Object[] { Integer.valueOf(orientation),
 					new net.zamasoft.zstream.resolver.util.SourceWrapper(source) {
 						private boolean taken = false;
@@ -526,20 +525,20 @@ public class RasterImageLoader implements ImageLoader {
 	}
 
 	/**
-	 * 読み込み済みの画像へEXIFの向きを適用します。向き1(通常)なら
-	 * 同じ実体をそのまま返します。
+	 * Applies EXIF orientation to a loaded image. For orientation 1 (normal),
+	 * returns the same instance unchanged.
 	 */
 	public static Image orient(final Image image, final int orientation) {
 		return orientation == 1 ? image : applyOrientation(image, orientation);
 	}
 
 	/**
-	 * EXIFの向きを適用した画像です(2026-08-30)。
+	 * An image with EXIF orientation applied (2026-08-30).
 	 *
 	 * <p>
-	 * ただの{@link TransformedImage}にすると、px→pt換算で掛かる同型の包みと
-	 * 見分けが付かない。{@code image-orientation: none}のときに<b>向きだけを
-	 * 外す</b>ために、専用の型で印を付けておく。
+	 * A plain {@link TransformedImage} is indistinguishable from the same type of wrapper
+	 * used for px-to-pt conversion. Mark it with a dedicated type so
+	 * {@code image-orientation: none} can <b>remove only the orientation</b>.
 	 */
 	public static final class OrientedImage extends TransformedImage {
 		OrientedImage(final Image image, final AffineTransform at) {
@@ -548,13 +547,13 @@ public class RasterImageLoader implements ImageLoader {
 	}
 
 	/**
-	 * 包みの連なりから<b>EXIFの向きだけ</b>を外した画像を返します
-	 * ({@code image-orientation: none})。向きが掛かっていなければ同じ実体を
-	 * そのまま返すので、呼び出し側は無条件に通してよい。
+	 * Returns an image with <b>only EXIF orientation</b> removed from its wrapper chain
+	 * ({@code image-orientation: none}). If no orientation is applied, returns the same instance
+	 * unchanged, so callers can use this unconditionally.
 	 *
 	 * <p>
-	 * 向きの包みはpx→pt換算の包みの内側にあるので、外側の包みは作り直して
-	 * 掛け直す。固有寸法もこれで元へ戻る(90度回転なら縦横が入れ替わる)。
+	 * The orientation wrapper sits inside the px-to-pt conversion wrapper, so rebuild and reapply
+	 * the outer wrappers. This also restores intrinsic dimensions (a 90-degree rotation swaps width and height).
 	 */
 	public static Image withoutOrientation(final Image image) {
 		if (image instanceof OrientedImage oriented) {

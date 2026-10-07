@@ -41,22 +41,20 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 保持系(RetainedTableBuilder / TwoPassBlockBuilder / LayoutSource /
- * SelectorFacts)の保持量high-waterのレポートテストです(E-6増分1、
- * 2026-07-24。spillableテープ基盤のspill閾値・対象選定の実測基盤——
- * 設計相談 §3-1)。
+ * Report test for retention high-water marks in RetainedTableBuilder / TwoPassBlockBuilder / LayoutSource /
+ * SelectorFacts (E-6 increment 1, 2026-07-24). Provides measurements for selecting spill thresholds
+ * and targets for the spillable tape infrastructure; see design consultation §3-1.
  *
  * <p>
- * TableBuildCharacterizationTestと同じ「空虚な緑の防止」: 観測カウンタが
- * 実際に配線されている(既知の文書で発火する)ことを固定し、あわせて
- * 現在値をstderrへレポートする。範囲再生の保持量を比較するときに
- * カウンタが死んだ場合、このテストが検出する。
+ * Like TableBuildCharacterizationTest, this prevents "vacuous green": verify that observation counters
+ * are actually wired up (fire on known documents), and report their current values to stderr.
+ * If counters stop working while comparing retention during range replay, this test detects it.
  * </p>
  */
 public class RetentionHighWaterReportTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** golden/D7と同じ永続文書で、実断片の送出ゼロを検出する。 */
+	/** Detect zero actual fragment emissions using the same persistent documents as golden/D7. */
 	public void testRowStreamingFixtureEmitsAndBoundsRows() throws Exception {
 		final RowRetentionReport report = new RowRetentionReport();
 		try (final AutoCloseable observer = report.observe()) {
@@ -65,17 +63,17 @@ public class RetentionHighWaterReportTest extends TestCase {
 					Map.of("input.include", "**", "input.property-pi", "true", "processing.fail-on-fatal-error", "true",
 							"processing.table-row-emission", "true")));
 		}
-		// 最大100pt頁、本文行は少なくとも9.1pt。0.5pt同値幅と次の1行を含める。
+		// Pages are at most 100 pt; body lines are at least 9.1 pt. Include the 0.5 pt equivalence band and one more line.
 		report.assertStreamingBound((int) Math.floor(100.5 / 9.1), 1, 1, 2);
 		System.err.println("[B-2c permanent fixture] " + report);
 	}
 
 	public void testRowStreamingCaptionFixtureEmitsOnlyBottomSide() throws Exception {
 		final RowRetentionReport report = streamingFixture("caption");
-		// 上だけ・下だけ・両方の3表。下だけの1表が送出し、両方の表はCAPTIONで除外。
+		// Three tables: top only, bottom only, and both. The bottom-only table emits; the table with both is excluded by CAPTION.
 		report.assertFeature(RowRetentionReport.Feature.TOP_CAPTION, 2, 0);
 		report.assertFeature(RowRetentionReport.Feature.BOTTOM_CAPTION, 2, 1);
-		// captionのbreak-before指定だけから、その配置中に改頁したとは断定しない。
+		// A caption's break-before declaration alone does not prove that a page break occurred during its placement.
 		report.assertTableCounts(3, 1);
 		report.assertStreamingBound((int) Math.floor(100.5 / 9.1), 1, 1, 2);
 		assertEquals(2, report.exclusionCount(
@@ -84,7 +82,7 @@ public class RetentionHighWaterReportTest extends TestCase {
 
 	public void testRowStreamingGroupHeightFixtureActuallyDistributesHeight() throws Exception {
 		final RowRetentionReport report = streamingFixture("group-height");
-		// 配分は2表とも行うが、ABSOLUTE指定は親の寸法会計が未対応なので送出しない。
+		// Distribute for both tables, but do not emit ABSOLUTE because parent dimension accounting does not support it yet.
 		report.assertFeature(RowRetentionReport.Feature.ABSOLUTE_GROUP_SIZE, 2, 0);
 		report.assertFeature(RowRetentionReport.Feature.GROUP_SIZE_GROWTH, 2, 0);
 		report.assertFeature(RowRetentionReport.Feature.ZERO_GROUP_SIZE_GROWTH, 1, 0);
@@ -106,7 +104,7 @@ public class RetentionHighWaterReportTest extends TestCase {
 		return report;
 	}
 
-	/** 通常CI: 短セル40行のslice所有、compact、終了清算前の解放を固定する。 */
+	/** Normal CI: verify slice ownership, compaction, and release before final cleanup for 40 short-cell rows. */
 	public void testShortCellOwnershipAndRelease() throws Exception {
 		final int rows = 40;
 		final File file = EnduranceTest.generateManyRowsTable("t5a-short-cell-ownership", rows);
@@ -153,18 +151,19 @@ public class RetentionHighWaterReportTest extends TestCase {
 	}
 
 	/**
-	 * 短セル3列の表: 列幅確定前の保持と、MAIN消費後・終了清算前を分けて測る。
-	 * 6,000行の変換・明示GC・histogramは{@code -Dfoliojet.perf}または
-	 * {@code -Dfoliojet.retentionDiag}指定時だけ実行する。行数の上書きは
-	 * {@code -Dfoliojet.retentionRows}で行う。
-	 * 表の観測段階はbefore-table-end、after-input-rows-N、before-pass-b、
-	 * after-pass-b、during-pass-c、after-row-N(全グループ通算2,000行ごと)、
-	 * before-row-emission、after-row-emission、after-row-completion、after-table-end。
+	 * Three-column table with short cells: measure retention before column widths are finalized separately
+	 * from retention after MAIN consumption but before final cleanup.
+	 * Run the 6,000-row conversion, explicit GC, and histogram only with {@code -Dfoliojet.perf} or
+	 * {@code -Dfoliojet.retentionDiag}. Override the row count with {@code -Dfoliojet.retentionRows}.
+	 * Table observation stages are before-table-end, after-input-rows-N, before-pass-b,
+	 * after-pass-b, during-pass-c, after-row-N (every 2,000 rows across all groups),
+	 * before-row-emission, after-row-emission, after-row-completion, and after-table-end.
 	 *
-	 * <p>追加課題: 5MB単一セルがOOM(18秒)からTIMEOUT(420秒)になった原因は未確定で、
-	 * 完走の改善実績には数えない。次はPass B/C別時間・GC時間・compact走査件数を観測する。
-	 * 10,000行に向けては全体寸法確定後の行単位配置と、全行木・配置済み木・
-	 * 計画参照を分けて観測する。R1-liteではMAIN適用済みの行計画だけを解放する。</p>
+	 * <p>Follow-up: why a single 5 MB cell went from OOM (18 seconds) to TIMEOUT (420 seconds) remains unknown;
+	 * do not count this as improved completion. Next, observe Pass B/C times, GC time, and compact scan counts.
+	 * For 10,000 rows, observe row-wise layout after overall dimensions are finalized, distinguishing
+	 * the entire row tree, the laid-out tree, and plan references. R1-lite releases only row plans
+	 * already applied in MAIN.</p>
 	 */
 	public void testShortCellManyRowsRetention() throws Exception {
 		if (System.getProperty("foliojet.perf") == null
@@ -223,7 +222,7 @@ public class RetentionHighWaterReportTest extends TestCase {
 			report();
 			Files.deleteIfExists(file.toPath());
 		}
-		// 観測値の閾値は固定しない。変換の正常終了だけを受け入れる。
+		// Do not fix thresholds for observations. Accept only normal conversion completion.
 	}
 
 	static LiveTableBoxes reportStage(final String stage, final LayoutSource source) {
@@ -240,11 +239,11 @@ public class RetentionHighWaterReportTest extends TestCase {
 		return null;
 	}
 
-	/** 箱を保持せず、同時点のlive histogramの個数だけを返す。nullは採取未完了。 */
+	/** Return only live histogram counts at that instant, without retaining boxes. null means collection is incomplete. */
 	record LiveTableBoxes(long rows, long cells) {
 	}
 
-	/** 変換スレッドを止めた同じ時点のlive histogram。JDKがない環境では観測だけ省略する。 */
+	/** Live histogram at the same instant with the conversion thread paused. Skip only observation if no JDK is available. */
 	private static LiveTableBoxes reportClassHistogram(final String stage) {
 		final String prefix = "[T5a histogram stage=" + stage + "] ";
 		final String executable = File.separatorChar == '\\' ? "jcmd.exe" : "jcmd";
@@ -259,8 +258,8 @@ public class RetentionHighWaterReportTest extends TestCase {
 			return null;
 		}
 		final java.util.concurrent.atomic.AtomicReference<LiveTableBoxes> live = new java.util.concurrent.atomic.AtomicReference<>();
-		// 上位25クラスと、順位が下がったCSSStyle/Value[]・行計画/行箱も必ず出す。
-		// 全行を読んでpipeを詰まらせず、行数増加中の生存数を同じ書式で比較する。
+		// Always output the top 25 classes plus CSSStyle/Value[], row plans, and row boxes even if their ranks drop.
+		// Read all lines to avoid blocking the pipe; compare live counts as row counts grow using the same format.
 		final Thread reader = Thread.startVirtualThread(() -> {
 			try (var input = process.inputReader(StandardCharsets.UTF_8)) {
 				int rows = 0;
@@ -325,14 +324,14 @@ public class RetentionHighWaterReportTest extends TestCase {
 		return live.get();
 	}
 
-	/** T3a: huge-gridをTwoPass宿主へ入れ、吸収済み計画の追加保持がゼロであることを確認する。 */
+	/** T3a: place huge-grid in a TwoPass host and verify zero additional retention by absorbed plans. */
 	public void testHugeGridParentPlanRetention() throws Exception {
 		final String html = Files.readString(Path.of("files/unittest/0500-twopass-range/huge-grid.html"))
 				.replace("<body>", "<body><div style='float:left;width:auto'>")
 				.replace("</body>", "</div></body>");
 		final Set<TwoPassBlockBuilder> owners = Collections.newSetFromMap(new IdentityHashMap<>());
 		final long[] observedItems = { 0 };
-		// 測定のresetを他の試験へ漏らさない。出力はこのfixtureだけのhigh-water。
+		// Do not let measurement resets affect other tests. Output the high-water marks for this fixture only.
 		final AtomicLong[] counters = { TableBuildStats.SOURCE_LEASE_HIGH_WATER,
 				TableBuildStats.SOURCE_RETAINED_EVENT_HIGH_WATER, TableBuildStats.SOURCE_OLDEST_WATERMARK_LAG_HIGH_WATER,
 				TableBuildStats.SOURCE_OLDEST_WATERMARK_AT_HIGH_WATER };
@@ -379,8 +378,8 @@ public class RetentionHighWaterReportTest extends TestCase {
 	}
 
 	/**
-	 * auto表(thead/tfoot・colspanつき)で、Retained保持形状・TwoPass・
-	 * LayoutSourceの各high-waterが観測されることを固定する。
+	 * Verify that an auto table (with thead/tfoot and colspan) exposes high-water marks
+	 * for Retained retention shape, TwoPass, and LayoutSource.
 	 */
 	public void testRetainedAutoTableHighWaterObserved() throws Exception {
 		final int bodyRows = 200;
@@ -418,9 +417,9 @@ public class RetentionHighWaterReportTest extends TestCase {
 		assertTrue("LayoutSourceイベント数のhigh-waterが観測されていません",
 				ContinuationStats.SOURCE_EVENT_HIGH_WATER.get() > 0);
 
-		// E-6増分5a: セルclose時のrange sealがこの表の全実セル規模で発火し
-		// (プレーンテキストセルは全て適格のはず)、seal数とbind数が一致する
-		// (リース1:1)。
+		// E-6 increment 5a: range sealing at cell close fires for every real cell in this table
+		// (all plain-text cells should qualify), and the seal and bind counts match
+		// (1:1 leases).
 		final long cellSeals = ContinuationStats.CELL_RANGE_SEALS.get() - cellSealsBefore;
 		final long cellRangeBinds = ContinuationStats.CELL_RANGE_BINDS.get() - cellRangeBindsBefore;
 		assertTrue("セルrange seal(E-6増分5a)がauto表の実セル規模で発火していません: " + cellSeals,
@@ -428,9 +427,9 @@ public class RetentionHighWaterReportTest extends TestCase {
 		assertEquals("セルseal数とセルrange bind数が一致しません(リース取り残しの疑い)", cellSeals,
 				cellRangeBinds);
 
-		// E-6増分5b-2: 全実セルがseal適格のこの表はPass C(行単位逐次bind)で
-		// 処理され、Pass B(行計測)が実セル規模で発火する——「行高計算中は
-		// bind済みセル本文木ゼロ(計測木は都度破棄)」の観測指標
+		// E-6 increment 5b-2: all real cells in this table qualify for sealing, so Pass C
+		// (sequential row-wise binding) handles it, and Pass B (row measurement) fires for all real cells.
+		// This observes "zero bound cell-body trees during row-height calculation (measurement trees discarded each time)."
 		assertTrue("auto表が表Pass C(行単位逐次bind)で処理されていません",
 				ContinuationStats.TABLE_PASS_C_TABLES.get() > passCTablesBefore);
 		final long passBMeasures = ContinuationStats.TABLE_PASS_B_CELL_MEASURES.get() - passBMeasuresBefore;
@@ -441,8 +440,8 @@ public class RetentionHighWaterReportTest extends TestCase {
 	}
 
 	/**
-	 * STRUCTURE_SCAN(:last-child系)と:has()で、SelectorFactsの各Map/Setの
-	 * エントリ数high-waterが観測されることを固定する。
+	 * Verify that STRUCTURE_SCAN (:last-child family) and :has() expose
+	 * entry-count high-water marks for each SelectorFacts Map/Set.
 	 */
 	public void testSelectorFactsHighWaterObserved() throws Exception {
 		this.transcode(new File("files/unittest/3000-SELECTOR/last-child-family.html"), "e6-hw-last-child-family", 2);
@@ -461,7 +460,7 @@ public class RetentionHighWaterReportTest extends TestCase {
 		report();
 	}
 
-	/** 現在のhigh-water値をstderrへレポートする(このJVMで走った全テストの累積)。 */
+	/** Report current high-water marks to stderr (cumulative across all tests run in this JVM). */
 	private static void report() {
 		final StringBuilder s = new StringBuilder();
 		s.append("[E-6 retention high-water]\n");
@@ -517,9 +516,9 @@ public class RetentionHighWaterReportTest extends TestCase {
 	}
 
 	/**
-	 * table-layout:auto(既定)の表を、thead/tfoot・colspan(2種類の
-	 * (開始列,colspan)制約)つきで生成する。golden比較対象ではないため
-	 * files/unittestへは置かずlocal/unittestへ都度生成する。
+	 * Generate a table with table-layout:auto (the default), thead/tfoot, and colspan
+	 * (two kinds of (start column, colspan) constraints). Since it is not a golden comparison target,
+	 * generate it each time under local/unittest rather than storing it under files/unittest.
 	 */
 	private static File generateAutoTable(String name, int bodyRows, int columns) throws IOException {
 		final File dir = new File("local/unittest/generated");
@@ -547,11 +546,11 @@ public class RetentionHighWaterReportTest extends TestCase {
 				w.write("<tr>");
 				int c = 0;
 				if (i == 0) {
-					// (開始列0, colspan2)の制約
+					// Constraint (start column 0, colspan 2).
 					w.write("<td colspan=\"2\">span2</td>");
 					c = 2;
 				} else if (i == 1) {
-					// (開始列0, colspan3)の制約
+					// Constraint (start column 0, colspan 3).
 					w.write("<td colspan=\"3\">span3</td>");
 					c = 3;
 				}

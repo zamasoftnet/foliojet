@@ -19,7 +19,7 @@ import net.zamasoft.foliojet.layout.text.LeaderQuad;
 import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
 
-/** bidi-isolation-design.md Stage 1 受入 1〜7。 */
+/** bidi-isolation-design.md Stage 1 acceptance checks 1–7. */
 public class ParagraphBidiTest extends AbstractTestCase {
 	private static final String SEMANTIC_TEXT = "אבג-ABC-דהו-DEF-וזח-GHI-טיך-JKL";
 	private int fragmentLines, startEdges, endEdges;
@@ -82,7 +82,7 @@ public class ParagraphBidiTest extends AbstractTestCase {
 		if (!(box instanceof AbstractLineBox line)) {
 			return false;
 		}
-		// visual tree の文字列は論理 scalar を保つ。奇数 level では GID だけ鏡像化する。
+		// Visual-tree strings preserve logical scalars. At odd levels, only GIDs are mirrored.
 		final String visual = "»\u05D5\u05D4\u05D3« }ABC{ ]\u05D2\u05D1\u05D0[ )\u05D2\u05D1\u05D0(";
 		assertEquals(visual, visualText(line.getVisualContents()));
 		assertVisualCoordinates(line, visual);
@@ -273,7 +273,7 @@ public class ParagraphBidiTest extends AbstractTestCase {
 			if (nested instanceof InlineFragmentView fragment) {
 				this.startEdges += fragment.keepsStartEdge() ? 1 : 0;
 				this.endEdges += fragment.keepsEndEdge() ? 1 : 0;
-				// rtl の要素なので start 辺は右、end 辺は左に出る(中間 fragment は両側とも無い)
+				// For an rtl element, the start edge appears on the right and end edge on the left (middle fragments have neither).
 				final double left = fragment.getFrame().frame.border.getLeft().width;
 				final double right = fragment.getFrame().frame.border.getRight().width;
 				assertEquals("rtl fragment: right border iff start edge", fragment.keepsStartEdge(), right > 0);
@@ -319,7 +319,10 @@ public class ParagraphBidiTest extends AbstractTestCase {
 	private record PositionedText(double x, String text) {
 	}
 
-	/** 描画時と同じ advance で x を積み、左→右の run 順を受入文字列と照合する。 */
+	/**
+	 * Accumulates x using the same advances as rendering, and compares left-to-right run order with the
+	 * acceptance string.
+	 */
 	private static void assertVisualCoordinates(final AbstractLineBox line, final String expected) {
 		final List<PositionedText> positioned = new ArrayList<>();
 		final double[] cursor = { line.getLineAlign() };

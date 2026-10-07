@@ -6,8 +6,8 @@ import java.util.ResourceBundle;
 import jp.cssj.cti2.helpers.CTIMessageHelper;
 
 /**
- * メッセージコードを可読なテキストにします。
- * 
+ * Converts message codes to readable text.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class MessageCodeUtils {
@@ -18,8 +18,8 @@ public class MessageCodeUtils {
 	private static final ResourceBundle BUNDLE = ResourceBundle.getBundle(MessageCodes.class.getName());
 
 	/**
-	 * メッセージコードに対応するメッセージフォーマットを返します。
-	 * 
+	 * Returns the message format corresponding to a message code.
+	 *
 	 * @param code
 	 * @return
 	 */
@@ -39,10 +39,10 @@ public class MessageCodeUtils {
 	}
 
 	/**
-	 * メッセージの引数に埋める補足文(「近似の内容」など)を、コードと同じ
-	 * カタログから引きます。見つからなければ鍵をそのまま返す(2026-08-29)。
+	 * Looks up supplementary text for message arguments (such as "approximation details")
+	 * in the same catalog as the code. Returns the key unchanged if not found (2026-08-29).
 	 *
-	 * @param key カタログの鍵(例 {@code 2822.blur-rings})
+	 * @param key catalog key (e.g., {@code 2822.blur-rings})
 	 */
 	public static String detail(final String key) {
 		try {
@@ -53,8 +53,8 @@ public class MessageCodeUtils {
 	}
 
 	/**
-	 * メッセージを文字列化します。
-	 * 
+	 * Formats a message as a string.
+	 *
 	 * @param code
 	 * @return
 	 */

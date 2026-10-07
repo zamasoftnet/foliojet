@@ -20,20 +20,20 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 入出力プロパティが<b>本当に効いているか</b>を差分で検査します
- * (2026-08-02新設)。
+ * Use differences to check whether I/O properties <b>actually take effect</b>
+ * (introduced on 2026-08-02).
  *
  * <p>
- * {@code PdfIoPropertyTest}の一部は「設定しても変換が壊れない」ことしか
- * 見ておらず、<b>プロパティが丸ごと無視されていても通ってしまう</b>
- * ——実際にそういう欠陥(HTTPのUser-Agentが送られない)が長く残っていた。
- * ここでは<b>同じ文書を2通りの設定で変換し、出力が異なること</b>を見る。
- * 値がどこにどう出るかを知らなくても、配線の有無は捕まえられる。
+ * Some {@code PdfIoPropertyTest} cases only check that setting a property does not break conversion;
+ * <b>they pass even if the property is completely ignored</b>.
+ * Such a defect (the HTTP User-Agent was not sent) actually persisted for a long time.
+ * Here, <b>convert the same document with two settings and check that the output differs</b>.
+ * This detects whether the property is wired up without knowing where or how its value appears.
  * </p>
  *
  * <p>
- * 差分が出ない場合は「そのプロパティがこの文書に効かない」可能性もある
- * ので、<b>効くはずの文書を選ぶ</b>ことがこの検査の設計の要になる。
+ * No difference might also mean that the property does not affect this particular document,
+ * so <b>choosing a document it should affect</b> is central to designing this check.
  * </p>
  */
 public class EffectiveIoPropertyTest extends TestCase {
@@ -43,7 +43,7 @@ public class EffectiveIoPropertyTest extends TestCase {
 
 	private static final File WITH_IMAGE = new File("files/unittest/ioprops/link-and-image.html");
 
-	/** 1件の差分検査。 */
+	/** One difference check. */
 	private record Case(String name, File document, Map<String, String> a, Map<String, String> b) {
 	}
 
@@ -129,8 +129,8 @@ public class EffectiveIoPropertyTest extends TestCase {
 					session.property("input.include", "**");
 				}
 				session.property("output.pdf.compression", "none");
-				// 生成時刻とファイルIDを固定しないと、同じ設定でも出力が
-				// 変わってしまい差分検査が意味を失う
+				// Without fixing the generation time and file ID, output changes even with identical settings,
+				// making the difference check meaningless.
 				session.property("output.pdf.meta.creation-date", "2020-01-02 03:04:05");
 				session.property("output.pdf.meta.mod-date", "2020-01-02 03:04:05");
 				session.property("output.pdf.file-id", "0123456789abcdef0123456789abcdef");

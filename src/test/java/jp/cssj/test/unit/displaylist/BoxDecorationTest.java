@@ -18,18 +18,18 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>box-shadow と outline の描画</b>を画素で固定します(2026-08-29)。
+ * Verifies <b>box-shadow and outline rendering</b> using pixels (2026-08-29).
  *
  * <p>
- * files/unittest/3080-MODERN-CSS/box-shadow-outline.html を72dpiで描き、
- * 紙200pt角・margin0で1px=1ptの座標を直接見る。
+ * Renders files/unittest/3080-MODERN-CSS/box-shadow-outline.html at 72 dpi,
+ * inspecting coordinates directly at 1px=1pt on a 200 pt square sheet with margin 0.
  * </p>
  * <ul>
- * <li>背景の無い箱の硬い影: 箱の外の影の位置は紙より暗く、箱の中は白のまま
- * (影は境界箱の外だけに描く)</li>
- * <li>ぼかし影: 箱のすぐ下は紙より暗い</li>
- * <li>アウトライン: 境界の外のoffsetぶん空けた位置が緑で、隙間は白</li>
- * <li>内側の影: パディング箱の縁が赤で、中央は白</li>
+ * <li>Hard shadow on a box without a background: the shadow outside the box is darker than the paper,
+ * while the box interior stays white (shadow is drawn only outside the border box).</li>
+ * <li>Blurred shadow: immediately below the box is darker than the paper.</li>
+ * <li>Outline: the position offset outside the border is green, and the gap is white.</li>
+ * <li>Inset shadow: the padding-box edge is red, and the center is white.</li>
  * </ul>
  */
 public class BoxDecorationTest extends TestCase {
@@ -50,26 +50,26 @@ public class BoxDecorationTest extends TestCase {
 		try (PDDocument doc = Loader.loadPDF(out.toByteArray())) {
 			final java.awt.image.BufferedImage img = new PDFRenderer(doc).renderImageWithDPI(0, 72);
 
-			// #hollow: 箱(20,20)-(80,60)、影は(30,30)-(90,70)から箱を抜いたもの
+			// #hollow: box (20,20)-(80,60); shadow is (30,30)-(90,70) minus the box.
 			assertTrue("硬い影が箱の外に描かれていません", isDarkerThanPaper(img.getRGB(85, 65)));
 			assertTrue("硬い影が箱の右に描かれていません", isDarkerThanPaper(img.getRGB(85, 40)));
 			assertTrue("背景の無い箱の中に影が透けています", isWhite(img.getRGB(50, 40)));
 			assertTrue("影の外が汚れています", isWhite(img.getRGB(25, 25)));
 			assertTrue("影の外(右下の外側)が汚れています", isWhite(img.getRGB(95, 75)));
 
-			// #card: 箱(100,20)-(160,60)、0 2pt 8pt のぼかし影
+			// #card: box (100,20)-(160,60), blurred shadow 0 2pt 8pt.
 			assertTrue("ぼかし影が箱の下に描かれていません", isDarkerThanPaper(img.getRGB(130, 63)));
 			assertTrue("白背景の箱の中が影で汚れています", isWhite(img.getRGB(130, 40)));
 			assertTrue("ぼかしの外まで塗られています", isWhite(img.getRGB(130, 78)));
 
-			// #outlined: 境界箱(20,110)-(80,150)、outline 3pt offset 2pt → 左辺のx=15..18
+			// #outlined: border box (20,110)-(80,150), outline 3pt offset 2pt → left edge x=15..18.
 			assertTrue("アウトラインが境界の外に描かれていません", isGreen(img.getRGB(16, 130)));
 			assertTrue("アウトラインが上辺の外に描かれていません", isGreen(img.getRGB(50, 106)));
 			assertTrue("outline-offsetの隙間が塗られています", isWhite(img.getRGB(19, 130)));
 			assertTrue("アウトラインの外が塗られています", isWhite(img.getRGB(12, 130)));
 			assertTrue("箱の中がアウトラインで汚れています", isWhite(img.getRGB(50, 130)));
 
-			// #inset: 箱(100,110)-(160,150)、inset spread 6pt の赤い縁
+			// #inset: box (100,110)-(160,150), red edge with inset spread 6pt.
 			assertTrue("内側の影が縁に描かれていません", isRed(img.getRGB(103, 130)));
 			assertTrue("内側の影が箱の外へ漏れています", isWhite(img.getRGB(98, 130)));
 			assertTrue("内側の影が中央まで塗られています", isWhite(img.getRGB(130, 130)));

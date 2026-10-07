@@ -1,11 +1,11 @@
 package net.zamasoft.foliojet.ua;
 
 /**
- * 文書の互換モードです。
+ * Document compatibility mode.
  */
 public enum CompatibleMode {
-	/** 標準モード。 */
+	/** Standards mode. */
 	STRICT,
-	/** 互換モード。 */
+	/** Quirks mode. */
 	NORMAL;
 }

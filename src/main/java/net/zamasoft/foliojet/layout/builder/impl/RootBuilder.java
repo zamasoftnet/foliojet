@@ -22,8 +22,8 @@ import net.zamasoft.foliojet.layout.constraint.FloatExclusion;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
 
 /**
- * ドキュメント全体を構築します。
- * 
+ * Builds the entire document.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: RootBuilder.java 1555 2018-04-26 04:15:29Z miyabe $
  */
@@ -31,17 +31,17 @@ public class RootBuilder extends BreakableBuilder {
 	private static final Logger LOG = Logger.getLogger(RootBuilder.class.getName());
 
 	/**
-	 * 進捗のない自動改ページ(ライブロック)の検出用の状態です(2026-07-27新設)。
-	 * 一つの再開チェーン内で現れた自動改ページの「状態の指紋」と、
-	 * 各指紋の出現回数を持ちます。直前だけを比較すると A/B/A/B のような
-	 * 周期2以上のライブロックを検出できないためです。詳細は
-	 * {@link net.zamasoft.foliojet.layout.fragment.ContinuationStats#STALLED_AUTO_BREAK_LIMIT}。
+	 * State for detecting automatic page breaks without progress (livelock; added 2026-07-27).
+	 * Stores the state fingerprints seen within a single resume chain and the occurrence count of each.
+	 * Comparing only the immediately preceding state cannot detect livelocks with periods of two or more,
+	 * such as A/B/A/B. For details, see
+	 * {@link net.zamasoft.foliojet.layout.fragment.ContinuationStats#STALLED_AUTO_BREAK_LIMIT}.
 	 */
 	private record BreakFingerprint(long ingest, long boundTableRows, long emittedTableFragments,
 			int depth, long pageAxisBits, int target) {
 	}
 
-	/** 上端ページフロートのFIFO-prefix配置計画です。 */
+	/** FIFO-prefix placement plan for top page floats. */
 	static final class TopFloatPlan {
 		final java.util.List<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> boxes;
 		final double dy;
@@ -55,23 +55,24 @@ public class RootBuilder extends BreakableBuilder {
 
 	private final java.util.Map<BreakFingerprint, Integer> breakFingerprintCounts = new java.util.HashMap<>();
 	/**
-	 * 深さを含めない第二指紋の計数(2026-08-23)。再開処理の途中で同じ
-	 * 改ページへ再入し続けるライブロック(wild seed 1490848)は、未完了
-	 * ResumeSessionとopen-tail flowが一組ずつ増えて物理深さが毎回変わる
-	 * ため、深さ入りの第一指紋では全反復が別状態に見えて発火しない。
-	 * 逆に深さを一律に補正すると、深さが安定した周期2ライブロック
-	 * (seed 44749)の検出が壊れる——両方を数え、どちらかが閾値へ達したら
-	 * 打ち切る。入力が進まず・カーソルも・対象要素も同じ改ページが33回
-	 * 重なる状況は深さ差があっても進捗ではない。
+	 * Counts a second fingerprint that excludes depth (2026-08-23). In a livelock that repeatedly reenters the same
+	 * page break during resumption (wild seed 1490848), each iteration adds an unfinished ResumeSession and an
+	 * open-tail flow, changing the physical depth. The first fingerprint, which includes depth, therefore sees every
+	 * iteration as a different state and never fires.
+	 * Conversely, normalizing depth uniformly breaks detection of a period-two livelock with stable depth (seed
+	 * 44749). Count both fingerprints and stop when either reaches its threshold. Nesting 33 page breaks with no input
+	 * progress and the same cursor and target element is not progress, even if their depths differ.
 	 */
 	private final java.util.Map<BreakFingerprint, Integer> depthFreeBreakCounts = new java.util.HashMap<>();
 	/**
-	 * 入れ子で伸び続ける改ページの検出(2026-10-07、掃過 strict seed 12453214)。直前の改ページの
-	 * 再開の中(再開の入れ子が 1 段深い)で、入力も対象も深さも同じ改ページが、カーソルを毎回先へ
-	 * 進めて起きる。次ページへ回した残りが縮まず、毎回それより多くを組んでまた改ページする
-	 * (縦組みの段組の中の浮動体の続き断片が同じ寸法に組み直され、移された断片が積み増された)。
-	 * カーソルが毎回違うので指紋では同じ状態に見えず、入れ子が 53,000 段続いてスタックが溢れた。
-	 * ふつうの入れ子の改ページは、カーソルがページの上限のあたりで止まり、続けて伸びはしない。
+	 * Detects page breaks that keep growing through nesting (2026-10-07, sweep strict seed 12453214). Within
+	 * resumption of the previous page break (one level deeper in the resume nesting), a page break with the same
+	 * input, target, and depth occurs with the cursor farther ahead each time. The remainder sent to the next page
+	 * does not shrink; each iteration lays out more than that remainder and breaks again (continuation fragments of
+	 * floats in vertical multi-column layout were rebuilt at the same size, and moved fragments accumulated).
+	 * Because the cursor differs each time, the fingerprints do not identify the same state; nesting reached 53,000
+	 * levels and overflowed the stack. In ordinary nested page breaks, the cursor stops near the page limit and does
+	 * not keep advancing.
 	 */
 	private BreakFingerprint nestedBreakKey = null;
 	private int nestedBreakSessions = -1;
@@ -81,20 +82,23 @@ public class RootBuilder extends BreakableBuilder {
 	private long boundTableRows, emittedTableFragments;
 	private long breakHistoryTableRows, breakHistoryTableFragments;
 
-	/** Pass C送出対象の実行消費だけを数える。入力収集・MEASURE・追記通知は数えない。 */
+	/**
+	 * Counts only execution consumption of Pass C emission targets, excluding input collection, MEASURE, and
+	 * append notifications.
+	 */
 	final void noteRetainedTableRowsBound(final int rows) {
 		this.boundTableRows += rows;
 	}
 
-	/** 親が前頁へ切り離した実断片。表全体の移動では進めない。 */
+	/** Actual fragments detached by the parent onto the previous page. Moving an entire table does not advance this. */
 	final void noteRetainedTableFragmentEmitted() {
 		++this.emittedTableFragments;
 	}
 	private int stalledBreakRun = 0;
-	/** LayoutSourceを持たないscratch用の自動改ページ打切り状態。 */
+	/** Automatic page-break termination state for scratch builders without a LayoutSource. */
 	private boolean autoBreaksAbandoned = false;
 
-	/** 強制改ページまたは実進捗の確定後に、自動改ページの停滞履歴を捨てます。 */
+	/** Discards automatic page-break stall history after a forced page break or confirmed actual progress. */
 	private void clearBreakProgressHistory() {
 		this.stalledBreakRun = 0;
 		this.breakFingerprintCounts.clear();
@@ -110,55 +114,55 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 自動改ページが1回転しても状態が全く変わっていないかを検査します。
+	 * Checks whether a full automatic page-break cycle leaves the state completely unchanged.
 	 *
 	 * <p>
-	 * <b>強制改ページは対象外</b>——作者が枚数を指定した改ページは、
-	 * 内容を消費しなくても正しい(実測でも97回連続する例がある)。
+	 * <b>Forced page breaks are excluded</b>: page breaks whose count the author specifies are valid even without
+	 * consuming content (97 consecutive breaks were observed in practice).
 	 * </p>
 	 *
-	 * @param mode 今回の改ページのモード
-	 * @return ライブロックが確定したので改ページを放棄すべきならtrue
+	 * @param mode the mode of this page break
+	 * @return true if a confirmed livelock requires abandoning the page break
 	 */
 	private boolean guardBreakProgress(final BreakMode mode) {
 		if (!(mode instanceof BreakMode.AutoBreakMode auto)) {
-			// 強制改ページは進捗で測らない。次の再開チェーンへ指紋も
-			// 持ち越さない
+			// Do not measure forced page breaks by progress. Do not carry fingerprints
+			// over to the next resume chain either.
 			this.clearBreakProgressHistory();
 			return false;
 		}
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource source = this.pageGenerator.getLayoutSource();
-		// Cはキューを消費している間も入力が前進する。Bが追記したログ末尾を
-		// 指紋にすると、EOFの一括配達を停滞と誤認してしまう。
+		// Input advances while C consumes the queue, too. Fingerprinting the log tail appended by B
+		// would misidentify bulk delivery at EOF as a stall.
 		final long ingest = (source == null) ? -1L : Math.min(source.nextId(), this.pageGenerator.getDeliveredEventEnd());
 		final int depth = this.flowStack.size();
-		// 継続再構築のたびにboxもparams.elementも新しいインスタンスになる。
-		// identityHashCodeでは論理的に同じtbodyを毎ページ別物と見なし、
-		// 同じ入力位置・深さ・カーソルの空改ページを検出できなかった
-		// (wild seed 7662は1,475ページ)。要素の不変な記述を指紋に使う。
+		// Both box and params.element become new instances on every continuation rebuild.
+		// identityHashCode treated the logically identical tbody as different on each page,
+		// so it failed to detect empty page breaks with the same input position, depth, and cursor
+		// (wild seed 7662 produced 1,475 pages). Use an invariant element description as the fingerprint.
 		final Object element = auto.box == null || auto.box.getParams() == null ? null
 				: auto.box.getParams().element;
 		final int target;
 		if (element instanceof net.zamasoft.foliojet.css.StructureElement structure) {
-			// 実要素は文書順のelementKey、匿名/擬似要素は要素名で安定化。
-			// CSSElement.toString()はObject.toString()を先頭に含むので不可。
+			// Use document-order elementKey for real elements and element names for anonymous/pseudo-elements.
+			// CSSElement.toString() is unsuitable because it starts with Object.toString().
 			target = 31 * Long.hashCode(structure.elementKey())
 					+ java.util.Objects.hashCode(structure.lName());
 		} else {
 			target = element == null ? 0 : element.getClass().getName().hashCode();
 		}
-		// 継続再構築はtbodyと祖先を交互に切断しながら新しい入力位置まで
-		// 進み、そこでまた同じ循環を始めうる。ひとつでもライブロックが
-		// 確定した文書は、残りの自動改ページを止めて現在ページへ
-		// はみ出させる。強制改ページはこのメソッドの先頭で除外済み。
+		// Continuation rebuilding can alternately cut tbody and its ancestors to reach a new input
+		// position, then start the same cycle again. Once any livelock is confirmed in a document,
+		// stop all remaining automatic page breaks and let content overflow
+		// the current page. Forced page breaks are already excluded at the start of this method.
 		if (source != null ? source.areAutoBreaksAbandoned() : this.autoBreaksAbandoned) {
 			return true;
 		}
-		// 入力イベントまたはPass Cの実行消費が進んだら、以前の反復は捨てる。
-		// 表の送出がない文書では両カウンタは0のままで、従来の指紋と同じ判定になる。
-		// sessions が一旦空になっても履歴は捨てない。seed 7662 の周期1は
-		// 各ページの再開を終えてから次の同一改ページへ進むため、そこで
-		// 区切ると従来検出できていたライブロックを見逃してしまう。
+		// Discard earlier iterations when input events or Pass C execution consumption advance.
+		// Without table emission, both counters stay at 0, giving the same decision as the original fingerprint.
+		// Keep the history even when sessions temporarily becomes empty. The period-one loop of seed 7662
+		// finishes each page's resumption before proceeding to the next identical page break;
+		// resetting there would miss a livelock that the previous detection caught.
 		if (ingest != this.breakHistoryIngest || this.boundTableRows != this.breakHistoryTableRows
 				|| this.emittedTableFragments != this.breakHistoryTableFragments) {
 			this.breakFingerprintCounts.clear();
@@ -172,13 +176,13 @@ public class RootBuilder extends BreakableBuilder {
 				this.emittedTableFragments, depth,
 				Double.doubleToLongBits(this.pageAxis), target);
 		final int occurrences = this.breakFingerprintCounts.merge(fingerprint, 1, Integer::sum);
-		// 深さ非依存の第二指紋(depth=-1固定。フィールドコメント参照)
+		// Depth-independent second fingerprint (depth fixed at -1; see the field comment).
 		final BreakFingerprint depthFree = new BreakFingerprint(ingest, this.boundTableRows,
 				this.emittedTableFragments, -1,
 				Double.doubleToLongBits(this.pageAxis), target);
 		final int depthFreeOccurrences = this.depthFreeBreakCounts.merge(depthFree, 1, Integer::sum);
-		// 第三の検出: 直前の改ページの再開の中で、同じ改ページがカーソルを先へ進めて起きた
-		// (nestedBreakKey のコメント参照)。カーソルは指紋から外して比べる
+		// Third detection: the same page break occurs farther along the cursor while resuming the previous break
+		// (see the nestedBreakKey comment). Compare fingerprints with the cursor excluded.
 		final BreakFingerprint nestedKey = new BreakFingerprint(ingest, this.boundTableRows,
 				this.emittedTableFragments, depth, 0L, target);
 		final int sessionDepth = this.sessions.size();
@@ -199,10 +203,10 @@ public class RootBuilder extends BreakableBuilder {
 					+ this.stalledBreakRun);
 		}
 		if (net.zamasoft.foliojet.layout.fragment.ContinuationStats.guardBreakProgress(this.stalledBreakRun)) {
-			// ここで同じ分割をもう一度実行すれば、同じ断片を次ページへ
-			// 複製するだけになる。falseを受けた呼び出し側はループを抜け、
-			// 内容を現在の断片にはみ出して配置する(seed 7662)。
-			// breakByClearを含む全反復箇所はfalseで抜けるようになっている。
+			// Repeating the same split here would only duplicate the same fragment
+			// onto the next page. On false, the caller exits the loop and
+			// places the content with overflow in the current fragment (seed 7662).
+			// All iteration sites, including breakByClear, exit on false.
 			this.stalledBreakRun = 0;
 			this.breakFingerprintCounts.clear();
 			this.depthFreeBreakCounts.clear();
@@ -219,18 +223,16 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 破断(改ページ・改段)の残余再構築スコープのスタックです(M6b。
-	 * 各要素は破断時に一括記録された閉部分木の再生範囲 = C2)。
-	 * 破断は常に構築ヘッドで起きるため「ヘッド=祖先チェーン」の再開
-	 * 文脈が成立する。再生した内容が新ページを溢れさせると再開の中で
-	 * 改ページが入れ子で起きるため、単一フィールドでは内側の破断が
-	 * 外側の再開文脈を破壊する(外部レビュー指摘)— top が現在の文脈。
+	 * Stack of scopes for rebuilding the remainder after a break (page or column; M6b).
+	 * Each entry holds replay ranges of closed subtrees recorded together at the break = C2.
+	 * Breaks always occur at the construction head, so the resume context is "head = ancestor chain".
+	 * If replayed content overflows the new page, page breaks nest within resumption. A single field would let an
+	 * inner break destroy the outer resume context (external review finding); the top is the current context.
 	 */
 	private final java.util.ArrayDeque<java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange>> resumeScopes = new java.util.ArrayDeque<>();
 
 	/**
-	 * 破断残余の再構築スコープを、記録済みの再生範囲(C2)付きで
-	 * 開始します。
+	 * Starts a scope for rebuilding the remainder after a break, with the recorded replay ranges (C2).
 	 */
 	public final void beginBreakRestyle(
 			final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges) {
@@ -238,7 +240,7 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 破断残余の再構築スコープを終了します(M6b)。
+	 * Ends the scope for rebuilding the remainder after a break (M6b).
 	 */
 	public final void endBreakRestyle() {
 		if (this.resumeScopes.isEmpty()) {
@@ -248,16 +250,14 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 継続の一回きりの消費セッションです(P1。外部レビュー設計)。
+	 * A session for consuming a continuation exactly once (P1; external review design).
 	 *
 	 * <p>
-	 * 再開スコープと吸収済み再生範囲のリースを所有し、例外時も含めて
-	 * 対称に清算する。リースの所有は occurrence(SourceRange
-	 * インスタンス)単位 — 同じ fromId を入れ子の継続が独立に持っても
-	 * 互いに干渉しない。状態遷移 NEW → RESUMING → CONSUMED / FAILED →
-	 * CLOSED を強制し、consume-once を型と実行時検証で明示する。
-	 * M6c の反復プローブは将来 ContinuationTemplate から fresh session を
-	 * 作る形で拡張する(同じ session の再利用は不可)。
+	 * Owns the resume scope and leases for absorbed replay ranges, and cleans them up symmetrically, including on
+	 * exceptions. Lease ownership is per occurrence (SourceRange instance), so nested continuations independently
+	 * holding the same fromId do not interfere. Enforces NEW → RESUMING → CONSUMED / FAILED → CLOSED transitions,
+	 * making consume-once explicit through types and runtime checks. A future extension for M6c iterative probes will
+	 * create fresh sessions from a ContinuationTemplate (reusing a session is forbidden).
 	 * </p>
 	 */
 	final class ResumeSession implements AutoCloseable, net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession {
@@ -268,17 +268,15 @@ public class RootBuilder extends BreakableBuilder {
 		private final net.zamasoft.foliojet.layout.fragment.Continuation continuation;
 
 		/**
-		 * 破断時snapshot(実fragment署名の直接照合(E-3増分2)と、検証済み
-		 * open path形からのtail policy導出(E-3増分3)に使う)。
+		 * Snapshot at the break (used for direct comparison of actual fragment signatures in E-3 increment 2 and for
+		 * deriving tail policy from the validated open path shape in E-3 increment 3).
 		 */
 		private final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot;
 
 		/**
-		 * 吸収済み再生範囲のリース(occurrence 単位)。吸収済み範囲は
-		 * ボックスを運搬しない(フォールバックなし)ため、消費されるまで
-		 * compact から守る(水位の clamp は LayoutSource が行う)。
-		 * map 経由の再生(resumeScopes)はボックスが残っており
-		 * box-restyle へ落ちられるのでリース不要。
+		 * Leases for absorbed replay ranges, per occurrence. Absorbed ranges carry no boxes (no fallback), so protect
+		 * them from compaction until consumed (LayoutSource clamps the watermark). Replay through the map (resumeScopes)
+		 * retains boxes and can fall back to box-restyle, so it needs no lease.
 		 */
 		private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange, net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease> leases = new java.util.IdentityHashMap<>();
 
@@ -288,9 +286,9 @@ public class RootBuilder extends BreakableBuilder {
 				final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot) {
 			this.continuation = continuation;
 			this.snapshot = snapshot;
-			// 2026-07-30(legacy再帰撤去=増分4d): tail policy
-			// (WorklistTailGate)は退役——worklist executorが唯一のdriverと
-			// なり、routing判定そのものが消えた。
+			// 2026-07-30 (legacy recursion removal = increment 4d): retired the tail policy
+			// (WorklistTailGate). The worklist executor became the sole driver,
+			// so the routing decision itself disappeared.
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log = RootBuilder.this.pageGenerator
 					.getLayoutSource();
 			if (log != null) {
@@ -307,9 +305,8 @@ public class RootBuilder extends BreakableBuilder {
 		}
 
 		/**
-		 * 継続を消費して次ページのビルダー状態と内容を再開します(§5.7)。
-		 * ルートフレームを外→内に再構成する(断片ボックスはここで初めて
-		 * 作られる)。一度だけ呼べる。
+		 * Consumes the continuation and resumes builder state and content on the next page (§5.7).
+		 * Reconstructs root frames from outside in (fragment boxes are first created here). May be called only once.
 		 */
 		void resume() {
 			if (this.state != State.NEW) {
@@ -342,7 +339,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 
 		/**
-		 * 吸収済み範囲の消費完了です(replaySubtree の finally から)。
+		 * Marks consumption of an absorbed range as complete (from replaySubtree's finally block).
 		 */
 		public void releaseLease(final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange occurrence) {
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease = this.leases
@@ -361,8 +358,8 @@ public class RootBuilder extends BreakableBuilder {
 			if (this.state == State.CLOSED) {
 				return;
 			}
-			// 正常消費なら全リース解放済み。例外時の残りをここで清算する
-			// (取り残すと以後の compact が永久に clamp される)
+			// Normal consumption has already released all leases. Clean up any remaining after an exception here
+			// (leaving them behind would clamp all subsequent compaction permanently).
 			for (final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease : this.leases
 					.values()) {
 				lease.close();
@@ -373,23 +370,18 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * {@code AbstractContainerBox.prepareColumnCut()}が返した{@link
-	 * net.zamasoft.foliojet.layout.fragment.PreparedColumnCut}から、COLUMN
-	 * 継続の正本トークン({@link
-	 * net.zamasoft.foliojet.layout.fragment.ColumnContinuation})を構築・
-	 * 検証します(2026-07-21新設、M6b Phase B4-Step4。2026-07-24のE-3増分5
-	 * でprogram(ColumnResumeProgram)生成を除去し、正本トークン構築へ置換)。
-	 * ownerへのcommit・実行(session)はまだ行わない——呼び出し側が
-	 * 「検証→column commit→executor開始」の順序を守れるようにする
-	 * (ChatGPT Pro相談、
-	 * 設計相談
-	 * 参照)。PAGEの{@code pageBreak()}と同型のprefix
-	 * 吸収ロジック(stampRanges+extractReplayable)をCOLUMN向けに複製した
-	 * ——既存のPAGE経路には一切触れずに済むよう、意図的に共有せず並行
-	 * 実装している。{@code ranges}はconsume-once用のmutableなマップの
-	 * まま{@code ColumnContinuation}に載せて運ぶ({@code replayFromSource()}
-	 * が消費時に直接remove()するため、read-onlyにしてはいけない——実測で
-	 * 発見・修正済みの規約)。
+	 * Builds and validates the canonical COLUMN continuation token ({@link
+	 * net.zamasoft.foliojet.layout.fragment.ColumnContinuation}) from the {@link
+	 * net.zamasoft.foliojet.layout.fragment.PreparedColumnCut} returned by {@code
+	 * AbstractContainerBox.prepareColumnCut()} (added 2026-07-21, M6b Phase B4-Step4; E-3 increment 5 on 2026-07-24
+	 * removed program (ColumnResumeProgram) generation and replaced it with canonical token construction).
+	 * Does not yet commit to the owner or execute a session, allowing the caller to preserve the order "validate →
+	 * column commit → start executor" (see the ChatGPT Pro consultation and design consultation).
+	 * Duplicates PAGE's {@code pageBreak()} prefix absorption logic (stampRanges+extractReplayable) for COLUMN. The
+	 * implementations are deliberately parallel rather than shared to leave the existing PAGE path entirely untouched.
+	 * {@code ranges} travels in {@code ColumnContinuation} as a mutable map for consume-once ({@code
+	 * replayFromSource()} directly calls remove() during consumption, so it must not be read-only; this contract was
+	 * discovered and corrected through observation).
 	 */
 	final net.zamasoft.foliojet.layout.fragment.ColumnContinuation prepareColumnContinuation(
 			final net.zamasoft.foliojet.layout.box.params.WritingMode ownerFlow,
@@ -420,10 +412,10 @@ public class RootBuilder extends BreakableBuilder {
 				anchorPrefix = fc.extractReplayable(ranges, vertical, 0);
 			}
 			for (final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f : innerFrames) {
-				// walk depthはChild=0(このフレームはまだ内側へ続く)、
-				// OpenTailShape=実際の残り深さ(0にすると末尾moved flowを
-				// 閉部分木としてprefixへ吸収し、二重再生または内容消失に
-				// つながりうる)
+				// Walk depth is Child=0 (this frame continues inward),
+				// OpenTailShape=actual remaining depth (using 0 could absorb the trailing moved flow
+				// into the prefix as a closed subtree, leading to duplicate replay
+				// or lost content).
 				final int walkDepth = switch (f.tail()) {
 				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child child -> 0;
 				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
@@ -448,10 +440,10 @@ public class RootBuilder extends BreakableBuilder {
 
 		final net.zamasoft.foliojet.layout.fragment.ColumnAnchor anchor = new net.zamasoft.foliojet.layout.fragment.ColumnAnchor(
 				ownerRemainder, anchorPrefix);
-		// 2026-07-24(E-3増分1/5): 正本(COLUMN入力)を直接検証する(旧
-		// compiler/verifierの不変条件はContinuationValidatorへ移植済み)——
-		// 呼び出し元(BreakableBuilder.columnBreak)のcommitPreparedColumn
-		// より前なので、検証失敗時はownerへのcommitなしで安全に止まる。
+		// 2026-07-24 (E-3 increments 1/5): validate the canonical COLUMN input directly
+		// (the old compiler/verifier invariants were ported to ContinuationValidator).
+		// This precedes commitPreparedColumn in the caller (BreakableBuilder.columnBreak),
+		// so validation failure stops safely without committing to the owner.
 		final net.zamasoft.foliojet.layout.fragment.ContinuationValidator.PathShape pathShape = net.zamasoft.foliojet.layout.fragment.ContinuationValidator
 				.validateColumn(anchor, snapshot, childFrame);
 		return new net.zamasoft.foliojet.layout.fragment.ColumnContinuation(snapshot, anchor, childFrame, ranges,
@@ -459,14 +451,12 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 検証済み{@link net.zamasoft.foliojet.layout.fragment.ColumnContinuation}
-	 * を消費し、新columnのビルダー状態と内容を再開します(2026-07-21新設、
-	 * M6b Phase B4-Step4)。呼び出し側は{@link #prepareColumnContinuation}の
-	 * 後、{@code owner.commitPreparedColumn()}を実行済みであること。
+	 * Consumes a validated {@link net.zamasoft.foliojet.layout.fragment.ColumnContinuation} and resumes builder state
+	 * and content in the new column (added 2026-07-21, M6b Phase B4-Step4). After {@link #prepareColumnContinuation},
+	 * the caller must already have executed {@code owner.commitPreparedColumn()}.
 	 *
-	 * @param target 状態変異を適用する先のbuilder(改段を駆動している
-	 *               実際のBreakableBuilder。nested な{@code ColumnBuilder}
-	 *               の場合もある)
+	 * @param target builder to receive state mutations (the actual BreakableBuilder driving the column break,
+	 *               possibly a nested {@code ColumnBuilder})
 	 */
 	final void resumeColumn(final BreakableBuilder target,
 			final net.zamasoft.foliojet.layout.fragment.ColumnContinuation continuation) {
@@ -477,9 +467,9 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * COLUMN継続の一回きりの消費セッションです(2026-07-21新設、
-	 * M6b Phase B4-Step4)。{@link ResumeSession}のCOLUMN版——設計は
-	 * 同一(状態遷移・リース所有・例外時清算の対称性)。
+	 * A session for consuming a COLUMN continuation exactly once (added 2026-07-21, M6b Phase B4-Step4).
+	 * The COLUMN counterpart of {@link ResumeSession}, with the same design (state transitions, lease ownership, and
+	 * symmetric exception cleanup).
 	 */
 	final class ColumnResumeSession implements AutoCloseable, net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession {
 		enum State {
@@ -487,7 +477,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 
 		private final BreakableBuilder target;
-		/** COLUMN継続の正本トークンです(E-3増分5でprogramを置換)。 */
+		/** Canonical COLUMN continuation token (replaced the program in E-3 increment 5). */
 		private final net.zamasoft.foliojet.layout.fragment.ColumnContinuation continuation;
 		private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange, net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease> leases = new java.util.IdentityHashMap<>();
 		private State state = State.NEW;
@@ -536,13 +526,13 @@ public class RootBuilder extends BreakableBuilder {
 								this.continuation.snapshot().depth(), this.continuation.snapshot(), this.target);
 					} else {
 						assert this.continuation.anchor().prefixItems().isEmpty();
-						// E-3増分5: 終端の開き形はpathShape.terminalShape()が
-						// 正本(旧program.tail().openDepth()と同値——
-						// childFrame==nullではvalidateColumnが
-						// OpenShape.of(snapshot.depth())を返し、旧compilerの
-						// OpenText(1)/LegacyOpen(1, snapshotDepth)と一致する)。
-						// 2026-07-30(増分4d): worklist適格判定とoverrideは退役
-						// ——restyle()自体が無条件にworklist executorで駆動する。
+						// E-3 increment 5: pathShape.terminalShape() is the canonical terminal open shape
+						// (equivalent to the old program.tail().openDepth():
+						// when childFrame==null, validateColumn returns
+						// OpenShape.of(snapshot.depth()), matching the old compiler's
+						// OpenText(1)/LegacyOpen(1, snapshotDepth)).
+						// 2026-07-30 (increment 4d): retired worklist eligibility checks and overrides.
+						// restyle() itself is now unconditionally driven by the worklist executor.
 						this.continuation.anchor().remainder().restyle(this.target,
 								this.continuation.pathShape().terminalShape(), false);
 					}
@@ -589,28 +579,24 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 実行中の再開セッションのスタックです(再生内容の溢れによる
-	 * 入れ子改ページ・改段で入れ子になる。top が現在のセッション)。
-	 * 2026-07-21(M6b Phase B4-Step4): PAGE専用の{@code ResumeSession}から
-	 * {@link net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession}へ
-	 * 一般化した——COLUMN側の{@link ColumnResumeSession}も同じスタックで
-	 * 管理することで、COLUMN resume中にPAGE breakが入れ子になっても
-	 * (またはその逆でも)、{@link #replaySubtree}が常に「現在のtop
-	 * セッション」だけを見ればよいようにする(ChatGPT Pro相談、
-	 * 設計相談
-	 * 参照)。
+	 * Stack of active resume sessions (nested by page/column breaks caused by replay overflow; the top is the current
+	 * session).
+	 * 2026-07-21 (M6b Phase B4-Step4): generalized the PAGE-only {@code ResumeSession} to {@link
+	 * net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession}. Managing COLUMN's {@link ColumnResumeSession} on the
+	 * same stack lets {@link #replaySubtree} inspect only the current top session, even when a PAGE break nests within
+	 * COLUMN resumption or vice versa (see the ChatGPT Pro consultation and design consultation).
 	 */
 	private final java.util.ArrayDeque<net.zamasoft.foliojet.layout.fragment.ReplayLeaseSession> sessions = new java.util.ArrayDeque<>();
 
 	/**
-	 * 残余の各閉部分木の再生可否と範囲を破断時に一括判定します(C2:
-	 * 記録時判定)。restyle 走行はこの記録を消費するだけで、ゲートを
-	 * 再計算しない。判定は従来 replayFromSource が再開時に行っていた
-	 * ものと同一(アンカー有効・窓内で閉・Opaque/段組/縦横混在なし)。
+	 * Determines replay eligibility and ranges for all closed subtrees in the remainder at the break (C2: decision at
+	 * recording time). The restyle traversal only consumes these records; it does not recompute the gates. The
+	 * decisions are identical to those replayFromSource previously made during resumption (valid anchor, closed within
+	 * the window, no Opaque/multi-column/mixed writing directions).
 	 *
-	 * @param container 残余のコンテナ
-	 * @param rootFlow  ルートの書字方向
-	 * @return ボックス→再生範囲(再生可能なもののみ)
+	 * @param container the remainder container
+	 * @param rootFlow  the root writing direction
+	 * @return box → replay range (only for replayable boxes)
 	 */
 	final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> stampRanges(
 			final net.zamasoft.foliojet.layout.box.content.Container container,
@@ -629,56 +615,56 @@ public class RootBuilder extends BreakableBuilder {
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log,
 			final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges) {
 		container.eachFlowBox(box -> {
-			// isSourceReplayable(2026-07-28): 切断済みの前断片はアンカーを
-			// 持ち続けるが、その範囲は継続断片が持っている残りも含む。
-			// 刻印すると再開で要素全体が再生され、継続断片の再開と二重に
-			// なる(入れ子段組の段バランスで実測)。ボックス再生へ落とす
+			// isSourceReplayable (2026-07-28): a preceding fragment already cut off retains its anchor,
+			// but that range also includes the remainder held by the continuation fragment.
+			// Stamping it replays the entire element on resumption, duplicating the continuation
+			// fragment's resumption (observed in nested column balancing). Fall back to box replay.
 			final long startId = box.isSourceReplayable() ? box.getSourceAnchor() : -1;
 			if (startId >= 0) {
 				final long endId = log.endOf(startId);
-				// containsAbsolute(E-6増分4e): 絶対配置は増分4e以前はOpaque
-				// 記録でcontainsOpaqueが捕捉していた。recipe記録化後も、
-				// 絶対配置を含む部分木のソース再生置換は係留・deferred bindの
-				// 二重化を生むため従来どおりbox-restyleへフォールバックさせる
-				// (LayoutSource.containsAbsoluteのjavadoc参照)
-				// isIntact(2026-07-27): compactは「開いているStart」だけを
-				// 水位より前から残すので、破断時にまだ開いていた要素は
-				// 「Startだけ残って中身が消えた」状態になりうる。その要素が
-				// 後で閉じるとendOf()は疎な保持列の上で終端を返してしまい、
-				// 穴あきの範囲を再生可能と誤って刻印する。吸収済み範囲
-				// (prefixItems)はボックスを運搬しない=フォールバック不能
-				// なので、刻印の時点で密度を確かめる(確かめないと
-				// replaySubtreeが「吸収済み再生範囲が失われました」で
-				// 変換ごと停止する。実測: 掃過10万件中15件)
-				// containsFloat(2026-07-28): 部分木の中のフロートは
-				// 「最近接ブロック祖先のコンテナに係留されるので部分木と
-				// 一緒に動く」——という前提が段組では崩れる。フロートは
-				// 集約({@code aggregateFloatings})で段のコンテナへ**引き上げ
-				// られる**ため、部分木が丸ごと移動しても<b>フロートは元の
-				// 段に残る</b>。その部分木をソースから再生すると、引き上げ
-				// られた側とあわせて<b>二度組まれる</b>(実測:
-				// local/shrink/strict-29708-min.html ほか。float内の
-				// "T3 T4" が同じページに二度描かれる)。
-				// {@code SourceReplayer.canReplayChildren}は最初からこのゲートを持っており、
-				// 「係留の再実行(二重化)の危険」を同じ理由で避けている——
-				// ここだけ抜けていた。ボックス再生へ落とす
-				// containsTable(表セット、2026-07-30): 表のrecipe記録化により
-				// 表はOpaqueでなくなった。<b>TABLE自身を根とする範囲だけ</b>
-				// 刻印を許可する(T-b。消費者はrestyleItem case TABLEの直接
-				// replay=T-c)——表を「含む」BLOCK部分木のreplaySubtreeでの
-				// 表再構築は未検証のため従来どおりbox-restyleへ(codex増分11で
-				// 解禁を検討)。根が表のとき自身のStart(startId)は範囲に
-				// 含まれて当然なので内容側(startId+1〜)だけを検査し、
-				// セル内の入れ子表はfail closedで従来どおり弾く
+				// containsAbsolute (E-6 increment 4e): before increment 4e, absolute positioning used
+				// Opaque records and containsOpaque caught it. Even after switching to recipe recording,
+				// substituting source replay for a subtree containing absolute positioning duplicates
+				// anchoring and deferred bind, so retain the box-restyle fallback
+				// (see the Javadoc for LayoutSource.containsAbsolute).
+				// isIntact (2026-07-27): compact retains only open Start events from before the watermark,
+				// so an element still open at the break may retain only its Start
+				// while its contents disappear. When the element later closes,
+				// endOf() returns its end over the sparse retained sequence,
+				// incorrectly stamping a range with gaps as replayable. Absorbed ranges
+				// (prefixItems) carry no boxes, so fallback is impossible.
+				// Check density when stamping; otherwise
+				// replaySubtree stops the entire conversion with "Absorbed replay range was lost"
+				// (observed in 15 of 100,000 sweep cases).
+				// containsFloat (2026-07-28): the assumption that floats in a subtree
+				// are anchored to the nearest block ancestor's container and thus move
+				// with the subtree breaks in multi-column layout. Aggregation
+				// ({@code aggregateFloatings}) **lifts** floats into the column container,
+				// so even if the entire subtree moves, <b>the floats stay in the
+				// original column</b>. Replaying the subtree from source lays them out
+				// <b>twice</b>, including the lifted copies (observed in
+				// local/shrink/strict-29708-min.html and others:
+				// "T3 T4" inside the float is drawn twice on the same page).
+				// {@code SourceReplayer.canReplayChildren} has had this gate from the start,
+				// avoiding the risk of repeated (duplicate) anchoring for the same reason.
+				// Only this site lacked it. Fall back to box replay.
+				// containsTable (table set, 2026-07-30): recipe recording made tables
+				// non-Opaque. Allow stamping <b>only ranges rooted at TABLE itself</b>
+				// (T-b; consumed by direct replay in restyleItem case TABLE = T-c).
+				// Table rebuilding by replaySubtree of a BLOCK subtree containing a table
+				// is unverified, so retain box-restyle (consider enabling in codex increment 11).
+				// For a table root, its own Start (startId) naturally belongs to the range,
+				// so inspect only the contents (startId+1 onward),
+				// and continue rejecting nested tables within cells on a fail-closed basis.
 				final long tableCheckFrom = box instanceof net.zamasoft.foliojet.layout.box.impl.TableBox
 						? startId + 1
 						: startId;
-				// containsCaption(caption recipe化C1、2026-08-01): キャプション
-				// はOpaque記録からrecipe記録へ移ったが、文脈依存kind(囲み
-				// TableBuilderが必要)のため含む範囲は従来どおりbox-restyleへ
-				// ——表根の範囲(tableCheckFrom=startId+1)でも内容の
-				// キャプションを弾く。C2のcontext-complete検証で解禁するまで
-				// routing不変
+				// containsCaption (caption recipe conversion C1, 2026-08-01): captions moved
+				// from Opaque to recipe records, but their kind depends on context
+				// (requires an enclosing TableBuilder), so containing ranges still use box-restyle.
+				// Even ranges rooted at a table (tableCheckFrom=startId+1) reject
+				// captions in their contents. Routing stays unchanged until C2's
+				// context-complete validation enables them.
 				if (endId >= 0 && endId < this.pageGenerator.getDeliveredEventEnd()
 						&& log.isIntact(startId, endId) && !log.containsOpaque(startId, endId)
 						&& !log.observeCaptionGate(startId, endId)
@@ -689,7 +675,7 @@ public class RootBuilder extends BreakableBuilder {
 						&& !log.containsMixedFlow(startId, endId, rootFlow)) {
 					ranges.put(box,
 							new net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange(-1, startId, endId));
-					// 再生される部分木の内部は走らない(丸ごと再生)
+					// Do not traverse inside a replayed subtree (replay it as a whole).
 					return;
 				}
 			}
@@ -703,58 +689,59 @@ public class RootBuilder extends BreakableBuilder {
 
 	private PageBox pageBox;
 
-	/** 子ビルダー・再生・継続処理がRootの外側で開いている深さです。 */
+	/** Depth of child builder, replay, and continuation processing scopes open outside Root. */
 	private int translateBlockDepth = 0;
 
-	/** 現在のPageBoxが描画前の確定処理へ入った後ならtrue。 */
+	/** True after the current PageBox enters finalization before drawing. */
 	private boolean pageFinished = false;
 
 	/**
-	 * 現ページの平行移動を禁止する子スコープへ入ります。入れ子の
-	 * DocumentBuilder、TwoPass bind、ソース再生、継続再開で共有します。
+	 * Enters a child scope that prohibits translation of the current page. Shared by nested DocumentBuilder, TwoPass
+	 * bind, source replay, and continuation resumption.
 	 */
 	public final void enterTranslateBlockScope() {
 		++this.translateBlockDepth;
 	}
 
-	/** 現ページの平行移動を禁止する子スコープから出ます。 */
+	/** Exits a child scope that prohibits translation of the current page. */
 	public final void exitTranslateBlockScope() {
 		assert this.translateBlockDepth > 0 : "translate block scope depth became negative";
 		--this.translateBlockDepth;
 	}
 
-	/** 新しいPageBoxごとに作り直す、当該ページのtopフロート排除域。 */
+	/** Top-float exclusion space for this page, recreated for each new PageBox. */
 	private java.util.List<FloatExclusion> topPageFloatExclusions;
 
-	/** 当該ページへFIFO配置済みtop prefixのページ軸終端。 */
+	/** Page-axis end of the top prefix placed on this page in FIFO order. */
 	private double topPageFloatStackEnd = 0;
 
-	/** topフロートだけの不変スナップショット。 */
+	/** Immutable snapshot containing only top floats. */
 	private ExclusionSpace topPageFloatExclusionSnapshot = ExclusionSpace.EMPTY;
 
-	/** 未来のpageSpanを含むbottomフロートだけの不変スナップショット。 */
+	/** Immutable snapshot containing only bottom floats, including future pageSpan values. */
 	private ExclusionSpace bottomPageFloatExclusionSnapshot = ExclusionSpace.EMPTY;
 
-	/** top/bottomページフロートをまとめた行走査用不変スナップショット。 */
+	/** Immutable snapshot combining top/bottom page floats for line scanning. */
 	private ExclusionSpace pageFloatExclusionSnapshot = ExclusionSpace.EMPTY;
 
-	/** PageBox生成ごとの世代。ページフロートの通常floatと別のorder名前空間にも使う。 */
+	/** Generation per PageBox creation; also gives page floats a separate order namespace from ordinary floats. */
 	private long pageGeneration = 0;
-	/** 頁内の改段commit履歴。段組ownerが閉じた後も頁終了まで保持する。 */
+	/** Column-break commit history for this page; retained until page end even after the multi-column owner closes. */
 	private int committedColumnsOnPage;
 	/**
-	 * この頁で改段した段の本文が達した位置(頁の block 軸、最大)。後の段で登録した下端フロートの
-	 * 置き場が、前の段の既に組んだ行と重ならないかの判定に使う(2026-10-05、jigensha の報告 4)。
+	 * Maximum position reached by body text in columns that broke on this page (page block axis). Used to check
+	 * whether the placement area for a bottom float registered in a later column overlaps lines already laid out in an
+	 * earlier column (2026-10-05, jigensha report 4).
 	 */
 	private double committedColumnsEndOnPage;
 	private final boolean debugFootnote = Boolean.getBoolean("net.zamasoft.foliojet.debug.footnote");
 
-	/** balanceの局所再生ではなく、BreakableBuilderの改段commit成功後だけ呼ぶ。 */
+	/** Called only after a successful BreakableBuilder column-break commit, not during local balancing replay. */
 	final void columnCommitted(final BreakableBuilder builder, final Flow flow,
 			final net.zamasoft.foliojet.layout.fragment.PreparedColumnCut prepared) {
 		++this.committedColumnsOnPage;
-		// 段の頁座標はこの builder のカーソルと同じなので、改段する前の位置がその段の終端。
-		// 別の builder の改段は座標を確かめられないので、版面の端まで組まれたものとみなす
+		// Column page coordinates match this builder's cursor, so the position before the break is the column end.
+		// For another builder's column break, coordinates cannot be verified; assume layout reached the type area edge.
 		this.committedColumnsEndOnPage = Math.max(this.committedColumnsEndOnPage,
 				builder == this ? this.currentPagePosition() : super.getPageLimit());
 		this.traceFootnote("column-commit", null, 0, java.util.Set.of());
@@ -779,43 +766,45 @@ public class RootBuilder extends BreakableBuilder {
 		return this.pageGeneration;
 	}
 
-	/** 同一ページ内のページフロート安定連番。 */
+	/** Stable sequence number for page floats within the same page. */
 	private int pageFloatSequence = 0;
 
-	/** pendingへ登録したboxと、その登録を行ったページ世代。 */
+	/** Box registered in pending and the page generation when it was registered. */
 	private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox, Long> pendingTopFloatGenerations =
 			new java.util.IdentityHashMap<>();
 
-	/** 現ページで登録され、まだ現ページ上端への配置資格を持つtop floatです。 */
+	/** A top float registered on this page that is still eligible for placement at its top. */
 	private record CurrentTopFloat(net.zamasoft.foliojet.layout.box.impl.FloatBlockBox box, long generation) {
 	}
 
-	/** boxの登録順を保つ、現ページtop floatの世代付き台帳です。 */
+	/** Generation-tagged ledger of top floats for this page, preserving box registration order. */
 	private final java.util.List<CurrentTopFloat> pendingCurrentTopFloats = new java.util.ArrayList<>();
 
-	/** 当該ページに既に置いたboxと世代。addPageFloatの再生重複と配置反復を防ぐ。 */
+	/**
+	 * Boxes already placed on this page and their generations; prevents addPageFloat replay duplicates and
+	 * re-placement.
+	 */
 	private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox, Long> placedTopFloatGenerations =
 			new java.util.IdentityHashMap<>();
 
-	/** bottomのpending/配置済み世代。TwoPass再生による二重登録を防ぐ。 */
+	/** Pending/placed generations of bottom floats; prevents duplicate registration during TwoPass replay. */
 	private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox, Long> pendingBottomFloatGenerations =
 			new java.util.IdentityHashMap<>();
 	private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox, Long> placedBottomFloatGenerations =
 			new java.util.IdentityHashMap<>();
 
-	/** footnote移動時にも変えない、当該ページ内bottomの安定order。 */
+	/** Stable order of bottom floats within this page, unchanged even when footnotes move. */
 	private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox, Long> bottomFloatOrders =
 			new java.util.IdentityHashMap<>();
 
 	/**
-	 * 現PageBoxに配置済みの分割不能floatが占めるrootページ軸終端の最大値
-	 * (2026-09-04)。
+	 * Maximum root page-axis end occupied by unsplittable floats placed in the current PageBox (2026-09-04).
 	 *
 	 * <p>
-	 * 初版はRootBuilder自身が配置し、rootまで全flowが同一WritingModeである
-	 * 通常flowだけを対象にする。ローカル座標を持つ子context builder
-	 * (nested BFC・relative/absolute・TwoPass)、段組、直交flowは除外する。
-	 * 子contextから親へオフセット変換して伝播するのは後続版の課題である。
+	 * The first version covers only normal flows placed by RootBuilder itself, with the same WritingMode in every flow
+	 * up to the root. Excludes child context builders with local coordinates (nested BFC, relative/absolute, TwoPass),
+	 * multi-column layout, and orthogonal flows. Converting offsets from child contexts to parents and propagating
+	 * them is left for a later version.
 	 * </p>
 	 */
 	private double atomicFloatFloor = 0;
@@ -830,7 +819,7 @@ public class RootBuilder extends BreakableBuilder {
 		this.contextFlow = new Flow(this.pageBox, 0, 0);
 	}
 
-	/** PageBoxと、それだけに属するページフロート排除域を同時に作る。 */
+	/** Creates a PageBox and its page-float exclusion space together. */
 	private PageBox nextPage() {
 		if (this.pageGeneration == 0x7fff_ffffL) {
 			throw new IllegalStateException("page float generation exhausted");
@@ -857,7 +846,7 @@ public class RootBuilder extends BreakableBuilder {
 		return next;
 	}
 
-	/** rootまでのopen flowが完全に同じWritingModeならtrue。 */
+	/** True if all open flows up to the root have exactly the same WritingMode. */
 	private boolean hasRootWritingModePath() {
 		final WritingMode rootFlow = this.pageBox.getBlockParams().flow;
 		for (int i = 0; i < this.getFlowCount(); ++i) {
@@ -876,17 +865,17 @@ public class RootBuilder extends BreakableBuilder {
 	@Override
 	protected ExclusionSpace pageFloatExclusionsForLineLayout() {
 		if (!this.hasRootWritingModePath()) {
-			// RootBuilder内でも直交flowは同じflowStackを使う。祖先に一つでも
-			// 軸変換があれば頁座標をその内側へ渡さず、外枠配置に任せる。
+			// Orthogonal flows share the same flowStack even inside RootBuilder. If any ancestor
+			// transforms axes, leave placement to the outer frame instead of passing page coordinates inside.
 			return ExclusionSpace.EMPTY;
 		}
 		return this.pageFloatExclusionSnapshot;
 	}
 
 	/**
-	 * {@link BlockBuilder#commitFloatPlacement(FloatPlacementDelta)}で確定した
-	 * 分割不能floatの占有終端を通知します(2026-09-04)。呼出し元をcommitだけに限定し、
-	 * max更新にすることでTwoPassの再通知を冪等にします。
+	 * Reports the occupied end of an unsplittable float committed by {@link
+	 * BlockBuilder#commitFloatPlacement(FloatPlacementDelta)} (2026-09-04). Restricting callers to commit and updating
+	 * by max makes TwoPass renotification idempotent.
 	 */
 	final void reportAtomicFloatPlacement(final net.zamasoft.foliojet.layout.box.IFloatBox box,
 			final WritingMode ownerFlow, final double pageStart) {
@@ -906,12 +895,12 @@ public class RootBuilder extends BreakableBuilder {
 			return;
 		}
 		this.atomicFloatFloor = floor;
-		// 既存bottom予約はこのページに確定済み。floorは追加分だけを止める。
+		// Existing bottom reservations are committed to this page. The floor blocks only additional reservations.
 		this.reserveBottomFloats();
 		this.updateBottomFloatFallbackForCurrentPosition();
 	}
 
-	/** 符号bitを立て、通常floatの非負orderと衝突しない頁世代+安定連番を返す。 */
+	/** Returns page generation + stable sequence with the sign bit set, avoiding ordinary floats' nonnegative order. */
 	private long nextPageFloatOrder() {
 		if (this.pageFloatSequence == Integer.MAX_VALUE) {
 			throw new IllegalStateException("too many page floats on one page");
@@ -940,28 +929,28 @@ public class RootBuilder extends BreakableBuilder {
 		if (observer != null) observer.accept(this, pageName);
 	}
 
-	/** 名前遷移の裁定回数をC/B別に観測する試験用。通常はnullです。 */
+	/** Test hook to observe name-transition arbitration counts separately for C/B. Normally null. */
 	static volatile java.util.function.BiConsumer<RootBuilder, String> pageNameObserver;
 
 	public final RootBuilder getPageContext() {
 		return this;
 	}
 
-	/** 現在組版中のページです。字面輪郭の局所計測など描画前の処理が使います。 */
+	/** Page currently being laid out; used before drawing, such as for local glyph-outline measurements. */
 	public final PageBox getCurrentPageBox() {
 		return this.pageBox;
 	}
 
 	/**
-	 * ページ生成器を返します(M6c: バランスのソース再生用)。
+	 * Returns the page generator (M6c: source replay for balancing).
 	 */
 	public final PageGenerator getPageGenerator() {
 		return this.pageGenerator;
 	}
 
 	/**
-	 * 改ページの実行。
-	 * 
+	 * Executes a page break.
+	 *
 	 * @param mode
 	 * @param flags
 	 */
@@ -974,45 +963,45 @@ public class RootBuilder extends BreakableBuilder {
 			return false;
 		}
 
-		// ボックスの高さを計算
+		// Calculate the box height.
 		for (int i = 0; i < this.flowStack.size(); ++i) {
 			final Flow flow = (Flow) this.flowStack.get(i);
 			flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
 		}
 
-		// C1b/C1d-C 事前検分: 祖先チェーン(flowStack[1..])の先頭から plain
-		// FlowBlockBox(段組・表・縦横混在なし)が連続する「収集可能な
-		// プレフィックス」だけを読み取り専用の計画に載せ、切断貫通レベルの
-		// 断片をボックス構築なしで継続化する。最初に違反したレベルで
-		// スキャンを止める(2026-07-20、以前は1レベルでも不可なら
-		// 全体をall-or-nothingで従来経路に落としていたため、多数のplain
-		// ラッパーの外側にmulticol等が1つ混ざっただけで祖先チェーン全体が
-		// 未反復のOpenChain再帰に回っていた——実測でdepth 74に到達する
-		// ケースを確認済み。BreakPlan.depth はプレフィックス長ではなく
-		// 常に flowStack.size()(不変)を渡す。BreakPlan.openTailDepth()
-		// = depth - index - 1 はこの depth を歩かずに得られる値のまま
-		// 保つことで、プレフィックスの外に落ちた残り(違反箇所+その内側)
-		// だけがOpenChainの実深さになる——depth自体を短縮すると
-		// OpenShapeの入れ子数と実ボックス木の開き構造が食い違い、
-		// まだ開いているボックスを閉じたものとして誤処理しうるため、
-		// 絶対に触らない(外部レビューで確認済み、
-		// 設計相談*.md参照)。
-		// 断片は split の返り値(SplitResult.Frame → ContainerCut.WithFrame)
-		// で外へ伝播する — side channel なし
+		// C1b/C1d-C preflight: create a read-only plan containing only the collectable prefix
+		// of consecutive plain FlowBlockBox entries (no multi-column/table/mixed writing directions)
+		// from the start of the ancestor chain (flowStack[1..]). Convert fragments at levels
+		// traversed by the cut into continuations without constructing boxes. Stop scanning
+		// at the first ineligible level (2026-07-20). Previously, one ineligible level sent
+		// the entire chain to the old path on an all-or-nothing basis, so a single multicol
+		// or similar outside many plain wrappers sent the entire ancestor chain to
+		// OpenChain recursion that had not been made iterative; depth 74 was observed.
+		// Always pass flowStack.size() unchanged as BreakPlan.depth,
+		// not the prefix length. Keep BreakPlan.openTailDepth()
+		// = depth - index - 1 available from this depth without traversal,
+		// so only the remainder outside the prefix (the ineligible level and its interior)
+		// becomes the actual OpenChain depth. Shortening depth itself would make
+		// OpenShape nesting disagree with the actual box tree's open structure
+		// and could incorrectly process still-open boxes as closed.
+		// Never change it (confirmed in external review;
+		// see design consultation*.md).
+		// Fragments propagate outward in the split return value (SplitResult.Frame → ContainerCut.WithFrame),
+		// with no side channel.
 		//
-		// 2026-07-21(B2): スキャン自体を OpenPathScan.capture() へ委譲した
-		// (挙動不変。B1のContinuationCapability分類をそのまま使う)。
-		// スナップショットはこの後 ContinuationValidator の検証にも使う
-		// (再分類しない——ChatGPT Pro相談で確認、
-		// 設計相談)。
+		// 2026-07-21 (B2): delegated the scan itself to OpenPathScan.capture()
+		// (behavior unchanged; uses B1's ContinuationCapability classification as is).
+		// The snapshot is also used later for ContinuationValidator validation
+		// (no reclassification; confirmed in the ChatGPT Pro consultation,
+		// design consultation).
 		//
-		// 2026-07-21(B3a): MULTICOLをPAGE自動改ページ(ForceBreakMode以外)
-		// でのみ収集可能にした——強制改ページでは
-		// FlowContainer.splitPageAxisがKEEP/MOVEを無条件に
-		// AssertionError("force break failed")へ落とす経路があり、
-		// 現時点では安全と確認できていない(B3bとして見送り。ChatGPT Pro
-		// 相談で指摘・検証済み、
-		// 設計相談)。
+		// 2026-07-21 (B3a): made MULTICOL collectable only for automatic PAGE breaks
+		// (excluding ForceBreakMode). For forced page breaks,
+		// FlowContainer.splitPageAxis has a path that unconditionally turns KEEP/MOVE
+		// into AssertionError("force break failed"),
+		// so safety is not yet confirmed (deferred as B3b; identified and verified
+		// in the ChatGPT Pro consultation,
+		// design consultation).
 		final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot;
 		final net.zamasoft.foliojet.layout.fragment.BreakPlan plan;
 		{
@@ -1029,8 +1018,8 @@ public class RootBuilder extends BreakableBuilder {
 			plan = this.columnFootnoteHost == null || this.columnFootnoteHost.footnoteReservation == 0 ? scan.toBreakPlan()
 					: scan.toBreakPlan().withColumnLimit(new net.zamasoft.foliojet.layout.fragment.BreakPlan.ColumnLimit(
 							this.columnFootnoteHost.owner, this.columnFootnoteHost.footnoteReservation));
-			// 増分5(grok レビュー必須1): 切断後は root の内寸が切り詰められ
-			// `getPageOwnerLimit()` が変わるので、最後の段の容量は切断前に固定する。
+			// Increment 5 (grok review requirement 1): cutting truncates the root's inner size and changes
+			// `getPageOwnerLimit()`, so fix the last column's capacity before the cut.
 			this.columnFootnoteCutCapacity = this.columnFootnoteHost == null ? Double.NaN
 					: this.columnFootnoteHost.capacityBase.getAsDouble();
 			this.columnFootnoteCarryChainIndex = -1;
@@ -1044,9 +1033,9 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		}
 
-		// ルートブロックの分割(C1a: 断片ボックスは split では構築せず、
-		// コンテナ切断+断片状態を Continuation に載せて resume が再構成する。
-		// ルートフレームの構築は水位計算・prefix 吸収(C1c)の後)
+		// Split the root block (C1a: split does not construct fragment boxes.
+		// Continuation carries the container cut and fragment state; resume reconstructs them.
+		// Construct the root frame after watermark calculation and prefix absorption (C1c)).
 		final FlowBlockBox prevRootBox;
 		final net.zamasoft.foliojet.layout.box.content.Container nextRootContainer;
 		final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame rootChildFrame;
@@ -1056,7 +1045,7 @@ public class RootBuilder extends BreakableBuilder {
 		{
 			final Flow root = (Flow) this.flowStack.get(0);
 
-			// 段組みのための枠計算
+			// Calculate the frame for multi-column layout.
 			double lastFrame = 0;
 			for (int i = this.flowStack.size() - 1; i >= 0; --i) {
 				final Flow flow = (Flow) this.flowStack.get(i);
@@ -1069,31 +1058,31 @@ public class RootBuilder extends BreakableBuilder {
 
 			prevRootBox = (FlowBlockBox) root.box;
 			final double pageAxis = this.getPageOwnerLimit() - root.pageAxis - lastFrame;
-			// 旧 AbstractContainerBox.split と同じ前処理(内辺基準・改段吸収)
+			// Same preprocessing as the old AbstractContainerBox.split (inner-edge basis and column-break absorption).
 			final double innerLimit = pageAxis
 					- prevRootBox.getFrame().getFramePageStart(prevRootBox.getBlockParams().flow);
 			final net.zamasoft.foliojet.layout.box.content.BreakMode xmode = net.zamasoft.foliojet.layout.box.content.BreakMode
 					.absorbColumn(mode, prevRootBox.getColumnCount());
 			final net.zamasoft.foliojet.layout.fragment.ContainerCut cut;
-			// 切断の間、開いている箱を写す(計画に選ばれない開いた箱も救済しない。OpenBoxes)
+			// Capture open boxes during the cut (do not rescue open boxes absent from the plan either; OpenBoxes).
 			try (var open = net.zamasoft.foliojet.layout.fragment.OpenBoxes.scope(this.openFlowBoxes())) {
 				cut = prevRootBox.getContainer().splitPageAxis(innerLimit, xmode, flags, plan);
 			}
 			if (cut instanceof net.zamasoft.foliojet.layout.fragment.ContainerCut.PlainWithChainStop(
 					final net.zamasoft.foliojet.layout.box.content.Container chainStopContainer,
 					final net.zamasoft.foliojet.layout.fragment.ChainStopReason reason)) {
-				// AbstractBlockBox.splitForContinuationと同じ理由
-				// (コンテンツ消失リスク)。containerが空の場合のみ
-				// 「改ページポイントなし」としてfalseを返し、実内容が
-				// ある場合は下の共通ルートフレーム構築ロジックへ合流
-				// させる(専用のMovedOpen型は2026-07-22に撤去した、
-				// 開発記録
-				// -consultation.md参照)。詳細は開発記録
-				// -chainstop-content-loss-safety-net.md参照
+				// Same reason as AbstractBlockBox.splitForContinuation
+				// (risk of content loss). Return false for "no page-break point"
+				// only when the container is empty. When actual content exists,
+				// join the common root-frame construction logic below
+				// (the dedicated MovedOpen type was removed on 2026-07-22;
+				// see the development records
+				// -consultation.md). For details, see the development records
+				// -chainstop-content-loss-safety-net.md.
 				final boolean hasContent = chainStopContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc
 						&& (fc.hasFlows() || fc.hasFloatings());
 				if (!hasContent) {
-					// KEEP/MOVE: 改ページポイントがない場合
+					// KEEP/MOVE: no page-break point.
 					return false;
 				}
 				nextRootContainer = chainStopContainer;
@@ -1108,20 +1097,20 @@ public class RootBuilder extends BreakableBuilder {
 				rootChildFrame = null;
 			}
 			if (nextRootContainer == null || nextRootContainer == prevRootBox.getContainer()) {
-				// KEEP/MOVE: 改ページポイントがない場合
+				// KEEP/MOVE: no page-break point.
 				return false;
 			}
 			final boolean vertical = prevRootBox.getBlockParams().flow.isVertical();
 			rootCrossExtent = vertical ? prevRootBox.getInnerHeight() : prevRootBox.getInnerWidth();
-			// レシピは splitPageState(アンカー無効化)より前に取得(C1d-B)
+			// Obtain the recipe before splitPageState invalidates anchors (C1d-B).
 			rootRecipe = prevRootBox.fragmentRecipe();
 			rootState = prevRootBox.splitPageState(plan.contentLimit(prevRootBox, innerLimit), innerLimit,
 					mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode);
 		}
 
-		// C1d-C: 貫通フレーム(外→内)。各レベルのコンテナはルート
-		// フレームのコンテナから分離されているため、水位と再生範囲の
-		// 判定はフレーム側も歩く必要がある
+		// C1d-C: frames traversed by the cut (outside in). Each level's container
+		// is detached from the root frame's container, so watermark and replay-range
+		// decisions must also traverse the frame containers.
 		final java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame> innerFrames = new java.util.ArrayList<>();
 		for (net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f = rootChildFrame; f != null;) {
 			innerFrames.add(f);
@@ -1129,10 +1118,10 @@ public class RootBuilder extends BreakableBuilder {
 					final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) ? child : null;
 		}
 
-		// 2026-07-21: 終端の OpenTailShape 深さはこの時点で既に確定している
-		// (splitForContinuation が破断時に計算済み)。2026-07-30(増分4c):
-		// worklist一本化でOpenChain降下が非再帰となったため深さ64の型付き
-		// 例外ガードは退役し、観測用の最大深さ記録だけを残した。
+		// 2026-07-21: the terminal OpenTailShape depth is already fixed here
+		// (splitForContinuation computed it at the break). 2026-07-30 (increment 4c):
+		// unifying on the worklist made OpenChain descent nonrecursive, so the typed
+		// exception guard at depth 64 was retired; only maximum-depth observation remains.
 		{
 			final int terminalOpenDepth;
 			if (rootChildFrame == null) {
@@ -1140,8 +1129,8 @@ public class RootBuilder extends BreakableBuilder {
 			} else {
 				final net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail lastTail = innerFrames
 						.get(innerFrames.size() - 1).tail();
-				// innerFramesの走査規約上lastTailがChildになることは構造的に
-				// ありえない
+				// The innerFrames traversal contract makes it structurally impossible
+				// for lastTail to be Child.
 				terminalOpenDepth = switch (lastTail) {
 				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
 						final net.zamasoft.foliojet.layout.fragment.OpenShape shape) -> shape.depth();
@@ -1152,11 +1141,11 @@ public class RootBuilder extends BreakableBuilder {
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenDepth(terminalOpenDepth, false);
 		}
 
-		// ソースログの水位 = 残余の閉じたアイテムの最小 EventId(M6b v3)。
-		// これより前のイベントは確定ページに消費済みで破棄できる。
-		// 開いているチェーンの StartBlock は compaction が常に保持する。
-		// prefix 吸収(C1c)はコンテナからアイテムを消すため、水位は
-		// 吸収前に計る
+		// Source-log watermark = minimum EventId of closed items in the remainder (M6b v3).
+		// Earlier events have been consumed by finalized pages and can be discarded.
+		// Compaction always retains StartBlock events of the open chain.
+		// Prefix absorption (C1c) removes items from containers, so measure the watermark
+		// before absorption.
 		long watermark = this.sourceWatermark(nextRootContainer);
 		for (final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f : innerFrames) {
 			watermark = Math.min(watermark, this.sourceWatermark(f.container()));
@@ -1165,9 +1154,9 @@ public class RootBuilder extends BreakableBuilder {
 		final PageBox pageBox = this.turnPage(mode);
 		this.beginRestyling();
 
-		// 継続記述(§5.7)。ルート断片は再開時に再構成(C1a)、閉部分木の
-		// 再生範囲は破断時に一括判定して記録(C2。貫通フレームの
-		// コンテナも対象)
+		// Continuation description (§5.7). Reconstruct the root fragment on resumption (C1a),
+		// and determine and record all closed-subtree replay ranges at the break
+		// (C2; includes containers of frames traversed by the cut).
 		final net.zamasoft.foliojet.layout.box.params.WritingMode rootFlow = prevRootBox.getBlockParams().flow;
 		final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges = this
 				.stampRanges(nextRootContainer, rootFlow);
@@ -1175,12 +1164,12 @@ public class RootBuilder extends BreakableBuilder {
 			ranges.putAll(this.stampRanges(f.container(), rootFlow));
 		}
 
-		// C1c: 継続化パスでは各フレームコンテナ最上位の再生可能な閉部分木を
-		// ボックスごと吸収し、serial 付き再生範囲(prefixItems)として運ぶ。
-		// resume が serial 順で残アイテムと合流させて再駆動する。
-		// walk depth はフレームの tail から導出(Child=0、OpenTailShape=d)
+		// C1c: the continuation path absorbs top-level replayable closed subtrees in each frame container,
+		// including their boxes, and carries them as replay ranges with serials (prefixItems).
+		// resume merges them with the remaining items in serial order and drives them again.
+		// Derive walk depth from the frame tail (Child=0, OpenTailShape=d).
 		final int depth = this.flowStack.size();
-		// 破断時に何が積まれていたかを控える(不変条件が破れたときだけ使う)
+		// Record what was stacked at the break (used only when an invariant fails).
 		final String flowsAtBreak = this.describeFlowStack();
 		java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> rootPrefix = java.util.List
 				.of();
@@ -1189,12 +1178,12 @@ public class RootBuilder extends BreakableBuilder {
 		if (rootChildFrame != null) {
 			final boolean rootVertical = rootFlow.isVertical();
 			if (nextRootContainer instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer fc) {
-				// ルートコンテナは継続化時 depth=0 で歩かれる
+				// Traverse the root container with depth=0 when creating the continuation.
 				rootPrefix = fc.extractReplayable(ranges, rootVertical, 0);
 			}
 			for (final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f : innerFrames) {
-				// walk depthはChild=0、OpenTailShape=実際の残り深さ
-				// (上記prepareColumnContinuationと同じ理由)
+				// Walk depth is Child=0, OpenTailShape=actual remaining depth
+				// (same reason as in prepareColumnContinuation above).
 				final int walkDepth = switch (f.tail()) {
 				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child child -> 0;
 				case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
@@ -1206,8 +1195,8 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		}
 
-		// C1d-C: prefix を焼き込んだフレーム木を内→外に再構成する。
-		// 最内フレームは cascade が確定した OpenTailShape を保持
+		// C1d-C: reconstruct the frame tree with embedded prefixes from inside out.
+		// The innermost frame retains the OpenTailShape determined by the cascade.
 		net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail tail = null;
 		for (int i = innerFrames.size() - 1; i >= 0; --i) {
 			final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f = innerFrames.get(i);
@@ -1222,42 +1211,42 @@ public class RootBuilder extends BreakableBuilder {
 		final net.zamasoft.foliojet.layout.fragment.Continuation continuation = new net.zamasoft.foliojet.layout.fragment.Continuation(
 				depth, rootFrame, ranges);
 
-		// 2026-07-24(E-3増分4): 正本(Continuation)を直接検証する(旧
-		// ResumeProgramCompiler/ContinuationVerifierの不変条件は
-		// ContinuationValidatorへ移植済み——programはもう生成しない)。
-		// malformedな継続はこの時点(flowStack.clear()・resume側の状態変異
-		// より前)で例外を投げて安全に停止する。2026-07-30(増分4d):
-		// 戻り値のPathShapeはtail policy(WorklistTailGate)導出にのみ
-		// 使われていたため、gate退役に伴い構造検証だけを残して捨てる。
+		// 2026-07-24 (E-3 increment 4): validate the canonical Continuation directly
+		// (the old ResumeProgramCompiler/ContinuationVerifier invariants were ported
+		// to ContinuationValidator; no program is generated anymore).
+		// A malformed continuation throws here, before flowStack.clear() or resume-side
+		// state mutations, and stops safely. 2026-07-30 (increment 4d):
+		// the returned PathShape was used only to derive tail policy (WorklistTailGate),
+		// so with the gate retired, discard it and retain only structural validation.
 		net.zamasoft.foliojet.layout.fragment.ContinuationValidator.validatePage(snapshot, continuation);
 
 		this.flowStack.clear();
-		// 2026-07-23(排除域P1増分1): 旧断片のhiddenスコープ台帳を捨てる
-		// (再開されるhidden flowはresumeのstartFlowBlock()が積み直す)。
+		// 2026-07-23 (exclusion space P1 increment 1): discard the old fragment's hidden-scope ledger
+		// (resume's startFlowBlock() re-registers resumed hidden flows).
 		this.rebuildNoOverflowFloatingScopes();
 		pageBox.restyle(this, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED);
-		// P1: セッションがリース(occurrence 単位)とスコープを所有し、
-		// consume-once と例外時清算を対称に保証する
+		// P1: the session owns leases (per occurrence) and scopes,
+		// symmetrically guaranteeing consume-once and exception cleanup.
 		try (ResumeSession session = new ResumeSession(continuation, snapshot)) {
 			session.resume();
 			assert !session.hasUnconsumedLeases() : "未消費の吸収済み再生範囲が残っています";
 		}
 		this.pageGenerator.compactLayoutSource(watermark);
-		// 2026-07-21: 旧来はassertのみ(本番では無検査)だったが、ChatGPT Pro
-		// 相談で「直交writing-modeの表(IncrementalTableBuilder経由の改ページ、
-		// BreakableBuilder.forceBreak()がbreakDepth障壁を迂回する)」が
-		// この不変条件を破る既存の到達可能経路であることが判明し、実測でも
-		// 確認した(本セッションの変更とは無関係の既存バグ)。本番でこの
-		// チェックが無効だと、flowStackが破断前後で不整合なまま処理が
-		// 継続し、検知されないコンテンツ破損に至る恐れがあるため、
-		// テスト・本番を問わず例外を投げる形に変更する。
+		// 2026-07-21: previously only an assert checked this (unchecked in production). The ChatGPT Pro
+		// consultation identified tables with orthogonal writing-mode (page breaks through
+		// IncrementalTableBuilder, with BreakableBuilder.forceBreak() bypassing the breakDepth barrier)
+		// as an existing reachable path that violates this invariant, and observation confirmed it
+		// (an existing bug unrelated to this session's changes). Disabling this check in production
+		// could let processing continue with flowStack inconsistent across the break,
+		// leading to undetected content corruption,
+		// so throw an exception in both tests and production.
 		if (this.flowStack.size() != continuation.depth()) {
-			// **何が積まれていたか/積み直されたかまで書く。** 深さの数字だけでは
-			// どの流し込みが落ちたのか分からず、診断に何時間もかかった(2026-08-03)。
-			// **能力スキャンがどの段で止まったかも書く**(2026-09-16)。深さの差は
-			// 「continuation.depth()=破断時のflowStack」と「フレーム鎖=BreakPlanの
-			// approvedBoxes」の不一致であり、その分かれ目は firstBarrier なので、
-			// これが無いと鎖が浅い理由(どの箱のどの能力で止めたか)が分からない
+			// **Include what was stacked and restacked.** Depth numbers alone do not reveal which flow was lost,
+			// and diagnosis took hours (2026-08-03).
+			// **Also include the level where capability scanning stopped** (2026-09-16). The depth difference
+			// is a mismatch between continuation.depth() = flowStack at the break and the frame chain =
+			// BreakPlan's approvedBoxes. firstBarrier marks their divergence;
+			// without it, the reason for the shallow chain (which box and capability stopped it) is unknown.
 			throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
 					"break flow failed (flowStack.size()=" + this.flowStack.size() + ", continuation.depth()="
 							+ continuation.depth() + ")\n  破断時: " + flowsAtBreak + "\n  再開後: "
@@ -1274,7 +1263,7 @@ public class RootBuilder extends BreakableBuilder {
 			LOG.fine("restyled");
 		}
 
-		// 左右改ページ
+		// Left/right page breaks.
 		if (mode instanceof BreakMode.ForceBreakMode) {
 			ForceBreakMode force = (ForceBreakMode) mode;
 			if ((force.breakType == PageBreakMode.VERSO || force.breakType == PageBreakMode.RECTO)
@@ -1288,20 +1277,20 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		}
 		this.endRestyling();
-		// 増分5: 継続の再生で owner の継続が持ち越しを受け取らなかった(段組が続かない、
-		// 別の段組が別の位置で開いた、継続が入れ子で不適格になった)なら、本文が
-		// 組まれる前に頁の宿主へ返す(codex レビュー 2026-09-08 必須 2)。
+		// Increment 5: if the owner's continuation did not receive the carry-over during replay (multi-column
+		// layout does not continue, another multi-column layout opened elsewhere, or nested continuation became
+		// ineligible), return it to the page host before laying out body text (codex review 2026-09-08 requirement 2).
 		this.flushColumnFootnoteCarry();
 
 		return true;
 	}
 
 	/**
-	 * 継続のフレーム鎖の段数と終端の開き形を表します(2026-09-16、診断用)。
+	 * Describes the continuation frame-chain depth and terminal open shape (2026-09-16, for diagnostics).
 	 *
 	 * <p>
-	 * {@code continuation.depth()}は破断時の{@code flowStack}から採るのに対し、
-	 * 再開が積み直す段数はこのフレーム鎖で決まる。食い違いの診断には両方が要る。
+	 * {@code continuation.depth()} comes from {@code flowStack} at the break, whereas this frame chain determines the
+	 * number of levels restacked during resumption. Diagnosing a mismatch requires both.
 	 * </p>
 	 */
 	private static String describeContinuationShape(
@@ -1324,12 +1313,12 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 開き鎖の各段の箱と継続能力を 1 行で表します(2026-09-16、診断用)。
+	 * Describes each open-chain level's box and continuation capability on one line (2026-09-16, for diagnostics).
 	 *
 	 * <p>
-	 * 継続の深さと再開後の深さが食い違うとき、分かれ目は「どの段で
-	 * {@link net.zamasoft.foliojet.layout.fragment.ContinuationCapability}が
-	 * 承認されなかったか」なので、段ごとの箱の型と分類を並べる。
+	 * When continuation depth differs from depth after resumption, the divergence is the level where {@link
+	 * net.zamasoft.foliojet.layout.fragment.ContinuationCapability} was not approved. List the box type and
+	 * classification at each level.
 	 * </p>
 	 */
 	private String describeOpenPathCapabilities(
@@ -1353,20 +1342,21 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 改ページを実行します: 今のページを確定して出力し、次のページを開いて、送られてきた脚注・ページフロートを
-	 * 置き直し、流し込みの位置をページの先頭へ戻す(2026-10-05 に {@link #pageBreak} から切り出した。本文は
-	 * 移しただけ)。脚注の再予約は、継続する本文を組み直すより先でなければならない。
+	 * Executes a page break: finalizes and outputs the current page, opens the next page, places carried-over
+	 * footnotes and page floats again, and resets the flow position to the page start (extracted from {@link
+	 * #pageBreak} on 2026-10-05; the body was merely moved). Footnotes must be re-reserved before rebuilding the
+	 * continuing body text.
 	 *
-	 * @param mode 今回の改ページのモード
-	 * @return 閉じたページ
+	 * @param mode the mode of this page break
+	 * @return the closed page
 	 */
 	private PageBox turnPage(final BreakMode mode) {
 		this.finishLayout();
-		// 何も描かないページは出力されない(css-break-3 §4.4)。落ちた
-		// ページは面(recto/verso)を消費しないので、こちらの面の追跡も
-		// 進めてはならない——進めると以後の左右改ページが全部裏返る
+		// Pages with nothing drawn are not output (css-break-3 §4.4). A dropped page
+		// does not consume a side (recto/verso), so do not advance our side tracking
+		// either; doing so would invert every subsequent left/right page break.
 		if (mode instanceof ForceBreakMode force && force.namedTransition) {
-			// 名前遷移で閉じたページは白紙なら落とす(N2b——drawPageが判定)
+			// Drop pages closed by a name transition if blank (N2b; drawPage decides).
 			this.pageBox.markNamedTransitionClosed();
 		}
 		final boolean emitted = this.pageGenerator.drawPage(this.pageBox, false,
@@ -1376,12 +1366,12 @@ public class RootBuilder extends BreakableBuilder {
 		this.beginPage();
 		this.resetPageMarginNoteCursors();
 		if (mode instanceof BreakMode.ForceBreakMode) {
-			// 強制改ページで始まったページは、白紙でも作者の意図として残す
+			// Keep pages started by a forced page break even if blank, as the author's intent.
 			this.pageBox.markForcedBreakOrigin();
 		}
-		// 脚注F4: 送られてきた脚注(carry-in)を新ページの容量へ最優先で
-		// 再予約する——継続本文がrestyle・構築される前でなければ、予約
-		// なしの容量で組まれてしまう
+		// Footnotes F4: re-reserve carried-over footnotes (carry-in) against the new page's
+		// capacity first, before restyling or constructing the continuing body text;
+		// otherwise, it would be laid out using capacity without reservations.
 		this.reserveFootnotes();
 		if (emitted && this.pageSide != PageBreakMode.AUTO) {
 			this.pageSide = (this.pageSide == PageBreakMode.VERSO) ? PageBreakMode.RECTO : PageBreakMode.VERSO;
@@ -1391,8 +1381,8 @@ public class RootBuilder extends BreakableBuilder {
 			LOG.fine("breaked: " + mode + "/pageSide=" + this.pageSide);
 		}
 
-		// コンテキストを再開。ページフロート(上端)は新ページの先頭へ
-		// 置き、本文はページ先頭から二次元排除する。
+		// Resume the context. Place top page floats at the new page start,
+		// and apply two-dimensional exclusion to body text from the page start.
 		this.contextFlow = new Flow(this.pageBox, 0, 0);
 		this.reserveBottomFloats();
 		this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
@@ -1401,7 +1391,7 @@ public class RootBuilder extends BreakableBuilder {
 		return pageBox;
 	}
 
-	/** 流し込みスタックの中身を人が読める形にします(不変条件の診断用)。 */
+	/** Formats the flow stack contents for humans (for invariant diagnostics). */
 	private String describeFlowStack() {
 		final StringBuilder out = new StringBuilder();
 		for (int i = 0; i < this.flowStack.size(); ++i) {
@@ -1418,27 +1408,24 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 継続フレームを外→内に消費します(C1d-A)。各フレームの断片ボックスを
-	 * ここで初めて構成し、コンテナを吸収済み prefix と合流させて歩く。
-	 * tail が Child なら depth=0(チェーン子はコンテナに居ない)、
-	 * OpenTailShape なら従来の深さ規約(最内の moved-open ボックス・
-	 * 開きテキストの継続)。
+	 * Consumes continuation frames from outside in (C1d-A). Constructs each frame's fragment box for the first time
+	 * here, then traverses its container merged with the absorbed prefix. For a Child tail, depth=0 (the chain child
+	 * is not in the container); for OpenTailShape, use the existing depth convention (continuation of the innermost
+	 * moved-open box or open text).
 	 *
 	 * <p>
-	 * 2026-07-20: {@code Child}分岐の自己再帰(チェーン断片1段につき1回)を
-	 * 明示的ループへ反復化した(ARCHITECTURE.md不変条件6)。
-	 * {@code DeepNestingRestyleTest}(深さ200)で
-	 * {@code ContinuationStats.CHILD_FRAMES}が実際に1000超発火することを
-	 * 確認済みで、再帰のままでは深いネスト文書でStackOverflowErrorに
-	 * 到達しうる。再帰呼び出しがswitch文の唯一かつ末尾の文だった
-	 * (呼び出し後に何もしない末尾再帰)ため、`frame`/`index`を書き換えて
-	 * ループ先頭へ戻すだけで挙動を変えずに反復化できる。
+	 * 2026-07-20: converted self-recursion in the {@code Child} branch (once per chain-fragment level) into an
+	 * explicit loop (ARCHITECTURE.md invariant 6). {@code DeepNestingRestyleTest} (depth 200) confirmed over 1000
+	 * actual {@code ContinuationStats.CHILD_FRAMES} hits; leaving recursion could cause StackOverflowError in deeply
+	 * nested documents. The recursive call was the sole, final statement in the switch branch (tail recursion with no
+	 * work afterward), so updating `frame`/`index` and returning to the loop start makes it iterative without changing
+	 * behavior.
 	 * </p>
 	 *
-	 * @param frame 開始フレーム
-	 * @param index 外からの位置(0=ルート。トレースの chain-fragment 番号)
-	 * @param depth 継続全体の深さ(トレース表示用)
-	 * @param snapshot 破断時snapshot(実fragment署名の直接照合、E-3増分2)
+	 * @param frame starting frame
+	 * @param index position from outside (0=root; chain-fragment number in the trace)
+	 * @param depth depth of the entire continuation (for trace output)
+	 * @param snapshot snapshot at the break (direct comparison of actual fragment signatures, E-3 increment 2)
 	 */
 	private void resumeFrame(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
 			final int depth, final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot) {
@@ -1446,25 +1433,19 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * PAGE/COLUMN共有のfragment chain executorです(2026-07-21、
-	 * M6b Phase B4残作業でPAGE専用の{@code resumeFrame}から改名・明示的に
-	 * 共有メソッドとして切り出した)。{@code index==0}の全ボックス
-	 * restyle(収集不能な破断、チェーンなし)分岐はPAGE root専用に見えるが、
-	 * 実際にはこのメソッド自体がPAGE/COLUMN両方の入口であり、COLUMN側
-	 * (owner内側のfragment chain実行)は常に{@code index=1}から呼ぶため、
-	 * この分岐は構造的にCOLUMN側からは到達しない(indexは単調増加する
-	 * ため、一度でもindex&gt;0になれば以降index==0には戻らない)——別の
-	 * メソッドへ完全に分離すると{@code continueFragment}のfragment
-	 * 再構成を二重に行うリスクがあるため、単一ループ内で条件分岐する形を
-	 * 維持している。
+	 * Fragment chain executor shared by PAGE/COLUMN (2026-07-21; renamed from the PAGE-only {@code resumeFrame} and
+	 * explicitly extracted as a shared method in the remaining M6b Phase B4 work). The {@code index==0} branch for
+	 * whole-box restyle (uncollectable break, no chain) appears PAGE-root-specific, but this method is the entry for
+	 * both PAGE and COLUMN. COLUMN (execution of the fragment chain inside the owner) always calls with {@code
+	 * index=1}, making this branch structurally unreachable from COLUMN (index increases monotonically, so once
+	 * index&gt;0 it never returns to index==0). Splitting it into a wholly separate method risks duplicating fragment
+	 * reconstruction by {@code continueFragment}, so retain the conditional within a single loop.
 	 *
-	 * @param target 状態変異(startFlowBlock/restyle)を適用する先の
-	 *               builder(2026-07-21新設、M6b Phase B4-Step4)。PAGEは
-	 *               常に{@code RootBuilder.this}(旧来どおり)。COLUMNは
-	 *               改段を駆動している実際の{@code BreakableBuilder}
-	 *               (nested な{@code ColumnBuilder}の場合もある——M6c
-	 *               の段バランスprobe中に、probeの内容自体がさらに改段を
-	 *               要する場合)を渡す。
+	 * @param target builder to receive state mutations (startFlowBlock/restyle; added 2026-07-21,
+	 *               M6b Phase B4-Step4). PAGE always uses {@code RootBuilder.this}, as before.
+	 *               COLUMN passes the actual {@code BreakableBuilder} driving the column break,
+	 *               possibly a nested {@code ColumnBuilder} when the contents of an M6c column-balancing
+	 *               probe themselves require another column break.
 	 */
 	private void resumeFragmentChain(net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame frame, int index,
 			final int depth, final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot,
@@ -1474,16 +1455,16 @@ public class RootBuilder extends BreakableBuilder {
 			assert !this.resumeScopes.isEmpty();
 			final net.zamasoft.foliojet.layout.box.AbstractBlockBox block = net.zamasoft.foliojet.layout.box.AbstractBlockBox
 					.continueFragment(frame.recipe(), frame.state(), frame.container(), frame.crossExtent());
-			// P1: 型検査つきの消費(表フレーム等の新種別は明示的に追加する —
-			// FrameRemainder sum type の下地。盲目的キャストで壊れない)
+			// P1: consumption with type checking (explicitly add new kinds such as table frames;
+			// groundwork for the FrameRemainder sum type, avoiding failures from blind casts).
 			if (!(block instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox box)) {
 				throw new IllegalStateException("未対応のフレーム種別: " + block.getClass().getName());
 			}
-			// 2026-07-24(E-3増分2): instantiate直後・builder状態変異
-			// (startFlowBlock/restyle)前に、実fragmentの署名を破断時
-			// snapshotと直接照合する(shadowのInstantiate照合が持っていた
-			// 唯一の独立価値の直接化。不一致は型付き例外で停止し、legacyで
-			// 再試行しない)。
+			// 2026-07-24 (E-3 increment 2): directly compare the actual fragment signature
+			// against the snapshot at the break immediately after instantiate, before builder
+			// state mutations (startFlowBlock/restyle). This directly implements the sole
+			// independent value of the shadow Instantiate comparison. A mismatch stops with
+			// a typed exception; do not retry through legacy.
 			final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.FragmentSignature signature = net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot.FragmentSignature
 					.from(box);
 			net.zamasoft.foliojet.layout.fragment.ContinuationValidator.checkFragmentSignature(snapshot, index,
@@ -1502,13 +1483,13 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			case net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.OpenTailShape(
 					final net.zamasoft.foliojet.layout.fragment.OpenShape shape) -> {
-				// 2026-07-30(増分4c/4d): 深さガードの重複検査と、B6a1由来の
-				// worklist適格判定+override(旧: WORKLIST_ELIGIBLEのときだけ
-				// terminal restyleをworklistで駆動)は退役した——restyle()
-				// 自体が無条件にworklist executorで駆動する。
+				// 2026-07-30 (increments 4c/4d): retired duplicate depth-guard checks and the
+				// B6a1 worklist eligibility check + override (previously drove terminal restyle
+				// with the worklist only for WORKLIST_ELIGIBLE). restyle() itself
+				// is now unconditionally driven by the worklist executor.
 				if (index == 0) {
-					// 収集不能な破断(チェーンなし): 従来の全ボックス restyle。
-					// この経路では prefix 吸収は行われていない
+					// Uncollectable break (no chain): the existing whole-box restyle.
+					// No prefix absorption has occurred on this path.
 					net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordUnchainedRestyle();
 					assert frame.prefixItems().isEmpty();
 					box.restyle(target, shape);
@@ -1524,11 +1505,10 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * フレームコンテナを再開します(C1c)。吸収済みの再生範囲(prefix)を
-	 * serial 順で残アイテムと合流させる。
+	 * Resumes a frame container (C1c). Merges absorbed replay ranges (prefix) with remaining items in serial order.
 	 *
-	 * @param target 状態変異を適用する先のbuilder(2026-07-21、B4-Step4で
-	 *               {@code this}固定から一般化)。
+	 * @param target builder to receive state mutations (generalized from fixed {@code this}
+	 *               on 2026-07-21, B4-Step4).
 	 */
 	private void restyleFrame(final BlockBuilder target, final net.zamasoft.foliojet.layout.box.content.Container container,
 			final java.util.List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix,
@@ -1542,8 +1522,8 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 吸収された閉部分木をソース再駆動します(C1c)。再生可否は破断時に
-	 * 判定済み(stampRanges)のため無条件。
+	 * Redrives an absorbed closed subtree from source (C1c). Unconditional because replay eligibility was determined
+	 * at the break (stampRanges).
 	 */
 	public void replaySubtree(final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range,
 			final BlockBuilder target) {
@@ -1551,14 +1531,14 @@ public class RootBuilder extends BreakableBuilder {
 		try {
 			if (!net.zamasoft.foliojet.layout.SourceReplayer.replay(this.pageGenerator.getLayoutSource(),
 					range.fromId(), range.toId(), target, this.pageGenerator)) {
-				// 吸収済み範囲はボックスを運搬しない(フォールバック不可)。
-				// リースが守っているはずのイベントが欠けたら実装バグとして失敗
+				// Absorbed ranges carry no boxes (no fallback).
+				// Missing events that the lease should protect are an implementation bug; fail.
 				throw new IllegalStateException("吸収済み再生範囲が失われました: [" + range.fromId() + ", " + range.toId() + "]");
 			}
 			net.zamasoft.foliojet.layout.SourceReplayer.PREFIX_REPLAYS.incrementAndGet();
 		} finally {
-			// 消費完了。再生の途中で入れ子の改ページが起きても、finally
-			// までリースが残っているため残イベントは compact されない
+			// Consumption complete. Even if a nested page break occurs during replay,
+			// the lease survives until finally, so remaining events are not compacted.
 			if (session != null) {
 				session.releaseLease(range);
 			}
@@ -1566,31 +1546,31 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 移動した閉じた部分木のソース再駆動を試みます(M6b)。改ページの
-	 * 残余再構築中で、アンカーが現世代かつ窓内で閉じている場合のみ
-	 * 再駆動されます。false ならボックス再生でフォールバックします。
+	 * Attempts to redrive a moved closed subtree from source (M6b). Redrives only while rebuilding the remainder after
+	 * a page break, when the anchor belongs to the current generation and is closed within the window. On false, fall
+	 * back to box replay.
 	 */
 	public boolean replayFromSource(final net.zamasoft.foliojet.layout.box.IBox box, final BlockBuilder target) {
 		if (this.resumeScopes.isEmpty()) {
 			return false;
 		}
-		// C2: 判定は破断時に一括記録済み(stampRanges)。ここでは消費のみ
-		// (現在=最内の再開スコープの記録)。consume-once: 同じ範囲が
-		// 二度再生されない(P0。外部レビュー指摘の明示化)
+		// C2: all decisions were recorded at the break (stampRanges). Only consume here
+		// (records of the current, innermost resume scope). Consume-once: never replay
+		// the same range twice (P0; makes an external review finding explicit).
 		final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range = this.resumeScopes.peek()
 				.remove(box);
 		if (range == null) {
 			return false;
 		}
-		// 範囲が(入れ子の compact 等で)欠けていれば駆動前に false が返り、
-		// ボックスが残っているため box-restyle へフォールバックする
+		// If a range has gaps (e.g. due to nested compaction), return false before execution
+		// and fall back to box-restyle, since the boxes remain.
 		return net.zamasoft.foliojet.layout.SourceReplayer.replay(this.pageGenerator.getLayoutSource(), range.fromId(),
 				range.toId(), target, this.pageGenerator);
 	}
 
 	/**
-	 * 残余のうち窓内で閉じているアイテムの最小 EventId を返します
-	 * (M6b v3 の compaction 水位)。なければ Long.MAX_VALUE。
+	 * Returns the minimum EventId of remainder items closed within the window (M6b v3 compaction watermark), or
+	 * Long.MAX_VALUE if none.
 	 */
 	private long sourceWatermark(final net.zamasoft.foliojet.layout.box.content.Container container) {
 		final net.zamasoft.foliojet.layout.fragment.LayoutSource log = this.pageGenerator.getLayoutSource();
@@ -1608,9 +1588,9 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	protected void finishLayout() {
-		// 増分5: 頁分割(切断成功後)で閉じる最後の段は、旧頁に残った容器を
-		// 走査して段のblock-endへ添付し、置けなかった注は次頁へ持ち越す。
-		// 段が開いていなくても持ち越しが残っていれば頁の宿主へ返す。
+		// Increment 5: for the last column closed by a page split (after a successful cut), scan
+		// the container left on the old page, attach notes at column block-end, and carry unplaced notes forward.
+		// Return remaining carry-over to the page host even if no column is open.
 		if (this.recoveredColumnFootnotes != null) this.settleRecoveredFootnotes(this.pageAxis);
 		if (this.columnFootnoteHost != null) {
 			final FootnoteHost host = this.columnFootnoteHost;
@@ -1627,24 +1607,24 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		this.columnFootnoteCutCapacity = Double.NaN;
 		this.pageFinished = true;
-		// **予約したまま置かれない脚注は、ページを無限に作る**
-		// (2026-08-21、掃過seed 439857ほか)。脚注は呼び出しが確定した
-		// ページに置かれるが、呼び出しが「入れ子の段組の中で毎回次ページへ
-		// 送られる」内容にあると、予約(版面を狭める)だけが残り、狭いせいで
-		// 内容がまた送られる——同じ形のページが上限まで積み上がる。
-		// 予約を保持したまま、中身の無いページが2ページ連続したら、先頭の
-		// 注の予約を外して(deferred)呼び出しが確定する頁を待つ。
+		// **Footnotes that remain reserved but unplaced generate pages indefinitely**
+		// (2026-08-21, sweep seed 439857 and others). Footnotes go on the page where their call is finalized,
+		// but if the call is in content repeatedly sent to the next page within nested multi-column layout,
+		// only the reservation (which narrows the type area) remains. The narrowed area sends the content
+		// forward again, accumulating identically shaped pages up to the limit.
+		// After two consecutive pages with no content but retained reservations, remove the first
+		// note's reservation (deferred) and wait for the page where its call is finalized.
 		//
-		// **2026-09-03 に変えた**(cti.li の報告、[[2026-09-02-cti-li-footnote-
-		// numbering.md]])。以前は EOF ドレインと同じ強制配置
-		// (forceFootnoteAttach)へ切り替えていたが、①その旗は二度と戻らず、
-		// 以後の注が全部「登録された頁」に呼び出し抜きで置かれて番号が通番に
-		// 落ちた。②改頁を避ける大きな図が数頁ぶん溜まって順に頁へ割られる
-		// 間(各頁に中身はある)にも発火し、注が呼び出しの 2 頁前に出た。
-		// 「中身の無い頁」の条件は掃過 seed 439857 の形(空の段組枠だけの頁が
-		// 積み上がる)を残し、図が順に置かれていく形を除く。予約を外せば
-		// 内容が収まって呼び出しが確定し、注は F4 の carry-in で次頁の先頭に
-		// 置かれる(番号は呼び出しの頁のもの)
+		// **Changed on 2026-09-03** (cti.li report, [[2026-09-02-cti-li-footnote-
+		// numbering.md]]). Previously, this switched to the same forced placement
+		// (forceFootnoteAttach) as EOF draining, but ① the flag never reset,
+		// so all later notes went on their registration pages without calls, falling back to document-wide numbering.
+		// ② It also fired while accumulated large figures that avoided page breaks were split across several
+		// pages (each with content), placing a note two pages before its call.
+		// The "page without content" condition retains the sweep seed 439857 case (accumulating
+		// pages containing only empty multi-column frames) and excludes sequential figure placement.
+		// Removing the reservation lets content fit and finalizes the call; F4 carry-in places
+		// the note first on the next page (with the number from the call's page).
 		final boolean hadReservation = this.pageFootnoteHost.footnoteReservedCount > 0 || !this.footnotePlan.isEmpty();
 		this.pageFootnoteHost.footnoteProgressed = false;
 		this.pageHadContent = false;
@@ -1666,19 +1646,19 @@ public class RootBuilder extends BreakableBuilder {
 		this.pageBox.finishLayout(this.pageBox);
 	}
 
-	/** 予約を保持したまま脚注配置が進まなかった連続ページ数。 */
+	/** Consecutive pages with retained reservations but no progress in footnote placement. */
 	private int footnoteStallPages = 0;
 
-	/** 直近の走査で、ページに行か置換要素があったか(停滞の安全弁の判定材料)。 */
+	/** Whether the most recent scan found lines or replaced elements on the page (input to the stall safety guard). */
 	private boolean pageHadContent = false;
 
 	public void finish() {
 		this.requireNoIncompleteTable();
 		this.finishLayout();
-		// 脚注F4: 容量送りされた脚注が残っていれば、note-onlyページを
-		// pendingが空になるまで生成する。前進しない回(1件も配置できない)は
-		// call消失か走査欠落の不変条件違反として型付き失敗にする
-		// (送り続けて無限ページを生まない)
+		// Footnotes F4: if footnotes deferred for capacity remain, generate note-only pages
+		// until pending is empty. An iteration with no progress (no note placed)
+		// is a typed invariant failure for a lost call or missed scan
+		// (do not keep forwarding and generating infinite pages).
 		while (!this.pageFootnoteHost.pendingFootnotes.isEmpty() || !this.columnFootnoteCarry.isEmpty()
 				|| this.hasPendingPageFloats()) {
 			this.pageFootnoteHost.footnoteProgressed = false;
@@ -1695,11 +1675,11 @@ public class RootBuilder extends BreakableBuilder {
 					super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation, true));
 			this.resetFragmentCursor(0, 0);
 			this.finishLayout();
-			// 前進の無い回は、呼び出しがどのページにも残らなかった脚注
-			// (表のセル・絶対配置の中にある呼び出しは走査の対象外)。
-			// **変換は失敗させない**(ARCHITECTURE.md §5.13)——次の回は
-			// 呼び出しの有無に関わらず先頭から置き、それでも進まなければ
-			// 残りを捨てて警告する(無限ページを作らないため)
+			// An iteration without progress means a footnote's call remained on no page
+			// (calls inside table cells or absolute positioning are outside the scan).
+			// **Do not fail conversion** (ARCHITECTURE.md §5.13). On the next iteration,
+			// place notes from the front regardless of calls; if that still makes no progress,
+			// discard the remainder and warn (to avoid generating infinite pages).
 			if (!this.pageFootnoteHost.footnoteProgressed && !this.pageFloatProgressed) {
 				if (this.forceFootnoteAttach) {
 					LOG.warning("giving up on footnotes whose calls were never found: "
@@ -1717,43 +1697,45 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	// ------------------------------------------------------------------
-	// 脚注(F2〜F4、2026-07-31——consult-codex-2026-07-31-footnote.txt §3と
-	// 同-f4.txt。初期サブセットはオーナー承認済み: 文書通番・保守的確保・
-	// 空ページにも入らない巨大脚注は型付きエラー・縦書き/段組/@footnote/
-	// 分割は後続増分)
+	// Footnotes (F2–F4, 2026-07-31; consult-codex-2026-07-31-footnote.txt §3 and
+	// the corresponding -f4.txt. Owner-approved initial subset: document-wide numbering, conservative reservation,
+	// typed errors for oversized notes that cannot fit even on an empty page; vertical writing,
+	// multi-column layout, @footnote, and splitting deferred to later increments).
 
 	/**
-	 * 未配置の脚注1件です。{@code committed}は「呼び出しが過去の確定
-	 * ページに残った」——容量送り(carry-in)された脚注は次ページで
-	 * callゼロ件でも最優先で配置しなければならない(F4答申の要点)。
+	 * One unplaced footnote. {@code committed} means its call remained on a previously finalized page. A footnote
+	 * carried forward for capacity (carry-in) must be placed first on the next page even with zero calls (the key
+	 * point of the F4 recommendation).
 	 */
 	private static final class FootnoteEntry {
 		final long id;
 
 		net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox;
-		/** 本文が未到着でも、Bの計測高とcallページの採番を保持できます。 */
+		/** Can retain B's measured height and the call-page number even before the body arrives. */
 		double measuredHeight = Double.NaN;
 
 		boolean committed = false;
-		/** 同頁の確定段にcallが残った。採番・committed化は頁確定まで待つ。 */
+		/** The call remains in a finalized column on this page. Wait until page finalization to number and commit it. */
 		boolean columnCallRetained = false;
-		/** 段の末尾に最終添付した宿主(balance前の回収に使う。増分6)。 */
+		/** Host where the note was finally attached at column end (used for collection before balancing; increment 6). */
 		FootnoteHost attachedColumnHost;
-		/** この頁世代では予約しない(balance 後に収まらない回収注。次頁の carry-in へ)。 */
+		/**
+		 * Do not reserve in this page generation (collected note that cannot fit after balancing; carry into the next
+		 * page).
+		 */
 		long holdReservationUntil = -1;
 
 		/**
-		 * ページローカルの脚注番号です(F5、1始まり。未採番は-1)。番号の
-		 * スコープはnote配置ページではなく<b>callが残ったページ</b>——
-		 * carry-inされたnoteは後続ページでもcallページの番号を保つ。
+		 * Page-local footnote number (F5, starting at 1; -1 if unnumbered). The scope is <b>the page retaining the
+		 * call</b>, not the page where the note is placed. A carried-in note retains its call-page number on later pages.
 		 */
 		int assignedNumber = -1;
 
 		/**
-		 * 予約を外して呼び出しの頁を待つ注です(2026-09-03)。予約が内容を
-		 * 押し出し続けて呼び出しが確定しない停滞のときに立つ。呼び出しが
-		 * 確定した頁では予約が無いので置けず、carry-in(committed)で次頁の
-		 * 先頭に置かれる。
+		 * A note whose reservation is removed while waiting for its call's page (2026-09-03). Set on a stall where
+		 * reservation keeps pushing content out and prevents the call from being finalized. No reservation exists on the
+		 * page that finalizes the call, so the note cannot be placed there; carry-in (committed) places it first on the
+		 * next page.
 		 */
 		boolean deferred = false;
 
@@ -1764,24 +1746,24 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 脚注の宿主に属する状態。予約・採番・救済の判断はRootに残します。
-	 * 頁の容器と容量の基点は使用時に参照し、改頁・切断前の値を固定しません。
+	 * State belonging to a footnote host. Reservation, numbering, and rescue decisions stay in Root.
+	 * Look up the page container and capacity base when used; do not freeze values from before a page break or cut.
 	 */
 	private static final class FootnoteHost {
-		/** 未配置の脚注(文書順が正本。箱木の走査順はbidi等で崩れるため)。 */
+		/** Unplaced footnotes (document order is canonical; bidi and similar processing can disrupt box-tree scan order). */
 		final java.util.ArrayDeque<FootnoteEntry> pendingFootnotes = new java.util.ArrayDeque<>();
 
 		/**
-		 * 現ページに予約済みのpending先頭prefixの件数と、その予約量
-		 * (gap込み、ページ方向)。予約はページ内で単調非減少——呼び出しが
-		 * 次ページへ移っても返さない「保守的確保」(前ページ下端に空きが
-		 * 残り得る。明示的仕様逸脱)。
+		 * Count of the leading pending prefix reserved on this page and its reserved extent (including gap, in the page
+		 * direction). Reservations never decrease within a page: conservative reservation does not return space even when
+		 * a call moves to the next page (may leave space at the previous page's bottom; an explicit specification
+		 * deviation).
 		 */
 		int footnoteReservedCount = 0;
 		double footnoteReservation = 0;
-		/** 明示した下限の空きと、注が実際に使う量を区別します。 */
+		/** Distinguishes explicitly reserved minimum space from the extent actually used by notes. */
 		double footnoteUsed = 0;
-		/** 直近のattachで配置が進んだか(finish()の前進性ガード)。 */
+		/** Whether placement advanced in the most recent attach (finish() progress guard). */
 		boolean footnoteProgressed = false;
 		double atomicFloatFloor = 0;
 
@@ -1805,37 +1787,37 @@ public class RootBuilder extends BreakableBuilder {
 		}
 
 		void addFloating(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox, final double pageAxis) {
-			// 頁宿主(原点0)では加算を増やさず、従来の座標をそのまま渡す。
+			// For the page host (origin 0), pass the existing coordinates unchanged, without an extra addition.
 			this.container.get().addFloating(noteBox, 0, pageAxis);
 		}
 	}
 
-	/** 頁宿主は文書を通して一つ。bottom・固定帯も状態だけを共有し、既存経路で扱う。 */
+	/** One page host per document. Bottom floats and fixed bands share only state and use the existing paths. */
 	private final FootnoteHost pageFootnoteHost = new FootnoteHost(
 			() -> this.pageBox.getContainer(), super::getPageLimit, () -> this.pageBox.getLineSize(), null, 0, 0);
-	/** 現在の段。対象注が届くまでは予約・追加走査を行わない。 */
+	/** Current column. Do not reserve space or perform additional scans until a relevant note arrives. */
 	private FootnoteHost columnFootnoteHost;
 	/**
-	 * 頁分割で段が閉じたとき、旧頁の最後の段に置けなかった注(呼び出しが
-	 * 次頁へ移った・段に収まらなかった)。次頁で最初に開く段の宿主へ渡し、
-	 * 段が開かないまま注が届く/頁が終わるなら頁の宿主へ返す(増分5)。
+	 * Notes unplaced in the old page's last column when a page split closes it (call moved to the next page, or note
+	 * did not fit). Pass them to the first column host opened on the next page; return them to the page host if a note
+	 * arrives or the page ends without a column opening (increment 5).
 	 */
 	private final java.util.ArrayDeque<FootnoteEntry> columnFootnoteCarry = new java.util.ArrayDeque<>();
-	/** 頁分割の切断前に固定した最後の段の容量(切断後の root 内寸に依存しない)。 */
+	/** Last column's capacity fixed before the page split (independent of the root's inner size after cutting). */
 	private double columnFootnoteCutCapacity = Double.NaN;
 	/**
-	 * 持ち越しを渡す継続 owner の識別: 切断時の open chain(flowStack)での owner の
-	 * 位置。継続の再生は同じ順序で箱を作り直すので、再生中に同じ位置で開いた
-	 * 段組だけを owner の継続とみなす(grok レビュー任意、2026-09-07)。
+	 * Identifies the continuing owner that receives carry-over by its position in the open chain (flowStack) at the
+	 * cut. Continuation replay rebuilds boxes in the same order, so only multi-column layout opened at that position
+	 * during replay counts as the owner's continuation (optional grok review item, 2026-09-07).
 	 */
 	private int columnFootnoteCarryChainIndex = -1;
-	/** balance 前に回収した段の注。balance 後に収容判定してから頁の宿主へ移す(増分6)。 */
+	/** Column notes collected before balancing; check fit afterward before moving them to the page host (increment 6). */
 	private FootnoteHost recoveredColumnFootnotes;
-	/** 段添付でFIFOを離れたentryも、頁の文書順採番が終わるまで保持する。 */
+	/** Retain entries removed from FIFO by column attachment until document-order numbering for the page finishes. */
 	private final java.util.SortedMap<Long, FootnoteEntry> columnPageEntries = new java.util.TreeMap<>();
 	private final java.util.List<net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage> columnPageLabels = new java.util.ArrayList<>();
 
-	/** 切断済み段の値だけを観測する。木やentryを試験側へ保持しない。 */
+	/** Observe only values of cut columns. Do not retain trees or entries in tests. */
 	public record ColumnFootnotePlacement(long generation, double lineOrigin, double pageOrigin,
 			double capacity, double lineSize, double reservation, double attachedExtent,
 			java.util.List<Long> attachedIds, java.util.Set<Long> retainedIds) { }
@@ -1860,9 +1842,9 @@ public class RootBuilder extends BreakableBuilder {
 				owner, lineOrigin, flow.pageAxis);
 		if (!this.columnFootnoteCarry.isEmpty() && builder == this && this.isRestyling()
 				&& this.flowStack.size() - 1 == this.columnFootnoteCarryChainIndex) {
-			// 前頁の最後の段から持ち越した注は、継続の再生で同じ位置に開いた
-			// owner の継続の最初の段へ(継続本文の再生より前なので、段は予約済みの
-			// 容量で組まれる)。継続でなければ再生の終わりに頁の宿主へ返す。
+			// Notes carried from the previous page's last column go to the first column of the owner's
+			// continuation opened at the same position during replay (before replaying continuing body text,
+			// so the column uses reserved capacity). If not a continuation, return them to the page host at replay end.
 			for (final FootnoteEntry entry : this.columnFootnoteCarry) {
 				this.columnPageEntries.put(entry.id, entry);
 				this.traceFootnote("column-carry", entry, 0, java.util.Set.of());
@@ -1873,7 +1855,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 	}
 
-	/** 段が開かないまま注が届く/頁が終わるとき、持ち越しを頁の宿主へ返す。 */
+	/** Returns carry-over to the page host when a note arrives or the page ends without a column opening. */
 	private void flushColumnFootnoteCarry() {
 		if (this.columnFootnoteCarry.isEmpty()) return;
 		final FootnoteHost carrier = new FootnoteHost(() -> null, () -> 0, () -> 0, null, 0, 0);
@@ -1882,15 +1864,15 @@ public class RootBuilder extends BreakableBuilder {
 		this.transferColumnFootnotes(carrier);
 	}
 
-	/** endFlowBlockはspan-allによる区切り・auto終了も通り、balanceより先に呼ぶ。 */
+	/** endFlowBlock also handles span-all boundaries and auto endings, and calls this before balancing. */
 	final void closeFootnoteColumn(final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner) {
 		final FootnoteHost host = this.columnFootnoteHost;
 		if (host == null || host.owner != owner) return;
 		this.columnFootnoteHost = null;
 		if (owner.getBlockParams().columns.fill == net.zamasoft.foliojet.layout.box.params.Columns.FILL_BALANCE) {
-			// 増分6: balanceは段の容器を再生し、段の末尾に最終添付した注を
-			// 保たない(ソース再生では存在せず、箱再生では通常floatになる)。
-			// 再生の前に全段の添付済み注を取り外し、頁の宿主へ文書順で移す。
+			// Increment 6: balancing replays column containers and does not retain notes finally attached
+			// at column ends (absent in source replay; ordinary floats in box replay).
+			// Before replay, detach attached notes from every column and move them to the page host in document order.
 			for (final FootnoteEntry entry : this.columnPageEntries.values()) {
 				final FootnoteHost attached = entry.attachedColumnHost;
 				if (attached == null || attached.owner != owner) continue;
@@ -1902,7 +1884,7 @@ public class RootBuilder extends BreakableBuilder {
 				this.traceFootnote("column-recover", entry, 0, java.util.Set.of());
 			}
 			this.pageBox.removeColumnFootnoteSeparators(owner);
-			// 頁の残容量は balance 後の段組の高さで決まるので、移管はそれから。
+			// The page's remaining capacity depends on the post-balance multi-column height, so transfer afterward.
 			this.recoveredColumnFootnotes = host;
 			return;
 		}
@@ -1910,10 +1892,11 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * balance 後(段組の高さ確定後)に、回収した注が段組の後の残容量に収まるか
-	 * 見て頁の宿主へ移します。収まらなければこの頁では予約せず、呼び出しの
-	 * 頁の番号を保って次頁の carry-in にします(F4。閉じた段組は最終段しか
-	 * 切れないので、予約で本文を押し出すと先行段が注と重なる。grok レビュー必須3)。
+	 * After balancing (once the multi-column height is fixed), checks whether collected notes fit the remaining
+	 * capacity after the columns, then moves them to the page host. If they do not fit, do not reserve on this page;
+	 * retain the call-page number and carry them into the next page (F4). Closed multi-column layout can be cut only
+	 * in the last column, so pushing body text out with a reservation would overlap earlier columns with notes (grok
+	 * review requirement 3).
 	 */
 	final void settleRecoveredFootnotes(final double pageAxisAfterOwner) {
 		final FootnoteHost host = this.recoveredColumnFootnotes;
@@ -1939,7 +1922,7 @@ public class RootBuilder extends BreakableBuilder {
 		this.pageFootnoteHost.pendingFootnotes.clear();
 		this.pageFootnoteHost.pendingFootnotes.addAll(entries.values());
 		host.pendingFootnotes.clear();
-		// prefixへ割り込む場合も文書順で予約し直す。既存の保守的確保は返さない。
+		// Re-reserve in document order even when inserting into the prefix. Do not return existing conservative reservations.
 		final double reserved = this.pageFootnoteHost.footnoteReservation;
 		this.pageFootnoteHost.footnoteReservedCount = 0;
 		this.pageFootnoteHost.footnoteReservation = 0;
@@ -1974,7 +1957,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 	}
 
-	/** commit済みの旧段だけを走査・最終添付する。番号はここでは解決しない。 */
+	/** Scans and finally attaches only in the committed old column. Does not resolve numbers here. */
 	private void attachColumnFootnotes(final FootnoteHost host, final double capacity) {
 		final FootnoteCallScan scan = scanFootnoteCalls(host.container.get(), host.owner, true);
 		this.columnPageLabels.addAll(scan.labels());
@@ -2011,7 +1994,10 @@ public class RootBuilder extends BreakableBuilder {
 				java.util.List.copyOf(attachedIds), java.util.Set.copyOf(scan.ids())));
 	}
 
-	/** 到着元から一番近い段組ownerを探す。局所builderをまたぐ場合も内側を優先する。 */
+	/**
+	 * Finds the nearest multi-column owner from the arrival source, preferring the inner one across local builders
+	 * too.
+	 */
 	public static net.zamasoft.foliojet.layout.box.AbstractContainerBox footnoteColumnOwner(
 			final net.zamasoft.foliojet.layout.builder.LayoutStack parent) {
 		for (net.zamasoft.foliojet.layout.builder.LayoutStack stack = parent; stack != null;
@@ -2024,7 +2010,7 @@ public class RootBuilder extends BreakableBuilder {
 		return null;
 	}
 
-	/** Rootの通常フロー上の、外側に段組を持たない可変高さownerだけを受ける。 */
+	/** Accepts only variable-height owners in Root's normal flow with no outer multi-column layout. */
 	public boolean isEligibleFootnoteColumnOwner(final net.zamasoft.foliojet.layout.builder.LayoutStack parent,
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner) {
 		if (owner == null || owner.getColumnCount() <= 1 || owner.isFixedMulticolumn()
@@ -2055,16 +2041,19 @@ public class RootBuilder extends BreakableBuilder {
 				&& this.isEligibleFootnoteColumnOwner(parent, owner) ? this.columnFootnoteHost : this.pageFootnoteHost;
 	}
 
-	/** 頁注は従来計測(NONE)、段注だけ宿主の行長を包含ブロックのinline寸法にする。 */
+	/**
+	 * Page notes use existing measurement (NONE); only column notes use host line length as containing-block
+	 * inline size.
+	 */
 	public double getFootnoteLineSize(final net.zamasoft.foliojet.layout.builder.LayoutStack parent,
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner) {
 		final FootnoteHost host = this.selectFootnoteHost(parent, owner);
 		return host == this.pageFootnoteHost ? net.zamasoft.foliojet.layout.util.LayoutUtils.NONE : host.lineSize.getAsDouble();
 	}
-	/** FootnoteSamePageTestの既存観測口。FIFOの実体・更新は頁宿主だけが持つ。 */
+	/** Existing observation hook for FootnoteSamePageTest. Only the page host owns and updates the actual FIFO. */
 	private final java.util.ArrayDeque<FootnoteEntry> pendingFootnotes = this.pageFootnoteHost.pendingFootnotes;
 
-	/** デバッグと試験には値だけを渡す。変換はDirectSessionの別スレッドで動く。 */
+	/** Passes only values to debugging and tests. Conversion runs on another thread in DirectSession. */
 	public record FootnoteTrace(String event, long generation, int committedColumns, long id,
 			double delta, double reservation,
 			double pageLimit, int reservedCount, int pendingCount, boolean committed, boolean deferred,
@@ -2084,15 +2073,15 @@ public class RootBuilder extends BreakableBuilder {
 		if (observer != null) observer.accept(trace);
 	}
 
-	/** 台帳へ届いた脚注の論理ID。同じ注を二度受け取らないため(2026-09-02)。 */
+	/** Logical IDs of footnotes received by the ledger, to avoid receiving the same note twice (2026-09-02). */
 	private final java.util.Set<Long> registeredFootnotes = new java.util.HashSet<>();
-	/** Bだけが使う後着本文の採番と、再生可能な登録の寿命です。MAINとは共有しません。 */
+	/** B-only numbering of late-arriving bodies and lifetime of replayable registrations. Not shared with MAIN. */
 	private java.util.Map<Long, Integer> probeCallNumbers;
 	private java.util.Map<Long, Long> probeFootnoteAnchors;
-	/** Cの未配置ID台帳。予約だけのID・後着本文待ちもFIFOに含めます。 */
+	/** C's ledger of unplaced IDs. FIFO includes reservation-only IDs and those awaiting late-arriving bodies. */
 	private final java.util.Map<Long, FootnoteEntry> bottomFootnotes = new java.util.HashMap<>();
 	private record FootnoteReservation(double height, boolean oversized) { }
-	/** ID別の予約資格。pendingの先頭prefix件数とは独立です。 */
+	/** Reservation eligibility per ID, independent of the leading pending-prefix count. */
 	private final java.util.Map<Long, FootnoteReservation> footnotePlan = new java.util.HashMap<>();
 	private boolean initialFootnotePagePending;
 
@@ -2106,7 +2095,7 @@ public class RootBuilder extends BreakableBuilder {
 			entry = new FootnoteEntry(id, null);
 			this.bottomFootnotes.put(id, entry);
 			this.pageFootnoteHost.pendingFootnotes.addLast(entry);
-			// TwoPass本文の完成順と文書順は別。IDだけの先行登録も同じFIFOへ統合する。
+			// TwoPass body completion order differs from document order. Merge ID-only advance registrations into the same FIFO.
 			final java.util.List<FootnoteEntry> sorted = new java.util.ArrayList<>(this.pageFootnoteHost.pendingFootnotes);
 			sorted.sort(java.util.Comparator.comparingLong(value -> value.id));
 			this.pageFootnoteHost.pendingFootnotes.clear();
@@ -2120,13 +2109,13 @@ public class RootBuilder extends BreakableBuilder {
 				&& measure.isFootnoteProbe();
 	}
 
-	/** 配置済みかつBの再生水位より前の登録・計測高を解放します。 */
+	/** Releases registrations and measured heights already placed and before B's replay watermark. */
 	public void reclaimProbeFootnotes(final long fromId) {
 		if (this.probeFootnoteAnchors == null) return;
 		final java.util.Set<Long> pending = new java.util.HashSet<>();
 		for (final FootnoteEntry entry : this.pageFootnoteHost.pendingFootnotes) pending.add(entry.id);
-		// 継続表は配置済みヘッダーのcallを再利用する。現在木から消えるまでは
-		// 登録も残し、次の確定ページで後着本文用の番号を再登録させない。
+		// Continuing tables reuse calls in already placed headers. Retain registrations until they disappear
+		// from the current tree, preventing re-registration of late-body numbers on the next finalized page.
 		final java.util.Set<Long> retained = collectFootnoteCalls(this.pageBox);
 		final var iterator = this.probeFootnoteAnchors.entrySet().iterator();
 		while (iterator.hasNext()) {
@@ -2140,7 +2129,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 	}
 
-	/** Bの長文試験用。後着番号と再生可能な登録の回収後件数です。 */
+	/** For B's long-document tests: counts after collecting late-arrival numbers and replayable registrations. */
 	public int probeFootnoteLedgerSize() {
 		return (this.probeCallNumbers == null ? 0 : this.probeCallNumbers.size())
 				+ (this.probeFootnoteAnchors == null ? 0 : this.probeFootnoteAnchors.size());
@@ -2149,7 +2138,7 @@ public class RootBuilder extends BreakableBuilder {
 	private boolean warnedFootnoteAreaLimit;
 
 	private net.zamasoft.foliojet.ua.FootnoteArea footnoteArea() {
-		// 柱・running・部分範囲の計測用ミニページには、文書の帯を予約しない。
+		// Do not reserve document bands on mini-pages measuring headers, running elements, or partial ranges.
 		if (this.pageGenerator instanceof net.zamasoft.foliojet.layout.MeasurePageGenerator measure
 				&& !measure.isFootnoteProbe()) return net.zamasoft.foliojet.ua.FootnoteArea.DEFAULT;
 		return this.pageBox.getUserAgent().getUAContext().getFootnoteArea();
@@ -2158,7 +2147,7 @@ public class RootBuilder extends BreakableBuilder {
 	private double requestedFootnoteArea(final double maxArea) {
 		final var area = this.footnoteArea();
 		final double requested = Math.max(area.minHeight, area.height == null ? 0 : area.height);
-		// 警告は本番(C)だけ。仮組み(B)は別のRootBuilderなので同じ文書で二重に出る。
+		// Warn only in production (C). Trial layout (B) uses a separate RootBuilder and would warn twice per document.
 		if (requested > maxArea && !this.warnedFootnoteAreaLimit && !this.isFootnoteProbe()) {
 			this.warnedFootnoteAreaLimit = true;
 			LOG.warning("footnote area limited to " + maxArea + "pt (requested " + requested + "pt)");
@@ -2170,12 +2159,12 @@ public class RootBuilder extends BreakableBuilder {
 		return Math.max(0, this.pageBox.getInnerPageExtent(this.pageBox.getBlockParams().flow) - MIN_PAGE_LIMIT);
 	}
 
-	/** 本文と脚注領域の間隙(UA固定。separator罫線はこのgapの中央)。 */
+	/** Gap between body text and footnote area (UA-fixed; the separator rule sits at its center). */
 	private static final double FOOTNOTE_GAP = 6;
 
 	/**
-	 * 脚注のページ方向占有量です(axis-neutral——F6/F7答申②)。箱の幾何と
-	 * 描画実測の大きい方(既存floatのoccupied-page-extent規則と同じ)。
+	 * Footnote extent in the page direction (axis-neutral; F6/F7 recommendation ②). The larger of box geometry and
+	 * measured drawing extent (same as the existing float occupied-page-extent rule).
 	 */
 	private double footnoteExtent(final net.zamasoft.foliojet.layout.box.IBox box) {
 		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = this.pageBox.getBlockParams().flow;
@@ -2183,14 +2172,13 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 用紙の端に帯を取る配置か(天地)。
+	 * Whether placement reserves a band at a paper edge (top or bottom).
 	 *
 	 * <p>
-	 * 帯は版面の<b>行方向</b>(縦組みページなら用紙の縦方向)を削るので、
-	 * 縦組みページでのみ働く。横組みページの{@code bottom}は
-	 * block-endと同じなので従来の経路へそのまま通す。横組みページの
-	 * {@code top}(block-startへ帯を取る)経路はまだ無いので、同じく
-	 * block-endへ落とす——一度だけ警告する。
+	 * A band reduces the type area in the <b>line direction</b> (the paper's vertical direction for a vertical-writing
+	 * page), so it works only on vertical-writing pages. On horizontal-writing pages, {@code bottom} is the same as
+	 * block-end and passes through the existing path. There is no {@code top} path yet for horizontal-writing pages (a
+	 * band at block-start), so it too falls back to block-end, with a single warning.
 	 * </p>
 	 */
 	private boolean isPageBandFootnoteArea() {
@@ -2211,33 +2199,35 @@ public class RootBuilder extends BreakableBuilder {
 	private boolean warnedHeadBandHorizontal;
 
 	/**
-	 * 脚注帯の用紙縦方向の占有量です。領域が横書きならblock方向、縦書きなら
-	 * inline方向を測るため、物理高さを返すTB軸を使います。上下浮動体の測度とは別。
+	 * The footnote band's extent in the paper's vertical direction. Uses the TB axis, which returns physical height,
+	 * to measure the block direction for horizontal-writing areas and the inline direction for vertical-writing areas.
+	 * Separate from the measure for top/bottom floats.
 	 */
 	public static double footnoteBandExtent(final net.zamasoft.foliojet.layout.box.IBox box) {
 		return Math.max(box.getPageExtent(WritingMode.TB), box.paintedPageExtent(WritingMode.TB));
 	}
 
 	/**
-	 * 地の帯の中も縦組みか(2026-09-11)。
+	 * Whether the bottom band itself also uses vertical writing (2026-09-11).
 	 *
 	 * <p>
-	 * 縦組みの本で地に帯を取り、そこへ**縦組みのまま**注を流す作り。
-	 * 横帯(F-1、{@code writing-mode: horizontal-tb})と軸がすべて入れ替わる。
+	 * In a vertical-writing book, reserves a bottom band and flows notes into it **in vertical writing as well**. All
+	 * axes swap relative to a horizontal band (F-1, {@code writing-mode: horizontal-tb}).
 	 * </p>
 	 *
 	 * <table>
-	 * <caption>帯の軸</caption>
-	 * <tr><th></th><th>横帯</th><th>縦帯</th></tr>
-	 * <tr><td>注の行長</td><td>用紙の横方向の内寸</td><td>帯の高さ(記述子)</td></tr>
-	 * <tr><td>注が並ぶ向き</td><td>用紙の縦方向(上から下)</td><td>用紙の横方向(右から左)</td></tr>
-	 * <tr><td>帯の容量</td><td>帯の高さ</td><td>用紙の横方向の内寸</td></tr>
+	 * <caption>Band axes</caption>
+	 * <tr><th></th><th>Horizontal band</th><th>Vertical band</th></tr>
+	 * <tr><td>Note line length</td><td>Paper inner width</td><td>Band height (descriptor)</td></tr>
+	 * <tr><td>Note stacking direction</td><td>Paper vertical direction (top to bottom)</td><td>Paper horizontal
+	 * direction (right to left)</td></tr>
+	 * <tr><td>Band capacity</td><td>Band height</td><td>Paper inner width</td></tr>
 	 * </table>
 	 *
 	 * <p>
-	 * 行長は帯の高さから決まるので、縦帯は{@code height}の指定が要る
-	 * (指定が無いと行長が宿主や版面から来て、注が版面の下へはみ出す)。
-	 * 指定が無ければ従来どおり横帯の勘定へ落とし、一度だけ警告する。
+	 * Line length comes from band height, so a vertical band requires an explicit {@code height} (otherwise, line
+	 * length comes from the host or type area and notes overflow below the type area). Without it, fall back to the
+	 * existing horizontal-band calculation and warn once.
 	 * </p>
 	 */
 	private boolean isVerticalFootnoteBand() {
@@ -2263,8 +2253,8 @@ public class RootBuilder extends BreakableBuilder {
 	private boolean warnedVerticalBandHeight;
 
 	/**
-	 * 帯の中で注が占める量です。横帯は用紙の縦方向、縦帯は用紙の横方向。
-	 * 注が並ぶ向きの測度なので、帯の容量と同じ軸で測る。
+	 * Extent occupied by notes within the band: paper vertical direction for horizontal bands, paper horizontal
+	 * direction for vertical bands. Measures the note stacking direction, on the same axis as band capacity.
 	 */
 	private double footnoteBandCost(final net.zamasoft.foliojet.layout.box.IBox box) {
 		if (!this.isVerticalFootnoteBand()) {
@@ -2274,7 +2264,7 @@ public class RootBuilder extends BreakableBuilder {
 		return Math.max(box.getPageExtent(pageFlow), box.paintedPageExtent(pageFlow));
 	}
 
-	/** 帯の容量です。横帯は帯の高さ、縦帯は用紙の横方向の内寸。 */
+	/** Band capacity: band height for horizontal bands, paper inner width for vertical bands. */
 	private double footnoteBandCapacity() {
 		return this.isVerticalFootnoteBand()
 				? this.pageBox.getInnerPageExtent(this.pageBox.getBlockParams().flow)
@@ -2284,10 +2274,10 @@ public class RootBuilder extends BreakableBuilder {
 	private static final double MAX_FOOT_AREA_RATIO = 0.6;
 
 	/**
-	 * Bは持ち越しだけ、Cは対応するB報告の計測済みIDも加えて一度だけ予約します。
-	 * height固定ならBを使わず毎ページ予約、min-heightは予約の下限です。
-	 * 未予約・実高超過の注は行長を変えず、callを確定して次の帯へ送ります(F4)。
-	 * block軸のfootnoteReservationは0のままなので、上下浮動体の容量も不変です。
+	 * B reserves only carry-over; C also includes measured IDs from the corresponding B report, reserving once. Fixed
+	 * height reserves every page without B; min-height is the reservation floor. Unreserved notes or notes exceeding
+	 * actual height keep the line length unchanged, finalize their calls, and move to the next band (F4). Block-axis
+	 * footnoteReservation stays 0, so top/bottom float capacity also stays unchanged.
 	 */
 	private void beginPage() {
 		if (!this.isPageBandFootnoteArea()) {
@@ -2301,7 +2291,7 @@ public class RootBuilder extends BreakableBuilder {
 		final double innerWidth = this.pageBox.getInnerWidth();
 		final double innerHeight = this.pageBox.getInnerHeight();
 		if (this.pageGeneration == 1 && this.hasFootnotePlan()) {
-			// 最初だけは幾何を先に渡してBを起動し、Cの最初の生入力まで予約を待つ。
+			// Only initially, pass geometry first to start B and wait for C's first raw input before reserving.
 			this.initialFootnotePagePending = true;
 			this.pageGenerator.pageStarted(this.pageBox, innerWidth, innerHeight);
 			return;
@@ -2342,7 +2332,7 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			final double cost = (this.pageFootnoteHost.footnoteReservedCount == 0 ? FOOTNOTE_GAP : 0) + height;
 			if (inset + cost > maxArea) {
-				// 巨大注はcallの確定を待ち、持ち越しの先頭なら上限まで予約して溢れさせる。
+				// Oversized notes wait for call finalization; at the carry-over head, reserve up to the limit and allow overflow.
 				if (this.pageFootnoteHost.footnoteReservedCount == 0 && (entry.committed || this.forceFootnoteAttach)) {
 					inset = maxArea;
 					this.pageFootnoteHost.footnoteReservedCount = 1;
@@ -2358,7 +2348,7 @@ public class RootBuilder extends BreakableBuilder {
 		final double minimum = this.requestedFootnoteArea(maxArea);
 		if (planned) {
 			final var report = this.pageGenerator.getFootnotePageProbeReport(this.pageGeneration);
-			// 未確定・B正常終端後とも持ち越しだけで固定する。後着報告でHは更新しない。
+			// Fix using only carry-over both before finalization and after B ends normally. Late reports do not update H.
 			final boolean finished = this.pageGenerator.isFootnotePageProbeFinished();
 			final boolean usable = report != null && report.generation() == this.pageGeneration && report.emitted()
 					&& java.util.Objects.equals(report.pageName(), this.pageGenerator.getPageName())
@@ -2388,8 +2378,8 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 用紙の端の帯を予約します。地は版面の高さを縮めるだけ、天はそれに加えて
-	 * 本文の内容原点を帯の分だけ下げる({@code PageBox.reserveHeadArea})。
+	 * Reserves a band at a paper edge. Bottom bands only reduce type-area height; top bands also lower the body
+	 * content origin by the band extent ({@code PageBox.reserveHeadArea}).
 	 */
 	private void reservePageBand(final double inset) {
 		if (this.footnoteArea().isHeadBand()) {
@@ -2399,17 +2389,17 @@ public class RootBuilder extends BreakableBuilder {
 		}
 	}
 
-	/** 帯の予約量です。天地どちらの取り代かを吸収します。 */
+	/** Band reservation extent, abstracting whether the space is taken at the top or bottom. */
 	private double pageBandInset() {
 		return this.footnoteArea().isHeadBand() ? this.pageBox.getHeadInset() : this.pageBox.getFootInset();
 	}
 
-	/** 固定帯は伸ばさず、完成した注にだけFIFOで予約資格を与えます。 */
+	/** Keeps the fixed band size and grants reservation eligibility only to completed notes, in FIFO order. */
 	private void reserveFixedFootnotes() {
 		this.footnotePlan.clear();
 		this.pageFootnoteHost.footnoteReservedCount = 0;
-		// 縦帯は注が用紙の横方向に並ぶので、容量も測度もその軸で取る。
-		// 本文との間隙は用紙の縦方向にあり、横方向の容量からは引かない。
+		// Notes in a vertical band stack horizontally across the paper; use that axis for capacity and measurement.
+		// The gap from body text lies in the paper's vertical direction; do not subtract it from horizontal capacity.
 		final boolean verticalBand = this.isVerticalFootnoteBand();
 		final double capacity = this.isPageBandFootnoteArea() ? this.footnoteBandCapacity() : this.pageFootnoteHost.footnoteReservation;
 		double used = 0;
@@ -2418,7 +2408,7 @@ public class RootBuilder extends BreakableBuilder {
 			final double extent = this.isPageBandFootnoteArea() ? this.footnoteBandCost(entry.noteBox) : this.footnoteExtent(entry.noteBox);
 			final double cost = (!verticalBand && this.pageFootnoteHost.footnoteReservedCount == 0 ? FOOTNOTE_GAP : 0) + extent;
 			if (used + cost > capacity) {
-				// 単独でも入らない注は呼び出しを確定してから次ページで溢れさせる。
+				// For notes that cannot fit even alone, finalize the call first, then allow overflow on the next page.
 				if (this.pageFootnoteHost.footnoteReservedCount == 0 && (entry.committed || this.forceFootnoteAttach)) {
 					this.footnotePlan.put(entry.id, new FootnoteReservation(extent, true));
 					this.pageFootnoteHost.footnoteReservedCount = 1;
@@ -2435,7 +2425,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 	}
 
-	/** 試験には可変台帳やページ木を渡さず、開始時に固定した計画だけを渡します。 */
+	/** Passes tests only the plan fixed at the start, never a mutable ledger or page tree. */
 	public record FootnotePlanSnapshot(long generation, boolean reported, boolean usable, boolean inputFinished,
 			double inset, java.util.Set<Long> reservedIds) { }
 	static volatile java.util.function.Consumer<FootnotePlanSnapshot> footnotePlanObserver;
@@ -2449,10 +2439,10 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 完成した脚注本文を台帳へ加えます({@code DocumentBuilder.endBox}の
-	 * FLOAT分岐から)。現ページの容量に入る分だけ予約が伸び、本文容量
-	 * ({@link #getPageLimit()})が縮んで以後の溢れ検査・改ページが新しい
-	 * 容量で行われる。容量を超えた分は予約されず次ページへ送られる(F4)。
+	 * Adds a completed footnote body to the ledger (from the FLOAT branch of {@code DocumentBuilder.endBox}).
+	 * Reservations grow only as far as the current page's capacity permits, reducing body capacity ({@link
+	 * #getPageLimit()}) so subsequent overflow checks and page breaks use the new capacity. Excess is not reserved and
+	 * moves to the next page (F4).
 	 */
 	public void addFootnote(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox) {
 		this.addFootnote(noteBox, this, footnoteColumnOwner(this));
@@ -2462,8 +2452,8 @@ public class RootBuilder extends BreakableBuilder {
 			final net.zamasoft.foliojet.layout.builder.LayoutStack parent,
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner) {
 		if (!this.registeredFootnotes.add(noteBox.getParams().footnoteId)) {
-			// 同じ注が二度届いた(two-passの記録と、ソース再生の両方から)。
-			// 台帳は1件でよい
+			// The same note arrived twice (from both two-pass recording and source replay).
+			// Keep only one ledger entry.
 			return;
 		}
 		if (this.isFootnoteProbe()) {
@@ -2471,7 +2461,7 @@ public class RootBuilder extends BreakableBuilder {
 			this.probeFootnoteAnchors.put(noteBox.getParams().footnoteId, noteBox.getSourceAnchor());
 		}
 		if (this.footnoteArea().isHeightFixed()) {
-			// callが本文より先に改ページした場合も、そのページの番号を保持する。
+			// Retain the call-page number even if the call crossed a page break before its body.
 			this.bottomFootnote(noteBox.getParams().footnoteId).noteBox = noteBox;
 			this.reserveFixedFootnotes();
 			return;
@@ -2491,7 +2481,7 @@ public class RootBuilder extends BreakableBuilder {
 				entry.measuredHeight = noteExtent;
 				final FootnoteReservation reservation = this.footnotePlan.get(entry.id);
 				if (reservation != null && !reservation.oversized() && net.zamasoft.foliojet.layout.util.LayoutUtils.compare(noteExtent, reservation.height()) > 0) {
-					// Hは変更しない。実高超過は予約資格だけを外してF4へ送る。
+					// Do not change H. Actual-height overflow only removes reservation eligibility and goes to F4.
 					this.footnotePlan.remove(entry.id);
 				}
 				this.updateFootnotePrefix();
@@ -2513,12 +2503,12 @@ public class RootBuilder extends BreakableBuilder {
 		final double noteExtent = this.footnoteExtent(noteBox);
 		final double maxArea = host.capacityBase.getAsDouble() - MIN_PAGE_LIMIT;
 		if (FOOTNOTE_GAP + noteExtent > maxArea && !this.warnedOversizedFootnote) {
-			// 空ページの最大脚注領域にも収まらない脚注(版面の9割超を占める
-			// 単一脚注)。**変換は失敗させない**——ARCHITECTURE.md §5.13
-			// (2026-07-26/27のユーザー裁定)が「変換が失敗することは常に
-			// エンジンの不具合。版面が破綻した文書の除外は変換の失敗には
-			// 適用しない」と定めているため。溢れさせて置き、警告する
-			// (2026-08-02。従来はFootnoteOverflowExceptionだった)
+			// A footnote that cannot fit even in an empty page's maximum footnote area
+			// (one note occupying over 90% of the type area). **Do not fail conversion**:
+			// ARCHITECTURE.md §5.13 (user decision on 2026-07-26/27) states that conversion failure
+			// is always an engine defect, and excluding documents with broken layout
+			// does not apply to conversion failures. Place with overflow and warn
+			// (2026-08-02; previously threw FootnoteOverflowException).
 			this.warnedOversizedFootnote = true;
 			LOG.warning("footnote larger than the page area; placing it anyway: " + noteExtent
 					+ "pt (max footnote area " + maxArea + "pt)");
@@ -2535,9 +2525,9 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * pendingの先頭prefixのうち現ページの最大脚注領域に収まる分まで
-	 * 予約を伸ばします(FIFO——途中を飛ばさない)。配置済みatomic floatの
-	 * 終端より後だけを新規予約に使い、既存予約は後から縮めない(2026-09-04)。
+	 * Extends reservations through the leading pending prefix that fits the current page's maximum footnote area
+	 * (FIFO; never skip entries). New reservations use only space after the end of placed atomic floats; existing
+	 * reservations never shrink later (2026-09-04).
 	 */
 	private void reserveFootnotes() {
 		if (this.footnoteArea().isHeightFixed()) {
@@ -2545,7 +2535,7 @@ public class RootBuilder extends BreakableBuilder {
 			return;
 		}
 		if (this.isPageBandFootnoteArea()) {
-			// 地の帯はbeginPageで固定済み。ページ途中の注は予約しない。
+			// The bottom band is fixed in beginPage. Do not reserve notes arriving midway through a page.
 			return;
 		}
 		if (this.footnoteArea().minHeight > 0) {
@@ -2559,35 +2549,35 @@ public class RootBuilder extends BreakableBuilder {
 			if (i >= this.pageFootnoteHost.footnoteReservedCount) {
 				if (entry.holdReservationUntil >= this.pageGeneration) break;
 				if (entry.deferred && !entry.committed && !this.forceFootnoteAttach) {
-					// 予約を外して呼び出しを待つ注(FIFO なので後続も待つ)
+					// Note awaiting its call with its reservation removed (FIFO makes later notes wait too).
 					this.traceFootnote("reserve-stop-deferred", entry, 0, java.util.Set.of());
 					break;
 				}
 				final double cost = (this.pageFootnoteHost.footnoteReservation == 0 ? FOOTNOTE_GAP : 0)
 						+ this.footnoteExtent(entry.noteBox);
 				if (this.pageFootnoteHost.footnoteReservation + cost > maxArea) {
-					// 呼出しページに単独でも収まらない脚注は、そこで最大量を
-					// 予約してはならない。本文容量がMIN_PAGE_LIMITまで縮み、
-					// callより前の内容(特に空の段組枠)を何百ページも同じ形で
-					// 送り続けるためである(seed 7676)。まずcallを現在ページに
-					// 確定してcommittedにし、次のnote-onlyページで溢れさせて
-					// 置く。既にcarry-in済みなら下の従来経路で必ず予約する。
+					// For a footnote that cannot fit even alone on its call page, do not
+					// reserve the maximum extent there. That would shrink body capacity to MIN_PAGE_LIMIT
+					// and repeatedly send pre-call content (especially empty multi-column frames)
+					// forward unchanged across hundreds of pages (seed 7676). First finalize the call
+					// on the current page and mark committed, then place the note with overflow
+					// on the next note-only page. Already carried-in notes always reserve via the existing path below.
 					if (this.pageFootnoteHost.footnoteReservedCount == 0 && i == 0 && !entry.committed
 							&& !this.forceFootnoteAttach) {
 						this.traceFootnote("reserve-stop-capacity", entry, 0, java.util.Set.of());
 						break;
 					}
-					// **先頭の1件だけは必ず予約する**(2026-08-02)。
-					// 版面より大きい脚注は何ページ送っても入らないため、
-					// ここで諦めると前進せず変換が失敗する(§5.13違反)。
-					// 予約は版面の上限で頭打ちにし、実体は溢れさせて置く
+					// **Always reserve at least the first entry** (2026-08-02).
+					// A footnote larger than the type area never fits, however many pages it is sent forward,
+					// so giving up here prevents progress and fails conversion (violating §5.13).
+					// Cap the reservation at the type area limit and place the actual note with overflow.
 					if (this.pageFootnoteHost.footnoteReservedCount == 0 && i == 0) {
 						final double before = this.pageFootnoteHost.footnoteReservation;
 						this.pageFootnoteHost.footnoteReservation = maxArea;
 						this.pageFootnoteHost.footnoteReservedCount = 1;
 						this.traceFootnote("reserve-oversized", entry, this.pageFootnoteHost.footnoteReservation - before, java.util.Set.of());
 					}
-					// 入らない分はF4のFIFO送り(次ページで再予約)
+					// Send the excess forward in F4 FIFO order (re-reserve on the next page).
 					this.traceFootnote("reserve-stop-capacity", entry, 0, java.util.Set.of());
 					break;
 				}
@@ -2602,7 +2592,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 	}
 
-	/** 下限の予約をまず使い、足りなくなってから従来の容量まで伸ばします。 */
+	/** Uses the minimum reservation first, extending to the existing capacity only when needed. */
 	private void reserveMinimumFootnotes() {
 		final double previousReservation = this.pageFootnoteHost.footnoteReservation;
 		final double maxArea = Math.max(0, this.blockFootnoteMaxArea()
@@ -2643,18 +2633,21 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 頁所属の予約だけを含む。bottom一次元予約・下限・演算順は従来どおり。
+	 * Includes only page-owned reservations. Bottom one-dimensional reservation, lower bounds, and operation order
+	 * remain unchanged.
 	 *
 	 * <p>
-	 * 段組の中では下端フロートを一次元で予約する(2026-10-05、jigensha の報告 4)。段組の断片が置き場の手前で
-	 * 切れ、段の罫・高さ揃えが絵の上へ伸びない。段の行は二次元でも置き場を避けていたが、断片は頁の底まで
-	 * 伸びていた(分割できない浮動体の帯も段組では使わない——{@link #hasTwoDimensionalBottomFloatLimit})
+	 * Reserve bottom floats one-dimensionally inside multi-column layout (2026-10-05, jigensha report 4). This cuts
+	 * column fragments before the placement area, preventing column rules and equalized heights from extending over
+	 * figures. Lines already avoided the area with two-dimensional exclusion, but fragments extended to the page
+	 * bottom (the band for unsplittable floats is also unused in multi-column layout; {@link
+	 * #hasTwoDimensionalBottomFloatLimit}).
 	 * </p>
 	 */
 	@Override
 	public double getPageOwnerLimit() {
 		final double base = super.getPageLimit();
-		// 段組の走査は下端フロートを予約した頁だけ(深い入れ子で毎回スタックを辿らない)
+		// Scan multi-column layout only on pages with reserved bottom floats (avoid tracing deeply nested stacks every time).
 		final double reserved = this.pageFootnoteHost.footnoteReservation + (this.bottomFloatReservation != 0
 				&& (this.bottomFloatOneDimensionalFallback || this.getMulticolumnBox() != null)
 						? this.bottomFloatReservation
@@ -2671,75 +2664,74 @@ public class RootBuilder extends BreakableBuilder {
 		if (!this.hasTwoDimensionalBottomFloatLimit()) {
 			return pageLimit;
 		}
-		// 二次元bottomは本文容量を縮めないが、atomic floatは途中で切れない。
-		// 予約帯へ少しでも入る場合は、先頭bottomの実配置開始を終端にする。
+		// Two-dimensional bottom floats do not reduce body capacity, but atomic floats cannot split midway.
+		// If they enter the reserved band at all, use the first bottom float's actual placement start as the end.
 		return Math.min(pageLimit, this.firstReservedBottomPlacedStart());
 	}
 
-	/** 2-D bottom帯を分割不能floatの実効終端に使う状態ならtrue。 */
+	/** True when the 2-D bottom band serves as the effective end for unsplittable floats. */
 	final boolean hasTwoDimensionalBottomFloatLimit() {
 		return !this.bottomFloatOneDimensionalFallback && this.bottomFloatReservedCount > 0
 				&& this.getMulticolumnBox() == null && this.hasRootWritingModePath();
 	}
 
 	// ------------------------------------------------------------------
-	// ページフロート(float: top / float: bottom、2026-08-02——PLAN §2の
-	// 1位。書籍組版の図表をページ端へ寄せる。脚注の予約・清算機構を
-	// そのまま転用する)
+	// Page floats (float: top / float: bottom, 2026-08-02; priority 1 in PLAN §2).
+	// Move figures and tables to page edges in book typesetting. Reuse the footnote
+	// reservation and settlement mechanism unchanged.
 
 	/**
-	 * 上端へ置く待ち行列です。頁に本文も配置物もまだ無い場合は現PageBoxへ
-	 * 即時配置し、それ以外は<b>次のページの先頭</b>へ置く
-	 * (2026-09-04、B-1)。既に組み終えた現ページの内容は組み直さない。
+	 * Queue for placement at the top. If the page has no body text or placed objects yet, place immediately in the
+	 * current PageBox; otherwise, place at <b>the start of the next page</b> (2026-09-04, B-1). Do not rebuild already
+	 * laid-out content on the current page.
 	 */
 	private final java.util.ArrayDeque<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> pendingTopFloats =
 			new java.util.ArrayDeque<>();
 
-	/** 版面下端(脚注があればその上)へ置く待ち行列です。 */
+	/** Queue for placement at the type area bottom (above footnotes, if any). */
 	private final java.util.ArrayDeque<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> pendingBottomFloats =
 			new java.util.ArrayDeque<>();
 
-	/** 現ページで下端フロートへ確保した量です。 */
+	/** Extent reserved for bottom floats on the current page. */
 	private double bottomFloatReservation = 0;
 
-	/** 現ページで予約済みの下端フロート件数(FIFOのprefix長)です。 */
+	/** Number of bottom floats reserved on the current page (FIFO prefix length). */
 	private int bottomFloatReservedCount = 0;
 
 	/**
-	 * 当該ページのbottomを従来の一次元予約で扱う場合はtrue。
+	 * True when bottom floats on this page use the existing one-dimensional reservation.
 	 *
 	 * <p>
-	 * bottomの実配置はページblock-endなので、登録時点の現在位置が先頭bottomの
-	 * 実配置開始位置{@code placedStart}を越えた場合だけ、既配置行との交差を
-	 * 遡って解消できない。この場合に限り、そのページの残りを従来の
-	 * {@link #getPageLimit()}縮小へ戻す。現在位置が{@code placedStart}以前なら、
-	 * 本文が既にあっても二次元排除を使う。二次元登録後に脚注予約が増えた場合も、
-	 * 移動後の新しい{@code placedStart}に対して同じ判定を行う。次のPageBoxでは
-	 * 解除され、carry-inしたbottomは本文より先に二次元登録される。ページ先頭は
-	 * 既配置範囲がないため、oversized bottomの{@code placedStart}が負でも二次元で
-	 * 全面排除する。
+	 * Bottom floats are actually placed at page block-end, so overlap with already placed lines cannot be resolved
+	 * retroactively only when the current position at registration has passed the first bottom float's actual
+	 * placement start, {@code placedStart}. Only then revert the rest of this page to shrinking {@link
+	 * #getPageLimit()}. If the current position is at or before {@code placedStart}, use two-dimensional exclusion
+	 * even with existing body text. If footnote reservations grow after two-dimensional registration, apply the same
+	 * check to the new, shifted {@code placedStart}. Reset on the next PageBox; carried-in bottom floats register
+	 * two-dimensionally before body text. At page start there is no placed range yet, so exclude the whole area
+	 * two-dimensionally even when an oversized bottom float's {@code placedStart} is negative.
 	 * </p>
 	 */
 	private boolean bottomFloatOneDimensionalFallback = false;
 
 	/**
-	 * 当該ページで下端フロートを次ページへ回したらtrue(2026-10-04、
-	 * TECH-20261003-004 の⑱)。FIFOなので、後着のbottomもこのページでは予約しない。
+	 * True once a bottom float has been sent to the next page from this page (2026-10-04, TECH-20261003-004 item ⑱).
+	 * FIFO means later bottom floats also receive no reservation on this page.
 	 */
 	private boolean bottomFloatsDeferredOnPage = false;
 
 	// ------------------------------------------------------------------
-	// JLREQ 4.2.7 並列注（横組の傍注・縦組の頭注／脚注）。標準CSSに
-	// 対応する指定がないため、float:-cssj-note-start/endで版面の
-	// 論理行方向外側へ置く。本文領域は作者が@page marginで確保する。
+	// JLREQ 4.2.7 parallel notes (sidenotes in horizontal writing; headnotes/footnotes in vertical writing).
+	// Standard CSS has no corresponding declaration, so float:-cssj-note-start/end places them outside
+	// the type area in the logical line direction. The author reserves body space with @page margin.
 
-	/** 版面と並列注との既定の空き。 */
+	/** Default gap between the type area and parallel notes. */
 	private static final double PAGE_MARGIN_NOTE_GAP = 6.0;
 
-	/** 現ページの各注領域で、次の注を置けるページ軸位置。 */
+	/** Page-axis position for the next note in each note area on this page. */
 	private double pageMarginNoteStartCursor = 0, pageMarginNoteEndCursor = 0;
 
-	/** row subgridの遅延配置前に本文をbindしている深さ。 */
+	/** Depth of body binding before deferred placement of a row subgrid. */
 	private int rowSubgridBindDepth = 0;
 
 	void beginRowSubgridBind() {
@@ -2759,8 +2751,8 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 並列注を本文の現在位置に近い版面外へ置く。同じ側の注はFIFOで重ねず、
-	 * ページ末に収まる場合は上へ寄せて同一ページ内に保つ。
+	 * Places parallel notes outside the type area near the current body position. Notes on the same side follow FIFO
+	 * without overlap; shift them upward to keep them on the same page if they fit at the page end.
 	 */
 	public void addPageMarginNote(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox,
 			final boolean start) {
@@ -2778,7 +2770,7 @@ public class RootBuilder extends BreakableBuilder {
 		final double cursor = start ? this.pageMarginNoteStartCursor : this.pageMarginNoteEndCursor;
 		double pageAxis = Math.max(cursor, Math.max(0, Math.min(this.pageAxis, pageLimit)));
 		if (extent <= pageLimit && pageAxis + extent > pageLimit) {
-			// 対応する本文位置から必要以上に離さない範囲で、ページ内へ戻す。
+			// Move back inside the page without straying farther than necessary from the corresponding body position.
 			pageAxis = Math.max(cursor, pageLimit - extent);
 		}
 		final double lineAxis = start
@@ -2794,14 +2786,13 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * ページフロートを台帳へ積みます({@code DocumentBuilder}のFLOAT
-	 * 終端から)。
+	 * Adds a page float to the ledger (from the end of FLOAT in {@code DocumentBuilder}).
 	 */
 	public void addPageFloat(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBox,
 			final boolean top) {
 		if (top) {
-			// TwoPass/継続のreplayはここを再通過する。同じboxがpending中、
-			// または当該ページで配置済みなら二重に積まない。
+			// TwoPass/continuation replay passes here again. Do not enqueue the same box twice
+			// if it is pending or already placed on this page.
 			final Long placedGeneration = this.placedTopFloatGenerations.get(floatBox);
 			if (this.pendingTopFloatGenerations.containsKey(floatBox)
 					|| (placedGeneration != null && placedGeneration.longValue() == this.pageGeneration)) {
@@ -2830,13 +2821,13 @@ public class RootBuilder extends BreakableBuilder {
 			this.reserveBottomFloats();
 			if (this.bottomFloatReservedCount > reservedBefore && (this.currentPositionPastFirstReservedBottom()
 					|| this.earlierColumnPastFirstReservedBottom())) {
-				// 本文がもう置き場の帯へ届いている。ここで予約すると頁の残りを
-				// 一次元で縮め、置き場より下の本文(錨より前の行も)が次頁へ
-				// 押し出されて、floatだけが錨より前の頁の下端に残る(⑱、時限暗号の
-				// 本の第1章で挿絵が節の見出しの前の頁に出た)。このページには
-				// 予約せず、次頁の下端へ回す(carry-inは本文より先に予約される)。
-				// 段組の後の段で登録したときは、前の段の行も既に組んである(同じ本の
-				// 2 段組で、挿絵が左の段の下の数行に重なった)
+				// Body text has already reached the placement band. Reserving here would shrink the remaining page
+				// one-dimensionally, pushing body text below the placement area (including lines before the anchor)
+				// onto the next page and leaving only the float at the bottom of the page before its anchor
+				// (⑱; in chapter 1 of 時限暗号, an illustration appeared on the page before its section heading).
+				// Do not reserve on this page; send it to the next page's bottom (carry-in reserves before body text).
+				// When registered in a later column, earlier columns' lines are already laid out (in the same book's
+				// two-column layout, an illustration overlapped the bottom few lines of the left column).
 				this.bottomFloatReservedCount = reservedBefore;
 				this.bottomFloatReservation = reservationBefore;
 				this.bottomFloatsDeferredOnPage = true;
@@ -2846,12 +2837,12 @@ public class RootBuilder extends BreakableBuilder {
 		}
 	}
 
-	/** 版面に未配置のページフロートが残っているか(finish()の駆動条件)。 */
+	/** Whether page floats remain unplaced in the type area (condition driving finish()). */
 	private boolean hasPendingPageFloats() {
 		return !this.pendingTopFloats.isEmpty() || !this.pendingBottomFloats.isEmpty();
 	}
 
-	/** 現ページで登録され、まだ現ページ上端への配置資格を持つtop floatがあるか。 */
+	/** Whether a top float registered on this page is still eligible for placement at its top. */
 	public final boolean hasCurrentTopFloats() {
 		for (final CurrentTopFloat entry : this.pendingCurrentTopFloats) {
 			if (entry.generation() == this.pageGeneration) {
@@ -2862,8 +2853,8 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * flow block終端で子スコープとbreak禁止深さが戻った後、interflowの
-	 * overflow検査より先に現ページ上端への平行移動を試します。
+	 * At flow-block end, after child scopes and break-prohibition depth unwind, attempts translation to the current
+	 * page top before interflow overflow checks.
 	 */
 	@Override
 	protected void afterFlowBlockClosed() {
@@ -2871,9 +2862,8 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 現ページで登録された全行幅topを、配置済み内容と一緒に収まる範囲で
-	 * ページ上端へ置きます。判定はすべて変異前に完了し、条件を満たさない
-	 * 場合は待ち行列をそのまま次ページへ持ち越します。
+	 * Places full-line-width top floats registered on this page at its top, as far as they fit together with placed
+	 * content. Completes all checks before mutation; if conditions fail, carries the queue unchanged to the next page.
 	 */
 	public final void tryTranslateForTopFloats() {
 		if (!this.hasCurrentTopFloats() || !this.canTranslateNow()) {
@@ -2895,7 +2885,7 @@ public class RootBuilder extends BreakableBuilder {
 		this.translateForTopFloats(plan);
 	}
 
-	/** 平行移動を安全に行えるRootの静止点かを読み取りだけで判定します。 */
+	/** Determines, without mutation, whether Root is at a quiescent point where translation is safe. */
 	private boolean canTranslateNow() {
 		if (this.textBuilder != null) {
 			return this.logTranslateSkip("text builder is open");
@@ -2904,7 +2894,7 @@ public class RootBuilder extends BreakableBuilder {
 			return this.logTranslateSkip("no-break scope: mode=" + this.mode + " breakDepth=" + this.breakDepth);
 		}
 		if (this.breakAfter != null) {
-			// 直前のブロックの page-break-after が保留中: この float は次頁に属する
+			// The preceding block's page-break-after is pending: this float belongs to the next page.
 			return this.logTranslateSkip("forced break pending: " + this.breakAfter);
 		}
 		if (this.isRestyling()) {
@@ -2937,7 +2927,7 @@ public class RootBuilder extends BreakableBuilder {
 		return true;
 	}
 
-	/** FINEでfallback理由を記録し、条件式からそのまま返せるfalseを返します。 */
+	/** Logs the fallback reason at FINE and returns false for direct use in a condition. */
 	private boolean logTranslateSkip(final String reason) {
 		if (LOG.isLoggable(Level.FINE)) {
 			LOG.fine("top float translate skipped: " + reason);
@@ -2946,8 +2936,8 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * top追加後に必ず占有されるページ軸終端です。開いているflowの終端枠、
-	 * 通常/独立BFCのfloat、分割不能float、配置済み並列注を含みます。
+	 * Page-axis end that must be occupied after adding top floats. Includes end frames of open flows,
+	 * ordinary/independent-BFC floats, unsplittable floats, and placed parallel notes.
 	 */
 	private double currentTranslateUsedPageEnd() {
 		final double normalEnd = this.pageAxis - (this.poLastMargin + this.neLastMargin);
@@ -2966,16 +2956,15 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 既配置topが、shapeなしの全行幅だけならtrue。
+	 * True if already placed top floats all span the full line width and have no shape.
 	 *
 	 * <p>
-	 * 新しく置くtopは幅を問わない: 平行移動は既存の内容を図版のblock寸法だけ
-	 * 送るので、狭幅の図版は帯として置かれ、脇には文字が回り込まない
-	 * (css-page-floats §3「内容はblock-end側に流れる」。頁先頭の二次元排除とは
-	 * 異なる意図した近似。cti.liの縦組み写真のように頁の高さに満たない図版が
-	 * 実例の大半なので、全行幅に限ると動機の事例が救えない、2026-09-05)。
-	 * 既配置topは脇に文字が入っている可能性があるので全行幅のときだけ許す
-	 * (移動した行が新しい帯と重なるため)。
+	 * New top floats may have any width: translation shifts existing content by the figure's block size, so narrow
+	 * figures occupy a band with no text wrapping beside them (css-page-floats §3: content flows toward block-end).
+	 * This is an intentional approximation distinct from two-dimensional exclusion at page start. Most real cases,
+	 * such as vertical-writing photos on cti.li, contain figures shorter than the page height; restricting to full
+	 * line width would not address the motivating examples (2026-09-05). Existing top floats may have text beside
+	 * them, so allow only full-line-width ones (otherwise shifted lines overlap the new band).
 	 * </p>
 	 */
 	private boolean hasFullWidthTopFloatPlan(final TopFloatPlan plan) {
@@ -2990,7 +2979,7 @@ public class RootBuilder extends BreakableBuilder {
 		return true;
 	}
 
-	/** 計画済みtopを配置し、既存のページ局所状態を同量だけ平行移動します。 */
+	/** Places planned top floats and translates existing page-local state by the same extent. */
 	private void translateForTopFloats(final TopFloatPlan plan) {
 		final int flowDepth = this.flowStack == null ? 0 : this.flowStack.size();
 		this.placingTopByTranslate = true;
@@ -3028,7 +3017,7 @@ public class RootBuilder extends BreakableBuilder {
 				: "top float translate changed flowStack depth";
 	}
 
-	/** 平行移動後のカーソル・終端枠・PageBox直下flowが示す通常フロー終端。 */
+	/** Normal-flow end indicated by the shifted cursor, end frames, and flows directly under PageBox. */
 	private double maxNormalFlowPageEnd(
 			final net.zamasoft.foliojet.layout.box.content.FlowContainer pageContainer) {
 		double pageEnd = this.pageAxis - (this.poLastMargin + this.neLastMargin);
@@ -3039,12 +3028,12 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * pendingの先頭prefixのうち現ページに収まる分まで下端フロートの
-	 * 予約を伸ばします(脚注と同じFIFO——途中を飛ばさない)。二次元を
-	 * 使えるページでは予約量は配置計画にだけ使い、本文容量を縮めない。
-	 * 通常は最初の1件を版面より大きくても予約してEOFドレインを前進させる。
-	 * ただしatomic floorがある頁では、そのfloorを破る先頭も次頁へ送る
-	 * (2026-09-04)。次頁ではfloor登録前に予約されるため前進性は保たれる。
+	 * Extends bottom-float reservations through the leading pending prefix that fits this page (same FIFO as
+	 * footnotes; never skip entries). On pages supporting two-dimensional exclusion, use reserved extent only for the
+	 * placement plan, without shrinking body capacity. Normally reserve the first entry even if larger than the type
+	 * area, so EOF draining advances. On pages with an atomic floor, however, send even the first entry to the next
+	 * page if it violates that floor (2026-09-04). Progress is preserved because the next page reserves it before
+	 * registering the floor.
 	 */
 	private void reserveBottomFloats() {
 		final double bottomMaxArea = super.getPageLimit() - Math.max(MIN_PAGE_LIMIT, this.atomicFloatFloor)
@@ -3052,11 +3041,11 @@ public class RootBuilder extends BreakableBuilder {
 		int i = 0;
 		for (final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBox : this.pendingBottomFloats) {
 			if (i++ < this.bottomFloatReservedCount) {
-				// このページで既に予約したFIFO prefixは後着floor/脚注でも外さない。
+				// Do not remove the FIFO prefix already reserved on this page, even for later floors or footnotes.
 				continue;
 			}
 			if (this.bottomFloatsDeferredOnPage) {
-				// 次頁へ回したbottomより後ろは、このページでは予約しない(FIFO)
+				// Do not reserve anything after a bottom float sent to the next page on this page (FIFO).
 				break;
 			}
 			final double cost = this.footnoteExtent(floatBox);
@@ -3074,41 +3063,47 @@ public class RootBuilder extends BreakableBuilder {
 		this.rebuildBottomPageFloatExclusions();
 	}
 
-	/** 本文カーソルと開いている行の実寸のうち、block-end側にある現在位置。 */
+	/** Current position farther toward block-end of the body cursor and the open line's actual extent. */
 	private double currentPagePosition() {
 		return this.textBuilder == null ? this.pageAxis
 				: Math.max(this.pageAxis, this.textBuilder.getActualPageAxis());
 	}
 
-	/** B-1でtopを現PageBoxへ直置きできる、本文も配置物もない状態か(2026-09-04)。 */
+	/**
+	 * Whether there is no body text or placed object, allowing B-1 to place top floats directly in this PageBox
+	 * (2026-09-04).
+	 */
 	private boolean isCurrentPageEmptyForTopFloat() {
 		return this.textBuilder == null
 				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(this.currentPagePosition(), 0) == 0
-				// 既に即時配置したtopは空判定から除く。除外対象は型付きの
-				// 配置世代台帳に載るbox identityだけで、通常float/本文は除かない。
+				// Exclude top floats already placed immediately from the empty check. Exclude only box identities
+				// in the typed placement-generation ledger, never ordinary floats or body text.
 				&& !this.pageBox.getContainer().hasNonDecorationContentExcludingFloatings(
 						this.placedTopFloatGenerations.keySet());
 	}
 
-	/** 現在予約した先頭bottomが実際に始まるblock軸位置。 */
+	/** Actual block-axis start of the first currently reserved bottom float. */
 	private double firstReservedBottomPlacedStart() {
 		return super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation;
 	}
 
-	/** 既配置内容が、現在予約した先頭bottomの実配置帯へ達しているか。 */
+	/** Whether placed content reaches the actual placement band of the first currently reserved bottom float. */
 	private boolean currentPositionPastFirstReservedBottom() {
 		if (this.bottomFloatReservedCount == 0) {
 			return false;
 		}
 		final double currentPosition = this.currentPagePosition();
-		// oversized bottomのplacedStartは負になり得るが、ページ先頭では
-		// まだ巻き戻すべき既配置範囲がないため二次元排除を使える。
+		// An oversized bottom float can have a negative placedStart, but page start has no
+		// already placed range to roll back, so two-dimensional exclusion is available.
 		return net.zamasoft.foliojet.layout.util.LayoutUtils.compare(currentPosition, 0) > 0
 				&& net.zamasoft.foliojet.layout.util.LayoutUtils
 						.compare(currentPosition, this.firstReservedBottomPlacedStart()) > 0;
 	}
 
-	/** この頁で先に組んだ段の本文が、現在予約した先頭bottomの実配置帯へ達しているか。 */
+	/**
+	 * Whether body text in earlier columns on this page reaches the first reserved bottom float's actual placement
+	 * band.
+	 */
 	private boolean earlierColumnPastFirstReservedBottom() {
 		return this.bottomFloatReservedCount > 0 && net.zamasoft.foliojet.layout.util.LayoutUtils
 				.compare(this.committedColumnsEndOnPage, this.firstReservedBottomPlacedStart()) > 0;
@@ -3142,13 +3137,15 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 表・grid・flex を置いた直後に呼ぶ(2026-10-05)。これらのセルや項目の行は別の builder で組まれ、頁の
-	 * 排除域を見ないので、箱が下端フロートの置き場へ入ると中の字が図版に重なった(jigensha の縦組みの本で、
-	 * 図のあとの吹き出しの grid)。置き場の手前で始まって置き場まで達した箱は、この頁を一次元の予約へ切り替えて
-	 * 置き場の手前で割る(残りは次頁)。箱より前の内容は箱の始まりより前で終わっているので押し出されない。
-	 * 置き場の中で始まる grid・flex は始まりで図版のぶん狭めてある({@code BlockBuilder.startFlowBlock})。
+	 * Called immediately after placing a table, grid, or flex (2026-10-05). Lines in their cells/items use another
+	 * builder and do not see page exclusions, so text overlapped figures when a box entered a bottom float's placement
+	 * area (the speech-balloon grid after a figure in jigensha's vertical-writing book). If a box starts before the
+	 * placement area and reaches it, switch this page to one-dimensional reservation and split before the area
+	 * (remainder on the next page). Content preceding the box ends before its start and is not pushed out. A grid/flex
+	 * starting inside the placement area already has its width reduced by the figure at its start ({@code
+	 * BlockBuilder.startFlowBlock}).
 	 *
-	 * @param start 箱の始まり(頁の block 軸)
+	 * @param start box start (page block axis)
 	 */
 	private void exclusionBlindBoxPlaced(final double start) {
 		if (!this.bottomFloatOneDimensionalFallback && this.hasRootWritingModePath()
@@ -3159,7 +3156,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 	}
 
-	/** 現在の既配置範囲と先頭bottomのplacedStartから当該ページの経路を選び直す。 */
+	/** Reselects this page's path from the current placed range and the first bottom float's placedStart. */
 	private void updateBottomFloatFallbackForCurrentPosition() {
 		final boolean fallback = this.currentPositionPastFirstReservedBottom();
 		if (this.bottomFloatOneDimensionalFallback != fallback) {
@@ -3169,9 +3166,9 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * bottom登録後に脚注予約が伸びたとき、実配置矩形を追随させます。
-	 * 現在位置が移動後の新しい先頭矩形へ達している場合だけ一次元へ戻し、
-	 * それ以前なら新しい矩形で二次元排除を組み直します。
+	 * Updates actual placement rectangles when footnote reservations grow after bottom-float registration. Reverts to
+	 * one-dimensional handling only if the current position reaches the new first rectangle after movement; otherwise,
+	 * rebuilds two-dimensional exclusion with the new rectangles.
 	 */
 	private void footnoteReservationChangedAfterBottomRegistration() {
 		if (this.bottomFloatReservedCount == 0) {
@@ -3182,17 +3179,16 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 現在予約済みのbottom prefixを、現時点の脚注予約を使った実配置
-	 * {@code [placedStart, placedEnd]}へ登録し直します。
+	 * Reregisters the currently reserved bottom prefix at its actual placement {@code [placedStart, placedEnd]}, using
+	 * the current footnote reservation.
 	 *
 	 * <p>
-	 * 描画は論理{@code lineAxis=0}に置く。したがって
-	 * horizontal-tbは左下、vertical-rlは左上(脚注があればその右)、
-	 * vertical-lrは右上(脚注があればその左)であり、論理排除域は
-	 * {@code [0, inlineExtent]}の{@link FloatSide#START}になる。設計草案の
-	 * END側矩形へ変えると現行描画と交差するため、実描画座標を正とする。
-	 * ただし縦組みの物理の {@code bottom} は行の末尾側(用紙の下)に置き、排除域も
-	 * {@link FloatSide#END} にする({@link #bottomAtLineEnd}、2026-10-05)。
+	 * Drawing uses logical {@code lineAxis=0}: bottom left in horizontal-tb, top left in vertical-rl (right of
+	 * footnotes, if any), and top right in vertical-lr (left of footnotes, if any). Thus the logical exclusion is
+	 * {@code [0, inlineExtent]} on {@link FloatSide#START}. Changing it to the draft design's END-side rectangle would
+	 * intersect current drawing, so actual drawing coordinates are authoritative. However, physical {@code bottom} in
+	 * vertical writing goes at line end (paper bottom), with exclusion on {@link FloatSide#END} as well ({@link
+	 * #bottomAtLineEnd}, 2026-10-05).
 	 * </p>
 	 */
 	private void rebuildBottomPageFloatExclusions() {
@@ -3235,9 +3231,9 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 下端フロートを行の末尾側に置くか(2026-10-05)。縦組みの物理の {@code bottom} で、行が上から下へ
-	 * 進むときだけ——用紙の下になる(css-page-floats の bottom は書字方向に応じて block-end か
-	 * inline-end)。{@code block-end} と横組みは行の始まり側(従来どおり)。
+	 * Whether bottom floats go at line end (2026-10-05). Only for physical {@code bottom} in vertical writing when
+	 * lines run top to bottom, placing them at the paper bottom (css-page-floats bottom means block-end or inline-end
+	 * depending on writing direction). {@code block-end} and horizontal writing use line start, as before.
 	 */
 	private boolean bottomAtLineEnd(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBox) {
 		return floatBox.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos pos && pos.physical
@@ -3246,10 +3242,10 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * ページ確定時の下端フロートの清算です(finishLayoutから)。脚注が
-	 * あればその上へ、無ければ版面下端へ順に積む。
+	 * Settles bottom floats when finalizing the page (from finishLayout). Stacks them above footnotes if present,
+	 * otherwise at the type area bottom.
 	 *
-	 * @param notesExtent 脚注が実際に占めた量(区切りの空きを含む)
+	 * @param notesExtent actual extent occupied by footnotes (including separator spacing)
 	 */
 	private void attachBottomPageFloats(final double notesExtent) {
 		if (this.pendingBottomFloats.isEmpty()) {
@@ -3294,17 +3290,16 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 上端フロート待ち行列を変更せず、先頭から配置できる連続prefixを
-	 * 計画します。途中の要素を飛ばさず、{@code atPageStart == false}では
-	 * 先頭が収まらなければ空計画を返します。ページ先頭では従来どおり、
-	 * {@code stackEnd == 0}の最初の1件を容量にかかわらず採り、その後は
-	 * 収まる間だけ採ります。
+	 * Plans the continuous prefix placeable from the front without changing the top-float queue. Never skips entries;
+	 * when {@code atPageStart == false}, returns an empty plan if the first entry does not fit. At page start, retains
+	 * the existing rule: take the first entry with {@code stackEnd == 0} regardless of capacity, then take subsequent
+	 * entries only while they fit.
 	 *
-	 * @param queue       上端フロートのFIFO待ち行列(読み取り専用)
-	 * @param stackEnd    配置済みtop prefixの終端
-	 * @param maxArea     topを積めるページ軸終端
-	 * @param atPageStart ページ先頭の前進保証を適用するならtrue
-	 * @return 採用したprefixと、その占有量の合計
+	 * @param queue       FIFO queue of top floats (read-only)
+	 * @param stackEnd    end of the placed top prefix
+	 * @param maxArea     page-axis end up to which top floats can stack
+	 * @param atPageStart true to apply the page-start progress guarantee
+	 * @return accepted prefix and its total occupied extent
 	 */
 	final TopFloatPlan planTopFloats(
 			final java.util.Deque<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> queue,
@@ -3313,8 +3308,8 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * {@link #planTopFloats(java.util.Deque, double, double, boolean)}の純粋な核です。
-	 * 占有量の測り方を注入できるので、builder を組み立てずに単体で検査できる。
+	 * Pure core of {@link #planTopFloats(java.util.Deque, double, double, boolean)}. Accepts an injected
+	 * occupied-extent measure, allowing standalone checks without constructing a builder.
 	 */
 	static TopFloatPlan planTopFloats(
 			final Iterable<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> queue,
@@ -3339,17 +3334,17 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 計画済みの上端フロートだけをFIFO順に配置し、実配置矩形を当該ページの
-	 * 行走査用排除域へ登録します。本文カーソルは進めません。
+	 * Places only planned top floats in FIFO order and registers their actual rectangles in this page's exclusion
+	 * space for line scanning. Does not advance the body cursor.
 	 *
-	 * @param plan {@link #planTopFloats}が返した配置計画
+	 * @param plan placement plan returned by {@link #planTopFloats}
 	 */
 	private void placeTopPageFloats(final TopFloatPlan plan) {
 		if (plan.boxes.isEmpty() && this.pendingTopFloats.isEmpty()) {
 			return;
 		}
-		// MIN_PAGE_LIMITは基底の改ページ・脚注予約に残す。top配置は本文を
-		// 押し下げないため、実際に空いている頁末まで積める。
+		// Keep MIN_PAGE_LIMIT for base page breaks and footnote reservations. Top placement does not
+		// push body text down, so it can stack up to the actual free end of the page.
 		final double maxArea = super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation;
 		final double fragmentLimit = this.getPageOwnerLimit();
 		double pageAxis = this.topPageFloatStackEnd;
@@ -3359,23 +3354,23 @@ public class RootBuilder extends BreakableBuilder {
 			this.pendingTopFloats.removeFirst();
 			this.pendingTopFloatGenerations.remove(floatBox);
 			final Long previous = this.placedTopFloatGenerations.put(floatBox, this.pageGeneration);
-			// キューは配置時に必ず消費する。同じfloatを同じページへ再配置すると
-			// float-onlyページの前進保証が崩れるため、黙って重複させない。
+			// Always consume the queue during placement. Replacing the same float on the same page
+			// breaks the progress guarantee for float-only pages, so never duplicate silently.
 			if (previous != null && previous.longValue() == this.pageGeneration) {
 				throw new IllegalStateException("top page float repeated on page generation " + this.pageGeneration);
 			}
 			final double placedStart = pageAxis;
 			final double placedEnd = placedStart + extent;
-			// 排除域は当該PageBoxのfragmentainer内だけに限定する。描画上
-			// overflowするfloatの実寸をそのまま使うと、行を何ページ分も先へ
-			// 移してから通常の改ページで少しずつ戻すため、次ページで集合を
-			// 交換しても空ページが何枚も残る。
-			// **終端は始端を下回らない**(2026-09-17)。fragmentLimit は同じページ世代の
-			// 中でも縮む(脚注の予約が後から入る)。縮んだ後に積んだ高さ 0 の float は
-			// start=139.68 に対して min(end, limit)=139.42 となり、負の区間になるうえ
-			// 「pageSpan.end 昇順」の契約(ExclusionSpace.copyOfSorted)を破っていた
-			// (掃過 wild の AssertionError。本番では assert が無効なので、並びの崩れた
-			// 排除域がそのまま使われていた)
+			// Limit exclusions to this PageBox's fragmentainer. Using the full actual extent
+			// of visually overflowing floats moves lines many pages ahead, then ordinary
+			// page breaks bring them back gradually. Replacing the set on the next page
+			// would still leave many blank pages.
+			// **The end must not precede the start** (2026-09-17). fragmentLimit can shrink within
+			// one page generation (footnote reservations arrive later). A zero-height float stacked
+			// after shrinking had start=139.68 but min(end, limit)=139.42, creating a negative interval
+			// and violating the ascending pageSpan.end contract (ExclusionSpace.copyOfSorted)
+			// (AssertionError in the wild sweep; production disables asserts, so it used
+			// the out-of-order exclusions unchanged).
 			final double exclusionEnd = Math.max(placedStart, Math.min(placedEnd, fragmentLimit));
 			if (DebugFlags.TOP_FLOAT) {
 				System.err.println("[topFloat] gen=" + this.pageGeneration + " start=" + placedStart + " extent=" + extent
@@ -3396,8 +3391,8 @@ public class RootBuilder extends BreakableBuilder {
 			this.topPageFloatStackEnd = pageAxis;
 			this.pageFloatProgressed = true;
 			if (pageAxis > maxArea) {
-				// 単独でページに収まらないフロートは溢れたまま置く
-				// (クラッシュ排除方針。警告して続行)
+				// Place floats that cannot fit even alone on a page with overflow
+				// (crash-elimination policy: warn and continue).
 				LOG.warning("page float too large for the page: " + extent + "pt");
 			}
 		}
@@ -3405,31 +3400,31 @@ public class RootBuilder extends BreakableBuilder {
 		this.refreshPageFloatExclusionSnapshot();
 	}
 
-	/** 直近のページでフロートの配置が進んだか(finish()の前進性ガード)。 */
+	/** Whether float placement advanced on the most recent page (finish() progress guard). */
 	private boolean pageFloatProgressed = false;
 
-	/** ページ先頭で分割した浮動体の、要素ごとの直近の(ページ世代, 占有寸法)。 */
+	/** Most recent (page generation, occupied size) per element for floats split at page start. */
 	private final java.util.Map<Object, double[]> fragmentStartFloatSplits = new java.util.IdentityHashMap<>();
 
 	/**
-	 * ページ先頭に置いた浮動体を<b>もう一度分割してよいか</b>を返します(2026-09-17)。
+	 * Returns whether a float placed at page start <b>may be split again</b> (2026-09-17).
 	 *
 	 * <p>
-	 * 同軸のブロック浮動体は常に分割可能として扱うが、中身がページ軸に切れない
-	 * (縦組みの {@code width:58pt} のような明示寸法は断片ごとに満額で再適用される、
-	 * 直交フローのセルは切れない)と、残余は次ページでも<b>同じ寸法</b>に組み直される。
-	 * ページ先頭で分割→同じ寸法の残余→ページ先頭で分割…と永久に続き、白紙を出し続けて
-	 * OutOfMemoryError まで止まらなかった(掃過 wild の「ページ数過大」。60pt の用紙で
-	 * 63.25pt の残余が 27,820 ページ続いた)。
+	 * Block floats on the same axis are always treated as splittable, but if their contents cannot split along the
+	 * page axis (explicit sizes such as {@code width:58pt} in vertical writing are reapplied in full to every
+	 * fragment; orthogonal-flow cells cannot split), the remainder is rebuilt at <b>the same size</b> on the next
+	 * page. Splitting at page start → same-sized remainder → splitting at page start repeated indefinitely, producing
+	 * blank pages until OutOfMemoryError ("excessive page count" in the wild sweep: a 63.25 pt remainder continued for
+	 * 27,820 pages on 60 pt paper).
 	 * </p>
 	 *
 	 * <p>
-	 * 前回のページ先頭分割から占有寸法が縮んでいなければ前進していないので、分割を
-	 * やめてはみ出したまま置く(分割不能な浮動体のページ先頭と同じ扱い)。同じページ
-	 * 世代での再分類(段の均衡・restyle)は比較しない。
+	 * If occupied size has not shrunk since the previous page-start split, no progress has occurred. Stop splitting
+	 * and place with overflow (same treatment as an unsplittable float at page start). Do not compare reclassification
+	 * within the same page generation (column balancing/restyle).
 	 * </p>
 	 *
-	 * @return 分割してよければ true。前進が無ければ false
+	 * @return true if splitting is allowed; false if no progress occurred
 	 */
 	boolean fragmentStartFloatSplitProgresses(final Object element, final double occupiedExtent) {
 		if (element == null) {
@@ -3452,25 +3447,24 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * 現ページに、頁先頭(二次元排除)で置いた狭幅 top があるか。脇に本文が
-	 * 入り得るので、以後の平行移動は禁止する(移動した行が新しい帯と重なる)。
-	 * 平行移動で帯として置いた狭幅 top は脇に本文が無いので数えない。
+	 * Whether this page has a narrow top float placed at page start with two-dimensional exclusion. Body text may run
+	 * beside it, so prohibit later translation (shifted lines would overlap the new band). Exclude narrow top floats
+	 * placed as bands by translation, since no body text runs beside them.
 	 */
 	private boolean narrowTopPlacedWithTextBeside = false;
 
-	/** {@link #placeTopPageFloats}が平行移動(帯)から呼ばれている間 true。 */
+	/** True while {@link #placeTopPageFloats} is called from translation (band placement). */
 	private boolean placingTopByTranslate = false;
 
 	/**
-	 * ページ確定時の脚注の清算です(finishLayoutから=分割完了後・描画前)。
-	 * 確定した箱木に残った::footnote-callのID集合を採取し、pendingの
-	 * 先頭から「carry-in済み(committed)またはcallがこのページに残った」
-	 * 連続prefixだけを版面下端へ配置する。callがこのページに残ったが
-	 * 配置されなかった脚注(容量送り・順序保持)はcommittedにして次ページで
-	 * 最優先配置。配置座標は予約高ではなく実配置分の合計高で下端揃え
-	 * (call移動で一部を送った場合、予約高のままだと下端に浮く)。
-	 * 明示したheight/min-heightの帯では予約領域の本文側から並べます。
-	 * 台帳状態は配置ゼロ件でも必ず清算する(次ページへ漏らさない)。
+	 * Settles footnotes at page finalization (from finishLayout, after splitting and before drawing). Collects
+	 * ::footnote-call IDs remaining in the finalized box tree and places only the continuous leading pending prefix
+	 * whose entries are carried in (committed) or have a call remaining on this page at the type area bottom. Marks
+	 * unplaced notes whose calls remain here as committed (capacity deferral/order preservation) for first-priority
+	 * placement on the next page. Bottom-aligns using the total height actually placed, not reserved height (if call
+	 * movement defers some notes, using reserved height leaves space below them). In bands with explicit
+	 * height/min-height, arranges notes from the body side of the reserved area. Always settles ledger state, even
+	 * with zero placements, so it does not leak into the next page.
 	 */
 	private double attachFootnotes() {
 		final boolean probe = this.isFootnoteProbe();
@@ -3478,7 +3472,7 @@ public class RootBuilder extends BreakableBuilder {
 		final FootnoteCallScan probeScan = probe ? scanFootnoteCalls(this.pageBox, false)
 				: planned ? this.scanFootnoteCalls(this.pageBox) : null;
 		if (planned) {
-			// callが先にページを閉じても、本文を待つID・所属・採番を失わない。
+			// Do not lose IDs awaiting their bodies, ownership, or numbering even if a call closes the page first.
 			for (final long id : new java.util.TreeSet<>(probeScan.ids())) {
 				if (!this.registeredFootnotes.contains(id)) this.bottomFootnote(id);
 			}
@@ -3517,9 +3511,9 @@ public class RootBuilder extends BreakableBuilder {
 		final java.util.Set<Long> retained = scan.ids();
 		this.traceFootnote("page-plan", null, 0, retained);
 
-		// F5: 採番——このページにcallが残った未採番entryへ、FIFO(文書順)で
-		// 1から割り当てる。committed(過去ページで採番済みのcarry-in)は
-		// 再採番しない
+		// F5 numbering: assign numbers starting at 1 in FIFO (document) order to unnumbered
+		// entries whose calls remain on this page. Do not renumber committed entries
+		// (carry-in already numbered on earlier pages).
 		if (columnPageScan == null) {
 			int nextNumber = 1;
 			for (final FootnoteEntry entry : this.pageFootnoteHost.pendingFootnotes) {
@@ -3528,7 +3522,7 @@ public class RootBuilder extends BreakableBuilder {
 				}
 			}
 		}
-		// 配置計画(変異なしで全件の行き先を確定してから一度だけcommit)
+		// Placement plan (determine every destination without mutation, then commit once).
 		int attachCount = 0;
 		double attachedExtent = 0;
 		{
@@ -3544,7 +3538,7 @@ public class RootBuilder extends BreakableBuilder {
 					if (entry.noteBox == null || reservation == null) break;
 					final double height = this.isPageBandFootnoteArea() ? this.footnoteBandCost(entry.noteBox) : this.footnoteExtent(entry.noteBox);
 					final double capacity = this.isPageBandFootnoteArea() ? this.footnoteBandCapacity() : this.pageFootnoteHost.footnoteReservation;
-					// 縦帯の間隙は用紙の縦方向。注が並ぶ横方向の勘定には入らない。
+					// A vertical band's gap lies along paper height, outside the horizontal note-stacking calculation.
 					final double gap = this.isVerticalFootnoteBand() ? 0 : FOOTNOTE_GAP;
 					if (!(i == 0 && reservation.oversized())
 							&& (net.zamasoft.foliojet.layout.util.LayoutUtils.compare(height, reservation.height()) > 0
@@ -3559,7 +3553,7 @@ public class RootBuilder extends BreakableBuilder {
 				++i;
 			}
 		}
-		// 配置されない残りのうち、callがこのページに残ったものはcarry-in
+		// Unplaced remaining notes whose calls stay on this page become carry-in.
 		{
 			int i = 0;
 			for (final FootnoteEntry entry : this.pageFootnoteHost.pendingFootnotes) {
@@ -3570,9 +3564,9 @@ public class RootBuilder extends BreakableBuilder {
 				++i;
 			}
 		}
-		// F5: このページの確定木に残ったcallラベルを解決する(markerは
-		// note側なのでattach時)。pendingに居ないIDのラベル(過去に配置済み
-		// のnote内marker等)はスキップ
+		// F5: resolve call labels remaining in this page's finalized tree (markers belong
+		// to notes, so resolve them at attachment). Skip labels for IDs absent from pending
+		// (such as markers in previously placed notes).
 		if (!probe) {
 			final java.util.Map<Long, Integer> numbers = new java.util.HashMap<>();
 			for (final FootnoteEntry entry : this.pageFootnoteHost.pendingFootnotes) {
@@ -3594,26 +3588,26 @@ public class RootBuilder extends BreakableBuilder {
 				&& (this.footnoteArea().isHeightFixed() || this.footnoteArea().minHeight > 0);
 		final double blockArea = sizedBlockArea ? this.pageFootnoteHost.footnoteReservation : 0;
 		double pageAxis = sizedBlockArea ? base - blockArea + FOOTNOTE_GAP : base - attachedExtent;
-		// 帯は予約領域の行方向の始端から並べる。巨大注も本文側へはみ出させない。
-		// 地は版面の下端の外(正)、天は内容原点の上(負)——天は
-		// PageBox.reserveHeadArea が内容原点を帯の分だけ下げてあるので、
-		// 帯の始端は -取り代 になる。
+		// Arrange bands from the reserved area's line start. Even oversized notes must not overflow toward body text.
+		// Bottom lies outside the type area bottom (positive); top lies above the content origin (negative).
+		// For top bands, PageBox.reserveHeadArea has lowered the content origin by the band extent,
+		// so the band starts at minus the reserved extent.
 		double lineAxis = 0;
 		if (this.isPageBandFootnoteArea()) {
 			lineAxis = this.footnoteArea().isHeadBand() ? -this.pageBox.getHeadInset()
 					: this.pageBox.getInnerHeight() + FOOTNOTE_GAP;
 		}
-		// 縦帯で注が並ぶ用紙の横方向の位置(block-startからの送り)。
+		// Horizontal paper position for notes stacked in a vertical band (advance from block-start).
 		double bandPageAxis = 0;
 		for (int i = 0; i < attachCount; ++i) {
 			final FootnoteEntry entry = this.pageFootnoteHost.pendingFootnotes.removeFirst();
 			if (planned) this.bottomFootnotes.remove(entry.id);
 			if (entry.assignedNumber < 0) {
-				// 呼び出しが走査で見つからなかった脚注(表のセル等)。
-				// 変換を失敗させず、文書順の通番で採番する(§5.13)
+				// Footnotes whose calls the scan did not find (e.g. in table cells).
+				// Use document-order sequential numbering without failing conversion (§5.13).
 				entry.assignedNumber = (int) (entry.id + 1);
 			}
-			// note本文先頭の::footnote-markerラベルをcallページの番号で解決
+			// Resolve the ::footnote-marker label at the note body start with the call-page number.
 			if (!probe) {
 				for (final net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage label : this
 						.scanFootnoteCalls(entry.noteBox).labels()) {
@@ -3623,18 +3617,18 @@ public class RootBuilder extends BreakableBuilder {
 				}
 			}
 			if (this.isPageBandFootnoteArea()) {
-				// addFloatingは物理x/yではなく(lineAxis, pageAxis)。縦組みでは行軸がy。
+				// addFloating takes (lineAxis, pageAxis), not physical x/y. In vertical writing, the line axis is y.
 				final WritingMode pageFlow = this.pageBox.getBlockParams().flow;
 				if (this.isVerticalFootnoteBand()) {
-					// 縦帯(2026-09-11): 注は帯の上端に行頭を揃えて**横方向に並ぶ**。
-					// pageAxis の原点は block-start(RLなら右端)なので、そこから
-					// 注の幅だけ左へ送っていく。lineAxis は全部の注で帯の上端のまま。
+					// Vertical band (2026-09-11): notes **stack horizontally**, with line starts aligned at the band top.
+					// The pageAxis origin is block-start (right edge for RL), so advance left from there
+					// by each note's width. lineAxis stays at the band top for all notes.
 					this.pageBox.getContainer().addFloating(entry.noteBox, lineAxis, bandPageAxis);
 					bandPageAxis += this.footnoteBandCost(entry.noteBox);
 				} else {
-					// 横帯: 注を用紙の左端に揃える。RL では pageAxis の原点が右端
-					// なので、注の幅(page 方向の伸び)の分だけ引く——持ち越し先の
-					// ページが呼び出しのページより狭くても左端から溢れさせない
+					// Horizontal band: align notes to the paper's left edge. In RL, the pageAxis origin
+					// is the right edge, so subtract the note's width (page-direction extent), preventing
+					// left-edge overflow even when the carry-over page is narrower than the call page.
 					final double notePageAxis = pageFlow == WritingMode.RL
 							? this.pageBox.getInnerPageExtent(pageFlow) - entry.noteBox.getPageExtent(pageFlow)
 							: 0;
@@ -3651,19 +3645,19 @@ public class RootBuilder extends BreakableBuilder {
 			if (attachCount > 0) {
 				final net.zamasoft.foliojet.ua.FootnoteArea area = this.pageBox.getUserAgent()
 						.getUAContext().getFootnoteArea();
-				// 罫線は本文と帯の間隙の中央。天の帯では内容原点より上なので負になる。
+				// Center the rule in the body-to-band gap. A top band's rule is above the content origin, hence negative.
 				this.pageBox.setFootnoteSeparatorLineAxis(
 						area.isHeadBand() ? -FOOTNOTE_GAP / 2 : this.pageBox.getInnerHeight() + FOOTNOTE_GAP / 2,
 						area.flow == null ? this.pageBox.getBlockParams().flow : area.flow);
 			}
 			this.pageFootnoteHost.footnoteReservedCount = 0;
 			this.pageFootnoteHost.footnoteReservation = 0;
-			// 下端ページ浮動体へ渡すblock方向の脚注量は0。
+			// The block-direction footnote extent passed to bottom page floats is 0.
 			return 0;
 		}
 		if (attachCount > 0) {
-			// separator罫線(F6/F7答申①): 既存gapの中央に置くため予約は
-			// 増えない。描画はPageSequence.drawPageのflow後(artifact)
+			// Separator rule (F6/F7 recommendation ①): centered in the existing gap, so no extra
+			// reservation. Draw after flows in PageSequence.drawPage (artifact).
 			this.pageBox.setFootnoteSeparatorAxis(sizedBlockArea ? base - blockArea + FOOTNOTE_GAP / 2
 					: base - attachedExtent - FOOTNOTE_GAP / 2);
 		}
@@ -3672,7 +3666,7 @@ public class RootBuilder extends BreakableBuilder {
 		return sizedBlockArea ? blockArea : attachedExtent == 0 ? 0 : attachedExtent + FOOTNOTE_GAP;
 	}
 
-	/** 全宿主を論理ID(文書順)で一度だけ採番する。carry-inは新規番号を消費しない。 */
+	/** Numbers all hosts once by logical ID (document order). Carry-in does not consume a new number. */
 	private void numberColumnPageFootnotes(final FootnoteCallScan scan) {
 		final java.util.SortedMap<Long, FootnoteEntry> entries = new java.util.TreeMap<>(this.columnPageEntries);
 		for (final FootnoteEntry entry : this.pageFootnoteHost.pendingFootnotes) entries.put(entry.id, entry);
@@ -3687,9 +3681,9 @@ public class RootBuilder extends BreakableBuilder {
 			if (entry != null && entry.assignedNumber > 0) label.resolve(entry.assignedNumber);
 		}
 		for (final FootnoteEntry entry : entries.values()) {
-			// 段に call が残ったのに置けなかった注(次段・次頁へ持ち越し)は、
-			// 頁の添付と同じく committed にして carry-in として最優先で置く
-			// (番号はこの頁のもの。grok レビュー必須2)。
+			// Notes whose calls remain in the column but cannot be placed (carry-over to the next column/page)
+			// become committed and receive top-priority carry-in placement, as with page attachment
+			// (using this page's number; grok review requirement 2).
 			if (entry.columnCallRetained && entry.attachedColumnHost == null && scan.ids().contains(entry.id)) {
 				entry.committed = true;
 			}
@@ -3697,35 +3691,37 @@ public class RootBuilder extends BreakableBuilder {
 		}
 	}
 
-	/** 版面より大きい脚注の警告は1文書に1回。 */
+	/** Warns about footnotes larger than the type area once per document. */
 	private boolean warnedOversizedFootnote = false;
 
 	/**
-	 * 呼び出しが見つからない脚注でも先頭から強制的に置くか(finish()の
-	 * 前進保証、2026-08-02)。
+	 * Whether to force placement from the front even for notes with no call found (finish() progress guarantee,
+	 * 2026-08-02).
 	 */
 	private boolean forceFootnoteAttach = false;
 
-	/** 走査結果: callのID集合と、見つかった脚注ラベル(call/marker両方)、中身(行・置換要素)の有無。 */
+	/**
+	 * Scan result: call ID set, found footnote labels (calls and markers), and presence of content (lines/replaced
+	 * elements).
+	 */
 	private record FootnoteCallScan(java.util.Set<Long> ids,
 			java.util.List<net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage> labels, boolean contentful) {
 	}
 
 	/**
-	 * 箱木から脚注のcall ID集合とラベル原子を採取します(F4答申の候補A改+
-	 * F5のラベル解決)。行跨ぎで同一callのインライン断片が複製されても
-	 * 集合なので1件に畳まれる。走査は明示worklistの反復DFS。flow・float・
-	 * 行・インラインに加えて、<b>表(行グループ→行→セル)と絶対配置の箱</b>へも
-	 * 降りる(2026-09-02)。以前はこの2つが走査の外で、表のセルの中の脚注は
-	 * 呼び出しが見つからないまま最後まで保留され、EOFで「諦めて」本文が
-	 * 消え、呼び出しの番号も文書通番のままだった(cti.liの報告、2026-09-01:
-	 * 2頁目のセルの注が本文なし・番号6)。
+	 * Collects footnote call IDs and label atoms from the box tree (revised candidate A of the F4 recommendation + F5
+	 * label resolution). A set collapses duplicate inline fragments of the same call across lines into one entry. Uses
+	 * iterative DFS with an explicit worklist. Besides flows, floats, lines, and inlines, descends into <b>tables (row
+	 * groups → rows → cells) and absolutely positioned boxes</b> (2026-09-02). Previously those two were outside the
+	 * scan; notes in table cells stayed pending until the end without their calls being found, then their bodies
+	 * disappeared when EOF "gave up", while call numbers stayed document-wide (cti.li report, 2026-09-01: the note in
+	 * a page-2 cell had no body and number 6).
 	 */
 	private FootnoteCallScan scanFootnoteCalls(final net.zamasoft.foliojet.layout.box.AbstractContainerBox root) {
 		return scanFootnoteCalls(root, true);
 	}
 
-	/** 計測用の読み取り走査。絶対配置のdeferred bind・脚注番号の解決を行いません。 */
+	/** Read-only scan for measurement. Does not perform deferred absolute binding or resolve footnote numbers. */
 	public static java.util.Set<Long> collectFootnoteCalls(
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox root) {
 		return java.util.Set.copyOf(scanFootnoteCalls(root, false).ids());
@@ -3769,8 +3765,8 @@ public class RootBuilder extends BreakableBuilder {
 			if (node instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox container) {
 				pushFootnoteChildren(container.getContainer(), container, bindAbsolute, work);
 			} else if (node instanceof net.zamasoft.foliojet.layout.box.impl.TableBox table) {
-				// 表: ヘッダ→本体→フッタの行グループ、行、元のセル(拡張セルは
-				// 同じ箱を指すので飛ばす)
+				// Tables: row groups in header → body → footer order, rows, and original cells
+				// (skip extended cells because they refer to the same box).
 				final java.util.List<net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox> groups = new java.util.ArrayList<>();
 				if (table.getTableHeader() != null) {
 					groups.add(table.getTableHeader());
@@ -3801,7 +3797,7 @@ public class RootBuilder extends BreakableBuilder {
 		return new FootnoteCallScan(ids, labels, contentful);
 	}
 
-	/** 容器入口を共有する。deferred absoluteはその容器のownerでbindする。 */
+	/** Shares the container entry point. Binds deferred absolute boxes through that container's owner. */
 	private static void pushFootnoteChildren(final net.zamasoft.foliojet.layout.box.content.Container source,
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner, final boolean bindAbsolute,
 			final java.util.ArrayDeque<Object> work) {

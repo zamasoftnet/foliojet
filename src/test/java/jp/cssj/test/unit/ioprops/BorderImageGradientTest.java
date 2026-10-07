@@ -31,7 +31,7 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** {@code border-image}のグラデーション源を9分割して描く試験です。 */
+/** Test nine-slice drawing of a gradient source for {@code border-image}. */
 public class BorderImageGradientTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final File DOCUMENT = new File("files/unittest/0310-border/border-image-gradient.html");
@@ -73,8 +73,8 @@ public class BorderImageGradientTest extends TestCase {
 		assertEquals(width / 2 + dx, Double.parseDouble(first.getAttribute("x2")), .02);
 		assertEquals(height / 2 + dy, Double.parseDouble(first.getAttribute("y2")), .02);
 
-		// 先頭の左上隅では、30 CSS px (=22.5pt)の源を10mmへ拡大し、
-		// 頁余白10mmの位置へ移す。順序には依存せず、この行列を持つ定義を探す。
+		// At the first top-left corner, enlarge the 30 CSS px (=22.5 pt) source to 10 mm,
+		// then move it to the 10 mm page margin. Find the definition with this matrix without depending on order.
 		final double expectedScale = pt(10) / 22.5;
 		final double expectedTranslate = pt(10);
 		boolean found = false;
@@ -105,8 +105,8 @@ public class BorderImageGradientTest extends TestCase {
 		assertTrue("the bottom-right corner must be bluish: " + rgb(bottomRight),
 				blue(bottomRight) > red(bottomRight) + 140);
 
-		// 上辺中央の目的座標(50mm,15mm)は仮想源では(40mm, slice/2)。
-		// 135degの勾配線へ射影して、期待する赤青の割合を定義から求める。
+		// The target coordinates (50 mm, 15 mm) at the top center are (40 mm, slice/2) in the virtual source.
+		// Project onto the 135deg gradient line to derive the expected red/blue proportions from the definition.
 		final double slice = 30 * 25.4 / 96;
 		final double[] expected = linearGradientAt(80, 60, 135, 40, slice / 2);
 		assertColorNear("the top edge centre must use its virtual-source colour",
@@ -240,7 +240,7 @@ public class BorderImageGradientTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		byte[] bytes(final String uri) {

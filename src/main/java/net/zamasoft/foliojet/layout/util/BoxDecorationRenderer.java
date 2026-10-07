@@ -15,47 +15,47 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 
 /**
- * box-shadow と outline の描画です(2026-08-29)。
+ * Rendering for box-shadow and outline (2026-08-29).
  *
  * <p>
- * 描画順は{@link net.zamasoft.foliojet.layout.part.AbsoluteRectFrame#draw}が
- * 決める: 外側の影 → 背景 → 内側の影 → 境界 → アウトライン。
+ * {@link net.zamasoft.foliojet.layout.part.AbsoluteRectFrame#draw} determines the drawing order:
+ * outer shadows → background → inner shadows → border → outline.
  * </p>
  *
  * <p>
- * <b>ぼかしの近似。</b>出力先が厳密なぼかしを使えない場合は、影の縁を
- * {@link #BLUR_STEPS}個の同心の塗りで階段状に再現する。各段は
- * ガウス分布の分位点の位置(σ=blur/2、Chrome/Skiaと同じ換算)に置き、
- * 各段のアルファは全段が重なった中心で指定色のアルファに一致するよう
- * {@code 1-(1-α)^(1/N)}にする。単一の半透明帯より縁の減衰が滑らかで、
- * カードによくある {@code 0 2px 8px rgba(0,0,0,.15)} でChromeの見た目に
- * 近い(段差は12段・α=0.15なら1段あたり約1.3%で肉眼では見えない)。
- * 広がりの外縁は±1.73σ≒±0.87×blurで、Chromeの見た目の裾(≒blur)より
- * わずかに詰まる。
+ * <b>Blur approximation.</b> If the destination cannot use exact blur, reproduces the shadow edge
+ * in steps with {@link #BLUR_STEPS} concentric fills. Places each step at a Gaussian quantile
+ * (σ=blur/2, the same conversion as Chrome/Skia), and sets its alpha to
+ * {@code 1-(1-α)^(1/N)} so the center, where all steps overlap, matches the specified color's alpha.
+ * Edge falloff is smoother than a single translucent band and looks close to Chrome for the
+ * common card shadow {@code 0 2px 8px rgba(0,0,0,.15)}
+ * (with 12 steps and α=0.15, each step is about 1.3%, invisible to the naked eye).
+ * The outer extent is ±1.73σ≒±0.87×blur, slightly tighter than Chrome's visible tail (≒blur).
  * </p>
  *
  * <p>
- * <b>厳密経路(2026-09-03更新)。</b>出力先がガウスぼかしを持つ
- * ({@link GC.Capability#GAUSSIAN_BLUR}——Java2D・ブラウザが描くSVG・
- * 透明を使えるPDF)なら、近似せず{@link GC#tryFillBlurred}で1回塗る。
- * PDFは影だけを画像化し、本文や箱そのものはベクタのまま保つ。厳密描画を
- * 拒否された場合は上の段階塗りへ戻り、
- * {@link ApproximationGC#report}で利用者へ知らせる(文書ごとに1回)。
+ * <b>Exact path (updated 2026-09-03).</b> If the destination provides Gaussian blur
+ * ({@link GC.Capability#GAUSSIAN_BLUR}: Java2D, browser-rendered SVG, and PDF supporting transparency),
+ * fills once with {@link GC#tryFillBlurred} without approximation.
+ * PDF rasterizes only the shadow, keeping body text and boxes as vectors.
+ * If exact rendering is refused, falls back to the stepped fills above and notifies the user
+ * through {@link ApproximationGC#report} (once per document).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class BoxDecorationRenderer {
-	/** 2822の近似内容: box-shadowのぼかし。 */
+	/** Approximation detail for 2822: box-shadow blur. */
 	static final String BLUR_DETAIL = "2822.blur-rings";
 	/**
-	 * 厳密なぼかしを使えない場合の各段の縁の位置(σ単位)。N=12の標準正規分布の分位点
-	 * ((k+0.5)/N)を外側から並べたもの。外側ほど薄くなる階段の縁が、
-	 * ガウス減衰の等確率区間に対応する。8段では濃い影(α=.5)の4倍拡大で
-	 * 段差が見えたので12段にした(1段あたりα=.15なら約1.3%、α=.5でも約6%)。
-	 * {@code text-shadow}のぼかし({@code AbstractTextBox})も同じ段を使う。
-	 * 透明を使えるPDFでは影だけをラスタ化するため、この近似は出力先が
-	 * 厳密描画を拒否した場合のフォールバックになる(2026-09-03)。
+	 * Edge positions of each step (in σ units) when exact blur is unavailable.
+	 * Standard normal quantiles ((k+0.5)/N), N=12, ordered from outside inward. Edges of the
+	 * progressively fainter outer steps correspond to equal-probability intervals of Gaussian falloff.
+	 * Eight steps were visible for dark shadows (α=.5) at 4× zoom, so twelve were chosen
+	 * (about 1.3% per step for α=.15, about 6% even for α=.5).
+	 * {@code text-shadow} blur ({@code AbstractTextBox}) uses the same steps.
+	 * PDF supporting transparency rasterizes only shadows, so this approximation is a fallback
+	 * when the destination refuses exact rendering (2026-09-03).
 	 */
 	public static final double[] BLUR_STEPS = { 1.7317, 1.1503, 0.8122, 0.5485, 0.3186, 0.1046, -0.1046, -0.3186,
 			-0.5485, -0.8122, -1.1503, -1.7317 };
@@ -65,9 +65,10 @@ public final class BoxDecorationRenderer {
 	}
 
 	/**
-	 * 外側の影を描きます。背景より前に呼ぶこと。
-	 * 影は境界箱の外だけに描く(CSS Backgrounds 3 §7.1: 箱の背景が透明でも
-	 * 影は箱の下に透けない)ので、even-oddで境界箱を抜いたクリップを掛ける。
+	 * Draws outer shadows. Call before the background.
+	 * Shadows draw only outside the border box (CSS Backgrounds 3 §7.1: they do not show through
+	 * under the box even if its background is transparent), so applies an even-odd clip
+	 * with the border box cut out.
 	 */
 	public static void drawOuterShadows(GC gc, RectFrame frame, double x, double y, double w, double h)
 			throws GraphicsException {
@@ -83,7 +84,7 @@ public final class BoxDecorationRenderer {
 			}
 		}
 		if (extent <= 0) {
-			// 外側の影が無いか、あっても箱の下に隠れる(広がりも偏りも無い)
+			// No outer shadow, or it is hidden under the box (neither spread nor offset)
 			return;
 		}
 		final Radius[] radii = resolvedRadii(frame.border, w, h);
@@ -93,7 +94,7 @@ public final class BoxDecorationRenderer {
 		clip.append(roundedShape(x, y, w, h, radii), false);
 		try (final var state = gc.begin()) {
 			gc.clip(clip);
-			// 先頭の影が最前面なので後ろから描く
+			// Draw back to front because the first shadow is on top
 			for (int i = shadows.length - 1; i >= 0; --i) {
 				final BoxShadow s = shadows[i];
 				if (s.inset) {
@@ -106,12 +107,13 @@ public final class BoxDecorationRenderer {
 	}
 
 	/**
-	 * {@code filter: drop-shadow()}の影を箱の境界形状で描きます(2026-08-29)。
-	 * 本来は要素の不透明部分のシルエットの影だが、箱の枠を影の形とする
-	 * (背景が透明な箱でも箱全体の影になる——記録済みの近似。背景の無い
-	 * 箱では2822で知らせる)。ぼかしはbox-shadowと同じ(厳密か階段状の近似)。
-	 * 出力先が{@code GROUP_FILTER}と{@code DROP_SHADOW}に対応するときは
-	 * ここは呼ばれず、{@code AbstractDrawable}が要素全体の影を掛ける。
+	 * Draws a {@code filter: drop-shadow()} shadow using the box's border shape (2026-08-29).
+	 * It should shadow the silhouette of the element's opaque parts, but uses the box frame
+	 * as the shadow shape (even a transparent-background box casts a full-box shadow;
+	 * documented approximation, reported as 2822 for boxes without a background).
+	 * Blur is the same as box-shadow (exact or stepped approximation).
+	 * When the destination supports {@code GROUP_FILTER} and {@code DROP_SHADOW}, this is not called;
+	 * {@code AbstractDrawable} applies the shadow to the whole element.
 	 */
 	public static void drawDropShadow(GC gc, RectFrame frame, double x, double y, double w, double h, double dx,
 			double dy, double blur, net.zamasoft.pdfg2d.gc.paint.Color color) throws GraphicsException {
@@ -119,8 +121,8 @@ public final class BoxDecorationRenderer {
 			return;
 		}
 		final Radius[] radii = resolvedRadii(frame.border, w, h);
-		// drop-shadowのぼかし半径もbox-shadowと同じ換算(σ=blur/2、
-		// filter-effects-1 §9.2。2026-08-29にJava2D側と揃えて訂正)
+		// Convert the drop-shadow blur radius the same way as box-shadow (σ=blur/2,
+		// filter-effects-1 §9.2; corrected on 2026-08-29 to match Java2D)
 		final BoxShadow s = new BoxShadow(dx, dy, blur, 0, color, false);
 		if (!frame.background.isVisible()) {
 			ApproximationGC.report(gc, "filter", "2822.drop-shadow-box");
@@ -132,9 +134,9 @@ public final class BoxDecorationRenderer {
 	}
 
 	/**
-	 * 内側の影を描きます。背景の後、境界の前に呼ぶこと。パディング箱に
-	 * クリップし、パディング箱から「広がりぶん縮めてずらした穴」を
-	 * even-oddで抜いた帯を塗る。
+	 * Draws inner shadows. Call after the background and before the border.
+	 * Clips to the padding box and fills an even-odd band made by cutting a
+	 * "hole shrunk by the spread and offset" out of the padding box.
 	 */
 	public static void drawInsetShadows(GC gc, RectFrame frame, double x, double y, double w, double h)
 			throws GraphicsException {
@@ -156,7 +158,7 @@ public final class BoxDecorationRenderer {
 		if (pw <= 0 || ph <= 0) {
 			return;
 		}
-		// パディング箱の角丸は境界箱の半径から境界幅を引いたもの
+		// Padding-box corner radii are border-box radii minus border widths
 		// (CSS Backgrounds 3 §5.2)
 		final Radius[] outer = resolvedRadii(border, w, h);
 		final Radius[] radii = { shrink(outer[0], bl, bt), shrink(outer[1], br, bt), shrink(outer[2], bl, bb),
@@ -169,9 +171,9 @@ public final class BoxDecorationRenderer {
 				if (!s.inset) {
 					continue;
 				}
-				// 厳密なぼかしでは帯の外縁をパディング箱より十分外に置く
-				// (外縁がパディング箱と一致すると、ぼかしで縁が薄れてしまう。
-				// クリップで切るので外縁の形は結果に出ない)
+				// For exact blur, place the band's outer edge well outside the padding box
+				// (if it coincides with the padding box, blur fades that edge.
+				// Clipping removes the outer edge, so its shape does not appear in the result)
 				final Shape band0;
 				if (s.blur > 0 && gc.supports(GC.Capability.GAUSSIAN_BLUR)) {
 					final double reach = Math.abs(s.x) + Math.abs(s.y) + Math.abs(s.spread) + 1.5 * s.blur + 1;
@@ -182,7 +184,7 @@ public final class BoxDecorationRenderer {
 				fillLayers(gc, s, "box-shadow", BLUR_DETAIL, d -> {
 					final Shape hole = expandedShape(px + s.x, py + s.y, pw, ph, radii, -(s.spread + d));
 					if (hole == null) {
-						// 穴が潰れた=パディング箱全面が影
+						// The hole has collapsed = the entire padding box is shadow
 						return paddingShape;
 					}
 					final Path2D.Double band = new Path2D.Double(Path2D.WIND_EVEN_ODD);
@@ -195,10 +197,10 @@ public final class BoxDecorationRenderer {
 	}
 
 	/**
-	 * アウトラインを描きます。境界の後に呼ぶこと。境界辺からoffset+幅だけ
-	 * 外へ広げた矩形に、4辺同じ線の{@link RectBorder}として描く(点線・
-	 * 二重線・溝などの線種は境界の描画をそのまま流用)。角丸は境界の半径に
-	 * 同じ距離を足す(Chromeと同じ)。
+	 * Draws the outline. Call after the border. Draws a {@link RectBorder} with identical lines
+	 * on all four sides of a rectangle expanded outward from the border edges by offset + width
+	 * (reuses border rendering for dotted, double, groove, and other line styles).
+	 * Adds the same distance to the border corner radii (as Chrome does).
 	 */
 	public static void drawOutline(GC gc, RectFrame frame, double x, double y, double w, double h)
 			throws GraphicsException {
@@ -221,10 +223,10 @@ public final class BoxDecorationRenderer {
 	}
 
 	/**
-	 * 1つの影を塗ります。{@code shapeAt}は縁の位置のずれ(外向き正)から
-	 * 塗る形を返す(nullなら潰れていて塗らない)。ぼかしは出力先が描ければ
-	 * {@link GC#tryFillBlurred}で厳密に、描けなければ段階塗りで近似し
-	 * {@code property}/{@code blurDetail}で2822を報告する。
+	 * Fills one shadow. {@code shapeAt} maps an edge offset (positive outward) to the fill shape
+	 * (null means collapsed; do not fill). Uses exact blur through {@link GC#tryFillBlurred}
+	 * if the destination supports it; otherwise approximates with stepped fills and reports
+	 * 2822 with {@code property}/{@code blurDetail}.
 	 */
 	private static void fillLayers(GC gc, BoxShadow s, String property, String blurDetail,
 			DoubleFunction<Shape> shapeAt) throws GraphicsException {
@@ -243,8 +245,8 @@ public final class BoxDecorationRenderer {
 				return;
 			}
 			final double sigma = s.blur / 2;
-			// 厳密: 指定色のままガウスぼかしで1回塗る(σ=blur/2)。falseなら
-			// 何も描かれていない契約なので、そのまま従来の近似へ落とせる。
+			// Exact: fill once with Gaussian blur in the specified color (σ=blur/2). If false,
+			// the contract guarantees nothing was drawn, so fall back directly to the existing approximation.
 			gc.setFillAlpha(alpha);
 			final Shape exact = shapeAt.apply(0);
 			if (exact != null && gc.tryFillBlurred(exact, sigma)) {
@@ -252,9 +254,9 @@ public final class BoxDecorationRenderer {
 			}
 			ApproximationGC.report(gc, property, blurDetail);
 			final int n = BLUR_STEPS.length;
-			// 全段が重なる中心で合成アルファがalphaになる1段あたりの値。
-			// 不透明な影(α=1)では1段あたりも1になり外縁までべた塗りの塊に
-			// なるので、text-shadowと同じく0.98で頭打ちにする
+			// Per-step value yielding composite alpha equal to alpha at the center where all steps overlap.
+			// For an opaque shadow (α=1), each step would also be 1, producing a solid mass all the way
+			// to the outer edge, so cap at 0.98 as for text-shadow
 			gc.setFillAlpha((float) (1 - Math.pow(1 - Math.min(alpha, 0.98), 1.0 / n)));
 			for (int k = 0; k < n; ++k) {
 				final Shape shape = shapeAt.apply(BLUR_STEPS[k] * sigma);
@@ -275,8 +277,8 @@ public final class BoxDecorationRenderer {
 	}
 
 	/**
-	 * 矩形を{@code d}だけ外へ広げ(負なら縮め)、角丸半径も同じだけ増減した
-	 * 形を返します。縮めて潰れたらnull。
+	 * Returns the rectangle expanded outward by {@code d} (shrunk if negative), with corner radii
+	 * increased or decreased by the same amount. Returns null if shrinking collapses it.
 	 */
 	private static Shape expandedShape(double x, double y, double w, double h, Radius[] radii, double d) {
 		final double nw = w + d * 2, nh = h + d * 2;
@@ -287,7 +289,7 @@ public final class BoxDecorationRenderer {
 				grow(radii[2], d), grow(radii[3], d));
 	}
 
-	/** 半径を{@code d}だけ増減します。直角(0)は直角のまま。 */
+	/** Increases or decreases radii by {@code d}. Right angles (0) stay right angles. */
 	private static Radius grow(Radius r, double d) {
 		if (r.hr <= 0 && r.vr <= 0) {
 			return Radius.ZERO_RADIUS;
@@ -295,7 +297,7 @@ public final class BoxDecorationRenderer {
 		return Radius.create(Math.max(0, r.hr + d), Math.max(0, r.vr + d));
 	}
 
-	/** 半径を水平・垂直に別々の量だけ減らします。 */
+	/** Reduces radii by separate horizontal and vertical amounts. */
 	private static Radius shrink(Radius r, double dh, double dv) {
 		if (r.hr <= 0 && r.vr <= 0) {
 			return Radius.ZERO_RADIUS;

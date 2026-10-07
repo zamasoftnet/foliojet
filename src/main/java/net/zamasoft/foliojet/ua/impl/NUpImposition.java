@@ -13,12 +13,12 @@ import net.zamasoft.pdfg2d.gc.imposition.PrinterMarks;
 import net.zamasoft.pdfg2d.gc.imposition.Trims;
 
 /**
- * N-up面付けの実装です。1枚の物理用紙に複数の論理ページを格子状に縮小配置します。
+ * N-up imposition implementation. Scales and places multiple logical pages in a grid on one physical sheet.
  * <p>
- * 用紙サイズが自動(fitPaper)の場合、用紙は「論理ページ+断ちしろ」と同じ大きさになり、
- * 各ページが1/Nに縮小される一般的なプリンタのN-up動作になります。
- * 用紙サイズを明示した場合はその断ちしろ内に格子を組みます。
- * 格子の行列数は、シート先頭ページの縦横比で拡大率が最大になる組み合わせを選びます。
+ * With automatic paper size (fitPaper), the sheet has the size of "logical page + trim margins,"
+ * giving typical printer N-up behavior with each page reduced to 1/N.
+ * With an explicit paper size, builds the grid inside its trim margins.
+ * Chooses grid rows/columns to maximize the scale factor for the aspect ratio of the sheet's first page.
  * </p>
  */
 public class NUpImposition extends AbstractImposition {
@@ -28,13 +28,13 @@ public class NUpImposition extends AbstractImposition {
 
 	private GC gc;
 
-	/** シート全体の状態(シート開始で保存、シート終了で復元)。 */
+	/** Sheet-wide state (saved at sheet start, restored at sheet end). */
 	private GC.State sheetState;
 
-	/** 論理ページごとの状態。 */
+	/** Per-logical-page state. */
 	private GC.State pageState;
 
-	/** シート内の次のセル番号。 */
+	/** Next cell index within the sheet. */
 	private int cell;
 
 	private int sheetNumber;
@@ -84,9 +84,9 @@ public class NUpImposition extends AbstractImposition {
 		if (this.clip) {
 			this.gc.clip(new Rectangle2D.Double(cellX, cellY, cellWidth, cellHeight));
 		}
-		// セルに合わせて縦横比を維持したまま拡縮し、中央に配置する。
-		// 収めるのは仕上りサイズで、塗り足し(trimInset)はその外へはみ出す
-		// ——セルのクリップで隣へ流れないようにしてある
+		// Scale to fit the cell while preserving aspect ratio, and center.
+		// Fit the finished size; bleed (trimInset) extends outside it
+		// and the cell clip prevents it from spilling into neighboring cells
 		final double trimWidth = this.getTrimWidth();
 		final double trimHeight = this.getTrimHeight();
 		double scale = Math.min(cellWidth / trimWidth, cellHeight / trimHeight);
@@ -99,7 +99,7 @@ public class NUpImposition extends AbstractImposition {
 			this.gc.transform(AffineTransform.getScaleInstance(scale, scale));
 		}
 		if (this.trimInset != 0) {
-			// 原点を印刷面(内容の座標系)の左上へ戻す
+			// Return the origin to the top-left of the print area (content coordinate system)
 			this.gc.transform(AffineTransform.getTranslateInstance(-this.trimInset, -this.trimInset));
 		}
 		return this.gc;
@@ -107,7 +107,7 @@ public class NUpImposition extends AbstractImposition {
 
 	private void nextSheet() throws GraphicsException {
 		++this.sheetNumber;
-		// シート先頭ページ時点の用紙・ページ寸法で格子を確定する
+		// Finalize the grid using paper/page dimensions at the sheet's first page
 		this.montageWidth = this.paperWidth - this.trimLeft - this.trimRight;
 		this.montageHeight = this.paperHeight - this.trimTop - this.trimBottom;
 		this.chooseGrid();
@@ -115,7 +115,7 @@ public class NUpImposition extends AbstractImposition {
 		this.gc = this.ua.nextPage(this.paperWidth, this.paperHeight);
 		this.sheetState = this.gc.begin();
 
-		// 断ちしろ内全域をモンタージュとして扱うため、センタリング移動は不要
+		// Treat the entire area inside trim margins as the montage, so no centering translation is needed
 		final Trims trims = new Trims(this.trimTop, this.trimRight, this.trimBottom, this.trimLeft,
 				this.cuttingMargin);
 		if (this.crop) {
@@ -138,8 +138,8 @@ public class NUpImposition extends AbstractImposition {
 	}
 
 	/**
-	 * 格子の行列数を決めます。シート先頭ページの縦横比に対して
-	 * 拡大率が最大になる因数の組み合わせを選びます。
+	 * Determines grid rows/columns. Chooses the factor pair that maximizes the scale factor
+	 * for the aspect ratio of the sheet's first page.
 	 */
 	private void chooseGrid() {
 		double best = -1;
@@ -167,7 +167,7 @@ public class NUpImposition extends AbstractImposition {
 	}
 
 	public void finish() throws GraphicsException {
-		// 端数ページで終わったシートを閉じる
+		// Close a sheet ending with a partial set of pages
 		if (this.gc != null) {
 			this.closeSheet();
 		}

@@ -16,26 +16,26 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * worklist executor(唯一のOpenChain driver)の到達形censusです
- * (2026-07-30、legacy再帰撤去=PLAN §2「新旧2経路の一本化」)。
+ * A census of reachable forms in the worklist executor (the sole OpenChain driver)
+ * (2026-07-30, removal of legacy recursion = PLAN §2 "新旧2経路の一本化").
  *
  * <p>
- * <b>歴史</b>: 旧{@code LegacyRecursiveDescentCensusTest}(増分0)は
- * 「どのfixtureが旧再帰driverを発火させるか」のカタログだった
- * (columns-float=2・page-first=2・入れ子段組=3)。増分2のgate切替で
- * 全fixtureがlegacy 0へ反転し、増分4で旧driverとその観測カウンタ
- * ({@code LEGACY_RECURSIVE_DESCENTS})自体が物理撤去されたため、
- * 残る観測点(互換フォールバック・native降下・rootless入口)の
- * 0/非0固定へ再定義した。
+ * <b>History</b>: the former {@code LegacyRecursiveDescentCensusTest} (increment 0) cataloged
+ * which fixtures triggered the old recursive driver
+ * (columns-float=2, page-first=2, nested multi-column layout=3). The gate switch in increment 2
+ * changed all fixtures to legacy 0. Increment 4 physically removed the old driver and its
+ * observation counter ({@code LEGACY_RECURSIVE_DESCENTS}), so this test was redefined to fix
+ * zero/nonzero counts at the remaining observation points (compatibility fallback, native descent,
+ * and rootless entry).
  * </p>
  */
 public class WorklistDescentCensusTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/**
-	 * MULTICOL tailを含む代表fixture+plainチェーン: worklistがチェーンを
-	 * 実際に駆動し(非空振り)、互換フォールバックへ一切落ちないことを
-	 * 固定する。
+	 * Representative fixtures containing MULTICOL tails plus a plain chain: fix the requirement
+	 * that the worklist actually drives the chain (the path is exercised) and never enters
+	 * the compatibility fallback.
 	 */
 	public void testChainsRunOnWorklistWithoutFallback() throws Exception {
 		ContinuationStats.reset();
@@ -50,14 +50,14 @@ public class WorklistDescentCensusTest extends TestCase {
 	}
 
 	/**
-	 * 入れ子段組で開いたチェーンがMULTICOL境界を貫通する代表文書
-	 * ({@code NestedMulticolDuplicationTest}の経路3 MOVE_SENTINELと
-	 * 同型)。native scope降下の非空振りを固定する。
+	 * A representative document whose open chain crosses a MULTICOL boundary in nested multi-column layout
+	 * (the same form as path 3 MOVE_SENTINEL in {@code NestedMulticolDuplicationTest}).
+	 * Verify that native scope descent is actually exercised.
 	 *
 	 * <p>
-	 * 注意: {@code 0400-column-count/nest.html}は1ページ内で完結し
-	 * チェーン発火自体が0のため到達形の証拠にならない(2026-07-30
-	 * プローブ実測。codex相談の想定fixtureを実測で差し替えた)。
+	 * Note: {@code 0400-column-count/nest.html} completes within one page and never triggers a chain,
+	 * so it provides no evidence of reachability (measured with a probe on 2026-07-30.
+	 * The fixture assumed in the codex consultation was replaced based on actual measurements).
 	 * </p>
 	 */
 	public void testNestedMulticolUsesNativeDescent() throws Exception {
@@ -94,12 +94,12 @@ public class WorklistDescentCensusTest extends TestCase {
 	}
 
 	/**
-	 * 段バランス系fixtureの完走確認(2026-07-30、増分5)。かつてここは
-	 * rootless COLUMN経路(columnBreakのroot==null分岐)の不発火を
-	 * カウンタで固定していたが、増分5のユーザー裁定で分岐ごと物理削除
-	 * し、到達時は{@code ContinuationInvariantViolationException}で
-	 * 即座に停止する形になった——未知のrootless文脈が出現すれば
-	 * これらのfixture(または任意の変換)が例外で落ちることが検出器。
+	 * Check that column-balancing fixtures complete (2026-07-30, increment 5). Previously,
+	 * a counter here fixed the requirement that the rootless COLUMN path (the root==null branch in
+	 * columnBreak) never fired. A user decision in increment 5 physically removed the branch;
+	 * reaching it now stops immediately with {@code ContinuationInvariantViolationException}.
+	 * If an unknown rootless context appears, these fixtures (or any conversion) fail with an exception,
+	 * which serves as the detector.
 	 */
 	public void testColumnBalanceCompletesWithoutRootlessPath() throws Exception {
 		ContinuationStats.reset();
@@ -110,7 +110,7 @@ public class WorklistDescentCensusTest extends TestCase {
 				ContinuationStats.WORKLIST_COMPAT_FALLBACKS.get());
 	}
 
-	/** {@code reset()}が観測カウンタを戻すことの確認。 */
+	/** Check that {@code reset()} resets the observation counters. */
 	public void testResetClearsCounters() {
 		ContinuationStats.WORKLIST_COMPAT_FALLBACKS.set(7);
 		ContinuationStats.MULTICOL_NATIVE_DESCENTS.set(7);

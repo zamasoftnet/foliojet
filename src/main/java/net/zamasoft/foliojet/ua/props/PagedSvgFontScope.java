@@ -1,48 +1,50 @@
 package net.zamasoft.foliojet.ua.props;
 
 /**
- * フォントのサブセットを文書全体で1つにするか、ページごとに作るかです。
+ * Whether to create one font subset for the whole document or one per page.
  *
  * <p>
- * 総量と「最初の1ページを描けるまで」の取り引きになります。和文の書籍
- * (夏目漱石『こころ』、A5・350ページ)で実測した値:
+ * A tradeoff between total size and time until the first page can be rendered.
+ * Measurements with a Japanese book (Natsume Soseki's "Kokoro", A5, 350 pages):
  * </p>
  *
  * <table border="1">
- * <caption>実測(2026-09-02)</caption>
+ * <caption>Measurements (2026-09-02)</caption>
  * <tr><th></th><th>{@code document}</th><th>{@code page}</th></tr>
- * <tr><td>フォント合計</td><td>0.25 MB</td><td>7.1 MB(28倍)</td></tr>
- * <tr><td>出力全体</td><td>11.8 MB</td><td>18.6 MB(1.6倍)</td></tr>
- * <tr><td>3ページだけ読む</td><td>約340 KB</td><td>約150 KB</td></tr>
- * <tr><td>通読</td><td>11.8 MB</td><td>18.6 MB</td></tr>
+ * <tr><td>Total fonts</td><td>0.25 MB</td><td>7.1 MB (28 times)</td></tr>
+ * <tr><td>Total output</td><td>11.8 MB</td><td>18.6 MB (1.6 times)</td></tr>
+ * <tr><td>Read only 3 pages</td><td>About 340 KB</td><td>About 150 KB</td></tr>
+ * <tr><td>Read the whole book</td><td>11.8 MB</td><td>18.6 MB</td></tr>
  * </table>
  *
  * <p>
- * 1ページの字種は104で文書全体の1,102の約1割ですが、サブセットは1/28ではなく
- * <b>1/12にしかなりません</b>——WOFF2の固定部分とcmap・hmtxが効くためです。
- * 全ページの字種を単純合計すると重複は33倍あります。落とす量が逆転する
- * 分岐点は12〜13ページあたり。欧文だけの文書では差は誤差です。
+ * One page uses 104 distinct characters, about one-tenth of the document's 1,102, but its subset
+ * is <b>only 1/12 the size</b>, not 1/28, because of WOFF2's fixed overhead and cmap/hmtx.
+ * Summing distinct character counts across all pages gives 33-fold duplication.
+ * The download-size crossover occurs around 12–13 pages.
+ * For documents with only Latin text, the difference is negligible.
  * </p>
  */
 public enum PagedSvgFontScope implements PropCode {
 	/**
-	 * 文書全体で1つにします(既定)。総量は最も小さくなります。
+	 * Creates one subset for the whole document (default). Minimizes total size.
 	 *
 	 * <p>
-	 * ただし<b>どの字形が要るかは全ページを組み終えるまで確定しない</b>ので、
-	 * サブセットは最後にしか出せません。本文は私用領域の文字で字形は書体の
-	 * 中にしかないため、受け手は変換が終わるまで1文字も描けません。
+	 * However, <b>the required glyphs are unknown until all pages have been laid out</b>,
+	 * so subsets can only be emitted at the end. Body text uses private-use characters,
+	 * with glyphs available only in the fonts, so the consumer cannot draw even one character
+	 * until conversion finishes.
 	 * </p>
 	 */
 	DOCUMENT,
 
 	/**
-	 * ページごとに作り、<b>ページを閉じるたびにそのページ分を出します</b>。
+	 * Creates subsets per page and <b>emits that page's subsets whenever the page closes</b>.
 	 *
 	 * <p>
-	 * 1ページ目とその書体が届いた時点で描き始められ、見えているページの
-	 * 前後だけを取り寄せる読み器なら落とす量も減ります。ページが自己完結
-	 * するので、取り回しは最も素直です。代償は総量。
+	 * Rendering can begin when the first page and its fonts arrive. Readers that fetch only
+	 * pages near the visible page also download less. Self-contained pages are the simplest
+	 * to handle. The cost is total size.
 	 * </p>
 	 */
 	PAGE;

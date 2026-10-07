@@ -4,12 +4,12 @@ import org.xml.sax.ContentHandler;
 import org.xml.sax.ext.LexicalHandler;
 
 /**
- * SAXのContentHandlerとLexicalHandlerを合わせた、文書イベントの受け口です。
+ * A document event sink combining SAX ContentHandler and LexicalHandler.
  */
 public interface XMLHandler extends ContentHandler, LexicalHandler {
 	/**
-	 * ContentHandlerとLexicalHandlerの組をXMLHandlerに合成します。
-	 * nullを渡した側のイベントは無視されます。
+	 * Combines a ContentHandler and LexicalHandler into an XMLHandler.
+	 * Ignores events for whichever handler is null.
 	 */
 	public static XMLHandler of(ContentHandler contentHandler, LexicalHandler lexicalHandler) {
 		return new CompositeXMLHandler(contentHandler, lexicalHandler);

@@ -8,7 +8,7 @@ import org.apache.pdfbox.pdmodel.documentinterchange.logicalstructure.PDStructur
 
 import junit.framework.TestCase;
 
-/** runningの存在が表示リストとタグ構造に影響しないことを実変換で確認します。 */
+/** Uses actual conversion to verify that the presence of running does not affect the display list or tag structure. */
 public final class RunningTokenInvarianceTest extends TestCase {
 	public void testTokenInParagraph() throws Exception {
 		this.invariant("<p>Alpha beta gamma TOKEN delta epsilon zeta eta theta iota kappa lambda.</p>");

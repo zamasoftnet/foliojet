@@ -63,8 +63,8 @@ public class FloatInHrizTest extends AbstractTestCase {
 			System.out.println("y: " + y);
 			System.out.println("width: " + box.getWidth());
 			assertEquals(270, x, 0);
-			// 行末側フロートの同一行配置(2026-08-08)で、構築中だった
-			// 行の上端(90)に載る。行頭側の#cは従来どおり次の帯(100)
+			// Same-line placement of a line-end float (2026-08-08) puts it at the top
+			// of the line being built (90). Line-start #c stays in the next band (100), as before.
 			assertEquals(90, y, 1);
 			assertEquals(30, box.getWidth(), 0);
 			return true;

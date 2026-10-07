@@ -13,7 +13,7 @@ import jp.cssj.test.unit.AbstractTestCase;
 import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.pdfg2d.gc.text.Text;
 
-/** 通常goldenが省くrun内のxadvanceを、同じfixtureの表示リストから検証する。 */
+/** Checks intra-run xadvance, omitted by normal goldens, from the display list of the same fixture. */
 public class InkGapGoldenGeometryTest extends AbstractTestCase {
 	public InkGapGoldenGeometryTest(String name) { super(name); }
 

@@ -19,35 +19,33 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>閉じられていないコメントでスタイルシート全体が破棄されない</b>ことを
- * 固定します(2026-08-18、利用者バグ報告)。
+ * Verify that <b>an unterminated comment does not discard the entire stylesheet</b>
+ * (2026-08-18, user bug report).
  *
  * <p>
- * CSS Syntax Level 3はコメント中のEOFをparse errorとしつつコメントを
- * そこで終えて継続すると定めるが、ph-cssの字句解析器は回復せず
- * {@code CSSReader}がnullを返し、シートに書かれた正常な規則まで
- * すべて捨てられていた(3.2からの回帰)。
- * {@link DeclarationParser#closeUnterminatedComment}が入力終端で
- * コメントを暗黙に閉じる。
+ * CSS Syntax Level 3 treats EOF inside a comment as a parse error but ends the comment there
+ * and continues. The ph-css lexer did not recover: {@code CSSReader} returned null, discarding
+ * all valid rules in the sheet too (a regression from 3.2).
+ * {@link DeclarationParser#closeUnterminatedComment} implicitly closes the comment at the end of input.
  * </p>
  */
 public class UnterminatedCommentTest extends TestCase {
 	public void testCloseUnterminatedComment() {
-		// 末尾の未閉鎖コメントは暗黙に閉じる
+		// Implicitly close an unterminated trailing comment.
 		assertEquals("p{color:red}/* x*/", DeclarationParser.closeUnterminatedComment("p{color:red}/* x"));
-		// 閉じているものは変更しない
+		// Do not change comments that are already closed.
 		assertEquals("p{color:red}/* x */", DeclarationParser.closeUnterminatedComment("p{color:red}/* x */"));
-		// 文字列内の/*はコメント開始ではない
+		// /* inside a string does not start a comment.
 		assertEquals("p{content:\"/*\"}", DeclarationParser.closeUnterminatedComment("p{content:\"/*\"}"));
-		// 未引用url内の/*はコメント開始ではない(urlトークン内ではコメントは認識されない)
+		// /* inside an unquoted url does not start a comment (comments are not recognized within a url token).
 		assertEquals("p{background:url(a/*b)}", DeclarationParser.closeUnterminatedComment("p{background:url(a/*b)}"));
-		// 引用付きurl内も同様
+		// The same holds inside quoted URLs.
 		assertEquals("p{background:url(\"a/*b\")}",
 				DeclarationParser.closeUnterminatedComment("p{background:url(\"a/*b\")}"));
-		// エスケープされた引用符で文字列は終わらない
+		// An escaped quotation mark does not end a string.
 		assertEquals("p{content:\"a\\\"/*\"}/* c*/",
 				DeclarationParser.closeUnterminatedComment("p{content:\"a\\\"/*\"}/* c"));
-		// コメント内の/*は入れ子にならない
+		// /* inside a comment does not nest.
 		assertEquals("/* a /* b */x", DeclarationParser.closeUnterminatedComment("/* a /* b */x"));
 	}
 
@@ -103,7 +101,7 @@ public class UnterminatedCommentTest extends TestCase {
 				}
 				result.add(buff.toString(java.nio.charset.StandardCharsets.ISO_8859_1));
 			} catch (Exception e) {
-				// 圧縮されていない・画像等のストリームは読み飛ばす
+				// Skip uncompressed streams and streams such as images.
 			} finally {
 				inflater.end();
 			}

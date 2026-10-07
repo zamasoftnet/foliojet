@@ -17,9 +17,9 @@ import net.zamasoft.foliojet.css.value.CSSFloatValue;
 import net.zamasoft.foliojet.css.value.Value;
 
 /**
- * {@code float: footnote}の解析テストです(脚注F0、
- * consult-codex-2026-07-31-footnote.txt §5)。レイアウト配線(F3)までは
- * 構文層のみ——通常フローへの退避はStyleBoxEmitterの分岐が守る。
+ * Parsing tests for {@code float: footnote} (footnote F0,
+ * consult-codex-2026-07-31-footnote.txt §5). Only the syntax layer until layout wiring (F3):
+ * the StyleBoxEmitter branch ensures fallback to normal flow.
  */
 public class CSSFloatFootnoteTest extends TestCase {
 

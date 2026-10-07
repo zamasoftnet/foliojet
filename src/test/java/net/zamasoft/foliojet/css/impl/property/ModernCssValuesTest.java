@@ -47,22 +47,21 @@ import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 実サイト50件の変換で「invalid value」警告になっていたCSS値の対応
- * (2026-08-29)を、宣言解析の窓口({@code ElementPropertySet.parseDeclaration})
- * を通して固定します——受理されること、警告が出ないこと、期待どおりの
- * 値へ写ること。
+ * Fix support added on 2026-08-29 for CSS values that produced "invalid value" warnings when
+ * converting 50 real sites, through the declaration-parsing entry point
+ * ({@code ElementPropertySet.parseDeclaration}): acceptance, no warnings, and mapping to expected values.
  *
  * <ul>
- * <li>display の接頭辞別名({@code -webkit-flex}等)</li>
- * <li>ビューポート単位(vw/vh/vmin/vmax/svh/dvw/vi/vb、calc()/min()内も)</li>
- * <li>{@code env()}(safe-area-inset-*・フォールバック・calc()内)</li>
- * <li>{@code currentColor}(color/border/background/text-stroke/text-decoration)</li>
- * <li>グラデーション(rgb()新構文・接頭辞旧構文・-webkit-gradient()・
- * calc()位置・放射の単色近似・多層の先頭レイヤ)</li>
- * <li>text-shadow(ぼかし半径・色先行・複数影)</li>
- * <li>整列キーワード(baseline・self-*・left/right・safe/unsafe)</li>
- * <li>min-width/min-height: auto、text-decoration短縮形と個別指定</li>
- * <li>white-space/text-wrap/position/float/unicode-bidi/grid-templateの小物</li>
+ * <li>Prefixed display aliases ({@code -webkit-flex}, etc.)</li>
+ * <li>Viewport units (vw/vh/vmin/vmax/svh/dvw/vi/vb, including inside calc()/min())</li>
+ * <li>{@code env()} (safe-area-inset-*, fallback, inside calc())</li>
+ * <li>{@code currentColor} (color/border/background/text-stroke/text-decoration)</li>
+ * <li>Gradients (new rgb() syntax, old prefixed syntax, -webkit-gradient(), calc() positions,
+ * single-color radial approximation, first layer of multiple layers)</li>
+ * <li>text-shadow (blur radius, color first, multiple shadows)</li>
+ * <li>Alignment keywords (baseline, self-*, left/right, safe/unsafe)</li>
+ * <li>min-width/min-height: auto; text-decoration shorthand and individual properties</li>
+ * <li>Miscellaneous white-space/text-wrap/position/float/unicode-bidi/grid-template values</li>
  * </ul>
  */
 public class ModernCssValuesTest extends TestCase {
@@ -106,7 +105,7 @@ public class ModernCssValuesTest extends TestCase {
 		return Tokens.fromExpression(all.get(0).getExpression());
 	}
 
-	/** 宣言を解析し、警告が出ていないことを確かめて構成要素を返します。 */
+	/** Parse a declaration, check that no warnings appear, and return its components. */
 	private Entry[] parse(final String name, final String value) {
 		this.warnings.clear();
 		final Property property = ElementPropertySet.getInstance().parseDeclaration(name, tokens(name + ": " + value),
@@ -117,7 +116,7 @@ public class ModernCssValuesTest extends TestCase {
 		return ((CompositeProperty) property).getEntries();
 	}
 
-	/** 宣言が不受理(無効化か警告)になることを確かめます。 */
+	/** Check that a declaration is rejected (invalidated or warned). */
 	private void rejected(final String name, final String value) {
 		this.warnings.clear();
 		final Property property = ElementPropertySet.getInstance().parseDeclaration(name, tokens(name + ": " + value),
@@ -149,7 +148,7 @@ public class ModernCssValuesTest extends TestCase {
 		assertFalse("警告が出ていない: " + name + ": " + value, this.warnings.isEmpty());
 	}
 
-	/** 長さ(pt)。calc()の結果(割合成分0)も受ける。 */
+	/** Length (pt). Also accepts calc() results (zero percentage component). */
 	private static double pt(final Value value) {
 		if (value instanceof AbsoluteLengthValue abs) {
 			return abs.getLength();
@@ -166,7 +165,7 @@ public class ModernCssValuesTest extends TestCase {
 		return mm / 25.4 * 72;
 	}
 
-	// ---- 1. display の別名
+	// ---- 1. display aliases
 
 	public void testDisplayAliases() {
 		assertSame(DisplayValue.FLEX_VALUE, this.single("display", "-webkit-flex"));
@@ -175,14 +174,14 @@ public class ModernCssValuesTest extends TestCase {
 		assertSame(DisplayValue.FLEX_VALUE, this.single("display", "-webkit-inline-flex"));
 		assertSame(DisplayValue.FLEX_VALUE, this.single("display", "-ms-inline-flexbox"));
 		assertSame(DisplayValue.GRID_VALUE, this.single("display", "-ms-grid"));
-		// 2009年版boxはブロック(line-clamp慣用句を壊さない)
+		// The 2009 box form becomes block (preserve the line-clamp idiom).
 		assertSame(DisplayValue.BLOCK_VALUE, this.single("display", "-webkit-box"));
 		assertSame(DisplayValue.BLOCK_VALUE, this.single("display", "-moz-box"));
 		assertSame(DisplayValue.BLOCK_VALUE, this.single("display", "-webkit-inline-box"));
 		this.assertInvalid("display", "-webkit-unknown");
 	}
 
-	// ---- 2. ビューポート単位(既定A4・余白12.7mmの版面: 184.6mm × 271.6mm)
+	// ---- 2. Viewport units (default A4 type area with 12.7 mm margins: 184.6 mm × 271.6 mm)
 
 	public void testViewportUnits() {
 		final double vw = mm(210 - 25.4) / 100;
@@ -191,7 +190,7 @@ public class ModernCssValuesTest extends TestCase {
 		assertEquals(10 * vh, pt(this.single("height", "10vh")), 1e-6);
 		assertEquals(50 * vw, pt(this.single("width", "50vmin")), 1e-6);
 		assertEquals(50 * vh, pt(this.single("width", "50vmax")), 1e-6);
-		// 新しい変種は印刷では同じ値
+		// New variants have the same values in print.
 		assertEquals(10 * vh, pt(this.single("height", "10svh")), 1e-6);
 		assertEquals(10 * vh, pt(this.single("height", "10lvh")), 1e-6);
 		assertEquals(10 * vh, pt(this.single("height", "10dvh")), 1e-6);
@@ -207,7 +206,7 @@ public class ModernCssValuesTest extends TestCase {
 		assertEquals(100 * vw - 20, pt(this.single("width", "calc(100vw - 20pt)")), 1e-6);
 		assertEquals(100 * vw, pt(this.single("width", "max(100vw, 10px)")), 1e-6);
 		assertEquals(50 * vw, pt(this.single("width", "clamp(10px, 50vw, 1000pt)")), 1e-6);
-		// マージン・パディングでも同じ経路
+		// Margins and padding use the same path.
 		final Entry[] margin = this.parse("margin", "0 auto 2vh");
 		assertEquals(4, margin.length);
 	}
@@ -218,17 +217,17 @@ public class ModernCssValuesTest extends TestCase {
 		assertEquals(0, pt(this.single("padding-left", "env(safe-area-inset-left)")), 0);
 		assertEquals(0, pt(this.single("padding-top", "env(titlebar-area-height)")), 0);
 		assertEquals(0, pt(this.single("padding-top", "env(safe-area-inset-top, 20px)")), 0);
-		// calc()/max()の中
+		// Inside calc()/max()
 		assertEquals(12, pt(this.single("padding-left", "calc(env(safe-area-inset-top) + 16px)")), 1e-6);
 		assertEquals(12, pt(this.single("padding-right", "max(16px, env(safe-area-inset-right))")), 1e-6);
-		// 4値の短縮形の中でも各値へ展開される
+		// Also expands to individual values inside four-value shorthands.
 		final Entry[] padding = this.parse("padding", "env(safe-area-inset-top) 10pt");
 		assertEquals(4, padding.length);
 	}
 
 	public void testEnvUnknownName() {
 		assertEquals(100, pt(this.single("width", "env(unknown-thing, 100pt)")), 0);
-		// フォールバック無しの未知名は宣言無効(仕様)
+		// Unknown names without a fallback invalidate the declaration (specified behavior).
 		this.assertInvalid("width", "env(unknown-thing)");
 	}
 
@@ -253,13 +252,13 @@ public class ModernCssValuesTest extends TestCase {
 		assertSame(KeywordValue.DEFAULT,
 				entry(this.parse("text-decoration", "underline currentColor"), TextDecorationColor.INFO));
 		assertSame(KeywordValue.DEFAULT, this.single("column-rule-color", "currentColor"));
-		// text-shadowのcurrentColorは「色なし=文字色」
+		// currentColor in text-shadow means "no color = text color".
 		final TextShadowValue shadow = (TextShadowValue) this.single("text-shadow", "currentColor 0 1px");
 		assertEquals(1, shadow.getShadows().length);
 		assertNull(shadow.getShadows()[0].color);
 	}
 
-	// ---- 5. グラデーションと新しい色構文
+	// ---- 5. Gradients and new color syntax
 
 	public void testModernRgbSyntax() {
 		final ColorValue half = (ColorValue) this.single("color", "rgb(0 0 0 / 50%)");
@@ -280,7 +279,7 @@ public class ModernCssValuesTest extends TestCase {
 				instanceof LinearGradientValue);
 		assertTrue(this.single("background-image", "linear-gradient(0.25turn, #fff, #000)")
 				instanceof LinearGradientValue);
-		// 接頭辞つき旧構文(向きは開始辺、角度は反時計回り)
+		// Old prefixed syntax (direction indicates the starting side; angles are counterclockwise).
 		assertTrue(this.single("background-image", "-webkit-linear-gradient(top, #fff, #000)")
 				instanceof LinearGradientValue);
 		assertTrue(this.single("background-image", "-moz-linear-gradient(left, #fff 0%, #000 100%)")
@@ -289,22 +288,22 @@ public class ModernCssValuesTest extends TestCase {
 				instanceof LinearGradientValue);
 		assertTrue(this.single("background-image", "-webkit-linear-gradient(to bottom, #fff, #000)")
 				instanceof LinearGradientValue);
-		// 2008年版WebKit構文
+		// 2008 WebKit syntax
 		assertTrue(this.single("background-image",
 				"-webkit-gradient(linear, left top, right top, from(#fff), color-stop(50%, #888), to(#000))")
 				instanceof LinearGradientValue);
-		// calc()位置・長さ位置
+		// calc() positions and length positions
 		assertTrue(this.single("background-image", "linear-gradient(#fff, transparent calc(100% - 1px))")
 				instanceof LinearGradientValue);
 		assertTrue(this.single("background-image", "linear-gradient(to bottom, #fff 10px, #000 40px)")
 				instanceof LinearGradientValue);
-		// repeating-は1回分として近似
+		// Approximate repeating- as one repetition.
 		assertTrue(this.single("background-image", "repeating-linear-gradient(45deg, #fff, #000 10px)")
 				instanceof LinearGradientValue);
 	}
 
 	public void testRadialConicRepeatingGradients() {
-		// 放射(2026-08-29に本実装)。形状・寸法・位置と色停止を持つ
+		// Radial (fully implemented on 2026-08-29). Retains shape, dimensions, position, and color stops.
 		final Value radial = this.single("background-image", "radial-gradient(circle at center, #fff, #000)");
 		assertTrue(radial instanceof RadialGradientValue);
 		assertTrue(((RadialGradientValue) radial).isCircle());
@@ -322,7 +321,7 @@ public class ModernCssValuesTest extends TestCase {
 		assertTrue(this.single("background-image", "radial-gradient(farthest-side circle, #fff, #000)")
 				instanceof RadialGradientValue);
 		assertTrue(this.single("background-image", "radial-gradient(#fff, #000)") instanceof RadialGradientValue);
-		// 旧構文: 位置, 形状 寸法(contain/cover)
+		// Old syntax: position, shape size (contain/cover)
 		final RadialGradientValue legacy = (RadialGradientValue) this.single("background-image",
 				"-webkit-radial-gradient(center, ellipse cover, #fff, #123)");
 		assertFalse(legacy.isCircle());
@@ -332,7 +331,7 @@ public class ModernCssValuesTest extends TestCase {
 		assertTrue(this.single("background-image",
 				"-webkit-gradient(radial, center center, 0, center center, 100, from(#fff), to(#000))")
 				instanceof RadialGradientValue);
-		// 円錐
+		// Conic
 		final Value conic = this.single("background-image", "conic-gradient(from 90deg, red, blue)");
 		assertTrue(conic instanceof ConicGradientValue);
 		assertEquals(Math.PI / 2, ((ConicGradientValue) conic).getFromAngle(), 1e-9);
@@ -340,17 +339,17 @@ public class ModernCssValuesTest extends TestCase {
 				"conic-gradient(from 0.25turn at 25% 75%, red 0deg 90deg, lime 90deg 180deg, blue)")
 				instanceof ConicGradientValue);
 		assertTrue(this.single("background-image", "conic-gradient(red 25%, blue 75%)") instanceof ConicGradientValue);
-		// 繰り返し
+		// Repeating
 		assertTrue(((LinearGradientValue) this.single("background-image",
 				"repeating-linear-gradient(45deg, #fff, #000 10px)")).isRepeating());
 		assertTrue(((RadialGradientValue) this.single("background-image",
 				"repeating-radial-gradient(circle, #fff 0 4px, #000 4px 8px)")).isRepeating());
 		assertTrue(((ConicGradientValue) this.single("background-image",
 				"repeating-conic-gradient(red 0 15deg, blue 15deg 30deg)")).isRepeating());
-		// 色停止の長さは保持される(周期に要る)
+		// Color-stop lengths are preserved (needed for the period).
 		assertEquals("#ffffff,#000000 10.00pt", ((LinearGradientValue) this.single("background-image",
 				"linear-gradient(#fff, #000 10pt)")).getStops().toString());
-		// 不正: 円の半径に%
+		// Invalid: percentage circle radius
 		this.rejected("background-image", "radial-gradient(circle 50%, #fff, #000)");
 	}
 
@@ -369,7 +368,7 @@ public class ModernCssValuesTest extends TestCase {
 		assertEquals(6 * 0.75, multi.shadow.blur(), 1e-6);
 		assertNotNull(multi.matrix);
 		assertTrue(((FilterValue) this.single("filter", "drop-shadow(#f00 1px 1px)")).shadow.color().getRed() > 0.9f);
-		// url()は受理して無視
+		// Accept and ignore url().
 		assertTrue(this.single("filter", "url(#blur)") instanceof FilterValue);
 		this.rejected("filter", "foo(1)");
 		this.rejected("filter", "grayscale(-1)");
@@ -381,7 +380,7 @@ public class ModernCssValuesTest extends TestCase {
 		assertTrue(entry(entries, BackgroundImage.INFO) instanceof LinearGradientValue);
 		final ColorValue color = (ColorValue) entry(entries, BackgroundColor.INFO);
 		assertEquals(1f, color.getColor().getRed(), 1e-6f);
-		// グラデーションと色の併記(単層)
+		// Gradient and color together (single layer)
 		final Entry[] mixed = this.parse("background", "#000 linear-gradient(red, blue) no-repeat");
 		assertTrue(entry(mixed, BackgroundImage.INFO) instanceof LinearGradientValue);
 		assertTrue(entry(mixed, BackgroundColor.INFO) instanceof ColorValue);
@@ -397,17 +396,17 @@ public class ModernCssValuesTest extends TestCase {
 				"0 1px 0 rgb(0 0 0 / 30%), 0 -1px 2px #fff");
 		assertEquals(2, two.getShadows().length);
 		assertEquals(0.3f, two.getShadows()[0].color.getColor().getAlpha(), 1e-6f);
-		// 色が先
+		// Color first
 		final TextShadowValue first = (TextShadowValue) this.single("text-shadow", "red 1px 1px");
 		assertNotNull(first.getShadows()[0].color);
-		// 従来の形は退行しない
+		// Existing forms do not regress.
 		assertEquals(1, ((TextShadowValue) this.single("text-shadow", "2pt 3pt red")).getShadows().length);
 		assertSame(TextShadowValue.EMPTY_TEXT_SHADOW, this.single("text-shadow", "none"));
 		this.assertInvalid("text-shadow", "red");
 		this.assertInvalid("text-shadow", "1px 1px 1px 1px red");
 	}
 
-	// ---- 7. 整列キーワード
+	// ---- 7. Alignment keywords
 
 	public void testAlignmentKeywords() {
 		assertSame(BoxAlignmentValue.FLEX_START, this.single("align-items", "baseline"));
@@ -420,9 +419,9 @@ public class ModernCssValuesTest extends TestCase {
 		assertSame(BoxAlignmentValue.END, this.single("justify-items", "right"));
 		assertSame(BoxAlignmentValue.CENTER, this.single("align-items", "safe center"));
 		assertSame(BoxAlignmentValue.FLEX_END, this.single("justify-content", "unsafe flex-end"));
-		// place-*短縮形にも効く
+		// Also applies to place-* shorthands.
 		assertEquals(2, this.parse("place-items", "baseline center").length);
-		// align-*にleft/rightは無い
+		// align-* has no left/right.
 		this.assertInvalid("align-items", "left");
 		this.assertInvalid("align-items", "first");
 	}
@@ -453,7 +452,7 @@ public class ModernCssValuesTest extends TestCase {
 
 		entries = this.parse("text-decoration", "none");
 		assertEquals(0, ((TextDecorationValue) entry(entries, TextDecoration.INFO)).getFlags());
-		// 色だけの指定も短縮形として正当(線種はnone)
+		// Color alone is also a valid shorthand (line style is none).
 		entries = this.parse("text-decoration", "red");
 		assertEquals(0, ((TextDecorationValue) entry(entries, TextDecoration.INFO)).getFlags());
 		this.assertInvalid("text-decoration", "underline none");
@@ -476,7 +475,7 @@ public class ModernCssValuesTest extends TestCase {
 		this.assertInvalid("text-decoration-line", "dotted");
 	}
 
-	// ---- 9. 小物
+	// ---- 9. Miscellaneous
 
 	public void testWhiteSpaceAndTextWrap() {
 		assertSame(WhiteSpaceValue.PRE_WRAP_VALUE, this.single("white-space", "break-spaces"));
@@ -495,7 +494,7 @@ public class ModernCssValuesTest extends TestCase {
 		assertSame(PositionValue.STICKY_VALUE, this.single("position", "-webkit-sticky"));
 		assertSame(CSSFloatValue.START_VALUE, this.single("float", "inline-start"));
 		assertSame(CSSFloatValue.END_VALUE, this.single("float", "inline-end"));
-		// 2026-09-04: isolate系は値のまま保つ(段落単位UBAのflag OFFではレイアウト側が従来どおり扱う)
+		// 2026-09-04: retain isolate-family values (with paragraph UBA flag OFF, layout treats them as before).
 		assertSame(UnicodeBidiValue.ISOLATE_VALUE, this.single("unicode-bidi", "isolate"));
 		assertSame(UnicodeBidiValue.ISOLATE_VALUE, this.single("unicode-bidi", "-moz-isolate"));
 		assertSame(UnicodeBidiValue.ISOLATE_VALUE, this.single("unicode-bidi", "-webkit-isolate"));

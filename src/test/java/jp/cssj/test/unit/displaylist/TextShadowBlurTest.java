@@ -19,15 +19,16 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>{@code text-shadow}のぼかし半径</b>の描画を画素で固定します(2026-08-29)。
+ * Pin down rendering of the <b>{@code text-shadow} blur radius</b> with pixels (2026-08-29).
  *
  * <p>
- * fixture {@code 0150-text-shadow/blur.html}(40pt "I"、各段50pt): #sharp は
- * {@code 6pt 0 0 black}、#blur は {@code 6pt 0 8pt black}、#soft は
- * {@code 0 0 6pt rgba(255,0,0,.5)}。ぼかした影は、ぼかし無しの影の右端より
- * さらに右まで白でない画素を持ち(σ=blur/2の12段近似で約0.87×blur≒7pt)、
- * 字形の本体は同じ位置に黒で残る。半透明の赤いぼかしは字形の外に薄い赤を
- * 作り、真っ赤(段1つ分のアルファでは無い)にはならない。
+ * Fixture {@code 0150-text-shadow/blur.html} (40 pt "I", each block 50 pt): #sharp is
+ * {@code 6pt 0 0 black}, #blur is {@code 6pt 0 8pt black}, and #soft is
+ * {@code 0 0 6pt rgba(255,0,0,.5)}. The blurred shadow has non-white pixels farther right
+ * than the sharp shadow's right edge (a 12-step approximation with σ=blur/2 gives
+ * about 0.87×blur ≈ 7 pt), while the glyph itself stays black at the same position.
+ * The translucent red blur creates pale red outside the glyph, never pure red
+ * (alpha is not that of a single step).
  * </p>
  */
 public class TextShadowBlurTest extends TestCase {
@@ -52,22 +53,22 @@ public class TextShadowBlurTest extends TestCase {
 			new File("build/test-images").mkdirs();
 			javax.imageio.ImageIO.write(img, "png", new File("build/test-images/text-shadow-blur.png"));
 
-			// 段: 0 sharp(y=10..60pt)、1 blur(60..110)、2 soft(110..160)
+			// Blocks: 0 sharp (y=10..60 pt), 1 blur (60..110), 2 soft (110..160).
 			final int sharpRight = rightmostNonWhite(img, 0);
 			final int blurRight = rightmostNonWhite(img, 1);
 			assertTrue("ぼかした影がぼかし無しの影より外へ広がっていません (sharp=" + sharpRight + ", blur="
 					+ blurRight + ")", blurRight >= sharpRight + 4 * SCALE);
-			// ぼかしの外縁は薄い(黒ではない)
+			// The blur's outer edge is pale (not black).
 			assertFalse("ぼかしの外縁が真っ黒です", isDark(img.getRGB(blurRight, rowOf(1))));
-			// 字形本体は両段とも同じ左端から始まり黒い
+			// The glyph itself is black and starts at the same left edge in both blocks.
 			final int sharpLeft = leftmostNonWhite(img, 0);
 			final int blurLeft = leftmostNonWhite(img, 1);
 			assertTrue("ぼかしで字形の位置が変わっています", Math.abs(sharpLeft - blurLeft) <= 6 * SCALE);
-			// "I"の縦画(幅約3.7pt)の内側、左端から1.5pt
+			// Inside the "I" stem (about 3.7 pt wide), 1.5 pt from the left edge.
 			assertTrue("字形本体が黒くありません", isDark(img.getRGB(sharpLeft + 3, rowOf(0)))
 					&& isDark(img.getRGB(sharpLeft + 3, rowOf(1))));
 
-			// 半透明の赤いぼかし: 字形の右外(6ptまで)に赤みのある薄い画素があり、真っ赤ではない
+			// Translucent red blur: pale reddish pixels exist outside the glyph's right edge (up to 6 pt), but no pure red.
 			final int softLeft = leftmostNonWhite(img, 2);
 			int tinted = 0, saturated = 0;
 			for (int x = softLeft; x < softLeft + 30 * SCALE; ++x) {
@@ -75,8 +76,8 @@ public class TextShadowBlurTest extends TestCase {
 				final int r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
 				if (r > g + 20 && r > b + 20) {
 					++tinted;
-					// 明るい純赤(半透明なら白と混ざってピンクになる。字形の縁の
-					// 暗い赤は黒との混色なので除く)
+					// Bright pure red (translucency mixes with white to produce pink; exclude dark red
+					// at the glyph edge because it mixes with black).
 					if (r > 200 && g < 40 && b < 40) {
 						++saturated;
 					}
@@ -87,7 +88,7 @@ public class TextShadowBlurTest extends TestCase {
 		}
 	}
 
-	/** 段の中央の行(ベースラインより少し上、Iの縦画がある高さ)。 */
+	/** Row at the block's middle (slightly above the baseline, at the height of the I stem). */
 	private static int rowOf(final int index) {
 		return (10 + 50 * index + 25) * SCALE;
 	}

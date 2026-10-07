@@ -7,28 +7,27 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.GC;
 
 /**
- * <b>表示リストへ載る座標の範囲ガード</b>が実際に効いていることを固定します
- * (2026-07-26新設)。
+ * Verify that the <b>range guard for coordinates entering the display list</b> actually works
+ * (introduced 2026-07-26).
  *
  * <p>
- * このガードは3000文書のランダム掃過で<b>一度も発火しませんでした</b>。
- * 休眠している検出器は「守っている」のか「そもそも到達しない死んだコード」
- * なのか区別がつかないので、ここで<b>発火することそのもの</b>を回帰として
- * 固定します。
+ * This guard <b>never fired</b> during a randomized sweep of 3000 documents.
+ * A dormant detector could be protecting us or simply be unreachable dead code;
+ * distinguish the two by making <b>activation itself</b> a regression requirement here.
  * </p>
  *
  * <p>
- * <b>何を守っているか。</b>{@link LayoutUtils#isNone(double)}は番兵値
- * そのものとしか一致しないため、{@code NONE + 10}のように一度でも算術を
- * 通った番兵も、{@code NaN}も素通りします。どちらも例外にはならず、
- * <b>内容が紙面のどこにも現れないまま静かに欠落する</b>形で出ます。
- * 帳票用途では最悪の壊れ方なので、範囲で弾いています。
+ * <b>What it protects.</b>{@link LayoutUtils#isNone(double)} matches only the sentinel
+ * itself, so a sentinel that has undergone arithmetic even once, such as {@code NONE + 10},
+ * passes through, as does {@code NaN}. Neither throws; instead,
+ * <b>content silently disappears without appearing anywhere on the paper</b>.
+ * This is the worst kind of failure for business forms, so reject these values by range.
  * </p>
  *
  * <p>
- * <b>なぜ今これを置くか。</b>次の機能であるCSS Gridは{@code fr}単位の
- * 割り算を持ち込みます。利用可能量が0のときの{@code 0/0}はNaNなので、
- * この検出器はGridの実装前に置いておく価値があります。
+ * <b>Why add it now.</b>The next feature, CSS Grid, introduces division for {@code fr}
+ * units. With zero available space, {@code 0/0} is NaN, so this detector
+ * is worth having before implementing Grid.
  * </p>
  */
 public class DrawableRangeGuardTest extends TestCase {
@@ -36,10 +35,10 @@ public class DrawableRangeGuardTest extends TestCase {
 		super(name);
 	}
 
-	/** 何も描かないダミー。ガードは座標だけを見るので中身は要らない。 */
+	/** A dummy that draws nothing. The guard checks only coordinates, so no contents are needed. */
 	private static final Drawable NOOP = new Drawable() {
 		public void draw(GC gc, double x, double y) {
-			// 描かない
+			// Draw nothing.
 		}
 
 		public String describe() {
@@ -47,7 +46,7 @@ public class DrawableRangeGuardTest extends TestCase {
 		}
 	};
 
-	/** そもそもassertが有効でないとこのテストは無意味なので、先に確かめる。 */
+	/** First verify that assertions are enabled; otherwise this test is meaningless. */
 	public void testAssertionsAreEnabled() {
 		boolean enabled = false;
 		assert enabled = true;
@@ -64,22 +63,22 @@ public class DrawableRangeGuardTest extends TestCase {
 		assertRejected(0, Double.NEGATIVE_INFINITY);
 	}
 
-	/** 番兵そのもの。従来の{@code isNone}でも弾けていた。 */
+	/** The sentinel itself. The existing {@code isNone} already rejected it. */
 	public void testRejectsSentinel() {
 		assertRejected(LayoutUtils.NONE, 0);
 		assertRejected(0, LayoutUtils.NONE);
 	}
 
 	/**
-	 * <b>本題。</b>番兵に乗除算を施した値は{@code isNone}を素通りするが、
-	 * 10<sup>307</sup>級のゴミ座標であることに変わりはない。
+	 * <b>The main case.</b>Multiplying or dividing the sentinel produces values that bypass
+	 * {@code isNone}, but they are still garbage coordinates on the order of 10<sup>307</sup>.
 	 *
 	 * <p>
-	 * <b>加算では逃げられない</b>ことも同時に固定する。10<sup>308</sup>付近の
-	 * doubleの刻み幅(ULP)は10<sup>292</sup>程度あるので、{@code NONE + 10}は
-	 * <b>値が1ビットも変わらず</b>、番兵のまま残る。逃がすのは倍率が
-	 * 変わる演算(スケール・折半・符号反転)だけ——つまり実際に危ないのは
-	 * 「番兵に座標変換を掛けた」経路である。
+	 * Also verify that <b>addition cannot escape detection</b>. Near 10<sup>308</sup>,
+	 * a double's spacing (ULP) is about 10<sup>292</sup>, so {@code NONE + 10}
+	 * <b>does not change even one bit</b> and remains the sentinel. Only operations that
+	 * change its scale (scaling, halving, sign reversal) escape: the dangerous paths
+	 * are those that apply coordinate transforms to the sentinel.
 	 * </p>
 	 */
 	public void testRejectsSentinelAfterArithmetic() {
@@ -93,37 +92,37 @@ public class DrawableRangeGuardTest extends TestCase {
 		assertRejected(LayoutUtils.NONE * 0.5, 0);
 	}
 
-	/** 「上限なし」の制約を位置へ漏らした場合。 */
+	/** A constraint meaning "no upper bound" leaks into a position. */
 	public void testRejectsMaxValue() {
 		assertRejected(Double.MAX_VALUE, 0);
 	}
 
-	/** 正当な座標は当然通る。負の座標も正当(はみ出し・裁ち落とし)。 */
+	/** Valid coordinates naturally pass. Negative coordinates are also valid (overflow and bleed). */
 	public void testAcceptsRealisticCoordinates() {
 		final Drawer drawer = new Drawer(0);
 		drawer.visitDrawable(NOOP, 0, 0);
 		drawer.visitDrawable(NOOP, 595.276, 841.89);
 		drawer.visitDrawable(NOOP, -100, -100);
-		// PDFのページ寸法の上限(200インチ)。これは通らなければならない
+		// PDF page-size limit (200 inches). This must pass.
 		drawer.visitDrawable(NOOP, 14400, 14400);
 	}
 
 	/**
-	 * <b>このガードで守れない穴を明示する。</b>{@code NONE - NONE}は0になる。
-	 * 番兵同士の差(「未定義の位置 − 未定義の原点」)は<b>もっともらしい
-	 * 座標</b>に化けるので、範囲では絶対に検出できない。
+	 * <b>Explicitly document a gap this guard cannot cover.</b>{@code NONE - NONE} is 0.
+	 * Subtracting sentinels ("undefined position − undefined origin") yields <b>plausible
+	 * coordinates</b>, so a range check can never detect it.
 	 *
 	 * <p>
-	 * これを検出するには番兵を{@code NaN}にする(NaNは伝播するので差も
-	 * NaNになる)しかないが、{@code NONE}は{@code ==}比較で使われている
-	 * ため型を変えるのに広い改修が要る。ここでは<b>穴の所在を記録する</b>
-	 * に留める。ガードの守備範囲を過大評価しないこと。
+	 * Detection would require making the sentinel {@code NaN} (NaN propagates, making the
+	 * difference NaN too), but {@code NONE} is used in {@code ==} comparisons,
+	 * so changing its type requires extensive revisions. Here we only <b>record the gap</b>.
+	 * Do not overestimate the guard's coverage.
 	 * </p>
 	 */
 	public void testKnownBlindSpotSentinelDifference() {
 		final double difference = LayoutUtils.NONE - LayoutUtils.NONE;
 		assertEquals("前提が崩れた", 0.0, difference, 0.0);
-		// 通ってしまう。これは既知の穴であって、テストの失敗ではない
+		// This passes. It is a known gap, not a test failure.
 		new Drawer(0).visitDrawable(NOOP, difference, difference);
 	}
 

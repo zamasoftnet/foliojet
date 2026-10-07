@@ -22,7 +22,7 @@ import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 頁1の二代入と頁2への継承を実変換で検証します。 */
+/** Uses actual conversion to check two assignments on page 1 and inheritance onto page 2. */
 public class StringSetModeMatrixTest extends TestCase {
 	private static final Pattern TEXT = Pattern.compile("Text\\[\\\"([^\\\"]*)\\\"");
 
@@ -43,7 +43,7 @@ public class StringSetModeMatrixTest extends TestCase {
 					"<div id='a'>A</div><div id='b' data-heading='HEADERBETA'>B</div><div id='c'>C</div>");
 			assertTrue(result.pdfBytes() > 0);
 			assertEquals(result.pages().toString(), 2, result.pages().size());
-			// 頁先頭の要素が代入元ならstartもfirstを選ぶ。
+			// If the element at the page start is the assignment source, start also selects first.
 			assertEquals(modes[i] + " / page 1", firstPage[i], headerText(result.pages().get(0)));
 			assertEquals(modes[i] + " / page 2", "HEADERBETA", headerText(result.pages().get(1)));
 			assertTrue(result.pages().get(0).contains("A"));
@@ -52,7 +52,10 @@ public class StringSetModeMatrixTest extends TestCase {
 		}
 	}
 
-	/** content() の遅延完成と、build 時解決済みの値が同じ頁の文書順に並ぶことを確認します。 */
+	/**
+	 * Verifies that delayed content() completion and build-time-resolved values follow document order on the
+	 * same page.
+	 */
 	public void testContentAndLiteralAssignmentsShareDocumentOrder() throws Exception {
 		final Conversion result = convert(
 				"@page{@top-left{content:'F[' string(h,first) ']'}"
@@ -66,7 +69,7 @@ public class StringSetModeMatrixTest extends TestCase {
 		assertTrue(result.pages().get(1), result.pages().get(1).contains("L[LASTVALUE]"));
 	}
 
-	/** 疑似要素からの string-set は order(-1)を共有するが、例外にならず値が届く。 */
+	/** string-set from pseudo-elements shares order(-1), but delivers the value without an exception. */
 	public void testPseudoElementAssignmentsDoNotCollide() throws Exception {
 		final Conversion result = convert(
 				"@page{@top-center{content:'H[' string(h) ']'}}p::before{content:'X';string-set:h 'PSEUDO'}",
@@ -77,8 +80,9 @@ public class StringSetModeMatrixTest extends TestCase {
 	}
 
 	/**
-	 * 表は全行を読んでから配置するので、後の行のリテラル代入が前の行の content() 代入より
-	 * 先に build される。所属頁への draw 時登録が無いと最後の頁で後の値が消える。
+	 * Tables are placed after all rows are read, so a literal assignment in a later row is built before
+	 * a content() assignment in an earlier row. Without draw-time registration on the containing page,
+	 * the later value disappears on the last page.
 	 */
 	public void testLaterLiteralSurvivesDelayedContentAcrossPages() throws Exception {
 		final Conversion result = convert(
@@ -161,14 +165,14 @@ public class StringSetModeMatrixTest extends TestCase {
 					"<table><tr id='a'><td>A</td></tr><tr id='b'><td>B</td></tr>"
 					+ "<tr id='c'><td>C</td></tr></table><p id='probe'>PROBE</p>");
 			System.err.println("[running R1b #3] table rows / " + third + ": " + result.pages());
-			// content()はCの頁が確定してから使える。リテラルはbuild時からCを保つ。
+			// content() is available once C's page is finalized. The literal retains C from build time.
 			if ("'C'".equals(third)) {
 				assertTrue(result.pages().toString(), String.join("", result.pages()).contains("VALUE[C]"));
 			}
 		}
 	}
 
-	/** R1a の解析試験でも使う、外部資源を必要としない二段階の変換ヘルパーです。 */
+	/** Two-stage conversion helper requiring no external resources, also used by the R1a parsing tests. */
 	static Conversion convert(final String css, final String body) throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><style>"
 				+ "@page{size:240pt 180pt;margin:30pt}html,body{margin:0;font-size:10pt}"

@@ -23,103 +23,91 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 深いネスト+改ページ(restyle系が実際に発火する構成)に対する回帰テストです
- * (ARCHITECTURE.md不変条件6、2026-07-20)。
+ * Regression test for deep nesting + page breaks (a configuration that actually activates restyle)
+ * (ARCHITECTURE.md invariant 6, 2026-07-20).
  *
  * <p>
- * {@link DeepNestingLayoutTest}はfinishLayout/frames/draw/textShape/getText
- * の反復化を固定するテストだが、意図的にページ分割を誘発しない構成
- * (ネストした<code>&lt;div&gt;</code>群がすべて1ページに収まる)のため、
- * {@code restyle}系(継続機構、まだ`FlowContainer.restyle`↔
- * `AbstractContainerBox.restyle`のポリモーフィックな相互再帰のまま)を
- * 経路に含まない。
+ * {@link DeepNestingLayoutTest} verifies the iterative behavior of finishLayout/frames/draw/textShape/getText,
+ * but intentionally avoids page splitting (all nested <code>&lt;div&gt;</code> elements fit on one page).
+ * It therefore does not exercise the {@code restyle} family (the continuation mechanism, still
+ * polymorphic mutual recursion between `FlowContainer.restyle` and `AbstractContainerBox.restyle`).
  * </p>
  *
  * <p>
- * このテストは逆に、深いネスト構造の最深部に複数ページ分の内容を置き、
- * ネストの祖先チェーンが**開いたまま**ページ分割を跨ぐ構成にする
- * ({@code OpenShape.OpenChain}が深く入れ子になり、
- * {@code FlowContainer.restyle}・{@code RootBuilder.resumeFrame}の
- * 相互再帰が実際に深さ分だけ発火する)。restyle系の反復化(codex/grok
- * への外部相談、設計相談*.md参照)に着手する
- * 前の回帰基盤として、現状の再帰実装がどこまでの深さに耐えるかを
- * 実測・記録する。
+ * This test instead puts multiple pages of content at the deepest level so the nested ancestor chain
+ * stays **open** across page breaks ({@code OpenShape.OpenChain} is deeply nested, and mutual
+ * recursion between {@code FlowContainer.restyle} and {@code RootBuilder.resumeFrame} actually
+ * occurs for each level). As a regression foundation before making restyle iterative
+ * (external consultation with codex/grok; see design consultation*.md), it measures and records the depth
+ * the current recursive implementation can withstand.
  * </p>
  *
  * <p>
- * <b>実測結果(2026-07-20、初回)</b>: 深さ200・500は成功、深さ1000・5000は
- * {@code StackOverflowError}。ただしスタックトレースを実際に確認したところ、
- * 直接の原因は当初想定した{@code restyle}系ではなく、
- * {@code FlowContainer.avoidBreakBefore/After}(改ページ回避判定、
- * `FlowContainer`↔`FlowBlockBox`の同型のポリモーフィック相互再帰)
- * だった。これは{@code restyle}以前の、改ページ位置探索(break-point
- * search)の中で発火する別系統の再帰であり、restyle系の反復化に着手する
- * 前に本テストで新たに発見された(restyle系はこの手前で既に
- * StackOverflowErrorしていたため、まだ経路にすら到達していなかった)。
+ * <b>Initial measurements (2026-07-20)</b>: depths 200/500 succeeded; 1000/5000 caused
+ * {@code StackOverflowError}. Inspecting stack traces showed that the direct cause was not the
+ * initially suspected {@code restyle} family, but {@code FlowContainer.avoidBreakBefore/After}
+ * (page-break avoidance checks, the same polymorphic mutual recursion pattern between
+ * `FlowContainer` and `FlowBlockBox`).
+ * This is a separate recursion family activated during break-point search, before {@code restyle}.
+ * The test discovered it before restyle iteration began; the path had already overflowed
+ * before reaching restyle, so restyle itself had not even been exercised.
  * </p>
  *
  * <p>
- * <b>対応(2026-07-20)</b>: {@code FlowContainer.avoidBreakBefore/After}を
- * 明示的{@link java.util.Deque}ワークリストへ反復化した
- * (finishLayout等と同じ設計パターン。{@code FlowContainer}の
- * {@code walkAvoidBreak}参照)。
+ * <b>Fix (2026-07-20)</b>: converted {@code FlowContainer.avoidBreakBefore/After} to iteration
+ * with an explicit {@link java.util.Deque} worklist
+ * (the same design pattern as finishLayout, etc.; see {@code FlowContainer}'s {@code walkAvoidBreak}).
  * </p>
  *
  * <p>
- * <b>実測結果(2026-07-20、avoidBreakBefore/After反復化後)</b>: 深さ1000・
- * 5000は依然{@code StackOverflowError}だが、発生箇所が
+ * <b>Measurements (2026-07-20, after making avoidBreakBefore/After iterative)</b>: depths 1000/5000
+ * still caused {@code StackOverflowError}, but the failure moved to
  * {@code FlowContainer.splitPageAxis}↔{@code AbstractBlockBox.splitForContinuation}
- * (改ページ時のボックス分割=ARCHITECTURE.mdのパイプライン図でいう
- * 「splitPageAxis(変異切断)」)へ移った。この経路は
- * {@code restyle}よりさらに手前(改ページの実行そのもの)で走る、
- * 第三の独立した再帰系統である。{@code restyle}系自体の反復化が実際に
- * 必要になる深さへは、この{@code splitPageAxis}の壁が先に立ちはだかる
- * ため、本テストではまだ到達できていない。
+ * (box splitting at page breaks, "splitPageAxis (mutating split)" in ARCHITECTURE.md's pipeline diagram).
+ * This is a third independent recursion family, running even earlier than {@code restyle},
+ * during the page break itself. This test has still not reached a depth where {@code restyle} iteration
+ * is actually needed, because the {@code splitPageAxis} barrier occurs first.
  * </p>
  *
  * <p>
- * <b>{@code splitPageAxis}に今は着手しない理由</b>: `開発メモ`
- * 「Box/Builderコア: FlowContainer.splitPageAxisの核心ループはM6d前提の
- * まま」に既存の記録があるとおり、{@code splitPageAxis}/{@code .split()}
- * 呼び出しは子ボックスを直接変異させる構造であり、
- * ConstraintSpace/write-onceボックス(M6d)の設計が入るまでは安全な
- * 機械的リファクタが難しいと既に判断されている。この既存判断を覆さず、
- * 深さ1000・5000のテストは「splitPageAxisがM6d後に反復化されるまでの
- * 既知の限界」として固定する(restyle系の反復化の完了条件では、もはや
- * ない)。
+ * <b>Why {@code splitPageAxis} is not being addressed yet</b>: as already recorded in `開発メモ`,
+ * "Box/Builderコア: FlowContainer.splitPageAxisの核心ループはM6d前提のまま",
+ * {@code splitPageAxis}/{@code .split()} calls directly mutate child boxes.
+ * It was already judged difficult to refactor this mechanically and safely before the
+ * ConstraintSpace/write-once box (M6d) design is in place.
+ * Preserve that decision and fix the depth-1000/5000 tests as known limits until splitPageAxis
+ * becomes iterative after M6d; they are no longer completion criteria for restyle iteration.
  * </p>
  *
  * <p>
- * <b>B0(2026-07-20、codex/grokへの外部相談後)</b>:
- * {@code ContinuationStats.RESTYLE_CHAIN_FIRINGS}
- * (`FlowContainer.restyle`の{@code OpenShape.OpenChain}分岐発火数)を
- * 深さ200で計測したところ0のままだった。実際に発火していたのは
- * {@code CHILD_FRAMES}(1206回)——単純な「1段1子」の深いネストは
- * {@code FlowContainer.restyle}の{@code OpenChain}分岐ではなく
- * {@code RootBuilder.resumeFrame()}自身の自己再帰
- * (`ContinuationFrame.Child`を1段ごとに1回)で処理されていた。この
- * 自己再帰はswitch文の唯一かつ末尾の文(真の末尾再帰)だったため、
- * {@code while}ループへの書き換えのみで挙動を変えず反復化した(修正済み、
- * 三層検証済み)。`開発メモ`「B0着手結果」参照。
+ * <b>B0 (2026-07-20, after external consultation with codex/grok)</b>:
+ * measuring {@code ContinuationStats.RESTYLE_CHAIN_FIRINGS}
+ * (the {@code OpenShape.OpenChain} branch count in `FlowContainer.restyle`) at depth 200 yielded 0.
+ * What actually fired was {@code CHILD_FRAMES} (1206 times): simple deep nesting with one child per
+ * level used {@code RootBuilder.resumeFrame()}'s own recursion
+ * (`ContinuationFrame.Child` once per level), not {@code FlowContainer.restyle}'s
+ * {@code OpenChain} branch. This recursion was the sole and final statement of the switch
+ * (true tail recursion), so replacing it with a {@code while} loop made it iterative without
+ * changing behavior (fixed and verified at three layers).
+ * See `開発メモ`, "B0着手結果".
  * </p>
  */
 public class DeepNestingRestyleTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/**
-	 * 深さ200の開いた祖先チェーンが複数ページの改ページを跨ぐ構成。
-	 * 実測(2026-07-20)では深さ500まで成功し、1000でStackOverflowError
-	 * に到達する(下記{@link #testDepth1000OpenChainAcrossPageBreaksCurrentlyOverflows}
-	 * 参照)。この深さ200は「現状でも安全な下限」を回帰として固定する。
+	 * An open ancestor chain of depth 200 spans multiple page breaks.
+	 * Measurements on 2026-07-20 succeeded up to depth 500 and reached StackOverflowError at 1000
+	 * (see {@link #testDepth1000OpenChainAcrossPageBreaksCurrentlyOverflows} below).
+	 * This depth of 200 verifies a currently safe lower bound as a regression test.
 	 *
 	 * <p>
-	 * 併せて{@code ContinuationStats.RESTYLE_CHAIN_FIRINGS}
-	 * (M6b Phase B「切断ブロックチェーン」ソース再生化のB0=発火可視化、
-	 * 2026-07-20。codex/grokへの外部相談、
-	 * 設計相談*.md参照)を計測し、
-	 * この構成で開いたチェーン経由のbox-restyleが実際に多数発火している
-	 * ことを固定する。ソース再生化が進むほどこの値は下がるべきで、将来の
-	 * 段階ごとの縮小を実測するための基準値としてここに記録する。
+	 * Also measures {@code ContinuationStats.RESTYLE_CHAIN_FIRINGS}
+	 * (B0 = activation visibility for converting M6b Phase B's "split block chains" to source replay,
+	 * 2026-07-20; external consultation with codex/grok, see design consultation*.md).
+	 * Verifies the contract that box-restyle through open chains actually fires many times in this configuration.
+	 * The value should fall as source replay expands; record it here as a baseline for measuring future
+	 * reductions at each stage.
 	 * </p>
 	 */
 	public void testDepth200OpenChainAcrossPageBreaks() throws Exception {
@@ -136,77 +124,72 @@ public class DeepNestingRestyleTest extends TestCase {
 	}
 
 	/**
-	 * 深さ500。実測(2026-07-20)ではまだ成功する上限側の境界。
+	 * Depth 500. The upper boundary that still succeeded in measurements on 2026-07-20.
 	 */
 	public void testDepth500OpenChainAcrossPageBreaks() throws Exception {
 		this.runDeepOpenChain(500, 300);
 	}
 
 	/**
-	 * 深さ1000(finishLayout修正前の実測限界=1000段と同水準)。
+	 * Depth 1000 (the same level as the measured 1000-level limit before the finishLayout fix).
 	 *
 	 * <p>
-	 * <b>既知の現状の限界(2026-07-20実測、avoidBreakBefore/After反復化後)
-	 * </b>: {@code FlowContainer.splitPageAxis}↔
-	 * {@code AbstractBlockBox.splitForContinuation}(改ページ時のボックス
-	 * 分割)がこの深さで実際に{@code StackOverflowError}に到達する
-	 * (クラスjavadoc参照)。この経路は`開発メモ`
-	 * 「splitPageAxisの核心ループはM6d前提のまま」に既存の記録がある
-	 * とおり、子ボックスを直接変異させる構造であり、
-	 * ConstraintSpace/write-onceボックス(M6d)の設計が入るまでは安全な
-	 * 反復化が難しいと既に判断されている。restyle系自体の反復化は、
-	 * この手前の壁のためまだ経路にすら到達できていない。
+	 * <b>Known current limit (measured on 2026-07-20, after making avoidBreakBefore/After iterative)</b>:
+	 * {@code FlowContainer.splitPageAxis}↔{@code AbstractBlockBox.splitForContinuation}
+	 * (box splitting at page breaks) actually reaches {@code StackOverflowError} at this depth
+	 * (see the class Javadoc). As recorded in `開発メモ`,
+	 * "splitPageAxisの核心ループはM6d前提のまま", this path directly mutates child boxes.
+	 * It was already judged difficult to make it iterative safely before the
+	 * ConstraintSpace/write-once box (M6d) design is in place.
+	 * This earlier barrier prevents even reaching the path for restyle iteration itself.
 	 * </p>
 	 *
 	 * <p>
-	 * M6d設計後にsplitPageAxisが反復化されたら、このテストは
-	 * {@link #testDepth5000OpenChainAcrossPageBreaksCurrentlyOverflows}
-	 * とあわせて「成功する」側のアサーションへ書き換えること
-	 * (このメソッド名の"CurrentlyOverflows"を外し、
-	 * {@code runDeepOpenChain}で成功を確認する形に戻す)。それでもなお
-	 * 別の深さで{@code StackOverflowError}に到達する場合、その時点で
-	 * ようやくrestyle系自体の反復化の要否を実測で判断できる。
+	 * Once splitPageAxis becomes iterative after the M6d design, change this test and
+	 * {@link #testDepth5000OpenChainAcrossPageBreaksCurrentlyOverflows} to assert success
+	 * (remove "CurrentlyOverflows" from this method name and return to checking success
+	 * with {@code runDeepOpenChain}). If {@code StackOverflowError} still occurs at another depth,
+	 * only then can measurements determine whether restyle itself needs to become iterative.
 	 * </p>
 	 */
 	public void testDepth1000OpenChainAcrossPageBreaks() throws Exception {
-		// 2026-07-26: レイアウトを常に64MBスタックの専用スレッドで実行する
-		// ようにした(DirectSession.LAYOUT_STACK_SIZE)ため、深さ1000は
-		// 成功するようになった。反復化したのではなく、スタックを増やして
-		// 実務上の問題を解消した形(相互再帰自体は残っている)。
+		// 2026-07-26: Layout now always runs on a dedicated thread with a 64 MB stack
+		// (DirectSession.LAYOUT_STACK_SIZE), so depth 1000 now
+		// succeeds. This resolves the practical problem by increasing the stack,
+		// not by making it iterative (mutual recursion itself remains).
 		this.runDeepOpenChain(1000, 300);
 	}
 
 	/**
-	 * 深さ5000(finishLayout/frames/draw/textShape/getTextの反復化後に
-	 * 確認済みの深さと同水準)。同じく現状は{@code splitPageAxis}経由で
-	 * {@code StackOverflowError}に到達する(クラスjavadoc参照)。
+	 * Depth 5000 (the same depth confirmed after making finishLayout/frames/draw/textShape/getText
+	 * iterative). Currently, this also reaches {@code StackOverflowError} via {@code splitPageAxis}
+	 * (see the class Javadoc).
 	 */
 	public void testDepth5000OpenChainAcrossPageBreaks() throws Exception {
-		// 同上。実測では深さ5000に必要なstackは8MBで、64MBは8倍の余裕がある
+		// Same as above. Measurements show depth 5000 needs an 8 MB stack; 64 MB provides an eightfold margin.
 		this.runDeepOpenChain(5000, 300);
 	}
 
 	/**
-	 * {@code splitPageAxis}の反復化(M6d後の大規模リファクタ)と比較検討
-	 * する代替案の実証実験です(2026-07-23、
-	 * `開発記録
-	 * -investigation.md`「代替案」節参照)。
+	 * Proof-of-concept experiment for an alternative to making {@code splitPageAxis} iterative
+	 * (the large refactor after M6d) (2026-07-23; see the "代替案" section of
+	 * `the development records
+	 * -investigation.md`).
 	 *
 	 * <p>
-	 * 深さ1000・5000での{@code StackOverflowError}は典型的な「JVM
-	 * デフォルトのスレッドstackサイズ不足」パターン(深さ500は成功、
-	 * 1000で失敗——1段あたり数百バイト消費と見積もれば筋が通る)と
-	 * 仮説を立てた。{@code splitPageAxis}のロジックには一切触れず、
-	 * 大きいstackサイズ(64MB)を持つ専用スレッドで同じ計算を実行する
-	 * だけで解消するかを直接検証する。
+	 * The hypothesis was that {@code StackOverflowError} at depths 1000/5000 follows the typical pattern
+	 * of insufficient JVM default thread stack size (depth 500 succeeds, 1000 fails, consistent with
+	 * several hundred bytes consumed per level).
+	 * Without changing any {@code splitPageAxis} logic, directly tests whether running the same
+	 * computation on a dedicated thread with a large stack (64 MB) resolves it.
 	 * </p>
 	 *
 	 * <p>
-	 * この実証実験自体はテストコード側だけで大きいstackスレッドを
-	 * 手動生成する(本番コードには一切手を入れない、生の仮説検証)。
-	 * 検証後に実際に本番へ配線した統合({@code processing
-	 * .large-stack-thread}プロパティ経由)は
-	 * {@link #testDepth5000SucceedsWithLargeStackThreadProperty}参照。
+	 * This experiment manually creates a large-stack thread only in test code
+	 * (no changes to production code; a direct hypothesis test).
+	 * For the integration subsequently wired into production via the {@code processing
+	 * .large-stack-thread} property, see
+	 * {@link #testDepth5000SucceedsWithLargeStackThreadProperty}.
 	 * </p>
 	 */
 	public void testDepth5000SucceedsOnLargeStackThread() throws Throwable {
@@ -229,15 +212,14 @@ public class DeepNestingRestyleTest extends TestCase {
 	}
 
 	/**
-	 * 上記の仮説検証を受けて実際に本番へ配線した統合(2026-07-23、
-	 * `processing.large-stack-thread`セッションプロパティ、
-	 * {@code DirectSession.runOnLargeStackIfEnabled}経由)を、
-	 * テストコード側で手動スレッドを作らず、{@code DirectSession
-	 * .transcode()}の通常の呼び出し経路だけで検証する。深さ5000は
-	 * このプロパティを立てない既定設定では{@code StackOverflowError}
-	 * になる({@link #testDepth5000OpenChainAcrossPageBreaksCurrentlyOverflows}
-	 * 参照)——このプロパティを立てるだけで例外なく成功することを
-	 * 固定する。
+	 * Tests the production integration implemented after the above hypothesis test
+	 * (2026-07-23, `processing.large-stack-thread` session property,
+	 * via {@code DirectSession.runOnLargeStackIfEnabled}).
+	 * Uses only the normal {@code DirectSession
+	 * .transcode()} call path, without manually creating a thread in test code.
+	 * At depth 5000, the default configuration without this property produces {@code StackOverflowError}
+	 * (see {@link #testDepth5000OpenChainAcrossPageBreaksCurrentlyOverflows}).
+	 * Verifies that setting this property alone allows success without exceptions.
 	 */
 	public void testDepth5000SucceedsWithLargeStackThreadProperty() throws Exception {
 		this.runDeepOpenChain(5000, 300, true);
@@ -272,10 +254,10 @@ public class DeepNestingRestyleTest extends TestCase {
 	}
 
 	/**
-	 * depth段だけ{@code <div>}を入れ子にし、最深部にleafLines行分の
-	 * 番号付きテキスト(1行8pt、ページ高さ400ptなので約50行/ページ)を
-	 * 置いた文書を生成する。leafLinesを1ページ分(約50行)より十分大きく
-	 * することで、ネストの祖先チェーン全体が開いたまま複数回改ページする。
+	 * Generates a document with depth levels of nested {@code <div>} elements and leafLines lines of
+	 * numbered text at the deepest level (8 pt per line, page height 400 pt, about 50 lines/page).
+	 * Making leafLines much larger than one page (about 50 lines) causes multiple page breaks
+	 * while the entire ancestor chain stays open.
 	 */
 	private static File generateDeepOpenChainAcrossPageBreaks(String name, int depth, int leafLines)
 			throws IOException {
@@ -287,10 +269,10 @@ public class DeepNestingRestyleTest extends TestCase {
 			w.write("<?jp.cssj.property name=\"output.page-width\" value=\"250pt\"?>\n");
 			w.write("<?jp.cssj.property name=\"output.page-height\" value=\"400pt\"?>\n");
 			w.write("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
-			// DeepNestingLayoutTestと同様、borderやpaddingは付けない
-			// (各段のサイズ計算を単純に保つ)。ただし今回は最深部の内容量を
-			// 意図的にページ高さより大きくし、祖先チェーンを開いたまま
-			// 改ページさせる。
+			// As in DeepNestingLayoutTest, omit borders and padding
+			// (to keep size calculations simple at each level). This time, however, the deepest content
+			// intentionally exceeds page height, forcing page breaks
+			// while the ancestor chain remains open.
 			w.write("<style>@page{margin:0}body{font:normal 8pt/1 serif}</style>\n");
 			w.write("</head><body>\n");
 			for (int i = 0; i < depth; ++i) {

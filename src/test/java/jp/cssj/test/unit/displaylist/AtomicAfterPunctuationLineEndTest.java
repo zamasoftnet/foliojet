@@ -19,19 +19,22 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 和文の約物の直後の原子インライン(数式・画像・inline-block)が行に収まらなければ、次の行へ送ることを
- * 固定します(2026-10-04、出版の報告: 行末の行中の数式が版面の右端を 1〜2mm 越えた)。
+ * Verifies that an atomic inline (formula, image, inline-block) immediately after Japanese punctuation
+ * moves to the next line if it does not fit (2026-10-04, publishing report:
+ * an inline formula at line end extended 1–2 mm beyond the type area's right edge).
  *
  * <p>
- * 行を詰める候補を集めるとき、箱の後ろでも箱の前の「。」を行末の字として扱い、その後ろ半分を詰められる
- * と見込んで箱を同じ行に置いていた。実際には「。」は行末にないので詰められず、はみ出した。
+ * When collecting line-compression candidates, even after a box, the preceding "。" was treated as
+ * the final character. The box was placed on the same line on the assumption that the punctuation's
+ * trailing half could be compressed. In fact, "。" was not at line end and could not be compressed,
+ * so the content overflowed.
  * </p>
  */
 public class AtomicAfterPunctuationLineEndTest extends TestCase {
 	private static final Pattern BOX = Pattern
 			.compile("x=([-0-9.]+) y=[-0-9.]+ AbsoluteRectFrame\\[w=([-0-9.]+) h=10\\.00\\]");
 
-	/** 全角 8 字(160pt)の後ろの 25pt の箱は、180pt の行に収まらない。 */
+	/** A 25 pt box after eight fullwidth characters (160 pt) does not fit on a 180 pt line. */
 	private static double[] box(final String before) throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><style>"
 				+ "@page{size:200pt 200pt;margin:10pt} body{margin:0;font-size:20pt}"
@@ -66,7 +69,7 @@ public class AtomicAfterPunctuationLineEndTest extends TestCase {
 		}
 	}
 
-	/** 収まる箱は、従来どおり同じ行に置く。 */
+	/** A box that fits stays on the same line, as before. */
 	public void testBoxThatFitsStaysOnTheLine() throws Exception {
 		final double[] box = box("あいうえおです");
 		assertEquals(140, box[0], 0.01);

@@ -21,7 +21,7 @@ public class MyGVTFont implements GVTFont {
 	protected final FontStyle fontStyle;
 	protected final net.zamasoft.pdfg2d.font.Font font;
 	protected final FontSource source;
-	/** 同じ FontStyle で解決した書体一覧(代替書体の送りを引くため)。null なら代替なし */
+	/** Faces resolved with the same FontStyle (for looking up fallback advances). Null means no fallback. */
 	protected final FontListMetrics list;
 
 	public MyGVTFont(FontMetrics m, FontStyle fontStyle) {
@@ -99,7 +99,7 @@ public class MyGVTFont implements GVTFont {
 
 	public GVTGlyphVector createGlyphVector(FontRenderContext frc, CharacterIterator text) {
 		TextImpl ti = new TextImpl(-1, this.fontStyle, this.m);
-		// 字形ごとの送り。この書体に無い字は代替書体の送りを入れる(下記)
+		// Per-glyph advances. For characters absent from this face, use fallback font advances (see below).
 		final java.util.List<Double> advances = new java.util.ArrayList<>();
 		char c = text.first();
 		int sgid = -1;
@@ -107,12 +107,12 @@ public class MyGVTFont implements GVTFont {
 		while (c != CharacterIterator.DONE) {
 			int gid = this.font.toGID(c);
 			if (gid == -1) {
-				// Batik の StrokingTextPainter は「表示できない字」を次の書体に回さず、
-				// 前の run の末尾に残す(currentIndex = displayUpToIndex + 1 で飛ばした字が
-				// 未割当のまま既定書体に付く)。描画は MyTextPainter が書体一覧で組み直すので
-				// 字形は正しく出るが、この GlyphVector の送りにその字が無いと次の run の
-				// 位置がその分だけ手前になり、字が重なっていた(「SVG 日本語」の日と本、2026-09-14)。
-				// 代替書体の送りを持つ仮の字形(空白)を置いて run の長さを合わせる
+				// Batik's StrokingTextPainter does not pass unrenderable characters to the next face;
+				// it leaves them at the previous run's end (characters skipped by currentIndex = displayUpToIndex + 1
+				// remain unassigned and attach to the default face). MyTextPainter reshapes with the font list
+				// when drawing, so glyphs look correct, but if this GlyphVector lacks the character's advance,
+				// the next run starts too early and characters overlap ("日" and "本" in "SVG 日本語", 2026-09-14).
+				// Insert a dummy (blank) glyph with the fallback advance to align the run length.
 				if (sgid != -1) {
 					advances.add(ti.appendGlyph(this.ch, 0, clen, sgid));
 					sgid = -1;
@@ -151,7 +151,7 @@ public class MyGVTFont implements GVTFont {
 		return new MyGVTGlyphVector(ti, this, frc, adv);
 	}
 
-	/** この書体に無い字を、同じ FontStyle の書体一覧で最初に表示できる書体で組んだときの送り。 */
+	/** Advance of a character absent from this face, shaped with the first supporting face in the same FontStyle's list. */
 	private double fallbackAdvance(final char c) {
 		if (this.list != null) {
 			for (int i = 0; i < this.list.getLength(); ++i) {

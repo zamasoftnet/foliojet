@@ -8,7 +8,7 @@ import net.zamasoft.foliojet.layout.box.params.GridItemSpec;
 import net.zamasoft.foliojet.layout.sizing.GridPlacementResolver.GridArea;
 import net.zamasoft.foliojet.layout.sizing.GridPlacementResolver.Result;
 
-/** row subgrid Stage 1で追加したbounded配置の純粋計算テストです。 */
+/** Pure calculation tests for bounded placement added in row subgrid Stage 1. */
 public class GridPlacementResolverStage1Test extends TestCase {
 
 	private static final GridLineValue A = GridLineValue.AUTO_VALUE;
@@ -25,7 +25,7 @@ public class GridPlacementResolverStage1Test extends TestCase {
 		return ((Result.Resolved) result).plan().areas().get(index);
 	}
 
-	/** 既定overloadは従来の明示引数overloadと同じPlanを返す。 */
+	/** The default overload returns the same Plan as the previous overload with explicit arguments. */
 	public void testDefaultModeIsUnchanged() {
 		final List<GridItemSpec> items = List.of(auto(), auto(), auto(), auto(), auto());
 		final Result shortResult = GridPlacementResolver.resolve(items, 2);
@@ -33,7 +33,7 @@ public class GridPlacementResolverStage1Test extends TestCase {
 		assertEquals(shortResult, fullResult);
 	}
 
-	/** bounded modeは末端を越すareaを部分的に切る。 */
+	/** Bounded mode partially clips an area that extends beyond the end. */
 	public void testBoundedRowsClipsPartialOverflow() {
 		final Result result = GridPlacementResolver.resolve(
 				List.of(row(GridLineValue.line(2), GridLineValue.line(5))), 1, 3, false, false, 3);
@@ -42,7 +42,7 @@ public class GridPlacementResolverStage1Test extends TestCase {
 		assertEquals(3, ((Result.Resolved) result).plan().rowCount());
 	}
 
-	/** bounded rangeの完全な外側は末尾trackのspan 1へ畳む。 */
+	/** An area entirely outside the bounded range collapses to span 1 in the final track. */
 	public void testBoundedRowsClampsCompleteOverflow() {
 		final Result result = GridPlacementResolver.resolve(
 				List.of(row(GridLineValue.line(5), GridLineValue.line(7))), 1, 3, false, false, 3);
@@ -50,7 +50,7 @@ public class GridPlacementResolverStage1Test extends TestCase {
 		assertEquals(new GridArea(0, 2, 1, 1), area(result, 0));
 	}
 
-	/** 負側の仮想implicit lineも通常配置後に範囲へ切る。 */
+	/** Virtual implicit lines on the negative side are also clipped to the range after normal placement. */
 	public void testBoundedRowsClipsNegativeLines() {
 		final Result result = GridPlacementResolver.resolve(
 				List.of(row(GridLineValue.line(-5), GridLineValue.line(-2))), 1, 3, false, false, 3);
@@ -58,7 +58,7 @@ public class GridPlacementResolverStage1Test extends TestCase {
 		assertEquals(new GridArea(0, 0, 1, 2), area(result, 0));
 	}
 
-	/** 明示範囲が満杯でもauto配置は仮想行へ進んでから末尾へclampする。 */
+	/** Even with the explicit range full, auto placement advances to virtual rows before clamping to the end. */
 	public void testBoundedRowsAutoPlacementAfterFullRange() {
 		final Result result = GridPlacementResolver.resolve(List.of(
 				row(GridLineValue.line(1), A), row(GridLineValue.line(2), A), auto()), 1, 2, false, false, 2);

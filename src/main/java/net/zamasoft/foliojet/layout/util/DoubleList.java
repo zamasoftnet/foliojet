@@ -3,8 +3,8 @@ package net.zamasoft.foliojet.layout.util;
 import java.io.Serializable;
 
 /**
- * 任意の位置の値をセット可能なdouble値の配列です。
- * 
+ * Array of double values that can be set at arbitrary positions.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: DoubleList.java 1552 2018-04-26 01:43:24Z miyabe $
  */

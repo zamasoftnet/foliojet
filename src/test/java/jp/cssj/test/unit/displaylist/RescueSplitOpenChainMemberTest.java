@@ -7,25 +7,25 @@ import java.nio.file.Files;
 import junit.framework.TestCase;
 
 /**
- * <b>開いたままの箱を救済分割しない</b>ことの回帰テストです(2026-09-16、seed 2003409 の縮小形)。
+ * Regression test for <b>never rescue-splitting an open box</b> (2026-09-16, reduced from seed 2003409).
  *
  * <p>
- * `page-break-inside: avoid` の中に直交フローの部分木と表が同居し、版面が小さいと、
- * {@code FlowCutter.MoveResolution.RelaxInside} が「末尾のモノリシックな箱を幾何分割する」
- * つもりで<b>開き鎖のメンバー</b>({@code div[page-break-inside:avoid]})を救済分割していた。
- * 救済残余は再開時に {@code addRescueBound} で<b>閉じた箱</b>として戻るので
- * {@code startFlowBlock} が呼ばれず、{@code flowStack} が積み直されない。一方で継続は
- * その段がまだ開いていると記述しているため、
- * {@code RootBuilder.pageBreak} の不変条件「flowStack深さ≠継続深さ」で変換が失敗していた。
+ * When an orthogonal-flow subtree and a table coexist inside `page-break-inside: avoid` in a small type area,
+ * {@code FlowCutter.MoveResolution.RelaxInside} attempted to "geometrically split the trailing monolithic box"
+ * but rescue-split an <b>open-chain member</b> ({@code div[page-break-inside:avoid]}).
+ * On resume, {@code addRescueBound} returns a rescue remainder as a <b>closed box</b>, so
+ * {@code startFlowBlock} was not called and {@code flowStack} was not rebuilt. However, the continuation
+ * described that level as still open, so conversion failed with the
+ * {@code RootBuilder.pageBreak} invariant "flowStack depth != continuation depth".
  * </p>
  *
  * <p>
- * これは掃過で最多の欠陥(seed 2,000,000〜5,249,999 の 640 万文書で STRICT 2,459 件・
- * WILD 1,570 件)で、生成器 v2 の当初から到達可能な既存欠陥だった
- * ({@code RandomDocumentFuzzTest} の javadoc に 2026-07-26 から記録がある)。
- * 直し方は「開き鎖のメンバーは救済分割せず、境界の avoid を緩和して内側で切る
- * (=継続フレームを作る)」。<b>avoid はこの箱では定義上履行できない</b>——破断点は
- * 既にその内側にあるため。
+ * This was the most common defect in the sweep (2,459 STRICT and 1,570 WILD cases among 6.4 million documents
+ * for seeds 2,000,000–5,249,999), an existing defect reachable since generator v2 was introduced
+ * (recorded in the {@code RandomDocumentFuzzTest} Javadoc since 2026-07-26).
+ * The fix is "do not rescue-split an open-chain member; relax avoid at the boundary and cut inside
+ * (= create continuation frames)." <b>avoid is impossible to honor for this box by definition</b>:
+ * the break point is already inside it.
  * </p>
  */
 public class RescueSplitOpenChainMemberTest extends TestCase {
@@ -33,7 +33,7 @@ public class RescueSplitOpenChainMemberTest extends TestCase {
 		super(name);
 	}
 
-	/** STRICT の全不変条件(内容保存・紙面内・読み順)を通る。 */
+	/** Pass all STRICT invariants (content preservation, placement within the paper, and reading order). */
 	public void testOpenChainMemberIsNotRescueSplit() throws Exception {
 		final File fixture = new File("files/fuzz-repro/rescue-split-open-chain-member.html");
 		final String html = Files.readString(fixture.toPath(), StandardCharsets.UTF_8);

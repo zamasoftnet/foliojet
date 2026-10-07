@@ -13,8 +13,8 @@ import net.zamasoft.pdfg2d.gc.image.GroupImageGC;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * {@code filter}を要素ごとの層で掛けているあいだ、その層のGCを包む印です
- * (2026-09-03新設、filter-element-group-design.md §2-4)。
+ * Marker wrapping a layer's GC while applying {@code filter} per element layer (added 2026-09-03,
+ * filter-element-group-design.md §2-4).
  *
  */
 public final class FilterScope extends AbstractDelegatingGC implements GroupImageGC {

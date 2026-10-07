@@ -22,9 +22,10 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * CSS の{@code bookmark-level}・{@code bookmark-label}(css-gcpm-3)を固定します
- * (2026-10-04、TECH-20261003-004 の⑤。以前は未対応のプロパティとして警告され、
- * しおりは h1〜h6 の段数と文字からしか作れなかった)。
+ * Verifies CSS {@code bookmark-level} and {@code bookmark-label} behavior (css-gcpm-3)
+ * (2026-10-04, item ⑤ of TECH-20261003-004).
+ * Previously, they warned as unsupported properties, and bookmarks (PDF outline) could only be
+ * created from h1–h6 levels and text.
  */
 public class BookmarkPropertiesTest extends TestCase {
 	private static final String HTML = """

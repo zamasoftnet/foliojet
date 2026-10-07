@@ -4,8 +4,8 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.sizing.AutoColumnWidths;
 
 /**
- * 自動レイアウトの列幅解決(P2-4)のテストです。TwoPass prepareLayout
- * から純化された列型ラダーと colspan 分配を、ボックス木なしで固定します。
+ * Tests for automatic-layout column-width resolution (P2-4). Fix the pure column-type ladder
+ * and colspan distribution extracted from TwoPass prepareLayout, without a box tree.
  */
 public class AutoColumnWidthsTest extends TestCase {
 	public void testSingleAutoColumn() {
@@ -26,7 +26,7 @@ public class AutoColumnWidthsTest extends TestCase {
 		final AutoColumnWidths.Result r = w.finish(0);
 		assertEquals(AutoColumnWidths.COLUMN_TYPE_FIX, r.types()[0]);
 		assertEquals(80, r.specs()[0], 0.01);
-		// 固定列の desired は max(min, spec)
+		// For fixed columns, desired is max(min, spec).
 		assertEquals(80, r.desired()[0], 0.01);
 	}
 
@@ -55,7 +55,7 @@ public class AutoColumnWidthsTest extends TestCase {
 		w.cell(1, 1, 0, 30, AutoColumnWidths.COLUMN_TYPE_DES, 30);
 		w.cell(0, 2, 0, 40, AutoColumnWidths.COLUMN_TYPE_FIX, 100);
 		final AutoColumnWidths.Result r = w.finish(0);
-		// 不足 60 を desired 比 1:3 で分配
+		// Distribute the deficit of 60 in the desired ratio 1:3.
 		assertEquals(25, r.desired()[0], 0.01);
 		assertEquals(75, r.desired()[1], 0.01);
 	}
@@ -66,7 +66,7 @@ public class AutoColumnWidthsTest extends TestCase {
 		w.cell(1, 1, 10, 10, AutoColumnWidths.COLUMN_TYPE_DES, 10);
 		w.cell(0, 2, 60, 60, AutoColumnWidths.COLUMN_TYPE_DES, 60);
 		final AutoColumnWidths.Result r = w.finish(0);
-		// 連結の最小 60 > 合計 20: des-min 余地ゼロのため des 比で均等分配
+		// Span minimum 60 > total 20: no des-min room, so distribute equally using the des ratio.
 		assertEquals(30, r.mins()[0], 0.01);
 		assertEquals(30, r.mins()[1], 0.01);
 		assertEquals(60, r.minLineSize(), 0.01);
@@ -77,7 +77,7 @@ public class AutoColumnWidthsTest extends TestCase {
 		w.cell(0, 1, 0, 10, AutoColumnWidths.COLUMN_TYPE_PCT, 0.7);
 		w.cell(1, 1, 0, 10, AutoColumnWidths.COLUMN_TYPE_PCT, 0.6);
 		final AutoColumnWidths.Result r = w.finish(0);
-		// パーセントは残余に制限される(合計 100% を超えない)
+		// Percentages are limited to the remainder (total cannot exceed 100%).
 		assertEquals(0.7, r.specs()[0], 0.001);
 		assertEquals(0.3, r.specs()[1], 0.001);
 	}

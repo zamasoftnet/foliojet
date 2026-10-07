@@ -43,8 +43,8 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
 /**
- * デフォルトのスタイルシートおよびxml-stylesheet PIを解釈してXSLTによる変換を行います。
- * 
+ * Interprets the default style sheet and xml-stylesheet processing instructions to transform with XSLT.
+ *
  * @see Declaration
  * @author MIYABE Tatsuhiko
  * @version $Id: XSLTProcessorFilter.java 1552 2018-04-26 01:43:24Z miyabe $
@@ -53,12 +53,12 @@ public class XSLTProcessorFilter extends DefaultXMLHandlerFilter implements URIR
 	private static final Logger LOG = Logger.getLogger(XSLTProcessorFilter.class.getName());
 
 	/**
-	 * 最初のTransformerHandlerです。
+	 * The first TransformerHandler.
 	 */
 	private TransformerHandler entryTransformerHandler = null;
 
 	/**
-	 * XSLTを使う場合にoutHandlerを退避させるために使います。
+	 * Used to save outHandler when using XSLT.
 	 */
 	private XMLHandler outHandlerSave = null;
 
@@ -69,7 +69,7 @@ public class XSLTProcessorFilter extends DefaultXMLHandlerFilter implements URIR
 	protected Locator locator;
 
 	/**
-	 * XSLT適用後に送られるPIのリストです。
+	 * List of processing instructions sent after applying XSLT.
 	 */
 	private List<String[]> pis = null;
 
@@ -94,7 +94,7 @@ public class XSLTProcessorFilter extends DefaultXMLHandlerFilter implements URIR
 		try {
 			if (base != null) {
 				// HACK
-				// XSLTプロセサが勝手にbaseをファイルパスにしてしまうのでその対策
+				// Work around the XSLT processor changing base into a file path on its own.
 				URI baseURI = URI.create(base);
 				if ("file".equals(baseURI.getScheme())) {
 					String filebase = new File(".").getCanonicalFile().toURI().toString();
@@ -105,7 +105,7 @@ public class XSLTProcessorFilter extends DefaultXMLHandlerFilter implements URIR
 				}
 			}
 			URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(), base, href);
-			// 後で不定期にアクセスされることがあるので、メモリにキャッシュする
+			// Cache in memory because it may be accessed unpredictably later.
 			Source source = this.ua.resolve(uri);
 			try {
 				DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -166,7 +166,7 @@ public class XSLTProcessorFilter extends DefaultXMLHandlerFilter implements URIR
 
 	public void processingInstruction(String target, String data) throws SAXException {
 		if (target.equals(Constants.LINK_PI)) {
-			// 外部スタイルシート (SPEC ASSX1.0)
+			// External style sheet (SPEC ASSX1.0)
 			try {
 				XMLUtils.parsePseudoAttributes(data.toCharArray(), 0, data.length(), this.ATTS);
 				String type = this.ATTS.getValue("type");
@@ -235,13 +235,13 @@ public class XSLTProcessorFilter extends DefaultXMLHandlerFilter implements URIR
 		}
 
 		tf.setURIResolver(this);
-		// **Saxon 12 の統一の差し込み口。**旧来の URIResolver は
-		// document()・xsl:import/include しか受け持たず、unparsed-text() は
-		// 別の担当(UnparsedTextURIResolver)になる。Saxon が URIResolver で
-		// 代用するときは相対URIを null で渡してくるため、
-		// URIHelper が NullPointerException で落ちていた(2026-09-08 に実測。
-		// unparsed-text() は成功も失敗もせず、ただ変換が壊れていた)。
-		// ResourceResolver は絶対URIを渡すので、この不整合が起きない
+		// **Saxon 12's unified extension point.** The legacy URIResolver handles only
+		// document() and xsl:import/include; unparsed-text() has a separate handler
+		// (UnparsedTextURIResolver). When Saxon substitutes URIResolver,
+		// it passes null for the relative URI,
+		// causing URIHelper to throw NullPointerException (observed on 2026-09-08:
+		// unparsed-text() neither succeeded nor failed; the conversion simply broke).
+		// ResourceResolver passes an absolute URI, avoiding this mismatch.
 		XSLTUtils.setResourceResolver(tf, this.ua);
 		tf.setErrorListener(this);
 		Source source = this.ua.resolve(uri);

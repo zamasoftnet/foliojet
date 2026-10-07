@@ -5,12 +5,14 @@ import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.value.ColorValue;
 
 /**
- * 名前付き色と 16 進色を固定します(2026-10-04、全体レビューで見つかった誤り)。
+ * Fix named and hexadecimal colors (2026-10-04, errors found in the overall review).
  *
  * <p>
- * 色名の表は Pillow の {@code ImageColor.colormap}(CSS Color の 148 色)から機械で書き出したもの。手で写した定数表に
- * gainsboro・lavenderblush・salmon・thistle の転記誤りがあり、システム色の名前も {@code buttonheighlight} と綴りを誤っていた。
- * HTMLの属性値の 16 進色は 3 桁を 17 倍せず、{@code bgcolor="#fff"} がほぼ黒になっていた。
+ * The color-name table was generated from Pillow's {@code ImageColor.colormap} (148 CSS Color colors).
+ * The hand-copied constant table had transcription errors for gainsboro, lavenderblush, salmon,
+ * and thistle; a system color name was also misspelled {@code buttonheighlight}.
+ * Three-digit hex colors in HTML attribute values were not multiplied by 17, making
+ * {@code bgcolor="#fff"} nearly black.
  * </p>
  */
 public class NamedAndHexColorTest extends TestCase {
@@ -186,7 +188,7 @@ public class NamedAndHexColorTest extends TestCase {
 		assertRGB("#fff", ColorValueUtils.parseRGBHexColor("fff"), 255, 255, 255);
 		assertRGB("#abc", ColorValueUtils.parseRGBHexColor("abc"), 170, 187, 204);
 		assertRGB("#a0b0c0", ColorValueUtils.parseRGBHexColor("a0b0c0"), 160, 176, 192);
-		// 属性値の慣行: 7 桁は先頭 6 桁、5 桁は先頭 3 桁
+		// Attribute-value convention: use the first six of seven digits and the first three of five digits.
 		assertRGB("#a0b0c0f", ColorValueUtils.parseRGBHexColor("a0b0c0f"), 160, 176, 192);
 		assertRGB("#abcde", ColorValueUtils.parseRGBHexColor("abcde"), 170, 187, 204);
 		assertEquals(136f / 255f, ColorValueUtils.parseRGBHexColor("fff8").getAlpha(), 0.001f);
@@ -199,7 +201,7 @@ public class NamedAndHexColorTest extends TestCase {
 		assertEquals("[170, 187, 204, 221]", java.util.Arrays.toString(Tokens.hexOctets("abcd")));
 		assertEquals("[18, 52, 86, 120]", java.util.Arrays.toString(Tokens.hexOctets("12345678")));
 		assertNull(Tokens.hexOctets("12345"));
-		// 全角の数字は 16 進の桁ではない(Integer.parseInt は受けてしまう)
+		// Full-width digits are not hexadecimal digits (Integer.parseInt accepts them).
 		assertNull(Tokens.hexOctets("１２３"));
 	}
 }

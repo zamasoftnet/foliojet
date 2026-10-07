@@ -11,23 +11,25 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.sourceforge.jeuclid.layout.JEuclidView;
 
 /**
- * 組んだ数式です。基準線の下へ下がる深さ({@link #getDescent()})を持ち、
- * 行の中では下端でなく基準線を本文の基準線に合わせて置かれる
- * (2026-10-04。以前は下端を置いたので、添字・括弧・y のある式が浮いた)。
+ * Laid-out formula. Has a depth below the baseline ({@link #getDescent()});
+ * within a line, aligns its baseline, rather than its bottom, with the body text baseline
+ * (2026-10-04; previously aligning the bottom made formulas with subscripts, brackets, or y float upward).
  *
  * <p>
- * 縦組みの行では欧文と同じく<b>横倒し</b>(90° 右回り)にする({@code sideways}、2026-10-05)。幅と高さを入れ替えるので、
- * 行の進む向きに式の幅だけ進み、行の幅は式の高さになる。以前は正立の横組みの箱のまま置いたので、行の向きには
- * 1 字ほどしか進まず、式の幅が隣の行へはみ出した。
+ * In vertical writing lines, rotates <b>sideways</b> (90° clockwise) like Latin text
+ * ({@code sideways}, 2026-10-05). Swapping width and height makes the formula advance by its width
+ * along the line, while the line width becomes the formula's height. Previously, it was placed
+ * as an upright horizontal box, advancing only about one character along the line while its width
+ * overflowed into the neighboring line.
  * </p>
  */
 public class MathMLImage implements Image, BaselineImage {
 	protected final JEuclidView view;
 
-	/** 拡大率(文字の拡大。CSS の大きさを受け取ったときは 1)。 */
+	/** Scale factor (text scaling; 1 when a CSS size is received). */
 	protected final double scale;
 
-	/** 縦組みの行で横倒しにするか。 */
+	/** Whether to rotate sideways in vertical writing lines. */
 	protected final boolean sideways;
 
 	public MathMLImage(JEuclidView view) {
@@ -40,12 +42,12 @@ public class MathMLImage implements Image, BaselineImage {
 		this.sideways = sideways;
 	}
 
-	/** 組んだ式の幅(横倒しにする前)。 */
+	/** Width of the laid-out formula (before sideways rotation). */
 	private double mathWidth() {
 		return this.view.getWidth() * this.scale;
 	}
 
-	/** 組んだ式の高さ(横倒しにする前)。 */
+	/** Height of the laid-out formula (before sideways rotation). */
 	private double mathHeight() {
 		return (this.view.getAscentHeight() + this.view.getDescentHeight()) * this.scale;
 	}
@@ -65,14 +67,14 @@ public class MathMLImage implements Image, BaselineImage {
 	public void drawTo(GC gc) throws GraphicsException {
 		try (final var gcState = gc.begin()) {
 			if (this.sideways) {
-				// 90° 右回り: 式の上が右(行の上の側)を向き、読む向きが下になる
+				// 90° clockwise: the formula's top faces right (the line's upper side), and reading proceeds downward
 				gc.transform(new AffineTransform(0, 1, -1, 0, this.mathHeight(), 0));
 			}
 			if (this.scale != 1.0) {
 				gc.transform(AffineTransform.getScaleInstance(this.scale, this.scale));
 			}
-			// BridgeGraphics2D の setTransform は GC を直近の begin() へ戻してから掛け直すので、回転と拡大の後に
-			// 保存点を置く。置かないと JEuclid が変換を設定し直したところで回転と拡大が捨てられた
+			// BridgeGraphics2D setTransform resets the GC to the latest begin() before reapplying, so save state after
+			// rotation and scaling. Without this, JEuclid resetting the transform discarded the rotation and scaling
 			try (final var transformed = gc.begin()) {
 				Graphics2D g2d = new BridgeGraphics2D(gc);
 				this.view.draw(g2d, 0, this.view.getAscentHeight());

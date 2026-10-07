@@ -23,31 +23,31 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
 /**
- * CSS の font-family を JEuclid の書体の候補へ写します(2026-10-04)。
+ * Maps CSS font-family to JEuclid font candidates (2026-10-04).
  *
  * <p>
- * JEuclid は字の幅を AWT の書体で測り、輪郭として描く。CSS の書体名を
- * そのまま渡しても、AWT が知らない書体(Copper の書体設定・書体パックに
- * だけある書体)は使われず、JEuclid の既定の書体で組まれていた。ここでは
- * 名前ごとに Copper の書体管理から OpenType のファイルを引き、JEuclid の
- * 書体置き場へ登録して、その AWT 上の名前を候補の先頭に置く。正体と斜体
- * (JEuclid は書体名の italic で斜体の枠へ入れる)の 2 つを登録する。
- * 総称ファミリ(serif など)は JEuclid の既定の候補に任せる。
+ * JEuclid measures character widths with AWT fonts and draws outlines. Passing CSS font names
+ * directly did not use fonts unknown to AWT (fonts available only in Copper's font configuration
+ * or font pack); layout used JEuclid defaults instead. For each name, this retrieves the
+ * OpenType file from Copper's font manager, registers it in JEuclid's font repository, and
+ * prepends its AWT name to the candidates. Registers both upright and italic
+ * (JEuclid uses "italic" in the font name to classify a font as italic).
+ * Generic families (such as serif) use JEuclid's default candidates.
  * </p>
  *
  * <p>
- * 登録は JVM 全体で共有する JEuclid の置き場へ入るので、同じファイルは
- * 1 度だけ登録する。TTC の 2 番目以降の書体は AWT の
- * {@code Font.createFont} で選べないので登録せず、名前だけを渡す。
+ * Registration uses JEuclid's JVM-wide repository, so each file is registered only once.
+ * AWT {@code Font.createFont} cannot select the second or later font in a TTC;
+ * these are not registered, and only their names are passed.
  * </p>
  */
 final class MathFonts {
 	private static final Logger LOG = Logger.getLogger(MathFonts.class.getName());
 
-	/** ファイル→AWT の書体名(登録できなかったものは空文字)。 */
+	/** File → AWT font name (empty string if registration failed). */
 	private static final Map<String, String> REGISTERED = new ConcurrentHashMap<String, String>();
 
-	/** ファイルを引くときの書体方針。ファイルを持つ書体を先に選ばせる。 */
+	/** Font policy for file lookup. Prioritizes fonts backed by files. */
 	private static final FontPolicyList FILE_POLICY = new FontPolicyList(new FontPolicyList.FontPolicy[] {
 			FontPolicyList.FontPolicy.EMBEDDED, FontPolicyList.FontPolicy.CID_IDENTITY,
 			FontPolicyList.FontPolicy.CID_KEYED });
@@ -57,8 +57,8 @@ final class MathFonts {
 	}
 
 	/**
-	 * CSS の書体の並びを、JEuclid の候補(AWT の書体名)にして{@code defaults}の
-	 * 前に置いた並びを返します。
+	 * Returns the CSS font sequence mapped to JEuclid candidates (AWT font names)
+	 * and prepended to {@code defaults}.
 	 */
 	static List<String> families(final FontManager fontManager, final FontStyle base, final List<String> defaults) {
 		final List<String> list = new ArrayList<String>();
@@ -83,7 +83,7 @@ final class MathFonts {
 		return list;
 	}
 
-	/** 正体と斜体を登録し、AWT の書体名を返します。引けなければ null。 */
+	/** Registers upright and italic fonts and returns the AWT font name. Null if unavailable. */
 	private static String register(final FontManager fontManager, final FontStyle base, final String name) {
 		String awtName = null;
 		for (final FontStyle.Style style : new FontStyle.Style[] { FontStyle.Style.NORMAL, FontStyle.Style.ITALIC }) {
@@ -108,8 +108,8 @@ final class MathFonts {
 		if (flm == null || flm.getLength() == 0) {
 			return null;
 		}
-		// 書体設定の別名は包み(FontSourceWrapper)の側にあることがあるので、
-		// 包みのどの段で名前が合ってもよい
+		// Aliases from font configuration may be on a wrapper (FontSourceWrapper),
+		// so a name match at any wrapper level is sufficient
 		FontSource source = flm.getFontMetrics(0).getFontSource();
 		boolean named = matches(source, name);
 		while (source instanceof FontSourceWrapper wrapper) {
@@ -117,10 +117,10 @@ final class MathFonts {
 			named |= matches(source, name);
 		}
 		if (!named || !(source instanceof OpenTypeFontSource ots)) {
-			// 名前が合わない=その名前の書体が無く、代わりの書体が選ばれた
+			// Name mismatch = no font with that name exists and a substitute was selected
 			return null;
 		}
-		// 斜体を頼んで正体が返る(斜体の面が無い)なら、正体の登録で足りる
+		// If requesting italic returns upright (no italic face), registering the upright font is enough
 		return style == FontStyle.Style.NORMAL || ots.isItalic() ? ots : null;
 	}
 
@@ -146,11 +146,11 @@ final class MathFonts {
 		final String key = file.getAbsolutePath().toLowerCase(Locale.ROOT);
 		return REGISTERED.computeIfAbsent(key, k -> {
 			try {
-				// 置き場が空のまま登録すると、JEuclid が最初の取得で行う AWT の
-				// 書体の読み込みが起きなくなる(空のときだけ読む)。先に起こす
+				// Registering while the repository is empty prevents JEuclid from loading AWT fonts
+				// on its first lookup (it loads only when empty). Trigger that load first
 				FontFactory.getInstance().getFont(Font.SERIF, Font.PLAIN, 12f);
 				final Font font = FontFactory.getInstance().registerFont(Font.TRUETYPE_FONT, file);
-				// 数式用の書体(MATH 表を持つ)なら、添字の位置・イタリック補正に使う(⑮⑯)
+				// For a math font (with a MATH table), use it for subscript positioning and italic correction (⑮⑯)
 				net.sourceforge.jeuclid.font.MathTable.register(font.getFamily(),
 						net.sourceforge.jeuclid.font.MathTable.read(file));
 				return font.getFamily();

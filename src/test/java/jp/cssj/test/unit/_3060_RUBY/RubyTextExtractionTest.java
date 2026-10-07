@@ -8,14 +8,14 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * ルビ単位のテキスト抽出と、ルビ内にブロックが現れる異常入力の
- * 安全性を固定します(注釈付きテキスト方式、2026-07-25仕様裁定)。
+ * Verifies the contracts for text extraction from ruby units and safe handling of malformed input
+ * with blocks inside ruby (annotated-text approach, specification decision on 2026-07-25).
  *
  * <p>
- * ルビ単位({@code RubyUnitBox})は子ボックスを持たない合成箱なので、
- * 抽出を上書きしないと親からの反復抽出で親文字が丸ごと落ちる
- * (リンクの代替テキスト・string-setのcontent()・ブックマーク見出し・
- * target-text()が共通で使う経路)。
+ * A ruby unit ({@code RubyUnitBox}) is a synthetic box without child boxes.
+ * Without overriding extraction, recursive extraction from a parent loses all base text
+ * (the shared path for link alternative text, string-set content(), bookmark headings,
+ * and target-text()).
  * </p>
  */
 public class RubyTextExtractionTest extends AbstractTestCase {
@@ -28,7 +28,7 @@ public class RubyTextExtractionTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** 親からの抽出でルビの親文字が出る(ふりがなは出ない)。 */
+	/** Extraction from the parent returns the ruby base text (not the reading). */
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() != BoxType.BLOCK) {
 			return false;
@@ -46,9 +46,8 @@ public class RubyTextExtractionTest extends AbstractTestCase {
 	}
 
 	/**
-	 * ルビの中にブロックが現れても例外にならない(ここに到達している
-	 * こと自体が、インラインスタックが壊れていない証拠——壊れると
-	 * 変換が例外で落ちる)。
+	 * A block inside ruby causes no exception. Reaching this point itself proves that the inline stack
+	 * is intact; a broken stack would fail conversion with an exception.
 	 */
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() != BoxType.BLOCK) {

@@ -6,7 +6,7 @@ import net.zamasoft.foliojet.layout.constraint.AxisSpan;
 
 /**
  * Placement plan for a new float (introduced 2026-07-23, exclusion area P1 increment 3 —
- * design in `設計相談`).
+ * design in `design consultation`).
  *
  * <p>
  * A value computed without side effects by {@code BlockBuilder.tryFloatPlacement}.

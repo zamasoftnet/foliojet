@@ -19,19 +19,18 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>{@code text-decoration-style}・{@code text-decoration-thickness}・
- * {@code text-underline-offset}・{@code text-underline-position}</b>の描画を
- * 画素で固定します(2026-08-29)。
+ * Pin down the rendering of <b>{@code text-decoration-style}, {@code text-decoration-thickness},
+ * {@code text-underline-offset}, and {@code text-underline-position}</b> with pixels (2026-08-29).
  *
  * <p>
- * fixture {@code 0160-text-decoration/decoration-styles.html}(20pt/行高
- * 30pt、各段30pt)。"MMMMMMMM"の下線はベースラインより下なので、段の
- * ベースラインより下の帯で最もインクの多い行を「下線の行」として探し、
- * 太さ2ptの実線(#thick)を基準に: wavyは上下±2.5ptにもインクがある
- * (振幅=太さ)、dottedは下線の行に白い隙間がある、offset:9pt(零位置=
- * ベースライン。autoの下線はディセント6.48ptの深さにあるので、それより
- * 明確に下がる値にした)は実線より下線が下がる、underはディセントの下に
- * 来る、doubleは2本になる。
+ * Fixture {@code 0160-text-decoration/decoration-styles.html} (20 pt text / 30 pt line height,
+ * each block 30 pt). The underline for "MMMMMMMM" is below the baseline, so find the row
+ * with the most ink in the band below each block's baseline as the "underline row".
+ * Relative to the 2 pt solid line (#thick): wavy also has ink ±2.5 pt above and below
+ * (amplitude = thickness); dotted has white gaps in the underline row; offset:9pt
+ * (zero = baseline; the auto underline is at the 6.48 pt descent depth, so choose a value
+ * clearly below it) lowers the underline below the solid line; under places it below
+ * the descent; double produces two lines.
  * </p>
  */
 public class TextDecorationStyleTest extends TestCase {
@@ -58,12 +57,12 @@ public class TextDecorationStyleTest extends TestCase {
 			new File("build/test-images").mkdirs();
 			javax.imageio.ImageIO.write(img, "png", new File("build/test-images/decoration-styles.png"));
 
-			// 段の並び: 0 solid, 1 thick, 2 wavy, 3 dotted, 4 dashed, 5 double, 6 offset, 7 under
+			// Block order: 0 solid, 1 thick, 2 wavy, 3 dotted, 4 dashed, 5 double, 6 offset, 7 under.
 			final int thickRow = underlineRow(img, 1);
-			// 波線の中心は同じレイアウトの実線と同じ行(最もインクの多い行は山の
-			// 平らな部分になるので、実線の行を段2へ平行移動して基準にする)
+			// The wavy line's center is on the same row as the solid line in the same layout. The row with most ink lies
+			// on the flat parts of the crests, so translate the solid-line row to block 2 as the reference.
 			final int wavyCenter = thickRow + ROW * SCALE;
-			// 実線(2pt)は±2.5ptにインクが無く、wavy(振幅2pt)は上下ともにある
+			// The solid line (2 pt) has no ink at ±2.5 pt, while wavy (2 pt amplitude) has ink both above and below.
 			final int off = (int) Math.round(2.5 * SCALE);
 			assertFalse("実線の上にインクがあります", rowHasInk(img, thickRow - off));
 			assertFalse("実線の下にインクがあります", rowHasInk(img, thickRow + off));
@@ -71,38 +70,38 @@ public class TextDecorationStyleTest extends TestCase {
 			assertTrue("波線の下側の谷がありません", rowHasInk(img, wavyCenter + off));
 			assertTrue("波線の中心の行にインクがありません", rowHasInk(img, wavyCenter));
 
-			// dotted: 下線の行に白い隙間がある。solidには無い
+			// dotted: white gaps occur in the underline row; solid has none.
 			final int dottedRow = underlineRow(img, 3);
 			assertTrue("点線に隙間がありません", rowHasGap(img, dottedRow));
 			assertFalse("実線に隙間があります", rowHasGap(img, thickRow));
-			// dashed も隙間がある
+			// dashed also has gaps.
 			assertTrue("破線に隙間がありません", rowHasGap(img, underlineRow(img, 4)));
 
-			// double: 下線の行の上下2pt(=太さ)にもう1本ある → 実線には無い位置にインク
+			// double: another line lies 2 pt (= thickness) above/below the underline row → ink where solid has none.
 			final int doubleRow = underlineRow(img, 5);
 			assertTrue("二重線の2本目がありません",
 					rowHasInk(img, doubleRow - 2 * SCALE) || rowHasInk(img, doubleRow + 2 * SCALE));
 
-			// offset: 9pt(線の上辺がベースライン+9pt、中心+10pt) → auto(中心
-			// ベースライン+6.48pt)より3.5pt下(段内の相対位置で比較)
+			// offset: 9pt (line top at baseline+9 pt, center at +10 pt) → 3.5 pt below auto
+			// (center at baseline+6.48 pt). Compare relative positions within blocks.
 			final int offsetRow = underlineRow(img, 6);
 			assertTrue("text-underline-offsetで下線が下がっていません",
 					relative(offsetRow, 6) > relative(thickRow, 1) + 2 * SCALE);
-			// under: ディセント(6.48pt)の下端に線の上辺が付く → 実線(中心=ベースライン+6.48pt)より
-			// 太さの半分(1pt)下がる
+			// under: the line's top touches the descent bottom (6.48 pt) → half the thickness (1 pt) below
+			// the solid line (center = baseline+6.48 pt).
 			final int underRow = underlineRow(img, 7);
 			assertTrue("text-underline-position: under で下線が下がっていません",
 					relative(underRow, 7) >= relative(thickRow, 1) + 1);
 		}
 	}
 
-	/** 段内の相対y(px)。 */
+	/** Relative y within a block (px). */
 	private static int relative(final int row, final int index) {
 		return row - (MARGIN + ROW * index) * SCALE;
 	}
 
 	/**
-	 * 段 index のベースライン(段上端+3+17.52pt)より下の帯で、最もインクの多い行。
+	 * Row with the most ink in the band below block index's baseline (block top + 3 + 17.52 pt).
 	 */
 	private static int underlineRow(final BufferedImage img, final int index) {
 		final int top = (MARGIN + ROW * index) * SCALE;
@@ -134,7 +133,7 @@ public class TextDecorationStyleTest extends TestCase {
 		return inkCount(img, y) > 0;
 	}
 
-	/** 下線の行で、最初のインクから最後のインクの間に白い画素があるか。 */
+	/** Whether white pixels occur between the first and last ink pixels in the underline row. */
 	private static boolean rowHasGap(final BufferedImage img, final int y) {
 		int first = -1, last = -1;
 		for (int x = MARGIN * SCALE; x < (MARGIN + 120) * SCALE; ++x) {

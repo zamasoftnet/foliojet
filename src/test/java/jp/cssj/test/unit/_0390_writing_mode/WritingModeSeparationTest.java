@@ -39,7 +39,7 @@ import net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 標準 writing-mode と direction の分離を、解析値と物理座標の両方で固定する。 */
+/** Verifies the separation of standard writing-mode and direction in both parsed values and physical coordinates. */
 public class WritingModeSeparationTest extends AbstractTestCase {
 	private static final File FIXTURE = new File("files/unittest/0390-writing-mode/writing-mode-separation.html");
 	private static final URI TEST_URI = URI.create("file:///writing-mode-separation.html");
@@ -155,15 +155,15 @@ public class WritingModeSeparationTest extends AbstractTestCase {
 		this.assertLeftMargin(SVG);
 		this.assertTopMargin(EPUB);
 
-		// 段落 bidi(既定 ON、2026-09-04)では rtl の家族(明示 rtl と legacy tb-lr)の start は inline-end 側=下端に
-		// 寄る(inline-size 50pt − "X" の幅 10pt = 40pt)。LTR の家族は 0
+		// With paragraph bidi (default ON, 2026-09-04), start for rtl families (explicit rtl and legacy tb-lr) aligns
+		// to inline-end, the bottom (inline-size 50 pt − width of "X" 10 pt = 40 pt). LTR families use 0.
 		final double[] startOffsets = { 0, 40, 40, 0, 0 };
 		for (int i = 0; i < CASES; ++i) {
 			assertEquals("text-align:start " + i, startOffsets[i], inlineOffset(this.startBlocks[i], this.starts[i]),
 					.01);
 		}
-		// `text-align: left` は line-left 辺=縦書きでは上端(css-writing-modes-3 §7.3、direction に依らない)。
-		// 段落 bidi 既定 ON(2026-09-04)で rtl でも上端に揃う(旧行単位 bidi は rtl で下端へ寄せていた)
+		// `text-align: left` uses line-left: top in vertical writing, regardless of direction (css-writing-modes-3 §7.3).
+		// Paragraph bidi default ON (2026-09-04) also aligns rtl to the top (old per-line bidi aligned rtl to the bottom).
 		assertEquals(0, inlineOffset(this.leftBlocks[STD], this.lefts[STD]), .01);
 		assertEquals("text-align:left rtl", 0, inlineOffset(this.leftBlocks[RTL], this.lefts[RTL]), .01);
 		assertEquals("text-align:left legacy", 0, inlineOffset(this.leftBlocks[LEGACY], this.lefts[LEGACY]), .01);
@@ -185,8 +185,9 @@ public class WritingModeSeparationTest extends AbstractTestCase {
 	}
 
 	/**
-	 * 訪問者が報告する矩形は margin box(inline 軸に 10pt の margin が乗って 20pt)。inline-start が上なら
-	 * 箱は家族の上端に、下なら下端に付く(`inset-inline-start: 0`)。
+	 * The visitor reports a margin-box rectangle (20 pt, including 10 pt of margin on the inline axis).
+	 * If inline-start is at the top, the box attaches to the family's top; otherwise to its bottom
+	 * (`inset-inline-start: 0`).
 	 */
 	private void assertTopMargin(final int index) {
 		assertEquals(this.families[index].x, this.margins[index].x, .01);
@@ -283,7 +284,7 @@ public class WritingModeSeparationTest extends AbstractTestCase {
 				.replaceFirst("<html>", "<html style=\"" + rootStyle + "\">");
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		final PDFUserAgent ua = new PDFUserAgent() {
-			// protected コンストラクタなので匿名サブクラスで生成する
+			// Instantiate an anonymous subclass because the constructor is protected.
 		};
 		ua.setBoundSide(BoundSide.LEFT);
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"), null);

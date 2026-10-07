@@ -8,8 +8,8 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * grow分配の配置テストです(Flex F1e——§9.7本配線。basis 60/80/100pt+
- * grow 1/1/2、コンテナ300pt→free 60ptを15/15/30で分配)。
+ * Tests grow distribution placement (Flex F1e, fully wired §9.7).
+ * Basis 60/80/100 pt + grow 1/1/2 in a 300 pt container distributes 60 pt free as 15/15/30.
  */
 public class FlexRowGrowTest extends AbstractTestCase {
 	public FlexRowGrowTest(String name) {
@@ -32,7 +32,7 @@ public class FlexRowGrowTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** growは因子比例(§9.7): free 60を1:1:2で分配→幅75/95/130。 */
+	/** grow is proportional to factors (§9.7): distribute 60 free in a 1:1:2 ratio → widths 75/95/130. */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 75, x, 0.1);

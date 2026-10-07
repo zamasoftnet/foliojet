@@ -39,7 +39,7 @@ import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 上下ページフロートの二次元排除、頁先頭top、top-nextの回帰テスト。 */
+/** Regression tests for two-dimensional exclusion by top/bottom page floats, page-start top, and top-next. */
 public class TopFloatNoOverlapTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final long WATCHDOG_MS = 60_000L;
@@ -51,9 +51,9 @@ public class TopFloatNoOverlapTest extends TestCase {
 	}
 
 	/**
-	 * 部分幅topが頁先頭に置かれると同じページの脇へ流れ、帯を過ぎた行は全幅へ戻る。
-	 * 2026-09-05 translate: 本文の後の部分幅topは帯として現頁の上端へ移る(脇には回り込まない)ので、
-	 * 二次元排除の検査は先頭に置いたtop(page-break-before の直後)で行う。
+	 * A partial-width top at page start lets text flow alongside on the same page; lines return to full width past its band.
+	 * 2026-09-05 translate: a partial-width top after body text moves to the current page's top as a band
+	 * (no wrapping alongside), so test two-dimensional exclusion using top at page start (just after page-break-before).
 	 */
 	public void testPartialWidthTopFloatWrapsOnSamePage() throws Exception {
 		final String html = document("horizontal-tb", "width:100pt;height:24pt;padding:2pt;border:1pt solid black",
@@ -76,7 +76,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertTrue("topのblock帯を過ぎた本文行は180ptの全幅へ戻る", fullLengthLines > 0);
 	}
 
-	/** 2026-09-05 translate: 本文の後の部分幅topは帯として現頁の上端へ移り、先行本文は帯の下へ。 */
+	/** 2026-09-05 translate: a partial-width top after body text moves to the current page's top as a band; preceding text moves below. */
 	public void testPartialWidthTopFloatAfterBodyBecomesBandOnCurrentPage() throws Exception {
 		final String html = document("horizontal-tb", "width:100pt;height:24pt;padding:2pt;border:1pt solid black",
 				"", "<p class='body'>" + words("BODY", 180) + "</p>");
@@ -91,16 +91,16 @@ public class TopFloatNoOverlapTest extends TestCase {
 		}
 	}
 
-	/** 行方向・block方向とも全面を塞ぐtopはfloat-onlyページを1枚だけ作る。 */
+	/** A top that fills both inline and block directions creates exactly one float-only page. */
 	public void testFullExtentTopFloatMakesOneFloatOnlyPage() throws Exception {
-		// 行方向も頁を超える高さにして初めて「全面」になる(130pt では下に本文が流れる=それは正しい挙動)
+		// It becomes "full coverage" only when its height also exceeds the page's inline dimension (at 130 pt, text flows below, correctly).
 		final String html = document("horizontal-tb",
 				"box-sizing:border-box;width:180pt;height:1000pt;border:1pt solid black", "",
 				"<p class='body'>BODY-A BODY-B BODY-C</p>");
 		final Capture capture = transcode("full-extent", html, 1, null);
 		final BoxBounds floating = only(capture.topFloats(), "全面top");
 		assertEquals("top-nextは次ページ", 2, floating.page());
-		// top-next では後続本文が短ければ図版の前の頁(1 頁目)に収まる。float-only 頁は 1 枚だけで、頁数は有限
+		// With top-next, short subsequent text fits on the page before the figure (page 1). Exactly one float-only page; finite page count.
 		assertTrue("ページ数は有限: " + capture.pageCount(), capture.pageCount() >= 2 && capture.pageCount() <= 4);
 		assertTrue("全面topのページは本文を持たない", linesOnPage(capture, "BODY", floating.page()).isEmpty());
 
@@ -111,7 +111,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		}
 	}
 
-	/** repro-6: 92x45mmの台紙を右上へ置き、縦行は下の約148.8mmを使う。 */
+	/** repro-6: place a 92×45 mm backing at the top right; vertical lines use the roughly 148.8 mm below it. */
 	public void testVerticalRlReproSixUsesRemainingInlineExtent() throws Exception {
 		final String html = metricDocument("vertical-rl", "width:92mm;height:45mm",
 				"<p class='body'>" + words("BODYV", 260) + "</p>");
@@ -134,28 +134,28 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertTrue("縦行は台紙の下の約148.8mmを使う", usedRemaining);
 	}
 
-	/** horizontal-tbの鏡像では同じ92x45mm台紙の直下から全幅行を始める。 */
+	/** The horizontal-tb counterpart starts full-width lines directly below the same 92×45 mm backing. */
 	public void testHorizontalTbMirrorStartsBelowPlate() throws Exception {
 		final String html = metricDocument("horizontal-tb", "width:92mm;height:45mm",
 				"<p class='body'>" + words("BODYH", 220) + "</p>");
 		final Capture capture = transcode("horizontal-tb-mirror", html, 1, null);
 		final BoxBounds floating = only(capture.topFloats(), "horizontal-tb top");
-		// 2026-09-05 translate: 全幅で収まる台紙は先行本文と同じ現頁上端へ移る。
+		// 2026-09-05 translate: a backing that fits at full width moves to the current page's top with the preceding body text.
 		assertEquals("全幅topは現頁", 1, floating.page());
 		final List<BoxBounds> lines = linesOnPage(capture, "PRE", floating.page());
-		// 2026-09-05 translate: 既配置のPRE行を台紙の高さだけ下へ平行移動する。
+		// 2026-09-05 translate: translate the already placed PRE line downward by the backing height.
 		assertTrue("台紙のページに先行本文が必要", !lines.isEmpty());
-		// 2026-09-05 translate: 現頁へ移った台紙と平行移動後のPRE行は交差しない。
+		// 2026-09-05 translate: the backing moved to the current page does not intersect the translated PRE line.
 		assertNoIntersections("horizontal-tb mirror", floating, lines);
-		// 2026-09-05 translate: 移動した先行行は台紙の直下から始まる。
+		// 2026-09-05 translate: the moved preceding line starts directly below the backing.
 		assertEquals("最初の横組行は台紙の直下", floating.bounds().getMaxY(), lines.get(0).bounds().getMinY(), 0.75);
-		// 2026-09-05 translate: 移動した先行行(PRE の 1 語)は台紙と同じ左端から始まる(狭められていない)。
+		// 2026-09-05 translate: the moved preceding line (one PRE word) starts at the backing's left edge (not narrowed).
 		assertEquals("横組行は台紙と同じ左端", floating.bounds().getMinX(), lines.get(0).bounds().getMinX(), 0.75);
-		// 2026-09-05 translate: page-break-before付き後続本文は従来どおり次頁に置く。
+		// 2026-09-05 translate: subsequent text with page-break-before remains on the next page as before.
 		assertTrue("強制改頁後の本文は2頁目", !linesOnPage(capture, "BODYH", 2).isEmpty());
 	}
 
-	/** 複数topはFIFOでpageAxis方向へ積み、各実配置矩形が本文を排除する。 */
+	/** Stack multiple tops FIFO along pageAxis; each actual placed rectangle excludes body text. */
 	public void testTwoTopFloatsStackFifoOnOnePage() throws Exception {
 		final String html = """
 				<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
@@ -184,7 +184,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertNoIntersections("FIFO second", second, lines);
 	}
 
-	/** B-1: 頁先頭で連続登録したtopも、横組の現頁へFIFOで即時配置する。 */
+	/** B-1: tops registered consecutively at page start are also placed immediately FIFO on the current horizontal-writing page. */
 	public void testConsecutiveFirstContentTopFloatsStackOnCurrentHorizontalPage() throws Exception {
 		final Capture capture = transcode("current-page-two-top-horizontal",
 				consecutiveFirstContentTopDocument("horizontal-tb", "width:40pt;height:18pt",
@@ -211,7 +211,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 						&& Math.abs(line.bounds().getMinX() - second.bounds().getMaxX()) <= 0.75));
 	}
 
-	/** B-1のvertical-rl鏡像でも、右から左へFIFOで積み二次元排除する。 */
+	/** The B-1 vertical-rl counterpart also stacks FIFO from right to left with two-dimensional exclusion. */
 	public void testConsecutiveFirstContentTopFloatsStackOnCurrentVerticalRlPage() throws Exception {
 		final Capture capture = transcode("current-page-two-top-vertical",
 				consecutiveFirstContentTopDocument("vertical-rl", "width:18pt;height:40pt",
@@ -238,7 +238,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 						&& Math.abs(line.bounds().getMinY() - second.bounds().getMaxY()) <= 0.75));
 	}
 
-	/** B-1即時配置はTwoPassでも2件だけで、pass-count 1/2を一致させる。 */
+	/** B-1 immediate placement registers only two items even in TwoPass; pass-count 1/2 must match. */
 	public void testConsecutiveFirstContentTopFloatsTwoPassParity() throws Exception {
 		final String html = consecutiveFirstContentTopDocument("horizontal-tb", "width:40pt;height:18pt",
 				"width:60pt;height:24pt", "IP");
@@ -255,7 +255,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertDisplayListsEqual(one, two);
 	}
 
-	/** top・bottom・脚注が同居しても各実配置矩形を交差させない。 */
+	/** With top, bottom, and footnotes together, their actual placed rectangles must not intersect. */
 	public void testTopFloatWithFootnoteKeepsBottomAndFootnotePlacement() throws Exception {
 		final String html = """
 				<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
@@ -284,7 +284,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertNoIntersections("top+footnote本文", top, linesOnPage(capture, "BODYNOTE", top.page()));
 	}
 
-	/** nested BFCはRoot行走査で一度だけ避け、直交builderへ頁座標を渡さない。 */
+	/** Avoid a nested BFC only once in the Root line scan; do not pass page coordinates to an orthogonal builder. */
 	public void testNestedBfcAndOrthogonalFlowDoNotDoubleAvoid() throws Exception {
 		final String html = """
 				<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
@@ -306,7 +306,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		final BoxBounds bfc = only(linesOnPage(capture, "BFC-LINE", floating.page()), "BFC line");
 		assertFalse("nested BFC lineはtopと交差しない", intersects(floating.bounds(), bfc.bounds()));
 		assertEquals("nested BFCはtop幅を一度だけ避ける", floating.bounds().getMaxX(), bfc.bounds().getMinX(), 0.75);
-		// 縦行の文字列は1字ずつの run に分かれて記録されるので、先頭の "O" を含む行で探す
+		// Vertical-line text is recorded as one-character runs, so find the line containing the initial "O".
 		final List<BoxBounds> orthLines = capture.lines().stream()
 				.filter(line -> line.page() == floating.page() && line.text().replace(" ", "").startsWith("O"))
 				.toList();
@@ -314,7 +314,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertFalse("外枠が帯を過ぎた直交flowへ頁座標を二重適用しない", intersects(floating.bounds(), orth.bounds()));
 	}
 
-	/** TwoPass replayは同じtopを再登録せず、pass-count 1/2の表示リストも一致する。 */
+	/** TwoPass replay does not register the same top again, and pass-count 1/2 display lists match. */
 	public void testTwoPassReplayHasOneFloatAndIdenticalDisplayLists() throws Exception {
 		final String html = document("horizontal-tb", "width:max-content;height:24pt", "",
 				"<p class='body'>" + words("TWOPASS", 120) + "</p>");
@@ -327,7 +327,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertDisplayListsEqual(one, two);
 	}
 
-	/** 横組bottomは左下のblock帯だけを塞ぎ、上の行は全幅、脚注はその下へ置く。 */
+	/** In horizontal writing, bottom blocks only the bottom-left block band; upper lines stay full-width and footnotes go below. */
 	public void testPartialWidthBottomFloatWrapsOnlyIntersectingLinesAboveFootnote() throws Exception {
 		final String html = """
 				<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
@@ -364,9 +364,9 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertTrue("bottomのblock帯だけ左の60ptを避ける", wrapped);
 	}
 
-	/** 報告の判型でもvertical-rl block-endは左上の実矩形だけを排除する。 */
+	/** Even at the reported page size, vertical-rl block-end excludes only the actual top-left rectangle. */
 	public void testVerticalRlBlockEndUsesRemainingInlineExtent() throws Exception {
-		// 縦組みの bottom は 2026-10-05 から用紙の下(VerticalPageFloatTest)。ブロックの末尾の置き方は block-end
+		// Since 2026-10-05, bottom in vertical writing is at the paper bottom (VerticalPageFloatTest). Use block-end for the block end.
 		final String html = bottomMetricDocument("vertical-rl", "float:block-end;width:30mm;height:45mm",
 				"<p class='body'>" + words("BOTTOMV", 260) + "</p>");
 		final Capture capture = transcode("vertical-rl-bottom", html, 1, null);
@@ -390,7 +390,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertTrue("bottomと交差する縦行は台紙の下148.8mmを使う", wrapped);
 	}
 
-	/** 本文の後で現れても現在位置がplacedStart以前なら二次元排除を使う。 */
+	/** Even when it follows body text, use two-dimensional exclusion if the current position is at or before placedStart. */
 	public void testLateBottomRegistrationBeforePlacedStartUsesTwoDimensionalExclusion() throws Exception {
 		final String html = bottomDocument("horizontal-tb", "width:60pt;height:30pt", """
 				<p style='text-align:justify'>%s</p><div class='bottom'></div>
@@ -406,7 +406,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertHorizontalStartBottomWraps("遅延bottomの二次元排除", floating, lines, 180);
 	}
 
-	/** 登録時の現在位置がplacedStartを越えていれば、そのページだけ一次元へ戻す。 */
+	/** If the current position at registration exceeds placedStart, fall back to one dimension on that page only. */
 	public void testBottomRegistrationPastPlacedStartFallsBackWithoutOverlap() throws Exception {
 		final String html = bottomDocument("horizontal-tb", "width:60pt;height:30pt", """
 				<p style='box-sizing:border-box;height:108pt'>FALLBACK-PRE</p>
@@ -421,7 +421,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertTrue("fallback後の本文は次ページに残る", !lines(capture, "FALLBACK-POST").isEmpty());
 	}
 
-	/** 脚注増加後も現在位置が新placedStart以前なら排除矩形だけを組み直す。 */
+	/** After footnotes grow, rebuild only the exclusion rectangle if the current position is at or before the new placedStart. */
 	public void testFootnoteGrowthBeforeNewPlacedStartRebuildsTwoDimensionalExclusion() throws Exception {
 		final String html = bottomDocument("horizontal-tb", "width:70pt;height:30pt", """
 				<div class='bottom'></div><p style='text-align:justify'>%s<span class='note'>GROW-FN</span>%s</p>
@@ -438,7 +438,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertHorizontalStartBottomWraps("脚注増加後の二次元排除", floating, lines, 180);
 	}
 
-	/** 複数bottomはFIFOでblock-end側へ積み、各実配置矩形だけを排除する。 */
+	/** Stack multiple bottoms FIFO toward block-end, excluding only their actual placed rectangles. */
 	public void testTwoBottomFloatsStackFifoOnOnePage() throws Exception {
 		final String html = """
 				<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
@@ -464,7 +464,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertHorizontalStartBottomWraps("FIFO second bottom", second, lines, 180);
 	}
 
-	/** carry-in bottomとtop-nextが同じページに来ても両矩形を一度ずつ避ける。 */
+	/** Avoid each rectangle once when a carried-in bottom and top-next arrive on the same page. */
 	public void testTopAndBottomOnSamePageDoNotOverlapBody() throws Exception {
 		final String html = """
 				<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
@@ -487,7 +487,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertNoIntersections("top+bottom bottom", bottom, lines);
 	}
 
-	/** bottomのTwoPass replayも1件だけ登録し、pass-count 1/2の表示リストを一致させる。 */
+	/** Bottom TwoPass replay also registers only one item; pass-count 1/2 display lists match. */
 	public void testBottomTwoPassReplayHasOneFloatAndIdenticalDisplayLists() throws Exception {
 		final String html = bottomDocument("horizontal-tb", "width:60pt;height:30pt",
 				"<div class='bottom'></div><p style='text-align:justify'>" + words("BOTTOMPASS", 100) + "</p>");
@@ -506,7 +506,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertDisplayListsEqual(one, two);
 	}
 
-	/** 行・block両方向を超えるbottomはfloat-onlyページを1枚だけ作る。 */
+	/** A bottom exceeding both inline and block directions creates exactly one float-only page. */
 	public void testOversizedBottomFloatMakesOneBoundedFloatOnlyPage() throws Exception {
 		final String html = bottomDocument("horizontal-tb", "width:1000pt;height:1000pt",
 				"<div class='bottom'></div><p>OVERSIZED-BODY</p>");
@@ -520,7 +520,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertNoIntersections("全面bottom", floating, body);
 	}
 
-	/** B-1: 頁の最初のtopは横組の左上へ即時配置し、本文は実矩形を避ける。 */
+	/** B-1: immediately place the page's first top at the upper left in horizontal writing; text avoids its actual rectangle. */
 	public void testFirstContentTopFloatUsesCurrentHorizontalPage() throws Exception {
 		final String html = firstContentTopDocument("horizontal-tb", "width:70pt;height:24pt",
 				words("CURRENT-H", 100));
@@ -537,9 +537,9 @@ public class TopFloatNoOverlapTest extends TestCase {
 						&& Math.abs(line.bounds().getMinX() - floating.bounds().getMaxX()) <= 0.75));
 	}
 
-	/** B-1: vertical-rlの頁先頭topは右上へ即時配置し、縦行は下へ回り込む。 */
+	/** B-1: immediately place a page-start top at the upper right in vertical-rl; vertical lines wrap below it. */
 	public void testFirstContentTopFloatUsesCurrentVerticalRlPage() throws Exception {
-		// 図版脇の残り(130-70=60pt)に入る短い語にする(長い語だと脇の列が飛ばされる)
+		// Use short words that fit beside the figure (130-70=60 pt remaining); long words cause those columns to be skipped.
 		final String html = firstContentTopDocument("vertical-rl", "width:24pt;height:70pt",
 				words("CV", 120));
 		final Capture capture = transcode("current-page-top-vertical", html, 1, null);
@@ -555,16 +555,16 @@ public class TopFloatNoOverlapTest extends TestCase {
 						&& Math.abs(line.bounds().getMinY() - floating.bounds().getMaxY()) <= 0.75));
 	}
 
-	/** B-1→translate(2026-09-05): 本文の後のtopは、収まれば帯として現頁の上端へ移る。 */
+	/** B-1→translate (2026-09-05): a top after body text moves to the current page's top as a band if it fits. */
 	public void testTopFloatAfterContentStillUsesNextPage() throws Exception {
 		final String html = document("horizontal-tb", "width:70pt;height:24pt", "",
 				"<p class='body'>" + words("AFTER-CONTENT", 60) + "</p>");
 		final Capture capture = transcode("top-after-content", html, 1, null);
-		// 2026-09-05 translate: 先行本文(PRE)と一緒に収まるので現頁
+		// 2026-09-05 translate: use the current page because it fits together with preceding text (PRE).
 		assertEquals("本文後のtopは現頁(translate)", 1, only(capture.topFloats(), "本文後のtop").page());
 	}
 
-	/** B-1: 強制改頁直後なら、新しい空PageBoxへtopを即時配置する。 */
+	/** B-1: just after a forced page break, immediately place top in the new empty PageBox. */
 	public void testTopFloatImmediatelyAfterPageBreakUsesNewCurrentPage() throws Exception {
 		final String html = """
 				<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
@@ -584,7 +584,7 @@ public class TopFloatNoOverlapTest extends TestCase {
 		assertNoIntersections("改頁直後top", floating, lines);
 	}
 
-	/** future開始で打ち切る通常走査と分離し、ページ集合は後続要素まで見る。 */
+	/** Unlike the normal scan, which stops at a future start, the page set also examines subsequent elements. */
 	public void testPageFloatScanContinuesPastFutureStart() {
 		ExclusionSpace space = ExclusionSpace.EMPTY;
 		space = space.plus(
@@ -785,8 +785,8 @@ public class TopFloatNoOverlapTest extends TestCase {
 					&& Math.abs(line.bounds().getWidth() - fullWidth) <= 0.75) {
 				full = true;
 			}
-			// 交差する行は図版の右端から始まり、残り幅(inline寸法ぶん短い)に
-			// 収まる。単語1つだけの行はjustifyで伸びないので幅の一致は求めない
+			// Intersecting lines start at the figure's right edge and fit in the remaining width (shortened by its inline size).
+			// A one-word line does not stretch under justify, so do not require equal widths.
 			if (overlapsY(line.bounds(), floating.bounds())
 					&& Math.abs(line.bounds().getMinX() - floating.bounds().getMaxX()) <= 0.75
 					&& line.bounds().getWidth() <= wrappedWidth + 0.75) {

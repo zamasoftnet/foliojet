@@ -26,19 +26,19 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * EPUBをPaged SVGへ出すときの試験です(2026-09-02)。
+ * Tests for EPUB output as Paged SVG (2026-09-02).
  *
  * <p>
- * spine項目は<b>独立した文書</b>として組まれ、{@code items/NNNN/}の下に
- * 単一の文書と同じ形のバンドル(自分の{@code manifest.json}・フォント・画像)が
- * できる。上位には{@code index.json}だけ。項目は並列に組まれるが、結果は
- * spine順に解放されるので、並列度を変えても出力は1バイトも変わらない。
+ * Spine items are laid out as <b>independent documents</b>. Each produces a bundle under
+ * {@code items/NNNN/} in the same form as a single document (its own {@code manifest.json}, fonts,
+ * and images). The top level contains only {@code index.json}. Items are laid out in parallel,
+ * but results are released in spine order, so changing parallelism does not change a single output byte.
  * </p>
  */
 public class PagedSvgEpubTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 章ごとに字種を分けてあるので、項目ごとのサブセットは互いに違う中身になる。 */
+	/** Each chapter uses different characters, so per-item subsets have different contents. */
 	private static final String[] CHAPTERS = { "第一章 甲乙丙", "第二章 丁戊己", "第三章 庚辛壬", "第四章 癸子丑" };
 
 	private static byte[] epub(final int chapters) throws Exception {
@@ -79,7 +79,7 @@ public class PagedSvgEpubTest extends TestCase {
 			nav.append("</ol></nav></body></html>");
 			entry(zip, "OEBPS/nav.xhtml", nav.toString());
 			for (int i = 1; i <= chapters; ++i) {
-				// 保持量は先頭の章が最大、末尾が最小。通常の本文だけではhigh-waterが0になる。
+				// Retention peaks in the first chapter and is lowest in the last. Normal body text alone gives high-water 0.
 				final String text = retained ? "<span style=\"display:inline-block\">"
 						+ CHAPTERS[i - 1].repeat(chapters - i + 1) + "</span>" : CHAPTERS[i - 1];
 				entry(zip, "OEBPS/ch" + i + ".xhtml", xhtml(text));
@@ -101,7 +101,7 @@ public class PagedSvgEpubTest extends TestCase {
 		zip.closeEntry();
 	}
 
-	/** 項目ごとのバンドルと、上位のindex.json。 */
+	/** Per-item bundles and top-level index.json. */
 	public void testItemsAreIndependentBundles() throws Exception {
 		final CapturingResults r = run(2, Map.of());
 		assertTrue(r.order.toString(), r.data.containsKey("items/0001/pages/0001.svg"));
@@ -111,7 +111,7 @@ public class PagedSvgEpubTest extends TestCase {
 		assertFalse("the flat page numbering must not be used for EPUB", r.data.containsKey("pages/0001.svg"));
 		assertEquals("index.json must be the last result", "index.json", r.order.get(r.order.size() - 1));
 
-		// 項目のmanifestは単一の文書と同じ形で、項目の中の相対参照
+		// Each item manifest has the same form as a single document, with references relative to the item.
 		final String manifest1 = r.text("items/0001/manifest.json");
 		assertTrue(manifest1, manifest1.contains("\"pages/0001.svg\""));
 		assertTrue(manifest1, manifest1.contains("\"assets/fonts/"));
@@ -127,8 +127,7 @@ public class PagedSvgEpubTest extends TestCase {
 	}
 
 	/**
-	 * 既定({@code document})では、<b>項目ごとに</b>サブセットができ、項目を
-	 * 閉じた時点で出ること。
+	 * With the default ({@code document}), create a subset <b>per item</b> and emit it when the item closes.
 	 */
 	public void testDocumentScopeIsPerSpineItem() throws Exception {
 		final CapturingResults r = run(2, Map.of());
@@ -137,16 +136,16 @@ public class PagedSvgEpubTest extends TestCase {
 		assertFalse("item 1 must carry its own subset: " + r.order, fonts1.isEmpty());
 		assertFalse("item 2 must carry its own subset: " + r.order, fonts2.isEmpty());
 
-		// 項目1のサブセットは、項目2のページより先に出る
+		// Item 1's subset is emitted before item 2's pages.
 		assertTrue("the first item's subset must precede the second item's page: " + r.order,
 				r.order.indexOf(fonts1.get(0)) < r.order.indexOf("items/0002/pages/0001.svg"));
 
-		// ページは自分の項目のサブセットを指す
+		// Pages reference their own item's subset.
 		assertTrue(fontHref(r.text("items/0001/pages/0001.svg")).startsWith("assets/fonts/"));
 		assertTrue(r.text("items/0002/pages/0001.svg").contains("../assets/fonts/"));
 	}
 
-	/** {@code page}は従来どおりページごと。 */
+	/** {@code page} remains per-page as before. */
 	public void testPageScopeIsUnchangedForEpub() throws Exception {
 		final CapturingResults r = run(2, Map.of("output.paged-svg.font-scope", "page"));
 		for (final String item : new String[] { "items/0001/", "items/0002/" }) {
@@ -158,7 +157,7 @@ public class PagedSvgEpubTest extends TestCase {
 		}
 	}
 
-	/** {@code input.epub.spine}で1項目だけ組む。番号はspine内の位置で固定。 */
+	/** Lay out only one item using {@code input.epub.spine}. Its number is fixed by its spine position. */
 	public void testSpineSelectionKeepsItemNumbers() throws Exception {
 		final CapturingResults r = run(3, Map.of("input.epub.spine", "ch2"));
 		assertFalse(r.order.toString(), r.order.stream().anyMatch(u -> u.startsWith("items/0001/")));
@@ -169,14 +168,14 @@ public class PagedSvgEpubTest extends TestCase {
 		assertTrue(index, index.contains("\"index\":2,\"idref\":\"ch2\",\"uri\":\"OEBPS/ch2.xhtml\",\"included\":true"));
 		assertTrue(index, index.contains("\"firstPage\":1,\"pageCount\":1"));
 
-		// 番号と範囲でも選べる
+		// Selection by number or range also works.
 		final CapturingResults byNumber = run(3, Map.of("input.epub.spine", "1, 3"));
 		assertTrue(byNumber.data.containsKey("items/0001/pages/0001.svg"));
 		assertFalse(byNumber.data.containsKey("items/0002/pages/0001.svg"));
 		assertTrue(byNumber.data.containsKey("items/0003/pages/0001.svg"));
 	}
 
-	/** 並列度を変えても出力は同一。逐次で組んでも並列で組んでも1バイトも変わらない。 */
+	/** Output is identical at any parallelism. Sequential and parallel layout do not differ by a single byte. */
 	public void testConcurrencyDoesNotChangeTheOutput() throws Exception {
 		final CapturingResults sequential = run(4, Map.of("processing.concurrency", "1"));
 		final CapturingResults parallel = run(4, Map.of("processing.concurrency", "4"));
@@ -188,7 +187,7 @@ public class PagedSvgEpubTest extends TestCase {
 		assertEquals(4, (int) sequential.order.stream().filter(u -> u.endsWith("/manifest.json")).count());
 	}
 
-	/** 子の保持量は合算せず、逐次・並列とも冊全体の最大値を親へ残す。 */
+	/** Do not sum child retention; retain the book-wide maximum in the parent in both sequential and parallel runs. */
 	public void testRetainedTextHighWaterAggregatesChildren() throws Exception {
 		for (final String concurrency : new String[] { "1", "4" }) {
 			final List<UserAgent> children = new ArrayList<>();
@@ -223,7 +222,7 @@ public class PagedSvgEpubTest extends TestCase {
 		}
 	}
 
-	/** ページSVGが最初に参照するサブセットのURI({@code assets/fonts/...})。 */
+	/** URI of the first subset referenced by a page SVG ({@code assets/fonts/...}). */
 	private static String fontHref(final String svg) {
 		final java.util.regex.Matcher m = java.util.regex.Pattern.compile("(assets/fonts/[^)\"' ]+)").matcher(svg);
 		return m.find() ? m.group(1) : null;
@@ -280,7 +279,7 @@ public class PagedSvgEpubTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

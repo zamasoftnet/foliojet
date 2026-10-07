@@ -7,10 +7,11 @@ import java.nio.file.Files;
 import junit.framework.TestCase;
 
 /**
- * 外置きリストマーカーを表の第1セルへ混入させない回帰(seed 455の縮小形)。
+ * Regression preventing outside list markers from entering a table's first cell (reduced seed 455).
  *
- * <p>先頭行がページ境界を跨ぐとき、旧実装はマーカーだけを先頭断片へ
- * 残してT11を次ページへ送り、同じ行のT12/T13を先頭断片へ残していた。</p>
+ * <p>When the first row crossed a page boundary, the old implementation left only the marker
+ * in the first fragment and sent T11 to the next page, while retaining T12/T13 from the same row
+ * in the first fragment.</p>
  */
 public class ListItemTableMarkerReadingOrderTest extends TestCase {
 	public ListItemTableMarkerReadingOrderTest(final String name) {

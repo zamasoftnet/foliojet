@@ -16,9 +16,9 @@ import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.value.TextAutospaceValue;
 
 /**
- * {@code text-autospace}(和文詰めA1)の解析テストです。受理集合と
- * サブセット外(auto/punctuation/insert/replace・重複)の宣言無効を
- * 固定する。
+ * Parsing tests for {@code text-autospace} (Japanese spacing A1).
+ * Fix the accepted set and declaration invalidation for values outside the subset
+ * (auto/punctuation/insert/replace and duplicates).
  */
 public class TextAutospaceParserTest extends TestCase {
 

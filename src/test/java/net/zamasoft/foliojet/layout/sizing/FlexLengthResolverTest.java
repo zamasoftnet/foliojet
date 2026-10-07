@@ -5,10 +5,10 @@ import java.util.List;
 import junit.framework.TestCase;
 
 /**
- * §9.7伸縮解決の純粋計算テストです(Flex F1c——
- * consult-codex-2026-08-02-flexbox.txt Q3の検証条件: grow/shrink、
- * scaled shrink、factor合計&lt;1、事前freeze、min/max violation反復、
- * 0防御、gap、outer margin)。
+ * Pure calculation tests for flexible length resolution in §9.7 (Flex F1c;
+ * validation conditions in consult-codex-2026-08-02-flexbox.txt Q3: grow/shrink,
+ * scaled shrink, factor sum&lt;1, pre-freezing, iterative min/max violations,
+ * zero guards, gaps, outer margins).
  */
 public class FlexLengthResolverTest extends TestCase {
 
@@ -32,63 +32,63 @@ public class FlexLengthResolverTest extends TestCase {
 		assertEquals(0, FlexLengthResolver.resolve(List.of(), 100, 0).length);
 	}
 
-	/** 均等grow。 */
+	/** Equal growth. */
 	public void testGrowEqual() {
 		assertSizes(new double[] { 150, 150 },
 				FlexLengthResolver.resolve(List.of(simple(100, 1, 1), simple(100, 1, 1)), 300, 0));
 	}
 
-	/** growはfactor比例(§9.7.9.c)。 */
+	/** Growth is proportional to factors (§9.7.9.c). */
 	public void testGrowProportional() {
 		assertSizes(new double[] { 125, 175 },
 				FlexLengthResolver.resolve(List.of(simple(100, 1, 1), simple(100, 3, 1)), 300, 0));
 	}
 
-	/** factor合計<1はinitial free space×合計で縮小(§9.7.9.b)。 */
+	/** A factor sum<1 reduces free space to initial free space × sum (§9.7.9.b). */
 	public void testGrowSumFactorsBelowOne() {
 		assertSizes(new double[] { 150 }, FlexLengthResolver.resolve(List.of(simple(100, 0.5, 1)), 200, 0));
 	}
 
-	/** shrinkはscaled factor(factor×inner base)比例(§9.7.9.c)。 */
+	/** Shrinkage is proportional to scaled factors (factor × inner base) (§9.7.9.c). */
 	public void testShrinkScaled() {
 		assertSizes(new double[] { 80, 160 },
 				FlexLengthResolver.resolve(List.of(simple(100, 0, 1), simple(200, 0, 1)), 240, 0));
 	}
 
-	/** max violationのfreezeと再配分(§9.7.9.e)。 */
+	/** Freeze and redistribute on a max violation (§9.7.9.e). */
 	public void testMaxViolationRedistributes() {
 		final FlexItemMetrics capped = item(100, 100, 0, 120, 0, 1, 1);
 		assertSizes(new double[] { 120, 180 },
 				FlexLengthResolver.resolve(List.of(capped, simple(100, 1, 1)), 300, 0));
 	}
 
-	/** min violationのfreezeと再配分。 */
+	/** Freeze and redistribute on a min violation. */
 	public void testMinViolationRedistributes() {
 		final FlexItemMetrics floored = item(100, 100, 90, Double.POSITIVE_INFINITY, 0, 0, 1);
 		assertSizes(new double[] { 90, 150 },
 				FlexLengthResolver.resolve(List.of(floored, simple(200, 0, 1)), 240, 0));
 	}
 
-	/** 方向不一致(base>hypothetical、伸長)は事前freeze(§9.7.3)。 */
+	/** Pre-freeze on a direction mismatch (base>hypothetical during growth) (§9.7.3). */
 	public void testDirectionMismatchPreFreeze() {
 		final FlexItemMetrics clampedDown = item(300, 100, 0, 100, 0, 1, 1);
 		assertSizes(new double[] { 100, 150 },
 				FlexLengthResolver.resolve(List.of(clampedDown, simple(100, 1, 1)), 250, 0));
 	}
 
-	/** factor 0はhypotheticalで事前freeze。 */
+	/** Pre-freeze a zero-factor item at its hypothetical size. */
 	public void testZeroFactorFrozen() {
 		assertSizes(new double[] { 100, 200 },
 				FlexLengthResolver.resolve(List.of(simple(100, 0, 1), simple(100, 1, 1)), 300, 0));
 	}
 
-	/** gapはfree spaceから先に控除(F2c予備)。 */
+	/** Deduct gaps from free space first (preparation for F2c). */
 	public void testGapReducesFreeSpace() {
 		assertSizes(new double[] { 150, 150 },
 				FlexLengthResolver.resolve(List.of(simple(100, 1, 1), simple(100, 1, 1)), 320, 20));
 	}
 
-	/** outer margin(outerMainExtra)はfree space計算に入る(§9.7.4)。 */
+	/** Include outer margins (outerMainExtra) in free-space calculation (§9.7.4). */
 	public void testOuterExtraCountsAgainstFreeSpace() {
 		assertSizes(new double[] { 150, 150 }, FlexLengthResolver.resolve(
 				List.of(item(100, 100, 0, Double.POSITIVE_INFINITY, 10, 1, 1),
@@ -96,13 +96,13 @@ public class FlexLengthResolverTest extends TestCase {
 				320, 0));
 	}
 
-	/** inner base全0のshrinkは0除算せずbase維持。 */
+	/** Shrinking with all inner bases at 0 preserves bases without division by zero. */
 	public void testShrinkAllZeroBases() {
 		assertSizes(new double[] { 0, 0 },
 				FlexLengthResolver.resolve(List.of(simple(0, 0, 1), simple(0, 0, 1)), -10, 0));
 	}
 
-	/** ちょうど収まるときは全item=base(remaining 0)。 */
+	/** On an exact fit, every item equals its base (remaining 0). */
 	public void testExactFit() {
 		assertSizes(new double[] { 100, 200 },
 				FlexLengthResolver.resolve(List.of(simple(100, 1, 1), simple(200, 1, 1)), 300, 0));

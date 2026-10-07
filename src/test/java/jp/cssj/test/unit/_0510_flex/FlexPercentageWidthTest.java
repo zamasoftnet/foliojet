@@ -8,22 +8,21 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * flexアイテムの<b>割合指定</b>({@code width: 50%}・{@code padding-left: 10%})が
- * 効くことのテストです(2026-08-03新設)。
+ * Tests that <b>percentage specifications</b> ({@code width: 50%} and {@code padding-left: 10%})
+ * take effect on flex items (added on 2026-08-03).
  *
  * <p>
- * 純粋な割合({@code LengthType.RELATIVE})は値の欄に割合が入るのに、
- * {@code FlexBuilder}が「長さ+割合×基準」で読んでいた。その結果
- * {@code width: 50%} が「0.5pt」と読まれ、自動最小サイズによってmin-content
- * 幅へ潰れていた。<b>Bootstrap 5のグリッドは
- * {@code .row > * { width: 100% }} と {@code .col-N { width: X% }} で
- * 組まれているため、Bootstrapで作られた文書は全部が1語ずつ改行される版面に
- * なっていた。</b>
+ * A pure percentage ({@code LengthType.RELATIVE}) stores the fraction in the value field,
+ * but {@code FlexBuilder} read it as "length + fraction × basis".
+ * As a result, {@code width: 50%} was read as "0.5 pt", and the automatic minimum size
+ * collapsed it to min-content width. <b>Bootstrap 5's grid uses
+ * {@code .row > * { width: 100% }} and {@code .col-N { width: X% }},
+ * so all Bootstrap documents wrapped after every word.</b>
  *
  * <p>
- * 実物大の文書(Bootstrapの公式サンプル)を取り込んだ第0波の1件目で発覚した
- * ——掃過2000万文書は一度も捕まえていない(生成器がflexアイテムに割合の幅を
- * 書かないため)。PLAN §3。
+ * Found in the first case of wave 0, which imported full-scale documents (official Bootstrap examples).
+ * The 20-million-document sweep never caught it because the generator did not give flex items
+ * percentage widths. PLAN §3.
  */
 public class FlexPercentageWidthTest extends AbstractTestCase {
 	public FlexPercentageWidthTest(String name) {
@@ -37,7 +36,7 @@ public class FlexPercentageWidthTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** 1つ目のitem(width:50%)。以降の基準にする。 */
+	/** First item (width:50%). Used as the reference for subsequent checks. */
 	public boolean check_p(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			this.baseX = x;
@@ -46,7 +45,7 @@ public class FlexPercentageWidthTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 紙面400ptの50%=200pt右。潰れていれば min-content 幅(20pt前後)になる。 */
+	/** 50% of the 400 pt page = 200 pt to the right. If collapsed, it would be min-content width (around 20 pt). */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 200, x, 0.1);
@@ -55,7 +54,7 @@ public class FlexPercentageWidthTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** flexの指定が無く width だけの場合も同じ(75%)。 */
+	/** The same applies with only width specified and no flex declaration (75%). */
 	public boolean check_s(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 300, x, 0.1);
@@ -65,14 +64,14 @@ public class FlexPercentageWidthTest extends AbstractTestCase {
 	}
 
 	/**
-	 * 割合のpaddingは<b>外寸に足される</b>(box-sizingの既定はcontent-box)。
-	 * width:50%=200pt + padding-left:10%=40pt で、次のitemは240pt右。
+	 * Percentage padding is <b>added to outer dimensions</b> (box-sizing defaults to content-box).
+	 * width:50%=200 pt + padding-left:10%=40 pt puts the next item 240 pt to the right.
 	 *
 	 * <p>
-	 * 2026-08-04まではここが200ptだった——<b>flexアイテムの箱がpadding・
-	 * marginの実寸解決を一度も通っておらず、行方向のflexアイテムでは
-	 * どちらも丸ごと消えていた</b>。実地コーパス第6波のcheckout-formで
-	 * ラベルの1文字目が切れて発覚。旧期待値はその欠陥を写したもの。
+	 * Until 2026-08-04, this was 200 pt: <b>flex item boxes never resolved actual padding/margin sizes,
+	 * so both disappeared entirely for row-direction flex items</b>.
+	 * Found when the first character of labels was clipped in checkout-form in real-corpus wave 6.
+	 * The old expected value reflected that defect.
 	 */
 	public boolean check_u(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {

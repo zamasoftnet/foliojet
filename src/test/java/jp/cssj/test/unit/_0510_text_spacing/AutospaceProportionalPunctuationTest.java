@@ -9,20 +9,21 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
 
 /**
- * <b>比例幅の句読点の後ろの欧文・数字に和欧間アキが入る</b>ことを固定します(2026-09-14、
- * 利用者報告「palt 指定時、約物と欧文の間に和欧間アキが入らない」)。
+ * Verifies that <b>spacing between Japanese and Latin text is added before Latin letters/digits
+ * following proportional-width punctuation</b> (2026-09-14, user report:
+ * "With palt, no spacing is added between punctuation and Latin text").
  *
  * <p>
- * JLREQ 3.2.8 の和欧間アキは漢字等・仮名と欧文用文字の間のもので句読点は対象外だが、
- * それは全角の句読点が自身の後ろに二分の空きを持つ前提。IPA P 系や {@code palt} で
- * 句読点が比例幅(送り 0.75em 以下)になるとその空きが無いので、和字と同じ扱いにする。
- * 全角の句読点は従来どおり入れない。
+ * JLREQ 3.2.8 specifies spacing between ideographs/kana and Latin characters, excluding punctuation,
+ * but assumes fullwidth punctuation has its own trailing half-em space. When IPA P fonts or
+ * {@code palt} make punctuation proportional-width (advance ≤0.75em), that space is absent,
+ * so treat it like a Japanese character. Fullwidth punctuation still receives no added spacing.
  * </p>
  */
 public class AutospaceProportionalPunctuationTest extends TestCase {
 	private static final byte FLAGS = (byte) (TextAutospaceValue.ALPHA | TextAutospaceValue.NUMERIC);
 
-	/** IPA P ゴシックの「、」(0.5em)の後ろの数字・欧文: 0.25em。仮名の前は入れない。 */
+	/** After IPA P Gothic's 、 (0.5em), digits/Latin letters get 0.25em. No spacing is added before kana. */
 	public void testProportionalCommaBeforeLatinGetsQuarterEm() throws Exception {
 		final FontStyle style = InkGapTestSupport.style(12, FontStyle.Direction.LTR);
 		final FontMetricsImpl metrics = InkGapTestSupport.realMetrics("ipagp.otf", style);
@@ -35,7 +36,7 @@ public class AutospaceProportionalPunctuationTest extends TestCase {
 		assertEquals("フラグ無しでは入れない", 0.0, gap(style, metrics, '、', '6', (byte) 0), 1e-9);
 	}
 
-	/** 全角(1em)の句読点は自身の空きがあるので従来どおり入れない。 */
+	/** Fullwidth (1em) punctuation has its own space, so no spacing is added, as before. */
 	public void testWideCommaBeforeLatinGetsNothing() throws Exception {
 		final FontStyle style = InkGapTestSupport.style(12, FontStyle.Direction.LTR);
 		final FontMetricsImpl metrics = InkGapTestSupport.metrics(style, FontStyle.Direction.LTR, gid -> null, 880,
@@ -44,7 +45,7 @@ public class AutospaceProportionalPunctuationTest extends TestCase {
 		assertEquals("和字→数字は従来どおり", 3.0, gap(style, metrics, '約', '6'), 1e-9);
 	}
 
-	/** 純関数側: 句読点は PUNCTUATION に分類され、比例幅の印があるときだけ和字扱い。 */
+	/** Pure function: punctuation is classified as PUNCTUATION and treated as Japanese only when flagged proportional. */
 	public void testClasses() {
 		assertEquals(TextAutospaceClasses.Kind.PUNCTUATION, TextAutospaceClasses.of('、'));
 		assertEquals(TextAutospaceClasses.Kind.PUNCTUATION, TextAutospaceClasses.of('。'));

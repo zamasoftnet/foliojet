@@ -11,11 +11,11 @@ import java.lang.reflect.Method;
 import junit.framework.TestCase;
 
 /**
- * Batikを介さないSVG書き出しの単体試験です。
+ * Unit tests for SVG output without Batik.
  *
  * <p>
- * 対象はパッケージ内のクラスなので、反射で呼びます。<b>出力がXMLとして
- * 妥当であること</b>と、<b>パス文法が規格どおりであること</b>を見ます。
+ * The target class is package-private, so invoke it through reflection.
+ * Check that <b>the output is valid XML</b> and <b>the path syntax conforms to the specification</b>.
  * </p>
  */
 public class DirectSVGWriterTest extends TestCase {
@@ -35,31 +35,31 @@ public class DirectSVGWriterTest extends TestCase {
 		return (String) m.invoke(null, v);
 	}
 
-	/** 矩形はM/L/Zで表され、座標がそのまま出ること。 */
+	/** Rectangles use M/L/Z, with coordinates emitted unchanged. */
 	public void testRectanglePath() throws Exception {
 		final String d = pathData(new Rectangle2D.Double(10, 20, 30, 40), null);
 		assertTrue("must start with a moveto: " + d, d.startsWith("M"));
 		assertTrue("must be closed: " + d, d.endsWith("Z"));
-		// 4隅の座標が現れる
+		// The coordinates of all four corners appear.
 		for (final String v : new String[] { "10", "20", "40", "60" }) {
 			assertTrue(v + " expected in " + d, d.contains(v));
 		}
 	}
 
-	/** 変換は座標へ畳み込む。transform属性に頼らないので閲覧側の実装差が出ない。 */
+	/** Fold transforms into coordinates. Avoiding transform attributes prevents differences between viewers. */
 	public void testTransformIsFoldedIntoCoordinates() throws Exception {
 		final AffineTransform at = AffineTransform.getTranslateInstance(100, 200);
 		final String d = pathData(new Rectangle2D.Double(0, 0, 10, 10), at);
 		assertTrue("translated coordinates expected: " + d, d.contains("100") && d.contains("200"));
 	}
 
-	/** 曲線はC(3次)で出る。楕円はJava2Dが3次ベジエへ分解する。 */
+	/** Curves use C (cubic). Java2D decomposes ellipses into cubic Beziers. */
 	public void testCurveUsesCubicCommand() throws Exception {
 		final String d = pathData(new Ellipse2D.Double(0, 0, 10, 10), null);
 		assertTrue("a cubic command is expected: " + d, d.indexOf('C') >= 0);
 	}
 
-	/** 同じコマンドが続くなら文字を省ける。省いても文法上正しい。 */
+	/** Consecutive identical commands can omit the command letter while remaining syntactically valid. */
 	public void testRepeatedCommandLetterIsOmitted() throws Exception {
 		final Path2D.Double p = new Path2D.Double();
 		p.moveTo(0, 0);
@@ -73,19 +73,19 @@ public class DirectSVGWriterTest extends TestCase {
 				++letters;
 			}
 		}
-		// moveto に続く座標対は暗黙の lineto なので、この形ならLは1つも要らない
+		// Coordinate pairs after moveto imply lineto, so this form needs no L at all.
 		assertEquals("the L command letter must not repeat: " + d, 0, letters);
-		// コマンド文字の数だけ見ても足りない。読み戻して図形が変わっていないこと
+		// Counting command letters is insufficient. Parse it back and check that the shape is unchanged.
 		assertSameShape(p, d);
 	}
 
 	/**
-	 * <b>書いたものを読み戻すと元の図形に戻ること。</b>
+	 * <b>Parsing the output reconstructs the original shape.</b>
 	 *
 	 * <p>
-	 * コマンド文字や区切りを省く最適化は、1文字落とすだけで座標が繋がって
-	 * 黙って別の図形になる。しかもXMLとしては妥当なままなので、整形式の検査や
-	 * 「Lがいくつあるか」では捕まらない。ここで実際に読み直して確かめる。
+	 * Optimizations that omit command letters or separators can silently join coordinates into a different
+	 * shape by dropping a single character. The XML remains valid, so neither well-formedness checks nor
+	 * counting L commands catches this. Parse the result here to verify it.
 	 * </p>
 	 */
 	public void testPathDataRoundTrips() throws Exception {
@@ -118,7 +118,7 @@ public class DirectSVGWriterTest extends TestCase {
 		}
 	}
 
-	/** {@code d}を読み戻し、元の図形と1区間ずつ突き合わせます。 */
+	/** Parse {@code d} back and compare it to the original shape, segment by segment. */
 	private static void assertSameShape(final java.awt.Shape expected, final String d) {
 		final double[] want = new double[6];
 		final double[] got = new double[6];
@@ -145,8 +145,8 @@ public class DirectSVGWriterTest extends TestCase {
 	}
 
 	/**
-	 * 出しているのはM/L/Q/C/Zの絶対座標だけなので、それだけを読みます。
-	 * 規格どおり、コマンド文字の省略と、負号が区切りを兼ねる書き方を受け付けます。
+	 * Only absolute M/L/Q/C/Z commands are emitted, so parse only those.
+	 * Accept omitted command letters and minus signs used as separators, as the specification requires.
 	 */
 	private static Path2D.Double parse(final String d) {
 		final Path2D.Double path = new Path2D.Double();
@@ -169,7 +169,7 @@ public class DirectSVGWriterTest extends TestCase {
 				}
 				continue;
 			}
-			// 数字から始まるならコマンドの繰り返し。ただしMの繰り返しはL
+			// Starting with a number repeats the command, except that repeating M means L.
 			assertTrue("a number cannot appear before any command: " + d, command != 0);
 			final int count = switch (command) {
 			case 'Q' -> 4;
@@ -193,7 +193,7 @@ public class DirectSVGWriterTest extends TestCase {
 			switch (command) {
 			case 'M' -> {
 				path.moveTo(c[0], c[1]);
-				// 規格上、Mに続く座標対はLとして扱う
+				// The specification treats coordinate pairs following M as L.
 				command = 'L';
 			}
 			case 'L' -> path.lineTo(c[0], c[1]);
@@ -206,7 +206,8 @@ public class DirectSVGWriterTest extends TestCase {
 	}
 
 	/**
-	 * 数値に指数表記を使わないこと。SVGの文法では許されるが、読めない実装がある。
+	 * Do not use exponential notation for numbers. SVG syntax permits it, but some implementations cannot parse
+	 * it.
 	 */
 	public void testNumbersNeverUseExponentNotation() throws Exception {
 		for (final double v : new double[] { 0.0000001, 1e-9, 12345678901234.0, -0.000005 }) {
@@ -216,7 +217,7 @@ public class DirectSVGWriterTest extends TestCase {
 		}
 	}
 
-	/** 整数はそのまま、末尾の0は落とすこと。無駄な桁は文書を膨らませる。 */
+	/** Emit integers as-is and drop trailing zeros. Unnecessary digits inflate the document. */
 	public void testNumbersAreCompact() throws Exception {
 		assertEquals("10", number(10.0));
 		assertEquals("-3", number(-3.0));
@@ -224,7 +225,7 @@ public class DirectSVGWriterTest extends TestCase {
 		assertEquals("1.5", number(1.5));
 	}
 
-	/** 属性値のエスケープ。&lt;と&amp;と引用符が素通りしないこと。 */
+	/** Escape attribute values. Do not let &lt;, &amp;, or quotation marks pass through unescaped. */
 	public void testAttributeEscaping() throws Exception {
 		final Class<?> c = Class.forName(PKG + "SVGWriter");
 		final Method m = c.getDeclaredMethod("escapeAttribute", java.io.Writer.class, String.class);
@@ -234,7 +235,7 @@ public class DirectSVGWriterTest extends TestCase {
 		assertEquals("a&lt;b&gt;c&amp;d&quot;e", out.toString());
 	}
 
-	/** 生成したSVGがXMLとして妥当であること。 */
+	/** The generated SVG is valid XML. */
 	public void testGeneratedDocumentIsWellFormed() throws Exception {
 		final String svg = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 				+ "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\"100\" height=\"50\""

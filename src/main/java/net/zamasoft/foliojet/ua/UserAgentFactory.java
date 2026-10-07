@@ -5,8 +5,8 @@ import java.util.Iterator;
 import net.zamasoft.foliojet.plugin.Plugin;
 
 /**
- * 出力形式のMIME型に応じたUAを生成します。
- * 
+ * Creates a UA for the output format's MIME type.
+ *
  * @author MIYABE Tatsuhiko
  */
 public interface UserAgentFactory extends Plugin<String> {
@@ -23,15 +23,15 @@ public interface UserAgentFactory extends Plugin<String> {
 	}
 
 	/**
-	 * サポートする型を返します。
-	 * 
+	 * Returns supported types.
+	 *
 	 * @return
 	 */
 	public Iterator<Type> types();
 
 	/**
-	 * UAを生成します。
-	 * 
+	 * Creates a UA.
+	 *
 	 * @return
 	 */
 	public UserAgent createUserAgent();

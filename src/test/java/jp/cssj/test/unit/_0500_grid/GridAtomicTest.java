@@ -8,14 +8,14 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Grid G0のatomic契約テストです(consult-codex-2026-07-31-grid.txt §1.2)。
- * ページ残量に入らないGridコンテナは内部分割されず丸ごとpage 2へ移る。
+ * Grid G0 atomic contract test (consult-codex-2026-07-31-grid.txt §1.2).
+ * A Grid container that does not fit in the remaining page space moves whole to page 2 without internal splitting.
  *
  * <p>
- * 2026-08-10(G6行分割)から、この契約は行境界の帳簿が付かない構成
- * (rowSpan&gt;1等)だけに残る——fixtureをrowSpan入りへ差し替えて
- * ゲートの回帰テストとする(帳簿が付く構成の分割挙動は
- * row-split-carry / row-split-force / min-height-slack のgoldenが担う)。
+ * Since 2026-08-10 (G6 row splitting), this contract remains only for configurations without
+ * row-boundary bookkeeping (rowSpan&gt;1, etc.). The fixture was replaced with one containing rowSpan
+ * to serve as a regression test for this gate. Splitting behavior for configurations with bookkeeping
+ * is covered by the row-split-carry / row-split-force / min-height-slack goldens.
  * </p>
  */
 public class GridAtomicTest extends AbstractTestCase {
@@ -28,7 +28,7 @@ public class GridAtomicTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** Gridは分割されず丸ごと次ページへ(PageAtomicBox)。 */
+	/** Grid moves whole to the next page without splitting (PageAtomicBox). */
 	public boolean check_g(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals("the grid must move to page 2 as a whole", 2, pageNumber);

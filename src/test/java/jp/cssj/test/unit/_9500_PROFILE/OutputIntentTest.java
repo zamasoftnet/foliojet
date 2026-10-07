@@ -11,9 +11,9 @@ import jp.cssj.test.unit.AbstractTestCase;
 import net.zamasoft.pdfg2d.pdf.impl.PDFWriterImpl;
 
 /**
- * 出力インテント/レンダリングインテントの入口テストです(2026-08-02、
- * PLAN §2の2位)。/OutputIntents(識別名・レジストリ・ICC埋め込みの/N)と
- * コンテンツストリームのri演算子を生成PDFのバイト列で固定する。
+ * Entry-point tests for output intent/rendering intent (2026-08-02, PLAN §2 priority 2).
+ * Checks generated PDF bytes for /OutputIntents (identifier, registry, and embedded ICC /N)
+ * and the ri operator in the content stream.
  */
 public class OutputIntentTest extends AbstractTestCase {
 	public OutputIntentTest(String name) {

@@ -1,29 +1,28 @@
 package net.zamasoft.foliojet.xml.vocab;
 
 /**
- * HTML5の<b>foreign content</b>({@code <math>}と{@code <svg>})の名前空間です。
+ * Namespaces for HTML5 <b>foreign content</b> ({@code <math>} and {@code <svg>}).
  *
  * <p>
- * <b>HTMLでは{@code xmlns}を書かないのが普通である。</b>HTML5はこの2つを
- * 構文解析の段階で正しい名前空間へ入れる(ブラウザは全部そうする)ので、
- * 著者は何も書かない。XMLの規則しか知らない経路を通すと、これらが
- * XHTMLの要素になって<b>MathMLが平らな文字列に、SVGがただの入れ子要素に
- * なる</b>。
+ * <b>HTML normally omits {@code xmlns}.</b> HTML5 assigns the correct namespaces to these
+ * two elements during parsing (as all browsers do), so authors specify nothing.
+ * A path that knows only XML rules turns them into XHTML elements,
+ * <b>flattening MathML into text and SVG into mere nested elements</b>.
  *
  * <p>
- * 2026-08-05に実地コーパス第11波で発覚した。arXivが今HTMLを出している形
- * (ar5iv/LaTeXML)がまさに{@code xmlns}無しで、{@code h_{t}} が
- * 「htsubscript … h_{t}」と出ていた——{@code <annotation>}の中の生のLaTeXまで
- * 一緒に流れていたためである。
+ * Discovered on 2026-08-05 in real-world corpus wave 11. arXiv's current HTML format
+ * (ar5iv/LaTeXML) omits {@code xmlns}; {@code h_{t}} appeared as
+ * "htsubscript … h_{t}", because even raw LaTeX inside {@code <annotation>}
+ * flowed into the output.
  *
  * <p>
- * <b>2箇所で守る必要がある</b>。片方だけでは効かない:
+ * <b>Protection is needed in two places</b>; either alone is insufficient:
  * <ul>
- * <li>{@code HTMLParser} —— {@code xmlns}が無い{@code <math>}/{@code <svg>}に
- * 名前空間を<b>与える</b>(NekoHTMLはforeign contentを実装していない)</li>
- * <li>{@code XHTMLNSFilter} —— 与えた名前空間を<b>XHTMLへ潰さない</b>。
- * この経路は「接頭辞の宣言が無く、局所名と修飾名が同じ」要素を一律XHTMLに
- * するので、素通しにすると{@code <math>}も巻き込まれる</li>
+ * <li>{@code HTMLParser}: <b>assign namespaces</b> to {@code <math>}/{@code <svg>}
+ * without {@code xmlns} (NekoHTML does not implement foreign content).</li>
+ * <li>{@code XHTMLNSFilter}: <b>do not collapse the assigned namespaces into XHTML</b>.
+ * This path maps all elements with no declared prefix and identical local and qualified names
+ * to XHTML, so without a guard it also affects {@code <math>}.</li>
  * </ul>
  *
  * @author MIYABE Tatsuhiko
@@ -34,15 +33,15 @@ public final class Foreign {
 	public static final String SVG_URI = "http://www.w3.org/2000/svg";
 
 	private Foreign() {
-		// ユーティリティ
+		// Utility
 	}
 
-	/** その名前空間はXHTMLへ潰してはいけないか。 */
+	/** Whether this namespace must be preserved rather than collapsed into XHTML. */
 	public static boolean is(String uri) {
 		return MATHML_URI.equals(uri) || SVG_URI.equals(uri);
 	}
 
-	/** その要素名はforeign contentの入口か。入口でなければ{@code null}。 */
+	/** Whether the element name introduces foreign content. Returns {@code null} if it does not. */
 	public static String uriOf(String localName) {
 		if ("math".equalsIgnoreCase(localName)) {
 			return MATHML_URI;

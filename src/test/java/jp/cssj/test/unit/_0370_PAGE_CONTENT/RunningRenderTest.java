@@ -21,7 +21,7 @@ import net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** GCPMの頁選択・表示頁での生成内容・任意部分木をDirectSessionで確認します。 */
+/** Checks GCPM page selection, generated content on the display page, and arbitrary subtrees via DirectSession. */
 public final class RunningRenderTest extends TestCase {
 	static final class TestUA extends PDFUserAgent {
 	}
@@ -71,7 +71,7 @@ public final class RunningRenderTest extends TestCase {
 	}
 
 	public void testFourModeMatrixAndEmptyTemplate() throws Exception {
-		// 捕捉した実テンプレートを頁状態へ代入して再生を確かめる(3.2 互換の clear は 2026-09-08 に撤去)。
+		// Assign the captured template to page state to check replay (3.2-compatible clear was removed on 2026-09-08).
 		final var ua = new RunningSideEffectTest.AuditUA(false, agent -> {
 			final var state = agent.getPassContext().getRunningState();
 			final var a = state.resolve("a", net.zamasoft.foliojet.ua.PageAssignmentState.Mode.LAST).value();
@@ -80,7 +80,7 @@ public final class RunningRenderTest extends TestCase {
 			assertNotNull(a);
 			assertNotNull(b);
 			assertNotNull(empty);
-			// 操作列、first、先頭start、途中start、last、first-except。
+			// Operation sequence, first, start at the beginning, start in the middle, last, first-except.
 			final String[][] cases = {
 					{ "", "A", "A", "A", "A", "A" },
 					{ "B", "B", "B", "A", "B", "" },
@@ -213,7 +213,7 @@ public final class RunningRenderTest extends TestCase {
 	}
 
 	public void testDataImagesReplayAtOriginalSize() throws Exception {
-		// 空白を含むSVGのdata: URIと通常のbase64 PNGを、同じfile:基底から読む。
+		// Read an SVG data: URI containing spaces and a regular base64 PNG from the same file: base.
 		final String svg = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%228%22%3E"
 				+ "%3Crect width=%2216%22 height=%228%22 fill=%22red%22/%3E%3C/svg%3E";
 		final ByteArrayOutputStream png = new ByteArrayOutputStream();
@@ -347,7 +347,7 @@ public final class RunningRenderTest extends TestCase {
 				|| message.startsWith(net.zamasoft.foliojet.message.MessageCodes.WARN_MISSING_IMAGE + ":")));
 	}
 
-	/** 全文fixtureとカスタムUAを受けるDirectSession経路です。大規模試験ではdumpしません。 */
+	/** DirectSession path accepting a full-document fixture and custom UA. Large-scale tests do not dump. */
 	static Conversion convert(final String html, final PDFUserAgent ua, final boolean tagged,
 			final boolean dump, final Map<String, String> properties) throws Exception {
 		final Path dir = dump ? Files.createTempDirectory("foliojet-running-r2-") : null;

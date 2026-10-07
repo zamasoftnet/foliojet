@@ -63,8 +63,8 @@ public class ImgFloatInVertTest extends AbstractTestCase {
 			System.out.println("y: " + y);
 			System.out.println("width: " + box.getWidth());
 			assertEquals(270, x, 0);
-			// 行末側フロートの同一行配置(2026-08-08)で、構築中だった
-			// 行の上端(90)に載る
+			// Same-line placement of a line-end float (2026-08-08) puts it at the top
+			// of the line being built (90).
 			assertEquals(90, y, 1);
 			assertEquals(30, box.getWidth(), 0);
 			return true;

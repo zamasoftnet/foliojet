@@ -22,14 +22,14 @@ import org.apache.batik.dom.util.SAXDocumentFactory;
 import org.apache.batik.util.XMLResourceDescriptor;
 
 /**
- * 文書の中の MathML を JEuclid で組みます。
+ * Lays out MathML in a document with JEuclid.
  *
  * <p>
- * <b>数式の大きさ・色・書体は、その math 要素の CSS から取る</b>(2026-10-04)。
- * 以前は JEuclid の既定(12pt・黒・JEuclid の書体)で組んでいたので、本文が
- * 9pt でも式は 12pt になり、CSS の指定は{@code mstyle}の{@code mathsize}
- * でしか変えられなかった。式の中の{@code mathsize}・{@code mathcolor}は
- * これまでどおり CSS の値に対して効く。
+ * <b>Formula size, color, and font come from the math element's CSS</b> (2026-10-04).
+ * Previously, JEuclid defaults (12 pt, black, JEuclid fonts) were used, so a formula stayed at
+ * 12 pt even with 9 pt body text, and CSS settings could only be changed through
+ * {@code mathsize} on {@code mstyle}. {@code mathsize}/{@code mathcolor} inside the formula
+ * continue to apply relative to the CSS values.
  * </p>
  */
 public class MathMLInlineObject extends SAXDocumentFactory implements StyleAwareInlineObject {
@@ -58,8 +58,8 @@ public class MathMLInlineObject extends SAXDocumentFactory implements StyleAware
 		final double scale;
 		final boolean sideways = this.hostStyle != null && sideways(this.hostStyle);
 		if (this.hostStyle == null) {
-			// 文字の拡大は CSS の大きさに解析の時点で掛かっている。CSS が
-			// 無いときだけ JEuclid の既定の大きさに掛ける
+			// Text scaling is already applied to the CSS size during parsing. Apply it to
+			// JEuclid's default size only when CSS is absent
 			scale = ua.getFontMagnification();
 		} else {
 			scale = 1.0;
@@ -77,8 +77,9 @@ public class MathMLInlineObject extends SAXDocumentFactory implements StyleAware
 	}
 
 	/**
-	 * 縦組みの行で、式を欧文と同じく横倒しにするか(2026-10-05)。{@code text-orientation: upright} は正立のまま。
-	 * {@code sideways-rl/lr} は行ごと回すので、式は回さない。
+	 * Whether to rotate the formula sideways like Latin text in vertical writing lines (2026-10-05).
+	 * {@code text-orientation: upright} keeps it upright.
+	 * {@code sideways-rl/lr} rotates the entire line, so do not rotate the formula.
 	 */
 	private static boolean sideways(final CSSStyle style) {
 		return net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style).isVertical()

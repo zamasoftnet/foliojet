@@ -22,12 +22,13 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * PDF/X・PDF/A で使えない機能(リンク・添付・JavaScript)を警告して落とし、変換を失敗させないことの試験です
- * (2026-09-30、PDF/X-3 対応)。
+ * Test that features unavailable in PDF/X and PDF/A (links, attachments, JavaScript) are dropped
+ * with warnings rather than failing conversion (2026-09-30, PDF/X-3 support).
  *
  * <p>
- * pdfg2d はこれらを PDF/X・PDF/A で例外にするので、foliojet が渡すと変換が途中で失敗する。PDF/X-4 に
- * {@code output.pdf.hyperlinks=true} で本文のリンクがあると、実際に変換が失敗していた。
+ * pdfg2d throws exceptions for these features in PDF/X and PDF/A, so conversion fails midway if
+ * foliojet passes them through. PDF/X-4 conversion actually failed when body text contained links
+ * with {@code output.pdf.hyperlinks=true}.
  * </p>
  */
 public class PdfXSuppressionTest extends TestCase {

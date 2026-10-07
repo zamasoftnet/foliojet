@@ -17,11 +17,11 @@ public class TentsukiTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	// JLREQの四分アキと優先度付き行調整後の配置。2026-09-11に追い込みの容量から
-	// 連続約物の詰めで取り済みの二分を差し引くようにした(それまでは」「を1emと
-	// 数えて」と「を15ptずつ重ねていた)。行1「ああ!?」「ああ」「ああ」は最短でも
-	// 315pt>300ptで入らないため、span#aは行1末尾(y=270)と行2頭(y=0)の2断片、
-	// span#bは3頁目の行1(y=30)の1断片になる。
+	// Placement after JLREQ quarter-em spacing and prioritized line adjustment. On 2026-09-11, compression capacity
+	// was reduced by the half-em already removed by consecutive punctuation compression (previously, 」「 counted as 1em,
+	// overlapping 」 and 「 by 15 pt each). Line 1 「ああ!?」「ああ」「ああ」 needs at least
+	// 315 pt > 300 pt and cannot fit, so span#a has two fragments: end of line 1 (y=270) and start of line 2 (y=0).
+	// span#b has one fragment in line 1 of page 3 (y=30).
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {

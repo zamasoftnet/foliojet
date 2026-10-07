@@ -21,8 +21,8 @@ public class FloatInAuto2Test extends AbstractTestCase {
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.TABLE_CELL) {
 			System.out.println(box.getWidth() + "/" + box.getHeight());
-			// text-autospace既定normal化(2026-08-01): セル内の和欧境界1箇所の
-			// JLREQの四分アキ(0.25em×10pt=2.5pt)がauto表の実測幅へ入る。193→195.5
+			// text-autospace defaults to normal (2026-08-01): The JLREQ quarter-em space at one Japanese/Latin
+			// boundary in the cell (0.25em × 10 pt = 2.5 pt) enters the measured auto-table width: 193 → 195.5.
 			assertEquals(195.5, box.getWidth(), 1);
 			assertEquals(108, box.getHeight(), 1);
 			return true;

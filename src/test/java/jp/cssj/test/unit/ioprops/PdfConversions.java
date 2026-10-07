@@ -15,24 +15,24 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * PDF/A・PDF/X の適合検証試験が共有する変換ヘルパ(2026-09-05、色管理 I4 で
- * {@link PdfAValidationTest} から抽出)。
+ * Conversion helper shared by PDF/A and PDF/X conformance tests
+ * (extracted from {@link PdfAValidationTest} in color management I4, 2026-09-05).
  */
 final class PdfConversions {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 1×1 の白 PNG。 */
+	/** A white 1×1 PNG. */
 	static final String PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGO4w8AAAAKYAN3rxP+VAAAAAElFTkSuQmCC";
 
-	/** 2×2 の RGB JPEG(赤地に青 1 画素、JFIF、APP14 無し)。 */
+	/** A 2×2 RGB JPEG (red background with one blue pixel, JFIF, no APP14). */
 	static final String JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAACAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD4U13XdSh1vUI49QukRbiRVVZmAADHAAzRRRX7FgP90o/4Y/kj+msb/vVX/E/zZ//Z";
 
 	private PdfConversions() {
 	}
 
 	/**
-	 * 生成画像(影のぼかし・filter のラスタ化)・conic メッシュ・透明・埋め込み
-	 * フォント・PNG/JPEG 画像を 1 頁に集めた文書。PDF/A と PDF/X で同じものを使う。
+	 * A one-page document combining generated images (shadow blur and filter rasterization),
+	 * a conic mesh, transparency, embedded fonts, and PNG/JPEG images. PDF/A and PDF/X use the same document.
 	 */
 	static String fixtureHtml(final String title) {
 		return "<!DOCTYPE html><html lang=\"ja\"><head><meta charset=\"UTF-8\"><title>" + title + "</title><style>"
@@ -53,7 +53,7 @@ final class PdfConversions {
 				+ "</body></html>";
 	}
 
-	/** HTML を指定の PDF 版で変換し、{@code build/tmp/<name>.pdf} にも残す。 */
+	/** Convert HTML to the specified PDF version and also save it as {@code build/tmp/<name>.pdf}. */
 	static byte[] convert(final String html, final String version, final boolean tagged, final String name)
 			throws Exception {
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();

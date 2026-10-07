@@ -30,7 +30,7 @@ public class OutputPdfProfileTest extends AbstractTestCase {
 		return new String(Files.readAllBytes(this.file.toPath()), StandardCharsets.ISO_8859_1);
 	}
 
-	/** タグ付き出力を有効にして任意のfixtureを変換し、PDFバイト列を返す。 */
+	/** Converts any fixture with tagged output enabled and returns the PDF bytes. */
 	private String transcodeTaggedAndRead(final String path) throws Exception {
 		this.session.property("output.pdf.tagged", "true");
 		this.session.property("output.pdf.tagged.lang", "ja");
@@ -40,7 +40,7 @@ public class OutputPdfProfileTest extends AbstractTestCase {
 		return new String(Files.readAllBytes(this.file.toPath()), StandardCharsets.ISO_8859_1);
 	}
 
-	/** ページオブジェクト数(/Pagesノードを除く)。 */
+	/** Number of page objects (excluding /Pages nodes). */
 	private static int pageCount(final String pdf) {
 		return count(pdf, "/Type /Page") - count(pdf, "/Type /Pages");
 	}
@@ -93,50 +93,49 @@ public class OutputPdfProfileTest extends AbstractTestCase {
 	}
 
 	/**
-	 * 改ページを跨ぐtagged出力の検証です(E-6増分3b-4、2026-07-24)。
-	 * 改ページ残余のソース再生で作られたボックスの{@code Params.element}は
-	 * {@code StructureToken}(CSSElementではない)になるため、複数ページに
-	 * 割れたリストでも構造ロールとリンク注釈(どちらもelementの読み手)が
-	 * 出続けることを固定する。
+	 * Tests tagged output across page breaks (E-6 increment 3b-4, 2026-07-24).
+	 * Boxes created by source replay of page-break remainders have a {@code StructureToken}
+	 * (not a CSSElement) as {@code Params.element}. Verifies that structure roles and link annotations
+	 * (both readers of element) continue to be emitted for lists split across multiple pages.
 	 */
 	public void testTaggedMultiPageStructure() throws Exception {
 		this.session.property("output.pdf.hyperlinks", "true");
 		final String pdf = this
 				.transcodeTaggedAndRead("files/unittest/9500-PROFILE/structure-multipage.html");
-		// 前提の検証: この文書は実際に複数ページへ割れている
+		// Verify the premise: this document actually spans multiple pages.
 		final int pageObjects = pageCount(pdf);
 		assertTrue("this fixture must break across pages (pages=" + pageObjects + ")", pageObjects >= 2);
-		// 構造ロール(Tagged PDF)とリンク注釈(atts読み手)が全ページ分出ている
+		// Structure roles (Tagged PDF) and link annotations (atts readers) are emitted for all pages.
 		for (final String role : new String[] { "/S /H1", "/S /L", "/S /LI", "/S /Link" }) {
 			assertTrue("missing structure element " + role, pdf.contains(role));
 		}
-		// LI開きはちょうど50項目分——StructureTokenのidentity intern(同じ
-		// 論理要素=同じインスタンス)が壊れると、再生されたliのprincipal/
-		// marker対で二重開きになり~2倍へ跳ねる。ページ跨ぎで割れたliも
-		// 欠陥②の修正(2026-07-30)後は初出のStructElemへ内容を継ぎ足す
-		// ため、+1されない
+		// Exactly 50 LI items are opened. If StructureToken identity interning (same logical
+		// element = same instance) breaks, replayed li principal/marker pairs
+		// open twice, jumping to roughly double the count. A li split across pages
+		// also appends content to its first StructElem after defect ② was fixed (2026-07-30),
+		// so it does not add 1 to the count.
 		assertEquals("LI structure elements must be one per list item", 50, count(pdf, "/S /LI"));
 		final int links = count(pdf, "/Subtype /Link");
 		assertTrue("link annotations must survive page continuation: " + links, links >= 50 && links <= 55);
 	}
 
 	/**
-	 * 欠陥②(ページ跨ぎ要素のStructElem分裂)の回帰テストです(2026-07-30)。
-	 * 1つの{@code <p>}が複数ページへ割れても、StructElemは1つのまま内容
-	 * (MCID)がページを跨ぐ——別ページのMCIDは{@code /Type /MCR}
-	 * (marked-content reference)で参照される。
+	 * Regression test for defect ② (StructElem splitting for elements spanning pages) (2026-07-30).
+	 * Even when one {@code <p>} spans multiple pages, it retains one StructElem with content (MCIDs)
+	 * across pages. MCIDs on other pages are referenced through {@code /Type /MCR}
+	 * (marked-content reference).
 	 */
 	public void testContinuationParagraphSingleStructElem() throws Exception {
 		final String pdf = this
 				.transcodeTaggedAndRead("files/unittest/9500-PROFILE/structure-continuation.html");
 		final int pageObjects = pageCount(pdf);
 		assertTrue("this fixture must break across pages (pages=" + pageObjects + ")", pageObjects >= 2);
-		// "/S /P /P"のうしろの/PはStructElemの親キー(/Partなどとの誤一致を防ぐ)
+		// The final /P in "/S /P /P" is the StructElem parent key (prevents false matches with /Part, etc.).
 		assertEquals("a page-spanning <p> must stay one StructElem", 1, count(pdf, "/S /P /P"));
 		assertTrue("cross-page content must be referenced via /Type /MCR", pdf.contains("/Type /MCR"));
 	}
 
-	/** 欠陥②: ページを跨ぐ単一のリスト項目はL/LI/LBodyとも1つずつ。 */
+	/** Defect ②: a single list item spanning pages has exactly one each of L/LI/LBody. */
 	public void testContinuationListItemSingleStructElems() throws Exception {
 		final String pdf = this
 				.transcodeTaggedAndRead("files/unittest/9500-PROFILE/structure-continuation-list.html");
@@ -147,7 +146,7 @@ public class OutputPdfProfileTest extends AbstractTestCase {
 		assertEquals("one item body, one StructElem", 1, count(pdf, "/S /LBody"));
 	}
 
-	/** 欠陥②: 行ごと割れた表のセル(TH)も1つのStructElemに保たれ、Scopeを失わない。 */
+	/** Defect ②: table cells (TH) split with their rows also retain one StructElem and preserve Scope. */
 	public void testContinuationTableRowSingleStructElems() throws Exception {
 		final String pdf = this
 				.transcodeTaggedAndRead("files/unittest/9500-PROFILE/structure-continuation-table.html");
@@ -160,18 +159,18 @@ public class OutputPdfProfileTest extends AbstractTestCase {
 	}
 
 	/**
-	 * 欠陥②の境界: 繰り返し表ヘッダは「同じ要素の反復表示」であって継続では
-	 * ない。継続として1つのStructElemへ併合すると同じ見出しの内容がページ数
-	 * ぶん重複するため、ページごとに独立したStructElemのままにする。
+	 * Boundary of defect ②: repeated table headers are repeated displays of the same element,
+	 * not continuations. Merging them into one StructElem as continuations would duplicate the same
+	 * heading content once per page, so each page keeps its own independent StructElem.
 	 */
 	public void testRepeatedTableHeaderDeclaresPerPage() throws Exception {
 		final String pdf = this
 				.transcodeTaggedAndRead("files/unittest/9500-PROFILE/structure-repeated-header.html");
 		final int pageObjects = pageCount(pdf);
 		assertTrue("this fixture must break across pages (pages=" + pageObjects + ")", pageObjects >= 2);
-		// 表そのものは継続——1つに保たれる
+		// The table itself is a continuation and remains a single element.
 		assertEquals("one table, one StructElem", 1, count(pdf, "/S /Table"));
-		// 繰り返しヘッダのTHはページごとに1つずつ
+		// One TH for each repeated header on each page.
 		assertEquals("the repeated header must declare one TH per page", pageObjects, count(pdf, "/S /TH"));
 	}
 
@@ -192,14 +191,14 @@ public class OutputPdfProfileTest extends AbstractTestCase {
 	}
 
 	/**
-	 * タグ付きPDF欠陥①(z-indexで別Drawerになると子の構造要素が親の兄弟に
-	 * なる)の専用回帰テストです(B-3で解消済み・タスク#22で追加、
-	 * 2026-07-31)。z-index:1の内側Divが外側Divの子のまま(Documentの
-	 * 直接の子はDiv 1つだけ)であることをStructElemの/P参照から固定する。
+	 * Dedicated regression test for tagged-PDF defect ① (a separate Drawer due to z-index made
+	 * child structure elements siblings of their parent). Fixed in B-3; test added in task #22
+	 * (2026-07-31). Uses StructElem /P references to verify that the inner Div with z-index:1
+	 * remains a child of the outer Div (Document has only one direct Div child).
 	 */
 	public void testZIndexKeepsStructureNesting() throws Exception {
 		final String pdf = this.transcodeTaggedAndRead("files/unittest/9500-PROFILE/structure-z-index.html");
-		// objnum -> (role, parent objnum) をStructElem辞書から抽出
+		// Extract objnum -> (role, parent objnum) from StructElem dictionaries.
 		final java.util.regex.Matcher m = java.util.regex.Pattern
 				.compile("(\\d+) 0 obj\\s*<<\\s*/Type /StructElem\\s*/S /(\\w+)\\s*/P (\\d+) 0 R")
 				.matcher(pdf);
@@ -216,12 +215,12 @@ public class OutputPdfProfileTest extends AbstractTestCase {
 				.filter(e -> e.getValue().equals("Div") && documentElem.equals(parents.get(e.getKey()))).count();
 		final long nestedDivs = roles.entrySet().stream().filter(e -> e.getValue().equals("Div")
 				&& "Div".equals(roles.get(parents.get(e.getKey())))).count();
-		// 欠陥①が再発するとz-indexのDivがDocument直下の兄弟になる(=2/0)
+		// If defect ① recurs, the z-index Div becomes a sibling directly under Document (=2/0).
 		assertEquals("only the outer Div may sit under Document", 1, divsUnderDocument);
 		assertEquals("the z-index Div must stay nested in the outer Div", 1, nestedDivs);
 	}
 
-	/** PDF/UA-2(2.0UA-2): PDF 2.0基底+part 2/rev+PDF 2.0構造名前空間。 */
+	/** PDF/UA-2 (2.0UA-2): PDF 2.0 base + part 2/rev + PDF 2.0 structure namespace. */
 	public void testPdfUa2Profile() throws Exception {
 		this.session.property("output.pdf.version", "2.0UA-2");
 		this.session.property("output.pdf.tagged.lang", "ja");

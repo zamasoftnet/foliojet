@@ -43,13 +43,17 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 入出力プロパティの境界値を網羅的に当てます(2026-10-05、ユーザー指示「入出力プロパティの境界値テストを網羅的にやろう」)。
+ * Exercise I/O property boundary values comprehensively (2026-10-05, user instruction:
+ * "Test I/O property boundary values comprehensively").
  *
  * <p>
- * {@link UAProps#all()} の全プロパティに、型ごとの境界値(真偽の綴りの揺れ、整数・実数の 0・負・最大・桁あふれ・
- * 数でない値、選択肢の全値と不正値、文字列の空・長大・長さ・URI の崩れた値)を 1 つずつ設定して小さな文書を組む。
- * 壊れてはいけないこと: 予期しない例外(4001 を含む)・止まらない・壊れた PDF。説明できる中断(上限の超過など、
- * 4001 以外のコード)は正しい振る舞いとして数える。結果は {@code build/reports/ioprop-boundary/results.tsv}。
+ * For every property in {@link UAProps#all()}, set boundary values one at a time by type and lay out
+ * a small document: boolean spelling variants; zero, negative, maximum, overflowing, and nonnumeric
+ * integer/real values; all valid and invalid choices; and empty, very long, length-valued, or malformed-URI
+ * strings. Unacceptable failures are unexpected exceptions (including 4001), nontermination, and broken
+ * PDFs.
+ * Explainable aborts (such as exceeding limits, with codes other than 4001) count as correct behavior.
+ * Results go to {@code build/reports/ioprop-boundary/results.tsv}.
  * </p>
  */
 public class IoPropertyBoundaryTest extends TestCase {
@@ -71,13 +75,13 @@ public class IoPropertyBoundaryTest extends TestCase {
 			</body></html>
 			""";
 
-	/** 予期しない結果の種類です。 */
+	/** Kinds of unexpected results. */
 	private enum Outcome {
-		/** 組み終えた。 */
+		/** Layout completed. */
 		DONE,
-		/** 説明できる中断(4001 以外のコード)。 */
+		/** An explainable abort (a code other than 4001). */
 		REFUSED,
-		/** 予期しない例外・4001・止まらない・壊れた出力。 */
+		/** An unexpected exception, 4001, nontermination, or broken output. */
 		FAILED
 	}
 
@@ -101,11 +105,11 @@ public class IoPropertyBoundaryTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 	}
 
-	/** 型ごとの境界値です。重複は除く。 */
+	/** Boundary values by type. Remove duplicates. */
 	static List<String> values(final PropManager manager) throws Exception {
 		final Set<String> values = new LinkedHashSet<>();
 		final String name = manager.getName();
@@ -150,7 +154,7 @@ public class IoPropertyBoundaryTest extends TestCase {
 		return List.copyOf(values);
 	}
 
-	/** そのプロパティが効く出力形式です。 */
+	/** The output format in which this property takes effect. */
 	private static String outputType(final String name) {
 		if (name.startsWith("output.image.") || name.equals("output.image-pixel-limit")) {
 			return "image/png";
@@ -200,7 +204,7 @@ public class IoPropertyBoundaryTest extends TestCase {
 			try {
 				session.abort(CTISession.ABORT_FORCE);
 			} catch (final Exception ignored) {
-				// 止められなくても結果は同じ
+				// The result is the same even if it cannot be stopped.
 			}
 			future.cancel(true);
 			return new Case(name, value, Outcome.FAILED, "timeout " + TIMEOUT_SECONDS + "s", warnings.size());
@@ -215,9 +219,9 @@ public class IoPropertyBoundaryTest extends TestCase {
 			Thread.currentThread().interrupt();
 			return new Case(name, value, Outcome.FAILED, "interrupted", warnings.size());
 		}
-		// 出力の検査: PDF なら PDFBox で読めること
+		// Output check: PDF must be readable by PDFBox.
 		final String type = outputType(name);
-		// 中間パスは結果を作らない(続けて最後のパスを組むのは継続変換)
+		// Intermediate passes produce no result (running the final pass afterward is a continued conversion).
 		final boolean noOutputExpected = name.equals("processing.middle-pass") && value.equalsIgnoreCase("true");
 		if (type == null && !name.equals("output.type") && !noOutputExpected) {
 			if (results.outputs.isEmpty()) {

@@ -17,8 +17,9 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 入力の上限(input.size-limit)があっても、渡された文字コードで HTML を読むことを固定します(2026-10-04、
- * 全体レビュー。上限があると本文はバイトの経路に回り、渡された文字コードを捨てて自動判定していた)。
+ * Verify that HTML uses the supplied character encoding even with input.size-limit (2026-10-04,
+ * overall review). With a limit, the body took the byte-input path, discarding the supplied encoding
+ * and autodetecting it instead.
  */
 public class LimitedInputEncodingTest extends TestCase {
 	private static String dump(final String limit) throws Exception {

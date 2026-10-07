@@ -3,24 +3,22 @@ package net.zamasoft.foliojet.layout.constraint;
 import net.zamasoft.foliojet.layout.box.params.FloatSide;
 
 /**
- * 1個の配置済み浮動ボックスによる排除帯です(2026-07-23新設、
- * 排除域のConstraintSpace入力化——`設計相談
- * -exclusion-zone-codex.txt`の設計に基づく)。
+ * Exclusion band from one placed floating box (added 2026-07-23 when making exclusion spaces ConstraintSpace
+ * inputs, based on the design in `design consultation
+ * -exclusion-zone-codex.txt`).
  *
  * <p>
- * 意図的に{@code IFloatBox}(live box)を保持しない——制約入力が
- * 再生・再構築後の旧箱を参照し続けることを避けるため。{@code order}は
- * 既存{@code BlockBuilder.FLOAT_COMP}の安定ソート契約
- * (同じ{@code pageEnd}の浮動体は追加順)を、この値型だけでも再現
- * できるように保持する挿入通し番号。
+ * Deliberately retains no {@code IFloatBox} (live box), so constraint inputs cannot keep referring to old boxes
+ * after replay/rebuilding. {@code order} is a sequential insertion number allowing this value type alone to
+ * reproduce the existing {@code BlockBuilder.FLOAT_COMP} stable-sort contract (floats with equal {@code pageEnd}
+ * follow insertion order).
  * </p>
  *
  * <p>
- * {@code shape}は{@code shape-outside}で解決済みの排除形状
- * (2026-08-29)。nullなら従来どおりマージンボックス矩形。形状は
- * 行ボックスの配置({@link ExclusionSpace#scanLineBand})だけが
- * {@link #lineSpanAt}経由で見る——浮動体同士の配置とBFCを作るブロックの
- * 回避は仕様(css-shapes-1 §4.1)どおり矩形{@code lineSpan}のまま。
+ * {@code shape} is the resolved exclusion shape from {@code shape-outside} (2026-08-29). null means the existing
+ * margin-box rectangle. Only line-box placement ({@link ExclusionSpace#scanLineBand}) inspects the shape through
+ * {@link #lineSpanAt}; placement between floats and avoidance by blocks establishing a BFC continue using
+ * rectangular {@code lineSpan}, per css-shapes-1 §4.1.
  * </p>
  */
 public record FloatExclusion(long order, FloatSide side, AxisSpan pageSpan, AxisSpan lineSpan,
@@ -34,15 +32,15 @@ public record FloatExclusion(long order, FloatSide side, AxisSpan pageSpan, Axis
 		}
 	}
 
-	/** 形状なし(マージンボックス矩形)の排除帯。 */
+	/** Exclusion band without a shape (margin-box rectangle). */
 	public FloatExclusion(final long order, final FloatSide side, final AxisSpan pageSpan, final AxisSpan lineSpan) {
 		this(order, side, pageSpan, lineSpan, null);
 	}
 
 	/**
-	 * ページ方向の帯[pageStart, pageEnd]でこの浮動体が占める行方向の
-	 * 範囲です。形状なしなら常に{@link #lineSpan}。形状ありで帯と形状が
-	 * 交わらなければnull(その帯では行を狭めない)。
+	 * Line-direction range occupied by this float within page-direction band [pageStart, pageEnd]. Always {@link
+	 * #lineSpan} without a shape. With a shape, null if the shape and band do not intersect (does not narrow lines in
+	 * that band).
 	 */
 	public AxisSpan lineSpanAt(final double pageStart, final double pageEnd) {
 		if (this.shape == null) {

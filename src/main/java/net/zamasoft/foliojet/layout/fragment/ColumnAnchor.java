@@ -5,17 +5,14 @@ import java.util.List;
 import net.zamasoft.foliojet.layout.box.content.Container;
 
 /**
- * COLUMN継続のowner直下の残余です(2026-07-21新設、M6b Phase B B4。
- * 2026-07-25時点で{@link ColumnContinuation}・{@link ContinuationValidator}
- * から使われている)。PAGE継続のroot fragmentと異なり、ownerボックス自体は
- * fragment再構成されない({@code AbstractContainerBox.commitPreparedColumn()}
- * が同一インスタンスへ新しい空Containerを追加するだけ)ため、
- * 継続フレームではなくこの専用型で表す(ChatGPT Pro相談、
- * 設計相談
- * 参照)。
+ * Remainder directly under the owner of a COLUMN continuation (added 2026-07-21, M6b Phase B B4; used by {@link
+ * ColumnContinuation} and {@link ContinuationValidator} as of 2026-07-25). Unlike the root fragment of a PAGE
+ * continuation, the owner box itself is not reconstructed as a fragment ({@code
+ * AbstractContainerBox.commitPreparedColumn()} merely adds a new empty Container to the same instance), so this
+ * dedicated type represents it instead of a continuation frame (see the ChatGPT Pro consultation, design consultation).
  *
- * @param remainder   owner直下の閉部分木の再生範囲を持つコンテナ
- * @param prefixItems remainderへ適用する再生範囲(closedとして再生)
+ * @param remainder   container holding replay ranges for closed subtrees directly under the owner
+ * @param prefixItems replay ranges applied to remainder (replayed as closed)
  */
 public record ColumnAnchor(Container remainder, List<Continuation.SourceRange> prefixItems) {
 

@@ -6,7 +6,10 @@ import java.nio.file.Files;
 
 import junit.framework.TestCase;
 
-/** 巨大脚注の予約で先行する段組断片を無限に送らない回帰(seed 7676)。 */
+/**
+ * Regression: reserving an oversized footnote must not endlessly forward a preceding multi-column fragment (seed
+ * 7676).
+ */
 public class OversizedFootnoteAfterMulticolTest extends TestCase {
 	public OversizedFootnoteAfterMulticolTest(final String name) {
 		super(name);

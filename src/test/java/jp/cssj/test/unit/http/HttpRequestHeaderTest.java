@@ -20,21 +20,19 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * HTTP取得で送るリクエストヘッダの契約です(2026-08-02新設)。
+ * Contract for request headers sent during HTTP fetching (introduced on 2026-08-02).
  *
  * <p>
- * <b>この層のテストが1つも無かった。</b> そのため
- * 「User-Agentも入出力プロパティで指定したヘッダも一切送られない」
- * という欠陥が、単体テスト1,121件・imageTest 591文書がすべて緑のまま
- * 残っていた(bot対策のあるサイトから何も取得できない状態。実地で
- * Wikipediaが403になって発覚)。原因は差し込まれたリゾルバが
- * http/httpsを横取りして、エンジンのHTTP設定が全部無効になること。
+ * <b>There were no tests at this layer.</b> As a result, the defect that neither User-Agent nor
+ * headers specified through I/O properties were sent survived while all 1,121 unit tests and
+ * 591 imageTest documents passed. Nothing could be fetched from sites with bot protection;
+ * a real Wikipedia request returning 403 exposed it. The injected resolver intercepted
+ * http/https, disabling all of the engine's HTTP settings.
  * </p>
  *
  * <p>
- * ここでは<b>実際に飛んだリクエスト</b>をローカルのHTTPサーバで受けて
- * 検査する。組版結果ではなく取得層の契約なので、レイアウトのテストとは
- * 別に必要である。
+ * These tests receive and inspect <b>requests actually sent</b> using a local HTTP server.
+ * This is a contract for the fetching layer, not the layout result, so it requires separate tests.
  * </p>
  */
 public class HttpRequestHeaderTest extends TestCase {
@@ -64,7 +62,7 @@ public class HttpRequestHeaderTest extends TestCase {
 		this.server.stop(0);
 	}
 
-	/** 既定のUser-Agentが送られること(JDK既定のままにしない)。 */
+	/** The default User-Agent is sent (do not leave it at the JDK default). */
 	public void testDefaultUserAgentIsSent() throws Exception {
 		this.convert(null, null);
 		assertFalse("リクエストが届いていない", this.userAgents.isEmpty());
@@ -72,7 +70,7 @@ public class HttpRequestHeaderTest extends TestCase {
 		assertEquals("既定のUser-Agentが送られること", "CopperPDF", ua);
 	}
 
-	/** 入出力プロパティで指定したヘッダが実際に送られること。 */
+	/** Headers specified through I/O properties are actually sent. */
 	public void testCustomHeaderIsSent() throws Exception {
 		this.convert("User-Agent", "PROBE-UA-123");
 		assertFalse("リクエストが届いていない", this.userAgents.isEmpty());
@@ -86,8 +84,8 @@ public class HttpRequestHeaderTest extends TestCase {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 			try {
 				session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
-				// **実運用と同じ形**: 埋め込み側が独自リゾルバを差し込む。
-				// これがhttpを横取りするとエンジンのHTTP設定が無効になる
+				// **Use the same setup as production**: the embedding application injects its own resolver.
+				// If it intercepts http, the engine's HTTP settings become ineffective.
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				if (headerName != null) {

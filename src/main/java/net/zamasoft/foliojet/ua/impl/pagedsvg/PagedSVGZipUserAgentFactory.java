@@ -7,24 +7,24 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.UserAgentFactory;
 
 /**
- * ページ分割SVGを<b>1本のZIP</b>で返す出力です(B-2、2026-08-29)。
+ * Output that returns page-split SVG in <b>one ZIP</b> (B-2, 2026-08-29).
  *
  * <p>
- * 中身は{@link PagedSVGUserAgentFactory}のバンドルと同じ——展開すれば
- * {@code pages/0001.svg}・{@code assets/…}・{@code manifest.json}が
- * ディレクトリ出力と同じ形で並ぶ。違いは<b>結果が1件になる</b>ことだけで、
- * セッションを使わない一発のREST({@code POST /transcode})でも受け取れる
- * (複数結果のバンドルはそこで4001になる)。利用者報告B-2。
+ * Contents are the same as a {@link PagedSVGUserAgentFactory} bundle: extraction places
+ * {@code pages/0001.svg}, {@code assets/…}, and {@code manifest.json} in the same structure
+ * as directory output. The only difference is <b>one result</b>, allowing receipt through
+ * a sessionless, single-request REST call ({@code POST /transcode})
+ * (a multi-result bundle returns 4001 there). User report B-2.
  * </p>
  *
  * <p>
- * 中身は縮めない({@code output.paged-svg.compression}は無視)。ZIP自身が
- * 縮めるので二重になるし、展開した名前は{@code .svg}/{@code .json}で
- * あるべきだから。
+ * Do not compress contents (ignore {@code output.paged-svg.compression}).
+ * ZIP itself compresses them, making additional compression redundant;
+ * extracted names should end in {@code .svg}/{@code .json}.
  * </p>
  */
 public class PagedSVGZipUserAgentFactory implements UserAgentFactory {
-	/** ZIPで返すバンドルのメディア型。 */
+	/** Media type of a bundle returned as ZIP. */
 	public static final String MIME_TYPE = "application/vnd.copper.paged-svg+zip";
 
 	@Override

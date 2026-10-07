@@ -16,7 +16,7 @@ import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
 import net.zamasoft.pdfg2d.gc.text.pipeline.Itemizer;
 
-/** two-pass/replay の段落方向と論理抽出を固定する。 */
+/** Verifies the contracts for paragraph direction and logical extraction in two-pass/replay. */
 public class TwoPassBidiTest extends AbstractTestCase {
 	private final Set<Integer> paragraphPages = new HashSet<>();
 	private long paragraphId;

@@ -8,12 +8,13 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 
 /**
- * 出力設定から面付け({@link Imposition})を作る側の窓口です(2026-09-02)。
+ * Output-side entry point for creating an imposition ({@link Imposition}) from output settings
+ * (2026-09-02).
  *
  * <p>
- * 以前は{@code layout.util.LayoutUtils}にあり、layout が ua.impl の具象
- * ({@code SinglePageImposition}等)を知る逆依存になっていた(設計レビュー
- * §1-1)。面付けの選択は出力(UA)側の関心なのでここへ移した。
+ * Previously in {@code layout.util.LayoutUtils}, creating a reverse dependency where layout
+ * knew concrete ua.impl classes such as {@code SinglePageImposition} (design review §1-1).
+ * Moved here because imposition selection is an output (UA) concern.
  * </p>
  */
 public final class Impositions {
@@ -21,16 +22,16 @@ public final class Impositions {
 	}
 
 	/**
-	 * 現在の処理段階と出力設定に対応する面付けを作ります。
-	 * 中間パスと構造走査ではページの論理的な進行だけを保ち、GCや
-	 * serializerを一切起動しません。
+	 * Creates an imposition for the current processing stage and output settings.
+	 * Intermediate passes and structure scans retain only logical page progression
+	 * and never start a GC or serializer.
 	 */
 	public static Imposition createImposition(final UserAgent ua) {
 		if (ua.isMeasurePass() || ua.isStructureScanPass()) {
 			return new NopImposition(ua);
 		}
 		final int nUp = UAProps.OUTPUT_N_UP.getInteger(ua);
-		// 1〜256 の外は読み取りで警告して既定の 1 になる
+		// Values outside 1–256 warn on read and use the default of 1
 		if (nUp > 1) {
 			return new NUpImposition(ua, nUp, UAProps.OUTPUT_N_UP_ORDER.get(ua));
 		}
@@ -41,7 +42,7 @@ public final class Impositions {
 		imposition.setAutoRotate(UAProps.OUTPUT_AUTO_ROTATE.get(ua));
 		imposition.setAlign(UAProps.OUTPUT_FIT_TO_PAPER.get(ua));
 
-		// 左右断ちしろ
+		// Left/right trim margins
 		{
 			String s = UAProps.OUTPUT_HTRIM.getString(ua);
 			AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, false, s);
@@ -52,7 +53,7 @@ public final class Impositions {
 				ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_HTRIM.name, s);
 			}
 		}
-		// 上下断ちしろ
+		// Top/bottom trim margins
 		{
 			String s = UAProps.OUTPUT_VTRIM.getString(ua);
 			AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, false, s);
@@ -84,7 +85,7 @@ public final class Impositions {
 						}
 					}
 				}
-				// 読めなかったら(警告済み)断ちしろは変えない。2026-10-05 までは null の長さを読んで変換ごと落ちた
+				// Keep trim margins on parse failure (warned). Until 2026-10-05 reading a null length crashed conversion
 				switch (trims == null ? 0 : trims.length) {
 				case 0:
 					break;
@@ -104,7 +105,7 @@ public final class Impositions {
 			}
 		}
 
-		// トンボ
+		// Crop marks
 		switch (UAProps.OUTPUT_MARKS.get(ua)) {
 		case NONE:
 			imposition.setTrims(0, 0, 0, 0);
@@ -130,9 +131,9 @@ public final class Impositions {
 		default:
 			throw new IllegalStateException();
 		}
-		// 塗り足し込みデータの仕上り位置(2026-08-29、利用者報告B-3)。
-		// output.marksがnoneのときにドブを0にする分岐より**後**に置く
-		// ——外周の帯はそのままドブ(塗り足し)なので、ここで入れ直す
+		// Trim position for data including bleed (2026-08-29, user report B-3).
+		// Place **after** the branch that sets bleed to zero when output.marks is none
+		// because the outer band is itself bleed, so restore it here
 		{
 			String s = UAProps.OUTPUT_TRIM_INSET.getString(ua);
 			if (s != null) {
@@ -149,7 +150,7 @@ public final class Impositions {
 
 		imposition.setClip(UAProps.OUTPUT_CLIP.getBoolean(ua));
 
-		// 背表紙
+		// Spine
 		{
 			String s = UAProps.OUTPUT_MARKS_SPINE_WIDTH.getString(ua);
 			if (s != null) {
@@ -167,7 +168,7 @@ public final class Impositions {
 		}
 
 		{
-			// 用紙幅
+			// Paper width
 			String s = UAProps.OUTPUT_PAPER_WIDTH.getString(ua);
 			if (s != null) {
 				AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, false, s);
@@ -184,7 +185,7 @@ public final class Impositions {
 		}
 
 		{
-			// 用紙高さ
+			// Paper height
 			String s = UAProps.OUTPUT_PAPER_HEIGHT.getString(ua);
 			if (s != null) {
 				AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, false, s);

@@ -14,8 +14,8 @@ import org.xml.sax.SAXException;
 import net.zamasoft.foliojet.xml.vocab.CSSJML;
 
 /**
- * 拡張マークアップのためのフィルタです。
- * 
+ * A filter for extended markup.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: CSSJMLHandlerFilter.java 1552 2018-04-26 01:43:24Z miyabe $
  */

@@ -4,7 +4,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
 /**
- * バージョン管理のためのクラスです。
+ * A class for version management.
  *
  * @author MIYABE Tatsuhiko
  * @version $Id: Version.java 1552 2018-04-26 01:43:24Z miyabe $

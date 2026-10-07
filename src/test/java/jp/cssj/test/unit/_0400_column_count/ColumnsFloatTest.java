@@ -31,17 +31,17 @@ public class ColumnsFloatTest extends AbstractTestCase {
 		System.out.println("x: " + x);
 		System.out.println("y: " + y);
 		System.out.println("pageNumber: " + pageNumber);
-		// 2026-07-25: バランスプローブ撤去により1つ目の段組の高さは
-		// ColumnBalancerの一発計算(実測最小容量への収束なし)へ戻り、
-		// 2つ目の段組(b)は再び2ページ目の先頭に置かれる。
+		// 2026-07-25: Removing the balancing probe returned the first multi-column layout's height
+		// to ColumnBalancer's one-shot calculation (without convergence to measured minimum capacity),
+		// so the second multi-column layout (b) is again placed at the start of page 2.
 		//
-		// **2026-08-06: yは28→72.09に変更**。読み込みに失敗した<img>が
-		// これまでCSSのwidth/heightを無視して0x0に縮退していた欠陥を
-		// 修正(HTMLStyle.applyBrokenImage、AltTextImage新設)——このHTML
-		// のcircle.svgは元々unittestに存在しない(壊れた参照)ため、
-		// 修正後は`img { width: 20mm }`が正しく効いて浮動画像が実寸を
-		// 持つようになり、段組内の折り返し位置が下へ動いた。位置が
-		// ずれただけで段組・浮動自体は壊れていない(目視確認済み)
+		// **2026-08-06: y changed from 28 to 72.09**. Fixed a defect where an <img> that failed to load
+		// ignored CSS width/height and collapsed to 0x0
+		// (HTMLStyle.applyBrokenImage; added AltTextImage). The circle.svg referenced by this HTML
+		// was never present in unittest (a broken reference). After the fix,
+		// `img { width: 20mm }` correctly takes effect, giving the floated image actual dimensions
+		// and moving the wrapping position in the multi-column layout downward.
+		// Only the position changed; multi-column layout and floats are intact (visually confirmed).
 		assertEquals(214, x, 1);
 		assertEquals(72.09, y, 1);
 		assertEquals(2, pageNumber);
@@ -52,8 +52,8 @@ public class ColumnsFloatTest extends AbstractTestCase {
 		System.out.println("x: " + x);
 		System.out.println("y: " + y);
 		System.out.println("pageNumber: " + pageNumber);
-		// 2026-07-25: 同上(bと同じ段組内、2ページ目へ)
-		// 2026-08-06: check_bと同じ理由でyが変更(コメント参照)
+		// 2026-07-25: Same as above (in the same multi-column layout as b, moved to page 2).
+		// 2026-08-06: y changed for the same reason as check_b (see comment).
 		assertEquals(28, x, 1);
 		assertEquals(72.09, y, 1);
 		assertEquals(2, pageNumber);

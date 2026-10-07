@@ -17,11 +17,11 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
 /**
- * {@code RootBuilder.planTopFloats} の純粋な FIFO-prefix 計画の試験(2026-09-05、
- * translate の第1段)。頁先頭({@code atPageStart=true})は「stackEnd==0 の先頭
- * 1 件は容量に関係なく採る→以後は収まる間だけ」、現頁への平行移動
- * ({@code atPageStart=false})は「先頭が収まらなければ空」で、どちらも途中を
- * 飛ばさない。
+ * Tests pure FIFO-prefix planning in {@code RootBuilder.planTopFloats} (2026-09-05,
+ * stage 1 of translation). At page start ({@code atPageStart=true}), the first item at stackEnd==0
+ * is accepted regardless of capacity, then subsequent items are accepted only while they fit.
+ * Translation onto the current page ({@code atPageStart=false}) returns an empty plan if the first
+ * item does not fit. Neither mode skips items in the middle.
  */
 public class TopFloatPlannerTest extends TestCase {
 
@@ -60,7 +60,7 @@ public class TopFloatPlannerTest extends TestCase {
 		final Deque<FloatBlockBox> queue = new ArrayDeque<>();
 		queue.add(this.floatOf(100));
 		queue.add(this.floatOf(150));
-		queue.add(this.floatOf(10)); // 途中を飛ばして採らない
+		queue.add(this.floatOf(10)); // Do not skip an intermediate item to accept a later one.
 		final RootBuilder.TopFloatPlan plan = this.plan(queue, 0, 200, true);
 		assertEquals(1, plan.boxes.size());
 		assertEquals(100.0, plan.dy, 0.0);

@@ -7,17 +7,16 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * <b>visibility:hiddenの中のflex/gridコンテナの中身が描かれない</b>ことを
- * 固定します(2026-08-18新設)。
+ * Verifies that <b>the contents of flex/grid containers inside visibility:hidden are not drawn</b>
+ * (added on 2026-08-18).
  *
  * <p>
- * visibilityはopacityへ写像される({@code BoxStyleMapper.setupParams})が、
- * flex/gridの匿名・中立itemの中立化({@code FlexBuilder.itemParams}/
- * {@code GridBuilder.itemParams})がopacityを1fへ戻していたため、hiddenな
- * コンテナの中身だけが描かれていた。実物ではe-Statのドロップダウン
- * メニュー(`ul.stat-gnav-list1{visibility:hidden}`の中の
- * `.stat-gnav-title{display:flex}`)が本文に重なって出た(重なり1,462対)。
- * 修正はitemの中立化でコンテナの実効opacityを引き継ぐこと。
+ * visibility maps to opacity ({@code BoxStyleMapper.setupParams}), but neutralizing anonymous/neutral
+ * flex/grid items ({@code FlexBuilder.itemParams}/{@code GridBuilder.itemParams}) reset opacity to 1f,
+ * so only the contents of hidden containers were drawn. In a real document, an e-Stat dropdown menu
+ * (`.stat-gnav-title{display:flex}` inside `ul.stat-gnav-list1{visibility:hidden}`) appeared over
+ * the body text (1,462 overlapping pairs). The fix makes item neutralization inherit the container's
+ * effective opacity.
  * </p>
  */
 public class FlexGridTest extends AbstractTestCase {

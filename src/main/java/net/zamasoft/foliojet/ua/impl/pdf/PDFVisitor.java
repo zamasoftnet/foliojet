@@ -110,9 +110,9 @@ public class PDFVisitor extends AbstractVisitor {
 		final boolean pdfx = version.isPdfX();
 		boolean links = UAProps.navigation(UAProps.OUTPUT_PDF_HYPERLINKS, this.ua);
 		if (links && pdfx) {
-			// PDF/Xは注釈を仕上がり・裁ち落とし域の外にしか置けない(pdfg2dが変換を失敗させる。
-			// 2026-09-30にX-4で実測)。X-1a・X-3はURIアクションも禁止。既定値(true、
-			// 2026-10-04から)のときは黙って外し、利用者が明示したときだけ警告する
+			// PDF/X allows annotations only outside the trim and bleed regions (pdfg2d fails conversion;
+			// observed with X-4 on 2026-09-30). X-1a and X-3 also prohibit URI actions. With the default (true
+			// since 2026-10-04), omit silently; warn only when the user explicitly sets it.
 			if (this.ua.getProperty(UAProps.OUTPUT_PDF_HYPERLINKS.name) != null) {
 				this.ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_HYPERLINKS.name,
 						String.valueOf(true), version.pdf14PdfXName() != null ? version.pdf14PdfXName() : "PDF/X");
@@ -277,9 +277,9 @@ public class PDFVisitor extends AbstractVisitor {
 	}
 
 	/**
-	 * visit時点(文書順)で、現在の囲い要素の下に構造要素を宣言します
-	 * (B-3、2026-07-30)。描画(z順)はこの参照へbeginStructContentで
-	 * ルーティングするだけ。untagged・非PDFではnull。
+	 * Declares a structure element under the current enclosing element at visit time (document order)
+	 * (B-3, 2026-07-30). Drawing (z-order) merely routes to this reference via beginStructContent.
+	 * Returns null for untagged or non-PDF output.
 	 */
 	private net.zamasoft.pdfg2d.pdf.StructureRef declareStruct(final String role) {
 		if (this.gc != null && this.gc.getPDFGraphicsOutput() instanceof PDFPageOutput out) {
@@ -289,10 +289,10 @@ public class PDFVisitor extends AbstractVisitor {
 	}
 
 	/**
-	 * {@code role}の構造要素を宣言し(文書順)、描画時にその内容
-	 * ({@code beginStructContent}〜{@code endStructContent}に挟んで)として
-	 * {@code action}を実行するdrawableを積みます(4箇所で重複していた
-	 * 定型の集約、2026-07-30)。
+	 * Declares a structure element for {@code role} (in document order) and queues a drawable
+	 * that executes {@code action} as its content at drawing time
+	 * (between {@code beginStructContent} and {@code endStructContent}).
+	 * Consolidates boilerplate duplicated in four places (2026-07-30).
 	 */
 	private void visitStructContent(final String role, final PDFOutputDrawable.Action action, final Object... digestValues) {
 		final var ref = this.declareStruct(role);

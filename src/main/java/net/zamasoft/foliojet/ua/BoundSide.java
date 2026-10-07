@@ -1,13 +1,13 @@
 package net.zamasoft.foliojet.ua;
 
 /**
- * 綴じ方向です。
+ * Binding direction.
  */
 public enum BoundSide {
-	/** 片面。 */
+	/** Single-sided. */
 	SINGLE,
-	/** 左綴じ。 */
+	/** Left binding. */
 	LEFT,
-	/** 右綴じ。 */
+	/** Right binding. */
 	RIGHT;
 }

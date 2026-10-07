@@ -20,13 +20,13 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 絶対配置のグリッド/Flexコンテナの試験です(E-3、2026-09-02)。
+ * Tests for absolutely positioned grid/Flex containers (E-3, 2026-09-02).
  *
  * <p>
- * 利用者報告(2026-08-30): {@code position:absolute}のグリッドがグリッドに
- * ならず、通常のブロックへ落ちて警告2823が出ていた。印刷では用紙の中に版面を
- * 絶対配置するのが定型なので対象外にできない。絶対配置の箱の中に匿名の
- * 静的なグリッド箱を包む形で対応した。
+ * User report (2026-08-30): a grid with {@code position:absolute} fell back to a normal block
+ * instead of forming a grid and emitted warning 2823. Absolutely positioning the type area
+ * within the sheet is a standard print pattern, so it cannot be excluded. Support was added
+ * by wrapping an anonymous static grid box inside the absolutely positioned box.
  * </p>
  */
 public class AbsoluteGridTest extends TestCase {
@@ -46,18 +46,18 @@ public class AbsoluteGridTest extends TestCase {
 	private record Run(double x, double y, String text) {
 	}
 
-	/** 2列のグリッドなら AAA と BBB は同じ高さに並び、BBB は右の列にある。 */
+	/** In a two-column grid, AAA and BBB align at the same height, with BBB in the right column. */
 	public void testAbsolutelyPositionedGridLaysOutColumns() throws Exception {
 		final List<Run> runs = runs(convert(html("grid")));
 		final Run a = find(runs, "AAA"), b = find(runs, "BBB");
 		assertEquals("both items must sit on the same row", a.y, b.y, 1.0);
-		// 内容幅 200pt、列 (200-10)/2=95pt。BBB は 20+1+5+95+10=131pt あたりから
+		// Content width 200 pt, columns (200-10)/2=95 pt. BBB starts around 20+1+5+95+10=131 pt.
 		assertTrue("BBB must be in the second column: A x=" + a.x + " B x=" + b.x, b.x - a.x > 90);
 		assertTrue("the grid must sit at the absolute position: A x=" + a.x, a.x > 20 && a.x < 40);
 		assertTrue("the grid must sit at the absolute position: A y=" + a.y, a.y > 30 && a.y < 55);
 	}
 
-	/** 絶対配置のFlexも同じ包みで並ぶ。 */
+	/** An absolutely positioned Flex container uses the same wrapper for layout. */
 	public void testAbsolutelyPositionedFlexLaysOutInline() throws Exception {
 		final List<Run> runs = runs(convert(html("flex")));
 		final Run a = find(runs, "AAA"), b = find(runs, "BBB");
@@ -122,7 +122,7 @@ public class AbsoluteGridTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

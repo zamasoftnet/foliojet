@@ -21,59 +21,57 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>何も描かないページを1枚も作らない</b>ことを固定します(2026-07-27新設)。
+ * Verify that <b>no page is created with nothing to paint</b> (added 2026-07-27).
  *
  * <p>
- * css-break-3 §4.4「各フラグメンテナは0でない量の内容を取る」。20,000シードの
- * ファジングで残っていた最後の欠陥種別「白紙ページ」(18件)の実測から、
- * <b>複数の独立した経路</b>が同じ結末——描くもののないページ——に至ることが
- * 分かりました。ここでは<b>修正済みの2経路</b>を1件ずつ固定します。
- * どちらも<b>末尾が白紙になる</b>形です。
+ * css-break-3 §4.4: "each fragmentainer takes a nonzero amount of content". Measurements of
+ * the last remaining defect category in 20,000-seed fuzzing, "blank pages" (18 cases),
+ * showed that <b>multiple independent paths</b> reach the same outcome: a page with nothing to paint.
+ * Pin down one case for each of <b>two fixed paths</b> here.
+ * Both produce <b>a trailing blank page</b>.
  * </p>
  *
  * <ol>
- * <li><b>入れ子の浮動体</b>({@code seed 2434}): 浮動体の中身がまた浮動体だと、
- * 旧{@code paintsNothingBeyondPage}は{@code getContentSize()}が入れ子の
- * 浮動体を数えないことを理由に判定を諦め、<b>常に</b>切断を予約していた。
- * 予約された切断は{@code endFlowBlock}の浮動体切断ループで必ず1ページ作る。
- * 18件中12件がこの形。</li>
- * <li><b>段組の段丈が空き容量を超える</b>({@code seed 8986}): 段のバランスが
- * 浮動体の底へ切り上げるため、段組の箱が紙の残りより長くなる。その超過分には
- * 何も描かれないのに、ブロック間自動改ページ(interflow)は<b>箱の幾何</b>
- * だけを見て改ページしていた。18件中1件。</li>
+ * <li><b>Nested floats</b> ({@code seed 2434}): when a float's contents are also floats,
+ * the old {@code paintsNothingBeyondPage} gave up because {@code getContentSize()} does not count
+ * nested floats, and <b>always</b> scheduled a cut. A scheduled cut always creates a page in
+ * {@code endFlowBlock}'s float-cutting loop. Twelve of the 18 cases had this shape.</li>
+ * <li><b>Column height exceeds available capacity</b> ({@code seed 8986}): column balancing rounds
+ * the height up to the float bottom, making the multi-column box longer than the remaining paper.
+ * Although nothing is painted in the excess area, automatic inter-block page breaking (interflow)
+ * used only <b>box geometry</b> to break the page. One of the 18 cases.</li>
  * </ol>
  *
  * <p>
- * <b>未修正で残っている経路</b>(掃過の {@code seed 15448} と
- * {@code 17726}、20,000件中2件): 内容が確かに紙をはみ出しているのに、
- * はみ出しているのが<b>切れない位置</b>(箱からあふれた中身・
- * {@code page-break-inside:avoid}で丸ごと送られるブロック)なので、
- * 改ページしても継続断片が空になる。<b>「何も描かない継続断片なら捨てる」
- * という対策は本文消失を招きます</b>——空の断片は「取るものがない」のではなく
- * 「中身をこれからソース再生で受け取る器」であり、20,000シードの掃過で
- * 5件の消失(浮動体の中の表が丸ごと)を実測して撤回しました。
+ * <b>Unfixed remaining paths</b> (sweep {@code seed 15448} and {@code 17726}, two of 20,000 cases):
+ * content does overflow the paper, but at an <b>unsplittable position</b>
+ * (content overflowing its box, or a block moved whole by {@code page-break-inside:avoid}),
+ * so a page break leaves an empty continuation fragment. <b>"Discard continuation fragments
+ * that paint nothing" causes body content loss</b>: an empty fragment is not something with nothing
+ * to take, but a container that will receive content through source replay.
+ * We withdrew this approach after measuring five losses (entire tables inside floats)
+ * in a 20,000-seed sweep.
  * </p>
  *
  * <p>
- * <b>文書はここで組み立てます</b>——外部ファイルにすると相対パスの画像参照で
- * 判定が変わる事故を起こします(教訓集 §6.9h)。画像を使わない
- * シードを選んであるのはそのためです。
+ * <b>Build documents here</b>: external files risk changing the result through relative image references
+ * (lessons §6.9h). This is why the selected seeds use no images.
  * </p>
  *
  * <p>
- * <b>ページ数だけでなくトークンの残存も検査します。</b> 白紙ページは
- * 「内容を捨てる」ことでいくらでも消せるので、それでは退行の検出になりません。
+ * <b>Check token preservation as well as page count.</b> Any number of blank pages can be eliminated
+ * by discarding content, so page count alone does not detect regressions.
  * </p>
  */
 public class TrailingBlankPageTest extends TestCase {
-	/** 打ち切り時間。実測は1件あたり1秒未満。 */
+	/** Timeout. Measured runtime is under one second per case. */
 	private static final long WATCHDOG_MS = 60_000L;
 
 	public TrailingBlankPageTest(String name) {
 		super(name);
 	}
 
-	/** 経路1: 浮動体の中に浮動体。 */
+	/** Path 1: a float inside a float. */
 	private static final String NESTED_FLOAT = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 			<?jp.cssj.property name="output.page-width" value="300pt"?>
@@ -100,7 +98,7 @@ public class TrailingBlankPageTest extends TestCase {
 			</body></html>
 			""";
 
-	/** 経路2: 段組の段丈が空き容量を超える。 */
+	/** Path 2: column height exceeds available capacity. */
 	private static final String OVERLONG_COLUMN = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 			<?jp.cssj.property name="output.page-width" value="300pt"?>
@@ -138,12 +136,12 @@ public class TrailingBlankPageTest extends TestCase {
 	}
 
 	/**
-	 * 変換して、(1) 表示リストが空のページが1枚もないこと、(2) T0..T(n-1) の
-	 * トークンが全部どこかのページに現れること、を検査します。
+	 * Convert and check that (1) no page has an empty display list, and (2) every token
+	 * T0..T(n-1) appears on some page.
 	 *
-	 * @param name      作業ディレクトリ名
-	 * @param html      文書
-	 * @param tokenCount 文書が持つ T トークンの数
+	 * @param name      working directory name
+	 * @param html      document
+	 * @param tokenCount number of T tokens in the document
 	 */
 	private static void assertNoBlankPage(final String name, final String html, final int tokenCount)
 			throws Exception {
@@ -211,7 +209,7 @@ public class TrailingBlankPageTest extends TestCase {
 		}
 		assertTrue(name + ": 白紙ページ " + blanks + " (全" + pages.length + "ページ)", blanks.isEmpty());
 
-		// 白紙は「内容を捨てる」ことでも消せる。それが退行として見えるように
+		// Discarding content can also eliminate blank pages. Make that visible as a regression.
 		final List<String> lost = new ArrayList<>();
 		for (int i = 0; i < tokenCount; ++i) {
 			if (all.indexOf("T" + i) < 0) {

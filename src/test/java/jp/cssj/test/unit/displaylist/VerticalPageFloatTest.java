@@ -24,19 +24,21 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 縦組みのページフロートの向きを固定します(2026-10-05、ユーザー決定「仕様に合わせる」)。
+ * Pin down page-float direction in vertical writing (2026-10-05, user decision: "follow the specification").
  *
  * <p>
- * css-page-floats の {@code top}・{@code bottom} は書字方向に応じて block-start/inline-start・block-end/inline-end
- * で、物理の上下を指す。縦組みの {@code float: bottom} は用紙の下(行の末尾側)に置き、図と並ぶ行を短くする。
- * それまでの縦組みの置き方(ブロックの末尾=vertical-rl の左端、行の始まり側)は {@code float: block-end} で書く。
- * {@code float: top} は縦組みでも右上(行の始まり側)で、もともと物理の上だった。
+ * In css-page-floats, {@code top}/{@code bottom} mean block-start/inline-start and block-end/inline-end
+ * depending on writing direction, referring to physical top/bottom. In vertical writing, {@code float: bottom}
+ * sits at the paper bottom (line-end side), shortening lines beside the figure.
+ * Use {@code float: block-end} for the previous vertical-writing placement (block end = left edge in vertical-rl,
+ * on the line-start side). {@code float: top} remains at the upper right (line-start side) in vertical writing;
+ * it already meant the physical top.
  * </p>
  */
 public class VerticalPageFloatTest extends TestCase {
 	private static final long WATCHDOG_MS = 60_000L;
 
-	/** 版面: 120mm×80mm から余白 6mm ずつ。 */
+	/** Type area: 120 mm × 80 mm minus 6 mm margins on each side. */
 	private static final double CONTENT_WIDTH = (120 - 12) * 72 / 25.4;
 
 	private static final double CONTENT_HEIGHT = (80 - 12) * 72 / 25.4;
@@ -53,7 +55,7 @@ public class VerticalPageFloatTest extends TestCase {
 		super(name);
 	}
 
-	/** 図(40mm×20mm、背景つき)を本文の前に書いた 1 頁の縦組み。 */
+	/** One vertical-writing page with a figure (40 mm × 20 mm, with background) written before the body text. */
 	private static String document(final String writingMode, final String floating) {
 		return """
 				<!DOCTYPE html>
@@ -70,7 +72,7 @@ public class VerticalPageFloatTest extends TestCase {
 				""".formatted(writingMode, floating, "本文。".repeat(100));
 	}
 
-	/** vertical-rl の bottom: 左下(ブロックの末尾・行の末尾)に置き、並ぶ行は図の上で終わる。 */
+	/** vertical-rl bottom: place at bottom left (block end / line end); adjacent lines end above the figure. */
 	public void testBottomIsPhysicalBottom() throws Exception {
 		final String page = single(convert("rl-bottom", document("vertical-rl", "bottom")));
 		final double[] fig = frame(page);
@@ -80,7 +82,7 @@ public class VerticalPageFloatTest extends TestCase {
 		assertTrue("図と並ぶ行がある(行が短くなって図の上に残る)", linesBeside(page, fig) > 0);
 	}
 
-	/** vertical-lr の bottom: 右下。 */
+	/** vertical-lr bottom: bottom right. */
 	public void testBottomVerticalLr() throws Exception {
 		final String page = single(convert("lr-bottom", document("vertical-lr", "bottom")));
 		final double[] fig = frame(page);
@@ -89,7 +91,7 @@ public class VerticalPageFloatTest extends TestCase {
 		assertNoOverlap(page, fig);
 	}
 
-	/** block-end: 従来の縦組みの bottom の置き方(左上)。 */
+	/** block-end: the former vertical-writing bottom placement (top left). */
 	public void testBlockEndKeepsBlockEndCorner() throws Exception {
 		final String page = single(convert("rl-block-end", document("vertical-rl", "block-end")));
 		final double[] fig = frame(page);
@@ -98,7 +100,7 @@ public class VerticalPageFloatTest extends TestCase {
 		assertNoOverlap(page, fig);
 	}
 
-	/** top は縦組みでも右上(物理の上)。block-start も同じ。 */
+	/** top is at the upper right (physical top) even in vertical writing. block-start is the same. */
 	public void testTopIsPhysicalTop() throws Exception {
 		for (final String floating : new String[] { "top", "block-start" }) {
 			final String page = single(convert("rl-" + floating, document("vertical-rl", floating)));
@@ -109,7 +111,7 @@ public class VerticalPageFloatTest extends TestCase {
 		}
 	}
 
-	/** 横組みでは bottom と block-end は同じ置き方。 */
+	/** In horizontal writing, bottom and block-end have the same placement. */
 	public void testHorizontalBottomEqualsBlockEnd() throws Exception {
 		final double[] bottom = frame(single(convert("h-bottom", document("horizontal-tb", "bottom"))));
 		final double[] blockEnd = frame(single(convert("h-block-end", document("horizontal-tb", "block-end"))));
@@ -119,9 +121,10 @@ public class VerticalPageFloatTest extends TestCase {
 	}
 
 	/**
-	 * 幅いっぱいの図(ブロック方向に版面全部。縦組みの width の % は不定のブロック方向の寸法に対するもので
-	 * 効かないので長さで書く)を本文の途中に書くと、既に組んだ行と重ならないよう次の頁の下へ回り、
-	 * その頁の行は全部、図の上で終わる(jigensha の縦組みの本で図・表を頁の地へ寄せる形)。
+	 * A full-width figure (covering the whole type area in the block direction; use a length because vertical-writing
+	 * width percentages refer to an indefinite block dimension and do not work) written amid body text moves to
+	 * the next page's bottom to avoid overlapping lines already laid out. All lines on that page end above it
+	 * (placing figures/tables at the page bottom in jigensha's vertical-writing book).
 	 */
 	public void testFullWidthBottomGoesToNextPageAndShortensAllLines() throws Exception {
 		final String html = """
@@ -147,7 +150,7 @@ public class VerticalPageFloatTest extends TestCase {
 		assertTrue("2 頁目の行は図の脇で短い", linesBeside(pages[1], fig) > 5);
 	}
 
-	/** 縦組みの 2 段組の中の bottom も本文と重ならない(段組の中は一次元の予約)。 */
+	/** bottom inside two-column vertical writing also avoids overlapping body text (one-dimensional reservation within columns). */
 	public void testVerticalMulticolBottomDoesNotOverlap() throws Exception {
 		final String html = """
 				<!DOCTYPE html>
@@ -189,8 +192,9 @@ public class VerticalPageFloatTest extends TestCase {
 	}
 
 	/**
-	 * 縦組みの行の矩形(x は行の左、y は行頭。長さは全角の字数×字の大きさ)。行末の句読点はぶら下げで
-	 * 行の外へ出てよく、縦組みの字面は字の枠の上寄りなので、長さに数えない。
+	 * Rectangles of vertical lines (x = line left, y = line start; length = full-width character count × character size).
+	 * Trailing punctuation may hang outside the line, and vertical glyph ink lies toward the top of the character box,
+	 * so do not count it in the length.
 	 */
 	private static List<double[]> lines(final String page) {
 		final List<double[]> lines = new ArrayList<>();
@@ -219,7 +223,7 @@ public class VerticalPageFloatTest extends TestCase {
 		}
 	}
 
-	/** 図とブロック方向(x)で並ぶ行の数。 */
+	/** Number of lines alongside the figure in the block direction (x). */
 	private static int linesBeside(final String page, final double[] fig) {
 		int n = 0;
 		for (final double[] line : lines(page)) {
@@ -230,7 +234,7 @@ public class VerticalPageFloatTest extends TestCase {
 		return n;
 	}
 
-	/** 変換して、各頁の表示リストを頁順に返します。 */
+	/** Convert and return each page's display list in page order. */
 	private static String[] convert(final String name, final String html) throws Exception {
 		final File dir = new File("local/vertical-page-float/" + name);
 		dir.mkdirs();

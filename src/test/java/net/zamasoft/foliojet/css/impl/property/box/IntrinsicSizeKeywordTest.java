@@ -25,9 +25,9 @@ import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 
 /**
- * 固有寸法キーワード {@code max-content}/{@code min-content}/
- * {@code fit-content}/{@code fit-content(L)}(css-sizing-3、2026-08-29)の
- * 解析とレイアウト側表現への変換のテストです。
+ * Tests for parsing intrinsic-size keywords {@code max-content}/{@code min-content}/
+ * {@code fit-content}/{@code fit-content(L)} (css-sizing-3, 2026-08-29)
+ * and converting them to layout-side representations.
  */
 public class IntrinsicSizeKeywordTest extends TestCase {
 
@@ -114,7 +114,7 @@ public class IntrinsicSizeKeywordTest extends TestCase {
 		assertTrue(bounded.hasArgument());
 		assertEquals(LengthType.RELATIVE, bounded.argument().getType());
 		assertEquals(0.5, bounded.argument().getLength(), 1e-9);
-		// 引数が長さでなくなった(attr()解決失敗)場合は引数無し
+		// If the argument is no longer a length (attr() resolution failed), treat it as no argument.
 		assertSame(IntrinsicSize.FIT_CONTENT, BoxValueUtils.toIntrinsicSize(new FitContentValue(KeywordValue.NONE)));
 	}
 

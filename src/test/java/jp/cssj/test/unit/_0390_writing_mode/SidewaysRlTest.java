@@ -48,7 +48,7 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** sideways-rl を水平 run の +90 度回転として描く Stage 1 の受入検査。 */
+/** Stage 1 acceptance checks: draw sideways-rl as horizontal runs rotated +90 degrees. */
 public class SidewaysRlTest extends AbstractTestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final File FIXTURE = new File("files/unittest/0390-writing-mode/sideways-rl.html");
@@ -135,7 +135,7 @@ public class SidewaysRlTest extends AbstractTestCase {
 	}
 
 	private void assertDisplayList(final String dump) {
-		// LTR の sideways 行は並べ替え無しなので dump は Text["…"] 形式(logical=/visual= は並べ替え行だけ)
+		// LTR sideways lines are not reordered, so dumps use Text["…"] (logical=/visual= is only for reordered lines).
 		final List<String> orientationLines = dump.lines()
 				.filter(line -> line.contains("\"A\u6F22B\"")).toList();
 		assertEquals(3, orientationLines.size());
@@ -180,8 +180,8 @@ public class SidewaysRlTest extends AbstractTestCase {
 	}
 
 	private void assertPagedSvg(final String svg) {
-		// data-copper-text は埋め込み subset 経路だけに付く。core フォント+フォールバックでは run が
-		// 文字ごとに分かれるので、<text> の中身で特定する(3 つの div の "A" が最低 3 要素)
+		// data-copper-text appears only on the embedded subset path. With core fonts + fallback, runs split
+		// by character, so identify them by <text> content (the three divs have at least three "A" elements).
 		int orientationTags = 0;
 		for (final String[] element : textElements(svg)) {
 			if ("A".equals(element[1]) || "A\u6F22B".equals(element[1])) {
@@ -420,7 +420,7 @@ public class SidewaysRlTest extends AbstractTestCase {
 				}
 				if ("cm".equals(operator.getName()) && operands.size() >= 6) {
 					final int off = operands.size() - 6;
-					// PDF の座標は y 上向きなので、利用者空間の +90°(0 1 -1 0)は content stream では 0 -1 1 0 になる
+					// PDF coordinates increase y upward, so user-space +90° (0 1 -1 0) becomes 0 -1 1 0 in the content stream.
 					if (near(number(operands.get(off)), 0) && near(number(operands.get(off + 1)), -1)
 							&& near(number(operands.get(off + 2)), 1) && near(number(operands.get(off + 3)), 0)) {
 						++count;
@@ -450,7 +450,7 @@ public class SidewaysRlTest extends AbstractTestCase {
 		return matrix;
 	}
 
-	/** {@code <text …>中身</text>} の (開始タグ, 中身) の列。 */
+	/** Sequence of (start tag, content) pairs from {@code <text …>中身</text>} ("中身" means content). */
 	private static List<String[]> textElements(final String xml) {
 		final List<String[]> elements = new ArrayList<>();
 		final java.util.regex.Matcher m = java.util.regex.Pattern.compile("(<text[^>]*>)([^<]*)</text>").matcher(xml);

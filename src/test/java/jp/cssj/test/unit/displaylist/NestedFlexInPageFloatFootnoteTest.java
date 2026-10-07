@@ -6,7 +6,7 @@ import java.nio.file.Files;
 
 import junit.framework.TestCase;
 
-/** ページフロート内の脚注に入れ子Flexがある場合の二重bind回帰(seed 932)。 */
+/** Double-bind regression for nested Flex in a footnote inside a page float (seed 932). */
 public class NestedFlexInPageFloatFootnoteTest extends TestCase {
 	public NestedFlexInPageFloatFootnoteTest(final String name) {
 		super(name);

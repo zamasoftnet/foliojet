@@ -17,7 +17,7 @@ import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
 import net.zamasoft.pdfg2d.gc.text.pipeline.Itemizer;
 
-/** flushText で段落を切らず、float barrier を越えて解決する。 */
+/** Resolves across float barriers without ending the paragraph at flushText. */
 public class FloatBarrierBidiTest extends AbstractTestCase {
 	private boolean sawJoinedLine;
 	private Rectangle2D floatBounds;

@@ -4,27 +4,27 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.builder.impl.TextEventJournal;
 
 /**
- * 境界イベント journal(M3b Phase 0)のテストです。deliveredCharEnd
- * (グリフのみで前進)と正規化イベントカーソル(control 込み)の乖離 —
- * open 段落の接合キーに前者が使えない理由 — を型のレベルで固定します。
+ * Tests the boundary event journal (M3b Phase 0). Verifies at the type level the divergence between
+ * deliveredCharEnd (advances only on glyphs) and the normalized event cursor (includes controls),
+ * which is why the former cannot serve as the join key for an open paragraph.
  */
 public class TextEventJournalTest extends TestCase {
 	public void testCursorAdvancesOnTrailingControls() {
 		final TextEventJournal j = new TextEventJournal();
 		j.run(0);
 		j.glyph(0, 3); // 「abc」
-		// deliveredCharEnd 相当はここで 3
-		j.control(3); // 末尾の空白
-		j.control(4); // 改行
-		// 正規化イベントの配達境界は control を含めて 5 まで進む
+		// The deliveredCharEnd equivalent is 3 here.
+		j.control(3); // Trailing whitespace.
+		j.control(4); // Line break.
+		// The normalized event delivery boundary advances to 5, including controls.
 		assertEquals(5, j.cursor());
 		assertEquals(4, j.seq());
 	}
 
 	public void testNegativeOffsetsDoNotAdvance() {
 		final TextEventJournal j = new TextEventJournal();
-		j.glyph(-1, 2); // 生成グリフ(ソース位置なし)
-		j.control(-1); // 生成 control
+		j.glyph(-1, 2); // Generated glyph (no source position).
+		j.control(-1); // Generated control.
 		assertEquals(0, j.cursor());
 		assertEquals(2, j.seq());
 	}

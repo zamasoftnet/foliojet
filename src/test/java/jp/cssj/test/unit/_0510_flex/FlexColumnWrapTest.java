@@ -8,10 +8,11 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * column wrapのテストです(Flex F4d——definite main(100pt)+cross
- * (200pt)限定・align-content: flex-start(既定normal=stretchは列幅へ余白を
- * 均等加算するため密配置で検証)。basis 40pt×3は列あたり2個(40+40≦100、3個目は
- * 40×3=120&gt;100)で2列、列幅=item明示幅50pt: rはx=+50/y=+0)。
+ * Tests column wrap (Flex F4d, limited to definite main (100 pt) and cross (200 pt) sizes).
+ * Uses align-content: flex-start for tight placement, since the default normal=stretch adds free
+ * space equally to column widths. Three items with basis 40 pt fit two per column
+ * (40+40≦100; the third would give 40×3=120&gt;100), forming two columns.
+ * Column width = explicit item width 50 pt: r is at x=+50/y=+0.
  */
 public class FlexColumnWrapTest extends AbstractTestCase {
 	public FlexColumnWrapTest(String name) {
@@ -34,7 +35,7 @@ public class FlexColumnWrapTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 同一列の2番目(主軸+40pt)。 */
+	/** Second item in the same column (main axis +40 pt). */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);
@@ -44,7 +45,7 @@ public class FlexColumnWrapTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 2列目の先頭(cross+50pt=1列目の幅、主軸+0)。 */
+	/** Start of the second column (cross axis +50 pt = first column width; main axis +0). */
 	public boolean check_r(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 50, x, 0.1);
@@ -57,9 +58,9 @@ public class FlexColumnWrapTest extends AbstractTestCase {
 	private double w3X = Double.NaN, w3Y = Double.NaN;
 
 	/**
-	 * wrap-reverse: 列順反転で論理2列目(item 3)が視覚先頭(左)。
-	 * align-items: flex-endはcross反転によりrowと対称にstart側
-	 * (列の左端)へ倒れる——2026-08-02の非対称解消の固定。
+	 * wrap-reverse: reversing column order puts logical column 2 (item 3) first visually (left).
+	 * Cross-axis reversal makes align-items: flex-end select the start side (the column's left edge),
+	 * symmetrically with row. Verifies the contract for the asymmetry resolved on 2026-08-02.
 	 */
 	public boolean check_w3(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
@@ -71,7 +72,7 @@ public class FlexColumnWrapTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 論理1列目(item 1,2)は視覚2列目=+50。整列も左詰め(反転済みflex-end)。 */
+	/** Logical column 1 (items 1,2) is visual column 2 = +50. Alignment is also left (reversed flex-end). */
 	public boolean check_w1(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.w3X + 50, x, 0.1);

@@ -29,24 +29,25 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 画像の画素数の上限({@code input.image-pixel-limit}・{@code output.image-pixel-limit})
- * を固定します(2026-10-03、共有サービスの資源の上限 増分1。
- * {@code copperpdf4/docs/design/shared-service-limits-design.md} §3-1)。
+ * Fix image pixel-count limits ({@code input.image-pixel-limit} and {@code output.image-pixel-limit})
+ * (2026-10-03, shared-service resource limits, increment 1.
+ * {@code copperpdf4/docs/design/shared-service-limits-design.md} §3-1).
  *
  * <p>
- * 画素を展開する<b>前に</b>ヘッダの寸法で断ることが肝心なので、試験の画像は
- * <b>ヘッダだけ</b>を正しく作り、画素は持たせない(展開しようとすれば
- * 「decode」で失敗し、断れば「too-large」になる——段階の文言で区別できる)。
+ * The key is rejecting images based on header dimensions <b>before</b> decoding pixels.
+ * Test images therefore contain <b>only valid headers</b>, with no pixels
+ * (attempting to decode fails at "decode", whereas rejection gives "too-large":
+ * the stage text distinguishes them).
  * </p>
  */
 public class ImagePixelLimitTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 1x1 の PNG(本物)。 */
+	/** A real 1x1 PNG. */
 	private static final byte[] PNG_1X1 = Base64.getDecoder()
 			.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
 
-	/** 1x1 の透明 GIF(本物、43 バイト)。論理画面の寸法は 6〜9 バイト目。 */
+	/** A real transparent 1x1 GIF (43 bytes). Logical-screen dimensions occupy bytes 6–9. */
 	private static final byte[] GIF_1X1 = { 0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, (byte) 0x80,
 			0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, 0x21, (byte) 0xF9, 0x04, 0x01, 0x00,
 			0x00, 0x00, 0x00, 0x2C, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x02, 0x02, 0x44, 0x01, 0x00,
@@ -56,7 +57,7 @@ public class ImagePixelLimitTest extends TestCase {
 	private final List<Short> codes = new ArrayList<>();
 	private boolean failed;
 
-	/** 上限を超える PNG は展開せずに断る(2811 の段階が too-large)。 */
+	/** Reject an oversized PNG without decoding (2811 stage is too-large). */
 	public void testLargePngIsRefusedBeforeDecoding() throws Exception {
 		final String pdf = this.convert(page("big.png"), Map.of("big.png", pngHeaderOnly(20000, 20000)),
 				props("input.image-pixel-limit", "40000000"));
@@ -65,14 +66,14 @@ public class ImagePixelLimitTest extends TestCase {
 		assertEquals(List.of("too-large 20000x20000 > 40000000"), this.image2811);
 	}
 
-	/** 上限が無ければ従来どおり展開を試みる(この画像は画素が無いので decode で失敗する)。 */
+	/** Without a limit, attempt decoding as before (this image has no pixels, so it fails at decode). */
 	public void testWithoutLimitTheDecoderRuns() throws Exception {
 		this.convert(page("big.png"), Map.of("big.png", pngHeaderOnly(20000, 20000)), props());
 		assertFalse("文書は変換できること", this.failed);
 		assertEquals(List.of("decode"), this.image2811);
 	}
 
-	/** 境界: 幅×高さが上限ちょうどなら読み、1 画素でも超えれば断る。 */
+	/** Boundary: read if width×height equals the limit; reject even one pixel over. */
 	public void testBoundary() throws Exception {
 		final String exact = this.convert(page("one.png"), Map.of("one.png", PNG_1X1),
 				props("input.image-pixel-limit", "1"));
@@ -88,9 +89,10 @@ public class ImagePixelLimitTest extends TestCase {
 	}
 
 	/**
-	 * 透明度の無い PNG(RGB・グレー・パレット)も上限の下で読む(2026-10-04)。寸法を読んだリーダが
-	 * ヘッダを読んだ状態を覚えていて、先頭へ戻した後の型の判定が失敗し、「読めない画像」として
-	 * 消えていた(19088〜19095 の本番。上の境界の試験の PNG は透明度付きで通っていた)。
+	 * Read opaque PNGs (RGB, grayscale, palette) below the limit too (2026-10-04).
+	 * The reader used for dimensions retained its header-read state, causing type detection after rewinding
+	 * to fail and images to disappear as unreadable (production 19088–19095.
+	 * The PNG in the boundary test above had transparency and passed).
 	 */
 	public void testPngWithoutAlphaIsReadUnderALimit() throws Exception {
 		final Map<String, byte[]> files = new java.util.LinkedHashMap<>();
@@ -109,7 +111,7 @@ public class ImagePixelLimitTest extends TestCase {
 		assertEquals(3, pdf.split("/Subtype /Image", -1).length - 1);
 	}
 
-	/** data: の画像も同じ判定(測定のパスでも全展開する経路)。 */
+	/** Apply the same check to data: images (fully decoded even in the measurement pass). */
 	public void testDataUri() throws Exception {
 		final String html = "<html><body><p>x</p><img src='data:image/png;base64,"
 				+ Base64.getEncoder().encodeToString(pngHeaderOnly(20000, 20000)) + "'/></body></html>";
@@ -121,7 +123,7 @@ public class ImagePixelLimitTest extends TestCase {
 		}
 	}
 
-	/** 複数パス(測定のパスはヘッダだけ読む経路)でも同じく断ること。 */
+	/** Reject in multiple passes too (the measurement pass reads only the header). */
 	public void testMeasurePassAgrees() throws Exception {
 		final String pdf = this.convert(page("big.png"), Map.of("big.png", pngHeaderOnly(20000, 20000)),
 				props("input.image-pixel-limit", "40000000", "processing.pass-count", "2"));
@@ -134,12 +136,12 @@ public class ImagePixelLimitTest extends TestCase {
 	}
 
 	/**
-	 * GIF は論理画面の寸法も数える。ImageIO は 1x1 のフレームを読むが、AWT の
-	 * 代替経路は論理画面全体を描くため。
+	 * For GIF, also count logical-screen dimensions. ImageIO reads the 1x1 frame,
+	 * but the AWT fallback renders the entire logical screen.
 	 */
 	public void testGifLogicalScreenCounts() throws Exception {
 		final byte[] gif = GIF_1X1.clone();
-		gif[6] = 0x30; // 30000 = 0x7530(リトルエンディアン)
+		gif[6] = 0x30; // 30000 = 0x7530 (little-endian)
 		gif[7] = 0x75;
 		gif[8] = 0x30;
 		gif[9] = 0x75;
@@ -148,7 +150,7 @@ public class ImagePixelLimitTest extends TestCase {
 		assertEquals(List.of("too-large 30000x30000 > 1000000"), this.image2811);
 	}
 
-	/** JPEG(PDF へ素通しする経路)も展開の前に断る。 */
+	/** Reject JPEG before decoding too (the path that passes it straight through to PDF). */
 	public void testLargeJpegIsRefused() throws Exception {
 		final String pdf = this.convert(page("big.jpg"), Map.of("big.jpg", jpegWithSize(20000, 20000)),
 				props("input.image-pixel-limit", "40000000"));
@@ -157,7 +159,7 @@ public class ImagePixelLimitTest extends TestCase {
 		assertEquals(List.of("too-large 20000x20000 > 40000000"), this.image2811);
 	}
 
-	/** 画像出力の版面が上限を超えると変換を失敗させる(3812)。 */
+	/** Fail conversion if the type area in image output exceeds the limit (3812). */
 	public void testOutputRasterLimit() throws Exception {
 		this.convert("<html><body><p>x</p></body></html>", Map.of(),
 				props("output.type", "image/png", "output.image-pixel-limit", "1000"));
@@ -165,7 +167,7 @@ public class ImagePixelLimitTest extends TestCase {
 		assertTrue("3812 が出ること", this.codes.contains(MessageCodes.ERROR_OUTPUT_IMAGE_TOO_LARGE));
 	}
 
-	/** 版面が上限以内なら従来どおり出る。 */
+	/** Output as before if the type area is within the limit. */
 	public void testOutputRasterWithinLimit() throws Exception {
 		this.convert("<html><body><p>x</p></body></html>", Map.of(),
 				props("output.type", "image/png", "output.image-pixel-limit", "100000000"));
@@ -185,7 +187,7 @@ public class ImagePixelLimitTest extends TestCase {
 		return map;
 	}
 
-	/** IHDR と IEND だけの PNG(画素が無いので、展開しようとすれば失敗する)。 */
+	/** A PNG containing only IHDR and IEND (no pixels, so attempting to decode fails). */
 	private static byte[] pngHeaderOnly(final int width, final int height) throws IOException {
 		final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 		final DataOutputStream out = new DataOutputStream(bytes);
@@ -215,7 +217,7 @@ public class ImagePixelLimitTest extends TestCase {
 		out.writeInt((int) crc.getValue());
 	}
 
-	/** 8x8 の本物の JPEG を作り、SOF の寸法だけを書き換えます。 */
+	/** Create a real 8x8 JPEG and rewrite only the SOF dimensions. */
 	private static byte[] jpegWithSize(final int width, final int height) throws IOException {
 		final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 		ImageIO.write(new BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB), "jpeg", bytes);

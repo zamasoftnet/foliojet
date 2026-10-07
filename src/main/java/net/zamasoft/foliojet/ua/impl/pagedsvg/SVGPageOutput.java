@@ -4,42 +4,42 @@ import java.io.IOException;
 import java.io.Writer;
 
 /**
- * ページ1枚のSVGを、<b>溜めずに</b>書き出します。
+ * Writes one page of SVG <b>without buffering</b>.
  *
  * <p>
- * 順番は「ルート要素 → 本体 → {@code defs} → 閉じ」です。クリップ経路・
- * グラデーション・{@code @font-face}は描画の途中で判明しますが、
- * <b>SVG 1.1では{@code defs}は文書のどこに置いてもよく、それより前に現れる
- * 要素からも参照できます</b>。だから末尾に置いて構いません。
+ * The order is "root element → body → {@code defs} → close".
+ * Clip paths, gradients, and {@code @font-face} become known during drawing,
+ * but <b>SVG 1.1 allows {@code defs} anywhere in the document, including references
+ * from elements that precede it</b>. It can therefore go at the end.
  * </p>
  *
  * <p>
- * <b>フラグメント出力を使って{@code defs}を先頭へ回すことは検討したうえで
- * 採らなかった。</b> PDFが相互参照表を後から埋めるのは、オブジェクトの
- * <b>バイト位置</b>を書く必要があるからで、SVGにはその必要がない。規格が
- * 置き場所を自由にしてくれている以上、末尾でよい。<b>採らない理由はこれで足りる。</b>
+ * <b>Using fragment output to move {@code defs} to the start was considered and rejected.</b>
+ * PDF fills its cross-reference table later because it must record objects' <b>byte offsets</b>;
+ * SVG has no such requirement. Since the specification allows any position, the end is fine.
+ * <b>This alone is sufficient reason to reject it.</b>
  * </p>
  *
  * <p>
- * 先頭へ回せば、最終バイト列が「後から確定する先頭 + 先に流れた本体」に
- * なるので、ページ全体を一度抱えることになり、溜めない利点を打ち消す。
- * ついでにmanifestの{@code svgSha256}も流しながら取れなくなるが、
- * <b>こちらは副次的な話</b>——ページのハッシュはURIに使っておらず(URIは連番)、
- * いまのところ読む実装も無い。制約として扱うほどのものではない。
+ * Moving it to the start makes the final bytes "a prefix finalized later + a body streamed earlier",
+ * requiring the entire page to be held once and negating the benefit of unbuffered output.
+ * It also prevents streaming calculation of the manifest's {@code svgSha256},
+ * but <b>that is secondary</b>: page hashes are not used in URIs (which are sequential),
+ * and no implementation currently reads them. They do not warrant treatment as a constraint.
  * </p>
  *
  * <p>
- * 速さのために使う余地も無い。実測(build 19021、314ページ、1パス、
- * 7回中央値)では変換1,397msのうち約1,250msが組版で、形式ごとの書き出しの差は
- * PDFに対して155msしかない。フラグメントはその155msを削るものではなく、
- * 抱える量を増やす方向に働く。
+ * There is no performance justification, either. Measurements (build 19021, 314 pages, one pass,
+ * median of 7 runs) showed layout taking about 1,250 ms of a 1,397 ms conversion;
+ * the format-specific output difference from PDF was only 155 ms.
+ * Fragments would not reduce those 155 ms; they would increase the amount retained.
  * </p>
  *
  * <p>
- * 意味があるとすれば順序のほうで、{@code manifest.json}を先頭で予約して
- * 最後に埋めれば、受け手が総ページ数・綴じ方向・目次を先に知ったうえで
- * 1ページ目から描き始められる。総時間ではなく、最初に使える情報が届くまでの
- * 時間の話である。
+ * Ordering could be a meaningful use: reserving {@code manifest.json} at the start and filling
+ * it at the end would let the consumer know the total page count, binding direction, and
+ * table of contents before rendering from the first page. This concerns time until useful
+ * information first arrives, not total time.
  * </p>
  *
  * @author MIYABE Tatsuhiko

@@ -5,37 +5,31 @@ import java.util.Map;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * COLUMN継続の正本トークンです(2026-07-24新設、E-3増分5。旧
- * {@code ColumnResumeProgram}+{@code RootBuilder.CompiledColumn}を置換
- * した小さなドメイントークン。設計相談
- * -codex.md §1)。
+ * Canonical token for a COLUMN continuation (added 2026-07-24, E-3 increment 5). A small domain token replacing
+ * {@code ColumnResumeProgram}+{@code RootBuilder.CompiledColumn} (design consultation
+ * -codex.md §1).
  *
  * <p>
- * PAGE継続({@link Continuation})との本質的な非対称性——ownerボックス
- * 自体はfragment再構成されず、同一インスタンスへ新columnをcommitする
- * だけ——のため、PAGEと同じレコードへは統合しない。owner直下の残余は
- * {@link #anchor()}が、ownerより内側で貫通した子孫チェーンは
- * {@link #childFrame()}が表す(貫通しなければnull——owner直下に開いた
- * 子孫が全くない、または切断が貫通しなかった正規のケース)。
+ * Not merged into the same record as PAGE continuations ({@link Continuation}) because of an essential asymmetry:
+ * the owner box itself is not reconstructed as a fragment; a new column is merely committed to the same instance.
+ * {@link #anchor()} represents the remainder directly under the owner, and {@link #childFrame()} represents the
+ * descendant chain traversed by the cut inside the owner (null if not traversed: valid when there are no open
+ * descendants directly under the owner, or the cut did not pass through them).
  * </p>
  *
  * <p>
- * {@code ranges}は意図的に{@code Map.copyOf}しない——consume-once用の
- * mutableなマップであり、{@code RootBuilder.replayFromSource()}が消費時に
- * 直接{@code remove()}する(read-onlyにすると本番で
- * {@code UnsupportedOperationException}になる。旧{@code CompiledColumn}
- * の規約の踏襲)。
+ * Deliberately does not apply {@code Map.copyOf} to {@code ranges}. It is a mutable map for consume-once, directly
+ * modified by {@code RootBuilder.replayFromSource()} via {@code remove()} during consumption (making it read-only
+ * causes {@code UnsupportedOperationException} in production; retains the old {@code CompiledColumn} contract).
  * </p>
  *
- * @param snapshot   破断時の相対open pathスナップショット
+ * @param snapshot   relative open-path snapshot at the break
  *                   (index 0 = COLUMN_OWNER anchor)
- * @param anchor     owner直下の残余
- * @param childFrame owner直下で貫通した場合の継続フレーム(貫通しなければ
- *                   null)
- * @param ranges     閉部分木の再生範囲(consume-once、mutable)
- * @param pathShape  {@link ContinuationValidator#validateColumn}が返した
- *                   検証済みopen path形(tail policy導出・終端OpenShapeの
- *                   正本)
+ * @param anchor     remainder directly under the owner
+ * @param childFrame continuation frame if the cut passed through directly under the owner (null otherwise)
+ * @param ranges     replay ranges for closed subtrees (consume-once, mutable)
+ * @param pathShape  validated open-path shape returned by {@link ContinuationValidator#validateColumn}
+ *                   (canonical source for tail-policy derivation and terminal OpenShape)
  */
 public record ColumnContinuation(OpenPathSnapshot snapshot, ColumnAnchor anchor,
 		Continuation.ContinuationFrame childFrame, Map<IBox, Continuation.SourceRange> ranges,

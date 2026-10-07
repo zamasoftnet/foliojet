@@ -27,71 +27,71 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * PDF出力まわりの入出力プロパティの検査です(2026-08-02新設、
- * 入出力プロパティ網羅の第4陣)。すかし・リンク・フォント方針・
- * 画像圧縮・文書情報の解釈を、出力PDFの中身で確かめる。
+ * Tests for PDF-output I/O properties (introduced on 2026-08-02,
+ * the fourth batch of comprehensive I/O property coverage). Check watermark, link, font policy,
+ * image compression, and document-information interpretation in the output PDF contents.
  */
 public class PdfOutputIoPropertyTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** リンクと画像と文書情報(title/meta)を持つ文書。 */
+	/** A document with links, images, and document information (title/meta). */
 	private static final File DOCUMENT = new File("files/unittest/ioprops/link-and-image.html");
 
-	/** 和文を含む文書(フォント埋め込みの検査用)。 */
+	/** A document containing Japanese text (for checking font embedding). */
 	private static final File JAPANESE = new File("files/unittest/ioprops/japanese.html");
 
-	/** Java2D橋渡しで可読数字を描くバーコード。 */
+	/** A barcode whose human-readable digits are drawn through the Java2D bridge. */
 	private static final File BARCODE = new File("files/unittest/ioprops/barcode.html");
 
-	/** 書籍JAN二段を規格位置へ絶対配置した文書。 */
+	/** A document with two book JAN rows absolutely positioned at the standard locations. */
 	private static final File ABSOLUTE_BOOK_JAN = new File("files/unittest/ioprops/book-jan-absolute.html");
 
-	/** {@code output.pdf.hyperlinks}: リンク注釈が出ること。 */
+	/** {@code output.pdf.hyperlinks}: link annotations appear. */
 	public void testHyperlinks() throws Exception {
 		final String pdf = this.convert(props("output.pdf.hyperlinks", "true"));
 		assertTrue("リンク注釈が出ること", pdf.contains("/Annots") && pdf.contains("/Link"));
 	}
 
-	/** {@code output.pdf.hyperlinks.base}: 相対リンクの基点が効くこと。 */
+	/** {@code output.pdf.hyperlinks.base}: the base for relative links takes effect. */
 	public void testHyperlinkBase() throws Exception {
-		// 既定の output.pdf.hyperlinks.href は relative なので、基点を
-		// 効かせるには absolute を指定する
+		// The default output.pdf.hyperlinks.href is relative, so specify
+		// absolute to make the base take effect.
 		final String pdf = this.convert(props("output.pdf.hyperlinks", "true",
 				"output.pdf.hyperlinks.href", "absolute",
 				"output.pdf.hyperlinks.base", "https://probe.example/base/"));
 		assertTrue("基点からのURIになること", pdf.contains("probe.example"));
 	}
 
-	/** {@code output.use-meta-info}: title/metaが文書情報になること。 */
+	/** {@code output.use-meta-info}: title/meta become document information. */
 	public void testUseMetaInfo() throws Exception {
 		final String pdf = this.convert(props("output.use-meta-info", "true"));
 		assertTrue("titleが文書情報のTitleになること", pdf.contains("PROBE-DOC-TITLE"));
 		assertTrue("meta[author]が文書情報のAuthorになること", pdf.contains("PROBE-META-AUTHOR"));
 	}
 
-	/** {@code output.use-meta-info=false}: 解釈しないこと。 */
+	/** {@code output.use-meta-info=false}: do not interpret them. */
 	public void testUseMetaInfoDisabled() throws Exception {
 		final String pdf = this.convert(props("output.use-meta-info", "false"));
 		assertFalse("文書情報に取り込まれないこと", pdf.contains("PROBE-META-AUTHOR"));
 	}
 
-	/** {@code output.pdf.fonts.policy}: 埋め込みでフォントファイルが出ること。 */
+	/** {@code output.pdf.fonts.policy}: embedding produces a font file. */
 	public void testFontsPolicyEmbedded() throws Exception {
-		// **コアフォント(Times-Roman等)は仕様上埋め込まない**ので、
-		// 欧文だけの文書では FontFile は出ない。和文を含む文書で見る
+		// **Core fonts (Times-Roman, etc.) are not embedded by design**, so
+		// Latin-only documents produce no FontFile. Use a document containing Japanese text.
 		final String pdf = this.convert(JAPANESE, props("output.pdf.fonts.policy", "embedded"));
 		assertTrue("フォントが埋め込まれること(FontFile)", pdf.contains("/FontFile"));
 	}
 
-	/** {@code output.pdf.fonts.policy=cid-keyed}: 埋め込まないこと。 */
+	/** {@code output.pdf.fonts.policy=cid-keyed}: do not embed. */
 	public void testFontsPolicyCidKeyed() throws Exception {
 		final String pdf = this.convert(JAPANESE, props("output.pdf.fonts.policy", "cid-keyed"));
 		assertFalse("cid-keyedではフォントを埋め込まない", pdf.contains("/FontFile"));
 	}
 
 	/**
-	 * セッション指定はプロファイル既定値より強く、本文とトンボ注記の
-	 * どちらにも {@code outlines} が効くこと。
+	 * Session settings override profile defaults, and {@code outlines} applies
+	 * to both body text and crop-mark annotations.
 	 */
 	public void testFontsPolicyOutlinesOverridesProfileDefault() throws Exception {
 		final File baseProfile = new File(System.getProperty("jp.cssj.driver.default"));
@@ -112,7 +112,7 @@ public class PdfOutputIoPropertyTest extends TestCase {
 		}
 	}
 
-	/** バーコードの人間可読行も通常文字と同じoutlines方針に従うこと。 */
+	/** Barcode human-readable lines follow the same outlines policy as ordinary text. */
 	public void testFontsPolicyOutlinesAppliesToBarcodeText() throws Exception {
 		final File out = this.convertToFile(BARCODE, props("output.pdf.fonts.policy", "outlines"), null);
 		try (PDDocument pdf = Loader.loadPDF(out)) {
@@ -123,7 +123,7 @@ public class PdfOutputIoPropertyTest extends TestCase {
 		}
 	}
 
-	/** 書籍JANの0.33mm/moduleをPDFのcm精度で0.94ptへ太らせないこと。 */
+	/** PDF cm precision must not thicken book JAN's 0.33 mm/module to 0.94 pt. */
 	public void testBookJanKeepsExactPhysicalWidth() throws Exception {
 		final String pdf = this.convert(BARCODE, props("output.pdf.fonts.policy", "outlines"));
 		assertFalse("0.33mm/moduleを0.94ptの拡大行列へ丸めないこと", pdf.contains("0.94 0 0 0.94"));
@@ -136,7 +136,7 @@ public class PdfOutputIoPropertyTest extends TestCase {
 			final double x = Double.parseDouble(matcher.group(1));
 			final double width = Double.parseDouble(matcher.group(3));
 			final double height = Double.parseDouble(matcher.group(4));
-			// 細く高い書籍JANバーだけを拾う。ページ/背景矩形や文字outlineを除く。
+			// Select only thin, tall book JAN bars. Exclude page/background rectangles and text outlines.
 			if (height > 10.0 && width > 0 && width < 5.0) {
 				minX = Math.min(minX, x);
 				maxX = Math.max(maxX, x + width);
@@ -147,7 +147,7 @@ public class PdfOutputIoPropertyTest extends TestCase {
 		assertEquals("95 modules x 0.33mm = 31.35mm", 31.35 * 72 / 25.4, maxX - minX, 0.011);
 	}
 
-	/** 絶対配置した書籍JANの置換ボックスが指定した左・上位置を使うこと。 */
+	/** The absolutely positioned book JAN replaced box uses the specified left and top positions. */
 	public void testBookJanAbsolutePositionUsesSpecifiedTop() throws Exception {
 		final File dumpDir = new File("local/unittest/pdf/book-jan-absolute-display-list");
 		final File dump = new File(dumpDir, "page-0001.txt");
@@ -172,11 +172,11 @@ public class PdfOutputIoPropertyTest extends TestCase {
 		assertEquals("上段上端10mm", 10 * 72 / 25.4, boxes.get(0)[1], 0.011);
 		assertEquals("下段上端31mm", 31 * 72 / 25.4, boxes.get(1)[1], 0.011);
 
-		// 旧Java2D経路はページ座標をBarcodeImage内へ逆流させ、その後の
-		// 画像scaleで置換ボックスが正しくても内容だけ約0.87mm上へずれた。
-		// PDFの実描画行列と白背景を合成し、完成シンボルの上端・全高・
-		// 段間を物理寸法で検証する。GCのY軸反転により背景のlocal y自体は
-		// 0にならないので、local座標だけを規格位置と混同しない。
+		// The old Java2D path fed page coordinates back into BarcodeImage, and the subsequent
+		// image scale shifted only the contents about 0.87 mm upward even though the replaced box was correct.
+		// Combine the actual PDF drawing matrix and white background to verify the finished symbol's top, total height,
+		// and inter-row gap in physical dimensions. GC's Y-axis inversion means the background's local y itself
+		// is not 0, so do not confuse local coordinates alone with the standard position.
 		final String pdf = new String(Files.readAllBytes(out.toPath()), StandardCharsets.ISO_8859_1);
 		final Pattern backgroundPattern = Pattern.compile(
 				"q 1 0 0 ([0-9.]+) ([0-9.-]+) ([0-9.-]+) cm 1 g 0 ([0-9.]+) ([0-9.]+) ([0-9.]+) re f");
@@ -208,21 +208,21 @@ public class PdfOutputIoPropertyTest extends TestCase {
 		assertEquals("上段下端から下段上端まで10mm", 10, gap * 25.4 / 72, 0.02);
 	}
 
-	/** {@code output.pdf.image.compression}: 指定した圧縮方式が使われること。 */
+	/** {@code output.pdf.image.compression}: the specified compression method is used. */
 	public void testImageCompressionJpeg() throws Exception {
-		// 値は jpeg(dct ではない)。また lossless 閾値(既定200px)以下の
-		// 画像は非可逆にしないので、閾値を下げてから見る
+		// The value is jpeg (not dct). Images at or below the lossless threshold (default 200 px)
+		// are not compressed lossily, so lower the threshold before checking.
 		final String pdf = this.convert(props("output.pdf.image.compression", "jpeg",
 				"output.pdf.image.compression.lossless", "10"));
 		assertTrue("JPEG(DCTDecode)で圧縮されること", pdf.contains("/DCTDecode"));
 	}
 
-	/** {@code output.pdf.watermark.uri}: すかし画像が埋め込まれること。 */
+	/** {@code output.pdf.watermark.uri}: the watermark image is embedded. */
 	public void testWatermark() throws Exception {
 		final Map<String, String> props = props("output.pdf.watermark.uri",
 				new File("files/unittest/red.png").toURI().toString());
 		final String pdf = this.convert(props);
-		// すかしは透明グループ(/Group)を持つ形で置かれる
+		// The watermark is placed with a transparency group (/Group).
 		assertTrue("すかしが置かれること", pdf.contains("/Group") || pdf.contains("Watermark"));
 	}
 

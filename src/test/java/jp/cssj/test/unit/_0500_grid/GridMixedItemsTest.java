@@ -8,12 +8,12 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Grid G1の匿名item・置換要素itemのテストです。source-orderのslotは
- * 匿名(text-one)=0、#a=1、img#m=2、匿名(text-two)=3。行1高=
- * max(テキスト行, 30pt)=30、行2高=max(25pt, テキスト行)=25、
- * 総高=30+rowGap10+25=65。#gの位置を原点に相対検証する
- * (末尾の匿名itemはid検証できないが、#afterの位置=総高65が
- * 行所属の正しさを裏づける)。
+ * Grid G1 anonymous-item and replaced-element-item test. Source-order slots:
+ * anonymous (text-one)=0, #a=1, img#m=2, anonymous (text-two)=3.
+ * Row 1 height=max(text line, 30 pt)=30; row 2 height=max(25 pt, text line)=25;
+ * total height=30+rowGap 10+25=65. Checks coordinates relative to #g's position
+ * (the final anonymous item cannot be checked by id, but #after's position at total height 65
+ * confirms correct row membership).
  */
 public class GridMixedItemsTest extends AbstractTestCase {
 	public GridMixedItemsTest(String name) {
@@ -36,7 +36,7 @@ public class GridMixedItemsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** slot 1(2列目): 匿名itemのtext-oneがslot 0を占めている証拠。 */
+	/** Slot 1 (second column): proves that the anonymous text-one item occupies slot 0. */
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 120, x, 0.1);
@@ -46,14 +46,14 @@ public class GridMixedItemsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** slot 2(2行目1列目): 置換要素のone-shot item。行開始=30+gap10。 */
+	/** Slot 2 (row 2, column 1): a one-shot replaced-element item. Row start = 30+gap 10. */
 	public boolean check_m(IBox box, int pageNumber, double x, double y) {
 		assertEquals(this.baseX, x, 0.1);
 		assertEquals(this.baseY + 40, y, 0.1);
 		return true;
 	}
 
-	/** 後続ブロック: Grid総高=30+10+25=65だけ下。 */
+	/** Following block: lower by total Grid height = 30+10+25=65. */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);

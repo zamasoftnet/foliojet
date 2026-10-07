@@ -9,10 +9,10 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.builder.impl.FlexBuilder;
 
 /**
- * 匿名テキスト・ブロック混在itemの行配置テストです(Flex F1e——
- * F1dではコンテナ単位fallbackだったが、§9.7本配線により匿名itemも
- * content由来(max-content)で行内に配置される)。record数=bind数と
- * テキスト非損失、cross size=最大item高を固定する。
+ * Tests row placement of mixed anonymous-text and block items (Flex F1e).
+ * F1d fell back for the whole container, but after §9.7 was fully wired up, anonymous items also
+ * use content-derived (max-content) sizes for row placement.
+ * Verifies the contracts for record count = bind count, no text loss, and cross size = maximum item height.
  */
 public class FlexMixedItemsTest extends AbstractTestCase {
 	public FlexMixedItemsTest(String name) {
@@ -31,7 +31,7 @@ public class FlexMixedItemsTest extends AbstractTestCase {
 		assertEquals("record数=3(alpha/p/omega)", 3, records);
 	}
 
-	/** コンテナ内の全内容が存在する(テキスト非損失)。 */
+	/** All content inside the container is present (no text loss). */
 	public boolean check_ff(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			this.baseY = y;
@@ -45,7 +45,7 @@ public class FlexMixedItemsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 後続ブロックはコンテナ高(=行のcross size最大20pt)の直後。 */
+	/** The following block is immediately after the container height (= maximum line cross size, 20 pt). */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseY + 20, y, 0.1);

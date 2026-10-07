@@ -16,18 +16,21 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 手元のエンジンで任意の文書を組み、PDF と頁ごとの表示リストを出す道具です(2026-10-05)。調べものの度に
- * 使い捨ての試験を書いていたのをやめる。{@code -Dfoliojet.probe} が無ければ何もしない(通常の試験では空振り)。
+ * Tool to lay out arbitrary documents with the local engine and emit PDFs and per-page display lists
+ * (2026-10-05). Avoid writing a throwaway test for each investigation. Without {@code -Dfoliojet.probe},
+ * do nothing (inactive during ordinary tests).
  *
  * <pre>
- * wsl -e bash dev/tools/wsl/probe.sh 名前=/mnt/f/…/a.html [名前=…] [-- 入出力プロパティ=値 …]
+ * wsl -e bash dev/tools/wsl/probe.sh name=/mnt/f/…/a.html [name=…] [-- I/O-property=value …]
  * </pre>
  *
  * <p>
- * {@code foliojet.probe} は「名前=パス」を {@code |} で区切ったもの、{@code foliojet.probeProps} は
- * 「プロパティ=値」を {@code |} で区切ったもの。入力の種類は拡張子で決める(.epub・.html・.htm は
- * それぞれ EPUB・HTML、ほかは XHTML)。出力は {@code local/probes/名前/}(out.pdf と page-NNNN.txt)。
- * 頁寸法の処理命令を効かせるため {@code input.property-pi=true} と {@code input.include=**} を既定で付ける。
+ * {@code foliojet.probe} contains "name=path" pairs separated by {@code |};
+ * {@code foliojet.probeProps} contains "property=value" pairs separated by {@code |}.
+ * Determine input type by extension (.epub→EPUB, .html/.htm→HTML, others→XHTML).
+ * Output goes to {@code local/probes/name/} (out.pdf and page-NNNN.txt).
+ * Set {@code input.property-pi=true} and {@code input.include=**} by default
+ * to enable page-size processing instructions.
  * </p>
  */
 public class ProbeTest extends TestCase {

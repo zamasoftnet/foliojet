@@ -14,14 +14,15 @@ import net.zamasoft.pdfg2d.gc.paint.Paint;
 import net.zamasoft.pdfg2d.gc.text.Text;
 
 /**
- * 全ての操作を{@link #delegate()}へ素通しする{@link GC}の土台です
- * (2026-08-29)。包み紙は必要な操作だけを上書きする。
+ * Base {@link GC} that forwards every operation to {@link #delegate()}
+ * (2026-08-29). Wrappers override only the operations they need.
  *
  * <p>
- * 出力先の能力({@link #supports})・ぼかし塗り({@link #tryFillBlurred}を含む)・効果付き画像描画・
- * filter捕捉群・ブレンドモード・artifactスコープも必ず委譲する。特に
- * {@code tryFillBlurred}をGCの既定実装へ落とすと、delegate固有の「falseなら
- * 何も描かない」判定を飛ばして通常塗りへ縮退するため、明示的な委譲が必要。
+ * Always delegates output capabilities ({@link #supports}), blurred fills
+ * (including {@link #tryFillBlurred}), image drawing with effects, filter capture operations,
+ * blend modes, and artifact scopes. In particular, falling through to GC's default
+ * {@code tryFillBlurred} implementation skips the delegate-specific "draw nothing if false"
+ * decision and degrades to a normal fill, so explicit delegation is required.
  * </p>
  */
 public abstract class AbstractDelegatingGC implements GC, DelegatingGC {

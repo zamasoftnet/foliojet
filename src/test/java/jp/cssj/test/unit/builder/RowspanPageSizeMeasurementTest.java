@@ -7,7 +7,7 @@ import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.builder.impl.RowLayoutEngine;
 
-/** Incremental rowspan窓の実測軸を固定します。 */
+/** Verifies the measurement axis for Incremental rowspan windows. */
 public class RowspanPageSizeMeasurementTest extends TestCase {
 	public void testVerticalUsesWidthAndHorizontalUsesHeight() {
 		final TableCellBox cellBox = new TableCellBox(new BlockParams(), new TableCellPos(), new FlowContainer());

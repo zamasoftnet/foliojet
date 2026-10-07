@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.value.ext.CSSJWarichuValue;
 
-/** 標準CSSに対応する機能がない割注拡張の受理値を固定する。 */
+/** Fix accepted values for the warichu extension, which has no equivalent in standard CSS. */
 public class CSSJWarichuParserTest extends TestCase {
 	private static TokenStream tokens(final String value) {
 		final CSSReaderSettings settings = new CSSReaderSettings().setBrowserCompliantMode(true)

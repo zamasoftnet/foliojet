@@ -9,23 +9,23 @@ public final class Constants {
 		// unused
 	}
 
-	/** リンクの型。(SPEC ASSX1.0) */
+	/** Link type. (SPEC ASSX1.0) */
 	public static final String STYLESHEET_REL = "stylesheet";
 
-	/** 代用スタイルシートとしてのリンクの型。(SPEC ASSX1.0) */
+	/** Link type for an alternate style sheet. (SPEC ASSX1.0) */
 	public static final String ALTERNATE_REL = "alternate";
 
-	/** CSSのMIMEタイプ。(SPEC CSS2 3.4) */
+	/** CSS MIME type. (SPEC CSS2 3.4) */
 	public static final String CSS_MIME_TYPE = "text/css";
 
-	/** リンクのためのPI。(SPEC ASSX1.0) */
+	/** Processing instruction for links. (SPEC ASSX1.0) */
 	public static final String LINK_PI = "xml-stylesheet";
 
-	/** XSLTのMIMEタイプ。 */
+	/** XSLT MIME type. */
 	public static final String XSLT_MIME_TYPE = "text/xsl";
 
 	/**
-	 * XLINKの名前空間URIです。
+	 * The XLINK namespace URI.
 	 */
 	public static final String XLINK_URI = "http://www.w3.org/1999/xlink";
 

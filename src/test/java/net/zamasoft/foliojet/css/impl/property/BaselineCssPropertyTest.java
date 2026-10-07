@@ -46,21 +46,20 @@ import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 2026-08-30に実装したプロパティ群の受理と写しを固定します——マスクの
- * ロングハンド4件、{@code font-variant-*}3件と{@code font-palette}、
- * 論理境界の短縮形、{@code overflow-block}/{@code -inline}、
- * {@code background-origin}、{@code text-emphasis-position}。
+ * Fix acceptance and mapping of properties implemented on 2026-08-30: four mask longhands,
+ * three {@code font-variant-*} properties and {@code font-palette}, logical-border shorthands,
+ * {@code overflow-block}/{@code -inline}, {@code background-origin}, and {@code text-emphasis-position}.
  *
  * <p>
- * どれも「受理されるか」より<b>「受理されて、正しいロングハンドへ、正しい値で
- * 落ちるか」</b>が要点である。受理だけを見ると、短縮形が展開を取りこぼしていても
- * 緑になってしまう。
+ * The key is not merely acceptance, but <b>acceptance followed by mapping to the correct longhands
+ * with the correct values</b>. Checking only acceptance would pass even if a shorthand omitted
+ * parts of its expansion.
  *
  * <p>
- * 描画まで届いていない項目({@code mask-mode}/{@code mask-composite}/
- * {@code font-palette}など)は<b>意図的に受理・保持だけ</b>なので、ここでも
- * 値が保たれることまでを見る。近似で見た目を変えないという判断そのものが
- * 仕様なので、それを崩す変更はこのテストで落ちてほしい。
+ * Properties not yet wired to rendering ({@code mask-mode}/{@code mask-composite}/{@code font-palette},
+ * etc.) are <b>intentionally only accepted and retained</b>, so check value retention here.
+ * The decision not to change appearance through approximation is itself the contract;
+ * changes that violate it should fail these tests.
  */
 public class BaselineCssPropertyTest extends TestCase {
 
@@ -77,8 +76,8 @@ public class BaselineCssPropertyTest extends TestCase {
 					case "getFontMagnification":
 						return 1.0;
 					case "getDefaultFontFamily":
-						// font 短縮形は既定ファミリを暗黙に足す
-						// font-family の CSS/Java 非対称による
+						// The font shorthand implicitly adds the default family.
+						// Due to the CSS/Java asymmetry of font-family.
 						return net.zamasoft.foliojet.css.value.FontFamilyValue.SERIF;
 					case "getDocumentContext":
 						return new DocumentContext();
@@ -99,7 +98,7 @@ public class BaselineCssPropertyTest extends TestCase {
 				});
 	}
 
-	/** {@code url()}の解決に使う基底URI。nullだと mask 等の短縮形が落ちる。 */
+	/** Base URI for resolving {@code url()}. If null, shorthands such as mask fail. */
 	private static final java.net.URI BASE_URI = java.net.URI.create("file:///dev/null/");
 
 	private static List<CssToken> tokens(final String declaration) {
@@ -112,7 +111,7 @@ public class BaselineCssPropertyTest extends TestCase {
 		return Tokens.fromExpression(all.get(0).getExpression());
 	}
 
-	/** 宣言を解析し、警告が出ていないことを確かめて構成要素を返します。 */
+	/** Parse a declaration, check that no warnings appear, and return its components. */
 	private Entry[] parse(final String name, final String value) {
 		this.warnings.clear();
 		final Property property = ElementPropertySet.getInstance().parseDeclaration(name, tokens(name + ": " + value),
@@ -129,7 +128,7 @@ public class BaselineCssPropertyTest extends TestCase {
 		return entries[0].getValue();
 	}
 
-	/** 短縮形の中から、指定ロングハンドへ落ちた値を取り出します。 */
+	/** Extract the value mapped to the specified longhand from a shorthand. */
 	private Value longhand(final String name, final String value, final PrimitivePropertyInfo info) {
 		for (final Entry e : this.parse(name, value)) {
 			if (e.getPrimitivePropertyInfo() == info) {
@@ -148,7 +147,7 @@ public class BaselineCssPropertyTest extends TestCase {
 				property == null || !this.warnings.isEmpty());
 	}
 
-	/** 値が受理され、警告なしで通ることだけを確かめます。 */
+	/** Check only that the value is accepted without warnings. */
 	private void accepted(final String name, final String... values) {
 		for (final String value : values) {
 			assertNotNull(name + ": " + value, this.single(name, value));
@@ -169,13 +168,13 @@ public class BaselineCssPropertyTest extends TestCase {
 				((BackgroundOriginValue) this.single("background-origin", "padding-box")).getBackgroundOrigin());
 		assertEquals(BackgroundOriginValue.CONTENT_BOX,
 				((BackgroundOriginValue) this.single("background-origin", "content-box")).getBackgroundOrigin());
-		// 多層
+		// Multiple layers
 		assertNotNull(this.single("background-origin", "border-box, content-box"));
 		this.assertInvalid("background-origin", "margin-box");
 	}
 
 	public void testBackgroundShorthandSetsOrigin() {
-		// background 短縮形が origin も設定すること(短縮形は初期化も担う)
+		// The background shorthand also sets origin (shorthands also initialize values).
 		assertNotNull(this.longhand("background", "red content-box", BackgroundOrigin.INFO));
 	}
 
@@ -185,7 +184,7 @@ public class BaselineCssPropertyTest extends TestCase {
 		this.accepted("background-position-x", "left", "center", "right", "10pt", "25%");
 		this.accepted("background-position-y", "top", "center", "bottom", "10pt", "25%");
 		assertNotNull(this.single("background-position-x", "10pt, 20pt"));
-		// 軸違いのキーワードは拒否する(-x に top は無い)
+		// Reject keywords for the wrong axis (top is not valid for -x).
 		this.assertInvalid("background-position-x", "top");
 		this.assertInvalid("background-position-y", "left");
 	}
@@ -209,25 +208,25 @@ public class BaselineCssPropertyTest extends TestCase {
 	}
 
 	public void testOverflowLogicalIsSeparateFromPhysical() {
-		// 論理版は物理版とは別のロングハンドへ落ちる。同じ枠へ潰していると
-		// 書き分けたときにどちらかが消えるので、別であることを固定する
+		// Logical variants map to separate longhands from physical variants. Collapsing them into the same slot
+		// would lose one when both are specified, so verify that they remain separate.
 		assertNotNull(this.longhand("overflow-block", "hidden", Overflow.INFO_BLOCK));
 		assertNotNull(this.longhand("overflow-inline", "hidden", Overflow.INFO_INLINE));
 		assertNotNull(this.longhand("overflow-x", "hidden", Overflow.INFO_X));
 		assertNotNull(this.longhand("overflow-y", "hidden", Overflow.INFO_Y));
 	}
 
-	// ---- 5. マスクのロングハンド4件
+	// ---- 5. Four mask longhands
 
 	public void testMaskOriginAndClip() {
 		this.accepted("mask-origin", "border-box", "padding-box", "content-box", "fill-box", "stroke-box",
 				"view-box");
 		this.accepted("mask-clip", "border-box", "padding-box", "content-box", "fill-box", "stroke-box", "view-box",
 				"no-clip");
-		// no-clip は mask-clip だけの値
+		// no-clip is valid only for mask-clip.
 		this.assertInvalid("mask-origin", "no-clip");
 		this.assertInvalid("mask-clip", "margin-box");
-		// 多層
+		// Multiple layers
 		assertNotNull(this.single("mask-origin", "border-box, content-box"));
 		assertNotNull(this.single("mask-clip", "border-box, no-clip"));
 	}
@@ -249,8 +248,8 @@ public class BaselineCssPropertyTest extends TestCase {
 	}
 
 	public void testMaskShorthandInitialisesNewLonghands() {
-		// 短縮形は自分が触らないロングハンドも初期値へ戻す。ここが抜けていると
-		// 直前の規則の mask-mode 等が残って効き続ける
+		// A shorthand also resets longhands it does not explicitly specify. Omitting this would leave
+		// mask-mode and other values from the previous rule in effect.
 		final Entry[] entries = this.parse("mask", "url(a.png)");
 		boolean origin = false, clip = false, mode = false, composite = false;
 		for (final Entry e : entries) {
@@ -279,8 +278,8 @@ public class BaselineCssPropertyTest extends TestCase {
 	}
 
 	public void testFontVariantCapsFeatureTags() {
-		// OpenType featureへの写しまで見る。ここが空だと「受理はされたが
-		// 何も起きない」状態に退行しても気づけない
+		// Check mapping to OpenType features too. Without this, a regression to
+		// "accepted but ineffective" would go unnoticed.
 		assertTrue(FontVariantValue.SMALL_CAPS_VALUE.featureSet().toString().contains("smcp"));
 		final String all = FontVariantValue.ALL_SMALL_CAPS_VALUE.featureSet().toString();
 		assertTrue(all.contains("smcp"));
@@ -288,7 +287,7 @@ public class BaselineCssPropertyTest extends TestCase {
 	}
 
 	public void testFontVariantShorthandReachesCaps() {
-		// 既存挙動の回帰防止: font-variant と font 短縮形が caps へ届くこと
+		// Preserve existing behavior: font-variant and the font shorthand reach caps.
 		assertSame(FontVariantValue.SMALL_CAPS_VALUE,
 				this.longhand("font-variant", "small-caps", FontVariantCaps.INFO));
 		assertSame(FontVariantValue.SMALL_CAPS_VALUE,
@@ -304,12 +303,12 @@ public class BaselineCssPropertyTest extends TestCase {
 		this.accepted("font-variant-ligatures", "common-ligatures", "no-common-ligatures",
 				"discretionary-ligatures", "no-discretionary-ligatures", "historical-ligatures",
 				"no-historical-ligatures", "contextual", "no-contextual");
-		// 組み合わせ(順序自由)
+		// Combinations (any order)
 		assertNotNull(this.single("font-variant-ligatures", "no-common-ligatures discretionary-ligatures"));
 		assertNotNull(this.single("font-variant-ligatures", "contextual historical-ligatures"));
-		// 同じ対の両方は書けない
+		// Both alternatives of the same pair cannot be specified.
 		this.assertInvalid("font-variant-ligatures", "common-ligatures no-common-ligatures");
-		// none と個別値は併記できない
+		// none cannot be combined with individual values.
 		this.assertInvalid("font-variant-ligatures", "none contextual");
 		this.assertInvalid("font-variant-ligatures", "no-such-ligature");
 	}
@@ -328,8 +327,8 @@ public class BaselineCssPropertyTest extends TestCase {
 		final FontVariantAlternatesValue historical = (FontVariantAlternatesValue) this
 				.single("font-variant-alternates", "historical-forms");
 		assertTrue(historical.hasHistoricalForms());
-		// 関数形式は @font-feature-values の名前解決が無いので保持のみ。
-		// それでも「受理して保持する」ことは固定しておく
+		// Functional forms are only retained because @font-feature-values name resolution is absent.
+		// Still verify that they are accepted and retained.
 		final FontVariantAlternatesValue styled = (FontVariantAlternatesValue) this
 				.single("font-variant-alternates", "stylistic(alt-a)");
 		assertEquals(1, styled.getAlternates().size());
@@ -350,7 +349,7 @@ public class BaselineCssPropertyTest extends TestCase {
 	}
 
 	public void testFontShorthandResetsPalette() {
-		// font 短縮形は font-palette も初期値へ戻す(css-fonts-4)
+		// The font shorthand also resets font-palette to its initial value (css-fonts-4).
 		assertSame(FontPaletteValue.NORMAL_VALUE, this.longhand("font", "12pt serif", FontPalette.INFO));
 	}
 
@@ -359,32 +358,32 @@ public class BaselineCssPropertyTest extends TestCase {
 	public void testFontSynthesisSmallCaps() {
 		this.accepted("font-synthesis-small-caps", "auto", "none");
 		this.assertInvalid("font-synthesis-small-caps", "no-such-value");
-		// font-synthesis 短縮形は weight / style / small-caps の3ロングハンドへ
-		// 展開される(書かなかった成分は none へ落とす)ので single では取れない
+		// The font-synthesis shorthand expands to three longhands: weight / style / small-caps
+		// (omitted components become none), so it cannot be retrieved with single.
 		assertNotNull(this.longhand("font-synthesis", "small-caps", FontSynthesisSmallCaps.INFO));
 		assertNotNull(this.longhand("font-synthesis", "weight style small-caps", FontSynthesisSmallCaps.INFO));
 		assertNotNull(this.longhand("font-synthesis", "none", FontSynthesisSmallCaps.INFO));
 	}
 
-	// ---- 11. 論理境界の短縮形8件
+	// ---- 11. Eight logical-border shorthands
 
 	public void testLogicalBorderAxisShorthands() {
-		// border-block は block 軸の start / end 両側へ配る。物理側ではなく
-		// 論理ロングハンド(LogicalBorder)へ落ちるのが正しい——物理へ直接
-		// 書くと writing-mode で向きが変わったときに追随できない
+		// border-block distributes to both start/end sides of the block axis. It must map to
+		// logical longhands (LogicalBorder), not physical ones; writing directly to physical sides
+		// would fail to follow direction changes from writing-mode.
 		final Entry[] block = this.parse("border-block", "1pt solid red");
 		assertEquals(1.0, pt(find(block, LogicalBorder.of(Aspect.WIDTH, LogicalSide.BLOCK_START))), 1e-9);
 		assertEquals(1.0, pt(find(block, LogicalBorder.of(Aspect.WIDTH, LogicalSide.BLOCK_END))), 1e-9);
 		assertNotNull(find(block, LogicalBorder.of(Aspect.STYLE, LogicalSide.BLOCK_START)));
 		assertTrue(find(block, LogicalBorder.of(Aspect.COLOR, LogicalSide.BLOCK_START)) instanceof ColorValue);
-		// border-inline は inline 軸へ
+		// border-inline maps to the inline axis.
 		final Entry[] inline = this.parse("border-inline", "2pt dashed blue");
 		assertEquals(2.0, pt(find(inline, LogicalBorder.of(Aspect.WIDTH, LogicalSide.INLINE_START))), 1e-9);
 		assertEquals(2.0, pt(find(inline, LogicalBorder.of(Aspect.WIDTH, LogicalSide.INLINE_END))), 1e-9);
 	}
 
 	public void testLogicalBorderAxisComponentShorthands() {
-		// -width/-style/-color は1値なら両側、2値なら start・end の順
+		// For -width/-style/-color, one value applies to both sides; two values mean start, then end.
 		final Entry[] one = this.parse("border-block-width", "3pt");
 		assertEquals(3.0, pt(find(one, LogicalBorder.of(Aspect.WIDTH, LogicalSide.BLOCK_START))), 1e-9);
 		assertEquals(3.0, pt(find(one, LogicalBorder.of(Aspect.WIDTH, LogicalSide.BLOCK_END))), 1e-9);
@@ -394,12 +393,12 @@ public class BaselineCssPropertyTest extends TestCase {
 		final Entry[] inlineTwo = this.parse("border-inline-width", "3pt 5pt");
 		assertEquals(3.0, pt(find(inlineTwo, LogicalBorder.of(Aspect.WIDTH, LogicalSide.INLINE_START))), 1e-9);
 		assertEquals(5.0, pt(find(inlineTwo, LogicalBorder.of(Aspect.WIDTH, LogicalSide.INLINE_END))), 1e-9);
-		// スタイルと色も同様に通ること
+		// Style and color are accepted likewise.
 		assertNotNull(this.parse("border-block-style", "solid dashed"));
 		assertNotNull(this.parse("border-inline-style", "solid"));
 		assertNotNull(this.parse("border-block-color", "red blue"));
 		assertNotNull(this.parse("border-inline-color", "red"));
-		// 3値以上は無い
+		// Three or more values are invalid.
 		this.assertInvalid("border-block-width", "1pt 2pt 3pt");
 	}
 
@@ -420,18 +419,18 @@ public class BaselineCssPropertyTest extends TestCase {
 		assertSame(TextEmphasisPositionValue.OVER_LEFT, this.single("text-emphasis-position", "over left"));
 		assertSame(TextEmphasisPositionValue.UNDER_RIGHT, this.single("text-emphasis-position", "under right"));
 		assertSame(TextEmphasisPositionValue.UNDER_LEFT, this.single("text-emphasis-position", "under left"));
-		// 順序は自由
+		// Any order
 		assertSame(TextEmphasisPositionValue.UNDER_LEFT, this.single("text-emphasis-position", "left under"));
-		// 片方だけでも書ける(もう片方は既定)
+		// Either alone is valid (the other uses its default).
 		assertSame(TextEmphasisPositionValue.OVER_RIGHT, this.single("text-emphasis-position", "over"));
 		this.assertInvalid("text-emphasis-position", "over under");
 		this.assertInvalid("text-emphasis-position", "no-such-position");
 	}
 
 	public void testTextEmphasisShorthandDoesNotTouchPosition() {
-		// SPEC css-text-decor-3 §8.5: text-emphasis は style と color だけの
-		// 短縮形で、position は<b>意図的に含まない</b>(縦横で書き分けた
-		// position を短縮形が消してしまわないため)。含めてしまう退行を防ぐ
+		// SPEC css-text-decor-3 §8.5: text-emphasis is a shorthand for style and color only;
+		// it <b>intentionally excludes position</b> so the shorthand cannot erase position values
+		// set separately for vertical/horizontal writing. Prevent regression to including it.
 		for (final Entry e : this.parse("text-emphasis", "dot red")) {
 			assertNotSame("text-emphasis が text-emphasis-position を触っている",
 					TextEmphasisPosition.INFO, e.getPrimitivePropertyInfo());
@@ -447,7 +446,7 @@ public class BaselineCssPropertyTest extends TestCase {
 		this.assertInvalid("hyphenate-character", "1pt");
 	}
 
-	// ---- 14. font-variant-ligatures / -alternates が font 短縮形で戻ること
+	// ---- 14. The font shorthand resets font-variant-ligatures / -alternates
 
 	public void testFontShorthandResetsVariantLonghands() {
 		assertSame(FontVariantLigaturesValue.NORMAL_VALUE,

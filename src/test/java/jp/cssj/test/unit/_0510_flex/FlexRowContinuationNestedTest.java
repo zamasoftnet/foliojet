@@ -9,7 +9,10 @@ import jp.cssj.test.unit.AbstractTestCase;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
-/** 紙上のsticky insetで横flex継続をずらさず、側欄の境界itemと入れ子flex画像幅を保つ。 */
+/**
+ * Sticky insets on paper do not shift row-flex continuations; sidebar boundary items and nested flex image
+ * widths stay intact.
+ */
 public class FlexRowContinuationNestedTest extends AbstractTestCase {
 	private final Map<Integer, double[]> textBoxes = new HashMap<>();
 

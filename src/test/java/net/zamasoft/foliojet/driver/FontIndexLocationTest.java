@@ -7,9 +7,9 @@ import java.nio.file.Files;
 import junit.framework.TestCase;
 
 /**
- * フォント索引の置き場所(2026-08-29)。フォントを読み取り専用でマウントする
- * コンテナ構成では設定ファイルの隣へ索引を書けないため、
- * {@code jp.cssj.font.index.dir}で別の場所へ逃がせるようにした。
+ * Font-index location (2026-08-29). Container setups mounting fonts read-only cannot write
+ * the index beside the configuration file, so {@code jp.cssj.font.index.dir} allows
+ * placing it elsewhere.
  */
 public class FontIndexLocationTest extends TestCase {
 	private static final String PROPERTY = "jp.cssj.font.index.dir";
@@ -31,7 +31,7 @@ public class FontIndexLocationTest extends TestCase {
 		}
 	}
 
-	/** 既定は今までどおり設定ファイルの隣。 */
+	/** The default remains beside the configuration file. */
 	public void testDefaultsToTheConfigurationDirectory() throws IOException {
 		final File profiles = new File("build/tmp/font-index-default").getAbsoluteFile();
 		assertEquals(new File(profiles, "fonts/fonts-print.xml.db"),
@@ -39,8 +39,8 @@ public class FontIndexLocationTest extends TestCase {
 	}
 
 	/**
-	 * 指定したディレクトリへ置く。設定ごとに別の索引になること——同じ
-	 * ディレクトリに複数のプロファイルの索引が同居しても取り違えない。
+	 * Place it in the specified directory. Each configuration gets a separate index,
+	 * preventing mix-ups when indexes for multiple profiles share a directory.
 	 */
 	public void testHonoursTheConfiguredDirectory() throws IOException {
 		final File dir = Files.createTempDirectory("font-index").toFile();
@@ -59,7 +59,7 @@ public class FontIndexLocationTest extends TestCase {
 		}
 	}
 
-	/** 無い場合は作る——volumeを空で与えた1回目の起動で落ちては困る。 */
+	/** Create the directory if absent: the first startup with an empty volume must not fail. */
 	public void testCreatesTheDirectory() throws IOException {
 		final File parent = Files.createTempDirectory("font-index-parent").toFile();
 		final File dir = new File(parent, "created/here");

@@ -21,11 +21,11 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>{@code srcset}/{@code <picture>}の候補選択</b>を固定します
- * (2026-08-20)。
+ * Pin down <b>candidate selection for {@code srcset}/{@code <picture>}</b>
+ * (2026-08-20).
  */
 public class SrcsetPictureTest extends TestCase {
-	/** srcsetは最高解像度候補(印刷向き)。 */
+	/** srcset selects the highest-resolution candidate (suitable for printing). */
 	public void testPickFromSrcset() {
 		assertEquals("b.png", HTMLStyle.pickFromSrcset("a.png 1x, b.png 2x"));
 		assertEquals("b.png", HTMLStyle.pickFromSrcset("b.png 2x, a.png 1x"));
@@ -36,7 +36,7 @@ public class SrcsetPictureTest extends TestCase {
 		assertNull(HTMLStyle.pickFromSrcset(""));
 	}
 
-	/** typeフィルタ: 読める形式のみ受け、avif等はスキップ。 */
+	/** Type filter: accept only readable formats; skip avif and similar formats. */
 	public void testSupportedImageType() {
 		assertTrue(HTMLStyle.isSupportedImageType(null));
 		assertTrue(HTMLStyle.isSupportedImageType("image/webp"));
@@ -46,10 +46,10 @@ public class SrcsetPictureTest extends TestCase {
 	}
 
 	/**
-	 * {@code <source>}(void要素)が後続内容を飲み込まないことを、
-	 * 互換モード(DOCTYPE無し=legacy.xml)で固定します。html4.xml側は
-	 * 2026-07-18に是正済みだったが、互換モード側が残っていた
-	 * (2026-08-20に是正——srcset/picture対応の検証で実測)。
+	 * Verify that {@code <source>} (a void element) does not swallow subsequent content
+	 * in compatibility mode (no DOCTYPE = legacy.xml). html4.xml was corrected on 2026-07-18,
+	 * but compatibility mode still had the defect
+	 * (corrected on 2026-08-20; observed while verifying srcset/picture support).
 	 */
 	public void testPictureDoesNotSwallowFollowingContent() throws Exception {
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();

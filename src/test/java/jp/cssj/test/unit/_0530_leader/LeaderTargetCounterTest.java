@@ -8,10 +8,11 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * 目次の標準形 {@code leader(dotted) target-counter(attr(href), page)} の
- * 統合テストです(leader() L1/T1——consult-codex-2026-07-31-leader.txt)。
- * リーダーの反復ドットは論理テキストへ混入せず(単一空白のみ)、
- * ページ番号はpass-count機構で解決されること。
+ * Integration test for the standard table-of-contents pattern
+ * {@code leader(dotted) target-counter(attr(href), page)}
+ * (leader() L1/T1, consult-codex-2026-07-31-leader.txt).
+ * Repeated leader dots must not enter logical text (only a single space),
+ * and page numbers must resolve through the pass-count mechanism.
  */
 public class LeaderTargetCounterTest extends AbstractTestCase {
 	public LeaderTargetCounterTest(String name) {

@@ -8,9 +8,9 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * wrap-reverseのテストです(Flex F5c——行の視覚順反転。論理行
- * [p,q](cross 30)/[r](20)が視覚では[r]が上、[p,q]が下になる。
- * 検査hookは配置(視覚)順のため基準はr(視覚先頭行)で取る)。
+ * Tests wrap-reverse (Flex F5c, reversing visual line order).
+ * Logical lines [p,q] (cross size 30) / [r] (20) become visual lines with [r] above [p,q].
+ * Inspection hooks run in placement (visual) order, so r (the first visual line) provides the reference.
  */
 public class FlexWrapReverseTest extends AbstractTestCase {
 	public FlexWrapReverseTest(String name) {
@@ -24,7 +24,7 @@ public class FlexWrapReverseTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** 視覚先頭行は論理最終行のr(コンテナ上端)。 */
+	/** The first visual line is r from the last logical line (at the container top). */
 	public boolean check_r(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			this.baseX = x;
@@ -34,7 +34,7 @@ public class FlexWrapReverseTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 論理1行目[p,q]は下の行(+20)。 */
+	/** Logical line 1 [p,q] is the lower line (+20). */
 	public boolean check_p(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);
@@ -53,7 +53,10 @@ public class FlexWrapReverseTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 後続はcross合計(20+30)の直後——行順反転は総高を変えない。 */
+	/**
+	 * Following content sits immediately after the cross-size sum (20+30); reversing line order does not
+	 * change total height.
+	 */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseY + 50, y, 0.1);

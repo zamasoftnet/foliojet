@@ -6,26 +6,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * SVGを<b>組み立てずに書き出す</b>ための最小の書き手です。
+ * A minimal writer for <b>streaming SVG without assembling it</b>.
  *
  * <p>
- * Batikの{@code SVGGraphics2D}は描画のたびにDOMを作り、最後に直列化します。
- * ここではDOMを作らず、描画が来た順に文字列を出力へ流します。
+ * Batik's {@code SVGGraphics2D} builds a DOM during drawing and serializes it at the end.
+ * Here, strings flow to the output in drawing order without building a DOM.
  * </p>
  *
  * <p>
- * <b>defsの扱いがフラグメント出力の使いどころです。</b> クリップ経路・
- * グラデーション・{@code @font-face}は<b>描画の途中で判明する</b>のに、
- * 見る側にとっては先頭にあるほうが都合がよい(参照を解決してから本体を読める)。
- * そこで先頭に1つフラグメントを予約し、本体を第2フラグメントへ流しながら、
- * ページを閉じるときに予約したほうを埋めます。PDFの相互参照表を後から
- * 埋めるのと同じ形です。
+ * <b>Handling defs is the use case for fragment output.</b> Clip paths, gradients,
+ * and {@code @font-face} <b>become known during drawing</b>, but putting them first
+ * is convenient for consumers (references can resolve before reading the body).
+ * Reserve one fragment at the start, stream the body to the second fragment,
+ * and fill the reserved fragment when closing the page.
+ * This is analogous to filling PDF's cross-reference table later.
  * </p>
  *
  * <p>
- * SVG 1.1では{@code defs}は文書のどこに置いてもよく、<b>それより前に現れる
- * 要素からも参照できます</b>。つまり末尾に置いても規格上は正しく、
- * フラグメントは「先頭に置くため」の手段です。
+ * SVG 1.1 allows {@code defs} anywhere in the document, including <b>references
+ * from elements that precede it</b>. Placing it at the end is therefore valid;
+ * fragments are a means of placing it at the start.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -35,28 +35,27 @@ final class SVGWriter {
 
 	static final String XLINK_NS = "http://www.w3.org/1999/xlink";
 
-	/** 座標の桁数。Batikの既定(6桁)に合わせる。 */
+	/** Coordinate precision. Matches Batik's default (6 digits). */
 	private static final int PRECISION = 6;
 
 	private final Writer out;
 
 	/**
-	 * ページで共有する定義(2026-08-29)。層(グループ画像)の中身は別の
-	 * バッファへ書く{@link SVGWriter}が受け持つが、{@code defs}・id・
-	 * {@code @font-face}はページで1つなので、ここにまとめて親子で共有する。
+	 * Definitions shared within a page (2026-08-29). A separate {@link SVGWriter} writes layer
+	 * (group image) contents to another buffer, but {@code defs}, IDs, and {@code @font-face}
+	 * are page-wide, so collect them here for sharing between parent and child.
 	 */
 	private static final class Shared {
-		/** 先頭へ回す定義。ページを閉じるときにまとめて書く。 */
+		/** Definitions to place at the start. Written together when closing the page. */
 		final List<String> defs = new ArrayList<>();
-		/** 内容が同じ定義(フィルタ)のid。同じ効果を何度も定義しない。 */
+		/** IDs of definitions (filters) with identical contents. Avoid defining the same effect repeatedly. */
 		final java.util.Map<String, String> defIds = new java.util.HashMap<>();
-		/** {@code @font-face}の並び。共有WOFF2を参照する。 */
+		/** The sequence of {@code @font-face} rules. References shared WOFF2. */
 		final java.util.Map<String, String> fontFaces = new java.util.LinkedHashMap<>();
 		/**
-		 * {@code @font-face}の{@code src}に書くURIの決め方
-		 * (B-1、2026-08-29)。ページ分割SVGは{@code pages/}の下から
-		 * 共有WOFF2を相対で指す。1枚で完結させるSVGは{@code data:}を
-		 * 差し込むので、ここを差し替える。
+		 * How to determine the URI in {@code @font-face}'s {@code src}
+		 * (B-1, 2026-08-29). Page-split SVG references shared WOFF2 by relative paths from
+		 * {@code pages/}. Self-contained SVG inserts {@code data:}, so replaces this strategy.
 		 */
 		java.util.function.UnaryOperator<String> fontSrc = uri -> "../" + uri;
 		int nextId = 0;
@@ -69,26 +68,26 @@ final class SVGWriter {
 		this.shared = new Shared();
 	}
 
-	/** 定義・idを{@code parent}と共有する、別の出力先への書き手(層の中身用)。 */
+	/** Writer to a separate output, sharing definitions and IDs with {@code parent} (for layer contents). */
 	SVGWriter(final Writer out, final SVGWriter parent) {
 		this.out = out;
 		this.shared = parent.shared;
 	}
 
-	/** 定義を1つ登録し、参照用のidを返します。 */
+	/** Registers one definition and returns its reference ID. */
 	String addDef(final String element) {
 		this.shared.defs.add(element);
 		return null;
 	}
 
 	/**
-	 * 内容で重複を除いて定義を登録し、そのidを返します(2026-08-29)。
-	 * {@code content}はid属性を除いた要素の中身・属性で、同じ内容なら
-	 * 既存のidを返す。
+	 * Registers a definition, deduplicating by content, and returns its ID (2026-08-29).
+	 * {@code content} contains the element's contents and attributes except id;
+	 * returns an existing ID if the content matches.
 	 *
-	 * @param prefix  idの接頭辞
-	 * @param name    要素名
-	 * @param content {@code <name id=".."}の後ろに続ける文字列(属性と中身、閉じタグは含めない)
+	 * @param prefix  ID prefix
+	 * @param name    element name
+	 * @param content text following {@code <name id=".."} (attributes and contents, excluding the closing tag)
 	 */
 	String defId(final String prefix, final String name, final String content) {
 		final String key = name + '\u0000' + content;
@@ -115,8 +114,8 @@ final class SVGWriter {
 	}
 
 	/**
-	 * 集めた定義を書き出します。{@code defs}は文書のどこに置いてもよく、
-	 * それより前の要素からも参照できるので、末尾で構いません。
+	 * Writes collected definitions. {@code defs} can appear anywhere in the document and
+	 * be referenced by earlier elements, so placing it at the end is fine.
 	 */
 	void writeDefs(final Writer target) throws IOException {
 		if (this.shared.defs.isEmpty() && this.shared.fontFaces.isEmpty()) {
@@ -144,7 +143,7 @@ final class SVGWriter {
 		this.out.write(text);
 	}
 
-	/** 要素を開きます。属性は{@link #attr}で続けて書きます。 */
+	/** Opens an element. Write subsequent attributes with {@link #attr}. */
 	void open(final String name) throws IOException {
 		this.out.write('<');
 		this.out.write(name);
@@ -162,12 +161,12 @@ final class SVGWriter {
 		this.attr(name, number(value));
 	}
 
-	/** 子を持たない要素を閉じます。 */
+	/** Closes an element without children. */
 	void closeEmpty() throws IOException {
 		this.out.write("/>");
 	}
 
-	/** 開始タグを閉じます(子が続く)。 */
+	/** Closes a start tag (children follow). */
 	void closeStart() throws IOException {
 		this.out.write('>');
 	}
@@ -187,9 +186,9 @@ final class SVGWriter {
 	}
 
 	/**
-	 * 数値を書きます。指数表記は使いません——SVGの文法では許されますが、
-	 * 実装によっては読めないものがあるためです。整数はそのまま出し、
-	 * 末尾の0は落とします。
+	 * Writes a number. Avoids exponential notation: SVG syntax permits it,
+	 * but some implementations cannot read it. Writes integers directly
+	 * and removes trailing zeros.
 	 */
 	static String number(final double value) {
 		if (value == Math.rint(value) && Math.abs(value) < 1e15) {
@@ -216,7 +215,7 @@ final class SVGWriter {
 		}
 	}
 
-	/** defsを組み立てるときのように、文字列へ直接積むための同じ処理です。 */
+	/** The same operation for appending directly to a string, as when assembling defs. */
 	static void escapeAttribute(final StringBuilder out, final String value) {
 		for (int i = 0; i < value.length(); ++i) {
 			final char ch = value.charAt(i);

@@ -16,49 +16,49 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>変換を繰り返してもリークしない</b>ことを固定します(2026-07-27新設)。
+ * Verify <b>no leaks across repeated conversions</b> (added 2026-07-27).
  *
  * <p>
- * 絶対要件の「メモリリークの不在」は、これまで<b>検出器を持っていません
- * でした</b>。サーバ用途(copperd)では同じプロセスで何万件も変換するので、
- * 1件あたり僅かな取りこぼしでも積み上がります。
+ * The absolute requirement "no memory leaks" previously <b>had no detector</b>.
+ * Server use (copperd) converts tens of thousands of documents in the same process,
+ * so even a small leak per conversion accumulates.
  * </p>
  *
- * <h2>3種類を別々に見る</h2>
+ * <h2>Check three types separately</h2>
  *
  * <ol>
- * <li><b>到達可能性のリーク</b>——変換が終わった後もセッションが誰かに
- * 掴まれていないか。{@link WeakReference}がGC後に消えるかで判定します。
- * <b>ヒープ量の測定より確実</b>で、静的フィールドやThreadLocalの
- * 取りこぼしを直接捕まえます</li>
- * <li><b>スレッドのリーク</b>——変換ごとに作る{@code foliojet-layout}
- * スレッドが残っていないか</li>
- * <li><b>一時ファイルのリーク</b>——{@code AbstractTempFileOutput}が
- * ヒープ逼迫時に吐く退避ファイルが消えているか</li>
+ * <li><b>Reachability leaks</b>: does anything still hold the session after conversion ends?
+ * Check whether a {@link WeakReference} clears after GC.
+ * This is <b>more reliable than measuring heap usage</b> and directly catches
+ * references left in static fields or ThreadLocals.</li>
+ * <li><b>Thread leaks</b>: does the {@code foliojet-layout} thread created
+ * for each conversion remain?</li>
+ * <li><b>Temporary file leaks</b>: are the spill files written by
+ * {@code AbstractTempFileOutput} under heap pressure deleted?</li>
  * </ol>
  *
  * <p>
- * <b>ヒープの絶対量は測りません。</b>GCの気まぐれで揺れるため、
- * 「増えた/増えない」の判定が不安定になります。上の3つは<b>決定的</b>です。
+ * <b>Do not measure absolute heap usage.</b> GC variability makes
+ * "increased/did not increase" checks unstable. The three checks above are <b>deterministic</b>.
  * </p>
  */
 public class ResourceLeakTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 繰り返す回数。少なすぎるとスレッドの取りこぼしが埋もれる。 */
+	/** Number of repetitions. Too few can hide leaked threads. */
 	private static final int RUNS = 12;
 
 	public ResourceLeakTest(String name) {
 		super(name);
 	}
 
-	/** 変換が終わったらセッションが回収されること(到達可能性のリーク)。 */
+	/** The session is reclaimed after conversion ends (reachability leak). */
 	public void testSessionIsCollectedAfterConversion() throws Exception {
 		final File html = new File("files/unittest/0495-span/rowspan-crosses-rowgroup.html");
 		assertTrue("文書がない: " + html, html.exists());
 
 		final WeakReference<DirectSession> ref = new WeakReference<>(convertAndReturnSession(html, "leak-ref"));
-		// 参照が残っていないか、GCへ強く促してから確かめる
+		// Strongly encourage GC before checking for remaining references.
 		for (int i = 0; i < 20 && ref.get() != null; ++i) {
 			System.gc();
 			Thread.sleep(50L);
@@ -67,7 +67,7 @@ public class ResourceLeakTest extends TestCase {
 				+ "静的フィールドかThreadLocalが掴んでいる疑いがある", ref.get());
 	}
 
-	/** 変換ごとに作るレイアウトスレッドが残らないこと。 */
+	/** Layout threads created for each conversion do not remain. */
 	public void testLayoutThreadsDoNotAccumulate() throws Exception {
 		final File html = new File("files/unittest/0495-span/rowspan-crosses-rowgroup.html");
 		assertTrue("文書がない: " + html, html.exists());
@@ -76,7 +76,7 @@ public class ResourceLeakTest extends TestCase {
 		for (int i = 0; i < RUNS; ++i) {
 			convertAndReturnSession(html, "leak-thread-" + i);
 		}
-		// 終了直後はまだ死にきっていないことがあるので少し待つ
+		// Wait briefly because a thread may not have fully terminated immediately after completion.
 		for (int i = 0; i < 40 && countLayoutThreads() > before; ++i) {
 			Thread.sleep(50L);
 		}
@@ -85,7 +85,7 @@ public class ResourceLeakTest extends TestCase {
 				+ RUNS + "回の変換で1本も増えてはいけない", before, after);
 	}
 
-	/** 一時ファイルが残らないこと。 */
+	/** No temporary files remain. */
 	public void testTempFilesAreCleanedUp() throws Exception {
 		final File html = new File("files/unittest/0495-span/rowspan-crosses-rowgroup.html");
 		assertTrue("文書がない: " + html, html.exists());
@@ -96,7 +96,7 @@ public class ResourceLeakTest extends TestCase {
 			convertAndReturnSession(html, "leak-temp-" + i);
 		}
 		final int after = countFiles(tmp);
-		// 出力PDFは自分で作るので、その分だけは増える
+		// We create the output PDFs ourselves, so allow that many additional files.
 		assertTrue("一時ファイルが残っている(変換前" + before + "個 → 変換後" + after + "個)。"
 				+ "退避ファイルの後始末が漏れている疑いがある", after <= before + RUNS);
 	}

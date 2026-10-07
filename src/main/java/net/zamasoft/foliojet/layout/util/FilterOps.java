@@ -25,22 +25,22 @@ import net.zamasoft.pdfg2d.gc.paint.RadialGradient;
 import net.zamasoft.pdfg2d.util.ColorUtils;
 
 /**
- * {@code filter}の効果を塗り・色・ラスタ画像へ掛ける小道具です
- * (filter-effects-1、2026-08-29新設)。
+ * Utilities applying {@code filter} effects to paints, colors, and raster images
+ * (filter-effects-1; added 2026-08-29).
  *
  * <p>
- * 色行列は{@link Color}(RGB/RGBA。CMYK・グレー・特色はRGB相当値で
- * 計算し、結果はRGBになる——特色の指定は失われる、記録済み)と、
- * グラデーションの色停止、パターンのラスタ画像に掛ける。ラスタは
- * 復号済み{@link RasterImage}の画素を複製して変換し、画像とフィルタの
- * 組で弱参照キャッシュする(同じ画像が繰り返し描かれる文書で毎回
- * 画素を舐めない)。
+ * Applies color matrices to {@link Color} (RGB/RGBA; CMYK, gray, and spot colors are calculated
+ * using RGB equivalents, producing RGB; spot-color specifications are lost, as documented),
+ * gradient color stops, and raster images in patterns.
+ * For rasters, copies and transforms pixels from decoded {@link RasterImage}, caching by
+ * image/filter pair with weak references (avoids scanning pixels on every draw when a document
+ * uses the same image repeatedly).
  * </p>
  *
  * <p>
- * ぼかしは3回の箱ぼかし(ガウスの近似)で、標準偏差はptから画像の
- * 画素へ換算する(描画時の変換行列の拡大率で割る)。プリマルチプライド
- * で処理し、透明画素の色が縁へ滲まないようにする。
+ * Blur uses three box blurs (a Gaussian approximation), converting standard deviation from pt
+ * to image pixels (dividing by the scale of the drawing transform).
+ * Processes premultiplied values to prevent transparent pixel colors from bleeding into edges.
  * </p>
  */
 public final class FilterOps {
@@ -50,7 +50,7 @@ public final class FilterOps {
 		// unused
 	}
 
-	/** 色行列を色へ掛けます。行列がnullなら元の色。 */
+	/** Applies a color matrix to a color. Returns the original color if the matrix is null. */
 	public static Color apply(final FilterValue filter, final Color color) {
 		if (filter.matrix == null || color == null) {
 			return color;
@@ -65,9 +65,9 @@ public final class FilterOps {
 	}
 
 	/**
-	 * 塗りへ効果を掛けます。
+	 * Applies effects to a paint.
 	 *
-	 * @param pixelScale ラスタ画像の1画素あたりのpt(ぼかしの換算用)
+	 * @param pixelScale pt per raster image pixel (for blur conversion)
 	 */
 	public static Paint apply(final FilterValue filter, final Paint paint, final double pixelScale) {
 		if (paint == null) {
@@ -100,18 +100,18 @@ public final class FilterOps {
 	}
 
 	/**
-	 * ラスタ画像へ効果を掛けた複製を返します。ラスタでなければ(SVG・
-	 * グループ画像・寸法だけのスタブ)元の画像をそのまま返す。
+	 * Returns a copy of a raster image with effects applied. Returns the original image unchanged
+	 * if it is not a raster (SVG, group image, or dimension-only stub).
 	 *
-	 * @param pixelScale 1画素あたりのpt
+	 * @param pixelScale pt per pixel
 	 */
 	public static Image apply(final FilterValue filter, final Image image, final double pixelScale) {
 		if (!filter.hasColorOps()) {
 			return image;
 		}
-		// 包み紙(画素→pt変換のTransformedImage、中央寄せのCenteredImage)は
-		// 中身を変換して同じ包み紙へ戻す。UAは96dpiの画素をptへ写す
-		// TransformedImageで全ラスタを包むので、これが無いと何も掛からない
+		// For wrappers (TransformedImage converting pixels to pt, CenteredImage for centering),
+		// transform the contents and restore the same wrapper. The UA wraps all rasters in a
+		// TransformedImage mapping 96 dpi pixels to pt; without this, no effects apply
 		if (image instanceof TransformedImage t) {
 			final AffineTransform at = t.getTransform();
 			final Image inner = apply(filter, t.getImage(), pixelScale * Math.sqrt(Math.abs(at.getDeterminant())));
@@ -122,7 +122,7 @@ public final class FilterOps {
 			return inner == c.getImage() ? image : new CenteredImage(inner, c.getBoxWidth(), c.getBoxHeight());
 		}
 		if (image instanceof PixelBackedImage pb) {
-			// PDFへ直接登録した画像。画素を復号してから掛ける
+			// Image registered directly with PDF. Decode pixels before applying effects
 			final Image pixels = pb.getPixels();
 			if (pixels == null) {
 				return image;
@@ -162,17 +162,16 @@ public final class FilterOps {
 		return result;
 	}
 
-	/** 影の画像と、元画像に対する余白(元画像の論理単位)。 */
+	/** Shadow image and padding relative to the original image (in the original image's logical units). */
 	public record Shadow(Image image, double padX, double padY) {
 	}
 
 	/**
-	 * ラスタ画像の不透明度のシルエットに色を付け、ぼかした影の画像を
-	 * 返します({@code drop-shadow()}用)。ぼかしがはみ出す分の余白
-	 * (3σ)を四方に足すので、描く側は{@code padX/padY}ぶん戻して置く。
-	 * ラスタでなければnull。
+	 * Colors the opacity silhouette of a raster image and returns a blurred shadow image
+	 * (for {@code drop-shadow()}). Adds padding (3σ) on all sides for blur overflow, so the
+	 * drawing side positions it backward by {@code padX/padY}. Returns null for non-raster images.
 	 *
-	 * @param sigma ぼかしの標準偏差({@code image}の論理単位)
+	 * @param sigma blur standard deviation (in {@code image}'s logical units)
 	 */
 	public static Shadow shadowOf(final Image image, final Color color, final double sigma) {
 		if (image instanceof TransformedImage t) {
@@ -229,12 +228,12 @@ public final class FilterOps {
 		return out;
 	}
 
-	/** 非プリマルチプライドのARGB画素へ色行列を掛けます。 */
+	/** Applies a color matrix to non-premultiplied ARGB pixels. */
 	private static void colorMatrix(final BufferedImage img, final float[] m) {
 		final int w = img.getWidth(), h = img.getHeight();
 		final int[] row = new int[w];
-		// 256階調×3成分の結果は入力に依存するので表引きはできないが、
-		// 行列の各行は線形なので浮動小数点で素直に計算する
+		// The result for 256 levels × 3 components depends on the input, so cannot use a lookup table,
+		// but each matrix row is linear, so calculate directly with floating-point arithmetic
 		for (int y = 0; y < h; ++y) {
 			img.getRGB(0, y, w, 1, row, 0, w);
 			for (int x = 0; x < w; ++x) {
@@ -249,15 +248,15 @@ public final class FilterOps {
 		}
 	}
 
-	/** 標準偏差{@code sigma}(画素)のガウスぼかしを箱ぼかし3回で近似します。 */
+	/** Approximates Gaussian blur with standard deviation {@code sigma} (pixels) using three box blurs. */
 	private static void blur(final BufferedImage img, final double sigma) {
 		final int w = img.getWidth(), h = img.getHeight();
 		if (w * (long) h > 40_000_000L) {
-			// 巨大画像は諦める(メモリと時間の上限)
+			// Skip huge images (memory and time limits)
 			return;
 		}
 		final int[] px = img.getRGB(0, 0, w, h, null, 0, w);
-		// プリマルチプライドの4チャネル
+		// Four premultiplied channels
 		final float[] a = new float[w * h], r = new float[w * h], g = new float[w * h], b = new float[w * h];
 		for (int i = 0; i < px.length; ++i) {
 			final int p = px[i];
@@ -267,7 +266,7 @@ public final class FilterOps {
 			g[i] = ((p >> 8) & 0xFF) / 255f * al;
 			b[i] = (p & 0xFF) / 255f * al;
 		}
-		// 3回の箱ぼかしでσに合わせる箱幅(Gwosdek et al.の近似)
+		// Box widths that match σ over three box blurs (Gwosdek et al. approximation)
 		final double ideal = Math.sqrt(12 * sigma * sigma / 3 + 1);
 		int radius = (int) Math.max(1, Math.round((ideal - 1) / 2));
 		final float[] tmp = new float[w * h];

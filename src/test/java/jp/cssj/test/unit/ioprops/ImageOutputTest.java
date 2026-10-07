@@ -19,12 +19,11 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 画像出力({@code output.type=image/png}等)の契約です(2026-08-02新設)。
+ * Contract for image output ({@code output.type=image/png}, etc.) (introduced on 2026-08-02).
  *
  * <p>
- * <b>この出力形式のテストが1つも無かった。</b> 説明書には出力形式として
- * 載っているのに、実際に画像が出るか・寸法や解像度の指定が効くかを
- * 誰も確かめていなかった。
+ * <b>There were no tests for this output format.</b> Although the manual listed it as an output format,
+ * nobody had checked whether images were actually emitted or whether dimensions and resolution took effect.
  * </p>
  */
 public class ImageOutputTest extends TestCase {
@@ -33,26 +32,26 @@ public class ImageOutputTest extends TestCase {
 	private static final File DOCUMENT = new File("files/unittest/ioprops/two-pages.html");
 
 	/**
-	 * 正体しか持たない書体へ{@code font-weight: bold}を指定した文書。太字は
-	 * 輪郭を太らせて作られる({@code FontUtils.drawText}の enlargement 経路)。
+	 * A document specifying {@code font-weight: bold} for a font with only a regular face.
+	 * Bold is synthesized by thickening outlines (the enlargement path in {@code FontUtils.drawText}).
 	 */
 	private static final File SYNTHESIZED_BOLD = new File("files/unittest/ioprops/synthesized-bold.html");
 
-	/** PNGとして出力できること。 */
+	/** PNG output works. */
 	public void testPng() throws Exception {
 		final File out = this.convert(props("output.type", "image/png",
 				"output.page-width", "200pt", "output.page-height", "100pt"));
 		assertTrue("PNGとして読めること", isReadableImage(out));
 	}
 
-	/** JPEGとして出力できること。 */
+	/** JPEG output works. */
 	public void testJpeg() throws Exception {
 		final File out = this.convert(props("output.type", "image/jpeg",
 				"output.page-width", "200pt", "output.page-height", "100pt"));
 		assertTrue("JPEGとして読めること", isReadableImage(out));
 	}
 
-	/** {@code output.image.resolution}: 解像度が画素数に効くこと。 */
+	/** {@code output.image.resolution}: resolution affects pixel count. */
 	public void testImageResolution() throws Exception {
 		final File low = this.convert(props("output.type", "image/png",
 				"output.page-width", "100pt", "output.page-height", "100pt",
@@ -66,7 +65,7 @@ public class ImageOutputTest extends TestCase {
 				highWidth > lowWidth);
 	}
 
-	/** 紙面の寸法が画素数へ反映されること。 */
+	/** Page dimensions are reflected in pixel count. */
 	public void testPageSizeAffectsPixels() throws Exception {
 		final File narrow = this.convert(props("output.type", "image/png",
 				"output.page-width", "100pt", "output.page-height", "100pt"));
@@ -76,14 +75,14 @@ public class ImageOutputTest extends TestCase {
 	}
 
 	/**
-	 * 擬似ボールドが画像出力で描けること(2026-08-30)。
+	 * Synthetic bold renders in image output (2026-08-30).
 	 *
 	 * <p>
-	 * 擬似ボールドは線種と線の色を保存してから塗りつぶし＋線描きへ切り替え、
-	 * 終わったら元へ戻す。Java2D出力の{@code G2DGC}は実線の線種を{@code null}で
-	 * 返し、線の色も設定前は{@code null}だったので、<b>この復元が必ず落ちて</b>
-	 * PNG・JPEG・単一SVGが4001で失敗していた。PDF出力は同じ文書で成功するため、
-	 * 出力形式ごとに確かめないと見つからない。
+	 * Synthetic bold saves the stroke style and color before switching to fill plus stroke,
+	 * then restores them afterward. Java2D output's {@code G2DGC} returned {@code null} for a solid
+	 * stroke style and {@code null} for the stroke color before initialization, so <b>restoration always failed</b>,
+	 * causing PNG, JPEG, and single SVG to fail with 4001. PDF output succeeded with the same document,
+	 * so this could only be found by checking each output format.
 	 * </p>
 	 */
 	public void testSynthesizedBoldPng() throws Exception {
@@ -93,7 +92,7 @@ public class ImageOutputTest extends TestCase {
 		assertTrue("PNGとして読めること", isReadableImage(out));
 	}
 
-	/** 擬似ボールドが単一SVG出力(既定=outline、Batik経路)でも描けること。 */
+	/** Synthetic bold also renders in single SVG output (default=outline, Batik path). */
 	public void testSynthesizedBoldSvg() throws Exception {
 		final File out = this.convert(SYNTHESIZED_BOLD, props("output.type", "image/svg+xml",
 				"output.pdf.fonts.policy", "embedded cid-keyed",

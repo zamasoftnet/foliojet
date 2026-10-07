@@ -7,8 +7,8 @@ import java.util.Set;
 import junit.framework.TestCase;
 
 /**
- * 改ページ・段分割の途中で閉じた文字列runを、次のグリフで安全に再開できる
- * ことの回帰テストです。100万シード掃過で見つかったNPEを固定します。
+ * Regression test for safely reopening a text run closed during a page break or column split
+ * at the next glyph. Pin down the NPE found in the one-million-seed sweep.
  */
 public class TextRunReopenAfterFragmentationTest extends TestCase {
 	private static final String REPEATED_FLOAT_FRAGMENTATION = """
@@ -39,9 +39,9 @@ public class TextRunReopenAfterFragmentationTest extends TestCase {
 	}
 
 	/**
-	 * 段バランスの再生中に同じfloatを複数回切断すると、各切断で継続側の
-	 * テキストブロックが再開される。次の切断へ進む前に閉じ、唯一の本文
-	 * トークンも失わないことを固定する(seed 41546の最小形)。
+	 * Splitting the same float repeatedly during column-balance replay reopens the continuation's
+	 * text block at each split. Verify that it closes before the next split and that the sole
+	 * body-text token is preserved (minimal case for seed 41546).
 	 */
 	public void testRepeatedFloatFragmentationClosesTextAtEveryBoundary() throws Exception {
 		final RandomDocumentFuzzTest.Generated generated = new RandomDocumentFuzzTest.Generated(
@@ -51,15 +51,15 @@ public class TextRunReopenAfterFragmentationTest extends TestCase {
 				"repeated-float-fragmentation");
 	}
 
-	/** 元の生成器入力も固定し、将来の語彙変更で最小形との対応を失わない。 */
+	/** Pin down the original generator input too, preserving its link to the minimal case across future vocabulary changes. */
 	public void testStrictSeed41546() throws Exception {
 		checkSeed(41546);
 	}
 
 	/**
-	 * 100万件掃過で同じ不変条件違反に分類された非除外の代表seedを固定する。
-	 * seed 185022も不変条件違反は解消したが、元から紙面より大きい箱を持ち、
-	 * 修正後は既定どおり {@code ExcludedByOversizedBox} に分類される。
+	 * Pin down representative non-excluded seeds classified as the same invariant violation in the million-case sweep.
+	 * Seed 185022's invariant violation is also fixed, but it already had a box larger than the paper;
+	 * after the fix, it is classified as {@code ExcludedByOversizedBox}, as intended.
 	 */
 	public void testStrictTextBuilderBoundarySeedsFromMillionSweep() throws Exception {
 		for (final int seed : new int[] { 45517, 55060, 96144, 106638, 140136, 175726 }) {

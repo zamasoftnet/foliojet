@@ -12,31 +12,31 @@ import java.util.TreeMap;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * {@link ImageMetricsCache}のJSON表現です(2026-08-28)。
+ * JSON representation of {@link ImageMetricsCache} (2026-08-28).
  *
  * <p>
- * ページ分割SVGの成果物({@code manifest.json}・{@code pages/NNNN.json})と
- * 形式を揃えるため、寸法表もJSONにしました。読む側がブラウザや別の道具に
- * なる場面——書籍ストア、間引き、複数冊のマージ——で扱いが素直になります。
- * 大きさはXMLとほぼ変わりません(実測で91%)。中身がURLと64桁のハッシュで、
- * 記法の差は誤差だからです。
+ * The metrics table also uses JSON to match page-split SVG artifacts
+ * ({@code manifest.json}/{@code pages/NNNN.json}). This simplifies use when readers are
+ * browsers or other tools: bookstores, thinning pages, and merging multiple books.
+ * Its size is nearly the same as XML (measured at 91%): the content is URLs and 64-digit hashes,
+ * so notation differences are negligible.
  * </p>
  *
  * <p>
- * <b>記録する幅と高さは出力単位(pt)です。</b> 画素値ではありません——
- * 値は{@code getImage}が返したもの、すなわち{@code output.resolution}による
- * px→pt変換の適用後だからです。EXIFの回転も適用済みです。そのため
- * <b>解像度が違う設定で作った寸法表を混ぜてはいけません</b>。根拠にした
- * {@code output.resolution}を記録し、読み込み時に食い違っていれば
- * その寸法表を丸ごと捨てます。
+ * <b>Recorded width and height use output units (pt).</b> They are not pixel values:
+ * they are the values returned by {@code getImage}, after px → pt conversion using
+ * {@code output.resolution}. EXIF rotation has also been applied.
+ * Therefore, <b>do not mix metrics tables produced with different resolution settings</b>.
+ * Records the underlying {@code output.resolution}; if it differs on load,
+ * discards the entire metrics table.
  * </p>
  *
  * <p>
- * {@code sha256}以下の4つは<b>出力済み資源の同一性</b>です。ページ分割SVGの
- * ページは画像を{@code assets/images/<sha256>.<ext>}という内容ハッシュの
- * 名前で参照するので、これがあると
- * {@code output.paged-svg.resources=omit}の再変換で画像を一度も開かずに
- * 同じ参照を書けます。省略可能です。
+ * The four fields starting with {@code sha256} describe <b>the identity of an emitted resource</b>.
+ * Page-split SVG pages reference images by content-hash names such as
+ * {@code assets/images/<sha256>.<ext>}, so these allow reconversion with
+ * {@code output.paged-svg.resources=omit} to write the same reference without opening the image
+ * even once. They are optional.
  * </p>
  *
  * <pre>
@@ -56,12 +56,12 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 public final class ImageMetricsJSON {
 
 	private ImageMetricsJSON() {
-		// ユーティリティ
+		// Utility
 	}
 
 	/**
-	 * キャッシュの内容をJSONにします。URI順に並べるので、同じ内容からは
-	 * 必ず同じバイト列になります。
+	 * Converts cache contents to JSON. Sorts by URI, so identical contents always produce
+	 * identical byte sequences.
 	 */
 	public static byte[] write(final ImageMetricsCache cache, final double resolution) throws IOException {
 		final ByteArrayOutputStream bytes = new ByteArrayOutputStream(256 + cache.size() * 96);
@@ -101,10 +101,10 @@ public final class ImageMetricsJSON {
 	}
 
 	/**
-	 * JSONを読んでキャッシュに入れます。既にある記録は上書きしません——
-	 * 実測した寸法のほうが確かなためです。
+	 * Reads JSON into the cache. Does not overwrite existing entries, since measured dimensions
+	 * are more reliable.
 	 *
-	 * @return 読み込んだ件数
+	 * @return number of entries loaded
 	 */
 	public static int read(final InputStream in, final ImageMetricsCache cache, final double resolution)
 			throws IOException {
@@ -115,8 +115,8 @@ public final class ImageMetricsJSON {
 		}
 		final Object recorded = doc.get("resolution");
 		if (recorded instanceof final Number r && Math.abs(r.doubleValue() - resolution) >= 1e-6) {
-			// 解像度が違えば寸法の意味が変わる。黙って誤った寸法を使うより
-			// 捨てて測り直す
+			// Different resolutions change the meaning of dimensions. Discard and remeasure
+			// rather than silently use incorrect dimensions
 			return 0;
 		}
 		if (!(doc.get("images") instanceof final java.util.List<?> images)) {
@@ -152,13 +152,13 @@ public final class ImageMetricsJSON {
 	}
 
 	/**
-	 * この寸法表のためだけのJSON読み手です。
+	 * JSON reader dedicated to this metrics table.
 	 *
 	 * <p>
-	 * 依存を増やさないために手で書いています。読むのは自分が書いた形だけ
-	 * なので、数値は{@code double}、オブジェクトは{@link java.util.LinkedHashMap}、
-	 * 配列は{@link java.util.ArrayList}へ落とすだけの最小実装です。
-	 * 壊れた入力は{@link IOException}にして、呼び出し側(実測へ戻る)へ返します。
+	 * Handwritten to avoid adding a dependency. Since it reads only the format it writes,
+	 * this minimal implementation simply maps numbers to {@code double}, objects to
+	 * {@link java.util.LinkedHashMap}, and arrays to {@link java.util.ArrayList}.
+	 * Returns malformed input as {@link IOException} to the caller (which falls back to measurement).
 	 * </p>
 	 */
 	private static final class Parser {
@@ -280,8 +280,8 @@ public final class ImageMetricsJSON {
 					if (this.pos + 4 > this.text.length()) {
 						throw new IOException("\\uが短すぎます");
 					}
-					// サロゲート対はそのままcharで積む(UTF-16の対がそのまま
-					// 対応する符号位置になる)
+					// Append surrogate pairs directly as chars (the UTF-16 pair itself represents
+					// the corresponding code point)
 					sb.append((char) Integer.parseInt(this.text.substring(this.pos, this.pos + 4), 16));
 					this.pos += 4;
 				}

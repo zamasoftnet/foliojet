@@ -4,33 +4,31 @@ import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.foliojet.layout.rescue.RescuePolicy;
 
 /**
- * レイアウトを別のスレッドで走らせるときに引き継ぐ、スレッド束縛の方針です
- * (2026-09-02)。
+ * Thread-bound policies to transfer when running layout on another thread (2026-09-02).
  *
  * <p>
- * レイアウトは64MBのスタックを持つ専用スレッドで走る
- * ({@code DirectSession.runOnLargeStack})。さらにEPUBの項目は並列の
- * ワーカーで組む。どちらも<b>呼び出し側スレッドのThreadLocalは引き継がれない</b>
- * ので、外から設定される方針は明示的に運ぶ必要がある。2026-07-26に
- * {@code RescuePolicy}の引き継ぎ漏れでテストが4件落ちて発覚し、以後は
- * 「ThreadLocalを増やしたらここも増やす」が約束だったが、その場所が
- * {@code DirectSession}の1関数に埋まっていた(2026-09-02の設計レビュー)。
- * ここに集めて、スレッドを作る側はこれだけを運ぶ。
+ * Layout runs on a dedicated thread with a 64 MB stack ({@code DirectSession.runOnLargeStack}).
+ * EPUB items are also laid out by parallel workers. Neither <b>inherits the caller thread's
+ * ThreadLocal values</b>, so externally configured policies must be passed explicitly.
+ * On 2026-07-26, four failed tests exposed missing transfer of {@code RescuePolicy}.
+ * Afterward, the rule was "add it here whenever adding a ThreadLocal," but that location was
+ * buried in one function in {@code DirectSession} (design review, 2026-09-02).
+ * Consolidating them here lets thread creators transfer just this object.
  * </p>
  *
  * <p>
- * 引き継がないもの: {@code ContinuationStats.continuationPathStack}は処理中の経路の
- * 一時記録で、新しいスレッドは空から始めるのが正しい。
+ * Not transferred: {@code ContinuationStats.continuationPathStack} temporarily records the path
+ * being processed; a new thread should correctly start empty.
  * </p>
  */
 public final class LayoutThreadContext {
 	/**
-	 * レイアウトを走らせるスレッドのスタックの大きさ(64MB)。
+	 * Stack size for the thread running layout (64 MB).
 	 *
 	 * <p>
-	 * 深い入れ子の文書で必要になる。実測(2026-07-25、{@code DirectSession}の
-	 * 記録): 入れ子1000で約2MB、5000で約10MB。64MBは10倍の余裕で、
-	 * 予約されるだけで使わない限りコミットされない。
+	 * Needed for deeply nested documents. Measurements (2026-07-25, {@code DirectSession} records):
+	 * about 2 MB at nesting depth 1000, about 10 MB at 5000. 64 MB provides a tenfold margin;
+	 * it is only reserved and is not committed until used.
 	 * </p>
 	 */
 	public static final int LAYOUT_STACK_SIZE = 64 * 1024 * 1024;
@@ -46,15 +44,15 @@ public final class LayoutThreadContext {
 		this.detailedDisplayListGeometry = detailedDisplayListGeometry;
 	}
 
-	/** 現在のスレッドの方針を写し取ります。 */
+	/** Captures the current thread's policies. */
 	public static LayoutThreadContext capture() {
 		return new LayoutThreadContext(RescuePolicy.current(), DisplayListDumper.currentDir(),
 				DisplayListDumper.currentDetailedGeometry());
 	}
 
 	/**
-	 * 写し取った方針を現在のスレッドに適用します。閉じると元に戻ります。
-	 * 新しいスレッドの先頭で{@code try (var scope = context.apply())}の形で使う。
+	 * Applies captured policies to the current thread. Closing restores the originals.
+	 * Use {@code try (var scope = context.apply())} at the start of a new thread.
 	 */
 	public AutoCloseable apply() {
 		final AutoCloseable policy = this.rescuePolicy.scoped();
@@ -62,7 +60,7 @@ public final class LayoutThreadContext {
 		final AutoCloseable geometry = DisplayListDumper.scopedDetailedGeometry(this.detailedDisplayListGeometry);
 		return () -> {
 			try (geometry; dump; policy) {
-				// 逆順に閉じる
+				// Close in reverse order
 			}
 		};
 	}

@@ -30,50 +30,48 @@ public final class XSLTUtils {
 	}
 
 	/**
-	 * XSLT の変換器を作ります。
+	 * Creates an XSLT transformer.
 	 *
 	 * <p>
-	 * <b>成果物以外への書き出しを禁じます。</b>Saxon の
-	 * {@code xsl:result-document} は既定の出力リゾルバでファイルを作れ、
-	 * {@code URLConnection.getOutputStream()} も持ちます。Copper の
-	 * {@link net.zamasoft.zstream.io.Results 結果}にも出力サイズの上限にも
-	 * 掛からない経路なので、任意の場所へ書けてしまいます
-	 * (2026-09-08 に実測。file: へ書き込めた)。入力側は
-	 * {@code URIResolver} が{@code input.include}/{@code input.exclude}の
-	 * ACL を引くので、出力側だけが素通りしていました。
+	 * <b>Prohibits writing anywhere outside the conversion results.</b> Saxon's
+	 * {@code xsl:result-document} can create files through its default output resolver
+	 * and also uses {@code URLConnection.getOutputStream()}.
+	 * This path bypasses Copper's {@link net.zamasoft.zstream.io.Results results}
+	 * and output size limits, allowing writes to arbitrary locations
+	 * (observed on 2026-09-08: writing to file: succeeded).
+	 * Input uses {@code URIResolver} to check the {@code input.include}/{@code input.exclude}
+	 * ACL, so only output passed through unchecked.
 	 * </p>
 	 */
 	public static SAXTransformerFactory createTransformerFactory() {
 		final net.sf.saxon.TransformerFactoryImpl tf = new net.sf.saxon.TransformerFactoryImpl();
 		final net.sf.saxon.Configuration config = tf.getConfiguration();
-		// xsl:result-document の書き出し先を全部拒む
+		// Reject all xsl:result-document output destinations.
 		config.setOutputURIResolver(NO_OUTPUT);
-		// 拡張関数・リフレクションによる Java 呼び出しも塞ぐ
+		// Also block Java calls through extension functions and reflection.
 		config.setBooleanProperty(net.sf.saxon.lib.Feature.ALLOW_EXTERNAL_FUNCTIONS, false);
-		// collection()/uri-collection() はディレクトリ列挙・ZIP・ネットワーク取得へ
-		// 進む独自経路で、ALLOW_EXTERNAL_FUNCTIONS では閉じない。
-		// input.include/input.exclude の判定も通らないので拒む
+		// collection()/uri-collection() use independent paths for directory listing, ZIP access, and network fetching,
+		// which ALLOW_EXTERNAL_FUNCTIONS does not disable.
+		// They also bypass input.include/input.exclude checks, so reject them.
 		config.setCollectionFinder(NO_COLLECTION);
 		return tf;
 	}
 
 	/**
-	 * 入力側の取得を<b>すべて</b>FolioJetのリゾルバへ回します。
+	 * Routes <b>all</b> input fetching through FolioJet's resolver.
 	 *
 	 * <p>
-	 * Saxon 12 の {@code ResourceResolver} は、{@code document()}・
-	 * {@code unparsed-text()}・{@code xsl:import}/{@code xsl:include}・
-	 * 外部実体の取得が<b>1本に集まる</b>差し込み口です。旧来の
-	 * {@code URIResolver}だけでは{@code unparsed-text()}を受け持てず、
-	 * Saxonが代用するときに相対URIを{@code null}で渡すため
-	 * {@code URIHelper}が落ちていました(2026-09-08に実測)。
+	 * Saxon 12's {@code ResourceResolver} is the extension point where fetching for
+	 * {@code document()}, {@code unparsed-text()}, {@code xsl:import}/{@code xsl:include},
+	 * and external entities <b>converges</b>. The legacy {@code URIResolver} alone cannot
+	 * handle {@code unparsed-text()}; when Saxon substitutes it, it passes {@code null}
+	 * for the relative URI, causing {@code URIHelper} to fail (observed on 2026-09-08).
 	 * </p>
 	 *
 	 * <p>
-	 * 取得は{@code ua.resolve()}を通るので、
-	 * {@code input.include}/{@code input.exclude}とローカル資源の可否が
-	 * そのまま効きます。<b>拒めば{@link SecurityException}が上がり、
-	 * 変換はそこで止まります。</b>
+	 * Fetching goes through {@code ua.resolve()}, so {@code input.include}/{@code input.exclude}
+	 * and local resource permissions apply unchanged.
+	 * <b>Rejection raises {@link SecurityException} and stops conversion there.</b>
 	 * </p>
 	 */
 	static void setResourceResolver(final javax.xml.transform.sax.SAXTransformerFactory tf,
@@ -100,8 +98,8 @@ public final class XSLTUtils {
 			} catch (final java.io.IOException e) {
 				throw new net.sf.saxon.trans.XPathException(e.getMessage(), e);
 			}
-			// **読み切ってから返す。**Saxonがいつ読むか分からないので、
-			// Sourceを開いたまま渡すと解放の時期が決められない
+			// **Read fully before returning.** Saxon's read timing is unknown,
+			// so passing an open Source would leave its release timing undecidable.
 			final javax.xml.transform.stream.StreamSource result = new javax.xml.transform.stream.StreamSource(
 					new java.io.ByteArrayInputStream(body));
 			result.setSystemId(uri.toString());
@@ -109,13 +107,13 @@ public final class XSLTUtils {
 		});
 	}
 
-	/** {@code collection()}/{@code uri-collection()}を拒むコレクション取得です。 */
+	/** A collection finder that rejects {@code collection()}/{@code uri-collection()}. */
 	private static final net.sf.saxon.lib.CollectionFinder NO_COLLECTION = (context, collectionURI) -> {
 		throw new net.sf.saxon.trans.XPathException(
 				"collection() is not permitted: " + collectionURI);
 	};
 
-	/** {@code xsl:result-document}の書き出しを全部拒む出力リゾルバです。 */
+	/** An output resolver that rejects all {@code xsl:result-document} writes. */
 	private static final net.sf.saxon.lib.OutputURIResolver NO_OUTPUT = new net.sf.saxon.lib.OutputURIResolver() {
 		public net.sf.saxon.lib.OutputURIResolver newInstance() {
 			return this;

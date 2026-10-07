@@ -1,8 +1,8 @@
 package net.zamasoft.foliojet.message;
 
 /**
- * メッセージコード一覧です。
- * 
+ * List of message codes.
+ *
  * @author MIYABE Tatsuhiko
  */
 public interface MessageCodes {
@@ -30,9 +30,9 @@ public interface MessageCodes {
 	public static final short WARN_CANNOT_OVERRIDE_PROPERTY = 0x280F;
 	public static final short WARN_MISSING_ATTACHMENT = 0x2810;
 	/**
-	 * 画像を読み込めない警告です。引数は {0}=userinfoを除いたURI、
-	 * {1}=失敗段階({@code resolve}、{@code fetch}、
-	 * {@code fetch: HTTP nnn}、{@code decode})です。
+	 * Warning that an image cannot be loaded. Arguments: {0} = URI without userinfo,
+	 * {1} = failure stage ({@code resolve}, {@code fetch},
+	 * {@code fetch: HTTP nnn}, {@code decode}).
 	 */
 	public static final short WARN_MISSING_IMAGE = 0x2811;
 	public static final short WARN_UNSUPPORTED_PDF_CAPABILITY = 0x2812;
@@ -47,40 +47,40 @@ public interface MessageCodes {
 	public static final short WARN_MISSING_FONT = 0x281F;
 	public static final short WARN_MISSING_FONT_OUTLINE = 0x2820;
 	/**
-	 * 静的な組版に意味がないため<b>意図して対応しない</b>プロパティ
-	 * (2026-08-28)。{@link #WARN_UNSUPPORTED_CSS_PROPERTY}(いずれ対応
-	 * しうる未実装)と区別するために分けた——実サイトの警告を数えて
-	 * 実装候補を選ぶとき、この2つが混ざっていると候補を絞れない。
+	 * Properties <b>intentionally unsupported</b> because they have no meaning in static layout
+	 * (2026-08-28). Separated from {@link #WARN_UNSUPPORTED_CSS_PROPERTY} (unimplemented but
+	 * potentially supported later): mixing these two prevents narrowing implementation candidates
+	 * when counting warnings from real sites.
 	 */
 	public static final short WARN_IGNORED_CSS_PROPERTY = 0x2821;
 	/**
-	 * 現在の出力形式では厳密に描けず<b>近似で描画した</b>機能(2026-08-29)。
-	 * 引数は {0}=CSSプロパティ名、{1}=出力のMIME型、{2}=近似の内容。
-	 * 描画時に、近似経路を実際に通ったときだけ、文書ごと・機能ごとに
-	 * 1回出す。透明を使える通常PDFでは影だけをラスタ化して厳密にぼかすが、
-	 * PDF/A-1など透明を使えないプロファイルやラスタ化を拒否した場合は近似へ
-	 * 戻る。円錐グラデーション等も含め、同じ文書でも出力形式・プロファイルで
-	 * 警告が変わる。
+	 * Feature <b>rendered approximately</b> because the current output format cannot render it exactly
+	 * (2026-08-29). Arguments: {0} = CSS property name, {1} = output MIME type, {2} = approximation details.
+	 * Emitted once per document per feature, at draw time only when the approximation path actually runs.
+	 * Normal PDF supporting transparency rasterizes only shadows for exact blur, but profiles without
+	 * transparency such as PDF/A-1, or refusal to rasterize, fall back to approximation.
+	 * Warnings, including those for conic gradients, vary by output format/profile even for the same document.
 	 */
 	public static final short WARN_APPROXIMATED_RENDERING = 0x2822;
 	/**
-	 * 宣言は解釈できたが、<b>この組み合わせでは効かない</b>指定(2026-08-29)。
-	 * 引数は {0}=CSSプロパティ名、{1}=効かない理由。
-	 * {@link #WARN_UNSUPPORTED_CSS_PROPERTY}(プロパティ自体が未実装)や
-	 * {@link #WARN_IGNORED_CSS_PROPERTY}(静的組版では無意味)と違い、
-	 * <b>単体なら効くのに文脈のせいで落ちる</b>ものを知らせる——利用者が
-	 * 最も時間を溶かすのは「書いたのに効かない」なので、黙って捨てない。
+	 * Declaration parsed successfully but <b>ineffective in this combination</b> (2026-08-29).
+	 * Arguments: {0} = CSS property name, {1} = reason it has no effect.
+	 * Unlike {@link #WARN_UNSUPPORTED_CSS_PROPERTY} (property itself unimplemented) or
+	 * {@link #WARN_IGNORED_CSS_PROPERTY} (meaningless in static layout), reports declarations
+	 * <b>that work on their own but are dropped due to context</b>.
+	 * "I wrote it, but it does nothing" wastes users' time the most, so do not silently discard them.
 	 */
 	public static final short WARN_INEFFECTIVE_CSS_COMBINATION = 0x2823;
 	/**
-	 * 透明な画像を求められたが、その形式はアルファを持てない。
+	 * A transparent image was requested, but the format cannot carry alpha.
 	 *
 	 * <p>
-	 * 黙って白にすると「透明にしたのに白い」と悩ませる。何が起きたかを言う。
+	 * Silently using white leaves users wondering "why is it white when I requested transparency?"
+	 * Explain what happened.
 	 * </p>
 	 */
 	public static final short WARN_NO_ALPHA_IN_IMAGE_FORMAT = 0x2824;
-	/** 運用者の上限より緩い指定を受けた警告です(上限の値を使う。2026-10-03)。 */
+	/** Warning for a setting looser than the operator's limit (uses the limit value; 2026-10-03). */
 	public static final short WARN_OPERATOR_LIMIT = 0x2825;
 	public static final short WARN_PLUGIN = 0x28FF;
 
@@ -93,18 +93,21 @@ public interface MessageCodes {
 	public static final short ERROR_XSLT_WARN = 0x3808;
 	public static final short ERROR_XSLT_ERROR = 0x3809;
 	public static final short ERROR_NO_CONTENT = 0x380D;
-	/** PDF/Xの出力インテント指定が不正なため変換を中断したエラーです。 */
+	/** Error: conversion aborted because the PDF/X output intent specification is invalid. */
 	public static final short ERROR_PDFX_OUTPUT_INTENT = 0x380E;
 	public static final short ERROR_RETAINED_TEXT_LIMIT = 0x380F;
-	/** サーバー側のメインドキュメントの取得を許可していないエラーです(遠隔の利用者にサーバーの内側の宛先を拒んだなど、2026-09-14)。 */
+	/**
+	 * Error: server-side main document retrieval is disallowed
+	 * (e.g., denying a remote user an internal server destination; 2026-09-14).
+	 */
 	public static final short ERROR_FORBIDDEN_SERVERSIDE_DOCUMENT = 0x3810;
-	/** サーバー側のメインドキュメントを取得できなかった(接続拒否・切断など)エラーです(2026-09-14)。 */
+	/** Error: server-side main document retrieval failed (connection refused, disconnected, etc.; 2026-09-14). */
 	public static final short ERROR_UNREACHABLE_SERVERSIDE_DOCUMENT = 0x3811;
-	/** 生成するラスタ(画像出力の版面)の画素数が output.image-pixel-limit を超えたエラーです(2026-10-03)。 */
+	/** Error: generated raster (type area for image output) exceeds output.image-pixel-limit pixels (2026-10-03). */
 	public static final short ERROR_OUTPUT_IMAGE_TOO_LARGE = 0x3812;
-	/** {@code output.type} に対応していない形式を指定したエラーです(2026-10-05)。 */
+	/** Error: an unsupported format is specified for {@code output.type} (2026-10-05). */
 	public static final short ERROR_UNSUPPORTED_OUTPUT_TYPE = 0x3813;
-	/** PDF/UA を選んだのに文書の言語({@code output.pdf.tagged.lang})が無いエラーです(2026-10-05)。 */
+	/** Error: PDF/UA selected without a document language ({@code output.pdf.tagged.lang}; 2026-10-05). */
 	public static final short ERROR_PDFUA_LANG = 0x3814;
 	public static final short ERROR_PLUGIN = 0x38FF;
 

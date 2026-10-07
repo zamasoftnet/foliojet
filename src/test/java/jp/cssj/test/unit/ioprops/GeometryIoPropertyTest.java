@@ -20,25 +20,25 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 版面の幾何に効く入出力プロパティの検査です(2026-08-02新設、
- * 入出力プロパティ網羅の第3陣)。
+ * Tests for I/O properties affecting type-area geometry (introduced on 2026-08-02,
+ * the third batch of comprehensive I/O property coverage).
  *
  * <p>
- * 判定は出力PDFの<b>紙面の寸法({@code /MediaBox})とページ数</b>で行う。
- * 組版の細部はdisplay-list goldenが見ているので、ここでは
- * 「そのプロパティが紙面に効いたか」だけを見る。
+ * Judge using <b>page dimensions ({@code /MediaBox}) and page count</b> in the output PDF.
+ * Display-list golden tests cover layout details; these tests only check whether the property
+ * affects the page.
  * </p>
  */
 public class GeometryIoPropertyTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 2ページになる文書(ページ数に効くプロパティの検査用)。 */
+	/** A document that produces two pages (for testing properties that affect page count). */
 	private static final File TWO_PAGES = new File("files/unittest/ioprops/two-pages.html");
 
 	private static final Pattern MEDIA_BOX = Pattern
 			.compile("/MediaBox\\s*\\[\\s*([-\\d.]+)\\s+([-\\d.]+)\\s+([-\\d.]+)\\s+([-\\d.]+)");
 
-	/** 基準: 200x300pt、2ページ。 */
+	/** Baseline: 200x300 pt, 2 pages. */
 	private static Map<String, String> base() {
 		return props("output.page-width", "200pt", "output.page-height", "300pt");
 	}
@@ -51,7 +51,7 @@ public class GeometryIoPropertyTest extends TestCase {
 		assertEquals("ページ数", 2, pageCount(pdf));
 	}
 
-	/** {@code output.no-page-break}: 改ページしない(1ページになる)。 */
+	/** {@code output.no-page-break}: no page breaks (produces one page). */
 	public void testNoPageBreak() throws Exception {
 		final Map<String, String> props = base();
 		props.put("output.no-page-break", "true");
@@ -59,7 +59,7 @@ public class GeometryIoPropertyTest extends TestCase {
 		assertEquals("改ページしないので1ページ", 1, pageCount(pdf));
 	}
 
-	/** {@code output.auto-height}: 内容に合わせて紙面が伸びる。 */
+	/** {@code output.auto-height}: the page grows to fit the content. */
 	public void testAutoHeight() throws Exception {
 		final Map<String, String> props = base();
 		props.put("output.auto-height", "true");
@@ -70,7 +70,7 @@ public class GeometryIoPropertyTest extends TestCase {
 				Math.abs((box[3] - box[1]) - 300.0) > 1.0);
 	}
 
-	/** {@code output.htrim}/{@code output.vtrim}: 断ち代の分だけ紙面が広がる。 */
+	/** {@code output.htrim}/{@code output.vtrim}: the page expands by the trim allowance. */
 	public void testTrims() throws Exception {
 		final Map<String, String> props = base();
 		props.put("output.htrim", "10pt");
@@ -82,7 +82,7 @@ public class GeometryIoPropertyTest extends TestCase {
 		assertEquals("高さは上下の断ち代ぶん広がる", 340.0, box[3] - box[1], 1.0);
 	}
 
-	/** {@code output.trims}: 4辺の断ち代をまとめて指定できる。 */
+	/** {@code output.trims}: specify trim allowances for all four sides together. */
 	public void testTrimsShorthand() throws Exception {
 		final Map<String, String> props = base();
 		props.put("output.trims", "5pt");
@@ -93,7 +93,7 @@ public class GeometryIoPropertyTest extends TestCase {
 		assertEquals("高さが5pt×2広がる", 310.0, box[3] - box[1], 1.0);
 	}
 
-	/** {@code output.n-up}: 面付けでページがまとまる。 */
+	/** {@code output.n-up}: imposition combines pages. */
 	public void testNUp() throws Exception {
 		final Map<String, String> props = base();
 		props.put("output.n-up", "2");
@@ -101,7 +101,7 @@ public class GeometryIoPropertyTest extends TestCase {
 		assertEquals("2ページが1枚にまとまる", 1, pageCount(pdf));
 	}
 
-	/** {@code output.paper-width}/{@code output.paper-height}: 用紙の寸法。 */
+	/** {@code output.paper-width}/{@code output.paper-height}: paper dimensions. */
 	public void testPaperSize() throws Exception {
 		final Map<String, String> props = base();
 		props.put("output.paper-width", "400pt");

@@ -21,42 +21,41 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>column方向flexが救済分割(帯クリップ)でなく行単位に改ページされる</b>
- * ことを固定します(2026-08-18新設)。
+ * Verify that <b>column-direction flex paginates by lines instead of visual rescue splitting
+ * (band clipping)</b> (introduced 2026-08-18).
  *
  * <p>
- * 従来、column flexは{@code FlexBuilderLifecycle.eligible}の不適格
- * (ページ軸が絶対長でない——{@code min-height:100vh}のapp shell型が代表)で
- * F0の単一列通常フローへ退行しつつ、{@code PageAtomicBox}の原子契約だけは
- * 主張し続けた。結果、内容全体が1個のatomicとなり救済分割へ落ち、
- * <b>行が帯境界で上下にスライス</b>されていた(実コーパス235文書中87文書=
- * 37%に「紙面より大きい箱の平行移動」指摘。bbc-japan等)。
+ * Previously, column flex ineligible under {@code FlexBuilderLifecycle.eligible}
+ * (page axis not an absolute length; typically an app shell with {@code min-height:100vh})
+ * fell back to F0 single-column normal flow but still asserted the {@code PageAtomicBox}
+ * atomic contract. As a result, all content became one atomic unit and fell into rescue splitting,
+ * <b>slicing lines vertically at band boundaries</b> (87 of 235 real corpus documents, or 37%,
+ * were flagged for "translation of a box larger than the paper"; bbc-japan and others).
  * </p>
  *
  * <p>
- * 修正は2点: (1) F0退行では原子契約を放棄する
- * ({@code FlexBox.isPageAtomicNow}——{@code GridBox}のtrackLayoutと同じ
- * 設計判断)。中身は通常フローなので、通常ブロックとして行単位に
- * 改ページされる。(2) 適格なcolumn(絶対長主軸)の単一列配置と
- * F4c縮退経路には<b>item1つ=1行のページ軸帳簿を合成</b>し、row方向と
- * 同じ{@code FlexBox.split}(行分割機構)を適用する。
+ * Two fixes: (1) Drop the atomic contract on F0 fallback
+ * ({@code FlexBox.isPageAtomicNow}; the same design decision as {@code GridBox}'s trackLayout).
+ * Since the content is normal flow, it paginates by lines as an ordinary block.
+ * (2) For single-column placement of eligible columns (absolute-length main axis) and
+ * the F4c fallback path, <b>synthesize page-axis bookkeeping with one item per line</b>
+ * and apply the same {@code FlexBox.split} (line splitting mechanism) as in the row direction.
  * </p>
  */
 public class FlexColumnPaginationTest extends TestCase {
-	/** 打ち切り時間。実測は1件あたり5秒未満。 */
+	/** Timeout. Measured execution is under 5 seconds per case. */
 	private static final long WATCHDOG_MS = 120_000L;
 
 	/**
-	 * app shell型(min-height:100vh+space-betweenのcolumn flex)が
-	 * 行境界で改ページされ、帯スライス(負座標への平行移動描画)が
-	 * 起きないこと。
+	 * App-shell column flex (min-height:100vh+space-between) paginates at line boundaries
+	 * without band slicing (drawing translated to negative coordinates).
 	 */
 	public void testAppShellColumnFlexBreaksAtLineBoundaries() throws Exception {
 		this.assertCleanPagination("app-shell",
 				"min-height:100vh;display:flex;flex-direction:column;justify-content:space-between");
 	}
 
-	/** 素のcolumn flex(高さ指定なし)も同じく行境界で改ページされること。 */
+	/** Plain column flex (no specified height) also paginates at line boundaries. */
 	public void testPlainColumnFlexBreaksAtLineBoundaries() throws Exception {
 		this.assertCleanPagination("plain", "display:flex;flex-direction:column");
 	}
@@ -81,9 +80,9 @@ public class FlexColumnPaginationTest extends TestCase {
 		final File dir = prepareDir("flex-column-pagination/" + name);
 		final int pages = convert(name, dir, html.toString());
 		assertTrue(name + ": 最後まで組まれていない(ページ数=" + pages + ")", pages >= 5);
-		// 救済分割は2ページ目以降を「全体を負座標へ平行移動+帯クリップ」で
-		// 描く(display listでは全項目にartifact印)。行分割なら2ページ目は
-		// そのページの内容だけを正座標で持つ
+		// Visual rescue splitting draws page 2 onward by translating the entire content to negative
+		// coordinates and clipping it to a band (all display-list entries carry artifact markers).
+		// With line splitting, page 2 contains only that page's content at positive coordinates.
 		for (int p = 2; p <= pages; ++p) {
 			final File dump = new File(dir, String.format("page-%04d.txt", p));
 			final List<String> lines = Files.readAllLines(dump.toPath(), StandardCharsets.UTF_8);
@@ -92,18 +91,18 @@ public class FlexColumnPaginationTest extends TestCase {
 						line.contains("artifact") || line.contains("y=-"));
 			}
 		}
-		// 内容の欠落なし: 最終ページにフッタ
+		// No content loss: footer on the final page.
 		final File last = new File(dir, String.format("page-%04d.txt", pages));
 		assertTrue(name + ": 最終ページにFOOTが無い",
 				Files.readString(last.toPath(), StandardCharsets.UTF_8).contains("FOOT"));
 	}
 
 	/**
-	 * 適格なcolumn(絶対長主軸)+定義済みitem高は、合成された
-	 * item1つ=1行の帳簿により{@code FlexBox.split}で分割されること
-	 * (紙面200pt・内容180ptにitem 150pt×3=450pt)。境界item(B)は
-	 * ラベルが保持側(p1)に残り、残余(空の120pt)が次ページへ持ち越されて
-	 * Cが120pt位置から始まる——救済分割(帯クリップの平行移動)は起きない。
+	 * Eligible column flex (absolute-length main axis) with defined item heights splits via
+	 * {@code FlexBox.split} using synthesized one-item-per-line bookkeeping
+	 * (200 pt paper, 180 pt content area, three 150 pt items = 450 pt). The boundary item (B)
+	 * keeps its label on the retained side (p1), and carries its remainder (120 pt of empty space)
+	 * to the next page, where C starts at 120 pt. No visual rescue splitting (translated band clipping).
 	 */
 	public void testDefiniteColumnFlexSplitsBetweenItems() throws Exception {
 		final String html = """

@@ -28,39 +28,37 @@ import net.zamasoft.pdfg2d.pdf.StructureRef;
 import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 
 /**
- * 1つのstacking contextの表示リストです。paint command列と、子の
- * stacking context(z-index順に描く)を保持します。
+ * Display list for one stacking context. Holds a sequence of paint commands and child stacking contexts (drawn in
+ * z-index order).
  *
  * <p>
- * 描画順は「負のz-indexの子context→自分のpaint command→0以上の
- * 子context」です(CSS 2.1 Appendix E)。子context内は(z, 挿入順)で
- * 整列します。以前は{@code Collections.sort}の安定性へ暗黙に依存していたが、
- * 挿入順を明示の順序キーに昇格した(B-1、2026-07-30。全順序なので
- * 何度整列しても同じ結果になり、dump/drawが同じ順序を共有する)。
- * Appendix Eがさらに分ける親自身の背景とインライン内容の間への配置は
- * paint commandの分類が必要なため、この変更の範囲外です。
+ * Drawing order is children with negative z-index → own paint commands → children with nonnegative z-index (CSS 2.1
+ * Appendix E). Sort child contexts by (z, insertion order). Previously relied implicitly on {@code
+ * Collections.sort} stability; insertion order became an explicit sort key (B-1, 2026-07-30). This total order
+ * gives the same result on repeated sorts, so dump/draw share the same order. Appendix E's further distinction,
+ * placing children between the parent's own background and inline content, requires paint-command classification
+ * and is outside this change's scope.
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public class Drawer {
 	/**
-	 * 位置が決められた描画可能ボックス(paint command)です。
+	 * A drawable box with a determined position (paint command).
 	 */
 	protected static class PaintCommand {
 		private final Drawable drawable;
 		private final double x, y;
 		/**
-		 * PDFのartifact(装飾)として出すか(2026-07-25、救済分割・増分2)。
-		 * 通常の描画では常にfalseで、既存の出力は完全に不変です。
+		 * Whether to emit as a PDF artifact (decoration) (2026-07-25, rescue splitting, increment 2). Always false for
+		 * normal drawing, leaving existing output completely unchanged.
 		 */
 		private final boolean artifact;
 
 		/**
-		 * このcommandが属する宣言済み構造要素(B-3、2026-07-30)。
-		 * 構造の順序は宣言時(文書順)に確定済みで、描画はこの参照へ
-		 * ルーティングするだけ——z順で描いても構造は乱れない。
-		 * untaggedでは常にnull。
+		 * Declared structure element this command belongs to (B-3, 2026-07-30). Structure order is fixed at declaration
+		 * time (document order); drawing only routes to this reference, so z-order drawing does not disrupt structure.
+		 * Always null for untagged output.
 		 */
 		private final StructureRef structRef;
 
@@ -85,7 +83,7 @@ public class Drawer {
 						lineScopes.get(text.getLogicalLineEmission().lineId()));
 				return;
 			}
-			// 包み紙(ApproximationGC等)越しでもPDFの構造出力へ辿る
+			// Reach PDF structure output even through wrappers such as ApproximationGC.
 			final PDFPageOutput structOut = (this.structRef != null
 					&& net.zamasoft.foliojet.layout.util.DelegatingGC.unwrap(gc) instanceof PDFGC pdfgc
 					&& pdfgc.getPDFGraphicsOutput() instanceof PDFPageOutput out) ? out : null;
@@ -94,9 +92,9 @@ public class Drawer {
 			}
 			try {
 				if (this.artifact) {
-					// 見た目は同じまま、論理構造には入れない。GCがartifactに
-					// 対応しない(untagged PDF等)場合はno-opのscopeが返るため、
-					// 出力はartifactでない場合と完全に一致する。
+					// Keep the appearance unchanged but exclude it from logical structure. If the GC does not
+					// support artifacts (e.g. untagged PDF), it returns a no-op scope,
+					// so output exactly matches the non-artifact case.
 					try (final GC.State scope = gc.beginArtifactScope()) {
 						this.drawable.draw(gc, this.x, this.y);
 					}
@@ -141,7 +139,7 @@ public class Drawer {
 		}
 	}
 
-	/** 子stacking contextと、その挿入順(同zの順序キー)です。 */
+	/** Child stacking context and insertion order (sort key for equal z). */
 	private static final class StackingContextEntry implements Comparable<StackingContextEntry> {
 		private final Drawer drawer;
 		private final int insertionOrdinal;
@@ -160,7 +158,7 @@ public class Drawer {
 		}
 	}
 
-	/** filter層を要素座標へ置くための、検証済みの変換と寸法です(2026-09-03)。 */
+	/** Validated transform and dimensions for placing a filter layer in element coordinates (2026-09-03). */
 	private record FilterPlacement(AffineTransform outerTransform, AffineTransform groupTransform, double width,
 			double height) {
 		private static final double MAX_PAGE_EXTENT = 64;
@@ -225,62 +223,60 @@ public class Drawer {
 	protected List<PaintCommand> paintCommands = null;
 
 	/**
-	 * 自分の背景・枠(stacking context の根の箱が最初に積む装飾)が終わる
-	 * paint command の位置です。負の z-index の子 context は、CSS 2.1
-	 * Appendix E ③のとおり**この位置の後・残りの内容の前**に描きます。
-	 * 印が無い(0)場合は負の子を自分の command 全部より先に描く。
+	 * Paint-command position where the context's own background/frame ends (decoration first added by the
+	 * stacking-context root box). Draw child contexts with negative z-index **after this position and before remaining
+	 * content**, per CSS 2.1 Appendix E ③. Without a marker (0), draw negative children before all own commands.
 	 */
 	private int ownDecorationEnd = 0;
 
-	/** stacking context の根の箱が自分の背景・枠を積み終えた直後に呼びます。 */
+	/** Called immediately after the stacking-context root box adds its own background/frame. */
 	public void markOwnDecorationEnd() {
 		this.ownDecorationEnd = this.paintCommands == null ? 0 : this.paintCommands.size();
 	}
 
-	/** paint command の件数です。 */
+	/** Number of paint commands. */
 	private int paintCount() {
 		return this.paintCommands == null ? 0 : this.paintCommands.size();
 	}
 
-	/** 負の子を挟む位置(装飾の終端、command 件数で頭打ち)です。 */
+	/** Insertion position for negative children (decoration end, capped at the command count). */
 	private int decorationSplit() {
 		return Math.min(this.ownDecorationEnd, this.paintCount());
 	}
 	private List<StackingContextEntry> stackingContexts = null;
 
 	/**
-	 * このDrawerへ以後追加される内容をartifactとして出すか
-	 * (2026-07-25新設、救済分割・増分2。<b>まだ本番経路からは
-	 * 立てられません</b>)。
+	 * Whether content subsequently added to this Drawer is emitted as an artifact (added 2026-07-25, rescue splitting,
+	 * increment 2; <b>not yet set by production paths</b>).
 	 *
 	 * <p>
-	 * 救済分割の継続断片は「見た目は内容、意味の上では先頭断片に属する」
-	 * ため、PDFのartifactとして出してテキスト抽出・読み上げ・構造タグの
-	 * 二重化を防ぎます。
+	 * Continuation fragments from rescue splitting visually contain content that semantically belongs to the first
+	 * fragment. Emit them as PDF artifacts to prevent duplicate text extraction, read-aloud content, and structure
+	 * tags.
 	 * </p>
 	 */
 	protected boolean artifact = false;
 
-	/** {@link #artifactView()}が返す共有ビュー(遅延生成)。 */
+	/** Shared view returned by {@link #artifactView()} (created lazily). */
 	private Drawer artifactView = null;
 
 	/**
-	 * 以後追加されるcommandが属する宣言済み構造要素(B-3、2026-07-30)。
-	 * 文書順の走査(表示リストの構築)中にPageBox.beginStruct/endStructが
-	 * 更新する。untaggedでは常にnull。
+	 * Declared structure element to which subsequently added commands belong (B-3, 2026-07-30).
+	 * PageBox.beginStruct/endStruct updates it during document-order traversal (display-list construction). Always
+	 * null for untagged output.
 	 */
 	private StructureRef currentStructRef = null;
-	/** filter層のFigureを所属させる、この要素自身の構造参照。 */
+	/** This element's own structure reference, to which the filter layer's Figure belongs. */
 	private StructureRef structRef = null;
-	/** このstacking context全体へ掛ける、この要素自身のfilter。 */
+	/** This element's own filter, applied to the entire stacking context. */
 	private FilterValue filter = null;
-	/** このstacking contextを作った要素。adopt時の同一性判定にも使う。 */
+	/** Element that created this stacking context. Also used for identity checks during adopt. */
 	private final Params params;
-	/** 生成時点で分かっている祖先の合成変換(防御的コピー)。 */
+	/** Composite ancestor transform known at creation time (defensive copy). */
 	private final AffineTransform fallbackTransform;
-	/** 自要素まで含めた合成変換(防御的コピー)。 */
+	/** Composite transform including this element (defensive copy). */
 	private AffineTransform adoptedTransform = null;
-	/** nullのadoptも最初の1回として扱うための印。 */
+	/** Marker treating even a null adopt as the first adoption. */
 	private boolean transformAdopted = false;
 
 	public void setCurrentStructRef(final StructureRef ref) {
@@ -314,7 +310,7 @@ public class Drawer {
 		}
 	}
 
-	/** 同じ要素が計算した合成変換を最初の1回だけ採用します(2026-09-03)。 */
+	/** Adopts the composite transform computed by the same element only once, on the first call (2026-09-03). */
 	public void adoptTransform(final Params owner, final AffineTransform transform) {
 		if (owner != this.params || this.transformAdopted) {
 			return;
@@ -328,31 +324,29 @@ public class Drawer {
 	}
 
 	/**
-	 * このDrawerへ追加される内容がartifactであればtrueを返します。
+	 * Returns true if content added to this Drawer is an artifact.
 	 */
 	public boolean isArtifact() {
 		return this.artifact;
 	}
 
 	/**
-	 * 「以後の追加はartifact」という印だけが違う、<b>同じ表示リストの
-	 * ビュー</b>を返します(2026-07-25新設、救済分割・増分2)。
+	 * Returns a <b>view of the same display list</b> differing only in the marker that subsequent additions are
+	 * artifacts (added 2026-07-25, rescue splitting, increment 2).
 	 *
 	 * <p>
-	 * 重要: ラッパーDrawerを<b>子として</b>追加してはいけません。現在の
-	 * {@link #draw(GC)}は負の子、自身、0以上の子の順で描くため、子を1段
-	 * 増やすと既存の重なり順が
-	 * 変わってしまいます(答申§3)。このビューは新しいz階層を作らず、
-	 * 追加をそのままこのDrawerの表示リストへ流し、PaintCommandに
-	 * 印だけを付けます。
+	 * Important: never add a wrapper Drawer <b>as a child</b>. The current {@link #draw(GC)} draws negative children,
+	 * self, then nonnegative children, so adding a child level changes existing stacking order (recommendation §3).
+	 * This view creates no new z level; it forwards additions directly to this Drawer's display list and only marks
+	 * PaintCommand.
 	 * </p>
 	 *
 	 * <p>
-	 * ビュー経由で子Drawerが追加された場合は、artifact属性を子へ伝播
-	 * します({@link #visitDrawer(Drawer)})。
+	 * When a child Drawer is added through the view, propagate the artifact attribute to the child ({@link
+	 * #visitDrawer(Drawer)}).
 	 * </p>
 	 *
-	 * @return artifact印つきの共有ビュー
+	 * @return shared view with the artifact marker
 	 */
 	public Drawer artifactView() {
 		if (this.artifact) {
@@ -365,8 +359,8 @@ public class Drawer {
 	}
 
 	/**
-	 * このDrawerと、既に追加済み・今後追加されるすべての内容をartifactに
-	 * します(子Drawerへも反復的に伝播)。
+	 * Marks this Drawer and all existing and future content as artifacts (propagates iteratively to child Drawers
+	 * too).
 	 */
 	protected void markArtifact() {
 		final Deque<Drawer> work = new ArrayDeque<>();
@@ -381,7 +375,7 @@ public class Drawer {
 				for (int i = 0; i < drawer.paintCommands.size(); ++i) {
 					final PaintCommand command = drawer.paintCommands.get(i);
 					if (!command.artifact) {
-						// artifact化は構造からも外す(B-3: 構造参照を落とす)
+						// Artifact marking also removes it from structure (B-3: drop structure references).
 						drawer.paintCommands.set(i, new PaintCommand(command.drawable, command.x, command.y, true, null));
 					}
 				}
@@ -399,19 +393,18 @@ public class Drawer {
 	}
 
 	/**
-	 * 表示リストへDrawableを追加します(artifact印つき)。共有ビューは
-	 * これをオーナー側へ委譲します。
+	 * Adds a Drawable to the display list (with an artifact marker). Shared views delegate this to the owner.
 	 */
 	protected void addDrawable(Drawable drawable, double x, double y, boolean artifact) {
-		// isNoneでは番兵の算術結果(NONE+10等)もNaNも素通りする。
-		// ここは表示リストに載る全ての位置が通る唯一の隘路なので、
-		// 「印刷物としてあり得る範囲か」で弾く(LayoutUtils.isDrawable参照)
+		// isNone lets sentinel arithmetic results (NONE+10, etc.) and NaN through.
+		// This is the sole checkpoint for all display-list positions,
+		// so reject values outside a plausible printable range (see LayoutUtils.isDrawable).
 		assert LayoutUtils.isDrawable(x) : "描画位置xが異常: " + x + " (" + drawable + ")";
 		assert LayoutUtils.isDrawable(y) : "描画位置yが異常: " + y + " (" + drawable + ")";
 		if (this.paintCommands == null) {
 			this.paintCommands = new ArrayList<PaintCommand>();
 		}
-		// artifactは論理構造に入れない(構造参照も持たせない)
+		// Do not include artifacts in logical structure (do not give them structure references either).
 		this.paintCommands.add(new PaintCommand(drawable, x, y, artifact, artifact ? null : this.currentStructRef));
 	}
 
@@ -420,8 +413,8 @@ public class Drawer {
 	}
 
 	/**
-	 * 子stacking contextを追加します。{@code artifact}が真なら子(とその
-	 * 子孫)へ属性を伝播します。挿入順が同zの順序キーになります。
+	 * Adds a child stacking context. If {@code artifact} is true, propagates it to the child and its descendants.
+	 * Insertion order is the sort key for equal z.
 	 */
 	protected void addDrawer(Drawer drawer, boolean artifact) {
 		if (artifact) {
@@ -430,21 +423,21 @@ public class Drawer {
 		if (this.stackingContexts == null) {
 			this.stackingContexts = new ArrayList<StackingContextEntry>();
 		}
-		// 子stacking contextへ現在の構造参照を引き継ぐ(B-3)——z順で描かれても
-		// 子の内容は文書順の親要素に属する
+		// Pass the current structure reference to the child stacking context (B-3); even when drawn in z order,
+		// the child's content belongs to its document-order parent element.
 		drawer.currentStructRef = this.currentStructRef;
 		this.stackingContexts.add(new StackingContextEntry(drawer, this.stackingContexts.size()));
 	}
 
 	/**
-	 * 子contextを(z, 挿入順)で整列して返します。全順序なので冪等です。
+	 * Returns child contexts sorted by (z, insertion order). Idempotent because the order is total.
 	 */
 	private List<StackingContextEntry> sortedContexts() {
 		Collections.sort(this.stackingContexts);
 		return this.stackingContexts;
 	}
 
-	/** 整列済み子contextのうち、最初のz-index 0以上の位置です。 */
+	/** First position with z-index at least 0 among sorted child contexts. */
 	private static int firstNonNegative(final List<StackingContextEntry> sorted) {
 		int i = 0;
 		while (i < sorted.size() && sorted.get(i).drawer.z < 0) {
@@ -458,8 +451,8 @@ public class Drawer {
 	}
 
 	/**
-	 * 前順走査し、filterを持つstacking contextは部分木を1つの層へ
-	 * まとめてから効果を掛けます(2026-09-03)。
+	 * Traverses in preorder; for a stacking context with a filter, groups the subtree into one layer before applying
+	 * effects (2026-09-03).
 	 */
 	public void draw(final GC gc, final double pageWidth, final double pageHeight) throws GraphicsException {
 		record GroupFrame(GC outer, FilterScope outerScope, FilterScope scope, FilterValue filter,
@@ -639,14 +632,14 @@ public class Drawer {
 		return scopes;
 	}
 
-	/** このDrawerの実際の効果だけを出力先がまとめて扱えるか。 */
+	/** Whether the output can handle this Drawer's actual effects together. */
 	private static boolean groupsFilters(final GC gc, final FilterValue filter) {
 		return gc.supports(GC.Capability.GROUP_FILTER)
 				&& (filter.blur <= 0 || gc.supports(GC.Capability.GAUSSIAN_BLUR))
 				&& (filter.shadow == null || gc.supports(GC.Capability.DROP_SHADOW));
 	}
 
-	/** 捕捉した層へfilterを掛け、実際の出力経路を報告します。 */
+	/** Applies the filter to the captured layer and reports the actual output path. */
 	private static void drawGroupEffects(final GC outer, final Image image, final FilterValue filter)
 			throws GraphicsException {
 		final GroupEffects.DropShadow shadow = filter.shadow == null ? null
@@ -672,12 +665,12 @@ public class Drawer {
 	}
 
 	/**
-	 * 表示リストをテキストとしてダンプします。draw()と同じ順序で出力します。
+	 * Dumps the display list as text in the same order as draw().
 	 */
 	public void dump(StringBuilder sb, String indent) {
 		final Map<Long, String> visualText = this.collectLogicalVisualText();
 		final Set<Long> dumpedLines = new java.util.HashSet<>();
-		// draw()と同じ前順走査の反復化。インデントだけ階層に追随する
+		// Iterative preorder traversal, as in draw(). Only indentation follows the hierarchy.
 		record DumpStep(Drawer drawer, String indent, boolean paint, int from, int to) {
 		}
 		final Deque<DumpStep> work = new ArrayDeque<>();
@@ -691,7 +684,7 @@ public class Drawer {
 					sb.append(" filter=[").append(drawer.filter.declared).append(']');
 				}
 				if (drawer.artifact) {
-					// 通常の描画では立たないため、既存のgoldenは不変
+					// Not set during normal drawing, so existing goldens remain unchanged.
 					sb.append(" artifact");
 				}
 				sb.append('\n');
@@ -784,14 +777,12 @@ public class Drawer {
 	}
 
 	/**
-	 * オーナーと表示リストを共有する、artifact印つきのビューです
-	 * (2026-07-25新設、救済分割・増分2)。
+	 * Artifact-marked view sharing the owner's display list (added 2026-07-25, rescue splitting, increment 2).
 	 *
 	 * <p>
-	 * 自前の表示リストは一切持たず、追加はすべてオーナーへ委譲します。
-	 * したがってz順・追加順は共有ビューを使っても変わりません。
-	 * {@link #draw(GC)}・{@link #dump}はオーナーが行うため、ビュー自身は
-	 * 空のまま(=何も描かない)です。
+	 * Has no display list of its own; delegates all additions to the owner. Thus z order and insertion order remain
+	 * unchanged when using the shared view. The owner performs {@link #draw(GC)} and {@link #dump}, so the view itself
+	 * stays empty (= draws nothing).
 	 * </p>
 	 */
 	private static final class ArtifactView extends Drawer {
@@ -803,8 +794,8 @@ public class Drawer {
 			this.artifact = true;
 		}
 
-		// 構造参照はオーナーと共有(ビュー自身は何も持たない)——
-		// もっともartifactの追加は構造参照を持たないので実際には使われない
+		// Share the structure reference with the owner (the view itself holds none);
+		// in practice unused, since artifact additions carry no structure reference.
 		@Override
 		public StructureRef getCurrentStructRef() {
 			return this.owner.getCurrentStructRef();
@@ -815,8 +806,8 @@ public class Drawer {
 			return this;
 		}
 
-		// markArtifactは基底の早期continueで済む(ビューは常にartifact)。
-		// オーナーへ伝播してはいけない——オーナーには通常内容も入る。
+		// The base class's early continue suffices for markArtifact (the view is always an artifact).
+		// Do not propagate to the owner, which also contains normal content.
 
 		@Override
 		protected void addDrawable(final Drawable drawable, final double x, final double y, final boolean artifact) {

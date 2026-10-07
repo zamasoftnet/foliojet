@@ -36,22 +36,21 @@ import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 2026-08-30に実装した単位・基本形状・{@code border-image}の解析を固定します。
+ * Fix parsing of units, basic shapes, and {@code border-image} implemented on 2026-08-30.
  *
  * <p>
- * 単位({@code cap}/{@code ic}/{@code ric}/{@code rlh})はここでは
- * <b>解析結果の単位</b>までしか見ない——実際の長さは実フォントのcap-heightと
- * 根要素のline-heightが要るので、表示リストの基準データ
- * ({@code files/unittest/3020-VALUE/font-relative-units.html})で固定している。
+ * For units ({@code cap}/{@code ic}/{@code ric}/{@code rlh}), check only <b>the parsed unit</b> here.
+ * Actual lengths need real-font cap-height and root-element line-height, so display-list baseline data
+ * ({@code files/unittest/3020-VALUE/font-relative-units.html}) fixes those.
  *
  * <p>
- * {@code rect()}/{@code xywh()}は<b>{@code inset()}へ畳んだ結果</b>まで見る。
- * この実装の要は「右辺・下辺は左上原点からの距離なので{@code 100% - 値}へ
- * 反転する」ところで、そこが逆になっていても解析だけなら通ってしまう。
+ * For {@code rect()}/{@code xywh()}, check <b>the result normalized to {@code inset()}</b>.
+ * The key is that right/bottom edges are distances from the top-left origin and must be inverted
+ * to {@code 100% - value}. Parsing alone would pass even if this were reversed.
  */
 public class BaselineCssUnitShapeTest extends TestCase {
 
-	/** {@code url()}の解決に使う基底URI。 */
+	/** Base URI for resolving {@code url()}. */
 	private static final java.net.URI BASE_URI = java.net.URI.create("file:///base/");
 
 	private final List<String> warnings = new ArrayList<String>();
@@ -128,7 +127,7 @@ public class BaselineCssUnitShapeTest extends TestCase {
 		assertTrue(name + ": " + value + " が黙って受理された", property == null || !this.warnings.isEmpty());
 	}
 
-	// ---- 1. 単位
+	// ---- 1. Units
 
 	public void testQUnit() {
 		// 1Q = 1/40 cm。10Q = 2.5mm
@@ -145,30 +144,30 @@ public class BaselineCssUnitShapeTest extends TestCase {
 	}
 
 	public void testIcFoldsToEm() {
-		// SPEC css-values-4: ic は表意文字U+6C34の送り幅で、取れないときの
-		// 代替値が 1em。全角の表意文字の送りは事実上1emなので、この実装は
-		// 常に代替値を使う(意図した近似)。ric も同様に rem へ畳む
+		// SPEC css-values-4: ic is the advance of ideograph U+6C34; the fallback when unavailable
+		// is 1em. Full-width ideographs effectively have a 1em advance, so this implementation
+		// always uses the fallback (intentional approximation). Likewise, normalize ric to rem.
 		final RelativeLengthValue ic = (RelativeLengthValue) this.single("width", "10ic");
 		assertEquals(Unit.EM, ic.getUnit());
 		assertEquals(10.0, ic.getValue(), 1e-9);
 		final RelativeLengthValue ric = (RelativeLengthValue) this.single("width", "10ric");
 		assertEquals(Unit.REM, ric.getUnit());
 		assertEquals(10.0, ric.getValue(), 1e-9);
-		// 同じ書き方の em / rem と完全に同じ値になること
+		// The same notation using em / rem produces exactly the same value.
 		final RelativeLengthValue em = (RelativeLengthValue) this.single("width", "10em");
 		assertEquals(em.getUnit(), ic.getUnit());
 		assertEquals(em.getValue(), ic.getValue(), 1e-9);
 	}
 
 	public void testCalcKeepsCapComponent() {
-		// calc()はフォント相対成分を単位ごとに分けて計算値の段階まで持ち回る。
-		// 新しい単位が成分配列に載っていないと、ここで黙って0になる
+		// calc() carries font-relative components separately by unit through computed-value processing.
+		// If a new unit is missing from the component array, it silently becomes 0 here.
 		final Value value = this.single("width", "calc(5cap + 10pt)");
 		assertTrue("CalcFontRelativeValue でない: " + value, value instanceof CalcFontRelativeValue);
 		final int capIndex = CalcFontRelativeValue.indexOf(Unit.CAP);
 		assertTrue("CAPが成分配列に無い", capIndex >= 0);
-		// 成分は private なので、成分ごとに書き出す toString() で確かめる
-		// (UNITS の並びと同じ順に "<係数><単位名>" が並ぶ)
+		// Components are private, so check with toString(), which prints each component.
+		// (It lists "<coefficient><unit name>" in the same order as UNITS.)
 		assertTrue("cap成分が保たれていない: " + value, value.toString().contains("5.0cap"));
 		assertTrue("絶対成分が保たれていない: " + value, value.toString().contains("10.0pt"));
 	}
@@ -194,12 +193,12 @@ public class BaselineCssUnitShapeTest extends TestCase {
 		final ShapeSpec.Rect rect = (ShapeSpec.Rect) spec;
 		assertEquals(10.0, ((AbsoluteLengthValue) rect.top()).getLength(), 1e-9);
 		assertEquals(90.0, ((AbsoluteLengthValue) rect.right()).getLength(), 1e-9);
-		// auto は null で保つ
+		// Retain auto as null.
 		final ShapeSpec.Rect auto = (ShapeSpec.Rect) this.shape("rect(auto 90pt auto 10pt)");
 		assertNull(auto.top());
 		assertNull(auto.bottom());
 		assertNotNull(auto.right());
-		// round も受ける
+		// Also accept round.
 		assertNotNull(((ShapeSpec.Rect) this.shape("rect(10pt 90pt 90pt 10pt round 4pt)")).radii());
 	}
 
@@ -213,28 +212,28 @@ public class BaselineCssUnitShapeTest extends TestCase {
 	}
 
 	public void testXywhRejects() {
-		// xywh() に auto は無い
+		// xywh() has no auto.
 		this.assertInvalid("clip-path", "xywh(auto 0 10pt 10pt)");
-		// 幅・高さは負にできない
+		// Width and height cannot be negative.
 		this.assertInvalid("clip-path", "xywh(0 0 -10pt 10pt)");
 		this.assertInvalid("clip-path", "xywh(0 0 10pt -10pt)");
-		// 値の数が違う
+		// Wrong number of values
 		this.assertInvalid("clip-path", "xywh(0 0 10pt)");
 		this.assertInvalid("clip-path", "rect(10pt 90pt 90pt)");
 	}
 
 	public void testRectFoldsToSameInsetAsInset() {
-		// この実装の要。rect()の右・下は「左上原点からの距離」なので
-		// inset()の差し込み量へ 100% - 値 で反転する。参照ボックスの寸法は
-		// レイアウト時にしか分からないため Length の割合成分として持ち回る。
-		// 反転が抜けていても解析だけなら通るので、解決後の矩形で比べる
+		// The key to this implementation: rect() right/bottom values are distances from the top-left origin,
+		// so invert them with 100% - value to obtain inset() offsets. Reference-box dimensions are known
+		// only at layout time, so carry these as percentage components of Length.
+		// Parsing alone passes even without inversion, so compare resolved rectangles.
 		final java.awt.geom.Rectangle2D fromRect = resolved("rect(10pt 90pt 90pt 10pt)");
 		final java.awt.geom.Rectangle2D fromInset = resolved("inset(10pt)");
 		assertEquals("x", fromInset.getX(), fromRect.getX(), 1e-9);
 		assertEquals("y", fromInset.getY(), fromRect.getY(), 1e-9);
 		assertEquals("幅", fromInset.getWidth(), fromRect.getWidth(), 1e-9);
 		assertEquals("高さ", fromInset.getHeight(), fromRect.getHeight(), 1e-9);
-		// 100pt角の箱なので (10,10)-(90,90) の 80x80 になるはず
+		// For a 100 pt square box, expect an 80x80 rectangle from (10,10) to (90,90).
 		assertEquals(10.0, fromRect.getX(), 1e-9);
 		assertEquals(10.0, fromRect.getY(), 1e-9);
 		assertEquals(80.0, fromRect.getWidth(), 1e-9);
@@ -242,7 +241,7 @@ public class BaselineCssUnitShapeTest extends TestCase {
 	}
 
 	public void testRectAutoMeansBoxEdge() {
-		// auto はその辺が参照ボックスの辺に一致する = 差し込み0
+		// auto means the edge coincides with the reference-box edge = inset 0.
 		final java.awt.geom.Rectangle2D r = resolved("rect(auto 90pt 90pt auto)");
 		assertEquals(0.0, r.getX(), 1e-9);
 		assertEquals(0.0, r.getY(), 1e-9);
@@ -251,7 +250,7 @@ public class BaselineCssUnitShapeTest extends TestCase {
 	}
 
 	public void testXywhFoldsToInset() {
-		// xywh(20 30 40 50) は左上(20,30)から 40x50
+		// xywh(20 30 40 50) is 40x50 from top-left (20,30).
 		final java.awt.geom.Rectangle2D r = resolved("xywh(20pt 30pt 40pt 50pt)");
 		assertEquals(20.0, r.getX(), 1e-9);
 		assertEquals(30.0, r.getY(), 1e-9);
@@ -260,13 +259,13 @@ public class BaselineCssUnitShapeTest extends TestCase {
 	}
 
 	public void testRectPercentages() {
-		// 割合も同じ反転を通ること
+		// Percentages undergo the same inversion.
 		final java.awt.geom.Rectangle2D r = resolved("rect(10% 90% 90% 10%)");
 		assertEquals(10.0, r.getX(), 1e-9);
 		assertEquals(80.0, r.getWidth(), 1e-9);
 	}
 
-	/** 100pt角の箱へ当てて、切り抜き形状の外接矩形を返します。 */
+	/** Apply to a 100 pt square box and return the clipping shape's bounding rectangle. */
 	private java.awt.geom.Rectangle2D resolved(final String value) {
 		final ClipPathShape shape = ClipPath.toShape(this.single("clip-path", value));
 		assertTrue("Inset へ畳まれていない: " + shape, shape instanceof ClipPathShape.Inset);
@@ -274,7 +273,7 @@ public class BaselineCssUnitShapeTest extends TestCase {
 	}
 
 	public void testBasicShapesStillParsesInset() {
-		// rect()/xywh() を足したことで既存の basic-shape が壊れていないこと
+		// Adding rect()/xywh() does not break existing basic-shape forms.
 		assertTrue(this.shape("inset(10pt)") instanceof ShapeSpec.Inset);
 		assertTrue(this.shape("circle(50%)") instanceof ShapeSpec.Circle);
 		assertTrue(this.shape("ellipse(40% 50%)") instanceof ShapeSpec.Ellipse);
@@ -282,7 +281,7 @@ public class BaselineCssUnitShapeTest extends TestCase {
 		assertNotNull(BasicShapes.class);
 	}
 
-	// ---- 3. border-image の解析
+	// ---- 3. border-image parsing
 
 	public void testBorderImageSource() {
 		assertNotNull(this.single("border-image-source", "none"));
@@ -296,9 +295,9 @@ public class BaselineCssUnitShapeTest extends TestCase {
 		assertNotNull(this.single("border-image-slice", "30%"));
 		assertNotNull(this.single("border-image-slice", "10 20 30 40"));
 		assertNotNull(this.single("border-image-slice", "30 fill"));
-		// fill は任意の位置に置ける
+		// fill may appear in any position.
 		assertNotNull(this.single("border-image-slice", "fill 30"));
-		// 負の値と5値以上は無い
+		// Negative values and five or more values are invalid.
 		this.assertInvalid("border-image-slice", "-1");
 		this.assertInvalid("border-image-slice", "1 2 3 4 5");
 	}
@@ -318,7 +317,7 @@ public class BaselineCssUnitShapeTest extends TestCase {
 		assertNotNull(this.single("border-image-outset", "5pt"));
 		assertNotNull(this.single("border-image-outset", "1 2"));
 		this.assertInvalid("border-image-outset", "-1");
-		// outset に割合は無い
+		// outset does not accept percentages.
 		this.assertInvalid("border-image-outset", "10%");
 	}
 
@@ -333,7 +332,7 @@ public class BaselineCssUnitShapeTest extends TestCase {
 	}
 
 	public void testBorderImageShorthand() {
-		// 5つのロングハンドすべてを設定すること(短縮形は初期化も担う)
+		// Set all five longhands (shorthands also initialize values).
 		for (final PrimitivePropertyInfo info : new PrimitivePropertyInfo[] { BorderImageSource.INFO,
 				BorderImageSlice.INFO, BorderImageWidth.INFO, BorderImageOutset.INFO, BorderImageRepeat.INFO }) {
 			assertNotNull(this.longhand("border-image", "url(frame.png) 30 stretch", info));
@@ -341,21 +340,21 @@ public class BaselineCssUnitShapeTest extends TestCase {
 	}
 
 	public void testBorderImageShorthandSlashForms() {
-		// / の後ろが幅、// の後ろが outset
+		// Width follows /; outset follows //.
 		assertNotNull(this.longhand("border-image", "url(a.png) 30 / 20pt", BorderImageWidth.INFO));
 		assertNotNull(this.longhand("border-image", "url(a.png) 30 / 20pt / 5pt", BorderImageOutset.INFO));
-		// 幅を省いて outset だけ書く `30 / / 5pt` は、こちらの短縮形ではなく
-		// **CSSパーサー(ph-css)が宣言そのものを解析できない**ため試せない。
-		// 実文書での出現は事実上ないので追わない(2026-08-30に確認)
-		// source を省いても書ける
+		// The form `30 / / 5pt`, specifying only outset and omitting width, cannot be tested because
+		// **the CSS parser (ph-css) cannot parse the declaration itself**, not because of this shorthand.
+		// It practically never occurs in real documents, so do not pursue it (checked on 2026-08-30).
+		// source may be omitted.
 		assertNotNull(this.longhand("border-image", "30 stretch", BorderImageSlice.INFO));
-		// 全体キーワード
+		// Global keywords
 		assertNotNull(this.longhand("border-image", "none", BorderImageSource.INFO));
 	}
 
 	public void testBorderImageShorthandResetsOmitted() {
-		// 書かなかった成分が初期値へ戻ること。ここが抜けていると直前の規則の
-		// border-image-outset 等が残って効き続ける
+		// Omitted components reset to their initial values. Without this, border-image-outset and
+		// other values from the preceding rule would remain in effect.
 		assertNotNull(this.longhand("border-image", "url(a.png)", BorderImageOutset.INFO));
 		assertNotNull(this.longhand("border-image", "url(a.png)", BorderImageRepeat.INFO));
 		assertNotNull(this.longhand("border-image", "url(a.png)", BorderImageWidth.INFO));

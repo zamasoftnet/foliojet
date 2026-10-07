@@ -19,21 +19,21 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>同一文書を並行変換</b>して、単独では起きない失敗が出ないことを
- * 確認します(2026-07-26新設)。
+ * <b>Converts the same document concurrently</b> to check for failures that do not occur in isolation
+ * (added on 2026-07-26).
  *
  * <p>
- * このエンジンはサーバ({@code copperd})で複数の変換を並行に処理する
- * 前提なので、<b>並行実行は本番相当の条件</b>です。ところが既存の検証は
- * すべて単一文書の逐次変換で、並行時にだけ壊れる欠陥は原理的に踏めません
- * でした。実際、ランダム生成の掃過を22スレッドへ並列化したところ、
- * <b>単独では成功するのに並行時だけ失敗する文書</b>が見つかりました。
+ * This engine is intended to handle multiple conversions concurrently on a server ({@code copperd}),
+ * so <b>concurrent execution matches production conditions</b>.
+ * All existing validation, however, converted individual documents sequentially and fundamentally
+ * could not exercise concurrency-only defects. Indeed, parallelizing the random-generation sweep
+ * to 22 threads found <b>documents that succeeded alone but failed only under concurrency</b>.
  * </p>
  *
  * <p>
- * 既定は同梱のfixtureを少数回。掃過するときは
+ * The default runs the bundled fixture a few times. For sweeps, any document can be exercised with
  * {@code -Dfoliojet.concurrentDoc=<path> -Dfoliojet.concurrentRuns=N
- * -Dfoliojet.concurrentThreads=T} で任意の文書を叩ける。
+ * -Dfoliojet.concurrentThreads=T}.
  * </p>
  */
 public class ConcurrentConvertTest extends TestCase {
@@ -43,7 +43,10 @@ public class ConcurrentConvertTest extends TestCase {
 		super(name);
 	}
 
-	/** 既定の回帰: 表・段組・フロートを含む文書を並行変換しても壊れない。 */
+	/**
+	 * Default regression: concurrent conversion of a document with tables, multi-column layout, and floats
+	 * does not fail.
+	 */
 	public void testConcurrentConversionIsStable() throws Exception {
 		final String doc = System.getProperty("foliojet.concurrentDoc");
 		final int runs = Integer.parseInt(System.getProperty("foliojet.concurrentRuns", "48"));
@@ -103,13 +106,13 @@ public class ConcurrentConvertTest extends TestCase {
 			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 			try {
 				session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
-				// 並行変換の警告をSystem.errへ流すと、16スレッド×数百回で
-				// Gradleのメッセージ経路が詰まりワーカーが終了できなくなる
-				// (2026-07-26に実際に踏んだ。エンジンではなくハーネスの問題)。
-				// 捨てる先はNULL_DEVICEにする——ラムダの自前ハンドラだと
-				// 変換が失敗した(2026-07-26)
-				// 大量の警告をSystem.errへ流すとGradleのメッセージ経路が詰まり
-				// ワーカーが終了できなくなる(2026-07-26に実際に踏んだ)
+				// Sending concurrent-conversion warnings to System.err across 16 threads × hundreds of runs
+				// clogs Gradle's message path, preventing workers from exiting
+				// (encountered on 2026-07-26; a harness issue, not an engine issue).
+				// Discard to NULL_DEVICE: a custom lambda handler caused
+				// conversion failures (2026-07-26).
+				// Sending large numbers of warnings to System.err clogs Gradle's message path,
+				// preventing workers from exiting (encountered on 2026-07-26).
 				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(
 						new java.io.PrintStream(java.io.OutputStream.nullOutputStream())));
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());

@@ -21,26 +21,24 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * CSS {@code text-wrap-style: pretty}のフォールバック一致テストです
- * (M3c増分4。2026-07-25に独自プロパティ{@code text.line-breaker}から
- * CSS指定へ移行)。フォールバック対象(float・タブ・インライン置換要素/
- * インラインブロック/ルビ・pre/pre-wrap・縦書き・word-wrap:break-word・
- * 段落途中float+行間改ページ)を含む文書について、pretty指定でも
- * 既定(auto=貪欲法)と**display listが完全一致**することを検証する
- * ——フォールバックは蓄積イベントのverbatim再生で貪欲法と同一経路、
- * という増分3の設計保証の固定。golden不要(同一プロセス内で両者を
- * 生成して直接比較)。
+ * Fallback parity test for CSS {@code text-wrap-style: pretty}
+ * (M3c increment 4; migrated from the proprietary {@code text.line-breaker} property to CSS on 2026-07-25).
+ * For documents containing fallback cases (floats, tabs, inline replaced elements/inline-blocks/ruby,
+ * pre/pre-wrap, vertical writing, word-wrap:break-word, and mid-paragraph floats + inter-line page breaks),
+ * verifies that pretty produces **exactly the same display list** as the default (auto=greedy).
+ * This verifies increment 3's design guarantee: fallback replays accumulated events verbatim through
+ * the same path as greedy layout. No golden is needed (both are generated in the same process
+ * and compared directly).
  *
  * <p>
- * 同一fixtureを両モードで組む必要があるため、prettyのオプトインは
- * 著者スタイルシート({@link TextWrapStyleOptIn#PRETTY_STYLESHEET})を
- * {@code input.default-stylesheet}で読ませて与える。
+ * Because the same fixture must be laid out in both modes, pretty is enabled by loading an author
+ * stylesheet ({@link TextWrapStyleOptIn#PRETTY_STYLESHEET}) via {@code input.default-stylesheet}.
  * </p>
  */
 public class FallbackParityTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 全段落がフォールバック対象になるよう構成した文書群。 */
+	/** Documents constructed so that every paragraph requires fallback. */
 	private static final String[] DOCUMENTS = { //
 			"3200-line-breaker/parity-float.html", //
 			"3200-line-breaker/parity-inline-parts.html", //

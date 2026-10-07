@@ -9,7 +9,7 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.impl.TextBlockBox;
 import net.zamasoft.pdfg2d.gc.text.Text;
 
-/** 実書籍で見つかった縦中横の中央揃えと縦組みダッシュの回帰です。 */
+/** Regression tests for centered tate-chu-yoko and vertical-writing dashes found in an actual book. */
 public class VerticalTcyDashRegressionTest extends AbstractTestCase {
 	public VerticalTcyDashRegressionTest(final String name) {
 		super(name);

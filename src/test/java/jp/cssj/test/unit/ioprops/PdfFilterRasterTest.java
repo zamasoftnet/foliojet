@@ -34,8 +34,10 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * PDF では filter 付き要素(と子孫)だけを 1 枚の画像にし、周囲の本文を文字として保つことの試験。
- * 2026-09-03 に描画単位ごとの画像化から要素ごとへまとめた(filter-element-group-design.md)。
+ * Test that PDF rasterizes only an element with filter (and its descendants) into one image,
+ * while preserving surrounding body text as text.
+ * On 2026-09-03, rasterization changed from per-drawing-unit to per-element
+ * (filter-element-group-design.md).
  */
 public class PdfFilterRasterTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
@@ -54,8 +56,8 @@ public class PdfFilterRasterTest extends TestCase {
 				exact.hasApproximation("filter", "2822.per-drawable"));
 		try (PDDocument pdf = Loader.loadPDF(exact.pdf)) {
 			java.nio.file.Files.write(java.nio.file.Path.of("build/tmp/pdf-filter-raster-17.pdf"), exact.pdf);
-			// 要素(背景・文字・画像)がまとめて 1 枚の生成画像(SMask 付き)になり、頁全体ではなく
-			// 内容の範囲だけを覆う。頁の資源には未使用の元画像 XObject も載るので SMask 付きだけ数える
+			// The element (background, text, and images) becomes one generated image (with SMask), covering
+			// only content bounds, not the whole page. Page resources retain unused source XObjects; count only those with SMask.
 			final PDImageXObject generated = singleGeneratedImage(pdf);
 			final PDPage first = pdf.getPage(0);
 			final double pagePx = first.getMediaBox().getWidth() / 72 * 300;
@@ -71,7 +73,7 @@ public class PdfFilterRasterTest extends TestCase {
 		final Conversion tagged = convert(filteredHtml(), "1.7", true);
 		assertTrue("tagged PDF must report the filtered rasterization",
 				tagged.hasApproximation("filter", "2822.filter-rasterized"));
-		// 要素ごとに 1 枚なので Figure もちょうど 1 つ。要素自身(Div)の構造の下に入る
+		// One image per element means exactly one Figure, under the element's own structure (Div).
 		final List<PDStructureElement> figures = figures(tagged.pdf);
 		assertEquals("the rasterized element must be exactly one Figure", 1, figures.size());
 		assertEquals("the Figure must sit under the filtered element's own structure", "Div",
@@ -103,8 +105,8 @@ public class PdfFilterRasterTest extends TestCase {
 	}
 
 	/**
-	 * 入れ子の filter: 内側の層の効果は外側の録画に吸収され、頁の生成画像は 1 枚。内側(sepia)の
-	 * 領域にも外側(grayscale)が掛かるので画素は r≈g≈b。
+	 * Nested filters: the inner layer's effect is absorbed into the outer recording, leaving one generated
+	 * page image. The outer grayscale also applies to the inner sepia region, so pixels have r≈g≈b.
 	 */
 	public void testNestedFiltersCollapseIntoOneImage() throws Exception {
 		final String html = HEAD + ".outer{width:60mm;padding:4mm;background:#f36;filter:grayscale(1)}"
@@ -115,13 +117,16 @@ public class PdfFilterRasterTest extends TestCase {
 				nested.hasApproximation("filter", "2822.per-drawable"));
 		try (PDDocument pdf = Loader.loadPDF(nested.pdf)) {
 			singleGeneratedImage(pdf);
-			// 内側の箱の中央(x=10+4+30mm, y=10+4+5mm)
+			// Center of the inner box (x=10+4+30 mm, y=10+4+5 mm).
 			final int rgb = render(pdf).getRGB(mm(44), mm(19));
 			assertGray("the inner element must be desaturated by the outer grayscale", rgb);
 		}
 	}
 
-	/** 同じルールを親子両方に当てても、要素ごとに別の層になる(解析値の共有に依存しない)。 */
+	/**
+	 * Even if parent and child share the same rule, each element gets a separate layer (independent of shared
+	 * parsed values).
+	 */
 	public void testSameRuleOnParentAndChild() throws Exception {
 		final String html = HEAD + ".f{padding:4mm;filter:grayscale(1)}.p{background:#f36}.c{background:#08f;height:8mm}"
 				+ "</style></head><body><div class=\"f p\"><div class=\"f c\"></div></div></body></html>";
@@ -135,7 +140,7 @@ public class PdfFilterRasterTest extends TestCase {
 		}
 	}
 
-	/** filter 付き要素の中のリンクは、層の中でも頁の注釈として残る(PageOutputDrawable)。 */
+	/** Links in a filtered element remain page annotations even inside the layer (PageOutputDrawable). */
 	public void testLinkInsideFilteredElementKeepsItsAnnotation() throws Exception {
 		final String html = HEAD + ".f{filter:grayscale(1)}"
 				+ "</style></head><body><div class=\"f\"><a href=\"https://example.com/\">LINK</a></div></body></html>";
@@ -147,7 +152,7 @@ public class PdfFilterRasterTest extends TestCase {
 		}
 	}
 
-	/** transform の内側で filter を掛け、ぼかしと影の方向が要素座標に従うことの試験。 */
+	/** Test that filter applies inside transform, so blur and shadow directions follow element coordinates. */
 	public void testTransformedElementGetsEffectsInLocalSpace() throws Exception {
 		final String scaledHtml = HEAD + ".f{width:20mm;height:10mm;margin:20mm;background:#f36;"
 				+ "transform:scale(2);filter:blur(2pt)}"
@@ -156,7 +161,7 @@ public class PdfFilterRasterTest extends TestCase {
 		assertTrue(scaled.hasApproximation("filter", "2822.filter-rasterized"));
 		try (PDDocument pdf = Loader.loadPDF(scaled.pdf)) {
 			final PDImageXObject generated = singleGeneratedImage(pdf);
-			// 局所 300dpi は scale(2) で 8.333px/pt、σ=16.667px、余白は片側51px。
+			// Local 300 dpi becomes 8.333 px/pt with scale(2), σ=16.667 px, padding 51 px per side.
 			assertTrue("the local-space image width must be 575±4px: " + generated.getWidth(),
 					Math.abs(generated.getWidth() - 575) <= 4);
 		}
@@ -171,8 +176,8 @@ public class PdfFilterRasterTest extends TestCase {
 			singleGeneratedImage(pdf);
 			dumpPng(pdf, "pdf-filter-rotated");
 			final BufferedImage png = render(pdf);
-			// 頁余白10mm+要素margin 20mm。20×10mm箱は中心(40,35)mmのまま90度回転し、
-			// 回転後の外接箱は left=35, top=25, right=45, bottom=45mm になる。
+			// Page margin 10 mm + element margin 20 mm. The 20×10 mm box rotates 90 degrees around its center (40,35) mm;
+			// its rotated bounding box is left=35, top=25, right=45, bottom=45 mm.
 			final double boxLeft = 10 + 20;
 			final double boxTop = 10 + 20;
 			final double centerX = boxLeft + 20 / 2.0;
@@ -186,7 +191,7 @@ public class PdfFilterRasterTest extends TestCase {
 		}
 	}
 
-	/** TableBox と外側の配置用ブロックが同じ TableParams を共有しても filter は一度だけ掛ける。 */
+	/** Apply filter only once even if TableBox and its outer positioning block share the same TableParams. */
 	public void testSharedParamsTableFilterAppliesOnce() throws Exception {
 		final String html = HEAD + "table{filter:grayscale(1);border-spacing:0}td{width:20mm;height:10mm;background:#f00}"
 				+ "</style></head><body><table><tr><td>RED</td></tr></table></body></html>";
@@ -199,7 +204,7 @@ public class PdfFilterRasterTest extends TestCase {
 		}
 	}
 
-	/** 変換・clip・透明度・blend・リンクをまたぐ入れ子の filter 統合試験。 */
+	/** Integration test for nested filters across transforms, clip, opacity, blend, and links. */
 	public void testNestedTransformedFiltersKeepLinkAndOuterImage() throws Exception {
 		final String html = HEAD
 				+ ".outer{width:50mm;height:28mm;margin:8mm;background:#f36;clip-path:inset(1mm);"
@@ -219,12 +224,15 @@ public class PdfFilterRasterTest extends TestCase {
 			assertEquals("the transformed link annotation must remain on the page", 1,
 					pdf.getPage(0).getAnnotations().size());
 		}
-		// 層の画像は外側の要素(Div)の内容として構造に入る(構造内容が開いていれば MCID、
-		// 無ければ文書直下の Figure)。内側の要素は層に吸収されるので Figure は増えない
+		// The layer image enters the structure as content of the outer element (Div): MCID if structural content is open,
+		// otherwise a Figure directly under the document. Inner elements are absorbed into the layer, adding no Figures.
 		assertTrue("the layer must not add more than one Figure", figures(integrated.pdf).size() <= 1);
 	}
 
-	/** 表のセルの filter: 背景は表の枠パスで描かれるが、セルの層(pendingDrawer)へ入る。 */
+	/**
+	 * Table-cell filter: the background is drawn in the table's frame path but goes into the cell layer
+	 * (pendingDrawer).
+	 */
 	public void testTableCellFilterGroupsBackgroundAndContent() throws Exception {
 		final String html = HEAD + "td{padding:3mm;background:#f36}td.f{filter:grayscale(1)}"
 				+ "</style></head><body><table><tr><td class=\"f\">CELL-TEXT</td><td>PLAIN</td></tr></table>"
@@ -279,7 +287,7 @@ public class PdfFilterRasterTest extends TestCase {
 		return new Conversion(out.toByteArray(), List.copyOf(messages.messages));
 	}
 
-	/** 診断用: 1 頁目の描画(PDFBox、144dpi)を build/tmp に残す。 */
+	/** For diagnosis: leave a rendering of page 1 (PDFBox, 144 dpi) in build/tmp. */
 	private static void dumpPng(final PDDocument pdf, final String name) throws IOException {
 		final java.io.File dir = new java.io.File("build/tmp");
 		dir.mkdirs();
@@ -287,7 +295,7 @@ public class PdfFilterRasterTest extends TestCase {
 				new java.io.File(dir, name + ".png"));
 	}
 
-	/** 1 頁目を 72dpi(1px=1pt)で描く。 */
+	/** Render page 1 at 72 dpi (1 px=1 pt). */
 	private static BufferedImage render(final PDDocument pdf) throws IOException {
 		return new PDFRenderer(pdf).renderImageWithDPI(0, 72);
 	}
@@ -306,7 +314,7 @@ public class PdfFilterRasterTest extends TestCase {
 		assertTrue(message + ": " + Integer.toHexString(rgb), Math.abs(r - g) <= 8 && Math.abs(g - b) <= 8);
 	}
 
-	/** SMask 付きの生成画像がちょうど 1 つあることを確かめて返す。 */
+	/** Check that there is exactly one generated image with SMask and return it. */
 	private static PDImageXObject singleGeneratedImage(final PDDocument pdf) throws IOException {
 		PDImageXObject found = null;
 		int count = 0;

@@ -19,12 +19,11 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * HTML文書の著者CSSがインラインSVGへ届くことの回帰です(2026-08-07)。
- * files/unittest/3050-IMG/svg-author-css.html を変換し、PDFの内容
- * ストリームに(1)var(--icon-bg)経由の緑のfill、(2)var(--icon-line)経由の
- * 赤のstroke、(3)fill:currentColorがHTML側のcolor(青)へ解決された塗り、
- * が現れることを確かめる。CSSクラス+カスタムプロパティでアイコンを塗る
- * CSS-in-JS(qiita等)の形。
+ * Regression test that author CSS from an HTML document reaches inline SVG (2026-08-07).
+ * Convert files/unittest/3050-IMG/svg-author-css.html and check that PDF content streams contain
+ * (1) green fill from var(--icon-bg), (2) red stroke from var(--icon-line), and
+ * (3) fill:currentColor resolved to the HTML-side color (blue).
+ * This is the CSS-in-JS pattern (qiita, etc.) that colors icons using CSS classes and custom properties.
  */
 public class SVGAuthorCssTest extends TestCase {
 	public void testAuthorCssReachesInlineSVG() throws Exception {
@@ -80,7 +79,7 @@ public class SVGAuthorCssTest extends TestCase {
 				}
 				result.add(buff.toString(java.nio.charset.StandardCharsets.ISO_8859_1));
 			} catch (Exception e) {
-				// 圧縮されていない・画像等のストリームは読み飛ばす
+				// Skip uncompressed streams and streams such as images.
 			} finally {
 				inflater.end();
 			}

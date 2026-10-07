@@ -27,7 +27,7 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 		implements net.zamasoft.foliojet.css.StyleAwareInlineObject {
 	protected SVGImageLoader loader = null;
 
-	/** ホスト文書側のsvg要素のスタイル(著者CSSのvar()解決の文脈)。 */
+	/** Style of the svg element in the host document (context for author CSS var() resolution). */
 	private net.zamasoft.foliojet.css.CSSStyle hostStyle;
 	private net.zamasoft.foliojet.css.value.internal.CSSJImageValue.SvgSource runningSource;
 
@@ -45,7 +45,7 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 		return false;
 	}
 
-	/** シリアライズ中から上限を守り、巨大SVGを一旦丸ごとコピーしない。 */
+	/** Enforces the limit during serialization, avoiding a full temporary copy of a huge SVG. */
 	private void snapshotRunningSource(final org.w3c.dom.Document document, final String baseURI) {
 		final StringBuilder xml = new StringBuilder();
 		final int limit = net.zamasoft.foliojet.css.style.running.RunningCapture.MAX_TEXT_BYTES / 2 - baseURI.length();
@@ -71,7 +71,7 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 					new javax.xml.transform.dom.DOMSource(document), new javax.xml.transform.stream.StreamResult(writer));
 			this.runningSource = new net.zamasoft.foliojet.css.value.internal.CSSJImageValue.SvgSource(xml.toString(), baseURI);
 		} catch (final javax.xml.transform.TransformerException e) {
-			// 通常の画像化は続行する。runningの捕捉側が警告して登録を拒否する。
+			// Continue normal image creation. The running capture side warns and refuses registration.
 			this.runningSource = new net.zamasoft.foliojet.css.value.internal.CSSJImageValue.SvgSource(null, baseURI);
 		}
 	}
@@ -95,13 +95,12 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 		this.setValidating(false);
 	}
 	/**
-	 * HTMLパーサーが小文字化したSVG要素名を正しいcamelCaseへ戻す表です
-	 * (HTML Standard §13.2.6.5 "adjust SVG tag names"と同内容)。HTML内の
-	 * インラインSVGはHTML構文で字句解析されるため要素名・属性名が小文字化
-	 * されるが、SVG DOM(Batik)はcamelCaseでしか認識しない——たとえば
-	 * {@code lineargradient}のままではグラデーションが無効になり、
-	 * fill="url(#...)"のパスが描画されず絵ごと消える(2026-08-07、
-	 * yahoo.co.jpのAIアシスタントアイコンで発覚)。
+	 * Table restoring SVG element names lowercased by the HTML parser to correct camelCase
+	 * (equivalent to HTML Standard §13.2.6.5 "adjust SVG tag names"). Inline SVG in HTML is tokenized
+	 * as HTML, so element/attribute names become lowercase, but the SVG DOM (Batik) recognizes only
+	 * camelCase. For example, leaving {@code lineargradient} lowercase disables the gradient,
+	 * so paths with fill="url(#...)" are not drawn and the entire image disappears
+	 * (found 2026-08-07 on yahoo.co.jp's AI assistant icon).
 	 */
 	private static final java.util.Map<String, String> SVG_TAG_ADJUST = buildAdjustMap(new String[] { "altGlyph",
 			"altGlyphDef", "altGlyphItem", "animateColor", "animateMotion", "animateTransform", "clipPath", "feBlend",
@@ -112,8 +111,8 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 			"linearGradient", "radialGradient", "textPath" });
 
 	/**
-	 * HTMLパーサーが小文字化したSVG属性名を戻す表です(HTML Standard
-	 * §13.2.6.5 "adjust SVG attributes"と同内容)。
+	 * Table restoring SVG attribute names lowercased by the HTML parser
+	 * (equivalent to HTML Standard §13.2.6.5 "adjust SVG attributes").
 	 */
 	private static final java.util.Map<String, String> SVG_ATTR_ADJUST = buildAdjustMap(new String[] {
 			"attributeName", "attributeType", "baseFrequency", "baseProfile", "calcMode", "clipPathUnits",
@@ -170,7 +169,7 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 		this.locator = null;
 
 		URI uri = ua.getDocumentContext().getBaseURI();
-		// 相対・opaqueの基底はBatikへ合成URIで渡す(SVGImageLoader.toBatikInlineURI)
+		// Pass relative/opaque bases to Batik as synthesized URIs (SVGImageLoader.toBatikInlineURI)
 		final String batikURI = net.zamasoft.foliojet.ua.impl.svg.SVGImageLoader.toBatikInlineURI(uri);
 		if (batikURI.equals(uri.toString())) {
 			String path = uri.getPath();
@@ -184,24 +183,24 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 		}
 		doc.setParsedURL(new ParsedURL(batikURI));
 
-		// HTML文書の著者CSSのSVG向け部分集合を<style>として注入する
-		// (2026-08-07)。インラインSVGは独立文書としてBatikに渡されるため、
-		// これが無いとCSSクラスでfill/strokeを塗るアイコンがSVG既定の
-		// fill=blackで黒く塗り潰れる(qiitaのいいねボタンで発覚)。
-		// 収集と濾過はCSSStyleSheetBuilder.collectSVGStyleRule、var()の
-		// 解決(hostStyleの文脈)はSVGAuthorCss.toCssText参照。
-		// ルートの先頭へ入れるのは、SVG内の既存<style>や style属性が
-		// あとから重なって勝てるようにするため(カスケードの出現順)
+		// Inject the SVG subset of the HTML document's author CSS as <style>
+		// (2026-08-07). Inline SVG is passed to Batik as an independent document,
+		// so without this, icons using CSS classes for fill/stroke become solid black
+		// with SVG's default fill=black (found on qiita's like button).
+		// See CSSStyleSheetBuilder.collectSVGStyleRule for collection/filtering and
+		// SVGAuthorCss.toCssText for var() resolution (in the hostStyle context).
+		// Insert at the start of the root so existing <style> elements and style attributes
+		// inside the SVG can override it later (cascade source order)
 		final String svgAuthorCss = ua.getDocumentContext().getSVGAuthorCss().toCssText(this.hostStyle);
 		final boolean running = this.isRunning();
 		this.hostStyle = null;
 		if (!svgAuthorCss.isEmpty()) {
-			// **規則ごとに別々の<style>にする**(2026-08-07)。Batikは
-			// スタイルシート内に1つでも読めない値があるとシート全体を
-			// 無効にする(qiitaのdisplay:flexで全アイコンが素の黒に
-			// 戻った)。SVGAuthorCss側の白リストで大半は防ぐが、想定外の
-			// 値が1つ混ざっても被害がその規則に閉じるよう、失敗の単位を
-			// 規則へ落とす
+			// **Use a separate <style> for each rule** (2026-08-07). Batik
+			// invalidates an entire stylesheet if even one value cannot be parsed
+			// (qiita's display:flex turned all icons back to plain black).
+			// The allowlist in SVGAuthorCss prevents most cases, but limit the failure
+			// unit to one rule so an unexpected value affects
+			// only that rule
 			final org.w3c.dom.Element root = doc.getDocumentElement();
 			org.w3c.dom.Node anchor = root.getFirstChild();
 			for (final String rule : svgAuthorCss.split("\n")) {

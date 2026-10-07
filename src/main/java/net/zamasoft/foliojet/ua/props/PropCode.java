@@ -3,8 +3,8 @@ package net.zamasoft.foliojet.ua.props;
 import java.util.Locale;
 
 /**
- * コード型プロパティの選択肢です。プロパティ値の識別子は
- * 既定でenum定数名の小文字ケバブ表記になります。
+ * A choice for a code-valued property. By default, property value identifiers
+ * use the enum constant name in lowercase kebab case.
  */
 public interface PropCode {
 	public default String ident() {

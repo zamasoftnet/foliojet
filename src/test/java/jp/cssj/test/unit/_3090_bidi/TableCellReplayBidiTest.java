@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.layout.box.impl.InlineBox;
 import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
 
-/** root を持たない分割セルの restyle でも段落 bidi flag を保持する。 */
+/** Retains the paragraph bidi flag even when restyling a split cell without a root. */
 public class TableCellReplayBidiTest extends AbstractTestCase {
 	private final Set<Integer> pages = new HashSet<>();
 
@@ -34,7 +34,7 @@ public class TableCellReplayBidiTest extends AbstractTestCase {
 			return false;
 		}
 		assertFalse("split-cell replay lost paragraph bidi", line.getVisualContents().isEmpty());
-		// <br> の制御文字(論理末尾)は L1 で段落レベルへ落ち、RTL 行では視覚左端=先頭に来るので除いて比べる
+		// L1 resets <br> at the logical end to paragraph level; in RTL it is first/leftmost, so omit it from comparison.
 		assertEquals("ABC גבא", visualText(line.getVisualContents()).replace(String.valueOf((char) 10), ""));
 		this.pages.add(page);
 		return true;

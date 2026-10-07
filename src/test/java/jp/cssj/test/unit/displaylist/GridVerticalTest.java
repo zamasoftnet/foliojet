@@ -24,12 +24,15 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 縦組みのグリッドをトラックで組み、頁の境で行ごとに割ることを固定します(2026-10-05、jigensha の報告 3)。
+ * Verify track layout for vertical-writing grids and row-wise splitting at page boundaries
+ * (2026-10-05, jigensha report 3).
  *
  * <p>
- * それまで縦組みのグリッドはトラック配置の対象外で、item を 1 列に流すだけだった(列も gap も整列も効かない)。
- * 縦組みでは列のトラックが行の向き(縦)に並び、グリッドの行が段の進む向き(vertical-rl は右から左)に重なる。
- * 頁に収まらないグリッドは横組みと同じく行の境で割り、1 頁目から始める。
+ * Previously, vertical-writing grids were ineligible for track layout and simply flowed items into
+ * one column (columns, gaps, and alignment had no effect). In vertical writing, column tracks run
+ * in the line direction (vertically), and grid rows stack in the column-progression direction
+ * (right to left for vertical-rl). A grid that does not fit a page splits at row boundaries,
+ * as in horizontal writing, starting on page 1.
  * </p>
  */
 public class GridVerticalTest extends TestCase {
@@ -64,14 +67,14 @@ public class GridVerticalTest extends TestCase {
 
 	public void testTracksInVerticalRl() throws Exception {
 		final Map<Integer, double[]> at = items(convert("rl", document("vertical-rl", 6)), 6);
-		// 列は行の向き(縦)に並ぶ: 同じ行の 3 つは x が同じで、上から下へ
+		// Columns follow the line direction (vertical): the three items in one row share x and run top to bottom.
 		assertEquals(at.get(1)[1], at.get(2)[1], 0.01);
 		assertEquals(at.get(1)[1], at.get(3)[1], 0.01);
 		assertTrue("列は上から下へ: " + Arrays.toString(at.get(1)) + " " + Arrays.toString(at.get(2)),
 				at.get(1)[2] < at.get(2)[2] && at.get(2)[2] < at.get(3)[2]);
-		// 1fr の 3 列は等しい間隔
+		// Three 1fr columns have equal spacing.
 		assertEquals(at.get(2)[2] - at.get(1)[2], at.get(3)[2] - at.get(2)[2], 0.01);
-		// 次の行は左へ
+		// The next row is to the left.
 		assertTrue("vertical-rl の次の行は左", at.get(4)[1] < at.get(1)[1]);
 		assertEquals(at.get(1)[2], at.get(4)[2], 0.01);
 	}
@@ -83,7 +86,7 @@ public class GridVerticalTest extends TestCase {
 		assertTrue("vertical-lr の次の行は右", at.get(4)[1] > at.get(1)[1]);
 	}
 
-	/** 頁に収まらないグリッドは 1 頁目から始まり、行の境で割れる(以前は丸ごと 2 頁目へ送られた)。 */
+	/** An oversized grid starts on page 1 and splits at row boundaries (previously it moved intact to page 2). */
 	public void testSplitsFromFirstPage() throws Exception {
 		for (final String mode : new String[] { "vertical-rl", "vertical-lr" }) {
 			final String[] pages = convert("split-" + mode, document(mode, 60));
@@ -91,15 +94,15 @@ public class GridVerticalTest extends TestCase {
 			final Map<Integer, double[]> first = items(new String[] { pages[0] }, 0);
 			assertTrue(mode + ": 1 頁目に項目1", first.containsKey(1));
 			assertTrue(mode + ": 1 頁目に 30 個以上: " + first.size(), first.size() >= 30);
-			// 割れた後の頁でも、同じ行の 3 つは同じ段にそろう
+			// On pages after a split too, the three items in each row align in the same column band.
 			assertEquals(0, first.size() % 3);
 			items(pages, 60);
 		}
 	}
 
 	/**
-	 * 全頁から item の位置を集めます({@code page, x, y})。{@code expected} が正なら 1〜expected がちょうど 1 回ずつ
-	 * 現れることも確かめます。
+	 * Collect item positions from all pages ({@code page, x, y}). If {@code expected} is positive,
+	 * also verify that 1 through expected each occur exactly once.
 	 */
 	private static Map<Integer, double[]> items(final String[] pages, final int expected) {
 		final Map<Integer, double[]> at = new HashMap<>();
@@ -120,7 +123,7 @@ public class GridVerticalTest extends TestCase {
 		return at;
 	}
 
-	/** 変換して、各頁の表示リストを頁順に返します。 */
+	/** Convert and return each page's display list in page order. */
 	private static String[] convert(final String name, final String html) throws Exception {
 		final File dir = new File("local/grid-vertical/" + name);
 		dir.mkdirs();

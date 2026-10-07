@@ -8,9 +8,9 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Flex F0b: ページより大きいatomicコンテナの救済経路です。
- * 無限ループ・内容消失なしに出力され(visual rescue)、後続の内容も
- * 失われないこと(クラッシュ排除の絶対要件)。
+ * Flex F0b: rescue path for an atomic container larger than the page.
+ * It is output without infinite loops or content loss (visual rescue), and subsequent content
+ * is preserved (the absolute requirement to eliminate crashes).
  */
 public class FlexOversizedAtomicTest extends AbstractTestCase {
 	public FlexOversizedAtomicTest(String name) {
@@ -23,12 +23,12 @@ public class FlexOversizedAtomicTest extends AbstractTestCase {
 	}
 
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
-		// ページ超過のatomicは救済分割で出力される——存在すれば良い
+		// An atomic box exceeding the page is output by rescue splitting; its presence is sufficient.
 		return box.getType() == BoxType.BLOCK;
 	}
 
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
-		// 後続内容が失われない
+		// Subsequent content is preserved.
 		return box.getType() == BoxType.BLOCK;
 	}
 }

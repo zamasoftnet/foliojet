@@ -2,7 +2,10 @@ package jp.cssj.test.unit._0370_PAGE_CONTENT;
 
 import junit.framework.TestCase;
 
-/** 短いrunningを多数再指定しても、確定後の保持量が文書長に比例しないことを確認します。 */
+/**
+ * Verifies that retained size after finalization does not scale with document length after many short
+ * running updates.
+ */
 public final class RunningRetentionTest extends TestCase {
 	public void testTwentyThousandAssignments() throws Exception {
 		final StringBuilder body = new StringBuilder();
@@ -14,7 +17,7 @@ public final class RunningRetentionTest extends TestCase {
 			body.append("<p>BODY ").append(page).append("</p></section>");
 		}
 		final String common = ".page+.page{break-before:page}.running{font-size:1pt;line-height:1pt}";
-		// 同じ長さ・同じDOMを通常組版する対照。両経路を先に小さくウォームアップする。
+		// Control: normal layout with the same length and DOM. Warm up both paths with small inputs first.
 		RunningCaptureTest.convert(".running{position:running(h)}", "<span class='running'>H</span><p>BODY</p>",
 				false, false, false);
 		RunningCaptureTest.convert(".running{font-size:1pt}", "<span class='running'>H</span><p>BODY</p>",

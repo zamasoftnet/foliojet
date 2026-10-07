@@ -8,9 +8,9 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * justify-contentの主軸分配テストです(Flex F3b——§9.5。200ptコンテナに
- * 40pt×2 item=free 120pt: end=+120、center=+60、space-between=0/+160、
- * space-evenly=+40/+120)。
+ * Tests justify-content main-axis distribution (Flex F3b, §9.5).
+ * Two 40 pt items in a 200 pt container leave 120 pt free:
+ * end=+120, center=+60, space-between=0/+160, space-evenly=+40/+120.
  */
 public class FlexJustifyContentTest extends AbstractTestCase {
 	public FlexJustifyContentTest(String name) {

@@ -29,7 +29,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 	protected float[] x, y;
 	private AffineTransform[] glyphTransforms;
 	private boolean[] visible;
-	/** 字形ごとの送り(この書体に無い字は代替書体の送り)。null なら FontMetrics の送り */
+	/** Per-glyph advances (fallback font advances for missing characters). Null uses FontMetrics advances. */
 	private final double[] advances;
 
 	public MyGVTGlyphVector(TextImpl text, MyGVTFont font, FontRenderContext frc) {
@@ -41,7 +41,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 		this.font = font;
 		this.frc = frc;
 		this.advances = advances;
-		// 配列の最後は末尾の位置
+		// The final array entry is the end position.
 		this.x = new float[text.getGlyphCount() + 1];
 		this.y = new float[text.getGlyphCount() + 1];
 	}
@@ -69,7 +69,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 		return this.getLogicalBounds();
 	}
 
-	/** 字形 ix の送り。 */
+	/** Advance of glyph ix. */
 	private double advance(int ix) {
 		if (this.advances != null) {
 			return this.advances[ix];
@@ -171,7 +171,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 		AffineTransform oblique = null;
 		FontStyle.Style style = fontStyle.getStyle();
 		if (style != FontStyle.Style.NORMAL && !font.getFontSource().isItalic()) {
-			// 自前でイタリックを再現する
+			// Synthesize italics.
 			if (verticalFont) {
 				oblique = AffineTransform.getShearInstance(0, 0.25);
 			} else {
@@ -181,11 +181,11 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 
 		GeneralPath path = new GeneralPath();
 		if (verticalFont) {
-			// 縦書きモード
-			// 縦書き対応フォント
-			// FontUtils.drawText と同じ合成: T(中心寄せ, ペン + 字形ごとの縦原点) × S。
-			// 縦原点は書体の VORG / yMax+tsb(pdfg2d Font.getVerticalOrigin、2026-09-12)。
-			// 以前は 0.88em を字形座標で concatenate していて実質 1/1000 しか効いていなかった。
+			// Vertical writing mode
+			// Font supporting vertical writing
+			// Same composition as FontUtils.drawText: T(centering, pen + per-glyph vertical origin) × S.
+			// Vertical origin is the font's VORG / yMax+tsb (pdfg2d Font.getVerticalOrigin, 2026-09-12).
+			// Previously, 0.88em was concatenated in glyph coordinates, giving only 1/1000 of the intended effect.
 			at.preConcatenate(AffineTransform.getTranslateInstance(-fontSize / 2.0, 0));
 			int pgid = 0;
 			for (int i = 0; i < glen; ++i) {
@@ -216,13 +216,13 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 			}
 		} else {
 			if (direction == FontStyle.Direction.TB) {
-				// 横倒し
+				// Sideways
 				at.concatenate(AffineTransform.getRotateInstance(Math.PI / 2.0));
 				BBox bbox = font.getFontSource().getBBox();
 				double dy = ((bbox.lly() + bbox.ury()) * fontSize / FontSource.DEFAULT_UNITS_PER_EM) / 2.0;
 				at.concatenate(AffineTransform.getTranslateInstance(0, dy));
 			}
-			// 横書き
+			// Horizontal writing
 			int pgid = 0;
 			for (int i = 0; i < glen; ++i) {
 				final int gid = gids[i];
@@ -248,7 +248,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 				pgid = gid;
 			}
 		}
-		// 各字形は at/at2 で変換済み。ここで at をもう一度掛けると拡縮とペン送りが二重になる(2026-09-14)
+		// Each glyph is already transformed by at/at2. Applying at again doubles scaling and pen advance (2026-09-14).
 		return path;
 	}
 
@@ -257,7 +257,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 	}
 
 	public Rectangle2D getGlyphCellBounds(int ix) {
-		// Batik の StrokingTextPainter が選択範囲や装飾の計算に使う。字の論理箱で足りる
+		// Batik's StrokingTextPainter uses this for selection and decoration calculations. Logical character boxes suffice.
 		return (Rectangle2D) this.getGlyphLogicalBounds(ix);
 	}
 
@@ -271,7 +271,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 	}
 
 	public GlyphJustificationInfo getGlyphJustificationInfo(int ix) {
-		// 均等割りは foliojet 側で済ませているので Batik には伸縮させない
+		// foliojet already handles justification, so do not let Batik stretch or shrink.
 		return null;
 	}
 
@@ -280,9 +280,9 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 	}
 
 	public AffineTransform getGlyphTransform(int ix) {
-		// 字ごとの変換は持たない(null = 恒等)。以前は例外を投げていて、Batik の
-		// GlyphLayout.doExplicitGlyphLayout がここを通るため SVG 文書の <text> は
-		// 全部変換に失敗していた(2026-09-14)
+		// No per-glyph transformations (null = identity). Previously threw an exception, but Batik's
+		// GlyphLayout.doExplicitGlyphLayout calls this, causing all SVG document <text>
+		// conversions to fail (2026-09-14).
 		return this.glyphTransforms == null ? null : this.glyphTransforms[ix];
 	}
 

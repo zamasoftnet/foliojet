@@ -19,13 +19,13 @@ import junit.framework.TestCase;
 import net.zamasoft.zstream.resolver.Source;
 
 /**
- * input.prefetch(外部リソースの非同期先読み、2026-08-27)の検査。
- * 発見スキャナ・読み先行ストリーム・ACLゲート・セッション局所ストアの
- * 合流を対象とする。
+ * Tests for input.prefetch (asynchronous prefetching of external resources, 2026-08-27).
+ * Covers the integration of the discovery scanner, read-ahead stream, ACL gate,
+ * and session-local store.
  */
 public class ResourcePrefetcherTest extends TestCase {
 
-	/** 発見スキャナ: 実要素だけを、エンジンと同じ規則で拾うこと。 */
+	/** Discovery scanner: pick up only real elements, using the same rules as the engine. */
 	public void testScannerFindsExpectedResources() {
 		final List<URI> found = new ArrayList<>();
 		final MySourceResolver collector = new MySourceResolver() {
@@ -52,7 +52,7 @@ public class ResourcePrefetcherTest extends TestCase {
 		final ResourcePrefetcher.Scanner scanner = new ResourcePrefetcher.Scanner(
 				URI.create("https://example.com/page.html"), "UTF-8", collector);
 		final byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
-		// 増分供給でも状態機械が保たれることを、わざと小さな塊で確かめる
+		// Deliberately feed small chunks to verify that incremental input preserves the state machine.
 		for (int i = 0; i < bytes.length; i += 7) {
 			scanner.feed(bytes, i, Math.min(7, bytes.length - i));
 		}
@@ -69,7 +69,7 @@ public class ResourcePrefetcherTest extends TestCase {
 		assertFalse("data:は対象外", texts.stream().anyMatch(t -> t.startsWith("data:")));
 	}
 
-	/** 読み先行ストリーム: バイト列を欠落なく順序どおり届けること。 */
+	/** Read-ahead stream: deliver all bytes in order, without loss. */
 	public void testReadAheadStreamDeliversAllBytes() throws Exception {
 		final byte[] data = new byte[5 * 1024 * 1024 + 17];
 		new Random(42).nextBytes(data);
@@ -82,7 +82,7 @@ public class ResourcePrefetcherTest extends TestCase {
 		}
 	}
 
-	/** 読み先行ストリーム: 下位のIOExceptionは読了後に伝わること。 */
+	/** Read-ahead stream: propagate the underlying IOException after the buffered data has been read. */
 	public void testReadAheadStreamPropagatesError() throws Exception {
 		final byte[] head = "hello".getBytes(StandardCharsets.UTF_8);
 		final InputStream failing = new InputStream() {
@@ -110,10 +110,10 @@ public class ResourcePrefetcherTest extends TestCase {
 	}
 
 	/**
-	 * 読み先行ストリーム: 閉じても、読み手のスレッドが待っているソケットを閉じないこと(2026-09-28)。
-	 * 仮想スレッドがソケットの読み取りで待っているところに割り込むとソケットが閉じる。CTIP の本文では
-	 * それが client との接続なので、中断や変換の失敗で本文の途中で閉じると client の接続が切れていた。
-	 * 下位は CTIP の本文の受け口と同じく close() で何もしないストリームにする。
+	 * Read-ahead stream: closing it must not close the socket on which the reader thread is waiting (2026-09-28).
+	 * Interrupting a virtual thread waiting on a socket read closes the socket. For a CTIP body, that socket is
+	 * the client connection, so closing mid-body on cancellation or conversion failure disconnected the client.
+	 * Use an underlying stream whose close() does nothing, just like the CTIP body input stream.
 	 */
 	public void testCloseLeavesTheSocketOpen() throws Exception {
 		try (final java.net.ServerSocket server = new java.net.ServerSocket(0, 1, InetAddress.getLoopbackAddress());
@@ -124,20 +124,20 @@ public class ResourcePrefetcherTest extends TestCase {
 			final InputStream body = new java.io.FilterInputStream(accepted.getInputStream()) {
 				@Override
 				public void close() {
-					// CTIP の本文の受け口と同じく、接続は閉じない
+					// As with the CTIP body input stream, do not close the connection.
 				}
 			};
 			client.getOutputStream().write(1);
 			client.getOutputStream().flush();
 			final InputStream in = new ResourcePrefetcher.ReadAheadInputStream(body, null);
 			assertEquals(1, in.read());
-			// 読み手のスレッドが次のバイトを待っているところで閉じる
+			// Close while the reader thread is waiting for the next byte.
 			Thread.sleep(200);
 			in.close();
 			Thread.sleep(200);
 			assertFalse("読み手への割り込みでソケットが閉じた", accepted.isClosed());
 
-			// 読みかけの 1 回はこのバイトで返り、読み手は抜ける。その後も接続は使える
+			// This byte completes the pending read and lets the reader exit. The connection remains usable afterward.
 			client.getOutputStream().write(2);
 			client.getOutputStream().flush();
 			Thread.sleep(200);
@@ -148,8 +148,8 @@ public class ResourcePrefetcherTest extends TestCase {
 	}
 
 	/**
-	 * ACLゲート: input.includeが許さないURLは、先読みでも外向き要求を
-	 * 発生させないこと(先読みが遮断の抜け道にならない)。
+	 * ACL gate: even prefetching must not issue outbound requests for URLs that input.include does not allow
+	 * (prefetching must not provide a way around access restrictions).
 	 */
 	public void testAclDeniedUriIsNeverRequested() throws Exception {
 		final AtomicInteger hits = new AtomicInteger();
@@ -170,7 +170,7 @@ public class ResourcePrefetcherTest extends TestCase {
 					+ server.getAddress().getPort();
 			resolver.setup(URI.create(origin + "/doc.html"), Map.of(), (code, args) -> {
 			});
-			// 別ホストだけを許可する——テストサーバーへの要求は全て拒否される
+			// Allow only a different host: all requests to the test server are denied.
 			resolver.include(URI.create("http://allowed.example/**"));
 			resolver.prefetch(URI.create(origin + "/secret.png"));
 			Thread.sleep(500);
@@ -182,9 +182,9 @@ public class ResourcePrefetcherTest extends TestCase {
 	}
 
 	/**
-	 * 合流: 先読み済みの資源はセッション局所ストアから渡され、同じURIを
-	 * 何度resolveしても外向き要求は1回であること(Set-Cookie付き応答でも
-	 * 同一変換内では再利用する——Chromeの同一ロード内memory cacheと同じ)。
+	 * Integration: serve prefetched resources from the session-local store, issuing only one outbound request
+	 * no matter how many times the same URI is resolved (reuse even responses with Set-Cookie within the same
+	 * conversion, just like Chrome's memory cache within a single load).
 	 */
 	public void testPrefetchedBodyIsReusedAcrossResolves() throws Exception {
 		final AtomicInteger hits = new AtomicInteger();
@@ -211,9 +211,9 @@ public class ResourcePrefetcherTest extends TestCase {
 			resolver.include(URI.create("**"));
 			final URI img = URI.create(origin + "/img.png");
 			resolver.prefetch(img);
-			// 先読みが実際に取り終えてから消費する(発見が消費に先行する
-			// 実際の順序)。取得中でないものへは合流しない設計なので、
-			// ここで待たないと実要求が自分で取りに行く
+			// Consume after prefetching has actually finished (the real ordering,
+			// where discovery precedes consumption). By design, requests do not join a fetch that has not started,
+			// so without this wait, the actual request fetches the resource itself.
 			for (int i = 0; i < 100 && hits.get() == 0; i++) {
 				Thread.sleep(20);
 			}
@@ -234,14 +234,14 @@ public class ResourcePrefetcherTest extends TestCase {
 	}
 
 	/**
-	 * 同一変換内で同じ資源を何度も外向き取得しないこと(2026-08-28)。
+	 * Do not fetch the same resource externally more than once within a single conversion (2026-08-28).
 	 *
 	 * <p>
-	 * 共有キャッシュに載らない応答(Set-Cookieを伴う等)でも、副資源なら
-	 * 本文をセッション局所ストアへ控える。実測の発端は、寸法表を再利用した
-	 * Paged SVGの2回目の変換が同じ背景SVGを66回取りに行き、5.0秒の変換が
-	 * 13.4秒になっていたこと。先読みが順番待ちのまま実要求に降ろされると、
-	 * 以降その資源はいつまでも共有されなかった。
+	 * Even for responses ineligible for the shared cache (such as those with Set-Cookie), keep subresource
+	 * bodies in the session-local store. This started with a measurement: a second Paged SVG conversion
+	 * reusing the dimension table fetched the same background SVG 66 times, increasing conversion time from
+	 * 5.0 seconds to 13.4 seconds. When a queued prefetch fell back to an actual request, that resource
+	 * was never shared afterward.
 	 * </p>
 	 */
 	public void testResourceIsFetchedOnlyOncePerTranscode() throws Exception {
@@ -252,7 +252,7 @@ public class ResourcePrefetcherTest extends TestCase {
 			hits.incrementAndGet();
 			try {
 				exchange.getResponseHeaders().set("Content-Type", "image/svg+xml");
-				// 共有キャッシュには載せられない応答(利用者固有になり得る)
+				// A response ineligible for the shared cache (it may be user-specific).
 				exchange.getResponseHeaders().set("Set-Cookie", "tracking=1");
 				exchange.sendResponseHeaders(200, body.length);
 				exchange.getResponseBody().write(body);
@@ -269,8 +269,8 @@ public class ResourcePrefetcherTest extends TestCase {
 			});
 			resolver.include(URI.create("**"));
 			final URI bg = URI.create(origin + "/bg.svg");
-			// 先読みは一切挟まず、実要求だけを繰り返す(背景画像が多数の箱から
-			// 参照される実際の形)
+			// Repeat actual requests without any prefetching (the real pattern when many boxes
+			// reference the same background image).
 			for (int i = 0; i < 5; i++) {
 				final Source source = resolver.resolve(bg);
 				try {
@@ -287,8 +287,8 @@ public class ResourcePrefetcherTest extends TestCase {
 	}
 
 	/**
-	 * 配信側がレート制限(429)を返したら、そのホストの先読みをやめること
-	 * (2026-08-28)。投機で相手を怒らせて本来の取得まで失うのを防ぐ。
+	 * Stop prefetching from a host when it returns a rate limit response (429)
+	 * (2026-08-28). Avoid provoking the server with speculation and losing the actual fetch as well.
 	 */
 	public void testStopsPrefetchingThrottledHost() throws Exception {
 		final AtomicInteger hits = new AtomicInteger();
@@ -314,24 +314,24 @@ public class ResourcePrefetcherTest extends TestCase {
 				Thread.sleep(50);
 			}
 			assertEquals("最初の1本は投げる", 1, hits.get());
-			// 429を見た後は同じホストへ投機しない
+			// Do not speculate on the same host after seeing a 429.
 			for (int i = 0; i < 10; i++) {
 				resolver.prefetch(URI.create(origin + "/b" + i + ".png"));
 			}
 			Thread.sleep(500);
 			assertEquals("429の後は同じホストへ先読みしない", 1, hits.get());
 
-			// 実要求は従来どおり通る(投機の自粛は実要求を妨げない)
+			// Actual requests still go through as before (suspending speculation does not block actual requests).
 			try {
 				final Source source = resolver.resolve(URI.create(origin + "/b0.png"));
 				try {
-					// resolveは遅延接続。読んで初めてHTTPが飛ぶ
+					// resolve connects lazily. HTTP is sent only when reading begins.
 					source.getInputStream().readAllBytes();
 				} finally {
 					resolver.release(source);
 				}
 			} catch (final IOException expected) {
-				// 429は実要求としては失敗しうる。ここでは要求が飛ぶことが大事
+				// A 429 may fail an actual request. What matters here is that the request is sent.
 			}
 			assertTrue("実要求は投げられるべき", hits.get() >= 2);
 		} finally {

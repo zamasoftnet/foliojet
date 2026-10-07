@@ -4,14 +4,14 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.xml.parser.MarkdownParser;
 
 /**
- * Markdown中の生{@code <style>}がheadへ巻き上げられることのテストです
- * (2026-08-10)。
+ * Test that raw {@code <style>} in Markdown is hoisted into head
+ * (2026-08-10).
  *
  * <p>
- * body内に残すと、ストリーミング構築ではbodyのボックスが既に開いている
- * ため、body/html自身に効くプロパティ——{@code writing-mode: vertical-rl}
- * 等——が遡って適用されない(縦書き書籍のMarkdown原稿で実測: フォントや
- * {@code @page}は効くのに縦書きだけ効かず、原因に気づきにくい)。
+ * If left in body, streaming construction has already opened the body box, so properties affecting
+ * body/html itself, such as {@code writing-mode: vertical-rl}, are not applied retroactively.
+ * Measured in a Markdown manuscript for a vertically written book: fonts and {@code @page} worked,
+ * but vertical writing alone did not, making the cause hard to notice.
  * </p>
  */
 public class MarkdownStyleHoistTest extends TestCase {
@@ -32,23 +32,22 @@ public class MarkdownStyleHoistTest extends TestCase {
 		assertTrue(html, red >= 0 && blue >= 0 && red < blue && blue < head);
 	}
 
-	/** 既定スタイル(markdown-ua.css)より文書側が後=後勝ちを保つ。 */
+	/** Keep document styles after the default style (markdown-ua.css), preserving last-wins precedence. */
 	public void testHoistedStyleFollowsDefaultStyle() {
 		String html = MarkdownParser.toHtml("<style>body { font-size: 3.3mm; }</style>\n\n本文。");
 		assertTrue(html, html.indexOf("font-size: 3.3mm") > html.indexOf("@page"));
 	}
 
-	/** styleの無い文書は従来どおり(空のstyle要素が増えるだけで無害)。 */
+	/** Documents without style behave as before (only a harmless empty style element is added). */
 	public void testNoStyleDocumentUnchanged() {
 		String html = MarkdownParser.toHtml("ただの本文。");
 		assertTrue(html, html.contains("ただの本文。"));
 	}
 
 	/**
-	 * input.default-stylesheet指定時は既定スタイル(markdown-ua.css)を
-	 * 注入しない(2026-08-10、オーナー裁定)。既定は「何も指定しない人の
-	 * ためのA4レポート」であり、デザインを自分で設計する利用で下敷きに
-	 * 残るとp{line-height}やノンブルが透けるため。
+	 * Do not inject the default style (markdown-ua.css) when input.default-stylesheet is specified
+	 * (2026-08-10, owner's decision). The default is an A4 report for users who specify nothing.
+	 * Leaving it underneath a user-designed layout would let p{line-height} and page numbers show through.
 	 */
 	public void testDefaultStyleOmittedWhenUserStylesheetGiven() {
 		String with = MarkdownParser.toHtml("本文。", true);

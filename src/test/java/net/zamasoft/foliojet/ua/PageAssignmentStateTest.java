@@ -6,7 +6,7 @@ import net.zamasoft.foliojet.ua.PageAssignmentState.Presence;
 import net.zamasoft.foliojet.ua.PageAssignmentState.Resolution;
 import net.zamasoft.foliojet.ua.PageAssignmentState.Snapshot;
 
-/** 頁境界・文書順・四方針・削除の順序を固定する試験です。 */
+/** Tests that lock down page boundaries, document order, the four policies, and deletion order. */
 public class PageAssignmentStateTest extends TestCase {
 	public void testFirstAndLastWithinPage() {
 		final PageAssignmentState<String> state = new PageAssignmentState<String>();
@@ -48,7 +48,10 @@ public class PageAssignmentStateTest extends TestCase {
 		assertEquals(new Snapshot<String>(null, null, null), state.snapshot("h"));
 	}
 
-	/** 代入なし・頁先頭・頁途中・複数代入を四方針と交差させます。 */
+	/**
+	 * Cross the four policies with no assignment, page-start assignment, mid-page assignment, and multiple
+	 * assignments.
+	 */
 	public void testModeMatrix() {
 		for (int scenario = 0; scenario < 4; ++scenario) {
 			for (final boolean entry : new boolean[] { false, true }) {
@@ -57,7 +60,7 @@ public class PageAssignmentStateTest extends TestCase {
 					state.assign("h", "A", 10, scenario == 1);
 				}
 				if (scenario == 3) {
-					// last の beginsPage が真でも START は first の事実だけで決まる。
+					// Even if last has beginsPage=true, START depends only on the facts about first.
 					state.assign("h", "B", 20, true);
 				}
 				for (final Mode mode : Mode.values()) {
@@ -95,8 +98,9 @@ public class PageAssignmentStateTest extends TestCase {
 	}
 
 	/**
-	 * 同じ (name, order) は後の呼び出しが勝つ(疑似要素は order を共有し、EPUB は章ごとに
-	 * 採番が戻り、build 時の即時登録が draw 時にもう一度登録される)。中間 order は候補でないので捨てる。
+	 * For the same (name, order), the later call wins (pseudo-elements share order; EPUB numbering resets
+	 * each chapter; immediate registration during build is repeated during draw).
+	 * Discard intermediate orders because they are not candidates.
 	 */
 	public void testSameOrderIsReplacedByLaterCall() {
 		final PageAssignmentState<String> state = new PageAssignmentState<String>();
@@ -112,7 +116,7 @@ public class PageAssignmentStateTest extends TestCase {
 		assertValue(state, Mode.LAST, "C");
 		state.assign("h", "C2", 30, false);
 		assertValue(state, Mode.LAST, "C2");
-		// 疑似要素: 全部 order=-1 でも落ちない
+		// Pseudo-elements: do not fail even if all have order=-1.
 		state.assign("h", "P1", -1, false);
 		state.assign("h", "P2", -1, false);
 		assertValue(state, Mode.FIRST, "P2");
@@ -129,7 +133,10 @@ public class PageAssignmentStateTest extends TestCase {
 		assertEquals(new Snapshot<String>(null, null, null), state.snapshot("h"));
 	}
 
-	/** build 時に登録した代入へ、配置確定時に頁先頭の事実を後付けできる(R1b の配線先)。 */
+	/**
+	 * An assignment registered during build can later be marked as page-start when placement is finalized (R1b
+	 * wiring target).
+	 */
 	public void testMarkBeginsPageUpgradesStart() {
 		final PageAssignmentState<String> state = withEntry();
 		state.assign("h", "A", 10, false);
@@ -137,7 +144,7 @@ public class PageAssignmentStateTest extends TestCase {
 		state.markBeginsPage("h", 10);
 		assertValue(state, Mode.START, "A");
 		assertTrue(state.snapshot("h").first().beginsPage());
-		// 無い order・無い名前は無視
+		// Ignore nonexistent orders and names.
 		state.markBeginsPage("h", 99);
 		state.markBeginsPage("nope", 10);
 		assertValue(state, Mode.START, "A");

@@ -8,10 +8,10 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Grid G3d1のネストGridテストです。itemはTwoPass録画のため、item内の
- * Gridは実行計画(GridEvent)としてitemの録画に保持され、itemのbindで
- * 実トラック配置になる(G3aの一時退行=G0単一列の回復)。
- * 外側[100pt 100pt]のslot0に内側[40pt 40pt]、slot1に#b。
+ * Grid G3d1 nested Grid test. Items use TwoPass recording, so a Grid inside an item is retained
+ * as an execution plan (GridEvent) in the item's recording. Binding the item performs actual track
+ * placement (recovering from G3a's temporary regression to G0's single column).
+ * The outer [100pt 100pt] contains the inner [40pt 40pt] in slot0 and #b in slot1.
  */
 public class GridNestedTest extends AbstractTestCase {
 	public GridNestedTest(String name) {
@@ -34,7 +34,7 @@ public class GridNestedTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 内側Gridの2列目=+40(ネストGridの実トラック配置)。 */
+	/** Second column of the inner Grid = +40 (actual track placement for a nested Grid). */
 	public boolean check_n2(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 40, x, 0.1);
@@ -44,7 +44,7 @@ public class GridNestedTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 外側Gridの2列目=+100。 */
+	/** Second column of the outer Grid = +100. */
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 100, x, 0.1);
@@ -54,7 +54,7 @@ public class GridNestedTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 総高=max(内側10, b30)=30(行高がbindの実高から来る)。 */
+	/** Total height = max(inner 10, b 30)=30 (row height comes from actual height at bind time). */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseY + 30, y, 0.1);

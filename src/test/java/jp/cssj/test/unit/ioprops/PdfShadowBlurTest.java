@@ -30,7 +30,7 @@ import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** PDF出力では本文をベクタのまま保ち、ぼかした影だけをラスタ化することの試験。 */
+/** Test that PDF output keeps body text as vectors and rasterizes only blurred shadows. */
 public class PdfShadowBlurTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final String PARAGRAPH_TEXT = "影だけを滑らかにぼかします";
@@ -148,7 +148,7 @@ public class PdfShadowBlurTest extends TestCase {
 		return count;
 	}
 
-	/** 診断用: PDF と 1 頁目の描画(PDFBox、144dpi)を build/tmp に残す。 */
+	/** For diagnosis: leave the PDF and a rendering of page 1 (PDFBox, 144 dpi) in build/tmp. */
 	private static void dump(final PDDocument pdf, final byte[] bytes, final String name) throws Exception {
 		final java.io.File dir = new java.io.File("build/tmp");
 		dir.mkdirs();

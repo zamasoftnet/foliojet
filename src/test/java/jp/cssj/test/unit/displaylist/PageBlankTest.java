@@ -19,13 +19,13 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code @page :blank}(css-page-3)を固定します(2026-10-04、TECH-20261003-004
- * の⑤。時限暗号の本で、章を右ページから始めたときの白紙に柱が出ていた)。
+ * Verify {@code @page :blank} (css-page-3) (2026-10-04, TECH-20261003-004 item ⑤;
+ * in the Jigen Ango book, a blank page inserted to start a chapter on the right had a running header).
  *
  * <p>
- * 強制改ページで始まり、何も描かずに閉じたページ(左右の改ページで挟んだ
- * 白紙)が{@code :blank}に合う。ページを描く時点でしか分からないので、
- * 効くのはマージンボックスだけ。
+ * Pages opened by a forced break and closed without drawing anything (blank pages inserted
+ * by left/right breaks) match {@code :blank}. This is known only when drawing the page,
+ * so it affects margin boxes only.
  * </p>
  */
 public class PageBlankTest extends TestCase {
@@ -49,8 +49,8 @@ public class PageBlankTest extends TestCase {
 
 	public void testBlankPageSelectsBlankRule() throws Exception {
 		final File[] pages = convert("blank", HTML);
-		// T0(1、右)・白紙(2)・T1(3、右)。文書先頭の break-before は頁を作らない
-		// (以前は柱があると、柱だけの1頁目と白紙が前に付いて5頁になった)
+		// T0 (1, right), blank (2), T1 (3, right). Document-initial break-before creates no page
+		// (previously, a running header added a header-only first page and a blank before these, producing five pages).
 		assertEquals("頁数", 3, pages.length);
 		final String p1 = read(pages[0]), p2 = read(pages[1]), p3 = read(pages[2]);
 		assertTrue("1 頁目に T0", p1.contains("\"T0\""));

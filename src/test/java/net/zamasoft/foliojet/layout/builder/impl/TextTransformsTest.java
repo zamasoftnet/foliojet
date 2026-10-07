@@ -3,7 +3,10 @@ package net.zamasoft.foliojet.layout.builder.impl;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 
-/** {@code text-transform} の字の写し({@link TextTransforms})を固定します(2026-10-06、{@code full-width} を加えた)。 */
+/**
+ * Locks down {@code text-transform} character mapping ({@link TextTransforms}) (2026-10-06; added {@code
+ * full-width}).
+ */
 public class TextTransformsTest extends TestCase {
 	private static final byte FULL_WIDTH = AbstractTextParams.TEXT_TRANSFORM_FULL_WIDTH;
 
@@ -13,14 +16,17 @@ public class TextTransformsTest extends TestCase {
 		return new String(ch);
 	}
 
-	/** ASCII の字と記号は U+FF01〜U+FF5E、空白は U+3000、¢£¬¯¦¥₩ は U+FFE0〜U+FFE6。ほかの字は変えない。 */
+	/**
+	 * Maps ASCII characters and symbols to U+FF01–U+FF5E, space to U+3000, and ¢£¬¯¦¥₩ to U+FFE0–U+FFE6. Others
+	 * are unchanged.
+	 */
 	public void testFullWidthMapping() {
 		assertEquals("ＡＢｃ　１２！～", apply(FULL_WIDTH, "ABc 12!~"));
 		assertEquals("￠￡￢￣￤￥￦", apply(FULL_WIDTH, "¢£¬¯¦¥₩"));
 		assertEquals("漢字ｶﾅ２", apply(FULL_WIDTH, "漢字ｶﾅ2"));
 	}
 
-	/** 大文字・小文字の変換のあとに全角化する。 */
+	/** Converts to full-width after uppercase/lowercase conversion. */
 	public void testCaseThenFullWidth() {
 		assertEquals("ＡＢ　ＣＤ", apply((byte) (AbstractTextParams.TEXT_TRANSFORM_UPPERCASE | FULL_WIDTH), "ab cd"));
 		assertEquals("Ａｂ　Ｃｄ", apply((byte) (AbstractTextParams.TEXT_TRANSFORM_CAPITALIZE | FULL_WIDTH), "ab cd"));
@@ -29,7 +35,7 @@ public class TextTransformsTest extends TestCase {
 		assertEquals("ab cd", apply(AbstractTextParams.TEXT_TRANSFORM_NONE, "ab cd"));
 	}
 
-	/** 1 字ずつの写し(割注)も同じ。 */
+	/** Per-character mapping (warichu) behaves the same way. */
 	public void testSingleCharacter() {
 		assertEquals('Ａ', TextTransforms.apply('a', (byte) (AbstractTextParams.TEXT_TRANSFORM_CAPITALIZE | FULL_WIDTH), true));
 		assertEquals('ａ', TextTransforms.apply('a', (byte) (AbstractTextParams.TEXT_TRANSFORM_CAPITALIZE | FULL_WIDTH), false));

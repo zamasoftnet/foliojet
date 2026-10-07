@@ -6,31 +6,31 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 
 /**
- * 副作用のない{@link Visitor}です(2026-07-25新設、救済分割・増分5。
- * 設計相談 §3)。
+ * Side-effect-free {@link Visitor} (added 2026-07-25, rescue splitting, increment 5;
+ * design consultation §3).
  *
  * <p>
- * 救済分割の<b>継続断片</b>({@code offset > 0})を描くあいだだけ実Visitorの
- * 代わりに渡します。継続断片は「見た目は内容、意味の上では先頭断片に属する」
- * ものなので、リンク・フォーム部品・ページ参照・{@code string-set}・
- * しおりといった<b>文書レベルの副作用</b>を二度発行してはいけません。
+ * Passed instead of the real Visitor only while drawing <b>continuation fragments</b>
+ * ({@code offset > 0}) of a rescue split. A continuation fragment "looks like content but
+ * semantically belongs to the first fragment," so <b>document-level side effects</b>
+ * such as links, form controls, page references, {@code string-set}, and bookmarks
+ * must not be emitted twice.
  * </p>
  *
  * <p>
- * {@code ua.impl.NopVisitor}は使えません——あちらは{@code AbstractVisitor}を
- * 継承しており、{@code visitBox()}でまさにそれらの副作用を処理するためです
- * (答申§3)。ここは本当に何もしません。
+ * {@code ua.impl.NopVisitor} cannot be used: it extends {@code AbstractVisitor},
+ * whose {@code visitBox()} processes exactly these side effects (recommendation §3).
+ * This class truly does nothing.
  * </p>
  *
  * <p>
- * {@link #startPage()}・{@link #endPage()}は救済断片の描画中には呼ばれ
- * ませんが(ページの開始・終了はページ単位の処理)、契約上no-opにして
- * あります。
+ * {@link #startPage()} and {@link #endPage()} are not called while drawing rescue fragments
+ * (page start/end are per-page operations), but are no-ops by contract.
  * </p>
  */
 public final class ArtifactVisitor implements Visitor {
 
-	/** 状態を持たないため共有できます。 */
+	/** Can be shared because it has no state. */
 	public static final ArtifactVisitor INSTANCE = new ArtifactVisitor();
 
 	private ArtifactVisitor() {
@@ -38,15 +38,15 @@ public final class ArtifactVisitor implements Visitor {
 	}
 
 	public void startPage() {
-		// 何もしない
+		// Do nothing
 	}
 
 	public void visitBox(final AffineTransform transform, final IBox box, final Drawer drawer, final double x,
 			final double y) {
-		// 何もしない
+		// Do nothing
 	}
 
 	public void endPage() {
-		// 何もしない
+		// Do nothing
 	}
 }

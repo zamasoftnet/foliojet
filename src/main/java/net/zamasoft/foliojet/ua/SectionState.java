@@ -2,16 +2,16 @@ package net.zamasoft.foliojet.ua;
 
 public class SectionState {
 	/**
-	 * 処理中のセクションのレベル(H1~H6の数字部分)です。
+	 * Level of the section being processed (numeric part of H1~H6).
 	 */
 	public int sectionLevel = 1;
 	/**
-	 * 処理中のセクションの深さです(例えばH1の下のH3を処理中であれば深さは2です)。
+	 * Depth of the section being processed (e.g., H3 under H1 has depth 2).
 	 */
 	public int sectionDepth = 0;
 
 	/**
-	 * 処理したセクションの数です。
+	 * Number of sections processed.
 	 */
 	public int sectionCount = 0;
 }

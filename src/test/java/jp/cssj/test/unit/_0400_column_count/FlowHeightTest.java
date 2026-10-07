@@ -22,10 +22,10 @@ public class FlowHeightTest extends AbstractTestCase {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
-			// 誤差を許す(2026-08-03)。値そのものは383のままだが、
-			// フォントを固定したことで積算の順序が変わり
-			// 382.99999999999994 になる。浮動小数の丸めであって寸法の変化
-			// ではないので、丁度一致を求めない
+			// Allow tolerance (2026-08-03). The value itself is still 383,
+			// but pinning the font changed the accumulation order,
+			// yielding 382.99999999999994. This is floating-point rounding, not a dimension change,
+			// so do not require exact equality.
 			assertEquals(383, x, 0.001);
 			assertEquals(106, y, 1);
 			return true;

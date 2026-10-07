@@ -19,8 +19,8 @@ public class BackgroundBorderDrawable extends AbstractDrawable {
 	public BackgroundBorderDrawable(PageBox pageBox, Shape clip, float opacity, AffineTransform transform,
 			Background background, RectBorder border, Insets padding, double width, double height) {
 		super(pageBox, clip, opacity, transform);
-		// 確定寸法に番兵の算術結果やNaNが漏れると、内容が紙面の
-		// どこにも現れないまま静かに欠落する(LayoutUtils.isDrawable参照)
+		// If sentinel arithmetic results or NaN leak into finalized dimensions, content silently
+		// disappears without appearing anywhere on the paper (see LayoutUtils.isDrawable).
 		assert net.zamasoft.foliojet.layout.util.LayoutUtils.isDrawable(width) : "描画幅が異常: " + width;
 		assert net.zamasoft.foliojet.layout.util.LayoutUtils.isDrawable(height) : "描画高が異常: " + height;
 		this.background = background;

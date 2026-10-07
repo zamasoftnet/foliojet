@@ -3,22 +3,22 @@ package jp.cssj.test.unit.security;
 import junit.framework.TestCase;
 
 /**
- * 接続先そのものの判定(2026-09-08新設)。
+ * Checks of the actual connection destination (introduced on 2026-09-08).
  *
  * <p>
- * ACLは<b>要求したURIのホスト</b>を見ます。実際に繋ぐ先がそれと違うと、
- * 判定と実態が食い違います。第1版の対策が失敗したのと同じ型なので、
- * ここで固定します。
+ * The ACL checks <b>the host of the requested URI</b>. If the actual connection goes elsewhere,
+ * the decision and reality differ. This is the same failure pattern as the first version
+ * of the countermeasure, so fix it here.
  * </p>
  */
 public class NetworkTargetTest extends TestCase {
 
 	/**
-	 * 名前を解決できないホストは、内側とみなして拒むこと。
+	 * Treat unresolvable hosts as internal and reject them.
 	 *
 	 * <p>
-	 * 判定の時刻と接続の時刻は違うので、<b>確かめられないものは通さない</b>。
-	 * かつては「取得しても失敗するから」と通していました。
+	 * Checking and connecting occur at different times, so <b>do not allow what cannot be verified</b>.
+	 * Previously, these were allowed on the assumption that fetching would fail anyway.
 	 * </p>
 	 */
 	public void testUnresolvableHostIsTreatedAsInternal() throws Exception {
@@ -31,7 +31,7 @@ public class NetworkTargetTest extends TestCase {
 				r.deniedResource("2814", "no-such-host.invalid"));
 	}
 
-	/** ローカル資源を許した利用者では、同じURIでも拒否にならないこと(正例)。 */
+	/** The same URI is not denied for users allowed local resources (positive case). */
 	public void testUnresolvableHostIsNotDeniedWhenLocalAccessAllowed() throws Exception {
 		final ConversionProbe.Result r = new ConversionProbe().include("**").localAccessAllowed(true)
 				.convertHtml("<!DOCTYPE html><html><body>"
@@ -42,7 +42,7 @@ public class NetworkTargetTest extends TestCase {
 				r.deniedResource("2814", "no-such-host.invalid"));
 	}
 
-	/** 転送で別サーバへ連れ出されたとき、ACLの外なら止めること。 */
+	/** Stop redirects to another server if the destination is outside the ACL. */
 	public void testRedirectTargetObeysAcl() throws Exception {
 		try (ProbeServer front = new ProbeServer(); ProbeServer inside = new ProbeServer()) {
 			inside.put("/inside.png", "image/png", SvgFetchReachabilityTest.onePixelPng());
@@ -58,7 +58,7 @@ public class NetworkTargetTest extends TestCase {
 		}
 	}
 
-	/** 転送先も許していれば取れること(正例)。遮断しすぎの検出。 */
+	/** An allowed redirect destination can be fetched (positive case). Detect excessive blocking. */
 	public void testRedirectFollowedWhenTargetAllowed() throws Exception {
 		try (ProbeServer front = new ProbeServer(); ProbeServer inside = new ProbeServer()) {
 			inside.put("/inside.png", "image/png", SvgFetchReachabilityTest.onePixelPng());
@@ -75,21 +75,21 @@ public class NetworkTargetTest extends TestCase {
 	}
 
 	/**
-	 * ACLを設定していないセッションは、そもそもHTTPを取りに行かないこと。
+	 * Sessions without an ACL do not attempt HTTP fetching at all.
 	 *
 	 * <p>
-	 * {@code input.include}は<b>httpに対しては常に先行</b>し、既定は
-	 * {@code data:}以外を拒否します。だから「ACL未設定＝素通り」ではありません。
-	 * 転送の判定を無条件に掛けても壊れないのはこのためですが、<b>それに
-	 * 依存しない</b>ように判定は制限時だけ掛けています。
+	 * {@code input.include} <b>always takes precedence for http</b>, and the default denies everything
+	 * except {@code data:}. Thus, an unset ACL does not mean unrestricted access.
+	 * This is why unconditional redirect checks would not break this case, but checks are applied
+	 * only when restricted to <b>avoid depending on that behavior</b>.
 	 * </p>
 	 */
 	public void testHttpIsNotFetchedWithoutAcl() throws Exception {
 		try (ProbeServer front = new ProbeServer(); ProbeServer inside = new ProbeServer()) {
 			inside.put("/inside.png", "image/png", SvgFetchReachabilityTest.onePixelPng());
 			front.redirect("/go.png", inside.url("/inside.png"));
-			// **includeを一度も設定しない。**このときACLの既定は「data:以外は拒否」
-			// なので、転送の判定を無条件に掛けるとすべての転送が死ぬ
+			// **Never set include.** The ACL then defaults to denying everything except data:,
+			// so applying redirect checks unconditionally would block all redirects.
 			final ConversionProbe.Result r = new ConversionProbe()
 					.convertHtml("<!DOCTYPE html><html><body>"
 							+ "<img src='" + front.url("/go.png") + "' width='10' height='10'/>"

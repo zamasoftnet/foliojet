@@ -10,30 +10,28 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 
 /**
- * {@link ContinuationCapability#classify}の直接単体テストです
- * (2026-07-21新設、M6b Phase B B1)。実文書を経由せず、対象の箱を
- * 直接構築して各分類分岐を検証する——ChatGPT Pro相談で指摘された
- * 「段組だけが発火条件ではない」という訂正の根拠(RL/LR不一致・
- * 横縦直交)を、分類ロジック単体で固定する(かつて検証していた
- * {@code RubyBodyBox}サブタイプ={@code FLOW_SUBTYPE}分類は、ルビの
- * 注釈付きテキスト化——2026-07-25仕様裁定——で対象が消滅し撤去した)。
+ * Direct unit tests for {@link ContinuationCapability#classify}
+ * (added 2026-07-21, M6b Phase B B1). Construct target boxes directly, without real documents, to verify
+ * each classification branch. The classification logic alone locks down the basis (RL/LR mismatch and
+ * horizontal/vertical orthogonality) for the correction raised in the ChatGPT Pro consultation that
+ * "multi-column layout is not the only trigger." The previously tested {@code RubyBodyBox} subtype =
+ * {@code FLOW_SUBTYPE} classification was removed when ruby became annotated text (specification decision
+ * on 2026-07-25), eliminating the target.
  *
  * <p>
- * {@link ContinuationCapability#UNSUPPORTED_BOX}(表等、{@code
- * FlowBlockBox}でない箱)は、{@code TableBox}の構築コストが高いため
- * ここでは検証しない——{@code !(b instanceof FlowBlockBox)}という
- * 分岐自体は自明であり、実文書レベルの回帰は
- * {@code OpenChainCollectablePrefixTest#testTableLeafNeverTriggersOpenChain}
- * が別の角度(表がリーフの場合はOpenChain自体に到達しない)で間接的に
- * カバーしている。
+ * {@link ContinuationCapability#UNSUPPORTED_BOX} (tables and other boxes that are not {@code
+ * FlowBlockBox}) is not tested here because constructing {@code TableBox} is expensive.
+ * The {@code !(b instanceof FlowBlockBox)} branch itself is self-evident, and real-document regression
+ * coverage comes indirectly from {@code OpenChainCollectablePrefixTest#testTableLeafNeverTriggersOpenChain},
+ * which approaches it from another angle (a table leaf never reaches OpenChain itself).
  * </p>
  */
 public class ContinuationCapabilityTest extends TestCase {
 	/**
-	 * {@code AbstractBlockBox}のコンストラクタは{@code assert params
-	 * .fontStyle != null}を要求する(通常はCSSスタイル解決の産物)。
-	 * このテストは分類ロジックのみを見るため、値そのものはどうでもよく
-	 * non-nullでさえあればよい。
+	 * The {@code AbstractBlockBox} constructor requires {@code assert params
+	 * .fontStyle != null} (normally a product of CSS style resolution).
+	 * This test examines only classification logic, so the value itself does not matter;
+	 * it only needs to be non-null.
 	 */
 	private static final FontStyle DUMMY_FONT_STYLE = new FontStyle() {
 		public Direction getDirection() {
@@ -91,11 +89,11 @@ public class ContinuationCapabilityTest extends TestCase {
 	}
 
 	/**
-	 * ルートと同じ軸(縦書き)だが方向が異なる({@code vertical-rl}祖先の
-	 * 途中に{@code vertical-lr})場合、{@code SAME_AXIS_DIRECTION_CHANGE}
-	 * へ分類される——実際の内部切断可否・自動改ページ障壁はどちらも
-	 * {@code isVertical()}の一致しか見ないため、切断自体はできるのに
-	 * 事前検分だけが不必要に厳しいケース。
+	 * The same axis as the root (vertical writing) but a different direction ({@code vertical-lr} within
+	 * {@code vertical-rl} ancestors) is classified as {@code SAME_AXIS_DIRECTION_CHANGE}.
+	 * Actual internal splitting eligibility and automatic page-break barriers both check only matching
+	 * {@code isVertical()}, so this is a case where splitting itself is possible but preflight alone
+	 * is unnecessarily strict.
 	 */
 	public void testVerticalRlToVerticalLrIsSameAxisDirectionChange() {
 		final AbstractContainerBox b = plainFlowBlockBox(WritingMode.LR);
@@ -104,7 +102,7 @@ public class ContinuationCapabilityTest extends TestCase {
 		assertFalse(c.isCollectable());
 	}
 
-	/** ルートと軸そのものが異なる(横書き⇄縦書き)場合はORTHOGONAL_FLOW。 */
+	/** A different axis from the root (horizontal ⇄ vertical writing) is ORTHOGONAL_FLOW. */
 	public void testHorizontalToVerticalIsOrthogonalFlow() {
 		final AbstractContainerBox b = plainFlowBlockBox(WritingMode.RL);
 		final ContinuationCapability c = ContinuationCapability.classify(b, WritingMode.TB);
@@ -112,7 +110,7 @@ public class ContinuationCapabilityTest extends TestCase {
 		assertFalse(c.isCollectable());
 	}
 
-	/** ルート自身と同じ縦書き方向(RL→RL)は一致として収集可能。 */
+	/** The same vertical writing direction as the root (RL→RL) is a match and can be collected. */
 	public void testMatchingVerticalDirectionIsCollectable() {
 		final AbstractContainerBox b = plainFlowBlockBox(WritingMode.RL);
 		final ContinuationCapability c = ContinuationCapability.classify(b, WritingMode.RL);
@@ -121,15 +119,13 @@ public class ContinuationCapabilityTest extends TestCase {
 	}
 
 	/**
-	 * B3a(2026-07-21)で{@code MULTICOL}はPAGE自動改ページのみ収集可能に
-	 * なり、強制改ページ({@code ForceBreakMode})は
-	 * {@code FlowContainer.splitPageAxis}の強制改ページ分岐が選択された
-	 * チェーンメンバーの{@code KEEP}/{@code MOVE}を無条件に
-	 * {@code AssertionError("force break failed")}へ落とすため見送って
-	 * いた。B3b-2(2026-07-21)でこの生の{@code AssertionError}を正規の
-	 * KEEP/MOVE処理へ書き換えたため、B3b-1(2026-07-21)でmodeによらず
-	 * 収集可能にした——自動改ページ・強制改ページのどちらでも同じ
-	 * {@code splitForContinuation}経路を通る。
+	 * In B3a (2026-07-21), {@code MULTICOL} became collectable only for automatic PAGE breaks.
+	 * Forced breaks ({@code ForceBreakMode}) were deferred because the forced-break branch of
+	 * {@code FlowContainer.splitPageAxis} unconditionally turned {@code KEEP}/{@code MOVE} from a selected
+	 * chain member into {@code AssertionError("force break failed")}.
+	 * B3b-2 (2026-07-21) replaced this raw {@code AssertionError} with normal KEEP/MOVE handling, so
+	 * B3b-1 (2026-07-21) made collection independent of mode: both automatic and forced page breaks
+	 * follow the same {@code splitForContinuation} path.
 	 */
 	public void testMulticolSupportsPageSplitThroughRegardlessOfMode() {
 		final ContinuationCapability multicol = ContinuationCapability.MULTICOL;
@@ -141,7 +137,7 @@ public class ContinuationCapabilityTest extends TestCase {
 						plainFlowBlockBox(WritingMode.TB), net.zamasoft.foliojet.layout.box.params.PageBreakMode.PAGE)));
 	}
 
-	/** {@code PLAIN_FLOW}はmodeによらず常に収集可能。 */
+	/** {@code PLAIN_FLOW} is always collectable, regardless of mode. */
 	public void testPlainFlowSupportsPageSplitThroughRegardlessOfMode() {
 		final ContinuationCapability plain = ContinuationCapability.PLAIN_FLOW;
 		assertTrue(plain.supportsPageSplitThrough(
@@ -152,11 +148,10 @@ public class ContinuationCapabilityTest extends TestCase {
 
 	/**
 	 * {@code ORTHOGONAL_FLOW}/{@code UNSUPPORTED_BOX}/
-	 * {@code SAME_AXIS_DIRECTION_CHANGE}はmodeによらず常に収集不能
-	 * (2026-07-22の改ページ契約でatomic対象と確定、
-	 * 開発記録参照
-	 * ——{@code SAME_AXIS_DIRECTION_CHANGE}はB5bで一時収集可能にして
-	 * いたが撤回した)。{@code MULTICOL}はmode非依存で収集可能なまま。
+	 * {@code SAME_AXIS_DIRECTION_CHANGE} are never collectable, regardless of mode
+	 * (designated atomic by the page-break contract of 2026-07-22; see the development record).
+	 * B5b temporarily made {@code SAME_AXIS_DIRECTION_CHANGE} collectable, but that was withdrawn.
+	 * {@code MULTICOL} remains collectable regardless of mode.
 	 */
 	public void testOrthogonalAndUnsupportedNeverSupportPageSplitThrough() {
 		final net.zamasoft.foliojet.layout.box.content.BreakMode auto = new net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode(
@@ -172,10 +167,10 @@ public class ContinuationCapabilityTest extends TestCase {
 	}
 
 	/**
-	 * B5(2026-07-21): {@code classify()}は軸判定をサブタイプ判定より先に
-	 * 行うため、直交writing-modeの{@code MulticolumnBlockBox}は
-	 * {@code MULTICOL}ではなく{@code ORTHOGONAL_FLOW}に分類される
-	 * (codexへの設計相談で発見した、旧実装の誤分類を修正)。
+	 * B5 (2026-07-21): {@code classify()} checks the axis before the subtype, so a
+	 * {@code MulticolumnBlockBox} with an orthogonal writing-mode is classified as
+	 * {@code ORTHOGONAL_FLOW}, not {@code MULTICOL}
+	 * (fixed misclassification in the old implementation, found during a design consultation with codex).
 	 */
 	public void testOrthogonalMulticolClassifiesAsOrthogonalFlowNotSubtype() {
 		final AbstractContainerBox orthogonalMulticol = multicolumnBlockBox(WritingMode.RL);
@@ -188,26 +183,22 @@ public class ContinuationCapabilityTest extends TestCase {
 	}
 
 	/**
-	 * M6b Phase B4/B5残作業(task #73): 選択されたCOLUMN owner(段組)の
-	 * 内側にさらに別の段組が現れる場合、そのdescendant側が
-	 * {@link OpenPathScan#captureColumn}で{@code MULTICOL}barrierとして
-	 * 検出され、収集対象(approvedBoxes)から除外されることを直接検証する。
+	 * M6b Phase B4/B5 remaining work (task #73): directly verify that when another multi-column layout
+	 * appears inside the selected COLUMN owner (a multi-column layout), {@link OpenPathScan#captureColumn}
+	 * detects the descendant as a {@code MULTICOL} barrier and excludes it from collection (approvedBoxes).
 	 *
 	 * <p>
-	 * 当初はHTMLフィクスチャ経由(実文書レンダリング)で「外側ownerの
-	 * 内側にdescendant multicolがbarrierとして残る」ことを確認する
-	 * 設計だったが、{@code AbstractContainerBox#canColumnBreak()}の
-	 * 実際のセマンティクス({@code isSpecifiedPageSize()}が真なら
-	 * {@code columnCount>=2}であるだけで無条件に{@code true}を返す)と
-	 * {@code findColumnBreak()}の内側優先探索の組み合わせにより、
-	 * 高さ指定つきの入れ子段組では常に最内側がownerとして選ばれてしまい、
-	 * 「外側がowner・内側descendantがbarrierとして残る」構成をHTML上で
-	 * 自然に発生させることができないと判明した(実測でも
-	 * {@code testDescendantMulticolInsideColumnOwnerStaysBarrier}という
-	 * 旧テストが実際に失敗することを確認済み)。このため
-	 * {@link OpenPathScan#captureColumn}を箱を直接構築して単体で呼ぶ形へ
-	 * 置き換えた——CSS上の到達可能性ではなく、分類ロジック自体が
-	 * 正しくbarrierを検出することを検証する。
+	 * The initial design used an HTML fixture (real-document rendering) to confirm that a descendant
+	 * multicol remains a barrier inside an outer owner. However, the actual semantics of
+	 * {@code AbstractContainerBox#canColumnBreak()} (if {@code isSpecifiedPageSize()} is true,
+	 * {@code columnCount>=2} alone unconditionally returns {@code true}), combined with the
+	 * innermost-first search in {@code findColumnBreak()}, always selected the innermost owner for
+	 * nested multi-column layouts with specified heights. Thus the configuration "outer owner with
+	 * an inner descendant remaining a barrier" could not arise naturally in HTML (the old test,
+	 * {@code testDescendantMulticolInsideColumnOwnerStaysBarrier}, was also confirmed to fail in practice).
+	 * Therefore, this was replaced with a standalone call to {@link OpenPathScan#captureColumn} on
+	 * directly constructed boxes, testing that the classification logic itself correctly detects
+	 * barriers, rather than reachability through CSS.
 	 * </p>
 	 */
 	public void testCaptureColumnTreatsDescendantMulticolAsBarrier() {

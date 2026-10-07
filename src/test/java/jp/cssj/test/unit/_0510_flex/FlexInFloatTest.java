@@ -8,7 +8,8 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 幅なしfloat内のFlexを範囲から再構築し、配置座標とrecipe再生の発火を検証する。
+ * Reconstructs a Flex inside a float without a specified width from its range,
+ * and checks placement coordinates and recipe replay activation.
  */
 public class FlexInFloatTest extends AbstractTestCase {
 	public FlexInFloatTest(String name) {
@@ -34,7 +35,7 @@ public class FlexInFloatTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** F1f: TwoPass宿主でもrow配置(2番目のitemは主軸+30pt)。 */
+	/** F1f: row placement also applies in a TwoPass host (second item at main axis +30 pt). */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 30, x, 0.1);
@@ -44,7 +45,7 @@ public class FlexInFloatTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 3番目のitemは主軸+60pt。 */
+	/** Third item at main axis +60 pt. */
 	public boolean check_r(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 60, x, 0.1);

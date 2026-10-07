@@ -20,22 +20,23 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 表のセルの中の脚注の試験です(2026-09-02)。
+ * Tests for footnotes inside table cells (2026-09-02).
  *
  * <p>
- * cti.liの報告(2026-09-01、本番 build 19044): {@code <td>}の中の
- * {@code float: footnote}は<b>注の本文がどこにも出ず</b>、呼び出しの番号も
- * 頁ごとの採番から外れて文書通番のままだった。原因はページ確定時の
- * 呼び出し走査({@code RootBuilder.scanFootnoteCalls})が表と絶対配置の中へ
- * 降りていなかったこと。ページのJSON(文字列と位置)で本文と番号を確かめる。
+ * cti.li report (2026-09-01, production build 19044): a {@code float: footnote} inside a
+ * {@code <td>} had <b>no note body anywhere</b>, and its call number remained document-wide
+ * instead of participating in per-page numbering. The cause was that call scanning at page
+ * finalization ({@code RootBuilder.scanFootnoteCalls}) did not descend into tables or absolute
+ * positioning. Check the body and numbers using page JSON (text and positions).
  * </p>
  */
 public class FootnoteInTableCellTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/**
-	 * 1頁目は段落の注、2頁目は表のセルの注と絶対配置の注。頁ごとに1から
-	 * 振り直されるので、2頁目のセルの注は「1」、絶対配置の注は「2」。
+	 * Page 1 has a paragraph note; page 2 has a table-cell note and an absolutely positioned note.
+	 * Numbering restarts at 1 on each page, so the cell note on page 2 is "1" and the absolutely
+	 * positioned note is "2".
 	 */
 	private static String html() {
 		return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style type=\"text/css\">"
@@ -60,15 +61,15 @@ public class FootnoteInTableCellTest extends TestCase {
 		assertTrue("the paragraph's note must be on page 1", page1.contains("段落の注ALPHA"));
 		assertFalse("the cell's note belongs to page 2", page1.contains("BRAVO"));
 
-		// **本文が出ること**。以前は呼び出しが見つからずEOFで捨てられていた
-		// (和文とラテンは別のrunになるので、それぞれで見る)
+		// **The body appears**. Previously, the call was not found and the note was discarded at EOF.
+		// (Japanese and Latin text form separate runs, so check each.)
 		assertTrue("the note inside the table cell must be placed on page 2:\n" + page2,
 				page2.contains("セルの注") && page2.contains("BRAVO"));
 		assertTrue("the note inside the absolutely positioned box must be placed on page 2:\n" + page2,
 				page2.contains("絶対配置の注CHARLIE"));
 
-		// **番号が頁ごとに振り直されること**。2頁目の呼び出しは1と2で、
-		// 文書通番の2・3ではない
+		// **Numbers reset per page**. Calls on page 2 are 1 and 2,
+		// not document-wide numbers 2 and 3.
 		final List<String> labels2 = labels(page2);
 		assertTrue("page 2 must number its notes from 1: " + labels2, labels2.contains("1"));
 		assertTrue("page 2 must number its second note 2: " + labels2, labels2.contains("2"));
@@ -76,8 +77,8 @@ public class FootnoteInTableCellTest extends TestCase {
 	}
 
 	/**
-	 * ページJSONの短い数字だけの文字列(脚注の呼び出し・番号の候補)。
-	 * 本文の文字列は数字だけにならないので、これで番号を拾える。
+	 * Short digit-only strings in page JSON (candidates for footnote calls and numbers).
+	 * Body-text strings are not digit-only, so this extracts the numbers.
 	 */
 	private static List<String> labels(final String pageJson) {
 		final List<String> labels = new ArrayList<>();
@@ -89,7 +90,7 @@ public class FootnoteInTableCellTest extends TestCase {
 		return labels;
 	}
 
-	/** 各ページの文字列を1行ずつ(失敗時の診断用)。 */
+	/** Text from each page, one string per line (for diagnosing failures). */
 	private static String dump(final CapturingResults r) {
 		final StringBuilder sb = new StringBuilder();
 		for (int i = 1; i <= pageCount(r); ++i) {
@@ -146,7 +147,7 @@ public class FootnoteInTableCellTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

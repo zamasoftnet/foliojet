@@ -27,42 +27,39 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * MULTICOL native worklist降下(legacy再帰撤去=増分1〜4、2026-07-30)の
- * 本番routing回帰ガードです。各fixtureを本番routingで1回変換し、次を
- * 固定する:
+ * Production-routing regression guard for MULTICOL native worklist descent
+ * (legacy recursion removal, increments 1–4, 2026-07-30). Convert each fixture once
+ * with production routing and verify:
  *
  * <ol>
- * <li><b>非空振り</b>: MULTICOL境界を貫通する文書で
- * {@code MULTICOL_NATIVE_DESCENTS > 0}(native scope降下が実際に
- * 通った)</li>
- * <li><b>フォールバック0</b>: 全文書で
- * {@code WORKLIST_COMPAT_FALLBACKS == 0}(未知コンテナの互換
- * フォールバックへ逃げていない)</li>
- * <li><b>内容保存</b>: インライン文書の期待トークン(T2等)が全ページを
- * 通して<b>ちょうど1回</b>描かれる——消失も複製もない
- * ({@code NestedMulticolDuplicationTest}と同型の検査)</li>
+ * <li><b>Non-vacuous coverage</b>: documents crossing a MULTICOL boundary have
+ * {@code MULTICOL_NATIVE_DESCENTS > 0} (native scope descent actually ran).</li>
+ * <li><b>Zero fallbacks</b>: every document has {@code WORKLIST_COMPAT_FALLBACKS == 0}
+ * (no escape through compatibility fallback for unknown containers).</li>
+ * <li><b>Content preservation</b>: expected inline-document tokens (T2, etc.) are drawn
+ * <b>exactly once</b> across all pages, with no loss or duplication
+ * (the same kind of check as {@code NestedMulticolDuplicationTest}).</li>
  * </ol>
  *
  * <p>
- * <b>歴史的経緯</b>: 増分1(routing不変)の時点では「legacy再帰駆動と
- * 強制worklist駆動のdisplay-listバイト等価」の証明だった(foliojet4
- * 67c2414)。増分2でgateが切り替わり、増分4でoverride機構ごと旧driver
- * が物理撤去されたため、driver比較は不可能かつ不要となり、本番routing
- * の回帰ガードへ再定義した(同一実装を2回走らせる比較は決定的な順序
- * 退行を検出できない——display-listの固定はtier1のgolden群が担う)。
- * codex相談: 設計相談 §5。
+ * <b>History</b>: at increment 1 (routing unchanged), this proved byte-for-byte display-list
+ * equivalence of legacy recursive and forced worklist drivers (foliojet4 67c2414).
+ * Increment 2 switched the gate; increment 4 physically removed the old driver and override
+ * mechanism, making driver comparison impossible and unnecessary. Redefine this as a production-routing
+ * regression guard (running the same implementation twice cannot detect deterministic order regressions;
+ * tier1 goldens fix the display lists). codex consultation: design consultation §5.
  * </p>
  */
 public class MulticolWorklistScopeTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 打ち切り時間。実測は1件あたり数秒未満。 */
+	/** Timeout. Measured execution is under a few seconds per case. */
 	private static final long WATCHDOG_MS = 60_000L;
 
-	/** display-listのテキスト描画行から中身を取り出す。 */
+	/** Extract content from display-list text-drawing lines. */
 	private static final Pattern TEXT = Pattern.compile("Text\\[\"([^\"]*)\"");
 
-	/** 入れ子段組(3段中2段)——MOVE_SENTINEL型。チェーンがMULTICOL境界を貫通する。 */
+	/** Nested columns (two within three): MOVE_SENTINEL type. The chain crosses a MULTICOL boundary. */
 	private static final String NESTED_MULTICOL = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 			<?jp.cssj.property name="output.page-width" value="595pt"?>
@@ -83,7 +80,7 @@ public class MulticolWorklistScopeTest extends TestCase {
 			</body></html>
 			""";
 
-	/** 3重の段組——入れ子のMulticolRestyleScope(scope中のscope)の検証。 */
+	/** Three nested multi-column levels: verify nested MulticolRestyleScope (a scope inside a scope). */
 	private static final String TRIPLE_MULTICOL = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 			<?jp.cssj.property name="output.page-width" value="595pt"?>
@@ -107,7 +104,7 @@ public class MulticolWorklistScopeTest extends TestCase {
 			</body></html>
 			""";
 
-	/** 縦書き・二重の段組・{@code <ol>}——SPLIT_FRAGMENT_REPLAY型。 */
+	/** Vertical writing, two nested multi-column levels, and {@code <ol>}: SPLIT_FRAGMENT_REPLAY type. */
 	private static final String VERTICAL_NESTED = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 			<?jp.cssj.property name="output.page-width" value="120pt"?>
@@ -130,10 +127,9 @@ public class MulticolWorklistScopeTest extends TestCase {
 			""";
 
 	/**
-	 * 閉じた段組のbalance再生中に内側の段組が改段する最小形
-	 * (extreme strict seed 4540の縮約)。内側のCOLUMN継続は
-	 * contextFlowをownerとしてopen stackを刈り込むため、古いrestyle
-	 * 呼出しフレームが同じflowを二重終了してはならない。
+	 * Minimal case where inner columns break during balancing replay of closed outer columns
+	 * (reduced extreme strict seed 4540). The inner COLUMN continuation prunes the open stack
+	 * with contextFlow as owner, so an old restyle call frame must not end the same flow twice.
 	 */
 	private static final String NESTED_BALANCE_COLUMN_BREAK = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
@@ -157,7 +153,9 @@ public class MulticolWorklistScopeTest extends TestCase {
 			</body></html>
 			""";
 
-	/** COLUMN継続が別identityのopen flowを積み直しても、後続内容を落とさない最小形。 */
+	/**
+	 * Minimal case preserving later content when COLUMN continuation restacks open flows with different identities.
+	 */
 	private static final String NESTED_COLUMN_BREAK_TRAILING_CONTENT = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 			<?jp.cssj.property name="output.page-width" value="200pt"?>
@@ -212,16 +210,15 @@ public class MulticolWorklistScopeTest extends TestCase {
 	}
 
 	/**
-	 * 1文書を本番routingで変換し、カウンタ・トークン保存・リークなしを
-	 * 検査します。
+	 * Convert one document with production routing and check counters, token preservation, and no leaks.
 	 *
-	 * @param name                出力ディレクトリ名
-	 * @param source              入力ファイル({@code html}と排他)
-	 * @param html                インライン文書({@code source}と排他)
-	 * @param expectNativeDescent 開いたチェーンがMULTICOL境界を貫通し、
-	 *                            native降下が発火するはずの文書ならtrue
-	 * @param expectedTokens      全ページを通してちょうど1回描かれるべき
-	 *                            トークン(インライン文書のみ)
+	 * @param name                output directory name
+	 * @param source              input file (mutually exclusive with {@code html})
+	 * @param html                inline document (mutually exclusive with {@code source})
+	 * @param expectNativeDescent true if the open chain crosses a MULTICOL boundary
+	 *                            and should trigger native descent
+	 * @param expectedTokens      tokens that must be drawn exactly once across all pages
+	 *                            (inline documents only)
 	 */
 	private static void assertProductionRouting(final String name, final File source, final String html,
 			final boolean expectNativeDescent, final String... expectedTokens) throws Exception {
@@ -250,9 +247,9 @@ public class MulticolWorklistScopeTest extends TestCase {
 			final Map<String, Integer> counts = new LinkedHashMap<>();
 			for (final String dump : dumps) {
 				for (final String line : dump.split("\\n")) {
-					// 救済分割が同じ不可分箱を次ページへ平行移動して描く
-					// artifactは論理内容の複製ではない。本番fuzzオラクルと同じく
-					// トークン回数から除外する。
+					// Artifacts from visual rescue splitting draw the same indivisible box translated
+					// onto the next page; they are not duplicate logical content. Exclude them
+					// from token counts, as the production fuzz oracle does.
 					if (line.contains(" artifact ")) {
 						continue;
 					}
@@ -272,7 +269,10 @@ public class MulticolWorklistScopeTest extends TestCase {
 		}
 	}
 
-	/** 本番routingで変換してページごとのdisplay-list dumpを返します。カウンタは変換直前にresetします。 */
+	/**
+	 * Convert with production routing and return per-page display-list dumps. Reset counters immediately before
+	 * conversion.
+	 */
 	private static List<String> transcodeAndDump(final String name, final File input) throws Exception {
 		final File dir = new File("local/unittest/multicol-worklist/" + name);
 		dir.mkdirs();

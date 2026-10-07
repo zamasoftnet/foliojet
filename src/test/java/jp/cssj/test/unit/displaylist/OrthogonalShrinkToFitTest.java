@@ -24,23 +24,25 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 縦組みの shrink-to-fit の入れ物(float: bottom など)の中の、直交する(横組みの)表・段落の寸法を固定します
- * (2026-10-05、jigensha の報告)。
+ * Verify sizes of orthogonal (horizontal-writing) tables/paragraphs inside vertical-writing shrink-to-fit
+ * containers such as float: bottom (2026-10-05, jigensha report).
  *
  * <p>
- * 模倣計測は直交する子の行方向の寸法(縦組みの入れ物では高さ)を知らず、表の幅や 1 行ぶんで代わりにしていた。
- * そのうえ表の {@code margin: auto} が高さの決まる前に中央へ寄せられ、表が入れ物の中ほどから版面の下へはみ出した。
- * 今は入れ物を一度組んで直交する子の実寸を測り、寸法の決まらない表は寄せない。
- * また横組みの表の幅の上限が用紙の幅(頁の余白込み)になっていて、表が版面の右の余白へはみ出していた。
+ * Simulated measurement did not know the orthogonal child's line-axis size (height for a vertical container)
+ * and substituted table width or one line. In addition, table {@code margin: auto} centered it before height
+ * was known, making the table extend from mid-container below the type area.
+ * Now lay out the container once to measure orthogonal children, and do not align tables with unresolved sizes.
+ * Also, horizontal table width was capped at paper width (including page margins), overflowing into the
+ * type area's right margin.
  * </p>
  */
 public class OrthogonalShrinkToFitTest extends TestCase {
 	private static final long WATCHDOG_MS = 60_000L;
 
-	/** A5・余白 21mm の版面の高さ。 */
+	/** Type-area height on A5 with 21 mm margins. */
 	private static final double CONTENT_HEIGHT = (210 - 42) * 72 / 25.4;
 
-	/** 同じく版面の幅(左右の余白 21mm・16.6mm)。 */
+	/** Corresponding type-area width (left/right margins 21 mm and 16.6 mm). */
 	private static final double CONTENT_WIDTH = (148 - 21 - 16.6) * 72 / 25.4;
 
 	private static final Pattern FRAME = Pattern
@@ -81,27 +83,33 @@ public class OrthogonalShrinkToFitTest extends TestCase {
 				""".formatted(boxStyle, content);
 	}
 
-	/** jigensha の再現: float: bottom の入れ物(縦組みのまま)の中の横組みの表。入れ物は表の高さで、版面の下端に寄る。 */
+	/**
+	 * jigensha reproducer: horizontal table inside a vertical float: bottom container. The container uses table
+	 * height and sits at the type-area bottom.
+	 */
 	public void testTableInVerticalBottomFloat() throws Exception {
 		assertFitsAtBottom(convert("table", document("float:bottom", TABLE)));
 	}
 
-	/** 横組みの段落(80mm 幅で数行に折り返す)。以前は 1 行ぶんの高さに見積もられて下へはみ出した。 */
+	/**
+	 * Horizontal paragraph wrapping to several lines at 80 mm width. Previously estimated as one line high, it
+	 * overflowed downward.
+	 */
 	public void testParagraphInVerticalBottomFloat() throws Exception {
 		assertFitsAtBottom(convert("paragraph", document("float:bottom",
 				"<div class=\"h\"><p>" + "横組みの段落です。何行かに折り返す長さの文です。".repeat(3) + "</p></div>")));
 	}
 
-	/** 普通の流れの縦組みの入れ物では、横組みの表は従来どおり auto の余白で中央に寄る。 */
+	/** In a normal-flow vertical container, the horizontal table still centers with auto margins as before. */
 	public void testTableInNormalFlowStaysCentered() throws Exception {
 		final String[] pages = convert("flow", document("display:block", TABLE));
 		boolean found = false;
 		for (final String page : pages) {
 			final Matcher t = TEXT.matcher(page);
 			while (t.find()) {
-				// 見出しは版面の幅で 2 行に折れる
+				// The heading wraps to two lines at the type-area width.
 				if (t.group(3).startsWith("5のx乗")) {
-					// 中央なら表の上端は入れ物の上端から 100pt 以上下(始端に置くと 20pt ほど)
+					// Centered, the table top is over 100 pt below the container top (about 20 pt when start-aligned).
 					assertTrue("表が中央に寄っていない: " + t.group(), Double.parseDouble(t.group(2)) > 100);
 					found = true;
 				}
@@ -110,7 +118,7 @@ public class OrthogonalShrinkToFitTest extends TestCase {
 		assertTrue("表が無い", found);
 	}
 
-	/** 背景つきの入れ物が版面の下端に接して版面の幅に収まり、中の文字が全部その中にある。 */
+	/** The background container touches the type-area bottom, fits its width, and contains all its text. */
 	private static void assertFitsAtBottom(final String[] pages) {
 		boolean found = false;
 		for (final String page : pages) {
@@ -140,7 +148,7 @@ public class OrthogonalShrinkToFitTest extends TestCase {
 		assertTrue("版面の下端に接する入れ物が無い", found);
 	}
 
-	/** 変換して、各頁の表示リストを頁順に返します。 */
+	/** Convert and return each page's display list in page order. */
 	private static String[] convert(final String name, final String html) throws Exception {
 		final File dir = new File("local/orthogonal-stf/" + name);
 		dir.mkdirs();

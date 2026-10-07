@@ -1,19 +1,19 @@
 package net.zamasoft.foliojet.layout.fragment;
 
 /**
- * ブロックfloat専用のページ方向切断結果です(2026-07-24新設、排除域A-3a)。
- * {@link SplitResult}との違いはSplitのケースのみ——残余boxを即時構築せず、
- * 構築材料({@link PreparedFloatFragment})のまま返します。
- * Keep/Moveの意味は{@link SplitResult}と同一。Frame(チェーン継続)は
- * floatでは起きないため存在しない。
+ * Page-axis split result dedicated to block floats (added 2026-07-24, exclusion area A-3a).
+ * Differs from {@link SplitResult} only in the Split case: instead of constructing the remainder
+ * box immediately, returns its construction material ({@link PreparedFloatFragment}).
+ * Keep/Move have the same meanings as in {@link SplitResult}. There is no Frame (chain continuation)
+ * because it does not occur for floats.
  *
  * @author MIYABE Tatsuhiko
  */
 public sealed interface FloatFragmentSplit {
-	/** 全体を前のフラグメントに残します。 */
+	/** Keeps everything in the preceding fragment. */
 	FloatFragmentSplit KEEP = new Keep();
 
-	/** 全体を次のフラグメントへ送ります。 */
+	/** Moves everything to the next fragment. */
 	FloatFragmentSplit MOVE = new Move();
 
 	record Keep() implements FloatFragmentSplit {
@@ -23,10 +23,10 @@ public sealed interface FloatFragmentSplit {
 	}
 
 	/**
-	 * 内部で切断しました。前断片のmutationは実行済みで、残余boxの構築
-	 * 材料を運びます(構築は受け側が一度だけ{@code materialize})。
+	 * Split internally. The preceding fragment has already been mutated; carries construction
+	 * material for the remainder box (the receiver calls {@code materialize} exactly once).
 	 *
-	 * @param fragment 継続断片の材料
+	 * @param fragment material for the continuation fragment
 	 */
 	record Prepared(PreparedFloatFragment fragment) implements FloatFragmentSplit {
 	}

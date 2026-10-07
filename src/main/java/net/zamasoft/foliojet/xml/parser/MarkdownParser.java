@@ -60,23 +60,23 @@ import net.zamasoft.foliojet.xml.XMLHandler;
 import net.zamasoft.zstream.resolver.Source;
 
 /**
- * CommonMark(Markdown)によりMarkdown文書を解析します。
+ * Parses Markdown documents with CommonMark (Markdown).
  *
  * <p>
- * Markdown原文をリーダから直接構文木にし({@code parseReader}——原文の
- * Stringは作らない)、構文木を歩きながら<b>XNIイベントを直接発行</b>して
- * {@link TagBalancer}へ流します(2026-08-10、オーナー裁定)。中間HTML
- * 文字列も、その再トークナイズも、パイプ+スレッドも使わない——この
- * プロダクトの常道である「イベントからイベントへの中継」に揃える。
- * 残るバッファはCommonMarkの構文木一つだけ(ライブラリの構造上不可避)。
+ * Builds a syntax tree directly from the Markdown reader ({@code parseReader}, without
+ * creating a source String), then walks the tree and <b>emits XNI events directly</b>
+ * to {@link TagBalancer} (2026-08-10, owner decision). Uses neither an intermediate HTML
+ * string, retokenization of it, nor pipes and threads, following this product's standard
+ * event-to-event relay approach. The only remaining buffer is the CommonMark syntax tree
+ * (unavoidable given the library's structure).
  * </p>
  *
  * <p>
- * Markdown中の<b>生HTML断片</b>は文字列のままなので、断片だけNekoHTMLの
- * スキャナで字句化し、そのイベントを<b>同じTagBalancer</b>へ中継する。
- * 開いた要素のスタックがバランサに一元化されるため、{@code <div>}と
- * {@code </div>}が別々の断片に割れていても正しく釣り合い、暗黙閉じ
- * (pがdivで閉じる等)の解釈もHTML入力と完全に共通になる。
+ * <b>Raw HTML fragments</b> within Markdown remain strings, so tokenize only those fragments
+ * with NekoHTML's scanner and relay their events to <b>the same TagBalancer</b>.
+ * Centralizing the open-element stack in the balancer correctly balances {@code <div>}
+ * and {@code </div>} even across separate fragments, and shares exactly the same implicit
+ * closing rules (e.g., div closes p) as HTML input.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -88,16 +88,16 @@ public class MarkdownParser implements Parser {
 		if (encoding == null) {
 			encoding = "UTF-8";
 		}
-		// 文書コンテキストの既定はISO-8859-1——UTF-8フォールバック時も
-		// 設定しないと、非ASCIIを含むURI(input.default-stylesheet等)の
-		// %エンコードがUnmappableCharacterExceptionで落ちる
+		// The document context defaults to ISO-8859-1. Set it even for the UTF-8 fallback,
+		// or percent-encoding URIs containing non-ASCII characters (such as input.default-stylesheet)
+		// fails with UnmappableCharacterException.
 		ua.getDocumentContext().setEncoding(encoding);
 
-		// 既定スタイル(markdown-ua.css)は、利用者がinput.default-stylesheetで
-		// 自前のスタイルシートを指定している場合は注入しない(2026-08-10、
-		// オーナー裁定)。既定はあくまで「何も指定しない人のためのA4レポート」
-		// であり、書籍などデザインを自分で設計する利用では下敷きに残ると
-		// p{line-height}やノンブルが透けて上書き合戦になるため
+		// Do not inject the default style (markdown-ua.css) when the user specifies
+		// a custom style sheet through input.default-stylesheet (2026-08-10,
+		// owner decision). The default is only an "A4 report for users who specify nothing".
+		// For custom designs such as books, leaving it underneath leaks through
+		// p{line-height} and page numbers, leading to competing overrides.
 		final boolean defaultStyle = UAProps.INPUT_DEFAULT_STYLESHEET.getString(ua) == null;
 
 		final Node document;
@@ -122,11 +122,10 @@ public class MarkdownParser implements Parser {
 	}
 
 	/**
-	 * Markdown既定スタイル(A4レポート、markdown-ua.css)。Markdownには表示仕様が
-	 * ないため、FolioJetの既定としてA4レポート向けのデザインを与える。head内の
-	 * {@code <style>}として注入する。{@code input.default-stylesheet}指定時は
-	 * まったく注入しない。XSLT結合(join.xslt)はbodyだけを取り出すため、
-	 * マニュアル等のドキュメントビルドには影響しない。
+	 * Default Markdown style (A4 report, markdown-ua.css). Markdown has no presentation specification,
+	 * so FolioJet provides an A4 report design by default, injected as {@code <style>} in head.
+	 * Do not inject anything when {@code input.default-stylesheet} is specified.
+	 * XSLT joining (join.xslt) extracts only body, so this does not affect document builds such as manuals.
 	 */
 	private static final String DEFAULT_STYLE = loadDefaultStyle();
 
@@ -141,17 +140,17 @@ public class MarkdownParser implements Parser {
 	}
 
 	/**
-	 * 生HTMLの{@code <style>}をheadへ巻き上げるための抽出です(2026-08-10)。
-	 * body内に残すと、ストリーミング構築ではbodyのボックスが既に開いている
-	 * ため、body/html自身に効くプロパティ——{@code writing-mode: vertical-rl}
-	 * 等——が遡って適用されない(縦書き書籍のMarkdown原稿で実測)。
+	 * Extracts raw HTML {@code <style>} elements to hoist them into head (2026-08-10).
+	 * If left in body, streaming construction has already opened the body box,
+	 * so properties affecting body/html themselves, such as {@code writing-mode: vertical-rl},
+	 * cannot apply retroactively (observed with Markdown manuscripts for books in vertical writing).
 	 *
 	 * <p>
-	 * {@code <style>}は生HTMLの<b>ブロック</b>としてのみ現れる(CommonMarkの
-	 * type-1生HTMLブロックで、終了タグまでが一つのブロックになる)ため、
-	 * 構文木の{@link HtmlBlock}だけを走査すれば全文走査は要らない。抽出後の
-	 * ブロックが空白だけになったら木から外す。既定スタイルの後ろへ出現順で
-	 * 連結するので「文書側のstyleが後勝ちで上書きする」という約束は不変。
+	 * {@code <style>} occurs only as a raw HTML <b>block</b> (CommonMark type-1 HTML blocks,
+	 * extending through the closing tag), so scanning only {@link HtmlBlock} nodes avoids
+	 * a full-text scan. Remove a block from the tree if extraction leaves only whitespace.
+	 * Append styles after the default style in occurrence order, preserving the rule that
+	 * later document styles override earlier ones.
 	 * </p>
 	 */
 	private static final Pattern STYLE_BLOCK = Pattern.compile("<style\\b[^>]*>(.*?)</style\\s*>",
@@ -188,18 +187,18 @@ public class MarkdownParser implements Parser {
 		return hoisted.toString();
 	}
 
-	// ---------------------------------------------------------------- 文字列API
+	// ---------------------------------------------------------------- String API
 
 	public static String toHtml(String markdown) {
 		return toHtml(markdown, true);
 	}
 
 	/**
-	 * Markdown原文を、CopperPDFが解釈できるHTML文書(文字列)へ変換します。
-	 * CopperPDFのセッションを介さずMarkdown→HTML変換だけを行いたい場合
-	 * (文書生成のビルドツール等)向けの公開API。変換パイプライン
-	 * ({@link #parse})はXNIイベント直結でHTML文字列を経由しないため、
-	 * こちらはツール用の独立経路である(構文木・style巻き上げは共通)。
+	 * Converts Markdown source to an HTML document string that CopperPDF can interpret.
+	 * A public API for Markdown-to-HTML conversion without a CopperPDF session
+	 * (e.g., document-generation build tools). The conversion pipeline ({@link #parse})
+	 * connects XNI events directly without an HTML string, so this is a separate path for tools
+	 * (sharing the syntax tree and style hoisting).
 	 */
 	public static String toHtml(String markdown, boolean defaultStyle) {
 		final Node document = newParser().parse(markdown);
@@ -232,28 +231,28 @@ public class MarkdownParser implements Parser {
 		return buff.toString();
 	}
 
-	// ---------------------------------------------------------------- XNIブリッジ
+	// ---------------------------------------------------------------- XNI bridge
 
 	/**
-	 * 構文木→XNIイベントの発行器です。イベントの流れは
-	 * {@code emitter/断片スキャナ → foreignフィルタ → TagBalancer → SAX変換 →
-	 * XMLHandler}で、HTML入力({@link HTMLParser})とfilter以降を完全に共有する。
+	 * An emitter of XNI events from the syntax tree. Event flow is
+	 * {@code emitter/fragment scanner → foreign filter → TagBalancer → SAX conversion →
+	 * XMLHandler}; everything from the filter onward is shared with HTML input ({@link HTMLParser}).
 	 */
 	private static final class EventBridge {
 
 		private final UserAgent ua;
 		private final XMLHandler xmlHandler;
 		private final TagBalancer balancer;
-		/** チェーンの先頭(foreign contentフィルタ)。全イベントはここへ入れる。 */
+		/** Head of the chain (foreign content filter). Send all events here. */
 		private final XMLDocumentHandler head;
-		/** 生HTML断片の字句化器(遅延生成、断片間で共有)。 */
+		/** Raw HTML fragment tokenizer (created lazily and shared across fragments). */
 		private HTMLConfiguration fragmentScanner;
 
-		/** 終了タグ1個だけの断片(Markdownのインライン生HTMLで普通に現れる)。 */
+		/** A fragment containing just one closing tag (common in Markdown inline raw HTML). */
 		private static final Pattern LONE_END_TAG = Pattern
 				.compile("\s*</\s*([a-zA-Z][a-zA-Z0-9]*)\s*>\s*");
 
-		/** 断片スキャナの出口(断片ごとに原文を教える)。 */
+		/** Fragment scanner output (supplied with each fragment's source text). */
 		private FragmentRelay fragmentRelay;
 
 		EventBridge(final UserAgent ua, final XMLHandler xmlHandler) {
@@ -261,7 +260,7 @@ public class MarkdownParser implements Parser {
 			this.xmlHandler = xmlHandler;
 			this.balancer = new TagBalancer();
 			final boolean changeDefaultNamespace = UAProps.INPUT_CHANGE_DEFAULT_NAMESPACE.getBoolean(ua);
-			// HTMLParserと同じforeign contentフィルタ(math/svgへHTML5の名前空間を与える)+標準モードでのElementProps切替
+			// HTMLParser's foreign content filter (HTML5 namespaces for math/svg) + ElementProps switch in standards mode
 			final DefaultFilter foreign = new ForeignContentFilter(ua, this.balancer, changeDefaultNamespace);
 			foreign.setDocumentHandler(this.balancer);
 			this.balancer.setDocumentSource(foreign);
@@ -272,8 +271,8 @@ public class MarkdownParser implements Parser {
 		void emit(final Node document, final String hoistedStyles, final boolean defaultStyle)
 				throws XNIException, SAXException {
 			this.head.startDocument(null, "UTF-8", null, null);
-			// XHTML1.0 StrictのDOCTYPE——標準モード判定と、XSLT結合(join.xslt)時の
-			// 名前付き実体参照の緩和規定のため(HTMLParser時代からの約束)
+			// XHTML1.0 Strict DOCTYPE: for standards-mode detection and relaxed named entity
+			// reference handling during XSLT joining (join.xslt) (a contract since the HTMLParser implementation).
 			this.head.doctypeDecl("html", "-//W3C//DTD XHTML 1.0 Strict//EN",
 					"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd", null);
 			this.start("html");
@@ -298,7 +297,7 @@ public class MarkdownParser implements Parser {
 			this.head.endDocument(null);
 		}
 
-		// ------------------------------------------------------------ 構文木の走査
+		// ------------------------------------------------------------ Syntax tree traversal
 
 		private void emitNode(final Node node, final boolean tight) throws XNIException {
 			if (node instanceof final Text text) {
@@ -308,7 +307,7 @@ public class MarkdownParser implements Parser {
 			} else if (node instanceof HardLineBreak) {
 				this.empty("br");
 			} else if (node instanceof final Paragraph p) {
-				// タイトなリストの中では段落タグを作らない(CommonMarkの慣例)
+				// Do not create paragraph tags inside tight lists (CommonMark convention).
 				if (tight) {
 					this.emitChildren(p, tight);
 				} else {
@@ -426,9 +425,9 @@ public class MarkdownParser implements Parser {
 				this.emitChildren(cell, tight);
 				this.end(name);
 			} else if (node instanceof LinkReferenceDefinition) {
-				// 出力なし
+				// No output
 			} else {
-				// 未知のノード(将来の拡張)は子だけたどる
+				// For unknown nodes (future extensions), traverse only children.
 				this.emitChildren(node, tight);
 			}
 		}
@@ -439,7 +438,7 @@ public class MarkdownParser implements Parser {
 			}
 		}
 
-		/** 画像のalt文字列(子ノードのプレーンテキスト連結)。 */
+		/** Image alt text (concatenated plain text of child nodes). */
 		private static String altText(final Node node) {
 			final StringBuilder buff = new StringBuilder();
 			collectText(node, buff);
@@ -458,7 +457,7 @@ public class MarkdownParser implements Parser {
 			}
 		}
 
-		// ------------------------------------------------------------ イベント発行
+		// ------------------------------------------------------------ Event emission
 
 		private static QName name(final String name) {
 			return new QName(null, name, name, null);
@@ -495,28 +494,28 @@ public class MarkdownParser implements Parser {
 		}
 
 		/**
-		 * 青空文庫式のルビ記法({@code 漢字《かんじ》}・{@code ｜任意の語《よみ》})を
-		 * ルビの要素へ展開します(2026-08-11、オーナー要望)。
+		 * Expands Aozora Bunko ruby notation ({@code 漢字《かんじ》}, {@code ｜任意の語《よみ》})
+		 * into ruby elements (2026-08-11, owner request).
 		 *
 		 * <p>
-		 * 縦組みの日本語では原稿にルビを直接書けることが要る。HTMLの
-		 * {@code <ruby>}を毎回手で書くのは原稿として重すぎるので、
-		 * 青空文庫の記法をMarkdownの拡張として受ける。規則は本家に合わせる:
+		 * Japanese manuscripts in vertical writing need direct ruby notation.
+		 * Writing HTML {@code <ruby>} by hand every time is too cumbersome for manuscripts,
+		 * so accept Aozora Bunko notation as a Markdown extension. Follow the original rules:
 		 * </p>
 		 * <ul>
-		 * <li>{@code 《}〜{@code 》}の直前が漢字の連なりなら、それを親文字にする
-		 * ({@code 狼狽《ろうばい》})。漢字には々・ヶ・〆と、CJK統合漢字
-		 * (拡張Aを含む)を数える</li>
-		 * <li>{@code ｜}(全角縦棒)があれば、そこから{@code 《}までが親文字
-		 * ({@code ｜生前退位《せいぜんたいい》}、{@code ｜1970年《いちきゅうななまるねん》})。
-		 * 漢字以外を親文字にしたいときに使う</li>
-		 * <li>親文字が見つからない{@code 《...》}は、そのままの文字として出す
-		 * ——引用符として使う原稿を壊さないため</li>
+		 * <li>If a sequence of kanji immediately precedes {@code 《}–{@code 》}, use it as the base text
+		 * ({@code 狼狽《ろうばい》}). Count 々, ヶ, 〆, and CJK Unified Ideographs
+		 * (including Extension A) as kanji.</li>
+		 * <li>With {@code ｜} (full-width vertical bar), text from there to {@code 《} is the base
+		 * ({@code ｜生前退位《せいぜんたいい》}, {@code ｜1970年《いちきゅうななまるねん》}).
+		 * Use this for non-kanji base text.</li>
+		 * <li>Emit {@code 《...》} without identifiable base text literally,
+		 * to avoid breaking manuscripts that use these as quotation marks.</li>
 		 * </ul>
 		 *
 		 * <p>
-		 * 展開先はHTMLの{@code <ruby>}なので、ルビの体裁はCSSで調整できる
-		 * (書籍では{@code ruby > rt}に文字寸法を指定している)。
+		 * Expansion produces HTML {@code <ruby>}, so CSS can adjust ruby presentation
+		 * (books specify font size on {@code ruby > rt}).
 		 * </p>
 		 */
 		private void aozoraRuby(final String literal) throws XNIException {
@@ -538,7 +537,7 @@ public class MarkdownParser implements Parser {
 				if (end < 0) {
 					break;
 				}
-				// 親文字の範囲を決める
+				// Determine the base text range.
 				int baseStart = -1;
 				final int bar = literal.lastIndexOf('｜', start);
 				if (bar >= pos) {
@@ -553,18 +552,18 @@ public class MarkdownParser implements Parser {
 					}
 				}
 				final String reading = literal.substring(start + 1, end);
-				// 親文字が無い《》、読みが空の《》、それに**｜が無いのに
-				// 読みが仮名でない**《》は、ルビにせず普通の文字として出す。
-				// 《》は書名などの括弧としても使われるので、仮名の読みだけを
-				// ルビと見なすことで取り違えを避ける(｜を書けば何でもルビに
-				// できる)
+				// Emit 《》 as ordinary text if there is no base text, the reading is empty,
+				// or **the reading is not kana and no ｜ is present**, rather than making it ruby.
+				// Since 《》 also brackets book titles and similar text, recognizing only kana readings
+				// as ruby avoids confusion (explicit ｜ allows any reading
+				// to become ruby).
 				if (baseStart < 0 || baseStart == start || reading.isEmpty()
 						|| (bar < pos && !isKana(reading))) {
 					this.characters(literal.substring(pos, end + 1));
 					pos = end + 1;
 					continue;
 				}
-				// 親文字の前までを普通の文字として出す(｜は出さない)
+				// Emit text preceding the base as ordinary text (omit ｜).
 				final int plainEnd = bar >= pos ? bar : baseStart;
 				this.characters(literal.substring(pos, plainEnd));
 				this.start("ruby");
@@ -580,7 +579,7 @@ public class MarkdownParser implements Parser {
 			}
 		}
 
-		/** 読みが仮名だけか(長音符・中黒・濁点等を含む)。 */
+		/** Whether the reading contains only kana (including long vowel marks, middle dots, voiced marks, etc.). */
 		private static boolean isKana(final String text) {
 			for (int i = 0; i < text.length(); ++i) {
 				final char c = text.charAt(i);
@@ -593,7 +592,7 @@ public class MarkdownParser implements Parser {
 			return true;
 		}
 
-		/** 青空文庫式ルビの親文字に数える文字(漢字・々・ヶ・〆)。 */
+		/** Characters counted as Aozora Bunko ruby base text (kanji, 々, ヶ, 〆). */
 		private static boolean isKanji(final char c) {
 			return (c >= '一' && c <= '鿿') || (c >= '㐀' && c <= '䶿') || c == '々'
 					|| c == 'ヶ' || c == '〆' || c == '〇';
@@ -605,13 +604,13 @@ public class MarkdownParser implements Parser {
 			}
 		}
 
-		// ------------------------------------------------------------ 生HTML断片
+		// ------------------------------------------------------------ Raw HTML fragments
 
 		/**
-		 * 生HTML断片をNekoHTMLスキャナで字句化し、文書レベルのイベント
-		 * (startDocument等)を落として同じチェーンへ中継します。スキャナは
-		 * 字句化だけを行い(タグの釣り合いは共有のTagBalancerが取る)、
-		 * 設定はHTMLParserと同じ(要素名そのまま・属性名そのまま・CDATA区間)。
+		 * Tokenizes raw HTML fragments with NekoHTML's scanner, drops document-level events
+		 * (such as startDocument), and relays the rest to the same chain.
+		 * The scanner only tokenizes (the shared TagBalancer balances tags),
+		 * using the same settings as HTMLParser (preserved element/attribute names and CDATA sections).
 		 */
 		private void scanFragment(final String literal) throws XNIException {
 			if (literal == null || literal.isEmpty()) {
@@ -619,12 +618,12 @@ public class MarkdownParser implements Parser {
 			}
 			final Matcher lone = LONE_END_TAG.matcher(literal);
 			if (lone.matches()) {
-				// **終了タグだけの断片はスキャナに通さない**(2026-08-11)。
-				// 断片ごとに独立した解析になるため、内蔵バランサから見ると
-				// 対応する開始タグが無い迷子の終了タグで、黙って捨てられる
-				// ——{@code </rt>}が消えてルビ文字が後続の本文まで飲み込んで
-				// いた。開いた要素のスタックは共有のTagBalancerが持っているので、
-				// ここは自分でイベントを起こして渡すのが正しい
+				// **Do not pass closing-tag-only fragments through the scanner** (2026-08-11).
+				// Each fragment is parsed independently, so the built-in balancer sees
+				// an orphan closing tag without a matching start tag and silently discards it.
+				// This dropped {@code </rt>}, causing ruby text to swallow subsequent body text.
+				// The shared TagBalancer holds the open-element stack,
+				// so explicitly emitting and forwarding the event here is correct.
 				this.end(lone.group(1));
 				return;
 			}
@@ -642,40 +641,39 @@ public class MarkdownParser implements Parser {
 				this.fragmentScanner
 						.parse(new XMLInputSource(null, null, null, new StringReader(literal), "UTF-8"));
 			} catch (final IOException e) {
-				// StringReaderからは起きない
+				// Cannot occur with StringReader.
 				throw new XNIException(e);
 			}
 		}
 
 		/**
-		 * 断片スキャナのイベントから文書レベルのものを落とし、残りを共有
-		 * チェーンへ渡すフィルタです。落とすのはstartDocument/endDocument/
-		 * doctype/xmlDeclに加えて<b>html・head・body要素そのもの</b>——
-		 * このfork(neko-htmlunit)はスキャナ自身がこれらを合成するため、
-		 * 素通しすると断片ごとの「end body」が外側の文書のbodyを
-		 * TagBalancer上で閉じてしまい、以降の内容がbodyの外に落ちる。
-		 * Markdownの生HTMLブロックは定義上body内容なので、断片の中の
-		 * html/head/bodyはタグが実在しても骨組みとしては意味を持たない。
+		 * A filter that removes document-level fragment scanner events and forwards the rest to
+		 * the shared chain. Drops startDocument/endDocument/doctype/xmlDecl and <b>the html, head,
+		 * and body elements themselves</b>: this fork (neko-htmlunit) synthesizes these in the scanner.
+		 * Passing them through makes each fragment's "end body" close the outer document's body
+		 * in TagBalancer, leaving subsequent content outside body.
+		 * Markdown raw HTML blocks are body content by definition, so html/head/body within fragments
+		 * have no structural meaning even if their tags are explicitly present.
 		 */
 		private static final class FragmentRelay extends DefaultFilter {
-			/** この断片の原文に実際に書かれている終了タグの残り個数。 */
+			/** Remaining count of closing tags actually present in this fragment's source. */
 			private final java.util.Map<String, Integer> writtenEnds = new java.util.HashMap<>();
 
 			private static final Pattern END_TAG = Pattern.compile("</\s*([a-zA-Z][a-zA-Z0-9]*)");
 
 			/**
-			 * 次に流す断片の原文を教えます。
+			 * Supplies the source text of the next fragment to relay.
 			 *
 			 * <p>
-			 * <b>スキャナは断片の終わりで開いたままの要素を勝手に閉じる</b>
-			 * ——このfork(neko-htmlunit)の既定構成はスキャナの後ろにバランサを
-			 * 含んでおり、切り離す手段が無い(スキャナ単体の構築子は
-			 * package-private)。素通しすると{@code <ruby>}だけの断片が
-			 * 「開いてすぐ閉じる」空要素になり、続く親文字とルビ文字が
-			 * {@code ruby}の外へ落ちる——ルビがただの文字列として本文へ
-			 * 流れ込んでいた(2026-08-11、縦組み書籍で実測)。断片をまたぐ
-			 * 釣り合いは<b>共有の{@link TagBalancer}</b>が取るので、ここでは
-			 * 原文に書かれていない終了タグを落とす。
+			 * <b>The scanner automatically closes elements still open at the fragment's end.</b>
+			 * This fork's (neko-htmlunit) default configuration includes a balancer after the scanner,
+			 * with no way to detach it (the scanner-only constructor is package-private).
+			 * Passing everything through turns a fragment containing only {@code <ruby>} into
+			 * an empty element that opens and immediately closes, leaving subsequent base and ruby text
+			 * outside {@code ruby}. Ruby thus flowed into body text as plain characters
+			 * (observed in a book in vertical writing, 2026-08-11).
+			 * The <b>shared {@link TagBalancer}</b> balances across fragments,
+			 * so discard closing tags absent from the source here.
 			 * </p>
 			 */
 			void beginFragment(final String literal) {
@@ -717,8 +715,8 @@ public class MarkdownParser implements Parser {
 				final String key = element.getLocalpart().toLowerCase(java.util.Locale.ROOT);
 				final Integer remaining = this.writtenEnds.get(key);
 				if (remaining == null || remaining <= 0) {
-					// スキャナが補った終了タグ(原文に無い)。共有のバランサに
-					// 任せるので流さない
+					// A closing tag supplied by the scanner (absent from source). Leave balancing
+					// to the shared balancer and do not forward it.
 					return;
 				}
 				this.writtenEnds.put(key, remaining - 1);
@@ -727,30 +725,30 @@ public class MarkdownParser implements Parser {
 
 			public void startDocument(XMLLocator locator, String encoding, NamespaceContext nscontext,
 					Augmentations augs) throws XNIException {
-				// 断片ごとの文書開始は流さない
+				// Do not forward per-fragment document starts.
 			}
 
 			public void xmlDecl(String version, String encoding, String standalone, Augmentations augs)
 					throws XNIException {
-				// 流さない
+				// Do not forward.
 			}
 
 			public void doctypeDecl(String root, String publicId, String systemId, Augmentations augs)
 					throws XNIException {
-				// 流さない
+				// Do not forward.
 			}
 
 			public void endDocument(Augmentations augs) throws XNIException {
-				// 流さない
+				// Do not forward.
 			}
 		}
 
 		// ------------------------------------------------------------ XNI→SAX
 
 		/**
-		 * TagBalancerの出力(XNI)を{@link XMLHandler}(SAXのContentHandler+
-		 * LexicalHandler)へ変換する尾部です。HTML経路ではAbstractSAXParserが
-		 * この役を担っている——ここでは必要なイベントだけの小さな変換で足りる。
+		 * The final stage converting TagBalancer output (XNI) to {@link XMLHandler}
+		 * (SAX ContentHandler + LexicalHandler). AbstractSAXParser handles this in the HTML path;
+		 * here, a small converter for only the required events suffices.
 		 */
 		private static final class XniToSax implements XMLDocumentHandler {
 
@@ -762,20 +760,18 @@ public class MarkdownParser implements Parser {
 			}
 
 			/**
-			 * 名前空間を解決します。
+			 * Resolves namespaces.
 			 *
 			 * <p>
-			 * <b>名前空間の付与はHTML経路と揃えなければならない</b>
-			 * (2026-08-11)。NekoHTMLのSAXParserは、フィルタ連鎖の後ろに
-			 * 名前空間バインダを持っていて、接頭辞のない要素をHTMLの既定
-			 * 名前空間(XHTML)へ入れてからSAXへ渡す。このブリッジには
-			 * そのバインダが無いため、素のままだと名前空間なしで届き、
-			 * <b>HTML固有の処理が丸ごと効かなくなる</b>——
-			 * {@code HTMLCodes.code()}がXHTML名前空間でなければ
-			 * {@code ANY}を返すので、ルビ({@code ruby}/{@code rt})が
-			 * ただのインライン文字列として本文へ流れ込んでいた
-			 * (縦組み書籍で実測)。foreign content(SVG/MathML)は
-			 * 上流のフィルタが名前空間を入れているのでそのまま通す。
+			 * <b>Namespace assignment must match the HTML path</b> (2026-08-11).
+			 * NekoHTML's SAXParser has a namespace binder after the filter chain;
+			 * it places unprefixed elements in the default HTML namespace (XHTML) before passing them to SAX.
+			 * This bridge lacks that binder, so unmodified events arrive without namespaces,
+			 * <b>disabling all HTML-specific processing</b>.
+			 * {@code HTMLCodes.code()} returns {@code ANY} outside the XHTML namespace,
+			 * so ruby ({@code ruby}/{@code rt}) flowed into body text as ordinary inline characters
+			 * (observed in a book in vertical writing). Foreign content (SVG/MathML) already has
+			 * namespaces from the upstream filter, so pass it through unchanged.
 			 * </p>
 			 */
 			private static String uri(final QName name) {
@@ -793,7 +789,7 @@ public class MarkdownParser implements Parser {
 			}
 
 			public void xmlDecl(String version, String encoding, String standalone, Augmentations augs) {
-				// 不要
+				// Unnecessary
 			}
 
 			public void doctypeDecl(String root, String publicId, String systemId, Augmentations augs)

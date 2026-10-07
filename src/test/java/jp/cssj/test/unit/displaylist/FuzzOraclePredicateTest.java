@@ -9,20 +9,20 @@ import java.util.Set;
 import junit.framework.TestCase;
 
 /**
- * 掃過オラクルの<b>除外述語</b>を固定します(2026-07-28新設)。
+ * Verify the sweep oracle's <b>exclusion predicates</b> (introduced 2026-07-28).
  *
  * <p>
- * 除外述語は<b>仕様の境界そのもの</b>です——ここで{@code true}になった
- * 文書は、以後どんな壊れ方をしても「組版を指定した側の責任」として
- * 数えられます。広すぎれば<b>本物の欠陥が黙って除外に紛れ込み</b>、
- * 3,000万文書の掃過は「失敗ゼロ」と嘘をつきます。
- * {@code ARCHITECTURE.md} §5.13 が「述語は機械的に計算できる形にすること」
- * と定めているのは、人が1件ずつ見て気づけないからです。
+ * Exclusion predicates are <b>the specification boundary itself</b>: once a document returns
+ * {@code true} here, any later breakage is counted as the layout author's responsibility.
+ * Overly broad predicates <b>silently hide real defects among exclusions</b>,
+ * making a sweep of 30 million documents falsely claim "zero failures".
+ * {@code ARCHITECTURE.md} §5.13 requires mechanically computable predicates
+ * because humans cannot notice these problems by inspecting cases individually.
  * </p>
  *
  * <p>
- * したがってこのテストは「除外されること」だけでなく、
- * <b>除外されないこと</b>を同じ重さで固定します。
+ * Therefore these tests give equal weight to verifying exclusions and
+ * <b>verifying non-exclusions</b>.
  * </p>
  */
 public class FuzzOraclePredicateTest extends TestCase {
@@ -37,44 +37,44 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// hasOrthogonalFlow: 軸が2種類あるか
+	// hasOrthogonalFlow: whether two axis orientations occur.
 	// ------------------------------------------------------------------
 
-	/** seed 194970 の形。縦書きの中に横書きがある。 */
+	/** Shape of seed 194970: horizontal writing inside vertical writing. */
 	public void testVerticalBodyWithHorizontalChildIsOrthogonal() {
 		assertTrue(RandomDocumentFuzzTest.hasOrthogonalFlow(
 				doc(";writing-mode:vertical-rl", "<div style=\"writing-mode:horizontal-tb\">T0</div>")));
 	}
 
-	/** 既定(宣言なし)は横書きなので、縦書きの子があれば直交。 */
+	/** The default (no declaration) is horizontal, so a vertical child makes the flow orthogonal. */
 	public void testDefaultHorizontalBodyWithVerticalChildIsOrthogonal() {
 		assertTrue(RandomDocumentFuzzTest
 				.hasOrthogonalFlow(doc("", "<div style=\"writing-mode:vertical-rl\">T0</div>")));
 	}
 
-	/** 全部縦書きなら直交しない。 */
+	/** All-vertical writing is not orthogonal. */
 	public void testAllVerticalIsNotOrthogonal() {
 		assertFalse(RandomDocumentFuzzTest.hasOrthogonalFlow(
 				doc(";writing-mode:vertical-rl", "<div style=\"writing-mode:vertical-rl\">T0</div>")));
 	}
 
 	/**
-	 * <b>同じ軸の方向違いは直交ではない</b>。{@code vertical-rl}の中の
-	 * {@code vertical-lr}は{@code SAME_AXIS_DIRECTION_CHANGE}であり、
-	 * 行軸の長さは変わらないので、はみ出しの言い訳にはならない。
+	 * <b>Opposite directions on the same axis are not orthogonal.</b>{@code vertical-lr}
+	 * inside {@code vertical-rl} is {@code SAME_AXIS_DIRECTION_CHANGE}.
+	 * The line-axis length stays unchanged, so it cannot excuse overflow.
 	 */
 	public void testSameAxisDirectionChangeIsNotOrthogonal() {
 		assertFalse(RandomDocumentFuzzTest.hasOrthogonalFlow(
 				doc(";writing-mode:vertical-rl", "<div style=\"writing-mode:vertical-lr\">T0</div>")));
 	}
 
-	/** {@code writing-mode}が1つも無い文書は直交しない。 */
+	/** A document without any {@code writing-mode} is not orthogonal. */
 	public void testNoWritingModeIsNotOrthogonal() {
 		assertFalse(RandomDocumentFuzzTest.hasOrthogonalFlow(doc("", "<div>T0</div>")));
 	}
 
 	// ------------------------------------------------------------------
-	// pageAxisIsY: 紙面のページ軸
+	// pageAxisIsY: the paper's page axis.
 	// ------------------------------------------------------------------
 
 	public void testHorizontalBodyPaginatesAlongY() {
@@ -88,22 +88,21 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 除外の条件式(オラクル本体と同じ式を使う)
+	// Exclusion conditions (use the same expressions as the oracle itself).
 	// ------------------------------------------------------------------
 
-	/** {@code assertNoUnexplainedOffPage}の判定式をそのまま写したもの。 */
+	/** Exact copy of the condition in {@code assertNoUnexplainedOffPage}. */
 	private static boolean excluded(final String html, final boolean worstIsY) {
 		return worstIsY != RandomDocumentFuzzTest.pageAxisIsY(html) && RandomDocumentFuzzTest.hasOrthogonalFlow(html);
 	}
 
 	/**
-	 * <b>これが本題</b>: 縦書き文書で<b>行軸(y)</b>へ溢れたら除外だが、
-	 * <b>ページ軸(x)</b>へ溢れたら<b>除外しない</b>。
+	 * <b>The main point</b>: in a vertical-writing document, overflow along the <b>line axis (y)</b>
+	 * is excluded, but overflow along the <b>page axis (x)</b> is <b>not excluded</b>.
 	 *
 	 * <p>
-	 * ページ軸のはみ出しは改ページで直せるので、直らなければエンジンの
-	 * 欠陥である。この区別を落とすと、直交フローを含む文書のはみ出しを
-	 * 何でも見逃すことになる。
+	 * Page-axis overflow can be fixed by pagination; failure to do so is an engine defect.
+	 * Losing this distinction would excuse all overflow in documents containing orthogonal flow.
 	 * </p>
 	 */
 	public void testOnlyLineAxisOverflowIsExcludedInVerticalDocument() {
@@ -112,7 +111,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertFalse("縦書き文書のx方向はページ軸——除外してはいけない", excluded(html, false));
 	}
 
-	/** 横書き文書では軸が入れ替わる(x=行軸、y=ページ軸)。 */
+	/** Horizontal-writing documents swap the axes (x=line axis, y=page axis). */
 	public void testOnlyLineAxisOverflowIsExcludedInHorizontalDocument() {
 		final String html = doc("", "<div style=\"writing-mode:vertical-rl\">T0</div>");
 		assertTrue("横書き文書のx方向は行軸——除外されるべき", excluded(html, false));
@@ -120,8 +119,8 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * <b>直交フローが無ければ、どちらの軸でも除外しない。</b>
-	 * 除外の口実に使えるのは直交フローを含む文書だけである。
+	 * <b>Without orthogonal flow, exclude neither axis.</b>
+	 * Only documents containing orthogonal flow can use this exclusion.
 	 */
 	public void testWithoutOrthogonalFlowNothingIsExcluded() {
 		final String html = doc(";writing-mode:vertical-rl", "<div>T0</div>");
@@ -130,10 +129,10 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// hasUntypesettableOppositeProgression: 同軸逆進行が組版不能幅の場合だけ除外
+	// hasUntypesettableOppositeProgression: exclude same-axis reverse progression only at untypesettable widths.
 	// ------------------------------------------------------------------
 
-	/** seed 36607の最小形。Chromeも紙面右端から外向きに配置する。 */
+	/** Minimal seed 36607. Chrome also places content outward from the paper's right edge. */
 	public void testZeroWidthOppositeVerticalProgressionIsExcluded() {
 		final String html = doc(";writing-mode:vertical-rl",
 				"<div style=\"writing-mode:vertical-lr;width:0pt\">"
@@ -141,99 +140,99 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(html));
 	}
 
-	/** seed 36607の元形。反転した48ptの箱へ幅86ptの子を置いている。 */
+	/** Original seed 36607. An 86 pt-wide child sits in a reversed 48 pt box. */
 	public void testPositiveWidthOppositeProgressionWithWiderChildIsExcluded() {
 		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(";writing-mode:vertical-rl",
 				"<div style=\"writing-mode:vertical-lr;width:48pt\"><div style=\"width:86pt\">T0</div></div>")));
 	}
 
-	/** seed 82162の最小形。10pt文字に幅1ptでは1文字も組めない。 */
+	/** Minimal seed 82162. A 1 pt width cannot hold even one 10 pt character. */
 	public void testTooNarrowOppositeVerticalProgressionIsExcluded() {
 		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(
 				doc(";writing-mode:vertical-rl", "<div style=\"writing-mode:vertical-lr;width:1pt\">T0</div>")));
 	}
 
-	/** 同軸反転だけでは除外しない。子孫が幅内なら通常の版面として検査する。 */
+	/** Same-axis reversal alone is not excluded. If descendants fit the width, check as an ordinary type area. */
 	public void testPositiveWidthOppositeVerticalProgressionIsNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(";writing-mode:vertical-rl",
 				"<div style=\"writing-mode:vertical-lr;width:80pt\">T0</div>")));
 	}
 
-	/** 幅0でも進行方向が同じなら除外しない。 */
+	/** Even zero width is not excluded when progression direction is unchanged. */
 	public void testZeroWidthSameVerticalProgressionIsNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(";writing-mode:vertical-rl",
 				"<div style=\"writing-mode:vertical-rl;width:0pt\">T0</div>")));
 	}
 
-	/** 縦書きのページ軸は幅なので、別軸のheight:0では除外しない。 */
+	/** Vertical writing uses width as its page axis, so height:0 on the other axis does not trigger exclusion. */
 	public void testZeroHeightOppositeVerticalProgressionIsNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(";writing-mode:vertical-rl",
 				"<div style=\"writing-mode:vertical-lr;height:0pt\">T0</div>")));
 	}
 
-	/** 直交フローは既存の別述語で扱い、幅0の同軸反転へ混ぜない。 */
+	/** The existing separate predicate handles orthogonal flow; do not mix it with zero-width same-axis reversal. */
 	public void testZeroWidthOrthogonalFlowIsNotOppositeProgression() {
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(";writing-mode:vertical-rl",
 				"<div style=\"writing-mode:horizontal-tb;width:0pt\">T0</div>")));
 	}
 
-	/** 別々の枝にある宣言を誤って一つの除外条件に結び付けない。 */
+	/** Do not mistakenly combine declarations on separate branches into one exclusion condition. */
 	public void testZeroWidthAndOppositeProgressionInSeparateBranchesAreNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(";writing-mode:vertical-rl",
 				"<div style=\"width:0pt\">T0</div><div style=\"writing-mode:vertical-lr;width:80pt\">T1</div>")));
 	}
 
 	// ------------------------------------------------------------------
-	// hasUntypesettableOrthogonalFlow: 軸変更と狭幅が同じ要素にある場合だけ除外
+	// hasUntypesettableOrthogonalFlow: exclude only when the axis change and narrow width belong to the same element.
 	// ------------------------------------------------------------------
 
-	/** seed 372387の最小形。縦書き内の幅0横書きは1文字も組めない。 */
+	/** Minimal seed 372387. Zero-width horizontal writing inside vertical writing cannot hold even one character. */
 	public void testZeroWidthOrthogonalFlowIsExcluded() {
 		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOrthogonalFlow(doc(";writing-mode:vertical-rl",
 				"<div style=\"writing-mode:horizontal-tb;width:0pt\">T0</div>")));
 	}
 
-	/** seed 266476等の最小形。10pt文字に幅4ptの直交フローも組版不能。 */
+	/** Minimal seeds such as 266476. Orthogonal flow 4 pt wide with 10 pt characters is also untypesettable. */
 	public void testTooNarrowOrthogonalFlowIsExcluded() {
 		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOrthogonalFlow(
 				doc("", "<div style=\"writing-mode:vertical-rl;width:4pt\">T0</div>")));
 	}
 
-	/** 組版下限以上の直交フローは通常どおり検査する。 */
+	/** Check orthogonal flow at or above the layout lower bound normally. */
 	public void testUsableWidthOrthogonalFlowIsNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOrthogonalFlow(
 				doc("", "<div style=\"writing-mode:vertical-rl;width:80pt\">T0</div>")));
 	}
 
-	/** 同軸方向変更は専用の別述語へ任せる。 */
+	/** Leave same-axis direction changes to their dedicated predicate. */
 	public void testNarrowSameAxisFlowIsNotOrthogonalExclusion() {
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOrthogonalFlow(doc(";writing-mode:vertical-rl",
 				"<div style=\"writing-mode:vertical-lr;width:0pt\">T0</div>")));
 	}
 
-	/** 狭幅と直交指定が別枝なら結び付けない。 */
+	/** Do not combine narrow width and orthogonal writing declarations on separate branches. */
 	public void testNarrowWidthAndOrthogonalFlowInSeparateBranchesAreNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOrthogonalFlow(doc("",
 				"<div style=\"width:0pt\">T0</div><div style=\"writing-mode:vertical-rl;width:80pt\">T1</div>")));
 	}
 
-	/** 別物理軸のheightだけでは幅の組版不能とみなさない。 */
+	/** Height alone on the other physical axis does not establish an untypesettable width. */
 	public void testZeroHeightOrthogonalFlowIsNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOrthogonalFlow(
 				doc("", "<div style=\"writing-mode:vertical-rl;height:0pt\">T0</div>")));
 	}
 
 	// ------------------------------------------------------------------
-	// hasOverwideFloat: 実際の包含幅より広い左右フロートだけを除外
+	// hasOverwideFloat: exclude only left/right floats wider than their actual containing width.
 	// ------------------------------------------------------------------
 
-	/** seed 132786の最小形。99ptの親に126ptの右フロートを置いている。 */
+	/** Minimal seed 132786. A 126 pt right float sits in a 99 pt parent. */
 	public void testFloatWiderThanExplicitParentIsExcluded() {
 		assertTrue(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
 				"<div style=\"writing-mode:horizontal-tb;width:99pt\"><div style=\"float:right;width:126pt\">T0</div></div>")));
 	}
 
-	/** seed 143513の最小形。110pt内容幅の3段は段間を引くと約25.3pt。 */
+	/** Minimal seed 143513. Three columns in 110 pt content width are about 25.3 pt each after gaps. */
 	public void testFloatWiderThanComputedColumnIsExcluded() {
 		final String html = "<?jp.cssj.property name=\"output.page-width\" value=\"120pt\"?>"
 				+ "<html><head><style>@page{margin:5pt}body{font:normal 10pt/1.2 serif}</style></head><body>"
@@ -242,43 +241,43 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertTrue(RandomDocumentFuzzTest.hasOverwideFloat(html));
 	}
 
-	/** seed 865035。自動幅floatの子孫が包含幅より広い。 */
+	/** Seed 865035. A descendant of an auto-width float exceeds the containing width. */
 	public void testAutoWidthFloatWithOverwideDescendantIsExcluded() {
 		assertTrue(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
 				"<div style=\"width:48pt\"><div style=\"float:right\"><div style=\"width:55pt\">T0</div></div></div>")));
 	}
 
-	/** 同じ幅関係でもfloat祖先が無ければ専用除外にしない。 */
+	/** The same width relationship without a float ancestor does not trigger this specific exclusion. */
 	public void testOverwideDescendantWithoutFloatIsNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(
 				shrinkerDoc("<div style=\"width:48pt\"><div><div style=\"width:55pt\">T0</div></div></div>")));
 	}
 
-	/** 自動幅floatの子孫が包含幅内なら除外しない。 */
+	/** Do not exclude an auto-width float whose descendants fit the containing width. */
 	public void testAutoWidthFloatWithFittingDescendantIsNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
 				"<div style=\"width:55pt\"><div style=\"float:right\"><div style=\"width:55pt\">T0</div></div></div>")));
 	}
 
-	/** 親幅と同じフロートは通常の版面なので除外しない。 */
+	/** A float matching its parent's width is an ordinary type area, so do not exclude it. */
 	public void testFloatFittingExplicitParentIsNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(
 				shrinkerDoc("<div style=\"width:30pt\"><div style=\"float:right;width:30pt\">T0</div></div>")));
 	}
 
-	/** 別々の枝の幅を誤って親子として結び付けない。 */
+	/** Do not mistakenly relate widths on separate branches as parent and child. */
 	public void testWideFloatAndNarrowBoxInSeparateBranchesAreNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
 				"<div style=\"width:20pt\">T0</div><div style=\"float:right;width:30pt\">T1</div>")));
 	}
 
-	/** {@code float:none}は幅が親より広くても専用除外にしない。 */
+	/** {@code float:none} does not trigger this specific exclusion even when wider than its parent. */
 	public void testNonFloatingWideBoxIsNotExcludedAsOverwideFloat() {
 		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(shrinkerDoc(
 				"<div style=\"width:20pt\"><div style=\"float:none;width:30pt\">T0</div></div>")));
 	}
 
-	/** 計算した段幅に収まるフロートは除外しない。 */
+	/** Do not exclude floats that fit the calculated column width. */
 	public void testFloatFittingComputedColumnIsNotExcluded() {
 		final String html = "<?jp.cssj.property name=\"output.page-width\" value=\"120pt\"?>"
 				+ "<html><head><style>@page{margin:5pt}body{font:normal 10pt/1.2 serif}</style></head><body>"
@@ -287,32 +286,32 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertFalse(RandomDocumentFuzzTest.hasOverwideFloat(html));
 	}
 
-	/** seed 78906の最小形。幅0の祖先内に無幅指定のfloatが入る。 */
+	/** Minimal seed 78906. A float without a specified width sits inside a zero-width ancestor. */
 	public void testFloatInsideNarrowContainerIsExcluded() {
 		assertTrue(RandomDocumentFuzzTest.hasFloatInsideNarrowContainer(
 				shrinkerDoc("<div style=\"width:0pt\"><div><div style=\"float:left\">T0</div></div></div>"),
 				48));
 	}
 
-	/** 狭い箱とfloatが別の枝なら除外しない。 */
+	/** Do not exclude when the narrow box and float are on separate branches. */
 	public void testNarrowContainerAndFloatInSeparateBranchesAreNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasFloatInsideNarrowContainer(
 				shrinkerDoc("<div style=\"width:0pt\">T0</div><div style=\"float:left\">T1</div>"), 48));
 	}
 
-	/** 組版下限以上の祖先に入ったfloatは除外しない。 */
+	/** Do not exclude a float inside an ancestor at or above the layout lower bound. */
 	public void testFloatInsideUsableContainerIsNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasFloatInsideNarrowContainer(
 				shrinkerDoc("<div style=\"width:48pt\"><div style=\"float:left\">T0</div></div>"), 48));
 	}
 
-	/** 狭い祖先内でもfloat:noneは除外しない。 */
+	/** Do not exclude float:none even inside a narrow ancestor. */
 	public void testFloatNoneInsideNarrowContainerIsNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasFloatInsideNarrowContainer(
 				shrinkerDoc("<div style=\"width:0pt\"><div style=\"float:none\">T0</div></div>"), 48));
 	}
 
-	/** 詳細ダンプを通った場合も、失敗ではなく専用の除外種別として数える。 */
+	/** Even through detailed dumps, count this as its specific exclusion type rather than a failure. */
 	public void testDetailedDumpClassifiesZeroWidthOppositeProgression() throws Exception {
 		final String html = doc(";writing-mode:vertical-rl",
 				"<div style=\"writing-mode:vertical-lr;width:0pt\"><div>T0</div></div>");
@@ -331,7 +330,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 		}
 	}
 
-	/** 全描画紙面外の経路でも、直交フローの組版不能幅を専用除外にする。 */
+	/** The all-drawing-off-paper path also specifically excludes untypesettable orthogonal-flow widths. */
 	public void testDetailedDumpClassifiesUntypesettableOrthogonalFlow() throws Exception {
 		final String html = doc(";writing-mode:vertical-rl",
 				"<div style=\"writing-mode:horizontal-tb;width:27pt\"><ol><li>T0</li></ol></div>");
@@ -351,50 +350,53 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// rectangleIntersectsPage: 全描画が紙面外かの矩形判定
+	// rectangleIntersectsPage: rectangle test for all drawing being off the paper.
 	// ------------------------------------------------------------------
 
 	public void testRectangleWhollyInsidePageIntersects() {
 		assertTrue(RandomDocumentFuzzTest.rectangleIntersectsPage(10, 10, 5, 5, 60, 60));
 	}
 
-	/** 原点が外でも字形が紙面へかかれば、見えている描画として扱う。 */
+	/** A glyph intersecting the paper counts as visible drawing even if its origin is outside. */
 	public void testOutsideOriginWithInkInsideIntersects() {
 		assertTrue(RandomDocumentFuzzTest.rectangleIntersectsPage(-1, 10, 2, 5, 60, 60));
 	}
 
-	/** 紙面の端に接するだけで面積が無ければ、見えているとは数えない。 */
+	/** Merely touching the paper edge with no area does not count as visible. */
 	public void testRectangleTouchingEdgeDoesNotIntersect() {
 		assertFalse(RandomDocumentFuzzTest.rectangleIntersectsPage(60, 10, 2, 5, 60, 60));
 		assertFalse(RandomDocumentFuzzTest.rectangleIntersectsPage(-2, 10, 2, 5, 60, 60));
 	}
 
-	/** 原点が遠くても外接矩形が紙面へ掛かるなら、紙面外配置とは数えない。 */
+	/**
+	 * A bounding rectangle intersecting the paper does not count as off-paper placement even with a distant origin.
+	 */
 	public void testWideDrawingReachingPageIsNotBeyondWholePage() {
 		assertTrue(RandomDocumentFuzzTest.distanceBeyondWholePage(-70, 124, 60) <= 0);
 	}
 
-	/** 矩形の近い辺まで紙面1枚以上離れていれば、紙面外配置として数える。 */
+	/** Count as off-paper placement when even the nearer rectangle edge is at least one paper dimension away. */
 	public void testDetachedDrawingIsBeyondWholePage() {
 		assertEquals(10.0, RandomDocumentFuzzTest.distanceBeyondWholePage(-80, 10, 60));
 		assertEquals(10.0, RandomDocumentFuzzTest.distanceBeyondWholePage(130, 10, 60));
 	}
 
-	/** UA既定20exになる幅指定なしの入力欄だけを許容量へ含める。 */
+	/** Include only inputs without specified widths that use the UA default 20ex in the allowance. */
 	public void testDefaultTextControlsContributeIntrinsicWidth() {
 		assertEquals(124.0, RandomDocumentFuzzTest.defaultTextControlWidth("<input />"));
 		assertEquals(124.0, RandomDocumentFuzzTest.defaultTextControlWidth("<textarea></textarea>"));
 	}
 
-	/** 小型controlは数えない。size指定済みinputへは既定20exではなく、指定したsizeの実寸を使う。 */
+	/** Omit small controls. Inputs with size use that size's actual dimensions, not the default 20ex. */
 	public void testNonDefaultTextControlsDoNotContributeIntrinsicWidth() {
 		assertEquals(0.0, RandomDocumentFuzzTest.defaultTextControlWidth("<input type=\"radio\" />"));
 		assertEquals(40.0, RandomDocumentFuzzTest.defaultTextControlWidth("<input size=\"6\" />"));
 	}
 
 	/**
-	 * seed 4608881: size=16の入力欄は100pt(16ex+外枠4pt)。縦書きでも回転しないので、60pt幅の紙では
-	 * 100pt厚の行になる。読み飛ばすと「作者が指定した大きさ」から漏れる(2026-09-17)。最も広いものを採る。
+	 * Seed 4608881: an input with size=16 is 100 pt (16ex + 4 pt frame). It does not rotate in vertical writing,
+	 * so it makes a line 100 pt thick on 60 pt-wide paper. Ignoring it misses an author-specified size
+	 * (2026-09-17). Use the widest one.
 	 */
 	public void testSizedTextInputContributesItsOwnWidth() {
 		assertEquals(100.0, RandomDocumentFuzzTest
@@ -403,25 +405,25 @@ public class FuzzOraclePredicateTest extends TestCase {
 				.defaultTextControlWidth("<input type=\"text\" size=\"4\" /><textarea></textarea>"));
 	}
 
-	/** seed 473924の最小形。flex祖先→3段組→表の実際の入れ子だけを拾う。 */
+	/** Minimal seed 473924. Match only actual nesting: flex ancestor→three columns→table. */
 	public void testFlexMulticolTableIsExcluded() {
 		assertTrue(RandomDocumentFuzzTest.hasFlexMulticolTable(doc("",
 				"<div style=\"display:flex\"><div style=\"column-count:3\"><table><tr><td>T0</td></tr></table></div></div>")));
 	}
 
-	/** flex外の段組表は専用除外にしない。 */
+	/** A multi-column table outside flex does not trigger this specific exclusion. */
 	public void testMulticolTableOutsideFlexIsNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasFlexMulticolTable(
 				doc("", "<div style=\"column-count:3\"><table><tr><td>T0</td></tr></table></div>")));
 	}
 
-	/** flexと段組表が別の枝なら結び付けない。 */
+	/** Do not combine flex and a multi-column table on separate branches. */
 	public void testFlexAndMulticolTableInSeparateBranchesAreNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasFlexMulticolTable(doc("",
 				"<div style=\"display:flex\">T0</div><div style=\"column-count:3\"><table><tr><td>T1</td></tr></table></div>")));
 	}
 
-	/** 1段指定、表なし、gridはそれぞれ専用除外にしない。 */
+	/** One column, no table, and grid each fail to trigger this specific exclusion. */
 	public void testOtherIntrinsicContainersAreNotFlexMulticolTable() {
 		assertFalse(RandomDocumentFuzzTest.hasFlexMulticolTable(doc("",
 				"<div style=\"display:flex\"><div style=\"column-count:1\"><table><tr><td>T0</td></tr></table></div></div>")));
@@ -431,7 +433,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 				"<div style=\"display:grid\"><div style=\"column-count:3\"><table><tr><td>T0</td></tr></table></div></div>")));
 	}
 
-	/** 詳細ダンプの解析まで含め、紙面上のトークンを見つけられること。 */
+	/** Find tokens on the paper, including parsing of detailed dumps. */
 	public void testDetailedDumpFindsVisibleToken() throws Exception {
 		final File dump = writeDump("  x=-1.00 y=10.00 Text[\"T0\" asc=3.00 desc=2.00] w=2.00 h=5.00\n");
 		try {
@@ -441,7 +443,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 		}
 	}
 
-	/** テキストを持たない画像・フォームだけの文書も可視描画として数える。 */
+	/** Documents containing only images/forms and no text also count as visible drawing. */
 	public void testDetailedDumpFindsVisibleNonTextDrawing() throws Exception {
 		final File dump = writeDump("  x=10.00 y=10.00 AbsoluteRectFrame[w=20.00 h=20.00]\n");
 		try {
@@ -451,7 +453,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 		}
 	}
 
-	/** 全トークンの矩形が紙面外なら、新しい不変条件が実際に落ちること。 */
+	/** The new invariant actually fails when every token rectangle is off the paper. */
 	public void testDetailedDumpRejectsAllTokensOffPage() throws Exception {
 		final File dump = writeDump("  x=60.00 y=10.00 Text[\"T0\" asc=3.00 desc=2.00] w=2.00 h=5.00\n");
 		try {
@@ -467,7 +469,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// FuzzShrinker.analyze: 読み順の並べ替えを許す部分木
+	// FuzzShrinker.analyze: subtrees allowed to reorder reading order.
 	// ------------------------------------------------------------------
 
 	public void testShrinkerTreatsAbsolutePositionedDescendantsAsReorderable() {
@@ -484,41 +486,41 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertTrue(generated.reorderable().isEmpty());
 	}
 
-	// findUnfittableContent: 版面に物理的に収まらない内容(2026-09-17のユーザー裁定)
-	// shrinkerDocは内容領域50x50pt・6pt(組版下限48pt)
+	// findUnfittableContent: content that physically cannot fit in the type area (user decision on 2026-09-17).
+	// shrinkerDoc has a 50x50 pt content area and 6 pt text (layout lower bound 48 pt).
 
 	private static final String LONG_RUBY = "<p><ruby class=\"fuzz-long-ruby\">"
 			+ "T10 T11 T12 T13 T14 T15 T16 T17 T18 T19 T20 T21<rt>T22</rt></ruby></p>";
 
-	/** 12語(下限131.7pt)の割れないルビは50ptの行に入らない。 */
+	/** Unsplittable ruby with 12 words (lower bound 131.7 pt) cannot fit a 50 pt line. */
 	public void testLongRubyBeyondLineIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_RUBY,
 				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(LONG_RUBY)));
 	}
 
-	/** 縦書きの中のルビは行軸が縦(y)なので紙の高さと比べる。seed 2031709の形。 */
+	/** Ruby in vertical writing has a vertical line axis (y), so compare with paper height. Shape of seed 2031709. */
 	public void testLongRubyInVerticalFlowUsesPageHeight() {
 		final String vertical = "<div style=\"writing-mode:vertical-rl\">" + LONG_RUBY + "</div>";
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_RUBY,
 				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(vertical)));
-		// 高さが足りれば収まる(幅は狭いまま)
+		// Fits with enough height (width remains narrow).
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(vertical)
 				.replace("name=\"output.page-height\" value=\"60pt\"", "name=\"output.page-height\" value=\"842pt\"")));
 	}
 
-	/** 行に入る長さのルビは除外しない(A4)。 */
+	/** Do not exclude ruby short enough to fit the line (A4). */
 	public void testLongRubyThatFitsIsNotUnfittable() {
 		final String html = shrinkerDoc(LONG_RUBY).replace("value=\"60pt\"", "value=\"595pt\"");
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(html));
 	}
 
-	/** 短いルビ(クラス無し)は数えない。 */
+	/** Do not count short ruby (without a class). */
 	public void testShortRubyIsNotUnfittable() {
 		assertNull(RandomDocumentFuzzTest
 				.findUnfittableContent(shrinkerDoc("<p><ruby>T0<rt>T1</rt></ruby></p>")));
 	}
 
-	/** min-width:8em(48pt)は50ptに入るが、表(−4pt)のセル(−2pt)の中では入らない。seed 5210679の形。 */
+	/** min-width:8em (48 pt) fits 50 pt, but not a table (−4 pt) cell (−2 pt). Shape of seed 5210679. */
 	public void testMinWidthBeyondCellIsUnfittable() {
 		final String box = "<div style=\"width:calc(35% + 8em);min-width:8em;max-width:90%;\">T0</div>";
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(box)));
@@ -526,7 +528,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 				.findUnfittableContent(shrinkerDoc("<table><tr><td>" + box + "</td></tr></table>")));
 	}
 
-	/** 明示幅の箱より広いmin-width。別の枝の狭い箱とは結び付けない。 */
+	/** min-width wider than an explicitly sized box. Do not associate it with narrow boxes on other branches. */
 	public void testMinWidthIsComparedWithItsOwnAncestors() {
 		final String box = "<div style=\"min-width:8em\">T0</div>";
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_MIN_WIDTH, RandomDocumentFuzzTest
@@ -535,27 +537,35 @@ public class FuzzOraclePredicateTest extends TestCase {
 				.findUnfittableContent(shrinkerDoc("<div style=\"width:30pt\">T1</div>" + box)));
 	}
 
-	/** min-widthを持つ箱の中は、明示幅が狭くてもそのmin-widthまで使える(同じmin-widthの子は収まる)。 */
+	/**
+	 * A box with min-width can use that minimum even with a narrower explicit width (a child with the same minimum
+	 * fits).
+	 */
 	public void testMinWidthWidensItsOwnContent() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(
 				"<div style=\"width:30pt;min-width:8em\"><div style=\"min-width:8em\">T0</div></div>")));
 	}
 
-	// --- 収まる文書を収まらないと言わないこと(2026-09-17のcodexレビューの反例) ---
+	// --- Do not classify fitting documents as unfittable (counterexamples from codex review on 2026-09-17). ---
 
 	private static String wide(final String body) {
 		return shrinkerDoc(body).replace("name=\"output.page-width\" value=\"60pt\"",
 				"name=\"output.page-width\" value=\"210pt\"");
 	}
 
-	/** 内容幅200ptなら12語のルビ(下限131.7pt)は収まる。以下の反例の前提。 */
+	/**
+	 * With 200 pt content width, 12-word ruby (lower bound 131.7 pt) fits. Premise for the following counterexamples.
+	 */
 	public void testLongRubyFitsTwoHundredPoints() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(wide(LONG_RUBY)));
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_RUBY, RandomDocumentFuzzTest
 				.findUnfittableContent(wide("<div style=\"width:30pt\">" + LONG_RUBY + "</div>")));
 	}
 
-	/** 幅の宣言は後勝ち。最後が百分率なら静的には不明なので、前のpt値で狭めない。 */
+	/**
+	 * Last width declaration wins. A final percentage is statically unknown, so do not narrow using an earlier pt
+	 * value.
+	 */
 	public void testLaterPercentageWidthOverridesEarlierLength() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
 				wide("<div style=\"width:30pt;width:80%;min-width:8em;max-width:90%\">" + LONG_RUBY + "</div>")));
@@ -563,22 +573,22 @@ public class FuzzOraclePredicateTest extends TestCase {
 				wide("<div style=\"width:80%;width:30pt\">" + LONG_RUBY + "</div>")));
 	}
 
-	/** 非置換のinlineのwidthは効かないので、中身の上限にしない。 */
+	/** width has no effect on non-replaced inline elements, so it does not cap their content width. */
 	public void testInlineWidthDoesNotBoundItsContent() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
 				wide("<div style=\"display:inline;width:30pt\">" + LONG_RUBY + "</div>")));
 	}
 
-	/** flex項目のwidthは伸びる前の基準でしかない。項目の中の段組を狭い段と決めつけない。 */
+	/** A flex item's width is only its basis before growing. Do not assume columns inside the item are narrow. */
 	public void testFlexItemWidthDoesNotBoundItsContent() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(wide("<div style=\"display:flex\">"
 				+ "<div style=\"flex:1 1 auto;width:8em\"><div style=\"column-count:2\">T0</div></div></div>")));
-		// flexの入れ物自身の幅は確定する
+		// The flex container's own width is definite.
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(
 				wide("<div style=\"display:flex;width:60pt\"><div><div style=\"column-count:2\">T0</div></div></div>")));
 	}
 
-	/** 表とセルは内容に合わせて広がるので、そのwidthでは狭めない。 */
+	/** Tables and cells expand to fit content, so do not narrow by their width. */
 	public void testTableWidthDoesNotBoundItsContent() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
 				wide("<table style=\"width:30pt\"><tr><td style=\"width:30pt\">" + LONG_RUBY + "</td></tr></table>")));
@@ -586,19 +596,22 @@ public class FuzzOraclePredicateTest extends TestCase {
 				wide("<div style=\"display:table;width:30pt\">" + LONG_RUBY + "</div>")));
 	}
 
-	/** 罫線を重ねる表には間隔が無く、引けるのは罫線の半分ずつ(計1pt)だけ。48ptの箱は50ptの表のセル(49pt)に収まる。 */
+	/**
+	 * Collapsed tables have no spacing; subtract only half of each border (1 pt total). A 48 pt box fits a 50 pt
+	 * table's 49 pt cell.
+	 */
 	public void testCollapsedTableDoesNotLoseSpacing() {
 		final String cell = "<table><tr><td><div style=\"width:8em;min-width:8em\">T0</div></td></tr></table>";
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_MIN_WIDTH,
 				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(cell)));
 		final String collapsed = shrinkerDoc(cell).replace("<style>", "<style>table{border-collapse:collapse}");
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(collapsed));
-		// 同じ48ptの箱でも、48ptの入れ物の中の表のセル(47pt)には入らない(seed 2129171の形)
+		// The same 48 pt box cannot fit in a table cell (47 pt) inside a 48 pt container (seed 2129171 shape).
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_MIN_WIDTH, RandomDocumentFuzzTest.findUnfittableContent(
 				collapsed.replace("<table>", "<div style=\"width:8em\"><table>").replace("</table>", "</table></div>")));
 	}
 
-	/** 浮動体の幅も後勝ちで読み、min-widthが勝つならその幅で見る。 */
+	/** Read float widths with the last declaration winning; use min-width if it takes precedence. */
 	public void testNarrowFloatUsesTheEffectiveWidth() {
 		assertFalse(RandomDocumentFuzzTest.hasNarrowFloat(
 				shrinkerDoc("<div style=\"float:left;width:22pt;width:80%\">T0</div>"), 48));
@@ -608,7 +621,10 @@ public class FuzzOraclePredicateTest extends TestCase {
 				shrinkerDoc("<div style=\"float:left;width:80%;width:22pt\">T0</div>"), 48));
 	}
 
-	/** 50ptを2段(間5pt)に割ると22.5pt=組版下限48pt未満。1段や、下限以上の段は除外しない。 */
+	/**
+	 * Two columns in 50 pt with a 5 pt gap yield 22.5 pt, below the 48 pt lower bound. Exclude neither one column nor
+	 * columns above the bound.
+	 */
 	public void testNarrowColumnIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(
 				shrinkerDoc("<div style=\"column-count:2;column-gap:5pt\">T0</div>")));
@@ -619,7 +635,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(wide));
 	}
 
-	/** 縦書きの段組は高さを割る。 */
+	/** Multi-column layout in vertical writing divides the height. */
 	public void testVerticalColumnsDivideHeight() {
 		final String html = shrinkerDoc(
 				"<div style=\"writing-mode:vertical-rl;column-count:2;column-gap:5pt\">T0</div>")
@@ -632,7 +648,10 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(tall));
 	}
 
-	/** 生成器v2はfloatとwidthの間にwriting-modeを挟む。宣言順で漏らさない(seed 3767082・4709606)。 */
+	/**
+	 * Generator v2 inserts writing-mode between float and width. Do not miss cases due to declaration order (seeds
+	 * 3767082/4709606).
+	 */
 	public void testNarrowFloatIsFoundRegardlessOfDeclarationOrder() {
 		final String html = shrinkerDoc(
 				"<div style=\"float:right;writing-mode:horizontal-tb;width:22pt;\"><ol><li>T0</li></ol></div>");
@@ -645,8 +664,9 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * 除外述語が紙面外の検査をどれだけ覆うかの実測(-Dfoliojet.unfittableRate=件数 のときだけ)。
-	 * 「従来の述語だけ」と「収まらない内容を足したあと」で、どちらの軸のはみ出しでも除外になる文書の数を比べる。
+	 * Measure how much off-paper checking the exclusion predicates cover (only with -Dfoliojet.unfittableRate=count).
+	 * Compare counts of documents excluded for overflow on either axis with the old predicates alone
+	 * and after adding unfittable content.
 	 */
 	public void testUnfittableDetectorRate() {
 		final int n = Integer.getInteger("foliojet.unfittableRate", 0).intValue();
@@ -678,7 +698,10 @@ public class FuzzOraclePredicateTest extends TestCase {
 		System.out.println("[unfittableRate] n=" + n + " " + counts);
 	}
 
-	/** 2026-09-17より前の「組版できない幅の浮動体」(floatとwidthの隣接が前提)。発火率の比較用。 */
+	/**
+	 * Pre-2026-09-17 predicate for floats of untypesettable width (requires adjacent float/width). For
+	 * activation-rate comparison.
+	 */
 	private static boolean legacyUntypesettableFloat(final String html) {
 		final java.util.regex.Matcher fm = java.util.regex.Pattern.compile("font:normal (\\d+)pt").matcher(html);
 		if (!fm.find()) {
@@ -696,8 +719,8 @@ public class FuzzOraclePredicateTest extends TestCase {
 				|| RandomDocumentFuzzTest.hasOverwideFloat(html);
 	}
 
-	// 折り返さないflex行の最小主軸サイズ(seed 9321740、2026-09-28)。
-	// 縦書き・行長150ptで、表(min-content≧108.3pt)とflex-shrink:0の35%・calc(25% + 8pt)が並ぶ
+	// Minimum main-axis size of a nonwrapping flex line (seed 9321740, 2026-09-28).
+	// Vertical writing, 150 pt line length: table (min-content≧108.3 pt), plus flex-shrink:0 items at 35% and calc(25% + 8pt).
 
 	private static final String FLEX_TABLE = "<table><tbody>\n"
 			+ "<tr><td>T0</td><td rowspan=\"2\">T1</td><td rowspan=\"2\">T2</td><td>T3</td></tr>\n"
@@ -720,19 +743,19 @@ public class FuzzOraclePredicateTest extends TestCase {
 				+ "<p><ruby>T24<rt>T25</rt></ruby></p>\n</div>\n</div>\n</body></html>";
 	}
 
-	/** seed 9321740の形: ルビの項目は 表108.3 + 35%×150 = 160.8pt から始まり、紙(150pt)の外。 */
+	/** Seed 9321740 shape: the ruby item starts at table 108.3 + 35%×150 = 160.8 pt, beyond the paper (150 pt). */
 	public void testNowrapFlexLineBeyondLineIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_FLEX_LINE, RandomDocumentFuzzTest
 				.findUnfittableContent(flexLineDoc("150pt", "flex-direction:row;flex-wrap:nowrap;")));
 	}
 
-	/** 行長400ptならルビの項目は 108.3 + 140 = 248.3pt から始まりうる。 */
+	/** At a 400 pt line length, the ruby item can start at 108.3 + 140 = 248.3 pt. */
 	public void testNowrapFlexLineWithinLongLineIsNotUnfittable() {
 		assertNull(RandomDocumentFuzzTest
 				.findUnfittableContent(flexLineDoc("400pt", "flex-direction:row;flex-wrap:nowrap;")));
 	}
 
-	/** 折り返すflex・列方向のflexは行長の和にならない。 */
+	/** Wrapping flex and column-direction flex do not sum to the line length. */
 	public void testWrappingOrColumnFlexIsNotUnfittable() {
 		assertNull(RandomDocumentFuzzTest
 				.findUnfittableContent(flexLineDoc("150pt", "flex-direction:row;flex-wrap:wrap;")));
@@ -741,18 +764,18 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * 表の下限は2行目(T1・T2のrowspanを含む6セル): 16.3×6 + 1.5×7 = 108.3pt。
-	 * 4行目はT13(colspan 3)がT10(rowspan 2)と重なるので数えない。
+	 * Table lower bound comes from row 2 (six cells including T1/T2 rowspans): 16.3×6 + 1.5×7 = 108.3 pt.
+	 * Omit row 4 because T13 (colspan 3) overlaps T10 (rowspan 2).
 	 */
 	public void testTableMinContentLowerBound() {
 		final String html = flexLineDoc("150pt", "");
 		final int from = html.indexOf("<table>") + "<table>".length();
 		assertEquals(108.3, RandomDocumentFuzzTest.tableMinContentLowerBound(html, from, 13, false), 1e-9);
-		// 罫線を重ねる表は罫線も間隔も数えない: 2行目の1桁の6セル 14.3×6 = 85.8pt
+		// Collapsed-border tables count neither borders nor spacing: six single-digit cells in row 2, 14.3×6 = 85.8 pt.
 		assertEquals(85.8, RandomDocumentFuzzTest.tableMinContentLowerBound(html, from, 13, true), 1e-9);
 	}
 
-	/** 内容幅50pt・余白5pt: 4つ目の項目は 24pt×3+2pt×3 = 78pt から始まり、紙の端(55pt)の外。 */
+	/** Content width 50 pt, margin 5 pt: item 4 starts at 24 pt×3+2 pt×3 = 78 pt, beyond the paper edge (55 pt). */
 	private static final String FLEX_OVER = "<div style=\"display:flex;flex-direction:row;flex-wrap:nowrap;gap:2pt\">"
 			+ "<div style=\"flex:0 0 24pt\"><p>T1</p></div><div style=\"flex:0 0 24pt\"><p>T2</p></div>"
 			+ "<div style=\"flex:0 0 24pt\"><p>T3</p></div><div style=\"flex:0 0 24pt\"><p>T4</p></div></div>";
@@ -763,8 +786,9 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * 箱の和が紙の端を超えても、字のある最後の項目が紙の中から始まれば除外しない(2026-09-28のcodexレビュー
-	 * 2回目の反例): 3つ目は 24+2×2 = 28pt から始まり、字は紙に収まる。和 24+48+4 = 76pt は空きの分。
+	 * Even if summed box sizes exceed the paper edge, do not exclude when the last text-bearing item starts
+	 * on the paper (second counterexample from codex review on 2026-09-28). Item 3 starts at 24+2×2 = 28 pt,
+	 * so its text fits. The sum 24+48+4 = 76 pt includes empty space.
 	 */
 	public void testTrailingEmptyBoxOverflowIsNotUnfittable() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(
@@ -774,8 +798,9 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * 2026-09-28のcodexレビューの反例。表の中では入れ物が内容に合わせて広がり、絶対配置・相対配置の変位は
-	 * 字を紙へ戻しうるし、display:none・浮動体・コンテナの寸法があれば行長が決まらない。どれも除外しない。
+	 * Counterexamples from codex review on 2026-09-28. Inside tables, containers expand to fit content;
+	 * absolute/relative offsets can return text to the paper; display:none, floats, or container dimensions
+	 * make line length indeterminate. Exclude none of these.
 	 */
 	public void testFlexLineCounterexamplesAreNotUnfittable() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
@@ -793,8 +818,9 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * 3回目の反例: 証拠の項目の中に逆向きflexがあると、字は項目の始まりより手前(紙の中)へ溢れうる。
-	 * 逆向きのコンテナでは、紙の外から始まる項目の長い字が紙の側へ溢れうる。どちらも除外しない。
+	 * Third counterexample: reverse flex inside the evidence item can overflow its text before the item's
+	 * start, onto the paper. In a reverse container, long text in an item starting off the paper can overflow
+	 * toward the paper. Exclude neither case.
 	 */
 	public void testFlexLineEvidenceItemMustBePlain() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(FLEX_OVER.replace("<p>T4</p>",
@@ -802,17 +828,17 @@ public class FuzzOraclePredicateTest extends TestCase {
 						+ "<p><span style=\"display:inline-block;width:150pt;height:10pt\">T4</span></p></div>"))));
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
 				shrinkerDoc(FLEX_OVER.replace("flex-direction:row;", "flex-direction:row-reverse;"))));
-		// 項目自身が寸法の宣言だけなら証拠になる
+		// An item with only size declarations is valid evidence.
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_FLEX_LINE, RandomDocumentFuzzTest.findUnfittableContent(
 				shrinkerDoc(FLEX_OVER.replace("flex:0 0 24pt\"><p>T4", "flex:0 0 24pt;min-width:8em;max-width:90%\"><p>T4"))));
 	}
 
-	// 紙の行長を超える表の最小幅(seed 10376223、2026-09-29)。120pt幅の紙(内容100pt)に9列の表、
-	// T20がx=269.48(Chromeでは262.78)に出た
+	// Minimum table width exceeding the paper's line length (seed 10376223, 2026-09-29). A 9-column table on 120 pt paper
+	// (100 pt content width) placed T20 at x=269.48 (262.78 in Chrome).
 
 	/**
-	 * seedの文書そのもの。列0〜4の下限は各21.2pt(T25〜T27・T21・入れ子の表の語)で、T4の列は
-	 * 1.5 + 22.7×5 = 115pt から始まり、紙の端(110pt)の外。
+	 * The seed document itself. Columns 0–4 each have a 21.2 pt lower bound (T25–T27, T21, nested-table words),
+	 * so T4's column starts at 1.5 + 22.7×5 = 115 pt, beyond the paper edge (110 pt).
 	 */
 	public void testSeedTableBeyondPageIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
@@ -820,9 +846,10 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * 2026-10-07、fit seed 11606508(v2 の seed 2028400733): 60pt の紙の表のセルに、セルが重なる入れ子の表と
-	 * {@code <ul style="list-style-…">}が入る。リストの印の指定は幅を狭めず、重なる表も重ならない行の和は下限に
-	 * なるので、T5 の列は紙の外から始まる(Copper x=135、Chrome x=133.5)。以前は両方を 0 と見て欠陥と報告した。
+	 * 2026-10-07, fit seed 11606508 (v2 seed 2028400733): a table cell on 60 pt paper contains a nested table
+	 * with overlapping cells and {@code <ul style="list-style-…">}. List marker declarations do not narrow
+	 * the width, and sums from nonoverlapping rows still bound an overlapping table. T5's column thus starts
+	 * off the paper (Copper x=135, Chrome x=133.5). Previously both contributed 0, falsely reporting a defect.
 	 */
 	public void testSeedTableWithListAndOverlappingNestedTableIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
@@ -830,8 +857,9 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * 内容幅50pt・余白5pt、語の下限は T1x=9.6pt・間隔1.5pt: 列jは 1.5+11.1j から始まる。1行目は
-	 * colspanで行の和が小さく、2行目で列が決まる。T15の列(j=5)は57pt=紙の端(55pt)の外。
+	 * Content width 50 pt, margin 5 pt; word lower bound T1x=9.6 pt, spacing 1.5 pt: column j starts at
+	 * 1.5+11.1j. Colspan reduces row 1's sum; row 2 determines the columns. T15's column (j=5)
+	 * starts at 57 pt, beyond the paper edge (55 pt).
 	 */
 	private static final String TABLE_OVER = "<table><tbody>\n<tr><td colspan=\"3\">T1</td><td colspan=\"3\">T2</td></tr>\n"
 			+ "<tr><td>T10</td><td>T11</td><td>T12</td><td>T13</td><td>T14</td><td>T15</td></tr>\n</tbody></table>\n";
@@ -839,19 +867,20 @@ public class FuzzOraclePredicateTest extends TestCase {
 	public void testTopLevelTableBeyondPageIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
 				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(TABLE_OVER)));
-		// 列jの始まりは手前の列だけで決まる: 1行目のcolspanのセル(j=3)は1.5+33.3=34.8ptで紙の中
+		// Column j's start depends only on earlier columns: the first row's colspan cell (j=3) starts at 1.5+33.3=34.8 pt, on paper.
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
 				shrinkerDoc(TABLE_OVER.replace("<td>T15</td>", ""))));
 	}
 
 	/**
-	 * 表の置き場所が確定しない文書・証拠にならないセルは除外しない。表に属性がある、bodyの直下でない、
-	 * 文書に浮動体・display:none・位置の変位がある、セルが重なる、証拠のセルにstyle・dirがあるか語で始まらない。
+	 * Do not exclude documents with indeterminate table placement or cells that cannot serve as evidence:
+	 * table attributes, a table not directly under body, floats/display:none/position offsets in the document,
+	 * overlapping cells, or an evidence cell with style/dir or not starting with a word.
 	 */
 	public void testTableColumnCounterexamplesAreNotUnfittable() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
 				shrinkerDoc(TABLE_OVER.replace("<table>", "<table style=\"margin-left:-60pt\">"))));
-		// 枠と余白だけのdivの中は判定する(testPlainWrapper)。書字方向を変えうるdivの中は判定しない
+		// Evaluate tables inside divs with only frames/margins (testPlainWrapper); skip divs that can change writing direction.
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc("<div dir=\"rtl\">" + TABLE_OVER + "</div>")));
 		assertNull(RandomDocumentFuzzTest
 				.findUnfittableContent(shrinkerDoc("<div style=\"float:left\">T9</div>" + TABLE_OVER)));
@@ -868,8 +897,9 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * 2026-09-29のcodexレビューの反例: 120pt(余白0)に7ptの4×4の表。T7は列10から始まるが、列7はT3(colspan 3)に
-	 * 覆われるだけで幅0になりうる。下限の合計131.0ptは120pt×1.1=132pt以内で、Copperは列を縮めて紙に収める。
+	 * Counterexample from codex review on 2026-09-29: a 4×4 table with 7 pt text on 120 pt paper (zero margin).
+	 * T7 starts in column 10, but column 7 can have zero width because only T3 (colspan 3) covers it.
+	 * The 131.0 pt lower-bound sum is within 120 pt×1.1=132 pt; Copper shrinks the columns to fit the paper.
 	 */
 	public void testSlightlyOverwideTableIsNotUnfittable() {
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
@@ -887,10 +917,12 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * 2026-09-29のcodexレビュー2回目の反例: 2行目の右端のT7(rowspan 3)は、短い3行目の終わりの手前(T6の2桁目)に
-	 * rowspanが無いので当時のCopperでは3行目以降へ引き継がれず、4行目のT15は列6に入って紙に収まった。同じ日の
-	 * c803652d(空き桁を匿名のセルで埋める)からCopperも格子どおりT15を列7に置き(x=144.32、Chromeは140.16)、紙の外に出る。
-	 * 2026-10-07に、Copperの置き方の模擬をやめて「収まらない」に改めた(格子どおりなら下限142.5pt>132pt、T15は123ptから)。
+	 * Second counterexample from codex review on 2026-09-29: T7 (rowspan 3) at row 2's right edge was not
+	 * carried into row 3 onward by Copper at the time, because there was no rowspan just before the end
+	 * of the short row 3 (T6's second column). Thus row 4's T15 fit on paper in column 6. Since c803652d
+	 * that day (fill vacant slots with anonymous cells), Copper follows the grid and puts T15 in column 7
+	 * (x=144.32, Chrome 140.16), off the paper. On 2026-10-07, stop simulating Copper's placement and classify
+	 * this as unfittable (the grid gives a 142.5 pt lower bound >132 pt, and T15 starts at 123 pt).
 	 */
 	public void testTableWithGapBeforeRowspanIsUnfittable() {
 		final String html = "<?jp.cssj.property name=\"output.page-width\" value=\"120pt\"?>\n"
@@ -909,8 +941,9 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * セルが重なる表(2行目のT10のcolspan 2が1行目のT1のrowspan 2の桁に掛かる)も、後ろのセルは格子どおりの列に置かれる
-	 * (Copper T15 x=124.24、Chrome 123.82。2026-10-07に実測)。以前は重なる表を判定しなかった。
+	 * Even with overlapping table cells (row 2's T10 colspan 2 covers row 1's T1 rowspan 2 slot), later cells
+	 * occupy their grid columns (Copper T15 x=124.24, Chrome 123.82; measured on 2026-10-07).
+	 * Previously, overlapping tables were not evaluated.
 	 */
 	public void testTableWithOverlappingCellsIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(
@@ -918,12 +951,13 @@ public class FuzzOraclePredicateTest extends TestCase {
 						.replace("<td>T10</td>", "<td colspan=\"2\">T10</td>"))));
 	}
 
-	// 2026-10-07、fit 11,750,000〜 の停止(BUILD 9770c839)。生成器 v2 の seed は文書の title の番号
+	// 2026-10-07, fit 11,750,000 onward stopped (BUILD 9770c839). The generator v2 seed is the document title's number.
 
 	/**
-	 * fit seed 11766015(v2 791230356): 60pt の紙の表の最後の列のセル(T11)に入れ子の表があり、外の表のどのセルも紙の中から
-	 * 始まるが、入れ子の表の T20 が x=124.66(Chrome 124.18 から余白を引いた 119.18)に出る。入れ子の表のセルも証拠に見る。
-	 * 当時は「Copperの置き方の模擬」が格子と食い違うと誤って判定を止めていた(Copper も格子どおりに置いた)。
+	 * fit seed 11766015 (v2 791230356): the last column's cell (T11) on 60 pt paper contains a nested table.
+	 * Every outer cell starts on paper, but nested T20 appears at x=124.66 (Chrome 124.18, or 119.18 minus
+	 * margin). Treat nested-table cells as evidence too. Evaluation previously stopped on a supposed mismatch
+	 * between the grid and the simulated Copper placement, although Copper also followed the grid.
 	 */
 	public void testSeedNestedTableCellBeyondPageIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
@@ -931,26 +965,27 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * fit seed 11866613(v2 1797278838): 枠と余白だけのdivの中の{@code float:right}の直下の表。入れ子の表を持つのは
-	 * colspan 3 のセルだけで、列の下限は colspan のセルも数える。Copper は紙より広い右の浮動体を内容の始まりに寄せて
-	 * T20 を x=125.99 へ、Chrome は終わりに寄せて T0 を x=-81.94 へ出す(どちらも紙の外)。
+	 * fit seed 11866613 (v2 1797278838): a table directly inside {@code float:right}, in a div with only
+	 * a frame and margins. Only a colspan 3 cell contains a nested table; count colspan cells in column
+	 * lower bounds too. Copper aligns the right float, wider than the paper, to the content start, putting
+	 * T20 at x=125.99; Chrome aligns it to the end, putting T0 at x=-81.94 (both off the paper).
 	 */
 	public void testSeedTableInRightFloatIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
 				.findUnfittableContent(RandomDocumentFuzzTest.generate(1_797_278_838, true, false, false).html()));
 	}
 
-	/** 右の浮動体は、始まりと終わりの両方の側に証拠のセルがあるときだけ。左の浮動体は始まりの側だけでよい。 */
+	/** A right float requires evidence cells on both start/end sides; a left float needs only the start side. */
 	public void testTableInFloatNeedsEvidenceOnTheSideItCanOverflow() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
 				.findUnfittableContent(shrinkerDoc("<div style=\"float:right\">" + TABLE_OVER + "</div>")));
-		// 終わりに寄せたときに紙の始まりの手前で終わるのは T10 だけ。T10 が証拠にならなければ右の浮動体は言わない
+		// Only T10 ends before the paper's start when end-aligned. Without T10 as evidence, do not classify the right float.
 		final String noStartEvidence = TABLE_OVER.replace("<td>T10</td>", "<td><b>T10</b></td>");
 		assertNull(RandomDocumentFuzzTest
 				.findUnfittableContent(shrinkerDoc("<div style=\"float:right\">" + noStartEvidence + "</div>")));
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
 				.findUnfittableContent(shrinkerDoc("<div style=\"float:left\">" + noStartEvidence + "</div>")));
-		// 幅・余白を持つ浮動体、ほかにも浮動体がある文書は判定しない
+		// Do not evaluate floats with width/margins or documents containing other floats.
 		assertNull(RandomDocumentFuzzTest
 				.findUnfittableContent(shrinkerDoc("<div style=\"float:right;width:20pt\">" + TABLE_OVER + "</div>")));
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(
@@ -961,8 +996,10 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * fit seed 11898581(v2 249173394): 縦書きの紙(行長60pt)の{@code float:none;width:8em;min-width:8em;max-width:90%}の
-	 * divの中の表。縦書きの width 系はブロック軸の寸法で行長を変えない。T34 が y=144.16(Chrome 137.93)。
+	 * fit seed 11898581 (v2 249173394): a table in a div with
+	 * {@code float:none;width:8em;min-width:8em;max-width:90%} on vertical-writing paper (line length 60 pt).
+	 * Width properties in vertical writing size the block axis and do not change line length.
+	 * T34 is at y=144.16 (Chrome 137.93).
 	 */
 	public void testSeedTableInVerticalBlockSizedWrapperIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
@@ -976,17 +1013,21 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * fit seed 11942560(v2 647052772)は除外しない: {@code vertical-rl}の紙の中の{@code vertical-lr}の箱に
-	 * {@code width:8em}(48pt)のインラインブロック、その中に{@code width:58pt}の箱と、後ろにルビの段落。Copper は
-	 * インラインブロックのベースラインを最初の行に揃えて溢れを紙の右の外(x=601.8〜、紙 595)へ出すが、CSS 2.1 §10.8.1
-	 * どおり最後の行に揃える Chrome は紙に収める(x=536〜594)。作者の溢れではなく Copper の差(triage §22)。
+	 * Do not exclude fit seed 11942560 (v2 647052772): a {@code vertical-lr} box on {@code vertical-rl}
+	 * paper contains a {@code width:8em} (48 pt) inline-block with a {@code width:58pt} box inside,
+	 * followed by a ruby paragraph. Copper aligns the inline-block baseline to its first line, overflowing
+	 * to the paper's right (x=601.8 onward, paper 595). Chrome follows CSS 2.1 §10.8.1, aligns to the last line,
+	 * and fits it on paper (x=536–594). This is a Copper difference, not author overflow (triage §22).
 	 */
 	public void testSeedInlineBlockBaselineInReversedRegionIsNotExcluded() {
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(
 				RandomDocumentFuzzTest.generate(647_052_772, true, false, false).html()));
 	}
 
-	/** 反転要素の明示幅を子孫の幅の下限が超えるときだけ。子孫の幅は max-width が狭めうるなら数えない。 */
+	/**
+	 * Only when descendants' lower-bound widths exceed the reversed element's explicit width. Omit widths max-width
+	 * could reduce.
+	 */
 	public void testReversedElementWidthAgainstDescendantLowerBound() {
 		final String head = ";writing-mode:vertical-rl";
 		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
@@ -995,11 +1036,11 @@ public class FuzzOraclePredicateTest extends TestCase {
 				"<div style=\"writing-mode:vertical-lr;width:48pt\"><div style=\"min-width:10em\">T0</div></div>")));
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
 				"<div style=\"writing-mode:vertical-lr;width:48pt\"><div style=\"width:58pt;max-width:90%\">T0</div></div>")));
-		// 反転要素に幅が無ければ、その中の箱どうしの食い違いでは言わない(領域が紙の端にあるとは限らない)
+		// Without a width on the reversed element, mismatched inner boxes are insufficient (the area may not lie at the paper edge).
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
 				"<div style=\"writing-mode:vertical-lr\"><div style=\"display:inline-block;width:8em\">"
 						+ "<div style=\"width:58pt\">T0</div></div></div>")));
-		// 幅の宣言が効かない箱(非置換のinline)、伸びうるflex項目
+		// Boxes whose width declaration has no effect (non-replaced inline), and flex items that can grow.
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
 				"<div style=\"writing-mode:vertical-lr;width:48pt\"><span style=\"width:58pt\">T0</span></div>")));
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
@@ -1007,15 +1048,16 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
-	 * seed 10760020(2026-09-29): 枠と余白だけのdiv({@code margin:7pt;padding:2pt;border:1pt solid black})の中の表で、
-	 * 4列目のセルに入れ子の表がある。入れ子の表の最小幅がセルの下限に入り、T8・T28の列は紙の外から始まる。
+	 * Seed 10760020 (2026-09-29): a table in a div with only frame and margins
+	 * ({@code margin:7pt;padding:2pt;border:1pt solid black}) has a nested table in column 4's cell.
+	 * Its minimum width contributes to the cell lower bound, so T8/T28 columns start off the paper.
 	 */
 	public void testSeedTableInPlainWrapperWithNestedTableIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
 				.findUnfittableContent(RandomDocumentFuzzTest.generate(10_760_020, true).html()));
 	}
 
-	/** 表を包んでよいのは、属性がstyleだけのdivで、宣言が負でない枠と余白だけのもの。 */
+	/** A permitted table wrapper is a div with only a style attribute declaring nonnegative frame and margins. */
 	public void testPlainWrapper() {
 		assertTrue(RandomDocumentFuzzTest.isPlainWrapper("div", ""));
 		assertTrue(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"margin:7pt;padding:2pt;border:1pt solid black\""));
@@ -1027,27 +1069,30 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " dir=\"rtl\""));
 		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " data-fuzz-role=\"cell-child\""));
 		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("p", ""));
-		// 包むdivの中の表も判定し、手前へ出しうるdivの中の表は判定しない
+		// Evaluate tables inside wrapper divs, but skip divs that could shift them toward the start.
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
 				.findUnfittableContent(shrinkerDoc("<div style=\"margin:1pt;padding:1pt\"><div>" + TABLE_OVER + "</div></div>")));
 		assertNull(RandomDocumentFuzzTest
 				.findUnfittableContent(shrinkerDoc("<div style=\"margin-left:-40pt\">" + TABLE_OVER + "</div>")));
 	}
 
-	/** 入れ子の表の最小幅がセルの下限に入る: 1セルの外側の表でも、中の表が紙より広ければ後ろの列は紙の外。 */
+	/**
+	 * Nested-table minimum width bounds the cell: even in a one-cell outer table, later inner columns lie off paper
+	 * if too wide.
+	 */
 	public void testNestedTableWidensItsCell() {
 		final String nested = "<table><tbody>\n<tr><td>T1<div><table><tbody>\n"
 				+ "<tr><td>T10</td><td>T11</td><td>T12</td><td>T13</td><td>T14</td><td>T15</td></tr>\n"
 				+ "</tbody></table>\n</div></td><td>T2</td></tr>\n</tbody></table>\n";
-		// 中の表の下限 1.5 + 11.1×6 = 68.1pt → 外側の2列目は 1.5 + 68.1 + 1.5 = 71.1pt から始まり、紙の端(55pt)の外
+		// Inner table lower bound 1.5 + 11.1×6 = 68.1 pt → outer column 2 starts at 1.5 + 68.1 + 1.5 = 71.1 pt, beyond the paper edge (55 pt).
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
 				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(nested)));
-		// 中にstyleがあれば(入れ物が幅を狭めうる)中の表は数えない
+		// If style appears inside (a container could narrow the width), do not count the inner table.
 		assertNull(RandomDocumentFuzzTest
 				.findUnfittableContent(shrinkerDoc(nested.replace("<div>", "<div style=\"width:10pt\">"))));
 	}
 
-	/** 述語の許容比は製品の{@code AutoColumnWidths.MIN_OVERFLOW_TOLERANCE}と同じでなければならない。 */
+	/** The predicate's tolerance ratio must match production {@code AutoColumnWidths.MIN_OVERFLOW_TOLERANCE}. */
 	public void testTableShrinkToleranceMatchesProduct() throws Exception {
 		final java.lang.reflect.Field field = Class.forName("net.zamasoft.foliojet.layout.sizing.AutoColumnWidths")
 				.getDeclaredField("MIN_OVERFLOW_TOLERANCE");
@@ -1055,7 +1100,10 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertEquals(field.getDouble(null), RandomDocumentFuzzTest.TABLE_SHRINK_TOLERANCE, 0);
 	}
 
-	/** codex の健全性の反例(2026-10-07)を固定する文書: 紙・余白・本文の字の大きさ・書字方向・追加の規則と本文。 */
+	/**
+	 * Documents for codex soundness counterexamples (2026-10-07): paper, margins, body font size, writing direction,
+	 * extra rules/body.
+	 */
 	private static String paperDoc(final int paper, final int margin, final int font, final String mode, final String css,
 			final String body) {
 		return "<?jp.cssj.property name=\"output.page-width\" value=\"" + paper + "pt\"?>\n"
@@ -1065,7 +1113,10 @@ public class FuzzOraclePredicateTest extends TestCase {
 				+ "\n</style></head><body>\n" + body + "\n</body></html>";
 	}
 
-	/** codex の反例 1〜3: 逆に進む領域の食い違いが余白以下、既定で inline・表のタグ、継いだ字の大きさの em。 */
+	/**
+	 * codex counterexamples 1–3: reverse-area mismatch within margins, default inline/table tags, em based on
+	 * inherited font size.
+	 */
 	public void testReversedRegionCodexCounterexamples() {
 		final String within = "<div style=\"writing-mode:vertical-lr\"><div style=\"width:8em\"><div style=\"width:54pt\">T0</div>"
 				+ "</div></div>";
@@ -1082,7 +1133,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 						+ "<div style=\"width:58pt\">T0</div></div></div>")));
 	}
 
-	/** codex の反例 4〜6: 表の規則の幅(固定レイアウト)、幅0の罫線、行の字の大きさ。 */
+	/** codex counterexamples 4–6: width in table rules (fixed layout), zero-width borders, row font size. */
 	public void testTableColumnCodexCounterexamples() {
 		final StringBuilder twelve = new StringBuilder("<table><tbody><tr>");
 		for (int i = 10; i < 16; ++i) {
@@ -1103,7 +1154,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 				"table{border-collapse:separate;table-layout:auto}\ntd{border:1pt solid black;padding:0}",
 				"<div style=\"float:right\"><table><tbody><tr style=\"font-size:6pt\"><td>T10</td><td>T11</td><td>T12</td>"
 						+ "<td>T13</td><td>T14</td><td>T15</td></tr></tbody></table></div>")));
-		// 2 回目: セルの規則の max-width(セルの最小幅を抑える)、セルの中の small(UA で字が小さくなる)
+		// Second round: max-width in cell rules (caps minimum cell width), small inside cells (UA reduces font size).
 		final StringBuilder seven = new StringBuilder("<div style=\"float:right\"><table><tbody><tr>");
 		for (int i = 10; i < 17; ++i) {
 			seven.append("<td colspan=\"2\">T").append(i).append("</td>");

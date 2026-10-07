@@ -4,19 +4,19 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.xml.parser.MarkdownParser;
 
 /**
- * Markdownの強調(** / *)がCJK句読点に隣接しても解釈されることのテストです。
+ * Test that Markdown emphasis (** / *) is recognized even next to CJK punctuation.
  *
  * <p>
- * CommonMarkのフランキング規則では「閉じデリミタの直前が句読点なら直後は
- * 空白か句読点」が要求され、全角句読点の直後で強調を閉じて地の文が続く
- * 和文の常用パターンが壊れる。{@code CjkFriendlyInlineParser}がこれを
- * 解消していることを、実文書で壊れた実例パターンを含めて確認する。
- * 欧文の挙動(ASCII句読点のフランキング規則)を変えていないことも確認する。
+ * CommonMark flanking rules require whitespace or punctuation after a closing delimiter
+ * if punctuation immediately precedes it. This breaks the common Japanese pattern of closing
+ * emphasis after full-width punctuation and continuing with body text.
+ * Check that {@code CjkFriendlyInlineParser} resolves this, including patterns that failed in
+ * real documents. Also check that Latin-text behavior (ASCII-punctuation flanking rules) remains unchanged.
  * </p>
  */
 public class MarkdownCjkEmphasisTest extends TestCase {
 
-	/** 実文書(考察メモ_2026-08-06.md)で壊れていた実例パターン。 */
+	/** A pattern that failed in a real document (考察メモ_2026-08-06.md). */
 	public void testStrongClosedAfterFullwidthColon() {
 		String html = MarkdownParser.toHtml("**精密に：**希釈は法的でなく政治的である。");
 		assertTrue(html, html.contains("<strong>精密に：</strong>希釈は"));
@@ -42,18 +42,18 @@ public class MarkdownCjkEmphasisTest extends TestCase {
 		assertTrue(html, html.contains("<em>ヒト・モノ・カネ</em>である"));
 	}
 
-	/** 欧文: ASCII句読点のフランキング規則は仕様どおり変えない。 */
+	/** Latin text: keep ASCII-punctuation flanking rules unchanged, as specified. */
 	public void testAsciiPunctuationRulesUnchanged() {
-		// 通常の欧文強調は解釈される
+		// Normal Latin-text emphasis is recognized.
 		String html = MarkdownParser.toHtml("This is **bold.** And *italic* text.");
 		assertTrue(html, html.contains("<strong>bold.</strong>"));
 		assertTrue(html, html.contains("<em>italic</em>"));
-		// 閉じデリミタの直前がASCII句読点で直後が英数字の場合は解釈されない(仕様どおり)
+		// Not recognized when ASCII punctuation precedes the closing delimiter and an alphanumeric follows (as specified).
 		String broken = MarkdownParser.toHtml("a**b.**c");
 		assertFalse(broken, broken.contains("<strong>"));
 	}
 
-	/** アンダースコアの語中強調禁止規則が維持されていることの確認。 */
+	/** Check that the rule prohibiting intraword underscore emphasis is preserved. */
 	public void testUnderscoreIntrawordUnchanged() {
 		String html = MarkdownParser.toHtml("foo_bar_baz");
 		assertFalse(html, html.contains("<em>"));

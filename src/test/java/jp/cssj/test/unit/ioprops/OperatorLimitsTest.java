@@ -26,13 +26,13 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 運用者の上限({@link OperatorLimits}、{@value OperatorLimits#FILE_KEY})を固定します
- * (2026-10-03、共有サービスの資源の上限 増分2。
- * {@code copperpdf4/docs/design/shared-service-limits-design.md} §3-2)。
+ * Fix operator limits ({@link OperatorLimits}, {@value OperatorLimits#FILE_KEY})
+ * (2026-10-03, shared-service resource limits, increment 2.
+ * {@code copperpdf4/docs/design/shared-service-limits-design.md} §3-2).
  *
  * <p>
- * 上限ファイルに書いた値は、クライアントの指定・プロファイル・文書中の処理命令のどれで
- * 設定された値に対しても<b>小さい方</b>になる——厳しくはできるが緩められない。
+ * For values set by clients, profiles, or processing instructions in documents, apply
+ * <b>the smaller value</b> relative to the limits file: limits can be tightened but not relaxed.
  * </p>
  */
 public class OperatorLimitsTest extends TestCase {
@@ -44,7 +44,7 @@ public class OperatorLimitsTest extends TestCase {
 	private final List<Short> codes = new ArrayList<>();
 	private boolean failed;
 
-	// ---- 比較の規則(プロパティごと)
+	// ---- Comparison rules (per property)
 
 	public void testNegativeIsUnlimited() throws Exception {
 		final OperatorLimits limits = limits("output.page-limit", "200");
@@ -64,7 +64,10 @@ public class OperatorLimitsTest extends TestCase {
 		assertEquals("30000", limits.clamp("processing.time-limit", "30000"));
 	}
 
-	/** retained-text-limit の既定は無制限ではなく 8MiB。未設定ならその既定と上限の小さい方。 */
+	/**
+	 * retained-text-limit defaults to 8 MiB, not unlimited. If unset, use the smaller of that default and the
+	 * limit.
+	 */
 	public void testEngineDefaultIsCompared() throws Exception {
 		assertEquals(String.valueOf(8L << 20),
 				limits("processing.retained-text-limit", "100000000").clamp("processing.retained-text-limit", null));
@@ -99,9 +102,9 @@ public class OperatorLimitsTest extends TestCase {
 		}
 	}
 
-	// ---- 変換で効くこと
+	// ---- Limits take effect in conversion
 
-	/** クライアントが -1(無制限)を送っても、上限ファイルの値で止まる。警告 2825 が出る。 */
+	/** Even if the client sends -1 (unlimited), the limits-file value stops conversion. Warning 2825 is emitted. */
 	public void testClientCannotLoosen() throws Exception {
 		this.withLimits("output.page-limit=1\n", () -> {
 			final byte[] pdf = this.convert(THREE_PAGES, props("output.page-limit", "-1"));
@@ -110,7 +113,7 @@ public class OperatorLimitsTest extends TestCase {
 		});
 	}
 
-	/** 上限より厳しい指定は効く(警告なし)。 */
+	/** A setting stricter than the limit takes effect (no warning). */
 	public void testClientCanTighten() throws Exception {
 		this.withLimits("output.page-limit=100\n", () -> {
 			final byte[] pdf = this.convert(THREE_PAGES, props("output.page-limit", "10"));
@@ -120,7 +123,7 @@ public class OperatorLimitsTest extends TestCase {
 		});
 	}
 
-	/** 文書中の処理命令でも緩められない(読み取り口で上限を掛けるため)。 */
+	/** Document processing instructions cannot relax limits either (limits are applied when reading properties). */
 	public void testProcessingInstructionCannotLoosen() throws Exception {
 		this.withLimits("output.page-limit=1\n", () -> {
 			final byte[] pdf = this.convert(
@@ -130,7 +133,7 @@ public class OperatorLimitsTest extends TestCase {
 		});
 	}
 
-	/** 外部資源の上限(MySourceResolver はセッションの表を直接読む)も緩められない。 */
+	/** External-resource limits cannot be relaxed either (MySourceResolver reads the session table directly). */
 	public void testResourceLimitCannotBeLoosened() throws Exception {
 		final File dir = new File("local/unittest/operator-limits/resource");
 		dir.mkdirs();
@@ -145,7 +148,7 @@ public class OperatorLimitsTest extends TestCase {
 		});
 	}
 
-	/** 上限ファイルが無ければ何も変わらない。 */
+	/** Without a limits file, nothing changes. */
 	public void testNoLimitsFile() throws Exception {
 		final byte[] pdf = this.convert(THREE_PAGES, props("output.page-limit", "-1"));
 		assertFalse(this.failed);

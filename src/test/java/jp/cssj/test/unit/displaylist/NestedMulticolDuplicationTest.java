@@ -25,77 +25,73 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>同じ内容を同じページに二度描かない</b>ことを固定します(2026-07-28新設)。
+ * Verify that <b>the same content is not drawn twice on the same page</b> (introduced 2026-07-28).
  *
  * <p>
- * 50,000シードの掃過で最後まで残っていた欠陥種別「内容の複製」(160件)の
- * 実測から、<b>4つの独立した経路</b>が同じ結末——同じ文字が同じ紙に二度——に
- * 至ることが分かりました。どれも<b>入れ子の段組</b>で表に出ます。段組の
- * 組み直し({@code ColumnsContainer.restyle})が<b>全ての段を一本に
- * 組み直す</b>ため、普段は「前のページに残って二度と触られない」前断片が、
- * 継続断片と<b>同じ組み直しの中で両方とも再開される</b>からです。
+ * Measurements of the remaining "content duplication" category (160 cases) in a 50,000-seed sweep
+ * revealed <b>four independent paths</b> to the same outcome: identical text drawn twice on the same
+ * sheet. All surface in <b>nested multi-column layout</b>. Column reconstruction
+ * ({@code ColumnsContainer.restyle}) <b>rebuilds all columns into one</b>, so a previous fragment
+ * normally left untouched on the previous page and its continuation are <b>both resumed
+ * within the same reconstruction</b>.
  * </p>
  *
  * <ol>
- * <li><b>切断済み前断片のソース再生</b>({@code seed 347}):
- * {@code SourceAnchor}は切断しても<b>前断片の側に残り続ける</b>
- * (継続断片はレシピ構築なので最初から持たない)。前断片を
- * {@code stampRanges}が「丸ごと再生できる閉部分木」と刻印し、
- * {@code replayFromSource}が<b>要素全体</b>を組み直すため、継続断片の
- * 再開と二重になる。{@code AbstractBox.markFragmented()}と
- * {@code isSourceReplayable()}で塞ぐ。</li>
+ * <li><b>Source replay of a split previous fragment</b> ({@code seed 347}):
+ * {@code SourceAnchor} <b>remains on the previous fragment</b> after splitting
+ * (continuations are recipe-built and never have one). {@code stampRanges} marks the previous
+ * fragment as a closed subtree eligible for whole replay; {@code replayFromSource} rebuilds
+ * <b>the entire element</b>, duplicating the continuation's resumption.
+ * Block this with {@code AbstractBox.markFragmented()} and {@code isSourceReplayable()}.</li>
  *
- * <li><b>切断済みテキストの尾部再生</b>({@code seed 118665}):
- * 尾部再生は{@code breakToken}の文字位置から<b>ソースの
- * 末尾まで</b>を流していた。断片が流れの最後なら正しいが、段の組み直しでは
- * 先頭の段の断片も同じ走行の中で再開されるので、後続の段の分まで組む。
- * 尾部再生は2026-07-28に既定で無効化し、2026-10-07に撤去した。</li>
+ * <li><b>Tail replay of split text</b> ({@code seed 118665}):
+ * tail replay streamed from {@code breakToken}'s character position <b>to the source end</b>.
+ * This is correct for the final fragment of a flow, but column reconstruction also resumes
+ * the first column's fragment in the same run, laying out later columns' content too.
+ * Tail replay was disabled by default on 2026-07-28 and removed on 2026-10-07.</li>
  *
- * <li><b>MOVE の目印の取り違え</b>({@code seed 739}):
- * {@code ColumnsContainer.splitPageAxis}は切断を<b>最終段へ委譲</b>して
- * 結果をそのまま返すので、「全部移動した」の目印は段組コンテナ自身では
- * なく<b>最終段</b>になる。{@code splitForContinuation}は
- * {@code this.container}(=段組コンテナ)とだけ比べていたため、最終段を
- * 「残余コンテナ」と誤読し、<b>段組の中に残ったまま</b>継続断片としても
- * 組んでいた。{@code AbstractContainerBox.splitMoveSentinel()}で揃える。</li>
+ * <li><b>Wrong MOVE sentinel</b> ({@code seed 739}):
+ * {@code ColumnsContainer.splitPageAxis} <b>delegates cutting to the last column</b> and returns
+ * its result unchanged, so the "moved everything" sentinel is <b>the last column</b>, not the
+ * multi-column container itself. {@code splitForContinuation} compared only with
+ * {@code this.container} (=multi-column container), misreading the last column as a remainder
+ * container and laying it out as a continuation <b>while it still remained in the columns</b>.
+ * Unify this via {@code AbstractContainerBox.splitMoveSentinel()}.</li>
  *
- * <li><b>フロートを含む部分木のソース再生</b>({@code seed 29708}):
- * フロートは集約で<b>段のコンテナへ引き上げられる</b>ので、部分木が丸ごと
- * 移動しても元の段に残る。その部分木をソースから再生すると、引き上げ
- * られた側とあわせて二度組まれる。{@code stampRanges}に
- * {@code containsFloat}ゲートを足す
- * ({@code canReplayChildren}は最初から持っていた)。</li>
+ * <li><b>Source replay of subtrees containing floats</b> ({@code seed 29708}):
+ * aggregation <b>lifts floats to the column container</b>, so they remain in the original column
+ * even when the whole subtree moves. Replaying that subtree from source lays them out twice,
+ * alongside the lifted copies. Add a {@code containsFloat} gate to {@code stampRanges}
+ * ({@code canReplayChildren} already had one).</li>
  * </ol>
  *
  * <p>
- * <b>文書はここで組み立てます</b>——外部ファイルにすると相対パスの画像参照で
- * 判定が変わる事故を起こします(教訓集 §6.9h)。経路2だけは
- * 「1段に収まらない画像」が欠陥の引き金なので画像を外せませんでした。
- * 参照はここで{@code File.toURI()}から<b>絶対URI</b>を組み立てます——
- * 文書を置くディレクトリが変わっても解決先が動かないようにするためです。
+ * <b>Build documents here</b>: external files risk changing the verdict through relative image paths
+ * (lessons learned §6.9h). Only path 2 requires an image, because an image too large for one column
+ * triggers that defect. Use {@code File.toURI()} here to build an <b>absolute URI</b> so the resolved
+ * resource stays unchanged if the document directory moves.
  * </p>
  *
  * <p>
- * <b>複製がないことだけでなくトークンの残存も検査します。</b> 複製は
- * 「両方捨てる」ことでも消せるので、それでは退行の検出になりません
- * (内容の消失は複製よりはるかに悪い)。
+ * <b>Check token survival as well as absence of duplication.</b> Dropping both copies also removes
+ * duplication, which would fail to detect a regression (content loss is much worse than duplication).
  * </p>
  */
 public class NestedMulticolDuplicationTest extends TestCase {
-	/** 打ち切り時間。実測は1件あたり1秒未満。 */
+	/** Timeout. Measured execution is under one second per case. */
 	private static final long WATCHDOG_MS = 60_000L;
 
-	/** 表示リストのテキスト描画行から中身を取り出す。 */
+	/** Extract content from display-list text-drawing lines. */
 	private static final Pattern TEXT = Pattern.compile("Text\\[\"([^\"]*)\"");
 
-	/** 検査対象のトークン(箇条書きの番号等、欠陥に無関係な記号は数えない)。 */
+	/** Tokens to check (omit unrelated symbols such as list numbers). */
 	private static final Pattern TOKEN = Pattern.compile("^T[0-9]+$");
 
 	public NestedMulticolDuplicationTest(String name) {
 		super(name);
 	}
 
-	/** 経路1: 切断済み前断片のソース再生(縦書き・二重の段組・{@code <ol>})。 */
+	/** Path 1: source replay of a split previous fragment (vertical writing, nested columns, {@code <ol>}). */
 	private static final String SPLIT_FRAGMENT_REPLAY = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 			<?jp.cssj.property name="output.page-width" value="120pt"?>
@@ -118,8 +114,7 @@ public class NestedMulticolDuplicationTest extends TestCase {
 			""";
 
 	/**
-	 * 経路2: 切断済みテキストの尾部再生。{@code @IMG@}は
-	 * {@link #imageURI()}で置き換えます。
+	 * Path 2: tail replay of split text. Replace {@code @IMG@} with {@link #imageURI()}.
 	 */
 	private static final String TEXT_TAIL_REPLAY = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
@@ -147,7 +142,7 @@ public class NestedMulticolDuplicationTest extends TestCase {
 			</body></html>
 			""";
 
-	/** 経路3: MOVE の目印の取り違え(3段の中の2段)。 */
+	/** Path 3: wrong MOVE sentinel (two columns inside three). */
 	private static final String MOVE_SENTINEL = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 			<?jp.cssj.property name="output.page-width" value="595pt"?>
@@ -168,7 +163,7 @@ public class NestedMulticolDuplicationTest extends TestCase {
 			</body></html>
 			""";
 
-	/** 経路4: フロートを含む部分木のソース再生。 */
+	/** Path 4: source replay of a subtree containing floats. */
 	private static final String FLOAT_SUBTREE_REPLAY = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 			<?jp.cssj.property name="output.page-width" value="60pt"?>
@@ -192,20 +187,20 @@ public class NestedMulticolDuplicationTest extends TestCase {
 			""";
 
 	/**
-	 * 経路5: <b>上限の無い尾部再生</b>({@code seed 186070}、2026-07-28追加)。
+	 * Path 5: <b>unbounded tail replay</b> ({@code seed 186070}, added 2026-07-28).
 	 *
 	 * <p>
-	 * 段組の組み直しの中だけを封じても、この文書は<b>外側のPAGE再開</b>で
-	 * 尾部再生が発火していた。{@code <p>T17 T18 T19 T20</p>}の断片が
-	 * {@code breakToken}の文字位置から<b>ソース末尾まで</b>を流し、
-	 * 後続の断片が組む{@code T18 T19 T20}を先に組んでしまう。
+	 * Blocking it only during column reconstruction was insufficient: this document triggered
+	 * tail replay in the <b>outer PAGE resumption</b>. A fragment of {@code <p>T17 T18 T19 T20</p>}
+	 * streamed from {@code breakToken}'s character position <b>to the source end</b>,
+	 * prematurely laying out {@code T18 T19 T20}, which later fragments also lay out.
 	 * </p>
 	 *
 	 * <p>
-	 * 終端は次の兄弟の{@code SourceAnchor}から導く設計だったが、継続断片は
-	 * アンカーを持たず、しかも次の断片は<b>同じitemsに並ばない</b>
-	 * (別の段にいる)ため兄弟として見えない。上限を与えられないので
-	 * 尾部再生自体を既定で止めた({@code RootBuilder.TEXT_TAIL_RESTYLE})。
+	 * The design derived the end from the next sibling's {@code SourceAnchor}, but continuations
+	 * have no anchor, and the next fragment <b>is not in the same items</b> (it is in another column),
+	 * so it is not visible as a sibling. With no available upper bound, disable tail replay
+	 * itself by default ({@code RootBuilder.TEXT_TAIL_RESTYLE}).
 	 * </p>
 	 */
 	private static final String UNBOUNDED_TEXT_TAIL = """
@@ -234,8 +229,8 @@ public class NestedMulticolDuplicationTest extends TestCase {
 			""";
 
 	/**
-	 * 経路2が使う画像の絶対URIです。作業ディレクトリはgradleが
-	 * {@code rootProject.projectDir}に固定しています。
+	 * Absolute URI of the image used by path 2. Gradle fixes the working directory
+	 * to {@code rootProject.projectDir}.
 	 */
 	private static String imageURI() {
 		final File png = new File("files/unittest/red.png");
@@ -265,12 +260,12 @@ public class NestedMulticolDuplicationTest extends TestCase {
 	}
 
 	/**
-	 * 変換して、(1) 同じトークンが同じページに二度描かれないこと、
-	 * (2) 期待するトークンが全部どこかのページに現れること、を検査します。
+	 * Convert and check (1) no token is drawn twice on the same page,
+	 * and (2) every expected token appears on some page.
 	 *
-	 * @param name     作業ディレクトリ名
-	 * @param html     文書
-	 * @param expected 文書が持つトークン
+	 * @param name     working directory name
+	 * @param html     document
+	 * @param expected tokens in the document
 	 */
 	private static void assertNoDuplication(final String name, final String html, final String... expected)
 			throws Exception {
@@ -342,7 +337,7 @@ public class NestedMulticolDuplicationTest extends TestCase {
 		}
 		assertTrue(name + ": 内容が複製された " + duplicated + " (全" + pages.length + "ページ)", duplicated.isEmpty());
 
-		// 複製は「両方捨てる」ことでも消せる。それが退行として見えるように
+		// Dropping both copies also eliminates duplication. Make that visible as a regression.
 		final List<String> lost = new ArrayList<>();
 		for (final String token : expected) {
 			if (!seen.contains(token)) {

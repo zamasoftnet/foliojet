@@ -10,7 +10,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
 /**
- * 標準JAXPベースのXMLパーサー補助クラスです。
+ * Helpers for XML parsers based on standard JAXP.
  */
 public final class XMLParsers {
 	private static final Logger LOG = Logger.getLogger(XMLParsers.class.getName());

@@ -23,7 +23,7 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 
-/** 物理 flow と組版モードを分離する共通判定の単体テストです。 */
+/** Unit tests for the shared predicates that separate physical flow from typesetting mode. */
 public class TypesettingModeTest extends TestCase {
 	private static UserAgent ua() {
 		return (UserAgent) Proxy.newProxyInstance(TypesettingModeTest.class.getClassLoader(),

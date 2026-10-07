@@ -58,8 +58,8 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
 /**
- * TwoPass T3c: 配置付き表のrecipe・範囲再生・排他所有の不変条件。
- * 全コーパスの件数はDualPathCensusCrossTabTestで観測し、ここでは対象文書の契約を固定する。
+ * TwoPass T3c: recipe, range replay, and exclusive ownership invariants for positioned tables.
+ * DualPathCensusCrossTabTest observes full-corpus counts; here, verify target-document contracts.
  */
 public final class OpaqueTableRangeTest extends TestCase {
 	private static final List<String> DOCUMENTS = List.of(
@@ -135,7 +135,7 @@ public final class OpaqueTableRangeTest extends TestCase {
 		return () -> field.set(null, saved);
 	}
 
-	/** compact前のappendを観測し、ログ全体にOpaqueがないことを確かめる。 */
+	/** Observe appends before compaction and verify that the entire log contains no Opaque. */
 	private static AutoCloseable observeTables(final List<BoxRecipe.PlacedTable> tables) throws Exception {
 		final Field field = LayoutSource.class.getDeclaredField("appendObserver");
 		field.setAccessible(true);
@@ -150,7 +150,10 @@ public final class OpaqueTableRangeTest extends TestCase {
 		return () -> field.set(null, saved);
 	}
 
-	/** TABLEの1対構造、配置索引、exact照合、params aliasと未知subclassのfail closed。 */
+	/**
+	 * TABLE paired structure, placement index, exact matching, params aliases, and fail-closed handling of unknown
+	 * subclasses.
+	 */
 	public void testRecipeAndSourceContract() throws Exception {
 		final Method freeze = Class.forName("net.zamasoft.foliojet.css.style.RecordingLayoutSink")
 				.getDeclaredMethod("boxRecipe", INonReplacedBox.class);
@@ -179,7 +182,7 @@ public final class OpaqueTableRangeTest extends TestCase {
 			}
 			final TableBox original = new TableBox(params, block);
 			final BoxRecipe.PlacedTable recipe = (BoxRecipe.PlacedTable) freeze.invoke(null, original);
-			// freeze後に元のparams/posを変更しても再構築値は変わらない。
+			// Mutating the original params/pos after freeze does not change reconstructed values.
 			params.borderSpacingH = 70;
 			params.borderSpacingV = 90;
 			params.opacity = 1;
@@ -262,7 +265,7 @@ public final class OpaqueTableRangeTest extends TestCase {
 		return params;
 	}
 
-	/** ownership ledgerの検証核を、正常な計画から条件を1つずつ変えて検査する。 */
+	/** Test the ownership ledger's validation core by changing one condition at a time from a valid plan. */
 	public void testCollectAbsorbableTableRejectsWrongAnchorAndAttachedAbsolute() throws Exception {
 		for (final String condition : List.of("unattached", "wrong-table-anchor", "wrong-block-anchor", "attached-absolute")) {
 			final TableParams params = tableParams();
@@ -273,7 +276,7 @@ public final class OpaqueTableRangeTest extends TestCase {
 				final long start = source.append(new LayoutSource.Start(freezeBox(table)));
 				source.append(new LayoutSource.Chars(0, "cell".toCharArray(), false));
 				final long end = source.append(new LayoutSource.EndBlock());
-				// anchorは付与後不変なので、負例ごとに新しい箱へ一度だけ付ける。
+				// Anchors are immutable after assignment, so assign one once to a fresh box for each negative case.
 				table.setSourceAnchor(condition.equals("wrong-table-anchor") ? end : start);
 				block.setSourceAnchor(condition.equals("wrong-block-anchor") ? end : start);
 				if (condition.equals("attached-absolute")) {
@@ -313,7 +316,7 @@ public final class OpaqueTableRangeTest extends TestCase {
 							handle.bind(null, null);
 							fail("不正なbind先を受理した");
 						} catch (final NullPointerException expected) {
-							// 失敗したbindもリースを消費する。成功時はHTML fixtureで検査する。
+							// Failed binds also consume leases. HTML fixtures check successful cases.
 						}
 					} else if (terminal == RangeHandle.State.SUBSUMED) {
 						try (final var parentLease = source.retainFrom(start)) {
@@ -348,7 +351,7 @@ public final class OpaqueTableRangeTest extends TestCase {
 				new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
 	}
 
-	/** 行計画とseal済み本文だけを組み立て、終端遷移は実際のRangeHandleを通す。 */
+	/** Assemble only the row plan and sealed body; use real RangeHandle for terminal transitions. */
 	@SuppressWarnings("unchecked")
 	private static void addSealedCell(final RetainedTableBuilder retained, final TableCellBox cellBox,
 			final RangeHandle handle) throws Exception {

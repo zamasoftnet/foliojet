@@ -8,9 +8,8 @@ import net.zamasoft.foliojet.css.value.GridTrackListValue;
 import net.zamasoft.foliojet.layout.sizing.BasicGridTrackSizing.ItemContribution;
 
 /**
- * {@link BasicGridTrackSizing}(Grid G3b/c、G4dでspan対応)の純粋計算
- * テストです(consult-codex-2026-07-31-grid-g3.txt Q2・-grid-g4.txt Q2の
- * 必須ケース)。
+ * Pure calculation tests for {@link BasicGridTrackSizing} (Grid G3b/c, span support added in G4d)
+ * (required cases in consult-codex-2026-07-31-grid-g3.txt Q2 and -grid-g4.txt Q2).
  */
 public class BasicGridTrackSizingTest extends TestCase {
 
@@ -20,7 +19,7 @@ public class BasicGridTrackSizingTest extends TestCase {
 		return new GridTrackListValue.Fixed(length);
 	}
 
-	/** 列ごとのspan1 contribution(min=max等値も可)を組み立てる。 */
+	/** Builds per-column span1 contributions (min=max is also allowed). */
 	private static List<ItemContribution> perColumn(final double[] colMin, final double[] colMax) {
 		final List<ItemContribution> items = new ArrayList<>();
 		for (int i = 0; i < colMin.length; ++i) {
@@ -36,7 +35,10 @@ public class BasicGridTrackSizingTest extends TestCase {
 		return new GridTrackListValue.MinMax(min, max);
 	}
 
-	/** minmax(固定, fr)(2026-08-29): 基礎幅は固定minで内容に膨らまず、残余はfrへ。 */
+	/**
+	 * minmax(fixed, fr) (2026-08-29): fixed min sets the base; content does not enlarge it, and fr gets the
+	 * remainder.
+	 */
 	public void testMinMaxFixedMinFr() {
 		final List<GridTrackListValue.TrackSize> tracks = List.of(minmax(fixed(100), new GridTrackListValue.Fr(1)),
 				fixed(50));
@@ -44,16 +46,16 @@ public class BasicGridTrackSizingTest extends TestCase {
 				300, 0);
 		assertEquals(250.0, w[0], 0.001);
 		assertEquals(50.0, w[1], 0.001);
-		// 利用可能幅が基礎幅の合計を割っても縮めない(overflow)
+		// Do not shrink even if available width falls below the sum of base widths (overflow).
 		w = BasicGridTrackSizing.resolve(tracks, perColumn(new double[] { 10, 10 }, new double[] { 10, 10 }), 120, 0);
 		assertEquals(100.0, w[0], 0.001);
 		assertEquals(50.0, w[1], 0.001);
-		// 内容のmin-content(150)は固定min 100を押し広げない
+		// Content's min-content (150) does not enlarge the fixed min of 100.
 		w = BasicGridTrackSizing.resolve(tracks, perColumn(new double[] { 150, 10 }, new double[] { 150, 10 }), 120,
 				0);
 		assertEquals(100.0, w[0], 0.001);
 		assertEquals(50.0, w[1], 0.001);
-		// 従来のminmax(0, <fr>)(ZeroMinFr)と同じ: 長い内容でも等分
+		// Same as the existing minmax(0, <fr>) (ZeroMinFr): equal division even for long content.
 		final double[] zero = BasicGridTrackSizing.resolve(
 				List.of(minmax(fixed(0), new GridTrackListValue.Fr(1)), minmax(fixed(0), new GridTrackListValue.Fr(1))),
 				perColumn(new double[] { 500, 0 }, new double[] { 500, 0 }), 200, 0);
@@ -61,25 +63,31 @@ public class BasicGridTrackSizingTest extends TestCase {
 		assertEquals(100.0, zero[1], 0.001);
 	}
 
-	/** minmax(auto, 固定)(2026-08-29): 基礎幅は内容のmin-content、上限は固定max(基礎幅を下回れば基礎幅)。 */
+	/**
+	 * minmax(auto, fixed) (2026-08-29): base width is min-content; the limit is fixed max, raised to base if
+	 * smaller.
+	 */
 	public void testMinMaxAutoMinFixedMax() {
 		final List<GridTrackListValue.TrackSize> tracks = List.of(minmax(AUTO, fixed(200)),
 				new GridTrackListValue.Fr(1));
 		double[] w = BasicGridTrackSizing.resolve(tracks, perColumn(new double[] { 10, 10 }, new double[] { 10, 10 }),
 				300, 0);
-		assertEquals(200.0, w[0], 0.001); // maximize tracksで上限まで伸びてからfr
+		assertEquals(200.0, w[0], 0.001); // Maximize tracks up to their limits, then allocate to fr.
 		assertEquals(100.0, w[1], 0.001);
 		w = BasicGridTrackSizing.resolve(tracks, perColumn(new double[] { 250, 10 }, new double[] { 250, 10 }), 300,
 				0);
 		assertEquals(250.0, w[0], 0.001);
 		assertEquals(50.0, w[1], 0.001);
-		// max-content上限のminmax(auto, max-content)はautoと同じ成長だがstretchしない
+		// minmax(auto, max-content), capped at max-content, grows like auto but does not stretch.
 		final double[] mc = BasicGridTrackSizing.resolve(List.of(minmax(AUTO, GridTrackListValue.MaxContent.INSTANCE)),
 				perColumn(new double[] { 40 }, new double[] { 80 }), 150, 0);
 		assertEquals(80.0, mc[0], 0.001);
 	}
 
-	/** minmax(固定, 固定)(2026-08-29): 残余は上限まで均等に配り(maximize tracks)、その先はstretchしない。 */
+	/**
+	 * minmax(fixed, fixed) (2026-08-29): distribute the remainder equally up to limits (maximize tracks), without
+	 * stretching beyond.
+	 */
 	public void testMinMaxFixedFixedMaximize() {
 		final List<GridTrackListValue.TrackSize> tracks = List.of(minmax(fixed(50), fixed(100)),
 				minmax(fixed(50), fixed(100)));
@@ -89,16 +97,16 @@ public class BasicGridTrackSizingTest extends TestCase {
 		w = BasicGridTrackSizing.resolve(tracks, List.of(), 300, 0);
 		assertEquals(100.0, w[0], 0.001);
 		assertEquals(100.0, w[1], 0.001);
-		// max<minは仕様どおりmaxを無視
+		// If max<min, ignore max as specified.
 		w = BasicGridTrackSizing.resolve(List.of(minmax(fixed(100), fixed(50))), List.of(), 300, 0);
 		assertEquals(100.0, w[0], 0.001);
-		// 固有寸法: min=Σmin側、max=Σmax側
+		// Intrinsic sizes: min=Σmin sides, max=Σmax sides.
 		final BasicGridTrackSizing.Intrinsics in = BasicGridTrackSizing.intrinsics(tracks, List.of(), 10);
 		assertEquals(110.0, in.min(), 0.001);
 		assertEquals(210.0, in.max(), 0.001);
 	}
 
-	/** fixed+auto: 残余はstretchでauto列へ(80+gap10+auto→300なら210)。 */
+	/** fixed+auto: stretch gives the remainder to the auto column (80+gap10+auto→300 gives 210). */
 	public void testFixedAutoStretch() {
 		final double[] w = BasicGridTrackSizing.resolve(List.of(fixed(80), AUTO),
 				perColumn(new double[] { 60, 70 }, new double[] { 60, 70 }), 300, 10);
@@ -106,7 +114,7 @@ public class BasicGridTrackSizingTest extends TestCase {
 		assertEquals(210.0, w[1], 0.001);
 	}
 
-	/** auto二列: 成長上限まで均等成長→なお残る分は均等stretch。 */
+	/** Two auto columns: grow equally up to growth limits, then stretch equally with any remainder. */
 	public void testAutoGrowthThenStretch() {
 		final double[] w = BasicGridTrackSizing.resolve(List.of(AUTO, AUTO),
 				perColumn(new double[] { 40, 30 }, new double[] { 80, 30 }), 150, 0);
@@ -114,14 +122,14 @@ public class BasicGridTrackSizingTest extends TestCase {
 		assertEquals(50.0, w[1], 0.001);
 	}
 
-	/** 成長上限に届かない残余は上限内で止まる。 */
+	/** A remainder insufficient to reach the growth limits stops below them. */
 	public void testAutoPartialGrowth() {
 		final double[] w = BasicGridTrackSizing.resolve(List.of(AUTO),
 				perColumn(new double[] { 40 }, new double[] { 80 }), 60, 0);
 		assertEquals(60.0, w[0], 0.001);
 	}
 
-	/** min-content床: 利用可能幅を超えても縮めずoverflow。 */
+	/** min-content floor: overflow without shrinking, even when available width is exceeded. */
 	public void testOverflowKeepsMinContent() {
 		final double[] w = BasicGridTrackSizing.resolve(List.of(AUTO),
 				perColumn(new double[] { 60 }, new double[] { 60 }), 30, 0);
@@ -132,14 +140,14 @@ public class BasicGridTrackSizingTest extends TestCase {
 		assertEquals(100.0, w2[1], 0.001);
 	}
 
-	/** fixedのみ: 残余は分配せず末尾に残す(G1と同じ)。 */
+	/** Fixed only: leave the remainder at the end without distributing it (same as G1). */
 	public void testFixedOnlyLeavesRemainder() {
 		final double[] w = BasicGridTrackSizing.resolve(List.of(fixed(100), fixed(100)), List.of(), 300, 20);
 		assertEquals(100.0, w[0], 0.001);
 		assertEquals(100.0, w[1], 0.001);
 	}
 
-	/** fr比例分配と、fixed/autoとの共存(G3c)。 */
+	/** Proportional fr distribution and coexistence with fixed/auto (G3c). */
 	public void testFrProportionalAndMixed() {
 		final double[] w = BasicGridTrackSizing.resolve(
 				List.of(new GridTrackListValue.Fr(1), new GridTrackListValue.Fr(2)), List.of(), 300, 0);
@@ -153,13 +161,13 @@ public class BasicGridTrackSizingTest extends TestCase {
 		assertEquals(190.0, m[2], 0.001);
 	}
 
-	/** 単独0.5frは残余の50%だけ充填(weight合計1未満の切り上げ)。 */
+	/** A single 0.5fr fills only 50% of the remainder (round the weight sum up to 1 if below 1). */
 	public void testFrPartialFill() {
 		final double[] w = BasicGridTrackSizing.resolve(List.of(new GridTrackListValue.Fr(0.5)), List.of(), 200, 0);
 		assertEquals(100.0, w[0], 0.001);
 	}
 
-	/** frのmin-content床: 割る列は床で凍結して残余を再計算。 */
+	/** fr min-content floor: freeze columns that would fall below their floors and recalculate the remainder. */
 	public void testFrBaseFloorFreeze() {
 		final double[] w = BasicGridTrackSizing.resolve(
 				List.of(new GridTrackListValue.Fr(1), new GridTrackListValue.Fr(1)),
@@ -168,7 +176,10 @@ public class BasicGridTrackSizingTest extends TestCase {
 		assertEquals(20.0, w[1], 0.001);
 	}
 
-	/** fr異常系: base合計超過・幅0・weight0でNaN/負値を返さない。 */
+	/**
+	 * fr edge cases: base sums exceeding capacity, zero width, and zero weight must not yield NaN or negative
+	 * values.
+	 */
 	public void testFrDegenerateCases() {
 		final double[] over = BasicGridTrackSizing.resolve(
 				List.of(new GridTrackListValue.Fr(1), new GridTrackListValue.Fr(1)),
@@ -189,7 +200,7 @@ public class BasicGridTrackSizingTest extends TestCase {
 		}
 	}
 
-	/** 空auto列(itemなし)は0起点でstretchのみ受ける。 */
+	/** An empty auto column (no items) starts at 0 and only stretches. */
 	public void testEmptyAutoColumnAndZeroContainer() {
 		final double[] w = BasicGridTrackSizing.resolve(List.of(AUTO, AUTO),
 				perColumn(new double[] { 50, 0 }, new double[] { 50, 0 }), 100, 0);
@@ -197,18 +208,18 @@ public class BasicGridTrackSizingTest extends TestCase {
 		assertEquals(25.0, w[1], 0.001);
 	}
 
-	/** G5c: positional justify-contentではauto列の残余stretchを止める。 */
+	/** G5c: positional justify-content stops stretching auto columns with the remainder. */
 	public void testPositionalNoAutoStretch() {
 		final double[] w = BasicGridTrackSizing.resolve(List.of(fixed(80), AUTO),
 				perColumn(new double[] { 0, 30 }, new double[] { 0, 70 }), 300, 10, false);
 		assertEquals(80.0, w[0], 0.001);
-		assertEquals(70.0, w[1], 0.001); // max-content上限まで。残余140はoffsetへ
+		assertEquals(70.0, w[1], 0.001); // Up to the max-content limit. The remaining 140 goes to the offset.
 	}
 
-	/** span不足分配(G4d): fixed+autoを跨ぐspanはauto側だけが伸びる。 */
+	/** Span deficit distribution (G4d): for a span across fixed+auto, only the auto side grows. */
 	public void testSpanDeficitToAuto() {
-		// [40pt auto]、span1のauto contribution 20、span2 item min=max=100
-		// → 不足 100-(40+20)=40 が auto へ → base 60。intrinsics min=max=100
+		// [40pt auto], span1 auto contribution 20, span2 item min=max=100.
+		// → Deficit 100-(40+20)=40 goes to auto → base 60. Intrinsics min=max=100.
 		final List<ItemContribution> items = List.of(new ItemContribution(1, 1, 20, 20),
 				new ItemContribution(0, 2, 100, 100));
 		final BasicGridTrackSizing.Intrinsics in = BasicGridTrackSizing.intrinsics(List.of(fixed(40), AUTO), items,
@@ -220,10 +231,10 @@ public class BasicGridTrackSizingTest extends TestCase {
 		assertEquals(60.0, w[1], 0.001);
 	}
 
-	/** span不足分配: 内側gapは控除、同一span長は最大必要増分で反映。 */
+	/** Span deficit distribution: deduct internal gaps; equal span lengths use the maximum required increase. */
 	public void testSpanDeficitGapAndBatch() {
-		// [auto auto] gap10。span2 item二つ(min 90と70)——大きい方だけが効く
-		// (planned increase)。不足=90-10-0=80 → 各autoへ40
+		// [auto auto], gap10. Two span2 items (min 90 and 70); only the larger affects the result
+		// (planned increase). Deficit=90-10-0=80 → 40 to each auto.
 		final List<ItemContribution> items = List.of(new ItemContribution(0, 2, 90, 90),
 				new ItemContribution(0, 2, 70, 70));
 		final BasicGridTrackSizing.Intrinsics in = BasicGridTrackSizing.intrinsics(List.of(AUTO, AUTO), items, 10);
@@ -233,23 +244,23 @@ public class BasicGridTrackSizingTest extends TestCase {
 		assertEquals(40.0, w[1], 0.001);
 	}
 
-	/** span不足分配: frを跨ぐ場合はfr側(weight比)へ、床として効く。 */
+	/** Span deficit distribution: when crossing fr tracks, distribute to them by weight as a floor. */
 	public void testSpanDeficitToFr() {
-		// [40pt 1fr]、span2 item min=max=100 → fr床=60。available 80 <
-		// 40+60 → overflowでfr=60(床維持)
+		// [40pt 1fr], span2 item min=max=100 → fr floor=60. available 80 <
+		// 40+60 → overflow with fr=60 (floor preserved).
 		final List<ItemContribution> items = List.of(new ItemContribution(0, 2, 100, 100));
 		final double[] w = BasicGridTrackSizing.resolve(List.of(fixed(40), new GridTrackListValue.Fr(1)), items, 80,
 				0);
 		assertEquals(40.0, w[0], 0.001);
 		assertEquals(60.0, w[1], 0.001);
 
-		// 余裕があればfrが残余を取る(床より大きい)
+		// With enough room, fr takes the remainder (greater than the floor).
 		final double[] wide = BasicGridTrackSizing.resolve(List.of(fixed(40), new GridTrackListValue.Fr(1)), items,
 				200, 0);
 		assertEquals(160.0, wide[1], 0.001);
 	}
 
-	/** fixedのみを跨ぐspanはトラックを増やさない(overflow許容)。 */
+	/** A span across only fixed tracks does not enlarge the tracks (overflow allowed). */
 	public void testSpanOverFixedOnly() {
 		final List<ItemContribution> items = List.of(new ItemContribution(0, 2, 300, 300));
 		final double[] w = BasicGridTrackSizing.resolve(List.of(fixed(40), fixed(40)), items, 200, 0);

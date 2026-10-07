@@ -28,11 +28,11 @@ import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code @container}実装・段2の解析テストです
- * (開発記録 §5/§6)。
- * {@code container-type}/{@code container-name}/{@code container}
- * ショートハンドの受理・拒否と既定値を固定する(FlexParserTestと同方針、
- * カスケードそのものはstyle文脈が要るためRaw中間形の受理までを対象とする)。
+ * Parsing tests for stage 2 of the {@code @container} implementation
+ * (development record §5/§6).
+ * Fix acceptance, rejection, and defaults for {@code container-type}, {@code container-name},
+ * and the {@code container} shorthand (same approach as FlexParserTest:
+ * the cascade needs a style context, so cover acceptance of the Raw intermediate form only).
  */
 public class ContainerParserTest extends TestCase {
 
@@ -76,7 +76,7 @@ public class ContainerParserTest extends TestCase {
 			parse(info, value);
 			fail(info.getName() + ": " + value + " が受理された");
 		} catch (final PropertyException e) {
-			// 期待どおり
+			// As expected.
 		}
 	}
 
@@ -100,7 +100,7 @@ public class ContainerParserTest extends TestCase {
 			parseShorthand(info, value);
 			fail(info.getName() + ": " + value + " が受理された");
 		} catch (final PropertyException e) {
-			// 期待どおり
+			// As expected.
 		}
 	}
 
@@ -116,7 +116,7 @@ public class ContainerParserTest extends TestCase {
 		return result;
 	}
 
-	/** 既定はnormal/none(未対応時のフォールバック挙動と一致)。 */
+	/** Defaults are normal/none (matching fallback behavior when unsupported). */
 	public void testDefaults() {
 		assertSame(ContainerTypeValue.NORMAL_VALUE, ContainerType.INFO.getDefault(null));
 		assertSame(KeywordValue.NONE, ContainerName.INFO.getDefault(null));
@@ -135,13 +135,13 @@ public class ContainerParserTest extends TestCase {
 		assertSame(KeywordValue.NONE, parse(ContainerName.INFO, "none"));
 		assertEquals(List.of("sidebar"), List.of(names(parse(ContainerName.INFO, "sidebar"))));
 		assertEquals(List.of("a", "b", "c"), List.of(names(parse(ContainerName.INFO, "a b c"))));
-		// noneは他の名前と共存できない(css-contain-3の<custom-ident>から除外)
+		// none cannot coexist with other names (excluded from css-contain-3 <custom-ident>).
 		assertInvalid(ContainerName.INFO, "a none");
 		assertInvalid(ContainerName.INFO, "none a");
 		assertInvalid(ContainerName.INFO, "42");
 	}
 
-	/** container: <name> [/ <type>]?——typeを省略するとnormal。 */
+	/** container: <name> [/ <type>]? — omitting type means normal. */
 	public void testContainerShorthand() throws Exception {
 		Map<String, Value> m = parseShorthand(ContainerShorthand.INFO, "sidebar");
 		assertEquals(List.of("sidebar"), List.of(names(m.get("container-name"))));

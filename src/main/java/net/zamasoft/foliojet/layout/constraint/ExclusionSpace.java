@@ -9,25 +9,22 @@ import net.zamasoft.foliojet.layout.box.params.FloatSide;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * ある文脈(1つのformatting context)で現在有効な浮動体排除帯の集合です
- * (2026-07-23新設、排除域のConstraintSpace入力化のP0第一段——
- * `設計相談`の設計に基づく)。
+ * Set of float exclusion bands currently active in one context (a formatting context) (added 2026-07-23, P0 stage 1
+ * of making exclusion spaces ConstraintSpace inputs, based on the design in `design consultation`).
  *
  * <p>
- * 不変値型。{@code net.zamasoft.foliojet.layout.builder.impl
- * .BlockBuilder.floatings}(可変{@code List})が現在担っている
- * 「pageEnd昇順・同値は追加順」という並び契約
- * ({@code BlockBuilder.FLOAT_COMP}、安定ソート)を、この段階では
- * まだどの消費者にも配線せず値型だけで再現する。実際の消費者
- * (multicol回避・clear・addBound・TextBuilder・float配置)を
- * このqueryへ切り替える作業は後続の増分で行う——本クラス自体は
- * 挙動を一切変更しない。
+ * Immutable value type. Reproduces the ordering contract currently held by {@code
+ * net.zamasoft.foliojet.layout.builder.impl
+ * .BlockBuilder.floatings} (a mutable {@code List}): ascending pageEnd, insertion order for ties ({@code
+ * BlockBuilder.FLOAT_COMP}, stable sort). At this stage, only the value type reproduces it; no consumer is
+ * connected yet. Switching actual consumers (multicol avoidance, clear, addBound, TextBuilder, float placement) to
+ * these queries belongs to later increments. This class itself changes no behavior.
  * </p>
  */
 public final class ExclusionSpace {
 	public static final ExclusionSpace EMPTY = new ExclusionSpace(List.of());
 
-	/** {@link FloatExclusion#pageSpan}の{@code end}昇順(同値は{@link FloatExclusion#order}昇順)。 */
+	/** Ascending {@code end} of {@link FloatExclusion#pageSpan} (ties by ascending {@link FloatExclusion#order}). */
 	private final List<FloatExclusion> ascendingByPageEnd;
 
 	private ExclusionSpace(List<FloatExclusion> ascendingByPageEnd) {
@@ -35,11 +32,10 @@ public final class ExclusionSpace {
 	}
 
 	/**
-	 * 既に{@code pageSpan.end}昇順(同値は追加順)に並んだリストから
-	 * 一括構築します(2026-07-23、codexレビュー指摘のO(N²)解消——
-	 * {@code BlockBuilder.floatings}は{@code FLOAT_COMP}安定ソート済み
-	 * のため、要素ごとの{@link #plus}挿入は不要でO(N)コピーで足りる)。
-	 * 並び順の契約は呼び出し元の責任(assertで検査)。
+	 * Constructs in bulk from a list already sorted by ascending {@code pageSpan.end} (insertion order for ties)
+	 * (2026-07-23; resolves O(N²) noted in codex review). {@code BlockBuilder.floatings} is already stably sorted by
+	 * {@code FLOAT_COMP}, so an O(N) copy suffices instead of inserting each element through {@link #plus}. The caller
+	 * is responsible for the ordering contract (checked by assert).
 	 */
 	public static ExclusionSpace copyOfSorted(final List<FloatExclusion> ascendingByPageEnd) {
 		if (ascendingByPageEnd.isEmpty()) {
@@ -59,11 +55,9 @@ public final class ExclusionSpace {
 	}
 
 	/**
-	 * {@code exclusion}を追加した新しい{@code ExclusionSpace}を返します。
-	 * このインスタンス自体は変更しません。挿入位置は既存の
-	 * {@code pageSpan.end}昇順を保ったまま、同値の要素より後ろに
-	 * なります({@code BlockBuilder}が「末尾へadd後に安定ソート」する
-	 * のと同じ結果)。
+	 * Returns a new {@code ExclusionSpace} with {@code exclusion} added, leaving this instance unchanged. Inserts
+	 * after equal-valued entries while retaining ascending {@code pageSpan.end} order (same result as {@code
+	 * BlockBuilder} appending then stably sorting).
 	 */
 	public ExclusionSpace plus(FloatExclusion exclusion) {
 		if (exclusion == null) {
@@ -86,9 +80,8 @@ public final class ExclusionSpace {
 	}
 
 	/**
-	 * 2つの不変スナップショットを{@code pageSpan.end, order}順にマージします。
-	 * 両方の入力が既に整列済みなので、要素ごとの挿入を行わずO(N+M)で
-	 * 新しいスナップショットを作る。
+	 * Merges two immutable snapshots in {@code pageSpan.end, order} order. Both inputs are already sorted, so creates
+	 * a new snapshot in O(N+M) without individual insertions.
 	 */
 	public ExclusionSpace mergedWith(final ExclusionSpace other) {
 		if (other == null) {
@@ -119,30 +112,28 @@ public final class ExclusionSpace {
 		return copyOfSorted(merged);
 	}
 
-	/** 空かどうかです。 */
+	/** Whether the set is empty. */
 	public boolean isEmpty() {
 		return this.ascendingByPageEnd.isEmpty();
 	}
 
-	/** 保持している排除帯の件数です。 */
+	/** Number of retained exclusion bands. */
 	public int size() {
 		return this.ascendingByPageEnd.size();
 	}
 
 	/**
-	 * {@code pageSpan.end}昇順(同値は追加順)のビューです。
-	 * {@code TextBuilder.locateLine}等、昇順走査する消費者向け。
+	 * View in ascending {@code pageSpan.end} order (insertion order for ties). For consumers scanning forward, such as
+	 * {@code TextBuilder.locateLine}.
 	 */
 	public List<FloatExclusion> ascendingByPageEnd() {
 		return this.ascendingByPageEnd;
 	}
 
 	/**
-	 * {@code pageSpan.end}降順(同値は最後に追加されたものが先)の
-	 * ビューです。{@code BlockBuilder.startFlowBlock}のmulticol回避・
-	 * {@code addBound}等、末尾から逆順走査する消費者向け
-	 * (現行コードの{@code for (i = floatings.size() - 1; i >= 0; --i)}
-	 * と同じ順序)。
+	 * View in descending {@code pageSpan.end} order (most recently added first for ties). For consumers scanning
+	 * backward from the end, such as multicol avoidance in {@code BlockBuilder.startFlowBlock} and {@code addBound}
+	 * (same order as the existing {@code for (i = floatings.size() - 1; i >= 0; --i)}).
 	 */
 	public List<FloatExclusion> descendingByPageEnd() {
 		final List<FloatExclusion> reversed = new ArrayList<>(this.ascendingByPageEnd);
@@ -151,18 +142,18 @@ public final class ExclusionSpace {
 	}
 
 	/**
-	 * {@code pageAxis}を含む帯(始まりが{@code pageAxis}以前で、終わりがそれより後)の浮動体だけで
-	 * {@code lineBand}を狭めます(2026-10-05)。ページフロートの集合に使う——下端の帯はこれから始まるので、
-	 * {@link #narrowLineBandForMulticol}のように終わりだけで選ぶと、帯の手前に収まる箱まで細る。
+	 * Narrows {@code lineBand} using only floats whose bands contain {@code pageAxis} (start at or before {@code
+	 * pageAxis} and end after it) (2026-10-05). Used for page-float sets: bottom bands start later, so selecting only
+	 * by end as in {@link #narrowLineBandForMulticol} would narrow even boxes that fit before the band.
 	 */
 	public AxisSpan narrowLineBandAt(final double pageAxis, final AxisSpan lineBand) {
 		return this.narrowLineBandOver(pageAxis, pageAxis, lineBand);
 	}
 
 	/**
-	 * {@code [pageStart, pageEnd]} にかかる浮動体の帯で {@code lineBand} を狭めます(2026-10-05)。
-	 * 独立した整形文脈の箱が、必ず占める範囲(枠の始まりから最小の大きさまで)にかかる帯を避けるのに使う。
-	 * {@code pageEnd == pageStart} なら {@link #narrowLineBandAt} と同じ。
+	 * Narrows {@code lineBand} with float bands intersecting {@code [pageStart, pageEnd]} (2026-10-05). Used by boxes
+	 * in independent formatting contexts to avoid bands intersecting their guaranteed occupied range (from frame start
+	 * through minimum size). If {@code pageEnd == pageStart}, equivalent to {@link #narrowLineBandAt}.
 	 */
 	public AxisSpan narrowLineBandOver(final double pageStart, final double pageEnd, final AxisSpan lineBand) {
 		double lineStart = lineBand.start();
@@ -183,7 +174,7 @@ public final class ExclusionSpace {
 		return new AxisSpan(lineStart, lineEnd);
 	}
 
-	/** {@code pageAxis}より後で終わる浮動体のうち、いちばん早い終わりです(無ければ NaN、2026-10-05)。 */
+	/** Earliest end among floats ending after {@code pageAxis} (NaN if none; 2026-10-05). */
 	public double nextPageEndAfter(final double pageAxis) {
 		for (final FloatExclusion exclusion : this.ascendingByPageEnd) {
 			if (exclusion.pageSpan().end() > pageAxis) {
@@ -193,7 +184,7 @@ public final class ExclusionSpace {
 		return Double.NaN;
 	}
 
-	/** {@code pageAxis}を含む帯の浮動体のうち、いちばん遅く終わるものの終わりです(無ければ NaN、2026-10-05)。 */
+	/** Latest end among floats whose bands contain {@code pageAxis} (NaN if none; 2026-10-05). */
 	public double bandEndAt(final double pageAxis) {
 		double end = Double.NaN;
 		for (final FloatExclusion exclusion : this.ascendingByPageEnd) {
@@ -205,15 +196,14 @@ public final class ExclusionSpace {
 	}
 
 	/**
-	 * {@code BlockBuilder.startFlowBlock}のmulticol回避と同じ規則で、
-	 * {@code lineBand}を浮動体が占める帯だけ狭めます(2026-07-23新設、
-	 * P0 Step3のshadow比較用——`BlockBuilder`の既存ループを1対1で
-	 * 移した実装。挙動を変えないことが目的なので、比較演算子・走査順は
-	 * 既存ループと完全に同じにする)。
+	 * Narrows {@code lineBand} by bands occupied by floats, using the same rules as multicol avoidance in {@code
+	 * BlockBuilder.startFlowBlock} (added 2026-07-23 for P0 Step3 shadow comparison; a one-to-one port of the existing
+	 * `BlockBuilder` loop). To preserve behavior, comparison operators and scan order must match the existing loop
+	 * exactly.
 	 *
 	 * <p>
-	 * {@code pageAxis}以下(浮動体の下端がpage軸開始位置以前)まで
-	 * 遡ったら打ち切る——既存ループの{@code break}と同じ。
+	 * Stop when reaching {@code pageAxis} or earlier (the float bottom is at or before the page-axis start), just like
+	 * the existing loop's {@code break}.
 	 * </p>
 	 */
 	public AxisSpan narrowLineBandForMulticol(final double pageAxis, final AxisSpan lineBand) {
@@ -237,18 +227,15 @@ public final class ExclusionSpace {
 	}
 
 	/**
-	 * {@code BlockBuilder.startFlowBlock}のclear処理と同じ規則で、
-	 * clearの対象になる浮動体を探します(2026-07-23新設、P0 Step3の
-	 * shadow比較用——既存ループを1対1で移した実装)。
+	 * Finds the float targeted by clear using the same rules as clear processing in {@code
+	 * BlockBuilder.startFlowBlock} (added 2026-07-23 for P0 Step3 shadow comparison; a one-to-one port of the existing
+	 * loop).
 	 *
 	 * <p>
-	 * {@code pageEnd}は既存コードと同じく{@code marginStart}を引いた
-	 * 相対値で比較する(算術的には{@code pageStart}側へ足し戻すのと
-	 * 同値だが、浮動小数点の丸めまで完全に再現するため既存コードと
-	 * 同じ引き算の順序・箇所を保つ)。descending順で最初に見つかった
-	 * 対象だけを返す——{@code pageEnd <= pageStart}になった時点で
-	 * (現ページより手前の浮動体に達したら)探索を打ち切り、見つから
-	 * なかったものとして{@code null}を返す。
+	 * Compare {@code pageEnd} relative to {@code marginStart} by subtracting it, as in existing code (arithmetically
+	 * equivalent to adding it back to {@code pageStart}, but preserve the same subtraction order and site to reproduce
+	 * floating-point rounding exactly). Return only the first match in descending order. Once {@code pageEnd <=
+	 * pageStart} (a float before the current page is reached), stop searching and return {@code null} as no match.
 	 * </p>
 	 */
 	public FloatExclusion findClearBoundary(final double pageStart, final double marginStart, final ClearMode clear) {
@@ -279,17 +266,14 @@ public final class ExclusionSpace {
 	}
 
 	/**
-	 * {@code BlockBuilder.addBound}(置換要素・表がフロー中で浮動体を
-	 * 避ける処理)と同じ規則を再現します(2026-07-23新設、P0 Step3の
-	 * shadow比較用——既存ループを1対1で移した実装)。
+	 * Reproduces the rules of {@code BlockBuilder.addBound} (replaced elements and tables avoiding floats in flow)
+	 * (added 2026-07-23 for P0 Step3 shadow comparison; a one-to-one port of the existing loop).
 	 *
 	 * <p>
-	 * このループは2つの独立した規則を1回の走査で行う既存構造を
-	 * そのまま保つ: (1) {@code clear}指定に応じた境界浮動体の探索
-	 * (見つかったら即座に走査終了)、(2) 見つからなかった場合の
-	 * START/END浮動体によるline帯の狭窄(START側は既存コードの
-	 * 挙動どおり{@code xMarginStart}を0にリセットして走査を打ち切る
-	 * ——既存コードのコメントにある非対称な既存挙動をそのまま再現)。
+	 * Preserves the existing structure that applies two independent rules in one scan: (1) find the boundary float
+	 * according to {@code clear} (stop immediately if found); (2) otherwise narrow the line band with START/END floats
+	 * (on START, reset {@code xMarginStart} to 0 and stop, faithfully reproducing the asymmetric existing behavior
+	 * described in the original code comment).
 	 * </p>
 	 */
 	public BoundAvoidance findBoundAvoidance(final double pageStart, final double lineSize, final double lineStop,
@@ -321,12 +305,12 @@ public final class ExclusionSpace {
 			}
 			switch (exclusion.side()) {
 			case START:
-				// END側と対称に「横に入るか」を検査する(2026-08-10)。従来は
-				// 開始側floatだと無条件にclearing扱い=常に下ろしていたため、
-				// 幅が十分でも表がfloat下端まで落ちた(cocoon.apache.orgの
-				// 左ナビ約630pt+width:100%表で、本文が丸ごとページ2へ)。
-				// Chromeはfloat右端(178px)と表左端(193px)が非干渉なら
-				// 最上部へ並べる(実測)。入らない場合は従来どおり下ろす
+				// Check whether it fits beside the float symmetrically with END (2026-08-10). Previously,
+				// start-side floats unconditionally triggered clearing, always moving content down;
+				// tables dropped to the float bottom even with enough width (cocoon.apache.org's
+				// roughly 630 pt left navigation plus a width:100% table moved the whole body to page 2).
+				// Chrome places them together at the top if the float right edge (178 px) and table left edge
+				// (193 px) do not interfere (observed). If they do not fit, move down as before.
 				if (LayoutUtils.compare(lineEnd - exclusion.lineSpan().end(), lineSize) < 0) {
 					return new BoundAvoidance(exclusion, pageEnd, xMarginStart, lineEnd);
 				}
@@ -347,29 +331,26 @@ public final class ExclusionSpace {
 	}
 
 	/**
-	 * {@link #findBoundAvoidance}の結果です(2026-07-23新設)。
-	 * {@code clearingExclusion}が非nullなら、それがclearの境界になった
-	 * 浮動体で{@code clearPageEnd}がその際の(margin調整済み)pageEnd。
-	 * {@code clearingExclusion}がnullの場合、clearによる境界移動はなく
-	 * {@code xMarginStart}/{@code lineEnd}がそのまま採用される狭窄結果。
+	 * Result of {@link #findBoundAvoidance} (added 2026-07-23). Non-null {@code clearingExclusion} is the float
+	 * defining the clear boundary, and {@code clearPageEnd} is its margin-adjusted pageEnd. If {@code
+	 * clearingExclusion} is null, no clear-induced boundary movement occurs; {@code xMarginStart}/{@code lineEnd} are
+	 * the narrowing result to use directly.
 	 */
 	public record BoundAvoidance(FloatExclusion clearingExclusion, double clearPageEnd, double xMarginStart,
 			double lineEnd) {
 	}
 
 	/**
-	 * {@code TextBuilder.locateLine}の1回分の行帯走査と同じ規則を
-	 * 再現します(2026-07-23新設、P0 Step3のshadow比較用——既存ループを
-	 * 1対1で移した実装)。他3消費者とは異なり{@code ascendingByPageEnd}
-	 * (昇順)で走査する——既存コードの{@code for (i = 0; i <
-	 * floatings.size(); ++i)}と同じ順序。
+	 * Reproduces one line-band scan of {@code TextBuilder.locateLine} (added 2026-07-23 for P0 Step3 shadow
+	 * comparison; a one-to-one port of the existing loop). Unlike the other three consumers, scans in {@code
+	 * ascendingByPageEnd} order, matching the existing {@code for (i = 0; i <
+	 * floatings.size(); ++i)}.
 	 *
 	 * <p>
-	 * 4つの照会のうちこれだけが{@code shape-outside}の形状
-	 * ({@link FloatExclusion#lineSpanAt})を見る(2026-08-29)。
-	 * css-shapes-1 §4.1は形状の影響をインライン内容の折返しに限定し、
-	 * 浮動体の配置・BFCを作るブロックの回避はマージンボックスのまま
-	 * (Chromeも同じ)なので、他3照会は矩形{@code lineSpan}を読み続ける。
+	 * Of the four queries, only this one inspects {@code shape-outside} shapes ({@link FloatExclusion#lineSpanAt})
+	 * (2026-08-29). css-shapes-1 §4.1 limits shape effects to wrapping inline content; float placement and avoidance
+	 * by BFC-establishing blocks keep using margin boxes (as does Chrome), so the other three queries continue reading
+	 * rectangular {@code lineSpan}.
 	 * </p>
 	 */
 	public LineScan scanLineBand(final double pageStart, final double lineHeight, final double lineStart0,
@@ -388,9 +369,9 @@ public final class ExclusionSpace {
 				maxPageSize = exclusion.pageSpan().start() - pageStart;
 				break;
 			}
-			// shape-outside(2026-08-29): 行の高さ全体の帯で形状が占める範囲。
-			// 形状なしは従来どおりマージンボックス。帯と形状が交わらない
-			// 浮動体はこの行を狭めない(円の上下の空白へ行が入り込める)
+			// shape-outside (2026-08-29): extent occupied by the shape over the band's full line height.
+			// Without a shape, use the margin box as before. A float whose shape does not intersect
+			// the band does not narrow this line (lines may enter empty space above/below a circle).
 			final AxisSpan band = exclusion.lineSpanAt(pageStart, pageStart + lineHeight);
 			if (band == null) {
 				continue;
@@ -418,14 +399,13 @@ public final class ExclusionSpace {
 	}
 
 	/**
-	 * ページフロート用に、未来から始まる排除域で打ち切らず全件を走査します。
+	 * Scans all entries for page floats without stopping at exclusions that start in the future.
 	 *
 	 * <p>
-	 * 通常フロートは「登録済みの排除域は現在位置以前から始まる」という
-	 * 不変条件を持つため、{@link #scanLineBand}は最初の未来開始で走査を
-	 * 打ち切る。ページ末へ置くbottomフロートは登録時点では未来から
-	 * 始まるので、その集合だけをこの走査へ分離する。通常フロートの
-	 * 走査順・比較・早期終了は変更しない。
+	 * Ordinary floats obey the invariant that registered exclusions start at or before the current position, so {@link
+	 * #scanLineBand} stops at the first future start. Bottom floats placed at page end start in the future when
+	 * registered, so separate only their set into this scan. Leave ordinary-float scan order, comparisons, and early
+	 * exits unchanged.
 	 * </p>
 	 */
 	public LineScan scanLineBandFully(final double pageStart, final double lineHeight, final double lineStart0,
@@ -474,26 +454,22 @@ public final class ExclusionSpace {
 	}
 
 	/**
-	 * {@link #scanLineBand}の結果です(2026-07-23新設)。
-	 * {@code maxPageSizeSet}がfalseの場合、呼び出し元は
-	 * {@code TextBuilder.maxPageSize}相当の値を更新してはならない——
-	 * 既存コードはこの走査でその分岐に到達したときだけ更新し、到達
-	 * しなければ外側の再探索ループの前回反復の値をそのまま持ち越す。
+	 * Result of {@link #scanLineBand} (added 2026-07-23). If {@code maxPageSizeSet} is false, the caller must not
+	 * update the equivalent of {@code TextBuilder.maxPageSize}. Existing code updates only when the scan reaches that
+	 * branch; otherwise, it carries the previous outer retry-loop iteration's value forward unchanged.
 	 */
 	public record LineScan(FloatExclusion startExclusion, FloatExclusion endExclusion, double lineStart,
 			double lineEnd, boolean maxPageSizeSet, double maxPageSize) {
 	}
 
 	/**
-	 * {@code BlockBuilder.addStartFloat}/{@code addEndFloat}(新規floatの
-	 * 配置先探索)と同じ規則を再現します(2026-07-23新設、P0 Step3最後の
-	 * 消費者——既存ループを1対1で移した実装。両メソッドは完全に同一の
-	 * アルゴリズムを重複して持つため、このqueryも共有できる)。
+	 * Reproduces the rules of {@code BlockBuilder.addStartFloat}/{@code addEndFloat} for finding new float placement
+	 * (added 2026-07-23, the last P0 Step3 consumer; a one-to-one port of the existing loop). Those methods duplicate
+	 * exactly the same algorithm, so this query can also be shared.
 	 *
 	 * <p>
-	 * clear境界に遭遇した場合、それまでの{@code startExclusion}/
-	 * {@code endExclusion}/{@code lineStart}/{@code lineEnd}を保持した
-	 * まま{@code pageStart}だけ更新して即座に返す。
+	 * On a clear boundary, update only {@code pageStart} and return immediately, preserving the current {@code
+	 * startExclusion}/{@code endExclusion}/{@code lineStart}/{@code lineEnd}.
 	 * </p>
 	 */
 	public FloatPlacementScan scanFloatPlacementBand(final double pageStartIn, final double lineStart0,
@@ -551,9 +527,8 @@ public final class ExclusionSpace {
 	}
 
 	/**
-	 * {@link #scanFloatPlacementBand}の結果です(2026-07-23新設)。
-	 * {@code pageStart}はclearの条件一致で更新された値——呼び出し元は
-	 * 常にこの値を採用する。
+	 * Result of {@link #scanFloatPlacementBand} (added 2026-07-23). {@code pageStart} is the value updated when the
+	 * clear condition matches; the caller always adopts it.
 	 */
 	public record FloatPlacementScan(FloatExclusion startExclusion, FloatExclusion endExclusion, double lineStart,
 			double lineEnd, double pageStart) {

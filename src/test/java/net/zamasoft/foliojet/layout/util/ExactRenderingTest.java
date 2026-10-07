@@ -44,11 +44,11 @@ import net.zamasoft.pdfg2d.gc.paint.RadialGradient;
 import net.zamasoft.pdfg2d.gc.paint.SpreadMethod;
 
 /**
- * 出力先が厳密に描ける機能は厳密経路を、描けなければ近似して2822を
- * 報告することの検証です(2026-08-29)。
+ * Verifies that features the output can draw exactly use the exact path;
+ * otherwise, approximate and report 2822 (2026-08-29).
  */
 public class ExactRenderingTest extends TestCase {
-	/** 能力を指定でき、呼び出しを記録するGC。 */
+	/** A GC with configurable capabilities that records calls. */
 	private static class FakeGC extends NoOpGC {
 		final EnumSet<Capability> caps;
 		final List<double[]> blurred = new ArrayList<>();
@@ -216,7 +216,7 @@ public class ExactRenderingTest extends TestCase {
 		linear.fill(gc, BOX, BOX);
 		final LinearGradient paint = (LinearGradient) gc.paints.get(0);
 		assertEquals(SpreadMethod.REPEAT, paint.spread());
-		// 1周期=勾配線(幅100)の10%
+		// One period = 10% of the gradient line (width 100).
 		assertEquals(10.0, Math.hypot(paint.x2() - paint.x1(), paint.y2() - paint.y1()), 1e-6);
 		assertEquals(0.0, paint.fractions()[0], 1e-9);
 		assertEquals(1.0, paint.fractions()[paint.fractions().length - 1], 1e-9);
@@ -239,7 +239,7 @@ public class ExactRenderingTest extends TestCase {
 	}
 
 	public void testPeriodStartsAtGradientStart() {
-		// 停止が25%から始まる周期50%: 始点(0%)の色は周期関数として補間される
+		// A 50% period with stops starting at 25%: interpolate the color at the start (0%) as a periodic function.
 		final GradientStops.Period p = GradientStops.ofFractions(new double[] { 0.25, 0.75 },
 				new Color[] { RGBColor.create(1f, 0, 0), RGBColor.create(0, 0, 1f) }).resolvePeriod(100);
 		assertEquals(0.5, p.length(), 1e-9);
@@ -255,9 +255,9 @@ public class ExactRenderingTest extends TestCase {
 	}
 
 	public void testPeriodKeepsHardStops() {
-		// repeating-linear-gradient(#036 0 50%, #9cf 50% 100%): 位相がそろって
-		// いるので周期は元の停止そのまま。末尾の停止が位置0へ回り込んで
-		// 縞がぼやける欠陥の回帰(2026-08-29、PNG出力の実測で発見)
+		// repeating-linear-gradient(#036 0 50%, #9cf 50% 100%): phases align,
+		// so the period uses the original stops as-is. Regression for a defect where the final stop
+		// wrapped to position 0 and blurred stripes (2026-08-29, found by measuring PNG output).
 		final Color dark = RGBColor.create(0, 0.2f, 0.4f), light = RGBColor.create(0.6f, 0.8f, 1f);
 		final GradientStops.Period p = GradientStops
 				.ofFractions(new double[] { 0, 0.5, 0.5, 1 }, new Color[] { dark, dark, light, light })
@@ -266,7 +266,7 @@ public class ExactRenderingTest extends TestCase {
 		assertEquals(4, p.colors().length);
 		assertEquals("周期の先頭は暗い色", dark.getBlue(), p.colors()[0].getBlue(), 1e-6);
 		assertEquals("周期の末尾は明るい色", light.getBlue(), p.colors()[3].getBlue(), 1e-6);
-		// 前半は暗い色のまま(境目まで明るくならない)
+		// The first half stays dark (does not lighten before the boundary).
 		assertEquals(dark.getRed(), p.colors()[1].getRed(), 1e-6);
 		assertEquals(light.getRed(), p.colors()[2].getRed(), 1e-6);
 		assertTrue("ハードストップの位置はほぼ同じ", Math.abs(p.fractions()[2] - p.fractions()[1]) < 1e-4);
@@ -276,14 +276,14 @@ public class ExactRenderingTest extends TestCase {
 	}
 
 	public void testPeriodKeepsHardStopsWhenShifted() {
-		// 位相がずれている場合(25%から始まる周期50%)も、回り込んだ停止が
-		// 同じ位置の停止より前に来て、進行方向の色が入れ替わらない
+		// Even with a phase shift (50% period starting at 25%), wrapped stops precede
+		// stops at the same position, so colors in the direction of progression do not switch.
 		final Color dark = RGBColor.create(0, 0, 0), light = RGBColor.create(1f, 1f, 1f);
 		final GradientStops.Period p = GradientStops
 				.ofFractions(new double[] { 0.25, 0.5, 0.5, 0.75 }, new Color[] { dark, dark, light, light })
 				.resolvePeriod(100);
 		assertEquals(0.5, p.length(), 1e-9);
-		// 位相0(=勾配線の始点)は周期の後半にあたるので明るい色
+		// Phase 0 (= the gradient line's start) lies in the second half of the period, so it is light.
 		assertEquals("始点は明るい色", 1f, p.colors()[0].getRed(), 1e-3);
 		for (int i = 1; i < p.fractions().length; ++i) {
 			assertTrue(p.fractions()[i] > p.fractions()[i - 1]);
@@ -330,8 +330,8 @@ public class ExactRenderingTest extends TestCase {
 	}
 
 	/**
-	 * filter を持つ要素は stacking context({@link Drawer})になり、層は Drawer が
-	 * 部分木ごとに 1 つ作る(2026-09-03。描画要素単体では層を作らない)。
+	 * An element with filter becomes a stacking context ({@link Drawer}), and Drawer creates one layer
+	 * per subtree (2026-09-03; individual drawables do not create layers).
 	 */
 	private static void drawInStackingContext(final GC gc, final AbstractDrawable box, final FilterValue filter)
 			throws GraphicsException {
@@ -419,11 +419,11 @@ public class ExactRenderingTest extends TestCase {
 		assertEquals("同じ近似は文書ごとに1回", 1, this.messages.size());
 		assertEquals("box-shadow", this.messages.get(0)[0]);
 		assertEquals("既定の出力形式", "application/pdf", this.messages.get(0)[1]);
-		// 近似の内容は鍵ではなく利用者の言語の文面で入る
+		// The approximation description is text in the user's language, not a key.
 		assertEquals(MessageCodeUtils.detail(BoxDecorationRenderer.BLUR_DETAIL), this.messages.get(0)[2]);
 		assertFalse("鍵がそのまま出ない", BoxDecorationRenderer.BLUR_DETAIL.equals(this.messages.get(0)[2]));
 
-		// 別の機能は別に数える。FilterGCの内側からでも届く
+		// Count different features separately. Reports arrive even from inside FilterGC.
 		final GC filtered = new FilterGC(gc, FilterValue.NONE);
 		new ConicGradientValue(0, PercentageValue.create(50), PercentageValue.create(50), stops(0, 1), false)
 				.fill(filtered, BOX, BOX);

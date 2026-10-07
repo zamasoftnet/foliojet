@@ -26,7 +26,7 @@ final class InkGapTestSupport {
 		return new FontMetricsImpl(s -> s.createFont(), source, style);
 	}
 
-	/** FontMetricsImpl経由で輪郭を測る。送り・縦原点・GPOSを独立に制御する。 */
+	/** Measures outlines via FontMetricsImpl. Controls advances, vertical origin, and GPOS independently. */
 	static FontMetricsImpl metrics(final FontStyle style, final FontStyle.Direction sourceDirection,
 			IntFunction<GlyphBounds> bounds, int origin, int placement, int kern) {
 		final FontSource source = (FontSource) Proxy.newProxyInstance(FontSource.class.getClassLoader(),
@@ -73,7 +73,7 @@ final class InkGapTestSupport {
 				f.setAccessible(true);
 				return f;
 			} catch (final NoSuchFieldException e) {
-				// 観測対象の field は基底の box/builder に宣言されていることがあるので親へ遡る
+				// Walk up the hierarchy: the observed field may be declared in a base box/builder.
 			}
 		}
 		throw new NoSuchFieldException(name);

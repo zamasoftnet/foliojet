@@ -11,9 +11,9 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * table 333 / PDF/UA).
  *
  * <p>
- * E-6増分3b-4(2026-07-24): 読み手は{@code CSSElement}直接ではなく
- * {@link StructureElement}契約(live={@code CSSElement}/ソース再生=
- * {@code StructureToken})経由で要素を読む。
+ * E-6 increment 3b-4 (2026-07-24): consumers read elements through the
+ * {@link StructureElement} contract (live = {@code CSSElement} / source replay =
+ * {@code StructureToken}), rather than directly from {@code CSSElement}.
  * </p>
  *
  * @author MIYABE Tatsuhiko

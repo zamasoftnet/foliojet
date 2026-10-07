@@ -16,45 +16,45 @@ import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 
 /**
- * BatikのURL解析と<b>取得</b>をFolioJetへ引き受けるハンドラです。
+ * A handler that delegates Batik URL parsing and <b>fetching</b> to FolioJet.
  *
  * <p>
- * Batikは資源を自分で取りに行きます。SVGの中のCSS({@code @import}・
- * {@code <?xml-stylesheet?>})、色プロファイル、外部文書などです。それらは
- * {@link ParsedURL#openStream()}系を呼び、実体は{@link ParsedURLData}が
- * {@code java.net.URL}で開きます。<b>ここを塞がないと、FolioJetの
- * {@code input.include}/{@code input.exclude}を通らない取得口が残ります。</b>
+ * Batik fetches its own resources, such as CSS within SVG ({@code @import},
+ * {@code <?xml-stylesheet?>}), color profiles, and external documents.
+ * These call the {@link ParsedURL#openStream()} family; {@link ParsedURLData} opens
+ * the actual resource with {@code java.net.URL}. <b>Without intercepting this,
+ * a fetch path remains that bypasses FolioJet's {@code input.include}/{@code input.exclude}.</b>
  * </p>
  *
  * <p>
- * <b>Batikの取得は全部ここを通ります。</b>{@code ParsedURL.getHandler()}は
- * プロトコル専用のハンドラが無ければ既定ハンドラを返し、Batik 1.19の
- * どのjarにも{@code ParsedURLProtocolHandler}のサービス定義はありません。
- * このクラスは{@code super(null)}で登録されるので<b>その既定ハンドラ</b>です。
- * だから経路を1つずつ差し替える必要はなく、<b>ここ1か所で足ります</b>——
- * まだ数え上げていない経路も含めて。XSLT側で
- * {@code XSLTProcessorFilter}が{@code URIResolver}を差しているのと同じ形です。
+ * <b>All Batik fetches pass through here.</b> {@code ParsedURL.getHandler()} returns
+ * the default handler when no protocol-specific handler exists, and none of Batik 1.19's
+ * jars define a {@code ParsedURLProtocolHandler} service. This class is registered
+ * with {@code super(null)}, making it <b>that default handler</b>.
+ * Thus there is no need to replace paths individually: <b>this one location suffices</b>,
+ * including paths not yet enumerated. This is analogous to {@code XSLTProcessorFilter}
+ * installing a {@code URIResolver} on the XSLT side.
  * </p>
  *
  * <p>
- * <b>取得元のUserAgentはスレッドに束ねます。</b>ハンドラは
- * {@link ParsedURL#registerHandler}でプロセスに1つだけ登録される静的な
- * 存在で、引数にも文脈を受け取れないためです。SVGの組み立ては
- * {@link SVGImageLoader#getImage}の中で同期的に進み、Batik自体が
- * スレッド安全ではないので、そこで束ねれば足ります。
- * <b>束ねられていなければ取得を拒みます</b>(素通りさせない)。
+ * <b>Bind the fetching UserAgent to the thread.</b> The handler is a process-wide static
+ * instance registered with {@link ParsedURL#registerHandler}, and cannot receive context
+ * through its arguments. SVG construction proceeds synchronously within
+ * {@link SVGImageLoader#getImage}, and Batik itself is not thread-safe,
+ * so binding there suffices. <b>Reject fetching when no UserAgent is bound</b>
+ * (do not allow passthrough).
  * </p>
  */
 class MyParsedURLDefaultProtocolHandler extends AbstractParsedURLProtocolHandler {
 	public static final MyParsedURLDefaultProtocolHandler INSTANCE = new MyParsedURLDefaultProtocolHandler();
 
-	/** いま組み立て中のSVGのUserAgentです。 */
+	/** UserAgent for the SVG currently being built. */
 	private static final ThreadLocal<UserAgent> CURRENT = new ThreadLocal<UserAgent>();
 
 	/**
-	 * このスレッドの取得をこのUserAgentへ回します。
+	 * Routes this thread's fetches to this UserAgent.
 	 *
-	 * @return 元の値。{@link #leave(UserAgent)}へ渡して戻すこと
+	 * @return the previous value; pass it to {@link #leave(UserAgent)} to restore
 	 */
 	static UserAgent enter(final UserAgent ua) {
 		final UserAgent previous = CURRENT.get();
@@ -62,7 +62,7 @@ class MyParsedURLDefaultProtocolHandler extends AbstractParsedURLProtocolHandler
 		return previous;
 	}
 
-	/** {@link #enter(UserAgent)}が返した値で元に戻します。 */
+	/** Restores the value returned by {@link #enter(UserAgent)}. */
 	static void leave(final UserAgent previous) {
 		if (previous == null) {
 			CURRENT.remove();
@@ -99,18 +99,18 @@ class MyParsedURLDefaultProtocolHandler extends AbstractParsedURLProtocolHandler
 				uri = URIHelper.create("UTF-8", base.toString());
 				if (href != null) {
 					if (uri.isOpaque() && href.startsWith("#")) {
-						// **opaque URI(data:等)を基底にした同一文書内の断片参照**
-						// (2026-08-06、premiumアイコンのclip-path="url(#id)"が
-						// 空白になる問題で発覚)。java.net.URI#resolve()は
-						// opaqueな基底に対してRFC3986の相対解決規則を適用
-						// できず、基底を無視してhrefそのもの(#clip0のみ、
-						// scheme/ssp無し)を返してしまう——Batikがそれを
-						// 「別文書」と誤認してclip-path等のurl(#id)参照を
-						// 解決できず、クリップ領域が空(＝描画結果が消える)
-						// になっていた。scheme+生のscheme-specific-partは
-						// 保ったままfragmentだけ差し替えて同一文書参照に
-						// する(getRawSchemeSpecificPart()を使い、既にpercent
-						// エンコード済みのデータを再エンコードして壊さない)
+						// **Same-document fragment references with an opaque base URI (data:, etc.)**
+						// (discovered on 2026-08-06 when a premium icon's clip-path="url(#id)"
+						// became blank). java.net.URI#resolve() cannot
+						// apply RFC3986 relative resolution rules to an opaque base,
+						// so it ignores the base and returns href itself (only #clip0,
+						// without scheme/ssp). Batik mistook this for
+						// another document and could not resolve url(#id) references such as clip-path,
+						// leaving an empty clip region (= rendering disappeared).
+						// Keep the scheme and raw scheme-specific-part,
+						// replacing only the fragment to make a same-document reference
+						// (use getRawSchemeSpecificPart() to avoid corrupting already
+						// percent-encoded data by encoding it again).
 						uri = new URI(uri.getScheme() + ":" + uri.getRawSchemeSpecificPart() + href);
 					} else {
 						uri = uri.resolve(href);
@@ -139,15 +139,15 @@ class MyParsedURLDefaultProtocolHandler extends AbstractParsedURLProtocolHandler
 	}
 
 	/**
-	 * 取得をFolioJetのリゾルバへ回す{@link ParsedURLData}です。
+	 * {@link ParsedURLData} that routes fetching to FolioJet's resolver.
 	 *
 	 * <p>
-	 * {@code openStream}も{@code openStreamRaw}も
-	 * {@code openStreamInternal}へ集まるので、そこだけを上書きします。
+	 * Both {@code openStream} and {@code openStreamRaw} converge on
+	 * {@code openStreamInternal}, so override only that method.
 	 * </p>
 	 */
 	static class MyParsedURLData extends ParsedURLData {
-		/** 解析した元のURIです。文字列へ戻して解析し直さないために持ちます。 */
+		/** The original parsed URI. Retained to avoid converting to a string and parsing again. */
 		URI uri = null;
 
 		public boolean complete() {
@@ -165,13 +165,13 @@ class MyParsedURLDefaultProtocolHandler extends AbstractParsedURLProtocolHandler
 			}
 			final UserAgent ua = CURRENT.get();
 			if (ua == null) {
-				// **素通りさせない。** ここへ来るのはSVGの組み立ての外からの
-				// 取得で、FolioJetのACLを引く手段が無い
+				// **Do not allow passthrough.** A fetch reaching here is outside SVG construction,
+				// with no way to consult FolioJet's ACL.
 				throw new IOException("SVGの外からの取得は許しません: " + this.uri);
 			}
-			// **読み切ってから返す。**Batikがストリームをいつ閉じるかは
-			// 経路によって違い、閉じない経路があるとSourceが解放されない。
-			// ここを通るのはCSSと色プロファイルで、どちらも小さい
+			// **Read fully before returning.** When Batik closes streams varies by path;
+			// a path that never closes its stream would leave the Source unreleased.
+			// Only CSS and color profiles pass through here, and both are small.
 			final byte[] body;
 			final Source source = ua.resolve(SVGImageLoader.toSourceURI(this.uri));
 			try {

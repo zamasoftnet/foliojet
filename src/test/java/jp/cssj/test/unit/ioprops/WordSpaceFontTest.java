@@ -17,12 +17,12 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 単語間の空白の幅は、空白を描く書体の幅であることを固定します(2026-10-04)。
+ * Verify that word-space width comes from the font that draws the space (2026-10-04).
  *
  * <p>
- * 空白の幅は書体の候補の先頭の書体から取っていた。本番の書体設定は serif などの並びの先頭が絵文字の書体
- * (空白を持たず、空白の幅に半角を答える)なので、既定の書体の欧文の語間がどれも半角(0.5em)に広がっていた
- * (Times の空白は 0.25em)。
+ * Space width previously came from the first font candidate. Production font settings put an emoji font
+ * first in serif and other lists; it has no space and reports a half-width advance.
+ * This expanded all word spaces in default Latin text to 0.5em (a Times space is 0.25em).
  * </p>
  */
 public class WordSpaceFontTest extends TestCase {
@@ -45,7 +45,7 @@ public class WordSpaceFontTest extends TestCase {
 		return ImageIO.read(new ByteArrayInputStream(out.toByteArray()));
 	}
 
-	/** 濃い画素のある右端の列(行の高さが違っても、語間の合計が出る)。 */
+	/** Rightmost column with dark pixels (captures total word spacing even if line heights differ). */
 	private static int rightmostInk(final BufferedImage image) {
 		for (int x = image.getWidth() - 1; x >= 0; --x) {
 			for (int y = 0; y < image.getHeight(); ++y) {
@@ -59,11 +59,11 @@ public class WordSpaceFontTest extends TestCase {
 	}
 
 	public void testEmojiFirstDoesNotWidenWordSpaces() throws Exception {
-		// 絵文字の書体が先頭にあっても(行の高さは変わり得るが)語間は Times の空白のまま
+		// Even with an emoji font first (line height may change), word spacing remains the Times space width.
 		final int withEmoji = rightmostInk(png("'emoji','Times New Roman'"));
 		final int plain = rightmostInk(png("'Times New Roman'"));
 		assertTrue(plain > 0);
-		// 縦の位置の違いで 1 画素の丸めは出る。語間が半角なら空白 3 つで約 20 画素ずれる
+		// Vertical positions can cause 1-pixel rounding. Half-width spacing would shift three spaces by about 20 pixels.
 		assertTrue("right end of the text: " + plain + " vs " + withEmoji, Math.abs(plain - withEmoji) <= 1);
 	}
 }

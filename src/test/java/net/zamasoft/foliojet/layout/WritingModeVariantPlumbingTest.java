@@ -39,7 +39,7 @@ import net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot;
 import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** sideways の非表示 model/replay plumbing を固定する単体テストです。 */
+/** Unit tests that lock down the non-visual model/replay plumbing for sideways. */
 public class WritingModeVariantPlumbingTest extends TestCase {
 	private static final URI BASE_URI = URI.create("file:///dev/null/");
 
@@ -99,7 +99,7 @@ public class WritingModeVariantPlumbingTest extends TestCase {
 		assertSame(net.zamasoft.foliojet.layout.box.params.WritingModeVariant.SIDEWAYS_CW,
 				WritingModeVariant.get(child));
 
-		// 分離 batch(2026-09-04)で標準 writing-mode は sideways を受理する(BlockFlow+variant、direction 不変)
+		// Separation batch (2026-09-04): standard writing-mode accepts sideways (BlockFlow+variant; direction unchanged).
 		assertSame(BlockFlowValue.RL_VALUE, longhand("writing-mode", "sideways-rl", BlockFlow.INFO));
 		assertSame(WritingModeVariantValue.SIDEWAYS_RL_VALUE,
 				longhand("writing-mode", "sideways-rl", WritingModeVariant.INFO));
@@ -119,7 +119,7 @@ public class WritingModeVariantPlumbingTest extends TestCase {
 			assertSame(value, WritingModeVariantValue.NORMAL_VALUE,
 					longhand("-cssj-writing-mode", value, WritingModeVariant.INFO));
 		}
-		// legacy の既存 Direction/BlockFlow 展開は変更しない。
+		// Leave the existing legacy Direction/BlockFlow expansion unchanged.
 		assertSame(DirectionValue.RTL_VALUE,
 				longhand("-cssj-writing-mode", "vertical-lr", Direction.INFO));
 		assertSame(BlockFlowValue.LR_VALUE,
@@ -132,7 +132,7 @@ public class WritingModeVariantPlumbingTest extends TestCase {
 				longhand("text-combine-upright", "all", BlockFlow.INFO));
 	}
 
-	/** 箱のコンストラクタは {@code assert fontStyle != null} を持つので、試験用の最小 FontStyle を与える。 */
+	/** Box constructors have {@code assert fontStyle != null}, so supply a minimal FontStyle for tests. */
 	private static final net.zamasoft.pdfg2d.gc.font.FontStyle DUMMY_FONT_STYLE = new net.zamasoft.pdfg2d.gc.font.FontStyleImpl(
 			net.zamasoft.pdfg2d.gc.font.FontFamilyList.SERIF, 12, net.zamasoft.pdfg2d.gc.font.FontStyle.Style.NORMAL,
 			net.zamasoft.pdfg2d.gc.font.FontStyle.Weight.W_400, net.zamasoft.pdfg2d.gc.font.FontStyle.Direction.LTR,

@@ -22,8 +22,9 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code text-transform: full-width}(css-text-3)を固定します(2026-10-06、jigensha の報告。以前は値として受け付けず
- * 警告 2816 で無視した)。大文字・小文字の変換と、どちらの順でも組み合わせられる。
+ * Pin down {@code text-transform: full-width} (css-text-3) (2026-10-06, jigensha report).
+ * Previously, the value was rejected and ignored with warning 2816.
+ * It can combine with uppercase/lowercase conversion in either order.
  */
 public class TextTransformFullWidthTest extends TestCase {
 	private static final long WATCHDOG_MS = 60_000L;
@@ -48,11 +49,11 @@ public class TextTransformFullWidthTest extends TestCase {
 		assertTrue(text, text.contains("ａｂ１２！"));
 		assertTrue(text, text.contains("ＣＤ"));
 		assertTrue(text, text.contains("Ｅｆ"));
-		// none と組み合わせた書き方は不正(全体を無視)
+		// Combining with none is invalid (ignore the entire declaration).
 		assertTrue(text, text.contains("gh"));
 	}
 
-	/** 縦組みでは全角にした数字が正立する(jigensha の「2倍を1回」)。 */
+	/** Digits converted to full-width remain upright in vertical writing (jigensha's "2倍を1回"). */
 	public void testFullWidthDigitsInVerticalText() throws Exception {
 		final String text = text(convert("""
 				<!DOCTYPE html>
@@ -76,7 +77,7 @@ public class TextTransformFullWidthTest extends TestCase {
 		return s.toString().replace("|", "");
 	}
 
-	/** 変換して、各頁の表示リストを頁順に返します。 */
+	/** Convert and return each page's display list in page order. */
 	private static String[] convert(final String html) throws Exception {
 		final File dir = new File("local/text-transform-full-width/" + Integer.toHexString(html.hashCode()));
 		dir.mkdirs();

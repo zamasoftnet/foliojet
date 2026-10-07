@@ -8,8 +8,8 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * gap込みexact fit(40×3+10×2=140=コンテナ幅)は1行に残るテストです
- * (Flex F2c——FP誤差で行が割れないことの統合固定)。
+ * Tests that an exact fit including gaps (40×3+10×2=140=container width) stays on one line
+ * (Flex F2c, integration coverage ensuring floating-point error does not split the line).
  */
 public class FlexGapExactBreakTest extends AbstractTestCase {
 	public FlexGapExactBreakTest(String name) {
@@ -32,7 +32,7 @@ public class FlexGapExactBreakTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 同一行(+40+gap10)。 */
+	/** Same line (+40+gap 10). */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 50, x, 0.1);
@@ -42,7 +42,7 @@ public class FlexGapExactBreakTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 同一行(+100)。 */
+	/** Same line (+100). */
 	public boolean check_r(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 100, x, 0.1);

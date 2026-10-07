@@ -19,8 +19,8 @@ public class HankakuTest extends AbstractTestCase {
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
-			// 和文の両端揃えでは欧文の字間を空けない(2026-10-06。以前は abcdefghi の字間にも配り、x=56.64・幅 43.36)。
-			// 余りは「i|あ」「あ|あ」へ入る
+			// Japanese justification leaves Latin letters unspaced (2026-10-06; abcdefghi was spaced: x=56.64, width 43.36).
+			// The remainder goes into "i|あ" and "あ|あ".
 			assertEquals(45.0, x, 0);
 			assertEquals(55.0, box.getWidth(), 0);
 			return true;

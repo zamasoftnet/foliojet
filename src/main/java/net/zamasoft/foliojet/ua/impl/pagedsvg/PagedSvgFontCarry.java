@@ -6,59 +6,60 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Paged SVGのフォントサブセットを、同じセッションの次の変換へ持ち越す控えです
- * (2026-08-29)。
+ * A cache that carries Paged SVG font subsets to the next conversion in the same session
+ * (2026-08-29).
  *
  * <p>
- * サブセットは変換のたびに組み直され、全ページを書き終えてからしか出なかった
- * (実測: 1ページ目が出た4.2秒時点でフォントはHTTP 500、揃うのは10.6秒。
- * 開発記録)。文字サイズを
- * 変えても字の集合は変わらないので、同一入力なら同一のサブセットになる。
- * そこで、組み上げたバイト列と<b>字形の並び</b>(元フォントのGID→サブセット
- * GIDの順)をここに控え、次の変換では
+ * Subsets were rebuilt for every conversion and emitted only after all pages were written
+ * (observed: fonts returned HTTP 500 when the first page appeared at 4.2 seconds;
+ * all became available at 10.6 seconds; development log). Changing font size does not change
+ * the character set, so identical input produces identical subsets.
+ * Store the built bytes and <b>glyph order</b> (original font GID → subset GID order) here;
+ * in the next conversion:
  * </p>
  * <ol>
- * <li>同じ順で符号を割り当て直し(前回のページSVGと同じ私用領域符号になる)、</li>
- * <li>1ページ目より<b>先に</b>前回のバイト列をそのまま出す。</li>
+ * <li>Reassign code points in the same order (matching the private-use codes in the previous page SVG).</li>
+ * <li>Emit the previous bytes unchanged <b>before</b> the first page.</li>
  * </ol>
  * <p>
- * 前回に無かった字形が現れたときだけサブセットは「育ち」、版を1つ進めた
- * 別URI({@code font-0001-2.woff2})で末尾に出し直す。育つ前のページは前の版で
- * 完結しているので、そのままで正しい。育った版は前の版の上位集合であり、
- * 符号は変わらない。
+ * Only when a previously absent glyph appears does the subset "grow". Emit it again at the end
+ * under a different URI with the version advanced by one ({@code font-0001-2.woff2}).
+ * Pages before growth are complete with the previous version and remain correct.
+ * The expanded version is a superset of the previous one; code points stay unchanged.
  * </p>
  *
  * <p>
- * 寿命はセッション({@code DirectSession}が持ち、変換ごとに作り直される
- * UAへ{@link net.zamasoft.foliojet.ua.UAContext}経由で渡す)。画像寸法
- * ({@code ImageMetricsCache})が文書ごとにリセットされるのと違い、ここは
- * 文書をまたいで保つ——別の文書でも符号の割り当てが決まるだけで、内容は
- * 実際に使われた字形で決まるため害がない。サブセットは小さい(実測0.1MB)。
+ * Lifetime is the session ({@code DirectSession} owns it and passes it through
+ * {@link net.zamasoft.foliojet.ua.UAContext} to the UA recreated for each conversion).
+ * Unlike image dimensions ({@code ImageMetricsCache}), which reset per document,
+ * this cache persists across documents. Even for a different document, this only fixes
+ * code-point assignments; content depends on the glyphs actually used, so it is harmless.
+ * Subsets are small (measured at 0.1 MB).
  * </p>
  */
 public final class PagedSvgFontCarry {
 	/**
-	 * 元フォント・向き・合成斜体で1つのサブセット。
+	 * One subset per original font, orientation, and synthetic italic setting.
 	 *
 	 * <p>
-	 * {@code document}はサブセットの範囲になる文書(EPUBのspine項目のパス、
-	 * 単一の文書なら空)。項目ごとにサブセットを持つ(2026-09-02)ので、
-	 * 持ち越しも項目ごとに引く——同じフォントでも章が違えば字形の並びが違う。
+	 * {@code document} is the document defining subset scope (the EPUB spine item path;
+	 * empty for a standalone document). Subsets are per item (2026-09-02), so carryover is
+	 * looked up per item too: even with the same font, glyph order differs between chapters.
 	 * </p>
 	 */
 	public record Key(String document, String fontName, String mode, boolean oblique) {
 	}
 
-	/** 前回組み上げた1サブセットの控え。 */
+	/** Cached copy of one subset built previously. */
 	public record Entry(int id, int version, int[] gids, byte[] bytes, String sha256) {
 	}
 
 	private final Map<Key, Entry> entries = new LinkedHashMap<>();
 	/**
-	 * 文書ごとの次の番号。<b>番号の空間は文書(EPUBの項目)ごと</b>である
-	 * (2026-09-02)——項目は自分の{@code assets/fonts/}を持つので、重ならなければ
-	 * ならないのはその中だけ。全体で1つの採番にすると、並列に組んだとき
-	 * 項目のフォントの番号が走った順で変わり、出力が非決定的になる。
+	 * Next number per document. <b>The numbering namespace is per document (EPUB item)</b>
+	 * (2026-09-02): each item has its own {@code assets/fonts/}, so uniqueness is needed only
+	 * within that directory. Global numbering would make an item's font numbers depend on
+	 * execution order during parallel layout, making output nondeterministic.
 	 */
 	private final Map<String, Integer> nextIds = new java.util.HashMap<>();
 
@@ -71,7 +72,7 @@ public final class PagedSvgFontCarry {
 		this.nextIds.merge(key.document(), entry.id() + 1, Math::max);
 	}
 
-	/** その文書の中で、変換をまたいで重複しない番号を払い出します。 */
+	/** Issues a number unique across conversions within that document. */
 	public synchronized int allocateId(final String document) {
 		final int id = this.nextIds.getOrDefault(document, 1);
 		this.nextIds.put(document, id + 1);
@@ -82,7 +83,7 @@ public final class PagedSvgFontCarry {
 		return new ArrayList<>(this.entries.values());
 	}
 
-	/** 文書(EPUBの項目、単一なら空)の控えだけ。 */
+	/** Only the cached entries for the document (EPUB item, or empty for a standalone document). */
 	public synchronized List<Entry> entries(final String document) {
 		final List<Entry> list = new ArrayList<>();
 		for (final Map.Entry<Key, Entry> e : this.entries.entrySet()) {

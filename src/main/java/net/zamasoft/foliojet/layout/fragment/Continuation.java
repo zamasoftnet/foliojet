@@ -3,39 +3,37 @@ package net.zamasoft.foliojet.layout.fragment;
 import java.util.List;
 
 /**
- * 改ページの継続記述です(ARCHITECTURE §5.7)。
+ * Page-break continuation description (ARCHITECTURE §5.7).
  *
  * <p>
- * 「次のフラグメンテナへ何を送るか」を型で表します。内容はルート
- * フレーム({@link ContinuationFrame})の入れ子: 各フレームがレシピ+
- * 断片状態+残余コンテナ+吸収済み再生範囲(prefixItems)を持ち、
- * 開いた子孫を tail で表します。C0' 期の互換ラッパー(残余ボックス木を
- * 丸ごと運ぶ LegacyCarry)は C1 完了で撤去済み — 残余ボックス木の
- * 運搬という概念は、プレーンブロックチェーンについては存在しません。
+ * Represents what to send to the next fragmentainer as a type. Its contents are nested root frames ({@link
+ * ContinuationFrame}): each frame has a recipe, fragment state, remainder container, and absorbed replay ranges
+ * (prefixItems), with open descendants represented by tail. The C0' compatibility wrapper (LegacyCarry, which
+ * carried an entire remainder box tree) was removed on C1 completion. Carrying a remainder box tree no longer
+ * exists as a concept for plain block chains.
  * </p>
  *
- * @param depth  再開後に検証する祖先チェーンの深さ(flowStack の要素数。
- *               走行自体は tail の型が駆動する — C3 完了後に削除予定)
- * @param root   ルートフレーム
- * @param ranges 閉部分木の再生範囲(C2: 破断時に一括判定した記録。
- *               再開走行はこれを消費するだけで、ゲートを再計算しない。
- *               box フォールバック付きのネスト部分木用 — C4 で縮小)
+ * @param depth  ancestor-chain depth to validate after resumption (flowStack element count;
+ *               traversal itself is driven by the tail type; scheduled for removal after C3 completion)
+ * @param root   root frame
+ * @param ranges replay ranges for closed subtrees (C2: decisions recorded together at the break.
+ *               Resume traversal only consumes them, without recomputing gates.
+ *               For nested subtrees with box fallback; reduced in C4)
  * @author MIYABE Tatsuhiko
  */
 public record Continuation(int depth, ContinuationFrame root,
 		java.util.Map<net.zamasoft.foliojet.layout.box.IBox, SourceRange> ranges) {
 	/**
-	 * 継続断片のフレームです(C1d-A: ルート断片とチェーン断片の統一形)。
-	 * 断片ボックスは split では構築されず、resume がレシピと断片状態から
-	 * 再構成します(C1d-B: 旧ボックスを factory として保持しない)。
-	 * 開いた子孫は tail の入れ子で表します。
+	 * Frame of a continuation fragment (C1d-A: unified form for root and chain fragments). split does not construct
+	 * fragment boxes; resume reconstructs them from recipes and fragment state (C1d-B: does not retain the old box as
+	 * a factory). Nested tails represent open descendants.
 	 *
-	 * @param recipe      断片ボックスの再構成レシピ(切断時に値キャプチャ)
-	 * @param state       断片状態
-	 * @param container   このレベルの残余コンテナ(チェーン子は含まれない)
-	 * @param crossExtent 切断時点の交差軸寸法
-	 * @param prefixItems コンテナから吸収された閉部分木の再生範囲(C1c)
-	 * @param tail        開いた続きの表現
+	 * @param recipe      recipe for reconstructing the fragment box (values captured at the cut)
+	 * @param state       fragment state
+	 * @param container   remainder container at this level (excludes the chain child)
+	 * @param crossExtent cross-axis size at the cut
+	 * @param prefixItems replay ranges for closed subtrees absorbed from the container (C1c)
+	 * @param tail        representation of the open continuation
 	 */
 	public record ContinuationFrame(FragmentRecipe recipe, FragmentState state,
 			net.zamasoft.foliojet.layout.box.content.Container container, double crossExtent,
@@ -43,40 +41,39 @@ public record Continuation(int depth, ContinuationFrame root,
 	}
 
 	/**
-	 * フレームの開いた続きの表現です(C1d-A)。
+	 * Representation of a frame's open continuation (C1d-A).
 	 */
 	public sealed interface OpenTail {
 		/**
-		 * 切断が貫通した次の(内側の)フレームです。
+		 * Next inner frame traversed by the cut.
 		 */
 		record Child(ContinuationFrame frame) implements OpenTail {
 		}
 
 		/**
-		 * 継続末尾の開き形です(M3b Phase 3c で旧 int depth 規約を型化)。
-		 * 最内の収集フレーム(木に残った moved-open ボックス・開き
-		 * テキストの継続)と、収集不能な破断のルートフレームが持つ。
+		 * Open shape at the continuation tail (M3b Phase 3c made the old int depth convention explicit as a type). Held
+		 * by the innermost collected frame (continuation of a moved-open box or open text remaining in the tree) and by
+		 * the root frame of an uncollectable break.
 		 *
-		 * @param shape このフレームのコンテナ走行に渡す末尾の開き形
+		 * @param shape tail open shape passed to this frame's container traversal
 		 */
 		record OpenTailShape(OpenShape shape) implements OpenTail {
 			public OpenTailShape {
-				// ルート=flowStack 全深さ、最内=残 depth(D - chain 数)。
-				// いずれも開いている(チェーンは flowStack[1..] の部分列)。
-				// 形は M3b Phase 3c で型化(旧 int depth 規約)
+				// Root = full flowStack depth; innermost = remaining depth (D - chain count).
+				// Both are open (the chain is a subsequence of flowStack[1..]).
+				// Shape became an explicit type in M3b Phase 3c (formerly the int depth convention).
 				assert !(shape instanceof OpenShape.Closed) : shape;
 			}
 		}
 	}
 
 	/**
-	 * 丸ごと移動する閉部分木のソース範囲です(C2 で記録、C1c で
-	 * prefixItems として運搬)。
+	 * Source range for a closed subtree moved as a whole (recorded in C2, carried as prefixItems in C1c).
 	 *
-	 * @param serial 元のコンテナ内での合流順(BoxHolder の serial。
-	 *               フロートとの相対順を保存する。ranges マップ用途では -1)
-	 * @param fromId 部分木の StartBlock の EventId
-	 * @param toId   対応する EndBlock の EventId
+	 * @param serial merge order in the original container (BoxHolder serial;
+	 *               preserves relative order with floats; -1 for ranges-map use)
+	 * @param fromId EventId of the subtree's StartBlock
+	 * @param toId   EventId of the corresponding EndBlock
 	 */
 	public record SourceRange(int serial, long fromId, long toId) {
 	}

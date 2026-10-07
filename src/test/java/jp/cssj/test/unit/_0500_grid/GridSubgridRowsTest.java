@@ -12,9 +12,9 @@ import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.foliojet.message.MessageCodes;
 
 /**
- * {@code grid-template-rows: subgrid} Stage 2を座標で固定します。子孫寄与、
- * 遅延最終化、frame/gap、clamp、3段ネスト、行分割と平坦化Gridとの同値を
- * 一つのfixtureで検査します。
+ * Verifies Stage 2 {@code grid-template-rows: subgrid} behavior using coordinates.
+ * One fixture checks descendant contributions, delayed finalization, frame/gap, clamping,
+ * three-level nesting, row splitting, and equivalence to a flattened Grid.
  */
 public class GridSubgridRowsTest extends AbstractTestCase {
 	public GridSubgridRowsTest(final String name) {
@@ -53,9 +53,9 @@ public class GridSubgridRowsTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 		final long dRecords = net.zamasoft.foliojet.layout.builder.impl.GridBuilder.GRID_ITEM_RECORDS.get() - records;
 		final long dBinds = net.zamasoft.foliojet.layout.builder.impl.GridBuilder.GRID_ITEM_BINDS.get() - binds;
-		// 親rangeに吸収された録画項目はbindされず、再生時に作り直される。
-		// このfixtureは78項目+祖先Gridの再構築分57=135録画(T2時点)。
-		// 録画回数は観測に留め、両経路共通の項目bind数で配置の重複を検出する。
+		// Recorded items absorbed into the parent range are not bound; they are rebuilt during replay.
+		// This fixture records 78 items + 57 for ancestor Grid reconstruction = 135 recordings (as of T2).
+		// Only observe recording counts; detect duplicate placement using item bind counts common to both paths.
 		System.err.println("[subgrid-rows] recorded=" + dRecords + " bound=" + dBinds);
 		assertEquals("fixture内のgrid item数", 78, dBinds);
 		assertEquals("row subgrid内の並列注だけを報告", 1, this.ineffective.size());
@@ -81,7 +81,7 @@ public class GridSubgridRowsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** row 2開始=20+5、子のcontent開始=25+(border 2+padding 1)。 */
+	/** Row 2 starts at 20+5; the child's content starts at 25+(border 2+padding 1). */
 	public boolean check_main_first(final IBox box, final int pageNumber, final double x, final double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.mainX, x, 0.1);
@@ -91,7 +91,7 @@ public class GridSubgridRowsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 内側線=25+3+(30-3)+5=60。親の第3行開始と一致する。 */
+	/** Inner line = 25+3+(30-3)+5=60. Matches the start of the parent's third row. */
 	public boolean check_main_second(final IBox box, final int pageNumber, final double x, final double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.mainX, x, 0.1);
@@ -147,7 +147,7 @@ public class GridSubgridRowsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 子孫寄与で確定した2行目=6pt+継承gap 5pt後。 */
+	/** Second row finalized by descendant contributions: after 6 pt + inherited gap 5 pt. */
 	public boolean check_indef_second(final IBox box, final int pageNumber, final double x, final double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.indefX, x, 0.1);
@@ -220,7 +220,7 @@ public class GridSubgridRowsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** subgrid軸に暗黙行はなく、3件とも第3行開始へclampする。 */
+	/** There are no implicit rows on the subgrid axis; all three items clamp to the start of the third row. */
 	public boolean check_implicit_1(final IBox box, final int pageNumber, final double x, final double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.implicitX, x, 0.1);
@@ -286,7 +286,7 @@ public class GridSubgridRowsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 指定height:100ptは無視され、親2行20+gap4+30=54ptへ正確に縮む。 */
+	/** The specified height:100pt is ignored; height shrinks exactly to the parent's two rows: 20+gap 4+30=54 pt. */
 	public boolean check_fixed_subgrid(final IBox box, final int pageNumber, final double x, final double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(54.0, box.getHeight(), 0.1);
@@ -323,7 +323,7 @@ public class GridSubgridRowsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 範囲外itemはspan=1の唯一の行へclampされ、先頭itemと同じ位置になる。 */
+	/** An out-of-range item clamps to the sole row of span=1, at the same position as the first item. */
 	public boolean check_single_frame_implicit(final IBox box, final int pageNumber, final double x, final double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.singleX, x, 0.1);
@@ -333,7 +333,7 @@ public class GridSubgridRowsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** span=1の親子row ledgerは同じ境界で100pt/60ptへ分ける。 */
+	/** Parent and child row ledgers for span=1 split at the same boundary into 100 pt/60 pt. */
 	public boolean check_split_parent(final IBox box, final int pageNumber, final double x, final double y) {
 		if (box.getType() != BoxType.BLOCK) {
 			return false;
@@ -537,7 +537,7 @@ public class GridSubgridRowsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 完全に空のsubgridはframe 7ptだけを寄与し、子gap 5ptを上積みしない。 */
+	/** A completely empty subgrid contributes only its 7 pt frame, without adding the child's 5 pt gap. */
 	public boolean check_empty_frame_subgrid(final IBox box, final int pageNumber, final double x, final double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.emptyX, x, 0.1);

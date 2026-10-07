@@ -20,14 +20,14 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 単一SVG({@code image/svg+xml})の outline モードが、埋め込み方針の字形(pdfg2d 自身の
- * 輪郭)で描くこと(2026-09-02)。
+ * Single-SVG ({@code image/svg+xml}) outline mode draws using embedding-policy glyphs
+ * (pdfg2d's own outlines) (2026-09-02).
  *
  * <p>
- * 以前は keep モードだけが {@code core,embedded} を既定にしていて、outline は共通の既定
- * (print では cid-keyed 優先)のまま組んでいた。SVG に CID-keyed の実体は無いので AWT の
- * 代替フォントの輪郭になり、「日」が本物より 6% 広く縦画が太かった。既定と明示の
- * {@code embedded} が同じ SVG になることで固定する。
+ * Previously, only keep mode defaulted to {@code core,embedded}, while outline mode used the
+ * shared default (cid-keyed preferred in print). SVG has no CID-keyed font data, so it used outlines
+ * from an AWT fallback font: "日" was 6% wider than the real glyph, with thicker vertical strokes.
+ * Verify this by checking that the default and explicit {@code embedded} produce identical SVGs.
  * </p>
  */
 public class SingleSvgOutlineFontTest extends TestCase {
@@ -45,7 +45,7 @@ public class SingleSvgOutlineFontTest extends TestCase {
 	}
 
 	public void testExplicitPolicyStillWins() throws Exception {
-		// 明示した方針には従う(core だけなら和文は別の字形か MISSING になり、SVG が変わる)
+		// Follow an explicit policy (core alone uses different Japanese glyphs or MISSING, changing the SVG).
 		final String byDefault = convert(null);
 		final String core = convert("core");
 		assertFalse("an explicit policy must change the output", byDefault.equals(core));
@@ -91,7 +91,7 @@ public class SingleSvgOutlineFontTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 	}
 }

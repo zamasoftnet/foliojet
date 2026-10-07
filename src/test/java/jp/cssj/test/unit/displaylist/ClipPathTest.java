@@ -18,11 +18,11 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>{@code clip-path}の基本形状</b>を固定します(css-shapes-1、2026-08-22)。
+ * Verifies <b>basic {@code clip-path} shapes</b> (css-shapes-1, 2026-08-22).
  *
  * <p>
- * 100pt角の赤いボックスをcircle(30pt at 50pt 50pt)で切り抜き、描画結果を
- * 画素で検査する: 円の中心は赤、円の外(ボックスの四隅)は白。
+ * Clips a 100 pt square red box with circle(30pt at 50pt 50pt) and checks the rendered pixels:
+ * the circle's center is red; outside the circle (the box's four corners) is white.
  * </p>
  */
 public class ClipPathTest extends TestCase {
@@ -42,8 +42,8 @@ public class ClipPathTest extends TestCase {
 		}
 		try (PDDocument doc = Loader.loadPDF(out.toByteArray())) {
 			final java.awt.image.BufferedImage img = new PDFRenderer(doc).renderImageWithDPI(0, 72);
-			// 紙200pt角・margin10pt。box左上は(10,10)、circle(30pt at 50,50)
-			// →中心(60,60)は赤、box四隅(15,15)/(105,105)は白(切り抜き)
+			// 200 pt square sheet, margin 10 pt. Box top-left is (10,10); circle(30pt at 50,50).
+			// Center (60,60) is red; box corners (15,15)/(105,105) are white (clipped).
 			assertTrue("円の中心が塗られていません", isRed(img.getRGB(60, 60)));
 			assertTrue("円の内側(中心+20pt)が塗られていません", isRed(img.getRGB(60, 80)));
 			assertFalse("円の外(ボックス左上)が切り抜かれていません", isRed(img.getRGB(15, 15)));
@@ -53,13 +53,13 @@ public class ClipPathTest extends TestCase {
 	}
 
 	/**
-	 * <b>置換要素({@code <img>})の{@code clip-path}</b>(2026-08-29)。
+	 * <b>{@code clip-path} on replaced elements ({@code <img>})</b> (2026-08-29).
 	 *
 	 * <p>
-	 * 利用者報告で「divでは効くが{@code <img>}では効かない」と指摘された経路。
-	 * 置換要素は{@code AbstractContainerBox}を通らないため、clip-pathが
-	 * {@code BlockParams}にしか無く黙って捨てられていた。100pt角の赤い画像を
-	 * 同じ円で切り抜き、中心は赤・四隅は白であることを画素で固定する。
+	 * The path reported by a user as "works on div, but not on {@code <img>}".
+	 * Replaced elements do not go through {@code AbstractContainerBox}, so clip-path, stored only in
+	 * {@code BlockParams}, was silently discarded. Clips a 100 pt square red image with the same circle
+	 * and checks pixels to verify that the center is red and the four corners are white.
 	 * </p>
 	 */
 	public void testCircleClipOnImage() throws Exception {

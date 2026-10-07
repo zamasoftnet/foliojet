@@ -8,16 +8,16 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * {@code @container}実装・段6の{@code cqw}/{@code cqi}単位テストです
- * (開発記録 §5)。
+ * Tests {@code cqw}/{@code cqi} units in {@code @container} implementation stage 6
+ * (development record §5).
  *
  * <p>
- * {@code #outer}(container-type: inline-size、300pt)の子{@code #box}は
- * {@code width: 50cqi}——outerの実測inline-size(300pt)の50%=150ptに
- * 解決されるはず(`processing.pass-count=2`、outerの実測が1回目の
- * MIDDLE_PASSで確定し、最終パスで`#box`が読む——fixture 1と同じ
- * タイミング)。クエリコンテナの祖先を持たない{@code #free}は、
- * 仕様どおり{@code cqw}/{@code cqi}が0として解決されるはず。
+ * {@code #box}, a child of {@code #outer} (container-type: inline-size, 300 pt), has
+ * {@code width: 50cqi}, which should resolve to 50% of outer's measured inline-size (300 pt) = 150 pt.
+ * With `processing.pass-count=2`, outer's measurement is finalized in the first MIDDLE_PASS,
+ * and `#box` reads it in the final pass (the same timing as fixture 1).
+ * For {@code #free}, which has no query-container ancestor,
+ * {@code cqw}/{@code cqi} should resolve to 0 as specified.
  * </p>
  */
 public class ContainerQueryUnitsTest extends AbstractTestCase {

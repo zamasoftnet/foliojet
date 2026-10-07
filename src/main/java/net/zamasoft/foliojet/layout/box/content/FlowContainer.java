@@ -2461,7 +2461,7 @@ public class FlowContainer implements Container {
 	/**
 	 * The worklist executor that drives {@code OpenChain} with an explicit stack
 	 * (added 2026-07-22, B6a1; directly implements the design in
-	 * `設計相談
+	 * `design consultation
 	 * -explicit-worklist-executor-codex.txt`).
 	 * Became the <b>sole driver</b> in increment 4 on 2026-07-30; see the {@link #restyle}
 	 * Javadoc for the period of coexistence with the old recursive driver.
@@ -2482,7 +2482,7 @@ public class FlowContainer implements Container {
 	 * .getContainer()} directly onto the deque. As a result, {@code flowStack} failed to reach
 	 * the correct depth and caused `ContinuationInvariant
 	 * ViolationException(flowStack.size() != continuation.depth())`
-	 * (see `開発記録
+	 * (see `the development records
 	 * -bug-found-and-reverted.md`). By construction of `OpenShape.of()`,
 	 * {@code inner} during {@code OpenChain} descent is always OpenChain or OpenText, never Closed.
 	 * The corresponding {@code endFlowBlock} call is therefore unnecessary, as in legacy recursion.
@@ -2720,7 +2720,7 @@ public class FlowContainer implements Container {
 	 * Extracted from the {@code restyle()} for-loop body for B6a1 preparation: purely a function
 	 * extraction with no behavior changes (old {@code continue} statements were mechanically
 	 * replaced with {@code return}). Prepares for the future worklist executor
-	 * (see `開発記録`) to call this shared dispatch unchanged instead of duplicating it.
+	 * (see `the development records`) to call this shared dispatch unchanged instead of duplicating it.
 	 * Meets the codex design consultation requirement to avoid duplicate TEXT/BLOCK/TABLE/REPLACED
 	 * semantics (rejected proposal: copy the entire switch into the new executor).
 	 * {@link #descendWorklist} pushes {@code OpenChain} descent onto the explicit {@code stack}

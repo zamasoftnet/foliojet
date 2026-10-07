@@ -5,8 +5,8 @@ import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
 
 /**
- * ContentHandlerのフィルタです。
- * 
+ * A ContentHandler filter.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: DefaultXMLHandlerFilter.java 1552 2018-04-26 01:43:24Z miyabe $
  */

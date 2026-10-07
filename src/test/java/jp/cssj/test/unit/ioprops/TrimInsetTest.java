@@ -19,19 +19,19 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>{@code output.trim-inset}で仕上り位置を後から指定できる</b>ことを
- * 固定します(2026-08-29、利用者報告B-3)。
+ * Verify that <b>{@code output.trim-inset} can specify the trim position afterward</b>
+ * (2026-08-29, user report B-3).
  *
  * <p>
- * 塗り足し込みで作られた既存データ——印刷面110pt角のうち外周5ptが
- * 塗り足しで、仕上りサイズは中央の100pt角——を、<b>CSSを書き換えずに</b>
- * 正しい仕上りサイズで出せること。
+ * Existing data includes bleed: a 110 pt square printing surface has 5 pt bleed around its perimeter,
+ * leaving a central 100 pt square finished size. Output it with the correct finished size
+ * <b>without rewriting CSS</b>.
  * </p>
  */
 public class TrimInsetTest extends TestCase {
 	private static final String FILE = "files/unittest/0475-bleed/trim-inset.html";
 
-	/** 指定しなければ従来どおり——印刷面110ptがそのまま出る。 */
+	/** Without the setting, behavior is unchanged: output the full 110 pt printing surface. */
 	public void testWithoutTrimInset() throws Exception {
 		final BufferedImage img = render(null, null);
 		assertEquals(110, img.getWidth());
@@ -39,7 +39,7 @@ public class TrimInsetTest extends TestCase {
 		assertTrue("外周が塗り足しのまま出ていません", isBlue(img.getRGB(1, 1)));
 	}
 
-	/** トンボなし: 用紙は仕上りサイズちょうどになり、塗り足しは断ち落とされる。 */
+	/** Without crop marks: paper matches the finished size exactly, and bleed is trimmed off. */
 	public void testTrimmedToFinishedSize() throws Exception {
 		final BufferedImage img = render("5pt", null);
 		assertEquals("仕上りサイズになっていません", 100, img.getWidth());
@@ -50,23 +50,23 @@ public class TrimInsetTest extends TestCase {
 	}
 
 	/**
-	 * トンボあり: トンボは<b>仕上り線</b>に引かれ、塗り足しはその外へ
-	 * 5ptだけはみ出す。CSSの{@code bleed}を書いたときと同じ絵になる。
+	 * With crop marks: marks align with the <b>trim line</b>, and bleed extends 5 pt beyond it.
+	 * The image matches output with CSS {@code bleed} specified.
 	 */
 	public void testMarksAreDrawnOnTheFinishLine() throws Exception {
 		final BufferedImage img = render("5pt", "crop");
 		final int trim = (img.getWidth() - 100) / 2;
 		assertTrue("トンボのための裁ち口がありません: " + trim, trim > 5);
 		assertEquals("用紙が正方形になっていません", img.getWidth(), img.getHeight());
-		// 仕上り面
+		// Finished surface
 		assertTrue(isRed(img.getRGB(trim + 1, trim + 1)));
 		assertTrue(isRed(img.getRGB(trim + 98, trim + 98)));
-		// 仕上り線の外5ptは塗り足し(青)
+		// The 5 pt outside the trim line is bleed (blue).
 		assertTrue("塗り足しが仕上り線の外に出ていません", isBlue(img.getRGB(trim - 3, trim + 50)));
-		// そのさらに外は白い帯で、そこにトンボが引かれる
+		// Farther outside is a white band where crop marks are drawn.
 		assertFalse("塗り足しが5ptより外まで出ています", isBlue(img.getRGB(trim - 8, trim + 50)));
-		// トンボは塗り足しのすぐ外の白い帯に引かれる(実測: 仕上り線の
-		// 5pt外から外側へ)。左上のコーナートンボが来る範囲を見る
+		// Crop marks are drawn in the white band just outside the bleed (measured: outward from
+		// 5 pt outside the trim line). Check the region containing the top-left corner crop marks.
 		assertTrue("トンボが引かれていません", hasInk(img, 0, 0, trim - 4, trim - 4));
 	}
 

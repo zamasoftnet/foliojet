@@ -8,7 +8,7 @@ import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.test.unit.AbstractTestCase;
 import net.zamasoft.foliojet.message.MessageCodes;
 
-/** 未対応プロパティと不正値を、変換ログへ必ず通知する。 */
+/** Always reports unsupported properties and invalid values to the conversion log. */
 public class CssDiagnosticsTest extends AbstractTestCase {
 	private final List<Short> codes = new ArrayList<>();
 	private final List<String> names = new ArrayList<>();

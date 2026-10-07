@@ -17,13 +17,14 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 画像出力の既定の欧文は、字形を持つ書体で描くことを固定します(2026-10-04)。
+ * Verify that default Latin text in image output uses a font with glyphs (2026-10-04).
  *
  * <p>
- * 既定の書体(Times New Roman, Times, serif)は中核書体 Times-Roman に当たる。画像では Java2D で描くが、
- * Java2D はこの名前を知らず sans の既定で描き、それを AFM の送り幅で並べるので字形も字間も崩れていた
- * (本番の preview)。字形を持たない中核書体は候補の最後に回すので、serif の次の候補(この試験の設定では
- * Noto Serif JP の欧文)で描かれる。
+ * The default fonts (Times New Roman, Times, serif) resolve to the core font Times-Roman.
+ * Images are drawn with Java2D, which does not know this name and uses its default sans font.
+ * Positioning those glyphs with AFM advances corrupted both glyphs and spacing (production preview).
+ * Core fonts without glyphs move to the end of the candidate list, so the next serif candidate
+ * (Latin glyphs in Noto Serif JP in this test configuration) is used.
  * </p>
  */
 public class ImageCoreFontTest extends TestCase {

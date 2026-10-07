@@ -26,9 +26,9 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 1パスのPDFで{@code target-counter()}の頁番号が出ることを固定します(2026-10-04、
- * docs/design/one-pass-target-counter-design.md)。番号は固定幅の欄に組まれ、
- * 後ろの頁の番号は頁から参照した部品へ文書を閉じるときに書かれる。
+ * Verify {@code target-counter()} page numbers in one-pass PDFs (2026-10-04,
+ * docs/design/one-pass-target-counter-design.md). Numbers use fixed-width fields;
+ * forward page numbers are written into components referenced by the page when closing the document.
  */
 public class OnePassTargetCounterTest extends TestCase {
 	private static final String STYLE = """
@@ -68,7 +68,7 @@ public class OnePassTargetCounterTest extends TestCase {
 		} finally {
 			session.close();
 		}
-		// 目視確認用に残す(build/test-output/one-pass/)
+		// Retain for visual inspection (build/test-output/one-pass/).
 		final java.nio.file.Path dump = java.nio.file.Path.of("build", "test-output", "one-pass",
 				Integer.toHexString(html.hashCode()) + ".pdf");
 		java.nio.file.Files.createDirectories(dump.getParent());
@@ -91,7 +91,9 @@ public class OnePassTargetCounterTest extends TestCase {
 			<h1 id="two">Chapter Two</h1><p>second <a class="back" href="#one">back</a></p>
 			""";
 
-	/** 前方参照(目次)は部品で、後方参照はその場で描かれ、どちらも番号が出る。 */
+	/**
+	 * Forward references (table of contents) use components; backward references draw immediately. Both show numbers.
+	 */
 	public void testForwardAndBackwardReferences() throws Exception {
 		final Output out = convert(CHAPTERS);
 		final String toc = pageText(out.pdf(), 1);
@@ -104,14 +106,14 @@ public class OnePassTargetCounterTest extends TestCase {
 		assertEquals("no warning: " + out.warnings(), List.of(), out.warnings());
 	}
 
-	/** 同じ頁で後に描かれる要素への参照も部品で埋まる。 */
+	/** Components also fill references to elements drawn later on the same page. */
 	public void testSamePageForwardReference() throws Exception {
 		final Output out = convert("<nav><p><a href=\"#here\">Here</a></p></nav><p id=\"here\">target</p>");
 		final String text = pageText(out.pdf(), 1);
 		assertTrue(text, Pattern.compile("Here[ .]*1\\b").matcher(text).find());
 	}
 
-	/** 参照先が無ければ空(2パスのときと同じ)。 */
+	/** A missing target yields empty output (as in two-pass mode). */
 	public void testMissingTargetIsEmpty() throws Exception {
 		final Output out = convert("<nav><p><a href=\"#none\">Nowhere</a></p></nav>");
 		final String text = pageText(out.pdf(), 1);
@@ -119,7 +121,7 @@ public class OnePassTargetCounterTest extends TestCase {
 		assertFalse(text, Pattern.compile("\\d").matcher(text).find());
 	}
 
-	/** 欄の桁数を超える番号は左へはみ出して描かれ、警告が1回出る。 */
+	/** Numbers exceeding the field's digit count overflow leftward and emit one warning. */
 	public void testOverflowExtendsLeftAndWarnsOnce() throws Exception {
 		final StringBuilder body = new StringBuilder("<nav>");
 		for (int i = 1; i <= 11; ++i) {
@@ -137,7 +139,7 @@ public class OnePassTargetCounterTest extends TestCase {
 		assertEquals(out.warnings().toString(), 1, overflow);
 	}
 
-	/** 番号は欄の右端に揃う(1桁と2桁の右端が同じ)。基準線は本文と同じ。 */
+	/** Numbers align to the field's right edge (same for one/two digits). Their baseline matches body text. */
 	public void testNumbersAreRightAlignedOnTheBaseline() throws Exception {
 		final StringBuilder body = new StringBuilder("<nav>");
 		for (int i = 1; i <= 10; ++i) {
@@ -148,7 +150,7 @@ public class OnePassTargetCounterTest extends TestCase {
 			body.append("<h1 id=\"c").append(i).append("\">Chapter ").append(i).append("</h1>");
 		}
 		final Output out = convert(body.toString());
-		// 行(基準線の y)ごとに、先頭の字の y と最後の数字の右端を集める
+		// For each line (baseline y), collect the first character's y and the last digit's right edge.
 		final Map<Integer, List<TextPosition>> lines = new TreeMap<>();
 		try (PDDocument doc = Loader.loadPDF(out.pdf())) {
 			final PDFTextStripper stripper = new PDFTextStripper() {
@@ -177,7 +179,7 @@ public class OnePassTargetCounterTest extends TestCase {
 		}
 	}
 
-	/** 欄にできない書式(lower-roman)は従来どおり空で、頁参照の警告が出る。 */
+	/** Formats unsuitable for fields (lower-roman) remain empty as before and emit the page-reference warning. */
 	public void testLowerRomanKeepsTheTwoPassRequirement() throws Exception {
 		final Output out = convert(CHAPTERS.replace("<nav>", "<nav class=\"roman\">"));
 		final String toc = pageText(out.pdf(), 1);
@@ -186,7 +188,7 @@ public class OnePassTargetCounterTest extends TestCase {
 				out.warnings().stream().filter(w -> w.contains("processing.page-references")).count());
 	}
 
-	/** 2パスの文書は今までどおり番号を文字で組む(部品を使わない)。 */
+	/** Two-pass documents still lay out numbers as text (without components). */
 	public void testTwoPassesStillTypesetText() throws Exception {
 		final Output out = convert(CHAPTERS, "processing.page-references", "true", "processing.pass-count", "2");
 		final String toc = pageText(out.pdf(), 1);

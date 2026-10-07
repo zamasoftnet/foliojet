@@ -8,11 +8,11 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 脚注F7(縦書き)のテストです(consult-codex-2026-07-31-footnote-f6f7.txt
- * §3)。vertical-rl(300pt角ページ)では脚注領域は版面のblock-end=左端の
- * 列になる——noteのx座標が版面左寄り(予約領域内)にあり、本文は右端の
- * 行から始まることを固定する。番号ラベルは直立(限定縦中横、意図的
- * 仕様逸脱)。
+ * Tests footnote F7 (vertical writing) (consult-codex-2026-07-31-footnote-f6f7.txt §3).
+ * In vertical-rl (a 300 pt square page), the footnote area is a column at the type area's block-end,
+ * i.e. the left edge. Verifies that the note's x coordinate is near the left edge of the type area
+ * (within the reservation) and that body text starts in the rightmost line.
+ * Number labels are upright (limited tate-chu-yoko, an intentional deviation from the specification).
  */
 public class FootnoteVerticalTest extends AbstractTestCase {
 	public FootnoteVerticalTest(String name) {
@@ -24,7 +24,7 @@ public class FootnoteVerticalTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** 縦書きでもmarker番号はページローカル(1)で、noteは左端側の領域へ。 */
+	/** In vertical writing, the marker number is also page-local (1), and the note goes to the left-edge area. */
 	public boolean check_v1(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(1, pageNumber);

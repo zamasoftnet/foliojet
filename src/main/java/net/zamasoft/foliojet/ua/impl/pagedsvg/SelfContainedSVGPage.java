@@ -8,25 +8,25 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 
 /**
- * <b>1枚で完結するSVG</b>を直接書き出す口です(B-1、2026-08-29の利用者要望)。
+ * An entry point for directly writing <b>a self-contained SVG</b> (B-1, user request on 2026-08-29).
  *
  * <p>
- * 中身はページ分割SVGとまったく同じ書き手({@link DirectPagedSVGGC}・
- * {@link SVGWriter}・{@link WebFontSubset})です。違うのは<b>資源の届け方</b>
- * だけで、ここではフォントも画像も{@code data:}でSVGの中へ入れます。
- * 単一SVGは1枚で持ち歩くためのものなので、外部参照を残せません。
+ * Uses exactly the same writers as page-split SVG ({@link DirectPagedSVGGC},
+ * {@link SVGWriter}, and {@link WebFontSubset}). Only <b>resource delivery</b> differs:
+ * fonts and images are embedded in the SVG as {@code data:}.
+ * Single SVG is intended to be portable as one file, so it cannot retain external references.
  * </p>
  *
  * <p>
- * このクラスだけを公開にしてあります。書き手一式は実装の詳細なので
- * パッケージの外へは出しません。
+ * Only this class is public. The writers are implementation details
+ * and are not exposed outside the package.
  * </p>
  *
  * <p>
- * <b>制限</b>: 字形はGIDをそのまま出すため私用領域(PUA)の符号で書かれます。
- * 見た目は正確ですが、複写すると私用領域の文字になります。元の文字列は
- * {@code aria-label}と{@code data-copper-text}に載っているので、
- * 読み上げと検索はそちらで効きます。
+ * <b>Limitation</b>: glyphs use private-use area (PUA) code points to output GIDs directly.
+ * Appearance is exact, but copied text contains private-use characters.
+ * The original text is in {@code aria-label} and {@code data-copper-text},
+ * which support read-aloud and search.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -41,8 +41,8 @@ public final class SelfContainedSVGPage implements AutoCloseable {
 
 	public SelfContainedSVGPage(final Writer out, final double width, final double height,
 			final FontManager fonts) throws IOException {
-		// 資源は結果として出さない。埋め込みではemitterは呼ばれないが、
-		// 呼ばれたら設計の誤りなので黙って捨てずに落とす
+		// Resources are not emitted as results. Embedding does not call the emitter,
+		// but calling it would be a design error, so fail instead of silently discarding.
 		this.resources = new PagedSVGResources((uri, mimeType, bytes) -> {
 			throw new IllegalStateException("自己完結SVGは資源を別に出しません: " + uri);
 		});
@@ -57,12 +57,12 @@ public final class SelfContainedSVGPage implements AutoCloseable {
 	}
 
 	/**
-	 * サブセットを組み立てて{@code @font-face}へ差し込み、SVGを閉じます。
+	 * Builds subsets, inserts them into {@code @font-face}, and closes the SVG.
 	 *
 	 * <p>
-	 * 組み立てられるのは<b>この時点</b>——ページに出た字形が出そろってから
-	 * です。{@code defs}を末尾に置いてあるので、ここで確定した{@code src}が
-	 * そのまま書けます({@link SVGPageOutput}参照)。
+	 * Subsets can be built <b>only now</b>, once all glyphs used on the page are known.
+	 * Because {@code defs} is at the end, the {@code src} finalized here can be written directly
+	 * (see {@link SVGPageOutput}).
 	 * </p>
 	 */
 	@Override

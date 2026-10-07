@@ -17,14 +17,14 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 脚注ラベルの未対応の内容は<b>変換の失敗ではなく警告</b>であることを固定します
- * (2026-09-02、設計レビュー §1-6)。
+ * Verifies that unsupported footnote label content produces <b>a warning, not a conversion failure</b>
+ * (2026-09-02, design review §1-6).
  *
  * <p>
- * 以前は{@code ::footnote-call}の{@code content}に文字列と
- * {@code counter(footnote)}以外(例えば{@code counter(footnote, lower-roman)})が
- * あると{@code FootnoteOverflowException}で文書全体が失敗していた。仕様の
- * 制限は 2823 で知らせて、番号と文字列だけで組む。
+ * Previously, any {@code content} in {@code ::footnote-call} other than strings and
+ * {@code counter(footnote)} (e.g. {@code counter(footnote, lower-roman)}) caused
+ * {@code FootnoteOverflowException} and failed the entire document. The limitation is now reported
+ * with 2823, and layout uses only numbers and strings.
  * </p>
  */
 public class FootnoteLabelWarningTest extends TestCase {
@@ -34,7 +34,7 @@ public class FootnoteLabelWarningTest extends TestCase {
 			+ "</style></head><body><p>Alpha<span style=\"float:footnote\">first note</span> beta."
 			+ "<span style=\"float:footnote\">second note</span> gamma.</p></body></html>";
 
-	/** 未対応のラベルは 2823 を1回出して、PDF は出来上がる。 */
+	/** An unsupported label emits 2823 once, and the PDF is completed. */
 	public void testUnsupportedLabelWarnsOnceAndStillConverts() throws Exception {
 		final List<String[]> messages = new ArrayList<>();
 		final ByteArrayOutputStream pdf = new ByteArrayOutputStream();

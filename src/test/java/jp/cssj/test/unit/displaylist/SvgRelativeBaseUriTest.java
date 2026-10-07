@@ -17,9 +17,9 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 本文の URI が<b>相対</b>(REST の multipart で本文をファイルとして送ると、
- * ファイル名がそのまま URI になる)のとき、インライン SVG の{@code url(#…)}が
- * 壊れないことを固定します(2026-10-04、TECH-20261003-004 の④)。
+ * When the body URI is <b>relative</b> (sending the body as a file in REST multipart uses the file name
+ * directly as the URI), verify that inline SVG {@code url(#…)} references work
+ * (2026-10-04, item ④ of TECH-20261003-004).
  */
 public class SvgRelativeBaseUriTest extends TestCase {
 	private static final String HTML = """
@@ -49,7 +49,7 @@ public class SvgRelativeBaseUriTest extends TestCase {
 				session.setMessageHandler(new MessageHandler() {
 					@Override
 					public void message(final short code, final String[] args, final String message) {
-						// 警告(0x2...)以上は数える
+						// Count warnings (0x2...) and higher severities.
 						if ((code & 0xF000) >= 0x2000) {
 							problems.add(Integer.toHexString(code) + " " + message);
 						}
@@ -63,7 +63,7 @@ public class SvgRelativeBaseUriTest extends TestCase {
 				session.close();
 			}
 			assertTrue("本文の URI が " + uri + " のとき: " + problems, problems.isEmpty());
-			// marker の赤い三角が描かれている(塗りの色 1 0 0 rg が出る)
+			// The marker's red triangle is painted (fill color 1 0 0 rg appears).
 			final String pdf = new String(out.toByteArray(), StandardCharsets.ISO_8859_1);
 			assertTrue("本文の URI が " + uri + " のとき PDF ができていない", pdf.startsWith("%PDF"));
 		}

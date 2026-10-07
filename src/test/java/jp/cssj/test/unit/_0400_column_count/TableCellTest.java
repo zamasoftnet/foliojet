@@ -23,15 +23,15 @@ public class TableCellTest extends AbstractTestCase {
 			System.err.println("y: " + y);
 			System.err.println(box.getWidth());
 			System.err.println(box.getHeight());
-			// 2026-07-26に更新。旧期待値(94, 152, 50, 43)は
-			// **column-gapを段数分だけ重複計上していた**ときの版面である。
-			// 段間は段数によらず1回だけ数えるのが正しい
-			// (IntrinsicMeasurerの累積乗算を修正)。
+			// Updated on 2026-07-26. The old expected values (94, 152, 50, 43)
+			// came from layout that **counted column-gap repeatedly, once per column**.
+			// The correct calculation counts the gap only once, regardless of the number of columns
+			// (fixed cumulative multiplication in IntrinsicMeasurer).
 			//
-			// 新しい配分の裏取り: セルの背景枠は 113.33 と 475.17 で、
-			// 合計588.5 ≒ 内容領域590pt(600pt − body枠5pt×2)と整合する。
-			// 段幅36.16ptは12ptの和文3字ぶんで、実際に表示リストは
-			// 1行3字で折り返している。
+			// Cross-check of the new allocation: cell background frames are 113.33 and 475.17,
+			// totaling 588.5 ≈ the 590 pt content area (600 pt − body border 5 pt × 2).
+			// The column width of 36.16 pt fits three 12 pt Japanese characters, and the display list
+			// indeed wraps at three characters per line.
 			assertEquals(80.4, x, 1);
 			assertEquals(211.8, y, 1);
 			assertEquals(36.2, box.getWidth(), 1);
@@ -47,7 +47,7 @@ public class TableCellTest extends AbstractTestCase {
 			System.err.println("y: " + y);
 			System.err.println(box.getWidth());
 			System.err.println(box.getHeight());
-			// 2026-07-26に更新(check_aと同じ理由)
+			// Updated on 2026-07-26 (same reason as check_a).
 			assertEquals(374.7, x, 1);
 			assertEquals(145.3, y, 1);
 			assertEquals(217.1, box.getWidth(), 1);

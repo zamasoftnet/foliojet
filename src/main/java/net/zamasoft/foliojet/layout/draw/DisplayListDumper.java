@@ -9,18 +9,18 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * ページの表示リストをテキストとしてダンプします(回帰検証用)。
- * システムプロパティ {@value #DIR_PROPERTY} に出力先ディレクトリを設定すると有効になります。
+ * Dumps a page's display list as text (for regression validation).
+ * Enable by setting system property {@value #DIR_PROPERTY} to the output directory.
  */
 public final class DisplayListDumper {
 	private static final Logger LOG = Logger.getLogger(DisplayListDumper.class.getName());
 
 	public static final String DIR_PROPERTY = "net.zamasoft.foliojet.debug.display-list.dir";
 
-	// DirectSession の変換スレッドにも届く、D7 用の独立した観測口。
+	// Independent D7 observation hook that also reaches DirectSession's conversion thread.
 	private static volatile java.util.function.BiConsumer<Drawer, Integer> pageObserver;
 
-	/** 直列の検証用。golden の書式・出力先とは独立し、close で必ず復元する。 */
+	/** For serial validation. Independent of golden format and destination; always restore on close. */
 	public static AutoCloseable observePages(final java.util.function.BiConsumer<Drawer, Integer> observer) {
 		final var saved = pageObserver;
 		pageObserver = observer;
@@ -28,20 +28,19 @@ public final class DisplayListDumper {
 	}
 
 	/**
-	 * スレッドごとの出力先(システムプロパティより優先)。
+	 * Per-thread output destination (takes precedence over the system property).
 	 *
 	 * <p>
-	 * システムプロパティはプロセス全体で共有されるため、<b>複数の変換を
-	 * 並行させるとダンプ先が互いに上書きされる</b>。長時間の掃過
-	 * (数百万文書)を並列化するには、変換スレッドごとに出力先を
-	 * 分ける必要がある(2026-07-26)。
+	 * System properties are process-wide, so <b>concurrent conversions overwrite each other's dump destinations</b>.
+	 * Parallelizing long sweeps (millions of documents) requires separate destinations per conversion thread
+	 * (2026-07-26).
 	 * </p>
 	 */
 	private static final ThreadLocal<String> DIR_OVERRIDE = new ThreadLocal<>();
 
 	/**
-	 * 表示リストへ描画物の幅・高さも出すか。大量掃過の可視領域検査だけが使い、
-	 * 通常のgoldenダンプは変えない。
+	 * Whether to include drawable widths/heights in display lists. Used only for visible-area checks in large sweeps;
+	 * does not change normal golden dumps.
 	 */
 	private static final ThreadLocal<Boolean> DETAILED_GEOMETRY = new ThreadLocal<>();
 
@@ -50,29 +49,29 @@ public final class DisplayListDumper {
 	}
 
 	/**
-	 * このスレッドに設定されている出力先を返します({@code null}なら未設定)。
-	 * レイアウトを別スレッドで実行する側が引き継ぐために使います。
+	 * Returns the output destination set for this thread ({@code null} if unset). Used to propagate it when layout
+	 * runs on a different thread.
 	 */
 	public static String currentDir() {
 		return DIR_OVERRIDE.get();
 	}
 
-	/** 現在のスレッドで詳細な描画寸法を出す設定か。 */
+	/** Whether this thread is configured to output detailed drawing dimensions. */
 	public static boolean currentDetailedGeometry() {
 		return Boolean.TRUE.equals(DETAILED_GEOMETRY.get());
 	}
 
 	/**
-	 * このスレッドのダンプ出力先を設定します。返り値を閉じると元へ戻ります。
+	 * Sets this thread's dump destination. Closing the returned handle restores the previous setting.
 	 *
 	 * <pre>
 	 * try (var scope = DisplayListDumper.scopedDir(dir)) {
-	 * 	// このスレッドの変換だけが dir へ出力する
+	 * 	// Only conversions on this thread output to dir.
 	 * }
 	 * </pre>
 	 *
-	 * @param dir 出力先(nullでこのスレッドの設定を外す)
-	 * @return 閉じると元の設定へ戻すハンドル
+	 * @param dir output destination (null removes this thread's setting)
+	 * @return handle that restores the previous setting on close
 	 */
 	public static AutoCloseable scopedDir(final String dir) {
 		final String saved = DIR_OVERRIDE.get();
@@ -91,7 +90,8 @@ public final class DisplayListDumper {
 	}
 
 	/**
-	 * このスレッドの表示リストだけへ描画寸法を追記する。返り値を閉じると元へ戻す。
+	 * Appends drawing dimensions only to this thread's display lists. Closing the returned handle restores the
+	 * previous setting.
 	 */
 	public static AutoCloseable scopedDetailedGeometry(final boolean enabled) {
 		final Boolean saved = DETAILED_GEOMETRY.get();
@@ -110,7 +110,7 @@ public final class DisplayListDumper {
 	}
 
 	/**
-	 * ダンプが有効な場合、ページの表示リストを書き出します。
+	 * Writes the page's display list if dumping is enabled.
 	 */
 	public static void dumpPage(Drawer drawer, int pageNumber) {
 		final var observer = pageObserver;

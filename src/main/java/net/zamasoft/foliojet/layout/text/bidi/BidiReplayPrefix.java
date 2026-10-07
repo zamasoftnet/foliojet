@@ -7,8 +7,8 @@ import java.util.List;
 import net.zamasoft.foliojet.layout.box.AbstractLineBox;
 
 /**
- * 段落途中の replay より前にある論理行の永続 chain。
- * 断片ごとに全 prefix を複製せず、段落全体で O(paragraph) に保つ。
+ * Persistent chain of logical lines preceding a replay from the middle of a paragraph.
+ * Avoids copying the entire prefix for each fragment, keeping the whole paragraph O(paragraph).
  */
 public final class BidiReplayPrefix {
 	public static final BidiReplayPrefix EMPTY = new BidiReplayPrefix(null, List.of(), 0);
@@ -28,7 +28,7 @@ public final class BidiReplayPrefix {
 		return this.size == 0;
 	}
 
-	/** 最初の配置時に割り当てた段落 ID。未解決なら 0。 */
+	/** Paragraph ID assigned at initial layout. Zero if unresolved. */
 	public long paragraphId() {
 		BidiReplayPrefix first = this;
 		while (first.previous != null && !first.previous.segment.isEmpty()) {
@@ -44,7 +44,7 @@ public final class BidiReplayPrefix {
 		return new BidiReplayPrefix(this, List.copyOf(lines), this.size + lines.size());
 	}
 
-	/** resolver 用に一時的な論理順 list へ展開する。 */
+	/** Expands into a temporary list in logical order for the resolver. */
 	public List<AbstractLineBox> lines() {
 		if (this.isEmpty()) {
 			return List.of();

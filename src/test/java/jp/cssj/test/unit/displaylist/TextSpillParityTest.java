@@ -25,28 +25,27 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * text payloadのproduction spill(E-6増分3b-2、2026-07-24新設)の
- * 出力挙動不変テストです。
+ * Output behavior parity test for production text payload spilling
+ * (E-6 increment 3b-2, added 2026-07-24).
  *
  * <p>
- * 代表文書(改ページ再生・尾部再生・表・段組をカバーする)について、
- * 極小予算({@code processing.text-spill-budget=0}: 全テキストが
- * spillされる)でも既定予算(spillなし)と<b>display listが完全一致</b>
- * することを固定する——spillはメモリ挙動のみを変え、出力を一切変えない
- * (FallbackParityTestと同じ同一プロセス直接比較。golden不要)。
- * あわせて、(b)spillが実際に発火したこと(カウンタ&gt;0)、
- * (c)transcode終了後にspill一時ファイルが残らないこと(例外経路も
- * formatterのfinallyが清算——ここでは成功経路のclose確実性を固定)を
- * 検証する。
+ * For representative documents covering page-break replay, tail replay, tables, and multi-column layout,
+ * use a tiny budget ({@code processing.text-spill-budget=0}: all text spills) and the default budget
+ * (no spilling), and verify <b>exact display-list equality</b>.
+ * Spilling changes only memory behavior, never output (direct comparison in the same process,
+ * like FallbackParityTest; no golden required).
+ * Also verify (b) spilling actually fires (counter &gt; 0) and (c) no spill temporary files remain
+ * after transcode ends (the formatter's finally also cleans up exception paths;
+ * here, pin down reliable close on the success path).
  * </p>
  */
 public class TextSpillParityTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/**
-	 * 対象文書。replay系(ResumeTraceGoldenTestの改ページ・尾部・
-	 * 入れ子破断)と表・段組(バランス再生)をカバーする——極小予算で
-	 * spill済みpayloadのdecode再生が実際に通ることの固定。
+	 * Target documents. Cover replay paths (page breaks, tails, nested breaks from ResumeTraceGoldenTest),
+	 * tables, and multi-column layout (balance replay), verifying that decoding and replay of spilled
+	 * payloads actually occur with a tiny budget.
 	 */
 	private static final String[] DOCUMENTS = { //
 			"0460-segment-restyle/mid-paragraph.html", //
@@ -72,14 +71,14 @@ public class TextSpillParityTest extends TestCase {
 		final File baselineDir = new File("local/unittest/text-spill-parity/" + name + "-baseline");
 		final File tinyDir = new File("local/unittest/text-spill-parity/" + name + "-tiny");
 
-		// 既定予算(spillなし)の基準
+		// Default-budget baseline (no spilling).
 		ContinuationStats.reset();
 		this.dump(doc, name + "-baseline", baselineDir, null);
 		assertEquals(doc + ": 既定予算(8MB)ではspillは起きないはず", 0, ContinuationStats.SPILLED_TEXT_RECORDS.get());
 
-		// 極小予算(全テキストspill)。spillストアの一時ファイルが
-		// transcode後に削除されていることをappend観測フックで捕捉して検証
-		// (tmpdirの全走査は並行テストのspillファイルと衝突するため行わない)
+		// Tiny budget (all text spills). Capture spill-store temporary files via the append observation hook
+		// and verify that they are deleted after transcode.
+		// (Do not scan all of tmpdir, which would conflict with spill files from concurrent tests.)
 		ContinuationStats.reset();
 		final List<TextSpill> spills = Collections.synchronizedList(new ArrayList<>());
 		LayoutSourceTestHooks.setAppendObserver(event -> {
@@ -95,19 +94,19 @@ public class TextSpillParityTest extends TestCase {
 			LayoutSourceTestHooks.setAppendObserver(null);
 		}
 
-		// (b) spillが実際に発火したこと
+		// (b) Spilling actually fires.
 		assertTrue(doc + ": 極小予算でspillが発火していません", ContinuationStats.SPILLED_TEXT_RECORDS.get() > 0);
 		assertTrue(doc + ": spill bytesが計上されていません", ContinuationStats.SPILLED_TEXT_BYTES.get() > 0);
-		// 極小予算(0)ではinline保持は発生しない
+		// With a tiny budget (0), no inline retention occurs.
 		assertEquals(doc + ": 予算0でinline保持が発生しています", 0, ContinuationStats.LIVE_TEXT_PAYLOAD_BYTES.get());
 
-		// (c) transcode後にspill一時ファイルが残らない(close確実性)
+		// (c) No spill temporary files remain after transcode (reliable close).
 		assertFalse(doc + ": spillストアが観測されていません", spills.isEmpty());
 		for (final TextSpill spill : spills) {
 			assertTrue(doc + ": transcode後にspill一時ファイルが残っています", spill.tempFilesDeletedForTest());
 		}
 
-		// (a)(d) display listの完全一致(replay系を含む出力挙動不変)
+		// (a)(d) Exact display-list equality (unchanged output behavior, including replay paths).
 		final File[] baselinePages = baselineDir.listFiles((d, n) -> n.endsWith(".txt"));
 		final File[] tinyPages = tinyDir.listFiles((d, n) -> n.endsWith(".txt"));
 		assertNotNull(doc + ": 表示リストが出力されていません", baselinePages);

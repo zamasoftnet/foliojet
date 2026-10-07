@@ -23,37 +23,36 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>分割されたセルの内容が、継続断片ではなく先頭断片に出る</b>ことを
- * 固定します(2026-07-27新設)。
+ * Verify that <b>a split cell's content appears in the head fragment rather than the continuation fragment</b>
+ * (added 2026-07-27).
  *
  * <p>
- * <b>何が起きていたか。</b>{@code TableCellBox.split}はセル内容へ渡す
- * 切断位置を「行の物理分割線 - {@code verticalAlign}」としていました。
- * {@code verticalAlign}は<b>確定セル高と内容高の差</b>から決まるので、
- * セルが{@code rowspan}や背の高い隣接セルのせいで内容よりずっと高いと、
- * <b>整列余白だけで切断線を越えて</b>しまいます。すると先頭断片には
- * 内容が1単位も残らず、<b>前ページには枠だけ・文字は次ページ</b>という
- * 分かれ方をしました。読者には「セルが空の行」に見えます。
+ * <b>What happened.</b> {@code TableCellBox.split} passed the cut position to cell content as
+ * "the row's physical split line - {@code verticalAlign}". Since {@code verticalAlign} comes from
+ * <b>the difference between the finalized cell height and the content height</b>, a cell much taller
+ * than its content due to {@code rowspan} or a tall adjacent cell could have
+ * <b>alignment space alone extend beyond the cut line</b>. Then no content unit remained in the head
+ * fragment: <b>only the frame appeared on the preceding page, with the text on the next</b>.
+ * To the reader, this looked like a row with an empty cell.
  * </p>
  *
  * <p>
- * <b>rowspan固有ではありません。</b> 発見はファジング(不変条件7
- * 「読み順が保たれる」、seed 130ほか)で、観測された12件はすべて
- * {@code rowspan}のセルでしたが、本質は<b>「セル高 &gt; 内容高」かつ
- * 「その行が分割される」</b>ことです。下の1つめの文書は{@code rowspan}を
- * <b>使わずに</b>同じ壊れ方を再現します——隣のセルが背が高いだけで
- * 起こります。2つめが{@code rowspan}版です。
+ * <b>This is not specific to rowspan.</b> Fuzzing discovered it (invariant 7, "reading order is preserved",
+ * seed 130 and others). All 12 observed cases involved {@code rowspan} cells, but the essential conditions
+ * are <b>"cell height &gt; content height" and "the row splits"</b>.
+ * The first document below reproduces the same failure with {@code rowspan} <b>absent</b>:
+ * a tall neighboring cell suffices. The second document is the {@code rowspan} version.
  * </p>
  *
  * <p>
- * <b>修正前の出力</b>(1つめの文書): 1ページ目が{@code P1 B1 B2}
- * (Aのセルは枠だけ)、2ページ目が{@code A B3 B4 B5}。文書順で先の
- * {@code A}が、後の{@code B2}より<b>後のページ</b>に出ていました。
+ * <b>Output before the fix</b> (first document): page 1 had {@code P1 B1 B2}
+ * (only the frame for cell A); page 2 had {@code A B3 B4 B5}. {@code A}, which precedes
+ * {@code B2} in document order, appeared on a <b>later page</b>.
  * </p>
  *
  * <p>
- * <b>文書を外部ファイルにしない</b>のは、相対パスの画像参照で1時間の
- * 誤診断をした前科があるためです(教訓集 §6.9h)。ここで組み立てる。
+ * <b>Do not use external document files</b>: a relative image reference previously caused
+ * an hour of misdiagnosis (lessons §6.9h). Build the documents here.
  * </p>
  */
 public class SplitCellValignReadingOrderTest extends TestCase {
@@ -61,11 +60,11 @@ public class SplitCellValignReadingOrderTest extends TestCase {
 		super(name);
 	}
 
-	/** 表示リストの文字。{@code RandomDocumentFuzzTest}と同じ拾い方。 */
+	/** Display-list text. Extract it the same way as {@code RandomDocumentFuzzTest}. */
 	private static final Pattern TEXT_IN_DUMP = Pattern
 			.compile("(?:Text|RubyUnit)\\[\"([^\"]*)\"(?: ruby=\"([^\"]*)\")?");
 
-	/** 打ち切り時間。実測は1秒未満。 */
+	/** Timeout. Measured runtime is under one second. */
 	private static final long WATCHDOG_MS = 60_000L;
 
 	private static final String HEAD = """
@@ -83,12 +82,11 @@ public class SplitCellValignReadingOrderTest extends TestCase {
 			""";
 
 	/**
-	 * rowspanなし。1行だけの{@code A}のセルが、7行の隣接セルに引き伸ばされて
-	 * 高さ約104ptになる。分割線は行の先頭から約36ptで、既定の
-	 * {@code vertical-align}(middle)の整列余白約45ptだけで切断線を越える。
-	 * セルの{@code page-break-inside:auto}は、行がページ先頭になくても
-	 * 分割されるようにするため(既定のavoidだと行ごと次ページへ送られ、
-	 * この欠陥に到達しない)。
+	 * No rowspan. The single-line {@code A} cell stretches to about 104 pt due to its seven-line neighbor.
+	 * The split line is about 36 pt from the row start; the roughly 45 pt alignment space from
+	 * the default {@code vertical-align} (middle) alone extends beyond it.
+	 * The cell's {@code page-break-inside:auto} allows splitting even when the row is not at the page top
+	 * (the default avoid moves the entire row to the next page, so this defect is not reached).
 	 */
 	private static final String HTML_NO_ROWSPAN = String.format(HEAD, "page-break-inside:auto") + """
 			<p>P1</p>
@@ -98,12 +96,12 @@ public class SplitCellValignReadingOrderTest extends TestCase {
 			</body></html>
 			""";
 
-	/** 文書順。{@code A}は{@code B1}より先。 */
+	/** Document order. {@code A} precedes {@code B1}. */
 	private static final String[] ORDER_NO_ROWSPAN = { "P1", "A", "B1", "B2", "B3", "B4", "B5", "B6", "B7" };
 
 	/**
-	 * rowspan版。{@code A}は2行にまたがるので高さが内容の何倍にもなる。
-	 * 分割は2行目の内部で起きる。
+	 * Rowspan version. {@code A} spans two rows, making its height several times the content height.
+	 * The split occurs inside the second row.
 	 */
 	private static final String HTML_ROWSPAN = String.format(HEAD, "") + """
 			<p>P1</p>
@@ -168,8 +166,8 @@ public class SplitCellValignReadingOrderTest extends TestCase {
 		assertTrue(name + ": ページが1枚も出ていない", pages.length > 0);
 		java.util.Arrays.sort(pages);
 
-		// トークンが**最初に現れたページ**。ページ内の描画順は実装の都合
-		// (連結セルは跨ぐ行が確定してから描かれる)なので問わない
+		// The **first page on which each token appears**. Ignore within-page painting order, which is an implementation detail
+		// (spanning cells are painted after the rows they span are finalized).
 		final Map<String, Integer> firstPage = new HashMap<String, Integer>();
 		for (int i = 0; i < pages.length; ++i) {
 			final String dump = java.nio.file.Files.readString(pages[i].toPath(), StandardCharsets.UTF_8);
@@ -183,11 +181,11 @@ public class SplitCellValignReadingOrderTest extends TestCase {
 			}
 		}
 
-		// 内容が失われていないこと。順序だけ見ると「消えた」退行を通す
+		// No content is lost. Checking order alone lets a "disappeared" regression pass.
 		for (final String token : orderedTokens) {
 			assertNotNull(name + ": " + token + "が消えた", firstPage.get(token));
 		}
-		// 読み順: 文書順で先のトークンが、後のトークンより後のページに出ない
+		// Reading order: a token earlier in document order must not appear on a later page than a subsequent token.
 		int prev = -1;
 		String prevToken = null;
 		for (final String token : orderedTokens) {

@@ -18,12 +18,14 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 import net.zamasoft.zstream.resolver.util.SimpleSourceMetadata;
 
 /**
- * {@code input.stylesheet.titles} でスタイルシートを選ぶときの規則を固定します(2026-10-05、jigensha の報告)。
+ * Verifies the rules for stylesheet selection via {@code input.stylesheet.titles}
+ * (2026-10-05, jigensha report).
  *
  * <p>
- * title の無いスタイルシート(HTML の persistent)は選択にかかわらず当たり、選んだ title の代替が加わる。タイトルは
- * 完全一致で比べ、スペースかコンマで区切って複数を選べる。それまでは title の無い link で変換ごと落ち(4001、
- * {@code String.indexOf(null)})、タイトルを部分一致で比べていた。
+ * Stylesheets without a title (HTML persistent stylesheets) apply regardless of selection,
+ * and alternatives with selected titles are added. Titles match exactly, and multiple titles can
+ * be separated by spaces or commas. Previously, a link without a title failed the whole conversion
+ * (4001, {@code String.indexOf(null)}), and titles were compared by substring.
  * </p>
  */
 public class StylesheetTitlesTest extends TestCase {

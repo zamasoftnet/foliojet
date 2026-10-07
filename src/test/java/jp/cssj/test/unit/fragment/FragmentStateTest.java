@@ -8,7 +8,7 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.fragment.FragmentState;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 
-/** 固定高ボックスの断片状態計算の回帰テスト。 */
+/** Regression tests for fragment-state calculation in fixed-height boxes. */
 public class FragmentStateTest extends TestCase {
 	private static final AbsoluteRectFrame FRAME = new AbsoluteRectFrame(RectFrame.NULL_FRAME);
 	private static final Dimension SIZE = Dimension.create(100, 100, LengthType.ABSOLUTE, LengthType.ABSOLUTE);

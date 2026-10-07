@@ -9,84 +9,83 @@ import java.util.concurrent.atomic.AtomicLong;
 import net.zamasoft.foliojet.css.selector.Condition;
 
 /**
- * 要素の終了時点(:has()は該当部分木の終了時点)まで真偽が確定しない
- * セレクタの判定結果です。{@code CSSElement.elementKey}(文書順の通し
- * 番号、パスをまたいで安定)をキーとする。
+ * Results for selectors whose truth is unknown until element end
+ * (or the end of the relevant subtree for :has()). Keyed by {@code CSSElement.elementKey}
+ * (document-order sequence number, stable across passes).
  * <p>
- * `:last-child`系は実レイアウトを組まない軽量な事前走査
- * {@code STRUCTURE_SCAN}(独立したパスフェーズ)が一度に確定させ、以降の
- * 全LAYOUTパスからは読み取り専用として参照される。`:has()`は
- * {@code STRUCTURE_SCAN}を使わず、通常のLAYOUTパス(`StyleContext.merge`)が
- * 要素ごとの祖先チェーンを見ながら段階的に確定させる(`PageRef`と同じ
- * 「複数パスにまたがって値を積み上げる」設計。理由は開発計画
- * 「2パス制御モード」参照——`:has()`の相対セレクタ評価には実際の
- * `CSSElement`(class/id/属性込み)と`StyleContext.matchesFromPath`が
- * 要り、`STRUCTURE_SCAN`専用の軽量walkerでは賄えないため)。
+ * The `:last-child` family is resolved all at once by the lightweight preliminary
+ * {@code STRUCTURE_SCAN} (an independent pass phase) without actual layout, then read-only
+ * in all subsequent LAYOUT passes. `:has()` does not use {@code STRUCTURE_SCAN};
+ * normal LAYOUT passes (`StyleContext.merge`) progressively resolve it by inspecting each
+ * element's ancestor chain (the same "accumulate values across multiple passes" design as
+ * `PageRef`; see the development plan, "2パス制御モード," for the reason:
+ * evaluating relative selectors in `:has()` requires actual `CSSElement` objects including
+ * class/id/attributes and `StyleContext.matchesFromPath`, beyond the lightweight walker
+ * dedicated to `STRUCTURE_SCAN`).
  * </p>
  * <p>
- * {@link PageRef}とは別クラス(意図的): {@code PageRef}はURI/id起点の
- * ページ参照・TOC専用ストアで、id無し要素の安定キーを持たない。
- * ライフサイクル(このクラスは`STRUCTURE_SCAN`開始時に1回だけリセットし、
- * 以降の全パスで蓄積し続ける)は`PageRef`の`reset()`と紛らわしいため
- * 相乗りはしない(開発計画参照)。
+ * Intentionally separate from {@link PageRef}: {@code PageRef} is a URI/id-based store solely
+ * for page references and TOC, without stable keys for id-less elements.
+ * Its lifecycle is different: this class resets only once at `STRUCTURE_SCAN` start and
+ * continues accumulating through all later passes. Sharing would confuse this with
+ * `PageRef`'s `reset()` (see the development plan).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class SelectorFacts {
-	// ---- E-6増分1(2026-07-24): 保持量のhigh-waterカウンタ群 ----
-	// spillableテープ基盤のspill閾値・対象選定の実測基盤(codex設計§1.3:
-	// SelectorFactsはE-6でtape化しない——まず実コーパスでエントリ数を測る)。
-	// 各Map/Setのエントリ数のmax更新のみで挙動には影響しない。
+	// ---- E-6 increment 1 (2026-07-24): retention high-water counters ----
+	// Measurement basis for spill thresholds and target selection in spillable tape infrastructure (codex design §1.3:
+	// SelectorFacts is not converted to tape in E-6; first measure entry counts on real corpora).
+	// Only updates the maximum entry count of each Map/Set; does not affect behavior.
 
-	/** {@code lastChild}のエントリ数のhigh-water(E-6増分1、挙動不変)。 */
+	/** High-water mark of {@code lastChild} entry count (E-6 increment 1; behavior unchanged). */
 	public static final AtomicLong LAST_CHILD_HIGH_WATER = new AtomicLong();
 
-	/** {@code lastOfType}のエントリ数のhigh-water(E-6増分1、挙動不変)。 */
+	/** High-water mark of {@code lastOfType} entry count (E-6 increment 1; behavior unchanged). */
 	public static final AtomicLong LAST_OF_TYPE_HIGH_WATER = new AtomicLong();
 
-	/** {@code empty}のエントリ数のhigh-water(E-6増分1、挙動不変)。 */
+	/** High-water mark of {@code empty} entry count (E-6 increment 1; behavior unchanged). */
 	public static final AtomicLong EMPTY_HIGH_WATER = new AtomicLong();
 
-	/** {@code positionFromEnd}のエントリ数のhigh-water(E-6増分1、挙動不変)。 */
+	/** High-water mark of {@code positionFromEnd} entry count (E-6 increment 1; behavior unchanged). */
 	public static final AtomicLong POSITION_FROM_END_HIGH_WATER = new AtomicLong();
 
-	/** {@code typePositionFromEnd}のエントリ数のhigh-water(E-6増分1、挙動不変)。 */
+	/** High-water mark of {@code typePositionFromEnd} entry count (E-6 increment 1; behavior unchanged). */
 	public static final AtomicLong TYPE_POSITION_FROM_END_HIGH_WATER = new AtomicLong();
 
-	/** {@code hasMatches}のキー(要素)数のhigh-water(E-6増分1、挙動不変)。 */
+	/** High-water mark of {@code hasMatches} key (element) count (E-6 increment 1; behavior unchanged). */
 	public static final AtomicLong HAS_MATCH_ELEMENT_HIGH_WATER = new AtomicLong();
 
 	/**
-	 * {@code hasMatches}の(要素, 条件)ペア総数のhigh-water(E-6増分1、
-	 * 挙動不変)。最悪O(N×H)の実測。
+	 * High-water mark of total (element, condition) pairs in {@code hasMatches}
+	 * (E-6 increment 1; behavior unchanged). Measures the worst case O(N×H).
 	 */
 	public static final AtomicLong HAS_MATCH_PAIR_HIGH_WATER = new AtomicLong();
 
-	/** 現在の(要素, 条件)ペア総数(観測用の付随カウンタ、判定には使わない)。 */
+	/** Current total (element, condition) pairs (auxiliary observation counter; not used for decisions). */
 	private long hasPairCount;
 
 	private Set<Long> lastChild;
 	private Set<Long> lastOfType;
 	private Set<Long> empty;
 
-	/** :has()。elementKey → その要素で真になったHAS_CONDITION(SelectorListCondition)集合。 */
+	/** :has(). elementKey → set of HAS_CONDITION (SelectorListCondition) values true for that element. */
 	private Map<Long, Set<Condition>> hasMatches;
 
 	/**
-	 * 同じ親の子のうち、末尾から数えた通し番号(1始まり)。
-	 * {@code :nth-last-child(An+B)}は{@code NthCondition.matches(int)}に
-	 * そのまま渡せる(:nth-child()と同じ判定ロジックを再利用できる)。
+	 * Sequence number counted from the end among children of the same parent (1-based).
+	 * For {@code :nth-last-child(An+B)}, passes directly to {@code NthCondition.matches(int)}
+	 * (reuses the same matching logic as :nth-child()).
 	 */
 	private Map<Long, Integer> positionFromEnd;
 
-	/** 同じ親の同じ要素名の子のうち、末尾から数えた通し番号(1始まり)。 */
+	/** Sequence number from the end among same-named children of the same parent (1-based). */
 	private Map<Long, Integer> typePositionFromEnd;
 
 	/**
-	 * このパスで新たに事実を記録する前に呼びます。前回の走査結果
-	 * (別文書、またはやり直しの走査)を引きずらないよう、保持している
-	 * 事実をすべて破棄します。
+	 * Call before recording new facts in this pass. Discards all retained facts to avoid
+	 * carrying over the preceding scan's results (another document or a restarted scan).
 	 */
 	public void reset() {
 		this.lastChild = null;
@@ -99,8 +98,8 @@ public final class SelectorFacts {
 	}
 
 	/**
-	 * elementKeyの要素についてhasConditionが真になったことを記録します。
-	 * 一度真になったら以降は変わらない(:has()は「存在するか」の判定のため)。
+	 * Records that hasCondition is true for the element identified by elementKey.
+	 * Once true, it never changes (:has() checks existence).
 	 */
 	public void setHasMatch(long elementKey, Condition hasCondition) {
 		if (this.hasMatches == null) {
@@ -170,7 +169,7 @@ public final class SelectorFacts {
 		POSITION_FROM_END_HIGH_WATER.accumulateAndGet(this.positionFromEnd.size(), Math::max);
 	}
 
-	/** 末尾からの通し番号。走査結果が無ければ-1(未対応セレクタと同じ警告+不一致経路へ)。 */
+	/** Sequence number from the end. -1 if no scan result (same warning + nonmatch path as unsupported selectors). */
 	public int getPositionFromEnd(long elementKey) {
 		if (this.positionFromEnd == null) {
 			return -1;

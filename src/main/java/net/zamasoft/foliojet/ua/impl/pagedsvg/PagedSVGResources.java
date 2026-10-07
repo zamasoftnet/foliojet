@@ -43,10 +43,9 @@ final class PagedSVGResources {
 		}
 
 		/**
-		 * ページSVGから書く参照先。共有資源には
-		 * {@code output.paged-svg.base-uri}の前置きを付け、
-		 * 埋め込みはdata:を、取得元参照({@code resources=source})は取得元の
-		 * 絶対 URL をそのまま使います。
+		 * Reference written in the page SVG. Prefix shared resources with
+		 * {@code output.paged-svg.base-uri}. Use data: for embedded resources, and the original
+		 * absolute URL unchanged for source references ({@code resources=source}).
 		 */
 		String href() {
 			if (this.source != null) {
@@ -119,8 +118,8 @@ final class PagedSVGResources {
 		}
 
 		/**
-		 * ページJSONを書き出します。ページSVGと違い1ページ数KBなので、
-		 * ここは組み立ててから一度に書きます。
+		 * Writes page JSON. Unlike page SVG, this is only a few KB per page,
+		 * so assemble it and write it in one operation.
 		 */
 		void writeJson(final java.io.Writer out) throws IOException {
 			out.write(new String(this.json(), StandardCharsets.UTF_8));
@@ -183,10 +182,10 @@ final class PagedSVGResources {
 	}
 
 	/**
-	 * manifestへ書くフォント資源1件。同じサブセットが育つと、持ち越した版と
-	 * 育った版の2件になる(ページは閉じた時点の版を指している)。
-	 * {@code omitted}は、受け手が前回の変換から既に持っている版を出さなかった印
-	 * ({@code resources=omit})。
+	 * One font resource in the manifest. If a subset grows, both its carried version and its
+	 * expanded version have entries (pages reference the version current when they close).
+	 * {@code omitted} marks a version not emitted because the consumer already has it from
+	 * the previous conversion ({@code resources=omit}).
 	 */
 	private record FontAsset(WebFontSubset subset, String uri, String sha256, int bytes, boolean omitted) {
 	}
@@ -209,34 +208,35 @@ final class PagedSVGResources {
 	}
 
 	private final ResultEmitter emitter;
-	/** セッションをまたぐサブセットの控え。nullなら持ち越さない。 */
+	/** Subset cache carried across sessions. Null disables carryover. */
 	private final PagedSvgFontCarry carry;
 	private PagedSvgResourceMode resourceMode = PagedSvgResourceMode.REFERENCE;
 
 	/**
-	 * 共有WOFF2を作るときのBrotliの品質。
+	 * Brotli quality for building shared WOFF2.
 	 *
 	 * <p>
-	 * 5に固定している。7.75MBのフォントで計った実測では、品質5が0.11秒で49.0%、
-	 * 9が1.04秒で46.4%、11が13.85秒で43.8%だった。<b>11は5の126倍の時間をかけて
-	 * 5.2ポイント縮めるだけ</b>で、割に合わない。設定として出す価値も無い。
+	 * Fixed at 5. Measurements with a 7.75 MB font: quality 5 took 0.11 seconds for 49.0%,
+	 * 9 took 1.04 seconds for 46.4%, and 11 took 13.85 seconds for 43.8%.
+	 * <b>11 takes 126 times as long as 5 to save only 5.2 percentage points</b>, which is not worthwhile.
+	 * It is not worth exposing as a setting, either.
 	 * </p>
 	 */
 	private static final int FONT_COMPRESSION = 5;
 	private final List<FontEntry> fonts = new ArrayList<>();
 
 	/**
-	 * サブセットの範囲({@code output.paged-svg.font-scope})。
-	 * {@code PAGE}なら<b>ページごと</b>に作り、ページを閉じるたびに出す。
-	 * {@code DOCUMENT}は文書全体——ただしEPUBでは項目(含まれるXHTML)が
-	 * 文書の単位なので、項目ごとに1つになる(2026-09-02)。
+	 * Subset scope ({@code output.paged-svg.font-scope}).
+	 * {@code PAGE} creates subsets <b>per page</b> and emits them whenever a page closes.
+	 * {@code DOCUMENT} spans the entire document, but for EPUB the document unit is an item
+	 * (an included XHTML document), so there is one per item (2026-09-02).
 	 */
 	private PagedSvgFontScope fontScope = PagedSvgFontScope.DOCUMENT;
 
-	/** いま開いている範囲(ページまたは文書)で作ったサブセットの開始位置。 */
+	/** Starting index of subsets created in the currently open scope (page or document). */
 	private int scopeFontsFrom = 0;
 
-	/** 持ち越しの鍵に入れる文書の名前。EPUBの項目のパス。単一の文書なら空。 */
+	/** Document name in the carryover key. The EPUB item path; empty for a standalone document. */
 	private String document = "";
 	private final List<FontAsset> emittedFonts = new ArrayList<>();
 	private final Map<String, ImageAsset> images = new LinkedHashMap<>();
@@ -255,14 +255,14 @@ final class PagedSVGResources {
 		this.carry = carry;
 	}
 
-	/** 共有資源を指すときの前置き({@code output.paged-svg.base-uri})。 */
+	/** Prefix for shared resource references ({@code output.paged-svg.base-uri}). */
 	private String baseUri = "../";
 
 	void setBaseUri(final String baseUri) {
 		this.baseUri = baseUri;
 	}
 
-	// ---- 画像の方針(2026-09-03、cti.li の要望: 版面で小さくしか描かれない写真も原寸で入っていた)
+	// ---- Image policy (2026-09-03, cti.li request: even photos drawn small in the type area were included at full size)
 
 	private PagedSvgImageCompression imageCompression = PagedSvgImageCompression.NONE;
 	private int imageCompressionLossless = 200;
@@ -278,7 +278,7 @@ final class PagedSVGResources {
 		this.imageMaxHeight = Math.max(0, maxHeight);
 	}
 
-	/** 画素に描き直すラスタ1枚の最大画素数(output.image-pixel-limit、負数は無制限。2026-10-03) */
+	/** Maximum pixels per rasterized image (output.image-pixel-limit; negative means unlimited; 2026-10-03) */
 	private long rasterPixelLimit = -1;
 
 	void setRasterPixelLimit(final long limit) {
@@ -293,21 +293,22 @@ final class PagedSVGResources {
 		this.pageChecksums = pageChecksums;
 	}
 
-	/** 同じ組版から出した PDF の結果 URI(無ければ null)。manifest の {@code pdf}。 */
+	/** Result URI of the PDF from the same layout (null if absent). The manifest's {@code pdf}. */
 	private String pdfUri;
 
 	void setPdfUri(final String pdfUri) {
 		this.pdfUri = pdfUri;
 	}
 
-	/** 方針を当てた後の画像。 */
+	/** An image after applying the policy. */
 	private record Encoded(byte[] bytes, String mediaType, String extension, int width, int height) {
 	}
 
 	/**
-	 * 画像の方針(縮小・JPEG 再圧縮)を当てます。何もしないなら null。PDF の
-	 * {@code output.pdf.image.*} と同じ判定: 幅+高さが閾値を超え、透明部分が
-	 * 無いものだけ非可逆に。既に JPEG の画像は縮小しない限り再圧縮しない。
+	 * Applies the image policy (downscaling and JPEG recompression). Returns null if no action is needed.
+	 * Uses the same criteria as PDF's {@code output.pdf.image.*}: apply lossy compression only if
+	 * width + height exceeds the threshold and there is no transparency.
+	 * Do not recompress existing JPEGs unless downscaling.
 	 */
 	private Encoded applyImagePolicy(final RenderedImage rendered, final String mediaType, final int width,
 			final int height) throws IOException {
@@ -344,7 +345,7 @@ final class PagedSVGResources {
 			}
 		}
 		final java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
-		// 縮小した JPEG も JPEG のまま(可逆に膨らませない)
+		// Keep downscaled JPEGs as JPEGs (do not inflate them with lossless encoding).
 		if (jpegWanted || (alreadyJpeg && !alpha)) {
 			if (out.getType() != java.awt.image.BufferedImage.TYPE_INT_RGB) {
 				final java.awt.image.BufferedImage rgb = new java.awt.image.BufferedImage(w, h,
@@ -406,32 +407,32 @@ final class PagedSVGResources {
 		return this.fontScope;
 	}
 
-	/** 持ち越しの鍵に入れる文書の名前(EPUBの項目のパス)。 */
+	/** Document name in the carryover key (the EPUB item path). */
 	void setDocument(final String document) {
 		this.document = document == null ? "" : document;
 	}
 
 	/**
-	 * 開いている範囲(ページまたは文書)のサブセットを組んで出し、範囲を閉じます
-	 * (2026-09-02)。
+	 * Builds and emits subsets for the open scope (page or document), then closes the scope
+	 * (2026-09-02).
 	 *
 	 * <p>
-	 * {@code font-scope: page}では<b>ページSVGより先に</b>呼ぶ。受け手はページが
-	 * 届いた時点で字形を持っているので、そのまま描ける。{@code document}では
-	 * 文書の終わり({@link #emitFonts()})で呼ばれ、EPUBの項目ならその項目の
-	 * ページのあと、次の項目のページより前に出る。
+	 * With {@code font-scope: page}, call <b>before the page SVG</b>. The consumer has the glyphs
+	 * when the page arrives and can draw it immediately. With {@code document}, this is called
+	 * at the end of the document ({@link #emitFonts()}); for an EPUB item, output follows that
+	 * item's pages and precedes the next item's pages.
 	 * </p>
 	 *
 	 * <p>
-	 * 持ち越した版で足りたサブセットは、1ページ目より先に出してあるので
-	 * ここでは出さない({@link #emitCarriedFonts()})。育ったサブセットと
-	 * 初めてのサブセットは組み上げて出す——{@code omit}でも出す。受け手が
-	 * 持っているはずのない字形だからで、名前が版付きなので前回のものと
-	 * 取り違えることもない(2026-08-28の実測では、連番名のまま省くと文字
-	 * サイズを変えた再変換で数字が消えたり別の位置に出たりした)。
-	 * 書き終えた並びは{@link PagedSvgFontCarry}へ控え、次の変換で先に出す。
-	 * 持ち越しは{@code document}の範囲でだけ意味がある(ページごとの
-	 * サブセットは次の変換でページ割りが変わると使えない)。
+	 * Do not emit subsets whose carried version suffices: they have already been emitted before
+	 * the first page ({@link #emitCarriedFonts()}). Build and emit expanded and new subsets,
+	 * even with {@code omit}, because the consumer cannot already have their glyphs.
+	 * Versioned names also prevent confusion with previous resources (in measurements on
+	 * 2026-08-28, omitting resources with sequential names made digits disappear or move
+	 * after reconversion with a changed font size). Store the completed sequence in
+	 * {@link PagedSvgFontCarry} for emission ahead of the next conversion.
+	 * Carryover is meaningful only for {@code document} scope (per-page subsets cannot be
+	 * reused when pagination changes in the next conversion).
 	 * </p>
 	 */
 	void closeFontScope() throws IOException {
@@ -442,9 +443,9 @@ final class PagedSVGResources {
 			return;
 		}
 		final List<FontEntry> scope = this.fonts.subList(from, to);
-		// サブセットは互いに独立なので、まとめて組み立てる。Brotliは品質を
-		// 上げるほど極端に遅くなるので、並べて回せるぶんは回す。
-		// 書き出しはmanifestの並びを保つため、順番どおりにやり直す
+		// Subsets are independent, so build them together. Higher Brotli quality is
+		// dramatically slower, so run in parallel where possible.
+		// Perform output in order to preserve the manifest sequence.
 		final int quality = FONT_COMPRESSION;
 		final List<byte[]> built;
 		try {
@@ -462,7 +463,7 @@ final class PagedSVGResources {
 		for (int i = 0; i < scope.size(); ++i) {
 			final WebFontSubset subset = scope.get(i).subset;
 			if (subset.seeded()) {
-				// 持ち越した版。先に出してある(omitなら出していない)
+				// Carried version. Already emitted (not emitted with omit).
 				this.emittedFonts.add(new FontAsset(subset, subset.seededUri(), subset.seededSha256(),
 						subset.seededBytes().length, this.resourceMode == PagedSvgResourceMode.OMIT));
 			}
@@ -473,8 +474,8 @@ final class PagedSVGResources {
 			this.emitter.emit(subset.uri(), "font/woff2", bytes);
 			this.emittedFonts.add(new FontAsset(subset, subset.uri(), sha256(bytes), bytes.length, false));
 			if (this.fontScope == PagedSvgFontScope.PAGE) {
-				// ページごとの範囲では出したサブセットを二度と組まない。輪郭を
-				// 持ち続けるとページ数×フォント数で膨らむ(設計レビュー §3-6)
+				// In per-page scope, never rebuild emitted subsets. Retaining outlines would
+				// grow memory with page count × font count (design review §3-6).
 				subset.releaseShapes();
 			}
 		}
@@ -492,23 +493,23 @@ final class PagedSVGResources {
 	}
 
 	/**
-	 * 持ち越しを使うか。{@code document}の範囲でだけ。ページごとのサブセットを
-	 * 持ち越すと、同じ鍵でページごとに種を蒔いて同じURIを毎ページ出してしまう
-	 * (2026-09-02の設計レビューで指摘)。
+	 * Whether to use carryover. Only for {@code document} scope. Carrying per-page subsets
+	 * would seed every page with the same key and emit the same URI on every page
+	 * (noted in the design review on 2026-09-02).
 	 */
 	private boolean carriesFonts() {
 		return this.carry != null && this.fontScope == PagedSvgFontScope.DOCUMENT;
 	}
 
-	/** 取得元の URL をそのまま参照する設定か({@code resources=source})。 */
+	/** Whether to reference source URLs directly ({@code resources=source}). */
 	boolean referencesSources() {
 		return this.resourceMode == PagedSvgResourceMode.SOURCE;
 	}
 
 	/**
-	 * 取得元の URL をそのまま参照する画像です(2026-09-02、{@code resources=source})。
-	 * 実体は出さず、manifest には取得元を {@code source} として書く。同一性(sha256)は
-	 * 受け取ったバイト列から取る(取得元が同じでも内容が違えば別の資源)。
+	 * An image that references its source URL directly (2026-09-02, {@code resources=source}).
+	 * Do not emit its data; record the source as {@code source} in the manifest. Derive identity
+	 * (sha256) from the received bytes (different content at the same source is a different resource).
 	 */
 	ImageAsset sourceImage(final URI source, final RenderedImage rendered, final byte[] fallbackPng,
 			final int width, final int height) throws IOException {
@@ -531,8 +532,8 @@ final class PagedSVGResources {
 
 	WebFontSubset font(final FontSource source, final ShapedFont font, final WebFontSubset.Mode mode,
 			final boolean oblique) {
-		// **開いている範囲で作った分だけ**から探す。前の範囲(ページ・項目)の
-		// サブセットは既に出してしまっているので、育てられない
+		// Search **only subsets created in the open scope**. Subsets from previous scopes
+		// (pages or items) have already been emitted and cannot grow.
 		for (final FontEntry entry : this.fonts.subList(this.scopeFontsFrom, this.fonts.size())) {
 			if (entry.source == source && entry.font == font && entry.mode == mode && entry.oblique == oblique) {
 				return entry.subset;
@@ -542,7 +543,7 @@ final class PagedSVGResources {
 		if (this.carry == null) {
 			subset = new WebFontSubset(this.fonts.size() + 1, source, font, mode, oblique);
 		} else if (!this.carriesFonts()) {
-			// 番号だけは変換をまたいで重ならないものを使う
+			// Use numbers that remain unique across conversions.
 			subset = new WebFontSubset(this.carry.allocateId(this.document), source, font, mode, oblique);
 		} else {
 			final PagedSvgFontCarry.Key key = new PagedSvgFontCarry.Key(this.document, source.getFontName(),
@@ -551,8 +552,8 @@ final class PagedSVGResources {
 			if (carried == null) {
 				subset = new WebFontSubset(this.carry.allocateId(this.document), source, font, mode, oblique);
 			} else {
-				// 前回と同じ並びで符号を割り当てる。前回の字形で足りる限り、
-				// 1ページ目より先に出した前回のバイト列がそのまま使える
+				// Assign code points in the same order as before. As long as the previous glyphs suffice,
+				// the previous bytes emitted before the first page can be reused unchanged.
 				subset = new WebFontSubset(carried.id(), carried.version(), source, font, mode, oblique);
 				subset.seed(carried.gids(), carried.bytes(), carried.sha256());
 			}
@@ -562,13 +563,13 @@ final class PagedSVGResources {
 	}
 
 	/**
-	 * 持ち越したサブセットを、<b>1ページ目より先に</b>出します(2026-08-29)。
+	 * Emits carried subsets <b>before the first page</b> (2026-08-29).
 	 *
 	 * <p>
-	 * どのフォントを使うかは描いてみるまで分からないが、同じ本を組み直す
-	 * 典型では前回と同じ集合になる。使われなかった分は小さい(実測0.1MB/件)
-	 * ので、全部を先に出す。{@code resources=omit}では受け手が前回の変換から
-	 * 持っているので出さず、manifestに{@code omitted}で記す。
+	 * The fonts needed are unknown until drawing, but relaying out the same book typically
+	 * uses the same set. Unused subsets are small (measured at 0.1 MB each), so emit them all
+	 * in advance. With {@code resources=omit}, the consumer has them from the previous conversion,
+	 * so do not emit them; mark them {@code omitted} in the manifest.
 	 * </p>
 	 */
 	void emitCarriedFonts() throws IOException {
@@ -605,7 +606,7 @@ final class PagedSVGResources {
 		ImageAsset image = this.images.get(hash);
 		if (image == null) {
 			if (this.resourceMode == PagedSvgResourceMode.EMBED) {
-				// ページSVGだけで完結させる。実体は別ファイルにしない
+				// Make the page SVG self-contained. Do not put the data in separate files.
 				final String data = "data:" + mediaType + ";base64,"
 						+ java.util.Base64.getEncoder().encodeToString(bytes);
 				image = new ImageAsset(data, hash, mediaType, width, height, false, this.baseUri);
@@ -623,7 +624,7 @@ final class PagedSVGResources {
 		return image;
 	}
 
-	/** 資源の同一性を寸法表へ控える先(PagedSVGUserAgentが設定)。 */
+	/** Destination for recording resource identities in the dimension table (set by PagedSVGUserAgent). */
 	private java.util.function.BiConsumer<URI, ImageAsset> assetRecorder;
 
 	void setAssetRecorder(final java.util.function.BiConsumer<URI, ImageAsset> recorder) {
@@ -631,8 +632,8 @@ final class PagedSVGResources {
 	}
 
 	/**
-	 * 描いた画像の資源同一性を、その取得元URIと結び付けて控えます
-	 * (2026-08-28)。URIは{@link SourcedImage}が運びます。
+	 * Records the resource identity of a drawn image, associated with its source URI
+	 * (2026-08-28). {@link SourcedImage} carries the URI.
 	 */
 	void rememberAssetOf(final net.zamasoft.pdfg2d.gc.image.Image image, final ImageAsset asset) {
 		if (this.assetRecorder == null || asset.uri().startsWith("data:")) {
@@ -649,9 +650,9 @@ final class PagedSVGResources {
 	}
 
 	/**
-	 * 前回の出力で書かれた資源を、バイト列を読まずに登録します
-	 * (2026-08-28、{@code resources=omit}の再変換用)。実体は出さないので
-	 * {@code omitted}として扱い、manifestにも前回と同じ同一性を書きます。
+	 * Registers a resource written by the previous output without reading its bytes
+	 * (2026-08-28, for reconversion with {@code resources=omit}). Its data is not emitted,
+	 * so treat it as {@code omitted} and write the same identity as before in the manifest.
 	 */
 	ImageAsset knownImage(final net.zamasoft.foliojet.ua.ImageMetricsCache.Asset known) {
 		final ImageAsset existing = this.images.get(known.sha256());
@@ -665,8 +666,8 @@ final class PagedSVGResources {
 	}
 
 	/**
-	 * 頁を一覧へ足します。1パスの target-counter() で出力を後回しにした頁(2026-10-04)は
-	 * 後から届くので、頁番号の順に並べる。
+	 * Adds a page to the list. Pages deferred for one-pass target-counter() (2026-10-04)
+	 * arrive later, so sort by page number.
 	 */
 	void addPage(final PageAsset page) {
 		int i = this.pages.size();
@@ -705,17 +706,17 @@ final class PagedSVGResources {
 	}
 
 	/**
-	 * 文書の終わりに、まだ出していないサブセットを書き出します。
-	 * ページごとのときはページを閉じるたびに出してあるので、ここでは何も残っていない。
+	 * Writes subsets not yet emitted at the end of the document.
+	 * In per-page mode, subsets are emitted whenever a page closes, so nothing remains here.
 	 */
 	void emitFonts() throws IOException {
 		this.closeFontScope();
 	}
 
 	/**
-	 * サブセットを組み立て、{@code data:}のURIの表({@code サブセットのURI → data:})を
-	 * 返します(B-1、2026-08-29)。1枚で完結するSVG用で、資源は結果として
-	 * 出さずSVGの中へ入ります。
+	 * Builds subsets and returns a map of {@code data:} URIs ({@code subset URI → data:})
+	 * (B-1, 2026-08-29). For self-contained SVG: resources are included in the SVG
+	 * instead of being emitted as results.
 	 */
 	Map<String, String> inlineFontSources() throws IOException {
 		final Map<String, String> sources = new LinkedHashMap<>();
@@ -733,8 +734,8 @@ final class PagedSVGResources {
 		json.append("{\n  \"version\":1,\n  \"mediaType\":\"application/vnd.copper.paged-svg\",")
 				.append("\n  \"pageCount\":").append(this.pages.size()).append(",\n  \"binding\":");
 		json.append(JsonText.quoted(binding));
-		// 頁の進む向き(2026-09-02)。binding が single でも縦組みなら rtl——
-		// 読み器は綴じではなくこれで並べる(cti.li の要望)
+		// Page progression direction (2026-09-02). Vertical writing uses rtl even with binding single.
+		// The reader uses this, rather than binding, to order pages (cti.li request).
 		json.append(",\n  \"pageProgressionDirection\":");
 		json.append(JsonText.quoted(pageProgression));
 		if (this.pdfUri != null) {

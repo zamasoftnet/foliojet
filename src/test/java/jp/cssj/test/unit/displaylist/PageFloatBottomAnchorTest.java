@@ -18,11 +18,12 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code float: bottom}の箱が錨より前の頁に置かれないことを固定します(2026-10-04、
- * TECH-20261003-004 の⑱)。錨に来た時点で本文がもう置き場の帯(頁の下端から図の高さ
- * ぶん)へ届いていると、頁の残りを一次元で縮めて、帯より下の本文(錨の段落も)を次頁へ
- * 押し出していた。図だけがその頁の下端に残り、錨より前の頁に出た(時限暗号の本の
- * 第1章で、挿絵が節の見出しの前の頁に出た)。今はその頁には置かず、次頁の下端へ回す。
+ * Verify that a {@code float: bottom} box is not placed on a page before its anchor
+ * (2026-10-04, TECH-20261003-004 item ⑱). If body text already reached the placement band
+ * (the image's height above the page bottom) when the anchor arrived, remaining page space
+ * shrank in one dimension, pushing text below the band, including the anchor paragraph, to the next page.
+ * Only the image stayed at that page's bottom, preceding its anchor (an illustration appeared before
+ * its section heading's page in chapter 1 of the Jigen Ango book). Now defer it to the next page's bottom.
  */
 public class PageFloatBottomAnchorTest extends TestCase {
 	public void testBottomFloatIsNotBeforeItsAnchor() throws Exception {
@@ -45,7 +46,7 @@ public class PageFloatBottomAnchorTest extends TestCase {
 			assertTrue("float found", floating > 0);
 			assertTrue("the bottom float must not precede its anchor: float=" + floating + " anchor=" + anchor,
 					floating >= anchor);
-			// 錨の頁は図に縮められていないので、錨の段落は図の頁より前の頁に収まる
+			// The image does not shrink the anchor's page, so the anchor paragraph fits on a page before the image's page.
 			assertEquals("the anchor stays on the page where it fits", floating - 1, anchor);
 		}
 	}

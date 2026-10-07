@@ -8,9 +8,9 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * CSS Box Alignment Level 3 §5.1.1: 通常ブロックの内容全体を
- * {@code align-content:center} でブロック軸中央へ置く。横組み・縦組みRL/LRと、
- * 内容がはみ出す場合のsafe start fallbackを固定する。
+ * CSS Box Alignment Level 3 §5.1.1: {@code align-content:center} centers all content of a normal
+ * block on the block axis. Verifies the contracts for horizontal writing, vertical writing RL/LR,
+ * and safe start fallback when content overflows.
  */
 public class BlockAlignContentTest extends AbstractTestCase {
 	public BlockAlignContentTest(String name) {
@@ -81,7 +81,7 @@ public class BlockAlignContentTest extends AbstractTestCase {
 
 	public boolean check_safec(IBox box, int page, double x, double y) {
 		if (!block(box)) return false;
-		// vertical-rlのblock-startは右。120ptの内容は右端を合わせて左へ20pt溢れる。
+		// vertical-rl block-start is right. The 120 pt content aligns to the right edge and overflows 20 pt to the left.
 		assertEquals(this.safeX - 20, x, .1);
 		assertEquals(this.safeY, y, .1);
 		return true;
@@ -107,8 +107,8 @@ public class BlockAlignContentTest extends AbstractTestCase {
 
 	public boolean check_glyphCenter(IBox box, int page, double x, double y) {
 		if (box.getType() != BoxType.INLINE) return false;
-		// 実際の「一文字を正方形で囲む」inline-block経路。15pt箱内の
-		// 10pt行がblock-start(右)から2.5pt中央へ移る。
+		// Actual inline-block path for "enclosing a single character in a square". A 10 pt line
+		// inside a 15 pt box moves 2.5 pt from block-start (right) toward the center.
 		assertEquals((this.glyphStartX - this.charStartX) - 2.5, x - this.charCenterX, .1);
 		return true;
 	}

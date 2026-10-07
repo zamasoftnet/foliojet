@@ -33,16 +33,16 @@ import uk.org.okapibarcode.backend.Upc;
 import uk.org.okapibarcode.backend.UspsOneCode;
 
 /**
- * Barcode4J互換のXML記述からOkapiBarcodeの画像を生成します。
+ * Generates OkapiBarcode images from Barcode4J-compatible XML descriptions.
  *
  * <p>
- * <b>単位系</b>(2026-08-07に是正): Okapiの幾何は整数の「モジュール」
- * 単位で、{@code setModuleWidth(int)}等は物理寸法を受けない。従来は
- * {@code module-width: 0.21mm} を丸めて渡していたため0になり、
- * <b>1次元系のバーが全て幅0で消えていた</b>(数字だけ出てバーが出ない)。
- * 現在はモジュール幅を「1単位=何mmか」という倍率として
- * {@link BarcodeImage}の描画スケールに使い、高さ・静止帯・文字サイズを
- * モジュール単位へ換算してOkapiへ渡す。
+ * <b>Unit system</b> (corrected 2026-08-07): Okapi geometry uses integer "module" units;
+ * {@code setModuleWidth(int)} and similar methods do not accept physical dimensions.
+ * Previously, rounding {@code module-width: 0.21mm} before passing it yielded zero,
+ * so <b>all one-dimensional bars had zero width and disappeared</b>
+ * (digits appeared, but bars did not). Now uses module width as a "mm per unit" drawing scale
+ * in {@link BarcodeImage}, and converts heights, quiet zones, and font sizes
+ * to module units before passing them to Okapi.
  * </p>
  */
 public class BarcodeInlineObject extends DefaultHandler implements InlineObject {
@@ -55,13 +55,13 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 
 	private static final double MM_PER_PT = 25.4 / 72.0;
 
-	/** module-width省略時の1モジュールの物理寸法(mm)。 */
+	/** Physical size of one module (mm) when module-width is omitted. */
 	private static final double DEFAULT_MODULE_MM = 0.33;
 
 	public Image getImage(UserAgent ua) throws IOException {
 		try {
 			Symbol symbol = this.createSymbol(this.type);
-			// 1単位=unitMm。Okapiへ渡す長さは全てこの単位へ換算する
+			// 1 unit = unitMm. Convert every length passed to Okapi to this unit
 			Double mw = this.getMm("module-width", "moduleWidth");
 			final double unitMm = mw != null && mw.doubleValue() > 0 ? mw.doubleValue() : DEFAULT_MODULE_MM;
 			this.applyCommon(symbol, unitMm);
@@ -85,10 +85,10 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 				this.params.put(atts.getLocalName(i), atts.getValue(i));
 			}
 		} else {
-			// depth>=2は葉のパラメータとして名前→テキストで拾う。
-			// human-readableのような入れ子(placement/font-size等)も
-			// これで個別のパラメータになる(従来はhuman-readable直下の
-			// テキストが連結され、placementの比較が常に外れていた)
+			// At depth>=2, collect leaf parameters as name → text.
+			// This also makes nested items such as human-readable (placement/font-size, etc.)
+			// individual parameters (previously text directly under human-readable was concatenated,
+			// so placement comparisons always failed)
 			this.currentParam = lName;
 			this.text = new StringBuilder();
 		}
@@ -116,14 +116,14 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 	}
 
 	/**
-	 * Barcode4Jが受理するmessage表記をOkapiの入力仕様へ合わせます。
-	 * Okapiは検証が厳格で、そのまま渡すと例外でバーコードごと消える
-	 * (2026-08-07、バーコード出力例の全数検証で判明)。
+	 * Adapts message formats accepted by Barcode4J to Okapi's input requirements.
+	 * Okapi validates strictly; passing them unchanged throws an exception and loses the entire
+	 * barcode (found 2026-08-07 during verification of all barcode output examples).
 	 */
 	private static String normalizeContent(Symbol symbol, String content) {
 		if (symbol instanceof Ean ean) {
-			// Barcode4Jはチェックデジット込み(EAN-13=13桁、ISBN含む)を
-			// 受けるが、Okapiは本体のみを受けて自分で計算する
+			// Barcode4J accepts check digits (EAN-13 = 13 digits, including ISBN),
+			// but Okapi accepts only the body and calculates the check digit itself
 			final String digits = content.replaceAll("[^0-9]", "");
 			if (ean.getMode() == Ean.Mode.EAN13 && digits.length() == 13) {
 				return digits.substring(0, 12);
@@ -144,15 +144,15 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 			return digits;
 		}
 		if (symbol instanceof Codabar) {
-			// Barcode4Jはstart/stop(A-D)無しのmessageに自動付与する
+			// Barcode4J automatically adds start/stop (A-D) to messages without them
 			if (!content.matches("(?i)^[A-D].*[A-D]$")) {
 				return "A" + content + "A";
 			}
 			return content;
 		}
 		if (symbol instanceof UspsOneCode) {
-			// Okapiは「追跡20桁-ルーティング」のダッシュ区切りを要求する。
-			// Barcode4Jは連結数字列(20/25/29/31桁)を受ける
+			// Okapi requires a dash separator in "20 tracking digits-routing".
+			// Barcode4J accepts concatenated digit strings (20/25/29/31 digits)
 			final String digits = content.replaceAll("[^0-9]", "");
 			if (digits.length() > 20) {
 				return digits.substring(0, 20) + "-" + digits.substring(20);
@@ -160,11 +160,11 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 			return digits;
 		}
 		if (symbol instanceof JapanPost) {
-			// マニュアル(4900_barcode)に「message内に含まれる数字、アルファベット、
-			// ハイフン以外の文字は無視されます」と明記されている。旧Barcode4Jは
-			// これらを無視していたが、OkapiBarcodeのJapanPostはスペース等を
-			// OkapiInputExceptionとして拒否するため、ここで明示的に除去して
-			// ドキュメント記載の挙動を維持する(2026-07-19)。
+			// The manual (4900_barcode) explicitly says "characters in message other than digits, letters,
+			// and hyphens are ignored." The old Barcode4J ignored these,
+			// but OkapiBarcode's JapanPost rejects spaces and similar characters with
+			// OkapiInputException, so remove them explicitly here to
+			// preserve the documented behavior (2026-07-19).
 			return content.replaceAll("[^0-9A-Za-z-]", "");
 		}
 		return content;
@@ -190,7 +190,7 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 		case "isbn":
 			return new BookJanSymbol();
 		case "ean": {
-			// 種類を明示しないbc:eanは桁数で13/8を選ぶ(旧Barcode4J互換)
+			// bc:ean without an explicit type selects 13/8 by digit count (compatible with the old Barcode4J)
 			final String digits = (this.message == null ? "" : this.message).replaceAll("[^0-9]", "");
 			return new Ean(digits.length() <= 8 ? Ean.Mode.EAN8 : Ean.Mode.EAN13);
 		}
@@ -223,13 +223,13 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 		case "intl2of5":
 		case "int2of5":
 		case "itf":
-			// Barcode4Jのintl2of5はインターリーブド(2桁/シンボル)
+			// Barcode4J's intl2of5 is interleaved (2 digits/symbol)
 			return new Code2Of5(Code2Of5.ToFMode.INTERLEAVED);
 		case "ean128":
 		case "gs1128":
-			// GS1のAI構文(FNC1)は未対応の近似——素のCode 128として描く。
-			// Barcode4Jの照合用途(読み取り互換)には不足しうるが、
-			// バーが出ないよりはよい(記録: 4900_barcode)
+			// GS1 AI syntax (FNC1) is an unsupported approximation: render as plain Code 128.
+			// This may be insufficient for Barcode4J matching uses (reader compatibility),
+			// but is better than missing bars (record: 4900_barcode)
 			return new Code128();
 		case "code128":
 		default:
@@ -237,29 +237,29 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 		}
 	}
 
-	/** 面で読む記号かどうか。静止帯を四方同じにしてよいものです。 */
+	/** Whether this is a two-dimensional symbol, for which quiet zones can be equal on all four sides. */
 	private static boolean isTwoDimensional(final Symbol symbol) {
 		return symbol instanceof QrCode || symbol instanceof DataMatrix || symbol instanceof AztecCode
 				|| symbol instanceof Pdf417;
 	}
 
 	private void applyCommon(Symbol symbol, double unitMm) throws Exception {
-		// 高さ系: 物理長→モジュール単位
+		// Heights: physical lengths → module units
 		setUnits(symbol, "setBarHeight", this.getMm("height", "bar-height", "barHeight"), unitMm);
-		// 静止帯: "10mw"のmw単位はそのまま、物理長は換算
+		// Quiet zones: retain mw units such as "10mw"; convert physical lengths
 		final Length horizontalQuietZone = this.getMmOrModules("quiet-zone", "quiet-zone-horizontal", "quietZone");
 		final Length verticalQuietZone = this.getMmOrModules("quiet-zone-vertical", "vertical-quiet-zone");
 		setUnits(symbol, "setQuietZoneHorizontal", horizontalQuietZone, unitMm);
-		// 2次元シンボルの静止帯は四方が同じ(QRならISO/IEC 18004が四辺に4セル
-		// 要求する)。縦横で分ける書き方は1次元バーコード由来なので、
-		// 縦を明示しなければ横と同じ値を使う。
-		// **ここを分けたままにすると symbol.getWidth() だけが静止帯ぶん広がり、
-		// 自然寸法が長方形になる。** 正方形の枠を与えた利用側では、その枠に
-		// 合わせて縦へ引き伸ばされ、セルが正方形でなくなる
+		// Two-dimensional symbols have equal quiet zones on all four sides (ISO/IEC 18004 requires four cells
+		// on each side for QR). Separate horizontal/vertical settings originate in one-dimensional barcodes,
+		// so use the horizontal value when no vertical value is specified.
+		// **Leaving them separate expands only symbol.getWidth() by the quiet zone,
+		// making the natural dimensions rectangular.** A caller providing a square frame then
+		// stretches it vertically to that frame, making the cells nonsquare
 		setUnits(symbol, "setQuietZoneVertical",
 				verticalQuietZone == null && isTwoDimensional(symbol) ? horizontalQuietZone : verticalQuietZone,
 				unitMm);
-		// 文字サイズ: pt既定→モジュール単位
+		// Font size: default pt → module units
 		final Double fontPt = this.getPt("font-size", "fontSize");
 		if (fontPt != null) {
 			setInt(symbol, "setFontSize", Math.max(1, (int) Math.round(fontPt.doubleValue() * MM_PER_PT / unitMm)));
@@ -291,7 +291,7 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 
 	private static final Pattern LENGTH = Pattern.compile("([-+]?[0-9.]+)\\s*([a-zA-Z]*)");
 
-	/** 物理長をmmで返します(mw単位・解釈不能はnull)。 */
+	/** Returns a physical length in mm (null for mw units or unparseable values). */
 	private Double getMm(String... names) {
 		final String value = get(names);
 		if (value == null) {
@@ -324,15 +324,15 @@ public class BarcodeInlineObject extends DefaultHandler implements InlineObject 
 		}
 	}
 
-	/** ptで表した長さを返します(単位なしはpt扱い)。 */
+	/** Returns a length in pt (unitless values are treated as pt). */
 	private Double getPt(String... names) {
 		final Double mm = this.getMm(names);
 		return mm == null ? null : Double.valueOf(mm.doubleValue() / MM_PER_PT);
 	}
 
 	/**
-	 * 長さ(物理またはmw単位)を返します。mw単位は
-	 * {@link Length#modules}、物理長は{@link Length#mm}に入る。
+	 * Returns a length (physical or in mw units). Stores mw units in {@link Length#modules}
+	 * and physical lengths in {@link Length#mm}.
 	 */
 	private Length getMmOrModules(String... names) {
 		final String value = get(names);

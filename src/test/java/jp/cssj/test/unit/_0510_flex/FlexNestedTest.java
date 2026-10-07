@@ -8,9 +8,8 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * item内へネストしたFlexのテストです(Flex F1f——itemのTwoPass録画内で
- * 内側FlexBuilderが活性化し、FlexEventとして録画→item bind時に
- * row配置される)。
+ * Tests Flex nested inside an item (Flex F1f). The inner FlexBuilder activates within the item's
+ * TwoPass recording, records a FlexEvent, and performs row placement when the item is bound.
  */
 public class FlexNestedTest extends AbstractTestCase {
 	public FlexNestedTest(String name) {
@@ -33,7 +32,7 @@ public class FlexNestedTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 内側flexのrow配置(y itemは主軸+50pt)。 */
+	/** Row placement in the inner flex (item y at main axis +50 pt). */
 	public boolean check_y(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 50, x, 0.1);
@@ -43,7 +42,7 @@ public class FlexNestedTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 外側flexのrow配置(b itemは外側基点+180pt)。 */
+	/** Row placement in the outer flex (item b at outer origin +180 pt). */
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 180, x, 0.1);

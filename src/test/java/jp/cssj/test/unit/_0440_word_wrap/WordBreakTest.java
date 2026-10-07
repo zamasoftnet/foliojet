@@ -21,7 +21,7 @@ public class WordBreakTest extends AbstractTestCase {
 		if (box.getType() == BoxType.INLINE) {
 			System.err.println("x: " + x);
 			System.err.println("y: " + y);
-			// 内蔵CIDフォントの幅表を直し、　、。が全角に戻った(2026-09-11)
+			// Fixed the built-in CID-keyed font width table, restoring full widths for 　、。(2026-09-11).
 			assertEquals(838.75, x, 1);
 			assertEquals(19, y, 1);
 			return true;

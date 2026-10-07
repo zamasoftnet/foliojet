@@ -2,7 +2,7 @@ package net.zamasoft.foliojet.layout.builder.impl;
 
 /**
  * Kinds of placement commits for new floats (introduced 2026-07-23, exclusion area P1
- * increment 2 — design in `設計相談`).
+ * increment 2 — design in `design consultation`).
  *
  * <p>
  * Classification result from splitting the former {@code transferFloatToNextPage}

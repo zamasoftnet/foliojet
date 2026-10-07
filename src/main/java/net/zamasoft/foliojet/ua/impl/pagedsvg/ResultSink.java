@@ -17,27 +17,27 @@ import net.zamasoft.zstream.io.util.SequentialOutputAdapter;
 import net.zamasoft.zstream.resolver.util.SimpleSourceMetadata;
 
 /**
- * Paged SVGの結果1件を「開いて、書いて、閉じる」だけの受け口です(2026-09-02)。
+ * A sink that only opens, writes, and closes one Paged SVG result (2026-09-02).
  *
  * <p>
- * 結果の行き先はふつうの結果集合({@link ResultsSink})、1本のZIP
- * ({@link ZipSink})、中間パスの捨て場({@link NopSink})、EPUBの項目の
- * 解放段({@code DocumentRelease.Unit})の4つある。書き手(UA)はハッシュと
- * gzipを自分でやるので、行き先はストリームを1本返せばよい。
+ * There are four result destinations: a normal result set ({@link ResultsSink}),
+ * one ZIP ({@link ZipSink}), a discard sink for intermediate passes ({@link NopSink}),
+ * and the EPUB item release stage ({@code DocumentRelease.Unit}).
+ * The writer (UA) handles hashing and gzip itself, so the destination only needs to return one stream.
  * </p>
  */
 interface ResultSink {
 	/**
-	 * 結果1件を開きます。返ったストリームを閉じると1件が確定します。
+	 * Opens one result. Closing the returned stream finalizes the result.
 	 *
-	 * @throws AbortException これ以上結果を受け取れないとき({@code ABORT_NORMAL})
+	 * @throws AbortException if no more results can be accepted ({@code ABORT_NORMAL})
 	 */
 	OutputStream open(String uri, String mimeType) throws IOException;
 
-	/** 全結果の終わり。 */
+	/** End of all results. */
 	void end() throws IOException;
 
-	/** 結果集合へ1件ずつ出す、ふつうの受け口。 */
+	/** The normal sink, emitting one result at a time to a result set. */
 	final class ResultsSink implements ResultSink {
 		private final Results results;
 
@@ -83,18 +83,18 @@ interface ResultSink {
 	}
 
 	/**
-	 * 1本のZIPにまとめて返す受け口(B-2、2026-08-29)。
+	 * A sink returning everything in one ZIP (B-2, 2026-08-29).
 	 *
 	 * <p>
-	 * 名前はふつうのバンドルと同じURI({@code pages/0001.svg}、
-	 * {@code assets/fonts/font-0001.woff2}…)。展開すればディレクトリ出力と
-	 * 同じ形になり、{@code manifest.json}の参照もそのまま解決する。
-	 * SHA-256は書き手が<b>エントリの中身</b>(圧縮前)に対して取るので、
-	 * 受け手は展開したファイルへそのまま当てられる。
+	 * Names use the same URIs as normal bundles ({@code pages/0001.svg},
+	 * {@code assets/fonts/font-0001.woff2}, ...). Extraction reproduces the directory output
+	 * structure, and {@code manifest.json} references resolve unchanged.
+	 * The writer computes SHA-256 over <b>entry contents</b> (before compression),
+	 * so the consumer can check it directly against extracted files.
 	 * </p>
 	 */
 	final class ZipSink implements ResultSink {
-		/** ZIPで返すときの結果URIとメディア型。 */
+		/** Result URI and media type when returning a ZIP. */
 		static final String BUNDLE_URI = "paged-svg.zip";
 		static final String BUNDLE_MEDIA_TYPE = "application/zip";
 
@@ -106,7 +106,7 @@ interface ResultSink {
 			this.results = results;
 		}
 
-		/** ZIPの結果を必要になった時点で1件だけ開きます。 */
+		/** Opens exactly one ZIP result when needed. */
 		private ZipOutputStream requireZip() throws IOException {
 			if (this.zip != null) {
 				return this.zip;
@@ -162,7 +162,7 @@ interface ResultSink {
 		}
 	}
 
-	/** 中間パスの捨て場。何も残さない。 */
+	/** Discard sink for intermediate passes. Retains nothing. */
 	final class NopSink implements ResultSink {
 		static final NopSink INSTANCE = new NopSink();
 
@@ -173,7 +173,7 @@ interface ResultSink {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 	}
 }

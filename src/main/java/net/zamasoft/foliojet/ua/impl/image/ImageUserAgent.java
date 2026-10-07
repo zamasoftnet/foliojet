@@ -45,16 +45,16 @@ import net.zamasoft.foliojet.ua.PrepareMode;
 
 public class ImageUserAgent extends AbstractUserAgent implements RandomResultUserAgent {
 	/**
-	 * ラスタ画像出力の既定のフォント方針は<b>埋め込み</b>です(2026-09-03、
-	 * ユーザー判断。単一SVG・ページ分割SVGと同じ)。
+	 * The default font policy for raster image output is <b>embedding</b> (2026-09-03,
+	 * user decision; the same as single SVG and page-split SVG).
 	 *
 	 * <p>
-	 * 共通の既定{@code cid-keyed}はPDFの外部参照CIDフォントを前提にした方針で、
-	 * 画像にはその仕組みが無い。字形データを持たないCID-keyedフォントは
-	 * AWTのシステムフォント({@code SystemCIDFont})の代替に落ち、別の面の
-	 * ヒント済み輪郭で描かれていた(単一SVGで実測: 「日」が本物より6%広く
-	 * 縦画が太い)。埋め込み方針ならpdfg2d自身の輪郭で、PDFと同じ字形になる。
-	 * 利用者が{@code output.pdf.fonts.policy}を明示した場合はそちらに従う。
+	 * The shared default, {@code cid-keyed}, assumes PDF's externally referenced CID-keyed fonts,
+	 * a mechanism that images do not have. CID-keyed fonts without glyph data fell back to
+	 * AWT system fonts ({@code SystemCIDFont}) and used hinted outlines from a different face
+	 * (observed in single SVG: "日" was 6% wider than the actual glyph, with thicker vertical strokes).
+	 * The embedding policy uses pdfg2d's own outlines, producing the same glyphs as PDF.
+	 * Honor {@code output.pdf.fonts.policy} if the user sets it explicitly.
 	 * </p>
 	 */
 	@Override
@@ -69,15 +69,15 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 
 	protected int page = 0;
 
-	// ---- 1パスの target-counter() の頁番号(2026-10-04、docs/design/one-pass-target-counter-design.md §8)
+	// ---- Page numbers for one-pass target-counter() (2026-10-04, docs/design/one-pass-target-counter-design.md §8)
 
 	/**
-	 * 今の頁の描画を記録している記録器。欄({@code TargetCounterSlotImage})のある文書では
-	 * 頁をまず記録し、欄の値が揃ってから画像に描いて出す。
+	 * Recorder for the current page's drawing operations. For documents with slots
+	 * ({@code TargetCounterSlotImage}), record pages first, then draw and emit images once slot values are available.
 	 */
 	private RecorderGC recorder;
 
-	/** 記録した頁と、その頁の大きさ(pt)。 */
+	/** A recorded page and its dimensions (pt). */
 	private record HeldPage(RecorderGC.Page recording, List<TargetCounterSlotImage> slots, double width,
 			double height) {
 		boolean resolved() {
@@ -91,20 +91,22 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 	}
 
 	/**
-	 * 出していない頁。結果の番号({@code #1}、{@code #2}…)は出した順なので、未解決の頁より
-	 * 後ろの頁も、解決していても待たせて頁の順に出す(ページ分割SVGは頁番号のファイル名で
-	 * 出すので順不同でよいが、画像は受け手が順番を頁番号とみなす)。
+	 * Pages not yet emitted. Result numbers ({@code #1}, {@code #2}, ...) follow emission order,
+	 * so pages after an unresolved page must wait even if resolved, and are emitted in page order.
+	 * (Page-split SVG uses page numbers in file names and can be emitted out of order,
+	 * but image consumers treat the sequence as page numbers.)
 	 */
 	private final ArrayDeque<HeldPage> heldPages = new ArrayDeque<>();
 
 	/**
-	 * 待たせておく頁の上限(ページ分割SVGと同じ)。記録はメモリに持つので、遠くの頁を参照する
-	 * 頁があっても際限なく溜めない。超えたら古い頁から、分かっている番号で出す(未解決は空)。
+	 * Maximum number of pending pages (the same as page-split SVG). Recordings live in memory,
+	 * so a reference to a distant page must not cause unbounded accumulation. Above the limit, emit
+	 * the oldest pages with the numbers known so far (unresolved slots remain empty).
 	 */
 	private static final int MAX_HELD_PAGES = 64;
 
 	/**
-	 * 未解決の欄がある頁は、値が揃うまで出力を待たせる(2026-10-04、§8)。
+	 * Delay output of pages with unresolved slots until their values are available (2026-10-04, §8).
 	 */
 	@Override
 	public boolean paintsPageNumbersLater() {
@@ -146,7 +148,7 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 	}
 
 	public FontManager getFontManager() {
-		// 字形を持たない中核書体は Java2D の代用で崩れるので最後の頼みにする(2026-10-04)
+		// Use core fonts without glyph outlines only as a last resort; Java2D substitution distorts them (2026-10-04).
 		return this.ownedFontManager(true);
 	}
 
@@ -162,9 +164,9 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		}
 		if (!this.heldPages.isEmpty()
 				|| this.getUAContext().hasTargetCounterSlots() && TargetCounterSlotImage.available(this)) {
-			// 欄のある文書: 頁をまず記録する。画素数の上限は記録の前に確かめる。記録器の
-			// supports() は Java2D と同じ答え(すべて描ける)を返す。違うと記録のときに近似の
-			// 描き方へ入り、描き直しても戻らない
+			// Documents with slots: record the page first. Check the pixel limit before recording. The recorder's
+			// supports() returns the same answer as Java2D (everything is supported). Otherwise, recording takes
+			// an approximate drawing path, which replay cannot undo.
 			this.pixelSize(this.pageWidth, this.pageHeight);
 			this.recorder = new RecorderGC(this.getFontManager(), capability -> capability != null);
 			return this.recorder;
@@ -172,19 +174,19 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		return this.openImage(this.pageWidth, this.pageHeight);
 	}
 
-	/** 頁の画素数。版面の画素数の上限を超えるなら変換をやめる。 */
+	/** The page's pixel count. Abort conversion if it exceeds the type area's pixel limit. */
 	private int[] pixelSize(final double pageWidth, final double pageHeight) {
 		final Point2D size = new Point2D.Double(pageWidth, pageHeight);
 		final double ppi = UAProps.OUTPUT_IMAGE_RESOLUTION.getDouble(this);
 		final double pxPerPt = ppi / 72;
 		final AffineTransform at = AffineTransform.getScaleInstance(pxPerPt, pxPerPt);
 		at.transform(size, size);
-		// 四捨五入(2026-10-04)。切り捨てでは 50mm×350dpi=688.98 が 688 画素になり、印刷所が寸法を読み違えた
-		// 少なくとも 1 画素(2026-10-05 までは小さな頁で 0 になり、画像を作れずに変換ごと落ちた)
+		// Round to nearest (2026-10-04). Truncation made 50 mm × 350 dpi = 688.98 into 688 pixels, misleading the printer.
+		// At least 1 pixel (until 2026-10-05, tiny pages became 0, preventing image creation and failing the conversion).
 		final long w = Math.max(1, Math.round(size.getX()));
 		final long h = Math.max(1, Math.round(size.getY()));
-		// 版面の画素数の上限(2026-10-03)。頁の大きさ×解像度はいくらでも
-		// 大きくできるので、確保する前に断る。指定が無くても、Java の画像が持てる画素数(int)を超えるなら断る
+		// Pixel limit for the type area (2026-10-03). Page size × resolution can be arbitrarily
+		// large, so reject before allocating. Even without a limit, reject pixel counts beyond Java images' int range.
 		final long outputPixelLimit = UAProps.OUTPUT_IMAGE_PIXEL_LIMIT.getLong(this);
 		final long pixelLimit = outputPixelLimit >= 0 ? Math.min(outputPixelLimit, Integer.MAX_VALUE)
 				: Integer.MAX_VALUE;
@@ -196,7 +198,7 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		return new int[] { (int) w, (int) h };
 	}
 
-	/** 頁の画像を作り、描く GC を返します。 */
+	/** Creates the page image and returns its drawing GC. */
 	private G2DGC openImage(final double pageWidth, final double pageHeight) {
 		final int[] size = this.pixelSize(pageWidth, pageHeight);
 		final int w = size[0];
@@ -209,15 +211,15 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		final Graphics2D g2d = (Graphics2D) this.image.getGraphics();
 
 		if (!transparent) {
-			// 背景クリア。透明のときは**塗らない**ので、何も描かれなかった
-			// ところはアルファ0のまま残る
+			// Clear the background. For transparency, **do not paint**, so untouched areas
+			// retain alpha 0.
 			g2d.setColor(Color.WHITE);
 			g2d.fillRect(0, 0, w, h);
 		}
 		g2d.setColor(Color.BLACK);
 		g2d.setTransform(at);
 
-		// オブジェクトとテキストのアンチエイリアス
+		// Antialiasing for objects and text
 		if (UAProps.OUTPUT_IMAGE_ANTIALIAS.getBoolean(this)) {
 			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -228,17 +230,17 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		return new G2DGC(g2d, this.getFontManager());
 	}
 
-	/** 透明にすると決めたかどうか。1文書につき1回だけ判定し、警告も1回だけ出す。 */
+	/** Whether transparency has been decided. Check once per document and issue at most one warning. */
 	private Boolean transparent = null;
 
 	/**
-	 * 背景を透明にするかどうかです。
+	 * Whether to make the background transparent.
 	 *
 	 * <p>
-	 * 求められていても、<b>書き出す形式がアルファを持てなければ白のまま</b>にし、
-	 * {@code 2824}で知らせます。持てるかどうかは形式表の決め打ちではなく、
-	 * {@link ImageWriter}に問い合わせます——利用できるライタは実行環境で
-	 * 変わるためです(Java Image I/Oのライタを足せば形式は増える)。
+	 * Even if requested, <b>keep it white if the output format cannot store alpha</b>,
+	 * and report {@code 2824}. Query {@link ImageWriter} rather than using a fixed format table,
+	 * because available writers vary by runtime environment
+	 * (adding Java Image I/O writers adds formats).
 	 * </p>
 	 */
 	private boolean transparentBackground() {
@@ -258,7 +260,7 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		return value;
 	}
 
-	/** その形式がアルファを保てるかを、書き出す側に問い合わせます。 */
+	/** Asks the writer whether the format can preserve alpha. */
 	private static boolean canStoreAlpha(final String mimeType) {
 		final Iterator<ImageWriter> i = ImageIO.getImageWritersByMIMEType(mimeType);
 		if (!i.hasNext()) {
@@ -304,8 +306,9 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 	}
 
 	/**
-	 * 先頭の待たせた頁を画像に描いて出します。{@code force}なら未解決の欄を空のまま黙って描く
-	 * (上限を超えたとき・文書の終わり)。受け手がもう結果を取らないなら変換をやめる。
+	 * Draws the first pending page into an image and emits it. With {@code force}, silently draw unresolved
+	 * slots as empty (when the limit is exceeded or the document ends). Abort conversion if the consumer
+	 * no longer accepts results.
 	 */
 	private void writeHeldPage(final boolean force) throws IOException {
 		final HeldPage held = this.heldPages.removeFirst();
@@ -319,7 +322,7 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 		this.writeImage();
 	}
 
-	/** 描いた頁の画像を次の結果へ書き出します。受け手がもう結果を取らないなら変換をやめる。 */
+	/** Writes the rendered page image to the next result. Abort conversion if the consumer no longer accepts results. */
 	private void writeImage() throws IOException {
 		String mimeType = UAProps.OUTPUT_TYPE.getString(this);
 		SourceMetadata metaSource = new SimpleSourceMetadata(URI.create("#" + (++this.page)), mimeType, null, -1);
@@ -355,12 +358,13 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 	}
 
 	/**
-	 * 解像度(dpi)を書き込んだ画像のメタデータです(2026-10-04)。PNG は pHYs、JPEG は JFIF(単位 1=dpi)、
-	 * ほかは標準形式の画素の大きさ。書けない形式なら null(書き出しは従来どおり)。
+	 * Image metadata with resolution (dpi) (2026-10-04). Uses pHYs for PNG, JFIF (unit 1 = dpi) for JPEG,
+	 * and pixel size in the standard format for others. Returns null if unsupported (output works as before).
 	 *
 	 * <p>
-	 * 解像度が無いと、受け手(印刷所の入稿など)は画素数から寸法を読めない。製本直送の表紙作成コースは
-	 * 300〜350dpi の画像で入稿するので、読み器と出版の道具で書き足していた。
+	 * Without resolution, consumers (such as print submission services) cannot derive physical dimensions
+	 * from pixel counts. Seihon Chokuso's cover creation service accepts images at 300–350 dpi, so the reader
+	 * and publishing tools had to add it.
 	 * </p>
 	 */
 	private static javax.imageio.metadata.IIOMetadata resolutionMetadata(final ImageWriter writer,
@@ -414,20 +418,20 @@ public class ImageUserAgent extends AbstractUserAgent implements RandomResultUse
 				return metadata;
 			}
 		} catch (final javax.imageio.metadata.IIOInvalidTreeException | RuntimeException e) {
-			// 書けない形式は解像度なしで書く
+			// Write formats that do not support it without resolution.
 		}
 		return null;
 	}
 
 	public void finish() throws BrokenResultException, IOException {
 		super.finish();
-		// 待たせた頁を出す。最後まで参照先の無かった欄は空(受け手がもう取らなければやめる)
+		// Emit pending pages; slots without targets stay empty (stop if the consumer refuses further results).
 		try {
 			while (!this.heldPages.isEmpty() && this.results.hasNext()) {
 				this.writeHeldPage(true);
 			}
 		} catch (final AbortException e) {
-			// 受け手がもう結果を取らない
+			// The consumer no longer accepts results.
 		}
 		this.heldPages.clear();
 		this.results.end();

@@ -8,8 +8,8 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * CSS Text: {@code white-space:nowrap} を指定した兄弟インラインの内側だけを
- * 不可分にし、兄弟間は共通祖先の {@code white-space:normal} で折り返す。
+ * CSS Text: Only the contents of sibling inlines with {@code white-space:nowrap} are unbreakable;
+ * wrapping between siblings follows the common ancestor's {@code white-space:normal}.
  */
 public class NestedNowrapBoundaryTest extends AbstractTestCase {
 	public NestedNowrapBoundaryTest(String name) {
@@ -27,7 +27,7 @@ public class NestedNowrapBoundaryTest extends AbstractTestCase {
 
 	private boolean item(IBox box, double x) {
 		if (box.getType() != BoxType.INLINE) return false;
-		// 行境界には幅0の継続fragmentも現れるため、実内容を持つfragmentだけを測る。
+		// Zero-width continuation fragments also occur at line boundaries; measure only fragments with actual content.
 		if (box.getHeight() < .1) return false;
 		assertEquals("各nowrap項目は本文6文字と生成ページ番号を含む一単位のまま分断しない",
 				70, box.getHeight(), .1);

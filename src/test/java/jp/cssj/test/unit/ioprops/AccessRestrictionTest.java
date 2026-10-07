@@ -20,17 +20,16 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 取得の制限({@code input.include} / {@code input.exclude})の契約です
- * (2026-08-03新設)。
+ * Contract for fetch restrictions ({@code input.include} / {@code input.exclude})
+ * (introduced on 2026-08-03).
  *
  * <p>
- * <b>ローカルファイルに効いていなかった。</b> 埋め込み側が
- * {@code setSourceResolver} で独自の取得手段を差し込むと、{@code file:}
- * 資源はその手段が先に解決し、制限を通らなかった。コマンドラインも
- * ウェブアプリも汎用リゾルバを差し込むので実運用でも同じで、信頼できない
- * HTMLを変換するサーバー用途では<b>ローカルファイルの読み出しを止められ
- * なかった</b>(2026-08-02に入出力プロパティの網羅テストで判明、
- * 2026-08-03にオーナー裁定で安全側へ変更)。
+ * <b>Restrictions did not apply to local files.</b> When an embedding application injected
+ * a custom fetch mechanism through {@code setSourceResolver}, that mechanism resolved
+ * {@code file:} resources first, bypassing restrictions. Both the command line and web applications
+ * inject a generic resolver, so this also occurred in production. Servers converting untrusted HTML
+ * <b>could not prevent local file reads</b> (found by comprehensive I/O property tests on 2026-08-02;
+ * changed to the safe behavior by the owner's decision on 2026-08-03).
  * </p>
  */
 public class AccessRestrictionTest extends TestCase {
@@ -52,32 +51,31 @@ public class AccessRestrictionTest extends TestCase {
 	}
 
 	/**
-	 * <b>除外したローカルファイルが読まれないこと。</b>
+	 * <b>Excluded local files are not read.</b>
 	 *
 	 * <p>
-	 * 埋め込み側のリゾルバ(汎用リゾルバ)を差し込んだうえで検査する
-	 * ——差し込まれていないときは元から制限が効くため、それでは
-	 * 何も確かめたことにならない。
+	 * Check with the embedding application's resolver (a generic resolver) injected:
+	 * restrictions already worked without an injected resolver, so testing without one proves nothing.
 	 * </p>
 	 */
 	public void testExcludedLocalFileIsNotRead() throws Exception {
-		// **先に書いたものが勝つ**ので、除外を先に置く
+		// **The first rule wins**, so put the exclusion first.
 		final List<Short> codes = this.convert(props("input.exclude", "**/secret.css", "input.include", "**"));
 		assertTrue("除外した資源が読めなかったと通知されること: " + codes, hasWarning(codes));
 	}
 
-	/** 許可したローカルファイルは読めること(締めすぎていないこと)。 */
+	/** Allowed local files can be read (restrictions are not too broad). */
 	public void testIncludedLocalFileIsRead() throws Exception {
 		final List<Short> codes = this.convert(props("input.include", "**"));
 		assertFalse("許可した資源で警告が出ないこと: " + codes, hasWarning(codes));
 	}
 
 	/**
-	 * 制限を設定していなければ、差し込まれたリゾルバがこれまで通り使えること。
+	 * With no restrictions configured, the injected resolver remains usable as before.
 	 *
 	 * <p>
-	 * 制限の既定は「一致するものが無ければ拒否」なので、設定の有無に
-	 * かかわらず制限を先に出すと、設定していない利用者の取得が全部止まる。
+	 * Restrictions default to denying access when nothing matches. Applying them first regardless
+	 * of whether they are configured would stop all fetching for users who have not configured them.
 	 * </p>
 	 */
 	public void testNoRestrictionKeepsEmbeddedResolver() throws Exception {
@@ -85,7 +83,7 @@ public class AccessRestrictionTest extends TestCase {
 		assertFalse("制限が無ければ資源が読めること: " + codes, hasWarning(codes));
 	}
 
-	/** CSSが読めなかったこと(2803)か、資源の警告が来ているか。 */
+	/** Check for failure to read CSS (2803) or a resource warning. */
 	private static boolean hasWarning(final List<Short> codes) {
 		for (final Short code : codes) {
 			if ((code.shortValue() & 0xF000) == 0x2000) {
@@ -112,7 +110,7 @@ public class AccessRestrictionTest extends TestCase {
 			try {
 				session.setMessageHandler((code, args, mes) -> codes.add(Short.valueOf(code)));
 				session.setResults(new SingleResult(new StreamFragmentedOutput(stream)));
-				// **埋め込み側のリゾルバを差し込む**(CLI・ウェブアプリと同じ形)
+				// **Inject the embedding application's resolver** (the same setup as CLI and web applications).
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				for (final Map.Entry<String, String> e : properties.entrySet()) {
 					session.property(e.getKey(), e.getValue());

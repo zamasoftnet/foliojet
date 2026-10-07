@@ -8,27 +8,26 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * {@code @container}実装・段5のfixture 2(不足側)です
- * (開発記録 §3/§4)。
+ * Fixture 2 (insufficient passes) for {@code @container} implementation stage 5
+ * (development record §3/§4).
  *
  * <p>
- * {@code #outer}(300pt) → {@code .mid}(container-type: inline-size、
- * outerへの{@code @container (min-width: 250pt)}で50pt→100ptに切り替わる)
- * → {@code #inner}({@code .mid}への{@code @container (min-width: 80pt)}で
- * "small-"→"big-"に切り替わる)という2段の入れ子。収束には3パス要る
- * (段4段落: パス1事実なし→両方フォールバック、パス2でouterの寸法を読んで
- * midが100ptへ切り替わるが、innerが読むmidの寸法はまだパス1の50ptのまま、
- * パス3でようやくinnerもmidの新しい寸法100ptを読んで切り替わる)。
+ * Two nested levels: {@code #outer} (300 pt) → {@code .mid} (container-type: inline-size,
+ * switching from 50 pt to 100 pt via {@code @container (min-width: 250pt)} on outer)
+ * → {@code #inner} (switching from "small-" to "big-" via
+ * {@code @container (min-width: 80pt)} on {@code .mid}).
+ * Convergence requires three passes (stage 4 paragraph): pass 1 has no facts, so both fall back;
+ * pass 2 reads outer's size and switches mid to 100 pt, but inner still reads mid's pass-1 size of 50 pt;
+ * only pass 3 lets inner read mid's new 100 pt size and switch too.
  * </p>
  *
  * <p>
- * {@code processing.pass-count=2}(STRUCTURE_SCAN + MIDDLE_PASS×1 +
- * LAST_PASS、実レイアウトパスは2回)では不足し、innerは"small-X"のまま
- * 最終出力される。設計§4「黙って出さない」どおり、この不一致は
- * {@link net.zamasoft.foliojet.ua.ContainerFacts#isConverged()}が
- * {@code false}になることで検出できる(診断メッセージ自体は
- * {@code DirectSession}の{@code LOG.warning}経由でログへ出るだけなので、
- * ここでは事実の不動点フラグを直接検証する)。
+ * {@code processing.pass-count=2} (STRUCTURE_SCAN + MIDDLE_PASS×1 + LAST_PASS,
+ * two actual layout passes) is insufficient, and inner remains "small-X" in the final output.
+ * Per design §4, "do not output silently", this mismatch is detectable because
+ * {@link net.zamasoft.foliojet.ua.ContainerFacts#isConverged()} becomes {@code false}.
+ * The diagnostic message itself is only logged via {@code DirectSession}'s {@code LOG.warning},
+ * so this test directly checks the facts' fixed-point flag.
  * </p>
  */
 public class ContainerQueryNestedInsufficientPassesTest extends AbstractTestCase {

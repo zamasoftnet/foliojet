@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.value.HangingPunctuationValue;
 
-/** JLREQで使うhanging-punctuationの値と組合せを固定する。 */
+/** Fix hanging-punctuation values and combinations used in JLREQ. */
 public class HangingPunctuationParserTest extends TestCase {
 	private static TokenStream tokens(final String declaration) {
 		final CSSReaderSettings settings = new CSSReaderSettings().setBrowserCompliantMode(true)

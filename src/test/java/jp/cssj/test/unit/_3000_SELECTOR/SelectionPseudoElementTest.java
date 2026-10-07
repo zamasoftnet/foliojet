@@ -10,12 +10,11 @@ import net.zamasoft.foliojet.layout.box.impl.TextBlockBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * {@code ::selection}は対話的な選択状態を持たないPDF出力エンジンでは
- * 意味を持たない(2026-07-21調査)。既存の疑似要素解析(二重コロン構文は
- * 任意の名前を無条件に受理する、{@code SelectorConverter}参照)により
- * 構文としては既に受理されるが、対応する{@code CSSElement}が一切
- * 合成されないため、このセレクタは常に非マッチのまま残る——構文エラーや
- * クラッシュにならず、単に無視されることを固定する回帰テスト。
+ * {@code ::selection} has no meaning in a PDF output engine without interactive selection state
+ * (investigated on 2026-07-21). Existing pseudo-element parsing already accepts its syntax
+ * (the double-colon syntax accepts any name unconditionally; see {@code SelectorConverter}),
+ * but no corresponding {@code CSSElement} is ever synthesized, so the selector never matches.
+ * Regression test ensuring it is simply ignored, without a syntax error or crash.
  */
 public class SelectionPseudoElementTest extends AbstractTestCase {
 	public SelectionPseudoElementTest(String name) {

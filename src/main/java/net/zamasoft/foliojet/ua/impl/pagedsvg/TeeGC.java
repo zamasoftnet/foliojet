@@ -12,15 +12,18 @@ import net.zamasoft.pdfg2d.gc.paint.Paint;
 import net.zamasoft.pdfg2d.gc.text.Text;
 
 /**
- * 同じ描画を2つのGCへ流す描画文脈です(2026-09-03、ページ分割SVGとPDFの同時出力)。
+ * A graphics context that forwards the same drawing operations to two GCs
+ * (2026-09-03, simultaneous page-split SVG and PDF output).
  *
  * <p>
- * 組版は1回で、ページの描画を主(ページSVG)と従(PDF)の両方に流す。状態の読み出しと
- * 対応可否({@link #supports})は主に従う——描画側は主の答えで描き方を決め、従は
- * GCの既定の縮退(ぼかしは塗り、効果は無視)で受ける。文字は主のフォント管理で整形
- * 済みだが、フォント倉庫を従と共有している({@code PagedSVGUserAgent.getFontManager})
- * ので、従のPDFもそのまま文字として書ける。群画像は両方で作って{@link TeeImage}に
- * まとめ、描くときにそれぞれの絵をそれぞれへ渡す。
+ * Layout runs once; page drawing goes to both the primary (page SVG) and secondary (PDF) GCs.
+ * State queries and capability checks ({@link #supports}) follow the primary:
+ * drawing code chooses its approach from that answer, while the secondary uses the GC's
+ * default fallbacks (fill for blur, ignored effects). Text is already shaped by the primary's
+ * font manager, but the font store is shared with the secondary
+ * ({@code PagedSVGUserAgent.getFontManager}), so PDF can write it directly as text.
+ * Create group images in both GCs, combine them in {@link TeeImage},
+ * and pass each GC its own image when drawing.
  * </p>
  */
 class TeeGC implements GC {
@@ -247,9 +250,11 @@ class TeeGC implements GC {
 	}
 
 	/**
-	 * 主・従それぞれで試します。従(PDF)が描けない(PDF/A-1 など透明不可)ときは従だけ
-	 * ぼかし無しの塗りで埋める——段階塗りの近似は foliojet 側にしか無く、併産のこの
-	 * 組み合わせは稀なので、設計どおりの縮退(pdf-blur-raster-design.md §0-11)。戻り値は主の結果。
+	 * Tries the primary and secondary separately. If the secondary (PDF) cannot draw it
+	 * (e.g., PDF/A-1 prohibits transparency), use an unblurred fill only for the secondary.
+	 * Stepped-fill approximation exists only in foliojet, and this simultaneous-output combination
+	 * is rare, so use the designed fallback (pdf-blur-raster-design.md §0-11).
+	 * Returns the primary result.
 	 */
 	@Override
 	public boolean tryFillBlurred(final Shape shape, final double sigma) throws GraphicsException {
@@ -271,12 +276,12 @@ class TeeGC implements GC {
 		this.secondary.drawImage(forSecondary(image));
 	}
 
-	/** 従へ渡す絵。取得元付きの絵は従(PDF)が同じ取得元から作った絵に差し替える。 */
+	/** Image for the secondary. Replace sourced images with ones the secondary (PDF) created from the same source. */
 	private Image forSecondary(final Image image) {
 		if (image instanceof final SourcedImage sourced && sourced.companion != null
 				&& this.secondary instanceof net.zamasoft.pdfg2d.pdf.gc.PDFGC) {
-			// 従が本物の PDF の GC のときだけ PDF 用の画像に差し替える。filter の捕捉群
-			// (あとで画素に再生される)の中では PDF 専用画像は描けないので主の画像のまま
+			// Use the PDF image only when the secondary is an actual PDF GC. In filter capture groups
+			// (later replayed to pixels), PDF-only images cannot be drawn, so keep the primary image.
 			return sourced.companion;
 		}
 		return image;
@@ -296,8 +301,8 @@ class TeeGC implements GC {
 
 	@Override
 	public void drawText(final Text text, final double x, final double y) throws GraphicsException {
-		// フォント倉庫を共有しているので(PagedSVGUserAgent.getFontManager)、
-		// 主で整形した文字をそのまま従にも描ける
+		// The font store is shared (PagedSVGUserAgent.getFontManager),
+		// so text shaped by the primary can be drawn unchanged to the secondary.
 		this.primary.drawText(text, x, y);
 		this.secondary.drawText(text, x, y);
 	}
@@ -310,9 +315,10 @@ class TeeGC implements GC {
 	}
 
 	/**
-	 * filter 用の捕捉群(2026-09-03)。主・従それぞれの捕捉群を束ねる。従(PDF)の捕捉群は
-	 * あとで画素に再生されるので、その中では従にも主の画像(画素あり)を渡す
-	 * ({@link #forSecondary} は従が PDFGC でないときは差し替えない)。
+	 * Capture group for filters (2026-09-03). Combines the primary and secondary capture groups.
+	 * The secondary (PDF) capture group is later replayed to pixels, so pass the primary image
+	 * (with pixels) to the secondary within it as well
+	 * ({@link #forSecondary} does not replace images when the secondary is not PDFGC).
 	 */
 	@Override
 	public GroupImageGC createFilterGroup(final double width, final double height) throws GraphicsException {
@@ -321,7 +327,10 @@ class TeeGC implements GC {
 		return new TeeGroupImageGC(a, b);
 	}
 
-	/** 主の結果を返す。従が UNSUPPORTED なら従には効果なしで描く(併産の縮退)。 */
+	/**
+	 * Returns the primary result. If the secondary is UNSUPPORTED, draw there without effects
+	 * (simultaneous-output fallback).
+	 */
 	@Override
 	public GroupEffectsResult drawGroupEffects(final Image image, final net.zamasoft.pdfg2d.gc.GroupEffects effects)
 			throws GraphicsException {
@@ -339,7 +348,7 @@ class TeeGC implements GC {
 		return this.primary.rasterizesGroupEffects();
 	}
 
-	/** 両方の群画像へ描き、終わったら{@link TeeImage}を返す群画像の文脈。 */
+	/** Group image context that draws to both group images and returns {@link TeeImage} when finished. */
 	private static final class TeeGroupImageGC extends TeeGC implements GroupImageGC {
 		private final GroupImageGC a;
 		private final GroupImageGC b;
@@ -356,7 +365,7 @@ class TeeGC implements GC {
 		}
 	}
 
-	/** 主と従それぞれの群画像の対。主のGCへ渡ると主の絵が、従へは従の絵が描かれる。 */
+	/** Pair of primary and secondary group images. Each GC draws its corresponding image. */
 	static final class TeeImage implements Image {
 		final Image primary;
 		final Image secondary;

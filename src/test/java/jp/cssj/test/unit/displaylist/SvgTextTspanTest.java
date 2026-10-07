@@ -22,20 +22,20 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * インライン SVG の {@code text} の中の {@code tspan} を固定します
- * (2026-10-04、TECH-20261003-004 の③。時限暗号の本の図で見つかった)。
+ * Pin down {@code tspan} inside inline SVG {@code text}
+ * (2026-10-04, item ③ of TECH-20261003-004; found in a figure in the Jigen Ango book).
  *
  * <ul>
- * <li>最初と最後の tspan の書体(斜体・太字・大きさ)が入れ替わる——描き手
- * ({@code MyTextPainter})が run の属性を ACI の先頭へ戻さずに読んでいた</li>
- * <li>tspan の dy が 1 つ遅れて効く・baseline-shift が効かない——描き手が
- * dx・dy・baseline-shift を当てる前の位置({@code TextSpanLayout.getOffset()})
- * から描いていた</li>
+ * <li>The first and last tspan's fonts (italic, bold, size) were swapped: the painter
+ * ({@code MyTextPainter}) read run attributes without resetting the ACI to its start.</li>
+ * <li>A tspan's dy took effect one tspan late, and baseline-shift had no effect: the painter
+ * painted from the position before applying dx, dy, and baseline-shift
+ * ({@code TextSpanLayout.getOffset()}).</li>
  * </ul>
  *
  * <p>
- * SVG の幅 400・viewBox 0 0 400 300 は 300pt に描かれる(1 単位 0.75pt)。
- * 位置は PDF の文字の位置で見る。
+ * SVG width 400 with viewBox 0 0 400 300 is painted at 300 pt (0.75 pt per unit).
+ * Inspect positions using text positions in the PDF.
  * </p>
  */
 public class SvgTextTspanTest extends TestCase {
@@ -52,19 +52,19 @@ public class SvgTextTspanTest extends TestCase {
 				""".formatted(text);
 	}
 
-	/** 3 つの tspan の大きさは、それぞれの指定のまま(最初が最後の大きさにならない)。 */
+	/** Each of the three tspan sizes matches its declaration (the first does not take the last one's size). */
 	public void testFirstTspanKeepsItsOwnFont() throws Exception {
 		final List<TextPosition> chars = convert(document("<text x=\"10\" y=\"60\">"
 				+ "<tspan font-size=\"10\">A</tspan><tspan font-size=\"20\">B</tspan><tspan font-size=\"40\">C</tspan>"
 				+ "</text>"));
-		// PDFBox の大きさは SVG の縮小(0.75)を含まないので、比で見る
+		// PDFBox sizes exclude the SVG scale factor (0.75), so compare ratios.
 		final double a = find(chars, "A").getFontSizeInPt(), b = find(chars, "B").getFontSizeInPt(),
 				c = find(chars, "C").getFontSizeInPt();
 		assertEquals("B は A の 2 倍(A=" + a + ", B=" + b + ")", 2.0, b / a, 0.01);
 		assertEquals("C は A の 4 倍(A=" + a + ", C=" + c + ")", 4.0, c / a, 0.01);
 	}
 
-	/** dy はその tspan から効く(次の tspan へ持ち越されない)。 */
+	/** dy takes effect from that tspan (does not shift to the next tspan). */
 	public void testDyAppliesToItsOwnTspan() throws Exception {
 		final List<TextPosition> chars = convert(document(
 				"<text x=\"10\" y=\"100\">A<tspan dy=\"-10\">B</tspan><tspan dy=\"20\">C</tspan>D</text>"));
@@ -74,7 +74,7 @@ public class SvgTextTspanTest extends TestCase {
 		assertEquals("D は C と同じ高さ", find(chars, "C").getYDirAdj(), find(chars, "D").getYDirAdj(), 0.2);
 	}
 
-	/** baseline-shift の super は上へ、sub は下へずれる。 */
+	/** baseline-shift super moves up; sub moves down. */
 	public void testBaselineShift() throws Exception {
 		final List<TextPosition> chars = convert(document("<text x=\"10\" y=\"100\">A"
 				+ "<tspan baseline-shift=\"super\">B</tspan>C<tspan baseline-shift=\"sub\">D</tspan>E</text>"));

@@ -9,11 +9,11 @@ import net.zamasoft.foliojet.xml.vocab.Foreign;
 import net.zamasoft.foliojet.xml.vocab.XHTML;
 
 /**
- * デフォルトの名前空間の要素、およびそれに属するデフォルトの名前空間の属性をXHTML名前空間にします。
+ * Moves elements in the default namespace and their default-namespace attributes into the XHTML namespace.
  * <p>
- * その上でXHTMLに所属する要素名、属性名を小文字にします。
+ * Then lowercases element and attribute names in the XHTML namespace.
  * </p>
- * 
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: XHTMLNSFilter.java 1552 2018-04-26 01:43:24Z miyabe $
  */
@@ -50,9 +50,9 @@ public class XHTMLNSFilter extends DefaultXMLHandlerFilter {
 
 	public void startElement(String uri, String lName, String qName, Attributes atts) throws SAXException {
 		boolean isHTML;
-		// **HTML5のforeign contentはXHTMLへ潰さない**(2026-08-05)。下の2つめの
-		// 条件は「接頭辞の宣言が無く、局所名と修飾名が同じ」要素を一律XHTMLに
-		// するので、素通しにすると <math>/<svg> も巻き込まれる。詳細は Foreign
+		// **Do not collapse HTML5 foreign content into XHTML** (2026-08-05). The second condition below
+		// maps every element with no declared prefix and identical local and qualified names to XHTML,
+		// so without this guard it would also affect <math>/<svg>. See Foreign for details.
 		if (Foreign.is(uri)) {
 			isHTML = false;
 		} else if (uri == null || uri.length() == 0 || (this.stack == 0 && lName.equalsIgnoreCase(qName))) {
@@ -98,7 +98,7 @@ public class XHTMLNSFilter extends DefaultXMLHandlerFilter {
 
 	public void endElement(String uri, String lName, String qName) throws SAXException {
 		if (Foreign.is(uri)) {
-			// foreign content はそのまま通す(startElementと対)
+			// Pass foreign content through unchanged (paired with startElement).
 		} else if (uri == null || uri.length() == 0 || (this.stack == 0 && lName.equalsIgnoreCase(qName))) {
 			uri = XHTML.URI;
 			lName = qName = lName.toLowerCase();

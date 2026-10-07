@@ -22,7 +22,7 @@ import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 縦書きのrowspan表が枠だけのページ断片を作らないことを固定します。 */
+/** Verify that a rowspan table in vertical writing creates no page fragments containing only frames. */
 public class RowspanVerticalPagebreakTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final File VERTICAL_FIXTURE = new File(

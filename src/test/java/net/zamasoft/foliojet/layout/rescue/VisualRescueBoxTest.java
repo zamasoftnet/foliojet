@@ -28,16 +28,15 @@ import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**
- * 救済分割の断片({@link VisualRescueBox})のclip・座標・枠slice描画の
- * 単体テストです(2026-07-25新設、増分3)。
+ * Unit tests for clipping, coordinates, and sliced decoration drawing in rescue-split fragments
+ * ({@link VisualRescueBox}) (added 2026-07-25, increment 3).
  *
  * <p>
- * 元ボックスは{@link FakeSource}(描画引数を記録するだけのテストダブル)に
- * 置き換えています。断片が担うのは「クリップの交差」と「元ボックスを
- * どこから描くか」の2点だけなので、これで機能の全部を固定できます。
- * 枠線・マージンがsliceになること(切断面に装飾なし、先頭断片に上、
- * 最終断片に下)は、元ボックスの装飾帯がクリップの内か外かという
- * 幾何の問題に還元して検証します。
+ * The source box is replaced by {@link FakeSource} (a test double that only records drawing arguments).
+ * A fragment handles only two things: clip intersection and where to draw the source box from,
+ * so this locks down its entire functionality. Slicing of borders and margins (no decoration at cut
+ * edges, top decoration in the first fragment, bottom decoration in the last) is verified as a
+ * geometric question: whether the source box's decoration bands fall inside or outside the clip.
  * </p>
  */
 public class VisualRescueBoxTest extends TestCase {
@@ -46,17 +45,17 @@ public class VisualRescueBoxTest extends TestCase {
 
 	private static final double SOURCE_LINE_EXTENT = 60;
 
-	/** 元ボックスの上枠線の帯(ページ方向の区間)。 */
+	/** The source box's top border band (an interval on the page axis). */
 	private static final double TOP_DECORATION_END = 5;
 
-	/** 元ボックスの下枠線の帯(ページ方向の区間)。 */
+	/** The source box's bottom border band (an interval on the page axis). */
 	private static final double BOTTOM_DECORATION_START = 95;
 
 	// ------------------------------------------------------------------
-	// テストダブル
+	// Test doubles.
 	// ------------------------------------------------------------------
 
-	/** 描画・輪郭・テキスト抽出の呼び出しを記録するだけの元ボックスです。 */
+	/** A source box that only records drawing, outline, and text-extraction calls. */
 	private static class FakeSource extends AbstractBox implements IFlowBox {
 		private final BlockParams params = new BlockParams();
 		private final Pos pos = new FlowPos();
@@ -146,7 +145,7 @@ public class VisualRescueBoxTest extends TestCase {
 		}
 	}
 
-	/** float用の元ボックス。 */
+	/** A source box for floats. */
 	private static final class FakeFloatSource extends FakeSource implements IFloatBox {
 		private final FloatPos floatPos = new FloatPos();
 
@@ -174,16 +173,16 @@ public class VisualRescueBoxTest extends TestCase {
 	}
 
 	/**
-	 * 元ボックスのページ方向区間{@code [from, to)}が、実際に描かれた
-	 * 位置で占める物理区間(横書きならY、縦書きならX)を返します。
+	 * Returns the physical interval (Y for horizontal writing, X for vertical writing) occupied by the
+	 * source box's page-axis interval {@code [from, to)} at its actual drawing position.
 	 */
 	private static double[] physicalBand(final VisualRescueBox box, final double sourceX, final double sourceY,
 			final double from, final double to) {
 		return switch (box.getProgression()) {
-		// ページ軸の向きが正(TB・LR)は始端をそのまま足す
+		// For a positive page-axis direction (TB/LR), add the start directly.
 		case TB -> new double[] { sourceY + from, sourceY + to };
 		case LR -> new double[] { sourceX + from, sourceX + to };
-		// RLだけが向きが負(右→左)
+		// Only RL has a negative direction (right to left).
 		case RL -> {
 			final double right = sourceX + box.getSourcePageExtent();
 			yield new double[] { right - to, right - from };
@@ -191,7 +190,7 @@ public class VisualRescueBoxTest extends TestCase {
 		};
 	}
 
-	/** クリップ矩形のページ方向区間を返します。 */
+	/** Returns the clip rectangle's page-axis interval. */
 	private static double[] clipBand(final VisualRescueBox box, final Rectangle2D clip) {
 		return box.getProgression().isVertical() ? new double[] { clip.getMinX(), clip.getMaxX() }
 				: new double[] { clip.getMinY(), clip.getMaxY() };
@@ -206,10 +205,10 @@ public class VisualRescueBoxTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 寸法
+	// Dimensions.
 	// ------------------------------------------------------------------
 
-	/** 断片が変えるのはページ方向の占有量だけ。行方向は元ボックスのまま。 */
+	/** A fragment changes only the occupied page-axis extent. The line axis stays the same as the source box. */
 	public void testOnlyPageExtentDiffersFromSource() {
 		for (final WritingMode progression : WritingMode.values()) {
 			final FakeSource src = source(progression);
@@ -221,14 +220,14 @@ public class VisualRescueBoxTest extends TestCase {
 		}
 	}
 
-	/** 断片は独立の型を名乗る(既存型を偽装しない)。 */
+	/** A fragment identifies itself as an independent type (it does not impersonate an existing type). */
 	public void testTypeIsRescue() {
 		final FakeSource src = source(WritingMode.TB);
 		assertEquals(BoxType.RESCUE, fragment(src, WritingMode.TB, 0, 40).getType());
 		assertEquals(BoxType.REPLACED, src.getType());
 	}
 
-	/** Params・Posは元ボックスのものをそのまま返す(コピーも改変もしない)。 */
+	/** Returns the source box's Params and Pos as-is (without copying or modifying them). */
 	public void testParamsAndPosAreShared() {
 		final FakeSource src = source(WritingMode.TB);
 		final VisualRescueBox box = fragment(src, WritingMode.TB, 0, 40);
@@ -236,12 +235,12 @@ public class VisualRescueBoxTest extends TestCase {
 		assertSame(src.getPos(), box.getPos());
 	}
 
-	/** 救済断片はレシピ再生の対象外(SourceAnchorを持たない)。 */
+	/** Rescue fragments are excluded from recipe replay (they have no SourceAnchor). */
 	public void testSourceAnchorStaysUnset() {
 		assertEquals(-1L, fragment(source(WritingMode.TB), WritingMode.TB, 0, 40).getSourceAnchor());
 	}
 
-	/** 先頭・最終の判定。 */
+	/** First/last fragment detection. */
 	public void testFirstAndLastFragmentFlags() {
 		final FakeSource src = source(WritingMode.TB);
 		final VisualRescueBox head = fragment(src, WritingMode.TB, 0, 40);
@@ -259,10 +258,10 @@ public class VisualRescueBoxTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 座標(TB / RL / LR)
+	// Coordinates (TB / RL / LR).
 	// ------------------------------------------------------------------
 
-	/** 横書き: sourceY = fragmentY - offset、Xはそのまま。 */
+	/** Horizontal writing: sourceY = fragmentY - offset; X stays unchanged. */
 	public void testHorizontalCoordinates() {
 		final FakeSource src = source(WritingMode.TB);
 		final VisualRescueBox box = fragment(src, WritingMode.TB, 40, 30);
@@ -273,8 +272,8 @@ public class VisualRescueBoxTest extends TestCase {
 	}
 
 	/**
-	 * 縦書き: sourceX = fragmentX - (sourcePageExtent - offset - sliceExtent)、
-	 * Yはそのまま。RLとLRの内部規約は同じ(ページ軸は右→左)。
+	 * Vertical writing: sourceX = fragmentX - (sourcePageExtent - offset - sliceExtent);
+	 * Y stays unchanged. RL and LR use the same internal convention (page axis runs right to left).
 	 */
 	public void testVerticalCoordinates() {
 		for (final WritingMode progression : new WritingMode[] { WritingMode.RL, WritingMode.LR }) {
@@ -282,29 +281,29 @@ public class VisualRescueBoxTest extends TestCase {
 			final VisualRescueBox box = fragment(src, progression, 40, 30);
 			box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 300, 17);
 			assertEquals(progression.name(), 1, src.drawCount);
-			// RLは向きが負なので「未消費の残余」= 100 - 40 - 30 = 30 だけ左へ、
-			// LRは向きが正なので「消費済み量」= offset = 40 だけ左へ寄る
+			// RL has a negative direction, so shift left by the unconsumed remainder = 100 - 40 - 30 = 30;
+			// LR has a positive direction, so shift left by the consumed extent = offset = 40.
 			final double expectedX = progression == WritingMode.RL ? 300.0 - 30.0 : 300.0 - 40.0;
 			assertEquals(progression.name(), expectedX, src.drawX, 0);
 			assertEquals(progression.name(), 17.0, src.drawY, 0);
 		}
 	}
 
-	/** 先頭断片は元ボックスと同じ位置から描かれる(ずれない)。 */
+	/** The first fragment is drawn from the same position as the source box (no displacement). */
 	public void testFirstFragmentDrawsSourceAtTheFragmentOrigin() {
 		for (final WritingMode progression : WritingMode.values()) {
 			final FakeSource src = source(progression);
-			// 先頭断片(offset=0、まだ残余がある)
+			// First fragment (offset=0, with a remainder still present).
 			final VisualRescueBox box = fragment(src, progression, 0, 40);
 			box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 50, 60);
-			// 向きが正(TB・LR)なら offset=0 の先頭断片は断片原点そのもの。
-			// RLだけは向きが負なので「未消費の残余」= 100 - 0 - 40 = 60 左へ寄る
+			// For a positive direction (TB/LR), the first fragment at offset=0 starts at the fragment origin itself.
+			// Only RL has a negative direction, so shift left by the unconsumed remainder = 100 - 0 - 40 = 60.
 			assertEquals(progression.name(), progression == WritingMode.RL ? 50.0 - 60.0 : 50.0, src.drawX, 0);
 			assertEquals(progression.name(), 60.0, src.drawY, 0);
 		}
 	}
 
-	/** 最終断片は「元ボックスの終端が断片の終端に一致する」位置から描かれる。 */
+	/** The last fragment is drawn from a position where the source box's end matches the fragment's end. */
 	public void testLastFragmentAlignsTheSourceEnd() {
 		for (final WritingMode progression : WritingMode.values()) {
 			final FakeSource src = source(progression);
@@ -312,21 +311,21 @@ public class VisualRescueBoxTest extends TestCase {
 			box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, 50, 60);
 			switch (progression) {
 			case TB -> assertEquals(progression.name(), 60.0 - 80.0, src.drawY, 0);
-			// RL: 残余0なので元ボックスの左端が断片の左端と一致する
+			// RL: no remainder, so the source box's left edge matches the fragment's left edge.
 			case RL -> assertEquals(progression.name(), 50.0, src.drawX, 0);
-			// LR: 消費済み量だけ左へ寄り、元ボックスの右端が断片の右端に一致する
-			// (50 - 80 = -30 から始まり、-30 + 100 = 70 = 50 + 20)
+			// LR: shift left by the consumed extent so the source box's right edge matches the fragment's right edge.
+			// (Starts at 50 - 80 = -30, and -30 + 100 = 70 = 50 + 20.)
 			case LR -> assertEquals(progression.name(), 50.0 - 80.0, src.drawX, 0);
 			}
 		}
 	}
 
 	// ------------------------------------------------------------------
-	// artifact化(2026-07-25、増分5)
+	// Artifact marking (2026-07-25, increment 5).
 	// ------------------------------------------------------------------
 
 	/**
-	 * 先頭断片は実内容として描く(実Visitor・非artifact)。
+	 * Draw the first fragment as real content (real Visitor, non-artifact).
 	 */
 	public void testFirstFragmentDrawsAsRealContent() {
 		final FakeSource src = source(WritingMode.TB);
@@ -338,9 +337,8 @@ public class VisualRescueBoxTest extends TestCase {
 	}
 
 	/**
-	 * 継続断片({@code offset > 0})はartifactとして描き、副作用のない
-	 * Visitorを渡す(答申§3。リンク・フォーム・ページ参照・string-set・
-	 * しおりを二度発行しない)。
+	 * Draw continuation fragments ({@code offset > 0}) as artifacts, passing a Visitor with no side effects
+	 * (recommendation §3: do not emit links, forms, page references, string-set, or bookmarks twice).
 	 */
 	public void testContinuationFragmentDrawsAsArtifact() {
 		final FakeSource src = source(WritingMode.TB);
@@ -353,10 +351,10 @@ public class VisualRescueBoxTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// クリップ
+	// Clipping.
 	// ------------------------------------------------------------------
 
-	/** クリップが無いときは断片の矩形そのものになる。 */
+	/** With no existing clip, use the fragment rectangle itself. */
 	public void testClipWithoutExistingClipIsTheFragmentRect() {
 		final FakeSource src = source(WritingMode.TB);
 		final VisualRescueBox box = fragment(src, WritingMode.TB, 40, 30);
@@ -368,11 +366,11 @@ public class VisualRescueBoxTest extends TestCase {
 		assertEquals(30.0, clip.getHeight(), 0);
 	}
 
-	/** 既存クリップとは交差する(AbstractContainerBox.clip()と同じ流儀)。 */
+	/** Intersect with an existing clip (the same approach as AbstractContainerBox.clip()). */
 	public void testClipIntersectsTheExistingClip() {
 		final FakeSource src = source(WritingMode.TB);
 		final VisualRescueBox box = fragment(src, WritingMode.TB, 40, 30);
-		// 断片は (10,200)-(70,230)。既存クリップで左右と下を削る
+		// The fragment is (10,200)-(70,230). The existing clip trims the left, right, and bottom.
 		final Rectangle2D.Double outer = new Rectangle2D.Double(30, 100, 100, 120);
 		box.draw(null, new Drawer(0), null, outer, new AffineTransform(), 0, 0, 10, 200);
 		final Rectangle2D clip = (Rectangle2D) src.drawClip;
@@ -388,7 +386,7 @@ public class VisualRescueBoxTest extends TestCase {
 		assertEquals(20.0, clip.getHeight(), 0);
 	}
 
-	/** 縦書きでもクリップは断片の物理矩形(幅がsliceExtent)。 */
+	/** In vertical writing too, the clip is the fragment's physical rectangle (width is sliceExtent). */
 	public void testVerticalClipIsTheFragmentRect() {
 		final FakeSource src = source(WritingMode.RL);
 		final VisualRescueBox box = fragment(src, WritingMode.RL, 40, 30);
@@ -400,7 +398,7 @@ public class VisualRescueBoxTest extends TestCase {
 		assertEquals(SOURCE_LINE_EXTENT, clip.getHeight(), 0);
 	}
 
-	/** 交差できないクリップ形状は既存実装と同じくClassCastExceptionになる。 */
+	/** A clip shape that cannot be intersected throws ClassCastException, as in the existing implementation. */
 	public void testNonRectangularClipIsRejectedLikeTheExistingClipConvention() {
 		final FakeSource src = source(WritingMode.TB);
 		final VisualRescueBox box = fragment(src, WritingMode.TB, 0, 30);
@@ -408,19 +406,18 @@ public class VisualRescueBoxTest extends TestCase {
 			box.clip(new Ellipse2D.Double(0, 0, 10, 10), 0, 0);
 			fail("矩形以外のクリップはAbstractContainerBox.clip()と同様に扱えない");
 		} catch (final ClassCastException expected) {
-			// 期待どおり(既存の流儀に合わせている)
+			// As expected (follows the existing approach).
 		}
 	}
 
 	// ------------------------------------------------------------------
-	// 枠線・マージンのslice
+	// Slicing borders and margins.
 	// ------------------------------------------------------------------
 
 	/**
-	 * 先頭断片だけが上の装飾を含み、最終断片だけが下の装飾を含み、
-	 * 中間断片はどちらも含まない(CSS box-decoration-break: slice)。
-	 * 切断面に新しい線は現れない——断片は元の幾何をそのまま描いて
-	 * クリップするだけだから。
+	 * Only the first fragment includes top decoration, only the last includes bottom decoration,
+	 * and intermediate fragments include neither (CSS box-decoration-break: slice).
+	 * No new lines appear at cut edges: a fragment only draws the original geometry as-is and clips it.
 	 */
 	public void testDecorationIsSlicedAcrossFragments() {
 		for (final WritingMode progression : WritingMode.values()) {
@@ -448,7 +445,7 @@ public class VisualRescueBoxTest extends TestCase {
 		}
 	}
 
-	/** 断片を並べると元ボックスのページ方向をちょうど覆う(重なりも隙間もない)。 */
+	/** Arranged fragments exactly cover the source box's page axis (no overlaps or gaps). */
 	public void testFragmentsTileTheSourceExactly() {
 		for (final WritingMode progression : WritingMode.values()) {
 			final double[][] intervals = { { 0, 40 }, { 40, 40 }, { 80, 20 } };
@@ -456,7 +453,7 @@ public class VisualRescueBoxTest extends TestCase {
 			for (final double[] interval : intervals) {
 				final FakeSource src = source(progression);
 				final VisualRescueBox box = fragment(src, progression, interval[0], interval[1]);
-				// 断片はページ軸上で連続して置かれる(RLだけ向きが負)
+				// Fragments are placed consecutively along the page axis (only RL has a negative direction).
 				final double fragmentX = switch (progression) {
 				case TB -> 500;
 				case RL -> 500 - covered - interval[1];
@@ -464,7 +461,7 @@ public class VisualRescueBoxTest extends TestCase {
 				};
 				final double fragmentY = progression.isVertical() ? 400 : 400 + covered;
 				box.draw(null, new Drawer(0), null, null, new AffineTransform(), 0, 0, fragmentX, fragmentY);
-				// どの断片も同じ位置に元ボックスを置く(=見た目が連続する)
+				// Every fragment places the source box at the same position (= visual continuity).
 				switch (progression) {
 				case TB -> assertEquals(progression.name(), 400.0, src.drawY, 0);
 				case RL -> assertEquals(progression.name(), 500 - SOURCE_PAGE_EXTENT, src.drawX, 0);
@@ -477,10 +474,10 @@ public class VisualRescueBoxTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 意味論
+	// Semantics.
 	// ------------------------------------------------------------------
 
-	/** テキストは先頭断片だけが一度返す(抽出・読み上げの二重化を防ぐ)。 */
+	/** Only the first fragment returns text, once (prevents duplicate extraction and speech output). */
 	public void testOnlyTheFirstFragmentYieldsText() {
 		final FakeSource src = source(WritingMode.TB);
 		final StringBuilder head = new StringBuilder();
@@ -496,7 +493,7 @@ public class VisualRescueBoxTest extends TestCase {
 		assertEquals("", tail.toString());
 	}
 
-	/** 輪郭は見た目の話なので全断片が委譲する(座標だけずらす)。 */
+	/** Outlines are visual, so all fragments delegate (shifting only the coordinates). */
 	public void testTextShapeIsDelegatedWithShiftedOrigin() {
 		final FakeSource src = source(WritingMode.TB);
 		fragment(src, WritingMode.TB, 40, 30).textShape(null, new GeneralPath(), new AffineTransform(), 10, 200);
@@ -505,18 +502,18 @@ public class VisualRescueBoxTest extends TestCase {
 		assertEquals(160.0, src.textShapeY, 0);
 	}
 
-	/** 断片は元ボックスのレイアウトをやり直さない。 */
+	/** A fragment does not lay out the source box again. */
 	public void testFinishLayoutDoesNotTouchTheSource() {
 		final FakeSource src = source(WritingMode.TB);
-		// FakeSourceのfinishLayoutはfail()するので、呼ばれれば失敗する
+		// FakeSource.finishLayout calls fail(), so the test fails if it is called.
 		fragment(src, WritingMode.TB, 40, 30).finishLayout(null);
 	}
 
 	// ------------------------------------------------------------------
-	// アダプタ
+	// Adapters.
 	// ------------------------------------------------------------------
 
-	/** 改ページ禁止は端の断片だけが元ボックスの指定を引き継ぐ。 */
+	/** Only edge fragments inherit the source box's page-break prohibitions. */
 	public void testAvoidBreakOnlyAppliesToTheOuterEdges() {
 		final FakeSource src = source(WritingMode.TB);
 		src.avoidBefore = true;
@@ -532,7 +529,7 @@ public class VisualRescueBoxTest extends TestCase {
 		assertTrue(tail.avoidBreakAfter());
 	}
 
-	/** float用アダプタは配置パラメータをそのまま返す。 */
+	/** The float adapter returns positioning parameters as-is. */
 	public void testFloatAdapterSharesTheFloatPos() {
 		final FakeFloatSource src = new FakeFloatSource(SOURCE_LINE_EXTENT, SOURCE_PAGE_EXTENT);
 		final VisualRescueFloatBox box = new VisualRescueFloatBox(src, WritingMode.TB, SOURCE_PAGE_EXTENT, 40, 30);
@@ -540,7 +537,7 @@ public class VisualRescueBoxTest extends TestCase {
 		assertEquals(BoxType.RESCUE, box.getType());
 	}
 
-	/** ファクトリは元ボックスの種類に応じたアダプタを選ぶ。 */
+	/** The factory selects an adapter according to the source box type. */
 	public void testFactorySelectsTheAdapter() {
 		final RescueDecision.Slice slice = new RescueDecision.Slice(40, 30, 70, false, false);
 		final VisualRescueBox flow = VisualRescueBox.of(source(WritingMode.TB), WritingMode.TB, SOURCE_PAGE_EXTENT,
@@ -553,45 +550,45 @@ public class VisualRescueBoxTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 不変条件
+	// Invariants.
 	// ------------------------------------------------------------------
 
-	/** 断片の入れ子は作らない(区間はoffset/sliceExtentだけで表す)。 */
+	/** Do not create nested fragments (represent intervals only with offset/sliceExtent). */
 	public void testNestedFragmentsAreRejected() {
 		final VisualRescueBox box = fragment(source(WritingMode.TB), WritingMode.TB, 0, 40);
 		try {
 			new VisualRescueBox(box, WritingMode.TB, 40, 0, 20);
 			fail("断片の断片は作れないはず");
 		} catch (final IllegalArgumentException expected) {
-			// 期待どおり
+			// As expected.
 		}
 	}
 
-	/** 元ボックスをはみ出す断片は作れない。 */
+	/** Cannot create a fragment that extends beyond the source box. */
 	public void testFragmentOutsideTheSourceIsRejected() {
 		final FakeSource src = source(WritingMode.TB);
 		try {
 			new VisualRescueBox(src, WritingMode.TB, SOURCE_PAGE_EXTENT, 80, 40);
 			fail("元ボックスをはみ出す断片は作れないはず");
 		} catch (final IllegalArgumentException expected) {
-			// 期待どおり
+			// As expected.
 		}
 	}
 
-	/** 非正の断片・負のoffsetは作れない。 */
+	/** Cannot create a nonpositive fragment or a negative offset. */
 	public void testDegenerateIntervalsAreRejected() {
 		final FakeSource src = source(WritingMode.TB);
 		try {
 			new VisualRescueBox(src, WritingMode.TB, SOURCE_PAGE_EXTENT, 0, 0);
 			fail("寸法0の断片は作れないはず");
 		} catch (final IllegalArgumentException expected) {
-			// 期待どおり
+			// As expected.
 		}
 		try {
 			new VisualRescueBox(src, WritingMode.TB, SOURCE_PAGE_EXTENT, -1, 10);
 			fail("負のoffsetは作れないはず");
 		} catch (final IllegalArgumentException expected) {
-			// 期待どおり
+			// As expected.
 		}
 	}
 }

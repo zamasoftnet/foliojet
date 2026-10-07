@@ -23,77 +23,72 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>ページ軸の寸法を明示した浮動体の中身を紙面外へ置かない</b>ことを
- * 固定します(2026-07-28新設)。
+ * Verify that <b>contents of floats with explicit page-axis sizes are not placed off the paper</b>
+ * (introduced 2026-07-28).
  *
  * <p>
- * {@code RandomDocumentFuzzTest}の<b>不変条件6</b>(説明のつかない紙面外への
- * 配置)で、シード100,000〜200,000の帯に残っていた欠陥です
- * (最小形は{@code local/shrink/strict-149858-min.html})。
+ * This defect remained in seeds 100,000–200,000 under {@code RandomDocumentFuzzTest}'s
+ * <b>invariant 6</b> (unexplained off-paper placement)
+ * (minimal case: {@code local/shrink/strict-149858-min.html}).
  * </p>
  *
- * <h2>機序</h2>
+ * <h2>Mechanism</h2>
  *
  * <p>
- * 浮動体が<b>ページ軸方向の寸法を明示</b>していると——縦書きの
- * {@code width}、横書きの{@code height}——{@code overflow}の既定は
- * {@code visible}なので、指定寸法を超えた中身は箱の外へ描かれます。
- * ところが{@code BreakableBuilder.classifyFloatPlacement()}は
- * <b>箱の幾何</b>({@code IBox.getPageExtent()})だけを見て「収まって
- * いる」と判定し、切断を予約しませんでした。<b>改ページが一度も
- * 起きない</b>まま、中身がページ軸方向にまっすぐ紙の外まで並びます。
- * </p>
- *
- * <p>
- * 同じ幾何前提が切断側にもありました——{@code FloatMeasurement.of()}が
- * {@code getPageExtent()}で実測を採るため、{@code FloatSplitPlan}の
- * 分岐表1(全体が切断線以前)が成立して<b>切断されません</b>。予約側だけを
- * 直すと、改ページはするが浮動体は切れない(=中身は紙の外のまま、
- * 白紙になった次ページは出力側で捨てられる)ので、<b>両方</b>を実測へ
- * 揃える必要があります。
+ * When a float <b>specifies its page-axis size</b> ({@code width} in vertical writing,
+ * {@code height} in horizontal writing), {@code overflow} defaults to {@code visible}, drawing contents
+ * exceeding that size outside the box. However, {@code BreakableBuilder.classifyFloatPlacement()}
+ * checked only <b>box geometry</b> ({@code IBox.getPageExtent()}), considered it to fit,
+ * and reserved no cut. <b>No page break ever occurred</b>, and content continued
+ * straight off the paper along the page axis.
  * </p>
  *
  * <p>
- * 通常フローには同じ補正が既にあります——
- * {@code FlowContainer.computeFlowBottoms()}の
- * {@code Math.max(内寸, getContentSize())}。<b>浮動体だけがこの補正を
- * 欠いていた</b>のが欠陥の正体です。
- * </p>
- *
- * <h2>書字方向に依存しない</h2>
- *
- * <p>
- * 元の文書は縦書き({@code writing-mode:vertical-rl}の{@code width:0pt})
- * でしたが、<b>横書きの鏡像({@code height:0pt})でも1ptの違いもなく
- * 同じ形で再現します</b>——修正前はどちらも1ページに全内容が並びました
- * (縦書き{@code x=-145.28}/紙面幅120pt、横書き{@code y=254.30}/紙面高
- * 120pt)。縦書き固有の欠陥ではないので、両方を固定します。
- * </p>
- *
- * <h2>判定について</h2>
- *
- * <p>
- * <b>ファジングの不変条件6と同じ基準</b>にします——紙面をまるごと1枚分
- * はみ出し、かつ文書中の最大の明示サイズの2倍を超えたときだけ数える
- * ({@code OffPageColumnTest}と同じ理由)。この文書の明示サイズは
- * {@code 0pt}なので猶予は0で、紙面1枚分を超えたはみ出しはすべて落ちます。
+ * Cutting made the same geometric assumption: {@code FloatMeasurement.of()} measured with
+ * {@code getPageExtent()}, satisfying {@code FloatSplitPlan}'s decision-table case 1
+ * (everything before the cut line), so <b>no split occurred</b>. Fixing only reservations
+ * triggers a page break but leaves the float unsplit: contents remain off-paper and the output
+ * layer discards the blank next page. <b>Both</b> must use actual measurements.
  * </p>
  *
  * <p>
- * あわせて<b>ページが2枚以上できる</b>ことも要求します。これが修正の本体
- * ——「収まらないなら改ページする」——の直接の言明で、はみ出し量の判定より
- * 機序に近いところで壊れたことに気づけます。<b>紙面外は「内容を捨てる」
- * ことでも消せる</b>ので、トークンの残存も検査します。
+ * Normal flow already has this correction: {@code FlowContainer.computeFlowBottoms()}'s
+ * {@code Math.max(inner size, getContentSize())}. The defect was that <b>only floats lacked it</b>.
+ * </p>
+ *
+ * <h2>Independent of writing direction</h2>
+ *
+ * <p>
+ * The original used vertical writing ({@code writing-mode:vertical-rl} with {@code width:0pt}),
+ * but <b>its horizontal mirror ({@code height:0pt}) reproduces the same shape without even
+ * a 1 pt difference</b>. Before the fix, both laid out all content on one page
+ * (vertical {@code x=-145.28}/paper width 120 pt; horizontal {@code y=254.30}/paper height 120 pt).
+ * This is not vertical-specific, so cover both.
+ * </p>
+ *
+ * <h2>Criteria</h2>
+ *
+ * <p>
+ * Use <b>the same criteria as fuzz invariant 6</b>: count only overflow beyond one entire paper
+ * dimension and beyond twice the largest explicit document size (same reason as {@code OffPageColumnTest}).
+ * This document specifies {@code 0pt}, so the allowance is zero and all overflow beyond one paper
+ * dimension fails.
+ * </p>
+ *
+ * <p>
+ * Also require <b>at least two pages</b>. This directly states the fix's core, "paginate if it does
+ * not fit", detecting breakage closer to the mechanism than overflow measurements.
+ * <b>Dropping content also eliminates off-paper placement</b>, so check token survival too.
  * </p>
  */
 public class OffPageFloatTest extends TestCase {
-	/** 打ち切り時間。実測は1件あたり1秒未満。 */
+	/** Timeout. Measured execution is under one second per case. */
 	private static final long WATCHDOG_MS = 60_000L;
 
-	/** 表示リストの描画位置。{@code RandomDocumentFuzzTest}と同じ書式。 */
+	/** Display-list drawing positions. Same format as {@code RandomDocumentFuzzTest}. */
 	private static final Pattern POS_IN_DUMP = Pattern.compile("x=(-?[\\d.]+) y=(-?[\\d.]+)");
 
-	/** この文書が持つトークン(連番ではないので明示する)。 */
+	/** Tokens in this document (listed explicitly because they are not consecutive). */
 	private static final String[] TOKENS = { "T4", "T5", "T6", "T8", "T9", "T10", "T14", "T18", "T22", "T25", "T33" };
 
 	public OffPageFloatTest(String name) {
@@ -101,9 +96,9 @@ public class OffPageFloatTest extends TestCase {
 	}
 
 	/**
-	 * 縦書き。{@code width}がページ軸なので{@code width:0pt}は
-	 * <b>ページ軸の寸法0</b>を意味する。修正前は1ページに全内容が並び、
-	 * 最悪は{@code x=-145.28}(紙面幅120pt)で不変条件6の判定は25pt。
+	 * Vertical writing. {@code width} is the page axis, so {@code width:0pt} means
+	 * <b>zero page-axis size</b>. Before the fix, all content appeared on one page;
+	 * worst position {@code x=-145.28} (120 pt paper width), invariant 6 excess 25 pt.
 	 */
 	private static final String VERTICAL = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
@@ -145,9 +140,9 @@ public class OffPageFloatTest extends TestCase {
 	}
 
 	/**
-	 * 横書きの鏡像。{@code height}がページ軸なので{@code height:0pt}が
-	 * 同じ意味になる。修正前は1ページに全内容が並び、最悪は
-	 * {@code y=254.30}(紙面高120pt)で判定は14pt。
+	 * Horizontal mirror. {@code height} is the page axis, so {@code height:0pt}
+	 * has the same meaning. Before the fix, all content appeared on one page;
+	 * worst position {@code y=254.30} (120 pt paper height), excess 14 pt.
 	 */
 	private static final String HORIZONTAL = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
@@ -189,18 +184,17 @@ public class OffPageFloatTest extends TestCase {
 	}
 
 	/**
-	 * <b>浮動体がページの先頭にある</b>形(2026-10-02追加、掃過 seed 11065158)。
+	 * A <b>float at the page start</b> (added 2026-10-02, sweep seed 11065158).
 	 *
 	 * <p>
-	 * 上の2つは浮動体の前に{@code <ul>}があるので、切断は{@code FLAGS_SPLIT}で
-	 * 頼まれる。ページの先頭では{@code FloatSplitPlan.classify}が
-	 * {@code FLAGS_FIRST}だけを渡し、{@code FlowCutter.preDecide}が
-	 * 「切断線が箱の幾何寸法より先」(ここでは0ptより先)を理由に
-	 * 前ページへ残していた——溢れた中身を数えないので、浮動体は切れずに
-	 * 1ページに全内容が並ぶ(修正前は縦書きで{@code x=-73.84}/紙面幅120pt、
-	 * 横書きで{@code y=180.64}/紙面高120pt)。配置時の判定(2026-07-28)は
-	 * 直っていたので、切断の予約までは届いていた。猶予0の紙面外の判定には
-	 * 掛からない量なので、落ちるのはページ数の言明である。
+	 * The two cases above have {@code <ul>} before the float, so request cuts with {@code FLAGS_SPLIT}.
+	 * At page start, {@code FloatSplitPlan.classify} passed only {@code FLAGS_FIRST};
+	 * {@code FlowCutter.preDecide} retained the float on the previous page because the cut line
+	 * lay beyond its geometric size (here, beyond 0 pt). Ignoring overflowing contents left the float
+	 * unsplit with all content on one page (before the fix: vertical {@code x=-73.84}/paper width 120 pt,
+	 * horizontal {@code y=180.64}/paper height 120 pt). Placement classification was already fixed
+	 * (2026-07-28), so cut reservation was reached. This amount does not trigger the zero-allowance
+	 * off-paper criterion; the page-count assertion fails instead.
 	 * </p>
 	 */
 	private static final String VERTICAL_AT_PAGE_HEAD = """
@@ -236,7 +230,7 @@ public class OffPageFloatTest extends TestCase {
 		assertNoUnexplainedOffPage("vertical-head", VERTICAL_AT_PAGE_HEAD, 120, 400);
 	}
 
-	/** 横書きの鏡像({@link #VERTICAL_AT_PAGE_HEAD}の{@code width}を{@code height}に)。 */
+	/** Horizontal mirror of {@link #VERTICAL_AT_PAGE_HEAD}: replace {@code width} with {@code height}. */
 	private static final String HORIZONTAL_AT_PAGE_HEAD = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 			<?jp.cssj.property name="output.page-width" value="400pt"?>
@@ -271,13 +265,13 @@ public class OffPageFloatTest extends TestCase {
 	}
 
 	/**
-	 * <b>縁取りのある</b>浮動体(2026-10-02追加)。
+	 * A float <b>with a border</b> (added 2026-10-02).
 	 *
 	 * <p>
-	 * {@code AbstractContainerBox.paintedPageExtent}は枠線の見える箱を箱いっぱい
-	 * で打ち切っていたので、配置時の判定({@code FloatMeasurement.occupiedPageExtent})
-	 * が溢れた中身を数えず、<b>ページの先頭でなくても</b>切断が予約されなかった
-	 * (修正前は1ページ)。ページ先頭の形は配置と切断の両方の修正を通る。
+	 * {@code AbstractContainerBox.paintedPageExtent} stopped at the box extent when a visible border
+	 * existed. Placement ({@code FloatMeasurement.occupiedPageExtent}) thus ignored overflowing
+	 * contents and reserved no cut <b>even away from page start</b> (one page before the fix).
+	 * The page-start variant exercises both placement and cutting fixes.
 	 * </p>
 	 */
 	public void testVerticalBorderedFloatWithSpecifiedPageExtentStaysOnPage() throws Exception {
@@ -291,16 +285,16 @@ public class OffPageFloatTest extends TestCase {
 	}
 
 	/**
-	 * 浮動体の中に<b>ページ軸の寸法を明示した通常ブロック</b>があり、溢れるのは
-	 * その中身という形(2026-10-02追加)。切断の判定が直下の子の幾何
-	 * ({@code getContentSize()})しか見ないと、溢れを数えずに前ページへ残す。
+	 * A float contains a <b>normal block with an explicit page-axis size</b>, whose contents overflow
+	 * (added 2026-10-02). A cut decision considering only direct-child geometry ({@code getContentSize()})
+	 * ignores the overflow and retains it on the previous page.
 	 */
 	public void testVerticalFloatWithNestedSpecifiedPageExtentAtPageHeadStaysOnPage() throws Exception {
 		assertNoUnexplainedOffPage("vertical-nested-head", document(120, 400, "vertical-rl", "",
 				"float:right;width:0pt", "<div style=\"width:0pt\">", "</div>"), 120, 400);
 	}
 
-	/** 上の2形の浮動体の前にある、ページ軸の場所だけを取る内容。 */
+	/** Content preceding the floats in the two cases above, occupying only page-axis space. */
 	private static final String LEADING_LIST = """
 			<ul style="list-style-position:inside">
 			<li></li>
@@ -311,15 +305,15 @@ public class OffPageFloatTest extends TestCase {
 			""";
 
 	/**
-	 * {@link #VERTICAL}と同じ中身の浮動体を持つ文書を組み立てます。
+	 * Build a document with a float containing the same contents as {@link #VERTICAL}.
 	 *
-	 * @param pageWidth   紙面の幅(pt)
-	 * @param pageHeight  紙面の高さ(pt)
-	 * @param writingMode bodyの書字方向
-	 * @param before      浮動体の前に置く内容
-	 * @param floatStyle  浮動体のstyle
-	 * @param innerOpen   浮動体の中身を包む開始タグ
-	 * @param innerClose  同じく終了タグ
+	 * @param pageWidth   paper width (pt)
+	 * @param pageHeight  paper height (pt)
+	 * @param writingMode body's writing direction
+	 * @param before      content before the float
+	 * @param floatStyle  float style
+	 * @param innerOpen   opening tag wrapping the float's contents
+	 * @param innerClose  corresponding closing tag
 	 */
 	private static String document(final int pageWidth, final int pageHeight, final String writingMode,
 			final String before, final String floatStyle, final String innerOpen, final String innerClose) {
@@ -354,24 +348,24 @@ public class OffPageFloatTest extends TestCase {
 	}
 
 	/**
-	 * 変換して、(1) ページが2枚以上できること、(2) 説明のつかない紙面外への
-	 * 配置がないこと、(3) トークンが全部どこかのページに現れること、を
-	 * 検査します。この文書の最大明示サイズは{@code 0pt}なので猶予は0です。
+	 * Convert and check (1) at least two pages, (2) no unexplained off-paper placement,
+	 * and (3) all tokens appear on some page. This document's maximum explicit size
+	 * is {@code 0pt}, so the allowance is zero.
 	 *
-	 * @param name       作業ディレクトリ名
-	 * @param html       文書
-	 * @param pageWidth  紙面の幅(pt)
-	 * @param pageHeight 紙面の高さ(pt)
+	 * @param name       working directory name
+	 * @param html       document
+	 * @param pageWidth  paper width (pt)
+	 * @param pageHeight paper height (pt)
 	 */
 	private static void assertNoUnexplainedOffPage(final String name, final String html, final double pageWidth,
 			final double pageHeight) throws Exception {
 		final File[] pages = convert(name, html);
 
-		// 修正の本体の直接の言明: 収まらない浮動体は改ページを起こす
+		// Direct statement of the fix's core: a float that does not fit triggers pagination.
 		assertTrue(name + ": 浮動体が切断されず1ページに収まってしまっている(ページ数=" + pages.length + ")", pages.length >= 2);
 
-		// 紙面をまるごと1枚分はみ出して初めて数える(不変条件6と同じ基準)。
-		// この文書の最大明示サイズは0ptなので猶予は0
+		// Count only overflow beyond one entire paper dimension (same criterion as invariant 6).
+		// This document's maximum explicit size is 0 pt, so the allowance is zero.
 		double worst = 0;
 		String worstAt = null;
 		final StringBuilder all = new StringBuilder();
@@ -392,7 +386,7 @@ public class OffPageFloatTest extends TestCase {
 		assertTrue(name + ": 紙面外への配置 " + Math.round(worst) + "pt (紙面" + Math.round(pageWidth) + "x"
 				+ Math.round(pageHeight) + "pt, 最大明示サイズ0pt, " + worstAt + ", 全" + pages.length + "ページ)", worst <= 0);
 
-		// 紙面外は「内容を捨てる」ことでも消せる。それが退行として見えるように
+		// Dropping content also eliminates off-paper placement. Make that visible as a regression.
 		final List<String> lost = new ArrayList<>();
 		for (final String t : TOKENS) {
 			if (all.indexOf(t) < 0) {
@@ -403,15 +397,15 @@ public class OffPageFloatTest extends TestCase {
 	}
 
 	/**
-	 * {@code clip-path}で切り抜く浮動体は、溢れた中身があっても<b>分けない</b>
-	 * (2026-10-02追加)。
+	 * Floats clipped with {@code clip-path} <b>do not split</b>, even if contents overflow
+	 * (added 2026-10-02).
 	 *
 	 * <p>
-	 * 溢れた中身は見えないので、紙の外へ置かれても構わない。分けると断片が
-	 * 自身の参照ボックス(ページの終わりまで伸びた箱)で切り抜き直すため、
-	 * <b>隠れていた中身が見える</b>(修正前は枠の無い形がページの途中で分かれ、
-	 * 切り抜きが96pt→148ptに広がっていた)。溢れの測度は
-	 * {@code BlockParams.clipsOverflowPaint()}で{@code overflow:hidden}と同じに扱う。
+	 * Overflowing contents are invisible, so off-paper placement is harmless. Splitting reclips each
+	 * fragment to its own reference box (extended to the page end), <b>revealing hidden content</b>
+	 * (before the fix, the borderless variant split mid-page, expanding the clip from 96 pt to 148 pt).
+	 * Treat overflow measurement like {@code overflow:hidden} through
+	 * {@code BlockParams.clipsOverflowPaint()}.
 	 * </p>
 	 */
 	public void testClipPathFloatIsNotSplitByHiddenOverflow() throws Exception {
@@ -448,15 +442,15 @@ public class OffPageFloatTest extends TestCase {
 		}
 	}
 
-	/** 表示リストの切り抜き({@code clip=[x y w h]})の高さ。 */
+	/** Height of the display-list clip ({@code clip=[x y w h]}). */
 	private static final Pattern CLIP_IN_DUMP = Pattern.compile("clip=\\[[-\\d.]+ [-\\d.]+ [-\\d.]+ ([-\\d.]+)\\]");
 
 	/**
-	 * 文書を変換して、ページごとの表示リストを返します。
+	 * Convert a document and return per-page display lists.
 	 *
-	 * @param name 作業ディレクトリ名
-	 * @param html 文書
-	 * @return ページの表示リスト(ページ順)
+	 * @param name working directory name
+	 * @param html document
+	 * @return page display lists (in page order)
 	 */
 	private static File[] convert(final String name, final String html) throws Exception {
 		final File dir = new File("local/off-page-float/" + name);

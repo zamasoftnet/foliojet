@@ -8,19 +8,17 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * 行内(セル内)分割とvertical-alignの物理座標検査(縦書きtb-rl)。
- * ページ軸は水平(右から左)で、ページ幅100pt・1行の幅10pt。
- * ValignSplitTest(横書き)のミラー。継続セルはverticalAlign=0
- * (=ページ右端x=90が行先頭)から始まり、再アラインされない。
- * 表示リスト全体はDisplayListGoldenTestのgolden
- * (files/unittest/display-list-golden/0219-pagebreak-table-inrow_valign-split-vert)
- * で固定されている。
+ * Checks physical coordinates for intra-row (intra-cell) splitting and vertical-align (tb-rl vertical writing).
+ * The page axis is horizontal (right to left), with a page width of 100 pt and a line width of 10 pt.
+ * Mirrors ValignSplitTest (horizontal writing). Continuation cells start at verticalAlign=0
+ * (the line starts at the page's right edge, x=90), without realignment.
+ * The complete display list is fixed by the DisplayListGoldenTest golden
+ * (files/unittest/display-list-golden/0219-pagebreak-table-inrow_valign-split-vert).
  *
  * <p>
- * 横書きとの既知の非対称(現状動作の記録): 表B(rowspanあり)では
- * rowspanセルがcellCutPageAxis換算で3ページ目に10行保持される一方、
- * 2行目の非rowspanセルは横書きと違い3ページ目に一切内容を残さず、
- * 2行目の内容全部が4ページ目へ送られる。
+ * Known asymmetry with horizontal writing (record of current behavior): in table B (with rowspan),
+ * cellCutPageAxis conversion keeps 10 lines of the rowspan cell on page 3. Unlike horizontal writing,
+ * the non-rowspan cells in row 2 leave no content on page 3, and all content of row 2 moves to page 4.
  * </p>
  */
 public class ValignSplitVertTest extends AbstractTestCase {
@@ -34,7 +32,7 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		super(name);
 	}
 
-	/** topセルの1行目: 1ページ目の行先頭(右端x=90)。 */
+	/** First line of the top cell: row start on page 1 (right edge, x=90). */
 	public boolean check_ta(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("ta: " + x);
@@ -45,7 +43,7 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 行の水平寸法を決める第1セルの11行目: 2ページ目の先頭(継続はx=90開始)。 */
+	/** Line 11 of the first cell, which determines the row's horizontal size: start of page 2 (starts at x=90). */
 	public boolean check_drva(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("drva: " + x);
@@ -56,7 +54,7 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** baselineセル(20pt)の1行目: rowAscentを決める側(x=80..100)。 */
+	/** First line of the baseline cell (20 pt): determines rowAscent (x=80..100). */
 	public boolean check_bl1(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("bl1: " + x);
@@ -67,7 +65,7 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** baselineセル(10pt)の1行目: verticalAlign=5で開始(bl1と中心線一致)。 */
+	/** First line of the baseline cell (10 pt): starts at verticalAlign=5 (centerline matches bl1). */
 	public boolean check_bl2(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("bl2: " + x);
@@ -78,7 +76,7 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** baselineセルの最終行: widows=2で2ページ目へ。継続の2行目(x=80)。 */
+	/** Last line of the baseline cell: widows=2 sends it to page 2. Second continuation line (x=80). */
 	public boolean check_bla(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("bla: " + x);
@@ -89,7 +87,7 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** middleセルの1行目: verticalAlign=(120-90)/2=15(x=75)。 */
+	/** First line of the middle cell: verticalAlign=(120-90)/2=15 (x=75). */
 	public boolean check_m1(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("m1: " + x);
@@ -100,7 +98,7 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** middleセルの最終行: 2ページ目の2行目(継続は右端開始、再アラインなし)。 */
+	/** Last line of the middle cell: second line on page 2 (continuation starts at the right edge, no realignment). */
 	public boolean check_ma(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("ma: " + x);
@@ -111,7 +109,7 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** bottomセルの1行目: verticalAlign=90でページ左端にちょうど収まる(x=0)。 */
+	/** First line of the bottom cell: verticalAlign=90 fits exactly at the page's left edge (x=0). */
 	public boolean check_ba(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("ba: " + x);
@@ -122,7 +120,7 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** bottomセルの2行目: 2ページ目先頭(継続はx=90開始、再アラインなし)。 */
+	/** Second line of the bottom cell: start of page 2 (continuation starts at x=90, without realignment). */
 	public boolean check_bb(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("bb: " + x);
@@ -133,7 +131,10 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** rowspanセルの11行目: cellCutPageAxis換算で3ページ目にちょうど10行(100pt)、11行目は4ページ目先頭(x=90)。 */
+	/**
+	 * Line 11 of the rowspan cell: cellCutPageAxis conversion fits exactly 10 lines (100 pt) on page 3.
+	 * Line 11 starts page 4 (x=90).
+	 */
 	public boolean check_rsa(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("rsa: " + x);
@@ -144,7 +145,10 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 2行目bottomセルの1行目: 2行目全体が4ページ目へ。継続はx=90開始(再アラインなし)。 */
+	/**
+	 * First line of the bottom cell in row 2: all of row 2 moves to page 4.
+	 * Continuation starts at x=90 (no realignment).
+	 */
 	public boolean check_rba(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("rba: " + x);
@@ -155,7 +159,7 @@ public class ValignSplitVertTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 2行目bottomセルの2行目: 4ページ目の2行目(x=80)。 */
+	/** Second line of the bottom cell in row 2: second line on page 4 (x=80). */
 	public boolean check_rbb(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println("rbb: " + x);
@@ -167,8 +171,9 @@ public class ValignSplitVertTest extends AbstractTestCase {
 	}
 
 	/**
-	 * 2行目topセルの8行目: 2026-09-04 に rowspan 経路の縦書き軸取り違えを直し、横書きと同じく
-	 * 3ページ目に収まる分(タ〜ニ)を残すようになったので、8行目ヌは4ページ目の継続先頭(x=90)。
+	 * Line 8 of the top cell in row 2: on 2026-09-04, an axis mix-up for vertical writing in the rowspan
+	 * path was fixed. As in horizontal writing, the lines that fit (タ〜ニ) now remain on page 3,
+	 * so line 8 (ヌ) starts the continuation on page 4 (x=90).
 	 */
 	public boolean check_rca(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {

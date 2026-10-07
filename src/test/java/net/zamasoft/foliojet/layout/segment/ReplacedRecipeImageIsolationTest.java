@@ -13,23 +13,21 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * E-6増分3b-3で新設・3b-6で全面改稿: {@link ReplacedBoxImage}
- * (back-referenceを持つ共有不可の画像)を参照する置換要素の
- * duplicateベースfreeze({@code ReplacedParamsTemplate}経由の
- * {@link ReplacedRecipe#freeze})が、live・再生間および再生同士の
- * 画像状態を隔離することの単体テストです。
+ * Added in E-6 increment 3b-3 and fully rewritten in 3b-6: unit tests that duplication-based freezing
+ * of replaced elements referencing {@link ReplacedBoxImage} (an unshareable image with a back-reference),
+ * through {@code ReplacedParamsTemplate} and {@link ReplacedRecipe#freeze}, isolates image state between
+ * live and replay instances and between replay instances.
  *
  * <p>
- * 現存する唯一のproduction実装({@code BarcodeImage})は
- * {@code setReplacedBox}がno-opのため、この隔離の欠如はgolden比較では
- * 観測できない(潜在欠陥)。back-referenceを実際に保存するスタブで
- * 「再生ボックスのcalculateSizeがlive側の画像状態を破壊しうる」構造
- * そのものを固定する。
+ * The only current production implementation ({@code BarcodeImage}) has a no-op {@code setReplacedBox},
+ * so a lack of isolation is invisible to golden comparisons (a latent defect). A stub that actually
+ * stores the back-reference locks down the very structure that allows calculateSize on a replay box
+ * to corrupt the live image state.
  * </p>
  */
 public class ReplacedRecipeImageIsolationTest extends TestCase {
 
-	/** back-referenceを実際に保存する(BarcodeImageと違いno-opでない)スタブ。 */
+	/** A stub that actually stores the back-reference (unlike BarcodeImage's no-op). */
 	private static final class RecordingReplacedBoxImage implements Image, ReplacedBoxImage {
 		AbstractReplacedBox registeredBox;
 
@@ -58,10 +56,10 @@ public class ReplacedRecipeImageIsolationTest extends TestCase {
 	}
 
 	/**
-	 * {@link ReplacedBoxImage}参照の置換要素はfreeze時に複製画像を凍結し、
-	 * materializeごとにさらに複製を配る——再生ボックス(scratch計測・
-	 * 複数の再生ボックス)のcalculateSizeがliveのimageへ
-	 * back-referenceを書き込まない(奪わない)し、再生同士も取り合わない。
+	 * A replaced element referencing {@link ReplacedBoxImage} freezes a duplicate image, then supplies
+	 * another duplicate on each materialization. Thus calculateSize on replay boxes (scratch measurement
+	 * or multiple replay boxes) neither writes a back-reference into the live image nor takes it over,
+	 * and replay instances do not contend with each other either.
 	 */
 	public void testMaterializedReplayBoxesDoNotStealBackReference() {
 		final RecordingReplacedBoxImage liveImage = new RecordingReplacedBoxImage();
@@ -69,15 +67,15 @@ public class ReplacedRecipeImageIsolationTest extends TestCase {
 		params.image = liveImage;
 		final InlineReplacedBox live = new InlineReplacedBox(params, new InlinePos());
 
-		// liveのレイアウト(calculateSize)がback-referenceを登録する
+		// Live layout (calculateSize) registers the back-reference.
 		live.calculateSize(100, 100, 100, 100);
 		assertSame(live, liveImage.registeredBox);
 
-		// 記録時freeze(3b-6: ReplacedBoxImageでも総関数)
+		// Recording-time freeze (3b-6: a total function even for ReplacedBoxImage).
 		final ReplacedRecipe recipe = ReplacedRecipe.freeze(live).orElseThrow();
 		assertTrue(recipe instanceof ReplacedRecipe.Inline);
 
-		// materialize×2 → 互いに独立した新品のreplayボックス
+		// materialize×2 → fresh replay boxes independent of each other.
 		final AbstractReplacedBox replay1 = BoxRecipeBoxFactory.createReplaced(recipe);
 		final AbstractReplacedBox replay2 = BoxRecipeBoxFactory.createReplaced(recipe);
 		assertNotSame(live, replay1);
@@ -87,21 +85,21 @@ public class ReplacedRecipeImageIsolationTest extends TestCase {
 		assertTrue(replay1.getReplacedParams().image instanceof ReplacedBoxImage);
 		assertSame(liveImage, params.image);
 
-		// replay側(scratch計測相当)のcalculateSizeはそれぞれ自分の複製へ
-		// 登録し、liveのback-referenceは奪われない——是正対象の潜在欠陥
-		// そのもの。複数再生(プローブ最大20試行)でも取り合いは起きない
+		// Replay-side calculateSize (equivalent to scratch measurement) registers with each instance's own copy,
+		// leaving the live back-reference untouched: this is the latent defect being corrected.
+		// Multiple replays (up to 20 probe attempts) do not contend either.
 		replay1.calculateSize(100, 100, 100, 100);
 		replay2.calculateSize(100, 100, 100, 100);
 		assertSame(live, liveImage.registeredBox);
 		assertSame(replay1, ((RecordingReplacedBoxImage) replay1.getReplacedParams().image).registeredBox);
 		assertSame(replay2, ((RecordingReplacedBoxImage) replay2.getReplacedParams().image).registeredBox);
 
-		// 値としては同等のparamsで再生される(隔離は内容を変えない)
+		// Replay uses params with equivalent values (isolation does not change content).
 		assertEquals(params.lineHeight, replay1.getReplacedParams().lineHeight);
 		assertEquals(params.size, replay1.getReplacedParams().size);
 	}
 
-	/** 通常の(共有可能な)imageでは従来どおりimageを共有する(paramsは新品)。 */
+	/** An ordinary (shareable) image remains shared as before (params are fresh). */
 	public void testPlainImageKeepsSharedImage() {
 		final ReplacedParams params = new ReplacedParams();
 		params.image = new Image() {
@@ -129,7 +127,7 @@ public class ReplacedRecipeImageIsolationTest extends TestCase {
 		assertSame(params.image, replay.getReplacedParams().image);
 	}
 
-	/** 未確定包含幅に対する% min-widthを番兵の実寸へ変換しない。 */
+	/** Do not resolve a percentage min-width against an indefinite containing width to the sentinel's numeric size. */
 	public void testCyclicPercentageMinimumFallsBackToZero() {
 		final ReplacedParams params = new ReplacedParams();
 		params.image = new RecordingReplacedBoxImage();

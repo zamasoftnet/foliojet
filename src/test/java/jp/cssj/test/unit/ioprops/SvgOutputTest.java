@@ -13,11 +13,11 @@ import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** SVG出力、とくにラスター画像を含む文書の回帰テスト。 */
+/** Regression tests for SVG output, especially documents containing raster images. */
 public class SvgOutputTest extends TestCase {
     private static final URI COPPER_URI = URI.create("copper:direct:");
 
-    /** PNGを含んでもBatikの画像エンコーダ不足で失敗せず、自己完結SVGになること。 */
+    /** Even with PNG, output is self-contained SVG and does not fail because Batik lacks an image encoder. */
     public void testRasterImageIsEmbedded() throws Exception {
         final String transparentPng =
                 "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";

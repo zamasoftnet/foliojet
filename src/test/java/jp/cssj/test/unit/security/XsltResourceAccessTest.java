@@ -7,20 +7,19 @@ import java.nio.file.Files;
 import junit.framework.TestCase;
 
 /**
- * XSLTからの資源取得にACLが効くこと(2026-09-08新設)。
+ * ACLs apply to resource fetching from XSLT (introduced on 2026-09-08).
  *
  * <p>
- * FolioJetは{@code XSLTProcessorFilter}が{@code URIResolver}を実装し、
- * 変換器ファクトリと変換器の両方に差しています。だから{@code document()}や
- * {@code xsl:import}は{@code ua.resolve()}を通ります——<b>これがSaxonの
- * 用意した差し込み口を正しく使った形</b>です。
+ * FolioJet's {@code XSLTProcessorFilter} implements {@code URIResolver} and installs it in both
+ * the transformer factory and transformer. Thus, {@code document()} and {@code xsl:import}
+ * pass through {@code ua.resolve()}: <b>this correctly uses Saxon's extension point</b>.
  * </p>
  *
  * <p>
- * ただし{@code unparsed-text()}は{@code URIResolver}ではなく
- * {@code UnparsedTextURIResolver}の担当で、Saxonが前者で代用するかどうかは
- * <b>実装依存</b>です。2026-09-08に一度測ろうとしてプローブ自体が壊れ、
- * 未確認のまま残っていました。ここで確かめます。
+ * However, {@code unparsed-text()} uses {@code UnparsedTextURIResolver}, not {@code URIResolver},
+ * and whether Saxon substitutes the latter is <b>implementation-dependent</b>.
+ * An attempted measurement on 2026-09-08 failed because the probe itself was broken,
+ * leaving this unverified. Check it here.
  * </p>
  */
 public class XsltResourceAccessTest extends TestCase {
@@ -45,7 +44,7 @@ public class XsltResourceAccessTest extends TestCase {
 		this.secretFile.delete();
 	}
 
-	/** 本体で{@code expr}を評価して版面に出すXSLTを、記録用サーバへ置きます。 */
+	/** Place XSLT on the recording server that evaluates {@code expr} in its body and emits it in the type area. */
 	private void putStylesheet(final String expr) {
 		this.probe.put("/s.xsl", "text/xsl",
 				"<?xml version='1.0' encoding='UTF-8'?>"
@@ -58,7 +57,7 @@ public class XsltResourceAccessTest extends TestCase {
 						+ "<data/>");
 	}
 
-	/** {@link #assertDenied}へ渡すための、検査例外を包んだ実行です。 */
+	/** An executable wrapping checked exceptions for passing to {@link #assertDenied}. */
 	private void renderQuietly() {
 		try {
 			this.renderRestricted();
@@ -69,19 +68,19 @@ public class XsltResourceAccessTest extends TestCase {
 		}
 	}
 
-	/** 主文書とスタイルシートだけを許して組みます。 */
+	/** Lay out with only the main document and stylesheet allowed. */
 	private ConversionProbe.Result renderRestricted() throws Exception {
 		return new ConversionProbe().include(this.probe.url("/d.xml")).include(this.probe.url("/s.xsl"))
 				.convertUrl(this.probe.url("/d.xml"));
 	}
 
 	/**
-	 * 拒否されることを確かめます。
+	 * Verify that access is denied.
 	 *
 	 * <p>
-	 * XSLTでは拒否が<b>例外として上がり、変換がそこで止まります</b>
-	 * (版面が出て中身だけ落ちる、ではない)。遮断としてはその方が強いので、
-	 * 例外に拒んだURIが入っていることを合格条件にします。
+	 * In XSLT, denial <b>propagates as an exception and stops conversion</b>, rather than producing
+	 * a type area with missing contents. This is stronger blocking, so the pass criterion is
+	 * that the exception contains the denied URI.
 	 * </p>
 	 */
 	private void assertDenied(final String deniedUri, final Runnable body) {
@@ -106,14 +105,14 @@ public class XsltResourceAccessTest extends TestCase {
 		return buff.toString();
 	}
 
-	/** {@code unparsed-text()}でローカルファイルを読めないこと。 */
+	/** {@code unparsed-text()} cannot read local files. */
 	public void testUnparsedTextCannotReadLocalFile() throws Exception {
 		this.putStylesheet("unparsed-text('" + this.secretFile.toURI() + "')");
-		// file: の表記は file:/F:/… と file:///F:/… で揺れるのでファイル名で照合する
+		// file: notation varies between file:/F:/… and file:///F:/…, so compare by filename.
 		this.assertDenied(this.secretFile.getName(), this::renderQuietly);
 	}
 
-	/** {@code unparsed-text()}が許していないホストへ出ていかないこと。 */
+	/** {@code unparsed-text()} does not access unauthorized hosts. */
 	public void testUnparsedTextObeysAcl() throws Exception {
 		this.probe.put("/secret.txt", "text/plain", SECRET);
 		this.putStylesheet("unparsed-text('" + this.probe.url("/secret.txt") + "')");
@@ -122,7 +121,7 @@ public class XsltResourceAccessTest extends TestCase {
 				this.probe.hits("/secret.txt"));
 	}
 
-	/** 許したときは{@code unparsed-text()}が使えること(正例)。遮断しすぎの検出。 */
+	/** {@code unparsed-text()} works when allowed (positive case). Detect excessive blocking. */
 	public void testUnparsedTextAllowedWhenIncluded() throws Exception {
 		this.probe.put("/secret.txt", "text/plain", SECRET);
 		this.putStylesheet("unparsed-text('" + this.probe.url("/secret.txt") + "')");
@@ -133,7 +132,7 @@ public class XsltResourceAccessTest extends TestCase {
 				this.probe.hits("/secret.txt") >= 1);
 	}
 
-	/** {@code document()}にACLが効くこと。 */
+	/** The ACL applies to {@code document()}. */
 	public void testDocumentFunctionObeysAcl() throws Exception {
 		this.probe.put("/other.xml", "application/xml", "<r>" + SECRET + "</r>");
 		this.putStylesheet("document('" + this.probe.url("/other.xml") + "')/r");
@@ -142,7 +141,7 @@ public class XsltResourceAccessTest extends TestCase {
 				this.probe.hits("/other.xml"));
 	}
 
-	/** {@code document()}でローカルファイルを読めないこと。 */
+	/** {@code document()} cannot read local files. */
 	public void testDocumentFunctionCannotReadLocalFile() throws Exception {
 		final File xml = new File("build/tmp/xslt-secret.xml").getAbsoluteFile();
 		Files.write(xml.toPath(), ("<r>" + SECRET + "</r>").getBytes(StandardCharsets.UTF_8));
@@ -154,7 +153,7 @@ public class XsltResourceAccessTest extends TestCase {
 		}
 	}
 
-	/** 字送りで分断されても拾えるように、1文字ずつ順に現れるかで見ます。 */
+	/** Check that characters appear in sequence one at a time, so character-advance splits do not hide them. */
 	private static boolean containsSecret(final ConversionProbe.Result r) throws Exception {
 		final String ops = r.operators();
 		int at = 0;

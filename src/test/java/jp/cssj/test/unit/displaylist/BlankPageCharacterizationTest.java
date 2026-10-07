@@ -22,44 +22,46 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 白紙ページの特性テストです(2026-07-25新設、ユーザー明示の絶対要件
- * 「意図せず白紙ページができないこと」の安全網)。
+ * Blank-page characterization test (added on 2026-07-25 as a safety net for the user's explicit
+ * absolute requirement: "no unintended blank pages").
  *
  * <p>
- * <b>切り分け</b>: 作者が意図した白紙(非表示オブジェクト・強制改ページ・
- * 空の{@code @page}等)は正常。<b>エンジンの都合で生じる白紙は不具合</b>。
- * 自動判別はできないため、<b>「白紙ページを持つ文書とその枚数」を特性値
- * として固定</b>し、増減したらテストが落ちる形にする——増えたなら
- * エンジンが余分な白紙を作った疑い、減ったなら意図した白紙が消えた疑いで、
- * どちらも人間の確認を要求する。
+ * <b>Distinction</b>: author-intended blank pages (hidden objects, forced page breaks,
+ * empty {@code @page}, etc.) are valid. <b>Blank pages caused by the engine are defects</b>.
+ * This cannot be distinguished automatically, so <b>documents with blank pages and their counts
+ * are fixed as characterization values</b>; any increase or decrease fails the test.
+ * An increase suggests extra blank pages from the engine; a decrease suggests lost intentional
+ * blank pages. Both require human review.
  * </p>
  *
  * <p>
- * 判定は表示リストが空(描画命令ゼロ)であること。ページ背景・枠のみの
- * ページは「描画あり」として扱う——CSSで背景を指定した空ページは
- * 作者の意図とみなせるため。
+ * A page is blank if its display list is empty (zero drawing commands).
+ * Pages containing only a page background or border count as drawn: an empty page with a
+ * CSS background can be considered intentional.
  * </p>
  *
  * <p>
- * 期待値の更新は<b>差分を目視確認してから</b>行うこと。安易な再基準化は
- * この安全網を無意味にする。
+ * Update expected values <b>only after visually inspecting the differences</b>.
+ * Casual rebaselining defeats this safety net.
  * </p>
  */
 public class BlankPageCharacterizationTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 特性値の正本(文書ごとの白紙ページ番号)。 */
+	/** Canonical characterization values (blank-page numbers per document). */
 	private static final Path EXPECTED = Path.of("files/unittest/blank-page-characterization.txt");
 
-	/** 変換が例外で終わった文書の特性値。 */
+	/** Characterization value for a document whose conversion ends in an exception. */
 	private static final String ERROR = "!conversion-failed";
 
-	/** 1ページも生成されなかった文書の特性値。 */
+	/** Characterization value for a document that produces no pages. */
 	private static final String NO_PAGES = "!no-pages";
 
 	/**
-	 * 分割数(2026-10-05)。1 クラスで 1 分半かかり試験全体の尾になっていたので、文書名の hash で分け、このクラスが
-	 * 0 番、{@code BlankPageCharacterizationShardNTest} が残りを受け持つ。各番は期待値のうち自分の文書の行だけを比べる。
+	 * Shard count (2026-10-05). One class took a minute and a half, becoming the tail of the entire suite.
+	 * Documents are now divided by name hash: this class handles shard 0 and
+	 * {@code BlankPageCharacterizationShardNTest} handles the others.
+	 * Each shard compares only its own document rows in the expected values.
 	 */
 	static final int SHARDS = 3;
 
@@ -75,7 +77,10 @@ public class BlankPageCharacterizationTest extends TestCase {
 		return Path.of("files/unittest").relativize(doc).toString().replace('\\', '/');
 	}
 
-	/** {@code shard} 番の受け持ちを検査します(分割した試験クラスから呼ぶ)。期待値が無ければ 0 番が全件で作る。 */
+	/**
+	 * Checks shard {@code shard} (called by the sharded test classes).
+	 * If expected values are absent, shard 0 generates them for all documents.
+	 */
 	static void checkShard(final int shard) throws Exception {
 		final boolean bootstrap = !Files.exists(EXPECTED);
 		if (bootstrap && shard != 0) {
@@ -111,7 +116,7 @@ public class BlankPageCharacterizationTest extends TestCase {
 			Files.writeString(EXPECTED, actualText, StandardCharsets.UTF_8);
 			fail("特性値を生成しました。内容を確認してコミットしてください: " + EXPECTED);
 		}
-		// 期待値のうち、この番の受け持ちの文書の行だけを比べる
+		// Compare only expected-value rows for documents assigned to this shard.
 		final TreeMap<String, String> expected = new TreeMap<>();
 		for (final String line : Files.readAllLines(EXPECTED, StandardCharsets.UTF_8)) {
 			final int tab = line.indexOf('\t');
@@ -142,21 +147,21 @@ public class BlankPageCharacterizationTest extends TestCase {
 	}
 
 	/**
-	 * 文書を変換し、表示リストが空のページ番号をカンマ区切りで返します
-	 * (空ページなしなら空文字列)。
+	 * Converts a document and returns comma-separated page numbers with empty display lists
+	 * (an empty string if there are no empty pages).
 	 *
 	 * <p>
-	 * 変換に失敗した文書・1ページも生成されなかった文書は、空文字列では
-	 * なく{@link #ERROR}/{@link #NO_PAGES}を返して<b>特性値に載せます</b>
-	 * (2026-07-25、独立レビュー指摘)。従来はどちらも空文字列を返しており、
-	 * 「変換が壊れた文書ほど白紙ゼロとして緑になる」という、この安全網の
-	 * 目的と正反対の偽陰性になっていた。特性値へ載せておけば、新しく
-     * 落ちるようになった文書も、落ちなくなった文書も差分として現れる。
+	 * Documents that fail conversion or produce no pages return {@link #ERROR}/{@link #NO_PAGES},
+	 * not an empty string, so they <b>appear in the characterization values</b>
+	 * (2026-07-25, independent review finding). Previously both returned an empty string,
+	 * creating false negatives where broken conversions passed as having zero blank pages,
+	 * the exact opposite of this safety net's purpose. Recording them makes both newly failing
+	 * and newly passing documents appear as differences.
 	 * </p>
 	 */
 	private static String blankPagesOf(final Path doc) {
-		// 同名ファイルが別階層にあるため、相対パス全体をディレクトリ名にする
-		// (ファイル名だけだと衝突して別文書の結果を読んでしまう)
+		// Files with the same name exist at different levels, so use the full relative path as the directory name
+		// (using only the filename causes collisions and reads another document's results).
 		final String key = Path.of("files/unittest").relativize(doc).toString().replaceAll("[^A-Za-z0-9._-]", "_");
 		final File outDir = new File("local/unittest/blank-page/" + key);
 		outDir.mkdirs();
@@ -202,7 +207,7 @@ public class BlankPageCharacterizationTest extends TestCase {
 			} catch (final Exception e) {
 				continue;
 			}
-			// 表示リストは "drawer z=..." の行だけなら描画命令ゼロ
+			// A display list containing only "drawer z=..." lines has zero drawing commands.
 			boolean hasContent = false;
 			for (final String line : text.split("\n")) {
 				final String t = line.trim();

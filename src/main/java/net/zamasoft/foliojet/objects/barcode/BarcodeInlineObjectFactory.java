@@ -5,8 +5,8 @@ import net.zamasoft.foliojet.css.InlineObject;
 import net.zamasoft.foliojet.css.InlineObjectFactory;
 
 /**
- * バーコードオブジェクトです。
- * 
+ * Barcode object.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id$
  */

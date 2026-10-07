@@ -14,19 +14,19 @@ import net.zamasoft.pdfg2d.gc.image.GroupImageGC;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * {@code filter}を持つ{@link Drawer}が部分木を1つの層にまとめることの試験
- * (2026-09-03新設、filter-element-group-design.md)。
+ * Tests that {@code filter} on a {@link Drawer} groups its subtree into a single layer
+ * (added 2026-09-03, filter-element-group-design.md).
  *
  * <p>
- * spy GCで層の開閉と効果の適用を記録し、(1) 入れ子の層が内側から閉じる、
- * (2) 層の中の描画要素は囲む層の効果を除いた残りだけを見る、
- * (3) 頁出力の描画要素は層の中でも頁のGCで描かれる、(4) 層を持てない
- * 出力・旧い{@code draw(GC)}では層を作らない、を固定する。
+ * A spy GC records layer opening/closing and effect application to lock down that (1) nested layers
+ * close from the inside out, (2) drawables within a layer see only effects remaining after excluding
+ * the enclosing layer's effects, (3) page-output drawables use the page GC even within layers, and
+ * (4) outputs without layer support and the old {@code draw(GC)} do not create layers.
  * </p>
  */
 public class DrawerFilterGroupTest extends TestCase {
 
-	/** 層の開閉と効果を記録する、全能力対応のGCです。 */
+	/** A GC supporting all capabilities that records layer opening/closing and effects. */
 	private static class SpyGC extends NoOpGC {
 		final List<String> log;
 		final String name;
@@ -83,7 +83,7 @@ public class DrawerFilterGroupTest extends TestCase {
 		}
 	}
 
-	/** 描画時のGC名と、実効filterの字面を記録するDrawableです。 */
+	/** A Drawable that records the GC name and the effective filter's textual representation when drawing. */
 	private static final class Probe implements Drawable {
 		private final String name;
 		private final FilterValue filter;
@@ -101,7 +101,7 @@ public class DrawerFilterGroupTest extends TestCase {
 		}
 	}
 
-	/** 頁出力の描画要素(リンク注釈など)の代役です。 */
+	/** A stand-in for a page-output drawable (such as a link annotation). */
 	private static final class PageProbe implements PageOutputDrawable {
 		private final List<String> log;
 
@@ -142,7 +142,7 @@ public class DrawerFilterGroupTest extends TestCase {
 		final FilterValue outer = own("outer", 0);
 		final FilterValue inner = own("inner", 2);
 		final FilterValue innerComposed = outer.compose(inner);
-		// 層を持てない子孫(::first-lineなど)の自前の宣言は残る
+		// Preserve the own declarations of descendants that cannot have layers (such as ::first-line).
 		final FilterValue leaf = own("leaf", 0);
 		final FilterValue leafComposed = innerComposed.compose(leaf);
 
@@ -177,7 +177,7 @@ public class DrawerFilterGroupTest extends TestCase {
 
 	public void testSameDeclarationOnParentAndChildOpensTwoGroups() throws GraphicsException {
 		final List<String> log = new ArrayList<>();
-		// 同じルールの解析値は共有されるので、要素ごとに forElement() で複写される
+		// Parsed values for the same rule are shared, so forElement() copies them for each element.
 		final FilterValue shared = own("shared", 0);
 		final FilterValue parent = shared.forElement();
 		final FilterValue child = parent.compose(shared.forElement());
@@ -203,11 +203,11 @@ public class DrawerFilterGroupTest extends TestCase {
 		root.visitDrawer(a);
 		a.visitDrawable(new Probe("a", outer, log), 0, 0);
 
-		// 旧い draw(GC) は層を作らない(描画要素ごとの近似)
+		// The old draw(GC) does not create layers (per-drawable approximation).
 		root.draw(new SpyGC("page", log));
 		assertEquals(List.of("a on page filter=outer"), log);
 
-		// 出力先に GROUP_FILTER が無ければ層を作らない
+		// Do not create layers if the output lacks GROUP_FILTER.
 		log.clear();
 		root.draw(new SpyGC("plain", log) {
 			@Override
@@ -219,9 +219,10 @@ public class DrawerFilterGroupTest extends TestCase {
 	}
 
 	/**
-	 * 要素の変換を採用した Drawer は、層を要素座標で作る(2026-09-03、filter-local-space-design.md):
-	 * 外側の GC には P=T·Tr(B) を createFilterGroup と drawGroupEffects の間だけ掛け、層には
-	 * Q=Tr(-B)·T⁻¹ を基底として掛ける。子孫の描画中、頁の GC は入場時の変換のまま。
+	 * A Drawer that adopts an element's transform creates its layer in element coordinates
+	 * (2026-09-03, filter-local-space-design.md): apply P=T·Tr(B) to the outer GC only between
+	 * createFilterGroup and drawGroupEffects, and apply Q=Tr(-B)·T⁻¹ as the layer's base transform.
+	 * While drawing descendants, the page GC retains its transform from entry.
 	 */
 	public void testAdoptedTransformPlacesTheLayerInElementSpace() throws GraphicsException {
 		final List<String> log = new ArrayList<>();
@@ -245,7 +246,7 @@ public class DrawerFilterGroupTest extends TestCase {
 				"effects on page from page/g1 blur=0.0 matrix=true"), log);
 	}
 
-	/** 恒等変換(採用なし・fallback も恒等)では変換命令を出さない。 */
+	/** An identity transform (nothing adopted and fallback is also identity) emits no transform commands. */
 	public void testIdentityTransformEmitsNoTransformCommands() throws GraphicsException {
 		final List<String> log = new ArrayList<>();
 		final FilterValue outer = own("outer", 0);
@@ -253,7 +254,7 @@ public class DrawerFilterGroupTest extends TestCase {
 		final Drawer root = new Drawer(0);
 		final Drawer a = new Drawer(params, new java.awt.geom.AffineTransform());
 		a.adoptTransform(params, new java.awt.geom.AffineTransform());
-		// 別の要素の params からの adopt は無視される
+		// Ignore adoption from another element's params.
 		a.adoptTransform(params(outer), java.awt.geom.AffineTransform.getScaleInstance(3, 3));
 		root.visitDrawer(a);
 		a.visitDrawable(new Probe("a", outer, log), 0, 0);
@@ -263,8 +264,8 @@ public class DrawerFilterGroupTest extends TestCase {
 	}
 
 	/**
-	 * 同じ params(=同じ FilterValue の own)を共有する入れ子の Drawer(表の外側の配置用ブロックと
-	 * TableBox)は層を 1 つしか開かない——囲む層が同じ own を既に掛けている。
+	 * Nested Drawers sharing the same params (= the same FilterValue own), such as a table's outer
+	 * positioning block and TableBox, open only one layer: the enclosing layer already applies the same own.
 	 */
 	public void testSharedParamsNestedDrawerOpensOneGroup() throws GraphicsException {
 		final List<String> log = new ArrayList<>();

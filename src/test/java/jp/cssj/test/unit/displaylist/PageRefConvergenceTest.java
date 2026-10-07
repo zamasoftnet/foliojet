@@ -23,12 +23,13 @@ import net.zamasoft.foliojet.ua.PageRef;
 import net.zamasoft.foliojet.ua.PageRef.Fragment;
 
 /**
- * 最終パスの「前方参照が読んだ値が変わった」(非収束)の判定は、<b>読んだもの</b>だけを比べることを
- * 固定します(2026-10-04)。参照先の全部のカウンタ(総頁数など、参照が読んでいないもの)と本文を
- * 比べていたので、単純な目次を 2 パスで組んでも「pass-count を増やせ」の記録が出ていた。
+ * Verify that final-pass nonconvergence detection ("a value read by a forward reference changed")
+ * compares only <b>what was read</b> (2026-10-04). Comparing all target counters (including total pages
+ * and others not read by the reference) and body text logged "increase pass-count" even for a simple
+ * table of contents laid out in two passes.
  */
 public class PageRefConvergenceTest extends TestCase {
-	/** 単純な目次を 2 パスで組むと、収束しているので記録は出ない。 */
+	/** A simple table of contents converges in two passes, so no log entry is emitted. */
 	public void testSimpleTableOfContentsIsConverged() throws Exception {
 		final String html = "<!DOCTYPE html><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta charset=\"UTF-8\"/>"
 				+ "<style>nav a::after { content: leader('.') target-counter(attr(href), page) }"
@@ -75,7 +76,9 @@ public class PageRefConvergenceTest extends TestCase {
 		return new Counter[] { new Counter("page", page), new Counter("pages", pages) };
 	}
 
-	/** 1 パス目の値を前方参照が読み、最終パスで参照先が書き直されるまでを再現する。 */
+	/**
+	 * Reproduce a forward reference reading the first-pass value before the target is rewritten in the final pass.
+	 */
 	private static PageRef readThenRewrite(final int pageBefore, final int pagesBefore, final int pageAfter,
 			final int pagesAfter, final boolean text, final String textBefore, final String textAfter) {
 		final PageRef pageRef = new PageRef();

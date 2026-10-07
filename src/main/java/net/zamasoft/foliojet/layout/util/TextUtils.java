@@ -10,7 +10,8 @@ public final class TextUtils {
 	}
 
 	/**
-	 * 空白(タブ・改行・改頁・復帰・空白と DEL)です。{@link #isControl} の字と空白を含む。
+	 * Whitespace (tab, newline, form feed, carriage return, space, and DEL).
+	 * Includes the characters in {@link #isControl} and spaces.
 	 */
 	public static boolean isWhiteSpace(char c) {
 		switch (c) {
@@ -25,7 +26,7 @@ public final class TextUtils {
 		return false;
 	}
 
-	/** 字送りを持たない制御文字(タブ・改行・改頁・復帰)です。 */
+	/** Control characters without advance (tab, newline, form feed, carriage return). */
 	public static boolean isControl(char c) {
 		switch (c) {
 		case 0x09:

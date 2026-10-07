@@ -5,7 +5,7 @@ import java.util.List;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.sizing.GridPlacementResolver.GridArea;
 
-/** row subgrid Stage 1で追加した行サイジングAPIの純粋計算テストです。 */
+/** Pure calculation tests for the row-sizing API added in row subgrid Stage 1. */
 public class GridRowSizingStage1Test extends TestCase {
 
 	private static void assertBitsEqual(final double[] expected, final double[] actual) {
@@ -15,7 +15,7 @@ public class GridRowSizingStage1Test extends TestCase {
 		}
 	}
 
-	/** 旧overloadと空の追加寄与はdoubleのbit列まで同一。 */
+	/** The old overload and empty additional contributions produce bit-identical doubles. */
 	public void testEmptyExtraIsBitIdentical() {
 		final List<List<GridArea>> areaSets = List.of(List.of(),
 				List.of(new GridArea(0, 0, 1, 1), new GridArea(1, 2, 1, 1)),
@@ -31,7 +31,7 @@ public class GridRowSizingStage1Test extends TestCase {
 		}
 	}
 
-	/** 単一行の追加寄与はitemと同じmax集約へ参加する。 */
+	/** Additional single-row contributions participate in the same max aggregation as items. */
 	public void testSingleSpanExtraContribution() {
 		final double[] h = GridRowSizing.resolve(List.of(new GridArea(0, 0, 1, 1)), new double[] { 12 }, 2,
 				4, List.of(new GridRowSizing.Contribution(0, 1, 20),
@@ -40,7 +40,7 @@ public class GridRowSizingStage1Test extends TestCase {
 		assertEquals(7.0, h[1], 0);
 	}
 
-	/** 跨る追加寄与はitemの後に同じ不足分配へ参加する。 */
+	/** Additional spanning contributions participate in the same deficit distribution after items. */
 	public void testSpanningExtraContribution() {
 		final double[] h = GridRowSizing.resolve(
 				List.of(new GridArea(0, 0, 1, 1), new GridArea(0, 1, 1, 1)),

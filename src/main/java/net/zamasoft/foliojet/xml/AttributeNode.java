@@ -4,8 +4,8 @@ import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
 
 /**
- * マークアップ言語のノードを表します。
- * 
+ * Represents a markup language node.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: AttributeNode.java 1552 2018-04-26 01:43:24Z miyabe $
  */

@@ -17,7 +17,10 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.pdfg2d.gc.text.layout.control.Control;
 
-/** sideways の used font・bidi・圏点と、通常縦組版の非回帰を固定します。 */
+/**
+ * Verifies the contracts for sideways used fonts, bidi, and emphasis marks, and protects normal vertical
+ * layout from regressions.
+ */
 public class SidewaysFoundationTest extends AbstractTestCase {
 	public SidewaysFoundationTest(final String name) {
 		super(name);

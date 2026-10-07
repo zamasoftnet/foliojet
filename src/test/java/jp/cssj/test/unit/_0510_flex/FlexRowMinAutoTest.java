@@ -8,7 +8,7 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * min-size:auto(自動最小サイズ§4.5)の統合テストです(Flex F1e)。
+ * Integration test for min-size:auto (automatic minimum size, §4.5) (Flex F1e).
  */
 public class FlexRowMinAutoTest extends AbstractTestCase {
 	public FlexRowMinAutoTest(String name) {
@@ -32,9 +32,9 @@ public class FlexRowMinAutoTest extends AbstractTestCase {
 	}
 
 	/**
-	 * 自動最小サイズ(§4.5)の床: pはbasis 10ptだがmin-content(50ptの
-	 * inline-block)が床になり、shrink方向不一致(base<hypothetical)で
-	 * 事前freeze→50pt。qはshrink 0で100pt。
+	 * Automatic minimum size floor (§4.5): p has basis 10 pt, but min-content (a 50 pt inline-block)
+	 * sets the floor. The shrink direction mismatch (base<hypothetical) freezes it in advance at 50 pt.
+	 * q has shrink 0 and stays 100 pt.
 	 */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {

@@ -10,13 +10,12 @@ import net.zamasoft.foliojet.layout.box.impl.TextBlockBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * {@code @layer}(CSS Cascade Layers、2026-07-21新設)のレイヤー順序を
- * 固定する。{@code @layer base, theme;}という文形式でレイヤー順序
- * (base &lt; theme)を先に確定させたうえで、実際のブロックは
- * {@code theme}を先・{@code base}を後(テキスト上の出現順は逆)に
- * 書いても、優先順位は文形式で確定した順序(themeが後=優先)のまま
- * であることを確認する——単なるソース出現順ではなく、レイヤー自体の
- * 出現順(文形式含む)が優先順位を決めることの直接的な証拠。
+ * Verifies layer order for {@code @layer} (CSS Cascade Layers, added on 2026-07-21).
+ * The statement form {@code @layer base, theme;} establishes layer order (base &lt; theme) first.
+ * Even when the actual blocks place {@code theme} first and {@code base} later (reverse textual order),
+ * precedence must follow the order established by the statement (theme is later and takes precedence).
+ * This directly proves that precedence follows the layers' own appearance order (including statements),
+ * not just the source order of the blocks.
  */
 public class LayerOrderTest extends AbstractTestCase {
 	public LayerOrderTest(String name) {

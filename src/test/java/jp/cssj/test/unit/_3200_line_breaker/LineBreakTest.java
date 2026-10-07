@@ -22,23 +22,24 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * CSS {@code line-break}(css-text-3 §5.2)の禁則の強さを固定するテスト
- * です(2026-08-29新設)。
+ * Tests kinsoku (line-breaking rules) strictness for CSS {@code line-break} (css-text-3 §5.2)
+ * (added on 2026-08-29).
  *
  * <p>
- * 幅100pt・10ptの和文(1行10字)で、11字目に対象文字を置く。行頭禁則の
- * 対象なら10字目ごと次行へ送られて1行目は9字、禁則から外れれば1行目は
- * 10字になる。display listの最初の{@code Text[...]}で1行目の字数を読む。
+ * Place the target character at position 11 in 10 pt Japanese text with width 100 pt (10 characters
+ * per line). If it is prohibited at line start, it moves to the next line with character 10,
+ * leaving 9 characters on line 1. If the prohibition is relaxed, line 1 has 10 characters.
+ * Read the first line's character count from the display list's first {@code Text[...]}.
  * </p>
  * <ul>
- * <li>{@code strict}(既定{@code auto}も同じ): 長音・小書き仮名・繰返し記号・
- * 中点は行頭に来ない</li>
- * <li>{@code normal}: 長音・小書き仮名・〜は行頭に来られる。繰返し記号・
- * 中点は来ない</li>
- * <li>{@code loose}: さらに繰返し記号・中点・‐・接尾辞(％)が行頭に、
- * 接頭辞(￥)の直後で分割できる。句読点(、。)は仕様どおりlooseでも
- * 行頭に来ない</li>
- * <li>{@code anywhere}: 欧文単語の途中でも分割する(strictは1行に溢れる)</li>
+ * <li>{@code strict} (also the default {@code auto}): prolonged sound marks, small kana,
+ * iteration marks, and middle dots cannot start a line.</li>
+ * <li>{@code normal}: prolonged sound marks, small kana, and 〜 can start a line;
+ * iteration marks and middle dots cannot.</li>
+ * <li>{@code loose}: additionally, iteration marks, middle dots, ‐, and suffixes (％) can start a line,
+ * and breaks are allowed immediately after prefixes (￥). Per the specification,
+ * Japanese commas/periods (、。) cannot start a line even with loose.</li>
+ * <li>{@code anywhere}: breaks even inside Latin words (strict overflows on one line).</li>
  * </ul>
  */
 public class LineBreakTest extends TestCase {
@@ -46,7 +47,10 @@ public class LineBreakTest extends TestCase {
 
 	private static final Pattern TEXT = Pattern.compile("Text\\[\"([^\"]*)\"");
 
-	/** 1行目の字数(1行10字の箱で、11字目の文字が禁則対象なら9、外れれば10)。 */
+	/**
+	 * First-line character count (in a 10-character-wide box: 9 if character 11 is prohibited at line start,
+	 * otherwise 10).
+	 */
 	private int firstLineLength(final String name, final String lineBreak, final String body) throws Exception {
 		final String dump = this.render(name, lineBreak, body);
 		final Matcher m = TEXT.matcher(dump);
@@ -93,45 +97,45 @@ public class LineBreakTest extends TestCase {
 	}
 
 	public void testIdeographicCommaStaysForbidden() throws Exception {
-		// 句読点はlooseでも行頭禁則(css-text-3の緩和表に無い)
+		// Japanese commas/periods remain prohibited at line start even with loose (not in css-text-3's relaxation table).
 		final String body = "あいうえおかきくけこ、さしすせそ";
 		assertEquals(9, this.firstLineLength("strict-touten", "strict", body));
 		assertEquals(9, this.firstLineLength("loose-touten", "loose", body));
 	}
 
 	public void testPrefixAndSuffix() throws Exception {
-		// 接尾辞％: looseだけ行頭に来られる
+		// Suffix ％: may start a line only with loose.
 		final String suffix = "あいうえおかきくけこ％さしすせそ";
 		assertEquals(9, this.firstLineLength("normal-suffix", "normal", suffix));
 		assertEquals(10, this.firstLineLength("loose-suffix", "loose", suffix));
-		// 接頭辞$: 10字目が$なら、strict/normalは$12345が不可分で$ごと次行へ、
-		// looseは$の直後で切れる(全角￥はJLREQ規則が元々後続と結んでいない)
+		// Prefix $: if character 10 is $, strict/normal keep $12345 unbreakable and move $ to the next line with it;
+		// loose allows a break immediately after $ (JLREQ rules already do not bind fullwidth ￥ to following text).
 		final String prefix = "あいうえおかきくけ$12345";
 		assertEquals(9, this.firstLineLength("normal-prefix", "normal", prefix));
 		assertEquals(10, this.firstLineLength("loose-prefix", "loose", prefix));
 	}
 
 	public void testAnywhere() throws Exception {
-		// 欧文1語は分割できず1行に溢れる。anywhereは文字の間で折り返す
+		// A single Latin word cannot split and overflows on one line. anywhere wraps between characters.
 		final String body = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz";
 		assertEquals(1, this.lineCount("strict-anywhere", "strict", body));
 		assertTrue(this.lineCount("anywhere-anywhere", "anywhere", body) >= 2);
-		// 約物の前でも切れる(strictは「け。」を送って9字)
+		// Can also break before punctuation (strict moves "け。" together, leaving 9 characters).
 		final String punct = "あいうえおかきくけこ。さしすせそ";
 		assertEquals(10, this.firstLineLength("anywhere-punct", "anywhere", punct));
 	}
 
 	public void testWordBreakCombination() throws Exception {
-		// word-break: break-all と併用してもline-breakの緩和は効く(break-allは
-		// CJK同士の禁則を残す。keep-allはCJK同士を分割しないので比較にならない)
+		// line-break relaxation also works with word-break: break-all (break-all preserves kinsoku
+		// between CJK characters; keep-all does not split CJK sequences, so it is not a meaningful comparison).
 		final String body = "あいうえおかきくけこーさしすせそ";
 		assertEquals(10, this.firstLineLength("normal-breakall", "normal; word-break: break-all", body));
 		assertEquals(9, this.firstLineLength("strict-breakall", "strict; word-break: break-all", body));
 	}
 
 	/**
-	 * word-break: break-all でも半角の約物(! ? , . ))は行頭に来ない(2026-10-06、jigensha の報告)。欧文の語の中では
-	 * 割れる。
+	 * Even with word-break: break-all, halfwidth punctuation (! ? , . )) cannot start a line
+	 * (2026-10-06, jigensha report). Breaks are allowed within Latin words.
 	 */
 	public void testBreakAllKeepsHalfWidthPunctuationOffLineStart() throws Exception {
 		final String breakAll = "strict; word-break: break-all";

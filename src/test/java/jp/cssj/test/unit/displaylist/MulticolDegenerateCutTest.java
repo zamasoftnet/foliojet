@@ -19,41 +19,40 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>内容を1つも取れない切断で、段組がライブロックしない</b>ことを固定します
- * (2026-07-27新設)。
+ * Verify that <b>multi-column layout does not livelock on cuts that take no content</b>
+ * (introduced 2026-07-27).
  *
  * <p>
- * <b>何が起きていたか。</b>段組を貫通する改ページ({@code columnSpanning})は
- * 前後の断片で枠を切らないため、継続断片は<b>始端フレームを丸ごと引き継ぎます</b>。
- * 切断線が内始端辺以上({@code pageLimit <= 0})のときにこれを適用すると、
- * 前断片は内容を1つも取らないまま、継続断片が<b>寸分違わぬ幾何</b>で
- * 再構成されます。次のページでも同じ判定が出るため、白紙ページを1枚ずつ
- * 永久に生成し続けました。ページは{@code PDFWriterImpl.pageOutputs}に
- * 保持されるのでヒープは単調増加し、最終的に{@code OutOfMemoryError}です。
+ * <b>What happened.</b>Page breaks crossing multi-column layout ({@code columnSpanning}) do not
+ * cut the frame between fragments, so the continuation <b>inherits the entire start frame</b>.
+ * Applying this with the cut line at or before the inner start edge ({@code pageLimit <= 0})
+ * leaves the previous fragment empty and reconstructs the continuation with <b>identical geometry</b>.
+ * The next page makes the same decision, endlessly generating one blank page at a time.
+ * Pages remain in {@code PDFWriterImpl.pageOutputs}, so heap usage grows monotonically
+ * until {@code OutOfMemoryError}.
  * </p>
  *
  * <p>
- * <b>なぜ既存のガードで止まらなかったか。</b>
- * {@code ContinuationStats.guardBreakProgress}は<b>直前の1回とだけ</b>
- * 比べるので、周期1の反復しか見えません。実測ではこの文書は
- * <b>2つの状態を交互に</b>行き来しており(ingest=12/depth=7と
- * ingest=12/depth=4)、連続カウンタが毎回0へ戻っていました。
- * ファジングで見つかった同一原因の6件のうち5件は周期1でガードに掛かり、
- * <b>最悪の1件だけがすり抜けた</b>のはこのためです。
+ * <b>Why the existing guard missed it.</b>{@code ContinuationStats.guardBreakProgress}
+ * compares <b>only with the immediately preceding iteration</b>, detecting only period-1 repetition.
+ * Measurements showed this document <b>alternated between two states</b>
+ * (ingest=12/depth=7 and ingest=12/depth=4), resetting the consecutive counter to 0 each time.
+ * Five of six fuzz cases with this cause had period 1 and hit the guard;
+ * this explains why <b>only the worst case escaped</b>.
  * </p>
  *
  * <p>
- * <b>この文書について。</b>60x60ptの紙にmargin 10pt(=内容40x40pt)、
- * その中にmargin 22ptのdiv——枠だけで44ptあり、内容領域を食い尽くします。
- * 1.2KBのファジング文書から縮小したもので、縦書き・画像・
- * インラインブロック・2つ目の段組はいずれも<b>無関係</b>でした。
- * 修正前は9,273ページを出して{@code OutOfMemoryError}、修正後は16ページ・2秒
- * (128MBヒープでも完走)。
+ * <b>About this document.</b>60x60 pt paper with 10 pt margins (=40x40 pt content),
+ * containing a div with 22 pt margins; the 44 pt frame alone consumes the content area.
+ * Reduced from a 1.2 KB fuzz document; vertical writing, images, inline-blocks, and
+ * the second multi-column container were all <b>irrelevant</b>.
+ * Before the fix: 9,273 pages then {@code OutOfMemoryError}. After: 16 pages in 2 seconds
+ * (completes even with a 128 MB heap).
  * </p>
  *
  * <p>
- * <b>文書を外部ファイルにしない</b>のは、相対パスの画像参照で1時間の
- * 誤診断をした前科があるためです(教訓集 §6.9h)。ここで組み立てる。
+ * <b>Keep the document inline</b> because relative image paths previously caused an hour
+ * of misdiagnosis (lessons learned §6.9h). Build it here.
  * </p>
  */
 public class MulticolDegenerateCutTest extends TestCase {
@@ -62,7 +61,7 @@ public class MulticolDegenerateCutTest extends TestCase {
 	}
 
 	/**
-	 * 枠(margin 22pt×2=44pt)が内容領域(40pt)を食い尽くす段組。
+	 * Multi-column layout whose frame (22 pt margin×2=44 pt) consumes the content area (40 pt).
 	 */
 	private static final String HTML = """
 			<?jp.cssj.property name="output.page-width" value="60pt"?>
@@ -77,15 +76,16 @@ public class MulticolDegenerateCutTest extends TestCase {
 			""";
 
 	/**
-	 * ページ数の上限。修正前は9,273ページだったので、16ページの実測に対して
-	 * 十分な余裕を取っても<b>3桁の差</b>がある。退行はここで確実に落ちる。
+	 * Page-count limit. Before the fix, 9,273 pages were produced; even with ample headroom
+	 * over the measured 16 pages, the difference is <b>three orders of magnitude</b>.
+	 * A regression reliably fails here.
 	 */
 	private static final int MAX_PAGES = 64;
 
 	/**
-	 * 打ち切り時間。退行するとOOMまで数分走る(1GBヒープで3分32秒)ので、
-	 * <b>ビルド全体を巻き込まないよう</b>ワーカースレッドで走らせて見張る。
-	 * 実測2秒に対する余裕。
+	 * Timeout. A regression runs for minutes before OOM (3 min 32 sec with a 1 GB heap),
+	 * so monitor it in a worker thread <b>to avoid affecting the entire build</b>.
+	 * Allow headroom over the measured 2 seconds.
 	 */
 	private static final long WATCHDOG_MS = 60_000L;
 
@@ -136,7 +136,7 @@ public class MulticolDegenerateCutTest extends TestCase {
 		assertTrue("ページが1枚も出ていない", pages.length > 0);
 		assertTrue("ページ数が過大 " + pages.length + " (修正前は9273ページでOOM)", pages.length <= MAX_PAGES);
 
-		// 内容が残っていること。ページ数だけ見ると「何も出さない」退行を通す
+		// Content remains. Checking only page count would let a regression that emits nothing pass.
 		final StringBuilder all = new StringBuilder();
 		for (final File page : pages) {
 			all.append(java.nio.file.Files.readString(page.toPath(), StandardCharsets.UTF_8));

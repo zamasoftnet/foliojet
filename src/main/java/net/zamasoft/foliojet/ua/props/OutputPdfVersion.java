@@ -20,7 +20,7 @@ public enum OutputPdfVersion implements PropCode {
 
 	V1_4X1("1.4X-1"),
 
-	/** PDF/X-3:2003(ISO 15930-6、PDF 1.4基底)。 */
+	/** PDF/X-3:2003 (ISO 15930-6, based on PDF 1.4). */
 	V1_4X3("1.4X-3"),
 
 	V1_7A2("1.7A-2"),
@@ -61,32 +61,33 @@ public enum OutputPdfVersion implements PropCode {
 	private static final Set<OutputPdfVersion> TAGGING_REQUIRED = EnumSet.of(V1_7A2A, V1_7A3A, V1_7UA1, V2_0UA2);
 
 	/**
-	 * フォント埋め込みが必須のプロファイル(PDF/A・PDF/X・PDF/UA)ならtrue。
+	 * True for profiles requiring font embedding (PDF/A, PDF/X, PDF/UA).
 	 */
 	public boolean requiresFontEmbedding() {
 		return EMBED_REQUIRED.contains(this);
 	}
 
 	/**
-	 * しおり・リンクの既定を false のままにするか(2026-10-04)。PDF/UA-2 は文書内の
-	 * 行き先を構造の行き先(SD)にすることを求める(ISO 14289-2 §8.8)が、Copper の
-	 * しおり・文書内リンクはページの座標を行き先にするので、既定で付けると
-	 * 不適合になる。明示した値はそのまま使う。
+	 * Whether to keep bookmarks and links disabled by default (2026-10-04).
+	 * PDF/UA-2 requires internal destinations to be structure destinations (SD)
+	 * (ISO 14289-2 §8.8), but Copper bookmarks and internal links target page coordinates,
+	 * so enabling them by default would violate conformance.
+	 * Use explicitly specified values unchanged.
 	 */
 	public boolean keepsNavigationOffByDefault() {
 		return this == V2_0UA2;
 	}
 
 	/**
-	 * PDF/Xのプロファイルならtrue。
+	 * True for PDF/X profiles.
 	 */
 	public boolean isPdfX() {
 		return this == V1_4X1 || this == V1_4X3 || this == V1_6X4 || this == V2_0X6;
 	}
 
 	/**
-	 * PDF 1.4基底のPDF/X(X-1a・X-3)なら警告に使う名前を、それ以外ならnullを返します。
-	 * どちらも透明・リンク注釈・暗号化を使えない。
+	 * Returns the warning name for PDF/X based on PDF 1.4 (X-1a, X-3); otherwise null.
+	 * Neither permits transparency, link annotations, or encryption.
 	 */
 	public String pdf14PdfXName() {
 		return switch (this) {
@@ -97,7 +98,7 @@ public enum OutputPdfVersion implements PropCode {
 	}
 
 	/**
-	 * 論理構造(タグ付きPDF)が必須のプロファイルならtrue。
+	 * True for profiles requiring logical structure (tagged PDF).
 	 */
 	public boolean requiresTagging() {
 		return TAGGING_REQUIRED.contains(this);

@@ -9,9 +9,9 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.builder.impl.FlexBuilder;
 
 /**
- * 大量item(120個)の総合回帰です(Flex F2d——record数=bind数、
- * exact fitの行分割(40pt×5=200pt)が全24行で崩れない、末尾itemと
- * 後続ブロックの座標固定)。
+ * Comprehensive regression test with many items (120) (Flex F2d).
+ * Record count = bind count; exact-fit line breaking (40 pt×5=200 pt) holds for all 24 lines.
+ * Verifies coordinates of the last item and the following block.
  */
 public class FlexWrapManyItemsTest extends AbstractTestCase {
 	public FlexWrapManyItemsTest(String name) {
@@ -38,7 +38,7 @@ public class FlexWrapManyItemsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 末尾item(#119)=24行目の5列目(x=+160、y=+23×20)。 */
+	/** Last item (#119) = fifth column of row 24 (x=+160, y=+23×20). */
 	public boolean check_last(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 160, x, 0.1);
@@ -48,7 +48,7 @@ public class FlexWrapManyItemsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 後続=24行×20ptの直後。 */
+	/** Following content sits immediately after 24 rows × 20 pt. */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseY + 480, y, 0.1);

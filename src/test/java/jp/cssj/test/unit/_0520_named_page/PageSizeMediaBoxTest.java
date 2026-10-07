@@ -12,10 +12,10 @@ import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * {@code @page size}(名前付きページN3/N4)がPDFのページ毎
- * {@code /MediaBox}まで届くことを、生成PDFのバイト列で検証します
- * (consult-codex-2026-07-31-named-pages.txt N5)。display-list goldenは
- * レイアウト座標を固定するが、PDF層のページ寸法はここでしか見えない。
+ * Checks the generated PDF bytes to verify that {@code @page size} (named pages N3/N4)
+ * reaches each PDF page's {@code /MediaBox}
+ * (consult-codex-2026-07-31-named-pages.txt N5).
+ * Display-list goldens fix layout coordinates; only this test exposes page dimensions at the PDF layer.
  */
 public class PageSizeMediaBoxTest extends AbstractTestCase {
 

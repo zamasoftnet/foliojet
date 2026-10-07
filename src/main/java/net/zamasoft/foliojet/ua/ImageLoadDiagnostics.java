@@ -14,7 +14,7 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.SourceWrapper;
 
-/** 画像取得の失敗段階を、安全な固定語で通知します。 */
+/** Reports image retrieval failure stages using safe fixed terms. */
 public final class ImageLoadDiagnostics {
 	private static final Logger LOG = Logger.getLogger(ImageLoadDiagnostics.class.getName());
 
@@ -32,7 +32,7 @@ public final class ImageLoadDiagnostics {
 		// utility class
 	}
 
-	/** 通常の画像を読みます。既知寸法を使える経路では資源を解決しません。 */
+	/** Loads a normal image. Does not resolve the resource on paths that can use known dimensions. */
 	public static Image loadImage(final UserAgent ua, final URI uri, final boolean useKnownMetrics) {
 		if (useKnownMetrics) {
 			final Image known = ua.getImageMetrics(uri);
@@ -43,7 +43,7 @@ public final class ImageLoadDiagnostics {
 		return load(ua, uri, (resolvedUri, source) -> ua.getImage(resolvedUri, source));
 	}
 
-	/** HTMLのsrcを解決し、指定されたMIME型を優先して画像を読みます。 */
+	/** Resolves an HTML src and loads the image, prioritizing the specified MIME type. */
 	public static Image loadImage(final UserAgent ua, final String uriText, final UriResolver uriResolver,
 			final String mimeType, final boolean useKnownMetrics) {
 		final URI uri = resolveUri(ua, uriText, uriResolver);
@@ -59,19 +59,19 @@ public final class ImageLoadDiagnostics {
 		return loadResolved(ua, uri, mimeType, (resolvedUri, source) -> ua.getImage(resolvedUri, source));
 	}
 
-	/** URIが既に確定している独自画像ローダを共通の診断境界で実行します。 */
+	/** Runs a custom image loader with an already resolved URI within the shared diagnostic boundary. */
 	public static <T> T load(final UserAgent ua, final URI uri, final Loader<T> loader) {
 		return loadResolved(ua, uri, null, loader);
 	}
 
-	/** 文字列からURIを作る処理も含め、独自画像ローダを共通の診断境界で実行します。 */
+	/** Runs a custom image loader, including URI construction from a string, within the shared diagnostic boundary. */
 	public static <T> T load(final UserAgent ua, final String uriText, final UriResolver uriResolver,
 			final Loader<T> loader) {
 		final URI uri = resolveUri(ua, uriText, uriResolver);
 		return uri == null ? null : loadResolved(ua, uri, null, loader);
 	}
 
-	/** FileImageInputStream等、Sourceの外で起きた取得I/O失敗を追跡状態へ戻します。 */
+	/** Records retrieval I/O failures outside Source, such as FileImageInputStream failures, in the tracking state. */
 	public static void recordFetchFailure(final Source source, final IOException failure) {
 		if (source instanceof TrackingSource tracking) {
 			tracking.failed(failure);
@@ -109,7 +109,7 @@ public final class ImageLoadDiagnostics {
 			failure = e;
 		} finally {
 			try {
-				// MySourceResolverは具象型へcastするため、wrapperではなく元を返す。
+				// MySourceResolver casts to a concrete type, so return the original rather than the wrapper.
 				ua.release(source);
 			} catch (final RuntimeException e) {
 				failed = true;
@@ -123,8 +123,8 @@ public final class ImageLoadDiagnostics {
 	}
 
 	private static String failureDetail(final TrackingSource source, final Exception failure) {
-		// 画素数の上限で断った画像(2026-10-03)。例外の文言が段階になる
-		// (「too-large 12000x12000 > 40000000」)
+		// Image rejected by the pixel-count limit (2026-10-03). The exception text becomes the stage
+		// ("too-large 12000x12000 > 40000000")
 		for (Throwable t = failure; t != null; t = t.getCause()) {
 			if (t instanceof net.zamasoft.pdfg2d.g2d.util.ImageTooLargeException tooLarge) {
 				return tooLarge.getMessage();
@@ -171,7 +171,7 @@ public final class ImageLoadDiagnostics {
 		try {
 			return safeUri(URI.create(text));
 		} catch (final IllegalArgumentException e) {
-			// 不正URIでも、明示されたauthority内のuserinfoだけは漏らさない。
+			// Even for an invalid URI, do not leak userinfo within an explicit authority.
 			final int marker = text.indexOf("//");
 			if (marker == -1) {
 				return text;
@@ -190,7 +190,7 @@ public final class ImageLoadDiagnostics {
 		}
 	}
 
-	/** SourceのI/O失敗を副状態として保持し、ローダが例外を握り潰しても失わない。 */
+	/** Retains Source I/O failures as auxiliary state so they survive even if the loader swallows exceptions. */
 	private static final class TrackingSource extends SourceWrapper implements HttpStatusSource {
 		private final String mimeType;
 		private IOException firstFetchFailure;

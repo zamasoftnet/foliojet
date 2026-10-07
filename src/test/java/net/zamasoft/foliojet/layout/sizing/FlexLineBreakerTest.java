@@ -7,8 +7,8 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.sizing.FlexLineBreaker.Line;
 
 /**
- * 行分割の純粋計算テストです(Flex F2a——答申の検証条件: exact fit、
- * 1個目oversize、zero-size末尾、gap、空item列、FP誤差境界)。
+ * Pure calculation tests for line breaking (Flex F2a; validation conditions from the recommendation:
+ * exact fit, oversized first item, zero-size trailing item, gaps, empty item sequence, FP error boundary).
  */
 public class FlexLineBreakerTest extends TestCase {
 
@@ -36,10 +36,10 @@ public class FlexLineBreakerTest extends TestCase {
 		assertLines(FlexLineBreaker.breakLines(items(50, 40), 100, 0), new int[] { 0, 2 });
 	}
 
-	/** ちょうど収まる(==)は同じ行(FP誤差もexact側へ)。 */
+	/** An exact fit (==) stays on the same line (FP error also falls on the exact-fit side). */
 	public void testExactFit() {
 		assertLines(FlexLineBreaker.breakLines(items(50, 50), 100, 0), new int[] { 0, 2 });
-		// 0.1×3=0.30000000000000004 > 0.3 だが同一行に残す
+		// 0.1×3=0.30000000000000004 > 0.3, but keep them on the same line.
 		assertLines(FlexLineBreaker.breakLines(items(0.1, 0.1, 0.1), 0.3, 0), new int[] { 0, 3 });
 	}
 
@@ -50,25 +50,25 @@ public class FlexLineBreakerTest extends TestCase {
 				new int[] { 2, 3 });
 	}
 
-	/** 単体で超過するitemも自分の行を持つ(1個目oversize)。 */
+	/** An item that overflows by itself still gets its own line (oversized first item). */
 	public void testOversizedItem() {
 		assertLines(FlexLineBreaker.breakLines(items(200, 50, 40), 100, 0), new int[] { 0, 1 },
 				new int[] { 1, 3 });
 	}
 
-	/** zero-sizeの末尾itemは前の行に残る(超過しないため)。 */
+	/** A zero-size trailing item stays on the preceding line (it does not cause overflow). */
 	public void testZeroSizeTail() {
 		assertLines(FlexLineBreaker.breakLines(items(100, 0, 0), 100, 0), new int[] { 0, 3 });
 	}
 
-	/** gapは行内のitem間にだけ数える。 */
+	/** Count gaps only between items on the same line. */
 	public void testGap() {
-		// 40+10+40=90≦100、+10+40=140>100で切る
+		// 40+10+40=90≦100; adding +10+40=140>100 breaks the line.
 		assertLines(FlexLineBreaker.breakLines(items(40, 40, 40), 100, 10), new int[] { 0, 2 },
 				new int[] { 2, 3 });
-		// gapがなければ3個収まる
+		// Without gaps, all three fit.
 		assertLines(FlexLineBreaker.breakLines(items(40, 40, 40), 120, 0), new int[] { 0, 3 });
-		// gap込みでちょうど(40+10+40+10+40=140)は同じ行
+		// An exact fit including gaps (40+10+40+10+40=140) stays on the same line.
 		assertLines(FlexLineBreaker.breakLines(items(40, 40, 40), 140, 10), new int[] { 0, 3 });
 	}
 }

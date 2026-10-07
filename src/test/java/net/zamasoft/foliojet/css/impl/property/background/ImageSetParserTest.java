@@ -29,12 +29,12 @@ import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code image-set()}(css-images-4 §4.1、2026-08-29)の候補選択テストです。
- * 出力解像度({@code getPixelsPerInch}。1x=96dpi)を超えない最大の解像度、
- * 無ければ超える中で最小の候補を選ぶこと、{@code -webkit-image-set()}・
- * 文字列URL・{@code type()}・未対応候補の読み飛ばし、そして
- * background/background-image/mask-image/content/list-style-image/
- * list-styleの各入口で同じ選択が働くことを固定する。
+ * Candidate-selection tests for {@code image-set()} (css-images-4 §4.1, 2026-08-29).
+ * Select the highest resolution not exceeding output resolution ({@code getPixelsPerInch};
+ * 1x=96 dpi), or the lowest resolution above it if none qualifies.
+ * Fix support for {@code -webkit-image-set()}, string URLs, {@code type()}, skipping unsupported
+ * candidates, and identical selection at each entry point: background/background-image/mask-image/
+ * content/list-style-image/list-style.
  */
 public class ImageSetParserTest extends TestCase {
 
@@ -114,17 +114,17 @@ public class ImageSetParserTest extends TestCase {
 	public void testClosestNotExceedingOutputResolution() {
 		assertEquals("a.png", this.chosenBackground("image-set(url(a.png) 1x, url(b.png) 2x)"));
 		assertEquals("a.png", this.chosenBackground("image-set(url(b.png) 2x, url(a.png) 1x)"));
-		// 解像度省略は1x
+		// Omitted resolution means 1x.
 		assertEquals("a.png", this.chosenBackground("image-set(url(a.png), url(b.png) 2x)"));
 		this.dpi = 192;
 		assertEquals("b.png", this.chosenBackground("image-set(url(a.png) 1x, url(b.png) 2x)"));
 		this.dpi = 144;
-		// 1.5xちょうど、超えない最大
+		// Exactly 1.5x: the highest resolution not exceeding the target.
 		assertEquals("c.png",
 				this.chosenBackground("image-set(url(a.png) 1x, url(c.png) 1.5x, url(b.png) 2x)"));
 		this.dpi = 120;
 		assertEquals("a.png", this.chosenBackground("image-set(url(a.png) 1x, url(c.png) 1.5x)"));
-		// 出力解像度を超えない候補が無ければ、超える中で最小
+		// If no candidate is at or below output resolution, choose the lowest one above it.
 		this.dpi = 96;
 		assertEquals("b.png", this.chosenBackground("image-set(url(b.png) 2x, url(c.png) 3x)"));
 		// dpi/dppx/dpcm
@@ -135,14 +135,14 @@ public class ImageSetParserTest extends TestCase {
 	public void testWebkitPrefixStringsAndType() {
 		assertEquals("a.png", this.chosenBackground("-webkit-image-set(url(\"a.png\") 1x, url(\"b.png\") 2x)"));
 		assertEquals("a.png", this.chosenBackground("image-set(\"a.png\" 1x, \"b.png\" 2x)"));
-		// 未対応MIMEのtype()付き候補は飛ばす。type()の順序はどちらでも
+		// Skip candidates with type() specifying an unsupported MIME type. type() may appear in either order.
 		assertEquals("a.png", this.chosenBackground(
 				"image-set(\"x.avif\" type(\"image/avif\"), \"a.png\" type(\"image/png\"), url(b.png) 2x type(\"image/png\"))"));
 		assertEquals("a.png", this.chosenBackground("image-set(url(a.png) type(\"image/png\") 1x)"));
-		// image()やグラデーションの候補は飛ばし、残りから選ぶ
+		// Skip image() and gradient candidates; select from the remainder.
 		assertEquals("a.png",
 				this.chosenBackground("image-set(linear-gradient(red, blue) 1x, image(\"z.png\") 1x, url(a.png) 1x)"));
-		// 採れる候補が無ければ宣言無効
+		// If no candidate can be selected, the declaration is invalid.
 		assertNull(this.parseRaw("background-image", "image-set(linear-gradient(red, blue) 1x)"));
 		assertNull(this.parseRaw("background-image", "image-set()"));
 	}

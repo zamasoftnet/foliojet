@@ -18,65 +18,62 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>WPTコーパスで見つかった不具合</b>の回帰テストです(2026-07-28新設)。
+ * Regression tests for <b>defects found in the WPT corpus</b> (introduced on 2026-07-28).
  *
  * <p>
- * WPT(`css/css-break`・`css-multicol`・`css-page`)の2,409文書を不変条件
- * 1〜3(例外で中断しない・停止する・ページ数が有界)にかけて見つけたもの
- * です({@link WptCorpusTest})。<b>20万文書のランダム掃過では1件も出て
- * いません</b>——生成器が作らない形(インラインの中のぶち抜き、
- * {@code column-width:0}、32bit幅の枠線)を突いたためです。
+ * These were found by checking 2,409 WPT documents (`css/css-break`, `css-multicol`, `css-page`)
+ * against invariants 1–3 (no termination by exception, termination, bounded page count)
+ * ({@link WptCorpusTest}). <b>None appeared in the random sweep of 200,000 documents</b>:
+ * they exercised forms the generator does not produce (a spanner inside an inline,
+ * {@code column-width:0}, and a border with a 32-bit width).
  * </p>
  *
  * <p>
- * <b>再現条件は問題ごとに違います。</b> ぶち抜きと枠線は既定のA4でも落ちますが、
- * {@code column-width:0}は<b>小さい紙面でないと再現しません</b>。掃過が
- * 120x120ptで回しているのはそのためで、テストも同じ条件を作ります。
- * 「小さい紙面でだけページ数が爆発する」種類(grid等)は、退化した幾何の
- * 問題として別に扱います(`開発メモ`)。
+ * <b>Reproduction conditions differ by defect.</b> Spanners and borders fail even on default A4,
+ * but {@code column-width:0} <b>requires a small page to reproduce</b>. This is why the sweep
+ * uses 120x120 pt; these tests create the same conditions. Cases where page counts explode
+ * only on small pages (grid, etc.) are handled separately as degenerate geometry issues
+ * (`開発メモ`).
  * </p>
  *
- * <h2>機序: インラインの中の{@code column-span:all}</h2>
+ * <h2>Mechanism: {@code column-span:all} inside an inline</h2>
  *
  * <p>
- * 2,409文書中10件が同一原因で
+ * Ten of the 2,409 documents failed with
  * {@code IndexOutOfBoundsException: Index -1 out of bounds for length 0}
- * になっていました。
+ * from the same cause.
  * </p>
  *
  * <p>
- * {@code DocumentBuilder.startBox}のFLOW分岐は、ぶち抜き
- * ({@code column-span:all})のとき<b>{@code startColumnSpan}を先に</b>
- * 呼び、そのあとで{@code closeInlines}していました。
- * {@code startColumnSpan}は段組を抜けるために{@code endFlowBlock}まで
- * 戻すので、その時点で{@code containerBuilder}が差し替わります。
- * すると{@code closeInlines}が出す{@code endInline}は、<b>対応する
- * {@code startInline}を見ていない新しい{@code StyledTextUnitizer}</b>へ
- * 届きます。その{@code InlineParamsStack}は根しか積んでいないため、
- * popが根を外し、{@code current()}が空リストを引いて落ちます。
+ * For a spanner ({@code column-span:all}), the FLOW branch of {@code DocumentBuilder.startBox}
+ * called <b>{@code startColumnSpan} first</b>, then {@code closeInlines}.
+ * {@code startColumnSpan} unwound through {@code endFlowBlock} to exit multi-column layout,
+ * replacing {@code containerBuilder} in the process. The {@code endInline} emitted by
+ * {@code closeInlines} then reached <b>a new {@code StyledTextUnitizer} that had never seen
+ * the corresponding {@code startInline}</b>. Its {@code InlineParamsStack} contained only the root,
+ * so pop removed that root and {@code current()} failed on the empty list.
  * </p>
  *
  * <p>
- * 開いているインラインは<b>ぶち抜き前の文脈で開かれた</b>ものなので、
- * その文脈で閉じなければなりません——{@code closeInlines}を先に、
- * 復元({@code restoreInlines})は{@code endColumnSpan}の後に、と
- * 入れ子を正しました。
+ * Open inlines were <b>opened in the context before the spanner</b> and must be closed in that context.
+ * The nesting was corrected by moving {@code closeInlines} first and restoring inlines
+ * ({@code restoreInlines}) after {@code endColumnSpan}.
  * </p>
  *
  * <p>
- * <b>まだ直っていない場合があります</b>: ぶち抜きがインラインの中の
- * <b>ブロックのさらに中</b>にあると、{@code startColumnSpan}自身が
- * {@code restoreInlines}でインラインを開き直したうえで
- * {@code endFlowBlock}するため、同じ型の不均衡が残ります
- * ({@code multicol-span-all-children-height-010}等2件)。
- * {@code InlineParamsStack.pop}に番人を置くだけでは<b>別のnullへ
- * ずれるだけ</b>で直らないことを確認済みです(`開発メモ`)。
+ * <b>Some cases remain unfixed</b>: if the spanner is <b>inside a block that is itself inside an
+ * inline</b>,
+ * {@code startColumnSpan} itself reopens inlines with {@code restoreInlines} before calling
+ * {@code endFlowBlock}, leaving the same kind of imbalance
+ * (two cases, including {@code multicol-span-all-children-height-010}).
+ * A guard in {@code InlineParamsStack.pop} alone was confirmed to <b>merely shift the failure
+ * to another null</b>, not fix it (`開発メモ`).
  * </p>
  */
 public class WptRegressionTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 1文書あたりの上限時間。通常は1秒未満で終わる。 */
+	/** Time limit per document. Normally completes in under one second. */
 	private static final long WATCHDOG_MS = 60_000L;
 
 	public WptRegressionTest(String name) {
@@ -84,9 +81,9 @@ public class WptRegressionTest extends TestCase {
 	}
 
 	/**
-	 * 最小形。{@code <span>}の直下にぶち抜きブロックがある。
-	 * WPTの{@code css-multicol/spanner-in-child-after-parallel-flow-003}
-	 * 等がこの形。
+	 * Minimal form: a spanning block directly inside a {@code <span>}.
+	 * WPT cases such as {@code css-multicol/spanner-in-child-after-parallel-flow-003}
+	 * have this form.
 	 */
 	private static final String SPANNER_IN_INLINE = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
@@ -101,10 +98,10 @@ public class WptRegressionTest extends TestCase {
 			""";
 
 	/**
-	 * ぶち抜きの前にインラインの内容がある形
-	 * ({@code css-multicol/multicol-span-all-019}の骨格)。
-	 * インラインが実際に文字を持っていると、{@code endInline}が
-	 * グリフパイプラインを通るため経路が変わる。
+	 * A form with inline content before the spanner
+	 * (the skeleton of {@code css-multicol/multicol-span-all-019}).
+	 * If the inline actually contains characters, {@code endInline} passes through the glyph pipeline,
+	 * changing the path.
 	 */
 	private static final String SPANNER_IN_INLINE_WITH_TEXT = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
@@ -122,7 +119,7 @@ public class WptRegressionTest extends TestCase {
 			</body></html>
 			""";
 
-	/** ぶち抜きが置換要素の場合({@code addReplacedBox}側の同じ順序)。 */
+	/** A replaced element as the spanner (the same ordering on the {@code addReplacedBox} side). */
 	private static final String REPLACED_SPANNER_IN_INLINE = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
 			<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -144,25 +141,25 @@ public class WptRegressionTest extends TestCase {
 	}
 
 	/**
-	 * ぶち抜きが<b>インラインの中のブロックのさらに中</b>にある形
-	 * (2026-07-28、WPT {@code multicol-span-all-children-height-010} と
-	 * {@code inline-with-spanner-in-overflowed-container-before-multicol-float})。
+	 * A spanner <b>inside a block that is itself inside an inline</b>
+	 * (2026-07-28, WPT {@code multicol-span-all-children-height-010} and
+	 * {@code inline-with-spanner-in-overflowed-container-before-multicol-float}).
 	 *
 	 * <p>
-	 * 直接の子である場合(上の2件)とは<b>発生箇所が違う</b>。
-	 * {@code startColumnSpan}は段組を抜けるために祖先のフローブロックを
-	 * 順に閉じるが、各周回の最後で{@code restoreInlines}を呼んでいたため、
-	 * <b>開き直したインラインが次の周回の{@code endContainer()}を跨いで</b>
-	 * いた。{@code endContainer}は{@code textParamsStack}の先頭を外し、
-	 * さらに{@code textShaper}(=その先の{@code InlineParamsStack})を
-	 * 捨てるので、閉じるときに<b>3つのスタックが同時にずれる</b>。
+	 * <b>The failure occurs at a different point</b> from the direct-child cases (the two above).
+	 * {@code startColumnSpan} closes ancestor flow blocks in turn to exit multi-column layout,
+	 * but it called {@code restoreInlines} at the end of each iteration, so
+	 * <b>reopened inlines crossed the next iteration's {@code endContainer()}</b>.
+	 * {@code endContainer} removes the top of {@code textParamsStack} and discards
+	 * {@code textShaper} (and thus its {@code InlineParamsStack}), causing <b>three stacks to
+	 * become misaligned simultaneously</b> when closing.
 	 * </p>
 	 *
 	 * <p>
-	 * この{@code restoreInlines}は{@code startBox}の{@code closeInlines}と
-	 * 対になるべき登録を<b>先取り</b>していた——対の相手は本来
-	 * {@code endBox}側である。先取りをやめ、{@code endColumnSpan}側の
-	 * 対応する{@code closeInlines}も外した。
+	 * This {@code restoreInlines} <b>prematurely performed</b> registration that should pair with
+	 * {@code closeInlines} in {@code startBox}; the matching operation belongs on the {@code endBox} side.
+	 * The premature registration was removed, along with the corresponding {@code closeInlines}
+	 * in {@code endColumnSpan}.
 	 * </p>
 	 */
 	private static final String SPANNER_IN_BLOCK_IN_INLINE = """
@@ -186,43 +183,42 @@ public class WptRegressionTest extends TestCase {
 	}
 
 	/**
-	 * {@code column-width:0}が現実的な時間で終わること(2026-07-28、WPT
-	 * {@code css-multicol/zero-column-width-layout.html})。
+	 * {@code column-width:0} completes in a practical time (2026-07-28, WPT
+	 * {@code css-multicol/zero-column-width-layout.html}).
 	 *
 	 * <p>
-	 * css-multicol-1 §3.1は「{@code column-width:0}は指定値・計算値としては
-	 * 正当だが、<b>使用値が1pxを下回ることはない</b>」と定めています。
-	 * 丸めないと{@code LayoutUtils.getColumnCount}の除算が0除算になり、
-	 * {@code (int)Infinity} = 2,147,483,647段を作ろうとします。
+	 * css-multicol-1 §3.1 states that {@code column-width:0} is valid as a specified and computed value,
+	 * but <b>the used value is never less than 1px</b>. Without clamping, the division in
+	 * {@code LayoutUtils.getColumnCount} divides by zero and attempts to create
+	 * {@code (int)Infinity} = 2,147,483,647 columns.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>厳密には無限ループではなく「極端に遅い」</b>——実測すると修正前でも
-	 * <b>約50秒</b>で終わります。掃過の打ち切りが30秒なので「停止しない」と
-	 * 分類されていました。したがってこのテストは<b>短い予算</b>で測ります
-	 * ——既定の60秒だと修正を戻しても緑のままで、回帰を検出できません
-	 * (2026-07-28に実際に踏んだ)。修正後は1秒未満です。
+	 * <b>Strictly speaking, this is extremely slow, not an infinite loop</b>: measurements showed that
+	 * even before the fix, it completed in <b>about 50 seconds</b>. The sweep classified it as nontermination
+	 * because its timeout is 30 seconds. This test therefore uses <b>a short budget</b>:
+	 * with the default 60 seconds, reverting the fix would still pass and miss the regression
+	 * (actually encountered on 2026-07-28). After the fix, it takes less than one second.
 	 * </p>
 	 */
 	public void testZeroColumnWidthIsFast() throws Exception {
-		// **文書は組み立てず、WPTの原本をそのまま使う**
+		// **Use the original WPT document directly instead of constructing a document.**
 		// (files/unittest/0490-robustness/wpt-zero-column-width.html)。
-		// 骨格だけを写した最小形をいくつも試したが、どれも再現しなかった。
-		// **小さい紙面**も必須で、しかもPIではなくセッションプロパティで
-		// 与えないと再現しない(WPTの掃過と同じ経路にすること)
+		// Several minimal forms copying only the skeleton were tried, but none reproduced the failure.
+		// A **small page** is also essential, and it must be supplied through session properties,
+		// not a PI, to reproduce it (use the same path as the WPT sweep).
 		convertWithinFile("wpt-zero-column-width.html", "120x120", 15_000L);
 	}
 
 	/**
-	 * 巨大な{@code border-width}でも変換が失敗しないこと(2026-07-28、WPT
-	 * {@code css-break/grid/grid-large-end-border-crash.html})。
+	 * Conversion does not fail even with a huge {@code border-width} (2026-07-28, WPT
+	 * {@code css-break/grid/grid-large-end-border-crash.html}).
 	 *
 	 * <p>
-	 * {@code 4294967295px}は3.22e9ptになり、
-	 * {@code BackgroundBorderDrawable}の「描画高が異常」assertで<b>変換が
-	 * 失敗</b>していました。{@code Border.MAX_WIDTH}へ丸めます——
-	 * {@code colspan}/{@code rowspan}をHTML Standardの上限へ丸めたのと
-	 * 同じ立場です。
+	 * {@code 4294967295px} becomes 3.22e9 pt and caused <b>conversion to fail</b> at the
+	 * abnormal-drawing-height assertion in {@code BackgroundBorderDrawable}.
+	 * Clamp it to {@code Border.MAX_WIDTH}, taking the same approach as clamping
+	 * {@code colspan}/{@code rowspan} to the HTML Standard limits.
 	 * </p>
 	 */
 	public void testHugeBorderWidthDoesNotFail() throws Exception {
@@ -247,21 +243,20 @@ public class WptRegressionTest extends TestCase {
 	}
 
 	/**
-	 * 文書を別スレッドで変換し、{@link #WATCHDOG_MS}以内に例外なく
-	 * 終わることを確認します({@code SpanRobustnessTest}と同じ形)。
+	 * Convert the document on a separate thread and check that it completes without exceptions
+	 * within {@link #WATCHDOG_MS} (the same form as {@code SpanRobustnessTest}).
 	 */
 	private static void convertWithin(final String name, final String html) throws Exception {
 		convertWithin(name, html, null);
 	}
 
 	/**
-	 * {@code files/unittest/0490-robustness/}に置いた文書をそのまま変換します。
+	 * Convert documents in {@code files/unittest/0490-robustness/} as they are.
 	 *
 	 * <p>
-	 * 他のケースは文書をここで組み立てますが(教訓集 §6.9h)、
-	 * <b>骨格を写すと再現しない</b>ものはWPTの原本を取り込んで使います。
-	 * 再現しない最小形で固定しても、修正を戻したときに落ちないので
-     * 回帰テストになりません。
+	 * Other cases construct documents here (教訓集 §6.9h), but cases that <b>cannot be reproduced by
+	 * copying the skeleton</b> use imported WPT originals. Fixing expectations against a minimal form
+	 * that does not reproduce the failure is not a regression test: it does not fail when the fix is reverted.
 	 * </p>
 	 */
 	private static void convertWithinFile(final String fileName, final String pageSize, final long budgetMs)
@@ -274,11 +269,11 @@ public class WptRegressionTest extends TestCase {
 	}
 
 	/**
-	 * @param pageSize {@code "120x120"}(pt)のような紙面指定。{@code null}なら既定。
-	 *                 <b>PIではなくセッションプロパティで与えます</b>——WPTの掃過
-	 *                 ({@link WptCorpusTest})がそうしているためで、PIで書くと
-	 *                 同じ条件にならず、修正を戻してもテストが緑のままになります
-	 *                 (2026-07-28に実際に踏んだ)
+	 * @param pageSize page dimensions such as {@code "120x120"} (pt); {@code null} uses the default.
+	 *                  <b>Supply this through session properties, not a PI</b>, because that is what
+	 *                  the WPT sweep ({@link WptCorpusTest}) uses. A PI does not create the same
+	 *                  conditions, and the test still passes when the fix is reverted
+	 *                  (actually encountered on 2026-07-28).
 	 */
 	private static void convertWithin(final String name, final String html, final String pageSize) throws Exception {
 		final File dir = new File("local/unittest/wpt-regression");
@@ -291,7 +286,7 @@ public class WptRegressionTest extends TestCase {
 		runWithin(name, input, new File(dir, name + ".pdf"), pageSize, WATCHDOG_MS);
 	}
 
-	/** 別スレッドで変換し、{@code budgetMs}以内に例外なく終わることを確認します。 */
+	/** Convert on a separate thread and check that it completes without exceptions within {@code budgetMs}. */
 	private static void runWithin(final String name, final File input, final File pdf, final String pageSize,
 			final long budgetMs) throws Exception {
 		final Throwable[] failure = new Throwable[1];

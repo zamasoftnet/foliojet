@@ -14,7 +14,7 @@ import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 縮小作業用: -Dfoliojet.convertOne=<path> の文書を1件変換する。 */
+/** For reduction work: converts one document specified by -Dfoliojet.convertOne=<path>. */
 public class ConvertOneTest extends TestCase {
 	public ConvertOneTest(String name) {
 		super(name);

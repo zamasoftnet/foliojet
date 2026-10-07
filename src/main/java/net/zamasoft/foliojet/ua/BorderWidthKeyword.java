@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.ua;
 
 /**
- * border-width のキーワードです。
+ * Keywords for border-width.
  */
 public enum BorderWidthKeyword {
 	THIN, MEDIUM, THICK;

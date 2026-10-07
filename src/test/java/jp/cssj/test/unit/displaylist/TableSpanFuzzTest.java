@@ -28,37 +28,37 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 表のセル連結({@code rowspan}/{@code colspan})に絞ったランダム検査です
- * (2026-07-25新設)。
+ * Random checks focused on table cell spanning ({@code rowspan}/{@code colspan})
+ * (added 2026-07-25).
  *
  * <p>
- * セル連結は<b>グリッドの占有管理・ページ分割・つぶし境界・自動幅・
- * 2つのビルダー(行単位/表全体)・縦書き</b>のすべてと交差します。
- * 2026-07-25に見つかった不具合3件はいずれもこの交点でした——
- * 巨大spanのOOM、rowspanのintオーバーフロー、つぶし境界のnull参照。
- * 交点は人間が固定文書で網羅しきれないため、ここを直接サンプリングします。
+ * Cell spanning intersects <b>grid occupancy management, page splitting, collapsed borders, auto width,
+ * both builders (row-wise/entire-table), and vertical writing</b>.
+ * All three defects found on 2026-07-25 occurred at these intersections:
+ * huge-span OOM, rowspan int overflow, and a null reference in collapsed borders.
+ * Humans cannot cover every intersection with fixed documents, so sample them directly here.
  * </p>
  *
- * <h2>検査する不変条件</h2>
+ * <h2>Invariants to check</h2>
  *
  * <ol>
- * <li><b>例外で中断しない・停止する</b></li>
- * <li><b>セルが1つも消えない</b>——各セルに埋めた一意なトークンが、
- * すべて出力に現れる。<b>これがこのテストの主眼</b>。連結の占有管理を
- * 間違えるとセルが上書き・欠落するが、画像比較でも表示リストgoldenでも
- * 「そういうレイアウト」と区別がつかない</li>
- * <li><b>意図しない白紙ページがない</b></li>
+ * <li><b>No exception aborts; conversion terminates</b></li>
+ * <li><b>No cell disappears</b>: all unique tokens embedded in cells appear in the output.
+ * <b>This is the main focus of this test.</b> Incorrect span occupancy management overwrites
+ * or loses cells, but neither image comparisons nor display-list goldens can distinguish
+ * that from "the intended layout".</li>
+ * <li><b>No unintended blank pages</b></li>
  * </ol>
  *
  * <p>
- * <b>{@code table-layout: fixed}では不変条件2を課しません</b>——最初の行が
- * 列数を決め、それを超える列に落ちるセルは仕様どおり描画されないため
- * (CSS 2.1 §17.5.2.1)。この区別を入れる前は5シードが「消失」で落ちたが、
- * いずれも仕様どおりの挙動だった(オラクル側の誤り)。
+ * <b>Do not impose invariant 2 for {@code table-layout: fixed}</b>: the first row determines
+ * the column count, and cells in columns beyond that count are not painted, as specified
+ * (CSS 2.1 §17.5.2.1). Before making this distinction, five seeds failed for "loss",
+ * but all behaved according to the specification (an oracle error).
  *
  * <p>
- * ページを跨ぐ表を意図的に作るため、ページは小さく・行数は多めにします。
- * {@code -Dfoliojet.fuzzSeeds}で件数を増やせます。
+ * Use small pages and many rows to deliberately create tables spanning pages.
+ * Increase the case count with {@code -Dfoliojet.fuzzSeeds}.
  * </p>
  */
 public class TableSpanFuzzTest extends TestCase {
@@ -159,9 +159,9 @@ public class TableSpanFuzzTest extends TestCase {
 		assertTrue("白紙ページ " + blanks + " (" + html + ")", blanks.isEmpty());
 
 		if (doc.fixedLayout) {
-			// table-layout: fixed は最初の行が列数を決め、それを超える列に
-			// 落ちるセルは**仕様どおり描画されない**(CSS 2.1 §17.5.2.1)。
-			// したがって消失を欠陥として扱えるのは auto のときだけ
+			// With table-layout: fixed, the first row determines the column count; cells in columns beyond it
+			// are **not painted, as specified** (CSS 2.1 §17.5.2.1).
+			// Therefore, loss counts as a defect only for auto.
 			return;
 		}
 		final String all = String.join("|", seen);
@@ -196,7 +196,7 @@ public class TableSpanFuzzTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 生成器
+	// Generator
 	// ------------------------------------------------------------------
 
 	private record Generated(String html, List<String> tokens, boolean fixedLayout) {
@@ -212,7 +212,7 @@ public class TableSpanFuzzTest extends TestCase {
 		final boolean collapse = r.nextBoolean();
 		final boolean fixed = r.nextBoolean();
 		final String wm = WRITING_MODES[r.nextInt(WRITING_MODES.length)];
-		// ページを跨がせるため小さめ
+		// Small enough to force page crossings.
 		final int pw = 120 + r.nextInt(200);
 		final int ph = 80 + r.nextInt(160);
 
@@ -248,7 +248,7 @@ public class TableSpanFuzzTest extends TestCase {
 			appendRows(s, r, tokens, counter, 1 + r.nextInt(2), cols, "td");
 			s.append("</tfoot>\n");
 		}
-		// 本体は複数の行グループに分ける(グループ境界とspanの交差を狙う)
+		// Split the body into multiple row groups (target intersections of group boundaries and spans).
 		final int groups = 1 + r.nextInt(3);
 		for (int g = 0; g < groups; ++g) {
 			s.append("<tbody>\n");
@@ -268,7 +268,7 @@ public class TableSpanFuzzTest extends TestCase {
 			final int n = 1 + r.nextInt(cols);
 			for (int x = 0; x < n; ++x) {
 				s.append('<').append(cellTag);
-				// span は「収まる値」「はみ出す値」を両方出す
+				// Generate span values that both fit and overflow.
 				if (r.nextInt(3) == 0) {
 					s.append(" colspan=\"").append(1 + r.nextInt(cols + 2)).append('"');
 				}

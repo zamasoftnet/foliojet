@@ -19,25 +19,24 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * メッセージハンドラへ通知されるコードの契約です(2026-08-02新設)。
+ * Contract for codes reported to the message handler (introduced on 2026-08-02).
  *
  * <p>
- * <b>この層のテストが1つも無かった。</b> 説明書(5200_messages.md)は
- * ページ番号・見出し・パス・タイトルや各種警告のコードを定めているが、
- * 実際に通知されるかは確かめられていなかった。メッセージは<b>利用者が
- * 変換の進行と異常を知る唯一の口</b>で、止まっていても出力は出るため
- * 気づきにくい。
+ * <b>There were no tests at this layer.</b> The manual (5200_messages.md) defines codes for
+ * page numbers, headings, passes, titles, and various warnings, but nobody had checked that they
+ * were actually reported. Messages are <b>the user's only way to learn conversion progress
+ * and errors</b>; output still appears if reporting stops, so failures are hard to notice.
  * </p>
  */
 public class MessageCodeTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 見出しとタイトルを持ち、2ページになる文書。 */
+	/** A document with headings and a title that produces two pages. */
 	private static final File HEADINGS = new File("files/unittest/ioprops/headings.html");
 
 	private static final File WITH_IMAGE = new File("files/unittest/ioprops/link-and-image.html");
 
-	/** 存在しない画像を参照する文書。 */
+	/** A document referencing a nonexistent image. */
 	private static final File MISSING_IMAGE = new File("files/unittest/ioprops/missing-image.html");
 
 	private final List<Short> codes = new ArrayList<>();
@@ -45,7 +44,7 @@ public class MessageCodeTest extends TestCase {
 	private final List<String> args0 = new ArrayList<>();
 	private final List<String[]> messageArgs = new ArrayList<>();
 
-	/** 1801: ページの開始が通知されること。 */
+	/** 1801: report the start of a page. */
 	public void testPageNumber() throws Exception {
 		this.convert(HEADINGS, props());
 		assertTrue("ページ番号(1801)が通知されること: " + this.codes,
@@ -53,11 +52,11 @@ public class MessageCodeTest extends TestCase {
 	}
 
 	/**
-	 * 1802: 見出しが通知されること。
+	 * 1802: report headings.
 	 *
 	 * <p>
-	 * <b>しおりかページ参照が有効なときだけ通知される</b>(2026-08-02に
-	 * 実装で確認。見出しの走査自体がその条件下でしか行われない)。
+	 * <b>Reported only when bookmarks or page references are enabled</b> (confirmed in the implementation
+	 * on 2026-08-02; heading scanning itself only runs under that condition).
 	 * </p>
 	 */
 	public void testHeading() throws Exception {
@@ -67,13 +66,13 @@ public class MessageCodeTest extends TestCase {
 				this.args0.stream().anyMatch(a -> a != null && a.contains("PROBE-HEADING")));
 	}
 
-	/** 1805: タイトルが通知されること。 */
+	/** 1805: report the title. */
 	public void testTitle() throws Exception {
 		this.convert(HEADINGS, props());
 		assertTrue("タイトル(1805)が通知されること", this.codes.contains((short) 0x1805));
 	}
 
-	/** 1803: 複数パスならパス番号が通知されること。 */
+	/** 1803: report pass numbers for multiple passes. */
 	public void testPassCount() throws Exception {
 		this.convert(HEADINGS, props("processing.pass-count", "2", "processing.page-references", "true"));
 		assertTrue("パス番号(1803)が通知されること: " + this.codes,
@@ -81,12 +80,12 @@ public class MessageCodeTest extends TestCase {
 	}
 
 	/**
-	 * 参照先が存在しない資源があれば警告が出ること。
+	 * Warn when a referenced resource does not exist.
 	 *
 	 * <p>
-	 * ACLで除外しても<b>警告にはならない</b>——{@code file:}資源は
-	 * 差し込まれたリゾルバが解決してACLを通らないため(PLAN §3の
-	 * 判断待ち項目)。ここでは実際に存在しないURIを参照する。
+	 * Excluding it through an ACL <b>does not produce a warning</b>: the injected resolver resolves
+	 * {@code file:} resources without passing through the ACL (awaiting a decision in PLAN §3).
+	 * Here, reference an actually nonexistent URI.
 	 * </p>
 	 */
 	public void testBrokenResourceWarning() throws Exception {
@@ -109,7 +108,7 @@ public class MessageCodeTest extends TestCase {
 		assertTrue("画像警告(2811)が通知されること: " + this.codes, found);
 	}
 
-	/** 不正な入出力プロパティは警告になること(値が壊れていても変換は続く)。 */
+	/** Invalid I/O properties produce warnings (conversion continues even with malformed values). */
 	public void testBadPropertyWarning() throws Exception {
 		this.convert(HEADINGS, props("output.page-width", "not-a-length"));
 		assertFalse("不正な値が警告として通知されること: " + this.codes, warnings().isEmpty());

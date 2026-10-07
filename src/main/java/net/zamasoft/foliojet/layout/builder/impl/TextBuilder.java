@@ -50,17 +50,17 @@ import net.zamasoft.pdfg2d.gc.text.layout.control.Tab;
 import net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace;
 
 /**
- * テキストブロックを構築します。
- * 
+ * Builds a text block.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: TextBuilder.java 1593 2019-12-03 07:02:17Z miyabe $
  */
 public class TextBuilder {
 
 	/**
-	 * タブ1つの送り幅を返します(tab-size、2026-08-29)。行頭からの位置
-	 * {@code lineAxis}を次のタブ位置(タブ幅の整数倍)まで進める量。
-	 * タブ幅が0以下なら進めない(仕様: 0はタブを幅なしにする)。
+	 * Returns the advance for one tab (tab-size, 2026-08-29): the distance from the position {@code lineAxis},
+	 * measured from line start, to the next tab stop (an integer multiple of tab width). Does not advance if tab width
+	 * is nonpositive (specification: 0 makes tabs zero-width).
 	 */
 	static double tabAdvance(final AbstractTextParams params, final double lineAxis) {
 		double width = params.tabSize;
@@ -73,7 +73,7 @@ public class TextBuilder {
 		return width - (lineAxis % width);
 	}
 
-	/** 制御文字が属する(最も内側の)テキストパラメータです。 */
+	/** The innermost text parameters to which the control character belongs. */
 	private AbstractTextParams currentTextParams() {
 		if (this.textParamStack == null || this.textParamStack.isEmpty()) {
 			return this.lineBox.getTextParams();
@@ -82,8 +82,8 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 配置されたインラインボックスです。
-	 * 
+	 * A placed inline box.
+	 *
 	 * @author MIYABE Tatsuhiko
 	 * @version $Id: TextBuilder.java 1593 2019-12-03 07:02:17Z miyabe $
 	 */
@@ -100,43 +100,43 @@ public class TextBuilder {
 	private final byte paragraphDirection;
 
 	/**
-	 * 最も近い祖先の{@code line-clamp}の状態(無ければnull。2026-08-29)。
-	 * 行を{@link #addLine}するたびに数え、N行を超えた行は捨てる。
+	 * State of the nearest ancestor's {@code line-clamp} (null if absent; 2026-08-29). Counts every {@link #addLine}
+	 * and discards lines beyond N.
 	 */
 	private final net.zamasoft.foliojet.layout.builder.LineClampState lineClamp;
 
 	/**
-	 * 構築中のテキストブロック。
+	 * Text block under construction.
 	 */
 	TextBlockBox textBlockBox;
 
 	/**
-	 * 構築中のインラインボックスのスタック。
+	 * Stack of inline boxes under construction.
 	 */
 	private List<Inline> inlineStack = null;
 
 	private List<InlineBox> textParamStack = null;
 
 	/**
-	 * 行頭、最初、直前での改行のユニットを示すフラグ。
+	 * Flags indicating the units at line start, the beginning, and the preceding break.
 	 */
 	private boolean lineHead, firstUnit, last;
 
-	/** この要素の最初の整形行をまだ確定していない。 */
+	/** The first formatted line of this element has not yet been finalized. */
 	private boolean firstFormattedLine;
 
 	/**
-	 * 次のインラインまたはテキストの追加で改行する
+	 * Breaks the line on the next inline or text addition.
 	 */
 	private boolean toLineFeed = false;
 
 	/**
-	 * スペースのつぶし、折り返し。
+	 * Space collapsing and wrapping.
 	 */
 	private boolean collapseSpaces, wrap;
 
 	/**
-	 * 単語の分割
+	 * Word splitting.
 	 */
 	private byte breakWord;
 
@@ -155,16 +155,15 @@ public class TextBuilder {
 	private double unitAdvance = 0;
 
 	/**
-	 * 最後に収まった分割機会。
+	 * Last break opportunity that fit.
 	 */
 	private BreakOpportunity opportunity = BreakOpportunity.NONE;
 
 	/**
-	 * Knuth-Plass行分割({@code text-wrap-style: pretty})の選択済み
-	 * breakpoint列です(2026-07-23、M3c増分3)。{@link TotalFitSession}の
-	 * 最適化再生中のみ非null——このインスタンスに束縛され、行間改ページで
-	 * 新しいTextBuilderに差し替わった場合は引き継がれない(残りはlegacyの
-	 * 貪欲法で組まれる)。既定(legacy)経路では常にnullで挙動不変。
+	 * Selected breakpoint sequence for Knuth-Plass line breaking ({@code text-wrap-style: pretty}) (2026-07-23, M3c
+	 * increment 3). Non-null only during optimized replay by {@link TotalFitSession}. Bound to this instance; not
+	 * carried over if a page break between lines replaces it with a new TextBuilder (the remainder uses the legacy
+	 * greedy algorithm). Always null on the default legacy path, leaving behavior unchanged.
 	 */
 	TotalFitProjection.Plan totalFitPlan = null;
 
@@ -201,8 +200,8 @@ public class TextBuilder {
 	}
 
 	/**
-	 * テキストパラメータを切り替えます。
-	 * 
+	 * Switches text parameters.
+	 *
 	 * @param params
 	 */
 	private void changeTextState(AbstractTextParams params) {
@@ -240,33 +239,32 @@ public class TextBuilder {
 			this.breakWord = AbstractTextParams.WORD_WRAP_NORMAL;
 		}
 		this.letterSpacing = LayoutUtils.computeLength(params.letterSpacing, this.builder.getFlowBox().getLineSize());
-		// 和文詰めA2/A3/T1b: 実効フラグ・trim policyの追従(インライン境界で
-		// 切替わる。pair状態は維持——境界を挟むpairは現在要素の値で判定
-		// される)。縦書きも同一機構(gapは論理inline軸のxadvance——A3)
+		// Japanese spacing compression A2/A3/T1b: follow effective flags and trim policy across inline
+		// boundaries. Keep pair state; pairs across a boundary use the current element's values.
+		// Vertical writing uses the same mechanism (gap is xadvance on the logical inline axis; A3).
 		this.autospace.setFlags(params.textAutospace);
 		this.autospace.setTrimOff(params.textSpacingTrimOff);
-		// 和文詰めH1: 行末句読点のぶら下げ(hanging-punctuation: allow-end)
+		// Japanese spacing compression H1: hang line-end punctuation (hanging-punctuation: allow-end).
 		this.hangingEnd = params.hangingPunctuationEnd;
 
 	}
 
-	/** いまの行に文字(Text・目に見える Control・leader)が入ったか。 */
+	/** Whether this line contains text (Text, visible Control, or leader). */
 	private boolean lineHasText = false;
 
-	/** いまの行に画像・インラインブロック(atomic inline)が入ったか。 */
+	/** Whether this line contains an image or inline block (atomic inline). */
 	private boolean lineHasAtomic = false;
 
 	/**
-	 * 文字の無い行(画像やインラインブロックだけの行)へ、ブロックのフォントと
-	 * line-height の strut(CSS 2.1 §10.8)を入れます(2026-09-02)。
+	 * Adds a strut using the block's font and line-height (CSS 2.1 §10.8) to textless lines containing only images or
+	 * inline blocks (2026-09-02).
 	 *
 	 * <p>
-	 * 標準モード(DOCTYPE あり)の文書だけ。quirks はブラウザと同じく省く。
-	 * 文字のある行は、文字がブロックのフォントの高さを既に持ち込んでいるので触らない
-	 * (全行に入れる実装は 77 件の試験を動かした——文字の行の高さの式と strut の式が
-	 * 一致しないため。この限定なら文字の行は 1 つも変わらない)。Acid2 の
-	 * image-height-test: {@code font: 20em} の行に置いた画像が、strut が無いために
-	 * 行の上端に来ていた。
+	 * Only for standards-mode documents (with DOCTYPE); omit in quirks mode, as browsers do. Leave text-bearing lines
+	 * alone, since their text already contributes the block font height (applying this to all lines changed 77 tests
+	 * because the text-line height formula differs from the strut formula; this restriction leaves every text line
+	 * unchanged). In Acid2's image-height-test, an image in a {@code font: 20em} line appeared at the line top because
+	 * the strut was missing.
 	 * </p>
 	 */
 	private void addStrutIfTextless(final AbstractLineBox line) {
@@ -276,13 +274,13 @@ public class TextBuilder {
 		final AbstractTextParams params = line.getTextParams();
 		final double lineHeight = line.getLineParams().lineHeight;
 		if (params == null || !params.strictLineBox || LayoutUtils.isNone(lineHeight) || params.fontStyle == null) {
-			// quirks(DOCTYPE の無い HTML)はブラウザと同じく strut を省く
+			// Omit the strut in quirks mode (HTML without DOCTYPE), as browsers do.
 			return;
 		}
 		final AbstractContainerBox flowBox = this.builder.getFlowBox();
 		if (flowBox instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox
 				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox) {
-			// リストマーカーの箱の中の行(点の画像だけ)は本文の行ではない
+			// Lines inside list-marker boxes (only a dot image) are not body-text lines.
 			return;
 		}
 		final double[] strut = strutAscentDescent(params, lineHeight);
@@ -290,18 +288,18 @@ public class TextBuilder {
 	}
 
 	/**
-	 * ブロックのフォントと line-height から strut の ascent/descent を求めます
-	 * ({@link #addStrutIfTextless} と {@link #getVirtualClosedPageAxis} で共用)。
+	 * Computes strut ascent/descent from the block font and line-height (shared by {@link #addStrutIfTextless} and
+	 * {@link #getVirtualClosedPageAxis}).
 	 */
 	private static double[] strutAscentDescent(final AbstractTextParams params, final double lineHeight) {
 		double ascent, descent;
 		if (params.isVerticalTypesetting()) {
-			// 縦組み: 字面は中央線の左右にサイズの半分ずつ
+			// Vertical writing: glyph bounds extend half the size on each side of the center line.
 			ascent = descent = params.fontStyle.getSize() / 2.0;
 		} else {
-			// CSS 2.1 の strut は「最初に使えるフォント」の計量。一覧全体の最大
-			// (getMaxAscent)は、フォント索引が温まる途中の並列実行で一覧が欠けると
-			// 値が変わりうる(imageTest の msn.htm が 4 回に 1 回だけ違った)ので使わない
+			// CSS 2.1 strut metrics come from the first available font. Do not use the maximum over
+			// the entire list (getMaxAscent): an incomplete list during parallel font-index warm-up can
+			// change the value (imageTest's msn.htm differed once in four runs).
 			final net.zamasoft.pdfg2d.gc.font.FontListMetrics flm = params.getFontListMetrics();
 			final net.zamasoft.pdfg2d.gc.font.FontMetrics[] metrics = flm.metrics();
 			if (metrics != null && metrics.length > 0) {
@@ -321,13 +319,14 @@ public class TextBuilder {
 		return new double[] { ascent, descent };
 	}
 
-	/** 計量用の行では atomic の圧縮など、入力の箱を書き換える処理を行わない。 */
+	/** Measurement lines do not mutate input boxes, such as by compressing atomic inlines. */
 	private boolean measuringLine;
 
 	/**
-	 * 先行内容だけで行を閉じた仮想位置。本文の行・run・inline は変更しない。
-	 * 確定時と同じ startInline/addElement を計量用の箱に適用し、ascent/descent を
-	 * 個別に最大化する。分綴待ちの単語は字形の計量だけを借り、確定・消費しない。
+	 * Virtual position after closing a line with preceding content alone. Does not modify body lines, runs, or
+	 * inlines. Applies the same startInline/addElement as finalization to measurement boxes and maximizes
+	 * ascent/descent separately. Borrows only glyph metrics from a word awaiting hyphenation, without finalizing or
+	 * consuming it.
 	 */
 	double getVirtualClosedPageAxis(final java.util.function.Consumer<GlyphHandler> pending) {
 		final TextBuilder measure = new TextBuilder(this.builder, BreakToken.NONE);
@@ -384,7 +383,7 @@ public class TextBuilder {
 				measure.control(measure.copyPendingControl(control));
 			}
 			public void flush() {
-				// 正規の字間の候補だけを記録する。本文や親 builder へ行は追加しない。
+				// Record only ordinary inter-character break candidates. Do not add lines to the body or parent builder.
 				if (!measure.wrap || buffer.isEmpty()) return;
 				if (measure.firstUnit && measure.lineAxis > 0) {
 					measure.locateLine();
@@ -399,8 +398,8 @@ public class TextBuilder {
 			public void close() { }
 		});
 		final double trailingSpace = measure.lastSpaceAdvance;
-		// 末尾の配達で溢れが判明しても、本文の行は確定しない。既存の分割候補だけで
-		// 仮想的に先行行を閉じる(absolute の位置は新たな候補にならない)。
+		// Even if final delivery reveals overflow, do not finalize the body line. Virtually close the preceding line
+		// using only existing break candidates (the absolute position does not become a new candidate).
 		int from = 0;
 		boolean locate = measure.firstUnit;
 		final double overflow = measure.lineAxis - trailingSpace - (measure.maxLineSize - measure.textIndent);
@@ -447,14 +446,14 @@ public class TextBuilder {
 			return measure.pageAxis;
 		}
 		if (locate) {
-			// nowrap/pre はまだ locateLine を通っていない。排除域も同じ探索で読む。
+			// nowrap/pre has not yet passed through locateLine. Read exclusions with the same search.
 			measure.textBuffer = buffer.subList(from, buffer.size());
 			measure.locateLine();
 		}
 		return measure.pageAxis + measure.lineBox.getPageSize();
 	}
 
-	/** 未配達 control は下流で幅が設定されるため、可変なものを複製して計量する。 */
+	/** Copies mutable undelivered controls for measurement, since downstream processing sets their widths. */
 	private TextControl copyPendingControl(final TextControl control) {
 		if (control instanceof InlineQuad quad) {
 			final WritingMode flow = this.currentTextParams().flow;
@@ -523,7 +522,7 @@ public class TextBuilder {
 		copy.getFrame().frame = box.getFrame().frame;
 		copy.getFrame().margin.set(box.getFrame().margin);
 		copy.getFrame().padding.set(box.getFrame().padding);
-		// addAscentDescent は枠を加えるので、元の外寸から同じ枠を一度引く。
+		// addAscentDescent adds the frame, so first subtract that frame once from the original outer size.
 		final var frame = box.getFrame();
 		if (box.getTextParams().flow.isVertical()) {
 			final boolean sideways = box.getTextParams().writingModeVariant == WritingModeVariant.SIDEWAYS_CCW;
@@ -555,14 +554,14 @@ public class TextBuilder {
 				throw new IllegalStateException();
 			}
 		} else if (element instanceof Control control && control.getControlChar() == '\n') {
-			// 処理済み br の後に新たな行を作らない。保存空白・tab・leader は addElement へ。
+			// Do not create a new line after a processed br. Pass preserved spaces, tabs, and leaders to addElement.
 		} else {
 			this.addElement(element);
 		}
 	}
 
 	/**
-	 * テキストブロックに行を追加します。
+	 * Adds a line to the text block.
 	 */
 	private void addLine(AbstractLineBox lineBox) {
 		this.addStrutIfTextless(lineBox);
@@ -570,15 +569,15 @@ public class TextBuilder {
 		this.lineHasAtomic = false;
 		if (this.lineClamp != null) {
 			if (this.lineClamp.exhausted()) {
-				// line-clamp(2026-08-29): N行を超えた行は捨てる(高さにも
-				// 描画にも出ない)。ここで初めて「N行目の後に内容がある」と
-				// 確定するので、預かっていたN行目の省略記号を付ける
+				// line-clamp (2026-08-29): discard lines beyond N (contribute neither height nor
+				// drawing). Only now is content after line N confirmed,
+				// so apply the ellipsis held for line N.
 				this.lineClamp.truncatePending();
 				return;
 			}
 			if (this.lineClamp.countLine()) {
-				// N行目。後続が無ければそのまま(省略記号なし)なので、
-				// 切り方だけ預ける。値は行を閉じた時点のものを固定する
+				// Line N: if nothing follows, leave it unchanged (no ellipsis),
+				// so store only the truncation method. Freeze values at line closure.
 				final double avail = this.maxLineSize, lineStart = this.minLineAxis;
 				this.lineClamp.setPending(() -> this.applyLineClampEllipsis(lineBox, lineStart, avail));
 			}
@@ -594,11 +593,10 @@ public class TextBuilder {
 	}
 
 	/**
-	 * run内分割境界のpair調整(autospace gap−約物詰め)を再計算します
-	 * (T1a——分割で境界が行を跨ぐとき、適用済み調整を逆適用するため。
-	 * 調整は純関数のため記録不要で再計算できる。autospaceのflagsは
-	 * 現在値で近似——inline切替と旧run内分割が複合した場合のみ不正確、
-	 * consultations記録済み)。
+	 * Recomputes pair adjustment at an intra-run split boundary (autospace gap minus punctuation compression) (T1a: to
+	 * undo an applied adjustment when splitting moves the boundary across lines). The adjustment is pure and can be
+	 * recomputed without recording. Approximate autospace flags with current values; inaccurate only when an inline
+	 * switch combines with a split inside an old run (recorded in consultations).
 	 */
 	private double boundaryAdjustment(final TextImpl head, final TextImpl tail) {
 		final char[] headChars = head.getChars();
@@ -607,7 +605,7 @@ public class TextBuilder {
 		final double fontSize = head.getFontStyle().getSize();
 		final int prevGid = head.getGlyphIds()[head.getGlyphCount() - 1];
 		final int gid = tail.getGlyphIds()[0];
-		// AutospaceTracker.gapBefore と同じ判定(比例幅の句読点の後ろも和欧間アキ、2026-09-14)
+		// Same check as AutospaceTracker.gapBefore (Japanese/Latin spacing also after proportional punctuation, 2026-09-14).
 		final boolean proportionalPunctuation = net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses
 				.proportionalPunctuation(prevCp, head.getFontMetrics(), prevGid, fontSize,
 						head.getFontStyle().getDirection());
@@ -623,14 +621,13 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 行が入らなかったとき、次に試すページ方向位置です。
+	 * Next page-direction position to try when a line does not fit.
 	 *
 	 * <p>
-	 * 矩形の浮動体は従来どおり下端へ飛ぶ(そこまで幅は変わらない)。
-	 * {@code shape-outside}の形状を持つ浮動体は行の高さぶんだけ下りて
-	 * 再探索する——円の下半分では帯が広がっていくので、下端まで飛ばすと
-	 * 円の周りを回り込めない(2026-08-29)。前進は必ず1pt以上かつ
-	 * 浮動体の下端が上限なので、再探索ループは有限回で終わる。
+	 * For rectangular floats, jump to the bottom as before (width is unchanged until then). For floats with {@code
+	 * shape-outside}, move down by the line height and search again: the band widens in the lower half of a circle, so
+	 * jumping to its bottom prevents wrapping around it (2026-08-29). Every step advances at least 1 pt and is capped
+	 * at the float bottom, so the retry loop always terminates.
 	 * </p>
 	 */
 	private static double nextSearchPage(final FloatExclusion exclusion, final double pageStart,
@@ -643,8 +640,8 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 現在のフラグメントに、ページフロートを避けて最初の1行を置けるか。
-	 * ページフロートが無い文脈では従来の行配置へ委ねて常にtrueを返す。
+	 * Whether the first line can fit in the current fragment while avoiding page floats. Without page floats, always
+	 * returns true and delegates to existing line placement.
 	 */
 	static boolean hasFirstLineBandInFragment(final BlockBuilder builder, final double fragmentLimit) {
 		if (builder.pageFloatExclusionsForLineLayout().isEmpty()) {
@@ -671,8 +668,8 @@ public class TextBuilder {
 				return LayoutUtils.compare(maxPageSize, lineHeight) >= 0;
 			}
 			if (found.startExclusion() == null && found.endExclusion() == null) {
-				// 包含ブロック自体が1行高より狭い場合は、ページフロートを
-				// 理由に改ページし続けず従来のoverflow処理へ委ねる。
+				// If the containing block itself is smaller than one line height, leave it to the existing
+				// overflow handling instead of repeatedly breaking pages because of page floats.
 				return true;
 			}
 			if (found.endExclusion() == null) {
@@ -687,7 +684,7 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 現在構築中の行の位置を調整します。
+	 * Adjusts the position of the line currently under construction.
 	 */
 	private void locateLine() {
 		double pageStart = this.builder.pageAxis + this.pageAxis;
@@ -698,26 +695,26 @@ public class TextBuilder {
 		if (this.builder.hasLineExclusions()) {
 			final double lineHeight = this.lineBox.getLineParams().lineHeight;
 			final double lineEnd0 = this.builder.lineAxis + this.maxLineSize;
-			// 通常floatとページフロートは別々の不変スナップショットとして
-			// 各反復で走査される。
+			// Scan ordinary floats and page floats as separate immutable snapshots
+			// on each iteration.
 			for (;;) {
-				// ラインを入れるスペースがある部分の左右
+				// Left and right edges of the space available for a line.
 				final ExclusionSpace.LineScan found = this.builder.scanLineBandForLineLayout(pageStart, lineHeight,
 						this.builder.lineAxis, lineEnd0);
 				lineStart = found.lineStart();
 				if (found.maxPageSizeSet()) {
-					// 既存コードはthis.maxPageSizeをこの分岐でしか更新しない
-					// ——外側for(;;)の前回反復の値がそのまま残ることがある
-					// (2026-07-23、BlockBuilder.addBoundと同型の「ループ間で
-					// 状態が持ち越される」実挙動、必ず条件付きでのみ更新する)。
+					// Existing code updates this.maxPageSize only in this branch;
+					// the previous outer for(;;) iteration's value can remain
+					// (2026-07-23: actual state carry-over between iterations, as in BlockBuilder.addBound;
+					// always update only conditionally).
 					this.maxPageSize = found.maxPageSize();
 				}
 				this.maxLineSize = found.lineEnd() - found.lineStart();
 				if (LayoutUtils.compare(this.maxLineSize, this.lineAxis) >= 0) {
-					// 幅に余裕がある
+					// Enough width is available.
 					break;
 				}
-				// 余裕がない場合は１つ下りて再探索
+				// If not enough, move down once and search again.
 				if (found.startExclusion() == null && found.endExclusion() == null) {
 					break;
 				}
@@ -742,14 +739,14 @@ public class TextBuilder {
 		assert !LayoutUtils.isNone(this.pageAxis);
 		this.minLineAxis = lineStart - this.builder.lineAxis;
 
-		// 天付き(和文詰めS1/JLREQ cl-01)。横書き・縦書きとも、全角相当の
-		// 始め括弧が持つ行頭側の二分アキを行外へ出す。CSS Text 4に従い
-		// trim-startだけを天付きにし、normal/space-allはJLREQのもう一つの
-		// 選択肢である行頭二分アキを残す。
+		// Flush-start punctuation (Japanese spacing compression S1/JLREQ cl-01). In horizontal and vertical writing,
+		// move the leading half-em space of a fullwidth-equivalent opening bracket outside the line. Per CSS Text 4,
+		// apply flush-start only for trim-start; normal/space-all retain the leading half-em space,
+		// the other JLREQ option.
 		final AbstractLineParams lineParams = this.lineBox.getLineParams();
-		// space-firstはブロック初行と強制改行直後だけ全角を保ち、
-		// 自動折返しで始まった行だけ天付きにする。this.lastは直前の
-		// 改行が強制/初行ならtrue、自動折返しならfalseという既存状態。
+		// space-first keeps full width only on the block's first line and after forced line breaks;
+		// use flush-start only after automatic wrapping. Existing this.last is true
+		// for a forced preceding break or the first line, and false for automatic wrapping.
 		final boolean trimStart = lineParams.textSpacingTrimStart
 				|| (lineParams.textSpacingSpaceFirst && !this.last);
 		for (int i = 0; i < this.textBuffer.size(); ++i) {
@@ -772,8 +769,8 @@ public class TextBuilder {
 							trimStart);
 				}
 				if (headIndent != 0) {
-					// ブロック先頭行でも天付きを適用し、作者指定の
-					// text-indentは基準位置として保つ。
+					// Apply flush-start even on the block's first line, preserving the author's
+					// text-indent as the reference position.
 					this.textIndent += headIndent;
 				}
 			}
@@ -782,8 +779,8 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 現在のテキストボックスを返します。
-	 * 
+	 * Returns the current text box.
+	 *
 	 * @return
 	 */
 	private AbstractTextBox getTextBox() {
@@ -830,13 +827,13 @@ public class TextBuilder {
 			Inline inline = new Inline(inlineBox);
 			this.inlineStack.add(inline);
 
-			// baselineの設定
+			// Set the baseline.
 			double verticalAlign = pos.verticalAlign.getVerticalAlign(textBox, this.lineBox, ascent, descent,
 					pos.lineHeight, baseline);
 			inline.baseline = baseline + verticalAlign;
 
 			if (inlineBox.getFrame().getFrameWidth() > 0) {
-				// line-heightの適用
+				// Apply line-height.
 				double lineHeight = pos.lineHeight;
 				lineHeight = Math.max(this.lineBox.getLineParams().lineHeight, lineHeight);
 				double textHeight = ascent + descent;
@@ -868,24 +865,24 @@ public class TextBuilder {
 					&& va.getVerticalAlignType() == net.zamasoft.foliojet.layout.box.content.CSSVerticalAlignPolicy.BASELINE
 					&& !(box instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox)
 					&& !(box instanceof net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox)) {
-				// strut の対象(addStrutIfTextless)。基底線揃えの箱は、後から行の
-				// ascent/descent が伸びても基底線の上に留まるので位置が変わらない。
-				// top/bottom/middle 揃えは「その時点の行の高さ」を基準に置かれる
-				// ため後からの strut でずれる——対象にしない。リストマーカーの箱も除く
+				// Strut candidates (addStrutIfTextless). Baseline-aligned boxes remain above the baseline
+				// even if line ascent/descent grows later, so their positions stay unchanged.
+				// Top/bottom/middle alignment uses the line height at that moment, so a later strut
+				// would shift them; exclude them. Also exclude list-marker boxes.
 				this.lineHasAtomic = true;
 			}
 			double descent, ascent;
 			if (box.getType() == BoxType.BLOCK) {
-				// インラインブロック・テーブルの基底線
+				// Baseline for inline blocks and tables.
 				final AbstractContainerBox inlineBlockBox = (AbstractContainerBox) box;
 				final BlockParams params = inlineBlockBox.getBlockParams();
 				if (!this.measuringLine && params.textCombine == net.zamasoft.foliojet.css.value.TextCombineValue.ALL
 						&& lineParams.flow.isVertical() && !params.flow.isVertical()
 						&& inlineBlockBox instanceof net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox stf) {
-					// **縦中横(all)は1emのセルへ収める**(css-writing-modes-4
-					// §9.1.3、2026-08-11)。自然幅で組み終えたこの時点で幅を
-					// 1emへ差し替え、内容に水平アフィンを掛ける。行が使う
-					// 見かけ幅(=下のascent/descent)もこれで1emになる
+					// **Fit tate-chu-yoko (all) into a 1 em cell** (css-writing-modes-4
+					// §9.1.3, 2026-08-11). Now that layout at natural width is complete, replace the width
+					// with 1 em and apply a horizontal affine transform to the content. This also makes
+					// the apparent width used by the line (= ascent/descent below) 1 em.
 					final java.awt.geom.GeneralPath ink = new java.awt.geom.GeneralPath();
 					final RootBuilder root = this.builder.getPageContext();
 					if (root != null) {
@@ -898,17 +895,17 @@ public class TextBuilder {
 				descent = inlineBlockBox.inlineDescent(lineParams);
 				ascent = (verticalLine ? inlineBox.getWidth() : inlineBox.getHeight()) - descent;
 			} else {
-				// 画像の基底線
+				// Image baseline.
 				switch (lineParams.flow) {
 				case WritingMode.TB:
-					// 横書き(基準線を持つ画像=数式は下端より上が基準線。
-					// AbstractTextBox.verticalAlign・描画と同じ値)
+					// Horizontal writing (images with a baseline, i.e. formulas, have it above the bottom;
+					// same value as AbstractTextBox.verticalAlign and drawing).
 					descent = ((net.zamasoft.foliojet.layout.box.AbstractReplacedBox) box).getBaselineDescent();
 					ascent = box.getHeight() - descent;
 					break;
 				case WritingMode.LR:
 				case WritingMode.RL:
-					// 縦書き
+					// Vertical writing.
 					ascent = box.getWidth();
 					descent = ascent = ascent / 2.0;
 					break;
@@ -921,7 +918,7 @@ public class TextBuilder {
 					pos.lineHeight, baseline);
 
 			if (box.getType() == BoxType.BLOCK) {
-				// line-heightの適用
+				// Apply line-height.
 				double lineHeight = pos.lineHeight;
 				lineHeight = Math.max(this.lineBox.getLineParams().lineHeight, lineHeight);
 				double textHeight = ascent + descent;
@@ -945,8 +942,8 @@ public class TextBuilder {
 	}
 
 	private void endInline() {
-		// 開始のないINLINE_ENDは黙って捨てる(2026-08-17。control()の
-		// INLINE_ENDと同じ理由)
+		// Silently discard INLINE_END without a start (2026-08-17; same reason as
+		// INLINE_END in control()).
 		if (this.inlineStack == null || this.inlineStack.isEmpty()) {
 			return;
 		}
@@ -993,7 +990,7 @@ public class TextBuilder {
 			this.lineHasText = true;
 		} else if (e instanceof Control) {
 			final Control control = (Control) e;
-			// ControlはgetCharCountを持たず、getControlChar()のUTF-16文字1個を表す。
+			// Control has no getCharCount; it represents the single UTF-16 character from getControlChar().
 			this.addRetainedText(2L);
 			textBox.addControl(control);
 			if ((control.getControlChar() == ' ' || control.getControlChar() == SoftHyphen.CHAR)
@@ -1005,7 +1002,7 @@ public class TextBuilder {
 			assert !LayoutUtils.isNone(ascent + descent);
 			this.lineHasText = true;
 		} else if (e instanceof net.zamasoft.foliojet.layout.text.LeaderQuad leader) {
-			// leader() L1: パターンの寸法で行高さに参加する
+			// leader() L1: contribute to line height using pattern dimensions.
 			textBox.addLeader(leader);
 			ascent = leader.runs[0].getAscent();
 			descent = leader.runs[0].getDescent();
@@ -1034,7 +1031,7 @@ public class TextBuilder {
 			final double verticalAlign = pos.verticalAlign.getVerticalAlign(parentText, this.lineBox, ascent, descent,
 					pos.lineHeight, baseline);
 			double lineHeight = pos.lineHeight;
-			// 行のline-heightを適用する
+			// Apply the line's line-height.
 			{
 				final double textHeight = this.lineBox.getLineParams().lineHeight;
 				if (!LayoutUtils.isNone(textHeight)) {
@@ -1043,7 +1040,7 @@ public class TextBuilder {
 			}
 			assert !LayoutUtils.isNone(lineHeight);
 			final double textHeight = ascent + descent;
-			// line-heightの適用
+			// Apply line-height.
 			if (lineHeight != textHeight) {
 				lineHeight = (lineHeight - textHeight) / 2.0;
 				ascent = (ascent + lineHeight);
@@ -1054,7 +1051,7 @@ public class TextBuilder {
 			assert !LayoutUtils.isNone(ascent + descent);
 		} else {
 			double lineHeight = this.lineBox.getLineParams().lineHeight;
-			// line-heightの適用
+			// Apply line-height.
 			final double textHeight = ascent + descent;
 			if (lineHeight != textHeight) {
 				lineHeight = (lineHeight - textHeight) / 2.0;
@@ -1071,12 +1068,10 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 行末側フロートの同一行配置({@code BlockBuilder.tryFloatOnCurrentLine}
-	 * ——2026-08-08)のために、構築中の行の使用可能幅を絶対座標
-	 * {@code newAbsLineEnd}まで狭めます。行がまだ配置されていない
-	 * (locateLine前)場合や、既存の内容(textIndent+確定・未確定
-	 * アドバンス)が新しい幅に収まらない場合は、状態を変えずに
-	 * {@code false}を返します。
+	 * Narrows the available width of the line under construction to absolute coordinate {@code newAbsLineEnd} for
+	 * same-line placement of line-end floats ({@code BlockBuilder.tryFloatOnCurrentLine}, 2026-08-08). Returns {@code
+	 * false} without changing state if the line has not been positioned (before locateLine) or existing content
+	 * (textIndent + finalized and pending advances) does not fit the new width.
 	 */
 	boolean narrowCurrentLine(final double newAbsLineEnd) {
 		if (this.lineBox == null || this.firstUnit) {
@@ -1097,8 +1092,8 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 通常フローを実際に進める量。表の先頭へ重ねる外置きマーカー専用行は
-	 * 読み順上は独立したまま、後続の表と同じページ位置を使う。
+	 * Extent that actually advances normal flow. A dedicated line for an outside marker overlaid at a table's start
+	 * remains separate in reading order while sharing the following table's page position.
 	 */
 	double getFlowPageAdvance() {
 		return this.textBlockBox.overlaysFollowingBlock() ? 0 : this.pageAxis;
@@ -1109,14 +1104,14 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 新しい行を開始します。
-	 * 
+	 * Starts a new line.
+	 *
 	 * @param last
 	 */
 	private boolean newLine(boolean last) {
-		// 和文詰めA2: 実際の行分割はpairを断つ(行を跨ぐgapは入らない)
+		// Japanese spacing compression A2: an actual line break severs the pair (no gap across lines).
 		this.autospace.reset();
-		// 和文詰めT2/H1: この行の行末詰め/ぶら下げ量(align前に設定)
+		// Japanese spacing compression T2/H1: line-end compression/hanging extent for this line (set before align).
 		if (this.pendingEndHang != 0) {
 			this.lineBox.setEndHangAdvance(this.pendingEndHang);
 			this.pendingEndHang = 0;
@@ -1131,9 +1126,9 @@ public class TextBuilder {
 			// StringBuilder text = new StringBuilder();
 			// lineBox.getText(text);
 
-			// 改頁で組み直された行に、前の組みで実体化したハイフンが残ることが
-			// ある(2026-08-31)。ハイフンは行末にしか意味を持たないので、
-			// 揃える前に落とす。詳細はAbstractTextBox#removeStrayHyphens
+			// A line rebuilt after a page break can retain hyphens materialized during its previous
+			// layout (2026-08-31). Hyphens are meaningful only at line end,
+			// so remove them before alignment. See AbstractTextBox#removeStrayHyphens for details.
 			final double strayHyphen = lineBox.removeStrayHyphens();
 			if (strayHyphen != 0) {
 				lineBox.addAdvance(-strayHyphen);
@@ -1143,7 +1138,7 @@ public class TextBuilder {
 			if (this.inlineStack != null && !this.inlineStack.isEmpty()) {
 				final AbstractTextParams lineParams = this.lineBox.getTextParams();
 				this.lineBox = newLineBox;
-				// TODO inlineStackの再生成を抑える
+				// TODO Avoid regenerating inlineStack.
 				List<Inline> inlineStack = this.inlineStack;
 				this.inlineStack = null;
 
@@ -1176,11 +1171,11 @@ public class TextBuilder {
 		if (last) {
 			return lineAdded;
 		}
-		// 折り返し
+		// Wrapping.
 		if (!this.collapseSpaces) {
 			return lineAdded;
 		}
-		// 行頭のスペースのつぶし
+		// Collapse leading spaces.
 		for (int i = 0; i < this.textBuffer.size(); ++i) {
 			Element e = (Element) this.textBuffer.get(i);
 			if (e instanceof WhiteSpace) {
@@ -1196,18 +1191,15 @@ public class TextBuilder {
 	}
 
 	/**
-	 * {@code text-overflow: ellipsis}(css-overflow-3 §4、2026-08-29)。
+	 * {@code text-overflow: ellipsis} (css-overflow-3 §4, 2026-08-29).
 	 *
 	 * <p>
-	 * ブロックの{@code overflow}がvisible以外で、確定した行の内容が
-	 * 利用可能幅を超えるとき(nowrapの1行、または分割できない長い語の
-	 * 行)、行末を「利用可能幅−省略記号の幅」でクリップし、その位置に
-	 * 省略記号を追加描画する({@link AbstractLineBox#setEllipsis})。
-	 * テキストを組み直さずクリップで済ませるので、行の内容・グリフは
-	 * そのまま(PDFのテキスト抽出には切れた文字も残る)。省略記号の
-	 * フォントはブロックのfont-familyから"…"(U+2026)を持つ最初のもの、
-	 * 無ければ"..."。右横書き(direction: rtl)の行頭側省略は未対応
-	 * (何もしない)。行数で切る(line-clamp相当)機能ではない。
+	 * When the block's {@code overflow} is not visible and finalized line content exceeds the available width (a
+	 * single nowrap line or an unbreakable long word), clip the line end at available width minus ellipsis width and
+	 * draw an ellipsis there ({@link AbstractLineBox#setEllipsis}). Clipping avoids relayout, preserving line content
+	 * and glyphs (clipped characters remain in PDF text extraction). Use the first font in the block's font-family
+	 * containing "…" (U+2026), or "..." if none. Start-side ellipsis for right-to-left horizontal writing (direction:
+	 * rtl) is unsupported (no action). This does not truncate by line count (as line-clamp does).
 	 * </p>
 	 */
 	private void applyTextOverflow(final AbstractLineBox lineBox) {
@@ -1218,7 +1210,7 @@ public class TextBuilder {
 			return;
 		}
 		final double avail = this.maxLineSize;
-		// align()の実効行幅と同じ定義(行末ぶら下げ分を除き、インデントを含む)
+		// Same effective line-width definition as align() (excludes hanging line-end extent, includes indent).
 		final double used = lineBox.getLineSize() - lineBox.getEndHangAdvance() + this.textIndent;
 		if (LayoutUtils.compare(used, avail) <= 0) {
 			return;
@@ -1232,13 +1224,11 @@ public class TextBuilder {
 	}
 
 	/**
-	 * {@code line-clamp}のN行目を省略記号で切ります(2026-08-29)。
-	 * {@link #applyTextOverflow}と同じ機構(クリップ+追加描画)だが、
-	 * 行が幅いっぱいでなくてもよい: 切る位置は「内容の末尾(行揃えの
-	 * ずれ込み)」と「利用可能幅−省略記号幅」の小さい方。内容が短ければ
-	 * 省略記号は内容の直後に付き、長ければ末尾の字形がクリップされて
-	 * 省略記号に置き換わる(Chromeのように最後の語を組み直しはしない)。
-	 * rtlは未対応(何もしない)。
+	 * Truncates line N of {@code line-clamp} with an ellipsis (2026-08-29). Uses the same mechanism as {@link
+	 * #applyTextOverflow} (clipping + extra drawing), but the line need not fill the width: the cut position is the
+	 * lesser of content end (including alignment offset) and available width minus ellipsis width. For short content,
+	 * the ellipsis follows immediately; for long content, the final glyphs are clipped and replaced by the ellipsis
+	 * (does not reshape the final word as Chrome does). rtl is unsupported (no action).
 	 */
 	private void applyLineClampEllipsis(final AbstractLineBox lineBox, final double lineStart, final double avail) {
 		final BlockParams bp = this.textBlockBox.getBlockParams();
@@ -1254,7 +1244,7 @@ public class TextBuilder {
 		lineBox.setEllipsis(ellipsis, Math.max(0, Math.min(contentEnd, boxEnd)));
 	}
 
-	/** 省略記号のグリフ列(U+2026、無ければ"...")。作れなければnull。 */
+	/** Ellipsis glyph sequence (U+2026, or "..." if unavailable). Null if it cannot be created. */
 	private static TextImpl ellipsisText(final BlockParams bp) {
 		final FontListMetrics flm = bp.fontManager.getFontListMetrics(bp.fontStyle);
 		String s = "…";
@@ -1282,7 +1272,7 @@ public class TextBuilder {
 		for (int i = 0; i < flm.getLength(); ++i) {
 			final FontMetrics fm = flm.getFontMetrics(i);
 			final net.zamasoft.pdfg2d.font.FontSource source = fm.getFontSource();
-			// 欠落グリフ用の代替フォントは何でも表示できると答えるので除く
+			// Exclude the missing-glyph fallback font, which claims it can display anything.
 			if (source instanceof net.zamasoft.pdfg2d.pdf.font.cid.missing.MissingCIDFontSource
 					|| !source.canDisplay(c)) {
 				continue;
@@ -1293,12 +1283,11 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 行を生成します。
+	 * Generates a line.
 	 *
-	 * @param last 最終行として揃え、バッファ全体を消費する場合は {@code true}
-	 * @param materializeBreakHyphen 確定した分断位置のソフトハイフンを
-	 *                               実体化する場合は {@code true}
-	 * @return 行に内容が入ったら true
+	 * @param last {@code true} to align as the last line and consume the whole buffer
+	 * @param materializeBreakHyphen {@code true} to materialize the soft hyphen at the confirmed break position
+	 * @return true if content was added to the line
 	 */
 	private boolean drawLine(final boolean last, final boolean materializeBreakHyphen) {
 		if (this.firstUnit) {
@@ -1311,7 +1300,7 @@ public class TextBuilder {
 		} else {
 			count = this.opportunity.elementCount();
 		}
-		// TODO 本来はここで assert count > 0 が成立するようにする。
+		// TODO Make assert count > 0 hold here.
 		assert count > 0 || last;
 
 		boolean content;
@@ -1324,25 +1313,25 @@ public class TextBuilder {
 					final TextImpl text = (TextImpl) e;
 					if (i == count - 1) {
 						if (last || this.opportunity.glyphCount() == 0 || this.opportunity.glyphCount() == text.getGlyphCount()) {
-							// 最後の行or
-							// テキストで終わっていない場合
-							// １ユニットしか幅がない場合
+							// Last line or
+							// not ending in text.
+							// Only one unit's width is available.
 							text.pack();
 							if (this.text == text) {
 								this.text = null;
 							}
 						} else {
-							// 分割可能な箇所で分割
+							// Split at a breakable position.
 							e = text.split(this.opportunity.glyphCount());
 							TextImpl prevText = (TextImpl) e;
-							// 分割部分のカーニングを取り消して位置を計算する
-							// (T1a: font層kernはGPOSのみ——約物詰め/autospaceの
-							// 逆適用は下で行う)
+							// Undo kerning at the split and calculate the position
+							// (T1a: font-layer kern is GPOS only; punctuation compression/autospace
+							// adjustments are undone below).
 							this.lineAxis += this.fontMetrics.getKerning(prevText.glyphIds[prevText.glyphCount - 1],
 									text.glyphIds[0]);
-							// 分割境界のpair調整の逆適用(旧splitのkern復元と
-							// 等価)。調整は現在glyph=分割後のtail先頭の
-							// xadvance[0]に載っている
+							// Undo pair adjustment at the split boundary (equivalent to the old split's
+							// kern restoration). The adjustment is on xadvance[0] of the current glyph,
+							// the first glyph of the tail after splitting.
 							final double edgeAdjustment = this.boundaryAdjustment(prevText, text);
 							if (edgeAdjustment != 0) {
 								text.addXAdvance(0, -edgeAdjustment);
@@ -1356,9 +1345,9 @@ public class TextBuilder {
 				} else if (e instanceof TextControl) {
 					final TextControl quad = (TextControl) e;
 					this.placeControl(quad, materializeBreakHyphen && i == count - 1);
-					// 折りたたまれる行末空白と幅0の境界は、直前の約物が
-					// 行末であることを妨げない。それ以外のインライン要素・
-					// leaderが後ろにあれば約物は行末ではない。
+					// Collapsed trailing spaces and zero-width boundaries do not prevent
+					// the preceding punctuation from being at line end. If any other inline element
+					// or leader follows, the punctuation is not at line end.
 					if (!(e instanceof Control) && e.getAdvance() != 0) {
 						trimEndCandidate = null;
 					}
@@ -1400,10 +1389,10 @@ public class TextBuilder {
 			for (int i = 0; i < count; ++i) {
 				this.textBuffer.remove(this.textBuffer.size() - 1);
 			}
-			// 前進保証ガード後の再生では、対応する開始を見ていない
-			// INLINE_ENDだけが届くことがある。要素を消費した事実ではなく、
-			// 実際に行へ内容が入ったかで判定する。空のままalign()すると
-			// AbstractLineBoxの不変条件に反する。
+			// Replay after the progress guard may deliver only INLINE_END without
+			// a corresponding start. Check whether content actually entered the line,
+			// not whether an element was consumed. Calling align() on an empty line
+			// violates AbstractLineBox's invariant.
 			content = this.lineBox.getContentCount() > 0;
 		} else {
 			content = false;
@@ -1415,16 +1404,15 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 選択済みの行範囲のleaderへ残余幅を割り付けます(leader() L1——
-	 * consult-codex-2026-07-31-leader.txt Q2)。
+	 * Distributes remaining width among leaders in the selected line range (leader() L1;
+	 * consult-codex-2026-07-31-leader.txt Q2).
 	 *
 	 * <p>
-	 * 必ず全leaderを最小幅へ戻してから配分する(TwoPassの記録再生で同一
-	 * インスタンスが再駆動されても前回の割り付けが漏れないように)。行が
-	 * テキスト途中で分割される場合(=行が満杯)は残余が定義上≈0なので
-	 * 最小幅のまま。行末スペースのつぶし分は残余に含める(align前に
-	 * 取り除かれるため)。justifyより先にleaderが残余を消費するので、
-	 * leader行の文字間justifyは自然に≈0になる。
+	 * Always reset all leaders to minimum width before distribution (so previous allocations do not leak when TwoPass
+	 * recording/replay redrives the same instance). If the line splits within text (= full line), remaining width is
+	 * ≈0 by definition, so keep minimum widths. Include collapsed trailing spaces in remaining width (they are removed
+	 * before align). Leaders consume the remainder before justify, so inter-character justification on leader lines
+	 * naturally becomes ≈0.
 	 * </p>
 	 */
 	private void allocateLeaders(final int count, final boolean last) {
@@ -1447,10 +1435,10 @@ public class TextBuilder {
 		}
 		if (!last && count > 0 && this.textBuffer.get(count - 1) instanceof Text tail
 				&& this.opportunity.glyphCount() > 0 && this.opportunity.glyphCount() != tail.getGlyphCount()) {
-			// 行がテキスト途中で分割される=満杯。残余≈0なので最小幅のまま
+			// Splitting a line within text means it is full. Remaining width is ≈0, so keep minimum widths.
 			return;
 		}
-		// 行末スペース(align前につぶされる)は行幅に数えない
+		// Do not count trailing spaces (collapsed before align) in line width.
 		double trailing = 0;
 		for (int i = count - 1; i >= 0; --i) {
 			final Element e = (Element) this.textBuffer.get(i);
@@ -1471,7 +1459,7 @@ public class TextBuilder {
 				this.lineAxis += share;
 			}
 		}
-		// 行末位相揃えの原点: 各leaderの終端から行内容の終端までの距離
+		// Origin for line-end phase alignment: distance from each leader's end to the end of line content.
 		double after = -trailing;
 		for (int i = count - 1; i >= 0; --i) {
 			final Element e = (Element) this.textBuffer.get(i);
@@ -1483,9 +1471,8 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 現在のバッファ状態を分割機会として捕捉します。バッファ末尾がソフト
-	 * ハイフンの場合は切断時の実体化対象として保持します(残余末尾に
-	 * 持ち越された場合を含む)。
+	 * Captures the current buffer state as a break opportunity. If the buffer ends in a soft hyphen, retains it for
+	 * materialization at the cut (including when carried over at the remainder's end).
 	 */
 	private BreakOpportunity captureOpportunity() {
 		final SoftHyphen hyphen = !this.textBuffer.isEmpty()
@@ -1496,16 +1483,19 @@ public class TextBuilder {
 	FontStyle fontStyle;
 	FontMetrics fontMetrics;
 
-	/** 和文詰めA2: text-autospaceのpair追跡。 */
+	/** Japanese spacing compression A2: text-autospace pair tracking. */
 	private final net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker autospace = new net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker();
 
-	/** 和文詰めH1: hanging-punctuation: allow-endの有効フラグ。 */
+	/** Japanese spacing compression H1: flag enabling hanging-punctuation: allow-end. */
 	private boolean hangingEnd;
 
-	/** 和文詰めT2/H1: 次のnewLineで完了する行の行末詰め/ぶら下げ量。 */
+	/**
+	 * Japanese spacing compression T2/H1: line-end compression/hanging extent for the line completed by the next
+	 * newLine.
+	 */
 	private double pendingEndHang;
 
-	/** JLREQ 3.8.3の追込み点。hangだけは描画幅を変えず実効行末を外へ出す。 */
+	/** JLREQ 3.8.3 compression point. Only hang moves the effective line end outward without changing drawing width. */
 	private static final class JlreqShrinkPoint {
 		final TextImpl text;
 		final int glyphIndex;
@@ -1537,15 +1527,15 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 現在の分割候補をJLREQ 3.8.3の六段階（欧文語間→行末約物→行末中点→
-	 * 内部中点→括弧・読点→和欧間）で追い込む。全容量で収まらない場合は
-	 * 一切変更せず、従来どおり直前候補へ追い出す。
+	 * Compresses the current break candidate in the six JLREQ 3.8.3 stages (Latin word spaces → line-end punctuation →
+	 * line-end middle dots → internal middle dots → brackets/commas → Japanese/Latin spacing). If the full capacity
+	 * cannot make it fit, changes nothing and falls back to the preceding candidate as before.
 	 */
 	private boolean tryJlreqLineShrink(final double overflow) {
 		return this.tryJlreqLineShrink(overflow, true);
 	}
 
-	/** 静的位置の仮想閉鎖では、追込みの可否だけを調べて字送りを変更しない。 */
+	/** Virtual closure for a static position checks only whether compression can fit; it does not alter advances. */
 	@SuppressWarnings("unchecked")
 	private boolean tryJlreqLineShrink(final double overflow, final boolean apply) {
 		if (!(overflow > 0)) {
@@ -1602,10 +1592,10 @@ public class TextBuilder {
 			prev = null;
 			pendingSpace = null;
 			beforeSpace = null;
-			// 原子インライン(数式・画像・inline-block)の後ろでは、その前の字はもう行末ではない
-			// (2026-10-04、出版の報告)。消さないと「。」の後ろ半分を行末として詰められると見込み、
-			// 収まらない箱を同じ行に置いて版面の右端を越えていた。枠のある行内要素の始まり・終わりと
-			// 絶対配置の置き場所は字に付くだけなので、行末の字は変えない
+			// After an atomic inline (formula, image, inline-block), the preceding character is no longer at line end
+			// (2026-10-04, publishing report). Without clearing it, the trailing half of "。" was counted as compressible
+			// at line end, placing a box that did not fit on the same line past the type area's right edge. Starts/ends
+			// of framed inline elements and absolute-position placeholders only attach to text, so keep the line-end character.
 			if (!(element instanceof InlineQuad quad && (quad.getType() == InlineQuad.INLINE_START
 					|| quad.getType() == InlineQuad.INLINE_END || quad.getType() == InlineQuad.INLINE_ABSOLUTE))) {
 				tail = null;
@@ -1658,42 +1648,43 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 行に並べる制御要素(分割のハイフン・インラインの開始と終了・置換・絶対配置・制御文字・leader)を、組み立て中の
-	 * 行へ反映します(2026-10-05 に {@link #drawLine} から切り出した。本文は移しただけ)。
+	 * Applies control elements arranged on the line (break hyphens, inline starts/ends, replaced elements, absolute
+	 * positioning, control characters, and leaders) to the line under construction (extracted from {@link #drawLine}
+	 * on 2026-10-05; the body was merely moved).
 	 *
-	 * @param quad             制御要素
-	 * @param breakHyphenHere  行の最後の要素で、確定した分断なら true(分割のハイフンを実体化する)
+	 * @param quad             control element
+	 * @param breakHyphenHere  true for the last element of a line at a confirmed break (materializes the break hyphen)
 	 */
 	private void placeControl(final TextControl quad, final boolean breakHyphenHere) {
 		if (breakHyphenHere && quad == this.opportunity.hyphen()) {
-			// ソフトハイフンの分割機会で行が切られたのでハイフンを実体化する。
+			// The line broke at a soft-hyphen opportunity, so materialize the hyphen.
 			//
-			// ページ分割で閉じたブロック終端は last=true でここを通るため、
-			// !last だけでは拾えない。確定した分断かを引数で渡して実体化する。
+			// A block end closed by a page split reaches here with last=true, so
+			// !last alone cannot detect it. Pass whether the break is confirmed to materialize it.
 			final TextImpl hyphen = this.opportunity.hyphen().getText();
 			if (hyphen.getGlyphCount() > 0) {
-				// hyphenate-character:""は分割だけ行い文字を表示しない
+				// hyphenate-character:"" breaks without displaying a character.
 				this.addElement(hyphen);
 			}
 		} else if (quad instanceof InlineQuad) {
-			// インラインボックス
+			// Inline box.
 			final InlineQuad inlineQuad = (InlineQuad) quad;
 			switch (inlineQuad.getType()) {
 			case InlineQuad.INLINE_START: {
-				// インライン開始
+				// Inline start.
 				final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
 				this.startInline(inlineStartQuad.box);
 			}
 				break;
 
 			case InlineQuad.INLINE_END: {
-				// インライン終了
+				// Inline end.
 				this.endInline();
 			}
 				break;
 
 			case InlineQuad.INLINE_REPLACED: {
-				// 置換されたボックス
+				// Replaced box.
 				final InlineReplacedQuad inlineReplacedQuad = (InlineReplacedQuad) inlineQuad;
 				this.startInline((IInlineBox) inlineReplacedQuad.box);
 				this.endInline();
@@ -1701,14 +1692,14 @@ public class TextBuilder {
 				break;
 
 			case InlineQuad.INLINE_BLOCK: {
-				// ブロックボックス
+				// Block box.
 				this.startInline((IInlineBox) inlineQuad.getBox());
 				this.endInline();
 			}
 				break;
 
 			case InlineQuad.INLINE_ABSOLUTE: {
-				// 絶対配置ボックス
+				// Absolutely positioned box.
 				final InlineAbsoluteQuad inlineAbsoluteQuad = (InlineAbsoluteQuad) inlineQuad;
 				this.getTextBox().addAbsolute(inlineAbsoluteQuad.box);
 			}
@@ -1721,7 +1712,7 @@ public class TextBuilder {
 			final Control control = (Control) quad;
 			this.addElement(control);
 		} else if (quad instanceof net.zamasoft.foliojet.layout.text.LeaderQuad leaderQuad) {
-			// leader() L1: 割り付け済みの幅で行へ格納する
+			// leader() L1: store in the line with the allocated width.
 			this.addElement(leaderQuad);
 		} else {
 			throw new IllegalStateException();
@@ -1742,25 +1733,25 @@ public class TextBuilder {
 		final net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass cc = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass
 				.of(current.codePoint);
 
-		// 境界の詰めは現在glyphのxadvance(負=詰め)に載っている。JLREQ 3.1の
-		// 連続約物の詰め(pairTrim)で既に取られた二分は、第4・第5段階の容量から
-		// 差し引く。差し引かないと「）。」の）が二分→ベタまで潰れ、。が）の
-		// 字面に食い込む(2026-09-11、利用者報告「（乙36）。」)。
+		// Boundary compression is on the current glyph's xadvance (negative = compression). The half-em
+		// already removed by JLREQ 3.1 consecutive-punctuation compression (pairTrim) must be deducted
+		// from stages 4 and 5. Otherwise, the ） in "）。" compresses from half-em to solid, and 。
+		// intrudes into ）'s glyph bounds (2026-09-11, user report "（乙36）。").
 		final net.zamasoft.pdfg2d.gc.text.GlyphAdvances xa = current.text.xAdvances();
 		final double existing = xa == null ? 0 : xa.get(current.glyphIndex);
 		double applied = Math.max(0, -existing);
 
-		// 二分アキ・四分アキは全角(1em)の約物の字形が持つ空白。プロポーショナルな約物
-		// (IPA P ゴシックの「、」=0.5em、源暎Mゴシックの「【」=0.5em 等)には無いので、
-		// pairTrim と同じ isWide 判定で容量を 0 にする。数えると字面同士が重なる
-		// (2026-09-11、フォントを変えたランダム試験で IPAPGothic の「・（」が送り -0.25em、
-		// 源暎Mゴシックの「文【」が 0.2em 重なった)
+		// Half-em and quarter-em spaces belong to fullwidth (1 em) punctuation glyphs. Proportional punctuation
+		// (e.g. "、" at 0.5 em in IPA P Gothic, "【" at 0.5 em in GenEi M Gothic) lacks them, so
+		// use the same isWide check as pairTrim to set capacity to 0. Counting them overlaps glyph bounds
+		// (2026-09-11: randomized tests with different fonts gave "・（" a −0.25 em advance in IPAPGothic
+		// and a 0.2 em overlap for "文【" in GenEi M Gothic).
 		final boolean prevWide = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(
 				prev.text.getFontMetrics(), prev.gid, prev.fontSize, prev.text.getFontStyle().getDirection());
 		final boolean currentWide = net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.isWide(
 				current.text.getFontMetrics(), current.gid, current.fontSize, current.text.getFontStyle().getDirection());
 
-		// 第5段階: cl-01の前、cl-02/cl-07の後の二分アキ。cl-06の後は詰めない。
+		// Stage 5: half-em space before cl-01 and after cl-02/cl-07. Do not compress after cl-06.
 		double punctuation = 0;
 		if (punctuationTrim) {
 			if (cc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.OPENING && currentWide) {
@@ -1775,7 +1766,7 @@ public class TextBuilder {
 			applied -= consumed;
 		}
 
-		// 第4段階: cl-05の前後四分アキをベタまで詰める。
+		// Stage 4: compress quarter-em spaces before and after cl-05 to solid.
 		double middleDot = 0;
 		if (punctuationTrim) {
 			if (pc == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.MIDDLE_DOT && prevWide) {
@@ -1787,8 +1778,8 @@ public class TextBuilder {
 			middleDot = Math.max(0, middleDot - applied);
 		}
 
-		// 第6段階: text-autospaceの四分アキを最小八分まで詰める。比例幅の句読点の後ろの
-		// 四分アキ(AutospaceTracker.gapBefore、2026-09-14)も同じ段階で詰める。
+		// Stage 6: compress text-autospace quarter-em gaps to a minimum eighth-em. Quarter-em gaps after
+		// proportional punctuation (AutospaceTracker.gapBefore, 2026-09-14) compress at the same stage.
 		final boolean japaneseLatin = isJapaneseLatinBoundary(prev.codePoint, current.codePoint)
 				|| !prevWide && isWestern(current.codePoint)
 						&& net.zamasoft.foliojet.layout.text.spacing.TextAutospaceClasses.of(prev.codePoint)
@@ -1802,7 +1793,7 @@ public class TextBuilder {
 		if (middleDot == 0 && punctuation == 0 && autospace == 0) {
 			return;
 		}
-		// drawTextと同じペン間距離。取り済みの詰め(existing)を二度引かない。
+		// Same pen-to-pen distance as drawText. Do not subtract already applied compression (existing) twice.
 		final FontMetrics prevMetrics = prev.text.getFontMetrics();
 		final double kerning = prev.text == current.text ? prevMetrics.getKerning(prev.gid, current.gid) : 0;
 		final double penDistance = prevMetrics.getAdvance(prev.gid) + prev.text.getLetterSpacing() - kerning + existing;
@@ -1810,7 +1801,7 @@ public class TextBuilder {
 				prevMetrics, prev.gid, prev.fontSize, prev.text.getFontStyle(), current.text.getFontMetrics(),
 				current.gid, current.fontSize, current.text.getFontStyle(), penDistance);
 		double remaining = Double.isNaN(gap) ? Double.POSITIVE_INFINITY : Math.max(0, gap);
-		// 同じ境界に重なる段階は、実際に消費される第4→5→6の順で予算を共有する。
+		// Stages sharing a boundary share the budget in their actual consumption order, 4 → 5 → 6.
 		middleDot = Math.min(middleDot, remaining);
 		remaining = Math.max(0, remaining - middleDot);
 		punctuation = Math.min(punctuation, remaining);
@@ -1846,7 +1837,7 @@ public class TextBuilder {
 		if (wide && this.hangingEnd
 				&& cls == net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingClass.PUNCTUATION
 				&& advance > trim) {
-			// allow-endはJLREQの六段階を使い切った後の追加救済。
+			// allow-end is extra rescue after exhausting all six JLREQ stages.
 			stages[7].add(new JlreqShrinkPoint(null, -1, advance - trim, true));
 		}
 	}
@@ -1868,7 +1859,7 @@ public class TextBuilder {
 						&& isWestern(prev);
 	}
 
-	/** trim-both/autoの無条件行末詰め量です。 */
+	/** Unconditional line-end compression for trim-both/auto. */
 	private double endTrim(final TextImpl text) {
 		if (text.getGlyphCount() <= 0) {
 			return 0;
@@ -1882,7 +1873,7 @@ public class TextBuilder {
 				fontSize);
 	}
 
-	/** hanging-punctuation: force-endの無条件ぶら下げ量です。 */
+	/** Unconditional hanging extent for hanging-punctuation: force-end. */
 	private double forceEndHang(final TextImpl text) {
 		if (text.getGlyphCount() <= 0) {
 			return 0;
@@ -1901,13 +1892,13 @@ public class TextBuilder {
 	}
 
 	public void glyph(int charOffset, char[] ch, int coff, byte clen, int gid) {
-		// **フォントを引き継げていないときは開いているランから復元する**
-		// (2026-08-17)。前進保証ガードが自動改ページを放棄すると、途中で
-		// 作り直されたTextBuilderがstartTextRunを受け取らないまま字を受け取る
-		// ことがある。BlockBuilder.glyphがTextBuilderを遅延生成するときに使う
-		// のと同じ値なので、ここで補っても組み方は変わらない。
-		// **落としてはいけない**——ライブロックは版面の劣化で済ませ、変換は
-		// 完走させる(ARCHITECTURE §5.13)。
+		// **If the font was not inherited, restore it from the open run**
+		// (2026-08-17). When the progress guard abandons an automatic page break,
+		// a TextBuilder rebuilt midway can receive characters without receiving startTextRun.
+		// These are the same values BlockBuilder.glyph uses when lazily creating TextBuilder,
+		// so supplying them here does not change layout.
+		// **Do not fail**: let livelock degrade layout and complete conversion
+		// (ARCHITECTURE §5.13).
 		if (this.fontStyle == null || this.fontMetrics == null) {
 			final FontStyle openStyle = this.builder.getOpenRunFontStyle();
 			final FontMetrics openMetrics = this.builder.getOpenRunFontMetrics();
@@ -1915,8 +1906,8 @@ public class TextBuilder {
 				this.fontStyle = openStyle;
 				this.fontMetrics = openMetrics;
 			} else {
-				// 復元元も無い。字を測れないので捨てる(内容は既に
-				// ライブロックの放棄で落ちている範囲)
+				// No restoration source either. Cannot measure the character, so discard it
+				// (content in this range has already been lost by abandoning the livelock).
 				return;
 			}
 		}
@@ -1927,8 +1918,8 @@ public class TextBuilder {
 		// }
 		// this.flush();
 		// }
-		// 和文詰めA2/T1a: 直前clusterとの境界の調整——autospace gap(正)と
-		// 約物詰め(負、同一run内のみ=移管元のfont層kernと同範囲)
+		// Japanese spacing compression A2/T1a: adjust the boundary with the preceding cluster: autospace gap
+		// (positive) and punctuation compression (negative, same run only, as in the original font-layer kern).
 		final double fontSize = this.fontStyle == null ? 0 : this.fontStyle.getSize();
 		double autospaceGap = this.autospace.gapBefore(ch, coff, fontSize);
 		double punctuationTrim = this.autospace.trimBefore(ch, coff, gid, this.text, this.fontMetrics, fontSize,
@@ -1938,7 +1929,7 @@ public class TextBuilder {
 				this.locateLine();
 				this.firstUnit = false;
 			}
-			// 折返し予測(式の定義はGlyphMeasureStep。加算順は従来を保存)
+			// Predict wrapping (formula defined by GlyphMeasureStep; preserve the existing addition order).
 			double lineAxis = this.unitAdvance + this.letterSpacing + autospaceGap - punctuationTrim;
 			if (this.text == null) {
 				lineAxis += this.fontMetrics.getAdvance(gid);
@@ -1948,8 +1939,8 @@ public class TextBuilder {
 			final double maxLineAxis = this.maxLineSize - this.textIndent;
 			if (LayoutUtils.compare(lineAxis, maxLineAxis) > 0) {
 				this.flush();
-				// flushが実際に行を分割した場合はtrackerがリセット済み——
-				// 行を跨ぐpairに調整は入らない(再計算)
+				// If flush actually split the line, the tracker has already reset;
+				// apply no adjustment to a pair across lines (recompute).
 				autospaceGap = this.autospace.gapBefore(ch, coff, fontSize);
 				punctuationTrim = this.autospace.trimBefore(ch, coff, gid, this.text, this.fontMetrics, fontSize,
 						this.fontStyle);
@@ -1964,8 +1955,8 @@ public class TextBuilder {
 			this.textBuffer.add(this.text);
 		}
 
-		// CSS幅式の唯一の定義(GlyphMeasureStep)を通す。行会計への加算は
-		// 従来どおりbaseAndSpacing→adjustmentの2段(浮動小数点順を保存)
+		// Use the sole definition of the CSS width formula (GlyphMeasureStep). Add to line accounting
+		// in the existing two steps, baseAndSpacing → adjustment, preserving floating-point order.
 		final net.zamasoft.foliojet.layout.text.GlyphMeasureStep step = new net.zamasoft.foliojet.layout.text.GlyphMeasureStep(
 				this.text.appendGlyph(ch, coff, clen, gid), this.letterSpacing, autospaceGap, punctuationTrim);
 		final double advance = step.baseAndSpacing();
@@ -1973,8 +1964,8 @@ public class TextBuilder {
 		this.lineAxis += advance;
 		final double adjustment = step.adjustment();
 		if (adjustment != 0) {
-			// 現在glyphのxadvance(=そのglyphの手前のアキ——CIDKeyedFont/
-			// ルビdistributeと同じ規約)へ焼き込み+行会計へ加算(A2/T1a)
+			// Embed in the current glyph's xadvance (= space before that glyph, same convention as CIDKeyedFont/
+			// ruby distribute) and add to line accounting (A2/T1a).
 			this.text.addXAdvance(this.text.getGlyphCount() - 1, adjustment);
 			this.unitAdvance += adjustment;
 			this.lineAxis += adjustment;
@@ -1984,12 +1975,12 @@ public class TextBuilder {
 		this.lineHead = false;
 
 		if (LayoutUtils.compare(this.text.getAscent() + this.text.getDescent(), this.maxPageSize) > 0) {
-			// 行高さの制限を超えたら強制折り返し
+			// Force wrapping when the line-height limit is exceeded.
 			this.maxLineSize = 0;
 		}
 
 		if (this.text.getGlyphCount() > 10000) {
-			// あまりにも長いランができるのを防止する
+			// Prevent excessively long runs.
 			this.endTextRun();
 			this.startTextRun(this.fontStyle, this.fontMetrics);
 		}
@@ -2003,10 +1994,10 @@ public class TextBuilder {
 
 	public void control(TextControl quad) {
 		assert this.text == null;
-		// 和文詰めA2: 制御(空白・改行・置換要素等)はpairを断つ(明示
-		// 空白のあるpairへautospaceは入らない)。ただし幅0のインライン
-		// 開始/終了は単なる境界でpairを維持する(spanを跨ぐ和欧境界も
-		// autospaceの対象——仕様どおり)
+		// Japanese spacing compression A2: controls (spaces, line breaks, replaced elements, etc.) sever pairs
+		// (no autospace for pairs with explicit whitespace). Zero-width inline starts/ends, however,
+		// are merely boundaries and preserve pairs (Japanese/Latin boundaries across spans also receive
+		// autospace, as specified).
 		if (!(quad instanceof InlineQuad inlineQuad
 				&& (inlineQuad.getType() == InlineQuad.INLINE_START
 						|| inlineQuad.getType() == InlineQuad.INLINE_END)
@@ -2014,36 +2005,36 @@ public class TextBuilder {
 			this.autospace.reset();
 		}
 		if (quad instanceof Control) {
-			// 制御コード
+			// Control code.
 			Control control = (Control) quad;
 			switch (control.getControlChar()) {
 			case SoftHyphen.CHAR:
 				break;
 
 			case '\n':
-				// 改行文字
+				// Line-break character.
 				this.toLineFeed = true;
 				break;
 
 			case '\t':
-				// タブ文字。幅はtab-size(css-text-3、2026-08-29): 倍数なら
-				// 現在のフォントの空白1文字の送り幅×倍数、長さならそのまま。
-				// タブ位置は行頭からタブ幅の整数倍(2026-08-29までは固定24pt)
+				// Tab character. Width uses tab-size (css-text-3, 2026-08-29): a multiplier scales
+				// the current font's single-space advance; a length is used directly.
+				// Tab stops are integer multiples of tab width from line start (fixed at 24 pt until 2026-08-29).
 				Tab tab = (Tab) control;
 				tab.advance = tabAdvance(this.currentTextParams(), this.lineAxis);
 				break;
 
 			case '\u0020':
-				// 空白
+				// Space.
 				if (!this.collapseSpaces) {
 					break;
 				}
 				WhiteSpace whiteSpace = (WhiteSpace) control;
 				if (this.lineHead) {
-					// 先頭のつぶし
+					// Collapse leading space.
 					whiteSpace.collapse();
 				} else {
-					// 末尾のつぶし
+					// Collapse trailing space.
 					this.lastSpaceAdvance = whiteSpace.getAdvance();
 				}
 				break;
@@ -2052,8 +2043,8 @@ public class TextBuilder {
 				throw new IllegalStateException();
 			}
 		} else if (quad instanceof net.zamasoft.foliojet.layout.text.LeaderQuad) {
-			// leader() L1: 最小幅(パターン1周期)で行分割判断に参加する。
-			// 幅の割り付けはdrawLineの先頭
+			// leader() L1: participate in line-break decisions at minimum width (one pattern period).
+			// Allocate widths at the start of drawLine.
 			this.lineHead = false;
 		} else {
 			AbstractTextParams params;
@@ -2084,13 +2075,13 @@ public class TextBuilder {
 
 			case InlineQuad.INLINE_END: {
 				final InlineEndQuad inlineEndQuad = (InlineEndQuad) inlineQuad;
-				// **開始のないINLINE_ENDを受け取りうる**(2026-08-17)。
-				// 前進保証ガードが自動改ページを放棄すると、内容はその場へ
-				// はみ出して配置され、途中で作り直されたビルダーが対応する
-				// INLINE_STARTを見ないまま閉じだけを受け取る。ガードの契約
-				// (ARCHITECTURE §5.13)は<b>変換を失敗させずに劣化させる</b>
-				// ことなので、ここで落ちてはいけない——実測: w3c-jlreqの
-				// 用語表がNullPointerExceptionで変換ごと失敗していた
+				// **INLINE_END can arrive without a start** (2026-08-17).
+				// When the progress guard abandons an automatic page break, content is placed
+				// with overflow in place, and a builder rebuilt midway may receive only the end
+				// without seeing the matching INLINE_START. The guard's contract
+				// (ARCHITECTURE §5.13) is to <b>degrade without failing conversion</b>,
+				// so do not fail here. Observed: the w3c-jlreq glossary table
+				// caused the entire conversion to fail with NullPointerException.
 				if (this.textParamStack != null && !this.textParamStack.isEmpty()) {
 					this.textParamStack.remove(this.textParamStack.size() - 1);
 				}
@@ -2112,7 +2103,7 @@ public class TextBuilder {
 			case InlineQuad.INLINE_BLOCK:
 				final double lineHeight = inlineQuad.getBox().getPageExtent(params.flow);
 				if (LayoutUtils.compare(lineHeight, this.maxPageSize) > 0) {
-					// 行高さの制限を超えたら強制折り返し
+					// Force wrapping when the line-height limit is exceeded.
 					this.maxLineSize = 0;
 				}
 				this.lineHead = false;
@@ -2131,13 +2122,13 @@ public class TextBuilder {
 	}
 
 	/**
-	 * 改行されるとtrueを返します。
-	 * 
+	 * Returns true when a line break occurs.
+	 *
 	 * @return
 	 */
 	public boolean flush() {
 		if (this.totalFitPlan != null) {
-			// M3c: 最適化再生中はK-Pが選択したflushでのみ改行する
+			// M3c: during optimized replay, break lines only at flushes selected by K-P.
 			return this.plannedFlush();
 		}
 		this.unitAdvance = 0;
@@ -2153,26 +2144,26 @@ public class TextBuilder {
 				double lineAxis = this.lineAxis - this.lastSpaceAdvance;
 				double maxLineAxis = this.maxLineSize - this.textIndent;
 				if (LayoutUtils.compare(lineAxis, maxLineAxis) > 0) {
-					// JLREQ 3.8.3: 現候補が優先段階どおりの追込みで収まるなら
-					// バッファ全体をこの行へ残す。収まらなければ変更せず従来候補へ送る。
+					// JLREQ 3.8.3: if the current candidate fits after compression in priority order,
+					// keep the whole buffer on this line. Otherwise, leave it unchanged and use the existing candidate.
 					if (this.tryJlreqLineShrink(lineAxis - maxLineAxis)) {
 						this.opportunity = this.captureOpportunity();
 					}
-					// テキストブロックの途中での折り返し
+					// Wrapping within a text block.
 					final boolean ret = this.newLine(false);
 					return ret;
 				}
 			}
 		}
 		if (this.toLineFeed) {
-			// 改行コード
+			// Line-break character.
 			final boolean ret = this.newLine(true);
 			this.toLineFeed = false;
 			return ret;
 		}
 		if (!this.firstUnit && this.textBuffer.get(this.textBuffer.size() - 1) instanceof SoftHyphen) {
-			// ソフトハイフンでの分割は、ハイフンを実体化しても行が溢れない場合のみ許す。
-			// ただし手前の部分だけで既に溢れている(他に分割点が無い)場合は許容する。
+			// Allow a soft-hyphen break only if materializing the hyphen does not overflow the line.
+			// However, allow it if the preceding portion alone already overflows (no other break point).
 			final SoftHyphen softHyphen = (SoftHyphen) this.textBuffer.get(this.textBuffer.size() - 1);
 			final double lineAxis = this.lineAxis - this.lastSpaceAdvance;
 			final double maxLineAxis = this.maxLineSize - this.textIndent;
@@ -2188,12 +2179,11 @@ public class TextBuilder {
 	}
 
 	/**
-	 * K-Pの選択計画に従うflushです(M3c、{@link #totalFitPlan}非null時
-	 * のみ)。溢れ判定・ソフトハイフン適合判定はK-P側で済んでいるため
-	 * 行わず、選択されたflushではバッファ全体を1行として確定する
-	 * (consume-onceのため{@code while(flush())}ループの再入では改行
-	 * しない)。物理生成(禁則済みバッファの行化・ハイフン実体化・
-	 * インライン再生成・justification)は既存の{@link #newLine}系が担う。
+	 * Flushes according to the K-P selected plan (M3c; only when {@link #totalFitPlan} is non-null). K-P has already
+	 * checked overflow and soft-hyphen fit, so skip those checks and finalize the whole buffer as one line at a
+	 * selected flush (consume-once prevents another break on reentry through {@code while(flush())}). The existing
+	 * {@link #newLine} family handles physical generation: turning the buffer, already processed for kinsoku
+	 * (line-breaking rules), into a line, materializing hyphens, regenerating inlines, and justification.
 	 */
 	private boolean plannedFlush() {
 		this.unitAdvance = 0;
@@ -2204,7 +2194,7 @@ public class TextBuilder {
 			return false;
 		}
 		if (this.toLineFeed) {
-			// 明示改行(forced breakpoint)はlegacyと同じ最終行扱い
+			// Treat an explicit line break (forced breakpoint) as a last line, as in legacy.
 			final boolean ret = this.newLine(true);
 			this.toLineFeed = false;
 			return ret;
@@ -2214,13 +2204,13 @@ public class TextBuilder {
 	}
 
 	void finish(final boolean fragmentBreak) {
-		// テキストブロックの末尾
+		// End of the text block.
 		// assert this.textParamStack == null || this.textParamStack.isEmpty();
-		// fragmentBreak=true は本文の終端ではなく、版面が満杯になって
-		// 後続断片へテキストが続くことを呼び出し側が確定した状態。
+		// fragmentBreak=true means the caller has confirmed that the type area is full
+		// and text continues in a later fragment, not that the body text has ended.
 		if (!this.drawLine(true, fragmentBreak)) {
-			// 開始のないINLINE_ENDだけを回復的に捨てたTextBuilderは、
-			// 1行も持たずに終了してよい。
+			// A TextBuilder that only discarded unmatched INLINE_END for recovery
+			// may finish without any lines.
 			if (fragmentBreak) {
 				this.builder.previewBidiParagraph(this.textBlockBox.getBlockParams());
 			} else {
@@ -2229,7 +2219,7 @@ public class TextBuilder {
 			return;
 		}
 		this.lineBox.align(this.textIndent, this.minLineAxis, this.maxLineSize, true);
-		// ブロック末尾の行(nowrapの1行はここだけを通る)にもtext-overflowを適用
+		// Apply text-overflow to the block's final line too (a nowrap line passes only here).
 		this.applyTextOverflow(this.lineBox);
 		this.addLine(this.lineBox);
 		if (fragmentBreak) {

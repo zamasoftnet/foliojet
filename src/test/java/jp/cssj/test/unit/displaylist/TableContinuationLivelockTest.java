@@ -4,7 +4,7 @@ import java.io.File;
 
 import junit.framework.TestCase;
 
-/** 表の継続再構築が同じtbodyを無限に送らない回帰(seed 7662)。 */
+/** Regression: rebuilding a table continuation must not endlessly move the same tbody (seed 7662). */
 public class TableContinuationLivelockTest extends TestCase {
 	public TableContinuationLivelockTest(final String name) {
 		super(name);

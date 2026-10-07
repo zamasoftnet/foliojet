@@ -36,7 +36,7 @@ import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 分割不能floatの先送りで旧頁に排除跡を残さないことの回帰テスト。 */
+/** Regression: forwarding an unsplittable float leaves no exclusion trace on the old page. */
 public class FloatGapTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final long WATCHDOG_MS = 60_000L;
@@ -46,7 +46,7 @@ public class FloatGapTest extends TestCase {
 		super(name);
 	}
 
-	/** pre=30では直交floatが現頁に収まり、重なる縦行だけが100pt下から始まる。 */
+	/** At pre=30, the orthogonal float fits on this page; only overlapping vertical lines start 100 pt down. */
 	public void testVerticalRlFitKeepsFloatAndWrapsBesideIt() throws Exception {
 		final Capture capture = transcode("vertical-fit-30", verticalGapDocument(30, true), 1, null);
 		final BoxBounds floating = only(capture.normalFloats(), "pre=30のfigure");
@@ -66,9 +66,9 @@ public class FloatGapTest extends TestCase {
 	}
 
 	/**
-	 * pre=36/42/48ではfigureだけを次頁へ送り、旧頁の全後続縦行を全長に保つ。
-	 * 脚注は付けない——脚注予約で旧頁の末尾が縮み、pre=42では後続の縦行が
-	 * 旧頁に残らない(脚注の型は別試験)。
+	 * At pre=36/42/48, forward only the figure to the next page and retain the full length of all later
+	 * vertical lines on the old page. Omit footnotes: their reservation shortens the old page's end,
+	 * so at pre=42 no later vertical lines remain there (footnote types have separate tests).
 	 */
 	public void testVerticalRlMoveLeavesNoGap() throws Exception {
 		for (final int preCount : new int[] { 36, 42, 48 }) {
@@ -76,7 +76,7 @@ public class FloatGapTest extends TestCase {
 					verticalGapDocument(preCount, false), 1, null);
 			final BoxBounds floating = only(capture.normalFloats(), "pre=" + preCount + "のfigure");
 			assertEquals("収まらないfigureは次頁: pre=" + preCount, 2, floating.page());
-			// 表示リストの座標は版面内辺基準(0..180)
+			// Display-list coordinates use the type area's inner edge as the origin (0..180).
 			assertEquals("次頁のblock-startへ置く", 180, floating.bounds().getMaxX(), 0.75);
 			final List<BoxBounds> pageOnePost = capture.lines().stream()
 					.filter(line -> line.page() == 1
@@ -95,7 +95,9 @@ public class FloatGapTest extends TestCase {
 		}
 	}
 
-	/** 後着脚注は配置済みatomic floatを押し出さず、callだけを現頁に残して本文を送る。 */
+	/**
+	 * A late footnote does not push out a placed atomic float; it leaves only the call here and forwards its body.
+	 */
 	public void testFootnoteBodyDefersBehindPlacedAtomicFloat() throws Exception {
 		final String html = verticalGapDocument(30, true).replace("float:footnote;",
 				"float:footnote; width:60pt;");
@@ -111,7 +113,7 @@ public class FloatGapTest extends TestCase {
 		assertNoIntersections("脚注による再移動なし", floating, capture.lines());
 	}
 
-	/** atomic floorより下へ入らない先頭bottomは強制予約せず次頁へ送る。 */
+	/** Forward a leading bottom float that cannot fit below the atomic floor, without forcing a reservation. */
 	public void testFirstBottomFloatDefersBehindAtomicFloatFloor() throws Exception {
 		final String html = verticalGapDocument(30, false).replace("<p class='post'>",
 				"<div class='bottom'></div><p class='post'>").replace(".note {",
@@ -125,12 +127,13 @@ public class FloatGapTest extends TestCase {
 	}
 
 	/**
-	 * marginだけが紙の外へ出る分割不能figure(実文書cti.liの`margin: 0 1.5em 1.2em`)は、
-	 * 描画実測では収まって見えても占有寸法で判定してMOVE_TO_NEXTにし、跡地を残さない。
+	 * For an unsplittable figure whose margins alone extend off the paper (real cti.li document:
+	 * `margin: 0 1.5em 1.2em`), use occupied size to choose MOVE_TO_NEXT without leaving a trace,
+	 * even if measured painting appears to fit.
 	 */
 	public void testMarginOnlyOverflowMovesWithoutGap() throws Exception {
-		// pre=30: アンカーは96pt、figureの枠は80pt(=176≦180で収まる)だが、
-		// 横margin 5pt×2 を足した占有寸法90ptでは186>180で収まらない
+		// pre=30: anchor at 96 pt, figure frame 80 pt (=176≦180, fits), but
+		// the occupied size including two 5 pt horizontal margins is 90 pt, so 186>180 does not fit.
 		final String html = verticalGapDocument(30, false).replace("width:80pt; height:100pt;",
 				"width:80pt; height:100pt; margin:0 5pt;");
 		final Capture capture = transcode("vertical-margin-overflow", html, 1, null);
@@ -150,7 +153,7 @@ public class FloatGapTest extends TestCase {
 		assertWordsPreserved(capture, "TAIL", 40);
 	}
 
-	/** 入れ子の局所先頭floatでも、親が頁先頭でなければ収まる時だけ現頁へ残す。 */
+	/** Even a nested locally leading float stays on this page only if it fits, unless its parent is at page start. */
 	public void testNestedFirstFloatUsesEffectiveFragmentStart() throws Exception {
 		final Capture fitting = transcode("nested-first-fit", nestedFirstFloatDocument(99.0), 1, null);
 		final BoxBounds fittingFloat = only(fitting.normalFloats(), "収まる入れ子先頭figure");
@@ -173,7 +176,9 @@ public class FloatGapTest extends TestCase {
 		assertNoIntersections("収まらない入れ子先頭figure", movedFloat, overflowing.lines());
 	}
 
-	/** bottom→本文→atomicの逆順でもbottom予約を保ち、atomicだけを次頁へ送る。 */
+	/**
+	 * Even in reverse order (bottom→body→atomic), retain the bottom reservation and forward only the atomic float.
+	 */
 	public void testReservedBottomStaysWhenLaterAtomicFloatWouldEnterItsBand() throws Exception {
 		final String html = """
 				<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
@@ -203,7 +208,7 @@ public class FloatGapTest extends TestCase {
 		assertEquals("bottom帯より上の最初の行は全幅", 180, after.get(0).bounds().getWidth(), 0.75);
 	}
 
-	/** vertical-rlの分割不能floatは0.7ptのpainted sliverなら配置・分割ともKeepする。 */
+	/** Keep an unsplittable vertical-rl float in both placement and splitting when its painted sliver is 0.7 pt. */
 	public void testVerticalRlUnsplittableOverflowPointSevenStaysWithoutGap() throws Exception {
 		final Capture capture = transcode("vertical-tolerance-0_7", verticalToleranceDocument(100.7), 1, null);
 		final BoxBounds floating = only(capture.normalFloats(), "0.7pt超過figure");
@@ -216,7 +221,9 @@ public class FloatGapTest extends TestCase {
 						&& Math.abs(line.bounds().getMinY() - floating.bounds().getMaxY()) <= 0.75));
 	}
 
-	/** vertical-rlの分割不能floatは1.5pt超過なら送り、旧頁に排除跡を残さない。 */
+	/**
+	 * Forward an unsplittable vertical-rl float overflowing by 1.5 pt, leaving no exclusion trace on the old page.
+	 */
 	public void testVerticalRlUnsplittableOverflowOnePointFiveMovesWithoutGap() throws Exception {
 		final Capture capture = transcode("vertical-tolerance-1_5", verticalToleranceDocument(101.5), 1, null);
 		final BoxBounds floating = only(capture.normalFloats(), "1.5pt超過figure");
@@ -229,7 +236,7 @@ public class FloatGapTest extends TestCase {
 		assertNoIntersections("1.5pt超過", floating, capture.lines());
 	}
 
-	/** 行末floatがMOVE_TO_NEXTなら、その判定前の現在行を狭めない。 */
+	/** If an end-side float returns MOVE_TO_NEXT, do not narrow the current line before that decision. */
 	public void testInlineEndMoveKeepsCurrentLineFullWidth() throws Exception {
 		final String html = """
 				<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
@@ -252,7 +259,10 @@ public class FloatGapTest extends TestCase {
 				currentLines.get(0).bounds().getWidth(), 0.75);
 	}
 
-	/** 横組の鏡像でも直交floatを先送りし、旧頁の横行を全幅に保つ。 */
+	/**
+	 * The horizontal-writing mirror also forwards the orthogonal float and preserves full-width lines on the old
+	 * page.
+	 */
 	public void testHorizontalTbMirrorLeavesNoGap() throws Exception {
 		final String html = """
 				<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
@@ -280,7 +290,7 @@ public class FloatGapTest extends TestCase {
 		assertWordsPreserved(capture, "MIRROR", 80);
 	}
 
-	/** ownerと同じ書字軸のBLOCK floatは従来どおりページ境界で分割する。 */
+	/** A BLOCK float sharing its owner's writing axis still splits at page boundaries as before. */
 	public void testSameWritingAxisFloatStillSplits() throws Exception {
 		final String html = verticalGapDocument(36, false)
 				.replace("writing-mode:horizontal-tb;", "writing-mode:vertical-rl;");
@@ -292,7 +302,7 @@ public class FloatGapTest extends TestCase {
 		assertWordsPreserved(capture, "POST", 8);
 	}
 
-	/** atomic floorのmax通知はTwoPass replayでも表示リストを変えない。 */
+	/** Reporting the maximum atomic floor does not change the display list even during TwoPass replay. */
 	public void testTwoPassMainCaseHasIdenticalDisplayLists() throws Exception {
 		final String html = verticalGapDocument(36, true);
 		final File one = new File("local/unittest/float-gap-pass-parity/pass-1");

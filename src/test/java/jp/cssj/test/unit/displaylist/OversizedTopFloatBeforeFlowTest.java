@@ -6,7 +6,7 @@ import java.nio.file.Files;
 
 import junit.framework.TestCase;
 
-/** 版面を超える上端フロート直後の継続再入回帰(seed 91の縮小形)。 */
+/** Continuation reentry regression immediately after a top float exceeding the type area (reduced seed 91). */
 public class OversizedTopFloatBeforeFlowTest extends TestCase {
 	public OversizedTopFloatBeforeFlowTest(final String name) {
 		super(name);

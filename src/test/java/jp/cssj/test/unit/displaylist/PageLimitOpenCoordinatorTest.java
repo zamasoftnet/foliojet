@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** ページ上限でSAX入力が途中終了しても、開いたFlex/Gridを対称に畳む。 */
+/** Symmetrically unwind open Flex/Grid even when the page limit ends SAX input early. */
 public class PageLimitOpenCoordinatorTest extends TestCase {
 	public void testForceLimitInsideNestedCoordinatorsProducesPdf() throws Exception {
 		final StringBuilder html = new StringBuilder("<!doctype html><html><head><style>"

@@ -8,9 +8,9 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Grid G4cの空行gapテストです。grid-row:3のitemだけのGrid: 行0/1は
- * 高さ0だが行間gap(8pt)は残る(仕様のgutter挙動)——xの開始=
- * 0+8+0+8=16、総高=16+20=36。
+ * Grid G4c empty-row gap test. Grid contains only an item with grid-row:3.
+ * Rows 0/1 have zero height, but inter-row gaps (8 pt) remain (the specified gutter behavior):
+ * x starts at 0+8+0+8=16; total height = 16+20=36.
  */
 public class GridEmptyRowGapTest extends AbstractTestCase {
 	public GridEmptyRowGapTest(String name) {
@@ -33,7 +33,7 @@ public class GridEmptyRowGapTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 空行2つ分のgapだけ下(y=+16)。 */
+	/** Offset downward by the gaps for two empty rows (y=+16). */
 	public boolean check_x(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);
@@ -43,7 +43,7 @@ public class GridEmptyRowGapTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 総高=16+20=36。 */
+	/** Total height = 16+20=36. */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseY + 36, y, 0.1);

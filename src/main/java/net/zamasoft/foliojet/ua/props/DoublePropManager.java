@@ -10,7 +10,7 @@ import net.zamasoft.pdfg2d.util.NumberUtils;
 public class DoublePropManager extends AbstractPropManager {
 	public final double defaultDouble;
 
-	/** 受け付ける値の範囲(両端を含む)。外れた値と有限でない値は警告して既定値にする(2026-10-05)。 */
+	/** Accepted range (inclusive). Warn and use the default for out-of-range or non-finite values (2026-10-05). */
 	private final double min, max;
 
 	public DoublePropManager(String name, double defaultDouble) {
@@ -46,7 +46,7 @@ public class DoublePropManager extends AbstractPropManager {
 				return value;
 			}
 		} catch (NumberFormatException e) {
-			// 下で警告する
+			// Warn below.
 		}
 		mh.message(MessageCodes.WARN_BAD_IO_PROPERTY, new String[] { this.name, str });
 		return this.defaultDouble;

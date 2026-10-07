@@ -12,11 +12,11 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * M6d-A3a(2026-07-22新設、A3b後に{@link BoxRecipe}をsealed interface
- * へ拡張)の型契約を固定する単体テストです。まだ未配線(既存の
- * {@code LayoutSource}/{@code SourceReplayer}への変換アダプタは
- * M6d-A3c以降)——この段階では型自身の構造(recipeと構造の分離、
- * Barrierが理由を必須で持つこと等)だけを確認する。
+ * Unit tests that lock down the type contracts for M6d-A3a (added 2026-07-22;
+ * {@link BoxRecipe} was extended to a sealed interface after A3b). Not wired in yet
+ * (conversion adapters for the existing {@code LayoutSource}/{@code SourceReplayer} come in M6d-A3c
+ * and later). At this stage, only check the types' own structure (separation of recipe and structure,
+ * mandatory reasons for Barriers, etc.).
  */
 public class SegmentEventTest extends TestCase {
 	private static BoxRecipe.Flow flowRecipe() {
@@ -51,7 +51,7 @@ public class SegmentEventTest extends TestCase {
 		assertEquals(BoxKind.TABLE_ROW, withKind.kind().get());
 		assertEquals(BarrierReason.NOT_YET_SUPPORTED, withKind.reason());
 
-		// 旧Opaque/Replaced相当は種別情報を持たないため空
+		// Empty because the equivalents of the old Opaque/Replaced have no kind information.
 		final SegmentEvent.Barrier withoutKind = new SegmentEvent.Barrier(java.util.Optional.empty(),
 				BarrierReason.NOT_YET_SUPPORTED);
 		assertTrue(withoutKind.kind().isEmpty());
@@ -65,7 +65,7 @@ public class SegmentEventTest extends TestCase {
 		assertEquals(ReplacedRecipe.GenerationKind.INLINE, replaced.recipe().generationKind());
 	}
 
-	/** {@code ReplacedRecipe}は生成種別ごとに異なるvariant(Pos型が違う)として表現される。 */
+	/** {@code ReplacedRecipe} uses a distinct variant for each creation kind (different Pos types). */
 	public void testReplacedRecipeVariantsCarryKindSpecificPosTemplates() {
 		final ReplacedParamsTemplate params = ReplacedParamsTemplate.freeze(new ReplacedParams());
 		final ReplacedRecipe.Flow flow = new ReplacedRecipe.Flow(params, FlowPosTemplate.freeze(new FlowPos()));
@@ -82,11 +82,11 @@ public class SegmentEventTest extends TestCase {
 	}
 
 	/**
-	 * {@link ReplacedBoxImage}実装({@code BarcodeImage}等、live boxへの
-	 * back-referenceを自身に書き込む)を持つ{@code ReplacedParams}は、
-	 * E-6増分3b-6のduplicateベースfreeze総関数化により、凍結時に独立
-	 * 複製が格納され、materializeごとにさらに複製が配られる(live・
-	 * materialize同士のいずれとも共有しない)。
+	 * A {@link ReplacedBoxImage} implementation (such as {@code BarcodeImage}, which writes a
+	 * back-reference to the live box into itself) in {@code ReplacedParams} gets an independent copy
+	 * stored on freeze, thanks to E-6 increment 3b-6 making freeze a total function through duplication.
+	 * Another copy is supplied on each materialization (shared with neither the live instance
+	 * nor other materializations).
 	 */
 	public void testReplacedParamsTemplateDuplicatesReplacedBoxImage() {
 		final ReplacedParams params = new ReplacedParams();
@@ -102,7 +102,7 @@ public class SegmentEventTest extends TestCase {
 		assertSame(liveImage, params.image);
 	}
 
-	/** {@link Image}かつ{@link ReplacedBoxImage}を両方実装する最小のテスト用スタブ。 */
+	/** A minimal test stub implementing both {@link Image} and {@link ReplacedBoxImage}. */
 	private static final class StubReplacedBoxImage implements Image, ReplacedBoxImage {
 		public double getWidth() {
 			return 0;
@@ -127,14 +127,14 @@ public class SegmentEventTest extends TestCase {
 		}
 	}
 
-	/** 同値のイベントは記録場所によらず等価(record由来)。 */
+	/** Events with equal values are equal regardless of where they were recorded (inherited from record). */
 	public void testValueEqualityAcrossConstructions() {
 		assertEquals(new SegmentEvent.EndBox(), new SegmentEvent.EndBox());
 		assertEquals(new BoxRecipe.Flow(null, null), new BoxRecipe.Flow(null, null));
 		assertFalse(new BoxRecipe.Flow(null, null).equals(new BoxRecipe.Inline(null, null)));
 	}
 
-	/** BoxRecipeはBoxKindごとに異なるvariant(Flow/Inline)として表現される。 */
+	/** BoxRecipe uses a distinct variant (Flow/Inline) for each BoxKind. */
 	public void testBoxRecipeVariantsCarryKindSpecificTemplates() {
 		final BoxRecipe.Flow flow = flowRecipe();
 		final BoxRecipe.Inline inline = inlineRecipe();

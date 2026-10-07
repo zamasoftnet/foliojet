@@ -4,7 +4,7 @@ import java.util.List;
 
 import junit.framework.TestCase;
 
-/** row subgridの一時link契約を固定します。 */
+/** Locks down the temporary link contract for row subgrid. */
 public class RowSubgridLinkTest extends TestCase {
 
 	public void testLinkIsConsumedAndClearedOnce() {
@@ -18,7 +18,7 @@ public class RowSubgridLinkTest extends TestCase {
 
 			@Override
 			public void whenRowsResolved(final RowGeometryFinalizer finalizer) {
-				// この試験では登録契約だけを使う。
+				// This test uses only the registration contract.
 			}
 		};
 		final RowSubgridLink link = new RowSubgridLink(7, 3, 4, List.of(List.of(), List.of(), List.of(),
@@ -32,7 +32,7 @@ public class RowSubgridLinkTest extends TestCase {
 		assertNull(tracks.link());
 		assertNull(tracks.consumeRowSubgridLink());
 
-		// sinkへ渡すrowは親のrowStartを足さない子ローカル値。
+		// The row passed to the sink is child-local, without adding the parent's rowStart.
 		consumed.sink().contribute(1, 2, 30);
 		assertEquals(1, contribution[0]);
 		assertEquals(2, contribution[1]);

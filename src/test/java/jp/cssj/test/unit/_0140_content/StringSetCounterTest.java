@@ -8,12 +8,11 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * {@code string-set}の値が文字列/カウンタのみ(build時に即座に解決)の
- * 場合の{@code string()}の4モード({@code first}/{@code last}/
- * {@code first-except}/{@code start})を、代入元と同じページからの
- * 参照も含めて検証する。book.cssのローマ数字/算用数字切替と同型
- * (#s1/#s2が代入元、その直後の同ページ参照と、間に代入の無いページを
- * 跨いだ参照の両方を見る)。
+ * Tests all four {@code string()} modes ({@code first}/{@code last}/{@code first-except}/{@code start})
+ * when {@code string-set} values contain only strings/counters (resolved immediately at build time),
+ * including references from the same page as the assignment source.
+ * This matches book.css's Roman/Arabic numeral switching (#s1/#s2 are assignment sources; checks cover
+ * both references immediately afterward on the same page and references across a page without assignments).
  */
 public class StringSetCounterTest extends AbstractTestCase {
 	public StringSetCounterTest(String name) {
@@ -31,7 +30,7 @@ public class StringSetCounterTest extends AbstractTestCase {
 		assertEquals(expected, text.toString());
 	}
 
-	// ページ1: #s1がv="one"を代入。同じページからの参照。
+	// Page 1: #s1 assigns v="one". References are from the same page.
 	public boolean check_p1first(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertBlockText(box, "one");
@@ -48,7 +47,7 @@ public class StringSetCounterTest extends AbstractTestCase {
 		return false;
 	}
 
-	// first-exceptは「まさに今のページで新規代入された」場合は空文字列。
+	// first-except is an empty string when a new assignment occurs on this very page.
 	public boolean check_p1except(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertBlockText(box, "");
@@ -57,7 +56,7 @@ public class StringSetCounterTest extends AbstractTestCase {
 		return false;
 	}
 
-	// ページ2: このページでの代入は無い(前ページからentry valueを引き継ぐ)。
+	// Page 2: No assignment on this page (inherits the entry value from the previous page).
 	public boolean check_p2first(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertBlockText(box, "one");
@@ -74,7 +73,7 @@ public class StringSetCounterTest extends AbstractTestCase {
 		return false;
 	}
 
-	// このページでの代入が無いので、first-exceptはfirstと同じ(空文字列にならない)。
+	// With no assignment on this page, first-except is the same as first (not an empty string).
 	public boolean check_p2except(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertBlockText(box, "one");
@@ -91,7 +90,7 @@ public class StringSetCounterTest extends AbstractTestCase {
 		return false;
 	}
 
-	// ページ3: #s2がv="two"を代入。同じページからの参照。
+	// Page 3: #s2 assigns v="two". References are from the same page.
 	public boolean check_p3first(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertBlockText(box, "two");
@@ -116,7 +115,7 @@ public class StringSetCounterTest extends AbstractTestCase {
 		return false;
 	}
 
-	// startは簡略化してentry value固定(このページの新規代入"two"は反映されない)。
+	// start is simplified to always use the entry value (the new assignment "two" on this page is not reflected).
 	public boolean check_p3start(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertBlockText(box, "one");

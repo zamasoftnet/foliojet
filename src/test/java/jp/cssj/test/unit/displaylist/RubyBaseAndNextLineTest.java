@@ -31,11 +31,13 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * ルビの 2 件を固定します(2026-10-06、jigensha の報告)。
+ * Pin down two ruby cases (2026-10-06, jigensha report).
  * <ul>
- * <li>親字の中の縦中横の字が消えた(「2ちゃんねる」が「にちゃんねる」)。字は全角にして親字に残す。</li>
- * <li>親字より長いルビのある行に br で続く行が、句読点を含むと行長を超えた。ルビの箱を張り出しの分だけ広げる前に
- * 行へ渡していたので、行の長さの数え漏れが次の行の余地になっていた。</li>
+ * <li>Tate-chu-yoko characters in ruby base text disappeared ("2ちゃんねる" became "にちゃんねる").
+ * Convert the characters to full-width and retain them in the base text.</li>
+ * <li>When a line with ruby longer than its base was followed by a line via br, punctuation made the next line
+ * exceed the line length. The ruby box was passed to the line before expanding it for the overhang,
+ * so the uncounted length became extra space for the next line.</li>
  * </ul>
  */
 public class RubyBaseAndNextLineTest extends TestCase {
@@ -67,8 +69,9 @@ public class RubyBaseAndNextLineTest extends TestCase {
 	}
 
 	/**
-	 * ルビのある行(A)と無い行(B)で、br の後の行の端がそろい、行長に収まる。改行の位置は変わらず、両端揃えで
-	 * 伸びていたので、PDF の字の位置で測る(修正前は A が約 3.7mm はみ出した)。
+	 * After br, line ends align and fit within the line length both after a line with ruby (A) and without it (B).
+	 * Line break positions stayed unchanged; justification stretched the lines, so measure character positions
+	 * in the PDF (before the fix, A overflowed by about 3.7 mm).
 	 */
 	public void testLineAfterOverhangingRubyKeepsItsLength() throws Exception {
 		final String rest = "あいうえお、かきくけこ、さしすせそ、たちつてと、なにぬねの、はひふへほ、まみむめも、やゆよ、";
@@ -82,7 +85,7 @@ public class RubyBaseAndNextLineTest extends TestCase {
 				<div>第７駆逐隊　曙、潮、漣<br/>%s</div>
 				</body></html>
 				""".formatted(rest, rest));
-		// 行ごと(y)に字の右端の最大を取り、「あいう」で始まる行(A と B の br の後)を見る
+		// Take the maximum character right edge per line (y), and inspect lines starting with "あいう" (after br in A and B).
 		final Map<Long, List<TextPosition>> lines = new TreeMap<>();
 		try (PDDocument doc = Loader.loadPDF(new File(dir, "out.pdf"))) {
 			final PDFTextStripper stripper = new PDFTextStripper() {
@@ -107,11 +110,11 @@ public class RubyBaseAndNextLineTest extends TestCase {
 		}
 		assertEquals(ends.toString(), 2, ends.size());
 		assertEquals(ends.toString(), ends.get(1), ends.get(0), 0.5);
-		// 行の終わりは 160mm - 10mm(頁の余白)
+		// The line ends at 160 mm - 10 mm (page margin).
 		assertTrue(ends.toString(), ends.get(0) <= 150 * 72 / 25.4 + 0.5);
 	}
 
-	/** 変換して、各頁の表示リストを頁順に返します。 */
+	/** Convert and return each page's display list in page order. */
 	private static String[] convert(final String html) throws Exception {
 		final File dir = convertTo(html);
 		final File[] pages = dir.listFiles((d, n) -> n.endsWith(".txt"));
@@ -124,7 +127,7 @@ public class RubyBaseAndNextLineTest extends TestCase {
 		return dumps;
 	}
 
-	/** 変換して、表示リストと PDF の入ったディレクトリを返します。 */
+	/** Convert and return the directory containing the display lists and PDF. */
 	private static File convertTo(final String html) throws Exception {
 		final File dir = new File("local/ruby-base-and-next-line/" + Integer.toHexString(html.hashCode()));
 		dir.mkdirs();

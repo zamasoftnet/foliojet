@@ -16,9 +16,10 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 継続(改ページ運搬)の特性テストです(P4: OpenTailShape 縮小の
- * 定量基盤)。チェーン化された破断が Child フレームを通ること、
- * Legacy 経路の発火数が増えないことをカウンタで固定します。
+ * Characterization tests for continuation (carrying content across page breaks)
+ * (P4: quantitative basis for reducing OpenTailShape).
+ * Counters fix the contracts that chained breaks go through Child frames
+ * and Legacy-path activations do not increase.
  */
 public class ContinuationCharacterizationTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
@@ -27,30 +28,30 @@ public class ContinuationCharacterizationTest extends TestCase {
 		ContinuationStats.reset();
 		this.transcode(new File("files/unittest/0460-segment-restyle/float-split-in-chain.html"), "cont-chain");
 		assertTrue("チェーン破断が Child フレームを通っていません", ContinuationStats.CHILD_FRAMES.get() > 0);
-		// チェーン化できた破断で収集不能 restyle が発火しないこと
+		// Chained breaks must not trigger unchained restyles.
 		assertEquals("チェーン破断で Legacy 全 restyle が発火", 0, ContinuationStats.UNCHAINED_RESTYLES.get());
 	}
 
 	public void testOpenParagraphHandoffGoesThroughSlice() throws Exception {
 		ContinuationStats.reset();
-		// 段落中央の破断: open 段落の handoff がスライス運搬
-		// (M3b Phase 1)を通ることを実測固定
+		// Breaks in the middle of a paragraph: measure and fix the contract that open-paragraph handoff
+		// uses slice transport (M3b Phase 1).
 		this.transcode(new File("files/unittest/0460-segment-restyle/mid-paragraph.html"), "cont-open-text");
 		assertTrue("open 段落の handoff が観測されていません", ContinuationStats.OPEN_TEXT_HANDOFFS.get() > 0);
 	}
 
 	public void testLegacyDepthIsLoadBearing() throws Exception {
 		ContinuationStats.reset();
-		// OpenTailShape の深さ規約は実働(実測 max=6: moved-open の
-		// 入れ子)。Phase 3 の除去は「開きボックス連鎖の値 recipe 化」を
-		// 伴う本格工事であることの記録。除去できたらこのテストごと削除
+		// OpenTailShape's depth contract is active (measured max=6: nested moved-open).
+		// This records that Phase 3 removal is substantial work requiring open-box chains
+		// to become value recipes. Once removed, delete this test too.
 		this.transcode(new File("files/unittest/0460-segment-restyle/mid-paragraph.html"), "p1");
 		this.transcode(new File("files/unittest/0460-segment-restyle/float-split-in-chain.html"), "p2");
 		this.transcode(new File("files/unittest/0460-segment-restyle/nested-break-in-replay.html"), "p3");
 		this.transcode(new File("files/unittest/0460-segment-restyle/moved-blocks.html"), "p4");
 		this.transcode(new File("files/unittest/0400-column-count/nest.html"), "p5");
-		// 旧 MAX_OPEN_TAIL_DEPTH(PAGE/COLUMN混同の非推奨カウンタ)は削除。
-		// 後継のPAGE/COLUMN別カウンタの最大値が旧カウンタと同じ意味になる
+		// Removed old MAX_OPEN_TAIL_DEPTH (deprecated counter conflating PAGE/COLUMN).
+		// The maximum of the successor PAGE/COLUMN-specific counters has the same meaning as the old counter.
 		final long maxOpenTailDepth = Math.max(ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get(),
 				ContinuationStats.MAX_COLUMN_OPEN_TAIL_DEPTH.get());
 		assertTrue("depth 規約が観測されていません", maxOpenTailDepth > 0);
@@ -59,10 +60,10 @@ public class ContinuationCharacterizationTest extends TestCase {
 
 	public void testTableSpanningBreakChainsToo() throws Exception {
 		ContinuationStats.reset();
-		// 表を跨ぐ改ページも Child フレームで連鎖し、末端だけが
-		// OpenTailShape(開きテキスト・moved-open の従来規約)になる。
-		// 収集不能の全 restyle(UNCHAINED_RESTYLES)はゼロ — この現状を保存契約
-		// として固定する(P4 は OPEN_TAILS の縮小が対象)
+		// Page breaks through tables also chain via Child frames; only the tail becomes
+		// OpenTailShape (the existing contract for open text and moved-open).
+		// All unchained restyles (UNCHAINED_RESTYLES) are zero. Fix this current behavior
+		// as a preservation contract (P4 targets reducing OPEN_TAILS).
 		this.transcode(new File("files/unittest/0218-pagebreak-table-span/fixed-rowspan.html"), "cont-table");
 		assertTrue("表跨ぎ破断が Child フレームを通っていません", ContinuationStats.CHILD_FRAMES.get() > 0);
 		assertEquals("収集不能の Legacy 全 restyle が発火", 0, ContinuationStats.UNCHAINED_RESTYLES.get());

@@ -30,8 +30,8 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /**
- * NekoHTMLによりHTMLを解析します。
- * 
+ * Parses HTML with NekoHTML.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: HTMLParser.java 1608 2021-04-18 03:57:50Z miyabe $
  */
@@ -63,24 +63,24 @@ public class HTMLParser implements Parser {
 		parser.setContentHandler(xmlHandler);
 
 		if (source.isReader()) {
-			// キャラクタストリーム
+			// Character stream
 			this.parseReader(ua, source, parser);
 		} else {
-			// バイトストリーム
+			// Byte stream
 			this.parseStream(ua, source, parser);
 		}
 	}
 
 	protected void parseReader(final UserAgent ua, final Source source, final SAXParser parser)
 			throws SAXException, IOException {
-		// キャラクタストリーム
+		// Character stream
 		//
-		// 緩衝は**内側にも**要る(2026-07-27)。バイト経路(parseStream)と
-		// 同じ理由で、LegacyCommentReaderは1文字ずつ`super.read()`を呼ぶ。
-		// 下層は`InputStreamReader`なので生のreadシステムコールにはならないが、
-		// `StreamDecoder`が呼び出しごとに一時オブジェクトを作るため、
-		// **13MBの和文文書で316MBを確保していた**(実測、2026-07-27)。
-		// 内側のBufferedReaderで、その1文字ずつの読みが配列上で完結する。
+		// Buffering is needed **on the inside too** (2026-07-27). For the same reason as
+		// the byte path (parseStream), LegacyCommentReader calls `super.read()` one character at a time.
+		// The underlying `InputStreamReader` avoids raw read system calls,
+		// but `StreamDecoder` creates temporary objects for every call,
+		// **allocating 316 MB for a 13 MB Japanese document** (measured, 2026-07-27).
+		// An inner BufferedReader confines these single-character reads to an array.
 		try (Reader in = new BufferedReader(
 				new LegacyCommentReader(new BufferedReader(source.getReader(), 64 * 1024)))) {
 			String encoding = source.getEncoding();
@@ -94,22 +94,22 @@ public class HTMLParser implements Parser {
 
 	protected void parseStream(final UserAgent ua, final Source source, final SAXParser parser)
 			throws SAXException, IOException {
-		// バイトストリーム
-		// BOMチェック
-		// 緩衝は**内側にも**要る(2026-07-27)。
+		// Byte stream
+		// Check BOM.
+		// Buffering is needed **on the inside too** (2026-07-27).
 		//
-		// LegacyCommentInputStreamは1バイトずつ`super.read()`を呼ぶ実装なので、
-		// 外側のBufferedInputStreamだけでは**生のストリームに対して
-		// 1バイト1回のread**になる——実測でプロファイルの最上位に
-		// `FileInputStream.read0`が30%現れていた。
+		// LegacyCommentInputStream calls `super.read()` one byte at a time,
+		// so an outer BufferedInputStream alone still causes **one read on the raw stream
+		// per byte**. In measurements, `FileInputStream.read0` topped
+		// the profile at 30%.
 		//
-		// 内側の緩衝で、その1バイトずつの読みがメモリ上で完結する。
+		// Inner buffering keeps those single-byte reads entirely in memory.
 		InputStream in = new BufferedInputStream(
 				new LegacyCommentInputStream(new BufferedInputStream(source.getInputStream(), 64 * 1024)));
 		String encoding = XMLUtils.checkBOM(in);
 		if (encoding == null) {
-			// 伝送の層の文字コード(HTTPのContent-Type・CTIで渡された指定)はBOMの次に強い(HTMLの文字コードの決め方)。
-			// 2026-10-04まではここで捨て、入力の上限があって文字の経路(parseReader)を通れない本文を自動判定していた
+			// Transport encoding (HTTP Content-Type or the CTI-supplied value) has priority after BOM (HTML encoding rules).
+			// Until 2026-10-04, this was ignored; bodies barred from parseReader by input limits used auto-detection.
 			encoding = source.getEncoding();
 		}
 
@@ -184,23 +184,23 @@ public class HTMLParser implements Parser {
 	}
 
 	/**
-	 * 閉じられていないレガシーコメントを補正しながら読むストリームです。
+	 * A stream that corrects unclosed legacy comments while reading.
 	 *
 	 * <p>
-	 * <b>1バイトずつ扱うので、実装の素朴さがそのまま費用になる。</b>
-	 * 2026-07-27まで {@code ArrayDeque<Integer>} に積んでおり、11MBの文書で
-	 * 1,100万回のボクシングとデック操作が走っていた。可変長のバイトキューへ
-	 * 置き換えてある——<b>確保は一度きり、要素あたりの割り当てはゼロ</b>。
+	 * <b>Because it handles one byte at a time, implementation simplicity directly determines cost.</b>
+	 * Until 2026-07-27, it used {@code ArrayDeque<Integer>}, causing 11 million boxing and deque
+	 * operations for an 11 MB document. Replaced with a variable-length byte queue:
+	 * <b>allocate once, with zero per-element allocations</b>.
 	 * </p>
 	 *
 	 * <p>
-	 * 併せて、下層にも緩衝が要る({@link #parseStream}参照)。外側の
-	 * {@code BufferedInputStream}だけでは、ここが1バイトずつ呼ぶせいで
-	 * <b>生のストリームに対して1バイト1回のread</b>になっていた。
+	 * The underlying layer also needs buffering (see {@link #parseStream}).
+	 * With only an outer {@code BufferedInputStream}, this class's single-byte calls caused
+	 * <b>one read on the raw stream per byte</b>.
 	 * </p>
 	 */
 	private static class LegacyCommentInputStream extends FilterInputStream {
-		/** 先読み済みのバイト列。{@code [head, tail)} が有効範囲。 */
+		/** Bytes read ahead. {@code [head, tail)} is the valid range. */
 		private byte[] pending = new byte[64];
 
 		private int head = 0, tail = 0;
@@ -212,7 +212,7 @@ public class HTMLParser implements Parser {
 		private void push(final int b) {
 			if (this.tail == this.pending.length) {
 				if (this.head > 0) {
-					// 前詰めで済むならそれで済ませる
+					// Compact toward the start if that suffices.
 					System.arraycopy(this.pending, this.head, this.pending, 0, this.tail - this.head);
 					this.tail -= this.head;
 					this.head = 0;
@@ -242,10 +242,10 @@ public class HTMLParser implements Parser {
 			if (len == 0) {
 				return 0;
 			}
-			// **要求された分を埋めきること。** 溜まっている分だけ返すと、
-			// 呼び出し側(BufferedInputStream)は1バイトずつしか受け取れず、
-			// 外側の緩衝が無効になる——実測で1文書あたり5秒遅くなった
-			// (2026-07-27に一度そう書いて踏んだ)。
+			// **Fill the requested amount.** Returning only buffered data gives
+			// the caller (BufferedInputStream) just one byte at a time,
+			// disabling outer buffering. Measurements showed a 5-second slowdown per document
+			// (encountered after implementing it that way on 2026-07-27).
 			int count = 0;
 			while (count < len) {
 				if (this.head == this.tail) {
@@ -255,7 +255,7 @@ public class HTMLParser implements Parser {
 						break;
 					}
 				}
-				// 溜まっている分は**まとめて**写す(従来は1バイトずつだった)
+				// Copy buffered data **in bulk** (previously one byte at a time).
 				final int n = Math.min(len - count, this.available0());
 				System.arraycopy(this.pending, this.head, b, off + count, n);
 				this.head += n;
@@ -322,16 +322,16 @@ public class HTMLParser implements Parser {
 	}
 
 	/**
-	 * {@link LegacyCommentInputStream}の文字版です。
+	 * The character version of {@link LegacyCommentInputStream}.
 	 *
 	 * <p>
-	 * <b>両者は必ず同じ形に保つこと。</b>2026-07-27まで、バイト版だけが
-	 * 緩衝とキューの手当てを受け、こちらは取り残されていた——
-	 * 双子の一方だけを直すと、この非対称がそのまま次の欠陥になる。
+	 * <b>Always keep both implementations in the same form.</b> Until 2026-07-27,
+	 * only the byte version had received buffering and queue improvements, leaving this one behind.
+	 * Fixing only one twin turns that asymmetry directly into the next defect.
 	 * </p>
 	 */
 	private static class LegacyCommentReader extends FilterReader {
-		/** 先読み済みの文字列。{@code [head, tail)} が有効範囲。 */
+		/** Characters read ahead. {@code [head, tail)} is the valid range. */
 		private char[] pending = new char[64];
 
 		private int head = 0, tail = 0;
@@ -343,7 +343,7 @@ public class HTMLParser implements Parser {
 		private void push(final int c) {
 			if (this.tail == this.pending.length) {
 				if (this.head > 0) {
-					// 前詰めで済むならそれで済ませる
+					// Compact toward the start if that suffices.
 					System.arraycopy(this.pending, this.head, this.pending, 0, this.tail - this.head);
 					this.tail -= this.head;
 					this.head = 0;
@@ -369,9 +369,9 @@ public class HTMLParser implements Parser {
 			if (len == 0) {
 				return 0;
 			}
-			// **要求された分を埋めきること。** 溜まっている分だけ返すと、
-			// 呼び出し側(BufferedReader)は1文字ずつしか受け取れず、
-			// 外側の緩衝が無効になる(バイト版と同じ罠)
+			// **Fill the requested amount.** Returning only buffered data gives
+			// the caller (BufferedReader) just one character at a time,
+			// disabling outer buffering (the same trap as the byte version).
 			int count = 0;
 			while (count < len) {
 				if (this.head == this.tail) {
@@ -381,7 +381,7 @@ public class HTMLParser implements Parser {
 						break;
 					}
 				}
-				// 溜まっている分は**まとめて**写す
+				// Copy buffered data **in bulk**.
 				final int n = Math.min(len - count, this.tail - this.head);
 				System.arraycopy(this.pending, this.head, cbuf, off + count, n);
 				this.head += n;

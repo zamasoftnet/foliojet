@@ -7,9 +7,9 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 
 /**
- * LayoutSource(レイアウトソースプロトコルログ)のテストです(M6b v3)。
- * recipeの中身はログ機構に無関係のため、デフォルト値の最小recipeで
- * 代用します(E-6増分3b-4でStartは記録時freezeのrecipe保持になった)。
+ * Tests for LayoutSource (layout-source protocol log) (M6b v3).
+ * Recipe contents are irrelevant to the logging mechanism, so use a minimal recipe with default values
+ * (Start began retaining a recipe frozen at recording time in E-6 increment 3b-4).
  */
 public class LayoutSourceTest extends TestCase {
 	private static LayoutSource.Event start() {
@@ -37,8 +37,8 @@ public class LayoutSourceTest extends TestCase {
 	}
 
 	/**
-	 * caption recipe化C1/C2のプロトコルテストです
-	 * (consult-codex-2026-08-01-caption-recipe.txt Q1の範囲別扱い表)。
+	 * Protocol tests for caption recipes C1/C2
+	 * (the handling table by range in consult-codex-2026-08-01-caption-recipe.txt Q1).
 	 */
 	public void testCaptionContextCompleteRange() {
 		final LayoutSource log = new LayoutSource();
@@ -50,28 +50,28 @@ public class LayoutSourceTest extends TestCase {
 		final long tableEnd = log.append(new LayoutSource.EndBlock());
 		final long blockEnd = log.append(new LayoutSource.EndBlock());
 
-		// containsCaption: 含有検出
+		// containsCaption: detect containment
 		assertTrue(log.containsCaption(block, blockEnd));
 		assertTrue(log.containsCaption(caption, caption));
 		assertFalse(log.containsCaption(block, table));
 
-		// TABLE→CAPTION / BLOCK→TABLE→CAPTION: 適格
+		// TABLE→CAPTION / BLOCK→TABLE→CAPTION: eligible
 		assertTrue(log.isContextCompleteRange(table, tableEnd));
 		assertTrue(log.isContextCompleteRange(block, blockEnd));
-		// CAPTION単独範囲: 不適格(G-1の直接原因)
+		// CAPTION-only range: ineligible (direct cause of G-1)
 		assertFalse(log.isContextCompleteRange(caption, captionEnd));
-		// tableStart+1..tableEnd-1(先頭がCAPTION、TABLE Startなし): 不適格
+		// tableStart+1..tableEnd-1 (starts with CAPTION, no TABLE Start): ineligible
 		assertFalse(log.isContextCompleteRange(table + 1, tableEnd - 1));
-		// CAPTIONを途中で切る範囲(開いたまま終わる): 不適格
+		// Range cutting through CAPTION (ends while it remains open): ineligible
 		assertFalse(log.isContextCompleteRange(table, caption));
-		// CAPTION Startの直前で終わる範囲: 適格(caption非含有——
-		// 開いたTABLEが残るため不適格が正しい)
+		// Range ending just before CAPTION Start: eligible (contains no caption—
+		// ineligible is actually correct because an open TABLE remains).
 		assertFalse(log.isContextCompleteRange(block, table));
 	}
 
 	public void testEventIdStableAcrossCompaction() {
 		final LayoutSource log = new LayoutSource();
-		final long body = log.append(start()); // 開いたまま
+		final long body = log.append(start()); // Left open
 		final long p1 = log.append(start());
 		log.append(new LayoutSource.Chars(0, "aaa".toCharArray(), false));
 		final long p1end = log.append(new LayoutSource.EndBlock());
@@ -81,12 +81,12 @@ public class LayoutSourceTest extends TestCase {
 
 		assertEquals(p1end, log.endOf(p1));
 
-		// p2 より前を破棄(開いている body は残る)
+		// Discard before p2 (keep the open body).
 		log.compact(p2);
 		assertNotNull(log.get(body));
 		assertNull(log.get(p1));
 		assertNotNull(log.get(p2));
-		// id は不変
+		// IDs remain unchanged.
 		assertTrue(log.get(p2) instanceof LayoutSource.Start);
 		assertEquals(log.endOf(p2), p2 + 2);
 	}
@@ -113,13 +113,13 @@ public class LayoutSourceTest extends TestCase {
 	}
 
 	public void testOpaquePairsWithEndBlock() {
-		// Opaque は EndBlock と対を成す開始イベント。対称に扱わないと
-		// (1) endOf が Opaque の対の EndBlock を親の終端と誤認し、
-		// (2) compact が祖先の Start を誤って pop して開チェーンが崩壊する
+		// Opaque is a start event paired with EndBlock. Without symmetric handling,
+		// (1) endOf mistakes the EndBlock paired with Opaque for the parent's end, and
+		// (2) compact incorrectly pops an ancestor's Start, destroying the open chain.
 		final LayoutSource log = new LayoutSource();
 		final long body = log.append(start());
 		final long div = log.append(start());
-		log.append(new LayoutSource.Opaque()); // 絶対配置などの非対応ボックス
+		log.append(new LayoutSource.Opaque()); // Unsupported boxes such as absolutely positioned boxes
 		log.append(new LayoutSource.Chars(0, "a".toCharArray(), false));
 		log.append(new LayoutSource.EndBlock()); // /opaque
 		log.append(new LayoutSource.Chars(1, "b".toCharArray(), false));
@@ -127,21 +127,21 @@ public class LayoutSourceTest extends TestCase {
 		final long tail = log.nextId();
 		log.append(new LayoutSource.Chars(2, "c".toCharArray(), false));
 
-		// endOf: Opaque の対の EndBlock を div の終端と誤認しないこと
+		// endOf: do not mistake the EndBlock paired with Opaque for the end of div.
 		assertEquals(divEnd, log.endOf(div));
 
-		// compact: 破棄範囲内で完結する opaque 対が、開いている祖先
-		// (body)の Start を pop してしまわないこと
+		// compact: an opaque pair completed within the discarded range must not pop
+		// the Start of an open ancestor (body).
 		log.compact(tail);
 		assertNotNull(log.get(body));
 		assertEquals(-1, log.endOf(body));
 	}
 
 	public void testReplaySurvivesNestedCompaction() {
-		// 再生の visitor 内で入れ子の改ページが compact を呼ぶケース
-		// (再生した内容が新ページを溢れさせる)。backing list が
-		// clear+addAll で作り直されても、再生中の範囲は完走しなければ
-		// ならない(外部レビュー指摘: 数値 index の走査では silent skip する)
+		// A nested page break calls compact inside the replay visitor
+		// (the replayed content overflows the new page). Even if the backing list
+		// is rebuilt with clear+addAll, the range being replayed must complete
+		// (external review: scanning by numeric index silently skips entries).
 		final LayoutSource log = new LayoutSource();
 		final long[] ids = new long[7];
 		for (int i = 0; i < 7; ++i) {
@@ -152,7 +152,7 @@ public class LayoutSourceTest extends TestCase {
 			final int off = ((LayoutSource.Chars) event).charOffset();
 			seen.add(off);
 			if (off == 2) {
-				// 水位 pin(fromId=ids[2])で clamp された compact を模擬
+				// Simulate compact clamped by a watermark pin (fromId=ids[2]).
 				log.compact(ids[2]);
 			}
 		});
@@ -160,10 +160,10 @@ public class LayoutSourceTest extends TestCase {
 	}
 
 	public void testReplaySurvivesNestedCompactionBeyondRange() {
-		// E-6増分3a: 再生中の入れ子 compact の水位が再生範囲の先(範囲全体
-		// より後ろ)を指しても、slice 自身のリースが fromId で clamp する
-		// ため streaming 走査は完走する(従来は全量コピーが隔離していた
-		// 保証の置き換え)
+		// E-6 increment 3a: even if the watermark of nested compact during replay points beyond
+		// the entire replay range, the slice's own lease clamps it at fromId,
+		// so the streaming scan completes (replaces the isolation guarantee
+		// previously provided by copying the entire range).
 		final LayoutSource log = new LayoutSource();
 		final long[] ids = new long[7];
 		for (int i = 0; i < 7; ++i) {
@@ -174,13 +174,13 @@ public class LayoutSourceTest extends TestCase {
 			final int off = ((LayoutSource.Chars) event).charOffset();
 			seen.add(off);
 			if (off == 3) {
-				// 範囲の終端より先の水位(リースなしなら未読の 4,5 が消える)
+				// A watermark beyond the end of the range (without a lease, unread entries 4 and 5 disappear).
 				log.compact(ids[6]);
 			}
 		});
 		assertEquals(List.of(2, 3, 4, 5), seen);
-		// 再生完了でリースは解放済み——次の compact は普通に破棄できる
-		// (取り残すと永久 clamp = 保持リーク)
+		// The lease is released when replay finishes; the next compact can discard normally.
+		// (Leaving it behind would clamp forever, leaking retained entries.)
 		log.compact(ids[6]);
 		assertNull(log.get(ids[2]));
 		assertNotNull(log.get(ids[6]));
@@ -209,10 +209,10 @@ public class LayoutSourceTest extends TestCase {
 			ids[i] = log.append(new LayoutSource.Chars(i, new char[] { (char) ('A' + i) }, false));
 		}
 		final LayoutSource.ReplaySlice slice = log.capture(ids[0], ids[1]);
-		// capture 中はリースが compact を clamp する
+		// During capture, the lease clamps compact.
 		log.compact(ids[2]);
 		assertNotNull(log.get(ids[0]));
-		// 放棄(close は冪等)でリースが解放され、破棄できる
+		// Abandoning capture (close is idempotent) releases the lease and permits discarding.
 		slice.close();
 		slice.close();
 		log.compact(ids[2]);
@@ -227,12 +227,12 @@ public class LayoutSourceTest extends TestCase {
 			ids[i] = log.append(new LayoutSource.Chars(i, new char[] { (char) ('A' + i) }, false));
 		}
 		final LayoutSource.RetentionLease lease = log.retainFrom(ids[1]);
-		// リースが生きている間、fromId より前は破棄されない
+		// While the lease is active, entries before fromId are not discarded.
 		log.compact(ids[4]);
 		assertNotNull(log.get(ids[1]));
 		assertNotNull(log.get(ids[3]));
 		assertNull(log.get(ids[0]));
-		// 解放後は破棄できる
+		// After release, entries can be discarded.
 		lease.close();
 		log.compact(ids[4]);
 		assertNull(log.get(ids[1]));
@@ -240,8 +240,8 @@ public class LayoutSourceTest extends TestCase {
 	}
 
 	public void testRetentionLeaseIsRefCounted() {
-		// 同じ fromId を複数の継続が独立に所有した場合、一方の解放で
-		// もう一方の保持が消えてはならない(参照カウント)
+		// When multiple continuations independently own the same fromId, releasing one must not
+		// remove the retention of the other (reference counting).
 		final LayoutSource log = new LayoutSource();
 		final long[] ids = new long[3];
 		for (int i = 0; i < 3; ++i) {
@@ -250,7 +250,7 @@ public class LayoutSourceTest extends TestCase {
 		final LayoutSource.RetentionLease outer = log.retainFrom(ids[0]);
 		final LayoutSource.RetentionLease inner = log.retainFrom(ids[0]);
 		inner.close();
-		inner.close(); // 冪等
+		inner.close(); // Idempotent
 		log.compact(ids[2]);
 		assertNotNull(log.get(ids[0]));
 		outer.close();
@@ -264,7 +264,7 @@ public class LayoutSourceTest extends TestCase {
 		final long body = log.append(start());
 		final long p = log.append(start());
 		log.append(new LayoutSource.EndBlock()); // /p
-		final long div = log.append(start()); // 開いたまま
+		final long div = log.append(start()); // Left open
 		final long tail = log.nextId();
 		log.append(new LayoutSource.Chars(0, "t".toCharArray(), false));
 
@@ -276,13 +276,13 @@ public class LayoutSourceTest extends TestCase {
 		assertEquals(4, log.size());
 	}
 	/**
-	 * RangeSummary(疎索引によるcontains*のO(log k)化、2026-08-01)の
-	 * 線形走査との等価性プロパティテストです。テスト自身がイベント列を
-	 * 構築するため、カテゴリの正解台帳を構築時に記録し、乱数の範囲照会
-	 * (シード固定)で全述語を突き合わせる。compact後は「全域が水位以降の
-	 * 範囲」(エントリが全て生存)について再検証する。
-	 * Replaced(FLOAT)分岐のみここでは構築困難のため対象外——実コーパスの
-	 * float画像文書を通るtier1/goldenが実効カバレッジ。
+	 * Property test for equivalence between RangeSummary (O(log k) contains* via a sparse index,
+	 * 2026-08-01) and a linear scan. Since the test constructs the event sequence itself,
+	 * it records the correct category ledger during construction and compares all predicates using
+	 * random range queries (fixed seed). After compact, check again for ranges entirely at or beyond
+	 * the watermark (all entries survive).
+	 * Only the Replaced(FLOAT) branch is excluded because it is difficult to construct here:
+	 * tier1/golden tests using float-image documents in the real corpus provide effective coverage.
 	 */
 	public void testRangeSummaryMatchesLinearScan() {
 		final java.util.Random random = new java.util.Random(20260801L);
@@ -342,7 +342,7 @@ public class LayoutSourceTest extends TestCase {
 				open.push(id);
 			}
 			case 8, 9 -> {
-				id = log.append(start()); // 横flowのFLOW
+				id = log.append(start()); // FLOW with horizontal flow
 				open.push(id);
 			}
 			case 10 -> {
@@ -359,7 +359,7 @@ public class LayoutSourceTest extends TestCase {
 		}
 		final long maxId = log.nextId() - 1;
 		verifyAgainstTruth(log, truth, 0, maxId, random);
-		// compact後: 全域が水位以降の範囲で再検証
+		// After compact: check again for ranges entirely at or beyond the watermark.
 		final long watermark = maxId / 2;
 		log.compact(watermark);
 		verifyAgainstTruth(log, truth, watermark, maxId, random);
@@ -388,7 +388,7 @@ public class LayoutSourceTest extends TestCase {
 			assertEquals("flex" + at, expect[FLEX], log.containsFlex(from, to));
 			assertEquals("absolute" + at, expect[ABSOLUTE], log.containsAbsolute(from, to));
 			assertEquals("float" + at, expect[FLOATB], log.containsFloat(from, to));
-			// 横rootに対するmixedFlow=縦flow開始の存在
+			// For a horizontal root, mixedFlow means a vertical-flow start exists.
 			assertEquals("mixedFlow" + at, expect[VFLOW], log.containsMixedFlow(from, to, horizontal));
 		}
 	}

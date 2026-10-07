@@ -41,8 +41,8 @@ public class TestPDFVisitor extends PDFVisitor {
 			return;
 		}
 
-		// E-6増分3b-4: ソース再生されたボックスのelementはStructureToken
-		// のことがある——共通契約StructureElement経由で読む(idも契約に含む)
+		// E-6 increment 3b-4: A source-replayed box may have a StructureToken as its element.
+		// Read it through the shared StructureElement contract (which also includes id).
 		StructureElement ce = box.getParams().element;
 		if (ce == null || ce.id() == null) {
 			return;
@@ -50,7 +50,7 @@ public class TestPDFVisitor extends PDFVisitor {
 		Method method = (Method) this.test.idToMethod.get(ce.id());
 		if (method == null) {
 			// throw new RuntimeException("id=" + ce.id +
-			// " の要素をテストするメソッドがありません");
+			// " has no method to test the element");
 			return;
 		}
 		boolean done = false;

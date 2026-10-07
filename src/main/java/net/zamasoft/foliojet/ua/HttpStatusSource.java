@@ -1,11 +1,11 @@
 package net.zamasoft.foliojet.ua;
 
 /**
- * HTTP応答の状態を診断側へ渡すSourceの付加契約です。
+ * Additional Source contract that provides HTTP response status to diagnostics.
  *
  * <p>
- * 本文や応答ヘッダは公開せず、取得失敗の段階表示に必要な状態コードだけを
- * 伝えます。まだ応答が無い、またはHTTP以外なら負の値を返します。
+ * Exposes neither the body nor response headers, only the status code needed to indicate
+ * the retrieval failure stage. Returns a negative value if no response exists yet or for non-HTTP sources.
  * </p>
  */
 public interface HttpStatusSource {

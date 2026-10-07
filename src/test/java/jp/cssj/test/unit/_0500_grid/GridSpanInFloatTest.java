@@ -8,10 +8,10 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Grid G4dのspan contributionテストです。幅なしfloat内のGrid
- * [40pt auto]: span2のitem(min=max=100)の不足分配でauto列の
- * base=60になり、Grid max-content=100がfloatのshrink-to-fit幅へ
- * 伝播する。bindでもauto列=60で確定(a幅=100、bはx=+40)。
+ * Grid G4d span contribution test. Grid [40pt auto] inside a float without a specified width:
+ * distributing the shortfall of a span2 item (min=max=100) gives the auto column a base of 60,
+ * and Grid max-content=100 propagates to the float's shrink-to-fit width.
+ * At bind time, the auto column also resolves to 60 (a width=100, b at x=+40).
  */
 public class GridSpanInFloatTest extends AbstractTestCase {
 	public GridSpanInFloatTest(String name) {
@@ -25,7 +25,7 @@ public class GridSpanInFloatTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** floatの幅=Grid max-content=100(span不足分配込みの伝播)。 */
+	/** Float width = Grid max-content=100 (propagation includes span shortfall distribution). */
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(100.0, box.getWidth(), 0.1);
@@ -34,7 +34,7 @@ public class GridSpanInFloatTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** span item: 幅=40+60=100。 */
+	/** Span item: width = 40+60=100. */
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			this.baseX = x;
@@ -45,7 +45,7 @@ public class GridSpanInFloatTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** auto列(不足分配後60pt)の開始=+40、span行の次の行。 */
+	/** The auto column (60 pt after shortfall distribution) starts at +40, in the row after the spanning row. */
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 40, x, 0.1);

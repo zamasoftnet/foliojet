@@ -19,7 +19,7 @@ import org.xml.sax.XMLReader;
 import org.xml.sax.ext.Locator2;
 
 /**
- * 標準JAXPのSAXパーサーによりXMLを解析します。
+ * Parses XML with the standard JAXP SAX parser.
  */
 public class JAXPParser implements Parser {
 	public void parse(final UserAgent ua, final Source source, final XMLHandler xmlHandler)

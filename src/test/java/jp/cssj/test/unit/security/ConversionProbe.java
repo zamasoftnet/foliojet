@@ -22,13 +22,13 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 1回の変換を行い、<b>版面と警告の両方</b>を取り出す道具です。
+ * A tool that performs one conversion and extracts <b>both the type area and warnings</b>.
  *
  * <p>
- * 資源アクセス制御の検査では、「変換が成功した」だけでは何も言えません。
- * 取得できなかった資源は黙って無視されるので、<b>成功はフォールバックと
- * 区別できない</b>のです。そこでこの道具は、PDFの内容ストリームを展開して
- * 返し、呼び出し側が<b>固有の画素・字形が出たか</b>で判定できるようにします。
+ * For resource-access-control checks, successful conversion alone proves nothing.
+ * Resources that cannot be fetched are silently ignored, so <b>success cannot be distinguished
+ * from fallback</b>. This tool therefore decompresses and returns PDF content streams, allowing callers
+ * to judge whether <b>distinctive pixels or glyphs appeared</b>.
  * </p>
  *
  * @see ProbeServer
@@ -41,7 +41,7 @@ public class ConversionProbe {
 
 	private boolean localAccessAllowed = true;
 
-	/** 入出力プロパティを足します。 */
+	/** Add an I/O property. */
 	public ConversionProbe property(final String name, final String value) {
 		this.properties.put(name, value);
 		return this;
@@ -50,17 +50,17 @@ public class ConversionProbe {
 	private int includeCount = 0;
 
 	/**
-	 * ACLを設定します。何も設定しなければ既定(取得しない)のままです。
+	 * Configure the ACL. With no settings, retain the default (do not fetch).
 	 *
 	 * <p>
-	 * 複数回呼べます。{@code input.include.0}から順に番号を振ります。ACLは
-	 * <b>先勝ち</b>なので、足した順に評価されます。
+	 * May be called multiple times. Number entries starting at {@code input.include.0}.
+	 * The ACL is <b>first-match-wins</b>, so entries are evaluated in insertion order.
 	 * </p>
 	 *
 	 * <p>
-	 * 番号なしの{@code input.include}は使いません。番号付きの読み取りは
-	 * {@code .0}から始まって<b>欠番で打ち切られる</b>ため、番号なしと
-	 * {@code .1}を混ぜると2つめが黙って無視されます。
+	 * Do not use unnumbered {@code input.include}. Numbered reading starts at {@code .0} and
+	 * <b>stops at the first missing number</b>; mixing an unnumbered entry with {@code .1}
+	 * silently ignores the second entry.
 	 * </p>
 	 */
 	public ConversionProbe include(final String pattern) {
@@ -72,12 +72,12 @@ public class ConversionProbe {
 	}
 
 	/**
-	 * 埋め込み側の汎用リゾルバを差し込むかどうかです。既定は差し込みます
-	 * (実運用のCLI・サーバと同じ形)。
+	 * Whether to inject the embedding application's generic resolver. Inject it by default
+	 * (the same setup as production CLI and servers).
 	 *
 	 * <p>
-	 * <b>これを差し込まないことが、信頼しない入力での要点です。</b>
-	 * {@code setLocalAccessAllowed(false)}だけでは足りません。
+	 * <b>Not injecting this resolver is essential for untrusted input.</b>
+	 * {@code setLocalAccessAllowed(false)} alone is insufficient.
 	 * </p>
 	 */
 	public ConversionProbe genericResolver(final boolean use) {
@@ -90,21 +90,20 @@ public class ConversionProbe {
 		return this;
 	}
 
-	/** HTMLの文字列を組んで、結果を返します。基底URIは作業ディレクトリの下です。 */
+	/** Lay out an HTML string and return the result. The base URI is under the working directory. */
 	public Result convertHtml(final String html) throws Exception {
 		return this.convert(html.getBytes(StandardCharsets.UTF_8), "text/html");
 	}
 
 	/**
-	 * その<b>URLから</b>主文書を取得して組みます。
+	 * Fetch the main document <b>from this URL</b> and lay it out.
 	 *
 	 * <p>
-	 * <b>SVGの中からの取得を測るときは、必ずこちらを使ってください。</b>
-	 * 主文書が{@code file:}だと、SVGの中の{@code http:}の取得はBatikの
-	 * 既定判定(取得元のホストが文書と違えば拒む)に先に止められ、
-	 * <b>経路が起動しているかどうかを測れません</b>。2026-09-08に実際に
-	 * これで測り損ねました。主文書を同じ記録用サーバから配れば、
-	 * 既定判定は素通りし、FolioJetの制御だけを見られます。
+	 * <b>Always use this when measuring fetches from inside SVG.</b> If the main document uses {@code file:},
+	 * Batik's default check (reject if the source host differs from the document's) blocks {@code http:}
+	 * fetches from SVG first, so <b>you cannot measure whether the path is active</b>.
+	 * This actually invalidated a measurement on 2026-09-08. Serving the main document from the same
+	 * recording server passes the default check, isolating FolioJet's controls.
 	 * </p>
 	 */
 	public Result convertUrl(final String url) throws Exception {
@@ -154,16 +153,16 @@ public class ConversionProbe {
 	}
 
 	private void transcode(final CTISession session, final byte[] source, final String mediaType) throws Exception {
-		// 基底URIは作業ディレクトリの下の実在しないファイルにする。fixtureの
-		// 参照はすべて絶対URIなので相対解決は使わないが、基底が無いと
-		// 相対URIの誤検出に気づけないため明示する
+		// Use a nonexistent file under the working directory as the base URI. All fixture
+		// references are absolute URIs, so relative resolution is unused, but specify the base
+		// to expose mistaken detection of relative URIs.
 		final URI base = new java.io.File("files/unittest/probe-source.html").toURI();
 		try (java.io.InputStream in = new java.io.ByteArrayInputStream(source)) {
 			CTISessionHelper.transcodeStream(session, in, base, mediaType, "UTF-8");
 		}
 	}
 
-	/** 1回の変換の結果です。 */
+	/** Result of one conversion. */
 	public static class Result {
 
 		private final byte[] pdf;
@@ -183,7 +182,7 @@ public class ConversionProbe {
 			return this.messages;
 		}
 
-		/** その番号の警告が出たかどうかです。{@code 2814}は資源の取得拒否です。 */
+		/** Whether a warning with this number appeared. {@code 2814} means resource-fetch denial. */
 		public boolean hasMessage(final String hexCode) {
 			for (final String m : this.messages) {
 				if (m.startsWith(hexCode + " ")) {
@@ -194,12 +193,11 @@ public class ConversionProbe {
 		}
 
 		/**
-		 * <b>その URI がその番号で拒まれた</b>かどうかです。
+		 * Whether <b>this URI was denied with this code</b>.
 		 *
 		 * <p>
-		 * 「取得されなかった」だけでは、そもそも経路が起動していない場合と
-		 * 区別できません。<b>意図した拒否が、意図した相手に対して起きた</b>
-		 * ことまで確かめるために使います。
+		 * No fetch alone cannot distinguish a denial from a path that never activated.
+		 * Use this to verify that <b>the intended denial occurred for the intended target</b>.
 		 * </p>
 		 */
 		public boolean deniedResource(final String hexCode, final String uri) {
@@ -211,15 +209,15 @@ public class ConversionProbe {
 			return false;
 		}
 
-		/** 内容ストリームを全部つないだものです。 */
+		/** All content streams concatenated. */
 		public String operators() throws Exception {
 			return String.join("\n", inflateStreams(this.pdf));
 		}
 
 		/**
-		 * その色の塗り・線が出ているかどうかです。
+		 * Whether a fill or stroke with this color appears.
 		 *
-		 * @param op {@code rg}なら塗り、{@code RG}なら線
+		 * @param op {@code rg} for fill, {@code RG} for stroke
 		 */
 		public boolean hasColor(final String op, final double r, final double g, final double b) throws Exception {
 			final Matcher m = Pattern.compile("([\\d.]+) ([\\d.]+) ([\\d.]+) " + op + "\\b")
@@ -234,7 +232,7 @@ public class ConversionProbe {
 			return false;
 		}
 
-		/** 失敗時の説明に使う要約です。 */
+		/** A summary for explaining failures. */
 		public String describe() {
 			return "PDF " + this.pdf.length + "バイト、警告 " + this.messages;
 		}
@@ -260,7 +258,7 @@ public class ConversionProbe {
 				}
 				result.add(buff.toString(StandardCharsets.ISO_8859_1));
 			} catch (final Exception e) {
-				// 圧縮されていない・画像等のストリームは読み飛ばす
+				// Skip uncompressed streams and streams such as images.
 			} finally {
 				inflater.end();
 			}

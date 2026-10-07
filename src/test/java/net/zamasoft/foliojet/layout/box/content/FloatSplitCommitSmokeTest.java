@@ -25,22 +25,21 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * P2-3のplan駆動commit({@code Floatings.splitPageAxis}の
- * plan整合assert・identity anchor assertを含む)を、SMOKE
- * マニフェスト(51文書——float・表・改ページ・縦書きの代表集合)へ
- * in-process({@code DirectSession}経由)で走らせ、assert有効のまま
- * 1文書も失敗しないことを検証します(2026-07-24。P2-2の
- * {@code FloatSplitPlanShadowSmokeTest}をshadow撤去にあわせて改修)。
+ * Runs the P2-3 plan-driven commit (including the plan consistency and identity anchor assertions in
+ * {@code Floatings.splitPageAxis}) in-process (via {@code DirectSession}) against the SMOKE manifest
+ * (51 documents representing floats, tables, page breaks, and vertical writing), and verifies that
+ * no document fails with assertions enabled (2026-07-24; adapted P2-2's
+ * {@code FloatSplitPlanShadowSmokeTest} when removing the shadow).
  *
  * <p>
- * 基準画像との比較そのものは別の仕組み(サーバー製品側のgradleタスク)が
- * 担う——こちらはassertが観測できる同一JVM内での補助証拠。
+ * A separate mechanism (a Gradle task in the server product) handles comparison with baseline images;
+ * this provides supplementary evidence within the same JVM, where assertions are observable.
  * </p>
  */
 public class FloatSplitCommitSmokeTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 中間サニティ用の絞り込みコーパス。 */
+	/** A reduced corpus for intermediate sanity checks. */
 	private static final Path SMOKE_MANIFEST = Path.of("files/visual/SMOKE-MANIFEST.txt");
 
 	public void testSmokeCorpusCommitsWithoutAssertionFailures() throws Exception {
@@ -60,10 +59,10 @@ public class FloatSplitCommitSmokeTest extends TestCase {
 		for (final String sourcePath : sourcePaths) {
 			final File input = docsDir.resolve(sourcePath).normalize().toFile();
 			if (!input.isFile()) {
-				// **入力が無いものは飛ばす。**マニフェストの一部は、公開できない
-				// 取り込み資料(実サイトのスナップショット)を指している。それらは
-				// 開発用の作業ツリーにだけあり、このリポジトリ単独では存在しない。
-				// 無いことを失敗にすると、単独 checkout でこの試験が常に赤くなる
+				// **Skip missing inputs.** Some manifest entries refer to imported material
+				// (snapshots of real sites) that cannot be published. These exist only
+				// in the development working tree, not in this repository alone.
+				// Treating their absence as a failure would always fail this test in a standalone checkout.
 				++missing;
 				continue;
 			}
@@ -78,13 +77,13 @@ public class FloatSplitCommitSmokeTest extends TestCase {
 		final int ran = sourcePaths.size() - missing;
 		System.out.println("SMOKE documents: total=" + sourcePaths.size() + " ran=" + ran
 				+ " missing=" + missing + " failed=" + failures.size());
-		// **1件も走らなかったなら緑にしない。**「入力が無いので全部飛ばした」を
-		// 「全部通った」と読み違えるのが、この形の試験のいちばんの危険
+		// **Do not pass if no cases ran.** The greatest risk with this kind of test is
+		// mistaking "all skipped because inputs were missing" for "all passed."
 		assertTrue("走った文書が1件も無い(マニフェストの入力がすべて欠けている)", ran > 0);
 		assertTrue("変換失敗: " + failures, failures.isEmpty());
 	}
 
-	/** {@code ImageTestRunner.parseManifest}と同じ形式(@file/skip=/source=)のサブセット。 */
+	/** A subset of the format used by {@code ImageTestRunner.parseManifest} (@file/skip=/source=). */
 	private static void parseManifest(final Path file, final Set<Path> seen, final List<String> out)
 			throws IOException {
 		final Path normalized = file.toAbsolutePath().normalize();

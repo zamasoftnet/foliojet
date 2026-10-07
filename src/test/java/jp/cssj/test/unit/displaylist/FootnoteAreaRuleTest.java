@@ -37,7 +37,7 @@ import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 脚注領域の規則・持ち越し・固定帯(F-7)と、既定経路の保存を検査します。 */
+/** Check footnote-area rules, carry-over, fixed bands (F-7), and preservation of the default path. */
 public class FootnoteAreaRuleTest extends TestCase {
 	private static final String AREA = "@footnote { float: bottom; writing-mode: horizontal-tb }";
 	private static final double EPSILON = 0.01;
@@ -179,7 +179,7 @@ public class FootnoteAreaRuleTest extends TestCase {
 			assertEquals("文書全体で上限警告一回", 1L, warnings.stream()
 					.filter(record -> record.getMessage().startsWith("footnote area limited to ")).count());
 			warnings.clear();
-			// min-heightでは仮組み(B)も走る。Bは警告せず、文書全体で一回のまま。
+			// min-height also runs provisional layout (B). B emits no warning, keeping one warning per document.
 			final Capture minimumLimited = transcode(fixedFixture().replace("height: 40pt", "min-height: 200pt"));
 			assertTrue(minimumLimited.probes() > 0);
 			for (final PageMetrics page : minimumLimited.pages()) assertEquals(252 * 0.6, page.inset(), EPSILON);
@@ -205,7 +205,7 @@ public class FootnoteAreaRuleTest extends TestCase {
 		assertEquals(2, minimum.notes().size());
 		for (final Placement note : minimum.notes()) assertEquals(1, note.page());
 		assertEquals("下限40ptから二件分54ptへ伸びる", 204.0, minimum.notes().get(0).y(), EPSILON);
-		// 注の無い本文でも、block方向の容量を各ページで先に引く。
+		// Even with no notes in the body text, subtract block-axis capacity upfront on each page.
 		final String body = html.substring(0, html.indexOf("<body>")) + "<body>"
 				+ "<p>本文だけの行。</p>".repeat(24) + "</body></html>";
 		final Capture empty = transcode(body);
@@ -249,8 +249,8 @@ public class FootnoteAreaRuleTest extends TestCase {
 		final List<Short> warnings = new ArrayList<>();
 		final PDFUserAgent ua = new PDFUserAgent() { };
 		try {
-			// float: top は 2026-09-11 に対応した(頭注)ので、未対応の例は
-			// inline-start へ差し替えた。対応した側は下で確かめる
+			// float: top became supported on 2026-09-11 (headnotes), so replace the unsupported example
+			// with inline-start. Check the supported case below.
 			parse(ua, "@page :first, :left { @footnote { float: bottom; float: inline-start;"
 					+ " writing-mode: sideways-rl; max-height: 50pt; color: red } }", warnings);
 			assertEquals(FootnoteArea.Position.BLOCK_END, ua.getUAContext().getFootnoteArea().position);
@@ -339,7 +339,7 @@ public class FootnoteAreaRuleTest extends TestCase {
 		}
 	}
 
-	/** 非正方形のページと、作者の padding・margin 付きの注(codex F-1 レビューの任意項目)。 */
+	/** Nonsquare pages and notes with author-specified padding/margin (optional item from codex F-1 review). */
 	public void testNotePaddingOnNonSquarePage() throws Exception {
 		final String html = fixture().replace("output.page-height\" value=\"300pt\"", "output.page-height\" value=\"320pt\"")
 				.replace(".note { float: footnote;", ".note { float: footnote; padding: 0 10pt; margin: 0 30pt;");
@@ -460,7 +460,7 @@ public class FootnoteAreaRuleTest extends TestCase {
 		}
 	}
 
-	/** DirectSessionの変換スレッドからUAインスタンスへ記録し、ThreadLocalを使いません。 */
+	/** Record in the UA instance from DirectSession's conversion thread; do not use ThreadLocal. */
 	private static final class CaptureUserAgent extends PDFUserAgent {
 		private CaptureVisitor capture;
 

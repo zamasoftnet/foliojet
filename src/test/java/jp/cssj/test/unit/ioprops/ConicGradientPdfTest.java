@@ -24,7 +24,7 @@ import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** PDFのconic-gradientがType 4メッシュとして出力されることの試験。 */
+/** Test that PDF conic-gradient is emitted as a Type 4 mesh. */
 public class ConicGradientPdfTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final Pattern TYPE4 = Pattern.compile("/ShadingType\\s+4(?=\\s|/|>>)");
@@ -35,7 +35,7 @@ public class ConicGradientPdfTest extends TestCase {
 		assertFalse("the PDF conic gradient must not report approximation 2822",
 				pdf17.hasMessage(MessageCodes.WARN_APPROXIMATED_RENDERING));
 		try (PDDocument ignored = Loader.loadPDF(pdf17.pdf)) {
-			// 診断用: PDF と描画を build/tmp に残す
+			// For diagnosis: leave the PDF and rendering in build/tmp.
 			final java.io.File dir = new java.io.File("build/tmp");
 			dir.mkdirs();
 			java.nio.file.Files.write(new java.io.File(dir, "conic-gradient-17.pdf").toPath(), pdf17.pdf);

@@ -22,14 +22,15 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * cti.li の申し送り(2026-09-02 夜)から、EPUB の 2 件を固定します。
+ * Fix two EPUB cases from the cti.li handoff (evening of 2026-09-02).
  *
  * <ol>
- * <li>目次の {@code href="ch2.xhtml#ix ACCS 不正アクセス事件"}(空白・日本語の断片)で
- * {@code URISyntaxException} になり、本全体が I/O error に落ちていた。href 1 件の失敗で
- * 本を落とさない</li>
- * <li>URL 入力で {@code application/octet-stream} と名乗る EPUB を HTML として読み続けて
- * いた。中身が ZIP で先頭項目 {@code mimetype} が {@code application/epub+zip} なら EPUB と見る</li>
+ * <li>A table-of-contents {@code href="ch2.xhtml#ix ACCS 不正アクセス事件"} (fragment containing spaces
+ * and Japanese) caused {@code URISyntaxException}, failing the entire book with an I/O error.
+ * A single failed href must not fail the book.</li>
+ * <li>EPUB input from a URL identifying itself as {@code application/octet-stream} continued to be
+ * read as HTML. Treat it as EPUB if the content is ZIP and its first entry, {@code mimetype},
+ * contains {@code application/epub+zip}.</li>
  * </ol>
  */
 public class EpubReaderNotesTest extends TestCase {
@@ -38,7 +39,7 @@ public class EpubReaderNotesTest extends TestCase {
 	private static byte[] epub() throws Exception {
 		final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 		try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
-			// OCF: mimetype は先頭・無圧縮
+			// OCF: mimetype comes first and is uncompressed.
 			final byte[] mime = "application/epub+zip".getBytes(StandardCharsets.US_ASCII);
 			final ZipEntry first = new ZipEntry("mimetype");
 			first.setMethod(ZipEntry.STORED);
@@ -63,7 +64,7 @@ public class EpubReaderNotesTest extends TestCase {
 					+ "<item id=\"ch1\" href=\"ch1.xhtml\" media-type=\"application/xhtml+xml\"/>"
 					+ "<item id=\"ch2\" href=\"ch2.xhtml\" media-type=\"application/xhtml+xml\"/>"
 					+ "</manifest><spine><itemref idref=\"nav\"/><itemref idref=\"ch1\"/><itemref idref=\"ch2\"/></spine></package>");
-			// 空白と日本語を含む断片(URI としては不正)
+			// A fragment containing spaces and Japanese (invalid as a URI).
 			entry(zip, "OEBPS/nav.xhtml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 					+ "<html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:epub=\"http://www.idpf.org/2007/ops\">"
 					+ "<head><title>nav</title></head><body><nav epub:type=\"toc\"><ol>"
@@ -89,7 +90,7 @@ public class EpubReaderNotesTest extends TestCase {
 		zip.closeEntry();
 	}
 
-	/** 不正な href の目次があっても、本は PDF になる。 */
+	/** The book converts to PDF even if its table of contents contains an invalid href. */
 	public void testBrokenTocHrefDoesNotFailTheBook() throws Exception {
 		final File file = File.createTempFile("reader-notes", ".epub");
 		try {
@@ -103,7 +104,7 @@ public class EpubReaderNotesTest extends TestCase {
 		}
 	}
 
-	/** 拡張子も型も EPUB を名乗らないファイルでも、中身が EPUB なら EPUB として組む。 */
+	/** Even if neither its extension nor its type indicates EPUB, lay it out as EPUB if its contents are EPUB. */
 	public void testOctetStreamEpubIsRecognisedByItsMimetypeEntry() throws Exception {
 		final File file = File.createTempFile("reader-notes", ".bin");
 		try {
@@ -151,7 +152,7 @@ public class EpubReaderNotesTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 	}
 }

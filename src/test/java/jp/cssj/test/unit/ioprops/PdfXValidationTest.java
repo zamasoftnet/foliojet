@@ -7,17 +7,17 @@ import net.zamasoft.pdfg2d.pdf.preflight.PdfXPreflight;
 import net.zamasoft.pdfg2d.pdf.preflight.PdfXPreflight.Flavour;
 
 /**
- * PDF/X-1a・PDF/X-3・PDF/X-4 の出力を pdfg2d の回帰プリフライト {@link PdfXPreflight} の
- * 全規則で検証します(2026-09-05、色管理 I4)。
+ * Validate PDF/X-1a, PDF/X-3, and PDF/X-4 output against every rule in pdfg2d's regression preflight,
+ * {@link PdfXPreflight} (2026-09-05, color management I4).
  *
  * <p>
- * veraPDF は PDF/X を検証できないので、自前の規則(R1〜R13)で positive を固定する。
- * 各規則の negative は pdfg2d 側の {@code PdfXPreflightTest} が担保する。fixture は
- * {@link PdfAValidationTest} と同じ文書(生成画像・メッシュ・透明・埋め込みフォント・
- * PNG/JPEG)で、X-1a では透明が段階塗りの近似(2822)に、RGB が出力インテントの CMYK に
- * 落ちること、X-4 では RGB が ICCBased で残り {@code /DefaultRGB} が置かれることを
- * まとめて見る。最終確認はユーザーの Acrobat Pro Preflight
- * ({@code build/tmp/pdfx-validation-*.pdf})。
+ * veraPDF cannot validate PDF/X, so fix positive cases using our own rules (R1–R13).
+ * pdfg2d's {@code PdfXPreflightTest} covers negative cases for each rule.
+ * The fixture is the same document as {@link PdfAValidationTest} (generated images, meshes,
+ * transparency, embedded fonts, PNG/JPEG). Check together that X-1a approximates transparency
+ * with stepped painting (2822) and converts RGB to the output intent's CMYK, while X-4 retains
+ * RGB as ICCBased and sets {@code /DefaultRGB}. The final check is the user's Acrobat Pro Preflight
+ * ({@code build/tmp/pdfx-validation-*.pdf}).
  * </p>
  */
 public class PdfXValidationTest extends TestCase {
@@ -31,16 +31,17 @@ public class PdfXValidationTest extends TestCase {
 	}
 
 	/**
-	 * PDF/X-3(2026-09-30): 透明は X-1a と同じく近似、RGB は X-4 と同じく ICCBased で残る。
+	 * PDF/X-3 (2026-09-30): approximate transparency as in X-1a and retain RGB as ICCBased as in X-4.
 	 */
 	public void testPdfX3() throws Exception {
 		validate("1.4X-3", Flavour.X3);
 	}
 
 	/**
-	 * {@code <title>} の前後と途中の空白(2026-10-07)。HTML の document.title と同じく、前後を落として続く空白を
-	 * 1 つにまとめた値が Info の Title と XMP の dc:title の両方に入る。以前は末尾の空白が残り、dc:title を空白を
-	 * 落として読む検査(R4)と食い違った(全 HTML 掃過の 4000-BLOG/2650-text.html)。
+	 * Whitespace before, after, and within {@code <title>} (2026-10-07). As with HTML document.title,
+	 * trim leading/trailing whitespace and collapse consecutive whitespace to one space; use this value
+	 * for both Info Title and XMP dc:title. Previously, trailing whitespace remained, conflicting with
+	 * check R4, which trims dc:title when reading (4000-BLOG/2650-text.html in the full HTML sweep).
 	 */
 	public void testPdfX4TitleWhitespace() throws Exception {
 		final byte[] pdf = validate("1.6X-4", Flavour.X4, " PDF/X\n\t title ");

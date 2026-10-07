@@ -10,15 +10,15 @@ import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
 
 /**
- * {@link AutospaceTracker#trimBefore}(和文詰めT1a/T1b)の決定的テスト
- * です。実フォント依存を避けたstub metrics(全角=幅12、GPOSなし)で、
- * 約物pairの詰め・GPOS優先・run境界・縦書き・space-all無効化を固定する
- * (コーパスのフォントはGPOS持ちまたは半角約物のため、resolver trimの
- * 発火は実文書では環境依存——ここが正本の検証)。
+ * Deterministic tests for {@link AutospaceTracker#trimBefore} (Japanese spacing trim T1a/T1b).
+ * Stub metrics without real-font dependencies (full-width = width 12, no GPOS) lock down punctuation
+ * pair trimming, GPOS precedence, run boundaries, vertical writing, and disabling via space-all.
+ * Corpus fonts either have GPOS or half-width punctuation, so whether resolver trim fires in real
+ * documents depends on the environment; these tests are the authoritative verification.
  */
 public class AutospaceTrackerTrimTest extends TestCase {
 
-	/** 全角(幅12=フォントサイズと同値)・GPOSなしのstub。 */
+	/** A full-width stub (width 12 = font size), without GPOS. */
 	private static class WideMetrics implements FontMetrics {
 		private static final long serialVersionUID = 1L;
 
@@ -87,7 +87,7 @@ public class AutospaceTrackerTrimTest extends TestCase {
 		return text;
 	}
 
-	/** 詰め対象pair(」、)は0.5em=6pt。trimOffで0。 */
+	/** The pair eligible for trimming (」、) trims by 0.5em = 6 pt. With trimOff, it is 0. */
 	public void testTrimAndSpaceAll() {
 		final WideMetrics metrics = new WideMetrics(0);
 		final TextImpl run = text(metrics, FontStyle.Direction.LTR, "」");
@@ -104,7 +104,7 @@ public class AutospaceTrackerTrimTest extends TestCase {
 				style(FontStyle.Direction.LTR)), 0.001);
 	}
 
-	/** GPOS非0のpairはスキップ(font優先——移管元と同じ)。 */
+	/** Skip pairs with nonzero GPOS (font takes precedence, as in the original implementation). */
 	public void testGposWins() {
 		final WideMetrics gpos = new WideMetrics(3);
 		final TextImpl run = text(gpos, FontStyle.Direction.LTR, "」");
@@ -114,7 +114,7 @@ public class AutospaceTrackerTrimTest extends TestCase {
 				style(FontStyle.Direction.LTR)), 0.001);
 	}
 
-	/** 幅0のstyle run境界も同じpairとして詰める(JLREQ E)。 */
+	/** Trim across a zero-width style-run boundary as the same pair (JLREQ E). */
 	public void testRunBoundaryIncluded() {
 		final WideMetrics metrics = new WideMetrics(0);
 		final TextImpl run1 = text(metrics, FontStyle.Direction.LTR, "」");
@@ -125,7 +125,7 @@ public class AutospaceTrackerTrimTest extends TestCase {
 				style(FontStyle.Direction.LTR)), 0.001);
 	}
 
-	/** 縦書きrunもUnicode clusterで分類して詰める。 */
+	/** Vertical writing runs are also classified by Unicode cluster and trimmed. */
 	public void testVerticalTrim() {
 		final WideMetrics metrics = new WideMetrics(0);
 		final TextImpl run = text(metrics, FontStyle.Direction.TB, "」");
@@ -135,7 +135,7 @@ public class AutospaceTrackerTrimTest extends TestCase {
 				style(FontStyle.Direction.TB)), 0.001);
 	}
 
-	/** TBのwide gateとrun後処理はhorizontal widthでなくvertical advanceを使う。 */
+	/** TB's wide gate and run postprocessing use vertical advance rather than horizontal width. */
 	public void testVerticalRunTrimUsesInlineAdvance() {
 		final FontMetrics vertical = new WideMetrics(0) {
 			private static final long serialVersionUID = 1L;
@@ -152,9 +152,9 @@ public class AutospaceTrackerTrimTest extends TestCase {
 		assertEquals(-6.0, run.xAdvances().get(1), 0.001);
 	}
 
-	/** 半角約物(width≤0.75em)は詰めない(プロポーショナル約物の保護)。 */
+	/** Do not trim half-width punctuation (width≤0.75em), to protect proportional punctuation. */
 	public void testNarrowExcluded() {
-		// wide 判定は送り(getAdvance、palt の GPOS 調整込み)で見る(2026-09-14)。stub は幅と送りを揃える
+		// The wide check uses getAdvance (including palt GPOS adjustments) (2026-09-14); stub width equals advance.
 		final FontMetrics narrow = new WideMetrics(0) {
 			private static final long serialVersionUID = 1L;
 

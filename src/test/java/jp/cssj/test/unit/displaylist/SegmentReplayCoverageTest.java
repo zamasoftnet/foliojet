@@ -19,11 +19,10 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * segment-restyle が実際に発火していることの非空性検証です(M6b)。
- * golden 一致だけでは「常にフォールバックしている」空虚な緑と
- * 区別できないため、発火カウンタで移行経路のカバレッジを固定します。
- * (実際に Phase A が窓の刈り込み順序のバグで一度も発火していなかった
- * 事故の再発防止)
+ * Non-vacuity check that segment-restyle actually fires (M6b).
+ * Golden equality alone cannot distinguish vacuous success from always falling back,
+ * so use firing counters to pin down coverage of the migration path.
+ * (Prevents recurrence of the incident where Phase A never fired due to a window-pruning order bug.)
  */
 public class SegmentReplayCoverageTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
@@ -43,7 +42,7 @@ public class SegmentReplayCoverageTest extends TestCase {
 	}
 
 	public void testSubtreeReplayFires() throws Exception {
-		// 丸ごと次ページへ移動するブロックを含む文書
+		// Document containing a block that moves entirely to the next page.
 		final long before = SourceReplayer.SUBTREE_REPLAYS.get();
 		final long prefixBefore = SourceReplayer.PREFIX_REPLAYS.get();
 		this.transcode(new File("files/unittest/0460-segment-restyle/moved-blocks.html"), "coverage-subtree");

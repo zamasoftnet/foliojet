@@ -21,9 +21,9 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * URI に書けない字(空白・{@code %})を含む id を固定します(2026-10-06、jigensha の報告: {@code id="with space"}
- * に警告 10252「Illegal character in fragment」が出た)。リンクの側は {@code href="#with%20space"} と符号化して
- * 書くので、id の側も同じ形にして照合する。
+ * Verify IDs containing characters invalid in URIs (spaces and {@code %}) (2026-10-06, jigensha report:
+ * {@code id="with space"} emitted warning 10252, "Illegal character in fragment"). Links use encoded forms
+ * such as {@code href="#with%20space"}, so encode the ID in the same way for matching.
  */
 public class FragmentIdEncodingTest extends TestCase {
 	private static final String HTML = """
@@ -61,7 +61,7 @@ public class FragmentIdEncodingTest extends TestCase {
 		}
 	}
 
-	/** 変換して PDF を返し、警告 10252(0x280C)を集めます。 */
+	/** Convert and return the PDF, collecting warning 10252 (0x280C). */
 	private static byte[] convert(final boolean pageReferences, final List<String> warnings) throws Exception {
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),

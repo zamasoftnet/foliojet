@@ -19,24 +19,24 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>写真のEXIFの向き</b>({@code image-orientation})の検査です(2026-08-30新設)。
+ * Tests for <b>photo EXIF orientation</b> ({@code image-orientation}) (introduced on 2026-08-30).
  *
  * <p>
- * 試験画像は40×80で{@code orientation=6}(時計回り90度)。向きを尊重すれば
- * <b>80×40</b>に、{@code image-orientation: none}なら素の<b>40×80</b>になる。
+ * The test image is 40×80 with {@code orientation=6} (90 degrees clockwise). Respecting orientation
+ * makes it <b>80×40</b>; {@code image-orientation: none} leaves it at <b>40×80</b>.
  *
  * <p>
- * <b>PDF出力はEXIFの向きを見ていなかった。</b>{@code PDFUserAgent}が
- * {@code PDFWriter}へ直に読ませており、EXIFを読む{@code RasterImageLoader}を
- * 通らないためで、<b>携帯で撮った横向きの写真が寝たまま出ていた</b>
- * (画像出力・SVG出力では正しく回っていた)。資源の先頭だけ覗いて向きを読み、
- * 同じストリームを頭出しした状態でPDFWriterへ渡すようにして直した——
- * HTTPの資源を二度取りに行かないためである。
+ * <b>PDF output ignored EXIF orientation.</b> {@code PDFUserAgent} read directly through
+ * {@code PDFWriter}, bypassing the EXIF-aware {@code RasterImageLoader}, so
+ * <b>landscape photos taken on phones remained sideways</b>
+ * (image and SVG output rotated them correctly). The fix peeks at the resource's beginning to read
+ * orientation, then passes the same stream, rewound, to PDFWriter to avoid fetching HTTP resources twice.
  *
  * <p>
- * 判定は<b>実際に描いた絵</b>で行う。PDFの{@code cm}を読む方法だと、回転は
- * 外側の{@code cm}に入り{@code Do}直前の{@code cm}は素の画素寸法のままなので、
- * 一番内側だけを見ると「効いていない」と誤読する(実際に一度誤読した)。
+ * Judge using <b>the actual rendered image</b>. Reading PDF {@code cm} operators is misleading:
+ * rotation is in an outer {@code cm}, while the {@code cm} immediately before {@code Do} retains
+ * the raw pixel dimensions. Looking only at the innermost one falsely suggests no effect
+ * (this was actually misread once).
  */
 public class ImageOrientationTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
@@ -44,8 +44,8 @@ public class ImageOrientationTest extends TestCase {
 	private static final File DOCUMENT = new File("files/unittest/ioprops/image-orientation.html");
 
 	/**
-	 * 40×80の画像(上4分の1が赤)が、EXIFを尊重すると横長に、
-	 * {@code image-orientation: none}では縦長に置かれること。
+	 * A 40×80 image (top quarter red) is placed in landscape orientation when EXIF is respected,
+	 * and in portrait orientation with {@code image-orientation: none}.
 	 */
 	public void testExifOrientationIsHonouredInPdf() throws Exception {
 		final java.awt.image.BufferedImage page = this.render();
@@ -58,8 +58,8 @@ public class ImageOrientationTest extends TestCase {
 	}
 
 	/**
-	 * 赤い画素のかたまりを上から順に返します。2つの画像は縦に並ぶので、
-	 * 行方向に切れ目を見つけるだけで分けられる。
+	 * Return clusters of red pixels from top to bottom. The two images are vertically arranged,
+	 * so gaps between rows suffice to separate them.
 	 */
 	private static java.awt.Rectangle[] redMarks(final java.awt.image.BufferedImage page) {
 		final List<java.awt.Rectangle> marks = new ArrayList<>();

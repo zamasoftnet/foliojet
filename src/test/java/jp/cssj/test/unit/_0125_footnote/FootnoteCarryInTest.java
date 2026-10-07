@@ -8,12 +8,12 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 脚注F4(容量送り=carry-in)のテストです
- * (consult-codex-2026-07-31-footnote-f4.txt 検証fixture 3)。400ptの脚注
- * 2件は合計が最大脚注領域(≈755.9pt)を超えるため、両callがpage 1に
- * あってもnote 2はFIFOのままpage 2へ送られ、page 2にcallが無くても
- * 最優先で配置される(「call数だけ先頭からattach」が誤りであることの
- * 固定)。page 2はnote-onlyページ(EOF送り経路)。
+ * Tests footnote F4 (capacity-based deferral = carry-in)
+ * (consult-codex-2026-07-31-footnote-f4.txt validation fixture 3).
+ * Two 400 pt footnotes exceed the maximum footnote area (≈755.9 pt) in total, so note 2 moves to page 2
+ * in FIFO order even though both calls are on page 1. It is placed with top priority even without a call
+ * on page 2 (establishing that "attach from the front only as many notes as there are calls" is wrong).
+ * Page 2 contains notes only (EOF deferral path).
  */
 public class FootnoteCarryInTest extends AbstractTestCase {
 	public FootnoteCarryInTest(String name) {
@@ -36,12 +36,12 @@ public class FootnoteCarryInTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 累積超過は例外でなくFIFO送り(callの無いページへのcarry-in配置)。 */
+	/** Cumulative overflow causes FIFO deferral, not an exception (carry-in placement on a page without a call). */
 	public boolean check_n2(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals("note 2 must be carried to the next page", 2, pageNumber);
-			// F5: carry-inの番号はnote配置ページで再採番されず、callページ
-			// (page 1)の番号2を保つ(最重要fixture——F5答申F5-e)
+			// F5: The carry-in number is not reassigned on the note's placement page; it keeps number 2
+			// from the call page (page 1) (the most important fixture: F5 recommendation F5-e).
 			final StringBuilder buff = new StringBuilder();
 			box.getText(buff);
 			assertTrue("carried marker must keep the call-page number 2: " + buff,

@@ -22,37 +22,37 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * CSSプロパティ{@code text-wrap-style}(および短縮形{@code text-wrap})の
- * 意味を固定するテストです(2026-07-25新設。独自プロパティ
- * {@code text.line-breaker}廃止・CSS一本化に伴う)。
+ * Tests the semantics of CSS property {@code text-wrap-style} (and shorthand {@code text-wrap})
+ * (added on 2026-07-25 when the proprietary {@code text.line-breaker} property was removed
+ * in favor of CSS alone).
  *
  * <p>
- * 本文が完全に同一で{@code <style>}だけが異なる文書群を生成し、
- * display listを突き合わせて次を検証する:
+ * Generates documents with identical bodies that differ only in {@code <style>},
+ * then compares their display lists to verify:
  * </p>
  * <ul>
- * <li>継承する——{@code body}に{@code pretty}を指定すると子の段落に効く</li>
- * <li>要素ごとに切り替えられる——段落に直接指定しても効き、
- * 逆に{@code body: pretty}を段落の{@code auto}で打ち消せる</li>
- * <li>短縮形{@code text-wrap: pretty}が{@code text-wrap-style}へ落ちる</li>
- * <li>{@code balance}/{@code stable}は構文として受理されるが{@code auto}扱い</li>
- * <li>不正値({@code text-wrap-style: no-such-value})とmode側の値
- * ({@code text-wrap: nowrap}——短縮形は受理しない)は宣言ごと無視され、
- * 既定の{@code auto}のまま</li>
+ * <li>Inheritance: setting {@code pretty} on {@code body} affects child paragraphs.</li>
+ * <li>Per-element switching: direct paragraph declarations work, and paragraph-level {@code auto}
+ * can override {@code body: pretty}.</li>
+ * <li>The {@code text-wrap: pretty} shorthand maps to {@code text-wrap-style}.</li>
+ * <li>{@code balance}/{@code stable} parse successfully but are treated as {@code auto}.</li>
+ * <li>Invalid values ({@code text-wrap-style: no-such-value}) and mode values
+ * ({@code text-wrap: nowrap}, not accepted by the shorthand) invalidate the entire declaration,
+ * leaving the default {@code auto}.</li>
  * </ul>
  *
  * <p>
- * 「実際にK-Pが効いている」ことは、pretty群と auto群の出力が
- * <b>異なる</b>ことで担保する(両群が偶然一致するとテストが失敗する)。
+ * That K-P actually takes effect is ensured by <b>different</b> output from the pretty and auto groups
+ * (the test fails if the groups happen to match).
  * </p>
  */
 public class TextWrapStyleTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/**
-	 * K-P適格かつ貪欲法と結果が変わる段落です(optimized-en-hyphen.htmlと
-	 * 同内容——ハイフネーション付き欧文justifyはK-Pが連続ハイフン行や
-	 * 過度な詰まりを避けるため、貪欲法と選択が変わる)。
+	 * A K-P-eligible paragraph whose result differs from greedy layout (same content as
+	 * optimized-en-hyphen.html). For justified Latin text with hyphenation, K-P avoids consecutive
+	 * hyphenated lines and excessive compression, so its choices differ from greedy layout.
 	 */
 	private static final String BODY = ""
 			+ "<p class=\"justify\" lang=\"en\">The quick brown fox jumps over the lazy dog and keeps"
@@ -60,33 +60,33 @@ public class TextWrapStyleTest extends TestCase {
 			+ " Considerable improvements materialize whenever paragraphs receive comprehensive"
 			+ " optimization treatment.</p>\n";
 
-	/** K-Pで組まれることを期待する変種(指定の書き方だけが異なる)。 */
+	/** Variants expected to use K-P layout (only the declaration form differs). */
 	private static final Map<String, String> PRETTY = new LinkedHashMap<>();
 
-	/** 貪欲法(auto)で組まれることを期待する変種。 */
+	/** Variants expected to use greedy (auto) layout. */
 	private static final Map<String, String> AUTO = new LinkedHashMap<>();
 
 	static {
-		// 継承: bodyへの指定が子の段落に効く
+		// Inheritance: a declaration on body affects child paragraphs.
 		PRETTY.put("inherit", "body { text-wrap-style: pretty; }");
-		// 要素ごと: 段落へ直接指定しても効く
+		// Per element: a direct declaration on the paragraph also works.
 		PRETTY.put("element", "p { text-wrap-style: pretty; }");
-		// 短縮形
+		// Shorthand.
 		PRETTY.put("shorthand", "body { text-wrap: pretty; }");
 
-		// 既定(無指定)
+		// Default (unspecified).
 		AUTO.put("default", "");
-		// balance/stable は受理するがauto扱い(未対応)
+		// balance/stable are accepted but treated as auto (unsupported).
 		AUTO.put("balance", "body { text-wrap-style: balance; }");
 		AUTO.put("stable", "body { text-wrap-style: stable; }");
 		AUTO.put("shorthand-balance", "body { text-wrap: stable; }");
-		// 要素ごとの打ち消し: 継承したprettyを段落のautoで戻せる
+		// Per-element override: paragraph-level auto can undo inherited pretty.
 		AUTO.put("override", "body { text-wrap-style: pretty; } p { text-wrap-style: auto; }");
-		// 不正値は宣言ごと無視(継承値=初期値autoのまま)
+		// An invalid value invalidates the whole declaration (inherited value stays at the initial auto).
 		AUTO.put("invalid", "body { text-wrap-style: no-such-value; }");
-		// mode側の値は短縮形text-wrapでは受理しない(折り返しはwhite-space)
-		// text-wrap: nowrap は2026-08-29からwhite-space:nowrap相当として有効になった
-		// (折り返さないので貪欲法との一致検証の対象外)
+		// Mode values are not accepted by the text-wrap shorthand (white-space controls wrapping).
+		// Since 2026-08-29, text-wrap: nowrap takes effect like white-space:nowrap.
+		// (No wrapping, so excluded from parity checks against greedy layout.)
 	}
 
 	public TextWrapStyleTest(String name) {
@@ -99,7 +99,7 @@ public class TextWrapStyleTest extends TestCase {
 		final String prettyReference = this.render("pretty-inherit", PRETTY.get("inherit"));
 		final String autoReference = this.render("auto-default", AUTO.get("default"));
 
-		// K-Pが本当に効いていること(効いていなければ以降の一致検証は無意味)
+		// K-P must actually take effect (otherwise the subsequent parity checks are meaningless).
 		if (prettyReference.equals(autoReference)) {
 			fail("text-wrap-style: pretty の出力が既定(auto)と同一です。"
 					+ "K-Pが起動していないか、fixtureが両者で同じ改行になる内容になっています");
@@ -124,8 +124,8 @@ public class TextWrapStyleTest extends TestCase {
 	}
 
 	/**
-	 * 与えられた{@code <style>}断片で文書を組み、全ページのdisplay listを
-	 * 連結して返します。
+	 * Lays out a document with the given {@code <style>} fragment and returns
+	 * the concatenated display lists of all pages.
 	 */
 	private String render(final String name, final String style) throws Exception {
 		final File dir = new File("local/unittest/text-wrap-style");

@@ -8,9 +8,9 @@ import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * flex base size/hypothetical main size/自動最小サイズの導出テストです
- * (Flex F1b——consult-codex-2026-08-02-flexbox.txt Q3の検証条件:
- * definite/auto/content/%未確定、box-sizing、overflow、min-size:auto)。
+ * Tests derivation of flex base size, hypothetical main size, and automatic minimum size
+ * (Flex F1b; validation conditions in consult-codex-2026-08-02-flexbox.txt Q3:
+ * definite/auto/content/indefinite percentages, box-sizing, overflow, min-size:auto).
  */
 public class FlexItemMetricsResolverTest extends TestCase {
 
@@ -37,7 +37,7 @@ public class FlexItemMetricsResolverTest extends TestCase {
 				scrollable, minContent, maxContent, container);
 	}
 
-	/** definite basisはそのままbase(min/maxはbaseへ未適用、hypotheticalでclamp——§9.2.3/§9.3)。 */
+	/** A definite basis is the base as-is (min/max apply only when clamping hypothetical, not base; §9.2.3/§9.3). */
 	public void testDefiniteBasis() {
 		final FlexItemMetrics m = FlexItemMetricsResolver
 				.resolve(input(pt(100), Double.NaN, 0, 60, 0, 0, false, false, 10, 200, Double.NaN));
@@ -45,14 +45,14 @@ public class FlexItemMetricsResolverTest extends TestCase {
 		assertEquals(60.0, m.hypotheticalMain(), 0);
 	}
 
-	/** %basisはコンテナ主軸definiteなら解決。 */
+	/** Resolve a percentage basis when the container's main axis is definite. */
 	public void testPercentageBasisDefiniteContainer() {
 		final FlexItemMetrics m = FlexItemMetricsResolver.resolve(input(
 				FlexBasisValue.size(PercentageValue.create(50)), Double.NaN, 0, NONE, 0, 0, false, false, 0, 200, 400));
 		assertEquals(200.0, m.flexBaseMain(), 0);
 	}
 
-	/** %basisはコンテナindefiniteならauto扱い(width→max-content)。 */
+	/** Treat a percentage basis as auto if the container is indefinite (width→max-content). */
 	public void testPercentageBasisIndefiniteContainer() {
 		final FlexItemMetrics widthWins = FlexItemMetricsResolver.resolve(input(
 				FlexBasisValue.size(PercentageValue.create(50)), 120, 0, NONE, 0, 0, false, false, 0, 200,
@@ -64,7 +64,7 @@ public class FlexItemMetricsResolverTest extends TestCase {
 		assertEquals(200.0, contentWins.flexBaseMain(), 0);
 	}
 
-	/** basis:autoはwidth、widthもautoならmax-content。 */
+	/** basis:auto uses width, or max-content if width is also auto. */
 	public void testAutoBasis() {
 		assertEquals(120.0, FlexItemMetricsResolver
 				.resolve(input(FlexBasisValue.AUTO_VALUE, 120, 0, NONE, 0, 0, false, false, 0, 200, Double.NaN))
@@ -75,7 +75,7 @@ public class FlexItemMetricsResolverTest extends TestCase {
 				.flexBaseMain(), 0);
 	}
 
-	/** 未確定%の番兵がmax-content加算でInfinityになっても§9.7へ渡さない。 */
+	/** Do not pass an indefinite percentage sentinel to §9.7, even if adding max-content turns it into Infinity. */
 	public void testInfiniteMaxContentFallsBackToAutomaticMinimum() {
 		final FlexItemMetrics m = FlexItemMetricsResolver.resolve(input(FlexBasisValue.AUTO_VALUE,
 				Double.NaN, Double.NaN, NONE, 0, 0, false, false, 408, Double.POSITIVE_INFINITY, 576));
@@ -83,14 +83,14 @@ public class FlexItemMetricsResolverTest extends TestCase {
 		assertEquals(408.0, m.hypotheticalMain(), 0);
 	}
 
-	/** basis:contentはwidthがあってもmax-content。 */
+	/** basis:content uses max-content even when width is specified. */
 	public void testContentBasis() {
 		assertEquals(200.0, FlexItemMetricsResolver
 				.resolve(input(FlexBasisValue.CONTENT_VALUE, 120, 0, NONE, 0, 0, false, false, 0, 200, Double.NaN))
 				.flexBaseMain(), 0);
 	}
 
-	/** box-sizing:border-boxは枠を引いてcontent-box内寸へ(basis/width/min/max全て)。 */
+	/** box-sizing:border-box subtracts the frame to obtain the inner content-box size (basis/width/min/max). */
 	public void testBorderBoxNormalization() {
 		final FlexItemMetrics m = FlexItemMetricsResolver
 				.resolve(input(pt(100), Double.NaN, 30, 90, 20, 5, true, false, 0, 200, Double.NaN));
@@ -101,35 +101,35 @@ public class FlexItemMetricsResolverTest extends TestCase {
 		assertEquals(25.0, m.outerMainExtra(), 0);
 	}
 
-	/** min-width:auto(§4.5): 非scrollableはmin(min-content, definite width)。 */
+	/** min-width:auto (§4.5): non-scrollable uses min(min-content, definite width). */
 	public void testAutomaticMinimum() {
-		// preferred definiteかつmin-contentより小さい→preferred
+		// Preferred size is definite and smaller than min-content → use preferred.
 		assertEquals(50.0, FlexItemMetricsResolver
 				.resolve(input(pt(10), 50, Double.NaN, NONE, 0, 0, false, false, 80, 200, Double.NaN)).minMain(), 0);
 		// preferred auto→min-content
 		assertEquals(80.0, FlexItemMetricsResolver
 				.resolve(input(pt(10), Double.NaN, Double.NaN, NONE, 0, 0, false, false, 80, 200, Double.NaN))
 				.minMain(), 0);
-		// definite maxでさらにclamp
+		// Clamp further by a definite max.
 		assertEquals(60.0, FlexItemMetricsResolver
 				.resolve(input(pt(10), Double.NaN, Double.NaN, 60, 0, 0, false, false, 80, 200, Double.NaN))
 				.minMain(), 0);
 	}
 
-	/** scrollableの自動最小は0。 */
+	/** The automatic minimum for scrollable items is 0. */
 	public void testScrollableAutomaticMinimumZero() {
 		assertEquals(0.0, FlexItemMetricsResolver
 				.resolve(input(pt(10), Double.NaN, Double.NaN, NONE, 0, 0, false, true, 80, 200, Double.NaN))
 				.minMain(), 0);
 	}
 
-	/** 明示minは自動最小より優先(§4.5はmin:autoのみ)。 */
+	/** An explicit min takes precedence over the automatic minimum (§4.5 applies only to min:auto). */
 	public void testExplicitMinWins() {
 		assertEquals(5.0, FlexItemMetricsResolver
 				.resolve(input(pt(10), Double.NaN, 5, NONE, 0, 0, false, false, 80, 200, Double.NaN)).minMain(), 0);
 	}
 
-	/** hypotheticalはbaseをmin/maxでclampした値、outer系はextra加算。 */
+	/** hypothetical is base clamped by min/max; outer sizes add extra. */
 	public void testHypotheticalAndOuter() {
 		final FlexItemMetrics m = FlexItemMetricsResolver
 				.resolve(input(pt(100), Double.NaN, 0, NONE, 8, 12, false, false, 0, 200, Double.NaN));

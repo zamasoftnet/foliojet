@@ -9,9 +9,9 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.builder.impl.FlexBuilder;
 
 /**
- * 単一行row・definite basisの配置テストです(Flex F1d——
- * consult-codex-2026-08-02-flexbox.txt F1d)。3 item(basis 60/80/100pt)が
- * 同一行に主軸順で並び、record数=bind数、fallback非発火を固定する。
+ * Tests single-line row placement with definite basis (Flex F1d,
+ * consult-codex-2026-08-02-flexbox.txt F1d). Three items (basis 60/80/100 pt)
+ * occupy the same line in main-axis order, with record count = bind count and no fallback.
  */
 public class FlexRowFixedBasisTest extends AbstractTestCase {
 	public FlexRowFixedBasisTest(String name) {
@@ -38,7 +38,7 @@ public class FlexRowFixedBasisTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 2番目のitemは主軸+60pt(1番目のbasis幅)。 */
+	/** Second item at main axis +60 pt (the first item's basis width). */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 60, x, 0.1);
@@ -48,7 +48,7 @@ public class FlexRowFixedBasisTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 3番目のitemは主軸+140pt(60+80)。 */
+	/** Third item at main axis +140 pt (60+80). */
 	public boolean check_r(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 140, x, 0.1);
@@ -58,7 +58,7 @@ public class FlexRowFixedBasisTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 後続ブロックはコンテナ高(=行のcross size最大30pt)の直後。 */
+	/** The following block is immediately after the container height (= maximum line cross size, 30 pt). */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseY + 30, y, 0.1);

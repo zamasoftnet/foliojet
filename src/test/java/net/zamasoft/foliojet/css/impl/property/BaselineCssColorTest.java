@@ -26,24 +26,24 @@ import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 2026-08-30に実装した色の値を固定します——{@code rebeccapurple}・
- * {@code hwb()}・{@code lab()}・{@code lch()}・{@code color()}・
- * {@code hsl()}の{@code turn}、およびグラデーションの補間色空間指定。
+ * Fix the color values implemented on 2026-08-30: {@code rebeccapurple},
+ * {@code hwb()}, {@code lab()}, {@code lch()}, {@code color()},
+ * {@code turn} in {@code hsl()}, and gradient interpolation color-space specifications.
  *
  * <p>
- * この製品の出力はPDFなので、どの色空間で書かれてもsRGB(かCMYK)へ落ちる。
- * したがってここで見るのは<b>変換後のsRGB成分</b>である。期待値は実際に
- * 変換したPDFの塗り演算子から採り、CSS Color 4の変換行列で手計算して
- * 一致を確かめたもの([[開発記録]])。
+ * Since this product outputs PDF, every specified color space is converted to sRGB (or CMYK).
+ * Thus, check <b>the converted sRGB components</b>. Expected values were taken from fill operators
+ * in actual converted PDFs and verified against hand calculations using CSS Color 4 conversion
+ * matrices ([[the development records]]).
  *
  * <p>
- * <b>色域外は単純クランプする</b>のがこの実装の方針で、色域マッピングはしない
- * (印刷用途では凝る必要がない)。{@code display-p3}や{@code rec2020}の
- * ケースはその方針そのものを固定している。
+ * This implementation <b>simply clamps out-of-gamut values</b> and does no gamut mapping
+ * (print use does not need that complexity). The {@code display-p3} and {@code rec2020} cases
+ * fix this policy itself.
  */
 public class BaselineCssColorTest extends TestCase {
 
-	/** sRGB成分の許容誤差。floatで持つので1e-3もあれば十分に厳しい。 */
+	/** Tolerance for sRGB components. They are stored as floats, so 1e-3 is sufficiently strict. */
 	private static final float EPS = 1e-3f;
 
 	private final List<String> warnings = new ArrayList<String>();
@@ -85,7 +85,7 @@ public class BaselineCssColorTest extends TestCase {
 		return Tokens.fromExpression(all.get(0).getExpression());
 	}
 
-	/** 宣言を解析し、警告が出ていないことを確かめて構成要素を返します。 */
+	/** Parse a declaration, check that no warnings appear, and return its components. */
 	private Entry[] parse(final String name, final String value) {
 		this.warnings.clear();
 		final Property property = ElementPropertySet.getInstance().parseDeclaration(name, tokens(name + ": " + value),
@@ -110,7 +110,7 @@ public class BaselineCssColorTest extends TestCase {
 		assertFalse("警告が出ていない: " + name + ": " + value, this.warnings.isEmpty());
 	}
 
-	/** {@code color}に書いた値をsRGB成分で確かめます。 */
+	/** Check the value specified for {@code color} using sRGB components. */
 	private void assertColor(final String value, final float red, final float green, final float blue,
 			final float eps) {
 		final ColorValue color = (ColorValue) this.single("color", value);
@@ -123,25 +123,25 @@ public class BaselineCssColorTest extends TestCase {
 		this.assertColor(value, red, green, blue, EPS);
 	}
 
-	// ---- 1. 名前付き色
+	// ---- 1. Named colors
 
 	public void testRebeccapurple() {
-		// CSS Color 4 で追加された唯一の新しい名前付き色 #663399
+		// The only new named color added in CSS Color 4: #663399
 		this.assertColor("rebeccapurple", 0x66 / 255f, 0x33 / 255f, 0x99 / 255f);
 	}
 
 	// ---- 2. hwb()
 
 	public void testHwb() {
-		// 色相0(赤)に白25%・黒25%。残り50%が純色ぶん
+		// Hue 0 (red), 25% white and 25% black. The remaining 50% is the pure color.
 		this.assertColor("hwb(0 25% 25%)", 0.75f, 0.25f, 0.25f);
 		this.assertColor("hwb(0 0% 0%)", 1f, 0f, 0f);
 		this.assertColor("hwb(120 0% 0%)", 0f, 1f, 0f);
-		// SPEC css-color-4 §7: 白+黒が100%を超えたら比で正規化する。
-		// 60%:60% は 50%:50% と等しくなり、色相によらず中間グレー
+		// SPEC css-color-4 §7: if white + black exceeds 100%, normalize by their ratio.
+		// 60%:60% becomes 50%:50%, producing middle gray regardless of hue.
 		this.assertColor("hwb(0 60% 60%)", 0.5f, 0.5f, 0.5f);
 		this.assertColor("hwb(240 60% 60%)", 0.5f, 0.5f, 0.5f);
-		// アルファ
+		// Alpha
 		final ColorValue alpha = (ColorValue) this.single("color", "hwb(0 0% 0% / 0.25)");
 		assertEquals(0.25f, alpha.getColor().getAlpha(), EPS);
 	}
@@ -149,25 +149,25 @@ public class BaselineCssColorTest extends TestCase {
 	// ---- 3. lab() / lch()
 
 	public void testLab() {
-		// L*=100 は白、L*=0 は黒(a*=b*=0)
+		// L*=100 is white, L*=0 is black (a*=b*=0).
 		this.assertColor("lab(100% 0 0)", 1f, 1f, 1f);
 		this.assertColor("lab(0% 0 0)", 0f, 0f, 0f);
-		// CSS Color 4 の例。赤橙になる
+		// CSS Color 4 example. Produces red-orange.
 		this.assertColor("lab(50% 40 59.5)", 0.75f, 0.34f, 0f, 5e-3f);
 	}
 
 	public void testLch() {
 		this.assertColor("lch(52.2% 72.2 50)", 0.81f, 0.34f, 0.10f, 5e-3f);
-		// 彩度0は無彩色。L*=50 の sRGB は 0.4663 —— ここが合っていることが
-		// Lab→XYZ→sRGB の変換全体が正しいことの要になるので、誤差を締める
+		// Chroma 0 is achromatic. L*=50 becomes 0.4663 in sRGB; correctness here is essential
+		// to the entire Lab→XYZ→sRGB conversion, so tighten the tolerance.
 		this.assertColor("lch(50% 0 0)", 0.4663f, 0.4663f, 0.4663f, 5e-3f);
 		this.assertColor("lch(100% 0 0)", 1f, 1f, 1f);
 	}
 
-	// ---- 4. color() 関数記法
+	// ---- 4. color() functional notation
 
 	public void testColorFunctionSrgb() {
-		// sRGBはそのまま
+		// sRGB passes through unchanged.
 		this.assertColor("color(srgb 1 0.5 0)", 1f, 0.5f, 0f, 1e-5f);
 		this.assertColor("color(srgb 0 0 0)", 0f, 0f, 0f, 1e-5f);
 		final ColorValue alpha = (ColorValue) this.single("color", "color(srgb 0 0 0 / 0.5)");
@@ -175,29 +175,29 @@ public class BaselineCssColorTest extends TestCase {
 	}
 
 	public void testColorFunctionWideGamut() {
-		// display-p3 の (1, 0.5, 0) は sRGB では赤と青が色域外。
-		// 線形化0.21404 → XYZ(0.5434, 0.3770, 0.0097) → 線形sRGB
-		// (1.1768, 0.1810, -0.0365) → クランプしてガンマ符号化で
+		// For display-p3 (1, 0.5, 0), red and blue are outside the sRGB gamut.
+		// Linearize to 0.21404 → XYZ(0.5434, 0.3770, 0.0097) → linear sRGB
+		// (1.1768, 0.1810, -0.0365) → clamp and gamma-encode to
 		// (1, 0.4626, 0)
 		this.assertColor("color(display-p3 1 0.5 0)", 1f, 0.4626f, 0f, 5e-3f);
-		// rec2020 の緑は sRGB の色域を大きく外れる。全成分がクランプされる
+		// rec2020 green lies far outside the sRGB gamut. All components are clamped.
 		this.assertColor("color(rec2020 0 1 0)", 0f, 1f, 0f, 1e-5f);
 	}
 
 	public void testColorFunctionXyz() {
 		this.assertColor("color(xyz 0.4 0.2 0.1)", 0.9727f, 0f, 0.3267f, 5e-3f);
-		// xyz は xyz-d65 の別名
+		// xyz is an alias for xyz-d65.
 		final ColorValue xyz = (ColorValue) this.single("color", "color(xyz 0.4 0.2 0.1)");
 		final ColorValue d65 = (ColorValue) this.single("color", "color(xyz-d65 0.4 0.2 0.1)");
 		assertEquals(xyz.getColor().getRed(), d65.getColor().getRed(), 1e-6f);
 		assertEquals(xyz.getColor().getBlue(), d65.getColor().getBlue(), 1e-6f);
-		// D50 は色順応を挟むので D65 とは違う色になる
+		// D50 includes chromatic adaptation, so it produces a different color from D65.
 		final ColorValue d50 = (ColorValue) this.single("color", "color(xyz-d50 0.4 0.2 0.1)");
 		assertNotNull(d50);
 	}
 
 	public void testColorFunctionAllSpacesAccepted() {
-		// 変換先の値までは見ないが、仕様の定義済み色空間がすべて通ること
+		// Do not check converted values, but ensure every predefined color space in the specification is accepted.
 		for (final String space : new String[] { "srgb", "srgb-linear", "display-p3", "a98-rgb", "prophoto-rgb",
 				"rec2020", "xyz", "xyz-d50", "xyz-d65" }) {
 			assertTrue(space + " が色にならない",
@@ -207,31 +207,31 @@ public class BaselineCssColorTest extends TestCase {
 
 	public void testColorFunctionRejects() {
 		this.assertInvalid("color", "color(no-such-space 1 1 1)");
-		// 成分が足りない
+		// Too few components
 		this.assertInvalid("color", "color(srgb 1 1)");
-		// 成分が多い
+		// Too many components
 		this.assertInvalid("color", "color(srgb 1 1 1 1)");
 	}
 
-	// ---- 5. hsl() の turn
+	// ---- 5. turn in hsl()
 
 	public void testHslTurn() {
-		// 0.5turn = 180deg。角度単位が色相に効くこと
+		// 0.5turn = 180deg. Angle units affect hue.
 		final ColorValue turn = (ColorValue) this.single("color", "hsl(0.5turn 100% 50%)");
 		final ColorValue deg = (ColorValue) this.single("color", "hsl(180 100% 50%)");
 		assertEquals(deg.getColor().getRed(), turn.getColor().getRed(), 1e-5f);
 		assertEquals(deg.getColor().getGreen(), turn.getColor().getGreen(), 1e-5f);
 		assertEquals(deg.getColor().getBlue(), turn.getColor().getBlue(), 1e-5f);
-		// 180deg のシアン
+		// Cyan at 180deg
 		this.assertColor("hsl(0.5turn 100% 50%)", 0f, 1f, 1f, 1e-5f);
 	}
 
-	// ---- 6. グラデーションの補間色空間
+	// ---- 6. Gradient interpolation color spaces
 
 	public void testGradientInterpolationAccepted() {
-		// SPEC css-images-4 の <color-interpolation-method>。指定色空間での
-		// 補間は未実装で既存のsRGB補間へ落とすが、2026-08-30以前は
-		// 「in」があるだけで宣言ごと無効になっていた
+		// SPEC css-images-4 <color-interpolation-method>. Interpolation in the specified color space
+		// is unimplemented and falls back to existing sRGB interpolation, but before 2026-08-30,
+		// the mere presence of "in" invalidated the entire declaration.
 		assertTrue(this.single("background-image", "linear-gradient(in oklab, red, blue)")
 				instanceof LinearGradientValue);
 		assertTrue(this.single("background-image", "linear-gradient(in srgb, red, blue)")
@@ -242,7 +242,7 @@ public class BaselineCssColorTest extends TestCase {
 				instanceof RadialGradientValue);
 		assertTrue(this.single("background-image", "conic-gradient(in oklab, red, blue)")
 				instanceof ConicGradientValue);
-		// 向きの指定と併記できること
+		// Can be combined with a direction specification.
 		assertTrue(this.single("background-image", "linear-gradient(to right in oklab, red, blue)")
 				instanceof LinearGradientValue);
 		assertTrue(this.single("background-image", "linear-gradient(45deg in oklab, red, blue)")
@@ -250,8 +250,8 @@ public class BaselineCssColorTest extends TestCase {
 	}
 
 	public void testGradientInterpolationDoesNotAlterStops() {
-		// 補間指定を足しても色停止点の色そのものは変わらないこと。
-		// 「受理はされたが色が壊れた」を防ぐための表明
+		// Adding an interpolation specification does not change the colors of the color stops themselves.
+		// An assertion against "accepted, but with corrupted colors."
 		final LinearGradientValue plain = (LinearGradientValue) this.single("background-image",
 				"linear-gradient(red, blue)");
 		final LinearGradientValue in = (LinearGradientValue) this.single("background-image",

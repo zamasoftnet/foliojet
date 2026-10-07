@@ -8,14 +8,14 @@ import net.zamasoft.zstream.resolver.Source;
 import org.xml.sax.SAXException;
 
 /**
- * パーサーのインターフェースです。
+ * The parser interface.
  *
  * @author MIYABE Tatsuhiko
  */
 public interface Parser {
 	/**
-	 * ドキュメントを解析してSAXイベントを生成します。
-	 * 位置情報は setDocumentLocator に {@link SourceLocator} を渡すことで通知します。
+	 * Parses a document and generates SAX events.
+	 * Reports location information by passing {@link SourceLocator} to setDocumentLocator.
 	 *
 	 * @param ua
 	 * @param source

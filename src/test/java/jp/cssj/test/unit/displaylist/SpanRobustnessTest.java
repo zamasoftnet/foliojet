@@ -15,39 +15,39 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 表の{@code colspan}/{@code rowspan}に異常値が与えられても、変換が
- * 停止し例外にならないことを確認します(2026-07-25新設)。
+ * Verify that conversion terminates without exceptions even when table {@code colspan}/{@code rowspan}
+ * values are abnormal (added 2026-07-25).
  *
  * <p>
- * 独立レビュー(codex、堅牢性フィクスチャ設計の観点)が静的解析で見つけた
- * P0相当の2件の回帰テストです。負・0・非数値の正規化は以前からありましたが、
- * <b>巨大な正数だけが素通り</b>していました。
+ * Regression tests for two P0-level defects found by static analysis in an independent review
+ * (codex, robustness fixture design). Negative, zero, and non-numeric values were already normalized,
+ * but <b>huge positive values alone passed through unchecked</b>.
  * </p>
  *
  * <ul>
- * <li>{@code colspan="2147483647"} —— {@code IncrementalTableBuilder}が
- * span回数だけ{@code CellContent}を追加するため、約21億回の追加になり
- * 停止前にメモリを使い尽くす</li>
- * <li>{@code rowspan="2147483647"} —— {@code border-collapse: collapse}で
- * {@code CollapsedBorderRules.streamSpacing}の
- * {@code borderRow + rowspan - 1}がintオーバーフローで負値になり、
- * {@code List.get(負値)}で{@code IndexOutOfBoundsException}</li>
+ * <li>{@code colspan="2147483647"}: {@code IncrementalTableBuilder} adds {@code CellContent}
+ * once per spanned column, resulting in about 2.1 billion additions and exhausting memory
+ * before termination.</li>
+ * <li>{@code rowspan="2147483647"}: with {@code border-collapse: collapse},
+ * {@code borderRow + rowspan - 1} in {@code CollapsedBorderRules.streamSpacing}
+ * overflows int to a negative value, causing {@code IndexOutOfBoundsException}
+ * at {@code List.get(negative value)}.</li>
  * </ul>
  *
  * <p>
- * 対策は{@code StyleBuilder}でHTML Standardと同じ上限
- * (colspan 1000 / rowspan 65534)へ丸めること。実ブラウザと同じ挙動です。
+ * The fix clamps values in {@code StyleBuilder} to the HTML Standard limits
+ * (colspan 1000 / rowspan 65534), matching real browser behavior.
  * </p>
  *
  * <p>
- * <b>watchdog付き</b>——修正前は「落ちる」のではなく「終わらない」ため、
- * 時間で打ち切らないとテスト自体がハングします。
+ * <b>Includes a watchdog</b>: before the fix, conversion "never ended" rather than "failed",
+ * so the test itself hangs unless it is stopped by a time limit.
  * </p>
  */
 public class SpanRobustnessTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 1文書あたりの上限時間。通常は1秒未満で終わる。 */
+	/** Time limit per document. Normally finishes in under one second. */
 	private static final long WATCHDOG_MS = 60_000L;
 
 	public SpanRobustnessTest(String name) {
@@ -67,11 +67,10 @@ public class SpanRobustnessTest extends TestCase {
 	}
 
 	/**
-	 * {@code rowspan}が表の実際の行数を超える場合(2026-07-25、ランダム
-	 * 文書生成で発見)。{@code border-collapse: collapse}のとき
-	 * {@code TableCollapsedBorders.getHBorder}/{@code getVBorder}がnullを返し、
-	 * {@code CollapsedBorderRules.gridSpacing}が{@code NullPointerException}
-	 * になっていた。
+	 * When {@code rowspan} exceeds the actual table row count (2026-07-25, found by random document generation),
+	 * {@code TableCollapsedBorders.getHBorder}/{@code getVBorder} returned null with
+	 * {@code border-collapse: collapse}, causing {@code NullPointerException}
+	 * in {@code CollapsedBorderRules.gridSpacing}.
 	 */
 	public void testRowspanBeyondRowCount() throws Exception {
 		convertWithin("over-rowspan.html");
@@ -80,19 +79,18 @@ public class SpanRobustnessTest extends TestCase {
 	}
 
 	/**
-	 * イメージマップの{@code area}が異常でも変換が例外にならないこと
-	 * (2026-07-25、独立レビューで発見)。{@code shape="default"}・shape/coords
-	 * 省略・未知のshape・座標不足のとき、形のない{@code Area}がそのまま
-	 * 登録され{@code createTransformedShape(null)}が
-	 * {@code NullPointerException}になっていた。
+	 * Conversion does not throw even for malformed image-map {@code area} elements
+	 * (2026-07-25, found by independent review). With {@code shape="default"}, omitted shape/coords,
+	 * unknown shapes, or insufficient coordinates, an {@code Area} without a shape was registered as is,
+	 * causing {@code NullPointerException} in {@code createTransformedShape(null)}.
 	 */
 	public void testImageMapWithDegenerateAreas() throws Exception {
 		convertWithin("image-map.html");
 	}
 
 	/**
-	 * 文書を別スレッドで変換し、{@link #WATCHDOG_MS}以内に例外なく
-	 * 終わることを確認します。
+	 * Convert the document on a separate thread and verify that it finishes without exceptions
+	 * within {@link #WATCHDOG_MS}.
 	 */
 	private static void convertWithin(final String name) throws Exception {
 		final Throwable[] failure = new Throwable[1];
@@ -107,7 +105,7 @@ public class SpanRobustnessTest extends TestCase {
 		worker.start();
 		worker.join(WATCHDOG_MS);
 		if (worker.isAlive()) {
-			// 修正前のcolspanケースはここに来る(終わらない)
+			// The pre-fix colspan case reaches here (never finishes).
 			fail(name + ": " + WATCHDOG_MS + "ms以内に変換が終わりませんでした");
 		}
 		if (failure[0] != null) {

@@ -19,47 +19,45 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 深いネスト文書のボックス木走査に対する回帰テストです(ARCHITECTURE.md
- * 不変条件6、2026-07-20。実文書=e-gov.go.jp法令ページで確認された
- * {@code StackOverflowError}の再発防止)。
+ * Regression test for box-tree traversal in deeply nested documents
+ * (ARCHITECTURE.md invariant 6, 2026-07-20; prevents recurrence of
+ * {@code StackOverflowError} observed on real e-gov.go.jp legislation pages).
  *
  * <p>
- * 修正前は{@code AbstractContainerBox.finishLayout}が「各階層で局所処理→
- * 子へ委譲」というポリモーフィックな相互再帰(ボックス種別ごとに
- * オーバーライドを跨ぐ)で実装されており、1000段超のネストで
- * {@code StackOverflowError}を起こしていた(開発記録の
- * 「別立てフォローアップ」参照。
- * 当時試みた回帰テストは、同時に未修正だったこのバグにも依存してしまい
- * 単独のテストとして成立せず見送られた)。{@link net.zamasoft.foliojet.layout.box.FinishLayoutStep}
- * による明示的ワークリストへの反復化で解消したことをこのテストで固定する。
+ * Before the fix, {@code AbstractContainerBox.finishLayout} used polymorphic mutual recursion
+ * ("local processing at each level → delegate to children", crossing overrides for each box type).
+ * Nesting beyond 1000 levels caused {@code StackOverflowError}
+ * (see "Separate follow-up" in the development record; an earlier attempted regression test also
+ * depended on this then-unfixed bug and was deferred because it could not stand alone).
+ * This test verifies the contract that iteration over an explicit worklist using
+ * {@link net.zamasoft.foliojet.layout.box.FinishLayoutStep} resolves the issue.
  * </p>
  *
  * <p>
- * 2026-07-20時点の追記: 当初この修正直後は{@code AbstractContainerBox.draw}
- * 系(draw/drawFlows/drawFloatings/drawAbsolutes)がまだポリモーフィックな
- * 相互再帰のままで、深さ1500で**別の**{@code StackOverflowError}に到達する
- * ことを確認していた(finishLayout自体は無制限に解消済み)。その後、
- * frames({@link net.zamasoft.foliojet.layout.box.FramesStep})・
- * draw({@link net.zamasoft.foliojet.layout.box.DrawStep})・
- * textShape({@link net.zamasoft.foliojet.layout.box.TextShapeStep})・
- * getText({@link net.zamasoft.foliojet.layout.box.GetTextStep})の
- * 4系統も同じ反復化パターンで解消したため、このテストの深さを
- * 5000まで引き上げても成功することを確認済み。**未解消**なのは
- * {@code restyle}系(継続機構=BlockBuilderの状態機械と深く絡み合うため
- * 別途じっくり設計する必要がある、2026-07-20ユーザー判断)のみ
- * (RELIABILITY-PLAN.md台帳参照)。この境界テストはページ分割を
- * 誘発しない構成(下記generateDeeplyNestedDivs参照)のため、restyle系は
- * 経路に入らず引き続き検証対象外。
+ * Update as of 2026-07-20: immediately after this fix, the {@code AbstractContainerBox.draw} family
+ * (draw/drawFlows/drawFloatings/drawAbsolutes) still used polymorphic mutual recursion,
+ * and a **different** {@code StackOverflowError} was confirmed at depth 1500
+ * (finishLayout itself had been resolved without a depth limit).
+ * Subsequently, all four families—frames ({@link net.zamasoft.foliojet.layout.box.FramesStep}),
+ * draw ({@link net.zamasoft.foliojet.layout.box.DrawStep}),
+ * textShape ({@link net.zamasoft.foliojet.layout.box.TextShapeStep}), and
+ * getText ({@link net.zamasoft.foliojet.layout.box.GetTextStep})—were converted to the same iterative
+ * pattern, and success was confirmed even after raising this test's depth to 5000.
+ * Only the {@code restyle} family remains **unresolved** (it is deeply intertwined with the
+ * continuation mechanism, BlockBuilder's state machine, and needs separate careful design;
+ * user decision on 2026-07-20; see the RELIABILITY-PLAN.md ledger).
+ * This boundary test intentionally avoids page splitting (see generateDeeplyNestedDivs below),
+ * so the restyle family is not exercised and remains outside its scope.
  * </p>
  */
 public class DeepNestingLayoutTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/**
-	 * finishLayout・frames・draw・textShape・getTextの反復化で解消した深さ
-	 * (未修正時はfinishLayoutが1000段前後、drawが1500段前後で
-	 * StackOverflowErrorしていた)を大きく上回る深さで、レイアウトから
-	 * PDF出力までが完了することを確認する。
+	 * Verifies completion from layout through PDF output at a depth far exceeding the limits resolved
+	 * by making finishLayout/frames/draw/textShape/getText iterative
+	 * (before the fixes, finishLayout caused StackOverflowError at around 1000 levels,
+	 * and draw at around 1500).
 	 */
 	public void testDeeplyNestedDivsLayoutWithoutStackOverflow() throws Exception {
 		final File doc = generateDeeplyNestedDivs("deep-nesting-5000", 5000);
@@ -82,12 +80,12 @@ public class DeepNestingLayoutTest extends TestCase {
 	}
 
 	/**
-	 * 指定段数だけ{@code <div>}を入れ子にした文書を生成する(golden比較
-	 * 対象ではないため files/unittest へは置かず、local/unittest へ都度
-	 * 生成する)。
+	 * Generates a document with the specified number of nested {@code <div>} levels.
+	 * Since it is not compared to a golden, generate it each time in local/unittest
+	 * rather than placing it in files/unittest.
 	 *
-	 * @param name  生成ファイル名(拡張子なし)
-	 * @param depth ネスト段数
+	 * @param name  generated filename (without extension)
+	 * @param depth nesting depth
 	 */
 	private static File generateDeeplyNestedDivs(String name, int depth) throws IOException {
 		final File dir = new File("local/unittest/generated");
@@ -98,9 +96,9 @@ public class DeepNestingLayoutTest extends TestCase {
 			w.write("<?jp.cssj.property name=\"output.page-width\" value=\"250pt\"?>\n");
 			w.write("<?jp.cssj.property name=\"output.page-height\" value=\"400pt\"?>\n");
 			w.write("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
-			// borderやpaddingを付けない: 各段が高さを持つと1ページに収まらず
-			// 継続機構(OpenShape.depth、別の既知の再帰課題)を誘発してしまい、
-			// finishLayoutの反復化を単独で検証できなくなる
+			// Do not add borders or padding: if each level has height, the document exceeds one page
+			// and triggers continuation (OpenShape.depth, another known recursion issue),
+			// preventing isolated verification of finishLayout iteration.
 			w.write("<style>@page{margin:0}body{font:normal 8pt/1 serif}</style>\n");
 			w.write("</head><body>\n");
 			for (int i = 0; i < depth; ++i) {

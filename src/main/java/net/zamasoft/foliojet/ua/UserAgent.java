@@ -9,14 +9,14 @@ import net.zamasoft.zstream.resolver.SourceResolver;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * UAのプロファイルです。
- * デバイス既定値の読み取りは {@link DeviceStyle}、ページ出力は {@link PageOutput} が担います。
+ * UA profile.
+ * {@link DeviceStyle} reads device defaults; {@link PageOutput} handles page output.
  *
  * @author MIYABE Tatsuhiko
  */
 public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, PageOutput {
 	/**
-	 * 処理段階を準備します。
+	 * Prepares a processing stage.
 	 */
 	public void prepare(PrepareMode mode);
 
@@ -24,18 +24,18 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 
 	public PassContext getPassContext();
 
-	/** パスをまたいで保持する、このUAの溜め込み会計です。 */
+	/** This UA's retained-content accounting, preserved across passes. */
 	public net.zamasoft.foliojet.layout.RetainedTextLimit getRetainedTextLimit();
 
 	public DocumentContext getDocumentContext();
 
 	/**
-	 * プロパティを返します。
+	 * Returns a property.
 	 */
 	public String getProperty(String name);
 
 	/**
-	 * プロパティを設定します。
+	 * Sets a property.
 	 */
 	public void setProperty(String name, String value);
 
@@ -48,65 +48,63 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 	public void setMessageHandler(jp.cssj.cti2.message.MessageHandler messageHandler);
 
 	/**
-	 * 処理を中断します。modeはCTISessionのABORT_*値です。
+	 * Aborts processing. mode is a CTISession ABORT_* value.
 	 */
 	public void abort(byte mode);
 
 	/**
-	 * <b>協調的な中断点</b>。{@link #abort(byte)}が呼ばれていれば
-	 * {@link AbortException}を投げます。
+	 * <b>Cooperative abort point.</b> Throws {@link AbortException} if {@link #abort(byte)} was called.
 	 *
 	 * <p>
-	 * <b>なぜ要るか。</b> 変換を外から止める手段は{@code abort()}しか
-	 * ないが、それは<b>旗を立てるだけ</b>で、エンジンがその旗を読む場所が
-	 * なければ何も起きない。従来は読む場所がページの境目だけだったので、
-	 * <b>1ページの処理が終わらない文書は永久に止められなかった</b>
-	 * (2026-07-27、10万文書の掃過が停止して発覚)。
+	 * <b>Why it is needed.</b> {@code abort()} is the only external way to stop conversion, but it
+	 * <b>only sets a flag</b>; nothing happens unless the engine reads that flag somewhere.
+	 * Previously, reads occurred only at page boundaries, so <b>a document whose single-page processing
+	 * never completed could never be stopped</b>
+	 * (found 2026-07-27 when a 100,000-document sweep stalled).
 	 * </p>
 	 *
 	 * <p>
-	 * 長く走るループの先頭で呼ぶこと。粒度は行・表の行・ページ程度に
-	 * 粗く保つ——コストはvolatile 1個の読み取りだが、グリフ単位に置けば
-	 * 積もる。
+	 * Call at the start of long-running loops. Keep granularity coarse: lines, table rows, or pages.
+	 * The cost is one volatile read, but it accumulates if placed at glyph level.
 	 * </p>
 	 */
 	public void checkAbort(byte mode);
 
 	/**
-	 * <b>実際に仕事が1単位進んだ</b>ことを記録します。締切はこれを基準に
-	 * 「詰まっているか」を測ります。
+	 * Records that <b>one unit of actual work completed</b>.
+	 * The deadline uses this as the basis for determining whether processing is stalled.
 	 *
 	 * <p>
-	 * <b>「コードが動いた」ではなく「仕事が終わった」場所で呼ぶこと。</b>
-	 * 空回りするループから呼ぶと、進捗を偽装して締切を無効にしてしまいます。
-	 * 現在の呼び出し元: ページの出力・画像の読み込み完了・表の行の確定。
+	 * <b>Call where "work completed," not merely where "code ran."</b>
+	 * Calling from a loop that spins without progress fabricates progress and defeats the deadline.
+	 * Current callers: page output, image load completion, and table row finalization.
 	 * </p>
 	 */
 	public void noteProgress();
 
 	/**
-	 * 画像を取得します。
+	 * Retrieves an image.
 	 */
 	public Image getImage(Source source) throws IOException;
 
 	/**
-	 * 記録済みの画像寸法を、<b>資源を解決する前に</b>返します。
+	 * Returns recorded image dimensions <b>before resolving the resource</b>.
 	 *
 	 * <p>
-	 * 寸法しか要らないパスで既に測った画像なら、{@link #resolve(java.net.URI)}を
-	 * 呼ばずに済みます。解決そのものが取得を伴う経路(CTIPでクライアントへ
-	 * 資源を要求する場合)では、先にこれを引かないと転送が起きてしまいます。
+	 * In a dimension-only pass, an already measured image avoids a call to {@link #resolve(java.net.URI)}.
+	 * On paths where resolution itself fetches the resource (requesting it from a client over CTIP),
+	 * a transfer occurs unless this is consulted first.
 	 * </p>
 	 *
-	 * @return 記録があればその寸法、無ければ{@code null}。
+	 * @return recorded dimensions if available, otherwise {@code null}.
 	 */
 	public default Image getImageMetrics(java.net.URI uri) {
 		return null;
 	}
 
 	/**
-	 * 画像を取得し、寸法しか要らないパスなら<b>要求時のURIで</b>寸法を記録します。
-	 * 相対URIのまま記録するので、同じEPUBを別の基底から与えても当たります。
+	 * Retrieves an image and, in a dimension-only pass, records dimensions <b>under the requested URI</b>.
+	 * Preserves relative URIs, so the same EPUB still matches when supplied from a different base.
 	 */
 	public default Image getImage(java.net.URI uri, Source source) throws IOException {
 		return this.getImage(source);
@@ -115,34 +113,32 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 	public boolean isMeasurePass();
 
 	/**
-	 * 現在STRUCTURE_SCANパス(実レイアウトを組まない軽量な事前走査、
-	 * PrepareMode.STRUCTURE_SCAN)中かを返します。
+	 * Returns whether the current pass is STRUCTURE_SCAN (lightweight preliminary scan
+	 * without actual layout, PrepareMode.STRUCTURE_SCAN).
 	 */
 	public boolean isStructureScanPass();
 
 	/**
-	 * 現在最終パス(PrepareMode.LAST_PASS)中かを返します。
-	 * target-counter()系の収束性チェック(最終パスまでに参照先が
-	 * 確定したか)に使います。
+	 * Returns whether the current pass is the final pass (PrepareMode.LAST_PASS).
+	 * Used to check convergence of target-counter() values
+	 * (whether reference targets are finalized by the final pass).
 	 */
 	public boolean isLastPass();
 
 	/**
-	 * 取得した画像の<b>元のバイト列</b>を使えるかを返します(2026-08-28)。
+	 * Returns whether the <b>original bytes</b> of a retrieved image can be used (2026-08-28).
 	 *
 	 * <p>
-	 * ページ分割SVGのように、画像を「ブラウザが読む資源」として外へ出す
-	 * 出力はこれを{@code true}にします。JPEGを復号してPNGへ焼き直すのは
-	 * 時間も容量も損で、実測ではWikipedia1記事で資源が8MB相当から30.5MBへ
-	 * 膨らんでいました。PDFのように自前の画像表現へ変換する出力は
-	 * {@code false}のままにします。
+	 * Outputs that emit images as "resources read by a browser," such as page-split SVG,
+	 * return {@code true}. Decoding JPEG and re-encoding as PNG wastes both time and space;
+	 * measurements showed resources for one Wikipedia article growing from about 8 MB to 30.5 MB.
+	 * Outputs such as PDF that convert images to their own representation leave this {@code false}.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>出力プロパティで判定しないこと。</b> かつては
-	 * {@code output.type}の文字列比較で決めていたが、画像を読み込む時点の
-	 * UAでは{@code application/pdf}が返るため一度も成立していなかった
-	 * (実測で判明)。能力はUA自身に訊く。
+	 * <b>Do not decide from output properties.</b> This once used a string comparison of
+	 * {@code output.type}, but it never matched because the UA returned {@code application/pdf}
+	 * at image-loading time (discovered by measurement). Ask the UA itself about its capability.
 	 * </p>
 	 */
 	public default boolean keepsEncodedImages() {
@@ -150,12 +146,13 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 	}
 
 	/**
-	 * まだ分からない頁番号を、描いた後で書き込めるかを返します(2026-10-04)。
+	 * Returns whether an unknown page number can be written after drawing (2026-10-04).
 	 *
 	 * <p>
-	 * PDFは頁から部品(Form XObject)を参照しておき、中身を文書を閉じるときに書ける。
-	 * これが{@code true}で1パスなら、{@code target-counter()}は固定幅の欄として組まれ、
-	 * 後ろの頁への参照も番号が出る({@code TargetCounterSlotImage})。
+	 * PDF can reference a component (Form XObject) from a page and write its contents when closing
+	 * the document. If this returns {@code true} and there is one pass, {@code target-counter()}
+	 * is laid out as a fixed-width slot, and references to later pages also display their numbers
+	 * ({@code TargetCounterSlotImage}).
 	 * </p>
 	 */
 	public default boolean paintsPageNumbersLater() {

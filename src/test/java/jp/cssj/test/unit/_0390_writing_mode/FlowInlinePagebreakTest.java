@@ -8,18 +8,15 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * 縦書きでブロック({@code div#a})とインライン({@code span#b})が
- * ページをまたぐときの幾何です。
+ * Geometry of a block ({@code div#a}) and an inline ({@code span#b}) spanning pages in vertical writing.
  *
  * <p>
- * 2026-07-25: ルビが注釈付きテキストになり(仕様裁定
- * 開発記録)、ルビを
- * 含む行が行送りを広げなくなったため文書全体が詰まり、期待値が
- * 陳腐化した。{@code span#b}がページ境界をまたぐという本テストの
- * 主旨を保つため、フィクスチャの{@code span#b}直前に2行分の地の文を
- * 足して再基準化した。またぎ位置の直前にはルビ単位(曲者/くせもの)が
- * あり、切断段落の再開位置がルビ単位の途中へ落ちないこと(単位の
- * ソース終端で再開すること)も同時に押さえている。
+ * 2026-07-25: Ruby became annotated text (specification decision in the development record).
+ * Lines containing ruby no longer increased the line pitch, compacting the whole document and making
+ * the expected values obsolete. To preserve the purpose of testing {@code span#b} across a page boundary,
+ * two lines of body text were added just before {@code span#b} in the fixture, then the baseline was
+ * updated. A ruby unit (曲者/くせもの) sits just before the split, also ensuring that a split paragraph
+ * does not resume in the middle of a ruby unit (it resumes at the unit's source end).
  * </p>
  */
 public class FlowInlinePagebreakTest extends AbstractTestCase {
@@ -27,7 +24,7 @@ public class FlowInlinePagebreakTest extends AbstractTestCase {
 		super(name);
 	}
 
-	/** {@code span#b}の断片の出現順です(文書順)。 */
+	/** Order of appearance of {@code span#b} fragments (document order). */
 	private int bFragment = 0;
 
 	protected void transcode() throws Exception {
@@ -39,17 +36,17 @@ public class FlowInlinePagebreakTest extends AbstractTestCase {
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			if (pageNumber == 1) {
-				// 1ページ目の残り(行進行=右→左なので左端側)
+				// The rest of page 1 (at the left edge, since lines progress right to left).
 				assertEquals(0, x, 0);
 				assertEquals(6, y, 0);
 				assertEquals(67, box.getWidth(), 1);
 			} else if (pageNumber == 2) {
-				// 2ページ目は丸ごと
+				// All of page 2.
 				assertEquals(0, x, 0);
 				assertEquals(6, y, 0);
 				assertEquals(243, box.getWidth(), 1);
 			} else if (pageNumber == 3) {
-				// 3ページ目の頭(右端側)
+				// The start of page 3 (at the right edge).
 				assertEquals(183.31, x, 1);
 				assertEquals(6, y, 1);
 				assertEquals(60, box.getWidth(), 1);
@@ -67,19 +64,19 @@ public class FlowInlinePagebreakTest extends AbstractTestCase {
 		assertEquals(12, box.getWidth(), 0);
 		switch (this.bFragment) {
 		case 1:
-			// 2ページ目の途中の行から始まる
+			// Starts at a line partway through page 2.
 			assertEquals(2, pageNumber);
 			assertEquals(12, x, 1);
 			assertEquals(76.06, y, 1);
 			break;
 		case 2:
-			// 2ページ目の最終行(ここにルビ単位が乗り、行末で切れる)
+			// The last line of page 2 (contains the ruby unit and splits at the line end).
 			assertEquals(2, pageNumber);
 			assertEquals(2, x, 1);
 			assertEquals(16, y, 1);
 			break;
 		case 3:
-			// 3ページ目の先頭行へ継続する
+			// Continues onto the first line of page 3.
 			assertEquals(3, pageNumber);
 			assertEquals(232, x, 1);
 			assertEquals(16, y, 1);

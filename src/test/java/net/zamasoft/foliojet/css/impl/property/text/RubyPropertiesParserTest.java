@@ -19,7 +19,7 @@ import net.zamasoft.foliojet.css.value.RubyMergeValue;
 import net.zamasoft.foliojet.css.value.RubyOverhangValue;
 import net.zamasoft.foliojet.css.value.RubyPositionValue;
 
-/** CSS Ruby Level 1の4プロパティの受理値を固定する。 */
+/** Fix accepted values for the four CSS Ruby Level 1 properties. */
 public class RubyPropertiesParserTest extends TestCase {
 	private static TokenStream tokens(final String declaration) {
 		final CSSReaderSettings settings = new CSSReaderSettings().setBrowserCompliantMode(true)

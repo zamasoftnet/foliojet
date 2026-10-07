@@ -17,7 +17,7 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.TotalFit;
  *
  * <p>
  * BreakNode is <b>only a projection for selection</b>, not the sole intermediate representation
- * (design doc 開発記録). The existing {@link TextBuilder} handles all physical line construction
+ * (design doc the development records). The existing {@link TextBuilder} handles all physical line construction
  * (kinsoku (line-breaking rules), hyphen materialization, inline regeneration, and justification);
  * this class only supplies "which flush causes a line break." Kinsoku maps as follows: a flush
  * actually delivered downstream becomes a normal penalty, a flush immediately after SoftHyphen

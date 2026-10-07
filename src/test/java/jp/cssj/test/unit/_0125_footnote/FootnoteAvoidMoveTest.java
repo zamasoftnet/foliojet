@@ -8,12 +8,12 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 脚注F4(call移動検出)のテストです
- * (consult-codex-2026-07-31-footnote-f4.txt 検証fixture 2)。
- * page-break-inside:avoidのブロックは脚注予約前なら残量(75.9pt)に
- * 収まるが予約(≈21pt)後は収まらないため丸ごとpage 2へ移る。callが
- * page 1に残らないことを確定木の走査で検出し、noteもpage 2へ送られる
- * (page 1の予約は返さない=保守的確保)。
+ * Tests footnote F4 (detecting call movement)
+ * (consult-codex-2026-07-31-footnote-f4.txt validation fixture 2).
+ * The page-break-inside:avoid block fits in the remaining space (75.9 pt) before footnote reservation,
+ * but not after reservation (≈21 pt), so it moves as a whole to page 2. Traversing the finalized tree
+ * detects that the call no longer remains on page 1, and the note also moves to page 2
+ * (the reservation on page 1 is not released: conservative reservation).
  */
 public class FootnoteAvoidMoveTest extends AbstractTestCase {
 	public FootnoteAvoidMoveTest(String name) {
@@ -25,7 +25,7 @@ public class FootnoteAvoidMoveTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** callと共にnoteもpage 2へ(callの無いページに孤立させない)。 */
+	/** The note moves to page 2 with the call (never orphaned on a page without its call). */
 	public boolean check_mv(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals("the note must follow its call to page 2", 2, pageNumber);

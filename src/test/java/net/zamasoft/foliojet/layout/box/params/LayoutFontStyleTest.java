@@ -10,8 +10,9 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
 /**
- * ルビ・割注の書体の指定(大きさだけを変えた写し)が、言語と paint-order を落とさないことを固定します
- * (2026-10-04、全体レビュー。lang=zh・ko のルビが和文の書体の並びで組まれていた)。
+ * Locks down preservation of language and paint-order in font specifications for ruby and warichu
+ * (copies with only the size changed) (2026-10-04, overall review: ruby with lang=zh or ko was laid out
+ * using the font sequence for Japanese text).
  */
 public class LayoutFontStyleTest extends TestCase {
 	private static FontStyleImpl base() {

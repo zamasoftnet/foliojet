@@ -8,10 +8,10 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Grid G4dのrow spanテストです。p=grid-row:1/span2(実高50)、
- * q/r=auto(実高20/15)。行高はq/rの20/15を基礎に、pの不足
- * 50-35=15を各行へ+7.5——行0=27.5、行1=22.5、行1開始=27.5、
- * 総高=50。
+ * Grid G4d row-span test. p=grid-row:1/span2 (actual height 50),
+ * q/r=auto (actual heights 20/15). Starting with q/r's row heights of 20/15,
+ * p's shortfall of 50-35=15 adds 7.5 to each row: row 0=27.5, row 1=22.5,
+ * row 1 starts at 27.5; total height=50.
  */
 public class GridRowSpanTest extends AbstractTestCase {
 	public GridRowSpanTest(String name) {
@@ -37,7 +37,7 @@ public class GridRowSpanTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 行0の2列目。 */
+	/** Second column of row 0. */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 60, x, 0.1);
@@ -47,7 +47,7 @@ public class GridRowSpanTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 行1(開始=20+7.5=27.5)の2列目。 */
+	/** Second column of row 1 (starts at 20+7.5=27.5). */
 	public boolean check_r(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 60, x, 0.1);
@@ -57,7 +57,7 @@ public class GridRowSpanTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 総高=27.5+22.5=50(pの実高と一致)。 */
+	/** Total height = 27.5+22.5=50 (matches p's actual height). */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseY + 50, y, 0.1);

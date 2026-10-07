@@ -7,10 +7,13 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.message.MessageCodes;
 
 /**
- * 入出力プロパティの登録簿と不正な値の扱いを固定します(2026-10-04、全体レビュー)。
+ * Locks down the I/O property registry and handling of invalid values (2026-10-04, overall review).
  */
 public class UAPropsTest extends TestCase {
-	/** {@code all()} は手で並べた一覧ではなく、宣言されたものすべて(以前は 8 件が漏れていた)。 */
+	/**
+	 * {@code all()} includes every declaration, rather than a hand-maintained list (previously missed eight
+	 * entries).
+	 */
 	public void testAllHasEveryDeclaredManager() {
 		final List<PropManager> all = UAProps.all();
 		for (final PropManager manager : new PropManager[] { UAProps.INPUT_SIZE_LIMIT, UAProps.INPUT_RESOURCE_SIZE_LIMIT,
@@ -22,7 +25,7 @@ public class UAPropsTest extends TestCase {
 		assertEquals("no duplicates", all.size(), all.stream().map(PropManager::getName).distinct().count());
 	}
 
-	/** 不正な真偽値は警告して既定値にする(以前は false にして、既定が true の性質を切っていた)。 */
+	/** Invalid booleans warn and use the default (previously became false, disabling features that default to true). */
 	public void testInvalidBooleanFallsBackToTheDefault() {
 		final List<Short> codes = new ArrayList<>();
 		final BooleanPropManager on = new BooleanPropManager("test.on", true);

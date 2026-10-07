@@ -8,12 +8,12 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * row-reverse/column-reverseのテストです(Flex F5b——主軸反転。
- * row-reverse既定(=flex-start=右端): a=+160/b=+120。
- * row-reverse+flex-end(=左端): q=+0/p=+40。
- * column-reverse(高さ100pt、=flex-start=下端): basis 40pt×2=80ptが
- * 下詰めされ残余20ptが上に入る。
- * 検査hookは配置(視覚)順に呼ばれるため、基準は視覚先頭のitemで取る。
+ * Tests row-reverse/column-reverse (Flex F5b, main-axis reversal).
+ * Default row-reverse (=flex-start=right edge): a=+160/b=+120.
+ * row-reverse+flex-end (=left edge): q=+0/p=+40.
+ * column-reverse (height 100 pt, flex-start=bottom): two basis 40 pt items = 80 pt align to the bottom,
+ * leaving 20 pt at the top.
+ * Inspection hooks run in placement (visual) order, so the first visual item provides the reference.
  */
 public class FlexReverseTest extends AbstractTestCase {
 	public FlexReverseTest(String name) {
@@ -28,7 +28,7 @@ public class FlexReverseTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** 視覚先頭(左端)はソース2番目のb(+120)——基準を取る。 */
+	/** The first visual item (leftmost) is b, second in source order (+120); take the reference here. */
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			this.baseX = x - 120;
@@ -37,7 +37,7 @@ public class FlexReverseTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** ソース1番目のaが右端(主軸start=右)。 */
+	/** a, first in source order, is at the right edge (main-axis start = right). */
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 160, x, 0.1);
@@ -46,7 +46,7 @@ public class FlexReverseTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** row-reverse+flex-end=左端: 視覚先頭はq(+0)。 */
+	/** row-reverse+flex-end = left edge: q is visually first (+0). */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);
@@ -65,8 +65,9 @@ public class FlexReverseTest extends AbstractTestCase {
 	}
 
 	/**
-	 * column-reverse: 主軸寸法はbasis 40pt(heightではない)。残余20ptが
-	 * 下詰め(flex-start=下端)で先頭に入り、視覚先頭のwはコンテナ上端+20。
+	 * column-reverse: main-axis size is basis 40 pt (not height). Bottom alignment
+	 * (flex-start=bottom) puts the remaining 20 pt at the start, so the first visual item w is at
+	 * container top +20.
 	 */
 	public boolean check_w(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
@@ -77,7 +78,7 @@ public class FlexReverseTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** ソース1番目のvが下端(wの直下+40)。 */
+	/** v, first in source order, is at the bottom (directly below w, +40). */
 	public boolean check_v(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.wY + 40, y, 0.1);

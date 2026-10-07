@@ -7,49 +7,43 @@ import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
 
 /**
- * {@code shape-outside}で解決済みの浮動体の排除形状です(css-shapes-1、
- * 2026-08-29新設)。
+ * Resolved float exclusion shape from {@code shape-outside} (css-shapes-1, added 2026-08-29).
  *
  * <p>
- * 座標は{@link FloatExclusion}と同じ論理軸——u=行方向(lineSpan)、
- * v=ページ方向(pageSpan)——で持つ。書字方向による物理→論理の変換は
- * 解決側({@code FloatShapeResolver})が済ませるので、照会側は縦書きを
- * 意識しない。
+ * Coordinates use the same logical axes as {@link FloatExclusion}: u=line direction (lineSpan), v=page direction
+ * (pageSpan). The resolver ({@code FloatShapeResolver}) handles the writing-direction-dependent physical-to-logical
+ * transform, so queries need not account for vertical writing.
  * </p>
  *
  * <p>
- * 照会は{@link #lineSpanAt}の1種類だけ: ページ方向の帯[v0, v1]の中で
- * 形状が占める行方向の範囲(最小u〜最大u)。行ボックスは自身の高さ全体で
- * 形状と交わってはならない(css-shapes-1 §4.1「line boxes are shortened
- * as necessary to avoid intersections」)ので、帯の中の<b>最大</b>張り出し
- * を返す。帯と形状が交わらなければnull=この浮動体はその帯では行を
- * 狭めない(マージンボックスの中でも、円の上下の空白部分には行が
- * 入り込める)。
+ * There is only one query, {@link #lineSpanAt}: the line-direction range (minimum u to maximum u) occupied by the
+ * shape within page-direction band [v0, v1]. Line boxes must avoid the shape over their full height (css-shapes-1
+ * §4.1: "line boxes are shortened as necessary to avoid intersections"), so return the <b>maximum</b> protrusion
+ * within the band. If the band and shape do not intersect, return null: this float does not narrow lines in that
+ * band (lines can enter the empty space above/below a circle, even inside the margin box).
  * </p>
  *
  * <p>
- * 実装は2種: 任意の{@link Shape}を平坦化した線分列
- * ({@link #ofShape})と、画像から抽出した走査線ごとの範囲
- * ({@link #ofProfile})。線分列に対する帯の極値は「帯内の頂点」と
- * 「帯の上下端との交点」だけ調べれば厳密(多角形の凸包でなくとも、
- * 帯で切った領域の極値点は必ずそのどちらかにある)。曲線は平坦化
- * 誤差0.2pt——{@code LayoutUtils.THRESHOLD}(0.5pt)より細かい。
+ * Two implementations: a sequence of line segments flattening an arbitrary {@link Shape} ({@link #ofShape}), and
+ * per-scanline ranges extracted from an image ({@link #ofProfile}). For line segments, checking vertices inside the
+ * band and intersections with its upper/lower edges gives exact extrema (even for nonconvex polygons, extrema of
+ * the region clipped to the band must lie at one of these). Curve flattening tolerance is 0.2 pt, finer than {@code
+ * LayoutUtils.THRESHOLD} (0.5 pt).
  * </p>
  */
 public abstract class ExclusionShape {
-	/** 平坦化の許容誤差(pt)。THRESHOLDより細かければ十分。 */
+	/** Flattening tolerance (pt). Finer than THRESHOLD is sufficient. */
 	static final double FLATNESS = 0.2;
 
 	/**
-	 * 帯[v0, v1]で形状が占める行方向の範囲を返します。交わらなければnull。
-	 * {@code v1 < v0}なら{@code v0}の1点として扱う。
+	 * Returns the line-direction range occupied by the shape in band [v0, v1], or null if they do not intersect. If
+	 * {@code v1 < v0}, treats the band as the single point {@code v0}.
 	 */
 	public abstract AxisSpan lineSpanAt(double v0, double v1);
 
 	/**
-	 * 論理座標の形状から作ります。{@code bounds}(浮動体の排除矩形=
-	 * マージンボックス)で切り抜く——仕様§4.1「形状はマージンボックスで
-	 * クリップされ、排除域を広げることはできない」。
+	 * Creates from a shape in logical coordinates. Clips to {@code bounds} (the float's exclusion rectangle = margin
+	 * box), per specification §4.1: the shape is clipped to the margin box and cannot expand the exclusion area.
 	 */
 	public static ExclusionShape ofShape(final Shape logical, final AxisSpan lineSpan, final AxisSpan pageSpan) {
 		final Area area = new Area(logical);
@@ -59,12 +53,12 @@ public abstract class ExclusionShape {
 	}
 
 	/**
-	 * 走査線ごとの範囲から作ります(画像形状用)。
+	 * Creates from per-scanline ranges (for image shapes).
 	 *
-	 * @param vStart 最初の走査線のv
-	 * @param vStep  走査線の間隔(>0)
-	 * @param minU   各走査線の最小u(空はNaN)
-	 * @param maxU   各走査線の最大u(空はNaN)
+	 * @param vStart v of the first scanline
+	 * @param vStep  scanline interval (>0)
+	 * @param minU   minimum u per scanline (NaN if empty)
+	 * @param maxU   maximum u per scanline (NaN if empty)
 	 */
 	public static ExclusionShape ofProfile(final double vStart, final double vStep, final double[] minU,
 			final double[] maxU) {
@@ -72,9 +66,9 @@ public abstract class ExclusionShape {
 	}
 
 	/**
-	 * 形状を{@code margin}だけ外側へ膨らませます({@code shape-margin})。
-	 * 丸い端点・丸い接合の太さ{@code 2*margin}の線で縁取った領域と元の
-	 * 領域の和は、円板とのミンコフスキー和に等しい(厳密なオフセット)。
+	 * Expands the shape outward by {@code margin} ({@code shape-margin}). The union of the original area and its
+	 * outline stroked at width {@code 2*margin} with round caps and joins equals the Minkowski sum with a disk (exact
+	 * offset).
 	 */
 	public static Shape dilate(final Shape shape, final double margin) {
 		if (!(margin > 0)) {
@@ -86,9 +80,9 @@ public abstract class ExclusionShape {
 		return area;
 	}
 
-	/** 平坦化した線分列。 */
+	/** Flattened line-segment sequence. */
 	static final class Flattened extends ExclusionShape {
-		/** [u0, v0, u1, v1]×n。 */
+		/** [u0, v0, u1, v1]×n. */
 		private final double[] edges;
 
 		Flattened(final Shape shape) {
@@ -147,7 +141,7 @@ public abstract class ExclusionShape {
 					min = Math.min(min, ub);
 					max = Math.max(max, ub);
 				}
-				// 帯の上下端を跨ぐ線分との交点(端点が帯内の場合は上で拾済み)
+				// Intersections with segments crossing the band's upper/lower edges (endpoints inside the band were handled above).
 				final double lo = Math.min(va, vb), hi = Math.max(va, vb);
 				if (hi - lo > 0) {
 					for (final double edge : new double[] { v0, v1 }) {
@@ -166,7 +160,7 @@ public abstract class ExclusionShape {
 		}
 	}
 
-	/** 走査線ごとの範囲。 */
+	/** Per-scanline ranges. */
 	static final class Profile extends ExclusionShape {
 		private final double vStart, vStep;
 		private final double[] minU, maxU;
@@ -184,7 +178,7 @@ public abstract class ExclusionShape {
 		@Override
 		public AxisSpan lineSpanAt(final double v0, final double v1in) {
 			final double v1 = Math.max(v0, v1in);
-			// 走査線kは[vStart + k*step, vStart + (k+1)*step)を占める
+			// Scanline k occupies [vStart + k*step, vStart + (k+1)*step).
 			int from = (int) Math.floor((v0 - this.vStart) / this.vStep);
 			int to = (int) Math.ceil((v1 - this.vStart) / this.vStep) - 1;
 			if (to < from) {

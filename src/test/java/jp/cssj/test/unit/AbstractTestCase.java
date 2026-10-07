@@ -77,11 +77,11 @@ public abstract class AbstractTestCase extends TestCase implements
 
 	public void testDocument() throws Exception {
 		this.transcode();
-		// 2026-07-25: 「未実行」のメッセージで検査中の例外を上書きしない。
-		// check_*が例外を投げるとそのidはdoneに入らないため、以前は必ず
-		// 「Test x was not executed.」だけが残り、本当の原因(assertの
-		// 期待値差など)が失われていた——隔離中の7テストが全て同じ
-		// メッセージで落ちていた理由。
+		// 2026-07-25: Do not overwrite an exception under inspection with a "not executed" message.
+		// If check_* throws, its id is not added to done. Previously, this always left
+		// only "Test x was not executed.", losing the actual cause (such as an assertion's
+		// expected-value mismatch). This was why all seven quarantined tests failed
+		// with the same message.
 		final StringBuilder reason = new StringBuilder();
 		if (!this.errors.isEmpty()) {
 			StringWriter o = new StringWriter();

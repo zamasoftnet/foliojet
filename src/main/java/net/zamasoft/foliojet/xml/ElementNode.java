@@ -3,8 +3,8 @@ package net.zamasoft.foliojet.xml;
 import net.zamasoft.foliojet.css.CSSElement;
 
 /**
- * マークアップ言語のノードを表します。
- * 
+ * Represents a markup language node.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: ElementNode.java 1552 2018-04-26 01:43:24Z miyabe $
  */

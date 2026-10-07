@@ -3,13 +3,13 @@ package net.zamasoft.foliojet.layout.fragment;
 import java.util.function.Consumer;
 
 /**
- * テストから{@link LayoutSource}のpackage-private観測フックへ触るための
- * ブリッジです(E-6増分2、2026-07-24新設、テスト専用)。
+ * A bridge for tests to access {@link LayoutSource}'s package-private observation hooks
+ * (E-6 increment 2, added 2026-07-24, tests only).
  *
  * <p>
- * production経路はフックがnullのままなので挙動不変。shadow round-trip
- * テスト({@code net.zamasoft.foliojet.layout.segment}側)が
- * transcode中の全append列を外から観測するために使う。
+ * Production behavior is unchanged because the hook remains null. Shadow round-trip tests
+ * (in {@code net.zamasoft.foliojet.layout.segment}) use it to observe the full append sequence
+ * from outside during transcoding.
  * </p>
  */
 public final class LayoutSourceTestHooks {
@@ -17,8 +17,8 @@ public final class LayoutSourceTestHooks {
 	}
 
 	/**
-	 * append観測フックを設定します({@code null}で解除)。設定した
-	 * テストはfinallyで必ず解除すること(static共有のため)。
+	 * Sets the append observation hook ({@code null} clears it). A test that sets it must always
+	 * clear it in finally, because it is shared statically.
 	 */
 	public static void setAppendObserver(final Consumer<LayoutSource.Event> observer) {
 		LayoutSource.appendObserver = observer;

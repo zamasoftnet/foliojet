@@ -6,29 +6,28 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 継続の正本({@link Continuation}のPAGE入力/COLUMN入力)を直接検査します
- * (2026-07-24新設、E-3増分1。
- * 設計相談 §3)。
+ * Directly validates the authoritative continuation inputs (PAGE/COLUMN inputs to
+ * {@link Continuation}). Added 2026-07-24, E-3 increment 1; design consultation §3.
  *
  * <p>
- * 旧program系(E-3増分6で撤去した{@code ResumeProgramCompiler}/
- * {@code ColumnResumeProgramCompiler}と{@code ContinuationVerifier}/
- * {@code ColumnContinuationVerifier})が担っていた不変条件——snapshot/
- * continuationの深さ式、有界のframe walk(循環・null・snapshot超過の拒否)、
- * prefixのserial順序・範囲の正当性、crossExtentの有限性、snapshotレベル
- * との対応——をここへ移植した。program撤去後の唯一の検証層である。
+ * Ports the invariants previously enforced by the program subsystem
+ * ({@code ResumeProgramCompiler}/{@code ColumnResumeProgramCompiler} and
+ * {@code ContinuationVerifier}/{@code ColumnContinuationVerifier}, removed in E-3 increment 6):
+ * snapshot/continuation depth equations, bounded frame walks (rejecting cycles, nulls, and
+ * snapshot overflow), valid prefix serial order and ranges, finite crossExtent, and correspondence
+ * with snapshot levels. This is the sole validation layer after program removal.
  * </p>
  *
  * <p>
- * 規約:
+ * Contract:
  * </p>
  * <ul>
- * <li>検証中に{@link FragmentRecipe#instantiate}を一切呼ばない(fragment
- * 生成・builder状態の変異なし)。</li>
- * <li>frame走査は再帰ではなく、snapshot深さを上限とする有界の反復
- * (merge gate。深さ5000程度でもJVM再帰なしに処理できる)。</li>
- * <li>失敗はすべて{@link ContinuationInvariantViolationException}
- * (既存compiler/verifierと同一の型付き例外)。</li>
+ * <li>Never calls {@link FragmentRecipe#instantiate} during validation
+ * (no fragment creation or builder state mutation).</li>
+ * <li>Frame traversal uses bounded iteration capped by snapshot depth, not recursion
+ * (merge gate; depths around 5000 can be processed without JVM recursion).</li>
+ * <li>All failures are {@link ContinuationInvariantViolationException}
+ * (the same typed exception as the existing compilers/verifiers).</li>
  * </ul>
  */
 public final class ContinuationValidator {
@@ -36,25 +35,25 @@ public final class ContinuationValidator {
 	}
 
 	/**
-	 * 検証済みopen pathの形の要約です(検証walkの副産物)。COLUMN継続の
-	 * 終端開き形の正本({@code ColumnContinuation.pathShape()})として実行に
-	 * 使われる(かつてはtail policy——{@code WorklistTailGate}——の直接
-	 * 導出にも使われていたが、2026-07-30のlegacy再帰撤去=増分4dでgateは
-	 * 退役した)。
+	 * Summary of the validated open path shape (a byproduct of the validation walk).
+	 * Used in execution as the authoritative terminal open shape of COLUMN continuation
+	 * ({@code ColumnContinuation.pathShape()}). It also once directly derived the tail policy
+	 * ({@code WorklistTailGate}), but the gate was retired in the legacy recursion removal,
+	 * increment 4d, on 2026-07-30.
 	 *
-	 * @param firstOpenPathIndex 最初の未収集open path index(チェーンとして
-	 *                           first-classに歩けるframeの直後の位置。全レベル
-	 *                           収集済みなら{@code snapshot.depth()}に一致)
-	 * @param terminalShape      終端frameの開き形
+	 * @param firstOpenPathIndex first uncollected open path index (immediately after the frames
+	 *                           traversable as a first-class chain; equals {@code snapshot.depth()}
+	 *                           if all levels have been collected)
+	 * @param terminalShape      open shape of the terminal frame
 	 */
 	public record PathShape(int firstOpenPathIndex, OpenShape terminalShape) {
 	}
 
 	/**
-	 * PAGE継続を直接検証します(旧{@code ResumeProgramCompiler.compile}+
-	 * {@code ContinuationVerifier.verify}の不変条件の移植)。
+	 * Directly validates PAGE continuation (ports the invariants of the old
+	 * {@code ResumeProgramCompiler.compile} + {@code ContinuationVerifier.verify}).
 	 *
-	 * @throws ContinuationInvariantViolationException 構造が破れている場合
+	 * @throws ContinuationInvariantViolationException if the structure is invalid
 	 */
 	public static PathShape validatePage(final OpenPathSnapshot snapshot, final Continuation continuation) {
 		if (snapshot == null || continuation == null || continuation.root() == null) {
@@ -97,22 +96,21 @@ public final class ContinuationValidator {
 	}
 
 	/**
-	 * COLUMN継続の入力(owner anchor+owner内側の子孫チェーン)を直接検証
-	 * します(旧{@code ColumnResumeProgramCompiler.compileColumn}+
-	 * {@code ColumnContinuationVerifier.verify}の不変条件の移植)。
+	 * Directly validates COLUMN continuation inputs (owner anchor + descendant chain inside the owner).
+	 * Ports the invariants of the old {@code ColumnResumeProgramCompiler.compileColumn} +
+	 * {@code ColumnContinuationVerifier.verify}.
 	 *
 	 * <p>
-	 * PAGEとの深さ式の違い(owner=index 0はfragment levelではないため
-	 * {@code chainFrames + tailDepth == snapshotDepth})、および
-	 * {@code childFrame == null}(owner直下に開いた子孫が全くない、または
-	 * 貫通しなかった)が正規のケースであることは、既存compiler/verifierの
-	 * 規約をそのまま引き継ぐ。
+	 * Retains the existing compiler/verifier contract: the depth equation differs from PAGE
+	 * (owner = index 0 is not a fragment level, so {@code chainFrames + tailDepth == snapshotDepth}),
+	 * and {@code childFrame == null} is valid (no open descendants directly under the owner,
+	 * or the break did not pass through them).
 	 * </p>
 	 *
-	 * @param anchor     owner直下の残余
-	 * @param snapshot   破断時の相対open pathスナップショット(index 0 = owner)
-	 * @param childFrame owner直下で貫通した場合の継続フレーム(貫通しなければnull)
-	 * @throws ContinuationInvariantViolationException 構造が破れている場合
+	 * @param anchor     remainder directly under the owner
+	 * @param snapshot   relative open path snapshot at the break (index 0 = owner)
+	 * @param childFrame continuation frame when the break passes through directly below the owner (otherwise null)
+	 * @throws ContinuationInvariantViolationException if the structure is invalid
 	 */
 	public static PathShape validateColumn(final ColumnAnchor anchor, final OpenPathSnapshot snapshot,
 			final Continuation.ContinuationFrame childFrame) {
@@ -124,10 +122,10 @@ public final class ContinuationValidator {
 		}
 
 		if (childFrame == null) {
-			// 子孫を貫通しなかった正規のケース。owner自身の開きは暗黙の
-			// OpenText 1単位として別勘定される(ColumnResumeProgramCompilerの
-			// 規約と同一): depth==1ならOpenText、それ以外は深さsnapshot.depth()
-			// のlegacy開きが index 1 から始まる。
+			// Valid case where the break did not pass through descendants. The owner's own open state
+			// is accounted for separately as one OpenText unit (same contract as ColumnResumeProgramCompiler):
+			// OpenText if depth==1; otherwise, the legacy open state of depth snapshot.depth()
+			// starts at index 1.
 			return new PathShape(1, OpenShape.of(snapshot.depth()));
 		}
 
@@ -144,7 +142,7 @@ public final class ContinuationValidator {
 			}
 			case Continuation.OpenTail.OpenTailShape(final OpenShape shape) -> {
 				final int openDepth = shape.depth();
-				final int chainFrames = index; // index 1..index を走査済み
+				final int chainFrames = index; // Indices 1..index have been traversed
 				if (chainFrames + openDepth != snapshot.depth()) {
 					throw new ContinuationInvariantViolationException("COLUMN depth invariant failed: levels="
 							+ chainFrames + ", tailDepth=" + openDepth + ", snapshotDepth=" + snapshot.depth());
@@ -161,13 +159,13 @@ public final class ContinuationValidator {
 	}
 
 	/**
-	 * instantiate直後の実fragmentの署名(class/writing-mode/
-	 * column-count)を、破断時snapshotの対応レベルと直接照合します
-	 * (E-3増分2。shadow({@code ResumeProgramTrace})の{@code
-	 * ResumeOp.Instantiate}照合が持っていた唯一の独立価値の直接化)。
-	 * builder状態の変異(startFlowBlock/restyle)より前に呼ぶこと。
+	 * Directly checks the signature (class/writing-mode/column-count) of the actual fragment
+	 * immediately after instantiate against the corresponding level of the break snapshot.
+	 * E-3 increment 2: directly implements the sole independent value of the
+	 * {@code ResumeOp.Instantiate} check in the shadow ({@code ResumeProgramTrace}).
+	 * Call before builder state mutation (startFlowBlock/restyle).
 	 *
-	 * @throws ContinuationInvariantViolationException 署名が一致しない場合
+	 * @throws ContinuationInvariantViolationException if the signatures do not match
 	 */
 	public static void checkFragmentSignature(final OpenPathSnapshot snapshot, final int openPathIndex,
 			final OpenPathSnapshot.FragmentSignature actual) {
@@ -183,8 +181,8 @@ public final class ContinuationValidator {
 	}
 
 	/**
-	 * frame walkの1ステップ分の共通検証です(null・循環・snapshot深さ超過・
-	 * snapshotレベル対応・crossExtent・prefix順序/範囲)。
+	 * Shared validation for one frame walk step (null, cycles, snapshot depth overflow,
+	 * snapshot level correspondence, crossExtent, and prefix order/ranges).
 	 */
 	private static void checkFrame(final OpenPathSnapshot snapshot, final Set<Continuation.ContinuationFrame> seen,
 			final Continuation.ContinuationFrame frame, final int index) {

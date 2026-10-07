@@ -18,20 +18,20 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>{@code @page { bleed }}で塗り足しが実際に印刷される</b>ことを固定します
- * (2026-08-29)。
+ * Verifies that <b>bleed declared with {@code @page { bleed }} is actually printed</b>
+ * (2026-08-29).
  *
  * <p>
- * 利用者報告(日本自由党川崎)より。以前は{@code bleed}を書いても内容が
- * <b>仕上り線で切り落とされ</b>、塗り足しの帯が白いまま出ていた——
- * 断ち代(cuttingMargin)が{@code output.marks}=noneのとき0のままだったため。
- * CSSで塗り足しを宣言したなら、その幅だけ仕上り線の外へ描く。
+ * Based on a user report (Japan Liberal Party, Kawasaki). Previously, even with {@code bleed},
+ * content was <b>clipped at the trim line</b>, leaving the bleed band white,
+ * because cuttingMargin remained 0 when {@code output.marks}=none.
+ * When CSS declares bleed, draw beyond the trim line by that width.
  * </p>
  */
 public class BleedTest extends TestCase {
 	/**
-	 * トンボなし: 用紙は仕上り100pt＋塗り足し5pt×2＝110pt角で、
-	 * 用紙の隅まで塗られる。
+	 * Without crop marks: the sheet is a 110 pt square, from trim size 100 pt + bleed 5 pt×2,
+	 * and is painted all the way to its corners.
 	 */
 	public void testBleedIsPrinted() throws Exception {
 		final java.awt.image.BufferedImage img = render("files/unittest/0475-bleed/bleed-full.html");
@@ -44,18 +44,18 @@ public class BleedTest extends TestCase {
 	}
 
 	/**
-	 * トンボあり: 裁ち口はトンボのぶんまで広がる(塗り足しと同じ幅まで
-	 * 詰めるとトンボが用紙の外へ出て消えるため)。塗り足しは仕上り線の
-	 * 外側5ptまで届き、その外側の白い帯にトンボが引かれる。
+	 * With crop marks: the cutting margin expands to accommodate crop marks
+	 * (reducing it to the bleed width would put the marks off the sheet, making them disappear).
+	 * Bleed reaches 5 pt beyond the trim line, and crop marks are drawn in the white band beyond it.
 	 */
 	public void testMarksKeepTheirBand() throws Exception {
 		final java.awt.image.BufferedImage img = render("files/unittest/0475-bleed/bleed-marks.html");
 		final int trim = (img.getWidth() - 100) / 2;
 		assertTrue("トンボのための裁ち口が塗り足しより広くありません: " + trim, trim > 5);
-		// 仕上り線の内側と、その外側5pt(=塗り足し)までは塗られている
+		// The area inside the trim line and 5 pt beyond it (=bleed) is painted.
 		assertTrue(isRed(img.getRGB(trim + 50, trim + 50)));
 		assertTrue("塗り足しが仕上り線の外まで届いていません", isRed(img.getRGB(trim - 3, trim + 50)));
-		// 塗り足しのさらに外は白い帯(そこにトンボが引かれる)
+		// Beyond the bleed is a white band (where crop marks are drawn).
 		assertFalse("塗り足しの外まで塗られています", isRed(img.getRGB(1, trim + 50)));
 		assertTrue("トンボが引かれていません", hasInk(img, 0, 0, trim, trim));
 	}
@@ -78,7 +78,7 @@ public class BleedTest extends TestCase {
 		}
 	}
 
-	/** 白でない画素が1つでもあるか(トンボの線を数える)。 */
+	/** Whether there is at least one non-white pixel (counts crop-mark lines). */
 	private static boolean hasInk(final java.awt.image.BufferedImage img, final int x0, final int y0, final int w,
 			final int h) {
 		for (int y = y0; y < y0 + h; ++y) {

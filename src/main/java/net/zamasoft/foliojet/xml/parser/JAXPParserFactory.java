@@ -5,7 +5,7 @@ import net.zamasoft.foliojet.xml.Parser;
 import net.zamasoft.foliojet.xml.ParserFactory;
 
 /**
- * 標準JAXPによるXMLパーサーファクトリです。
+ * An XML parser factory using standard JAXP.
  */
 public class JAXPParserFactory implements ParserFactory {
 	public boolean match(String key) {

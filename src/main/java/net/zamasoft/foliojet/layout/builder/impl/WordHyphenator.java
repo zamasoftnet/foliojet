@@ -19,23 +19,22 @@ import net.zamasoft.pdfg2d.gc.text.layout.control.SoftHyphen;
 import net.zamasoft.pdfg2d.gc.text.pipeline.Hyphenator;
 
 /**
- * 単語内の分綴機会(CSS hyphens)を SoftHyphen として挿入します。
+ * Inserts intra-word hyphenation opportunities (CSS hyphens) as SoftHyphen.
  * <p>
- * CSSJTextUnitizer(禁則)と BuilderGlyphHandler の間に置かれ、
- * flush() で区切られる単位(単語)をバッファします。hyphens:auto かつ言語の
- * 分綴パターンがある場合は Liang アルゴリズム({@link Hyphenator})で分割点を計算し、
- * グリフ再生時に SoftHyphen + flush() を発行します。ソース中の U+00AD
- * ({@link Marker})は manual/auto の両方で分割点になり、存在する場合は
- * 自動分綴より優先されます(css-text-4)。
+ * Sits between CSSJTextUnitizer (kinsoku (line-breaking rules)) and BuilderGlyphHandler, buffering units (words)
+ * delimited by flush(). With hyphens:auto and available language hyphenation patterns, computes break points using
+ * the Liang algorithm ({@link Hyphenator}) and emits SoftHyphen + flush() during glyph replay. U+00AD in the source
+ * ({@link Marker}) creates break points for both manual and auto; when present, it takes precedence over automatic
+ * hyphenation (css-text-4).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 	/**
-	 * ソース中の U+00AD を表すマーカーです。StyledTextUnitizer が字形化の前に
-	 * 発行し、WordHyphenator が SoftHyphen に変換して消費します(下流には流れません)。
-	 * JOIN 扱いのため TextAtomizer はこの前後を分割しません。
+	 * Marker for U+00AD in the source. StyledTextUnitizer emits it before shaping; WordHyphenator converts it to
+	 * SoftHyphen and consumes it (it does not flow downstream). Treated as JOIN, so TextAtomizer does not split before
+	 * or after it.
 	 */
 	static final class Marker extends TextControl {
 		final int charOffset;
@@ -65,25 +64,25 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 
 	private static final Object RUN_END = new Object();
 
-	/** 分綴パターンを適用する最小の単語長(leftMin+rightMin)。 */
+	/** Minimum word length for applying hyphenation patterns (leftMin+rightMin). */
 	private static final int MIN_WORD_LENGTH = 5;
 
 	private GlyphHandler out;
 
 	/**
-	 * パイプライン共有のインライン文脈(CSSJTextUnitizer が駆動)。
+	 * Pipeline-shared inline context (driven by CSSJTextUnitizer).
 	 */
 	private final InlineParamsStack inlineContext;
 
 	/**
-	 * 直前のランのフォント(非バッファ時のU+00AD字形生成用)。
+	 * Font of the preceding run (for generating U+00AD glyphs when not buffering).
 	 */
 	private FontStyle fontStyle;
 
 	private FontMetrics fontMetrics;
 
 	/**
-	 * バッファ中の単語。flush()間のイベント列(RunStart/Glyph/RUN_END/TextControl)。
+	 * Buffered word: event sequence between flush() calls (RunStart/Glyph/RUN_END/TextControl).
 	 */
 	private List<Object> events = new ArrayList<Object>();
 
@@ -92,24 +91,23 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 	private boolean buffering = false;
 
 	/**
-	 * <b>下流にテキストランが開いているか</b>(2026-08-03新設)。
+	 * <b>Whether a text run is open downstream</b> (added 2026-08-03).
 	 *
 	 * <p>
-	 * バッファは単語の途中から始まりうる——{@link #checkBuffering()}は
-	 * {@link #startTextRun}だけでなく{@link #glyph}からも呼ばれるので、
-	 * <b>下流が既にランを開いた状態でバッファが始まる</b>ことがある。この状態を
-	 * 再生側が知らないと、{@link #processBuffer()}が二重にランを開く。
+	 * Buffering can start midway through a word: {@link #checkBuffering()} is called from {@link #glyph} as well as
+	 * {@link #startTextRun}, so <b>buffering can begin with a run already open downstream</b>. If replay does not know
+	 * this state, {@link #processBuffer()} opens the run twice.
 	 *
 	 * <p>
-	 * 実際に踏んだのは「{@code hyphens:auto}の語の直後に開き括弧」——
-	 * {@code expanduser(} で、分割機会の制御イベントがランを開いたまま届き、
-	 * 次のバッファの再生が二重に{@code startTextRun}を呼んで下流の表明に当たる。
-	 * 句点・読点では起きない(分割機会を作らないため)。
+	 * The observed case was an opening parenthesis immediately after a {@code hyphens:auto} word: with {@code
+	 * expanduser(}, a break-opportunity control event arrives while the run is open, and replaying the next buffer
+	 * calls {@code startTextRun} twice, hitting a downstream assertion. Periods and commas do not trigger this (they
+	 * create no break opportunity).
 	 */
 	private boolean outRunOpen = false;
 
 	/**
-	 * 自動分綴を適用できる単語(全文字が字母で置換要素等を含まない)。
+	 * Word eligible for automatic hyphenation (all characters are letters; no replaced elements, etc.).
 	 */
 	private boolean autoBreaks = true;
 
@@ -117,11 +115,11 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 
 	private Hyphenator hyphenator = null;
 
-	/** バッファ開始時のhyphenate-character。nullはauto。 */
+	/** hyphenate-character at the start of buffering. null means auto. */
 	private String hyphenateCharacter;
 
 	/**
-	 * バッファ開始時点のフォント(単語の先頭にマーカーが来た場合の字形用)。
+	 * Font at the start of buffering (for glyphs when a marker appears at word start).
 	 */
 	private FontStyle bufFontStyle;
 
@@ -183,13 +181,13 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 			switch (inlineQuad.getType()) {
 			case InlineQuad.INLINE_START:
 			case InlineQuad.INLINE_END:
-				// インライン文脈は共有 InlineParamsStack(上流が駆動)で追跡される
+				// Track inline context in the shared InlineParamsStack (driven upstream).
 				break;
 
 			case InlineQuad.INLINE_REPLACED:
 			case InlineQuad.INLINE_BLOCK:
 			case InlineQuad.INLINE_ABSOLUTE:
-				// 単語の途中に置換要素等が挟まる場合は自動分綴しない
+				// Do not hyphenate automatically if a replaced element or similar interrupts the word.
 				this.autoBreaks = false;
 				break;
 
@@ -199,7 +197,7 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 		} else if (quad instanceof Marker) {
 			final Marker marker = (Marker) quad;
 			if (this.getParams().hyphens == AbstractTextParams.HYPHENS_NONE) {
-				// hyphens:none ではU+00ADは分割点にならず、描画もされない
+				// With hyphens:none, U+00AD neither creates a break point nor draws.
 				return;
 			}
 			if (this.buffering) {
@@ -231,9 +229,9 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 	}
 
 	/**
-	 * 計量側にも通常の glyph/control を送る。CSS の幅計算は TextBuilder に任せる。
-	 * 単語・分綴候補・配達状態を複製してから未確定クラスタを受け取り、
-	 * 末尾の単語だけは自動分綴点を確定せずに配達する。
+	 * Sends ordinary glyph/control events to measurement too, leaving CSS width calculation to TextBuilder. Copies the
+	 * word, hyphenation candidates, and delivery state before receiving pending clusters; delivers only the final word
+	 * without finalizing automatic hyphenation points.
 	 */
 	void deliverPending(final GlyphHandler measurement,
 			final java.util.function.Consumer<GlyphHandler> pending) {
@@ -250,8 +248,8 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 	}
 
 	/**
-	 * バッファリングの開始判定。単語(flush()区切り)の先頭のグリフ/ランで
-	 * hyphens:auto なら以降のイベントをバッファします。
+	 * Decides when buffering starts. If hyphens:auto applies at the first glyph/run of a word (delimited by flush()),
+	 * buffers subsequent events.
 	 */
 	private void checkBuffering() {
 		if (this.buffering) {
@@ -272,7 +270,7 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 	private static final int[] NO_BREAKS = new int[0];
 
 	/**
-	 * バッファした単語を分割点(SoftHyphen+flush)を挿入しながら再生します。
+	 * Replays the buffered word, inserting break points (SoftHyphen+flush).
 	 */
 	private void processBuffer() {
 		this.processBuffer(true);
@@ -293,10 +291,10 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 		FontStyle fs = this.bufFontStyle;
 		FontMetrics fm = this.bufFontMetrics;
 		int runCharOffset = 0;
-		// **ランの開閉は局所変数ではなくフィールドで持つ**(2026-08-03)。
-		// バッファが単語の途中から始まると、下流には既にランが開いている
-		// ({@link #outRunOpen}のjavadoc参照)。局所変数で始めると、その場合に
-		// 二重にランを開いてしまう
+		// **Keep run-open state in a field, not a local variable** (2026-08-03).
+		// When buffering starts midway through a word, a run is already open downstream
+		// (see the Javadoc for {@link #outRunOpen}). Starting with a local variable
+		// would open that run twice.
 		boolean runPending = false;
 		int bi = 0;
 		for (int i = 0; i < this.events.size(); ++i) {
@@ -315,7 +313,7 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 				runPending = false;
 			} else if (ev instanceof Glyph) {
 				final Glyph g = (Glyph) ev;
-				// クラスタ内部に落ちた分割点は使えないため読み飛ばす
+				// Skip break points inside clusters, since they cannot be used.
 				while (bi < breaks.length && breaks[bi] < g.wordOffset()) {
 					++bi;
 				}
@@ -346,29 +344,29 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 				this.out.control((TextControl) ev);
 			}
 		}
-		// **ここでランが開いたままでも正しい**(2026-08-03)。以前は
-		// {@code assert !runOpen}を3箇所に置いていたが、これは「バッファした
-		// 単語は必ず endTextRun で終わる」という誤った前提だった。
+		// **A run remaining open here is valid** (2026-08-03). Previously,
+		// {@code assert !runOpen} appeared at three sites, based on the false assumption
+		// that a buffered word always ends with endTextRun.
 		//
-		// 実際には<b>語の直後に開き括弧が来ると、分割機会の制御イベントが
-		// ランを開いたまま届く</b>——`expanduser(` で踏む(`.`や`,`では
-		// 起きない)。再生は上流から来た順序をそのまま流しているので、
-		// この状態は上流の状態と一致しており、下流も問題なく受ける。
-		// 実測: assertを無効にすると `ex-pan-du-ser()` と正しく分綴された
-		// 1ページのPDFが出る。
+		// In fact, <b>an opening parenthesis immediately after a word delivers a break-opportunity control
+		// event while the run is still open</b>, as in `expanduser(` (not with `.` or `,`).
+		// Replay preserves upstream event order,
+		// so this state matches upstream and downstream accepts it without trouble.
+		// Observed: disabling asserts produces a one-page PDF with correct hyphenation
+		// as `ex-pan-du-ser()`.
 		//
-		// 影響は「-eaで動かした環境だけが AssertionError で変換に失敗する」
-		// ——開発とテストの全層がこれで落ちる。実物大の文書(Python公式
-		// ドキュメント)を取り込んだ第0波の1件目で踏んだ。掃過2000万文書は
-		// 一度も踏んでいない(生成器が `語+開き括弧` を作らないため)。
-		// 回帰は files/unittest/0450-hyphens/word-then-paren.html。
+		// The effect is conversion failure with AssertionError only in environments running with -ea;
+		// every development and test layer fails. The first case in wave 0 of importing full-scale
+		// documents (official Python documentation) triggered it. A sweep of 20 million documents
+		// never did, because the generator does not produce `word + opening parenthesis`.
+		// Regression: files/unittest/0450-hyphens/word-then-paren.html.
 		this.events.clear();
 		this.word.setLength(0);
 	}
 
 	/**
-	 * 分割記号の字形が全角かどうかを見ます。欧文の行末に置く記号なので、
-	 * 送り幅が0.5emを超えるものはCJK用の全角の面が選ばれたとみなします。
+	 * Checks whether the break-symbol glyph is fullwidth. Since it goes at a Latin-text line end, an advance exceeding
+	 * 0.5 em indicates selection of a CJK fullwidth face.
 	 */
 	private static boolean isFullWidth(final FontStyle fontStyle, final FontMetrics fontMetrics, final char c) {
 		final double size = fontStyle.getSize();
@@ -387,18 +385,18 @@ public class WordHyphenator implements FilterGlyphHandler, Cloneable {
 	}
 
 	/**
-	 * 分割点で行末に実体化するハイフン字形を作ります。
-	 * TextImplは可変(xadvances等)のため分割点ごとに新しいインスタンスを返します。
+	 * Creates the hyphen glyph materialized at line end at a break point. TextImpl is mutable (xadvances, etc.), so
+	 * returns a new instance for each break point.
 	 */
 	private static TextImpl hyphenText(int charOffset, FontStyle fontStyle, FontMetrics fontMetrics,
 			String hyphenateCharacter) {
 		if (hyphenateCharacter == null) {
 			char hc = '\u2010'; // HYPHEN
 			if (!fontMetrics.getFontSource().canDisplay(hc) || isFullWidth(fontStyle, fontMetrics, hc)) {
-				// **U+2010が全角のフォントではU+002Dへ落とす**(2026-08-31)。
-				// 和文フォント(NotoSerifJPなど)はこの符号位置を全角(1em)で持つため、
-				// 既定のままだと欧文の行末で語とハイフンの間が1em近く空く。
-				// U+002Dは0.35em程度で正しく収まる
+				// **Fall back to U+002D in fonts where U+2010 is fullwidth** (2026-08-31).
+				// Japanese fonts (such as NotoSerifJP) assign this code point a fullwidth (1 em) glyph,
+				// so the default leaves almost 1 em between a Latin word and its line-end hyphen.
+				// U+002D is about 0.35 em and fits correctly.
 				hc = '-';
 			}
 			hyphenateCharacter = String.valueOf(hc);

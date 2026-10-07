@@ -21,8 +21,8 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code output.paged-svg.resources=source}(2026-09-02): ウェブ上の画像は複写せず、
- * 取得元の URL をそのまま {@code <image href>} に書く。
+ * {@code output.paged-svg.resources=source} (2026-09-02): do not copy web images;
+ * write their original URL directly in {@code <image href>}.
  */
 public class PagedSvgSourceResourcesTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
@@ -39,14 +39,14 @@ public class PagedSvgSourceResourcesTest extends TestCase {
 		final URI png = new File("files/unittest/trans.png").getAbsoluteFile().toURI();
 		final CapturingResults r = convert(html(png.toString()), "source");
 		final String page = r.text("pages/0001.svg");
-		// URI の表記(file:/F:/… と file:///mnt/f/…)は環境で違うので、パス部分で見る
+		// URI notation (file:/F:/… versus file:///mnt/f/…) varies by environment, so check the path portion.
 		final String tail = "/files/unittest/trans.png\"";
 		assertTrue("the page must reference the source URL: " + page, page.contains("href=\"file:")
 				&& page.contains(tail));
 		final String manifest = r.text("manifest.json");
 		assertTrue("the manifest must record the source: " + manifest,
 				manifest.contains("\"source\":\"file:") && manifest.contains(tail));
-		// 取得元の無い data: 画像は従来どおり共有資源へ
+		// data: images without a source location remain shared resources as before.
 		int assets = 0;
 		for (final String uri : r.order) {
 			if (uri.startsWith("assets/images/")) {
@@ -107,7 +107,7 @@ public class PagedSvgSourceResourcesTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

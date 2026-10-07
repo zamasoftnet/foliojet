@@ -20,8 +20,8 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code @page} の {@code border} と {@code padding}(css-page-3 §3.1)の試験です(2026-09-03)。
- * 余白の内側に枠線と内側余白を取り、版面はその内側になる。
+ * Tests for {@code border} and {@code padding} on {@code @page} (css-page-3 §3.1) (2026-09-03).
+ * Place borders and padding inside the margins, with the type area inside them.
  */
 public class PageBorderTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
@@ -37,7 +37,7 @@ public class PageBorderTest extends TestCase {
 		final String framed = convert(html("border:3pt solid #ff0000;padding:5pt")).text("pages/0001.json");
 		final double x0 = firstTextX(plain);
 		final double x1 = firstTextX(framed);
-		// 余白 10mm=28.35pt に枠線 3pt と内側余白 5pt が足される
+		// Add a 3 pt border and 5 pt padding to the 10 mm=28.35 pt margin.
 		assertEquals("the page area starts inside the border and padding", x0 + 8, x1, 0.01);
 	}
 
@@ -48,7 +48,7 @@ public class PageBorderTest extends TestCase {
 		assertFalse(plain.contains("#ff0000"));
 	}
 
-	/** 最初の文字列の左端(run の transform の平行移動 + bounds の x)。 */
+	/** Left edge of the first text string (run transform translation + bounds x). */
 	private static double firstTextX(final String pageJson) {
 		final java.util.regex.Matcher m = java.util.regex.Pattern
 				.compile("\"transform\":\\[[^\\]]*?,([-0-9.]+),[-0-9.]+\\],\"bounds\":\\[([-0-9.]+),").matcher(pageJson);
@@ -93,7 +93,7 @@ public class PageBorderTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

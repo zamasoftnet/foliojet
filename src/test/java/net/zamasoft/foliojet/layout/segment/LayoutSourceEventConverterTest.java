@@ -25,17 +25,16 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * M6d-A3c(2026-07-22新設)、{@code LayoutSource.Event}を
- * {@link SegmentEvent}へ変換するアダプタの単体テストです。
- * {@code LayoutSource}本体・{@code SourceReplayer}への実際の配線
- * (production経路からの呼び出し)はまだ行わない。
+ * M6d-A3c (added 2026-07-22): unit tests for the adapter that converts {@code LayoutSource.Event}
+ * to {@link SegmentEvent}. Actual wiring into {@code LayoutSource} itself and {@code SourceReplayer}
+ * (calls from the production path) is not done yet.
  */
 public class LayoutSourceEventConverterTest extends TestCase {
 	/**
-	 * E-6増分3b-4: Startは記録時freezeのrecipe保持になった。freezeの
-	 * kind→variant/テンプレート対応(旧convertStartの変換時freeze)は
-	 * {@code BoxRecipe.freeze}が担うため、このテストは記録時と同じ
-	 * 経路でStartを組み立てて変換を検証する。
+	 * E-6 increment 3b-4: Start now holds a recipe frozen at recording time.
+	 * {@code BoxRecipe.freeze} handles the freeze mapping from kind to variant/template (formerly
+	 * conversion-time freezing in convertStart), so this test constructs Start through the same path
+	 * as recording to verify conversion.
 	 */
 	private static LayoutSource.Start start(final LayoutSource.BoxKind kind,
 			final net.zamasoft.foliojet.layout.box.params.Params params,
@@ -44,9 +43,9 @@ public class LayoutSourceEventConverterTest extends TestCase {
 	}
 
 	/**
-	 * イベント数は1:1(ordinal対応を壊さない、M6d-A2との整合性)。
-	 * E-6増分3b-5: 全量List版convertは廃止——streamingビューの各イベントを
-	 * 単発版でオンザフライ変換する(1イベント=1 SegmentEvent)。
+	 * Event counts are one-to-one (preserve ordinal correspondence, consistent with M6d-A2).
+	 * E-6 increment 3b-5: the full-List convert overload was removed; convert each event of the streaming
+	 * view on the fly with the single-event overload (one event = one SegmentEvent).
 	 */
 	public void testEventCountIsPreserved1to1() {
 		final LayoutSource log = new LayoutSource();
@@ -60,7 +59,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertEquals(3, converted.size());
 	}
 
-	/** BoxKind.FLOWは内容を失わずBoxRecipe.Flowへ変換される。 */
+	/** BoxKind.FLOW converts to BoxRecipe.Flow without losing content. */
 	public void testFlowStartConvertsToBeginBoxWithFlowRecipe() {
 		final BlockParams params = new BlockParams();
 		params.orphans = 5;
@@ -78,7 +77,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertEquals(net.zamasoft.foliojet.layout.box.params.Align.END, flow.pos().materialize().align);
 	}
 
-	/** BoxKind.INLINEは内容を失わずBoxRecipe.Inlineへ変換される。 */
+	/** BoxKind.INLINE converts to BoxRecipe.Inline without losing content. */
 	public void testInlineStartConvertsToBeginBoxWithInlineRecipe() {
 		final InlineParams params = new InlineParams();
 		final InlinePos pos = new InlinePos();
@@ -92,7 +91,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertEquals(2.0, inline.pos().materialize().lineHeight);
 	}
 
-	/** MulticolumnBlockBoxはFlowBlockBoxを継承するため、BoxKind.FLOWと同じ型で変換される。 */
+	/** MulticolumnBlockBox extends FlowBlockBox, so it converts to the same type as BoxKind.FLOW. */
 	public void testMulticolStartConvertsToBeginBoxWithMulticolRecipe() {
 		final BlockParams params = new BlockParams();
 		params.widows = 4;
@@ -104,7 +103,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertEquals(4, multicol.params().materialize().widows);
 	}
 
-	/** OutsideMarkerBox/InlineBlockBox/InsideMarkerBoxはBlockParams+InlinePosで変換される。 */
+	/** OutsideMarkerBox/InlineBlockBox/InsideMarkerBox convert with BlockParams+InlinePos. */
 	public void testBlockParamsWithInlinePosBoxKinds() {
 		for (final LayoutSource.BoxKind kind : new LayoutSource.BoxKind[] { LayoutSource.BoxKind.MARKER,
 				LayoutSource.BoxKind.INLINE_BLOCK, LayoutSource.BoxKind.INSIDE_MARKER }) {
@@ -114,7 +113,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		}
 	}
 
-	/** FloatBlockBoxはBlockParams+FloatPosで変換される。 */
+	/** FloatBlockBox converts with BlockParams+FloatPos. */
 	public void testFloatBlockStartConvertsToBeginBoxWithFloatBlockRecipe() {
 		final FloatPos pos = new FloatPos();
 		pos.floating = FloatSide.END;
@@ -125,7 +124,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertEquals(FloatSide.END, floatBlock.pos().materialize().floating);
 	}
 
-	/** TableRowGroupBox/TableRowBox/TableColumnGroupBox/TableColumnBoxはInnerTableParamsで変換される。 */
+	/** TableRowGroupBox/TableRowBox/TableColumnGroupBox/TableColumnBox convert with InnerTableParams. */
 	public void testInnerTableParamsBoxKinds() {
 		final InnerTableParams tableRowGroupParams = new InnerTableParams();
 		final SegmentEvent rowGroup = LayoutSourceEventConverter.convert(
@@ -145,7 +144,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertTrue(((SegmentEvent.BeginBox) column).recipe() instanceof BoxRecipe.TableColumn);
 	}
 
-	/** TableCellBoxは既存のBlockParamsを再利用し、TableCellPosで変換される。 */
+	/** TableCellBox reuses the existing BlockParams and converts with TableCellPos. */
 	public void testTableCellStartConvertsToBeginBoxWithTableCellRecipe() {
 		final BlockParams params = new BlockParams();
 		params.orphans = 2;
@@ -160,7 +159,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertEquals(3, cell.pos().materialize().colspan);
 	}
 
-	/** EndBlockはEndBoxへ、Charsは配列がStringへ変換される(charOffset/fixedは保持)。 */
+	/** EndBlock converts to EndBox; Chars converts its array to a String (preserving charOffset/fixed). */
 	public void testEndBlockAndCharsConvert() {
 		assertTrue(LayoutSourceEventConverter.convert(new LayoutSource.EndBlock()) instanceof SegmentEvent.EndBox);
 
@@ -173,7 +172,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertTrue(t.fixed());
 	}
 
-	/** Opaqueは種別情報を持たないため、kindが空のBarrierへ変換される。 */
+	/** Opaque has no kind information, so it converts to a Barrier with an empty kind. */
 	public void testOpaqueConvertsToBarrierWithoutKind() {
 		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.Opaque());
 		assertTrue(converted instanceof SegmentEvent.Barrier);
@@ -181,9 +180,9 @@ public class LayoutSourceEventConverterTest extends TestCase {
 	}
 
 	/**
-	 * 通常フローの置換要素(FlowReplacedBox)は記録時freeze
-	 * ({@code ReplacedRecipe.freeze})で内容を失わずReplacedRecipe.Flowへ
-	 * 凍結され、変換はそのままSegmentEvent.Replacedへ包む(E-6増分3b-3)。
+	 * A replaced element in normal flow (FlowReplacedBox) is frozen at recording time
+	 * ({@code ReplacedRecipe.freeze}) into ReplacedRecipe.Flow without losing content;
+	 * conversion wraps it directly in SegmentEvent.Replaced (E-6 increment 3b-3).
 	 */
 	public void testFlowReplacedConvertsToReplacedWithFlowRecipe() {
 		final ReplacedParams params = new ReplacedParams();
@@ -203,7 +202,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertEquals(net.zamasoft.foliojet.layout.box.params.Align.CENTER, flow.pos().materialize().align);
 	}
 
-	/** インラインの置換要素(InlineReplacedBox)は内容を失わずReplacedRecipe.Inlineへ凍結される。 */
+	/** An inline replaced element (InlineReplacedBox) freezes into ReplacedRecipe.Inline without losing content. */
 	public void testInlineReplacedConvertsToReplacedWithInlineRecipe() {
 		final ReplacedParams params = new ReplacedParams();
 		final InlinePos pos = new InlinePos();
@@ -219,14 +218,14 @@ public class LayoutSourceEventConverterTest extends TestCase {
 	}
 
 	/**
-	 * {@link ReplacedBoxImage}実装(live boxへのback-referenceを持つため
-	 * 共有不可)を参照する置換要素も、E-6増分3b-6のduplicateベース
-	 * freeze総関数化により記録時freezeでき、Barrierにならない
-	 * (live型{@code ReplacedLive}は撤去された)。凍結値・materialize値の
-	 * 画像はliveと独立した複製である。
+	 * Replaced elements referencing a {@link ReplacedBoxImage} implementation (unshareable because it
+	 * holds a back-reference to a live box) can also freeze at recording time, thanks to E-6 increment
+	 * 3b-6 making freeze a total function through duplication, and do not become Barriers
+	 * (the live type {@code ReplacedLive} was removed). Images in frozen and materialized values are
+	 * copies independent of the live image.
 	 */
 	public void testReplacedBoxImageFreezesWithDuplicatedImage() {
-		// 通常のImageなら従来どおり共有のままfreezeされる(対照)
+		// An ordinary Image still freezes with sharing intact, as before (control case).
 		final ReplacedParams params = new ReplacedParams();
 		params.image = new Image() {
 			public double getWidth() {
@@ -255,12 +254,12 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		unsafeParams.image = liveImage;
 		final AbstractReplacedBox unsafe = new FlowReplacedBox(unsafeParams, new FlowPos());
 
-		// 記録時freezeは総関数(3b-6): ReplacedBoxImageでも成功し、
-		// 変換はBarrierではなくReplacedになる
+		// Recording-time freeze is a total function (3b-6): it succeeds even for ReplacedBoxImage,
+		// and conversion yields Replaced rather than Barrier.
 		final ReplacedRecipe recipe = ReplacedRecipe.freeze(unsafe).orElseThrow();
 		final SegmentEvent converted = LayoutSourceEventConverter.convert(new LayoutSource.Replaced(recipe));
 		assertTrue(converted instanceof SegmentEvent.Replaced);
-		// materialize結果の画像はliveと独立、かつmaterialize同士も独立
+		// Materialized images are independent of the live image and of each other.
 		final ReplacedRecipe.Flow flow = (ReplacedRecipe.Flow) recipe;
 		final Image m1 = flow.params().materialize().image;
 		final Image m2 = flow.params().materialize().image;
@@ -270,7 +269,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertTrue(m1 instanceof ReplacedBoxImage);
 	}
 
-	/** Opaque(replay不能マーカー)は3b-6のlive型撤去後も唯一のBarrier源として残る。 */
+	/** Opaque (the non-replayable marker) remains the sole source of Barrier after 3b-6 removed the live types. */
 	public void testOpaqueRemainsSoleBarrierSource() {
 		assertTrue(LayoutSourceEventConverter.convertsToBarrier(new LayoutSource.Opaque()));
 		assertFalse(LayoutSourceEventConverter
@@ -279,7 +278,7 @@ public class LayoutSourceEventConverterTest extends TestCase {
 		assertEquals(BarrierReason.NOT_YET_SUPPORTED, ((SegmentEvent.Barrier) converted).reason());
 	}
 
-	/** {@link Image}かつ{@link ReplacedBoxImage}を両方実装する最小のテスト用スタブ。 */
+	/** A minimal test stub implementing both {@link Image} and {@link ReplacedBoxImage}. */
 	private static final class StubReplacedBoxImage implements Image, ReplacedBoxImage {
 		public double getWidth() {
 			return 0;

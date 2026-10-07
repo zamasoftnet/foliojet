@@ -20,21 +20,20 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
 /**
- * A-3a-1: {@code PreparedFloatFragment}(float断片の遅延構築材料)と
- * {@code AbstractBlockBox.splitFloatFragment}の、既存即時経路
- * ({@code split}→{@code splitPage}→{@code recipe.instantiate})との
- * 等価性テストです(2026-07-24新設)。
+ * A-3a-1: tests that {@code PreparedFloatFragment} (materials for deferred construction of a float fragment)
+ * and {@code AbstractBlockBox.splitFloatFragment} are equivalent to the existing immediate path
+ * ({@code split}→{@code splitPage}→{@code recipe.instantiate}) (added 2026-07-24).
  *
  * <p>
- * 本番commit点でのshadow二重生成は行わない——{@code recipe.instantiate}は
- * {@code container.setBox(this)}の副作用(コンテナのbox参照の付け替え)を
- * 持つため、同じコンテナへの二重instantiateは配線を壊す(codex設計§2.4
- * 「同じboxにlegacy splitと新splitを二重実行した結果は比較しない」)。
- * 代わりに<b>同一構成の実ボックス2体(twin)</b>で即時経路とdeferred経路を
- * 並走させ、前断片のmutation・残余boxの幾何・クラス・パラメータ識別・
- * 残余コンテナ内容の一致を固定する。deferred経路は{@code splitPageState}の
- * 実出力をそのまま運ぶ(再計算しない)ため、この比較+構成上の同一性が
- * 等価性の根拠になる。
+ * Do not create a second shadow instance at the production commit point: {@code recipe.instantiate} has
+ * the side effect of {@code container.setBox(this)} (reassigning the container's box reference), so
+ * instantiating twice with the same container breaks the wiring (codex design §2.4:
+ * "Do not compare results of running both legacy split and the new split on the same box").
+ * Instead, run the immediate and deferred paths on <b>two real boxes with identical configurations
+ * (twins)</b>, and lock down equality of the previous fragment's mutations, remainder box geometry,
+ * class, parameter identity, and remainder container contents. The deferred path carries the actual
+ * output of {@code splitPageState} unchanged (without recomputation), so this comparison plus structural
+ * identity provides the basis for equivalence.
  * </p>
  */
 public class PreparedFloatFragmentTest extends TestCase {
@@ -49,10 +48,9 @@ public class PreparedFloatFragmentTest extends TestCase {
 	}
 
 	/**
-	 * twin fixture: 内側floatを1つ抱えるブロックfloat。内側floatは切断線
-	 * (100)より後(pageAxis=150)にあるため丸ごと次フラグメントへ移動し、
-	 * 外側boxは内部切断(Split)になる。paramsはtwin間で共有し、recipeが
-	 * キャプチャする値の識別比較を可能にする。
+	 * Twin fixture: a block float containing one inner float. The inner float is beyond the cut line
+	 * (100), at pageAxis=150, so it moves whole to the next fragment, while the outer box splits internally
+	 * (Split). The twins share params, allowing identity comparisons of the values captured by the recipe.
 	 */
 	private static FloatBlockBox outerWithMovingInnerFloat(final BlockParams outerParams,
 			final BlockParams innerParams) {
@@ -64,20 +62,23 @@ public class PreparedFloatFragmentTest extends TestCase {
 		return outer;
 	}
 
-	/** twin比較: 即時経路(split)とdeferred経路(splitFloatFragment+materialize)が同じ結果を作ること。 */
+	/**
+	 * Twin comparison: immediate (split) and deferred (splitFloatFragment+materialize) paths produce the same
+	 * result.
+	 */
 	public void testSplitFloatFragmentMatchesImmediateSplitOnTwins() {
 		final BlockParams outerParams = blockParams(WritingMode.TB);
 		final BlockParams innerParams = blockParams(WritingMode.TB);
 		final FloatBlockBox immediate = outerWithMovingInnerFloat(outerParams, innerParams);
 		final FloatBlockBox deferred = outerWithMovingInnerFloat(outerParams, innerParams);
 
-		// 即時経路
+		// Immediate path.
 		final SplitResult immediateResult = immediate.split(100, BreakMode.DEFAULT_BREAK_MODE,
 				IPageBreakableBox.FLAGS_SPLIT);
 		assertTrue("fixtureはSplitになるはず: " + immediateResult, immediateResult instanceof SplitResult.Split);
 		final IFloatBox immediateRemainder = (IFloatBox) ((SplitResult.Split) immediateResult).remainder();
 
-		// deferred経路
+		// Deferred path.
 		final FloatFragmentSplit deferredResult = deferred.splitFloatFragment(7, 100, BreakMode.DEFAULT_BREAK_MODE,
 				IPageBreakableBox.FLAGS_SPLIT);
 		assertTrue("fixtureはPreparedになるはず: " + deferredResult,
@@ -86,37 +87,37 @@ public class PreparedFloatFragmentTest extends TestCase {
 		assertEquals(7, fragment.serial());
 		final IFloatBox deferredRemainder = fragment.materialize();
 
-		// 前断片のmutationが一致(切りつめ後の寸法)
+		// Mutations of the previous fragment match (dimensions after truncation).
 		assertEquals(immediate.getWidth(), deferred.getWidth(), 0);
 		assertEquals(immediate.getHeight(), deferred.getHeight(), 0);
-		// 残余boxのクラス・パラメータ識別・幾何が一致
+		// The remainder boxes match in class, parameter identity, and geometry.
 		assertSame(immediateRemainder.getClass(), deferredRemainder.getClass());
 		assertSame(immediateRemainder.getParams(), deferredRemainder.getParams());
 		assertEquals(immediateRemainder.getWidth(), deferredRemainder.getWidth(), 0);
 		assertEquals(immediateRemainder.getHeight(), deferredRemainder.getHeight(), 0);
 		assertEquals(immediateRemainder.getPageExtent(WritingMode.TB), deferredRemainder.getPageExtent(WritingMode.TB),
 				0);
-		// 残余コンテナの内容(移動した内側float)が一致
+		// Remainder container contents (the moved inner float) match.
 		final Container immediateContainer = ((FloatBlockBox) immediateRemainder).getContainer();
 		final Container deferredContainer = ((FloatBlockBox) deferredRemainder).getContainer();
 		assertTrue(immediateContainer.hasFloatings());
 		assertTrue(deferredContainer.hasFloatings());
 	}
 
-	/** twin比較: KEEP(切断線以下に収まる)は両経路で一致。 */
+	/** Twin comparison: KEEP (fits at or before the cut line) matches on both paths. */
 	public void testKeepParityOnTwins() {
 		final BlockParams outerParams = blockParams(WritingMode.TB);
 		final BlockParams innerParams = blockParams(WritingMode.TB);
 		final FloatBlockBox immediate = outerWithMovingInnerFloat(outerParams, innerParams);
 		final FloatBlockBox deferred = outerWithMovingInnerFloat(outerParams, innerParams);
-		// 切断線が全体より後——移動なし
+		// The cut line is beyond the entire box: nothing moves.
 		assertTrue(immediate.split(500, BreakMode.DEFAULT_BREAK_MODE,
 				(byte) 0) instanceof SplitResult.Keep);
 		assertTrue(deferred.splitFloatFragment(1, 500, BreakMode.DEFAULT_BREAK_MODE,
 				(byte) 0) instanceof FloatFragmentSplit.Keep);
 	}
 
-	/** materializeは一回限定(二回目はIllegalStateException)。 */
+	/** materialize is one-shot (the second call throws IllegalStateException). */
 	public void testMaterializeIsOneShot() {
 		final FloatBlockBox deferred = outerWithMovingInnerFloat(blockParams(WritingMode.TB),
 				blockParams(WritingMode.TB));
@@ -128,14 +129,17 @@ public class PreparedFloatFragmentTest extends TestCase {
 			fragment.materialize();
 			fail("二回目のmaterializeは失敗するはず");
 		} catch (final IllegalStateException expected) {
-			// 期待どおり
+			// As expected.
 		}
 	}
 
-	/** materializeの構築が既存continueFragmentと同一であること(同じ材料からの直接比較)。 */
+	/**
+	 * materialize constructs the same result as the existing continueFragment (direct comparison with the same
+	 * materials).
+	 */
 	public void testMaterializeUsesContinueFragmentConstruction() {
 		final BlockParams params = blockParams(WritingMode.TB);
-		// 実ボックスからrecipe/stateを採る(twinで同一材料を2組作る)
+		// Obtain recipe/state from real boxes (use twins to create two identical sets of materials).
 		final FloatBlockBox boxA = outerWithMovingInnerFloat(params, blockParams(WritingMode.TB));
 		final FloatBlockBox boxB = outerWithMovingInnerFloat(params, blockParams(WritingMode.TB));
 		final FragmentRecipe recipeA = boxA.fragmentRecipe();

@@ -58,7 +58,7 @@ import net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent;
 import net.zamasoft.foliojet.ua.impl.pdf.PDFVisitor;
 import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 
-/** 再生前後の状態、出力文書の登録数、長文の実時間を検証します。 */
+/** Checks state before and after replay, registration counts in the output document, and elapsed time for long text. */
 public final class RunningSideEffectTest extends TestCase {
 	public void testValueRestorationWithoutLayout() throws Exception {
 		final PDFUserAgent ua = new RunningRenderTest.TestUA();
@@ -336,7 +336,7 @@ public final class RunningSideEffectTest extends TestCase {
 		RunningRenderTest.assertNoReplayWarnings(result);
 	}
 
-	/** privateなマージン組版を、公開APIを増やさず検査します。 */
+	/** Inspects private margin layout without adding public API. */
 	static Object marginBox(final PDFUserAgent ua, final String css) throws ReflectiveOperationException {
 		final var parsed = com.helger.css.reader.CSSReaderDeclarationList.readFromString(css,
 				new com.helger.css.reader.CSSReaderSettings().setBrowserCompliantMode(true));
@@ -385,7 +385,7 @@ public final class RunningSideEffectTest extends TestCase {
 		final String css = "p+p{break-before:page}.head{position:running(h)}@page{@top-center{content:element(h)}}";
 		final String without = RunningRenderTest.document(css, body);
 		final String with = RunningRenderTest.document(css, "<span class='head'>HEADER</span>" + body);
-		// 初期化とJITの片寄りを減らす。大量文書では表示リストをファイルへ書かない。
+		// Reduce initialization and JIT bias. Do not write display lists to files for large documents.
 		for (final String header : List.of("", "<span class='head'>HEADER</span>")) {
 			RunningRenderTest.convert(RunningRenderTest.document(css, header + "<p>BODY</p>".repeat(20)),
 					new RunningRenderTest.TestUA(), false, false, Map.of());
@@ -417,7 +417,7 @@ public final class RunningSideEffectTest extends TestCase {
 		return params;
 	}
 
-	/** 本流の最後のvisit直後とendPage直前が、通常再生を挟む観測点です。 */
+	/** Observation points around normal replay: just after the main flow's final visit and just before endPage. */
 	static final class AuditUA extends PDFUserAgent {
 		private final boolean audit;
 		private final Consumer<PDFUserAgent> after;
@@ -475,7 +475,7 @@ public final class RunningSideEffectTest extends TestCase {
 		}
 	}
 
-	/** テスト内だけで可変状態の全フィールドを比較し、診断APIだけに検査を依存させません。 */
+	/** Compares all mutable-state fields within the test, without relying solely on the diagnostic API. */
 	private static String fingerprint(final Object value) {
 		final StringBuilder out = new StringBuilder();
 		append(value, out, Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>()));

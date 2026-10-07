@@ -9,7 +9,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
 /**
- * SAXイベントを保持・再現するためのイベント生成ユーティリティです。
+ * Event creation utilities for retaining and replaying SAX events.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -19,7 +19,7 @@ public final class SAXEventRecorder {
 	}
 
 	/**
-	 * 保持されたSAXイベントです。
+	 * A retained SAX event.
 	 */
 	@FunctionalInterface
 	public interface SAXEvent {
@@ -47,14 +47,14 @@ public final class SAXEventRecorder {
 	}
 
 	public static SAXEvent characters(char[] ch, int off, int len) {
-		// chはバッファなので後で変更される可能性がある
+		// ch is a buffer and may change later.
 		final char[] fch = new char[len];
 		System.arraycopy(ch, off, fch, 0, len);
 		return handler -> handler.characters(fch, 0, fch.length);
 	}
 
 	public static SAXEvent ignorableWhitespace(char[] ch, int off, int len) {
-		// chはバッファなので後で変更される可能性がある
+		// ch is a buffer and may change later.
 		final char[] fch = new char[len];
 		System.arraycopy(ch, off, fch, 0, len);
 		return handler -> handler.ignorableWhitespace(fch, 0, fch.length);
@@ -97,7 +97,7 @@ public final class SAXEventRecorder {
 	}
 
 	public static SAXEvent comment(char[] ch, int off, int len) {
-		// chはバッファなので後で変更される可能性がある
+		// ch is a buffer and may change later.
 		final char[] fch = new char[len];
 		System.arraycopy(ch, off, fch, 0, len);
 		return handler -> ((XMLHandler) handler).comment(fch, 0, fch.length);

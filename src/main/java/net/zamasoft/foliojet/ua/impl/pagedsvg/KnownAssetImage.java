@@ -5,29 +5,28 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.image.Image;
 
 /**
- * 前回の出力で書かれた資源を指すだけの画像です(2026-08-28)。
+ * An image that only references a resource written by the previous output (2026-08-28).
  *
  * <p>
- * Paged SVGのページは画像を{@code assets/images/<sha256>.<ext>}という
- * 内容ハッシュの名前で参照します。そのため
- * {@code output.paged-svg.resources=omit}の再変換でも、名前を決めるために
- * 画像のバイト列を読み直す必要がありました。前回の{@code metrics.json}に
- * 記録した同一性({@link ImageMetricsCache.Asset})を渡せば、この画像を
- * 立てるだけで済み、<b>資源を一度も開きません</b>(遠隔資源では取得の
- * 往復がまるごと無くなります)。
+ * Paged SVG pages reference images by content-hash names such as
+ * {@code assets/images/<sha256>.<ext>}. Thus even reconversion with
+ * {@code output.paged-svg.resources=omit} had to reread image bytes to determine the name.
+ * Passing the identity ({@link ImageMetricsCache.Asset}) recorded in the previous
+ * {@code metrics.json} allows simply creating this image, <b>without opening the resource
+ * at all</b> (eliminating the entire fetch round trip for remote resources).
  * </p>
  *
  * <p>
- * 描けるのは{@link DirectPagedSVGGC}だけです。ほかのGCへ渡っても
- * 何も描かないので、{@link PagedSVGUserAgent}は
- * <b>直接書き出し+omitのときだけ</b>この画像を返します。
+ * Only {@link DirectPagedSVGGC} can draw it. It draws nothing when passed to other GCs,
+ * so {@link PagedSVGUserAgent} returns this image
+ * <b>only for direct output with omit</b>.
  * </p>
  */
 final class KnownAssetImage implements Image {
-	/** 組版に使う論理寸法(pt)。 */
+	/** Logical dimensions used for layout (pt). */
 	private final double width, height;
 
-	/** 前回の出力で書かれた資源の同一性。 */
+	/** Identity of the resource written by the previous output. */
 	final ImageMetricsCache.Asset asset;
 
 	KnownAssetImage(final double width, final double height, final ImageMetricsCache.Asset asset) {
@@ -48,8 +47,8 @@ final class KnownAssetImage implements Image {
 
 	@Override
 	public void drawTo(final GC gc) {
-		// 参照だけの画像なので、自分では描かない。
-		// DirectPagedSVGGC.drawImage がこの型を見て参照を書く
+		// A reference-only image, so it does not draw itself.
+		// DirectPagedSVGGC.drawImage recognizes this type and writes the reference.
 	}
 
 	@Override

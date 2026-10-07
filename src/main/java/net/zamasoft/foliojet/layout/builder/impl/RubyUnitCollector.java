@@ -9,18 +9,18 @@ import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.util.TextUtils;
 
 /**
- * HTML/CSS Rubyの文字イベントを、親文字と複数注釈レベルへ正規化します。
- * ルビ要素1個だけを有界バッファに保持し、{@code rb}/{@code rt}の対応、
- * {@code rtc}による両側・複数段注釈、{@code ruby-merge}による熟語ルビを
- * 同じ単位表現へ落とします。
+ * Normalizes HTML/CSS ruby character events into base text and multiple annotation levels.
+ * Retains only one ruby element in a bounded buffer, mapping {@code rb}/{@code rt} pairing, two-sided and
+ * multilevel annotations through {@code rtc}, and jukugo ruby through {@code ruby-merge} into the same unit
+ * representation.
  */
 final class RubyUnitCollector {
 
-	/** 親文字または注釈の整形前断片です。 */
+	/** An unshaped fragment of base text or annotation. */
 	record Segment(String text, InlineParams params, int charOffset, int charEnd) {
 	}
 
-	/** 1注釈と、それが属する注釈レベルです。 */
+	/** One annotation and the annotation level it belongs to. */
 	record Annotation(Segment segment, int level) {
 	}
 
@@ -68,7 +68,7 @@ final class RubyUnitCollector {
 	void startInline(final InlineParams params) {
 		++this.depth;
 		this.paramsStack.add(params);
-		// rt/rb内部の装飾要素はスタイルスタックとしてだけ扱う。
+		// Treat decorative elements inside rt/rb only as a style stack.
 		if (this.annotationDepth != 0 || this.baseDepth != 0) {
 			return;
 		}
@@ -87,7 +87,7 @@ final class RubyUnitCollector {
 					this.levels.add(this.activeLevel);
 				}
 			} else {
-				// rtc直下の裸テキストが先行していれば、匿名のspanning注釈。
+				// If bare text directly under rtc precedes this, it is an anonymous spanning annotation.
 				this.flushAnnotation(true);
 			}
 			this.annotationDepth = this.depth;
@@ -105,7 +105,7 @@ final class RubyUnitCollector {
 		}
 	}
 
-	/** コンテナ自身が閉じたときだけtrue。 */
+	/** True only when the container itself closes. */
 	boolean endInline() {
 		if (this.annotationDepth != 0 && this.depth == this.annotationDepth) {
 			this.flushAnnotation(false);
@@ -132,8 +132,8 @@ final class RubyUnitCollector {
 	void characters(final int charOffset, final char[] ch, final int off, final int len) {
 		final boolean annotation = this.annotationDepth != 0 || this.annotationContainerDepth != 0;
 		if (!annotation && !this.levels.isEmpty() && containsNonWhiteSpace(ch, off, len)) {
-			// HTML5では1つのruby要素に複数segmentを置ける。注釈後に
-			// 親文字が再開した地点をsegment境界とする。
+			// HTML5 allows multiple segments in one ruby element. The point where
+			// base text resumes after an annotation is the segment boundary.
 			this.flushBase();
 			this.emitSegment();
 		}
@@ -160,7 +160,7 @@ final class RubyUnitCollector {
 		}
 	}
 
-	/** malformedなブロック混入時は、現在までを安全な単位として確定する。 */
+	/** When malformed block content appears, finalizes the content so far as a safe unit. */
 	void drain() {
 		if (this.annotationDepth != 0 || this.annotationContainerDepth != 0) {
 			this.flushAnnotation(this.annotationDepth == 0);

@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.value.TextSpacingTrimValue;
 
-/** CSS Text 4に合わせたtext-spacing-trimの受理値と意味を固定する。 */
+/** Fix accepted text-spacing-trim values and semantics according to CSS Text 4. */
 public class TextSpacingTrimParserTest extends TestCase {
 
 	private static TokenStream tokens(final String declaration) {

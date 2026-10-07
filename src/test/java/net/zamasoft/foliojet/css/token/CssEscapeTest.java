@@ -3,18 +3,19 @@ package net.zamasoft.foliojet.css.token;
 import junit.framework.TestCase;
 
 /**
- * CSS のエスケープの唯一の定義({@link Tokens#unescape})を固定します(2026-10-04、全体レビュー。文字列・識別子・
- * セレクタの 3 つの写しが範囲外の値とエスケープの後ろの空白を別々に扱い、範囲外では例外になっていた)。
+ * Fix the single definition of CSS escaping ({@link Tokens#unescape}) (2026-10-04, overall review).
+ * Three copies for strings, identifiers, and selectors handled out-of-range values and whitespace
+ * after escapes differently, throwing exceptions for out-of-range values.
  */
 public class CssEscapeTest extends TestCase {
 	public void testHexEscapes() {
 		assertEquals("A", Tokens.unescape("\\41"));
 		assertEquals("AB", Tokens.unescape("\\41 B"));
-		// 区切りの空白は 1 つだけ消費する。タブ・改行も区切り
+		// Consume exactly one whitespace separator. Tabs and line breaks also separate.
 		assertEquals("A B", Tokens.unescape("\\41  B"));
 		assertEquals("AB", Tokens.unescape("\\41\tB"));
 		assertEquals("AB", Tokens.unescape("\\41\nB"));
-		// 6 桁まで
+		// Up to six digits
 		assertEquals("\u00a91", Tokens.unescape("\\0000a91"));
 		assertEquals(new String(Character.toChars(0x1F600)), Tokens.unescape("\\1F600"));
 	}

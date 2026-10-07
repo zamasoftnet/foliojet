@@ -8,9 +8,9 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * 総ページ数カウンタ({@code counter(pages)})の検証。実装自体は
- * {@code AbstractUserAgent.prepare()}で既に行われていたが(css-page-3
- * §6.1)、無テストだったため今回追加した。
+ * Tests the total page count counter ({@code counter(pages)}).
+ * It was already implemented in {@code AbstractUserAgent.prepare()} (css-page-3 §6.1),
+ * but had no tests, so this test was added.
  */
 public class TotalPageCounterTest extends AbstractTestCase {
 	public TotalPageCounterTest(String name) {

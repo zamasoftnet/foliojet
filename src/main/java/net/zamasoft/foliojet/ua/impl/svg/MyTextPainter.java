@@ -43,21 +43,20 @@ class MyTextPainter extends StrokingTextPainter {
 	}
 
 	/**
-	 * 「どの指定フォントでも表示できない文字」へのフォント割当を、AWTの
-	 * システムフォント解決ではなくチャンクの解決済みフォント(先頭=
-	 * {@link MyGVTFont})へ落とします(2026-08-07)。
+	 * Assigns characters that none of the specified fonts can display to the chunk's resolved
+	 * fonts (first entry = {@link MyGVTFont}), instead of using AWT system font resolution
+	 * (2026-08-07).
 	 *
 	 * <p>
-	 * 旧同梱batik-all 1.14には{@code StrokingTextPainter}のこの箇所を
-	 * 書き換えるパッチが入っていた(product/lib/batik-patch.txt)。batik
-	 * 1.19ではこの解決器がprotectedメソッドで差し替えられるため、jarへの
-	 * パッチを廃止してここで同じ結果を得る: {@code getFamilyThatCanDisplay}
-	 * がnullを返すと、呼び出し側はdefaultFont(=チャンクの解決済み
-	 * フォントの先頭)へ落ちる。未割当になるのは解決済みリストの全フォント
-	 * (UA既定を含む)が表示できない文字だけなので、どのフォントを選んでも
-	 * 豆腐になる点は同じ——AWT由来のGVTFontが混ざると{@code paintTextRuns}
-	 * が{@code fallbackFontStyle}経由でrun全体を既定フォントへ差し替えて
-	 * しまうため、null固定が正しい。
+	 * The previously bundled batik-all 1.14 included a patch changing this part of
+	 * {@code StrokingTextPainter} (product/lib/batik-patch.txt). Batik 1.19 exposes a protected
+	 * method to replace this resolver, so remove the jar patch and achieve the same result here:
+	 * when {@code getFamilyThatCanDisplay} returns null, the caller falls back to defaultFont
+	 * (the first resolved font in the chunk). Only characters unsupported by every font
+	 * in the resolved list (including UA defaults) remain unassigned, so any chosen font
+	 * would produce a missing-glyph box. Always returning null is correct:
+	 * mixing in an AWT-derived GVTFont makes {@code paintTextRuns} replace the entire run
+	 * with the default font via {@code fallbackFontStyle}.
 	 * </p>
 	 */
 	@Override
@@ -88,19 +87,19 @@ class MyTextPainter extends StrokingTextPainter {
 	};
 
 	protected void paintTextRuns(@SuppressWarnings("rawtypes") List textRuns, Graphics2D g2d) {
-		// TODO 輪郭だけの描画
-		// TODO SVG埋め込みフォント(Batik側の制限がある模様)
+		// TODO Outline-only drawing
+		// TODO SVG embedded fonts (Batik appears to impose limitations)
 		GC gc = ((BridgeGraphics2D) g2d).getGC();
 		for (int i = 0; i < textRuns.size(); i++) {
 			TextRun textRun = (TextRun) textRuns.get(i);
 			AttributedCharacterIterator aci = textRun.getACI();
-			// **属性は run の先頭で読む**(2026-10-04)。ACI の現在位置は前の
-			// 走査が置いたままのことがあり、そこで読むと別の run(最後の
-			// tspan)の書体・塗りになった——最初と最後の tspan の斜体・太字が
-			// 入れ替わって見えた。Batik の StrokingTextPainter も先に first() する
+			// **Read attributes at the start of the run** (2026-10-04). The ACI's current position
+			// may remain where the previous scan left it. Reading there picked another run's
+			// (the last tspan's) font and paint, making italics and bold appear swapped
+			// between the first and last tspans. Batik's StrokingTextPainter also calls first() first.
 			aci.first();
 
-			// 塗りの設定
+			// Set paint.
 			TextPaintInfo tpi = (TextPaintInfo) aci.getAttribute(StrokingTextPainter.PAINT_INFO);
 			if (tpi != null) {
 				if (tpi.composite != null) {
@@ -111,11 +110,11 @@ class MyTextPainter extends StrokingTextPainter {
 				}
 			}
 
-			// フォント情報取得。指定されたfont-familyがどれも解決できない場合、
-			// Batik側の既定フォント解決(AWTGVTFont)にフォールバックしてしまう
-			// ことがある(2026-07-18、SVG中の'MS-Mincho'指定でClassCastException
-			// が実際に発生した——このアプリケーションのフォント体系の外なので
-			// クラッシュではなくCopper PDFの既定フォントで代替描画する)
+			// Get font information. If none of the specified font-family values resolve,
+			// Batik may fall back to its default font resolution (AWTGVTFont)
+			// (2026-07-18, an SVG specifying 'MS-Mincho' actually caused ClassCastException).
+			// This is outside the application's font system, so instead of crashing,
+			// render with Copper PDF's default font as a substitute.
 			FontStyle fontStyle;
 			Object gvtFont = aci.getAttribute(GVT_FONT);
 			if (gvtFont instanceof MyGVTFont myFont) {
@@ -124,7 +123,7 @@ class MyTextPainter extends StrokingTextPainter {
 				fontStyle = this.fallbackFontStyle(aci);
 			}
 
-			// 文字列抽出
+			// Extract text.
 			char[] ch = new char[aci.getEndIndex() - aci.getBeginIndex()];
 			aci.first();
 			for (int j = 0; aci.getIndex() < aci.getEndIndex(); ++j) {
@@ -132,13 +131,13 @@ class MyTextPainter extends StrokingTextPainter {
 				aci.next();
 			}
 
-			// 描画
+			// Draw.
 			TextSpanLayout layout = textRun.getLayout();
-			// 横書きは 1 字目の位置から描く(2026-10-04)。getOffset() は dx・dy・
-			// baseline-shift を当てる前の位置で(GlyphLayout の説明どおり)、
-			// それらは字の位置にだけ入る。offset から描くと tspan の dy が
-			// 効かず、次の run の開始位置に持ち越されて「1 つ遅れて」効き、
-			// baseline-shift は効かなかった。縦書き・右から左は従来どおり
+			// In horizontal writing, draw from the first character's position (2026-10-04). getOffset()
+			// is the position before dx, dy, and baseline-shift (as GlyphLayout documents);
+			// those adjustments appear only in glyph positions. Drawing from offset ignored tspan dy
+			// until it carried over to the next run's start, taking effect "one run late",
+			// and baseline-shift had no effect. Vertical and right-to-left writing remain as before.
 			Point2D position = layout.getOffset();
 			if (fontStyle.getDirection() == FontStyle.Direction.LTR && layout.getGlyphVector().getNumGlyphs() > 0) {
 				position = layout.getGlyphVector().getGlyphPosition(0);
@@ -162,11 +161,11 @@ class MyTextPainter extends StrokingTextPainter {
 	}
 
 	/**
-	 * GVT_FONTがMyGVTFontでない(=このアプリケーションのフォント体系で
-	 * 解決できなかった)場合の代替FontStyleを組み立てます。
-	 * フォントサイズ等はACIに残っている属性(MySVGTextElementBridge.getFontList
-	 * が常にセットする)から可能な範囲で復元し、フォントファミリーだけ
-	 * ユーザーエージェントの既定に差し替える。
+	 * Builds a fallback FontStyle when GVT_FONT is not MyGVTFont
+	 * (i.e., could not be resolved within this application's font system).
+	 * Restore font size and other settings as far as possible from attributes remaining
+	 * in the ACI (always set by MySVGTextElementBridge.getFontList),
+	 * replacing only the font family with the user agent's default.
 	 */
 	private FontStyle fallbackFontStyle(AttributedCharacterIterator aci) {
 		LOG.log(Level.WARNING, "SVG中のfont-familyを解決できませんでした。既定フォントで代替します。");

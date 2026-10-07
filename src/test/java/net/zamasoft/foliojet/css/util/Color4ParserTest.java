@@ -15,9 +15,9 @@ import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * CSS Color 3/4の色関数テストです(2026-08-02、PLAN §2の3位——
- * Tailwind v4のoklch既定・color-mix(in oklab, C, transparent)への
- * 入力互換)。sRGB変換値・アルファ・premultiplied補間を固定する。
+ * Tests for CSS Color 3/4 color functions (2026-08-02, third priority in PLAN §2:
+ * input compatibility with Tailwind v4's oklch default and color-mix(in oklab, C, transparent)).
+ * Fix sRGB conversion values, alpha, and premultiplied interpolation.
  */
 public class Color4ParserTest extends TestCase {
 
@@ -64,7 +64,7 @@ public class Color4ParserTest extends TestCase {
 		assertEquals(0.5, half.getAlpha(), 0.005);
 	}
 
-	/** oklch→sRGB(基準値はCSS Color 4のサンプル/ブラウザ実測)。 */
+	/** oklch→sRGB (reference values from CSS Color 4 samples and browser measurements). */
 	public void testOKLCH() {
 		assertRGB("oklch(0.6279 0.2577 29.23)", 1, 0, 0, 0.02);
 		assertRGB("oklch(62.79% 0.2577 29.23deg)", 1, 0, 0, 0.02);
@@ -82,8 +82,8 @@ public class Color4ParserTest extends TestCase {
 	public void testColorMix() {
 		assertRGB("color-mix(in srgb, red, blue)", 0.5, 0, 0.5, 0.005);
 		assertRGB("color-mix(in srgb, red 25%, blue)", 0.25, 0, 0.75, 0.005);
-		// Tailwind v4の透明度ユーティリティの形: premultiplied補間により
-		// 色成分は保たれアルファだけが半分になる
+		// Tailwind v4 opacity-utility form: premultiplied interpolation
+		// preserves color components and halves only alpha.
 		final ColorValue faded = color("color-mix(in oklab, red, transparent)");
 		assertNotNull(faded);
 		assertEquals(0.5, faded.getAlpha(), 0.005);

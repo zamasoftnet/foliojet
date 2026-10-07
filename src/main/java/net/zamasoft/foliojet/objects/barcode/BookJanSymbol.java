@@ -6,12 +6,13 @@ import uk.org.okapibarcode.graphics.TextAlignment;
 import uk.org.okapibarcode.graphics.TextBox;
 
 /**
- * 日本の書籍JANコード向けEAN-13シンボル。
+ * EAN-13 symbol for Japanese Book JAN codes.
  *
- * <p>書籍JANは通常の商品用EAN-13と符号化内容は同じだが、表示は異なる。
- * ガードバーを延長せず、13桁の可読文字をバー幅全体へ一続きに均等配置する。
- * これはCopper PDF 3.2の{@code ISBNCanvasLogicHandler}と、日本図書コード
- * 管理センターの表示例に合わせたもの。</p>
+ * <p>Book JAN codes encode the same content as ordinary product EAN-13 codes, but display it
+ * differently. Guard bars are not extended; the 13 human-readable digits are distributed
+ * uniformly in one continuous sequence across the entire bar width.
+ * This matches Copper PDF 3.2's {@code ISBNCanvasLogicHandler} and the display examples
+ * from the Japan ISBN Agency.</p>
  */
 final class BookJanSymbol extends Ean {
 	private TextBox humanReadableBox;
@@ -34,14 +35,14 @@ final class BookJanSymbol extends Ean {
 			return;
 		}
 
-		// Eanは通常、先頭1桁・左6桁・右6桁の3群に分けて表示する。
-		// 書籍JANでは13桁を分割せず、95モジュールのバー幅全体へ配置する。
+		// Ean normally displays three groups: the first digit, six left digits, and six right digits.
+		// Book JAN places all 13 digits without grouping across the full 95-module bar width.
 		this.texts.clear();
 		final double baseline = this.humanReadableLocation == HumanReadableLocation.TOP ? this.fontSize
 				: this.symbolHeight + this.fontSize;
 		this.humanReadableBox = new TextBox(0, baseline, this.symbolWidth, this.readable, TextAlignment.JUSTIFY);
-		// TextBoxは全高の算出にも使われる。描画だけはBarcodeImage側で
-		// Copperの実フォントメトリクスを使って行う。
+		// TextBox is also used to calculate total height. Only the drawing is performed in BarcodeImage
+		// using Copper's actual font metrics.
 		this.texts.add(this.humanReadableBox);
 	}
 }

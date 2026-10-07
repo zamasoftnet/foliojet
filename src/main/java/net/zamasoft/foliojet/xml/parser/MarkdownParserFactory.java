@@ -5,7 +5,7 @@ import net.zamasoft.foliojet.xml.Parser;
 import net.zamasoft.foliojet.xml.ParserFactory;
 
 /**
- * CommonMark(Markdown)パーサーファクトリです。
+ * A CommonMark (Markdown) parser factory.
  */
 public class MarkdownParserFactory implements ParserFactory {
 	public boolean match(String key) {

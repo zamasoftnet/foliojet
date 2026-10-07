@@ -6,17 +6,16 @@ import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * {@code ::marker}(2026-07-21新設、CSS Lists)のsmoke test。
+ * Smoke test for {@code ::marker} (added on 2026-07-21, CSS Lists).
  *
  * <p>
- * マーカー箱({@code OutsideMarkerBox}/{@code InsideMarkerBox})は実要素に
- * 対応しない合成boxであり、{@code CSSElement.MARKER}にはidが無いため、
- * 既存の{@code check_ID}コールバック機構(要素idベース)では直接検証
- * できない。このテストは「{@code ::marker}ルールが例外なくカスケード
- * 解決され、文書が完走すること」だけを固定する——スタイル適用ロジック
- * 自体は{@code ::before}/{@code ::after}と全く同じ仕組み
- * (CSSElement押し込み+merge+適用)であり、そちらは既存corpusで
- * 広く検証済み。
+ * Marker boxes ({@code OutsideMarkerBox}/{@code InsideMarkerBox}) are synthetic boxes without
+ * corresponding real elements. {@code CSSElement.MARKER} has no id, so the existing
+ * {@code check_ID} callback mechanism (based on element ids) cannot check them directly.
+ * This test verifies only the contract that {@code ::marker} rules resolve through the cascade without
+ * exceptions and the document completes. Style application itself uses exactly the same mechanism
+ * as {@code ::before}/{@code ::after} (push CSSElement + merge + apply), already extensively
+ * tested by the existing corpus.
  * </p>
  */
 public class MarkerPseudoElementTest extends AbstractTestCase {

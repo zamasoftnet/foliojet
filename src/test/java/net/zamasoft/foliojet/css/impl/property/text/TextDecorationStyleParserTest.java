@@ -28,14 +28,14 @@ import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 装飾線の個別指定({@code text-decoration-style/-thickness}、
- * {@code text-underline-offset/-position})・{@code line-clamp}・
- * {@code text-shadow}のぼかし半径の解析テストです(2026-08-29)。
+ * Parsing tests for individual text-decoration properties
+ * ({@code text-decoration-style/-thickness}, {@code text-underline-offset/-position}),
+ * {@code line-clamp}, and {@code text-shadow} blur radius (2026-08-29).
  *
  * <p>
- * {@code ModernCssValuesTest}と同じ手順(宣言→{@code ElementPropertySet}
- * →構成要素)で、描画へ配線した値が解析で意図どおりの型に落ちることを
- * 固定する。ぼかし半径は同日夜まで解析して捨てていた。
+ * Use the same procedure as {@code ModernCssValuesTest}
+ * (declaration→{@code ElementPropertySet}→components) to verify that values
+ * wired to drawing parse to the intended types. Blur radius was parsed and discarded until that evening.
  * </p>
  */
 public class TextDecorationStyleParserTest extends TestCase {
@@ -123,7 +123,7 @@ public class TextDecorationStyleParserTest extends TestCase {
 
 	public void testDecorationThickness() {
 		assertSame(KeywordValue.AUTO, this.single("text-decoration-thickness", "auto"));
-		// from-font はフォントの下線太さを取れないため auto と同じ扱い(NORMAL番兵)
+		// from-font is treated as auto (NORMAL sentinel) because font underline thickness is unavailable.
 		assertSame(KeywordValue.NORMAL, this.single("text-decoration-thickness", "from-font"));
 		assertEquals(2.0, ((AbsoluteLengthValue) this.single("text-decoration-thickness", "2pt")).getLength(), 1e-6);
 		assertEquals(0.1, ((PercentageValue) this.single("text-decoration-thickness", "10%")).getRatio(), 1e-6);
@@ -134,7 +134,7 @@ public class TextDecorationStyleParserTest extends TestCase {
 	public void testUnderlineOffset() {
 		assertSame(KeywordValue.AUTO, this.single("text-underline-offset", "auto"));
 		assertEquals(3.0, ((AbsoluteLengthValue) this.single("text-underline-offset", "3pt")).getLength(), 1e-6);
-		// 負の値は線を文字へ寄せる(許される)
+		// Negative values move the line toward the text (allowed).
 		assertEquals(-1.0, ((AbsoluteLengthValue) this.single("text-underline-offset", "-1pt")).getLength(), 1e-6);
 		assertEquals(0.2, ((PercentageValue) this.single("text-underline-offset", "20%")).getRatio(), 1e-6);
 		this.assertInvalid("text-underline-offset", "from-font");
@@ -142,7 +142,7 @@ public class TextDecorationStyleParserTest extends TestCase {
 
 	public void testUnderlinePosition() {
 		assertSame(KeywordValue.AUTO, this.single("text-underline-position", "auto"));
-		// from-font 単独は auto 相当
+		// from-font alone is equivalent to auto.
 		assertSame(KeywordValue.AUTO, this.single("text-underline-position", "from-font"));
 		assertEquals("under", this.single("text-underline-position", "under").toString());
 		assertEquals("under right", this.single("text-underline-position", "right under").toString());
@@ -158,7 +158,7 @@ public class TextDecorationStyleParserTest extends TestCase {
 		final Entry[] entries = this.parse("text-decoration", "underline wavy red 3pt");
 		assertEquals("wavy", entry(entries, TextDecorationAux.STYLE).toString());
 		assertEquals(3.0, ((AbsoluteLengthValue) entry(entries, TextDecorationAux.THICKNESS)).getLength(), 1e-6);
-		// 省略した構成要素は初期値へ戻る
+		// Omitted components reset to initial values.
 		final Entry[] plain = this.parse("text-decoration", "underline");
 		assertSame(TextDecorationAux.SOLID, entry(plain, TextDecorationAux.STYLE));
 		assertSame(KeywordValue.AUTO, entry(plain, TextDecorationAux.THICKNESS));
@@ -177,15 +177,15 @@ public class TextDecorationStyleParserTest extends TestCase {
 		TextShadowValue shadow = (TextShadowValue) this.single("text-shadow", "1pt 2pt 4pt black");
 		assertEquals(1, shadow.getShadows().length);
 		assertEquals(4.0, ((AbsoluteLengthValue) shadow.getShadows()[0].blur).getLength(), 1e-6);
-		// ぼかし省略は null(=0)
+		// Omitted blur is null (=0).
 		shadow = (TextShadowValue) this.single("text-shadow", "1pt 2pt black");
 		assertNull(shadow.getShadows()[0].blur);
-		// 色→長さの順、複数の影
+		// Color then length; multiple shadows
 		shadow = (TextShadowValue) this.single("text-shadow", "red 0 0 6pt, 1pt 1pt 0 blue");
 		assertEquals(2, shadow.getShadows().length);
 		assertEquals(6.0, ((AbsoluteLengthValue) shadow.getShadows()[0].blur).getLength(), 1e-6);
 		assertEquals(0.0, ((AbsoluteLengthValue) shadow.getShadows()[1].blur).getLength(), 1e-6);
-		// 負のぼかしは無効
+		// Negative blur is invalid.
 		this.assertInvalid("text-shadow", "1pt 1pt -2pt black");
 	}
 }

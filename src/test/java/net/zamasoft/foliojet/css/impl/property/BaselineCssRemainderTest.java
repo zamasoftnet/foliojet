@@ -26,15 +26,15 @@ import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * MDN Baselineの棚卸しで最後まで残っていた3件を固定します(2026-08-30)——
- * {@code @font-feature-values}の名前解決、{@code image-orientation}、
- * {@code border-image-repeat}のタイル。
+ * Fix the final three items left from the MDN Baseline inventory (2026-08-30):
+ * {@code @font-feature-values} name resolution, {@code image-orientation},
+ * and {@code border-image-repeat} tiling.
  *
  * <p>
- * {@code border-image-repeat}のタイルは描画の話なので、枚数の検査は
- * 基準画像({@code files/visual/2110-border-image}) と、この場での
- * 実測(stretch 8 / repeat 60 / round 54 / space 52 枚)に任せ、
- * ここでは値が正しく届くところまでを見る。
+ * Since {@code border-image-repeat} tiling concerns drawing, leave tile counts to baseline images
+ * ({@code files/visual/2110-border-image}) and measurements made here
+ * (stretch 8 / repeat 60 / round 54 / space 52 tiles).
+ * These tests check only that values reach the correct destination.
  */
 public class BaselineCssRemainderTest extends TestCase {
 
@@ -102,23 +102,22 @@ public class BaselineCssRemainderTest extends TestCase {
 	public void testImageOrientationValues() {
 		assertSame(KeywordValue.FROM_IMAGE, this.single("image-orientation", "from-image"));
 		assertSame(KeywordValue.NONE, this.single("image-orientation", "none"));
-		// 初期の草案にあった角度指定は現行仕様から落ちている
+		// The angle specification in early drafts was removed from the current specification.
 		this.assertInvalid("image-orientation", "90deg");
 		this.assertInvalid("image-orientation", "no-such-value");
 	}
 
 	public void testImageOrientationApplyIsIdentityForFromImage() {
-		// nullは素通し(呼び出し側が無条件に通せること)
+		// Pass null through unchanged (callers can pass input unconditionally).
 		assertNull(ImageOrientation.apply(null, null));
 	}
 
-	// ---- 2. @font-feature-values の名前解決
+	// ---- 2. @font-feature-values name resolution
 
 	/**
-	 * 名前表を直に組み立てて、{@code font-variant-alternates}の関数が
-	 * OpenType機能タグへ落ちることを見ます。@規則の解析は
-	 * {@code CSSStyleSheetBuilder}側なので、ここは<b>解決の対応表</b>
-	 * (css-fonts-4 §6.9)が正しいかに絞る。
+	 * Construct the name table directly and check that {@code font-variant-alternates} functions
+	 * map to OpenType feature tags. {@code CSSStyleSheetBuilder} parses at-rules, so focus here on
+	 * the correctness of <b>the resolution mapping</b> (css-fonts-4 §6.9).
 	 */
 	public void testFeatureValuesResolveToTags() {
 		final FontFeatureValues values = new FontFeatureValues();
@@ -140,7 +139,7 @@ public class BaselineCssRemainderTest extends TestCase {
 	public void testUndefinedFeatureNameIsDropped() {
 		final FontFeatureValues values = new FontFeatureValues();
 		values.define(List.of("Test Font"), FontFeatureValues.Type.STYLESET, "nice", new int[] { 12 });
-		// 表に無い名前は、その関数だけが落ちる(宣言全体は生きる)
+		// If a name is absent from the table, drop only that function (keep the declaration).
 		final FontVariantAlternatesValue value = FontVariantAlternatesValue.create(false,
 				List.of(new FontVariantAlternatesValue.Alternate("styleset", List.of("no-such-name"))));
 		final String tags = value.featureSet(values, "Test Font").toString();
@@ -151,12 +150,12 @@ public class BaselineCssRemainderTest extends TestCase {
 		final FontFeatureValues values = new FontFeatureValues();
 		values.define(List.of("Test Font"), FontFeatureValues.Type.STYLESET, "nice", new int[] { 12 });
 		assertNotNull(values.lookup("Test Font", FontFeatureValues.Type.STYLESET, "nice"));
-		// 別のファミリの表は引けない
+		// Do not consult another family's table.
 		assertNull(values.lookup("Other Font", FontFeatureValues.Type.STYLESET, "nice"));
 	}
 
 	public void testEmptyFeatureValuesKeepsExistingBehaviour() {
-		// 表が空の文書では、@規則が無かったときと同じ結果になること
+		// A document with an empty table gives the same result as one without the at-rule.
 		final FontFeatureValues empty = new FontFeatureValues();
 		assertTrue(empty.isEmpty());
 		final FontVariantAlternatesValue historical = FontVariantAlternatesValue.create(true, List.of());
@@ -166,8 +165,8 @@ public class BaselineCssRemainderTest extends TestCase {
 	private static String tagOf(final FontFeatureValues values, final String function, final String name) {
 		final FontVariantAlternatesValue value = FontVariantAlternatesValue.create(false,
 				List.of(new FontVariantAlternatesValue.Alternate(function, List.of(name))));
-		// FontFeatureSet の toString は "FontFeatureSet[ss12=1]" の形。
-		// 角括弧の中の "<タグ>=<値>" からタグだけを取り出す
+		// FontFeatureSet toString uses the form "FontFeatureSet[ss12=1]".
+		// Extract just the tag from "<tag>=<value>" inside the brackets.
 		final String text = value.featureSet(values, "Test Font").toString();
 		final java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\[(\\w{4})=")
 				.matcher(text);
@@ -175,7 +174,7 @@ public class BaselineCssRemainderTest extends TestCase {
 		return matcher.group(1);
 	}
 
-	// ---- 3. border-image-repeat の値
+	// ---- 3. border-image-repeat values
 
 	public void testBorderImageRepeatValues() {
 		for (final String v : new String[] { "stretch", "repeat", "round", "space" }) {

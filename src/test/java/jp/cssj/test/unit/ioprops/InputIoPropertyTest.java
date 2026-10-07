@@ -20,28 +20,28 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 入力の解釈に効く入出力プロパティの検査です(2026-08-02新設、
- * 入出力プロパティ網羅の第6陣)。
+ * Tests for I/O properties affecting input interpretation (introduced on 2026-08-02,
+ * the sixth batch of comprehensive I/O property coverage).
  *
  * <p>
- * 文字化けや既定スタイルの当たり方は<b>出力の文字と幾何</b>に出るので、
- * PDFの中身とページ寸法で確かめる。
+ * Encoding corruption and default-style application appear in <b>output text and geometry</b>,
+ * so check PDF contents and page dimensions.
  * </p>
  */
 public class InputIoPropertyTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 文字コード宣言のないEUC-JP文書。 */
+	/** An EUC-JP document without an encoding declaration. */
 	private static final File EUC_JP = new File("files/unittest/ioprops/euc-jp-no-decl.html");
 
 	private static final File PLAIN = new File("files/unittest/ioprops/two-pages.html");
 
 	/**
-	 * {@code input.default-encoding}: 宣言のない文書の既定エンコーディング。
+	 * {@code input.default-encoding}: default encoding for documents without a declaration.
 	 *
 	 * <p>
-	 * 正しい既定を与えれば読めて、誤った既定なら化ける——<b>両方を見て</b>
-	 * 「この検査が本当に効いている」ことを示す。
+	 * The correct default produces readable text, while an incorrect default corrupts it.
+	 * <b>Check both</b> to show that this check actually works.
 	 * </p>
 	 */
 	public void testDefaultEncoding() throws Exception {
@@ -50,31 +50,31 @@ public class InputIoPropertyTest extends TestCase {
 		assertFalse("エンコーディングの指定で出力が変わること", correct.equals(wrong));
 	}
 
-	/** {@code input.default-stylesheet}: 既定スタイルシートが当たること。 */
+	/** {@code input.default-stylesheet}: the default stylesheet applies. */
 	public void testDefaultStylesheet() throws Exception {
 		final String pdf = this.convert(PLAIN, props("input.default-stylesheet",
 				new File("files/unittest/ioprops/default.css").toURI().toString()));
-		// 既定スタイルシートの生成内容(content)が出力に現れる
+		// Generated content (content) from the default stylesheet appears in the output.
 		assertTrue("既定スタイルシートが適用されること", pdf.contains("PROBE-DEFAULT-CSS")
 				|| this.textLooksGenerated(pdf));
 	}
 
-	/** {@code input.normalize-text}: 指定しても変換が壊れないこと。 */
+	/** {@code input.normalize-text}: setting it does not break conversion. */
 	public void testNormalizeText() throws Exception {
 		final String on = this.convert(PLAIN, props("input.normalize-text", "true"));
 		assertTrue("NFC正規化を有効にしても変換できること", on.startsWith("%PDF"));
 	}
 
-	/** {@code input.property-pi}: 文書内の処理命令でプロパティを設定できること。 */
+	/** {@code input.property-pi}: processing instructions in the document can set properties. */
 	public void testPropertyPi() throws Exception {
 		final File doc = new File("files/unittest/3070-AT-RULE/page-marks-bleed.html");
 		final String on = this.convert(doc, props("input.property-pi", "true"));
 		final String off = this.convert(doc, props("input.property-pi", "false"));
-		// この文書は処理命令で紙面寸法を指定しているので、解釈の有無で変わる
+		// This document specifies page dimensions in a processing instruction, so interpretation changes the result.
 		assertFalse("処理命令の解釈の有無で出力が変わること", on.equals(off));
 	}
 
-	/** {@code input.viewport}: meta[viewport]をページ寸法として読むこと。 */
+	/** {@code input.viewport}: read meta[viewport] as page dimensions. */
 	public void testViewport() throws Exception {
 		final File doc = new File("files/unittest/ioprops/viewport.html");
 		final String on = this.convert(doc, props("input.viewport", "true"));
@@ -82,7 +82,7 @@ public class InputIoPropertyTest extends TestCase {
 		assertFalse("viewportの解釈の有無で出力が変わること", on.equals(off));
 	}
 
-	/** 高さを省略した実サイト型viewportでも、指定された幅だけを適用する。 */
+	/** Apply just the specified width even for a real-site-style viewport that omits height. */
 	public void testViewportWidthOnly() throws Exception {
 		final File doc = new File("files/unittest/ioprops/viewport-width-only.html");
 		final String pdf = this.convert(doc, props("input.viewport", "true"));
@@ -97,8 +97,8 @@ public class InputIoPropertyTest extends TestCase {
 	}
 
 	private boolean textLooksGenerated(final String pdf) {
-		// 圧縮なしでも文字は符号化されるため、生成内容が入ると
-		// ページの内容ストリームが伸びる。長さで代替判定する
+		// Text is encoded even without compression, so generated content
+		// lengthens the page content stream. Use its length as a proxy.
 		return pdf.length() > 3000;
 	}
 

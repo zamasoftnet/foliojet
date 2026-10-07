@@ -3,24 +3,24 @@ package jp.cssj.test.unit.security;
 import junit.framework.TestCase;
 
 /**
- * SVGの中からの取得に<b>ACLが効くか</b>を測ります(2026-09-08新設)。
+ * Measure whether <b>ACLs affect fetching from inside SVG</b> (introduced on 2026-09-08).
  *
  * <p>
- * {@link SvgFetchReachabilityTest}で、次の4経路が実際に起動することを
- * 測りました。ここではそれぞれに{@code input.include}が効くかを見ます。
+ * {@link SvgFetchReachabilityTest} measured that the following four paths actually activate.
+ * Here, check whether {@code input.include} affects each one.
  * </p>
  *
  * <p>
- * <b>この試験は、対策前は落ちるのが正しい。</b>設計(第3版)§8の段階1は
- * 「既知の欠陥に対応する試験が落ち、正例が通る」ことを完了条件にしています。
+ * <b>Before the countermeasure, these tests should fail.</b> Stage 1 of Design (third version) §8
+ * defines completion as tests for known defects failing while positive cases pass.
  * </p>
  *
  * <p>
- * <b>主文書は記録用サーバから配ります。</b>{@code file:}から配ると、
- * SVGの中の{@code http:}取得はBatikの既定判定(取得元のホストが文書と
- * 違えば拒む)に先に止められ、FolioJetのACLが効いているのかBatikの既定が
- * 効いているのか区別できません。実運用のサーバでは主文書も{@code http:}
- * なので、既定判定は素通りします。
+ * <b>Serve the main document from the recording server.</b> Serving it from {@code file:} causes
+ * Batik's default check (reject if the source host differs from the document's) to block
+ * {@code http:} fetching inside SVG first, making it impossible to distinguish FolioJet ACL
+ * enforcement from Batik's default behavior. Production servers also use {@code http:} for
+ * the main document, so the default check passes.
  * </p>
  */
 public class SvgAclEnforcementTest extends TestCase {
@@ -38,11 +38,11 @@ public class SvgAclEnforcementTest extends TestCase {
 	}
 
 	/**
-	 * 主文書だけを許し、それ以外を許さないACLで組みます。
+	 * Lay out with an ACL that allows only the main document and nothing else.
 	 *
 	 * <p>
-	 * ACLは<b>先勝ち</b>なので、末尾にexcludeを足しても先のincludeを
-	 * 打ち消せません。ここでは主文書のURIだけをincludeします。
+	 * The ACL is <b>first-match-wins</b>, so appending exclude cannot override an earlier include.
+	 * Here, include only the main document URI.
 	 * </p>
 	 */
 	private ConversionProbe.Result renderDocumentOnly(final String html) throws Exception {
@@ -50,7 +50,7 @@ public class SvgAclEnforcementTest extends TestCase {
 		return new ConversionProbe().include(this.probe.url("/doc.html")).convertUrl(this.probe.url("/doc.html"));
 	}
 
-	/** 全部許したときは取れること(正例)。ここが落ちたら遮断のしすぎです。 */
+	/** Resources can be fetched when everything is allowed (positive case). Failure means excessive blocking. */
 	private ConversionProbe.Result renderAll(final String html) throws Exception {
 		this.probe.put("/doc.html", "text/html; charset=UTF-8", html);
 		return new ConversionProbe().include("**").convertUrl(this.probe.url("/doc.html"));
@@ -62,13 +62,12 @@ public class SvgAclEnforcementTest extends TestCase {
 	}
 
 	/**
-	 * SVGの中のCSSの{@code @import}にACLが効くこと。
+	 * The ACL applies to CSS {@code @import} inside SVG.
 	 *
 	 * <p>
-	 * <b>効かない見込みです。</b>{@code CSSEngine.parseStyleSheet}は
-	 * Batikの{@code checkLoadExternalResource}を呼びますが、その判定は
-	 * ホストの比較であって、FolioJetの{@code input.include}ではありません。
-	 * 主文書と同じホストなら素通りします。
+	 * <b>This is expected not to work.</b> {@code CSSEngine.parseStyleSheet} calls Batik's
+	 * {@code checkLoadExternalResource}, but that check compares hosts rather than applying FolioJet's
+	 * {@code input.include}. The same host as the main document passes through.
 	 * </p>
 	 */
 	public void testCssImportObeysAcl() throws Exception {
@@ -80,7 +79,7 @@ public class SvgAclEnforcementTest extends TestCase {
 		assertFalse("許していないCSSが版面に効いた", r.hasColor("rg", 0, 1, 0));
 	}
 
-	/** 許したときは取れること(正例)。 */
+	/** Resources can be fetched when allowed (positive case). */
 	public void testCssImportAllowedWhenIncluded() throws Exception {
 		this.probe.put("/probe.css", "text/css", ".p { fill: #00ff00; }");
 		final ConversionProbe.Result r = this.renderAll(cssImportDocument(this.probe.url("/probe.css")));
@@ -89,7 +88,7 @@ public class SvgAclEnforcementTest extends TestCase {
 		assertTrue("許したCSSが版面に効いていない: " + r.describe(), r.hasColor("rg", 0, 1, 0));
 	}
 
-	/** SVGの色プロファイルにACLが効くこと。 */
+	/** The ACL applies to SVG color profiles. */
 	public void testColorProfileObeysAcl() throws Exception {
 		this.probe.put("/probe.icc", "application/vnd.iccprofile", new byte[] { 0, 0, 0, 0 });
 		final ConversionProbe.Result r = this.renderDocumentOnly("<!DOCTYPE html><html><body>"
@@ -102,10 +101,10 @@ public class SvgAclEnforcementTest extends TestCase {
 	}
 
 	/**
-	 * 入れ子のSVG文書の中の{@code <image>}にACLが効くこと。
+	 * The ACL applies to {@code <image>} inside nested SVG documents.
 	 *
 	 * <p>
-	 * 外側のSVGは許し、その中から参照される画像は許しません。
+	 * Allow the outer SVG but not the image referenced within it.
 	 * </p>
 	 */
 	public void testNestedSvgImageObeysAcl() throws Exception {
@@ -120,7 +119,7 @@ public class SvgAclEnforcementTest extends TestCase {
 				+ "<image x='0' y='0' width='40' height='40' xlink:href='" + this.probe.url("/outer.svg")
 				+ "'/></svg></body></html>";
 		this.probe.put("/doc.html", "text/html; charset=UTF-8", html);
-		// 主文書と外側のSVGだけを許す
+		// Allow only the main document and the outer SVG.
 		final ConversionProbe.Result r = new ConversionProbe().include(this.probe.url("/doc.html"))
 				.include(this.probe.url("/outer.svg")).convertUrl(this.probe.url("/doc.html"));
 		System.out.println("[入れ子SVG / ACL] 到達=" + this.probe.hitPaths() + " " + r.describe());
@@ -128,7 +127,7 @@ public class SvgAclEnforcementTest extends TestCase {
 		assertEquals("許していない入れ子の画像が取得された: " + this.probe.hitPaths(), 0, this.probe.hits("/inner.png"));
 	}
 
-	/** 外部{@code <use>}にACLが効くこと。 */
+	/** The ACL applies to external {@code <use>}. */
 	public void testExternalUseObeysAcl() throws Exception {
 		this.probe.put("/used.svg", "image/svg+xml",
 				"<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'>"
@@ -141,7 +140,7 @@ public class SvgAclEnforcementTest extends TestCase {
 		assertFalse("許していない図形が版面に出た", r.hasColor("rg", 0, 1, 0));
 	}
 
-	/** フィルタの{@code <feImage>}にACLが効くこと。 */
+	/** The ACL applies to filter {@code <feImage>}. */
 	public void testFeImageObeysAcl() throws Exception {
 		this.probe.put("/fe.png", "image/png", SvgFetchReachabilityTest.onePixelPng());
 		final ConversionProbe.Result r = this.renderDocumentOnly("<!DOCTYPE html><html><body>"
@@ -152,7 +151,7 @@ public class SvgAclEnforcementTest extends TestCase {
 		assertEquals("許していないfeImageが取得された: " + this.probe.hitPaths(), 0, this.probe.hits("/fe.png"));
 	}
 
-	/** 単独のSVGの{@code <?xml-stylesheet?>}にACLが効くこと。 */
+	/** The ACL applies to {@code <?xml-stylesheet?>} in standalone SVG. */
 	public void testXmlStylesheetPiObeysAcl() throws Exception {
 		this.probe.put("/pi.css", "text/css", "rect { fill: #00ff00; }");
 		this.probe.put("/doc.svg", "image/svg+xml",
@@ -169,7 +168,7 @@ public class SvgAclEnforcementTest extends TestCase {
 		assertFalse("許していないスタイルシートが版面に効いた", r.hasColor("rg", 0, 1, 0));
 	}
 
-	/** 別のホストの塗りにACLが効くこと。 */
+	/** The ACL applies to paint from another host. */
 	public void testExternalPaintObeysAcl() throws Exception {
 		this.probe.put("/paint.svg", "image/svg+xml",
 				"<svg xmlns='http://www.w3.org/2000/svg'>"
@@ -183,18 +182,18 @@ public class SvgAclEnforcementTest extends TestCase {
 	}
 
 	/**
-	 * 外部{@code <use>}で参照した文書の<b>中の</b>CSSにACLが効くこと。
+	 * The ACL applies to CSS <b>inside</b> a document referenced by external {@code <use>}.
 	 *
 	 * <p>
-	 * {@code BridgeContext.getReferencedNode()}は、参照先が別文書のとき
-	 * {@code createSubBridgeContext()}を呼びます(同梱jarの位置96で確認)。
-	 * {@code MyBridgeContext}はこれを上書きしていないので、
-	 * <b>子は素の{@code BridgeContext}になり、標準のCSSエンジンが作られる</b>
-	 * はずです。参照先の文書に{@code @import}を置いて、そこにACLが効くかを見ます。
+	 * {@code BridgeContext.getReferencedNode()} calls {@code createSubBridgeContext()} when the
+	 * target belongs to another document (confirmed at position 96 in the bundled jar).
+	 * {@code MyBridgeContext} does not override this, so <b>the child should be a plain
+	 * {@code BridgeContext}, creating a standard CSS engine</b>. Put {@code @import} in the
+	 * referenced document and check whether the ACL applies there.
 	 * </p>
 	 *
 	 * <p>
-	 * 参照先の文書自体は許し、その中から参照されるCSSは許しません。
+	 * Allow the referenced document itself but not the CSS it references.
 	 * </p>
 	 */
 	public void testExternalUseInnerCssObeysAcl() throws Exception {
@@ -218,13 +217,12 @@ public class SvgAclEnforcementTest extends TestCase {
 	}
 
 	/**
-	 * 外部{@code <use>}で参照した文書の<b>中の</b>{@code <image>}にACLが効くこと。
+	 * The ACL applies to {@code <image>} <b>inside</b> a document referenced by external {@code <use>}.
 	 *
 	 * <p>
-	 * 子{@code BridgeContext}が素の{@code BridgeContext}になると、
-	 * {@code registerSVGBridges()}で差した{@code MySVGImageElementBridge}も
-	 * 失われます。CSSだけの問題なのか、画像ブリッジまで失われるのかで、
-	 * 対処の範囲が変わります。
+	 * If the child {@code BridgeContext} becomes a plain {@code BridgeContext}, the
+	 * {@code MySVGImageElementBridge} installed through {@code registerSVGBridges()} is also lost.
+	 * The scope of the fix depends on whether only CSS is affected or the image bridge is also lost.
 	 * </p>
 	 */
 	public void testExternalUseInnerImageObeysAcl() throws Exception {

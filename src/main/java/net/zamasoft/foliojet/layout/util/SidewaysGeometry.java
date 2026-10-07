@@ -6,28 +6,28 @@ import java.awt.geom.Rectangle2D;
 import net.zamasoft.foliojet.layout.box.params.WritingModeVariant;
 
 /**
- * sideways 行の水平ローカル座標を物理座標へ写します。
+ * Maps horizontal local coordinates of sideways lines to physical coordinates.
  *
  * <p>
- * ローカル座標では baseline の始点を {@code (0, 0)}、行内の送りを
- * {@code +x}、descent 側を {@code +y} とします。CW は物理座標の
- * {@code (x + descent, y)} を原点に純粋な {@code +90} 度回転を行い、
- * CCW は {@code (x + ascent, y + advance)} を原点に純粋な
- * {@code -90} 度回転を行います。したがって CW の descent/under 側は左、
- * ascent/over 側は右、CCW ではそれぞれ右と左です。線幅、下線距離、影の
- * ローカルな寸法は拡縮されません。
+ * In local coordinates, the baseline starts at {@code (0, 0)}, inline advance is {@code +x},
+ * and the descent side is {@code +y}. CW performs a pure {@code +90}-degree rotation with
+ * physical origin {@code (x + descent, y)}; CCW performs a pure {@code -90}-degree rotation
+ * with origin {@code (x + ascent, y + advance)}.
+ * Thus CW has descent/under on the left and ascent/over on the right; CCW has them on the right
+ * and left, respectively. Local dimensions such as line width, underline distance,
+ * and shadows are not scaled.
  * </p>
  *
  * <p>
- * direction を組み合わせた四象限の論理的な行内進行は、CW×LTR=上から下、
- * CW×RTL=下から上、CCW×LTR=下から上、CCW×RTL=上から下です。変換そのものは
- * glyph の論理順・視覚順を入れ替えず、呼び出し側が bidi 後の run をそのまま
- * 水平ローカル座標で描きます。
+ * Combining direction yields four logical inline progressions: CW×LTR = top to bottom,
+ * CW×RTL = bottom to top, CCW×LTR = bottom to top, CCW×RTL = top to bottom.
+ * The transform itself does not change logical/visual glyph order;
+ * the caller draws post-bidi runs directly in horizontal local coordinates.
  * </p>
  *
  * <p>
-	 * Stage 2 では CW/CCW の両方がこの共通契約を使い、物理的な
-	 * 行内反転は呼び出し側が行ボックスの範囲内で行います。
+ * In Stage 2, both CW/CCW use this shared contract; the caller performs physical inline reversal
+ * within the line box.
  * </p>
  */
 public final class SidewaysGeometry {
@@ -35,21 +35,21 @@ public final class SidewaysGeometry {
 	}
 
 	/**
-	 * 水平 run の baseline 座標を sideways 行の物理座標へ写す変換を返します。
+	 * Returns a transform mapping horizontal run baseline coordinates to sideways line physical coordinates.
 	 *
-	 * @param variant SIDEWAYS_CW または SIDEWAYS_CCW
-	 * @param x       物理 run box の左端
-	 * @param y       物理 run box の上端
-	 * @param ascent  水平組版の ascent
-	 * @param descent 水平組版の descent
-	 * @param advance 水平 run の advance
-	 * @return 平行移動と純粋な四分の一回転からなる変換
+	 * @param variant SIDEWAYS_CW or SIDEWAYS_CCW
+	 * @param x       left edge of the physical run box
+	 * @param y       top edge of the physical run box
+	 * @param ascent  ascent in horizontal layout
+	 * @param descent descent in horizontal layout
+	 * @param advance advance of the horizontal run
+	 * @return transform consisting of translation and a pure quarter turn
 	 */
 	public static AffineTransform runTransform(final WritingModeVariant variant, final double x, final double y,
 			final double ascent, final double descent, final double advance) {
 		switch (variant) {
 		case SIDEWAYS_CW:
-			// 明示の行列(cos/sin の丸めや -0.0 を避ける。PDF の Tm も 0 1 -1 0 になる)
+			// Explicit matrix (avoids cos/sin rounding and -0.0; PDF Tm also becomes 0 1 -1 0)
 			return new AffineTransform(0, 1, -1, 0, x + descent, y);
 		case SIDEWAYS_CCW:
 			return new AffineTransform(0, -1, 1, 0, x + ascent, y + advance);
@@ -60,7 +60,8 @@ public final class SidewaysGeometry {
 	}
 
 	/**
-	 * {@code [0, advance] x [-ascent, descent]} の水平 run box を回転した物理外接矩形を返します。
+	 * Returns the physical bounding rectangle of the rotated horizontal run box
+	 * {@code [0, advance] x [-ascent, descent]}.
 	 */
 	public static Rectangle2D bounds(final WritingModeVariant variant, final double x, final double y,
 			final double ascent, final double descent, final double advance) {

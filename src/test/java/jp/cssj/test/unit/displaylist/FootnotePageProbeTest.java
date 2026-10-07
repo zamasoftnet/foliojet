@@ -52,7 +52,7 @@ import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** Bの連続計測・回収と、Cの同頁予約・配達・既定経路の不変性を検査します。 */
+/** Check B's continuous measurement/collection and C's same-page reservation/delivery and unchanged default path. */
 public final class FootnotePageProbeTest extends TestCase {
 	private static final String AREA = "@footnote { float: bottom; writing-mode: horizontal-tb }";
 
@@ -66,8 +66,8 @@ public final class FootnotePageProbeTest extends TestCase {
 		assertTrue("最終ページまで出力", actual.pages().size() >= control.pages().size());
 		final String expectedText = String.join("", control.pageTexts());
 		final String actualText = String.join("", actual.pageTexts());
-		// PageBox.getTextは通常フローだけを辿るため、浮動体・ページ浮動体内の文字は含まない。
-		// その中の表セルはこのfixtureのdisplay-list goldenで検査する。
+		// PageBox.getText traverses only normal flow, so it excludes text inside floats and page floats.
+		// Check table cells inside those through this fixture's display-list golden.
 		for (final String marker : List.of("本文開始。", "本文を最後まで組む。",
 				"浮動体後本文。", "外表見出し。", "内表見出し。", "入れ子セル。", "外表最終行。", "表後本文。",
 				"図版後本文。", "ここまで本文。", "出典一覧。", "出典見出し。", "出典末尾。", "文書最終本文。")) {
@@ -96,7 +96,7 @@ public final class FootnotePageProbeTest extends TestCase {
 			}
 		};
 		ua.getUAContext().setFootnotePageProbeListener(report -> {
-			// 世代数ではなく、Resultsへの実書込みとclosePageの完了を待つ。
+			// Wait for actual writes to Results and completion of closePage, not a generation count.
 			if (closedPages.get() > 0 && !writtenPages.isEmpty()
 					&& pagesAtFailure.compareAndSet(0, writtenPages.size())) {
 				throw new IllegalStateException("F-6 paged-svg late failure");
@@ -139,7 +139,7 @@ public final class FootnotePageProbeTest extends TestCase {
 		}
 		assertTrue("closePage完了後にBの失敗を注入した", closedPages.get() >= 1 && pagesAtFailure.get() >= 1);
 		assertTrue("失敗前にResultsへ書き込まれたページがある", writtenPages.size() >= pagesAtFailure.get());
-		// 既定の.svgzを最後まで展開し、URIだけでなく実ページの書込みを確認する。
+		// Fully decompress the default .svgz to verify actual page writes, not just URIs.
 		for (final byte[] page : writtenPages) {
 			try (final var gzip = new GZIPInputStream(new ByteArrayInputStream(page))) {
 				assertTrue("ページ結果にSVG本文がある", new String(gzip.readAllBytes(), StandardCharsets.UTF_8).contains("<svg"));
@@ -204,7 +204,7 @@ public final class FootnotePageProbeTest extends TestCase {
 	}
 
 	public void testUnsplitNormalizedCharsCanCloseSeveralPages() throws Exception {
-		// NFCは呼び出し境界に依存するため、この設定では元のCharsを一度に配達する。
+		// NFC depends on call boundaries, so deliver the original Chars in one call with this setting.
 		final Capture actual = transcode(document("", "<p>" + "長い本文を読み進めます。".repeat(240) + "</p>"),
 				true, Map.of("input.normalize-text", "true"));
 		assertFalse(actual.failed());
@@ -217,7 +217,7 @@ public final class FootnotePageProbeTest extends TestCase {
 	}
 
 	public void testCharacterChunksKeepReplayAndAssignmentAnchors() throws Exception {
-		// NFCで変わらない文字を使い、文字分割の有無だけを比較する。
+		// Use characters unchanged by NFC and compare only whether characters are split.
 		final String html = document("h1 { string-set: heading content(); font-size:12pt }"
 				+ "@page { @top-center { content:string(heading); writing-mode:horizontal-tb } }",
 				"<h1>見出し</h1><p>" + "本文とインラインの続き。".repeat(180) + "<span>末尾。</span></p>");
@@ -231,7 +231,7 @@ public final class FootnotePageProbeTest extends TestCase {
 
 	public void testRetainedTableAcrossPages() throws Exception {
 		final String rows = "<tr><td>表のセルの本文です。</td><td>続きのセルです。</td></tr>".repeat(70);
-		// 144ptの版面へ12ptの全角を8列+最後の1字。最後の行は表StartのendContainerで閉じる。
+		// Eight 12 pt full-width columns + a final character in a 144 pt type area; table Start's endContainer closes the last line.
 		final Capture actual = compare(document("table { table-layout:auto }",
 				"文".repeat(97) + "<table>" + rows + "</table><p>表の後です。</p>"));
 		assertTrue(actual.pages().size() >= 2);
@@ -242,7 +242,7 @@ public final class FootnotePageProbeTest extends TestCase {
 	}
 
 	public void testLateFootnoteBodyIsUnmeasured() throws Exception {
-		// literalだけのcallは通常文字として流れる。callのIDが載ってから注本文が始まるまでを長くする。
+		// A literal-only call flows as ordinary text. Lengthen the interval from recording the call ID to starting the note body.
 		final String css = ".note::footnote-call { content:'参照" + "本文が続きます。".repeat(240) + "' }";
 		final Capture actual = compare(document(css, "<p>先頭<span class='note'>後着の注本文。</span>終端</p>"));
 		final FootnotePageProbeReport first = actual.reports().get(0);
@@ -256,8 +256,8 @@ public final class FootnotePageProbeTest extends TestCase {
 	}
 
 	public void testAnonymousBoundariesAndAlternatingPages() throws Exception {
-		// 通常の縦組みgridは単一列フローへfallbackし、匿名項目を合成しない。
-		// hostだけ横組みにしてcoordinatorを使い、ページはbottom+縦組み(Bの生成条件)を保つ。
+		// Ordinary vertical-writing grid falls back to single-column flow and does not synthesize anonymous items.
+		// Make only the host horizontal to use the coordinator; keep the page bottom+vertical (B's creation condition).
 		final Capture anonymous = compare(document(".host { display:grid; writing-mode:horizontal-tb }",
 				"<div class='host'>直接文字<span>インライン</span><p>要素項目</p>末尾文字</div>"));
 		assertTrue("主ログへ合成境界を実際に追記する", anonymous.anonymousBoundaries() > 0);
@@ -314,8 +314,8 @@ public final class FootnotePageProbeTest extends TestCase {
 		assertTrue("未完宿主より先へpinを進めない", live.stream().allMatch(state -> state.pin() <= state.unfinishedFrom()));
 		assertTrue("同じ短いページの繰り返しでは保持窓を文書長へ広げない",
 				live.stream().allMatch(state -> state.nextId() - state.pin() < 128));
-		// 短いinline-blockはEnd配達内でseal・MEASURE bindを終える。
-		// 直後のreclaimで登録を回収するため、回収後は移動pinの1件だけでも正しい。
+		// A short inline-block completes seal and MEASURE bind while delivering End.
+		// Immediate reclaim collects the registration, so only the movement pin may correctly remain after collection.
 		assertTrue("完了した宿主の登録を回収する", live.stream()
 				.anyMatch(state -> state.resourcesBeforeReclaim() > state.resources()));
 		assertTrue(live.stream().allMatch(state -> state.resources() < 64 && state.structureTokens() < 16));
@@ -661,7 +661,7 @@ public final class FootnotePageProbeTest extends TestCase {
 		return field;
 	}
 
-	/** ThreadLocalは変換スレッドのcallback内だけで読み、値を並行コレクションへ移します。 */
+	/** Read ThreadLocal only inside conversion-thread callbacks and transfer values to concurrent collections. */
 	private static Capture transcode(final String html, final boolean observe, final Map<String, String> properties)
 			throws Exception {
 		return transcode(html, observe, properties, "");
@@ -724,8 +724,8 @@ public final class FootnotePageProbeTest extends TestCase {
 			append.set(null, (Consumer<LayoutSource.Event>) event -> {
 				input.set(new Input(input.get().ordinal() + 1, event instanceof LayoutSource.Chars chars ? chars.payload().utf16Length() : 0));
 				maxChars.accumulateAndGet(input.get().length(), Math::max);
-				// 主ログへの全追記を数える。
-				// Bの不在中・最初のページ通知前も対象。Bへの配達境界数を表すものではない。
+				// Count every append to the main log.
+				// Include periods without B and before the first page notification. This is not B's delivery-boundary count.
 				if (event instanceof LayoutSource.AnonymousItemStart || event instanceof LayoutSource.AnonymousItemEnd) boundaries.incrementAndGet();
 			});
 			close.set(null, (Consumer<LayoutSource>) source -> {

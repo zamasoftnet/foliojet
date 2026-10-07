@@ -20,15 +20,13 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * CSS {@code text-wrap-style: pretty}有効時の選択品質を固定するgolden
- * テストです(M3c増分4)。和文justify・欧文ハイフネーションの適格段落に
- * ついて、K-Pが選択した行分割のdisplay listを
- * {@code files/unittest/display-list-golden/}配下の基準と比較する
- * ({@code DisplayListGoldenTest}と同じ流儀。オプトインはfixture側の
- * CSS({@code body { text-wrap-style: pretty }})で与える——2026-07-25に
- * 独自プロパティ{@code text.line-breaker}から移行し、goldenは不変)。
- * 初回実行時は基準を生成して
- * 意図的に失敗する——内容を目視確認してコミットすること。
+ * Golden test fixing the quality of line-break choices with CSS {@code text-wrap-style: pretty}
+ * enabled (M3c increment 4). For eligible paragraphs with Japanese justification or Latin hyphenation,
+ * compares the display list of K-P-selected line breaks with baselines under
+ * {@code files/unittest/display-list-golden/} (the same approach as {@code DisplayListGoldenTest}).
+ * Opt-in is provided by fixture CSS ({@code body { text-wrap-style: pretty }}).
+ * Migrated from the proprietary {@code text.line-breaker} property on 2026-07-25; goldens are unchanged.
+ * The first run generates baselines and intentionally fails: visually inspect the content before committing.
  */
 public class OptimizedGoldenTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");

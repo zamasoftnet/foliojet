@@ -63,7 +63,8 @@ import net.zamasoft.pdfg2d.pdf.font.FontManagerImpl;
 import net.zamasoft.foliojet.ua.impl.pdf.PDFUserAgent;
 
 /**
- * TwoPass T3b: 匿名項目の合成イベント(二段階プロトコル)と ANONYMOUS_CHILDREN の範囲再生。
+ * TwoPass T3b: synthetic events for anonymous items (two-stage protocol)
+ * and range replay of ANONYMOUS_CHILDREN.
  */
 public final class AnonymousItemRangeTest extends TestCase {
 	private static final List<String> FIXTURES = List.of("whitespace", "text-absolute", "float-text",
@@ -72,7 +73,7 @@ public final class AnonymousItemRangeTest extends TestCase {
 		return new File("files/unittest/0500-twopass-range/anon-" + name + ".html");
 	}
 
-	/** 匿名項目の範囲再生・分類と収支を固定する。 */
+	/** Verifies the contracts for anonymous-item range replay, classification, and accounting. */
 	public void testFixtureRangesAndCensus() throws Exception {
 		for (final String name : FIXTURES) {
 			try (final var census = ContinuationStats.beginTwoPassCensus()) {
@@ -94,7 +95,7 @@ public final class AnonymousItemRangeTest extends TestCase {
 				.mapToLong(Map.Entry::getValue).sum();
 	}
 
-	/** Grid/Flex自身を根とするMEASUREとMAINの両方で匿名本文が再生される。 */
+	/** Anonymous body content is replayed in both MEASURE and MAIN rooted at the Grid/Flex itself. */
 	public void testIntrinsicHostRangesAndCensus() throws Exception {
 		for (final String display : List.of("grid", "flex")) {
 			for (final String width : List.of("max-content", "fit-content")) {
@@ -128,7 +129,7 @@ public final class AnonymousItemRangeTest extends TestCase {
 		}
 	}
 
-	/** liveログそのものをseal時に読む。Startは最初のtextより前、Endは次の実Startより前。 */
+	/** Reads the live log itself at seal time. Start precedes the first text; End precedes the next actual Start. */
 	public void testSyntheticBoundaryPositions() throws Exception {
 		final AtomicInteger textStarts = new AtomicInteger(), elementEnds = new AtomicInteger();
 		final Consumer<RangeHandle> onSeal = handle -> {
@@ -152,7 +153,7 @@ public final class AnonymousItemRangeTest extends TestCase {
 		assertTrue("次の実Startより前の匿名End未観測", elementEnds.get() > 0);
 	}
 
-	/** HTMLのblock化を介さず、sinkのpreDispatchとdocの実際の開閉を照合する。 */
+	/** Compares the sink's preDispatch with actual document opens/closes, without HTML blockification. */
 	public void testDirectInlineReplacedAndNestedCoordinators() throws Exception {
 		final PDFUserAgent ua = new PDFUserAgent() { };
 		final FontManagerImpl fonts = new FontManagerImpl(ConfigurablePDFFontSourceManager.getDefaultFontSourceManager());
@@ -163,15 +164,15 @@ public final class AnonymousItemRangeTest extends TestCase {
 					input.start(new InlineBox(textParams(new InlineParams(), fonts), new InlinePos()),
 							LayoutSource.AnonymousItemStart.class);
 					input.replaced(new InlineReplacedBox(imageParams(fonts), new InlinePos()), null);
-					input.end(null); // INLINE終端では匿名項目を閉じない。
+					input.end(null); // Do not close an anonymous item at the end of INLINE.
 					input.start(itemHost(!grid, fonts), LayoutSource.AnonymousItemEnd.class);
 					input.replaced(new InlineReplacedBox(imageParams(fonts), new InlinePos()),
 							LayoutSource.AnonymousItemStart.class);
 					input.replaced(new FlowReplacedBox(imageParams(fonts), new FlowPos()),
 							LayoutSource.AnonymousItemEnd.class);
-					input.end(null); // 入れ子coordinatorを閉じる。
+					input.end(null); // Close the nested coordinator.
 					input.replaced(new InlineReplacedBox(imageParams(fonts), new InlinePos()),
-							LayoutSource.AnonymousItemStart.class); // 親へ戻った後にも開始できる。
+							LayoutSource.AnonymousItemStart.class); // Starting again is also possible after returning to the parent.
 					input.end(LayoutSource.AnonymousItemEnd.class);
 					input.doc.end();
 					assertTrue(input.source.isContextCompleteRange(0, input.source.nextId() - 1));
@@ -222,7 +223,7 @@ public final class AnonymousItemRangeTest extends TestCase {
 	private static <T extends AbstractTextParams> T textParams(final T params, final FontManager fonts) {
 		withFont(params);
 		params.fontManager = fonts;
-		// AbstractTextBox.addInline は親子の element が同一でないことを assert する(手組みでは null 同士になる)
+		// AbstractTextBox.addInline asserts that parent and child elements differ (both are null in hand-built boxes).
 		params.element = new net.zamasoft.foliojet.layout.segment.StructureToken(ELEMENT_KEYS.incrementAndGet(), "div", null,
 				new org.xml.sax.helpers.AttributesImpl());
 		params.lineBreakRules = new TextBreakingRules() {
@@ -240,7 +241,7 @@ public final class AnonymousItemRangeTest extends TestCase {
 		return params;
 	}
 
-	/** package-privateな実sinkを駆動し、期待した境界が実イベントの前に記録されたかを見る。 */
+	/** Drives the actual package-private sink and checks that expected boundaries were recorded before actual events. */
 	private static final class DirectInput implements AutoCloseable {
 		private final Class<?> type = Class.forName("net.zamasoft.foliojet.css.style.RecordingLayoutSink");
 		private final DocumentBuilder doc;
@@ -305,12 +306,12 @@ public final class AnonymousItemRangeTest extends TestCase {
 
 	private record ReplayProbe(long nextId, int size, LayoutSource.RetentionLease lease) { }
 
-	/** 親float/セルの再生中にも項目が作り直されるが、主ログは伸びない。 */
+	/** Items are also rebuilt during parent float/cell replay, but the main log does not grow. */
 	public void testReplayDoesNotAppend() throws Exception {
 		final Map<RangeHandle, ReplayProbe> active = new IdentityHashMap<>();
 		final AtomicInteger replays = new AtomicInteger(), rebuiltAnonymous = new AtomicInteger();
 		final BiConsumer<RangeHandle, ReplayIntent> before = (handle, intent) -> {
-			// compactによる保持件数の減少も止め、nextIdとsizeを独立に照合する。
+			// Also prevent compaction from reducing retained counts, and check nextId and size independently.
 			final LayoutSource source = handle.source();
 			assertNull(active.put(handle, new ReplayProbe(source.nextId(), source.size(), source.retainFrom(0))));
 		};
@@ -343,7 +344,7 @@ public final class AnonymousItemRangeTest extends TestCase {
 		assertTrue("親範囲からの匿名項目再構築未発火", rebuiltAnonymous.get() > 0);
 	}
 
-	/** 通常HTMLの空白はStyleEventMachineで先に捨てられる場合もある。件数は固定しない。 */
+	/** Normal HTML whitespace may already be discarded by StyleEventMachine. Do not fix the count. */
 	public void testWhitespaceItemsAreDropped() throws Exception {
 		final long grid = GridBuilder.GRID_ITEM_EMPTY_ANON_DROPS.get();
 		final long flex = FlexBuilder.FLEX_ITEM_EMPTY_ANON_DROPS.get();
@@ -365,7 +366,10 @@ public final class AnonymousItemRangeTest extends TestCase {
 		assertEquals("空白だけの本文にリースを取得した", 0, anonymousSeals.get());
 	}
 
-	/** StyleEventMachineの手前の空白除去に依存せず、B1の意味的な空判定を直接通す。 */
+	/**
+	 * Exercises B1's semantic emptiness check directly, independent of earlier whitespace removal by
+	 * StyleEventMachine.
+	 */
 	public void testWhitespaceBodyDoesNotCreateAnItem() throws Exception {
 		final FontManager fonts = (FontManager) Proxy.newProxyInstance(FontManager.class.getClassLoader(),
 				new Class<?>[] { FontManager.class }, (proxy, method, args) -> {
@@ -405,7 +409,7 @@ public final class AnonymousItemRangeTest extends TestCase {
 		}
 	}
 
-	/** 生成文字もソースで解決済みのイベントとして匿名本文に含める。 */
+	/** Includes generated characters in anonymous body content as events already resolved at the source. */
 	public void testGeneratedTextIsRecorded() throws Exception {
 		for (final String name : List.of("generated", "before")) {
 			final AtomicInteger generated = new AtomicInteger();
@@ -420,7 +424,7 @@ public final class AnonymousItemRangeTest extends TestCase {
 		}
 	}
 
-	/** display:contentsの疑似要素はblock化されず、生成Charsが匿名本文の先頭になる。 */
+	/** Pseudo-elements of display:contents are not blockified; generated Chars start the anonymous body content. */
 	public void testGeneratedTextInsideAnonymousRange() throws Exception {
 		final AtomicInteger generatedRanges = new AtomicInteger();
 		final Consumer<RangeHandle> onSeal = handle -> {
@@ -454,7 +458,7 @@ public final class AnonymousItemRangeTest extends TestCase {
 		return params;
 	}
 
-	/** 構造走査・1:1変換・水位破棄を小さな実ログで確認する。 */
+	/** Checks structure scanning, 1:1 conversion, and watermark-based discard with a small actual log. */
 	public void testSyntheticStructureScans() {
 		try (final LayoutSource source = new LayoutSource()) {
 			final LayoutSource.Start flow = new LayoutSource.Start(BoxRecipe.freeze(

@@ -20,20 +20,20 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>変換を外から止められる</b>ことを固定します(2026-07-27新設)。
+ * Verifies that <b>conversion can be stopped externally</b> (added on 2026-07-27).
  *
  * <p>
- * <b>なぜ要るか。</b>{@code abort()}は<b>旗を立てるだけ</b>で、エンジンが
- * その旗を読む場所({@link net.zamasoft.foliojet.ua.UserAgent#checkAbort})が
- * なければ何も起きません。従来は読む場所がページの境目だけだったので、
- * <b>1ページの処理が終わらない文書は永久に止められませんでした</b>。
+ * <b>Why this is needed.</b> {@code abort()} <b>only sets a flag</b>.
+ * Nothing happens unless the engine reads it
+ * ({@link net.zamasoft.foliojet.ua.UserAgent#checkAbort}).
+ * Previously, reads occurred only at page boundaries,
+ * so <b>a document that never finished processing one page could never be stopped</b>.
  * </p>
  *
  * <p>
- * これは実測で発覚しました——10万文書の掃過が7時間止まり、スレッドダンプに
- * watchdogを超えて生き残った変換スレッドが積み上がっていた(2026-07-27)。
- * サーバ用途では、暴走した変換1件がプロセス全体を巻き添えにできる状態
- * だったことになります。
+ * This was discovered through measurement: a 100,000-document sweep stalled for seven hours,
+ * and thread dumps showed conversion threads surviving the watchdog piling up (2026-07-27).
+ * For server use, this meant one runaway conversion could take down the entire process.
  * </p>
  */
 public class AbortTest extends TestCase {
@@ -44,11 +44,11 @@ public class AbortTest extends TestCase {
 	}
 
 	/**
-	 * 中断要求を出したら、<b>ページの境目を待たずに</b>変換が終わること。
+	 * An abort request must end conversion <b>without waiting for a page boundary</b>.
 	 *
 	 * <p>
-	 * 極小の紙面に長い表を置く。1ページの中で行を延々と配置し続けるので、
-	 * 中断点がページの境目にしかなければ止まりません。
+	 * Place a long table on a tiny page. It keeps laying out rows within one page,
+	 * so abort points only at page boundaries cannot stop it.
 	 * </p>
 	 */
 	public void testAbortStopsConversionMidPage() throws Exception {
@@ -67,7 +67,7 @@ public class AbortTest extends TestCase {
 				session.property("input.property-pi", "true");
 				CTISessionHelper.transcodeFile(session, html, "text/html", null);
 			} catch (final Throwable t) {
-				// 中断は例外で伝わる。ここでは「終わったこと」だけが重要
+				// Abort is propagated as an exception. Only completion matters here.
 				failure[0] = t;
 			} finally {
 				finished[0] = true;
@@ -76,7 +76,7 @@ public class AbortTest extends TestCase {
 		worker.setDaemon(true);
 		worker.start();
 
-		// 変換が走り出すのを少し待ってから止める
+		// Wait briefly for conversion to start, then stop it.
 		Thread.sleep(1500L);
 		session.abort(CTISession.ABORT_FORCE);
 
@@ -86,7 +86,7 @@ public class AbortTest extends TestCase {
 		assertTrue(finished[0]);
 	}
 
-	/** 極小の紙面に長い表。1ページの中で行の配置が長く続く。 */
+	/** A long table on a tiny page. Row placement continues for a long time within one page. */
 	private static File writeLongDocument() throws Exception {
 		final StringBuilder s = new StringBuilder();
 		s.append("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");
@@ -108,19 +108,20 @@ public class AbortTest extends TestCase {
 	}
 
 	/**
-	 * <b>中断は入出力エラーとして報告しない</b>(2026-09-21、ドライバのマトリクス拡張で発覚)。
+	 * <b>Do not report abort as an I/O error</b>
+	 * (2026-09-21, discovered while expanding the driver matrix).
 	 *
 	 * <p>
-	 * 本文を送っている最中に {@code abort()} が来ると、本文の受け口(と先読みバッファ)が
-	 * 畳まれる。パーサ側にはそれが普通の {@link java.io.IOException} として見えるので、
-	 * 従来は {@code ERROR_IO} で包んで報告していた。実サーバーでは中断が
-	 * 「I/O error. I/O error. prefetch read-ahead terminated」として client に届いており、
-	 * 型のついた {@code TranscoderException} をさらに包んだぶん前置きが二重になっていた。
+	 * If {@code abort()} arrives while the body is being sent, the body input (and read-ahead buffer)
+	 * is closed. The parser sees this as an ordinary {@link java.io.IOException}, so it was previously
+	 * wrapped and reported as {@code ERROR_IO}. On the actual server, the client received an abort as
+	 * "I/O error. I/O error. prefetch read-ahead terminated"; wrapping the typed
+	 * {@code TranscoderException} again duplicated the prefix.
 	 * </p>
 	 *
 	 * <p>
-	 * 固定するのは 2 点。報告される符号が {@code INFO_ABORT}(中断)であること、
-	 * そして本文に前置きの二重や先読みの内部語が出ないこと。
+	 * Verifies two requirements: the reported code is {@code INFO_ABORT} (abort),
+	 * and the body contains neither a duplicated prefix nor internal read-ahead terminology.
 	 * </p>
 	 */
 	public void testAbortIsReportedAsAbortNotIoError() throws Exception {
@@ -133,7 +134,7 @@ public class AbortTest extends TestCase {
 		session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 		session.property("input.include", "**");
 		session.property("input.property-pi", "true");
-		// 実サーバーと同じ経路にする(本文を先読みバッファ越しに読む)
+		// Use the same path as the actual server (read the body through a read-ahead buffer).
 		session.property("input.prefetch", "true");
 
 		final OutputStream body = session.transcode(new jp.cssj.cti2.helpers.DefaultMetaSource(
@@ -160,10 +161,10 @@ public class AbortTest extends TestCase {
 		try {
 			session.close();
 		} catch (final Throwable t) {
-			// close は中断後の後始末。ここでは本文側の報告を見る
+			// close performs cleanup after abort. Inspect the body-side report here.
 		}
 
-		// 観測結果をファイルにも残す(Gradle の出力が絞られても読めるように)
+		// Also save observations to a file so they remain readable when Gradle output is restricted.
 		final StringBuilder seen = new StringBuilder();
 		seen.append("bodyFailure=").append(bodyFailure[0] == null ? "(なし)"
 				: bodyFailure[0].getClass().getName() + ": " + bodyFailure[0].getMessage()).append('\n');

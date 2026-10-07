@@ -8,19 +8,18 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * {@code @container}実装・段4のfixture 1です
- * (開発記録 §5)。
+ * Fixture 1 for {@code @container} implementation stage 4
+ * (development record §5).
  *
  * <p>
- * 幅の違う2つの{@code container-type: inline-size}コンテナに同じ子部分木
- * (テキスト"X"を持つ{@code .box}、{@code ::before}が幅で切り替わる)を入れ、
- * 広いコンテナ(400pt)だけが{@code @container (min-width: 200pt)}に一致して
- * "wide-X"になり、狭いコンテナ(40pt)は不一致のまま"narrow-X"であることを
- * {@code processing.pass-count=2}(1回のMIDDLE_PASSで実測inline-sizeが
- * 確定し、LAST_PASSがそれを読む)で固定する。段4の書き込み側
- * ({@code StyleEventMachine}/{@code AbstractVisitor.visitBox})と読み出し側
- * ({@code StyleContext.merge})の両方が正しく配線されていることの、
- * パーサ単体テストでは検出できない結合(end-to-end)確認。
+ * Places identical child subtrees (a {@code .box} containing text "X", with {@code ::before}
+ * switching by width) in two {@code container-type: inline-size} containers of different widths.
+ * Only the wide container (400 pt) matches {@code @container (min-width: 200pt)} and produces
+ * "wide-X"; the narrow container (40 pt) remains unmatched and produces "narrow-X".
+ * Uses {@code processing.pass-count=2}: one MIDDLE_PASS finalizes measured inline-size,
+ * and LAST_PASS reads it. This end-to-end integration check verifies that both stage 4's writers
+ * ({@code StyleEventMachine}/{@code AbstractVisitor.visitBox}) and reader
+ * ({@code StyleContext.merge}) are correctly wired up, which parser unit tests cannot detect.
  * </p>
  */
 public class ContainerQuerySwitchTest extends AbstractTestCase {

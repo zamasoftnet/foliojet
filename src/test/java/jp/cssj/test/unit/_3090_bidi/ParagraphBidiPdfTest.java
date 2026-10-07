@@ -40,7 +40,7 @@ import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** visual tree の自己検査に依存しない、出力 PDF 上の bidi 受入検査。 */
+/** Bidi acceptance checks on the output PDF, independent of visual-tree self-checks. */
 public class ParagraphBidiPdfTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final String LINK_URI = "https://example.test/bidi-semantic";
@@ -122,8 +122,8 @@ public class ParagraphBidiPdfTest extends TestCase {
 			assertTrue("the first paragraph must have six visual glyph leaves", allPaint.size() >= 6);
 			assertTaggedLogicalOrder(pdf, new ArrayList<>(allPaint.subList(0, 6)));
 		}
-		// 鏡像の ToUnicode は埋め込み subset で検査する。stage1 の core フォントでは ActualText 無しだと
-		// PDFBox が約物の Unicode を得られない
+		// Check mirrored ToUnicode with an embedded subset. With stage1 core fonts and no ActualText,
+		// PDFBox cannot obtain Unicode for punctuation.
 		final File mirrorOutput = new File("local/unittest/pdf/" + this.getClass().getName() + "-default-mirror.pdf");
 		writePdf(new File("files/unittest/3090-bidi/mirror-embedded.html"), mirrorOutput, false, false);
 		try (PDDocument pdf = Loader.loadPDF(mirrorOutput)) {
@@ -167,8 +167,8 @@ public class ParagraphBidiPdfTest extends TestCase {
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
 				session.property("output.pdf.hyperlinks", "true");
-				// 既定の fonts.policy(cid-keyed)は埋め込みを含まず @font-face が無視される。鏡像の CID alias は
-				// 埋め込み subset でだけ成立するので、埋め込みを許す
+				// The default fonts.policy (cid-keyed) excludes embedding and ignores @font-face. Mirrored CID aliases
+				// work only with embedded subsets, so allow embedding.
 				session.property("output.pdf.fonts.policy", "core embedded");
 				if (actualText) {
 					session.property("output.pdf.bidi.actual-text", "true");
@@ -471,7 +471,7 @@ public class ParagraphBidiPdfTest extends TestCase {
 		final TextPosition expected = sorted(reference).stream()
 				.filter(value -> String.valueOf(open).equals(value.getUnicode())).findFirst()
 				.orElseThrow(() -> new AssertionError("mirror reference open character was not found: " + open));
-		// CID alias(埋め込み subset)では鏡像 glyph は論理文字ごとに別 CID を持つので、CID ではなく GID(輪郭)で比べる
+		// Embedded-subset CID aliases give each logical character's mirrored glyph a distinct CID; compare GIDs (outlines).
 		assertEquals("#mirror leftmost " + label + " character must use the mirrored open-character glyph",
 				outline(expected), outline(leftmost));
 	}
@@ -603,8 +603,9 @@ public class ParagraphBidiPdfTest extends TestCase {
 	}
 
 	/**
-	 * 埋め込み Type0 なら glyph の輪郭(経路の列)。CID alias は論理文字ごとに別 CID・別 GID を持つが輪郭は同じ。
-	 * それ以外は文字コードそのもの。
+	 * For embedded Type0, use glyph outlines (sequences of paths).
+	 * CID aliases have separate CIDs and GIDs per logical character, but the same outline.
+	 * Otherwise, use the character code itself.
 	 */
 	private static String outline(final TextPosition position) {
 		final int code = firstCode(position);

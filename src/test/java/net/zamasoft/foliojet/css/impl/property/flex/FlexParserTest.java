@@ -29,12 +29,12 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * Flex F1aの解析テストです(consult-codex-2026-08-02-flexbox.txt F1a)。
- * flex-direction/flex-wrap/flex-grow/flex-shrink/flex-basisと
- * flex/flex-flowショートハンドの受理/拒否、既定{@code 0 1 auto}、
- * ショートハンド省略時の既定(grow=1・shrink=1・basis=0)を固定する。
- * computed(em絶対化)はstyle文脈が要るためRaw中間形の受理までを対象と
- * する(GridTrackParserTestと同方針)。
+ * Parsing tests for Flex F1a (consult-codex-2026-08-02-flexbox.txt F1a).
+ * Fix acceptance/rejection of flex-direction/flex-wrap/flex-grow/flex-shrink/flex-basis,
+ * the flex/flex-flow shorthands, the default {@code 0 1 auto},
+ * and defaults for omitted shorthand components (grow=1, shrink=1, basis=0).
+ * Computed values (em absolutization) need a style context, so cover acceptance of the Raw
+ * intermediate form only (same approach as GridTrackParserTest).
  */
 public class FlexParserTest extends TestCase {
 
@@ -78,11 +78,11 @@ public class FlexParserTest extends TestCase {
 			parse(info, value);
 			fail(info.getName() + ": " + value + " が受理された");
 		} catch (final PropertyException e) {
-			// 期待どおり
+			// As expected.
 		}
 	}
 
-	/** ショートハンドを解析し、primitive名→値のMapへ展開します。 */
+	/** Parse a shorthand and expand it into a Map from primitive names to values. */
 	private static Map<String, Value> parseShorthand(final ShorthandPropertyInfo info, final String value)
 			throws Exception {
 		final Property property = ((net.zamasoft.foliojet.css.property.AbstractShorthandPropertyInfo) info)
@@ -103,11 +103,11 @@ public class FlexParserTest extends TestCase {
 			parseShorthand(info, value);
 			fail(info.getName() + ": " + value + " が受理された");
 		} catch (final PropertyException e) {
-			// 期待どおり
+			// As expected.
 		}
 	}
 
-	/** 既定は0 1 auto(§7.2)。 */
+	/** The default is 0 1 auto (§7.2). */
 	public void testDefaults() {
 		assertEquals(0f, ((RealValue) FlexFactor.GROW.getDefault(null)).getReal(), 0);
 		assertEquals(1f, ((RealValue) FlexFactor.SHRINK.getDefault(null)).getReal(), 0);
@@ -132,7 +132,7 @@ public class FlexParserTest extends TestCase {
 		assertNotNull(px.getSize());
 		final FlexBasisValue percent = (FlexBasisValue) parse(FlexBasisProperty.INFO, "50%");
 		assertNotNull(percent.getSize());
-		// 単位なし0は長さ0として受理(0と0%の等価はF1bの解決層で保証)
+		// Accept unitless 0 as length 0 (the F1b resolution layer guarantees equivalence of 0 and 0%).
 		assertNotNull(((FlexBasisValue) parse(FlexBasisProperty.INFO, "0")).getSize());
 		assertInvalid(FlexBasisProperty.INFO, "-5px");
 		assertInvalid(FlexBasisProperty.INFO, "5");
@@ -145,7 +145,7 @@ public class FlexParserTest extends TestCase {
 		assertInvalid(FlexWrapProperty.INFO, "wrap wrap");
 	}
 
-	/** flexショートハンド(§7.1): 省略時はgrow=1・shrink=1・basis=0。 */
+	/** flex shorthand (§7.1): omitted components use grow=1, shrink=1, basis=0. */
 	public void testFlexShorthand() throws Exception {
 		Map<String, Value> m = parseShorthand(FlexShorthand.INFO, "none");
 		assertEquals(0f, ((RealValue) m.get("flex-grow")).getReal(), 0);
@@ -176,7 +176,7 @@ public class FlexParserTest extends TestCase {
 		assertEquals(3f, ((RealValue) m.get("flex-shrink")).getReal(), 0);
 		assertNotNull(((FlexBasisValue) m.get("flex-basis")).getSize());
 
-		// 2因子の後の単位なし0はbasis 0
+		// Unitless 0 after two factors is basis 0.
 		m = parseShorthand(FlexShorthand.INFO, "0 0 0");
 		assertEquals(0f, ((RealValue) m.get("flex-grow")).getReal(), 0);
 		assertEquals(0f, ((RealValue) m.get("flex-shrink")).getReal(), 0);

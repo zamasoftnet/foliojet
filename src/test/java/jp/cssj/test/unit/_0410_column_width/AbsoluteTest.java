@@ -23,16 +23,16 @@ public class AbsoluteTest extends AbstractTestCase {
 			System.err.println("y: " + y);
 			System.err.println(box.getWidth());
 			System.err.println(box.getHeight());
-			// **2026-08-06: widthは73→289.98、heightは92→(実測値)に変更**。
-			// 読み込みに失敗した<img>がCSSのwidth/heightを無視して0x0に
-			// 縮退していた欠陥を修正(HTMLStyle.applyBrokenImage、
-			// AltTextImage新設)。このHTMLのkappa.pngは元々unittestの
-			// 別ディレクトリを指しており(壊れた参照、files/unittest直下へ
-			// コピーして解消)、修正後は`img{width:50%}`が正しく効いて
-			// #a(width未指定、column-count:2の絶対配置ブロック)の
-			// shrink-to-fit幅の計算に実寸が反映されるようになった。
-			// 目視確認済み(河童の画像が正しく表示され、段組・浮動は
-			// 壊れていない)
+			// **2026-08-06: width changed from 73 to 289.98, height from 92 to the measured value**.
+			// Fixed a defect where an <img> that failed to load ignored CSS width/height
+			// and collapsed to 0x0 (HTMLStyle.applyBrokenImage;
+			// added AltTextImage). This HTML's kappa.png originally pointed to
+			// another directory in unittest (a broken reference, resolved by copying it
+			// directly under files/unittest). After the fix, `img{width:50%}` correctly takes effect,
+			// and the actual dimensions are reflected in the shrink-to-fit width calculation for #a
+			// (an absolutely positioned block with unspecified width and column-count:2).
+			// Visually confirmed (the kappa image is displayed correctly;
+			// multi-column layout and floats are intact).
 			assertEquals(7, x, 1);
 			assertEquals(7, y, 1);
 			assertEquals(289.98, box.getWidth(), 1);

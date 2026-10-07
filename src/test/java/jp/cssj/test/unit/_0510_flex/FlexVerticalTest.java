@@ -8,9 +8,10 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 縦書き(vertical-rl)Flexのテストです(Flex F6——FlexAxesの写像どおり
- * rowの主軸=線軸(上→下)、columnの主軸=page軸(右→左)。
- * row: qはpの下+40pt(同一line=同x)。column: wはvの左40pt(同y)。
+ * Tests Flex in vertical writing (vertical-rl) (Flex F6).
+ * As mapped by FlexAxes, the row main axis is the line axis (top to bottom), and the column main axis
+ * is the page axis (right to left).
+ * row: q is 40 pt below p (same line = same x). column: w is 40 pt left of v (same y).
  */
 public class FlexVerticalTest extends AbstractTestCase {
 	public FlexVerticalTest(String name) {
@@ -34,7 +35,7 @@ public class FlexVerticalTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 縦書きrow: 主軸=線軸(上→下)。qはpの直下+40pt、同x(同一line)。 */
+	/** Vertical-writing row: main axis = line axis (top to bottom). q is 40 pt below p, same x (same line). */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.pX, x, 0.1);
@@ -53,7 +54,7 @@ public class FlexVerticalTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 縦書きcolumn: 主軸=page軸(右→左)。wはvの左40pt、同y。 */
+	/** Vertical-writing column: main axis = page axis (right to left). w is 40 pt left of v, same y. */
 	public boolean check_w(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.vX - 40, x, 0.1);

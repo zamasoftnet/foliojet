@@ -39,38 +39,39 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * E-6(spillableテープ基盤)の耐久試験です(2026-07-24。
- * 開発記録 の
- * 「耐久試験(案Aの合格条件)」——適応裁定でスコープ調整済み)。
+ * Endurance tests for E-6 (spillable tape infrastructure) (2026-07-24;
+ * "Endurance tests (acceptance criteria for proposal A)" in the development record;
+ * scope adjusted by the adaptation decision).
  *
  * <p>
- * 常時CIで走る縮小版(このクラスの大半のテスト)と、
- * {@code -Dfoliojet.perf}ゲートの本格版({@code -Xmx128m}別JVM完走試験。
- * {@code ./gradlew test --tests "*.EnduranceTest" -Dfoliojet.perf= })から
- * 成る。保証できる項目はassertで固定し、保証できない既知の残存
- * (完成TableBoxの全行box木保持——行単位親コミットはIncremental統合の
- * 将来増分)は実測値の報告に留める——無理なassertで赤いテストを作らない。
+ * Consists of scaled-down tests always run in CI (most tests in this class) and
+ * full-scale tests gated by {@code -Dfoliojet.perf} (completion in a separate JVM with {@code -Xmx128m};
+ * {@code ./gradlew test --tests "*.EnduranceTest" -Dfoliojet.perf= }).
+ * Assert guarantees; for known remaining limitations that cannot be guaranteed
+ * (retention of every row's box tree in a completed TableBox; row-by-row parent commits
+ * belong to a future Incremental integration step), report measurements only.
+ * Do not create failing tests with unjustified assertions.
  * </p>
  *
  * <ul>
- * <li>テキストspill上界: 同一CSSで本文量8倍でも
- * {@code LIVE_TEXT_PAYLOAD_BYTES}高水位は「予算+最大1record」以内
- * (本文量非比例)。spill量は本文量比例。</li>
- * <li>spill障害の型付き失敗: write/read失敗は{@link TextSpillException}、
- * 一時ファイル残存ゼロ、後続変換は正常。</li>
- * <li>header/footer進捗: 反復ヘッダがページより高い極端fixtureでも
- * 無限ループしない(既存保護: {@code TableCutter.keepOrMoveAll}——
- * ヘッダ+フッタが収まらないときページ先頭ならKEEP(はみ出し確定)、
- * そうでなければMOVE(次ページ先頭では必ずKEEP)で常に有限)。</li>
- * <li>-Xmx128m別JVM(perfゲート): 巨大単一セルauto表と
-	 * 10万行短セルauto表の完走規模の実測。</li>
-	 * <li>{@code -Dfoliojet.rowRetentionDiag=true}: 別JVMで未処理計画、bind済み未投入、
-	 * 親の現在頁、反復グループの行・セル数を別々に観測する。
-	 * B-2cの送出適格表ではこの指定なしでも観測し、別途histogramも採る。</li>
- * <li>救済分割(2026-07-25、増分8): 20,000pt浮動体+20,000pt書字方向
- * 不一致ブロック+3,000pt行の同居fixtureで、クラッシュ・無限ループ・
- * 停滞がないこと、ページ数が有限で妥当なこと、意図しない白紙ページが
- * できないことを固定する(常時CI)。</li>
+ * <li>Text spill bound: with identical CSS and 8× the body text,
+ * the {@code LIVE_TEXT_PAYLOAD_BYTES} high-water mark stays within "budget + at most one record"
+ * (independent of body size). Spill volume scales with body size.</li>
+ * <li>Typed spill failures: write/read failures are {@link TextSpillException},
+ * no temporary files remain, and subsequent conversions work.</li>
+ * <li>Header/footer progress: even extreme fixtures with repeated headers taller than a page
+ * do not loop forever (existing protection: {@code TableCutter.keepOrMoveAll};
+ * if header + footer do not fit, KEEP at the page start commits overflow,
+ * otherwise MOVE; the next page starts with KEEP, so termination is guaranteed).</li>
+ * <li>Separate JVM with -Xmx128m (perf gate): measure the scale at which a huge single-cell auto table
+	 * and a 100,000-row short-cell auto table complete.</li>
+	 * <li>{@code -Dfoliojet.rowRetentionDiag=true}: in a separate JVM, separately observe row/cell counts
+	 * for pending plans, bound but unsubmitted rows, the parent's current page, and repeated groups.
+	 * Observe B-2c emission-eligible tables even without this option and also collect histograms.</li>
+ * <li>Visual rescue splitting (2026-07-25, increment 8): a fixture combines a 20,000 pt float,
+ * a 20,000 pt block with a mismatched writing direction, and a 3,000 pt line.
+ * Verify no crashes, infinite loops, or stalls; finite, reasonable page counts; and no
+ * unintended blank pages (always in CI).</li>
  * </ul>
  */
 public class EnduranceTest extends TestCase {
@@ -78,26 +79,25 @@ public class EnduranceTest extends TestCase {
 
 	private static final File WORK_DIR = new File("local/unittest/endurance");
 
-	private static final double STREAMING_PAGE_HEIGHT = 794; // 842pt - 上下24pt
+	private static final double STREAMING_PAGE_HEIGHT = 794; // 842 pt - 24 pt at the top and bottom.
 	private static final double STREAMING_ROW_HEIGHT = 9.1;
 
 	/**
-	 * 画像の<b>絶対URI</b>。相対パスにするとフィクスチャを動かした瞬間に
-	 * 画像が黙って消え、別の文書になる(2026-07-27)。
+	 * The image's <b>absolute URI</b>. With a relative path, moving the fixture silently
+	 * removes the image, producing a different document (2026-07-27).
 	 */
 	private static final String RED_PNG_URI = new File("files/unittest/red.png").getAbsoluteFile().toURI()
 			.toString();
 
 	// ------------------------------------------------------------------
-	// 1. テキストspill上界(常時CI)
+	// 1. Text spill bound (always in CI).
 	// ------------------------------------------------------------------
 
 	/**
-	 * 同じCSSで本文量を8倍にした2文書を極小予算(4KB)でtranscodeし、
-	 * (1) inline保持高水位が両文書とも「予算+最大1record」以内
-	 * (本文量に比例しない——E-6の中心保証)、
-	 * (2) spill済みbytesは本文量にほぼ比例して増える(8倍文書で4〜12倍)、
-	 * を固定する。
+	 * Transcode two documents with identical CSS and an 8× difference in body size under a tiny budget (4 KB).
+	 * Verify (1) both inline retention high-water marks stay within "budget + at most one record"
+	 * (independent of body size, the central E-6 guarantee), and
+	 * (2) spilled bytes increase roughly in proportion to body size (4–12× for the 8× document).
 	 */
 	public void testTextPayloadHighWaterBoundedByBudgetPlusOneRecord() throws Exception {
 		final long budget = 4096;
@@ -114,13 +114,13 @@ public class EnduranceTest extends TestCase {
 
 			assertTrue("1x文書でspillが発火していません(fixtureが小さすぎます): " + spilled1, spilled1 > 0);
 			assertTrue("8x文書でspillが発火していません: " + spilled8, spilled8 > 0);
-			// 保証の中心: inline保持高水位は本文量に依存せず「予算+最大1record」以内
+			// Core guarantee: inline retention high-water stays within "budget + at most one record", regardless of body size.
 			assertTrue("1x: inline保持高水位が予算+1recordを超えています: " + live1 + " > " + budget + "+" + maxRecord1,
 					live1 <= budget + maxRecord1);
 			assertTrue("8x: inline保持高水位が予算+1recordを超えています(本文量比例の疑い): " + live8 + " > " + budget
 					+ "+" + maxRecord8, live8 <= budget + maxRecord8);
-			// spill量は本文量比例(8倍文書で4〜12倍——決定的な予算判定のもとで
-			// inline share分だけ厳密な8倍からずれうる)
+			// Spill volume scales with body size (4–12× for an 8× document; under deterministic budget decisions,
+			// the inline share can cause deviation from exactly 8×).
 			assertTrue("spill量が本文量に比例していません: 1x=" + spilled1 + ", 8x=" + spilled8,
 					spilled8 >= spilled1 * 4 && spilled8 <= spilled1 * 12);
 		} finally {
@@ -129,7 +129,7 @@ public class EnduranceTest extends TestCase {
 		}
 	}
 
-	/** 極小予算でtranscodeし {live高水位, spilled bytes, 最大Chars record bytes} を返す。 */
+	/** Transcode under a tiny budget and return {live high-water, spilled bytes, largest Chars record bytes}. */
 	private long[] measureSpill(final File doc, final String name, final long budget) throws Exception {
 		ContinuationStats.reset();
 		final AtomicLong maxRecordBytes = new AtomicLong();
@@ -148,16 +148,16 @@ public class EnduranceTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 3. spill障害の型付き失敗(常時CI)
+	// 3. Typed spill failures (always in CI).
 	// ------------------------------------------------------------------
 
 	/**
-	 * spill write/read失敗が{@link TextSpillException}の型で失敗すること
-	 * (黙殺・裸のIOException・非決定的フォールバックのいずれでもない)を
-	 * LayoutSource単体で固定する。close後の一時ファイル残存ゼロも確認。
+	 * Verify directly on LayoutSource that spill write/read failures throw {@link TextSpillException}
+	 * (no silent suppression, bare IOException, or nondeterministic fallback).
+	 * Also verify that no temporary files remain after close.
 	 */
 	public void testSpillIoFailureIsTypedTextSpillException() throws Exception {
-		// (a) write失敗
+		// (a) Write failure.
 		try (LayoutSource source = new LayoutSource(0)) {
 			TextSpillTestHooks.setFaultInjector(() -> {
 				throw new IOException("injected write failure");
@@ -176,7 +176,7 @@ public class EnduranceTest extends TestCase {
 			assertTrue("close後にspill一時ファイルが残っています", spill.tempFilesDeletedForTest());
 		}
 
-		// (b) read失敗(書き込みは成功済み)
+		// (b) Read failure (writing already succeeded).
 		try (LayoutSource source = new LayoutSource(0)) {
 			final long id = source.appendChars(0, "endurance".toCharArray(), 0, 9, false);
 			final LayoutSource.Chars chars = (LayoutSource.Chars) source.get(id);
@@ -193,25 +193,25 @@ public class EnduranceTest extends TestCase {
 			} finally {
 				TextSpillTestHooks.clearFaultInjector();
 			}
-			// 障害解除後は正常に読める(障害はストアを壊さない)
+			// Reads succeed after removing the fault (the fault does not corrupt the store).
 			assertEquals("endurance", new String(chars.payload().freshChars()));
 		}
 	}
 
 	/**
-	 * transcode中のspill書き込み失敗が(1)変換の失敗として伝播し(黙殺
-	 * しない)、その根本原因が{@link TextSpillException}であること、
-	 * (2)spill一時ファイルが残らないこと、(3)後続変換が正常動作する
-	 * ことを固定する。読み出し失敗(改ページ再生時のdecode)も同様。
+	 * Verify that a spill write failure during transcode (1) propagates as a conversion failure
+	 * (not silently suppressed), with {@link TextSpillException} as its root cause,
+	 * (2) leaves no spill temporary files, and (3) allows subsequent conversions to work.
+	 * The same applies to read failures (decoding during page-break replay).
 	 */
 	public void testSpillFailureDuringTranscodeFailsCleanlyAndRecovers() throws Exception {
 		final File writeDoc = new File("files/unittest/0460-segment-restyle/mid-paragraph.html");
-		// 読み出しは改ページ再生でspill済みpayloadを実際にdecodeする文書で
-		// 注入する(実測: moved-blocksは予算0で8 record読む。mid-paragraphの
-		// 尾部再生は配達済み終端ゲートでdecodeに至らないことがある)
+		// Inject read failures using a document that actually decodes spilled payload during page-break replay
+		// (measured: moved-blocks reads 8 records with budget 0. Mid-paragraph tail replay may
+		// stop at the already-delivered terminal gate before decoding).
 		final File readDoc = new File("files/unittest/0460-segment-restyle/moved-blocks.html");
 
-		// (a) write失敗(3件spillした後の4件目で注入)
+		// (a) Write failure (injected on the fourth spill after three successful spills).
 		final AtomicInteger appends = new AtomicInteger();
 		this.checkTranscodeSpillFailure(writeDoc, "spill-write-fail", () -> {
 			if (appends.incrementAndGet() > 3) {
@@ -219,13 +219,13 @@ public class EnduranceTest extends TestCase {
 			}
 		}, null);
 
-		// (b) read失敗(spill済みpayloadの改ページ再生decodeで注入)
+		// (b) Read failure (injected during decoding of spilled payload in page-break replay).
 		this.checkTranscodeSpillFailure(readDoc, "spill-read-fail", null, () -> {
 			throw new IOException("injected read failure");
 		});
 
-		// (c) 後続変換の正常動作(注入なし・同一文書・極小予算——spillの
-		// 書き込みとdecode再生の両方が通ることを確認)
+		// (c) Subsequent conversion works (no injection, same document, tiny budget; verify
+		// both spill writes and decoded replay succeed).
 		ContinuationStats.reset();
 		this.transcode(readDoc, "spill-recovered", "0");
 		assertTrue("後続変換でspillが正常動作していません", ContinuationStats.SPILLED_TEXT_RECORDS.get() > 0);
@@ -243,8 +243,8 @@ public class EnduranceTest extends TestCase {
 				spills.add(spilled.spill());
 			}
 		});
-		// DirectSessionは予期しない失敗をTranscoderException(FATAL_UNEXPECTED)へ
-		// 変換する際にcause連鎖を持たないため、型はSEVEREログのthrownで検証する
+		// DirectSession does not retain the cause chain when wrapping unexpected failures in
+		// TranscoderException(FATAL_UNEXPECTED), so verify the type through the SEVERE log's thrown field.
 		final Throwable[] layoutFailure = new Throwable[1];
 		final Logger sessionLog = Logger.getLogger(DirectSession.class.getName());
 		final Handler capture = new Handler() {
@@ -269,7 +269,7 @@ public class EnduranceTest extends TestCase {
 			this.transcode(doc, name, "0");
 			fail(name + ": spill障害注入下の変換は失敗するはずです");
 		} catch (final TranscoderException expected) {
-			// DirectSession.transcodeのcatch ThrowableがFATAL_UNEXPECTEDへ変換
+			// DirectSession.transcode's catch Throwable converts this to FATAL_UNEXPECTED.
 		} finally {
 			TextSpillTestHooks.clearFaultInjector();
 			LayoutSourceTestHooks.setAppendObserver(null);
@@ -278,8 +278,8 @@ public class EnduranceTest extends TestCase {
 		assertNotNull(name + ": レイアウト失敗がSEVEREログに現れていません", layoutFailure[0]);
 		assertTrue(name + ": 失敗の型がTextSpillExceptionではありません: " + layoutFailure[0].getClass(),
 				layoutFailure[0] instanceof TextSpillException);
-		// 失敗経路でもspill一時ファイルは残らない(formatterのfinally→
-		// LayoutSource.close()の清算)
+		// No spill temporary files remain even on failure (formatter's finally →
+		// LayoutSource.close() cleanup).
 		assertFalse(name + ": spillストアが観測されていません", spills.isEmpty());
 		for (final TextSpill spill : spills) {
 			assertTrue(name + ": 失敗後にspill一時ファイルが残っています", spill.tempFilesDeletedForTest());
@@ -287,36 +287,35 @@ public class EnduranceTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 4. header/footer進捗条件(常時CI)
+	// 4. Header/footer progress conditions (always in CI).
 	// ------------------------------------------------------------------
 
 	/**
-	 * 反復ヘッダ(+フッタ)が1ページに収まらない極端fixtureで無限ループに
-	 * ならないことを固定する。
+	 * Verify termination for an extreme fixture whose repeated header (+ footer) cannot fit on one page.
 	 *
 	 * <p>
-	 * 既存保護の調査結果(2026-07-24): {@code TableBox.splitPageAxis}は
-	 * ヘッダ+フッタ+フレームを差し引いた切断線が正になる場合のみ行分割を
-	 * 試み、収まらない場合は{@code TableCutter.keepOrMoveAll}へ縮退する
-	 * ——ページ先頭(FLAGS_FIRST)ならKEEP(全体をこのページに置き、
-	 * はみ出しを許容=強制進捗)、そうでなければMOVE(次ページでは必ず
-	 * ページ先頭になるためKEEPで確定)。よって反復は高々1回で、専用の
-	 * 進捗カウンタなしに有限性が構造的に成立している。このテストは
-	 * その挙動(完走・有限ページ数)をwatchdog付きで固定する。
+	 * Findings on the existing protection (2026-07-24): {@code TableBox.splitPageAxis}
+	 * attempts row splitting only if the cut line remains positive after subtracting header,
+	 * footer, and frame. If they do not fit, it falls back to {@code TableCutter.keepOrMoveAll}:
+	 * KEEP at the page start (FLAGS_FIRST), placing everything on this page and allowing overflow
+	 * to force progress; otherwise MOVE (the next page is necessarily at its start, so KEEP commits).
+	 * Thus there is at most one retry, and termination follows structurally without a dedicated
+	 * progress counter. This test verifies that behavior (completion and finite page count)
+	 * with a watchdog.
 	 * </p>
 	 */
 	public void testRepeatedHeaderTallerThanPageDoesNotLoop() throws Exception {
-		// (a) 極端: ヘッダ500pt > ページ400pt(フッタも巨大)
+		// (a) Extreme: 500 pt header > 400 pt page (footer is also oversized).
 		final File extreme = generateTallHeaderTable("tall-header-extreme", 500, 450, 40);
 		final int extremePages = this.transcodeWithWatchdogCountingPages(extreme, "tall-header-extreme", 120_000);
 		assertTrue("極端fixtureでページが出力されていません", extremePages > 0);
-		// ページ先頭KEEPのはみ出し確定により、ページ数は行数に比例しない
-		// 有限小(表全体は分割不能のため1〜2ページ)に留まるはず
+		// KEEP at the page start commits overflow, so page count should remain small and finite,
+		// independent of row count (1–2 pages because the entire table is unsplittable).
 		assertTrue("極端fixtureのページ数が異常です(進捗せずヘッダだけ反復した疑い): " + extremePages,
 				extremePages <= 5);
 
-		// (b) 対照: ヘッダ300pt+行10ptはページ400ptで毎ページ反復しつつ
-		// body行が進捗する(反復ヘッダの正常系が壊れていないことの確認)
+		// (b) Control: a 300 pt header + 10 pt rows on 400 pt pages repeats the header on each page
+		// while body rows progress (verify that the normal repeated-header path still works).
 		final File tall = generateTallHeaderTable("tall-header-progress", 300, -1, 40);
 		final int tallPages = this.transcodeWithWatchdogCountingPages(tall, "tall-header-progress", 120_000);
 		assertTrue("反復ヘッダの正常系が複数ページに進捗していません: " + tallPages, tallPages > 1);
@@ -326,29 +325,29 @@ public class EnduranceTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 5. 救済分割の耐久試験(常時CI。2026-07-25、増分8)
+	// 5. Visual rescue splitting endurance (always in CI; 2026-07-25, increment 8).
 	// ------------------------------------------------------------------
 
 	/**
-	 * 救済分割(visual rescue split)を極端な規模で連続発火させても、
-	 * (1)クラッシュ・無限ループ・停滞がない、(2)ページ数が有限で妥当、
-	 * (3)意図しない白紙ページができない、を固定する
-	 * ({@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner})。
+	 * Verify that repeated visual rescue splits at extreme scale produce
+	 * (1) no crashes, infinite loops, or stalls, (2) finite, reasonable page counts,
+	 * and (3) no unintended blank pages
+	 * ({@link net.zamasoft.foliojet.layout.rescue.VisualRescuePlanner}).
 	 *
 	 * <p>
-	 * fixtureは200×200ptのページに、救済の3経路——浮動体(置換要素)
-	 * 20,000pt・書字方向不一致ブロック20,000pt・巨大な行3,000pt——を
-	 * <b>同居</b>させたものです。単独ではなく同居させるのは、浮動体の
-	 * 排除域が本文側の利用可能量を削り、極小断片ページ(sliver)の下限判定
-	 * ({@code MIN_RESCUE_SLICE}/{@code MIN_RESCUE_FRACTION})が実際に
-	 * 効く配置を作るためです。
+	 * The fixture <b>combines</b> all three rescue paths on 200×200 pt pages:
+	 * a 20,000 pt float (replaced element), a 20,000 pt block with a mismatched
+	 * writing direction, and a 3,000 pt oversized line. Combining them instead of testing
+	 * them separately lets the float's exclusion area reduce the available body-text space,
+	 * exercising the lower-bound checks for tiny fragment pages (slivers)
+	 * ({@code MIN_RESCUE_SLICE}/{@code MIN_RESCUE_FRACTION}).
 	 * </p>
 	 *
 	 * <p>
-	 * ページ数はexactではなく範囲で固定します。厳密値は段組・排除域の
-	 * 相互作用に依存し、goldenとしての価値より脆さが勝るためです。
-	 * 「行数に比例して増えない」「1ページも進まない(=停滞)にならない」
-	 * という有限性の性質だけを見ます。
+	 * Assert a range for page count, not an exact value. The exact count depends on interactions
+	 * between multi-column layout and exclusion areas, making it more brittle than useful as a golden.
+	 * Check only termination properties: the count does not grow in proportion to the number of lines,
+	 * and processing does not fail to advance even one page (stall).
 	 * </p>
 	 */
 	public void testRescueSplitEnduranceIsFiniteAndLeavesNoBlankPage() throws Exception {
@@ -360,24 +359,24 @@ public class EnduranceTest extends TestCase {
 		System.err.println("[rescue endurance] pages=" + pages.size() + " candidates=" + RescueStats.CANDIDATES.get()
 				+ " slices=" + RescueStats.SLICES.get() + " enabledSlices=" + slices);
 
-		// (1) 完走した(watchdogがfailしていない)ことは戻り値到達で確定。
-		// 救済が実際に発火していること——fixtureが黙って通常経路へ落ちて
-		// いたら、この耐久試験は何も試していない
+		// (1) Reaching the return value confirms completion (the watchdog did not fail).
+		// Rescue must actually activate: if the fixture silently falls back to the normal path,
+		// this endurance test tests nothing.
 		assertTrue("救済分割が一度も発火していません(fixtureが通常経路へ落ちた疑い)", slices > 0);
 
-		// (2) ページ数が有限で妥当。
-		// 下限: いちばん背の高い分割不能要素(20,000pt)だけでも200ptずつ
-		// 100断片は要る——これを下回るのは内容が失われている(=停滞して
-		// 打ち切った)ということ。
-		// 上限: 3要素が1ページも共有しない最悪でも総量43,000pt/200pt=215。
-		// 「1ptずつ切って延々とページを作る」なら万単位になる。
-		// 実測(2026-07-25): 160ページ、救済断片156個。
+		// (2) Page count is finite and reasonable.
+		// Lower bound: even the tallest unsplittable element (20,000 pt) needs 100 fragments
+		// of 200 pt each. Fewer means content was lost
+		// (processing stalled and was cut short).
+		// Upper bound: even with no page shared by the three elements, total 43,000 pt/200 pt=215.
+		// Cutting 1 pt at a time and endlessly generating pages would produce tens of thousands.
+		// Measured (2026-07-25): 160 pages, 156 rescue fragments.
 		final int tallestPages = Math.max(floatPt, orthogonalPt) / 200;
 		final int disjointPages = (floatPt + orthogonalPt + linePt) / 200;
 		assertTrue("ページ数が少なすぎます(停滞して内容を捨てた疑い): " + pages.size(), pages.size() >= tallestPages);
 		assertTrue("ページ数が過大です(極小断片で切り刻んだ疑い): " + pages.size(), pages.size() <= disjointPages * 2);
 
-		// (3) 意図しない白紙ページがない(全ページに描画命令がある)
+		// (3) No unintended blank pages (every page has drawing commands).
 		for (int i = 0; i < pages.size(); ++i) {
 			assertTrue("ページ" + (i + 1) + "の表示リストが空です(意図しない白紙):\n" + pages.get(i),
 					pages.get(i).contains("  x="));
@@ -385,11 +384,11 @@ public class EnduranceTest extends TestCase {
 	}
 
 	/**
-	 * 救済の3経路を同居させた耐久fixture(ページは200×200pt)。
+	 * Endurance fixture combining the three rescue paths (200×200 pt pages).
 	 *
-	 * @param floatPt      分割できない浮動体(置換要素)の高さ
-	 * @param orthogonalPt 書字方向が幹と食い違うブロックの高さ
-	 * @param linePt       巨大フォントによる1行の高さ
+	 * @param floatPt      height of the unsplittable float (replaced element)
+	 * @param orthogonalPt height of the block whose writing direction differs from the trunk
+	 * @param linePt       height of one line with an oversized font
 	 */
 	private static File generateRescueSplitStress(final String name, final int floatPt, final int orthogonalPt,
 			final int linePt) throws IOException {
@@ -405,12 +404,12 @@ public class EnduranceTest extends TestCase {
 					+ "div#o{writing-mode:vertical-rl;width:100pt;height:" + orthogonalPt + "pt;background:#dddddd}"
 					+ "p#huge{font:normal " + linePt + "pt/1 serif}</style>\n");
 			w.write("</head><body>\n");
-			// **絶対URIで書く**(2026-07-27)。以前は WORK_DIR
-			// (local/unittest/endurance)からの相対 `../../../` を決め打ち
-			// していたが、この形は**フィクスチャを別の場所へ動かすと画像が
-			// 黙って消え、別の文書になる**。RandomDocumentFuzzTest の同型の
-			// 脆さに1時間費やした——再現を縮小しようとコピーしたら再現せず、
-			// 「入力パスで挙動が変わる」という誤った結論に達した。
+			// **Use an absolute URI** (2026-07-27). Previously, the relative path
+			// from WORK_DIR (local/unittest/endurance) was hardcoded as `../../../`,
+			// but **moving the fixture elsewhere silently removes the image,
+			// producing a different document**. The same fragility in RandomDocumentFuzzTest
+			// cost an hour: copying a reproducer to reduce it made it stop reproducing,
+			// leading to the false conclusion that behavior depended on the input path.
 			w.write("<img src=\"" + RED_PNG_URI + "\" id=\"f\" />\n");
 			w.write("<div id=\"o\">O</div>\n");
 			w.write("<p id=\"huge\">A</p>\n");
@@ -420,13 +419,13 @@ public class EnduranceTest extends TestCase {
 		return file;
 	}
 
-	/** watchdog(別daemonスレッド+join timeout)付きtranscode。display listのページ数を返す。 */
+	/** Transcode with a watchdog (separate daemon thread + join timeout). Return the display-list page count. */
 	private int transcodeWithWatchdogCountingPages(final File doc, final String name, final long timeoutMs)
 			throws Exception {
 		return this.transcodeWithWatchdogDumpingPages(doc, name, timeoutMs).size();
 	}
 
-	/** watchdog付きtranscode。display listのページごとのダンプを返す。 */
+	/** Transcode with a watchdog. Return display-list dumps for each page. */
 	private List<String> transcodeWithWatchdogDumpingPages(final File doc, final String name, final long timeoutMs)
 			throws Exception {
 		final File dumpDir = new File(WORK_DIR, name + "-dump");
@@ -467,21 +466,21 @@ public class EnduranceTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 2. -Xmx128m制限の別JVM完走(perfゲート)
+	// 2. Completion in a separate JVM limited to -Xmx128m (perf gate).
 	// ------------------------------------------------------------------
 
 	/**
-	 * {@code -Xmx128m}の別JVMで(a)巨大単一セルauto表、(b)大量行の短セル
-	 * auto表をtranscodeし、E-6で達成された保証を実測で特徴付ける
-	 * ({@code ./gradlew test --tests "*.EnduranceTest" -Dfoliojet.perf= })。
+	 * Transcode (a) a huge single-cell auto table and (b) a short-cell auto table with many rows
+	 * in a separate JVM with {@code -Xmx128m}, empirically characterizing the E-6 guarantees
+	 * ({@code ./gradlew test --tests "*.EnduranceTest" -Dfoliojet.perf= }).
 	 *
 	 * <p>
-	 * assertするのは「保証」の下限のみ: (a)はE-6経路でセル本文4MB
-	 * (payload換算、UTF-16)の完走、(b)は8,000行の完走。それ以上の到達規模と、
-	 * 範囲再生の保持量を実測レポート(stderr)に出力する——
-	 * (b)の上限は完成TableBoxの全行box木保持(既知の残存——行単位親
-	 * コミットはIncremental統合の将来増分)が支配するため、assertでは
-	 * 固定しない。
+	 * Assert only guaranteed lower bounds: (a) completion with 4 MB of cell body text
+	 * (UTF-16 payload) via E-6, and (b) completion of 8,000 rows. Report larger reachable
+	 * scales and retention during range replay as measurements (stderr).
+	 * The upper bound for (b) is dominated by retention of the completed TableBox's entire row box tree
+	 * (a known limitation; row-by-row parent commits belong to a future Incremental integration step),
+	 * so do not assert it.
 	 * </p>
 	 */
 	public void testConstrainedHeapEndurance() throws Exception {
@@ -492,7 +491,7 @@ public class EnduranceTest extends TestCase {
 		WORK_DIR.mkdirs();
 		final StringBuilder report = new StringBuilder("[E-6 endurance -Xmx128m]\n");
 		try {
-			// 必須2ケースを診断ladderより先に、heap overrideとは独立に実行する。
+			// Run the two required cases before the diagnostic ladder, independently of heap overrides.
 			final ChildResult requiredRows;
 			final File rowsDoc = generateManyRowsTable("many-rows-required-8000", 8000);
 			try {
@@ -510,8 +509,8 @@ public class EnduranceTest extends TestCase {
 			}
 			report.append("  required bigcell payload=4MB heap=128m -> ").append(requiredCell).append('\n');
 			final boolean sameHeap = "128m".equals(System.getProperty("foliojet.enduranceHeap", "128m"));
-			// ---- (a) 巨大単一セルauto表(セル本文payload bytes = chars×2) ----
-			// 本文4MBの完走を下限とし、範囲再生での到達規模を測る。
+			// ---- (a) Huge single-cell auto table (cell body payload bytes = chars×2) ----
+			// Require completion with a 4 MB body, and measure the reachable scale with range replay.
 			final long[] cellPayloadLadder = { 4L << 20, 5L << 20, 6L << 20, 8L << 20 };
 			long maxCellPayload = -1;
 			for (final long payload : cellPayloadLadder) {
@@ -533,8 +532,8 @@ public class EnduranceTest extends TestCase {
 				}
 				maxCellPayload = payload;
 			}
-			// ---- (b) 大量行の短セルauto表(指定した梯子を全件測り、最大の完走行数を記録) ----
-			// 上限は完成TableBoxの全行box木保持にも制約される。
+			// ---- (b) Short-cell auto table with many rows (measure every ladder step and record the largest completed row count) ----
+			// Retaining the completed TableBox's entire row box tree also constrains the upper bound.
 			final int[] rowsLadder = { 100_000, 50_000, 25_000, 12_000, 9_000, 8_000, 7_000, 6_000 };
 			final int[] rowsLadderOverride = System.getProperty("foliojet.enduranceRows") == null ? rowsLadder
 					: java.util.Arrays.stream(System.getProperty("foliojet.enduranceRows").split(","))
@@ -568,7 +567,10 @@ public class EnduranceTest extends TestCase {
 		}
 	}
 
-	/** B-2c: 性能比較用の既存表とは別に、実際に送出する低い行・枠なしの表を測る。 */
+	/**
+	 * B-2c: Measure an actually emitting table with short rows and no frame, separately from existing comparison
+	 * tables.
+	 */
 	public void testConstrainedHeapRowStreaming() throws Exception {
 		if (System.getProperty("foliojet.perf") == null) return;
 		final int[] rowsToMeasure = java.util.Arrays.stream(System.getProperty(
@@ -583,7 +585,7 @@ public class EnduranceTest extends TestCase {
 				doc.delete();
 			}
 			System.err.println("[B-2c endurance] rows=" + rows + " heap=128m -> " + result);
-			// 10,000行の128m完走は目標。OOM/timeoutは測定結果とし、契約違反や他の失敗は落とす。
+			// Completing 10,000 rows at 128m is the target. Treat OOM/timeout as measurements; fail on contract violations or other errors.
 			if (!result.ok && (rows == 8000 || (!result.timedOut && !result.stats.equals("OutOfMemoryError")))) {
 				failures.add("rows=" + rows + ": " + result);
 			}
@@ -591,7 +593,7 @@ public class EnduranceTest extends TestCase {
 		assertTrue("行送出の発火・保持上限または変換が失敗: " + failures, failures.isEmpty());
 	}
 
-	/** 別JVM実行の結果です(okは正常終了=完走)。 */
+	/** Result from a separate JVM run (ok means normal exit, i.e. completion). */
 	private static final class ChildResult {
 		final boolean ok;
 		final boolean timedOut;
@@ -616,8 +618,8 @@ public class EnduranceTest extends TestCase {
 	}
 
 	/**
-	 * 現テストJVMのclasspath・設定を引き継いだ別JVM({@code -Xmx128m})で
-	 * {@link Child}を実行する。
+	 * In a separate JVM ({@code -Xmx128m}) inheriting the current test JVM's classpath
+	 * and settings, run {@link Child}.
 	 */
 	private ChildResult runChild(final File doc, final String name, final String budget,
 			final long timeoutMs) throws Exception {
@@ -640,8 +642,8 @@ public class EnduranceTest extends TestCase {
 		final List<String> command = new ArrayList<>();
 		command.add(javaExe);
 		command.add("-Xmx" + heap);
-		// ExitOnOutOfMemoryErrorはChildのcatch/finallyを飛ばしてスタックを
-		// 消す。通常のOOM伝播で原因をログへ残す(停止しない場合は親のwatchdog)。
+		// ExitOnOutOfMemoryError bypasses Child's catch/finally and erases the stack.
+		// Preserve the cause in logs through normal OOM propagation (the parent's watchdog handles nontermination).
 		command.add("-Djava.awt.headless=true");
 		if (Boolean.getBoolean("foliojet.rowRetentionDiag")) command.add("-Dfoliojet.rowRetentionDiag=true");
 		command.add("-Djava.io.tmpdir=" + System.getProperty("java.io.tmpdir"));
@@ -671,7 +673,7 @@ public class EnduranceTest extends TestCase {
 				if (line.startsWith("ENDURANCE-OK ")) {
 					stats = line.substring("ENDURANCE-OK ".length());
 				} else if (streaming && (line.startsWith("[B-2") || line.startsWith("[T5a"))) {
-					// 子JVMの同時点histogramを親の試験ログにも保存する。
+					// Also save the child JVM's histogram from the same point in the parent test log.
 					System.err.println(line);
 				} else if (line.contains("OutOfMemoryError")) {
 					stats = "OutOfMemoryError";
@@ -684,9 +686,9 @@ public class EnduranceTest extends TestCase {
 	}
 
 	/**
-	 * 別JVMのエントリポイントです(引数: 文書パス、PDF出力パス、spill予算
-	 * ({@code -}なら既定8MB))。完走時は{@code ENDURANCE-OK}+主要カウンタを
-	 * stdoutへ出力してexit 0、失敗時は非0。
+	 * Separate JVM entry point (arguments: document path, PDF output path, spill budget
+	 * ({@code -} means the default 8 MB)). On completion, print {@code ENDURANCE-OK} plus major counters
+	 * to stdout and exit 0; otherwise exit nonzero.
 	 */
 	public static final class Child {
 		private static final RowRetentionReport ROW_RETENTION = new RowRetentionReport();
@@ -767,7 +769,7 @@ public class EnduranceTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// fixture生成・共通transcode
+	// Fixture generation and shared transcode helpers.
 	// ------------------------------------------------------------------
 
 	private static final String[] SENTENCES = { //
@@ -777,7 +779,7 @@ public class EnduranceTest extends TestCase {
 			"Endurance testing characterizes the achieved guarantees of the spillable tape infrastructure. ", //
 	};
 
-	/** 同一CSSの散文文書(A4相当ページ、段落数のみ可変)。 */
+	/** Prose document with identical CSS (A4-equivalent pages; only paragraph count varies). */
 	private static File generateProse(final String name, final int paragraphs) throws IOException {
 		WORK_DIR.mkdirs();
 		final File file = new File(WORK_DIR, name + ".html");
@@ -800,7 +802,9 @@ public class EnduranceTest extends TestCase {
 		return file;
 	}
 
-	/** 単一セルのauto表(セル本文はおよそ{@code totalChars}文字の段落列)。 */
+	/**
+	 * Single-cell auto table (cell body is a sequence of paragraphs totaling about {@code totalChars} characters).
+	 */
 	private static File generateBigCellTable(final String name, final long totalChars) throws IOException {
 		WORK_DIR.mkdirs();
 		final File file = new File(WORK_DIR, name + ".html");
@@ -829,7 +833,7 @@ public class EnduranceTest extends TestCase {
 		return file;
 	}
 
-	/** 短セル({@code r{i}c{j}})×3列のauto表(thead 1行つき)。 */
+	/** Auto table with short cells ({@code r{i}c{j}}) × 3 columns (with one thead row). */
 	static File generateManyRowsTable(final String name, final int rows) throws IOException {
 		return generateManyRowsTable(name, rows, false);
 	}
@@ -865,8 +869,8 @@ public class EnduranceTest extends TestCase {
 	}
 
 	/**
-	 * 反復ヘッダ(と任意でフッタ)の行が{@code headerPt}の高さを持つauto表
-	 * (ページは400×400pt)。{@code footerPt}が負ならフッタなし。
+	 * Auto table whose repeated header (and optional footer) rows have height {@code headerPt}
+	 * (400×400 pt pages). A negative {@code footerPt} means no footer.
 	 */
 	private static File generateTallHeaderTable(final String name, final int headerPt, final int footerPt,
 			final int bodyRows) throws IOException {

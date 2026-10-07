@@ -6,16 +6,16 @@ import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 
 /**
- * 和文スペーシングの解決器です(和文詰めS0、2026-07-31——
- * consult-codex-2026-07-31-text-spacing.txt)。boxやフォントの状態を変更せず
- * 詰め量を計算する。S1でOpenTypeFont.getKerningの約物詰めと
- * TextBuilderの縦書き天付きがここへ移管される(出力不変が受入条件)。
+ * Japanese spacing resolver (Japanese spacing adjustment S0, 2026-07-31;
+ * consult-codex-2026-07-31-text-spacing.txt). Calculates trimming without changing box or font state.
+ * S1 moves punctuation trimming from OpenTypeFont.getKerning and flush line-start alignment
+ * for vertical writing from TextBuilder here (unchanged output is the acceptance criterion).
  *
  * <p>
- * 規則の単位は<b>em比</b>(呼び出し側がfont-sizeを乗じる)。字面測定と
- * {@code cappedPairTrim}はfont-size換算済みの絶対量を返す。「wide」は
- * 移管元の「フォント単位幅&gt;750/1000」判定(全角相当の約物か)を
- * 呼び出し側で評価して渡す。
+ * Rules use <b>em ratios</b> (the caller multiplies by font-size). Glyph bounds (ink) measurements
+ * and {@code cappedPairTrim} return absolute amounts already scaled by font-size.
+ * The caller evaluates and passes "wide" using the original "font-unit width &gt;750/1000" check
+ * (whether punctuation has fullwidth-equivalent width).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -26,16 +26,16 @@ public final class JapaneseSpacingResolver {
 		// static
 	}
 
-	/** 連続約物の詰め量(em比)。 */
+	/** Trim between consecutive punctuation marks (em ratio). */
 	public static final double PAIR_TRIM = 0.5;
 
-	/** 字面の前端。ペンからの距離をfont-size換算して返す。測定不能はNaN。 */
+	/** Leading ink edge. Returns distance from the pen scaled by font-size; NaN if unmeasurable. */
 	public static double inkStart(final FontMetrics metrics, final int gid, final double fontSize,
 			final FontStyle style) {
 		return inkEdge(metrics, gid, fontSize, style, false);
 	}
 
-	/** 字面の後端。はみ出しも符号付きで保持する。 */
+	/** Trailing ink edge. Preserves signed overflow as well. */
 	public static double inkEnd(final FontMetrics metrics, final int gid, final double fontSize,
 			final FontStyle style) {
 		return inkEdge(metrics, gid, fontSize, style, true);
@@ -51,7 +51,7 @@ public final class JapaneseSpacingResolver {
 			return Double.NaN;
 		}
 		final var source = font.getFontSource();
-		// 横書きフォントを縦の行へ横倒しする場合も字形のx軸を使う。
+		// Use the glyph's x axis even when a horizontal font is rotated sideways in a vertical line.
 		final boolean vertical = source.getDirection() == FontStyle.Direction.TB;
 		final double scale = fontSize / 1000.0;
 		final double edge = vertical
@@ -59,7 +59,7 @@ public final class JapaneseSpacingResolver {
 				: font.getPlacementAdjustment(gid, style.getFeatures()) + (end ? bounds.maxX() : bounds.minX());
 		double expansion = 0;
 		if (style.getWeight().w >= 500 && source.getWeight().w < 500 && style.getSynthesisWeight()) {
-			// FontUtils.drawTextと同じstroke幅。その半分ずつ字面が膨らむ。
+			// Same stroke width as FontUtils.drawText. Ink expands by half that width on each side.
 			expansion = fontSize / switch (style.getWeight()) {
 				case W_500 -> 28.0;
 				case W_600 -> 24.0;
@@ -70,10 +70,10 @@ public final class JapaneseSpacingResolver {
 			} / 2.0;
 		}
 		if (style.getStyle() != FontStyle.Style.NORMAL && !source.isItalic() && style.getSynthesisStyle()) {
-			// 合成斜体はshearの幾何どおりに片側ずつ広げる。横はx'=x−0.25y(y下向き)なので
-			// 上端(y<0)が後端を右へ、下端(y>0)が前端を左へ押す。縦はy'=y+0.25xなので
-			// 右端(x>0)が後端を下へ、左端(x<0)が前端を上へ押す。両端を一律に広げると
-			// autospaceの追い込み容量が不要に減り、行内の配分が動く(2026-09-12)。
+			// Synthetic italic expands sides by shear geometry. Horizontally x'=x−0.25y (y downward), so the top (y<0)
+			// pushes the trailing edge right and the bottom (y>0) pushes the leading edge left. Vertically y'=y+0.25x,
+			// so the right (x>0) pushes the trailing edge down and the left (x<0) pushes the leading edge up. Uniform
+			// expansion needlessly reduces autospace compression capacity and changes line allocation (2026-09-12).
 			if (vertical) {
 				expansion += 0.25 * scale * Math.max(0, end ? bounds.maxX() : -bounds.minX());
 			} else {
@@ -83,7 +83,7 @@ public final class JapaneseSpacingResolver {
 		return edge * scale + (end ? expansion : -expansion);
 	}
 
-	/** 2字のペン間距離に対する字面間隔。側ごとには0で切らない。 */
+	/** Ink gap for a given pen-to-pen distance between two characters. Does not clamp each side to zero. */
 	public static double inkGap(final FontMetrics prevMetrics, final int prevGid, final double prevSize,
 			final FontStyle prevStyle, final FontMetrics metrics, final int gid, final double fontSize,
 			final FontStyle style, final double penDistance) {
@@ -92,9 +92,10 @@ public final class JapaneseSpacingResolver {
 	}
 
 	/**
-	 * 字面間隔で上限した連続約物の詰め(絶対量)。追加・分割時の逆適用・
-	 * 固有寸法計量が同じ入力で再計算できるよう、字間やxadvanceは含めない。
-	 * 同一runでkerningが非0の組を除外するのは呼び出し側の契約。
+	 * Trim between consecutive punctuation marks, capped by the ink gap (absolute amount).
+	 * Excludes letter spacing and xadvance so insertion, reversal at splits, and intrinsic-size
+	 * measurement can recalculate from identical inputs.
+	 * The caller must exclude pairs with nonzero kerning in the same run.
 	 */
 	public static double cappedPairTrim(final int prevCp, final FontMetrics prevMetrics, final int prevGid,
 			final double prevSize, final FontStyle prevStyle, final int cp, final FontMetrics metrics,
@@ -110,16 +111,16 @@ public final class JapaneseSpacingResolver {
 	}
 
 	/**
-	 * 連続する2文字の間の詰め量(em比。0=詰めない)です。移管元
-	 * (OpenTypeFont.getKerning)と同一の表:
+	 * Trim between two consecutive characters (em ratio; 0 = no trim).
+	 * Uses the same table as the original implementation (OpenTypeFont.getKerning):
 	 * <ul>
-	 * <li>開き+開き(両方wide): 0.5</li>
-	 * <li>閉じ+{開き|閉じ|句読点}(両方wide): 0.5</li>
-	 * <li>句読点(wide)+開き(wide): 0.5</li>
-	 * <li>句読点(wide)+閉じ(wide): 0.5</li>
+	 * <li>opening + opening (both wide): 0.5</li>
+	 * <li>closing + {opening|closing|full stop/comma} (both wide): 0.5</li>
+	 * <li>full stop/comma (wide) + opening (wide): 0.5</li>
+	 * <li>full stop/comma (wide) + closing (wide): 0.5</li>
 	 * </ul>
-	 * GPOSカーニングが非0の組には適用しない(呼び出し側の契約——
-	 * 移管元はGPOS優先)。
+	 * Do not apply to pairs with nonzero GPOS kerning (caller contract;
+	 * the original implementation gives GPOS priority).
 	 */
 	public static double pairTrim(final int prevCodePoint, final boolean prevWide, final int codePoint,
 			final boolean wide) {
@@ -135,15 +136,15 @@ public final class JapaneseSpacingResolver {
 			return next != JapaneseSpacingClass.OTHER && wide ? PAIR_TRIM : 0;
 		case PUNCTUATION:
 			if (next == JapaneseSpacingClass.OPENING) {
-				// JLREQの二分アキは全角の約物枠を前提とする。fallback等で
-				// 後続がproportionalなら固定0.5emを引かない。
+				// JLREQ half-em spacing assumes fullwidth punctuation cells. If fallback or similar handling
+				// makes the following character proportional, do not subtract a fixed 0.5 em.
 				return wide ? PAIR_TRIM : 0;
 			}
 			return next == JapaneseSpacingClass.CLOSING && wide ? PAIR_TRIM : 0;
 		case MIDDLE_DOT:
-			// JLREQ 3.1.5: 中点類の後ろに始め括弧類——中点の後ろを四分アキ
-			// (字形内の四分+括弧の二分=3/4を-0.5emで四分へ。終わり括弧+中点は
-			// CLOSING側のnext!=OTHERで既に対象)
+			// JLREQ 3.1.5: a middle dot followed by an opening bracket needs quarter-em space after the middle dot
+			// (internal quarter + bracket half = 3/4, reduced to a quarter by -0.5 em. Closing bracket + middle dot is
+			// already covered by next!=OTHER on the CLOSING side)
 			return next == JapaneseSpacingClass.OPENING && wide ? PAIR_TRIM : 0;
 		default:
 			return 0;
@@ -151,12 +152,12 @@ public final class JapaneseSpacingResolver {
 	}
 
 	/**
-	 * 行頭の天付きインデント(em比、負値)です。書字方向によらず、行頭の最初の
-	 * 可視テキストが全角相当の始め括弧類で始まるとき-0.5em(移管元:
-	 * TextBuilderの縦書き限定処理)。CSS Text 4の
-	 * {@code text-spacing-trim: trim-start}でだけ天付きにし、{@code normal}と
-	 * {@code space-all}ではJLREQが選択肢として挙げる行頭二分アキを残す。
-	 * プロポーショナル約物とそれ以外も0。
+	 * Flush line-start indent (em ratio, negative). Regardless of writing direction, returns -0.5 em
+	 * when the first visible text at line start begins with a fullwidth-equivalent opening bracket
+	 * (originally vertical-only handling in TextBuilder).
+	 * Applies flush alignment only for CSS Text 4 {@code text-spacing-trim: trim-start};
+	 * {@code normal} and {@code space-all} retain the half-em line-start space offered by JLREQ.
+	 * Returns zero for proportional punctuation and all other characters.
 	 */
 	public static double lineHeadIndent(final int firstCodePoint, final boolean wide, final boolean trimStart) {
 		return trimStart && wide && JapaneseSpacingClass.of(firstCodePoint) == JapaneseSpacingClass.OPENING ? -PAIR_TRIM
@@ -164,9 +165,9 @@ public final class JapaneseSpacingResolver {
 	}
 
 	/**
-	 * {@code hanging-punctuation:first}で最初の整形行の先頭から行外へ出す量。
-	 * text-spacingで既に半角化した全角始め括弧は0.5em、それ以外の対象字形は
-	 * 実advance全体をぶら下げる。
+	 * Amount hung outside the start of the first formatted line by {@code hanging-punctuation:first}.
+	 * For fullwidth opening brackets already reduced to halfwidth by text-spacing, hangs 0.5 em;
+	 * for other eligible glyphs, hangs their entire actual advance.
 	 */
 	public static double firstHang(final int codePoint, final boolean wide, final double advance,
 			final double fontSize, final boolean trimmedStart) {
@@ -187,48 +188,48 @@ public final class JapaneseSpacingResolver {
 	}
 
 	/**
-	 * 均等割りで直後を伸長してよい文字かを返します。
+	 * Returns whether justification may expand the space immediately after this character.
 	 *
-	 * <p>JLREQ 3.1.5の中点類(cl-05)は、字形が持つ前後四分のうち
-	 * 後ろをベタに保つのが原則で、行調整の無差別な伸長点にはしない。
-	 * 行頭禁則だけでは「中点の前」は守れても「中点の後」は守れないため、
-	 * justifyのcount/apply双方がこの判定を使う。</p>
+	 * <p>For middle dots (cl-05) in JLREQ 3.1.5, the trailing quarter-em space included in the glyph
+	 * should normally be removed, leaving solid spacing; it is not an unrestricted expansion point
+	 * for line adjustment. Line-start kinsoku (line-breaking rules) alone protects "before the middle dot"
+	 * but not "after the middle dot," so both justify count/apply use this check.</p>
 	 */
 	public static boolean allowsJustificationAfter(final int codePoint) {
 		return JapaneseSpacingClass.of(codePoint) != JapaneseSpacingClass.MIDDLE_DOT;
 	}
 
-	/** JLREQ cl-07（読点類）。cl-06（句点類）と追込み優先度を分けるために使う。 */
+	/** JLREQ cl-07 (commas). Used to distinguish their compression priority from cl-06 (full stops). */
 	public static boolean isComma(final int codePoint) {
 		return codePoint == 0x3001 || codePoint == 0xFF0C;
 	}
 
 	/**
-	 * 行末の追い込み(T2)/ぶら下げ(H1)の許容量です(和文詰め——
-	 * consult-codex-2026-07-31-text-spacing.txt T2/H1の純関数)。
-	 * 行末glyphが対象約物のとき、行に収まる方を優先順(trim→hang)で
-	 * 返す。対象外・どちらでも収まらないときは0(従来の追い出しへ)。
+	 * Allowance for line-end compression (T2)/hanging (H1)
+	 * (Japanese spacing adjustment; pure function for consult-codex-2026-07-31-text-spacing.txt T2/H1).
+	 * If the last glyph is eligible punctuation, returns the option that fits the line in priority
+	 * order (trim → hang). Returns zero if ineligible or neither fits (use conventional push-out).
 	 *
-	 * @param codePoint 行末のcode point
-	 * @param wide      全角相当か({@link #isWide})
+	 * @param codePoint line-end code point
+	 * @param wide      whether fullwidth-equivalent ({@link #isWide})
 	 * @param trimOff   text-spacing-trim: space-all
 	 * @param hangEnd   hanging-punctuation: allow-end
-	 * @param advance   行末glyphのadvance(hang量)
-	 * @param fontSize  行末runのfont-size(trim量=0.5em)
-	 * @param overflow  行幅超過量(lineAxis-maxLineAxis。正のとき呼ぶ)
+	 * @param advance   advance of the line-end glyph (hanging amount)
+	 * @param fontSize  font-size of the line-end run (trim amount = 0.5 em)
+	 * @param overflow  excess over line width (lineAxis-maxLineAxis; call when positive)
 	 */
 	public static double endAllowance(final int codePoint, final boolean wide, final boolean trimOff,
 			final boolean hangEnd, final double advance, final double fontSize, final double overflow) {
 		final JapaneseSpacingClass cls = JapaneseSpacingClass.of(codePoint);
-		// (1) 行末trim: 半角化で収まるなら詰める(中点はJIS X 4051の
-		// 「行末中点は前四分・後ろベタ」に従い四分=0.25emのみ)
+		// (1) Line-end trim: trim if reducing to halfwidth makes it fit (for middle dots, JIS X 4051 requires
+		// "quarter-em space before a line-end middle dot, solid after," so only a quarter = 0.25 em)
 		if (!trimOff) {
 			final double trim = endTrim(codePoint, wide, fontSize);
 			if (overflow <= trim) {
 				return trim;
 			}
 		}
-		// (2) ぶら下げ: 句読点のみ・そのglyphの全advance
+		// (2) Hanging: full stops/commas only, using the glyph's entire advance
 		if (wide && hangEnd && cls == JapaneseSpacingClass.PUNCTUATION && overflow <= advance) {
 			return advance;
 		}
@@ -236,8 +237,9 @@ public final class JapaneseSpacingResolver {
 	}
 
 	/**
-	 * 全角の行末約物を半角化する量です。閉じ括弧・句読点は二分、
-	 * 中点類はJLREQの行末配置に従い四分を詰める。
+	 * Amount removed to reduce fullwidth line-end punctuation to halfwidth.
+	 * Trims half an em for closing brackets/full stops/commas, and a quarter for middle dots,
+	 * following JLREQ line-end placement.
 	 */
 	public static double endTrim(final int codePoint, final boolean wide, final double fontSize) {
 		if (!wide) {
@@ -253,16 +255,17 @@ public final class JapaneseSpacingResolver {
 		return 0;
 	}
 
-	/** {@code force-end}で常にぶら下げるJLREQ句読点のadvanceです。 */
+	/** Advance of JLREQ full stops/commas always hung by {@code force-end}. */
 	public static double forceEndHang(final int codePoint, final double advance) {
 		return JapaneseSpacingClass.of(codePoint) == JapaneseSpacingClass.PUNCTUATION ? advance : 0;
 	}
 
 	/**
-	 * wide判定(metrics換算: font単位750/1000 ⇔ 0.75×font-size)。横組の送りは
-	 * {@code getAdvance}(font-feature-settings の {@code palt} など GPOS の送り調整込み)で見る。
-	 * {@code getWidth} は hmtx の値だけなので、palt で二分に縮んだ「、」を全角と誤判定して
-	 * 固定二分の詰めや空きの仮定を当ててしまう(2026-09-14)。
+	 * Wide check (metrics conversion: 750/1000 font units ⇔ 0.75 × font-size).
+	 * For horizontal writing, reads advance with {@code getAdvance}
+	 * (including GPOS advance adjustments such as {@code palt} in font-feature-settings).
+	 * {@code getWidth} reads only hmtx, so it misclassifies "、" reduced to halfwidth by palt as
+	 * fullwidth, applying fixed half-em trimming and spacing assumptions (2026-09-14).
 	 */
 	public static boolean isWide(final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final int gid,
 			final double fontSize) {
@@ -270,10 +273,10 @@ public final class JapaneseSpacingResolver {
 	}
 
 	/**
-	 * 組方向のinline advanceに基づくwide判定です。横組は従来どおり
-	 * horizontal width、縦組はGSUB vert後glyphのvertical advanceを使う。
+	 * Wide check based on inline advance in the layout direction. Horizontal writing continues to
+	 * use horizontal width; vertical writing uses the glyph's vertical advance after GSUB vert.
 	 *
-	 * @param direction runの組方向
+	 * @param direction run's layout direction
 	 */
 	public static boolean isWide(final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final int gid,
 			final double fontSize, final net.zamasoft.pdfg2d.gc.font.FontStyle.Direction direction) {
@@ -284,10 +287,10 @@ public final class JapaneseSpacingResolver {
 	}
 
 	/**
-	 * 組み立て済みrun内の全隣接pairへ約物詰めをxadvanceで適用します
-	 * (T1a——font層から撤去した詰めの、独自appendGlyphループ経路
-	 * (RubyUnitBox・FootnoteLabelImage等)用の代替。GPOSカーニングが
-	 * 非0のpairはスキップ=移管元と同じ優先)。
+	 * Applies punctuation trimming through xadvance to all adjacent pairs in an assembled run.
+	 * T1a: replacement for trimming removed from the font layer, for custom appendGlyph loops
+	 * (RubyUnitBox, FootnoteLabelImage, etc.). Skips pairs with nonzero GPOS kerning,
+	 * preserving the original priority.
 	 */
 	public static void applyRunTrims(final net.zamasoft.pdfg2d.gc.text.TextImpl text) {
 		final int glyphCount = text.getGlyphCount();
@@ -308,7 +311,7 @@ public final class JapaneseSpacingResolver {
 				final double trim = cappedPairTrim(prevCp, metrics, gids[i - 1], fontSize, style,
 						cp, metrics, gids[i], fontSize, style);
 				if (trim > 0) {
-					// xadvance[i]=glyph iの手前のアキ(負=詰め)
+					// xadvance[i] = space before glyph i (negative = trim)
 					text.addXAdvance(i, -trim);
 				}
 			}

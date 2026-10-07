@@ -8,16 +8,16 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * ルビの幾何(横書き)の回帰テストです。
+ * Regression test for ruby geometry (horizontal writing).
  *
  * <p>
- * 注釈付きテキスト方式(2026-07-25仕様裁定)ではrb/rtは箱にならず、
- * ルビ1単位(親文字+ふりがな)が1つの{@code RubyUnitBox}になる。
- * DOM要素として残るのは{@code ruby}自身だけなので、idは{@code ruby}へ
- * 置き、そのインラインボックス(単位と同じ位置・行方向寸法)を測る。
- * ふりがなは行間へはみ出して描かれるため寸法には算入されない。
- * 単位の内容・寸法そのものは表示リストgolden
- * (3060-RUBY/ruby-annotation.html)が直接固定する。
+ * Under the annotated-text approach (specification decision on 2026-07-25), rb/rt do not become boxes;
+ * one ruby unit (base text + reading) becomes one {@code RubyUnitBox}.
+ * Only {@code ruby} itself remains as a DOM element, so put the id on {@code ruby} and measure its
+ * inline box (the same position and line-axis dimension as the unit).
+ * The reading extends into the inter-line space and is not counted in the dimensions.
+ * The display-list golden (3060-RUBY/ruby-annotation.html) directly verifies the unit's content
+ * and dimensions.
  * </p>
  */
 public class HrizRubyTest extends AbstractTestCase {
@@ -31,20 +31,19 @@ public class HrizRubyTest extends AbstractTestCase {
 	}
 
 	/**
-	 * ルビ要素のインラインボックスを検査します。
+	 * Inspects a ruby element's inline box.
 	 *
 	 * <p>
-	 * <b>寸法は固定したNotoでの値。</b> 2026-08-03にテスト用フォントを
-	 * 公開Notoの自動取得へ切り替えた(それまでは環境にインストールされた
-	 * フォントを使っており、機械が変われば基準がずれた)。親文字が漢字の
-	 * 箇所は1em丁度のまま(24/36)、<b>ふりがな(かな)が幅を決めている箇所
-	 * だけ</b>{@code ruby-overhang:auto}の安全な張出し分だけ縮む。
-	 * 21.0への更新(2026-08-28): 旧値20.892は埋め込みサブセットの
-	 * 偽カーニング(サブセットGIDでフォントGIDキーのGPOS対表を誤参照
-	 * ——このかな対の実GPOSペアは存在しない)を焼き込んでいた。
+	 * <b>Dimensions are values measured with pinned Noto.</b> On 2026-08-03, test fonts switched to
+	 * automatic download of public Noto (previously, installed fonts made baselines machine-dependent).
+	 * Where base text is kanji, it remains exactly 1em (24/36). <b>Only where the reading (kana)
+	 * determines the width</b>, the size shrinks by the safe overhang allowed by {@code ruby-overhang:auto}.
+	 * Update to 21.0 (2026-08-28): the old value 20.892 encoded spurious kerning in the embedded subset
+	 * (subset GIDs incorrectly indexed a GPOS pair table keyed by font GIDs;
+	 * no actual GPOS pair exists for this kana pair).
 	 * </p>
 	 *
-	 * @param lineExtent 行方向の寸法 = max(親文字幅, ふりがな幅)
+	 * @param lineExtent line-axis dimension = max(base text width, reading width)
 	 */
 	private boolean check(IBox box, double x, double y, double expectedX, double expectedY, double lineExtent) {
 		if (box.getType() != BoxType.INLINE) {
@@ -52,7 +51,7 @@ public class HrizRubyTest extends AbstractTestCase {
 		}
 		assertEquals(expectedX, x, 1);
 		assertEquals(expectedY, y, 1);
-		// 丸め誤差だけ許す。値は固定フォントでの実測。
+		// Allow only rounding error. Values are measured with the pinned font.
 		assertEquals(lineExtent, box.getWidth(), 0.001);
 		return true;
 	}
@@ -70,8 +69,8 @@ public class HrizRubyTest extends AbstractTestCase {
 	}
 
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
-		// x=108→109.25(2026-08-22): justifyの伸長点から禁則境界を除外
-		// (JLREQ 3.1.11)、行内の伸長配分が変わった
+		// x=108→109.25 (2026-08-22): excluded kinsoku (line-breaking rules) boundaries from justification expansion points
+		// (JLREQ 3.1.11), changing expansion distribution within the line.
 		return this.check(box, x, y, 92.92571428571426, 48.54, 24);
 	}
 

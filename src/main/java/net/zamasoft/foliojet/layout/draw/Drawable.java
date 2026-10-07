@@ -4,19 +4,19 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 
 /**
- * 描画可能なオブジェクトです。
+ * An object that can be drawn.
  *
  * @author MIYABE Tatsuhiko
  */
 public interface Drawable {
 	/**
-	 * オブジェクトを描画します。
+	 * Draws the object.
 	 */
 	public void draw(GC gc, double x, double y) throws GraphicsException;
 
 	/**
-	 * 表示リストダンプ用の1行表現を返します。
-	 * 回帰検証(golden比較)に使うため、内容を特定できる決定的な文字列を返してください。
+	 * Returns a one-line representation for display-list dumps. Return a deterministic string identifying the content,
+	 * since it is used for regression validation (golden comparison).
 	 */
 	public default String describe() {
 		String name = this.getClass().getSimpleName();
@@ -24,16 +24,17 @@ public interface Drawable {
 	}
 
 	/**
-	 * 描画位置を含む詳細な幾何情報です。通常の表示リストを変えない描画物は空文字列を返します。
+	 * Detailed geometry, including drawing position. Drawables that do not alter the normal display list return an
+	 * empty string.
 	 */
 	public default String describeGeometry(final double x, final double y) {
 		return "";
 	}
 
 	/**
-	 * 表示リストダンプ用に、描画時クリップの1行表現を返します(2026-08-09)。
-	 * クリップ無しは空文字列。ダンプの座標はクリップ前の値のため、クリップを
-	 * 含む回帰はこれが無いとgoldenに一切現れない({@code tf=}と同じ穴)。
+	 * Returns a one-line representation of the drawing clip for display-list dumps (2026-08-09). Empty string if no
+	 * clip. Dump coordinates are before clipping, so clipping regressions otherwise leave no trace in goldens (the
+	 * same gap as {@code tf=}).
 	 */
 	public default String describeClip() {
 		return "";

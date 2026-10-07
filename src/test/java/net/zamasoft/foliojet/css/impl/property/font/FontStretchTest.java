@@ -20,8 +20,8 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
 /**
- * {@code font-stretch}の解析と、割合→OS/2 usWidthClass(1..9)の丸め、
- * {@link FontStyleImpl}への搬送を固定します(2026-08-29)。
+ * Fix parsing of {@code font-stretch}, rounding percentages to OS/2 usWidthClass (1..9),
+ * and transport to {@link FontStyleImpl} (2026-08-29).
  */
 public class FontStretchTest extends TestCase {
 

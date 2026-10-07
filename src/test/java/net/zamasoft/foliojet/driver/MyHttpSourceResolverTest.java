@@ -21,11 +21,10 @@ import net.zamasoft.zstream.resolver.Source;
 public class MyHttpSourceResolverTest extends TestCase {
 
 	/**
-	 * 2026-07-18: S3/CloudFront 由来のオブジェクトは、クライアントの
-	 * Accept-Encoding に関わらず(=無条件に)Content-Encoding: gzip で
-	 * 応答することがある(実例: e-gov.go.jp の法令ページ)。HttpClient は
-	 * これを自動解凍しないため、素の圧縮バイト列がそのままパーサへ渡り、
-	 * 大量の文字化けとして観測される実バグの再現・回帰テスト。
+	 * 2026-07-18: Objects from S3/CloudFront may respond with Content-Encoding: gzip regardless of
+	 * the client's Accept-Encoding (i.e., unconditionally; actual example: e-gov.go.jp legislation pages).
+	 * HttpClient does not decompress this automatically, so raw compressed bytes reach the parser,
+	 * appearing as extensive garbled text. This reproduces that real bug and guards against regression.
 	 */
 	public void testGzipContentEncodingIsDecompressedEvenWithoutBeingRequested() throws Exception {
 		String text = "こんにちは、世界。gzip圧縮された応答のテストです。";
@@ -38,9 +37,9 @@ public class MyHttpSourceResolverTest extends TestCase {
 		HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
 		server.createContext("/gzip.html", exchange -> {
 			try {
-				// S3 は Accept-Encoding 送信の有無に関わらず、保存済みの
-				// Content-Encoding をそのまま返す。ここでは意図的に
-				// Accept-Encoding の有無を検査せず、常に gzip で応答する
+				// S3 returns the stored Content-Encoding unchanged, regardless of whether
+				// Accept-Encoding was sent. Here, intentionally do not check
+				// for Accept-Encoding, and always respond with gzip.
 				exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
 				exchange.getResponseHeaders().set("Content-Encoding", "gzip");
 				exchange.sendResponseHeaders(200, gzippedBody.length);
@@ -59,8 +58,8 @@ public class MyHttpSourceResolverTest extends TestCase {
 			source = resolver.resolve(uri);
 			String actual = new String(source.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 			assertEquals("圧縮応答は解凍されてから渡されるべき", text, actual);
-			// 圧縮後バイト数(Content-Length)は解凍後の長さと一致しないため、
-			// 誤った長さを伝えるより不明(-1)であるべき
+			// The compressed byte count (Content-Length) differs from the decompressed length,
+			// so report unknown (-1) rather than an incorrect length.
 			assertEquals("圧縮応答の長さは不明として報告されるべき", -1, source.getLength());
 		} finally {
 			if (source != null) {
@@ -72,10 +71,10 @@ public class MyHttpSourceResolverTest extends TestCase {
 	}
 
 	/**
-	 * 2026-07-18: User-Agent を送らないと HttpClient 既定の
-	 * "Java-http-client/x.x" が使われ、bot policy を敷くサイト(実例:
-	 * Wikipedia、実地テストで403拒否を確認)からコンテンツを取得できない
-	 * 回帰テスト。既定の User-Agent が送られることを確認する。
+	 * 2026-07-18: Without a User-Agent, HttpClient uses its default "Java-http-client/x.x",
+	 * preventing content retrieval from sites with bot policies (actual example: Wikipedia;
+	 * 403 rejection confirmed in a real-world test).
+	 * This regression test checks that the default User-Agent is sent.
 	 */
 	public void testDefaultUserAgentIsSent() throws Exception {
 		java.util.concurrent.atomic.AtomicReference<String> observedUserAgent = new java.util.concurrent.atomic.AtomicReference<>();
@@ -112,8 +111,8 @@ public class MyHttpSourceResolverTest extends TestCase {
 	}
 
 	/**
-	 * 管理者が input.http-header*.name 経由で User-Agent を明示設定した
-	 * 場合は、既定値で上書き・重複追加しないことを確認する。
+	 * When an administrator explicitly sets User-Agent through input.http-header*.name,
+	 * check that it is neither overwritten by the default nor added a second time.
 	 */
 	public void testExplicitUserAgentOverridesDefault() throws Exception {
 		java.util.concurrent.atomic.AtomicReference<String> observedUserAgent = new java.util.concurrent.atomic.AtomicReference<>();
@@ -149,9 +148,10 @@ public class MyHttpSourceResolverTest extends TestCase {
 	}
 
 	/**
-	 * 2026-07-18: java.net.http.HttpClient は既定で Redirect.NEVER
-	 * (3xx を追従せずそのまま応答として返す)。追従設定を明示していないと
-	 * リダイレクトするURLの取得が静かに壊れる回帰テスト。
+	 * 2026-07-18: java.net.http.HttpClient defaults to Redirect.NEVER
+	 * (return 3xx as the response without following it).
+	 * Regression test for silent failure to fetch redirecting URLs when redirect following is not explicitly
+	 * set.
 	 */
 	public void testRedirectIsFollowed() throws Exception {
 		HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
@@ -221,10 +221,10 @@ public class MyHttpSourceResolverTest extends TestCase {
 	}
 
 	/**
-	 * 2026-08-10: 変換をまたぐHTTP応答キャッシュ。@importされたウェブ
-	 * フォントCSS等を毎変換取り直す遅延(law3で実測)の解消。別々の
-	 * リゾルバ(=別々の変換)から同じURIを取得しても、サーバーへの
-	 * 到達は1回であることを確認する。
+	 * 2026-08-10: HTTP response caching across conversions eliminates delays from refetching
+	 * @imported web-font CSS and similar resources on every conversion (measured with law3).
+	 * Check that fetching the same URI through separate resolvers (= separate conversions)
+	 * reaches the server only once.
 	 */
 	public void testResponseCacheServesRepeatConversionsFromMemory() throws Exception {
 		HttpResponseCache.clear();
@@ -257,8 +257,8 @@ public class MyHttpSourceResolverTest extends TestCase {
 	}
 
 	/**
-	 * gzip配信(fonts.googleapis.comの実態)でも、解凍済みの本文が
-	 * キャッシュされ2回目はサーバーへ行かないことを確認する。
+	 * Even with gzip delivery (as used by fonts.googleapis.com), cache the decompressed body,
+	 * and do not contact the server on the second fetch.
 	 */
 	public void testResponseCacheStoresDecompressedGzipBody() throws Exception {
 		HttpResponseCache.clear();
@@ -295,10 +295,10 @@ public class MyHttpSourceResolverTest extends TestCase {
 	}
 
 	/**
-	 * 安全条件: 認証情報(当該ホストの資格情報)・Cookie・
-	 * Cache-Control: no-store・TTL0のいずれかがあればキャッシュしない。
-	 * Cookieは初回応答のSet-Cookieが保存を止め(応答側)、2回目の要求は
-	 * Cookieを送るため対象外(要求側)——両側の判定を1本で検査する。
+	 * Safety conditions: do not cache if there are authentication credentials for that host,
+	 * a Cookie, Cache-Control: no-store, or TTL 0. For cookies, the first response's Set-Cookie prevents
+	 * storage (response side), and the second request is excluded because it sends Cookie (request side).
+	 * Check both decisions in one test.
 	 */
 	public void testResponseCacheIsBypassedForAuthCookieNoStoreAndZeroTtl() throws Exception {
 		java.util.concurrent.atomic.AtomicInteger hits = new java.util.concurrent.atomic.AtomicInteger();
@@ -340,7 +340,7 @@ public class MyHttpSourceResolverTest extends TestCase {
 			String host = server.getAddress().getHostString();
 			int port = server.getAddress().getPort();
 
-			// 資格情報が当該ホストに一致する場合は要求側で対象外
+			// Credentials matching the destination host exclude the request on the request side.
 			HttpResponseCache.clear();
 			hits.set(0);
 			URI plain = new URI("http", null, host, port, "/plain.txt", null, null);
@@ -354,10 +354,10 @@ public class MyHttpSourceResolverTest extends TestCase {
 			});
 			assertEquals("資格情報があればキャッシュされないべき", 2, hits.get());
 
-			// Set-Cookie付き応答は共有キャッシュへ保存されず、Cookieを送る
-			// 要求も対象外。ただし**同じ変換の中では**取り直さない
-			// (2026-08-28。セッション局所ストア——同じ資源を何度も取りに
-			// 行かないためで、変換をまたいだ再利用ではない)
+			// Responses with Set-Cookie are not stored in the shared cache, and requests sending Cookie
+			// are excluded too. However, **within the same conversion**, do not fetch again
+			// (2026-08-28. A session-local store avoids fetching the same resource repeatedly;
+			// this is not reuse across conversions).
 			HttpResponseCache.clear();
 			hits.set(0);
 			URI cookie = new URI("http", null, host, port, "/cookie.txt", null, null);
@@ -370,7 +370,7 @@ public class MyHttpSourceResolverTest extends TestCase {
 			} finally {
 				resolver.close();
 			}
-			// 別の変換(別リゾルバ)は共有キャッシュを当てにできない
+			// A separate conversion (separate resolver) cannot rely on the shared cache.
 			MyHttpSourceResolver another = new MyHttpSourceResolver();
 			another.setCacheTtl(600);
 			try {
@@ -380,7 +380,7 @@ public class MyHttpSourceResolverTest extends TestCase {
 			}
 			assertEquals("Cookieが絡む取得は変換をまたいでキャッシュされないべき", 2, hits.get());
 
-			// no-store応答は保存されない
+			// Do not store no-store responses.
 			HttpResponseCache.clear();
 			hits.set(0);
 			URI nostore = new URI("http", null, host, port, "/nostore.txt", null, null);
@@ -388,7 +388,7 @@ public class MyHttpSourceResolverTest extends TestCase {
 			this.fetch(nostore, r -> r.setCacheTtl(600));
 			assertEquals("no-store応答はキャッシュされないべき", 2, hits.get());
 
-			// TTL0(input.http.cache=false相当)は最初から対象外
+			// TTL 0 (equivalent to input.http.cache=false) excludes requests from the outset.
 			HttpResponseCache.clear();
 			hits.set(0);
 			this.fetch(plain, r -> r.setCacheTtl(0));
@@ -401,7 +401,7 @@ public class MyHttpSourceResolverTest extends TestCase {
 	}
 
 	/**
-	 * 応答のmax-ageはTTLより短ければ優先される(max-age=0は即時失効)。
+	 * The response max-age takes precedence if shorter than TTL (max-age=0 expires immediately).
 	 */
 	public void testResponseCacheHonorsMaxAge() throws Exception {
 		HttpResponseCache.clear();
@@ -431,7 +431,7 @@ public class MyHttpSourceResolverTest extends TestCase {
 		}
 	}
 
-	/** リゾルバを設定して1回取得し、本文を文字列で返します。 */
+	/** Configure a resolver, fetch once, and return the body as a string. */
 	private String fetch(URI uri, java.util.function.Consumer<MyHttpSourceResolver> setup) throws Exception {
 		MyHttpSourceResolver resolver = new MyHttpSourceResolver();
 		setup.accept(resolver);

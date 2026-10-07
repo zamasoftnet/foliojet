@@ -21,7 +21,7 @@ public class FloatBreakAlwaysTest extends AbstractTestCase {
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.REPLACED) {
 			System.out.println(pageNumber);
-			// 2026-09-06: 文書先頭の page-break-before:always は白紙を作らない(Chrome と同じ)ので 1 頁前へ
+			// 2026-09-06: Leading page-break-before:always creates no blank page (as in Chrome), moving this one page earlier.
 			assertEquals(6, pageNumber);
 			return true;
 		}

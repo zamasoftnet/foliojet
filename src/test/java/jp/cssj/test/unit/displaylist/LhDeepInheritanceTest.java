@@ -15,14 +15,14 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * lh単位の深い継承連鎖の停止性回帰です(2026-08-27、独立レビュー指摘)。
+ * Termination regression for deep inheritance chains of lh units (2026-08-27, independent review).
  *
  * <p>
- * 各層が{@code line-height:1lh}を持つ深い{@code display:contents}連鎖では、
- * lhの基準(継承line-height)の解決が素朴な親再帰だと祖先の数だけスタックを
- * 積み、{@code StackOverflowError}で変換ごと落ちる。
- * {@code LineHeight.inheritedLineHeight}はルート側から計算値を確定させて
- * 再帰深度を抑える——この契約を深さ4,000で固定する。
+ * In a deep {@code display:contents} chain with {@code line-height:1lh} at every level,
+ * naive parent recursion to resolve the lh reference (inherited line-height) adds one stack frame
+ * per ancestor and crashes the entire conversion with {@code StackOverflowError}.
+ * {@code LineHeight.inheritedLineHeight} finalizes computed values from the root downward
+ * to bound recursion depth; verify this contract at depth 4,000.
  * </p>
  */
 public class LhDeepInheritanceTest extends TestCase {

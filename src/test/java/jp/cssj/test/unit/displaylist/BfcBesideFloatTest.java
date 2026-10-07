@@ -25,19 +25,22 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 通常の浮動体のそばの、独立した整形文脈を作る箱(flow-root・overflow が visible 以外)を固定します(2026-10-05)。
+ * Verifies the behavior of boxes establishing independent formatting contexts
+ * (flow-root or overflow other than visible) beside normal floats (2026-10-05).
  *
  * <p>
- * CSS 2.1 §9.5 のとおり、その border box は浮動体に重ならない。幅が auto なら浮動体の横の幅に狭まり、
- * 行方向の寸法を指定した箱が横に入らなければ浮動体の下へ送る(Chrome と同じ)。以前は flow-root・overflow の箱は
- * 狭まらずに背景が浮動体の下まで伸び(中の行だけ回り込む)、段組・flex・grid でも横に入らない箱は版面の外へ
- * はみ出していた。ふつうの箱は従来どおり全幅で、中の行だけ回り込む。
+ * Per CSS 2.1 §9.5, their border boxes do not overlap floats. An auto width narrows to the space beside
+ * the float; a box with a specified line-axis size moves below the float if it does not fit beside it
+ * (as in Chrome). Previously, flow-root/overflow boxes did not narrow, extending their backgrounds
+ * under floats while only their inner lines wrapped. Multi-column/flex/grid boxes that did not fit
+ * beside floats also overflowed the type area. Ordinary boxes retain full width, with only inner lines
+ * wrapping, as before.
  * </p>
  */
 public class BfcBesideFloatTest extends TestCase {
 	private static final long WATCHDOG_MS = 60_000L;
 
-	/** 浮動体の幅(30mm)。 */
+	/** Float width (30 mm). */
 	private static final double FLOAT_WIDTH = 30 * 72 / 25.4;
 
 	private static final Pattern FRAME = Pattern
@@ -67,8 +70,9 @@ public class BfcBesideFloatTest extends TestCase {
 	}
 
 	/**
-	 * flow-root と overflow:hidden は箱ごと浮動体の横に狭まり、浮動体より下の行も浮動体の右端から始まる。
-	 * ふつうの箱は全幅のままで、浮動体より下の行は左端へ戻る。
+	 * flow-root and overflow:hidden narrow the whole box beside the float, so even lines below the
+	 * float start at its right edge. Ordinary boxes retain full width, and lines below the float
+	 * return to the left edge.
 	 */
 	public void testAutoWidthBoxesNarrowBesideFloat() throws Exception {
 		final String page = convert("auto", document("display:flow-root", "overflow:hidden", "display:block"))[0];
@@ -85,7 +89,7 @@ public class BfcBesideFloatTest extends TestCase {
 		}
 	}
 
-	/** 横に入らない幅の overflow・flex の箱は浮動体の下へ、入る幅の箱は横へ。 */
+	/** Overflow/flex boxes too wide to fit beside the float move below it; boxes narrow enough stay beside it. */
 	public void testSizedBoxesClearWhenTheyDoNotFit() throws Exception {
 		final String page = convert("sized",
 				document("overflow:hidden;width:80mm", "display:flex;width:80mm", "overflow:hidden;width:50mm"))[0];
@@ -102,7 +106,10 @@ public class BfcBesideFloatTest extends TestCase {
 		}
 	}
 
-	/** 全幅の浮動体の後の auto の箱は、幅 0 に潰さず浮動体の下へ(msn のタブの下の天気の箱)。 */
+	/**
+	 * An auto box after a full-width float moves below it instead of collapsing to width 0 (the weather box
+	 * below msn tabs).
+	 */
 	public void testNoRoomBesideFullWidthFloat() throws Exception {
 		final String page = convert("full", document("overflow:hidden").replace("width:30mm", "width:90mm"))[0];
 		final List<double[]> frames = new ArrayList<>();
@@ -124,7 +131,7 @@ public class BfcBesideFloatTest extends TestCase {
 
 	private static final Pattern TEXT = Pattern.compile("x=(-?[\\d.]+) y=(-?[\\d.]+) (?:artifact )?Text\\[");
 
-	/** 箱の枠の高さの範囲にあり、{@code from} より下で始まる行の始まりの x。 */
+	/** Starting x of lines that start below {@code from} and lie within the box frame's height. */
 	private static double[] lineStartsBelow(final String page, final double[] box, final double from) {
 		final List<Double> xs = new ArrayList<>();
 		final Matcher m = TEXT.matcher(page);
@@ -138,8 +145,9 @@ public class BfcBesideFloatTest extends TestCase {
 	}
 
 	/**
-	 * 頁の浮動体(幅 30mm)と箱の背景の枠を、上から順に組にして返す。表示リストの枠の x・幅は行方向の余白を
-	 * 含まない(浮動体のぶん狭めた位置は余白として描く)ので、行方向は字の位置で見る。
+	 * Returns pairs of page floats (width 30 mm) and box background frames, ordered from top to bottom.
+	 * Frame x/width in the display list exclude line-axis margins (the offset narrowed by the float
+	 * is drawn as margin), so inspect text positions along the line axis.
 	 */
 	private static List<double[][]> pairs(final String page) {
 		final List<double[]> floats = new ArrayList<>();
@@ -161,7 +169,7 @@ public class BfcBesideFloatTest extends TestCase {
 		return pairs;
 	}
 
-	/** 変換して、各頁の表示リストを頁順に返します。 */
+	/** Converts the document and returns each page's display list in page order. */
 	private static String[] convert(final String name, final String html) throws Exception {
 		final File dir = new File("local/bfc-beside-float/" + name);
 		dir.mkdirs();

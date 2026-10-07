@@ -8,10 +8,10 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * gapの行分割・行間テストです(Flex F2c——100ptコンテナ、basis 40pt×3+
- * column-gap 30pt: 40+30+40=110&gt;100のため各itemが1行ずつ=3行。
- * gapなしなら[p,q][r]の2行になる構成で、gapが行分割に効くことを固定。
- * row-gap 10ptが行間に入る)。
+ * Tests gaps in line breaking and between lines (Flex F2c).
+ * A 100 pt container with three basis 40 pt items and column-gap 30pt gives 40+30+40=110&gt;100,
+ * so each item occupies its own line: three lines. Without gaps, this configuration forms two lines,
+ * [p,q][r], so it verifies that gaps affect line breaking. row-gap 10pt separates the lines.
  */
 public class FlexWrapGapTest extends AbstractTestCase {
 	public FlexWrapGapTest(String name) {
@@ -34,7 +34,7 @@ public class FlexWrapGapTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** gap込みで折り返し(2行目=+20+row-gap 10)。 */
+	/** Wrap including the gap (second line = +20+row-gap 10). */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);
@@ -44,7 +44,7 @@ public class FlexWrapGapTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 3行目(+60)。 */
+	/** Third line (+60). */
 	public boolean check_r(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);
@@ -54,7 +54,7 @@ public class FlexWrapGapTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 後続=3行(20×3)+行間gap(10×2)の直後。 */
+	/** Following content sits immediately after three lines (20×3) + inter-line gaps (10×2). */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseY + 80, y, 0.1);

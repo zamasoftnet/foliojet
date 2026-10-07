@@ -17,7 +17,7 @@ import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 
-/** css-content-3のスラッシュ後代替文字列を視覚内容から分離する回帰。 */
+/** Regression test separating css-content-3 alternative text after the slash from visual content. */
 public class ContentAlternativeTextParserTest extends TestCase {
 
 	private static TokenStream tokens(final String declaration) {

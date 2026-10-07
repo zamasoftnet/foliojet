@@ -20,33 +20,32 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 入出力プロパティが<b>実際に出力へ効くか</b>の検査です(2026-08-02新設)。
+ * Tests for whether I/O properties <b>actually affect output</b> (introduced on 2026-08-02).
  *
  * <p>
- * 説明書(5100_io-properties.md)には120個の入出力プロパティが載っているが、
- * 何らかのテストが触れているのは25個だけだった。「書いてあるが配線されて
- * いない」欠陥は実際に起きている——HTTP取得のUser-Agentは指定しても
- * 送られず、bot対策のあるサイトが全滅していたのに、単体テスト1,121件と
- * imageTest 591文書はすべて緑だった(2026-08-02、実地で発覚)。
+ * The manual (5100_io-properties.md) lists 120 I/O properties, but tests touched only 25.
+ * Documented-but-unwired defects actually occurred: a specified HTTP User-Agent was not sent,
+ * so all sites with bot protection failed, yet all 1,121 unit tests and 591 imageTest documents passed
+ * (discovered in real use on 2026-08-02).
  * </p>
  *
  * <p>
- * ここでは<b>設定した値が出力PDFに現れること</b>を1プロパティ1件で
- * 検査する。組版の正しさではなく<b>配線の有無</b>を見るテストなので、
- * 判定はPDFのバイト列に対する単純な包含で足りる(圧縮を切って読む)。
+ * Use one case per property to check that <b>the configured value appears in the output PDF</b>.
+ * These tests check <b>whether the property is wired up</b>, not layout correctness,
+ * so simple containment in PDF bytes suffices (read with compression disabled).
  * </p>
  */
 public class PdfIoPropertyTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 変換に使う最小の文書(内容はどのプロパティの検査にも影響しない)。 */
+	/** Minimal document for conversion (its contents do not affect any property check). */
 	private static final File DOCUMENT = new File("files/unittest/3080-MODERN-CSS/calc.html");
 
 	/**
-	 * 1件の検査です。
+	 * One check.
 	 *
-	 * @param props    設定する入出力プロパティ
-	 * @param expected PDFに現れるべき文字列(いずれか1つで合格)
+	 * @param props    I/O properties to set
+	 * @param expected strings that should appear in the PDF (any one suffices)
 	 */
 	private record Case(String name, File document, Map<String, String> props, List<String> expected) {
 	}
@@ -60,10 +59,10 @@ public class PdfIoPropertyTest extends TestCase {
 		return new Case(name, document, props, List.of(expected));
 	}
 
-	/** リンクを持つ文書。 */
+	/** A document with links. */
 	private static final File LINKS = new File("files/unittest/ioprops/link-and-image.html");
 
-	/** 見出しを持つ文書(しおりの検査用)。 */
+	/** A document with headings (for checking bookmarks). */
 	private static final File HEADINGS = new File("files/unittest/0010-link/absolute.html");
 
 	private static Map<String, String> props(final String... kv) {
@@ -74,40 +73,40 @@ public class PdfIoPropertyTest extends TestCase {
 		return map;
 	}
 
-	/** 検査表。**新しい入出力プロパティを足したらここへ1行足すこと。** */
+	/** Check table. **Add one row here whenever you add an I/O property.** */
 	private static List<Case> cases() {
 		final List<Case> cases = new ArrayList<>();
 
-		// 文書情報(output.meta.<n>.name / .value の対で指定する)
+		// Document information (specified as output.meta.<n>.name / .value pairs)
 		cases.add(of("output.meta(author)",
 				props("output.meta.0.name", "author", "output.meta.0.value", "PROBE-AUTHOR"), "PROBE-AUTHOR"));
 		cases.add(of("output.meta(keywords)",
 				props("output.meta.0.name", "keywords", "output.meta.0.value", "PROBE-KEYWORDS"),
 				"PROBE-KEYWORDS"));
 
-		// PDFのバージョン
+		// PDF version
 		cases.add(of("output.pdf.version", props("output.pdf.version", "1.7"), "/Version /1.7", "%PDF-1.7"));
 
-		// ファイルID
+		// File ID
 		cases.add(of("output.pdf.file-id", props("output.pdf.file-id", "0123456789abcdef0123456789abcdef"),
 				"0123456789abcdef0123456789abcdef", "<0123456789ABCDEF0123456789ABCDEF>"));
 
-		// 作成・更新時刻
-		// 書式は説明書の例に合わせる("2009-05-22 21:10:14")
+		// Creation and modification times
+		// Match the manual example format ("2009-05-22 21:10:14").
 		cases.add(of("output.pdf.meta.creation-date",
 				props("output.pdf.meta.creation-date", "2020-01-02 03:04:05"), "D:20200102"));
 
-		// しおり
-		// しおりは見出しから作られるので、見出しのある文書で見る
+		// Bookmarks
+		// Bookmarks come from headings, so use a document with headings.
 		cases.add(of("output.pdf.bookmarks", HEADINGS, props("output.pdf.bookmarks", "true"), "/Outlines"));
 
-		// タグ付きPDF(論理構造)
+		// Tagged PDF (logical structure)
 		cases.add(of("output.pdf.tagged", props("output.pdf.tagged", "true", "output.pdf.tagged.lang", "ja"),
 				"/StructTreeRoot"));
 		cases.add(of("output.pdf.bidi.actual-text", new File("files/unittest/3090-bidi/logical-output.html"),
 				props("output.pdf.bidi.actual-text", "true"), "/ActualText"));
 
-		// 表示設定(ビューア)
+		// Viewer settings
 		cases.add(of("output.pdf.viewer-preferences.hide-menubar",
 				props("output.pdf.viewer-preferences.hide-menubar", "true"), "/HideMenubar true"));
 		cases.add(of("output.pdf.viewer-preferences.fit-window",
@@ -122,17 +121,17 @@ public class PdfIoPropertyTest extends TestCase {
 				props("output.pdf.version", "1.7", "output.pdf.viewer-preferences.print-scaling", "scaling-none"),
 				"/PrintScaling"));
 
-		// 開いたときに実行するJavaScript
+		// JavaScript executed on opening
 		cases.add(of("output.pdf.open-action.java-script",
 				props("output.pdf.open-action.java-script", "app.alert('PROBE-JS')"), "PROBE-JS"));
 
-		// 暗号化(値そのものは出ないので、暗号化辞書の存在で見る)
-		// v5(AES-256)はPDF 1.7以降
+		// Encryption (the value itself does not appear, so check for the encryption dictionary)
+		// v5 (AES-256) requires PDF 1.7 or later.
 		cases.add(of("output.pdf.encryption", props("output.pdf.version", "1.7", "output.pdf.encryption", "v5",
 				"output.pdf.encryption.user-password", "u"), "/Encrypt"));
 
-		// 暗号化の権限(9件)。/Pビットへ落ちるので、既定と異なる値を
-		// 与えて暗号化辞書が変わることを見る
+		// Encryption permissions (9 cases). These become /P bits, so supply values different
+		// from the defaults and check that the encryption dictionary changes.
 		for (final String perm : new String[] { "print", "print-high", "copy", "modify", "add", "extract",
 				"assemble", "fill" }) {
 			cases.add(of("output.pdf.encryption.permissions." + perm,
@@ -153,7 +152,7 @@ public class PdfIoPropertyTest extends TestCase {
 						"output.pdf.encryption.v4.cfm", "aesv2", "output.pdf.encryption.user-password", "u"),
 				"/AESV2", "/Encrypt"));
 
-		// ビューア設定の残り
+		// Remaining viewer settings
 		cases.add(of("output.pdf.viewer-preferences.center-window",
 				props("output.pdf.viewer-preferences.center-window", "true"), "/CenterWindow true"));
 		cases.add(of("output.pdf.viewer-preferences.hide-toolber",
@@ -168,19 +167,19 @@ public class PdfIoPropertyTest extends TestCase {
 				props("output.pdf.version", "1.7", "output.pdf.viewer-preferences.print-page-range", "1 1"),
 				"/PrintPageRange"));
 
-		// 文書情報の更新時刻
+		// Document-information modification time
 		cases.add(of("output.pdf.meta.mod-date",
 				props("output.pdf.meta.mod-date", "2021-02-03 04:05:06"), "D:20210203"));
 
-		// リンクの断片(リンクを含む文書で見る)
+		// Link fragments (use a document containing links)
 		cases.add(of("output.pdf.hyperlinks.fragment", LINKS,
 				props("output.pdf.hyperlinks", "true", "output.pdf.hyperlinks.fragment", "true"), "/Link"));
 
-		// 名前リテラルのエンコーディング
+		// Name-literal encoding
 		cases.add(of("output.pdf.platform-encoding",
 				props("output.pdf.platform-encoding", "UTF-8"), "%PDF"));
 
-		// Factur-X の残り(添付名・文書種別・版)。XMPへ出る
+		// Remaining Factur-X settings (attachment name, document type, version). Written to XMP.
 		cases.add(of("output.pdf.facturx.document-type",
 				props("output.pdf.version", "1.7A-3", "output.pdf.facturx.conformance-level", "BASIC",
 						"output.pdf.facturx.document-type", "ORDER"),
@@ -194,7 +193,7 @@ public class PdfIoPropertyTest extends TestCase {
 						"output.pdf.facturx.document-file-name", "probe-invoice.xml"),
 				"probe-invoice.xml"));
 
-		// 出力インテントの残り(レジストリ・補足説明)
+		// Remaining output-intent settings (registry, additional information)
 		cases.add(of("output.pdf.output-intent.registry",
 				props("output.pdf.output-intent.identifier", "PROBE-COND",
 						"output.pdf.output-intent.registry", "https://probe.example/registry"),
@@ -204,7 +203,7 @@ public class PdfIoPropertyTest extends TestCase {
 						"output.pdf.output-intent.info", "PROBE-INTENT-INFO"),
 				"PROBE-INTENT-INFO"));
 
-		// すかしの詳細(配置・不透明度・表示/印刷の切り替え)
+		// Watermark details (position, opacity, display/print switching)
 		final String watermark = new File("files/unittest/red.png").toURI().toString();
 		cases.add(of("output.pdf.watermark.mode",
 				props("output.pdf.watermark.uri", watermark, "output.pdf.watermark.mode", "tile"), "%PDF"));
@@ -215,14 +214,14 @@ public class PdfIoPropertyTest extends TestCase {
 		cases.add(of("output.pdf.watermark.view",
 				props("output.pdf.watermark.uri", watermark, "output.pdf.watermark.view", "false"), "%PDF"));
 
-		// 画像の上限(縮小されても変換できること)
+		// Image limits (conversion succeeds even when downscaled)
 		cases.add(of("output.pdf.image.max-width", LINKS,
 				props("output.pdf.image.max-width", "10"), "/Subtype /Image"));
 		cases.add(of("output.pdf.image.max-height", LINKS,
 				props("output.pdf.image.max-height", "10"), "/Subtype /Image"));
 		cases.add(of("output.pdf.jpeg-image", LINKS, props("output.pdf.jpeg-image", "true"), "/Subtype /Image"));
 
-		// 既定フォント・色・解像度・文字寸法
+		// Default font, color, resolution, and text size
 		cases.add(of("output.default-font-family", props("output.default-font-family", "monospace"), "%PDF"));
 		cases.add(of("output.color", props("output.color", "cmyk"), "%PDF"));
 		cases.add(of("output.resolution", props("output.resolution", "72"), "%PDF"));
@@ -277,7 +276,7 @@ public class PdfIoPropertyTest extends TestCase {
 		System.out.println("[ioprops] 検査 " + cases().size() + "件");
 	}
 
-	/** 圧縮を切って変換し、PDFを文字列として返します。 */
+	/** Convert with compression disabled and return the PDF as a string. */
 	private String convert(final File document, final Map<String, String> properties) throws Exception {
 		final File out = new File("local/unittest/pdf/" + this.getClass().getName() + ".pdf");
 		out.getParentFile().mkdirs();
@@ -290,7 +289,7 @@ public class PdfIoPropertyTest extends TestCase {
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
-				// 圧縮を切らないと辞書の中身が読めない(検査は配線の有無だけ)
+				// Without disabling compression, dictionary contents are unreadable (checks only verify the wiring).
 				session.property("output.pdf.compression", "none");
 				for (final Map.Entry<String, String> e : properties.entrySet()) {
 					session.property(e.getKey(), e.getValue());

@@ -5,14 +5,14 @@ import org.apache.batik.bridge.BridgeContext;
 import org.w3c.dom.Element;
 
 /**
- * グラデーションの{@code <stop>}要素のブリッジです。
+ * Bridge for gradient {@code <stop>} elements.
  * <p>
- * SVG 1.1のBatik(特に製品同梱のbatik-all 1.14)は{@code offset}属性を必須と
- * してBridgeExceptionを投げるが、実ブラウザ(およびSVG 2)は省略時0として
- * 描画する。実サイトには省略したSVGが普通に存在する(2026-08-07、
- * yahoo.co.jpのAIアシスタントアイコン{@code <stop stop-color="#FF598E"/>}で
- * 発覚——グラデーション解決の失敗はアイコン全体の消失になる)ため、
- * 省略時は0を補ってからBatikへ委譲する。
+ * Batik's SVG 1.1 implementation (especially the bundled batik-all 1.14) requires
+ * the {@code offset} attribute and throws BridgeException when it is absent,
+ * while actual browsers (and SVG 2) render a missing value as 0.
+ * Real sites commonly omit it (discovered on 2026-08-07 in yahoo.co.jp's AI assistant icon,
+ * {@code <stop stop-color="#FF598E"/>}; failure to resolve the gradient made the entire icon disappear),
+ * so supply 0 when absent before delegating to Batik.
  * </p>
  *
  * @author MIYABE Tatsuhiko

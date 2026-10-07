@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.value.TextOrientationValue;
 
-/** CSS Writing Modesのtext-orientation受理値を固定する。 */
+/** Fix accepted text-orientation values from CSS Writing Modes. */
 public class TextOrientationParserTest extends TestCase {
 	private static TokenStream tokens(final String declaration) {
 		final CSSReaderSettings settings = new CSSReaderSettings().setBrowserCompliantMode(true)

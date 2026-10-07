@@ -24,9 +24,10 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * PNG/JPEG でも1パスで{@code target-counter()}の番号が出ることを固定します(2026-10-04、
- * docs/design/one-pass-target-counter-design.md §8)。欄のある頁は描画を記録して取っておき、
- * 参照先が揃ってから画像に描く。結果の番号は出した順なので、頁の順に出す。
+ * Verify that PNG/JPEG also output {@code target-counter()} numbers in one pass (2026-10-04,
+ * docs/design/one-pass-target-counter-design.md §8). Record and retain drawing for pages containing
+ * fields, then render them to images once all targets are available. Result numbers follow output order,
+ * so emit pages in page order.
  */
 public class ImageOnePassTargetCounterTest extends TestCase {
 	private static final String STYLE = """
@@ -58,7 +59,7 @@ public class ImageOnePassTargetCounterTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		BufferedImage image(final String uri) throws Exception {
@@ -98,7 +99,7 @@ public class ImageOnePassTargetCounterTest extends TestCase {
 		return results;
 	}
 
-	/** 濃い画素の数(x0〜x1、y0〜y1)。 */
+	/** Number of dark pixels (x0–x1, y0–y1). */
 	private static int ink(final BufferedImage image, final int x0, final int y0, final int x1, final int y1) {
 		int n = 0;
 		for (int y = y0; y < y1; ++y) {
@@ -112,7 +113,7 @@ public class ImageOnePassTargetCounterTest extends TestCase {
 		return n;
 	}
 
-	/** 目次の頁は参照先が組まれるまで待ち、番号を入れて頁の順に出る。 */
+	/** The table-of-contents page waits for target layout, receives its numbers, and is emitted in page order. */
 	public void testTableOfContentsHasNumbersAndPagesStayInOrder() throws Exception {
 		final String chapters = """
 				<h1 id="one">Chapter One</h1><p>first</p>
@@ -128,7 +129,7 @@ public class ImageOnePassTargetCounterTest extends TestCase {
 				new ArrayList<>());
 		assertEquals(List.of("#1", "#2", "#3"), missing.order);
 
-		// 行末の番号の欄。参照先があれば字が描かれ、無ければ空
+		// Number field at the line end. Text is drawn when the target exists; otherwise it stays empty.
 		final BufferedImage withNumbers = found.image("#1");
 		final BufferedImage blank = missing.image("#1");
 		final int w = withNumbers.getWidth();
@@ -140,8 +141,9 @@ public class ImageOnePassTargetCounterTest extends TestCase {
 	}
 
 	/**
-	 * 記録して描き直した頁は、直接描いた頁と同じ画素になる(欄の行を除く)。記録器が Java2D と
-	 * 違う能力を答えると近似の描き方へ入り、描き直しても戻らない。
+	 * Recorded and replayed pages have the same pixels as directly drawn pages (except the field's line).
+	 * If the recorder reports capabilities different from Java2D, drawing takes an approximation path,
+	 * which replay cannot undo.
 	 */
 	public void testRecordedPageMatchesDirectDrawing() throws Exception {
 		final String body = """

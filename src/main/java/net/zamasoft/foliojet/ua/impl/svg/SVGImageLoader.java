@@ -70,21 +70,21 @@ public class SVGImageLoader implements ImageLoader {
 		return true;
 	}
 
-	/** 合成URI({@link #toBatikDocURI})の一意性を保つための連番。 */
+	/** Sequence number ensuring uniqueness of synthetic URIs ({@link #toBatikDocURI}). */
 	private static final java.util.concurrent.atomic.AtomicLong INLINE_SEQ = new java.util.concurrent.atomic.AtomicLong();
 
 	/**
-	 * Batikに渡す文書URIを返します。
+	 * Returns the document URI to pass to Batik.
 	 * <p>
-	 * data:等のopaque URIを文書URIにするとBatik内部の各所が壊れる——
-	 * 相対解決(java.net.URI#resolveはopaque基底に適用できない)、
-	 * 同一文書判定(url(#id)のクリップ・グラデーション参照が「別文書」と
-	 * 誤認され、参照文字列自体の再パースや空クリップに至る)など、
-	 * 応急処置(ParsedURLハンドラのfragment再構成、clip-path剥がし再試行等)を
-	 * 重ねても穴が残った(2026-08-06〜07、yahoo.co.jpのアイコンで発覚)。
-	 * そこでopaque URIの文書には一意な合成階層URIを与え、問題の土壌ごと
-	 * 取り除く。opaque URI内からの相対参照はもともと解決不能なので、
-	 * 差し替えで失われる情報はない。
+	 * Using opaque URIs such as data: as document URIs breaks various Batik internals:
+	 * relative resolution (java.net.URI#resolve does not support opaque bases),
+	 * same-document detection (url(#id) clip and gradient references are mistaken for other
+	 * documents, causing reparsing of the reference string itself or empty clips), and more.
+	 * Repeated workarounds (rebuilding fragments in the ParsedURL handler, retrying without
+	 * clip-path, etc.) still left gaps (discovered on 2026-08-06–07 in yahoo.co.jp icons).
+	 * Give documents with opaque URIs unique synthetic hierarchical URIs to remove the cause entirely.
+	 * Relative references within opaque URIs cannot resolve in the first place,
+	 * so this replacement loses no information.
 	 * </p>
 	 */
 	private static String toBatikDocURI(URI uri) {
@@ -95,14 +95,14 @@ public class SVGImageLoader implements ImageLoader {
 	}
 
 	/**
-	 * インラインSVGの文書URI(=HTML文書の基底URI)をBatikへ渡す形にします
-	 * (2026-10-04、TECH-20261003-004 の④)。
+	 * Converts an inline SVG document URI (= the HTML document's base URI) for Batik
+	 * (2026-10-04, item ④ of TECH-20261003-004).
 	 * <p>
-	 * 基底が<b>相対</b>のことがある——RESTのmultipartで本文をファイルとして
-	 * 送ると、ファイル名(main.xhtml)がそのまま文書URIになる。Batikは相対の
-	 * 文書URIから{@code file:.}を作って{@code url(#arrow)}等の同一文書参照を
-	 * 全部URISyntaxExceptionにしていた。opaqueと同じく合成URIを与える
-	 * (相対の基底からの相対参照はもともと解決できていない)。
+	 * The base may be <b>relative</b>: when REST multipart sends the body as a file,
+	 * its file name (main.xhtml) becomes the document URI unchanged. Batik created
+	 * {@code file:.} from relative document URIs, causing URISyntaxException for every
+	 * same-document reference such as {@code url(#arrow)}. Supply a synthetic URI as for opaque URIs
+	 * (relative references from relative bases could not resolve in the first place).
 	 * </p>
 	 */
 	public static String toBatikInlineURI(URI uri) {
@@ -111,19 +111,20 @@ public class SVGImageLoader implements ImageLoader {
 		}
 		final String path = uri.isOpaque() ? null : uri.getRawPath();
 		if (path != null && !path.isEmpty() && !path.startsWith("/")) {
-			// **相対の基底のパスは合成URIの下に残す**(2026-10-04、TECH-20261003-004 の⑲)。
-			// EPUBの項目の文書URIは書庫の中のパス(EPUB/text/book.xhtml)で相対。中の
-			// <image xlink:href="../images/x.jpg">は合成URIの下で解決され、取得するときに
-			// 相対へ戻す(toSourceURI)。HTMLの<img>と同じ相対URIになる
+			// **Retain the relative base path under the synthetic URI** (2026-10-04, item ⑲ of TECH-20261003-004).
+			// EPUB item document URIs are relative paths within the archive (EPUB/text/book.xhtml).
+			// An inner <image xlink:href="../images/x.jpg"> resolves under the synthetic URI and
+			// converts back to relative on fetching (toSourceURI), matching the relative URI used by HTML <img>.
 			return "http://" + INLINE_HOST + "/" + INLINE_SEQ.incrementAndGet() + "/" + path;
 		}
 		return syntheticDocURI();
 	}
 
 	/**
-	 * Batikが合成URIの下で解決したURIを、取得に使うURIへ戻します(2026-10-04)。
-	 * 相対の基底を残した合成URI({@link #toBatikInlineURI})の下を指していれば、その相対URIに
-	 * する。それ以外はそのまま(合成URIだけを指す参照は従来どおり取得できない)。
+	 * Converts a URI resolved by Batik under a synthetic URI back to its fetching URI (2026-10-04).
+	 * If it is under a synthetic URI that retains a relative base ({@link #toBatikInlineURI}),
+	 * return that relative URI. Otherwise leave it unchanged (references to the synthetic URI
+	 * alone remain unfetchable, as before).
 	 */
 	public static URI toSourceURI(final URI uri) {
 		if (!"http".equals(uri.getScheme()) || !INLINE_HOST.equals(uri.getHost())) {
@@ -148,24 +149,24 @@ public class SVGImageLoader implements ImageLoader {
 	private static final java.util.regex.Pattern INLINE_RELATIVE = java.util.regex.Pattern.compile("/[0-9]+/(.+)");
 
 	private static String syntheticDocURI() {
-		// http形式にするのはBatik標準のhttpプロトコルハンドラに処理させる
-		// ため(独自スキームはMyParsedURLDefaultProtocolHandlerの不完全な
-		// ParsedURLDataで処理され、CSS経由の参照解決が壊れる)。ホストは
-		// RFC 2606予約の.invalidで、実在せず衝突もフェッチ成功もしない
+		// Use http form so Batik's standard http protocol handler processes it
+		// (custom schemes use MyParsedURLDefaultProtocolHandler's incomplete
+		// ParsedURLData, breaking reference resolution through CSS). The host uses
+		// RFC 2606's reserved .invalid; it does not exist, collide, or allow successful fetching.
 		return "http://" + INLINE_HOST + "/" + INLINE_SEQ.incrementAndGet() + ".svg";
 	}
 
 	public Image loadImage(final UserAgent ua, Source source) throws IOException {
 		SVGOMDocument doc = (SVGOMDocument) this.loadDocument(source);
-		// loadDocumentがopaque URIを合成URIへ差し替えるため、文書自身が
-		// 持つURL(=createDocumentへ渡した値)を使う。source.getURI()を
-		// 使うと文書URLと食い違い、同一文書判定が再び壊れる
+		// loadDocument replaces opaque URIs with synthetic ones, so use the document's
+		// own URL (= the value passed to createDocument). source.getURI() would
+		// differ from the document URL and break same-document detection again.
 		return getImage(doc.getURL(), doc, ua);
 	}
 
 	/**
-	 * 外部SVGのルートへCSSの{@code currentColor}を焼き込んで読み込みます。
-	 * {@code mask-image:url(...)}を単色SVGとして描く近似で使用します。
+	 * Loads an external SVG with CSS {@code currentColor} baked into the root.
+	 * Used for the approximation that renders {@code mask-image:url(...)} as a monochrome SVG.
 	 */
 	public Image loadImage(final UserAgent ua, final Source source, final Color color) throws IOException {
 		final SVGOMDocument doc = (SVGOMDocument) this.loadDocument(source);
@@ -180,16 +181,16 @@ public class SVGImageLoader implements ImageLoader {
 
 	public Document loadDocument(Source source) throws IOException {
 		final URI uri = source.getURI();
-		// **拡張子の判定にだけ小文字化した複製を使う**(2026-08-28)。
-		// 以前は path 自体を小文字化して使い回しており、その値が下の
-		// xml:base にも入っていた。大文字を含むファイル名のSVG
-		// (実例: asahi.comの logo_globePlus.svg)では、xml:base 経由の
-		// 相対解決が小文字URLを作り、大文字小文字を区別するサーバーへ
-		// 存在しないURLを要求していた(実測で403)
+		// **Use a lowercase copy only to check the extension** (2026-08-28).
+		// Previously, path itself was lowercased and reused,
+		// including in xml:base below. For SVG file names containing uppercase letters
+		// (actual example: asahi.com's logo_globePlus.svg), relative resolution via xml:base
+		// produced lowercase URLs, requesting nonexistent URLs from a case-sensitive server
+		// (observed response: 403).
 		final String path = uri.getPath();
 		boolean gzip = path != null && path.toLowerCase(java.util.Locale.ROOT).endsWith(".svgz");
 
-		// SAXSVGDocumentFactoryはスレッドセーフではないことに注意
+		// SAXSVGDocumentFactory is not thread-safe.
 		SAXSVGDocumentFactory factory = new SAXSVGDocumentFactory(XMLResourceDescriptor.getXMLParserClassName());
 		final String uriStr = toBatikDocURI(uri);
 
@@ -223,22 +224,22 @@ public class SVGImageLoader implements ImageLoader {
 			final String fileName = slash == -1 ? path : path.substring(slash + 1);
 			doc.getDocumentElement().setAttributeNS("http://www.w3.org/XML/1998/namespace", "base", fileName);
 		}
-		// pathがnull(data:等のopaque URI)のままxml:baseを設定してはならない。
-		// 空値のxml:baseは基底結合時にjava.net.URI#resolve("")の非RFC挙動で
-		// 文書URIの末尾セグメントを落とし(inline-svg:/1.svg → inline-svg:/)、
-		// CSS経由のurl(#id)絶対化が文書URLと食い違って同一文書判定に失敗、
-		// クリップ・グラデーション参照が静かに空になる(2026-08-07に特定)
+		// Do not set xml:base when path is null (opaque URIs such as data:).
+		// An empty xml:base triggers java.net.URI#resolve("")'s non-RFC behavior during base resolution,
+		// dropping the last segment of the document URI (inline-svg:/1.svg → inline-svg:/).
+		// Absolutizing url(#id) through CSS then differs from the document URL, failing same-document detection
+		// and silently emptying clip and gradient references (identified on 2026-08-07).
 		return doc;
 	}
 
 	private static final Dimension2D VIEWPORT = new Dimension2DImpl(400, 400);
 
 	public Image getImage(String docURI, final Document doc, final UserAgent ua) throws IOException {
-		// **Batikが自分で取りに行く資源をFolioJetのリゾルバへ回す。**
-		// SVGの中のCSS(@import・<?xml-stylesheet?>)・色プロファイル等は
-		// ParsedURL.openStream()を直に呼ぶため、ここで束ねないと
-		// input.include/input.excludeを通らない。
-		// MyParsedURLDefaultProtocolHandlerの説明を見ること
+		// **Route resources fetched by Batik itself through FolioJet's resolver.**
+		// CSS within SVG (@import, <?xml-stylesheet?>), color profiles, etc.
+		// call ParsedURL.openStream() directly; without binding here,
+		// they bypass input.include/input.exclude.
+		// See the explanation in MyParsedURLDefaultProtocolHandler.
 		final UserAgent previousUA = MyParsedURLDefaultProtocolHandler.enter(ua);
 		try {
 			return this.buildImage(docURI, doc, ua);
@@ -261,22 +262,22 @@ public class SVGImageLoader implements ImageLoader {
 					viewport = new Dimension2DImpl(vbWidth, vbHeight);
 				}
 			} catch (Exception e) {
-				// viewBoxなし・不正は下の固有サイズ解決へ委ねる
+				// For absent or invalid viewBox, defer to intrinsic size resolution below.
 			}
 			MyBridgeContext ctx = new MyBridgeContext(docURI, ua, viewport, this);
-			// かつてここにBridgeException時にclip-path属性を剥がして再試行する
-			// 迂回路があった(2026-08-06)。原因だったdata:基底での同一文書内
-			// 断片参照(url(#id))の解決失敗はMyURIResolver.getNode()の
-			// フラグメント常時同一文書解決で根治したため撤去(2026-08-07)。
+			// A workaround here once stripped clip-path attributes and retried on BridgeException
+			// (2026-08-06). The cause, failed same-document fragment reference resolution
+			// (url(#id)) against data: bases, was fixed at its source by MyURIResolver.getNode()
+			// always resolving fragments within the same document, so the workaround was removed (2026-08-07).
 			GVTBuilder gvt = new PDFGVTBuilder();
 			GraphicsNode gvtRoot = gvt.build(ctx, doc);
 
 			String width = root.getAttribute("width");
 			String height = root.getAttribute("height");
-			// 固有寸法の判定は**生の属性**で行う(2026-08-27)。widthの既定は
-			// 100%で、viewBoxがあると下のgetCheckedValue()がviewBox寸法へ
-			// 解決してしまうため、解決後の値では「属性で寸法が決まっている」
-			// SVGと区別できない。パーセントは固有寸法にならない(SVG2/CSS)
+			// Determine intrinsic dimensions from **raw attributes** (2026-08-27). width defaults to
+			// 100%, and with viewBox present, getCheckedValue() below resolves it to viewBox dimensions.
+			// Resolved values therefore cannot distinguish this from SVGs with dimensions set by attributes.
+			// Percentages do not define intrinsic dimensions (SVG2/CSS).
 			final boolean attrWidthFixed = width != null && width.length() > 0 && !width.trim().endsWith("%");
 			final boolean attrHeightFixed = height != null && height.length() > 0 && !height.trim().endsWith("%");
 			if ((width == null || width.length() == 0) && (height != null && height.length() > 0)) {
@@ -292,40 +293,40 @@ public class SVGImageLoader implements ImageLoader {
 			AbstractSVGAnimatedLength _height = (AbstractSVGAnimatedLength) root.getHeight();
 			double h = _height.getCheckedValue();
 
-			// GVTのジオメトリ(バウンズ・クリップ形状等)をこの場で確定させる。
-			// Batikはクリップ(clip-path)等を遅延評価し、その評価は
-			// BridgeContextが弱参照で保持するDOM・CSSエンジンに依存する。
-			// FolioJetは構築した GraphicsNode を display list 経由で後から
-			// 描画するため、その間にGCが走ると遅延評価が静かに失敗し、
-			// クリップ付きSVGの描画だけが空になる(GCタイミング依存で、
-			// 2026-08-07にyahoo.co.jpのアイコン消失として発覚。単発の
-			// 小文書では再現せず、大きな文書ほど発生した)。getBounds()は
-			// ジオメトリ全体を再帰的に確定・キャッシュする
+			// Finalize GVT geometry (bounds, clip shapes, etc.) here.
+			// Batik lazily evaluates clips (clip-path) and similar geometry; evaluation depends on
+			// the DOM and CSS engine held by BridgeContext through weak references.
+			// FolioJet draws the constructed GraphicsNode later through the display list,
+			// so garbage collection in between silently broke lazy evaluation,
+			// making only clipped SVG drawings empty (dependent on GC timing;
+			// discovered as disappearing yahoo.co.jp icons on 2026-08-07). Small standalone
+			// documents did not reproduce it; larger documents did so more often. getBounds()
+			// recursively finalizes and caches all geometry.
 			gvtRoot.getBounds();
 
-			// width/height属性が無い(またはパーセントが0に解決される)SVGの
-			// 固有サイズを補完する。viewBoxがあればその寸法・アスペクト比を
-			// 使い、無ければCSSの置換要素既定サイズ300x150にする。0のまま
-			// 返すと背景描画のPattern生成(BufferedImage)が
-			// "Width (0) and height (0) cannot be <= 0"で変換ごと中断する
-			// (2026-08-07、yahoo.co.jpのviewBoxのみのアイコンで発覚)。
-			// 固有寸法の種別(Image.Intrinsic参照、2026-08-27)。属性で寸法が
-			// 決まればSIZE(片側+viewBox比率で導出できる場合も含む)。
-			// viewBoxの比率だけならRATIO、どちらも無ければNONE。背景描画の
-			// background-size:autoがこれで既定サイズ規則を分岐する——従来は
-			// 常に下の代用値を原寸として扱い、viewBoxのみのロゴSVGが背景で
-			// 原寸(数百px)のまま描かれて箱からはみ出していた
-			// (asahi.comフッターのRe:Ronロゴで発覚)
+			// Supply intrinsic sizes for SVGs without width/height attributes
+			// (or whose percentages resolve to 0). Use viewBox dimensions and aspect ratio if present;
+			// otherwise use CSS's default replaced-element size of 300x150. Returning 0
+			// makes Pattern creation (BufferedImage) for background drawing
+			// abort the entire conversion with "Width (0) and height (0) cannot be <= 0"
+			// (discovered on 2026-08-07 in yahoo.co.jp icons with only viewBox).
+			// Intrinsic dimension kind (see Image.Intrinsic, 2026-08-27). SIZE if attributes determine
+			// dimensions (including one dimension plus the viewBox ratio).
+			// RATIO for only a viewBox ratio; NONE for neither. Background drawing's
+			// background-size:auto uses this to choose default size rules. Previously,
+			// the fallback values below were always treated as intrinsic size, so logo SVGs
+			// with only viewBox were drawn at that size (hundreds of px) and overflowed the box
+			// (discovered in asahi.com's footer Re:Ron logo).
 			net.zamasoft.pdfg2d.gc.image.Image.Intrinsic intrinsic;
 			if (attrWidthFixed && attrHeightFixed) {
 				intrinsic = net.zamasoft.pdfg2d.gc.image.Image.Intrinsic.SIZE;
 			} else if (vbWidth > 0 && vbHeight > 0) {
-				// 片側の固定属性+viewBox比率で寸法が決まる場合もSIZE
+				// SIZE also applies when one fixed attribute plus the viewBox ratio determines dimensions.
 				intrinsic = (attrWidthFixed || attrHeightFixed)
 						? net.zamasoft.pdfg2d.gc.image.Image.Intrinsic.SIZE
 						: net.zamasoft.pdfg2d.gc.image.Image.Intrinsic.RATIO;
 			} else if (attrWidthFixed || attrHeightFixed) {
-				// 片側のみ(viewBoxなし): 上の属性補完で正方形として扱う
+				// Only one dimension (no viewBox): attribute completion above treats it as a square.
 				intrinsic = net.zamasoft.pdfg2d.gc.image.Image.Intrinsic.SIZE;
 			} else {
 				intrinsic = net.zamasoft.pdfg2d.gc.image.Image.Intrinsic.NONE;
@@ -355,9 +356,9 @@ public class SVGImageLoader implements ImageLoader {
 			ua.getUAContext().getImageMaps().put(image, imageMap);
 			return image;
 		} catch (BridgeException e) {
-			// 原因メッセージを含める(「読み込めませんでした」だけでは
-			// どの参照・属性で死んだのか分からず、診断のたびに
-			// スタックトレース仕込みが要る)
+			// Include the cause message ("could not load" alone gives no indication
+			// of which reference or attribute failed, requiring stack-trace instrumentation
+			// for every diagnosis).
 			IOException ioe = new IOException("SVGを読み込めませんでした: " + e.getMessage());
 			ioe.initCause(e);
 			throw ioe;

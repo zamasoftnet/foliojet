@@ -6,8 +6,9 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.builder.impl.RowLayoutEngine;
 
 /**
- * 行高分配の共有核(P2-2/P2-4)のテストです。両ビルダーから純化された
- * 4分配(rowspan/グループ高/%高/表高)をボックス木なしで固定します。
+ * Tests the shared row-height distribution core (P2-2/P2-4).
+ * Verifies the four pure distributions extracted from both builders
+ * (rowspan/group height/percentage height/table height), without a box tree.
  */
 public class RowLayoutEngineTest extends TestCase {
 	public void testGroupSizeProportional() {
@@ -21,7 +22,7 @@ public class RowLayoutEngineTest extends TestCase {
 	public void testGroupSizeZeroSumSplitsEvenly() {
 		final double[] sizes = { 0, 0 };
 		final double added = RowLayoutEngine.distributeGroupSize(sizes, 60);
-		// 分母はグループ自身の行数(合計=指定高)
+		// The denominator is the group's own row count (total = specified height).
 		assertEquals(30, sizes[0], 0.01);
 		assertEquals(30, sizes[1], 0.01);
 		assertEquals(60, added, 0.01);
@@ -36,7 +37,7 @@ public class RowLayoutEngineTest extends TestCase {
 	public void testPercentRowsConsumeRemainderInOrder() {
 		final double[] sizes = { 10, 10, 10 };
 		final double[] ratios = { 0.5, 0, 0.5 };
-		// 表高 100、残余 30: 先頭 %行が 50-10=40 を要求するが残余 30 で打ち切り
+		// Table height 100, remaining 30: the first percentage row requests 50-10=40, capped at the remaining 30.
 		final double added = RowLayoutEngine.distributePercentRowSizes(sizes, ratios, 100, 30);
 		assertEquals(40, sizes[0], 0.01);
 		assertEquals(10, sizes[2], 0.01);
@@ -60,8 +61,8 @@ public class RowLayoutEngineTest extends TestCase {
 	}
 
 	public void testSpannedRowsPercentFirstThenAuto() {
-		// percent-rowspan-groups fixture と同型: %行 0.5 + 自動行、
-		// 連結の要求 93 に対し不足 58.2 → %行へ 29.1、自動行へ残り
+		// Same configuration as the percent-rowspan-groups fixture: percentage row 0.5 + auto row;
+		// a span requests 93, leaving a shortfall of 58.2 → 29.1 to the percentage row, the rest to the auto row.
 		final double[] sizes = { 17.4, 17.4 };
 		final boolean[] noAdj = { true, true };
 		final boolean[] auto = { false, true };
@@ -74,9 +75,9 @@ public class RowLayoutEngineTest extends TestCase {
 		assertEquals(46.5, sizes[1], 0.01);
 	}
 
-	// ---- A-0(2026-07-30): A-4(行窓要求の共有)に先立ち、分配カスケード
-	// (%→連結でのみ拡張された自動行→自動行→全行)の各段と演算の
-	// ビット厳密性を固定する特性テスト ----
+	// ---- A-0 (2026-07-30): Ahead of A-4 (sharing row-window requirements), characterization tests fix
+	// each stage of the distribution cascade (percentage → auto rows expanded only by spans → auto rows → all rows)
+	// and the bit-exactness of its arithmetic. ----
 
 	private static net.zamasoft.foliojet.layout.builder.impl.Rowspan span(final int row, final int span,
 			final double min) {
@@ -87,8 +88,8 @@ public class RowLayoutEngineTest extends TestCase {
 	}
 
 	public void testSpannedPrefersRowsExtendedOnlyBySpan() {
-		// 中央の行だけが「連結によってのみ拡張された自動行」(noAdj=false)
-		// → 不足30は全て中央へ
+		// Only the middle row is an "auto row expanded solely by spans" (noAdj=false),
+		// so all of the 30 shortfall goes to the middle row.
 		final double[] sizes = { 10, 10, 10 };
 		final boolean[] noAdj = { true, false, true };
 		final boolean[] auto = { true, true, true };
@@ -100,7 +101,7 @@ public class RowLayoutEngineTest extends TestCase {
 	}
 
 	public void testSpannedFallsBackToAutoRows() {
-		// 連結専用行なし(全行に非連結セルあり)→ 自動行(row1)だけへ
+		// No span-only row (all rows have non-spanning cells) → only the auto row (row1) receives it.
 		final double[] sizes = { 10, 10 };
 		final boolean[] noAdj = { true, true };
 		final boolean[] auto = { false, true };
@@ -111,8 +112,8 @@ public class RowLayoutEngineTest extends TestCase {
 	}
 
 	public void testSpannedSpreadsOverAllRowsAsLastResort() {
-		// 全行が自動(autoCount==span)は「全行へ均等」の最終段に落ちる。
-		// 1/3の循環小数もビット単位で旧実装と一致すること(doubleToLongBits)
+		// When all rows are auto (autoCount==span), fall through to the final "equal distribution to all rows" stage.
+		// Even the repeating decimal 1/3 must match the old implementation bit for bit (doubleToLongBits).
 		final double[] sizes = { 10, 10, 10 };
 		final boolean[] noAdj = { false, false, false };
 		final boolean[] auto = { true, true, true };
@@ -125,8 +126,8 @@ public class RowLayoutEngineTest extends TestCase {
 	}
 
 	public void testSpannedWindowClippedAtTableEnd() {
-		// 表末尾を越える連結(空行の打ち切り)でも配列外を触らず、
-		// 実在する行だけで分配する
+		// Even if a span extends past the table end (empty rows truncated), do not access outside the array;
+		// distribute only among existing rows.
 		final double[] sizes = { 10 };
 		final boolean[] noAdj = { false };
 		final boolean[] auto = { true };
@@ -136,8 +137,8 @@ public class RowLayoutEngineTest extends TestCase {
 	}
 
 	public void testSpannedProcessesSortedSpansCumulatively() {
-		// SPAN_COMPARATORの短い順に処理され、後続の連結は前の分配結果を
-		// 前提に不足だけを埋める(累積の固定)
+		// Process spans shortest first via SPAN_COMPARATOR. Later spans use earlier distribution results
+		// and fill only the shortfall (verifies cumulative behavior).
 		final double[] sizes = { 10, 10, 10 };
 		final boolean[] noAdj = { false, false, false };
 		final boolean[] auto = { true, true, true };
@@ -146,8 +147,8 @@ public class RowLayoutEngineTest extends TestCase {
 				List.of(span(0, 3, 60), span(0, 2, 40)));
 		spans.sort(net.zamasoft.foliojet.layout.builder.impl.Rowspan.SPAN_COMPARATOR);
 		RowLayoutEngine.distributeSpannedRowSizes(sizes, spans, noAdj, auto, ratios);
-		// span(0,2,40): 不足20→row0/row1へ10ずつ → {20,20,10}
-		// span(0,3,60): 合計50、不足10→3行へ10/3ずつ
+		// span(0,2,40): shortfall 20 → 10 each to row0/row1 → {20,20,10}.
+		// span(0,3,60): total 50, shortfall 10 → 10/3 to each of 3 rows.
 		final double third = 10.0 / 3;
 		assertEquals(Double.doubleToLongBits(20 + third), Double.doubleToLongBits(sizes[0]));
 		assertEquals(Double.doubleToLongBits(20 + third), Double.doubleToLongBits(sizes[1]));

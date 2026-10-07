@@ -23,18 +23,20 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 縦組みの行の中の MathML を、欧文と同じく横倒しにして組むことを固定します(2026-10-05、jigensha の報告 2)。
+ * Verify that inline MathML in vertical writing is laid out sideways, like Latin text
+ * (2026-10-05, jigensha report 2).
  *
  * <p>
- * それまでは正立の横組みの箱のまま置かれ、行の進む向きには箱の高さ(約 1 字)しか進まず、式の幅が隣の行へ
- * はみ出した。横倒しにすると、行の向き(縦)の長さが式の幅になり、行の幅(横)が式の高さになる。
- * {@code text-orientation: upright} は正立のまま。
+ * Previously it remained an upright horizontal box, advancing along the line by only its height
+ * (about one character), while the formula's width overflowed into adjacent lines. Sideways placement
+ * uses formula width as line-axis length (vertical), and formula height as line thickness (horizontal).
+ * {@code text-orientation: upright} remains upright.
  * </p>
  */
 public class MathVerticalTest extends TestCase {
 	private static final long WATCHDOG_MS = 60_000L;
 
-	/** 数式の画像は表示リストでは枠(AbsoluteRectFrame)として出る。 */
+	/** Formula images appear as frames (AbsoluteRectFrame) in display lists. */
 	private static final Pattern FRAME_IN_DUMP = Pattern
 			.compile("x=(-?[\\d.]+) y=(-?[\\d.]+) AbsoluteRectFrame\\[w=([\\d.]+) h=([\\d.]+)\\]");
 
@@ -65,9 +67,9 @@ public class MathVerticalTest extends TestCase {
 	public void testSidewaysInVerticalLines() throws Exception {
 		final double[] horizontal = frame(convert("horizontal", document("horizontal-tb", "mixed")));
 		final double[] vertical = frame(convert("vertical", document("vertical-rl", "mixed")));
-		// 横組みでは横長の箱
+		// A wide box in horizontal writing.
 		assertTrue("横組みの式は横長: w=" + horizontal[2] + " h=" + horizontal[3], horizontal[2] > 2 * horizontal[3]);
-		// 縦組みでは横倒し: 縦横が入れ替わる
+		// Sideways in vertical writing: width and height swap.
 		assertEquals("縦組みの式の縦は横組みの式の幅", horizontal[2], vertical[3], 0.01);
 		assertEquals("縦組みの式の横は横組みの式の高さ", horizontal[3], vertical[2], 0.01);
 	}
@@ -90,7 +92,7 @@ public class MathVerticalTest extends TestCase {
 		return frames.get(0);
 	}
 
-	/** 1 頁の文書を変換して、その頁の表示リストを返します。 */
+	/** Convert a one-page document and return its page's display list. */
 	private static String convert(final String name, final String html) throws Exception {
 		final File dir = new File("local/math-vertical/" + name);
 		dir.mkdirs();

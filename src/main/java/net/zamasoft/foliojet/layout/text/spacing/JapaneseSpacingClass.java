@@ -1,34 +1,34 @@
 package net.zamasoft.foliojet.layout.text.spacing;
 
 /**
- * 和文スペーシングの文字クラスです(和文詰めS0、2026-07-31——
- * consult-codex-2026-07-31-text-spacing.txt Q2/S0。JLREQのうち
- * 約物スペーシングに使う文字クラス)。分類は必ずUnicode code point(int)で行う——既存の
- * charベース禁則APIと違い補助面を落とさない(答申Q2)。
+ * Character classes for Japanese spacing (Japanese spacing adjustment S0, 2026-07-31;
+ * consult-codex-2026-07-31-text-spacing.txt Q2/S0; JLREQ classes used for punctuation spacing).
+ * Always classify by Unicode code point (int): unlike the existing char-based kinsoku
+ * (line-breaking rules) API, this preserves supplementary planes (recommendation Q2).
  *
  * <p>
-	 * 文字集合はJLREQ附属書のcl-01/cl-02/cl-05〜cl-07を正本とする。
-	 * 元はOpenTypeFont.getKerningとTextBuilderから移管した集合だが、
-	 * 附属書との不一致を直す場合はdisplay-list goldenの意図的差分として扱うこと。
+ * The character sets in the JLREQ appendix, cl-01/cl-02/cl-05–cl-07, are authoritative.
+ * The sets originally came from OpenTypeFont.getKerning and TextBuilder; corrections to
+ * mismatches with the appendix must be treated as intentional display-list golden differences.
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public enum JapaneseSpacingClass {
 
-	/** CL01: 始め括弧類。 */
+	/** CL01: opening brackets. */
 	OPENING,
 
-	/** CL02: 終わり括弧類。 */
+	/** CL02: closing brackets. */
 	CLOSING,
 
-	/** CL06/CL07: 句点類・読点類(移管元は区別しない)。 */
+	/** CL06/CL07: full stops and commas (the original implementation does not distinguish them). */
 	PUNCTUATION,
 
-	/** CL05: 中点類(JLREQ 3.1.5——字形が前後に四分アキを含む)。 */
+	/** CL05: middle dots (JLREQ 3.1.5; glyphs include quarter-em space before and after). */
 	MIDDLE_DOT,
 
-	/** 対象外。 */
+	/** Not applicable. */
 	OTHER;
 
 	private static final String CL01 = "‘“（〔［｛〈《「『【⦅〘〖«〝";
@@ -37,14 +37,14 @@ public enum JapaneseSpacingClass {
 
 	private static final String CL0607 = "。．、，";
 
-	/** 中点・全角コロン・全角セミコロン(JLREQ附属書A.5のUCSの全角形)。 */
+	/** Middle dot, fullwidth colon, and fullwidth semicolon (fullwidth UCS forms in JLREQ appendix A.5). */
 	private static final String CL05 = "・：；";
 
-	/** code pointを分類します。 */
+	/** Classifies a code point. */
 	public static JapaneseSpacingClass of(final int codePoint) {
 		if ((codePoint < 0x2000 && codePoint != 0x00AB && codePoint != 0x00BB) || codePoint > 0xFFFF) {
-			// 対象はBMPの記号領域+ギュメ«»(JLREQ附属書A cl-01/02。
-			// 旧ガードはU+2000未満を一律弾き、CL01/CL02表の«»が死んでいた)
+			// Covers BMP symbol ranges + guillemets «» (JLREQ appendix A cl-01/02.
+			// The old guard rejected everything below U+2000, leaving «» in the CL01/CL02 tables unreachable)
 			return OTHER;
 		}
 		final char c = (char) codePoint;

@@ -8,11 +8,11 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * {@code font-feature-settings}/{@code font-variant-east-asian}の統合テストです
- * (増分④まで=GSUB単一置換とGPOS palt advance。
- * consult-codex-2026-07-31-font-features.txt §5.3)。pdfg2dのテスト用CJK
- * フォント(U+3001のpalt: xAdvance=-500/1000em)を embedded 経路で使い、
- * 全角読点10文字のインライン幅が palt で半分になることを固定する。
+ * Integration test for {@code font-feature-settings}/{@code font-variant-east-asian}
+ * (through increment ④: GSUB single substitution and GPOS palt advance;
+ * consult-codex-2026-07-31-font-features.txt §5.3).
+ * Uses pdfg2d's test CJK font (U+3001 palt: xAdvance=-500/1000em) on the embedded path
+ * to verify that palt halves the inline width of ten fullwidth Japanese commas.
  */
 public class FontFeaturesTest extends AbstractTestCase {
 	public FontFeaturesTest(String name) {
@@ -24,7 +24,7 @@ public class FontFeaturesTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** featureなし: 全角読点10文字 × 10pt = 100pt。 */
+	/** Without features: ten fullwidth Japanese commas × 10 pt = 100 pt. */
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			assertEquals(100, box.getWidth(), 0.01);
@@ -33,7 +33,7 @@ public class FontFeaturesTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** palt: 各グリフ 10pt - 5pt(xAdvance -500/1000em)= 50pt。 */
+	/** palt: each glyph 10 pt - 5 pt (xAdvance -500/1000em) = 50 pt. */
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			assertEquals(50, box.getWidth(), 0.01);
@@ -42,7 +42,7 @@ public class FontFeaturesTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** jis78: 異体字への置換は幅を変えない(置換自体はpdfg2d側で固定済み)。 */
+	/** jis78: variant substitution does not change width (the substitution itself is already covered in pdfg2d). */
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			assertEquals(10, box.getWidth(), 0.01);
@@ -51,7 +51,7 @@ public class FontFeaturesTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 既定: スラッシュ対(kern負)が効き、素の幅6×3.48=20.88ptより狭い。 */
+	/** Default: slash-pair kerning (negative kern) applies, making this narrower than the raw width 6×3.48=20.88 pt. */
 	public boolean check_d(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			assertTrue("kerned width must be narrower: " + box.getWidth(), box.getWidth() < 20.88 - 0.001);
@@ -60,7 +60,7 @@ public class FontFeaturesTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** "kern" off: 明示無効化で素の幅ちょうど(slash advance 348/1000em × 6)。 */
+	/** "kern" off: explicit disabling gives exactly the raw width (slash advance 348/1000em × 6). */
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			assertEquals(20.88, box.getWidth(), 0.01);
@@ -69,7 +69,7 @@ public class FontFeaturesTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 既定: fi合字(advance 671 < f+i=710)が効き、14.20ptより狭い。 */
+	/** Default: fi ligature (advance 671 < f+i=710) applies, making this narrower than 14.20 pt. */
 	public boolean check_f(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			assertTrue("ligated width must be narrower: " + box.getWidth(), box.getWidth() < 14.20 - 0.001);
@@ -78,7 +78,7 @@ public class FontFeaturesTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** "liga" 0, "kern" 0: 素の幅ちょうど(f 385 + i 325)×2/1000em。 */
+	/** "liga" 0, "kern" 0: exactly the raw width (f 385 + i 325)×2/1000em. */
 	public boolean check_g(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			assertEquals(14.20, box.getWidth(), 0.01);
@@ -87,7 +87,10 @@ public class FontFeaturesTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** font-variant-ligatures: none(+kern 0): 標準合字が止まり素の幅(2026-09-03。CSS-SUPPORTの旧記述の訂正)。 */
+	/**
+	 * font-variant-ligatures: none (+kern 0): disables standard ligatures, giving the raw width
+	 * (2026-09-03; correction of the old CSS-SUPPORT description).
+	 */
 	public boolean check_h(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			assertEquals(14.20, box.getWidth(), 0.01);
@@ -96,7 +99,7 @@ public class FontFeaturesTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** font-variant-ligatures: no-common-ligatures(+kern 0): 同上。 */
+	/** font-variant-ligatures: no-common-ligatures (+kern 0): same as above. */
 	public boolean check_i(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			assertEquals(14.20, box.getWidth(), 0.01);
@@ -105,7 +108,7 @@ public class FontFeaturesTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** font-variant-ligatures: common-ligatures: 既定どおり合字が効く。 */
+	/** font-variant-ligatures: common-ligatures: ligatures apply as they do by default. */
 	public boolean check_j(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			assertTrue("ligated width must be narrower: " + box.getWidth(), box.getWidth() < 14.20 - 0.001);

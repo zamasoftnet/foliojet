@@ -68,10 +68,10 @@ public class PdfUaValidationTest extends AbstractTestCase {
 	}
 
 	/**
-	 * ページを跨ぐ段落・リスト項目・繰り返しヘッダ付きの表を含む文書の
-	 * PDF/UA-1検証です(欠陥②=StructElem分裂の修正、2026-07-30)。継続を
-	 * 1つのStructElemへ併合した構造(複数ページのMCIDを/Type /MCRで持つ)が
-	 * veraPDFの構造検査(L→LI→LBody、Table→TR→TH/TD等)を通ることを固定する。
+	 * PDF/UA-1 validation of a document containing paragraphs, list items, and a table with repeated
+	 * headers spanning pages (fix for defect ②, StructElem splitting, 2026-07-30).
+	 * Verifies that structure merging continuations into one StructElem (with MCIDs from multiple pages
+	 * via /Type /MCR) passes veraPDF structure checks (L→LI→LBody, Table→TR→TH/TD, etc.).
 	 */
 	public void testPdfUa1MultiPage() throws Exception {
 		this.session.property("output.pdf.version", "1.7UA-1");
@@ -80,8 +80,9 @@ public class PdfUaValidationTest extends AbstractTestCase {
 	}
 
 	/**
-	 * PDF/UA-2(2.0UA-2、タスク#21——2026-07-31)の検証です。PDF 2.0基底+
-	 * pdfuaid:part 2/rev+PDF 2.0標準構造名前空間(/Namespaces、各要素の/NS)。
+	 * Validates PDF/UA-2 (2.0UA-2, task #21, 2026-07-31).
+	 * PDF 2.0 base + pdfuaid:part 2/rev + PDF 2.0 standard structure namespace
+	 * (/Namespaces and /NS on each element).
 	 */
 	public void testPdfUa2Compliant() throws Exception {
 		this.session.property("output.pdf.version", "2.0UA-2");
@@ -89,14 +90,14 @@ public class PdfUaValidationTest extends AbstractTestCase {
 		this.validate("files/unittest/9520-UA/ua.html", PDFAFlavour.PDFUA_2, "PDF/UA-2");
 	}
 
-	/** UA-2でPDF 1.7専用ロール(Sect/BlockQuote等)を含む文書も通ること。 */
+	/** Documents containing PDF 1.7-only roles (Sect/BlockQuote, etc.) must also pass UA-2. */
 	public void testPdfUa2LegacyRoles() throws Exception {
 		this.session.property("output.pdf.version", "2.0UA-2");
 		this.session.property("output.pdf.tagged.lang", "en");
 		this.validate("files/unittest/9520-UA/ua2-roles.html", PDFAFlavour.PDFUA_2, "PDF/UA-2");
 	}
 
-	/** filter 付き要素(層を画像にする)を含む文書も PDF/UA-1 に適合すること(2026-09-03)。 */
+	/** A document containing filtered elements (rasterized layers) also conforms to PDF/UA-1 (2026-09-03). */
 	public void testPdfUa1WithFilteredElement() throws Exception {
 		this.session.property("output.pdf.version", "1.7UA-1");
 		this.session.property("output.pdf.tagged.lang", "en");
@@ -108,8 +109,8 @@ public class PdfUaValidationTest extends AbstractTestCase {
 	public void testPdfUa1WithLogicalBidiOutput() throws Exception {
 		this.session.property("output.pdf.version", "1.7UA-1");
 		this.session.property("output.pdf.tagged.lang", "en");
-		// Hebrew 版(ua-logical-output.html)は埋め込みフォントに字形が無く .notdef 参照で 7.21.8 に落ちるので、
-		// PDF/UA の検証は bidi-override の Latin 版で行う(視覚順 321 CBA / 論理順 ABC 123)
+		// Hebrew (ua-logical-output.html) lacks embedded-font glyphs and fails 7.21.8 on .notdef references;
+		// so validate PDF/UA with the Latin bidi-override version (visual order 321 CBA / logical order ABC 123).
 		this.validateUa("files/unittest/3090-bidi/ua-logical-output-latin.html");
 	}
 
@@ -122,8 +123,9 @@ public class PdfUaValidationTest extends AbstractTestCase {
 	}
 
 	/**
-	 * 1パスの目次(後ろの頁の番号を部品に後から書く。2026-10-04)も PDF/UA-1 に適合すること。
-	 * 部品は文字と同じ標示付き内容の中で描かれ、部品の中には MCID を持たない。
+	 * The single-pass table of contents (later page numbers written into a component afterward,
+	 * 2026-10-04) also conforms to PDF/UA-1. Components are drawn in the same marked content as text,
+	 * and contain no MCIDs inside them.
 	 */
 	public void testPdfUa1WithOnePassTableOfContents() throws Exception {
 		this.session.property("output.pdf.version", "1.7UA-1");
@@ -134,7 +136,7 @@ public class PdfUaValidationTest extends AbstractTestCase {
 		assertTrue("the forward page numbers must be deferred forms", pdf.contains("/Subtype /Form"));
 	}
 
-	/** 同じ目次の PDF/UA-2 です。 */
+	/** PDF/UA-2 version of the same table of contents. */
 	public void testPdfUa2WithOnePassTableOfContents() throws Exception {
 		this.session.property("output.pdf.version", "2.0UA-2");
 		this.session.property("output.pdf.tagged.lang", "en");

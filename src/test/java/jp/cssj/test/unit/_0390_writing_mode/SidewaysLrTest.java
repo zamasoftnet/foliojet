@@ -67,7 +67,7 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** sideways-lr の論理順を保ったまま物理行内軸だけを反転する Stage 2 の受入検査。 */
+/** Stage 2 acceptance checks: reverse only the physical inline axis of sideways-lr while preserving logical order. */
 public class SidewaysLrTest extends AbstractTestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final File FIXTURE = new File("files/unittest/0390-writing-mode/sideways-lr.html");
@@ -353,14 +353,14 @@ public class SidewaysLrTest extends AbstractTestCase {
 			assertEquals("the fixture must fragment into three pages", 3, pdf.getNumberOfPages());
 			assertTrue("PDF user-space CCW must be emitted as 0 1 -1 0 in y-up coordinates",
 					countCcwMatrices(pdf) >= 4);
-			// pdfg2d は Tm を書かず(Td で送る)、回転は cm に置く。回転した Tm が無いことを確認する
+			// pdfg2d writes no Tm (uses Td) and puts rotation in cm. Check that no rotated Tm exists.
 			assertEquals("sideways text must not carry the rotation in Tm", 0, countRotatedTextMatrices(pdf));
 			final String text = new PDFTextStripper().getText(pdf).replaceAll("\\s+", "");
 			assertTrue("logical AB order must survive PDF extraction: " + text, text.contains("AB"));
 			assertTrue("table source order must survive PDF extraction: " + text, text.contains("11122122"));
 			assertTrue("flex source order must survive PDF extraction: " + text, text.contains("F1F2"));
 			assertTrue("grid source order must survive PDF extraction: " + text, text.contains("G1G2"));
-			// PDF の抽出順は描画(視覚)順なので row-reverse は F4F3 になる。両方あることだけ見る
+			// PDF extraction follows drawing (visual) order, so row-reverse gives F4F3. Check only that both are present.
 			assertTrue("row-reverse items must survive PDF extraction: " + text,
 					text.contains("F3") && text.contains("F4"));
 			assertTrue("all text-orientation values must retain logical text: " + text,
@@ -404,7 +404,7 @@ public class SidewaysLrTest extends AbstractTestCase {
 					attribute(tag, "transform").startsWith("matrix(0 -1 1 0 "));
 		}
 
-		// CJK はウェブフォント subset 経路で <text> の中身が PUA 符号になるので、data-copper-text でも探す
+		// CJK <text> contains PUA codes on the web-font subset path, so also search data-copper-text.
 		final String rubyBase = textElements(svg).stream()
 				.filter(element -> "\u89AA".equals(element[1])
 						|| "\u89AA".equals(attribute(element[0], "data-copper-text")))
@@ -779,14 +779,14 @@ public class SidewaysLrTest extends AbstractTestCase {
 		return current == null || candidate.height > current.height ? candidate : current;
 	}
 
-	/** 訪問者は td 自体では check_ を呼ばないので、セル内の span(INLINE)で位置を取る。 */
+	/** The visitor does not call check_ for td itself; get positions from span(INLINE) inside cells. */
 	private static Rect tableCell(final IBox box, final double x, final double y) {
 		return box instanceof TableCellBox || box.getType() == net.zamasoft.foliojet.layout.box.BoxType.INLINE
 				? rect(box, x, y)
 				: null;
 	}
 
-	/** 訪問者は flex/grid 項目の箱には check_ を届けないので、項目内の span(INLINE)で位置を取る。 */
+	/** The visitor does not deliver check_ to flex/grid item boxes; get positions from span(INLINE) inside items. */
 	private static Rect item(final IBox box, final Class<?> type, final double x, final double y) {
 		return type.isInstance(box) || box.getType() == net.zamasoft.foliojet.layout.box.BoxType.INLINE
 				? rect(box, x, y)

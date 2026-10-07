@@ -3,42 +3,40 @@ package jp.cssj.test.unit.security;
 import junit.framework.TestCase;
 
 /**
- * SVGの中からの取得が<b>そもそも起動するか</b>を測ります(2026-09-08新設)。
+ * Measure whether fetching from inside SVG <b>activates at all</b> (introduced on 2026-09-08).
  *
  * <p>
- * <b>これは遮断の試験ではありません。</b>対策を測る前に、その経路が実際に
- * 動くことを確かめるための試験です。第1版の対策では、SVGの経路を起動できて
- * いないのに「遮断できた」と報告する誤りを犯しました。取得しない実装と、
- * 取得を拒む実装は、外から見ると同じに見えます。
+ * <b>This is not a blocking test.</b> Before measuring a countermeasure, verify that its path
+ * actually runs. With the first countermeasure, we reported successful blocking when the SVG path
+ * had never activated. From outside, an implementation that does not fetch looks the same as
+ * one that denies fetching.
  * </p>
  *
  * <p>
- * Batik 1.19の全1,337クラスを{@code javap}で走査したところ、
- * {@code ParsedURL.openStream*}を直接呼ぶのは7クラスでした。うち
- * スクリプト2つは無効化済み、{@code SVGImageElementBridge}は
- * {@code MySVGImageElementBridge}で差し替え済みです。残る4つが
- * ここで測る対象です。
+ * Scanning all 1,337 classes in Batik 1.19 with {@code javap} found seven classes that directly
+ * call {@code ParsedURL.openStream*}. Two script classes were already disabled, and
+ * {@code SVGImageElementBridge} was already replaced by {@code MySVGImageElementBridge}.
+ * The remaining four are measured here.
  * </p>
  *
  * <ul>
- * <li>{@code css.parser.Parser} — CSSの{@code @import}</li>
- * <li>{@code bridge.FontFace} — ウェブフォント</li>
- * <li>{@code bridge.SVGColorProfileElementBridge} — 色プロファイル</li>
- * <li>{@code anim.dom.SAXSVGDocumentFactory} — 外部SVG文書</li>
+ * <li>{@code css.parser.Parser} — CSS {@code @import}</li>
+ * <li>{@code bridge.FontFace} — web fonts</li>
+ * <li>{@code bridge.SVGColorProfileElementBridge} — color profiles</li>
+ * <li>{@code anim.dom.SAXSVGDocumentFactory} — external SVG documents</li>
  * </ul>
  *
  * <p>
- * なお、Batikの子{@code BridgeContext}は<b>FolioJetでは到達しません</b>。
- * 唐突な対策を入れないよう、{@link #testNestedSvgDocumentIsFetched()}の
- * 説明を見てください。
+ * Batik's child {@code BridgeContext} is <b>unreachable in FolioJet</b>.
+ * See {@link #testNestedSvgDocumentIsFetched()} before adding an unwarranted countermeasure.
  * </p>
  *
  * <ul>
  * </ul>
  *
  * <p>
- * ここで到達しない経路は、差し替えではなく<b>到達しないことの証明</b>で
- * 済みます。到達する経路だけを差し替えます。
+ * Paths not reached here need <b>proof of unreachability</b>, not replacement.
+ * Replace only reachable paths.
  * </p>
  */
 public class SvgFetchReachabilityTest extends TestCase {
@@ -56,12 +54,12 @@ public class SvgFetchReachabilityTest extends TestCase {
 	}
 
 	/**
-	 * ACLで全部許した状態で組み、記録用サーバへ何が来たかを見ます。
+	 * Lay out with all access allowed by the ACL and inspect what reaches the recording server.
 	 *
 	 * <p>
-	 * <b>主文書も記録用サーバから配ります。</b>そうしないとBatikの既定判定
-	 * (取得元のホストが文書と違えば拒む)に先に止められ、経路が起動して
-	 * いるかどうかを測れません。2026-09-08にこれで一度測り損ねました。
+	 * <b>Serve the main document from the recording server too.</b> Otherwise, Batik's default check
+	 * (reject if the source host differs from the document's) blocks first, preventing measurement
+	 * of whether the path activates. This invalidated one measurement on 2026-09-08.
 	 * </p>
 	 */
 	private ConversionProbe.Result render(final String html) throws Exception {
@@ -70,12 +68,12 @@ public class SvgFetchReachabilityTest extends TestCase {
 	}
 
 	/**
-	 * SVGの中のCSSの{@code @import}が取得されるか。
+	 * Whether CSS {@code @import} inside SVG is fetched.
 	 *
 	 * <p>
-	 * 取得回数だけでなく、<b>取り込んだCSSの色が版面に出たか</b>も見ます。
-	 * 取得しただけで適用されないなら、遮断しても版面は変わらず、
-	 * 遮断の効果を測れないからです。
+	 * Check both fetch counts and <b>whether the imported CSS color appears in the type area</b>.
+	 * If it is fetched but not applied, blocking does not change the type area, so its effect cannot
+	 * be measured there.
 	 * </p>
 	 */
 	public void testCssImportIsFetched() throws Exception {
@@ -91,8 +89,8 @@ public class SvgFetchReachabilityTest extends TestCase {
 	}
 
 	/**
-	 * SVGの色プロファイルが取得されるか。宣言だけでは取得しないので、
-	 * {@code icc-color()}で実際に使います。
+	 * Whether an SVG color profile is fetched. A declaration alone does not fetch it,
+	 * so actually use it through {@code icc-color()}.
 	 */
 	public void testColorProfileIsFetched() throws Exception {
 		this.probe.put("/probe.icc", "application/vnd.iccprofile", new byte[] { 0, 0, 0, 0 });
@@ -107,13 +105,12 @@ public class SvgFetchReachabilityTest extends TestCase {
 	}
 
 	/**
-	 * SVGのウェブフォントが取得されるか。
+	 * Whether SVG web fonts are fetched.
 	 *
 	 * <p>
-	 * {@code MySVGTextElementBridge.getFontList()}はBatikの実装を丸ごと
-	 * 上書きしてFolioJetの{@code FontManager}を直接使うので、
-	 * <b>Batikの{@code FontFace}経路は起動しない見込み</b>です。
-	 * これを測って確かめます。
+	 * {@code MySVGTextElementBridge.getFontList()} completely overrides Batik's implementation
+	 * and uses FolioJet's {@code FontManager} directly, so <b>Batik's {@code FontFace} path
+	 * is expected not to activate</b>. Verify this by measurement.
 	 * </p>
 	 */
 	public void testWebFontIsFetched() throws Exception {
@@ -123,27 +120,26 @@ public class SvgFetchReachabilityTest extends TestCase {
 				+ "\"); }</style>" + "<text x='0' y='20' font-family='probefont' font-size='16'>probe</text>"
 				+ "</svg></body></html>");
 		System.out.println("[ウェブフォント] 到達=" + this.probe.hitPaths() + " " + r.describe());
-		// **実測(2026-09-08): 到達0、警告も無し。** 仮説どおりBatikの
-		// FontFace経路は起動しない。したがってこの経路は差し替えではなく
-		// 「到達しないことの証明」で済む。将来この行が落ちたら、
-		// Batikのフォント経路が生き返ったということなので、設計を見直すこと
+		// **Measured (2026-09-08): zero requests, no warnings.** As hypothesized, Batik's
+		// FontFace path does not activate. This path therefore needs proof of unreachability,
+		// not replacement. If this assertion fails in the future,
+		// Batik's font path has become active again; revisit the design.
 		assertEquals("Batikの FontFace 経路が起動するようになった。設計(§4-3)を見直すこと: " + this.probe.hitPaths(), 0,
 				this.probe.hits("/probe.ttf"));
 	}
 
 	/**
-	 * 入れ子のSVG文書({@code <image xlink:href="…​.svg">})の中の{@code <image>}が
-	 * 取得されるか。
+	 * Whether {@code <image>} inside a nested SVG document
+	 * ({@code <image xlink:href="…​.svg">}) is fetched.
 	 *
 	 * <p>
-	 * <b>Batikの子{@code BridgeContext}はFolioJetでは到達しません。</b>
-	 * {@code createSubBridgeContext()}の呼び出し元は
-	 * {@code SVGImageElementBridge.createSVGImageNode()}だけで、その入口である
-	 * {@code createImageGraphicsNode()}を{@code MySVGImageElementBridge}が
-	 * {@code super}を呼ばずに完全に上書きしているためです(2026-09-08に
-	 * 同梱jarを{@code javap}で走査して確認)。入れ子のSVGは
-	 * {@code ua.resolve()}→{@code SVGImageLoader}→新しい
-	 * {@code MyBridgeContext}という別の道を通ります。
+	 * <b>Batik's child {@code BridgeContext} is unreachable in FolioJet.</b>
+	 * The only caller of {@code createSubBridgeContext()} is
+	 * {@code SVGImageElementBridge.createSVGImageNode()}, whose entry point,
+	 * {@code createImageGraphicsNode()}, is completely overridden by {@code MySVGImageElementBridge}
+	 * without calling {@code super} (confirmed by scanning the bundled jar with {@code javap} on 2026-09-08).
+	 * Nested SVG takes a different path:
+	 * {@code ua.resolve()}→{@code SVGImageLoader}→a new {@code MyBridgeContext}.
 	 * </p>
 	 */
 	public void testNestedSvgDocumentIsFetched() throws Exception {
@@ -164,13 +160,13 @@ public class SvgFetchReachabilityTest extends TestCase {
 	}
 
 	/**
-	 * 外部{@code <use>}が{@code MyURIResolver}を通るか。
+	 * Whether external {@code <use>} passes through {@code MyURIResolver}.
 	 *
 	 * <p>
-	 * Batikの{@code SVGUseElementBridge}は外部文書から取り込んだ描画部分を
-	 * <b>親コンテキストで組みます</b>(子コンテキストは作りません)。参照の
-	 * 解決は{@code ctx.createURIResolver()}——つまり{@code MyURIResolver}を
-	 * 通るはずです。
+	 * Batik's {@code SVGUseElementBridge} <b>builds drawing imported from external documents
+	 * in the parent context</b> (it does not create a child context).
+	 * Reference resolution should pass through {@code ctx.createURIResolver()},
+	 * i.e., {@code MyURIResolver}.
 	 * </p>
 	 */
 	public void testExternalUseIsFetched() throws Exception {
@@ -188,14 +184,13 @@ public class SvgFetchReachabilityTest extends TestCase {
 	}
 
 	/**
-	 * フィルタの{@code <feImage>}が取得されるか。
+	 * Whether filter {@code <feImage>} is fetched.
 	 *
 	 * <p>
-	 * {@code SVGFeImageElementBridge}は{@code ImageTagRegistry.readURL()}を
-	 * 呼び、その先で{@code ParsedURL.openStream()}が走ります。<b>FolioJetは
-	 * このブリッジを差し替えていません。</b>2026-09-08に同梱の全17 jar・
-	 * 1,964クラスを走査して見つけました(はじめは7 jarしか見ておらず、
-	 * この経路を見落としていました)。
+	 * {@code SVGFeImageElementBridge} calls {@code ImageTagRegistry.readURL()},
+	 * which then calls {@code ParsedURL.openStream()}.
+	 * <b>FolioJet does not replace this bridge.</b> It was found by scanning all 17 bundled jars
+	 * and 1,964 classes on 2026-09-08 (the initial scan covered only seven jars and missed this path).
 	 * </p>
 	 */
 	public void testFeImageIsFetched() throws Exception {
@@ -210,10 +205,10 @@ public class SvgFetchReachabilityTest extends TestCase {
 	}
 
 	/**
-	 * 単独のSVG文書の{@code <?xml-stylesheet?>}が取得されるか。
+	 * Whether {@code <?xml-stylesheet?>} in a standalone SVG document is fetched.
 	 *
 	 * <p>
-	 * {@code <style>}の中の{@code @import}とは別の入口です(grok 指摘)。
+	 * This is a separate entry point from {@code @import} inside {@code <style>} (noted by grok).
 	 * </p>
 	 */
 	public void testXmlStylesheetPiIsFetched() throws Exception {
@@ -231,15 +226,15 @@ public class SvgFetchReachabilityTest extends TestCase {
 	}
 
 	/**
-	 * 別のホストの塗り({@code fill="url(…#id)"})が取得されるか。
+	 * Whether paint from another host ({@code fill="url(…#id)"}) is fetched.
 	 *
 	 * <p>
-	 * 外部の塗りサーバへの参照です。{@code <use>}とは別の入口(grok 指摘)。
+	 * This references an external paint server, a separate entry point from {@code <use>} (noted by grok).
 	 * </p>
 	 */
 	public void testExternalPaintIsFetched() throws Exception {
-		// **本当に別のサーバ**にする。同じProbeServerを使うと、
-		// 「別ホストでも取れる」の証拠にならない(codex 指摘)
+		// Use **a genuinely separate server**. Reusing the same ProbeServer
+		// does not prove that a different host can be fetched (noted by codex).
 		try (ProbeServer other = new ProbeServer()) {
 			this.paintProbe = other;
 			this.doTestExternalPaint();
@@ -258,34 +253,32 @@ public class SvgFetchReachabilityTest extends TestCase {
 				+ "#p)'/></svg></body></html>");
 		System.out.println("[別サーバの塗り] 主文書側=" + this.probe.hitPaths() + " 別サーバ側="
 				+ this.paintProbe.hitPaths() + " 緑=" + r.hasColor("rg", 0, 1, 0) + " " + r.describe());
-		// **取得はする。**したがってACLが効くかどうかは意味を持つ
+		// **It is fetched.** Thus, whether the ACL applies is meaningful.
 		assertTrue("別サーバの塗りが取得されていない: " + this.paintProbe.hitPaths(),
 				this.paintProbe.hits("/paint.svg") >= 1);
-		// **ただし版面には出ない**(2026-09-08実測)。外部の塗りサーバへの
-		// 参照はこの形では効いていない。「取得されるのに使われない」ので、
-		// 遮断の効果を版面では測れない——取得回数だけで判定するしかない。
-		// この非対称は記録しておく(将来効くようになったらこの行が落ちる)
+		// **However, it does not appear in the type area** (measured on 2026-09-08). The external paint-server
+		// reference has no effect in this form. Since it is fetched but unused,
+		// blocking cannot be measured in the type area; only fetch counts can determine it.
+		// Record this asymmetry (this assertion fails if it starts taking effect in the future).
 		assertFalse("別サーバの塗りが版面に出るようになった。設計(§4-8)を見直すこと: " + r.describe(),
 				r.hasColor("rg", 0, 1, 0));
 	}
 
 	/**
-	 * grok が挙げた残りの経路をまとめて測ります。
+	 * Measure the remaining paths identified by grok together.
 	 *
 	 * <p>
-	 * いずれも<b>起動しないはず</b>ですが、根拠を持たずに「起動しない」と
-	 * 書かないために測ります。ACLは全部許した状態で、記録用サーバへ
-	 * 来るかどうかだけを見ます。
+	 * All are <b>expected not to activate</b>, but measure them rather than asserting unreachability
+	 * without evidence. Allow everything in the ACL and check only whether requests reach the recording server.
 	 * </p>
 	 *
 	 * <ul>
-	 * <li>{@code cursor: url(…)} — {@code CursorManager}が
-	 *     {@code ImageTagRegistry}を呼ぶ。静的な組版では対話が無いので
-	 *     起動しないはず</li>
-	 * <li>SVGフォントの{@code <font-face-uri>}</li>
-	 * <li>{@code <script xlink:href>} — スクリプトは無効化済み</li>
-	 * <li>{@code <feImage xlink:href="…#id">} — {@code #}ありの枝。
-	 *     {@code createFilter()}は{@code <use>}を合成する</li>
+	 * <li>{@code cursor: url(…)} — {@code CursorManager} calls {@code ImageTagRegistry}.
+	 *     Static layout has no interaction, so this should not activate.</li>
+	 * <li>{@code <font-face-uri>} in SVG fonts</li>
+	 * <li>{@code <script xlink:href>} — scripts are already disabled</li>
+	 * <li>{@code <feImage xlink:href="…#id">} — the branch with {@code #}.
+	 *     {@code createFilter()} synthesizes {@code <use>}.</li>
 	 * </ul>
 	 */
 	public void testRemainingPathsAreNotFetched() throws Exception {
@@ -309,11 +302,11 @@ public class SvgFetchReachabilityTest extends TestCase {
 		assertEquals("cursorのurl()が取得された。設計を見直すこと", 0, this.probe.hits("/cursor.png"));
 		assertEquals("SVGフォントのfont-face-uriが取得された。設計を見直すこと", 0, this.probe.hits("/svgfont.svg"));
 		assertEquals("<script href>が取得された。スクリプトは無効化されているはず", 0, this.probe.hits("/script.js"));
-		// **#ありの<feImage>は起動しうる。** 到達したら別途ACLの試験が要る
+		// **<feImage> with # can activate.** If reached, it needs a separate ACL test.
 		System.out.println("  feImage(#あり)の到達回数=" + this.probe.hits("/fe2.svg"));
 	}
 
-	/** 1x1の緑のPNGです。 */
+	/** A green 1x1 PNG. */
 	public static byte[] onePixelPng() {
 		return java.util.Base64.getDecoder()
 				.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");

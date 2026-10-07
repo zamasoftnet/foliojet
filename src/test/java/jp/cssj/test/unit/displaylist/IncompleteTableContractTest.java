@@ -31,7 +31,10 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
-/** B-1: 変換スレッドや入力文書に依存せず、未完表の箱と末尾会計の契約を検査する。 */
+/**
+ * B-1: Check incomplete-table box and end-accounting contracts independently of conversion threads or input
+ * documents.
+ */
 public final class IncompleteTableContractTest extends TestCase {
 	public void testDefaultIsComplete() {
 		final TableBox table = table(WritingMode.TB, 7);
@@ -50,7 +53,7 @@ public final class IncompleteTableContractTest extends TestCase {
 			assertEquals(0.0, table.getFrame().getFramePageEnd(flow), 0);
 			assertEquals(table.getInnerPageExtent(flow) + original.getFramePageStart(flow),
 					table.getPageExtent(flow), 0);
-			// 退避したフレームも共有の style params も切断していない。
+			// Neither the saved frame nor shared style params are cut.
 			assertTrue(original.getFramePageEnd(flow) > 0);
 			assertSame(original.frame, table.getTableParams().frame);
 			table.complete();
@@ -139,14 +142,14 @@ public final class IncompleteTableContractTest extends TestCase {
 	}
 
 	public void testCutReservationDefersEndMargin() {
-		// 境界が末尾マージンに入った場合、完了表だけが末尾マージンを予約する。
+		// When the boundary falls in the end margin, only a completed table reserves that margin.
 		assertEquals(78.0, TableCutter.reserveNonBreakable(95, 100, 7, 10, 10, -1, -1), 0);
 		assertEquals(88.0, TableCutter.reserveIncompleteNonBreakable(95, 7, -1), 0);
 		assertEquals(78.0, TableCutter.reserveIncompleteNonBreakable(95, 7, 10), 0);
 	}
 
 	public void testParentKeepsUnsplitIncompleteTable() {
-		// 収まる場合と、改ページを拒否された場合の両方で現在の表を保持する。
+		// Retain the current table both when it fits and when a page break is refused.
 		for (final double limit : new double[] { 200, 50 }) {
 			final TableBox table = table(WritingMode.TB, 7);
 			table.markIncomplete();

@@ -27,7 +27,7 @@ import uk.org.okapibarcode.output.Java2DRenderer;
 import net.zamasoft.foliojet.css.token.Unit;
 
 /**
- * OkapiBarcodeを描画します。
+ * Draws OkapiBarcode output.
  */
 public class BarcodeImage implements Image, ReplacedBoxImage {
 	protected final UserAgent ua;
@@ -36,7 +36,7 @@ public class BarcodeImage implements Image, ReplacedBoxImage {
 	protected final double upm, width, height;
 	protected Color color = Color.BLACK;
 
-	/** 1モジュール単位の物理寸法(mm)。 */
+	/** Physical size of one module (mm). */
 	protected final double unitMm;
 
 	public BarcodeImage(UserAgent ua, Symbol symbol, String message, double unitMm) {
@@ -44,8 +44,8 @@ public class BarcodeImage implements Image, ReplacedBoxImage {
 		this.symbol = symbol;
 		this.message = message;
 		this.unitMm = unitMm;
-		// Okapiの幾何は「モジュール」単位の整数。1単位=unitMm(mm)として
-		// 物理寸法へ倍率をかける(BarcodeInlineObjectの単位系コメント参照)
+		// Okapi geometry uses integer "module" units. Scale to physical dimensions with 1 unit = unitMm (mm)
+		// (see the unit-system comment in BarcodeInlineObject)
 		this.upm = LengthUtils.convert(ua, unitMm, Unit.MM, Unit.PT);
 		this.width = Math.max(1, symbol.getWidth()) * this.upm;
 		this.height = Math.max(1, symbol.getHeight()) * this.upm;
@@ -56,9 +56,9 @@ public class BarcodeImage implements Image, ReplacedBoxImage {
 	}
 
 	public Image duplicate() {
-		// symbol/messageは構築後不変の描画内容なので共有してよい。
-		// setReplacedBoxで受け取る状態(現状はcolorのみの候補)は
-		// インスタンスごとに独立になる(E-6増分3b-3)
+		// symbol/message are immutable drawing content after construction, so they can be shared.
+		// State received through setReplacedBox (currently only color is a candidate)
+		// is independent per instance (E-6 increment 3b-3)
 		final BarcodeImage duplicate = new BarcodeImage(this.ua, this.symbol, this.message, this.unitMm);
 		duplicate.color = this.color;
 		return duplicate;
@@ -79,10 +79,10 @@ public class BarcodeImage implements Image, ReplacedBoxImage {
 	public void drawTo(GC gc) throws GraphicsException {
 		try (final GC.State gcState = gc.begin()) {
 			if (this.symbol instanceof final BookJanSymbol bookJan) {
-				// 0.33mm = 0.935433...ptをPDFの既定precision=2のcmへ出すと
-				// 0.94ptに丸められ、95モジュールが31.503mmへ太る。
-				// 書籍JANは拡縮不可なので、各座標を物理ptへ直してから描き、
-				// 端点の丸め誤差を1座標あたり0.005pt以下に抑える。
+				// Emitting 0.33 mm = 0.935433... pt in a PDF cm with the default precision=2 rounds
+				// it to 0.94 pt, widening 95 modules to 31.503 mm.
+				// Book JAN codes must not be scaled, so convert each coordinate to physical pt before drawing,
+				// keeping endpoint rounding error to at most 0.005 pt per coordinate.
 				this.drawBookJan(gc, bookJan);
 				return;
 			}
@@ -104,13 +104,13 @@ public class BarcodeImage implements Image, ReplacedBoxImage {
 	}
 
 	/**
-	 * 書籍JANをCopperの実フォントメトリクスで描画する。
+	 * Draws Book JAN codes using Copper's actual font metrics.
 	 *
-	 * <p>OkapiのJava2DRendererはJUSTIFYの字間をAWT側の代替フォントで
-	 * 計算する。一方、実際の描画はBridgeGraphics2DがCopper側のOCR-Bへ
-	 * 解決するため、両者の字幅が違うと添え数字が31.35mmのバー幅まで
-	 * 広がらない。旧Copper 3.2のISBNCanvasLogicHandlerと同様に、実際に
-	 * 選ばれたフォントの送り幅から字間を求める。</p>
+	 * <p>Okapi's Java2DRenderer calculates JUSTIFY letter spacing using an AWT substitute font.
+	 * Actual drawing, however, resolves to Copper's OCR-B through BridgeGraphics2D, so when their
+	 * character widths differ, the human-readable digits do not span the 31.35 mm bar width.
+	 * As in Copper 3.2's ISBNCanvasLogicHandler, calculates letter spacing from advances
+	 * of the font actually selected.</p>
 	 */
 	private void drawBookJan(final GC gc, final BookJanSymbol symbol) throws GraphicsException {
 		gc.setFillPaint(GrayColor.WHITE);

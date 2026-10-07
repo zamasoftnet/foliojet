@@ -1,21 +1,20 @@
 package net.zamasoft.foliojet.layout.fragment;
 
 /**
- * {@code AbstractContainerBox.prepareColumnCut()}の型付き結果です
- * (2026-07-21新設、M6b Phase B B4)。旧{@code newColumn()}の三義的
- * null/自身/他への返値(呼び出し側がidentity比較で解釈していた)を、
- * 明示的な型へ置き換える。
+ * Typed result of {@code AbstractContainerBox.prepareColumnCut()} (added 2026-07-21, M6b Phase B B4). Replaces the
+ * old {@code newColumn()} return value's three meanings, null/self/other (interpreted by callers through identity
+ * comparisons), with explicit types.
  */
 public sealed interface ColumnCutResult {
-	/** 全体を現在のactive columnに残す(旧nullに相当)。 */
+	/** Keeps everything in the current active column (formerly null). */
 	record Keep() implements ColumnCutResult {
 	}
 
-	/** 全体を次のcolumnへ送る(旧: 返値がactive columnそのものに相当)。 */
+	/** Sends everything to the next column (formerly returned the active column itself). */
 	record Move() implements ColumnCutResult {
 	}
 
-	/** 内部で切断した。{@link PreparedColumnCut}はまだownerへcommit前。 */
+	/** Cut internally. {@link PreparedColumnCut} is not yet committed to the owner. */
 	record Cut(PreparedColumnCut prepared) implements ColumnCutResult {
 	}
 }

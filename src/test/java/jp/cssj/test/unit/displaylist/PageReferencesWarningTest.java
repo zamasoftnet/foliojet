@@ -17,11 +17,11 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 頁参照({@code processing.page-references})が無効なのに{@code target-counter()}
- * を使った文書へ警告を出すことを固定します(2026-10-04、TECH-20261003-004 の⑩。
- * 以前は黙って空になり、時限暗号の本の目次の頁番号が抜けたまま出た)。
- * 十進の番号は1パスのPDFでも出るようになった(OnePassTargetCounterTest)ので、
- * ここでは欄にできない書式(lower-roman)で確かめる。
+ * Verify warnings for documents using {@code target-counter()} while page references
+ * ({@code processing.page-references}) are disabled (2026-10-04, TECH-20261003-004 item ⑩).
+ * Previously this silently yielded empty output, leaving page numbers missing from the
+ * Jigen Ango book's table of contents. Decimal numbers now work even in one-pass PDFs
+ * (OnePassTargetCounterTest), so check a format unsuitable for a field (lower-roman) here.
  */
 public class PageReferencesWarningTest extends TestCase {
 	private static final String HTML = """

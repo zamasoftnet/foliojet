@@ -6,7 +6,7 @@ import java.util.List;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.util.TextUtils;
 
-/** 割注コンテナ内の文字と先頭書式を収集する有界バッファ。 */
+/** Bounded buffer collecting text and initial formatting within a warichu container. */
 final class WarichuCollector {
 	record Segment(String text, InlineParams params, int sourceStart, int sourceEnd) {
 	}

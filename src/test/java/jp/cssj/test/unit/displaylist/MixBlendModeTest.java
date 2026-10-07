@@ -18,14 +18,14 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>{@code mix-blend-mode: multiply}</b>を固定します(compositing-1、
- * 2026-08-29)。
+ * Verify <b>{@code mix-blend-mode: multiply}</b> (compositing-1,
+ * 2026-08-29).
  *
  * <p>
- * 黄(255,255,0)の箱の上に、multiplyのシアン(0,255,255)の箱を重ねる。
- * 重なりは乗算で緑(0,255,0)——どちらの箱より暗い(R・Bとも落ちる)。
- * 重ならない部分はそれぞれの色のまま。PDFBoxはExtGStateの/BMを
- * 描画で解釈するので、PDFに/BMが出ていることの実証にもなる。
+ * Place a cyan (0,255,255) box with multiply over a yellow (255,255,0) box.
+ * The overlap multiplies to green (0,255,0), darker than either box (both R and B decrease).
+ * Nonoverlapping regions retain their original colors. PDFBox interprets ExtGState's /BM
+ * when rendering, so this also demonstrates that the PDF contains /BM.
  * </p>
  */
 public class MixBlendModeTest extends TestCase {
@@ -53,7 +53,7 @@ public class MixBlendModeTest extends TestCase {
 			final int overlap = img.getRGB(80, 80);
 			assertTrue("黄の箱: " + hex(yellow), r(yellow) > 200 && g(yellow) > 200 && b(yellow) < 60);
 			assertTrue("シアンの箱: " + hex(cyan), r(cyan) < 60 && g(cyan) > 200 && b(cyan) > 200);
-			// 乗算: (255,255,0)×(0,255,255)/255 = (0,255,0)
+			// Multiply: (255,255,0)×(0,255,255)/255 = (0,255,0).
 			assertTrue("重なりが乗算(緑)になっていません: " + hex(overlap),
 					r(overlap) < 60 && g(overlap) > 200 && b(overlap) < 60);
 			assertTrue("重なりが黄より暗くありません", r(overlap) < r(yellow) - 100);

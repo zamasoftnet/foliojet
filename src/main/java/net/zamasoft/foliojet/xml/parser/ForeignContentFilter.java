@@ -13,20 +13,22 @@ import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.xml.vocab.Foreign;
 
 /**
- * HTML(と Markdown の中の HTML)の要素の名前空間を整えるフィルタです。2026-10-04 まで HTMLParser と MarkdownParser に
- * 同じ無名クラスの写しがあった。
+ * A filter that normalizes element namespaces in HTML (and HTML within Markdown).
+ * Until 2026-10-04, HTMLParser and MarkdownParser contained copies of the same anonymous class.
  *
  * <ul>
- * <li><b>HTML5の foreign content</b>: {@code <math>}/{@code <svg>}とその子孫に HTML5 の名前空間を与える。
- * HTMLでは{@code xmlns}を書かないのが普通で、HTML5 はこれらを構文解析の段階で正しい名前空間へ入れる(ブラウザは
- * 全部そうする)。NekoHTML はそこまでやらないのでここで補う——やらないと MathML が平らな文字列になり、しかも
- * {@code <annotation>}の中の生の LaTeX まで一緒に出る。arXiv が今 HTML を出している形(ar5iv/LaTeXML)がまさに
- * これで、{@code h_{t}}が「htsubscript … h_{t}」と出ていた(2026-08-05、実地コーパス第11波)。
- * <b>簡略化している点</b>: HTML5 が定める復帰点({@code <foreignObject>}や
- * {@code <annotation-xml encoding="text/html">}の内側は HTML へ戻る)は見ていない。深さだけで数える。印刷用途
- * では、その内側に HTML を書き戻す文書が実地でほぼ無いため。</li>
- * <li>{@code input.html.change-default-namespace} が偽なら、接頭辞の無い要素の(foreign でない)名前空間を外す。</li>
- * <li>最初の{@code <body>}で、標準モードなら要素の性質を{@code html4.xml}へ切り替える。</li>
+ * <li><b>HTML5 foreign content</b>: assigns HTML5 namespaces to {@code <math>}/{@code <svg>} and descendants.
+ * HTML normally omits {@code xmlns}; HTML5 assigns the correct namespaces during parsing
+ * (as all browsers do). NekoHTML does not, so compensate here. Otherwise, MathML becomes flat text,
+ * including even raw LaTeX inside {@code <annotation>}. This is exactly how arXiv currently produces
+ * HTML (ar5iv/LaTeXML): {@code h_{t}} appeared as "htsubscript … h_{t}"
+ * (2026-08-05, real-world corpus wave 11).
+ * <b>Simplification</b>: does not handle HTML5 integration points (where contents of {@code <foreignObject>}
+ * or {@code <annotation-xml encoding="text/html">} return to HTML); tracks depth only.
+ * Documents for printing almost never switch back to HTML inside these in practice.</li>
+ * <li>If {@code input.html.change-default-namespace} is false, removes non-foreign namespaces
+ * from unprefixed elements.</li>
+ * <li>At the first {@code <body>}, switches element properties to {@code html4.xml} in standards mode.</li>
  * </ul>
  */
 class ForeignContentFilter extends DefaultFilter {
@@ -35,7 +37,7 @@ class ForeignContentFilter extends DefaultFilter {
 	private final boolean changeDefaultNamespace;
 	private boolean firstElement = true;
 
-	/** foreign content の名前空間と入れ子の深さ(0なら外)。 */
+	/** Foreign content namespace and nesting depth (0 means outside). */
 	private String foreignURI = null;
 	private int foreignDepth = 0;
 
@@ -55,7 +57,7 @@ class ForeignContentFilter extends DefaultFilter {
 				this.foreignURI = uri;
 				element.setUri(uri);
 			} else if (Foreign.is(element.getUri())) {
-				// xmlns が書いてある場合。NekoHTMLが既に付けている
+				// An explicit xmlns is present. NekoHTML has already assigned it.
 				this.foreignURI = element.getUri();
 			} else {
 				return;
@@ -66,7 +68,7 @@ class ForeignContentFilter extends DefaultFilter {
 		++this.foreignDepth;
 	}
 
-	/** 接頭辞の無い要素から、foreign でない既定の名前空間を外します。 */
+	/** Removes non-foreign default namespaces from unprefixed elements. */
 	private void stripDefaultNamespace(final QName element) {
 		if (!this.changeDefaultNamespace && !Foreign.is(element.getUri()) && element.getUri() != null
 				&& (element.getPrefix() == null || element.getPrefix().length() == 0)) {
@@ -81,7 +83,7 @@ class ForeignContentFilter extends DefaultFilter {
 		this.stripDefaultNamespace(element);
 		super.startElement(element, attributes, augs);
 		if (this.firstElement && element.getLocalpart().equalsIgnoreCase("body")) {
-			// 標準モードへの切り替え
+			// Switch to standards mode.
 			if (this.ua.getDocumentContext().getCompatibleMode() == CompatibleMode.STRICT) {
 				this.balancer.setElementProps(ElementProps.getElementProps("html4.xml"));
 			}
@@ -106,7 +108,7 @@ class ForeignContentFilter extends DefaultFilter {
 	@Override
 	public void emptyElement(final QName element, final XMLAttributes attributes, final Augmentations augs)
 			throws XNIException {
-		// 空要素は開いてすぐ閉じる。foreign の深さは増減させない
+		// Empty elements open and close immediately. Do not change foreign depth.
 		final int depth = this.foreignDepth;
 		final String uri = this.foreignURI;
 		this.applyForeign(element);

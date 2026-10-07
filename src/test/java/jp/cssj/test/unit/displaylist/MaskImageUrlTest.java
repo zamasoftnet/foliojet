@@ -16,7 +16,7 @@ import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** {@code mask-image:url(SVG)} が背景色の四角ではなくアイコン形状になること。 */
+/** {@code mask-image:url(SVG)} produces the icon shape, not a rectangle in the background color. */
 public class MaskImageUrlTest extends TestCase {
 	public void testSvgUrlMaskUsesBackgroundColorAndTransparentOutside() throws Exception {
 		final java.awt.image.BufferedImage image = render("mask-image-url.html");
@@ -24,7 +24,7 @@ public class MaskImageUrlTest extends TestCase {
 		assertFalse("URLマスクを無視した背景色の四角が残っています", isRed(image.getRGB(12, 12)));
 	}
 
-	/** MDN型の絶対配置::afterでもcurrentColorのURLマスクを描くこと。 */
+	/** Draw a currentColor URL mask even on an MDN-style absolutely positioned ::after. */
 	public void testExternalLinkPseudoMaskUsesCurrentColor() throws Exception {
 		final java.awt.image.BufferedImage image = render("external-link-pseudo-mask.html");
 		int blue = 0;

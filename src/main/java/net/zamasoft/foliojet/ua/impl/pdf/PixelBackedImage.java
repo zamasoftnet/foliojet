@@ -9,15 +9,15 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.WrappedImage;
 
 /**
- * PDFへ直接登録した画像({@code PDFImage}、画素を持たない)に、必要に
- * なったときだけ復号した画素を添える包み紙です(2026-08-29新設)。
+ * A wrapper that adds lazily decoded pixels to an image registered directly with PDF
+ * ({@code PDFImage}, which has no pixels) only when needed (introduced 2026-08-29).
  *
  * <p>
- * {@code PDFUserAgent}は画像をPDFWriterへ直接読ませて({@code loadImage})
- * 復号を省くため、描画時の{@code Image}は画素を持たない。ところが
- * {@code filter}のグレースケール等はラスタの画素を変換して別の画像に
- * する必要がある。そこで画素は{@link #getPixels}で遅延して読み、フィルタが
- * 無い普通の文書では元の経路のまま(復号もメモリも増えない)にする。
+ * {@code PDFUserAgent} lets PDFWriter read images directly ({@code loadImage}) to skip decoding,
+ * so the {@code Image} used during drawing has no pixels. However, {@code filter} operations
+ * such as grayscale must transform raster pixels into another image.
+ * Read pixels lazily via {@link #getPixels}, leaving ordinary documents without filters
+ * on the original path (without extra decoding or memory).
  * </p>
  */
 public final class PixelBackedImage extends WrappedImage {
@@ -36,12 +36,12 @@ public final class PixelBackedImage extends WrappedImage {
 		this.sourceURI = sourceURI;
 	}
 
-	/** 復号器がない形式も内容を識別できるよう、元資源への参照を保持する。 */
+	/** Retains a reference to the original resource so content remains identifiable even for formats without decoders. */
 	public URI getSourceURI() {
 		return this.sourceURI;
 	}
 
-	/** 復号した画素つきの画像({@code RasterImage})。読めなければnull。 */
+	/** An image with decoded pixels ({@code RasterImage}). Null if unreadable. */
 	public synchronized Image getPixels() {
 		if (!this.tried) {
 			this.tried = true;

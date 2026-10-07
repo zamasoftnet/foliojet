@@ -38,9 +38,9 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 本文の後に書かれた全幅の {@code float: top} を現頁の上端へ平行移動する
- * (translate、2026-09-05)受入試験。設計書§6の1〜12を各test methodへ
- * 対応させ、配置頁・物理座標・本文の保存を表示リスト構築時の箱で検査する。
+ * Acceptance tests for translating a full-width {@code float: top} written after body text to the current page's top
+ * (translate, 2026-09-05). Map design document §6 items 1–12 to test methods, checking the placement page,
+ * physical coordinates, and body-text preservation using boxes at display-list construction time.
  */
 public class TopFloatTranslateTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
@@ -51,7 +51,7 @@ public class TopFloatTranslateTest extends TestCase {
 		super(name);
 	}
 
-	/** §6-1: TB/RL/LRとも全幅topを現頁上端へ置き、全本文をその後ろへ移す。 */
+	/** §6-1: for TB/RL/LR, place full-width top at the current page's top and move all body text after it. */
 	public void testTranslateAcrossWritingModes() throws Exception {
 		for (final String mode : new String[] { "horizontal-tb", "vertical-rl", "vertical-lr" }) {
 			final String token = mode.equals("horizontal-tb") ? "AXIS-H"
@@ -78,7 +78,7 @@ public class TopFloatTranslateTest extends TestCase {
 		}
 	}
 
-	/** §6-2: 既存内容と合算して収まらなければtop-next、先行本文は旧頁に残す。 */
+	/** §6-2: if it does not fit with existing content, use top-next and leave preceding text on the old page. */
 	public void testNonFittingTopFallsBackWithoutMovingPriorContent() throws Exception {
 		final String html = basicDocument("horizontal-tb", fullTopStyle("horizontal-tb", 40), "",
 				"<p style='height:95pt'>NONFIT-PRE</p><div class='top'></div><p>NONFIT-POST</p>");
@@ -90,7 +90,7 @@ public class TopFloatTranslateTest extends TestCase {
 		assertTrue("後続本文は失われない", !lines(capture, "NONFIT-POST").isEmpty());
 	}
 
-	/** §6-3: 複数topはFIFO prefixだけを採り、carry-inも追い越さない。 */
+	/** §6-3: accept only a FIFO prefix of multiple tops; do not overtake carried-in items either. */
 	public void testMultipleTopFloatsKeepFifoPrefix() throws Exception {
 		final String both = basicDocument("horizontal-tb", "", """
 				.top-a,.top-b { float:top; box-sizing:border-box; width:180pt; background:#ccc }
@@ -127,7 +127,7 @@ public class TopFloatTranslateTest extends TestCase {
 				carryFloats.get(1).bounds().getMinY(), EPSILON);
 	}
 
-	/** §6-4: 脚注予約を容量から引き、呼び出し頁・注位置・番号を変えない。 */
+	/** §6-4: subtract footnote reservations from capacity; preserve call pages, note positions, and numbering. */
 	public void testFootnoteReservationAndNumberingStayStable() throws Exception {
 		final String body = "<p>FN-CALL<span class='note'>FN-NUMBER</span></p><div class='top'></div><p>FN-TAIL</p>";
 		final String html = basicDocument("horizontal-tb", fullTopStyle("horizontal-tb", 20),
@@ -156,7 +156,7 @@ public class TopFloatTranslateTest extends TestCase {
 		assertEquals("脚注呼び出しは旧頁", 1, only(lines(reservedCapture, "FN-RESERVE"), "予約call").page());
 	}
 
-	/** §6-5: 通常float台帳とoverflow:hidden台帳を移し、後続行の回避を保つ。 */
+	/** §6-5: move normal-float and overflow:hidden ledgers, preserving avoidance by subsequent lines. */
 	public void testInFlowFloatLedgersShiftAndKeepWrapping() throws Exception {
 		for (final boolean hidden : new boolean[] { false, true }) {
 			final String scopeStart = hidden ? "<section class='scope'>" : "";
@@ -178,10 +178,10 @@ public class TopFloatTranslateTest extends TestCase {
 		}
 	}
 
-	/** §6-6: static absoluteだけをTB/RL/LRの頁軸へ移し、offset指定とfixedは固定する。 */
+	/** §6-6: move only static absolute boxes along the TB/RL/LR page axis; keep explicit offsets and fixed boxes in place. */
 	public void testAbsoluteStaticPositionsShiftButOffsetsAndFixedStay() throws Exception {
 		for (final String mode : new String[] { "horizontal-tb", "vertical-rl", "vertical-lr" }) {
-			// 箱は寸法で見分ける(static 70pt / explicit 60pt / fixed 50pt の正方形)
+			// Distinguish boxes by size (squares: static 70 pt / explicit 60 pt / fixed 50 pt).
 			final String css = """
 					.static { position:absolute; width:70pt; height:70pt; font:8pt/10pt monospace }
 					.explicit { position:absolute; top:0; left:0; width:60pt; height:60pt; font:8pt/10pt monospace }
@@ -209,13 +209,13 @@ public class TopFloatTranslateTest extends TestCase {
 		}
 	}
 
-	/** 1 頁目にある絶対配置の箱のうち、辺の長さが size の正方形のもの。 */
+	/** The absolutely positioned square box on page 1 whose side length is size. */
 	private static List<BoxBounds> absolutesOfSize(final Capture capture, final double size) {
 		return capture.absolutes().stream().filter(b -> b.page() == 1
 				&& Math.abs(b.bounds().getWidth() - size) < 0.5 && Math.abs(b.bounds().getHeight() - size) < 0.5).toList();
 	}
 
-	/** §6-7: 配置済み並列注も移し、同じ側の後着注カーソルを同量進める。 */
+	/** §6-7: move already placed parallel notes too, and advance the cursor for later notes on that side by the same amount. */
 	public void testPageMarginNotesShiftAndKeepSideCursors() throws Exception {
 		final String css = ".margin-note { float:-cssj-note-start; width:30pt; height:12pt }";
 		final String content = "<p>NOTE-PRE</p><aside class='margin-note'>NOTE-ONE</aside>"
@@ -246,7 +246,7 @@ public class TopFloatTranslateTest extends TestCase {
 				only(capacity.marginNotes(), "容量判定の並列注").page());
 	}
 
-	/** §6-8: 二次元bottomの実配置開始をlimitにし、本文をbottom帯へ入れない。 */
+	/** §6-8: use the actual placement start of two-dimensional bottom as the limit; keep body text out of the bottom band. */
 	public void testTwoDimensionalBottomReservationLimitsTranslation() throws Exception {
 		final String css = """
 				.bottom { float:bottom; width:70pt; height:30pt }
@@ -269,7 +269,7 @@ public class TopFloatTranslateTest extends TestCase {
 				only(rejectedCapture.topFloats(), "bottom limit top").page());
 	}
 
-	/** §6-9: open flowのline-clamp可変状態を移動後も同じ参照で継続する。 */
+	/** §6-9: continue the open flow's mutable line-clamp state through the same reference after moving. */
 	public void testLineClampStateSurvivesTranslation() throws Exception {
 		final String html = basicDocument("horizontal-tb", fullTopStyle("horizontal-tb", 18),
 				".clamp { line-clamp:2 }",
@@ -287,7 +287,7 @@ public class TopFloatTranslateTest extends TestCase {
 		assertEquals("clamp外の後続は残る", 1, lines(capture, "CLAMP-AFTER").size());
 	}
 
-	/** §6-10: 安全条件外はtop-nextのまま、表だけは閉じた後のhookで現頁へ置く。 */
+	/** §6-10: outside safety conditions, retain top-next; only tables use a post-close hook to place on the current page. */
 	public void testFallbacksAndTableClosureTrigger() throws Exception {
 		final Capture inline = transcode("fallback-inline", basicDocument("horizontal-tb",
 				fullTopStyle("horizontal-tb", 18), "",
@@ -298,14 +298,14 @@ public class TopFloatTranslateTest extends TestCase {
 		final Capture columns = transcode("fallback-columns", basicDocument("horizontal-tb",
 				fullTopStyle("horizontal-tb", 18), ".columns { column-count:2; height:70pt }",
 				"<p>COL-BEFORE</p><section class='columns'><p>COL-IN</p><div class='top'></div></section>"), 1, null);
-		// 段組の内側では試みない(fallback)が、段組が閉じた後の hook で現頁の上端へ置ける(表と同じ)
+		// Do not attempt inside multi-column layout (fallback); after it closes, its hook can place at the current page's top (like tables).
 		final BoxBounds columnTop = only(columns.topFloats(), "段組top");
 		assertEquals("段組を閉じた後の hook で現頁", 1, columnTop.page());
 		assertNoIntersections("段組top", columnTop, linesOnPage(columns, "COL", 1));
 
 		final Capture narrow = transcode("fallback-narrow", basicDocument("horizontal-tb",
 				"width:70pt;height:18pt", "", "<p>NARROW-PRE</p><div class='top'></div><p>NARROW-AFTER</p>"), 1, null);
-		// 狭幅の新規topは帯として現頁へ(脇に文字は回り込まない): 先行本文は帯の下へ移る
+		// A new narrow top becomes a band on the current page (no text wraps alongside); preceding text moves below the band.
 		final BoxBounds narrowTop = only(narrow.topFloats(), "狭幅top");
 		assertEquals("狭幅topも帯として現頁", 1, narrowTop.page());
 		assertNoIntersections("狭幅top", narrowTop, linesOnPage(narrow, "NARROW", 1));
@@ -316,8 +316,8 @@ public class TopFloatTranslateTest extends TestCase {
 		final Capture shape = transcode("fallback-shape", basicDocument("horizontal-tb",
 				fullTopStyle("horizontal-tb", 18) + ";shape-outside:circle(50%)", "",
 				"<p>SHAPE-PRE</p><div class='top'></div><p>SHAPE-AFTER</p>"), 1, null);
-		// ページフロートは shape-outside を持たない(BoxStyleMapper: 脚注・ページフロートは別の Pos)ので、
-		// shape 指定は無視されて通常の全幅 top として現頁へ置かれる
+		// Page floats have no shape-outside (BoxStyleMapper: footnotes and page floats use separate Pos types), so
+		// ignore the shape declaration and place it as a normal full-width top on the current page.
 		assertEquals("shape指定は無視され現頁", 1, only(shape.topFloats(), "shape top").page());
 
 		final String existingHtml = basicDocument("horizontal-tb", "", """
@@ -347,7 +347,7 @@ public class TopFloatTranslateTest extends TestCase {
 		assertTrue("再開中に届くtopはtop-next", only(restyle.topFloats(), "restyle top").page() >= 2);
 	}
 
-	/** §6-11: translate後の通常改頁でも継続を一度ずつ出し、次頁原点をずらさない。 */
+	/** §6-11: normal page breaks after translate emit each continuation once and preserve the next page's origin. */
 	public void testPaginationAfterTranslationKeepsContinuation() throws Exception {
 		final String html = basicDocument("horizontal-tb", fullTopStyle("horizontal-tb", 18), "",
 				"<p>CONT-HEAD</p><div class='top'></div><p>" + words("CONT", 180) + "</p>");
@@ -365,7 +365,7 @@ public class TopFloatTranslateTest extends TestCase {
 		assertEquals("2頁目は通常のpage-startから始まる", 0, secondPageFirst.bounds().getMinY(), 0.75);
 	}
 
-	/** §6-12: 親TwoPassのpass-count 1/2を一致させ、oversized回帰の頁数を抑える。 */
+	/** §6-12: match parent TwoPass pass-count 1/2 and bound page count for the oversized regression. */
 	public void testTwoPassParityAndOversizedRegression() throws Exception {
 		final String html = basicDocument("horizontal-tb", fullTopStyle("horizontal-tb", 18),
 				".two-pass { display:inline-block; width:180pt }",

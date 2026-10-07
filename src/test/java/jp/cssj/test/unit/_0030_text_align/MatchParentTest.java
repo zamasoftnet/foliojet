@@ -79,7 +79,7 @@ public class MatchParentTest extends AbstractTestCase {
 			TextValueUtils.toTextAlignParam(TextAlignValue.MATCH_PARENT_VALUE, child);
 			fail("計算値にmatch-parentを残してはいけません");
 		} catch (IllegalStateException e) {
-			// 期待どおり
+			// As expected.
 		}
 	}
 

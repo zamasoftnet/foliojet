@@ -25,9 +25,9 @@ import net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** T0で特定した未seal文書の経路を固定します。件数の観測はstderrへ出します。 */
+/** Pin down paths for unsealed documents identified in T0. Report observed counts to stderr. */
 public final class TwoPassFlowSealTest extends TestCase {
-	/** T0のFLOW_NO_SEALのうち、T1で範囲化する17文書。 */
+	/** The 17 T0 FLOW_NO_SEAL documents converted to ranges in T1. */
 	static final List<String> FLOW_DOCUMENTS = List.of(
 			"0390-writing-mode/absolute.html",
 			"0390-writing-mode/float-in-flow.html",
@@ -47,7 +47,7 @@ public final class TwoPassFlowSealTest extends TestCase {
 			"3080-MODERN-CSS/width-min-content.html",
 			"3090-bidi/two-pass.html");
 
-	/** 圏点のabsoluteを所有する子のseal証明は、T2で親のflowへ引き継ぐ。 */
+	/** In T2, pass the seal proof from a child owning emphasis-mark absolutes to the parent flow. */
 	static final List<String> ABSOLUTE_FLOW_DOCUMENTS = List.of(
 			"ioprops/text-shadow-vertical-none.html",
 			"ioprops/text-shadow-vertical.html");
@@ -58,8 +58,9 @@ public final class TwoPassFlowSealTest extends TestCase {
 			"0240-table/absolute-in-float-in-cell.html");
 
 	/**
-	 * テンプレートの中に表(TwoPass 本文)を持つ running element。主ソースを持たない独立イベント再生
-	 * (ReplayOnly)を通る文書はこれだけ(旧 T0 の NO_SOURCE 4 文書は 3.2 互換層の撤去で消えた、2026-09-08)。
+	 * A running element whose template contains a table (TwoPass body). This is the only document that uses
+	 * independent event replay without a main source (ReplayOnly). The four former T0 NO_SOURCE documents
+	 * disappeared with removal of the 3.2 compatibility layer on 2026-09-08.
 	 */
 	static final List<String> RUNNING_DOCUMENTS = List.of(
 			"0370-page-content/running-table.html");
@@ -125,7 +126,7 @@ public final class TwoPassFlowSealTest extends TestCase {
 		}
 	}
 
-	/** 終端し忘れは状態機械だけでは検出できないので、収支も必要条件として検査する。 */
+	/** The state machine alone cannot detect missing termination, so also check balance as a necessary condition. */
 	static void assertLeaseBalance(final String doc) {
 		assertEquals(doc + ": 未終端のRangeHandle", ContinuationStats.TWO_PASS_SEALS_ELIGIBLE.get(),
 				ContinuationStats.TWO_PASS_RANGES_CONSUMED.get() + ContinuationStats.TWO_PASS_SEALS_SUBSUMED.get()
@@ -156,7 +157,7 @@ public final class TwoPassFlowSealTest extends TestCase {
 		}
 	}
 
-	/** PDFは保持せず、表示リストだけを一時領域からバイト列として回収します。 */
+	/** Do not retain the PDF; collect only display lists from temporary storage as byte arrays. */
 	static List<byte[]> render(final File source) throws Exception {
 		return render(source, 1, null);
 	}

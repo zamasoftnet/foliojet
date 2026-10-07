@@ -23,8 +23,8 @@ public class FlowPagebreakTest extends AbstractTestCase {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			System.out.println("width: " + box.getWidth());
-			// 直交ブロックのfit-content限度はページ内容域(2026-08-10)——
-			// 旧値(x=-16, w=188)は物理ページ基準でマージンへ食い込んでいた
+			// The fit-content limit for an orthogonal block is the page content area (2026-08-10);
+			// The old values (x=-16, w=188) used the physical page as the basis and intruded into the margin.
 			assertEquals(0, x, 1);
 			assertEquals(6, y, 0);
 			assertEquals(171.65, box.getWidth(), 0.1);

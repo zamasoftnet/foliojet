@@ -20,9 +20,9 @@ public class LastTest extends AbstractTestCase {
 	public boolean check_aa(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println(x+"/"+box.getWidth());
-			// 内蔵CIDフォントの幅表を直し、　、。が全角に戻った(2026-09-11)
+			// Fixed the built-in CID-keyed font width table, restoring full widths for 　、。(2026-09-11).
 			assertEquals(71, x, 1);
-			// 内蔵CIDフォントの幅表を直し、　、。が全角に戻った(2026-09-11)
+			// Fixed the built-in CID-keyed font width table, restoring full widths for 　、。(2026-09-11).
 			assertEquals(10, box.getWidth(), 1);
 			return true;
 		}
@@ -52,11 +52,11 @@ public class LastTest extends AbstractTestCase {
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println(x+"/"+box.getWidth());
-			// 2026-08-22: justifyの伸長点から禁則境界(atomic)を除外
-			// (JLREQ 3.1.11)。「ます|。」に伸長が入らなくなり右へ移動、
-			// spanの幅も伸長分を含まない素の値(行末trim済み5pt)に戻った
-			// 内蔵CIDフォントの幅表を直し、　、。が全角に戻った(2026-09-11)
-			// 行末の。が全角(10pt)なので x = 1+78-10 = 69
+			// 2026-08-22: Excluded kinsoku (line-breaking rules) boundaries (atomic) from justification expansion points
+			// (JLREQ 3.1.11). "ます|。" no longer expands, moving it right; the span's width
+			// also returned to its unexpanded value (5 pt after line-end trimming).
+			// Fixed the built-in CID-keyed font width table, restoring full widths for 　、。(2026-09-11).
+			// The final 。 is fullwidth (10 pt), so x = 1+78-10 = 69.
 			assertEquals(69, x, 1);
 			assertEquals(10, box.getWidth(), 1);
 			return true;
@@ -67,7 +67,7 @@ public class LastTest extends AbstractTestCase {
 	public boolean check_cc(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println(x+"/"+box.getWidth());
-			// 内蔵CIDフォントの幅表を直し、　、。が全角に戻った(2026-09-11)
+			// Fixed the built-in CID-keyed font width table, restoring full widths for 　、。(2026-09-11).
 			assertEquals(71, x, 0);
 			assertEquals(10, box.getWidth(), 1);
 			return true;
@@ -78,8 +78,8 @@ public class LastTest extends AbstractTestCase {
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println(x+"/"+box.getWidth());
-			// 内蔵CIDフォントの幅表を直し、　、。が全角に戻った(2026-09-11)
-			// 最終行は6字=60pt。(78-60)/2=9 だから x = 1+9+50 = 60
+			// Fixed the built-in CID-keyed font width table, restoring full widths for 　、。(2026-09-11).
+			// The last line has 6 characters = 60 pt. (78-60)/2=9, so x = 1+9+50 = 60.
 			assertEquals(60, x, 0);
 			assertEquals(10, box.getWidth(), 1);
 			return true;
@@ -90,8 +90,8 @@ public class LastTest extends AbstractTestCase {
 	public boolean check_dd(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.out.println(x+"/"+box.getWidth());
-			// 内蔵CIDフォントの幅表を直し、　、。が全角に戻った(2026-09-11)
-			// 行末の、は追い込み2ptで行がちょうど埋まる。x = 1+70 = 71
+			// Fixed the built-in CID-keyed font width table, restoring full widths for 　、。(2026-09-11).
+			// The final 、 is compressed to 2 pt, filling the line exactly. x = 1+70 = 71.
 			assertEquals(71, x, 0);
 			assertEquals(10, box.getWidth(), 1);
 			return true;

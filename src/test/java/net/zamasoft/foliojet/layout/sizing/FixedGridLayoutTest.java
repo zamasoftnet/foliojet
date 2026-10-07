@@ -3,12 +3,12 @@ package net.zamasoft.foliojet.layout.sizing;
 import junit.framework.TestCase;
 
 /**
- * {@link FixedGridLayout}(Grid G1a)の純粋計算テストです
- * (consult-codex-2026-07-31-grid-g1.txt §4の期待値をそのまま固定)。
+ * Pure calculation tests for {@link FixedGridLayout} (Grid G1a)
+ * (locks down the expected values in consult-codex-2026-07-31-grid-g1.txt §4 as-is).
  */
 public class FixedGridLayoutTest extends TestCase {
 
-	/** 答申§4のfixed-2x2: 列[100,100]・gap 20/10・高さ[30,50,20,40]。 */
+	/** fixed-2x2 from recommendation §4: columns [100,100], gaps 20/10, heights [30,50,20,40]. */
 	public void testFixed2x2() {
 		final FixedGridLayout layout = new FixedGridLayout(new double[] { 100, 100 }, 20, 10);
 		assertEquals(2, layout.columnCount());
@@ -28,7 +28,7 @@ public class FixedGridLayoutTest extends TestCase {
 		assertEquals(100.0, p.totalExtent(), 0); // 50+10+40
 	}
 
-	/** 端数行(3item×2列=2行目1個)と単一item。 */
+	/** A partial row (3 items × 2 columns = one item in row 2) and a single item. */
 	public void testPartialRows() {
 		final FixedGridLayout layout = new FixedGridLayout(new double[] { 80, 40 }, 0, 5);
 		final FixedGridLayout.Placement p = layout.place(new double[] { 10, 20, 30 });

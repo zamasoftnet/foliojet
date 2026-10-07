@@ -22,14 +22,14 @@ import net.zamasoft.foliojet.layout.box.params.TextShadow;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
 /**
- * M6d-A3b Stage1(2026-07-22新設)のfreeze/materialize契約を固定する
- * 単体テストです。まだ未配線(既存の{@code LayoutSource}/
- * {@code SegmentEvent}への変換アダプタはA3c以降)——この段階では
- * テンプレート自身の「複数回materializeしても互いに影響しない」
- * (M6d-Aの最重要契約)を直接検証する。
+ * Unit tests that lock down the freeze/materialize contract for M6d-A3b Stage1 (added 2026-07-22).
+ * Not wired in yet (conversion adapters for the existing {@code LayoutSource}/
+ * {@code SegmentEvent} come in A3c and later). At this stage, directly verify that repeated
+ * materialization of a template produces results that do not affect each other
+ * (M6d-A's most important contract).
  */
 public class ParamsTemplateTest extends TestCase {
-	/** 2回materializeした結果は、値は等しいが可変フィールドの参照は別物である。 */
+	/** Two materializations have equal values but distinct references for mutable fields. */
 	public void testBlockParamsMaterializeIsIndependent() {
 		final BlockParams source = new BlockParams();
 		source.transform = AffineTransform.getTranslateInstance(3, 4);
@@ -41,7 +41,7 @@ public class ParamsTemplateTest extends TestCase {
 		final BlockParams m1 = template.materialize();
 		final BlockParams m2 = template.materialize();
 
-		// 値は等しい(unicode-bidi は 2026-09-04 に追加。凍結から漏れると再生で消える)
+		// Equal values (unicode-bidi was added 2026-09-04; omitting it from freeze loses it on replay).
 		assertEquals(net.zamasoft.foliojet.css.value.UnicodeBidiValue.ISOLATE, m1.unicodeBidi);
 		assertEquals(source.transform, m1.transform);
 		assertEquals(source.transform, m2.transform);
@@ -49,12 +49,12 @@ public class ParamsTemplateTest extends TestCase {
 		assertEquals(3, m2.orphans);
 		assertEquals(1, m1.textShadows.length);
 
-		// しかし可変フィールドの参照は別物(独立している)
+		// But references to mutable fields are distinct (independent).
 		assertNotSame(m1.transform, m2.transform);
 		assertNotSame(m1.textShadows, m2.textShadows);
 
-		// m1のtransformをミューテートしてもm2・テンプレート自身・3回目の
-		// materialize結果には一切影響しない
+		// Mutating m1's transform has no effect on m2, the template itself, or the result
+		// of a third materialization.
 		m1.transform.translate(100, 100);
 		final BlockParams m3 = template.materialize();
 		assertEquals(AffineTransform.getTranslateInstance(3, 4), m2.transform);
@@ -62,7 +62,7 @@ public class ParamsTemplateTest extends TestCase {
 		assertFalse(m1.transform.equals(m2.transform));
 	}
 
-	/** freeze後に元のsourceをミューテートしても、テンプレートは既にfreeze済みの値を保持する。 */
+	/** Mutating the original source after freeze leaves the template holding the already frozen values. */
 	public void testFreezeIsUnaffectedByLaterMutationOfSource() {
 		final BlockParams source = new BlockParams();
 		source.transform = AffineTransform.getTranslateInstance(1, 1);
@@ -70,7 +70,7 @@ public class ParamsTemplateTest extends TestCase {
 
 		final BlockParamsTemplate template = BlockParamsTemplate.freeze(source);
 
-		// freeze後にsourceを変更
+		// Modify source after freeze.
 		source.transform.translate(50, 50);
 		source.orphans = 9;
 
@@ -79,7 +79,7 @@ public class ParamsTemplateTest extends TestCase {
 		assertEquals(2, materialized.orphans);
 	}
 
-	/** nullなtextShadowsは正しくnullのまま往復する。 */
+	/** Null textShadows correctly round-trips as null. */
 	public void testNullTextShadowsRoundTrip() {
 		final BlockParams source = new BlockParams();
 		source.textShadows = null;
@@ -87,7 +87,7 @@ public class ParamsTemplateTest extends TestCase {
 		assertNull(materialized.textShadows);
 	}
 
-	/** firstLineStyle(nullable、再帰的なFirstLineParams)が正しく往復する。 */
+	/** firstLineStyle (nullable, recursive FirstLineParams) round-trips correctly. */
 	public void testFirstLineStyleRoundTrips() {
 		final BlockParams source = new BlockParams();
 		source.firstLineStyle = new FirstLineParams();
@@ -106,7 +106,7 @@ public class ParamsTemplateTest extends TestCase {
 		assertEquals(m1.firstLineStyle.transform, m2.firstLineStyle.transform);
 	}
 
-	/** firstLineStyleがnullなら、materialize後もnullのまま。 */
+	/** If firstLineStyle is null, it remains null after materialization. */
 	public void testNullFirstLineStyleRoundTrips() {
 		final BlockParams source = new BlockParams();
 		source.firstLineStyle = null;
@@ -114,7 +114,7 @@ public class ParamsTemplateTest extends TestCase {
 		assertNull(materialized.firstLineStyle);
 	}
 
-	/** FlowPosも同様に複数回materializeしても値が保たれ、別インスタンスになる。 */
+	/** Repeated materializations of FlowPos also preserve values and produce distinct instances. */
 	public void testFlowPosMaterializeIsIndependent() {
 		final FlowPos source = new FlowPos();
 		source.align = net.zamasoft.foliojet.layout.box.params.Align.CENTER;
@@ -130,8 +130,8 @@ public class ParamsTemplateTest extends TestCase {
 	}
 
 	/**
-	 * InlineParams(AbstractTextParamsを直接継承、line固有フィールドを
-	 * 持たない)も、共有TextParamsFields経由で同じ独立性契約を満たす。
+	 * InlineParams (directly extending AbstractTextParams, without line-specific fields) also satisfies
+	 * the same independence contract through the shared TextParamsFields.
 	 */
 	public void testInlineParamsMaterializeIsIndependent() {
 		final InlineParams source = new InlineParams();
@@ -150,7 +150,7 @@ public class ParamsTemplateTest extends TestCase {
 		assertEquals(AffineTransform.getRotateInstance(1.0), m2.transform);
 	}
 
-	/** InlinePosも複数回materializeしても値が保たれ、別インスタンスになる。 */
+	/** Repeated materializations of InlinePos also preserve values and produce distinct instances. */
 	public void testInlinePosMaterializeIsIndependent() {
 		final InlinePos source = new InlinePos();
 		source.lineHeight = 1.5;
@@ -165,8 +165,8 @@ public class ParamsTemplateTest extends TestCase {
 	}
 
 	/**
-	 * FloatPosはFlowPosと同じAbstractNormalFlowPosを継承するため
-	 * (NormalFlowPosFields経由で)同じ独立性契約を満たす。
+	 * FloatPos extends AbstractNormalFlowPos, just like FlowPos, so it satisfies the same independence
+	 * contract (through NormalFlowPosFields).
 	 */
 	public void testFloatPosMaterializeIsIndependent() {
 		final FloatPos source = new FloatPos();
@@ -182,7 +182,7 @@ public class ParamsTemplateTest extends TestCase {
 		assertEquals(net.zamasoft.foliojet.layout.box.params.ClearMode.BOTH, m2.clear);
 	}
 
-	/** 特殊floatの実行時型と上下指定もrecipe化で失わない。 */
+	/** Recipes preserve the runtime type and top/bottom specification of special floats. */
 	public void testSpecialFloatKindsSurviveMaterialize() {
 		final FloatPos footnote = FloatPosTemplate
 				.freeze(new net.zamasoft.foliojet.layout.box.params.FootnotePos()).materialize();
@@ -199,7 +199,7 @@ public class ParamsTemplateTest extends TestCase {
 		assertTrue(pageTop instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos);
 		assertTrue(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageTop).top);
 		assertFalse(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageBottom).top);
-		// 物理の top と論理の block-end も再生で取り違えない(2026-10-05)
+		// Replay also distinguishes physical top from logical block-end (2026-10-05).
 		assertTrue(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageTop).physical);
 		assertFalse(((net.zamasoft.foliojet.layout.box.params.PageFloatPos) pageBottom).physical);
 		assertTrue(noteStart instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos);
@@ -208,8 +208,8 @@ public class ParamsTemplateTest extends TestCase {
 	}
 
 	/**
-	 * InnerTableParams(Paramsを直接継承、AbstractTextParamsを経由しない)
-	 * もParamsFields経由で同じ独立性契約を満たす。
+	 * InnerTableParams (directly extending Params, without going through AbstractTextParams) also
+	 * satisfies the same independence contract through ParamsFields.
 	 */
 	public void testInnerTableParamsMaterializeIsIndependent() {
 		final InnerTableParams source = new InnerTableParams();
@@ -228,7 +228,7 @@ public class ParamsTemplateTest extends TestCase {
 		assertEquals(AffineTransform.getScaleInstance(3, 3), m2.transform);
 	}
 
-	/** TableCellPosも複数回materializeしても値が保たれ、別インスタンスになる。 */
+	/** Repeated materializations of TableCellPos also preserve values and produce distinct instances. */
 	public void testTableCellPosMaterializeIsIndependent() {
 		final TableCellPos source = new TableCellPos();
 		source.colspan = 2;
@@ -247,7 +247,7 @@ public class ParamsTemplateTest extends TestCase {
 		assertEquals(CellAlign.MIDDLE, m2.verticalAlign);
 	}
 
-	/** TableRowGroupPosも複数回materializeしても値が保たれ、別インスタンスになる。 */
+	/** Repeated materializations of TableRowGroupPos also preserve values and produce distinct instances. */
 	public void testTableRowGroupPosMaterializeIsIndependent() {
 		final TableRowGroupPos source = new TableRowGroupPos();
 		source.rowGroupType = RowGroupType.FOOTER;
@@ -261,7 +261,7 @@ public class ParamsTemplateTest extends TestCase {
 		assertEquals(RowGroupType.FOOTER, m2.rowGroupType);
 	}
 
-	/** TableRowPos(固有フィールドなし)も複数回materializeしても別インスタンスになる。 */
+	/** Repeated materializations of TableRowPos (no fields of its own) also produce distinct instances. */
 	public void testTableRowPosMaterializeIsIndependent() {
 		final TableRowPos source = new TableRowPos();
 		source.pageBreakBefore = net.zamasoft.foliojet.layout.box.params.PageBreakMode.PAGE;
@@ -275,7 +275,7 @@ public class ParamsTemplateTest extends TestCase {
 		assertEquals(net.zamasoft.foliojet.layout.box.params.PageBreakMode.PAGE, m2.pageBreakBefore);
 	}
 
-	/** TableColumnPos(Posを直接実装、共有祖先なし)も複数回materializeしても別インスタンスになる。 */
+	/** Repeated materializations of TableColumnPos (directly implements Pos, no shared ancestor) are also distinct. */
 	public void testTableColumnPosMaterializeIsIndependent() {
 		final TableColumnPos source = new TableColumnPos();
 		source.span = 4;

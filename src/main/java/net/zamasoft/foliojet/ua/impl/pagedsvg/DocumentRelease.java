@@ -22,30 +22,31 @@ import jp.cssj.cti2.message.MessageHandler;
 import net.zamasoft.foliojet.message.MessageCodes;
 
 /**
- * EPUBの項目(子UA)の結果とメッセージを、<b>spine順に</b>解放する段です
- * (2026-09-02)。
+ * A stage that releases results and messages from EPUB items (child UAs) <b>in spine order</b>
+ * (2026-09-02).
  *
  * <p>
- * 項目は並列に組まれるが、結果の受け口(CTIPの接続・結果集合)は1本で
- * 順序を持つ。そこで<b>先頭の未完了項目だけが直接書き</b>、後続の項目は
- * 自分の一時ファイルへ控える。先頭が終わると次の項目の控えを流し、その
- * 項目が直接書く番になる。逐次(並列度1)でも並列でも、受け手に届く列は
- * 同じである。
+ * Items undergo layout in parallel, but the result sink (CTIP connection or result set) is a single,
+ * ordered channel. Thus <b>only the first unfinished item writes directly</b>; later items spool
+ * to their own temporary files. When the first finishes, flush the next item's spool and let
+ * that item write directly. The consumer receives the same sequence with sequential execution
+ * (parallelism 1) or parallel execution.
  * </p>
  *
  * <p>
- * ページ番号のメッセージ({@code page-number:N})は項目内の番号で溜まる。
- * 流す瞬間には前の項目の合計が確定しているので、そこで足す。受け手には
- * 今日とまったく同じ列が届き、プロトコルもクライアントも変えない
- * (設計 §4)。
+ * Page-number messages ({@code page-number:N}) accumulate with item-local numbers.
+ * When released, the total for previous items is known, so add it then.
+ * The consumer receives exactly the same sequence as before, without protocol or client changes
+ * (design §4).
  * </p>
  *
  * <p>
- * <b>錠の順序。</b>全体の錠({@code this})は項目の完了と昇格で取る。項目の錠
- * ({@code Unit.lock})は、その項目が結果1件を書いている間と、昇格で控えを
- * 流している間に取る。子のスレッドは自分の項目の錠しか取らず、全体の錠は
- * 完了の通知({@link Unit#done})でだけ取る(そのとき項目の錠は持っていない)。
- * 昇格は全体の錠を持ったまま次の項目の錠を取る。逆順は無いので詰まらない。
+ * <b>Lock order.</b> Acquire the global lock ({@code this}) for item completion and promotion.
+ * Acquire the item lock ({@code Unit.lock}) while writing one result for that item or flushing
+ * its spool during promotion. Child threads acquire only their own item lock; they acquire
+ * the global lock only to notify completion ({@link Unit#done}), without holding the item lock.
+ * Promotion acquires the next item's lock while holding the global lock.
+ * There is no reverse order, so no deadlock.
  * </p>
  */
 final class DocumentRelease {
@@ -57,9 +58,9 @@ final class DocumentRelease {
 	private final ResultSink out;
 	private final MessageHandler messages;
 	private final List<Unit> units = new ArrayList<>();
-	/** いま直接書いている(または次に直接書く)項目の位置。全部解放済みなら{@code units.size()}。 */
+	/** Index of the item writing directly now (or next). {@code units.size()} if all items have been released. */
 	private int head = 0;
-	/** 解放が済んだ項目のページ数の合計。 */
+	/** Total page count of released items. */
 	private int releasedPages = 0;
 
 	DocumentRelease(final ResultSink out, final MessageHandler messages) {
@@ -67,29 +68,29 @@ final class DocumentRelease {
 		this.messages = messages;
 	}
 
-	/** 項目を1つ開きます。呼び出し順が解放順。 */
+	/** Opens an item. Call order determines release order. */
 	synchronized Unit open(final String prefix) {
 		final Unit unit = new Unit(prefix);
 		this.units.add(unit);
 		if (this.units.size() - 1 == this.head) {
-			// 前がすべて済んでいるので、この項目は最初から直接書く
+			// All preceding items have finished, so this item writes directly from the start.
 			unit.direct = true;
 			unit.pageOffset = this.releasedPages;
 		}
 		return unit;
 	}
 
-	/** 解放が済んだページ数(すべての項目が済んだ後は総ページ数)。 */
+	/** Number of released pages (the total page count after all items finish). */
 	synchronized int releasedPages() {
 		return this.releasedPages;
 	}
 
-	/** 項目の完了。先頭なら次を昇格させる。 */
+	/** Item completion. If it is the first item, promote the next. */
 	private synchronized void done(final Unit unit, final int pageCount) throws IOException {
 		unit.done = true;
 		unit.pageCount = pageCount;
 		if (this.head >= this.units.size() || this.units.get(this.head) != unit) {
-			// 先頭ではない。先頭が済んだときに控えを流す
+			// Not the first item. Flush its spool when the first finishes.
 			return;
 		}
 		this.releasedPages += pageCount;
@@ -102,7 +103,7 @@ final class DocumentRelease {
 				next.replay();
 				next.direct = true;
 				if (!next.done) {
-					// ここからは直接書く
+					// Write directly from here.
 					return;
 				}
 				this.releasedPages += next.pageCount;
@@ -113,22 +114,22 @@ final class DocumentRelease {
 		}
 	}
 
-	/** 残った控えを片付けます(中断時)。 */
+	/** Cleans up remaining spools (on abort). */
 	synchronized void close() {
 		for (final Unit unit : this.units) {
 			unit.discardSpill();
 		}
 	}
 
-	/** 項目1つの受け口。子UAの結果とメッセージはここを通る。 */
+	/** Sink for one item. The child UA's results and messages pass through here. */
 	final class Unit {
 		final String prefix;
 		final ReentrantLock lock = new ReentrantLock();
-		/** 直接書く番か。偽なら控える。 */
+		/** Whether it is this item's turn to write directly. Spool if false. */
 		private boolean direct;
 		private boolean done;
 		private int pageCount;
-		/** この項目の前までのページ数。ページ番号のメッセージに足す。 */
+		/** Page count preceding this item. Add it to page-number messages. */
 		private int pageOffset;
 		private File spillFile;
 		private DataOutputStream spill;
@@ -137,7 +138,7 @@ final class DocumentRelease {
 			this.prefix = prefix;
 		}
 
-		/** 結果1件を開きます。閉じるまでこの項目の錠を持ちます。 */
+		/** Opens one result. Holds this item's lock until it closes. */
 		OutputStream open(final String uri, final String mimeType) throws IOException {
 			this.lock.lock();
 			try {
@@ -175,7 +176,7 @@ final class DocumentRelease {
 			}
 		}
 
-		/** メッセージ1件。直接書く番ならそのまま(ページ番号は足して)、そうでなければ控える。 */
+		/** One message. Forward it if writing directly (adding the page offset); otherwise spool it. */
 		void message(final short code, final String[] args, final String mes) {
 			this.lock.lock();
 			try {
@@ -202,7 +203,7 @@ final class DocumentRelease {
 			}
 		}
 
-		/** 項目の完了。{@code pageCount}はこの項目のページ数。 */
+		/** Item completion. {@code pageCount} is this item's page count. */
 		void done(final int pageCount) throws IOException {
 			DocumentRelease.this.done(this, pageCount);
 		}
@@ -216,8 +217,8 @@ final class DocumentRelease {
 		}
 
 		/**
-		 * 控えへ結果1件を書き始めます。長さは前もって分からないので、
-		 * 塊ごとの長さで区切り、負の長さで終える。
+		 * Starts writing one result to the spool. Its length is unknown in advance,
+		 * so delimit chunks by their lengths and terminate with a negative length.
 		 */
 		private OutputStream openSpillResult(final String uri, final String mimeType) throws IOException {
 			final DataOutputStream out = this.requireSpill();
@@ -247,7 +248,7 @@ final class DocumentRelease {
 			};
 		}
 
-		/** 控えを受け口へ流します。項目の錠を持って呼ぶこと。 */
+		/** Flushes the spool to the sink. Call with the item lock held. */
 		private void replay() throws IOException {
 			if (this.spill == null) {
 				return;
@@ -321,7 +322,7 @@ final class DocumentRelease {
 		}
 	}
 
-	/** メッセージを受け手へ渡します。ページ番号には項目の前までのページ数を足す。 */
+	/** Passes a message to the consumer. Adds the count of preceding pages to page numbers. */
 	private void forward(final Unit unit, final short code, final String[] args, final String mes) {
 		if (this.messages == null) {
 			return;

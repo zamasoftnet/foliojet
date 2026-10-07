@@ -1,34 +1,34 @@
 package net.zamasoft.foliojet.ua.props;
 
 /**
- * ページSVGとページJSONをgzipで縮めて返すかどうかです。
+ * Whether to return page SVG and page JSON compressed with gzip.
  *
  * <p>
- * 縮むのは文字で書かれた結果だけです。共有WOFF2とPNG/JPEGは既に圧縮済みで、
- * gzipをかけても縮みません(実測でWOFF2は0.1%増、PNGは1.7%減)。だから
- * これらには一切かけません。
+ * Only textual results shrink. Shared WOFF2 and PNG/JPEG are already compressed
+ * and do not shrink with gzip (measured: WOFF2 grew 0.1%, PNG shrank 1.7%).
+ * Therefore, never apply gzip to them.
  * </p>
  *
  * <p>
- * 314ページの縦組み書籍の実測では、ページSVGが78.2%、ページJSONが79.1%縮み、
- * 出力全体では14.96MBから6.35MBへ<b>57.5%減</b>になります。圧縮そのものの
- * 手間は628件で0.1秒ほどです。
+ * Measurements with a 314-page book in vertical writing showed page SVG shrinking 78.2%
+ * and page JSON 79.1%, reducing total output from 14.96 MB to 6.35 MB, <b>a 57.5% reduction</b>.
+ * Compression itself took about 0.1 seconds for 628 results.
  * </p>
  *
  * <p>
- * 速い回線では往復時間がほとんど変わりません(613Mbpsの経路で転送は0.2秒程度)。
- * 効くのは、遅い回線・従量課金の回線・受け取ったまま保管する場合です。
+ * On fast connections, round-trip time barely changes (transfer took about 0.2 seconds over 613 Mbps).
+ * This benefits slow connections, metered connections, and storage of results as received.
  * </p>
  */
 public enum PagedSvgCompression implements PropCode {
 	/**
-	 * そのまま返します。
+	 * Returns results unchanged.
 	 */
 	NONE,
 
 	/**
-	 * ページSVGを{@code .svgz}、ページJSONを{@code .json.gz}として
-	 * gzipで縮めて返します。{@code manifest.json}は読み口なので縮めません。
+	 * Returns page SVG as {@code .svgz} and page JSON as {@code .json.gz}, compressed with gzip.
+	 * Leaves {@code manifest.json} uncompressed because it is the entry point.
 	 */
 	GZIP;
 }

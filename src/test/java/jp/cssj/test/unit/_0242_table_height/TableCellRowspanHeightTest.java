@@ -27,16 +27,15 @@ public class TableCellRowspanHeightTest extends AbstractTestCase {
 	}
 
 	/**
-	 * 2行目のセル(height:200pt・内容1行)の文字。
+	 * Text in the cell in row 2 (height:200pt, one line of content).
 	 *
 	 * <p>
-	 * 2026-07-27に4ページ目→3ページ目へ更新した。このセルは
-	 * {@code vertical-align}の既定(middle)で内容がセル中央——ちょうど
-	 * 3/4ページ境界——に置かれるため、従来は先頭断片に1行も残らず、
-	 * <b>3ページ目には枠だけ・文字は4ページ目</b>という分かれ方をしていた
-	 * (読み順の逆転と同じ機序。不変条件7で検出)。現在は
-	 * {@code TableCellBox.split}が「先頭の不可分単位が前断片に残る範囲」
-	 * まで整列余白を詰めるので、文字は枠と同じ3ページ目に出る。
+	 * Updated from page 4 to page 3 on 2026-07-27. With the default {@code vertical-align} (middle), this
+	 * cell's content is centered exactly at the page 3/4 boundary. Previously, no line remained in the first
+	 * fragment: <b>only the frame appeared on page 3, while the text appeared on page 4</b>
+	 * (the same mechanism as reading-order reversal, detected by invariant 7).
+	 * Now {@code TableCellBox.split} reduces alignment space to keep the first indivisible unit in the
+	 * preceding fragment, so the text appears on page 3 with its frame.
 	 * </p>
 	 */
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {

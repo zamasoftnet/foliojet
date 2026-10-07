@@ -60,7 +60,10 @@ import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** F-4/F-8: 段組の包含寸法・ページ共通の帯・配置座標・長文の保持窓。 */
+/**
+ * F-4/F-8: Multi-column containing dimensions, page-wide bands, placement coordinates, and retention windows for long
+ * text.
+ */
 public final class FootnoteColumnsTest extends TestCase {
 	private static final String AREA = "@footnote { float: bottom; writing-mode: horizontal-tb }";
 	private static final double EPSILON = 0.01;
@@ -148,7 +151,10 @@ public final class FootnoteColumnsTest extends TestCase {
 				(long) (display.split("FootnoteSeparator\\[", -1).length - 1));
 	}
 
-	/** 増分5: 段組が頁をまたぐ。旧頁の最後の段に添付するか、次頁で最初に開く段へ持ち越す。 */
+	/**
+	 * Increment 5: Columns span pages. Attach to the old page's last column or carry to the next page's first opened
+	 * column.
+	 */
 	public void testColumnNotesCarryAcrossPageBreak() throws Exception {
 		final String html = Files.readString(Path.of("files/unittest/0125-footnote", "footnote-columns-block-end-carry.html"), StandardCharsets.UTF_8);
 		final Capture capture = transcode(html);
@@ -186,7 +192,9 @@ public final class FootnoteColumnsTest extends TestCase {
 		assertTrue("EOFの全pendingを回収", capture.traces.stream().anyMatch(value -> value.event().equals("finish") && value.pendingCount() == 0));
 	}
 
-	/** 増分6: 頁の途中で閉じるbalance段組。段の注はbalance前に回収して頁のblock-endへ。 */
+	/**
+	 * Increment 6: Balanced columns close mid-page. Collect column notes before balancing into the page's block-end.
+	 */
 	public void testBalancedColumnsHandNotesToPage() throws Exception {
 		final String html = Files.readString(Path.of("files/unittest/0125-footnote", "footnote-columns-block-end-balance.html"), StandardCharsets.UTF_8);
 		final Capture capture = transcode(html);
@@ -211,8 +219,9 @@ public final class FootnoteColumnsTest extends TestCase {
 	}
 
 	/**
-	 * codex レビュー 2026-09-08 必須 2: 持ち越し先の owner が次頁で入れ子になって不適格になり、
-	 * 別の段組が別の位置で開く。持ち越しは受け取られず、再生の終わりに頁の宿主へ返る(捨てない)。
+	 * codex review 2026-09-08, required item 2: the carry-over owner becomes nested and ineligible on
+	 * the next page, and another multi-column container opens elsewhere. The carry-over is not accepted;
+	 * at replay end it returns to the page host (it is not discarded).
 	 */
 	public void testCarryReturnsToPageWhenContinuationBecomesIneligible() throws Exception {
 		final StringBuilder html = new StringBuilder("<!doctype html><html><head><style>"
@@ -251,7 +260,7 @@ public final class FootnoteColumnsTest extends TestCase {
 				&& capture.floats.stream().noneMatch(floating -> overlaps(floating, line))).toList();
 	}
 
-	/** 増分3の単体試験。変換・宿主の開閉とは独立して判定を固定する。 */
+	/** Unit test for increment 3. Verify decisions independently of conversion and host opening/closing. */
 	public void testVariableFootnoteOwnerAndPageContinuationAreEligible() {
 		try (final HostPages pages = new HostPages()) {
 			final HostRoot root = pages.root();
@@ -481,8 +490,8 @@ public final class FootnoteColumnsTest extends TestCase {
 
 	public void testPageNumbersRestartAndFooterStaysOutsideBand() throws Exception {
 		final Capture capture = transcode(fixture());
-		// 規則だけを消すと既定block-endの段組脚注になり、このfixtureは一頁になる。
-		// 柱の比較用には注も非表示にし、帯なしの二頁を組む。
+		// Removing only the rule gives default block-end column footnotes, making this fixture one page.
+		// For running-header comparison, also hide the notes and lay out two pages without a band.
 		final Capture baseline = transcode(fixture().replace(AREA, "").replace("float: footnote", "display: none"));
 		assertEquals(2, capture.pages.size());
 		assertEquals("柱の比較対象も二ページ", 2, baseline.pages.size());
@@ -527,12 +536,12 @@ public final class FootnoteColumnsTest extends TestCase {
 		try {
 			transcode(fixture());
 			assertEquals("縦組みbottomの帯は頁のもの: 段の警告も情報も出ない", 0L, warnings.get() + infos.get());
-			// F-8e: 既定block-endの段組の注は呼び出しの段の末尾へ。警告ではなく情報ログ。
+			// F-8e: Default block-end column notes go to the end of the call's column. Log information, not a warning.
 			transcode(fixture().replace("float: bottom", "float: block-end"));
 			assertEquals("段ごとの配置では従来の警告を出さない", 0L, warnings.get());
 			assertTrue("段ごとの配置の情報ログ", infos.get() > 0);
 			infos.set(0);
-			// 横組みのbottomは従来のblock-end経路(段ごとの配置)なので同じ情報ログ。
+			// Horizontal bottom uses the existing block-end path (per-column placement), so logs the same information.
 			transcode(fixture().replace("writing-mode: vertical-rl", "writing-mode: horizontal-tb"));
 			assertEquals(0L, warnings.get());
 			assertTrue("横組みbottomも段ごとの配置", infos.get() > 0);
@@ -582,8 +591,8 @@ public final class FootnoteColumnsTest extends TestCase {
 
 	public void testDefaultBlockEndFloatCallsInsideColumnsStayOnCallPage() throws Exception {
 		for (final String flow : List.of("vertical-rl", "horizontal-tb")) {
-			// 短い本文とfloatの均等割りは実段数を保証しない。明示改段で
-			// ColumnsContainerを作り、両書字方向で段内floatの走査を検査する。
+			// Balancing short body text and floats does not guarantee the actual column count. Force a column break
+			// to create ColumnsContainer and check traversal of in-column floats in both writing directions.
 			final String html = document(".columns { column-count:2; column-gap:12pt; column-fill:auto }"
 					+ ".host { float:left } .next { page-break-before:always } .second { break-before:column }",
 					"<p>先行<span class='note'>先行する注。</span>本文。</p><p class='next'>次頁の本文。</p>"
@@ -607,8 +616,8 @@ public final class FootnoteColumnsTest extends TestCase {
 	}
 
 	public void testContinuedPageSidesReserveAlternatingNamedDimensionsOnCallPage() throws Exception {
-		// UAの面と表示番号を引き継ぐEPUB後続章相当。最初の面は順に
-		// RIGHT_EVEN、SINGLE、RIGHT_ODD、LEFT_ODDとなる。
+		// Equivalent to a later EPUB chapter inheriting the UA's page side and displayed number. The first sides
+		// are RIGHT_EVEN, SINGLE, RIGHT_ODD, and LEFT_ODD in order.
 		final String[] modes = { "right-side", "single-side", "left-side", "double-side" };
 		final CSSElement[] previous = { CSSElement.PAGE_FIRST_LEFT, CSSElement.PAGE_SINGLE_FIRST,
 				CSSElement.PAGE_LEFT_EVEN, CSSElement.PAGE_RIGHT_EVEN };
@@ -712,7 +721,7 @@ public final class FootnoteColumnsTest extends TestCase {
 	}
 
 	public void testReportRetentionWithPersistentGenerationDrift() throws Exception {
-		// 無名だけの文書のBは初回幾何を保つ。:firstとの寸法差で双方向の世代差を作る。
+		// B preserves initial geometry in unnamed-only documents. Size differences from :first create generations in both directions.
 		for (final int first : List.of(144, 480)) {
 			final int later = first == 144 ? 480 : 144;
 			final Capture capture = transcode(document("@page { size:" + later + "pt " + later + "pt }"
@@ -804,7 +813,7 @@ public final class FootnoteColumnsTest extends TestCase {
 	private record Note(long id, Placement placement) { }
 	private record Label(int page, long id, String text, double x, double y, double width, double height) { }
 
-	/** 可変木を残さず、変換スレッドで値だけを採る。DirectSession終了後に検査する。 */
+	/** Capture only values on the conversion thread, retaining no mutable tree. Check after DirectSession ends. */
 	private static final class Capture {
 		final List<Page> pages = new ArrayList<>();
 		final List<CSSElement> pageSides = new ArrayList<>();

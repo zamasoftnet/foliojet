@@ -26,7 +26,7 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.Itemizer;
 import net.zamasoft.pdfg2d.font.Font;
 
 /**
- * 行分割後の論理 tree を段落で一度解決し、各行の描画専用 tree を作る。
+ * Resolves the logical tree once per paragraph after line breaking and builds a drawing-only tree for each line.
  */
 public final class BidiParagraphLayout {
 	private static final AtomicLong NEXT_PARAGRAPH_ID = new AtomicLong();
@@ -36,8 +36,8 @@ public final class BidiParagraphLayout {
 	}
 
 	/**
-	 * container builder が所有する行・barrier の順序付き段落 queue。
-	 * v1 の保持量は O(paragraph) とし、soft wrap・改ページでは閉じない。
+	 * Ordered paragraph queue of lines and barriers owned by the container builder.
+	 * Retention in v1 is O(paragraph); soft wraps and page breaks do not close it.
 	 */
 	public static final class Session {
 		private sealed interface OrderedEvent permits LineEvent, BarrierEvent {
@@ -59,8 +59,8 @@ public final class BidiParagraphLayout {
 			this.estimatedChars += estimateChars(line.getLogicalContents());
 			if (!this.overCeiling && this.estimatedChars > SIZE_CEILING) {
 				this.overCeiling = true;
-				// TODO WARN_BIDI_PARAGRAPH_TOO_LARGE を追加したらここで一度だけ通知する。
-				// UBA を行単位に劣化させないため、現時点では段落全体の保持を続ける。
+				// TODO Notify once here when WARN_BIDI_PARAGRAPH_TOO_LARGE is added.
+				// For now, retain the entire paragraph to avoid degrading UBA to line-level processing.
 			}
 		}
 
@@ -83,7 +83,7 @@ public final class BidiParagraphLayout {
 			return true;
 		}
 
-		/** 段落途中の replay より前にある、既に配置済みの論理行。 */
+		/** Already laid-out logical lines preceding a replay from the middle of a paragraph. */
 		public void replayPrefix(final BidiReplayPrefix prefix) {
 			this.replayPrefix = prefix;
 		}
@@ -97,8 +97,8 @@ public final class BidiParagraphLayout {
 		}
 
 		/**
-		 * 改ページ直前の確定ページを描けるよう、queue を閉じずに現時点の行へ
-		 * visual tree を付ける。後続断片が加わった段落終端では全行を解決し直す。
+		 * Attaches visual trees to current lines without closing the queue, so the finalized page can
+		 * be drawn just before a page break. Resolves all lines again at paragraph end after later fragments join.
 		 */
 		public void preview(final BlockParams params) {
 			this.resolveLines(params, params.bidiSemanticAlias);
@@ -125,14 +125,14 @@ public final class BidiParagraphLayout {
 						lines.add(new LayoutLine(box, true, line.block().getLineSize()));
 					}
 				}
-				// BarrierEvent は配置済みの外側イベントを越えないための順序標識。
-				// 行分割は論理順で即時実行しているので、ここで外側副作用を再実行しない。
+				// BarrierEvent is an ordering marker that prevents crossing already placed outer events.
+				// Line breaking runs immediately in logical order, so do not reexecute outer side effects here.
 			}
 			BidiParagraphLayout.resolve(lines, params, this.replayPrefix, semanticAlias);
 		}
 	}
 
-	/** {@code lineSize} は fragment の margin/padding を未切断の frame から再計算するための行方向寸法。 */
+	/** {@code lineSize} is the line-axis size used to recalculate fragment margin/padding from the uncut frame. */
 	private record LayoutLine(AbstractLineBox line, boolean attach, double lineSize) {
 	}
 
@@ -185,7 +185,7 @@ public final class BidiParagraphLayout {
 	private static void resolve(final List<LayoutLine> lines, final BlockParams params,
 			final BidiReplayPrefix replayPrefix, final boolean semanticAlias) {
 		if (lines.isEmpty() || params.isVerticalTypesetting()) {
-			// 通常の vertical-* は従来どおり bidi 対象外。sideways は水平組版なので通す。
+			// Normal vertical-* remains outside bidi processing. Allow sideways because it uses horizontal layout.
 			return;
 		}
 		final long replayParagraphId = replayPrefix.paragraphId();
@@ -194,7 +194,7 @@ public final class BidiParagraphLayout {
 		ParagraphBuffer paragraph = buildBuffer(paragraphLines, params);
 		attachParagraphMetadata(paragraphLines, replayPrefix, paragraphId);
 		if (paragraph.buffer().isEmpty() || !paragraph.buffer().requiresVisualReordering()) {
-			// 純 LTR は論理 tree をそのまま描く。cluster 分割・L2・fragment 構築を行わない。
+			// For pure LTR, draw the logical tree directly. No cluster splitting, L2, or fragment construction.
 			return;
 		}
 
@@ -310,7 +310,7 @@ public final class BidiParagraphLayout {
 		}
 	}
 
-	/** ruby/warichu の内部を、外側とは独立した1行の小段落として並べ替える。 */
+	/** Reorders ruby/warichu contents as a one-line subparagraph independent of the outside. */
 	public static TextImpl[] reorderAtomicRuns(final TextImpl[] source, final byte direction,
 			final byte unicodeBidi, final boolean semanticAlias) {
 		if (source.length == 0) {
@@ -477,7 +477,7 @@ public final class BidiParagraphLayout {
 		return copy;
 	}
 
-	/** L4: 論理文字を保ったまま、奇数 level の表示 GID だけを鏡像側へ差し替える。 */
+	/** L4: preserve logical characters and replace only display GIDs at odd levels with their mirrored counterparts. */
 	private static void mirrorGlyph(final TextImpl text, final boolean semanticAlias) {
 		if (text.getGlyphCount() <= 0 || text.getCharCount() <= 0) {
 			return;
@@ -490,9 +490,9 @@ public final class BidiParagraphLayout {
 		if (mirrored == codePoint || !text.getFontMetrics().getFontSource().canDisplay(mirrored)) {
 			return;
 		}
-		// 整形に使った Font と同じ実体でなければならない。埋め込み CID フォントの別 wrapper は別の
-		// subset 台帳を持つため、alias の CID が頁のフォント資源とは別の glyph を指してしまう
-		// (2026-09-04 に実 PDF で発覚)
+		// Must be the same Font instance used for shaping. Another wrapper for an embedded CID-keyed font has its own
+		// subset ledger, so an alias CID would refer to a different glyph than the page's font resource
+		// (found in an actual PDF on 2026-09-04)
 		if (!(text.getFontMetrics() instanceof net.zamasoft.pdfg2d.font.FontMetricsImpl metrics)) {
 			return;
 		}

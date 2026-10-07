@@ -28,13 +28,14 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * EPUB の項目の中のインライン SVG から、相対 URI で画像を参照できることを固定します
- * (2026-10-04、TECH-20261003-004 の⑲)。
+ * Verify that inline SVG within an EPUB item can reference images through relative URIs
+ * (2026-10-04, TECH-20261003-004, item ⑲).
  *
  * <p>
- * 項目の文書 URI は書庫の中のパス(EPUB/text/book.xhtml)で相対。インライン SVG は Batik へ
- * 合成 URI で渡すので、{@code <image xlink:href="../images/x.png">}が合成 URI の下で解決され、
- * 取得が拒まれて(2814)画像が抜けていた。同じ文書の{@code <img>}は出ていた。
+ * The item's document URI is a relative archive path (EPUB/text/book.xhtml). Inline SVG is passed
+ * to Batik with a synthetic URI, so {@code <image xlink:href="../images/x.png">} was resolved under
+ * that synthetic URI; fetching was denied (2814), and the image disappeared.
+ * An {@code <img>} in the same document was displayed.
  * </p>
  */
 public class EpubInlineSvgImageTest extends TestCase {
@@ -115,7 +116,7 @@ public class EpubInlineSvgImageTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 	}
 

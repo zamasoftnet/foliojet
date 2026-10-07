@@ -31,10 +31,9 @@ import net.zamasoft.foliojet.css.value.css3.LineBreakValue;
 import net.zamasoft.foliojet.css.value.css3.TransformValue;
 
 /**
- * 個別変換プロパティ{@code translate}/{@code rotate}/{@code scale}、
- * {@code zoom}、{@code line-break}、{@code tab-size}、
- * {@code font-stretch}、2011年版{@code -ms-flex-pack}系の解析テストです
- * (2026-08-29)。
+ * Parsing tests for individual transform properties {@code translate}/{@code rotate}/{@code scale},
+ * {@code zoom}, {@code line-break}, {@code tab-size}, {@code font-stretch},
+ * and the 2011 {@code -ms-flex-pack} family (2026-08-29).
  */
 public class IndividualTransformParserTest extends TestCase {
 
@@ -49,7 +48,7 @@ public class IndividualTransformParserTest extends TestCase {
 		return new TokenStream(ts);
 	}
 
-	/** 96dpi(px→pt 0.75)だけを答えるUserAgent(ShapeOutsideParserTestと同型)。 */
+	/** A UserAgent returning only 96 dpi (px→pt 0.75), as in ShapeOutsideParserTest. */
 	private static net.zamasoft.foliojet.ua.UserAgent ua() {
 		return (net.zamasoft.foliojet.ua.UserAgent) java.lang.reflect.Proxy.newProxyInstance(
 				IndividualTransformParserTest.class.getClassLoader(),
@@ -91,19 +90,19 @@ public class IndividualTransformParserTest extends TestCase {
 
 	public void testTranslate() {
 		assertSame(KeywordValue.NONE, parse(Translate.INFO, "none"));
-		// uaなしのpx→ptは0.75
+		// Without ua, px→pt is 0.75.
 		assertMatrix(parse(Translate.INFO, "20px"), 1, 0, 0, 1, 15, 0);
 		assertMatrix(parse(Translate.INFO, "20px 40px"), 1, 0, 0, 1, 15, 30);
-		// z成分は読み捨て
+		// Read and discard the z component.
 		assertMatrix(parse(Translate.INFO, "20px 40px 5px"), 1, 0, 0, 1, 15, 30);
-		// 割合は係数(W→x, H→y)で運ぶ。交差成分は0
+		// Carry percentages as coefficients (W→x, H→y). Cross components are 0.
 		final Object pct = parse(Translate.INFO, "50% -10%");
 		assertMatrix(pct, 1, 0, 0, 1, 0, 0);
 		assertEquals(0.5, ((TransformValue) pct).getTxRatio(), 1e-9);
 		assertEquals(-0.1, ((TransformValue) pct).getTyRatio(), 1e-9);
 		assertEquals(0.0, ((TransformValue) pct).getTxRatioH(), 1e-9);
 		assertEquals(0.0, ((TransformValue) pct).getTyRatioW(), 1e-9);
-		// 不正: 4値、キーワード、割合のz
+		// Invalid: four values, keywords, percentage z.
 		assertTrue(parse(Translate.INFO, "1px 2px 3px 4px") instanceof PropertyException);
 		assertTrue(parse(Translate.INFO, "auto") instanceof PropertyException);
 		assertTrue(parse(Translate.INFO, "1px 2px 50%") instanceof PropertyException);
@@ -116,18 +115,18 @@ public class IndividualTransformParserTest extends TestCase {
 		assertMatrix(parse(Rotate.INFO, "0.125turn"), c, s, -s, c, 0, 0);
 		assertMatrix(parse(Rotate.INFO, "50grad"), c, s, -s, c, 0, 0);
 		assertMatrix(parse(Rotate.INFO, "0.785398163rad"), c, s, -s, c, 0, 0);
-		// z軸は角度と順不同
+		// The z axis and angle can appear in either order.
 		assertMatrix(parse(Rotate.INFO, "z 45deg"), c, s, -s, c, 0, 0);
 		assertMatrix(parse(Rotate.INFO, "45deg z"), c, s, -s, c, 0, 0);
 		assertMatrix(parse(Rotate.INFO, "0 0 1 45deg"), c, s, -s, c, 0, 0);
 		assertMatrix(parse(Rotate.INFO, "45deg 0 0 1"), c, s, -s, c, 0, 0);
-		// 負のz軸は逆回転
+		// A negative z axis reverses rotation.
 		assertMatrix(parse(Rotate.INFO, "0 0 -1 45deg"), c, -s, s, c, 0, 0);
-		// x/y軸・傾いた軸は紙面に射影できないので恒等
+		// The x/y axes and tilted axes cannot be projected onto the page, so use identity.
 		assertSame(TransformValue.IDENTITY_TRANSFORM_VALUE, parse(Rotate.INFO, "x 45deg"));
 		assertSame(TransformValue.IDENTITY_TRANSFORM_VALUE, parse(Rotate.INFO, "y 45deg"));
 		assertSame(TransformValue.IDENTITY_TRANSFORM_VALUE, parse(Rotate.INFO, "1 1 1 45deg"));
-		// 不正
+		// Invalid
 		assertTrue(parse(Rotate.INFO, "z") instanceof PropertyException);
 		assertTrue(parse(Rotate.INFO, "45deg 30deg") instanceof PropertyException);
 		assertTrue(parse(Rotate.INFO, "w 45deg") instanceof PropertyException);
@@ -149,7 +148,7 @@ public class IndividualTransformParserTest extends TestCase {
 		assertEquals(2.0, ((RealValue) parse(Zoom.INFO, "200%")).getReal(), 1e-9);
 		assertSame(RealValue.ONE, parse(Zoom.INFO, "normal"));
 		assertSame(RealValue.ONE, parse(Zoom.INFO, "reset"));
-		// 0は1(css-viewport)
+		// 0 becomes 1 (css-viewport).
 		assertEquals(1.0, ((RealValue) parse(Zoom.INFO, "0")).getReal(), 1e-9);
 		assertTrue(parse(Zoom.INFO, "-1") instanceof PropertyException);
 		assertTrue(parse(Zoom.INFO, "1px") instanceof PropertyException);
@@ -171,7 +170,7 @@ public class IndividualTransformParserTest extends TestCase {
 		assertEquals(0.0, ((RealValue) parse(TabSize.INFO, "0")).getReal(), 1e-9);
 		assertEquals(30.0, ((AbsoluteLengthValue) parse(TabSize.INFO, "30pt")).getLength(), 1e-9);
 		assertEquals(15.0, ((AbsoluteLengthValue) parse(TabSize.INFO, "20px")).getLength(), 1e-9);
-		// emは計算値で解く(RelativeLengthValueのまま返る)
+		// Resolve em at computed-value time (returned as RelativeLengthValue).
 		assertFalse(parse(TabSize.INFO, "2em") instanceof PropertyException);
 		assertTrue(parse(TabSize.INFO, "-1") instanceof PropertyException);
 		assertTrue(parse(TabSize.INFO, "-1pt") instanceof PropertyException);
@@ -190,7 +189,7 @@ public class IndividualTransformParserTest extends TestCase {
 		assertTrue(parse(FontStretch.INFO, "-10%") instanceof PropertyException);
 		assertTrue(parse(FontStretch.INFO, "1.5") instanceof PropertyException);
 		assertTrue(parse(FontStretch.INFO, "wide") instanceof PropertyException);
-		// usWidthClassへの丸め
+		// Round to usWidthClass.
 		assertEquals(1, FontStretch.toWidthClass(50));
 		assertEquals(3, FontStretch.toWidthClass(75));
 		assertEquals(3, FontStretch.toWidthClass(80));
@@ -228,21 +227,21 @@ public class IndividualTransformParserTest extends TestCase {
 		assertSame(BoxAlignmentValue.AUTO, aliasValue(LegacyFlexAlignmentAlias.FLEX_ITEM_ALIGN, "auto"));
 		assertSame(BoxAlignmentValue.SPACE_AROUND,
 				aliasValue(LegacyFlexAlignmentAlias.FLEX_LINE_PACK, "distribute"));
-		// items系にspace-*は無い(justifyは受理しない)
+		// The items family has no space-* values (justify is not accepted).
 		assertTrue(parseAlias(LegacyFlexAlignmentAlias.FLEX_ALIGN, "justify") instanceof PropertyException);
 		assertTrue(parseAlias(LegacyFlexAlignmentAlias.FLEX_PACK, "middle") instanceof PropertyException);
-		// 全体キーワードは標準プロパティへ
+		// Global keywords map to standard properties.
 		final Object inherit = parseAlias(LegacyFlexAlignmentAlias.FLEX_PACK, "inherit");
 		assertTrue(inherit instanceof CompositeProperty);
 		assertSame(KeywordValue.INHERIT, ((CompositeProperty) inherit).getEntries()[0].getValue());
 	}
 
-	/** 合成順 translate→rotate→scale→transform の行列検算(BoxStyleMapperと同式)。 */
+	/** Verify the matrix for composition order translate→rotate→scale→transform (same formula as BoxStyleMapper). */
 	public void testComposeOrder() {
 		final AffineTransform pre = ((TransformValue) parse(Translate.INFO, "30pt 7.5pt")).getTransform();
 		pre.concatenate(((TransformValue) parse(Rotate.INFO, "90deg")).getTransform());
 		pre.concatenate(((TransformValue) parse(Scale.INFO, "2 1")).getTransform());
-		// 線形部は R90·S(2,1) = [0 -1; 2 0]、平行移動は先頭のtranslateそのまま
+		// Linear part: R90·S(2,1) = [0 -1; 2 0]. Translation is the leading translate unchanged.
 		assertEquals(0.0, pre.getScaleX(), 1e-9);
 		assertEquals(2.0, pre.getShearY(), 1e-9);
 		assertEquals(-1.0, pre.getShearX(), 1e-9);

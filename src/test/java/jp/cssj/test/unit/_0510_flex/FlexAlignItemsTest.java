@@ -8,9 +8,9 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * align-items/align-selfのcross整列テストです(Flex F3c——§9.6。
- * 行高40pt(tall item)に対し20pt item: center=+10、flex-end=+20、
- * align-self: flex-startのoverride=+0)。
+ * Tests align-items/align-self cross-axis alignment (Flex F3c, §9.6).
+ * For a 20 pt item in a 40 pt-high line (set by the tall item):
+ * center=+10, flex-end=+20, align-self: flex-start override=+0.
  */
 public class FlexAlignItemsTest extends AbstractTestCase {
 	public FlexAlignItemsTest(String name) {
@@ -56,7 +56,7 @@ public class FlexAlignItemsTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** align-self: flex-startがalign-items: flex-endをoverride。 */
+	/** align-self: flex-start overrides align-items: flex-end. */
 	public boolean check_o1(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.base2Y, y, 0.1);

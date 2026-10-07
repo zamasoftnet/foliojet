@@ -23,7 +23,7 @@ import net.zamasoft.foliojet.layout.rescue.RescuePolicy;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** avoid連鎖末尾のoversized救済と、単体で収まる場合の受容制限を固定します。 */
+/** Verifies oversized rescue at the end of an avoid chain and the accepted limitation when the item fits by itself. */
 public class AvoidChainOversizedTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final Pattern FRAME = Pattern.compile(
@@ -72,8 +72,8 @@ public class AvoidChainOversizedTest extends TestCase {
 
 	private static void assertFitsAloneLimitation(final List<String> pages, final String h2, final String h3,
 			final String after) {
-		// 受容する制限(2026-09-04): 単体で収まる図版は救済分割せず、境界avoidを緩和して
-		// 見出しを前ページ、図版だけを次ページに置く。
+		// Accepted limitation (2026-09-04): an illustration that fits by itself is not rescue-split. Relax boundary avoid,
+		// leaving the heading on the preceding page and placing only the illustration on the next page.
 		final int h2Page = onlyPageContaining(pages, h2);
 		final int h3Page = onlyPageContaining(pages, h3);
 		final List<Integer> figurePages = framePages(pages);
@@ -83,7 +83,7 @@ public class AvoidChainOversizedTest extends TestCase {
 		assertEquals("見出しは図版の直前のページ", h2Page + 1, figurePage);
 		assertFalse("図版のページに見出しを残さない",
 				pages.get(figurePage).contains(h2) || pages.get(figurePage).contains(h3));
-		// 後続本文は図版と同じページに続くか(図版の後ろに余白があれば)、次のページ
+		// Following body text continues on the illustration's page if space remains after it, otherwise on the next page.
 		final int afterPage = onlyPageContaining(pages, after);
 		assertTrue("後続本文は図版のページ以降: " + afterPage, afterPage == figurePage || afterPage == figurePage + 1);
 		assertFalse("単体で収まる図版に救済clipを付けない", FRAME.matcher(pages.get(figurePage)).find());

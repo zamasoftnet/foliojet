@@ -24,21 +24,21 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 画像を<b>主文書として</b>ストリームで流したときの試験です(2026-09-02)。
+ * Tests for streaming an image <b>as the main document</b> (2026-09-02).
  *
  * <p>
- * cti.liの報告(2026-09-01): 8KiBを超えるPNGをCTIPの主文書にすると
- * {@code [12290] I/O error. Resetting to invalid mark}で0バイトになる。
- * 主文書はStreamSourceで届き、その{@code getInputStream()}は8KiBのmarkへ
- * resetする契約。EXIFの向きを覗く{@code peekOrientation}が256KiBを読んだ後に
- * 元の資源を読み直していたのが原因(向き1のときだけ包まずに返していた)。
- * 8,022Bは通り9,108Bで落ちる境目を、ここでは大小2つの画像で挟む。
+ * cti.li report (2026-09-01): a PNG larger than 8 KiB as the CTIP main document produced 0 bytes
+ * with {@code [12290] I/O error. Resetting to invalid mark}.
+ * The main document arrives as a StreamSource whose {@code getInputStream()} resets to an 8 KiB mark.
+ * The cause was that {@code peekOrientation}, which peeks at EXIF orientation, read 256 KiB and then
+ * reread the original resource (it returned without wrapping only for orientation 1).
+ * Two images, large and small, bracket the boundary where 8,022 B passed but 9,108 B failed.
  * </p>
  */
 public class ImageMainDocumentTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 雑音の画素なので圧縮が効かず、大きさは辺の長さでほぼ決まる。 */
+	/** Noisy pixels compress poorly, so the size is largely determined by the side length. */
 	private static byte[] png(final int size) throws Exception {
 		final BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);
 		final Random random = new Random(size);
@@ -52,21 +52,21 @@ public class ImageMainDocumentTest extends TestCase {
 		return out.toByteArray();
 	}
 
-	/** 8KiB未満(以前から通っていた側)。 */
+	/** Under 8 KiB (the side that already passed). */
 	public void testSmallPngAsMainDocument() throws Exception {
 		final byte[] png = png(40);
 		assertTrue("the probe must stay under the 8KiB mark window: " + png.length, png.length < 8192);
 		assertPdf(convert(png, "application/pdf"), "small PNG");
 	}
 
-	/** 8KiBを超える(報告の再現側)。以前は3002で0バイトだった。 */
+	/** Over 8 KiB (reproduces the report). Previously produced 0 bytes with 3002. */
 	public void testLargePngAsMainDocument() throws Exception {
 		final byte[] png = png(400);
 		assertTrue("the probe must exceed the 8KiB mark window: " + png.length, png.length > 8192);
 		assertPdf(convert(png, "application/pdf"), "large PNG");
 	}
 
-	/** 主文書の画像は、PDF以外の出力(単一SVG)でも通ること。 */
+	/** An image main document also works with non-PDF output (single SVG). */
 	public void testLargePngToSvg() throws Exception {
 		final byte[] png = png(400);
 		final CapturingResults r = convert(png, "image/svg+xml");
@@ -116,7 +116,7 @@ public class ImageMainDocumentTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String first() {

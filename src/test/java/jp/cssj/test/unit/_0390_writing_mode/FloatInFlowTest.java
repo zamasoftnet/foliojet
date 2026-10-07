@@ -36,9 +36,9 @@ public class FloatInFlowTest extends AbstractTestCase {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			System.out.println("width: " + box.getWidth());
-			// 直交ブロックのfit-content限度はページ内容域(2026-08-10)——
-			// 以下の旧値は一様に16.35pt(物理ページと内容域の差)だけ
-			// マージンへ食い込んでいた
+			// The fit-content limit for an orthogonal block is the page content area (2026-08-10);
+			// the old values below all intruded into the margin by 16.35 pt
+			// (the difference between the physical page and its content area).
 			assertEquals(-6, x, 1);
 			assertEquals(225, y, 1);
 			assertEquals(271.65, box.getWidth(), 0.1);

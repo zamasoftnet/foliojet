@@ -44,7 +44,7 @@ public class CalcValueUtilsTest extends TestCase {
 				});
 	}
 
-	/** 実際のph-cssパイプライン(Tokens.fromExpression)を通して1個のcalc()系トークンを得る。 */
+	/** Obtain one calc()-family token through the real ph-css pipeline (Tokens.fromExpression). */
 	private static CssToken parseCalcToken(String declaration) {
 		CSSReaderSettings settings = new CSSReaderSettings().setBrowserCompliantMode(true)
 				.setCustomErrorHandler(new DoNothingCSSParseErrorHandler());
@@ -58,7 +58,7 @@ public class CalcValueUtilsTest extends TestCase {
 		return tokens.get(0);
 	}
 
-	// --- ph-cssの実パイプラインを通したRPN変換の確認 ---
+	// --- Verify RPN conversion through the real ph-css pipeline ---
 
 	public void testCalcAdditionViaRealParser() {
 		CssToken token = parseCalcToken("width: calc(1px + 2px)");
@@ -68,7 +68,7 @@ public class CalcValueUtilsTest extends TestCase {
 	}
 
 	public void testCalcUnitlessZeroIsNeutralForAddition() {
-		// 単位なしの0はどちらの側でも中立元として扱ってよい(calc(0 + 10px))
+		// Unitless 0 may be treated as the identity on either side (calc(0 + 10px)).
 		CssToken token = parseCalcToken("width: calc(0 + 10px)");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertTrue(value instanceof AbsoluteLengthValue);
@@ -84,14 +84,14 @@ public class CalcValueUtilsTest extends TestCase {
 	}
 
 	public void testCalcNonZeroNumberPlusLengthIsInvalid() {
-		// 単位なしの非0数値と長さの加算は無効(0のみが中立元として許容される)
+		// Adding a nonzero unitless number to a length is invalid (only 0 is allowed as the identity).
 		CssToken token = parseCalcToken("width: calc(1 + 10px)");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertNull(value);
 	}
 
 	public void testCalcOperatorPrecedenceViaRealParser() {
-		// 1px + 2px * 3 = 1px + 6px = 7px (乗算が優先されることの確認)
+		// 1px + 2px * 3 = 1px + 6px = 7px (verify multiplication precedence).
 		CssToken token = parseCalcToken("width: calc(1px + 2px * 3)");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertTrue(value instanceof AbsoluteLengthValue);
@@ -99,7 +99,7 @@ public class CalcValueUtilsTest extends TestCase {
 	}
 
 	public void testCalcParenthesesViaRealParser() {
-		// (1px + 2px) * 3 = 9px (丸括弧による優先順位の上書きの確認)
+		// (1px + 2px) * 3 = 9px (verify parentheses override precedence).
 		CssToken token = parseCalcToken("width: calc((1px + 2px) * 3)");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertTrue(value instanceof AbsoluteLengthValue);
@@ -107,8 +107,8 @@ public class CalcValueUtilsTest extends TestCase {
 	}
 
 	public void testCalcMixedPercentAndAbsoluteViaRealParser() {
-		// getAbsolute()はPT単位(AbsoluteLengthValue.getLength()と同じ規約)のため、
-		// DPI換算を避けて素直に検証できるようptを使う。
+		// getAbsolute() uses PT units (the same convention as AbsoluteLengthValue.getLength()),
+		// so use pt for straightforward checks without DPI conversion.
 		CssToken token = parseCalcToken("width: calc(50% + 10pt)");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertTrue(value instanceof CalcLengthValue);
@@ -200,7 +200,7 @@ public class CalcValueUtilsTest extends TestCase {
 	}
 
 	public void testMinMaxIncomparableMixedUnitsFails() {
-		// pxと%の混在は基準値なしに静的比較できないため、現時点では非対応(無効値)
+		// Mixed px and % need a reference value for static comparison, so are currently unsupported (invalid value).
 		CssToken token = parseCalcToken("width: min(10px, 50%)");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertNull(value);
@@ -209,8 +209,9 @@ public class CalcValueUtilsTest extends TestCase {
 	}
 
 	/**
-	 * 絶対長さとフォント相対単位の比較は、フォント寸法が定まる計算値の段階まで持ち越す(2026-10-04)。
-	 * 値は jp.cssj.test.unit.displaylist.MinMaxFontRelativeTest で組んで確かめる。
+	 * Defer comparison between absolute lengths and font-relative units until computed-value time,
+	 * when font dimensions are known (2026-10-04).
+	 * Verify values through layout in jp.cssj.test.unit.displaylist.MinMaxFontRelativeTest.
 	 */
 	public void testMinMaxWithFontRelativeUnitIsDeferred() {
 		for (final String declaration : new String[] { "width: min(10mm, 3em)", "width: max(1em, 1px)",
@@ -222,7 +223,7 @@ public class CalcValueUtilsTest extends TestCase {
 		}
 	}
 
-	// --- 手組みトークンによる境界条件の確認(RPNスタックの直接検証) ---
+	// --- Check boundary conditions with hand-built tokens (direct RPN stack verification) ---
 
 	public void testNonFunctionTokenReturnsNull() {
 		assertNull(CalcValueUtils.toCalc(userAgent(), new CssToken.Dim(1, net.zamasoft.foliojet.css.token.Unit.PX,
@@ -240,25 +241,27 @@ public class CalcValueUtilsTest extends TestCase {
 	}
 
 	/**
-	 * <b>フォント相対単位は係数として持ち越す</b>(2026-08-03)。
+	 * <b>Carry font-relative units as coefficients</b> (2026-08-03).
 	 *
 	 * <p>
-	 * em/ex/rem/ch はCSSStyleが定まるまで解決できないが、<b>解けないことと
-	 * 無効であることは違う</b>。2026-08-03まではここで無効値にしていたため、
-	 * {@code left: calc(-1 * (3.5rem - 26px))}(W3C仕様書が自己リンク記号を
-	 * 左余白へ出す書き方)のような指定が丸ごと捨てられていた。今は絶対成分・
-	 * 割合成分と分けたまま計算値の段階まで運び、
-	 * {@code ValueUtils.emExToAbsoluteLength}で解く。
+	 * em/ex/rem/ch cannot be resolved until CSSStyle is known, but <b>unresolvable and invalid are
+	 * different</b>. Until 2026-08-03, they were invalidated here, discarding entire declarations such as
+	 * {@code left: calc(-1 * (3.5rem - 26px))} (used by W3C specifications to place self-link symbols
+	 * in the left margin). Now carry them separately from absolute and percentage components until
+	 * computed-value time, then resolve them in {@code ValueUtils.emExToAbsoluteLength}.
 	 */
 	public void testCalcWithRelativeUnitKeepsComponents() {
 		CssToken token = parseCalcToken("width: calc(1em + 2px)");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertTrue("フォント相対成分を持つ値になる: " + value, value instanceof CalcFontRelativeValue);
-		// 2px は 1.5pt。em の係数は解決前なので値そのものが残る
+		// 2 px is 1.5 pt. The em coefficient is unresolved, so its value remains unchanged.
 		assertEquals("calc(1.5pt + 0.0% + 1.0em + 0.0ex + 0.0rem + 0.0ch + 0.0lh + 0.0cap + 0.0rlh)", value.toString());
 	}
 
-	/** 数との乗算はフォント相対成分にも効く(線形なので後で寸法を掛けても等価)。 */
+	/**
+	 * Multiplication by a number also affects font-relative components (linearity permits multiplying
+	 * dimensions later).
+	 */
 	public void testCalcRelativeUnitScales() {
 		CssToken token = parseCalcToken("width: calc(-1 * (3.5rem - 26px))");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
@@ -267,15 +270,15 @@ public class CalcValueUtilsTest extends TestCase {
 	}
 
 	public void testCalcWithVarReturnsNull() {
-		// var()はカスケード時解決が必要なため現時点は非対応(無効値)
+		// var() needs cascade-time resolution, so it is currently unsupported (invalid value).
 		CssToken token = parseCalcToken("width: calc(var(--x) + 2px)");
 		Value value = CalcValueUtils.toCalc(userAgent(), token);
 		assertNull(value);
 	}
 
-	// --- css-values-4 の数学関数12種(2026-08-30) ---
+	// --- Twelve css-values-4 math functions (2026-08-30) ---
 
-	/** {@code calc()}を通して長さ(pt)を取り出します。 */
+	/** Extract a length (pt) through {@code calc()}. */
 	private static double lengthPt(String declaration) {
 		Value value = CalcValueUtils.toCalc(userAgent(), parseCalcToken(declaration));
 		assertNotNull(declaration + " が無効になった", value);
@@ -288,7 +291,7 @@ public class CalcValueUtilsTest extends TestCase {
 		return calc.getAbsolute();
 	}
 
-	/** {@code calc()}を通して素の数値を取り出します。 */
+	/** Extract a unitless number through {@code calc()}. */
 	private static double number(String declaration) {
 		Value value = CalcValueUtils.toCalc(userAgent(), parseCalcToken(declaration));
 		assertNotNull(declaration + " が無効になった", value);
@@ -312,18 +315,18 @@ public class CalcValueUtilsTest extends TestCase {
 	}
 
 	public void testTrigTakesAngles() {
-		// 角度単位を取る。sin(90deg)=1、cos(0)=1、tan(45deg)=1
+		// Accept angle units. sin(90deg)=1, cos(0)=1, tan(45deg)=1.
 		assertEquals(10.0, lengthPt("width: calc(sin(90deg) * 10pt)"), 1e-9);
 		assertEquals(10.0, lengthPt("width: calc(cos(0) * 10pt)"), 1e-9);
 		assertEquals(10.0, lengthPt("width: calc(tan(45deg) * 10pt)"), 1e-9);
-		// 単位違いでも同じ角度なら同じ値(0.25turn = 90deg = π/2 rad)
+		// The same angle in different units gives the same value (0.25turn = 90deg = π/2 rad).
 		assertEquals(10.0, lengthPt("width: calc(sin(0.25turn) * 10pt)"), 1e-9);
 		assertEquals(10.0, lengthPt("width: calc(sin(1.5707963267948966rad) * 10pt)"), 1e-9);
-		// SPEC css-values-4: 裸の数値はラジアンとして扱う
+		// SPEC css-values-4: treat bare numbers as radians.
 		assertEquals(10.0, lengthPt("width: calc(sin(1.5707963267948966) * 10pt)"), 1e-9);
 	}
 
-	/** {@code calc()}を通して角度(度)を取り出します。 */
+	/** Extract an angle (degrees) through {@code calc()}. */
 	private static double degrees(String declaration) {
 		Value value = CalcValueUtils.toCalc(userAgent(), parseCalcToken(declaration));
 		assertNotNull(declaration + " が無効になった", value);
@@ -332,31 +335,31 @@ public class CalcValueUtilsTest extends TestCase {
 	}
 
 	public void testInverseTrigReturnsAngles() {
-		// 逆三角は<number>を取って<angle>を返す
+		// Inverse trigonometric functions take <number> and return <angle>.
 		assertEquals(90.0, degrees("width: calc(asin(1))"), 1e-9);
 		assertEquals(0.0, degrees("width: calc(acos(1))"), 1e-9);
 		assertEquals(45.0, degrees("width: calc(atan(1))"), 1e-9);
 		assertEquals(45.0, degrees("width: calc(atan2(1, 1))"), 1e-9);
 		assertEquals(-45.0, degrees("width: calc(atan2(-1, 1))"), 1e-9);
-		// 返した角度を三角関数へ食わせて往復できること
+		// Passing the returned angle to a trigonometric function completes a round trip.
 		assertEquals(10.0, lengthPt("width: calc(sin(asin(1)) * 10pt)"), 1e-9);
 		assertEquals(10.0, lengthPt("width: calc(cos(acos(1)) * 10pt)"), 1e-9);
 	}
 
 	/**
-	 * <b>角度÷角度は未対応</b>です(2026-08-30時点)。
+	 * <b>Angle ÷ angle is unsupported</b> (as of 2026-08-30).
 	 *
 	 * <p>
-	 * SPEC css-values-4 では{@code calc(45deg / 1deg)}は無次元の1を返すが、
-	 * この実装の除算は「数で割る」場合しか扱わない。実文書での出現がまず
-     * 無いので追っていない——できないことを黙って忘れないための表明である。
+	 * SPEC css-values-4 says {@code calc(45deg / 1deg)} returns dimensionless 1, but division
+	 * in this implementation handles only division by a number. This is practically absent from real
+	 * documents, so it is not pursued; this assertion prevents the limitation from being silently forgotten.
 	 */
 	public void testAngleDividedByAngleIsNotSupported() {
 		assertInvalidCalc("width: calc(atan2(1, 1) / 1deg)");
 	}
 
 	public void testMathFunctionsOutOfDomainAreInvalid() {
-		// 定義域外は無効値。NaNを黙って通すと版面が壊れる
+		// Out-of-domain input is invalid. Silently accepting NaN would break the type area.
 		assertInvalidCalc("width: calc(sqrt(-1) * 1pt)");
 		assertInvalidCalc("width: calc(log(0) * 1pt)");
 		assertInvalidCalc("width: calc(asin(2) * 1pt)");
@@ -364,7 +367,7 @@ public class CalcValueUtilsTest extends TestCase {
 	}
 
 	public void testMathFunctionsNest() {
-		// 入れ子と四則の混在
+		// Nesting mixed with arithmetic
 		assertEquals(5.0, lengthPt("width: calc(sqrt(pow(5, 2)) * 1pt)"), DELTA);
 		assertEquals(13.0, lengthPt("width: calc((hypot(3, 4) + 8) * 1pt)"), DELTA);
 		assertEquals(2.0, lengthPt("width: calc(max(sqrt(4), 1) * 1pt)"), DELTA);

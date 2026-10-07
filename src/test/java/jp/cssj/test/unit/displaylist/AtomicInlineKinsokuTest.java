@@ -21,19 +21,20 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 原子インライン(数式・画像)の直後でも行頭禁則が効くことを固定します
- * (2026-10-04、TECH-20261003-004 の⑧。時限暗号の本で、数式の直後で改行して
- * 次の行が「、」で始まっていた)。
+ * Verifies that kinsoku (line-breaking rules) prohibitions at line start apply even immediately after
+ * atomic inlines (formulas, images) (2026-10-04, item ⑧ of TECH-20261003-004).
+ * In the book Time-Lock Encryption (時限暗号), a break immediately after a formula left the next line
+ * starting with "、".
  *
  * <p>
- * 改行位置は書体で動くので、段落の幅を 1pt 刻みで 40 通り並べ、どの幅でも
- * 「、」「。」が行頭に来ないことを見る。
+ * Line-break positions vary by font, so test 40 paragraph widths in 1 pt increments
+ * and verify that neither "、" nor "。" starts a line at any width.
  * </p>
  */
 public class AtomicInlineKinsokuTest extends TestCase {
 	private static final long WATCHDOG_MS = 120_000L;
 
-	/** 行頭の字(行の左端 x=0 にある Text の最初の字)。 */
+	/** First character of a line (the first character of Text at the line's left edge, x=0). */
 	private static final Pattern LINE_HEAD = Pattern.compile("x=0\\.00 y=[-\\d.]+ Text\\[\"(.)");
 
 	public void testNoLineStartsWithClosingPunctuationAfterMath() throws Exception {

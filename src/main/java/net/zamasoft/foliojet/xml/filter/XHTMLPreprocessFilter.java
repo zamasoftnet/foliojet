@@ -23,7 +23,7 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 	private static final java.util.logging.Logger LOG = java.util.logging.Logger
 			.getLogger(XHTMLPreprocessFilter.class.getName());
 
-	/** ドキュメントのデフォルトのスタイル付け方式。 */
+	/** The document's default styling method. */
 	private String defaultStyleType = Constants.CSS_MIME_TYPE;
 
 	private final UserAgent ua;
@@ -41,8 +41,8 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 	private boolean useMetaInfo = true;
 
 	/**
-	 * viewportの数値寸法を読みます。device-width/device-heightは、印刷時の
-	 * 物理デバイス寸法を持たないため「指定なし」と同じ扱いにします。
+	 * Reads numeric viewport dimensions. Treats device-width/device-height as unspecified,
+	 * because physical device dimensions are unavailable for printing.
 	 */
 	private static Double parseViewportDimension(final String value, final String deviceKeyword) {
 		if (value == null) {
@@ -167,14 +167,14 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 			if (XHTML.H1_ELEM.lName.equals(lName) || XHTML.H2_ELEM.lName.equals(lName)
 					|| XHTML.H3_ELEM.lName.equals(lName) || XHTML.H4_ELEM.lName.equals(lName)
 					|| XHTML.H5_ELEM.lName.equals(lName) || XHTML.H6_ELEM.lName.equals(lName)) {
-				// ヘッダー
+				// Header
 				if (CSSJML.HEADER_ATTR.getValue(atts) == null) {
 					this.atts.setAttributes(atts);
 					atts = this.atts;
 					CSSJML.HEADER_ATTR.addValue(this.atts, lName.substring(1));
 				}
 			} else if (lName.equals(XHTML.A_ELEM.lName)) {
-				// リンク
+				// Links
 				String href = XHTML.HREF_ATTR.getValue(atts);
 				if (href != null) {
 					if (Constants.XLINK_HREF_ATTR.getValue(atts) == null) {
@@ -194,9 +194,9 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 					}
 				}
 			} else if (lName.equals(XHTML.STYLE_ELEM.lName)) {
-				// 埋め込みスタイルシート
+				// Embedded style sheet
 				String disabled = atts.getValue(XHTML.URI, "disabled");// disabled
-				// はIE4からの機能
+				// is a feature introduced in IE4.
 				if (disabled == null) {
 					String type = atts.getValue(XHTML.URI, "type");
 					String media = atts.getValue(XHTML.URI, "media");
@@ -213,10 +213,10 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 					}
 				}
 			} else if (lName.equals(XHTML.TITLE_ELEM.lName)) {
-				// タイトル
+				// Title
 				this.contentBuff = new StringBuilder();
 			} else if (lName.equals(XHTML.META_ELEM.lName)) {
-				// 文字コード
+				// Character encoding
 				final String charset = atts.getValue(XHTML.URI, "charset");
 				if (charset != null) {
 					pi = new String[] { CSSJML.PI_DEFAULT_ENCODING, charset };
@@ -226,7 +226,7 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 				if (content != null) {
 					String httpEquiv = atts.getValue(XHTML.URI, "http-equiv");
 					if (httpEquiv != null) {
-						// 文字コード
+						// Character encoding
 						httpEquiv = httpEquiv.trim().toLowerCase();
 						if (httpEquiv.equals("content-type")) {
 							String contentTypeCharset = MimeTypeHelper.getParameter(content, "charset");
@@ -234,7 +234,7 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 								pi = new String[] { CSSJML.PI_DEFAULT_ENCODING, contentTypeCharset };
 							}
 						} else if (httpEquiv.equals("content-style-type")) {
-							// デフォルトのスタイル
+							// Default style
 							this.defaultStyleType = content;
 							pi = new String[] { CSSJML.PI_DEFAULT_STYLE_TYPE, content };
 						}
@@ -249,8 +249,8 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 								XMLUtils.parsePseudoAttributes(content, attsi);
 								final Double width = parseViewportDimension(attsi.getValue("width"), "device-width");
 								final Double height = parseViewportDimension(attsi.getValue("height"), "device-height");
-								// HTMLのviewportでは片方だけの指定が一般的。指定された軸だけを
-								// 上書きし、省略軸は既定ページ寸法を保つ。
+								// HTML viewports commonly specify only one dimension. Override only the specified axis
+								// and retain the default page dimension for the omitted axis.
 								if (width != null) {
 									this.ua.setProperty(UAProps.OUTPUT_PAGE_WIDTH.name, width + "px");
 								}
@@ -258,12 +258,12 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 									this.ua.setProperty(UAProps.OUTPUT_PAGE_HEIGHT.name, height + "px");
 								}
 							} catch (Exception e) {
-								// 不正なviewport指定は無視して既定のページ寸法で続行
+								// Ignore invalid viewport settings and continue with default page dimensions.
 								LOG.log(java.util.logging.Level.WARNING, "Ignoring malformed viewport PI: " + content,
 										e);
 							}
 						} else if (this.useMetaInfo) {
-							// 文書情報
+							// Document information
 							String data = "name='" + XMLUtils.escapePseudeAttr(name) + "' value='"
 									+ XMLUtils.escapePseudeAttr(content) + "'";
 							pi = new String[] { CSSJML.PI_DOCUMENT_INFO, data };
@@ -272,7 +272,7 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 					}
 				}
 			} else if (lName.equals(XHTML.LINK_ELEM.lName)) {
-				// 外部スタイルシート (SPEC ASSX1.0)
+				// External style sheet (SPEC ASSX1.0)
 				String rel = atts.getValue(XHTML.URI, "rel");
 				boolean valid = false;
 				boolean alternate = false;
@@ -324,13 +324,13 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 					pi = new String[] { Constants.LINK_PI, data.toString() };
 				}
 			} else if (lName.equals(XHTML.BASE_ELEM.lName)) {
-				// baseタグ
+				// base tag
 				String href = atts.getValue(XHTML.URI, "href");
 				if (href != null) {
 					pi = new String[] { CSSJML.PI_BASE_URI, href };
 				}
 			} else if (lName.equals(XHTML.BODY_ELEM.lName)) {
-				// bodyタグ
+				// body tag
 				if (this.events != null) {
 					this.startBody();
 				}
@@ -364,7 +364,7 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 			SAXEvent event = (SAXEvent) events.get(i);
 			event.doEvent(this.outHandler);
 		}
-		// HTMLヘッダから作られたPIをルート要素の直前に置く
+		// Place processing instructions derived from the HTML header immediately before the root element.
 		for (int i = 0; i < this.pis.size(); ++i) {
 			String[] pi = (String[]) this.pis.get(i);
 			super.processingInstruction(pi[0], pi[1]);
@@ -388,9 +388,10 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 	}
 
 	/**
-	 * HTML の {@code document.title} と同じく、ASCII の空白を前後で落とし、続く空白を 1 つの空白にまとめます
-	 * (2026-10-07)。以前は {@code <title>} の中身をそのまま文書情報にしていて、末尾の空白や改行が PDF の Title に
-	 * 残った(XMP の dc:title を空白を落として読む検査器と食い違った)。
+	 * Like HTML {@code document.title}, trims leading and trailing ASCII whitespace and collapses
+	 * consecutive whitespace to one space (2026-10-07). Previously, {@code <title>} contents became
+	 * document metadata unchanged, leaving trailing spaces and newlines in PDF Title
+	 * (inconsistent with validators that trim whitespace when reading XMP dc:title).
 	 */
 	private static String stripAndCollapse(final String s) {
 		final StringBuilder buff = new StringBuilder(s.length());

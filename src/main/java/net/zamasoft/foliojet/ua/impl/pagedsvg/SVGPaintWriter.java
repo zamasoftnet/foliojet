@@ -9,24 +9,24 @@ import net.zamasoft.pdfg2d.gc.paint.RadialGradient;
 import net.zamasoft.pdfg2d.util.ColorUtils;
 
 /**
- * pdfg2dの{@link Paint}をSVGの塗り指定へ直します。
+ * Converts pdfg2d {@link Paint} to SVG paint specifications.
  *
  * <p>
- * 単色は属性値({@code #rrggbb})にできますが、グラデーションは要素なので
- * {@code defs}へ入れて{@code url(#id)}で参照します。<b>グラデーションが
- * 描画の途中で判明する</b>のはこのためで、先頭の{@code defs}を後から
- * 埋める仕組みが要ります。
+ * Solid colors can be attribute values ({@code #rrggbb}), but gradients are elements,
+ * so put them in {@code defs} and reference them with {@code url(#id)}.
+ * This is why <b>gradients become known during drawing</b>,
+ * requiring a mechanism to fill the leading {@code defs} later.
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 final class SVGPaintWriter {
 	/**
-	 * パターンの絵を、SVGから参照できる形へ直す手だてです。
+	 * A way to convert pattern images into a form SVG can reference.
 	 *
 	 * <p>
-	 * 共有資源へ出すのか{@code data:}へするのかは、この字面の外の都合なので
-	 * 外から渡してもらいます。書けない絵なら{@code null}を返してください。
+	 * Choosing shared resources or {@code data:} is outside this textual representation's concerns,
+	 * so supply the strategy externally. Return {@code null} for images that cannot be written.
 	 * </p>
 	 */
 	interface ImageHrefs {
@@ -46,19 +46,19 @@ final class SVGPaintWriter {
 	}
 
 	/**
-	 * 塗りの指定を返します。単色なら{@code #rrggbb}、グラデーションなら
-	 * {@code url(#id)}で、defsへ定義を登録します。
+	 * Returns a paint specification: {@code #rrggbb} for solid colors or {@code url(#id)}
+	 * for gradients, registering the definition in defs.
 	 */
 	String toSVGPaint(final Paint paint) throws IOException {
 		return this.toSVGPaint(paint, null);
 	}
 
 	/**
-	 * 現在の変換{@code ctm}の下で使う塗りの指定を返します(2026-09-03)。
-	 * パスと切り抜きは座標へ変換を畳み込んで書くので、勾配・敷き詰めの
-	 * 座標系も同じ変換で頁座標へ写さないと、変換付きの箱(transform、
-	 * border-imageの9分割のタイル等)で図形と色がずれる。恒等なら従来と
-	 * 同じ出力。
+	 * Returns a paint specification under the current transformation {@code ctm} (2026-09-03).
+	 * Paths and clips are written with transformed coordinates, so gradient and tiling coordinate
+	 * systems must also map to page coordinates with the same transformation. Otherwise, shapes and
+	 * colors misalign in transformed boxes (transform, nine-slice border-image tiles, etc.).
+	 * Identity transformations produce the same output as before.
 	 */
 	String toSVGPaint(final Paint paint, final java.awt.geom.AffineTransform ctm) throws IOException {
 		if (paint == null) {
@@ -69,12 +69,12 @@ final class SVGPaintWriter {
 		case LINEAR_GRADIENT -> this.linearGradient((LinearGradient) paint, ctm);
 		case RADIAL_GRADIENT -> this.radialGradient((RadialGradient) paint, ctm);
 		case PATTERN -> this.pattern((net.zamasoft.pdfg2d.gc.paint.Pattern) paint, ctm);
-		// 知らない種類。塗らない
+		// Unknown type. Do not paint.
 		default -> null;
 		};
 	}
 
-	/** 塗り自身の変換の外側に現在の変換を掛けた行列(どちらも無ければnull)。 */
+	/** The current transformation applied outside the paint's own transformation (null if neither exists). */
 	private static java.awt.geom.AffineTransform compose(final java.awt.geom.AffineTransform ctm,
 			final java.awt.geom.AffineTransform paintTransform) {
 		final boolean hasCtm = ctm != null && !ctm.isIdentity();
@@ -90,19 +90,19 @@ final class SVGPaintWriter {
 	}
 
 	/**
-	 * 絵の敷き詰め。{@code background: url(...)}がこれになります。
+	 * Image tiling. Used for {@code background: url(...)}.
 	 *
 	 * <p>
-	 * SVGの{@code pattern}は、1枚ぶんの升目を{@code width}/{@code height}で決めて
-	 * 繰り返します。{@code patternUnits="userSpaceOnUse"}にして、升目の大きさは
-	 * 絵の論理寸法をそのまま使います。{@link net.zamasoft.pdfg2d.gc.paint.Pattern}の
-	 * 変換は{@code patternTransform}へ渡します。
+	 * SVG {@code pattern} repeats a tile sized by {@code width}/{@code height}.
+	 * Set {@code patternUnits="userSpaceOnUse"} and use the image's logical dimensions as the tile size.
+	 * Pass the transformation from {@link net.zamasoft.pdfg2d.gc.paint.Pattern}
+	 * to {@code patternTransform}.
 	 * </p>
 	 *
 	 * <p>
-	 * 絵を参照にできないときは{@code null}を返します。<b>その場合は塗られません。</b>
-	 * 中途半端に単色で代えると、元と違う見た目が「正しく出ている」ように見えるので
-	 * そうしません。
+	 * Returns {@code null} if the image cannot become a reference. <b>Nothing is painted in that case.</b>
+	 * Do not substitute a solid color: that would make an appearance different from the original
+	 * seem to have been output correctly.
 	 * </p>
 	 */
 	private String pattern(final net.zamasoft.pdfg2d.gc.paint.Pattern pattern,
@@ -142,7 +142,7 @@ final class SVGPaintWriter {
 				+ SVGWriter.number(at.getTranslateX()) + ' ' + SVGWriter.number(at.getTranslateY()) + ')';
 	}
 
-	/** 塗りの不透明度。{@code RGBAColor}のalphaと状態のalphaを掛けます。 */
+	/** Paint opacity. Multiplies {@code RGBAColor} alpha by the state's alpha. */
 	static float alphaOf(final Paint paint, final float stateAlpha) {
 		if (paint instanceof Color color) {
 			return color.getAlpha() * stateAlpha;
@@ -189,9 +189,9 @@ final class SVGPaintWriter {
 	}
 
 	/**
-	 * 塗りの変換行列(2026-08-29)。楕円の放射グラデーションは円を縦に
-	 * 伸縮する行列で表す({@code RadialGradientValue}参照)ので、これが
-	 * 無いと真円になる。
+	 * Paint transformation matrix (2026-08-29). Elliptical radial gradients use a matrix
+	 * that scales a circle vertically (see {@code RadialGradientValue});
+	 * without it, they become circles.
 	 */
 	private static void appendGradientTransform(final StringBuilder def, final java.awt.geom.AffineTransform at) {
 		if (at != null && !at.isIdentity()) {
@@ -200,8 +200,8 @@ final class SVGPaintWriter {
 	}
 
 	/**
-	 * 定義域の外の塗り方(2026-08-29)。{@code repeating-*-gradient}は1周期を
-	 * {@code spreadMethod="repeat"}で繰り返す(ブラウザが厳密に描く)。
+	 * Painting outside the domain (2026-08-29). {@code repeating-*-gradient} repeats one period
+	 * using {@code spreadMethod="repeat"} (rendered exactly by the browser).
 	 */
 	private static void appendSpread(final StringBuilder def, final net.zamasoft.pdfg2d.gc.paint.SpreadMethod spread) {
 		if (spread == net.zamasoft.pdfg2d.gc.paint.SpreadMethod.REPEAT) {

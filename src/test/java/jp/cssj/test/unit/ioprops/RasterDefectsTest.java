@@ -23,12 +23,14 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 画像出力で見えていた 3 つの欠陥を固定します(NEXT-SESSION §5-3、2026-09-02)。
+ * Fix three defects observed in image output (NEXT-SESSION §5-3, 2026-09-02).
  *
  * <ol>
- * <li>{@code @page} の背景が塗り足し(bleed)の帯まで届かず白い縁が出る</li>
- * <li>隣り合う矩形の塗り(表のセル・1×1 タイル)の境目に下地が 1px 覗く</li>
- * <li>画像だけの行に strut が無く、{@code font: 20em} の行の画像が上へ寄る(Acid2)</li>
+ * <li>The {@code @page} background did not reach the bleed band, leaving a white border.</li>
+ * <li>Underlying color showed through as 1px seams between adjacent filled rectangles
+ * (table cells and 1×1 tiles).</li>
+ * <li>Image-only lines lacked a strut, shifting images upward in lines with {@code font: 20em}
+ * (Acid2).</li>
  * </ol>
  */
 public class RasterDefectsTest extends TestCase {
@@ -41,7 +43,7 @@ public class RasterDefectsTest extends TestCase {
 		final BufferedImage img = render("<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>"
 				+ "@page{size:100mm 60mm;margin:10mm;bleed:5mm;background:#FBE4C8}body{margin:0}"
 				+ "</style></head><body><p>bleed</p></body></html>");
-		// 用紙は仕上り 100×60mm に塗り足し 5mm を足した大きさ
+		// Paper size is the finished 100×60 mm size plus 5 mm bleed.
 		assertEquals("paper width with bleed", Math.round(110 * PX_PER_MM), img.getWidth(), 2);
 		final int bg = 0xFBE4C8;
 		assertEquals("the bleed band (top-left) must carry the page background", bg, rgb(img, 3, 3));
@@ -51,13 +53,13 @@ public class RasterDefectsTest extends TestCase {
 	}
 
 	public void testAdjacentCellsLeaveNoSeam() throws Exception {
-		// セル幅を 20.3pt にして境界を画素の途中に置く
+		// Use a 20.3 pt cell width to place boundaries within pixels.
 		final BufferedImage img = render("<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>"
 				+ "@page{size:60mm 30mm;margin:2mm}body{margin:0}"
 				+ "table{border-collapse:collapse;border-spacing:0;margin:0}"
 				+ "td{padding:0;width:20.3pt;height:20.3pt;background:#0066CC}"
 				+ "</style></head><body><table><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr></table></body></html>");
-		// 表の中央付近を横に 1 行、縦に 1 列走査して、セルの色以外が無いこと
+		// Scan one horizontal row and one vertical column near the table center; only cell colors may appear.
 		final int x0 = (int) Math.round(2 * PX_PER_MM) + 3, y0 = (int) Math.round(2 * PX_PER_MM) + 3;
 		final int span = (int) Math.round(3 * 20.3 * 96 / 72) - 6;
 		final StringBuilder bad = new StringBuilder();
@@ -77,8 +79,8 @@ public class RasterDefectsTest extends TestCase {
 	}
 
 	public void testImageOnlyLineKeepsTheStrut() throws Exception {
-		// Acid2 の image-height-test: 20em の行に置いた 64px の画像は、行の上端から
-		// 10px の帯の中に見えてはならない(基底線は strut で行のずっと下にある)
+		// Acid2 image-height-test: a 64 px image in a 20em line must not appear in the 10 px band
+		// at the line's top (the strut places the baseline much farther down).
 		final BufferedImage img = render("<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>"
 				+ "@page{size:100mm 40mm;margin:0}body{margin:0}"
 				+ ".t{height:10px;overflow:hidden;font:20em serif;background:#DDDDFF}"
@@ -145,7 +147,7 @@ public class RasterDefectsTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 	}
 }

@@ -19,12 +19,13 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code transform-origin} と割合の {@code translate()} の基準箱が border box であることの試験
- * (css-transforms-1 §3。2026-09-03: margin 付きの箱で margin box 基準にずれていた欠陥の回帰)。
+ * Test that {@code transform-origin} and percentage {@code translate()} use the border box
+ * (css-transforms-1 §3. Regression for the 2026-09-03 defect where boxes with margins used the margin box).
  *
  * <p>
- * 頁 100×80mm・余白 10mm、箱は {@code width:20mm;height:10mm;margin:20mm}(border box は頁の
- * 30..50 × 30..40mm)。描画した暗画素の外接矩形を mm で検査する。
+ * Page 100×80 mm, margins 10 mm; box {@code width:20mm;height:10mm;margin:20mm}
+ * (border box at 30..50 × 30..40 mm on the page). Check the bounding rectangle of rendered dark pixels in
+ * mm.
  * </p>
  */
 public class TransformOriginMarginTest extends TestCase {
@@ -43,7 +44,7 @@ public class TransformOriginMarginTest extends TestCase {
 	}
 
 	public void testRotateAboutCenter() throws Exception {
-		// 20×10mm を中心 (40,35) で 90 度回す → 10×20mm
+		// Rotate 20×10 mm by 90 degrees around center (40,35) → 10×20 mm.
 		assertBox("transform:rotate(90deg)", 35, 45, 25, 45);
 	}
 

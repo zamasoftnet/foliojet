@@ -7,68 +7,66 @@ import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * ブロック断片の継続状態です(ARCHITECTURE §5.7 C1)。
+ * Continuation state of a block fragment (ARCHITECTURE §5.7 C1).
  *
  * <p>
- * ページ方向の切断で前断片・継続断片がそれぞれ「どの辺のフレームを
- * 保持するか」(box-decoration-break: slice 相当の切断面)、継続断片の
- * 残り指定寸法・最小寸法、前断片のページ方向使用量を表します。
- * 旧実装では splitPage の縦横鏡像(約65行×2)に埋め込まれていた
- * 暗黙状態の型化で、継続断片をボックス木の運搬なしに再構成する
- * (C1: チェーンのログ再インスタンス化)ための材料です。
+ * For a page-axis split, represents which frame edges the preceding and continuation fragments
+ * retain (cut surfaces equivalent to box-decoration-break: slice), the continuation fragment's
+ * remaining specified and minimum sizes, and the preceding fragment's page-axis usage.
+ * This types the implicit state previously embedded in the horizontal/vertical mirror versions
+ * of splitPage (about 65 lines × 2). It supplies the material to reconstruct continuation
+ * fragments without transporting the box tree (C1: chain reinstantiation from the log).
  * </p>
  *
  * <p>
- * 段組を貫通する改ページ(columnSpanning=旧 FLAGS_COLUMN)では
- * フレームを切らず、前断片の使用量を内容実寸まで広げます
- * (フレーム継続策 — C4 でこの状態ごと廃止予定)。ただし切断線が
- * 内始端辺以上にある(={@code pageLimit <= 0}、前断片が内容を
- * 一切取れない)場合はフレーム継続策を適用しない — 理由は
- * {@link #of} 参照。
+ * For a page break through multi-column layout (columnSpanning = former FLAGS_COLUMN), keeps
+ * the frame intact and expands the preceding fragment's usage to the actual content size
+ * (frame continuation policy; scheduled for removal together with this state in C4).
+ * However, when the cut line is at or before the inner start edge
+ * (={@code pageLimit <= 0}, so the preceding fragment takes no content), this policy does not
+ * apply; see {@link #of} for the reason.
  * </p>
  *
- * @param prevFrame      前断片のフレーム(ページ終端側の辺を落とした形)
- * @param nextFrame      継続断片のフレーム(ページ始端側の辺を落とした形)
- * @param nextSize       継続断片の指定寸法(ページ方向は残量)
- * @param nextMinSize    継続断片の最小寸法(ページ方向は残量)
- * @param prevPageExtent 前断片のページ方向使用量
+ * @param prevFrame      preceding fragment's frame (with the page-end edge removed)
+ * @param nextFrame      continuation fragment's frame (with the page-start edge removed)
+ * @param nextSize       continuation fragment's specified size (remainder on the page axis)
+ * @param nextMinSize    continuation fragment's minimum size (remainder on the page axis)
+ * @param prevPageExtent preceding fragment's page-axis usage
  * @author MIYABE Tatsuhiko
  */
 public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextFrame, Dimension nextSize,
 		Dimension nextMinSize, double prevPageExtent) {
 
 	/**
-	 * 切断の断片状態を計算します(純関数)。
+	 * Calculates fragment state for a split (pure function).
 	 *
 	 * <p>
-	 * <b>フレーム継続策は「前断片が内容を取れた」場合に限る</b>
-	 * (2026-07-27)。段組貫通の改ページ({@code columnSpanning})は
-	 * 前後の断片で枠を切らないため、継続断片は<b>始端フレームを丸ごと
-	 * 引き継ぐ</b>。切断線が内始端辺以上({@code pageLimit <= 0})の
-	 * ときにこれを適用すると、前断片は内容を1つも取らないまま、
-	 * 継続断片が元と寸分違わぬ幾何(同じ始端フレーム = 同じ開始位置)で
-	 * 再構成される。次のページでも同じ判定が出るため、
-	 * <b>白紙ページを1枚ずつ永久に生成し続ける</b>——ページは
-	 * {@code PDFWriterImpl.pageOutputs}に保持されるのでヒープは単調増加し、
-	 * 最終的にOutOfMemoryErrorになる(1.2KBの文書で9分15秒・数GB、
-	 * 段組を含む極小ページのファジング5シードも同一原因)。
-	 * css-break-3 §4.4 の「各フラグメンテナは0でない量の内容を取る」に
-	 * 従い、この退化ケースでは通常の切断(始端辺を落とす)へ落とす。
-	 * こうすると継続断片の始端フレームが消えて次ページの空きが実際に
-	 * 増えるため、必ず前進する。{@code pageLimit > 0} の通常経路は
-	 * 一切変えない。
+	 * <b>The frame continuation policy applies only if the preceding fragment takes content</b>
+	 * (2026-07-27). A page break through multi-column layout ({@code columnSpanning}) does not cut
+	 * the frames of either fragment, so the continuation fragment <b>inherits the entire start frame</b>.
+	 * Applying this when the cut line is at or before the inner start edge ({@code pageLimit <= 0})
+	 * lets the preceding fragment take no content, while reconstructing the continuation fragment
+	 * with exactly the original geometry (same start frame = same start position).
+	 * The next page yields the same decision, <b>generating blank pages one by one forever</b>.
+	 * Pages are retained in {@code PDFWriterImpl.pageOutputs}, so heap usage grows monotonically,
+	 * eventually causing OutOfMemoryError (9 minutes 15 seconds and several GB for a 1.2 KB document;
+	 * five fuzzing seeds with tiny pages containing multi-column layout had the same cause).
+	 * Following css-break-3 §4.4, "each fragmentainer takes a nonzero amount of content," this
+	 * degenerate case falls back to a normal split (removing the start edge). This removes the
+	 * continuation fragment's start frame and actually increases the space on the next page,
+	 * guaranteeing progress. The normal {@code pageLimit > 0} path is unchanged.
 	 * </p>
 	 *
-	 * @param flow              書字方向
-	 * @param columnSpanning    段組を貫通する改ページ(フレーム継続策)
-	 * @param frame             切断前のフレーム
-	 * @param size              指定寸法
-	 * @param minSize           最小寸法
-	 * @param pageExtent        切断前のページ方向内容寸法(縦書き=width)
-	 * @param pageLimit         切断位置(内辺から)
-	 * @param contentSize       内容のページ方向実寸
-	 * @param specifiedPageSize ページ方向寸法が指定されているか
-	 * @return 断片状態
+	 * @param flow              writing direction
+	 * @param columnSpanning    page break through multi-column layout (frame continuation policy)
+	 * @param frame             frame before splitting
+	 * @param size              specified size
+	 * @param minSize           minimum size
+	 * @param pageExtent        page-axis content size before splitting (width in vertical writing)
+	 * @param pageLimit         split position (from the inner edge)
+	 * @param contentSize       actual page-axis content size
+	 * @param specifiedPageSize whether the page-axis size is specified
+	 * @return fragment state
 	 */
 	public static FragmentState of(final WritingMode flow, final boolean columnSpanning,
 			final AbsoluteRectFrame frame, final Dimension size, final Dimension minSize, final double pageExtent,
@@ -78,8 +76,9 @@ public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextF
 	}
 
 	/**
+	 * Variant of
 	 * {@link #of(WritingMode, boolean, AbsoluteRectFrame, Dimension, Dimension, double, double, double, boolean)}
-	 * の、先頭の不可分内容が丸ごと移動した固定寸法ボックス用です。
+	 * for a fixed-size box whose first indivisible content moves in full.
 	 */
 	public static FragmentState of(final WritingMode flow, final boolean columnSpanning,
 			final AbsoluteRectFrame frame, final Dimension size, final Dimension minSize, final double pageExtent,
@@ -89,7 +88,7 @@ public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextF
 				specifiedPageSize, preserveSpecifiedPageSize);
 	}
 
-	/** 段予約は内容限界だけを縮め、前断片・継続断片の寸法はownerExtentから求める。 */
+	/** Column reservation reduces only the content limit; fragment sizes are derived from ownerExtent. */
 	public static FragmentState of(final WritingMode flow, final boolean columnSpanning,
 			final AbsoluteRectFrame frame, final Dimension size, final Dimension minSize, final double pageExtent,
 			final double contentLimit, final double ownerExtent, final double contentSize, final boolean specifiedPageSize,
@@ -99,29 +98,29 @@ public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextF
 
 		final AbsoluteRectFrame prevFrame, nextFrame;
 		if (columnSpanning && LayoutUtils.compare(contentLimit, 0) > 0) {
-			// 複数カラムの場合は境界を残し、高さを内容に合わせる
+			// For multiple columns, keep the boundary and size the height to the content
 			prevFrame = nextFrame = frame;
 			limit = Math.max(limit, contentSize);
 		} else if (vertical) {
-			// 縦書き: ページ軸は右→左。前断片は左辺(終端)を落とす
+			// Vertical writing: the page axis runs right to left. Drop the preceding fragment's left (end) edge
 			prevFrame = frame.cut(true, true, true, false);
 			nextFrame = frame.cut(true, false, true, true);
 		} else {
-			// 横書き: 前断片は下辺(終端)を落とす
+			// Horizontal writing: drop the preceding fragment's bottom (end) edge
 			prevFrame = frame.cut(true, true, false, true);
 			nextFrame = frame.cut(false, true, true, true);
 		}
 
 		final Dimension nextSize;
 		if (specifiedPageSize) {
-			// 先頭の不可分内容が丸ごと次へ移った場合、前断片は指定寸法を
-			// 消費していない。切断線を差し引くと、固定高サムネイルの画像が
-			// 残り数pxの継続箱へクリップされて消える。
+			// When the first indivisible content moves entirely to the next fragment, the preceding fragment
+			// has not consumed the specified size. Subtracting the cut line clips a fixed-height thumbnail image
+			// to a continuation box only a few px tall, making it disappear.
 			final double consumed = preserveSpecifiedPageSize ? 0 : limit;
 			final double rest = Math.max(0, pageExtent - consumed);
-			// 行方向(ページ方向でない側)はtype/値をそのまま残すが、MIXED
-			// (calc()の絶対長さ+割合混在)の場合は割合成分も一緒に保存しないと
-			// 断片化後の解決でratio成分が消える(2026-07-19、外部レビューで発覚)。
+			// Keep the type/value on the line axis (the non-page axis), but for MIXED
+			// (calc() mixing absolute lengths and percentages), also preserve the percentage component, or
+			// resolution after fragmentation loses the ratio component (2026-07-19, found by external review).
 			nextSize = vertical
 					? Dimension.create(rest, 0, size.getHeight(), size.getHeightRatio(), LengthType.ABSOLUTE,
 							size.getHeightType())
@@ -133,7 +132,7 @@ public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextF
 
 		final Dimension nextMinSize;
 		if ((vertical ? minSize.getWidthType() : minSize.getHeightType()) != LengthType.AUTO) {
-			// 最小寸法のページ方向を残量に分割
+			// Split the page-axis minimum size into the remainder
 			final double spec = vertical ? minSize.getWidth() : minSize.getHeight();
 			final double rest = Math.max(0, Math.min(spec, pageExtent) - limit);
 			nextMinSize = vertical

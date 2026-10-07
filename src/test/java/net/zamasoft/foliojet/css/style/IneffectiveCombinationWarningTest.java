@@ -18,21 +18,23 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>効かない組み合わせを黙って捨てない</b>ことを固定します(2823、2026-08-29)。
+ * Verify that <b>ineffective combinations are not silently discarded</b>
+ * (2823, 2026-08-29).
  *
  * <p>
- * 利用者報告(日本自由党川崎)の「書いたのに効かないのが一番時間を溶かす」を
- * 受けた告知。浮動体の{@code display:flex}/{@code display:grid}は
- * 恒久的な部分集合の外で通常ブロックへ落ちるが、以前は何も知らせずに
- * itemが縦に積まれるだけだった。絶対配置のコンテナは 2026-09-02(E-3)に
- * 対応したので、もう知らせない({@code AbsoluteGridTest}が動作を固定する)。
+ * Notification prompted by a user report (Japan Liberal Party Kawasaki): "Writing something that
+ * silently has no effect wastes the most time." Floating {@code display:flex}/{@code display:grid}
+ * containers are outside the permanent subset and fall back to normal blocks.
+ * Previously, their items simply stacked vertically with no notification.
+ * Absolutely positioned containers became supported on 2026-09-02 (E-3), so no longer report them
+ * ({@code AbsoluteGridTest} fixes their behavior).
  * </p>
  */
 public class IneffectiveCombinationWarningTest extends TestCase {
 	private static final String HEAD = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>"
 			+ "@page{size:200pt 200pt;margin:10pt}body{margin:0}</style></head><body>";
 
-	/** 絶対配置のflexコンテナは効くようになった(E-3)ので、何も言わない。 */
+	/** Absolutely positioned flex containers now work (E-3), so report nothing. */
 	public void testAbsoluteFlexIsSilent() throws Exception {
 		final List<String[]> messages = convert(HEAD
 				+ "<div style=\"position:absolute;left:0;right:0;display:flex;justify-content:space-between\">"
@@ -41,7 +43,7 @@ public class IneffectiveCombinationWarningTest extends TestCase {
 				+ describe(messages), 0, select(messages).size());
 	}
 
-	/** 浮動体のgridコンテナも同じ。 */
+	/** The same applies to floating grid containers. */
 	public void testFloatGridIsReported() throws Exception {
 		final List<String[]> messages = convert(HEAD
 				+ "<div style=\"float:left;display:grid;grid-template-columns:1fr 1fr\">"
@@ -51,7 +53,7 @@ public class IneffectiveCombinationWarningTest extends TestCase {
 		assertEquals("display: grid", reported.get(0)[1]);
 	}
 
-	/** 通常フローのflexは効くので、何も言わない——狼少年にしない。 */
+	/** Normal-flow flex works, so report nothing: do not cry wolf. */
 	public void testFlowFlexIsSilent() throws Exception {
 		final List<String[]> messages = convert(HEAD
 				+ "<div style=\"display:flex;justify-content:space-between\">"
@@ -60,7 +62,7 @@ public class IneffectiveCombinationWarningTest extends TestCase {
 				select(messages).size());
 	}
 
-	/** 同じ書き方が並んでも1回だけ——警告で埋もれさせない。 */
+	/** Report repeated instances of the same declaration only once: avoid flooding users with warnings. */
 	public void testReportedOnlyOnce() throws Exception {
 		final StringBuilder html = new StringBuilder(HEAD);
 		for (int i = 0; i < 5; ++i) {

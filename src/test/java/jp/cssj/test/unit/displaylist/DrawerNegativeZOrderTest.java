@@ -22,7 +22,7 @@ import net.zamasoft.pdfg2d.gc.NoOpGC;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 負のz-indexを親の表示リストより前へ置く順序を固定します。 */
+/** Verify ordering that places negative z-index entries before the parent's display list. */
 public class DrawerNegativeZOrderTest extends TestCase {
 	public void testNegativeBeforeFlowBackgroundAndPositiveAfter() throws Exception {
 		final List<String> order = new ArrayList<>();
@@ -32,7 +32,7 @@ public class DrawerNegativeZOrderTest extends TestCase {
 		negative.visitDrawable(new Marker("absolute-negative", order), 0, 0);
 		parent.visitDrawable(new Marker("flow-background", order), 0, 0);
 		positive.visitDrawable(new Marker("absolute-positive", order), 0, 0);
-		// 挿入順に依存しないことも同時に固定する。
+		// Also verify independence from insertion order.
 		parent.visitDrawer(positive);
 		parent.visitDrawer(negative);
 
@@ -46,7 +46,7 @@ public class DrawerNegativeZOrderTest extends TestCase {
 	}
 
 	public void testAbsoluteZIndexAroundInFlowBackground() throws Exception {
-		// CSS 2.1 Appendix E: 親の背景(①②)→負の子 stacking context(③)→親の内容(④〜⑥)→正の子(⑦)
+		// CSS 2.1 Appendix E: parent background (①②)→negative child stacking contexts (③)→parent content (④–⑥)→positive children (⑦)
 		final String negative = render(-1);
 		assertOrder("負のabsoluteは親背景の後・親内容の前", negative, true);
 

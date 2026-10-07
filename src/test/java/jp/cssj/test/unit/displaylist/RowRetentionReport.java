@@ -17,9 +17,9 @@ import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.builder.impl.TableBuildPlanner.RowEmissionExclusion;
 import net.zamasoft.foliojet.layout.fragment.ReplayIntent;
 
-/** B-2c の保持観測。各欄の最大値は同時点とは限らず、ヒープ量の代用にはしない。 */
+/** B-2c retention observations. Column maxima may occur at different times; do not use them as a heap proxy. */
 final class RowRetentionReport {
-	/** 指定の存在と、実際に高さ配分が発火したことを分けて数える。 */
+	/** Count the presence of a declaration separately from actual height distribution firing. */
 	enum Feature {
 		TOP_CAPTION, TOP_CAPTION_PAGE_BREAK, BOTTOM_CAPTION, ABSOLUTE_GROUP_SIZE, GROUP_SIZE_GROWTH,
 		ZERO_GROUP_SIZE_GROWTH, TABLE_SIZE_AFTER_GROUP
@@ -33,7 +33,7 @@ final class RowRetentionReport {
 		WeakReference<Object> pageBeforeTop;
 		int emissions, completions;
 	}
-	// 観測のために表・行・セル木の寿命を延ばさない。寸法スナップショットもPass B後に捨てる。
+	// Do not prolong table, row, or cell tree lifetimes for observation. Discard dimension snapshots after Pass B too.
 	private final Map<RetainedTableBuilder, Features> features = new WeakHashMap<>();
 	private final EnumMap<RowEmissionExclusion, Integer> exclusions = new EnumMap<>(RowEmissionExclusion.class);
 	private final EnumMap<Feature, Integer> observedFeatures = new EnumMap<>(Feature.class);
@@ -53,7 +53,7 @@ final class RowRetentionReport {
 		for (final RowEmissionExclusion reason : RowEmissionExclusion.values()) this.exclusions.put(reason, 0);
 	}
 
-	/** enduranceの表終端で採取した実ヒープ。行・セル・表・描画器への参照は保存しない。 */
+	/** Actual heap sampled at the table end in endurance. Store no references to rows, cells, tables, or drawers. */
 	synchronized void recordTableEndHistogram(final RetentionHighWaterReportTest.LiveTableBoxes live) {
 		if (live == null) return;
 		++this.liveSamples;
@@ -62,7 +62,7 @@ final class RowRetentionReport {
 		System.err.println("[B-2c live table boxes] rows=" + live.rows() + " cells=" + live.cells());
 	}
 
-	/** 別JVM・単一の送出適格表の終端だけで検査する。採取不能を回収成功とは扱わない。 */
+	/** Check only at the end of a single emission-eligible table in a separate JVM. Unavailable samples do not prove reclamation. */
 	synchronized void assertLiveTableBound(final int rows, final int columns) {
 		junit.framework.Assert.assertTrue("表終端のlive histogramが採取できていない: " + this,
 				this.finishedTables > 0 && this.liveSamples == this.finishedTables);
@@ -78,7 +78,7 @@ final class RowRetentionReport {
 	synchronized void record(final String stage, final RetainedTableBuilder table) {
 		if (ReplayIntent.current() != ReplayIntent.MAIN) return;
 		if (stage.equals("after-pass-b") || stage.equals("after-table-end")) {
-			// 初回判定後に受理宿主が不適格になった理由も、表ごとに一度だけ数える。
+			// Also count, once per table, why an accepted host became ineligible after the initial check.
 			final Features state = this.features.get(table);
 			for (final RowEmissionExclusion reason : table.rowEmissionExclusions()) {
 				if (state == null || state.exclusions.add(reason)) this.exclusions.merge(reason, 1, Integer::sum);
@@ -93,7 +93,7 @@ final class RowRetentionReport {
 		this.boundTreeCells = Math.max(this.boundTreeCells, s.boundCells() + s.currentPageCells() + s.repeatedCells());
 		if (stage.equals("before-row-emission") || stage.equals("after-row-emission")
 				|| stage.equals("after-row-completion")) {
-			// 完成経路の表は全行を保持する。送出の上限は受理・追記・完了の通知で測る。
+			// Tables on the completion path retain all rows. Measure emission limits via acceptance, append, and completion notifications.
 			this.streamingTreeRows = Math.max(this.streamingTreeRows,
 					s.boundRows() + s.currentPageRows() + s.repeatedRows());
 			this.streamingTreeCells = Math.max(this.streamingTreeCells,
@@ -108,7 +108,7 @@ final class RowRetentionReport {
 		}
 		if (stage.equals("after-row-emission") || stage.equals("after-row-completion")) {
 			this.emissions += table.rowEmittedFragments();
-			// 分割・移動などで状態が変わった通知だけ。全追記通知数ではない。
+			// Only notifications of state changes such as splits or moves, not the total number of append notifications.
 			if (stage.equals("after-row-emission")) ++this.changedNotifications;
 			else ++this.completions;
 		}
@@ -193,7 +193,7 @@ final class RowRetentionReport {
 		return false;
 	}
 
-	/** 計算済みの実行高を読むだけ。配分アルゴリズムを観測側に複製しない。 */
+	/** Read only the already calculated actual row heights. Do not duplicate the distribution algorithm in the observer. */
 	static List<double[]> rowSizes(final RetainedTableBuilder table) {
 		final List<double[]> sizes = new ArrayList<>();
 		for (final GroupSizes group : groupSizes(table)) sizes.add(group.rows());
@@ -215,7 +215,7 @@ final class RowRetentionReport {
 		return sizes;
 	}
 
-	/** 分岐の観測数と送出表数は別。別の除外理由を持つ表も配分・caption配置は通る。 */
+	/** Branch observation counts differ from emitted table counts. Tables excluded for other reasons still distribute/place captions. */
 	synchronized void assertFeature(final Feature feature, final int tables, final int streamingTables) {
 		junit.framework.Assert.assertEquals("対象分岐の発火数: " + this, tables,
 				this.observedFeatures.getOrDefault(feature, 0).intValue());
@@ -239,7 +239,7 @@ final class RowRetentionReport {
 		return this.exclusions.getOrDefault(reason, 0);
 	}
 
-	/** 指定fixtureだけの幾何上限。全表・全入力に対するヒープ上限ではない。 */
+	/** Geometric limits for the specified fixtures only, not heap limits for all tables or inputs. */
 	synchronized void assertStreamingBound(final int pageRows, final int unitRows, final int repeatedRows,
 			final int columns) {
 		junit.framework.Assert.assertTrue("送出適格表が未観測: " + this, this.eligibleTables > 0);

@@ -25,7 +25,7 @@ final class PDFOutputDrawable implements PageOutputDrawable {
 	}
 
 	private final Action action;
-	/** D7 が描画時点の注釈・フォーム属性を比較するための値。遅延構築物も共有する。 */
+	/** Values for D7 to compare annotation and form attributes at drawing time. Also shared by lazily built objects. */
 	private final Object[] digestValues;
 
 	PDFOutputDrawable(final Action action, final Object[] digestValues) {

@@ -24,8 +24,8 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * ページ分割SVGと PDF の同時出力({@code output.paged-svg.pdf=true})の試験です
- * (2026-09-03、cti.li の要望「1回の変換で PDF と Paged SVG を両方」)。
+ * Tests for simultaneous page-split SVG and PDF output ({@code output.paged-svg.pdf=true})
+ * (2026-09-03, cti.li request: "Both PDF and Paged SVG from one conversion").
  */
 public class PagedSvgWithPdfTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
@@ -44,7 +44,7 @@ public class PagedSvgWithPdfTest extends TestCase {
 		assertTrue("the PDF must be emitted before the manifest: " + r.order,
 				r.order.indexOf("document.pdf") < r.order.indexOf("manifest.json"));
 		final byte[] pdf = r.data.get("document.pdf").toByteArray();
-		// 診断用に残す(build/tmp)
+		// Keep for diagnosis (build/tmp).
 		final java.io.File dump = new java.io.File("build/tmp/paged-svg-with-pdf.pdf");
 		dump.getParentFile().mkdirs();
 		java.nio.file.Files.write(dump.toPath(), pdf);
@@ -56,7 +56,7 @@ public class PagedSvgWithPdfTest extends TestCase {
 					text.contains("ALPHA") && text.contains("BRAVO") && text.contains("一頁目の本文"));
 			assertEquals("同時出力の見本", doc.getDocumentInformation().getTitle());
 		}
-		// ページSVG側は従来どおり
+		// The page SVG side remains as before.
 		assertTrue(r.text("pages/0002.json").contains("BRAVO"));
 	}
 
@@ -106,7 +106,7 @@ public class PagedSvgWithPdfTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

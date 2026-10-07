@@ -22,12 +22,11 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * Paged SVG書き出しの試験です(2026-08-28にBatik版を廃止し、この書き出し一本)。
+ * Tests for Paged SVG output (the Batik version was removed on 2026-08-28, leaving only this writer).
  *
  * <p>
- * 見るのは「同じ資源を参照し、同じ文字を保ち、期待どおりのページ数で、
- * XMLとして妥当」であることです。座標の丸めなど細部は変わりうるので
- * バイト一致では見ません。
+ * Check that the output references the same resources, preserves the same text, has the expected
+ * page count, and is valid XML. Details such as coordinate rounding may change, so do not compare bytes.
  * </p>
  */
 public class DirectPagedSvgTest extends TestCase {
@@ -44,14 +43,14 @@ public class DirectPagedSvgTest extends TestCase {
 				+ "</style></head><body>"
 				+ "<h1 id=\"top\"><a href=\"#second\">第一頁 ABC</a></h1>"
 				+ "<div class=\"box\"></div>"
-				// 大きさを与える。1画素のまま描くと寸法の取り違えが誤差に埋もれる
+				// Specify a size. Drawing at 1 pixel would hide dimension mix-ups within the error tolerance.
 				+ "<img src=\"data:image/png;base64," + PNG + "\" style=\"width:40pt;height:30pt\">"
 				+ "<div id=\"second\" class=\"next\"><p>第二頁 XYZ</p></div>"
 				+ "</body></html>";
 	}
 
-	/** どちらの書き出しを指しているかを取り違えないための定数。既定はdirect。 */
-	/** ページ・資源・目次が期待どおりの形で出ること。 */
+	/** A constant to avoid confusing which writer is being selected. The default is direct. */
+	/** Pages, resources, and the table of contents are emitted in the expected form. */
 	public void testPagesAreWellFormed() throws Exception {
 		final CapturingResults direct = run(Map.of());
 		assertTrue("at least two pages are expected", pageCount(direct) >= 2);
@@ -66,7 +65,7 @@ public class DirectPagedSvgTest extends TestCase {
 		}
 	}
 
-	/** 文字がテキストとして残り、共有WOFF2を参照すること。 */
+	/** Characters remain as text and reference shared WOFF2. */
 	public void testTextIsPreserved() throws Exception {
 		final CapturingResults direct = run(Map.of());
 		final String first = direct.text("pages/0001.svg");
@@ -79,7 +78,7 @@ public class DirectPagedSvgTest extends TestCase {
 				direct.text("pages/0001.json").contains("第一頁"));
 	}
 
-	/** 図形がpathで出て、塗りと線が付くこと。 */
+	/** Shapes are emitted as paths with fill and stroke. */
 	public void testShapesBecomePaths() throws Exception {
 		final CapturingResults direct = run(Map.of());
 		final String first = direct.text("pages/0001.svg");
@@ -88,7 +87,7 @@ public class DirectPagedSvgTest extends TestCase {
 		assertTrue("the box border must be stroked", first.contains("stroke=\"#"));
 	}
 
-	/** 画像が共有資源として外に出て、data:が本文へ埋まらないこと。 */
+	/** Images are emitted externally as shared resources, without data: embedded in the body. */
 	public void testImagesAreExternalised() throws Exception {
 		final CapturingResults direct = run(Map.of());
 		final String first = direct.text("pages/0001.svg");
@@ -99,8 +98,8 @@ public class DirectPagedSvgTest extends TestCase {
 	}
 
 	/**
-	 * 埋め込みにすると、画像がページSVGの中へ入り、別ファイルとして出ないこと。
-	 * ディレクトリへ出せない送り方のための指定。
+	 * With embedding, images are included in the page SVG and not emitted as separate files.
+	 * This option is for delivery methods that cannot write to a directory.
 	 */
 	public void testEmbeddedResources() throws Exception {
 		final CapturingResults r = run(Map.of("output.paged-svg.resources", "embed"));
@@ -112,13 +111,13 @@ public class DirectPagedSvgTest extends TestCase {
 	}
 
 	/**
-	 * {@code omit}はフォントと画像をまとめて止めること。
+	 * {@code omit} suppresses both fonts and images together.
 	 *
 	 * <p>
-	 * 以前は{@code output.paged-svg.fonts}と{@code output.paged-svg.images}に
-	 * 分かれていたが、どちらも「受け手にどう届けるか」の話なので
-	 * {@code output.paged-svg.resources}へ統合した。参照・埋め込み・送らないは
-	 * 互いに排他である。
+	 * Previously, {@code output.paged-svg.fonts} and {@code output.paged-svg.images} were separate.
+	 * Both concern how resources reach the recipient, so they were merged into
+	 * {@code output.paged-svg.resources}. Referencing, embedding, and omitting resources are mutually
+	 * exclusive.
 	 * </p>
 	 */
 	public void testOmitStopsImagesButKeepsFonts() throws Exception {
@@ -126,12 +125,12 @@ public class DirectPagedSvgTest extends TestCase {
 
 		assertFalse("no image asset may be emitted",
 				r.order.stream().anyMatch(u -> u.startsWith("assets/images/")));
-		// **フォントは出す**(2026-08-28)。ページSVGが参照する名前は変換ごとの
-		// 連番で、出さずに前回の変換の資源を指すと字形が入れ替わる
+		// **Fonts are emitted** (2026-08-28). Names referenced by page SVGs are numbered per conversion;
+		// omitting them and referencing resources from the previous conversion would substitute different glyphs.
 		assertTrue("the font subset must still be emitted",
 				r.order.stream().anyMatch(u -> u.startsWith("assets/fonts/")));
 
-		// 参照とmanifestの記載は残る。受け手が前回の資源を使えるようにするため
+		// References and manifest entries remain so the recipient can reuse previous resources.
 		final String first = r.text("pages/0001.svg");
 		assertTrue("the page must still reference the shared subset", first.contains("../assets/fonts/"));
 		assertTrue("the page must still reference the shared image", first.contains("../assets/images/"));
@@ -140,7 +139,7 @@ public class DirectPagedSvgTest extends TestCase {
 		assertTrue("the manifest must still list the pages", manifest.contains("pages/0001.svg"));
 	}
 
-	/** 既定は参照。同じ画像の実体は1つで済む。 */
+	/** The default is referencing. Only one physical copy of the same image is needed. */
 	public void testReferencedResourcesAreDefault() throws Exception {
 		final CapturingResults r = run(Map.of());
 		final String first = r.text("pages/0001.svg");
@@ -149,23 +148,23 @@ public class DirectPagedSvgTest extends TestCase {
 	}
 
 	/**
-	 * <b>画像が両方式で同じ大きさに描かれること。</b>
+	 * <b>Images are drawn at the same size by both methods.</b>
 	 *
 	 * <p>
-	 * 画像は「自分の論理寸法の升目」へ描かれる約束で、単位矩形でも画素数でも
-	 * ない。ここを取り違えても参照先も整形式も正しいままなので、他の検査は
-	 * すべて素通りする。実際に描かれる寸法まで見て初めて捕まる。
+	 * The image contract is to draw into a rectangle of its own logical dimensions, not a unit rectangle
+	 * or its pixel dimensions. Confusing these still leaves references correct and XML well-formed,
+	 * so all other checks pass. Only checking the actual drawn dimensions catches the error.
 	 * </p>
 	 */
 	public void testImageIsDrawnAtTheGivenSize() throws Exception {
 		final double[] drawn = imageBox(run(Map.of()).data.get("pages/0001.svg").toByteArray());
 		assertNotNull("the writer must draw the image", drawn);
-		// CSSで40pt×30ptを与えてある。そこから外れたら寸法の取り違え
+		// CSS specifies 40pt×30pt. Any departure indicates a dimension mix-up.
 		assertEquals("the CSS width must be honoured", 40.0, drawn[0], 1.0);
 		assertEquals("the CSS height must be honoured", 30.0, drawn[1], 1.0);
 	}
 
-	/** 最初の{@code <image>}が実際に占める幅と高さを、祖先のtransformまで畳んで返します。 */
+	/** Return the actual width and height occupied by the first {@code <image>}, including ancestor transforms. */
 	private static double[] imageBox(final byte[] svg) throws Exception {
 		final org.w3c.dom.Document doc = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder()
 				.parse(new ByteArrayInputStream(svg));
@@ -184,7 +183,7 @@ public class DirectPagedSvgTest extends TestCase {
 		return new double[] { Math.abs(w), Math.abs(h) };
 	}
 
-	/** {@code matrix(a b c d e f)}または{@code scale(...)}から拡大率だけ取り出します。 */
+	/** Extract only the scale factors from {@code matrix(a b c d e f)} or {@code scale(...)}. */
 	private static double[] scaleOf(final String transform) {
 		if (transform == null || transform.isEmpty()) {
 			return new double[] { 1, 1 };
@@ -207,12 +206,12 @@ public class DirectPagedSvgTest extends TestCase {
 	}
 
 	/**
-	 * gzipで返すと、ページSVGとページJSONだけが縮んで名前が変わること。
+	 * With gzip delivery, only page SVGs and page JSON are compressed and renamed.
 	 *
 	 * <p>
-	 * 共有WOFF2とPNGは既に圧縮済みなので触らない。{@code manifest.json}は
-	 * 読み口なのでそのまま。SHA-256は<b>実際に渡すバイト</b>、つまり縮めた後の
-	 * バイトに対して取る。
+	 * Shared WOFF2 and PNG are already compressed, so leave them untouched.
+	 * {@code manifest.json} is the entry point, so leave it unchanged. Compute SHA-256 over
+	 * <b>the bytes actually delivered</b>, i.e., the compressed bytes.
 	 * </p>
 	 */
 	public void testGzipCompressesOnlyTheTextResults() throws Exception {
@@ -229,24 +228,24 @@ public class DirectPagedSvgTest extends TestCase {
 		final byte[] compressed = gzip.data.get("pages/0001.svgz").toByteArray();
 		assertTrue("the page must actually shrink",
 				compressed.length < plain.data.get("pages/0001.svg").toByteArray().length);
-		// 展開すると縮めなかったときと同じ中身になること
+		// Decompression yields the same contents as uncompressed output.
 		try (var in = new java.util.zip.GZIPInputStream(new ByteArrayInputStream(compressed))) {
 			assertEquals("gzip must be lossless", plain.text("pages/0001.svg"),
 					new String(in.readAllBytes(), StandardCharsets.UTF_8));
 		}
 
-		// 共有資源は素のまま
+		// Shared resources remain unchanged.
 		for (final String uri : gzip.data.keySet()) {
 			assertFalse("shared resources must not be wrapped: " + uri,
 					uri.endsWith(".woff2.gz") || uri.endsWith(".png.gz"));
 		}
 
-		// manifestのSHA-256は縮めた後のバイトに対して取る
+		// The manifest SHA-256 covers the compressed bytes.
 		assertTrue("the manifest must record the stored bytes",
 				gzip.text("manifest.json").contains(sha256(compressed)));
 	}
 
-	/** manifestのSHA-256が実体と一致すること。流しながら取っているので特に確かめる。 */
+	/** The manifest SHA-256 matches the actual data. Check this especially because it is computed while streaming. */
 	public void testManifestHashesMatchTheBytes() throws Exception {
 		final CapturingResults direct = run(Map.of());
 		final String manifest = direct.text("manifest.json");
@@ -282,10 +281,11 @@ public class DirectPagedSvgTest extends TestCase {
 	}
 
 	/**
-	 * ページJSONの字箱(bounds)が字形の送りで閉じること(2026-09-06、利用者報告「縦中横リンクの字箱」)。
-	 * 以前は最後の字形の位置+font-size(1em)で右端(縦書きは下端)を決めていたので、半角数字の
-	 * 字箱が 0.5em はみ出し、読み器の文字層・リンク層が行幅を越えた。
-	 * 同じ字形 N 個の run では、正しい幅は (最後−最初)×N/(N−1)。
+	 * Text bounds in page JSON end at the glyph advance (2026-09-06, user report: "tate-chu-yoko link bounds").
+	 * Previously, the last glyph position + font-size (1em) determined the right edge (bottom edge in
+	 * vertical writing), so bounds for half-width digits extended by 0.5em, and the reader's text
+	 * and link layers exceeded the line width.
+	 * For a run of N identical glyphs, the correct width is (last−first)×N/(N−1).
 	 */
 	public void testTextRunBoundsFollowGlyphAdvances() throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style type=\"text/css\">"
@@ -296,7 +296,7 @@ public class DirectPagedSvgTest extends TestCase {
 				+ "<div class=\"v\"><p>縦<span class=\"tcy\">00</span>縦</p><p>横倒し0000000000</p></div>"
 				+ "</body></html>";
 		final CapturingResults r = this.run(Map.of(), html);
-		// 縦書きの div は 2 頁目へ送られることがあるので全頁を連結して探す
+		// The vertical-writing div may move to page 2, so concatenate all pages for searching.
 		final StringBuilder jsonAll = new StringBuilder();
 		final StringBuilder svgAll = new StringBuilder();
 		for (int i = 1; i <= pageCount(r); ++i) {
@@ -305,11 +305,11 @@ public class DirectPagedSvgTest extends TestCase {
 		}
 		final String json = jsonAll.toString();
 		final String svg = svgAll.toString();
-		// 横書き 10 桁
+		// 10 digits in horizontal writing
 		assertRunBoundsFollowAdvances(json, svg, "0000000000", false);
-		// 縦書きの縦中横 2 桁(横に並ぶ)
+		// 2 tate-chu-yoko digits in vertical writing (arranged horizontally)
 		assertRunBoundsFollowAdvances(json, svg, "00", false);
-		// 縦書きの横倒し数字(縦に並ぶ)
+		// Sideways digits in vertical writing (arranged vertically)
 		assertRunBoundsFollowAdvances(json, svg, "0000000000", true);
 	}
 
@@ -319,7 +319,7 @@ public class DirectPagedSvgTest extends TestCase {
 				.compile("<text x=\"([^\"]*)\" y=\"([^\"]*)\"[^>]*data-copper-text=\"" + value + "\"")
 				.matcher(svg);
 		assertTrue("SVG must contain the run " + value, tm.find());
-		// 横倒しの数字は回転変換の下で x が進む run なので、座標の広がる軸を選ぶ
+		// Sideways digits form a run advancing along x under rotation, so select the axis along which coordinates vary.
 		final String[] xsRaw = tm.group(1).trim().split(" ");
 		final String[] ysRaw = tm.group(2).trim().split(" ");
 		final int n = xsRaw.length;
@@ -349,8 +349,8 @@ public class DirectPagedSvgTest extends TestCase {
 			session.property("output.type", "application/vnd.copper.paged-svg");
 			session.property("output.default-font-family", "'Noto Serif JP'");
 			session.property("processing.pass-count", "2");
-			// 既定はgzip(2026-08-28)。ここはページSVGの中身を直接読むので、
-			// 個別に指定しない限り縮めない
+			// The default is gzip (2026-08-28). These tests read page SVG contents directly,
+			// so leave them uncompressed unless explicitly specified.
 			session.property("output.paged-svg.compression", "none");
 			for (final Map.Entry<String, String> e : extraProps.entrySet()) {
 				session.property(e.getKey(), e.getValue());
@@ -384,7 +384,7 @@ public class DirectPagedSvgTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

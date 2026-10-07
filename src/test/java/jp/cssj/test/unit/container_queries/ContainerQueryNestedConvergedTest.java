@@ -8,11 +8,10 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * {@code @container}実装・段5のfixture 2(十分側)です。
- * {@link ContainerQueryNestedInsufficientPassesTest}と同じ入れ子文書を
- * {@code processing.pass-count=3}(実レイアウト3パス)で変換し、収束して
- * innerが正しく"big-X"へ切り替わり、{@code ContainerFacts.isConverged()}が
- * {@code true}になることを固定する。
+ * Fixture 2 (sufficient passes) for {@code @container} implementation stage 5.
+ * Converts the same nested document as {@link ContainerQueryNestedInsufficientPassesTest}
+ * with {@code processing.pass-count=3} (three actual layout passes), verifying convergence:
+ * inner correctly switches to "big-X", and {@code ContainerFacts.isConverged()} becomes {@code true}.
  */
 public class ContainerQueryNestedConvergedTest extends AbstractTestCase {
 	public ContainerQueryNestedConvergedTest(String name) {

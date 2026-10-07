@@ -13,28 +13,28 @@ import net.zamasoft.foliojet.ua.MultiDocumentOutput.TocEntry;
 import net.zamasoft.foliojet.ua.JsonText;
 
 /**
- * EPUBのPaged SVGの上位仕様 {@code index.json} を書きます(2026-09-02)。
+ * Writes {@code index.json}, the top-level descriptor for EPUB Paged SVG (2026-09-02).
  *
  * <p>
- * 項目ごとの出力({@code items/NNNN/})は単一の文書を変換したときの
- * バンドルそのもので、{@code manifest.json}の形は変えない。これだけが
- * 上位にあり、項目の並び・累積のページ番号・綴じ方向・目次・メタデータを
- * 持つ。設計は{@code docs/epub-paged-svg-design.md} §3。
+ * Each item's output ({@code items/NNNN/}) is the same bundle as a standalone document conversion;
+ * the {@code manifest.json} format is unchanged. Only this descriptor sits above them,
+ * holding item order, cumulative page numbers, binding direction, table of contents, and metadata.
+ * Design: {@code docs/epub-paged-svg-design.md} §3.
  * </p>
  */
 final class PagedSvgIndex {
 	private PagedSvgIndex() {
 	}
 
-	/** 項目のディレクトリ名。spine内の位置で固定(除外された項目も番号を消費する)。 */
+	/** Item directory name. Fixed by position in the spine (excluded items also consume numbers). */
 	static String itemPrefix(final int index) {
 		return String.format(Locale.ROOT, "items/%04d/", index);
 	}
 
 	/**
-	 * @param documents  全体の記述
-	 * @param pageCounts 組み終えた項目の位置→ページ数
-	 * @param binding    綴じ方向({@code left}/{@code right}/{@code single})
+	 * @param documents  description of the whole document set
+	 * @param pageCounts completed item index → page count
+	 * @param binding    binding direction ({@code left}/{@code right}/{@code single})
 	 */
 	static byte[] json(final DocumentSet documents, final Map<Integer, Integer> pageCounts, final String binding) {
 		final StringBuilder json = new StringBuilder(1024);
@@ -43,7 +43,7 @@ final class PagedSvgIndex {
 		json.append(JsonText.quoted(binding));
 		json.append(",\n  \"pageProgressionDirection\":");
 		json.append(JsonText.quoted(documents.pageProgressionDirection()));
-		// 累積のページ番号。除外された項目と未完の項目は数えない
+		// Cumulative page numbers. Exclude skipped and unfinished items.
 		int total = 0;
 		final Map<Integer, Integer> firstPages = new HashMap<>();
 		for (final DocumentUnit unit : documents.units()) {

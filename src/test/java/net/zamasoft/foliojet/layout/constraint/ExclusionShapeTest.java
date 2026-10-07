@@ -8,31 +8,31 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.layout.box.params.FloatSide;
 
 /**
- * {@link ExclusionShape}の帯照会を固定する単体テストです
- * (css-shapes-1 shape-outside、2026-08-29新設)。
+ * Unit tests that lock down band queries for {@link ExclusionShape}
+ * (css-shapes-1 shape-outside, added 2026-08-29).
  *
  * <p>
- * 行ボックスは自身の高さ全体で形状を避けるので、帯[v0, v1]の照会は
- * 帯の中の<b>最大</b>張り出しを返さなければならない。円の上側では
- * 帯の下端、下側では帯の上端が最も張り出す——両方を検算する。
+ * A line box avoids the shape over its entire height, so a query for band [v0, v1] must return
+ * the <b>maximum</b> protrusion within the band. In the upper half of a circle, the bottom of the band
+ * protrudes most; in the lower half, the top does. Check the calculations for both.
  * </p>
  */
 public class ExclusionShapeTest extends TestCase {
 	private static final double EPS = 0.5; // LayoutUtils.THRESHOLD
 
-	/** 半径50・中心(50,50)の円を100×100のマージンボックスに置いたもの。 */
+	/** A circle with radius 50 and center (50,50) in a 100×100 margin box. */
 	private static ExclusionShape circle() {
 		final Shape circle = new Ellipse2D.Double(0, 0, 100, 100);
 		return ExclusionShape.ofShape(circle, new AxisSpan(0, 100), new AxisSpan(0, 100));
 	}
 
 	private static double chord(final double v) {
-		// 円周上のu(右端)。v=50で最大の100
+		// u on the circumference (right edge). The maximum is 100 at v=50.
 		return 50 + Math.sqrt(2500 - (v - 50) * (v - 50));
 	}
 
 	public void testCircleUpperBandUsesLowerEdge() {
-		// 帯[0,12]: 下端v=12の弦が最大(≈82.5)
+		// Band [0,12]: the chord at the bottom, v=12, gives the maximum (≈82.5).
 		final AxisSpan span = circle().lineSpanAt(0, 12);
 		assertNotNull(span);
 		assertEquals(chord(12), span.end(), EPS);
@@ -47,7 +47,7 @@ public class ExclusionShapeTest extends TestCase {
 	}
 
 	public void testCircleLowerBandUsesUpperEdge() {
-		// 帯[96,108]: 上端v=96の弦が最大(≈69.6)。帯は円の下端を越えてよい
+		// Band [96,108]: the chord at the top, v=96, gives the maximum (≈69.6). The band may extend below the circle.
 		final AxisSpan span = circle().lineSpanAt(96, 108);
 		assertNotNull(span);
 		assertEquals(chord(96), span.end(), EPS);
@@ -62,7 +62,7 @@ public class ExclusionShapeTest extends TestCase {
 		final AxisSpan span = circle().lineSpanAt(50, 50);
 		assertNotNull(span);
 		assertEquals(100.0, span.end(), EPS);
-		// v1 < v0 は v0 の1点
+		// v1 < v0 means the single point v0.
 		final AxisSpan reversed = circle().lineSpanAt(50, 40);
 		assertNotNull(reversed);
 		assertEquals(100.0, reversed.end(), EPS);
@@ -80,7 +80,7 @@ public class ExclusionShapeTest extends TestCase {
 	}
 
 	public void testShapeIsClippedToBounds() {
-		// 半径100の円: マージンボックスの外へは広がらない(§4.1)
+		// A circle with radius 100: does not extend beyond the margin box (§4.1).
 		final ExclusionShape shape = ExclusionShape.ofShape(new Ellipse2D.Double(-50, -50, 200, 200),
 				new AxisSpan(0, 100), new AxisSpan(0, 100));
 		final AxisSpan span = shape.lineSpanAt(40, 60);
@@ -96,10 +96,10 @@ public class ExclusionShapeTest extends TestCase {
 		final AxisSpan middle = shape.lineSpanAt(40, 60);
 		assertEquals(10.0, middle.start(), EPS);
 		assertEquals(90.0, middle.end(), EPS);
-		// v=10..20は膨らんだ分(角は丸い)
+		// v=10..20 is the expanded part (corners are round).
 		assertNotNull(shape.lineSpanAt(11, 15));
 		assertNull(shape.lineSpanAt(0, 9));
-		// 0以下は無変更
+		// No change for values of 0 or less.
 		assertSame(dilated, ExclusionShape.dilate(dilated, 0));
 	}
 
@@ -129,7 +129,7 @@ public class ExclusionShapeTest extends TestCase {
 	}
 
 	public void testShapeImageExtractAppliesThreshold() {
-		// 4×3のARGB画像: 中央2画素だけ不透明(alpha 255)、周囲は半透明(alpha 100)
+		// A 4×3 ARGB image: only the central two pixels are opaque (alpha 255); the rest are translucent (alpha 100).
 		final java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(4, 3,
 				java.awt.image.BufferedImage.TYPE_INT_ARGB);
 		for (int y = 0; y < 3; ++y) {
@@ -139,7 +139,7 @@ public class ExclusionShapeTest extends TestCase {
 		}
 		img.setRGB(1, 1, 0xFF000000);
 		img.setRGB(2, 1, 0xFF000000);
-		// 閾値0.5: 不透明画素だけ
+		// Threshold 0.5: opaque pixels only.
 		net.zamasoft.foliojet.layout.box.params.ShapeOutsideParams.ShapeImage m = net.zamasoft.foliojet.layout.box.params.ShapeOutsideParams.ShapeImage
 				.extract(img, 0.5);
 		assertEquals(-1, m.rowMin()[0]);
@@ -148,7 +148,7 @@ public class ExclusionShapeTest extends TestCase {
 		assertEquals(-1, m.colMin()[0]);
 		assertEquals(1, m.colMin()[1]);
 		assertEquals(1, m.colMax()[2]);
-		// 閾値0(既定): alpha>0の全画素
+		// Threshold 0 (default): all pixels with alpha>0.
 		m = net.zamasoft.foliojet.layout.box.params.ShapeOutsideParams.ShapeImage.extract(img, 0);
 		assertEquals(0, m.rowMin()[0]);
 		assertEquals(3, m.rowMax()[2]);

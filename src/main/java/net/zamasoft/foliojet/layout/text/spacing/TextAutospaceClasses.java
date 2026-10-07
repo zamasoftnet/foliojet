@@ -3,50 +3,54 @@ package net.zamasoft.foliojet.layout.text.spacing;
 import net.zamasoft.foliojet.css.value.TextAutospaceValue;
 
 /**
- * {@code text-autospace}の文字分類とgap計算です(和文詰めA2、
- * 2026-07-31——consult-codex-2026-07-31-text-spacing.txt)。
- * boxに依存しない純粋計算。分類はcode point基準。
+ * Character classification and gap calculation for {@code text-autospace}
+ * (Japanese spacing adjustment A2, 2026-07-31; consult-codex-2026-07-31-text-spacing.txt).
+ * Pure calculations independent of boxes. Classification uses code points.
  *
  * <p>
- * サブセット(CSS Text 4の趣旨、逸脱は記録): 和字=漢字(基本・拡張A・
- * 互換・追加面)・仮名(拡張含む)・々〆〇。欧文字=ASCII/Latin-1/
- * Latin拡張A/ギリシア/キリルの字母。数字=ASCII数字のみ。全角英数
-	 * (FF01-)は和字幅のため対象外。gapはJLREQ既定の0.25ic——全角フォントでは
-	 * ic=emのため、和字側runのfont-size×0.25で近似する(答申の
- * 「水」advance実測は将来最適化)。
+ * Subset (following the intent of CSS Text 4, with deviations recorded): Japanese characters =
+ * kanji (basic, extension A, compatibility, supplementary planes), kana (including extensions),
+ * and 々〆〇. Latin-text letters = ASCII/Latin-1/Latin extended A/Greek/Cyrillic letters.
+ * Numbers = ASCII digits only. Fullwidth alphanumerics (FF01-) are excluded because they have
+ * Japanese character width. The gap is JLREQ's default 0.25 ic; since ic=em for fullwidth fonts,
+ * approximate it with the Japanese-side run's font-size × 0.25
+ * (measuring the advance of "水" as recommended is a future optimization).
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 public final class TextAutospaceClasses {
 
-	/** 和欧文間スペース量(em比)。JLREQ 3.2.8の四分アキ。 */
+	/** Spacing between Japanese and Latin text (em ratio). Quarter-em space from JLREQ 3.2.8. */
 	public static final double GAP = 0.25;
 
 	private TextAutospaceClasses() {
 		// static
 	}
 
-	/** 文字クラスです。 */
+	/** Character classes. */
 	public enum Kind {
 		IDEOGRAPH, ALPHA, NUMERIC,
-		/** JLREQ cl-06/cl-07 の句読点。比例幅のときだけ和字と同じく欧文・数字との間に四分アキを入れる。 */
+		/**
+		 * JLREQ cl-06/cl-07 full stops/commas. Only when proportional, add quarter-em space to Latin text/digits
+		 * as for Japanese characters.
+		 */
 		PUNCTUATION, OTHER
 	}
 
-	/** code pointを分類します。 */
+	/** Classifies a code point. */
 	public static Kind of(final int cp) {
-		// 和字: 仮名・漢字・々〆〇・仮名拡張
+		// Japanese characters: kana, kanji, 々〆〇, kana extensions
 		if (cp >= 0x3040 && cp <= 0x30FF || cp >= 0x31F0 && cp <= 0x31FF || cp >= 0x3005 && cp <= 0x3007
 				|| cp >= 0x3400 && cp <= 0x4DBF || cp >= 0x4E00 && cp <= 0x9FFF || cp >= 0xF900 && cp <= 0xFAFF
 				|| cp >= 0x20000 && cp <= 0x3FFFF) {
 			return Kind.IDEOGRAPH;
 		}
-		// 数字: ASCIIのみ
+		// Numbers: ASCII only
 		if (cp >= '0' && cp <= '9') {
 			return Kind.NUMERIC;
 		}
-		// 欧文字: ASCII/Latin-1/Latin拡張A/ギリシア/キリルの字母
+		// Latin-text letters: ASCII/Latin-1/Latin extended A/Greek/Cyrillic letters
 		if (cp >= 'A' && cp <= 'Z' || cp >= 'a' && cp <= 'z') {
 			return Kind.ALPHA;
 		}
@@ -61,15 +65,16 @@ public final class TextAutospaceClasses {
 	}
 
 	/**
-	 * 前の字が比例幅の句読点か(和欧間アキの対象にするか)です。JLREQ 3.2.8 の和欧間アキは
-	 * 漢字等・仮名と欧文用文字の間に入れるもので、句読点は対象外——全角の句読点は字形が
-	 * 自身の後ろに二分の空きを持つから困らない。IPA P 系や {@code palt} 指定のように
-	 * 句読点が比例幅だとその空きが無く、欧文・数字が字面に寄る(0.2em 台)ので、
-	 * 比例幅(送りが 0.75em 以下、{@link JapaneseSpacingResolver#isWide})の句読点に限り
-	 * 和字と同じ扱いにする(2026-09-14、利用者報告「palt 指定時、約物と欧文の間に
-	 * 和欧間アキが入らない」)。
+	 * Whether the preceding character is proportional punctuation (eligible for spacing between
+	 * Japanese and Latin text). JLREQ 3.2.8 inserts this spacing between kanji/kana and Latin-text
+	 * characters, excluding full stops/commas. Fullwidth full stops/commas already include half-em
+	 * space after the ink, so that is fine. With proportional punctuation, such as IPA P fonts or
+	 * {@code palt}, this space is absent and Latin text/digits approach the ink (around 0.2 em).
+	 * Therefore, treats only proportional full stops/commas (advance at most 0.75 em,
+	 * {@link JapaneseSpacingResolver#isWide}) like Japanese characters (2026-09-14; user report:
+	 * "With palt, spacing between Japanese and Latin text is missing between punctuation and Latin text").
 	 *
-	 * @param metrics 前の字の FontMetrics({@code null} なら不明=対象外)
+	 * @param metrics FontMetrics for the preceding character ({@code null} = unknown, ineligible)
 	 */
 	public static boolean proportionalPunctuation(final int prevCp,
 			final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final int gid, final double fontSize,
@@ -79,20 +84,20 @@ public final class TextAutospaceClasses {
 	}
 
 	/**
-	 * 隣接pairの間のgap(em比。0=なし)です。空白等を挟むpairには
-	 * 適用しないこと(呼び出し側がcontrolでリセットする)。
+	 * Gap between adjacent pairs (em ratio; 0 = none). Do not apply to pairs separated by
+	 * spaces or similar controls (the caller resets on controls).
 	 *
-	 * @param prevCp 前の文字
-	 * @param cp     次の文字
-	 * @param flags  実効フラグ({@code TextAutospaceValue.ALPHA}|{@code NUMERIC})
+	 * @param prevCp preceding character
+	 * @param cp     following character
+	 * @param flags  effective flags ({@code TextAutospaceValue.ALPHA}|{@code NUMERIC})
 	 */
 	public static double gapEm(final int prevCp, final int cp, final byte flags) {
 		return gapEm(prevCp, cp, flags, false);
 	}
 
 	/**
-	 * {@link #gapEm(int, int, byte)} に、前の字が比例幅の句読点なら和字と同じ扱いにする
-	 * 判定({@link #proportionalPunctuation})を加えたものです。
+	 * Adds to {@link #gapEm(int, int, byte)} the check that treats preceding proportional
+	 * punctuation like a Japanese character ({@link #proportionalPunctuation}).
 	 */
 	public static double gapEm(final int prevCp, final int cp, final byte flags,
 			final boolean prevProportionalPunctuation) {
@@ -117,7 +122,7 @@ public final class TextAutospaceClasses {
 		return 0;
 	}
 
-	/** pairの和字側(比例幅の句読点を含む)が前(prev)ならtrue(font-size選択用)。 */
+	/** True if the Japanese side of the pair (including proportional punctuation) is prev (for font-size selection). */
 	public static boolean ideographFirst(final int prevCp) {
 		final Kind kind = of(prevCp);
 		return kind == Kind.IDEOGRAPH || kind == Kind.PUNCTUATION;

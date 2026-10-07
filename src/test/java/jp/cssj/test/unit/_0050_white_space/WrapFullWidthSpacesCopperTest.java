@@ -38,8 +38,8 @@ public class WrapFullWidthSpacesCopperTest extends AbstractTestCase {
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
-			// 内蔵CIDフォントの幅表を直し、　が全角(10pt)に戻ったため
-			// 後ろの断片が 60 → 110 (　が10個で +50)(2026-09-11)
+			// Fixed the built-in CID-keyed font width table, restoring the full width (10 pt) of 　;
+			// the following fragment changed from 60 to 110 (ten 　 characters add 50) (2026-09-11).
 			assertTrue(20 == box.getWidth() || 110 == box.getWidth());
 			return true;
 		}

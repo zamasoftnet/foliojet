@@ -3,9 +3,9 @@ package net.zamasoft.foliojet.layout.text.spacing;
 import junit.framework.TestCase;
 
 /**
- * {@link JapaneseSpacingResolver}(和文詰めS0)の純粋計算テストです。
- * 移管元(OpenTypeFont.getKerning・TextBuilder天付き)のpair表を
- * そのまま固定する——S1の出力不変移管の基準。
+ * Pure calculation tests for {@link JapaneseSpacingResolver} (Japanese spacing trim S0).
+ * Locks down the pair table from the original implementations (OpenTypeFont.getKerning and
+ * TextBuilder line-start trimming) as-is, as the baseline for S1's migration with unchanged output.
  */
 public class JapaneseSpacingResolverTest extends TestCase {
 
@@ -23,7 +23,7 @@ public class JapaneseSpacingResolverTest extends TestCase {
 		assertEquals(JapaneseSpacingClass.MIDDLE_DOT, JapaneseSpacingClass.of('；'));
 		assertEquals(JapaneseSpacingClass.OTHER, JapaneseSpacingClass.of('あ'));
 		assertEquals(JapaneseSpacingClass.OTHER, JapaneseSpacingClass.of('A'));
-		assertEquals(JapaneseSpacingClass.OTHER, JapaneseSpacingClass.of(0x20B9F)); // 補助面
+		assertEquals(JapaneseSpacingClass.OTHER, JapaneseSpacingClass.of(0x20B9F)); // Supplementary plane.
 	}
 
 	public void testAllJlreqBracketClasses() {
@@ -39,7 +39,7 @@ public class JapaneseSpacingResolverTest extends TestCase {
 		}
 	}
 
-	/** 中点類の後ろはjustifyで伸ばさず、四分アキを固定する。 */
+	/** After middle-dot characters, keep quarter-em spacing fixed rather than expanding it for justification. */
 	public void testMiddleDotDoesNotExpandAfter() {
 		assertFalse(JapaneseSpacingResolver.allowsJustificationAfter('・'));
 		assertFalse(JapaneseSpacingResolver.allowsJustificationAfter('：'));
@@ -47,16 +47,16 @@ public class JapaneseSpacingResolverTest extends TestCase {
 		assertTrue(JapaneseSpacingResolver.allowsJustificationAfter('あ'));
 	}
 
-	/** 開き+開き: 両方wideで0.5、どちらかproportionalなら0。 */
+	/** Opening+opening: 0.5 if both are wide, 0 if either is proportional. */
 	public void testOpeningPairs() {
 		assertEquals(0.5, JapaneseSpacingResolver.pairTrim('「', true, '（', true), 0.001);
 		assertEquals(0.0, JapaneseSpacingResolver.pairTrim('「', true, '（', false), 0.001);
 		assertEquals(0.0, JapaneseSpacingResolver.pairTrim('「', false, '（', true), 0.001);
-		assertEquals(0.0, JapaneseSpacingResolver.pairTrim('「', true, '」', true), 0.001); // 開き+閉じは詰めない
+		assertEquals(0.0, JapaneseSpacingResolver.pairTrim('「', true, '」', true), 0.001); // Do not trim opening+closing.
 		assertEquals(0.0, JapaneseSpacingResolver.pairTrim('「', true, 'あ', true), 0.001);
 	}
 
-	/** 閉じ+{開き|閉じ|句読点}: 両方wideで0.5。 */
+	/** Closing+{opening|closing|comma or period}: 0.5 if both are wide. */
 	public void testClosingPairs() {
 		assertEquals(0.5, JapaneseSpacingResolver.pairTrim('」', true, '「', true), 0.001);
 		assertEquals(0.5, JapaneseSpacingResolver.pairTrim('」', true, '）', true), 0.001);
@@ -66,7 +66,7 @@ public class JapaneseSpacingResolverTest extends TestCase {
 	}
 
 	/**
-	 * 句読点+開き/閉じ: 両方wideなら0.5。句読点+句読点: 詰めない。
+	 * Comma or period + opening/closing: 0.5 if both are wide. Comma or period + comma or period: no trim.
 	 */
 	public void testPunctuationPairs() {
 		assertEquals(0.5, JapaneseSpacingResolver.pairTrim('。', true, '「', true), 0.001);
@@ -74,7 +74,7 @@ public class JapaneseSpacingResolverTest extends TestCase {
 		assertEquals(0.5, JapaneseSpacingResolver.pairTrim('、', true, '」', true), 0.001);
 		assertEquals(0.0, JapaneseSpacingResolver.pairTrim('、', true, '」', false), 0.001);
 		assertEquals(0.0, JapaneseSpacingResolver.pairTrim('。', true, '。', true), 0.001);
-		assertEquals(0.0, JapaneseSpacingResolver.pairTrim('。', false, '「', true), 0.001); // 前段がproportional
+		assertEquals(0.0, JapaneseSpacingResolver.pairTrim('。', false, '「', true), 0.001); // The preceding character is proportional.
 	}
 
 	public void testCommaAndFullStopAreDistinguishedForJlreqReduction() {
@@ -84,7 +84,10 @@ public class JapaneseSpacingResolverTest extends TestCase {
 		assertFalse(JapaneseSpacingResolver.isComma(0xFF0E));
 	}
 
-	/** 横書き・縦書き共通の天付き: 行頭の全角相当の始め括弧のみ-0.5em。 */
+	/**
+	 * Line-start trimming for horizontal/vertical writing: -0.5em only for a full-width opening bracket at line
+	 * start.
+	 */
 	public void testLineHeadIndent() {
 		assertEquals(-0.5, JapaneseSpacingResolver.lineHeadIndent('「', true, true), 0.001);
 		assertEquals(-0.5, JapaneseSpacingResolver.lineHeadIndent('『', true, true), 0.001);

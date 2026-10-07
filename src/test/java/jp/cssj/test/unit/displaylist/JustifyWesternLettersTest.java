@@ -22,10 +22,12 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 和文の両端揃え({@code text-justify: auto})で、欧文の語の字間を空けないことを固定します(2026-10-06、jigensha の報告:
- * 長い欧文の語で行末が空いた行で「T o r B r o w s e r」と字間まで空いた)。JLREQ 3.8.4 の d は分割禁止でない字間を
- * 均等に空ける。欧文用文字の字間を含めるかは JIS X 4051 で処理系定義で、Copper は和字間・語間など配る所が無い行
- * だけ欧文の字間へ配る。{@code inter-character} は従来どおり欧文の字間にも配る。
+ * Verify that justification of Japanese text ({@code text-justify: auto}) does not space out letters within Latin words
+ * (2026-10-06, jigensha report: a line ending early due to a long Latin word expanded "T o r B r o w s e r").
+ * JLREQ 3.8.4 d distributes space equally between characters where breaking is allowed. JIS X 4051 leaves inclusion
+ * of gaps between Latin characters to the implementation; Copper uses them only when the line has no other
+ * distribution points, such as Japanese character gaps or word spaces. {@code inter-character} still distributes
+ * space between Latin letters as before.
  */
 public class JustifyWesternLettersTest extends TestCase {
 	private static final String TEXT = "あいうえおかきくけこさしすせそたちつてと。TorBrowser に、abcdefghijklmnopqrstuvwxyz0123456789 のような。";
@@ -38,7 +40,7 @@ public class JustifyWesternLettersTest extends TestCase {
 		assertTrue(gap("inter-character") > 0.1);
 	}
 
-	/** 「TorBrowser」の字と字の間のアキの最大(pt)。 */
+	/** Maximum gap (pt) between letters in "TorBrowser". */
 	private static double gap(final String justify) throws Exception {
 		final String html = """
 				<!DOCTYPE html>

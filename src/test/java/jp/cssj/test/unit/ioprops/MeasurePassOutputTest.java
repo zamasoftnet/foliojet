@@ -37,7 +37,7 @@ import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 import net.zamasoft.zstream.resolver.protocol.stream.StreamSource;
 
-/** 中間パスがserializerや最終描画を起動しないことの回帰テスト。 */
+/** Regression tests that intermediate passes do not start the serializer or final rendering. */
 public class MeasurePassOutputTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 	private static final byte[] PNG = Base64.getDecoder().decode(

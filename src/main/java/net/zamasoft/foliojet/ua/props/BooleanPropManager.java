@@ -38,8 +38,8 @@ public class BooleanPropManager extends AbstractPropManager {
 		if (str.equalsIgnoreCase("false")) {
 			return false;
 		}
-		// 不正な値は警告して既定値にする(ほかの型と同じ)。2026-10-04 までは false にしていて、
-		// 既定が true の性質(output.clip など)を output.clip=yes で切っていた
+		// Warn and use the default for invalid values (as for other types). Until 2026-10-04, these became false,
+		// so output.clip=yes disabled properties that default to true (such as output.clip).
 		mh.message(MessageCodes.WARN_BAD_IO_PROPERTY, new String[] { this.name, str });
 		return this.defaultBoolean;
 	}

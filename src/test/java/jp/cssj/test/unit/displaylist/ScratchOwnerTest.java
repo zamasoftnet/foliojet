@@ -49,7 +49,7 @@ import net.zamasoft.pdfg2d.gc.font.FontPolicyList;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
-/** BとCを同じスレッドで交互に駆動したときの、資源・会計・借用ログの境界です。 */
+/** Resource, accounting, and borrowed-log boundaries when driving B and C alternately on the same thread. */
 public final class ScratchOwnerTest extends TestCase {
 	public void testHostCompletionCannotRetireBorrowedMainOrOtherScratchBody() throws Exception {
 		try (final LayoutSource source = source(); final ScratchOwner owner = new ScratchOwner()) {
@@ -252,7 +252,7 @@ public final class ScratchOwnerTest extends TestCase {
 
 	public void testOwnerPinsUnfinishedCaptureWhileDisconnected() throws Exception {
 		try (final LayoutSource source = source(); final ScratchOwner owner = new ScratchOwner()) {
-			// 別の所有者の接続中に取得しても、その所有者のcloseで解放されない。
+			// Even if acquired while another owner is attached, that owner's close does not release it.
 			try (final ScratchReplayScope other = new ScratchReplayScope()) {
 				owner.retainFrom(source, 0);
 			}
@@ -283,7 +283,7 @@ public final class ScratchOwnerTest extends TestCase {
 				try (final ScratchReplayScope scope = owner.attach()) {
 					doc = new DocumentBuilder(new MeasurePageGenerator(ua, blockParams(), 400, 600, source));
 					start(source, doc, LayoutSource.BoxKind.FLOW, new FlowBlockBox(blockParams(), new FlowPos()));
-					// 固定幅floatはBlockBuilder自身のRetainedTextLimit.Scopeを持つ。
+					// A fixed-width float has BlockBuilder's own RetainedTextLimit.Scope.
 					final BlockParams fixed = blockParams();
 					fixed.size = Dimension.create(200, 0, LengthType.ABSOLUTE, LengthType.AUTO);
 					start(source, doc, LayoutSource.BoxKind.FLOAT_BLOCK, new FloatBlockBox(fixed, new FloatPos()));
@@ -295,7 +295,7 @@ public final class ScratchOwnerTest extends TestCase {
 					start(source, doc, LayoutSource.BoxKind.TABLE_CELL, cell());
 					start(source, doc, LayoutSource.BoxKind.FLOW, new FlowBlockBox(blockParams(), new FlowPos()));
 					end(source, doc);
-					end(source, doc); // 最初のセルだけseal済みにし、実ハンドルを残す。
+					end(source, doc); // Seal only the first cell, leaving a real handle.
 					start(source, doc, LayoutSource.BoxKind.TABLE_CELL, cell());
 					start(source, doc, LayoutSource.BoxKind.FLOAT_BLOCK, unfinished);
 					start(source, doc, LayoutSource.BoxKind.FLOW, new FlowBlockBox(blockParams(), new FlowPos()));
@@ -362,7 +362,7 @@ public final class ScratchOwnerTest extends TestCase {
 							doc.startBox(box);
 							doc.finishReplayOnlyEvent();
 							final List<?> stack = (List<?>) field(doc, "builderStack");
-							// ContainerBuilderEntry は protected なので reflection で辿る
+							// Traverse ContainerBuilderEntry via reflection because it is protected.
 							final Object entry = stack.get(stack.size() - 1);
 							final Object builder = field(entry, "builder");
 							assertTrue(builder instanceof net.zamasoft.foliojet.layout.builder.impl.TwoPassBlockBuilder);
@@ -391,7 +391,7 @@ public final class ScratchOwnerTest extends TestCase {
 								final String text = "real item text";
 								source.append(new LayoutSource.Chars(item * text.length(), text.toCharArray(), false));
 								doc.characters(item * text.length(), text.toCharArray(), 0, text.length(), false);
-								if (item == 0) end(source, doc); // 完了項目と未完項目を同居させる。
+								if (item == 0) end(source, doc); // Include both completed and incomplete items.
 							}
 						}
 						doc.finishReplayKeepText();
@@ -399,8 +399,8 @@ public final class ScratchOwnerTest extends TestCase {
 						final var builder = (net.zamasoft.foliojet.layout.builder.impl.TwoPassBlockBuilder)
 								field(stack.get(stack.size() - 1), "builder");
 						assertTrue(kind + ": 実文字が固有寸法の計測へ届いた", builder.getIntrinsicSizes().maxContent() > 0);
-						// flushTextはshaperを流すだけ。項目の録画・固有寸法計測では
-						// TextBuilderが行へ文字を配置しないので、組版済み文字会計はまだ0。
+						// flushText only flushes the shaper. During item recording and intrinsic dimension measurement,
+						// TextBuilder does not place characters in lines, so laid-out character accounting is still zero.
 						assertEquals(kind + ": 未配置の文字は組版済み文字会計に含めない", 0L, owner.currentBytes());
 					}
 					final long end = source.nextId();
@@ -446,13 +446,13 @@ public final class ScratchOwnerTest extends TestCase {
 							new FlowBlockBox(textParams(new BlockParams(), fonts), new FlowPos()));
 					source.append(new LayoutSource.Chars(0, text.toCharArray(), false));
 					doc.characters(0, text.toCharArray(), 0, text.length(), false);
-					end(source, doc); // 段落を閉じ、TextBuilderが文字を行へ配置してから観測する。
+					end(source, doc); // Close the paragraph and observe after TextBuilder places characters in lines.
 					assertEquals("実文字が所有者の会計へ一度届く", 2L * text.length(), owner.currentBytes());
 				}
 				assertEquals(17L, limit.getCurrentBytes());
 				assertEquals("切断中も組版済み文字を保持", 2L * text.length(), owner.currentBytes());
 				final List<LayoutSource.Event> before = events(source);
-				doc.discard(); // 外側のflowは未完のまま破棄する。
+				doc.discard(); // Discard the outer flow while it is still incomplete.
 				assertEquals(17L, limit.getCurrentBytes());
 				assertEquals(0L, owner.currentBytes());
 				assertEquals(0, owner.registeredResourceCount());
@@ -546,7 +546,7 @@ public final class ScratchOwnerTest extends TestCase {
 	}
 
 	public void testRetainedTableNeverCompactsBorrowedMeasureLog() throws Exception {
-		// 意図と生成器を別々に検査し、MAINの対照では本当にcompactされることを確かめる。
+		// Check intent and the generator separately, and verify that the MAIN control actually compacts.
 		for (int mode = 0; mode < 3; ++mode) {
 			final PDFUserAgent ua = new PDFUserAgent() { };
 			try (final LayoutSource source = source()) {
@@ -652,7 +652,7 @@ public final class ScratchOwnerTest extends TestCase {
 			action.run();
 			fail("IllegalStateException expected");
 		} catch (final IllegalStateException expected) {
-			// 所有・入力の終端違反は黙って受理しない。
+			// Do not silently accept ownership or input termination violations.
 		}
 	}
 }

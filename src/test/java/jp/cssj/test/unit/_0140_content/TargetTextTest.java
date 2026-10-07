@@ -40,9 +40,9 @@ public class TargetTextTest extends AbstractTestCase {
 	}
 
 	/**
-	 * target-property(before)はv1未対応でパース時に拒否されるため、
-	 * content宣言自体が無効になり:beforeボックスは生成されない
-	 * (テキストは空のまま)。
+	 * target-property(before) is unsupported in v1 and is rejected at parse time,
+	 * invalidating the content declaration itself. No :before box is generated
+	 * (the text remains empty).
 	 */
 	public boolean check_cc(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {

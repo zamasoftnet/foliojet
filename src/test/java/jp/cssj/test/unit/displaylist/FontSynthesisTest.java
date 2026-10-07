@@ -22,17 +22,17 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>{@code font-synthesis}</b>を固定します(css-fonts-4、2026-08-20)。
+ * Verify <b>{@code font-synthesis}</b> (css-fonts-4, 2026-08-20).
  *
  * <p>
- * 太字・イタリック体を持たないフォント(既定構成の和文フォント)に対し、
- * 既定では疑似ボールド(FILL_STROKE={@code 2 Tr})と疑似イタリック
- * (シアー入り{@code Tm})が入り、{@code font-synthesis: none}で両方
- * 抑止されることをPDF内容ストリームの演算子で検査する。
+ * For fonts without bold or italic faces (Japanese fonts in the default configuration),
+ * check PDF content-stream operators to verify that synthetic bold (FILL_STROKE={@code 2 Tr})
+ * and synthetic italic ({@code Tm} with shear) apply by default,
+ * and {@code font-synthesis: none} suppresses both.
  * </p>
  */
 public class FontSynthesisTest extends TestCase {
-	/** ページ内容の疑似化マーカーの有無。 */
+	/** Presence of synthesis markers in page contents. */
 	private record Synth(boolean strokeBold, boolean shearItalic) {
 	}
 
@@ -50,7 +50,7 @@ public class FontSynthesisTest extends TestCase {
 					&& operands.get(operands.size() - 1) instanceof COSNumber n && n.intValue() == 2) {
 				strokeBold = true;
 			} else if ("Tm".equals(op.getName()) && operands.size() >= 6) {
-				// 横書きの疑似イタリック: [1 0 0.25 1 x y] Tm
+				// Synthetic italic in horizontal writing: [1 0 0.25 1 x y] Tm.
 				final Object c = operands.get(operands.size() - 4);
 				if (c instanceof COSNumber n && Math.abs(n.floatValue() - 0.25f) < 0.001f) {
 					shearItalic = true;
@@ -62,9 +62,9 @@ public class FontSynthesisTest extends TestCase {
 	}
 
 	/**
-	 * 半透明(rgba)の塗りでも疑似ボールドが放棄されないことを固定します
-	 * (2026-08-20改善。従来はfillAlpha!=1で疑似化ごと放棄され、太字が
-	 * 普通の太さで出ていた)。
+	 * Verify that translucent (rgba) fills still get synthetic bold
+	 * (improved on 2026-08-20; previously, fillAlpha!=1 disabled synthesis entirely,
+	 * rendering bold text at normal weight).
 	 */
 	public void testFakeBoldAppliesToTranslucentFill() throws Exception {
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -102,20 +102,20 @@ public class FontSynthesisTest extends TestCase {
 		}
 		try (PDDocument doc = Loader.loadPDF(out.toByteArray())) {
 			assertEquals(2, doc.getNumberOfPages());
-			// p1: 既定(auto)——太字疑似化・斜体疑似化が入る(この前提が
-			// 崩れたら、テスト構成のフォントに実太字/実イタリックが入った
-			// ということなので、フォント指定を単ウェイトのものへ変える)
+			// p1: Default (auto) enables synthetic bold and italic (if this premise fails,
+			// the test font configuration has acquired real bold/italic faces,
+			// so switch the specified font to one with a single weight).
 			final Synth p1 = scan(doc.getPage(0));
 			assertTrue("疑似ボールドが入っていません(前提: 実太字なし)", p1.strokeBold());
 			assertTrue("疑似イタリックが入っていません(前提: 実イタリックなし)", p1.shearItalic());
-			// p2: font-synthesis: none——両方抑止
+			// p2: font-synthesis: none suppresses both.
 			final Synth p2 = scan(doc.getPage(1));
 			assertFalse("font-synthesis:noneでも疑似ボールドが入っています", p2.strokeBold());
 			assertFalse("font-synthesis:noneでも疑似イタリックが入っています", p2.shearItalic());
 		}
 	}
 
-	/** SVGの900がimg経路でも背景画像経路でも疑似ボールドになります。 */
+	/** SVG weight 900 gets synthetic bold through both img and background-image paths. */
 	public void testSvgFontWeight900IsBoldForImageAndBackground() throws Exception {
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
@@ -132,8 +132,8 @@ public class FontSynthesisTest extends TestCase {
 		}
 		try (PDDocument doc = Loader.loadPDF(out.toByteArray())) {
 			assertEquals(2, doc.getNumberOfPages());
-			// この前提が崩れたら、テスト構成のserifに実ウェイト900が
-			// 入ったため、単ウェイトのフォント指定へ変える。
+			// If this premise fails, the test configuration's serif has acquired a real
+			// weight 900, so switch the specified font to one with a single weight.
 			assertTrue("img内のfont-weight:900が太字になっていません", scan(doc.getPage(0)).strokeBold());
 			assertTrue("背景SVG内のfont-weight:900が太字になっていません", scan(doc.getPage(1)).strokeBold());
 		}

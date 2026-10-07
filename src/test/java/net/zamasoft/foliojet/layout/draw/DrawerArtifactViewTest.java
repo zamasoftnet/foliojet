@@ -8,21 +8,20 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.NoOpGC;
 
 /**
- * {@link Drawer}のartifact属性と共有ビューの単体テストです
- * (2026-07-25新設、救済分割・増分2。<b>まだ本番経路からは
- * artifact属性が立ちません</b>)。
+ * Unit tests for {@link Drawer}'s artifact attribute and shared views
+ * (added 2026-07-25, rescue splitting, increment 2. <b>The production path does not set
+ * the artifact attribute yet</b>).
  *
  * <p>
- * ここで固定する最重要の性質は「共有ビューを使っても表示リストの順序が
- * 変わらない」ことです。現在の{@link Drawer#draw}は通常のDrawableを
- * 先に描いてから子Drawerをz順で安定ソートするため、artifact用に
- * ラッパーDrawerを<b>子として</b>追加すると既存の重なり順が変わって
- * しまいます(答申§3)。そのため共有ビュー方式にしています。
+ * The most important property locked down here is that shared views do not change display-list order.
+ * The current {@link Drawer#draw} draws regular Drawables first, then stably sorts child Drawers by z,
+ * so adding an artifact wrapper Drawer <b>as a child</b> would change the existing stacking order
+ * (recommendation §3). This is why shared views are used.
  * </p>
  */
 public class DrawerArtifactViewTest extends TestCase {
 
-	/** 描画順を記録するだけのDrawableです。 */
+	/** A Drawable that only records drawing order. */
 	private static final class Marker implements Drawable {
 		private final String name;
 		private final List<String> log;
@@ -48,10 +47,10 @@ public class DrawerArtifactViewTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 既定は非artifact(既存挙動の不変)
+	// Non-artifact by default (preserves existing behavior).
 	// ------------------------------------------------------------------
 
-	/** 何もしなければartifactは立たず、ダンプも従来どおり。 */
+	/** Without intervention, artifact stays unset and dumps remain as before. */
 	public void testPlainDrawerIsNotArtifact() {
 		final List<String> log = new ArrayList<>();
 		final Drawer drawer = new Drawer(0);
@@ -63,10 +62,10 @@ public class DrawerArtifactViewTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 共有ビュー
+	// Shared views.
 	// ------------------------------------------------------------------
 
-	/** ビューは新しいz階層を作らず、同じ表示リストへ流し込む。 */
+	/** A view feeds the same display list without creating a new z level. */
 	public void testArtifactViewSharesTheDisplayList() {
 		final List<String> log = new ArrayList<>();
 		final Drawer drawer = new Drawer(0);
@@ -78,7 +77,7 @@ public class DrawerArtifactViewTest extends TestCase {
 		view.visitDrawable(new Marker("artifact", log), 0, 0);
 		drawer.visitDrawable(new Marker("after", log), 0, 0);
 
-		// ビュー自身は何も持たない(全部オーナー側の表示リストにある)
+		// The view itself holds nothing (everything is in the owner's display list).
 		assertEquals("drawer z=0 artifact\n", dump(view));
 		assertEquals("drawer z=0\n" //
 				+ "  x=0.00 y=0.00 marker before\n" //
@@ -86,7 +85,7 @@ public class DrawerArtifactViewTest extends TestCase {
 				+ "  x=0.00 y=0.00 marker after\n", dump(drawer));
 	}
 
-	/** 追加順(=描画順)はビューを挟んでも一切変わらない。 */
+	/** Insertion order (= drawing order) remains completely unchanged when a view is involved. */
 	public void testArtifactViewPreservesDrawOrder() {
 		final List<String> viaView = new ArrayList<>();
 		final Drawer withView = new Drawer(0);
@@ -106,7 +105,7 @@ public class DrawerArtifactViewTest extends TestCase {
 		assertEquals(List.of("1", "2", "3"), viaView);
 	}
 
-	/** ビューを繰り返し取っても同じビューで、ビューのビューは自分自身。 */
+	/** Repeated requests return the same view, and a view's view is itself. */
 	public void testArtifactViewIsStable() {
 		final Drawer drawer = new Drawer(0);
 		final Drawer view = drawer.artifactView();
@@ -115,10 +114,10 @@ public class DrawerArtifactViewTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 子への伝播
+	// Propagation to children.
 	// ------------------------------------------------------------------
 
-	/** ビュー経由で追加した子Drawerはartifactになる(子孫まで伝播)。 */
+	/** Child Drawers added through a view become artifacts (propagates to descendants). */
 	public void testArtifactPropagatesToChildDrawers() {
 		final List<String> log = new ArrayList<>();
 		final Drawer root = new Drawer(0);
@@ -130,12 +129,12 @@ public class DrawerArtifactViewTest extends TestCase {
 		assertTrue(grandChild.isArtifact());
 		assertFalse(root.isArtifact());
 
-		// 追加済みの内容も、後から追加する内容も、両方artifactになる
+		// Both existing content and subsequently added content become artifacts.
 		grandChild.visitDrawable(new Marker("late", log), 0, 0);
 		assertTrue(dump(root).contains("artifact marker late"));
 	}
 
-	/** 追加より前に入っていたDrawableも遡ってartifactになる。 */
+	/** Drawables already present before addition also become artifacts retroactively. */
 	public void testAlreadyAddedDrawablesAreMarkedOnPropagation() {
 		final List<String> log = new ArrayList<>();
 		final Drawer root = new Drawer(0);
@@ -145,7 +144,7 @@ public class DrawerArtifactViewTest extends TestCase {
 		assertTrue(dump(root).contains("artifact marker early"));
 	}
 
-	/** 通常の追加では子へ伝播しない。 */
+	/** Normal addition does not propagate to children. */
 	public void testPlainVisitDrawerDoesNotPropagate() {
 		final Drawer root = new Drawer(0);
 		final Drawer child = new Drawer(1);
@@ -153,7 +152,7 @@ public class DrawerArtifactViewTest extends TestCase {
 		assertFalse(child.isArtifact());
 	}
 
-	/** ビューをartifactにしてもオーナーの通常内容は巻き込まない。 */
+	/** Marking a view as an artifact does not affect the owner's regular content. */
 	public void testViewDoesNotContaminateTheOwner() {
 		final List<String> log = new ArrayList<>();
 		final Drawer owner = new Drawer(0);
@@ -167,10 +166,10 @@ public class DrawerArtifactViewTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// z順
+	// z order.
 	// ------------------------------------------------------------------
 
-	/** 子Drawerのz順ソートは共有ビューの有無で変わらない。 */
+	/** Child Drawer sorting by z order is unchanged by the presence of a shared view. */
 	public void testChildOrderingIsUnchangedByTheView() {
 		final List<String> viaView = new ArrayList<>();
 		final Drawer root = new Drawer(0);
@@ -183,7 +182,7 @@ public class DrawerArtifactViewTest extends TestCase {
 		root.visitDrawer(low);
 		root.draw(new NoOpGC(null));
 
-		// 負のz-indexの子(-5)は自分のDrawableより先、正の子(5)は後(CSS 2.1 Appendix E ③→④…⑦、2026-09-05)
+		// Negative z-index children (-5) precede own Drawables; positive (5) follow (CSS 2.1 Appendix E ③→④…⑦, 2026-09-05).
 		assertEquals(List.of("low", "own", "high"), viaView);
 	}
 }

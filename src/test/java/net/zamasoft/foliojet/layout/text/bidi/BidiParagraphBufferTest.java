@@ -7,8 +7,9 @@ import net.zamasoft.foliojet.css.value.UnicodeBidiValue;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 
 /**
- * 段落単位の双方向解決の model({@link BidiParagraphBuffer}/{@link BidiResolver})の
- * 試験(2026-09-04、bidi-isolation-design.md batch A-1a)。
+ * Tests for the paragraph-level bidirectional resolution model
+ * ({@link BidiParagraphBuffer}/{@link BidiResolver})
+ * (2026-09-04, bidi-isolation-design.md batch A-1a).
  */
 public class BidiParagraphBufferTest extends TestCase {
 	private static final String HEB = "אבג"; // אבג
@@ -39,7 +40,7 @@ public class BidiParagraphBufferTest extends TestCase {
 				BidiResolver.baseDirectionFlag(AbstractTextParams.DIRECTION_RTL, UnicodeBidiValue.EMBED));
 		assertEquals(Bidi.DIRECTION_DEFAULT_LEFT_TO_RIGHT,
 				BidiResolver.baseDirectionFlag(AbstractTextParams.DIRECTION_LTR, UnicodeBidiValue.PLAINTEXT));
-		// plaintext のブロック: 先頭の強い文字で段落レベルが決まる
+		// A plaintext block: the first strong character determines the paragraph level.
 		final BidiParagraphBuffer heb = new BidiParagraphBuffer(AbstractTextParams.DIRECTION_LTR,
 				UnicodeBidiValue.PLAINTEXT);
 		heb.addText(HEB + " 123", null);
@@ -50,7 +51,7 @@ public class BidiParagraphBufferTest extends TestCase {
 		assertEquals(0, lat.paragraphLevel());
 	}
 
-	/** RTL 段落の `אבג ABC`: Hebrew はレベル 1、Latin はレベル 2。段落レベルは 1。 */
+	/** `אבג ABC` in an RTL paragraph: Hebrew is level 1, Latin is level 2. The paragraph level is 1. */
 	public void testLevelsInRtlParagraph() {
 		final BidiParagraphBuffer buffer = new BidiParagraphBuffer(AbstractTextParams.DIRECTION_RTL,
 				UnicodeBidiValue.NORMAL);
@@ -67,7 +68,7 @@ public class BidiParagraphBufferTest extends TestCase {
 		}
 	}
 
-	/** 純 LTR の段落は並べ替え不要。 */
+	/** A purely LTR paragraph needs no reordering. */
 	public void testPureLtrIsNotMixed() {
 		final BidiParagraphBuffer buffer = new BidiParagraphBuffer(AbstractTextParams.DIRECTION_LTR,
 				UnicodeBidiValue.NORMAL);
@@ -80,8 +81,8 @@ public class BidiParagraphBufferTest extends TestCase {
 	}
 
 	/**
-	 * LTR 段落の `A <rtl isolate>אב 12</> - B`: isolate の中の数字はレベル 2、
-	 * 外の ` - B` は基準レベル 0 のまま(isolate は周囲へ影響しない)。
+	 * `A <rtl isolate>אב 12</> - B` in an LTR paragraph: digits inside the isolate are level 2;
+	 * the external ` - B` remains at base level 0 (the isolate does not affect its surroundings).
 	 */
 	public void testIsolateDoesNotLeak() {
 		final BidiParagraphBuffer buffer = new BidiParagraphBuffer(AbstractTextParams.DIRECTION_LTR,
@@ -101,7 +102,7 @@ public class BidiParagraphBufferTest extends TestCase {
 		}
 	}
 
-	/** embed なら外側の中立文字(` - `)が RTL 側へ引き込まれ得る——isolate との差。 */
+	/** With embed, external neutral characters (` - `) can be pulled toward RTL; this differs from isolate. */
 	public void testEmbedLeaksIntoNeighbours() {
 		final BidiParagraphBuffer buffer = new BidiParagraphBuffer(AbstractTextParams.DIRECTION_LTR,
 				UnicodeBidiValue.NORMAL);
@@ -111,11 +112,11 @@ public class BidiParagraphBufferTest extends TestCase {
 		buffer.inlineEnd("span");
 		final BidiParagraphBuffer.Event tail = buffer.addText(" ג", null);
 		assertEquals("A \u202Bאב\u202C ג", buffer.synthetic());
-		// embed の外の空白は両側が R なので R(レベル 1)になる
+		// The whitespace outside the embed becomes R (level 1) because both sides are R.
 		assertEquals(1, buffer.levelAt(tail.start()));
 	}
 
-	/** atomic inline は U+FFFC 1 個で、周囲の方向に従う中立オブジェクト。 */
+	/** An atomic inline is one U+FFFC, a neutral object that follows the surrounding direction. */
 	public void testAtomicInline() {
 		final BidiParagraphBuffer buffer = new BidiParagraphBuffer(AbstractTextParams.DIRECTION_RTL,
 				UnicodeBidiValue.NORMAL);
@@ -128,11 +129,11 @@ public class BidiParagraphBufferTest extends TestCase {
 		assertEquals(BidiParagraphBuffer.Kind.ATOMIC, img.kind());
 	}
 
-	/** 行ごとの Bidi(L1): 行末の空白は段落レベルへ落ちる。 */
+	/** Per-line Bidi (L1): trailing whitespace falls back to the paragraph level. */
 	public void testLineBidiTrailingWhitespace() {
 		final BidiParagraphBuffer buffer = new BidiParagraphBuffer(AbstractTextParams.DIRECTION_LTR,
 				UnicodeBidiValue.NORMAL);
-		// 1 行目 "אבג " / 2 行目 "אבג"(RTL の語のあとの空白で折り返す想定)
+		// Line 1 "אבג " / line 2 "אבג" (assuming a wrap at whitespace after an RTL word).
 		buffer.addText(HEB + " " + HEB, null);
 		final Bidi line = buffer.lineBidi(0, 4);
 		assertEquals(4, line.getLength());

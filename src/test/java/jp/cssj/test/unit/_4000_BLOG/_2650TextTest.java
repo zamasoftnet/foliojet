@@ -17,8 +17,8 @@ public class _2650TextTest extends AbstractTestCase {
 	}
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		// 空白・空行のメトリクス統一(2026-08-09、pdfg2d)で行送りが縮み、
-		// 紙一重で1ページ目末尾に居た画像が2ページ目へ移った
+		// Unifying whitespace/blank-line metrics (2026-08-09, pdfg2d) reduced line pitch,
+		// moving the image that barely sat at the end of page 1 to page 2.
 		assertEquals(2, pageNumber);
 		return true;
 	}

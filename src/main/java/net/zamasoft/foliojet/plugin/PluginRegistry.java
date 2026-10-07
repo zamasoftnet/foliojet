@@ -14,8 +14,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * ServiceLoaderを使ってプラグインを管理します。
- * プラグインは起動時に一度だけ読み込まれ、以後の検索はロックフリーです。
+ * Manages plugins using ServiceLoader.
+ * Plugins load only once at startup; subsequent lookups are lock-free.
  *
  * @author MIYABE Tatsuhiko
  */
@@ -60,9 +60,9 @@ public final class PluginRegistry {
 	}
 
 	/**
-	 * プラグインの全ての実装を優先順位の高い順で返します。
+	 * Returns all plugin implementations in descending priority order.
 	 *
-	 * @param role プラグインの種類です。これはインターフェースの名前です。
+	 * @param role plugin type, specified by the interface name.
 	 */
 	@SuppressWarnings("unchecked")
 	public <T> List<T> plugins(Class<T> role) {
@@ -91,11 +91,11 @@ public final class PluginRegistry {
 	}
 
 	/**
-	 * キーに対応するプラグインを検索します。
+	 * Finds a plugin supporting the key.
 	 *
-	 * @param role プラグインの種類です。これはインターフェースの名前です。
-	 * @param key  プラグインを選択するためのキーです。
-	 * @return 最初にマッチしたプラグイン。なければnull。
+	 * @param role plugin type, specified by the interface name.
+	 * @param key  key used to select a plugin.
+	 * @return first matching plugin, or null if none.
 	 */
 	public <T extends Plugin<? super K>, K> T search(Class<T> role, K key) {
 		for (T candidate : this.plugins(role)) {
@@ -107,7 +107,7 @@ public final class PluginRegistry {
 	}
 
 	/**
-	 * プラグインの読み込みに使われるクラスローダーを返します。
+	 * Returns the class loader used to load plugins.
 	 */
 	public ClassLoader getClassLoader() {
 		return this.classLoader;

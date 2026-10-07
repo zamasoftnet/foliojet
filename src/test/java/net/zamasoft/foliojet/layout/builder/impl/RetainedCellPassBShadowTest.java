@@ -28,40 +28,40 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 表Pass B(行計測)のshadow検証テストです(E-6増分5b-1、2026-07-24新設——
- * codex設計§4.4のPass C(行単位逐次コミット)成立性の実証)。
+ * Shadow validation tests for table Pass B (row measurement) (E-6 increment 5b-1, added 2026-07-24;
+ * demonstrates the feasibility of Pass C, incremental per-row commit, in codex design §4.4).
  *
  * <p>
- * Pass Cの成立には「確定列幅でセルrangeをscratch再生した計測結果
- * ({@link CellPassBMeasurer})が、最終bindの実寸と完全一致する」ことが
- * 必要。本テストは通常のtranscode中、Retained表の各seal済みセルについて
- * bind直前に独立のscratch計測(複製セルbox上のSegmentExecutor駆動、
- * 木は破棄)を行い、bind直後の実寸(使用ページ方向寸法・first ascent)との
- * 一致をセルごとにassertする。
+ * Pass C requires that measurements from scratch replay of a cell range at finalized column widths
+ * ({@link CellPassBMeasurer}) match the actual dimensions after the final bind exactly.
+ * During normal transcoding, this test independently measures each sealed cell of a Retained table
+ * just before bind (driving SegmentExecutor on a replica cell box and discarding the tree), then
+ * asserts, cell by cell, equality with the actual dimensions immediately after bind
+ * (used page-axis size and first ascent).
  * </p>
  *
  * <p>
- * あわせて「計測の非破壊性」を固定する: 同じ文書をshadow計測なしで
- * transcodeしたdisplay listと、shadow計測ありのdisplay listが完全一致する
- * (計測がliveレイアウト状態・log・pageGeneratorを汚さない証拠。
- * Pass Bの範囲再captureがリース保持下の非破壊読みであることも含意)。
+ * Also locks down non-destructive measurement: the display list from transcoding the same document
+ * without shadow measurement exactly matches the display list with shadow measurement.
+ * This proves that measurement does not contaminate live layout state, log, or pageGenerator,
+ * and implies that Pass B range recapture is a non-destructive read while a lease is held.
  * </p>
  *
  * <p>
- * 空虚な緑の防止: 計測が実際に発火したこと(全体+200行fixtureでの
- * 全実セル規模)をassertし、計測コスト(Pass B相当の再読コスト——Pass C
- * 採否の判断材料)をstderrへレポートする。
+ * Prevents vacuous passes: asserts that measurement actually ran (overall and on the scale of all real
+ * cells in the 200-row fixture), and reports measurement cost to stderr (the reread cost equivalent to
+ * Pass B, to inform the decision whether to adopt Pass C).
  * </p>
  */
 public class RetainedCellPassBShadowTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 浮動小数点比較の許容誤差(同一機構の再実行なので原則bit一致のはず)。 */
+	/** Floating-point comparison tolerance (rerunning the same mechanism should in principle be bit-identical). */
 	private static final double EPS = 1e-9;
 
 	/**
-	 * 対象文書(TwoPassRangeBindParityTestの表コーパス+rowspan/colspan/
-	 * %高さ/表指定高/縦書き・直交セルの既存fixture)。
+	 * Target documents (the table corpus from TwoPassRangeBindParityTest, plus existing fixtures for
+	 * rowspan/colspan, percentage heights, specified table heights, vertical writing, and orthogonal cells).
 	 */
 	private static final String[] DOCUMENTS = { //
 			"0242-table-height/percent-rowspan-groups.html", //
@@ -74,19 +74,19 @@ public class RetainedCellPassBShadowTest extends TestCase {
 			"0242-table-height/table-height.html", //
 			"0242-table-height/rowspan.html", //
 			"0390-writing-mode/vert-cell-in-hriz.html", //
-			// DP増分5(2026-07-30): キャプション付き表のPass C適格化の
-			// shadow証明——キャプションのbindは行処理の完全に外側(上部=
-			// 行高計算前・下部=addBound後)にあり、セルのPass B計測値は
-			// legacy一括bindの実寸とbit一致するはず
+			// DP increment 5 (2026-07-30): shadow proof of Pass C eligibility for
+			// tables with captions. Caption bind is entirely outside row processing (top =
+			// before row-height calculation; bottom = after addBound), so cell Pass B measurements
+			// should be bit-identical to actual dimensions from legacy bulk bind.
 			"0240-table/float-table-caption.html", //
 			"0460-segment-restyle/moved-table-caption.html", //
-			// DP増分6(2026-07-30): 段組セル(td{column-count:2})のPass B
-			// replica計測——replicaは空のFlowContainerで開始し、範囲再生中の
-			// 改段commitがColumnsContainerを遅延生成する(liveと同じ経路)
+			// DP increment 6 (2026-07-30): Pass B replica measurement for multi-column cells
+			// (td{column-count:2}). The replica starts with an empty FlowContainer, and column-break
+			// commit during range replay lazily creates a ColumnsContainer (the same path as live).
 			"0400-column-count/table-cell.html", //
 	};
 
-	/** 200行fixtureの本文行数・列数(RetentionHighWaterReportTestと同型)。 */
+	/** Body row and column counts for the 200-row fixture (same structure as RetentionHighWaterReportTest). */
 	private static final int GENERATED_ROWS = 200, GENERATED_COLUMNS = 6;
 
 	public void testPassBMeasurementMatchesBind() throws Exception {
@@ -98,8 +98,8 @@ public class RetainedCellPassBShadowTest extends TestCase {
 		for (final String doc : DOCUMENTS) {
 			jobs.add(new String[] { "files/unittest/" + doc, doc, null });
 		}
-		// 200行fixture: 計測コストの実測+K-P行分割(text-wrap-style:
-		// pretty)下の決定性
+		// 200-row fixture: measure the actual measurement cost and determinism under
+		// K-P line breaking (text-wrap-style: pretty).
 		final File generated = generateAutoTable("e6-passb-auto-table", GENERATED_ROWS, GENERATED_COLUMNS);
 		jobs.add(new String[] { generated.getPath(), "generated-200rows", null });
 		jobs.add(new String[] { generated.getPath(), "generated-200rows-optimized",
@@ -113,10 +113,10 @@ public class RetainedCellPassBShadowTest extends TestCase {
 			final File baselineDir = new File("local/unittest/cell-pass-b/" + name + "-baseline");
 			final File shadowDir = new File("local/unittest/cell-pass-b/" + name + "-shadow");
 
-			// shadow計測なしの基準display list
+			// Baseline display list without shadow measurement.
 			this.dump(path, name + "-baseline", baselineDir, defaultStylesheet, null);
 
-			// shadow計測ありのtranscode
+			// Transcode with shadow measurement.
 			final Shadow shadow = new Shadow(label);
 			RetainedTableBuilder.cellBindShadow = shadow;
 			final long wall0 = System.nanoTime();
@@ -135,7 +135,7 @@ public class RetainedCellPassBShadowTest extends TestCase {
 					.append(shadow.measureNanos / 1_000_000L).append("ms transcode=").append(wallNanos / 1_000_000L)
 					.append("ms\n");
 
-			// 計測の非破壊性: shadow計測ありでもdisplay listが完全一致する
+			// Non-destructive measurement: the display list matches exactly even with shadow measurement.
 			final File[] baselinePages = baselineDir.listFiles((d, n) -> n.endsWith(".txt"));
 			final File[] shadowPages = shadowDir.listFiles((d, n) -> n.endsWith(".txt"));
 			assertNotNull(label + ": 表示リストが出力されていません", baselinePages);
@@ -155,9 +155,9 @@ public class RetainedCellPassBShadowTest extends TestCase {
 				}
 			}
 
-			// 空虚な緑の防止: 200行fixtureでは全実セル規模で計測が発火する
-			// (thead 6+tfoot 6+本文 200*6-colspan縮約3=1209セル、全てプレーン
-			// テキストでseal適格のはず)
+			// Prevent vacuous passes: measurement runs on the scale of all real cells in the 200-row fixture.
+			// (thead 6 + tfoot 6 + body 200*6 - colspan reduction 3 = 1209 cells, all plain
+			// text and thus expected to be eligible for sealing).
 			if (label.startsWith("generated-200rows")) {
 				assertTrue(label + ": 200行fixtureの計測発火数が実セル規模に達していません: " + shadow.measured,
 						shadow.measured >= 1200);
@@ -173,8 +173,8 @@ public class RetainedCellPassBShadowTest extends TestCase {
 	}
 
 	/**
-	 * shadow観測の実装です。bind直前に{@link CellPassBMeasurer}で独立計測し、
-	 * bind直後の実寸と比較する。
+	 * Implements shadow observation. Measures independently with {@link CellPassBMeasurer} just before
+	 * bind and compares with the actual dimensions immediately after bind.
 	 */
 	private static final class Shadow implements RetainedTableBuilder.CellBindShadow {
 		private final String label;
@@ -191,7 +191,7 @@ public class RetainedCellPassBShadowTest extends TestCase {
 		public void beforeCellBind(final CellContent cell, final TableCellBox cellBox, final LayoutStack layoutStack,
 				final boolean vertical) {
 			if (cell.rangeBody() == null) {
-				// 未seal(records保持)セル: Pass B対象外
+				// Unsealed cells (retaining records): outside the scope of Pass B.
 				++this.legacySkipped;
 				return;
 			}
@@ -199,7 +199,7 @@ public class RetainedCellPassBShadowTest extends TestCase {
 			final CellPassBMeasurer.Result result = CellPassBMeasurer.measure(cell, layoutStack, vertical);
 			this.measureNanos += System.nanoTime() - t0;
 			if (result == null) {
-				// 段組セル等、複製不能
+				// Cannot replicate, e.g. multi-column cells.
 				++this.replicaSkipped;
 				return;
 			}
@@ -236,9 +236,9 @@ public class RetainedCellPassBShadowTest extends TestCase {
 	}
 
 	/**
-	 * table-layout:auto(既定)・thead/tfoot・colspanつきの200行表を生成する
-	 * (RetentionHighWaterReportTestと同型。golden比較対象ではないため
-	 * local/unittestへ都度生成)。
+	 * Generates a 200-row table with table-layout:auto (default), thead/tfoot, and colspan
+	 * (same structure as RetentionHighWaterReportTest; generated in local/unittest each time because
+	 * it is not a golden comparison target).
 	 */
 	private static File generateAutoTable(final String name, final int bodyRows, final int columns) throws IOException {
 		final File dir = new File("local/unittest/generated");

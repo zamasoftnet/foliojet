@@ -23,21 +23,21 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 行の中の MathML が<b>本文の大きさで組まれ、基準線に揃う</b>ことを固定します
- * (2026-10-04、TECH-20261003-004 の①②。時限暗号の本の組版で見つかった)。
+ * Verify that inline MathML <b>uses the body text's font size and aligns to its baseline</b>
+ * (2026-10-04, TECH-20261003-004 items ①②; found while typesetting the Jigen Ango book).
  *
  * <ul>
- * <li>① 数式は CSS の font-size・color・font-family を受け取らず、JEuclid の
- * 既定(12pt・黒)で組まれていた。本文 9pt の中に 12pt の式が入った</li>
- * <li>② 数式は画像として<b>下端</b>を本文の基準線に置かれ、深さ(添字・括弧・
- * y の下の出)のぶん式全体が浮いていた。深さを持つ画像
- * ({@code BaselineImage})は基準線を合わせて置く</li>
+ * <li>① Formulas did not receive CSS font-size/color/font-family and used JEuclid's
+ * defaults (12 pt, black). A 12 pt formula appeared inside 9 pt body text.</li>
+ * <li>② Formulas were images whose <b>bottom edge</b> sat on the body-text baseline,
+ * raising the whole formula by its depth (subscripts, parentheses, y descenders).
+ * Align images with depth ({@code BaselineImage}) by their baselines.</li>
  * </ul>
  */
 public class MathMLHostStyleTest extends TestCase {
 	private static final long WATCHDOG_MS = 60_000L;
 
-	/** 数式の画像は表示リストでは枠(AbsoluteRectFrame)として出る。 */
+	/** Formula images appear as frames (AbsoluteRectFrame) in display lists. */
 	private static final Pattern FRAME_IN_DUMP = Pattern
 			.compile("x=(-?[\\d.]+) y=(-?[\\d.]+) AbsoluteRectFrame\\[w=([\\d.]+) h=([\\d.]+)\\]");
 
@@ -63,7 +63,7 @@ public class MathMLHostStyleTest extends TestCase {
 				""".formatted(body);
 	}
 
-	/** ① 数式の大きさは本文の font-size に従う(9pt と 18pt でほぼ 2 倍)。 */
+	/** ① Formula size follows body font-size (roughly 2× from 9 pt to 18 pt). */
 	public void testMathFollowsFontSize() throws Exception {
 		final String math = "<math xmlns=\"" + MATH + "\"><mi>x</mi><mo>+</mo><mn>1</mn></math>";
 		final List<double[]> frames = frames(convert("font-size", document(
@@ -72,12 +72,12 @@ public class MathMLHostStyleTest extends TestCase {
 		final double small = frames.get(0)[3], large = frames.get(1)[3];
 		assertEquals("18pt の式は 9pt の式の 2 倍の高さ(9pt=" + small + ", 18pt=" + large + ")", 2.0, large / small,
 				0.05);
-		// 以前は CSS に関係なく JEuclid の既定の 12pt で組まれ、9pt の行でも
-		// x+1 が 12pt の高さだった
+		// Previously, JEuclid used its default 12 pt regardless of CSS,
+		// making x+1 12 pt tall even on a 9 pt line.
 		assertTrue("9pt の式が 12pt 相当より低い: h=" + small, small < 9.0);
 	}
 
-	/** ② 深さのある式(y)は、深さの無い式(1)より下端が下に出る。 */
+	/** ② A formula with depth (y) has a lower bottom edge than one without depth (1). */
 	public void testMathSitsOnBaseline() throws Exception {
 		final String descending = "<math xmlns=\"" + MATH + "\"><mi>y</mi></math>";
 		final String flat = "<math xmlns=\"" + MATH + "\"><mn>1</mn></math>";
@@ -86,7 +86,7 @@ public class MathMLHostStyleTest extends TestCase {
 		assertEquals("数式 2 つ", 2, frames.size());
 		final double yBottom = frames.get(0)[1] + frames.get(0)[3];
 		final double oneBottom = frames.get(1)[1] + frames.get(1)[3];
-		// 以前はどちらも下端が基準線で、下端は同じだった
+		// Previously both bottom edges sat on the baseline and were equal.
 		assertTrue("y の下の出が基準線の下に出ていない: y の下端=" + yBottom + "、1 の下端=" + oneBottom,
 				yBottom > oneBottom + 1.0);
 	}
@@ -101,7 +101,7 @@ public class MathMLHostStyleTest extends TestCase {
 		return frames;
 	}
 
-	/** 1 頁の文書を変換して、その頁の表示リストを返します。 */
+	/** Convert a one-page document and return its page's display list. */
 	private static String convert(final String name, final String html) throws Exception {
 		final File dir = new File("local/mathml-host-style/" + name);
 		dir.mkdirs();

@@ -5,16 +5,15 @@ import java.util.function.DoubleUnaryOperator;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 /**
- * カラムバランス(column-fill: balance)の容量計算です(M5-B)。
+ * Capacity calculation for column balancing (column-fill: balance) (M5-B).
  *
  * <p>
- * バランスとは「内容全体を N 個の断片(カラム)へできるだけ均等に分配する
- * 最小の断片容量を選ぶ」操作です。実際の切断は提案位置からはみ出す内容を
- * 次の断片へ送る(=直前の境界へ切り下がる)ため、旧実装の 総量/N の
- * 一回スナップでは切り下がりが段ごとに累積し、最終段だけが長くなる偏りが
- * 生じていました。ここでは切り下げオラクル(Container.getCutPointBelow、
- * ボックスを変異させない切断位置の見積り)で N-1 回の切断を窓送りで
- * シミュレートし、全内容が収まる最小容量を二分探索します。
+ * Balancing selects the minimum fragment capacity that distributes all content as evenly as possible over N
+ * fragments (columns). Actual cuts send content extending beyond the proposed position to the next fragment (=
+ * round down to the preceding boundary). The old single snap at total/N accumulated this rounding across columns,
+ * making only the last column longer. Here, a cut-below oracle (Container.getCutPointBelow, estimating cut
+ * positions without mutating boxes) simulates N-1 cuts with a sliding window, and binary search finds the minimum
+ * capacity that fits all content.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -27,13 +26,13 @@ public final class ColumnBalancer {
 	}
 
 	/**
-	 * 内容全体を columnCount 個のカラムへ均等に分配する最小容量を探索します。
+	 * Finds the minimum capacity that distributes all content evenly among columnCount columns.
 	 *
-	 * @param cutPointBelow 提案位置直前の実行可能な切断位置を返す関数
+	 * @param cutPointBelow function returning the feasible cut position immediately before the proposed position
 	 *                      (Container.getCutPointBelow)
-	 * @param totalSize     内容全体のページ方向寸法
-	 * @param columnCount   カラム数
-	 * @return カラムのページ方向容量
+	 * @param totalSize     total content size in the page direction
+	 * @param columnCount   number of columns
+	 * @return column capacity in the page direction
 	 */
 	public static double balance(final DoubleUnaryOperator cutPointBelow, final double totalSize,
 			final int columnCount) {
@@ -44,7 +43,7 @@ public final class ColumnBalancer {
 		if (fits(cutPointBelow, even, totalSize, columnCount)) {
 			return even;
 		}
-		// even では最終段があふれる: 全体が収まる最小容量を二分探索
+		// The last column overflows at even: binary-search for the minimum capacity that fits everything.
 		double lower = even;
 		double upper = totalSize;
 		for (int iter = 0; iter < MAX_ITERATIONS && upper - lower > 0.01; ++iter) {
@@ -59,7 +58,7 @@ public final class ColumnBalancer {
 	}
 
 	/**
-	 * 容量 capacity で N-1 回切断したとき内容全体が収まるかを判定します。
+	 * Determines whether all content fits after N-1 cuts at capacity.
 	 */
 	private static boolean fits(final DoubleUnaryOperator cutPointBelow, final double capacity, final double totalSize,
 			final int columnCount) {
@@ -71,8 +70,8 @@ public final class ColumnBalancer {
 			}
 			double end = cutPointBelow.applyAsDouble(proposed);
 			if (LayoutUtils.compare(end, pos) <= 0) {
-				// 内部に境界がない(切断不能な)領域: 実切断も進められないため
-				// 提案位置をそのまま採用して先へ進む
+				// Region with no internal boundary (uncuttable): the actual cut cannot advance either,
+				// so use the proposed position unchanged and proceed.
 				end = proposed;
 			}
 			pos = end;

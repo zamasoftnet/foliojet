@@ -9,9 +9,10 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.builder.impl.FlexBuilder;
 
 /**
- * columnのbasis:content境界テストです(Flex F4c——F4c答申の判定漏れ①:
- * basis:contentは主軸指定(height:40pt)があっても内容高を要求するため
- * 常にコンテナ単位fallback。record数=bind数、部分Flex配置なし)。
+ * Boundary test for column basis:content (Flex F4c, missed condition ① in the F4c recommendation).
+ * basis:content requires content height even with a specified main-axis size (height:40pt),
+ * so it always falls back for the whole container.
+ * Record count = bind count; no partial Flex placement.
  */
 public class FlexColumnContentBasisTest extends AbstractTestCase {
 	public FlexColumnContentBasisTest(String name) {
@@ -40,7 +41,7 @@ public class FlexColumnContentBasisTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** fallback=単一列積み(部分Flex配置がない——qはpの指定高40pt直下)。 */
+	/** Fallback = single-column stacking (no partial Flex placement; q sits just below p's specified 40 pt height). */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseY + 40, y, 0.1);

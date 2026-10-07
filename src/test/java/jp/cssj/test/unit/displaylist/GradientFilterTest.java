@@ -18,15 +18,15 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>放射・円錐グラデーションと{@code filter}</b>を画素で固定します
- * (css-images-3/4、filter-effects-1、2026-08-29)。
+ * Verify <b>radial/conic gradients and {@code filter}</b> using pixels
+ * (css-images-3/4, filter-effects-1, 2026-08-29).
  *
  * <p>
- * 表示リストのgoldenは塗りの要約しか持たないので、PDFBoxで描画した
- * 画素を見る: 放射の中心は最初の色・角は最後の色、円錐は象限で色が
- * 違う、半透明グラデーションの下の背景色が透ける、グレースケールの
- * 赤い画像はr≈g≈b、drop-shadowの箱の右下外に灰の影、opacity()・
- * brightness()の色値、親のフィルタが子の背景に届く。
+ * Display-list goldens contain only fill summaries, so inspect pixels rendered by PDFBox:
+ * the radial center uses the first color and corners use the last; conic quadrants differ;
+ * background color shows through translucent gradients; a grayscale red image has r≈g≈b;
+ * drop-shadow produces a gray shadow outside the box's lower right; opacity()/brightness()
+ * yield the expected color values; parent filters reach child backgrounds.
  * </p>
  */
 public class GradientFilterTest extends TestCase {
@@ -50,19 +50,19 @@ public class GradientFilterTest extends TestCase {
 
 	public void testGradients() throws Exception {
 		final java.awt.image.BufferedImage img = render("files/unittest/3080-MODERN-CSS/gradients.html");
-		// #radial: 10,10 100pt角 circle closest-side red→blue
+		// #radial: 10,10, 100 pt square, circle closest-side red→blue.
 		assertTrue("放射の中心が最初の色(赤)ではありません: " + hex(img.getRGB(60, 60)), isRed(img.getRGB(60, 60)));
 		assertTrue("放射の角が最後の色(青)ではありません: " + hex(img.getRGB(13, 13)), isBlue(img.getRGB(13, 13)));
-		// #conic: 120,120 100pt角、中心(170,170)。北東=赤 南東=lime 南西=青 北西=黄
+		// #conic: 120,120, 100 pt square, center (170,170). NE=red, SE=lime, SW=blue, NW=yellow.
 		assertTrue("円錐の北東: " + hex(img.getRGB(195, 145)), isRed(img.getRGB(195, 145)));
 		assertTrue("円錐の南東: " + hex(img.getRGB(195, 195)), isGreen(img.getRGB(195, 195)));
 		assertTrue("円錐の南西: " + hex(img.getRGB(145, 195)), isBlue(img.getRGB(145, 195)));
 		assertTrue("円錐の北西: " + hex(img.getRGB(145, 145)), isYellow(img.getRGB(145, 145)));
-		// #over-color: 10,230 100x50、透明→青のグラデーションの下に黄
+		// #over-color: 10,230, 100x50, yellow below a transparent→blue gradient.
 		assertTrue("半透明グラデーションの左端で背景色(黄)が透けていません: " + hex(img.getRGB(13, 255)),
 				isYellow(img.getRGB(13, 255)));
 		assertTrue("グラデーションの右端が青ではありません: " + hex(img.getRGB(107, 255)), isBlue(img.getRGB(107, 255)));
-		// #repeating: 230,10 60x100、5pt周期の黒白縞。y=12は黒・y=17は白
+		// #repeating: 230,10, 60x100, black/white stripes at 5 pt intervals. y=12 is black; y=17 is white.
 		assertTrue("繰り返しの黒帯: " + hex(img.getRGB(260, 12)), isDark(img.getRGB(260, 12)));
 		assertTrue("繰り返しの白帯: " + hex(img.getRGB(260, 17)), isLight(img.getRGB(260, 17)));
 		assertTrue("繰り返しの2周期目の黒帯: " + hex(img.getRGB(260, 22)), isDark(img.getRGB(260, 22)));
@@ -70,21 +70,21 @@ public class GradientFilterTest extends TestCase {
 
 	public void testFilter() throws Exception {
 		final java.awt.image.BufferedImage img = render("files/unittest/3080-MODERN-CSS/filter.html");
-		// #gray: red.png(実際は(241,203,203)の淡い赤)のgrayscale(1) → 輝度211の灰
+		// #gray: grayscale(1) on red.png (actually pale red (241,203,203)) → gray with luminance 211.
 		final int gray = img.getRGB(40, 40);
 		assertTrue("grayscaleの画像が無彩色ではありません: " + hex(gray), isGray(gray) && r(gray) < 235 && r(gray) > 180);
-		// #shadow: 120,10 100x60 緑、drop-shadow(5pt 5pt 3pt) → 右下の外側(224,40)は灰
+		// #shadow: 120,10, 100x60 green, drop-shadow(5pt 5pt 3pt) → gray outside the lower right (224,40).
 		final int shadow = img.getRGB(224, 40);
 		assertTrue("drop-shadowの影がありません: " + hex(shadow), isGray(shadow) && r(shadow) < 230);
 		assertTrue("箱の内側は緑のまま: " + hex(img.getRGB(170, 40)), isGreen(img.getRGB(170, 40)));
-		// #opacity: 赤のopacity(.5) → 白の上で(255,128,128)前後
+		// #opacity: red with opacity(.5) → about (255,128,128) over white.
 		final int half = img.getRGB(60, 125);
 		assertTrue("opacity(.5)の赤: " + hex(half), r(half) > 240 && g(half) > 100 && g(half) < 160 && b(half) > 100
 				&& b(half) < 160);
-		// #bright: rgb(100,100,100)のbrightness(2) → 200前後
+		// #bright: brightness(2) on rgb(100,100,100) → about 200.
 		final int bright = img.getRGB(170, 125);
 		assertTrue("brightness(2): " + hex(bright), isGray(bright) && r(bright) > 185 && r(bright) < 215);
-		// #nest: 親のgrayscale(1)が子の赤い背景・青い境界に届く
+		// #nest: the parent's grayscale(1) reaches the child's red background and blue border.
 		assertTrue("親のフィルタが子の背景に届いていません: " + hex(img.getRGB(60, 195)), isGray(img.getRGB(60, 195)));
 		assertTrue("親のフィルタが子の境界に届いていません: " + hex(img.getRGB(12, 195)), isGray(img.getRGB(12, 195)));
 	}

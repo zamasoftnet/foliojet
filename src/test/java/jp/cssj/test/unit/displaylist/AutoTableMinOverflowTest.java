@@ -21,14 +21,15 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>auto表のmin-content保証</b>を固定します(2026-08-20)。
+ * Verifies the <b>min-content guarantee for auto tables</b> (2026-08-20).
  *
  * <p>
- * 列のmin-content合計が利用可能幅を超える表は、列を潰して重ねるのでは
- * なく、列minを保ち表ごと行方向へはみ出す(CSS 2.2 17.5.2.2、Chromeと
- * 同じ)。あわせて、複数ページに分割された表の列幅が全断片で一致する
- * こと(resolveは表ごと1回で断片は確定列幅を共有する)も検査する。
- * 2026-08-18の閾値方式(MIN_OVERFLOW_TOLERANCE)撤回後の本筋。
+ * When the sum of column min-content widths exceeds the available width, preserve column minima
+ * and let the whole table overflow along the line axis, rather than collapsing columns into overlap
+ * (CSS 2.2 17.5.2.2, as in Chrome). Also checks that column widths match in every fragment of a table
+ * split across multiple pages (resolve runs once per table, and fragments share finalized column widths).
+ * This is the main approach after withdrawing the threshold method (MIN_OVERFLOW_TOLERANCE)
+ * of 2026-08-18.
  * </p>
  */
 public class AutoTableMinOverflowTest extends TestCase {
@@ -48,7 +49,7 @@ public class AutoTableMinOverflowTest extends TestCase {
 		}
 		try (PDDocument doc = Loader.loadPDF(out.toByteArray())) {
 			assertTrue("複数ページに分割されていません: " + doc.getNumberOfPages(), doc.getNumberOfPages() >= 2);
-			// 各ページで第2列の先頭x(接頭辞SECONDCOLUMNの'S')を実測する
+			// Measure the starting x of column 2 on each page (the 'S' of the SECONDCOLUMN prefix).
 			final List<Double> col2Starts = new ArrayList<>();
 			for (int p = 1; p <= doc.getNumberOfPages(); ++p) {
 				final List<TextPosition> all = new ArrayList<>();
@@ -77,24 +78,24 @@ public class AutoTableMinOverflowTest extends TestCase {
 				assertFalse("第2列が見つかりません: page=" + p, Double.isNaN(col2));
 				col2Starts.add(col2);
 			}
-			// 断片間の一貫性: 全ページで第2列の開始xが一致する
+			// Consistency across fragments: column 2 starts at the same x on every page.
 			final double first = col2Starts.get(0);
 			for (int i = 1; i < col2Starts.size(); ++i) {
 				assertEquals("第2列の開始xがページ間で揺れています: " + col2Starts, first, col2Starts.get(i), 0.5);
 			}
-			// min保証: A4(20mmマージン=版面約470pt)に2列は収まらない内容
-			// なので、第2列は版面の中央(潰した場合の位置≈306pt)より右へ
-			// 押し出されているはず
+			// Minimum guarantee: the two columns' content cannot fit on A4 (20 mm margins, type area about 470 pt),
+			// so column 2 should be pushed rightward beyond the type area's center
+			// (the collapsed position, ≈306 pt).
 			assertTrue("列がmin-content未満へ潰されています: col2.x=" + first, first > 400);
 		}
 	}
 
 	/**
-	 * わずかな超過(min合計が利用可能幅の許容比1.1以内)は従来どおり
-	 * 潰して版面に収めることを固定します。同じ内容で版面を広げ
-	 * (342mm、min合計/版面≈1.05)、第2列がmin位置(≈511pt)より左へ
-	 * 縮められることを実測する——数ptのはみ出しによる紙端の文字切れを
-	 * 作らないため(w3c-jlreqの実測に基づく判断)。
+	 * Verifies that slight overflow (sum of minima within the allowed 1.1 ratio to available width)
+	 * still compresses to fit the type area. With the same content and a wider type area
+	 * (342 mm, sum of minima/type area≈1.05), measures that column 2 is compressed leftward from
+	 * its minimum position (≈511 pt). This prevents a few points of overflow from clipping text
+	 * at the paper edge (a decision based on measurements of w3c-jlreq).
 	 */
 	public void testSlightOverflowIsSqueezed() throws Exception {
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -126,8 +127,8 @@ public class AutoTableMinOverflowTest extends TestCase {
 				stripper.getText(doc);
 				assertFalse(all.isEmpty());
 				double col2 = Double.NaN, maxRight = 0;
-				// 第2列の先頭は語頭の「SEC」の並びで検出する(潰しにより
-				// 列間の空隙が消えるため、間隔ベースの検出は使えない)
+				// Detect the start of column 2 by the initial "SEC" sequence (compression removes
+				// the gap between columns, so spacing-based detection cannot be used).
 				for (int i = 0; i + 2 < all.size(); ++i) {
 					if ("S".equals(all.get(i).getUnicode()) && "E".equals(all.get(i + 1).getUnicode())
 							&& "C".equals(all.get(i + 2).getUnicode())
@@ -139,9 +140,9 @@ public class AutoTableMinOverflowTest extends TestCase {
 					maxRight = Math.max(maxRight, t.getXDirAdj() + t.getWidth());
 				}
 				assertFalse("第2列が見つかりません: page=" + p, Double.isNaN(col2));
-				// 潰し: 第2列はmin位置(56.7+454≈511pt)より左に置かれる
+				// Compression: column 2 is placed left of its minimum position (56.7+454≈511 pt).
 				assertTrue("わずかな超過が潰されていません: col2.x=" + col2, col2 < 505);
-				// 全テキストが紙面内に収まる(はみ出しなし)
+				// All text fits on the page (no overflow).
 				assertTrue("文字が紙の外にあります: right=" + maxRight + " paper=" + paperWidth,
 						maxRight <= paperWidth + 0.5);
 			}

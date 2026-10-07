@@ -1,29 +1,29 @@
 package net.zamasoft.foliojet.ua.props;
 
 /**
- * 単一SVG出力で文字をどう書くかです(B-1、2026-08-29の利用者要望)。
+ * How to write text in single SVG output (B-1, user request on 2026-08-29).
  *
  * <p>
- * ページ分割SVGは以前から{@code <text>}＋WOFF2サブセットで書いています。
- * 同じ仕組みを、1枚で完結するSVGでも選べるようにしたものです。
+ * Page-split SVG already uses {@code <text>} plus WOFF2 subsets.
+ * This makes the same mechanism selectable for self-contained SVG.
  * </p>
  */
 public enum SvgTextMode implements PropCode {
 	/**
-	 * 字形をアウトライン(path)にします(既定)。
+	 * Converts glyphs to outlines (paths) (default).
 	 *
 	 * <p>
-	 * どこで開いても同じ絵になりますが、文字は図形なので選べません。
+	 * Appearance is the same wherever opened, but text is shapes and cannot be selected.
 	 * </p>
 	 */
 	OUTLINE,
 
 	/**
-	 * {@code <text>}のまま残し、サブセットしたWOFF2をSVGへ埋め込みます。
+	 * Retains {@code <text>} and embeds subset WOFF2 in the SVG.
 	 *
 	 * <p>
-	 * 1枚で完結させるため、フォントも画像も{@code data:}でSVGの中に入ります。
-	 * ページ分割SVGのように共有できないので、ページ数が多いと総量は増えます。
+	 * To make each SVG self-contained, fonts and images are embedded as {@code data:}.
+	 * Unlike page-split SVG, resources cannot be shared, so many pages increase total size.
 	 * </p>
 	 */
 	KEEP;

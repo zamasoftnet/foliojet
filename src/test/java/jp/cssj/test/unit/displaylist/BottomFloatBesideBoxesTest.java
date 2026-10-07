@@ -24,12 +24,15 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 下端のページフロートの帯に、grid・表(中の行を別に組む箱)が入っても図版に重ならないことを固定します
- * (2026-10-05、jigensha の報告: 縦組みの本で、図のあとの吹き出しの grid の字が図に重なった)。
+ * Verifies that grid/table boxes (which lay out their inner lines separately) do not overlap
+ * illustrations when entering a bottom page-float band (2026-10-05, jigensha report:
+ * text in a speech-bubble grid after a figure overlapped the figure in a vertical-writing book).
  *
  * <p>
- * 帯の中で始まる grid・flex は、始まりで図版のぶん狭める(CSS 2.1 §9.5 の、独立整形文脈の箱がフロートを避ける規則を
- * ページフロートにも)。帯の手前で始まって帯へ入る箱は、その頁を一次元の予約へ切り替えて帯の手前で割る。
+ * Grid/flex boxes starting within the band narrow by the illustration's width at their start
+ * (extending CSS 2.1 §9.5's rule for independent formatting-context boxes avoiding floats to page floats).
+ * For boxes starting before the band and entering it, switch that page to a one-dimensional
+ * reservation and split the box before the band.
  * </p>
  */
 public class BottomFloatBesideBoxesTest extends TestCase {
@@ -83,12 +86,12 @@ public class BottomFloatBesideBoxesTest extends TestCase {
 
 	private static final String HORIZONTAL_FIG = "width:70mm;height:100mm;background:#88c";
 
-	/** jigensha の再現: 縦組み、図のあとの本文に続く grid(帯の中で始まる)。 */
+	/** jigensha reproduction: vertical writing, a grid after body text following a figure (starts within the band). */
 	public void testVerticalGridInBand() throws Exception {
 		assertNoOverlap(convert("v-grid-in", document("vertical-rl", VERTICAL_FIG, false, grid())), true);
 	}
 
-	/** 縦組み、帯の手前(頁の頭)で始まって帯へ入る grid。 */
+	/** Vertical writing: a grid starts before the band (at the page start) and enters it. */
 	public void testVerticalGridBeforeBand() throws Exception {
 		assertNoOverlap(convert("v-grid-before", document("vertical-rl", VERTICAL_FIG, true, grid())), true);
 	}
@@ -106,14 +109,15 @@ public class BottomFloatBesideBoxesTest extends TestCase {
 	}
 
 	/**
-	 * 図版の直後(あいだに段落が無い)の flow-root(jigensha の 2 件目、19105)。箱は帯のわずか手前から
-	 * 始まり、中の行だけ短くなって背景と罫が図版の下まで伸びていた。箱ごと図版の手前で短くなる。
+	 * A flow-root immediately after an illustration (no intervening paragraph; jigensha's second case,
+	 * 19105). The box started just before the band; only its inner lines shortened, while background
+	 * and borders extended under the illustration. The whole box now shortens before the illustration.
 	 */
 	public void testVerticalFlowRootRightAfterFigure() throws Exception {
 		assertBoxesClearOfFigure(convert("v-flow-root-after", rightAfterFigure("display:flow-root")));
 	}
 
-	/** 同じく grid。行も短くならず、字が図版に重なっていた。 */
+	/** Same case with grid. Lines did not shorten either, so text overlapped the illustration. */
 	public void testVerticalGridRightAfterFigure() throws Exception {
 		assertBoxesClearOfFigure(convert("v-grid-after", rightAfterFigure("display:grid")));
 	}
@@ -136,7 +140,7 @@ public class BottomFloatBesideBoxesTest extends TestCase {
 				""".formatted(display);
 	}
 
-	/** 図版(いちばん大きい背景の枠)と、ほかの背景の枠が交わらず、行も図版に重ならない。 */
+	/** The illustration frame (largest background frame) intersects no other background frame, and no line overlaps it. */
 	private static void assertBoxesClearOfFigure(final String[] pages) {
 		assertNoOverlap(pages, true);
 		boolean box = false;
@@ -167,8 +171,9 @@ public class BottomFloatBesideBoxesTest extends TestCase {
 	}
 
 	/**
-	 * どの頁でも、図版の枠と交わる行が無いこと。行の長さは全角の字数×字の大きさ(行末の句読点はぶら下げで
-	 * 行の外へ出てよいので数えない)。図版はいちばん大きい背景つきの枠。
+	 * No line intersects the illustration's frame on any page. Line length is the number of fullwidth
+	 * characters × character size (exclude trailing Japanese commas/periods, which may hang outside the line).
+	 * The illustration is the largest frame with a background.
 	 */
 	private static void assertNoOverlap(final String[] pages, final boolean vertical) {
 		boolean found = false;
@@ -203,7 +208,7 @@ public class BottomFloatBesideBoxesTest extends TestCase {
 		assertTrue("図版が無い", found);
 	}
 
-	/** 変換して、各頁の表示リストを頁順に返します。 */
+	/** Converts the document and returns each page's display list in page order. */
 	private static String[] convert(final String name, final String html) throws Exception {
 		final File dir = new File("local/bottom-float-beside-boxes/" + name);
 		dir.mkdirs();

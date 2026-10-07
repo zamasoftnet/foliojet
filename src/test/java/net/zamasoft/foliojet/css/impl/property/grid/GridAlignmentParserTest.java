@@ -20,9 +20,9 @@ import net.zamasoft.foliojet.layout.box.params.GridItemSpec;
 import net.zamasoft.foliojet.css.value.GridLineValue;
 
 /**
- * Grid G5aのalignment解析テストです(consult-codex-2026-07-31-grid-g5.txt
- * Q1/Q4)。受理集合(items/content=normal系5値、self=auto+5値)と、
- * baseline・space-*・safe/unsafe prefixの宣言無効を固定する。
+ * Alignment parsing tests for Grid G5a (consult-codex-2026-07-31-grid-g5.txt Q1/Q4).
+ * Fix accepted sets (items/content: five normal-family values; self: auto plus those five)
+ * and declaration invalidation for baseline, space-*, and safe/unsafe prefixes.
  */
 public class GridAlignmentParserTest extends TestCase {
 
@@ -54,14 +54,14 @@ public class GridAlignmentParserTest extends TestCase {
 		assertEquals(BoxAlignmentValue.START, parse(GridAlignmentProperty.ALIGN_SELF, "start"));
 	}
 
-	/** autoはself系のみ。space-*はitems/self系で宣言無効。 */
+	/** auto is valid only for self properties. space-* invalidates items/self declarations. */
 	public void testRejected() {
 		assertTrue(parse(GridAlignmentProperty.JUSTIFY_ITEMS, "auto") instanceof PropertyException);
-		// baseline・safe/unsafeは2026-08-29から受理(flex-start等へ丸める)。
-		// ModernCssValuesTest参照
+		// baseline and safe/unsafe are accepted as of 2026-08-29 (normalized to flex-start, etc.).
+		// See ModernCssValuesTest.
 		assertSame(BoxAlignmentValue.FLEX_START, parse(GridAlignmentProperty.ALIGN_ITEMS, "baseline"));
-		// space-*はFlex F3aでcontent系の受理値になった(Grid mapperがNORMALへ
-		// 縮退)。self/items系では引き続き宣言無効
+		// space-* became accepted for content properties in Flex F3a (the Grid mapper reduces them to NORMAL).
+		// It still invalidates self/items declarations.
 		assertTrue(parse(GridAlignmentProperty.JUSTIFY_ITEMS, "space-between") instanceof PropertyException);
 		assertTrue(parse(GridAlignmentProperty.ALIGN_SELF, "space-evenly") instanceof PropertyException);
 		assertTrue(parse(GridAlignmentProperty.JUSTIFY_CONTENT, "auto") instanceof PropertyException);
@@ -70,7 +70,7 @@ public class GridAlignmentParserTest extends TestCase {
 		assertTrue(parse(GridAlignmentProperty.ALIGN_ITEMS, "center extra") instanceof PropertyException);
 	}
 
-	/** used value解決(答申Q2)とAUTO singleton非該当。 */
+	/** Used-value resolution (recommendation Q2) and exclusion of the AUTO singleton. */
 	public void testUsedValueAndSpecSingleton() {
 		assertEquals(BoxAlignment.STRETCH, BoxAlignment.resolve(BoxAlignment.AUTO, BoxAlignment.NORMAL));
 		assertEquals(BoxAlignment.CENTER, BoxAlignment.resolve(BoxAlignment.AUTO, BoxAlignment.CENTER));

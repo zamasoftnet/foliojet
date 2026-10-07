@@ -24,13 +24,11 @@ import net.zamasoft.foliojet.layout.box.params.ClipPathShape;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code shape-outside}・{@code shape-margin}・{@code shape-image-threshold}
- * の解析テストです(css-shapes-1、2026-08-29新設)。受理/拒否と、
- * basic-shapeだけを書いたときの参照ボックス既定(margin-box——
- * {@code clip-path}のborder-boxと異なる)を固定する。解析器は
- * {@code BasicShapes}で{@code clip-path}と共有なので、形状の中身の
- * 文法は{@code clip-path}側の既存テストに任せ、ここでは共有の配線と
- * 各プロパティ固有の規則だけを見る。
+ * Parsing tests for {@code shape-outside}, {@code shape-margin}, and {@code shape-image-threshold}
+ * (css-shapes-1, introduced on 2026-08-29). Fix acceptance/rejection and the default reference box
+ * when only a basic-shape is specified (margin-box, unlike {@code clip-path}'s border-box).
+ * The parser shares {@code BasicShapes} with {@code clip-path}, so existing {@code clip-path} tests
+ * cover shape syntax. Here, check only shared wiring and property-specific rules.
  */
 public class ShapeOutsideParserTest extends TestCase {
 
@@ -79,7 +77,7 @@ public class ShapeOutsideParserTest extends TestCase {
 			parse(info, value);
 			fail(info.getName() + ": " + value + " が受理された");
 		} catch (final PropertyException e) {
-			// 期待どおり
+			// As expected.
 		}
 	}
 
@@ -131,7 +129,7 @@ public class ShapeOutsideParserTest extends TestCase {
 		assertInvalid(ShapeOutside.INFO, "url(a.png) margin-box");
 		assertInvalid(ShapeOutside.INFO, "none margin-box");
 		assertInvalid(ShapeOutside.INFO, "foo");
-		// path()は2026-08-29にBasicShapesへ実装されたので、shape-outsideでも受理される
+		// path() was implemented in BasicShapes on 2026-08-29, so shape-outside accepts it too.
 		assertInvalid(ShapeOutside.INFO, "linear-gradient(red, blue)");
 	}
 

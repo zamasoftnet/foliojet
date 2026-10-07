@@ -22,13 +22,14 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * ページ分割SVGで、MathML とインライン SVG の中の描画が頁の上の位置に置かれることを固定します
- * (2026-10-04、TECH-20261003-004 の⑳)。
+ * Verify that drawing inside MathML and inline SVG appears at its position on the page
+ * in page-split SVG (2026-10-04, TECH-20261003-004, item ⑳).
  *
  * <p>
- * どちらも Graphics2D の橋渡しで描き、橋渡しは GC を直近の{@code begin()}の状態へ戻して
- * ({@code resetState()})変換の差分を掛け直す。ページ分割SVGの GC は初期状態(単位行列)へ
- * 戻していたので、数式の 2 字目以降・入れ子の図形・クリップが頁の原点の近くに描かれていた。
+ * Both draw through a Graphics2D bridge, which resets the GC to the state at the latest
+ * {@code begin()} ({@code resetState()}) and reapplies the transform delta.
+ * The page-split SVG GC reset to the initial state (identity matrix), so the second and later
+ * characters in formulas, nested shapes, and clips were drawn near the page origin.
  * </p>
  */
 public class PagedSvgNestedTransformTest extends TestCase {
@@ -49,12 +50,12 @@ public class PagedSvgNestedTransformTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 	}
 
 	public void testMathAndInlineSvgAreDrawnAtTheirPlace() throws Exception {
-		// 余白 72pt。中身は全部その内側に描かれる
+		// 72 pt margin. All contents are drawn inside it.
 		final String html = """
 				<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/><style>
 				@page { size: 400pt 600pt; margin: 72pt } body { margin: 0; font-size: 9pt }
@@ -85,7 +86,7 @@ public class PagedSvgNestedTransformTest extends TestCase {
 		assertNotNull(results.data.keySet().toString(), page);
 		final String svg = page.toString(StandardCharsets.UTF_8);
 
-		// 図形とクリップの経路の始点。頁の原点の近く(余白の中)に描かれたものがあってはならない
+		// Start points of shape and clip paths. None may be drawn near the page origin (inside the margin).
 		final Matcher m = Pattern.compile("<path d=\"M(-?[0-9.]+)[ ,](-?[0-9.]+)").matcher(svg);
 		final List<String> stray = new ArrayList<>();
 		int paths = 0;
@@ -93,7 +94,7 @@ public class PagedSvgNestedTransformTest extends TestCase {
 			++paths;
 			final double x = Double.parseDouble(m.group(1));
 			final double y = Double.parseDouble(m.group(2));
-			// 頁全体のクリップ(原点から始まる長方形)は除く
+			// Exclude whole-page clips (rectangles starting at the origin).
 			if ((x < 60 || y < 60) && !(x == 0 && y == 0)) {
 				stray.add(m.group(1) + "," + m.group(2));
 			}

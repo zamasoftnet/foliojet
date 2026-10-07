@@ -19,45 +19,46 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>1つのitemが複数ページぶんあるgrid/flexが最後まで改ページできる</b>ことを
- * 固定します(2026-08-17新設)。
+ * Verify that <b>a grid/flex with one item spanning multiple pages paginates to the end</b>
+ * (added 2026-08-17).
  *
  * <p>
- * {@code GridBox.split}/{@code FlexBox.split}の境界行強制分割
- * (crosses+anySplit)は、継続断片の行帳簿の行高を<b>分割直後のremainderの
- * 実測</b>で書いていた。remainderはその時点で未レイアウト(アンカー復元前)で
- * {@code getPageExtent}がほぼ0を返すため、gridでは次のsplitの境界探索
- * ({@code Row.start}直接比較)が「全行が切断線の手前に収まる」と誤読して
- * <b>空の継続断片</b>を返し、残余が頭断片に積み残って紙外へ描かれた。
+ * Forced boundary-row splitting (crosses+anySplit) in {@code GridBox.split}/{@code FlexBox.split}
+ * wrote row heights in the continuation fragment's row ledger using <b>measurements of the remainder
+ * immediately after splitting</b>. At that point the remainder is not laid out (anchors are not restored),
+ * so {@code getPageExtent} returns almost zero. For grid, the next split's boundary search
+ * (direct {@code Row.start} comparison) incorrectly concluded that "all rows fit before the cut line"
+ * and returned an <b>empty continuation fragment</b>, leaving the remainder in the head fragment
+ * to be painted outside the paper.
  * </p>
  *
  * <p>
- * 実物: eLifeの論文(`files/realworld/elife-art`)は本文全体を
- * {@code display:grid}のラッパーで包んでおり、95ページぶんが3ページ目に
- * 積み上がっていた(文字の重なり4,081,661対・紙外51,339pt)。実コーパス
- * 235文書のうち同型の壊れ方が6文書(pandoc-doc・qiita-article・godoc-pkg・
- * elife-art・mathjax-docs・rtd-theme)。
+ * Real example: the eLife article (`files/realworld/elife-art`) wraps the entire body in
+ * {@code display:grid}; 95 pages of content piled up on page 3
+ * (4,081,661 overlapping character pairs; 51,339 pt outside the paper). Of 235 real-corpus documents,
+ * six exhibited the same failure (pandoc-doc, qiita-article, godoc-pkg,
+ * elife-art, mathjax-docs, and rtd-theme).
  * </p>
  *
  * <p>
- * 修正は「継続行の高さは<b>元の行の高さ−このページで消費した量</b>を
- * 下回らせない」という幾何学的下限(GridBox/FlexBox両方)。flexは境界探索が
- * 累積和なので実害までは確認されていないが、同じ帳簿誤りがあるため同じ
- * 下限で守る。
+ * The fix is a geometric lower bound: "a continuation row's height must be at least
+ * <b>the original row height minus the amount consumed on this page</b>" (both GridBox and FlexBox).
+ * Flex uses cumulative sums for boundary searches, so actual damage has not been confirmed,
+ * but the same ledger error exists; protect it with the same lower bound.
  * </p>
  */
 public class RowSplitContinuationLedgerTest extends TestCase {
-	/** 打ち切り時間。実測は1件あたり5秒未満。 */
+	/** Timeout. Measured runtime is under 5 seconds per case. */
 	private static final long WATCHDOG_MS = 120_000L;
 
-	/** 段落数。紙面(内容180pt)の50ページぶん超。 */
+	/** Paragraph count. More than 50 pages of content (180 pt content area per page). */
 	private static final int PARAGRAPHS = 300;
 
 	public RowSplitContinuationLedgerTest(final String name) {
 		super(name);
 	}
 
-	/** eLifeと同型: 12列grid、小さいnavと巨大itemの2行。修正前は3ページで内容が尽きた。 */
+	/** Same structure as eLife: 12-column grid, two rows with a small nav and a huge item. Before the fix, content ended at page 3. */
 	public void testGridWithMultiPageItemPaginatesToTheEnd() throws Exception {
 		final int pages = convert("grid-multipage-item",
 				".wrap{display:grid;grid-template-columns:repeat(12,1fr);grid-column-gap:8px}\n"
@@ -65,7 +66,10 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 		assertTrue("gridの巨大itemが最後まで組まれていない(ページ数=" + pages + ")", pages >= 40);
 	}
 
-	/** flexの鏡像(column方向)。帳簿誤りは同じだが境界探索が累積和のため実害は未確認——防御の固定。 */
+	/**
+	 * Flex counterpart (column direction). The ledger error is identical; actual damage is unconfirmed
+	 * because boundary search uses cumulative sums. Pin down the guard.
+	 */
 	public void testFlexColumnWithMultiPageItemPaginatesToTheEnd() throws Exception {
 		final int pages = convert("flex-multipage-item",
 				".wrap{display:flex;flex-direction:column}\n.nav{}.main{}");
@@ -73,17 +77,17 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 	}
 
 	/**
-	 * <b>文書末尾のflexコンテナが、直前の内容に関係なく改ページされる</b>
-	 * (2026-08-17、pandocマニュアルの根治)。
+	 * <b>A flex container at the document end paginates regardless of the preceding content</b>
+	 * (2026-08-17, root fix for the pandoc manual).
 	 *
 	 * <p>
-	 * flex/gridの中身はTwoPass録画で組まれ{@code addBound}のearly-returnを
-	 * 通るため、{@code interflowBreak}を立てないまま閉じる。コンテナが
-	 * 最後の子だと{@code endFlowBlock}末尾のはみ出し検査が唯一の
-	 * 自動改ページ機会だが、直前のnav(inline-flex)がフラグをfalseのまま
-	 * 残すと検査がスキップされ、本文全体が1ページに積み上がった
-	 * (実測: pandocマニュアル130,000pt)。修正はPageAtomicBoxを閉じたとき
-	 * 検査を必ず有効にすること({@code BreakableBuilder.endFlowBlock})。
+	 * Flex/grid contents are laid out through TwoPass recording and take the early return in
+	 * {@code addBound}, so they close without setting {@code interflowBreak}. If the container is
+	 * the last child, the overflow check at the end of {@code endFlowBlock} is the only opportunity
+	 * for an automatic page break. When the preceding nav (inline-flex) left the flag false,
+	 * the check was skipped and the entire body piled up on one page
+	 * (measured: 130,000 pt for the pandoc manual). The fix always enables the check
+	 * when closing a PageAtomicBox ({@code BreakableBuilder.endFlowBlock}).
 	 * </p>
 	 */
 	public void testTrailingFlexAfterInlineFlexNavPaginates() throws Exception {
@@ -106,7 +110,7 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 		for (int i = 0; i < PARAGRAPHS; ++i) {
 			html.append("<p>Paragraph ").append(i).append(" text that wraps a bit more here.</p>\n");
 		}
-		// 後続の内容は置かない——コンテナが最後の子であることが再現条件
+		// Add no subsequent content: the container must be the last child to reproduce this.
 		html.append("</main>\n<div>SIDE</div>\n</div>\n</body></html>\n");
 
 		final File dir = new File("local/row-split-ledger/trailing-flex");
@@ -126,16 +130,16 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 	}
 
 	/**
-	 * <b>body自体がcolumn flexでも最後まで改ページされる</b>
-	 * (2026-08-17、godoc-pkgの根治)。
+	 * <b>Pagination reaches the end even when body itself is a column flex</b>
+	 * (2026-08-17, root fix for godoc-pkg).
 	 *
 	 * <p>
-	 * column方向flexは行帳簿を持たずatomic——救済分割が1回働いても、
-	 * 従来の{@code endFlowBlock}のはみ出し検査は<b>1回だけ</b>だったため、
-	 * 残余が2ページ目に置かれたまま再検査されず、はみ出したまま終わった
-	 * (実測: pkg.go.devのページが2ページ・重なり1,088万対)。修正は
-	 * PageAtomicBoxを閉じたときだけ検査を入るまで繰り返すこと
-	 * (無条件のループは白紙ページ抑止とfuzzの既存挙動を壊す)。
+	 * Column-direction flex has no row ledger and is atomic. Even if rescue splitting ran once,
+	 * the previous {@code endFlowBlock} overflow check ran <b>only once</b>, leaving the remainder
+	 * on page 2 without rechecking it, and finishing with overflow
+	 * (measured: a pkg.go.dev document had 2 pages and 10.88 million overlapping pairs). The fix
+	 * repeats the check until the content fits, only when closing a PageAtomicBox
+	 * (an unconditional loop breaks blank-page suppression and existing fuzz behavior).
 	 * </p>
 	 */
 	public void testBodyAsColumnFlexPaginatesToTheEnd() throws Exception {
@@ -170,23 +174,24 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 			w.write(html.toString());
 		}
 		final int pages = convertFile("body-column-flex", dir, input);
-		// 当時は救済分割で35ページ(帯が行の途中を切る)。2026-08-18の
-		// F0非原子化(FlexBox.isPageAtomicNow)以降は通常の行分割で組まれる
-		// ためページ数はさらに増える——下限はどちらの経路でも成り立つ値
+		// At the time, rescue splitting produced 35 pages (strips cut through lines). Since F0
+		// de-atomization on 2026-08-18 (FlexBox.isPageAtomicNow), normal line splitting handles layout,
+		// increasing the page count further. Use a lower bound that holds for both paths.
 		assertTrue("bodyのcolumn flexが最後まで組まれていない(ページ数=" + pages + ")", pages >= 20);
 	}
 
 	/**
-	 * <b>保持側が切断線より早く終わる境界行で、次行が残余に重ならない</b>
-	 * (2026-08-19、smolcssの根治)。
+	 * <b>When the retained side of a boundary row ends before the cut line, the next row does not overlap the remainder</b>
+	 * (2026-08-19, root fix for smolcss).
 	 *
 	 * <p>
-	 * 行の強制分割は不可分な内容({@code page-break-inside:avoid}のブロック等)を
-	 * 丸ごと残余へ送るため、保持側の実内容は切断線より早く終わりうる。
-	 * 従来は移送・保持断片寸法が切断線基準だったため、残余の実内容
-	 * (=元の行高−実消費>元の行高−切断線ぶん)が「旧幾何−切断線」で固定した
-	 * 次行の開始位置に重なった(smolcss: 前の記事のフッタに次の記事の本文が
-	 * 重なる)。修正は保持側の実描画終端({@code paintedPageExtent})基準。
+	 * Forced row splitting moves indivisible content (e.g., a {@code page-break-inside:avoid} block)
+	 * entirely to the remainder, so actual content on the retained side can end before the cut line.
+	 * Previously, moved/retained fragment dimensions used the cut line, so the remainder's actual content
+	 * (= original row height - actual consumption &gt; original row height - distance to the cut line)
+	 * overlapped the next row's start, fixed at "old geometry - distance to the cut line"
+	 * (smolcss: the next article's body overlapped the preceding article's footer).
+	 * The fix uses the retained side's actual painted end ({@code paintedPageExtent}).
 	 * </p>
 	 */
 	public void testKeptSideEndingEarlyDoesNotOverlapNextRow() throws Exception {
@@ -204,11 +209,11 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 				</style></head><body><div class="wrap">
 				<article>
 				""");
-		// 保持側になる段落(切断線の手前で終わる)
+		// Paragraph on the retained side (ends before the cut line).
 		for (int i = 0; i < 10; ++i) {
 			html.append("<p>Alpha paragraph ").append(i).append(" fills the kept side of row A.</p>\n");
 		}
-		// 不可分ブロック(切断線を跨ぐため丸ごと残余へ送られる)
+		// Indivisible block (crosses the cut line, so moves entirely to the remainder).
 		html.append("<div class=\"atomic\">");
 		for (int i = 0; i < 8; ++i) {
 			html.append("<p>Atomic line ").append(i).append("</p>");
@@ -234,8 +239,8 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 		}
 		final int pages = convertFile("kept-early-end", dir, input);
 		assertTrue("行分割が起きていない(ページ数=" + pages + ")", pages >= 2);
-		// 同一ページにATAIL(行Aの末尾)とBHEAD(行Bの先頭)が載るなら、
-		// BHEADは必ずATAILより下に置かれる
+		// If ATAIL (end of row A) and BHEAD (start of row B) appear on the same page,
+		// BHEAD must be below ATAIL.
 		boolean checked = false;
 		for (int p = 1; p <= pages; ++p) {
 			final java.util.List<String> lines = java.nio.file.Files.readAllLines(
@@ -262,8 +267,8 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 	}
 
 	/**
-	 * 描画物のないflex行を極小ページで分割しても、0消費のまま同じ行を
-	 * 再分割して座標が指数的に膨張しないこと(極端掃過 STRICT seed 189)。
+	 * Splitting a flex row with no painted content on a tiny page must not repeatedly split
+	 * the same row with zero consumption and exponentially expand coordinates (extreme sweep STRICT seed 189).
 	 */
 	public void testEmptyVerticalFlexRowMakesProgressAcrossTableFragments() throws Exception {
 		final String html = """
@@ -297,9 +302,10 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 	}
 
 	/**
-	 * 分割中の先頭行だけを再flowし、丸ごと持ち越した後続行のpercent寸法と
-	 * 枠込み外寸を世代ごとに再加算しないこと(extreme STRICT seed 189の
-	 * 第二最小条件)。旧実装は26ページでx座標が4.97e8ptまで発散した。
+	 * Reflow only the first row being split; do not repeatedly add percentage dimensions and
+	 * frame-inclusive outer dimensions of subsequent rows carried over intact on each generation
+	 * (second minimal condition for extreme STRICT seed 189).
+	 * The old implementation diverged to an x coordinate of 4.97e8 pt in 26 pages.
 	 */
 	public void testLaterVerticalFlexRowsKeepExtentsAcrossFragments() throws Exception {
 		final String html = """

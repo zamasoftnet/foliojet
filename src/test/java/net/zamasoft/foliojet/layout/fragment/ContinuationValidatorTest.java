@@ -12,12 +12,11 @@ import net.zamasoft.foliojet.layout.box.impl.MulticolumnBlockBox;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
- * {@link ContinuationValidator}の直接単体テストです(2026-07-24新設、
- * E-3増分1)。旧{@code ResumeProgramCompilerTest}の深さ・不変条件テストを
- * 正本(Continuation/COLUMN入力)の直接検証として移植した——programを
- * 経由せず、合成した入力を直接検証する。いずれのテストも
- * {@code FragmentRecipe.instantiate()}が一度も呼ばれないこと(validatorは
- * fragmentを実際に構築しない)を固定する。
+ * Direct unit tests for {@link ContinuationValidator} (added 2026-07-24, E-3 increment 1).
+ * Ports the depth and invariant tests from the old {@code ResumeProgramCompilerTest} to direct
+ * validation of the source of truth (Continuation/COLUMN inputs), validating synthetic inputs
+ * without going through a program. Every test locks down that {@code FragmentRecipe.instantiate()}
+ * is never called (the validator does not actually construct fragments).
  */
 public class ContinuationValidatorTest extends TestCase {
 
@@ -44,8 +43,8 @@ public class ContinuationValidatorTest extends TestCase {
 	}
 
 	/**
-	 * 深さ5000のframe chainをJVM再帰なしの有界反復で検証できることを確認
-	 * する(既存{@code ResumeProgramCompilerTest}の深さ上限テストの移植)。
+	 * Verifies that a frame chain of depth 5000 can be validated using bounded iteration without JVM
+	 * recursion (ported from the depth-limit test in the existing {@code ResumeProgramCompilerTest}).
 	 */
 	public void testValidatesDepth5000WithoutJvmRecursionOrFragmentInstantiation() {
 		final int depth = 5000;
@@ -71,16 +70,15 @@ public class ContinuationValidatorTest extends TestCase {
 	}
 
 	/**
-	 * 宣言された深さ(continuation.depth()/snapshot)と実際のframe chain+
-	 * 終端OpenShapeの深さが食い違う場合、{@link
-	 * ContinuationInvariantViolationException}で拒否されること、かつ
-	 * その判定でfragmentが構築されないことを確認する。
+	 * Verifies that a mismatch between the declared depth (continuation.depth()/snapshot) and the actual
+	 * frame chain + terminal OpenShape depth is rejected with {@link
+	 * ContinuationInvariantViolationException}, and that this check constructs no fragments.
 	 */
 	public void testRejectsDepthMismatchWithoutInstantiatingRecipe() {
 		final AtomicInteger recipeCalls = new AtomicInteger();
 		final FragmentRecipe recipe = throwingRecipe(recipeCalls);
 
-		// 宣言depth=20だが、実際は1フレーム+終端深さ10相当(意図的にmalformed)
+		// Declared depth=20, but actually one frame + terminal depth 10 (deliberately malformed).
 		final Continuation.ContinuationFrame frame = new Continuation.ContinuationFrame(recipe, null, null, 0,
 				List.of(), new Continuation.OpenTail.OpenTailShape(OpenShape.of(10)));
 		final Continuation continuation = new Continuation(20, frame, Map.of());
@@ -90,12 +88,12 @@ public class ContinuationValidatorTest extends TestCase {
 			ContinuationValidator.validatePage(snapshot, continuation);
 			fail("depth不整合はContinuationInvariantViolationExceptionになるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
-			// 期待通り
+			// As expected.
 		}
 		assertEquals(0, recipeCalls.get());
 	}
 
-	/** snapshotとcontinuationのdepthそのものが食い違う場合も同様に拒否する。 */
+	/** Also reject a mismatch between the depths of the snapshot and continuation themselves. */
 	public void testRejectsSnapshotContinuationDepthMismatch() {
 		final AtomicInteger recipeCalls = new AtomicInteger();
 		final FragmentRecipe recipe = throwingRecipe(recipeCalls);
@@ -109,15 +107,15 @@ public class ContinuationValidatorTest extends TestCase {
 			ContinuationValidator.validatePage(snapshot, continuation);
 			fail("snapshot/continuationのdepth不一致は拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
-			// 期待通り
+			// As expected.
 		}
 		assertEquals(0, recipeCalls.get());
 	}
 
 	/**
-	 * PAGE終端式: 収集不能な破断(チェーンなし、root frameのtailが全深さの
-	 * OpenTailShape)は{@code firstOpenPathIndex=1}+終端深さ=snapshot深さ
-	 * になる(旧{@code ResumeTail.LegacyOpen}相当)。
+	 * PAGE terminal formula: an uncollectable break (no chain; the root frame's tail is an OpenTailShape
+	 * covering the full depth) gives {@code firstOpenPathIndex=1} + terminal depth = snapshot depth
+	 * (equivalent to the old {@code ResumeTail.LegacyOpen}).
 	 */
 	public void testPageUncollectedBreakTerminalShape() {
 		final AtomicInteger recipeCalls = new AtomicInteger();
@@ -136,9 +134,9 @@ public class ContinuationValidatorTest extends TestCase {
 	}
 
 	/**
-	 * 段組(MULTICOL)levelを含むchainが完全に収集され、開きテキストまで
-	 * 貫通するケース(旧{@code ResumeProgramCompilerTest}のB3aテストの
-	 * 移植——段組levelがfirst-classに歩ける)。
+	 * A chain containing a multi-column (MULTICOL) level is fully collected through to open text
+	 * (ported from the B3a test in the old {@code ResumeProgramCompilerTest}; multi-column levels
+	 * can be traversed as first-class members).
 	 *
 	 * <pre>
 	 * snapshot: root - MULTICOL - PLAIN_FLOW
@@ -175,7 +173,7 @@ public class ContinuationValidatorTest extends TestCase {
 		assertEquals(0, recipeCalls.get());
 	}
 
-	/** prefixのserial順序が破れている場合は拒否する(verifierからの移植)。 */
+	/** Reject a violation of prefix serial order (ported from the verifier). */
 	public void testRejectsNonIncreasingPrefixSerial() {
 		final AtomicInteger recipeCalls = new AtomicInteger();
 		final FragmentRecipe recipe = throwingRecipe(recipeCalls);
@@ -191,12 +189,12 @@ public class ContinuationValidatorTest extends TestCase {
 			ContinuationValidator.validatePage(snapshot, continuation);
 			fail("serial非増加のprefixは拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
-			// 期待通り
+			// As expected.
 		}
 		assertEquals(0, recipeCalls.get());
 	}
 
-	/** crossExtentが非有限の場合は拒否する(verifierからの移植)。 */
+	/** Reject a non-finite crossExtent (ported from the verifier). */
 	public void testRejectsNonFiniteCrossExtent() {
 		final AtomicInteger recipeCalls = new AtomicInteger();
 		final FragmentRecipe recipe = throwingRecipe(recipeCalls);
@@ -210,16 +208,15 @@ public class ContinuationValidatorTest extends TestCase {
 			ContinuationValidator.validatePage(snapshot, continuation);
 			fail("非有限のcrossExtentは拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
-			// 期待通り
+			// As expected.
 		}
 		assertEquals(0, recipeCalls.get());
 	}
 
 	/**
-	 * COLUMN終端式: {@code childFrame==null}かつsnapshot depth==1(owner
-	 * 自身がsnapshotの唯一のレベル=子孫なし)は開きテキスト1単位で終端する
-	 * (旧{@code ResumeTail.OpenText}相当。ColumnResumeProgramCompilerの
-	 * 規約の移植)。
+	 * COLUMN terminal formula: {@code childFrame==null} and snapshot depth==1 (the owner itself is the
+	 * snapshot's only level, with no descendants) terminate in one unit of open text (equivalent to the
+	 * old {@code ResumeTail.OpenText}; ports the ColumnResumeProgramCompiler convention).
 	 */
 	public void testColumnNullChildFrameDepth1EndsInOpenText() {
 		final OpenPathSnapshot snapshot = plainSnapshot(1, OpenPathSnapshot.AnchorKind.COLUMN_OWNER);
@@ -232,9 +229,9 @@ public class ContinuationValidatorTest extends TestCase {
 	}
 
 	/**
-	 * COLUMN終端式: {@code childFrame==null}かつsnapshot depth&gt;1は、
-	 * index 1から始まる深さsnapshot.depth()の開き(旧{@code ResumeTail
-	 * .LegacyOpen(1, snapshotDepth)}相当)になる。
+	 * COLUMN terminal formula: {@code childFrame==null} and snapshot depth&gt;1 give an open structure
+	 * of depth snapshot.depth(), starting at index 1 (equivalent to the old {@code ResumeTail
+	 * .LegacyOpen(1, snapshotDepth)}).
 	 */
 	public void testColumnNullChildFrameDeepSnapshotKeepsFullOpenDepth() {
 		final OpenPathSnapshot snapshot = plainSnapshot(3, OpenPathSnapshot.AnchorKind.COLUMN_OWNER);
@@ -247,8 +244,8 @@ public class ContinuationValidatorTest extends TestCase {
 	}
 
 	/**
-	 * COLUMN終端式: 貫通したチェーンが完全に収集された場合
-	 * ({@code chainFrames + 1 == snapshotDepth}、終端は開きテキスト)。
+	 * COLUMN terminal formula: a chain traversed all the way through is fully collected
+	 * ({@code chainFrames + 1 == snapshotDepth}, terminating in open text).
 	 */
 	public void testColumnFullyCollectedChainEndsInOpenText() {
 		final AtomicInteger recipeCalls = new AtomicInteger();
@@ -269,14 +266,14 @@ public class ContinuationValidatorTest extends TestCase {
 	}
 
 	/**
-	 * COLUMN深さ式({@code chainFrames + tailDepth == snapshotDepth}、
-	 * PAGEの{@code -1}補正なし)が破れている場合は拒否する。
+	 * Reject a violation of the COLUMN depth formula
+	 * ({@code chainFrames + tailDepth == snapshotDepth}, without PAGE's {@code -1} adjustment).
 	 */
 	public void testColumnRejectsDepthMismatch() {
 		final AtomicInteger recipeCalls = new AtomicInteger();
 		final FragmentRecipe recipe = throwingRecipe(recipeCalls);
 
-		// chainFrames=1 + tailDepth=3 != snapshotDepth=3(意図的にmalformed)
+		// chainFrames=1 + tailDepth=3 != snapshotDepth=3 (deliberately malformed).
 		final Continuation.ContinuationFrame frame = new Continuation.ContinuationFrame(recipe, null, null, 0,
 				List.of(), new Continuation.OpenTail.OpenTailShape(OpenShape.of(3)));
 		final OpenPathSnapshot snapshot = plainSnapshot(3, OpenPathSnapshot.AnchorKind.COLUMN_OWNER);
@@ -285,12 +282,12 @@ public class ContinuationValidatorTest extends TestCase {
 			ContinuationValidator.validateColumn(emptyAnchor(), snapshot, frame);
 			fail("COLUMN depth不整合はContinuationInvariantViolationExceptionになるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
-			// 期待通り
+			// As expected.
 		}
 		assertEquals(0, recipeCalls.get());
 	}
 
-	/** frame chainがsnapshot深さを超える場合は有界walkが拒否する。 */
+	/** A bounded walk rejects a frame chain that exceeds the snapshot depth. */
 	public void testColumnRejectsChainExceedingSnapshotDepth() {
 		final AtomicInteger recipeCalls = new AtomicInteger();
 		final FragmentRecipe recipe = throwingRecipe(recipeCalls);
@@ -301,60 +298,60 @@ public class ContinuationValidatorTest extends TestCase {
 			frame = new Continuation.ContinuationFrame(recipe, null, null, 0, List.of(),
 					new Continuation.OpenTail.Child(frame));
 		}
-		// チェーン4フレームに対しsnapshot depth=2(index 1しか許容しない)
+		// A chain of four frames with snapshot depth=2 (only index 1 is allowed).
 		final OpenPathSnapshot snapshot = plainSnapshot(2, OpenPathSnapshot.AnchorKind.COLUMN_OWNER);
 
 		try {
 			ContinuationValidator.validateColumn(emptyAnchor(), snapshot, frame);
 			fail("snapshot深さを超えるチェーンは拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
-			// 期待通り
+			// As expected.
 		}
 		assertEquals(0, recipeCalls.get());
 	}
 
-	/** 実fragment署名の直接照合(E-3増分2): 一致は通過、不一致は型付き例外。 */
+	/** Direct actual-fragment signature check (E-3 increment 2): matches pass; mismatches throw a typed exception. */
 	public void testFragmentSignatureCheck() {
 		final OpenPathSnapshot snapshot = plainSnapshot(2, OpenPathSnapshot.AnchorKind.PAGE_ROOT);
 
-		// 一致(snapshotのdescriptorと同一の署名)
+		// Match (same signature as the snapshot descriptor).
 		ContinuationValidator.checkFragmentSignature(snapshot, 0,
 				new OpenPathSnapshot.FragmentSignature(FlowBlockBox.class, WritingMode.TB, 1));
 
-		// class不一致
+		// Class mismatch.
 		try {
 			ContinuationValidator.checkFragmentSignature(snapshot, 0, new OpenPathSnapshot.FragmentSignature(
 					MulticolumnBlockBox.class, WritingMode.TB, 1));
 			fail("class不一致の署名は拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
-			// 期待通り
+			// As expected.
 		}
 
-		// writing-mode不一致
+		// writing-mode mismatch.
 		try {
 			ContinuationValidator.checkFragmentSignature(snapshot, 1,
 					new OpenPathSnapshot.FragmentSignature(FlowBlockBox.class, WritingMode.RL, 1));
 			fail("writing-mode不一致の署名は拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
-			// 期待通り
+			// As expected.
 		}
 
-		// column-count不一致
+		// column-count mismatch.
 		try {
 			ContinuationValidator.checkFragmentSignature(snapshot, 1,
 					new OpenPathSnapshot.FragmentSignature(FlowBlockBox.class, WritingMode.TB, 2));
 			fail("column-count不一致の署名は拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
-			// 期待通り
+			// As expected.
 		}
 
-		// index範囲外
+		// Index out of range.
 		try {
 			ContinuationValidator.checkFragmentSignature(snapshot, 2,
 					new OpenPathSnapshot.FragmentSignature(FlowBlockBox.class, WritingMode.TB, 1));
 			fail("snapshot深さ超過のindexは拒否されるはずです");
 		} catch (ContinuationInvariantViolationException expected) {
-			// 期待通り
+			// As expected.
 		}
 	}
 }

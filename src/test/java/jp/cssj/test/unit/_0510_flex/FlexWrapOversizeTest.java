@@ -8,8 +8,9 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 単体超過itemの行分割テストです(Flex F2b——超過item(200pt/コンテナ
- * 100pt、shrink 0)は自分の行を持ち、後続は次の行へ)。
+ * Tests line breaking for an individually oversized item (Flex F2b).
+ * The oversized item (200 pt in a 100 pt container, shrink 0) gets its own line,
+ * and subsequent items move to the next line.
  */
 public class FlexWrapOversizeTest extends AbstractTestCase {
 	public FlexWrapOversizeTest(String name) {
@@ -32,7 +33,7 @@ public class FlexWrapOversizeTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 超過itemの次は2行目の先頭。 */
+	/** The item after the oversized item starts the second line. */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);

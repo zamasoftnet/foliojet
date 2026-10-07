@@ -20,21 +20,21 @@ import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.paint.RGBColor;
 
 /**
- * ボックスおよびテーブルの境界を描画します。
- * 
+ * Draws borders of boxes and tables.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: BorderRenderer.java 1554 2018-04-26 03:34:02Z miyabe $
  */
 public class BorderRenderer {
 	public static BorderRenderer INSTANCE = new BorderRenderer();
 
-	/** 実線 */
+	/** Solid line */
 	public static final double[] STROKE_SOLID = new double[0];
 
-	/** 点線 */
+	/** Dotted line */
 	public static final double[] STROKE_DOTTED = new double[] { 1, 2 };
 
-	/** 破線 */
+	/** Dashed line */
 	public static final double[] STROKE_DASHED = new double[] { 3, 3 };
 
 	private BorderRenderer() {
@@ -418,8 +418,8 @@ public class BorderRenderer {
 			throws GraphicsException {
 		Color color = border.color;
 		double w = border.width / 2.0;
-		// 横(drawHorizontalGrooveLine)と同じく状態を囲む。2026-10-04 までは囲まず、表の境界線・段の区切り線の
-		// groove/ridge が線幅と線の色を後の描画へ漏らしていた
+		// Scope the state as in the horizontal version (drawHorizontalGrooveLine). Until 2026-10-04 it was unscoped, so
+		// groove/ridge table borders and column rules leaked line width and color into subsequent drawing
 		try (final var gcState = gc.begin()) {
 			setStroke(gc, w, BorderRenderer.STROKE_SOLID);
 			gc.setStrokePaint(ridge ? this.darker(color) : this.brighter(color));
@@ -454,8 +454,8 @@ public class BorderRenderer {
 	}
 
 	/**
-	 * テーブルのつぶし境界を描画します。
-	 * 
+	 * Draws collapsed table borders.
+	 *
 	 * @param gc
 	 * @param borders
 	 * @param x
@@ -493,7 +493,7 @@ public class BorderRenderer {
 		}
 		List<TBorder> list = new ArrayList<TBorder>();
 
-		// 垂直の線を描画する
+		// Draw vertical lines
 		if (vertical) {
 			double cy = y;
 			for (int index = 0; index <= cols; ++index) {
@@ -586,7 +586,7 @@ public class BorderRenderer {
 			}
 		}
 
-		// 水平の線を描画する
+		// Draw horizontal lines
 		if (vertical) {
 			double cx = x;
 			for (int index = rows; index >= 0; --index) {
@@ -679,7 +679,7 @@ public class BorderRenderer {
 			}
 		}
 
-		// 細い順に描画
+		// Draw from thinnest to thickest
 		Collections.sort(list);
 		for (int i = 0; i < list.size(); ++i) {
 			final TBorder tb = (TBorder) list.get(i);
@@ -788,8 +788,8 @@ public class BorderRenderer {
 	}
 
 	/**
-	 * 水平線を描画します。
-	 * 
+	 * Draws a horizontal line.
+	 *
 	 * @param gc
 	 * @param border
 	 * @param x
@@ -839,8 +839,8 @@ public class BorderRenderer {
 	}
 
 	/**
-	 * 垂直線を描画します。
-	 * 
+	 * Draws a vertical line.
+	 *
 	 * @param gc
 	 * @param border
 	 * @param x
@@ -890,7 +890,7 @@ public class BorderRenderer {
 	}
 
 	public Shape getBorderShape(RectBorder border, double x, double y, double w, double h) {
-		// border-radiusのパーセント成分はボックス寸法確定後のここで解決する
+		// Resolve border-radius percentages here, after box dimensions are finalized
 		final Radius topLeft = border.getTopLeft().resolve(w, h);
 		final Radius topRight = border.getTopRight().resolve(w, h);
 		final Radius bottomLeft = border.getBottomLeft().resolve(w, h);
@@ -899,20 +899,20 @@ public class BorderRenderer {
 	}
 
 	/**
-	 * 解決済みの角丸半径で矩形の形を返します。box-shadow/outlineが境界箱を
-	 * 広げ縮めした形を同じ角丸の作り方で得るために切り出した(2026-08-29)。
-	 * 半径にパーセント成分が残っていてはいけない。
+	 * Returns a rectangle shape with resolved corner radii. Extracted so box-shadow/outline can
+	 * expand or shrink the border box using the same corner construction (2026-08-29).
+	 * Radii must contain no unresolved percentage components.
 	 */
 	public Shape getRoundedShape(double x, double y, double w, double h, Radius topLeft, Radius topRight,
 			Radius bottomLeft, Radius bottomRight) {
 		/* NoAndroid begin */
 		if (topLeft == Radius.ZERO_RADIUS && topRight == Radius.ZERO_RADIUS && bottomLeft == Radius.ZERO_RADIUS
 				&& bottomRight == Radius.ZERO_RADIUS) {
-			// ただの矩形
+			// Plain rectangle
 			return new Rectangle2D.Double(x, y, w, h);
 		}
 		if (topLeft.equals(topRight) && topLeft.equals(bottomLeft) && topLeft.equals(bottomRight)) {
-			// ただの角丸矩形
+			// Simple rounded rectangle
 			Radius radius = topLeft;
 			return new RoundRectangle2D.Double(x, y, w, h, radius.hr * 2, radius.vr * 2);
 		}
@@ -929,7 +929,7 @@ public class BorderRenderer {
 
 		GeneralPath path = new GeneralPath();
 
-		// 左境界
+		// Left border
 		path.moveTo((float) x, (float) (y + topLeftVr));
 		path.lineTo((float) x, (float) (y + h - bottomLeftVr));
 		if (bottomLeftHr != 0 || bottomLeftVr != 0) {
@@ -938,7 +938,7 @@ public class BorderRenderer {
 			path.append(arc, true);
 		}
 
-		// 下境界
+		// Bottom border
 		if (bottomLeftHr != 0 || bottomLeftVr != 0) {
 			Arc2D arc = new Arc2D.Double(x, y + h - bottomLeftVr * 2, bottomLeftHr * 2, bottomLeftVr * 2, 225, 45,
 					Arc2D.OPEN);
@@ -951,7 +951,7 @@ public class BorderRenderer {
 			path.append(arc, true);
 		}
 
-		// 右境界
+		// Right border
 		if (bottomRightHr != 0 || bottomRightVr != 0) {
 			Arc2D arc = new Arc2D.Double(x + w - bottomRightHr * 2, y + h - bottomRightVr * 2, bottomRightHr * 2,
 					bottomRightVr * 2, 315, 45, Arc2D.OPEN);
@@ -963,7 +963,7 @@ public class BorderRenderer {
 			path.append(arc, true);
 		}
 
-		// 上境界
+		// Top border
 		if (topRightHr != 0 || topRightVr != 0) {
 			Arc2D arc = new Arc2D.Double(x + w - topRightHr * 2, y, topRightHr * 2, topRightVr * 2, 45, 45, Arc2D.OPEN);
 			path.append(arc, true);
@@ -983,8 +983,8 @@ public class BorderRenderer {
 	}
 
 	/**
-	 * ボックスの境界を描画します。
-	 * 
+	 * Draws a box's borders.
+	 *
 	 * @param gc
 	 * @param border
 	 * @param x
@@ -992,9 +992,9 @@ public class BorderRenderer {
 	 */
 	public void drawRectBorder(GC gc, RectBorder border, double x, double y, double w, double h)
 			throws GraphicsException {
-		// SPEC css-backgrounds-3 §6: 描ける境界画像があれば border-style の
-		// 描画を完全に置き換える。下の「4辺が同一なら一筆で描く」近道より前に
-		// 判定しないと素通りする
+		// SPEC css-backgrounds-3 §6: a drawable border image completely replaces
+		// border-style rendering. Check before the "draw all four identical sides in one stroke"
+		// shortcut below, or it will be bypassed
 		if (BorderImageRenderer.INSTANCE.draw(gc, border, x, y, w, h)) {
 			return;
 		}
@@ -1003,7 +1003,7 @@ public class BorderRenderer {
 		final Border right = border.getRight();
 		final Border bottom = border.getBottom();
 
-		// border-radiusのパーセント成分はボックス寸法確定後のここで解決する
+		// Resolve border-radius percentages here, after box dimensions are finalized
 		final Radius topLeft = border.getTopLeft().resolve(w, h);
 		final Radius topRight = border.getTopRight().resolve(w, h);
 		final Radius bottomLeft = border.getBottomLeft().resolve(w, h);
@@ -1019,19 +1019,19 @@ public class BorderRenderer {
 		final double bottomRightVr = Math.min(h / 2, bottomRight.vr);
 
 		if (left.isVisible()) {
-			// 全ての境界のスタイルが同じかどうかの判断
+			// Check whether all border styles are identical
 			if (left.style == Border.SOLID || left.style == Border.DOTTED || left.style == Border.DASHED
 					|| left.style == Border.DOUBLE) {
 				if (left.equals(top) && left.equals(right) && left.equals(bottom) && topLeft.equals(topRight)
 						&& topLeft.equals(bottomLeft) && topLeft.equals(bottomRight)) {
-					// 全て同じであれば単純に四角を描く
+					// If all are identical, simply draw a rectangle
 					this.drawRect(gc, left, topLeft, x, y, w, h);
 					return;
 				}
 			}
 
 			if (left.style >= Border.DOUBLE) {
-				// 左境界
+				// Left border
 				try (final var gcState = gc.begin()) {
 					final boolean tr = (topLeftHr != 0 || topLeftVr != 0);
 					final boolean br = (bottomLeftHr != 0 || bottomLeftVr != 0);
@@ -1053,7 +1053,7 @@ public class BorderRenderer {
 			}
 		}
 		if (top.isVisible() && top.style >= Border.DOUBLE) {
-			// 上境界
+			// Top border
 			try (final var gcState = gc.begin()) {
 				final boolean lr = (topLeftHr != 0 || topLeftVr != 0);
 				final boolean rr = (topRightHr != 0 || topRightVr != 0);
@@ -1074,7 +1074,7 @@ public class BorderRenderer {
 			}
 		}
 		if (right.isVisible() && right.style >= Border.DOUBLE) {
-			// 右境界
+			// Right border
 			try (final var gcState = gc.begin()) {
 				final boolean tr = (topRightHr != 0 || topRightVr != 0);
 				final boolean br = (bottomRightHr != 0 || bottomRightVr != 0);
@@ -1096,7 +1096,7 @@ public class BorderRenderer {
 			}
 		}
 		if (bottom.isVisible() && bottom.style >= Border.DOUBLE) {
-			// 下境界
+			// Bottom border
 			try (final var gcState = gc.begin()) {
 				final boolean lr = (bottomLeftHr != 0 || bottomLeftVr != 0);
 				final boolean rr = (bottomRightHr != 0 || bottomRightVr != 0);

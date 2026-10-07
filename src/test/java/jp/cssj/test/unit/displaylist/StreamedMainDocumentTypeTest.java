@@ -18,11 +18,13 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 import net.zamasoft.zstream.resolver.util.SimpleSourceMetadata;
 
 /**
- * {@code CTISession.transcode(SourceMetadata)}(本文を出力ストリームへ書き込む経路)が、本文を渡された型で読むことを
- * 固定します(2026-10-04、全体レビュー。それまで出力の型を本文の型として渡し、Markdown も HTML として読んでいた)。
+ * Verify that {@code CTISession.transcode(SourceMetadata)} (the path that writes the body to an output stream)
+ * reads the body using the supplied type (2026-10-04, overall review). Previously it passed the output type
+ * as the body type and read Markdown as HTML too.
  *
  * <p>
- * この経路は別のスレッドで組むので、表示リストの書き出し(スレッドごとの指定)ではなく出力した PDF の文字で見る。
+ * This path lays out content on another thread, so inspect text in the output PDF rather than a display-list dump
+ * (configured per thread).
  * </p>
  */
 public class StreamedMainDocumentTypeTest extends TestCase {

@@ -5,8 +5,8 @@ import java.awt.image.BufferedImage;
 import net.zamasoft.pdfg2d.g2d.image.RasterImageImpl;
 
 /**
- * Paged SVGで再圧縮せず再利用できる元画像を持つラスタ画像。
- * 通常出力では生成せず、元の符号化を共有資産へ出す場合だけ使う。
+ * A raster image that retains the original image for reuse in Paged SVG without recompression.
+ * Not created for normal output; used only when emitting the original encoding as a shared asset.
  */
 public final class EncodedRasterImage extends RasterImageImpl {
 	private final byte[] encoded;

@@ -18,24 +18,24 @@ import org.commonmark.text.Characters;
 import java.util.*;
 
 /**
- * CJK句読点に隣接する強調(** / *)を解釈できるインラインパーサーです。
+ * An inline parser that recognizes emphasis (** / *) adjacent to CJK punctuation.
  * <p>
- * CommonMarkのフランキング規則は「閉じデリミタの直前が句読点なら、直後は
- * 空白または句読点でなければならない」と定めるため、
- * {@code **精密に：**希釈は…} のように全角句読点(：。、）等)の直後で強調を
- * 閉じて地の文(漢字・かな)が続く和文の常用パターンが強調と認められず、
- * {@code **} がそのまま出力される(GitHub等でも壊れる日本語Markdownの既知問題)。
- * 本実装はフランキング判定に限りCJK句読点(U+3000-303F、U+FF00-FFEF、U+30FB)を
- * 句読点として扱わないことでこれを解消する。CommonMark仕様からの意図的な
- * 逸脱であり、欧文の挙動(ASCII句読点)は変えない。
+ * CommonMark's flanking rules require whitespace or punctuation after a closing delimiter
+ * if punctuation immediately precedes it. Thus common Japanese patterns such as
+ * {@code **精密に：**希釈は…}, where emphasis closes after full-width punctuation (：。、）, etc.)
+ * and body text (kanji or kana) follows, are not recognized as emphasis;
+ * {@code **} appears literally (a known Japanese Markdown problem that also occurs on GitHub).
+ * This implementation fixes it by treating CJK punctuation (U+3000-303F, U+FF00-FFEF, U+30FB)
+ * as non-punctuation only for flanking checks. This deliberately departs from CommonMark
+ * without changing Latin-text behavior (ASCII punctuation).
  * </p>
  * <p>
- * 本体は commonmark-java 0.29.0 (BSD-2-Clause, Copyright (c) 2015, Atlassian
- * Pty Ltd) の {@code org.commonmark.internal.InlineParserImpl} の複製で、
- * 差分は {@link #scanDelimiters} の句読点判定({@code isFlankingPunctuation})
- * のみ。フランキング判定は private メソッドの内部にあり継承等では差し替え
- * られないため、全体複製が必要になっている。commonmark-java を更新する際は
- * この複製も元クラスと同期し直すこと。
+ * The implementation copies {@code org.commonmark.internal.InlineParserImpl} from
+ * commonmark-java 0.29.0 (BSD-2-Clause, Copyright (c) 2015, Atlassian Pty Ltd).
+ * The only change is the punctuation check ({@code isFlankingPunctuation}) in {@link #scanDelimiters}.
+ * Flanking checks are inside a private method and cannot be replaced through inheritance,
+ * so a full copy is necessary. When updating commonmark-java, resynchronize this copy
+ * with the original class.
  * </p>
  *
  * @see MarkdownParser
@@ -696,7 +696,7 @@ public class CjkFriendlyInlineParser implements InlineParser, InlineParserState 
         int after = scanner.peekCodePoint();
 
         // We could be more lazy here, in most cases we don't need to do every match case.
-        // [CJK対応差分] Characters.isPunctuationCodePoint → isFlankingPunctuation
+        // [CJK adaptation] Characters.isPunctuationCodePoint → isFlankingPunctuation
         boolean beforeIsPunctuation = before == Scanner.END || isFlankingPunctuation(before);
         boolean beforeIsWhitespace = before == Scanner.END || Characters.isWhitespaceCodePoint(before);
         boolean afterIsPunctuation = after == Scanner.END || isFlankingPunctuation(after);
@@ -720,9 +720,9 @@ public class CjkFriendlyInlineParser implements InlineParser, InlineParserState 
     }
 
     /**
-     * [CJK対応差分] フランキング判定用の句読点判定です。CJK句読点は句読点として
-     * 扱いません(クラスコメント参照)。対象はCJKの記号と句読点(U+3000-303F)、
-     * 半角・全角形(U+FF00-FFEF)、中点(U+30FB)。
+     * [CJK adaptation] Punctuation check for flanking rules. Does not treat CJK punctuation
+     * as punctuation (see the class comment). Covers CJK Symbols and Punctuation (U+3000-303F),
+     * Halfwidth and Fullwidth Forms (U+FF00-FFEF), and the middle dot (U+30FB).
      */
     private static boolean isFlankingPunctuation(int codePoint) {
         if ((codePoint >= 0x3000 && codePoint <= 0x303F) || (codePoint >= 0xFF00 && codePoint <= 0xFFEF)
@@ -733,12 +733,11 @@ public class CjkFriendlyInlineParser implements InlineParser, InlineParserState 
     }
 
     /**
-     * 複製元と同じパッケージのpackage-privateクラス
-     * {@code org.commonmark.internal.StaggeredDelimiterProcessor} の複製です
-     * (本体クラスと同様にcommonmark-java 0.29.0由来、無改変)。
-     * 同一文字に複数のDelimiterProcessorが登録された場合にデリミタ長で
-     * 振り分けるための内部部品で、複製元がpackage-privateのため参照できず、
-     * フォークを1ファイルに自己完結させるためネストクラスとして取り込んでいる。
+     * Copy of the package-private class {@code org.commonmark.internal.StaggeredDelimiterProcessor}
+     * from the original implementation's package (also from commonmark-java 0.29.0, unchanged).
+     * This internal component dispatches by delimiter length when multiple DelimiterProcessors
+     * are registered for the same character. The original is inaccessible because it is package-private;
+     * include it as a nested class to keep the fork self-contained in one file.
      */
     private static class StaggeredDelimiterProcessor implements DelimiterProcessor {
 

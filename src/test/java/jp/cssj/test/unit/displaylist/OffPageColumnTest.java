@@ -23,125 +23,112 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>段数倍に膨らんだ最小内容寸法で内容を紙面外へ置かない</b>ことを固定します
- * (2026-07-28新設)。
+ * Verify that <b>min-content sizes inflated by the column count do not place content off the paper</b>
+ * (introduced 2026-07-28).
  *
  * <p>
- * {@code RandomDocumentFuzzTest}の<b>不変条件6</b>(説明のつかない紙面外への
- * 配置)で最後まで残っていた欠陥種別です。50,000シードで8件、いずれも
- * <b>縦書き</b>と<b>段組</b>を含んでいました
- * 。実測すると<b>独立した2つの
- * 機序</b>で、6件が機序1、2件が機序2でした。ここで固定するのは<b>機序1だけ</b>
- * です。
+ * This was the last remaining defect category under {@code RandomDocumentFuzzTest}'s
+ * <b>invariant 6</b> (unexplained off-paper placement): eight cases in 50,000 seeds,
+ * all containing <b>vertical writing</b> and <b>multi-column layout</b>.
+ * Measurements identified <b>two independent mechanisms</b>: six cases used mechanism 1
+ * and two used mechanism 2. This test covers <b>only mechanism 1</b>.
  * </p>
  *
- * <h2>機序1(修正済み・このテストが固定する)</h2>
+ * <h2>Mechanism 1 (fixed; covered by this test)</h2>
  *
  * <p>
- * {@code fit-content}は{@code max(min-content, min(available, max-content))}
- * なので、<b>最小内容寸法が使える空間より大きいとそれがそのまま採用される</b>。
- * 段組の最小内容寸法は「段数 × 中身の最小内容寸法 + 段間」で<b>段数倍に
- * 膨らむ</b>ため、入れ子の段組では紙の何倍にもなる。しかも<b>行軸は分割
- * できない</b>(ページ分割はページ軸にしか効かない)ので、あふれた内容は
- * 次のページへ送られず紙の外の座標に描かれる。
- * </p>
- *
- * <p>
- * この文書(seed 35842 由来)は<b>明示サイズを一切含まない</b>のに、130ptの
- * 行軸に対して264ptの箱ができ、内容が y=−260(紙面は150pt)に描かれていた。
- * 修正は{@code AbstractStaticBlockBox.shrinkToFit}で、<b>段数倍が効いたとき
- * だけ</b>({@code IntrinsicSizes.columnInflated})行軸を使える空間で
- * 頭打ちにする。
- * </p>
- *
- * <h2>機序2(修正済み・このテストが固定する)</h2>
- *
- * <p>
- * <b>段に収まらない不可分な箱</b>(画像・インラインブロック)があると、
- * {@code BreakableBuilder.addBound()}の「はみ出している間{@code autoBreak()}を
- * 呼ぶ」ループが回り続ける。{@code findColumnBreak()}は
- * {@code AbstractContainerBox.canColumnBreak()}で段数の上限を守るのに、そこで
- * 断られた{@code autoBreak()}は最後の手段として{@code pageBreak()}を呼び、
- * 段組の中ではそれが<b>無条件に改段する</b>{@code ColumnBuilder.pageBreak()}
- * である。実測(seed 46577)では{@code column-count:4}が<b>14段</b>まで増え、
- * 内容が y=2,835(紙面は842pt)へ描かれた。残り2件(seeds 45399, 46577)が
- * これだった。
+ * {@code fit-content} is {@code max(min-content, min(available, max-content))}, so
+ * <b>if min-content exceeds available space, it is used directly</b>.
+ * Multi-column min-content equals "column count × inner min-content + gaps", <b>multiplying
+ * by the column count</b>; nested columns can thus reach many times the paper size.
+ * Furthermore, <b>the line axis cannot split</b> (pagination affects only the page axis),
+ * so overflowing content is drawn off the paper instead of moving to the next page.
  * </p>
  *
  * <p>
- * <b>「段を使い切ったら{@code false}を返す」だけでは入りません</b>
- * (2026-07-28に一度実測して撤回した)。ビルダーの各所が<b>「要求した改ページは
- * 必ず起きる」</b>を前提に書かれており、素朴に{@code false}を返すと次々に
- * 壊れます:
+ * This document (from seed 35842) <b>contains no explicit sizes</b>, yet produced a 264 pt box
+ * for a 130 pt line axis and drew content at y=−260 (150 pt paper).
+ * The fix in {@code AbstractStaticBlockBox.shrinkToFit} caps the line axis at available
+ * space <b>only when column-count inflation applies</b> ({@code IntrinsicSizes.columnInflated}).
+ * </p>
+ *
+ * <h2>Mechanism 2 (fixed; covered by this test)</h2>
+ *
+ * <p>
+ * An <b>indivisible box too large for a column</b> (image or inline-block) keeps
+ * {@code BreakableBuilder.addBound()}'s "call {@code autoBreak()} while overflowing" loop running.
+ * {@code findColumnBreak()} honors the column-count limit via {@code AbstractContainerBox.canColumnBreak()},
+ * but rejected {@code autoBreak()} calls fall back to {@code pageBreak()}. Within columns, this
+ * <b>unconditionally creates a column break</b> through {@code ColumnBuilder.pageBreak()}.
+ * Measured seed 46577 grew {@code column-count:4} to <b>14 columns</b>, drawing content at
+ * y=2,835 (842 pt paper). The remaining two cases (seeds 45399, 46577) used this mechanism.
+ * </p>
+ *
+ * <p>
+ * <b>Simply returning {@code false} when columns run out does not work</b>
+ * (measured and withdrawn once on 2026-07-28). Various builder sites assume
+ * <b>requested page breaks always happen</b>; naively returning {@code false} breaks them in succession:
  * </p>
  * <ol>
- * <li>{@code endFlowBlock()}の浮動体切断ループ({@code breakFloats}は
- * {@code beginBreak()}でしか空にならない)——<b>無限ループ</b></li>
- * <li>{@code flush()}の行間改ページ(直後に{@code textBuilder}を無検査で
- * 使う)——AssertionError/NPE</li>
- * <li>1と2を個別に直しても、再生中の{@code TextBuilder.finish()}で別の
- * assertionが発火(空のテキストブロックを閉じてしまうため)</li>
+ * <li>The float-cutting loop in {@code endFlowBlock()} ({@code breakFloats} empties only in
+ * {@code beginBreak()}): <b>infinite loop</b>.</li>
+ * <li>Interline page breaks in {@code flush()} (uses {@code textBuilder} immediately afterward
+ * without checking): AssertionError/NPE.</li>
+ * <li>Even after fixing 1 and 2 separately, another assertion fires in {@code TextBuilder.finish()}
+ * during replay because it closes an empty text block.</li>
  * </ol>
  *
  * <p>
- * <b>入った形</b>(2026-07-28): 戻り値を後から見て取り繕うのをやめ、
- * <b>飛ぶ前に訊く</b>{@code BreakableBuilder.canFragmentFurther()}を
- * 契約として足した。既定は{@code true}、{@code ColumnBuilder}だけが
- * 「段を使い切った」ときに{@code false}を返す。危険な2か所——
- * {@code flush()}の行間改ページと{@code endFlowBlock()}の浮動体切断ループ
- * ——は、改ページを<b>試みる前に</b>これを見て、テキストブロックを閉じずに
- * 素通りする/予約を捨てて抜ける。あわせて
- * {@code ColumnBuilder.pageBreak()}は、<b>自動</b>改ページで段数を
- * 使い切っていたら{@code beginBreak()}を呼んでから{@code false}を返す
- * ({@code RootBuilder.pageBreak()}が「改ページ点なし」で{@code false}を
- * 返すときと同じ契約——{@code breakFloats}が空になることが上記ループの
- * 停止条件になっている)。<b>強制</b>改ページは作者が段を要求したものなので
- * 従来どおり段を作る({@code ContinuationStats.guardBreakProgress}が自動
- * 改ページだけを見張るのと同じ理由)。
+ * <b>The accepted approach</b> (2026-07-28): stop patching things up after inspecting return values;
+ * add the <b>ask before jumping</b> contract {@code BreakableBuilder.canFragmentFurther()}.
+ * It defaults to {@code true}; only {@code ColumnBuilder} returns {@code false} when columns run out.
+ * The two dangerous sites, interline page breaks in {@code flush()} and float cutting in
+ * {@code endFlowBlock()}, check it <b>before attempting a break</b>, proceeding without closing
+ * the text block or discarding the reservation and exiting. Also, {@code ColumnBuilder.pageBreak()},
+ * on <b>automatic</b> breaks after exhausting columns, calls {@code beginBreak()}
+ * before returning {@code false} (the same contract as {@code RootBuilder.pageBreak()} returning
+ * {@code false} for no break point; emptying {@code breakFloats} terminates that loop).
+ * <b>Forced</b> breaks still create columns because the author requested them, for the same reason
+ * {@code ContinuationStats.guardBreakProgress} monitors only automatic page breaks.
  * </p>
  *
  * <p>
- * <b>この判定は「失敗しても壊れない」側に倒すこと</b>——最初の実装は
- * {@code canFragmentFurther()}を{@code findColumnBreak() != null ||
- * canColumnBreak()}としており、50,000シードの掃過で<b>strict 3件 +
- * wild 5件</b>の変換失敗を出しました(seeds 2928/40824/41678,
- * 10322/10538/15952/19100/37455)。入れ子の段組が{@code flowStack}に
- * <b>あっても</b>{@code columnBreak()}は{@code Keep}/{@code Move}で
- * 失敗しうるため、「訊いたら大丈夫と言われたのに飛べなかった」が起きます。
- * <b>この失敗の見え方に注意</b>: 種別名は
- * {@code 不変条件: textBuilderが開いたまま}ですが、実際に発火するのは
- * {@code BreakableBuilder.flush()}の{@code assert this.textBuilder != null}
- * ——つまり<b>開いたままではなく null</b> です
- * ({@code RandomDocumentFuzzTest.classify}が{@code "Unexpected error."}を
- * 一括でこの名前に寄せているだけ)。
+ * <b>This decision must tolerate failure without breaking</b>. The first implementation defined
+ * {@code canFragmentFurther()} as {@code findColumnBreak() != null || canColumnBreak()},
+ * causing <b>three strict and five wild</b> conversion failures in a 50,000-seed sweep
+ * (seeds 2928/40824/41678, 10322/10538/15952/19100/37455).
+ * With nested columns in {@code flowStack}, <b>even then</b> {@code columnBreak()} can fail with
+ * {@code Keep}/{@code Move}, so a positive preflight answer does not guarantee a successful break.
+ * <b>Note how this failure appears</b>: its category is {@code Invariant: textBuilder remains open},
+ * but the assertion that actually fires is {@code assert this.textBuilder != null}
+ * in {@code BreakableBuilder.flush()}, meaning it is <b>null, not left open</b>
+ * ({@code RandomDocumentFuzzTest.classify} simply groups all {@code "Unexpected error."} cases
+ * under that name).
  * </p>
  *
- * <h2>判定について</h2>
+ * <h2>Criteria</h2>
  *
  * <p>
- * <b>ファジングの不変条件6と同じ基準</b>にします——紙面をまるごと1枚分
- * はみ出し、かつ文書中の最大の明示サイズの2倍を超えたときだけ数える。
- * {@code overflow}の既定値は{@code visible}なので、箱からはみ出した内容を
- * 紙の外に描くこと自体は正しい挙動であり、素朴に「紙面内」を要求すると
- * 正当な文書が軒並み落ちます。
+ * Use <b>the same criteria as fuzz invariant 6</b>: count only overflow beyond one entire paper
+ * dimension and beyond twice the document's largest explicit size.
+ * Since {@code overflow} defaults to {@code visible}, drawing content beyond its box and off
+ * the paper is itself correct; naively requiring everything on paper would fail many valid documents.
  * </p>
  *
  * <p>
- * <b>文書はここで組み立てます</b>——外部ファイルにすると相対パスの画像参照で
- * 判定が変わる事故を起こします(教訓集 §6.9h)。画像を使わない
- * 縮小形を選んであるのはそのためです。
+ * <b>Build documents here</b>: external files risk changing the verdict through relative image paths
+ * (lessons learned §6.9h). That is why these reduced cases use no images.
  * </p>
  *
  * <p>
- * <b>紙面外は「内容を捨てる」ことでも消せる</b>ので、トークンの残存も
- * 併せて検査します。
+ * <b>Dropping content also eliminates off-paper placement</b>, so check token survival too.
  * </p>
  */
 public class OffPageColumnTest extends TestCase {
-	/** 打ち切り時間。実測は1件あたり1秒未満。 */
+	/** Timeout. Measured execution is under one second per case. */
 	private static final long WATCHDOG_MS = 60_000L;
 
-	/** 表示リストの描画位置。{@code RandomDocumentFuzzTest}と同じ書式。 */
+	/** Display-list drawing positions. Same format as {@code RandomDocumentFuzzTest}. */
 	private static final Pattern POS_IN_DUMP = Pattern.compile("x=(-?[\\d.]+) y=(-?[\\d.]+)");
 
 	public OffPageColumnTest(String name) {
@@ -149,8 +136,8 @@ public class OffPageColumnTest extends TestCase {
 	}
 
 	/**
-	 * 機序1: 直交書字の中の入れ子段組。<b>明示サイズを一切含まない</b>ので、
-	 * わずかなはみ出しでも不変条件6にかかる。
+	 * Mechanism 1: nested columns inside orthogonal writing. <b>No explicit sizes</b>,
+	 * so even slight overflow triggers invariant 6.
 	 */
 	private static final String ORTHOGONAL = """
 			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
@@ -179,15 +166,15 @@ public class OffPageColumnTest extends TestCase {
 	}
 
 	/**
-	 * 機序2: <b>段に収まらない不可分な箱</b>が段を無限に増やす
-	 * (seed 46577の縮小形。画像を{@code display:inline-block}へ置き換えた
-	 * だけで、表示リストの数値は元の文書と<b>1ptも変わらない</b>ことを
-	 * 確認済み——修正前の最悪はみ出しはどちらも{@code y=2835.08}の1,151pt)。
+	 * Mechanism 2: <b>an indivisible box too large for a column</b> creates unlimited columns
+	 * (reduced seed 46577). Only the image was replaced with {@code display:inline-block};
+	 * display-list numbers were verified to differ by <b>not even 1 pt</b> from the original.
+	 * Before the fix, both had worst overflow of 1,151 pt at {@code y=2835.08}.
 	 *
 	 * <p>
-	 * {@code column-count:4}に対して<b>14段</b>できていた。段は行方向
-	 * (この文書は縦書きなので<b>y</b>)に{@code i×(段幅+段間)}で並ぶので、
-	 * 段が増えるほど内容はまっすぐ紙の外へ出ていく。
+	 * {@code column-count:4} produced <b>14 columns</b>. Columns align along the line axis
+	 * (<b>y</b> in this vertical-writing document) at {@code i×(column width+gap)},
+	 * so each extra column sends content straight farther off the paper.
 	 * </p>
 	 */
 	private static final String COLUMN_BUDGET = """
@@ -217,26 +204,25 @@ public class OffPageColumnTest extends TestCase {
 			""";
 
 	/**
-	 * <b>段数の上限を超えて段を作らない</b>ことを固定します(2026-07-28新設)。
+	 * Verify that <b>no columns are created beyond the column-count limit</b> (introduced 2026-07-28).
 	 *
 	 * <p>
-	 * 判定は2本立てです。1本目は不変条件6と同じ基準(明示サイズ249ptなので
-	 * 猶予は498pt)——修正前は<b>1,151pt</b>で落ちます。ただしこれは
-	 * 「ひどさ」の判定であって<b>段数</b>の判定ではないので、2本目に
-	 * <b>行方向(この文書ではy)に描かれるものが紙面の高さに収まる</b>ことを
-	 * 要求します。段は{@code i×(段幅+段間)=i×212.75pt}に並ぶので、
-	 * 4段なら最後の段は{@code y=596..789.75}——実測の最大は{@code y=707.58}
-	 * です。5段目ができた時点で{@code y≧808.75}になり、この検査は落ちます
-	 * (修正前の実測は{@code y=2835.08}=14段)。
+	 * Use two checks. First, the invariant 6 criterion (explicit size 249 pt gives 498 pt allowance),
+	 * which fails at <b>1,151 pt</b> before the fix. This measures severity, not <b>column count</b>,
+	 * so also require <b>drawing positions along the line axis (y here) to fit the paper height</b>.
+	 * Columns sit at {@code i×(column width+gap)=i×212.75pt}; with four columns, the last spans
+	 * {@code y=596..789.75}, with measured maximum {@code y=707.58}.
+	 * A fifth column reaches {@code y≧808.75}, failing this check
+	 * (measured before the fix: {@code y=2835.08}, or 14 columns).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>紙面の高さ(842pt)を閾値にしているのは、それが「段が紙に収まって
-	 * いる」と言えるいちばん素直な線だから</b>です。{@code overflow}の既定は
-	 * {@code visible}なので<b>ページ方向</b>(x)のはみ出しは正当であり、
-	 * ここでは問いません——実際、修正後も{@code T6}の断片は{@code x=620.8}
-	 * (紙面幅595pt)に描かれます。これが本修正の設計そのもので、
-	 * <b>分割できない行方向へ伸ばす代わりに、最後の段の中であふれさせる</b>。
+	 * <b>Use paper height (842 pt) as the threshold because it is the most straightforward boundary
+	 * for saying the columns fit the paper.</b> Since {@code overflow} defaults to {@code visible},
+	 * overflow along the <b>page axis</b> (x) is valid and is not checked here. Even after the fix,
+	 * a {@code T6} fragment is drawn at {@code x=620.8} (595 pt paper width).
+	 * This is the design of the fix: <b>overflow within the last column instead of extending
+	 * along the unsplittable line axis</b>.
 	 * </p>
 	 */
 	public void testColumnCountIsNotExceeded() throws Exception {
@@ -263,16 +249,16 @@ public class OffPageColumnTest extends TestCase {
 	}
 
 	/**
-	 * 変換して、(1) 説明のつかない紙面外への配置がないこと、(2) T0..T(n-1) の
-	 * トークンが全部どこかのページに現れること、を検査します。
+	 * Convert and check (1) no unexplained off-paper placement, and
+	 * (2) all tokens T0..T(n-1) appear on some page.
 	 *
-	 * @param name            作業ディレクトリ名
-	 * @param html            文書
-	 * @param pageWidth       紙面の幅(pt)
-	 * @param pageHeight      紙面の高さ(pt)
-	 * @param maxExplicitSize 文書が指定した{@code width}/{@code height}の最大値
-	 * @param tokenCount      文書が持つ T トークンの数
-	 * @return 表示リストのダンプを置いた作業ディレクトリ(追加の判定用)
+	 * @param name            working directory name
+	 * @param html            document
+	 * @param pageWidth       paper width (pt)
+	 * @param pageHeight      paper height (pt)
+	 * @param maxExplicitSize largest {@code width}/{@code height} specified by the document
+	 * @param tokenCount      number of T tokens in the document
+	 * @return working directory containing display-list dumps (for additional checks)
 	 */
 	private static File assertNoUnexplainedOffPage(final String name, final String html, final double pageWidth,
 			final double pageHeight, final double maxExplicitSize, final int tokenCount) throws Exception {
@@ -322,8 +308,8 @@ public class OffPageColumnTest extends TestCase {
 		assertTrue(name + ": ページが1枚も出ていない", pages.length > 0);
 		java.util.Arrays.sort(pages);
 
-		// 紙面をまるごと1枚分はみ出して初めて数え、明示サイズの2倍までは
-		// 「作者の指定の帰結」として見逃す(不変条件6と同じ基準)
+		// Count only overflow of at least one entire paper dimension, and allow up to twice
+		// the explicit size as a consequence of author declarations (same criterion as invariant 6).
 		final double slack = 2 * maxExplicitSize;
 		double worst = 0;
 		String worstAt = null;
@@ -346,7 +332,7 @@ public class OffPageColumnTest extends TestCase {
 				+ Math.round(pageHeight) + "pt, 最大明示サイズ" + Math.round(maxExplicitSize) + "pt, " + worstAt + ", 全"
 				+ pages.length + "ページ)", worst <= slack);
 
-		// 紙面外は「内容を捨てる」ことでも消せる。それが退行として見えるように
+		// Dropping content also eliminates off-paper placement. Make that visible as a regression.
 		final List<String> lost = new ArrayList<>();
 		for (int i = 0; i < tokenCount; ++i) {
 			if (all.indexOf("T" + i) < 0) {

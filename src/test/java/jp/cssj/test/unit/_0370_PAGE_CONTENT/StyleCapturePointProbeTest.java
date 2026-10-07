@@ -22,12 +22,12 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * running-elements R0 のスタイル捕捉点プローブです。
+ * Style capture point probe for running-elements R0.
  *
  * <p>
- * 表示結果から内部の Segment を推測して assert するのではなく、ソース上で確実な
- * 「カスケード済みの疑似スタイル」と「要素の counter-increment が疑似内容より先」だけを
- * 生成結果で固定する。捕捉点そのものは stderr に報告する。
+ * Instead of inferring internal Segments from rendered output for assertions, this test verifies only
+ * what is certain from the source: "cascaded pseudo-styles" and "the element's counter-increment
+ * precedes pseudo-content", using generated results. The capture point itself is reported to stderr.
  * </p>
  */
 public class StyleCapturePointProbeTest extends TestCase {

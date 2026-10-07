@@ -22,7 +22,7 @@ public class NthConditionTest extends TestCase {
 	}
 
 	public void testFixedIntegerMatchesExactlyOnePosition() {
-		// :nth-child(5) は a=0, b=5
+		// :nth-child(5) means a=0, b=5.
 		NthCondition c = new NthCondition(ConditionType.NTH_CHILD_CONDITION, 0, 5, "5");
 		assertFalse(c.matches(4));
 		assertTrue(c.matches(5));
@@ -30,7 +30,7 @@ public class NthConditionTest extends TestCase {
 	}
 
 	public void testNegativeCoefficientBoundsFromAbove() {
-		// -n+3: 3,2,1 のみマッチ(kが非負である間だけ)
+		// -n+3: matches only 3,2,1 (while k is nonnegative).
 		NthCondition c = new NthCondition(ConditionType.NTH_CHILD_CONDITION, -1, 3, "-n+3");
 		assertTrue(c.matches(1));
 		assertTrue(c.matches(2));

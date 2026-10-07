@@ -11,16 +11,16 @@ import org.verapdf.pdfa.results.TestAssertion;
 import junit.framework.TestCase;
 
 /**
- * PDF/A 各版の出力を veraPDF で検証します(2026-09-03)。
+ * Validate output for each PDF/A version with veraPDF (2026-09-03).
  *
  * <p>
- * veraPDF は PDF/A と PDF/UA だけを検証でき、PDF/X の profile を持たない
- * (veraPDF-validation-profiles は PDF_A と PDF_UA のみ)。生成画像
- * (影のぼかし・filter のラスタ化)の ICCBased sRGB、conic-gradient の
- * type 4 メッシュ、透明グループ、埋め込みフォントといった PDF/X-4 と
- * 共通する制約は、透明を許す PDF/A-2 以降の検証で代替する。PDF/A-1 は
- * 透明不可なので従来の近似経路(2822)がそのまま適合するかを見る。
- * PDF/X は {@link PdfXValidationTest}(pdfg2d の {@code PdfXPreflight})。
+ * veraPDF validates only PDF/A and PDF/UA and has no PDF/X profiles
+ * (veraPDF-validation-profiles contains only PDF_A and PDF_UA).
+ * Use validation against PDF/A-2 and later, which allow transparency, as a substitute for constraints
+ * shared with PDF/X-4: ICCBased sRGB in generated images (shadow blur and filter rasterization),
+ * conic-gradient type 4 meshes, transparency groups, and embedded fonts.
+ * PDF/A-1 prohibits transparency, so check whether the existing approximation path (2822) conforms as-is.
+ * For PDF/X, see {@link PdfXValidationTest} (pdfg2d's {@code PdfXPreflight}).
  * </p>
  */
 public class PdfAValidationTest extends TestCase {

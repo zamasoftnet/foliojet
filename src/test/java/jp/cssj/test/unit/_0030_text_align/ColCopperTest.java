@@ -19,7 +19,7 @@ public class ColCopperTest extends AbstractTestCase {
 
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
-			// インラインボックスはセルの左端に配置される
+			// The inline box is placed at the left edge of the cell.
 			System.err.println(x);
 			assertEquals(1, x, 1);
 			return true;
@@ -29,7 +29,7 @@ public class ColCopperTest extends AbstractTestCase {
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
-			// インラインボックスはセルの左端に配置される
+			// The inline box is placed at the left edge of the cell.
 			System.err.println(x);
 			assertEquals(1 + 100 + 1, x, 1);
 			return true;
@@ -39,7 +39,7 @@ public class ColCopperTest extends AbstractTestCase {
 
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
-			// インラインボックスはセルの左端に配置される
+			// The inline box is placed at the left edge of the cell.
 			System.err.println(x);
 			assertEquals(1 + 100 + 1 + 100 + 1, x, 1);
 			return true;

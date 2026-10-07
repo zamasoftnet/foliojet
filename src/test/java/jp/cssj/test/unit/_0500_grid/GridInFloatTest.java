@@ -8,7 +8,8 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 幅なしfloat内のGridを範囲から再構築し、配置座標とrecipe再生の発火を検証する。
+ * Reconstructs a Grid inside a float without a specified width from its range,
+ * and checks placement coordinates and recipe replay activation.
  */
 public class GridInFloatTest extends AbstractTestCase {
 	public GridInFloatTest(String name) {
@@ -34,7 +35,7 @@ public class GridInFloatTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** G3d1: float内でも実トラック配置(2列目=+60)。 */
+	/** G3d1: actual track placement also applies inside a float (second column = +60). */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 60, x, 0.1);
@@ -44,7 +45,7 @@ public class GridInFloatTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 2行目1列目。 */
+	/** Row 2, column 1. */
 	public boolean check_r(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);

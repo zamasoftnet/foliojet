@@ -22,9 +22,9 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code :root} で宣言した変数が {@code @page} とその欄外の箱で効くことを固定します(2026-10-06、jigensha の報告:
- * 欄外の箱の {@code var()} が解決されず、ノンブルが既定の書体・大きさになった)。css-page-3 §6 では頁の文脈は
- * 根要素から継ぐ。
+ * Verify that variables declared on {@code :root} work in {@code @page} and its margin boxes
+ * (2026-10-06, jigensha report: unresolved {@code var()} in margin boxes left page numbers
+ * at the default font and size). Under css-page-3 §6, the page context inherits from the root element.
  */
 public class MarginBoxVarTest extends TestCase {
 	private static final long WATCHDOG_MS = 60_000L;
@@ -52,7 +52,7 @@ public class MarginBoxVarTest extends TestCase {
 		return m.group(1);
 	}
 
-	/** 変換して、各頁の表示リストを頁順に返します。 */
+	/** Convert and return each page's display list in page order. */
 	private static String[] convert(final String html) throws Exception {
 		final File dir = new File("local/margin-box-var/" + Integer.toHexString(html.hashCode()));
 		dir.mkdirs();

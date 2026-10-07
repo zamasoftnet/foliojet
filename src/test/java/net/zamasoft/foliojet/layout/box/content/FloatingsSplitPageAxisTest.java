@@ -21,18 +21,17 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
 /**
- * {@code Floatings.splitPageAxis}の分岐表テストです(2026-07-24新設、
- * 排除域P2のP2-1。正本:
- * 開発記録の
- * 「P2-1テスト行列(最低限)」)。
+ * Branch-table tests for {@code Floatings.splitPageAxis} (added 2026-07-24,
+ * P2-1 of exclusion area P2. Source of truth:
+ * "P2-1 test matrix (minimum)" in the development record).
  *
  * <p>
- * 合成のFloatings/Floating(scripted splitのスタブボックス)を組み立てて
- * {@code splitPageAxis}を直接呼び、結果の分類(KeepAll/MoveAll/Partition
- * ——P2-1時点の旧sentinel null/this/新と1:1対応)・各floatの行き先・
- * SPLITのremainder座標(0,0)とserial引き継ぎ・caseフォールスルー経路
- * (分岐表4→5)を固定する。<b>既存挙動の固定</b>であり、P2-3のplan駆動
- * commit化・P2-5の型付き一本化を通じて全シナリオの期待値は不変。
+ * Builds synthetic Floatings/Floating instances (stub boxes with scripted splits), calls
+ * {@code splitPageAxis} directly, and locks down the result classification (KeepAll/MoveAll/Partition,
+ * corresponding one-to-one to the old null/this/new sentinels as of P2-1), each float's destination,
+ * the SPLIT remainder's coordinates (0,0) and inherited serial, and the case fall-through path
+ * (branch table 4→5). This <b>locks down existing behavior</b>: expected values for every scenario
+ * remain unchanged through P2-3's plan-driven commit and P2-5's unification with typed results.
  * </p>
  */
 public class FloatingsSplitPageAxisTest extends TestCase {
@@ -45,27 +44,27 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 補助: 結果の分類(旧sentinel null/this/新との対応を固定)
+	// Helpers: result classification (lock down the mapping to the old null/this/new sentinels).
 	// ------------------------------------------------------------------
 
-	/** 旧null: 全て前のフラグメントに残る。 */
+	/** Former null: everything stays in the previous fragment. */
 	private static void assertKeepAll(final FloatSplitResult result) {
 		assertTrue("KeepAllのはず: " + result, result instanceof FloatSplitResult.KeepAll);
 	}
 
-	/** 旧this: 全て次のフラグメントへ(遅延表現——元リストは無傷)。 */
+	/** Former this: everything goes to the next fragment (deferred representation; the source list is intact). */
 	private static void assertMoveAll(final FloatSplitResult result) {
 		assertTrue("MoveAllのはず: " + result, result instanceof FloatSplitResult.MoveAll);
 	}
 
-	/** 旧新Floatings: 部分移動。remainder台帳を返す。 */
+	/** Former new Floatings: partial movement. Returns the remainder ledger. */
 	private static Floatings partitionRemainder(final FloatSplitResult result) {
 		assertTrue("Partitionのはず: " + result, result instanceof FloatSplitResult.Partition);
 		return ((FloatSplitResult.Partition) result).remainder();
 	}
 
 	// ------------------------------------------------------------------
-	// 補助: 合成ボックス
+	// Helpers: synthetic boxes.
 	// ------------------------------------------------------------------
 
 	private static BlockParams blockParams(final WritingMode flow, final PageBreakMode pageBreakInside) {
@@ -77,18 +76,18 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		return params;
 	}
 
-	/** splitPageAxisの第1引数(owner)。書字方向だけが参照される。 */
+	/** The first argument (owner) to splitPageAxis. Only the writing direction is consulted. */
 	private static AbstractContainerBox owner(final WritingMode flow) {
 		return new FloatBlockBox(blockParams(flow, PageBreakMode.AUTO), new FloatPos());
 	}
 
 	/**
-	 * ページ方向寸法と切断結果をスクリプトできるBLOCK浮動ボックスです。
-	 * シナリオの記述は従来どおり{@code SplitResult}型で行い、A-3a-2以降の
-	 * 実切断経路({@code splitFloatFragment})へ翻訳する——Splitは「canned
-	 * remainderをそのまま返すrecipe」を持つPreparedFloatFragmentになる
-	 * (materializeの一回性・serial引き継ぎは本物の機構を通る)。
-	 * scripted==nullのシナリオで切断が呼ばれたら失敗する。
+	 * A BLOCK float box with a scriptable page-axis size and split result.
+	 * Scenarios still use the {@code SplitResult} type, translated into the actual split path
+	 * ({@code splitFloatFragment}) introduced in A-3a-2. A Split becomes a PreparedFloatFragment
+	 * with a recipe that returns the canned remainder as-is (one-shot materialization and serial
+	 * inheritance use the real mechanism).
+	 * Fails if a split is called in a scenario with scripted==null.
 	 */
 	private static class StubBlockFloat extends FloatBlockBox {
 		private final double pageExtent;
@@ -132,7 +131,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		}
 	}
 
-	/** REPLACED(atomic)浮動ボックス。splitPageAxisはREPLACEDをcastしない。 */
+	/** A REPLACED (atomic) float box. splitPageAxis does not cast REPLACED boxes. */
 	private static final class StubReplacedFloat extends StubBlockFloat {
 		StubReplacedFloat(final BlockParams params, final double pageExtent) {
 			super(params, pageExtent, null);
@@ -165,34 +164,34 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 結果分類(旧nextFloatings状態機械のsentinel対応)の固定
+	// Lock down result classification (mapping to the old nextFloatings state machine's sentinels).
 	// ------------------------------------------------------------------
 
-	/** 行列: 全KEEP→KeepAll(旧null)。 */
+	/** Matrix: all KEEP → KeepAll (formerly null). */
 	public void testAllKeepReturnsKeepAll() {
 		final Floatings.Floating f0 = floating(1, block(10), 0);
 		final Floatings.Floating f1 = floating(2, block(10), 20);
 		final Floatings floatings = floatingsOf(f0, f1);
 		assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
-		// 元のリストは無傷
+		// The source list remains intact.
 		assertEquals(2, floatings.getCount());
 		assertSame(f0, floatings.getFloating(0));
 		assertSame(f1, floatings.getFloating(1));
 	}
 
-	/** 行列: 全MOVE→MoveAll(旧this。遅延表現——元リストから動かさない)。 */
+	/** Matrix: all MOVE → MoveAll (formerly this; deferred representation leaves the source list untouched). */
 	public void testAllMoveReturnsMoveAll() {
 		final Floatings.Floating f0 = floating(1, block(10), 150);
 		final Floatings.Floating f1 = floating(2, block(10), 160);
 		final Floatings floatings = floatingsOf(f0, f1);
 		assertMoveAll(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
-		// MoveAllは遅延表現——floatは元リストに残っている
+		// MoveAll is a deferred representation: floats remain in the source list.
 		assertEquals(2, floatings.getCount());
 		assertSame(f0, floatings.getFloating(0));
 		assertSame(f1, floatings.getFloating(1));
 	}
 
-	/** 行列: KEEP後MOVE(先頭KEEP後のMOVEでPartition)。 */
+	/** Matrix: KEEP then MOVE (a MOVE after the initial KEEP produces Partition). */
 	public void testKeepThenMovePartition() {
 		final Floatings.Floating keep = floating(1, block(50), 0);
 		final Floatings.Floating move = floating(2, block(10), 150);
@@ -205,7 +204,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertSame(move, next.getFloating(0));
 	}
 
-	/** 行列: MOVE prefix後KEEP(先行MOVE群の移送——移送ロジックの本丸)。 */
+	/** Matrix: MOVE prefix then KEEP (transfer the preceding MOVEs; the core of the transfer logic). */
 	public void testMovePrefixThenKeepTransfersPrefix() {
 		final Floatings.Floating move0 = floating(1, block(10), 150);
 		final Floatings.Floating move1 = floating(2, block(10), 160);
@@ -213,7 +212,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		final Floatings floatings = floatingsOf(move0, move1, keep);
 		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertNotSame(floatings, next);
-		// 先行MOVE群は元順序のままnext側へ、KEEPは元に残る
+		// The preceding MOVEs go to next in their original order; KEEP stays in the source.
 		assertEquals(2, next.getCount());
 		assertSame(move0, next.getFloating(0));
 		assertSame(move1, next.getFloating(1));
@@ -221,7 +220,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertSame(keep, floatings.getFloating(0));
 	}
 
-	/** 行列: SPLIT単独——元はthis側に残り、remainderは座標(0,0)+serial引き継ぎでnext側へ。 */
+	/** Matrix: SPLIT alone; the original stays in this, and the remainder goes to next at (0,0), inheriting serial. */
 	public void testSplitSingleKeepsOriginalAndSendsRemainder() {
 		final StubBlockFloat remainder = block(60);
 		final StubBlockFloat box = blockSplitting(100, new SplitResult.Split(remainder));
@@ -229,25 +228,25 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		final Floatings floatings = floatingsOf(f);
 		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertNotSame(floatings, next);
-		// 元のFloatingはthis側に残る
+		// The original Floating stays in this.
 		assertEquals(1, floatings.getCount());
 		assertSame(f, floatings.getFloating(0));
 		assertSame(box, floatings.getFloating(0).box);
-		// remainderは座標(0,0)=次フラグメント先頭、serialは引き継ぐ
+		// The remainder is at (0,0), the start of the next fragment, and inherits serial.
 		assertEquals(1, next.getCount());
 		final Floatings.Floating rf = next.getFloating(0);
 		assertSame(remainder, rf.box);
 		assertEquals(7, rf.serial);
 		assertEquals(0.0, rf.lineAxis, 0);
 		assertEquals(0.0, rf.pageAxis, 0);
-		// split呼び出しはfloat座標系の切断線とFLAGS_SPLIT
+		// The split call uses the cut line in the float's coordinate system and FLAGS_SPLIT.
 		assertEquals(1, box.splitCalls);
 		assertEquals(60.0, box.seenPageLimit, 0);
 		assertEquals(IPageBreakableBox.FLAGS_SPLIT, box.seenFlags);
 		assertSame(BreakMode.DEFAULT_BREAK_MODE, box.seenMode);
 	}
 
-	/** 行列: MOVE+SPLIT+KEEP混在(prefix移送とSPLITとKEEPの複合)。 */
+	/** Matrix: mixed MOVE+SPLIT+KEEP (combines prefix transfer, SPLIT, and KEEP). */
 	public void testMoveSplitKeepMixed() {
 		final Floatings.Floating move = floating(11, block(10), 150);
 		final StubBlockFloat remainder = block(60);
@@ -257,22 +256,22 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		final Floatings floatings = floatingsOf(move, split, keep);
 		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertNotSame(floatings, next);
-		// next側: [MOVEされた元Floating, SPLITのremainder] の元順序
+		// In next: [original Floating moved by MOVE, SPLIT remainder], in the original order.
 		assertEquals(2, next.getCount());
 		assertSame(move, next.getFloating(0));
 		assertSame(remainder, next.getFloating(1).box);
 		assertEquals(22, next.getFloating(1).serial);
-		// this側: [SPLIT元(そのまま残る), KEEP] の元順序
+		// In this: [SPLIT original (left in place), KEEP], in the original order.
 		assertEquals(2, floatings.getCount());
 		assertSame(split, floatings.getFloating(0));
 		assertSame(keep, floatings.getFloating(1));
 	}
 
 	// ------------------------------------------------------------------
-	// 分類側: first×avoid×書字軸×BLOCK/REPLACED、境界、split結果
+	// Classification: first × avoid × writing axis × BLOCK/REPLACED, boundaries, split results.
 	// ------------------------------------------------------------------
 
-	/** 分岐表3: 非first・avoidなし・書字軸一致のBLOCKはFLAGS_SPLITで切断。 */
+	/** Branch table 3: a non-first BLOCK without avoid and with a matching writing axis splits with FLAGS_SPLIT. */
 	public void testNonFirstBlockSplitUsesSplitFlag() {
 		final StubBlockFloat box = blockSplitting(100, new SplitResult.Split(block(60)));
 		final Floatings floatings = floatingsOf(floating(1, box, 40));
@@ -282,7 +281,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(60.0, box.seenPageLimit, 0);
 	}
 
-	/** 分岐表3: first(FLAGS_FIRSTかつ物理的にフラグメント先頭)のBLOCKはFLAGS_FIRSTで切断。 */
+	/** Branch table 3: a first BLOCK (FLAGS_FIRST and physically at the fragment start) splits with FLAGS_FIRST. */
 	public void testFirstBlockSplitUsesFirstFlag() {
 		final StubBlockFloat box = blockSplitting(200, new SplitResult.Split(block(100)));
 		final Floatings floatings = floatingsOf(floating(1, box, 0));
@@ -293,7 +292,10 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertNotSame(floatings, next);
 	}
 
-	/** 分岐表4→5フォールスルー: avoidかつ非firstのBLOCKはREPLACED扱いで丸ごとMOVE(splitは呼ばれない)。 */
+	/**
+	 * Branch table 4→5 fall-through: a non-first BLOCK with avoid is treated as REPLACED and MOVEd whole, without
+	 * split.
+	 */
 	public void testAvoidNonFirstFallsThroughToMove() {
 		final StubBlockFloat box = new StubBlockFloat(blockParams(WritingMode.TB, PageBreakMode.AVOID), 100, null);
 		final Floatings floatings = floatingsOf(floating(1, box, 40));
@@ -301,7 +303,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(0, box.splitCalls);
 	}
 
-	/** 分岐表3: avoidでも物理firstならavoidヒントを上書きして実際に切断する(2026-07-23規則)。 */
+	/** Branch table 3: a physically first box overrides the avoid hint and actually splits (2026-07-23 rule). */
 	public void testAvoidFirstOverridesAvoidAndSplits() {
 		final StubBlockFloat box = new StubBlockFloat(blockParams(WritingMode.TB, PageBreakMode.AVOID), 200,
 				new SplitResult.Split(block(100)));
@@ -311,7 +313,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(IPageBreakableBox.FLAGS_FIRST, box.seenFlags);
 	}
 
-	/** 分岐表4→5フォールスルー: 書字軸不一致のBLOCK(非first)はatomic扱いで丸ごとMOVE。 */
+	/** Branch table 4→5 fall-through: a non-first BLOCK with a mismatched writing axis is atomic and MOVEd whole. */
 	public void testAxisMismatchNonFirstFallsThroughToMove() {
 		final StubBlockFloat box = new StubBlockFloat(blockParams(WritingMode.RL, PageBreakMode.AUTO), 100, null);
 		final Floatings floatings = floatingsOf(floating(1, box, 40));
@@ -320,8 +322,8 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	}
 
 	/**
-	 * 分岐表4→5フォールスルー: 書字軸不一致のBLOCK(first)ははみ出し許容でKEEP
-	 * ——救済分割を切った場合の<b>従来の</b>挙動。
+	 * Branch table 4→5 fall-through: a first BLOCK with a mismatched writing axis allows overflow and KEEPs;
+	 * this is the <b>previous</b> behavior with rescue splitting disabled.
 	 */
 	public void testAxisMismatchFirstKeepsOverflowing() {
 		final StubBlockFloat box = new StubBlockFloat(blockParams(WritingMode.RL, PageBreakMode.AUTO), 200, null);
@@ -332,7 +334,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(0, box.splitCalls);
 	}
 
-	/** 分岐表5: REPLACED(非first)は丸ごとMOVE。 */
+	/** Branch table 5: a non-first REPLACED box is MOVEd whole. */
 	public void testReplacedNonFirstMoves() {
 		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 100);
 		final Floatings floatings = floatingsOf(floating(1, box, 40));
@@ -341,8 +343,8 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	}
 
 	/**
-	 * 分岐表5: REPLACED(first)ははみ出し許容でKEEP——救済分割を切った場合の
-	 * <b>従来の</b>挙動。
+	 * Branch table 5: a first REPLACED box allows overflow and KEEPs;
+	 * this is the <b>previous</b> behavior with rescue splitting disabled.
 	 */
 	public void testReplacedFirstKeepsOverflowing() {
 		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 200);
@@ -354,14 +356,15 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// 分岐表5-R: 救済分割(2026-07-25、増分7)
+	// Branch table 5-R: rescue splitting (2026-07-25, increment 7).
 	// ------------------------------------------------------------------
 
 	/**
-	 * 分岐表5-R: REPLACED(first)がなお超過している——現在「はみ出したまま
-	 * 描画」に落ちる唯一の非進行点——では、Keepのかわりに幾何学的に切る。
-	 * 元台帳にhead(占有量=容量)、残余台帳にtail(残り全部・座標(0,0)・
-	 * serial引き継ぎ)が入る。元ボックスは<b>切らない</b>(splitは呼ばれない)。
+	 * Branch table 5-R: if a first REPLACED box still overflows (currently the only point with no progress
+	 * that falls back to drawing with overflow), slice it geometrically instead of using Keep.
+	 * The source ledger receives the head (occupied extent = capacity); the remainder ledger receives the
+	 * tail (all remaining content, coordinates (0,0), inherited serial). The original box is <b>not split</b>
+	 * (split is not called).
 	 */
 	public void testReplacedFirstIsRescued() {
 		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 200);
@@ -369,7 +372,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		final Floatings floatings = floatingsOf(f);
 		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
 		assertEquals(0, box.splitCalls);
-		// head: 元の位置のまま、占有量は容量ぶんだけ
+		// head: keeps the original position and occupies only the available capacity.
 		assertEquals(1, floatings.getCount());
 		final Floatings.Floating head = floatings.getFloating(0);
 		assertNotSame(f, head);
@@ -383,7 +386,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(200.0, headBox.getSourcePageExtent(), 0);
 		assertTrue(headBox.isFirstFragment());
 		assertFalse(headBox.isLastFragment());
-		// tail: 座標(0,0)=次フラグメント先頭、serial引き継ぎ、残り全部
+		// tail: coordinates (0,0), the start of the next fragment; inherits serial and contains all remaining content.
 		assertEquals(1, next.getCount());
 		final Floatings.Floating tail = next.getFloating(0);
 		assertEquals(9, tail.serial);
@@ -397,20 +400,20 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertTrue(tailBox.isLastFragment());
 	}
 
-	/** 分岐表5-R: 書字軸不一致のBLOCK(first)も同じ非進行点なので救済される。 */
+	/** Branch table 5-R: a first BLOCK with a mismatched writing axis has the same lack of progress and is rescued. */
 	public void testAxisMismatchFirstIsRescued() {
 		final StubBlockFloat box = new StubBlockFloat(blockParams(WritingMode.RL, PageBreakMode.AUTO), 200, null);
 		final Floatings floatings = floatingsOf(floating(1, box, 0));
 		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
-		// 元ボックスには一切触れない(通常の切断は呼ばれない)
+		// Do not touch the original box at all (the normal split is not called).
 		assertEquals(0, box.splitCalls);
 		assertTrue(floatings.getFloating(0).box instanceof VisualRescueFloatBox);
 		assertTrue(next.getFloating(0).box instanceof VisualRescueFloatBox);
 	}
 
 	/**
-	 * 分岐表5-R: 断片の続きも同じ判定を通り、<b>断片の断片は作らない</b>
-	 * (区間はoffset/sliceExtentだけで表す)。
+	 * Branch table 5-R: a fragment continuation goes through the same check, and <b>no fragment of a fragment
+	 * is created</b> (the interval is represented only by offset/sliceExtent).
 	 */
 	public void testRescueFragmentIsSlicedAgainWithoutNesting() {
 		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 500);
@@ -419,7 +422,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		final Floatings next = partitionRemainder(floatings.splitPageAxis(owner(WritingMode.TB), 100, FIRST));
 		final VisualRescueFloatBox head = (VisualRescueFloatBox) floatings.getFloating(0).box;
 		final VisualRescueFloatBox tail = (VisualRescueFloatBox) next.getFloating(0).box;
-		// 入れ子にならず、元ボックスを直接参照する
+		// References the original box directly, without nesting.
 		assertSame(box, head.getSource());
 		assertSame(box, tail.getSource());
 		assertEquals(100.0, head.getOffset(), 0);
@@ -429,8 +432,8 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	}
 
 	/**
-	 * 分岐表5-R: 非firstは従来どおり丸ごとMOVE(救済しない)。まだ「次の
-	 * フラグメントへ送る」という通常の手段が残っているため。
+	 * Branch table 5-R: a non-first box is MOVEd whole as before (no rescue), because the normal option
+	 * of sending it to the next fragment is still available.
 	 */
 	public void testNonFirstIsNotRescued() {
 		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 200);
@@ -439,9 +442,9 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	}
 
 	/**
-	 * 分岐表5-R: はみ出し量が実用上小さすぎる(20pt未満)場合は救済しない。
-	 * 数ptのために1ページ増やすと、そのページは実質白紙になる
-	 * ——「意図しない白紙ページを作らない」という絶対要件の末尾側の守り。
+	 * Branch table 5-R: do not rescue if the overflow is too small to be useful (less than 20 pt).
+	 * Adding a page for a few points would make that page effectively blank; this guards the trailing
+	 * side of the absolute requirement to avoid unintended blank pages.
 	 */
 	public void testTinyOverflowIsNotRescued() {
 		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 110);
@@ -450,17 +453,20 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	}
 
 	/**
-	 * 分岐表5-R: フラグメンテナの利用可能量が実用上小さすぎる場合も救済しない
-	 * (極小断片ページの連続を防ぐ先頭側の守り)。
+	 * Branch table 5-R: also do not rescue if the fragmentainer has too little usable space
+	 * (a guard on the leading side against successive pages with tiny fragments).
 	 */
 	public void testSliverCapacityIsNotRescued() {
 		final StubReplacedFloat box = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 200);
 		final Floatings floatings = floatingsOf(floating(1, box, 0));
-		// 容量15pt < max(20pt, 15pt*0.25)
+		// Capacity 15 pt < max(20 pt, 15 pt*0.25).
 		assertKeepAll(floatings.splitPageAxis(owner(WritingMode.TB), 15, FIRST));
 	}
 
-	/** 「first」は物理位置——FLAGS_FIRSTでもpageAxisが先頭でなければfirstではない(分岐表2でMOVE)。 */
+	/**
+	 * "first" is physical: even with FLAGS_FIRST, a pageAxis away from the start is not first (MOVE in branch
+	 * table 2).
+	 */
 	public void testFirstFlagRequiresPhysicalHead() {
 		final StubBlockFloat box = new StubBlockFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO), 200, null);
 		final Floatings floatings = floatingsOf(floating(1, box, 10));
@@ -468,21 +474,21 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(0, box.splitCalls);
 	}
 
-	/** 分岐表1境界: LayoutUtils.compareの許容誤差(0.5)内のはみ出しはKEEP。 */
+	/** Branch table 1 boundary: overflow within the LayoutUtils.compare tolerance (0.5) KEEPs. */
 	public void testBoundaryWithinToleranceKeeps() {
-		// ちょうど
+		// Exact fit.
 		final StubBlockFloat exact = block(100);
 		final Floatings f1 = floatingsOf(floating(1, exact, 0));
 		assertKeepAll(f1.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertEquals(0, exact.splitCalls);
-		// 0.4はみ出し(<0.5)も同一視
+		// An overflow of 0.4 (<0.5) is also treated as equal.
 		final StubBlockFloat nearly = block(100.4);
 		final Floatings f2 = floatingsOf(floating(2, nearly, 0));
 		assertKeepAll(f2.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertEquals(0, nearly.splitCalls);
 	}
 
-	/** 分岐表1境界: 0.5以上のはみ出しは切断対象(分岐表3へ)。 */
+	/** Branch table 1 boundary: overflow of 0.5 or more is subject to splitting (proceed to branch table 3). */
 	public void testBoundaryBeyondToleranceSplits() {
 		final StubBlockFloat box = blockSplitting(100.5, SplitResult.KEEP);
 		final Floatings floatings = floatingsOf(floating(1, box, 0));
@@ -490,7 +496,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(1, box.splitCalls);
 	}
 
-	/** 分岐表3: split結果Keep→全体が前フラグメントに残る(KeepAll)。 */
+	/** Branch table 3: a Keep split result leaves everything in the previous fragment (KeepAll). */
 	public void testSplitResultKeepLeavesAllInPlace() {
 		final StubBlockFloat box = blockSplitting(100, SplitResult.KEEP);
 		final Floatings.Floating f = floating(1, box, 40);
@@ -501,7 +507,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertSame(f, floatings.getFloating(0));
 	}
 
-	/** 分岐表3: split結果Move→丸ごとMOVE(MoveAll、元リスト無傷)。 */
+	/** Branch table 3: a Move split result MOVEs everything (MoveAll; source list intact). */
 	public void testSplitResultMoveMovesWhole() {
 		final StubBlockFloat box = blockSplitting(100, SplitResult.MOVE);
 		final Floatings.Floating f = floating(1, box, 40);
@@ -513,10 +519,10 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 	}
 
 	// ------------------------------------------------------------------
-	// P2-1/P2-2: 純データ(FloatMeasurement)と純判定(FloatSplitPlan)
+	// P2-1/P2-2: pure data (FloatMeasurement) and pure decision logic (FloatSplitPlan).
 	// ------------------------------------------------------------------
 
-	/** FloatMeasurementが各floatの判定入力を読み取り専用で固定すること。 */
+	/** FloatMeasurement captures each float's decision inputs as read-only data. */
 	public void testMeasureFixesPerFloatInputs() {
 		final StubBlockFloat blockBox = new StubBlockFloat(blockParams(WritingMode.RL, PageBreakMode.AVOID), 100, null);
 		final StubReplacedFloat replacedBox = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO),
@@ -539,13 +545,13 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(1, m1.ordinal());
 		assertEquals(6, m1.serial());
 		assertSame(replacedBox, m1.box());
-		assertTrue(m1.sameWritingAxis()); // REPLACEDは常にtrue(軸判定を通らない)
+		assertTrue(m1.sameWritingAxis()); // REPLACED is always true (it bypasses the axis check).
 		assertTrue(m1.fragmentHead());
 		assertEquals(BoxType.REPLACED, m1.boxType());
 		assertNull(m1.pageBreakInside());
 	}
 
-	/** 純判定が分岐表1・2・3(印だけ)・4→5をKEEP/MOVE/SPLIT_ON_COMMITへ写すこと。 */
+	/** Pure decision logic maps branch table 1, 2, 3 (mark only), and 4→5 to KEEP/MOVE/SPLIT_ON_COMMIT. */
 	public void testPlanDirectClassifiesBranchTableRows() {
 		final Floatings.Floating keep = floating(1, block(50), 0);
 		final Floatings.Floating move = floating(2, block(10), 150);
@@ -560,8 +566,8 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(1, plan.direct().get(0).expected().serial());
 		assertTrue(plan.direct().get(1) instanceof FloatSplitPlan.FloatItemPlan.Move);
 		assertEquals(2, plan.direct().get(1).expected().serial());
-		// 分岐表3は「SPLIT_ON_COMMITとして印だけ」——結果を予言せず、
-		// innerLimit(float座標系の切断線)とsplitFlagsのみ保持する
+		// Branch table 3 only marks SPLIT_ON_COMMIT: it does not predict the result,
+		// but retains only innerLimit (the cut line in float coordinates) and splitFlags.
 		final FloatSplitPlan.FloatItemPlan.SplitOnCommit sc = (FloatSplitPlan.FloatItemPlan.SplitOnCommit) plan
 				.direct().get(2);
 		assertEquals(3, sc.expected().serial());
@@ -569,22 +575,22 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(IPageBreakableBox.FLAGS_SPLIT, sc.splitFlags());
 	}
 
-	/** 純判定のfirst系: avoid上書き・軸不一致・REPLACEDのフォールスルー分類。 */
+	/** first cases in pure decision logic: avoid override, axis mismatch, and REPLACED fall-through classification. */
 	public void testClassifyFirstAndFallthroughRows() {
 		final double pageLimit = 100;
-		// avoid + first → SPLIT_ON_COMMIT(FLAGS_FIRST)——avoidヒント上書き
+		// avoid + first → SPLIT_ON_COMMIT (FLAGS_FIRST): override the avoid hint.
 		final StubBlockFloat avoidBox = new StubBlockFloat(blockParams(WritingMode.TB, PageBreakMode.AVOID), 200, null);
 		final FloatMeasurement avoidFirst = FloatMeasurement.of(0, floating(1, avoidBox, 0), WritingMode.TB);
 		final FloatSplitPlan.FloatItemPlan.SplitOnCommit sc = (FloatSplitPlan.FloatItemPlan.SplitOnCommit) FloatSplitPlan
 				.classify(avoidFirst, pageLimit, FIRST);
 		assertEquals(IPageBreakableBox.FLAGS_FIRST, sc.splitFlags());
 		assertEquals(100.0, sc.innerLimit(), 0);
-		// avoid + 非first → 4→5フォールスルーでMOVE
+		// avoid + non-first → MOVE via 4→5 fall-through.
 		final FloatMeasurement avoidCrossing = FloatMeasurement.of(0, floating(2, avoidBox, 40), WritingMode.TB);
 		assertTrue(FloatSplitPlan.classify(avoidCrossing, pageLimit,
 				NO_FLAGS) instanceof FloatSplitPlan.FloatItemPlan.Move);
-		// 軸不一致 + first → 4→5フォールスルー。救済を切れば従来どおりKEEP、
-		// 有効なら分岐表5-RでRESCUE_ON_COMMIT(2026-07-25、増分7)
+		// Axis mismatch + first → 4→5 fall-through. KEEP as before with rescue disabled;
+		// with rescue enabled, branch table 5-R yields RESCUE_ON_COMMIT (2026-07-25, increment 7).
 		final StubBlockFloat rlBox = new StubBlockFloat(blockParams(WritingMode.RL, PageBreakMode.AUTO), 200, null);
 		final FloatMeasurement axisMismatchFirst = FloatMeasurement.of(0, floating(3, rlBox, 0), WritingMode.TB);
 		try (RescuePolicy.Scope scope = RescuePolicy.DISABLED.scoped()) {
@@ -599,7 +605,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(100.0, rescue.slice().nextOffset(), 0);
 		assertTrue(rescue.slice().firstFragment());
 		assertFalse(rescue.slice().lastFragment());
-		// REPLACED + 非first(境界跨ぎ) → MOVE
+		// REPLACED + non-first (straddling the boundary) → MOVE.
 		final StubReplacedFloat replacedBox = new StubReplacedFloat(blockParams(WritingMode.TB, PageBreakMode.AUTO),
 				100);
 		final FloatMeasurement replacedCrossing = FloatMeasurement.of(0, floating(4, replacedBox, 40), WritingMode.TB);
@@ -607,17 +613,17 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 				NO_FLAGS) instanceof FloatSplitPlan.FloatItemPlan.Move);
 	}
 
-	/** P2-3/P2-5: 型付き結果の3分類と台帳内容の複合固定(混在シナリオ)。 */
+	/** P2-3/P2-5: jointly lock down the three typed result classes and ledger contents (mixed scenario). */
 	public void testTypedResultMatchesSentinelContract() {
-		// KeepAll(旧null)——元リスト無傷
+		// KeepAll (formerly null): source list intact.
 		final Floatings allKeep = floatingsOf(floating(1, block(10), 0));
 		assertKeepAll(allKeep.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertEquals(1, allKeep.getCount());
-		// MoveAll(旧this)——遅延表現、元リスト無傷
+		// MoveAll (formerly this): deferred representation, source list intact.
 		final Floatings allMove = floatingsOf(floating(2, block(10), 150));
 		assertMoveAll(allMove.splitPageAxis(owner(WritingMode.TB), 100, NO_FLAGS));
 		assertEquals(1, allMove.getCount());
-		// Partition(旧新Floatings)——MOVE+SPLIT残余がremainder、KEEP+SPLIT元がsource
+		// Partition (formerly new Floatings): remainder gets MOVE+SPLIT remainders; source gets KEEP+SPLIT originals.
 		final Floatings.Floating move = floating(1, block(10), 150);
 		final Floatings.Floating split = floating(2, blockSplitting(100, new SplitResult.Split(block(60))), 40);
 		final Floatings.Floating keep = floating(3, block(50), 0);

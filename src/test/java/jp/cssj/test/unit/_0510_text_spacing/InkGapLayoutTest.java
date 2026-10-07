@@ -7,7 +7,7 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.BoxType;
 
-/** 実際のauto表セルとinline-blockの縦方向寸法を検証する。 */
+/** Checks actual vertical dimensions of auto-table cells and inline-blocks. */
 public class InkGapLayoutTest extends AbstractTestCase {
 	public InkGapLayoutTest(String name) { super(name); }
 

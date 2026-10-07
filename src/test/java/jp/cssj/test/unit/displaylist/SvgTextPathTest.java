@@ -19,26 +19,26 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>SVG 文書の {@code <text>} が描かれる</b>ことを固定します(2026-09-14)。
+ * Verify that <b>{@code <text>} in SVG documents is painted</b> (2026-09-14).
  *
  * <p>
- * SVG の文字は Batik の GlyphLayout → {@link MyGVTGlyphVector} で字形の path として
- * 描かれる。以前は {@code getGlyphTransform} など GlyphLayout が呼ぶメソッドが
- * {@code UnsupportedOperationException} を投げて SVG 文書の {@code <text>} は
- * 全部変換に失敗し、直した後も {@code getOutline()} が拡縮とペン送りを二重に掛けていた。
- * 表示リストの golden には SVG の内側が写らないので、画像にして字面の有無で押さえる。
+ * SVG text is painted as glyph paths through Batik's GlyphLayout → {@link MyGVTGlyphVector}.
+ * Previously, methods called by GlyphLayout, such as {@code getGlyphTransform}, threw
+ * {@code UnsupportedOperationException}, making all SVG document {@code <text>} conversions fail.
+ * Even after that fix, {@code getOutline()} applied scaling and pen advances twice.
+ * Display-list goldens do not capture SVG internals, so render images and check for glyph ink.
  * </p>
  */
 public class SvgTextPathTest extends TestCase {
-	/** 横 3 行(欧文・太字和文・合成斜体)と縦 1 行に字面があり、空白の領域には無い。 */
+	/** Glyph ink exists in three horizontal lines (Latin, bold Japanese, synthetic italic) and one vertical line, but not blank areas. */
 	public void testTextLinesAreDrawn() throws Exception {
 		final java.awt.image.BufferedImage img = render("files/unittest/0480-svg-text/inline-svg-text.html");
-		// @page 260x180pt margin 10pt。svg の座標は px(= 0.75pt)なので x=10,y=30 は (17.5, 32.5)pt
+		// @page 260x180pt margin 10pt. SVG coordinates use px (= 0.75 pt), so x=10,y=30 becomes (17.5, 32.5) pt.
 		assertTrue("横 1 行目(欧文 16px, baseline 32.5pt)に字面がありません", hasInk(img, 16, 20, 76, 16));
 		assertTrue("横 2 行目(太字和文 14px, baseline 55pt)に字面がありません", hasInk(img, 16, 43, 86, 15));
 		assertTrue("横 3 行目(合成斜体 12px, baseline 77.5pt)に字面がありません", hasInk(img, 16, 66, 44, 14));
 		assertTrue("縦 1 行(x=215px → 171pt, 14px)に字面がありません", hasInk(img, 158, 14, 14, 68));
-		// 縦行は 6 字 × 10.5pt = 63pt で y≈80pt まで。二重変換のときは字送りが倍になって下へはみ出ていた
+		// The vertical line has 6 characters × 10.5 pt = 63 pt, ending at y≈80 pt. Double transforms doubled advances and overflowed below.
 		assertFalse("縦行が下へ伸びすぎています(字送りの二重掛け)", hasInk(img, 158, 92, 14, 60));
 		assertFalse("何も無いはずの領域に字面があります", hasInk(img, 100, 100, 50, 60));
 	}
@@ -52,9 +52,9 @@ public class SvgTextPathTest extends TestCase {
 			session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
 			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 			session.property("input.include", "**");
-			// fixture の PI(output.pdf.fonts.policy=embedded)を効かせる。試験 conf は PI を既定で
-			// 無視するので、これが無いと内蔵 CID フォント(非埋め込み)になり、PDFBox の描画が
-			// 環境の代用書体に依存する(WSL では太字ゴシックの代用が無く 2 行目が空になった、2026-09-15)
+			// Enable the fixture's PI (output.pdf.fonts.policy=embedded). Test conf ignores PIs by default;
+			// without this, built-in CID-keyed fonts (not embedded) are used, and PDFBox rendering depends
+			// on environment substitute fonts (WSL lacked a bold Gothic substitute, leaving line 2 blank; 2026-09-15).
 			session.property("input.property-pi", "true");
 			CTISessionHelper.transcodeFile(session, new File(file), "text/html", null);
 		} finally {

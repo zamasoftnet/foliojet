@@ -3,17 +3,17 @@ package net.zamasoft.foliojet.layout.text.spacing;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
 
 /**
- * {@code text-autospace}の隣接pair追跡です(和文詰めA2、2026-07-31——
- * consult-codex-2026-07-31-text-spacing.txt A2)。glyph消費者
- * (TextBuilder・TwoPassBlockBuilder)がclusterごとに直前clusterとの
- * 境界gapを問い、確定したgapを直前glyphのxadvanceへ焼き込む。
+ * Tracks adjacent pairs for {@code text-autospace} (Japanese spacing adjustment A2,
+ * 2026-07-31; consult-codex-2026-07-31-text-spacing.txt A2). For each cluster, glyph consumers
+ * (TextBuilder/TwoPassBlockBuilder) query the boundary gap with the preceding cluster
+ * and bake the resolved gap into the preceding glyph's xadvance.
  *
  * <p>
- * リセット規約: 実際の行分割(newLine)と制御(空白・改行・インライン
- * 置換等のTextControl)でリセットする。分割<b>機会</b>(flush)では
- * リセットしない——和欧文境界はまさに分割機会であり、そこでリセット
- * するとgapが一切入らない。行分割でリセットされるため、行を跨ぐpairに
- * gapは入らない(JLREQの行頭・行末処理と整合)。
+ * Reset contract: reset on actual line breaks (newLine) and controls (TextControl such as
+ * spaces, newlines, and inline replacements). Do not reset at break <b>opportunities</b>
+ * (flush): a Japanese/Latin boundary is itself a break opportunity, so resetting there prevents
+ * all gaps. Resetting on line breaks prevents gaps between pairs across lines
+ * (consistent with JLREQ line-start/line-end processing).
  * </p>
  */
 public final class AutospaceTracker {
@@ -30,7 +30,7 @@ public final class AutospaceTracker {
 
 	private boolean trimOff;
 
-	/** 仮想計量へ pair 状態を渡す。開いている run の同一性も複製側へ付け替える。 */
+	/** Passes pair state to virtual measurement. Also reassigns the open run's identity to the clone. */
 	public void copyFrom(final AutospaceTracker source, final TextImpl openText, final TextImpl copyText) {
 		this.flags = source.flags;
 		this.trimOff = source.trimOff;
@@ -40,36 +40,36 @@ public final class AutospaceTracker {
 		this.prevGid = source.prevGid;
 	}
 
-	/** 実効フラグを設定します(インライン境界でのparams切替に追従)。 */
+	/** Sets effective flags (follows params changes at inline boundaries). */
 	public void setFlags(final byte flags) {
 		this.flags = flags;
 	}
 
-	/** 約物詰めの無効化(text-spacing-trim: space-all——T1b)を設定します。 */
+	/** Sets whether punctuation trimming is disabled (text-spacing-trim: space-all; T1b). */
 	public void setTrimOff(final boolean trimOff) {
 		this.trimOff = trimOff;
 	}
 
-	/** 現在の実効フラグです(分割点の逆適用の再計算用)。 */
+	/** Current effective flags (for recalculating reversal at split points). */
 	public byte getFlags() {
 		return this.flags;
 	}
 
-	/** 約物詰めが無効か(分割点の逆適用の再計算用)。 */
+	/** Whether punctuation trimming is disabled (for recalculating reversal at split points). */
 	public boolean isTrimOff() {
 		return this.trimOff;
 	}
 
 	/**
-	 * 直前glyphとの約物詰め(正値。0=なし)です(T1a/E——
-	 * font層から移管。同一runでGPOSが非0のpairはスキップする。
-	 * 2026-08-23から、装飾spanやフォント切替でrunが分かれても、幅0の
-	 * インライン境界なら同じJLREQ pairとして扱う)。縦書きrunもclusterのUnicode code pointで
-	 * 分類し、GSUB vert後glyphのvertical advanceでwide判定する。
-	 * xadvanceは論理inline advanceなので縦組では下向きの送りへ効く。
-	 * 縦中横の横書きrunは従来どおりhorizontal widthを使う。
+	 * Punctuation trim with the preceding glyph (positive; 0 = none), T1a/E.
+	 * Moved from the font layer. Skips pairs with nonzero GPOS in the same run.
+	 * Since 2026-08-23, treats zero-width inline boundaries as the same JLREQ pair even when a
+	 * decoration span or font change splits runs. Vertical writing runs are also classified by
+	 * cluster Unicode code point; wide is determined using the vertical advance of the glyph
+	 * after GSUB vert. xadvance is the logical inline advance, so it affects downward advance
+	 * in vertical writing. Horizontal runs in tate-chu-yoko still use horizontal width.
 	 *
-	 * @param currentText 現在追記中のrun({@code null}=新runの先頭glyph)
+	 * @param currentText run currently being appended to ({@code null} = first glyph of a new run)
 	 */
 	public double trimBefore(final char[] ch, final int coff, final int gid, final TextImpl currentText,
 			final net.zamasoft.pdfg2d.gc.font.FontMetrics metrics, final double fontSize,
@@ -77,8 +77,8 @@ public final class AutospaceTracker {
 		if (this.trimOff || this.prevCodePoint < 0 || this.prevGid < 0 || this.prevText == null) {
 			return 0;
 		}
-		// 異なるrun/フォントの間にGPOS kerningは定義されない。同一runだけ
-		// 従来どおりGPOSを優先する。
+		// GPOS kerning is not defined across different runs/fonts. Continue to prioritize
+		// GPOS only within the same run.
 		if (this.prevText == currentText && metrics.getKerning(this.prevGid, gid) != 0) {
 			return 0;
 		}
@@ -87,13 +87,13 @@ public final class AutospaceTracker {
 				this.prevGid, this.prevFontSize, this.prevText.getFontStyle(), cp, metrics, gid, fontSize, style);
 	}
 
-	/** 現在のcluster先頭と直前clusterの間のgap(絶対量)です。 */
+	/** Gap (absolute amount) between the start of the current cluster and the preceding cluster. */
 	public double gapBefore(final char[] ch, final int coff, final double fontSize) {
 		if (this.flags == 0 || this.prevCodePoint < 0) {
 			return 0;
 		}
 		final int cp = Character.codePointAt(ch, coff);
-		// 比例幅の句読点(IPA P 系、palt)の後ろも和欧間アキの対象(2026-09-14)
+		// Add spacing between Japanese and Latin text after proportional punctuation (IPA P fonts, palt; 2026-09-14)
 		final boolean proportionalPunctuation = this.prevText != null && TextAutospaceClasses
 				.proportionalPunctuation(this.prevCodePoint, this.prevText.getFontMetrics(), this.prevGid,
 						this.prevFontSize, this.prevText.getFontStyle().getDirection());
@@ -101,14 +101,14 @@ public final class AutospaceTracker {
 		if (gapEm == 0) {
 			return 0;
 		}
-		// 和字側runのfont-size×0.25(ic近似——クラスjavadoc)
+		// Japanese-side run's font-size × 0.25 (ic approximation; see class Javadoc)
 		return gapEm * (TextAutospaceClasses.ideographFirst(this.prevCodePoint) ? this.prevFontSize : fontSize);
 	}
 
 	/**
-	 * cluster処理後の状態更新です。適用側の規約: 調整(gap−trim)は
-	 * <b>現在glyphのxadvance</b>(=そのglyphの手前のアキ——
-	 * CIDKeyedFont/ルビdistributeと同じ)へ載せる。
+	 * Updates state after processing a cluster. Application contract: put the adjustment
+	 * (gap − trim) in <b>the current glyph's xadvance</b>
+	 * (= space before that glyph, as in CIDKeyedFont/ruby distribute).
 	 */
 	public void glyphAdded(final TextImpl text, final double fontSize, final char[] ch, final int coff,
 			final byte clen, final int gid) {
@@ -118,7 +118,7 @@ public final class AutospaceTracker {
 		this.prevGid = gid;
 	}
 
-	/** pair状態を破棄します(行分割・TextControl)。 */
+	/** Discards pair state (line break or TextControl). */
 	public void reset() {
 		this.prevText = null;
 		this.prevCodePoint = -1;

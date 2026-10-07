@@ -40,7 +40,7 @@ import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 実変換で捕捉内容・副作用遮断・配置アンカーを検証します。 */
+/** Uses actual conversion to check captured content, suppression of side effects, and placement anchors. */
 public final class RunningCaptureTest extends TestCase {
 	record Observed(int page, long order, String name, boolean beginsPage, RunningTemplate template) {
 	}
@@ -67,8 +67,8 @@ public final class RunningCaptureTest extends TestCase {
 				value -> value.type().equals(CounterValue.class.getName()) && "page".equals(value.fields().get("name"))));
 		assertTrue(template.events().stream().anyMatch(event -> event instanceof RunningTemplate.Start start
 				&& "before".equals(start.pseudo())));
-		// 捕捉中の counter-increment は原位置でも実行しない(本文の counter(page) は 1 のまま)。
-		// 表示リストの "desc=2.41" を拾わないよう Text の中身で見る
+		// counter-increment is not executed at the original position during capture either (body counter(page) stays 1).
+		// Inspect Text contents to avoid matching "desc=2.41" in the display list.
 		assertFalse(result.pages().toString(), result.pages().toString().contains("Text[\"41\""));
 		assertTrue(result.pages().toString(), result.pages().toString().contains("Text[\"1\""));
 		System.err.println("[running R1b] captured events=" + template.events().size() + ", expressions=" + expressions);
@@ -263,7 +263,7 @@ public final class RunningCaptureTest extends TestCase {
 		}
 	}
 
-	/** offsetの穴は別頁のfloat/脚注、子箱はabsoluteの配置を模す。描画は行わない。 */
+	/** Offset gaps model floats/footnotes on other pages; child boxes model absolute placement. No drawing occurs. */
 	public void testCharacterGapsAndAbsoluteOwnership() {
 		final RunningRegistry registry = new RunningRegistry();
 		final long order = registry.nextOrder();
@@ -318,7 +318,7 @@ public final class RunningCaptureTest extends TestCase {
 		}
 	}
 
-	/** 到達可能な実体と、各非staticフィールドの宣言型の双方を再帰的に調べます。 */
+	/** Recursively inspects both reachable objects and the declared type of each non-static field. */
 	private static int liveReferences(final Object root) throws Exception {
 		final Deque<Object> work = new ArrayDeque<Object>();
 		final Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
@@ -369,7 +369,7 @@ public final class RunningCaptureTest extends TestCase {
 		return count;
 	}
 
-	/** 3試験クラスで共有するDirectSession変換です。保持量試験では観測payloadを保存しません。 */
+	/** DirectSession conversion shared by three test classes. Retention tests do not save observed payloads. */
 	static Conversion convert(final String css, final String body, final boolean tagged,
 			final boolean dump, final boolean observe) throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><style>"

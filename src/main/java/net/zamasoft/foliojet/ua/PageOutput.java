@@ -6,36 +6,36 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.GC;
 
 /**
- * ページ結果の出力面です。
+ * Output interface for page results.
  */
 public interface PageOutput {
 	/**
-	 * 次のページのグラフィックコンテキストを返します。
+	 * Returns the graphics context for the next page.
 	 *
-	 * @param width  ポイント単位の幅。
-	 * @param height ポイント単位の高さ。
+	 * @param width  width in points.
+	 * @param height height in points.
 	 */
 	public GC nextPage(double width, double height);
 
 	/**
-	 * ページへの描画を完了します。
+	 * Completes drawing on the page.
 	 */
 	public void closePage(GC gc) throws IOException;
 
 	public Visitor getVisitor(GC gc);
 
 	/**
-	 * 結果文書を構築します。
+	 * Builds the result document.
 	 */
 	public void finish() throws BrokenResultException, IOException;
 
 	/**
-	 * UAを破棄して、リソースを解放します。
+	 * Disposes of the UA and releases resources.
 	 */
 	public void dispose();
 
 	/**
-	 * 文書のメタ情報を設定します。
+	 * Sets document metadata.
 	 */
 	public void meta(String name, String content);
 

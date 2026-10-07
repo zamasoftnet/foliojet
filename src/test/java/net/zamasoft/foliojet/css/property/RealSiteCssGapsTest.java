@@ -44,15 +44,15 @@ import net.zamasoft.foliojet.css.value.css3.WordBreakValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 実サイトの警告から拾ったCSSの穴(2026-08-29)を、宣言の解釈の段階で固定
- * するテストです。対象は開発計画 §5「実サイトの警告から拾った
- * 候補」の各項目——落とすと見た目が壊れる指定(割合translateと他関数の併用、
- * ショートハンドの全体キーワード、8桁hex)と、実装済み機能の穴埋め
- * (ベンダ別名、flow-root、break-word、avoid-column、isolate、font-kerning、
- * 論理ショートハンド、mask-*、backgroundの4値position、revert)。
+ * Tests fixing CSS gaps identified from real-site warnings (2026-08-29) at declaration interpretation.
+ * Targets are the items under development plan §5 "実サイトの警告から拾った候補":
+ * declarations whose loss breaks appearance (percentage translate combined with other functions,
+ * global keywords in shorthands, eight-digit hex), and gaps in implemented features
+ * (vendor aliases, flow-root, break-word, avoid-column, isolate, font-kerning,
+ * logical shorthands, mask-*, four-value background positions, revert).
  */
 public class RealSiteCssGapsTest extends TestCase {
-	/** 警告を集める疑似UA。長さの解決に必要な最小限だけ応答する。 */
+	/** A mock UA that collects warnings. Responds only to the minimum needed for length resolution. */
 	private static final class Probe {
 		final List<String> warnings = new ArrayList<>();
 		final UserAgent ua = (UserAgent) java.lang.reflect.Proxy.newProxyInstance(
@@ -85,7 +85,10 @@ public class RealSiteCssGapsTest extends TestCase {
 		return Tokens.fromExpression(all.get(0).getExpression());
 	}
 
-	/** 宣言を解釈し、展開結果(特性名→値)を返す。失敗時はnullで、警告はprobeに残る。 */
+	/**
+	 * Interpret a declaration and return its expansion (property name→value). On failure, return null; warnings
+	 * remain in probe.
+	 */
 	private static Map<String, Value> parse(final Probe probe, final String declaration) {
 		final int colon = declaration.indexOf(':');
 		final String name = declaration.substring(0, colon).trim();
@@ -117,14 +120,14 @@ public class RealSiteCssGapsTest extends TestCase {
 		assertEquals(KeywordValue.INITIAL, parseOk("inset: initial").get(Inset.TOP.getName()));
 		assertEquals(2, parseOk("overflow: inherit").size());
 		assertEquals(2, parseOk("columns: inherit").size());
-		// 2026-09-04: 標準 `writing-mode` は BlockFlow+variant の 2 longhand(direction を変えない)、
-		// legacy `-cssj-writing-mode` は Direction+BlockFlow+variant の 3(sideways-writing-mode-design.md 追補 A)
+		// 2026-09-04: standard `writing-mode` has two longhands, BlockFlow+variant (does not change direction);
+		// legacy `-cssj-writing-mode` has three: Direction+BlockFlow+variant (sideways-writing-mode-design.md addendum A).
 		assertEquals(2, parseOk("writing-mode: inherit").size());
 		assertEquals(3, parseOk("-cssj-writing-mode: inherit").size());
 		assertEquals(4, parseOk("border-style: inherit").size());
 		assertEquals(4, parseOk("border-width: inherit").size());
 		assertEquals(1, parseOk("text-wrap: inherit").size());
-		// 通常の値は従来どおり
+		// Ordinary values behave as before.
 		assertEquals(4, parseOk("padding: 1px 2px").size());
 	}
 
@@ -139,7 +142,7 @@ public class RealSiteCssGapsTest extends TestCase {
 		assertNotNull(nibble);
 		assertEquals(0x88 / 255.0, nibble.getAlpha(), 0.005);
 		assertNotNull(parseOk("background-color: #00000033"));
-		// 属性値経路
+		// Attribute-value path
 		assertEquals(0x33 / 255.0, ColorValueUtils.parseRGBHexColor("00000033").getAlpha(), 0.005);
 	}
 
@@ -215,19 +218,19 @@ public class RealSiteCssGapsTest extends TestCase {
 		assertEquals(0.0, t.getTyRatioW(), 1e-9);
 		assertEquals(1.1, t.getTransform().getScaleX(), 1e-6);
 
-		// 前に拡大があると、割合は拡大された量になる(A_lin·v)
+		// A preceding scale also scales the percentage amount (A_lin·v).
 		final TransformValue scaled = (TransformValue) parseOk("transform: scale(2) translateX(50%)")
 				.get(Transform.INFO.getName());
 		assertEquals(1.0, scaled.getTxRatio(), 1e-9);
 		assertEquals(0.0, scaled.getTyRatioW(), 1e-9);
 
-		// 90度回転の後ろの横方向割合は縦方向へ移る(交差成分)
+		// A horizontal percentage after a 90-degree rotation moves to the vertical direction (cross component).
 		final TransformValue rotated = (TransformValue) parseOk("transform: rotate(90deg) translateX(100%)")
 				.get(Transform.INFO.getName());
 		assertEquals(0.0, rotated.getTxRatio(), 1e-9);
 		assertEquals(1.0, rotated.getTyRatioW(), 1e-9);
 
-		// 3D関数は2Dへ縮退して受ける
+		// Accept 3D functions by reducing them to 2D.
 		final TransformValue threeD = (TransformValue) parseOk("transform: translate3d(0, 10px, 0) translateZ(0)")
 				.get(Transform.INFO.getName());
 		final AffineTransform at = threeD.getTransform();
@@ -254,7 +257,7 @@ public class RealSiteCssGapsTest extends TestCase {
 		assertNotNull(parseOk("mask-size: 24px"));
 		assertNotNull(parseOk("-webkit-mask-position: 0 50%"));
 		assertNotNull(parseOk("mask-repeat: repeat-x"));
-		// mask-mode等のキーワードは読み飛ばす
+		// Skip keywords such as mask-mode.
 		assertNotNull(parseOk("mask: url(a.svg) alpha border-box no-repeat"));
 	}
 }

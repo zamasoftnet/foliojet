@@ -21,13 +21,13 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * ラスタ画像出力({@code image/png})の既定フォント方針が埋め込み(pdfg2d 自身の輪郭)で
- * あること(2026-09-03、ユーザー判断)。
+ * The default font policy for raster image output ({@code image/png}) is embedding
+ * (pdfg2d's own outlines) (2026-09-03, user decision).
  *
  * <p>
- * 単一SVGの outline と同じ描画経路で、共通の既定(cid-keyed)のままだと字形データを
- * 持たないフォントが AWT のシステムフォントで描かれていた。既定と明示の
- * {@code embedded} が同じ PNG になることで固定する。
+ * This uses the same drawing path as single-SVG outline mode. With the shared default (cid-keyed),
+ * fonts without glyph data were drawn using AWT system fonts. Verify this by checking
+ * that the default and explicit {@code embedded} produce identical PNGs.
  * </p>
  */
 public class RasterFontPolicyTest extends TestCase {
@@ -45,7 +45,7 @@ public class RasterFontPolicyTest extends TestCase {
 	}
 
 	public void testExplicitPolicyStillWins() throws Exception {
-		// 明示した方針には従う(core だけなら和文は別の字形か MISSING になり、画素が変わる)
+		// Follow an explicit policy (core alone uses different Japanese glyphs or MISSING, changing pixels).
 		final byte[] byDefault = convert(null);
 		final byte[] core = convert("core");
 		assertFalse("an explicit policy must change the output", Arrays.equals(byDefault, core));
@@ -90,7 +90,7 @@ public class RasterFontPolicyTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 	}
 }

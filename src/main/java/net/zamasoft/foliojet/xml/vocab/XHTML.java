@@ -16,50 +16,50 @@ public final class XHTML {
 
 	public static final String URI = "http://www.w3.org/1999/xhtml";
 
-	/** ルート。 */
+	/** Root. */
 	public static final ElementNode HTML_ELEM = new ElementNode(URI, PREFIX, "html");
 
-	/** 文書のスタイル。(SPEC CSS2 2.1) */
+	/** Document style. (SPEC CSS2 2.1) */
 	public static final ElementNode STYLE_ELEM = new ElementNode(URI, PREFIX, "style");
 
-	/** タイトル。 */
+	/** Title. */
 	public static final ElementNode TITLE_ELEM = new ElementNode(URI, PREFIX, "title");
 
-	/** メタ情報。 */
+	/** Metadata. */
 	public static final ElementNode META_ELEM = new ElementNode(URI, PREFIX, "meta");
 
-	/** 文書の内容。 */
+	/** Document contents. */
 	public static final ElementNode BODY_ELEM = new ElementNode(URI, PREFIX, "body");
 
-	/** ベースURI変更のための要素。 */
+	/** Element for changing the base URI. */
 	public static final ElementNode BASE_ELEM = new ElementNode(URI, PREFIX, "base");
 
-	/** リンクのための要素。(SPEC ASSX1.0) */
+	/** Element for links. (SPEC ASSX1.0) */
 	public static final ElementNode LINK_ELEM = new ElementNode(URI, PREFIX, "link");
 
-	/** アンカー要素。 */
+	/** Anchor element. */
 	public static final ElementNode A_ELEM = new ElementNode(URI, PREFIX, "a");
 
-	/** 画像要素。 */
+	/** Image element. */
 	public static final ElementNode IMG_ELEM = new ElementNode(URI, PREFIX, "img");
 
-	/** 埋め込み要素。 */
+	/** Embed element. */
 	public static final ElementNode EMBED_ELEM = new ElementNode(URI, PREFIX, "embed");
 
-	/** オブジェクト要素。 */
+	/** Object element. */
 	public static final ElementNode OBJECT_ELEM = new ElementNode(URI, PREFIX, "object");
 
-	/** INPUT要素。 */
+	/** INPUT element. */
 	public static final ElementNode INPUT_ELEM = new ElementNode(URI, PREFIX, "input");
 
-	/** BUTTON要素。 */
+	/** BUTTON element. */
 	public static final ElementNode BUTTON_ELEM = new ElementNode(URI, PREFIX, "button");
 	//
-	// /** RUBY要素。 */
+	// /** RUBY element. */
 	// public static final ElementNode RUBY_ELEM = new ElementNode(URI, PREFIX,
 	// "ruby");
 	//
-	// /** RB要素。 */
+	// /** RB element. */
 	// public static final ElementNode RB_ELEM = new ElementNode(URI, PREFIX,
 	// "rb");
 
@@ -91,31 +91,31 @@ public final class XHTML {
 
 	public static final ElementNode BR_ELEM = new ElementNode(XHTML.URI, XHTML.PREFIX, "br");
 
-	/** ID選択子のための属性。 */
+	/** Attribute for ID selectors. */
 	public static final AttributeNode ID_ATTR = new AttributeNode("id");
 
-	/** クラス選択子のための属性。 */
+	/** Attribute for class selectors. */
 	public static final AttributeNode CLASS_ATTR = new AttributeNode("class");
 
-	/** インラインスタイルのための属性。 */
+	/** Attribute for inline styles. */
 	public static final AttributeNode STYLE_ATTR = new AttributeNode("style");
 
-	/** 言語選択子のための属性。 */
+	/** Attribute for language selectors. */
 	public static final AttributeNode LANG_ATTR = new AttributeNode("lang");
 
-	/** :dir() 選択子のための属性。 */
+	/** Attribute for the :dir() selector. */
 	public static final AttributeNode DIR_ATTR = new AttributeNode("dir");
 
-	/** 補助説明文属性。 */
+	/** Advisory text attribute. */
 	public static final AttributeNode TITLE_ATTR = new AttributeNode("title");
 
-	/** テーブルカラムの結合属性。 */
+	/** Table column span attribute. */
 	public static final AttributeNode SPAN_ATTR = new AttributeNode("span");
 
-	/** テーブルセルの行方向結合属性。 */
+	/** Table cell row span attribute. */
 	public static final AttributeNode COLSPAN_ATTR = new AttributeNode("colspan");
 
-	/** テーブルカラムの列方向結合属性。 */
+	/** Table column column span attribute. */
 	public static final AttributeNode ROWSPAN_ATTR = new AttributeNode("rowspan");
 
 	public static final AttributeNode HREF_ATTR = new AttributeNode("href");
@@ -126,16 +126,15 @@ public final class XHTML {
 	public static final AttributeNode USEMAP_ATTR = new AttributeNode("usemap");
 
 	/**
-	 * {@code class}・{@code style}などの属性値を取る。
+	 * Gets attribute values such as {@code class} and {@code style}.
 	 *
 	 * <p>
-	 * <b>SVG/MathMLなどforeign content配下の要素では属性はXHTML名前空間に
-	 * 入らない</b>——HTML5構文解析仕様どおりで、{@code xlink:}/{@code xml:}
-	 * 以外の属性は無修飾のままである(2026-08-06、実物大コーパスの
-	 * インラインSVGサイズ崩れバグ調査で判明)。XHTML名前空間で見つから
-	 * なければ無修飾(qName)でも試すことで、SVG要素上の{@code class}/
-	 * {@code style}/{@code width}/{@code height}などが読み落とされて
-	 * CSSに反映されない不具合を防ぐ。
+	 * <b>Attributes of elements within foreign content such as SVG/MathML are not in the
+	 * XHTML namespace</b>: per HTML5 parsing rules, attributes other than {@code xlink:}/{@code xml:}
+	 * remain unqualified (discovered on 2026-08-06 while investigating broken inline SVG sizing
+	 * in the full-scale corpus). If not found in the XHTML namespace, also try the unqualified
+	 * name (qName), preventing {@code class}/{@code style}/{@code width}/{@code height} and similar
+	 * SVG element attributes from being missed and thus ignored by CSS.
 	 * </p>
 	 */
 	public static String getAttr(org.xml.sax.Attributes atts, String localName) {

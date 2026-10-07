@@ -5,7 +5,7 @@ import net.zamasoft.foliojet.xml.StyleSheetSelector;
 import net.zamasoft.foliojet.xml.XMLHandlerFilter;
 
 /**
- * input.filters プロパティのフィルタ名から入力フィルタを生成します。
+ * Creates input filters from filter names in the input.filters property.
  */
 public final class DocumentFilters {
 	private DocumentFilters() {
@@ -13,12 +13,12 @@ public final class DocumentFilters {
 	}
 
 	/**
-	 * フィルタを生成します。未知の名前の場合はnullを返します。
+	 * Creates a filter. Returns null for unknown names.
 	 */
 	public static XMLHandlerFilter create(String name, UserAgent ua, StyleSheetSelector ssh) {
 		switch (name) {
 		case "loose-html":
-			// html補正
+			// HTML correction
 			return new XHTMLPreprocessFilter(ua);
 		case "xslt": {
 			// XSLT
@@ -30,7 +30,7 @@ public final class DocumentFilters {
 			return xsltFilter;
 		}
 		case "default-to-xhtml":
-			// namespace置き換え
+			// Namespace replacement
 			return new XHTMLNSFilter();
 		default:
 			return null;

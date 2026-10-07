@@ -10,13 +10,12 @@ import net.zamasoft.foliojet.layout.box.impl.TextBlockBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * {@code @layer}(CSS Cascade Layers、2026-07-21新設)。レイヤーに属さない
- * 通常規則は、固有性・出現順に関わらず常にどのレイヤーの規則にも
- * 優先する(仕様: レイヤーなし規則は暗黙の最終レイヤーとして扱われる)。
- * このテストでは、レイヤーに属さない{@code p{color:green}}(低固有性、
- * 出現順は先)が、レイヤー内の{@code p#a{color:red}}(ID込みの高固有性、
- * 出現順は後)より優先されることを確認する——固有性・出現順だけの
- * 単純フォールバックだったら逆(red)になるはずの構成。
+ * {@code @layer} (CSS Cascade Layers, added on 2026-07-21). Unlayered normal rules always take
+ * precedence over rules in any layer, regardless of specificity or appearance order
+ * (the specification treats unlayered rules as an implicit final layer).
+ * This test verifies that unlayered {@code p{color:green}} (low specificity, earlier appearance)
+ * beats layered {@code p#a{color:red}} (high specificity including an ID, later appearance).
+ * A simple fallback using only specificity and appearance order would produce the opposite (red).
  */
 public class LayerUnlayeredWinsTest extends AbstractTestCase {
 	public LayerUnlayeredWinsTest(String name) {

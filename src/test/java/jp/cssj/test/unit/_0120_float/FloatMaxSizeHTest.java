@@ -22,9 +22,9 @@ public class FloatMaxSizeHTest extends AbstractTestCase {
 			System.out.println(box.getWidth());
 			assertEquals(284, box.getWidth(), 1);
 			System.out.println(box.getHeight());
-			// 2026-09-02: 標準モード(DOCTYPE あり)では画像だけの行にも strut が
-			// 入るので、画像の下に descent+半行送りの隙間(4.7pt)が付く(CSS 2.1
-			// §10.8。ブラウザの標準モードと同じ。quirks なら従来どおり 86)
+			// 2026-09-02: In standards mode (with a DOCTYPE), even an image-only line has a strut,
+			// adding a gap of descent + half-leading (4.7 pt) below the image (CSS 2.1
+			// §10.8; as in browser standards mode. Quirks mode retains the previous value of 86).
 			assertEquals(90.73, box.getHeight(), 1);
 			return true;
 		}

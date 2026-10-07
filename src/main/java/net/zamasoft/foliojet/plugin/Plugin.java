@@ -1,24 +1,25 @@
 package net.zamasoft.foliojet.plugin;
 
 /**
- * プラグインのインターフェースです。
- * 
+ * Plugin interface.
+ *
  * @author MIYABE Tatsuhiko
  */
 public interface Plugin<E> {
 	/**
-	 * プラグインが与えられたキーに対応するかどうかを検証します。 キーがどのようなオブジェクトであるかはプラグインの種類に依存します。
-	 * 
+	 * Checks whether the plugin supports the given key.
+	 * The kind of object used as a key depends on the plugin type.
+	 *
 	 * @param key
-	 *            プラグインを選択するためのキー。
-	 * @return 与えられたキーに対応していればtrue。そうでなければfalse。
+	 *            key used to select a plugin.
+	 * @return true if the given key is supported; otherwise false.
 	 */
 	boolean match(E key);
 
 	/**
-	 * 同じキーに対応するプラグインが複数ある場合の優先順位です。大きい値が優先されます。
-	 * 
-	 * @return 優先順位。
+	 * Priority when multiple plugins support the same key. Higher values take precedence.
+	 *
+	 * @return priority.
 	 */
 	default int priority() {
 		return 0;

@@ -4,8 +4,8 @@ import net.zamasoft.foliojet.xml.AttributeNode;
 import net.zamasoft.foliojet.xml.ElementNode;
 
 /**
- * CSSJ独自のマークアップ(CSSJML)です。
- * 
+ * CSSJ-specific markup (CSSJML).
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: CSSJML.java 1552 2018-04-26 01:43:24Z miyabe $
  */
@@ -15,70 +15,70 @@ public final class CSSJML {
 	}
 
 	/**
-	 * CSSJMLの接頭辞です。
+	 * The CSSJML prefix.
 	 */
 	public static final String PREFIX = "cssj";
 
 	/**
-	 * CSSJMLの名前空間URIです。
+	 * The CSSJML namespace URI.
 	 */
 	public static final String URI = "http://www.cssj.jp/ns/cssjml";
 
 	/**
-	 * 注釈を出力します。
+	 * Outputs an annotation.
 	 */
 	public static final AttributeNode ANNOT_ATTR = new AttributeNode(URI, PREFIX, "annot");
 
 	/**
-	 * ヘッダーとしてのレベルを指定します。
+	 * Specifies the heading level.
 	 */
 	public static final AttributeNode HEADER_ATTR = new AttributeNode(URI, PREFIX, "header");
 
 	/**
-	 * 目次を生成します。
+	 * Generates a table of contents.
 	 */
 	public static final ElementNode MAKE_TOC_ELEM = new ElementNode(URI, PREFIX, "make-toc");
 
 	/**
-	 * 索引を生成します。
+	 * Generates an index.
 	 */
 	public static final ElementNode MAKE_INDEX_ELEM = new ElementNode(URI, PREFIX, "make-index");
 
 	/**
-	 * 索引のキーワードとしてマークします。
+	 * Marks an index keyword.
 	 */
 	public static final ElementNode INDEX_ELEM = new ElementNode(URI, PREFIX, "index");
 
 	/**
-	 * エラーで停止します（テスト用）。
+	 * Stops with an error (for testing).
 	 */
 	public static final ElementNode FAIL_ELEM = new ElementNode(URI, PREFIX, "fail");
 
 	/**
-	 * HTMLの文書内にスタイルシートを埋め込みます。dataの値がスタイルシートそのものです。
+	 * Embeds a style sheet in an HTML document. The data value is the style sheet itself.
 	 */
 	public static final String PI_STYLESHEET = "jp.cssj.stylesheet";
 
 	/**
-	 * 文書情報です。擬似属性name,valueで名前と値を設定します。
+	 * Document information. Pseudo-attributes name and value set the name and value.
 	 */
 	public static final String PI_DOCUMENT_INFO = "jp.cssj.document-info";
 
 	/**
-	 * スタイルシートのデフォルトのキャラクタ・エンコーディングです。
+	 * Default character encoding for style sheets.
 	 */
 	public static final String PI_DEFAULT_ENCODING = "jp.cssj.default-encoding";
 
 	/**
-	 * デフォルトのスタイルシートMIME型です。
+	 * Default style sheet MIME type.
 	 */
 	public static final String PI_DEFAULT_STYLE_TYPE = "jp.cssj.default-style-type";
 
 	/**
-	 * 文書の基準URIです。
+	 * The document's base URI.
 	 */
 	public static final String PI_BASE_URI = "jp.cssj.base-uri";
 
-	/** プロパティ設定のためのPI。 */
+	/** Processing instruction for setting properties. */
 	public static final String PI_PROPERTY = "jp.cssj.property";
 }

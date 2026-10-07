@@ -18,15 +18,15 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>{@code shape-outside: circle(50%)}の回り込み</b>を画素で固定します
- * (css-shapes-1、2026-08-29)。
+ * Pin down <b>text wrapping around {@code shape-outside: circle(50%)}</b> with pixels
+ * (css-shapes-1, 2026-08-29).
  *
  * <p>
- * 100pt角の左フロート(背景なし)に半径50ptの円。描画結果を72dpi
- * (1pt=1px)で検査する: (1)マージンボックスの右上隅(円の外)に本文の
- * 画素がある=行が矩形ではなく円を避けている、(2)円の内側に本文の画素が
- * ない、(3)円の下端付近の行(y=96〜108)がフロート幅100ptの内側から
- * 始まる=下端まで飛ばずに円の周りを下りている。
+ * A circle of radius 50 pt in a 100 pt square left float (no background). Inspect the rendered result
+ * at 72 dpi (1 pt = 1 px): (1) body-text pixels exist in the top-right corner of the margin box
+ * (outside the circle), meaning lines avoid the circle rather than a rectangle; (2) no body-text pixels
+ * exist inside the circle; (3) a line near the bottom of the circle (y=96–108) starts within the float's
+ * 100 pt width, meaning lines descend around the circle rather than jumping to its bottom.
  * </p>
  */
 public class ShapeOutsideTest extends TestCase {
@@ -47,9 +47,9 @@ public class ShapeOutsideTest extends TestCase {
 		try (PDDocument doc = Loader.loadPDF(out.toByteArray())) {
 			final java.awt.image.BufferedImage img = new PDFRenderer(doc).renderImageWithDPI(0, 72);
 			assertTrue("本文がどこにも描かれていません", countDark(img, 100, 0, 300, 120) > 50);
-			// (1) 右上隅: 1行目は x≈82.5 から始まるので [84,100)×[1,11) に本文がある
+			// (1) Top-right corner: the first line starts at x≈82.5, so body text exists in [84,100)×[1,11).
 			assertTrue("円の外(フロート右上隅)に本文が回り込んでいません", countDark(img, 84, 1, 100, 11) > 0);
-			// (2) 円の内側(半径48で見る——アンチエイリアスの縁を除く)に本文がない
+			// (2) No body text inside the circle (use radius 48 to exclude the antialiased edge).
 			int inside = 0;
 			for (int y = 0; y < 100; ++y) {
 				for (int x = 0; x < 100; ++x) {
@@ -60,10 +60,10 @@ public class ShapeOutsideTest extends TestCase {
 				}
 			}
 			assertEquals("円の内側に本文の画素があります", 0, inside);
-			// (3) y=96の行は x≈69.6 から始まる: [70,100)×[97,107) に本文がある
+			// (3) The line at y=96 starts at x≈69.6: body text exists in [70,100)×[97,107).
 			assertTrue("円の下端付近の行がフロートの下まで飛んでいます(円に沿って下りていない)",
 					countDark(img, 70, 97, 100, 107) > 0);
-			// (4) 円の下(y≥108)の行は左端から始まる
+			// (4) Lines below the circle (y≥108) start at the left edge.
 			assertTrue("円の下の行が左端へ戻っていません", countDark(img, 0, 110, 20, 120) > 0);
 		}
 	}

@@ -2,7 +2,7 @@ package jp.cssj.test.unit.displaylist;
 
 import junit.framework.TestCase;
 
-/** {@link TwoPassDigestParityTest} の 2 番の受け持ち(2026-10-05、分割の説明はそちら)。 */
+/** Shard 2 of {@link TwoPassDigestParityTest} (2026-10-05; see that class for the sharding rationale). */
 public final class TwoPassDigestParityShard2Test extends TestCase {
 	public void testDigestParity() throws Exception {
 		TwoPassDigestParityTest.checkShard(2);

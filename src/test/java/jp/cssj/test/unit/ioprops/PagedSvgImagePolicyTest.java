@@ -26,14 +26,14 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * ページ分割SVGの画像の方針({@code output.paged-svg.image.*})と manifest の
- * 頁チェックサム({@code output.paged-svg.page-checksums})の試験です(2026-09-03、
- * cti.li の要望)。
+ * Tests for page-split SVG image policy ({@code output.paged-svg.image.*}) and
+ * manifest page checksums ({@code output.paged-svg.page-checksums}) (2026-09-03,
+ * requested by cti.li).
  */
 public class PagedSvgImagePolicyTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** 透明部分の無い 600×400 の PNG(版面では 40pt 幅にしか描かれない)。 */
+	/** An opaque 600×400 PNG (drawn only 40 pt wide in the type area). */
 	private static URI opaquePng() throws Exception {
 		final File file = new File("build/tmp/paged-svg-image-policy.png").getAbsoluteFile();
 		file.getParentFile().mkdirs();
@@ -86,7 +86,7 @@ public class PagedSvgImagePolicyTest extends TestCase {
 		final String manifest = convert(html(opaquePng()), Map.of("output.paged-svg.page-checksums", "false"))
 				.text("manifest.json");
 		assertFalse(manifest, manifest.contains("svgSha256") || manifest.contains("dataSha256"));
-		// 共有資源の sha256 は残る(URI と同一性の鍵)
+		// Shared-resource sha256 remains (the key for URI and identity).
 		assertTrue(manifest, manifest.contains("\"sha256\":\""));
 	}
 
@@ -130,7 +130,7 @@ public class PagedSvgImagePolicyTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

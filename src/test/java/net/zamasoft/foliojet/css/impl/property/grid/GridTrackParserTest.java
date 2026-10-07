@@ -18,11 +18,11 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * Grid G0の解析テストです(consult-codex-2026-07-31-grid.txt §2/G0)。
- * track list(固定長・auto・fr・整数repeat展開・上限4096)と
- * grid-line(auto・整数線番号・span)の受理/拒否を固定する。
- * computed(絶対化)はstyle文脈が要るため、ここではRaw中間形の受理までを
- * 対象とし、絶対化はGridBox系の統合テストで固定する。
+ * Parsing tests for Grid G0 (consult-codex-2026-07-31-grid.txt §2/G0).
+ * Fix acceptance/rejection of track lists (fixed lengths, auto, fr, integer repeat expansion,
+ * limit 4096) and grid-line (auto, integer line numbers, span).
+ * Computed values (absolutization) need a style context, so cover only acceptance of the Raw
+ * intermediate form here; GridBox integration tests fix absolutization.
  */
 public class GridTrackParserTest extends TestCase {
 
@@ -75,31 +75,31 @@ public class GridTrackParserTest extends TestCase {
 		assertNotNull(parseTracks("repeat(3, 50pt 1fr)"));
 		assertNotNull(parseTracks("2em 0.5fr"));
 		assertNotNull(parseTracks("none"));
-		// minmax()は2026-08-29から両端を保持する(GridShorthandParserTest.
-		// testMinMaxTracks)。max()/min()は仕様外の近似対応(2026-08-06、
-		// GridTemplateTracks.javaのクラスjavadoc参照)
+		// minmax() preserves both ends as of 2026-08-29 (GridShorthandParserTest.
+		// testMinMaxTracks). max()/min() are approximate support outside the specification
+		// (2026-08-06; see the class Javadoc in GridTemplateTracks.java).
 		assertNotNull(parseTracks("minmax(50pt, 1fr)"));
-		assertNotNull(parseTracks("minmax(0, 1fr)")); // Tailwindのgrid-cols-Nが常に使う形
-		assertNotNull(parseTracks("repeat(9, minmax(30pt, auto))")); // yahoo.co.jpの実物
+		assertNotNull(parseTracks("minmax(0, 1fr)")); // The form always used by Tailwind grid-cols-N.
+		assertNotNull(parseTracks("repeat(9, minmax(30pt, auto))")); // Actual input from yahoo.co.jp
 		assertNotNull(parseTracks("minmax(auto, 1fr)"));
 		assertNotNull(parseTracks("minmax(min-content, max-content)"));
-		assertNotNull(parseTracks("max(44px, 4.4rem)")); // yahoo.co.jpの実物
+		assertNotNull(parseTracks("max(44px, 4.4rem)")); // Actual input from yahoo.co.jp
 		assertNotNull(parseTracks("min(44px, 4.4rem)"));
 	}
 
 	public void testTrackListRejected() throws Exception {
-		assertTracksRejected("-1fr"); // 負のfr
-		assertTracksRejected("-50%"); // 負の%
-		assertTracksRejected("repeat(0, 50pt)"); // 0回
-		assertTracksRejected("repeat(2, repeat(2, 50pt))"); // 入れ子repeat
-		assertTracksRejected("repeat(5000, 50pt)"); // 展開上限4096超
-		assertTracksRejected("minmax(50pt)"); // 引数不足(2引数必須)
-		assertTracksRejected("minmax(1fr, 100pt)"); // min側にfrは不可
-		assertTracksRejected("minmax(-10pt, 100pt)"); // 負の長さ
-		assertTracksRejected("minmax(auto, minmax(0, 1fr))"); // 入れ子
-		assertTracksRejected("max(50%, 1fr)"); // max()/min()の%引数は依然サブセット外
-		// %トラック・minmaxの%・線名[a]は2026-08-29から受理
-		// (GridShorthandParserTest参照)
+		assertTracksRejected("-1fr"); // Negative fr
+		assertTracksRejected("-50%"); // Negative %
+		assertTracksRejected("repeat(0, 50pt)"); // Zero repetitions
+		assertTracksRejected("repeat(2, repeat(2, 50pt))"); // Nested repeat
+		assertTracksRejected("repeat(5000, 50pt)"); // Expansion exceeds the 4096 limit
+		assertTracksRejected("minmax(50pt)"); // Too few arguments (two required)
+		assertTracksRejected("minmax(1fr, 100pt)"); // fr is invalid on the min side
+		assertTracksRejected("minmax(-10pt, 100pt)"); // Negative length
+		assertTracksRejected("minmax(auto, minmax(0, 1fr))"); // Nested
+		assertTracksRejected("max(50%, 1fr)"); // Percentage arguments to max()/min() remain outside the subset.
+		// Percentage tracks, percentages in minmax, and line names [a] are accepted as of 2026-08-29
+		// (see GridShorthandParserTest).
 		assertNotNull(parseTracksSafe("50%"));
 		assertNotNull(parseTracksSafe("minmax(50pt, 50%)"));
 		assertNotNull(parseTracksSafe("[a] 100pt [b]"));
@@ -127,8 +127,8 @@ public class GridTrackParserTest extends TestCase {
 
 	public void testGridLineRejected() {
 		final GridPlacement info = (GridPlacement) GridPlacement.ROW_START;
-		// "span 0"は2026-08-29からspan 1として受理(GridShorthandParserTest)。
-		// "a"(線名)も受理
+		// "span 0" is accepted as span 1 as of 2026-08-29 (GridShorthandParserTest).
+		// "a" (a line name) is also accepted.
 		for (final String bad : new String[] { "0", "span -1", "1.5", "auto auto", "span" }) {
 			try {
 				info.parseValue(tokens("grid-row-start: " + bad), ua(), null);

@@ -13,7 +13,7 @@ import net.zamasoft.pdfg2d.gc.font.FontPolicyList;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
-/** 縦中横の幅字形要求と、featureが無い場合の圧縮率を固定します。 */
+/** Fix tate-chu-yoko width-variant requests and the compression ratio when the feature is absent. */
 public class TextCombineWidthVariantTest extends TestCase {
 	private static FontStyle style() {
 		return new FontStyleImpl(FontFamilyList.SERIF, 12, FontStyle.Style.NORMAL, FontStyle.Weight.W_400,
@@ -48,9 +48,10 @@ public class TextCombineWidthVariantTest extends TestCase {
 	}
 
 	/**
-	 * 1em より狭い 1 字はセルの中央へ寄せ、二度目の呼び出し(段組の均衡で同じ箱がもう一度行へ積まれる)では
-	 * 寄せ直さない(2026-10-06、jigensha の報告)。以前は二度目に寄せ済みの字面で寄せ直してずれが 0 に戻り、
-	 * 字の右端がセルの中心に来た。
+	 * Center a single character narrower than 1em in its cell, and do not center it again on the
+	 * second call (when column balancing adds the same box to a line again)
+	 * (2026-10-06, jigensha report). Previously, the second call recentered already-shifted glyph bounds,
+	 * resetting the shift to 0 and placing the character's right edge at the cell center.
 	 */
 	public void testSingleCharacterStaysCenteredWhenFittedTwice() {
 		final TestBox box = new TestBox();
@@ -59,7 +60,7 @@ public class TextCombineWidthVariantTest extends TestCase {
 		assertEquals(1, box.scaleX(), 0);
 		assertEquals(3, box.offsetX(), 1e-9);
 		assertEquals(12, box.getWidth(), 0);
-		// 二度目: 字面は寄せた後の位置で測られる
+		// Second call: glyph bounds are measured at the shifted position.
 		box.compressTextCombine(12, new java.awt.geom.Rectangle2D.Double(3.5, -8, 5, 8));
 		assertEquals(3, box.offsetX(), 1e-9);
 		assertEquals(12, box.getWidth(), 0);

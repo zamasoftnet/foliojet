@@ -21,13 +21,13 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>ページ分割SVGを1本のZIPで返す</b>出力の検査です(B-2、2026-08-29)。
+ * Tests for output that <b>returns page-split SVG in a single ZIP</b> (B-2, 2026-08-29).
  *
  * <p>
- * 利用者報告(日本自由党川崎)より。複数結果のバンドルは、セッションを
- * 使わない一発のREST({@code POST /transcode})では受け取れず4001になる。
- * ZIPなら結果1件なのでそのまま返せる——展開すればディレクトリ出力と
- * 同じ形で、{@code manifest.json}の参照もそのまま解決する。
+ * Based on a user report (Japan Liberal Party Kawasaki). A multi-result bundle cannot be received
+ * through a one-shot, sessionless REST call ({@code POST /transcode}) and fails with 4001.
+ * ZIP provides one result that can be returned directly. Extracting it yields the same structure
+ * as directory output, and {@code manifest.json} references resolve unchanged.
  * </p>
  */
 public class PagedSvgZipBundleTest extends TestCase {
@@ -35,7 +35,7 @@ public class PagedSvgZipBundleTest extends TestCase {
 			+ "@page{size:200pt 160pt;margin:10pt}body{margin:0;font-size:12pt}</style></head><body>"
 			+ "<p>ABC</p><p style=\"page-break-before:always\">DEF</p></body></html>";
 
-	/** 結果は1件だけで、中身は展開できるZIP。 */
+	/** There is exactly one result, containing an extractable ZIP. */
 	public void testSingleZipResult() throws Exception {
 		final Map<String, byte[]> entries = convert();
 		assertTrue("ページSVGが入っていません: " + entries.keySet(), entries.containsKey("pages/0001.svg"));
@@ -46,7 +46,10 @@ public class PagedSvgZipBundleTest extends TestCase {
 				page.contains("<svg"));
 	}
 
-	/** 中身は縮めない——ZIPが縮めるので二重にせず、展開名も.svg/.jsonにする。 */
+	/**
+	 * Do not compress contents separately: ZIP compresses them. Avoid double compression and use .svg/.json
+	 * entry names.
+	 */
 	public void testEntriesAreNotGzipped() throws Exception {
 		final Map<String, byte[]> entries = convert();
 		for (final String name : entries.keySet()) {
@@ -56,12 +59,12 @@ public class PagedSvgZipBundleTest extends TestCase {
 		assertFalse("ページSVGがgzipのままです", page.length > 2 && (page[0] & 0xFF) == 0x1F && (page[1] & 0xFF) == 0x8B);
 	}
 
-	/** manifestの参照はZIPのエントリ名と一致する(展開してそのまま開ける)。 */
+	/** Manifest references match ZIP entry names (extract and open directly). */
 	public void testManifestUrisMatchEntryNames() throws Exception {
 		final Map<String, byte[]> entries = convert();
 		final String manifest = new String(entries.get("manifest.json"), StandardCharsets.UTF_8);
-		// ページは "svg":"pages/0001.svg" と "data":"pages/0001.json"、
-		// 資源は "uri":"assets/…" で参照される
+		// Pages are referenced by "svg":"pages/0001.svg" and "data":"pages/0001.json",
+		// and resources by "uri":"assets/…".
 		final java.util.regex.Matcher m = java.util.regex.Pattern
 				.compile("\"(?:uri|svg|data)\"\s*:\s*\"((?:pages|assets)/[^\"]+)\"").matcher(manifest);
 		int checked = 0;

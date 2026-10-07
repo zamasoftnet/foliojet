@@ -18,7 +18,7 @@ import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** 縦組みのoffset未指定absoluteが静的位置へ描かれることを固定します。 */
+/** Verifies that an absolute box with unspecified offsets is drawn at its static position in vertical writing. */
 public class AbsoluteStaticVerticalTest extends TestCase {
 	private record Point(double x, double y) {
 	}

@@ -6,13 +6,13 @@ import net.zamasoft.pdfg2d.gc.text.RunCollector;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
 
 /**
- * 自己完結shape+run内約物詰めです(2026-08-01、テキスト系一本化)。
+ * Self-contained shaping plus punctuation trimming within runs (2026-08-01, text pipeline consolidation).
  *
  * <p>
- * ルビ単位・脚注ラベル・{@code leader()}パターンの3箇所に同型で複製
- * されていた匿名collectorを、pdfg2dの{@link RunCollector}(汎用の
- * shape→run収集)+このラッパー(foliojet固有のrun内約物詰め——
- * 和文詰めT1a/T1b)へ一本化した。
+ * Consolidates anonymous collectors duplicated in three places (ruby units, footnote labels,
+ * and {@code leader()} patterns) into pdfg2d's {@link RunCollector}
+ * (generic shape → run collection) plus this wrapper (foliojet-specific punctuation trimming
+ * within runs; Japanese spacing adjustment T1a/T1b).
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -23,22 +23,22 @@ public final class TrimmedRuns {
 	}
 
 	/**
-	 * 文字列を現在のスタイルで自己完結shapeし、run内約物詰めを適用して
-	 * 返します。
+	 * Shapes a string independently in the current style, applies punctuation trimming within runs,
+	 * and returns the result.
 	 *
-	 * @param fontManager フォントマネージャ
-	 * @param fontStyle   shapeに使うスタイル
-	 * @param text        テキスト(空可)
-	 * @param charOffset  先頭のソース文字オフセット(生成内容は{@code -1})
-	 * @param trimOff     {@code text-spacing-trim: space-all}(詰め無効)か
-	 * @return pack済みのrun列
+	 * @param fontManager font manager
+	 * @param fontStyle   style used for shaping
+	 * @param text        text (may be empty)
+	 * @param charOffset  source character offset of the first character ({@code -1} for generated content)
+	 * @param trimOff     whether {@code text-spacing-trim: space-all} (trimming disabled) applies
+	 * @return packed run sequence
 	 */
 	public static TextImpl[] shape(final FontManager fontManager, final FontStyle fontStyle, final String text,
 			final int charOffset, final boolean trimOff) {
 		final TextImpl[] runs = RunCollector.shape(fontManager, fontStyle, text, charOffset);
 		if (!trimOff) {
 			for (final TextImpl run : runs) {
-				// 和文詰めT1a/T1b: font層から移管したrun内約物詰め
+				// Japanese spacing adjustment T1a/T1b: within-run punctuation trimming moved from the font layer
 				JapaneseSpacingResolver.applyRunTrims(run);
 			}
 		}

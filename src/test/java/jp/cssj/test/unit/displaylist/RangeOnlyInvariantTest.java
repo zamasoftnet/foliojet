@@ -40,11 +40,11 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
 
 /**
- * T4b: 固定manifestの所有終端・lease収支とrange/empty限定のbindを検査する。
+ * T4b: Check ownership termination, lease balance, and range/empty-only binding for the fixed manifest.
  *
  * <p>
- * 全件の検査は <b>{@value #SHARDS} 分割</b>(2026-10-05、文書名の hash)。このクラスが 0 番、
- * {@code RangeOnlyInvariantShardNTest} が残りを受け持つ。
+ * The full check uses <b>{@value #SHARDS} shards</b> (2026-10-05, by document name hash). This class handles
+ * shard 0; {@code RangeOnlyInvariantShardNTest} handles the rest.
  * </p>
  */
 public final class RangeOnlyInvariantTest extends TestCase {
@@ -54,7 +54,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		checkShard(0);
 	}
 
-	/** {@code shard} 番の受け持ちの文書を検査します(分割した試験クラスから呼ぶ)。 */
+	/** Check the documents assigned to {@code shard} (called by the sharded test classes). */
 	static void checkShard(final int shard) throws Exception {
 		final var manifest = new java.util.TreeMap<>(TwoPassDigestParityTest.fixedManifest());
 		assertFalse("固定manifestが空", manifest.isEmpty());
@@ -131,7 +131,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		ScratchReplayScopeTest.checkDocument(new File("files/unittest/0070-table-layout/float-in-auto.html"));
 	}
 
-	/** compact後も、同一EventIdの本文をscratch二回→MAINへ独立に再生できる。 */
+	/** Even after compaction, replay the body with the same EventId independently into scratch twice, then MAIN. */
 	public void testSlicedCellsScratchTwiceThenMain() throws Exception {
 		final File document = EnduranceTest.generateManyRowsTable("t5a-sliced-scratch", 120);
 		final AtomicBoolean compacted = new AtomicBoolean();
@@ -203,7 +203,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		}
 	}
 
-	/** 元ログとの列一致。EventIdは非ゼロ開始、生成文字とfixedも混ぜる。 */
+	/** Match the sequence against the original log. EventIds start above zero; mix in generated text and fixed. */
 	public void testTextSlicePreservesMultipleCharsAndOffsets() throws Exception {
 		try (final LayoutSource source = new LayoutSource(6)) {
 			source.appendChars(0, new char[] { 'p' }, 0, 1, false);
@@ -238,14 +238,14 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		}
 	}
 
-	/** sliceを先に解放する場合と、通常リースが本文の一部だけを守る場合の予算収支。 */
+	/** Budget balance when the slice is released first, or a normal lease protects only part of the body. */
 	public void testTextSliceReleasesBeforeOrAfterPartialCompaction() throws Exception {
 		for (final boolean compactFirst : List.of(false, true)) {
 			try (final LayoutSource source = new LayoutSource()) {
 				for (int i = 0; i < 3; ++i) source.appendChars(i, new char[] { 'a' }, 0, 1, false);
 				final RangeHandle handle = new RangeHandle(source, 0, 2, IntrinsicSizes.ZERO,
 						RangeHandle.ReplayMode.CHILDREN_ONLY, true);
-				// 重なった別範囲はリース。sliceの配列・予算を二重所有しない。
+				// Lease a separate overlapping range. Do not take duplicate ownership of the slice array or budget.
 				final RangeHandle tail = new RangeHandle(source, 1, 2, IntrinsicSizes.ZERO,
 						RangeHandle.ReplayMode.CHILDREN_ONLY, true);
 				assertFalse(tail.hasTextSlice());
@@ -260,7 +260,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		}
 	}
 
-	/** 表の前のログと、まだOPENな本文/再生のpinを越えて回収しない。 */
+	/** Do not reclaim past the log before the table or pins for a body/replay that is still OPEN. */
 	public void testTableCompactionPreservesPrefixAndOpenLease() throws Exception {
 		try (final LayoutSource source = new LayoutSource()) {
 			for (int i = 0; i < 4; ++i) source.append(new LayoutSource.Chars(i, new char[] { 'x' }, false));
@@ -299,7 +299,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		}
 	}
 
-	/** 親TwoPass内の入れ子表は切り出さず、元source/範囲包含で吸収できる。 */
+	/** Absorb nested tables in a parent TwoPass via the original source/range containment without extracting them. */
 	public void testParentTableKeepsLeasesForNestedSeal() throws Exception {
 		final List<RangeHandle> handles = new ArrayList<>();
 		try (final AutoCloseable observer = observe(RangeHandle.class, "sealObserver", (Consumer<RangeHandle>) handle -> {
@@ -348,7 +348,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 							handle.bind(null, null);
 							fail("不正なbind先を受理した");
 						} catch (final NullPointerException expected) {
-							// 失敗したbindも元のリースを消費する(成功時はfixture群で検証)。
+							// A failed bind also consumes the original lease (fixtures verify the successful case).
 						}
 					}
 				}
@@ -367,7 +367,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 	}
 
 
-	/** 空本文もscratchでは温存し、持ち出した本文のMAINは一度だけ受け付ける。 */
+	/** Preserve empty bodies in scratch too; accept MAIN for an extracted body only once. */
 	public void testEmptyBodyOwnership() throws Exception {
 		ContinuationStats.reset();
 		try {
@@ -433,7 +433,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		}
 	}
 
-	/** 致命エラーの継続設定でも不変条件違反を成功扱いせず、残った本文を解放する。 */
+	/** Even when fatal errors allow continuation, do not treat invariant violations as success; release remaining bodies. */
 	public void testFailedConversionReleasesHandlesAndRecovers() throws Exception {
 		final var original = TwoPassDigestParityTest.fixedManifest().get("0070-table-layout/float-in-auto.html");
 		assertNotNull(original);
@@ -470,7 +470,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		return false;
 	}
 
-	/** spine本文のseal失敗をEPUB/DirectSessionが通常のI/O失敗に潰さない。 */
+	/** EPUB/DirectSession must not flatten a spine body seal failure into an ordinary I/O failure. */
 	public void testEpubSealFailureKeepsCauseAndBrokenState() throws Exception {
 		final var bytes = new java.io.ByteArrayOutputStream();
 		try (final var zip = new java.util.zip.ZipOutputStream(bytes)) {
@@ -524,7 +524,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 	}
 
 	private static void transcodeEpub(final byte[] bytes) throws Exception {
-		// 同じ設定初期化を使い、ストリーム入力でDirectSessionのIOException境界も通す。
+		// Use the same configuration initialization and stream input to pass through DirectSession's IOException boundary too.
 		Class.forName(TwoPassDigestParityTest.class.getName());
 		try (final var session = new net.zamasoft.foliojet.driver.DirectDriver()
 				.getSession(java.net.URI.create("copper:direct:"), null)) {
@@ -538,7 +538,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		}
 	}
 
-	/** cleanup後の収支だけでなく、正常終了前に所有を使い切っていることを検査する。 */
+	/** Check that ownership is fully consumed before normal completion, as well as balanced after cleanup. */
 	public void testSuccessfulConversionReleasesBeforeSourceClose() throws Exception {
 		for (final String fixture : List.of("table-float-in-table", "grid-sealed-float", "cell-parent")) {
 			final List<LayoutSource.RetentionSnapshot> snapshots = new ArrayList<>();
@@ -568,7 +568,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		assertEquals(RangeHandle.State.ABANDONED, handle.state());
 	}
 
-	/** 実HTMLからの登録順・計画のidentity共有・吸収先の集合を独立に照合する。 */
+	/** Independently verify registration order, shared plan identity, and the set of absorption targets from real HTML. */
 	public void testHtmlRegistersAllOwnershipKindsInOrder() throws Exception {
 		final AtomicBoolean observed = new AtomicBoolean();
 		final List<TwoPassBlockBuilder> owners = new ArrayList<>();
@@ -614,7 +614,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 					source, from, to, children, tables, ranges, anchors, Collections.newSetFromMap(new IdentityHashMap<>())));
 			assertEquals(expectedChildren, children);
 			assertEquals(List.of(call(nodes.get(2), "identity"), call(nodes.get(4), "identity")), tables);
-			assertEquals(2, ranges.size()); // GridとFlexそれぞれ1項目。
+			assertEquals(2, ranges.size()); // One item each for Grid and Flex.
 			assertTrue(ranges.get(0).fromId() < ranges.get(1).fromId());
 			assertEquals(Set.of(((Number) call(nodes.get(10), "anchor")).longValue()), anchors);
 		})) {
@@ -624,7 +624,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		assertTrue("吸収後も子ノードを保持", nodes(owners.get(0)).isEmpty());
 	}
 
-	/** DirectSessionの別スレッドへ届くstatic volatileの観測口をfinallyで復元する。 */
+	/** Restore the static volatile observer that reaches DirectSession's separate thread in finally. */
 	static AutoCloseable observe(final Class<?> owner, final String name, final Object observer) throws Exception {
 		final Field hook = owner.getDeclaredField(name);
 		assertTrue(name + ": volatileでない", java.lang.reflect.Modifier.isVolatile(hook.getModifiers()));

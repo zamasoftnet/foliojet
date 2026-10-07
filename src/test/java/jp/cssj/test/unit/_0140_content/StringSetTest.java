@@ -8,12 +8,11 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * {@code string-set: name content();}(要素自身の描画テキストを捕捉)が
- * ページを跨いで正しく{@code string()}へ反映されることを検証する。
- * {@code content()}は要素のボックスが確定するdraw時まで解決されない
- * ため、同じページ内の後続要素からの参照は検証対象にしない
- * ({@code StringSetCounterTest}でbuild時解決のみのケースを網羅的に
- * 検証する)。
+ * Verifies that {@code string-set: name content();} (capturing the element's own rendered text)
+ * is correctly reflected in {@code string()} across pages.
+ * Since {@code content()} is not resolved until draw time, when the element's box is finalized,
+ * references from subsequent elements on the same page are outside this test's scope
+ * ({@code StringSetCounterTest} exhaustively tests cases resolved solely at build time).
  */
 public class StringSetTest extends AbstractTestCase {
 	public StringSetTest(String name) {

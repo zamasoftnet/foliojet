@@ -13,39 +13,40 @@ import java.util.Map;
 import com.sun.net.httpserver.HttpServer;
 
 /**
- * 資源アクセス制御の試験で使う<b>記録用</b>のHTTPサーバです。
+ * A <b>recording</b> HTTP server for resource-access-control tests.
  *
  * <p>
- * 「組まれた」「サーバに来なかった」だけでは、<b>資源を無視しただけの場合と
- * 区別できません</b>。第1版の対策では、SVGの経路を起動できていないのに
- * 「遮断できた」と報告する誤りを実際に犯しました。そこで、この試験群では
- * どの検査でも次の3つを記録します。
+ * Successful layout or no request reaching the server <b>cannot distinguish blocking from simply
+ * ignoring the resource</b>. In the first version of the countermeasure, we actually reported
+ * successful blocking when the SVG path had never activated. Every check in this suite therefore
+ * records the following three points.
  * </p>
  *
  * <ol>
- * <li><b>経路への到達</b> — この記録用サーバに何が要求されたか</li>
- * <li><b>取得元</b> — 押し込み/独自リゾルバ/HTTP/キャッシュのどれが本文を出したか</li>
- * <li><b>結果</b> — その固有の内容が実際に使われたか、意図した拒否が起きたか</li>
+ * <li><b>Path reachability</b> — what was requested from this recording server</li>
+ * <li><b>Source</b> — whether pushed input, a custom resolver, HTTP, or cache supplied the body</li>
+ * <li><b>Result</b> — whether its distinctive content was actually used or the intended denial
+ * occurred</li>
  * </ol>
  *
  * <p>
- * 3つ目のために、配る本文はすべて<b>識別できる固有のもの</b>にします。
- * 「取得できたか」ではなく「取得した中身が版面に出たか」で判定するためです。
+ * For the third point, every response body contains <b>distinctive, identifiable content</b>.
+ * Judge whether fetched contents appeared in the type area, not merely whether fetching succeeded.
  * </p>
  *
  * @see <a href=
- *      "https://github.com/zamasoftnet/foliojet">設計(第3版)</a>
+ *      "https://github.com/zamasoftnet/foliojet">Design (third version)</a>
  */
 public class ProbeServer implements AutoCloseable {
 
-	/** 届いた要求のパスを、届いた順に持ちます。 */
+	/** Paths of received requests in arrival order. */
 	private final List<String> hits = Collections.synchronizedList(new ArrayList<String>());
 
 	private final Map<String, byte[]> bodies = new HashMap<String, byte[]>();
 
 	private final Map<String, String> types = new HashMap<String, String>();
 
-	/** パスごとのリダイレクト先です。値があればそちらへ302します。 */
+	/** Redirect destinations by path. If a value exists, issue a 302 to it. */
 	private final Map<String, String> redirects = new HashMap<String, String>();
 
 	private final HttpServer server;
@@ -95,7 +96,7 @@ public class ProbeServer implements AutoCloseable {
 		return this;
 	}
 
-	/** このサーバの{@code http://127.0.0.1:ポート}です。 */
+	/** This server's {@code http://127.0.0.1:port}. */
 	public String base() {
 		return "http://127.0.0.1:" + this.server.getAddress().getPort();
 	}
@@ -104,7 +105,7 @@ public class ProbeServer implements AutoCloseable {
 		return this.base() + path;
 	}
 
-	/** そのパスへ何回来たかです。<b>0は「取得しなかった」の証拠になります。</b> */
+	/** Number of requests to this path. <b>0 is evidence that no fetch occurred.</b> */
 	public int hits(final String path) {
 		int n = 0;
 		for (final String hit : this.hits) {
@@ -115,12 +116,12 @@ public class ProbeServer implements AutoCloseable {
 		return n;
 	}
 
-	/** 全部で何回来たかです。 */
+	/** Total number of requests. */
 	public int totalHits() {
 		return this.hits.size();
 	}
 
-	/** 届いた順のパスです。失敗時の説明に使います。 */
+	/** Paths in arrival order. Used to explain failures. */
 	public List<String> hitPaths() {
 		return new ArrayList<String>(this.hits);
 	}

@@ -22,8 +22,8 @@ import net.zamasoft.foliojet.layout.box.params.ClipPathShape;
 import net.zamasoft.pdfg2d.gc.paint.BlendMode;
 
 /**
- * {@code clip-path: path()}・{@code text-overflow}・{@code mix-blend-mode}・
- * {@code isolation}の解析テストです(2026-08-29)。
+ * Parsing tests for {@code clip-path: path()}, {@code text-overflow}, {@code mix-blend-mode},
+ * and {@code isolation} (2026-08-29).
  */
 public class MiscPropertyParserTest extends TestCase {
 
@@ -55,20 +55,20 @@ public class MiscPropertyParserTest extends TestCase {
 		assertEquals(ClipPathShape.ReferenceBox.BORDER_BOX, cv.box());
 		final ClipPathShape shape = ClipPath.toShape(cv);
 		assertTrue(shape instanceof ClipPathShape.Path);
-		// uaなしのpx→ptは0.75。参照ボックス(10,20)原点で100px=75pt
+		// Without ua, px→pt is 0.75. At reference-box origin (10,20), 100 px=75 pt.
 		final Rectangle2D b = shape.resolve(10, 20, 200, 200).getBounds2D();
 		assertEquals(10.0, b.getMinX(), 1e-9);
 		assertEquals(85.0, b.getMaxX(), 1e-9);
 		assertEquals(20.0, b.getMinY(), 1e-9);
 		assertEquals(95.0, b.getMaxY(), 1e-9);
 
-		// fill-rule付き・参照ボックス併記
+		// With fill-rule and a reference box specified together.
 		final Object v2 = parse(ClipPath.INFO, "path(evenodd, \"M0 0 h10 v10 z\") content-box");
 		assertTrue(String.valueOf(v2), v2 instanceof ClipPath.ClipPathValue);
 		assertEquals(ClipPathShape.ReferenceBox.CONTENT_BOX, ((ClipPath.ClipPathValue) v2).box());
 		assertTrue(((net.zamasoft.foliojet.css.util.BasicShapes.ShapeSpec.Path) ((ClipPath.ClipPathValue) v2).shape()).evenOdd());
 
-		// 不正: 文字列でない・パス文法エラー・未知のfill-rule
+		// Invalid: not a string, path syntax error, unknown fill-rule.
 		assertTrue(parse(ClipPath.INFO, "path(M0 0)") instanceof PropertyException);
 		assertTrue(parse(ClipPath.INFO, "path(\"L0 0\")") instanceof PropertyException);
 		assertTrue(parse(ClipPath.INFO, "path(inside, \"M0 0\")") instanceof PropertyException);

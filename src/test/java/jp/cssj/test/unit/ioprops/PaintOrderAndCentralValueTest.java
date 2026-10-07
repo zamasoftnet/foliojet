@@ -22,7 +22,7 @@ import net.zamasoft.foliojet.css.value.VerticalAlignValue;
 import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** {@code paint-order}と{@code vertical-align:central}の宣言解析です。 */
+/** Declaration parsing for {@code paint-order} and {@code vertical-align:central}. */
 public class PaintOrderAndCentralValueTest extends TestCase {
 	private final List<String> warnings = new ArrayList<>();
 

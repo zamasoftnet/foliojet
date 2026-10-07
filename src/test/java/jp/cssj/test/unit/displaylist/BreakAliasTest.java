@@ -18,8 +18,8 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>css-break-3の正式名{@code break-before/after/inside}のエイリアス</b>を
- * 固定します(2026-08-22)。旧{@code page-break-*}と同じ機構へ流れる。
+ * Verifies <b>aliases for the official css-break-3 names {@code break-before/after/inside}</b>
+ * (2026-08-22). They use the same mechanism as the old {@code page-break-*}.
  */
 public class BreakAliasTest extends TestCase {
 	public void testBreakBeforePageBreaks() throws Exception {

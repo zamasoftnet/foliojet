@@ -24,12 +24,15 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 段組の中の {@code float: bottom} が、既に組んだ段の本文に重ならないことを固定します(2026-10-05、jigensha の報告 4)。
+ * Verify that {@code float: bottom} inside multi-column layout does not overlap already laid-out column text
+ * (2026-10-05, jigensha report 4).
  *
  * <p>
- * 錨が後の段(2 段組の右の段)にあると、置き場の判定が今の段の位置しか見ず、左の段が既に頁の底まで組まれて
- * いても同じ頁の下端に絵を置いたので、左の段の下の数行に重なった。前の段がもう置き場まで届いていれば、
- * 単段と同じく絵を次の頁の下端へ回す。錨が前の段の早い位置にあれば、従来どおり同じ頁の下端に置く。
+ * When the anchor was in a later column (the right column of two), placement checked only the current
+ * column's position. Even if the left column already reached the page bottom, the image was placed
+ * at that page's bottom, overlapping the left column's last few lines. If an earlier column already
+ * reaches the placement area, send the image to the next page's bottom, as with a single column.
+ * An anchor early in the first column still places the image at the same page's bottom.
  * </p>
  */
 public class MulticolBottomFloatTest extends TestCase {
@@ -62,14 +65,17 @@ public class MulticolBottomFloatTest extends TestCase {
 				""".formatted(span, "本文。".repeat(before), "本文。".repeat(160));
 	}
 
-	/** 錨が左の段の早い位置: 同じ頁の下端に置き、どちらの段の本文とも重ならない。 */
+	/** Anchor early in the left column: place at the same page's bottom without overlapping either column's text. */
 	public void testAnchorInFirstColumn() throws Exception {
 		final String[] pages = convert("first", document(50, ""));
 		assertEquals("絵は 1 頁目", 0, floatPage(pages));
 		assertNoOverlap(pages);
 	}
 
-	/** 錨が右の段: 左の段は既に頁の底まで組まれているので、絵は次の頁の下端へ。 */
+	/**
+	 * Anchor in the right column: the left already reaches the page bottom, so place the image on the next page's
+	 * bottom.
+	 */
 	public void testAnchorInSecondColumn() throws Exception {
 		final String[] pages = convert("second", document(160, ""));
 		assertEquals("絵は 2 頁目", 1, floatPage(pages));
@@ -93,7 +99,10 @@ public class MulticolBottomFloatTest extends TestCase {
 		return found;
 	}
 
-	/** 絵(背景のある枠)と block 軸で交わる行が同じ頁に無いこと。絵は両方の段に横から掛かる幅。 */
+	/**
+	 * No line on the same page intersects the image (a frame with background) on the block axis. The image spans both
+	 * columns.
+	 */
 	private static void assertNoOverlap(final String[] pages) {
 		for (int p = 0; p < pages.length; ++p) {
 			final Matcher f = FRAME.matcher(pages[p]);
@@ -114,7 +123,7 @@ public class MulticolBottomFloatTest extends TestCase {
 		}
 	}
 
-	/** 変換して、各頁の表示リストを頁順に返します。 */
+	/** Convert and return each page's display list in page order. */
 	private static String[] convert(final String name, final String html) throws Exception {
 		final File dir = new File("local/multicol-bottom-float/" + name);
 		dir.mkdirs();

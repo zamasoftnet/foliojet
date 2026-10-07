@@ -8,8 +8,8 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * scaled shrinkの配置テストです(Flex F1e——§9.7.9.c。basis 100/200pt・
- * shrink 1/1、コンテナ240pt→不足60ptをinner base比100:200で分配)。
+ * Tests scaled shrink placement (Flex F1e, §9.7.9.c). Basis 100/200 pt, shrink 1/1,
+ * container 240 pt: the 60 pt shortfall is distributed in the inner-base ratio 100:200.
  */
 public class FlexRowShrinkTest extends AbstractTestCase {
 	public FlexRowShrinkTest(String name) {
@@ -32,7 +32,7 @@ public class FlexRowShrinkTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** shrinkはscaled factor(factor×inner base)比例: 不足60を100:200で分配→幅80/160。 */
+	/** shrink is proportional to scaled factors (factor × inner base): shortfall 60 at 100:200 → widths 80/160. */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 80, x, 0.1);

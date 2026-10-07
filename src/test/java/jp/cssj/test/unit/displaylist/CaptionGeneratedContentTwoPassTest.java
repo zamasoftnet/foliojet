@@ -16,9 +16,10 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 表の caption の中の要素に生成内容(::before/::after の content)が付くと、TwoPass の
- * glyph 経路で run が閉じた後に保留 glyph が届き NPE で変換が止まっていた
- * (cti.li 報告 repro-7、2026-09-05)。fixture は報告の最小例(本文の段落で前後を挟んだ表)。
+ * When elements inside a table caption had generated content (::before/::after content),
+ * pending glyphs arrived after the run closed on the TwoPass glyph path, stopping conversion with an NPE
+ * (cti.li report repro-7, 2026-09-05).
+ * The fixture is the report's minimal example (a table between body paragraphs).
  */
 public class CaptionGeneratedContentTwoPassTest extends TestCase {
 	public CaptionGeneratedContentTwoPassTest(final String name) {

@@ -22,7 +22,7 @@ import net.zamasoft.zstream.resolver.SourceResolver;
 import net.zamasoft.zstream.resolver.SourceValidity;
 import net.zamasoft.zstream.resolver.util.AbstractSource;
 
-/** 2811が画像取得の失敗段階を失わず通知することを固定します。 */
+/** Verify that 2811 reports the image-fetch failure stage without losing it. */
 public class ImageLoadStageTest extends TestCase {
 	private static final URI URI = java.net.URI.create("https://example.com/image.png");
 	private static final byte[] PNG = Base64.getDecoder().decode(

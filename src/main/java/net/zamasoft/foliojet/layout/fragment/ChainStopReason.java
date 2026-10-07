@@ -1,18 +1,16 @@
 package net.zamasoft.foliojet.layout.fragment;
 
 /**
- * plan選択済み(収集可能と判定された)チェーンメンバー自身の
- * {@code splitForContinuation}/{@code split}が返した{@code SplitResult}の
- * うち、{@code Frame}にならなかった理由です(2026-07-21新設、M6b Phase
- * B5c-2)。{@code ContainerCut.PlainWithChainStop}とともに、段組を
- * またぐ改ページ(改ページ契約§5.10ルール4)のために恒久的に必要な
- * 型であり、削除予定はない。§5.10ルール2が「不要」と裁定したMOVE専用型
- * ({@code MovedOpen}系、2026-07-22撤去済み)とは別物——本型はKEEP/MOVE
- * 両方を運ぶ(詳細は{@code ContainerCut.PlainWithChainStop}のjavadoc参照)。
+ * Reason that the {@code SplitResult} returned by a plan-selected (collectable) chain member's own {@code
+ * splitForContinuation}/{@code split} was not a {@code Frame} (added 2026-07-21, M6b Phase B5c-2). Along with
+ * {@code ContainerCut.PlainWithChainStop}, this type is permanently required for page breaks across multi-column
+ * layout (pagination contract §5.10 rule 4) and is not scheduled for removal. Distinct from the MOVE-only types
+ * declared unnecessary by §5.10 rule 2 ({@code MovedOpen} family, removed 2026-07-22): this type carries both KEEP
+ * and MOVE (see the Javadoc for {@code ContainerCut.PlainWithChainStop}).
  */
 public enum ChainStopReason {
-	/** チェーンメンバーが{@code SplitResult.Keep}を返した(box全体を現在側に残す)。 */
+	/** The chain member returned {@code SplitResult.Keep} (keep the whole box on the current side). */
 	KEEP,
-	/** チェーンメンバーが{@code SplitResult.Move}を返した(box全体を次側へ送る)。 */
+	/** The chain member returned {@code SplitResult.Move} (send the whole box to the next side). */
 	MOVE
 }

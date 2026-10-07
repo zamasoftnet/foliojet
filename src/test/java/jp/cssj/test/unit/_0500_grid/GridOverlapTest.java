@@ -8,9 +8,9 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Grid G4cの重複配置テストです。両軸definiteのitem同士の重なりは
- * エラーではなく許可され、source orderで描画される(p/qとも同じ
- * セル(0,0))。行高=行内max(20,10,15)=20。
+ * Grid G4c overlapping placement test. Overlap between items definite on both axes is allowed,
+ * not an error, and items are drawn in source order (p/q both occupy cell (0,0)).
+ * Row height = maximum in the row, max(20,10,15)=20.
  */
 public class GridOverlapTest extends AbstractTestCase {
 	public GridOverlapTest(String name) {
@@ -33,7 +33,7 @@ public class GridOverlapTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** pと同じセル(重なり許可)。 */
+	/** Same cell as p (overlap is allowed). */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);
@@ -52,7 +52,7 @@ public class GridOverlapTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 総高=max(20,10,15)=20。 */
+	/** Total height = max(20,10,15)=20. */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseY + 20, y, 0.1);

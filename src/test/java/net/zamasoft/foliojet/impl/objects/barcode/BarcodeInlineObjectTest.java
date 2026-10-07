@@ -38,13 +38,13 @@ public class BarcodeInlineObjectTest extends TestCase {
 	}
 
 	/**
-	 * <b>QRの自然寸法は正方形であること。</b>
+	 * <b>The natural dimensions of a QR code must be square.</b>
 	 *
 	 * <p>
-	 * {@code quiet-zone}は1次元バーコード由来で横にしか効かなかった。そのため
-	 * {@code symbol.getWidth()}だけが静止帯ぶん広がり、自然寸法が33×25セルの
-	 * 長方形になっていた。利用側が正方形の枠を与えると、その枠に合わせて縦へ
-	 * 引き伸ばされ、セルが正方形でなくなる。読めはするが規格から外れる。
+	 * {@code quiet-zone} originated in one-dimensional barcodes and only affected the horizontal direction.
+	 * As a result, only {@code symbol.getWidth()} included the quiet zone, making the natural dimensions
+	 * a 33×25-cell rectangle. When the caller supplied a square frame, the code stretched vertically to fit,
+	 * making its cells non-square. It remained readable but did not conform to the standard.
 	 * </p>
 	 */
 	public void testQrCodeQuietZoneAppliesToAllFourSides() throws Exception {
@@ -55,12 +55,12 @@ public class BarcodeInlineObjectTest extends TestCase {
 				image.symbol.getQuietZoneVertical());
 		assertEquals("a QR symbol must be square in modules", image.symbol.getWidth(), image.symbol.getHeight());
 		assertEquals("a QR symbol must be square in physical size", image.getWidth(), image.getHeight(), 0.000001);
-		// 25セル + 四方4セル = 33セル。1セル0.6mmなら19.8mm角
+		// 25 cells + 4 cells on each side = 33 cells. At 0.6 mm per cell, the square is 19.8 mm on each side.
 		assertEquals("version 2 plus the mandatory quiet zone is 19.8mm", 19.8 * 72 / 25.4, image.getWidth(),
 				0.000001);
 	}
 
-	/** 縦を明示したときは、その値が優先されること。 */
+	/** An explicitly specified vertical value takes precedence. */
 	public void testExplicitVerticalQuietZoneStillWins() throws Exception {
 		BarcodeImage image = (BarcodeImage) parse(
 				"<barcode xmlns=\"http://barcode4j.krysalis.org/ns\" message=\"FolioJet\">"
@@ -118,9 +118,9 @@ public class BarcodeInlineObjectTest extends TestCase {
 	}
 
 	public void testJapanPostIgnoresCharactersOutsideDigitsLettersHyphen() throws Exception {
-		// 4900_barcode.mdに明記されている「message内に含まれる数字、アルファベット、
-		// ハイフン以外の文字は無視されます」という挙動をJapanPostで確認する。
-		// スペースを含むメッセージがOkapiInputExceptionにならず正常に画像化できること。
+		// Verify for JapanPost the behavior documented in 4900_barcode.md: "Characters in message other than
+		// digits, letters, and hyphens are ignored."
+		// A message containing spaces must render successfully without an OkapiInputException.
 		Image image = parse("<barcode xmlns=\"http://barcode4j.krysalis.org/ns\" message=\"1008798 1-3-2\">"
 				+ "<japanpost><module-width>0.6mm</module-width></japanpost></barcode>");
 		assertTrue(image.getWidth() > 0);

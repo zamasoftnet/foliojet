@@ -17,7 +17,10 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** position:relativeを挟む直交フローでも、画像の%寸法を直接の包含ブロックへ解決する。 */
+/**
+ * Image percentage dimensions resolve against the immediate containing block even in orthogonal flow with
+ * position:relative.
+ */
 public class OrthogonalPercentHeightTest extends AbstractTestCase {
 	private static final File FIXTURE = new File(
 			"files/unittest/0390-writing-mode/orthogonal-percent-height.html");

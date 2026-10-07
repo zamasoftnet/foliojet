@@ -18,11 +18,12 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>{@code clip-path: path()}</b>を固定します(css-shapes-1、2026-08-29)。
+ * Verifies <b>{@code clip-path: path()}</b> behavior (css-shapes-1, 2026-08-29).
  *
  * <p>
- * 100pt角の赤いボックスを、px座標のSVGパス(右上半分の三角形、相対
- * コマンド)で切り抜く。三角形の内側は赤、外側(左下)は白。
+ * Clips a 100 pt square red box with an SVG path in px coordinates
+ * (an upper-right triangular half, using relative commands).
+ * Inside the triangle is red; outside (lower left) is white.
  * </p>
  */
 public class ClipPathPathTest extends TestCase {
@@ -42,8 +43,8 @@ public class ClipPathPathTest extends TestCase {
 		}
 		try (PDDocument doc = Loader.loadPDF(out.toByteArray())) {
 			final java.awt.image.BufferedImage img = new PDFRenderer(doc).renderImageWithDPI(0, 72);
-			// 紙200pt角・margin10pt。box左上は(10,10)。三角形は(0,0)-(100,0)-(100,100)
-			// →対角線より上(x-10 > y-10)が赤、下が白
+			// 200 pt square sheet, margin 10 pt. Box top-left is (10,10); triangle is (0,0)-(100,0)-(100,100).
+			// Above the diagonal (x-10 > y-10) is red; below is white.
 			assertTrue("三角形の内側(右上)が塗られていません", isRed(img.getRGB(95, 25)));
 			assertTrue("三角形の内側(対角線近く)が塗られていません", isRed(img.getRGB(80, 60)));
 			assertFalse("三角形の外(左下)が切り抜かれていません", isRed(img.getRGB(25, 95)));

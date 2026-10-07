@@ -17,8 +17,8 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
 /**
- * ページ参照用のデータです。
- * 
+ * Data for page references.
+ *
  * @author MIYABE Tatsuhiko
  */
 public class PageRef {
@@ -30,12 +30,11 @@ public class PageRef {
 	private final Map<URI, int[]> uriToSeq = new HashMap<URI, int[]>();
 
 	/**
-	 * LAYOUTパスを跨ぐたびに{@link #reset()}でインクリメントする世代番号。
-	 * 参照先idが今回パスでまだ訪問されていない(意図的な、1パス前の値を
-	 * 読む forward-reference)場合と、2パス以上前の値が{@code
-	 * uriToFragments}に取り残された(重複idの出現数がパスをまたいで
-	 * 減った等の)stale状態を区別するために使う({@link #getFragments}
-	 * 参照)。
+	 * Generation number incremented by {@link #reset()} at each LAYOUT pass boundary.
+	 * Distinguishes a target id not yet visited in this pass (an intentional forward reference
+	 * reading the preceding pass's value) from stale values left in {@code uriToFragments}
+	 * from two or more passes ago (e.g., when the number of duplicate id occurrences decreases
+	 * between passes). See {@link #getFragments}.
 	 */
 	private int generation = 0;
 
@@ -55,7 +54,7 @@ public class PageRef {
 	}
 
 	/**
-	 * フラグメントを追加します。
+	 * Adds a fragment.
 	 *
 	 * @param uri
 	 * @param counters
@@ -65,26 +64,28 @@ public class PageRef {
 	}
 
 	/**
-	 * 最終パスで<b>実際に収束していなかった</b>ことを検出した印です
-	 * (2026-08-02)。「前方参照が前パスの値を読んだ」だけでは非収束では
-	 * ない——前パスと同じ値なら結果は正しい。読まれた値が同じパスの
-	 * うちに<b>変わった</b>ときだけ、その参照は誤った値を出している。
+	 * Flag detecting that the final pass <b>has not actually converged</b> (2026-08-02).
+	 * "A forward reference read the preceding pass's value" alone does not mean nonconvergence:
+	 * if the value matches the preceding pass, the result is correct.
+	 * Only when the value read <b>changes</b> within the same pass does the reference output
+	 * an incorrect value.
 	 */
 	private boolean unconverged = false;
 
 	/**
-	 * 最終パスで、前方参照が読んだ値がそのパスのうちに変わったか
-	 * (=pass-countを増やすべき状態か)。
+	 * Whether a value read by a forward reference in the final pass changes within that pass
+	 * (= whether pass-count should be increased).
 	 */
 	public boolean isUnconverged() {
 		return this.unconverged;
 	}
 
 	/**
-	 * 前方参照が<b>読んだもの</b>が変わったか(収束判定用、2026-10-04)。読んだカウンタと、
-	 * {@code target-text()}が読んだときだけ本文を比べる。以前は全部のカウンタと本文を比べて
-	 * いたので、総頁数のように参照が読んでいないカウンタがパスの間で変わるだけで、単純な
-	 * 目次でも非収束の記録が出ていた。
+	 * Whether <b>what a forward reference read</b> changes (convergence check, 2026-10-04).
+	 * Compares only counters that were read, and body text only when {@code target-text()} read it.
+	 * Previously compared all counters and body text, so a change between passes to a counter
+	 * not read by the reference, such as total pages, reported nonconvergence even for a simple
+	 * table of contents.
 	 */
 	private static boolean changed(final Fragment f, final Counter[] after, final String textAfter) {
 		if (f.staleText && !java.util.Objects.equals(f.text, textAfter)) {
@@ -112,11 +113,11 @@ public class PageRef {
 	}
 
 	/**
-	 * フラグメントを追加します。
+	 * Adds a fragment.
 	 *
 	 * @param uri
 	 * @param counters
-	 * @param text 参照先要素の描画テキスト({@code target-text()}用、無ければ{@code null})
+	 * @param text rendered text of the target element (for {@code target-text()}; {@code null} if absent)
 	 */
 	public void addFragment(URI uri, Counter[] counters, String text) {
 		int[] seq = (int[]) this.uriToSeq.get(uri);
@@ -131,8 +132,8 @@ public class PageRef {
 			Fragment f = i.next();
 			if (f.uid == seq[0]) {
 				if (f.isStale() && changed(f, counters, text)) {
-					// このパスで既に前パスの値を読まれており、しかも読んだ値が
-					// 変わった=その参照は誤った値を出している
+					// The preceding pass's value has already been read in this pass, and the value read
+					// has changed = that reference outputs an incorrect value
 					this.unconverged = true;
 				}
 				f.clearStale();
@@ -149,8 +150,8 @@ public class PageRef {
 	}
 
 	/**
-	 * セクションを開始します。
-	 * 
+	 * Starts a section.
+	 *
 	 * @param uri
 	 * @param title
 	 * @param counters
@@ -162,7 +163,7 @@ public class PageRef {
 	}
 
 	/**
-	 * セクションを終了します。
+	 * Ends a section.
 	 */
 	public void endSection() {
 		assert this.sectionStack.size() > 1;
@@ -170,8 +171,8 @@ public class PageRef {
 	}
 
 	/**
-	 * 追加済みの最初のフラグメントを返します。
-	 * 
+	 * Returns the first added fragment.
+	 *
 	 * @param uri
 	 * @return
 	 */
@@ -184,8 +185,8 @@ public class PageRef {
 	}
 
 	/**
-	 * 反復内容用の読み取りビューです。古い参照を削除せず、最終パスの収束確認だけを記録します。
-	 * 可変なFragmentやCounterを呼び出し側へ渡しません。
+	 * Read view for repeated content. Does not delete old references; records only final-pass
+	 * convergence checks. Does not expose mutable Fragment or Counter objects to callers.
 	 */
 	public CounterView counterView(final boolean lastPass) {
 		return (uri, name, all) -> {
@@ -209,16 +210,15 @@ public class PageRef {
 		};
 	}
 
-	/** 最初の参照、または全参照のカウンタ値だけを読みます。 */
+	/** Reads only counter values from the first reference or all references. */
 	@FunctionalInterface
 	public interface CounterView {
 		List<Integer> counters(URI uri, String name, boolean all);
 	}
 
 	/**
-	 * 追加済みの全てのフラグメントを返します。2世代以上前の(重複idの
-	 * 出現数がパスをまたいで減った等でstaleになった)フラグメントは
-	 * ここで遅延プルーニングして除去する。
+	 * Returns all added fragments. Lazily prunes fragments from two or more generations ago
+	 * (stale, e.g., because the number of duplicate id occurrences decreased between passes).
 	 *
 	 * @param uri
 	 * @return
@@ -232,16 +232,16 @@ public class PageRef {
 	}
 
 	/**
-	 * 現在の世代番号({@link #reset()}のたびに1増加)。収束性チェック
-	 * (target-counter系が最終パスまでに確定したか)に使う。
+	 * Current generation number (increases by one on each {@link #reset()}).
+	 * Used to check convergence (whether target-counter values are finalized by the final pass).
 	 */
 	public int getGeneration() {
 		return this.generation;
 	}
 
 	/**
-	 * 目次をXML形式で出力します。
-	 * 
+	 * Outputs the table of contents as XML.
+	 *
 	 * @param handler
 	 * @param counter
 	 * @param type
@@ -293,8 +293,8 @@ public class PageRef {
 	}
 
 	/**
-	 * フラグメントです。
-	 * 
+	 * Fragment.
+	 *
 	 * @author MIYABE Tatsuhiko
 	 */
 	public static class Fragment {
@@ -304,21 +304,22 @@ public class PageRef {
 
 		public Counter[] counters;
 
-		/** 参照先要素の描画テキスト({@code target-text()}用)。無ければ{@code null}。 */
+		/** Rendered text of the target element (for {@code target-text()}). {@code null} if absent. */
 		public String text;
 
-		/** このフラグメントが書き込まれた{@link PageRef}の世代番号。 */
+		/** Generation number of {@link PageRef} when this fragment was written. */
 		public int generation;
 
 		/**
-		 * 最終パスで、まだこのパスの値が書かれていない状態(=前方参照)で読まれたカウンタの
-		 * 名前(小文字)と、本文を読んだか。{@link PageRef#isUnconverged()}の判定に使う。
+		 * Names (lowercase) of counters read in the final pass before this pass's values were written
+		 * (= forward references), and whether body text was read.
+		 * Used by {@link PageRef#isUnconverged()}.
 		 */
 		private java.util.Set<String> staleCounters;
 
 		private boolean staleText;
 
-		/** 前方参照がこのカウンタを読んだことを記録します。 */
+		/** Records that a forward reference read this counter. */
 		public void markStaleCounter(final String name) {
 			if (this.staleCounters == null) {
 				this.staleCounters = new java.util.HashSet<String>(2);
@@ -326,12 +327,12 @@ public class PageRef {
 			this.staleCounters.add(name.toLowerCase(java.util.Locale.ROOT));
 		}
 
-		/** 前方参照が本文({@code target-text()})を読んだことを記録します。 */
+		/** Records that a forward reference read body text ({@code target-text()}). */
 		public void markStaleText() {
 			this.staleText = true;
 		}
 
-		/** 前方参照に読まれた印があるか。 */
+		/** Whether marked as read by a forward reference. */
 		public boolean isStale() {
 			return this.staleText || this.staleCounters != null;
 		}
@@ -362,8 +363,8 @@ public class PageRef {
 	}
 
 	/**
-	 * セクションです。
-	 * 
+	 * Section.
+	 *
 	 * @author MIYABE Tatsuhiko
 	 */
 	static class Section extends Fragment {

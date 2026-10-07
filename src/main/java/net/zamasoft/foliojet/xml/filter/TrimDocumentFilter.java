@@ -6,8 +6,8 @@ import net.zamasoft.foliojet.xml.XMLHandler;
 import org.xml.sax.SAXException;
 
 /**
- * ドキュメントの開始と終了を除去するフィルタです。
- * 
+ * A filter that removes document start and end events.
+ *
  * @author MIYABE Tatsuhiko
  * @version $Id: TrimDocumentFilter.java 1552 2018-04-26 01:43:24Z miyabe $
  */

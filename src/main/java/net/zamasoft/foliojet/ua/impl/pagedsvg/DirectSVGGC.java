@@ -15,28 +15,28 @@ import net.zamasoft.pdfg2d.gc.paint.Paint;
 import net.zamasoft.pdfg2d.gc.text.Text;
 
 /**
- * SVGを<b>直に書き出す</b>グラフィックスコンテキストです。
+ * A graphics context that <b>writes SVG directly</b>.
  *
  * <p>
- * 従来のPaged SVGはBatikの{@code SVGGraphics2D}を通しており、描画のたびに
- * DOMノードを作って最後に直列化していました。ここではDOMを作らず、
- * 描画が来た順に{@link SVGWriter}へ流します。溜めるのは
- * <b>{@code defs}に入るもの(クリップ経路・グラデーション・{@code @font-face})だけ</b>で、
- * それらは先頭に予約したフラグメントへページを閉じるときに書きます。
+ * Previously, Paged SVG used Batik's {@code SVGGraphics2D}, creating DOM nodes for each
+ * drawing operation and serializing them at the end. Here, operations flow to {@link SVGWriter}
+ * in drawing order without creating a DOM. Only <b>items for {@code defs}
+ * (clip paths, gradients, and {@code @font-face})</b> accumulate;
+ * they are written to a fragment reserved at the start when the page closes.
  * </p>
  *
  * <p>
- * <b>状態の持ち方。</b>{@link #begin()}で状態を積み、{@code close()}で戻します。
- * SVGでは状態そのものを積む仕組みが無いので、変換・クリップ・不透明度など
- * <b>要素へ出す必要のあるものが変わったときだけ</b>{@code <g>}を開きます。
- * 何も変わらなければ要素を作りません——1ページに数万個の空の{@code <g>}が
- * 出るのを避けるためです。
+ * <b>State management.</b> {@link #begin()} pushes state and {@code close()} restores it.
+ * SVG has no state stack, so open {@code <g>} <b>only when something that must be emitted
+ * on an element changes</b>, such as a transformation, clip, or opacity.
+ * If nothing changes, create no element, avoiding tens of thousands of empty
+ * {@code <g>} elements per page.
  * </p>
  *
  * @author MIYABE Tatsuhiko
  */
 class DirectSVGGC implements GC {
-	/** 積まれた状態1つ。 */
+	/** One stacked state. */
 	private static final class Frame implements State {
 		private final DirectSVGGC gc;
 		private final AffineTransform transform;
@@ -48,7 +48,7 @@ class DirectSVGGC implements GC {
 		private final LineJoin lineJoin;
 		private final LineCap lineCap;
 		private final TextMode textMode;
-		/** この状態で開いた{@code <g>}の数。閉じるときに同じ数だけ閉じる。 */
+		/** Number of {@code <g>} elements opened in this state. Close the same number when closing the state. */
 		private int openGroups;
 
 		Frame(final DirectSVGGC gc) {
@@ -72,7 +72,7 @@ class DirectSVGGC implements GC {
 			this.gc.frames.pop();
 		}
 
-		/** この状態を積んだ時点へ戻します(クリップの{@code <g>}を閉じる)。 */
+		/** Restores the state to when it was pushed (closes clipping {@code <g>} elements). */
 		void restore() throws GraphicsException {
 			try {
 				for (int i = 0; i < this.openGroups; ++i) {
@@ -105,7 +105,7 @@ class DirectSVGGC implements GC {
 	private Paint fillPaint = net.zamasoft.pdfg2d.gc.paint.RGBColor.BLACK;
 	private Paint strokePaint = net.zamasoft.pdfg2d.gc.paint.RGBColor.BLACK;
 	private float fillAlpha = 1f, strokeAlpha = 1f;
-	/** mix-blend-mode(2026-08-29)。各要素のstyle属性で出す。 */
+	/** mix-blend-mode (2026-08-29). Emitted in each element's style attribute. */
 	private net.zamasoft.pdfg2d.gc.paint.BlendMode blendMode = net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL;
 	private double lineWidth = 1.0;
 	private double[] linePattern = null;
@@ -132,14 +132,15 @@ class DirectSVGGC implements GC {
 	}
 
 	/**
-	 * 直近の{@link #begin()}の状態へ戻します(PDF の Q q、Java2D の GC と同じ)。その後に掛けた
-	 * クリップも外す。
+	 * Restores the state from the latest {@link #begin()} (like PDF's Q q and Java2D's GC).
+	 * Also removes clips applied since then.
 	 *
 	 * <p>
-	 * 以前は初期状態(単位行列)へ戻していた。Graphics2D の橋渡し({@code BridgeGraphics2D}、
-	 * MathML・インライン SVG)は変換を「直近の begin への差分」で掛け直すので、頁の上の位置へ
-	 * ずらす分が消え、数式の 2 字目以降や入れ子の図形が頁の原点の近くに描かれていた
-	 * (2026-10-04、TECH-20261003-004 の⑳)。
+	 * Previously, this restored the initial state (identity matrix). The Graphics2D bridge
+	 * ({@code BridgeGraphics2D}, MathML, inline SVG) reapplies transformations relative to the latest begin,
+	 * so the offset to the position on the page was lost. The second and subsequent characters
+	 * in formulas and nested shapes were drawn near the page origin
+	 * (2026-10-04, item ⑳ of TECH-20261003-004).
 	 * </p>
 	 */
 	@Override
@@ -162,10 +163,10 @@ class DirectSVGGC implements GC {
 	}
 
 	public void close() throws GraphicsException {
-		// ページ側が閉じるので、ここでは何もしない
+		// The page handles closing, so do nothing here.
 	}
 
-	// --- 状態 -------------------------------------------------------------
+	// --- State -------------------------------------------------------------
 
 	@Override
 	public void setStrokePaint(final Paint paint) {
@@ -218,8 +219,8 @@ class DirectSVGGC implements GC {
 	}
 
 	/**
-	 * 現在のブレンドモードを描画要素の{@code style}属性として書きます
-	 * (normalなら何も書かない。2026-08-29)。
+	 * Writes the current blend mode in the drawing element's {@code style} attribute
+	 * (writes nothing for normal; 2026-08-29).
 	 */
 	protected final void writeBlendMode(final SVGWriter w) throws IOException {
 		if (this.blendMode != net.zamasoft.pdfg2d.gc.paint.BlendMode.NORMAL) {
@@ -287,15 +288,15 @@ class DirectSVGGC implements GC {
 		return new AffineTransform(this.transform);
 	}
 
-	// --- 描画 -------------------------------------------------------------
+	// --- Drawing -------------------------------------------------------------
 
 	@Override
 	public void clip(final Shape shape) throws GraphicsException {
 		try {
 			final String id = this.writer.nextId("cp");
 			final String rule = SVGPathWriter.fillRule(shape);
-			// クリップ経路は現在の変換を適用した座標で入れる。こうすると
-			// clip-path を付ける <g> の変換に左右されない
+			// Store clip path coordinates with the current transformation applied, so they are
+			// unaffected by the transformation of the <g> carrying clip-path.
 			final StringBuilder def = new StringBuilder(128);
 			def.append("<clipPath id=\"").append(id).append("\" clipPathUnits=\"userSpaceOnUse\"><path d=\"")
 					.append(SVGPathWriter.toPathData(shape, this.transform)).append('"');
@@ -330,18 +331,17 @@ class DirectSVGGC implements GC {
 	}
 
 	/**
-	 * ブラウザが描くSVGなので、PDFで近似になる機能のほとんどを厳密に
-	 * 書けます(2026-08-29): ぼかしと層への効果は{@code <filter>}、
-	 * 繰り返しは{@code spreadMethod}、層のブレンドは{@code <g>}の
-	 * {@code mix-blend-mode}。円錐グラデーションだけはSVGのpaint serverに
-	 * 無いので扇形の近似のまま。
+	 * Because browsers render this SVG, most features that PDF approximates can be written exactly
+	 * (2026-08-29): {@code <filter>} for blur and layer effects, {@code spreadMethod} for repetition,
+	 * and {@code mix-blend-mode} on {@code <g>} for layer blending. Only conic gradients retain
+	 * the sector approximation because SVG has no paint server for them.
 	 */
 	@Override
 	public boolean supports(final Capability capability) {
 		return supportsCapability(capability);
 	}
 
-	/** {@link #supports}の答え。頁を記録するときの記録器も同じ答えを返す(2026-10-04)。 */
+	/** The answer from {@link #supports}. Page recorders return the same answer (2026-10-04). */
 	static boolean supportsCapability(final Capability capability) {
 		return switch (capability) {
 		case GAUSSIAN_BLUR, REPEATING_GRADIENT, GROUP_FILTER, DROP_SHADOW, BLEND_GROUP -> true;
@@ -350,10 +350,9 @@ class DirectSVGGC implements GC {
 	}
 
 	/**
-	 * ガウスぼかし付きの塗り(2026-08-29)。{@code <path filter="url(#..)">}で、
-	 * フィルタ領域は形の外接矩形を3σ広げた範囲(既定の10%ではぼかしが
-	 * 大きいと切れる)。座標には現在の変換を畳み込んでいるので、σも同じ
-	 * 倍率で換算する。
+	 * Fill with Gaussian blur (2026-08-29). Uses {@code <path filter="url(#..)">},
+	 * with a filter region extending the shape's bounding box by 3σ (the default 10% clips large blurs).
+	 * Coordinates already incorporate the current transformation, so scale σ by the same factor.
 	 */
 	@Override
 	public void fillBlurred(final Shape shape, final double sigma) throws GraphicsException {
@@ -374,14 +373,13 @@ class DirectSVGGC implements GC {
 	}
 
 	/**
-	 * 層(グループ画像)に掛ける効果を{@code <filter>}にして、そのidを返します
-	 * (効果が無ければnull。2026-08-29)。色行列はCSSのfilter関数と同じ
-	 * sRGBで計算させる(SVGの既定はlinearRGB)。適用順は{@link GroupEffects}
-	 * どおり色行列→ぼかし→落とし影。不透明度は呼び出し側が{@code opacity}
-	 * 属性で出す。
+	 * Creates a {@code <filter>} for effects on a layer (group image) and returns its ID
+	 * (null if there are no effects; 2026-08-29). Compute color matrices in sRGB, like CSS filter
+	 * functions (SVG defaults to linearRGB). Apply in {@link GroupEffects} order:
+	 * color matrix → blur → drop shadow. The caller emits opacity via the {@code opacity} attribute.
 	 *
-	 * @param w 層の幅(層の座標系。フィルタ領域の算出用)
-	 * @param h 層の高さ
+	 * @param w layer width (in layer coordinates, used to calculate the filter region)
+	 * @param h layer height
 	 */
 	protected final String effectsFilter(final net.zamasoft.pdfg2d.gc.GroupEffects effects, final double w,
 			final double h) {
@@ -488,12 +486,11 @@ class DirectSVGGC implements GC {
 	}
 
 	/**
-	 * 文字をアウトラインで描きます。字形を共有できない場合の退避先です。
+	 * Draws text as outlines. Used as a fallback when glyphs cannot be shared.
 	 *
 	 * <p>
-	 * {@code Font.drawTo}は{@link GC}の基本操作(状態・変換・{@code fill})だけを
-	 * 使うので、Java2DにもPDFにも依存しません。ここへ渡せばそのまま
-	 * {@code <path>}として出ます。
+	 * {@code Font.drawTo} uses only basic {@link GC} operations (state, transformations, and {@code fill}),
+	 * so it depends on neither Java2D nor PDF. Passing it here produces {@code <path>} directly.
 	 * </p>
 	 */
 	protected void drawTextAsOutline(final Text text, final double x, final double y) throws GraphicsException {
@@ -515,8 +512,8 @@ class DirectSVGGC implements GC {
 	}
 
 	/**
-	 * 透明度グループなどの一時描画面です。SVGへ直接書けないので、
-	 * Java2Dの画像へ描いてからラスタ画像として扱います。Batikは使いません。
+	 * A temporary drawing surface for transparency groups and similar uses. It cannot be written
+	 * directly to SVG, so draw into a Java2D image and treat it as a raster image. Does not use Batik.
 	 */
 	@Override
 	public GroupImageGC createGroupImage(final double width, final double height) throws GraphicsException {
@@ -530,7 +527,7 @@ class DirectSVGGC implements GC {
 		return new BufferedGroupImageGC(g2d, this.fontManager, buffer);
 	}
 
-	/** {@link #createGroupImage}が返す一時描画面。 */
+	/** Temporary drawing surface returned by {@link #createGroupImage}. */
 	private static final class BufferedGroupImageGC extends net.zamasoft.pdfg2d.g2d.gc.G2DGC
 			implements GroupImageGC {
 		private final java.awt.image.BufferedImage buffer;
@@ -548,7 +545,7 @@ class DirectSVGGC implements GC {
 		}
 	}
 
-	/** {@code <g>}を1つ開いたことを、いま積まれている状態へ記録します。 */
+	/** Records one opened {@code <g>} in the current stacked state. */
 	protected void openedGroup() {
 		final Frame frame = this.frames.peek();
 		if (frame != null) {
@@ -556,7 +553,7 @@ class DirectSVGGC implements GC {
 		}
 	}
 
-	/** 現在の変換。部分クラスが座標を書くのに使います。 */
+	/** The current transformation. Subclasses use it to write coordinates. */
 	protected AffineTransform currentTransform() {
 		return this.transform;
 	}

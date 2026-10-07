@@ -22,66 +22,58 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code RootBuilder.pageBreak()}の収集可能プレフィックス切り詰め
- * (M6b Phase B、2026-07-20)に対する回帰テストです。
+ * Regression tests for collectable-prefix trimming in {@code RootBuilder.pageBreak()}
+ * (M6b Phase B, 2026-07-20).
  *
  * <p>
- * <b>実証された発火条件</b>: {@code FlowContainer.restyle}の
- * {@code OpenShape.OpenChain}分岐(まだ反復化されていない再帰)は、
- * {@code RootBuilder.pageBreak()}の事前検分(祖先チェーン
- * {@code flowStack[1..]}が全て段組なし・単一書字方向のplain
- * {@code FlowBlockBox}であること)が成立しない場合に発火する。
- * 表・書字方向混在をリーフに置いただけでは発火しない
- * ({@code testTableLeafNeverTriggersOpenChain}が固定する既存の安全な
- * 経路——{@code FlowContainer.splitPageAxis}のTABLE/TEXT_BLOCK分岐は
- * 元々chain-fragment機構を経由しない)。実際に発火するのは
- * <b>段組(column-count&gt;1)</b>を祖先チェーンの途中に挟んだ場合だけ
- * だった。
+ * <b>Proven activation conditions</b>: {@code FlowContainer.restyle}'s
+ * {@code OpenShape.OpenChain} branch (recursion not yet made iterative) fires when
+ * {@code RootBuilder.pageBreak()}'s preflight fails: ancestor chain {@code flowStack[1..]}
+ * must consist entirely of plain {@code FlowBlockBox} instances without columns and with
+ * one writing direction. A table or mixed writing directions only at a leaf does not trigger it
+ * (the existing safe path fixed by {@code testTableLeafNeverTriggersOpenChain};
+ * TABLE/TEXT_BLOCK branches of {@code FlowContainer.splitPageAxis} never used the chain-fragment
+ * mechanism). Only <b>columns (column-count&gt;1)</b> inserted partway through the ancestor
+ * chain actually triggered it.
  * </p>
  *
  * <p>
- * <b>旧実装(2026-07-20以前)の問題</b>: 事前検分は祖先チェーン
- * <i>全体</i>に対する all-or-nothing のブール判定だった
- * (1レベルでも段組等で失敗すれば{@code plan=null}になり、
- * {@code flowStack}全体のサイズがそのまま{@code OpenChain}の深さに
- * なる)。このため段組を囲む外側のplainラッパーdivがどれだけ深く
- * ネストしていても(実文書では普通にありうる)、その深さがそのまま
- * 未反復の再帰へ流れ込んでいた(実測: 外側60段+内側10段+段組で
- * {@code MAX_PAGE_OPEN_TAIL_DEPTH}(当時は未分離の
- * {@code MAX_OPEN_TAIL_DEPTH})=74に到達)。
+ * <b>The old implementation's problem (before 2026-07-20)</b>: preflight was an all-or-nothing
+ * boolean over the <i>entire</i> ancestor chain. A failure at even one level, such as columns,
+ * set {@code plan=null}, making the entire {@code flowStack} size the {@code OpenChain} depth.
+ * Thus arbitrary nesting depth of plain outer wrapper divs around columns (common in real
+ * documents) flowed directly into non-iterative recursion. Measured: 60 outer + 10 inner wrappers
+ * plus columns reached {@code MAX_PAGE_OPEN_TAIL_DEPTH}=74 (then still the unsplit
+ * {@code MAX_OPEN_TAIL_DEPTH}).
  * </p>
  *
  * <p>
- * <b>修正</b>: 事前検分を「先頭から最初の違反レベルまでの収集可能な
- * プレフィックス」へ変更した({@code RootBuilder.pageBreak()}の
- * {@code BreakPlan}構築部)。{@code BreakPlan.depth}は
- * {@code flowStack.size()}のまま変更しない(ここを縮めると
- * {@code OpenShape}の入れ子数と実ボックス木の開き構造が食い違い、
- * まだ開いているボックスを誤って閉じる恐れがある——独立レビューで
- * 確認済み、{@code 設計相談*.md}
- * 参照)。{@code BreakPlan.openTailDepth() = depth - index - 1}は
- * {@code depth}を歩かずに得られる値のまま保たれるため、プレフィックスを
- * 切り詰めるだけで残存{@code OpenChain}深さが「違反箇所からその内側」
- * だけに自然に縮む。
+ * <b>Fix</b>: change preflight to collect the prefix from the start to the first violating level
+ * (the {@code BreakPlan} construction in {@code RootBuilder.pageBreak()}).
+ * Keep {@code BreakPlan.depth} at {@code flowStack.size()}; reducing it would make
+ * {@code OpenShape} nesting disagree with the real box tree's open structure, risking premature
+ * closure of still-open boxes (confirmed in independent review; see {@code design consultation*.md}).
+ * {@code BreakPlan.openTailDepth() = depth - index - 1} remains computable without traversing
+ * {@code depth}, so prefix trimming alone naturally reduces the remaining {@code OpenChain}
+ * depth to the violating level and its descendants.
  * </p>
  *
  * <p>
- * <b>深さガードの退役(2026-07-30、legacy再帰撤去=増分4c)</b>:
- * かつては段組ボックス<i>自身の内側</i>の深いネストが安全閾値(64)で
- * 型付き例外により停止していたが、worklist executorが唯一のdriverと
- * なりOpenChain降下が非再帰になったため、ガード・例外・アラームは
- * 退役した。深いネストは例外なく完走する
- * ({@link #testDeepNestingInsideMulticolCompletesIteratively})。
+ * <b>Depth-guard retirement (2026-07-30, legacy recursion removal, increment 4c)</b>:
+ * deep nesting <i>inside the multi-column box itself</i> previously stopped with a typed
+ * exception at the safety threshold (64). With the worklist executor as the sole driver
+ * and nonrecursive OpenChain descent, the guard, exception, and alarm were retired.
+ * Deep nesting completes without exceptions
+ * ({@link #testDeepNestingInsideMulticolCompletesIteratively}).
  * </p>
  */
 public class OpenChainCollectablePrefixTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	/**
-	 * 対照実験: 表をリーフに置いた場合、外側のラッパーdivがどれだけ
-	 * 深くても(ここでは40段)chain-fragment機構がそのまま処理し、
-	 * {@code OpenChain}には一切落ちない。段組が本質的な発火条件である
-	 * ことを裏付ける。
+	 * Control: with a table leaf, the chain-fragment mechanism handles arbitrarily deep outer
+	 * wrapper divs (40 here) without ever entering {@code OpenChain}.
+	 * This confirms that multi-column layout is the essential trigger.
 	 */
 	public void testTableLeafNeverTriggersOpenChain() throws Exception {
 		this.run("table-leaf-control", 40, this::writeTableLeaf, 300);
@@ -91,21 +83,19 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
-	 * 段組を祖先チェーンの途中に挟んだ場合、外側のラッパーdivをかなり
-	 * 深く(100段)しても、B3a(段組のPAGE split-through解禁)により
-	 * 段組level自体がfirst-classにコンパイルされ、PAGE側の
-	 * {@code OpenChain}は完全に消える——外側の深さに関わらず
-	 * {@code MAX_PAGE_OPEN_TAIL_DEPTH}は常に1(開きテキストのみ)。
+	 * With columns partway through the ancestor chain, even 100 outer wrapper levels do not
+	 * cause PAGE-side {@code OpenChain}: B3a (allowing PAGE split-through for columns) compiles
+	 * the multi-column level itself as first-class. Regardless of outer depth,
+	 * {@code MAX_PAGE_OPEN_TAIL_DEPTH} is always 1 (only open text).
 	 *
 	 * <p>
-	 * <b>2026-07-21追記(B3a)</b>: 以前(B0.5〜B2)はMULTICOLがプレフィックス
-	 * スキャンを停止させ、段組から内側だけがOpenChain(box-restyle)に
-	 * 落ちていた(実測: 深さ12程度)。B3aで`ContinuationCapability
-	 * .supportsPageSplitThrough()`がMULTICOLを自動改ページで収集可能に
-	 * したため、段組level自体も`ResumeProgram`のfirst-class levelになり、
-	 * PAGE側のOpenChainは完全に消える(`PAGE_RESTYLE_CHAIN_FIRINGS==0`)。
-	 * 残る`RESTYLE_CHAIN_FIRINGS`(このfixtureでは40)はすべてCOLUMN経路
-	 * (段組内部の改段、B4の対象)由来である。
+	 * <b>Added 2026-07-21 (B3a)</b>: previously (B0.5–B2), MULTICOL stopped prefix scanning,
+	 * and only the columns and descendants entered OpenChain (box-restyle)
+	 * (measured depth about 12). B3a made MULTICOL collectable on automatic page breaks via
+	 * `ContinuationCapability.supportsPageSplitThrough()`, making the multi-column level
+	 * a first-class `ResumeProgram` level and eliminating PAGE-side OpenChain
+	 * (`PAGE_RESTYLE_CHAIN_FIRINGS==0`). Remaining `RESTYLE_CHAIN_FIRINGS` (40 in this fixture)
+	 * all come from the COLUMN path (internal column breaks, the B4 target).
 	 * </p>
 	 */
 	public void testDeepOuterWrapperAroundMulticolStaysShallow() throws Exception {
@@ -116,44 +106,41 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		assertEquals("B3a後はMULTICOLがプレフィックススキャンを止めないはずです", 0,
 				ContinuationStats.capabilityScanStops(ContinuationCapability.MULTICOL));
 		assertEquals("PAGE側のOpenChainは完全に消えるはずです", 0, ContinuationStats.PAGE_RESTYLE_CHAIN_FIRINGS.get());
-		// E-3増分7: 旧pageCompiledLevels(MULTICOL)>0(compiled-programカウンタ)
-		// の置換——チェーンフレームが実際にfirst-class実行されたこと
-		// (段組levelを含む祖先チェーンの消費)を実挙動カウンタで固定する。
+		// E-3 increment 7: replace old pageCompiledLevels(MULTICOL)>0 (compiled-program counter)
+		// with an actual-behavior counter proving first-class chain-frame execution
+		// (consumption of the ancestor chain including the multi-column level).
 		assertTrue("継続チェーンが実際にfirst-class実行されたはずです", ContinuationStats.CHILD_FRAMES.get() > 0);
-		// 2026-07-21(B4-Step4): COLUMN経路もPLAIN_FLOW子孫を自動改段で
-		// first-classコンパイルするようになったため、RESTYLE_CHAIN_FIRINGS
-		// (旧OpenChain再帰)はPAGE・COLUMN双方でゼロになるはずである
-		// (このfixtureの段組内側は10段のPLAIN_FLOWラッパーのみ、
-		// 直交等のbarrierを含まないため完全に収集される)。
+		// 2026-07-21 (B4-Step4): the COLUMN path now also compiles PLAIN_FLOW descendants
+		// as first-class levels on automatic column breaks, so RESTYLE_CHAIN_FIRINGS
+		// (old OpenChain recursion) should be zero on both PAGE and COLUMN paths
+		// (this fixture has only ten PLAIN_FLOW wrappers inside the columns,
+		// with no orthogonal or other barriers, so all are collected).
 		assertEquals("B4-Step4後はCOLUMN側のOpenChainも完全に消えるはずです", 0,
 				ContinuationStats.COLUMN_RESTYLE_CHAIN_FIRINGS.get());
 		assertEquals("RESTYLE_CHAIN_FIRINGSはPAGE・COLUMN双方でゼロになるはずです", 0,
 				ContinuationStats.RESTYLE_CHAIN_FIRINGS.get());
-		// E-3増分7: 旧columnCompiledLevels(PLAIN_FLOW)>0の置換——COLUMN継続
-		// 経路が実際に踏まれたこと(改段時の深さガード通過)を実挙動
-		// カウンタで固定する(COLUMN_RESTYLE_CHAIN_FIRINGS==0と合わせて
-		// 「改段は起きたがlegacy再帰は使われなかった」=first-class実行を意味する)。
+		// E-3 increment 7: replace old columnCompiledLevels(PLAIN_FLOW)>0 with an actual-behavior
+		// counter proving the COLUMN continuation path ran (passed the depth guard at column break).
+		// Together with COLUMN_RESTYLE_CHAIN_FIRINGS==0, this means a column break occurred
+		// without legacy recursion, i.e. first-class execution.
 		assertTrue("段組内部の改段が実際に発生したはずです",
 				ContinuationStats.MAX_COLUMN_OPEN_TAIL_DEPTH.get() > 0);
 	}
 
 	/**
-	 * M6b Phase B4残作業: COLUMN resume中にPAGE breakが入れ子になる
-	 * (逆に言えばPAGE resume中にCOLUMN resumeが入れ子になる)ケースで、
-	 * {@code ReplayLeaseSession}スタック・{@code resumeScopes}・
-	 * {@code ResumeTrace}・leaseが混線しないことを確認する
-	 * characterization test(2026-07-21新設)。
+	 * M6b Phase B4 remaining work: characterization test verifying that the
+	 * {@code ReplayLeaseSession} stack, {@code resumeScopes}, {@code ResumeTrace},
+	 * and leases do not interfere when PAGE breaks nest inside COLUMN resume
+	 * (conversely, COLUMN resume nests inside PAGE resume) (introduced 2026-07-21).
 	 *
 	 * <p>
-	 * 段組(2段)の内容を複数ページにまたがるだけの分量にすると、
-	 * 「ページ1内で段1→段2の改段(COLUMN resume)」「ページ1→2の改ページ
-	 * (PAGE resume、この中でさらに段組が継続するため新しいCOLUMN
-	 * resumeが入れ子で起きる)」の両方が自然に発生する。
-	 * {@code enableAssertions=true}(build.gradle)によりテスト実行中は
-	 * {@code RootBuilder.ResumeSession}/{@code ColumnResumeSession}の
-	 * {@code assert !hasUnconsumedLeases()}が有効なため、この文書が
-	 * 例外を投げずに完走すること自体が、入れ子セッション間でリースが
-	 * 正しく所有・解放されたことの検証になる。
+	 * Enough content to span multiple pages in two-column layout naturally produces both
+	 * "column 1→2 on page 1 (COLUMN resume)" and "page 1→2 (PAGE resume, with further column
+	 * continuation nesting a new COLUMN resume inside it)". Tests use
+	 * {@code enableAssertions=true} (build.gradle), enabling
+	 * {@code assert !hasUnconsumedLeases()} in {@code RootBuilder.ResumeSession}/
+	 * {@code ColumnResumeSession}. Completing this document without exceptions therefore
+	 * verifies correct lease ownership and release across nested sessions.
 	 * </p>
 	 */
 	public void testNestedPageAndColumnResumeDoNotLeakSessions() throws Exception {
@@ -174,11 +161,11 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 				session.close();
 			}
 		}
-		// 複数ページ・複数段の両方が実際に発生したことを確認する
-		// (発生しなければ、そもそも入れ子resumeを検証できていない)。
-		// E-3増分7: 旧pageCompiledLevels/columnCompiledLevels(compiled-
-		// programカウンタ)の置換——PAGE/COLUMN継続経路の実行そのものを
-		// 実挙動カウンタ(深さガード通過時の最大開き深さ)で固定する。
+		// Verify that both multiple pages and multiple columns actually occur
+		// (otherwise nested resumption has not been tested at all).
+		// E-3 increment 7: replace old pageCompiledLevels/columnCompiledLevels
+		// (compiled-program counters) with actual-behavior counters proving PAGE/COLUMN continuation
+		// execution itself (maximum open depth when passing the depth guard).
 		assertTrue("複数ページにまたがる改ページが実際に発生したはずです",
 				ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get() > 0);
 		assertTrue("段組内部の改段が実際に発生したはずです",
@@ -200,9 +187,9 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 			w.write("</head><body>\n");
 			w.write("<div style=\"column-count:2;column-gap:1em\">\n");
 			final int totalLines = pages * columnsPerPage * leafLinesPerColumn;
-			// PLAIN_FLOWのラッパーdivを挟む——素のテキストのみだと
-			// owner(段組)直下に子孫レベルが存在せず(depth==1)、
-			// COLUMN側のfragment chain実行(index>=1)を経由しない
+			// Insert PLAIN_FLOW wrapper divs: bare text alone has no descendant level
+			// directly under the owner (columns), so depth==1
+			// and the COLUMN fragment-chain execution (index>=1) is not reached.
 			w.write("<div>\n");
 			this.writeTextLeaf(w, totalLines);
 			w.write("</div>\n");
@@ -213,18 +200,18 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
-	 * M6b Phase B4/B5残作業: nested multicol(段組の中の段組)で、
-	 * {@code BreakableBuilder.findColumnBreak()}が最内側の
-	 * {@code canColumnBreak()}なownerを選ぶ既存挙動が、B4のCOLUMN継続
-	 * 型付け後も維持されていることを確認する(2026-07-21新設)。
+	 * M6b Phase B4/B5 remaining work: verify that, in nested multi-column layout,
+	 * {@code BreakableBuilder.findColumnBreak()} still selects the innermost owner with
+	 * {@code canColumnBreak()} after B4 introduced typed COLUMN continuations
+	 * (introduced 2026-07-21).
 	 *
 	 * <p>
-	 * 外側(段数2)は十分な高さを持ち、内側(段数3)の内容だけが自身の
-	 * 単一段の容量を超える構成にする——内側だけが改段を要し、外側は
-	 * 改段不要のまま文書全体が完結するはずである。改段のたびに
-	 * {@code ContinuationStats.LAST_COLUMN_OWNER_COLUMN_COUNT}へ
-	 * ownerの設定段数を記録させ、最後に観測された値が常に内側の3で
-	 * あって外側の2ではないことを確認する。
+	 * Give the outer container (two columns) ample height; only the inner container's
+	 * (three columns) content exceeds its own single-column capacity. Only the inner container
+	 * should need column breaks; the entire document should complete without outer breaks.
+	 * Record the owner's configured column count in
+	 * {@code ContinuationStats.LAST_COLUMN_OWNER_COLUMN_COUNT} at each break, and verify
+	 * the last observed value is always the inner 3, not the outer 2.
 	 * </p>
 	 */
 	public void testNestedMulticolSelectsInnermostOwner() throws Exception {
@@ -245,7 +232,7 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 				session.close();
 			}
 		}
-		// E-3増分7: 旧columnCompiledLevels(compiled-programカウンタ)の置換
+		// E-3 increment 7: replace old columnCompiledLevels (compiled-program counter).
 		assertTrue("段組内部の改段が実際に発生したはずです(でなければownerを検証できていない)",
 				ContinuationStats.MAX_COLUMN_OPEN_TAIL_DEPTH.get() > 0);
 		assertEquals("最内側(段数3)のmulticolがownerとして選ばれ続けるはずです(外側の段数2ではない)", 3,
@@ -265,9 +252,9 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 			w.write("<style>@page{margin:0}body{font:normal 8pt/1 serif;margin:0}"
 					+ "div{margin:0;padding:0}</style>\n");
 			w.write("</head><body>\n");
-			// 外側: 十分な高さ、改段が不要な段数
+			// Outer: enough height and a column count requiring no column break.
 			w.write("<div style=\"column-count:" + outerColumnCount + ";column-gap:1em;height:380pt\">\n");
-			// 内側: 単一段の容量を超える内容を持つ、狭い高さ
+			// Inner: small height, with content exceeding a single column's capacity.
 			w.write("<div style=\"column-count:" + innerColumnCount + ";column-gap:1em;height:60pt\">\n");
 			w.write("<div>\n");
 			this.writeTextLeaf(w, 200);
@@ -280,30 +267,26 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
-	 * M6b Phase B3b-1(2026-07-21): 段組祖先(段数2、AUTO高さ、複数ページに
-	 * わたる)の内側で強制改ページ({@code page-break-before: always})が
-	 * 起きても、{@code ContinuationCapability.supportsPageSplitThrough}の
-	 * mode非依存化(B3b-2でKEEP/MOVEが正規経路になったことを根拠に撤去)
-	 * 以降、例外なく安全に完走し、段組level自体が{@code
-	 * CapabilityBarrier(MULTICOL)}にならず(実際に収集され)first-class
-	 * コンパイルされたことを確認する。
+	 * M6b Phase B3b-1 (2026-07-21): verify safe completion without exceptions for forced page breaks
+	 * ({@code page-break-before: always}) inside a multi-column ancestor (two columns, AUTO height,
+	 * spanning multiple pages), since {@code ContinuationCapability.supportsPageSplitThrough}
+	 * became mode-independent (the restriction was removed because B3b-2 made KEEP/MOVE normal paths).
+	 * The multi-column level must actually be collected and compiled as first-class,
+	 * rather than becoming {@code CapabilityBarrier(MULTICOL)}.
 	 *
 	 * <p>
-	 * <b>フィクスチャ設計上の注意</b>: 段組に明示的な高さ({@code height})を
-	 * 指定すると、{@code canColumnBreak()}の{@code isSpecifiedPageSize()}
-	 * 短絡(高さ指定時は実使用量に関わらず追加の列を無条件に許可する)により、
-	 * 収まりきらない内容はPAGE分割ではなく単にオーバーフローする(あるいは
-	 * ページ幅が許す限り追加の列が生成される)だけで、実際のPAGEレベル
-	 * 強制分割には至らない——このセッションの変更とは無関係の既存挙動
-	 * (このテスト作成時に発見)。段組をAUTO高さのままにし
-	 * ({@code testNestedPageAndColumnResumeDoNotLeakSessions}の
-	 * {@code generateMultiPageMulticol}と同型)、内容が複数ページに
-	 * またがる分量にすることで、初めてPAGEレベルの強制分割
-	 * (このテストが検証したい経路)が発生することを実測で確認した。
-	 * トリガーには{@code page-break-before}を使う(このエンジンは
-	 * {@code ElementPropertySet}に登録された旧CSS2プロパティ名のみを
-	 * 認識し、現行のCSS Fragmentation仕様の{@code break-before}は未対応、
-	 * `PageBreakBefore.java`参照)。
+	 * <b>Fixture-design caution</b>: explicitly setting column {@code height} activates
+	 * {@code canColumnBreak()}'s {@code isSpecifiedPageSize()} shortcut, which unconditionally
+	 * allows additional columns regardless of actual usage when height is specified.
+	 * Excess content then simply overflows (or adds columns as page width permits), without
+	 * reaching a real PAGE-level forced split. This existing behavior is unrelated to this
+	 * session's changes and was discovered while writing this test. Measurements confirmed
+	 * that keeping AUTO height (as in {@code generateMultiPageMulticol} from
+	 * {@code testNestedPageAndColumnResumeDoNotLeakSessions}) and supplying enough content
+	 * for multiple pages is necessary to trigger the PAGE-level forced split this test targets.
+	 * Use {@code page-break-before}: this engine recognizes only legacy CSS2 names registered
+	 * in {@code ElementPropertySet}, not current CSS Fragmentation's {@code break-before};
+	 * see `PageBreakBefore.java`.
 	 * </p>
 	 */
 	public void testForceBreakInsideMulticolAncestorSplitsThroughSafely() throws Exception {
@@ -326,9 +309,9 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		}
 		assertEquals("MULTICOLは強制改ページでもbarrierにならないはずです(B3b-1)", 0,
 				ContinuationStats.capabilityScanStops(ContinuationCapability.MULTICOL));
-		// E-3増分7: 旧pageCompiledLevels(MULTICOL)>0の置換——強制改ページ
-		// 経由でも段組levelを含むチェーンがfirst-class実行されたことを
-		// 実挙動カウンタで固定する(上のbarrierゼロ確認と合わせて読む)。
+		// E-3 increment 7: replace old pageCompiledLevels(MULTICOL)>0 with actual-behavior
+		// counters proving first-class chain execution, including multi-column levels,
+		// even through forced page breaks (read together with the zero-barrier check above).
 		assertTrue("継続チェーンが強制改ページ経由でも実際にfirst-class実行されたはずです",
 				ContinuationStats.CHILD_FRAMES.get() > 0);
 	}
@@ -345,9 +328,9 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 			w.write("<style>@page{margin:0}body{font:normal 8pt/1 serif;margin:0}"
 					+ "div{margin:0;padding:0}</style>\n");
 			w.write("</head><body>\n");
-			// 段組祖先(段数2、AUTO高さ)——複数ページにまたがる分量の
-			// 内容の途中でpage-break-before:alwaysを発火させ、PAGEレベルの
-			// 強制分割にエスカレーションさせる
+			// Multi-column ancestor (two columns, AUTO height): trigger page-break-before:always
+			// midway through enough content to span multiple pages,
+			// escalating to a PAGE-level forced split.
 			w.write("<div style=\"column-count:2;column-gap:1em\">\n");
 			w.write("<div>\n");
 			this.writeTextLeaf(w, 100);
@@ -362,18 +345,16 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
-	 * 段組<i>自身の内側</i>を深くネストさせた場合(外側は5段のみと浅い)、
-	 * COLUMN経路({@code BreakableBuilder.columnBreak}、段組内の改段)の
-	 * open深さが旧安全閾値(64)を超える——かつてはここで型付き例外により
-	 * 停止していた(2026-07-21、COLUMN経路のガード新設をこのテストが
-	 * 検証していた)。
+	 * Deep nesting <i>inside the columns themselves</i> (with only five outer levels) pushes
+	 * COLUMN-path open depth ({@code BreakableBuilder.columnBreak}, internal column breaks)
+	 * beyond the old safety threshold (64). Previously this stopped with a typed exception
+	 * (on 2026-07-21, this test verified the newly added COLUMN-path guard).
 	 *
 	 * <p>
-	 * 2026-07-30(legacy再帰撤去=増分4c): worklist executorが唯一の
-	 * driverとなりOpenChain降下が非再帰になったため、深さガードは退役
-	 * した。同じ文書が<b>例外なく完走</b>し、実際に旧閾値を超える深さの
-	 * COLUMN open tailが観測される(空振りでないことの証明)ことを固定
-	 * する。
+	 * 2026-07-30 (legacy recursion removal, increment 4c): the worklist executor became the sole
+	 * driver and OpenChain descent became nonrecursive, retiring the depth guard.
+	 * Verify that the same document <b>completes without exceptions</b> and actually exhibits
+	 * COLUMN open-tail depth beyond the old threshold (proof that coverage is not vacuous).
 	 * </p>
 	 */
 	public void testDeepNestingInsideMulticolCompletesIteratively() throws Exception {
@@ -383,25 +364,22 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
-	 * 直交writing-modeの表は、当初(2026-07-21)`IncrementalTableBuilder`経由の
-	 * INCREMENTAL改ページが選ばれていたため、`BreakableBuilder
-	 * .forceBreak()`が`breakDepth`障壁(通常は直交書字方向の内部で自動
-	 * 改ページを抑止する仕組み)を迂回し、`ORTHOGONAL_FLOW`(段組・RL/LR
-	 * 不一致と同型の未対応capability)へ実際に到達していた
-	 * (本セッションの変更とは無関係の既存バグとして実測確認、`RootBuilder
-	 * .java`の{@code assert this.flowStack.size() == continuation.depth()}
-	 * が本番では無検査のまま素通りし検知されないコンテンツ破損の恐れが
-	 * あった。当時は`ContinuationInvariantViolationException`という
-	 * 緊急ガードのみで支えていた)。
+	 * Initially (2026-07-21), tables with orthogonal writing-mode selected INCREMENTAL pagination
+	 * through `IncrementalTableBuilder`. Thus `BreakableBuilder.forceBreak()` bypassed the
+	 * `breakDepth` barrier (normally suppressing automatic page breaks within orthogonal writing)
+	 * and actually reached `ORTHOGONAL_FLOW` (an unsupported capability like columns or RL/LR mismatch).
+	 * Measurements confirmed this as an existing bug unrelated to this session's changes.
+	 * In production, `RootBuilder.java`'s {@code assert this.flowStack.size() == continuation.depth()}
+	 * was skipped without checking, risking undetected content corruption.
+	 * Only an emergency `ContinuationInvariantViolationException` guard protected it then.
 	 *
 	 * <p>
-	 * M6b Phase B5e(2026-07-21)で`TableBuildPlanner.plan()`に
-	 * {@code TableRetentionReason.ORTHOGONAL_WRITING_MODE}判定を追加し、
-	 * 表自身の書字方向が現在開いているflowと軸違いの場合は無条件でRETAINED
-	 * (`RetainedTableBuilder`)へ回すようにした——不正な入口自体を塞いだため、
-	 * この文書はもう`ContinuationInvariantViolationException`を投げず、
-	 * 例外なく完走するはずである。このテストはB5e以降の期待挙動
-	 * (完走・legacy OpenChain経路に一切到達しない)を固定する。
+	 * M6b Phase B5e (2026-07-21) added {@code TableRetentionReason.ORTHOGONAL_WRITING_MODE}
+	 * to `TableBuildPlanner.plan()`, unconditionally routing tables whose writing axis differs
+	 * from the currently open flow to RETAINED (`RetainedTableBuilder`).
+	 * Blocking the invalid entry itself means this document should complete without
+	 * `ContinuationInvariantViolationException` or any other exception.
+	 * This test verifies post-B5e behavior: completion without ever reaching legacy OpenChain.
 	 * </p>
 	 */
 	public void testOrthogonalWritingModeTableRoutesToRetainedAndCompletes() throws Exception {
@@ -451,26 +429,21 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 	}
 
 	/**
-	 * 2026-07-22の改ページ契約(開発記録
-	 * -contract-consultation.md参照)により、{@code vertical-rl}祖先の
-	 * 途中に{@code vertical-lr}(縦書きのまま方向だけ違う)が挟まる
-	 * ケースは意図的にatomic(この祖先チェーンは分割せず、丸ごと収まる
-	 * か丸ごと次ページへ送られるか)にした。B5(2026-07-21)で一時的に
-	 * 「実際の内部切断可否はisVertical()の一致しか見ないので収集可能に
-	 * してよい」と判断し収集可能化していたが、方針転換により撤回した
-	 * ——{@code BreakableBuilder.startFlowBlock()}の{@code breakDepth}
-	 * 障壁も{@code isVertical()}だけでなく{@code WritingMode}完全一致で
-	 * 判定するよう同時に拡張したため、実際に軸不一致(直交writing-mode)
-	 * と同じ「祖先チェーンとしては分割不能」という扱いになる。
+	 * The 2026-07-22 pagination contract (see development record -contract-consultation.md)
+	 * intentionally made {@code vertical-lr} inside {@code vertical-rl} ancestors atomic:
+	 * this ancestor chain does not split, but either fits intact or moves intact to the next page.
+	 * B5 (2026-07-21) temporarily made it collectable because actual internal splitting checked
+	 * only isVertical() equality; the policy change withdrew that decision.
+	 * At the same time, {@code BreakableBuilder.startFlowBlock()}'s {@code breakDepth} barrier
+	 * expanded from {@code isVertical()} equality to exact {@code WritingMode} equality.
+	 * This therefore becomes unsplittable as an ancestor chain, like an orthogonal writing-mode mismatch.
 	 *
 	 * <p>
-	 * ただし内部のテキスト継続(改ページ時の行分割)は{@code TextBlockBox}
-	 * /{@code BreakToken}という別の(ARCHITECTURE.md §5.9で完成済みの)
-	 * 機構が担っており、{@code breakDepth}の対象外——このfixtureは実際に
-	 * 17ページへ正しく改ページされ(実測確認済み)、legacy `OpenChain`の
-	 * 深い再帰(`RESTYLE_CHAIN_FIRINGS`)を経由せず、バリア到達時の
-	 * 残り深さも1(単一レベル、危険な再帰ではない)にとどまることを
-	 * 固定する。
+	 * Internal text continuation (line splitting during pagination) uses the separate
+	 * {@code TextBlockBox}/{@code BreakToken} mechanism, completed in ARCHITECTURE.md §5.9,
+	 * outside {@code breakDepth}'s scope. Verify that this fixture correctly paginates to 17 pages
+	 * (measured), avoids deep legacy `OpenChain` recursion (`RESTYLE_CHAIN_FIRINGS`),
+	 * and leaves only depth 1 at the barrier (a single level, not dangerous recursion).
 	 * </p>
 	 */
 	public void testMixedVerticalDirectionAncestorAlsoTriggersOpenChain() throws Exception {
@@ -494,20 +467,20 @@ public class OpenChainCollectablePrefixTest extends TestCase {
 		System.err.println("vertical-rl-lr-mismatch: RESTYLE_CHAIN_FIRINGS=" + ContinuationStats.RESTYLE_CHAIN_FIRINGS.get()
 				+ " CHILD_FRAMES=" + ContinuationStats.CHILD_FRAMES.get() + " MAX_PAGE_OPEN_TAIL_DEPTH="
 				+ ContinuationStats.MAX_PAGE_OPEN_TAIL_DEPTH.get());
-		// 2026-07-22(改ページ契約): breakDepth拡張(BreakableBuilder
-		// .startFlowBlock)により、書字方向不一致の祖先チェーンの内側では
-		// ブロック境界の自動改ページ自体が一切発火しなくなった。この
-		// fixtureのテキスト本体はブロックではなく連続テキスト
-		// (`<br/>`区切りの1つの連続text)なので、既存の(ARCHITECTURE.md
-		// §5.9で完成済みの)TextBlockBox/BreakToken機構が改ページを担い、
-		// この機構はブロックレベルのOpenChain/collectable-prefixスキャン
-		// を一切経由しない——実測で
-		// capabilityScanStops(SAME_AXIS_DIRECTION_CHANGE)・
-		// RESTYLE_CHAIN_FIRINGSがすべて0のまま、17ページへ安全に
-		// 改ページされることを確認済み(このRL/LR祖先チェーン自体は
-		// 一度も「開いたまま継続」する対象にならない、という意味で
-		// 真にatomic。旧pageCompiledLevels(SAME_AXIS_DIRECTION_CHANGE)==0の
-		// 確認はE-3増分7のcompiled-programカウンタ撤去に伴い削除した)。
+		// 2026-07-22 (pagination contract): extending breakDepth (BreakableBuilder
+		// .startFlowBlock) prevents all automatic block-boundary page breaks
+		// inside ancestor chains with mismatched writing directions. This fixture's
+		// text body is continuous text, not blocks
+		// (one text sequence separated by `<br/>`), so the existing
+		// TextBlockBox/BreakToken mechanism (completed in ARCHITECTURE.md §5.9) handles pagination
+		// without passing through block-level OpenChain/collectable-prefix scanning.
+		// Measurements confirmed safe pagination into 17 pages while
+		// capabilityScanStops(SAME_AXIS_DIRECTION_CHANGE) and
+		// RESTYLE_CHAIN_FIRINGS all remained zero.
+		// This RL/LR ancestor chain is truly atomic in that it is never
+		// continued while still open.
+		// The old pageCompiledLevels(SAME_AXIS_DIRECTION_CHANGE)==0 check was removed
+		// with compiled-program counters in E-3 increment 7.
 		assertEquals("SAME_AXIS_DIRECTION_CHANGEの祖先はスキャン自体の対象にならないはずです", 0,
 				ContinuationStats.capabilityScanStops(ContinuationCapability.SAME_AXIS_DIRECTION_CHANGE));
 		assertEquals("legacy OpenChainの深い再帰も発生しないはずです", 0,

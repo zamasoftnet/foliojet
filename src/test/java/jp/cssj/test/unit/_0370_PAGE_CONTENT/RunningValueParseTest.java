@@ -40,7 +40,7 @@ import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.PageAssignmentState.Mode;
 import net.zamasoft.foliojet.ua.UserAgent;
 
-/** running R1a の値型・宣言文脈・legacy 分解・頁選択を検証します。 */
+/** Tests running R1a value types, declaration contexts, legacy decomposition, and page selection. */
 public class RunningValueParseTest extends TestCase {
 	private static final URI URI_BASE = URI.create("file:///running-r1a-parse.css");
 
@@ -124,7 +124,7 @@ public class RunningValueParseTest extends TestCase {
 		}
 	}
 
-	/** 疑似要素の content: element() は警告して疑似要素ごと作らない(箱も副作用も残さない)。 */
+	/** content: element() on a pseudo-element warns and omits the whole pseudo-element (no box or side effects remain). */
 	public void testElementInPseudoElementMakesNoBox() throws Exception {
 		final String body = "<div id='x'>BODY</div>";
 		final StringSetModeMatrixTest.Conversion result = StringSetModeMatrixTest.convert(

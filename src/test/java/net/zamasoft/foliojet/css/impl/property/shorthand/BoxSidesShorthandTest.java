@@ -16,7 +16,8 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.token.Tokens;
 
 /**
- * 4 辺のショートハンドの配り方を固定します(2026-10-04、6 つのクラスの写しを{@link BoxSidesShorthand}へまとめた)。
+ * Fix four-side shorthand distribution (2026-10-04, duplicates in six classes merged into {@link
+ * BoxSidesShorthand}).
  */
 public class BoxSidesShorthandTest extends TestCase {
 	private static TokenStream tokens(final String declaration) {
@@ -29,7 +30,7 @@ public class BoxSidesShorthandTest extends TestCase {
 		return new TokenStream(Tokens.fromExpression(all.get(0).getExpression()));
 	}
 
-	/** 上・右・下・左の順の値を返します。 */
+	/** Return values in top, right, bottom, left order. */
 	private static String sides(final ShorthandPropertyInfo info, final String name, final String value)
 			throws PropertyException {
 		final CompositeProperty p = (CompositeProperty) info.parse(tokens(name + ": " + value), null, null, false);
@@ -58,7 +59,7 @@ public class BoxSidesShorthandTest extends TestCase {
 				sides(BoxSidesShorthand.PADDING, "padding", bad);
 				fail("拒否されるべき: " + bad);
 			} catch (final PropertyException e) {
-				// 期待どおり
+				// As expected.
 			}
 		}
 	}

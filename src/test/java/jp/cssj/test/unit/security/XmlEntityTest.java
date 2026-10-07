@@ -7,24 +7,24 @@ import java.nio.file.Files;
 import junit.framework.TestCase;
 
 /**
- * XMLの外部実体でローカルファイルや内側のホストへ届かないこと(2026-09-08新設)。
+ * XML external entities cannot reach local files or internal hosts (introduced on 2026-09-08).
  *
  * <p>
- * {@code <!DOCTYPE svg [<!ENTITY x SYSTEM "file:///…">]>}は、資源アクセス制御の
- * 古典的な迂回路です。{@code input.include}はソースリゾルバの手前にありますが、
- * <b>XMLパーサの実体解決はそこを通らない</b>ことがあります。
+ * {@code <!DOCTYPE svg [<!ENTITY x SYSTEM "file:///…">]>} is a classic bypass for resource access control.
+ * {@code input.include} sits before the source resolver, but <b>XML parser entity resolution
+ * may bypass it</b>.
  * </p>
  *
  * <p>
- * 測るのは2つ。<b>ローカルファイルの読み出し</b>(秘密が版面に出るか)と、
- * <b>内側のホストへの通信</b>(踏み台になるか)です。どちらも
- * 「変換が成功したか」ではなく、<b>固有の内容が出たか・記録用サーバに来たか</b>で
- * 判定します。
+ * Measure two things: <b>local-file reads</b> (whether secrets appear in the type area) and
+ * <b>communication with internal hosts</b> (whether the server can be used as a relay).
+ * Judge both by <b>whether distinctive content appears or requests reach the recording server</b>,
+ * not by conversion success.
  * </p>
  */
 public class XmlEntityTest extends TestCase {
 
-	/** 版面に出たら分かる、ありふれない文字列です。 */
+	/** An unusual string that is recognizable if it appears in the type area. */
 	private static final String SECRET = "XXESECRETMARKER";
 
 	private ProbeServer probe;
@@ -53,11 +53,11 @@ public class XmlEntityTest extends TestCase {
 	}
 
 	/**
-	 * SVGの外部実体でサーバーのローカルファイルを読めないこと。
+	 * SVG external entities cannot read server-local files.
 	 *
 	 * <p>
-	 * 主文書は記録用サーバから配ります。{@code file:}から配ると、
-	 * 「同じ場所だから読めた」のか「制限が無いから読めた」のか区別できません。
+	 * Serve the main document from the recording server. Serving it from {@code file:} would make it
+	 * impossible to distinguish reading due to the same location from reading due to missing restrictions.
 	 * </p>
 	 */
 	public void testExternalEntityCannotReadLocalFile() throws Exception {
@@ -70,14 +70,13 @@ public class XmlEntityTest extends TestCase {
 	}
 
 	/**
-	 * <b>信頼しない入力</b>の形でも、外部実体でローカルファイルを読めないこと。
+	 * External entities cannot read local files even in the <b>untrusted input</b> setup.
 	 *
 	 * <p>
-	 * 呼び出し側が文書そのものを押し込み、ACLは全部許し、
-	 * {@code localAccessAllowed=false}にします。これが copper-mcp の
-	 * {@code --untrusted} に近い形です。主文書をURLで取らせないのは、
-	 * 記録用サーバ自身が{@code 127.0.0.1}にいて、その設定では
-	 * <b>主文書の取得ごと止まってしまう</b>ためです(実際に一度そうなった)。
+	 * The caller pushes the document itself, allows everything in the ACL, and sets
+	 * {@code localAccessAllowed=false}. This approximates copper-mcp's {@code --untrusted}.
+	 * Do not fetch the main document by URL: the recording server itself is at {@code 127.0.0.1},
+	 * so this setting would <b>block fetching the main document too</b> (this actually happened once).
 	 * </p>
 	 */
 	public void testExternalEntityCannotReadLocalFileWhenUntrusted() throws Exception {
@@ -88,7 +87,7 @@ public class XmlEntityTest extends TestCase {
 		assertFalse("信頼しない入力でもローカルファイルの中身が版面に出た: " + r.describe(), containsSecret(r));
 	}
 
-	/** SVGの外部実体で、許していないホストへ通信しないこと。 */
+	/** SVG external entities do not communicate with unauthorized hosts. */
 	public void testExternalEntityObeysAcl() throws Exception {
 		this.probe.put("/entity.txt", "text/plain", SECRET);
 		final String svg = svgWithEntity(this.probe.url("/entity.txt"));
@@ -100,7 +99,7 @@ public class XmlEntityTest extends TestCase {
 		assertFalse("許していない外部実体の中身が版面に出た", containsSecret(r));
 	}
 
-	/** HTMLのDOCTYPEでも同じであること。 */
+	/** The same holds for HTML DOCTYPE. */
 	public void testHtmlExternalEntityCannotReadLocalFile() throws Exception {
 		final String html = "<!DOCTYPE html [<!ENTITY probe SYSTEM '" + this.secretFile.toURI() + "'>]>"
 				+ "<html><body><p>&probe;</p></body></html>";
@@ -112,11 +111,11 @@ public class XmlEntityTest extends TestCase {
 	}
 
 	/**
-	 * 版面に秘密が出ているかどうかです。
+	 * Whether the secret appears in the type area.
 	 *
 	 * <p>
-	 * PDFの内容ストリームは字送りで分断されるので、<b>1文字ずつでも順に
-	 * 現れたら出たとみなします</b>。素朴な{@code contains}では見逃します。
+	 * PDF content streams are split by character advances, so <b>count it as present if its characters
+	 * appear in order, even one at a time</b>. A naive {@code contains} would miss it.
 	 * </p>
 	 */
 	private static boolean containsSecret(final ConversionProbe.Result r) throws Exception {

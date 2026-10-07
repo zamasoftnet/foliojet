@@ -4,8 +4,8 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
 
 /**
- * list-style-type の名前の表が一つで、名前と値が往復することを固定します(2026-10-04、全体レビュー。
- * {@code toString} の switch に upper-latin が無く、例外になっていた)。
+ * Verify that list-style-type has one name table and names and values round-trip
+ * (2026-10-04, overall review: the {@code toString} switch lacked upper-latin and threw an exception).
  */
 public class ListStyleTypeValueTest extends TestCase {
 	public void testEveryValueRoundTripsThroughItsName() {

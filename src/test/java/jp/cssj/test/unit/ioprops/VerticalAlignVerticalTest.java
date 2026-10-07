@@ -20,13 +20,14 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 縦組みの {@code vertical-align: middle / central / text-top / text-bottom}(2026-09-02)。
+ * {@code vertical-align: middle / central / text-top / text-bottom} in vertical writing (2026-09-02).
  *
  * <p>
- * 縦組みの行は中央線揃えで、字面は列の左右にサイズの半分ずつ。以前は横組みの
- * 計量(x-height・ascent 0.88 倍)をそのまま使っていたので、middle は右へ半 x-height、
- * text-top は列の右端から張り出していた。ページ JSON の字形矩形(縦組みの run の
- * x 範囲=列)で、小さい字の列が親の列に対してどこに来るかを見る。
+ * Vertically written lines align on their centerline, with glyph bounds extending half the size
+ * to each side of the column. Previously, horizontal-writing metrics (x-height and ascent ×0.88)
+ * were used unchanged: middle shifted right by half an x-height, and text-top protruded beyond
+ * the column's right edge. Use glyph rectangles in page JSON (the x range of a vertical run is its column)
+ * to check the small-text column's position relative to the parent column.
  * </p>
  */
 public class VerticalAlignVerticalTest extends TestCase {
@@ -72,7 +73,7 @@ public class VerticalAlignVerticalTest extends TestCase {
 		assertEquals("text-bottom: the left edges must meet: " + r[0] + " " + r[1], r[0].x1, r[1].x1, 0.6);
 	}
 
-	/** {親, 子} の run。 */
+	/** Runs for {parent, child}. */
 	private Run[] runs(final String html) throws Exception {
 		final List<Run> all = parse(convert(html));
 		Run parent = null, child = null;
@@ -152,7 +153,7 @@ public class VerticalAlignVerticalTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

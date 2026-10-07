@@ -1,18 +1,19 @@
 package net.zamasoft.foliojet.ua;
 
 /**
- * 書き出す JSON の文字列と数の書き方です(画像寸法表とページ分割SVGの索引・資源表で共有する)。
+ * Formatting of JSON strings and numbers for export
+ * (shared by image metrics tables and page-split SVG indexes/resource tables).
  *
  * <p>
- * 2026-10-04 まで {@code ImageMetricsJSON} と {@code PagedSVGResources} に同じ規則の写しがあり、
- * 後者は無限大を {@code (long)} で 9223372036854775807 と書いていた。
+ * Until 2026-10-04, {@code ImageMetricsJSON} and {@code PagedSVGResources} had copies of the
+ * same rules; the latter wrote infinity as 9223372036854775807 through a {@code (long)} cast.
  * </p>
  */
 public final class JsonText {
 	private JsonText() {
 	}
 
-	/** 引用符で囲み、JSON の規則で逃がした文字列です。 */
+	/** Quoted string escaped according to JSON rules. */
 	public static String quoted(final String value) {
 		final StringBuilder out = new StringBuilder(value.length() + 2);
 		out.append('"');
@@ -38,7 +39,7 @@ public final class JsonText {
 		return out.append('"').toString();
 	}
 
-	/** 数です。整数は整数のまま書く(1200.0 ではなく 1200)。 */
+	/** Number. Writes integers as integers (1200 rather than 1200.0). */
 	public static String number(final double value) {
 		if (value == Math.rint(value) && !Double.isInfinite(value)) {
 			return Long.toString((long) value);

@@ -21,18 +21,18 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * Markdown入力(MarkdownParser)の表示リストgolden比較テストです。
+ * Display-list golden comparison tests for Markdown input (MarkdownParser).
  *
  * <p>
- * MarkdownはCommonMarkの構文木からXNIイベントを直接発行してTagBalancerへ
- * 流す実装(MarkdownParser参照)のため、このテストは変換の正しさ(見出し・
- * 段落・強調・リスト・コードブロック・引用・水平線・リンク・生HTML透過)を
- * 確認する。rawhtml.mdは生HTMLブロックの<b>後続内容</b>の被覆——断片
- * スキャナが合成するhtml/head/body骨組みイベントを素通しすると、断片ごとの
- * end bodyが外側のbodyを閉じて以降の内容がbodyの外に落ちる(2026-08-10に
- * 実際に起きた欠陥。basic.mdは生HTMLが末尾のみで掛からなかった)。
- * MIME型はファイル拡張子(.md)から自動判定させる(mimeType引数にnull)ことで、
- * 実運用の入力経路(拡張子判定)もあわせて検証する。
+ * Markdown emits XNI events directly from the CommonMark syntax tree into TagBalancer
+ * (see MarkdownParser), so this test checks conversion correctness: headings, paragraphs,
+ * emphasis, lists, code blocks, blockquotes, horizontal rules, links, and raw HTML passthrough.
+ * rawhtml.md covers <b>content following</b> raw HTML blocks. Passing through html/head/body
+ * skeleton events synthesized by the fragment scanner lets each fragment's end body close
+ * the outer body, leaving later content outside it (an actual defect on 2026-08-10;
+ * basic.md did not catch it because raw HTML appeared only at its end).
+ * Autodetect the MIME type from the .md file extension (null mimeType argument)
+ * to verify the production input path (extension detection) as well.
  * </p>
  */
 public class MarkdownGoldenTest extends TestCase {
@@ -41,7 +41,7 @@ public class MarkdownGoldenTest extends TestCase {
 	private static final String[] DOCUMENTS = { //
 			"3070-MARKDOWN/basic.md", //
 			"3070-MARKDOWN/rawhtml.md", //
-			// 青空文庫式ルビ(2026-08-11)
+			// Aozora Bunko-style ruby (2026-08-11).
 			"3070-MARKDOWN/aozora-ruby.md", //
 	};
 
@@ -65,7 +65,7 @@ public class MarkdownGoldenTest extends TestCase {
 			assertTrue("表示リストが出力されていません: " + doc, pages.length > 0);
 
 			if (!goldenDir.isDirectory()) {
-				// 基準データの初回生成
+				// Initial generation of baseline data.
 				goldenDir.mkdirs();
 				for (File page : pages) {
 					Files.copy(page.toPath(), new File(goldenDir, page.getName()).toPath());
@@ -106,7 +106,7 @@ public class MarkdownGoldenTest extends TestCase {
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
-				// MIME型は拡張子(.md)から自動判定させる
+				// Autodetect the MIME type from the .md extension.
 				CTISessionHelper.transcodeFile(session, source, null, null);
 			} finally {
 				session.close();

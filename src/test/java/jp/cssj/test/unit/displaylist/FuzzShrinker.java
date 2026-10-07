@@ -18,18 +18,18 @@ import java.util.regex.Pattern;
 import jp.cssj.test.unit.displaylist.RandomDocumentFuzzTest.Generated;
 
 /**
- * ランダム文書ファザーが見つけた失敗を<b>自動で最小化</b>します(2026-07-28新設)。
+ * <b>Automatically minimize</b> failures found by the random document fuzzer (introduced 2026-07-28).
  *
- * <h2>なぜ必要か</h2>
+ * <h2>Why this is needed</h2>
  *
  * <p>
- * 掃過は数分で終わるのに、<b>1件の診断に数時間かかる</b>。今季見つかった欠陥は
- * すべて人間かエージェントが手で縮小しており、その過程で<b>偽の最小形を5回</b>
- * 掴んでいる。縮小は機械にやらせるべき
- * 作業で、かつ<b>機械にやらせるなら述語を正しく書くこと自体が本体</b>である。
+ * A sweep finishes in minutes, but <b>diagnosing one case takes hours</b>. Every defect found this season
+ * was reduced manually by a human or agent, producing <b>five false minimal cases</b> along the way.
+ * Reduction belongs to machines, and <b>writing the predicate correctly is the core task
+ * when a machine performs it</b>.
  * </p>
  *
- * <h2>実行</h2>
+ * <h2>Execution</h2>
  *
  * <pre>
  * ./gradlew test --rerun --tests "*RandomDocumentFuzzTest*" -Dfoliojet.fuzzShrink=149858 -q
@@ -38,69 +38,67 @@ import jp.cssj.test.unit.displaylist.RandomDocumentFuzzTest.Generated;
  * </pre>
  *
  * <p>
- * 結果は{@code local/shrink/<mode>-<seed>-min.html}へ書き、標準出力へも出す
- * (gradleは既定でテストの標準出力を隠すので、{@code build/test-results/test/}の
- * XMLか{@code -Dfoliojet.fuzzShrink}指定時の{@code showStandardStreams}で読む)。
+ * Write results to {@code local/shrink/<mode>-<seed>-min.html} and stdout
+ * (gradle hides test stdout by default; read XML in {@code build/test-results/test/},
+ * or use {@code showStandardStreams} when {@code -Dfoliojet.fuzzShrink} is specified).
  * </p>
  *
- * <h2>述語(ここが危険な部分)</h2>
+ * <h2>Predicate (the dangerous part)</h2>
  *
  * <p>
- * 縮小した文書は<b>もはや生成器が作ったものではない</b>。したがって
- * {@link Generated}の各項——トークン表・並べ替え可能集合・紙面寸法・最大明示
- * サイズ・除外フラグ——は<b>候補文書から計算し直さなければならない</b>。
- * 元のトークン表を引き継ぐと、要素を1個消しただけで不変条件4が
- * 「内容の消失」で発火し、縮小器は<b>自分が作った失敗</b>を大喜びで
- * 保存し続ける。§3.15 の6例目になるところだった。
+ * A reduced document <b>is no longer generator output</b>. Every field of {@link Generated},
+ * including the token table, reorderable set, paper dimensions, maximum explicit size,
+ * and exclusion flags, <b>must be recomputed from the candidate document</b>.
+ * Reusing the original token table makes invariant 4 report content loss after deleting just
+ * one element, and the shrinker happily keeps preserving <b>a failure it created itself</b>.
+ * This nearly became the sixth example in §3.15.
  * </p>
  *
  * <p>
- * さらに以下を明示的に守る:
+ * Also explicitly enforce the following:
  * </p>
  *
  * <ul>
- * <li><b>種別が同じこと</b>を要求する。「まだ落ちる」ではなく
- * {@link RandomDocumentFuzzTest#classify}の文字列が一致すること。そうしないと
- * <b>別の欠陥</b>の最小形が出てくる</li>
- * <li><b>退化解を拒む</b>。トークンが1個も残らない候補は不合格。
- * ページが0枚の候補も(検査側が先に落ちるので)不合格になる</li>
- * <li><b>画像URIには触らない</b>。{@code src}属性は削除も数値縮小も対象外。
- * 相対パスへ書き換わると画像が黙って消えてページ数が変わる(§3.15の5例目)</li>
- * <li><b>オラクルが読む骨格を壊さない</b>。紙面寸法のPI・{@code @page}の
- * マージン・{@code body}の{@code font}が消えた候補は、たとえ落ちても不合格に
- * する——これらが無いと{@code isOversized}/{@code isTinyPage}の意味が
- * 黙って変わる</li>
- * <li><b>予算</b>を持つ。述語の評価回数と実時間に上限を置き、<b>打ち切ったら
- * そう報告する</b>(部分縮小の結果を黙って返さない)</li>
+ * <li>Require <b>the same category</b>: the {@link RandomDocumentFuzzTest#classify} string must match,
+ * not merely "still fails". Otherwise the result may minimize <b>a different defect</b>.</li>
+ * <li><b>Reject degenerate solutions.</b> Candidates with no remaining tokens fail.
+ * Zero-page candidates also fail (the checker fails first).</li>
+ * <li><b>Do not touch image URIs.</b> Exclude {@code src} attributes from deletion and numeric reduction.
+ * Rewriting them as relative paths silently removes images and changes page counts (§3.15, example 5).</li>
+ * <li><b>Preserve the skeleton the oracle reads.</b> Reject candidates missing paper-size PIs,
+ * {@code @page} margins, or {@code body}'s {@code font}, even if they fail;
+ * without these, the meaning of {@code isOversized}/{@code isTinyPage} silently changes.</li>
+ * <li>Have a <b>budget</b>. Bound predicate evaluations and wall time, and <b>report truncation</b>
+ * instead of silently returning a partial reduction.</li>
  * </ul>
  *
- * <h2>自己検査</h2>
+ * <h2>Self-checks</h2>
  *
  * <p>
- * 縮小を始める前に、
+ * Before shrinking, verify:
  * </p>
  *
  * <ol>
- * <li>構文木の<b>往復</b>(parse→serialize)が元の文字列と1バイトも違わないこと</li>
- * <li>再計算したトークン表・並べ替え可能集合が、<b>生成器が記録した値と一致</b>
- * すること。これが述語の心臓部の直接検算になる</li>
- * <li>元の文書で目的の種別が再現すること、および<b>空文書では再現しないこと</b>
- * (退化側の検算。§3.15 が「片方だけでは足りない」と言っている方)</li>
+ * <li>The syntax-tree <b>round trip</b> (parse→serialize) matches the original string byte for byte.</li>
+ * <li>The recomputed token table and reorderable set <b>match the generator's recorded values</b>.
+ * This directly cross-checks the predicate's core.</li>
+ * <li>The original document reproduces the target category, and <b>an empty document does not</b>
+ * (cross-check the degenerate side; §3.15 says checking only one side is insufficient).</li>
  * </ol>
  */
 final class FuzzShrinker {
 
 	private FuzzShrinker() {
-		// ユーティリティ
+		// Utility class.
 	}
 
-	/** 述語の評価回数の上限({@code -Dfoliojet.fuzzShrinkEvals})。 */
+	/** Maximum predicate evaluations ({@code -Dfoliojet.fuzzShrinkEvals}). */
 	private static final int DEFAULT_MAX_EVALS = 5_000;
 
-	/** 実時間の上限({@code -Dfoliojet.fuzzShrinkMillis})。 */
+	/** Wall-time limit ({@code -Dfoliojet.fuzzShrinkMillis}). */
 	private static final long DEFAULT_MAX_MS = 20 * 60_000L;
 
-	/** 予算を使い切ったことを縮小ループの外まで伝える。 */
+	/** Propagate budget exhaustion out of the shrinking loop. */
 	private static final class BudgetExhausted extends RuntimeException {
 		private static final long serialVersionUID = 1L;
 
@@ -113,7 +111,7 @@ final class FuzzShrinker {
 	}
 
 	// ------------------------------------------------------------------
-	// 入口
+	// Entry points.
 	// ------------------------------------------------------------------
 
 	static void shrink(final int seed, final boolean strict) throws Exception {
@@ -123,13 +121,13 @@ final class FuzzShrinker {
 	}
 
 	/**
-	 * <b>ファイルを縮小する入口</b>({@code -Dfoliojet.fuzzShrinkFile=<path>})。
+	 * <b>Entry point for shrinking a file</b> ({@code -Dfoliojet.fuzzShrinkFile=<path>}).
 	 *
 	 * <p>
-	 * 生成器を通さないので自己検査2(生成器の記録との突き合わせ)はできない。
-	 * 代わりに再計算した値をそのまま出す。手で書いた再現文書や、
-	 * <b>縮小器自身の検算</b>——答えの分かっている文書を水増ししてから
-	 * 縮小させ、水増し分だけが消えるかを見る——に使う。
+	 * Without the generator, self-check 2 (comparison with generator records) is unavailable.
+	 * Print the recomputed values instead. Use for handwritten reproducers or
+	 * <b>cross-checking the shrinker itself</b>: inflate a document with a known answer,
+	 * shrink it, and check that only the added material disappears.
 	 * </p>
 	 */
 	static void shrinkFile(final File file) throws Exception {
@@ -147,16 +145,16 @@ final class FuzzShrinker {
 	private static void shrink(final Generated original, final String label, final boolean strict,
 			final boolean fromGenerator) throws Exception {
 		final long began = System.currentTimeMillis();
-		// extreme文書は1候補で千ページ級になりうる。作業ツリー(DrvFs)へ
-		// 反復出力するとWindows側の監視負荷が支配するため、掃過と同じく
-		// tmpfsへ逃がせる入口を持つ。
+		// An extreme document can generate thousands of pages per candidate. Repeated output
+		// to the working tree (DrvFs) makes Windows-side monitoring dominate the cost,
+		// so provide a way to use tmpfs, as the sweep does.
 		final File dir = new File(System.getProperty("foliojet.fuzzShrinkDir", "local/shrink"));
 		dir.mkdirs();
 		final File work = new File(dir, label + "-work.html");
 		final File workDl = new File(dir, "dl-" + label);
 		final File min = new File(dir, label + "-min.html");
 
-		// --- 自己検査1: 構文木の往復 ---
+		// --- Self-check 1: syntax-tree round trip. ---
 		final String rebuilt = rebuild(original.html(), parseBody(original.html()), (Node) null, null);
 		if (!rebuilt.equals(original.html())) {
 			System.out.println("[shrink] 中止: parse→serialize が元と一致しない。"
@@ -167,7 +165,7 @@ final class FuzzShrinker {
 		}
 		System.out.println("[shrink] 自己検査1 OK: 構文木の往復が元と1バイトも違わない");
 
-		// --- 自己検査2: 再計算した述語入力が生成器の記録と一致するか ---
+		// --- Self-check 2: recomputed predicate inputs match generator records. ---
 		final Generated recomputed = analyze(original.html());
 		if (recomputed == null) {
 			System.out.println("[shrink] 中止: 元の文書を解析できない(オラクルの骨格が無い)");
@@ -202,7 +200,7 @@ final class FuzzShrinker {
 					+ "並べ替え可能集合(" + recomputed.reorderable().size() + "個)・紙面・除外フラグが生成器の記録と一致");
 		}
 
-		// --- 目標の種別を決める ---
+		// --- Determine the target category. ---
 		final Probe probe = new Probe(work, workDl, strict);
 		final String target = probe.classOf(original.html());
 		final int originalPages = probe.lastPages;
@@ -211,22 +209,22 @@ final class FuzzShrinker {
 			return;
 		}
 		final double originalSeverity = probe.lastSeverity;
-		// **深刻度は1ptも落とさない**のが既定(2026-07-28)。
+		// By default, **do not reduce severity even by 1 pt** (2026-07-28).
 		//
-		// 最初は「元の1/4まで許す」にしていたが、seed 149858 でそれが
-		// **文書の内容とオラクルの許容量の交換**に使われた: `float`の
-		// `width:12pt`を`0pt`まで縮めると、許容量(=最大明示サイズの2倍)が
-		// 24pt→0ptになるので、超過22ptを9ptまで落として釣り合わせられる。
-		// 得られた最小形は`width:12pt`へ戻すと**通ってしまう**——元の失敗の
-		// 縮小形ではなかった。厳しくしても代償は小さい(670→691 bytes)。
-		// {@code -Dfoliojet.fuzzShrinkSeverity=0.25}で緩められるが、
-		// **緩めたら結果を必ず読むこと**
+		// Initially, severity could drop to one quarter of the original, but seed 149858 used this
+		// to **trade document content for the oracle's allowance**: reducing a float's
+		// `width:12pt` to `0pt` reduces the allowance (=twice the largest explicit size)
+		// from 24 pt to 0 pt, allowing excess overflow to drop from 22 pt to 9 pt to compensate.
+		// Restoring `width:12pt` made the resulting minimum **pass**; it was not a reduction
+		// of the original failure. The stricter rule costs little (670→691 bytes).
+		// Relax with {@code -Dfoliojet.fuzzShrinkSeverity=0.25},
+		// but **always inspect the result if you relax it**.
 		final double keep = Double.parseDouble(System.getProperty("foliojet.fuzzShrinkSeverity", "1"));
 		final double minSeverity = Math.max(1, originalSeverity * keep);
 		System.out.println("[shrink] 目標の種別: " + target + " (元の文書は" + originalPages + "ページ, 深刻度"
 				+ originalSeverity + " → 下限" + minSeverity + ")");
 
-		// --- 自己検査3: 退化入力では再現しないこと ---
+		// --- Self-check 3: degenerate input does not reproduce. ---
 		final String emptied = emptyBody(original.html());
 		final String emptyClass = probe.classOf(emptied);
 		if (target.equals(emptyClass) && probe.lastSeverity >= minSeverity) {
@@ -238,7 +236,7 @@ final class FuzzShrinker {
 				+ probe.lastSeverity + ", " + probe.lastPages + "ページ)。退化判定でも拒否: "
 				+ degenerate(emptied));
 
-		// --- 縮小 ---
+		// --- Shrink. ---
 		final int maxEvals = Integer.getInteger("foliojet.fuzzShrinkEvals", DEFAULT_MAX_EVALS).intValue();
 		final long maxMs = Long.getLong("foliojet.fuzzShrinkMillis", DEFAULT_MAX_MS).longValue();
 		final Shrinker s = new Shrinker(probe, target, original.html(), maxEvals, maxMs, originalPages > 0,
@@ -255,7 +253,7 @@ final class FuzzShrinker {
 			w.write(result);
 		}
 
-		// --- 最終確認: 出来上がったファイルで、もう一度最初から検査する ---
+		// --- Final verification: check the resulting file again from scratch. ---
 		final Generated finalDoc = analyze(result);
 		final String finalClass = probe.classOf(result);
 		final int pages = probe.lastPages;
@@ -287,12 +285,12 @@ final class FuzzShrinker {
 	}
 
 	/**
-	 * <b>生成器を通さず</b>、ディスク上のHTMLを同じ不変条件にかけます
-	 * ({@code -Dfoliojet.fuzzCheckFile=<path>})。縮小結果の再現確認用。
+	 * Check HTML on disk against the same invariants <b>without the generator</b>
+	 * ({@code -Dfoliojet.fuzzCheckFile=<path>}). Used to verify that reduced results reproduce.
 	 *
 	 * <p>
-	 * 述語の入力({@link Generated})は当然この文書から計算する。縮小器が
-	 * 使ったのとまったく同じ経路を、<b>ファイルから読み直して</b>通す。
+	 * Naturally, compute predicate inputs ({@link Generated}) from this document.
+	 * <b>Reread the file</b> and follow exactly the same path as the shrinker.
 	 * </p>
 	 */
 	static void checkFile(final File file) throws Exception {
@@ -306,9 +304,9 @@ final class FuzzShrinker {
 		System.out.println("[fuzzCheckFile]   tokens=" + doc.tokens() + " reorderable=" + doc.reorderable() + " page="
 				+ doc.pageWidth() + "x" + doc.pageHeight() + " maxExplicit=" + doc.maxExplicitSize() + " oversized="
 				+ doc.oversized() + " tiny=" + doc.tinyPage());
-		// 除外の判定に効く軸の入れ替わり回数も出す。2以上で
-		// {@code ExcludedByNestedOrthogonalFlow}の対象になるため、
-		// **除外が広がりすぎていないか**をこの値で確かめられる(2026-07-30)
+		// Also report the axis-switch count used by exclusions. Two or more triggers
+		// {@code ExcludedByNestedOrthogonalFlow}, so this value helps check
+		// **whether exclusions are too broad** (2026-07-30).
 		System.out.println("[fuzzCheckFile]   直交フローの軸の入れ替わり="
 				+ RandomDocumentFuzzTest.orthogonalAxisChanges(html)
 				+ " (2以上なら紙面外配置を除外) 直交フローあり="
@@ -335,15 +333,15 @@ final class FuzzShrinker {
 	}
 
 	// ------------------------------------------------------------------
-	// 述語
+	// Predicate.
 	// ------------------------------------------------------------------
 
 	/**
-	 * 候補文書を1件変換して<b>失敗の種別</b>を返す(通れば{@code null})。
+	 * Convert one candidate document and return the <b>failure category</b> ({@code null} on success).
 	 *
 	 * <p>
-	 * 変換はテストJVMの中で直接行う。候補ごとにgradleを起動するとロック競合と
-	 * UP-TO-DATEスキップで<b>述語が嘘をつく</b>(§3.15 の2例目・3例目)。
+	 * Convert directly in the test JVM. Launching gradle per candidate causes lock contention
+	 * and UP-TO-DATE skips that <b>make the predicate lie</b> (§3.15, examples 2 and 3).
 	 * </p>
 	 */
 	private static final class Probe {
@@ -361,10 +359,10 @@ final class FuzzShrinker {
 			this.strict = strict;
 		}
 
-		/** 直近の失敗そのもの(報告用。判定には使わない)。 */
+		/** The most recent failure itself (for reporting, not decisions). */
 		Throwable lastFailure;
 
-		/** 直近の失敗の<b>深刻度</b>。{@link FuzzShrinker#severity}を参照。 */
+		/** The most recent failure's <b>severity</b>. See {@link FuzzShrinker#severity}. */
 		double lastSeverity;
 
 		String classOf(final String html) throws Exception {
@@ -387,8 +385,8 @@ final class FuzzShrinker {
 				this.lastFailure = t;
 				this.lastSeverity = severity(t);
 				final String kind = RandomDocumentFuzzTest.classify(t);
-				// スタックの溢れは溢れた所(最上段)が実行ごとに変わるので、場所を問わず同じ種別にする
-				// (2026-10-07、seed 12453214。場所まで比べると候補がどれも別の種別になり縮まらない)
+				// Stack overflow locations (top stack frame) vary between runs, so use one category regardless of location
+				// (2026-10-07, seed 12453214; comparing locations made every candidate a different category, preventing shrinking).
 				return kind != null && kind.startsWith("StackOverflowError@") ? "StackOverflowError" : kind;
 			}
 		}
@@ -400,22 +398,22 @@ final class FuzzShrinker {
 	}
 
 	/**
-	 * 失敗の<b>深刻度</b>。種別が同じでも「どれだけ壊れているか」が桁で違えば
-	 * 別の話である。
+	 * Failure <b>severity</b>. Even within one category, damage differing by orders of magnitude
+	 * is a different matter.
 	 *
 	 * <p>
-	 * <b>これが無いと縮小器は不変条件の境界へ滑り落ちる</b>(2026-07-28に実際に
-	 * 踏んだ)。不変条件6の許容量は{@code 2 × 最大明示サイズ}なので、
-	 * 文書から{@code width:}/{@code height:}の指定を消すと<b>許容量が0になり</b>、
-	 * 丸め誤差程度のはみ出しでも「同じ種別」を満たす。seed 194970 の1回目の
-	 * 縮小結果は<b>0.12ptのはみ出し</b>で、元の失敗とは何の関係もない
-	 * 文書だった——これは§3.15 が言う「退化解」の連続量版である。
+	 * <b>Without this, the shrinker slides down to the invariant boundary</b> (actually encountered
+	 * on 2026-07-28). Invariant 6 allows {@code 2 × maximum explicit size}, so removing
+	 * {@code width:}/{@code height:} declarations <b>reduces the allowance to zero</b>,
+	 * letting rounding-error-level overflow satisfy the same category. The first reduction of
+	 * seed 194970 had <b>0.12 pt overflow</b> and no relation to the original failure.
+	 * This is the continuous-valued form of the degenerate solutions described in §3.15.
 	 * </p>
 	 *
 	 * <p>
-	 * 紙面外配置では超過量、白紙ページでは最後の白紙のページ番号を使う。
-	 * 後者により、内容を全部消して得た1ページだけの白紙を「末尾の余分な
-	 * 白紙ページ」と取り違えない。他の種別は{@code 1}を返す。
+	 * Use excess overflow for off-paper placement and the last blank page's number for blank pages.
+	 * The latter avoids mistaking a single blank page obtained by removing all content for an
+	 * extra trailing blank page. Return {@code 1} for other categories.
 	 * </p>
 	 */
 	private static final Pattern OFF_PAGE_DETAIL = Pattern
@@ -431,7 +429,7 @@ final class FuzzShrinker {
 			}
 			final Matcher od = OFF_PAGE_DETAIL.matcher(m);
 			if (od.find()) {
-				// はみ出し量から「作者の指定で説明できる分」を引いた超過
+				// Overflow in excess of the portion explained by author-specified sizes.
 				return Double.parseDouble(od.group(1)) - 2 * Double.parseDouble(od.group(2));
 			}
 			final Matcher bd = BLANK_PAGE_DETAIL.matcher(m);
@@ -447,7 +445,7 @@ final class FuzzShrinker {
 	}
 
 	// ------------------------------------------------------------------
-	// 縮小ループ
+	// Shrinking loop.
 	// ------------------------------------------------------------------
 
 	private static final class Shrinker {
@@ -459,10 +457,10 @@ final class FuzzShrinker {
 
 		private final long deadline;
 
-		/** 元の文書がページを出していたなら、候補にも1枚以上を要求する。 */
+		/** If the original document produced pages, require at least one from candidates too. */
 		private final boolean requirePages;
 
-		/** 保つべき深刻度の下限。境界へ滑り落ちるのを防ぐ。 */
+		/** Minimum severity to preserve. Prevent sliding down to the boundary. */
 		private final double minSeverity;
 
 		String current;
@@ -481,12 +479,12 @@ final class FuzzShrinker {
 		}
 
 		/**
-		 * 候補を1件試す。<b>同じ種別で落ちたときだけ</b>採用する。
+		 * Try one candidate. Accept it <b>only if it fails in the same category</b>.
 		 *
 		 * <p>
-		 * 退化解(トークンが残らない・ページが出ない)は、種別が一致しても
-		 * <b>採用しない</b>。§3.15 の4例目は「白紙ページがある」という述語を
-		 * 「本文を全部消す」で満たした。
+		 * <b>Reject</b> degenerate solutions (no remaining tokens or no output pages) even
+		 * when the category matches. Example 4 in §3.15 satisfied "there is a blank page"
+		 * by deleting all body text.
 		 * </p>
 		 */
 		private boolean accept(final String candidate) throws Exception {
@@ -509,7 +507,7 @@ final class FuzzShrinker {
 				return false;
 			}
 			if (this.probe.lastSeverity < this.minSeverity) {
-				return false; // 種別は同じでも、壊れ方が桁で軽い
+				return false; // Same category, but orders of magnitude less severe.
 			}
 			this.current = candidate;
 			++this.accepted;
@@ -539,16 +537,16 @@ final class FuzzShrinker {
 					progress = true;
 				}
 				if (!progress) {
-					// 1個ずつでは動かなくなってから、**2個同時**を試す。
-					// 「AもBも単独では消せないが、両方消すと消せる」は実在する
-					// (フロートと、それを`clear`している箱など)。要素数が
-					// 減りきってから走らせるので O(n^2) でも数十件で済む
+					// After single deletions stop working, try **two at once**.
+					// Cases exist where neither A nor B can be removed alone, but both can be removed together
+					// (a float and the box that `clear`s it, for example). Run this only after minimizing
+					// the element count, so even O(n^2) needs only dozens of evaluations.
 					progress = this.deletePairs();
 				}
 			}
 		}
 
-		/** 1個ずつの削除が止まった後の脱出手段。2つの部分木を同時に消す。 */
+		/** Escape when single deletions stop working: delete two subtrees together. */
 		private boolean deletePairs() throws Exception {
 			final List<Node> forest = parseBody(this.current);
 			final List<Node> elements = nodesOf(forest);
@@ -556,7 +554,7 @@ final class FuzzShrinker {
 				for (int j = i + 1; j < elements.size(); ++j) {
 					final Node a = elements.get(i), b = elements.get(j);
 					if (contains(a, b) || contains(b, a)) {
-						continue; // 入れ子は片方を消せば済む
+						continue; // For nested nodes, deleting one suffices.
 					}
 					if (this.accept(rebuild(this.current, forest, java.util.Set.of(a, b), null))) {
 						return true;
@@ -567,19 +565,18 @@ final class FuzzShrinker {
 		}
 
 		/**
-		 * 操作1: 部分木をまるごと消す(効きが最も大きいので最初)。
+		 * Operation 1: delete entire subtrees (first because it has the greatest effect).
 		 *
 		 * <p>
-		 * <b>テキストノードも対象に含める。</b> 含めないと、unwrapが作った
-		 * 裸のテキスト(親要素を剥がした後に残る{@code T4})を誰も消せず、
-		 * 不動点が不必要に大きくなる(2026-07-28に実測: 13要素の不動点に
-		 * 7個の裸テキストが残っていた)。
+		 * <b>Include text nodes.</b> Otherwise nothing can remove bare text created by unwrap
+		 * ({@code T4} left after stripping its parent), leaving an unnecessarily large fixed point
+		 * (measured on 2026-07-28: seven bare text nodes remained in a 13-element fixed point).
 		 * </p>
 		 */
 		private boolean deleteSubtree() throws Exception {
 			final List<Node> forest = parseBody(this.current);
 			final List<Node> elements = nodesOf(forest);
-			// 大きいものから試す——1回の受理で減る量が最大になる
+			// Try largest first to maximize the reduction per accepted candidate.
 			elements.sort(Comparator.comparingInt((final Node n) -> serialize(n).length()).reversed());
 			for (final Node n : elements) {
 				if (this.accept(rebuild(this.current, forest, n, null))) {
@@ -589,13 +586,13 @@ final class FuzzShrinker {
 			return false;
 		}
 
-		/** 操作2: 要素を子で置き換える(入れ子を1段減らす)。 */
+		/** Operation 2: replace an element with its children (remove one nesting level). */
 		private boolean unwrap() throws Exception {
 			final List<Node> forest = parseBody(this.current);
 			final List<Node> elements = elementsOf(forest);
 			for (final Node n : elements) {
 				if (n.children.isEmpty()) {
-					continue; // 削除と同じ
+					continue; // Same as deletion.
 				}
 				if (this.accept(rebuild(this.current, forest, (Node) null, n))) {
 					return true;
@@ -604,13 +601,13 @@ final class FuzzShrinker {
 			return false;
 		}
 
-		/** 操作3: 属性を1つ落とす({@code rowspan}/{@code colspan}/{@code style})。 */
+		/** Operation 3: drop one attribute ({@code rowspan}/{@code colspan}/{@code style}). */
 		private boolean dropAttribute() throws Exception {
 			final List<Node> forest = parseBody(this.current);
 			for (final Node n : elementsOf(forest)) {
 				for (int a = n.attrs.size() - 1; a >= 0; --a) {
 					if (KEEP_ATTRS.contains(n.attrs.get(a).name)) {
-						continue; // 画像URIには触らない(§3.15 の5例目)
+						continue; // Do not touch image URIs (§3.15, example 5).
 					}
 					final Attr saved = n.attrs.remove(a);
 					final String candidate = rebuild(this.current, forest, (Node) null, null);
@@ -624,8 +621,8 @@ final class FuzzShrinker {
 		}
 
 		/**
-		 * 操作4: CSS宣言を1つ落とす。対象は{@code style}属性と{@code <style>}
-		 * ブロックの両方(規則ごと落とす候補も出す)。
+		 * Operation 4: drop one CSS declaration, from either {@code style} attributes or
+		 * {@code <style>} blocks (also propose deleting entire rules).
 		 */
 		private boolean dropDeclaration() throws Exception {
 			for (final int[] region : declarationRegions(this.current)) {
@@ -652,7 +649,7 @@ final class FuzzShrinker {
 					}
 				}
 			}
-			// 規則ごと落とす(`<style>`の1行)
+			// Drop the entire rule (one line in `<style>`).
 			for (final int[] rule : styleRuleLines(this.current)) {
 				final String candidate = this.current.substring(0, rule[0]) + this.current.substring(rule[1]);
 				if (this.accept(candidate)) {
@@ -663,13 +660,13 @@ final class FuzzShrinker {
 		}
 
 		/**
-		 * 操作5: 数値を0(または下限)へ寄せる。<b>1つずつ二分探索</b>する——
-		 * 1ずつ減らすと{@code width:250pt}に250回かかる。
+		 * Operation 5: move numbers toward zero (or the lower bound). <b>Binary-search one at a time</b>;
+		 * decrementing by one would take 250 evaluations for {@code width:250pt}.
 		 *
 		 * <p>
-		 * 数値の位置は受理のたびにずれるが、<b>個数は変わらない</b>(桁を
-		 * 書き換えるだけで、正規表現の一致が増減しない)。そこで<b>添字</b>で
-		 * 同一性を保ち、毎回取り直す。
+		 * Number positions shift on every acceptance, but <b>the count stays the same</b>
+		 * (only digits change, so regex matches are neither added nor removed).
+		 * Preserve identity by <b>index</b> and locate them again each time.
 		 * </p>
 		 */
 		private boolean shrinkNumbers() throws Exception {
@@ -680,7 +677,7 @@ final class FuzzShrinker {
 				for (int idx = 0; idx < count; ++idx) {
 					final List<Num> fresh = numbers(this.current);
 					if (fresh.size() != count) {
-						break; // 想定外。安全側に倒して打ち切る
+						break; // Unexpected. Stop on the safe side.
 					}
 					final Num n0 = fresh.get(idx);
 					if (n0.value <= n0.floor) {
@@ -707,11 +704,11 @@ final class FuzzShrinker {
 		}
 	}
 
-	/** 落としてはいけない属性。{@code src}は画像URIそのもの。 */
+	/** Attributes that must not be dropped. {@code src} is the image URI itself. */
 	private static final Set<String> KEEP_ATTRS = Set.of("src");
 
 	// ------------------------------------------------------------------
-	// 述語の入力を候補文書から計算し直す
+	// Recompute predicate inputs from the candidate document.
 	// ------------------------------------------------------------------
 
 	private static final Pattern PAGE_WIDTH_PI = Pattern
@@ -724,18 +721,17 @@ final class FuzzShrinker {
 
 	private static final Pattern BODY_FONT_RULE = Pattern.compile("font:normal (\\d+)pt");
 
-	/** 生成器が埋めるトークン。テキストノードの中だけを見る。 */
+	/** Tokens inserted by the generator. Inspect only text nodes. */
 	private static final Pattern TOKEN = Pattern.compile("T\\d+");
 
 	/**
-	 * 候補文書から{@link Generated}を作り直します。<b>元の値は1つも
-	 * 引き継ぎません。</b>
+	 * Rebuild {@link Generated} from the candidate document. <b>Reuse none of the original values.</b>
 	 *
 	 * <p>
-	 * オラクルが読む骨格(紙面寸法のPI・{@code @page}のマージン・
-	 * {@code body}の{@code font})が欠けていたら{@code null}を返します。
-	 * 欠けたまま計算すると{@code isOversized}/{@code isTinyPage}の意味が
-	 * 黙って変わり、「除外されるはずの文書が検査され」たり逆になったりする。
+	 * Return {@code null} if the skeleton read by the oracle (paper-size PIs, {@code @page}
+	 * margins, or {@code body}'s {@code font}) is missing. Computing without it silently
+	 * changes the meaning of {@code isOversized}/{@code isTinyPage}, checking documents
+	 * that should be excluded or vice versa.
 	 * </p>
 	 */
 	static Generated analyze(final String html) {
@@ -769,13 +765,12 @@ final class FuzzShrinker {
 	}
 
 	/**
-	 * トークンと「並べ替えが正当なトークン」を木から拾います。
+	 * Collect tokens and tokens that may legitimately reorder from the tree.
 	 *
 	 * <p>
-	 * <b>並べ替え可能かは木から計算する</b>——{@code float:}または
-	 * {@code position:absolute}の部分木の中にあるか。生成器が記録した集合を
-	 * 引き継ぐと、{@code float}の指定を落とす縮小をしたときに集合が実態と
-	 * ずれる。
+	 * <b>Compute reorderability from the tree</b>: whether a token lies in a subtree with
+	 * {@code float:} or {@code position:absolute}. Reusing the generator's recorded set
+	 * makes it disagree with reality when a reduction drops the {@code float} declaration.
 	 * </p>
 	 */
 	private static void collectTokens(final List<Node> nodes, final boolean inReorderable, final List<String> tokens,
@@ -793,8 +788,8 @@ final class FuzzShrinker {
 			}
 			final String style = n.attr("style");
 			final boolean floated = style != null && style.contains("float:") && !style.contains("float:none");
-			// reverse系flex(row/column-reverse・wrap-reverse)も読み順を正当に
-			// 変える——生成器の記録規則(v2)と一致させる(2026-08-23)
+			// Reverse flex (row/column-reverse, wrap-reverse) also legitimately changes reading order.
+			// Match the generator's recording rules (v2) (2026-08-23).
 			final boolean here = inReorderable
 					|| (style != null && (floated || style.contains("position:absolute")
 							|| style.contains("-reverse")));
@@ -803,25 +798,25 @@ final class FuzzShrinker {
 	}
 
 	/**
-	 * <b>退化した候補</b>か。解析できない、またはトークンが1個も残らない文書。
-	 * 縮小器は述語を最小コストで満たそうとするので、ここを緩めると必ず
-	 * 「本文が空の文書で再現する」という嘘の最小形に落ちる。
+	 * Is this a <b>degenerate candidate</b>: unparseable or with no remaining tokens?
+	 * The shrinker seeks the cheapest way to satisfy the predicate; relaxing this inevitably
+	 * yields a false minimum claiming reproduction with an empty body.
 	 */
 	private static boolean degenerate(final String html) {
 		final Generated g = analyze(html);
 		if (g == null || g.tokens().isEmpty()) {
 			return true;
 		}
-		// 表の内容モデルを壊した候補は受理しない(2026-08-23)。td/trを
-		// 剥がすと表直下の裸テキストが生まれ、HTMLパーサのfoster parenting
-		// が内容を表の**前**へ動かす——生成器のトークン順(ソース順)を
-		// 読み順の期待値とするオラクルの前提が崩れ、正当な組版を
-		// 「読み順の逆転」と誤検出する(v2 seed 30の縮小で発生。生成器
-		// 自身はこの形を作らない)
+		// Reject candidates that break the table content model (2026-08-23). Stripping td/tr
+		// leaves bare text directly under the table; the HTML parser's foster parenting
+		// moves it **before** the table, invalidating the oracle's assumption that the
+		// generator's token order (source order) is the expected reading order. This falsely
+		// reports legitimate layout as reversed reading order (seen while shrinking v2 seed 30;
+		// the generator itself never produces this structure).
 		return breaksTableContentModel(html);
 	}
 
-	/** {@code <table>}直下の裸テキスト等、foster parentingを誘発する形か。 */
+	/** Does this structure trigger foster parenting, such as bare text directly under {@code <table>}? */
 	private static boolean breaksTableContentModel(final String html) {
 		return breaksTableContentModel(parseBody(html));
 	}
@@ -853,23 +848,23 @@ final class FuzzShrinker {
 		return elementsOf(parseBody(html)).size();
 	}
 
-	/** 退化側の検算用: {@code <body>}を空にした文書。 */
+	/** For cross-checking the degenerate side: a document with an empty {@code <body>}. */
 	private static String emptyBody(final String html) {
 		final int[] b = bodyRange(html);
 		return html.substring(0, b[0]) + "\n" + html.substring(b[1]);
 	}
 
 	// ------------------------------------------------------------------
-	// 最小のタグ対応パーサ(HTMLパーサは足さない)
+	// Minimal tag-matching parser (do not add an HTML parser).
 	// ------------------------------------------------------------------
 
 	/**
-	 * 生成器が出す文書は<b>整形式</b>なので、タグを数えるだけで足ります。
-	 * ここへ本物のHTMLパーサを持ってくると、正規化で文書が変わってしまう
-	 * ——縮小器にとってそれは「述語の入力を勝手に書き換える」ことに等しい。
+	 * Generator output is <b>well formed</b>, so counting tags suffices.
+	 * A real HTML parser would normalize and change the document,
+	 * equivalent to rewriting the shrinker's predicate input without permission.
 	 */
 	static final class Node {
-		/** 要素名。テキストノードでは{@code null}。 */
+		/** Element name. {@code null} for text nodes. */
 		final String tag;
 
 		final String text;
@@ -993,7 +988,7 @@ final class FuzzShrinker {
 		return sb.toString();
 	}
 
-	/** {@code a}の部分木に{@code b}が含まれるか。 */
+	/** Does {@code a}'s subtree contain {@code b}? */
 	private static boolean contains(final Node a, final Node b) {
 		if (a == b) {
 			return true;
@@ -1051,12 +1046,12 @@ final class FuzzShrinker {
 	}
 
 	/**
-	 * 削除の候補になるノード: 全要素と、<b>空白だけではない</b>テキスト。
+	 * Deletion candidates: all elements and text that is <b>not whitespace-only</b>.
 	 *
 	 * <p>
-	 * 空白だけのテキストを候補に入れると、生成器が入れた改行を1つずつ
-	 * 消すのに評価回数を使い果たし(実測 689回→2,638回)、しかも最小形が
-	 * <b>1行に潰れて読めなくなる</b>。バイト数もほとんど減らない。
+	 * Including whitespace-only text wastes evaluations deleting generator-inserted newlines
+	 * one by one (measured: 689→2,638 evaluations), while <b>collapsing the minimum into one
+	 * unreadable line</b>. It barely reduces byte count either.
 	 * </p>
 	 */
 	private static List<Node> nodesOf(final List<Node> forest) {
@@ -1090,7 +1085,7 @@ final class FuzzShrinker {
 	}
 
 	// ------------------------------------------------------------------
-	// CSS宣言・数値の位置
+	// CSS declaration and number positions.
 	// ------------------------------------------------------------------
 
 	private static final Pattern STYLE_ATTR = Pattern.compile("style=\"([^\"]*)\"");
@@ -1098,8 +1093,8 @@ final class FuzzShrinker {
 	private static final Pattern SRC_ATTR = Pattern.compile("src=\"[^\"]*\"");
 
 	/**
-	 * 宣言の並び(セミコロン区切り)が入っている範囲。{@code style}属性の値と
-	 * {@code <style>}ブロックの{@code { }}の中。
+	 * A range containing semicolon-separated declarations: {@code style} attribute values
+	 * and contents of {@code { }} in {@code <style>} blocks.
 	 */
 	private static List<int[]> declarationRegions(final String html) {
 		final List<int[]> out = new ArrayList<>();
@@ -1142,7 +1137,7 @@ final class FuzzShrinker {
 		return new int[] { open + "<style>".length(), close };
 	}
 
-	/** {@code <style>}の中の「1行=1規則」の範囲(改行を含む)。 */
+	/** A one-line, one-rule range inside {@code <style>} (including the newline). */
 	private static List<int[]> styleRuleLines(final String html) {
 		final List<int[]> out = new ArrayList<>();
 		final int[] block = styleBlockRange(html);
@@ -1164,7 +1159,7 @@ final class FuzzShrinker {
 		return out;
 	}
 
-	/** 縮小できる数値の1つ。 */
+	/** One reducible number. */
 	private static final class Num {
 		final int start, end, value, floor;
 
@@ -1183,25 +1178,23 @@ final class FuzzShrinker {
 	private static final Pattern COLUMN_COUNT = Pattern.compile("column-count:(\\d+)");
 
 	/**
-	 * 縮小候補の数値を集めます。
+	 * Collect numbers eligible for reduction.
 	 *
 	 * <p>
-	 * <b>{@code src}属性の中は決して触りません</b>——画像URIには
-	 * {@code copper4}のように数字が入っており、書き換えると画像が黙って
-	 * 消える(§3.15 の5例目)。
+	 * <b>Never touch {@code src} attributes</b>: image URIs contain numbers, as in
+	 * {@code copper4}, and changing them silently removes images (§3.15, example 5).
 	 * </p>
 	 *
 	 * <p>
-	 * <b>{@code <body>}より前の数値も一切触りません</b>(2026-07-28、
-	 * 実際に踏んだ)。紙面寸法・{@code @page}のマージン・基準フォントサイズは
-	 * <b>不変条件の物差しそのもの</b>である——不変条件6の許容量は
-	 * 「紙面の2倍」と「最大明示サイズの2倍」で決まり、除外判定
-	 * ({@code isTinyPage})は「内容領域が基準フォントの8倍あるか」で決まる。
-	 * ここを縮めてよいことにすると、縮小器は<b>物差しのほうを縮めて</b>
-	 * 述語を満たす: 最初の試走は紙面を120x400ptから<b>8x8pt</b>へ、
-	 * フォントを11ptから<b>1pt</b>へ落とし、「1ptの文字が8ptの紙からはみ出す」
-	 * という<b>何も言っていない最小形</b>を返した。紙面の設定は縮小対象では
-	 * なく<b>固定具</b>である。
+	 * <b>Never touch numbers before {@code <body>} either</b> (actually encountered on 2026-07-28).
+	 * Paper dimensions, {@code @page} margins, and the reference font size are <b>the invariant's
+	 * measuring stick itself</b>. Invariant 6's allowance uses twice the paper size and twice the
+	 * maximum explicit size; exclusion ({@code isTinyPage}) depends on whether the content area
+	 * is eight times the reference font size. Allowing these to shrink lets the shrinker
+	 * <b>shorten the measuring stick</b> to satisfy the predicate. The first trial reduced
+	 * the paper from 120x400 pt to <b>8x8 pt</b> and the font from 11 pt to <b>1 pt</b>,
+	 * returning a <b>meaningless minimum</b>: 1 pt characters overflow 8 pt paper.
+	 * Paper settings are <b>fixtures</b>, not reduction targets.
 	 * </p>
 	 */
 	private static List<Num> numbers(final String html) {

@@ -8,9 +8,10 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * row wrapの配置テストです(Flex F2b——§9.3行分割の本配線。
- * 100ptコンテナにbasis 40pt×3→2行[p,q][r]、行cross=行内最大、
- * 後続ブロックは全行cross合計の直後)。
+ * Tests row wrap placement (Flex F2b, fully wired §9.3 line breaking).
+ * Three items with basis 40 pt in a 100 pt container form two lines [p,q][r].
+ * Each line's cross size is its maximum item cross size; the following block sits immediately
+ * after the sum of all line cross sizes.
  */
 public class FlexWrapBasicTest extends AbstractTestCase {
 	public FlexWrapBasicTest(String name) {
@@ -33,7 +34,7 @@ public class FlexWrapBasicTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 同一行の2番目(+40pt)。 */
+	/** Second item on the same line (+40 pt). */
 	public boolean check_q(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX + 40, x, 0.1);
@@ -43,7 +44,7 @@ public class FlexWrapBasicTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 2行目の先頭(x=基点、y=1行目cross 30ptの直後)。 */
+	/** Start of the second line (x=origin; y immediately after the first line's 30 pt cross size). */
 	public boolean check_r(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);
@@ -53,7 +54,7 @@ public class FlexWrapBasicTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** 後続ブロックは全行cross合計(30+20)の直後。 */
+	/** The following block sits immediately after the sum of all line cross sizes (30+20). */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseY + 50, y, 0.1);

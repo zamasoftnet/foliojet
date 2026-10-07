@@ -32,7 +32,7 @@ import net.zamasoft.foliojet.layout.fragment.ScratchReplayScope;
 import net.zamasoft.foliojet.layout.sizing.IntrinsicSizes;
 import net.zamasoft.foliojet.layout.visitor.ArtifactVisitor;
 
-/** scratchの非消費・一時リース回収と、ハンドル単位の状態遷移を固定します。 */
+/** Pin down scratch non-consumption, temporary lease reclamation, and per-handle state transitions. */
 public final class ScratchReplayScopeTest extends TestCase {
 	private static RangeHandle handle(final LayoutSource source) {
 		return new RangeHandle(source, 0, 0, IntrinsicSizes.ZERO, RangeHandle.ReplayMode.CHILDREN_ONLY);
@@ -53,12 +53,12 @@ public final class ScratchReplayScopeTest extends TestCase {
 				case SUBSUMED -> handle.subsume();
 				case ABANDONED -> handle.abandon();
 				case CONSUMED -> {
-					// bind先の欠陥で失敗しても、元の使用権は消費して閉じる。
+					// Even if a defect at the bind target causes failure, consume and close the original usage right.
 					try {
 						handle.bind(null, null);
 						fail("不正なbind先を受理した");
 					} catch (final NullPointerException expected) {
-						// 成功時のCONSUMEDは下の実セル再生で検証する。
+						// Verify CONSUMED on success via actual cell replay below.
 					}
 				}
 				default -> throw new AssertionError(terminal);
@@ -115,7 +115,7 @@ public final class ScratchReplayScopeTest extends TestCase {
 			final RangeHandle inner;
 			try (final ScratchReplayScope scope = new ScratchReplayScope()) {
 				outer = handle(source);
-				source.retainFrom(0); // ハンドルを持たない一時リースも回収対象
+				source.retainFrom(0); // Temporary leases without handles are also reclaimed.
 				assertEquals(ReplayIntent.MEASURE, ReplayIntent.current());
 				assertIllegalState(() -> original.bind(null, null));
 				try (final ScratchReplayScope nested = new ScratchReplayScope();
@@ -153,8 +153,9 @@ public final class ScratchReplayScopeTest extends TestCase {
 	}
 
 	/**
-	 * 同じセル範囲を独立したハンドルで「main-only」「scratch 2回→main」と再生し、
-	 * 描画後の表示リストをbyte比較します。全文書も追加計測の有無で比較します。
+	 * Replay the same cell range with independent handles as "main-only" and "scratch twice → main",
+	 * then compare the painted display lists byte for byte. Also compare the entire document
+	 * with and without additional measurement.
 	 */
 	public void testTwoMeasurementsThenMainMatchesMainOnly() throws Exception {
 		for (final String doc : TwoPassFlowSealTest.SCRATCH_DOCUMENTS) {
@@ -222,7 +223,7 @@ public final class ScratchReplayScopeTest extends TestCase {
 						final byte[] measured = replayCell(original, cell, stack, 2);
 						assertTrue(source + ": scratch 2回後のmainとmain-onlyの表示リストが異なります",
 								Arrays.equals(mainOnly, measured));
-						// 本来のDeferredBind自身にも2回の計測を挟み、後続の本bindを残す。
+						// Insert two measurements into the actual DeferredBind itself too, leaving the subsequent real bind.
 						for (int i = 0; i < 2; ++i) {
 							try (final ScratchReplayScope scope = new ScratchReplayScope()) {
 								final BlockBuilder target = new BlockBuilder(stack, cell.newMeasureReplica());
@@ -291,7 +292,7 @@ public final class ScratchReplayScopeTest extends TestCase {
 		}
 	}
 
-	/** 既存の参照カウント台帳を診断する。productionにテスト用APIを増やさない。 */
+	/** Inspect the existing reference-count ledger. Do not add test-only APIs to production. */
 	private static int leaseCount(final LayoutSource source) throws Exception {
 		final Field leases = LayoutSource.class.getDeclaredField("retentionLeases");
 		leases.setAccessible(true);
@@ -299,7 +300,7 @@ public final class ScratchReplayScopeTest extends TestCase {
 		return counts.values().stream().mapToInt(value -> (Integer) value).sum();
 	}
 
-	/** 未消費が元々ある継続も許し、計測前後の診断値の不変性だけを検査する。 */
+	/** Allow continuations with existing unconsumed content; check only that diagnostics stay unchanged across measurement. */
 	private static Map<ReplayLeaseSession, Boolean> sessionLeases(final RootBuilder root) throws Exception {
 		final Field field = RootBuilder.class.getDeclaredField("sessions");
 		field.setAccessible(true);
@@ -316,7 +317,7 @@ public final class ScratchReplayScopeTest extends TestCase {
 			action.run();
 			fail("二重終端または終端後の再生を受理した");
 		} catch (final IllegalStateException expected) {
-			// OPENからだけ遷移できる。
+			// Transitions are allowed only from OPEN.
 		}
 	}
 }

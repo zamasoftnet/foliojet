@@ -7,14 +7,16 @@ import jp.cssj.test.unit.AbstractTestCase;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * <b>直交フローの表の百分率の基準をフラグメンテナへ落とす</b>ことの回帰です(2026-09-16)。
+ * Regression test for <b>falling back to the fragmentainer as the percentage basis for an orthogonal
+ * flow's table</b> (2026-09-16).
  *
  * <p>
- * 縦組みの本文に横組みの表を置くと、幅の百分率の基準を探す
- * {@code getFixedWidth()}(明示寸法の祖先を遡る仕組み)に該当が無く 0 が返っていた。
- * その結果 {@code max-width: 50%} が 0 になり、<b>幅 0 の表から内容が紙面外へあふれていた</b>
- * (掃過の「全描画が紙面外」。用紙 200pt の文書で x=200.5 から描かれた)。
- * 用紙寸法は確定値なので、css-writing-modes-4 §7.3 のとおり最後の基準として使う。
+ * When a horizontal-writing table was placed in vertical-writing body text, {@code getFixedWidth()}
+ * (which searches ancestors for explicit dimensions to use as the percentage-width basis) found
+ * no match and returned 0. As a result, {@code max-width: 50%} became 0, and <b>content overflowed
+ * off the page from a zero-width table</b> ("all rendering outside the page" in the sweep;
+ * rendering started at x=200.5 in a document with 200 pt paper).
+ * Paper dimensions are definite, so they serve as the final basis, per css-writing-modes-4 §7.3.
  * </p>
  */
 public class OrthogonalTablePercentTest extends AbstractTestCase {
@@ -27,21 +29,21 @@ public class OrthogonalTablePercentTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** 表は用紙幅 200pt の 50% = 100pt に収まり、縦組みなので右端から置かれる。 */
+	/** The table fits in 50% of the 200 pt paper width = 100 pt, and vertical writing places it from the right edge. */
 	public boolean check_t(final IBox box, final int pageNumber, final double x, final double y) {
 		if (box.getType() != net.zamasoft.foliojet.layout.box.BoxType.TABLE) {
-			// 同じ id で匿名ブロックの箱も回ってくる(寸法を持つのは表の箱)
+			// Anonymous block boxes with the same id also arrive here (the table box carries the dimensions).
 			return false;
 		}
 		assertEquals("ページ", 1, pageNumber);
 		assertEquals("表の幅は用紙幅の 50%", 100.0, box.getWidth(), 0.5);
-		// 縦組み(vertical-rl)なので block-start は右端。100pt の表は x=100 から始まる
+		// In vertical writing (vertical-rl), block-start is the right edge. A 100 pt table starts at x=100.
 		assertEquals("表の左端", 100.0, x, 0.5);
 		assertTrue("表の右端が紙面内", x + box.getWidth() <= 200.5);
 		return true;
 	}
 
-	/** 幅 auto+`max-width: 50%` の表も、基準が用紙幅なので 100pt までに収まる。 */
+	/** An auto-width table with `max-width: 50%` also fits within 100 pt because its basis is the paper width. */
 	public boolean check_m(final IBox box, final int pageNumber, final double x, final double y) {
 		if (box.getType() != net.zamasoft.foliojet.layout.box.BoxType.TABLE) {
 			return false;

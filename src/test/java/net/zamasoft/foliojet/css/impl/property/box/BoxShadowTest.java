@@ -19,12 +19,12 @@ import net.zamasoft.foliojet.css.value.css3.BoxShadowValue;
 import net.zamasoft.foliojet.css.value.css3.BoxShadowValue.Shadow;
 
 /**
- * box-shadow と outline ショートハンドの構文解析のテストです(2026-08-29)。
+ * Parsing tests for box-shadow and the outline shorthand (2026-08-29).
  *
  * <p>
- * {@code <shadow> = inset? && <length>{2,4} && <color>?}の受理・拒否と、
- * outlineの{@code auto}/{@code invert}の写像を固定する。描画結果は
- * {@code jp.cssj.test.unit.displaylist.BoxDecorationTest}が画素で見る。
+ * Fix acceptance/rejection of {@code <shadow> = inset? && <length>{2,4} && <color>?}
+ * and mapping of outline {@code auto}/{@code invert}.
+ * {@code jp.cssj.test.unit.displaylist.BoxDecorationTest} checks rendered pixels.
  * </p>
  */
 public class BoxShadowTest extends TestCase {
@@ -45,7 +45,7 @@ public class BoxShadowTest extends TestCase {
 	}
 
 	private static double px(final net.zamasoft.foliojet.css.value.LengthValue v) {
-		// UA無しで解析するのでpt換算(getLength)は使わずpxのまま比べる
+		// Parsing without a UA: compare in px rather than using point conversion (getLength).
 		return ((AbsoluteLengthValue) v).getLength(net.zamasoft.foliojet.css.token.Unit.PX);
 	}
 
@@ -116,7 +116,7 @@ public class BoxShadowTest extends TestCase {
 	}
 
 	public void testOutlineShorthand() throws Exception {
-		// auto→solid、invert→DEFAULT(currentColor)。順不同
+		// auto→solid, invert→DEFAULT(currentColor). Any order.
 		final String a = outline("auto 2px invert");
 		assertTrue(a, a.contains(" solid "));
 		assertTrue(a, a.contains(" default "));

@@ -8,10 +8,10 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 脚注F5(ページ毎の再採番)のテストです
- * (consult-codex-2026-07-31-footnote-f5.txt F5-d fixture 1)。番号は
- * 文書通番ではなく「callが残ったページ」ごとに1から——page 1が[1,2]、
- * page 2も[1,2]になることを固定する。
+ * Tests footnote F5 (renumbering on each page)
+ * (consult-codex-2026-07-31-footnote-f5.txt F5-d fixture 1). Numbers restart at 1 on each
+ * "page where the call remains", rather than running throughout the document:
+ * page 1 has [1,2], and page 2 also has [1,2].
  */
 public class FootnotePageResetTest extends AbstractTestCase {
 	public FootnotePageResetTest(String name) {
@@ -43,7 +43,7 @@ public class FootnotePageResetTest extends AbstractTestCase {
 		return this.checkNote(box, pageNumber, 1, "2. note a2");
 	}
 
-	/** 2ページ目の最初の脚注は文書通番3ではなくページローカルの1。 */
+	/** The first footnote on page 2 has page-local number 1, not document-wide number 3. */
 	public boolean check_b1(IBox box, int pageNumber, double x, double y) {
 		return this.checkNote(box, pageNumber, 2, "1. note b1");
 	}

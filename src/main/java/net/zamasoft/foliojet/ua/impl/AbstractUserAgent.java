@@ -61,14 +61,14 @@ public abstract class AbstractUserAgent implements UserAgent {
 	private Map<String, String> props = null;
 
 	/**
-	 * 中断要求(0=なし)。
+	 * Abort request (0 = none).
 	 *
 	 * <p>
-	 * <b>volatile が要る。</b>{@link net.zamasoft.foliojet.driver.DirectSession}は
-	 * レイアウトを専用スレッド({@code foliojet-layout})で走らせるので、
-	 * {@link #abort(byte)}を呼ぶスレッドと{@link #checkAbort(byte)}を読む
-	 * スレッドが別になる。volatileがないと書き込みが見えず、
-	 * <b>止まったり止まらなかったりする</b>(2026-07-27)。
+	 * <b>volatile is required.</b> {@link net.zamasoft.foliojet.driver.DirectSession} runs layout
+	 * on a dedicated thread ({@code foliojet-layout}), so the thread calling {@link #abort(byte)}
+	 * differs from the thread reading in {@link #checkAbort(byte)}.
+	 * Without volatile, writes may not be visible, making aborting <b>intermittently succeed or fail</b>
+	 * (2026-07-27).
 	 * </p>
 	 */
 	private volatile byte aborted = 0;
@@ -114,10 +114,10 @@ public abstract class AbstractUserAgent implements UserAgent {
 	private BoundSide boundSide = BoundSide.SINGLE;
 
 	/**
-	 * ページの進む向きを決める根の書字方向(2026-09-02)。{@code PageSequence} が
-	 * 根の {@code writing-mode} から設定する。読み器が要るのは綴じ方向ではなく
-	 * 「頁がどちらへ進むか」で、綴じが {@code single} でも縦組みなら右から読む
-	 * (cti.li の要望)
+	 * Root writing direction determining page progression (2026-09-02).
+	 * {@code PageSequence} sets this from the root's {@code writing-mode}.
+	 * Readers need "which way pages progress," not the binding side;
+	 * even with {@code single} binding, vertical writing is read from the right (cti.li request).
 	 */
 	private net.zamasoft.foliojet.layout.box.params.WritingMode pageProgression = net.zamasoft.foliojet.layout.box.params.WritingMode.TB;
 
@@ -129,7 +129,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 		this.setDefaultMarkerOffset(RelativeLengthValue.ex(1));
 
 		this.setMinSize(AbsoluteLengthValue.ZERO);
-		// 14400はPDFの限界サイズ
+		// 14400 is the PDF size limit
 		this.setMaxSize(AbsoluteLengthValue.create(this, 14400, Unit.PT));
 		this.setBorderTable(new AbsoluteLengthValue[] { AbsoluteLengthValue.create(this, 1),
 				AbsoluteLengthValue.create(this, 2), AbsoluteLengthValue.create(this, 3) });
@@ -163,27 +163,27 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	public final String getProperty(String name) {
 		final String value = this.props == null ? null : this.props.get(name);
-		// 運用者の上限は、どこで設定された値(クライアント・プロファイル・
-		// 文書中の処理命令)にも、読むたびに掛ける(2026-10-03)
+		// Apply operator limits on every read, regardless of where the value was set
+		// (client, profile, or processing instruction in the document; 2026-10-03)
 		return this.operatorLimits.clamp(name, value);
 	}
 
-	/** 運用者が決めた、利用者が緩められない上限(既定は無し)。 */
+	/** Operator-defined limits that users cannot loosen (none by default). */
 	private net.zamasoft.foliojet.driver.OperatorLimits operatorLimits = net.zamasoft.foliojet.driver.OperatorLimits.NONE;
 
-	/** 運用者の上限を設定します。このUAから作る子のUAにも渡すこと。 */
+	/** Sets operator limits. Also pass them to child UAs created from this UA. */
 	public final void setOperatorLimits(final net.zamasoft.foliojet.driver.OperatorLimits limits) {
 		this.operatorLimits = limits == null ? net.zamasoft.foliojet.driver.OperatorLimits.NONE : limits;
 	}
 
-	/** 運用者の上限。 */
+	/** Operator limits. */
 	public final net.zamasoft.foliojet.driver.OperatorLimits getOperatorLimits() {
 		return this.operatorLimits;
 	}
 
 	/**
-	 * 現在の入出力プロパティの写しです(2026-09-02)。EPUBの項目を組む子のUAへ
-	 * 親と同じ設定を渡すために使う。
+	 * Snapshot of current I/O properties (2026-09-02).
+	 * Used to give child UAs laying out EPUB items the same settings as their parent.
 	 */
 	public final Map<String, String> getProperties() {
 		return this.props == null ? new HashMap<>() : new HashMap<>(this.props);
@@ -209,7 +209,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 			this.setProperty(e.getKey(), e.getValue());
 		}
 
-		// メタ情報
+		// Metadata
 		if (this.props != null) {
 			for (int i = 0;; ++i) {
 				String prefix = UAProps.OUTPUT_META + i + ".";
@@ -225,99 +225,98 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	/**
-	 * <b>進捗が止まったら中断する締切</b>(2026-07-27新設)。
+	 * <b>Deadline for aborting when progress stalls</b> (added 2026-07-27).
 	 *
 	 * <p>
-	 * <b>壁時計の締切にしてはいけない。</b>1万ページの正当な帳票が
-	 * 打ち切られてしまう。見るのは<b>「仕事が1単位も進まない状態が続いた
-	 * 時間」</b>で、これなら文書の大きさに依存しない——長い文書は仕事を
-	 * 進め続けるので当たらず、詰まったものは必ず当たる。
+	 * <b>Do not use an overall wall-clock deadline.</b> That would terminate a legitimate
+	 * 10,000-page business form. Measure <b>"time spent without completing even one unit of work"</b>.
+	 * This is independent of document size: long documents keep working and do not trigger it,
+	 * while stalled ones always do.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>この値が超えるべきなのは「最も長い単一の仕事」</b>であって、
-	 * 文書全体の処理時間ではない。{@link #noteProgress()}を細かく置いた
-	 * ので、表の大きさには依存しなくなった。
+	 * <b>This value must exceed "the longest single unit of work"</b>,
+	 * not the entire document's processing time. Fine-grained placement of {@link #noteProgress()}
+	 * removed dependence on table size.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>値の根拠(実測、2026-07-27)</b>。進捗と進捗の最大間隔:
-	 * </p>
-	 *
-	 * <table border="1">
-	 * <tr><th>文書</th><th>最大間隔</th></tr>
-	 * <tr><td><b>8000x8000 PNG(176MB)x 3</b></td><td><b>9.60秒</b></td></tr>
-	 * <tr><td>60,000パスのSVG(5.4MB)x 3</td><td>2.33秒</td></tr>
-	 * <tr><td>表 200,000行</td><td>2.23秒</td></tr>
-	 * </table>
-	 *
-	 * <p>
-	 * 支配項は<b>巨大画像のデコード1枚</b>。表は行ごとに進捗を刻むように
-	 * したので、40万行でも2秒台に収まる(この変更の前は37.5秒だった)。
-	 * </p>
-	 *
-	 * <p>
-	 * <b>120秒の根拠</b>: 実測の最悪単位9.6秒の約12倍。内訳として
-	 * 「4倍大きな素材(約700MBの画像)」×「3倍遅い/混雑したサーバ」を
-	 * 見込む。<b>大きすぎる側の代償は限定的</b>(詰まった変換1件が
-	 * スレッドとメモリをその時間だけ抱える)が、<b>小さすぎる側は正当な
-	 * 文書が失敗する</b>ので、非対称を踏まえて余裕側へ倒した。
-	 * </p>
-	 *
-	 * <p>
-	 * <b>製品既定は無制限(オーナー裁定2026-08-01で反転)</b>。導入時
-	 * (2026-07-27)は「オプトインの安全弁は事故に遭った人しか使わない」
-	 * ([[LESSONS]] §6.9b)を根拠に既定有効としたが、この弁は
-	 * <b>ユーザーの正当なジョブを殺しうる</b>点であの原則の適用対象では
-	 * ない。上の非対称論理(小さすぎる側は正当な文書が失敗する)を徹底
-	 * すると誤爆ゼロの値は無制限だけであり、実際に「120秒を超える正当な
-	 * 待ち」のクラスが実在した(ストリーミング入力の間隙——遅いDB
-	 * カーソルからの帳票逐次生成。入力待ちは進捗に数えられない)。
-	 * クライアント側の遅延・切断の検出はネットワーク層の責務で、そちらには
-	 * 設定可能なタイムアウトが既にある(CTIP {@code jp.cssj.cssjd.timeout}
-	 * =既定180秒、RESTセッション=既定3分)。
-	 * </p>
-	 *
-	 * <p>
-	 * <b>ハングアップ検出は主にテストハーネスの用途</b>(掃過・CIで
-	 * ライブロックを失敗として検出する——実績はseed 213026等)のため、
-	 * 単体試験やサーバー製品のデーモン・CLI 起動が
-	 * {@code -Dfoliojet.noProgressSeconds=120}を明示設定する。本番でも
-	 * SLA上必要ならこのプロパティで有効化できる(0以下=無制限)。
-	 * 残存リスクとして「エンジンが真にハングし、かつクライアントが
-	 * 無期限に待ち続ける」場合はワーカースレッドが再起動まで塞がるが、
-	 * 既知のライブロッククラスは逃げ道実装(2026-07-29)で解消済み。
-	 * </p>
-	 *
-	 * <h3>性能への影響(実測、2026-07-27)</h3>
-	 *
-	 * <p>
-	 * 追加したのは{@link #checkAbort(byte)}のvolatile読み+
-	 * {@code System.nanoTime()}と、{@link #noteProgress()}のvolatile書き。
-	 * 呼び出し回数を数えたところ:
+	 * <b>Basis for the value (measurements, 2026-07-27)</b>. Maximum intervals between progress updates:
 	 * </p>
 	 *
 	 * <table border="1">
-	 * <tr><th>文書</th><th>checkAbort</th><th>noteProgress</th><th>追加コストの上限</th></tr>
-	 * <tr><td>表 200,000行(変換65秒)</td><td>37,500</td><td>404,167</td><td>11.0 ms = <b>0.017%</b></td></tr>
-	 * <tr><td>テキスト 20,000段落</td><td>24,377</td><td>434</td><td>0.6 ms</td></tr>
-	 * <tr><td>フロート 8,000個</td><td>9,649</td><td>236</td><td>0.2 ms</td></tr>
+	 * <tr><th>Document</th><th>Maximum interval</th></tr>
+	 * <tr><td><b>8000x8000 PNG (176 MB) x 3</b></td><td><b>9.60 seconds</b></td></tr>
+	 * <tr><td>SVG with 60,000 paths (5.4 MB) x 3</td><td>2.33 seconds</td></tr>
+	 * <tr><td>Table with 200,000 rows</td><td>2.23 seconds</td></tr>
 	 * </table>
 	 *
 	 * <p>
-	 * 端から端までの実測では基準実装との差が測定誤差(±6%)に埋もれた。
-	 * <b>粗い粒度に置いている限り無視できる</b>——グリフ単位・文字単位へ
-	 * 降ろすとこの前提は崩れる。
+	 * The dominant cost is <b>decoding one huge image</b>. Tables now record progress per row,
+	 * so even 400,000 rows stay in the two-second range (before this change it was 37.5 seconds).
+	 * </p>
+	 *
+	 * <p>
+	 * <b>Basis for 120 seconds</b>: about 12 times the measured worst unit, 9.6 seconds.
+	 * Allows for "4× larger material (an image around 700 MB)" × "a server 3× slower or busier."
+	 * <b>The cost of setting it too high is limited</b> (one stalled conversion holds a thread
+	 * and memory for that duration), whereas <b>too low a value fails legitimate documents</b>.
+	 * This asymmetry favors a generous margin.
+	 * </p>
+	 *
+	 * <p>
+	 * <b>The product default is unlimited (reversed by the owner's decision on 2026-08-01)</b>.
+	 * At introduction (2026-07-27), it was enabled by default based on "only those who have suffered
+	 * an incident use opt-in safety valves" ([[LESSONS]] §6.9b). However, this valve does not fall
+	 * under that principle because it <b>can kill legitimate user jobs</b>.
+	 * Following the asymmetry above (too low a value fails legitimate documents) to its conclusion,
+	 * only unlimited guarantees no false positives. A class of "legitimate waits exceeding 120 seconds"
+	 * actually existed: gaps in streaming input while progressively generating business forms from
+	 * a slow DB cursor (waiting for input cannot count as progress).
+	 * Detecting client-side delays/disconnections belongs to the network layer, which already has
+	 * configurable timeouts (CTIP {@code jp.cssj.cssjd.timeout} = 180 seconds by default,
+	 * REST sessions = 3 minutes by default).
+	 * </p>
+	 *
+	 * <p>
+	 * <b>Hang detection is mainly for test harnesses</b> (detecting livelocks as failures in sweeps/CI;
+	 * observed with seed 213026 and others), so unit tests and server product daemon/CLI startup
+	 * explicitly set {@code -Dfoliojet.noProgressSeconds=120}.
+	 * Production can also enable it through this property if required by an SLA
+	 * (0 or less = unlimited). The remaining risk is that "the engine truly hangs and the client
+	 * waits indefinitely," blocking a worker thread until restart, but the known livelock classes
+	 * were resolved by escape paths implemented on 2026-07-29.
+	 * </p>
+	 *
+	 * <h3>Performance impact (measurements, 2026-07-27)</h3>
+	 *
+	 * <p>
+	 * Added a volatile read + {@code System.nanoTime()} in {@link #checkAbort(byte)} and
+	 * a volatile write in {@link #noteProgress()}. Measured call counts:
+	 * </p>
+	 *
+	 * <table border="1">
+	 * <tr><th>Document</th><th>checkAbort</th><th>noteProgress</th><th>Upper bound on added cost</th></tr>
+	 * <tr><td>Table with 200,000 rows (65-second conversion)</td><td>37,500</td><td>404,167</td>
+	 * <td>11.0 ms = <b>0.017%</b></td></tr>
+	 * <tr><td>Text with 20,000 paragraphs</td><td>24,377</td><td>434</td><td>0.6 ms</td></tr>
+	 * <tr><td>8,000 floats</td><td>9,649</td><td>236</td><td>0.2 ms</td></tr>
+	 * </table>
+	 *
+	 * <p>
+	 * End-to-end measurements put the difference from the baseline within measurement noise (±6%).
+	 * <b>Negligible as long as granularity stays coarse</b>; moving to glyph/character granularity
+	 * invalidates this assumption.
 	 * </p>
 	 */
 	private static final long NO_PROGRESS_LIMIT_NANOS = Long.getLong("foliojet.noProgressSeconds", 0L)
 			* 1_000_000_000L;
 
-	/** 最後にページを出した時刻。{@link #checkAbort(byte)}が締切に使う。 */
+	/** Time the last page was emitted. {@link #checkAbort(byte)} uses it for the deadline. */
 	private volatile long lastProgressNanos = System.nanoTime();
 
 	/**
-	 * ページを1枚出したことを記録します。締切はこれを基準に測ります。
+	 * Records emission of one page. The deadline is measured from this.
 	 */
 	public final void noteProgress() {
 		this.lastProgressNanos = System.nanoTime();
@@ -331,12 +330,12 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	/**
-	 * <b>協調的な中断点</b>。中断要求が出ていれば{@link AbortException}を
-	 * 投げます。長く走るループの先頭で呼んでください。
+	 * <b>Cooperative abort point.</b> Throws {@link AbortException} if an abort was requested.
+	 * Call at the start of long-running loops.
 	 *
 	 * <p>
-	 * コストはvolatile 1個の読み取り。<b>行・表の行・ページといった粗い
-	 * 粒度</b>に置くこと——グリフ単位に置いてはいけません。
+	 * Costs one volatile read. Place at <b>coarse granularity, such as lines, table rows, or pages</b>;
+	 * never at glyph granularity.
 	 * </p>
 	 */
 	public void checkAbort(byte mode) {
@@ -345,8 +344,8 @@ public abstract class AbstractUserAgent implements UserAgent {
 			throw new AbortException(this.aborted);
 		}
 		if (NO_PROGRESS_LIMIT_NANOS > 0 && System.nanoTime() - this.lastProgressNanos > NO_PROGRESS_LIMIT_NANOS) {
-			// 仕事が1単位も進まないまま設定時間を過ぎた。詰まっているとみなす
-			// (0以下=無制限が製品既定。テストハーネスは120秒を明示設定)
+			// The configured interval elapsed without one unit of work completing. Treat as stalled
+			// (0 or less = unlimited is the product default; test harnesses explicitly set 120 seconds)
 			this.message(CTIMessageCodes.INFO_ABORT);
 			this.aborted = AbortException.ABORT_FORCE;
 			throw new AbortException(AbortException.ABORT_FORCE);
@@ -362,7 +361,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 			return true;
 		}
 		if (this.mediaTypes == null) {
-			// メディアタイプ
+			// Media type
 			String media = UAProps.OUTPUT_MEDIA_TYPES.getString(this);
 			this.mediaTypes = media.split("[\\s]+");
 		}
@@ -403,10 +402,11 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	/**
-	 * {@code output.pdf.fonts.policy}の指定が無いとき、書体を埋め込む方針(core embedded)を既定にする出力かを
-	 * 返します。共通の既定の cid-keyed は PDF の外部 CID フォントを参照する仕組みで、画像・SVG には無い
-	 * (字形が AWT の代替やアウトラインへ落ちる)。画像・SVG・ページ分割SVG が真を返す(2026-10-04 まで
-	 * 3 つの出力が同じ{@code getDefaultFontPolicy}の上書きを写して持っていた)。
+	 * Returns whether this output defaults to font embedding (core embedded) when
+	 * {@code output.pdf.fonts.policy} is unspecified. The shared cid-keyed default references external
+	 * PDF CID-keyed fonts, which image/SVG output does not have (glyphs fall back to AWT substitutes
+	 * or outlines). Image, SVG, and page-split SVG return true
+	 * (until 2026-10-04, these three outputs had copies of the same {@code getDefaultFontPolicy} override).
 	 */
 	protected boolean embedsFontsByDefault() {
 		return false;
@@ -418,7 +418,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 		}
 		if (this.fontPolicy == null) {
 			String s = UAProps.OUTPUT_PDF_FONTS_POLICY.getString(this);
-			// PDF/A・PDF/X・PDF/UA はいずれもフォント埋め込みが必須。
+			// PDF/A, PDF/X, and PDF/UA all require font embedding.
 			if (UAProps.OUTPUT_PDF_VERSION.get(this).requiresFontEmbedding()) {
 				this.fontPolicy = FontValueUtils.toFontPolicyA1(s);
 				if (this.fontPolicy == null) {
@@ -495,7 +495,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	/**
 	 * @param borderTable
-	 *            The borders to set. 配列のサイズは3です。
+	 *            The borders to set. The array size is 3.
 	 */
 	public void setBorderTable(AbsoluteLengthValue[] borderTable) {
 		if (borderTable.length != 3) {
@@ -593,18 +593,18 @@ public abstract class AbstractUserAgent implements UserAgent {
 	protected Image loadImage(final Source source) throws IOException {
 		final URI uri = source.getURI();
 		this.throwIfRefusedImage(uri);
-		// 寸法しか要らないパスでは、記録済みの寸法を**資源に触れる前に**返す
-		// (2026-08-16)。PluginRegistry.searchはローダを選ぶためにSourceの
-		// MIME型を訊くので、ここより後ろで当てるとリモート資源の取得が
-		// 走ってしまう。input.image-metricsで寸法を先に渡した場合も、
-		// この判定に当たることで初めて取得そのものが要らなくなる。
+		// In dimension-only passes, return recorded dimensions **before touching the resource**
+		// (2026-08-16). PluginRegistry.search asks Source for its MIME type
+		// to select a loader, so checking later triggers retrieval
+		// of remote resources. Even when input.image-metrics supplies dimensions in advance,
+		// only this check makes retrieval itself unnecessary.
 		final ImageLoader loader = PluginRegistry.getInstance().search(ImageLoader.class, source);
 		if (loader == null) {
 			throw new IOException("Unsupported image source: " + source.getURI());
 		}
-		// 寸法しか要らないパスは画素を読まず、ヘッダだけを読む。
-		// data:はURIそのものが中身で取得の往復が無いため、従来どおり
-		// 通常の読み込みに任せる(切り替えると挙動が変わりうる)
+		// Dimension-only passes read headers, not pixels.
+		// For data:, the URI itself is the content, with no retrieval round trip, so keep
+		// normal loading as before (switching could change behavior)
 		final boolean cacheable = uri != null && !"data".equalsIgnoreCase(uri.getScheme());
 		try {
 			if (cacheable && (this.isMeasurePass() || this.isStructureScanPass())
@@ -619,14 +619,14 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	/**
-	 * 画素数の上限({@code input.image-pixel-limit})で断った画像です
-	 * (2026-10-03)。同じ画像が何度参照されても、パスが変わっても、資源を
-	 * 開き直してヘッダを読み直さない。寿命は画像寸法の記録と同じ(文書の開始で
-	 * 消す)。上限の値ごと覚え、上限が変われば読み直す。
+	 * Images rejected by the pixel-count limit ({@code input.image-pixel-limit}), 2026-10-03.
+	 * Avoids reopening resources and rereading headers across repeated references and passes.
+	 * Lifetime matches recorded image dimensions (cleared at document start).
+	 * Records the limit value as well; a changed limit causes a reread.
 	 */
 	private Map<URI, ImageTooLargeException> refusedImages;
 
-	/** 上限で断った画像なら、同じ例外を投げます。 */
+	/** Throws the same exception if the image was rejected by the limit. */
 	protected final void throwIfRefusedImage(final URI uri) throws ImageTooLargeException {
 		if (uri == null || this.refusedImages == null) {
 			return;
@@ -637,7 +637,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 		}
 	}
 
-	/** 上限で断った画像を覚えます。 */
+	/** Remembers an image rejected by the limit. */
 	protected final void noteRefusedImage(final URI uri, final ImageTooLargeException e) {
 		if (uri == null) {
 			return;
@@ -650,8 +650,8 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	public Image getImage(final Source source) throws IOException {
 		Image image = this.loadImage(source);
-		// 画像1枚の読み込みは**実際に進んだ仕事**。大きな画像・複雑なSVGが
-		// 続く文書では、ページとページの間でここだけが進む(2026-07-27)
+		// Loading one image is **actual completed work**. In documents with successive large images or complex SVGs,
+		// this is the only progress between pages (2026-07-27)
 		this.noteProgress();
 		AffineTransform pixelToUnit = this.getPixelToUnit();
 		if (!pixelToUnit.isIdentity()) {
@@ -661,46 +661,44 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	/**
-	 * 記録済みの画像寸法を、<b>資源を解決する前に</b>返します(2026-08-16)。
+	 * Returns recorded image dimensions <b>before resolving the resource</b> (2026-08-16).
 	 *
 	 * <p>
-	 * 寸法しか要らないパスで、既に測った画像・{@code input.image-metrics}で
-	 * 渡された画像なら、{@link #resolve(URI)}を呼ばずに済みます。これが要るのは
-	 * <b>解決そのものが取得を伴う場合がある</b>ためです。ローカルファイルの
-	 * 解決は遅延なので{@link #loadImage}側の判定で足りますが、CTIPで
-	 * クライアントへ資源を要求する経路は<b>解決した時点で転送が起きます</b>。
-	 * 呼び出し側が解決を済ませてから{@link #getImage}を呼ぶ形だと、
-	 * 「転送してから使わない」ことになります。
+	 * In dimension-only passes, images already measured or supplied via {@code input.image-metrics}
+	 * avoid {@link #resolve(URI)}. This is needed because <b>resolution itself may fetch the resource</b>.
+	 * Local file resolution is lazy, so checking in {@link #loadImage} suffices, but requesting a
+	 * resource from a client over CTIP <b>transfers it at resolution time</b>.
+	 * If the caller resolves first and then calls {@link #getImage}, it "transfers and then does not use it."
 	 * </p>
 	 *
-	 * @return 記録があればその寸法、無ければ{@code null}(呼び出し側は
-	 *         これまでどおり解決して読み込む)。
+	 * @return recorded dimensions if available; otherwise {@code null}
+	 *         (the caller resolves and loads as before).
 	 */
 	public Image getImageMetrics(final URI uri) {
 		if (!this.isMetricsCacheable(uri)) {
 			return null;
 		}
-		// 記録するのは getImage(Source) が返した値、つまり px→pt 変換の**適用後**。
-		// ここで再度掛けると二重になるのでそのまま返す
+		// Recorded values are those returned by getImage(Source), **after** px → pt conversion.
+		// Applying it again would double it, so return unchanged
 		return this.getUAContext().getImageMetrics().get(uri.toString());
 	}
 
 	/**
-	 * 画像を取得し、寸法しか要らないパスなら<b>要求時のURIで</b>寸法を記録します。
+	 * Retrieves an image and, in dimension-only passes, records dimensions <b>under the requested URI</b>.
 	 *
 	 * <p>
-	 * キーに解決後のURIではなく要求時のURIを使うのは、EPUBのように内部が
-	 * 相対URIで参照し合う文書があるためです。相対URIのまま記録しておけば、
-	 * 同じEPUBを別の基底(別のディレクトリ、別のサーバー)から与えても
-	 * 寸法表がそのまま当たります。
+	 * Uses the requested URI as the key rather than the resolved URI because documents such as EPUB
+	 * reference internal resources by relative URIs. Recording relative URIs lets the metrics table
+	 * match unchanged when the same EPUB is supplied from another base
+	 * (another directory or server).
 	 * </p>
 	 */
 	public Image getImage(final URI uri, final Source source) throws IOException {
-		// **必ず getImage(Source) を通すこと。** PDFUserAgentはこれを上書きして
-		// PDFWriter側の読み込み経路(BMPやJPEG2000はここで扱われる)と
-		// 非出力パス用の寸法専用画像を担っている。loadImage()を直に呼ぶと
-		// その上書きを飛ばしてしまい、一部の画像形式が読めなくなる
-		// (2026-08-16、基準画像テスト5件の回帰で判明)
+		// **Always go through getImage(Source).** PDFUserAgent overrides it to provide
+		// the PDFWriter loading path (which handles BMP and JPEG2000) and
+		// dimension-only images for non-output passes. Calling loadImage() directly
+		// bypasses that override, making some image formats unreadable
+		// (found 2026-08-16 through five baseline image test regressions)
 		final Image image = this.getImage(source);
 		if (this.isMetricsCacheable(uri)) {
 			this.getUAContext().getImageMetrics().put(uri.toString(), image);
@@ -709,8 +707,9 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	/**
-	 * 記録の対象か。{@code data:}は取得の往復が無く、URIそのものが中身なので
-	 * 記録しません(キーが画像本体と同じ大きさになり、書き出したXMLも膨れる)。
+	 * Whether to record this resource. Does not record {@code data:}, which has no retrieval round trip
+	 * and carries the content in the URI itself (the key would be as large as the image
+	 * and inflate the exported XML).
 	 */
 	private boolean isMetricsCacheable(final URI uri) {
 		return uri != null && (this.isMeasurePass() || this.isStructureScanPass())
@@ -725,7 +724,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return this.pageProgression;
 	}
 
-	/** 頁の進む向き({@code ltr} / {@code rtl})。{@code vertical-rl} だけ {@code rtl}。 */
+	/** Page progression direction ({@code ltr} / {@code rtl}). Only {@code vertical-rl} uses {@code rtl}. */
 	public String getPageProgressionDirection() {
 		return this.pageProgression == net.zamasoft.foliojet.layout.box.params.WritingMode.RL ? "rtl" : "ltr";
 	}
@@ -756,9 +755,9 @@ public abstract class AbstractUserAgent implements UserAgent {
 	private PrepareMode currentMode = PrepareMode.DOCUMENT;
 
 	public void prepare(PrepareMode mode) {
-		// パスの切り替えは進捗である。前のパス(特にページを1枚も出さない
-		// STRUCTURE_SCAN)の経過を持ち越すと、次のパスの最初の中断点が
-		// 締切超過を誤検出する(2026-07-30)
+		// Switching passes is progress. Carrying over elapsed time from the preceding pass
+		// (especially STRUCTURE_SCAN, which emits no pages) makes the first abort point in the next pass
+		// falsely detect an exceeded deadline (2026-07-30)
 		this.noteProgress();
 		this.currentMode = mode;
 		this.fontMagnification = -1;
@@ -768,34 +767,34 @@ public abstract class AbstractUserAgent implements UserAgent {
 			int pages = this.getPassContext().getPageNumber();
 			this.passContext = new PassContext();
 			this.getUAContext().getPageRef().reset();
-			// 総ページ数
+			// Total page count
 			this.getPassContext().getCounterScope(0, true).reset("pages", pages);
 		}
 		if (mode == PrepareMode.STRUCTURE_SCAN) {
-			// SelectorFactsはSTRUCTURE_SCANパス自身が新規に確定させるため、
-			// 前回の走査結果(別文書、またはやり直し)を引きずらないよう
-			// クリアする。PageRefと異なり複数のLAYOUTパスをまたいで
-			// 段階的に確定させるものではないため、STRUCTURE_SCAN開始時
-			// 1回だけリセットすれば足りる。
+			// STRUCTURE_SCAN itself resolves SelectorFacts anew, so clear them
+			// to avoid carrying over results of a preceding scan (another document or a restart).
+			// Unlike PageRef, they are not resolved progressively
+			// across multiple LAYOUT passes, so resetting once at STRUCTURE_SCAN start
+			// is sufficient.
 			this.getUAContext().getSelectorFacts().reset();
-			// ContainerFactsもSelectorFactsと同じ寿命(STRUCTURE_SCAN開始時
-			// 1回だけリセット、以降の全パスで積み上げ・上書き)。
-			// 設計は開発記録 §2
+			// ContainerFacts has the same lifetime as SelectorFacts (reset once at STRUCTURE_SCAN start,
+			// then accumulate/overwrite in all later passes).
+			// See the development records §2 for the design
 			this.getUAContext().getContainerFacts().reset();
 		}
 		if (mode == PrepareMode.MIDDLE_PASS || mode == PrepareMode.LAST_PASS) {
-			// 段5(設計§3): このパスの書き込み前の値をスナップショットし、
-			// パス終了後の不動点判定(DirectSession.format参照)に使う
+			// Stage 5 (design §3): snapshot values before this pass's writes and
+			// use them for the fixed-point check after the pass (see DirectSession.format)
 			this.getUAContext().getContainerFacts().beginPass();
 		}
 		if (mode == PrepareMode.STRUCTURE_SCAN || mode == PrepareMode.DOCUMENT) {
-			// パス持ち越しスタイルシートは変換(文書)の開始でクリアする
-			// (UAContext.getCarriedStyleSheetのjavadoc参照)。中間・最終
-			// パスは前のパスの収集を引き継ぐ
+			// Clear the carried stylesheet at conversion (document) start
+			// (see UAContext.getCarriedStyleSheet Javadoc). Intermediate and final
+			// passes inherit the preceding pass's collection
 			this.getUAContext().setCarriedStyleSheet(null);
-			// 脚注領域も文書ごとに戻す。規則は各パスのCSS解析で再設定される。
+			// Reset the footnote area per document as well. CSS parsing in each pass sets the rules again.
 			this.getUAContext().setFootnoteArea(null);
-			// 画像寸法も同じ寿命。別の文書では同じURIが違う内容を指しうる
+			// Image dimensions have the same lifetime. The same URI can refer to different content in another document
 			this.getUAContext().getImageMetrics().reset();
 			this.refusedImages = null;
 			this.loadImageMetrics();
@@ -804,8 +803,8 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	/**
-	 * {@code input.image-metrics}で渡された寸法表を読み込みます。
-	 * 読めなくても組版は続けられる(実測に戻るだけ)ので警告に留めます。
+	 * Loads the metrics table supplied through {@code input.image-metrics}.
+	 * Failure only warns because layout can continue (it simply falls back to measurement).
 	 */
 	private void loadImageMetrics() {
 		final String location = UAProps.INPUT_IMAGE_METRICS.getString(this);
@@ -838,8 +837,9 @@ public abstract class AbstractUserAgent implements UserAgent {
 	}
 
 	/**
-	 * 画像・SVG 出力が自分で作る書体管理です。パスの切り替えと{@link #dispose}で閉じる——{@code @font-face}で取得した
-	 * 書体の一時ファイルはこの{@code close()}が消す(2026-10-04 までは参照を外すだけで閉じず、変換をまたいで残った)。
+	 * Font manager created by image/SVG output. Closed on pass changes and {@link #dispose};
+	 * this {@code close()} deletes temporary font files retrieved through {@code @font-face}
+	 * (until 2026-10-04, references were merely dropped without closing, leaving files across conversions).
 	 */
 	private FontManagerImpl ownedFontManager;
 

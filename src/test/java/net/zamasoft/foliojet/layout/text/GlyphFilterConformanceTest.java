@@ -17,22 +17,21 @@ import net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace;
 import net.zamasoft.pdfg2d.gc.text.breaking.TextBreakingRules;
 
 /**
- * グリフフィルタの<b>プロトコル保存検査キット</b>です(2026-08-01、
- * エレガンス改善(b))。
+ * A <b>protocol-preservation conformance kit</b> for glyph filters (2026-08-01,
+ * elegance improvement (b)).
  *
  * <p>
- * グリフ連鎖(TextShaper→CSSJTextUnitizer→WordHyphenator→
- * BuilderGlyphHandler)は多メソッドインターフェースのため、中間フィルタが
- * イベントを転送し忘れると<b>黙って情報が落ちる</b>(font-features
- * xPlacement設計時にcodexが指摘した実在の危険——当時はFontMetrics
- * 再導出で回避した)。このキットは正準のイベント列を各フィルタ単体に
- * 通し、保存されるべき性質を機械検査する:
+ * The glyph chain (TextShaper→CSSJTextUnitizer→WordHyphenator→BuilderGlyphHandler) uses a multi-method
+ * interface, so an intermediate filter that forgets to forward an event <b>silently loses information</b>
+ * (a real risk raised by codex during the font-features xPlacement design; avoided then by re-deriving
+ * FontMetrics). This kit passes a canonical event sequence through each filter individually and
+ * mechanically checks properties that must be preserved:
  * </p>
  * <ul>
- * <li>テキスト保存: 配達されたclusterの連結が入力と一致(脱落・重複なし)</li>
- * <li>オフセット単調性: 配達順のcharOffsetが非減少</li>
- * <li>run均衡: glyphは必ずrun内、close後に未配達の保留がない</li>
- * <li>制御保存: 注入した制御が(追加はあっても)脱落せず相対順を保つ</li>
+ * <li>Text preservation: concatenating delivered clusters matches the input (no loss or duplication).</li>
+ * <li>Offset monotonicity: charOffset is nondecreasing in delivery order.</li>
+ * <li>Run balance: glyphs always occur within a run, with no undelivered pending data after close.</li>
+ * <li>Control preservation: injected controls are not lost and retain relative order (additions are allowed).</li>
  * </ul>
  */
 public class GlyphFilterConformanceTest extends TestCase {
@@ -127,7 +126,7 @@ public class GlyphFilterConformanceTest extends TestCase {
 	private static final net.zamasoft.pdfg2d.gc.font.FontListMetrics DUMMY_FLM = new net.zamasoft.pdfg2d.gc.font.FontListMetrics(
 			new FontMetrics[] { DUMMY_FONT_METRICS });
 
-	/** 配達された全イベントを記録する終端ハンドラです。 */
+	/** A terminal handler that records every delivered event. */
 	private static final class Recording implements GlyphHandler {
 		final StringBuilder text = new StringBuilder();
 		final List<Integer> offsets = new ArrayList<>();
@@ -175,8 +174,8 @@ public class GlyphFilterConformanceTest extends TestCase {
 	}
 
 	/**
-	 * 正準列: run内の語(1文字1cluster、連続オフセット)+空白制御+続きの語。
-	 * {@code from}からのオフセットで駆動する。
+	 * Canonical sequence: a word within a run (one character per cluster, consecutive offsets),
+	 * a whitespace control, then the next word. Drive it with offsets starting at {@code from}.
 	 */
 	private static void drive(final GlyphHandler h, final String word1, final String word2,
 			final TextControl control) {

@@ -6,7 +6,7 @@ import java.nio.file.Files;
 
 import junit.framework.TestCase;
 
-/** 行間改ページをページフロートが拒んだ場合の回帰テスト(seed 552の縮小形)。 */
+/** Regression for a page float refusing an interline page break (reduced seed 552). */
 public class InterlineBreakWithPageFloatTest extends TestCase {
 	public InterlineBreakWithPageFloatTest(final String name) {
 		super(name);

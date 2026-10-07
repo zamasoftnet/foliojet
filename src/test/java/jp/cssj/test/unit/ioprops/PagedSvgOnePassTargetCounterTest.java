@@ -21,9 +21,10 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * ページ分割SVGでも1パスで{@code target-counter()}の番号が出ることを固定します(2026-10-04、
- * docs/design/one-pass-target-counter-design.md §8)。後ろの頁を参照する頁は描画を記録して
- * 取っておき、参照先が揃ってから(遅くとも文書の終わりに)描いて出す。
+ * Verify that page-split SVG also outputs {@code target-counter()} numbers in one pass
+ * (2026-10-04, docs/design/one-pass-target-counter-design.md §8).
+ * Record and retain drawing for pages referencing later pages, then draw and emit them once targets
+ * are available (at document end at the latest).
  */
 public class PagedSvgOnePassTargetCounterTest extends TestCase {
 	private static final String STYLE = """
@@ -59,7 +60,7 @@ public class PagedSvgOnePassTargetCounterTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {
@@ -104,7 +105,10 @@ public class PagedSvgOnePassTargetCounterTest extends TestCase {
 		return results;
 	}
 
-	/** 目次の頁は最後に出て、前方参照の番号が入る。後方参照はその場で入る。manifest は頁番号の順。 */
+	/**
+	 * The contents page is emitted last with forward-reference numbers. Backward references fill immediately;
+	 * manifest uses page order.
+	 */
 	public void testTableOfContentsPageIsEmittedLastWithNumbers() throws Exception {
 		final List<String> warnings = new ArrayList<>();
 		final CapturingResults results = convert(CHAPTERS, warnings);
@@ -122,7 +126,7 @@ public class PagedSvgOnePassTargetCounterTest extends TestCase {
 		assertEquals("no warning: " + warnings, List.of(), warnings);
 	}
 
-	/** 欄の無い文書はこれまでどおり頁の順に出る。 */
+	/** Documents without fields are emitted in page order as before. */
 	public void testDocumentsWithoutSlotsKeepTheOrder() throws Exception {
 		final CapturingResults results = convert("<p>a</p><h1>b</h1><h1>c</h1>", new ArrayList<>());
 		final int p1 = results.order.indexOf("pages/0001.svg"), p2 = results.order.indexOf("pages/0002.svg"),
@@ -131,8 +135,8 @@ public class PagedSvgOnePassTargetCounterTest extends TestCase {
 	}
 
 	/**
-	 * 記録しても描き方は直接描くときと同じ: SVG で厳密に描けるぼかしは filter のまま
-	 * (記録器が「描けない」と答えると近似の重ね塗りになり、描き直しても戻らない)。
+	 * Recording preserves the direct drawing method: blur that SVG renders exactly remains a filter
+	 * (if the recorder reports it unsupported, drawing uses approximate overpainting that replay cannot undo).
 	 */
 	public void testRecordedPageKeepsExactEffects() throws Exception {
 		final CapturingResults results = convert(
@@ -145,7 +149,7 @@ public class PagedSvgOnePassTargetCounterTest extends TestCase {
 		assertTrue("blur stays an SVG filter", results.text("pages/0001.svg").contains("<filter"));
 	}
 
-	/** 待つ頁が上限(64)を超えたら、古い頁からその時点の番号で出し、警告を 1 回出す。 */
+	/** If waiting pages exceed the limit (64), emit older pages with numbers known then and warn once. */
 	public void testHeldPagesAreCapped() throws Exception {
 		final StringBuilder body = new StringBuilder();
 		for (int i = 1; i <= 66; ++i) {
@@ -161,8 +165,8 @@ public class PagedSvgOnePassTargetCounterTest extends TestCase {
 	}
 
 	/**
-	 * 頁数の上限で止めた(abort=normal)ときも、後回しにした頁はその時点で分かっている番号で出る
-	 * (cti.li の page_text が page を指定したときの形)。
+	 * Even when stopped at the page-count limit (abort=normal), deferred pages are emitted with
+	 * the numbers known at that point (the form used when cti.li page_text specifies page).
 	 */
 	public void testPageLimitStillEmitsHeldPages() throws Exception {
 		final CapturingResults results = convert(CHAPTERS, new ArrayList<>(), "output.page-limit", "1",
@@ -172,7 +176,7 @@ public class PagedSvgOnePassTargetCounterTest extends TestCase {
 		assertFalse("the target page was not laid out", toc.contains(">2</text>"));
 	}
 
-	/** 参照先の無い欄は空で、警告は出ない(PDF と同じ)。 */
+	/** Fields with no target remain empty without warnings (the same as PDF). */
 	public void testMissingTargetIsEmptyWithoutWarning() throws Exception {
 		final List<String> warnings = new ArrayList<>();
 		final CapturingResults results = convert("<nav><p><a href=\"#none\">Nowhere</a></p></nav>", warnings);

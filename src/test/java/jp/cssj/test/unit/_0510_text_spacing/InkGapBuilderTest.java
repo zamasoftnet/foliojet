@@ -14,7 +14,7 @@ import net.zamasoft.pdfg2d.font.GlyphBounds;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
 
-/** 登録容量・行の採否・適用を同じ制御字面で検証する。 */
+/** Checks registered capacity, line acceptance, and application with the same controlled glyph bounds (ink). */
 public class InkGapBuilderTest extends TestCase {
 	private static BlockParams params(FontStyle style) {
 		final var params = new BlockParams();
@@ -71,7 +71,7 @@ public class InkGapBuilderTest extends TestCase {
 		buffer.add(run);
 		set(tb, "lineAxis", run.getAdvance());
 		final Class<?>[] types = {double.class, boolean.class};
-		// LayoutUtils.compareの既存許容差も超える不足量を与える。
+		// Provide a shortfall that also exceeds LayoutUtils.compare's existing tolerance.
 		assertEquals(false, call(tb, "tryJlreqLineShrink", types, 4.0, false));
 		assertEquals(false, call(tb, "tryJlreqLineShrink", types, 4.0, true));
 		assertEquals(true, call(tb, "tryJlreqLineShrink", types, 3.0, false));
@@ -94,9 +94,9 @@ public class InkGapBuilderTest extends TestCase {
 		assertEquals(1.5, capacity(capacities(run, 0, run, 1, true)[4]), 1e-9);
 		final var cur = text(style(12, s.getDirection()), metrics(style(12, s.getDirection()), s.getDirection(),
 				gid -> new GlyphBounds(0, -700, 900, 0), 880, 0, 300), "め");
-		cur.setLetterSpacing(50); // 後runの字間を参照したら上限が消えて試験が落ちる。
+		cur.setLetterSpacing(50); // If the following run's letter spacing is used, the limit disappears and the test fails.
 		cur.addXAdvance(0, -.5);
-		// run間kerning=0。R=10+2-.5+0-10=1.5。
+		// Inter-run kerning=0. R=10+2-.5+0-10=1.5.
 		assertEquals(1.5, capacity(capacities(run, 0, cur, 0, true)[4]), 1e-9);
 	}
 
@@ -116,7 +116,7 @@ public class InkGapBuilderTest extends TestCase {
 		final var stages = capacities(run, 0, run, 1, true);
 		assertEquals(2.5, capacity(stages[4]), 1e-9);
 		assertEquals(.5, capacity(stages[5]), 1e-9);
-		// 既存の詰め1ptをC5から控除し、R=2ptはそのままC4に使う。
+		// Subtract the existing 1 pt compression from C5, and use R=2 pt unchanged for C4.
 		run.addXAdvance(1, -1);
 		final var taken = capacities(run, 0, run, 1, true);
 		assertEquals(2.0, capacity(taken[4]), 1e-9);
@@ -144,7 +144,7 @@ public class InkGapBuilderTest extends TestCase {
 		net.zamasoft.foliojet.layout.text.spacing.JapaneseSpacingResolver.applyRunTrims(run);
 		final var head = (TextImpl) run.split(1);
 		final var tb = textBuilder(builder(params(s)));
-		// 現在builderの別runがGPOSを持っていても分割対象の計算を変えない。
+		// GPOS in another run of the current builder must not change the calculation for the split target.
 		set(tb, "fontMetrics", metrics(s, s.getDirection(), gid -> null, 880, 0, 100));
 		final double adjustment = (double) call(tb, "boundaryAdjustment",
 				new Class<?>[] {TextImpl.class, TextImpl.class}, head, run);

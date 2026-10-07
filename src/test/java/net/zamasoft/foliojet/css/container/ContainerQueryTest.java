@@ -4,10 +4,10 @@ import junit.framework.TestCase;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * {@code @container}実装・段3の条件パーサテストです
- * (開発記録 §5/§6)。
- * 名前・{@code and}連結・{@code not}・単位解決の受理と、未対応構文
- * (`or`・未対応特性・単位なし数値等)が常に不一致になることを固定する。
+ * Condition-parser tests for stage 3 of the {@code @container} implementation
+ * (development record §5/§6).
+ * Fix acceptance of names, {@code and} conjunctions, {@code not}, and unit resolution, and require
+ * unsupported syntax (`or`, unsupported features, unitless numbers, etc.) to always fail to match.
  */
 public class ContainerQueryTest extends TestCase {
 
@@ -30,7 +30,7 @@ public class ContainerQueryTest extends TestCase {
 				});
 	}
 
-	/** ポイント換算(96dpi、1in=72pt): 400px = 300pt。 */
+	/** Point conversion (96 dpi, 1 in=72 pt): 400 px = 300 pt. */
 	public void testSingleMinWidthWithName() {
 		final ContainerQuery q = ContainerQuery.parse("card (min-width: 400px)", ua());
 		assertEquals("card", q.getName());
@@ -48,7 +48,7 @@ public class ContainerQueryTest extends TestCase {
 		assertFalse(q.getCondition().evaluate(301));
 	}
 
-	/** inline-size系はwidth系と同軸として扱う。 */
+	/** Treat inline-size features as using the same axis as width features. */
 	public void testInlineSizeSynonym() {
 		final ContainerQuery q = ContainerQuery.parse("(min-inline-size: 100pt)", ua());
 		assertFalse(q.getCondition().evaluate(99));
@@ -76,7 +76,7 @@ public class ContainerQueryTest extends TestCase {
 		assertFalse(q.getCondition().evaluate(300.5));
 	}
 
-	/** 第1段階の対象外(or・未対応特性・range構文・cq単位)は常に不一致。 */
+	/** Features outside phase 1 (or, unsupported features, range syntax, cq units) never match. */
 	public void testUnsupportedIsAlwaysFalse() {
 		assertFalse(ContainerQuery.parse("(min-width: 100pt) or (max-width: 200pt)", ua()).getCondition()
 				.evaluate(150));
@@ -87,7 +87,7 @@ public class ContainerQueryTest extends TestCase {
 	}
 
 	public void testNotRequiresSingleGroup() {
-		// notは単一括弧項にしか掛からない(仕様上andと同時には出現しない)
+		// not applies only to a single parenthesized term (the specification does not permit it together with and).
 		final ContainerQuery q = ContainerQuery.parse("not (min-width: 100pt) and (max-width: 300pt)", ua());
 		assertFalse(q.getCondition().isValid());
 		assertFalse(q.getCondition().evaluate(150));

@@ -8,21 +8,21 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * 2段組みの中の浮動体(画像)まわりの、段の断片を固定します。
+ * Verifies the column fragments around a float (image) in a two-column layout.
  *
  * <p>
- * 2026-09-11に内蔵CIDフォントの幅表を直し、全角スペース・読点・句点が
- * 全角に戻ったことで、この文書の配置が変わりました。<b>それまでは浮動体が
- * 段をまたいで切断されていました</b>——画像(85.50×114.96)の上93.60ptを
- * 左段に、残り21.36ptを右段の頭に描き、その2行だけ本文がx=286.50へ
- * 逃げていた。字送りが正しくなって画像が左段に収まり、本文はそのまま
- * 画像の右へ回り込みます。
+ * On 2026-09-11, correcting the built-in CID-keyed font width table restored full widths for the
+ * fullwidth space, Japanese comma, and Japanese period, changing this document's layout.
+ * <b>Previously, the float split across columns</b>: the top 93.60 pt of the image (85.50×114.96)
+ * was drawn in the left column, and the remaining 21.36 pt at the start of the right column.
+ * Only those two lines of body text moved aside to x=286.50. Correct advances let the image fit in
+ * the left column, and body text now wraps to its right.
  * </p>
  *
  * <p>
- * 段の断片は箱の分かれ方であって描画の切れ目ではありません。#bの右段は
- * 2つの箱に分かれますが、126.56+57.6 = 184.16 で隙間なく続いており、
- * 6行(86.4pt)がひと続きに組まれています。
+ * Column fragments represent box divisions, not breaks in rendering. The right column of #b splits
+ * into two boxes, but they continue without a gap at 126.56+57.6 = 184.16,
+ * laying out six lines (86.4 pt) continuously.
  * </p>
  */
 public class FloatInFlowTest extends AbstractTestCase {
@@ -36,15 +36,16 @@ public class FloatInFlowTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** #a の段の断片。左右に4行ずつで均等。{x, y, 幅, 高さ} */
+	/** Column fragments of #a. Balanced, with four lines on each side. {x, y, width, height} */
 	private static final double[][] A = { //
 			{ 6, 6, 171, 57.6 }, //
 			{ 201, 6, 171, 57.6 }, //
 	};
 
 	/**
-	 * #b の段の断片。左段は浮動体の右に8行(高さは浮動体と同じ114.96)、
-	 * 右段は6行で、57.6と28.8の2つの箱に分かれる(隙間なく続く)。
+	 * Column fragments of #b. The left column has eight lines to the right of the float
+	 * (height 114.96, matching the float). The right column has six lines split into two boxes,
+	 * 57.6 and 28.8, continuing without a gap.
 	 */
 	private static final double[][] B = { //
 			{ 6, 126.56, 171, 114.96 }, //

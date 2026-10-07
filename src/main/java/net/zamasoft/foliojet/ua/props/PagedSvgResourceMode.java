@@ -1,79 +1,80 @@
 package net.zamasoft.foliojet.ua.props;
 
 /**
- * ページ分割SVGの共有資源(フォントのサブセットと画像)の渡し方です。
+ * How to deliver shared resources (font subsets and images) for page-split SVG.
  *
  * <p>
- * フォントと画像は「受け手にどう届けるか」という同じ話なので、まとめて
- * 決めます。3つは互いに排他です。
+ * Fonts and images both concern delivery to the consumer, so configure them together.
+ * The three options are mutually exclusive.
  * </p>
  */
 public enum PagedSvgResourceMode implements PropCode {
 	/**
-	 * 別ファイルとして出し、ページSVGから相対URIで参照します。
+	 * Emits separate files, referenced by relative URIs from page SVG.
 	 *
 	 * <p>
-	 * ディレクトリへ出すならこれが有利です。同じ画像が何ページに出てきても
-	 * 実体は1つで済み、相対URIをそのまま辿れます。
+	 * This is advantageous for directory output. An image needs only one copy regardless
+	 * of how many pages use it, and relative URIs can be followed directly.
 	 * </p>
 	 */
 	REFERENCE,
 
 	/**
-	 * ページSVGへ{@code data:}で埋め込みます。
+	 * Embeds resources in page SVG as {@code data:}.
 	 *
 	 * <p>
-	 * ページSVG 1枚だけを別の場所へ渡すときのように、<b>相対URIを保てない</b>
-	 * 送り方のためのものです。同じ画像がページごとに複製されるので、全体の
-	 * 容量は増えます。
+	 * For delivery methods that <b>cannot preserve relative URIs</b>,
+	 * such as sending a single page SVG elsewhere. The same image is duplicated per page,
+	 * increasing total size.
 	 * </p>
 	 *
 	 * <p>
-	 * フォントは埋め込みでも共有WOFF2への参照のままです。サブセットは文書全体を
-	 * 組み終えるまで確定せず、ページごとに埋め込むとページの数だけBrotli圧縮を
-	 * 回すことになるためです。
+	 * Even in embedding mode, fonts remain references to shared WOFF2. Subsets are not final
+	 * until the whole document has been laid out, and embedding them per page would run
+	 * Brotli compression as many times as there are pages.
 	 * </p>
 	 */
 	EMBED,
 
 	/**
-	 * 参照だけ書き、実体は返しません。
+	 * Writes references only, without returning resource data.
 	 *
 	 * <p>
-	 * 同じ本を文字サイズや画面サイズだけ変えて組み直すとき、フォントのサブセットと
-	 * 画像は前回とまったく同じものになります。ページSVGからの参照と
-	 * {@code manifest.json}の記載は残るので、受け手は前回保存した同じURIの資源を
-	 * そのまま使えます。
+	 * When relaying out the same book with only font size or screen size changed,
+	 * font subsets and images are exactly the same as before. References from page SVG
+	 * and entries in {@code manifest.json} remain, so the consumer can reuse previously
+	 * saved resources at the same URIs unchanged.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>通信量と保管量のための指定で、速さのための指定ではありません。</b>
-	 * 314ページの縦組み書籍(1パス)の実測では121ms(6%)しか変わらず、
-	 * 出力は15.0MBから10.9MBへ27%減ります。
+	 * <b>This setting reduces bandwidth and storage, not processing time.</b>
+	 * Measurements with a 314-page book in vertical writing (one pass) showed only a 121 ms (6%)
+	 * time difference, while output shrank 27%, from 15.0 MB to 10.9 MB.
 	 * </p>
 	 *
 	 * <p>
-	 * 初回は{@link #REFERENCE}で全部を受け取り、2回目以降にこれを使ってください。
+	 * Receive everything with {@link #REFERENCE} the first time; use this from the second conversion onward.
 	 * </p>
 	 */
 	OMIT,
 
 	/**
-	 * ウェブ上の画像は複写せず、取得元の URL をそのまま参照します(2026-09-02)。
+	 * References original source URLs for web images without copying them (2026-09-02).
 	 *
 	 * <p>
-	 * ウェブの内容を SVG にして同じウェブで見せる用途のためのものです。取得元が
-	 * {@code http:}・{@code https:}・{@code file:} の画像(そのまま出せるバイト列を
-	 * 持つラスタ画像)は、ページ SVG が {@code <image href="取得元の URL">} と書き、
-	 * 実体は出しません。manifest の {@code images[]} には {@code source} が付きます。
-	 * 取得元の無い画像({@code data:}、生成した絵、SVG をラスタ化したもの)とフォントは
-	 * {@code reference} と同じく共有資源に出します。
+	 * For converting web content to SVG and displaying it on the same web.
+	 * For images sourced from {@code http:}, {@code https:}, or {@code file:}
+	 * (raster images with bytes that can be emitted unchanged), page SVG writes
+	 * {@code <image href="source URL">} without emitting the data.
+	 * The manifest's {@code images[]} entries include {@code source}.
+	 * Images without a source ({@code data:}, generated images, rasterized SVGs) and fonts
+	 * are emitted as shared resources, as with {@code reference}.
 	 * </p>
 	 *
 	 * <p>
-	 * 注意: 元のサーバーへの直接参照になります。非公開の URL や認証付きの資源は
-	 * 読み器から取れません。Copper 側で選び直した画像({@code image-set()})や
-	 * 加工した画像は、元画像と見た目が変わることがあります。
+	 * Note: these reference the original server directly. The reader cannot fetch private URLs
+	 * or authenticated resources. Images reselected by Copper ({@code image-set()})
+	 * or processed images may look different from the originals.
 	 * </p>
 	 */
 	SOURCE;

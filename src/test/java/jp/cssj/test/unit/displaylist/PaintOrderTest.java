@@ -21,7 +21,7 @@ import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
-/** {@code paint-order}による文字の塗り順をPDFのテキスト描画モードで固定します。 */
+/** Verify text paint order from {@code paint-order} through PDF text rendering modes. */
 public class PaintOrderTest extends TestCase {
 	public void testStrokeFillUsesTwoPasses() throws Exception {
 		assertEquals(List.of(1, 0), textModes("stroke fill"));

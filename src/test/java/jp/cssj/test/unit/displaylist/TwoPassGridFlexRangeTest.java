@@ -28,7 +28,7 @@ import net.zamasoft.foliojet.layout.fragment.ReplayIntent;
 import net.zamasoft.foliojet.layout.segment.BlockParamsTemplate;
 import net.zamasoft.foliojet.layout.segment.BoxRecipeBoxFactory;
 
-/** T2: 項目種別ごとの範囲再生・所有状態・保持量の観測。 */
+/** T2: observe range replay, ownership state, and retention for each item type. */
 public final class TwoPassGridFlexRangeTest extends TestCase {
 	public void testGridTakeoverRanges() throws Exception {
 		for (final Fixture fixture : gridTakeoverRangesFixtures()) {
@@ -83,7 +83,7 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 				new Fixture("flex-neutral-column", TwoPassItemKind.ELEMENT, TwoPassRootKind.FLEX_ITEM));
 	}
 
-	/** 先にsealされたfloat/inline-blockのabsolute所有証明を項目へ引き継ぐ。 */
+	/** Pass absolute-ownership proofs from previously sealed floats/inline-blocks to items. */
 	public void testSealedChildAbsoluteOwnershipRanges() throws Exception {
 		for (final Fixture fixture : sealedChildAbsoluteOwnershipRangesFixtures()) {
 			renderItems(fixture.label(), fixture.file(), fixture.expectedKind(), fixture.expectedRoot());
@@ -102,7 +102,7 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 				new Fixture("flex-neutral-sealed-inline-block", TwoPassItemKind.ELEMENT, TwoPassRootKind.FLEX_ITEM));
 	}
 
-	/** strictLineBoxは記録時のモードを凍結し、再生ごとに保持する。 */
+	/** Freeze strictLineBox to the mode at recording time and preserve it for every replay. */
 	public void testStrictLineBoxRoundTrip() {
 		for (final boolean strict : new boolean[] { false, true }) {
 			final BlockParams source = new BlockParams();
@@ -116,7 +116,7 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 		}
 	}
 
-	/** ページへ押し出す際の高さ・SVG・middle揃え・仕切りを既存goldenとも比較する。 */
+	/** Also compare height, SVG, middle alignment, and separators on page push-out against existing goldens. */
 	public void testPushedFlexRowRanges() throws Exception {
 		final String fixture = "0510-flex/pushed-row-absolute-child.html";
 		try (final var census = ContinuationStats.beginTwoPassCensus()) {
@@ -128,9 +128,9 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 		}
 	}
 
-	/** SVGだけのinline-blockのstrutと、middle揃え・後続行の位置を最小構成で固定する。 */
+	/** Pin down an SVG-only inline-block's strut, middle alignment, and subsequent line positions with a minimal setup. */
 	public void testPushedFlexInlineBlockMiddleRanges() throws Exception {
-		// 押し出し後の再構築も、通常の初回bindも、記録値側の行高になる。
+		// Both reconstruction after push-out and normal initial bind use the recorded line height.
 		for (final boolean pushed : new boolean[] { true, false }) {
 			final String label = "flex inline-block SVG middle pushed=" + pushed;
 			final File file = fixtureFile("flex-middle-" + (pushed ? "pushed" : "normal"));
@@ -141,7 +141,7 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 				assertEquals(label + ": ページ数", pushed ? 2 : 1, range.size());
 				final String page = new String(range.get(range.size() - 1), StandardCharsets.UTF_8);
 				final double svgY = drawY(page, "AbsoluteRectFrame[w=28.50 h=15.00]");
-				// 記録値側の実測(sans-serif 12px/normal): SVGだけの行にもdescent 2.91ptを含む。
+				// Recorded-side measurement (sans-serif 12px/normal): even an SVG-only line includes a 2.91 pt descent.
 				assertEquals(label + ": middle", 3.81,
 						drawY(page, "Text[\"34℃\"") - svgY, 0.02);
 				assertEquals(label + ": 後続行", 23.91,
@@ -159,9 +159,9 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 	}
 
 	/**
-	 * T5b 修正(codex レビュー P2): MEASURE の親ラッパーも記録値の strictLineBox を写す。
-	 * Grid の行高は項目の固有寸法(minPage=MEASURE 経由)から決まるので、SVG だけの行を含む
-	 * 項目の行高が live(固定幅)と max-content(MEASURE)で一致することを固定する。
+	 * T5b fix (codex review P2): the MEASURE parent wrapper also copies the recorded strictLineBox.
+	 * Grid row height comes from item intrinsic dimensions (minPage via MEASURE), so verify that row heights
+	 * for items containing SVG-only lines match between live (fixed width) and max-content (MEASURE).
 	 */
 	public void testMeasureWrapperKeepsStrutForAtomicLine() throws Exception {
 		final List<double[]> geometry = new ArrayList<>();
@@ -188,7 +188,7 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 		assertEquals("次の行(行高=minPage): live と MEASURE 経由", geometry.get(0)[1], geometry.get(1)[1], 0.02);
 	}
 
-	/** T5b: 段落を次頁へ押し出しても、文字なし行の実高とmiddleの相対位置を保つ。 */
+	/** T5b: preserve the actual height of textless lines and relative middle position even when pushing a paragraph to the next page. */
 	public void testPushedParagraphPreservesTextlessLineHeight() throws Exception {
 		final List<double[]> geometry = new ArrayList<>();
 		for (final boolean pushed : new boolean[] { false, true }) {
@@ -206,8 +206,8 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 					<span class='middle'>34℃</span><br>熱中症指数</p></div></div>
 					</body></html>
 					""".formatted(pushed ? 260 : 0);
-			// 固定幅の通常ブロックではTwoPassにならないため、flex項目を宿主にする。
-			// DirectSessionは別スレッドで変換する。既存のstatic AtomicLongで再構築を観測する。
+			// A normal fixed-width block does not become TwoPass, so use a flex item as the host.
+			// DirectSession converts on another thread. Observe reconstruction with the existing static AtomicLong.
 			final long replays = BoxRecipeBoxFactory.FLEX_REPLAYS.get();
 			ContinuationStats.reset();
 			final List<byte[]> pages = TwoPassFlowSealTest.render(html);
@@ -219,7 +219,7 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 			final String page = new String(pages.get(pages.size() - 1), StandardCharsets.UTF_8);
 			assertEquals(label + ": iconの描画数", 1L, page.lines().filter(line -> line.contains(" outline[")).count());
 			final double svgY = drawY(page, "AbsoluteRectFrame[w=28.50 h=15.00]");
-			// iconはpadding/borderなし・自動高で、SVGだけの1行。背景の実高がその行高になる。
+			// icon has no padding/border, auto height, and one SVG-only line. Its actual background height equals that line height.
 			final String icon = drawLine(page, " outline[");
 			final int from = icon.indexOf(" h=") + 3;
 			final double height = Double.parseDouble(icon.substring(from, icon.indexOf(']', from)));
@@ -269,7 +269,7 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 				new Fixture("flex-anonymous", TwoPassItemKind.ANONYMOUS));
 	}
 
-	/** span・areas・置換要素・order・改頁等の既存実例も両経路で比較する。 */
+	/** Also compare existing examples of span, areas, replaced elements, order, page breaks, etc. across both paths. */
 	public void testExistingGridFlexCorpusRanges() throws Exception {
 		for (final File file : corpusFiles()) {
 			try (final var census = ContinuationStats.beginTwoPassCensus()) {
@@ -313,7 +313,7 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 		try {
 			seal.set(null, onSeal);
 			replay.set(null, onReplay);
-			// 直接bindされる項目、外側floatへ吸収される項目、セルPass Bで測る項目。
+			// Items bound directly, items absorbed into an outer float, and items measured in cell Pass B.
 			final var measured = renderItems("item lifecycle", fixtureFile("item-lifecycle"), TwoPassItemKind.TAKEOVER);
 			assertTrue("項目自身のMEASURE範囲再生が未発火", measured.keySet().stream()
 					.anyMatch(key -> key.itemKind() == TwoPassItemKind.TAKEOVER || key.itemKind() == TwoPassItemKind.ELEMENT));
@@ -398,7 +398,7 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 		TwoPassFlowSealTest.assertPagesEqual(fixture + " golden/range", golden, pages);
 	}
 
-	/** 全体censusと同じ分母で、項目単位でも計上漏れ・二重計上を検出する。 */
+	/** Use the same denominator as the overall census to detect omissions and double counting at item level too. */
 	private static void assertBindTotals(final String label, final Map<TwoPassCensusKey, Long> binds) {
 		final long ranges = binds.entrySet().stream().filter(entry -> entry.getKey().sealOutcome().equals("accepted"))
 				.mapToLong(Map.Entry::getValue).sum();
@@ -436,7 +436,7 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 			action.run();
 			fail("終端済みハンドルを再使用した");
 		} catch (final IllegalStateException expected) {
-			// 終端は1回だけ。
+			// Terminate only once.
 		}
 	}
 }

@@ -9,165 +9,158 @@ import java.util.concurrent.atomic.AtomicLong;
 import net.zamasoft.foliojet.layout.segment.BarrierReason;
 
 /**
- * 継続(改ページ運搬)の種別カウンタです(P4: OpenTailShape 縮小の
- * 定量基盤。TableBuildStats と同じ発火カウンタの流儀)。
- * テストからの観測用で、機能には影響しない。
+ * Counters by continuation type (transport across page breaks; P4: quantitative basis for reducing
+ * OpenTailShape, using the same firing-counter convention as TableBuildStats).
+ * These provide test observations and do not affect behavior.
  */
 public final class ContinuationStats {
-	/** チェーン子フレーム(Child)での消費。 */
+	/** Consumption by a chain child frame (Child). */
 	public static final AtomicLong CHILD_FRAMES = new AtomicLong();
 
 	/**
-	 * {@code ColumnsContainer.splitPageAxis()}が呼ばれた回数(2026-07-21
-	 * 新設、M6b Phase B5d-0)。{@link #COLUMNS_LAST_COLUMN_MOVE_CANDIDATE}
-	 * の分母。
+	 * Number of calls to {@code ColumnsContainer.splitPageAxis()} (added 2026-07-21,
+	 * M6b Phase B5d-0). The denominator for {@link #COLUMNS_LAST_COLUMN_MOVE_CANDIDATE}.
 	 *
 	 * <p>
-	 * <b>退役条件(2026-07-24 E-5)</b>:
-	 * {@link #COLUMNS_LAST_COLUMN_MOVE_CANDIDATE}と同時に退役する
-	 * (分母としてのみ意味を持つ——単独では残さない)。
+	 * <b>Retirement condition (2026-07-24 E-5)</b>:
+	 * Retire together with {@link #COLUMNS_LAST_COLUMN_MOVE_CANDIDATE}
+	 * (it is meaningful only as a denominator; do not retain it alone).
 	 * </p>
 	 */
 	public static final AtomicLong COLUMNS_SPLIT_ATTEMPTS = new AtomicLong();
 
 	/**
-	 * {@code ColumnsContainer}が段数2以上を持つ状態で、委譲先の最後列
-	 * (`getLastColumn()`)自身の分割結果が「その列の内容が丸ごと
-	 * 次フラグメンテナへ移動した」(3引数版: 戻り値が最後列自身と同一/
-	 * 4引数版: {@code ContainerCut.Plain}のcontainerが最後列自身と同一)
-	 * であった回数(2026-07-21新設、M6b Phase B5d-0)。これは「段組全体の
-	 * MOVE」の上位集合(最後列だけがMOVEし前方列はそのまま残る通常
-	 * ケースも含む)。挙動には一切影響しない(カウンタ加算のみ)。
+	 * Number of times, with at least two columns in {@code ColumnsContainer}, the split result of
+	 * the delegated last column (`getLastColumn()`) was "all content of that column moved to the next
+	 * fragmentainer" (three-argument version: the return value is identical to the last column itself;
+	 * four-argument version: the container in {@code ContainerCut.Plain} is identical to the last
+	 * column itself). Added 2026-07-21, M6b Phase B5d-0. This is a superset of "MOVE of the entire
+	 * multi-column layout" (it also includes the normal case where only the last column MOVEs and
+	 * preceding columns stay). It has no effect on behavior (counter increment only).
 	 *
 	 * <p>
-	 * <b>退役条件(2026-07-24 E-5)</b>: 当初目的(B5d本実装の要否判断)は
-	 * 2026-07-22にclose済み(開発記録
-	 * -implementation-needed.md——実測0件+既存の{@code remainder ==
-	 * activeColumn}判定で正しく処理されることを確認)。現在の残置理由は
-	 * {@code ContainerCut.Plain}のsentinel(null/this)が層ごとに異なる
-	 * identity比較で解釈される現行挙動の観測(E-4で明文化、
-	 * {@code ContainerCut.Plain}のjavadoc参照)——Plain sentinelの
-	 * {@code Keep}/{@code Move}型化(legacy 3引数{@code Container
-	 * .splitPageAxis}契約の撤去と同時に行う)が完了したら、
-	 * {@link #COLUMNS_SPLIT_ATTEMPTS}および参照assert
-	 * ({@code ResumeTraceGoldenTest})ごと退役してよい。
+	 * <b>Retirement condition (2026-07-24 E-5)</b>: The original purpose (deciding whether to implement
+	 * B5d proper) was closed on 2026-07-22 (development record
+	 * -implementation-needed.md: zero observed cases, and the existing {@code remainder ==
+	 * activeColumn} check was confirmed to handle it correctly). It remains to observe the current
+	 * behavior in which {@code ContainerCut.Plain} sentinels (null/this) are interpreted by different
+	 * identity comparisons at each layer (documented in E-4; see the {@code ContainerCut.Plain}
+	 * Javadoc). Once Plain sentinels are typed as {@code Keep}/{@code Move} (together with removal of
+	 * the legacy three-argument {@code Container
+	 * .splitPageAxis} contract), it can be retired together with
+	 * {@link #COLUMNS_SPLIT_ATTEMPTS} and the referencing assertions
+	 * ({@code ResumeTraceGoldenTest}).
 	 * </p>
 	 */
 	public static final AtomicLong COLUMNS_LAST_COLUMN_MOVE_CANDIDATE = new AtomicLong();
 
 	/**
-	 * 直近の改段(COLUMN)で選択されたowner(改段対象box)の設定段数
-	 * (CSS {@code column-count}相当)を記録します(2026-07-21新設、
-	 * nested multicol owner選択のテスト観測用)。{@code
-	 * BreakableBuilder.findColumnBreak()}が最内側の{@code
-	 * canColumnBreak()}なownerを選ぶ既存挙動は変更していない——単に
-	 * 「実際にどのownerが選ばれたか」をテストから観測できるようにする
-	 * だけの計測。
+	 * Records the configured column count (equivalent to CSS {@code column-count}) of the owner
+	 * (box targeted by the column break) selected for the latest column break (COLUMN).
+	 * Added 2026-07-21 for test observation of nested multicol owner selection. The existing behavior
+	 * where {@code BreakableBuilder.findColumnBreak()} selects the innermost owner with
+	 * {@code canColumnBreak()} is unchanged; this instrumentation simply lets tests observe
+	 * "which owner was actually selected."
 	 */
 	public static final java.util.concurrent.atomic.AtomicInteger LAST_COLUMN_OWNER_COLUMN_COUNT = new java.util.concurrent.atomic.AtomicInteger(
 			-1);
 
-	/** チェーン末端の OpenTailShape 消費(prefix 吸収済み)。 */
+	/** Consumption of OpenTailShape at the chain end (prefix already absorbed). */
 	public static final AtomicLong OPEN_TAILS = new AtomicLong();
 
-	/** 収集不能な破断(チェーンなし)の全ボックス restyle。 */
+	/** Restyle of all boxes for an uncollectible break (no chain). */
 	public static final AtomicLong UNCHAINED_RESTYLES = new AtomicLong();
 
 	/**
-	 * open 段落の handoff(M3b Phase 1 のスライス運搬経由)。
-	 * Phase 2/3 で TextTail 型付き item へ移行する対象の実測。
+	 * Handoff of an open paragraph (via slice transport in M3b Phase 1).
+	 * Measures the cases to migrate to typed TextTail items in Phase 2/3.
 	 */
 	public static final AtomicLong OPEN_TEXT_HANDOFFS = new AtomicLong();
 
 	/**
-	 * PAGE(RootBuilder.pageBreak経由)のOpenTailShape深さの最大値
-	 * (0 = 開きボックスなし、1 = 開きテキストのみ、2+ = moved-open
-	 * 入れ子)。旧{@code MAX_OPEN_TAIL_DEPTH}はPAGE/COLUMNを混同していた
-	 * ため2026-07-21にCOLUMN側と分離した(ChatGPT Pro相談で判明:
-	 * {@code BreakableBuilder.columnBreak()}はPAGE側の深さガードを一切
-	 * 通らない別経路のため、両者を混同すると片方の異常が見えなくなる)。
+	 * Maximum OpenTailShape depth for PAGE (via RootBuilder.pageBreak)
+	 * (0 = no open boxes, 1 = open text only, 2+ = moved-open nesting).
+	 * The old {@code MAX_OPEN_TAIL_DEPTH} conflated PAGE/COLUMN, so COLUMN was separated on
+	 * 2026-07-21 (identified in a ChatGPT Pro consultation: {@code BreakableBuilder.columnBreak()}
+	 * uses a separate path that never passes through the PAGE depth guard; conflating them
+	 * hides anomalies in either path).
 	 */
 	public static final AtomicLong MAX_PAGE_OPEN_TAIL_DEPTH = new AtomicLong();
 
 	/**
-	 * COLUMN(BreakableBuilder.columnBreak経由、段組内の改段)の
-	 * OpenTailShape深さの最大値(2026-07-21新設)。
+	 * Maximum OpenTailShape depth for COLUMN (via BreakableBuilder.columnBreak,
+	 * a column break within multi-column layout). Added 2026-07-21.
 	 */
 	public static final AtomicLong MAX_COLUMN_OPEN_TAIL_DEPTH = new AtomicLong();
 
 	/**
-	 * 開いたままの祖先チェーン(moved-open)を{@code FlowContainer.restyle}が
-	 * ボックス再生(restyle-chain)で1段降りるたびに1加算します(2026-07-20、
-	 * M6b Phase B「切断ブロックチェーン」ソース再生化の可視化基盤=B0)。
-	 * ソース再生化が進むほどこの値は0に近づくべき値で、着手前の現状把握と、
-	 * 各段階での box-restyle 依存の縮小を実測するための発火カウンタです
-	 * (設計相談*.md参照)。
+	 * Increments by one each time {@code FlowContainer.restyle} descends one level of an open
+	 * ancestor chain (moved-open) by box replay (restyle-chain). Added 2026-07-20,
+	 * M6b Phase B: observation infrastructure B0 for converting the "split block chain" to source replay.
+	 * This value should approach zero as source replay progresses. This firing counter measures the
+	 * initial state and the reduction in box-restyle dependence at each stage
+	 * (see design consultation*.md).
 	 */
 	public static final AtomicLong RESTYLE_CHAIN_FIRINGS = new AtomicLong();
 
-	/** PAGE経路での{@link #RESTYLE_CHAIN_FIRINGS}(2026-07-21新設、B1)。 */
+	/** {@link #RESTYLE_CHAIN_FIRINGS} on the PAGE path (added 2026-07-21, B1). */
 	public static final AtomicLong PAGE_RESTYLE_CHAIN_FIRINGS = new AtomicLong();
 
-	/** COLUMN経路での{@link #RESTYLE_CHAIN_FIRINGS}(2026-07-21新設、B1)。 */
+	/** {@link #RESTYLE_CHAIN_FIRINGS} on the COLUMN path (added 2026-07-21, B1). */
 	public static final AtomicLong COLUMN_RESTYLE_CHAIN_FIRINGS = new AtomicLong();
 
 	/**
-	 * worklist executorの{@code descendWorklist}が、OpenChain降下先の
-	 * box/container組み合わせをframe/scopeとして表現できず、多態的な
-	 * {@code containerBox.restyle(builder, inner)}互換フォールバックへ
-	 * 落ちた回数です(2026-07-30新設、増分0。増分4fで
-	 * 旧{@code WORKLIST_RECURSIVE_FALLBACKS}から改名——旧driver撤去後は
-	 * 「再帰driverへの退避」ではなく「未知型の互換経路」の意味)。
-	 * 既知の全型(FlowBlockBox配下のFlowContainer/ColumnsContainer)で
-	 * 常時0を固定し、将来の新しいコンテナ型が黙ってこの経路へ入ることを
-	 * 検出する(初回のみWARNINGログも出る)。
+	 * Number of times the worklist executor's {@code descendWorklist} cannot represent the
+	 * box/container combination at an OpenChain descent target as a frame/scope and falls back to
+	 * the polymorphic {@code containerBox.restyle(builder, inner)} compatibility path.
+	 * Added 2026-07-30, increment 0. Renamed from {@code WORKLIST_RECURSIVE_FALLBACKS} in increment 4f:
+	 * after removal of the old driver, this means "compatibility path for an unknown type," rather
+	 * than "fallback to the recursive driver." Tests require zero for all known types
+	 * (FlowContainer/ColumnsContainer under FlowBlockBox) and detect any future new container type
+	 * silently entering this path (a WARNING is also logged on the first occurrence).
 	 *
 	 * <p>
-	 * なお旧{@code LEGACY_RECURSIVE_DESCENTS}(旧再帰driverの発火数)は
-	 * 増分4fで削除した——producerである{@code RECURSIVE_DESCENDER}自体が
-	 * 物理撤去され、常時0の定数と化したため(撤去の証明過程は
-	 * 設計相談*.txtと
-	 * {@code WorklistDescentCensusTest}の履歴に残る)。
+	 * The old {@code LEGACY_RECURSIVE_DESCENTS} (firing count of the old recursive driver) was deleted
+	 * in increment 4f because its producer, {@code RECURSIVE_DESCENDER}, was physically removed,
+	 * making the counter a constant zero (the removal proof remains in
+	 * design consultation*.txt and the history of {@code WorklistDescentCensusTest}).
 	 * </p>
 	 */
 	public static final AtomicLong WORKLIST_COMPAT_FALLBACKS = new AtomicLong();
 
 	/**
-	 * worklist driverがMULTICOL境界を再帰なしのnative scope
-	 * ({@code FlowContainer.MulticolRestyleScope})として降下した回数です
-	 * (2026-07-30新設、増分1)。native化の非空振り証明
-	 * (「テストが実際にこの経路を通った」ことの確認)に使う。
+	 * Number of times the worklist driver descends a MULTICOL boundary as a nonrecursive native
+	 * scope ({@code FlowContainer.MulticolRestyleScope}). Added 2026-07-30, increment 1.
+	 * Used to prove that the native path is exercised ("the test actually passed through this path").
 	 */
 	public static final AtomicLong MULTICOL_NATIVE_DESCENTS = new AtomicLong();
 
 	/**
-	 * 現在の継続経路(PAGE/COLUMN)を追跡するスタックです(2026-07-21、B1)。
-	 * {@link ResumeTrace#begin(String)}と同じ「入れ子破断はスタックで
-	 * 表現する」設計だが、こちらはデバッグ用プロパティに関わらず常に
-	 * 有効(観測カウンタの分類に使うため)。
+	 * Stack tracking the current continuation path (PAGE/COLUMN). Added 2026-07-21, B1.
+	 * Like {@link ResumeTrace#begin(String)}, it represents nested breaks with a stack,
+	 * but it is always enabled regardless of debug properties (to classify observation counters).
 	 *
 	 * <p>
-	 * 2026-07-24(アーキテクチャレビュー指摘): staticな単一Dequeだと
-	 * 複数変換の並行実行でpush/popが混線し、誤集計だけでなく空Dequeの
-	 * {@code pop()}例外で変換を落とし得るため、ThreadLocalへ変更した
-	 * (クラッシュ排除は絶対要件)。
+	 * 2026-07-24 (architecture review finding): Changed to ThreadLocal because a single static Deque
+	 * mixes push/pop operations across concurrent conversions, causing incorrect counts and potentially
+	 * failing conversions with {@code pop()} on an empty Deque (preventing crashes is an absolute requirement).
 	 * </p>
 	 */
 	private static final ThreadLocal<ArrayDeque<Boolean>> continuationPathStack = ThreadLocal
 			.withInitial(ArrayDeque::new);
 
 	/**
-	 * 継続経路の追跡を開始します。{@code RootBuilder.ResumeSession.resume()}・
-	 * {@code BreakableBuilder.columnBreak()}がtry/finallyで対応する
-	 * {@link #endContinuationPath()}と対にして呼びます。
+	 * Starts tracking a continuation path. {@code RootBuilder.ResumeSession.resume()} and
+	 * {@code BreakableBuilder.columnBreak()} pair this with {@link #endContinuationPath()}
+	 * using try/finally.
 	 *
-	 * @param column true なら改段(COLUMN)経路、false なら改ページ(PAGE)経路
+	 * @param column true for the column-break (COLUMN) path, false for the page-break (PAGE) path
 	 */
 	public static void beginContinuationPath(final boolean column) {
 		continuationPathStack.get().push(column);
 	}
 
-	/** {@link #beginContinuationPath(boolean)}に対応する終了。 */
+	/** Ends tracking started by {@link #beginContinuationPath(boolean)}. */
 	public static void endContinuationPath() {
 		continuationPathStack.get().pop();
 	}
@@ -178,9 +171,9 @@ public final class ContinuationStats {
 	}
 
 	/**
-	 * {@code FlowContainer.restyle}のOpenChain分岐が1段降りるたびに
-	 * 呼びます。{@link #RESTYLE_CHAIN_FIRINGS}に加え、現在の継続経路
-	 * (PAGE/COLUMN)に応じた分離カウンタも加算します。
+	 * Called each time the OpenChain branch of {@code FlowContainer.restyle} descends one level.
+	 * Increments {@link #RESTYLE_CHAIN_FIRINGS} and the separate counter for the current
+	 * continuation path (PAGE/COLUMN).
 	 */
 	public static void recordChainFiring() {
 		RESTYLE_CHAIN_FIRINGS.incrementAndGet();
@@ -188,118 +181,118 @@ public final class ContinuationStats {
 	}
 
 	/**
-	 * worklist executorが互換フォールバックへ落ちる直前に呼びます
-	 * ({@link #WORKLIST_COMPAT_FALLBACKS}参照)。
+	 * Called immediately before the worklist executor enters the compatibility fallback
+	 * (see {@link #WORKLIST_COMPAT_FALLBACKS}).
 	 */
 	public static void recordWorklistCompatFallback() {
 		WORKLIST_COMPAT_FALLBACKS.incrementAndGet();
 	}
 
 	/**
-	 * worklist driverがMULTICOL境界をnative scopeとして降下する直前に
-	 * 呼びます({@link #MULTICOL_NATIVE_DESCENTS}参照)。
+	 * Called immediately before the worklist driver descends a MULTICOL boundary as a native scope
+	 * (see {@link #MULTICOL_NATIVE_DESCENTS}).
 	 */
 	public static void recordMulticolNativeDescent() {
 		MULTICOL_NATIVE_DESCENTS.incrementAndGet();
 	}
 
-	/** {@code ColumnsContainer.splitPageAxis}の試行回数です(M6c-1でAPI集約)。 */
+	/** Number of {@code ColumnsContainer.splitPageAxis} attempts (API consolidated in M6c-1). */
 	public static void recordColumnsSplitAttempt() {
 		COLUMNS_SPLIT_ATTEMPTS.incrementAndGet();
 	}
 
-	/** 複数カラム時に最終カラム全体がMOVE候補になった回数です(M6c-1でAPI集約)。 */
+	/** Number of times the entire last column is a MOVE candidate with multiple columns (API consolidated in M6c-1). */
 	public static void recordLastColumnMoveCandidate() {
 		COLUMNS_LAST_COLUMN_MOVE_CANDIDATE.incrementAndGet();
 	}
 
 	/**
-	 * {@code LayoutSource}のイベントリスト保持数(compact前の最大)の
-	 * high-waterです(2026-07-24新設、E-6増分1: spillableテープ基盤の
-	 * spill閾値・対象選定の実測基盤。挙動には影響しない)。
+	 * High-water mark of the number of retained {@code LayoutSource} events (maximum before compact).
+	 * Added 2026-07-24, E-6 increment 1: measurements for selecting spill thresholds and targets
+	 * for the spillable tape infrastructure. Does not affect behavior.
 	 */
 	public static final AtomicLong SOURCE_EVENT_HIGH_WATER = new AtomicLong();
 
-	/** LayoutSourceのイベント保持数の観測です(E-6増分1、最大値を保持)。 */
+	/** Observes the number of retained LayoutSource events (E-6 increment 1; retains the maximum). */
 	public static void recordSourceEventRetention(final int size) {
 		SOURCE_EVENT_HIGH_WATER.accumulateAndGet(size, Math::max);
 	}
 
 	/**
-	 * {@code LayoutSource}のinline text payload保持量(bytes、UTF-16
-	 * 見積り=char数×2)のhigh-waterです(2026-07-24新設、E-6増分3b-2)。
-	 * spill予算({@code processing.text-spill-budget})が守られている
-	 * こと(この値≦予算)を耐久試験の合格条件が読む。
+	 * High-water mark of retained inline text payload in {@code LayoutSource}
+	 * (bytes; UTF-16 estimate = character count × 2). Added 2026-07-24, E-6 increment 3b-2.
+	 * Endurance test acceptance checks use this to verify that the spill budget
+	 * ({@code processing.text-spill-budget}) is respected (this value ≦ budget).
 	 */
 	public static final AtomicLong LIVE_TEXT_PAYLOAD_BYTES = new AtomicLong();
 
-	/** text payloadのspill record数です(E-6増分3b-2)。 */
+	/** Number of text payload spill records (E-6 increment 3b-2). */
 	public static final AtomicLong SPILLED_TEXT_RECORDS = new AtomicLong();
 
-	/** text payloadのspill済みbytes総量です(E-6増分3b-2)。 */
+	/** Total bytes of spilled text payload (E-6 increment 3b-2). */
 	public static final AtomicLong SPILLED_TEXT_BYTES = new AtomicLong();
 
-	/** inline text payload保持量の観測です(E-6増分3b-2、最大値を保持)。 */
+	/** Observes retained inline text payload (E-6 increment 3b-2; retains the maximum). */
 	public static void recordLiveTextPayloadBytes(final long bytes) {
 		LIVE_TEXT_PAYLOAD_BYTES.accumulateAndGet(bytes, Math::max);
 	}
 
-	/** text payloadのspill発火の観測です(E-6増分3b-2)。 */
+	/** Observes text payload spills (E-6 increment 3b-2). */
 	public static void recordTextSpill(final long bytes) {
 		SPILLED_TEXT_RECORDS.incrementAndGet();
 		SPILLED_TEXT_BYTES.addAndGet(bytes);
 	}
 
-	// ---- E-6増分4a/4b(2026-07-24): TwoPass range化の発火カウンタ群 ----
+	// ---- E-6 increment 4a/4b (2026-07-24): firing counters for TwoPass range conversion ----
 
 	/**
-	 * {@code TwoPassBlockBuilder}のbindが{@code SourceRangeBody}
-	 * (LayoutSource範囲のSegmentExecutor再駆動)で行われた回数です
-	 * (2026-07-24新設、E-6増分4a/4b)。
+	 * Number of {@code TwoPassBlockBuilder} binds performed with {@code SourceRangeBody}
+	 * (rerunning SegmentExecutor over a LayoutSource range).
+	 * Added 2026-07-24, E-6 increment 4a/4b.
 	 */
 	public static final AtomicLong RANGE_FIRST_BINDS = new AtomicLong();
 
 	/**
-	 * 表外float/absolute/inline-blockの録画完了(close)時sealが適格で、
-	 * {@code SourceRangeBody}へ切り替わった回数です(E-6増分4a/4b)。
-	 * 不適格の内訳は{@link #twoPassSealRejects(TwoPassSealReject)}。
+	 * Number of times sealing at recording completion (close) of a float/absolute/inline-block outside
+	 * a table is eligible and switches to {@code SourceRangeBody} (E-6 increment 4a/4b).
+	 * See {@link #twoPassSealRejects(TwoPassSealReject)} for the rejection breakdown.
 	 */
 	public static final AtomicLong TWO_PASS_SEALS_ELIGIBLE = new AtomicLong();
 
 	/**
-	 * 表キャプションがOpaque(再生不能)として記録された回数です
-	 * (caption recipe化C0の観測、2026-08-01——
-	 * consult-codex-2026-08-01-caption-recipe.txt。C1のrecipe記録化で
-	 * 0になるべき値。これを含む親範囲はcontainsOpaqueで不適格になる
-	 * ——legacy残23件のうちTOPLEVEL 10件の原因)。
+	 * Number of times a table caption is recorded as Opaque (not replayable).
+	 * Observation for caption recipe conversion C0, 2026-08-01:
+	 * consult-codex-2026-08-01-caption-recipe.txt. This should become zero with recipe recording in C1.
+	 * A parent range containing this becomes ineligible due to containsOpaque;
+	 * this caused the 10 TOPLEVEL cases among the 23 remaining legacy cases.
 	 */
 	public static final AtomicLong CAPTION_OPAQUE_RECORDS = new AtomicLong();
 
 	/**
-	 * キャプションStartが再生範囲の根(または表文脈なし)として拒否された
-	 * 回数です(C2のcontext-completeゲート——C0時点では常に0)。
+	 * Number of times a caption Start is rejected as the root of a replay range (or without a table context).
+	 * C2 context-complete gate; always zero at C0.
 	 */
 	public static final AtomicLong CAPTION_ROOT_REJECTS = new AtomicLong();
 
 	/**
-	 * キャプションを含む範囲が表文脈確立済みとして受理された回数です
-	 * (C2——C0時点では常に0)。
+	 * Number of times a range containing a caption is accepted with an established table context
+	 * (C2; always zero at C0).
 	 */
 	public static final AtomicLong CAPTION_CONTEXT_ACCEPTS = new AtomicLong();
 
-	/** TwoPassのseal不適格。呼び出し側は不変条件例外で変換を失敗させる。 */
+	/** Ineligible TwoPass seal. The caller fails conversion with an invariant exception. */
 	public enum TwoPassSealReject {
-		/** 主ソースまたはページ文脈がない。 */
+		/** Missing primary source or page context. */
 		NO_SOURCE,
-		/** アンカー・終端がない、または空範囲に計測内容がある。 */
+		/** Missing anchor/end, or an empty range with measured content. */
 		NO_RANGE,
-		/** recipeで再生できないイベントまたは表文脈がある。 */
+		/** An event or table context cannot be replayed from a recipe. */
 		OPAQUE_RANGE,
-		/** 範囲内の絶対配置と排他所有の証明が一致しない。 */
+		/** Absolute positioning in the range does not match the proof of exclusive ownership. */
 		ABSOLUTE_RANGE,
-		/** 子または実行計画の所有を親範囲へ移せない。 */
+		/** Cannot transfer ownership of a child or execution plan to the parent range. */
 		NESTED_BUILDER,
-		/** 範囲がcompact等で欠落している。 */
+		/** The range is missing due to compact or a similar operation. */
 		RANGE_NOT_INTACT
 	}
 
@@ -311,37 +304,37 @@ public final class ContinuationStats {
 		}
 	}
 
-	/** 範囲censusの根の分類。 */
+	/** Root categories for the range census. */
 	public enum TwoPassRootKind {
 		TOPLEVEL, NESTED, GRID_ITEM, FLEX_ITEM, INCREMENTAL_CELL, INCREMENTAL_CAPTION,
 		RETAINED_CELL, RETAINED_CAPTION
 	}
 
-	/** BINDは範囲再生の総数に対応する。他は補助観測。 */
+	/** BIND corresponds to the total number of range replays. Others are supplementary observations. */
 	public enum TwoPassCensusEvent {
 		BIND, SEAL, MEASURE_RANGE, EMPTY_BIND
 	}
 
-	/** Grid/Flex項目の構築種別。NONEは項目以外。 */
+	/** Construction type of a Grid/Flex item. NONE denotes a non-item. */
 	public enum TwoPassItemKind { NONE, ANONYMOUS, TAKEOVER, ELEMENT }
 
-	/** 文書名は試験側でreset/snapshotの単位に付ける。barrierReasonのnullはNONE。 */
+	/** Tests assign document names per reset/snapshot unit. A null barrierReason means NONE. */
 	public record TwoPassCensusKey(TwoPassRootKind rootKind,
 			boolean sealAttempted, String sealOutcome, boolean measurement, BarrierReason barrierReason,
 			TwoPassItemKind itemKind) {
 	}
 
 	/**
-	 * 全域の census(既存の AtomicLong カウンタと同じく static)。DirectSession の変換は
-	 * 試験とは別スレッドで走るので ThreadLocal では計上が届かない(2026-09-05 実測: 0 件)。
-	 * 同時に 1 つの census しか開けない。
+	 * Global census (static, like the existing AtomicLong counters). DirectSession conversions run on
+	 * a separate thread from tests, so ThreadLocal cannot deliver counts (observed 2026-09-05: zero).
+	 * Only one census can be open at a time.
 	 */
 	private static volatile TwoPassCensus twoPassCensus;
 
 	/**
-	 * 文書単位の範囲クロス集計。試験が明示的に開始した期間だけ有効。
-	 * 通常変換ではmap/タグ/文字列を作らず、ログの追加走査もしない。
-	 * 従来のAtomicLongカウンタを変更せず、同じ計上点で独立に突き合わせる。
+	 * Per-document range cross-tabulation. Enabled only during a period explicitly started by a test.
+	 * Normal conversions create no maps/tags/strings and perform no extra log scans.
+	 * Cross-checks independently at the same counting points without changing existing AtomicLong counters.
 	 */
 	public static final class TwoPassCensus implements AutoCloseable {
 		private final Map<TwoPassCensusEvent, Map<TwoPassCensusKey, AtomicLong>> counts = new EnumMap<>(
@@ -370,7 +363,7 @@ public final class ContinuationStats {
 		}
 	}
 
-	/** 同期DirectSession変換を囲む。文書ごとに既存のreset()を呼ぶ。 */
+	/** Surrounds a synchronous DirectSession conversion. Calls the existing reset() for each document. */
 	public static TwoPassCensus beginTwoPassCensus() {
 		if (twoPassCensus != null) {
 			throw new IllegalStateException("TwoPass census is already active");
@@ -380,7 +373,7 @@ public final class ContinuationStats {
 		return census;
 	}
 
-	/** 再生意図に対応するcensusのphaseスコープ。本体の伝播はReplayIntentが担います。 */
+	/** Census phase scope corresponding to replay intent. ReplayIntent propagates the intent itself. */
 	public static final class TwoPassMeasurement implements AutoCloseable {
 		private final TwoPassCensus census;
 		private final boolean previous;
@@ -402,7 +395,7 @@ public final class ContinuationStats {
 		return census == null ? null : new TwoPassMeasurement(census, intent);
 	}
 
-	/** builderからDeferredBindへ引き継ぐ診断タグ。箱・ログは保持しない。 */
+	/** Diagnostic tag passed from builder to DeferredBind. Retains no boxes or logs. */
 	public static final class TwoPassCensusTag {
 		private final TwoPassCensus census;
 		private TwoPassRootKind rootKind = TwoPassRootKind.TOPLEVEL;
@@ -442,187 +435,186 @@ public final class ContinuationStats {
 		return census == null ? null : new TwoPassCensusTag(census);
 	}
 
-	/** range bind(SourceRangeBody)の発火の集計です(E-6増分4a/4b)。 */
+	/** Counts range bind (SourceRangeBody) firings (E-6 increment 4a/4b). */
 	public static void recordTwoPassRangeBind() {
 		RANGE_FIRST_BINDS.incrementAndGet();
 	}
 
 	/**
-	 * 空本文sealの回数です(DP増分2、
-	 * 2026-07-30)。ソース範囲も計測内容も空のビルダーがclose時に
-	 * {@code ReplayBody.Empty}へ切り替わった回数。
+	 * Number of empty-body seals (DP increment 2, 2026-07-30).
+	 * Number of builders with both an empty source range and no measured content that switch
+	 * to {@code ReplayBody.Empty} on close.
 	 */
 	public static final AtomicLong TWO_PASS_EMPTY_SEALS = new AtomicLong();
 
-	/** 空本文bind(no-op)の回数です(DP増分2)。 */
+	/** Number of empty-body binds (no-op; DP increment 2). */
 	public static final AtomicLong TWO_PASS_EMPTY_BINDS = new AtomicLong();
 
 	/**
-	 * seal済み(適格計上済み)ビルダーが親のrange化に吸収され、bindされずに
-	 * リースを手放した回数です(DP増分3、2026-07-30)。seal:bind 1:1検出の
-	 * T1の収支観測は{@code TWO_PASS_SEALS_ELIGIBLE == TWO_PASS_RANGES_CONSUMED +
-	 * TWO_PASS_SEALS_SUBSUMED + TWO_PASS_SEALS_ABANDONED}。保証はハンドルの状態機械が担う。
+	 * Number of sealed (already counted as eligible) builders absorbed into the parent's range conversion,
+	 * releasing their lease without binding (DP increment 3, 2026-07-30). T1 accounting for detecting
+	 * a 1:1 seal:bind ratio observes {@code TWO_PASS_SEALS_ELIGIBLE == TWO_PASS_RANGES_CONSUMED +
+	 * TWO_PASS_SEALS_SUBSUMED + TWO_PASS_SEALS_ABANDONED}. The handle state machine enforces the guarantee.
 	 */
 	public static final AtomicLong TWO_PASS_SEALS_SUBSUMED = new AtomicLong();
 
-	/** ハンドルが本配置で消費された数。例外による消費も含む収支観測です。 */
+	/** Number of handles consumed in actual layout. Accounting includes consumption through exceptions. */
 	public static final AtomicLong TWO_PASS_RANGES_CONSUMED = new AtomicLong();
 
-	/** 主ソースを持たない独立イベント再生の回数です。 */
+	/** Number of independent event replays without a primary source. */
 	public static final AtomicLong TWO_PASS_REPLAY_ONLY_BINDS = new AtomicLong();
 
-	/** 再生せず破棄したハンドル数。一時計測で取得した本文も含みます。 */
+	/** Number of handles discarded without replay. Includes bodies acquired during temporary measurement. */
 	public static final AtomicLong TWO_PASS_SEALS_ABANDONED = new AtomicLong();
 
-	/** 破棄したハンドルのうち表セルの数です。 */
+	/** Number of table cells among discarded handles. */
 	public static final AtomicLong CELL_RANGE_SEALS_ABANDONED = new AtomicLong();
 
-	/** 親range化への吸収の集計です(DP増分3)。 */
+	/** Counts absorption into the parent's range conversion (DP increment 3). */
 	public static void recordTwoPassSealSubsumed() {
 		TWO_PASS_SEALS_SUBSUMED.incrementAndGet();
 	}
 
 	/**
-	 * seal済み表セル(CELL_RANGE_SEALS計上済み)が親のrange化に吸収され、
-	 * bindされずにリースを手放した回数です(表吸収=codex増分5、
-	 * 2026-07-30)。セル側のリース収支の完了条件は
+	 * Number of sealed table cells (already counted in CELL_RANGE_SEALS) absorbed into the parent's
+	 * range conversion, releasing their lease without binding (table absorption = codex increment 5,
+	 * 2026-07-30). Completion of cell lease accounting is observed as
 	 * {@code CELL_RANGE_SEALS == CELL_RANGE_BINDS +
-	 * CELL_RANGE_SEALS_SUBSUMED + CELL_RANGE_SEALS_ABANDONED}として観測する。
+	 * CELL_RANGE_SEALS_SUBSUMED + CELL_RANGE_SEALS_ABANDONED}.
 	 */
 	public static final AtomicLong CELL_RANGE_SEALS_SUBSUMED = new AtomicLong();
 
-	/** 表セルseal吸収の集計です(表吸収=codex増分5)。 */
+	/** Counts absorbed table cell seals (table absorption = codex increment 5). */
 	public static void recordCellRangeSealSubsumed() {
 		CELL_RANGE_SEALS_SUBSUMED.incrementAndGet();
 	}
 
-	/** 空本文sealの集計です(DP増分2)。 */
+	/** Counts empty-body seals (DP increment 2). */
 	public static void recordTwoPassEmptySeal() {
 		TWO_PASS_EMPTY_SEALS.incrementAndGet();
 	}
 
-	/** 空本文bind(no-op)の集計です(DP増分2)。 */
+	/** Counts empty-body binds (no-op; DP increment 2). */
 	public static void recordTwoPassEmptyBind() {
 		TWO_PASS_EMPTY_BINDS.incrementAndGet();
 	}
 
-	/** seal適格の集計です(E-6増分4a/4b)。 */
+	/** Counts eligible seals (E-6 increment 4a/4b). */
 	public static void recordTwoPassSealEligible() {
 		TWO_PASS_SEALS_ELIGIBLE.incrementAndGet();
 	}
 
-	/** seal不適格(理由つき)の集計です(E-6増分4a/4b)。 */
+	/** Counts ineligible seals with reasons (E-6 increment 4a/4b). */
 	public static void recordTwoPassSealReject(final TwoPassSealReject reason) {
 		TWO_PASS_SEAL_REJECTS.get(reason).incrementAndGet();
 	}
 
-	// ---- E-6増分5a(2026-07-24): 表セル(CellContent)range化の発火カウンタ群 ----
+	// ---- E-6 increment 5a (2026-07-24): firing counters for table cell (CellContent) range conversion ----
 
 	/**
-	 * Retained表のセルclose時sealが適格で、{@code CellContent}が
-	 * 「IntrinsicSizes数値+SourceRange(+lease)」保持へ切り替わった回数
-	 * です(2026-07-24新設、E-6増分5a)。セルのsealは
-	 * {@code TwoPassBlockBuilder.sealBodyForRangeBind}を経由するため、
-	 * この値は{@link #TWO_PASS_SEALS_ELIGIBLE}の部分集合。不適格の内訳も
-	 * 同じ{@link #twoPassSealRejects(TwoPassSealReject)}に計上される。
+	 * Number of times a Retained table cell's seal at close is eligible and {@code CellContent}
+	 * switches to retaining "IntrinsicSizes values + SourceRange (+lease)"
+	 * (added 2026-07-24, E-6 increment 5a). Cell sealing goes through
+	 * {@code TwoPassBlockBuilder.sealBodyForRangeBind}, so this is a subset of
+	 * {@link #TWO_PASS_SEALS_ELIGIBLE}. The rejection breakdown is also counted in the same
+	 * {@link #twoPassSealRejects(TwoPassSealReject)}.
 	 */
 	public static final AtomicLong CELL_RANGE_SEALS = new AtomicLong();
 
 	/**
-	 * seal済みセルのbind(列幅確定後のSegmentExecutor範囲駆動)の回数です
-	 * (E-6増分5a)。{@link #RANGE_FIRST_BINDS}の部分集合。リース1:1検出
-	 * (取り残しはcompactを永久にclampする)のため、
-	 * {@link #CELL_RANGE_SEALS}と常に一致しなければならない——
-	 * DisplayListGoldenTestが固定する。
+	 * Number of sealed cell binds (SegmentExecutor range execution after column widths are finalized)
+	 * (E-6 increment 5a). A subset of {@link #RANGE_FIRST_BINDS}. To detect a 1:1 lease ratio
+	 * (leaks permanently clamp compact), this must always equal {@link #CELL_RANGE_SEALS};
+	 * DisplayListGoldenTest enforces this.
 	 */
 	public static final AtomicLong CELL_RANGE_BINDS = new AtomicLong();
 
-	/** セルrange sealの集計です(E-6増分5a)。 */
+	/** Counts cell range seals (E-6 increment 5a). */
 	public static void recordCellRangeSeal() {
 		CELL_RANGE_SEALS.incrementAndGet();
 	}
 
-	/** seal済みセルのrange bindの集計です(E-6増分5a)。 */
+	/** Counts range binds of sealed cells (E-6 increment 5a). */
 	public static void recordCellRangeBind() {
 		CELL_RANGE_BINDS.incrementAndGet();
 	}
 
-	// ---- E-6増分5b-2(2026-07-24): 表Pass C(行単位逐次bind)の発火カウンタ群 ----
+	// ---- E-6 increment 5b-2 (2026-07-24): firing counters for table Pass C (sequential row binds) ----
 
 	/**
-	 * Retained表のbindRowsがPass B/C(全セルscratch計測→行高確定→行単位
-	 * 逐次bind)で走った表の数です(2026-07-24新設、E-6増分5b-2)。適格条件は
-	 * 表単位のfail closed——全実セルがrange化(またはEmpty)済み・
-	 * キャプションなし・全セルが計測複製可能({@code
-	 * RetainedTableBuilder.isRowSequentialBindEligible})。
+	 * Number of Retained tables whose bindRows runs Pass B/C (scratch measurement of all cells →
+	 * finalize row heights → sequential row binds). Added 2026-07-24, E-6 increment 5b-2.
+	 * Eligibility fails closed per table: all real cells are converted to ranges (or Empty),
+	 * there are no captions, and all cells can be cloned for measurement
+	 * ({@code RetainedTableBuilder.isRowSequentialBindEligible}).
 	 */
 	public static final AtomicLong TABLE_PASS_C_TABLES = new AtomicLong();
 
 	/**
-	 * 不適格でbindRows従来経路(行高計算前の全セル一括bind)へフォール
-	 * バックしたRetained表の数です(E-6増分5b-2。適格率の分母側)。
+	 * Number of ineligible Retained tables falling back to the conventional bindRows path
+	 * (batch bind of all cells before row-height calculation).
+	 * E-6 increment 5b-2; contributes to the eligibility-rate denominator.
 	 */
 	public static final AtomicLong TABLE_LEGACY_BINDROWS = new AtomicLong();
 
 	/**
-	 * Pass B(行計測)のscratch計測の発火数です(E-6増分5b-2)。Pass C表では
-	 * 行高計算はこの計測値だけを読み、bind済みセル本文木は1つも存在しない
-	 * (計測木は値の採取後に破棄)——「Pass B中のセル本文木保持ゼロ」の
-	 * 観測指標。RetentionHighWaterReportTestが実セル規模での発火を固定する。
+	 * Number of scratch measurements in Pass B (row measurement), E-6 increment 5b-2.
+	 * In a Pass C table, row heights read only these measurements, and no bound cell body trees exist
+	 * (measurement trees are discarded after collecting values). This observes "zero cell body trees
+	 * retained during Pass B." RetentionHighWaterReportTest verifies firings at real-cell scale.
 	 */
 	public static final AtomicLong TABLE_PASS_B_CELL_MEASURES = new AtomicLong();
 
-	/** Pass B/C経路で処理された表の集計です(E-6増分5b-2)。 */
+	/** Counts tables processed by the Pass B/C path (E-6 increment 5b-2). */
 	public static void recordTablePassC() {
 		TABLE_PASS_C_TABLES.incrementAndGet();
 	}
 
-	/** 従来bindRows経路へフォールバックした表の集計です(E-6増分5b-2)。 */
+	/** Counts tables falling back to the conventional bindRows path (E-6 increment 5b-2). */
 	public static void recordTableLegacyBindRows() {
 		TABLE_LEGACY_BINDROWS.incrementAndGet();
 	}
 
-	/** Pass Bのセルscratch計測の集計です(E-6増分5b-2)。 */
+	/** Counts Pass B cell scratch measurements (E-6 increment 5b-2). */
 	public static void recordTablePassBCellMeasure() {
 		TABLE_PASS_B_CELL_MEASURES.incrementAndGet();
 	}
 
-	/** {@code reason}によるseal不適格の回数です(E-6増分4a/4b)。 */
+	/** Number of seal rejections for {@code reason} (E-6 increment 4a/4b). */
 	public static long twoPassSealRejects(final TwoPassSealReject reason) {
 		return TWO_PASS_SEAL_REJECTS.get(reason).get();
 	}
 
-	/** open textのスライス運搬(M3b)の発火回数です(M6c-1でAPI集約)。 */
+	/** Number of open text slice transports (M3b; API consolidated in M6c-1). */
 	public static void recordOpenTextHandoff() {
 		OPEN_TEXT_HANDOFFS.incrementAndGet();
 	}
 
-	/** 改段時のowner段数の観測です(M6c-1でAPI集約)。 */
+	/** Observes the owner's column count at a column break (API consolidated in M6c-1). */
 	public static void recordLastColumnOwnerColumnCount(final int columnCount) {
 		LAST_COLUMN_OWNER_COLUMN_COUNT.set(columnCount);
 	}
 
-	/** チェーン子フレーム(Child)消費の集計です(M6c-1でAPI集約)。 */
+	/** Counts chain child frame (Child) consumption (API consolidated in M6c-1). */
 	public static void recordChildFrame() {
 		CHILD_FRAMES.incrementAndGet();
 	}
 
-	/** チェーン外restyleの集計です(M6c-1でAPI集約)。 */
+	/** Counts restyles outside chains (API consolidated in M6c-1). */
 	public static void recordUnchainedRestyle() {
 		UNCHAINED_RESTYLES.incrementAndGet();
 	}
 
-	/** open tail消費の集計です(M6c-1でAPI集約)。 */
+	/** Counts open tail consumption (API consolidated in M6c-1). */
 	public static void recordOpenTail() {
 		OPEN_TAILS.incrementAndGet();
 	}
 
 	/**
-	 * {@code RootBuilder.pageBreak()}の収集可能プレフィックススキャンが
-	 * 各レベルをどう分類したかの集計です(2026-07-21新設、B1)。
-	 * {@link ContinuationCapability#PLAIN_FLOW}はスキャンを継続させる
-	 * ため通常ここには現れず、スキャンを<b>停止させた</b>理由(または
-	 * チェーンが尽きるまで停止しなかった場合の空)を数える。
+	 * Counts how the collectible prefix scan in {@code RootBuilder.pageBreak()} classifies
+	 * each level (added 2026-07-21, B1). {@link ContinuationCapability#PLAIN_FLOW} normally
+	 * does not appear here because it continues the scan. Counts reasons that <b>stop</b> the scan
+	 * (or empty if the scan never stops before exhausting the chain).
 	 */
 	private static final Map<ContinuationCapability, AtomicLong> CAPABILITY_SCAN_STOPS = new EnumMap<>(
 			ContinuationCapability.class);
@@ -632,24 +624,24 @@ public final class ContinuationStats {
 		}
 	}
 
-	/** {@code reason}によってプレフィックススキャンが停止した回数。 */
+	/** Number of times {@code reason} stops the prefix scan. */
 	public static long capabilityScanStops(final ContinuationCapability reason) {
 		return CAPABILITY_SCAN_STOPS.get(reason).get();
 	}
 
-	/** スキャン停止理由を記録します(常に{@code PLAIN_FLOW}以外)。 */
+	/** Records a scan stop reason (always other than {@code PLAIN_FLOW}). */
 	public static void recordCapabilityScanStop(final ContinuationCapability reason) {
 		CAPABILITY_SCAN_STOPS.get(reason).incrementAndGet();
 	}
 
 	/**
-	 * COLUMN継続の相対open pathスキャンが各レベルをどう分類したかの集計
-	 * です(2026-07-21新設、M6b Phase B4-Step3。2026-07-25時点で配線済み)。{@link
-	 * #CAPABILITY_SCAN_STOPS}/{@link #capabilityScanStops}はPAGE専用の
-	 * カウンタである(名前は汎用的だが、現状PAGE側からしか呼ばれない)ため、
-	 * COLUMN側は別カウンタにする——同一文書がPAGE/COLUMN両方の継続経路を
-	 * 持つことは普通にあり(段組内部の改段等)、共有カウンタにすると
-	 * 既存のPAGE専用テストの期待値がCOLUMN分の寄与で狂ってしまう。
+	 * Counts how the relative open path scan for COLUMN continuation classifies each level
+	 * (added 2026-07-21, M6b Phase B4-Step3; wired as of 2026-07-25).
+	 * {@link #CAPABILITY_SCAN_STOPS}/{@link #capabilityScanStops} are PAGE-only counters
+	 * (despite their generic names, only the PAGE side currently calls them), so COLUMN uses
+	 * separate counters. A single document commonly has both PAGE and COLUMN continuation paths
+	 * (e.g., column breaks within multi-column layout); shared counters would let COLUMN
+	 * contributions invalidate the expectations of existing PAGE-only tests.
 	 */
 	private static final Map<ContinuationCapability, AtomicLong> COLUMN_CAPABILITY_SCAN_STOPS = new EnumMap<>(
 			ContinuationCapability.class);
@@ -659,41 +651,39 @@ public final class ContinuationStats {
 		}
 	}
 
-	/** COLUMN側のスキャン停止理由を記録します(常に{@code PLAIN_FLOW}以外)。 */
+	/** Records a COLUMN scan stop reason (always other than {@code PLAIN_FLOW}). */
 	public static void recordColumnCapabilityScanStop(final ContinuationCapability reason) {
 		COLUMN_CAPABILITY_SCAN_STOPS.get(reason).incrementAndGet();
 	}
 
 
 	/**
-	 * <b>進捗のない自動改ページ</b>の連続回数の最大値です(2026-07-27新設)。
-	 * 「同じ状態のまま改ページだけが繰り返される」ライブロックの観測値。
+	 * Maximum consecutive <b>automatic page breaks without progress</b> (added 2026-07-27).
+	 * Observes livelock where "only page breaks repeat while the state stays the same."
 	 */
 	public static final AtomicLong MAX_STALLED_AUTO_BREAK_RUN = new AtomicLong();
 
-	/** {@link #STALLED_AUTO_BREAK_LIMIT}に到達した回数です(2026-07-27新設)。 */
+	/** Number of times {@link #STALLED_AUTO_BREAK_LIMIT} is reached (added 2026-07-27). */
 	public static final AtomicLong STALLED_AUTO_BREAK_ALARMS = new AtomicLong();
 
 	/**
-	 * {@link #guardBreakProgress}の安全閾値です(2026-07-27新設)。
+	 * Safety threshold for {@link #guardBreakProgress} (added 2026-07-27).
 	 *
 	 * <p>
-	 * <b>実測に基づく</b>: 全873テストを計測したところ、状態が変わらないまま
-	 * 連続する<b>自動</b>改ページは最大5回だった
-	 * ({@code FloatSplitCommitSmokeTest})。強制改ページは97回まで観測された
-	 * ため、ガードは自動改ページに限定している——強制改ページは
-     * 「作者が枚数を指定した」ものであり、進捗の有無で測ってはいけない。
-	 * この閾値は実測最大の6倍超で、ここへ到達したら実装のライブロックである
-	 * という強い証拠になる。
+	 * <b>Based on measurements</b>: Across all 873 tests, the maximum number of consecutive
+	 * <b>automatic</b> page breaks with unchanged state was five
+	 * ({@code FloatSplitCommitSmokeTest}). Forced page breaks reached 97, so the guard applies only
+	 * to automatic page breaks: forced breaks mean "the author specified the number of pages" and
+	 * must not be judged by progress. This threshold is more than six times the measured maximum,
+	 * so reaching it strongly indicates an implementation livelock.
 	 * </p>
 	 *
 	 * <p>
-	 * <b>なぜ必要か</b>: このライブロックは1回転ごとに白紙のPDFページを
-	 * 1枚割り当てる。ページは{@code PDFWriterImpl.pageOutputs}に恒久保持
-	 * されるためヒープは単調増加し、4GBでも枯渇する。さらに
-	 * {@code AbstractUserAgent.checkAbort}の無進捗締切は
-	 * 「ページが出たこと」を進捗とみなすので<b>発火しない</b>
-	 * (2026-07-27に実測: 1.6KBの文書で約45,000ページ・OOM)。
+	 * <b>Why this is needed</b>: Each iteration of this livelock allocates one blank PDF page.
+	 * Pages are retained permanently in {@code PDFWriterImpl.pageOutputs}, so heap usage grows
+	 * monotonically and exhausts even 4 GB. Moreover, the no-progress deadline in
+	 * {@code AbstractUserAgent.checkAbort} <b>does not fire</b> because it counts "a page was emitted"
+	 * as progress (observed 2026-07-27: about 45,000 pages and OOM from a 1.6 KB document).
 	 * </p>
 	 */
 	public static final int STALLED_AUTO_BREAK_LIMIT = 32;
@@ -703,13 +693,13 @@ public final class ContinuationStats {
 	}
 
 	/**
-	 * 自動改ページが進捗しているかを検査し、同一状態の反復が安全閾値
-	 * ({@link #STALLED_AUTO_BREAK_LIMIT})に達したら、警告してtrueを返します
-	 * (2026-07-27新設。2026-07-29に例外を投げる設計から改ページを放棄する設計へ変えた——
-	 * 呼び出し側はその場に配置を続け、はみ出してでも出力を返す)。
+	 * Checks whether automatic page breaks make progress, warns and returns true when repetitions
+	 * of the same state reach the safety threshold ({@link #STALLED_AUTO_BREAK_LIMIT}).
+	 * Added 2026-07-27. On 2026-07-29, the design changed from throwing an exception to abandoning
+	 * the page break: the caller continues layout in place and returns output even if it overflows.
 	 *
-	 * @param stalledRun 直前の自動改ページと状態が変わらないまま繰り返した回数
-	 * @return 改ページを放棄すべきならtrue
+	 * @param stalledRun repetitions with unchanged state since the preceding automatic page break
+	 * @return true if the page break should be abandoned
 	 */
 	public static boolean guardBreakProgress(final int stalledRun) {
 		MAX_STALLED_AUTO_BREAK_RUN.accumulateAndGet(stalledRun, Math::max);
@@ -720,46 +710,45 @@ public final class ContinuationStats {
 					+ "cursor repeats or keeps growing in nested breaks); the layout is livelocked, so page breaking is abandoned and the content is "
 					+ "laid out in place (it may overflow the page)";
 			java.util.logging.Logger.getLogger(ContinuationStats.class.getName()).warning(message);
-			// **例外ではなく「改ページをあきらめる」を返す**(2026-07-29)。
+			// **Return "abandon the page break" instead of an exception** (2026-07-29).
 			//
-			// ここまで来たライブロックは実在する
-			// (`FloatSplitPlan.classify`の分岐表5の逃げ道へ構造的に到達
-			// できない浮動体。`開発メモ`)。従来はここで
-			// {@code ContinuationInvariantViolationException}を投げていたが、
-			// それは<b>変換の失敗</b>であり、{@code ARCHITECTURE.md} §5.13 は
-			// 変換の失敗を「常にエンジンの不具合」と定めている
-			// ——版面が破綻した文書であることを理由に除外できない。
+			// Livelocks that reach this point do exist
+			// (floats structurally unable to reach the escape route in branch table 5 of
+			// `FloatSplitPlan.classify`; see `開発メモ`). Previously, this threw
+			// {@code ContinuationInvariantViolationException},
+			// but that is a <b>conversion failure</b>, and {@code ARCHITECTURE.md} §5.13 defines
+			// conversion failure as "always an engine defect";
+			// a document with a broken type area cannot be excluded on that basis.
 			//
-			// 同§5.13は「紙面に収まらない箱を含む文書でも、エンジンは
-			// <b>はみ出させるなり次ページへ送るなりして出力を返さなければ
-			// ならない</b>」とも定めている。したがって**出力を返す側**へ倒す。
+			// The same §5.13 also requires that "even for a document containing boxes that do not fit
+			// on the sheet, the engine <b>must return output, either by allowing overflow
+			// or by moving them to the next page</b>." Therefore, favor **returning output**.
 			//
-			// この閾値(32)を使うのは、**偽陽性がないと分かっている**安全な
-			// 点だからである。低い閾値(2)で同じことをすると正当な改ページ
-			// まで潰す(実測: `FloatTableTest`が4ページ→3ページに退行)。
+			// This threshold (32) is used because it is a safe point **known to have no false positives**.
+			// Doing the same at a lower threshold (2) suppresses legitimate page breaks
+			// as well (observed: `FloatTableTest` regressed from 4 pages to 3).
 			return true;
 		}
 		return false;
 	}
 
 	/**
-	 * 開いたままの祖先チェーンの深さを記録します(2026-07-21新設、
-	 * PAGE/COLUMNの両経路で共有する単一の実装)。
+	 * Records the depth of the open ancestor chain (added 2026-07-21;
+	 * a single implementation shared by PAGE/COLUMN paths).
 	 *
 	 * <p>
-	 * 2026-07-30(legacy再帰撤去=増分4c): 旧{@code guardOpenDepth}は
-	 * 「FlowContainer.restyleのOpenChain再帰がStackOverflowErrorを起こす
-	 * 前に止める」ために深さ64で型付き例外を投げていたが、worklist
-	 * executorが唯一のdriverになりOpenChain降下は非再帰となったため、
-	 * このガードは<b>偽のクラッシュ要因</b>でしかなくなった——例外・
-	 * アラーム・閾値({@code ContinuationDepthLimitExceededException}/
-	 * {@code PAGE/COLUMN_OPEN_DEPTH_ALARMS}/64)を退役し、観測用の
-	 * 最大深さ記録だけを残した(codex相談
-	 * consult-codex-2026-07-30-increment4-removal-spec.txt §3)。
+	 * 2026-07-30 (legacy recursion removal = increment 4c): The old {@code guardOpenDepth} threw a
+	 * typed exception at depth 64 to stop OpenChain recursion in FlowContainer.restyle before a
+	 * StackOverflowError. Once the worklist executor became the sole driver and OpenChain descent
+	 * became nonrecursive, this guard became solely a <b>spurious cause of crashes</b>.
+	 * The exception, alarms, and threshold ({@code ContinuationDepthLimitExceededException}/
+	 * {@code PAGE/COLUMN_OPEN_DEPTH_ALARMS}/64) were retired, leaving only maximum depth recording
+	 * for observation (codex consultation
+	 * consult-codex-2026-07-30-increment4-removal-spec.txt §3).
 	 * </p>
 	 *
-	 * @param openDepth 開いたままの祖先チェーンの深さ({@link OpenShape#depth()})
-	 * @param column    true なら改段(COLUMN)経路、false なら改ページ(PAGE)経路
+	 * @param openDepth depth of the open ancestor chain ({@link OpenShape#depth()})
+	 * @param column    true for the column-break (COLUMN) path, false for the page-break (PAGE) path
 	 */
 	public static void recordOpenDepth(final int openDepth, final boolean column) {
 		(column ? MAX_COLUMN_OPEN_TAIL_DEPTH : MAX_PAGE_OPEN_TAIL_DEPTH).accumulateAndGet(openDepth, Math::max);

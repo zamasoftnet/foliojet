@@ -9,11 +9,12 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 /**
- * column方向のテストです(Flex F4b——主軸=page軸。definite主軸300ptに
- * basis 60/80/100+grow 1/1/2でfree 60を15/15/30分配=高さ75/95/130、
- * y=+0/+75/+170。crossはstretch既定で幅200pt(rは明示幅80pt)。
- * justify-content: flex-endは残余70ptを先頭へ。basis/height未確定の
- * columnはコンテナ単位fallback(単一列縮退+FLEX_COLUMN_FALLBACKS)。
+ * Tests column direction (Flex F4b, main axis = page axis). With a definite 300 pt main axis,
+ * basis 60/80/100 + grow 1/1/2 distributes 60 free as 15/15/30: heights 75/95/130,
+ * y=+0/+75/+170. Default cross-axis stretch gives width 200 pt (r has explicit width 80 pt).
+ * justify-content: flex-end puts the remaining 70 pt at the start.
+ * A column with indefinite basis/height falls back for the whole container
+ * (single-column degradation + FLEX_COLUMN_FALLBACKS).
  */
 public class FlexColumnFixedBasisTest extends AbstractTestCase {
 	public FlexColumnFixedBasisTest(String name) {
@@ -52,7 +53,7 @@ public class FlexColumnFixedBasisTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** grow 2は2倍の伸長(+30)。明示幅80ptはstretchより優先。 */
+	/** grow 2 gets twice the expansion (+30). Explicit width 80 pt takes precedence over stretch. */
 	public boolean check_r(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.baseX, x, 0.1);
@@ -64,7 +65,7 @@ public class FlexColumnFixedBasisTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** コンテナはdefinite高300ptを占める(後続=+300+10marker)。 */
+	/** The container occupies the definite height of 300 pt (following content = +300+10 marker). */
 	public boolean check_after2(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			this.e0Y = y + 10;
@@ -74,7 +75,7 @@ public class FlexColumnFixedBasisTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** justify-content: flex-end——残余70ptが先頭に入る。 */
+	/** justify-content: flex-end: the remaining 70 pt goes at the start. */
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.e0Y + 70, y, 0.1);
@@ -83,7 +84,7 @@ public class FlexColumnFixedBasisTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** fallback(単一列): 内容が失われず全幅で積まれる。 */
+	/** Fallback (single column): content stacks at full width without loss. */
 	public boolean check_fb2(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.e0Y + 100 + 25, y, 0.1);

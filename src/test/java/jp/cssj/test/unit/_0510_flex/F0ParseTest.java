@@ -8,10 +8,9 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Flex F0a(consult-codex-2026-08-02-flexbox.txt): display:flexが
- * パースされ、レイアウト未配線の間は通常ブロックへ縮退して内容が
- * 失われないことの回帰テストです。F0bでatomic化されても
- * 「全itemが出力される」ことは不変条件のまま。
+ * Flex F0a (consult-codex-2026-08-02-flexbox.txt): regression test that display:flex parses and
+ * degrades to a normal block without losing content while layout is not yet wired up.
+ * Even after F0b makes it atomic, "all items are output" remains an invariant.
  */
 public class F0ParseTest extends AbstractTestCase {
 	public F0ParseTest(String name) {

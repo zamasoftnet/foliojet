@@ -20,14 +20,15 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 図の説明({@code <figcaption>})の中の脚注の試験です(2026-09-03)。
+ * Tests for footnotes inside figure captions ({@code <figcaption>}) (2026-09-03).
  *
  * <p>
- * cti.liの報告(2026-09-02、本番 build 19051): 縦組みの本文に横組みの
- * {@code <figure>}(直交フロー)があり、その {@code <figcaption>} に
- * {@code float: footnote} の注があると、図が次の頁へ送られても注は元の頁に
- * 残り、番号は頁ごとの数え直しを受けず文書通番のままだった。注は呼び出しと
- * 同じ頁に、番号は頁ごとに 1 から、呼び出しと注の頭で同じ値でなければならない。
+ * cti.li report (2026-09-02, production build 19051): with a horizontally written
+ * {@code <figure>} (orthogonal flow) inside vertically written body text and a
+ * {@code float: footnote} note in its {@code <figcaption>}, the note remained on the original page
+ * when the figure moved to the next page. Its number also stayed document-wide instead of resetting
+ * per page. A note must be on the same page as its call, with numbering restarting at 1 on each page
+ * and the same value at the call and the note's start.
  * </p>
  */
 public class FootnoteInFigcaptionTest extends TestCase {
@@ -40,14 +41,15 @@ public class FootnoteInFigcaptionTest extends TestCase {
 			+ ".art{background:#ccc}";
 
 	/**
-	 * 段落で1頁目の大半を埋め、幅60mmの図(横組み)を続ける。図は1頁目の残りに
-	 * 収まらず2頁目へ送られる。図の説明の注は2頁目の最初の注なので番号は1。
+	 * Fill most of page 1 with paragraphs, followed by a 60 mm wide figure (horizontal writing).
+	 * The figure does not fit in the remaining space and moves to page 2.
+	 * The caption's note is the first note on page 2, so its number is 1.
 	 */
 	private static String pushedFigure() {
 		final StringBuilder sb = new StringBuilder();
 		sb.append("<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style type=\"text/css\">").append(STYLE)
 				.append("</style></head><body>");
-		// 1行(縦組みでは1列)15pt幅。版面の行方向は80mm≒227pt。11列≒165ptで残り≒62pt<60mm
+		// Each line (vertical column) is 15 pt wide. Type-area line axis: 80 mm≈227 pt; 11 columns≈165 pt; left≈62 pt<60 mm.
 		for (int i = 0; i < 11; ++i) {
 			sb.append("<p>本文の段落").append(i).append("です。</p>");
 		}
@@ -67,15 +69,16 @@ public class FootnoteInFigcaptionTest extends TestCase {
 				page1.contains("ALPHA"));
 		assertTrue("the caption's note must be on page 2 with the figure:\n" + dump(r), page2.contains("ALPHA"));
 		assertTrue("the paragraph's note must be on page 2:\n" + dump(r), page2.contains("BRAVO"));
-		// 番号は頁ごとに1から: 呼び出し 1,2 と注の頭 1,2
+		// Numbering restarts at 1 on each page: calls 1,2 and note starts 1,2.
 		assertEquals("calls on page 2: " + dump(r), List.of("1", "2"), calls(page2));
 		assertEquals("markers on page 2: " + dump(r), List.of("1", "2"), markers(page2));
 	}
 
 	/**
-	 * 改頁を避ける大きな図が3つ続き、その後の段落に注がある。図は1頁ずつに
-	 * 割られ、注は段落の頁(4頁目)に番号1で置かれる。以前は注が図の頁に
-	 * 溜まっている間に「停滞」と判定され、呼び出しの2頁前に通番で置かれた。
+	 * Three large figures that avoid page breaks are followed by a paragraph with a note.
+	 * The figures are divided across one page each, and the note appears on the paragraph's page
+	 * (page 4) as number 1. Previously, while the note accumulated on the figure pages,
+	 * the engine judged it stalled and placed it two pages before its call with a document-wide number.
 	 */
 	public void testNoteAfterQueuedFiguresWaitsForItsCall() throws Exception {
 		final StringBuilder sb = new StringBuilder();
@@ -99,7 +102,7 @@ public class FootnoteInFigcaptionTest extends TestCase {
 		assertEquals("marker on page 4: " + dump(r), List.of("1"), markers(page4));
 	}
 
-	/** 図が同じ頁に収まるときは、直交フローの中の呼び出しもその頁の番号で数える。 */
+	/** When a figure fits on the same page, calls inside its orthogonal flow also use that page's numbering. */
 	public void testNoteInFittingFigureIsNumberedOnItsPage() throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style type=\"text/css\">" + STYLE
 				+ "</style></head><body>"
@@ -115,12 +118,12 @@ public class FootnoteInFigcaptionTest extends TestCase {
 		assertEquals("markers on page 1: " + dump(r), List.of("1", "2"), markers(page1));
 	}
 
-	/** ページJSONの数字だけの文字列(::footnote-call の番号)。 */
+	/** Digit-only strings in page JSON (::footnote-call numbers). */
 	private static List<String> calls(final String pageJson) {
 		return values(pageJson, "\"value\":\"(\\d{1,2})\"");
 	}
 
-	/** ページJSONの「N. 」(::footnote-marker の番号)。 */
+	/** "N. " in page JSON (::footnote-marker numbers). */
 	private static List<String> markers(final String pageJson) {
 		return values(pageJson, "\"value\":\"(\\d{1,2})\\. \"");
 	}
@@ -189,7 +192,7 @@ public class FootnoteInFigcaptionTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

@@ -18,13 +18,13 @@ import net.zamasoft.pdfg2d.pdf.PDFPageOutput;
 import net.zamasoft.pdfg2d.pdf.gc.PDFGC;
 
 /**
- * 1面付けの実装です。配置計算とトンボ描画は pdfg2d の
- * {@link PagePlacement} / {@link PrinterMarks} に委譲します。
+ * Implements one-up imposition. Delegates placement calculations and crop mark drawing to
+ * pdfg2d's {@link PagePlacement} / {@link PrinterMarks}.
  */
 public class SinglePageImposition extends AbstractImposition {
 	protected GC gc;
 
-	/** nextPage() で開始し closePage() で復元する状態。 */
+	/** State started by nextPage() and restored by closePage(). */
 	protected GC.State gcState;
 
 	protected double actualPageWidth, actualPageHeight;
@@ -34,7 +34,7 @@ public class SinglePageImposition extends AbstractImposition {
 	}
 
 	private Trims trims() {
-		// pdfg2d の PrinterMarks は上下左右の断ちしろとドブで動作する
+		// pdfg2d's PrinterMarks uses the top, bottom, left, and right trim margins and bleed.
 		return new Trims(this.trimTop, this.trimRight, this.trimBottom, this.trimLeft, this.cuttingMargin);
 	}
 
@@ -67,14 +67,14 @@ public class SinglePageImposition extends AbstractImposition {
 	public GC nextPage() throws GraphicsException {
 		++this.pageNumber;
 		final Trims trims = this.trims();
-		// 面付けが扱うのは仕上りサイズ(印刷面からtrimInsetだけ内側)。
-		// trimInsetが0なら印刷面そのもの——既定はここを通っても値が変わらない
+		// Imposition uses the finished size (inset from the print area by trimInset).
+		// If trimInset is 0, this is the print area itself; the default values stay unchanged here.
 		final PagePlacement placement = PagePlacement.compute(this.paperWidth, this.paperHeight, this.getTrimWidth(),
 				this.getTrimHeight(), trims, this.alignValue(), this.autoRotateValue());
 		this.actualPageWidth = placement.actualPageWidth();
 		this.actualPageHeight = placement.actualPageHeight();
 
-		// AUTO_ROTATE_CONTENT では設定どおりの用紙のまま内容を回転する
+		// AUTO_ROTATE_CONTENT rotates the content while keeping the configured paper orientation.
 		if (this.autoRotate == OutputAutoRotate.CONTENT) {
 			this.gc = this.ua.nextPage(this.paperWidth, this.paperHeight);
 		} else {
@@ -90,12 +90,12 @@ public class SinglePageImposition extends AbstractImposition {
 
 		this.gc.transform(AffineTransform.getTranslateInstance(placement.centerX(), placement.centerY()));
 
-		// 仕上り位置(TrimBox)と塗り足し込みの位置(BleedBox)をPDFへ書く
-		// (2026-08-30、利用者報告E-6)。面付け側が仕上り線を機械的に
-		// 判別できるようにするため、トンボの有無によらず常に設定する
+		// Write the finished bounds (TrimBox) and the bounds including bleed (BleedBox) to the PDF
+		// (2026-08-30, user report E-6). Always set them, regardless of crop marks,
+		// so the imposition process can identify the trim line programmatically.
 		this.setPageBoxes(placement);
 
-		// トンボとノンブルの描画
+		// Draw crop marks and page numbers.
 		this.drawMarks(trims);
 		if (this.note != null) {
 			String text = this.note.format(new Object[] { String.valueOf(this.pageNumber) });
@@ -103,19 +103,19 @@ public class SinglePageImposition extends AbstractImposition {
 					this.actualPageWidth, trims);
 		}
 
-		// トンボのためにずらす。trimInsetがあるときは、印刷面の左上が
-		// 仕上り線よりtrimInsetだけ外側に来るように更にずらす
-		// ——原点は常に印刷面(内容の座標系)の左上
+		// Offset for crop marks. If trimInset is set, offset further so the top-left of
+		// the print area lies trimInset outside the trim line.
+		// The origin is always the top-left of the print area (the content coordinate system).
 		final double ox = this.trimLeft - this.trimInset;
 		final double oy = this.trimTop - this.trimInset;
 		if (ox != 0 || oy != 0) {
 			this.gc.transform(AffineTransform.getTranslateInstance(ox, oy));
 		}
 
-		// クリッピング領域。原点は印刷面の左上なので、trimInsetがあるときは
-		// 仕上り線基準の -cuttingMargin をその分だけ右下へずらす
-		// ——これが無いと**右下側の塗り足しだけが切り落とされる**
-		// (実測: 156pt幅の用紙で左の帯5ptは出るのに右の帯が消えた)
+		// Clipping region. The origin is the top-left of the print area, so if trimInset is set,
+		// shift -cuttingMargin, measured from the trim line, right and down by that amount.
+		// Without this, **only the bottom-right bleed is clipped**.
+		// (Observed: on a 156 pt wide sheet, the left 5 pt strip appeared but the right strip disappeared.)
 		double bgX = this.trimInset - this.cuttingMargin;
 		double bgY = this.trimInset - this.cuttingMargin;
 		double bgW = this.getTrimWidth() + this.cuttingMargin * 2.0;
@@ -123,7 +123,7 @@ public class SinglePageImposition extends AbstractImposition {
 
 		switch (this.align) {
 		case FALSE: {
-			// 描画可能領域のクリッピング
+			// Clip the drawable area.
 			if (this.clip) {
 				this.gc.clip(new Rectangle2D.Double(bgX, bgY, bgW, bgH));
 			}
@@ -134,12 +134,12 @@ public class SinglePageImposition extends AbstractImposition {
 			double hscale = placement.hscale();
 			double vscale = placement.vscale();
 
-			// 描画可能領域のクリッピング
+			// Clip the drawable area.
 			if (this.clip) {
 				this.gc.clip(new Rectangle2D.Double(bgX, bgY, bgW * hscale, bgH * vscale));
 			}
 
-			// ページにあわせて拡大
+			// Scale to fit the page.
 			if (hscale != 0 && vscale != 0) {
 				this.gc.transform(AffineTransform.getScaleInstance(hscale, vscale));
 			}
@@ -165,20 +165,21 @@ public class SinglePageImposition extends AbstractImposition {
 	}
 
 	/**
-	 * 仕上り位置を{@code TrimBox}、塗り足し込みの位置を{@code BleedBox}として
-	 * PDFのページへ設定します(2026-08-30、利用者報告E-6)。
+	 * Sets the finished bounds as {@code TrimBox} and the bounds including bleed as {@code BleedBox}
+	 * on the PDF page (2026-08-30, user report E-6).
 	 *
 	 * <p>
-	 * 設定しないと、面付けや印刷所の工程で「どこが仕上り線か」を機械的に
-	 * 判別できず、利用者が後からPyMuPDF等で書き足すことになっていた。
-	 * 座標は{@link net.zamasoft.pdfg2d.pdf.PDFPageOutput}の約束どおり
-	 * <b>左上原点</b>で渡す(PDFの左下原点への変換は書き出し側が行う)。
+	 * Without these, imposition and printing workflows could not identify the trim line programmatically,
+	 * so users had to add them afterward with tools such as PyMuPDF.
+	 * Pass coordinates with a <b>top-left origin</b>, as required by
+	 * {@link net.zamasoft.pdfg2d.pdf.PDFPageOutput}
+	 * (the writer converts them to PDF's bottom-left origin).
 	 * </p>
 	 *
 	 * <p>
-	 * 内容を回転して配置する{@code output.auto-rotate}のときは、紙面座標と
-	 * 内容座標の対応が単純でないため設定しない。PDF 1.3以下は
-	 * TrimBox/BleedBoxを持てないので、その場合も黙って見送る。
+	 * Do not set them when {@code output.auto-rotate} rotates the content for placement,
+	 * because the mapping between paper and content coordinates is not straightforward.
+	 * PDF 1.3 and earlier cannot have TrimBox/BleedBox, so silently skip those versions as well.
 	 * </p>
 	 */
 	private void setPageBoxes(final PagePlacement placement) {
@@ -197,7 +198,7 @@ public class SinglePageImposition extends AbstractImposition {
 		final double trimX = placement.centerX() + this.trimLeft;
 		final double trimY = placement.centerY() + this.trimTop;
 		final Rectangle2D trim = new Rectangle2D.Double(trimX, trimY, trimWidth, trimHeight);
-		// 塗り足しは仕上りの外側へドブのぶん。用紙からはみ出さないよう詰める
+		// Bleed extends outside the finished bounds by the bleed margin. Clamp it to the paper bounds.
 		final double bleedX = Math.max(0, trimX - this.cuttingMargin);
 		final double bleedY = Math.max(0, trimY - this.cuttingMargin);
 		final Rectangle2D bleed = new Rectangle2D.Double(bleedX, bleedY,
@@ -207,12 +208,12 @@ public class SinglePageImposition extends AbstractImposition {
 			out.setBleedBox(bleed);
 			out.setTrimBox(trim);
 		} catch (final UnsupportedOperationException e) {
-			// PDF 1.3以下。仕上り位置は表現できないので何もしない
+			// PDF 1.3 or earlier: finished bounds cannot be represented, so do nothing.
 		}
 	}
 
 	protected final void drawMarks(Trims trims) throws GraphicsException {
-		// トンボ
+		// Crop marks
 		if (this.crop) {
 			PrinterMarks.drawCrop(this.gc, this.actualPageWidth, this.actualPageHeight, trims);
 		}
@@ -220,7 +221,7 @@ public class SinglePageImposition extends AbstractImposition {
 			PrinterMarks.drawCross(this.gc, this.actualPageWidth, this.actualPageHeight, trims);
 		}
 
-		// 背表紙
+		// Spine
 		PrinterMarks.drawSpine(this.gc, this.actualPageWidth, this.actualPageHeight, trims, this.spineWidth);
 	}
 }

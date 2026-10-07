@@ -15,7 +15,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.value.PageSizeValue;
 
-/** {@code @page size}(N3/N4)の解析テストです。 */
+/** Parsing tests for {@code @page size} (N3/N4). */
 public class PageSizeParserTest extends TestCase {
 
 	private static TokenStream tokens(final String declaration) {

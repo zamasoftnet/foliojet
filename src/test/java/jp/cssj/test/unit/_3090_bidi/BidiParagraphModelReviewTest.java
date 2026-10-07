@@ -7,7 +7,7 @@ import net.zamasoft.foliojet.css.value.UnicodeBidiValue;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.text.bidi.BidiParagraphBuffer;
 
-/** A-1a review §0-12〜§0-16/§0-18 で追加された model 契約。 */
+/** Model contracts added in A-1a review §0-12〜§0-16/§0-18. */
 public class BidiParagraphModelReviewTest extends TestCase {
 	public void testBreakSnapshotClosesAndReopensInlines() {
 		final BidiParagraphBuffer first = new BidiParagraphBuffer(AbstractTextParams.DIRECTION_LTR,

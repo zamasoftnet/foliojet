@@ -20,11 +20,11 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.props.UAProps;
 
 /**
- * 表の実行計画(Incremental/Retained)を単一の判定点で決定します(C4-B、
- * 2026-07-19)。旧{@code LayoutUtils.needsIntrinsicSizing(TableBox)}の
- * boolean一本化(auto列幅・非FLOW配置・ページ軸寸法指定・行軸auto寸法の
- * 4条件を1つのbooleanへ潰していた)を、理由ごとに追跡できる型へ置き換える。
- * 判定条件そのものは旧実装から変更していない(挙動不変)。
+ * Determines the table execution plan (Incremental/Retained) at a single decision point (C4-B, 2026-07-19).
+ * Replaces the single boolean from the old {@code LayoutUtils.needsIntrinsicSizing(TableBox)}, which collapsed four
+ * conditions (auto column widths, non-FLOW positioning, specified page-axis size, and auto line-axis size), with a
+ * type that tracks each reason. The conditions themselves are unchanged from the old implementation (behavior
+ * unchanged).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -32,70 +32,85 @@ public final class TableBuildPlanner {
 	private TableBuildPlanner() {
 	}
 
-	/** Pass B 後にだけ判定できる、行送出を従来の assemble へ戻す理由です。 */
+	/** Reasons to return row emission to the existing assemble path, decidable only after Pass B. */
 	public enum RowEmissionExclusion {
-		/** processing.table-row-emission は既定falseのopt-inです。 */
+		/** processing.table-row-emission is opt-in, false by default. */
 		DISABLED,
-		/** MAIN 以外では計測・再配置とページ副作用の順序を変えられません。 */
+		/** Outside MAIN, the order of measurement, repositioning, and page side effects cannot change. */
 		NOT_MAIN,
-		/** Pass C の行高適用が安定しない表には、固定した h[] を使えません。 */
+		/** Tables with unstable row-height application in Pass C cannot use fixed h[]. */
 		PASS_C_INELIGIBLE,
-		/** 通常フローの MODE_PAGE_BREAK・breakDepth=-1・非再配置の受理宿主が必要です。 */
+		/** Requires an accepting host in normal flow with MODE_PAGE_BREAK, breakDepth=-1, and no repositioning. */
 		UNSUPPORTED_HOST,
-		/** 縦組み・親との軸違いの切断とフレーム会計は第1段では未検証です。 */
+		/** Cuts and frame accounting for vertical writing or an axis orthogonal to the parent are unverified in stage 1. */
 		WRITING_MODE,
-		/** 複数本文グループは前グループへ戻る avoid とグループ減算順が異なります。 */
+		/** Multiple body groups differ in avoid backtracking to the preceding group and the group subtraction order. */
 		BODY_GROUPS,
-		/** rowspan は bind 単位と改頁禁止単位が異なり、移送セルの切断も必要です。 */
+		/** For rowspan, binding and break-prohibition units differ, and transferred cells also need cutting. */
 		ROWSPAN,
-		/** 反復フッタは全断片に終端フレームを予約します。 */
+		/** Repeated footers reserve end frames on every fragment. */
 		FOOTER,
 		/**
-		 * 上部captionは除外を維持します。非ゼロ始点での親の超過判定と局所切断線の
-		 * 丸め差により、未完側だけ可視グループKEEP→非先頭の表全体MOVEとなる反例があります。
-		 * 原因はcaption固有ではなく、先行内容だけでも起こるため、送出全般で可視範囲を保留します。
-		 * 下部だけならcomplete・retained.close後の共通経路で配置し、最後にラッパーを閉じます。
+		 * Keep top captions excluded. At a nonzero start, rounding differences between the parent's overflow check and
+		 * the local cut line can cause only the incomplete path to KEEP the visible group, then MOVE the entire
+		 * nonleading table. This is not caption-specific; preceding content alone can trigger it, so hold the visible
+		 * range pending for all emission. Bottom-only captions use the common path after complete and retained.close,
+		 * then close the wrapper last.
 		 */
 		CAPTION,
-		/** collapse の全行境界配列の断片所有をまだ分離していません。 */
+		/** Fragment ownership of the full row-boundary array for collapse has not yet been separated. */
 		COLLAPSED_BORDERS,
 		/**
-		 * ABSOLUTEも含め指定高は完成経路へ戻します(既定のmin=0は除く)。
-		 * 配分後のh[]の数値shadowだけでは親の断片寸法まで保証できません。
-		 * グループ高と表高を併用した実fixtureで、完成表配置と未完表の寸法更新から
-		 * ラッパー終端までの会計が一致せず、祖先枠高・後続本文のD7座標が変わりました。
+		 * Specified heights, including ABSOLUTE, return to the completed path (except default min=0). A numerical shadow
+		 * of distributed h[] alone cannot guarantee parent fragment dimensions. In an actual fixture combining group and
+		 * table heights, accounting from completed-table placement versus incomplete-table dimension updates through
+		 * wrapper end differed, changing ancestor frame heights and subsequent body-text D7 coordinates.
 		 */
 		GROUP_PAGE_SIZE,
-		/** 行内分割の保持・残余高はセル再配置で変わり、元の h[] では再現できません。 */
+		/**
+		 * Cell repositioning changes retention and remaining height in intra-row splitting; original h[] cannot
+		 * reproduce them.
+		 */
 		ROW_SPLITTING,
 		/**
-		 * 直交セルは行のMOVEをグループのKEEPへ変え、ページ先頭でもKEEPを保存します。
-		 * ROW_SPLITTING除外だけではこの分岐の同値を保証できません。
-		 * 独立shadowと実Root・D7の合格が未確認のためB-3-1でも除外を維持します。
+		 * Orthogonal cells turn row MOVE into group KEEP and preserve KEEP even at page start. ROW_SPLITTING exclusion
+		 * alone cannot guarantee equivalence of this branch. Independent shadow and actual Root/D7 validation have not
+		 * passed yet, so B-3-1 keeps this exclusion.
 		 */
 		ORTHOGONAL_CELL,
-		/** 負の終端マージンは、最終追記より前の分割まで取り消すことがあります。 */
+		/** A negative end margin can undo splits made before the final append. */
 		NEGATIVE_END_MARGIN,
-		/** 脚注・ページフロート・並列注は bind と改頁を交互にすると台帳登録時点が変わります。 */
+		/**
+		 * Interleaving bind and page breaks changes ledger registration timing for footnotes, page floats, and
+		 * parallel notes.
+		 */
 		PAGE_SIDE_EFFECTS,
-		/** 置換要素・inline-block・表等の割合寸法は、bindで現ページを参照し得ます。 */
+		/** Percentage sizes of replaced elements, inline blocks, tables, etc. may reference the current page during bind. */
 		PAGE_DEPENDENT_CELL_CONTENT,
-		/** 段組・指定高/min/max の祖先では寸法の復元と再伝播が未検証です。 */
+		/** Dimension restoration and repropagation are unverified for multi-column or specified-height/min/max ancestors. */
 		COMPLEX_ANCESTOR,
-		/** 浮動体回避で初回配置が下がると、残り容量だけでは行内分割を除外できません。 */
+		/** When float avoidance lowers initial placement, remaining capacity alone cannot rule out intra-row splitting. */
 		FLOATING_HOST,
-		/** 完成表の強制分割は列分割処理を通らず、列高の同期だけでは再現できません。 */
+		/**
+		 * Forced splitting of a completed table bypasses column splitting; synchronizing column heights alone cannot
+		 * reproduce it.
+		 */
 		FORCED_BREAK_WITH_COLUMNS,
-		/** 空表・列数0は Retained の指定寸法処理が通常の行加算と別経路です。 */
+		/**
+		 * For empty or zero-column tables, Retained handles specified dimensions on a path separate from normal row
+		 * addition.
+		 */
 		EMPTY_TABLE
 	}
 
 	/**
-	 * Pass B 後の形状と実受理宿主から集める材料です。開始時の plan() とは別契約。
-	 * hasPageSideEffects はセル内を含む脚注・ページフロート・並列注の有無、
-	 * complexAncestor は宿主までの全祖先の段組・指定高/min/max を表します。
-	 * maySplitRows は rowspan の有無とは独立に調べる必要があります。
-	 * hostSupportsIntake は受理先のモード・分割能力・深さ・再配置/テキスト状態の検査結果です。
+	 * Inputs collected from the post-Pass-B shape and actual accepting host. A separate contract from plan() at the
+	 * start.
+	 * hasPageSideEffects covers footnotes, page floats, and parallel notes, including inside cells.
+	 * complexAncestor covers multi-column layout and specified height/min/max in all ancestors up to the host.
+	 * maySplitRows must be checked independently of rowspan presence.
+	 * hostSupportsIntake is the result of checking the receiving mode, splitting capability, depth, and
+	 * repositioning/text state.
 	 */
 	public record RowEmissionFacts(boolean main, boolean passCEligible, boolean hostSupportsIntake,
 			boolean horizontalHost, int bodyGroupCount, int rowCount, int columnCount,
@@ -105,11 +120,10 @@ public final class TableBuildPlanner {
 	}
 
 	/**
-	 * Pass B 後の送出適格判定。空集合のときだけ送出候補です。
-	 * 表フレーム計算後・markIncomplete 前に
-	 * 判定し、終端マージンを抑止する前の値を使います。
-	 * キャプションは下部だけの形に限定します。上部がある形はCAPTIONで除外し、
-	 * Pass B前の配置から親の切断・寸法会計まで完成経路に任せます。
+	 * Post-Pass-B emission eligibility. Only an empty set makes the table an emission candidate.
+	 * Check after table frame calculation and before markIncomplete, using values before suppressing the end margin.
+	 * Allow only bottom captions. Exclude top-caption cases via CAPTION, leaving everything from placement before Pass
+	 * B through parent cuts and dimension accounting to the completed path.
 	 */
 	public static EnumSet<RowEmissionExclusion> rowEmissionExclusionsAfterPassB(final TableBox table,
 			final RowEmissionFacts facts) {
@@ -168,7 +182,7 @@ public final class TableBuildPlanner {
 		return reasons;
 	}
 
-	/** 実際の匿名フローと、まだ解放していない Pass B の計画から材料を集めます。 */
+	/** Collects inputs from the actual anonymous flow and the Pass B plan, which has not yet been released. */
 	static EnumSet<RowEmissionExclusion> rowEmissionExclusionsAfterPassB(final TableBox table,
 			final BlockBuilder host, final boolean passCEligible, final int bodyGroupCount,
 			final boolean footer, final boolean topCaption, final int columnCount, final boolean columns,
@@ -193,7 +207,7 @@ public final class TableBuildPlanner {
 				final var box = block.getFlow(i).box;
 				final BlockParams params = box.getBlockParams();
 				horizontal &= !params.flow.isVertical();
-				if (box.getType() == BoxType.PAGE) continue; // 用紙の指定高は祖先の指定高とは別。
+				if (box.getType() == BoxType.PAGE) continue; // The paper's specified height is distinct from specified ancestor heights.
 				if (box.getPos() instanceof AbstractBlockLevelPos pos) {
 					forced |= forced(pos.pageBreakBefore) || forced(pos.pageBreakAfter);
 				}
@@ -213,9 +227,9 @@ public final class TableBuildPlanner {
 		if (header != null) {
 			for (final TableRowBox row : groupRows.get(header)) headerSize += row.getPageSize();
 		}
-		// 現頁の容量が次頁でも続くとは限らない。第1段では全頁の容量の床を使う。
-		// 枠・反復ヘッダ・祖先の枠を含めて収まる行だけなら、継続先の先頭行も
-		// 行内分割・巨大行の rescue に入らない。現在頁の残りは初回先頭行だけに使う。
+		// The current page's capacity may not hold on the next page. Stage 1 uses the capacity floor across all pages.
+		// If every row fits including frames, repeated headers, and ancestor frames, the first row after continuation
+		// avoids intra-row splitting and oversized-row rescue. Use current remaining capacity only for the initial first row.
 		final double frame = Math.max(0, table.getFrame().getFrameTop())
 				+ Math.max(0, table.getFrame().getFrameBottom());
 		final double rowCapacity = BreakableBuilder.MIN_PAGE_LIMIT - ancestorFrame - frame - headerSize;
@@ -241,8 +255,8 @@ public final class TableBuildPlanner {
 					final double size = row.getPageSize();
 					splitRows |= !Double.isFinite(size) || size < 0 || size > rowCapacity
 							|| (i == 0 && size > firstCapacity);
-					// 行間avoidの後退は、先頭行にも高さ-1ptの切断線を当て得る。
-					// ページに収まる行でも、その人工的な線での行内分割は未対応。
+					// Backtracking for avoid between rows can apply a height-minus-1-pt cut line even to the first row.
+					// Even if the row fits on a page, intra-row splitting at that artificial line is unsupported.
 					splitRows |= row.getTableRowPos().pageBreakBefore == PageBreakMode.AVOID
 							|| row.getTableRowPos().pageBreakAfter == PageBreakMode.AVOID;
 				}
@@ -256,10 +270,10 @@ public final class TableBuildPlanner {
 						final var range = body.handle();
 						final var source = range.source();
 						if (!pageDependent) {
-							// 凍結済みparamsを検査するだけで、box生成・本文bindはしない。
-							// %とcalcの割合成分を保守的に除外する(包含セルで解決する幅も含む)。
-							// vh/vw等はViewportUnitsで解析時にUA設定から絶対長へ解決済み。
-							// その絶対長は再生でも不変なので、現ページへの依存はない。
+							// Only inspect frozen params; do not create boxes or bind body text.
+							// Conservatively exclude percentages and percentage components of calc (including widths resolved against cells).
+							// ViewportUnits resolves vh/vw and similar units to absolute lengths from UA settings at parse time.
+							// Those absolute lengths stay unchanged during replay, so they do not depend on the current page.
 							try (final var slice = source.capture(range.fromId(), range.toId())) {
 								final boolean[] relative = { slice == null };
 								if (slice != null) slice.replay(event -> {
@@ -272,8 +286,8 @@ public final class TableBuildPlanner {
 								pageDependent = relative[0];
 							}
 						}
-						// float の索引は FOOTNOTE/PAGE_*/PAGE_NOTE_* と子孫も含む。
-						// 通常float・absoluteも、第1段では bind 時点の移動を証明しない。
+						// The float index includes FOOTNOTE/PAGE_*/PAGE_NOTE_* and descendants.
+						// Stage 1 does not prove that moving bind timing is safe for ordinary floats or absolute positioning either.
 						effects |= source.containsFloat(range.fromId(), range.toId())
 								|| source.containsAbsolute(range.fromId(), range.toId())
 								|| source.containsOpaque(range.fromId(), range.toId());
@@ -292,12 +306,11 @@ public final class TableBuildPlanner {
 	}
 
 	/**
-	 * 未完表の初回受理・追記通知に必要な可視本文の下限です(B-2b-5)。
-	 * capacityは本文に使える切断線以上の値を渡します。正の枠・HEADER分を
-	 * 差し引かない保守的な容量でも構いません。
-	 * 親の加算と局所切断線の減算が0.5pt境界の反対側へ丸まるため、
-	 * compareが正になるだけでは足りません。加算・減算の両方で厳密に
-	 * THRESHOLDを超えるまで保留します。最終行はこの判定を使わず完成へ進めます。
+	 * Minimum visible body extent needed for initial intake and append notifications of incomplete tables (B-2b-5).
+	 * Pass capacity at least as large as the cut line available to body text. A conservative capacity without
+	 * subtracting positive frames/HEADER extent is acceptable. Parent addition and local cut-line subtraction can
+	 * round to opposite sides of the 0.5 pt boundary, so a positive compare is insufficient. Hold pending until both
+	 * addition and subtraction strictly exceed THRESHOLD. The last row skips this check and proceeds to completion.
 	 */
 	public static boolean hasRowEmissionOverflow(final double visibleBodySize, final double capacity) {
 		return visibleBodySize > capacity + LayoutUtils.THRESHOLD
@@ -305,28 +318,29 @@ public final class TableBuildPlanner {
 	}
 
 	/**
-	 * 可視行だけで切断が確定するか(B-2b-6、切断契約)。
+	 * Whether visible rows alone determine a cut (B-2b-6, cut contract).
 	 *
 	 * <p>
-	 * {@code TableRowGroupBox.splitPageAxis} の前段と走査本体を<b>同じ値・同じ順・同じ比較</b>で
-	 * 写した dry-run です。合計高の比較({@link #hasRowEmissionOverflow})や限界からの逐次減算では、
-	 * 括弧の違い({@code C−(a+b)} と {@code (C−a)−b})で 0.5pt 同値のどちら側に落ちるかが
-	 * 完成経路と食い違う(2026-09-08 の 0.5pt 反例)。
+	 * A dry run reproducing the prelude and scan body of {@code TableRowGroupBox.splitPageAxis} with <b>the same
+	 * values, order, and comparisons</b>. Comparing total height ({@link #hasRowEmissionOverflow}) or subtracting
+	 * sequentially from the limit can land on a different side of 0.5 pt equivalence than the completed path because
+	 * of different parentheses ({@code C−(a+b)} versus {@code (C−a)−b}) (0.5 pt counterexample on 2026-09-08).
 	 * </p>
 	 * <ul>
-	 * <li>群全体が KEEP({@code compare(limit, groupPageSize) >= 0})なら未確定(後続行が要る)。</li>
-	 * <li>走査: 最終行でない行で {@code compare(limit, size) > 0} なら {@code limit -= size} で進む。
-	 * 止まった行の判定は {@code TableCutter}: {@code compare(limit, 0) < 0} なら MOVE(確定)、
-	 * {@code compare(limit, size) >= 0} なら KEEP——<b>実装は KEEP の後も走査を続ける</b>
-	 * ({@code TableRowGroupBox.splitPageAxis} の {@code pageLimit -= prevRowSize; continue})ので、
-	 * KEEP が可視範囲の末尾まで続けば未確定(codex レビュー 2026-09-08 の反例: 微小行
-	 * [4.9,0.5,1.4,0.3,0.1,0.2,…] が同値幅の中で KEEP し続け、最終残 −0.4999…)。
-	 * それ以外(切断線が行を横断)は行の分割か MOVE で確定。</li>
+	 * <li>If the whole group is KEEP ({@code compare(limit, groupPageSize) >= 0}), the cut is undetermined (more rows
+	 * needed).</li>
+	 * <li>Scan: for a nonfinal row, if {@code compare(limit, size) > 0}, advance with {@code limit -= size}.
+	 * The stopped row uses {@code TableCutter}: {@code compare(limit, 0) < 0} means MOVE (determined), and {@code
+	 * compare(limit, size) >= 0} means KEEP. <b>The implementation continues scanning after KEEP</b> ({@code pageLimit
+	 * -= prevRowSize; continue} in {@code TableRowGroupBox.splitPageAxis}), so KEEP through the visible range's end
+	 * leaves the cut undetermined (codex review counterexample on 2026-09-08: tiny rows [4.9,0.5,1.4,0.3,0.1,0.2,…]
+	 * kept returning KEEP within the equivalence tolerance, ending with −0.4999… remaining). Otherwise (cut line
+	 * crosses a row), a row split or MOVE determines the cut.</li>
 	 * </ul>
 	 *
-	 * @param rowPageSizes  可視行のページ方向寸法(行順)
-	 * @param groupPageSize 群の累積 pageSize(完成経路が比較に使う値そのもの)
-	 * @param pageLimit     群に渡される切断限界(表の枠・ヘッダの控除後)
+	 * @param rowPageSizes  page-direction sizes of visible rows (in row order)
+	 * @param groupPageSize accumulated group pageSize (the exact value compared by the completed path)
+	 * @param pageLimit     cut limit passed to the group (after deducting table frames and headers)
 	 */
 	public static boolean cutDetermined(final double[] rowPageSizes, final double groupPageSize,
 			double pageLimit) {
@@ -342,7 +356,7 @@ public final class TableBuildPlanner {
 			}
 			if (LayoutUtils.compare(pageLimit, 0) < 0) return true;
 			if (LayoutUtils.compare(pageLimit, size) >= 0) {
-				// KEEP: 実装は次の行へ進む。可視範囲の末尾まで KEEP なら後続行が要る。
+				// KEEP: the implementation proceeds to the next row. KEEP through the visible range's end requires more rows.
 				pageLimit -= size;
 				continue;
 			}
@@ -356,8 +370,8 @@ public final class TableBuildPlanner {
 	}
 
 	/**
-	 * @param builder  表を構築するコンテキストのビルダー
-	 * @param tableBox 対象の表ボックス
+	 * @param builder  builder for the context constructing the table
+	 * @param tableBox target table box
 	 */
 	public static TableBuildPlan plan(final Builder builder, final TableBox tableBox) {
 		final TableParams params = tableBox.getTableParams();
@@ -378,11 +392,11 @@ public final class TableBuildPlanner {
 		if (params.size.getLineType(params.flow) == LengthType.AUTO) {
 			reasons.add(TableRetentionReason.AUTO_LINE_SIZE);
 		}
-		// M6b Phase B5e(2026-07-21): 表自身の書字方向が現在開いているflowと
-		// 軸違い(横書き⇄縦書き)の場合はRETAINEDへ回す——Incrementalだと
-		// IncrementalTableBuilder.pageBreak()がbreakDepth障壁を迂回し、legacy
-		// OpenChain(ContinuationCapability.ORTHOGONAL_FLOW)へ実際に到達する
-		// ため(TableRetentionReason.ORTHOGONAL_WRITING_MODEのjavadoc参照)。
+		// M6b Phase B5e (2026-07-21): route to RETAINED when the table's own writing direction
+		// is orthogonal to the current open flow (horizontal ⇄ vertical). With Incremental,
+		// IncrementalTableBuilder.pageBreak() bypasses the breakDepth barrier and actually reaches legacy
+		// OpenChain (ContinuationCapability.ORTHOGONAL_FLOW)
+		// (see the Javadoc for TableRetentionReason.ORTHOGONAL_WRITING_MODE).
 		if (builder instanceof BreakableBuilder breakableBuilder
 				&& breakableBuilder.getFlowBox().getBlockParams().flow.isVertical() != params.flow.isVertical()) {
 			reasons.add(TableRetentionReason.ORTHOGONAL_WRITING_MODE);

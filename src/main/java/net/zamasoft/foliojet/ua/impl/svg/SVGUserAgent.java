@@ -43,8 +43,8 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 	private SVGGraphics2D svgGen;
 
 	/**
-	 * {@code output.svg.text: keep}のときだけ使う、1枚で完結するSVGの
-	 * 書き出し先(B-1、2026-08-29)。Batikを通さない。
+	 * Output destination for self-contained SVG, used only with {@code output.svg.text: keep}
+	 * (B-1, 2026-08-29). Bypasses Batik.
 	 */
 	private java.io.StringWriter directBuffer;
 
@@ -90,32 +90,32 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 		this.page = 0;
 	}
 
-	/** 文字を{@code <text>}のまま残すかどうか(B-1、2026-08-29)。 */
+	/** Whether to retain text as {@code <text>} (B-1, 2026-08-29). */
 	private boolean keepsText() {
 		return UAProps.OUTPUT_SVG_TEXT.get(this) == SvgTextMode.KEEP;
 	}
 
 	/**
-	 * 文字を残すときは<b>埋め込み</b>を既定にします(B-1、2026-08-29——
-	 * ページ分割SVGと同じ理由)。共通の既定{@code cid-keyed}はPDFの外部
-	 * CIDフォントを参照する方針で、SVGには存在しない仕組みなので、
-	 * そのままだと字形がすべてアウトラインへ落ちて{@code <text>}が
-	 * 1つも残らない。利用者が明示した場合はそちらに従う。
+	 * Defaults to <b>embedding</b> when preserving text (B-1, 2026-08-29;
+	 * the same reason as page-split SVG). The shared default, {@code cid-keyed}, references
+	 * external CID-keyed fonts in PDF, a mechanism SVG lacks. Without this change, all glyphs
+	 * fall back to outlines, leaving no {@code <text>}.
+	 * Honor the user's explicit setting.
 	 */
 	@Override
 	protected boolean embedsFontsByDefault() {
-		// outline モードも同じ既定にする(2026-09-02)。以前は keep だけで、outline は
-		// 共通の既定(print では cid-keyed 優先)のまま組んでいた。SVG に CID-keyed の
-		// 実体は無いので AWT の代替フォント(別の面・ヒント済みの輪郭)で描かれ、
-		// 「日」が本物より 6% 広く縦画が太い字形になっていた(PLAN の「単一SVGの
-		// outline 経路の字形が本物より大きい」)。埋め込み方針なら pdfg2d 自身の
-		// 輪郭で、PDF と 1/100pt まで一致する
+		// Use the same default in outline mode too (2026-09-02). Previously, this applied only to keep; outline
+		// used the shared default (cid-keyed first for print). SVG has no CID-keyed font data,
+		// so AWT fallback fonts (different faces with hinted outlines) drew the glyphs,
+		// making "日" 6% wider than the actual glyph with thicker vertical strokes (PLAN's "single SVG
+		// outline path produces glyphs larger than the originals"). The embedding policy uses pdfg2d's
+		// own outlines, matching PDF to 1/100 pt.
 		return true;
 	}
 
 	/**
-	 * 文字を残すときは画像を<b>元のバイト列のまま</b>受け取ります。
-	 * {@code data:}で埋めるので、JPEGをPNGへ焼き直す必要がない。
+	 * Receives images <b>with original bytes unchanged</b> when preserving text.
+	 * Images are embedded as {@code data:}, so JPEGs need not be re-encoded as PNGs.
 	 */
 	@Override
 	public boolean keepsEncodedImages() {
@@ -174,7 +174,7 @@ public class SVGUserAgent extends AbstractUserAgent implements RandomResultUserA
 			}
 			try (Writer writer = new OutputStreamWriter(out, "UTF-8")) {
 				if (this.directPage != null) {
-					// サブセットの組み立ては close の中。閉じてから流す
+					// Subsets are built inside close. Close before streaming.
 					this.directPage.close();
 					writer.write(this.directBuffer.toString());
 				} else {

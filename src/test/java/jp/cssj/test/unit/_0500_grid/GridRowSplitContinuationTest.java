@@ -8,15 +8,15 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * grid行分割(G6、2026-08-10)の継続断片の寸法テストです。
+ * Tests continuation fragment dimensions for grid row splitting (G6, 2026-08-10).
  *
  * <p>
- * 3行×2列(各行92pt)のgridが切断線300ptで割れ、3行目の下側56ptが
- * 継続断片として2ページ目へ運ばれる。継続断片はチェーン継続の対象外
- * (PageAtomicBox)のため汎用restyle再構築(itemの縦積み再登録)を通る
- * ——RowSplitContainerのカーソル巻き戻しが無いと、2item×56ptの断片が
- * 112ptへ膨張し後続内容を押し下げる(実測済みの欠陥。巻き戻しを
- * 自己アンカー限定から常時へ広げて根治)。
+ * A 3-row × 2-column grid (92 pt per row) splits at the 300 pt split line, carrying the lower 56 pt
+ * of row 3 to page 2 as a continuation fragment. Continuation fragments are excluded from chain
+ * continuation (PageAtomicBox), so they undergo generic restyle reconstruction (re-registering
+ * items in a vertical stack). Without RowSplitContainer cursor rewind, a fragment with two 56 pt
+ * items expands to 112 pt, pushing down subsequent content. This was a measured defect;
+ * extending rewind from self-anchors only to all cases fixed the root cause.
  * </p>
  */
 public class GridRowSplitContinuationTest extends AbstractTestCase {
@@ -29,7 +29,7 @@ public class GridRowSplitContinuationTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 
-	/** 前断片は切断線まで、継続断片は残余ちょうどの高さになる。 */
+	/** The preceding fragment reaches the split line; the continuation fragment is exactly the remaining height. */
 	public boolean check_g(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() != BoxType.BLOCK) {
 			return false;
@@ -43,7 +43,7 @@ public class GridRowSplitContinuationTest extends AbstractTestCase {
 		return true;
 	}
 
-	/** 後続要素は継続断片の直後に続く(押し下げられない)。 */
+	/** The following element continues immediately after the continuation fragment (without being pushed down). */
 	public boolean check_after(IBox box, int pageNumber, double x, double y) {
 		assertEquals("AFTERはgrid継続断片と同じ2ページ目", 2, pageNumber);
 		return true;

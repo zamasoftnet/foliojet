@@ -20,13 +20,13 @@ import net.zamasoft.zstream.resolver.SourceMetadata;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 縦組みの脚注の呼び出し番号の位置の試験です(2026-09-02)。
+ * Tests for the position of footnote call numbers in vertical writing (2026-09-02).
  *
  * <p>
- * 利用者の報告: 縦書きで脚注の番号が右にずれる。呼び出し
- * ({@code ::footnote-call})はラベル画像({@code FootnoteLabelImage})で、
- * 縦組みの行の中では本文の字の列(x範囲)に収まっていなければならない。
- * ページJSONの文字列の矩形で確かめる。
+ * User report: footnote numbers shift to the right in vertical writing. The call
+ * ({@code ::footnote-call}) is a label image ({@code FootnoteLabelImage}) and must fit
+ * within the body-text column (x range) in a vertically written line.
+ * Check using text rectangles in page JSON.
  * </p>
  */
 public class FootnoteVerticalCallTest extends TestCase {
@@ -41,7 +41,7 @@ public class FootnoteVerticalCallTest extends TestCase {
 				+ "</body></html>";
 	}
 
-	/** {@code {value, x1, y1, x2, y2}}(transformを足したページ座標)。 */
+	/** {@code {value, x1, y1, x2, y2}} (page coordinates including transform). */
 	private record Run(String value, double x1, double y1, double x2, double y2) {
 	}
 
@@ -60,12 +60,12 @@ public class FootnoteVerticalCallTest extends TestCase {
 		}
 		assertNotNull("the body run must be found: " + runs, body);
 		assertNotNull("the call label must be found: " + runs, label);
-		// 縦組みでは本文の列は細く(1字幅)、呼び出しの数字はその列の右肩に居るべき。
-		// Chromeの上付きは親のフォントサイズの1/3だけ右へ寄るので、数字の
-		// 大半は列の中に収まる(以前は数字の左端が列の右端に来て、丸ごと
-		// 列の外へはみ出していた——利用者の報告「縦書きで右にずれる」)。
-		// ページJSONの横書きrunの矩形は「開始x〜開始x+フォントサイズ」なので、
-		// 数字の実幅は矩形の幅(=font-size 8.3)の55%と見る
+		// In vertical writing, the body-text column is narrow (one character wide); call digits belong at its upper right.
+		// Chrome shifts superscripts right by one-third of the parent's font size, so most of the digits
+		// fit inside the column (previously, the digits' left edge started at the column's right edge,
+		// placing them entirely outside—the user report that they "shift right in vertical writing").
+		// Horizontal-run rectangles in page JSON span "start x to start x + font size", so
+		// estimate the digits' actual width as 55% of the rectangle width (=font-size 8.3).
 		final double size = label.x2 - label.x1;
 		assertTrue("the call label must sit on the body's column (body x=" + body.x1 + ".." + body.x2
 				+ ", label x=" + label.x1 + ".." + label.x2 + "):\n" + runs + "\n" + this.displayList,
@@ -97,7 +97,7 @@ public class FootnoteVerticalCallTest extends TestCase {
 		return runs;
 	}
 
-	/** 表示リストの写し(失敗時の診断用)。 */
+	/** A copy of the display list (for diagnosing failures). */
 	private String displayList = "";
 
 	private CapturingResults convert() throws Exception {
@@ -150,7 +150,7 @@ public class FootnoteVerticalCallTest extends TestCase {
 
 		@Override
 		public void end() {
-			// 何もしない
+			// Do nothing.
 		}
 
 		String text(final String uri) {

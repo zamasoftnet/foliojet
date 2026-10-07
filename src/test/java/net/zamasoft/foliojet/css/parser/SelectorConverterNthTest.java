@@ -3,8 +3,8 @@ package net.zamasoft.foliojet.css.parser;
 import junit.framework.TestCase;
 
 /**
- * An+B構文パーサー(SelectorConverter.parseNth)の単体テスト。
- * パッケージ非公開メソッドを同一パッケージから直接検証します。
+ * Unit tests for the An+B syntax parser (SelectorConverter.parseNth).
+ * Directly verify the package-private method from the same package.
  */
 public class SelectorConverterNthTest extends TestCase {
 	public void testOddEven() {
@@ -35,7 +35,7 @@ public class SelectorConverterNthTest extends TestCase {
 	}
 
 	public void testWhitespaceBetweenSignAndDigits() {
-		// トークナイズ由来で "+ 3" のように空白が入る場合がある
+		// Tokenization may introduce whitespace, as in "+ 3".
 		assertEquals2(2, 3, SelectorConverter.parseNth("2n + 3"));
 		assertEquals2(2, -3, SelectorConverter.parseNth("2n - 3"));
 	}

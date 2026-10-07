@@ -54,8 +54,8 @@ public final class XMLUtils {
 	}
 
 	/**
-	 * BOMをチェックして、エンコーディングを返します。
-	 * 
+	 * Checks the BOM and returns the encoding.
+	 *
 	 * @param in
 	 * @return
 	 * @throws IOException
@@ -131,7 +131,7 @@ public final class XMLUtils {
 		if (source.isReader()) {
 			inputSource = new org.xml.sax.InputSource(new BufferedReader(source.getReader()));
 		} else {
-			// BOMチェック
+			// Check BOM.
 			InputStream in = new BufferedInputStream(source.getInputStream());
 			String encoding = checkBOM(in);
 
@@ -147,8 +147,8 @@ public final class XMLUtils {
 	}
 
 	/**
-	 * PI などで使用される擬似属性を解析します。
-	 * 
+	 * Parses pseudo-attributes used in processing instructions and similar constructs.
+	 *
 	 * @param ch
 	 * @param off
 	 * @param len
@@ -162,7 +162,7 @@ public final class XMLUtils {
 		for (int i = 0; i < len; ++i) {
 			char c = ch[i + off];
 			switch (state) {
-			case 0:// 初期状態
+			case 0:// Initial state
 				if (c == '[') {
 					data = new StringBuilder();
 					state = 9;
@@ -173,7 +173,7 @@ public final class XMLUtils {
 				}
 				break;
 
-			case 1:// 名前を解析中
+			case 1:// Parsing a name
 				if (c == '=') {
 					value = new StringBuilder();
 					state = 2;
@@ -182,7 +182,7 @@ public final class XMLUtils {
 				}
 				break;
 
-			case 2:// 値を解析前
+			case 2:// Before parsing a value
 				if (c == '"' || c == '\'') {
 					delim = c;
 					state = 3;
@@ -193,7 +193,7 @@ public final class XMLUtils {
 				}
 				break;
 
-			case 3:// 値を解析中
+			case 3:// Parsing a value
 				if (c == delim || (delim == 0 && (Character.isWhitespace(c) || c == ','))) {
 					String nameStr = name.toString();
 					atts.addAttribute("", nameStr, nameStr, "CDATA", value.toString());
@@ -211,7 +211,7 @@ public final class XMLUtils {
 				}
 				break;
 
-			case 4:// エスケープを解析中
+			case 4:// Parsing an escape
 				if (c == '#') {
 					state = 6;
 				} else {
@@ -220,7 +220,7 @@ public final class XMLUtils {
 				}
 				break;
 
-			case 5:// 定義済みエンティティを解析中
+			case 5:// Parsing a predefined entity
 				if (c == ';') {
 					String escapeStr = escape.toString();
 					escape = null;
@@ -243,7 +243,7 @@ public final class XMLUtils {
 				}
 				break;
 
-			case 6:// キャラクタ参照を解析中
+			case 6:// Parsing a character reference
 				if (c == 'x' || c == 'X') {
 					state = 8;
 				} else {
@@ -252,7 +252,7 @@ public final class XMLUtils {
 				}
 				break;
 
-			case 7:// 10進ユニコードを解析中
+			case 7:// Parsing a decimal Unicode value
 				if (c == ';') {
 					String escapeStr = escape.toString();
 					escape = null;
@@ -268,7 +268,7 @@ public final class XMLUtils {
 				}
 				break;
 
-			case 8:// 16進ユニコードを解析中
+			case 8:// Parsing a hexadecimal Unicode value
 				if (c == ';') {
 					String escapeStr = escape.toString();
 					escape = null;
@@ -284,7 +284,7 @@ public final class XMLUtils {
 				}
 				break;
 
-			case 9:// データを解析中
+			case 9:// Parsing data
 				if (c == ']') {
 					if (++i >= len) {
 						break;
@@ -308,8 +308,8 @@ public final class XMLUtils {
 	}
 
 	/**
-	 * 擬似属性値に適したエスケープを行います。
-	 * 
+	 * Escapes a pseudo-attribute value.
+	 *
 	 * @param val
 	 * @return
 	 */
@@ -336,8 +336,8 @@ public final class XMLUtils {
 	}
 
 	/**
-	 * 擬似属性のデータ部に適したエスケープを行います。
-	 * 
+	 * Escapes the data part of a pseudo-attribute.
+	 *
 	 * @param val
 	 * @return
 	 */

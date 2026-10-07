@@ -19,17 +19,16 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>{@code -webkit-text-fill-color: transparent}の文字が黒く描かれない</b>
- * ことを固定します(2026-08-18)。
+ * Verifies that <b>text with {@code -webkit-text-fill-color: transparent} is not drawn in black</b>
+ * (2026-08-18).
  *
  * <p>
- * {@code TextFillColor.get}はtransparentでnullを返していたが、描画側
- * ({@code AbstractTextBox}等)の「nullなら色を設定しない」は既定の黒の
- * まま描くという意味で、透明のつもりの文字が黒く見えていた。
- * prism-editor(透明textareaとハイライト済みpreの重ね)でコードが
- * 二重に見える実欠陥(実コーパスchartjs-docs)。修正後はalpha 0の
- * 色実体で描かれる——このテストはPDFの非ストローク色のalphaを
- * pdfboxで実測する。
+ * {@code TextFillColor.get} returned null for transparent, but "do not set a color for null" on the
+ * rendering side ({@code AbstractTextBox}, etc.) meant drawing in the default black.
+ * Text intended to be transparent therefore appeared black. This caused visibly doubled code in
+ * prism-editor (a transparent textarea over a highlighted pre) in the real chartjs-docs corpus.
+ * After the fix, rendering uses a color object with alpha 0. This test measures the PDF's non-stroking
+ * color alpha with pdfbox.
  * </p>
  */
 public class TextFillTransparentTest extends TestCase {
@@ -62,7 +61,7 @@ public class TextFillTransparentTest extends TestCase {
 				}
 
 				protected void processTextPosition(TextPosition p) {
-					// HIDDEN側にだけ現れる文字'D'で判定(SHOWNはS/H/O/W/N)
+					// Check using 'D', which appears only in HIDDEN (SHOWN contains S/H/O/W/N).
 					if ("D".equals(p.getUnicode())) {
 						sawHidden[0] = true;
 						final double alpha = getGraphicsState().getNonStrokeAlphaConstant();

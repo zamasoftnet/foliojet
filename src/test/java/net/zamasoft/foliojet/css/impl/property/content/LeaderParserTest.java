@@ -18,8 +18,8 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 
 /**
- * {@code content: leader(...)}の解析テストです
- * (consult-codex-2026-07-31-leader.txt L1)。
+ * Parsing tests for {@code content: leader(...)}
+ * (consult-codex-2026-07-31-leader.txt L1).
  */
 public class LeaderParserTest extends TestCase {
 
@@ -54,7 +54,7 @@ public class LeaderParserTest extends TestCase {
 		assertEquals(" ", single("leader(space)").getPattern());
 		assertEquals(". ", single("leader('. ')").getPattern());
 
-		// target-counter()との併用(目次の標準形)
+		// Combined with target-counter() (standard table-of-contents form).
 		final Value[] values = ((ValueListValue) parse("leader(dotted) target-counter(attr(href), page)")).getValues();
 		assertEquals(2, values.length);
 		assertTrue(values[0] instanceof LeaderValue);
@@ -64,7 +64,7 @@ public class LeaderParserTest extends TestCase {
 		assertTrue(parse("leader()") instanceof PropertyException);
 		assertTrue(parse("leader(bogus)") instanceof PropertyException);
 		assertTrue(parse("leader('')") instanceof PropertyException);
-		// 改行のみ=除去後に空 → ゼロ周期の無限反復を避けるため構文エラー
+		// Only line breaks = empty after removal → syntax error to avoid infinite repetition with a zero period.
 		assertTrue(parse("leader('\\A')") instanceof PropertyException);
 		assertTrue(parse("leader(dotted solid)") instanceof PropertyException);
 	}

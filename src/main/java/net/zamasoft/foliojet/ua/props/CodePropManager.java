@@ -7,7 +7,7 @@ import net.zamasoft.foliojet.message.MessageHandler;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
- * 選択肢から1つを選ぶプロパティです。
+ * A property that selects one of a set of choices.
  */
 public final class CodePropManager<E extends Enum<E> & PropCode> extends AbstractPropManager {
 	private final Class<E> type;

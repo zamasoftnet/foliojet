@@ -3,7 +3,7 @@ package net.zamasoft.foliojet.ua;
 import net.zamasoft.foliojet.css.CSSElement;
 
 /**
- * 現在のパスに関係するオブジェクトを保持します。
+ * Holds objects related to the current pass.
  */
 public class PassContext {
 	private final SectionState sectionState = new SectionState();
@@ -12,7 +12,7 @@ public class PassContext {
 	private final net.zamasoft.foliojet.css.style.running.RunningRegistry runningRegistry =
 			new net.zamasoft.foliojet.css.style.running.RunningRegistry();
 
-	/** runningとstring-setが共有する配置アンカーの所有者です。 */
+	/** Owner of placement anchors shared by running and string-set. */
 	public net.zamasoft.foliojet.css.style.running.RunningRegistry getRunningRegistry() {
 		return this.runningRegistry;
 	}
@@ -21,12 +21,12 @@ public class PassContext {
 		return this.runningRegistry.state();
 	}
 
-	/** 本文の生成内容からの先行参照用です。配置済みの頁状態とは分離します。 */
+	/** For forward references from generated content in body text. Separate from already placed page state. */
 	public BuildStringState getBuildStringState() {
 		return this.buildStringState;
 	}
 
-	/** 先読み済みの代入を、配置済みの頁の終了では捨てない本文参照用状態です。 */
+	/** Body-reference state retaining read-ahead assignments when an already placed page ends. */
 	public static final class BuildStringState {
 		private static final class Candidates {
 			final java.util.TreeMap<Long, String> pending = new java.util.TreeMap<Long, String>();
@@ -48,7 +48,7 @@ public class PassContext {
 			}
 		}
 
-		/** content() の完成値は同じ order を更新し、古い頁で最新値を巻き戻しません。 */
+		/** Completed content() values update the same order; an old page does not roll back the latest value. */
 		public void complete(final String name, final String value, final long order) {
 			this.assign(name, value, order, false);
 			final Candidates c = this.names.get(name);

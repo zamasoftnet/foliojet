@@ -1,7 +1,7 @@
 package net.zamasoft.foliojet.ua;
 
 /**
- * font-size の絶対サイズキーワードです。中間サイズ(medium)に対する比率を持ちます。
+ * Absolute font-size keywords, with ratios relative to the medium size.
  */
 public enum AbsoluteFontSize {
 	XX_SMALL(3 / 5.0),
@@ -25,7 +25,7 @@ public enum AbsoluteFontSize {
 	}
 
 	/**
-	 * mediumに対する倍率を返します。
+	 * Returns the scale factor relative to medium.
 	 */
 	public double ratio() {
 		return this.ratio;

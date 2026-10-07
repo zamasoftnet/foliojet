@@ -21,22 +21,21 @@ import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 
 /**
- * 背景を透明にした画像出力(2026-09-09新設)。
+ * Image output with a transparent background (introduced on 2026-09-09).
  *
  * <p>
- * <b>「変換できた」では何も分かりません。</b>透明のつもりが白で塗られていても
- * 画像は出ます。ここでは書き出した画像を<b>読み戻して画素のアルファを見ます</b>。
+ * <b>Successful conversion proves nothing.</b> An image is still produced if an intended transparent
+ * background is painted white. Here, <b>read the output image back and inspect pixel alpha</b>.
  * </p>
  *
  * <p>
- * アルファを持てない形式(JPEG など)で求められたときは、白のまま描いて
- * {@code 2824}で知らせます。黙って無視すると「透明にしたのに白い」と
- * 悩ませることになるためです。
+ * If requested for a format without alpha (JPEG, etc.), render on white and report {@code 2824}.
+ * Silently ignoring the request would leave users wondering why their transparent image is white.
  * </p>
  */
 public class TransparentImageOutputTest extends TestCase {
 
-	/** 左上は何も描かれない。中央に不透明な赤い箱を置く。 */
+	/** Nothing is drawn at the top left. Place an opaque red box in the center. */
 	private static final String HTML = "<!DOCTYPE html><html><head><meta charset='utf-8'><style>"
 			+ "@page { size: 100px 100px; margin: 0 }"
 			+ "body { margin: 0 }"
@@ -87,7 +86,7 @@ public class TransparentImageOutputTest extends TestCase {
 		return image.getRGB(x, y) & 0xFFFFFF;
 	}
 
-	/** PNGで背景が透明になること。 */
+	/** PNG has a transparent background. */
 	public void testPngIsTransparent() throws Exception {
 		final BufferedImage image = this.convert("image/png", Boolean.TRUE);
 		assertEquals("何も描いていないところが透明でない", 0, alphaAt(image, 2, 2));
@@ -97,7 +96,7 @@ public class TransparentImageOutputTest extends TestCase {
 				this.messages.contains("2824"));
 	}
 
-	/** GIFで背景が透明になること。 */
+	/** GIF has a transparent background. */
 	public void testGifIsTransparent() throws Exception {
 		final BufferedImage image = this.convert("image/gif", Boolean.TRUE);
 		assertEquals("何も描いていないところが透明でない", 0, alphaAt(image, 2, 2));
@@ -106,25 +105,25 @@ public class TransparentImageOutputTest extends TestCase {
 				this.messages.contains("2824"));
 	}
 
-	/** 指定しなければ今までどおり白で塗ること(既定を変えていない)。 */
+	/** Without the setting, paint white as before (the default is unchanged). */
 	public void testPngStaysOpaqueByDefault() throws Exception {
 		final BufferedImage image = this.convert("image/png", null);
 		assertEquals("既定なのに透明になっている", 255, alphaAt(image, 2, 2));
 		assertEquals("既定の背景が白でない", 0xFFFFFF, rgbAt(image, 2, 2));
 	}
 
-	/** {@code false}を明示したときも白で塗ること。 */
+	/** Explicit {@code false} also paints white. */
 	public void testPngStaysOpaqueWhenAskedNotTo() throws Exception {
 		final BufferedImage image = this.convert("image/png", Boolean.FALSE);
 		assertEquals("false なのに透明になっている", 255, alphaAt(image, 2, 2));
 	}
 
 	/**
-	 * アルファを持てない形式では、白のまま描いて{@code 2824}で知らせること。
+	 * For formats without alpha, render on white and report {@code 2824}.
 	 *
 	 * <p>
-	 * <b>黙って無視しない。</b>「透明にしたのに白い」で悩ませるのが
-	 * いちばん高くつく。
+	 * <b>Do not silently ignore it.</b> Leaving users wondering why a supposedly transparent image
+	 * is white is the most costly outcome.
 	 * </p>
 	 */
 	public void testJpegWarnsAndStaysOpaque() throws Exception {

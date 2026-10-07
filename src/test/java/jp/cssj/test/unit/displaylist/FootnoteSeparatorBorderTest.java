@@ -21,9 +21,9 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * {@code @footnote}の{@code border-top}が本文との区切り線になることを固定します
- * (2026-10-04、TECH-20261003-004 の⑤。以前は「未対応の脚注領域の記述子」と
- * 警告され、区切り線はUAの既定(0.5pt・版面の 1/3)のままだった)。
+ * Verify that {@code @footnote}'s {@code border-top} separates notes from body text
+ * (2026-10-04, TECH-20261003-004 item ⑤). Previously it warned of an "unsupported footnote-area
+ * descriptor", leaving the separator at the UA default (0.5 pt, one third of the type area).
  */
 public class FootnoteSeparatorBorderTest extends TestCase {
 	private static final long WATCHDOG_MS = 60_000L;
@@ -46,7 +46,7 @@ public class FootnoteSeparatorBorderTest extends TestCase {
 				""".formatted(footnoteRule);
 	}
 
-	/** 指定が無ければUAの既定の線(0.5pt、版面 240pt の 1/3)。 */
+	/** Without a declaration, use the UA default line (0.5 pt, one third of the 240 pt type area). */
 	public void testDefaultSeparator() throws Exception {
 		final Matcher m = SEPARATOR.matcher(convert("default", document("")));
 		assertTrue("既定の区切り線が無い", m.find());
@@ -54,7 +54,7 @@ public class FootnoteSeparatorBorderTest extends TestCase {
 		assertEquals("太さ", 0.5, Double.parseDouble(m.group(2)), 0.01);
 	}
 
-	/** border-top の指定は領域の幅いっぱいに、その太さで。 */
+	/** A border-top declaration spans the area's full width at the specified thickness. */
 	public void testBorderTopSeparator() throws Exception {
 		final Matcher m = SEPARATOR
 				.matcher(convert("border", document("@footnote { border-top: 2pt solid red; }")));
@@ -63,7 +63,7 @@ public class FootnoteSeparatorBorderTest extends TestCase {
 		assertEquals("太さ", 2.0, Double.parseDouble(m.group(2)), 0.01);
 	}
 
-	/** border-top: none なら引かない。 */
+	/** Draw no line for border-top: none. */
 	public void testBorderTopNone() throws Exception {
 		final String dump = convert("none", document("@footnote { border-top: none; }"));
 		assertFalse("none なのに区切り線がある", SEPARATOR.matcher(dump).find());

@@ -21,12 +21,12 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * <b>{@code initial-letter}のドロップキャップ</b>を固定します
- * (css-inline-3、2026-08-20)。
+ * Verify <b>drop caps with {@code initial-letter}</b>
+ * (css-inline-3, 2026-08-20).
  *
  * <p>
- * 先頭文字が親の約3行ぶんに拡大され(cap近似0.7)、本文がfloatの
- * 回り込みで字下げされることをPDFの実測で検査する。
+ * Measure the PDF to check that the initial character grows to about three parent lines
+ * (cap approximation 0.7), and float wrapping indents the body text.
  * </p>
  */
 public class InitialLetterTest extends TestCase {
@@ -72,11 +72,11 @@ public class InitialLetterTest extends TestCase {
 		assertFalse(body.isEmpty());
 		final float bodySize = body.get(0).getFontSizeInPt();
 
-		// 3行のドロップキャップ: cap = ((N-1)*1.4 + 0.7) / 0.7 = 5倍
+		// Three-line drop cap: cap = ((N-1)*1.4 + 0.7) / 0.7 = 5×.
 		final float ratio = cap.getFontSizeInPt() / bodySize;
 		assertTrue("ドロップキャップが拡大されていません: ratio=" + ratio, ratio > 4.0f && ratio < 6.0f);
 
-		// 回り込み: capと同じ行帯にある本文はcapの右から始まる
+		// Wrapping: body text in the same line band as the cap starts to its right.
 		final float capRight = cap.getXDirAdj() + cap.getWidth();
 		int wrapped = 0;
 		for (final TextPosition t : body) {

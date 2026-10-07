@@ -10,11 +10,11 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * {@code font-stretch}による書体選択を行幅で固定します(2026-08-29)。
- * 1ファミリにMinion Pro(通常幅)とBarlow Condensed(@font-faceの
- * {@code font-stretch: condensed})を束ね、condensed/semi-condensed/75%は
- * 狭い面、normal/expandedは通常幅の面が選ばれる(expandedは広い面が
- * 無いので最寄りの通常幅)。
+ * Verifies font selection via {@code font-stretch} using line widths (2026-08-29).
+ * One family combines Minion Pro (normal width) and Barlow Condensed
+ * ({@code font-stretch: condensed} in @font-face). condensed/semi-condensed/75% select the narrow face,
+ * while normal/expanded select the normal-width face
+ * (expanded has no wider face, so selects the nearest normal width).
  */
 public class FontStretchFaceTest extends AbstractTestCase {
 	private final Map<String, Double> widths = new HashMap<>();
@@ -57,14 +57,14 @@ public class FontStretchFaceTest extends AbstractTestCase {
 	public boolean check_e(IBox box, int pageNumber, double x, double y) {
 		final boolean done = record("e", box, BARLOW_WIDTH);
 		if (done) {
-			// 狭い面が実際に狭い(値の固定だけでなく関係も検査する)
+			// The narrow face is actually narrower (check the relationship as well as fixed values).
 			assertTrue("condensed < normal", this.widths.get("b") < this.widths.get("a") - 10);
 		}
 		return done;
 	}
 
-	/** MinionPro-Regular 36ptの"Width Sample"。 */
+	/** "Width Sample" in MinionPro-Regular at 36 pt. */
 	private static final double MINION_WIDTH = 201.67;
-	/** BarlowCondensed-Bold 36ptの"Width Sample"。 */
+	/** "Width Sample" in BarlowCondensed-Bold at 36 pt. */
 	private static final double BARLOW_WIDTH = 179.57;
 }

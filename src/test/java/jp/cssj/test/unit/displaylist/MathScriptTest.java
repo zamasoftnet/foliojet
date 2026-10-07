@@ -22,19 +22,20 @@ import net.sourceforge.jeuclid.layout.LayoutStage;
 import net.sourceforge.jeuclid.layout.LayoutableNode;
 
 /**
- * 添字の位置とイタリック補正を、書体の MATH 表で決めることを固定します(2026-10-04、
- * TECH-20261003-004 の⑮⑯)。JEuclid は添字を土台と添字のインクの高さだけで置いていたので、
- * y₁ は x₁ より沈み、P³ は x³ より高かった。MATH 表のある書体では TeX の規則 18 で置き、
- * 字 1 つの土台は高さ・深さで動かさない。上付きは土台の字のイタリック補正だけ右へずらす。
+ * Verify that font MATH tables determine script positions and italic corrections (2026-10-04,
+ * TECH-20261003-004 items ⑮⑯). JEuclid positioned scripts solely by base/script ink heights,
+ * so y₁ sat lower than x₁ and P³ higher than x³. With a MATH table, use TeX rule 18:
+ * do not shift single-character bases based on height/depth. Shift superscripts right only
+ * by the base character's italic correction.
  */
 public class MathScriptTest extends TestCase {
 	private static final float SIZE = 20f;
 
 	private static final String MATH = "http://www.w3.org/1998/Math/MathML";
 
-	/** 単位は 1000/em。添字の定数とイタリック補正(全部の字に 100)。 */
+	/** Units are 1000/em. Script constants and italic corrections (100 for every character). */
 	private static ByteBuffer syntheticFont() {
-		final int glyphs = 16000; // 補正の表の位置は 16 ビット(数式用の英数字は実物の STIX で確かめる)
+		final int glyphs = 16000; // Correction-table offsets are 16-bit (check mathematical alphanumerics with real STIX).
 		final int constantsSize = 214;
 		final int italicsSize = 4 + glyphs * 4 + 10;
 		final int mathSize = 10 + constantsSize + 8 + italicsSize;
@@ -81,7 +82,7 @@ public class MathScriptTest extends TestCase {
 
 	private final List<String> registered = new ArrayList<>();
 
-	/** 試験の間だけ、どの書体にも合成の MATH 表を当てる。 */
+	/** Apply a synthetic MATH table to every font for the duration of the test only. */
 	@Override
 	protected void setUp() {
 		final MathTable table = MathTable.parse(syntheticFont());
@@ -113,7 +114,7 @@ public class MathScriptTest extends TestCase {
 		return view;
 	}
 
-	/** math 直下の index 番目の要素の、子(0=土台、1=添字…)の配置。 */
+	/** Placement of children (0=base, 1=script…) of the element at index directly under math. */
 	private static LayoutInfo script(final JEuclidView view, final int index, final int child) {
 		Node math = ((Node) view.getDocument()).getFirstChild();
 		while (!(math instanceof Element)) {
@@ -133,7 +134,10 @@ public class MathScriptTest extends TestCase {
 		throw new AssertionError("no child " + index);
 	}
 
-	/** ⑯ 字 1 つの土台の下付きは同じ高さ(土台のディセンダーで沈まない)。SubscriptShiftDown が下限。 */
+	/**
+	 * ⑯ Single-character subscripts share a height (no lowering for base descenders). SubscriptShiftDown is the lower
+	 * bound.
+	 */
 	public void testSubscriptsOfCharactersShareTheBaseline() throws Exception {
 		final JEuclidView view = layout("<msub><mi>x</mi><mn>1</mn></msub><msub><mi>y</mi><mn>1</mn></msub>"
 				+ "<msub><mi>g</mi><mn>1</mn></msub><msub><mi>P</mi><mn>1</mn></msub>");
@@ -144,7 +148,10 @@ public class MathScriptTest extends TestCase {
 		}
 	}
 
-	/** ⑯ 字 1 つの土台の上付きも同じ高さ(土台の高さで上がらない)。SuperscriptShiftUp が下限。 */
+	/**
+	 * ⑯ Single-character superscripts also share a height (no raising for base height). SuperscriptShiftUp is the
+	 * lower bound.
+	 */
 	public void testSuperscriptsOfCharactersShareTheBaseline() throws Exception {
 		final JEuclidView view = layout("<msup><mi>x</mi><mn>3</mn></msup><msup><mi>P</mi><mn>3</mn></msup>"
 				+ "<msup><mi>f</mi><mn>3</mn></msup>");
@@ -155,7 +162,7 @@ public class MathScriptTest extends TestCase {
 		}
 	}
 
-	/** ⑯ 字でない土台(mrow)は、土台の高さに合わせて上付きを上げる(SuperscriptBaselineDropMax)。 */
+	/** ⑯ A non-character base (mrow) raises the superscript to suit its height (SuperscriptBaselineDropMax). */
 	public void testNonCharacterBaseRaisesTheSuperscript() throws Exception {
 		final JEuclidView view = layout("<msup><mi>x</mi><mn>3</mn></msup>"
 				+ "<msup><mrow><mfrac><mi>a</mi><mi>b</mi></mfrac></mrow><mn>3</mn></msup>");
@@ -165,8 +172,9 @@ public class MathScriptTest extends TestCase {
 	}
 
 	/**
-	 * ⑮ 下付きは土台の字の送り幅の終わり(斜体の字の張り出しの下へ入る)、上付きはそこから
-	 * イタリック補正(0.1em)だけ右(TeX の規則 18。19093 では下付きも字のインクの右端から置いていた)。
+	 * ⑮ Subscripts start at the base character's advance end (under the italic overhang); superscripts
+	 * sit an italic correction (0.1em) farther right (TeX rule 18). In 19093, subscripts also
+	 * started at the right edge of the character's ink.
 	 */
 	public void testScriptsStartAtTheAdvanceAndTheSuperscriptAfterTheItalicCorrection() throws Exception {
 		final String body = "<msubsup><mi mathvariant=\"normal\">f</mi><mn>1</mn><mn>2</mn></msubsup>";
@@ -188,7 +196,10 @@ public class MathScriptTest extends TestCase {
 				script(view, 0, 2).getPosX(LayoutStage.STAGE2), 0.01f);
 	}
 
-	/** ⑯ 1 字の演算子も字の土台: (−x)³ の「)」の上付きは x³ と同じ高さ(括弧の高さで上がらない)。 */
+	/**
+	 * ⑯ A single-character operator is also a character base: ")" in (−x)³ has the same script height as x³,
+	 * unaffected by parenthesis height.
+	 */
 	public void testSingleCharacterOperatorIsACharacterBase() throws Exception {
 		final JEuclidView view = layout(
 				"<msup><mi>x</mi><mn>3</mn></msup><mo>(</mo><mo>−</mo><mi>x</mi><msup><mo>)</mo><mn>3</mn></msup>");
@@ -197,9 +208,10 @@ public class MathScriptTest extends TestCase {
 	}
 
 	/**
-	 * 実物の STIX Two Math で: 斜体の V は数式用の英数字(U+1D449)の字形で組まれ、上付きは下付きより
-	 * その字のイタリック補正(0.1em)だけ右(書体パックが手元にあるときだけ)。斜体の面の無い数式用の書体で、
-	 * 立体の字を機械的に傾けて補正の無いまま組んでいた(19093)。
+	 * With real STIX Two Math: italic V uses its mathematical alphanumeric glyph (U+1D449),
+	 * and the superscript sits an italic correction (0.1em) to the right of the subscript
+	 * (only when the font pack is locally available). Previously (19093), math fonts without
+	 * an italic face used mechanically slanted upright glyphs without correction.
 	 */
 	public void testStixItalicUsesMathAlphanumerics() throws Exception {
 		final File dir = new File("/tmp/copper-pack/truetype/free");
@@ -224,7 +236,7 @@ public class MathScriptTest extends TestCase {
 		assertEquals("superscript after the italic correction of V", SIZE * 0.1f, sup - sub, 0.05f);
 	}
 
-	/** 実物の STIX Two Math の MATH 表を読める(書体パックが手元にあるときだけ)。 */
+	/** Read the real STIX Two Math MATH table (only when the font pack is locally available). */
 	public void testReadsStixTwoMath() throws Exception {
 		final File dir = new File("/tmp/copper-pack/truetype/free");
 		final File[] stix = dir.listFiles((d, n) -> n.contains("STIXTwoMath"));

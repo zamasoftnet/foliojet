@@ -16,10 +16,12 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 入れ子で伸び続ける改ページが止まることの回帰(2026-10-07、掃過 strict seed 12453214 の縮小形)。
- * 縦組みの段組の中の浮動体の続き断片が毎回同じ寸法に組み直され、改ページの再開の中でまた改ページが
- * 起きて、カーソルが 43.2pt ずつ伸びながら入れ子が 53,000 段続き、{@code StackOverflowError} になった。
- * カーソルが毎回違うので、同じ改ページを数える指紋では捕まらなかった。
+ * Termination regression for nested, continually growing page breaks
+ * (2026-10-07, reduced strict sweep seed 12453214).
+ * A float continuation inside vertical columns was rebuilt to the same dimensions each time.
+ * Resuming a page break triggered another break, growing the cursor by 43.2 pt per step and nesting
+ * 53,000 levels until {@code StackOverflowError}. Since the cursor differed each time,
+ * the fingerprint counting identical page breaks did not catch it.
  */
 public class NestedGrowingPageBreakTest extends TestCase {
 	private static final String HTML = """
@@ -89,7 +91,7 @@ public class NestedGrowingPageBreakTest extends TestCase {
 			session.close();
 		}
 		assertTrue("PDF が出ていない", out.size() > 0);
-		// 改ページの放棄(はみ出して置く)で止まる
+		// Terminate by abandoning the page break (place with overflow).
 		assertTrue("the nested growing page break was not abandoned",
 				ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get() > alarms);
 	}

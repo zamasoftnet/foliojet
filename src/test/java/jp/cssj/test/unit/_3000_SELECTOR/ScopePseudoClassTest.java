@@ -10,11 +10,10 @@ import net.zamasoft.foliojet.layout.box.impl.TextBlockBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * {@code :scope}(2026-07-21新設)。{@code @scope}は未対応のため、
- * 単純化して常に{@code :root}相当(ルート要素にのみマッチ)として扱う
- * (CSS Selectors 4「スタイルシート内でスコープ根が他に指定されなければ
- * ルート要素がデフォルト」に合致)。ルート(html)にだけ適用された
- * {@code color}が子孫まで継承されることを固定する。
+ * {@code :scope} (added on 2026-07-21). Since {@code @scope} is unsupported, this is simplified
+ * to always behave like {@code :root} (matching only the root element). This follows CSS Selectors 4:
+ * when no other scoping root is specified in a stylesheet, the root element is the default.
+ * Verifies that {@code color} applied only to the root (html) is inherited by descendants.
  */
 public class ScopePseudoClassTest extends AbstractTestCase {
 	public ScopePseudoClassTest(String name) {

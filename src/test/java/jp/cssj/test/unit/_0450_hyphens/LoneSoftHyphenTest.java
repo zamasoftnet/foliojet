@@ -8,13 +8,13 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * 本文直下のブロックが soft hyphen(U+00AD)だけを含む文書が、
- * 例外なく変換され後続の内容が失われないことを確認します。
+ * Verifies that a document with a block directly under body containing only a soft hyphen (U+00AD)
+ * converts without an exception and does not lose subsequent content.
  *
  * <p>
- * {@code BreakableBuilder.flush()} に null ガードが無かった頃は、この文書で
- * {@code NullPointerException} になっていました(2026-07-25 修正)。
- * 同型の欠陥は {@code BlockBuilder.flush()} 側で 2026-07-24 に修正済みです。
+ * Before {@code BreakableBuilder.flush()} had a null guard, this document caused a
+ * {@code NullPointerException} (fixed on 2026-07-25).
+ * The same kind of defect in {@code BlockBuilder.flush()} was fixed on 2026-07-24.
  * </p>
  */
 public class LoneSoftHyphenTest extends AbstractTestCase {

@@ -19,11 +19,12 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
 /**
- * 絶対長さとフォント相対単位を比べる min()・max()・clamp() を、フォント寸法が定まってから解くことを
- * 固定します(2026-10-04、出版の報告: {@code min(10mm, 3em)} が不正な値として捨てられていた)。
+ * Verify that min(), max(), and clamp() comparing absolute lengths with font-relative units resolve
+ * after font dimensions are known (2026-10-04, publishing report: {@code min(10mm, 3em)}
+ * was discarded as an invalid value).
  */
 public class MinMaxFontRelativeTest extends TestCase {
-	/** 高さ h の箱の幅です。箱ごとに高さを変えて見分ける。 */
+	/** Width of the box with height h. Give each box a different height to distinguish it. */
 	private static double width(final String dump, final int h) {
 		final Matcher m = Pattern.compile("AbsoluteRectFrame\\[w=([-0-9.]+) h=" + h + "\\.00\\]").matcher(dump);
 		assertTrue("box of height " + h + ": " + dump, m.find());

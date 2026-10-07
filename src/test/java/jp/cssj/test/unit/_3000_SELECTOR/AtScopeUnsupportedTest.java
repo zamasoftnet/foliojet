@@ -10,14 +10,12 @@ import net.zamasoft.foliojet.layout.box.impl.TextBlockBox;
 import jp.cssj.test.unit.AbstractTestCase;
 
 /**
- * {@code @scope}(donut scoping at-rule)は未対応(2026-07-21調査、
- * ph-css 8.2.1のjarに関連クラスが一切存在しないと確認済み——
- * 対応表参照)。このテストは「未対応のat-ruleに
- * 遭遇しても例外を投げず、規則全体が安全に無視されること」を固定する
- * ——{@code @scope}ブロック内の宣言(この文書では{@code p{color:red}})が
- * スコープ制約なしに全体へ誤って昇格して適用されてしまう
- * (無視よりも悪い、サイレントな過剰適用)のではないことも合わせて
- * 確認する。
+ * {@code @scope} (donut scoping at-rule) is unsupported (investigated on 2026-07-21;
+ * confirmed that the ph-css 8.2.1 jar contains no related classes; see the support table).
+ * This test verifies the contract that an unsupported at-rule throws no exception and the entire rule
+ * is safely ignored. It also checks that declarations inside the {@code @scope} block
+ * ({@code p{color:red}} in this document) are not mistakenly promoted to apply globally without
+ * scope constraints (silent over-application, worse than ignoring the rule).
  */
 public class AtScopeUnsupportedTest extends AbstractTestCase {
 	public AtScopeUnsupportedTest(String name) {

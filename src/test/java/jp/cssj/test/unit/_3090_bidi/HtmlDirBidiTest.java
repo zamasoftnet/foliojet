@@ -7,7 +7,7 @@ import jp.cssj.test.unit.AbstractTestCase;
 import net.zamasoft.foliojet.layout.box.AbstractLineBox;
 import net.zamasoft.foliojet.layout.box.IBox;
 
-/** HTMLのdir/bdi/bdoを段落単位UBAへ写す規則の試験。 */
+/** Tests rules mapping HTML dir/bdi/bdo to paragraph-level UBA. */
 public class HtmlDirBidiTest extends AbstractTestCase {
 	public HtmlDirBidiTest(final String name) {
 		super(name);
