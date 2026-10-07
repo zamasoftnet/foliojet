@@ -292,6 +292,22 @@ final class PDFParamsResolver {
 				throw pdfXOutputIntentError(ua, UAProps.OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER.name,
 						oiIdentifier, "380E.identifier");
 			}
+			// 識別名とレジストリ名は印刷条件の名前(ICC の登録名はすべて ASCII)。PDF/X では
+			// 印字可能な ASCII に限る(2026-10-07。以前は下位 8 ビットに切り詰めて黙って化けた)
+			final String oiRegistry = UAProps.OUTPUT_PDF_OUTPUT_INTENT_REGISTRY.getString(ua);
+			if (pdfX && !printableAscii(oiIdentifier)) {
+				throw pdfXOutputIntentError(ua, UAProps.OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER.name,
+						oiIdentifier, "380E.identifier-ascii");
+			}
+			if (pdfX && oiRegistry != null && !printableAscii(oiRegistry)) {
+				throw pdfXOutputIntentError(ua, UAProps.OUTPUT_PDF_OUTPUT_INTENT_REGISTRY.name,
+						oiRegistry, "380E.identifier-ascii");
+			}
+			// PDF/X の出力インテントは DestOutputProfile が要る(以前は pdfg2d の素の例外で変換が落ちた)
+			if (pdfX && iccUri == null) {
+				throw pdfXOutputIntentError(ua, UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name, "",
+						"380E.missing-profile");
+			}
 			byte[] icc = null;
 			int components = 4;
 			if (iccUri != null) {
@@ -775,6 +791,10 @@ final class PDFParamsResolver {
 		}
 		ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_PDF_PLATFORM_ENCODING.name, name);
 		return UAProps.OUTPUT_PDF_PLATFORM_ENCODING.getDefaultString();
+	}
+
+	private static boolean printableAscii(final String s) {
+		return s.chars().allMatch(c -> c >= 0x20 && c <= 0x7E);
 	}
 
 	/** 呼び出し側へコード付きで返す(2026-10-05 までは素の IOException で、予期しない例外 4001 として返っていた)。 */

@@ -146,7 +146,7 @@
 				<td>なし<br />なし<br />http://www.color.org<br />なし<br />なし</td>
 				<td class="nowrap">4.0.0<br />(PDF 1.4)
 				</td>
-				<td>出力インテント(/OutputIntents——想定する印刷条件)の設定です。<tt>.identifier</tt>(JC200103、FOGRA39などICCレジストリの特性化識別名)を設定すると出力されます。印刷所の指定に合わせてください。<br /><tt>.icc-profile</tt>にICCプロファイルのURIを指定すると、DestOutputProfileとして埋め込まれます(色成分数はプロファイルヘッダから自動判別)。未登録の印刷条件では<tt>.info</tt>の指定を推奨します。<br />未指定のとき、PDF/X(全版)とoutput.color=cmykでは同梱のISO Coated v2 300% (ECI)(FOGRA39、CMYK)が、それ以外ではsRGBが使われます。PDF/XではICCプロファイルを完全に検証し、読めない・出力用(prtr)でない・CMYKでない・識別名が空ならエラー380Eになります(PDF/X以外は警告)。RGB→CMYKの変換にもこのプロファイルが使われます。</td>
+				<td>出力インテント(/OutputIntents——想定する印刷条件)の設定です。<tt>.identifier</tt>(JC200103、FOGRA39などICCレジストリの特性化識別名)を設定すると出力されます。印刷所の指定に合わせてください。<br /><tt>.icc-profile</tt>にICCプロファイルのURIを指定すると、DestOutputProfileとして埋め込まれます(色成分数はプロファイルヘッダから自動判別)。未登録の印刷条件では<tt>.info</tt>の指定を推奨します。<br />未指定のとき、PDF/X(全版)とoutput.color=cmykでは同梱のISO Coated v2 300% (ECI)(FOGRA39、CMYK)が、それ以外ではsRGBが使われます。PDF/XではICCプロファイルを完全に検証し、読めない・出力用(prtr)でない・CMYKでない・識別名が空ならエラー380Eになります(PDF/X以外は警告)。PDF/Xでは、識別名だけで<tt>.icc-profile</tt>が無いとき、識別名・レジストリ名に印字可能なASCII以外の字があるときも380Eです。PDF/Xで<tt>.info</tt>を省略すると、<tt>.condition</tt>(無ければ識別名)をInfoに書きます(未登録の印刷条件ではInfoが必須のため)。RGB→CMYKの変換にもこのプロファイルが使われます。</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.rendering-intent">
 				<td class="nowrap">output.pdf.rendering-intent</td>

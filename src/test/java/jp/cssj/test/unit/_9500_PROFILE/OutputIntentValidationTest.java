@@ -43,6 +43,36 @@ public class OutputIntentValidationTest extends TestCase {
 		assertFailedWithPdfXOutputIntentError(result);
 	}
 
+	/** 識別名は印刷条件の名前で、PDF/X では印字可能な ASCII に限る(2026-10-07。以前は黙って化けた)。 */
+	public void testPdfXRejectsNonAsciiIdentifier() throws Exception {
+		assertFailedWithPdfXOutputIntentError(convert(PDFX4, "日本の印刷", cmykOutputProfile()));
+	}
+
+	/** PDF/X は DestOutputProfile が要る(2026-10-07。以前は pdfg2d の素の例外で、予期しない失敗として返った)。 */
+	public void testPdfXRejectsIdentifierWithoutProfile() throws Exception {
+		assertFailedWithPdfXOutputIntentError(convert(PDFX4, "FOGRA39", null));
+	}
+
+	/** 登録されていない識別名の出力インテントにも Info が付く(2026-10-07。PDF/X では必須)。 */
+	public void testPdfXWritesInfoForCustomIdentifier() throws Exception {
+		final Conversion result = convert(PDFX4, "MyPress", cmykOutputProfile());
+		assertNull(result.failure);
+		try (var doc = org.apache.pdfbox.Loader.loadPDF(result.pdf)) {
+			final var intents = doc.getDocumentCatalog().getOutputIntents();
+			assertEquals(1, intents.size());
+			assertEquals("MyPress", intents.get(0).getInfo());
+		}
+	}
+
+	/** 通常の PDF では非 ASCII の識別名を UTF-16 で書き、化けない(2026-10-07)。 */
+	public void testRegularPdfKeepsNonAsciiIdentifier() throws Exception {
+		final Conversion result = convert("1.5", "日本の印刷", cmykOutputProfile());
+		assertNull(result.failure);
+		try (var doc = org.apache.pdfbox.Loader.loadPDF(result.pdf)) {
+			assertEquals("日本の印刷", doc.getDocumentCatalog().getOutputIntents().get(0).getOutputConditionIdentifier());
+		}
+	}
+
 	public void testRegularPdfWarnsAndDiscardsRgbMonitorProfile() throws Exception {
 		final Conversion result = convert("1.5", "RGB test", srgbProfile());
 		assertNull("通常PDFの変換は成功すること", result.failure);
@@ -114,7 +144,9 @@ public class OutputIntentValidationTest extends TestCase {
 			throws Exception {
 		final Path iccFile = Files.createTempFile("foliojet-output-intent-validation-", ".icc");
 		try {
-			Files.write(iccFile, profile);
+			if (profile != null) {
+				Files.write(iccFile, profile);
+			}
 			final ByteArrayOutputStream out = new ByteArrayOutputStream();
 			final Messages messages = new Messages();
 			Exception failure = null;
@@ -130,7 +162,9 @@ public class OutputIntentValidationTest extends TestCase {
 				if (identifier != null) {
 					session.property("output.pdf.output-intent.identifier", identifier);
 				}
-				session.property("output.pdf.output-intent.icc-profile", iccFile.toUri().toString());
+				if (profile != null) {
+					session.property("output.pdf.output-intent.icc-profile", iccFile.toUri().toString());
+				}
 				CTISessionHelper.transcodeFile(session, new File("files/unittest/9500-PROFILE/simple.html"),
 						"text/html", null);
 			} catch (final TranscoderException e) {
