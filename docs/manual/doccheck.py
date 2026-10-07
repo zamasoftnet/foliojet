@@ -86,7 +86,10 @@ IMG = re.compile(r'(?:src|data)="([^"]+\.(?:png|jpe?g|gif|svgz?))"')
 # ここに実物がある必要はない(4700/4800 の kappa.png がこれ)
 for f, s in list(prose.items()) + list(extra.items()):
     for m in IMG.finditer(s):
-        if not os.path.exists(os.path.join(D, m.group(1))):
+        # 英語版(en/)は画像を日本語の側と共有し、ビルドで重ねる(差し替える図だけ en/ に置く)
+        shared = os.path.join("..", D) if os.path.basename(os.path.abspath(".")) == "en" else None
+        if not os.path.exists(os.path.join(D, m.group(1))) and not (
+                shared and os.path.exists(os.path.join(shared, m.group(1)))):
             add("画像が無い", f, m.group(1))
 # 「使われていない」はコード例も数える。写して使う素材は残す必要がある
 for f, s in list(src.items()) + list(extra.items()):
