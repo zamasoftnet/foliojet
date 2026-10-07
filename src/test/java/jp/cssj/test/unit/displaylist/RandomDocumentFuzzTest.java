@@ -98,12 +98,38 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return value != null && !value.equals("0") && !value.equalsIgnoreCase("false");
 	}
 
+	/**
+	 * 紙面外の検査が生きる文書だけを組む、opt-in の掃過プロファイルの版(2026-10-07、{@code -Dfoliojet.fuzzFit=1})。
+	 *
+	 * <p>
+	 * v2 の文書は密で、紙面外の検査(不変条件6)が文書単位の除外に当たらないのは約 5% だけだった(紙が小さい・
+	 * 明示寸法が紙より大きい・直交フローの入れ子など)。fit は同じ seed から決まった順の派生 seed で v2 の文書を
+	 * 作り直し、除外に当たらない最初の文書を使う({@link #generateFit})。生成器も検査の判定も変えないので、
+	 * 誤検出は増えず、seed から決定的に再現できる。
+	 * </p>
+	 */
+	static final int FIT_PROFILE_VERSION = 1;
+
+	/** fit の試行回数。生きる文書が約 5% なら、64 回で見つからないのは約 4%。 */
+	private static final int FIT_TRIES = 64;
+
+	private static boolean fitProfile() {
+		final String value = System.getProperty("foliojet.fuzzFit");
+		return value != null && !value.equals("0") && !value.equalsIgnoreCase("false");
+	}
+
 	private static String generatorProfile() {
+		if (fitProfile()) {
+			if (extremeProfile()) {
+				throw new IllegalStateException("foliojet.fuzzFit と foliojet.fuzzExtreme は同時に使えない");
+			}
+			return "fit-v" + FIT_PROFILE_VERSION;
+		}
 		return extremeProfile() ? "extreme-v" + EXTREME_PROFILE_VERSION : "standard";
 	}
 
 	private static String generatorLabel() {
-		return extremeProfile() ? GENERATOR_VERSION + "/" + generatorProfile()
+		return extremeProfile() || fitProfile() ? GENERATOR_VERSION + "/" + generatorProfile()
 				: String.valueOf(GENERATOR_VERSION);
 	}
 
@@ -1130,6 +1156,32 @@ public class RandomDocumentFuzzTest extends TestCase {
 				java.util.concurrent.atomic.LongAdder> coverage =
 						new java.util.concurrent.ConcurrentHashMap<>();
 
+		/**
+		 * 紙面外の検査(不変条件6)が生きている文書の数(2026-10-07)。除外の述語は文書単位なので、変換の前に
+		 * HTML から数えられる。両軸=どの除外にも当たらない、ページ軸=直交フローの行軸の除外だけ当たる
+		 * (ページ軸へのはみ出しは見る)。
+		 */
+		final java.util.concurrent.atomic.LongAdder offPageDocs = new java.util.concurrent.atomic.LongAdder();
+		final java.util.concurrent.atomic.LongAdder offPageLive = new java.util.concurrent.atomic.LongAdder();
+		final java.util.concurrent.atomic.LongAdder offPagePageAxisLive = new java.util.concurrent.atomic.LongAdder();
+
+		void recordOffPageLiveness(final Generated doc) {
+			this.offPageDocs.increment();
+			if (!offPageCheckExcused(doc)) {
+				this.offPagePageAxisLive.increment();
+				if (!hasOrthogonalFlow(doc.html())) {
+					this.offPageLive.increment();
+				}
+			}
+		}
+
+		String offPageSummary() {
+			final long n = this.offPageDocs.sum();
+			return "両軸 " + this.offPageLive.sum() + "/" + n + " ページ軸 " + this.offPagePageAxisLive.sum() + "/" + n
+					+ (n == 0 ? "" : String.format(" (%.1f%%・%.1f%%)", 100.0 * this.offPageLive.sum() / n,
+							100.0 * this.offPagePageAxisLive.sum() / n));
+		}
+
 		void record(final GenerationStructure structure) {
 			this.elements.add(structure.elements());
 			for (final CoverageKey key : structure.coverageKeys()) {
@@ -1675,6 +1727,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 				+ measurements.elements.summary());
 		System.out.println("[fuzzReport] mode=" + mode + " 出力ページ数分布 "
 				+ measurements.pages.summary());
+		System.out.println("[fuzzReport] mode=" + mode + " 紙面外検査の生存 " + measurements.offPageSummary());
+		// 計画に選ばれない開いた箱の救済を止めた回数(2026-10-07、OpenBoxes。JVM 全体の累計)
+		System.out.println("[fuzzReport] mode=" + mode + " 開いた箱の救済の抑止(計画外) "
+				+ net.zamasoft.foliojet.layout.fragment.OpenBoxes.UNSELECTED_RESCUES_PREVENTED.get());
 		reportLocalCoverage(strict, measurements.coverage);
 		final List<Long> defects = new ArrayList<>();
 		for (final var count : defectCount.values()) {
@@ -1700,6 +1756,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final SweepMeasurements measurements) throws Exception {
 		final Generated doc = generate(seed, strict);
 		measurements.record(inspectGeneratedStructure(doc.html()));
+		measurements.recordOffPageLiveness(doc);
 		checkOne(seed, strict, doc, measurements.pages::add);
 	}
 
@@ -2371,15 +2428,20 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// 次ページへ送るか——寸法を直すのは組版を指定した側の責任である。
 		// 除外は「見なかったことにする」ではなく**別の種別として数える**:
 		// 除外が増えたことに気づけなくなると、本当の退行を見落とす。
+		//
+		// **除外は内容と宛先の消失を確かめてから投げる**(2026-10-07)。以前はここで投げて、後ろの
+		// 不変条件 4・9 を飛ばしていた(掃過の 25 万文書のうち約 1.1%)。版面が破綻していても
+		// 内容の消失は例外なくエンジンの欠陥(ARCHITECTURE §5.13)なので、除外の理由にならない
+		AssertionError deferredExclusion = null;
 		if (!blanks.isEmpty()) {
 			if (doc.beyondEngineControl()) {
-				throw new ExcludedByOversizedBox("白紙ページ " + blanks + " (" + html + ")");
-			}
-			if (hasUntypesettableFloat(doc.html())) {
-				throw new ExcludedByUntypesettableFloat(
+				deferredExclusion = new ExcludedByOversizedBox("白紙ページ " + blanks + " (" + html + ")");
+			} else if (hasUntypesettableFloat(doc.html())) {
+				deferredExclusion = new ExcludedByUntypesettableFloat(
 						"白紙ページ " + blanks + " (" + html + ") [組版できない幅の浮動体]");
+			} else {
+				fail("白紙ページ " + blanks + " (" + html + ")");
 			}
-			fail("白紙ページ " + blanks + " (" + html + ")");
 		}
 		// 不変条件4: 内容が失われない
 		final List<String> lost = new ArrayList<>();
@@ -2395,6 +2457,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 		assertTrue("内容が失われた " + lost + " (" + html + ")", lost.isEmpty());
 		// 不変条件9: PDFの宛先(id断片)が失われない
 		checkFragments(doc, outDir, html);
+		if (deferredExclusion != null) {
+			// 白紙ページの除外(上)。残りの不変条件は版面の破綻の影響を受けるので見ない
+			throw deferredExclusion;
+		}
 		// 不変条件8: 内容が複製されない(まだ報告のみ)
 		checkNoDuplication(doc, drawn, html);
 		// 不変条件6: 説明のつかない紙面外への配置がない
@@ -2970,6 +3036,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 		fail(detail);
 	}
 
+	/**
+	 * 紙面外の検査を文書単位の述語で免除する文書か(行軸の直交フローの除外は、はみ出しの向きで決まるので
+	 * 含めない)。{@link #assertNoUnexplainedOffPage}の除外と同じ順の述語(2026-10-07、生存率の集計用)。
+	 */
+	static boolean offPageCheckExcused(final Generated doc) {
+		return doc.beyondEngineControl() || hasUntypesettableOppositeProgression(doc.html())
+				|| hasUntypesettableOrthogonalFlow(doc.html()) || hasUntypesettableFloat(doc.html())
+				|| hasFlexMulticolTable(doc.html()) || findUnfittableContent(doc.html()) != null
+				|| orthogonalAxisChanges(doc.html()) >= 2;
+	}
+
 	/** 外接矩形全体が紙面からさらに1枚分離れている距離。0以下なら許容範囲。 */
 	static double distanceBeyondWholePage(final double origin, final double extent, final double pageExtent) {
 		return Math.max(-(origin + extent) - pageExtent, origin - 2 * pageExtent);
@@ -3305,7 +3382,36 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 *                 歴史的seedの検査はこちらを使う(2026-08-23)
 	 */
 	static Generated generate(final int seed, final boolean strict, final boolean legacyV1) {
+		if (!legacyV1 && fitProfile()) {
+			generatorProfile(); // extreme との併用を拒む
+			return generateFit(seed, strict);
+		}
 		return generate(seed, strict, legacyV1, !legacyV1 && extremeProfile());
+	}
+
+	/**
+	 * fit-v1: 紙面外の検査が文書単位で免除されない v2 の文書({@link #FIT_PROFILE_VERSION})。1 回目は元の
+	 * seed のまま(標準の文書が既に生きていれば同じ文書)、2 回目以降は派生 seed。見つからなければ最後の文書。
+	 */
+	static Generated generateFit(final int seed, final boolean strict) {
+		Generated doc = null;
+		for (int k = 0; k < FIT_TRIES; ++k) {
+			doc = generate(fitSeed(seed, k), strict, false, false);
+			if (!offPageCheckExcused(doc)) {
+				return doc;
+			}
+		}
+		return doc;
+	}
+
+	/** fit の k 回目の seed(決定的。k=0 は元の seed)。 */
+	static int fitSeed(final int seed, final int k) {
+		if (k == 0) {
+			return seed;
+		}
+		long z = (seed & 0xFFFF_FFFFL) * 0x9E37_79B9_7F4A_7C15L + k * 0xBF58_476D_1CE4_E5B9L;
+		z ^= z >>> 31;
+		return (int) (z & 0x7FFF_FFFF);
 	}
 
 	/**
