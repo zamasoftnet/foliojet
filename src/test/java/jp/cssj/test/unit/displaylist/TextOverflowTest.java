@@ -71,6 +71,48 @@ public class TextOverflowTest extends TestCase {
 		}
 	}
 
+	/**
+	 * The ellipsis of a line in an invisible box (visibility: hidden, inherited or its own, or opacity: 0 on an
+	 * ancestor) is hidden like the line's text (2026-10-09; Chrome draws only the last block's "SH…").
+	 */
+	public void testEllipsisHiddenWithText() throws Exception {
+		final File dir = new File("local/text-overflow/hidden");
+		dir.mkdirs();
+		final File[] old = dir.listFiles();
+		if (old != null) {
+			for (final File f : old) {
+				f.delete();
+			}
+		}
+		try (java.io.OutputStream out = new java.io.FileOutputStream(new File(dir, "out.pdf"));
+				AutoCloseable scope = net.zamasoft.foliojet.layout.draw.DisplayListDumper.scopedDir(dir.getPath())) {
+			final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
+					null);
+			try {
+				session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+				session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
+				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+				CTISessionHelper.transcodeFile(session,
+						new File("files/unittest/0040-overflow/text-overflow-hidden.html"), "text/html", null);
+			} finally {
+				session.close();
+			}
+		}
+		final String page = java.nio.file.Files.readString(new File(dir, "page-0001.txt").toPath(),
+				java.nio.charset.StandardCharsets.UTF_8);
+		final java.util.List<String> texts = new java.util.ArrayList<>();
+		final java.util.regex.Matcher m = java.util.regex.Pattern.compile(" y=([-0-9.]+) Text\\[\"([^\"]*)\"")
+				.matcher(page);
+		while (m.find()) {
+			texts.add(m.group(2) + "@" + m.group(1));
+		}
+		final String shown = texts.stream().filter(t -> t.startsWith("SHOWN@")).findFirst().orElse(null);
+		assertNotNull("SHOWN が描かれていません:\n" + page, shown);
+		final java.util.List<String> ellipses = texts.stream().filter(t -> t.startsWith("…@")).toList();
+		assertEquals("省略記号は見える行の 1 つだけ:\n" + page,
+				java.util.List.of("…" + shown.substring(shown.indexOf('@'))), ellipses);
+	}
+
 	private static boolean hasInk(final BufferedImage img, final int x0, final int x1, final int y0, final int y1) {
 		for (int y = y0; y < y1; ++y) {
 			for (int x = x0; x < x1; ++x) {

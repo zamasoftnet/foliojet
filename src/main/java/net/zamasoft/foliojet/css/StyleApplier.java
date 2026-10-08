@@ -123,6 +123,12 @@ public class StyleApplier {
 				inline.applyImportantProperties(style);
 			}
 		}
+		// The UA sheet's important declarations outrank every author declaration, important ones too (CSS Cascade 5
+		// §6.1 origin order; 2026-10-09). Applied last, they win: html-ua.css keeps a closed details element's
+		// content hidden whatever display the author gives it, as Chrome does.
+		if (uaDeclaration[0] != null) {
+			uaDeclaration[0].applyImportantProperties(style);
+		}
 
 		short display = Display.get(style);
 		if (display == DisplayValue.TABLE_CELL && Width.getLength(style).getType() == LengthType.ABSOLUTE) {

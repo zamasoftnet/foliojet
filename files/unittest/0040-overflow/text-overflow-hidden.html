@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/>
+<!-- text-overflow: ellipsis in invisible boxes: the ellipsis is hidden like the text (Chrome draws only SHOWN's). -->
+<style>
+@page { size: 200pt 120pt; margin: 10pt }
+body { margin: 0; font: 10pt/15pt serif }
+.t { width: 40pt; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+</style></head><body>
+<div style="visibility: hidden"><div class="t">HIDDEN hidden text</div></div>
+<div style="opacity: 0"><div class="t">OPAQUE opaque text</div></div>
+<div class="t" style="visibility: hidden">SELF self hidden text</div>
+<div class="t">SHOWN shown text</div>
+</body></html>

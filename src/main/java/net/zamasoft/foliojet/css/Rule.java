@@ -44,8 +44,10 @@ public class Rule {
 	 * {@code RuleComparator.IMPORTANT}). Later important declarations win,
 	 * so the strongest is applied last. Documents with no layered rules
 	 * skip the reverse merge entirely (zero cost).
-	 * Origin reversal, where <b>UA important declarations outrank author important declarations</b>,
-	 * remains unsupported because it has no effect in print use cases.
+	 * Origin reversal, where <b>UA important declarations outrank author important declarations</b>, is applied to
+	 * element styles since 2026-10-09 ({@code StyleApplier} applies the UA sheet's important declarations last;
+	 * html-ua.css hides a closed details element's content with one). Pseudo-elements do not need it: the UA sheet
+	 * has no important declaration for them.
 	 */
 	private final CSSStyleSheet.Layer layer;
 

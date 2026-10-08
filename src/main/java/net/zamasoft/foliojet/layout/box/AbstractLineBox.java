@@ -436,9 +436,13 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 							this.lineAlign + this.ellipsisClipExtent,
 							this.lineAlign + this.ellipsisClipExtent + this.ellipsis.getAdvance())
 					: vertical ? y + this.ellipsisClipExtent : y;
-			final List<Object> run = java.util.Collections.singletonList(this.ellipsis);
-			worklist.push(w -> drawer.visitDrawable(new TextSequenceDrawable(pageBox, outerClip, transform, run, 0, 1,
-					this.getTextParams(), this.ascent, this.descent), ex, ey));
+			// Hidden like the line's own text under visibility: hidden or opacity: 0 (2026-10-09: vercel-site's
+			// invisible mobile menu still drew its ellipses).
+			if (this.getTextParams().opacity != 0) {
+				final List<Object> run = java.util.Collections.singletonList(this.ellipsis);
+				worklist.push(w -> drawer.visitDrawable(new TextSequenceDrawable(pageBox, outerClip, transform, run, 0,
+						1, this.getTextParams(), this.ascent, this.descent), ex, ey));
+			}
 			if (clip == null) {
 				clip = keep;
 			} else if (clip instanceof java.awt.geom.Rectangle2D rc) {
