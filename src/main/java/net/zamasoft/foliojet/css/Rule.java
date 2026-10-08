@@ -31,25 +31,23 @@ public class Rule {
 	private final Origin origin;
 
 	/**
-	 * The priority number of the cascade layer (added on 2026-07-21, CSS Cascade
-	 * Layers)。{@link CSSStyleSheet#registerNamedLayer}/
-	 * {@link CSSStyleSheet#registerAnonymousLayer}: the sequence number
-	 * of the layer's first occurrence in the stylesheet. {@link #NO_LAYER}
+	 * The cascade layer (added on 2026-07-21, CSS Cascade Layers), null for a rule outside all layers.
+	 * {@link #getLayer()} returns its place in the layer order ({@link CSSStyleSheet.Layer}); {@link #NO_LAYER}
 	 * (a rule outside all layers) always takes highest priority. Compared immediately after
 	 * origin, before specificity and source order (CSS Cascading and
-	 * Inheritance: origin/importance → layer → specificity → order)。
+	 * Inheritance: origin/importance → layer → specificity → order).
 	 * Layer priority reversal for {@code !important} (important declarations in
 	 * <b>earlier layers</b> outrank later layers, with unlayered declarations weakest)
 	 * <b>was supported on 2026-08-03</b>. After applying the cascade once in normal order,
 	 * apply only important declarations again in reverse order
-	 * ({@link Declaration#applyImportantProperties}、
+	 * ({@link Declaration#applyImportantProperties},
 	 * {@code RuleComparator.IMPORTANT}). Later important declarations win,
 	 * so the strongest is applied last. Documents with no layered rules
 	 * skip the reverse merge entirely (zero cost).
 	 * Origin reversal, where <b>UA important declarations outrank author important declarations</b>,
 	 * remains unsupported because it has no effect in print use cases.
 	 */
-	private final int layer;
+	private final CSSStyleSheet.Layer layer;
 
 	private transient Specificity specificity = null;
 
@@ -61,14 +59,10 @@ public class Rule {
 	private final ContainerQuery containerQuery;
 
 	public Rule(Selector selector, Declaration declaration, int order, Origin origin) {
-		this(selector, declaration, order, origin, NO_LAYER, null);
+		this(selector, declaration, order, origin, null, null);
 	}
 
-	public Rule(Selector selector, Declaration declaration, int order, Origin origin, int layer) {
-		this(selector, declaration, order, origin, layer, null);
-	}
-
-	public Rule(Selector selector, Declaration declaration, int order, Origin origin, int layer,
+	Rule(Selector selector, Declaration declaration, int order, Origin origin, CSSStyleSheet.Layer layer,
 			ContainerQuery containerQuery) {
 		this.selector = selector;
 		this.declaration = declaration;
@@ -126,7 +120,7 @@ public class Rule {
 	 * @return
 	 */
 	public int getLayer() {
-		return this.layer;
+		return this.layer == null ? NO_LAYER : this.layer.rank;
 	}
 
 	/**

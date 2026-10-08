@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Cascade layers with dotted names</title>
+<style>
+@page { margin: 0 }
+body { margin: 0; font: 16px/20px sans-serif }
+p { margin-top: 0; margin-bottom: 0 }
+/* ph-css cannot read dotted layer names: the block was dropped, with the outer layer around it, and a dotted
+   statement also took the next rule with it (daisyui's @layer daisyui.l1.l2, Docusaurus's
+   @layer docusaurus.theme-classic). The order follows CSS Cascade 5 section 6.4: sublayers come before their parent's
+   own rules, a subtree sits at its parent's first appearance, a dotted name and nesting name the same layer, and
+   !important reverses the order. Chrome 151, 794px wide: P1 x=10, P2 x=30, P3 x=40, P4 x=65, P5 x=90, P6 x=110,
+   P7 x=130, P8 x=140, P9 x=160 (2026-10-09, LayerDottedNameTest). */
+@layer x.y { .p1 { margin-left: 10px } }
+@layer s.t, u;
+@layer u { .p2 { margin-left: 30px } }
+@layer s.t { .p2 { margin-left: 20px } }
+@layer m { .p3 { margin-left: 40px } @layer n { .p3 { margin-left: 50px } } }
+@layer o { @layer q.r { .p4 { margin-left: 60px } } }
+@layer z { .p4 { margin-left: 65px } }
+@layer o.q.r { .p4 { margin-left: 70px } }
+@layer v { .p5 { margin-left: 80px } }
+@layer w { .p5 { margin-left: 90px } }
+@layer v.k { .p5 { margin-left: 100px } }
+.p6 { margin-left: 110px }
+@layer a.b { .p6 { margin-left: 120px } }
+@layer outer { .p7 { margin-left: 130px } @layer in.ner { .p8 { margin-left: 140px } } }
+@layer imp { .p9 { margin-left: 150px !important } @layer sub { .p9 { margin-left: 160px !important } } }
+</style>
+</head>
+<body><p class="p1">P1</p><p class="p2">P2</p><p class="p3">P3</p><p class="p4">P4</p><p class="p5">P5</p><p class="p6">P6</p><p class="p7">P7</p><p class="p8">P8</p><p class="p9">P9</p></body>
+</html>

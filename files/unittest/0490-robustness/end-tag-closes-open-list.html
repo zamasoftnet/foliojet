@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>End tags close the elements left open, and do not reopen them</title>
+<style>
+@page { margin: 0 }
+body { margin: 0; font: 16px/20px sans-serif }
+p { margin: 0 }
+.x { display: none }
+.r { margin-left: 100px }
+b { margin-left: 50px }
+</style>
+<!-- The "in body" insertion mode of the HTML Standard pops everything above the matching start tag for good; only
+     formatting elements (b) come back. html-balancer reopened the unclosed ul.x/li after </div>, so the paragraph
+     after it went into the hidden list (wordpress.org's table of contents hid the whole article), and "yyy" went
+     into a copy of span.r. Chrome 151, 794px wide: AFTER x=0 y=0, x x=100 y=20, yyy x=0 y=40, bold x=50 y=60,
+     tail x=50 y=80 (2026-10-09, EndTagReopenTest). -->
+</head>
+<body><div class="a"><ul class="x"><li>one</div><p>AFTER</p><p><span class="r">x</p>yyy<div><b>bold</div>tail</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>@supports selector() inside @media</title>
+<style>
+@page { margin: 0 }
+body { margin: 0; font: 16px/20px sans-serif }
+p { margin: 0 }
+/* ph-css could not read selector() and dropped every rule of the enclosing @media block (ja.wikipedia's Vector
+   skin: the dropdown menus printed open). Chrome 151, 794px wide: N y=0, X and Y hidden, Z y=20, V0 x=10 y=40,
+   V hidden, L y=60, W x=30 y=80 (2026-10-09, SupportsSelectorTest). */
+@media all { @supports not selector(:focus-visible) { .n { display: none } } .x { display: none } }
+@media all { @supports selector(:focus-visible) { .y { display: none } } }
+@supports selector(:no-such-pseudo-class) { .z { display: none } }
+@media all { .v0 { margin-left: 10px } @supports font-tech(color-COLRv1) { .f { margin-left: 20px } } .v { display: none } }
+@media all { @supports selector(a, b) { .l { display: none } } .w { margin-left: 30px } }
+</style>
+</head>
+<body><p class="n">N</p><p class="x">X</p><p class="y">Y</p><p class="z">Z</p><p class="v0">V0</p><p class="v">V</p><p class="l">L</p><p class="w">W</p></body>
+</html>

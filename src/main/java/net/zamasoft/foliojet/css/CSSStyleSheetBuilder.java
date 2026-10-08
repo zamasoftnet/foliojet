@@ -47,6 +47,7 @@ import com.helger.css.writer.CSSWriterSettings;
 import net.zamasoft.foliojet.css.parser.CSSException;
 import net.zamasoft.foliojet.css.parser.InputSource;
 import net.zamasoft.foliojet.css.parser.SelectorConverter;
+import net.zamasoft.foliojet.css.parser.AtRulePreludeRewriter;
 import net.zamasoft.foliojet.css.property.ElementPropertySet;
 import net.zamasoft.foliojet.css.property.FontFacePropertySet;
 import net.zamasoft.foliojet.css.property.PagePropertySet;
@@ -118,6 +119,9 @@ public class CSSStyleSheetBuilder {
 		// Implicitly close an unclosed comment at the end (see DeclarationParser;
 		// ph-css lexical analysis cannot recover here and discards the entire sheet).
 		css = DeclarationParser.closeUnterminatedComment(css);
+		// selector()/font-tech()/font-format() conditions of @supports and the dotted names of @layer: ph-css cannot
+		// read them and drops the whole enclosing @media/@layer block (see AtRulePreludeRewriter).
+		css = AtRulePreludeRewriter.rewrite(css, this::isSelectorSupported);
 		CascadingStyleSheet sheet = CSSReader.readFromStringReader(css, DeclarationParser.settings());
 		if (sheet == null) {
 			throw new CSSException("スタイルシートを解析できません");
@@ -130,14 +134,14 @@ public class CSSStyleSheetBuilder {
 						source.getEncoding());
 			}
 			for (ICSSTopLevelRule rule : sheet.getAllRules()) {
-				this.rule(rule, uri, true, Rule.NO_LAYER, null, null);
+				this.rule(rule, uri, true, Rule.NO_LAYER, null);
 			}
 		} finally {
 			this.uriStack.remove(this.uriStack.size() - 1);
 		}
 	}
 
-	private void rule(ICSSTopLevelRule rule, URI uri, boolean mediaOk, int layer, String layerNamePrefix,
+	private void rule(ICSSTopLevelRule rule, URI uri, boolean mediaOk, int layer,
 			net.zamasoft.foliojet.css.container.ContainerQuery containerQuery) {
 		if (rule instanceof CSSStyleRule styleRule) {
 			if (!mediaOk) {
@@ -156,12 +160,12 @@ public class CSSStyleSheetBuilder {
 			// previously, only the inner condition determined the result, so an inner @media
 			// that matched independently was applied even when the outer condition did not match).
 			for (ICSSTopLevelRule inner : mediaRule.getAllRules()) {
-				this.rule(inner, uri, mediaOk && ok, layer, layerNamePrefix, containerQuery);
+				this.rule(inner, uri, mediaOk && ok, layer, containerQuery);
 			}
 		} else if (rule instanceof CSSSupportsRule supportsRule) {
 			boolean ok = this.evaluateSupports(supportsRule.getAllSupportConditionMembers(), uri, 0);
 			for (ICSSTopLevelRule inner : supportsRule.getAllRules()) {
-				this.rule(inner, uri, mediaOk && ok, layer, layerNamePrefix, containerQuery);
+				this.rule(inner, uri, mediaOk && ok, layer, containerQuery);
 			}
 		} else if (rule instanceof CSSPageRule pageRule) {
 			this.page(pageRule, uri, mediaOk);
@@ -169,14 +173,14 @@ public class CSSStyleSheetBuilder {
 			// Preserve previous behavior: register @font-face regardless of media.
 			this.fontFace(fontFaceRule, uri);
 		} else if (rule instanceof CSSLayerRule layerRule) {
-			this.layer(layerRule, uri, mediaOk, layerNamePrefix, containerQuery);
+			this.layer(layerRule, uri, mediaOk, layer, containerQuery);
 		} else if (rule instanceof CSSUnknownRule unknownRule) {
 			// ph-css passes at-rules without dedicated support as name, arguments, and body.
 			final String decl = unknownRule.getDeclaration();
 			if (mediaOk && "@counter-style".equalsIgnoreCase(decl)) {
 				this.counterStyle(unknownRule);
 			} else if (mediaOk && "@container".equalsIgnoreCase(decl)) {
-				this.container(unknownRule, uri, mediaOk, layer, layerNamePrefix);
+				this.container(unknownRule, uri, mediaOk, layer);
 			} else if (mediaOk && "@font-feature-values".equalsIgnoreCase(decl)) {
 				this.fontFeatureValues(unknownRule);
 			} else if (mediaOk && "@font-palette-values".equalsIgnoreCase(decl)) {
@@ -644,8 +648,7 @@ public class CSSStyleSheetBuilder {
 	 * and of examples in the real corpus (each rule can hold only one {@code ContainerQuery}).
 	 * </p>
 	 */
-	private void container(final CSSUnknownRule rule, final URI uri, final boolean mediaOk, final int layer,
-			final String layerNamePrefix) {
+	private void container(final CSSUnknownRule rule, final URI uri, final boolean mediaOk, final int layer) {
 		final String body = rule.getBody();
 		if (body == null) {
 			return;
@@ -657,7 +660,7 @@ public class CSSStyleSheetBuilder {
 		final net.zamasoft.foliojet.css.container.ContainerQuery query = net.zamasoft.foliojet.css.container.ContainerQuery
 				.parse(rule.getParameterList(), this.ua);
 		for (final ICSSTopLevelRule inner : sheet.getAllRules()) {
-			this.rule(inner, uri, mediaOk, layer, layerNamePrefix, query);
+			this.rule(inner, uri, mediaOk, layer, query);
 		}
 	}
 
@@ -843,42 +846,37 @@ public class CSSStyleSheetBuilder {
 	/**
 	 * Handles {@code @layer} (CSS Cascade Layers, added on 2026-07-21).
 	 * Supports both block form ({@code @layer name { ... }} or anonymous {@code @layer { ... }})
-	 * and statement form ({@code @layer a, b, c;}, which fixes only layer source order
-	 * without accompanying rules). Nested {@code @layer} (another {@code @layer}
-	 * inside a layer block) is registered as an independent layer
-	 * using the full dot-joined name (e.g., outer {@code a} and inner {@code b}
-	 * become {@code "a.b"}), following the same naming approach
-	 * as CSS Cascade Layers. Reversing layer priority for {@code !important}
-	 * is unsupported (see the support table).
+	 * and statement form ({@code @layer a, b, c;}, which fixes only layer order
+	 * without accompanying rules). A dotted name ({@code @layer a.b}) and a layer nested in another
+	 * ({@code @layer a { @layer b { ... } }}) both name the sublayer b of a; {@link CSSStyleSheet} keeps the
+	 * layers as a tree and orders them as CSS Cascade 5 §6.4 does (sublayers before their parent's own rules).
+	 * The dots reach here escaped ({@link AtRulePreludeRewriter}). {@code !important} reverses the order
+	 * ({@link Rule#getLayer()}).
+	 *
+	 * @param parent the enclosing layer, {@link Rule#NO_LAYER} at the top level
 	 */
-	private void layer(CSSLayerRule layerRule, URI uri, boolean mediaOk, String layerNamePrefix,
+	private void layer(CSSLayerRule layerRule, URI uri, boolean mediaOk, int parent,
 			net.zamasoft.foliojet.css.container.ContainerQuery containerQuery) {
 		final List<String> names = layerRule.getAllSelectors();
 		if (layerRule.getAllRules().isEmpty()) {
 			// Statement form (@layer a, b;) or empty block (@layer a {}):
-			// fix source order without adding rules.
+			// fix layer order without adding rules.
 			for (String name : names) {
-				this.cssStyleSheet.registerNamedLayer(qualifyLayerName(layerNamePrefix, name));
+				this.cssStyleSheet.registerNamedLayer(parent, AtRulePreludeRewriter.layerNamePath(name));
 			}
 			return;
 		}
 		// Block form: should have zero names (anonymous) or one name (named).
 		final int childLayer;
-		final String childPrefix;
 		if (names.isEmpty()) {
-			childLayer = this.cssStyleSheet.registerAnonymousLayer();
-			childPrefix = null;
+			childLayer = this.cssStyleSheet.registerAnonymousLayer(parent);
 		} else {
-			childPrefix = qualifyLayerName(layerNamePrefix, names.get(0));
-			childLayer = this.cssStyleSheet.registerNamedLayer(childPrefix);
+			childLayer = this.cssStyleSheet.registerNamedLayer(parent,
+					AtRulePreludeRewriter.layerNamePath(names.get(0)));
 		}
 		for (ICSSTopLevelRule inner : layerRule.getAllRules()) {
-			this.rule(inner, uri, mediaOk, childLayer, childPrefix, containerQuery);
+			this.rule(inner, uri, mediaOk, childLayer, containerQuery);
 		}
-	}
-
-	private static String qualifyLayerName(String prefix, String name) {
-		return prefix == null ? name : prefix + "." + name;
 	}
 
 	/**
@@ -1050,6 +1048,10 @@ public class CSSStyleSheetBuilder {
 		}
 		if (member instanceof CSSSupportsConditionDeclaration declMember) {
 			CSSDeclaration declaration = declMember.getDeclaration();
+			if (AtRulePreludeRewriter.MARKER.equalsIgnoreCase(declaration.getProperty())) {
+				// A selector()/font-tech()/font-format() condition evaluated before parsing.
+				return "1".equals(declaration.getExpressionAsCSSString().trim());
+			}
 			List<CssToken> tokens = Tokens.fromExpression(declaration.getExpression());
 			return ElementPropertySet.getInstance().supports(declaration.getProperty(), tokens, this.ua, uri);
 		}
@@ -1059,8 +1061,23 @@ public class CSSStyleSheetBuilder {
 		if (member instanceof CSSSupportsConditionNested nested) {
 			return this.evaluateSupports(nested.getAllMembers(), uri, depth + 1);
 		}
-		// Syntax that ph-css 8.2.1 cannot parse, such as selector(), is unsupported (non-matching).
+		// Other syntax ph-css 8.2.1 cannot parse is unsupported (non-matching). selector(), font-tech() and
+		// font-format() arrive as AtRulePreludeRewriter.MARKER declarations.
 		return false;
+	}
+
+	/**
+	 * Whether one complex selector, the argument of an {@code @supports selector()} condition, is supported: it
+	 * parses and every pseudo-class and pseudo-element in it is known (CSS Conditional 4 parses it non-forgivingly).
+	 */
+	private boolean isSelectorSupported(final String selector) {
+		try {
+			final List<Selector> selectors = this.parseSelectorTexts(List.of(selector));
+			return selectors != null && selectors.size() == 1;
+		} catch (final RuntimeException e) {
+			// CSSException included
+			return false;
+		}
 	}
 
 	private static List<CSSDeclaration> pageDeclarations(CSSPageRule pageRule) {

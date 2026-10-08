@@ -62,36 +62,112 @@ public class CSSStyleSheet {
 	final List<PageRule> pageRules = new ArrayList<PageRule>();
 
 	/**
-	 * Registry of cascade layer source order (added on 2026-07-21, CSS
-	 * Cascade Layers). Named layers retain their first occurrence's order even when the same name
-	 * appears again (spec: appending to a layer with the same name does not change its rank).
+	 * A cascade layer (CSS Cascade 5 §6.4, added on 2026-07-21, a tree since 2026-10-09). {@link #rank} is the layer's
+	 * place in the layer order, which {@link Rule#getLayer()} returns: the sublayers of a layer come before the layer's
+	 * own rules (they form "an implicit final sublayer"), siblings follow their first appearance, and a layer's
+	 * whole subtree sits at its place among its siblings. Until 2026-10-09 every dotted name was an independent layer
+	 * numbered at its first appearance, so {@code @layer a { ... @layer b { ... } }} let a.b beat a's own rules, and a
+	 * sublayer declared late ({@code @layer v.k} after {@code @layer w}) beat the later siblings of its parent.
 	 */
-	private final Map<String, Integer> namedLayerOrder = new HashMap<String, Integer>();
-	private int nextLayerOrder = 0;
+	static final class Layer {
+		final Layer parent;
+
+		/** The name, null for an anonymous layer and the root. */
+		final String name;
+
+		final List<Layer> children = new ArrayList<Layer>();
+
+		/** The id that the registering methods return (the index in {@code layersById}). */
+		int id = Rule.NO_LAYER;
+
+		/** The place in the layer order; recomputed when the tree grows. */
+		int rank = Rule.NO_LAYER;
+
+		Layer(final Layer parent, final String name) {
+			this.parent = parent;
+			this.name = name;
+		}
+	}
+
+	/** The root of the layer tree: its children are the top-level layers; it stands for the unlayered rules. */
+	private final Layer layerRoot = new Layer(null, null);
+
+	/** Layers by the ids that {@link #registerNamedLayer} and {@link #registerAnonymousLayer} return. */
+	private final List<Layer> layersById = new ArrayList<Layer>();
 
 	/**
-	 * Registers a named layer and returns its priority number (fixed on first occurrence;
-	 * later calls with the same name return the same number). For nested layers
-	 * (e.g., {@code @layer a { @layer b { ... } }}), the caller supplies
-	 * the full dot-joined name (e.g., {@code "a.b"}), which is treated
-	 * as an independent name.
+	 * Registers a named layer, with its ancestors, under a parent layer and returns its id. A name already
+	 * registered keeps its place (spec: appending to a layer does not change its order).
+	 *
+	 * @param parent the id of the enclosing layer, {@link Rule#NO_LAYER} at the top level
+	 * @param path   the names, outermost first ({@code @layer a.b} gives {@code [a, b]})
 	 */
-	public int registerNamedLayer(String fullName) {
-		Integer existing = this.namedLayerOrder.get(fullName);
-		if (existing != null) {
-			return existing;
+	public int registerNamedLayer(final int parent, final List<String> path) {
+		Layer node = this.layer(parent);
+		boolean grown = false;
+		for (final String name : path) {
+			Layer child = null;
+			for (final Layer c : node.children) {
+				if (name.equals(c.name)) {
+					child = c;
+					break;
+				}
+			}
+			if (child == null) {
+				child = this.newLayer(node, name);
+				grown = true;
+			}
+			node = child;
 		}
-		int order = this.nextLayerOrder++;
-		this.namedLayerOrder.put(fullName, order);
-		return order;
+		if (grown) {
+			this.rankLayers();
+		}
+		return node.id;
 	}
 
 	/**
-	 * Issues a new priority number on each call for an anonymous layer
-	 * ({@code @layer { ... }}, unnamed; spec: anonymous layers are always unique).
+	 * Registers a new anonymous layer ({@code @layer { ... }}; spec: anonymous layers are always unique) under a
+	 * parent layer and returns its id.
+	 *
+	 * @param parent the id of the enclosing layer, {@link Rule#NO_LAYER} at the top level
 	 */
-	public int registerAnonymousLayer() {
-		return this.nextLayerOrder++;
+	public int registerAnonymousLayer(final int parent) {
+		final Layer layer = this.newLayer(this.layer(parent), null);
+		this.rankLayers();
+		return layer.id;
+	}
+
+	private Layer newLayer(final Layer parent, final String name) {
+		final Layer layer = new Layer(parent, name);
+		parent.children.add(layer);
+		layer.id = this.layersById.size();
+		this.layersById.add(layer);
+		return layer;
+	}
+
+	private Layer layer(final int id) {
+		return id == Rule.NO_LAYER ? this.layerRoot : this.layersById.get(id);
+	}
+
+	/** Numbers the layers in layer order: each layer after all of its sublayers (post-order). */
+	private void rankLayers() {
+		final java.util.ArrayDeque<Object[]> stack = new java.util.ArrayDeque<Object[]>();
+		int next = 0;
+		stack.push(new Object[] { this.layerRoot, 0 });
+		while (!stack.isEmpty()) {
+			final Object[] top = stack.peek();
+			final Layer node = (Layer) top[0];
+			final int i = (Integer) top[1];
+			if (i < node.children.size()) {
+				top[1] = i + 1;
+				stack.push(new Object[] { node.children.get(i), 0 });
+			} else {
+				stack.pop();
+				if (node != this.layerRoot) {
+					node.rank = next++;
+				}
+			}
+		}
 	}
 
 	/**
@@ -104,8 +180,9 @@ public class CSSStyleSheet {
 		if (declaration == null) {
 			return;
 		}
+		final Layer cascadeLayer = layer == Rule.NO_LAYER ? null : this.layersById.get(layer);
 		for (Selector selector : selectors) {// Note the loop!
-			Rule rule = new Rule(selector, declaration, this.rules.size(), origin, layer, containerQuery);
+			Rule rule = new Rule(selector, declaration, this.rules.size(), origin, cascadeLayer, containerQuery);
 			this.rules.add(rule);
 			this.index(rule);
 			collectHasConditions(selector, this.hasConditions);
