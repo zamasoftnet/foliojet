@@ -298,6 +298,76 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
+	 * Gives an item of a column flex container laid out in normal flow its flex main size (F0+, 2026-10-08; called by
+	 * {@code BlockBuilder.startFlowBlock} before sizing). The container's main size is indefinite, so the free space is
+	 * zero and the item's main size is its hypothetical main size (css-flexbox-1 §9.2): the flex base size clamped by
+	 * the min/max main sizes. The main axis is this box's page axis (the caller skips orthogonal items).
+	 *
+	 * <ul>
+	 * <li>A length basis L (or {@code calc()} without a percentage): with an automatic minimum (min-height/width
+	 * {@code auto}, {@code overflow: visible}), the item starts at L (at most max) and its content may grow it, as
+	 * {@code min-height: L}; otherwise it is fixed at L clamped by min/max, as {@code height: L}. The basis follows
+	 * {@code box-sizing} like the size properties. Approximation: when the item also has a definite size H larger than L,
+	 * the automatic minimum min(content, H) would stop at H; here content can grow the item past H up to max.</li>
+	 * <li>{@code content}: the content size; the size property no longer applies.</li>
+	 * <li>{@code auto}, or a percentage of the indefinite main size (treated as auto, as
+	 * {@code FlexItemMetricsResolver} does): the size property, which normal flow already applies.</li>
+	 * </ul>
+	 *
+	 * <p>
+	 * Only the head fragment is adjusted: its box-local size and min size are still the params' objects. Continuation
+	 * fragments carry the adjusted sizes through {@code FragmentState} (the remaining specified or minimum size).
+	 * </p>
+	 */
+	public final void applyStreamedFlexBasis(final net.zamasoft.foliojet.layout.box.params.FlexItemSpec spec) {
+		if (this.size != this.params.size || this.minSize != this.params.minSize || spec == null) {
+			return;
+		}
+		final WritingMode flow = this.params.flow;
+		final boolean vertical = flow.isVertical();
+		final net.zamasoft.foliojet.css.value.FlexBasisValue basis = spec.basis();
+		if (basis.isContent()) {
+			if (this.size.getPageType(flow) != LengthType.AUTO) {
+				this.size = withPage(this.size, vertical, 0, LengthType.AUTO);
+			}
+			return;
+		}
+		if (basis.isAuto()) {
+			return;
+		}
+		final double length;
+		if (basis.getSize() instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue absolute) {
+			length = absolute.getLength();
+		} else if (basis.getSize() instanceof net.zamasoft.foliojet.css.value.CalcLengthValue calc
+				&& calc.getRatio() == 0) {
+			length = calc.getAbsolute();
+		} else {
+			return;
+		}
+		final boolean minAuto = vertical ? spec.minWidthAuto() : spec.minHeightAuto();
+		if (minAuto && this.params.overflow == net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE) {
+			// min wins over max, so clamp the basis by an absolute max first.
+			double start = Math.max(0, length);
+			if (this.params.maxSize.getPageType(flow) == LengthType.ABSOLUTE) {
+				start = Math.min(start, this.params.maxSize.getPageLength(flow));
+			}
+			this.size = withPage(this.size, vertical, 0, LengthType.AUTO);
+			this.minSize = withPage(this.minSize, vertical, start, LengthType.ABSOLUTE);
+		} else {
+			// calculateSize clamps a definite size by min/max and fixes it.
+			this.size = withPage(this.size, vertical, Math.max(0, length), LengthType.ABSOLUTE);
+		}
+	}
+
+	/** {@code d} with its page-axis component replaced (the line-axis component, including its ratio, is kept). */
+	private static Dimension withPage(final Dimension d, final boolean vertical, final double length,
+			final LengthType type) {
+		return vertical
+				? Dimension.create(length, 0, d.getHeight(), d.getHeightRatio(), type, d.getHeightType())
+				: Dimension.create(d.getWidth(), d.getWidthRatio(), length, 0, d.getWidthType(), type);
+	}
+
+	/**
 	 * <b>Applies the specified inner page-axis size to this box</b> (G7, 2026-08-29).
 	 *
 	 * <p>

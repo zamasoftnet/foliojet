@@ -708,6 +708,14 @@ public class BlockBuilder implements Builder, LayoutContext {
 		this.requireNoOpenTextBuilder("(no context)");
 		AbstractContainerBox containerBox = this.getFlowBox();
 		final BlockParams cParams = containerBox.getBlockParams();
+		// An item of a column flex container laid out in normal flow (F0+). With an indefinite main size the free space
+		// is zero, so the item's own flex-basis decides its main size; it seals its margins and floats (a flex item
+		// establishes an independent formatting context).
+		final boolean flexItem = isStreamedColumnFlex(containerBox)
+				&& !(flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox);
+		if (flexItem && flowBox.getBlockParams().flow.isVertical() == cParams.flow.isVertical()) {
+			flowBox.applyStreamedFlexBasis(flowBox.getFlowPos().flexItem);
+		}
 		final AxisSpan containerBand = new AxisSpan(this.lineAxis, this.lineAxis + containerBox.getLineSize());
 		// Line-direction band narrowed by ordinary floats (before insets).
 		AxisSpan floatBand = containerBand;
@@ -752,7 +760,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 		final FlowPos pos = flowBox.getFlowPos();
 
-		if (establishesIndependentFloatScope(flowBox, cParams)) {
+		if (flexItem || establishesIndependentFloatScope(flowBox, cParams)) {
 			// Both overflow:hidden and writing-mode changes establish independent BFCs
 			// and prevent inner floats from leaking into the parent's exclusion area.
 			if (this.noOverflowFloatings == null) {
@@ -822,6 +830,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 			frameStart = frame.getFrameTop();
 			bordered = frame.padding.top > 0 || !frame.frame.border.getTop().isNull();
 		}
+		if (flexItem) {
+			// Flex items' margins do not collapse with each other (css-flexbox-1 §4.2).
+			this.poLastMargin = this.neLastMargin = 0;
+		}
 		if (marginStart >= 0) {
 			if (marginStart > this.poLastMargin) {
 				this.pageAxis -= this.poLastMargin;
@@ -837,7 +849,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				this.pageAxis -= marginStart;
 			}
 		}
-		if (bordered || sealsMargins(flowBox)) {
+		if (bordered || flexItem || sealsMargins(flowBox)) {
 			this.poLastMargin = this.neLastMargin = 0;
 		}
 
@@ -849,6 +861,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			this.flowStack = new ArrayList<Flow>();
 		}
 		final Flow flow = new Flow(flowBox, this.lineAxis, this.pageAxis, frameHead);
+		flow.flexItem = flexItem;
 		this.flowStack.add(flow);
 		if (retainsFlowContent(flowBox)) {
 			if (this.retainedFlows == null) this.retainedFlows = new java.util.HashMap<>();
@@ -998,7 +1011,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			this.pageAxis = flow.pageAxis;
 			flowBox.balance(this);
 		}
-		if (establishesIndependentFloatScope(flowBox, parentParams)) {
+		if (flow.flexItem || establishesIndependentFloatScope(flowBox, parentParams)) {
 			// Remove floats inside independent BFCs from the parent's exclusion area.
 			assert this.independentFloatScopeOwners.get(this.independentFloatScopeOwners.size() - 1) == flowBox;
 			this.independentFloatScopeOwners.remove(this.independentFloatScopeOwners.size() - 1);
@@ -1009,7 +1022,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// (150 pt) via overflow:hidden (a real Yahoo! News example).
 			// The placement registry's pageEnd uses this builder's page-axis coordinates, so before
 			// removing the scope, extend the auto box's cursor and dimensions to the float bottom.
-			if (!flowBox.isSpecifiedPageSize()) {
+			// A streamed flex item (F0+) only needs this when it holds floats: setPageAxis with the cursor would undo the
+			// remaining min-height of its continuation fragment (everylayout's Cover in a column flex, 2026-10-08).
+			if (!flowBox.isSpecifiedPageSize() && (!flow.flexItem || !floatings.isEmpty())) {
 				for (int i = 0; i < floatings.size(); ++i) {
 					this.pageAxis = Math.max(this.pageAxis, floatings.get(i).pageEnd);
 				}
@@ -1028,7 +1043,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// Vertical writing
 			marginEnd = frame.margin.left;
 			bordered = frame.padding.left > 0 || !frame.frame.border.getLeft().isNull()
-					|| sealsMargins(flowBox);
+					|| flow.flexItem || sealsMargins(flowBox);
 			double width = flowBox.getInnerWidth();
 			if (flowBox.getContentSize() != width || bordered) {
 				this.pageAxis = flow.pageAxis + width;
@@ -1041,7 +1056,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// Horizontal writing
 			marginEnd = frame.margin.bottom;
 			bordered = frame.padding.bottom > 0 || !frame.frame.border.getBottom().isNull()
-					|| sealsMargins(flowBox);
+					|| flow.flexItem || sealsMargins(flowBox);
 			double height = flowBox.getInnerHeight();
 			if (flowBox.getContentSize() != height || bordered) {
 				this.pageAxis = flow.pageAxis + height;
@@ -1283,6 +1298,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 						&& fb.coordinatorOwnsAutoMargins())) {
 			resolveAutoMargins(vertical, frame, margin, amargin, cLineSize, lineSize, xMarginStart, xMarginEnd,
 					align);
+		}
+		if (isStreamedColumnFlex(flow.box)) {
+			// A table or replaced flex item does not collapse its margin with the preceding item's (F0+).
+			this.poLastMargin = this.neLastMargin = 0;
 		}
 		if (amargin.top >= 0) {
 			if (amargin.top > this.poLastMargin) {
@@ -1797,7 +1816,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		for (int i = 0; i < this.flowStack.size(); ++i) {
 			final Flow flow = (Flow) this.flowStack.get(i);
 			final FlowBlockBox flowBox = (FlowBlockBox) flow.box;
-			if (establishesIndependentFloatScope(flowBox, parentParams)) {
+			if (flow.flexItem || establishesIndependentFloatScope(flowBox, parentParams)) {
 				if (this.noOverflowFloatings == null) {
 					this.noOverflowFloatings = new ArrayList<List<Floating>>();
 					this.independentFloatScopeOwners = new ArrayList<AbstractContainerBox>();
@@ -1807,6 +1826,23 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 			parentParams = flowBox.getBlockParams();
 		}
+	}
+
+	/**
+	 * Whether {@code box} is a column flex container whose items are laid out here in normal flow (F0+, 2026-10-08).
+	 * Eligible flex containers place {@code FlexItemBox}es through {@code FlexBuilder} and never open their items with
+	 * {@link #startFlowBlock}, so a flex container reaching this builder as a flow parent is one that
+	 * {@code FlexBuilderLifecycle.eligible} turned down: in the column direction, one whose main size is not a definite
+	 * length. Its free space is zero, so grow and shrink do nothing and each item's main size follows from its own
+	 * flex-basis ({@link FlowBlockBox#applyStreamedFlexBasis}); items do not collapse margins. Everything that needs all
+	 * items (reverse, order, free-space distribution, alignment other than stretch) stays out of this streamed path
+	 * (design: copperpdf4/docs/design/column-flex-indefinite-main-design.md).
+	 */
+	private static boolean isStreamedColumnFlex(final IBox box) {
+		// isPageAtomicNow: true once FlexBuilder placed the items (its continuation fragments are restyled through
+		// this builder too, item by item, and must keep FlexBuilder's sizes).
+		return box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox flex
+				&& !flex.getFlexParams().flexDirection.isRow() && !flex.isPageAtomicNow();
 	}
 
 	/**

@@ -18,10 +18,17 @@ import net.zamasoft.foliojet.ua.UserAgent;
 /**
  * {@code flex} shorthand (Flex F1a, 2026-08-02).
  * {@code none | [ <flex-grow> <flex-shrink>? || <flex-basis> ]} (§7.1).
- * Omitted values use shorthand defaults (grow=1, shrink=1, basis=0),
+ * Omitted values use shorthand defaults (grow=1, shrink=1, basis=0%),
  * not each property's initial value: {@code flex: auto}=1 1 auto,
- * {@code flex: 2}=2 1 0. {@code none}=0 0 auto.
+ * {@code flex: 2}=2 1 0%. {@code none}=0 0 auto.
  * Unitless 0 after two factors is basis 0 (syntax note in §7.1).
+ *
+ * <p>
+ * The omitted basis is {@code 0%}, as in browsers (2026-10-08; it was the length 0). They differ only against an
+ * indefinite main size, where a percentage basis is treated as the content size: an app-shell item
+ * {@code flex: 1; overflow: auto} in a column container with an auto height keeps its content height in Chrome, while
+ * a length 0 basis made it 0 tall (and, as a scroll container, clipped all its content).
+ * </p>
  *
  * @author MIYABE Tatsuhiko
  */
@@ -91,6 +98,6 @@ public class FlexShorthand extends AbstractShorthandPropertyInfo {
 		primitives.set(FlexFactor.GROW, grow != null ? grow : RealValue.ONE);
 		primitives.set(FlexFactor.SHRINK, shrink != null ? shrink : RealValue.ONE);
 		primitives.set(FlexBasisProperty.INFO,
-				basis != null ? basis : FlexBasisValue.size(AbsoluteLengthValue.ZERO));
+				basis != null ? basis : FlexBasisValue.size(net.zamasoft.foliojet.css.value.PercentageValue.ZERO));
 	}
 }

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex: column with an indefinite main size laid out in normal flow (F0+)</title>
+<style type="text/css">
+body { font: 12pt/20pt serif; margin: 0; }
+div { margin: 0; padding: 0; }
+.c { display: flex; flex-direction: column; margin-bottom: 10pt; }
+.n { width: 16pt; }
+</style>
+</head>
+<body>
+<!-- a: a length basis is the main size -->
+<div class="c"><div id="a1" style="flex: 0 1 96pt">T1</div><div id="a2">T2</div></div>
+<!-- b: margins of items do not collapse -->
+<div class="c"><div id="b1" style="height: 20pt; margin: 10pt 0">T3</div><div id="b2" style="height: 20pt; margin: 10pt 0">T4</div></div>
+<!-- c: flex-basis:content ignores the height -->
+<div class="c"><div id="c1" style="flex-basis: content; height: 60pt">T5</div><div id="c2">T6</div></div>
+<!-- d: the automatic minimum lets content grow the item past the basis (two lines) -->
+<div class="c n"><div id="d1" style="flex: 0 1 10pt">T7 T8</div><div id="d2">T9</div></div>
+<!-- e: overflow other than visible keeps the basis -->
+<div class="c n"><div id="e1" style="flex: 0 1 10pt; overflow: hidden">T10 T11</div><div id="e2">T12</div></div>
+<!-- f: max-height clamps the basis -->
+<div class="c"><div id="f1" style="flex: 0 1 80pt; max-height: 30pt">T13</div><div id="f2">T14</div></div>
+<!-- h: basis auto uses the height -->
+<div class="c"><div id="h1" style="height: 30pt">T15</div><div id="h2">T16</div></div>
+<!-- i: a float stays inside its item (an item is an independent formatting context) -->
+<div class="c"><div id="i1"><div style="float: left; width: 20pt; height: 50pt"></div></div><div id="i2">T17</div></div>
+<!-- j: flex:1 is a 0% basis, the content size against an indefinite main size, even with overflow other than visible -->
+<div class="c n"><div id="j1" style="flex: 1; overflow: hidden">T21 T22</div><div id="j2">T23</div></div>
+<!-- g: vertical-rl, the main axis is horizontal (right to left) -->
+<div style="writing-mode: vertical-rl; height: 60pt"><div class="c"><div id="g1" style="flex: 0 1 50pt">T18</div><div id="g2" style="flex: 0 1 30pt">T19</div><div id="g3">T20</div></div></div>
+</body>
+</html>

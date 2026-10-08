@@ -155,7 +155,8 @@ public class FlexParserTest extends TestCase {
 		m = parseShorthand(FlexShorthand.INFO, "2");
 		assertEquals(2f, ((RealValue) m.get("flex-grow")).getReal(), 0);
 		assertEquals(1f, ((RealValue) m.get("flex-shrink")).getReal(), 0);
-		assertNotNull(((FlexBasisValue) m.get("flex-basis")).getSize());
+		// The omitted basis is 0%, as in browsers (2026-10-08).
+		assertTrue(((FlexBasisValue) m.get("flex-basis")).getSize() instanceof net.zamasoft.foliojet.css.value.PercentageValue);
 
 		m = parseShorthand(FlexShorthand.INFO, "2 3");
 		assertEquals(2f, ((RealValue) m.get("flex-grow")).getReal(), 0);

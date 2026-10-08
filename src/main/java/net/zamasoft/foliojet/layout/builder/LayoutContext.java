@@ -73,6 +73,13 @@ public interface LayoutContext extends LayoutStack {
 		 */
 		public LineClampState lineClamp;
 
+		/**
+		 * Whether this flow's box is an item of a column flex container laid out in normal flow (F0+, 2026-10-08;
+		 * {@code BlockBuilder.startFlowBlock}). Such an item seals its margins and floats, like a box establishing
+		 * an independent formatting context, at both ends.
+		 */
+		public boolean flexItem;
+
 		public Flow(AbstractContainerBox container, double lineAxis, double pageAxis) {
 			this(container, lineAxis, pageAxis, 0);
 		}
@@ -94,6 +101,7 @@ public interface LayoutContext extends LayoutStack {
 		public Flow shiftedPageAxis(final double dy) {
 			final Flow shifted = new Flow(this.box, this.lineAxis, this.pageAxis + dy, this.frameHead);
 			shifted.lineClamp = this.lineClamp;
+			shifted.flexItem = this.flexItem;
 			return shifted;
 		}
 	}
