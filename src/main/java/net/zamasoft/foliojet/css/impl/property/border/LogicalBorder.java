@@ -76,16 +76,16 @@ public final class LogicalBorder extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * Returns the logical property corresponding to physical {@code side} if declared,
-	 * or null otherwise. The caller decides whether a physical declaration takes precedence.
+	 * Returns the logical property corresponding to physical {@code side} if it decides the value over the
+	 * {@code physical} property (declared, and later in the cascade when both are, 2026-10-08), or null otherwise.
 	 */
-	public static Value declaredFor(CSSStyle style, Aspect aspect, Side side) {
+	public static Value declaredFor(CSSStyle style, Aspect aspect, Side side, PrimitivePropertyInfo physical) {
 		for (final LogicalSide logical : LogicalSide.values()) {
 			if (logical.toPhysical(style) != side) {
 				continue;
 			}
 			final PrimitivePropertyInfo info = of(aspect, logical);
-			if (style.isDeclared(info)) {
+			if (LogicalSide.logicalWins(style, physical, info)) {
 				return style.get(info);
 			}
 		}

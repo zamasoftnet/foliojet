@@ -303,10 +303,13 @@ p:dir(rtl) {
 
 </div>
 
-物理プロパティと論理プロパティが同じ辺を指す場合は、**物理プロパティを優先します**。
-例えば<span class="cssprop">margin-top</span>と<span class="cssprop">margin-block-start</span>が
-横書きで同じ辺を指すとき、両方が指定されていれば<span class="cssprop">margin-top</span>の
-値を使います。片方だけが指定されていれば、そちらの値を使います。
+物理プロパティと論理プロパティが同じ辺を指す場合は、**カスケードで後に来た方を使います**
+(CSS Logical Properties 1 のとおり。<span class="since">4.0.0</span>)。
+`!important`、詳細度、記述の順の順に比べるので、ほかのプロパティの重なりと同じに考えてかまいません。
+例えば EPUB のスタイルシートによくある`p { margin: 0 }`の後に、詳細度の高い`p.x { margin-block-start: 3em }`を
+書けば、論理プロパティの値が使われます。同じ規則の中で`margin-top: 0; margin-block-start: 3em`と書いた場合も、
+後の`margin-block-start`が使われます。幅・高さ(<span class="cssprop">width</span>と
+<span class="cssprop">inline-size</span>など)と、境界の幅・線種・色も同じです。
 
 <span class="cssprop">float</span>, <span class="cssprop">clear</span>,
 <span class="cssprop">text-align</span>, <span class="cssprop">caption-side</span>

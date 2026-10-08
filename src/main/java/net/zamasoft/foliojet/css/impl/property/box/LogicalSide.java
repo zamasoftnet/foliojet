@@ -96,17 +96,14 @@ public enum LogicalSide {
 	}
 
 	/**
-	 * Resolves the value based on which physical or logical property is explicitly specified.
-	 * If the physical property (e.g. margin-top) is explicit, it takes precedence.
-	 * Otherwise, checks the corresponding logical property (e.g. margin-block-start,
-	 * which resolves to margin-top depending on writing-mode/direction).
-	 * If neither is specified, returns the physical property's default.
+	 * Resolves the value of a physical side from its physical property (e.g. margin-top) and the logical property that
+	 * maps to the same side under the element's writing-mode/direction (e.g. margin-block-start). As CSS Logical 1 §4
+	 * requires, the one the cascade puts later wins ({@link #logicalWins}); if neither is declared, the physical
+	 * property's default applies.
 	 * <p>
-	 * Does not implement the strict physical/logical precedence required by CSS,
-	 * where the later declaration in cascade order wins. This implementation stores
-	 * each property name in an independent slot and cannot compare source order across slots.
-	 * Instead, it uses the simplified rule "an explicit physical property always wins"
-	 * (see the development plan).
+	 * Until 2026-10-08 an explicit physical property always won, because the two live in separate slots whose source
+	 * order was not kept. EPUB style sheets reset {@code margin: 0} on every element, which silently cancelled every
+	 * {@code margin-block}/{@code padding-inline} a print style sheet added after it.
 	 * </p>
 	 *
 	 * @param style           target style
@@ -117,18 +114,25 @@ public enum LogicalSide {
 	public static net.zamasoft.foliojet.css.value.Value resolve(CSSStyle style, Side requestedSide,
 			PrimitivePropertyInfo[] physicalBySide, PrimitivePropertyInfo[] logicalBySide) {
 		PrimitivePropertyInfo physicalInfo = physicalBySide[requestedSide.ordinal()];
-		if (style.isDeclared(physicalInfo)) {
-			return style.get(physicalInfo);
-		}
 		for (LogicalSide logical : VALUES) {
 			if (logical.toPhysical(style) == requestedSide) {
 				PrimitivePropertyInfo logicalInfo = logicalBySide[logical.ordinal()];
-				if (style.isDeclared(logicalInfo)) {
+				if (logicalWins(style, physicalInfo, logicalInfo)) {
 					return style.get(logicalInfo);
 				}
 				break;
 			}
 		}
 		return style.get(physicalInfo);
+	}
+
+	/**
+	 * Whether a logical property decides the value its physical counterpart also sets (2026-10-08): it is declared on
+	 * the element, and the physical one is not or comes earlier in the cascade ({@code !important} first, then
+	 * declaration order; {@link CSSStyle#declaredOver}).
+	 */
+	public static boolean logicalWins(final CSSStyle style, final PrimitivePropertyInfo physical,
+			final PrimitivePropertyInfo logical) {
+		return style.isDeclared(logical) && (!style.isDeclared(physical) || style.declaredOver(logical, physical));
 	}
 }

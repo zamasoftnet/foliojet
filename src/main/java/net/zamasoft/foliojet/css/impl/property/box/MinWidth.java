@@ -26,14 +26,12 @@ public class MinWidth extends AbstractPrimitivePropertyInfo {
 
 	public static Value get(CSSStyle style) {
 		boolean image = CSSJInternalImage.getImage(style) != null;
-		if (style.isDeclared(INFO)) {
-			return style.get(INFO);
-		}
 		// 2026-07-20: abolished -cssj-direction-mode and consolidated support into min-inline-size/
 		// min-block-size.
 		if (!image) {
 			PrimitivePropertyInfo logicalInfo = BlockFlow.get(style).isVertical() ? MinBlockSize.INFO : MinInlineSize.INFO;
-			if (style.isDeclared(logicalInfo)) {
+			// The later of the two declarations wins (2026-10-08, CSS Logical 1 §4)
+			if (LogicalSide.logicalWins(style, INFO, logicalInfo)) {
 				return style.get(logicalInfo);
 			}
 		}

@@ -29,16 +29,13 @@ public class Height extends AbstractPrimitivePropertyInfo {
 
 	public static Value get(CSSStyle style) {
 		boolean image = CSSJInternalImage.getImage(style) != null;
-		if (style.isDeclared(INFO)) {
-			return style.get(INFO);
-		}
-		// If height is not explicitly specified, fall back to the standard logical properties
-		// inline-size/block-size (does not apply to images). On 2026-07-20,
-		// -cssj-direction-mode was abolished and support was consolidated into inline-size/
+		// The standard logical properties inline-size/block-size set the same thing (not for images). On
+		// 2026-07-20, -cssj-direction-mode was abolished and support was consolidated into inline-size/
 		// block-size.
 		if (!image) {
 			PrimitivePropertyInfo logicalInfo = BlockFlow.get(style).isVertical() ? InlineSize.INFO : BlockSize.INFO;
-			if (style.isDeclared(logicalInfo)) {
+			// The later of the two declarations wins (2026-10-08, CSS Logical 1 §4; before, height always won)
+			if (LogicalSide.logicalWins(style, INFO, logicalInfo)) {
 				return style.get(logicalInfo);
 			}
 		}

@@ -159,6 +159,7 @@ public final class TemplateExpander {
 			}
 			try {
 				style.restoreComputed(info, (Value) this.thaw(frozen, Value.class), snapshot.declared().contains(info.getName()));
+				style.restoreDeclarationRank(info, snapshot.declarationRank(info.getName()));
 			} catch (final ReflectiveOperationException | IllegalArgumentException e) {
 				if (this.dropped.add(info.getName())) {
 					this.warn("cannot restore " + info.getName() + " (" + frozen.type() + "): " + e.getMessage());

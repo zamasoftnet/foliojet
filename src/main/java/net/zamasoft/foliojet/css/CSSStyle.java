@@ -81,6 +81,20 @@ public class CSSStyle {
 	/** Records declarations consumed (cleared) by {@link #get} (for {@link #isDeclared}). */
 	private java.util.BitSet consumedDeclared = null;
 	private boolean[] importants = null;
+
+	/**
+	 * Cascade order of the values stored on this element (2026-10-08): the n-th value {@link #set} stores gets n. A
+	 * physical property and its logical counterpart (margin-left and margin-inline-start) set the same thing, and the
+	 * later declaration wins (CSS Logical 1 §4), which needs the order across their separate slots. Allocated at the
+	 * first logical property; values stored before it keep 0, which is earlier than any later one. Elements without
+	 * logical properties carry nothing.
+	 */
+	private int[] declarationOrder = null;
+	private int declarationCount = 0;
+
+	/** Added to an {@code !important} declaration's order: important declarations win over normal ones. */
+	private static final int IMPORTANT_RANK = 1 << 30;
+
 	private FontStyle fontStyle = null;
 
 	/**
@@ -413,6 +427,52 @@ public class CSSStyle {
 		if (this.computedValues != null) {
 			this.computedValues[code] = null;
 		}
+		if (this.declarationOrder == null && isLogical(info)) {
+			this.declarationOrder = new int[ElementPropertySet.getCodeSize()];
+		}
+		if (this.declarationOrder != null) {
+			this.declarationOrder[code] = ++this.declarationCount;
+		}
+	}
+
+	/** Logical properties by name: margin-block-start, border-inline-end-color, inline-size, min-block-size... */
+	private static boolean isLogical(final PrimitivePropertyInfo info) {
+		final String name = info.getName();
+		return name.contains("-block") || name.contains("-inline") || name.equals("block-size")
+				|| name.equals("inline-size");
+	}
+
+	/**
+	 * The cascade rank of a declaration on this element (2026-10-08): {@code !important} first, then the order of
+	 * declaration; 0 if it came before the element's first logical property or was not declared here.
+	 */
+	public int declarationRank(final PrimitivePropertyInfo info) {
+		final short code = ElementPropertySet.getCode(info);
+		if (code == -1 || this.declarationOrder == null) {
+			return 0;
+		}
+		final int order = this.declarationOrder[code];
+		return this.importants != null && this.importants[code] ? IMPORTANT_RANK + order : order;
+	}
+
+	/**
+	 * Whether {@code a} wins over {@code b} by the cascade when both set the same thing (a logical property and its
+	 * physical counterpart, 2026-10-08). Only meaningful when both are declared on this element ({@link #isDeclared}).
+	 */
+	public boolean declaredOver(final PrimitivePropertyInfo a, final PrimitivePropertyInfo b) {
+		return this.declarationRank(a) > this.declarationRank(b);
+	}
+
+	/** Sets a declaration's cascade rank without a declaration. Only for restoring immutable templates. */
+	public void restoreDeclarationRank(final PrimitivePropertyInfo info, final int rank) {
+		final short code = ElementPropertySet.getCode(info);
+		if (code == -1 || rank == 0) {
+			return;
+		}
+		if (this.declarationOrder == null) {
+			this.declarationOrder = new int[ElementPropertySet.getCodeSize()];
+		}
+		this.declarationOrder[code] = rank;
 	}
 
 	/**

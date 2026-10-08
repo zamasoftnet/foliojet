@@ -50,6 +50,8 @@ public final class StyleSnapshot {
 	private final Map<String, FrozenValue> properties;
 	private final Map<String, String> attributes;
 	private final Set<String> declared;
+	/** Cascade ranks of the declarations ({@link CSSStyle#declarationRank}; absent = 0, 2026-10-08). */
+	private final Map<String, Integer> ranks;
 	private final String elementName;
 	private final List<String> imageUris;
 	private final CSSJImageValue.SvgSource svgSource;
@@ -58,11 +60,13 @@ public final class StyleSnapshot {
 	private final long textBytes;
 
 	private StyleSnapshot(final Map<String, FrozenValue> properties, final Map<String, String> attributes,
-			final Set<String> declared, final String elementName, final List<String> imageUris,
+			final Set<String> declared, final Map<String, Integer> ranks, final String elementName,
+			final List<String> imageUris,
 			final CSSJImageValue.SvgSource svgSource, final String language, final String baseURI, final long textBytes) {
 		this.properties = Collections.unmodifiableMap(properties);
 		this.attributes = Collections.unmodifiableMap(attributes);
 		this.declared = Set.copyOf(declared);
+		this.ranks = Map.copyOf(ranks);
 		this.elementName = elementName;
 		this.imageUris = List.copyOf(imageUris);
 		this.svgSource = svgSource;
@@ -111,6 +115,7 @@ public final class StyleSnapshot {
 			final Budget budget = new Budget(remaining);
 			final Map<String, FrozenValue> properties = new LinkedHashMap<String, FrozenValue>(ElementPropertySet.getCodeSize());
 			final Set<String> declared = new java.util.HashSet<String>();
+			final Map<String, Integer> ranks = new java.util.HashMap<String, Integer>();
 			final List<String> images = new ArrayList<String>();
 			for (final PrimitivePropertyInfo info : ElementPropertySet.getPrimitiveProperties()) {
 				// Do not share image objects. For inline SVG, retain the detached XML below.
@@ -119,6 +124,10 @@ public final class StyleSnapshot {
 				}
 				if (style.isDeclared(info)) {
 					declared.add(info.getName());
+					final int rank = style.declarationRank(info);
+					if (rank != 0) {
+						ranks.put(info.getName(), rank);
+					}
 				}
 				final Value value = style.get(info);
 				Entry entry = this.previous.get(info);
@@ -172,7 +181,7 @@ public final class StyleSnapshot {
 				budget.text(svg.baseURI());
 			}
 			final URI baseURI = style.getUserAgent().getDocumentContext().getBaseURI();
-			return new StyleSnapshot(properties, attributes, declared, budget.text(ce.lName), images,
+			return new StyleSnapshot(properties, attributes, declared, ranks, budget.text(ce.lName), images,
 					svg, language, baseURI == null ? null : budget.text(baseURI.toString()), budget.used);
 		}
 	}
@@ -272,6 +281,12 @@ public final class StyleSnapshot {
 	/** Explicit declarations at the original position, used to determine priority of logical/physical properties, etc. */
 	public Set<String> declared() {
 		return this.declared;
+	}
+
+	/** The cascade rank of a declaration at the original position (0 if none; {@link CSSStyle#declarationRank}). */
+	public int declarationRank(final String name) {
+		final Integer rank = this.ranks.get(name);
+		return rank == null ? 0 : rank;
 	}
 
 	/** Budget consumed when copying all properties, attributes, and image sources. */

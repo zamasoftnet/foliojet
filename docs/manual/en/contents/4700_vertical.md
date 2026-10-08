@@ -303,10 +303,13 @@ Logical border properties (such as <span class="cssprop">border-block-start</spa
 
 </div>
 
-When a physical property and a logical property refer to the same side, **the physical property takes precedence**.
-For example, when <span class="cssprop">margin-top</span> and <span class="cssprop">margin-block-start</span>
-refer to the same side in horizontal writing, the value of <span class="cssprop">margin-top</span>
-is used if both are specified. If only one is specified, its value is used.
+When a physical property and a logical property refer to the same side, **the one that comes later in the cascade
+is used** (as CSS Logical Properties 1 specifies<span class="since">4.0.0</span>). They are compared by `!important`,
+specificity and order of appearance, the same as any other overlapping declarations. For example, after
+`p { margin: 0 }`, common in EPUB style sheets, a more specific `p.x { margin-block-start: 3em }` takes effect.
+Written in one rule as `margin-top: 0; margin-block-start: 3em`, the later `margin-block-start` is used. Sizes (such as
+<span class="cssprop">width</span> and <span class="cssprop">inline-size</span>) and border widths, styles and colors
+work the same way.
 
 <span class="cssprop">float</span>, <span class="cssprop">clear</span>,
 <span class="cssprop">text-align</span>, <span class="cssprop">caption-side</span>
