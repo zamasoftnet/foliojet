@@ -124,10 +124,11 @@ public final class StyleSnapshot {
 				}
 				if (style.isDeclared(info)) {
 					declared.add(info.getName());
-					final int rank = style.declarationRank(info);
-					if (rank != 0) {
-						ranks.put(info.getName(), rank);
-					}
+				}
+				// Also the ranks of a shorthand's omitted parts, which are not declared but compete (2026-10-08)
+				final int rank = style.declarationRank(info);
+				if (rank != 0) {
+					ranks.put(info.getName(), rank);
 				}
 				final Value value = style.get(info);
 				Entry entry = this.previous.get(info);

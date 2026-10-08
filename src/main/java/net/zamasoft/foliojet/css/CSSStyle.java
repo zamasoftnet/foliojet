@@ -80,6 +80,8 @@ public class CSSStyle {
 	private Value[] computedValues = null;
 	/** Records declarations consumed (cleared) by {@link #get} (for {@link #isDeclared}). */
 	private java.util.BitSet consumedDeclared = null;
+	/** Records consumed declarations whose value was {@code inherit} (for {@link #isDeclaredInherit}). */
+	private java.util.BitSet consumedInherit = null;
 	private boolean[] importants = null;
 
 	/**
@@ -152,6 +154,9 @@ public class CSSStyle {
 			this.consumedDeclared = new java.util.BitSet(ElementPropertySet.getCodeSize());
 		}
 		this.consumedDeclared.set(code, declared);
+		if (this.consumedInherit != null) {
+			this.consumedInherit.clear(code);
+		}
 		this.fontStyle = null;
 	}
 
@@ -274,6 +279,12 @@ public class CSSStyle {
 				// (CSS Cascading and Inheritance)
 				raw = info.isInherited() ? KeywordValue.INHERIT : KeywordValue.INITIAL;
 			}
+			if (raw == KeywordValue.INHERIT) {
+				if (style.consumedInherit == null) {
+					style.consumedInherit = new java.util.BitSet(ElementPropertySet.getCodeSize());
+				}
+				style.consumedInherit.set(code);
+			}
 			if (raw == KeywordValue.INITIAL) {
 				// initial: always use the property's initial value without inheriting
 				resolved = info.getDefault(style);
@@ -327,6 +338,24 @@ public class CSSStyle {
 			return true;
 		}
 		return this.consumedDeclared != null && this.consumedDeclared.get(code);
+	}
+
+	/**
+	 * Whether the value declared directly on this style is {@code inherit} ({@code unset} on an inherited property),
+	 * before or after {@link #get} (2026-10-08). A physical property and its logical counterpart share one computed
+	 * value, so an explicit {@code inherit} of either takes the parent's value of the pair, not of the parent's slot
+	 * with the same name ({@link net.zamasoft.foliojet.css.impl.property.box.LogicalSide#resolve}).
+	 */
+	public boolean isDeclaredInherit(PrimitivePropertyInfo info) {
+		final short code = ElementPropertySet.getCode(info);
+		if (code == -1) {
+			return false;
+		}
+		final Value raw = this.values != null ? this.values[code] : null;
+		if (raw != null) {
+			return raw == KeywordValue.INHERIT || (raw == KeywordValue.UNSET && info.isInherited());
+		}
+		return this.consumedInherit != null && this.consumedInherit.get(code);
 	}
 
 	/**
@@ -427,6 +456,11 @@ public class CSSStyle {
 		if (this.computedValues != null) {
 			this.computedValues[code] = null;
 		}
+		if (this.consumedInherit != null) {
+			this.consumedInherit.clear(code);
+		}
+		// A null value is a shorthand's omitted part (border-left: 2px leaves the style out), which resets the
+		// property to its initial value: it takes part in the order like any declaration (2026-10-08).
 		if (this.declarationOrder == null && isLogical(info)) {
 			this.declarationOrder = new int[ElementPropertySet.getCodeSize()];
 		}
@@ -439,7 +473,7 @@ public class CSSStyle {
 	 * Logical properties by name: margin-block-start, border-inline-end-color, inline-size, min-block-size,
 	 * border-start-end-radius...
 	 */
-	private static boolean isLogical(final PrimitivePropertyInfo info) {
+	public static boolean isLogical(final PrimitivePropertyInfo info) {
 		final String name = info.getName();
 		return name.contains("-block") || name.contains("-inline") || name.equals("block-size")
 				|| name.equals("inline-size") || name.startsWith("border-start-") || name.startsWith("border-end-");
@@ -447,7 +481,8 @@ public class CSSStyle {
 
 	/**
 	 * The cascade rank of a declaration on this element (2026-10-08): {@code !important} first, then the order of
-	 * declaration; 0 if it came before the element's first logical property or was not declared here.
+	 * declaration; 0 if it came before the element's first logical property or was not declared here. A shorthand's
+	 * omitted part has a rank but is not {@link #isDeclared declared}.
 	 */
 	public int declarationRank(final PrimitivePropertyInfo info) {
 		final short code = ElementPropertySet.getCode(info);
@@ -456,14 +491,6 @@ public class CSSStyle {
 		}
 		final int order = this.declarationOrder[code];
 		return this.importants != null && this.importants[code] ? IMPORTANT_RANK + order : order;
-	}
-
-	/**
-	 * Whether {@code a} wins over {@code b} by the cascade when both set the same thing (a logical property and its
-	 * physical counterpart, 2026-10-08). Only meaningful when both are declared on this element ({@link #isDeclared}).
-	 */
-	public boolean declaredOver(final PrimitivePropertyInfo a, final PrimitivePropertyInfo b) {
-		return this.declarationRank(a) > this.declarationRank(b);
 	}
 
 	/** Sets a declaration's cascade rank without a declaration. Only for restoring immutable templates. */

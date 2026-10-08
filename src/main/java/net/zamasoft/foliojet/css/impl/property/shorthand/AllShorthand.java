@@ -45,6 +45,11 @@ public final class AllShorthand extends AbstractShorthandPropertyInfo {
 					list.add(primitive);
 				}
 			}
+			// Logical longhands first, physical ones last (2026-10-08): the later of a physical and a logical
+			// declaration wins (CSS Logical 1 §4), and in all the physical one does, as in Chrome. In registry order a
+			// vertical child's all: inherit took its left margin from the parent's margin-block-end.
+			list.sort(java.util.Comparator.comparing(
+					(PrimitivePropertyInfo primitive) -> !net.zamasoft.foliojet.css.CSSStyle.isLogical(primitive)));
 			result = list.toArray(new PrimitivePropertyInfo[0]);
 			this.longhands = result;
 		}

@@ -143,7 +143,16 @@ public class StyleContext {
 	 * @return
 	 */
 	public Declaration merge(Declaration declaration) {
-		return this.merge(declaration, null, null);
+		// Pseudo-elements (::before, ::marker, ::first-line...) apply the result in one go: the important declarations
+		// in reversed layer order go at its end (2026-10-08). Without them an important declaration of a later
+		// @layer won over an earlier layer's on a pseudo-element, the reverse of CSS Cascade 5 and of the element path
+		// (StyleApplier).
+		final Declaration[] important = new Declaration[1];
+		declaration = this.merge(declaration, null, important);
+		if (important[0] != null) {
+			declaration.mergeImportant(important[0]);
+		}
+		return declaration;
 	}
 
 	/**

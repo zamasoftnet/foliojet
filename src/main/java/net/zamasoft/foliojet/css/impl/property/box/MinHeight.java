@@ -10,8 +10,6 @@ import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
-import net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalImage;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -25,17 +23,9 @@ public class MinHeight extends AbstractPrimitivePropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new MinHeight();
 
 	public static Value get(CSSStyle style) {
-		boolean image = CSSJInternalImage.getImage(style) != null;
-		// 2026-07-20: abolished -cssj-direction-mode and consolidated support into min-inline-size/
-		// min-block-size.
-		if (!image) {
-			PrimitivePropertyInfo logicalInfo = BlockFlow.get(style).isVertical() ? MinInlineSize.INFO : MinBlockSize.INFO;
-			// The later of the two declarations wins (2026-10-08, CSS Logical 1 §4)
-			if (LogicalSide.logicalWins(style, INFO, logicalInfo)) {
-				return style.get(logicalInfo);
-			}
-		}
-		return style.get(INFO);
+		// min-inline-size/min-block-size set the same thing: the later one wins (CSS Logical 1 §4),
+		// images included (2026-10-08).
+		return LogicalSide.minSize(style, true);
 	}
 
 	public static Length getLength(CSSStyle style) {

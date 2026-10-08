@@ -4,7 +4,6 @@ import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.impl.property.box.LogicalSide;
-import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
@@ -25,10 +24,8 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * {@code border-inline-start-*} / {@code border-inline-end-*} properties.
  *
  * <p>
- * The physical side depends on the writing direction ({@link LogicalSide}).
- * As with {@code block-size}/{@code inline-size}, <b>a declared physical property wins</b>.
- * CSS specifies source order, but this implementation follows the existing logical dimension
- * properties (a known deviation).
+ * The physical side depends on the writing direction ({@link LogicalSide}). When the physical property of the same
+ * side is declared too, the later declaration wins (2026-10-08, CSS Logical 1 §4; {@link LogicalSide#resolve}).
  *
  * <p>
  * <b>Why these are needed</b>: HTML {@code <hr noshade>} requests a border only at the block-end
@@ -76,20 +73,11 @@ public final class LogicalBorder extends AbstractPrimitivePropertyInfo {
 	}
 
 	/**
-	 * Returns the logical property corresponding to physical {@code side} if it decides the value over the
-	 * {@code physical} property (declared, and later in the cascade when both are, 2026-10-08), or null otherwise.
+	 * The four properties of an aspect indexed by {@link LogicalSide#ordinal()}, the logical half of the pairs
+	 * {@link LogicalSide#resolve} resolves.
 	 */
-	public static Value declaredFor(CSSStyle style, Aspect aspect, Side side, PrimitivePropertyInfo physical) {
-		for (final LogicalSide logical : LogicalSide.values()) {
-			if (logical.toPhysical(style) != side) {
-				continue;
-			}
-			final PrimitivePropertyInfo info = of(aspect, logical);
-			if (LogicalSide.logicalWins(style, physical, info)) {
-				return style.get(info);
-			}
-		}
-		return null;
+	public static PrimitivePropertyInfo[] bySide(Aspect aspect) {
+		return BY_ASPECT_SIDE[aspect.ordinal()];
 	}
 
 	private final Aspect aspect;
@@ -119,7 +107,9 @@ public final class LogicalBorder extends AbstractPrimitivePropertyInfo {
 		case COLOR:
 			return KeywordValue.NONE;
 		default:
-			return net.zamasoft.foliojet.css.value.AbsoluteLengthValue.ZERO;
+			// medium, as border-left-width (2026-10-08): border-inline-start-width: initial, and the width a
+			// border-inline-start: solid leaves out, gave 0 instead
+			return style.getUserAgent().getBorderWidth(net.zamasoft.foliojet.ua.BorderWidthKeyword.MEDIUM);
 		}
 	}
 

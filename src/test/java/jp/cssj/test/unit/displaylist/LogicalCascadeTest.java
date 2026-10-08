@@ -112,6 +112,121 @@ public class LogicalCascadeTest extends TestCase {
 		assertEquals("後の border-inline-start-width が border に勝つ", 50 + 5 + 1, widths[2], 0.01);
 	}
 
+	/**
+	 * Important declarations across {@code @layer} (codex review 2026-10-08, expected values measured in Chrome): the
+	 * style attribute's outranks every layer's, and on a pseudo-element the earlier layer's wins, with a logical
+	 * property against a physical one as with the same property.
+	 */
+	public void testImportantLayers() throws Exception {
+		final String page = convert("important", document("horizontal-tb", """
+				body { margin: 0 }
+				@layer base, first, second;
+				@layer base {
+				  p.a { margin-inline-start: 30pt !important }
+				  p.b { margin-left: 30pt !important }
+				}
+				@layer first {
+				  p.c::before { margin-left: 10pt !important }
+				  p.d::before { margin-left: 10pt !important }
+				}
+				@layer second {
+				  p.c::before { margin-inline-start: 30pt !important }
+				  p.d::before { margin-left: 30pt !important }
+				}
+				p.c::before { content: "C"; display: block }
+				p.d::before { content: "D"; display: block }
+				""", "<p class=\"a\" style=\"margin-left: 10pt !important\">A</p>"
+				+ "<p class=\"b\" style=\"margin-left: 10pt !important\">B</p><p class=\"c\"></p><p class=\"d\"></p>"));
+		assertEquals("style 属性の !important が層の論理の !important に勝つ", 10, x(page, "A"), 0.01);
+		assertEquals("style 属性の !important が層の物理の !important に勝つ", 10, x(page, "B"), 0.01);
+		assertEquals("::before でも前の層の !important が勝つ(論理と物理)", 10, x(page, "C"), 0.01);
+		assertEquals("::before でも前の層の !important が勝つ(同じプロパティ)", 10, x(page, "D"), 0.01);
+	}
+
+	/**
+	 * An explicit {@code inherit} takes the parent's value of the pair, not of the parent's losing slot with the same
+	 * name; {@code all} sets the physical properties last, so they win as in Chrome.
+	 */
+	public void testExplicitInherit() throws Exception {
+		final String page = convert("inherit", document("horizontal-tb", """
+				body { margin: 0 }
+				div.p1 { margin-left: 10pt; margin-inline-start: 30pt }
+				div.c1 { margin-left: inherit }
+				div.p2 { margin-inline-start: 30pt; margin-left: 10pt }
+				div.c2 { margin-inline-start: inherit }
+				div.p3 { margin-inline-start: 30pt }
+				div.c3 { margin-left: inherit }
+				div.p4 { margin: 10pt 20pt 30pt 40pt; margin-block: 10pt 30pt; margin-inline: 40pt 20pt; height: 60pt }
+				div.c4 { all: inherit; writing-mode: vertical-rl }
+				div.r4 { margin: 10pt 20pt 30pt 40pt; height: 60pt; writing-mode: vertical-rl }
+				""", "<div class=\"p1\"><div class=\"c1\">A</div></div><div class=\"p2\"><div class=\"c2\">B</div></div>"
+				+ "<div class=\"p3\"><div class=\"c3\">C</div></div><div class=\"p4\"><div class=\"c4\">D</div></div>"
+				+ "<div class=\"p4\"><div class=\"r4\">E</div></div>"));
+		assertEquals("margin-left: inherit は親の勝った論理の値", 30 + 30, x(page, "A"), 0.01);
+		assertEquals("margin-inline-start: inherit は親の勝った物理の値", 10 + 10, x(page, "B"), 0.01);
+		assertEquals("margin-left: inherit は親の論理だけの値も受け継ぐ", 30 + 30, x(page, "C"), 0.01);
+		assertEquals("縦組みの子の all: inherit は親の物理の余白を受け継ぐ", x(page, "E"), x(page, "D"), 0.01);
+	}
+
+	/**
+	 * A border shorthand resets what it leaves out (CSS Backgrounds 3 §3.4), which competes with the other half of the
+	 * pair; the logical width's initial value is medium, as the physical one's.
+	 */
+	public void testBorderResets() throws Exception {
+		final String page = convert("border-resets", document("horizontal-tb", """
+				body { margin: 0 }
+				""", "<p style=\"border-left: 8pt solid; border-inline-start: 2pt\">A</p>"
+				+ "<p style=\"border-inline-start: 8pt solid; border-left: 2pt\">B</p>"
+				+ "<p style=\"border-inline-start: 8pt solid; border: 2pt\">C</p>"
+				+ "<p style=\"border: medium solid; border-inline-start-width: initial\">D</p>"
+				+ "<p style=\"border-inline-start: solid\">E</p><p style=\"border-left: medium solid\">F</p>"));
+		assertEquals("後の論理の短縮形が線種を none に戻す", 0, x(page, "A"), 0.01);
+		assertEquals("後の物理の短縮形が線種を none に戻す", 0, x(page, "B"), 0.01);
+		assertEquals("後の border が論理の線種を none に戻す", 0, x(page, "C"), 0.01);
+		assertTrue("medium は 0 でない", x(page, "F") > 0);
+		assertEquals("border-inline-start-width: initial は medium", x(page, "F"), x(page, "D"), 0.01);
+		assertEquals("border-inline-start: solid の幅は medium", x(page, "F"), x(page, "E"), 0.01);
+	}
+
+	/** Images take the logical sizes too (they skipped them, a leftover of -cssj-direction-mode). */
+	public void testImages() throws Exception {
+		final File images = new File("local/logical-cascade/png");
+		images.mkdirs();
+		javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(40, 40, java.awt.image.BufferedImage.TYPE_INT_RGB),
+				"png", new File(images, "square.png"));
+		javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(400, 200,
+				java.awt.image.BufferedImage.TYPE_INT_RGB), "png", new File(images, "wide.png"));
+		final double[] h = frames(convert("images", document("horizontal-tb", """
+				body { margin: 0 }
+				""", "<p><img src=\"../png/square.png\" style=\"width: 15pt; inline-size: 60pt !important\"/></p>"
+				+ "<div style=\"width: 75pt\"><img src=\"../png/wide.png\" style=\"max-inline-size: 100%;"
+				+ " display: block\"/></div><p><img src=\"../png/wide.png\" style=\"inline-size: 45pt\"/></p>")), 3);
+		assertEquals("画像の inline-size !important が width に勝つ", 60, h[0], 0.01);
+		assertEquals("画像の max-inline-size: 100%", 75, h[2], 0.01);
+		assertEquals("画像の max-inline-size: 100%(高さは比率)", 37.5, h[3], 0.01);
+		assertEquals("画像の inline-size", 45, h[4], 0.01);
+		assertEquals("画像の inline-size(高さは比率)", 22.5, h[5], 0.01);
+		final double[] v = frames(convert("images-v", document("vertical-rl", """
+				body { margin: 0 }
+				""", "<p><img src=\"../png/wide.png\" style=\"inline-size: 45pt\"/></p>"
+				+ "<p><img src=\"../png/wide.png\" style=\"height: 15pt; inline-size: 45pt\"/></p>")), 2);
+		assertEquals("縦組みの画像の inline-size は高さ", 45, v[1], 0.01);
+		assertEquals("縦組みの画像の inline-size(幅は比率)", 90, v[0], 0.01);
+		assertEquals("縦組みの画像の後の inline-size が height に勝つ", 45, v[3], 0.01);
+	}
+
+	/** The widths and heights of the first {@code count} frames: w0, h0, w1, h1... */
+	private static double[] frames(final String page, final int count) {
+		final Matcher m = FRAME.matcher(page);
+		final double[] sizes = new double[count * 2];
+		for (int i = 0; i < count; ++i) {
+			assertTrue("枠が足りない:\n" + page, m.find());
+			sizes[i * 2] = Double.parseDouble(m.group(3));
+			sizes[i * 2 + 1] = Double.parseDouble(m.group(4));
+		}
+		return sizes;
+	}
+
 	private static double x(final String page, final String text) {
 		return coordinate(page, text, 1);
 	}

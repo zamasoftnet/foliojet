@@ -35,6 +35,19 @@ public class Declaration {
 	}
 
 	/**
+	 * Adds only the {@code !important} declarations of another declaration (2026-10-08): appended after the normal
+	 * cascade, they have the effect of {@link #applyImportantProperties} in one {@link #applyProperties}.
+	 */
+	public void mergeImportant(Declaration declaration) {
+		for (int i = 0; i < declaration.getLength(); ++i) {
+			final Property property = declaration.get(i);
+			if (property.isImportant()) {
+				this.addProperty(property);
+			}
+		}
+	}
+
+	/**
 	 * Adds a property.
 	 * 
 	 * @param property

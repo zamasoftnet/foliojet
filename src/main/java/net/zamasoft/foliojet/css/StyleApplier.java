@@ -82,13 +82,20 @@ public class StyleApplier {
 			// while investigating broken inline SVG sizing). Also try an unqualified attribute.
 			inlineStyleDecl = XHTML.getAttr(ce.atts, XHTML.STYLE_ATTR.lName);
 		}
+		Declaration inline = null;
 		if (inlineStyleDecl != null) {
 			inlineStyleDecl = inlineStyleDecl.trim();
 			try {
-				declaration = DeclarationParser.parseInline(inlineStyleDecl, declaration,
-						ElementPropertySet.getInstance(), this.ua, this.baseURI);
+				inline = DeclarationParser.parseInline(inlineStyleDecl, null, ElementPropertySet.getInstance(),
+						this.ua, this.baseURI);
 			} catch (CSSException e) {
 				this.ua.message(MessageCodes.WARN_BAD_INLINE_CSS, inlineStyleDecl, e.getMessage());
+			}
+			if (inline != null) {
+				if (declaration == null) {
+					declaration = new Declaration();
+				}
+				declaration.merge(inline);
 			}
 		}
 
@@ -109,6 +116,12 @@ public class StyleApplier {
 		// Later important declarations win, so the strongest is applied last.
 		if (importantDeclaration[0] != null) {
 			importantDeclaration[0].applyImportantProperties(style);
+			// The style attribute's important declarations outrank every rule's, layered or not (CSS Cascade 5
+			// §6.1): apply them once more after the reversal (2026-10-08; a layer's !important used to beat
+			// style="margin-left: 10px !important").
+			if (inline != null) {
+				inline.applyImportantProperties(style);
+			}
 		}
 
 		short display = Display.get(style);

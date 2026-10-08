@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.css.impl.property.box.LogicalSide;
 import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.ua.BorderWidthKeyword;
 
@@ -38,9 +39,8 @@ public final class BorderWidth extends AbstractPrimitivePropertyInfo {
 	}
 
 	public static double get(CSSStyle style, Side side) {
-		Value declared = LogicalBorder.declaredFor(style, LogicalBorder.Aspect.WIDTH, side, BY_SIDE[side.ordinal()]);
-		return ((AbsoluteLengthValue) (declared != null ? declared : style.get(BY_SIDE[side.ordinal()])))
-				.getLength();
+		return ((AbsoluteLengthValue) LogicalSide.resolve(style, side, BY_SIDE,
+				LogicalBorder.bySide(LogicalBorder.Aspect.WIDTH))).getLength();
 	}
 
 	public Value getDefault(CSSStyle style) {

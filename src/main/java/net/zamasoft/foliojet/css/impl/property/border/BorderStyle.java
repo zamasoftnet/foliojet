@@ -11,6 +11,7 @@ import net.zamasoft.foliojet.css.util.BorderValueUtils;
 import net.zamasoft.foliojet.css.value.BorderStyleValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.css.impl.property.box.LogicalSide;
 import net.zamasoft.foliojet.css.impl.property.box.Side;
 
 /**
@@ -35,10 +36,8 @@ public final class BorderStyle extends AbstractPrimitivePropertyInfo {
 	}
 
 	public static short get(CSSStyle style, Side side) {
-		Value declared = LogicalBorder.declaredFor(style, LogicalBorder.Aspect.STYLE, side, BY_SIDE[side.ordinal()]);
-		BorderStyleValue value = (BorderStyleValue) (declared != null ? declared
-				: style.get(BY_SIDE[side.ordinal()]));
-		return value.getBorderStyle();
+		return ((BorderStyleValue) LogicalSide.resolve(style, side, BY_SIDE,
+				LogicalBorder.bySide(LogicalBorder.Aspect.STYLE))).getBorderStyle();
 	}
 
 	public Value getDefault(CSSStyle style) {

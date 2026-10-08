@@ -14,6 +14,7 @@ import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.impl.property.text.CSSColor;
+import net.zamasoft.foliojet.css.impl.property.box.LogicalSide;
 import net.zamasoft.foliojet.css.impl.property.box.Side;
 
 /**
@@ -38,8 +39,7 @@ public final class BorderColor extends AbstractPrimitivePropertyInfo {
 	}
 
 	public static net.zamasoft.pdfg2d.gc.paint.Color get(CSSStyle style, Side side) {
-		Value declared = LogicalBorder.declaredFor(style, LogicalBorder.Aspect.COLOR, side, BY_SIDE[side.ordinal()]);
-		Value value = declared != null ? declared : style.get(BY_SIDE[side.ordinal()]);
+		final Value value = LogicalSide.resolve(style, side, BY_SIDE, LogicalBorder.bySide(LogicalBorder.Aspect.COLOR));
 		if (value == KeywordValue.TRANSPARENT) {
 			return null;
 		}
