@@ -783,59 +783,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (!this.isRestyling()) {
 			switch (box.getType()) {
 			case TABLE:
-				TableBox tableBox = (TableBox) box;
-				// 2026-07-21 (M6b Phase B5e cleanup): previously, a separate implementation,
-				// LayoutUtils.needsIntrinsicSizing(TableBox), rechecked the old four conditions.
-				// It duplicated TableBuildPlanner.plan() completely,
-				// but lacked the ORTHOGONAL_WRITING_MODE condition added in B5e,
-				// creating an inconsistency between the two.
-				// Measurements had confirmed no actual harm, but adding similar conditions
-				// would risk repeating the problem, so eliminate it by using the single
-				// decision point, TableBuildPlanner.plan().
-				if (!tableBox.isIncomplete()
-						&& TableBuildPlanner.plan(this, tableBox).mode() != TableBuildPlan.Mode.RETAINED) {
-					// For Incremental (fixed layout, etc.),
-					// IncrementalTableBuilder handles repositioning.
-					break;
-				}
-				if (tableBox.isIncomplete()) {
-					// Retain the current remainder even without splitting. Existing repositioning code updates it on a split.
-					this.lastTableBox = tableBox;
-				}
-				for (;;) {
-					this.checkAbort();
-					// Check forced table page breaks
-					if (this.mode == MODE_PAGE_BREAK) {
-						TableForceBreakMode mode = this.firstTableForceBreak(tableBox);
-						if (mode != null) {
-							this.forceBreak(mode);
-							box = tableBox = this.lastTableBox;
-							continue;
-						}
-					}
-
-					if (LayoutUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
-						break;
-					}
-
-					// Automatic page break
-					if (LOG.isLoggable(Level.FINE)) {
-						LOG.fine("page break [in table]");
-					}
-					this.lastTableBox = null;
-					if (!this.autoBreak()) {
-						// Table headers and footers may not fit.
-						if (tableBox.isIncomplete()) {
-							this.lastTableBox = tableBox;
-						}
-						break;
-					}
-					if (this.lastTableBox == null) {
-						break;
-					}
-					box = tableBox = this.lastTableBox;
-					continue;
-				}
+				// The table may end up split: the rest of the code reads the box that remains in the flow
+				box = this.breakTable((TableBox) box);
 				break;
 			case BLOCK:
 				break;
@@ -890,6 +839,79 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				this.interflowBreak = false;
 			}
 			this.applyBreakAfter(pageBreakAfter);
+		}
+	}
+
+	/**
+	 * Breaks the page inside a table just added to the flow until what remains fits (2026-10-08, extracted from
+	 * {@link #addBound}), and returns the table box that remains in the flow: the table itself, or the remainder of
+	 * its last split. Each split replaces the remainder through {@code lastTableBox}, which the page break sets.
+	 *
+	 * <p>
+	 * Exits, in the order of the original loop (each returns the current table box):
+	 * </p>
+	 * <ol>
+	 * <li>a complete table that is not retained (IncrementalTableBuilder repositions it itself)</li>
+	 * <li>(entry) an incomplete table is kept as {@code lastTableBox} even without a split</li>
+	 * <li>a forced break in the table: break and continue with the remainder the break left in {@code lastTableBox}</li>
+	 * <li>it fits</li>
+	 * <li>no break point, incomplete table: keep it as {@code lastTableBox} (headers and footers may not fit)</li>
+	 * <li>no break point, complete table: {@code lastTableBox} stays {@code null}</li>
+	 * <li>broken, but no remainder</li>
+	 * <li>broken: continue with the remainder</li>
+	 * </ol>
+	 */
+	private TableBox breakTable(TableBox tableBox) {
+		// 2026-07-21 (M6b Phase B5e cleanup): previously, a separate implementation,
+		// LayoutUtils.needsIntrinsicSizing(TableBox), rechecked the old four conditions.
+		// It duplicated TableBuildPlanner.plan() completely,
+		// but lacked the ORTHOGONAL_WRITING_MODE condition added in B5e,
+		// creating an inconsistency between the two.
+		// Measurements had confirmed no actual harm, but adding similar conditions
+		// would risk repeating the problem, so eliminate it by using the single
+		// decision point, TableBuildPlanner.plan().
+		if (!tableBox.isIncomplete()
+				&& TableBuildPlanner.plan(this, tableBox).mode() != TableBuildPlan.Mode.RETAINED) {
+			// For Incremental (fixed layout, etc.),
+			// IncrementalTableBuilder handles repositioning.
+			return tableBox;
+		}
+		if (tableBox.isIncomplete()) {
+			// Retain the current remainder even without splitting. Existing repositioning code updates it on a split.
+			this.lastTableBox = tableBox;
+		}
+		for (;;) {
+			this.checkAbort();
+			// Check forced table page breaks
+			if (this.mode == MODE_PAGE_BREAK) {
+				final TableForceBreakMode mode = this.firstTableForceBreak(tableBox);
+				if (mode != null) {
+					this.forceBreak(mode);
+					tableBox = this.lastTableBox;
+					continue;
+				}
+			}
+
+			if (LayoutUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
+				return tableBox;
+			}
+
+			// Automatic page break
+			if (LOG.isLoggable(Level.FINE)) {
+				LOG.fine("page break [in table]");
+			}
+			this.lastTableBox = null;
+			if (!this.autoBreak()) {
+				// Table headers and footers may not fit.
+				if (tableBox.isIncomplete()) {
+					this.lastTableBox = tableBox;
+				}
+				return tableBox;
+			}
+			if (this.lastTableBox == null) {
+				return tableBox;
+			}
+			tableBox = this.lastTableBox;
 		}
 	}
 
