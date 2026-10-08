@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.ua.impl.pdf;
 
-import java.awt.color.ColorSpace;
 import java.awt.color.ICC_Profile;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
@@ -294,11 +293,11 @@ final class PDFParamsResolver {
 			// Identifiers and registry names describe printing conditions (all ICC registered names are ASCII). PDF/X
 			// allows printable ASCII only (2026-10-07; previously, truncating to the low 8 bits silently corrupted them).
 			final String oiRegistry = UAProps.OUTPUT_PDF_OUTPUT_INTENT_REGISTRY.getString(ua);
-			if (pdfX && !printableAscii(oiIdentifier)) {
+			if (pdfX && !OutputIntent.isPrintableAscii(oiIdentifier)) {
 				throw pdfXOutputIntentError(ua, UAProps.OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER.name,
 						oiIdentifier, "380E.identifier-ascii");
 			}
-			if (pdfX && oiRegistry != null && !printableAscii(oiRegistry)) {
+			if (pdfX && oiRegistry != null && !OutputIntent.isPrintableAscii(oiRegistry)) {
 				throw pdfXOutputIntentError(ua, UAProps.OUTPUT_PDF_OUTPUT_INTENT_REGISTRY.name,
 						oiRegistry, "380E.identifier-ascii");
 			}
@@ -330,15 +329,15 @@ final class PDFParamsResolver {
 							UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name, iccUri);
 				}
 				if (candidate != null) {
+					// The writer checks the same (OutputIntent.checkProfile); here each problem gets its own error
+					// for PDF/X and a warning otherwise, and a profile the CMM cannot read is answered as unreadable.
 					ICC_Profile profile = null;
-					int profileClass = 0;
-					int colorSpaceType = 0;
 					int profileComponents = 0;
+					OutputIntent.ProfileProblem problem = null;
 					try {
 						profile = ICC_Profile.getInstance(candidate);
-						profileClass = profile.getProfileClass();
-						colorSpaceType = profile.getColorSpaceType();
 						profileComponents = profile.getNumComponents();
+						problem = OutputIntent.checkProfile(profile, profileComponents, params.version());
 					} catch (final RuntimeException e) {
 						profile = null;
 						if (pdfX) {
@@ -350,18 +349,12 @@ final class PDFParamsResolver {
 								UAProps.OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE.name, iccUri);
 					}
 					if (profile != null) {
-						String errorDetail = null;
-						if (profileClass != ICC_Profile.CLASS_OUTPUT) {
-							errorDetail = "380E.profile-class";
-						} else if (pdfX && colorSpaceType != ColorSpace.TYPE_CMYK) {
-							errorDetail = "380E.color-space";
-						} else if ((profileComponents != 1 && profileComponents != 3 && profileComponents != 4)
-								|| (pdfX && profileComponents != 4)) {
-							errorDetail = "380E.component-count";
-						} else if (params.version().isPdfXOnPdf14() && profile.getMajorVersion() >= 4) {
-							// ICC v4 requires PDF 1.5 or later. X-1a and X-3 are based on PDF 1.4.
-							errorDetail = "380E.icc-version";
-						}
+						final String errorDetail = problem == null ? null : switch (problem) {
+						case PROFILE_CLASS -> "380E.profile-class";
+						case COLOR_SPACE -> "380E.color-space";
+						case COMPONENT_COUNT -> "380E.component-count";
+						case ICC_VERSION -> "380E.icc-version";
+						};
 						if (errorDetail != null) {
 							if (pdfX) {
 								throw pdfXOutputIntentError(ua,
@@ -776,10 +769,6 @@ final class PDFParamsResolver {
 		}
 		ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_PDF_PLATFORM_ENCODING.name, name);
 		return UAProps.OUTPUT_PDF_PLATFORM_ENCODING.getDefaultString();
-	}
-
-	private static boolean printableAscii(final String s) {
-		return s.chars().allMatch(c -> c >= 0x20 && c <= 0x7E);
 	}
 
 	/** Returns to the caller with a code (until 2026-10-05, a raw IOException was returned as unexpected exception 4001). */
