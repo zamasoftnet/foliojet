@@ -706,9 +706,9 @@ public final class ContinuationStats {
 		if (stalledRun >= STALLED_AUTO_BREAK_LIMIT) {
 			STALLED_AUTO_BREAK_ALARMS.incrementAndGet();
 			final String message = "auto page break repeated " + stalledRun
-					+ " times without any progress (same break target and flow depth, no new source events, and the page "
-					+ "cursor repeats or keeps growing in nested breaks); the layout is livelocked, so page breaking is abandoned and the content is "
-					+ "laid out in place (it may overflow the page)";
+					+ " times without any progress (same break target and flow depth, no new source events or table rows, floats "
+					+ "carrying no less to the next page, and the page cursor repeats or keeps growing in nested breaks); the layout "
+					+ "is livelocked, so page breaking is abandoned and the content is laid out in place (it may overflow the page)";
 			java.util.logging.Logger.getLogger(ContinuationStats.class.getName()).warning(message);
 			// **Return "abandon the page break" instead of an exception** (2026-07-29).
 			//
@@ -724,9 +724,13 @@ public final class ContinuationStats {
 			// on the sheet, the engine <b>must return output, either by allowing overflow
 			// or by moving them to the next page</b>." Therefore, favor **returning output**.
 			//
-			// This threshold (32) is used because it is a safe point **known to have no false positives**.
-			// Doing the same at a lower threshold (2) suppresses legitimate page breaks
-			// as well (observed: `FloatTableTest` regressed from 4 pages to 3).
+			// The threshold (32) is far above the longest legitimate run measured (five), but it does not rule out
+			// false positives by itself: what RootBuilder counts as progress does. On 2026-10-09 rubydoc-api showed
+			// one: a 47000pt float broken page by page after the end of the input kept the input position, the cursor
+			// and the target, so 32 breaks that each placed a page of the float abandoned the rest of the document.
+			// RootBuilder now counts a float carrying less to the next page as progress, as it counts input events
+			// and table rows. A lower threshold (2) suppresses legitimate page breaks as well (observed:
+			// `FloatTableTest` regressed from 4 pages to 3).
 			return true;
 		}
 		return false;
