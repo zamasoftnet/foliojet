@@ -27,6 +27,11 @@ import net.zamasoft.foliojet.layout.box.IBox;
  * takes 80pt, the next one comes after it and a 6pt gap.</li>
  * <li>w: a float holding an {@code align-items: flex-start} column of 100pt and 60pt items is 100pt wide (the row sum
  * made it 160pt).</li>
+ * <li>x: {@code max-width: 60pt} bounds a centered item (three lines at 70pt) and {@code max-width: 50pt} a stretched
+ * one (at the start).</li>
+ * <li>y: auto cross margins come before align-items: {@code margin: 0 auto} centers a 40pt item at 80pt,
+ * {@code margin-left: auto} puts a 30pt item at 170pt, and an item with auto margins in a stretch container keeps
+ * its fit-content width, centered.</li>
  * <li>v: vertical-rl reverse: the first item at the left, 30pt apart.</li>
  * </ul>
  */
@@ -52,6 +57,15 @@ public class FlexColumnIndefiniteRetainedTest extends AbstractTestCase {
 		assertEquals(60, x("h2"), 0.1);
 		assertEquals(86, y("t2") - y("t1"), 0.1);
 		assertEquals(100, this.at.get("w0")[3], 0.1);
+		assertEquals(70, x("x1"), 0.1);
+		assertEquals(60, this.at.get("x1")[3], 0.1);
+		assertEquals(60, y("x2") - y("x1"), 0.1);
+		assertEquals(0, x("x2"), 0.1);
+		assertEquals(50, this.at.get("x2")[3], 0.1);
+		assertEquals(80, x("y1"), 0.1);
+		assertEquals(170, x("y2"), 0.1);
+		assertEquals(100, x("y3") + this.at.get("y3")[3] / 2, 0.1);
+		assertTrue("y3 stretched", this.at.get("y3")[3] < 50);
 		assertEquals(30, x("v2") - x("v1"), 0.1);
 		assertEquals(30, x("v3") - x("v2"), 0.1);
 	}
@@ -136,6 +150,26 @@ public class FlexColumnIndefiniteRetainedTest extends AbstractTestCase {
 
 	public boolean check_w0(IBox box, int pageNumber, double x, double y) {
 		return this.record("w0", box, pageNumber, x, y);
+	}
+
+	public boolean check_x1(IBox box, int pageNumber, double x, double y) {
+		return this.record("x1", box, pageNumber, x, y);
+	}
+
+	public boolean check_x2(IBox box, int pageNumber, double x, double y) {
+		return this.record("x2", box, pageNumber, x, y);
+	}
+
+	public boolean check_y1(IBox box, int pageNumber, double x, double y) {
+		return this.record("y1", box, pageNumber, x, y);
+	}
+
+	public boolean check_y2(IBox box, int pageNumber, double x, double y) {
+		return this.record("y2", box, pageNumber, x, y);
+	}
+
+	public boolean check_y3(IBox box, int pageNumber, double x, double y) {
+		return this.record("y3", box, pageNumber, x, y);
 	}
 
 	public boolean check_v1(IBox box, int pageNumber, double x, double y) {

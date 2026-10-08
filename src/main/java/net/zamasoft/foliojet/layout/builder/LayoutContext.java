@@ -80,6 +80,13 @@ public interface LayoutContext extends LayoutStack {
 		 */
 		public boolean flexItem;
 
+		/**
+		 * Whether an item has been placed in this flow of a column flex container laid out in normal flow (F0+,
+		 * 2026-10-08): the next item starts after the main-axis gap ({@code row-gap}). A new fragment starts a new flow,
+		 * so a gap at a break is dropped (css-align-3 §8.1).
+		 */
+		public boolean flexItemPlaced;
+
 		public Flow(AbstractContainerBox container, double lineAxis, double pageAxis) {
 			this(container, lineAxis, pageAxis, 0);
 		}
@@ -102,6 +109,7 @@ public interface LayoutContext extends LayoutStack {
 			final Flow shifted = new Flow(this.box, this.lineAxis, this.pageAxis + dy, this.frameHead);
 			shifted.lineClamp = this.lineClamp;
 			shifted.flexItem = this.flexItem;
+			shifted.flexItemPlaced = this.flexItemPlaced;
 			return shifted;
 		}
 	}

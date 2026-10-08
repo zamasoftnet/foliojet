@@ -476,20 +476,22 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			final double lineExtras = insetsLine(frame.margin, innerLine) + insetsLine(frame.padding, innerLine)
 					+ borderLine(frame);
 			final BoxAlignment align = this.resolveAlign(item, false);
+			// For border-box, subtract the frame to obtain inner size (excludes margins)
+			final double borderBoxAdjust = p.boxSizing == BoxSizingMode.BORDER_BOX
+					? lineExtras - insetsLine(frame.margin, innerLine)
+					: 0;
 			final double crossWidth;
 			if (p.size.getLineType(params.flow) != LengthType.AUTO) {
-				// Explicit width (for border-box, subtract the frame to obtain inner size; excludes margins)
-				final double borderBoxAdjust = p.boxSizing == BoxSizingMode.BORDER_BOX
-						? lineExtras - insetsLine(frame.margin, innerLine)
-						: 0;
-				crossWidth = Math.max(0, lineValue(p.size, innerLine) - borderBoxAdjust);
-			} else if (align == BoxAlignment.STRETCH && !params.flexWrap.isWrap()) {
-				// Stretch for a single nowrap column fills the container inner size.
-				// Column stretch with wrap happens after column width resolution (placeColumn).
-				crossWidth = Math.max(0, innerLine - lineExtras);
+				// Explicit width
+				crossWidth = this.clampCross(p, Math.max(0, lineValue(p.size, innerLine) - borderBoxAdjust),
+						innerLine, borderBoxAdjust);
+			} else if (align == BoxAlignment.STRETCH && !params.flexWrap.isWrap() && !this.crossAutoMargin(item)) {
+				// Stretch for a single nowrap column fills the container inner size (not with an auto cross margin,
+				// §9.4 step 11). Column stretch with wrap happens after column width resolution (placeColumn).
+				crossWidth = this.clampCross(p, Math.max(0, innerLine - lineExtras), innerLine, borderBoxAdjust);
 			} else {
-				crossWidth = Sizing.fitContent(item.sizes.minContent(), item.sizes.maxContent(),
-						Math.max(0, innerLine - lineExtras));
+				crossWidth = this.clampCross(p, Sizing.fitContent(item.sizes.minContent(), item.sizes.maxContent(),
+						Math.max(0, innerLine - lineExtras)), innerLine, borderBoxAdjust);
 			}
 			crossWidthByOriginal[oi] = crossWidth;
 			itemCrossExtras[oi] = lineExtras;
@@ -498,6 +500,27 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 					: Double.NaN;
 		}
 		return measured;
+	}
+
+	/**
+	 * Clamps a column item's cross size (its content-box width) by its own min/max width (2026-10-08): a stretched or
+	 * fit-content item stays within {@code max-width} (css-flexbox-1 §9.4 step 11). Until then bulma's launch banner
+	 * text ({@code max-width: 20rem}, centered) ran across the whole container once column-flex stage 2 retained it.
+	 *
+	 * @param borderBoxAdjust the line-axis padding and border when the item is border-box (min/max are border-box)
+	 */
+	private double clampCross(final BlockParams p, final double crossWidth, final double innerLine,
+			final double borderBoxAdjust) {
+		double width = crossWidth;
+		final double max = lineValue(p.maxSize, innerLine);
+		if (!Double.isNaN(max)) {
+			width = Math.min(width, max - borderBoxAdjust);
+		}
+		final double min = lineValue(p.minSize, innerLine);
+		if (!Double.isNaN(min)) {
+			width = Math.max(width, min - borderBoxAdjust);
+		}
+		return Math.max(0, width);
 	}
 
 	/**
@@ -805,10 +828,14 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				for (int k = col.from(); k < col.to(); ++k) {
 					final int oi = seq[k];
 					final FlexItemContent item = this.items.get(oi);
-					if (this.resolveAlign(item, false) == BoxAlignment.STRETCH && item.itemBox.getBlockParams().size
-							.getLineType(params.flow) == LengthType.AUTO) {
-						crossWidthByOriginal[oi] = Math.max(crossWidthByOriginal[oi],
-								colCross[ci] - itemCrossExtras[oi]);
+					final BlockParams p = item.itemBox.getBlockParams();
+					if (this.resolveAlign(item, false) == BoxAlignment.STRETCH
+							&& p.size.getLineType(params.flow) == LengthType.AUTO && !this.crossAutoMargin(item)) {
+						final double borderBoxAdjust = p.boxSizing == BoxSizingMode.BORDER_BOX
+								? itemCrossExtras[oi] - insetsLine(p.frame.margin, innerLine)
+								: 0;
+						crossWidthByOriginal[oi] = this.clampCross(p, Math.max(crossWidthByOriginal[oi],
+								colCross[ci] - itemCrossExtras[oi]), innerLine, borderBoxAdjust);
 					}
 				}
 			}
@@ -846,7 +873,13 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				// an asymmetry found while checking the unification).
 				final double freeCross = Math.max(0, colCross[ci] - item.itemBox.getLineExtent(params.flow));
 				final BoxAlignment align = this.resolveAlign(item, crossReversed);
-				final double crossOffset = align == BoxAlignment.CENTER ? freeCross / 2
+				// Cross-axis auto margins (the line-axis ones of a column) precede align-self (§8.1, 2026-10-08;
+				// tailwind's mx-auto button stayed at the start)
+				final boolean crossStartAuto = this.mainMarginAuto(item, false);
+				final boolean crossEndAuto = this.mainMarginAuto(item, true);
+				final double crossOffset = crossStartAuto || crossEndAuto
+						? (crossStartAuto && crossEndAuto ? freeCross / 2 : crossStartAuto ? freeCross : 0)
+						: align == BoxAlignment.CENTER ? freeCross / 2
 						: align == BoxAlignment.END ? freeCross : 0;
 				final double logicalLine = crossCursor + crossOffset;
 				final double physicalLine = LayoutUtils.inlineToPhysical(params, innerLine, logicalLine,
@@ -1152,6 +1185,11 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			return (end ? margin.getBottomType() : margin.getTopType()) == LengthType.AUTO;
 		}
 		return (end ? margin.getRightType() : margin.getLeftType()) == LengthType.AUTO;
+	}
+
+	/** Whether a column item has an auto cross-axis margin (a line-axis one): it is not stretched (§9.4 step 11). */
+	private boolean crossAutoMargin(final FlexItemContent item) {
+		return this.mainMarginAuto(item, false) || this.mainMarginAuto(item, true);
 	}
 
 	/** Returns whether a cross-axis margin is auto (F3e; left/right in vertical writing). */

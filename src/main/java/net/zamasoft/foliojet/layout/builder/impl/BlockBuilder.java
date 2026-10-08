@@ -831,8 +831,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 			bordered = frame.padding.top > 0 || !frame.frame.border.getTop().isNull();
 		}
 		if (flexItem) {
-			// Flex items' margins do not collapse with each other (css-flexbox-1 §4.2).
+			// Flex items' margins do not collapse with each other (css-flexbox-1 §4.2), and the main-axis gap separates
+			// them (2026-10-08; until then streamed columns ignored gap).
 			this.poLastMargin = this.neLastMargin = 0;
+			this.advanceStreamedFlexGap(parentFlow);
 		}
 		if (marginStart >= 0) {
 			if (marginStart > this.poLastMargin) {
@@ -1302,6 +1304,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (isStreamedColumnFlex(flow.box)) {
 			// A table or replaced flex item does not collapse its margin with the preceding item's (F0+).
 			this.poLastMargin = this.neLastMargin = 0;
+			this.advanceStreamedFlexGap(flow);
 		}
 		if (amargin.top >= 0) {
 			if (amargin.top > this.poLastMargin) {
@@ -1838,6 +1841,17 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 * items (reverse, order, free-space distribution, alignment other than stretch) stays out of this streamed path
 	 * (design: copperpdf4/docs/design/column-flex-indefinite-main-design.md).
 	 */
+	/**
+	 * Advances past the main-axis gap ({@code row-gap}) before an item of a streamed column flex container, unless it is
+	 * the first item of this fragment (2026-10-08). Anonymous items (text directly in the container) do not count.
+	 */
+	private void advanceStreamedFlexGap(final Flow containerFlow) {
+		if (containerFlow.flexItemPlaced) {
+			this.pageAxis += ((net.zamasoft.foliojet.layout.box.impl.FlexBox) containerFlow.box).getFlexParams().rowGap;
+		}
+		containerFlow.flexItemPlaced = true;
+	}
+
 	private static boolean isStreamedColumnFlex(final IBox box) {
 		// isPageAtomicNow: true once FlexBuilder placed the items (its continuation fragments are restyled through
 		// this builder too, item by item, and must keep FlexBuilder's sizes).

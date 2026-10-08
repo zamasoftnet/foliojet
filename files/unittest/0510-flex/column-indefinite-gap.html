@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex: the gap of a column with an indefinite main size laid out in normal flow (F0+)</title>
+<style type="text/css">
+body { font: 12pt/20pt serif; margin: 0; }
+div { margin: 0; padding: 0; }
+.c { display: flex; flex-direction: column; margin-bottom: 10pt; }
+</style>
+</head>
+<body>
+<!-- k: the main-axis gap separates the items -->
+<div class="c" style="gap: 10pt"><div id="k1">T24</div><div id="k2">T25</div><div id="k3">T26</div></div>
+<!-- l: also before a table item -->
+<div class="c" style="row-gap: 10pt"><div id="l1">T27</div><table style="border-spacing: 0"><tr><td style="padding: 0"><div id="l2">T28</div></td></tr></table></div>
+<!-- o: vertical-rl, the gap runs along the horizontal main axis -->
+<div style="writing-mode: vertical-rl; height: 60pt"><div class="c" style="gap: 10pt"><div id="o1">T29</div><div id="o2">T30</div></div></div>
+</body>
+</html>

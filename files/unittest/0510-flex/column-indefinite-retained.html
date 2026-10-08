@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>flex: column with an indefinite main size placed as a whole (reverse, max, align-items, percentage heights, intrinsic width)</title>
+<title>flex: column with an indefinite main size placed as a whole (reverse, max, align-items, percentage heights, intrinsic width, max-width, auto margins)</title>
 <style type="text/css">
 body { font: 12pt/20pt serif; margin: 0; }
 div { margin: 0; padding: 0; }
@@ -25,6 +25,11 @@ div { margin: 0; padding: 0; }
 <div class="c" style="width: 150pt; align-items: flex-start; gap: 6pt"><div id="t1" style="width: 100%; height: 100%; aspect-ratio: 1.875; background: #ccc"></div><div id="t2" style="width: 30pt; height: 12pt; background: #888"></div></div>
 <!-- w: a shrink-to-fit float holding such a column is as wide as its widest item (100pt), not the items side by side -->
 <div id="w0" style="float: left; background: #eee"><div class="c" style="align-items: flex-start"><div id="w1" style="width: 100pt">T18</div><div id="w2" style="width: 60pt">T19</div></div></div><div id="w3" style="overflow: hidden">T20</div><div style="clear: both"></div>
+<!-- x: max-width bounds a centered (fit-content) item and a stretched one -->
+<div class="c" style="width: 200pt; align-items: center"><div id="x1" style="max-width: 60pt">T21 T22 T23 T24 T25</div><div id="x2" style="align-self: stretch; max-width: 50pt">T26</div></div>
+<!-- y: auto cross margins center (both) or push to the end (start only) before align-items, and keep a stretched item at its fit-content width -->
+<div class="c" style="width: 200pt; align-items: flex-start"><div id="y1" style="margin: 0 auto; width: 40pt">T27</div><div id="y2" style="margin-left: auto; width: 30pt">T28</div></div>
+<div class="c" style="height: 30pt; width: 200pt"><div id="y3" style="margin: 0 auto">T29</div></div>
 <!-- v: vertical-rl column-reverse: the first item at the left, the last at the right -->
 <div class="c r" style="writing-mode: vertical-rl; height: 100pt"><div id="v1" style="flex: 0 1 30pt">T13</div><div id="v2" style="flex: 0 1 30pt">T14</div><div id="v3" style="flex: 0 1 30pt">T15</div></div>
 </body>
