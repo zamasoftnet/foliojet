@@ -518,7 +518,7 @@ Use I/O properties whose names begin with "output.pdf.viewer-preferences." to se
 For example, to preset the number of copies to print to 3, set <span class="ioprop">output.pdf.viewer-preferences.num-copies</span>
 to 3.
 
-For a list of settings, see the [I/O property list in the reference section](#appx-ioprop-output.pdf.viewer-preferences.hide-toolber).
+For a list of settings, see the [I/O property list in the reference section](#appx-ioprop-output.pdf.viewer-preferences.hide-toolbar).
 
 #### <a id="style-pdf-js">JavaScript executed when a PDF is opened<span class="since">3.0.2/2.1.11</span></a>
 

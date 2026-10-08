@@ -298,8 +298,8 @@ p:dir(rtl) {
 
 <div class="note">
 
-境界(border)の論理プロパティ(<span class="cssprop">border-block-start</span>など)には
-対応していません。境界は物理プロパティで指定してください。
+境界(border)の論理プロパティ(<span class="cssprop">border-block-start</span>、<span class="cssprop">border-inline</span>、
+<span class="cssprop">border-inline-start-width</span>など。短縮形と幅・線種・色の個別指定)にも対応しています。
 
 </div>
 

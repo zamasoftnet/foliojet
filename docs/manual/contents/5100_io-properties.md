@@ -499,8 +499,8 @@
 				<td class="nowrap">1.1.0</td>
 				<td>出力するPDFのバージョン、または準拠プロファイル(PDF/A・PDF/X・PDF/UA)です。1.2〜1.7と2.0のほか、1.4A-1・1.7A-2・1.7A-2u・1.7A-2a・1.7A-3・1.7A-3a・2.0A-4・1.4X-1・1.6X-4・2.0X-6・1.7UA-1・2.0UA-2 を指定できます。指定したバージョンで使えない機能は警告が出て反映されません。<br />値の意味と選び方、プロファイルを指定したときに自動的に変わる設定は<a href="#style-pdf-version" class="pageref">PDFのバージョンと機能</a>を参照してください。</td>
 			</tr>
-			<tr id="appx-ioprop-output.pdf.viewer-preferences.hide-toolber">
-				<td class="nowrap">output.pdf.viewer-preferences.<br />hide-toolber
+			<tr id="appx-ioprop-output.pdf.viewer-preferences.hide-toolbar">
+				<td class="nowrap">output.pdf.viewer-preferences.<br />hide-toolbar
 				</td>
 				<td>false</td>
 				<td class="nowrap">3.0.2/2.1.11</td>

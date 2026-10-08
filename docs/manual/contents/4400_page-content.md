@@ -468,6 +468,9 @@ SSRフレームワークが生成する、本文中に`<style>`が散らばっ�
 CSS標準の`target-counter()`で十進のページ番号を出すだけなら、**PDF出力とページ分割SVG出力では
 1パスのまま、設定なしで番号が出ます**<span class="since">4.0.0</span>。
 番号の欄を決まった桁数の幅で先に組み、後ろのページの番号は後から書き込むためです。詳しくは[-cssj-page-ref関数](#style-cssj-page-ref)の注を参照してください。
+**ほかの理由で[2パス以上](#style-multipass)にしたときは、`target-counter()`にも
+<span class="ioprop">processing.page-references</span>=trueが要ります**(1パスの書き込みの仕組みは使われず、
+設定が無いと番号が空になって警告が出ます)。
 
 ### <a id="style-gray">グレイスケール印刷</a>
 
@@ -778,6 +781,10 @@ title要素は表示されないため、`string-set`の対象にできません
 <span class="ioprop">output.page-height</span>入出力プロパティのほか、
 `@page`の<span class="cssprop">size</span>プロパティ<span class="since">4.0.0</span>でも
 指定できます。両方が指定された場合は`size`が優先されます。
+`size`には長さ(幅と高さ)のほか、CSS Paged Mediaの定める名前<tt>A3</tt>・<tt>A4</tt>・<tt>A5</tt>・
+<tt>B4</tt>・<tt>B5</tt>・<tt>JIS-B4</tt>・<tt>JIS-B5</tt>・<tt>letter</tt>・<tt>legal</tt>・<tt>ledger</tt>
+と<tt>landscape</tt>・<tt>portrait</tt>を書けます。これ以外の名前(文庫判のA6、四六判に近いB6など)は
+不正な値として無視されるので、長さで書いてください(例 <span class="cssdecl">size: 105mm 148mm</span>)。
 余白は`@page`の<span class="cssprop">margin</span>で指定します。
 マージンボックスはこの余白の中に置かれるので、
 **余白がゼロだとノンブルを置く場所がありません**。

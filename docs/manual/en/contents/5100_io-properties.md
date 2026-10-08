@@ -499,8 +499,8 @@ The following is a list of properties you can set when accessing this layout eng
 				<td class="nowrap">1.1.0</td>
 				<td>The PDF version or conformance profile (PDF/A, PDF/X, PDF/UA) to output. In addition to 1.2–1.7 and 2.0, you can specify 1.4A-1, 1.7A-2, 1.7A-2u, 1.7A-2a, 1.7A-3, 1.7A-3a, 2.0A-4, 1.4X-1, 1.6X-4, 2.0X-6, 1.7UA-1, and 2.0UA-2. Features unavailable in the specified version produce warnings and are not applied.<br />For the meaning of each value, how to choose one, and the settings that change automatically when you select a profile, see <a href="#style-pdf-version" class="pageref">PDF versions and features</a>.</td>
 			</tr>
-			<tr id="appx-ioprop-output.pdf.viewer-preferences.hide-toolber">
-				<td class="nowrap">output.pdf.viewer-preferences.<br />hide-toolber
+			<tr id="appx-ioprop-output.pdf.viewer-preferences.hide-toolbar">
+				<td class="nowrap">output.pdf.viewer-preferences.<br />hide-toolbar
 				</td>
 				<td>false</td>
 				<td class="nowrap">3.0.2/2.1.11</td>

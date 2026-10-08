@@ -155,8 +155,8 @@ public class PdfIoPropertyTest extends TestCase {
 		// Remaining viewer settings
 		cases.add(of("output.pdf.viewer-preferences.center-window",
 				props("output.pdf.viewer-preferences.center-window", "true"), "/CenterWindow true"));
-		cases.add(of("output.pdf.viewer-preferences.hide-toolber",
-				props("output.pdf.viewer-preferences.hide-toolber", "true"), "/HideToolbar true"));
+		cases.add(of("output.pdf.viewer-preferences.hide-toolbar",
+				props("output.pdf.viewer-preferences.hide-toolbar", "true"), "/HideToolbar true"));
 		cases.add(of("output.pdf.viewer-preferences.non-full-screen-page-mode",
 				props("output.pdf.viewer-preferences.non-full-screen-page-mode", "use-outlines"),
 				"/NonFullScreenPageMode"));

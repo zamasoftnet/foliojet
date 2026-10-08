@@ -48,6 +48,7 @@ There are three I/O properties.
 | --- | --- | --- |
 | <span class="ioprop">output.color</span> | <tt>cmyk</tt> | Converts all colors to CMYK |
 | <span class="ioprop">output.pdf.version</span> | <tt>1.4</tt>, for example | Match the print shop's requirements |
+| <span class="ioprop">output.pdf.output-intent.icc-profile</span> | URI of an ICC profile | The profile the print shop specifies (see [Color conversion and output intent](#prepress-color) below) |
 
 This setup produces paper measuring <b>230 mm × 317 mm</b>. Outside the trim size (210 × 297 mm),
 there is a 1 cm trim allowance. The inner 3 mm is the bleed area, and crop marks are drawn in the remainder.

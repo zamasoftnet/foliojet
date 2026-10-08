@@ -298,8 +298,8 @@ The following logical properties are available<span class="since">4.0.0</span>.
 
 <div class="note">
 
-Logical border properties (such as <span class="cssprop">border-block-start</span>)
-are not supported. Specify borders with physical properties.
+Logical border properties (such as <span class="cssprop">border-block-start</span>, <span class="cssprop">border-inline</span>, and
+<span class="cssprop">border-inline-start-width</span>: the shorthands and the individual width, style, and color properties) are also supported.
 
 </div>
 

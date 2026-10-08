@@ -468,6 +468,9 @@ to true to enable collection of page reference information. Also use [conversion
 If you only need decimal page numbers from the CSS standard `target-counter()`, **PDF and page-split SVG output
 display the numbers in a single pass without any settings**<span class="since">4.0.0</span>.
 The engine first reserves a number field with a fixed digit width, then fills in numbers for later pages afterward. For details, see the note under [-cssj-page-ref function](#style-cssj-page-ref).
+**When you use [two or more passes](#style-multipass) for another reason, `target-counter()` also needs
+<span class="ioprop">processing.page-references</span>=true** (the single-pass fill-in is not used; without the setting
+the numbers are empty and a warning is issued).
 
 ### <a id="style-gray">Grayscale printing</a>
 
@@ -778,6 +781,10 @@ You can specify the paper size with the <span class="ioprop">output.page-width</
 <span class="ioprop">output.page-height</span> I/O properties, or with
 <span class="cssprop">size</span> in `@page`<span class="since">4.0.0</span>.
 If both are specified, `size` takes precedence.
+Besides lengths (width and height), `size` accepts the names defined by CSS Paged Media, <tt>A3</tt>, <tt>A4</tt>, <tt>A5</tt>,
+<tt>B4</tt>, <tt>B5</tt>, <tt>JIS-B4</tt>, <tt>JIS-B5</tt>, <tt>letter</tt>, <tt>legal</tt>, and <tt>ledger</tt>,
+with <tt>landscape</tt> or <tt>portrait</tt>. Other names (A6, B6, and so on) are invalid values and are ignored,
+so write them as lengths (for example, <span class="cssdecl">size: 105mm 148mm</span>).
 Specify margins with <span class="cssprop">margin</span> in `@page`.
 Margin boxes are placed inside these margins,
 so **zero margins leave no space for page numbers**.

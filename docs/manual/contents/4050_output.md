@@ -518,7 +518,7 @@ ViewerPreferencesはoutput.pdf.viewer-preferences.で始まる名前の入出力
 たとえば、文書を印刷する場合の印刷部数をあらかじめ3に設定したい場合は、 <span class="ioprop">output.pdf.viewer-preferences.num-copies</span>
 を3に設定します。
 
-設定の一覧は、[資料集の入出力プロパティ一覧](#appx-ioprop-output.pdf.viewer-preferences.hide-toolber)を参照してください。
+設定の一覧は、[資料集の入出力プロパティ一覧](#appx-ioprop-output.pdf.viewer-preferences.hide-toolbar)を参照してください。
 
 #### <a id="style-pdf-js">PDFの表示の際に実行されるJavaScript<span class="since">3.0.2/2.1.11</span></a>
 

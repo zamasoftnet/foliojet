@@ -789,8 +789,10 @@ public final class UAProps {
 			"output.pdf.watermark.print", true);
 
 	// PDF ViewerPreference settings
+	// hide-toolbar was spelled hide-toolber up to 3.2; renamed without an alias on 2026-10-08 (copper4 keeps no
+	// compatibility-only names).
 	public static final BooleanPropManager OUTPUT_PDF_VIEWER_PREFERENCES_HIDE_TOOLBAR = new BooleanPropManager(
-			"output.pdf.viewer-preferences.hide-toolber", false);
+			"output.pdf.viewer-preferences.hide-toolbar", false);
 
 	public static final BooleanPropManager OUTPUT_PDF_VIEWER_PREFERENCES_HIDE_MENUBAR = new BooleanPropManager(
 			"output.pdf.viewer-preferences.hide-menubar", false);

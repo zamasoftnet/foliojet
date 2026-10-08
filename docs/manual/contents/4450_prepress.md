@@ -48,6 +48,7 @@
 | --- | --- | --- |
 | <span class="ioprop">output.color</span> | <tt>cmyk</tt> | すべての色をCMYKへ変換します |
 | <span class="ioprop">output.pdf.version</span> | <tt>1.4</tt>など | 印刷所の指定に合わせます |
+| <span class="ioprop">output.pdf.output-intent.icc-profile</span> | ICCプロファイルのURI | 印刷所の指定するプロファイル(下の[色の変換と出力インテント](#prepress-color)) |
 
 この設定でできる用紙は<b>230mm×317mm</b>です。仕上り(210×297mm)の外側に
 1cmの裁ち口があり、その内側3mmが塗り足し、残りにトンボが引かれます。
