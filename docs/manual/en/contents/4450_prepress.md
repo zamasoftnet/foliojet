@@ -36,7 +36,7 @@ This is the most commonly used setup. The following CSS is all you need.
 ```css
 @page {
 	size: 210mm 297mm;   /* Trim size. Do not add bleed. */
-	bleed: 3mm;          /* Bleed. The paper becomes 216 mm × 303 mm. */
+	bleed: 3mm;          /* Bleed. With the crop marks, the paper becomes 230 mm × 317 mm. */
 	marks: crop cross;   /* Corner crop marks and center registration marks */
 	margin: 15mm;        /* Margins around the type area */
 }
@@ -137,7 +137,7 @@ of the print area, and crop marks are drawn there.
 
 ```
 output.trim-inset: 3mm
-output.marks: crop cross
+output.marks: both
 output.color: cmyk
 ```
 

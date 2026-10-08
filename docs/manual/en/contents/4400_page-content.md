@@ -92,8 +92,8 @@ In this case, <b>lay out the content in a print area large enough to contain it,
 This is why you can specify the print area and paper separately.
 
 ```
-output.page-width   = 280mm    # Lay out at a width that fits 980 pixels
-output.page-height  = 396mm    # Keep the same aspect ratio as the paper
+output.page-width   = 290mm    # Lay out at a width that fits 980 pixels
+output.page-height  = 410mm    # Keep the same aspect ratio as the paper
 output.paper-width  = 210mm    # Actual paper (A4)
 output.paper-height = 297mm
 output.fit-to-paper = preserve-aspect-ratio
@@ -101,7 +101,8 @@ output.fit-to-paper = preserve-aspect-ratio
 
 Choose the print area size from the width of the content you want to fit. For content specified in pixels,
 <span class="ioprop">output.resolution</span> (96 by default) determines the number of pixels per inch,
-so 980 pixels is 980÷96=10.2 inches=259 mm. Adding room for margins gives 280 mm here.
+so 980 pixels is 980÷96=10.2 inches=259 mm. Adding the default page margins (12.7 mm on each side) and the
+<code>body</code> margin (8 pixels on each side, about 4 mm) gives about 289 mm, so 290 mm is used here.
 Matching the print area's aspect ratio to the paper prevents uneven margins when you reduce it.
 
 You can also increase <span class="ioprop">output.resolution</span>
@@ -177,7 +178,10 @@ session.property("output.n-up", "4");
 #### Paper size and reduction ratio
 
 If you do not specify the paper size, it is set to "logical page + trim allowance,"
-and each page is reduced to 1/N and arranged on the sheet. This works like N-up printing on a typical printer.
+and each page is reduced by the same factor in both directions to fit one cell of the grid.
+For example, with 4 pages the grid is 2 rows by 2 columns, and each side becomes 1/2 as long (1/4 of the area).
+With 2 pages the sheet is not turned sideways, so the pages are stacked vertically and each side also becomes 1/2 as long.
+This is similar to N-up printing on a typical printer.
 
 If you specify the paper size, the grid is placed inside its trim allowance.
 
@@ -484,12 +488,12 @@ To obtain grayscale output, set <span class="ioprop">output.color</span> to gray
 ### <a id="style-print-mode">Single-sided and double-sided printing</a>
 
 By default, pages are generated for horizontal writing and double-sided printing.
-In CSS @page rules, the first page is therefore treated as a :first or :right pseudo-element, followed by alternating :left
-and :right pseudo-element pages.
+In CSS @page rules, the first page is therefore treated as a :first or :right pseudo-class, followed by alternating :left
+and :right pseudo-class pages.
 
 Set <span class="ioprop">output.print-mode</span>
 to single-side to switch to single-sided printing.
-In single-sided printing, the first page is treated as a :first pseudo-element, and subsequent pages do not belong to any pseudo-element.
+In single-sided printing, the first page is treated as a :first pseudo-class, and subsequent pages match no pseudo-class.
 
 ### <a id="style-page-margin-boxes">Page margin boxes<span class="since">4.0.0</span></a>
 
@@ -779,7 +783,7 @@ See [Running headers](#style-running-heading).
 
 <div class="note">
 
-You can specify the paper size with the <span class="ioprop">output.page-width</span> and
+You can specify the print area size with the <span class="ioprop">output.page-width</span> and
 <span class="ioprop">output.page-height</span> I/O properties, or with
 <span class="cssprop">size</span> in `@page`<span class="since">4.0.0</span>.
 If both are specified, `size` takes precedence.

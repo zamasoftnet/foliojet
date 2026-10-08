@@ -29,7 +29,7 @@
 | 2805 | Processing instruction name(string) Processing instruction value(string) | A malformed processing instruction was found. |
 | 2806 | CSS file URI(string) Depth limit(string) | CSS @import nesting is too deep. |
 | 2807 | Importing CSS URI(string) Imported CSS URI(string) | A CSS @import loop was found. |
-| 2808 | HTML element name(string) Attribute name(string) Attribute value(string) | An HTML attribute name is malformed. |
+| 2808 | HTML element name(string) Attribute name(string) Attribute value(string) | An HTML attribute value is malformed. |
 | 280A | cssj:header attribute value(string) | The cssj:header attribute value is malformed. |
 | 280B | Resource URI(string) | The resource URI is malformed. |
 | 280C | Link URI(string) | The link URI is malformed. |
@@ -72,7 +72,7 @@
 | 3808 | XSLT file URI(string) Message(string) | A warning message from the XSLT processor. |
 | 3809 | XSLT file URI(string) Message(string) | An error message from the XSLT processor. |
 | 38FF | Plugin name(string)<br />Message(string) | An error from a plugin. |
-| 380D<span class="since">3.0.0</span> | No pages can be generated because the document content is empty. |  |
+| 380D<span class="since">3.0.0</span> | Error message(string) | No pages can be generated because the document content is empty. |
 | 380E<span class="since">4.0.0</span> | Property name(string) Value(string) Reason(string) | The PDF/X output intent setting is invalid (the ICC profile cannot be read, is not an output profile, is not CMYK, or the identifier is empty). |
 | 380F<span class="since">4.0.0</span> | Element name(string) Limit(int) Reached value(int) | The content of an element that retains its contents until its dimensions are determined (such as a table or float) exceeded <span class="ioprop">processing.retained-text-limit</span>. Conversion fails. |
 | 3810<span class="since">4.0.0</span> | Document URI(string) Reason(string) | Retrieval of the main document on the server is not permitted (for example, a remote user specified a destination inside the server's network). Conversion fails. |
@@ -96,5 +96,5 @@
 All messages are sent to the driver.
 If you want to handle only the messages you need, **filter them on the receiving side**.
 The message handler receives a message code,
-so you can route messages by code range (for example, 3000–3FFF are warnings).
+so you can route messages by code range (for example, 3000–3FFF are errors).
 For implementation details, see the section for each language in the **Developer's manual** (server product manual).

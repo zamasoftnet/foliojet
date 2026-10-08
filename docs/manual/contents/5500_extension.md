@@ -27,7 +27,7 @@
 `-cssj-`で始まる名前は、標準の名前が定まる前から提供しているもので、
 互換のために受け付け続けます。
 
-`-cssj-`でしか指定できないものもあります(圏点・袋文字・縦中横・ルビ・
+`-cssj-`でしか指定できないものもあります(袋文字・ルビ・
 禁則文字・フォントの種類など)。これらは対応する標準の名前が無いか、
 あっても実装が受け付けません。
 
@@ -54,11 +54,11 @@
 | column-rule-width<br />-cssj-column-rule-width | 3.0.0 |  | medium | 段組された要素 | CSS Multi-column Layout Module Level 1 に沿った実装です。<br /> 段組の間に入る罫線の幅を設定します。 値は<span class="cssprop">border-*-width</span>の値と同じです。 |
 | column-rule<br />-cssj-column-rule | 3.0.0 |  |  | 段組された要素 | CSS Multi-column Layout Module Level 1 に沿った実装です。<br /> 段組の間に入る罫線の色、スタイル、幅をまとめて設定します。 値は<span class="cssprop">border-*</span>の値と同じです。 |
 | column-span<br />-cssj-column-span | 3.0.0 |  | 1 | 静的な、浮動体以外の要素 | CSS Multi-column Layout Module Level 1 に沿った実装です。<br /> 段落のブチヌキを設定します。 値は1またはallです。 |
-| -cssj-text-combine<br />-epub-text-combine<br />text-combine-upright | 3.0.4 |  | none | すべての要素 | 縦中横を実現するためのものです。<br /> <tt>horizontal</tt>は横に組んだ内容を<strong>自然な幅のまま</strong>置きます(<span class="cssdecl">writing-mode: horizontal-tb;</span>を指定するのと変わりません)。桁数が多いと行からはみ出します。<br /> 標準名の<span class="cssprop">text-combine-upright</span>で<tt>all</tt>を指定すると、内容を<strong>1文字分(1em)の幅に収め</strong>、収まらない場合は水平方向に縮小します<span class="since">4.0.0</span>。<tt>digits</tt>には対応していません。 |
-| -cssj-text-emphasis<br />-epub-text-emphasis<br />text-emphasis<br />text-emphasis-style<br />text-emphasis-color | 3.0.4<br />標準名は4.0.0 |  | none | すべての要素 | CSS Text Module Level 3 に沿った実装です。標準名と従来の-cssj-名は同じ実装を使用します。<br /> <span class="cssprop">text-emphasis-style</span>, <span class="cssprop">text-emphasis-color</span> をまとめて指定します。 詳細は<a href="#style-text-emphasis" class="pageref">圏点</a>を参照してください。 |
+| text-combine-upright<br />-cssj-text-combine<br />-epub-text-combine | 3.0.4 |  | none | すべての要素 | 縦中横を実現するためのものです。<br /> <tt>horizontal</tt>は横に組んだ内容を<strong>自然な幅のまま</strong>置きます(<span class="cssdecl">writing-mode: horizontal-tb;</span>を指定するのと変わりません)。桁数が多いと行からはみ出します。<br /> 標準名の<span class="cssprop">text-combine-upright</span>で<tt>all</tt>を指定すると、内容を<strong>1文字分(1em)の幅に収め</strong>、収まらない場合は水平方向に縮小します<span class="since">4.0.0</span>。<tt>digits</tt>には対応していません。 |
+| text-emphasis<br />text-emphasis-style<br />text-emphasis-color<br />-cssj-text-emphasis<br />-epub-text-emphasis | 3.0.4<br />標準名は4.0.0 |  | none | すべての要素 | CSS Text Module Level 3 に沿った実装です。標準名と従来の-cssj-名は同じ実装を使用します。<br /> <span class="cssprop">text-emphasis-style</span>, <span class="cssprop">text-emphasis-color</span> をまとめて指定します。 詳細は<a href="#style-text-emphasis" class="pageref">圏点</a>を参照してください。 |
 | src | 3.0.0 |  |  | @font-faceルール | CSS Fonts Module Level 3 に沿った実装です。<br /> フォントの位置を示します。 詳細は<a href="#style-webfont" class="pageref">WebFont</a>を参照してください。 |
 | unicode-range | 3.0.0 |  | U+0-10FFFF | @font-faceルール | CSS Fonts Module Level 3 に沿った実装です。<br /> フォントのコード範囲です。 詳細は<a href="#style-webfont" class="pageref">WebFont</a>を参照してください。 |
-| word-wrap | 3.0.0 |  | normal | すべての要素 | CSS Text Module Level 3 に沿った実装です。<br /> 英単語の中での折り返しを許可するかどうかの設定です。 値はnormal, break-wordのいずれかです。 |
+| word-wrap<br />-cssj-word-wrap | 3.0.0 | する | normal | すべての要素 | CSS Text Module Level 3 に沿った実装です。<br /> 行に収まらない長い単語を途中で折り返すかどうかです。 値はnormal, break-wordのいずれかです。 |
 | word-break | 3.2.2 |  | normal | すべての要素 | CSS Text Module Level 3 に沿った実装です。<br /> 禁則処理の設定です。 値はnormal, break-all, keep-allのいずれかです。 |
 | page | 4.0.0 |  | auto | ブロックレベル要素 | CSS Paged Media Module Level 3 に沿った実装です。<br /> 名前付きページを適用します。詳細は<a href="#style-named-pages">名前付きページ</a>を参照してください。 |
 | size | 4.0.0 |  | auto | @pageルール | CSS Paged Media Module Level 3 に沿った実装です。<br /> ページの寸法を指定します。入出力プロパティ<span class="ioprop">output.page-width</span>・<span class="ioprop">output.page-height</span>より優先されます。 |
@@ -78,10 +78,10 @@
 | row-gap<br />gap | 4.0.0 |  | normal | グリッドコンテナ、フレックスコンテナ、段組された要素 | CSS Box Alignment Module Level 3 に沿った実装です。<br /> トラック間・アイテム間・段間の間隔を指定します。gapはrow-gapとcolumn-gapのショートハンドです。 |
 | justify-items<br />align-items<br />justify-self<br />align-self<br />justify-content<br />align-content | 4.0.0 |  |  | グリッド/フレックスのコンテナとアイテム。align-contentは通常のブロックコンテナおよび表セルにも適用 | CSS Box Alignment Module Level 3 に沿った実装です。<br /> グリッド・フレックスコンテナ内での配置・整列を指定します。通常のブロックコンテナおよび表セルでは、align-contentのstart / center / endと、内容が一つの整列対象になる場合のspace-* / stretchのフォールバックをブロック軸へ適用します。フレックスコンテナのjustify-content / align-contentではspace-between / space-around / space-evenlyも使用できます。 |
 | column-fill | 4.0.0 |  | balance | 段組された要素 | CSS Multi-column Layout Module Level 1 に沿った実装です。<br /> 段の高さを揃える(balance)か順に埋める(auto)かを指定します。 |
-| string-set | 4.0.0 |  | none | すべての要素 | CSS Generated Content for Paged Media Module に沿った実装です。<br /> 柱(ランニングヘッダー)のために、要素の内容を名前付き文字列へ取り込みます。詳細は<a href="#style-running-heading">柱</a>を参照してください。 |
-| hyphens | 4.0.0 | する | manual | すべての要素 | CSS Text Module Level 3 に沿った実装です。<br /> 英単語のハイフネーションを制御します。値はnone, manual, autoのいずれかです。 |
+| string-set | 4.0.0 |  | none | すべての要素 | CSS Generated Content for Paged Media Module に沿った実装です。<br /> 柱(ランニングヘッダー)のために、要素の内容を名前付き文字列へ取り込みます。 <span class="cssprop">content</span>の中でstring()関数により参照します。 詳細は<a href="#style-running-heading" class="pageref">柱(ランニングヘッダー)</a>を参照してください。 |
+| hyphens | 4.0.0 | する | manual | すべての要素 | CSS Text Module Level 3 に沿った実装です。<br /> 欧文をハイフンで分割するかどうかです。 値はnone, manual, autoのいずれかです。 autoが働くのはlang属性がenの範囲だけです。 詳細は<a href="#style-hyphens" class="pageref">ハイフネーション</a>を参照してください。 |
 | counter-set | 4.0.0 |  | none | すべての要素 | CSS Lists Module Level 3 に沿った実装です。既存の最も内側のカウンタを指定値へ設定し、存在しなければその要素に作ります。値を省略すると0です。 |
-| text-wrap-style | 4.0.0 | する | auto | ブロックレベル要素 | CSS Text Module Level 4 に沿った実装です。<br /> 行分割の品質(balance, pretty)を指定します。詳細は<a href="#style-line-breaking">行分割の品質</a>を参照してください。 |
+| text-wrap-style<br />text-wrap | 4.0.0 | する | auto | ブロックレベル要素 | CSS Text Module Level 4 に沿った実装です。<br /> 行の分割方法です。 値はauto, prettyのいずれかです(balance, stableは受理しますがauto扱いです)。 詳細は<a href="#style-line-breaking" class="pageref">行分割の品質</a>を参照してください。 |
 | opacity | 3.0.6 |  | 1 | すべての要素 | CSS Color Module Level 3 に沿った実装です。<br /> 要素の透明度を指定します。 詳細は<a href="#style-opacity" class="pageref">透明化</a>を参照してください。 |
 | border-top-left-radius | 3.0.6 |  | 0 | すべての要素 | CSS Backgrounds and Borders Module Level 3 に沿った実装です。<br /> 境界線の左上の半径を指定します。 詳細は<a href="#style-border-radius" class="pageref">角丸境界</a>を参照してください。 |
 | border-top-right-radius | 3.0.6 |  | 0 | すべての要素 | CSS Backgrounds and Borders Module Level 3 に沿った実装です。<br /> 境界線の右上の半径を指定します。 詳細は<a href="#style-border-radius" class="pageref">角丸境界</a>を参照してください。 |
@@ -101,11 +101,7 @@
 | box-sizing | 3.1.10 |  | content-box | <span class="cssprop">width</span>, <span class="cssprop">height</span>を指定可能な要素 | CSS Basic User Interface Module Level 3 に沿った実装です。 |
 | -cssj-ruby | 3.0.0 |  | none | すべての要素 | 独自プロパティです<br /> ルビの役割(親文字・ふりがな・注釈コンテナ)を指定します。 値はnone, ruby, rb, rt, rtcのいずれかです。 通常はHTMLのruby/rb/rt/rtc要素に対して既定のスタイルシートが設定するため、指定する必要はありません。 詳細は<a href="#style-xml-ruby" class="pageref">ルビ</a>を参照してください。 |
 | -cssj-warichu | 4.0.0 | する | none | インライン要素 | JLREQの割注を指定する独自プロパティです。値はnone, autoです。autoでは半サイズの2段とし、長文は禁則を守る断片として本文行をまたぎます。詳細は<a href="#style-autospace" class="pageref">和文詰め</a>を参照してください。 |
-| word-wrap<br />-cssj-word-wrap | 3.0.0 |  | normal | すべての要素 | CSS Text Module Level 3 に沿った実装です。<br /> 行に収まらない長い単語を途中で折り返すかどうかです。 値はnormal, break-wordのいずれかです。 |
 | block-flow<br />-cssj-block-flow | 3.0.0 |  | tb | すべての要素 | Internet Explorer 互換の書字方向指定です。 値はtb, rl, lrのいずれかです。 新しく書く文書では<span class="cssprop">writing-mode</span>を使用してください。 |
-| hyphens | 4.0.0 |  | manual | すべての要素 | 欧文をハイフンで分割するかどうかです。 値はnone, manual, autoのいずれかです。 autoが働くのはlang属性がenの範囲だけです。 詳細は<a href="#style-hyphens" class="pageref">ハイフネーション</a>を参照してください。 |
-| text-wrap-style<br />text-wrap | 4.0.0 |  | auto | すべての要素 | 行の分割方法です。 値はauto, prettyのいずれかです(balance, stableは受理しますがauto扱いです)。 詳細は<a href="#style-line-breaking" class="pageref">行分割の品質</a>を参照してください。 |
-| string-set | 4.0.0 |  | none | すべての要素 | CSS Generated Content for Paged Media の実装です。<br /> 要素の内容を名前付き文字列へ取り込みます。 <span class="cssprop">content</span>の中でstring()関数により参照します。 詳細は<a href="#style-running-heading" class="pageref">柱(ランニングヘッダー)</a>を参照してください。 |
 
 #### <a id="appx-css-func">CSS関数</a>
 
@@ -114,7 +110,7 @@
 | 名前 | バージョン | 引数の数 | 引数の型 | 適用プロパティ | 説明 |
 | --- | --- | --- | --- | --- | --- |
 | string | 4.0.0 | 1,2 | 文字列[, 識別子] | content | <span class="cssprop">string-set</span>で取り込んだ名前付き文字列を出力します。 2つめの引数はそのページのどの値を使うかで、first(既定)、last、start、first-exceptのいずれかです。 詳細は<a href="#style-running-heading" class="pageref">柱(ランニングヘッダー)</a>を参照してください。 |
-| target-counter | 4.0.0 | 2,3 | 参照先[, カウンタ名, 数字タイプ] | content | 参照先の要素が現れるページなどのカウンタの値を出力します。 参照先は識別子・文字列・url()・attr()で指定します。 3つめの引数は数字のタイプ(<span class="cssprop">list-style-type</span>と同じ名前)で、省略するとdecimalです。 |
+| target-counter | 4.0.0 | 2,3 | 参照先, カウンタ名[, 数字タイプ] | content | 参照先の要素が現れるページなどのカウンタの値を出力します。 参照先は識別子・文字列・url()・attr()で指定します。 3つめの引数は数字のタイプ(<span class="cssprop">list-style-type</span>と同じ名前)で、省略するとdecimalです。 |
 | target-counters | 4.0.0 | 3,4 | 参照先, カウンタ名, 区切り文字[, 数字タイプ] | content | 入れ子になったカウンタの値を区切り文字でつないで出力します。 引数の意味はtarget-counterと同じで、3つめが区切り文字です。 |
 | target-text | 4.0.0 | 1,2 | 参照先[, content] | content | 参照先の要素の内容を出力します。 2つめの引数はcontentのみ指定できます(省略可)。 |
 | -cssj-page-ref | 2.0.0 | 2,3,4 | 文字列[, 文字列, 文字列] | content | 指定したドキュメントフラグメントでのカウンタの値を出力します。 詳細は[リンクとフラグメント](#style-cssj-page-ref)の節を参照してください。 |

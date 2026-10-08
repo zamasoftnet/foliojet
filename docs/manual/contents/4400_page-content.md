@@ -92,8 +92,8 @@ Webページには「幅980ピクセル」のように、紙の幅を考えず�
 印刷面と用紙を別々に指定できるのはこのためです。
 
 ```
-output.page-width   = 280mm    # 980ピクセルが収まる広さで組む
-output.page-height  = 396mm    # 用紙と同じ縦横比にしておく
+output.page-width   = 290mm    # 980ピクセルが収まる広さで組む
+output.page-height  = 410mm    # 用紙と同じ縦横比にしておく
 output.paper-width  = 210mm    # 実際の用紙(A4)
 output.paper-height = 297mm
 output.fit-to-paper = preserve-aspect-ratio
@@ -101,7 +101,8 @@ output.fit-to-paper = preserve-aspect-ratio
 
 印刷面の大きさは「収めたい内容の幅」から決めます。ピクセル指定の内容であれば、
 <span class="ioprop">output.resolution</span>(既定96)で1インチあたりのピクセル数が決まるので、
-980ピクセルは 980÷96=10.2インチ=259mm です。マージンのぶんを足して280mmとしています。
+980ピクセルは 980÷96=10.2インチ=259mm です。既定のページのマージン(左右12.7mmずつ)と
+<code>body</code>の余白(左右8ピクセルずつ、約4mm)を足すと約289mmなので、290mmとしています。
 印刷面の縦横比を用紙と揃えておくと、縮めたときに余白が偏りません。
 
 <span class="ioprop">output.resolution</span> を大きくして、
@@ -177,7 +178,10 @@ session.property("output.n-up", "4");
 #### 用紙と縮小率
 
 用紙サイズを指定していない場合、用紙は「論理ページ + 断ち代」と同じ大きさになり、
-各ページが1/Nに縮小されて並びます。一般的なプリンタのN-up印刷と同じ動作です。
+各ページは格子の1マスに収まるよう、縦横同じ倍率で縮小されて並びます。
+例えば4ページなら2行2列で、辺の長さが1/2(面積が1/4)になります。
+2ページでも用紙を横向きにはしないので、縦に2つ並んで辺の長さが1/2になります。
+一般的なプリンタのN-up印刷に近い動作です。
 
 用紙サイズを指定した場合は、その断ち代の内側に格子を組みます。
 
@@ -484,12 +488,12 @@ CSS標準の`target-counter()`で十進のページ番号を出すだけなら�
 ### <a id="style-print-mode">片面印刷と両面印刷</a>
 
 既定ではページ生成は横書き・両面印刷として行われます。
-従って、CSSの@pageルールにおいて、最初のページは:firstまたは:right擬似要素として扱われ、 以降は:left,
-:right擬似要素のページが交互に現れます。
+従って、CSSの@pageルールにおいて、最初のページは:firstまたは:right擬似クラスとして扱われ、 以降は:left,
+:right擬似クラスのページが交互に現れます。
 
 <span class="ioprop">output.print-mode</span>
 にsingle-sideを設定することにより、片面印刷に切り替えることができます。
-片面印刷では最初のページは:first擬似要素として扱われ、以降はどの擬似要素にも属さないページが生成されます。
+片面印刷では最初のページは:first擬似クラスとして扱われ、以降はどの擬似クラスにも当てはまらないページが生成されます。
 
 ### <a id="style-page-margin-boxes">ページのマージンボックス<span class="since">4.0.0</span></a>
 
@@ -779,7 +783,7 @@ title要素は表示されないため、`string-set`の対象にできません
 
 <div class="note">
 
-用紙サイズは<span class="ioprop">output.page-width</span>・
+印刷面のサイズは<span class="ioprop">output.page-width</span>・
 <span class="ioprop">output.page-height</span>入出力プロパティのほか、
 `@page`の<span class="cssprop">size</span>プロパティ<span class="since">4.0.0</span>でも
 指定できます。両方が指定された場合は`size`が優先されます。

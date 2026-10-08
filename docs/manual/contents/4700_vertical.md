@@ -63,7 +63,7 @@ vertical-lrは、日本語の縦書きではなく**回転させたラベル**�
 
 文書全体の書字方向は、文書のドキュメント要素（XMLではルート要素、HTMLでは、BODY要素）に対する、 <span class="cssprop">writing-mode</span>の指定によります。
 
-文書全体の書字方向は、文書の綴じ方向に影響します。 すなわち、横書きでは左綴じ、縦書きでは右綴じとなります。 <span class="cssprop">page-break-before</span>, <span class="cssprop">page-break-after</span>
+文書全体の書字方向は、文書の綴じ方向に影響します。 すなわち、vertical-rlの縦書きと、<span class="cssprop">direction</span>がrtlの横書きでは右綴じ、それ以外(ltrの横書きとvertical-lr)では左綴じとなります(<span class="ioprop">output.print-mode</span>のleft-side, right-sideで固定することもできます)。 <span class="cssprop">page-break-before</span>, <span class="cssprop">page-break-after</span>
 に対するleft, rightによる強制改ページでは、綴じ方向が考慮されます。
 
 横書きの場合は、内容が下にはみ出したところから改ページされますが、 縦書きでは内容が左にはみ出したところから改ページされます。
@@ -319,7 +319,7 @@ topはページ進行方向の前、bottomはページ進行方向の後とし�
 
 <span class="cssprop">page-break-before</span>, <span class="cssprop">page-break-after</span>
 に対するleft, right指定は、それぞれ偶数ページ(verso)、奇数ページ(recto)として処理します。
-すなわち、全体が縦書き(右綴じ)の文書では左右の指定が逆になります。
+すなわち、右綴じの文書(全体がvertical-rlの縦書きなど)では左右の指定が逆になります。
 
 ### 横書きの文書を縦書きにする
 

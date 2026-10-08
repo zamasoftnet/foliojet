@@ -3425,7 +3425,7 @@
 						<text id="XMLID_4_" transform="matrix(1 0 0 1 255.6421 736.4131)"><tspan x="0" y="0" fill="#1E5FA9" font-family="'Courier'" font-size="12">paper-width</tspan><tspan x="79.199" y="0" fill="#1E5FA9" font-family="'MS-Mincho'"  font-size="12">(paper width)</tspan></text>
 					</switch>
 					<switch>
-						<text id="XMLID_5_" transform="matrix(1 0 0 1 80.9912 682.0088)"><tspan x="0" y="0" fill="#1E5FA9" font-family="'Courier'" font-size="10">vtrim</tspan><tspan x="-15" y="12" fill="#1E5FA9" font-family="'MS-Mincho'"  font-size="10">(left/right trim)</tspan></text>
+						<text id="XMLID_5_" transform="matrix(1 0 0 1 80.9912 682.0088)"><tspan x="0" y="0" fill="#1E5FA9" font-family="'Courier'" font-size="10">htrim</tspan><tspan x="-15" y="12" fill="#1E5FA9" font-family="'MS-Mincho'"  font-size="10">(left/right trim)</tspan></text>
 					</switch>
 					<switch>
 						<text id="XMLID_6_" transform="matrix(1 0 0 1 253.2427 663.1621)"><tspan x="0" y="0" fill="#1E5FA9" font-family="'Courier'" font-size="12">page-width</tspan><tspan x="71.999" y="0" fill="#1E5FA9" font-family="'MS-Mincho'"  font-size="12">(page width)</tspan></text>
@@ -3490,7 +3490,7 @@
 							557.216,62.317 556.308,63.226 553.26,60.177 "/>
 					</g>
 					<switch>
-						<text id="XMLID_10_" transform="matrix(0 1 -1 0 45.3291 36.7344)"><tspan x="0" y="0" fill="#1E5FA9" font-family="'Courier'" font-size="10">htrim</tspan><tspan x="30" y="0" fill="#1E5FA9" font-family="'MS-Mincho'"  font-size="10">(top/bottom trim)</tspan></text>
+						<text id="XMLID_10_" transform="matrix(0 1 -1 0 45.3291 36.7344)"><tspan x="0" y="0" fill="#1E5FA9" font-family="'Courier'" font-size="10">vtrim</tspan><tspan x="30" y="0" fill="#1E5FA9" font-family="'MS-Mincho'"  font-size="10">(top/bottom trim)</tspan></text>
 					</switch>
 						<line fill="none" stroke="#1E5DA8" stroke-width="0.3" stroke-miterlimit="10" x1="56.694" y1="69.844" x2="119.053" y2="69.844"/>
 						<line fill="none" stroke="#1E5DA8" stroke-width="0.3" stroke-miterlimit="10" x1="56.694" y1="99.685" x2="75.867" y2="99.685"/>

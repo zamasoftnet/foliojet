@@ -16,10 +16,10 @@ The following is a list of properties you can set when accessing this layout eng
 | <a id="appx-ioprop-input.default-stylesheet"></a>input.default-stylesheet | - | 1.0.0 | The URI of the default CSS stylesheet. If you specify this property, the default stylesheet is loaded first. |
 | <a id="appx-ioprop-input.image-metrics"></a>input.image-metrics | - | 4.0.0 | The URI of a JSON (or XML) file containing image dimensions recorded in advance. The dimensions use output units (pt) and depend on <span class="ioprop">output.resolution</span>. If a dimension table was based on a different resolution, it is discarded and the images are measured again. Passes that need only dimensions (all except the final pass in multi-pass processing) can avoid opening image resources, eliminating the retrieval round trips for remote resources. You can pass the `metrics.json` produced by page-split SVG output directly. The XML format produced during development of 4.0.0 can also be read. Since 4.0.0, `metrics.json` also records the identity of resources already output (content hash, MIME type, and pixel count), so reconversion with <span class="ioprop">output.paged-svg.resources</span>=omit **never opens an image, even in the rendering pass**. If the file cannot be read, a warning is issued and actual measurement is used again. For details, see <a href="#style-output-paged-svg" class="pageref">Page-split SVG output</a>. |
 | <a id="appx-ioprop-input.epub.spine"></a>input.epub.spine | - | 4.0.0 | Selects which EPUB spine items to lay out. An empty value (the default) selects all items. The value is a sequence separated by whitespace or `,`. Each entry can be an OPF `idref`, an item path (`OEBPS/ch3.xhtml` or `ch3.xhtml`), a number starting at 1, or a range of numbers (`3-5`). An entry that matches none of these is ignored with a warning. This lets an e-book reader **lay out only the chapter currently being read again** when the font size changes. Items are laid out independently, so laying out one chapter produces the same result as that chapter in a full conversion. In page-split SVG output, item numbers are fixed by their position in the spine (`items/0003/`), so partial output can be overlaid directly on the full output. |
-| <a id="appx-ioprop-input.viewport"></a>input.viewport | false | 3.0.0 | When true, the size specified by HTML &lt;meta name="viewport" ...&gt; is treated as the page size.<br /> This takes precedence over settings such as <span class="ioprop">output.page-width</span>. |
+| <a id="appx-ioprop-input.viewport"></a>input.viewport | false | 3.1.0 | When true, the size specified by HTML &lt;meta name="viewport" ...&gt; is treated as the page size.<br /> This takes precedence over settings such as <span class="ioprop">output.page-width</span>. |
 | <a id="appx-ioprop-input.filters"></a>input.filters | xslt<br />default-to-xhtml<br />loose-html | 1.0.0 | A space-separated list of preprocessing filters to apply to the input document, in application order. You can specify xslt, default-to-xhtml, and loose-html.<br />For details, see <a href="#style-input-filters" class="pageref">Input filters</a>. |
 | <a id="appx-ioprop-input.normalize-text"></a>input.normalize-text | false | 3.2.15 | When set to "true", normalizes all text to NFC (Normalization Form C). |
-| <a id="appx-ioprop-input.property-pi"></a>input.property-pi | false | 2.0.0 | When true, enables the jp.cssj.property-pi processing instruction in documents. |
+| <a id="appx-ioprop-input.property-pi"></a>input.property-pi | false | 2.0.0 | When true, enables the jp.cssj.property processing instruction in documents. |
 | <a id="appx-ioprop-input.stylesheet.titles"></a>input.stylesheet.titles | - | 1.0.0 | A list of CSS stylesheet titles to apply, separated by spaces or commas. For stylesheets associated through a link element or an xml-stylesheet processing instruction, all non-alternate stylesheets are applied by default. You can use this property to select the stylesheets to apply. Stylesheets without a title attribute are always applied regardless of this setting; those with a title are applied only if the name matches exactly. |
 | <a id="appx-ioprop-input.xslt.default-stylesheet"></a>input.xslt.default-stylesheet | - | 1.2.0 | The URI of the default XSLT stylesheet. If you specify this property, the default stylesheet is loaded first. This is effective only when input.filters includes the xslt filter. |
 
@@ -42,7 +42,6 @@ The following is a list of properties you can set when accessing this layout eng
 | <a id="appx-ioprop-input.http.cache.ttl"></a>input.http.cache.ttl | 600 | 4.0.0 | The retention period for the HTTP response cache, in seconds. If the response's Cache-Control header contains max-age, the shorter period is used. Specify 0 to disable caching. |
 | <a id="appx-ioprop-input.http.socket.timeout"></a>input.http.socket.timeout<br /> | 60000 | 2.0.7 | The socket communication timeout for HTTP connections, in milliseconds. A communication error occurs if the response does not start, or reading stops, for the specified time or longer. 0 means no timeout. In 4.0.0, the default changed from 0 (no timeout) to 60000 (60 seconds). |
 | <a id="appx-ioprop-input.prefetch"></a>input.prefetch | true | 4.0.0 | Specifies whether to asynchronously prefetch external resources (stylesheets and images) discovered in the main document. Specify true or false.<br /> In normal conversion, resources are retrieved sequentially as needed, so HTTP waiting times accumulate when converting a web page with many resources. This is enabled by default. Resources are retrieved in parallel while the main document is read, greatly reducing conversion time (similar to browser prefetching). If false, resources are retrieved one at a time as needed, as before.<br /> Only http/https resources that pass the <span class="ioprop">input.include</span>/<span class="ioprop">input.exclude</span> restrictions are prefetched. Requests that send credentials are not prefetched. For details, see <b>Resource prefetching</b> (server product manual). |
-| input.viewport | false | 3.1.0 | When true, enables the &lt;meta name="viewport"〜 tag to set the page size. |
 
 **Output properties**
 
@@ -64,10 +63,10 @@ The following is a list of properties you can set when accessing this layout eng
 | <a id="appx-ioprop-output.page-limit"></a>output.page-limit | - | 1.2.0 | The maximum number of pages. Processing is interrupted when the page count reaches the limit. There is no limit by default. For details, see <a href="#prog-page-limit" class="pageref">Limiting the number of pages</a>.<br />A negative value means no limit. |
 | <a id="appx-ioprop-output.page-limit.abort"></a>output.page-limit.abort | force | 3.0.11 | When force, the result is discarded if the page limit is reached. When normal, the partially completed file is output as far as possible. For details, see <a href="#prog-page-limit" class="pageref">Limiting the number of pages</a>. |
 | <a id="appx-ioprop-output.page-margins"></a>output.page-margins | 12.7mm | 2.0.0 | The page margins. Use the same format as the CSS <span class="cssprop">margin</span> property. The available length units are (mm,cm,in,pt,pc,px). You can override this setting in an @page rule in the document. |
-| <a id="appx-ioprop-output.type"></a>output.type | application/pdf | 2.0.3 | The MIME type of the output file format.<br /> Specify "application/pdf" for PDF, "image/jpeg" or "image/png" for images, "application/vnd.copper.paged-svg" for page-split SVG, or "application/vnd.copper.paged-svg+zip" to bundle it into a single ZIP. For details, see <a href="#style-output" class="pageref">Output file formats</a>. |
+| <a id="appx-ioprop-output.type"></a>output.type | application/pdf | 1.0.0<br />images in 2.0.3 | The MIME type of the output file format.<br /> Specify "application/pdf" for PDF, "image/jpeg" or "image/png" for images, "application/vnd.copper.paged-svg" for page-split SVG, or "application/vnd.copper.paged-svg+zip" to bundle it into a single ZIP. For details, see <a href="#style-output" class="pageref">Output file formats</a>.<br /> "application/pdf" (PDF files) is always available. Image output depends on Java Image I/O and can use the image formats supported by the Java runtime (such as "image/png"). You can also add available image formats by installing plugins such as <a href="#style-image-jai">JAI-ImageI/O</a> in the Java runtime.<br /> Normal image output outputs only the last page. To output an SVG for each page and shared resources, specify "application/vnd.copper.paged-svg". The core 14 fonts and CID-keyed fonts defined by the cid-keyed-font element in the font configuration file cannot be rendered accurately in normal image output. |
 | <a id="appx-ioprop-output.page-width"></a>output.page-width | 210mm | 1.0.0 | The page width. The default is the width of A4.<br /> Use CSS length units (mm,cm,in,pt,pc,px).<br /> <a href="#style-page-layout">There are limits on the page sizes that can be output.</a> |
 | <a id="appx-ioprop-output.paper-height"></a>output.paper-height | Value of output.page-height | 2.0.0 | The paper height. The default is the page height. When the paper and page differ in size, the behavior depends on <span class="ioprop">output.fit-to-paper</span>.<br /> Use CSS length units (mm,cm,in,pt,pc,px).<br /> <a href="#style-page-layout">There are limits on the page sizes that can be output.</a> |
-| <a id="appx-ioprop-output.paper-width"></a>output.paper-width | Value of output.paper-width | 2.0.0 | The paper width. The default is the page width.<br /> When the paper and page differ in size, the behavior depends on <span class="ioprop">output.fit-to-paper</span>.<br /> Use CSS length units (mm,cm,in,pt,pc,px).<br /> <a href="#style-page-layout">There are limits on the page sizes that can be output.</a> |
+| <a id="appx-ioprop-output.paper-width"></a>output.paper-width | Value of output.page-width | 2.0.0 | The paper width. The default is the page width.<br /> When the paper and page differ in size, the behavior depends on <span class="ioprop">output.fit-to-paper</span>.<br /> Use CSS length units (mm,cm,in,pt,pc,px).<br /> <a href="#style-page-layout">There are limits on the page sizes that can be output.</a> |
 | <a id="appx-ioprop-output.n-up"></a>output.n-up | 1 | 4.0.0 | The number of logical pages to impose on one sheet of paper. 1 disables imposition. The specified number of pages is arranged on one sheet.<br />You can specify 1–256. An out-of-range value produces a warning and is treated as 1 (no imposition). |
 | <a id="appx-ioprop-output.n-up.order"></a>output.n-up.order | horizontal | 4.0.0 | The order of imposed pages. Specify horizontal (row order), vertical (column order), horizontal-reverse, or vertical-reverse. Adding reverse reverses the order. |
 | <a id="appx-ioprop-output.marks.spine-width"></a>output.marks.spine-width | - | 4.0.0 | The width of the spine, specified as a length. When set, lines indicating the spine position are added to the crop marks. |
@@ -77,7 +76,6 @@ The following is a list of properties you can set when accessing this layout eng
 | <a id="appx-ioprop-output.htrim"></a>output.htrim | 1cm | 2.0.0 | The widths of the left and right trim allowances.<br /> Use CSS length units (mm,cm,in,pt,pc,px). |
 | <a id="appx-ioprop-output.vtrim"></a>output.vtrim | 1cm | 2.0.0 | The widths of the top and bottom trim allowances.<br /> Use CSS length units (mm,cm,in,pt,pc,px). |
 | <a id="appx-ioprop-output.text-size"></a>output.text-size | 1.0 | 2.1.9 | The font size scale factor (a real number).<br /> For example, 0.5 makes the font size half the normal size, and 2.0 doubles it.<br />You can specify 0.01–100. An out-of-range value produces a warning and is treated as 1.0. |
-| output.type | application/pdf | 1.0.0 | The output (MIME) format. "application/pdf" (PDF files) is always available.<br /> Image output has been supported since 2.0.3. Image output depends on Java Image I/O and can use the image formats supported by the Java runtime (such as "image/png"). You can also add available image formats by installing plugins such as <a href="#style-image-jai">JAI-ImageI/O</a> in the Java runtime.<br /> Normal image output outputs only the last page. To output an SVG for each page and shared resources, specify "application/vnd.copper.paged-svg". The core 14 fonts and CID-keyed fonts defined by the cid-keyed-font element in the font configuration file cannot be rendered accurately in normal image output. |
 | <a id="appx-ioprop-output.svg.text"></a>output.svg.text | outline | 4.0.0 | Controls how text is written in single SVG output (`image/svg+xml`).<br/>`outline` (the default) converts glyphs to outlines (path). `keep` retains them as `&lt;text&gt;` and embeds subsetted WOFF2 fonts and images in the SVG using `data:`. |
 | <a id="appx-ioprop-output.trim-inset"></a>output.trim-inset | - | 4.0.0 | The <b>width of the band treated as bleed</b> along the perimeter of the print area (the trim line is considered to be inset from the perimeter by this width).<br/>Use this to output existing content that already includes bleed at the correct trim size without rewriting the CSS. The available length units are (mm,cm,in,pt,pc,px). |
 | <a id="appx-ioprop-output.trims"></a>output.trims | 1cm | 3.1.6 | The widths of the trim allowances.<br/>Use the same format as the CSS <span class="cssprop">margin</span> property. The available length units are (mm,cm,in,pt,pc,px). |
@@ -86,7 +84,7 @@ The following is a list of properties you can set when accessing this layout eng
 
 | Name | Default | Version | Description |
 | --- | --- | --- | --- |
-| <a id="appx-ioprop-output.image.resolution"></a>output.image.resolution | 96 | 2.0.4 | The resolution (dpi) for raster image output selected by <span class="ioprop">output.type</span>.<br /> <span class="notice">In 2.0.8 and earlier, the default was 72, and a bug prevented the resolution from being applied correctly. In 2.0.9 and later, set the value converted as previous setting × <span class="ioprop">output.resolution</span> / 72). </span><br />You can specify 1–10000. An out-of-range value produces a warning and is treated as 96. If the type area exceeds Java's image limit (approximately 2.1 billion pixels), conversion fails with message 3812. |
+| <a id="appx-ioprop-output.image.resolution"></a>output.image.resolution | 96 | 2.0.4 | The resolution (dpi) for raster image output selected by <span class="ioprop">output.type</span>.<br /> <span class="notice">In 2.0.8 and earlier, the default was 72, and a bug prevented the resolution from being applied correctly. In 2.0.9 and later, set the value converted as (previous setting × <span class="ioprop">output.resolution</span> / 72). </span><br />You can specify 1–10000. An out-of-range value produces a warning and is treated as 96. If the type area exceeds Java's image limit (approximately 2.1 billion pixels), conversion fails with message 3812. |
 | <a id="appx-ioprop-output.image-pixel-limit"></a>output.image-pixel-limit | - | 4.0.0 | The maximum number of pixels (width × height) in a single generated raster image. There is no limit by default. If the type area for image output (page size × <span class="ioprop">output.image.resolution</span>) exceeds the limit, conversion fails (message 3812). Images rasterized for page-split SVG output (such as SVG images) are rendered at a reduced scale until they fit within the limit. |
 | <a id="appx-ioprop-output.image.antialias"></a>output.image.antialias | true | 3.0.1 | Controls antialiasing for raster image output. true enables antialiasing, and false disables it. |
 | <a id="appx-ioprop-output.image.transparent"></a>output.image.transparent | false | 4.0.0 | Specifies whether image output is drawn without painting the background. When true, areas where nothing is drawn remain transparent. <b>This is effective only for formats that can preserve transparency (PNG, GIF, TIFF).</b> For formats that cannot (JPEG, BMP, WBMP), the background remains white and message <a href="#appx-messages" class="pageref">2824</a> is issued. |
@@ -96,10 +94,10 @@ The following is a list of properties you can set when accessing this layout eng
 | <a id="appx-ioprop-output.paged-svg.compression"></a>output.paged-svg.compression | gzip | 4.0.0 | Specifies whether to return page SVGs and page JSON compressed with gzip. With the default, gzip, page SVGs are named `.svgz` and page JSON `.json.gz`. Measurements for a 314-page book in vertical writing show a 56% reduction in total output, from 15.0 MB to 6.6 MB. Conversion time changes very little. Shared WOFF2 and PNG/JPEG files are already compressed and are left unchanged. `manifest.json` is the entry point and is left uncompressed. The manifest's `sha256` values are calculated from **the bytes after compression**. |
 | <a id="appx-ioprop-output.paged-svg.resources"></a>output.paged-svg.resources | reference | 4.0.0 | Controls how shared resources (font subsets and images) are delivered in page-split SVG output. **Fonts and images are controlled together.** reference outputs separate files referenced with `../assets/…`, so only one copy of each image is needed. embed embeds images using `data:` and does not output separate files. It is intended for delivery methods that cannot preserve relative URIs; the total size increases because the same image is duplicated on each page. Fonts remain references to shared WOFF2 files even with embed. omit writes references only and does not return the resources themselves. Entries remain in manifest.json, so the recipient can reuse resources from the previous conversion when laying out the same book again. source **references the original URLs of web images without copying them**<span class="since">4.0.0</span>. It is intended for converting web content to SVG and displaying it on the same web. For raster images originating from `http:`/`https:`/`file:`, the page SVG writes `<image href="source URL">`, and `source` is added to `images[]` in manifest.json. Images without a source (`data:`, generated graphics, and rasterized SVG) and fonts are output as shared resources, as with reference. Because these are direct references to the original server, the reader cannot retrieve private URLs or resources that require authentication. **This setting reduces network traffic and storage, not conversion time**. Measurements for a 314-page book (one pass) show a difference of only 121 ms (6%), while output decreases by 27%, from 15.0 MB to 10.9 MB. |
 | <a id="appx-ioprop-output.paged-svg.image.compression"></a>output.paged-svg.image.compression | none | 4.0.0 | The compression policy for shared images (`assets/images/`) in page-split SVG output. The default, `none`, outputs retrieved images as they are (JPEG remains JPEG; other formats become PNG). `jpeg` recompresses raster images without transparency as JPEG (quality 0.8). Images that are already JPEG are left unchanged unless resized. Small images (at or below the <span class="ioprop">output.paged-svg.image.compression.lossless</span> threshold) and images with transparency remain lossless (PNG). SVG images remain vectors and are not affected. Measurements (a Wikipedia article, 215 pages with Wikimedia images, 76 images): because the source images were all JPEG thumbnails (up to 500 px), `jpeg` alone reduced the total image size from 2.09 MB to 2.01 MB (4%). Combined with width and height limits of 250 px, it reduced the size to 1.24 MB (41%). Shared image URIs are the SHA-256 of **the output bytes**, so changing the policy also changes the URIs. |
-| <a id="appx-ioprop-output.paged-svg.image.compression.lossless"></a>output.paged-svg.image.compression.lossless | 200 | 4.0.0 | The image size threshold for lossy compression when <span class="ioprop">output.paged-svg.image.compression</span>=jpeg. Images smaller than the specified size (the sum of vertical and horizontal pixel counts) remain lossless (PNG). This has the same meaning as <span class="ioprop">output.pdf.image.compression.lossless</span>. |
+| <a id="appx-ioprop-output.paged-svg.image.compression.lossless"></a>output.paged-svg.image.compression.lossless | 200 | 4.0.0 | The image size threshold for lossy compression when <span class="ioprop">output.paged-svg.image.compression</span>=jpeg. Images at or below the specified size (the sum of vertical and horizontal pixel counts) remain lossless (PNG). This has the same meaning as <span class="ioprop">output.pdf.image.compression.lossless</span>. |
 | <a id="appx-ioprop-output.paged-svg.image.max-width"></a>output.paged-svg.image.max-width | Unlimited | 4.0.0 | The maximum horizontal pixel count (an integer) of shared images in page-split SVG output. Images are reduced to fit this width while preserving their aspect ratio. This limits resolution without changing the displayed size. Resized images are output as JPEG if the source was JPEG, or PNG otherwise. This has the same meaning as <span class="ioprop">output.pdf.image.max-width</span>. |
 | <a id="appx-ioprop-output.paged-svg.image.max-height"></a>output.paged-svg.image.max-height | Unlimited | 4.0.0 | The maximum vertical pixel count (an integer) of shared images in page-split SVG output. This works like <span class="ioprop">output.paged-svg.image.max-width</span>. |
-| <a id="appx-ioprop-output.paged-svg.page-checksums"></a>output.paged-svg.page-checksums | true | 4.0.0 | Specifies whether to write each page's SHA-256 (`svgSha256` and `dataSha256`) to `pages[]` in `manifest.json`. If the recipient does not use them to check integrity or detect changed pages, setting `false` makes `manifest.json` smaller (two 64-digit hashes per page ≈ 150 bytes; these account for most of a 143 KB manifest for 310 pages). The `sha256` of shared resources (fonts and images) is always written because it is the key for their URIs and identity. |
+| <a id="appx-ioprop-output.paged-svg.page-checksums"></a>output.paged-svg.page-checksums | true | 4.0.0 | Specifies whether to write each page's SHA-256 (`svgSha256` and `dataSha256`) to `pages[]` in `manifest.json`. If the recipient does not use them to check integrity or detect changed pages, setting `false` makes `manifest.json` smaller (two 64-digit hashes per page ≈ 160 bytes; in a measured 215-page book the manifest shrinks from 88 KB to 54 KB, 39% smaller). The `sha256` of shared resources (fonts and images) is always written because it is the key for their URIs and identity. |
 | <a id="appx-ioprop-output.paged-svg.pdf"></a>output.paged-svg.pdf | false | 4.0.0 | Specifies whether to **also output a PDF from the same layout** as the page-split SVG. When `true`, `document.pdf` is added to the result set (inside the ZIP when returned as a ZIP), and `pdf` is added to `manifest.json`. Layout runs once, with each page rendered to both page SVG and PDF, so it is faster than converting twice separately and the pagination always matches. PDF output follows `output.pdf.*` (such as <span class="ioprop">output.pdf.fonts.policy</span>). If no font policy is specified, fonts are embedded as in the page SVG (`core,embedded`), and the PDF writes them as text (not outlines). The PDF is output as a single result at the end of conversion (page SVGs are still output incrementally). This has no effect for EPUB (bundles per item). |
 
 <table class="spec">
@@ -216,13 +214,13 @@ The following is a list of properties you can set when accessing this layout eng
 				<td class="nowrap">4.0.0</td>
 				<td>Specifies whether to output HTML form controls as form fields (AcroForm) that you can fill in within the PDF.<br />For details, see <a href="#style-pdf-forms" class="pageref">Fillable PDF forms</a>.</td>
 			</tr>
-			<tr>
+			<tr id="appx-ioprop-output.pdf.encryption.length">
 				<td class="nowrap">output.pdf.encryption.length</td>
 				<td>128</td>
 				<td class="nowrap">1.2.0<br />(PDF 1.3)
 				</td>
 				<td>The encryption key length, in bits.<br /> With output.pdf.encryption=v1, it is fixed at 40.
-					With v2, you can specify 40 to 128 in 8-bit increments.
+					With v2 and v4, you can specify 40 to 128 in 8-bit increments. It is ignored with v5 (fixed at 256 bits).
 				</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.encryption.user-password">
@@ -318,28 +316,12 @@ The following is a list of properties you can set when accessing this layout eng
 					true=allowed, false=prohibited.
 				</td>
 			</tr>
-			<tr id="appx-ioprop-output.pdf.encryption.length">
-				<td>128</td>
-				<td class="nowrap">2.0.0</td>
-				<td class="nowrap">output.pdf.encryption.length</td>
-				<td>The encryption key length, in bits.<br />
-					Specify a value from 40 to 128 when <span class="ioprop">output.pdf.encryption</span> is v2 (Arcfour).
-					Ignored for v4 and v5 (fixed at 128 and 256 bits, respectively).</td>
-			</tr>
 			<tr id="appx-ioprop-output.pdf.encryption.v4.cfm">
 				<td class="nowrap">output.pdf.encryption.v4.cfm</td>
 				<td>V2</td>
 				<td class="nowrap">3.0.0</td>
 				<td>The encryption method when <span class="ioprop">output.pdf.encryption</span> is v4.
 					`v2` is Arcfour, and `aesv2` is AES-128.</td>
-			</tr>
-			<tr id="appx-ioprop-output.pdf.platform-encoding">
-				<td class="nowrap">output.pdf.platform-encoding</td>
-				<td>MS932</td>
-				<td class="nowrap">2.0.0</td>
-				<td>The character encoding used to represent names (such as file names) inside the PDF.<br />
-					Choose it to match the environment where the PDF will be opened. Only encodings that represent ASCII characters with the same bytes (such as MS932 and UTF-8)
-					are allowed. An unknown name or an encoding such as UTF-16 produces a warning and is treated as the default, MS932.</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.file-id">
 				<td class="nowrap">output.pdf.file-id</td>
@@ -413,7 +395,7 @@ The following is a list of properties you can set when accessing this layout eng
 				<td class="nowrap">2.0.3</td>
 				<td>When <span class="ioprop">output.pdf.image.compression</span>
 					selects lossy compression (such as JPEG), this is the image size threshold for applying lossy compression.
-					If an image is smaller than the specified size (the sum of vertical and horizontal pixel counts), lossless compression (FlateDecode) is used.</td>
+					If an image is at or below the specified size (the sum of vertical and horizontal pixel counts), lossless compression (FlateDecode) is used.</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.image.max-width">
 				<td class="nowrap">output.pdf.image.max-width</td>
@@ -431,7 +413,7 @@ The following is a list of properties you can set when accessing this layout eng
 					in PDF output (dpi, 72–600)<span class="since">4.0.0</span>.
 					PDF has no blur operator, so only the shadow is rasterized and placed as an image with transparency
 					(text and body content remain vectors. Shadows are <i>artifact</i> content, so they do not affect tagged PDF or text extraction).
-					For profiles that cannot use transparency (PDF/A-1, PDF/X), the existing approximation with stepped fills is used, and warning 2822 is issued.
+					For output that cannot use transparency (PDF/A-1, PDF/X-1a, and so on; PDF/X-4 and PDF/X-6 can use transparency), the existing approximation with stepped fills is used, and warning 2822 is issued.
 					Shadows have low spatial frequencies, so the default 150 dpi is sufficient. Increasing it makes images larger.</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.filter-resolution">
@@ -480,17 +462,19 @@ The following is a list of properties you can set when accessing this layout eng
 				</td>
 				<td>Sets the JavaScript to run when the document is opened.</td>
 			</tr>
-			<tr>
+			<tr id="appx-ioprop-output.pdf.platform-encoding">
 				<td class="nowrap">output.pdf.platform-encoding</td>
 				<td>MS932</td>
 				<td class="nowrap">1.2.0<br />(PDF 1.2)
 				</td>
-				<td>The platform character encoding of the environment where the PDF is viewed.<br />
+				<td>The platform character encoding of the environment where the PDF is viewed. It is used to represent names (such as file names) inside the PDF.<br />
 					It affects font names in PDF 1.2 and earlier. It has no effect in PDF 1.3 and later, which use Unicode.<br />
 					It affects attachment file names in PDF 1.6 and earlier.
 					If file names contain multibyte characters, they become garbled unless this encoding matches that of the viewing platform.
 					Specify MS932 (the Windows version of Shift_JIS) for Japanese documents, EUC-KR for Korean, or Big5 for Traditional Chinese.<br />
-					It has no effect in PDF 1.7 and later, which use Unicode (2.0.3).
+					It has no effect in PDF 1.7 and later, which use Unicode (2.0.3).<br />
+					Only encodings that represent ASCII characters with the same bytes (such as MS932 and UTF-8)
+					are allowed. An unknown name or an encoding such as UTF-16 produces a warning and is treated as the default, MS932.
 				</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.version">
@@ -530,7 +514,7 @@ The following is a list of properties you can set when accessing this layout eng
 				<td>false</td>
 				<td class="nowrap">3.0.2/2.1.11</td>
 				<td>Specifies whether to fit the viewer application's window size to the content.<br />
-					true hides it.
+					true fits it.
 				</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.viewer-preferences.center-window">
@@ -561,7 +545,7 @@ The following is a list of properties you can set when accessing this layout eng
 				<td>Sets the content displayed in the viewer application's side panel.
 					<dl>
 						<dt>use-none</dt>
-						<dd>Displays the bookmarks or thumbnails panel.</dd>
+						<dd>Displays neither the bookmarks panel nor the thumbnails panel.</dd>
 						<dt>use-outlines</dt>
 						<dd>Displays the bookmarks panel.</dd>
 						<dt>use-thumbs</dt>

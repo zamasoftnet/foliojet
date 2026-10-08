@@ -63,7 +63,7 @@ which requires positional glyph shaping and joining, is also outside the impleme
 
 The writing mode of the entire document is determined by <span class="cssprop">writing-mode</span> on the document element (the root element in XML, or the BODY element in HTML).
 
-The writing mode of the entire document affects its binding direction. Horizontal writing uses left binding, and vertical writing uses right binding. Forced page breaks with left or right on <span class="cssprop">page-break-before</span>, <span class="cssprop">page-break-after</span>
+The writing mode of the entire document affects its binding direction. Vertical writing with vertical-rl and horizontal writing with <span class="cssprop">direction</span> rtl use right binding; everything else (horizontal writing with ltr, and vertical-lr) uses left binding (left-side or right-side in <span class="ioprop">output.print-mode</span> can also fix the binding). Forced page breaks with left or right on <span class="cssprop">page-break-before</span>, <span class="cssprop">page-break-after</span>
 take the binding direction into account.
 
 In horizontal writing, a page break occurs where content overflows the bottom. In vertical writing, it occurs where content overflows the left edge.
@@ -319,7 +319,7 @@ top as the start of the page progression direction, and bottom as its end.
 
 <span class="cssprop">page-break-before</span>, <span class="cssprop">page-break-after</span>
 treat left and right as even-numbered pages (verso) and odd-numbered pages (recto), respectively.
-In a document that uses vertical writing throughout (right binding), the left and right sides are therefore reversed.
+In a right-bound document (such as one that uses vertical-rl throughout), the left and right sides are therefore reversed.
 
 ### Changing a horizontal document to vertical writing
 

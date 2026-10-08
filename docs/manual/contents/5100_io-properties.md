@@ -16,10 +16,10 @@
 | <a id="appx-ioprop-input.default-stylesheet"></a>input.default-stylesheet | - | 1.0.0 | デフォルトのCSSスタイルシートのURIです。 このプロパティが指定されている場合、最初にデフォルトのスタイルシートが読み込まれます。 |
 | <a id="appx-ioprop-input.image-metrics"></a>input.image-metrics | - | 4.0.0 | 画像の寸法をあらかじめ記したJSON(またはXML)のURIです。 記録は出力単位(pt)で<span class="ioprop">output.resolution</span>に依存し、依拠した解像度が違う寸法表は捨てて測り直します。 寸法しか要らないパス(多パス処理の最終パス以外)で画像資源を開かずに済むので、 リモート資源では取得の往復がそのまま無くなります。 ページ分割SVGが出力する`metrics.json`をそのまま渡せます。 4.0.0の開発中に出力していたXML形式も読めます。 4.0.0からは`metrics.json`に出力済み資源の同一性(内容ハッシュ・MIME型・画素数)も記録されるため、 <span class="ioprop">output.paged-svg.resources</span>=omitの再変換では**描画するパスでも画像を一度も開きません**。 読めない場合は警告を出して実測に戻ります。 詳細は<a href="#style-output-paged-svg" class="pageref">ページ分割SVGの出力</a>を参照してください。 |
 | <a id="appx-ioprop-input.epub.spine"></a>input.epub.spine | - | 4.0.0 | EPUBのどのspine項目を組むかです。空(既定)なら全項目。値は空白または`,`で区切った並びで、各要素はOPFの`idref`、項目のパス(`OEBPS/ch3.xhtml`または`ch3.xhtml`)、1起点の番号、番号の範囲(`3-5`)のどれかです。どれにも当たらない要素は警告して無視します。電子書籍の読み器が文字サイズを変えたとき、**いま読んでいる章だけを組み直す**ための入口です。項目は互いに独立に組まれるので、1章だけ組んだ結果は全体を通したときのその章と同一になり、ページ分割SVGでは項目の番号がspine内の位置で固定されている(`items/0003/`)ので部分の出力を全体の出力へそのまま重ねられます。 |
-| <a id="appx-ioprop-input.viewport"></a>input.viewport | false | 3.0.0 | trueにすると、HTMLの&lt;meta name="viewport" ...&gt;で指定された大きさを ページの大きさとして扱います。<br /> <span class="ioprop">output.page-width</span>等による指定より優先されます。 |
+| <a id="appx-ioprop-input.viewport"></a>input.viewport | false | 3.1.0 | trueにすると、HTMLの&lt;meta name="viewport" ...&gt;で指定された大きさを ページの大きさとして扱います。<br /> <span class="ioprop">output.page-width</span>等による指定より優先されます。 |
 | <a id="appx-ioprop-input.filters"></a>input.filters | xslt<br />default-to-xhtml<br />loose-html | 1.0.0 | 入力文書へ適用する前処理を、適用する順にスペース区切りで並べます。xslt, default-to-xhtml, loose-html が指定できます。<br />詳細は<a href="#style-input-filters" class="pageref">入力フィルタ</a>を参照してください。 |
 | <a id="appx-ioprop-input.normalize-text"></a>input.normalize-text | false | 3.2.15 | "true"を設定すると、全てのテキストをNFC（正規化形式C）に正規化します。 |
-| <a id="appx-ioprop-input.property-pi"></a>input.property-pi | false | 2.0.0 | trueを設定するとドキュメント中でjp.cssj.property-pi処理命令を使うことができるようになります。 |
+| <a id="appx-ioprop-input.property-pi"></a>input.property-pi | false | 2.0.0 | trueを設定するとドキュメント中でjp.cssj.property処理命令を使うことができるようになります。 |
 | <a id="appx-ioprop-input.stylesheet.titles"></a>input.stylesheet.titles | - | 1.0.0 | 適用するCSSスタイルシートのタイトルをスペースかコンマで区切って並べます。 link要素またはxml-stylesheet処理命令で関連付けられたスタイルシートについて、 デフォルトでは代替スタイル以外が全て適用されますが、 このプロパティを用いて適用するスタイルシートを指定することができます。title属性の無いスタイルシートは指定にかかわらず常に適用され、titleのあるものは名前が完全に一致したものだけが適用されます。 |
 | <a id="appx-ioprop-input.xslt.default-stylesheet"></a>input.xslt.default-stylesheet | - | 1.2.0 | デフォルトのXSLTスタイルシートのURIです。 このプロパティが指定されている場合、最初にデフォルトのスタイルシートが読み込まれます。 input.filtersにxsltフィルタが存在するとき場合のみ有効です。 |
 
@@ -42,7 +42,6 @@
 | <a id="appx-ioprop-input.http.cache.ttl"></a>input.http.cache.ttl | 600 | 4.0.0 | HTTP応答キャッシュの保持期間(秒)です。 応答のCache-Controlヘッダにmax-ageがある場合は短い方が使われます。 0を指定するとキャッシュしません。 |
 | <a id="appx-ioprop-input.http.socket.timeout"></a>input.http.socket.timeout<br /> | 60000 | 2.0.7 | HTTP接続のソケット通信タイムアウト(ミリ秒)です。 応答の開始または読み取りの継続が設定した時間以上停止した場合は、通信エラーとします。 0の場合はタイムアウトなしです。 4.0.0からデフォルトが0(タイムアウトなし)から60000(60秒)に変わりました。 |
 | <a id="appx-ioprop-input.prefetch"></a>input.prefetch | true | 4.0.0 | 主文書から発見した外部リソース(スタイルシート・画像)を非同期に先読みするかどうかの指定です。 trueまたはfalseで指定します。<br /> 通常の変換ではリソースは必要になった時点で順番に取得されるため、リソースの多いウェブページの変換はHTTPの待ち時間が積み上がります。 既定で有効です。主文書の読み取りと並行してリソースを並列取得し、変換時間を大幅に短縮します(ブラウザの先読みと同様の動作です)。 falseにすると従来どおり必要になった時点で1つずつ取得します。<br /> 先読みするのはhttp/httpsのリソースのうち<span class="ioprop">input.include</span>/<span class="ioprop">input.exclude</span>の制限を通過するものだけです。 認証情報を送る要求は先読みしません。 詳細は<b>リソースの先読み</b>(サーバー製品の説明書)を参照してください。 |
-| input.viewport | false | 3.1.0 | trueにすると、&lt;meta name="viewport"〜タグによりページサイズが設定されるようになります。 |
 
 **出力関連プロパティ**
 
@@ -64,10 +63,10 @@
 | <a id="appx-ioprop-output.page-limit"></a>output.page-limit | - | 1.2.0 | 最大ページ数です。ページ数が限界に達すると、処理が中断されます。 デフォルトでは無制限です。 詳細は<a href="#prog-page-limit" class="pageref">ページ数の制限</a>の節を参照してください。<br />負の値は無制限です。 |
 | <a id="appx-ioprop-output.page-limit.abort"></a>output.page-limit.abort | force | 3.0.11 | forceを設定すると、ページ数の限界に達した場合に結果を破棄します。normalを設定すると、できる限り途中までのファイルを出力します。 詳細は<a href="#prog-page-limit" class="pageref">ページ数の制限</a>の節を参照してください。 |
 | <a id="appx-ioprop-output.page-margins"></a>output.page-margins | 12.7mm | 2.0.0 | ページの余白です。 CSSの<span class="cssprop">margin</span>プロパティと同じ形式で記述します。 長さの単位は(mm,cm,in,pt,pc,px)が使用可能です。 この設定は文書中の@pageルール内で上書きできます。 |
-| <a id="appx-ioprop-output.type"></a>output.type | application/pdf | 2.0.3 | 出力するファイル形式のMIME型です。<br /> PDFは"application/pdf"、画像は"image/jpeg"、"image/png"、ページ分割SVGは"application/vnd.copper.paged-svg"、それを1本のZIPにまとめる場合は"application/vnd.copper.paged-svg+zip"を指定します。 詳細は<a href="#style-output" class="pageref">出力するファイル形式</a>を参照してください。 |
+| <a id="appx-ioprop-output.type"></a>output.type | application/pdf | 1.0.0<br />画像は2.0.3 | 出力するファイル形式のMIME型です。<br /> PDFは"application/pdf"、画像は"image/jpeg"、"image/png"、ページ分割SVGは"application/vnd.copper.paged-svg"、それを1本のZIPにまとめる場合は"application/vnd.copper.paged-svg+zip"を指定します。 詳細は<a href="#style-output" class="pageref">出力するファイル形式</a>を参照してください。<br /> "application/pdf"(PDFファイル)は必ず利用することができます。 画像の出力はJava Image I/Oに依存しており、 Java実行環境がサポートする画像形式("image/png"など)を利用することができます。 また、<a href="#style-image-jai">JAI-ImageI/O</a>等のプラグインをJava実行環境にインストールすることで、 利用可能な画像形式を追加することができます。<br /> 通常の画像出力では最後のページだけが出力されます。ページごとのSVGと共有資源を出力する場合は"application/vnd.copper.paged-svg"を指定します。コア14フォントとフォント設定ファイルのcid-keyed-font要素によるCID-Keyedフォントは通常の画像出力では正確に描画できません。 |
 | <a id="appx-ioprop-output.page-width"></a>output.page-width | 210mm | 1.0.0 | ページの幅です。デフォルトはA4の横幅です。<br /> CSSの長さの単位(mm,cm,in,pt,pc,px)を使ってください。<br /> <a href="#style-page-layout">出力可能なページのサイズには制限があります。</a> |
 | <a id="appx-ioprop-output.paper-height"></a>output.paper-height | output.page-heightの値 | 2.0.0 | 用紙の高さです。デフォルトはページの高さです。 用紙とページの大きさが異なる場合の動作は<span class="ioprop">output.fit-to-paper</span>の設定によります。<br /> CSSの長さの単位(mm,cm,in,pt,pc,px)を使ってください。<br /> <a href="#style-page-layout">出力可能なページのサイズには制限があります。</a> |
-| <a id="appx-ioprop-output.paper-width"></a>output.paper-width | output.paper-widthの値 | 2.0.0 | 用紙の幅です。デフォルトはページの横幅です。<br /> 用紙とページの大きさが異なる場合の動作は<span class="ioprop">output.fit-to-paper</span>の設定によります。<br /> CSSの長さの単位(mm,cm,in,pt,pc,px)を使ってください。<br /> <a href="#style-page-layout">出力可能なページのサイズには制限があります。</a> |
+| <a id="appx-ioprop-output.paper-width"></a>output.paper-width | output.page-widthの値 | 2.0.0 | 用紙の幅です。デフォルトはページの横幅です。<br /> 用紙とページの大きさが異なる場合の動作は<span class="ioprop">output.fit-to-paper</span>の設定によります。<br /> CSSの長さの単位(mm,cm,in,pt,pc,px)を使ってください。<br /> <a href="#style-page-layout">出力可能なページのサイズには制限があります。</a> |
 | <a id="appx-ioprop-output.n-up"></a>output.n-up | 1 | 4.0.0 | 1枚の用紙に面付けする論理ページ数です。1で面付けを行いません。 指定した枚数が1枚の用紙に並べて配置されます。<br />1〜256を指定できます。範囲外の値は警告して1(面付けしない)として扱います。 |
 | <a id="appx-ioprop-output.n-up.order"></a>output.n-up.order | horizontal | 4.0.0 | 面付けしたページの並び順です。 horizontal(行方向)、vertical(列方向)、 horizontal-reverse、vertical-reverseのいずれかです。 reverseを付けると逆順に並べます。 |
 | <a id="appx-ioprop-output.marks.spine-width"></a>output.marks.spine-width | - | 4.0.0 | 背表紙の幅です。長さで指定します。 設定すると、トンボに背表紙の位置を示す線が引かれます。 |
@@ -77,7 +76,6 @@
 | <a id="appx-ioprop-output.htrim"></a>output.htrim | 1cm | 2.0.0 | 左右の裁ち口の幅です。<br /> CSSの長さの単位(mm,cm,in,pt,pc,px)を使ってください。 |
 | <a id="appx-ioprop-output.vtrim"></a>output.vtrim | 1cm | 2.0.0 | 上下の裁ち口の幅です。<br /> CSSの長さの単位(mm,cm,in,pt,pc,px)を使ってください。 |
 | <a id="appx-ioprop-output.text-size"></a>output.text-size | 1.0 | 2.1.9 | 文字のサイズの拡大率（実数）です。<br /> 例えば 0.5 を設定すると、文字サイズが通常の半分になり、 2.0 を設定すると、2倍になります。<br />0.01〜100を指定できます。範囲外の値は警告して1.0として扱います。 |
-| output.type | application/pdf | 1.0.0 | 出力(MIME)形式です。 "application/pdf"(PDFファイル)は必ず利用することができます。<br /> 2.0.3から画像の出力に対応しました。画像の出力はJava Image I/Oに依存しており、 Java実行環境がサポートする画像形式("image/png"など)を利用することができます。 また、<a href="#style-image-jai">JAI-ImageI/O</a>等のプラグインをJava実行環境にインストールすることで、 利用可能な画像形式を追加することができます。<br /> 通常の画像出力では最後のページだけが出力されます。ページごとのSVGと共有資源を出力する場合は"application/vnd.copper.paged-svg"を指定します。コア14フォントとフォント設定ファイルのcid-keyed-font要素によるCID-Keyedフォントは通常の画像出力では正確に描画できません。 |
 | <a id="appx-ioprop-output.svg.text"></a>output.svg.text | outline | 4.0.0 | 単一SVG出力(`image/svg+xml`)で文字をどう書くかです。<br/>`outline`(既定)は字形をアウトライン(path)にします。`keep`は`&lt;text&gt;`のまま残し、サブセットしたWOFF2と画像を`data:`でSVGへ埋め込みます。 |
 | <a id="appx-ioprop-output.trim-inset"></a>output.trim-inset | - | 4.0.0 | 印刷面の外周のうち<b>塗り足しとして扱う帯の幅</b>です(仕上り線は印刷面の外周からこの幅だけ内側にあるとみなします)。<br/>塗り足し込みで作られた既存のデータを、CSSを書き換えずに正しい仕上りサイズで出力するために使います。長さの単位は(mm,cm,in,pt,pc,px)が使用可能です。 |
 | <a id="appx-ioprop-output.trims"></a>output.trims | 1cm | 3.1.6 | 裁ち口の幅です。<br/>CSSの<span class="cssprop">margin</span>プロパティと同じ形式で記述します。長さの単位は(mm,cm,in,pt,pc,px)が使用可能です。 |
@@ -86,7 +84,7 @@
 
 | 名前 | デフォルト | バージョン | 説明 |
 | --- | --- | --- | --- |
-| <a id="appx-ioprop-output.image.resolution"></a>output.image.resolution | 96 | 2.0.4 | <span class="ioprop">output.type</span>の設定によりラスター画像を出力する際の解像度(dpi)です。<br /> <span class="notice">なお、2.0.8以前ではデフォルト値が72となっており、解像度が正しく反映されないバグがありました。 2.0.9以降では 以前の設定 × <span class="ioprop">output.resolution</span> / 72) で換算した値を設定してください。 </span><br />1〜10000を指定できます。範囲外の値は警告して96として扱います。版面がJavaの画像の上限(約21億画素)を超えるときはメッセージ3812で失敗します。 |
+| <a id="appx-ioprop-output.image.resolution"></a>output.image.resolution | 96 | 2.0.4 | <span class="ioprop">output.type</span>の設定によりラスター画像を出力する際の解像度(dpi)です。<br /> <span class="notice">なお、2.0.8以前ではデフォルト値が72となっており、解像度が正しく反映されないバグがありました。 2.0.9以降では (以前の設定 × <span class="ioprop">output.resolution</span> / 72) で換算した値を設定してください。 </span><br />1〜10000を指定できます。範囲外の値は警告して96として扱います。版面がJavaの画像の上限(約21億画素)を超えるときはメッセージ3812で失敗します。 |
 | <a id="appx-ioprop-output.image-pixel-limit"></a>output.image-pixel-limit | - | 4.0.0 | 生成するラスター画像1枚の最大画素数(幅×高さ)です。既定では無制限です。画像出力の版面(頁の大きさ×<span class="ioprop">output.image.resolution</span>)が超えると変換を失敗させます(メッセージ3812)。ページ分割SVGで画素に描き直す画像(SVG画像など)は、上限に収まるまで倍率を下げて描きます。 |
 | <a id="appx-ioprop-output.image.antialias"></a>output.image.antialias | true | 3.0.1 | ラスター画像出力の際のアンチエイリアスの設定です。 trueを設定するとアンチエイリアスを有効にします、 falseを設定するとアンチエイリアスを無効にします。 |
 | <a id="appx-ioprop-output.image.transparent"></a>output.image.transparent | false | 4.0.0 | 画像出力で背景を塗らずに描くかどうかです。trueにすると、何も描かれなかったところは透明のまま残ります。<b>透明を保てる形式(PNG・GIF・TIFF)でだけ効きます。</b>保てない形式(JPEG・BMP・WBMP)で指定した場合は白のまま描き、<a href="#appx-messages" class="pageref">2824</a>で知らせます。 |
@@ -96,10 +94,10 @@
 | <a id="appx-ioprop-output.paged-svg.compression"></a>output.paged-svg.compression | gzip | 4.0.0 | ページSVGとページJSONをgzipで縮めて返すかどうかです。 既定のgzipではページSVGは`.svgz`、ページJSONは`.json.gz`という名前になり、314ページの縦組み書籍の実測で出力全体が15.0MBから6.6MBへ56%減ります。変換時間はほとんど変わりません。 共有WOFF2とPNG/JPEGは既に圧縮済みなので触りません。`manifest.json`は読み口なのでそのままです。 manifestの`sha256`は**縮めた後のバイト**に対する値です。 |
 | <a id="appx-ioprop-output.paged-svg.resources"></a>output.paged-svg.resources | reference | 4.0.0 | ページ分割SVGの共有資源(フォントのサブセットと画像)の渡し方です。**フォントと画像はまとめて決まります。** referenceは別ファイルにして`../assets/…`で参照し、同じ画像の実体は1つで済みます。 embedは`data:`で埋め込み、別ファイルを出しません——相対URIを保てない送り方のためのもので、同じ画像がページごとに複製されるため全体の容量は増えます。フォントはembedでも共有WOFF2への参照のままです。 omitは参照だけ書いて実体を返しません。manifest.jsonの記載は残るので、同じ本を組み直すとき受信側が前回の資源を再利用できます。 sourceは**ウェブ上の画像を複写せず、取得元のURLをそのまま参照**します<span class="since">4.0.0</span>——ウェブの内容をSVGにして同じウェブで見せる用途のためのもので、取得元が`http:`/`https:`/`file:`のラスタ画像はページSVGが`<image href="取得元のURL">`と書き、manifest.jsonの`images[]`に`source`が付きます。取得元の無い画像(`data:`・生成した絵・SVGをラスタ化したもの)とフォントはreferenceと同じく共有資源に出ます。元のサーバーへの直接参照になるので、非公開のURLや認証付きの資源は読み器から取れません。**通信量と保管量のための指定で、速さのための指定ではありません**——314ページの書籍(1パス)の実測で121ms(6%)しか変わらず、出力は15.0MBから10.9MBへ27%減ります。 |
 | <a id="appx-ioprop-output.paged-svg.image.compression"></a>output.paged-svg.image.compression | none | 4.0.0 | ページ分割SVGの共有画像(`assets/images/`)の圧縮方針です。既定の`none`は取ってきた画像をそのまま出します(JPEGはJPEGのまま、それ以外はPNG)。 `jpeg`は透明部分の無いラスタ画像をJPEG(品質0.8)に再圧縮します。既にJPEGの画像は縮小しない限り触りません。 小さい画像(<span class="ioprop">output.paged-svg.image.compression.lossless</span>の閾値以下)と透明部分のある画像は可逆(PNG)のままです。SVG画像はベクタのままなので対象外です。 実測(Wikipedia記事、Wikimediaの画像入り215頁、画像76件): 元がJPEGのサムネイル(最大500px)ばかりなので`jpeg`だけでは画像の合計が2.09MB→2.01MB(4%減)ですが、幅・高さの上限250pxと組み合わせると1.24MB(41%減)になります。 共有画像のURIは**出力したバイト**のSHA-256なので、方針を変えるとURIも変わります。 |
-| <a id="appx-ioprop-output.paged-svg.image.compression.lossless"></a>output.paged-svg.image.compression.lossless | 200 | 4.0.0 | <span class="ioprop">output.paged-svg.image.compression</span>=jpegのとき、非可逆圧縮を適用する画像サイズの閾値です。指定されたサイズ(縦のピクセル数と横のピクセル数を足したもの)より小さければ可逆(PNG)のままにします。<span class="ioprop">output.pdf.image.compression.lossless</span>と同じ意味です。 |
+| <a id="appx-ioprop-output.paged-svg.image.compression.lossless"></a>output.paged-svg.image.compression.lossless | 200 | 4.0.0 | <span class="ioprop">output.paged-svg.image.compression</span>=jpegのとき、非可逆圧縮を適用する画像サイズの閾値です。指定されたサイズ(縦のピクセル数と横のピクセル数を足したもの)以下であれば可逆(PNG)のままにします。<span class="ioprop">output.pdf.image.compression.lossless</span>と同じ意味です。 |
 | <a id="appx-ioprop-output.paged-svg.image.max-width"></a>output.paged-svg.image.max-width | 無制限 | 4.0.0 | ページ分割SVGの共有画像の横方向の最大ピクセル数(整数)です。アスペクト比を維持して、画像の幅がこのピクセル数に収まるように縮小します。 解像度を制限するためのもので、表示上の大きさは変わりません。縮小した画像は元がJPEGならJPEG、それ以外はPNGで出します。<span class="ioprop">output.pdf.image.max-width</span>と同じ意味です。 |
 | <a id="appx-ioprop-output.paged-svg.image.max-height"></a>output.paged-svg.image.max-height | 無制限 | 4.0.0 | ページ分割SVGの共有画像の縦方向の最大ピクセル数(整数)です。<span class="ioprop">output.paged-svg.image.max-width</span>と同様です。 |
-| <a id="appx-ioprop-output.paged-svg.page-checksums"></a>output.paged-svg.page-checksums | true | 4.0.0 | `manifest.json`の`pages[]`に各ページのSHA-256(`svgSha256`・`dataSha256`)を書くかです。受け手が完全性の確認や変わったページの検出に使わないなら`false`にすると`manifest.json`が縮みます(1ページあたり64桁のハッシュ2本≒150バイト。310ページで143KBのmanifestの大半がこれです)。共有資源(フォント・画像)の`sha256`はURIと同一性の鍵なので常に書きます。 |
+| <a id="appx-ioprop-output.paged-svg.page-checksums"></a>output.paged-svg.page-checksums | true | 4.0.0 | `manifest.json`の`pages[]`に各ページのSHA-256(`svgSha256`・`dataSha256`)を書くかです。受け手が完全性の確認や変わったページの検出に使わないなら`false`にすると`manifest.json`が縮みます(1ページあたり64桁のハッシュ2本≒160バイト。215ページの実測でmanifestが88KBから54KBへ39%縮みます)。共有資源(フォント・画像)の`sha256`はURIと同一性の鍵なので常に書きます。 |
 | <a id="appx-ioprop-output.paged-svg.pdf"></a>output.paged-svg.pdf | false | 4.0.0 | ページ分割SVGと**同じ組版からPDFも出す**かです。`true`にすると結果集合に`document.pdf`が加わり(ZIPで返すときはZIPの中に)、`manifest.json`に`pdf`が付きます。 組版は1回で、各ページの描画をページSVGとPDFの両方へ流すので、別々に2回変換するより速く、頁割りは必ず一致します。 PDFの書き方は`output.pdf.*`(<span class="ioprop">output.pdf.fonts.policy</span>など)に従います。フォントの方針を指定しなければページSVGと同じ埋め込み(`core,embedded`)で、PDFは文字として(輪郭にせず)書かれます。 PDFは変換の最後に1件で出ます(ページSVGは従来どおり逐次)。EPUB(項目ごとのバンドル)では効きません。 |
 
 <table class="spec">
@@ -216,13 +214,13 @@
 				<td class="nowrap">4.0.0</td>
 				<td>HTMLのフォーム部品を、PDF上で入力できるフォームフィールド(AcroForm)として出力するかどうかです。<br />詳細は<a href="#style-pdf-forms" class="pageref">入力できるPDFフォーム</a>を参照してください。</td>
 			</tr>
-			<tr>
+			<tr id="appx-ioprop-output.pdf.encryption.length">
 				<td class="nowrap">output.pdf.encryption.length</td>
 				<td>128</td>
 				<td class="nowrap">1.2.0<br />(PDF 1.3)
 				</td>
 				<td>暗号化キーの長さ(ビット)です。<br /> output.pdf.encryption=v1では40で固定です。
-					v2では40から128の間で、8ビット刻みで指定可能です。
+					v2・v4では40から128の間で、8ビット刻みで指定可能です。v5では無視されます(256ビット固定です)。
 				</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.encryption.user-password">
@@ -318,28 +316,12 @@
 					true=許可,false=禁止 です。
 				</td>
 			</tr>
-			<tr id="appx-ioprop-output.pdf.encryption.length">
-				<td>128</td>
-				<td class="nowrap">2.0.0</td>
-				<td class="nowrap">output.pdf.encryption.length</td>
-				<td>暗号鍵の長さ(ビット数)です。<br />
-					<span class="ioprop">output.pdf.encryption</span>がv2(Arcfour)のときに40〜128の範囲で指定します。
-					v4・v5では無視されます(それぞれ128ビット・256ビット固定です)。</td>
-			</tr>
 			<tr id="appx-ioprop-output.pdf.encryption.v4.cfm">
 				<td class="nowrap">output.pdf.encryption.v4.cfm</td>
 				<td>V2</td>
 				<td class="nowrap">3.0.0</td>
 				<td><span class="ioprop">output.pdf.encryption</span>がv4のときの暗号方式です。
 					`v2`はArcfour、`aesv2`はAES-128です。</td>
-			</tr>
-			<tr id="appx-ioprop-output.pdf.platform-encoding">
-				<td class="nowrap">output.pdf.platform-encoding</td>
-				<td>MS932</td>
-				<td class="nowrap">2.0.0</td>
-				<td>PDFの内部で名前(ファイル名など)を表すときに使うキャラクタ・エンコーディングです。<br />
-					PDFを開く環境に合わせて指定します。ASCIIの文字を同じバイトで表すエンコーディング(MS932・UTF-8など)だけを
-					指定できます。知らない名前やUTF-16などは警告して既定のMS932として扱います。</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.file-id">
 				<td class="nowrap">output.pdf.file-id</td>
@@ -413,7 +395,7 @@
 				<td class="nowrap">2.0.3</td>
 				<td><span class="ioprop">output.pdf.image.compression</span>
 					により非可逆圧縮(JPEG形式等)を使用する場合、非可逆圧縮を適用する画像サイズの閾値です。
-					指定されたサイズ(縦のピクセル数と横のピクセル数を足したもの)より小さければ可逆圧縮(FlateDecode)を使用します。</td>
+					指定されたサイズ(縦のピクセル数と横のピクセル数を足したもの)以下であれば可逆圧縮(FlateDecode)を使用します。</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.image.max-width">
 				<td class="nowrap">output.pdf.image.max-width</td>
@@ -431,7 +413,7 @@
 					ぼかしを描く解像度(dpi、72〜600)です<span class="since">4.0.0</span>。
 					PDFにはぼかしの演算子が無いため、影だけを画素にして透明度付きの画像として置きます
 					(文字や本文はベクタのまま。影は<i>artifact</i>なのでタグ付きPDFや文字抽出に影響しません)。
-					透明を使えないプロファイル(PDF/A-1、PDF/X)では従来どおり段階塗りの近似になり、警告2822が出ます。
+					透明を使えない出力(PDF/A-1、PDF/X-1aなど。PDF/X-4・PDF/X-6は透明を使えます)では従来どおり段階塗りの近似になり、警告2822が出ます。
 					影は低周波なので既定の150dpiで十分です。上げると画像が大きくなります。</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.filter-resolution">
@@ -480,17 +462,19 @@
 				</td>
 				<td>文書を開いた時に実行するJavaScriptを設定します。</td>
 			</tr>
-			<tr>
+			<tr id="appx-ioprop-output.pdf.platform-encoding">
 				<td class="nowrap">output.pdf.platform-encoding</td>
 				<td>MS932</td>
 				<td class="nowrap">1.2.0<br />(PDF 1.2)
 				</td>
-				<td>PDFを表示する環境のプラットフォームのキャラクタ・エンコーディングです。<br />
+				<td>PDFを表示する環境のプラットフォームのキャラクタ・エンコーディングです。PDFの内部で名前(ファイル名など)を表すときに使います。<br />
 					PDF1.2以前ではフォント名が影響を受けます。PDF1.3以降ではユニコードが使われるため無関係です。<br />
 					PDF1.6以前では添付ファイル名が影響を受けます。
 					ファイル名にマルチバイト文字が使われている場合、このエンコーディングが表示するプラットフォームのものと一致しないと文字化けします。
 					日本語の文書であればMS932(Windows版Shift_JIS)、韓国語であればEUC-KR、繁体字中国語ではBig5といった指定をしてください。<br />
-					PDF1.7以降ではユニコードが使われるため無関係です(2.0.3)。
+					PDF1.7以降ではユニコードが使われるため無関係です(2.0.3)。<br />
+					ASCIIの文字を同じバイトで表すエンコーディング(MS932・UTF-8など)だけを
+					指定できます。知らない名前やUTF-16などは警告して既定のMS932として扱います。
 				</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.version">
@@ -530,7 +514,7 @@
 				<td>false</td>
 				<td class="nowrap">3.0.2/2.1.11</td>
 				<td>内容に合わせてビューワアプリケーションのウィンドウサイズをフィットさせるかどうかを設定します。<br />
-					trueを設定すると非表示となります。
+					trueを設定するとフィットさせます。
 				</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.viewer-preferences.center-window">
@@ -561,7 +545,7 @@
 				<td>ビューワアプリケーションのサイドパネルの表示内容を設定します。
 					<dl>
 						<dt>use-none</dt>
-						<dd>しおりかサムネイルパネルを表示します。</dd>
+						<dd>しおりパネルもサムネイルパネルも表示しません。</dd>
 						<dt>use-outlines</dt>
 						<dd>しおりパネルを表示します。</dd>
 						<dt>use-thumbs</dt>

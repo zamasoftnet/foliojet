@@ -36,7 +36,7 @@
 ```css
 @page {
 	size: 210mm 297mm;   /* 仕上りサイズ。塗り足しは足さない */
-	bleed: 3mm;          /* 塗り足し。用紙は216mm×303mmになる */
+	bleed: 3mm;          /* 塗り足し。トンボと合わせて用紙は230mm×317mmになる */
 	marks: crop cross;   /* コーナートンボとセンタートンボ */
 	margin: 15mm;        /* 版面の余白 */
 }
@@ -137,7 +137,7 @@ body { margin: 0 }
 
 ```
 output.trim-inset: 3mm
-output.marks: crop cross
+output.marks: both
 output.color: cmyk
 ```
 

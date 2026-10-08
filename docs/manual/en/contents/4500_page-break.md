@@ -306,7 +306,7 @@ To suppress page breaks before or after a box, specify <span class="cssdecl">pag
 
 When a forced page break conflicts with page break suppression, the forced page break takes precedence. For example, a paragraph with <span class="cssdecl">page-break-after: always;</span> may be followed immediately by a paragraph with <span class="cssdecl">page-break-before: avoid;</span>. Whenever this conflict occurs, the forced page break takes precedence. In this case, <span class="cssdecl">page-break-before: avoid;</span> is ignored and a page break occurs.
 
-HTML h1 through h6 elements have <span class="cssdecl">page-break-before: avoid;</span> by default.
+HTML h1 through h6 elements have <span class="cssdecl">page-break-after: avoid;</span> by default.
 
 ### <a id="style-pagebreak-limits">Limits of page break control</a>
 
@@ -365,6 +365,10 @@ Page breaks never occur in the following locations, regardless of the settings.
 - Within an absolutely positioned box
 - Within a table caption, or between a caption and its table
 - Within a table header or footer, or between a header or footer and a row group
+
+The exception is a line, image, or similar content that is **too large to fit on one page**: it is cut mechanically at the
+bottom edge of the page and continued on the next page ([Slicing unbreakable content and continuing](#pagebreak-rescue)).
+Absolutely positioned boxes are not cut this way.
 
 Also, **forced page breaks have no effect inside floating boxes,
 absolutely positioned boxes, or table cells**.

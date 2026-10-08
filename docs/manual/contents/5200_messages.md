@@ -29,7 +29,7 @@
 | 2805 | 処理命令名(string) 処理命令の値(string) | 不正な形式の処理命令があった。 |
 | 2806 | CSSファイルのURI(string) 深さの限界値(string) | CSSの@importが深すぎる。 |
 | 2807 | 参照元CSSのURI(string) 参照先CSSのURI(string) | CSSの@importがループしている。 |
-| 2808 | HTML要素名(string) 属性名(string) 属性地(string) | HTMLの属性名の形式に不正がある。 |
+| 2808 | HTML要素名(string) 属性名(string) 属性値(string) | HTMLの属性値の形式に不正がある。 |
 | 280A | cssj:header属性の値(string) | cssj:header属性の値の形式に不正がある。 |
 | 280B | リソースのURI(string) | リソースのURIの形式に不正がある。 |
 | 280C | リンクのURI(string) | リンクのURIの形式に不正がある。 |
@@ -72,7 +72,7 @@
 | 3808 | XSLTファイルのURI(string) メッセージ(string) | XSLTプロセッサの警告メッセージ。 |
 | 3809 | XSLTファイルのURI(string) メッセージ(string) | XSLTプロセッサのエラーメッセージ。 |
 | 38FF | プラグイン名(string)<br />メッセージ(string) | プラグインからのエラー。 |
-| 380D<span class="since">3.0.0</span> | ドキュメントの内容が空なのでページを生成できない。 |  |
+| 380D<span class="since">3.0.0</span> | エラーメッセージ(string) | ドキュメントの内容が空なのでページを生成できない。 |
 | 380E<span class="since">4.0.0</span> | プロパティ名(string) 値(string) 理由(string) | PDF/Xの出力インテント指定が不正(ICCプロファイルを読めない・出力用でない・CMYKでない・識別名が空)。 |
 | 380F<span class="since">4.0.0</span> | 要素名(string) 上限(int) 到達値(int) | 寸法が決まるまで中身を溜めておく要素(表・浮動体など)の内容が<span class="ioprop">processing.retained-text-limit</span>を超えた。変換は失敗する。 |
 | 3810<span class="since">4.0.0</span> | ドキュメントのURI(string) 理由(string) | サーバー側のメインドキュメントの取得を許可していない(遠隔の利用者がサーバーの内側の宛先を指定したなど)。変換は失敗する。 |
@@ -96,5 +96,5 @@
 ドライバには全てのメッセージが送られます。
 必要なメッセージだけを扱いたい場合は、**受け取り側で絞り込んでください**。
 メッセージハンドラにはメッセージコードが渡されるので、
-コードの範囲(例: 3000〜3FFFは警告)で振り分けることができます。
+コードの範囲(例: 3000〜3FFFはエラー)で振り分けることができます。
 実装方法は**開発マニュアル**(サーバー製品の説明書)の各言語の項を参照してください。

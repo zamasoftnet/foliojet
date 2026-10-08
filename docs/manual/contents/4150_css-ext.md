@@ -28,10 +28,10 @@ CSSスタイルシート中で名前空間の接頭辞(prefix)とURIを指定す
 スタイルシートの選択子(selector)で接頭辞を使う場合は、'|'で区切ります。 (':'でないことに注意してください。)
 
 ```css
-/* <pdf:Description>要素のスタイルを指定する。 */
+/* <rdf:Description>要素のスタイルを指定する。 */
 rdf|Description { display: block; }
 
-/* ref:about属性がhttp://foo.com/barであるitem要素のスタイルを指定する。 */
+/* rdf:about属性がhttp://foo.com/barであるitem要素のスタイルを指定する。 */
 item[rdf|about=http://foo.com/bar] { color: Red; }
 ```
 
@@ -102,7 +102,7 @@ item[rdf|about=http://foo.com/bar] { color: Red; }
   suffix: " ";
 }
 @counter-style kakko-kansuji {
-  system: extends cjk-ideographic;  /* 組み込みを基に後ろだけ変える */
+  system: extends cjk-ideographic;  /* 組み込みを基に前後の記号だけ変える */
   prefix: "(";
   suffix: ") ";
 }
@@ -199,23 +199,23 @@ ol.kansuji { list-style-type: kakko-kansuji; }
 <html>
   <head>
     <style type="text/css">
-    #a:before {
+    .a:before {
       counter-increment: a;
       content: counter(a, -cssj-full-width-decimal);
     }
-    #b:after {
+    .b:after {
       counter-increment: b;
       content: counter(b, -cssj-cjk-decimal);
     }
     </style>
   </head>
   <body>
-    <div id="a">田作り</div>
-    <div id="a">黒豆</div>
-    <div id="a">栗きんとん</div>
-    <div id="b">かまぼこ</div>
-    <div id="b">伊達巻</div>
-    <div id="b">数の子</div>
+    <div class="a">田作り</div>
+    <div class="a">黒豆</div>
+    <div class="a">栗きんとん</div>
+    <div class="b">かまぼこ</div>
+    <div class="b">伊達巻</div>
+    <div class="b">数の子</div>
   </body>
 </html>
 ```
@@ -239,7 +239,7 @@ ol.kansuji { list-style-type: kakko-kansuji; }
 <pre style="border: 1pt solid Black;">’ ” ） 〕 ］ ｝ 〉 》 」 』 】 ⦆ 〙 〗 » 〟
 ‐ 〜 ゠ – ！ ？ ‼ ⁇ ⁈ ⁉ ・ ： ； 。 ． 、 ，</pre>
 
-UnicodeのEND_PUNCTUATION（閉じ括弧類）、OTHER_PUNCTUATION（その他の括弧類）、
+UnicodeのEND_PUNCTUATION（閉じ括弧類）、OTHER_PUNCTUATION（句読点・感嘆符などその他の約物）、
 MODIFIER_LETTER（修飾文字）、MODIFIER_SYMBOL（修飾記号）も補助的に行頭禁則とします。
 ただし、分離禁止文字(cl-08)の縦書き用くの字点は、この一律処理から除外します。
 
@@ -790,7 +790,7 @@ filledかopenだけが指定された場合は、横書きではそれぞれ fil
 
 一般的なブラウザがサポートしている「文字の影落とし」に対応しています。
 影の「ぼかし」にも対応します<span class="since">4.0.0</span>。画像出力(PNG/JPEG)とSVG系の出力では
-本物のガウスぼかしで描きます。PDF出力でも、影だけを画素にして透明度付きの画像として置くことで本物のぼかしになります<span class="since">4.0.0</span>(文字や本文はベクタのまま。解像度は<span class="ioprop">output.pdf.blur-resolution</span>)。透明を使えないPDF/A-1・PDF/Xでは12段の縁取りの重ね描きで近似し、警告2822で知らせます。
+本物のガウスぼかしで描きます。PDF出力でも、影だけを画素にして透明度付きの画像として置くことで本物のぼかしになります<span class="since">4.0.0</span>(文字や本文はベクタのまま。解像度は<span class="ioprop">output.pdf.blur-resolution</span>)。透明を使えないPDF/A-1・PDF/X-1a・PDF/X-3(およびPDF 1.3以前)では12段の縁取りの重ね描きで近似し、警告2822で知らせます。
 
 #### text-shadow
 
@@ -841,7 +841,7 @@ filledかopenだけが指定された場合は、横書きではそれぞれ fil
 
 ### <a id="style-text-stroke">袋文字<span class="since">3.0.8</span></a>
 
-レンダリングエンジンとしてWebKitを利用しているブラウザ（Google Chrome, Safari等）との互換性のために、テキストの輪郭と塗りを別々に指定するプロパティを用意しています。
+レンダリングエンジンとしてWebKitやWebKitから派生したBlinkを利用しているブラウザ（Safari, Google Chrome等）との互換性のために、テキストの輪郭と塗りを別々に指定するプロパティを用意しています。
 これは袋文字の効果を実現するために使うことができます。
 
 <span class="cssprop">-cssj-text-fill-color</span>,
@@ -1368,7 +1368,7 @@ ythetaは角度で、degを付けると度単位、単位を省略するとラ�
     div {
       font-size: 32pt;
       position: absolute;
-      transform-origin: 5pt 5pt;
+      transform-origin: 0 0;
     }
     #a {
       transform: rotate(0deg);

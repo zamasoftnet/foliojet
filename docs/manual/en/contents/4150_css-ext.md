@@ -28,10 +28,10 @@ For compatibility, you can also write the URI as url(http://www.w3.org/1999/xhtm
 When you use a prefix in a stylesheet selector, separate it with '|'. (Note that this is not ':'.)
 
 ```css
-/* Specify the style of the <pdf:Description> element. */
+/* Specify the style of the <rdf:Description> element. */
 rdf|Description { display: block; }
 
-/* Specify the style of item elements whose ref:about attribute is http://foo.com/bar. */
+/* Specify the style of item elements whose rdf:about attribute is http://foo.com/bar. */
 item[rdf|about=http://foo.com/bar] { color: Red; }
 ```
 
@@ -102,7 +102,7 @@ as an argument to `counter()`, `counters()`, and `target-counter()`.
   suffix: " ";
 }
 @counter-style kakko-kansuji {
-  system: extends cjk-ideographic;  /* Base this on a built-in format and change only the suffix */
+  system: extends cjk-ideographic;  /* Base this on a built-in format and change only the prefix and suffix */
   prefix: "(";
   suffix: ") ";
 }
@@ -199,23 +199,23 @@ You can use the same keywords with the counter function in <span class="cssprop"
 <html>
   <head>
     <style type="text/css">
-    #a:before {
+    .a:before {
       counter-increment: a;
       content: counter(a, -cssj-full-width-decimal);
     }
-    #b:after {
+    .b:after {
       counter-increment: b;
       content: counter(b, -cssj-cjk-decimal);
     }
     </style>
   </head>
   <body>
-    <div id="a">Candied sardines</div>
-    <div id="a">Black soybeans</div>
-    <div id="a">Sweet potato and chestnut paste</div>
-    <div id="b">Fish cake</div>
-    <div id="b">Sweet rolled omelet</div>
-    <div id="b">Herring roe</div>
+    <div class="a">Candied sardines</div>
+    <div class="a">Black soybeans</div>
+    <div class="a">Sweet potato and chestnut paste</div>
+    <div class="b">Fish cake</div>
+    <div class="b">Sweet rolled omelet</div>
+    <div class="b">Herring roe</div>
   </body>
 </html>
 ```
@@ -239,7 +239,7 @@ and small kana (cl-11). The main punctuation characters are as follows.
 <pre style="border: 1pt solid Black;">’ ” ） 〕 ］ ｝ 〉 》 」 』 】 ⦆ 〙 〗 » 〟
 ‐ 〜 ゠ – ！ ？ ‼ ⁇ ⁈ ⁉ ・ ： ； 。 ． 、 ，</pre>
 
-Unicode END_PUNCTUATION (closing brackets), OTHER_PUNCTUATION (other brackets),
+Unicode END_PUNCTUATION (closing brackets), OTHER_PUNCTUATION (other punctuation, such as periods, commas, and exclamation marks),
 MODIFIER_LETTER (modifier letters), and MODIFIER_SYMBOL (modifier symbols) are also prohibited at line starts as supplementary rules.
 However, the vertical kana repeat marks in the inseparable characters class (cl-08) are excluded from this blanket rule.
 
@@ -790,7 +790,7 @@ Specify the emphasis mark style first, followed by the color.
 
 Text drop shadows, as supported by typical browsers, are available.
 Shadow blur is also supported<span class="since">4.0.0</span>. Image output (PNG/JPEG) and SVG-based output
-use true Gaussian blur. PDF output also uses true blur by rasterizing only the shadow and placing it as an image with transparency<span class="since">4.0.0</span> (text and body content remain vector-based; the resolution is set by <span class="ioprop">output.pdf.blur-resolution</span>). For PDF/A-1 and PDF/X, where transparency is unavailable, blur is approximated by overlaying 12 levels of outlines, and warning 2822 is issued.
+use true Gaussian blur. PDF output also uses true blur by rasterizing only the shadow and placing it as an image with transparency<span class="since">4.0.0</span> (text and body content remain vector-based; the resolution is set by <span class="ioprop">output.pdf.blur-resolution</span>). For PDF/A-1, PDF/X-1a, and PDF/X-3 (and PDF 1.3 or earlier), where transparency is unavailable, blur is approximated by overlaying 12 levels of outlines, and warning 2822 is issued.
 
 #### text-shadow
 
@@ -841,7 +841,7 @@ Shadows are drawn as <b>glyph outlines</b> rather than text<span class="since">4
 
 ### <a id="style-text-stroke">Outlined text<span class="since">3.0.8</span></a>
 
-Properties that specify text outlines and fills separately are provided for compatibility with browsers that use the WebKit rendering engine (such as Google Chrome and Safari).
+Properties that specify text outlines and fills separately are provided for compatibility with browsers that use the WebKit rendering engine or Blink, which derives from WebKit (such as Safari and Google Chrome).
 You can use them to create an outlined text effect.
 
 The four proprietary properties <span class="cssprop">-cssj-text-fill-color</span>,
@@ -1368,7 +1368,7 @@ The default is the center of the box. For example, the rotate function uses the 
     div {
       font-size: 32pt;
       position: absolute;
-      transform-origin: 5pt 5pt;
+      transform-origin: 0 0;
     }
     #a {
       transform: rotate(0deg);

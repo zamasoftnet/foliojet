@@ -74,7 +74,7 @@ For example, `1.7A-2u` means "PDF/A-2 based on PDF 1.7, conformance level u".
 | Value | Standard | Notes |
 | --- | --- | --- |
 | 1.4A-1 | PDF/A-1b | The oldest and most restrictive (for example, no transparency) |
-| 1.7A-2 | PDF/A-2b | Supports transparency, AES encryption, and attachments |
+| 1.7A-2 | PDF/A-2b | Supports transparency and attachments |
 | 1.7A-2u | PDF/A-2u | In addition to the above, all characters can be extracted as Unicode |
 | 1.7A-2a | PDF/A-2a | In addition to the above, requires logical structure (tags) |
 | 1.7A-3 | PDF/A-3b | Allows arbitrary file attachments (such as electronic invoices) |
@@ -194,7 +194,7 @@ All are enabled by default.
 
 </dl>
 
-The following four apply only to v2 encryption.
+The following four apply to v2, v4, and v5 encryption (not to v1).
 
 <dl>
 
@@ -870,8 +870,9 @@ Measurements (Natsume Soseki's Kokoro, A5, 350 pages, Japanese text):
 | Total output | **9.20 MB** | **16.14 MB** (1.75 times) |
 | Conversion time | 15.4 seconds | 17.5 seconds (+14%) |
 
-One page uses 104 distinct characters, about one tenth of the document's total of 1,102, but the subset is
-<b>only 1/12 the size</b>, not 1/28——because of WOFF2's fixed overhead and cmap and hmtx.
+One page uses 104 distinct characters, about one tenth of the document's total of 1,102, and its subset is also about
+1/12 the size of the document's. However, kana and frequent kanji <b>go into every page's subset again</b>,
+so the 350 pages together come to about 28 times the document's fonts.
 
 The amount a reader actually downloads reverses the comparison.
 
@@ -921,10 +922,11 @@ Use <span class="ioprop">output.paged-svg.resources</span> to choose how shared 
 | Value | Behavior |
 |---|---|
 | `reference` | Default. Outputs separate files and references them with `../assets/…` |
-| `embed` | Embeds resources in page SVGs with `data:`. Does not output separate files <span class="since">4.0.0</span> |
+| `embed` | Embeds images in page SVGs with `data:` and does not output separate image files. Fonts are separate files, as with `reference` <span class="since">4.0.0</span> |
 | `omit` | Writes only references and does not return the resource data |
+| `source` | References web images (`http:`, `https:`, `file:`) at their source URLs without copying them. Other images and fonts are handled as with `reference` <span class="since">4.0.0</span> |
 
-These three options are mutually exclusive. **Page SVG appearance is the same** with all of them.
+These four options are mutually exclusive. **Page SVG appearance is the same** with all of them.
 Only resource delivery changes.
 
 ##### reference — For directory output
@@ -964,11 +966,14 @@ may not exist in the previous output. The receiver should check that it has all 
 
 `metrics.json` contains the image dimensions measured during layout (output units = pt, after EXIF rotation).
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<image-metrics version="1" resolution="96">
-  <image uri="https://example.com/figure.png" width="900" height="600"/>
-</image-metrics>
+```json
+{
+  "version": 1,
+  "resolution": 96,
+  "images": [
+    {"uri": "https://example.com/figure.png", "width": 900, "height": 600}
+  ]
+}
 ```
 
 Pass this to <span class="ioprop">input.image-metrics</span> for the next conversion to lay out passes
@@ -976,12 +981,12 @@ that need only dimensions (all but the final pass of multi-pass processing) with
 For remote resources, this eliminates the retrieval round trips.
 
 **The recorded values use output units, so they depend on <span class="ioprop">output.resolution</span>.**
-The resolution used is recorded in the root element's `resolution` attribute. If it differs when read,
+The resolution used is recorded in the top-level `resolution` field. If it differs when read,
 the entire dimension table is discarded and the images are measured again. This is safer than silently laying out with incorrect dimensions.
 
 You can use this property with any output format, not just Paged SVG. If the data cannot be read or is malformed,
 a warning is issued and layout falls back to measurement without stopping. Actual measurements
-are more reliable, so XML values never overwrite them. `data:` images are not recorded because they require
+are more reliable, so values from the table never overwrite them. `data:` images are not recorded because they require
 no retrieval round trips and the URI itself contains the data.
 
 URIs are recorded **exactly as requested**. In documents such as EPUBs, where internal resources refer to one another

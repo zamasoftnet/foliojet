@@ -306,7 +306,7 @@ body {
 
 強制改ページと改ページの抑制が競合する場合は、強制改ページが優先されます。 例えば、<span class="cssdecl">page-break-after: always;</span>と指定された段落の直後に、 <span class="cssdecl">page-break-before: avoid;</span>と指定された段落がある場合です。 このような競合が起こった場合、常に強制改ページが優先されます。 つまり、このケースでは<span class="cssdecl">page-break-before: avoid;</span>は無視されて改ページが発生します。
 
-なお、HTMLのh1〜h6要素にはデフォルトで<span class="cssdecl">page-break-before: avoid;</span> が指定されています。
+なお、HTMLのh1〜h6要素にはデフォルトで<span class="cssdecl">page-break-after: avoid;</span> が指定されています。
 
 ### <a id="style-pagebreak-limits">改ページ制御の限界</a>
 
@@ -365,6 +365,10 @@ body {
 - 絶対配置ボックスの内部
 - テーブルキャプションの内部、およびキャプションと表の間
 - テーブルヘッダ・フッタの内部、およびヘッダ・フッタと行グループの間
+
+ただし、行や画像などが**1ページに収まらない大きさ**のときは例外で、紙面の下端で機械的に切断して
+次のページへ続けます([分割できないものは、切って続ける](#pagebreak-rescue))。
+絶対配置ボックスはこの切断の対象外です。
 
 また、**浮動ボックスの中・絶対配置ボックスの中・テーブルセルの中では、
 強制改ページを指定しても効きません**。

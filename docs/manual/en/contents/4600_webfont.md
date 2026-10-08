@@ -2,7 +2,7 @@
 
 You can use WebFont.
 WebFont lets you specify fonts on the file system or network through CSS and load them when laying out a document.
-The latest versions of browsers such as Internet Explorer, Safari, Chrome, and Firefox support WebFont.
+Major browsers such as Chrome, Edge, Safari, and Firefox support WebFont.
 Documents designed for these browsers to display the same fonts regardless of the viewing environment
 can display those same fonts here.
 
@@ -85,11 +85,11 @@ Examples follow.
 
 <dl>
   <dt>unicode-range: U+A5;</dt>
-  <dd>Applies only to the yen sign (￥).</dd>
+  <dd>Applies only to the yen sign (¥). The full-width "￥" (U+FFE5) is not included.</dd>
   <dt>unicode-range: U+0-7F;</dt>
   <dd>Applies only to ASCII characters (character codes 0 through 127).</dd>
   <dt>unicode-range: U+30??;</dt>
-  <dd>Applies only to hiragana and katakana (character codes in the hexadecimal 3000 range).</dd>
+  <dd>Applies only to Japanese symbols (punctuation, brackets, and so on), hiragana, and katakana (U+3000 through U+30FF).</dd>
   <dt>unicode-range: U+A5, U+0-7F, U+30??;</dt>
   <dd>Combines the three code ranges above.</dd>
 </dl>
