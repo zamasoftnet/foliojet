@@ -25,11 +25,14 @@ public final class FlexBuilderLifecycle {
 	public static boolean eligible(final FlexBox flexBox, final Builder builder) {
 		final FlexParams params = flexBox.getFlexParams();
 		if (!params.flexDirection.isRow()) {
-			// F4b/F4d: column requires a definite main axis (absolute length). Content-dependent basis
-			// is permanently outside the subset by the F4c decision; the bindColumn classifier rejects it.
-			// wrap additionally requires an absolute cross (line-axis) length (F4c recommendation:
-			// eligibility requires sizing the column width on the cross axis in advance).
-			if (params.size.getPageType(params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+			// F4b/F4d: column takes a definite main axis (absolute length). Since 2026-10-08 a column whose main size
+			// is indefinite also comes here when only the whole container can place it (stage 2 of
+			// docs/design/column-flex-indefinite-main-design.md); the rest stays in the streamed flow (F0), where an
+			// app shell's body flex keeps its contents unretained. wrap additionally requires an absolute cross
+			// (line-axis) length (F4c recommendation: eligibility requires sizing the column width on the cross axis
+			// in advance).
+			if (params.size.getPageType(params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE
+					&& !retainsIndefiniteColumn(params)) {
 				return false;
 			}
 			if (params.flexWrap != FlexWrap.NOWRAP
@@ -49,6 +52,24 @@ public final class FlexBuilderLifecycle {
 			return false;
 		}
 		return builder instanceof BlockBuilder || builder instanceof TwoPassBlockBuilder;
+	}
+
+	/**
+	 * Whether a column flex with an indefinite main size is retained and placed as a whole (2026-10-08), judged
+	 * from the container's own declarations at its start: {@code column-reverse} (the last item comes first), an
+	 * absolute max main size (items shrink or wrap at it), or {@code align-items} other than stretch/normal (items
+	 * take their fit-content width). Their contents are retained up to {@code processing.retained-text-limit}.
+	 * Item declarations ({@code order}, {@code align-self}) are not known at the start; streamed columns ignore them.
+	 */
+	static boolean retainsIndefiniteColumn(final FlexParams params) {
+		if (params.flexDirection.isReverse()) {
+			return true;
+		}
+		if (params.maxSize.getPageType(params.flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+			return true;
+		}
+		return params.alignItems != net.zamasoft.foliojet.layout.box.params.BoxAlignment.STRETCH
+				&& params.alignItems != net.zamasoft.foliojet.layout.box.params.BoxAlignment.NORMAL;
 	}
 
 	/** Starts a FlexBuilder (eligibility must already be checked). */

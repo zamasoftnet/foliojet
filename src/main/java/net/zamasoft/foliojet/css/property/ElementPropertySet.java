@@ -634,11 +634,12 @@ public final class ElementPropertySet extends PropertySet {
 				net.zamasoft.foliojet.css.impl.property.flex.LegacyFlexAlignmentAlias.all()) {
 			put(info);
 		}
-		// Logical corner radii (css-logical-1). Approximate by mapping to physical corners in horizontal writing, ltr.
-		alias("border-start-start-radius", BorderRadius.TOP_LEFT);
-		alias("border-start-end-radius", BorderRadius.TOP_RIGHT);
-		alias("border-end-start-radius", BorderRadius.BOTTOM_LEFT);
-		alias("border-end-end-radius", BorderRadius.BOTTOM_RIGHT);
+		// Flow-relative corner radii (css-logical-1): their physical corner follows writing-mode and direction
+		// (2026-10-08; before, aliases of the horizontal ltr corners)
+		reg(BorderRadius.START_START);
+		reg(BorderRadius.START_END);
+		reg(BorderRadius.END_START);
+		reg(BorderRadius.END_END);
 
 		alias("oeb-column-number", ColumnCount.INFO);
 		alias("-epub-writing-mode", WritingModeStandard.INFO);

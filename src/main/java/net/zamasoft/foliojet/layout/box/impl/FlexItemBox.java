@@ -117,6 +117,28 @@ public class FlexItemBox extends FlowBlockBox {
 		}
 	}
 
+	/**
+	 * A fresh, empty copy of this item for measuring its content in a column flex (2026-10-08, like
+	 * {@code TableCellBox.newMeasureReplica}): same params, specified sizes and frame, a new container. The body is
+	 * replayed into it without being consumed and the copy is dropped after its page-axis size is read.
+	 *
+	 * @return the replica, or null for an item whose container cannot be copied (multi-column)
+	 */
+	public FlexItemBox newMeasureReplica() {
+		if (!(this.container instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer)) {
+			return null;
+		}
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frameCopy = new net.zamasoft.foliojet.layout.part.AbsoluteRectFrame(
+				this.frame.frame);
+		frameCopy.margin = new net.zamasoft.foliojet.layout.part.AbsoluteInsets(this.frame.margin.top,
+				this.frame.margin.right, this.frame.margin.bottom, this.frame.margin.left);
+		frameCopy.padding.set(this.frame.padding);
+		final FlexItemBox replica = new FlexItemBox(this.getBlockParams(), this.pos, this.size, this.minSize, frameCopy,
+				new net.zamasoft.foliojet.layout.box.content.FlowContainer());
+		replica.neutralLineFill = this.neutralLineFill;
+		return replica;
+	}
+
 	protected FlexItemBox(final BlockParams params, final FlowPos pos,
 			final net.zamasoft.foliojet.layout.box.params.Dimension size,
 			final net.zamasoft.foliojet.layout.box.params.Dimension minSize,

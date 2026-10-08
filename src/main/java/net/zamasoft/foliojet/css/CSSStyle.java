@@ -435,11 +435,14 @@ public class CSSStyle {
 		}
 	}
 
-	/** Logical properties by name: margin-block-start, border-inline-end-color, inline-size, min-block-size... */
+	/**
+	 * Logical properties by name: margin-block-start, border-inline-end-color, inline-size, min-block-size,
+	 * border-start-end-radius...
+	 */
 	private static boolean isLogical(final PrimitivePropertyInfo info) {
 		final String name = info.getName();
 		return name.contains("-block") || name.contains("-inline") || name.equals("block-size")
-				|| name.equals("inline-size");
+				|| name.equals("inline-size") || name.startsWith("border-start-") || name.startsWith("border-end-");
 	}
 
 	/**

@@ -387,17 +387,29 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		final boolean mainIsLine = params.flexDirection.isRow();
 		final double innerLine = this.flexBox.getLineSize();
 		if (!mainIsLine && !this.columnMainResolvable(target)) {
-			return; // Container fallback already applied (F4c)
+			return; // Container fallback already applied (an item that cannot be measured)
 		}
-		// getInnerPageExtent returns the column inner main size, its specified height
-		// (eligibility guarantees an absolute length; the G5e technique).
-		final MainAxis axis = new MainAxis(mainIsLine,
-				mainIsLine ? innerLine : this.flexBox.getInnerPageExtent(params.flow), innerLine);
+		// A column's main size is its specified height when absolute (the G5e technique); otherwise (stage 2 of
+		// docs/design/column-flex-indefinite-main-design.md) it follows from the items below.
+		final boolean definiteMain = mainIsLine
+				|| params.size.getPageType(params.flow) == LengthType.ABSOLUTE;
+		MainAxis axis = new MainAxis(mainIsLine,
+				mainIsLine ? innerLine : definiteMain ? this.flexBox.getInnerPageExtent(params.flow) : Double.NaN,
+				innerLine);
+		// Column: the cross sizes come first, then the items whose main size depends on their content are measured
+		// at them (2026-10-08; F4c had stacked such containers in one column).
+		final double[] crossWidths = mainIsLine ? null : new double[this.items.size()];
+		final double[] crossExtras = mainIsLine ? null : new double[this.items.size()];
+		final double[] measuredMain = mainIsLine ? null
+				: this.measureColumnItems(target, innerLine, !definiteMain, crossWidths, crossExtras);
 		// Lines are collected in order-modified document order (css-flexbox-1 §9.3); a reverse main axis only
 		// mirrors the items inside each line. Reversing the whole sequence before breaking put the last item on
 		// the first line and could regroup the lines (fit sweep seed 11931726, 2026-10-07).
 		final int[] ordered = this.visualOrder();
-		final List<FlexItemMetrics> orderedMetrics = this.buildMetrics(ordered, axis);
+		final List<FlexItemMetrics> orderedMetrics = this.buildMetrics(ordered, axis, measuredMain);
+		if (!definiteMain) {
+			axis = new MainAxis(false, this.indefiniteColumnMain(orderedMetrics, axis), innerLine);
+		}
 		final List<FlexLineBreaker.Line> lines = this.breakMainLines(orderedMetrics, axis);
 		final boolean reversed = params.flexDirection.isReverse();
 		final int[] seq = reversed ? reverseWithinLines(ordered, lines) : ordered;
@@ -406,28 +418,27 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		if (mainIsLine) {
 			this.placeRow(target, axis, seq, metrics, lines, mainSizeByOriginal);
 		} else {
-			this.placeColumn(target, axis, seq, metrics, lines, mainSizeByOriginal);
+			this.placeColumn(target, axis, seq, metrics, lines, mainSizeByOriginal, crossWidths, crossExtras);
 		}
 		this.syncHostCursor(target, params);
 	}
 
 	/**
-	 * Pre-scans whether every item's column main-axis size can be represented numerically
-	 * (F4c: content-dependent basis is permanently outside the subset). If any item is
-	 * ineligible, fall back for the entire container without binding any body.
+	 * Pre-scans whether every item whose column main-axis size depends on its content can be measured (2026-10-08).
+	 * Until then any such item made the whole container fall back to one stacked column (F4c); now
+	 * {@link FlexItemContent#measureMain} measures them, and only an item that cannot be replicated (a multi-column
+	 * item) still falls back, for the entire container, without binding any body.
 	 * Check the logical page axis: the main axis of a vertical-writing column is physical width.
 	 */
 	private boolean columnMainResolvable(final BlockBuilder target) {
+		final boolean indefinite = this.flexBox.getFlexParams().size.getPageType(this.flow()) != LengthType.ABSOLUTE;
 		for (final FlexItemContent item : this.items) {
-			if (item.spec.basis().isContent()) {
-				// basis:content requires content height regardless of the main-axis specification.
-				FLEX_COLUMN_FALLBACKS_CONTENT_BASIS.incrementAndGet();
-				this.bindFallback(target);
-				return false;
-			}
-			if (item.spec.basis().isAuto() && item.itemBox.getBlockParams().size
-					.getPageType(this.flow()) == LengthType.AUTO) {
-				FLEX_COLUMN_FALLBACKS_AUTO_MAIN.incrementAndGet();
+			if (this.measuresContent(item, indefinite) && item.itemBox.newMeasureReplica() == null) {
+				if (item.spec.basis().isContent()) {
+					FLEX_COLUMN_FALLBACKS_CONTENT_BASIS.incrementAndGet();
+				} else {
+					FLEX_COLUMN_FALLBACKS_AUTO_MAIN.incrementAndGet();
+				}
 				this.bindFallback(target);
 				return false;
 			}
@@ -435,17 +446,100 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return true;
 	}
 
+	/**
+	 * Whether a column item's main size comes from its content: {@link FlexItemContent#hasContentMain}, or, in a
+	 * container whose main size is indefinite, a percentage basis (which then behaves as {@code content}) with a
+	 * page-axis size that is not absolute. A percentage page size of such a container behaves as {@code auto} too
+	 * (an aspect-ratio thumbnail with {@code height: 100%} took no room, ourworldindata 2026-10-08).
+	 */
+	private boolean measuresContent(final FlexItemContent item, final boolean indefiniteMain) {
+		if (item.hasContentMain(this.flow())) {
+			return true;
+		}
+		return indefiniteMain && !(item.spec.basis().getSize() instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue)
+				&& item.itemBox.getBlockParams().size.getPageType(this.flow()) != LengthType.ABSOLUTE;
+	}
+
+	/**
+	 * Column cross sizes before line breaking (explicit width, stretch for a single nowrap column, otherwise
+	 * fit-content) and the main sizes of the items that depend on their content, measured at those cross sizes
+	 * (NaN for the others; 2026-10-08).
+	 */
+	private double[] measureColumnItems(final BlockBuilder target, final double innerLine,
+			final boolean indefiniteMain, final double[] crossWidthByOriginal, final double[] itemCrossExtras) {
+		final FlexParams params = this.flexBox.getFlexParams();
+		final double[] measured = new double[this.items.size()];
+		for (int oi = 0; oi < this.items.size(); ++oi) {
+			final FlexItemContent item = this.items.get(oi);
+			final BlockParams p = item.itemBox.getBlockParams();
+			final RectFrame frame = p.frame;
+			final double lineExtras = insetsLine(frame.margin, innerLine) + insetsLine(frame.padding, innerLine)
+					+ borderLine(frame);
+			final BoxAlignment align = this.resolveAlign(item, false);
+			final double crossWidth;
+			if (p.size.getLineType(params.flow) != LengthType.AUTO) {
+				// Explicit width (for border-box, subtract the frame to obtain inner size; excludes margins)
+				final double borderBoxAdjust = p.boxSizing == BoxSizingMode.BORDER_BOX
+						? lineExtras - insetsLine(frame.margin, innerLine)
+						: 0;
+				crossWidth = Math.max(0, lineValue(p.size, innerLine) - borderBoxAdjust);
+			} else if (align == BoxAlignment.STRETCH && !params.flexWrap.isWrap()) {
+				// Stretch for a single nowrap column fills the container inner size.
+				// Column stretch with wrap happens after column width resolution (placeColumn).
+				crossWidth = Math.max(0, innerLine - lineExtras);
+			} else {
+				crossWidth = Sizing.fitContent(item.sizes.minContent(), item.sizes.maxContent(),
+						Math.max(0, innerLine - lineExtras));
+			}
+			crossWidthByOriginal[oi] = crossWidth;
+			itemCrossExtras[oi] = lineExtras;
+			measured[oi] = this.measuresContent(item, indefiniteMain)
+					? item.measureMain(target, crossWidth, innerLine, params.flow)
+					: Double.NaN;
+		}
+		return measured;
+	}
+
+	/**
+	 * The used main size of a column whose own main size is indefinite (stage 2, 2026-10-08): the items' hypothetical
+	 * outer main sizes and gaps, clamped by the container's absolute min/max main size. With wrap, a max lets lines
+	 * break at it (Chrome does); without wrap, the items shrink to it (§9.7).
+	 */
+	private double indefiniteColumnMain(final List<FlexItemMetrics> metrics, final MainAxis axis) {
+		final FlexParams params = this.flexBox.getFlexParams();
+		double sum = metrics.size() > 1 ? axis.mainGap() * (metrics.size() - 1) : 0;
+		for (final FlexItemMetrics m : metrics) {
+			sum += m.hypotheticalMain() + m.outerMainExtra();
+		}
+		final double max = params.maxSize.getPageType(params.flow) == LengthType.ABSOLUTE
+				? Math.max(0, params.maxSize.getPageLength(params.flow)) - pageFrameAdjust(params)
+				: Double.POSITIVE_INFINITY;
+		final double min = params.minSize.getPageType(params.flow) == LengthType.ABSOLUTE
+				? Math.max(0, params.minSize.getPageLength(params.flow)) - pageFrameAdjust(params)
+				: 0;
+		return Math.max(Math.max(0, min), Math.min(sum, max));
+	}
+
+	/** The container's page-axis border+padding when box-sizing is border-box (min/max are border-box sizes then). */
+	private double pageFrameAdjust(final FlexParams params) {
+		return params.boxSizing == BoxSizingMode.BORDER_BOX
+				? insetsPage(params.frame.padding, this.flexBox.getLineSize()) + borderPage(params.frame)
+				: 0;
+	}
+
 	/** Converts all items in visual order to §9.7 inputs (main-axis measurements). */
-	private List<FlexItemMetrics> buildMetrics(final int[] seq, final MainAxis axis) {
+	private List<FlexItemMetrics> buildMetrics(final int[] seq, final MainAxis axis, final double[] measuredMain) {
 		final List<FlexItemMetrics> metrics = new ArrayList<>(seq.length);
 		for (final int oi : seq) {
 			final FlexItemContent item = this.items.get(oi);
 			final BlockParams p = item.itemBox.getBlockParams();
-			// For column, the intrinsic main size uses only minPage (using minPage for min-main:auto
-			// is a known F4b approximation; the exact content minimum depends on width,
-			// as recorded in the F4c recommendation).
-			final double minContent = axis.mainIsLine ? item.sizes.minContent() : item.sizes.minPage();
-			final double maxContent = axis.mainIsLine ? item.sizes.maxContent() : item.sizes.minPage();
+			// For column, the intrinsic main size is the content height measured at the item's cross size
+			// (2026-10-08); items that were not measured keep the simulated minPage (an F4b approximation).
+			final double measured = measuredMain == null ? Double.NaN : measuredMain[oi];
+			final double minContent = axis.mainIsLine ? item.sizes.minContent()
+					: Double.isNaN(measured) ? item.sizes.minPage() : measured;
+			final double maxContent = axis.mainIsLine ? item.sizes.maxContent()
+					: Double.isNaN(measured) ? item.sizes.minPage() : measured;
 			metrics.add(FlexItemMetricsResolver.resolve(new FlexItemMetricsResolver.Input(oi,
 					item.spec.grow(), item.spec.shrink(), item.spec.basis(), axis.mainValue(p.size),
 					axis.minMainAuto(item.spec) ? Double.NaN
@@ -683,44 +777,24 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 */
 	private void placeColumn(final BlockBuilder target, final MainAxis axis, final int[] seq,
 			final List<FlexItemMetrics> metrics, final List<FlexLineBreaker.Line> cols,
-			final double[] mainSizeByOriginal) {
+			final double[] mainSizeByOriginal, final double[] crossWidthByOriginal, final double[] itemCrossExtras) {
 		final FlexParams params = this.flexBox.getFlexParams();
 		this.flexBox.markFlexLayout();
 		final double innerLine = axis.marginBase;
 		final int count = this.items.size();
-		// Column cross width = maximum item cross size (explicit width/stretch/fit-content) within the column
-		final double[] crossWidthByOriginal = new double[count];
-		final double[] itemCrossExtras = new double[count];
+		// Column cross width = maximum item cross size (explicit width/stretch/fit-content, measureColumnItems)
 		final double[] colCross = new double[cols.size()];
 		for (int ci = 0; ci < cols.size(); ++ci) {
 			final FlexLineBreaker.Line col = cols.get(ci);
 			for (int k = col.from(); k < col.to(); ++k) {
 				final int oi = seq[k];
-				final FlexItemContent item = this.items.get(oi);
-				final BlockParams p = item.itemBox.getBlockParams();
-				final RectFrame frame = p.frame;
-				final double lineExtras = insetsLine(frame.margin, innerLine)
-						+ insetsLine(frame.padding, innerLine) + borderLine(frame);
-				final BoxAlignment align = this.resolveAlign(item, false);
-				final double crossWidth;
-				if (p.size.getLineType(params.flow) != LengthType.AUTO) {
-					// Explicit width (for border-box, subtract the frame to obtain inner size; excludes margins)
-					final double borderBoxAdjust = p.boxSizing == BoxSizingMode.BORDER_BOX
-							? lineExtras - insetsLine(frame.margin, innerLine)
-							: 0;
-					crossWidth = Math.max(0, lineValue(p.size, innerLine) - borderBoxAdjust);
-				} else if (align == BoxAlignment.STRETCH && !params.flexWrap.isWrap()) {
-					// Stretch for a single nowrap column fills the container inner size.
-					// Column stretch with wrap happens after column width resolution (below).
-					crossWidth = Math.max(0, innerLine - lineExtras);
-				} else {
-					crossWidth = Sizing.fitContent(item.sizes.minContent(), item.sizes.maxContent(),
-							Math.max(0, innerLine - lineExtras));
-				}
-				crossWidthByOriginal[oi] = crossWidth;
-				itemCrossExtras[oi] = lineExtras;
-				colCross[ci] = Math.max(colCross[ci], crossWidth + lineExtras);
+				colCross[ci] = Math.max(colCross[ci], crossWidthByOriginal[oi] + itemCrossExtras[oi]);
 			}
+		}
+		if (!params.flexWrap.isWrap() && cols.size() == 1) {
+			// A single-line container's line is as wide as the container (§9.4 step 15), so align-items/align-self
+			// center and end place narrower items across the whole width (2026-10-08; they stayed at the start)
+			colCross[0] = Math.max(colCross[0], innerLine);
 		}
 		// Cross distribution of columns (wrap only) + stretch items following the resolved column width
 		CrossDistribution dist = new CrossDistribution(0, cols.size() > 1 ? axis.crossGap() : 0);
@@ -853,6 +927,9 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 */
 	@Override
 	public IntrinsicSizes getIntrinsicSizes() {
+		if (!this.flexBox.getFlexParams().flexDirection.isRow()) {
+			return this.columnIntrinsicSizes();
+		}
 		double min = 0, max = 0, minPage = 0;
 		boolean columnInflated = false;
 		final boolean wrap = this.flexBox.getFlexParams().flexWrap.isWrap();
@@ -891,6 +968,41 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			}
 		}
 		return new IntrinsicSizes(min, max, minPage, columnInflated);
+	}
+
+	/**
+	 * Intrinsic sizes of a column: the line axis is the cross axis, so the widest item decides min and max (§9.9.1;
+	 * with wrap too, as Chrome sizes a column-wrap container by its largest item), counting the item's own width but
+	 * not its flex-basis (a main-axis length). The page-axis min stacks the items and the gaps. Until 2026-10-08 the
+	 * row sum applied: a column holding an image and a few lines measured as wide as all of them side by side, and a
+	 * grid track sized by it pushed the card past the paper (frontiers-art, once column-flex stage 2 retained it).
+	 */
+	private IntrinsicSizes columnIntrinsicSizes() {
+		double min = 0, max = 0, minPage = 0;
+		boolean columnInflated = false;
+		for (final FlexItemContent item : this.items) {
+			final BlockParams itemParams = item.itemBox.getBlockParams();
+			final RectFrame frame = itemParams.frame;
+			final double extra = insetsLine(frame.margin, 0) + insetsLine(frame.padding, 0) + borderLine(frame);
+			double itemMin = item.sizes.minContent();
+			double itemMax = item.sizes.maxContent();
+			final double declared = lineValue(itemParams.size, 0);
+			if (!Double.isNaN(declared)) {
+				final double inner = itemParams.boxSizing == BoxSizingMode.BORDER_BOX
+						? Math.max(0, declared - insetsLine(frame.padding, 0) - borderLine(frame))
+						: declared;
+				itemMin = Math.max(itemMin, inner);
+				itemMax = Math.max(itemMax, inner);
+			}
+			min = Math.max(min, itemMin + extra);
+			max = Math.max(max, itemMax + extra);
+			minPage += item.sizes.minPage();
+			columnInflated |= item.sizes.columnInflated();
+		}
+		if (this.items.size() > 1) {
+			minPage += this.flexBox.getFlexParams().rowGap * (this.items.size() - 1);
+		}
+		return new IntrinsicSizes(min, Math.max(min, max), minPage, columnInflated);
 	}
 
 	/**

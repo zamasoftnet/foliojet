@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex: column with an indefinite main size placed as a whole (reverse, max, align-items, percentage heights, intrinsic width)</title>
+<style type="text/css">
+body { font: 12pt/20pt serif; margin: 0; }
+div { margin: 0; padding: 0; }
+.c { display: flex; flex-direction: column; margin-bottom: 10pt; }
+.r { flex-direction: column-reverse; }
+</style>
+</head>
+<body>
+<!-- r: column-reverse with length bases: the last item comes first -->
+<div class="c r"><div id="r1" style="flex: 0 1 40pt">T1</div><div id="r2" style="flex: 0 1 40pt">T2</div><div id="r3" style="flex: 0 1 40pt">T3</div></div>
+<!-- s: column-reverse with content bases: s2 has two lines -->
+<div class="c r" style="width: 16pt"><div id="s1">T4</div><div id="s2">T5 T6</div><div id="s3">T7</div></div>
+<!-- m: an absolute max-height shrinks the items to it (3 x 40pt into 60pt) -->
+<div class="c" style="max-height: 60pt"><div id="m1" style="flex: 0 1 40pt">T8</div><div id="m2" style="flex: 0 1 40pt">T9</div><div id="m3" style="flex: 0 1 40pt">T10</div></div>
+<!-- a: align-items:center centers narrower items across the container -->
+<div class="c" style="width: 200pt; align-items: center"><div id="a1" style="width: 40pt">T11</div><div id="a2" style="width: 80pt">T12</div></div>
+<!-- h: the same with a definite height: centered across the container, not across the widest item -->
+<div class="c" style="height: 60pt; width: 200pt; align-items: center"><div id="h1" style="width: 40pt; flex: 0 0 20pt">T16</div><div id="h2" style="width: 80pt; flex: 0 0 20pt">T17</div></div>
+<!-- t: a percentage height of an indefinite column behaves as auto: the aspect-ratio thumbnail takes 80pt -->
+<div class="c" style="width: 150pt; align-items: flex-start; gap: 6pt"><div id="t1" style="width: 100%; height: 100%; aspect-ratio: 1.875; background: #ccc"></div><div id="t2" style="width: 30pt; height: 12pt; background: #888"></div></div>
+<!-- w: a shrink-to-fit float holding such a column is as wide as its widest item (100pt), not the items side by side -->
+<div id="w0" style="float: left; background: #eee"><div class="c" style="align-items: flex-start"><div id="w1" style="width: 100pt">T18</div><div id="w2" style="width: 60pt">T19</div></div></div><div id="w3" style="overflow: hidden">T20</div><div style="clear: both"></div>
+<!-- v: vertical-rl column-reverse: the first item at the left, the last at the right -->
+<div class="c r" style="writing-mode: vertical-rl; height: 100pt"><div id="v1" style="flex: 0 1 30pt">T13</div><div id="v2" style="flex: 0 1 30pt">T14</div><div id="v3" style="flex: 0 1 30pt">T15</div></div>
+</body>
+</html>

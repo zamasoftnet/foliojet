@@ -75,7 +75,15 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	 */
 	private TwoPassBlockBuilder.DeferredBind deferredBind;
 
+	/**
+	 * The simulated measurement without the orthogonal contributions, kept when the body holds content of the other
+	 * writing mode (2026-10-08; null otherwise). {@link #bindDeferredContent} then measures that content by a trial
+	 * layout, as DocumentBuilder.shrinkToFitSizes does for floats and fixed boxes.
+	 */
+	private net.zamasoft.foliojet.layout.sizing.IntrinsicSizes sizesWithoutOrthogonal;
+
 	public final void prepareBind(TwoPassBlockBuilder builder) {
+		this.sizesWithoutOrthogonal = builder.hasOrthogonalContent() ? builder.intrinsicSizesWithoutOrthogonal() : null;
 		this.deferredBind = builder.detachDeferredBind();
 	}
 
@@ -207,7 +215,7 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			// sizes is a snapshot of simulated measurements (equivalent to the current intrinsicSizesMeasured();
 			// see the DeferredBind Javadoc). The lease is released in the bind's finally
 			// block.
-			this.shrinkToFit(containerBox, this.deferredBind.sizes());
+			this.shrinkToFit(containerBox, this.orthogonalSizes(containerBox, this.deferredBind.sizes()));
 			final BlockBuilder absoluteBuilder = new BlockBuilder(this.deferredBind.pageContext(), this);
 			final RetainedTextLimit limit = RetainedTextLimit.get(absoluteBuilder);
 			try (var retained = limit == null ? null
@@ -217,6 +225,34 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			}
 			this.deferredBind = null;
 		}
+	}
+
+	/**
+	 * The shrink-to-fit sizes with the actual line-axis extent of orthogonal content (2026-10-08). The simulated
+	 * measurement counts a table inside a child of the other writing mode as 0, which shrank the box to its frame and
+	 * left the table outside it. The sealed body is replayed into this box without being consumed
+	 * ({@code DeferredBind.measureInto}), the orthogonal extent is read, and the contents are discarded before the
+	 * real bind.
+	 */
+	private net.zamasoft.foliojet.layout.sizing.IntrinsicSizes orthogonalSizes(final IFramedBox containerBox,
+			final net.zamasoft.foliojet.layout.sizing.IntrinsicSizes measured) {
+		if (this.sizesWithoutOrthogonal == null || this.getColumnCount() > 1) {
+			return measured;
+		}
+		this.shrinkToFit(containerBox, measured);
+		try (net.zamasoft.foliojet.layout.fragment.ScratchReplayScope scope = new net.zamasoft.foliojet.layout.fragment.ScratchReplayScope()) {
+			final BlockBuilder trial = new BlockBuilder(this.deferredBind.pageContext(), this);
+			this.deferredBind.measureInto(trial);
+			trial.close();
+		}
+		final double extent = this.orthogonalContentLineExtent();
+		this.resetContentForRelayout();
+		if (!(extent > 0)) {
+			return measured;
+		}
+		final net.zamasoft.foliojet.layout.sizing.IntrinsicSizes base = this.sizesWithoutOrthogonal;
+		return new net.zamasoft.foliojet.layout.sizing.IntrinsicSizes(Math.max(base.minContent(), extent),
+				Math.max(base.maxContent(), extent), measured.minPage(), measured.columnInflated());
 	}
 
 	/**

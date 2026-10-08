@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex: column-reverse across pages keeps the visual order (cfp-6)</title>
+<style type="text/css">
+@page { size: 300pt 200pt; margin: 0; }
+body { font: 12pt/20pt serif; margin: 0; }
+div { margin: 0; padding: 0; }
+.i { border: 1pt solid black; }
+</style>
+</head>
+<body>
+<div style="display: flex; flex-direction: column-reverse"><div class="i" id="p1" style="flex: 0 0 80pt">T1</div><div class="i" id="p2" style="flex: 0 0 80pt">T2</div><div class="i" id="p3" style="flex: 0 0 80pt">T3</div><div class="i" id="p4" style="flex: 0 0 80pt">T4</div></div>
+</body>
+</html>

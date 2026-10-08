@@ -13,8 +13,8 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  * basis 60/80/100 + grow 1/1/2 distributes 60 free as 15/15/30: heights 75/95/130,
  * y=+0/+75/+170. Default cross-axis stretch gives width 200 pt (r has explicit width 80 pt).
  * justify-content: flex-end puts the remaining 70 pt at the start.
- * A column with indefinite basis/height falls back for the whole container
- * (single-column degradation + FLEX_COLUMN_FALLBACKS).
+ * A column item with an auto basis and an auto height is measured at its cross size (2026-10-08; until then the
+ * whole container fell back to one stacked column, FLEX_COLUMN_FALLBACKS_AUTO_MAIN).
  */
 public class FlexColumnFixedBasisTest extends AbstractTestCase {
 	public FlexColumnFixedBasisTest(String name) {
@@ -29,7 +29,7 @@ public class FlexColumnFixedBasisTest extends AbstractTestCase {
 				.get();
 		File file = new File("files/unittest/0510-flex/column-fixed-basis.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
-		assertEquals("auto高columnはコンテナ単位fallback(AUTO_MAIN_SIZE)", fallbacksBefore + 1,
+		assertEquals("auto高の項目は測ってfallbackしない", fallbacksBefore,
 				net.zamasoft.foliojet.layout.builder.impl.FlexBuilder.FLEX_COLUMN_FALLBACKS_AUTO_MAIN.get());
 	}
 
@@ -84,7 +84,7 @@ public class FlexColumnFixedBasisTest extends AbstractTestCase {
 		return false;
 	}
 
-	/** Fallback (single column): content stacks at full width without loss. */
+	/** The auto item follows the 25 pt item (no grow): the same stacking as the old fallback. */
 	public boolean check_fb2(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			assertEquals(this.e0Y + 100 + 25, y, 0.1);

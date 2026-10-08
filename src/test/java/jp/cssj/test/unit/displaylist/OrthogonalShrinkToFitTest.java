@@ -125,11 +125,15 @@ public class OrthogonalShrinkToFitTest extends TestCase {
 	 * right edge (x = 200 pt).
 	 */
 	private static String horizontalDocument(final String boxStyle) {
+		return horizontalDocument(boxStyle, "0");
+	}
+
+	private static String horizontalDocument(final String boxStyle, final String pageMargin) {
 		return """
 				<!DOCTYPE html>
 				<html xmlns="http://www.w3.org/1999/xhtml" lang="ja"><head><meta charset="UTF-8"/>
 				<style>
-				@page{size:300pt 150pt;margin:0}
+				@page{size:300pt 150pt;margin:%s}
 				body{margin:0;font-size:8pt}
 				.box{%s;background:#eef}
 				.v{writing-mode:vertical-lr}
@@ -139,7 +143,7 @@ public class OrthogonalShrinkToFitTest extends TestCase {
 				<p style="margin:0">T9</p><div class="box"><div class="v"><table><tr><td>1</td></tr><tr><td>2</td></tr>
 				<tr><td>3</td></tr><tr><td>4</td></tr><tr><td>5</td></tr></table></div></div>
 				</body></html>
-				""".formatted(boxStyle);
+				""".formatted(pageMargin, boxStyle);
 	}
 
 	public void testVerticalTableInHorizontalFloat() throws Exception {
@@ -148,6 +152,39 @@ public class OrthogonalShrinkToFitTest extends TestCase {
 
 	public void testVerticalTableInHorizontalFixed() throws Exception {
 		assertBoxAtRightEdge(convert("h-fixed", horizontalDocument("position:fixed;top:0;right:0")));
+	}
+
+	/**
+	 * position:absolute binds its body later from a sealed range; the trial layout replays it without consuming it
+	 * (2026-10-08).
+	 */
+	public void testVerticalTableInHorizontalAbsolute() throws Exception {
+		assertBoxAtRightEdge(convert("h-abs", horizontalDocument("position:absolute;top:0;right:0")));
+	}
+
+	/** Footnotes and page-margin notes are as wide as the table too (no Chrome counterpart: the table must fit). */
+	public void testVerticalTableInNotes() throws Exception {
+		assertBoxHoldsTable(convert("h-footnote", horizontalDocument("float:footnote")));
+		assertBoxHoldsTable(convert("h-note", horizontalDocument("float:-cssj-note-end", "0 120pt 0 0")));
+	}
+
+	/** The first box is at least as wide as the table and holds the cell text "5". */
+	private static void assertBoxHoldsTable(final String[] pages) {
+		final Matcher f = ANY_FRAME.matcher(pages[0]);
+		assertTrue("箱が無い", f.find());
+		final double x = Double.parseDouble(f.group(1));
+		final double w = Double.parseDouble(f.group(3));
+		assertTrue("箱が表より狭い: " + f.group(), w >= 100 - 0.5);
+		final Matcher t = TEXT.matcher(pages[0]);
+		boolean found = false;
+		while (t.find()) {
+			if (t.group(3).equals("5")) {
+				final double tx = Double.parseDouble(t.group(1));
+				assertTrue("箱の外の字: " + t.group() + " 箱 " + f.group(), tx >= x - 0.5 && tx <= x + w + 0.5);
+				found = true;
+			}
+		}
+		assertTrue("最後の行の字が無い", found);
 	}
 
 	private static final Pattern ANY_FRAME = Pattern

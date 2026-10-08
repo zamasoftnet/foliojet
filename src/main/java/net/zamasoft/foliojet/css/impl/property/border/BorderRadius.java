@@ -3,6 +3,8 @@ package net.zamasoft.foliojet.css.impl.property.border;
 import java.net.URI;
 
 import net.zamasoft.foliojet.css.CSSStyle;
+import net.zamasoft.foliojet.css.impl.property.box.LogicalSide;
+import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.token.TokenStream;
@@ -32,12 +34,59 @@ public final class BorderRadius extends AbstractPrimitivePropertyInfo {
 
 	private static final BorderRadius[] BY_CORNER = { TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT, BOTTOM_LEFT };
 
+	/**
+	 * Flow-relative corner radii (css-logical-1 §6.4, 2026-10-08): border-[block side]-[inline side]-radius. Which
+	 * physical corner they round follows the element's writing-mode and direction; until then they were aliases of
+	 * the horizontal ltr corners. The two radii are not swapped: as for the physical corners, the first is the
+	 * horizontal one.
+	 */
+	public static final BorderRadius START_START = new BorderRadius("start-start", LogicalSide.BLOCK_START,
+			LogicalSide.INLINE_START);
+
+	public static final BorderRadius START_END = new BorderRadius("start-end", LogicalSide.BLOCK_START,
+			LogicalSide.INLINE_END);
+
+	public static final BorderRadius END_START = new BorderRadius("end-start", LogicalSide.BLOCK_END,
+			LogicalSide.INLINE_START);
+
+	public static final BorderRadius END_END = new BorderRadius("end-end", LogicalSide.BLOCK_END,
+			LogicalSide.INLINE_END);
+
+	private static final BorderRadius[] LOGICAL = { START_START, START_END, END_START, END_END };
+
+	private final LogicalSide blockSide, inlineSide;
+
 	private BorderRadius(Corner corner) {
 		super("border-" + corner.text() + "-radius");
+		this.blockSide = null;
+		this.inlineSide = null;
+	}
+
+	private BorderRadius(final String logical, final LogicalSide blockSide, final LogicalSide inlineSide) {
+		super("border-" + logical + "-radius");
+		this.blockSide = blockSide;
+		this.inlineSide = inlineSide;
+	}
+
+	/** The physical corner a flow-relative radius rounds under the element's writing-mode and direction. */
+	private Corner physicalCorner(final CSSStyle style) {
+		final Side a = this.blockSide.toPhysical(style);
+		final Side b = this.inlineSide.toPhysical(style);
+		final boolean top = a == Side.TOP || b == Side.TOP;
+		final boolean left = a == Side.LEFT || b == Side.LEFT;
+		return top ? (left ? Corner.TOP_LEFT : Corner.TOP_RIGHT) : (left ? Corner.BOTTOM_LEFT : Corner.BOTTOM_RIGHT);
 	}
 
 	public static Radius get(CSSStyle style, Corner corner) {
-		final BorderRadiusValue r = (BorderRadiusValue) style.get(BY_CORNER[corner.ordinal()]);
+		BorderRadius info = BY_CORNER[corner.ordinal()];
+		for (final BorderRadius logical : LOGICAL) {
+			// The later of the physical and the flow-relative declaration wins (css-logical-1 §4)
+			if (logical.physicalCorner(style) == corner && LogicalSide.logicalWins(style, info, logical)) {
+				info = logical;
+				break;
+			}
+		}
+		final BorderRadiusValue r = (BorderRadiusValue) style.get(info);
 		// Keep percentage components as ratios; resolve them during rendering once dimensions are known.
 		final double hr, hrRatio, vr, vrRatio;
 		if (r.hr instanceof PercentageValue percent) {

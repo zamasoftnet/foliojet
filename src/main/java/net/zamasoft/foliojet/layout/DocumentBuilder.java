@@ -1366,7 +1366,8 @@ public class DocumentBuilder implements TableBuilderHost {
 					}
 					if (entry.builder.isTwoPass()) {
 						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-						noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+						noteBox.shrinkToFit(parentBuilder, this.shrinkToFitSizes(noteBox, contentBuilder, parentBuilder),
+								false);
 						final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
 						contentBuilder.bind(noteBuilder, this.replayIntent);
 						noteBuilder.close();
@@ -1417,9 +1418,11 @@ public class DocumentBuilder implements TableBuilderHost {
 						final double hostLineSize = this.pageContext() instanceof RootBuilder root
 								? root.getFootnoteLineSize(parentBuilder, footnoteOwner) : LayoutUtils.NONE;
 						if (LayoutUtils.isNone(hostLineSize)) {
-							noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+							noteBox.shrinkToFit(parentBuilder, this.shrinkToFitSizes(noteBox, contentBuilder, parentBuilder),
+									false);
 						} else {
-							noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false, hostLineSize);
+							noteBox.shrinkToFit(parentBuilder, this.shrinkToFitSizes(noteBox, contentBuilder,
+									sizes -> noteBox.shrinkToFit(parentBuilder, sizes, false, hostLineSize)), false, hostLineSize);
 						}
 						final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
 						// Do not consume during disposable measurement, for the same reason as floats.
@@ -1796,10 +1799,10 @@ public class DocumentBuilder implements TableBuilderHost {
 	/**
 	 * {@link #shrinkToFitSizes(net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox, TwoPassBlockBuilder, Builder)}
 	 * for any box; {@code shrink} applies provisional sizes to the box before the trial layout. Used directly by
-	 * normal floats and fixed positioning (2026-10-08). The other shrink-to-fit sites still take the simulated
-	 * measurement as is, so with a table inside a child of the other writing mode the box shrinks to its frame (a
-	 * footnote to its label) and the table sticks out of it: absolute positioning, whose body is bound later from a
-	 * sealed range (DeferredBind) and has no place for a trial layout here, footnotes and page-margin notes.
+	 * normal floats and fixed positioning (2026-10-08), and by footnotes and page-margin notes (the same day). Absolute
+	 * positioning still takes the simulated measurement as is, so with a table inside a child of the other writing
+	 * mode the box shrinks to its frame and the table sticks out of it: its body is bound later from a sealed range
+	 * (DeferredBind) and has no place for a trial layout here.
 	 */
 	private net.zamasoft.foliojet.layout.sizing.IntrinsicSizes shrinkToFitSizes(final AbstractBlockBox box,
 			final TwoPassBlockBuilder content,

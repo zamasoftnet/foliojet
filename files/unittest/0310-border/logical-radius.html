@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flow-relative corner radii follow writing-mode and direction; the later declaration wins</title>
+<style type="text/css">
+body { margin: 0; font-size: 10pt; }
+div { width: 60pt; height: 40pt; border: 2pt solid black; margin: 4pt; }
+</style>
+</head>
+<body>
+<div id="a" style="border-start-start-radius: 10pt 20pt">A</div>
+<div id="b" style="direction: rtl; border-start-start-radius: 10pt 20pt">B</div>
+<div id="c" style="writing-mode: vertical-rl; border-start-start-radius: 10pt 20pt">C</div>
+<div id="d" style="writing-mode: vertical-lr; border-start-start-radius: 10pt 20pt; border-end-end-radius: 6pt">D</div>
+<div id="e" style="border-radius: 4pt; border-start-start-radius: 10pt">E</div>
+<div id="f" style="border-start-start-radius: 10pt; border-top-left-radius: 4pt">F</div>
+<div id="g" style="writing-mode: vertical-rl; border-end-start-radius: 8pt">G</div>
+</body>
+</html>

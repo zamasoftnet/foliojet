@@ -99,6 +99,45 @@ final class FlexItemContent {
 		}
 	}
 
+	/**
+	 * Whether the item's column main size depends on its content: {@code flex-basis: content}, or {@code auto} with
+	 * an auto page-axis size (2026-10-08, for {@link #measureMain}).
+	 */
+	boolean hasContentMain(final net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
+		return this.spec.basis().isContent() || (this.spec.basis().isAuto() && this.itemBox.getBlockParams().size
+				.getPageType(flow) == net.zamasoft.foliojet.layout.box.params.LengthType.AUTO);
+	}
+
+	/**
+	 * Measures the inner page-axis size the item's content takes at {@code lineSize}, for a column flex whose basis
+	 * depends on the content (2026-10-08, design: docs/design/column-flex-indefinite-main-design.md §4-2). The body is
+	 * replayed into an empty replica of the item without being consumed ({@code DeferredBind.measureInto}, as table
+	 * Pass B does), and the replica is dropped; the real bind follows once. Until then such containers fell back to
+	 * stacking the items in one column (F4c).
+	 *
+	 * @return the content's page-axis size, or NaN if the item cannot be replicated (multi-column item)
+	 */
+	double measureMain(final BlockBuilder host, final double lineSize, final double insetBase,
+			final net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
+		final FlexItemBox replica = this.itemBox.newMeasureReplica();
+		if (replica == null) {
+			return Double.NaN;
+		}
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = replica.getFrame();
+		net.zamasoft.foliojet.layout.util.LayoutUtils.computePaddings(frame.padding, frame.frame.padding,
+				insetBase);
+		net.zamasoft.foliojet.layout.util.LayoutUtils.computeMarginsAutoToZero(frame.margin, frame.frame.margin,
+				insetBase);
+		replica.setFlexMainSize(lineSize, replica.getBlockParams().flow.isVertical());
+		replica.applyAspectRatio(lineSize);
+		try (net.zamasoft.foliojet.layout.fragment.ScratchReplayScope scope = new net.zamasoft.foliojet.layout.fragment.ScratchReplayScope()) {
+			final BlockBuilder builder = new BlockBuilder(host, replica);
+			this.content.measureInto(builder);
+			builder.close();
+		}
+		return replica.getInnerPageExtent(flow);
+	}
+
 	/** Validates only and lists items to terminate after acquiring the parent lease. */
 	boolean collectAbsorbable(final net.zamasoft.foliojet.layout.fragment.LayoutSource log,
 			final long fromId, final long toId, final java.util.List<RangeHandle> outRanges,
