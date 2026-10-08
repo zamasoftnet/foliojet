@@ -13,6 +13,11 @@ import net.zamasoft.foliojet.layout.box.IBox;
  * The marker is a child style of li, so li's non-inherited properties stay off the marker box (2026-10-08, sweep fit
  * seed 12475813). With li's own style, {@code li { height: 96pt }} made the marker, and with it the first line, 96 pt
  * tall: the second line dropped to the bottom of the li (Chrome keeps the lines 12 pt apart).
+ *
+ * <p>
+ * The bullet images (disc, circle, square) do not make the first line taller than the line height (2026-10-08): the
+ * line inside the marker box gets the strut, and the image is 0.7em tall. The first line used to be 14.4 pt.
+ * </p>
  */
 public class MarkerOwnStyleTest extends AbstractTestCase {
 	public MarkerOwnStyleTest(String name) {
@@ -25,9 +30,11 @@ public class MarkerOwnStyleTest extends AbstractTestCase {
 		File file = new File("files/unittest/0290-list-style-position/marker-own-style.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 		final double reference = y("a2") - y("a1");
-		assertTrue("line pitch " + reference, reference < 20);
+		assertEquals(12, reference, 0.1);
 		assertEquals(reference, y("b2") - y("b1"), 0.1);
-		assertTrue("inside marker line pitch " + (y("c2") - y("c1")), y("c2") - y("c1") < 20);
+		assertEquals(12, y("c2") - y("c1"), 0.1);
+		assertEquals(12, y("d2") - y("d1"), 0.1);
+		assertEquals(12, y("e2") - y("e1"), 0.1);
 	}
 
 	private double y(final String id) {
@@ -65,5 +72,21 @@ public class MarkerOwnStyleTest extends AbstractTestCase {
 
 	public boolean check_c2(IBox box, int pageNumber, double x, double y) {
 		return this.record("c2", box, x, y);
+	}
+
+	public boolean check_d1(IBox box, int pageNumber, double x, double y) {
+		return this.record("d1", box, x, y);
+	}
+
+	public boolean check_d2(IBox box, int pageNumber, double x, double y) {
+		return this.record("d2", box, x, y);
+	}
+
+	public boolean check_e1(IBox box, int pageNumber, double x, double y) {
+		return this.record("e1", box, x, y);
+	}
+
+	public boolean check_e2(IBox box, int pageNumber, double x, double y) {
+		return this.record("e2", box, x, y);
 	}
 }

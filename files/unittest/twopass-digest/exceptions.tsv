@@ -18,7 +18,8 @@
 # 2026-09-06 T5c(block-level absolute の静的位置=先行行の後)で 022-NEST p1 の範囲側 digest を更新。旧経路(absolute を先行文字より先に記録)とは依然不一致。
 # 2026-09-11 内蔵CIDフォントの幅表(、。　を全角)の修正で 022-NEST p1 の範囲側 digest を更新。旧経路の digest は凍結のまま。
 # 2026-10-08 marker を li の子スタイルにした(li の width:101pt が marker に乗らない)と直交する最初の子の前で marker を出す修正で、vertical-table-first-cell-reading-order p2-4 の範囲側 digest を更新。
-fuzz-repro/vertical-table-first-cell-reading-order.html	2	LEGACY_STRUT_REUSE	945399d8f7ce34204f16c67c1a89e65ded9f62ce6981c61ea74f3702c2eaf4d9	b88ee036499c302b90727a1c516c70832f53a630735d5825bac68f413c4aca89
-fuzz-repro/vertical-table-first-cell-reading-order.html	3	LEGACY_STRUT_REUSE	74031c2ff4c07d429b72de2c23ab09d8098f726003f617416d6cc3850f47275d	0016b4ff8b0dccbaf7e616165bbe027d028be63b1e862f9ee3807fb1bc37de9e
-fuzz-repro/vertical-table-first-cell-reading-order.html	4	LEGACY_STRUT_REUSE	2dd61fae06837e58ae0dfa44371acf69f67e3b38cf5cb7929e0ac1b7cd9985cc	9d1503123203e056b4267e0884f0c508ad8ea7adbe33b63df63b10b32ab53524
+# 2026-10-08 disc・circle・square の marker が最初の行を押し広げなくなった(画像 0.7em・marker の行に支柱)ので、同じ p2-4 の範囲側 digest を更新。
+fuzz-repro/vertical-table-first-cell-reading-order.html	2	LEGACY_STRUT_REUSE	945399d8f7ce34204f16c67c1a89e65ded9f62ce6981c61ea74f3702c2eaf4d9	b7d1acb27d19f95d9d63150274b1169ab7c9568b6e6f6e09446eed7f7d4182fd
+fuzz-repro/vertical-table-first-cell-reading-order.html	3	LEGACY_STRUT_REUSE	74031c2ff4c07d429b72de2c23ab09d8098f726003f617416d6cc3850f47275d	f8b6850807b0cb4e3310b089f470de3116d55876e725efe2e505e5f554ccaac1
+fuzz-repro/vertical-table-first-cell-reading-order.html	4	LEGACY_STRUT_REUSE	2dd61fae06837e58ae0dfa44371acf69f67e3b38cf5cb7929e0ac1b7cd9985cc	f4d0602062d68342eff257f8749721d8b08f8c07029d4654ea68ca869593d588
 imageTest/legacy/0110-absolute/022-NEST.html	1	LEGACY_STATIC_ABSOLUTE_ORDER	f831403be50a008a1e11f3a28df9b7c700aef1129f64b8d0f2f978577c4dadc7	464b8fa1d10876c23ca775ee7c3e12eeb1f7963bb6ebc3b42d10f9b6859b4dfc

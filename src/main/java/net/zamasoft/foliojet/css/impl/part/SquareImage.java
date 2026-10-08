@@ -5,28 +5,16 @@ import java.awt.geom.Rectangle2D;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
-import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 
 /**
+ * The {@code square} list marker (see {@link ListBulletImage}).
+ *
  * @author MIYABE Tatsuhiko
  */
-public class SquareImage implements Image {
-	protected final double size;
-
-	protected final Color color;
-
+public class SquareImage extends ListBulletImage {
 	public SquareImage(FontStyle fontStyle, Color color) {
-		this.size = fontStyle.getSize();
-		this.color = color;
-	}
-
-	public double getWidth() {
-		return this.size;
-	}
-
-	public double getHeight() {
-		return this.size;
+		super(fontStyle, color);
 	}
 
 	public String getAltString() {
@@ -35,11 +23,8 @@ public class SquareImage implements Image {
 
 	public void drawTo(GC gc) throws GraphicsException {
 		try (final var gcState = gc.begin()) {
-
 			gc.setFillPaint(this.color);
-
-			double d = this.size * 0.35;
-			gc.fill(new Rectangle2D.Double(this.size / 2.0 - d / 2.0, this.size * 0.2 + this.size / 2.0 - d / 2.0, d, d));
+			gc.fill(this.bullet());
 		}
 	}
 }

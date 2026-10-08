@@ -1,32 +1,21 @@
 package net.zamasoft.foliojet.css.impl.part;
 
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.Rectangle2D;
 
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
-import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 
 /**
+ * The {@code circle} list marker (see {@link ListBulletImage}).
+ *
  * @author MIYABE Tatsuhiko
  */
-public class CircleImage implements Image {
-	private final double size;
-
-	private final Color color;
-
+public class CircleImage extends ListBulletImage {
 	public CircleImage(FontStyle fontStyle, Color color) {
-		this.size = fontStyle.getSize();
-		this.color = color;
-	}
-
-	public double getWidth() {
-		return this.size;
-	}
-
-	public double getHeight() {
-		return this.size;
+		super(fontStyle, color);
 	}
 
 	public String getAltString() {
@@ -35,14 +24,11 @@ public class CircleImage implements Image {
 
 	public void drawTo(GC gc) throws GraphicsException {
 		try (final var gcState = gc.begin()) {
-
 			gc.setFillPaint(this.color);
 			gc.setLineWidth(this.size / 24.0);
 			gc.setLinePattern(GC.STROKE_SOLID);
-
-			double d = this.size * 0.35;
-			gc.draw(new Ellipse2D.Double(this.size / 2.0 - d / 2.0, this.size * 0.2 + this.size / 2.0 - d / 2.0, d, d));
-
+			final Rectangle2D b = this.bullet();
+			gc.draw(new Ellipse2D.Double(b.getX(), b.getY(), b.getWidth(), b.getHeight()));
 		}
 	}
 }

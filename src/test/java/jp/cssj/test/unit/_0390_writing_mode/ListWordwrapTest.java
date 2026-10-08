@@ -22,7 +22,8 @@ public class ListWordwrapTest extends AbstractTestCase {
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 		assertNotNull("no outside marker drawn", this.marker);
 		assertEquals(163, this.marker[0], 1);
-		assertEquals(25, this.marker[1], 0);
+		// The bullet image is 0.7em long (ListBulletImage, 2026-10-08), so the box starts 3pt later; the dot stays at 32.
+		assertEquals(28, this.marker[1], 0);
 		assertEquals(0, this.marker[2], 0);
 	}
 

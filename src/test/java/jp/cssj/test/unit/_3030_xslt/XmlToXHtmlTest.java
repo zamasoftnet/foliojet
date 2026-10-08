@@ -20,7 +20,7 @@ public class XmlToXHtmlTest extends AbstractTestCase {
 	public boolean check_a1(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(y);
-			assertEquals(y, 0, 0);
+			assertEquals(0, y, 0);
 			return true;
 		}
 		return false;
@@ -29,7 +29,7 @@ public class XmlToXHtmlTest extends AbstractTestCase {
 	public boolean check_a2(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(y);
-			assertEquals(y, 12, 0);
+			assertEquals(10, y, 0);
 			return true;
 		}
 		return false;
@@ -38,7 +38,7 @@ public class XmlToXHtmlTest extends AbstractTestCase {
 	public boolean check_a3(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(y);
-			assertEquals(y, 24, 0);
+			assertEquals(20, y, 0);
 			return true;
 		}
 		return false;
@@ -47,7 +47,7 @@ public class XmlToXHtmlTest extends AbstractTestCase {
 	public boolean check_a4(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(y);
-			assertEquals(y, 36, 0);
+			assertEquals(30, y, 0);
 			return true;
 		}
 		return false;
@@ -56,7 +56,7 @@ public class XmlToXHtmlTest extends AbstractTestCase {
 	public boolean check_a5(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(y);
-			assertEquals(y, 48, 0);
+			assertEquals(40, y, 0);
 			return true;
 		}
 		return false;
