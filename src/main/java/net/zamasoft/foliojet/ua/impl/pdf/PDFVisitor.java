@@ -43,6 +43,13 @@ public class PDFVisitor extends AbstractVisitor {
 	/** Radio buttons grouped by field name, awaiting emission at page end. */
 	private final java.util.Map<String, RadioBuilder> pendingRadios = new java.util.LinkedHashMap<>();
 
+	/**
+	 * Destination names already written to this output (2026-10-08). An element split across pages registers each
+	 * fragment under its id, and the PDF's name tree kept the last one: a link to a chapter landed on the chapter's last
+	 * page, while target-counter() gave its first. The first registration is the element's start.
+	 */
+	private final java.util.Set<String> fragmentNames = new java.util.HashSet<>();
+
 	/** Accumulates the buttons of one radio group (shared field name). */
 	private static final class RadioBuilder {
 		final String tooltip;
@@ -323,6 +330,9 @@ public class PDFVisitor extends AbstractVisitor {
 	}
 
 	protected void addFragment(String id, Point2D location) {
+		if (!this.fragmentNames.add(id)) {
+			return;
+		}
 		PDFPageOutput pdfOut = (PDFPageOutput) this.gc.getPDFGraphicsOutput();
 		AffineTransform at = gc.getTransform();
 		if (at != null) {

@@ -162,11 +162,14 @@ public class PassContext {
 		this.sharedImposition = imposition;
 	}
 
-	/** Documents whose start has been registered as a link target in this pass (see {@code AbstractVisitor}). */
-	private final java.util.Set<java.net.URI> startedDocuments = new java.util.HashSet<>();
+	/**
+	 * Documents whose start has been registered as a link target in this pass, by their destination names (see
+	 * {@code AbstractVisitor}; the names of a later conversion into the same output carry its number).
+	 */
+	private final java.util.Set<String> startedDocuments = new java.util.HashSet<>();
 
 	/** Records the start of a document's output; {@code false} if it was already recorded in this pass. */
-	public boolean startDocumentOutput(final java.net.URI document) {
+	public boolean startDocumentOutput(final String document) {
 		return this.startedDocuments.add(document);
 	}
 }

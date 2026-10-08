@@ -175,6 +175,15 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		this.sessionMessages = messageHandler;
 	}
 
+	/**
+	 * An item's UA reports a style sheet warning only if no item of the book has (2026-10-08): the items share their
+	 * style sheets, and the same warning came once per item.
+	 */
+	@Override
+	protected net.zamasoft.foliojet.ua.UAContext warningContext() {
+		return this.parent != null ? this.parent.getUAContext() : super.warningContext();
+	}
+
 	@Override
 	public void prepare(final PrepareMode mode) {
 		super.prepare(mode);

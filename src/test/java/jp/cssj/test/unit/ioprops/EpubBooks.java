@@ -164,6 +164,9 @@ final class EpubBooks {
 		if (href.endsWith(".png")) {
 			return "image/png";
 		}
+		if (href.endsWith(".otf")) {
+			return "font/otf";
+		}
 		return "application/xhtml+xml";
 	}
 

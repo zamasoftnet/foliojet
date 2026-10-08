@@ -31,6 +31,13 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * back to Helvetica with no word about the {@code @font-face}. The document's own fonts now rank after the ones the policy
  * selects; a family that only the document provides gets its font, embedded.
  * </p>
+ *
+ * <p>
+ * The families of {@code font-family} are taken in their order, the document's faces of a family before the installed
+ * fonts of that family (2026-10-08): every document face used to come before every installed family, so an installed
+ * family named first lost to the document's family named after it. Under the cid-identity policy the document's font
+ * was written without embedding.
+ * </p>
  */
 public class FontFacePolicyTest extends TestCase {
 	private static List<String> fonts(final String fontPolicy) throws Exception {
@@ -38,10 +45,15 @@ public class FontFacePolicyTest extends TestCase {
 	}
 
 	private static List<String> fonts(final String fontPolicy, final String localFirst) throws Exception {
+		return fonts(fontPolicy, localFirst, "'own', sans-serif");
+	}
+
+	private static List<String> fonts(final String fontPolicy, final String localFirst, final String families)
+			throws Exception {
 		final String src = new File("files/unittest/1080-FONT/MinionPro-Regular.otf").getAbsoluteFile().toURI().toString();
 		final String html = "<!DOCTYPE html><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta charset=\"UTF-8\"/>"
 				+ "<style>@font-face { font-family: 'own'; src: " + localFirst + "url('" + src + "') }"
-				+ " p { font-family: 'own', sans-serif }"
+				+ " p { font-family: " + families + " }"
 				+ "</style></head><body><p>April is the cruellest month</p></body></html>";
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
@@ -88,5 +100,17 @@ public class FontFacePolicyTest extends TestCase {
 	public void testCidKeyedPolicyUsesTheDocumentsFont() throws Exception {
 		final List<String> fonts = fonts("cid-keyed");
 		assertTrue(fonts.toString(), fonts.size() == 1 && fonts.get(0).contains("MinionPro"));
+	}
+
+	public void testCidIdentityPolicyEmbedsTheDocumentsFont() throws Exception {
+		final List<String> fonts = fonts("cid-identity");
+		assertTrue(fonts.toString(), fonts.size() == 1 && fonts.get(0).contains("MinionPro")
+				&& fonts.get(0).endsWith("/embedded"));
+	}
+
+	public void testInstalledFamilyNamedFirstWins() throws Exception {
+		final List<String> fonts = fonts(null, "", "Helvetica, 'own'");
+		assertEquals(fonts.toString(), 1, fonts.size());
+		assertTrue("先に書いた Helvetica が字を持つ: " + fonts, fonts.get(0).contains("Helvetica"));
 	}
 }

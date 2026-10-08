@@ -22,11 +22,39 @@ public class UAContext {
 
 	private final ImageMetricsCache imageMetrics = new ImageMetricsCache();
 
-	private final CounterStyles counterStyles = new CounterStyles();
+	/**
+	 * The document being laid out when several documents go into one output (the spine items of an EPUB, see
+	 * {@code UserAgent.beginDocument}), or {@code null} for a single document. The named definitions below
+	 * ({@code @counter-style}, {@code @font-feature-values}, {@code @font-palette-values}) belong to the document that
+	 * declares them (2026-10-08): with one registry per conversion, an item that used a name without defining it got
+	 * the definition of an earlier item, and with two passes a later item's definition reached an earlier item.
+	 */
+	private java.net.URI currentDocument = null;
 
-	private final FontFeatureValues fontFeatureValues = new FontFeatureValues();
+	private final Map<java.net.URI, CounterStyles> counterStyles = new HashMap<>();
 
-	private final FontPaletteValues fontPaletteValues = new FontPaletteValues();
+	private final Map<java.net.URI, FontFeatureValues> fontFeatureValues = new HashMap<>();
+
+	private final Map<java.net.URI, FontPaletteValues> fontPaletteValues = new HashMap<>();
+
+	public void setCurrentDocument(final java.net.URI document) {
+		this.currentDocument = document;
+	}
+
+	/**
+	 * The number of the conversion into this context's output: 1, and 2, 3, ... for the later conversions of a
+	 * continuous session ({@code setContinuous(true)}) that share the output (2026-10-08).
+	 */
+	private int conversionNumber = 0;
+
+	public int getConversionNumber() {
+		return this.conversionNumber;
+	}
+
+	/** Starts a conversion into this context's output. */
+	public void nextConversion() {
+		++this.conversionNumber;
+	}
 
 	private FootnoteArea footnoteArea = FootnoteArea.DEFAULT;
 
@@ -120,22 +148,23 @@ public class UAContext {
 	 * Registry of author-defined counter styles ({@code @counter-style}), 2026-08-02.
 	 * Placed here rather than in {@code DocumentContext}, which is recreated each pass,
 	 * to preserve name-to-code mappings across passes (same lifetime as {@link PageRef}).
+	 * One per document of the output (see {@link #setCurrentDocument}).
 	 */
 	public CounterStyles getCounterStyles() {
-		return this.counterStyles;
+		return this.counterStyles.computeIfAbsent(this.currentDocument, k -> new CounterStyles());
 	}
 
-	/** {@code @font-feature-values} registry shared across layout passes. */
+	/** {@code @font-feature-values} registry shared across layout passes, one per document of the output. */
 	public FontFeatureValues getFontFeatureValues() {
-		return this.fontFeatureValues;
+		return this.fontFeatureValues.computeIfAbsent(this.currentDocument, k -> new FontFeatureValues());
 	}
 
 	/**
-	 * {@code @font-palette-values} registry shared across layout passes.
+	 * {@code @font-palette-values} registry shared across layout passes, one per document of the output.
 	 * Definitions are used only for name resolution and do not affect rendering.
 	 */
 	public FontPaletteValues getFontPaletteValues() {
-		return this.fontPaletteValues;
+		return this.fontPaletteValues.computeIfAbsent(this.currentDocument, k -> new FontPaletteValues());
 	}
 	
 	public Map<Object, ImageMap> getImageMaps() {
@@ -274,5 +303,56 @@ public class UAContext {
 
 	public void setDocumentSet(final java.util.Set<java.net.URI> documentSet) {
 		this.documentSet = documentSet;
+		this.normalizedDocuments = null;
+	}
+
+	/** The documents of the set by their normalized spelling ({@link #normalizeEscapes}). */
+	private Map<String, java.net.URI> normalizedDocuments = null;
+
+	/**
+	 * The document of the set that {@code uri} names, or {@code null} (2026-10-08). Percent-escapes are compared as
+	 * RFC 3986 §6.2.2 does: an escaped unreserved character is the character ({@code c%68apter.xhtml} names
+	 * {@code chapter.xhtml}), and the hex digits of other escapes are compared without regard to case.
+	 */
+	public synchronized java.net.URI findDocument(final java.net.URI uri) {
+		if (this.documentSet == null || uri == null) {
+			return null;
+		}
+		if (this.documentSet.contains(uri)) {
+			return uri;
+		}
+		if (this.normalizedDocuments == null) {
+			this.normalizedDocuments = new HashMap<>();
+			for (final java.net.URI document : this.documentSet) {
+				this.normalizedDocuments.putIfAbsent(normalizeEscapes(document.toString()), document);
+			}
+		}
+		return this.normalizedDocuments.get(normalizeEscapes(uri.toString()));
+	}
+
+	/** Decodes escaped unreserved characters and writes the hex digits of the other escapes in upper case. */
+	static String normalizeEscapes(final String uri) {
+		if (uri.indexOf('%') < 0) {
+			return uri;
+		}
+		final StringBuilder b = new StringBuilder(uri.length());
+		for (int i = 0; i < uri.length(); ++i) {
+			final char c = uri.charAt(i);
+			if (c == '%' && i + 2 < uri.length() && Character.digit(uri.charAt(i + 1), 16) >= 0
+					&& Character.digit(uri.charAt(i + 2), 16) >= 0) {
+				final char decoded = (char) Integer.parseInt(uri.substring(i + 1, i + 3), 16);
+				if ((decoded >= 'A' && decoded <= 'Z') || (decoded >= 'a' && decoded <= 'z')
+						|| (decoded >= '0' && decoded <= '9') || decoded == '-' || decoded == '.' || decoded == '_'
+						|| decoded == '~') {
+					b.append(decoded);
+				} else {
+					b.append('%').append(uri.substring(i + 1, i + 3).toUpperCase(java.util.Locale.ROOT));
+				}
+				i += 2;
+			} else {
+				b.append(c);
+			}
+		}
+		return b.toString();
 	}
 }

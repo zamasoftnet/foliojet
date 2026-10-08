@@ -208,6 +208,19 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 	}
 
 
+	@Override
+	protected void clearDocumentFontFaces() {
+		super.clearDocumentFontFaces();
+		// Only the managers that exist: asking for the output's manager would open the PDF before the document's
+		// processing instructions and meta information are read
+		if (this.nonOutputFontManager != null) {
+			this.nonOutputFontManager.clearFontFaces();
+		}
+		if (this.pdfWriter != null) {
+			this.pdfWriter.getFontManager().clearFontFaces();
+		}
+	}
+
 	public FontManager getFontManager() {
 		if (this.isNonOutputPass()) {
 			if (this.nonOutputFontManager == null) {

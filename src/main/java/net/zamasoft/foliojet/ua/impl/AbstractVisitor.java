@@ -26,6 +26,7 @@ import net.zamasoft.foliojet.ua.PageRef;
 import net.zamasoft.foliojet.ua.PendingStringSet;
 import net.zamasoft.foliojet.ua.SectionState;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.ua.props.OutputPdfHyperlinksHref;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.Constants;
 import net.zamasoft.foliojet.xml.vocab.CSSJML;
@@ -260,7 +261,17 @@ public abstract class AbstractVisitor implements Visitor {
 		if (document == null || this.ua.getUAContext().getDocumentSet() == null) {
 			return id;
 		}
-		return document + "#" + id;
+		return this.documentName(document) + "#" + id;
+	}
+
+	/**
+	 * The name of a document of the set in the output's destinations. From the second conversion into the same output
+	 * ({@code setContinuous(true)}) on, it starts with the conversion's number, because two books may hold an item at
+	 * the same path (2026-10-08).
+	 */
+	private String documentName(final URI document) {
+		final int conversion = this.ua.getUAContext().getConversionNumber();
+		return conversion <= 1 ? document.toString() : conversion + ":" + document;
 	}
 
 	/**
@@ -268,23 +279,32 @@ public abstract class AbstractVisitor implements Visitor {
 	 * inside one of them becomes an internal link to its qualified destination ({@link #destinationName}; the start
 	 * of the document when there is no fragment). Previously such links were written as relative URIs, which PDF
 	 * viewers try to open as files. Other links stay as written.
+	 *
+	 * @param resolved whether {@code href} is already resolved against the document's base: the targets of image map
+	 *                 areas, and links when {@code output.pdf.hyperlinks.href} is {@code absolute}. The documents of
+	 *                 an EPUB have relative URIs ({@code OEBPS/text/a.xhtml}), so resolving such a link again went
+	 *                 down one more directory and missed the item.
 	 */
-	private URI linkTarget(final URI href) {
+	private URI linkTarget(final URI href, final boolean resolved) {
 		final java.util.Set<URI> documents = this.ua.getUAContext().getDocumentSet();
 		final DocumentContext context = this.ua.getDocumentContext();
 		if (href == null || documents == null || context.getBaseURI() == null) {
 			return href;
 		}
 		try {
-			final URI resolved = URIHelper.resolve(context.getEncoding(), context.getBaseURI(), href.toString());
-			final String raw = resolved.toString();
+			final URI target = resolved ? href
+					: URIHelper.resolve(context.getEncoding(), context.getBaseURI(), href.toString());
+			final String raw = target.toString();
 			final int hash = raw.indexOf('#');
-			final URI document = hash < 0 ? resolved : new URI(raw.substring(0, hash));
-			if (!documents.contains(document)) {
+			// Percent-escapes of unreserved characters name the same item (c%68apter.xhtml is chapter.xhtml)
+			final URI document = this.ua.getUAContext()
+					.findDocument(hash < 0 ? target : new URI(raw.substring(0, hash)));
+			if (document == null) {
 				return href;
 			}
-			final String fragment = resolved.getFragment();
-			final String name = fragment == null || fragment.isEmpty() ? document.toString() : document + "#" + fragment;
+			final String fragment = target.getFragment();
+			final String name = fragment == null || fragment.isEmpty() ? this.documentName(document)
+					: this.documentName(document) + "#" + fragment;
 			return new URI(null, null, name);
 		} catch (final URISyntaxException e) {
 			return href;
@@ -300,7 +320,7 @@ public abstract class AbstractVisitor implements Visitor {
 			final PageRef pageRef, final PageRef counterRef) {
 		final URI document = this.ua.getDocumentContext().getDocumentURI();
 		if (document == null || this.ua.getUAContext().getDocumentSet() == null
-				|| !this.ua.getPassContext().startDocumentOutput(document)) {
+				|| !this.ua.getPassContext().startDocumentOutput(this.documentName(document))) {
 			return;
 		}
 		if (this.fragments || pageRef != null) {
@@ -308,7 +328,7 @@ public abstract class AbstractVisitor implements Visitor {
 			if (!transform.isIdentity()) {
 				location = transform.transform(location, location);
 			}
-			this.addFragment(document.toString(), location);
+			this.addFragment(this.documentName(document), location);
 		}
 		if (counterRef != null) {
 			counterRef.addFragment(document, this.getCounters(), null);
@@ -379,7 +399,10 @@ public abstract class AbstractVisitor implements Visitor {
 				final StringBuilder tb = new StringBuilder();
 				appendSemanticText(box, tb);
 				String contents = tb.toString().trim();
-				this.addLink(s, this.linkTarget(uri), ce, contents.isEmpty() ? null : contents);
+				// CSSProcessor resolved the href when output.pdf.hyperlinks.href is absolute (fragments stay as written)
+				final boolean resolved = !href.startsWith("#")
+						&& UAProps.OUTPUT_PDF_HYPERLINKS_HREF.get(this.ua) != OutputPdfHyperlinksHref.RELATIVE;
+				this.addLink(s, this.linkTarget(uri, resolved), ce, contents.isEmpty() ? null : contents);
 			}
 			
 			if (type == BoxType.REPLACED) {
@@ -411,7 +434,8 @@ public abstract class AbstractVisitor implements Visitor {
 							if (!transform.isIdentity()) {
 								s = transform.createTransformedShape(s);
 							}
-							this.addLink(s, this.linkTarget(area.href), null, null);
+							// HTMLStyle resolved the area's href against the base
+							this.addLink(s, this.linkTarget(area.href, true), null, null);
 						}
 					}
 				}
@@ -453,7 +477,8 @@ public abstract class AbstractVisitor implements Visitor {
 						if (!transform.isIdentity()) {
 							s = transform.createTransformedShape(s);
 						}
-						this.addLink(s, this.linkTarget(link.href), null, null);
+						// The SVG's <a> href as written
+						this.addLink(s, this.linkTarget(link.href, false), null, null);
 					}
 				}
 			}
@@ -503,6 +528,17 @@ public abstract class AbstractVisitor implements Visitor {
 							text = textBuff.length() == 0 ? null : textBuff.toString();
 						}
 						counterRef.addFragment(uri, this.getCounters(), text);
+						// A <base> in an item of several documents (2026-10-08): another item refers to the element
+						// by the item's own URI (chapter.xhtml#s), not by the base (assets/#s), which stays the key
+						// for references within the item
+						final URI document = this.ua.getDocumentContext().getDocumentURI();
+						if (document != null && this.ua.getUAContext().getDocumentSet() != null
+								&& !document.equals(this.ua.getDocumentContext().getBaseURI())) {
+							final URI own = PageRef.elementURI(this.ua.getDocumentContext().getEncoding(), document, id);
+							if (!own.equals(uri)) {
+								counterRef.addFragment(own, this.getCounters(), text);
+							}
+						}
 					} catch (URISyntaxException e) {
 						this.ua.message(MessageCodes.WARN_BAD_LINK_URI, e.getMessage());
 					}

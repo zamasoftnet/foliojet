@@ -168,6 +168,25 @@ public abstract class AbstractUserAgent implements UserAgent {
 		this.documentContext.setDocumentURI(documentURI);
 		// The footnote area comes from the document's own @footnote rule (parsed again with its style sheets)
 		this.getUAContext().setFootnoteArea(null);
+		// @counter-style and the other named definitions, and the fonts of @font-face, belong to the document that
+		// declares them (2026-10-08)
+		this.getUAContext().setCurrentDocument(documentURI);
+		this.clearDocumentFontFaces();
+	}
+
+	/**
+	 * Forgets the {@code @font-face} fonts of the previous document in the font managers this UA has handed out
+	 * (2026-10-08). The spine items of an EPUB are laid out with one UA: an item that declared a family the earlier
+	 * item had declared with another file was set in the earlier file. The fonts stay in the output for the pages
+	 * already drawn; only the selection forgets them.
+	 */
+	protected void clearDocumentFontFaces() {
+		if (this.fontManager != null) {
+			this.fontManager.clearFontFaces();
+		}
+		if (this.ownedFontManager != null) {
+			this.ownedFontManager.clearFontFaces();
+		}
 	}
 
 	public final String getProperty(String name) {
@@ -570,7 +589,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 			return;
 		}
 		if (isDeclarationWarning(code)
-				&& !this.getUAContext().firstStyleWarning(code + "\u0000" + String.join("\u0000", args))) {
+				&& !this.warningContext().firstStyleWarning(code + "\u0000" + String.join("\u0000", args))) {
 			return;
 		}
 		this.messageHandler.message(code, args.length == 0 ? null : args, null);
@@ -580,11 +599,21 @@ public abstract class AbstractUserAgent implements UserAgent {
 	 * The warnings about one CSS declaration (unsupported or ignored property, invalid value) and about a style sheet
 	 * that cannot be loaded come once per conversion (2026-10-08). An EPUB parses its shared style sheet again for every
 	 * item, and every pass parses the style sheets again, so the same warning came once per item and pass (4950 lines
-	 * for one book).
+	 * for one book). So does the warning about a fixed-layout EPUB item without a viewport, which each pass found
+	 * again.
 	 */
 	private static boolean isDeclarationWarning(final short code) {
 		return code == MessageCodes.WARN_UNSUPPORTED_CSS_PROPERTY || code == MessageCodes.WARN_IGNORED_CSS_PROPERTY
-				|| code == MessageCodes.WARN_BAD_CSS_ARGMENTS || code == MessageCodes.WARN_MISSING_CSS_STYLESHEET;
+				|| code == MessageCodes.WARN_BAD_CSS_ARGMENTS || code == MessageCodes.WARN_MISSING_CSS_STYLESHEET
+				|| code == MessageCodes.WARN_EPUB_NO_VIEWPORT;
+	}
+
+	/**
+	 * The context that remembers which of those warnings this conversion has reported: this UA's, or the parent's for
+	 * a UA that lays out one item of a book for its parent (Paged SVG, where every item has a UA of its own).
+	 */
+	protected UAContext warningContext() {
+		return this.getUAContext();
 	}
 
 	public void setSourceResolver(SourceResolver resolver) {

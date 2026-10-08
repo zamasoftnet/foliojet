@@ -854,6 +854,8 @@ public class DirectSession extends AbstractCTISession
 		this.ua.setMessageHandler(this);
 		this.ua.setProperties(this.props);
 		this.ua.getUAContext().setPagedSvgFontCarry(this.pagedSvgFontCarry);
+		// Numbers the conversions into one output (setContinuous), for destination names that do not collide
+		this.ua.getUAContext().nextConversion();
 
 		final FontSourceManager fsm = this.getFontSourceManager();
 		this.ua.getUAContext().setFontSourceManager(fsm);

@@ -604,11 +604,18 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		final Source zSource = opener.open(path, ir.item.mediaType);
 		final String mimeType = zSource.getMimeType();
 		final Source document;
+		final boolean imageItem = mimeType.startsWith("image/");
 		if (mimeType.equals("application/xhtml+xml")) {
 			document = zSource;
-		} else if (!fixedLayout && mimeType.startsWith("image/")) {
+		} else if (imageItem && !fixedLayout) {
 			// An image in the spine of a reflowable book (an SVG cover): the book's page, the image scaled to fit
 			document = imagePage(path);
+		} else if (imageItem) {
+			// An image item of a fixed-layout book: its own size is the page. Laid out as a page like the other items
+			// (2026-10-08): drawn directly, it took no page number, the page counter of the next item started over,
+			// a link to it had no destination, and page-spread did not apply
+			final net.zamasoft.pdfg2d.gc.image.Image image = ua.getImage(zSource);
+			document = fixedImagePage(path, image.getWidth(), image.getHeight());
 		} else {
 			document = null;
 		}
@@ -640,7 +647,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 			}
 			try {
 				parser.parse(ua, document, entryPoint);
-				if (fixedLayout && java.util.Objects.equals(ua.getProperty(restore[1]), saved[1])
+				if (fixedLayout && !imageItem && java.util.Objects.equals(ua.getProperty(restore[1]), saved[1])
 						&& java.util.Objects.equals(ua.getProperty(restore[2]), saved[2])
 						&& noViewportReported.compareAndSet(false, true)) {
 					// No <meta name="viewport"> set the page (2026-10-08): the item is laid out on the default page
@@ -666,10 +673,28 @@ public class EPubFormatter implements MultiDocumentFormatter {
 				}
 			}
 		} else {
-			// Other media types, and an image item of a fixed-layout book: the image's own size is its viewport
+			// Other media types
 			Formatter formatter = PluginRegistry.getInstance().search(Formatter.class, zSource);
 			formatter.format(zSource, ua);
 		}
+	}
+
+	/**
+	 * An XHTML page of the image's own size (in points) that holds the image item at {@code path}: the page of an
+	 * image item of a fixed-layout book (2026-10-08).
+	 */
+	private static Source fixedImagePage(final URI path, final double width, final double height) {
+		final String raw = path.toString();
+		final String name = raw.substring(raw.lastIndexOf('/') + 1);
+		final String w = java.math.BigDecimal.valueOf(width).toPlainString() + "pt";
+		final String h = java.math.BigDecimal.valueOf(height).toPlainString() + "pt";
+		final String xhtml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+				+ "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title></title><style type=\"text/css\">"
+				+ "@page{size:" + w + " " + h + ";margin:0}body{margin:0}img{display:block;width:" + w + ";height:" + h
+				+ "}</style></head><body><img src=\"" + XMLUtils.escapePseudeAttr(name) + "\" alt=\"\"/></body></html>";
+		return new net.zamasoft.zstream.resolver.protocol.stream.StreamSource(path,
+				new java.io.ByteArrayInputStream(xhtml.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+				"application/xhtml+xml");
 	}
 
 	/**
