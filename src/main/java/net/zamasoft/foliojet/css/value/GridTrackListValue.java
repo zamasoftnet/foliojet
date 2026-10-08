@@ -89,13 +89,28 @@ public final class GridTrackListValue implements Value {
 
 	/**
 	 * A {@code %} track (2026-08-29). A ratio to the Grid container's content-box inline size
-	 * ({@code 25%} becomes 0.25). During intrinsic sizing, when the reference width is indefinite,
-	 * treats it as {@code auto}, as the specification requires.
+	 * ({@code 25%} becomes 0.25), plus an absolute part for {@code calc()} ({@link #resolve}). During intrinsic
+	 * sizing, when the reference width is indefinite, treats it as {@code auto}, as the specification requires.
 	 */
-	public record Percentage(double ratio) implements TrackSize {
+	public record Percentage(double ratio, double offset) implements TrackSize {
+		/** A plain {@code %} track. */
+		public Percentage(final double ratio) {
+			this(ratio, 0);
+		}
+
+		/**
+		 * The track size against reference width {@code reference}: {@code offset} is the absolute part of a
+		 * {@code calc()} mixing a percentage and a length ({@code calc(50% + 10px)}, in pt; 2026-10-08). Such a
+		 * track used to drop the whole {@code grid-template-columns} declaration. A negative result counts as 0.
+		 */
+		public double resolve(final double reference) {
+			return Math.max(0, this.ratio * reference + this.offset);
+		}
+
 		@Override
 		public String toString() {
-			return (this.ratio * 100) + "%";
+			return this.offset == 0 ? (this.ratio * 100) + "%"
+					: "calc(" + (this.ratio * 100) + "% + " + this.offset + "pt)";
 		}
 	}
 

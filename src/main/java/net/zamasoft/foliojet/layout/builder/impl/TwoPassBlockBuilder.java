@@ -307,6 +307,13 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	private boolean hasLayoutContent;
 
+	/**
+	 * Whether anything besides this root's own Grid/Flex execution plan reached the measurer (2026-10-08). An empty
+	 * grid or flex container with an intrinsic width ({@code width: fit-content}) is the root of its own measurement:
+	 * its plan is the only content, and its source range between Start and End is empty.
+	 */
+	private boolean hasContentBesidesOwnPlan;
+
 	// Ownership proof that passed exact matching at seal. Also passes from normal child ranges to their parent.
 	private java.util.Set<Long> rangeOwnedAbsoluteAnchors = java.util.Set.of();
 
@@ -373,6 +380,19 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 	private void noteLayoutContent() {
 		if (!(this.body instanceof ReplayBody.Measuring)
 				&& !(this.body instanceof ReplayBody.ReplayOnly)) {
+			throw this.invariant("給餌終了後のレイアウト内容");
+		}
+		this.hasLayoutContent = true;
+		this.hasContentBesidesOwnPlan = true;
+	}
+
+	/** Records a Grid/Flex execution plan: content like any other, unless it is this root's own. */
+	private void notePlanContent(final IBox planBox) {
+		if (planBox != this.getRootBox()) {
+			this.noteLayoutContent();
+			return;
+		}
+		if (!(this.body instanceof ReplayBody.Measuring) && !(this.body instanceof ReplayBody.ReplayOnly)) {
 			throw this.invariant("給餌終了後のレイアウト内容");
 		}
 		this.hasLayoutContent = true;
@@ -621,7 +641,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		// frame exactly once; preventing double counting is recommendation Q5).
 		// Grid always uses FLOW positioning, so no inline-block measurement token is needed.
 		this.measurer.grid(gridBuilder.getIntrinsicSizes(), gridBuilder.getGridBox());
-		this.noteLayoutContent();
+		this.notePlanContent(gridBuilder.getGridBox());
 		this.ownershipLedger().addPlan(gridBuilder, OwnershipLedger.Kind.GRID);
 	}
 
@@ -629,7 +649,7 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		// Flex F1f (equivalent to addGrid): register the execution plan in the ledger and pass Flex's
 		// intrinsic content-box sizes to the measurer (the normal path adds the frame exactly once).
 		this.measurer.flex(flexBuilder.getIntrinsicSizes(), flexBuilder.getFlexBox());
-		this.noteLayoutContent();
+		this.notePlanContent(flexBuilder.getFlexBox());
 		this.ownershipLedger().addPlan(flexBuilder, OwnershipLedger.Kind.FLEX);
 	}
 
@@ -743,7 +763,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		final long fromId = childrenOnly ? anchor + 1 : anchor;
 		final long toId = childrenOnly ? endId - 1 : endId;
 		if (toId < fromId) {
-			if (!this.hasLayoutContent) {
+			// An empty grid/flex container measured as its own root (width: fit-content) has only its own plan as
+			// content: nothing to replay either (2026-10-08; it failed the conversion with NO_RANGE). The plan has
+			// no items, and the measured sizes still give the box its width.
+			if (!this.hasContentBesidesOwnPlan) {
 				// If both the source and measured content are empty, use a terminal state with no body.
 				this.setBody(new ReplayBody.Empty());
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassEmptySeal();

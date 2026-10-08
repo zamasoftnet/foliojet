@@ -17,6 +17,9 @@ import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.util.CalcValueUtils;
 import net.zamasoft.foliojet.css.value.LengthValue;
+import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
+import net.zamasoft.foliojet.css.value.CalcLengthValue;
+import net.zamasoft.foliojet.css.value.PercentageValue;
 
 /**
  * {@code grid-template-columns}/{@code grid-template-rows} and
@@ -124,14 +127,20 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 				for (final Object min : autoRepeat.mins) {
 					if (min instanceof Double ratio) {
 						minRatio += ratio;
-					} else {
-						minLength += toAbsolute((Value) min, style);
+						continue;
+					}
+					final GridTrackListValue.TrackSize size = toTrackSize((Value) min, style);
+					if (size instanceof GridTrackListValue.Percentage calc) {
+						minRatio += calc.ratio();
+						minLength += calc.offset();
+					} else if (size instanceof GridTrackListValue.Fixed fixed) {
+						minLength += fixed.length();
 					}
 				}
 				tracks.add(new GridTrackListValue.AutoRepeat(resolveTracks(autoRepeat.unit, style),
 						autoRepeat.unitLineNames, minLength, minRatio, autoRepeat.fit));
 			} else {
-				tracks.add(new GridTrackListValue.Fixed(toAbsolute((Value) t, style)));
+				tracks.add(toTrackSize((Value) t, style));
 			}
 		}
 		return tracks;
@@ -142,7 +151,22 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		if (raw instanceof GridTrackListValue.TrackSize sized) {
 			return sized;
 		}
-		return new GridTrackListValue.Fixed(toAbsolute((Value) raw, style));
+		return toTrackSize((Value) raw, style);
+	}
+
+	/**
+	 * A length track at computation: fixed, or a percentage with an absolute part when {@code calc()} mixes them
+	 * ({@code calc(50% + 10px)}, {@code calc(100% - 2em)}; 2026-10-08). A negative calc() length counts as 0.
+	 */
+	private static GridTrackListValue.TrackSize toTrackSize(final Value raw, final CSSStyle style) {
+		final Value value = ValueUtils.emExToAbsoluteLength(raw, style);
+		if (value instanceof CalcLengthValue calc) {
+			return new GridTrackListValue.Percentage(calc.getRatio(), calc.getAbsolute());
+		}
+		if (value instanceof PercentageValue percentage) {
+			return new GridTrackListValue.Percentage(percentage.getRatio());
+		}
+		return new GridTrackListValue.Fixed(Math.max(0, ((AbsoluteLengthValue) value).getLength()));
 	}
 
 	private static double toAbsolute(final Value raw, final CSSStyle style) {
@@ -423,6 +447,9 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 	 * (2026-08-30). Previously, only {@code ValueUtils.toLength} was tried, so
 	 * {@code grid-template-columns: calc(20mm - 5mm) …} was discarded entirely;
 	 * the spacer column became 0 and the type area shifted sideways (user report E-2).
+	 * A calc() with a percentage or a font-relative unit ({@code calc(50% + 10px)}, {@code calc(2em + 5px)}) is
+	 * not a plain length and still dropped the declaration until 2026-10-08: the columns fell back to implicit
+	 * auto tracks, and an openprops page put its content column 134pt to the right.
 	 */
 	private static Value toTrackLength(final UserAgent ua, final CssToken token) {
 		final Value length = ValueUtils.toLength(ua, token);
@@ -430,7 +457,8 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			return length;
 		}
 		final Value calc = CalcValueUtils.toCalc(ua, token);
-		return calc instanceof LengthValue ? calc : null;
+		return calc instanceof LengthValue || calc instanceof CalcLengthValue || calc instanceof PercentageValue
+				|| calc instanceof CalcFontRelativeValue ? calc : null;
 	}
 
 	/** Fixed-width token (length or %) for count calculation: length Value or % ratio Double; null otherwise. */

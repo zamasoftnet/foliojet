@@ -540,7 +540,7 @@ public final class GridBuilder
 			return f.length();
 		}
 		if (t instanceof GridTrackListValue.Percentage p) {
-			return p.ratio() * available;
+			return p.resolve(available);
 		}
 		if (t instanceof GridTrackListValue.MinMax m) {
 			final double max = definiteExtent(m.max(), available);
@@ -600,17 +600,17 @@ public final class GridBuilder
 			final GridTrackListValue.TrackSize t = this.tracks.get(i);
 			final GridTrackListValue.TrackSize r;
 			if (t instanceof GridTrackListValue.Percentage p) {
-				r = new GridTrackListValue.Fixed(p.ratio() * available);
+				r = new GridTrackListValue.Fixed(p.resolve(available));
 			} else if (t instanceof GridTrackListValue.MinMax m
 					&& (m.min() instanceof GridTrackListValue.Percentage
 							|| m.max() instanceof GridTrackListValue.Percentage)) {
 				// Percentage on either side of minmax() (2026-08-29)
 				r = new GridTrackListValue.MinMax(
 						m.min() instanceof GridTrackListValue.Percentage p
-								? new GridTrackListValue.Fixed(p.ratio() * available)
+								? new GridTrackListValue.Fixed(p.resolve(available))
 								: m.min(),
 						m.max() instanceof GridTrackListValue.Percentage p
-								? new GridTrackListValue.Fixed(p.ratio() * available)
+								? new GridTrackListValue.Fixed(p.resolve(available))
 								: m.max());
 			} else {
 				continue;
@@ -805,7 +805,7 @@ public final class GridBuilder
 			return f.length();
 		}
 		if (track instanceof GridTrackListValue.Percentage p && this.gridBox.isSpecifiedPageSize()) {
-			return p.ratio() * this.gridBox.getInnerPageExtent(this.gridBox.getGridParams().flow);
+			return p.resolve(this.gridBox.getInnerPageExtent(this.gridBox.getGridParams().flow));
 		}
 		return net.zamasoft.foliojet.layout.util.LayoutUtils.NONE;
 	}

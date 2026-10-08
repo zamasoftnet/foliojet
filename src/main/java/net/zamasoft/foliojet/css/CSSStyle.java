@@ -160,6 +160,19 @@ public class CSSStyle {
 		this.fontStyle = null;
 	}
 
+	/**
+	 * Computes a cached value once more from itself, when something it depends on is set after it was computed
+	 * (2026-10-08). An inline SVG gets its image at its end tag, after the cascade computed {@code display}; the
+	 * computed value turns grid/flex/table into block for images ({@code Display#getComputedValue}). Does nothing
+	 * if the value is not computed yet.
+	 */
+	public void recompute(final PrimitivePropertyInfo info) {
+		final short code = ElementPropertySet.getCode(info);
+		if (code >= 0 && this.computedValues != null && this.computedValues[code] != null) {
+			this.computedValues[code] = info.getComputedValue(this.computedValues[code], this);
+		}
+	}
+
 	private static CSSStyle getAnonStyle(CSSElement anone, UserAgent ua, CSSStyle parentStyle, boolean inserted) {
 		final AnonStyle style;
 		if (inserted) {

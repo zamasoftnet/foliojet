@@ -50,6 +50,11 @@ public class CSSJInternalImage extends AbstractPrimitivePropertyInfo {
 
 	public static void setImage(CSSStyle style, Image image) {
 		style.set(INFO, new CSSJImageValue(image));
+		// An image makes a replaced element: display computes grid/flex/table to block (2026-10-08). An inline SVG
+		// gets its image at its end tag, when display was already computed as grid: the box opened as a grid
+		// container was never closed (no end for an image), so following SVGs nested inside it, and from the fourth
+		// the conversion failed (TwoPass NO_RANGE).
+		style.recompute(net.zamasoft.foliojet.css.impl.property.box.Display.INFO);
 	}
 
 	public CSSJInternalImage() {

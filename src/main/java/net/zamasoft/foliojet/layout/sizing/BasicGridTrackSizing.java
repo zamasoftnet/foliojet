@@ -236,7 +236,7 @@ public final class BasicGridTrackSizing {
 	private static GridTrackListValue.TrackSize resolvePercent(final GridTrackListValue.Percentage percent,
 			final double available) {
 		return Double.isNaN(available) ? GridTrackListValue.Auto.INSTANCE
-				: new GridTrackListValue.Fixed(Math.max(0, available * percent.ratio()));
+				: new GridTrackListValue.Fixed(percent.resolve(available));
 	}
 
 	/**
