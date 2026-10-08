@@ -140,10 +140,18 @@ public class Src extends AbstractPrimitivePropertyInfo {
 					} else {
 						continue;
 					}
+					if (name.isEmpty()) {
+						// local("") names no font: skip it, not the whole list (2026-10-09; the google-webfonts-helper
+						// idiom 'local(""), url(x.woff2)' dropped smolcss's web font, and its wider fallback pushed an
+						// unbreakable run 70pt past the page).
+						continue;
+					}
 					try {
 						list.add(URIHelper.create("UTF-8", "local-font:" + name));
 					} catch (URISyntaxException e) {
-						throw new PropertyException();
+						// A name that cannot be a URI is skipped like a font that is not installed (CSS Fonts 4:
+						// an unusable source is passed over for the next one).
+						ua.message(MessageCodes.WARN_BAD_LINK_URI, "local(" + name + ")");
 					}
 				}
 			}

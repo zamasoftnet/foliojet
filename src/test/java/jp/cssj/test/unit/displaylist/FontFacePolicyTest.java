@@ -97,6 +97,17 @@ public class FontFacePolicyTest extends TestCase {
 		assertTrue(fonts.toString(), fonts.size() == 1 && fonts.get(0).contains("MinionPro"));
 	}
 
+	/**
+	 * {@code local("")} (google-webfonts-helper writes it first) names no font: it is passed over, not taken as a bad
+	 * value that drops the whole {@code src} (2026-10-09, smolcss set in Helvetica; Chrome uses the url()).
+	 */
+	public void testEmptyLocalIsSkipped() throws Exception {
+		for (final String local : new String[] { "local(\"\"), ", "local(''), " }) {
+			final List<String> fonts = fonts(null, local);
+			assertTrue(local + fonts, fonts.size() == 1 && fonts.get(0).contains("MinionPro"));
+		}
+	}
+
 	public void testCidKeyedPolicyUsesTheDocumentsFont() throws Exception {
 		final List<String> fonts = fonts("cid-keyed");
 		assertTrue(fonts.toString(), fonts.size() == 1 && fonts.get(0).contains("MinionPro"));
