@@ -319,7 +319,11 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			return SplitResult.KEEP;
 		}
 
-		final byte xflags = (byte) (flags & (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT));
+		// Only the items of the first line are at the page start (2026-10-09, as GridBox and TableRowGroupBox): an item
+		// of a later line that took FLAGS_FIRST kept a first line that did not fit as if at the page top, so the line of
+		// a wrapping flex at the page top that crossed the page bottom stayed there and ran off the paper (flexgal2).
+		final int firstFlag = boundary == 0 ? IPageBreakableBox.FLAGS_FIRST : 0;
+		final byte xflags = (byte) (flags & (firstFlag | IPageBreakableBox.FLAGS_SPLIT));
 		final Line boundaryLine = this.lines.get(boundary);
 		if (!crosses) {
 			// The boundary row starts at or beyond the cut line: carry it whole without splitting.
