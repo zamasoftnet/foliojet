@@ -114,7 +114,7 @@ CSS3以降のモジュール(段組・縦書き・Gridレイアウト・論理�
 | outline-style | する<span class="since">4.0.0</span> | <tt>auto</tt>は<tt>solid</tt>として描画します。 |
 | outline-width | する<span class="since">4.0.0</span> | |
 | outline | する<span class="since">4.0.0</span> | <span class="cssprop">outline-offset</span>(負の値も可)にも対応します。アウトラインはレイアウトに影響せず、境界の直後に描かれます(要素の内容より上には重なりません)。 |
-| overflow | する | <tt>scroll</tt>と<tt>auto</tt>は印刷ではブラウザの見た目どおり、指定寸法からはみ出す描画をクリップします(スクロールで到達できる範囲は印刷されません)<span class="since">4.0.0</span>。<tt>clip</tt>は<tt>hidden</tt>と同じです。2値の指定(<tt>overflow: hidden auto</tt>等)にも対応します<span class="since">4.0.0</span>。 |
+| overflow | する | <tt>scroll</tt>と<tt>auto</tt>は印刷ではブラウザの見た目どおり、指定寸法からはみ出す描画をクリップします(スクロールで到達できる範囲は印刷されません)<span class="since">4.0.0</span>。<tt>visible</tt>以外の箱は、<tt>hidden</tt>と同じく中のフロートを含む高さになります<span class="since">4.0.0</span>。<tt>clip</tt>は<tt>hidden</tt>と同じです。2値の指定(<tt>overflow: hidden auto</tt>等)にも対応します<span class="since">4.0.0</span>。 |
 | overflow-x | する | 印刷では軸別に「クリップする/しない」を混在できないため(CSS Overflow 3の計算規則どおり)、両軸が<tt>visible</tt>のときだけはみ出しが描かれ、それ以外は両軸ともクリップされます<span class="since">4.0.0</span>。 |
 | overflow-y | する | <tt>overflow-x</tt>と同じです<span class="since">4.0.0</span>。 |
 | padding-top | する | |

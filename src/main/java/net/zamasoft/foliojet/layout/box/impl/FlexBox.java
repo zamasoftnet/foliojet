@@ -286,23 +286,23 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 				break;
 			}
 		}
+		boolean crossesByPaint = false;
 		if (boundary < 0 && this.carriedLines) {
 			// A line of a continuation whose item, as laid out again, paints past the cut line crosses it all the same
 			// (2026-10-09). The carried line sizes are lower bounds: the remainder's is the line less what the kept side
 			// painted, and a box with a background broken inside paints down to the cut line though its last line ends
 			// above it, so the line falls behind its item a little on every page (qiita-article: 96pt on page 33 of a
 			// 24600pt row flex). Kept whole, the fragment ran past the page bottom and every page break repeated at the
-			// same place until the livelock guard let the rest of the document overflow. An item a whole page taller
-			// than its line was laid out again at another size, which splitting does not mend: it only clipped the item
-			// and added an empty page (materialui).
+			// same place until the livelock guard let the rest of the document overflow. The lag adds up page by page
+			// (sphinx-api: 875pt, more than a page, after 105 pages).
 			for (int li = 0; li < this.lines.size() && boundary < 0; ++li) {
 				final Line line = this.lines.get(li);
 				for (int k = 0; k < line.itemCount(); ++k) {
-					final double painted = this.lineItems.get(line.startFlow() + k).paintedPageExtent(flow);
-					if (LayoutUtils.compare(pageLimit, line.start() + painted) < 0
-							&& LayoutUtils.compare(painted - line.pageSize(), pageLimit) <= 0) {
+					if (LayoutUtils.compare(pageLimit,
+							line.start() + this.lineItems.get(line.startFlow() + k).paintedPageExtent(flow)) < 0) {
 						boundary = li;
 						crosses = true;
+						crossesByPaint = true;
 						break;
 					}
 				}
@@ -350,6 +350,10 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			boundaryItems[k] = this.lineItems.get(boundaryLine.startFlow() + k);
 		}
 
+		final double[] prePainted = new double[boundaryItems.length];
+		for (int k = 0; k < boundaryItems.length; ++k) {
+			prePainted[k] = boundaryItems[k].paintedPageExtent(flow);
+		}
 		SplitResult[] probed = new SplitResult[boundaryItems.length];
 		boolean anySplit = (flags & IPageBreakableBox.FLAGS_SPLIT) != 0;
 		if (!anySplit) {
@@ -359,6 +363,18 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 				if (r instanceof SplitResult.Split) {
 					anySplit = true;
 				}
+			}
+		}
+		if (crossesByPaint && boundary == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
+			// Nothing left the items: their content past the cut line is one piece that does not break (materialui:
+			// an anonymous item laid out again at another width came to 11974pt of one tall line). The fragment stays
+			// whole as before instead of carrying an empty remainder to a page of its own (2026-10-09).
+			boolean moved = false;
+			for (int k = 0; k < boundaryItems.length && !moved; ++k) {
+				moved = LayoutUtils.compare(boundaryItems[k].paintedPageExtent(flow), prePainted[k]) < 0;
+			}
+			if (!moved) {
+				return SplitResult.KEEP;
 			}
 		}
 

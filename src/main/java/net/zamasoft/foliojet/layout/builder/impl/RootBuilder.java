@@ -79,6 +79,15 @@ public class RootBuilder extends BreakableBuilder {
 	private double nestedBreakPageAxis;
 	private int nestedGrowthRun = 0;
 	private long breakHistoryIngest = Long.MIN_VALUE;
+	/**
+	 * What the floats committed since the last automatic page break carry past their page, and the same at that break
+	 * (2026-10-09). Floats broken page by page after the end of the input consume their content with the input
+	 * position, the cursor and the target all unchanged: rubydoc-api's 47000pt {@code main} float went down by about
+	 * 766pt a page, yet the guard counted 32 identical breaks and let the remaining 14000 words overflow. A carry
+	 * smaller than the last one by more than a point is progress, as are new input events and table rows; a carry that
+	 * stays or grows is not, so the stalls the guard is for are still caught.
+	 */
+	private double floatCarry = 0, lastFloatCarry = Double.NaN;
 	private long boundTableRows, emittedTableFragments;
 	private long breakHistoryTableRows, breakHistoryTableFragments;
 
@@ -98,9 +107,16 @@ public class RootBuilder extends BreakableBuilder {
 	/** Automatic page-break termination state for scratch builders without a LayoutSource. */
 	private boolean autoBreaksAbandoned = false;
 
+	/** Adds what a float committed at a page break carries past its page ({@link #floatCarry}). */
+	final void noteFloatCarry(final double extent) {
+		this.floatCarry += extent;
+	}
+
 	/** Discards automatic page-break stall history after a forced page break or confirmed actual progress. */
 	private void clearBreakProgressHistory() {
 		this.stalledBreakRun = 0;
+		this.floatCarry = 0;
+		this.lastFloatCarry = Double.NaN;
 		this.breakFingerprintCounts.clear();
 		this.depthFreeBreakCounts.clear();
 		this.clearNestedGrowth();
@@ -163,8 +179,13 @@ public class RootBuilder extends BreakableBuilder {
 		// Keep the history even when sessions temporarily becomes empty. The period-one loop of seed 7662
 		// finishes each page's resumption before proceeding to the next identical page break;
 		// resetting there would miss a livelock that the previous detection caught.
+		final double carry = this.floatCarry;
+		final boolean floatsConsumed = !Double.isNaN(this.lastFloatCarry)
+				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(carry, this.lastFloatCarry - 1) < 0;
+		this.floatCarry = 0;
+		this.lastFloatCarry = carry;
 		if (ingest != this.breakHistoryIngest || this.boundTableRows != this.breakHistoryTableRows
-				|| this.emittedTableFragments != this.breakHistoryTableFragments) {
+				|| this.emittedTableFragments != this.breakHistoryTableFragments || floatsConsumed) {
 			this.breakFingerprintCounts.clear();
 			this.depthFreeBreakCounts.clear();
 			this.clearNestedGrowth();

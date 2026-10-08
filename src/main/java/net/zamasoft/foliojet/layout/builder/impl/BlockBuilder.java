@@ -1587,6 +1587,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 		if (delta.kind() != FloatCommitKind.PLACED) {
 			this.recordBreakFloat(delta.side());
+			if (this instanceof BreakableBuilder breakable && this.getPageContext() != null
+					&& !Double.isNaN(breakable.getPageLimit())) {
+				// What the float takes past this page, for the livelock guard (RootBuilder.noteFloatCarry)
+				this.getPageContext().noteFloatCarry(Math.max(0, delta.pageSpan().end()
+						- Math.max(delta.pageSpan().start(), breakable.getPageLimit())));
+			}
 		}
 		// Placement
 		final double lineOffset = delta.lineSpan().start();
@@ -1981,12 +1987,19 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return start + marginStart;
 	}
 
-	/** Float boundary of an independent BFC under CSS Writing Modes 3 §3.2 and overflow. */
+	/**
+	 * Float boundary of an independent BFC under CSS Writing Modes 3 §3.2 and overflow. Any overflow other than visible
+	 * establishes one (CSS 2.1 §9.4.1), auto and scroll as well as hidden (2026-10-09): limited to hidden, an
+	 * {@code overflow: auto} box holding only floats stayed 0pt tall and clipped them all, and one with a line of text
+	 * clipped what its floats reached below it, while the floats leaked out and pushed the next boxes aside (the
+	 * {@code overflow: auto} clearfix and media object, Docusaurus's code blocks). Such a box already avoided outer
+	 * floats and kept its margins apart from its children ({@link #avoidsFloats}, {@link #sealsMargins}).
+	 */
 	private static boolean establishesIndependentFloatScope(final FlowBlockBox flowBox,
 			final BlockParams parentParams) {
 		final BlockParams params = flowBox.getBlockParams();
 		// display:flow-root creates an independent BFC (2026-08-29). Treat like overflow:hidden.
-		return params.overflow == OverflowMode.HIDDEN || params.flowRoot
+		return params.overflow != OverflowMode.VISIBLE || params.flowRoot
 				|| (params.flow.isVertical() == parentParams.flow.isVertical()
 						&& params.flow != parentParams.flow);
 	}

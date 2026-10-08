@@ -27,8 +27,20 @@ public class FlexRowSplitCoverTest extends TestCase {
 	private static final Pattern TEXT_Y = Pattern.compile("y=([-\\d.]+) Text\\[\"([^\"]*)\"");
 
 	public void testLastPageStillBreaks() throws Exception {
+		this.check(66, 8);
+	}
+
+	/**
+	 * The ledger falls behind by 11pt a page, so on a long item it lags by more than a page (2026-10-09, sphinx-api:
+	 * 875pt after 105 pages): 400 lines take 45 pages, none below the page (42 pages and lines down to 630pt before).
+	 */
+	public void testLagLongerThanAPage() throws Exception {
+		this.check(400, 45);
+	}
+
+	private void check(final int lineCount, final int pageCount) throws Exception {
 		final StringBuilder lines = new StringBuilder();
-		for (int i = 1; i <= 66; ++i) {
+		for (int i = 1; i <= lineCount; ++i) {
 			lines.append("line ").append(i).append('\n');
 		}
 		final String html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>"
@@ -46,7 +58,7 @@ public class FlexRowSplitCoverTest extends TestCase {
 		}
 		final File[] pages = dir.listFiles((d, n) -> n.startsWith("page-") && n.endsWith(".txt"));
 		assertNotNull(pages);
-		assertEquals("pages", 8, pages.length);
+		assertEquals("pages", pageCount, pages.length);
 		int count = 0;
 		for (final File page : pages) {
 			final Matcher m = TEXT_Y.matcher(Files.readString(page.toPath(), StandardCharsets.UTF_8));
@@ -58,6 +70,6 @@ public class FlexRowSplitCoverTest extends TestCase {
 				}
 			}
 		}
-		assertEquals("lines", 66, count);
+		assertEquals("lines", lineCount, count);
 	}
 }
