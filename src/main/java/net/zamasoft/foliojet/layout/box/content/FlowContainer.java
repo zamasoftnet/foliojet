@@ -1386,6 +1386,8 @@ public class FlowContainer implements Container {
 							outcome = new ProbeOutcome.Split(rescued);
 							break;
 						}
+						// Not sliced (a remainder under a rescue slice): the line stays and runs past the cut line
+						keptPastCutLine(mode, unbreakableEnd - splitLine);
 					}
 				}
 				IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
@@ -1480,6 +1482,7 @@ public class FlowContainer implements Container {
 							outcome = new ProbeOutcome.Split(rescued);
 							break;
 						}
+						keptPastCutLine(mode, prevFlowPageSize - splitLine);
 					}
 					outcome = ProbeOutcome.KEEP;
 				} else {
@@ -1783,12 +1786,23 @@ public class FlowContainer implements Container {
 	/**
 	 * Whether a monolithic extent at the fragment start overflows the cut line only by footnotes reserved for calls that
 	 * are not committed yet ({@link AutoBreakMode#footnoteSlack}, 2026-10-08). Rescue slicing is for content that cannot
-	 * fit an empty fragmentainer; this one fits once those calls move on.
+	 * fit an empty fragmentainer; this one fits once those calls move on. The extent is kept, so it is recorded as
+	 * running past the cut line.
 	 */
 	private static boolean fitsWithoutUncommittedFootnotes(final BreakMode mode, final double splitLine,
 			final double extent) {
-		return mode instanceof AutoBreakMode auto && auto.footnoteSlack > 0
-				&& LayoutUtils.compare(extent, splitLine + auto.footnoteSlack) <= 0;
+		if (!(mode instanceof AutoBreakMode auto) || !auto.fitsWithoutUncommittedFootnotes(splitLine, extent)) {
+			return false;
+		}
+		auto.keptPastCutLine(extent - splitLine);
+		return true;
+	}
+
+	/** Records a monolithic extent kept at the fragment start that runs past the cut line ({@link AutoBreakMode#pageEndUse}). */
+	private static void keptPastCutLine(final BreakMode mode, final double pastCutLine) {
+		if (mode instanceof AutoBreakMode auto) {
+			auto.keptPastCutLine(pastCutLine);
+		}
 	}
 
 	/**

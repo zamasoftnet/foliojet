@@ -959,12 +959,14 @@ public class RootBuilder extends BreakableBuilder {
 		if (this.flowStack.isEmpty()) {
 			return false;
 		}
+		// Only automatic breaks set the record: a later forced break of the same page keeps what this page's automatic
+		// break kept (page 94 of the note2 book: the figure line was kept, then the end of the spine item closed the page)
 		if (mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode auto
-				&& !(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode)) {
-			final double slack = this.uncommittedFootnoteReservation();
-			if (slack > 0) {
-				mode = auto.withFootnoteSlack(slack);
-			}
+				&& !(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode)
+				&& this.pageFootnoteHost.footnoteReservation > 0 && !this.isPageBandFootnoteArea()) {
+			final net.zamasoft.foliojet.layout.box.content.BreakMode.PageEndUse use = new net.zamasoft.foliojet.layout.box.content.BreakMode.PageEndUse();
+			this.pageBox.setPageEndUse(use);
+			mode = auto.withPageEnd(this.uncommittedFootnoteReservation(), use);
 		}
 		if (this.guardBreakProgress(mode)) {
 			return false;
@@ -3558,12 +3560,21 @@ public class RootBuilder extends BreakableBuilder {
 		// Placement plan (determine every destination without mutation, then commit once).
 		int attachCount = 0;
 		double attachedExtent = 0;
+		// Content kept whole past the cut line (2026-10-08) narrows the reservation; notes that no longer fit go on.
+		final net.zamasoft.foliojet.layout.box.content.BreakMode.PageEndUse pageEndUse = this.pageBox.getPageEndUse();
+		final double intrusion = pageEndUse == null || planned || this.isPageBandFootnoteArea() ? 0
+				: pageEndUse.intrusion();
 		{
 			int i = 0;
 			for (final FootnoteEntry entry : this.pageFootnoteHost.pendingFootnotes) {
 				final boolean forced = this.forceFootnoteAttach && i == 0;
 				if (i >= this.pageFootnoteHost.footnoteReservedCount
 						|| (!entry.committed && !retained.contains(entry.id) && !forced)) {
+					break;
+				}
+				if (intrusion > 0 && !forced && net.zamasoft.foliojet.layout.util.LayoutUtils.compare(
+						FOOTNOTE_GAP + attachedExtent + this.footnoteExtent(entry.noteBox),
+						this.pageFootnoteHost.footnoteReservation - intrusion) > 0) {
 					break;
 				}
 				if (planned) {

@@ -39,6 +39,12 @@ public abstract class BreakMode {
 		 */
 		public final double footnoteSlack;
 
+		/**
+		 * Where the page's monolithic content kept at the fragment start ran past the cut line (or null). The page keeps
+		 * its notes clear of it when it attaches them.
+		 */
+		public final PageEndUse pageEndUse;
+
 		public AutoBreakMode(IBox box) {
 			this(box, -1);
 		}
@@ -48,29 +54,47 @@ public abstract class BreakMode {
 			this.box = box;
 			this.fragmentCapacity = fragmentCapacity;
 			this.footnoteSlack = 0;
+			this.pageEndUse = null;
 		}
 
 		private AutoBreakMode() {
 			this.box = null;
 			this.fragmentCapacity = -1;
 			this.footnoteSlack = 0;
+			this.pageEndUse = null;
 		}
 
 		private AutoBreakMode(final double fragmentCapacity) {
 			this.box = null;
 			this.fragmentCapacity = fragmentCapacity;
 			this.footnoteSlack = 0;
+			this.pageEndUse = null;
 		}
 
-		private AutoBreakMode(final IBox box, final double fragmentCapacity, final double footnoteSlack) {
+		private AutoBreakMode(final IBox box, final double fragmentCapacity, final double footnoteSlack,
+				final PageEndUse pageEndUse) {
 			this.box = box;
 			this.fragmentCapacity = fragmentCapacity;
 			this.footnoteSlack = footnoteSlack;
+			this.pageEndUse = pageEndUse;
 		}
 
-		/** This page break with {@link #footnoteSlack}. */
-		public AutoBreakMode withFootnoteSlack(final double footnoteSlack) {
-			return new AutoBreakMode(this.box, this.fragmentCapacity, footnoteSlack);
+		/** This page break with {@link #footnoteSlack} and {@link #pageEndUse}. */
+		public AutoBreakMode withPageEnd(final double footnoteSlack, final PageEndUse pageEndUse) {
+			return new AutoBreakMode(this.box, this.fragmentCapacity, footnoteSlack, pageEndUse);
+		}
+
+		/** Whether a monolithic extent at the fragment start fits once the calls of {@link #footnoteSlack} move on. */
+		public final boolean fitsWithoutUncommittedFootnotes(final double splitLine, final double extent) {
+			return this.footnoteSlack > 0 && net.zamasoft.foliojet.layout.util.LayoutUtils.compare(extent,
+					splitLine + this.footnoteSlack) <= 0;
+		}
+
+		/** Records monolithic content kept at the fragment start that runs {@code pastCutLine} past the cut line. */
+		public final void keptPastCutLine(final double pastCutLine) {
+			if (this.pageEndUse != null && pastCutLine > 0) {
+				this.pageEndUse.record(pastCutLine);
+			}
 		}
 
 		/** Anonymous mode with capacity (for autoBreak when flowStack is shallow). */
@@ -87,6 +111,25 @@ public abstract class BreakMode {
 	};
 
 	public static AutoBreakMode DEFAULT_BREAK_MODE = new AutoBreakMode();
+
+	/**
+	 * How far monolithic content kept at the start of a page runs past the page break's cut line (2026-10-08). The cut
+	 * line excludes the footnotes reserved on the page; content kept past it (a figure with its own call on the same
+	 * line, or one overflowing by less than a rescue slice) reaches into that reservation, so the notes that no longer
+	 * fit beside it go to the next page instead of being drawn over it.
+	 */
+	public static final class PageEndUse {
+		private double intrusion = 0;
+
+		void record(final double pastCutLine) {
+			this.intrusion = Math.max(this.intrusion, pastCutLine);
+		}
+
+		/** Distance past the cut line (0 if nothing ran past it). */
+		public double intrusion() {
+			return this.intrusion;
+		}
+	}
 
 	/**
 	 * An automatic column break in multi-column layout (the typed form of the former FLAGS_COLUMN).

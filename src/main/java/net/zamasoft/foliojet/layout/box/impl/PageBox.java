@@ -107,6 +107,20 @@ public class PageBox extends AbstractBlockBox {
 	}
 
 	/**
+	 * What the page break that ended this page kept whole past its cut line (2026-10-08; null if nothing could be).
+	 * Notes are attached when the page is finished, which can be after later breaks.
+	 */
+	private net.zamasoft.foliojet.layout.box.content.BreakMode.PageEndUse pageEndUse;
+
+	public void setPageEndUse(final net.zamasoft.foliojet.layout.box.content.BreakMode.PageEndUse pageEndUse) {
+		this.pageEndUse = pageEndUse;
+	}
+
+	public net.zamasoft.foliojet.layout.box.content.BreakMode.PageEndUse getPageEndUse() {
+		return this.pageEndUse;
+	}
+
+	/**
 	 * The top footnote band (headnotes, 2026-09-11).
 	 *
 	 * <p>

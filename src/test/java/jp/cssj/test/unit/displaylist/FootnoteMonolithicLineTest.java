@@ -82,6 +82,42 @@ public class FootnoteMonolithicLineTest extends TestCase {
 				"<img src=\"" + src + "\" style=\"display: block; width: 60mm; height: 85mm\"/>")));
 	}
 
+	/**
+	 * The call sits on the figure's own line (2026-10-08, the note2 book's page 94): the line stays whole with its call,
+	 * and the note, which no longer fits beside it, goes to the next page instead of being drawn over the figure.
+	 * Before, the kept line and the note overlapped; earlier still, the figure was sliced.
+	 */
+	public void testCallOnTheFigureLine() throws Exception {
+		final String figure = "<p><span style=\"display: inline-block; inline-size: 60mm; block-size: 85mm;"
+				+ " background: #ccf\"></span>N7<span class=\"fn\">N7 Pierre-Auguste Renoir, Bal du moulin de la"
+				+ " Galette, 1876, painting. http://allart.biz/photos/image/Pierre_Auguste_Renoir_2_Bal_du_moulin_de_la"
+				+ "_Galette_Smaller_version.html (derivative work) Public Domain</span></p>";
+		final String html = """
+				<!DOCTYPE html>
+				<html xmlns="http://www.w3.org/1999/xhtml" lang="ja"><head><meta charset="UTF-8"/>
+				<style>
+				@page { %s }
+				body { margin: 0; font-size: 9pt; line-height: 16.2pt }
+				p { margin: 0 }
+				.fn { float: footnote; font-size: 7pt; line-height: 11pt }
+				</style></head><body>
+				%s
+				<p>T9</p>
+				</body></html>
+				""".formatted(HORIZONTAL, figure);
+		final String[] pages = convert("same-line-h", html);
+		assertEquals("頁数", 2, pages.length);
+		for (final String page : pages) {
+			assertFalse("図の切れ端が再描画された:\n" + page, page.contains("artifact AbsoluteRectFrame"));
+		}
+		assertFalse("1 頁の図が切られた:\n" + pages[0],
+				pages[0].lines().anyMatch(l -> l.contains("AbsoluteRectFrame") && l.contains("clip=")));
+		assertTrue("呼び出しが図の行に無い", pages[0].contains("Text[\"N7\""));
+		assertFalse("注が図に重なった:\n" + pages[0], pages[0].contains("FootnoteSeparator"));
+		assertTrue("注が 2 頁に無い", pages[1].contains("FootnoteSeparator") && pages[1].contains("FootnoteLabel"));
+		assertTrue("後の段落が 2 頁に無い", pages[1].contains("Text[\"T9\""));
+	}
+
 	/** Page 1 holds the whole figure; the call, its note and the next paragraph start page 2; no sliced copies. */
 	private static void assertFigureWhole(final String[] pages) {
 		assertEquals("頁数", 2, pages.length);
