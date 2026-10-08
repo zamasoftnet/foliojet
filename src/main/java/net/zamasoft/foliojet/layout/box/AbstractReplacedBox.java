@@ -165,6 +165,26 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 				} else if (height > 0) {
 					width = this.ratioWidth(height, ratio);
 				}
+			} else if (this.params.image.getIntrinsic() == Image.Intrinsic.RATIO && width > 0 && height > 0) {
+				// Only a ratio (an SVG with a viewBox but no width/height, 2026-10-08): fill the containing
+				// block's inline size and derive the other from the ratio, as CSS 2.1 §10.3.2 suggests and Chrome
+				// does, block-level or inline. The viewBox size used to stand in as the natural size (an SVG logo
+				// of viewBox 213x52 came out 160pt wide in a 366pt column). Where the containing block's size is
+				// not known yet (measuring a float, an inline-block or a table cell), the viewBox size stays, so
+				// that the box is not measured to nothing (Chrome gives 0 there).
+				final double fill = this.params.flow.isVertical()
+						? (LayoutUtils.isNone(refHeight) ? LayoutUtils.NONE : refHeight - this.frame.getFrameHeight())
+						: (LayoutUtils.isNone(refWidth) ? LayoutUtils.NONE : refWidth - this.frame.getFrameWidth());
+				if (!LayoutUtils.isNone(fill)) {
+					final double naturalWidth = width, naturalHeight = height;
+					if (this.params.flow.isVertical()) {
+						height = Math.max(0, fill);
+						width = height * naturalWidth / naturalHeight;
+					} else {
+						width = Math.max(0, fill);
+						height = width * naturalHeight / naturalWidth;
+					}
+				}
 			}
 		} else if (LayoutUtils.isNone(width)) {
 			// Width is indefinite
