@@ -223,6 +223,25 @@ final class IntrinsicMeasurer {
 			this.maxLineSize = Math.max(entered[1], entered[2]);
 		}
 		{
+			// max-width (absolute lengths only) caps what the flow contributes, its frame included (2026-10-09,
+			// css-sizing outer contribution; before the min-width floor below, which wins over it). Shrink-to-fit
+			// blocks get it from the measured intrinsics, but grid and flex items took their content's width whole: a
+			// pre { max-inline-size: 300px } with long lines made its grid item, and the grid with it, as wide as the
+			// lines (Chrome caps it at 300px). Percentages and calc() have no basis yet and stay uncapped, as for
+			// min-width.
+			final WritingMode selfFlow = flowParams.flow;
+			final net.zamasoft.foliojet.layout.box.params.Dimension maxSpec = flowParams.maxSize;
+			if (maxSpec.getLineType(selfFlow) == LengthType.ABSOLUTE) {
+				final double bb = flowParams.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
+						? flowBox.getFrame().getBorderLineExtent(selfFlow)
+						: 0;
+				final double cap = this.lineFrame + (Math.max(0, maxSpec.getLineLength(selfFlow) - bb)
+						+ flowBox.getFrame().getFrameLineExtent(selfFlow)) * this.columnCount;
+				this.minLineSize = Math.max(entered[0], Math.min(this.minLineSize, cap));
+				this.maxLineSize = Math.max(entered[1], Math.min(this.maxLineSize, cap));
+			}
+		}
+		{
 			// min-width (absolute lengths only) sets a floor on minimum content size (2026-08-08,
 			// css-sizing outer contribution). The maximum naturally carries it through the resolved width
 			// (lineSize in startFlow), but the minimum used content min only,

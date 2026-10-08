@@ -250,7 +250,11 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			return new SplitResult.Split(continuation);
 		}
 
-		final byte xflags = (byte) (flags & (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT));
+		// Only the items of the first row are at the page start (2026-10-09, as TableRowGroupBox clears it after
+		// row 0): a nested grid in a later row that took FLAGS_FIRST kept its first row across the page bottom
+		// instead of moving (primer-css's prop tables).
+		final int firstFlag = boundary == 0 ? IPageBreakableBox.FLAGS_FIRST : 0;
+		final byte xflags = (byte) (flags & (firstFlag | IPageBreakableBox.FLAGS_SPLIT));
 		final Row boundaryRow = this.rows.get(boundary);
 		if (crosses) {
 			final double remaining = pageLimit - boundaryRow.start();
@@ -264,7 +268,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			// so checking later would let even undecorated items return Split first,
 			// making the path that splits min-height-derived blank space unreachable.
 			final boolean slack = !anySplit
-					&& LayoutUtils.compare(boundaryRow.itemsEnd(), remaining) <= 0;
+					&& LayoutUtils.compare(this.itemsEnd(boundaryRow, boundaryItems, flow), remaining) <= 0;
 			if (!anySplit && !slack) {
 				for (int k = 0; k < boundaryItems.length; ++k) {
 					final SplitResult r = boundaryItems[k].split(remaining, mode, xflags);
@@ -372,7 +376,9 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 					contItems.add(rem);
 				}
 				final List<Row> contRows = new ArrayList<>();
-				contRows.add(new Row(0, boundaryItems.length, 0, newRowExtent, newRowExtent));
+				// The remainders' painted end is not known before they are laid out: NaN has the next split
+				// measure them (itemsEnd). The lower bound of the row height stood in for it until 2026-10-09.
+				contRows.add(new Row(0, boundaryItems.length, 0, newRowExtent, Double.NaN));
 				if (boundary + 1 < this.rows.size()) {
 					final Row nextRow = this.rows.get(boundary + 1);
 					((Container) this.container).migrateFlowsFrom(nextRow.startFlow(), cont, keptEnd);
@@ -397,20 +403,51 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			// No item in the boundary row can split: treat the entire row as the boundary and carry it whole.
 		}
 		if (boundary == 0) {
-			return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
+			if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
+				return SplitResult.MOVE;
+			}
+			if (crosses && this.rows.size() > 1) {
+				// The first row on a fresh page neither fits nor splits (an unbreakable item taller than the page,
+				// or a remainder stretched to the lower bound of its row): keep that row alone and carry the later
+				// rows on (2026-10-09). Keeping the whole grid put every later row below the paper and stopped
+				// pagination (openprops: 46 pages became 7, with 5000 words off the page).
+				return this.carryRowsFrom(1, boundaryRow.start() + boundaryRow.extent());
+			}
+			return SplitResult.KEEP;
 		}
-		final double keptExtent = boundaryRow.start();
+		return this.carryRowsFrom(boundary, boundaryRow.start());
+	}
+
+	/** Keeps the rows before {@code firstRow} and carries the rest whole to a continuation fragment. */
+	private SplitResult carryRowsFrom(final int firstRow, final double keptExtent) {
+		final Row first = this.rows.get(firstRow);
 		final RowSplitContainer cont = new RowSplitContainer();
-		((Container) this.container).migrateFlowsFrom(boundaryRow.startFlow(), cont, keptExtent);
+		((Container) this.container).migrateFlowsFrom(first.startFlow(), cont, keptExtent);
 		cont.anchorCurrent(0);
 		final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
 		if (continuation instanceof GridBox contGrid) {
 			contGrid.markTrackLayout();
-			contGrid.setGridRows(shiftRows(this.rows, boundary, keptExtent),
-					new ArrayList<>(this.rowItems.subList(boundaryRow.startFlow(), this.rowItems.size())));
+			contGrid.setGridRows(shiftRows(this.rows, firstRow, keptExtent),
+					new ArrayList<>(this.rowItems.subList(first.startFlow(), this.rowItems.size())));
 		}
-		this.keepHeadRows(boundary);
+		this.keepHeadRows(firstRow);
 		return new SplitResult.Split(continuation);
+	}
+
+	/**
+	 * The end the items of a row paint, relative to the row start: the ledger's value, or for a row of remainders
+	 * (NaN, recorded before they were laid out) the largest painted extent of its items, which sit at the row start
+	 * (2026-10-09).
+	 */
+	private double itemsEnd(final Row row, final GridItemBox[] items, final WritingMode flow) {
+		if (!Double.isNaN(row.itemsEnd())) {
+			return row.itemsEnd();
+		}
+		double end = 0;
+		for (final GridItemBox item : items) {
+			end = Math.max(end, item.paintedPageExtent(flow));
+		}
+		return end;
 	}
 
 	/**
