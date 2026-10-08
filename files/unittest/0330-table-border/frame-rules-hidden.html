@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>frame の無い辺は hidden</title>
+<style>
+div { padding-bottom: 10px; }
+td { width: 40px; height: 16px; padding: 0; }
+td.solid { border: 2px solid; }
+</style>
+</head>
+<body>
+<!-- The sides frame leaves out are hidden (HTML Standard; Chrome 151), and hidden wins the collapsing border
+     conflicts on the edges: the rules' lines of the cells, row groups and column groups stop inside the table.
+     Chrome 151 draws, across a row / down a column:
+       hsides + groups: 1 vertical line (between the column groups) / 3 horizontal (top, thead|tbody, bottom)
+       void + all:      2 vertical (inside) / 2 horizontal (inside)
+       CSS all hidden:  2 vertical (inside) / 2 horizontal (inside), also with no margin, padding or background -->
+<div><table id="hsides" border="1" frame="hsides" rules="groups" cellspacing="0" cellpadding="0">
+<colgroup span="1"></colgroup><colgroup span="2"></colgroup>
+<thead><tr><td></td><td></td><td></td></tr></thead>
+<tbody><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr></tbody>
+</table></div>
+<div><table id="void" border="1" frame="void" rules="all" cellspacing="0" cellpadding="0">
+<colgroup span="1"></colgroup><colgroup span="2"></colgroup>
+<thead><tr><td></td><td></td><td></td></tr></thead>
+<tbody><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr></tbody>
+</table></div>
+<div><table id="css" style="border-collapse: collapse; border-style: hidden" cellspacing="0" cellpadding="0">
+<thead><tr><td class="solid"></td><td class="solid"></td><td class="solid"></td></tr></thead>
+<tbody><tr><td class="solid"></td><td class="solid"></td><td class="solid"></td></tr>
+<tr><td class="solid"></td><td class="solid"></td><td class="solid"></td></tr></tbody>
+</table></div>
+</body>
+</html>

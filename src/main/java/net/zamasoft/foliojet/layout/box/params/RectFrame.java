@@ -46,8 +46,10 @@ public class RectFrame {
 		if (shadows != null && shadows.length == 0) {
 			shadows = null;
 		}
-		if (margin.isNull() && border.isNull() && !background.isVisible() & padding.isNull() && shadows == null
-				&& outline == null) {
+		if (margin.isNull() && border.isNull() && !border.hasHiddenSide() && !background.isVisible()
+				& padding.isNull() && shadows == null && outline == null) {
+			// A table with every side hidden (frame=void with rules) keeps its frame: the hidden sides win the
+			// collapsing border conflicts of its edges (2026-10-09).
 			return NULL_FRAME;
 		}
 		return new RectFrame(margin, border, background, padding, shadows, outline);

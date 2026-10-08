@@ -161,6 +161,15 @@ public class RectBorder {
 				&& this.getLeft().isNull();
 	}
 
+	/**
+	 * Whether a side is hidden. A hidden side has no width, but in the collapsing border model it still beats every
+	 * other border on that edge, so it must not be dropped with an empty frame (2026-10-09).
+	 */
+	public boolean hasHiddenSide() {
+		return this.getTop().style == Border.HIDDEN || this.getRight().style == Border.HIDDEN
+				|| this.getBottom().style == Border.HIDDEN || this.getLeft().style == Border.HIDDEN;
+	}
+
 	public boolean isRounded() {
 		return this.topLeft != Radius.ZERO_RADIUS || this.topRight != Radius.ZERO_RADIUS
 				|| this.bottomLeft != Radius.ZERO_RADIUS || this.bottomRight != Radius.ZERO_RADIUS;

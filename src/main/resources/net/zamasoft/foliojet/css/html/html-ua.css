@@ -669,14 +669,19 @@ table[border][bordercolor] {
  * 4辺の border-style を後段が無条件で上書きしており、事実上無効だった
  * (2026-08-03に移送中に発見。互換より正しさを優先するオーナー判断で直す)。
  */
-table[frame=void]   { border-style: none; }
-table[frame=above]  { border-style: outset none none none; }
-table[frame=below]  { border-style: none none outset none; }
+/*
+ * The sides frame leaves out are hidden, not none (HTML Standard, "Tables" in the rendering section): in the
+ * collapsing border model hidden beats the rules' borders of the cells, row groups and column groups on the edge,
+ * so frame=hsides rules=groups has no left and right lines (2026-10-09; pmc.ncbi.nlm.nih.gov tables, Chrome 151).
+ */
+table[frame=void]   { border-style: hidden; }
+table[frame=above]  { border-style: outset hidden hidden hidden; }
+table[frame=below]  { border-style: hidden hidden outset hidden; }
 /* hsides は水平な辺(上下)、vsides は垂直な辺(左右)。border-style は上右下左 */
-table[frame=hsides] { border-style: outset none outset none; }
-table[frame=vsides] { border-style: none outset none outset; }
-table[frame=lhs]    { border-style: none none none outset; }
-table[frame=rhs]    { border-style: none outset none none; }
+table[frame=hsides] { border-style: outset hidden outset hidden; }
+table[frame=vsides] { border-style: hidden outset hidden outset; }
+table[frame=lhs]    { border-style: hidden hidden hidden outset; }
+table[frame=rhs]    { border-style: hidden outset hidden hidden; }
 table[frame=box], table[frame=border] { border-style: outset; }
 
 /*
