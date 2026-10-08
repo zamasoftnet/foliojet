@@ -73,7 +73,7 @@ WebFontの利用は開発時や、どうしても使用する必要がある場�
 
 #### font-weight
 
-フォントの太さです。 normal, bold または100から900までの100刻みの値です。 デフォルトはnormalです。
+フォントの太さです。 normal, bold または1から1000までの数値<span class="since">4.0.0</span>です。100刻みでない値は、フォントの選び方が変わらない100刻みの太さとして扱います。 デフォルトはnormalです。
 
 #### unicode-range
 
@@ -109,6 +109,8 @@ WebFontの利用は開発時や、どうしても使用する必要がある場�
 </dl>
 
 対応しているフォントフォーマットは、TrueType, OTF, WOFF<span class="since">3.1.0</span>です。SVGフォント等はサポートしていません。
+
+@font-faceで読み込んだフォントは、フォントの方針(<span class="ioprop">output.pdf.fonts.policy</span>)にかかわらず使い、PDFに埋め込みます<span class="since">4.0.0</span>。既定の方針(コアフォントとCID-Keyedフォント)のままでも、文書が名前で指定したフォントは置き換わりません。
 
 次の例は、漢字には[IPA Pゴシック](https://ipafont.ipa.go.jp/)、 ひらがなと英数字には[きろ字](http://ola.kironono.com/entry/fonts-kiloji) を使用します。
 

@@ -1364,6 +1364,20 @@ public class FlowContainer implements Container {
 				if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0
 						&& prevFlow.box instanceof net.zamasoft.foliojet.layout.box.impl.TextBlockBox textBlock) {
 					final double unbreakableEnd = textBlock.getUnbreakableLinePageEnd();
+					if (!LayoutUtils.isNone(unbreakableEnd) && LayoutUtils.compare(splitLine, unbreakableEnd) < 0
+							&& fitsWithoutUncommittedFootnotes(mode, splitLine, unbreakableEnd)) {
+						// The line only overflows the footnotes of calls that this break moves on (2026-10-08): keep
+						// it whole and cut after it.
+						outcome = switch (((IPageBreakableBox) prevFlow.box).split(unbreakableEnd, mode, xflags)) {
+						case SplitResult.Keep keep -> ProbeOutcome.KEEP;
+						case SplitResult.Move move -> moveOutcome;
+						case SplitResult.Split(final IPageBreakableBox remainder) -> new ProbeOutcome.Split(
+								(IFlowBox) remainder);
+						case SplitResult.Frame frame -> throw new IllegalStateException(
+								"チェーン継続は表・テキストでは起きない");
+						};
+						break;
+					}
 					if (!LayoutUtils.isNone(unbreakableEnd) && LayoutUtils.compare(splitLine, unbreakableEnd) < 0) {
 						final IFlowBox rescued = this.rescueSplit(i, prevFlow, splitLine, prevPageSize);
 						if (rescued != null) {
@@ -1452,7 +1466,8 @@ public class FlowContainer implements Container {
 						|| LayoutUtils.compare(splitLine, prevFlowPageSize) >= 0) {
 					// Keep it if at the page start or if it does not intersect the page bottom.
 					if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0
-							&& LayoutUtils.compare(splitLine, prevFlowPageSize) < 0) {
+							&& LayoutUtils.compare(splitLine, prevFlowPageSize) < 0
+							&& !fitsWithoutUncommittedFootnotes(mode, splitLine, prevFlowPageSize)) {
 						// 2026-07-25 (rescue splitting, increment 4/5): "Fragment start,
 						// indivisible, still overflowing" is the sole non-progress point here
 						// currently falling through to drawing with overflow (recommendation §1).
@@ -1763,6 +1778,17 @@ public class FlowContainer implements Container {
 		this.invalidateNonDecorationContent();
 		assert this.flows.size() == from : this.flows.size() + "/" + from;
 		return nextBox;
+	}
+
+	/**
+	 * Whether a monolithic extent at the fragment start overflows the cut line only by footnotes reserved for calls that
+	 * are not committed yet ({@link AutoBreakMode#footnoteSlack}, 2026-10-08). Rescue slicing is for content that cannot
+	 * fit an empty fragmentainer; this one fits once those calls move on.
+	 */
+	private static boolean fitsWithoutUncommittedFootnotes(final BreakMode mode, final double splitLine,
+			final double extent) {
+		return mode instanceof AutoBreakMode auto && auto.footnoteSlack > 0
+				&& LayoutUtils.compare(extent, splitLine + auto.footnoteSlack) <= 0;
 	}
 
 	/**

@@ -73,7 +73,7 @@ The font style: normal, italic, or oblique. The default is normal.
 
 #### font-weight
 
-The font weight: normal, bold, or a value from 100 to 900 in increments of 100. The default is normal.
+The font weight: normal, bold, or a number from 1 to 1000<span class="since">4.0.0</span>. A value that is not a multiple of 100 is treated as the multiple of 100 that leaves font matching unchanged. The default is normal.
 
 #### unicode-range
 
@@ -109,6 +109,8 @@ The location of the font file. Examples follow.
 </dl>
 
 The supported font formats are TrueType, OTF, and WOFF<span class="since">3.1.0</span>. SVG fonts and similar formats are not supported.
+
+Fonts loaded with @font-face are used and embedded in the PDF whatever the font policy (<span class="ioprop">output.pdf.fonts.policy</span>)<span class="since">4.0.0</span>. Even with the default policy (core and CID-keyed fonts), a font the document names is not replaced.
 
 The following example uses [IPA P Gothic](https://ipafont.ipa.go.jp/) for kanji and [Kiloji](http://ola.kironono.com/entry/fonts-kiloji) for hiragana, Latin letters, and digits.
 

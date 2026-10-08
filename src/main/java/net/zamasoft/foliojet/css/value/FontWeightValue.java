@@ -70,6 +70,23 @@ public class FontWeightValue implements Value, Serializable {
 		}
 	}
 
+	/**
+	 * A CSS Fonts 4 weight (1 to 1000) as one of the nine steps the font matcher knows, chosen so that the matching order
+	 * of css-fonts-4 §5.2 stays the same: below 400 the step at or below it, above 400 up to 500 is 500, above 500 the
+	 * step at or above it (2026-10-08).
+	 */
+	public static FontWeightValue nearest(final double weight) {
+		final int step;
+		if (weight <= 400) {
+			step = Math.max(1, (int) Math.floor(weight / 100));
+		} else if (weight <= 500) {
+			step = 5;
+		} else {
+			step = Math.min(9, (int) Math.ceil(weight / 100));
+		}
+		return TABLE[step - 1];
+	}
+
 	private final short fontWeight;
 
 	private FontWeightValue(short fontWeight) {

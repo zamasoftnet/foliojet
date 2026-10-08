@@ -325,6 +325,11 @@ public class Content extends AbstractPrimitivePropertyInfo {
 		} else if (first instanceof CssToken.Func attr && attr.is("attr")) {
 			final TokenStream attrParams = attr.argStream();
 			final String ref = attrParams.ident();
+			// attr(href url): the css-values-5 type that the GCPM examples and other formatters use (2026-10-08). The
+			// attribute is read as a reference either way.
+			if (ref != null && attrParams.hasNext() && !attrParams.eat("url")) {
+				attrParams.eat("string");
+			}
 			if (ref == null || attrParams.hasNext()) {
 				throw new PropertyException("IDが必要です");
 			}

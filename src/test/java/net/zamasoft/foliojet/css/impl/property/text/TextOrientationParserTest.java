@@ -43,8 +43,14 @@ public class TextOrientationParserTest extends TestCase {
 		assertEquals(TextOrientationValue.SIDEWAYS, parse("sideways"));
 	}
 
+	/** The earlier names that EPUB 3 CSS uses (2026-10-08). */
+	public void testLegacyNames() {
+		assertEquals(TextOrientationValue.SIDEWAYS, parse("sideways-right"));
+		assertEquals(TextOrientationValue.MIXED, parse("vertical-right"));
+	}
+
 	public void testRejected() {
-		assertTrue(parse("sideways-right") instanceof PropertyException);
+		assertTrue(parse("sideways-left") instanceof PropertyException);
 		assertTrue(parse("mixed upright") instanceof PropertyException);
 	}
 }

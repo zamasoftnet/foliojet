@@ -1172,7 +1172,11 @@ public class CSSStyleSheetBuilder {
 						if (srcUri.getScheme() != null && srcUri.getScheme().equals("local-font")) {
 							String name = srcUri.getSchemeSpecificPart();
 							Font local = Font.decode(name);
-							if (local == null) {
+							// Font.decode never fails: a name not installed comes back as the Dialog logical font. Try
+							// the next source instead (2026-10-08); once the policy stopped hiding @font-face fonts,
+							// local('Meiryo') on a server without Meiryo set Japanese text in Dialog.
+							if (local == null || ("Dialog".equals(local.getFamily(java.util.Locale.ROOT))
+									&& !"Dialog".equalsIgnoreCase(name))) {
 								continue;
 							}
 							face = new FontFace();

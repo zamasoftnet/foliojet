@@ -46,8 +46,12 @@ public class TextOrientation extends AbstractPrimitivePropertyInfo {
 			value = TextOrientationValue.MIXED;
 		} else if (tokens.eat("upright")) {
 			value = TextOrientationValue.UPRIGHT;
-		} else if (tokens.eat("sideways")) {
+		} else if (tokens.eat("sideways") || tokens.eat("sideways-right")) {
+			// sideways-right and vertical-right are the earlier names that EPUB 3 CSS uses (2026-10-08); Chrome takes them
+			// too (vertical-right as -webkit-text-orientation)
 			value = TextOrientationValue.SIDEWAYS;
+		} else if (tokens.eat("vertical-right")) {
+			value = TextOrientationValue.MIXED;
 		} else {
 			throw new PropertyException();
 		}

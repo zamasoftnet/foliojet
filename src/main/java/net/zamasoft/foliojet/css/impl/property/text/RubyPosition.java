@@ -54,12 +54,13 @@ public final class RubyPosition extends AbstractPrimitivePropertyInfo {
 					throw new PropertyException();
 				}
 				alternate = true;
-			} else if (tokens.eat("over")) {
+			} else if (tokens.eat("over") || tokens.eat("before")) {
+				// before/after: the earlier CSS Ruby names that EPUB 3.0 and -webkit-ruby-position use (2026-10-08)
 				if (over != null) {
 					throw new PropertyException();
 				}
 				over = Boolean.TRUE;
-			} else if (tokens.eat("under")) {
+			} else if (tokens.eat("under") || tokens.eat("after")) {
 				if (over != null) {
 					throw new PropertyException();
 				}

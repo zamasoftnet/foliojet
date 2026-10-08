@@ -959,6 +959,13 @@ public class RootBuilder extends BreakableBuilder {
 		if (this.flowStack.isEmpty()) {
 			return false;
 		}
+		if (mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode auto
+				&& !(mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode)) {
+			final double slack = this.uncommittedFootnoteReservation();
+			if (slack > 0) {
+				mode = auto.withFootnoteSlack(slack);
+			}
+		}
 		if (this.guardBreakProgress(mode)) {
 			return false;
 		}
@@ -2161,6 +2168,32 @@ public class RootBuilder extends BreakableBuilder {
 
 	/** Gap between body text and footnote area (UA-fixed; the separator rule sits at its center). */
 	private static final double FOOTNOTE_GAP = 6;
+
+	/**
+	 * The part of the page's footnote reservation that belongs to calls not yet committed to a page (2026-10-08,
+	 * {@code AutoBreakMode.footnoteSlack}). A note is reserved as soon as its call is laid out, which can shorten the page
+	 * below content already on it; if the break then moves the call, the note goes with it. Fixed, minimum-height and
+	 * page-band footnote areas reserve space of their own and are left out.
+	 */
+	private double uncommittedFootnoteReservation() {
+		final double reservation = this.pageFootnoteHost.footnoteReservation;
+		if (reservation <= 0 || this.footnoteArea().isHeightFixed() || this.footnoteArea().minHeight > 0
+				|| this.isPageBandFootnoteArea()) {
+			return 0;
+		}
+		double committed = 0;
+		int i = 0;
+		for (final FootnoteEntry entry : this.pageFootnoteHost.pendingFootnotes) {
+			if (i++ >= this.pageFootnoteHost.footnoteReservedCount) {
+				break;
+			}
+			if (entry.committed || entry.noteBox == null) {
+				committed += (committed == 0 ? FOOTNOTE_GAP : 0)
+						+ (entry.noteBox == null ? 0 : this.footnoteExtent(entry.noteBox));
+			}
+		}
+		return Math.max(0, reservation - committed);
+	}
 
 	/**
 	 * Footnote extent in the page direction (axis-neutral; F6/F7 recommendation ②). The larger of box geometry and

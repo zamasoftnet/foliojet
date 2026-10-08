@@ -31,6 +31,14 @@ public abstract class BreakMode {
 		 */
 		public final double fragmentCapacity;
 
+		/**
+		 * The part of the page's footnote reservation that belongs to calls not yet committed to a page (2026-10-08).
+		 * Such calls move with whatever the break cuts away and take their notes along, so a monolithic line or
+		 * replaced box at the fragment start that fits within the cut line plus this slack is kept whole instead of
+		 * being rescue-sliced (a figure filling most of the page before a paragraph with a long footnote).
+		 */
+		public final double footnoteSlack;
+
 		public AutoBreakMode(IBox box) {
 			this(box, -1);
 		}
@@ -39,16 +47,30 @@ public abstract class BreakMode {
 			assert box != null;
 			this.box = box;
 			this.fragmentCapacity = fragmentCapacity;
+			this.footnoteSlack = 0;
 		}
 
 		private AutoBreakMode() {
 			this.box = null;
 			this.fragmentCapacity = -1;
+			this.footnoteSlack = 0;
 		}
 
 		private AutoBreakMode(final double fragmentCapacity) {
 			this.box = null;
 			this.fragmentCapacity = fragmentCapacity;
+			this.footnoteSlack = 0;
+		}
+
+		private AutoBreakMode(final IBox box, final double fragmentCapacity, final double footnoteSlack) {
+			this.box = box;
+			this.fragmentCapacity = fragmentCapacity;
+			this.footnoteSlack = footnoteSlack;
+		}
+
+		/** This page break with {@link #footnoteSlack}. */
+		public AutoBreakMode withFootnoteSlack(final double footnoteSlack) {
+			return new AutoBreakMode(this.box, this.fragmentCapacity, footnoteSlack);
 		}
 
 		/** Anonymous mode with capacity (for autoBreak when flowStack is shallow). */

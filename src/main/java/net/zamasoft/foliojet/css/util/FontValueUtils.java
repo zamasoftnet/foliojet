@@ -306,12 +306,12 @@ public final class FontValueUtils {
 			}
 			return null;
 		}
-		if (token instanceof CssToken.Num num && num.integer()) {
-			try {
-				return FontWeightValue.create(num.intValue());
-			} catch (IllegalArgumentException e) {
+		if (token instanceof CssToken.Num num) {
+			// Any number from 1 to 1000 (CSS Fonts 4, 2026-10-08); InDesign exports such as 250 were dropped as invalid
+			if (num.value() < 1 || num.value() > 1000) {
 				return null;
 			}
+			return FontWeightValue.nearest(num.value());
 		}
 		return null;
 	}

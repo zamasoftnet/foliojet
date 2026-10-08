@@ -657,6 +657,20 @@ public final class ElementPropertySet extends PropertySet {
 		alias("-epub-column-span", ColumnSpan.INFO);
 		alias("-epub-column-rule", ColumnRuleShorthand.INFO);
 		alias("-epub-columns", ColumnsShorthand.INFO);
+		// The rest of the EPUB 3 prefixed names (2026-10-08). Without -epub-text-orientation the Electronic Book
+		// Publishing Association template's .upright left characters sideways in vertical writing.
+		alias("-epub-text-orientation", TextOrientation.INFO);
+		alias("-epub-line-break", net.zamasoft.foliojet.css.impl.property.text.LineBreak.INFO);
+		alias("-epub-word-break", WordBreak.INFO);
+		alias("-epub-hyphens", Hyphens.INFO);
+		alias("-epub-text-transform", TextTransform.INFO);
+		alias("-epub-text-emphasis-position", TextEmphasisPosition.INFO);
+		alias("-epub-text-underline-position",
+				net.zamasoft.foliojet.css.impl.property.text.TextUnderlinePosition.INFO);
+		alias("-epub-ruby-position", net.zamasoft.foliojet.css.impl.property.text.RubyPosition.INFO);
+		// text-combine-horizontal: the earlier name of text-combine-upright
+		alias("-epub-text-combine-horizontal", TextCombineShorthand.INFO);
+		alias("text-combine-horizontal", TextCombineShorthand.INFO);
 
 		alias("transform", Transform.INFO);
 		alias("transform-origin", TransformOrigin.INFO_X);

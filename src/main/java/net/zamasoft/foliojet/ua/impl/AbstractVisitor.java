@@ -515,6 +515,10 @@ public abstract class AbstractVisitor implements Visitor {
 			if (bookmark != null && bookmark.level() != net.zamasoft.foliojet.layout.box.params.BookmarkSpec.LEVEL_AUTO) {
 				header = bookmark.level() == 0 ? null : String.valueOf(bookmark.level());
 			}
+			if (header != null && this.ua.getPassContext().getSectionState().isOpen(ce.elementKey())) {
+				// A later fragment of a box split across pages (2026-10-08): its section is already open
+				header = null;
+			}
 			if (header != null) {
 				// Heading processing
 				try {
@@ -544,6 +548,7 @@ public abstract class AbstractVisitor implements Visitor {
 						}
 						--state.sectionDepth;
 						--state.sectionLevel;
+						state.openElements.pollLast();
 					}
 
 					String ref = "cssj-header-" + (++state.sectionCount);
@@ -575,6 +580,7 @@ public abstract class AbstractVisitor implements Visitor {
 
 					++state.sectionDepth;
 					state.sectionLevel = level;
+					state.openElements.addLast(ce.elementKey());
 				} catch (NumberFormatException e) {
 					this.ua.message(MessageCodes.WARN_BAD_HEADER, header);
 				}
