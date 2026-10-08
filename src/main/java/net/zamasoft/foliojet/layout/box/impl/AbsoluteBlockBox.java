@@ -240,7 +240,10 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			return measured;
 		}
 		this.shrinkToFit(containerBox, measured);
-		try (net.zamasoft.foliojet.layout.fragment.ScratchReplayScope scope = new net.zamasoft.foliojet.layout.fragment.ScratchReplayScope()) {
+		final RetainedTextLimit limit = RetainedTextLimit.get(this.deferredBind.pageContext());
+		try (var retained = limit == null ? null
+				: limit.measurement(RetainedTextLimit.elementName(this.getParams(), "absolute"));
+				net.zamasoft.foliojet.layout.fragment.ScratchReplayScope scope = new net.zamasoft.foliojet.layout.fragment.ScratchReplayScope()) {
 			final BlockBuilder trial = new BlockBuilder(this.deferredBind.pageContext(), this);
 			this.deferredBind.measureInto(trial);
 			trial.close();

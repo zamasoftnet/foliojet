@@ -382,7 +382,12 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	public void bind(final Builder hostBuilder) {
 		assert !this.bound : "Flexの二重bind";
 		this.bound = true;
-		final BlockBuilder target = (BlockBuilder) hostBuilder;
+		try (FlexMeasureMemo.Scope memo = FlexMeasureMemo.enter()) {
+			this.bindItems((BlockBuilder) hostBuilder);
+		}
+	}
+
+	private void bindItems(final BlockBuilder target) {
 		final FlexParams params = this.flexBox.getFlexParams();
 		final boolean mainIsLine = params.flexDirection.isRow();
 		final double innerLine = this.flexBox.getLineSize();

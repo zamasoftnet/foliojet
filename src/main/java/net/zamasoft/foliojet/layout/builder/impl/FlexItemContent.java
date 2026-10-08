@@ -123,6 +123,16 @@ final class FlexItemContent {
 		if (replica == null) {
 			return Double.NaN;
 		}
+		// Nested retained columns measure the same ranges on every replay of their ancestors (FlexMeasureMemo)
+		final FlexMeasureMemo memo = this.body == null ? null : FlexMeasureMemo.current();
+		final FlexMeasureMemo.Key key = memo == null ? null
+				: new FlexMeasureMemo.Key(this.body.source(), this.body.fromId(), this.body.toId(), lineSize, insetBase);
+		if (key != null) {
+			final Double known = memo.get(key);
+			if (known != null) {
+				return known;
+			}
+		}
 		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = replica.getFrame();
 		net.zamasoft.foliojet.layout.util.LayoutUtils.computePaddings(frame.padding, frame.frame.padding,
 				insetBase);
@@ -130,12 +140,23 @@ final class FlexItemContent {
 				insetBase);
 		replica.setFlexMainSize(lineSize, replica.getBlockParams().flow.isVertical());
 		replica.applyAspectRatio(lineSize);
-		try (net.zamasoft.foliojet.layout.fragment.ScratchReplayScope scope = new net.zamasoft.foliojet.layout.fragment.ScratchReplayScope()) {
+		// The disposable copy is counted apart from the live flex scope, as table Pass B does: otherwise the
+		// measured text stayed charged to the container and the bind charged it again (codex review 2026-10-08)
+		final net.zamasoft.foliojet.layout.RetainedTextLimit limit = net.zamasoft.foliojet.layout.RetainedTextLimit
+				.get(host);
+		try (var retained = limit == null ? null
+				: limit.measurement(net.zamasoft.foliojet.layout.RetainedTextLimit.elementName(replica.getParams(),
+						"flex-item"));
+				net.zamasoft.foliojet.layout.fragment.ScratchReplayScope scope = new net.zamasoft.foliojet.layout.fragment.ScratchReplayScope()) {
 			final BlockBuilder builder = new BlockBuilder(host, replica);
 			this.content.measureInto(builder);
 			builder.close();
 		}
-		return replica.getInnerPageExtent(flow);
+		final double measured = replica.getInnerPageExtent(flow);
+		if (key != null) {
+			memo.put(key, measured);
+		}
+		return measured;
 	}
 
 	/** Validates only and lists items to terminate after acquiring the parent lease. */
