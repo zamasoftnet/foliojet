@@ -146,6 +146,22 @@ public class FuzzOraclePredicateTest extends TestCase {
 				"<div style=\"writing-mode:vertical-lr;width:48pt\"><div style=\"width:86pt\">T0</div></div>")));
 	}
 
+	/**
+	 * Fit seed 12262395 (2026-10-08): the reversed box's width in em ({@code 8em}, 48 pt at this 6 pt font) and a
+	 * 113 pt inline-block inside it. Chrome also puts every drawing off the paper.
+	 */
+	public void testEmWidthOppositeProgressionWithWiderInlineBlockIsExcluded() {
+		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(";writing-mode:vertical-lr",
+				"<div style=\"writing-mode:vertical-rl;width:8em;min-width:8em;max-width:90%;\"><div>"
+						+ "<p><span style=\"display:inline-block;width:113pt;height:101pt\">T2</span></p></div></div>")));
+	}
+
+	/** The last width wins: {@code calc()} with a percentage cannot be read, so the earlier 48 pt bounds nothing. */
+	public void testOppositeProgressionWidthOverriddenByCalcIsNotExcluded() {
+		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(";writing-mode:vertical-rl",
+				"<div style=\"writing-mode:vertical-lr;width:48pt;width:calc(35% + 8em)\"><div style=\"width:86pt\">T0</div></div>")));
+	}
+
 	/** Minimal seed 82162. A 1 pt width cannot hold even one 10 pt character. */
 	public void testTooNarrowOppositeVerticalProgressionIsExcluded() {
 		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(

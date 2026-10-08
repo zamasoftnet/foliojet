@@ -675,11 +675,14 @@ final class StyleEventMachine {
 			// list-style-type/list-style-position, etc. do not apply to ::marker,
 			// so always read them from li's actual style (style),
 			// as specified.
+			// The marker is always a child style of li, even without ::marker rules (2026-10-08): using li's own
+			// style handed li's non-inherited properties to the marker box, so `li { height: 96pt }` made the
+			// marker, and with it the first line, 96pt tall and pushed the second line to the bottom of the li
+			// (sweep fit seed 12475813; Chrome keeps the lines together).
 			this.styleContext.startElement(CSSElement.MARKER);
 			final Declaration markerDeclaration = this.styleContext.merge(null);
-			CSSStyle markerStyle = style;
+			final CSSStyle markerStyle = CSSStyle.getCSSStyle(this.ua, style, CSSElement.MARKER);
 			if (markerDeclaration != null) {
-				markerStyle = CSSStyle.getCSSStyle(this.ua, style, CSSElement.MARKER);
 				markerDeclaration.applyProperties(markerStyle);
 			}
 			this.styleContext.endElement();

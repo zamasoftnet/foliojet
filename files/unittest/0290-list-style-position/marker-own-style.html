@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>The marker does not take li's own non-inherited properties</title>
+<style type="text/css">
+body { font: 10pt/12pt serif; margin: 0; }
+ul { margin: 0 0 10pt 0; padding: 0 0 0 20pt; }
+</style>
+</head>
+<body>
+<!-- a: li without a height (reference) -->
+<ul><li><span id="a1">T0</span><br><span id="a2">T1</span></li></ul>
+<!-- b: li with a height: the lines stay where they are in a (the second line used to drop to the bottom of the li) -->
+<ul><li style="height: 96pt"><span id="b1">T2</span><br><span id="b2">T3</span></li></ul>
+<!-- c: the same with an inside marker -->
+<ul><li style="height: 96pt; list-style-position: inside"><span id="c1">T4</span><br><span id="c2">T5</span></li></ul>
+</body>
+</html>

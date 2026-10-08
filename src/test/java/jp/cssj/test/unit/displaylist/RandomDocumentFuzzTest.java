@@ -1432,6 +1432,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §23: column-reverse wrapping flex items with min-width:8em in a table cell inside an inline-block on
 			// vertical-lr paper 120 pt wide make the unbreakable box more than three sheets wide (Chrome too).
 			new IndividualExclusion(12_180_614, "fit-v1", 239_490_920, "割れない箱の中のcolumnのflexが紙3枚より広い",
+					"2026-10-08"),
+			// Triage §24: on 60 pt vertical-rl paper a table whose inline size is already two sheets in Chrome (120.7 pt),
+			// plus overlapping cells (a table model error, resolved differently by each UA) that put Copper's columns
+			// 19 pt further: its last cell's list lands 5 pt past the second sheet.
+			new IndividualExclusion(12_318_384, "fit-v1", 514_363_755, "紙2枚の行内寸法の表と重なるセルの列の割り当て差",
 					"2026-10-08"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
@@ -4300,8 +4305,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			if (wm.find()) {
 				mode = wm.group(1);
 			}
-			final Matcher widthMatcher = STYLE_WIDTH.matcher(attrs);
-			final Double width = widthMatcher.find() ? Double.valueOf(widthMatcher.group(1)) : null;
 			final double inheritedLimit = reverseLimits.peek().doubleValue();
 			// Does the width declaration apply to this box? Non-replaced inline elements (including default-inline tags)
 			// and table parts have no width; flex items grow/shrink (only minimum width applies). Ignore em after font-size changes.
@@ -4319,12 +4322,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 				return true;
 			}
 			double reverseLimit = inheritedLimit;
-			if (parent.startsWith("vertical-") && mode.startsWith("vertical-") && !parent.equals(mode)
-					&& width != null) {
-				if (width.doubleValue() < least) {
+			if (parent.startsWith("vertical-") && mode.startsWith("vertical-") && !parent.equals(mode) && !unsized
+					&& !flexItem) {
+				final double width = widthUpperBound(attrs, em);
+				if (width < least) {
 					return true;
 				}
-				reverseLimit = Math.min(reverseLimit, width.doubleValue());
+				reverseLimit = Math.min(reverseLimit, width);
 			}
 			modes.push(mode);
 			reverseLimits.push(Double.valueOf(reverseLimit));
@@ -4338,6 +4342,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 			.compile("(?:^|[;\\s\"])max-width\\s*:\\s*([^;\"']*)");
 	/** Declarations changing font size, making em lengths unreadable using the body font size. */
 	private static final Pattern STYLE_FONT_SIZE_DECLARATION = Pattern.compile("(?:^|[;\\s\"])font(?:-size)?\\s*:");
+
+	/**
+	 * Explicit width upper bound (pt) of a box whose width declarations apply: the larger of the last {@code width} and
+	 * the last {@code min-width} ({@code max-width} only narrows it). Infinite when there is no {@code width} (auto) or
+	 * either last value cannot be read statically (a percentage, {@code calc()}, em after a font-size change).
+	 * The reversed box's width used to be the first pt {@code width}, which missed {@code width:8em} and took 80 from
+	 * {@code width:80pt;width:calc(35% + 8em)} (fit seed 12262395, 2026-10-08).
+	 */
+	static double widthUpperBound(final String attrs, final double font) {
+		final double width = lastLength(STYLE_WIDTH_DECLARATION, attrs, font, Double.NaN);
+		final double min = lastLength(STYLE_MIN_WIDTH_DECLARATION, attrs, font, 0);
+		if (Double.isNaN(width) || Double.isNaN(min)) {
+			return Double.POSITIVE_INFINITY;
+		}
+		return Math.max(width, min);
+	}
 
 	/**
 	 * Explicit width lower bound (pt): the larger of the last {@code min-width} and, if no {@code max-width}
