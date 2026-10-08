@@ -47,6 +47,35 @@ public class SVGAuthorCssTest extends TestCase {
 		assertTrue("currentColorの青fillが出ていません:\n" + ops, containsColorOp(ops, "rg", 0, 0, 1));
 	}
 
+	/**
+	 * Declarations with units Batik cannot read (rem, vw, ch) are dropped without the rest of their rule and
+	 * without warning 280D (2026-10-09, Docusaurus' {@code .close{font-size:1.5rem}}). Expected fills are Chrome
+	 * 151's computed values: .m rgb(255, 0, 255), .y rgb(255, 255, 0).
+	 */
+	public void testUnreadableUnitsDropOnlyTheirDeclaration() throws Exception {
+		final ByteArrayOutputStream out = new ByteArrayOutputStream();
+		final List<String> messages = new ArrayList<String>();
+		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
+				null);
+		try {
+			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+			session.setMessageHandler(
+					(code, args, mes) -> messages.add(Integer.toHexString(code & 0xFFFF) + " " + mes));
+			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+			session.property("input.include", "**");
+			CTISessionHelper.transcodeFile(session, new File("files/unittest/3050-IMG/svg-author-css-units.html"),
+					"text/html", null);
+		} finally {
+			session.close();
+		}
+		final String ops = String.join("\n", inflateStreams(out.toByteArray()));
+		assertTrue("rem/vw と同じ規則の magenta の fill が出ていません:\n" + ops, containsColorOp(ops, "rg", 1, 0, 1));
+		assertTrue("ch と同じ規則の yellow の fill が出ていません:\n" + ops, containsColorOp(ops, "rg", 1, 1, 0));
+		for (final String m : messages) {
+			assertFalse("SVG の警告が出ています: " + m, m.startsWith("280d "));
+		}
+	}
+
 	private static boolean containsColorOp(String ops, String op, double r, double g, double b) {
 		final Matcher m = Pattern.compile("([\\d.]+) ([\\d.]+) ([\\d.]+) " + op + "\\b").matcher(ops);
 		while (m.find()) {

@@ -139,9 +139,16 @@ public final class SVGAuthorCss {
 	}
 
 	private static String serializeToken(CssToken token) {
-		if (token instanceof CssToken.Num || token instanceof CssToken.Percent || token instanceof CssToken.Dim
-				|| token instanceof CssToken.Str) {
+		if (token instanceof CssToken.Num || token instanceof CssToken.Percent || token instanceof CssToken.Str) {
 			return token.toString();
+		}
+		if (token instanceof CssToken.Dim dim) {
+			// Batik's scanner knows only the CSS2 units. Any other unit (rem, vw, ch, ...) makes it reject the whole
+			// <style> with warning 280D (Docusaurus' .close{font-size:1.5rem} in every inline SVG, 2026-10-09),
+			// so drop just this declaration and keep the rest of the rule.
+			return dim.unitText() != null && BATIK_UNITS.contains(dim.unitText().toLowerCase(java.util.Locale.ROOT))
+					? token.toString()
+					: null;
 		}
 		if (token instanceof CssToken.Ident ident) {
 			return ident.name();
@@ -213,6 +220,10 @@ public final class SVGAuthorCss {
 		}
 		return Double.valueOf(Math.max(0d, Math.min(1d, a)));
 	}
+
+	/** Dimension units Batik's CSS2-era scanner reads. */
+	private static final java.util.Set<String> BATIK_UNITS = java.util.Set.of( //
+			"px", "pt", "pc", "in", "cm", "mm", "em", "ex", "deg", "rad", "grad", "ms", "s", "hz", "khz");
 
 	/** Values accepted by Batik's CSS2-era display validation. */
 	private static final java.util.Set<String> BATIK_DISPLAY_VALUES = java.util.Set.of( //

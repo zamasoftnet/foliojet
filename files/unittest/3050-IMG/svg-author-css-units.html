@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/* Author CSS with units Batik cannot read (rem, vw, ch) next to SVG paint properties (2026-10-09).
+   Chrome 151: .m fill rgb(255, 0, 255), .y fill rgb(255, 255, 0); the unreadable declarations must not cost
+   the rest of the rule nor raise warning 280D. */
+html { font-size: 20px; }
+.icon .m { fill: #ff00ff; font-size: 1.5rem; stroke-width: 0.5vw; }
+.icon .y { fill: #ffff00; letter-spacing: 1ch; }
+.close { color: #333333; font-size: 1.5rem; font-weight: 700; opacity: .5; }
+</style>
+</head>
+<body>
+<p>SVG author CSS with rem/vw/ch</p>
+<svg class="icon" width="80" height="40" viewBox="0 0 80 40">
+  <rect class="m" x="5" y="5" width="30" height="30"/>
+  <rect class="y" x="45" y="5" width="30" height="30"/>
+</svg>
+</body>
+</html>
