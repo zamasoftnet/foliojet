@@ -70,9 +70,22 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		record Detached() implements ReplayBody {
 		}
 
-		/** An empty body. Accepts MAIN bind exactly once; no lease is needed. */
+		/**
+		 * An empty body. Accepts MAIN bind exactly once; no lease is needed. {@code ownPlan} is set when the root is
+		 * an empty grid/flex container measured as its own root (2026-10-08): bind then lays the container out
+		 * without items, so its explicit tracks ({@code grid-template-rows: 50px}) still give it its size.
+		 */
 		final class Empty implements ReplayBody {
+			final net.zamasoft.foliojet.layout.builder.PageGenerator ownPlan;
 			boolean consumed;
+
+			Empty() {
+				this(null);
+			}
+
+			Empty(final net.zamasoft.foliojet.layout.builder.PageGenerator ownPlan) {
+				this.ownPlan = ownPlan;
+			}
 		}
 
 		/**
@@ -765,10 +778,10 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		if (toId < fromId) {
 			// An empty grid/flex container measured as its own root (width: fit-content) has only its own plan as
 			// content: nothing to replay either (2026-10-08; it failed the conversion with NO_RANGE). The plan has
-			// no items, and the measured sizes still give the box its width.
+			// no items: the measured sizes give the box its width, and bind lays the plan out again without items.
 			if (!this.hasContentBesidesOwnPlan) {
 				// If both the source and measured content are empty, use a terminal state with no body.
-				this.setBody(new ReplayBody.Empty());
+				this.setBody(new ReplayBody.Empty(this.hasLayoutContent ? pageGenerator : null));
 				net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTwoPassEmptySeal();
 				if (this.censusTag != null) {
 					this.censusTag.seal(true, "accepted", null);
@@ -1064,6 +1077,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		switch (body) {
 		case ReplayBody.Empty empty -> {
 			if (empty.consumed) throw new IllegalStateException("空本文の再bind");
+			if (empty.ownPlan != null) {
+				// The root's own grid/flex without items, as a range replay with no events lays it out.
+				final DocumentBuilder doc = new DocumentBuilder(empty.ownPlan, builder, ReplayIntent.current());
+				doc.finishReplay();
+			}
 			if (ReplayIntent.current() == ReplayIntent.MAIN) {
 				empty.consumed = true;
 				ContinuationStats.recordTwoPassEmptyBind();

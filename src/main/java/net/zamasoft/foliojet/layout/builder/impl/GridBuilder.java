@@ -1489,7 +1489,17 @@ public final class GridBuilder
 			// the whole stretched box. Splitting the latter as whitespace loses the continued background.
 			itemPageEnds[i] = yOffset + itemBox.paintedPageExtent(params.flow);
 		}
-		this.gridBox.setPageAxis(this.items.isEmpty() ? 0 : cursor);
+		// A grid without items keeps its explicit rows (2026-10-08, css-grid-1 §7.1: explicit tracks exist without
+		// items; Chrome gives an empty grid-template-rows: 50px grid 50px). Implicit rows exist only for items, so
+		// count the explicit ones only (column flow keeps one row for placement).
+		double pageExtent = cursor;
+		if (this.items.isEmpty()) {
+			pageExtent = 0;
+			for (int r = 0; r < Math.min(rowHeights.length, this.explicitRows); ++r) {
+				pageExtent += rowHeights[r] + (r > 0 ? this.rowGap : 0);
+			}
+		}
+		this.gridBox.setPageAxis(pageExtent);
 		// **Record row boundaries for page breaks** (2026-08-10, G6 row splitting;
 		// same structure as FlexBuilder.placeRow). Only applies when flow order (= source order) is
 		// contiguous row-major, all items have rowSpan=1, and align-content has no leading space

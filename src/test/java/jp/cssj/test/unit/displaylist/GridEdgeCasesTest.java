@@ -31,6 +31,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * <li>Inline SVGs with {@code display: grid}/{@code flex} nested into each other, and from the fourth the conversion
  * failed: the image arrived after display was computed.</li>
  * <li>A track {@code calc()} mixing a percentage and a length dropped the whole {@code grid-template-columns}.</li>
+ * <li>A grid without items lost its explicit rows (height 0).</li>
  * </ul>
  */
 public class GridEdgeCasesTest extends TestCase {
@@ -123,6 +124,29 @@ public class GridEdgeCasesTest extends TestCase {
 			assertEquals(names[i] + " の x", expected[i][0], frames.get(i)[0], 0.01);
 			assertEquals(names[i] + " の幅", expected[i][1], frames.get(i)[2], 0.01);
 		}
+	}
+
+	/** An empty grid keeps its explicit rows; implicit rows (grid-auto-rows) need items. */
+	public void testEmptyGridRows() throws Exception {
+		final String page = convert("rows", document("""
+				div { background: #ccc }
+				""", "<div style=\"display: grid; grid-template-rows: 50pt\"></div>"
+				+ "<div style=\"display: grid; grid-template-rows: 20pt 30pt; row-gap: 10pt\"></div>"
+				+ "<div style=\"display: grid; width: fit-content; grid-template-columns: 100pt;"
+				+ " grid-template-rows: 50pt\"></div>"
+				+ "<div style=\"display: grid; grid-auto-rows: 50pt\"></div>"
+				+ "<div style=\"display: grid; grid-template-areas: 'x' 'y'; grid-auto-rows: 15pt\"></div>"
+				+ "<div style=\"display: grid; grid-template-rows: auto 40pt\"></div><p>A</p>"));
+		final List<double[]> frames = frames(page);
+		final double[][] expected = { { 500, 50 }, { 500, 60 }, { 100, 50 }, { 500, 0 }, { 500, 30 }, { 500, 40 } };
+		final String[] names = { "50pt", "20pt 30pt と行間 10pt", "fit-content", "grid-auto-rows だけ", "領域の 2 行",
+				"auto 40pt" };
+		assertEquals("枠が6つ:\n" + page, 6, frames.size());
+		for (int i = 0; i < expected.length; ++i) {
+			assertEquals(names[i] + " の幅", expected[i][0], frames.get(i)[2], 0.01);
+			assertEquals(names[i] + " の高さ", expected[i][1], frames.get(i)[3], 0.01);
+		}
+		assertEquals("後ろの段落", 50 + 60 + 50 + 0 + 30 + 40, y(page, "A"), 0.01);
 	}
 
 	/** Frames in display-list order: x, y, w, h. */
