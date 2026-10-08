@@ -1,611 +1,1082 @@
 {
+  "net.zamasoft.foliojet.FolioJetVersion": {
+    "hash": "e42db73f41c5ac6c",
+    "en": "@author MIYABE Tatsuhiko\n@version $Id: FolioJetVersion.java 1552 2018-04-26 01:43:24Z miyabe $",
+    "ja": "@author MIYABE Tatsuhiko\n@version $Id: FolioJetVersion.java 1552 2018-04-26 01:43:24Z miyabe $"
+  },
+  "net.zamasoft.foliojet.driver.DirectDriver": {
+    "hash": "5f8ac5aa76a0dffc",
+    "en": "@author MIYABE Tatsuhiko",
+    "ja": "@author MIYABE Tatsuhiko"
+  },
   "net.zamasoft.foliojet.driver.DirectDriver#DEFAULT_PROFILE_FILE_KEY": {
+    "hash": "eca168f1a9f1dea1",
+    "en": "The default configuration file.",
     "ja": "デフォルトの設定ファイルです。"
   },
+  "net.zamasoft.foliojet.driver.DirectSession": {
+    "hash": "5f8ac5aa76a0dffc",
+    "en": "@author MIYABE Tatsuhiko",
+    "ja": "@author MIYABE Tatsuhiko"
+  },
   "net.zamasoft.foliojet.driver.DirectSession#format(Source)": {
+    "hash": "76ea45e6418f70cb",
+    "en": "Converts a document.\n\n@param source\n@throws AbortException\n@throws TranscoderException",
     "ja": "文書を変換します。\n\n@param source\n@throws AbortException\n@throws TranscoderException"
   },
   "net.zamasoft.foliojet.driver.DirectSession#setLocalAccessAllowed(boolean)": {
+    "hash": "91bd94b185377468",
+    "en": "Determines whether this session may retrieve local resources (such as {@code file:}).\n\n<p>\n<b>This is not an I/O property.</b> Clients cannot change it; the server (daemon)\ndecides for each authenticated user. Defaults to allowing access, so embedded use\nand command-line behavior stay the same: the principals running them can already\nread files accessible to the process.\n</p>\n\n<p>\nAllowing remote users access lets them specify arbitrary local files for conversion\nand read server configuration, keys, and {@code /proc}. Do not allow it on public servers.\nClients can still send resources themselves (CTIP resource upload and on-demand transfer)\nregardless of this setting.\n</p>",
     "ja": "このセッションがローカル資源({@code file:}など)を取得してよいかを決めます。\n\n<p>\n<b>入出力プロパティではありません。</b> クライアントからは変更できず、\nサーバー(デーモン)が認証済みの利用者ごとに決めます。既定は許可なので、\n組み込み利用とコマンドラインの動作は変わりません——それらを動かす主体は\n元々そのプロセスのファイルを読めるためです。\n</p>\n\n<p>\n遠隔の利用者に許すと、変換対象として任意のローカルファイルを指定でき、\nサーバーの設定・鍵・{@code /proc}が読み出せます。公開するサーバーでは\n許可しないでください。クライアント自身が資源を送る経路(CTIPの\nリソース送信・要求時送信)は、この指定に関わらず使えます。\n</p>"
   },
   "net.zamasoft.foliojet.driver.OperatorLimits": {
+    "hash": "a78fc05273f1f75e",
+    "en": "Operator-defined limits that users <b>cannot relax</b> (2026-10-03, shared-service resource limits increment 2;\n{@code copperpdf4/docs/design/shared-service-limits-design.md} §3-2).\n\n<p>\nProfile ({@code jp.cssj.driver.default}) values are merely defaults when clients supply none,\nand clients or document processing instructions can remove them. The limits here take\n<b>the smaller value</b> regardless of where a setting originates: it can be tightened but never relaxed.\n</p>\n\n<p>\nStored in the {@code .properties} file named by {@value #FILE_KEY} (a system property). Only\nthe numeric limits in the table below are allowed; unknown names or unreadable values cause\n{@link IOException} (the server does not start). Since each property represents unlimited differently,\nthe table also defines comparison rules:\n</p>\n<ul>\n<li>Input, resources, pixel count, output size, page count: negative=unlimited; zero means a limit of zero</li>\n<li>{@code processing.time-limit} and {@code processing.retained-text-limit}: zero or less=unlimited</li>\n<li>{@code processing.concurrency}: zero or less=automatic (min(core count, 4))</li>\n</ul>",
     "ja": "運用者が決めた、利用者が<b>緩められない</b>上限です(2026-10-03、共有サービスの資源の上限 増分2。\n{@code copperpdf4/docs/design/shared-service-limits-design.md} §3-2)。\n\n<p>\nプロファイル({@code jp.cssj.driver.default})の値は「クライアントが送らなかったときの既定」にすぎず、\nクライアントの指定や文書中の処理命令で外せる。ここに書いた上限は、どこで設定された値に対しても\n<b>小さい方</b>を取る——厳しくすることはできるが、緩めることはできない。\n</p>\n\n<p>\n置き場所は{@value #FILE_KEY}(システムプロパティ)で指す{@code .properties}ファイル。書けるのは\n下の表の数値の上限だけで、表に無い名前・読めない値は{@link IOException}(サーバーは起動しない)。\n「無制限」の表し方はプロパティごとに違うので、比較の規則も表で決める:\n</p>\n<ul>\n<li>入力・資源・画素数・出力の大きさ・頁数: 負=無制限、0 は「0 まで」</li>\n<li>{@code processing.time-limit}・{@code processing.retained-text-limit}: 0 以下=無制限</li>\n<li>{@code processing.concurrency}: 0 以下=自動(min(コア数, 4))</li>\n</ul>"
   },
   "net.zamasoft.foliojet.driver.OperatorLimits#FILE_KEY": {
+    "hash": "7ab34de362b67efc",
+    "en": "The system property pointing to the limits file.",
     "ja": "上限ファイルを指すシステムプロパティ。"
   },
   "net.zamasoft.foliojet.driver.OperatorLimits#NONE": {
+    "hash": "34abf8c3ccff7185",
+    "en": "No limits.",
     "ja": "上限なし。"
   },
   "net.zamasoft.foliojet.driver.OperatorLimits#ceilings()": {
+    "hash": "9745aa509832fe03",
+    "en": "Property names with limits and their limit values.",
     "ja": "上限を持つプロパティ名と上限値。"
   },
   "net.zamasoft.foliojet.driver.OperatorLimits#clamp(String,String)": {
+    "hash": "097daa52f31c3bc1",
+    "en": "Returns the effective value after applying the limit to the setting.\nReturns values unchanged for names without limits.\n\n@param name  the property name\n@param value the setting (null if unset; an unreadable value becomes the limit itself)\n@return the effective value",
     "ja": "設定値に上限を掛けた実効値を返します。上限の無い名前はそのまま返します。\n\n@param name  プロパティ名\n@param value 設定値(未設定ならnull。読めない値は上限そのものになる)\n@return 実効値"
   },
   "net.zamasoft.foliojet.driver.OperatorLimits#clampAll(Map)": {
+    "hash": "31533287f9cfb8bd",
+    "en": "Returns a copy of the property table with limits applied (limited properties get effective values even if unset).",
     "ja": "プロパティの表に上限を掛けた写しを返します(上限の名前は未設定でも実効値が入る)。"
   },
   "net.zamasoft.foliojet.driver.OperatorLimits#current()": {
+    "hash": "1f77bb9c5bf0337f",
+    "en": "Reads the limits file named by {@value #FILE_KEY}. Returns {@link #NONE} if none is specified.\nDoes not reread the same file until its modification time changes.\n\n@throws IOException if unreadable, a name is unknown, or a value is nonnumeric",
     "ja": "{@value #FILE_KEY}が指す上限ファイルを読みます。指していなければ{@link #NONE}。\n同じファイルは更新時刻が変わるまで読み直しません。\n\n@throws IOException 読めない、表に無い名前、数値でない値"
   },
   "net.zamasoft.foliojet.driver.OperatorLimits#isEmpty()": {
+    "hash": "1b857fb8b60eddb5",
+    "en": "Whether no limits are present.",
     "ja": "上限を1つも持たないか。"
   },
   "net.zamasoft.foliojet.driver.OperatorLimits#isLimitProperty(String)": {
+    "hash": "43705e8b13620866",
+    "en": "Whether the name is an allowed numeric limit in the limits file.",
     "ja": "上限ファイルに書ける(数値の上限の)名前か。"
   },
   "net.zamasoft.foliojet.driver.OperatorLimits#loosens(String,String)": {
+    "hash": "45b40ea75ca35829",
+    "en": "Returns whether the setting is less restrictive than this server's limit (for warnings).",
     "ja": "指定がこのサーバーの上限より緩いかを返します(警告を出すため)。"
   },
   "net.zamasoft.foliojet.driver.OperatorLimits#parse(Properties,String)": {
+    "hash": "3756da9ef16812f8",
+    "en": "Builds the limits table.\n\n@param props  names and limit values\n@param origin the source to report in errors\n@throws IOException if a name is unknown or a value is nonnumeric",
     "ja": "上限の表を作ります。\n\n@param props  名前と上限値\n@param origin エラーに出す出どころ\n@throws IOException 表に無い名前、数値でない値"
   },
+  "net.zamasoft.foliojet.driver.auth.Authenticator": {
+    "hash": "5f8ac5aa76a0dffc",
+    "en": "@author MIYABE Tatsuhiko",
+    "ja": "@author MIYABE Tatsuhiko"
+  },
   "net.zamasoft.foliojet.message.MessageCodeUtils": {
+    "hash": "6f32b111b1e35e55",
+    "en": "Converts message codes to readable text.\n\n@author MIYABE Tatsuhiko",
     "ja": "メッセージコードを可読なテキストにします。\n\n@author MIYABE Tatsuhiko"
   },
   "net.zamasoft.foliojet.message.MessageCodeUtils#detail(String)": {
+    "hash": "3b448e84f074c155",
+    "en": "Looks up supplementary text for message arguments (such as \"approximation details\")\nin the same catalog as the code. Returns the key unchanged if not found (2026-08-29).\n\n@param key catalog key (e.g., {@code 2822.blur-rings})",
     "ja": "メッセージの引数に埋める補足文(「近似の内容」など)を、コードと同じ\nカタログから引きます。見つからなければ鍵をそのまま返す(2026-08-29)。\n\n@param key カタログの鍵(例 {@code 2822.blur-rings})"
   },
   "net.zamasoft.foliojet.message.MessageCodeUtils#getFormat(short,String[])": {
+    "hash": "4dbf69e287908c73",
+    "en": "Returns the message format corresponding to a message code.\n\n@param code\n@return",
     "ja": "メッセージコードに対応するメッセージフォーマットを返します。\n\n@param code\n@return"
   },
   "net.zamasoft.foliojet.message.MessageCodeUtils#toString(short,String[])": {
+    "hash": "f743ba3c5b938da0",
+    "en": "Formats a message as a string.\n\n@param code\n@return",
     "ja": "メッセージを文字列化します。\n\n@param code\n@return"
   },
   "net.zamasoft.foliojet.message.MessageCodes": {
+    "hash": "78df7eba7655fade",
+    "en": "List of message codes.\n\n@author MIYABE Tatsuhiko",
     "ja": "メッセージコード一覧です。\n\n@author MIYABE Tatsuhiko"
   },
+  "net.zamasoft.foliojet.message.MessageCodes#ERROR_EPUB_ITEM_NOT_XML": {
+    "hash": "be81d19f30745121",
+    "en": "Error: an EPUB item cannot be read as XML, typically an encrypted (DRM) book (2026-10-08).",
+    "ja": "EPUBの項目をXMLとして読めないエラーです(典型的には暗号化(DRM)された本。2026-10-08)。"
+  },
+  "net.zamasoft.foliojet.message.MessageCodes#ERROR_EPUB_NOT_ZIP": {
+    "hash": "295c7521e877c255",
+    "en": "Error: the EPUB input is not a ZIP archive (a file merely named .epub; 2026-10-08).",
+    "ja": "EPUBとしての入力がZIPアーカイブでないエラーです(名前が.epubなだけのファイル。2026-10-08)。"
+  },
   "net.zamasoft.foliojet.message.MessageCodes#ERROR_FORBIDDEN_SERVERSIDE_DOCUMENT": {
+    "hash": "e0ad5fda7c9beca9",
+    "en": "Error: server-side main document retrieval is disallowed\n(e.g., denying a remote user an internal server destination; 2026-09-14).",
     "ja": "サーバー側のメインドキュメントの取得を許可していないエラーです(遠隔の利用者にサーバーの内側の宛先を拒んだなど、2026-09-14)。"
   },
   "net.zamasoft.foliojet.message.MessageCodes#ERROR_OUTPUT_IMAGE_TOO_LARGE": {
+    "hash": "94e4a003aa5a8a8c",
+    "en": "Error: generated raster (type area for image output) exceeds output.image-pixel-limit pixels (2026-10-03).",
     "ja": "生成するラスタ(画像出力の版面)の画素数が output.image-pixel-limit を超えたエラーです(2026-10-03)。"
   },
   "net.zamasoft.foliojet.message.MessageCodes#ERROR_PDFUA_LANG": {
+    "hash": "441ae1edd78697ba",
+    "en": "Error: PDF/UA selected without a document language ({@code output.pdf.tagged.lang}; 2026-10-05).",
     "ja": "PDF/UA を選んだのに文書の言語({@code output.pdf.tagged.lang})が無いエラーです(2026-10-05)。"
   },
   "net.zamasoft.foliojet.message.MessageCodes#ERROR_PDFX_OUTPUT_INTENT": {
+    "hash": "8c92ef52af1508d8",
+    "en": "Error: conversion aborted because the PDF/X output intent specification is invalid.",
     "ja": "PDF/Xの出力インテント指定が不正なため変換を中断したエラーです。"
   },
   "net.zamasoft.foliojet.message.MessageCodes#ERROR_UNREACHABLE_SERVERSIDE_DOCUMENT": {
+    "hash": "c065cd0a7fc30d9b",
+    "en": "Error: server-side main document retrieval failed (connection refused, disconnected, etc.; 2026-09-14).",
     "ja": "サーバー側のメインドキュメントを取得できなかった(接続拒否・切断など)エラーです(2026-09-14)。"
   },
   "net.zamasoft.foliojet.message.MessageCodes#ERROR_UNSUPPORTED_OUTPUT_TYPE": {
+    "hash": "7edf4b7a57e6c461",
+    "en": "Error: an unsupported format is specified for {@code output.type} (2026-10-05).",
     "ja": "{@code output.type} に対応していない形式を指定したエラーです(2026-10-05)。"
   },
   "net.zamasoft.foliojet.message.MessageCodes#WARN_APPROXIMATED_RENDERING": {
+    "hash": "b86a57b3d2add939",
+    "en": "Feature <b>rendered approximately</b> because the current output format cannot render it exactly\n(2026-08-29). Arguments: {0} = CSS property name, {1} = output MIME type, {2} = approximation details.\nEmitted once per document per feature, at draw time only when the approximation path actually runs.\nNormal PDF supporting transparency rasterizes only shadows for exact blur, but profiles without\ntransparency such as PDF/A-1, or refusal to rasterize, fall back to approximation.\nWarnings, including those for conic gradients, vary by output format/profile even for the same document.",
     "ja": "現在の出力形式では厳密に描けず<b>近似で描画した</b>機能(2026-08-29)。\n引数は {0}=CSSプロパティ名、{1}=出力のMIME型、{2}=近似の内容。\n描画時に、近似経路を実際に通ったときだけ、文書ごと・機能ごとに\n1回出す。透明を使える通常PDFでは影だけをラスタ化して厳密にぼかすが、\nPDF/A-1など透明を使えないプロファイルやラスタ化を拒否した場合は近似へ\n戻る。円錐グラデーション等も含め、同じ文書でも出力形式・プロファイルで\n警告が変わる。"
   },
+  "net.zamasoft.foliojet.message.MessageCodes#WARN_EPUB_NO_VIEWPORT": {
+    "hash": "557a693aa74ad594",
+    "en": "Warning: a fixed-layout EPUB item has no viewport; it is laid out on the default page (2026-10-08).",
+    "ja": "固定レイアウトのEPUBの項目にビューポートが無い警告です(既定のページに組みます。2026-10-08)。"
+  },
   "net.zamasoft.foliojet.message.MessageCodes#WARN_IGNORED_CSS_PROPERTY": {
+    "hash": "ffc9ddfc00b3bb8d",
+    "en": "Properties <b>intentionally unsupported</b> because they have no meaning in static layout\n(2026-08-28). Separated from {@link #WARN_UNSUPPORTED_CSS_PROPERTY} (unimplemented but\npotentially supported later): mixing these two prevents narrowing implementation candidates\nwhen counting warnings from real sites.",
     "ja": "静的な組版に意味がないため<b>意図して対応しない</b>プロパティ\n(2026-08-28)。{@link #WARN_UNSUPPORTED_CSS_PROPERTY}(いずれ対応\nしうる未実装)と区別するために分けた——実サイトの警告を数えて\n実装候補を選ぶとき、この2つが混ざっていると候補を絞れない。"
   },
   "net.zamasoft.foliojet.message.MessageCodes#WARN_INEFFECTIVE_CSS_COMBINATION": {
+    "hash": "ea8b35fb44621125",
+    "en": "Declaration parsed successfully but <b>ineffective in this combination</b> (2026-08-29).\nArguments: {0} = CSS property name, {1} = reason it has no effect.\nUnlike {@link #WARN_UNSUPPORTED_CSS_PROPERTY} (property itself unimplemented) or\n{@link #WARN_IGNORED_CSS_PROPERTY} (meaningless in static layout), reports declarations\n<b>that work on their own but are dropped due to context</b>.\n\"I wrote it, but it does nothing\" wastes users' time the most, so do not silently discard them.",
     "ja": "宣言は解釈できたが、<b>この組み合わせでは効かない</b>指定(2026-08-29)。\n引数は {0}=CSSプロパティ名、{1}=効かない理由。\n{@link #WARN_UNSUPPORTED_CSS_PROPERTY}(プロパティ自体が未実装)や\n{@link #WARN_IGNORED_CSS_PROPERTY}(静的組版では無意味)と違い、\n<b>単体なら効くのに文脈のせいで落ちる</b>ものを知らせる——利用者が\n最も時間を溶かすのは「書いたのに効かない」なので、黙って捨てない。"
   },
   "net.zamasoft.foliojet.message.MessageCodes#WARN_MISSING_IMAGE": {
+    "hash": "663706caeceb582f",
+    "en": "Warning that an image cannot be loaded. Arguments: {0} = URI without userinfo,\n{1} = failure stage ({@code resolve}, {@code fetch},\n{@code fetch: HTTP nnn}, {@code decode}).",
     "ja": "画像を読み込めない警告です。引数は {0}=userinfoを除いたURI、\n{1}=失敗段階({@code resolve}、{@code fetch}、\n{@code fetch: HTTP nnn}、{@code decode})です。"
   },
   "net.zamasoft.foliojet.message.MessageCodes#WARN_NO_ALPHA_IN_IMAGE_FORMAT": {
+    "hash": "091ee1dd4989a890",
+    "en": "A transparent image was requested, but the format cannot carry alpha.\n\n<p>\nSilently using white leaves users wondering \"why is it white when I requested transparency?\"\nExplain what happened.\n</p>",
     "ja": "透明な画像を求められたが、その形式はアルファを持てない。\n\n<p>\n黙って白にすると「透明にしたのに白い」と悩ませる。何が起きたかを言う。\n</p>"
   },
   "net.zamasoft.foliojet.message.MessageCodes#WARN_OPERATOR_LIMIT": {
+    "hash": "1fd1854b31ca61b8",
+    "en": "Warning for a setting looser than the operator's limit (uses the limit value; 2026-10-03).",
     "ja": "運用者の上限より緩い指定を受けた警告です(上限の値を使う。2026-10-03)。"
   },
   "net.zamasoft.foliojet.plugin.Plugin": {
+    "hash": "2384fccadd46f007",
+    "en": "Plugin interface.\n\n@author MIYABE Tatsuhiko",
     "ja": "プラグインのインターフェースです。\n\n@author MIYABE Tatsuhiko"
   },
   "net.zamasoft.foliojet.plugin.Plugin#match(E)": {
+    "hash": "08028b247582eebb",
+    "en": "Checks whether the plugin supports the given key.\nThe kind of object used as a key depends on the plugin type.\n\n@param key\n           key used to select a plugin.\n@return true if the given key is supported; otherwise false.",
     "ja": "プラグインが与えられたキーに対応するかどうかを検証します。 キーがどのようなオブジェクトであるかはプラグインの種類に依存します。\n\n@param key\n           プラグインを選択するためのキー。\n@return 与えられたキーに対応していればtrue。そうでなければfalse。"
   },
   "net.zamasoft.foliojet.plugin.Plugin#priority()": {
+    "hash": "ef79249dc91dfc7d",
+    "en": "Priority when multiple plugins support the same key. Higher values take precedence.\n\n@return priority.",
     "ja": "同じキーに対応するプラグインが複数ある場合の優先順位です。大きい値が優先されます。\n\n@return 優先順位。"
   },
   "net.zamasoft.foliojet.plugin.PluginRegistry": {
+    "hash": "325ef9abb69b5ce1",
+    "en": "Manages plugins using ServiceLoader.\nPlugins load only once at startup; subsequent lookups are lock-free.\n\n@author MIYABE Tatsuhiko",
     "ja": "ServiceLoaderを使ってプラグインを管理します。\nプラグインは起動時に一度だけ読み込まれ、以後の検索はロックフリーです。\n\n@author MIYABE Tatsuhiko"
   },
   "net.zamasoft.foliojet.plugin.PluginRegistry#getClassLoader()": {
+    "hash": "977a06e5c0d5c1d9",
+    "en": "Returns the class loader used to load plugins.",
     "ja": "プラグインの読み込みに使われるクラスローダーを返します。"
   },
   "net.zamasoft.foliojet.plugin.PluginRegistry#plugins(Class)": {
+    "hash": "f1797a87c5004557",
+    "en": "Returns all plugin implementations in descending priority order.\n\n@param role plugin type, specified by the interface name.",
     "ja": "プラグインの全ての実装を優先順位の高い順で返します。\n\n@param role プラグインの種類です。これはインターフェースの名前です。"
   },
   "net.zamasoft.foliojet.plugin.PluginRegistry#search(Class,K)": {
+    "hash": "5ad9f51b38933758",
+    "en": "Finds a plugin supporting the key.\n\n@param role plugin type, specified by the interface name.\n@param key  key used to select a plugin.\n@return first matching plugin, or null if none.",
     "ja": "キーに対応するプラグインを検索します。\n\n@param role プラグインの種類です。これはインターフェースの名前です。\n@param key  プラグインを選択するためのキーです。\n@return 最初にマッチしたプラグイン。なければnull。"
   },
   "net.zamasoft.foliojet.ua.props.CodePropManager": {
+    "hash": "4dfb3b34c069bd48",
+    "en": "A property that selects one of a set of choices.",
     "ja": "選択肢から1つを選ぶプロパティです。"
   },
   "net.zamasoft.foliojet.ua.props.OutputPdfVersion#V1_4X3": {
+    "hash": "63e70c855cd73c0a",
+    "en": "PDF/X-3:2003 (ISO 15930-6, based on PDF 1.4).",
     "ja": "PDF/X-3:2003(ISO 15930-6、PDF 1.4基底)。"
   },
   "net.zamasoft.foliojet.ua.props.OutputPdfVersion#isPdfX()": {
+    "hash": "8b737b7968088ea4",
+    "en": "True for PDF/X profiles.",
     "ja": "PDF/Xのプロファイルならtrue。"
   },
   "net.zamasoft.foliojet.ua.props.OutputPdfVersion#keepsNavigationOffByDefault()": {
+    "hash": "2415c42ae24fa0de",
+    "en": "Whether to keep bookmarks and links disabled by default (2026-10-04).\nPDF/UA-2 requires internal destinations to be structure destinations (SD)\n(ISO 14289-2 §8.8), but Copper bookmarks and internal links target page coordinates,\nso enabling them by default would violate conformance.\nUse explicitly specified values unchanged.",
     "ja": "しおり・リンクの既定を false のままにするか(2026-10-04)。PDF/UA-2 は文書内の\n行き先を構造の行き先(SD)にすることを求める(ISO 14289-2 §8.8)が、Copper の\nしおり・文書内リンクはページの座標を行き先にするので、既定で付けると\n不適合になる。明示した値はそのまま使う。"
   },
   "net.zamasoft.foliojet.ua.props.OutputPdfVersion#pdf14PdfXName()": {
+    "hash": "91bcdfe69d3f2d62",
+    "en": "Returns the warning name for PDF/X based on PDF 1.4 (X-1a, X-3); otherwise null.\nNeither permits transparency, link annotations, or encryption.",
     "ja": "PDF 1.4基底のPDF/X(X-1a・X-3)なら警告に使う名前を、それ以外ならnullを返します。\nどちらも透明・リンク注釈・暗号化を使えない。"
   },
   "net.zamasoft.foliojet.ua.props.OutputPdfVersion#requiresFontEmbedding()": {
+    "hash": "c8ede3a4bed3f4f4",
+    "en": "True for profiles requiring font embedding (PDF/A, PDF/X, PDF/UA).",
     "ja": "フォント埋め込みが必須のプロファイル(PDF/A・PDF/X・PDF/UA)ならtrue。"
   },
   "net.zamasoft.foliojet.ua.props.OutputPdfVersion#requiresTagging()": {
+    "hash": "1012f592fe12e11c",
+    "en": "True for profiles requiring logical structure (tagged PDF).",
     "ja": "論理構造(タグ付きPDF)が必須のプロファイルならtrue。"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgCompression": {
+    "hash": "b29424088b8a4709",
+    "en": "Whether to return page SVG and page JSON compressed with gzip.\n\n<p>\nOnly textual results shrink. Shared WOFF2 and PNG/JPEG are already compressed\nand do not shrink with gzip (measured: WOFF2 grew 0.1%, PNG shrank 1.7%).\nTherefore, never apply gzip to them.\n</p>\n\n<p>\nMeasurements with a 314-page book in vertical writing showed page SVG shrinking 78.2%\nand page JSON 79.1%, reducing total output from 14.96 MB to 6.35 MB, <b>a 57.5% reduction</b>.\nCompression itself took about 0.1 seconds for 628 results.\n</p>\n\n<p>\nOn fast connections, round-trip time barely changes (transfer took about 0.2 seconds over 613 Mbps).\nThis benefits slow connections, metered connections, and storage of results as received.\n</p>",
     "ja": "ページSVGとページJSONをgzipで縮めて返すかどうかです。\n\n<p>\n縮むのは文字で書かれた結果だけです。共有WOFF2とPNG/JPEGは既に圧縮済みで、\ngzipをかけても縮みません(実測でWOFF2は0.1%増、PNGは1.7%減)。だから\nこれらには一切かけません。\n</p>\n\n<p>\n314ページの縦組み書籍の実測では、ページSVGが78.2%、ページJSONが79.1%縮み、\n出力全体では14.96MBから6.35MBへ<b>57.5%減</b>になります。圧縮そのものの\n手間は628件で0.1秒ほどです。\n</p>\n\n<p>\n速い回線では往復時間がほとんど変わりません(613Mbpsの経路で転送は0.2秒程度)。\n効くのは、遅い回線・従量課金の回線・受け取ったまま保管する場合です。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgCompression#GZIP": {
+    "hash": "8f68b2d122b837ec",
+    "en": "Returns page SVG as {@code .svgz} and page JSON as {@code .json.gz}, compressed with gzip.\nLeaves {@code manifest.json} uncompressed because it is the entry point.",
     "ja": "ページSVGを{@code .svgz}、ページJSONを{@code .json.gz}として\ngzipで縮めて返します。{@code manifest.json}は読み口なので縮めません。"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgCompression#NONE": {
+    "hash": "ee1d7d67758191d8",
+    "en": "Returns results unchanged.",
     "ja": "そのまま返します。"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgFontScope": {
+    "hash": "7fc42226bea338a7",
+    "en": "Whether to create one font subset for the whole document or one per page.\n\n<p>\nA tradeoff between total size and time until the first page can be rendered.\nMeasurements with a Japanese book (Natsume Soseki's \"Kokoro\", A5, 350 pages):\n</p>\n\n<table border=\"1\">\n<caption>Measurements (2026-09-02)</caption>\n<tr><th></th><th>{@code document}</th><th>{@code page}</th></tr>\n<tr><td>Total fonts</td><td>0.25 MB</td><td>7.1 MB (28 times)</td></tr>\n<tr><td>Total output</td><td>11.8 MB</td><td>18.6 MB (1.6 times)</td></tr>\n<tr><td>Read only 3 pages</td><td>About 340 KB</td><td>About 150 KB</td></tr>\n<tr><td>Read the whole book</td><td>11.8 MB</td><td>18.6 MB</td></tr>\n</table>\n\n<p>\nOne page uses 104 distinct characters, about one-tenth of the document's 1,102, but its subset\nis <b>only 1/12 the size</b>, not 1/28, because of WOFF2's fixed overhead and cmap/hmtx.\nSumming distinct character counts across all pages gives 33-fold duplication.\nThe download-size crossover occurs around 12–13 pages.\nFor documents with only Latin text, the difference is negligible.\n</p>",
     "ja": "フォントのサブセットを文書全体で1つにするか、ページごとに作るかです。\n\n<p>\n総量と「最初の1ページを描けるまで」の取り引きになります。和文の書籍\n(夏目漱石『こころ』、A5・350ページ)で実測した値:\n</p>\n\n<table border=\"1\">\n<caption>実測(2026-09-02)</caption>\n<tr><th></th><th>{@code document}</th><th>{@code page}</th></tr>\n<tr><td>フォント合計</td><td>0.25 MB</td><td>7.1 MB(28倍)</td></tr>\n<tr><td>出力全体</td><td>11.8 MB</td><td>18.6 MB(1.6倍)</td></tr>\n<tr><td>3ページだけ読む</td><td>約340 KB</td><td>約150 KB</td></tr>\n<tr><td>通読</td><td>11.8 MB</td><td>18.6 MB</td></tr>\n</table>\n\n<p>\n1ページの字種は104で文書全体の1,102の約1割ですが、サブセットは1/28ではなく\n<b>1/12にしかなりません</b>——WOFF2の固定部分とcmap・hmtxが効くためです。\n全ページの字種を単純合計すると重複は33倍あります。落とす量が逆転する\n分岐点は12〜13ページあたり。欧文だけの文書では差は誤差です。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgFontScope#DOCUMENT": {
+    "hash": "00a0d60ee2ecd2fe",
+    "en": "Creates one subset for the whole document (default). Minimizes total size.\n\n<p>\nHowever, <b>the required glyphs are unknown until all pages have been laid out</b>,\nso subsets can only be emitted at the end. Body text uses private-use characters,\nwith glyphs available only in the fonts, so the consumer cannot draw even one character\nuntil conversion finishes.\n</p>",
     "ja": "文書全体で1つにします(既定)。総量は最も小さくなります。\n\n<p>\nただし<b>どの字形が要るかは全ページを組み終えるまで確定しない</b>ので、\nサブセットは最後にしか出せません。本文は私用領域の文字で字形は書体の\n中にしかないため、受け手は変換が終わるまで1文字も描けません。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgFontScope#PAGE": {
+    "hash": "50c9e068ac4501f8",
+    "en": "Creates subsets per page and <b>emits that page's subsets whenever the page closes</b>.\n\n<p>\nRendering can begin when the first page and its fonts arrive. Readers that fetch only\npages near the visible page also download less. Self-contained pages are the simplest\nto handle. The cost is total size.\n</p>",
     "ja": "ページごとに作り、<b>ページを閉じるたびにそのページ分を出します</b>。\n\n<p>\n1ページ目とその書体が届いた時点で描き始められ、見えているページの\n前後だけを取り寄せる読み器なら落とす量も減ります。ページが自己完結\nするので、取り回しは最も素直です。代償は総量。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgImageCompression": {
+    "hash": "6a2fee3796e2c8cb",
+    "en": "Compression policy for shared images in page-split SVG (2026-09-03, cti.li request).\n\n<p>\nThe default, {@code none}, emits fetched images unchanged (JPEG remains JPEG; others use PNG).\n{@code jpeg} recompresses raster images without transparency as JPEG (quality 0.8).\nSmall images (at or below the {@code output.paged-svg.image.compression.lossless} threshold)\nand images with transparency remain lossless (PNG).\nSVG images remain vectors and are excluded.\n</p>",
     "ja": "ページ分割SVGの共有画像の圧縮方針です(2026-09-03、cti.li の要望)。\n\n<p>\n既定の {@code none} は取ってきた画像をそのまま出します(JPEG は JPEG のまま、\nそれ以外は PNG)。{@code jpeg} は透明部分の無いラスタ画像を JPEG(品質 0.8)に\n再圧縮します。小さい画像({@code output.paged-svg.image.compression.lossless}\nの閾値以下)と透明部分のある画像は可逆(PNG)のままです。SVG 画像は\nベクタのままなので対象外です。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgImageCompression#JPEG": {
+    "hash": "ca31b7d5b6cd868c",
+    "en": "Recompresses large raster images without transparency as JPEG.",
     "ja": "透明部分の無い大きなラスタ画像を JPEG に再圧縮します。"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgImageCompression#NONE": {
+    "hash": "3ddd77e738baee7c",
+    "en": "Emits images unchanged.",
     "ja": "そのまま出します。"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgResourceMode": {
+    "hash": "04eea25c3958f0b5",
+    "en": "How to deliver shared resources (font subsets and images) for page-split SVG.\n\n<p>\nFonts and images both concern delivery to the consumer, so configure them together.\nThe three options are mutually exclusive.\n</p>",
     "ja": "ページ分割SVGの共有資源(フォントのサブセットと画像)の渡し方です。\n\n<p>\nフォントと画像は「受け手にどう届けるか」という同じ話なので、まとめて\n決めます。3つは互いに排他です。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgResourceMode#EMBED": {
+    "hash": "e0ad8987a0977be3",
+    "en": "Embeds resources in page SVG as {@code data:}.\n\n<p>\nFor delivery methods that <b>cannot preserve relative URIs</b>,\nsuch as sending a single page SVG elsewhere. The same image is duplicated per page,\nincreasing total size.\n</p>\n\n<p>\nEven in embedding mode, fonts remain references to shared WOFF2. Subsets are not final\nuntil the whole document has been laid out, and embedding them per page would run\nBrotli compression as many times as there are pages.\n</p>",
     "ja": "ページSVGへ{@code data:}で埋め込みます。\n\n<p>\nページSVG 1枚だけを別の場所へ渡すときのように、<b>相対URIを保てない</b>\n送り方のためのものです。同じ画像がページごとに複製されるので、全体の\n容量は増えます。\n</p>\n\n<p>\nフォントは埋め込みでも共有WOFF2への参照のままです。サブセットは文書全体を\n組み終えるまで確定せず、ページごとに埋め込むとページの数だけBrotli圧縮を\n回すことになるためです。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgResourceMode#OMIT": {
+    "hash": "988b986a9133f300",
+    "en": "Writes references only, without returning resource data.\n\n<p>\nWhen relaying out the same book with only font size or screen size changed,\nfont subsets and images are exactly the same as before. References from page SVG\nand entries in {@code manifest.json} remain, so the consumer can reuse previously\nsaved resources at the same URIs unchanged.\n</p>\n\n<p>\n<b>This setting reduces bandwidth and storage, not processing time.</b>\nMeasurements with a 314-page book in vertical writing (one pass) showed only a 121 ms (6%)\ntime difference, while output shrank 27%, from 15.0 MB to 10.9 MB.\n</p>\n\n<p>\nReceive everything with {@link #REFERENCE} the first time; use this from the second conversion onward.\n</p>",
     "ja": "参照だけ書き、実体は返しません。\n\n<p>\n同じ本を文字サイズや画面サイズだけ変えて組み直すとき、フォントのサブセットと\n画像は前回とまったく同じものになります。ページSVGからの参照と\n{@code manifest.json}の記載は残るので、受け手は前回保存した同じURIの資源を\nそのまま使えます。\n</p>\n\n<p>\n<b>通信量と保管量のための指定で、速さのための指定ではありません。</b>\n314ページの縦組み書籍(1パス)の実測では121ms(6%)しか変わらず、\n出力は15.0MBから10.9MBへ27%減ります。\n</p>\n\n<p>\n初回は{@link #REFERENCE}で全部を受け取り、2回目以降にこれを使ってください。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgResourceMode#REFERENCE": {
+    "hash": "68af6844f20f5621",
+    "en": "Emits separate files, referenced by relative URIs from page SVG.\n\n<p>\nThis is advantageous for directory output. An image needs only one copy regardless\nof how many pages use it, and relative URIs can be followed directly.\n</p>",
     "ja": "別ファイルとして出し、ページSVGから相対URIで参照します。\n\n<p>\nディレクトリへ出すならこれが有利です。同じ画像が何ページに出てきても\n実体は1つで済み、相対URIをそのまま辿れます。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.PagedSvgResourceMode#SOURCE": {
+    "hash": "5f3d084a1e7bf7a9",
+    "en": "References original source URLs for web images without copying them (2026-09-02).\n\n<p>\nFor converting web content to SVG and displaying it on the same web.\nFor images sourced from {@code http:}, {@code https:}, or {@code file:}\n(raster images with bytes that can be emitted unchanged), page SVG writes\n{@code <image href=\"source URL\">} without emitting the data.\nThe manifest's {@code images[]} entries include {@code source}.\nImages without a source ({@code data:}, generated images, rasterized SVGs) and fonts\nare emitted as shared resources, as with {@code reference}.\n</p>\n\n<p>\nNote: these reference the original server directly. The reader cannot fetch private URLs\nor authenticated resources. Images reselected by Copper ({@code image-set()})\nor processed images may look different from the originals.\n</p>",
     "ja": "ウェブ上の画像は複写せず、取得元の URL をそのまま参照します(2026-09-02)。\n\n<p>\nウェブの内容を SVG にして同じウェブで見せる用途のためのものです。取得元が\n{@code http:}・{@code https:}・{@code file:} の画像(そのまま出せるバイト列を\n持つラスタ画像)は、ページ SVG が {@code <image href=\"取得元の URL\">} と書き、\n実体は出しません。manifest の {@code images[]} には {@code source} が付きます。\n取得元の無い画像({@code data:}、生成した絵、SVG をラスタ化したもの)とフォントは\n{@code reference} と同じく共有資源に出します。\n</p>\n\n<p>\n注意: 元のサーバーへの直接参照になります。非公開の URL や認証付きの資源は\n読み器から取れません。Copper 側で選び直した画像({@code image-set()})や\n加工した画像は、元画像と見た目が変わることがあります。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.PropCode": {
+    "hash": "c198fb38a70d24f5",
+    "en": "A choice for a code-valued property. By default, property value identifiers\nuse the enum constant name in lowercase kebab case.",
     "ja": "コード型プロパティの選択肢です。プロパティ値の識別子は\n既定でenum定数名の小文字ケバブ表記になります。"
   },
   "net.zamasoft.foliojet.ua.props.PropHelper": {
+    "hash": "3eddf5eb7e4f1294",
+    "en": "Utilities for UA properties.\n\n@author MIYABE Tatsuhiko",
     "ja": "UAプロパティ関連のユーティリティクラスです。\n\n@author MIYABE Tatsuhiko"
   },
   "net.zamasoft.foliojet.ua.props.PropHelper#removeDefaults(Map)": {
+    "hash": "5f3ec50f56f0d9e4",
+    "en": "Clears default property settings.",
     "ja": "デフォルトのプロパティ設定を消去します。"
   },
   "net.zamasoft.foliojet.ua.props.PropHelper#setBooleanPropsToFalse(Map)": {
+    "hash": "51efe633c22c07fb",
+    "en": "Presets boolean properties to false.",
     "ja": "ブール値のプロパティにあらかじめfalseを設定します。"
   },
   "net.zamasoft.foliojet.ua.props.PropHelper#setDefaults(Map)": {
+    "hash": "e1fcda6b8056ff2c",
+    "en": "Returns default property settings.",
     "ja": "デフォルトのプロパティ設定を返します。"
   },
   "net.zamasoft.foliojet.ua.props.SvgTextMode": {
+    "hash": "c62deda563d866ee",
+    "en": "How to write text in single SVG output (B-1, user request on 2026-08-29).\n\n<p>\nPage-split SVG already uses {@code <text>} plus WOFF2 subsets.\nThis makes the same mechanism selectable for self-contained SVG.\n</p>",
     "ja": "単一SVG出力で文字をどう書くかです(B-1、2026-08-29の利用者要望)。\n\n<p>\nページ分割SVGは以前から{@code <text>}＋WOFF2サブセットで書いています。\n同じ仕組みを、1枚で完結するSVGでも選べるようにしたものです。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.SvgTextMode#KEEP": {
+    "hash": "99efeb33f62c067d",
+    "en": "Retains {@code <text>} and embeds subset WOFF2 in the SVG.\n\n<p>\nTo make each SVG self-contained, fonts and images are embedded as {@code data:}.\nUnlike page-split SVG, resources cannot be shared, so many pages increase total size.\n</p>",
     "ja": "{@code <text>}のまま残し、サブセットしたWOFF2をSVGへ埋め込みます。\n\n<p>\n1枚で完結させるため、フォントも画像も{@code data:}でSVGの中に入ります。\nページ分割SVGのように共有できないので、ページ数が多いと総量は増えます。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.SvgTextMode#OUTLINE": {
+    "hash": "2766a6c1cc6d6d11",
+    "en": "Converts glyphs to outlines (paths) (default).\n\n<p>\nAppearance is the same wherever opened, but text is shapes and cannot be selected.\n</p>",
     "ja": "字形をアウトライン(path)にします(既定)。\n\n<p>\nどこで開いても同じ絵になりますが、文字は図形なので選べません。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.TaggedPdf": {
-    "ja": "Helpers for tagged-PDF output: whether logical structure is being produced,\nand the mapping from an HTML element to a PDF structure type (ISO 32000\ntable 333 / PDF/UA).\n\n<p>\nE-6増分3b-4(2026-07-24): 読み手は{@code CSSElement}直接ではなく\n{@link StructureElement}契約(live={@code CSSElement}/ソース再生=\n{@code StructureToken})経由で要素を読む。\n</p>\n\n@author MIYABE Tatsuhiko"
+    "hash": "46d86262469aeee1",
+    "en": "Helpers for tagged-PDF output: whether logical structure is being produced,\nand the mapping from an HTML element to a PDF structure type (ISO 32000\ntable 333 / PDF/UA).\n\n<p>\nE-6 increment 3b-4 (2026-07-24): consumers read elements through the\n{@link StructureElement} contract (live = {@code CSSElement} / source replay =\n{@code StructureToken}), rather than directly from {@code CSSElement}.\n</p>\n\n@author MIYABE Tatsuhiko",
+    "ja": "タグ付きPDFの出力の補助です。論理構造を出力しているかどうかと、HTMLの要素からPDFの構造型への対応\n(ISO 32000の表333 / PDF/UA)を扱います。\n\n<p>\nE-6増分3b-4(2026-07-24): 利用側は要素を{@code CSSElement}から直接ではなく、{@link StructureElement}の契約\n(ライブ={@code CSSElement}/ソースの再生={@code StructureToken})を通して読みます。\n</p>\n\n@author MIYABE Tatsuhiko"
+  },
+  "net.zamasoft.foliojet.ua.props.TaggedPdf#blockRole(StructureElement)": {
+    "hash": "e8e475723c4fec1b",
+    "en": "Returns the PDF structure type for a block-level HTML element, or\n{@code null} when the element should not open its own structure element\n(its content attaches to the enclosing element instead).\n\n@param ce the element, or {@code null}\n@return the structure role (e.g. {@code \"H1\"}, {@code \"P\"}, {@code \"L\"}),\n        or {@code null}",
+    "ja": "ブロックレベルのHTML要素に対応するPDFの構造型を返します。その要素が自身の構造要素を\n開くべきでない場合(内容は外側の要素に付く)は{@code null}を返します。\n\n@param ce 要素、または{@code null}\n@return 構造のロール(例: {@code \"H1\"}、{@code \"P\"}、{@code \"L\"})、\n        または{@code null}"
+  },
+  "net.zamasoft.foliojet.ua.props.TaggedPdf#headerScope(Object)": {
+    "hash": "cbe404f7237b280a",
+    "en": "Returns the table-header {@code Scope} for a {@code <th>} element, from\nits HTML {@code scope} attribute, defaulting to {@code \"Column\"} (the\ncommon case of a heading row).\n\n@param element the {@code <th>} element\n@return {@code \"Row\"}, {@code \"Column\"} or {@code \"Both\"}",
+    "ja": "{@code <th>}要素の表見出しの{@code Scope}を、HTMLの{@code scope}属性から求めて返します。\n属性が無ければ{@code \"Column\"}(見出し行という、よくある場合)です。\n\n@param element {@code <th>}要素\n@return {@code \"Row\"}、{@code \"Column\"}または{@code \"Both\"}"
+  },
+  "net.zamasoft.foliojet.ua.props.TaggedPdf#isActive(UserAgent)": {
+    "hash": "7d660409c4a91ade",
+    "en": "Returns whether the target output produces a tagged PDF: either\n{@code output.pdf.tagged} is set, or the version is a profile that\nmandates logical structure (PDF/A-2a, PDF/A-3a, PDF/UA-1).\n\n@param ua the user agent\n@return {@code true} if a structure tree is being produced",
+    "ja": "出力先がタグ付きPDFを生成するかどうかを返します。{@code output.pdf.tagged}が設定されているか、\n版が論理構造を必須とするプロファイル(PDF/A-2a、PDF/A-3a、PDF/UA-1)である場合です。\n\n@param ua ユーザーエージェント\n@return 構造ツリーを生成する場合は{@code true}"
+  },
+  "net.zamasoft.foliojet.ua.props.TaggedPdf#roleIfActive(UserAgent,Object)": {
+    "hash": "d327ec36bfb2a076",
+    "en": "Convenience for box draw code: returns the structure role to open for the\ngiven box element when tagging is active, or {@code null} otherwise.\n\n@param ua      the user agent\n@param element the box's element (a {@link StructureElement} or\n               {@code null})\n@return the role to open, or {@code null} to open nothing",
+    "ja": "ボックスの描画コード向けの簡易メソッドです。タグ付けが有効なら、指定したボックスの要素に対して\n開く構造のロールを、そうでなければ{@code null}を返します。\n\n@param ua      ユーザーエージェント\n@param element ボックスの要素({@link StructureElement}または\n               {@code null})\n@return 開くロール。何も開かない場合は{@code null}"
   },
   "net.zamasoft.foliojet.ua.props.UAProps": {
+    "hash": "a8d0ea6f3a19b0af",
+    "en": "Available parameter names.\n\n@author MIYABE Tatsuhiko",
     "ja": "利用可能なパラメータ名です。\n\n@author MIYABE Tatsuhiko"
   },
+  "net.zamasoft.foliojet.ua.props.UAProps#INPUT_CHANGE_DEFAULT_NAMESPACE": {
+    "hash": "34d5cc16aee02fd5",
+    "en": "Support change default namespace.",
+    "ja": "デフォルトの名前空間の変更に対応するかどうかです。"
+  },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_DEFAULT_ENCODING": {
+    "hash": "ec5de4dddf51cc94",
+    "en": "The default encoding.",
     "ja": "デフォルトのエンコーディングです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_DEFAULT_STYLESHEET": {
+    "hash": "edde72083437813e",
+    "en": "The default CSS stylesheet.",
     "ja": "デフォルトのCSSスタイルシートです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_EPUB_SPINE": {
+    "hash": "867d2248bf9d212b",
+    "en": "Which EPUB spine items to lay out (2026-09-02).\n\n<p>\nAn empty value (the default) selects all items. The value is a sequence separated by whitespace or\n{@code ,}. Each entry is an OPF {@code idref}, an item path ({@code OEBPS/ch3.xhtml} or\n{@code ch3.xhtml}), a 1-based number, or a range of numbers ({@code 3-5}).\n</p>\n\n<p>\nThis entry point lets an e-book reader <b>lay out only the chapter currently being read</b> when\nthe font size changes. Items are laid out independently, so laying out one chapter produces the\nsame result as that chapter in a full-book conversion. In Paged SVG, item numbers are fixed by\ntheir positions in the spine ({@code items/0003/}), so partial output can directly overlay\nthe output for the entire book.\n</p>",
     "ja": "EPUBのどのspine項目を組むかです(2026-09-02)。\n\n<p>\n空(既定)なら全項目。値は空白または{@code ,}で区切った並びで、各要素は\nOPFの{@code idref}、項目のパス({@code OEBPS/ch3.xhtml}または{@code ch3.xhtml})、\n1起点の番号、番号の範囲({@code 3-5})のどれか。\n</p>\n\n<p>\n電子書籍の読み器が文字サイズを変えたとき、<b>いま読んでいる章だけを\n組み直す</b>ための入口。項目は互いに独立に組まれるので、1章だけ組んだ\n結果は全体を通したときのその章と同一になる。Paged SVGでは項目の番号が\nspine内の位置で固定されている({@code items/0003/})ので、部分の出力を\n全体の出力へそのまま重ねられる。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_EXCLUDE": {
+    "hash": "80ef111e7dd925bc",
+    "en": "The exclude pattern.",
     "ja": "除外パターンです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_FILTERS": {
+    "hash": "d336fae13afd07e1",
+    "en": "Filtering for XML/HTML.",
     "ja": "XML/HTMLへのフィルタ処理です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_AUTHENTICATION": {
+    "hash": "8826ecff0393e264",
+    "en": "Authentication settings.",
     "ja": "認証の設定です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_AUTHENTICATION_PREEMPTIVE": {
+    "hash": "cf1065fd67a3bf5f",
+    "en": "Whether to send credentials preemptively for authentication.",
     "ja": "認証時に最初に認証情報を送るかどうかの設定です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_CACHE": {
+    "hash": "0879dac29693dfa1",
+    "en": "An HTTP response cache shared across conversions (2026-08-10). Only GET requests without credentials\nor cookies qualify. It respects the response's {@code Cache-Control}\n(no-store/no-cache/private/max-age). This eliminates the delay of fetching the same external\nresources, such as @import-ed web font CSS, again for every conversion.",
     "ja": "変換をまたぐHTTP応答キャッシュ(2026-08-10)。認証情報・Cookieを\n伴わないGETだけが対象で、応答の{@code Cache-Control}\n(no-store/no-cache/private/max-age)を尊重する。@importされた\nウェブフォントCSS等、毎変換同じ外部リソースを取り直す遅延の解消。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_CACHE_TTL": {
+    "hash": "34c60cf0c9de738d",
+    "en": "The HTTP response cache retention period in seconds. 0 disables caching.\nIf the response has {@code max-age}, the shorter period applies.",
     "ja": "HTTP応答キャッシュの保持期間(秒)です。0はキャッシュ無効。\n応答が{@code max-age}を持つ場合は短い方を使う。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_CONNECTION_TIMEOUT": {
+    "hash": "e21f10a18b02ae03",
+    "en": "The connection timeout. 0 means unlimited.\nThe default changed from unlimited to 60 seconds (2026-08-08) to prevent one unresponsive server\nfrom blocking the entire conversion forever.",
     "ja": "接続タイムアウトです。0は無制限。\n既定を無制限から60秒へ変更(2026-08-08)——応答しないサーバ1台で\n変換全体が永久に止まるのを防ぐ。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_COOKIE": {
+    "hash": "75825fd9397cc26c",
+    "en": "Cookie settings.",
     "ja": "クッキーの設定です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_HEADER": {
+    "hash": "93f9b767024010d0",
+    "en": "HTTP header settings.",
     "ja": "HTTPヘッダの設定です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_PROXY_AUTHENTICATION_PASSWORD": {
+    "hash": "10677f93531d9993",
+    "en": "The proxy password.",
     "ja": "プロクシのパスワードです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_PROXY_AUTHENTICATION_USER": {
+    "hash": "3475a751dc3c56a0",
+    "en": "The proxy user.",
     "ja": "プロクシのユーザーです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_PROXY_HOST": {
+    "hash": "af2e58221c0ee086",
+    "en": "The proxy host name.",
     "ja": "プロクシホスト名です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_PROXY_PORT": {
+    "hash": "80c12b9d6dfa044b",
+    "en": "The proxy port number.",
     "ja": "プロクシポート番号です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_REFERER": {
+    "hash": "ad17a05683742344",
+    "en": "Whether to send the Referer header.",
     "ja": "Refererヘッダの送信。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_HTTP_SOCKET_TIMEOUT": {
+    "hash": "cc1bb907e5092f50",
+    "en": "The socket timeout (the limit on waiting for a response or a stalled read). 0 means unlimited.\nThe default changed from unlimited to 60 seconds (2026-08-08) to prevent recurrence of a real bug:\none external resource on kakaku.com stopped delivering data and hung conversion for over 2000 seconds.",
     "ja": "ソケットタイムアウトです(応答待ち・読み取り停止の上限)。0は無制限。\n既定を無制限から60秒へ変更(2026-08-08)——kakaku.comの外部リソース\n1本の配信停止で変換が2000秒超ハングした実バグの再発防止。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_IMAGE_METRICS": {
+    "hash": "03db46987989f6ff",
+    "en": "An XML file that lists image dimensions in advance. Layout uses these dimensions instead of loading\nthe images, which speeds up multi-pass processing and repeated layout of the same book.\nPaged SVG outputs XML in the same format as <code>metrics.xml</code>,\nso you can use that file directly for the next conversion.",
     "ja": "画像の寸法をあらかじめ記したXMLです。レイアウトのために画像を読み込む代わりに\nこの寸法を使うので、多パス処理や同じ本の組み直しが速くなります。\nPaged SVGは同じ形式のXMLを<code>metrics.xml</code>として出力するので、\nそれをそのまま次回の指定に使えます。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_IMAGE_PIXEL_LIMIT": {
+    "hash": "6619f4844a820c81",
+    "en": "The maximum pixel count (width × height) of each input image. A negative value means unlimited (2026-10-03).\nThe dimensions in the header are checked before decoding pixels. An image exceeding the limit is\ntreated like an unreadable image (message 2811, {@code output.broken-image}).\n{@link #INPUT_RESOURCE_SIZE_LIMIT} (bytes read) cannot stop a small image file that expands\ninto a huge image.",
     "ja": "読み込む画像1枚の最大画素数(幅×高さ)です。負数は無制限です(2026-10-03)。\n画素を展開する前にヘッダの寸法で判定し、超えた画像は読み込めない画像と\n同じ扱いにします(メッセージ2811、{@code output.broken-image})。\n小さなファイルが展開すると巨大になる画像は、{@link #INPUT_RESOURCE_SIZE_LIMIT}\n(読んだバイト数)では止まらないためです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_INCLUDE": {
+    "hash": "249fb1e8280ccb17",
+    "en": "The include pattern.",
     "ja": "含有パターンです。"
   },
+  "net.zamasoft.foliojet.ua.props.UAProps#INPUT_NORMALIZE_TEXT": {
+    "hash": "472c65e475207dae",
+    "en": "Normalize text by NFC mode.",
+    "ja": "テキストをNFCで正規化するかどうかです。"
+  },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_PREFETCH": {
+    "hash": "1eae1655791915f8",
+    "en": "Asynchronous prefetching of external resources (stylesheets and images) found in the main document\n(2026-08-27). In streaming layout, the parser-driving thread is the layout thread, and resources\nare resolved synchronously in sequence at their points of use. For real websites, sequential HTTP\nwaits therefore directly add to conversion wall-clock time. Prefetching scans the main document's\nread-ahead buffer, fetches only URLs the engine will certainly request in parallel, and stores\nthem in the HTTP response cache. Requests with credentials or cookies are excluded, and only URLs\nthat pass the ACL (input.include/exclude) are fetched.\nFailures and unsupported cases silently fall back to the existing synchronous path.\n\n<p>\n<b>Enabled by default</b> (2026-08-28, owner's decision). It substantially improves conversion\nof real websites (measured: 24.3 seconds → 6.4 seconds for an article with about 110 images)\nwithout changing correctness. Only http(s) resources that pass {@code input.include}/{@code input.exclude}\nare fetched; requests that send credentials are excluded. With no ACL configured, {@code permits}\nrejects them, so this does not affect use cases that obtain resources through an injected resolver.\n</p>",
     "ja": "主文書から発見した外部リソース(スタイルシート・画像)の非同期先読み\n(2026-08-27)。ストリームレイアウトはパーサ駆動スレッド=レイアウト\nスレッドで、リソースは消費点で直列に同期解決されるため、実サイトの\n変換は直列のHTTP待ちがそのままwall-clockになる。先読みは主文書の\n読み先行バッファを走査して、エンジンが確実に要求するURLだけを\n並列取得しHTTP応答キャッシュへ置く。認証情報・Cookieを伴う要求は\n対象外で、ACL(input.include/exclude)を通過したURLしか取得しない。\n失敗・非対応は静かに従来の同期経路へ退化する。\n\n<p>\n<b>既定で有効</b>(2026-08-28、オーナー裁定)。実サイトの変換で\n効果が大きく(実測: 画像約110点の記事で24.3秒→6.4秒)、正しさは\n変わらないため。取得するのは{@code input.include}/{@code input.exclude}を\n通過したhttp(s)資源だけで、認証情報を送る要求は対象外。ACLが設定\nされていない場合は{@code permits}が通さないので、差し込まれた\nリゾルバ経由で資源を取る利用形態には影響しない。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_PROPERTY_PI": {
+    "hash": "34843a7d7a805671",
+    "en": "Whether processing instructions may override properties.",
     "ja": "PIでのプロパティの上書き許可です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_RESOURCE_COUNT_LIMIT": {
+    "hash": "817625ddb35b0483",
+    "en": "The maximum number of distinct external resource URIs resolved from the main document. A negative value means unlimited.",
     "ja": "主文書から解決する相異なる外部資源URIの最大数です。負数は無制限です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_RESOURCE_SIZE_LIMIT": {
+    "hash": "7c140b7dbe0b22e7",
+    "en": "The maximum cumulative input size of external resources resolved from the main document. A negative value means unlimited.",
     "ja": "主文書から解決する外部資源の累積最大入力サイズです。負数は無制限です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_SIZE_LIMIT": {
+    "hash": "14b671a8baeb9b40",
+    "en": "The maximum input size of the main document. A negative value means unlimited.",
     "ja": "主文書の最大入力サイズです。負数は無制限です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_STYLESHEET_TITLES": {
+    "hash": "4bdc0756f0494514",
+    "en": "The title of the alternate stylesheet to select.",
     "ja": "選択するalternateスタイルシートのタイトルです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_VIEWPORT": {
+    "hash": "505e01956a996399",
+    "en": "Recognizes &lt;meta name=\"viewport\"... as the page size.",
     "ja": "&lt;meta name=\"viewport\"～をページサイズとして認識します。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_XSLT_DEFAULT_STYLESHEET": {
+    "hash": "cc732300e6cf44e5",
+    "en": "The default XSLT stylesheet.",
     "ja": "デフォルトのXSLTスタイルシートです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_AUTO_HEIGHT": {
+    "hash": "2c1e28e2d42f683f",
+    "en": "Automatic height.",
     "ja": "自動高さです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_AUTO_ROTATE": {
+    "hash": "0546d0e317262ef3",
+    "en": "Automatically rotates the content or paper.",
     "ja": "内容または用紙を自動回転します"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_BROKEN_IMAGE": {
+    "hash": "73013d63a25f3ca8",
+    "en": "How to handle images that cannot be displayed.",
     "ja": "表示できない画像の扱いです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_CLIP": {
+    "hash": "a79e474bb0d91cdb",
+    "en": "Clips the area inside the crop marks.",
     "ja": "トンボの内部をクリップします。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_COLOR": {
+    "hash": "0660d9eff7abd959",
+    "en": "Color output.",
     "ja": "カラー出力です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_DEFAULT_FONT_FAMILY": {
+    "hash": "368ca8c984485df2",
+    "en": "The default font.",
     "ja": "デフォルトのフォントです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_EXPAND_WITH_CONTENT": {
+    "hash": "2c1e28e2d42f683f",
+    "en": "Automatic height.",
     "ja": "自動高さです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_FIT_TO_PAPER": {
+    "hash": "0d068f338a530855",
+    "en": "Enlarges the content to fit the paper.",
     "ja": "内容を用紙に合わせて拡大します。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_HTRIM": {
+    "hash": "bfafb8ae884112ea",
+    "en": "The horizontal trim margin width.",
     "ja": "水平方向の断ち代の幅です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_IMAGE_ANTIALIAS": {
+    "hash": "516acb4f9b071c2a",
+    "en": "Image antialiasing.",
     "ja": "画像のアンチエイリアスです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_IMAGE_PIXEL_LIMIT": {
+    "hash": "4971b85c02965052",
+    "en": "The maximum pixel count (width × height) of each generated raster image. A negative value means\nunlimited (2026-10-03). If the type area for image output (page size × {@link #OUTPUT_IMAGE_RESOLUTION})\nexceeds the limit, conversion fails (message 3812). Images rasterized for Paged SVG use a lower\nscale factor to stay within the limit.",
     "ja": "生成するラスタ1枚の最大画素数(幅×高さ)です。負数は無制限です(2026-10-03)。\n画像出力の版面(頁の大きさ×{@link #OUTPUT_IMAGE_RESOLUTION})が超えると\n変換を失敗させ(メッセージ3812)、Paged SVGで画素に描き直す画像は\n倍率を下げて上限に収めます。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_IMAGE_RESOLUTION": {
+    "hash": "05817dfc43cd5823",
+    "en": "The image output resolution.",
     "ja": "画像出力解像度です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_IMAGE_TRANSPARENT": {
+    "hash": "e81eb3d6f03b8ae4",
+    "en": "Whether the image output background is transparent.\n\n<p>\nWith the default {@code false}, drawing starts after filling the background with white.\nWith {@code true}, <b>drawing starts without a background fill</b>, so areas where nothing is drawn\nremain transparent (a background color specified for the page or an element makes that area opaque).\n</p>\n\n<p>\n<b>Effective only for formats that support alpha.</b> PNG, GIF, and TIFF support it;\nJPEG, BMP, and WBMP do not. For an unsupported format, drawing still uses a white background and\nreports {@code 2824}: silently ignoring the setting would leave users wondering why their\ntransparent output is white. Support is determined by querying the writer ({@code ImageWriter}),\nrather than using a hard-coded table of formats.\n</p>",
     "ja": "画像出力の背景を透明にするかです。\n\n<p>\n既定の{@code false}では白で塗ってから描きます。{@code true}にすると\n<b>塗らずに描く</b>ので、何も描かれなかったところは透明のまま残ります\n(ページやその中の要素に背景色を指定していれば、そこは不透明になります)。\n</p>\n\n<p>\n<b>アルファを持てる形式でだけ効きます。</b>PNG・GIF・TIFFは持てますが、\nJPEG・BMP・WBMPは持てません。持てない形式で指定したときは白のまま描き、\n{@code 2824}で知らせます——黙って無視すると「透明にしたのに白い」と\n悩ませることになるためです。判定は形式表の決め打ちではなく、\n書き出す側({@code ImageWriter})に問い合わせます。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_MARKS": {
+    "hash": "3015f2f076f94254",
+    "en": "The crop mark format.",
     "ja": "トンボの形式です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_MARKS_SPINE_WIDTH": {
+    "hash": "dc8b309589dba846",
+    "en": "The spine width.",
     "ja": "背表紙幅です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_MEDIA_TYPES": {
+    "hash": "84a31382df87c04c",
+    "en": "The CSS media type to apply.",
     "ja": "適用するCSSのメディアタイプです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_META": {
+    "hash": "eaf7b5cfa8288143",
+    "en": "Metadata.",
     "ja": "メタ情報です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_NO_PAGE_BREAK": {
+    "hash": "8b9f2d094600a365",
+    "en": "Disables page breaks.",
     "ja": "改ページを禁止します。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_N_UP": {
+    "hash": "3b2405699c20582c",
+    "en": "The number of logical pages imposed on one sheet (N-up). 1 disables imposition.",
     "ja": "1枚の用紙に面付けする論理ページ数(N-up)です。1で面付けなし。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_N_UP_ORDER": {
+    "hash": "70095b73793b9e22",
+    "en": "The page order for N-up imposition.",
     "ja": "N-up面付けのページの並び順です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGED_SVG_BASE_URI": {
+    "hash": "49cad81e3a779f61",
+    "en": "The prefix used by page SVGs to reference shared resources (font subsets and images).\n\n<p>\nThe default is {@code ../}, relative to {@code pages/}.\n<b>A reader that embeds multiple page SVGs in a single HTML document cannot resolve this</b>,\nbecause the host document becomes the base. Body text uses private-use code points, so without\nthe glyphs it appears <b>entirely blank</b> (2026-09-01, reported by the cti.li reader).\n</p>\n\n<p>\nAn absolute URL prefix ({@code https://example.com/book/}) resolves regardless of the host document.\nA trailing {@code /} is added if missing.\nThe same prefix applies to both font subsets and images.\n</p>",
     "ja": "ページSVGから共有資源(フォントのサブセットと画像)を指すときの前置きです。\n\n<p>\n既定は{@code ../}で、{@code pages/}から見た相対になります。\n<b>複数のページSVGを1つのHTML文書へ取り込む読み器では、これが解決\nできません</b>——基底が取り込み先の文書になるためで、本文は私用領域の\n符号なので字形が来ないと<b>丸ごと空白</b>に見えます(2026-09-01、\ncti.liの読み器からの報告)。\n</p>\n\n<p>\n絶対URLの前置き({@code https://example.com/book/})を与えれば、\n取り込み先がどこでも解決します。末尾の{@code /}は無ければ補います。\nフォントのサブセットにも画像にも同じ前置きが付きます。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGED_SVG_COMPRESSION": {
+    "hash": "1ba0ff7fc9abb807",
+    "en": "Whether to return page SVG and page JSON compressed with gzip.\n\n<p>\n<b>The default is gzip</b> (2026-08-28, owner's decision). Page SVG is plain text with characters\nstored directly, so compression works well. File names are {@code pages/NNNN.svgz} and\n{@code pages/NNNN.json.gz}; {@code manifest.json} is the entry point and is not compressed.\nFor static hosting, serve these files with {@code Content-Encoding: gzip}.\n</p>",
     "ja": "ページSVGとページJSONをgzipで縮めて返すかどうかです。\n\n<p>\n<b>既定はgzip</b>(2026-08-28、オーナー裁定)。ページSVGは文字が\nそのまま入る素のテキストで、圧縮がよく効きます。名前は\n{@code pages/NNNN.svgz}・{@code pages/NNNN.json.gz}になり、\n{@code manifest.json}は読み口なので縮めません。静的配信する場合は\nこれらに{@code Content-Encoding: gzip}を付けてください。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGED_SVG_FONT_SCOPE": {
+    "hash": "cc87552c1b7cef70",
+    "en": "Whether to create <b>one font subset for the entire document or one for each page</b>.\n\n<p>\nThe default {@code document} shares subsets across the document, minimizing total size.\nHowever, <b>subsets cannot be output until all pages have been written</b>, so the recipient\ncannot draw even one character until conversion finishes (body text uses private-use characters,\nwhose glyphs exist only in the font).\n</p>\n\n<p>\nWith {@code page}, <b>each page's subsets are output when that page closes</b>.\nDrawing can start as soon as the first page and its fonts arrive. A reader that fetches only\npages near the visible page also downloads less. The tradeoff is total size: measured with\nJapanese text, each page uses about 20 KB. In a 350-page book, total font size grows from\n0.25 MB → 7.1 MB, and total output from 11.8 MB → 18.6 MB (1.6 times).\n**Heavier for reading cover to cover, lighter for selective reading**\n(the break-even point is 12–13 pages). For documents containing only Latin text, the difference is negligible.\n</p>",
     "ja": "フォントのサブセットを<b>文書全体で1つにするか、ページごとに作るか</b>です。\n\n<p>\n既定の{@code document}は文書全体で共有するので総量が最も小さい。ただし\n<b>全ページを書き終えるまでサブセットが出せない</b>ので、受け手は変換が\n終わるまで1文字も描けない(本文は私用領域の文字で、字形は書体の中に\nしかない)。\n</p>\n\n<p>\n{@code page}にすると、<b>ページを閉じるたびにそのページ分だけを出す</b>。\n1ページ目とその書体が届いた時点で描き始められ、見えている頁の前後だけを\n取り寄せる読み器なら落とす量も減る。代償は総量——和文で実測すると\n1ページ分が約20KBで、350ページの書籍ではフォント合計が0.25MB→7.1MB、\n出力全体では11.8MB→18.6MB(1.6倍)になる。**通読すると重く、拾い読みだと軽い**\n(分岐点は12〜13ページ)。欧文だけの文書では誤差。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGED_SVG_IMAGE_COMPRESSION": {
+    "hash": "7c41dd9ef79c5b2c",
+    "en": "The compression policy for shared images in page-split SVG (2026-09-03, requested by cti.li).\nThe default leaves them unchanged. {@code jpeg} recompresses large raster images without\ntransparent areas as JPEG. Specify the threshold and size reduction using keys with the\nsame meanings as PDF's {@code output.pdf.image.*}.",
     "ja": "ページ分割SVGの共有画像の圧縮方針です(2026-09-03、cti.li の要望)。\n既定はそのまま。{@code jpeg} で透明部分の無い大きなラスタ画像を\nJPEG に再圧縮します。閾値と縮小は PDF の\n{@code output.pdf.image.*} と同じ意味の鍵で指定します。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGED_SVG_IMAGE_COMPRESSION_LOSSLESS": {
+    "hash": "4005774b30da17a9",
+    "en": "The image size threshold (width + height in pixels) for applying lossy compression.",
     "ja": "非可逆圧縮を適用する画像サイズ(幅+高さの画素数)の閾値です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGED_SVG_IMAGE_MAX_HEIGHT": {
+    "hash": "acd5aaa63ede96cc",
+    "en": "The maximum shared image height in pixels. 0 means unlimited.",
     "ja": "共有画像の最大高さ(画素数)です。0 は無制限。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGED_SVG_IMAGE_MAX_WIDTH": {
+    "hash": "606588e3d65105d2",
+    "en": "The maximum shared image width in pixels. 0 means unlimited.",
     "ja": "共有画像の最大幅(画素数)です。0 は無制限。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGED_SVG_PAGE_CHECKSUMS": {
+    "hash": "5daa331d9a655936",
+    "en": "Whether to write each page's SHA-256 ({@code svgSha256} and {@code dataSha256})\nin {@code pages[]} of {@code manifest.json} (2026-09-03).\nIf the recipient does not use them, {@code false} reduces the manifest size\n(they account for most of its 143 KB for 310 pages). The {@code sha256} of shared resources\n(fonts and images) is always written because it is the key for their URI and identity.",
     "ja": "{@code manifest.json} の {@code pages[]} に各ページの SHA-256\n({@code svgSha256}・{@code dataSha256})を書くかです(2026-09-03)。\n受け手が使わないなら {@code false} で manifest が縮む(310 頁で 143KB の\n大半がこれ)。共有資源(フォント・画像)の {@code sha256} は URI と\n同一性の鍵なので常に書きます。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGED_SVG_PDF": {
+    "hash": "74bc813d91ebbaee",
+    "en": "Whether to also output PDF from the same layout as page-split SVG (2026-09-03, requested by cti.li).\n{@code true} adds {@code document.pdf} to the result set (inside the ZIP for ZIP output;\nthe manifest's {@code pdf}). Layout runs once, and each page's drawing is sent to both page SVG\nand PDF. PDF output follows {@code output.pdf.*}. This has no effect for EPUB (per-item bundles).",
     "ja": "ページ分割SVGと同じ組版から PDF も出すかです(2026-09-03、cti.li の要望)。\n{@code true} で結果集合に {@code document.pdf} が加わる(ZIP なら ZIP の中に、\nmanifest の {@code pdf})。組版は1回で、各ページの描画をページSVGと PDF の\n両方へ流す。PDF の書き方は {@code output.pdf.*} に従う。EPUB(項目ごとの\nバンドル)では効かない。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGED_SVG_RESOURCES": {
+    "hash": "76a15ae1f4f9aa8e",
+    "en": "How to deliver shared resources (font subsets and images) for Paged SVG.\nChoose from referencing, embedding, or omitting them.",
     "ja": "Paged SVGの共有資源(フォントのサブセットと画像)の渡し方です。\n参照・埋め込み・送らないの3つから選びます。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGE_HEIGHT": {
+    "hash": "6dd8c7e3a6fb1f60",
+    "en": "The page height.",
     "ja": "ページの高さです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGE_LIMIT": {
+    "hash": "0f2465c2d3e5e680",
+    "en": "The page count limit.",
     "ja": "ページ数の限界値です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGE_LIMIT_ABORT": {
+    "hash": "17b1b42a091be3d5",
+    "en": "The action to take when the page count limit is reached.",
     "ja": "ページ数の限界に達した場合の処理です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGE_MARGINS": {
+    "hash": "bf9de9748b54be2a",
+    "en": "The page margins.",
     "ja": "ページのマージンです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAGE_WIDTH": {
+    "hash": "008bbcb33eaf093f",
+    "en": "The page width.",
     "ja": "ページ幅です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAPER_HEIGHT": {
+    "hash": "948fba617ca6e9e6",
+    "en": "The paper height.",
     "ja": "用紙の高さです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PAPER_WIDTH": {
+    "hash": "60da81ef582d74ae",
+    "en": "The paper width.",
     "ja": "用紙の幅です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_ATTACHMENTS": {
+    "hash": "1f9beda6966569e9",
+    "en": "Attachment settings.",
     "ja": "添付ファイル設定です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_BIDI_ACTUAL_TEXT": {
+    "hash": "f31826c9351aecfc",
+    "en": "Whether to output the logical text of bidi lines as ActualText.",
     "ja": "bidi 行の論理テキストを ActualText として出力するかどうか。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_BLUR_RESOLUTION": {
+    "hash": "27ae0159e4846c79",
+    "en": "The resolution (dpi) of blurred shadow images generated for PDF.",
     "ja": "PDFへ生成するぼかし影画像の解像度(dpi)です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_BOOKMARKS": {
+    "hash": "8821b99d0c5c3689",
+    "en": "Bookmarks (PDF outline). The default is true (2026-10-04). Previously it was false, which made\nmissing bookmarks in book PDFs easy to overlook. Prince and WeasyPrint also add them by default.",
     "ja": "ブックマークです。既定は true(2026-10-04。以前は false で、本の PDF に\nしおりが付かないことに気づきにくかった。Prince・WeasyPrint も既定で付ける)。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_COMPRESSION": {
+    "hash": "cb67b551ca11da77",
+    "en": "The overall compression method.",
     "ja": "全体の圧縮方法です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_ENCRYPTION": {
+    "hash": "701ed712c1cc60a1",
+    "en": "The encryption method.",
     "ja": "暗号化方法です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_ENCRYPTION_LENGTH": {
+    "hash": "c887af7f9c9205bc",
+    "en": "The encryption key length.",
     "ja": "暗号の長さです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_ENCRYPTION_OWNER_PASSWORD": {
+    "hash": "3a0a7c94b0adc9e5",
+    "en": "The owner password for encryption.",
     "ja": "暗号のオーナーパスワードです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_ENCRYPTION_USER_PASSWORD": {
+    "hash": "348234f84a133edf",
+    "en": "The user password for encryption.",
     "ja": "暗号のユーザーパスワードです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_ENCRYPTION_V4_CFM": {
+    "hash": "45bbf5249059fed6",
+    "en": "CFM encryption.",
     "ja": "CFM暗号化です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_FACTURX_CONFORMANCE_LEVEL": {
+    "hash": "b1773d211f22979b",
+    "en": "The XMP conformance level for electronic invoices (Factur-X/ZUGFeRD). When set, the fx: extension\nschema is output to XMP (attach the invoice XML itself through output.pdf.attachments.*\nwith relationship=alternative).",
     "ja": "電子インボイス(Factur-X/ZUGFeRD)のXMP適合レベルです。設定すると\nfx:拡張スキーマがXMPへ出力されます(請求書XML自体は\noutput.pdf.attachments.*でrelationship=alternativeとして添付する)。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_FACTURX_DOCUMENT_FILE_NAME": {
+    "hash": "61491825eff57aaf",
+    "en": "The Factur-X invoice XML file name (default factur-x.xml; it must match the attachment name).",
     "ja": "Factur-Xの請求書XMLファイル名です(既定factur-x.xml。添付名と\n一致させること)。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_FACTURX_DOCUMENT_TYPE": {
+    "hash": "3dce7ea8821d3bdf",
+    "en": "The Factur-X document type (default INVOICE).",
     "ja": "Factur-Xの文書種別です(既定INVOICE)。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_FACTURX_VERSION": {
+    "hash": "96cc6cc9151f8d4d",
+    "en": "The Factur-X profile version (default 1.0).",
     "ja": "Factur-Xのプロファイル版です(既定1.0)。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_FILE_ID": {
+    "hash": "3f2cacd301975864",
+    "en": "The file ID.",
     "ja": "ファイルIDです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_FILTER_RESOLUTION": {
+    "hash": "ca1b16895493d0a1",
+    "en": "The resolution (dpi) when rasterizing only elements with filters in PDF.",
     "ja": "PDFでfilter付き要素だけをラスタ化するときの解像度(dpi)です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_FONTS_POLICY": {
+    "hash": "bccc451d478f3da0",
+    "en": "Font handling.",
     "ja": "フォントの扱いです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_FORMS": {
+    "hash": "1905a860a3697a0e",
+    "en": "Whether to output HTML form controls (input/textarea/select) as fillable PDF form fields (AcroForm).\nWhen enabled, form controls take on the appearance of interactive widgets\n(output for documents without forms is unchanged).\nForms are not output in PDF/X because it prohibits them.",
     "ja": "HTML フォーム部品（input/textarea/select）を入力可能な PDF フォーム\nフィールド（AcroForm）として出力するかどうか。有効にするとフォーム部品の\n見た目が対話ウィジェットの外観に変わる（フォームを含まない文書の出力は不変）。\nPDF/X ではフォームが禁止されているため出力されない。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_HYPERLINKS": {
+    "hash": "5cec31bf800e06f5",
+    "en": "Links. The default is true (2026-10-04, as in Chrome, Prince, and WeasyPrint).\nPDF/X prohibits links, so the default value silently omits them, and a warning is issued only\nfor an explicitly specified true (PDFVisitor).",
     "ja": "リンクです。既定は true(2026-10-04。Chrome・Prince・WeasyPrint と同じ)。\nPDF/X では入れられないので、既定値のときは黙って外し、明示した true にだけ\n警告する(PDFVisitor)。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_HYPERLINKS_BASE": {
+    "hash": "bfcb3e09806e2166",
+    "en": "The link base.",
     "ja": "リンクの基点です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_HYPERLINKS_FRAGMENT": {
+    "hash": "cfe063b534cbd659",
+    "en": "Links within a page.",
     "ja": "ページ内リンクです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_HYPERLINKS_HREF": {
+    "hash": "4c233521305076ed",
+    "en": "The link method.",
     "ja": "リンクの方法です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_IMAGE_COMPRESSION": {
+    "hash": "59fbef9ded6add1a",
+    "en": "The image compression method.",
     "ja": "画像の圧縮方法です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_IMAGE_COMPRESSION_LOSSLESS": {
+    "hash": "96300b5a9eaae4c6",
+    "en": "The image size threshold for applying lossless compression.",
     "ja": "ロスレス圧縮を適用する画像サイズの閾値です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_IMAGE_MAX_HEIGHT": {
+    "hash": "674dd5d8e10bb385",
+    "en": "The maximum image height in pixels.",
     "ja": "画像の最大高さ（ピクセル数）です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_IMAGE_MAX_WIDTH": {
+    "hash": "20f02e6adba32ba7",
+    "en": "The maximum image width in pixels.",
     "ja": "画像の最大幅（ピクセル数）です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_JPEG_IMAGE": {
+    "hash": "da6dc9ed20eef327",
+    "en": "The JPEG image compression method.",
     "ja": "JPEG画像の圧縮方法です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_META_CREATION_DATE": {
+    "hash": "d4e1a66670a1979b",
+    "en": "The creation date and time.",
     "ja": "作成日時です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_META_MOD_DATE": {
+    "hash": "d26cfa22ae0b7fa1",
+    "en": "The modification date and time.",
     "ja": "更新日時です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_OPEN_ACTION_JAVA_SCRIPT": {
+    "hash": "c9145f4e145c2a52",
+    "en": "JavaScript to run when the PDF opens.",
     "ja": "PDFを開いた時のJavaScript。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_OUTPUT_INTENT_CONDITION": {
+    "hash": "9598abd78281ff86",
+    "en": "The human-readable name of the output condition for the output intent.",
     "ja": "出力インテントの出力条件の人間可読名です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_OUTPUT_INTENT_ICC_PROFILE": {
+    "hash": "c55936179dd59b0b",
+    "en": "The URI of the ICC profile to embed in the output intent (DestOutputProfile).",
     "ja": "出力インテントへ埋め込むICCプロファイルのURIです(DestOutputProfile)。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_OUTPUT_INTENT_IDENTIFIER": {
+    "hash": "4061e26b287bc149",
+    "en": "The output condition identifier for the output intent (e.g. JC200103, FOGRA39).\nWhen set, /OutputIntents is output in the catalog (required for PDF/X conformance).",
     "ja": "出力インテントの出力条件識別名です(例: JC200103、FOGRA39)。\n設定するとカタログへ/OutputIntentsを出力します(PDF/Xの適合要件)。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_OUTPUT_INTENT_INFO": {
+    "hash": "8d23ca8367bf2f05",
+    "en": "Additional information for the output intent (recommended in PDF/X for unregistered conditions).",
     "ja": "出力インテントの補足説明です(未登録条件のPDF/Xで推奨)。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_OUTPUT_INTENT_REGISTRY": {
+    "hash": "710aa5e06b570589",
+    "en": "The registry name for the output intent (the default is the ICC characterization registry).",
     "ja": "出力インテントのレジストリ名です(既定はICC特性化レジストリ)。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_PLATFORM_ENCODING": {
+    "hash": "8ee3e3f6d2425da6",
+    "en": "The encoding of name literals inside PDF.",
     "ja": "PDF内部の名前リテラルのエンコーディングです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_RENDERING_INTENT": {
+    "hash": "2f712911c4aa0174",
+    "en": "The default rendering intent (one of perceptual, relative-colorimetric,\nsaturation, or absolute-colorimetric).",
     "ja": "既定のレンダリングインテントです(perceptual, relative-colorimetric,\nsaturation, absolute-colorimetricのいずれか)。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_TAGGED": {
+    "hash": "531070964050ba29",
+    "en": "Whether to output tagged PDF (logical structure).",
     "ja": "タグ付き PDF（論理構造）を出力するかどうか。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_TAGGED_LANG": {
+    "hash": "b94ff9cc1b0ef2f3",
+    "en": "The language for tagged PDF / PDF/UA (BCP 47, e.g. \"ja\").",
     "ja": "タグ付き PDF / PDF/UA の言語（BCP 47、例 \"ja\"）。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_VERSION": {
+    "hash": "b23e45a8eb4ce75b",
+    "en": "The PDF version.",
     "ja": "PDFバージョンです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_WATERMARK_MODE": {
+    "hash": "e6055999efe47ef1",
+    "en": "The watermark image placement method.",
     "ja": "すかし画像の配置方法です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_WATERMARK_OPACITY": {
+    "hash": "219944fbb367fc82",
+    "en": "The watermark image opacity.",
     "ja": "すかし画像の不透明度です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_WATERMARK_PRINT": {
+    "hash": "68909421af18a535",
+    "en": "Whether to print the watermark image.",
     "ja": "すかし画像を印刷するか。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_WATERMARK_URI": {
+    "hash": "df105c1ff5d8256e",
+    "en": "The watermark image.",
     "ja": "すかし画像です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PDF_WATERMARK_VIEW": {
+    "hash": "f5b5737360115b19",
+    "en": "Whether to display the watermark image on screen.",
     "ja": "すかし画像を画面表示するか。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_PRINT_MODE": {
+    "hash": "a8835d088b8d0abe",
+    "en": "The print mode.",
     "ja": "印刷モードです。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_RESOLUTION": {
+    "hash": "c306e80d10c7af2a",
+    "en": "The resolution used to calculate px.",
     "ja": "pxを計算する際の解像度です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_SIZE_LIMIT": {
+    "hash": "697c158411b6d3aa",
+    "en": "The file size limit.",
     "ja": "ファイルサイズの限界値です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_SVG_TEXT": {
+    "hash": "4d35510cd79e9182",
+    "en": "How to write text in single SVG output ({@code image/svg+xml})\n(B-1, 2026-08-29). The default remains outlines.\nWith {@code keep}, text stays as {@code <text>}, and subsetted WOFF2 and images are embedded\nin the SVG using {@code data:}, making the single file self-contained.",
     "ja": "単一SVG出力({@code image/svg+xml})で文字をどう書くかです\n(B-1、2026-08-29)。既定は従来どおりアウトライン。\n{@code keep}にすると{@code <text>}のまま残し、サブセットした\nWOFF2と画像を{@code data:}でSVGへ埋め込んで1枚で完結させます。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_TEXT_SIZE": {
+    "hash": "c67c228b64406420",
+    "en": "The text scale factor.",
     "ja": "テキストの倍率です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_TRIMS": {
+    "hash": "f58d368a76bee2b6",
+    "en": "The trim margin width.",
     "ja": "断ち代の幅です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_TRIM_INSET": {
+    "hash": "b028bd116a58573b",
+    "en": "The <b>width of the outer band of the printed area treated as bleed</b>\n(the trim line lies this far inside the outer edge of the printed area). This lets you output\nexisting content that already includes bleed with crop marks, without rewriting its CSS.",
     "ja": "印刷面の外周のうち、<b>塗り足しとして扱う帯の幅</b>です\n(仕上り線は印刷面の外周からこの幅だけ内側)。塗り足し込みで\n作られた既存データを、CSSを書き換えずにトンボ付きで出せます。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_TYPE": {
+    "hash": "0439bf072db871b9",
+    "en": "The output format.",
     "ja": "出力形式です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_USE_META_INFO": {
+    "hash": "c08ac29a30765ad0",
+    "en": "Interprets meta and title tags that set document information.",
     "ja": "文書情報を設定するmeta, titleタグを解釈します。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#OUTPUT_VTRIM": {
+    "hash": "44241744c5085548",
+    "en": "The vertical trim margin width.",
     "ja": "垂直方向の断ち代の幅です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#PROCESSING_CONCURRENCY": {
+    "hash": "aa50ccab2de02eb5",
+    "en": "The number of independently layable units to lay out concurrently (2026-09-02).\n\n<p>\nCurrently effective only when outputting EPUB spine items to {@code MultiDocumentOutput} (Paged SVG).\n{@code 0} (the default) selects automatically: the smaller of the CPU core count and 4.\n{@code 1} selects sequential processing. <b>Output is identical for any value</b>, because items\nare independent and results are released in spine order. Only elapsed time and memory use change\n(layout is retained for each item being processed concurrently).\n</p>",
     "ja": "独立に組める単位を同時にいくつ組むかです(2026-09-02)。\n\n<p>\nいま効くのはEPUBのspine項目を{@code MultiDocumentOutput}(Paged SVG)へ\n出すときだけ。{@code 0}(既定)は自動で、CPUコア数と4の小さいほう。\n{@code 1}で逐次。<b>いくつにしても出力は同一</b>——項目は互いに独立で、\n結果はspine順に解放されるため。変わるのは所要時間とメモリ\n(同時に組む項目の数だけレイアウトを保持する)だけ。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#PROCESSING_FAIL_ON_FATAL_ERROR": {
+    "hash": "e2f5faa193343742",
+    "en": "Forces an abort when an error occurs.",
     "ja": "エラー発生時は強制中断します。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#PROCESSING_MIDDLE_PASS": {
+    "hash": "d996ce79bf6e7241",
+    "en": "Runs an intermediate pass without actually generating data.",
     "ja": "データを実際には生成しない、中間のパスを実行します。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#PROCESSING_PAGE_REFERENCES": {
+    "hash": "ce3ab15fa7743547",
+    "en": "Enables page references.",
     "ja": "ページ参照を行います。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#PROCESSING_PASS_COUNT": {
+    "hash": "d0b23b524087d15e",
+    "en": "The number of processing passes.",
     "ja": "処理回数です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#PROCESSING_RETAINED_TEXT_LIMIT": {
-    "ja": "溜める要素1つの文字payload上限。0以下で無制限。"
+    "hash": "97f090fc059d8163",
+    "en": "The text payload limit for each retained element. A value of 0 or less means unlimited. 16 MiB since\n2026-10-08 (8 MiB before): the body of rustdoc's std index, a flex container retained as a whole, went 2 bytes\npast 8 MiB.",
+    "ja": "溜める要素1つの文字payload上限。0以下で無制限。2026-10-08から16 MiB(以前は8 MiB)\n——丸ごと溜めるflexコンテナであるrustdocのstd索引の本文が、8 MiBを2バイト\n超えたため。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#PROCESSING_TABLE_ROW_EMISSION": {
+    "hash": "d5c0ecf9d279bceb",
+    "en": "Enables row-by-row emission of retained tables. The default uses the existing path that places completed tables.",
     "ja": "Retained表の行単位送出を有効にします。既定は完成表を配置する従来経路です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#PROCESSING_TARGET_COUNTER_DIGITS": {
+    "hash": "25f8297a4bf5fb90",
+    "en": "The number of digits reserved for {@code target-counter()} numbers in single-pass PDF (2026-10-04).\nEven for a number on a later page, a field of this many digits is laid out in advance, and the value\nis written when the document closes. A number that exceeds the field overflows to the left. Range: 1–9.",
     "ja": "1パスのPDFで{@code target-counter()}の番号に取っておく桁数です(2026-10-04)。\n番号は後ろの頁のものでも、この桁数ぶんの欄を先に組み、値は文書を閉じるときに\n書きます。溢れた番号は欄の左へはみ出します。1〜9。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#PROCESSING_TEXT_SPILL_BUDGET": {
+    "hash": "d01ee536265b6f42",
+    "en": "The limit (bytes) for retaining layout source (LayoutSource) text payload inline on the heap\n(default 8 MB, introduced 2026-07-24: E-6 increment 3b-2).\n\n<p>\nNew text that would push the retained inline bytes over this budget is written to a temporary\nfile (spill store) and decoded during page-break replay. The decision is deterministic, based\nonly on the configured value and cumulative bytes, not on available heap space.\nOutput (display list) is completely identical regardless of the budget; only memory behavior\nchanges. The default is comfortably above measured corpus requirements (most documents retain\na few thousand events), so ordinary documents do not spill.\n</p>",
     "ja": "レイアウトソース(LayoutSource)のテキストpayloadをheapへinline\n保持する上限(bytes)です(既定8MB、2026-07-24新設——E-6増分3b-2)。\n\n<p>\n保持中のinline bytesがこの予算を超える新規テキスト追記は一時\nファイル(spillストア)へ書かれ、改ページ再生時にdecodeされる。\n判定は設定値と累積bytesのみの決定的なもので、heap残量には依存\nしない。出力(display list)は予算値に関わらず完全に同一——変わる\nのはメモリ挙動のみ。既定値はコーパス実測(保持イベント数は数千\n規模の文書が大半)より十分大きく、通常文書ではspillは起きない。\n</p>"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#PROCESSING_TIME_LIMIT": {
+    "hash": "6657105f798d94d8",
+    "en": "The maximum elapsed time allowed to convert one document (milliseconds). A value of 0 or less means unlimited.",
     "ja": "1文書の変換に許す最大経過時間(ミリ秒)です。0以下は無制限です。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#all()": {
+    "hash": "616b8c982e3c15fb",
+    "en": "Returns all defined properties.",
     "ja": "定義済みの全プロパティを返します。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#navigation(BooleanPropManager,net.zamasoft.foliojet.ua.UserAgent)": {
+    "hash": "f7618a9eb285f034",
+    "en": "The effective value for bookmarks and links (2026-10-04). If not explicitly specified, it uses\nthe default (true), except in PDF/UA-2, where it is false\n({@link OutputPdfVersion#keepsNavigationOffByDefault}).",
     "ja": "しおり・リンクの実効値です(2026-10-04)。明示が無ければ既定(true)だが、\nPDF/UA-2 では false({@link OutputPdfVersion#keepsNavigationOffByDefault})。"
   },
   "net.zamasoft.foliojet.version.Version": {
+    "hash": "ac37419c6ad0370c",
+    "en": "A class for version management.\n\n@author MIYABE Tatsuhiko\n@version $Id: Version.java 1552 2018-04-26 01:43:24Z miyabe $",
     "ja": "バージョン管理のためのクラスです。\n\n@author MIYABE Tatsuhiko\n@version $Id: Version.java 1552 2018-04-26 01:43:24Z miyabe $"
   }
 }
