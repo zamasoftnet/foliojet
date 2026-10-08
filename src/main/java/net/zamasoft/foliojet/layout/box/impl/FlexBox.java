@@ -87,6 +87,13 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	private List<FlexItemBox> lineItems;
 
 	/**
+	 * Whether {@link #lines} were carried over by {@link #split} to this continuation (2026-10-09). Their sizes are then
+	 * lower bounds set before the items were laid out again, which the items can outgrow; the lines FlexBuilder placed
+	 * are the layout itself.
+	 */
+	private boolean carriedLines;
+
+	/**
 	 * Whether flex placement (placeRow/placeColumn/bindFallback in {@code FlexBuilder})
 	 * actually ran. If not, the contents are single-column normal flow (F0 degradation;
 	 * typically a column+auto-height app shell), with no flex placement to protect.
@@ -107,6 +114,15 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		// -- the yahoo.co.jp weather module.
 		this.container = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
 		this.container.setBox(this);
+	}
+
+	/**
+	 * Whether this container's main (page-axis) size is a definite length: specified, or fixed by the flex basis it got
+	 * as an item of a column laid out in normal flow ({@code flex: 0 0 100pt; min-height: 0}; 2026-10-08, codex review:
+	 * its own {@code flex: 1} items shared the 100pt in Chrome but stacked at their content size here).
+	 */
+	public final boolean hasDefinitePageSize() {
+		return this.size.getPageType(this.getFlexParams().flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE;
 	}
 
 	public final FlexParams getFlexParams() {
@@ -270,6 +286,28 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 				break;
 			}
 		}
+		if (boundary < 0 && this.carriedLines) {
+			// A line of a continuation whose item, as laid out again, paints past the cut line crosses it all the same
+			// (2026-10-09). The carried line sizes are lower bounds: the remainder's is the line less what the kept side
+			// painted, and a box with a background broken inside paints down to the cut line though its last line ends
+			// above it, so the line falls behind its item a little on every page (qiita-article: 96pt on page 33 of a
+			// 24600pt row flex). Kept whole, the fragment ran past the page bottom and every page break repeated at the
+			// same place until the livelock guard let the rest of the document overflow. An item a whole page taller
+			// than its line was laid out again at another size, which splitting does not mend: it only clipped the item
+			// and added an empty page (materialui).
+			for (int li = 0; li < this.lines.size() && boundary < 0; ++li) {
+				final Line line = this.lines.get(li);
+				for (int k = 0; k < line.itemCount(); ++k) {
+					final double painted = this.lineItems.get(line.startFlow() + k).paintedPageExtent(flow);
+					if (LayoutUtils.compare(pageLimit, line.start() + painted) < 0
+							&& LayoutUtils.compare(painted - line.pageSize(), pageLimit) <= 0) {
+						boundary = li;
+						crosses = true;
+						break;
+					}
+				}
+			}
+		}
 		if (boundary < 0) {
 			// All lines fit before the cut line (which lies in trailing space).
 			// Trim empty space here (KEEP) instead of carrying it to the next page: carrying space
@@ -295,6 +333,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
 			if (continuation instanceof FlexBox contFlex) {
 				contFlex.markFlexLayout();
+				contFlex.carriedLines = true;
 				contFlex.setFlexLines(shiftLines(this.lines, boundary, keptExtent),
 						new ArrayList<>(this.lineItems.subList(boundaryLine.startFlow(), this.lineItems.size())));
 			}
@@ -331,6 +370,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
 			if (continuation instanceof FlexBox contFlex) {
 				contFlex.markFlexLayout();
+				contFlex.carriedLines = true;
 				contFlex.setFlexLines(shiftLines(this.lines, boundary, keptExtent),
 						new ArrayList<>(this.lineItems.subList(boundaryLine.startFlow(), this.lineItems.size())));
 			}
@@ -422,6 +462,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		final AbstractContainerBox continuation = this.splitPage(cont, keptEnd, false);
 		if (continuation instanceof FlexBox contFlex) {
 			contFlex.markFlexLayout();
+			contFlex.carriedLines = true;
 			contFlex.setFlexLines(contLines, contItems);
 		}
 		this.keepHeadLines(boundary + 1, boundaryLine.startFlow() + boundaryItems.length);

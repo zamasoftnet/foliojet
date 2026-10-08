@@ -118,6 +118,72 @@ public class FootnoteMonolithicLineTest extends TestCase {
 		assertTrue("後の段落が 2 頁に無い", pages[1].contains("Text[\"T9\""));
 	}
 
+	/**
+	 * The figure and the paragraph with the call share an {@code overflow: hidden} wrapper (codex review 2026-10-08):
+	 * the wrapper's first fragment reaches the bottom of the figure kept whole, instead of ending at the cut line above
+	 * the footnote reservation and clipping the figure's bottom away.
+	 */
+	public void testBlockImageInClippedWrapper() throws Exception {
+		final String src = new File("files/unittest/blue.png").getAbsoluteFile().toURI().toString();
+		final String html = """
+				<!DOCTYPE html>
+				<html xmlns="http://www.w3.org/1999/xhtml" lang="ja"><head><meta charset="UTF-8"/>
+				<style>
+				@page { %s }
+				body { margin: 0; font-size: 9pt; line-height: 16.2pt }
+				p { margin: 0 }
+				.fn { float: footnote; font-size: 7pt; line-height: 11pt }
+				</style></head><body>
+				<div style="overflow: hidden"><img src="%s" style="display: block; width: 60mm; height: 85mm"/>
+				<p>N7<span class="fn">N7 Pierre-Auguste Renoir, Bal du moulin de la Galette, 1876, painting.
+				http://allart.biz/photos/image/Pierre_Auguste_Renoir_2_Bal_du_moulin_de_la_Galette_Smaller_version.html
+				(derivative work) Public Domain</span></p></div>
+				<p>T9</p>
+				</body></html>
+				""".formatted(HORIZONTAL, src);
+		final String[] pages = convert("wrapper-h", html);
+		assertEquals("頁数", 2, pages.length);
+		final double figure = 85 * 72 / 25.4;
+		final java.util.regex.Matcher m = java.util.regex.Pattern
+				.compile("AbsoluteRectFrame\\[w=[\\d.]+ h=([\\d.]+)\\][^\\n]*clip=\\[[\\d.]+ [\\d.]+ [\\d.]+ ([\\d.]+)\\]")
+				.matcher(pages[0]);
+		assertTrue("1 頁に図が無い:\n" + pages[0], m.find());
+		assertEquals("図の高さ", figure, Double.parseDouble(m.group(1)), 0.01);
+		assertTrue("包みが図の下を切った:\n" + pages[0], Double.parseDouble(m.group(2)) >= figure - 0.01);
+		assertFalse("呼び出しが 1 頁に残った", pages[0].contains("Text[\"N7\""));
+		assertTrue("注が 2 頁に無い", pages[1].contains("FootnoteLabel"));
+	}
+
+	/**
+	 * A footnote area with {@code min-height} keeps its place at the page end; a figure line kept 6pt past the cut line
+	 * (less than a rescue slice) reaches into it, so the rule and the note start below that line instead of over the
+	 * figure (codex review 2026-10-08).
+	 */
+	public void testFigureLineIntoMinHeightArea() throws Exception {
+		final String html = """
+				<!DOCTYPE html>
+				<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/>
+				<style>
+				@page { size: 300pt 200pt; margin: 0; @footnote { float: block-end; min-height: 60pt } }
+				body { margin: 0; font: 12pt/20pt serif }
+				p { margin: 0 }
+				.fn { float: footnote; line-height: 12pt; font-size: 10pt }
+				</style></head><body>
+				<p><span style="display: inline-block; width: 80pt; height: 146pt; vertical-align: top; background: #4a8"></span>N7<span class="fn">N7 note</span></p>
+				<p>T9</p>
+				</body></html>
+				""";
+		final String[] pages = convert("min-height-area", html);
+		final java.util.regex.Matcher figure = java.util.regex.Pattern
+				.compile("y=([\\d.]+) AbsoluteRectFrame\\[w=80\\.00 h=146\\.00\\]").matcher(pages[0]);
+		assertTrue("1 頁に図が無い:\n" + pages[0], figure.find());
+		final java.util.regex.Matcher rule = java.util.regex.Pattern.compile("y=([\\d.]+) artifact FootnoteSeparator")
+				.matcher(pages[0]);
+		assertTrue("1 頁に注が無い:\n" + pages[0], rule.find());
+		assertTrue("罫が図に重なった:\n" + pages[0],
+				Double.parseDouble(rule.group(1)) >= Double.parseDouble(figure.group(1)) + 146);
+	}
+
 	/** Page 1 holds the whole figure; the call, its note and the next paragraph start page 2; no sliced copies. */
 	private static void assertFigureWhole(final String[] pages) {
 		assertEquals("頁数", 2, pages.length);

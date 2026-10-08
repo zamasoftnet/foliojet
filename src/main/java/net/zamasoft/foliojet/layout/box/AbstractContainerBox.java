@@ -832,6 +832,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 	public SplitResult split(double pageLimit, final BreakMode mode, final byte flags, final BreakPlan plan) {
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		final BreakMode xmode = BreakMode.absorbColumn(mode, this.getColumnCount());
+		final double intrusion = pageEndIntrusion(mode);
 		// Centralize interpretation of the container's three-way return value here (typing inside containers is M4-A3b).
 		// Cuts without a plan always use Plain; the old three-argument splitPageAxis wrapped
 		// this Plain mapping (unified in increment 5).
@@ -843,9 +844,32 @@ public abstract class AbstractContainerBox extends AbstractBox
 		if (nextContainer == this.splitMoveSentinel()) {
 			return SplitResult.MOVE;
 		}
+		final double kept = keptPastCut(mode, intrusion);
 		return new SplitResult.Split(
-				this.splitPage(nextContainer, plan == null ? pageLimit : plan.contentLimit(this, pageLimit),
-						pageLimit, mode instanceof BreakMode.ColumnBreakMode));
+				this.splitPage(nextContainer, (plan == null ? pageLimit : plan.contentLimit(this, pageLimit)) + kept,
+						pageLimit + kept, mode instanceof BreakMode.ColumnBreakMode));
+	}
+
+	/**
+	 * How far monolithic content kept at the start of this page break's fragment has run past the cut line so far
+	 * ({@link BreakMode.PageEndUse}); 0 unless footnotes are reserved on the page.
+	 */
+	protected static double pageEndIntrusion(final BreakMode mode) {
+		return mode instanceof BreakMode.AutoBreakMode auto && auto.pageEndUse != null ? auto.pageEndUse.intrusion()
+				: 0;
+	}
+
+	/**
+	 * How far past its cut line a fragment reaches because its own split kept monolithic content there (2026-10-08;
+	 * codex review). A figure kept whole at the start of the page, whose later call takes its footnote to the next page,
+	 * belongs to the fragment that holds it: cut at the cut line, an {@code overflow: hidden} wrapper clipped the figure
+	 * there and its bottom was lost.
+	 *
+	 * @param before {@link #pageEndIntrusion} before the split of the content
+	 */
+	protected static double keptPastCut(final BreakMode mode, final double before) {
+		final double after = pageEndIntrusion(mode);
+		return after > before ? after : 0;
 	}
 
 	/**

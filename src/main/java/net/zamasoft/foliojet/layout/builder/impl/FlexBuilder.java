@@ -396,8 +396,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		}
 		// A column's main size is its specified height when absolute (the G5e technique); otherwise (stage 2 of
 		// docs/design/column-flex-indefinite-main-design.md) it follows from the items below.
-		final boolean definiteMain = mainIsLine
-				|| params.size.getPageType(params.flow) == LengthType.ABSOLUTE;
+		final boolean definiteMain = mainIsLine || this.flexBox.hasDefinitePageSize();
 		MainAxis axis = new MainAxis(mainIsLine,
 				mainIsLine ? innerLine : definiteMain ? this.flexBox.getInnerPageExtent(params.flow) : Double.NaN,
 				innerLine);
@@ -436,7 +435,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 * Check the logical page axis: the main axis of a vertical-writing column is physical width.
 	 */
 	private boolean columnMainResolvable(final BlockBuilder target) {
-		final boolean indefinite = this.flexBox.getFlexParams().size.getPageType(this.flow()) != LengthType.ABSOLUTE;
+		final boolean indefinite = !this.flexBox.hasDefinitePageSize();
 		for (final FlexItemContent item : this.items) {
 			if (this.measuresContent(item, indefinite) && item.itemBox.newMeasureReplica() == null) {
 				if (item.spec.basis().isContent()) {
@@ -453,16 +452,25 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 
 	/**
 	 * Whether a column item's main size comes from its content: {@link FlexItemContent#hasContentMain}, or, in a
-	 * container whose main size is indefinite, a percentage basis (which then behaves as {@code content}) with a
-	 * page-axis size that is not absolute. A percentage page size of such a container behaves as {@code auto} too
-	 * (an aspect-ratio thumbnail with {@code height: 100%} took no room, ourworldindata 2026-10-08).
+	 * container whose main size is indefinite, a percentage basis, which then behaves as {@code content} whatever the
+	 * height (css-flexbox-1 §7.2.3; {@code flex: 1; height: 100pt} used the 100pt, codex review 2026-10-08), or an
+	 * {@code auto} basis with a percentage height, which behaves as {@code auto} (an aspect-ratio thumbnail with
+	 * {@code height: 100%} took no room, ourworldindata 2026-10-08).
 	 */
 	private boolean measuresContent(final FlexItemContent item, final boolean indefiniteMain) {
 		if (item.hasContentMain(this.flow())) {
 			return true;
 		}
-		return indefiniteMain && !(item.spec.basis().getSize() instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue)
-				&& item.itemBox.getBlockParams().size.getPageType(this.flow()) != LengthType.ABSOLUTE;
+		if (!indefiniteMain) {
+			return false;
+		}
+		final net.zamasoft.foliojet.css.value.FlexBasisValue basis = item.spec.basis();
+		if (basis.isAuto()) {
+			return item.itemBox.getBlockParams().size.getPageType(this.flow()) != LengthType.ABSOLUTE;
+		}
+		return !(basis.getSize() instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue)
+				&& !(basis.getSize() instanceof net.zamasoft.foliojet.css.value.CalcLengthValue calc
+						&& calc.getRatio() == 0);
 	}
 
 	/**
@@ -872,7 +880,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			for (int k = col.from(); k < col.to(); ++k) {
 				final FlexItemContent item = this.items.get(seq[k]);
 				// Resolve the main (page) size (the §9.7 result takes precedence over specified height).
-				item.itemBox.setPageAxis(mainSizeByOriginal[seq[k]]);
+				item.itemBox.setColumnMainSize(mainSizeByOriginal[seq[k]]);
 				// Cross alignment (line axis): remaining space in the column + column start position.
 				// wrap-reverse swaps start/end symmetrically with row (2026-08-02: removed
 				// an asymmetry found while checking the unification).

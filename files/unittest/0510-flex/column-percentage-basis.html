@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex: the used main size of column items (content and percentage bases, a definite basis from the parent)</title>
+<style type="text/css">
+body { font: 12pt/20pt serif; margin: 0; }
+div { margin: 0; padding: 0; }
+.c { display: flex; flex-direction: column; margin-bottom: 10pt; }
+.r { align-items: center; width: 200pt; }
+.m { max-height: 1000pt; }
+</style>
+</head>
+<body>
+<!-- a: streamed (centered columns stream since 2026-10-09), flex-basis: content with height: 100pt and min-height: 0: the item is its content, 20pt -->
+<div class="c r"><div id="a1" style="flex-basis: content; height: 100pt; min-height: 0; width: 100pt; background: #ccc">T1</div><div id="a2" style="width: 100pt">T2</div></div>
+<!-- b: streamed, flex: 1 (a 0% basis) with height: 100pt: the percentage of an indefinite size is content, 20pt -->
+<div class="c r"><div id="b1" style="flex: 1; height: 100pt; width: 100pt; background: #ccc">T3</div><div id="b2" style="width: 100pt">T4</div></div>
+<!-- c: streamed and stretched, the same: 20pt -->
+<div class="c"><div id="c1" style="flex: 1; height: 100pt; background: #ccc">T5</div><div id="c2">T6</div></div>
+<!-- d: a streamed column gives its item a definite 100pt basis: the item's own flex: 1 items share it -->
+<div class="c"><div id="d0" style="display: flex; flex-direction: column; flex: 0 0 100pt; min-height: 0"><div id="d1" style="flex: 1; min-height: 0">T7</div><div id="d2" style="flex: 1; min-height: 0">T8</div></div><div id="d3">T9</div></div>
+<!-- e, f: a and b retained (an absolute max-height): 20pt -->
+<div class="c r m"><div id="e1" style="flex-basis: content; height: 100pt; min-height: 0; width: 100pt; background: #ccc">T10</div><div id="e2" style="width: 100pt">T11</div></div>
+<div class="c r m"><div id="f1" style="flex: 1; height: 100pt; width: 100pt; background: #ccc">T12</div><div id="f2" style="width: 100pt">T13</div></div>
+</body>
+</html>

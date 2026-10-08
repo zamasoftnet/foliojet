@@ -3644,7 +3644,11 @@ public class RootBuilder extends BreakableBuilder {
 		final boolean sizedBlockArea = !this.isPageBandFootnoteArea()
 				&& (this.footnoteArea().isHeightFixed() || this.footnoteArea().minHeight > 0);
 		final double blockArea = sizedBlockArea ? this.pageFootnoteHost.footnoteReservation : 0;
-		double pageAxis = sizedBlockArea ? base - blockArea + FOOTNOTE_GAP : base - attachedExtent;
+		// A sized area (height or min-height) keeps its place at the page end and lays its notes from its top, so content
+		// kept past the cut line moves them, and the rule, below it; capacity was checked against the area minus the
+		// intrusion above (codex review 2026-10-08: a figure 6pt into a min-height area ran under the rule and note).
+		final double areaStart = sizedBlockArea ? base - blockArea + intrusion : 0;
+		double pageAxis = sizedBlockArea ? areaStart + FOOTNOTE_GAP : base - attachedExtent;
 		// Arrange bands from the reserved area's line start. Even oversized notes must not overflow toward body text.
 		// Bottom lies outside the type area bottom (positive); top lies above the content origin (negative).
 		// For top bands, PageBox.reserveHeadArea has lowered the content origin by the band extent,
@@ -3715,7 +3719,7 @@ public class RootBuilder extends BreakableBuilder {
 		if (attachCount > 0) {
 			// Separator rule (F6/F7 recommendation ①): centered in the existing gap, so no extra
 			// reservation. Draw after flows in PageSequence.drawPage (artifact).
-			this.pageBox.setFootnoteSeparatorAxis(sizedBlockArea ? base - blockArea + FOOTNOTE_GAP / 2
+			this.pageBox.setFootnoteSeparatorAxis(sizedBlockArea ? areaStart + FOOTNOTE_GAP / 2
 					: base - attachedExtent - FOOTNOTE_GAP / 2);
 		}
 		this.pageFootnoteHost.footnoteReservedCount = 0;

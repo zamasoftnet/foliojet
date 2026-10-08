@@ -1846,9 +1846,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 */
 	/**
 	 * Advances past the main-axis gap ({@code row-gap}) before an item of a streamed column flex container, unless it is
-	 * the first item of this fragment (2026-10-08). Anonymous items (text directly in the container) do not count.
+	 * the first item of this fragment (2026-10-08). Text directly in the container is an item too
+	 * ({@link #requireTextBlock}).
 	 */
 	private void advanceStreamedFlexGap(final Flow containerFlow) {
+		containerFlow.flexTextPlaced = false;
 		if (containerFlow.flexItemPlaced) {
 			this.pageAxis += ((net.zamasoft.foliojet.layout.box.impl.FlexBox) containerFlow.box).getFlexParams().rowGap;
 		}
@@ -2114,10 +2116,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// (to clamp the delivery boundary), so check only that it is not recording.
 		assert this.textSession == null || !this.textSession.recording();
 		final BreakToken breakToken = this.breakToken;
+		final Flow flow = this.getFlow();
+		if (isStreamedColumnFlex(flow.box) && !flow.flexTextPlaced) {
+			// Text directly in a streamed column is an anonymous item: the gap separates it from the item before it
+			// (codex review 2026-10-08). A later text block of the same run continues it.
+			this.advanceStreamedFlexGap(flow);
+			flow.flexTextPlaced = true;
+		}
 		this.textBuilder = new TextBuilder(this, breakToken);
 		this.breakToken = BreakToken.MID_FLOW;
 
-		final Flow flow = this.getFlow();
 		double localPageAxis = this.pageAxis - flow.pageAxis;
 		flow.box.addFlow(this.textBuilder.textBlockBox, localPageAxis);
 

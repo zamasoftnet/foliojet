@@ -158,7 +158,9 @@ public class Display extends AbstractPrimitivePropertyInfo {
 		// Blockify direct Grid/Flex children (Grid G0: css-grid-1 §6; Flex F0a:
 		// css-flexbox-1 §4, "flex items are blockified"). Promote inline children
 		// to blocks instead of anonymous items.
-		if (display == DisplayValue.INLINE || display == DisplayValue.INLINE_BLOCK) {
+		if ((display == DisplayValue.INLINE || display == DisplayValue.INLINE_BLOCK)
+				&& !net.zamasoft.foliojet.xml.vocab.XHTML.BR_ELEM.equalsElement(style.getCSSElement())) {
+			// Except <br>: it breaks the line of the anonymous item around it, as in Chrome (2026-10-08)
 			final CSSStyle flexParent = style.getParentStyle();
 			if (flexParent != null) {
 				// Skip contents ancestors; their children become direct

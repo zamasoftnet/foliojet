@@ -52,12 +52,15 @@ public class FlexItemMetricsResolverTest extends TestCase {
 		assertEquals(200.0, m.flexBaseMain(), 0);
 	}
 
-	/** Treat a percentage basis as auto if the container is indefinite (width→max-content). */
+	/**
+	 * A percentage basis of an indefinite container behaves as content, whatever the width (css-flexbox-1 §7.2.3;
+	 * 2026-10-08: it used to fall back to the width as auto does, and Chrome uses the content).
+	 */
 	public void testPercentageBasisIndefiniteContainer() {
-		final FlexItemMetrics widthWins = FlexItemMetricsResolver.resolve(input(
+		final FlexItemMetrics widthIgnored = FlexItemMetricsResolver.resolve(input(
 				FlexBasisValue.size(PercentageValue.create(50)), 120, 0, NONE, 0, 0, false, false, 0, 200,
 				Double.NaN));
-		assertEquals(120.0, widthWins.flexBaseMain(), 0);
+		assertEquals(200.0, widthIgnored.flexBaseMain(), 0);
 		final FlexItemMetrics contentWins = FlexItemMetricsResolver.resolve(input(
 				FlexBasisValue.size(PercentageValue.create(50)), Double.NaN, 0, NONE, 0, 0, false, false, 0, 200,
 				Double.NaN));

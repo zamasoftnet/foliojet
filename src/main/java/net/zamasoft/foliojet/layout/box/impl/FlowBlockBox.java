@@ -58,6 +58,13 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	 */
 	protected Align resolvedAlign;
 
+	/**
+	 * Whether this box continues a fragment broken on an earlier page (made by {@link #fragmentRecipe}). The streamed
+	 * flex basis applies to the head only: a continuation's remaining minimum can be the same interned zero dimension as
+	 * the params', which the identity check took for a head (codex review 2026-10-08).
+	 */
+	private boolean continuation;
+
 	public FlowBlockBox(BlockParams params, FlowPos pos) {
 		super(params);
 		this.pos = pos;
@@ -317,39 +324,43 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	 * {@code min-height: L}; otherwise it is fixed at L clamped by min/max, as {@code height: L}. The basis follows
 	 * {@code box-sizing} like the size properties. Approximation: when the item also has a definite size H larger than L,
 	 * the automatic minimum min(content, H) would stop at H; here content can grow the item past H up to max.</li>
-	 * <li>{@code content}: the content size; the size property no longer applies.</li>
-	 * <li>{@code auto}, or a percentage of the indefinite main size (treated as auto, as
-	 * {@code FlexItemMetricsResolver} does): the size property, which normal flow already applies.</li>
+	 * <li>{@code content}, or a percentage of the indefinite main size (css-flexbox-1 §7.2.3: it behaves as
+	 * {@code content}, whatever the size property says): the content size; the size property no longer applies.</li>
+	 * <li>{@code auto}: the size property, which normal flow already applies.</li>
 	 * </ul>
 	 *
 	 * <p>
-	 * Only the head fragment is adjusted: its box-local size and min size are still the params' objects. Continuation
-	 * fragments carry the adjusted sizes through {@code FragmentState} (the remaining specified or minimum size).
+	 * Only the head fragment is adjusted. Continuation fragments carry the adjusted sizes through {@code FragmentState}
+	 * (the remaining specified or minimum size).
 	 * </p>
 	 */
 	public final void applyStreamedFlexBasis(final net.zamasoft.foliojet.layout.box.params.FlexItemSpec spec) {
-		if (this.size != this.params.size || this.minSize != this.params.minSize || spec == null) {
+		if (this.continuation || this.size != this.params.size || this.minSize != this.params.minSize
+				|| spec == null) {
 			return;
 		}
 		final WritingMode flow = this.params.flow;
 		final boolean vertical = flow.isVertical();
 		final net.zamasoft.foliojet.css.value.FlexBasisValue basis = spec.basis();
-		if (basis.isContent()) {
-			if (this.size.getPageType(flow) != LengthType.AUTO) {
-				this.size = withPage(this.size, vertical, 0, LengthType.AUTO);
-			}
-			return;
-		}
 		if (basis.isAuto()) {
 			return;
 		}
 		final double length;
-		if (basis.getSize() instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue absolute) {
+		if (basis.isContent()) {
+			length = Double.NaN;
+		} else if (basis.getSize() instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue absolute) {
 			length = absolute.getLength();
 		} else if (basis.getSize() instanceof net.zamasoft.foliojet.css.value.CalcLengthValue calc
 				&& calc.getRatio() == 0) {
 			length = calc.getAbsolute();
 		} else {
+			length = Double.NaN;
+		}
+		if (Double.isNaN(length)) {
+			// The content size (a 100pt height under flex: 1 kept the item 100pt tall; Chrome makes it its content)
+			if (this.size.getPageType(flow) != LengthType.AUTO) {
+				this.size = withPage(this.size, vertical, 0, LengthType.AUTO);
+			}
 			return;
 		}
 		final boolean minAuto = vertical ? spec.minWidthAuto() : spec.minHeightAuto();
@@ -1032,6 +1043,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			final FlowBlockBox next = new FlowBlockBox(params, pos, nextSize, state.nextMinSize(),
 					state.nextFrame(), container);
 			next.resolvedAlign = resolvedAlign;
+			next.continuation = true;
 			return next;
 		};
 	}

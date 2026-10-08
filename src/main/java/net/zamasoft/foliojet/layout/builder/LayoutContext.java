@@ -87,6 +87,12 @@ public interface LayoutContext extends LayoutStack {
 		 */
 		public boolean flexItemPlaced;
 
+		/**
+		 * Whether the last item placed in this flow is anonymous (text directly in the container): a text block that
+		 * follows continues that item, without a gap.
+		 */
+		public boolean flexTextPlaced;
+
 		public Flow(AbstractContainerBox container, double lineAxis, double pageAxis) {
 			this(container, lineAxis, pageAxis, 0);
 		}
@@ -110,6 +116,7 @@ public interface LayoutContext extends LayoutStack {
 			shifted.lineClamp = this.lineClamp;
 			shifted.flexItem = this.flexItem;
 			shifted.flexItemPlaced = this.flexItemPlaced;
+			shifted.flexTextPlaced = this.flexTextPlaced;
 			return shifted;
 		}
 	}

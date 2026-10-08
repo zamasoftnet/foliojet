@@ -108,6 +108,21 @@ public class FlexItemBox extends FlowBlockBox {
 		return vertical ? this.baseOffsetY : this.baseOffsetX;
 	}
 
+	/**
+	 * Sets the used main size of an item of a column flex (its inner page-axis size, css-flexbox-1 §9.7) after its bind
+	 * (2026-10-08). It replaces a specified height, which a content basis or a shrink can make smaller: setPageAxis kept
+	 * the specified height, so a {@code flex-basis: content; height: 100pt} item measured 20pt tall was drawn 100pt tall
+	 * under the next item; in vertical writing it also kept every content-sized width (codex review).
+	 */
+	public void setColumnMainSize(final double mainSize) {
+		this.contentSize = Math.max(this.contentSize, mainSize);
+		if (this.getBlockParams().flow.isVertical()) {
+			this.width = mainSize;
+		} else {
+			this.height = mainSize;
+		}
+	}
+
 	/** Sets the finalized inner line-axis size (content-box; called just before bind; height in vertical writing). */
 	public void setFlexMainSize(final double mainSize, final boolean vertical) {
 		if (vertical) {

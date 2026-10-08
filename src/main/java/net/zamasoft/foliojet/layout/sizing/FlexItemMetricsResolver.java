@@ -62,7 +62,8 @@ public final class FlexItemMetricsResolver {
 		final Double basisSize = basisSize(in);
 		if (basisSize != null) {
 			base = Math.max(0, basisSize);
-		} else if (!in.basis().isContent() && !Double.isNaN(preferred)) {
+		} else if (!in.basis().isContent() && in.basis().isAuto() && !Double.isNaN(preferred)) {
+			// Only auto uses the size property: an unresolved percentage basis behaves as content (§7.2.3)
 			base = preferred;
 		} else {
 			base = in.maxContent();

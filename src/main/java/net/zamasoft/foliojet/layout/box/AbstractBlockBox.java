@@ -291,6 +291,7 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		pageLimit -= this.frame.getFramePageStart(this.getBlockParams().flow);
 		final net.zamasoft.foliojet.layout.box.content.BreakMode xmode = net.zamasoft.foliojet.layout.box.content.BreakMode
 				.absorbColumn(mode, this.getColumnCount());
+		final double intrusion = pageEndIntrusion(mode);
 		final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = this.container.splitPageAxis(pageLimit, xmode,
 				flags, plan.next());
 		final Container nextContainer;
@@ -344,8 +345,10 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		final boolean vertical = this.getBlockParams().flow.isVertical();
 		final double crossExtent = vertical ? this.getInnerHeight() : this.getInnerWidth();
 		final net.zamasoft.foliojet.layout.fragment.FragmentRecipe recipe = this.fragmentRecipe();
-		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(plan.contentLimit(this, pageLimit),
-				pageLimit, mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode,
+		final double kept = keptPastCut(mode, intrusion);
+		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(
+				plan.contentLimit(this, pageLimit) + kept, pageLimit + kept,
+				mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.ColumnBreakMode,
 				this.shouldPreserveSpecifiedPageSize(nextContainer));
 		final net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail tail = childFrame != null
 				? new net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(childFrame)

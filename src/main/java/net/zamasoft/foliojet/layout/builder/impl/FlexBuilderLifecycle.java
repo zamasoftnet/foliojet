@@ -31,8 +31,7 @@ public final class FlexBuilderLifecycle {
 			// app shell's body flex keeps its contents unretained. wrap additionally requires an absolute cross
 			// (line-axis) length (F4c recommendation: eligibility requires sizing the column width on the cross axis
 			// in advance).
-			if (params.size.getPageType(params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE
-					&& !retainsIndefiniteColumn(params)) {
+			if (!flexBox.hasDefinitePageSize() && !retainsIndefiniteColumn(params)) {
 				return false;
 			}
 			if (params.flexWrap != FlexWrap.NOWRAP

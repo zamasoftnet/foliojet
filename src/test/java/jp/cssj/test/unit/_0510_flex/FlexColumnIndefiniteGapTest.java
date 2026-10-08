@@ -18,6 +18,10 @@ import net.zamasoft.foliojet.layout.box.IBox;
  * <li>k: {@code gap: 10pt} separates 20pt items by 30pt.</li>
  * <li>l: {@code row-gap: 10pt} goes before a table item too (l2 is a block in its cell).</li>
  * <li>o: vertical-rl, the gap runs along the horizontal main axis.</li>
+ * <li>p: text directly in the container is an anonymous item, with a gap on each side: 60pt between the blocks around
+ * one line of it (codex review 2026-10-08).</li>
+ * <li>q: a {@code br} in that text breaks its line inside the item: two lines, 80pt between the blocks around them (it
+ * was blockified into an item of its own).</li>
  * </ul>
  */
 public class FlexColumnIndefiniteGapTest extends AbstractTestCase {
@@ -34,6 +38,8 @@ public class FlexColumnIndefiniteGapTest extends AbstractTestCase {
 		assertEquals(30, y("k3") - y("k2"), 0.1);
 		assertEquals(30, y("l2") - y("l1"), 0.1);
 		assertEquals(30, x("o1") - x("o2"), 0.1);
+		assertEquals(60, y("p2") - y("p1"), 0.1);
+		assertEquals(80, y("q2") - y("q1"), 0.1);
 	}
 
 	private double x(final String id) {
@@ -72,6 +78,22 @@ public class FlexColumnIndefiniteGapTest extends AbstractTestCase {
 
 	public boolean check_l2(IBox box, int pageNumber, double x, double y) {
 		return this.record("l2", box, x, y);
+	}
+
+	public boolean check_p1(IBox box, int pageNumber, double x, double y) {
+		return this.record("p1", box, x, y);
+	}
+
+	public boolean check_p2(IBox box, int pageNumber, double x, double y) {
+		return this.record("p2", box, x, y);
+	}
+
+	public boolean check_q1(IBox box, int pageNumber, double x, double y) {
+		return this.record("q1", box, x, y);
+	}
+
+	public boolean check_q2(IBox box, int pageNumber, double x, double y) {
+		return this.record("q2", box, x, y);
 	}
 
 	public boolean check_o1(IBox box, int pageNumber, double x, double y) {

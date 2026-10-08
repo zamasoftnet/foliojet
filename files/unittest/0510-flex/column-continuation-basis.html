@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flex: a continuation of a column item does not take its flex basis again</title>
+<style type="text/css">
+@page { size: 200pt 100pt; margin: 0; }
+body { font: 12pt/20pt serif; margin: 0; orphans: 1; widows: 1; }
+div { margin: 0; padding: 0; }
+.c { display: flex; flex-direction: column; }
+</style>
+</head>
+<body>
+<!-- 140pt of lines in an item with flex: 0 1 80pt: 100pt on page 1, 40pt on page 2, then the next item -->
+<div class="c"><div id="i" style="flex: 0 1 80pt; background: #eee">L1<br>L2<br>L3<br>L4<br>L5<br>L6<br>L7</div><div id="n">NEXT</div></div>
+</body>
+</html>
