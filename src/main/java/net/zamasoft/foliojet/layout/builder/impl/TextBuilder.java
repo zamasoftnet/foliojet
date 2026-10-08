@@ -273,20 +273,12 @@ public class TextBuilder {
 		}
 		final AbstractTextParams params = line.getTextParams();
 		final double lineHeight = line.getLineParams().lineHeight;
-		if (params == null || LayoutUtils.isNone(lineHeight) || params.fontStyle == null) {
-			return;
-		}
-		final AbstractContainerBox flowBox = this.builder.getFlowBox();
-		// The line inside a list-marker box holds only a bullet image (disc, circle, square), which stands for the
-		// glyph browsers draw: it gets the strut in quirks mode too, so the marker is as tall as a text line
-		// (2026-10-08). Without it the marker box was only as tall as the image, the enclosing line split the rest
-		// of its line-height above and below the image, and a disc list's first line came out taller than the
-		// others (14.4pt instead of 12pt for 10pt text; Chrome 12pt). The image is 0.7em tall (ListBulletImage), so
-		// it stays inside the strut.
-		final boolean marker = flowBox instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox
-				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox;
-		if (!marker && !params.strictLineBox) {
-			// Omit the strut in quirks mode (HTML without DOCTYPE), as browsers do.
+		if (params == null || !params.strictLineBox || LayoutUtils.isNone(lineHeight) || params.fontStyle == null) {
+			// Omit the strut in quirks mode (HTML without DOCTYPE), as browsers do. A list-marker box holding a
+			// bullet image (disc, circle, square) is always strict: the bullet stands for the glyph browsers draw
+			// (StyleEventMachine, 2026-10-08). Marker lines used to get no strut at all, so the marker box was only as
+			// tall as the bullet, the enclosing line split the rest of its line-height above and below it, and a
+			// bullet list's first line came out taller than the others (14.4pt instead of 12pt for 10pt text).
 			return;
 		}
 		final double[] strut = strutAscentDescent(params, lineHeight);

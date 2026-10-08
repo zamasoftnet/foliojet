@@ -703,6 +703,12 @@ final class StyleEventMachine {
 			Image image = ListStyleImage.get(style);
 			if (image == null) {
 				image = GeneratedValueUtils.format(listStyleType, params.color, params.fontStyle);
+				if (image != null) {
+					// A bullet image stands for the glyph browsers draw, so its line gets the strut like a text
+					// line, in quirks mode too (2026-10-08; TextBuilder.addStrutIfTextless). A list-style-image
+					// keeps the document's mode, as an image line does in browsers.
+					params.strictLineBox = true;
+				}
 			}
 			this.marker = null;
 			Marker marker = null;
