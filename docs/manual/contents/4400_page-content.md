@@ -293,7 +293,7 @@ session.property("output.n-up", "4");
 方法をとります。
 
 表や浮動体のように、寸法が決まるまで中身を溜めておく要素はあります。
-その溜め込みには要素1つあたりの上限(<span class="ioprop">processing.retained-text-limit</span>、既定8MB)があり、
+その溜め込みには要素1つあたりの上限(<span class="ioprop">processing.retained-text-limit</span>、既定16MB)があり、
 超えると変換は失敗します。1件の変換が使うメモリに天井を置くためのもので、出力の内容は変わりません。
 
 #### <a id="style-multipass-what">パスとは何か</a>

@@ -598,9 +598,13 @@ public final class UAProps {
 	 */
 	public static final IntegerPropManager PROCESSING_PASS_COUNT = new IntegerPropManager("processing.pass-count", 1, 1, 10);
 
-	/** The text payload limit for each retained element. A value of 0 or less means unlimited. */
+	/**
+	 * The text payload limit for each retained element. A value of 0 or less means unlimited. 16 MiB since
+	 * 2026-10-08 (8 MiB before): the body of rustdoc's std index, a flex container retained as a whole, went 2 bytes
+	 * past 8 MiB.
+	 */
 	public static final LongPropManager PROCESSING_RETAINED_TEXT_LIMIT = new LongPropManager(
-			"processing.retained-text-limit", 8L << 20);
+			"processing.retained-text-limit", 16L << 20);
 
 	/** Enables row-by-row emission of retained tables. The default uses the existing path that places completed tables. */
 	public static final BooleanPropManager PROCESSING_TABLE_ROW_EMISSION = new BooleanPropManager(

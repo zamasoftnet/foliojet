@@ -118,7 +118,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 			System.err.println("[D7] elapsed=" + elapsed + " documents=" + report.converted + "/" + report.candidates
 					+ " pages=" + report.pages + " failures=" + report.failures.size());
 			System.err.println("[D7] retainedTextHighWater=" + net.zamasoft.foliojet.layout.RetainedTextLimit.HIGH_WATER.get()
-					+ " bytes (processing.retained-text-limit の既定 8MiB=8388608 に対するコーパス最大。B1、2026-09-06)");
+					+ " bytes (processing.retained-text-limit の既定 16MiB=16777216 に対するコーパス最大。B1、2026-09-06)");
 		}
 		assertTrue("TwoPass digest parity: " + report.failures.size() + " 件。" + REPORT_DIR.resolve(summaryName(shard))
 				+ "\n" + String.join("\n", report.failures.stream().limit(20).toList()), report.failures.isEmpty());

@@ -293,7 +293,7 @@ Instead of retaining the whole document, the engine
 **reads the same document again**.
 
 Some elements, such as tables and floats, retain their contents until their dimensions are determined.
-This retention has a per-element limit (<span class="ioprop">processing.retained-text-limit</span>, 8 MB by default),
+This retention has a per-element limit (<span class="ioprop">processing.retained-text-limit</span>, 16 MB by default),
 and conversion fails if it is exceeded. This caps memory use per conversion without changing the output content.
 
 #### <a id="style-multipass-what">What is a pass?</a>

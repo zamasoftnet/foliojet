@@ -43,7 +43,6 @@ import net.zamasoft.foliojet.ua.MultiDocumentOutput.TocEntry;
 import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.impl.Impositions;
-import net.zamasoft.foliojet.ua.props.BooleanPropManager;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.DefaultXMLHandlerFilter;
 import net.zamasoft.foliojet.xml.Parser;
@@ -65,7 +64,6 @@ import net.zamasoft.foliojet.epub.PropertiedString;
 import net.zamasoft.foliojet.epub.ResolvedArchiveFile;
 import net.zamasoft.foliojet.epub.Toc;
 import net.zamasoft.foliojet.epub.ZipArchiveFile;
-import net.zamasoft.foliojet.epub.util.WritingModeHandler;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 import net.zamasoft.zstream.resolver.util.SourceWrapper;
@@ -104,9 +102,6 @@ public class EPubFormatter implements MultiDocumentFormatter {
 	private static final Logger LOG = Logger.getLogger(EPubFormatter.class.getName());
 
 	private static final String PLUGIN_NAME = "net.zamasoft.foliojet.plugins.epub";
-
-	public static final BooleanPropManager REPLACE_NUMBERS = new BooleanPropManager(
-			"x.net.zamasoft.foliojet.formatter.impl.epub.replace-numbers", false);
 
 	/**
 	 * The MIME type indicating that EPUB content is supplied as a directory.
@@ -642,9 +637,6 @@ public class EPubFormatter implements MultiDocumentFormatter {
 			}
 			if (fixedLayout) {
 				ua.setProperty(UAProps.INPUT_VIEWPORT.getName(), "true");
-			}
-			if (REPLACE_NUMBERS.getBoolean(ua)) {
-				entryPoint = XMLHandler.of(new WritingModeHandler(entryPoint, true), null);
 			}
 			try {
 				parser.parse(ua, document, entryPoint);

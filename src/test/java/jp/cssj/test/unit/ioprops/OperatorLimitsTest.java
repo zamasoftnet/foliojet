@@ -69,7 +69,7 @@ public class OperatorLimitsTest extends TestCase {
 	 * limit.
 	 */
 	public void testEngineDefaultIsCompared() throws Exception {
-		assertEquals(String.valueOf(8L << 20),
+		assertEquals(String.valueOf(net.zamasoft.foliojet.ua.props.UAProps.PROCESSING_RETAINED_TEXT_LIMIT.defaultLong),
 				limits("processing.retained-text-limit", "100000000").clamp("processing.retained-text-limit", null));
 		assertEquals("1000", limits("processing.retained-text-limit", "1000").clamp("processing.retained-text-limit",
 				null));
