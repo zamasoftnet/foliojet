@@ -118,6 +118,61 @@ public class OrthogonalShrinkToFitTest extends TestCase {
 		assertTrue("表が無い", found);
 	}
 
+	/**
+	 * A horizontal page with a shrink-to-fit box whose vertical-writing child holds a table of five 20 pt rows
+	 * (2026-10-08). Simulated measurement counted the orthogonal table as 0, so a normal float and a fixed box
+	 * shrank to their frame and the table stuck out of the paper to the right. Chrome: box 100 pt wide at the
+	 * right edge (x = 200 pt).
+	 */
+	private static String horizontalDocument(final String boxStyle) {
+		return """
+				<!DOCTYPE html>
+				<html xmlns="http://www.w3.org/1999/xhtml" lang="ja"><head><meta charset="UTF-8"/>
+				<style>
+				@page{size:300pt 150pt;margin:0}
+				body{margin:0;font-size:8pt}
+				.box{%s;background:#eef}
+				.v{writing-mode:vertical-lr}
+				table{border-collapse:collapse;border-spacing:0}
+				td{width:20pt;height:15pt;padding:0;border:none}
+				</style></head><body>
+				<p style="margin:0">T9</p><div class="box"><div class="v"><table><tr><td>1</td></tr><tr><td>2</td></tr>
+				<tr><td>3</td></tr><tr><td>4</td></tr><tr><td>5</td></tr></table></div></div>
+				</body></html>
+				""".formatted(boxStyle);
+	}
+
+	public void testVerticalTableInHorizontalFloat() throws Exception {
+		assertBoxAtRightEdge(convert("h-float", horizontalDocument("float:right")));
+	}
+
+	public void testVerticalTableInHorizontalFixed() throws Exception {
+		assertBoxAtRightEdge(convert("h-fixed", horizontalDocument("position:fixed;top:0;right:0")));
+	}
+
+	private static final Pattern ANY_FRAME = Pattern
+			.compile("x=(-?[\\d.]+) y=(-?[\\d.]+) AbsoluteRectFrame\\[w=([\\d.]+) h=([\\d.]+)\\]");
+
+	/** The box is as wide as the table, touches the paper's right edge, and holds the cell text "5". */
+	private static void assertBoxAtRightEdge(final String[] pages) {
+		assertEquals(1, pages.length);
+		final Matcher f = ANY_FRAME.matcher(pages[0]);
+		assertTrue("箱が無い", f.find());
+		final double x = Double.parseDouble(f.group(1));
+		assertEquals("箱の幅は表の幅(Chrome 100pt): " + f.group(), 100, Double.parseDouble(f.group(3)), 0.5);
+		assertEquals("箱は紙の右端に接する(Chrome x=200pt): " + f.group(), 200, x, 0.5);
+		final Matcher t = TEXT.matcher(pages[0]);
+		boolean found = false;
+		while (t.find()) {
+			if (t.group(3).equals("5")) {
+				final double tx = Double.parseDouble(t.group(1));
+				assertTrue("箱の外の字: " + t.group(), tx >= x - 0.5 && tx <= 300);
+				found = true;
+			}
+		}
+		assertTrue("最後の行の字が無い", found);
+	}
+
 	/** The background container touches the type-area bottom, fits its width, and contains all its text. */
 	private static void assertFitsAtBottom(final String[] pages) {
 		boolean found = false;

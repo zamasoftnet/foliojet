@@ -1083,7 +1083,10 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		if (this.breakDepth == -1 && flow.box.canColumnBreak()) {
 			// Break the page if the bottom border of the multi-column layout extends beyond the page.
-			final double columnLimit = flow.pageAxis + flow.box.getInnerHeight();
+			// Measure along the page axis: the physical height in vertical writing is the line axis, which made
+			// portrait pages try a refused break at every close and missed real overflows on square or landscape
+			// pages (writing-mode-column2.html, 2026-10-08).
+			final double columnLimit = flow.pageAxis + flow.box.getInnerPageExtent(flow.box.getBlockParams().flow);
 			// Calculate the bottom frame width.
 			final double lastFrame = this.lastFrame(flow, 1);
 			if (LayoutUtils.compare(columnLimit, this.getPageOwnerLimit() - lastFrame) > 0) {

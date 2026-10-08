@@ -1438,7 +1438,8 @@ public class DocumentBuilder implements TableBuilderHost {
 					if (entry.builder.isTwoPass()) {
 						// Build.
 						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-						floatBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+						floatBox.shrinkToFit(parentBuilder, this.shrinkToFitSizes(floatBox, contentBuilder, parentBuilder),
+								false);
 						final BlockBuilder floatBuilder = new BlockBuilder(this.pageContextBuilder(), floatBox);
 						// **Do not consume the body during disposable measurement** (2026-08-03).
 						// An actual bind here closes the usage right, leaving it empty for the later
@@ -1509,7 +1510,8 @@ public class DocumentBuilder implements TableBuilderHost {
 						if (absoluteBox.getAbsolutePos().fiducial != Fiducial.CONTEXT) {
 							// For position: fixed;, build here.
 							IFramedBox containerBox = this.pageContextBuilder().getRootBox();
-							absoluteBox.shrinkToFit(containerBox, contentBuilder.intrinsicSizesMeasured());
+							absoluteBox.shrinkToFit(containerBox, this.shrinkToFitSizes(absoluteBox, contentBuilder,
+									sizes -> absoluteBox.shrinkToFit(containerBox, sizes)));
 							BlockBuilder absoluteBuilder = new BlockBuilder(this.pageContextBuilder(), absoluteBox);
 							final RetainedTextLimit limit = RetainedTextLimit.get(absoluteBuilder);
 							try (var retained = limit == null ? null
@@ -1788,11 +1790,25 @@ public class DocumentBuilder implements TableBuilderHost {
 	private net.zamasoft.foliojet.layout.sizing.IntrinsicSizes shrinkToFitSizes(
 			final net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox box, final TwoPassBlockBuilder content,
 			final Builder parent) {
+		return this.shrinkToFitSizes(box, content, sizes -> box.shrinkToFit(parent, sizes, false));
+	}
+
+	/**
+	 * {@link #shrinkToFitSizes(net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox, TwoPassBlockBuilder, Builder)}
+	 * for any box; {@code shrink} applies provisional sizes to the box before the trial layout. Used directly by
+	 * normal floats and fixed positioning (2026-10-08). The other shrink-to-fit sites still take the simulated
+	 * measurement as is, so with a table inside a child of the other writing mode the box shrinks to its frame (a
+	 * footnote to its label) and the table sticks out of it: absolute positioning, whose body is bound later from a
+	 * sealed range (DeferredBind) and has no place for a trial layout here, footnotes and page-margin notes.
+	 */
+	private net.zamasoft.foliojet.layout.sizing.IntrinsicSizes shrinkToFitSizes(final AbstractBlockBox box,
+			final TwoPassBlockBuilder content,
+			final java.util.function.Consumer<net.zamasoft.foliojet.layout.sizing.IntrinsicSizes> shrink) {
 		final net.zamasoft.foliojet.layout.sizing.IntrinsicSizes measured = content.intrinsicSizesMeasured();
 		if (!content.hasOrthogonalContent() || this.replayIntent == ReplayIntent.MEASURE || box.getColumnCount() > 1) {
 			return measured;
 		}
-		box.shrinkToFit(parent, measured, false);
+		shrink.accept(measured);
 		final BlockBuilder trial = new BlockBuilder(this.pageContextBuilder(), box);
 		content.bind(trial, ReplayIntent.MEASURE);
 		trial.close();
