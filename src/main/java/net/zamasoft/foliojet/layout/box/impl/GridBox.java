@@ -232,7 +232,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				boundary = ri;
 				break;
 			}
-			if (LayoutUtils.compare(pageLimit, row.start() + row.extent()) < 0) {
+			if (LayoutUtils.compare(pageLimit, row.start() + this.rowExtent(row, flow)) < 0) {
 				boundary = ri;
 				crosses = true;
 				break;
@@ -359,7 +359,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				// (observed in an eLife paper: 95 pages of content piled onto page 3).
 				// Geometrically, the remainder cannot be smaller than "original row height -
 				// extent consumed on this page".
-				newRowExtent = Math.max(newRowExtent, boundaryRow.extent() - consumed);
+				newRowExtent = Math.max(newRowExtent, this.rowExtent(boundaryRow, flow) - consumed);
 				// Also, per item, it cannot be smaller than "item height before splitting - measured height
 				// of the kept side" (2026-08-18). Splitting moves indivisible content (lines, atomic blocks)
 				// whole to the remainder, so the kept side may consume less than the available remaining extent.
@@ -411,7 +411,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				// or a remainder stretched to the lower bound of its row): keep that row alone and carry the later
 				// rows on (2026-10-09). Keeping the whole grid put every later row below the paper and stopped
 				// pagination (openprops: 46 pages became 7, with 5000 words off the page).
-				return this.carryRowsFrom(1, boundaryRow.start() + boundaryRow.extent());
+				return this.carryRowsFrom(1, boundaryRow.start() + this.rowExtent(boundaryRow, flow));
 			}
 			return SplitResult.KEEP;
 		}
@@ -432,6 +432,23 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 		}
 		this.keepHeadRows(firstRow);
 		return new SplitResult.Split(continuation);
+	}
+
+	/**
+	 * The extent of a row: the ledger's, or for a row of remainders (itemsEnd NaN, recorded before they were laid out
+	 * with only a lower bound) at least what its items take now that they are laid out (2026-10-09). With the ledger's
+	 * lower bound alone, a remainder that grew past the page bottom looked as if it fitted: the split went after it,
+	 * and what followed it in the item was placed below the paper (smolcss: a card grid's last row and the footer
+	 * after it at y=807 on a 770pt page).
+	 */
+	private double rowExtent(final Row row, final WritingMode flow) {
+		double extent = row.extent();
+		if (Double.isNaN(row.itemsEnd())) {
+			for (int k = 0; k < row.itemCount(); ++k) {
+				extent = Math.max(extent, this.rowItems.get(row.startFlow() + k).getPageExtent(flow));
+			}
+		}
+		return extent;
 	}
 
 	/**

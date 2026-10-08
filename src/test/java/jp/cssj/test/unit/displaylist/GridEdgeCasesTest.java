@@ -226,6 +226,34 @@ public class GridEdgeCasesTest extends TestCase {
 	}
 
 	/**
+	 * A remainder row that grew past its recorded lower bound once laid out is split again at the next page bottom
+	 * (2026-10-09). The inner row's split kept A's lines and moved the tall B whole, so the article's remainder is
+	 * taller than "its height less what page 1 took"; FOOT used to sit across the bottom of page 2 (smolcss). Chrome:
+	 * FOOT and NEXT on page 3.
+	 */
+	public void testRemainderRowGrowsPastPage() throws Exception {
+		final List<String> pages = convertPages("remainder-grows", """
+				<!DOCTYPE html>
+				<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/>
+				<style>
+				@page { size: 300pt 300pt; margin: 0 }
+				body { margin: 0; font-size: 10pt; line-height: 15pt }
+				p { margin: 0 }
+				.o { display: grid; grid-template-columns: 1fr }
+				.i { display: grid; grid-template-columns: 1fr 1fr }
+				.m { display: inline-block; width: 50pt; height: 290pt; vertical-align: top }
+				</style></head><body><div class="o"><article><div style="height: 200pt">TOP</div>
+				<div class="i"><div>A1<br/>A2<br/>A3<br/>A4<br/>A5<br/>A6<br/>A7<br/>A8</div><div>B<span class="m"></span></div></div>
+				<p>FOOT</p></article><div>NEXT</div></div>
+				</body></html>
+				""");
+		assertEquals("頁数", 3, pages.size());
+		assertFalse("FOOT は 2 頁目に残らない:\n" + pages.get(1), pages.get(1).contains("Text[\"FOOT\""));
+		assertTrue("FOOT は 3 頁目:\n" + pages.get(2), y(pages.get(2), "FOOT") < 300);
+		assertTrue("NEXT は FOOT の後", y(pages.get(2), "NEXT") > y(pages.get(2), "FOOT"));
+	}
+
+	/**
 	 * A descendant's max-inline-size caps what a grid or flex item contributes to its container's min-content size,
 	 * as it already did for a plain shrink-to-fit block (Chrome: the boxes are 300px = 225pt).
 	 */
