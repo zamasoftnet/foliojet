@@ -485,39 +485,32 @@ final class PDFParamsResolver {
 		// Platform encoding
 		params = params.withPlatformEncoding(platformEncoding(ua));
 
-		// Encryption
-		// Names of PDF/X variants based on PDF 1.4 (X-1a, X-3). Warn and omit encryption.
-		final String pdf14PdfX = params.version().isPdfXOnPdf14() ? pdfxName(params.version()) : null;
-		switch (UAProps.OUTPUT_PDF_ENCRYPTION.get(ua)) {
+		// Encryption. PDF/A and PDF/X prohibit it: warn and leave it out, whatever the encryption (2026-10-08). v1, v2
+		// and v4 used to check only PDF/A-1b and the PDF/X variants on PDF 1.4, so PDF/A-2 to 4 and PDF/X-4 and 6
+		// failed later with "Encryption cannot be used in PDF/A" while the manual promised a warning.
+		final OutputPdfEncryption encryption = UAProps.OUTPUT_PDF_ENCRYPTION.get(ua);
+		final PDFParams.Version conformance = params.version();
+		if (encryption != OutputPdfEncryption.NONE && (conformance.isPdfA() || conformance.isPdfX())) {
+			ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name,
+					encryption.name().toLowerCase(java.util.Locale.ROOT), conformance.isPdfX() ? pdfxName(conformance)
+							: conformance == PDFParams.Version.V_PDFA1B ? "PDF/A-1" : "PDF/A");
+		} else switch (encryption) {
 		case NONE:
 			break;
 
-		case V1:
+		case V1: {
 			// v1 encryption
-			if (params.version() == PDFParams.Version.V_PDFA1B) {
-				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v1",
-						"PDF/A-1");
-			} else if (pdf14PdfX != null) {
-				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v1",
-						pdf14PdfX);
-			} else {
-				V1EncryptionParams v1Params = new V1EncryptionParams();
-				applyEncryptionParams(ua, v1Params);
-				R2Permissions r2p = v1Params.getPermissions();
-				applyR2Permissions(ua, r2p);
-				params = params.withEncryption(v1Params);
-			}
+			V1EncryptionParams v1Params = new V1EncryptionParams();
+			applyEncryptionParams(ua, v1Params);
+			R2Permissions r2p = v1Params.getPermissions();
+			applyR2Permissions(ua, r2p);
+			params = params.withEncryption(v1Params);
 			break;
+		}
 
 		case V2:
 			// v2 encryption
-			if (params.version() == PDFParams.Version.V_PDFA1B) {
-				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v2",
-						"PDF/A-1");
-			} else if (pdf14PdfX != null) {
-				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v2",
-						pdf14PdfX);
-			} else if (params.version().v >= PDFParams.Version.V_1_3.v) {
+			if (params.version().v >= PDFParams.Version.V_1_3.v) {
 				V2EncryptionParams v2Params = new V2EncryptionParams();
 				applyEncryptionParams(ua, v2Params);
 				int length = UAProps.OUTPUT_PDF_ENCRYPTION_LENGTH.getInteger(ua);
@@ -539,13 +532,7 @@ final class PDFParamsResolver {
 
 		case V4:
 			// v4 encryption
-			if (params.version() == PDFParams.Version.V_PDFA1B) {
-				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v4",
-						"PDF/A-1");
-			} else if (pdf14PdfX != null) {
-				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v4",
-						pdf14PdfX);
-			} else if (params.version().v >= PDFParams.Version.V_1_5.v) {
+			if (params.version().v >= PDFParams.Version.V_1_5.v) {
 				V4EncryptionParams v4Params = new V4EncryptionParams();
 				applyEncryptionParams(ua, v4Params);
 				switch (UAProps.OUTPUT_PDF_ENCRYPTION_V4_CFM.get(ua)) {
@@ -581,11 +568,8 @@ final class PDFParamsResolver {
 			break;
 
 		case V5:
-			// AES-256 (V5/R6). Requires PDF 1.7 or later. PDF/A and PDF/X prohibit encryption.
-			if (params.version().isPdfA() || params.version().isPdfX()) {
-				ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY, UAProps.OUTPUT_PDF_ENCRYPTION.name, "v5",
-						params.version().isPdfA() ? "PDF/A" : "PDF/X");
-			} else if (params.version().v >= PDFParams.Version.V_1_7.v) {
+			// AES-256 (V5/R6). Requires PDF 1.7 or later.
+			if (params.version().v >= PDFParams.Version.V_1_7.v) {
 				net.zamasoft.pdfg2d.pdf.params.V5EncryptionParams v5Params =
 						new net.zamasoft.pdfg2d.pdf.params.V5EncryptionParams();
 				applyEncryptionParams(ua, v5Params);
