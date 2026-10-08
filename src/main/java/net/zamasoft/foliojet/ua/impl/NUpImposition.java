@@ -16,7 +16,8 @@ import net.zamasoft.pdfg2d.gc.imposition.Trims;
  * N-up imposition implementation. Scales and places multiple logical pages in a grid on one physical sheet.
  * <p>
  * With automatic paper size (fitPaper), the sheet has the size of "logical page + trim margins,"
- * giving typical printer N-up behavior with each page reduced to 1/N.
+ * and each page is scaled uniformly to fit one grid cell (for 4 pages, a 2 × 2 grid at half the side length),
+ * similar to the N-up printing of typical printers.
  * With an explicit paper size, builds the grid inside its trim margins.
  * Chooses grid rows/columns to maximize the scale factor for the aspect ratio of the sheet's first page.
  * </p>

@@ -261,12 +261,12 @@ UnicodeのSTART_PUNCTUATION（開き括弧類）も補助的に行末禁則と�
 
 #### word-wrap<span class="since">3.0.0</span>
 
-<span class="cssprop">word-wrap</span> はCSS Text Module Level 3 に沿った実装です。仕様は次のとおりです。
+<span class="cssprop">word-wrap</span> はCSS Text Module Level 3 に沿った実装です。標準の名前の<span class="cssprop">overflow-wrap</span>でも指定できます<span class="since">4.0.0</span>。仕様は次のとおりです。
 
 <dl>
 
 <dt>値</dt>
-<dd>normal | break-word</dd>
+<dd>normal | break-word | anywhere<span class="since">4.0.0</span></dd>
 <dt>初期値</dt>
 <dd>normal</dd>
 <dt>適用対象</dt>
@@ -278,6 +278,7 @@ UnicodeのSTART_PUNCTUATION（開き括弧類）も補助的に行末禁則と�
 
 break-wordを設定すると、内容が行幅の限界をはみ出さないように、
 必要に応じて禁則処理されている部分での折り返しをします。
+anywhereはbreak-wordと同じに扱います(仕様では最小内容幅の計算だけが異なりますが、区別しません)。
 
 ```html
 <html>

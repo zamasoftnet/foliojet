@@ -52,9 +52,9 @@ public final class UAProps {
 			null);
 
 	/**
-	 * An XML file that lists image dimensions in advance. Layout uses these dimensions instead of loading
+	 * A JSON file that lists image dimensions in advance. Layout uses these dimensions instead of loading
 	 * the images, which speeds up multi-pass processing and repeated layout of the same book.
-	 * Paged SVG outputs XML in the same format as <code>metrics.xml</code>,
+	 * Paged SVG outputs this format as <code>metrics.json</code>,
 	 * so you can use that file directly for the next conversion.
 	 */
 	public static final StringPropManager INPUT_IMAGE_METRICS = new StringPropManager("input.image-metrics", null);

@@ -58,7 +58,7 @@
 | text-emphasis<br />text-emphasis-style<br />text-emphasis-color<br />-cssj-text-emphasis<br />-epub-text-emphasis | 3.0.4<br />標準名は4.0.0 |  | none | すべての要素 | CSS Text Module Level 3 に沿った実装です。標準名と従来の-cssj-名は同じ実装を使用します。<br /> <span class="cssprop">text-emphasis-style</span>, <span class="cssprop">text-emphasis-color</span> をまとめて指定します。 詳細は<a href="#style-text-emphasis" class="pageref">圏点</a>を参照してください。 |
 | src | 3.0.0 |  |  | @font-faceルール | CSS Fonts Module Level 3 に沿った実装です。<br /> フォントの位置を示します。 詳細は<a href="#style-webfont" class="pageref">WebFont</a>を参照してください。 |
 | unicode-range | 3.0.0 |  | U+0-10FFFF | @font-faceルール | CSS Fonts Module Level 3 に沿った実装です。<br /> フォントのコード範囲です。 詳細は<a href="#style-webfont" class="pageref">WebFont</a>を参照してください。 |
-| word-wrap<br />-cssj-word-wrap | 3.0.0 | する | normal | すべての要素 | CSS Text Module Level 3 に沿った実装です。<br /> 行に収まらない長い単語を途中で折り返すかどうかです。 値はnormal, break-wordのいずれかです。 |
+| overflow-wrap<span class="since">4.0.0</span><br />word-wrap<br />-cssj-word-wrap | 3.0.0 | する | normal | すべての要素 | CSS Text Module Level 3 に沿った実装です。<br /> 行に収まらない長い単語を途中で折り返すかどうかです。 値はnormal, break-word, anywhere<span class="since">4.0.0</span>のいずれかです。 anywhereはbreak-wordと同じに扱います(仕様では最小内容幅の計算だけが異なりますが、区別しません)。 |
 | word-break | 3.2.2 |  | normal | すべての要素 | CSS Text Module Level 3 に沿った実装です。<br /> 禁則処理の設定です。 値はnormal, break-all, keep-allのいずれかです。 |
 | page | 4.0.0 |  | auto | ブロックレベル要素 | CSS Paged Media Module Level 3 に沿った実装です。<br /> 名前付きページを適用します。詳細は<a href="#style-named-pages">名前付きページ</a>を参照してください。 |
 | size | 4.0.0 |  | auto | @pageルール | CSS Paged Media Module Level 3 に沿った実装です。<br /> ページの寸法を指定します。入出力プロパティ<span class="ioprop">output.page-width</span>・<span class="ioprop">output.page-height</span>より優先されます。 |

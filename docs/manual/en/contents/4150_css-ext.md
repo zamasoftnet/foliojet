@@ -261,12 +261,12 @@ Line breaks are also prohibited between half-width letters and digits. However, 
 
 #### word-wrap<span class="since">3.0.0</span>
 
-The implementation of <span class="cssprop">word-wrap</span> follows CSS Text Module Level 3. The specification is as follows.
+The implementation of <span class="cssprop">word-wrap</span> follows CSS Text Module Level 3. You can also use the standard name <span class="cssprop">overflow-wrap</span><span class="since">4.0.0</span>. The specification is as follows.
 
 <dl>
 
 <dt>Value</dt>
-<dd>normal | break-word</dd>
+<dd>normal | break-word | anywhere<span class="since">4.0.0</span></dd>
 <dt>Initial value</dt>
 <dd>normal</dd>
 <dt>Applies to</dt>
@@ -278,6 +278,7 @@ The implementation of <span class="cssprop">word-wrap</span> follows CSS Text Mo
 
 Setting break-word allows breaks at otherwise prohibited positions as needed,
 to prevent the content from exceeding the line width.
+anywhere is treated the same as break-word (the specification differs only in the min-content width calculation, which is not distinguished).
 
 ```html
 <html>

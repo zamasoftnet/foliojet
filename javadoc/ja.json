@@ -495,9 +495,9 @@
     "ja": "ソケットタイムアウトです(応答待ち・読み取り停止の上限)。0は無制限。\n既定を無制限から60秒へ変更(2026-08-08)——kakaku.comの外部リソース\n1本の配信停止で変換が2000秒超ハングした実バグの再発防止。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_IMAGE_METRICS": {
-    "hash": "03db46987989f6ff",
-    "en": "An XML file that lists image dimensions in advance. Layout uses these dimensions instead of loading\nthe images, which speeds up multi-pass processing and repeated layout of the same book.\nPaged SVG outputs XML in the same format as <code>metrics.xml</code>,\nso you can use that file directly for the next conversion.",
-    "ja": "画像の寸法をあらかじめ記したXMLです。レイアウトのために画像を読み込む代わりに\nこの寸法を使うので、多パス処理や同じ本の組み直しが速くなります。\nPaged SVGは同じ形式のXMLを<code>metrics.xml</code>として出力するので、\nそれをそのまま次回の指定に使えます。"
+    "hash": "5fdab3dbc7308292",
+    "en": "A JSON file that lists image dimensions in advance. Layout uses these dimensions instead of loading\nthe images, which speeds up multi-pass processing and repeated layout of the same book.\nPaged SVG outputs this format as <code>metrics.json</code>,\nso you can use that file directly for the next conversion.",
+    "ja": "画像の寸法をあらかじめ記したJSONです。レイアウトのために画像を読み込む代わりに\nこの寸法を使うので、多パス処理や同じ本の組み直しが速くなります。\nPaged SVGはこの形式を<code>metrics.json</code>として出力するので、\nそれをそのまま次回の指定に使えます。"
   },
   "net.zamasoft.foliojet.ua.props.UAProps#INPUT_IMAGE_PIXEL_LIMIT": {
     "hash": "6619f4844a820c81",

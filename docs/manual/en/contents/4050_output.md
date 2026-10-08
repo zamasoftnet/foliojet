@@ -415,10 +415,10 @@ recompresses JPEG / JPEG2000 images<span class="since">2.0.3</span>
 (however, JPEG is not recompressed as JPEG, nor JPEG2000 as JPEG2000; conversion between JPEG and JPEG2000 is performed).
 
 JPEG / JPEG2000 recompression is lossy and degrades images, so you may want to avoid it for small images such as icons.
-You can therefore specify that images below a certain size always use FlateDecode compression <span
+You can therefore specify that images up to a certain size always use FlateDecode compression <span
 	class="since">2.0.3</span>. Set the threshold in <span class="ioprop">output.pdf.image.compression.lossless</span>
 as the sum of the image's height and width in pixels. The default is 200.
-For example, an image 90 pixels high and 110 pixels wide is recompressed as JPEG / JPEG2000,
+For example, an image 100 pixels high and 110 pixels wide is recompressed as JPEG / JPEG2000,
 while an image 80 pixels high and 100 pixels wide uses lossless FlateDecode compression. However, if the original image is JPEG / JPEG2000 and
 matches the format specified in <span class="ioprop">output.pdf.image.compression</span>,
 it is embedded in the PDF in its original format.
@@ -538,6 +538,10 @@ You can specify `image/png` `image/jpeg` `image/gif` `image/bmp`
 `image/tiff` `image/vnd.wap.wbmp`.
 Add Java Image I/O writers to support more output formats.
 → <a href="#style-image-jai" class="pageref">Image formats that can be read and written</a>
+
+Each page is output as one result (#1, #2, ...). If the destination accepts only one result (such as a single file or standard output),
+only the first page is output and the conversion ends there. To receive every page, use a destination that accepts multiple results
+(`-outdir` for the `copper` command of the server product).
 
 #### Image output limitations
 
@@ -943,14 +947,18 @@ Brotli compression once for every page.
 
 ##### omit — For the second and subsequent conversions
 
-When you lay out the same book again with only the font size or screen size changed, the font subsets and
-images are exactly the same as before. With `omit`, **only the resource data** is withheld.
-Reference URIs in page SVGs and entries in `manifest.json` remain unchanged, so the receiver can
-reuse resources previously saved under the same URIs.
+When you lay out the same book again with only the font size or screen size changed, the images are exactly the same as before.
+With `omit`, **only the image data** is withheld. Reference URIs in page SVGs and entries in `manifest.json`
+remain unchanged, so the receiver can reuse resources previously saved under the same URIs.
 
-For fonts with `omit`, `manifest.json` contains `"omitted":true`, and `sha256` and `bytes`
-are omitted——neither a hash nor a byte count can be obtained without building the WOFF2.
-Image `sha256` values are the resource URIs themselves, so they remain even with `omit`.
+Of the font subsets, **only those carried over from the previous conversion in the same session** are withheld.
+New subsets, and subsets whose version went up because glyphs absent last time were added (they get a different URI,
+such as `font-0001-2.woff2`), are returned even with `omit`, because the receiver does not have them. In a session
+without a previous conversion (such as the `copper` command, which starts anew for each conversion), every subset is returned.
+Resetting the session with `reset()` discards what was carried over.
+
+Withheld resources have `"omitted":true` in `manifest.json`. The `sha256` and `bytes` of a font are those of the
+previous conversion. The `sha256` of an image is the resource URI itself.
 
 <div class="note">
 <strong>This setting is for transfer and storage size, not speed.</strong>
