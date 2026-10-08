@@ -124,15 +124,23 @@ public class MeasurePassOutputTest extends TestCase {
 		assertTrue("退避した出力先へ最終PDFが出る", out.size() > 0);
 	}
 
+	/**
+	 * A page-spread blank page in a two-pass EPUB. Since 2026-10-08 (D-16) the blank page is made by the layout
+	 * ({@code break-before: recto/verso} on the item's body), so the measure pass lays it out like any page and
+	 * neither creates the writer nor renders; it is counted by the page counter. Previously EPubFormatter drew it
+	 * with {@code ua.nextPage()}, also in the measure pass, and this test checked that path.
+	 */
 	public void testEpubPageSpreadBlankRunsInMeasurePass() throws Exception {
 		final CountingPDFUserAgent ua = new CountingPDFUserAgent();
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		transcode(ua, single(out), pageSpreadEpub(), "application/epub+zip", "application/pdf", false);
-		assertEquals("page-spreadの空白頁も中間パスの進行点を通る", 1, ua.middlePageCalls);
+		assertEquals("中間パスは頁を描かない", 0, ua.middlePageCalls);
+		assertFalse("中間パスでPDFWriterを作らない", ua.writerSeenInNonOutputPass);
+		assertEquals("最終パスで本文2頁と空白頁", 3, ua.pageCalls);
 		try (PDDocument pdf = Loader.loadPDF(out.toByteArray())) {
 			assertEquals("本文2頁とpage-spread空白頁", 3, pdf.getNumberOfPages());
-			assertTrue(pageText(pdf, 1).contains("TARGET-2"));
-			assertTrue(pageText(pdf, 1).contains("TOTAL-1/2"));
+			assertTrue(pageText(pdf, 1).contains("TARGET-3"));
+			assertTrue(pageText(pdf, 1).contains("TOTAL-1/3"));
 			assertEquals("", pageText(pdf, 2).trim());
 			assertTrue(pageText(pdf, 3).contains("SECOND"));
 		}
@@ -209,7 +217,7 @@ public class MeasurePassOutputTest extends TestCase {
 					+ "<item id=\"a\" href=\"a.xhtml\" media-type=\"application/xhtml+xml\"/>"
 					+ "<item id=\"b\" href=\"b.xhtml\" media-type=\"application/xhtml+xml\"/>"
 					+ "</manifest><spine page-progression-direction=\"ltr\"><itemref idref=\"a\"/>"
-					+ "<itemref idref=\"b\" properties=\"page-spread-left\"/></spine></package>");
+					+ "<itemref idref=\"b\" properties=\"page-spread-right\"/></spine></package>");
 			final String style = "@page{size:100pt 100pt;margin:5pt;counter-increment:page}"
 					+ "body{margin:0;font:10pt sans-serif}a:after{content:' TARGET-' target-counter(attr(href),page)"
 					+ " ' TOTAL-' counter(page) '/' counter(pages)}";

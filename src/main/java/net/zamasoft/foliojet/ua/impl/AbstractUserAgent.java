@@ -161,6 +161,15 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return this.documentContext;
 	}
 
+	@Override
+	public void beginDocument(final java.net.URI documentURI) {
+		this.documentContext = new DocumentContext();
+		this.documentContext.setBaseURI(documentURI);
+		this.documentContext.setDocumentURI(documentURI);
+		// The footnote area comes from the document's own @footnote rule (parsed again with its style sheets)
+		this.getUAContext().setFootnoteArea(null);
+	}
+
 	public final String getProperty(String name) {
 		final String value = this.props == null ? null : this.props.get(name);
 		// Apply operator limits on every read, regardless of where the value was set
@@ -791,7 +800,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 			// Clear the carried stylesheet at conversion (document) start
 			// (see UAContext.getCarriedStyleSheet Javadoc). Intermediate and final
 			// passes inherit the preceding pass's collection
-			this.getUAContext().setCarriedStyleSheet(null);
+			this.getUAContext().clearCarriedStyleSheets();
 			// Reset the footnote area per document as well. CSS parsing in each pass sets the rules again.
 			this.getUAContext().setFootnoteArea(null);
 			// Image dimensions have the same lifetime. The same URI can refer to different content in another document

@@ -736,7 +736,7 @@ final class PageSequence {
 	 * (called from {@code StyleBuilder.finish()}).
 	 */
 	void finish() throws GraphicsException {
-		this.imposition.finish();
+		net.zamasoft.foliojet.ua.impl.Impositions.finishDocument(this.ua, this.imposition);
 		this.ua.getPassContext().setPageNumber(this.pageNumber);
 	}
 }

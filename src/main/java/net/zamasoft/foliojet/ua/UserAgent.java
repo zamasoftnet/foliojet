@@ -30,6 +30,13 @@ public interface UserAgent extends SourceResolver, MessageHandler, DeviceStyle, 
 	public DocumentContext getDocumentContext();
 
 	/**
+	 * Starts one of several documents laid out into this output in the current pass (an EPUB spine item,
+	 * 2026-10-08): a fresh {@link DocumentContext} whose base URI and document URI are {@code documentURI}, and the
+	 * document's own footnote area. Pages, counters and running strings continue.
+	 */
+	public void beginDocument(java.net.URI documentURI);
+
+	/**
 	 * Returns a property.
 	 */
 	public String getProperty(String name);

@@ -130,10 +130,12 @@ class OpfHandler extends DefaultHandler {
 						}
 						itemRef.properties = Collections.unmodifiableList(list);
 
-						// Page progression direction for the item
-						if (itemRef.properties.contains("page-spread-left")) {
+						// The side of the spread the item starts on (EPUB 3 also has the rendition: names)
+						if (itemRef.properties.contains("page-spread-left")
+								|| itemRef.properties.contains("rendition:page-spread-left")) {
 							itemRef.pageSpread = ItemRef.PAGE_SPREAD_LEFT;
-						} else if (itemRef.properties.contains("page-spread-right")) {
+						} else if (itemRef.properties.contains("page-spread-right")
+								|| itemRef.properties.contains("rendition:page-spread-right")) {
 							itemRef.pageSpread = ItemRef.PAGE_SPREAD_RIGHT;
 						}
 					} else {

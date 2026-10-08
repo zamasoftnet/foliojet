@@ -88,10 +88,13 @@ public class SVGImageLoader implements ImageLoader {
 	 * </p>
 	 */
 	private static String toBatikDocURI(URI uri) {
-		if (!uri.isOpaque()) {
-			return uri.toString();
+		if (uri.isOpaque()) {
+			return syntheticDocURI();
 		}
-		return syntheticDocURI();
+		// A relative document URI (an image inside an EPUB: OEBPS/images/x.svg) gets the same synthetic URI as
+		// inline SVG, keeping the relative path (2026-10-08). Batik turned the relative URI into file:., and an SVG
+		// that embeds data: images or fonts failed to load as a whole ("decode").
+		return toBatikInlineURI(uri);
 	}
 
 	/**

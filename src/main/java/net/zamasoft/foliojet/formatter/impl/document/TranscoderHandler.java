@@ -48,6 +48,9 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 	 */
 	private CSSProcessor cssProcessor = null;
 
+	/** The handler of the STRUCTURE_SCAN pass (null in the LAYOUT pass). */
+	private StructureScanHandler scanHandler = null;
+
 	public TranscoderHandler(UserAgent ua) {
 		this.ua = ua;
 	}
@@ -65,6 +68,17 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 
 	public void startDocument() throws SAXException {
 		// ignore
+	}
+
+	@Override
+	public void endDocument() throws SAXException {
+		super.endDocument();
+		// The next document of this pass continues the element keys (2026-10-08, see PassContext.getElementKeyBase)
+		if (this.cssProcessor != null) {
+			this.ua.getPassContext().setElementKeyBase(this.cssProcessor.getNextElementKey());
+		} else if (this.scanHandler != null) {
+			this.ua.getPassContext().setElementKeyBase(this.scanHandler.getNextElementKey());
+		}
 	}
 
 	public void setDocumentLocator(Locator locator) {
@@ -238,7 +252,10 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 				// (see the development plan "2パス制御モード" (two-pass control mode)). Shares the upstream filter
 				// chain (CSSJML and input filters) with the LAYOUT pass
 				// so that ElementKey numbering stays consistent between the two passes.
-				exitPoint.setXMLHandler(new StructureScanHandler(this.ua.getUAContext().getSelectorFacts()));
+				final StructureScanHandler scan = new StructureScanHandler(this.ua.getUAContext().getSelectorFacts(),
+						this.ua.getPassContext().getElementKeyBase());
+				exitPoint.setXMLHandler(scan);
+				this.scanHandler = scan;
 			} else {
 				// Process CSS
 				Imposition imposition = Impositions.createImposition(this.ua);

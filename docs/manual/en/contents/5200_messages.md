@@ -79,6 +79,7 @@
 | 3812<span class="since">4.0.0</span> | Width(string) Height(string) Limit(string) | The pixel count of the raster image to generate (the type area for image output) exceeds <span class="ioprop">output.image-pixel-limit</span>. Conversion fails. Lower the resolution or page size. |
 | 3813<span class="since">4.0.0</span> | Output format(string) | An unsupported format was specified for <span class="ioprop">output.type</span>. |
 | 3814<span class="since">4.0.0</span> | PDF version(string) | PDF/UA was selected, but the document language was not specified with <span class="ioprop">output.pdf.tagged.lang</span>. |
+| 3815<span class="since">4.0.0</span> | Item path(string)<br />XML parser message(string) | An EPUB item cannot be read as XHTML. The EPUB is encrypted (DRM) or the item is broken. |
 
 **Fatal errors**
 

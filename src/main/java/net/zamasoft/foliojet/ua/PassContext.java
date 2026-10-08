@@ -131,4 +131,42 @@ public class PassContext {
 	public void setPageNumber(int pageNumber) {
 		this.pageNumber = pageNumber;
 	}
+
+	/**
+	 * The first ElementKey of the next document in this pass (2026-10-08). Keys count elements in document order and
+	 * key the two-pass facts ({@code SelectorFacts}, {@code ContainerFacts}); when the spine items of an EPUB are laid
+	 * out into one output, the keys of each item continue after the previous item's, so the facts of different items
+	 * do not overwrite each other. Every pass reads the items in the same order, so the keys match between passes.
+	 */
+	private long elementKeyBase = 0;
+
+	public long getElementKeyBase() {
+		return this.elementKeyBase;
+	}
+
+	public void setElementKeyBase(final long elementKeyBase) {
+		this.elementKeyBase = elementKeyBase;
+	}
+
+	/**
+	 * The imposition shared by every document of this pass, or {@code null} (2026-10-08). The EPUB formatter sets it
+	 * so the slug page number and n-up sheets continue across the spine items; see {@code Impositions}.
+	 */
+	private net.zamasoft.foliojet.layout.imposition.Imposition sharedImposition = null;
+
+	public net.zamasoft.foliojet.layout.imposition.Imposition getSharedImposition() {
+		return this.sharedImposition;
+	}
+
+	public void setSharedImposition(final net.zamasoft.foliojet.layout.imposition.Imposition imposition) {
+		this.sharedImposition = imposition;
+	}
+
+	/** Documents whose start has been registered as a link target in this pass (see {@code AbstractVisitor}). */
+	private final java.util.Set<java.net.URI> startedDocuments = new java.util.HashSet<>();
+
+	/** Records the start of a document's output; {@code false} if it was already recorded in this pass. */
+	public boolean startDocumentOutput(final java.net.URI document) {
+		return this.startedDocuments.add(document);
+	}
 }

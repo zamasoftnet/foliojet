@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.ua;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -15,6 +16,7 @@ import net.zamasoft.foliojet.xml.vocab.XHTML;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
+import net.zamasoft.zstream.resolver.util.URIHelper;
 
 /**
  * Data for page references.
@@ -40,6 +42,42 @@ public class PageRef {
 
 	public PageRef() {
 		this.sectionStack.add(new Section(null, null, null));
+	}
+
+	/**
+	 * The key of the element with {@code id} in the document whose base URI is {@code base}.
+	 *
+	 * <p>
+	 * The key and {@link #targetURI} build the fragment the same way (2026-10-08): an id with spaces or other characters
+	 * that are illegal in a URI ({@code ix_PC 遠隔操作事件} in an index made by a book tool) is quoted the same on both sides.
+	 * Previously the reference side parsed the raw {@code href}, failed with "Invalid link URI", and the page number
+	 * stayed empty. Both sides resolve with {@link URIHelper#resolve}, so a valid reference keeps its former key.
+	 * </p>
+	 */
+	public static URI elementURI(final String encoding, final URI base, final String id) throws URISyntaxException {
+		return resolve(encoding, base, "#" + new URI(null, null, id).getRawFragment());
+	}
+
+	/**
+	 * The key a reference ({@code href} of {@code target-counter()} and friends) points to: the reference resolved
+	 * against {@code base}, with its fragment percent-decoded and quoted as in {@link #elementURI}.
+	 */
+	public static URI targetURI(final String encoding, final URI base, final String ref) throws URISyntaxException {
+		final int hash = ref.indexOf('#');
+		if (hash < 0) {
+			return resolve(encoding, base, ref);
+		}
+		String fragment = ref.substring(hash + 1);
+		try {
+			fragment = URIHelper.decode(fragment);
+		} catch (final IllegalArgumentException e) {
+			// A stray '%' ("#50%"): take the fragment as written
+		}
+		return resolve(encoding, base, ref.substring(0, hash) + "#" + new URI(null, null, fragment).getRawFragment());
+	}
+
+	private static URI resolve(final String encoding, final URI base, final String href) throws URISyntaxException {
+		return base == null ? new URI(href) : URIHelper.resolve(encoding, base, href);
 	}
 
 	public void reset() {

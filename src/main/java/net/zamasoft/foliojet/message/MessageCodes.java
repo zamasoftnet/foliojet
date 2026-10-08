@@ -109,6 +109,8 @@ public interface MessageCodes {
 	public static final short ERROR_UNSUPPORTED_OUTPUT_TYPE = 0x3813;
 	/** Error: PDF/UA selected without a document language ({@code output.pdf.tagged.lang}; 2026-10-05). */
 	public static final short ERROR_PDFUA_LANG = 0x3814;
+	/** Error: an EPUB item cannot be read as XML, typically an encrypted (DRM) book (2026-10-08). */
+	public static final short ERROR_EPUB_ITEM_NOT_XML = 0x3815;
 	public static final short ERROR_PLUGIN = 0x38FF;
 
 	public static final short FATAL_XSLT_FATAL = 0x4801;

@@ -105,7 +105,6 @@ import net.zamasoft.foliojet.ua.PendingStringSet;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.vocab.XHTML;
-import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.value.RelativeLengthValue;
@@ -1070,7 +1069,7 @@ final class StyleEventMachine {
 			return;
 		}
 		try {
-			URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
+			URI uri = PageRef.targetURI(this.ua.getDocumentContext().getEncoding(),
 					this.ua.getDocumentContext().getBaseURI(), ref);
 			Fragment frag = pageRef.getFragment(uri);
 			if (frag == null) {
@@ -1128,7 +1127,7 @@ final class StyleEventMachine {
 		}
 
 		try {
-			URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
+			URI uri = PageRef.targetURI(this.ua.getDocumentContext().getEncoding(),
 					this.ua.getDocumentContext().getBaseURI(), ref);
 			if (slot) {
 				// Lay out a field independent of the number value, and insert the value at drawing

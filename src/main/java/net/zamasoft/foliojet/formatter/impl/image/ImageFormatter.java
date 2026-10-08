@@ -55,7 +55,7 @@ public class ImageFormatter implements Formatter {
 				gc.drawImage(image);
 				imposition.closePage();
 			}
-			imposition.finish();
+			Impositions.finishDocument(ua, imposition);
 		} catch (IOException e) {
 			// Do not wrap typed failures (TranscoderException) again. Wrapping duplicates
 			// the prefix as "I/O error. I/O error. ..." and loses the original code (2026-09-21)

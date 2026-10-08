@@ -37,6 +37,9 @@ public class JAXPParser implements Parser {
 		}
 
 		final InputSource inputSource = XMLUtils.toInputSource(source);
+		// Fatal errors are thrown to the caller, which reports them; without a handler the parser also printed
+		// "[Fatal Error] name:1:1: ..." to standard error (2026-10-08). Recoverable errors and warnings are ignored as before.
+		reader.setErrorHandler(new org.xml.sax.helpers.DefaultHandler());
 		reader.setProperty("http://xml.org/sax/properties/lexical-handler", xmlHandler);
 		reader.setContentHandler(new DefaultXMLHandlerFilter(xmlHandler) {
 			public void setDocumentLocator(Locator locator) {

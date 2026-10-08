@@ -27,6 +27,11 @@ public final class Impositions {
 	 * and never start a GC or serializer.
 	 */
 	public static Imposition createImposition(final UserAgent ua) {
+		// Several documents in one output (EPUB spine items) share the pass's imposition (2026-10-08)
+		final Imposition shared = ua.getPassContext().getSharedImposition();
+		if (shared != null) {
+			return shared;
+		}
 		if (ua.isMeasurePass() || ua.isStructureScanPass()) {
 			return new NopImposition(ua);
 		}
@@ -36,6 +41,18 @@ public final class Impositions {
 			return new NUpImposition(ua, nUp, UAProps.OUTPUT_N_UP_ORDER.get(ua));
 		}
 		return new SinglePageImposition(ua);
+	}
+
+	/**
+	 * Finishes the imposition at the end of a document, unless it is shared by the documents of this pass: the
+	 * owner of a shared imposition finishes it once after the last document (2026-10-08). Finishing closes a partly
+	 * filled n-up sheet, so finishing per EPUB item started a new sheet for every item.
+	 */
+	public static void finishDocument(final UserAgent ua, final Imposition imposition)
+			throws net.zamasoft.pdfg2d.gc.GraphicsException {
+		if (ua.getPassContext().getSharedImposition() != imposition) {
+			imposition.finish();
+		}
 	}
 
 	public static void setupImposition(final UserAgent ua, final Imposition imposition) {

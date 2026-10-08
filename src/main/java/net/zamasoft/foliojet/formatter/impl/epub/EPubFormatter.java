@@ -9,10 +9,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -24,13 +25,11 @@ import java.util.logging.Logger;
 import java.util.zip.ZipFile;
 
 import jp.cssj.cti2.TranscoderException;
-import net.zamasoft.foliojet.css.CSSElement;
-import net.zamasoft.foliojet.css.util.ValueUtils;
-import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.formatter.Formatter;
 import net.zamasoft.foliojet.formatter.MultiDocumentFormatter;
 import net.zamasoft.foliojet.formatter.impl.document.TranscoderHandler;
 import net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException;
+import net.zamasoft.foliojet.layout.imposition.Imposition;
 import net.zamasoft.foliojet.layout.RetainedTextLimitException;
 import net.zamasoft.foliojet.layout.util.LayoutThreadContext;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
@@ -42,13 +41,15 @@ import net.zamasoft.foliojet.ua.MultiDocumentOutput.DocumentUnit;
 import net.zamasoft.foliojet.ua.MultiDocumentOutput.TocEntry;
 import net.zamasoft.foliojet.ua.PrepareMode;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.ua.impl.Impositions;
 import net.zamasoft.foliojet.ua.props.BooleanPropManager;
-import net.zamasoft.foliojet.ua.props.OutputPrintMode;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.DefaultXMLHandlerFilter;
 import net.zamasoft.foliojet.xml.Parser;
 import net.zamasoft.foliojet.xml.ParserFactory;
 import net.zamasoft.foliojet.xml.XMLHandler;
+import net.zamasoft.foliojet.xml.util.XMLUtils;
+import net.zamasoft.foliojet.xml.vocab.CSSJML;
 import net.zamasoft.foliojet.plugin.PluginRegistry;
 import net.zamasoft.foliojet.epub.ArchiveFile;
 import net.zamasoft.foliojet.epub.BaseURISourceResolver;
@@ -70,11 +71,10 @@ import net.zamasoft.zstream.resolver.util.SourceWrapper;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.zstream.resolver.protocol.zip.ZIPFileSource;
 import net.zamasoft.zstream.resolver.protocol.zip.ZIPFileSourceResolver;
-import net.zamasoft.pdfg2d.gc.GC;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
-import org.xml.sax.helpers.AttributesImpl;
+import org.xml.sax.SAXParseException;
 
 /**
  * Formats EPub.
@@ -83,9 +83,19 @@ import org.xml.sax.helpers.AttributesImpl;
  * If the output is {@link MultiDocumentOutput} (Paged SVG), lays out spine items <b>as independent
  * documents</b> ({@link #formatDocuments}). Opens a child UA for each item,
  * which drives its own passes and can run in parallel. The parent releases results in spine order.
- * Other output formats (PDF and images) feed all items sequentially to a single UA as before
- * ({@link #format}). In either case, each item always starts on a new page
+ * Other output formats (PDF and images) feed all items sequentially to a single UA ({@link #format}).
+ * In either case, each item always starts on a new page
  * (the last page of each item closes at that item's end, as measured on 2026-09-02).
+ * </p>
+ *
+ * <p>
+ * In the sequential case the items share pages but stay separate documents (2026-10-08, from the EPUB brush-up
+ * test): each item gets a fresh {@link net.zamasoft.foliojet.ua.DocumentContext} and its own style sheets
+ * ({@link UserAgent#beginDocument}), element keys continue across items so two-pass facts do not collide,
+ * one imposition serves the whole book (slug page numbers and n-up sheets continue), links between items become
+ * internal links (resolved at output time against {@link net.zamasoft.foliojet.ua.UAContext#getDocumentSet}),
+ * {@code page-spread-left/right} becomes a recto/verso break before the item, and the document information
+ * comes from the package rather than from the items.
  * </p>
  */
 public class EPubFormatter implements MultiDocumentFormatter {
@@ -157,53 +167,6 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		}
 		final int data = 30 + nameLen + extraLen;
 		return data + 20 <= n && s.startsWith("application/epub+zip", data);
-	}
-
-	private CSSElement getPageSide(UserAgent ua, boolean leftBind) {
-		CSSElement pageElement = ua.getPassContext().getPageSide();
-		switch (UAProps.OUTPUT_PRINT_MODE.get(ua)) {
-		case DOUBLE_SIDE:
-		case LEFT_SIDE:
-		case RIGHT_SIDE:
-			// Double-sided
-			if (leftBind) {
-				// Horizontal writing
-				if (pageElement == null) {
-					pageElement = CSSElement.PAGE_FIRST_RIGHT;
-				} else if (pageElement == CSSElement.PAGE_FIRST_RIGHT) {
-					pageElement = CSSElement.PAGE_LEFT_EVEN;
-				} else if (pageElement == CSSElement.PAGE_LEFT_EVEN) {
-					pageElement = CSSElement.PAGE_RIGHT_ODD;
-				} else if (pageElement == CSSElement.PAGE_RIGHT_ODD) {
-					pageElement = CSSElement.PAGE_LEFT_EVEN;
-				}
-			} else {
-				// Vertical writing
-				if (pageElement == null) {
-					pageElement = CSSElement.PAGE_FIRST_LEFT;
-				} else if (pageElement == CSSElement.PAGE_FIRST_LEFT) {
-					pageElement = CSSElement.PAGE_RIGHT_ODD;
-				} else if (pageElement == CSSElement.PAGE_RIGHT_ODD) {
-					pageElement = CSSElement.PAGE_LEFT_EVEN;
-				} else if (pageElement == CSSElement.PAGE_LEFT_EVEN) {
-					pageElement = CSSElement.PAGE_RIGHT_ODD;
-				}
-			}
-			break;
-
-		case SINGLE_SIDE:
-			// Single-sided
-			if (pageElement == null) {
-				pageElement = CSSElement.PAGE_SINGLE_FIRST;
-			} else {
-				pageElement = CSSElement.PAGE_SINGLE;
-			}
-			break;
-
-		default:
-			throw new IllegalStateException();
-		}
-		return pageElement;
 	}
 
 	/** Opens an item by its path. This is the only difference between ZIP and directory input. */
@@ -326,27 +289,117 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		return leftBind;
 	}
 
-	private static Map<URI, Item> fullPathToItem(final Contents contents) {
-		final Map<URI, Item> fullPathToItem = new HashMap<URI, Item>();
-		for (int i = 0; i < contents.spine.length; ++i) {
-			final ItemRef ir = contents.spine[i];
-			fullPathToItem.put(URI.create(ir.item.fullPath), ir.item);
+	/**
+	 * The page side an item must start on, as a {@code break-before} value: {@code page-spread-left/right}
+	 * names the physical side of a spread, recto and verso depend on the binding (left binding: right pages
+	 * are recto; right binding: left pages are recto). {@code null} when the item has no side.
+	 */
+	static String spreadBreak(final byte pageSpread, final boolean leftBind) {
+		switch (pageSpread) {
+		case ItemRef.PAGE_SPREAD_LEFT:
+			return leftBind ? "verso" : "recto";
+		case ItemRef.PAGE_SPREAD_RIGHT:
+			return leftBind ? "recto" : "verso";
+		default:
+			return null;
 		}
-		return fullPathToItem;
 	}
 
-	// ---- As before: Feed all items sequentially to a single UA
+	/**
+	 * Whether an item is pre-paginated (fixed layout): {@code rendition:layout} of the package or the itemref's
+	 * {@code rendition:layout-*} override; also the Sony e-book {@code layout:fixed-layout} that magazines from some
+	 * distributors still use (2026-10-08: such a magazine's page images were sliced over three A4 pages).
+	 */
+	static boolean isFixedLayout(final Contents contents, final ItemRef ir) {
+		if (ir.properties != null) {
+			if (ir.properties.contains("rendition:layout-pre-paginated")) {
+				return true;
+			}
+			if (ir.properties.contains("rendition:layout-reflowable")) {
+				return false;
+			}
+		}
+		final String layout = contents.getMeta("rendition:layout");
+		if (layout != null) {
+			return layout.trim().equals("pre-paginated");
+		}
+		final String sony = contents.getMeta("layout:fixed-layout");
+		return sony != null && sony.trim().equals("true");
+	}
+
+	// ---- Feed all items sequentially to a single UA (PDF and images)
 
 	private void formatSequential(final Contents contents, final EntryOpener opener, final UserAgent ua)
 			throws Exception {
 		final boolean leftBind = applyProgression(ua, contents);
-		final Map<URI, Item> fullPathToItem = fullPathToItem(contents);
 		final boolean[] included = selectSpine(ua, contents);
+		// Links into these documents are internal links (AbstractVisitor)
+		final Set<URI> documents = new LinkedHashSet<>();
 		for (int i = 0; i < contents.spine.length; ++i) {
-			if (!included[i]) {
-				continue;
+			if (included[i]) {
+				documents.add(URIHelper.create("UTF-8", contents.spine[i].item.fullPath));
 			}
-			this.formatItem(ua, contents.spine[i], fullPathToItem, opener, leftBind);
+		}
+		ua.getUAContext().setDocumentSet(Collections.unmodifiableSet(documents));
+		// One imposition for the whole book: the slug page number and n-up sheets continue across items
+		final Imposition imposition = Impositions.createImposition(ua);
+		ua.getPassContext().setSharedImposition(imposition);
+		final String useMetaInfo = ua.getProperty(UAProps.OUTPUT_USE_META_INFO.getName());
+		final boolean packageInfo = UAProps.OUTPUT_USE_META_INFO.getBoolean(ua);
+		if (packageInfo) {
+			applyPackageInformation(ua, contents);
+			// The items' <title> and <meta> are chapter titles, not the book's (restored below)
+			ua.setProperty(UAProps.OUTPUT_USE_META_INFO.getName(), "false");
+		}
+		try {
+			for (int i = 0; i < contents.spine.length; ++i) {
+				if (!included[i]) {
+					continue;
+				}
+				final ItemRef ir = contents.spine[i];
+				this.formatItem(ua, ir, opener, spreadBreak(ir.pageSpread, leftBind), isFixedLayout(contents, ir));
+			}
+			// Closes the last n-up sheet once, at the end of the book (each item's PageSequence skips it)
+			imposition.finish();
+		} finally {
+			ua.getPassContext().setSharedImposition(null);
+			if (packageInfo) {
+				ua.setProperty(UAProps.OUTPUT_USE_META_INFO.getName(), useMetaInfo);
+			}
+		}
+	}
+
+	/**
+	 * Sets the document information from the package (dc:title, dc:creator, dc:description). The language becomes the
+	 * default of {@code output.pdf.tagged.lang}, which tagged PDF uses as the document language.
+	 */
+	private static void applyPackageInformation(final UserAgent ua, final Contents contents) {
+		if (contents.title != null && contents.title.text != null && !contents.title.text.isBlank()) {
+			ua.meta("title", contents.title.text.trim());
+		}
+		final StringBuilder authors = new StringBuilder();
+		for (final PropertiedString author : contents.author) {
+			if (author != null && author.text != null && !author.text.isBlank()) {
+				if (authors.length() != 0) {
+					authors.append(", ");
+				}
+				authors.append(author.text.trim());
+			}
+		}
+		if (authors.length() != 0) {
+			ua.meta("author", authors.toString());
+		}
+		if (contents.description != null && contents.description.text != null
+				&& !contents.description.text.isBlank()) {
+			ua.meta("subject", contents.description.text.trim());
+		}
+		if (ua.getProperty(UAProps.OUTPUT_PDF_TAGGED_LANG.getName()) == null) {
+			for (final PropertiedString language : contents.language) {
+				if (language != null && language.text != null && !language.text.isBlank()) {
+					ua.setProperty(UAProps.OUTPUT_PDF_TAGGED_LANG.getName(), language.text.trim());
+					break;
+				}
+			}
 		}
 	}
 
@@ -354,8 +407,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 
 	private void formatIndependent(final EPubFile epub, final Contents contents, final EntryOpener opener,
 			final MultiDocumentOutput ua, final int passCount) throws Exception {
-		final boolean leftBind = applyProgression(ua, contents);
-		final Map<URI, Item> fullPathToItem = fullPathToItem(contents);
+		applyProgression(ua, contents);
 		final boolean[] included = selectSpine(ua, contents);
 		final List<DocumentUnit> units = new ArrayList<>();
 		int includedCount = 0;
@@ -390,7 +442,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 				final UserAgent child = ua.openDocument(units.get(i));
 				futures.add(pool.submit(() -> {
 					try (AutoCloseable scope = context.apply()) {
-						this.formatItemPasses(child, ir, fullPathToItem, opener, leftBind, passCount);
+						this.formatItemPasses(child, ir, opener, passCount, isFixedLayout(contents, ir));
 					} catch (final TranscoderException | RuntimeException | Error e) {
 						// AbortException is a RuntimeException. Let it propagate unchanged
 						throw e;
@@ -487,90 +539,97 @@ public class EPubFormatter implements MultiDocumentFormatter {
 	 * Drives the passes for one item in the same order as {@code DirectSession.format}
 	 * (structure scan → intermediate × n → final). Reopens the ZIP item for input, so no temporary file is needed.
 	 */
-	private void formatItemPasses(final UserAgent child, final ItemRef ir, final Map<URI, Item> fullPathToItem,
-			final EntryOpener opener, final boolean leftBind, final int passCount) throws Exception {
+	private void formatItemPasses(final UserAgent child, final ItemRef ir, final EntryOpener opener,
+			final int passCount, final boolean fixedLayout) throws Exception {
+		// Independent bundles have no spread to align with: page-spread is left to the reader (no blank pages)
 		if (passCount <= 1) {
 			child.prepare(PrepareMode.DOCUMENT);
 			child.getUAContext().setPassCount(1);
 			child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
-			this.formatItem(child, ir, fullPathToItem, opener, leftBind);
+			this.formatItem(child, ir, opener, null, fixedLayout);
 		} else {
 			child.prepare(PrepareMode.STRUCTURE_SCAN);
-			this.formatItem(child, ir, fullPathToItem, opener, leftBind);
+			this.formatItem(child, ir, opener, null, fixedLayout);
 			for (int remaining = passCount; remaining > 1; --remaining) {
 				child.prepare(PrepareMode.MIDDLE_PASS);
 				child.getUAContext().setPassCount(remaining);
 				child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(remaining));
-				this.formatItem(child, ir, fullPathToItem, opener, leftBind);
+				this.formatItem(child, ir, opener, null, fixedLayout);
 			}
 			child.prepare(PrepareMode.LAST_PASS);
 			child.getUAContext().setPassCount(1);
 			child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
-			this.formatItem(child, ir, fullPathToItem, opener, leftBind);
+			this.formatItem(child, ir, opener, null, fixedLayout);
 		}
 		child.finish();
 	}
 
-	/** Lays out one item in the currently prepared pass. */
-	private void formatItem(final UserAgent ua, final ItemRef ir, final Map<URI, Item> fullPathToItem,
-			final EntryOpener opener, final boolean leftBind) throws Exception {
-		switch (ir.pageSpread) {
-		case ItemRef.PAGE_SPREAD_LEFT: {
-			CSSElement e = this.getPageSide(ua, leftBind);
-			if (e.isPseudoClass(CSSElement.PC_LEFT)) {
-				this.blankPage(ua);
-			}
-		}
-			break;
-		case ItemRef.PAGE_SPREAD_RIGHT:
-			CSSElement e = this.getPageSide(ua, leftBind);
-			if (e.isPseudoClass(CSSElement.PC_RIGHT)) {
-				this.blankPage(ua);
-			}
-			break;
-		}
-
+	/**
+	 * Lays out one item in the currently prepared pass.
+	 *
+	 * @param spreadBreak {@code recto} or {@code verso} when the item must start on that side, otherwise {@code null}
+	 * @param fixedLayout whether the item is pre-paginated (fixed layout): its viewport is the page
+	 */
+	private void formatItem(final UserAgent ua, final ItemRef ir, final EntryOpener opener, final String spreadBreak,
+			final boolean fixedLayout) throws Exception {
 		ua.getPassContext().resetNonPageCounters();
 		final URI path = URIHelper.create("UTF-8", ir.item.fullPath);
-		ua.getDocumentContext().setBaseURI(path);
+		ua.beginDocument(path);
 		final Source zSource = opener.open(path, ir.item.mediaType);
 		final String mimeType = zSource.getMimeType();
 		if (mimeType.equals("application/xhtml+xml")) {
 			ParserFactory pf = PluginRegistry.getInstance().search(ParserFactory.class, mimeType);
 			Parser parser = pf.createParser();
 			TranscoderHandler transcoderHandler = new TranscoderHandler(ua);
-			XMLHandler entryPoint = new LinkHandler(transcoderHandler, ir.item, fullPathToItem);
-			boolean replaceNumbers = REPLACE_NUMBERS.getBoolean(ua);
-			WritingModeHandler xhandler = new WritingModeHandler(entryPoint, ir.item, replaceNumbers);
-			entryPoint = XMLHandler.of(xhandler, null);
+			XMLHandler entryPoint = transcoderHandler;
+			final StringBuilder itemStyle = new StringBuilder();
+			if (fixedLayout) {
+				// The viewport is the page; the author's @page rules, which come later, still win
+				itemStyle.append("@page{margin:0}");
+			}
+			if (spreadBreak != null) {
+				itemStyle.append("body{break-before:").append(spreadBreak).append(" !important}");
+			}
+			if (itemStyle.length() != 0) {
+				entryPoint = new ItemStyleFilter(entryPoint, itemStyle.toString());
+			}
+			// A pre-paginated item's <meta name="viewport"> sets the page size for that item only
+			final String[] restore = fixedLayout ? new String[] { UAProps.INPUT_VIEWPORT.getName(),
+					UAProps.OUTPUT_PAGE_WIDTH.getName(), UAProps.OUTPUT_PAGE_HEIGHT.getName() } : new String[0];
+			final String[] saved = new String[restore.length];
+			for (int i = 0; i < restore.length; ++i) {
+				saved[i] = ua.getProperty(restore[i]);
+			}
+			if (fixedLayout) {
+				ua.setProperty(UAProps.INPUT_VIEWPORT.getName(), "true");
+			}
+			if (REPLACE_NUMBERS.getBoolean(ua)) {
+				entryPoint = XMLHandler.of(new WritingModeHandler(entryPoint, true), null);
+			}
 			try {
 				parser.parse(ua, zSource, entryPoint);
+			} catch (final SAXParseException e) {
+				// Encrypted (DRM) books and broken items: one message naming the item (2026-10-08).
+				// Previously the parser's "Content is not allowed in prolog" surfaced as a plugin failure with a stack trace.
+				LOG.log(Level.FINE, "EPUB item is not XML: " + ir.item.fullPath, e);
+				final short code = MessageCodes.ERROR_EPUB_ITEM_NOT_XML;
+				final String[] args = { ir.item.fullPath, e.getMessage() };
+				ua.message(code, args);
+				final TranscoderException failure = new TranscoderException(code, args,
+						MessageCodeUtils.toString(code, args));
+				failure.initCause(e);
+				throw failure;
 			} finally {
 				// E-6 increment 3b-2: Clean up spill temporary files (idempotent)
 				transcoderHandler.dispose();
+				for (int i = 0; i < restore.length; ++i) {
+					ua.setProperty(restore[i], saved[i]);
+				}
 			}
 		} else {
 			Formatter formatter = PluginRegistry.getInstance().search(Formatter.class, zSource);
 			formatter.format(zSource, ua);
 		}
-	}
-
-	/** A blank page to align facing pages. */
-	private void blankPage(final UserAgent ua) throws IOException {
-		String ws = UAProps.OUTPUT_PAGE_WIDTH.getString(ua);
-		AbsoluteLengthValue wl = ValueUtils.toAbsoluteLength(ua, false, ws);
-		String hs = UAProps.OUTPUT_PAGE_HEIGHT.getString(ua);
-		AbsoluteLengthValue hl = ValueUtils.toAbsoluteLength(ua, false, hs);
-		ws = UAProps.OUTPUT_PAPER_WIDTH.getString(ua);
-		if (ws != null) {
-			wl = ValueUtils.toAbsoluteLength(ua, false, ws);
-		}
-		hs = UAProps.OUTPUT_PAPER_HEIGHT.getString(ua);
-		if (hs != null) {
-			hl = ValueUtils.toAbsoluteLength(ua, false, hs);
-		}
-		GC gc = ua.nextPage(wl.getLength(), hl.getLength());
-		ua.closePage(gc);
 	}
 
 	// ---- Spine filtering and overall description
@@ -728,69 +787,33 @@ public class EPubFormatter implements MultiDocumentFormatter {
 	}
 }
 
-class LinkHandler extends DefaultXMLHandlerFilter {
-	final AttributesImpl attsi = new AttributesImpl();
-	final Item item;
-	final Map<URI, Item> fullPathToItem;
-	final URI base;
+/**
+ * Gives an item a style sheet ahead of its own (2026-10-08), as a processing instruction before the root element.
+ *
+ * <ul>
+ * <li>{@code page-spread-left/right}: {@code body { break-before: recto|verso !important }}. The existing left/right
+ * page break at the start of a document adds a blank page only when the side does not match, and that page goes
+ * through the page sequence (the item's {@code @page} size, the imposition, {@code :blank}). Previously the formatter
+ * drew its own blank page of the default size, compared against the opposite side, and did not advance the page
+ * side, so books bound on the left got a blank page before every item.</li>
+ * <li>Fixed layout: {@code @page { margin: 0 }}, so the viewport-sized page holds the page content.</li>
+ * </ul>
+ */
+final class ItemStyleFilter extends DefaultXMLHandlerFilter {
+	private final String css;
+	private boolean started = false;
 
-	LinkHandler(XMLHandler handler, Item item, Map<URI, Item> fullPathToItem) {
+	ItemStyleFilter(final XMLHandler handler, final String css) {
 		super(handler);
-		this.item = item;
-		this.base = URI.create(item.fullPath);
-		this.fullPathToItem = fullPathToItem;
+		this.css = css;
 	}
 
-	/**
-	 * The item referenced by {@code href}, or {@code null} if none exists.
-	 *
-	 * <p>
-	 * 2026-09-02 (cti.li handoff): A table-of-contents fragment containing spaces or Japanese, such as
-	 * {@code href="3260.xhtml#ix_ACCS 不正アクセス事件"}, caused {@code URISyntaxException}. Previously,
-	 * the resulting {@code SAXException} failed **the entire book** with an I/O error (even for PDF).
-	 * The fragment is unnecessary for identifying the item, so first discard it and resolve again.
-	 * If that still fails, continue without rewriting that href.
-	 * </p>
-	 */
-	private Item itemOf(final String ref) {
-		try {
-			return this.fullPathToItem.get(URIHelper.resolve("UTF-8", this.base, ref));
-		} catch (URISyntaxException e) {
-			final int hash = ref.indexOf('#');
-			if (hash >= 0) {
-				try {
-					return this.fullPathToItem.get(URIHelper.resolve("UTF-8", this.base, ref.substring(0, hash)));
-				} catch (URISyntaxException e2) {
-					// Continue below
-				}
-			}
-			java.util.logging.Logger.getLogger(LinkHandler.class.getName()).log(Level.FINE,
-					"EPUB link left as written (not a URI): " + ref, e);
-			return null;
-		}
-	}
-
-	public void startElement(String uri, String lName, String qName, Attributes atts) throws SAXException {
-		if (lName.equals("body")) {
-			super.startElement(uri, lName, qName, atts);
-
-			this.attsi.clear();
-			this.attsi.addAttribute("", "id", "id", "CDATA", this.item.fullPath);
-			this.attsi.addAttribute("", "name", "name", "CDATA", "x-epub-" + this.item.fullPath);
-			super.startElement(uri, "a", "a", this.attsi);
-			super.endElement(uri, "a", "a");
-			return;
-		} else if (lName.equals("a")) {
-			int href = atts.getIndex("href");
-			if (href != -1) {
-				String ref = atts.getValue(href);
-				Item item = this.itemOf(ref);
-				if (item != null) {
-					this.attsi.setAttributes(atts);
-					atts = this.attsi;
-					this.attsi.setValue(href, "#x-epub-" + item.fullPath);
-				}
-			}
+	@Override
+	public void startElement(final String uri, final String lName, final String qName, final Attributes atts)
+			throws SAXException {
+		if (!this.started) {
+			this.started = true;
+			super.processingInstruction(CSSJML.PI_STYLESHEET, "[" + XMLUtils.escapePseudeData(this.css) + "]");
 		}
 		super.startElement(uri, lName, qName, atts);
 	}

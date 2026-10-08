@@ -246,6 +246,71 @@ public abstract class AbstractVisitor implements Visitor {
 		this.ua.getPassContext().getRunningRegistry().endPage();
 	}
 
+	/**
+	 * The destination name of an element id. When several documents are laid out into one output (EPUB spine items,
+	 * 2026-10-08), ids are qualified by their document ({@code OEBPS/ch1.xhtml#s1}) because they may repeat between
+	 * documents; a single document keeps the bare id.
+	 */
+	private String destinationName(final String id) {
+		final URI document = this.ua.getDocumentContext().getDocumentURI();
+		if (document == null || this.ua.getUAContext().getDocumentSet() == null) {
+			return id;
+		}
+		return document + "#" + id;
+	}
+
+	/**
+	 * The link to write for {@code href} (2026-10-08). When several documents are laid out into one output, a target
+	 * inside one of them becomes an internal link to its qualified destination ({@link #destinationName}; the start
+	 * of the document when there is no fragment). Previously such links were written as relative URIs, which PDF
+	 * viewers try to open as files. Other links stay as written.
+	 */
+	private URI linkTarget(final URI href) {
+		final java.util.Set<URI> documents = this.ua.getUAContext().getDocumentSet();
+		final DocumentContext context = this.ua.getDocumentContext();
+		if (href == null || documents == null || context.getBaseURI() == null) {
+			return href;
+		}
+		try {
+			final URI resolved = URIHelper.resolve(context.getEncoding(), context.getBaseURI(), href.toString());
+			final String raw = resolved.toString();
+			final int hash = raw.indexOf('#');
+			final URI document = hash < 0 ? resolved : new URI(raw.substring(0, hash));
+			if (!documents.contains(document)) {
+				return href;
+			}
+			final String fragment = resolved.getFragment();
+			final String name = fragment == null || fragment.isEmpty() ? document.toString() : document + "#" + fragment;
+			return new URI(null, null, name);
+		} catch (final URISyntaxException e) {
+			return href;
+		}
+	}
+
+	/**
+	 * Registers the start of a document as a destination and a page reference target, once per pass, at the first
+	 * box drawn for it (2026-10-08). A link or {@code target-counter()} to an EPUB spine item without a fragment
+	 * ({@code href="ch2.xhtml"}) lands here. Tracked in the pass context because a NopVisitor lives for one page.
+	 */
+	private void markDocumentStart(final AffineTransform transform, final double x, final double y,
+			final PageRef pageRef, final PageRef counterRef) {
+		final URI document = this.ua.getDocumentContext().getDocumentURI();
+		if (document == null || this.ua.getUAContext().getDocumentSet() == null
+				|| !this.ua.getPassContext().startDocumentOutput(document)) {
+			return;
+		}
+		if (this.fragments || pageRef != null) {
+			Point2D location = new Point2D.Double(x, y);
+			if (!transform.isIdentity()) {
+				location = transform.transform(location, location);
+			}
+			this.addFragment(document.toString(), location);
+		}
+		if (counterRef != null) {
+			counterRef.addFragment(document, this.getCounters(), null);
+		}
+	}
+
 	public void visitBox(AffineTransform transform, IBox box, Drawer drawer, double x, double y) {
 		this.drawer = drawer;
 		// E-6 increment 3b-4: the element of a source-replayed box is a StructureToken
@@ -281,6 +346,7 @@ public abstract class AbstractVisitor implements Visitor {
 				: this.ua.getUAContext().getPageRef();
 
 		final BoxType type = box.getType();
+		this.markDocumentStart(transform, x, y, pageRef, counterRef);
 		// Hyperlinks
 		if (this.hyperlinks && isHyperlinkBox(type)) {
 			// Anchor tag
@@ -309,7 +375,7 @@ public abstract class AbstractVisitor implements Visitor {
 				final StringBuilder tb = new StringBuilder();
 				appendSemanticText(box, tb);
 				String contents = tb.toString().trim();
-				this.addLink(s, uri, ce, contents.isEmpty() ? null : contents);
+				this.addLink(s, this.linkTarget(uri), ce, contents.isEmpty() ? null : contents);
 			}
 			
 			if (type == BoxType.REPLACED) {
@@ -341,7 +407,7 @@ public abstract class AbstractVisitor implements Visitor {
 							if (!transform.isIdentity()) {
 								s = transform.createTransformedShape(s);
 							}
-							this.addLink(s, area.href, null, null);
+							this.addLink(s, this.linkTarget(area.href), null, null);
 						}
 					}
 				}
@@ -383,7 +449,7 @@ public abstract class AbstractVisitor implements Visitor {
 						if (!transform.isIdentity()) {
 							s = transform.createTransformedShape(s);
 						}
-						this.addLink(s, link.href, null, null);
+						this.addLink(s, this.linkTarget(link.href), null, null);
 					}
 				}
 			}
@@ -418,13 +484,13 @@ public abstract class AbstractVisitor implements Visitor {
 					if (!transform.isIdentity()) {
 						location = transform.transform(location, location);
 					}
-					this.addFragment(id, location);
+					this.addFragment(this.destinationName(id), location);
 				}
 				if (counterRef != null) {
 					// Page references
 					try {
-						URI uri = URIHelper.resolve(this.ua.getDocumentContext().getEncoding(),
-								this.ua.getDocumentContext().getBaseURI(), fragment(id));
+						URI uri = PageRef.elementURI(this.ua.getDocumentContext().getEncoding(),
+								this.ua.getDocumentContext().getBaseURI(), id);
 						String text = null;
 						if (pageRef != null) {
 							// Also capture text for target-text()

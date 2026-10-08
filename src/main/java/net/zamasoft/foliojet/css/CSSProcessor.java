@@ -98,7 +98,7 @@ public class CSSProcessor implements XMLHandler {
 	 * as a stable key across passes in {@code CSSElement.elementKey}
 	 * (see the {@code CSSElement} Javadoc).
 	 */
-	private long nextElementKey = 0;
+	private long nextElementKey;
 
 	// Inline object
 	private InlineObject inlineObject = null;
@@ -120,11 +120,15 @@ public class CSSProcessor implements XMLHandler {
 		// cannot apply retroactively to earlier elements, but with pass-count>=2, rules collected
 		// in the previous pass (including STRUCTURE_SCAN) can apply from the beginning.
 		// For its lifetime, see the Javadoc for UAContext.getCarriedStyleSheet.
-		CSSStyleSheet carried = this.ua.getUAContext().getCarriedStyleSheet();
+		// One carried stylesheet per document (2026-10-08): the spine items of an EPUB are separate documents.
+		final java.net.URI document = this.ua.getDocumentContext().getDocumentURI();
+		CSSStyleSheet carried = this.ua.getUAContext().getCarriedStyleSheet(document);
 		if (carried == null) {
 			carried = new CSSStyleSheet();
-			this.ua.getUAContext().setCarriedStyleSheet(carried);
+			this.ua.getUAContext().setCarriedStyleSheet(document, carried);
 		}
+		// Element keys continue across the documents of a pass (see PassContext.getElementKeyBase)
+		this.nextElementKey = this.ua.getPassContext().getElementKeyBase();
 		StyleContext styleContext = new StyleContext(carried, this.ua.getUAContext().getSelectorFacts(),
 				this.ua.getUAContext().getContainerFacts());
 
@@ -173,6 +177,11 @@ public class CSSProcessor implements XMLHandler {
 				this.ua.message(MessageCodes.WARN_MISSING_CSS_STYLESHEET, defaultStyle);
 			}
 		}
+	}
+
+	/** The key the next element would get: after the document, the first key of the next document. */
+	public long getNextElementKey() {
+		return this.nextElementKey;
 	}
 
 	private void linkCSS(String href, String type, String title, String mediaTypes, String charset, boolean alternate) {

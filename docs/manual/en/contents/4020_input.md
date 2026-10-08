@@ -409,3 +409,67 @@ I/O property, you can instead show an × mark in the image area (cross) or leave
 You can convert EPUB 2.0 and EPUB 3.0 files<span class="since">3.1.0</span>.
 
 An EPUB file is identified by the content MIME type application/epub+zip or the .epub extension.
+Even without either, a ZIP whose first entry, mimetype, holds application/epub+zip is treated as EPUB<span class="since">4.0.0</span>.
+An unpacked directory can also be given, with the MIME type application/epub+directory or a URI ending in `.epub/`<span class="since">4.0.0</span>.
+
+#### <a id="style-epub-layout">How the items are laid out</a>
+
+For PDF and image output, the items (XHTML) are laid out in spine order onto one continuous run of pages.
+
+- Each item starts on a new page. Items with `linear="no"` are laid out too. Select the items with
+	<span class="ioprop">input.epub.spine</span>.
+- Each item is laid out as a separate document<span class="since">4.0.0</span>. The style sheets of an item
+	(`<style>` and `<link>`) apply to that item only, and selectors such as `:last-child` are evaluated per item.
+	Counters other than `page` are reset at the start of each item. Strings set with `string-set` (running heads)
+	carry over to the next item.
+- Page numbers (the `page` counter) and the left/right sides of spreads continue through the whole book. If the spine's
+	`page-progression-direction` is `rtl`, the book is bound on the right; with `ltr`, on the left
+	(<span class="ioprop">output.print-mode</span> becomes `right-side` or `left-side`).
+- `page-spread-left` and `page-spread-right` on an itemref (also with the `rendition:` prefix) start the item on that side
+	of a spread<span class="since">4.0.0</span>. A blank page is added only when the side does not match.
+	In a book bound on the left, right pages are odd; in a book bound on the right, left pages are odd.
+- A link to an item (`href="ch2.xhtml"`) or into another item (`href="ch2.xhtml#sec2"`) becomes a link within the PDF,
+	and `target-counter()` gives its page number<span class="since">4.0.0</span>.
+	PDF named destinations are named "item path`#`id" (the start of an item is the item path).
+	A link to a file that is not in the spine stays a link to the URI as written.
+- The title, author, and subject of the PDF document information come from the package's `dc:title`, `dc:creator`
+	(several are joined with ", "), and `dc:description`<span class="since">4.0.0</span>. The items' `<title>` and `<meta>`
+	are not used. With <span class="ioprop">output.use-meta-info</span> set to `false`, the package is not used either.
+	For tagged PDF, `dc:language` is the document language unless <span class="ioprop">output.pdf.tagged.lang</span> is given.
+- Encrypted (DRM) EPUB files cannot be converted. An item that cannot be read as XML stops the conversion with error 3815,
+	which names the item.
+
+With paged SVG output, each item becomes an independent bundle
+(<a href="#style-output-paged-svg-epub" class="pageref">EPUB bundles for each item</a>).
+
+#### <a id="style-epub-print-css">Adding a style sheet for print</a>
+
+The style sheets in an EPUB are written for reading apps on screens; they usually say nothing about the page size,
+margins, running heads, or page numbers. To print the book, add a print style sheet in one of these ways.
+
+- Unpack the EPUB, load the print style sheet from each item with `<link>`, and zip it again
+	(with an uncompressed `mimetype` first). Every item needs the link, because style sheets are per item (see above).
+- Load it into every item with <span class="ioprop">input.default-stylesheet</span>. The EPUB stays unchanged,
+	but this style sheet is weaker than the author's, so mark declarations that override the author's with `!important`.
+
+```css
+/* A bunko-size book in vertical writing */
+@page {
+  size: 105mm 148mm;
+  margin-top: 15mm;
+  margin-bottom: 13mm;
+}
+@page :right {
+  margin-left: 11.5mm;
+  margin-right: 9.5mm;
+  @bottom-right { content: counter(page); font-size: 7pt; }
+}
+@page :left {
+  margin-left: 9.5mm;
+  margin-right: 11.5mm;
+  @bottom-left { content: counter(page); font-size: 7pt; }
+}
+html { writing-mode: vertical-rl; }
+body { font-size: 8.5pt; line-height: 1.75; }
+h2 { string-set: chapter content(); }
+```

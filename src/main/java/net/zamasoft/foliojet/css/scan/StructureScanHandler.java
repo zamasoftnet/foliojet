@@ -68,7 +68,21 @@ public final class StructureScanHandler extends DefaultHandler2 implements XMLHa
 	}
 
 	public StructureScanHandler(SelectorFacts facts) {
+		this(facts, 0);
+	}
+
+	/**
+	 * @param firstElementKey the key of the document's first element; documents laid out one after another into one
+	 *                        output (EPUB spine items) continue the keys of the previous document (2026-10-08)
+	 */
+	public StructureScanHandler(SelectorFacts facts, long firstElementKey) {
 		this.facts = facts;
+		this.nextElementKey = firstElementKey;
+	}
+
+	/** The key the next element would get: after the document, the first key of the next document. */
+	public long getNextElementKey() {
+		return this.nextElementKey;
 	}
 
 	public void startElement(String uri, String lName, String qName, Attributes atts) {

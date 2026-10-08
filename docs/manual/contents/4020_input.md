@@ -408,4 +408,66 @@ rgba()等のアルファ成分はfill-opacity等の対応プロパティへ変�
 
 EPUB 2.0またはEPUB 3.0ファイルを変換することができます<span class="since">3.1.0</span>。
 
-EPUBファイルは、コンテンツのMIME方が application/epub+zip であるか、拡張子が.epubであることで判別されます。
+EPUBファイルは、コンテンツのMIME型が application/epub+zip であるか、拡張子が.epubであることで判別されます。
+どちらにも当たらなくても、ZIPの先頭の項目 mimetype が application/epub+zip ならEPUBとして扱います<span class="since">4.0.0</span>。
+展開したディレクトリを、MIME型 application/epub+directory か末尾が `.epub/` のURIで渡すこともできます<span class="since">4.0.0</span>。
+
+#### <a id="style-epub-layout">項目の組み方</a>
+
+PDFと画像の出力では、spine の順に項目(XHTML)を1冊の続いたページへ組みます。
+
+- 各項目は新しいページから始まります。`linear="no"` の項目も組みます。組む項目は
+	<span class="ioprop">input.epub.spine</span>で選べます。
+- 項目はそれぞれ独立した文書として組みます<span class="since">4.0.0</span>。項目の
+	`<style>`・`<link>` のスタイルシートはその項目にだけ効き、`:last-child` などの判定も項目ごとです。
+	カウンタは `page` 以外を項目の頭で戻します。`string-set` で設定した柱の文字列は次の項目へ引き継ぎます。
+- ページ番号(`page` カウンタ)と見開きの左右は本全体で続きます。spine の `page-progression-direction` が
+	`rtl` なら右綴じ、`ltr` なら左綴じとして組みます(<span class="ioprop">output.print-mode</span>を
+	`right-side`・`left-side` にします)。
+- itemref の `page-spread-left`・`page-spread-right`(`rendition:` の付いた名前も同じ)は、その項目を見開きの
+	その側から始めます<span class="since">4.0.0</span>。合わないときだけ白ページを1枚入れます。
+	左綴じの本では右が奇数ページ、右綴じの本では左が奇数ページです。
+- 項目へのリンク(`href="ch2.xhtml"`)と、ほかの項目の中へのリンク(`href="ch2.xhtml#sec2"`)は、
+	PDFの中のリンクになり、`target-counter()` でページ番号を引けます<span class="since">4.0.0</span>。
+	PDFの名前付き宛先は「項目のパス`#`id」(項目の頭は項目のパス)という名前になります。
+	spine に無いファイルへのリンクは、書かれたURIのままのリンクです。
+- PDFの文書情報のタイトル・作成者・サブジェクトは、OPFの `dc:title`・`dc:creator`(複数なら「, 」でつなぐ)・
+	`dc:description` から取ります<span class="since">4.0.0</span>。項目の `<title>`・`<meta>` は使いません。
+	<span class="ioprop">output.use-meta-info</span>を `false` にすると、OPFからも取りません。
+	タグ付きPDFで<span class="ioprop">output.pdf.tagged.lang</span>を指定しなければ、`dc:language` を文書の言語にします。
+- 暗号化(DRM)されたEPUBは変換できません。XMLとして読めない項目があると、その項目の名前を示すエラー 3815 で止まります。
+
+ページ分割SVGでは、項目ごとに独立したバンドルになります
+(<a href="#style-output-paged-svg-epub" class="pageref">EPUBは項目ごとのバンドル</a>)。
+
+#### <a id="style-epub-print-css">印刷用のスタイルシートを足す</a>
+
+EPUBのスタイルシートは読書アプリの画面向けで、ページの大きさ・余白・柱・ノンブルは書かれていないのがふつうです。
+本として印刷するには、次のどちらかで印刷用のスタイルシートを足します。
+
+- EPUBを展開し、印刷用のスタイルシートを各項目の `<link>` で読み込んでから、ZIPへ戻します
+	(先頭を無圧縮の `mimetype` にします)。項目ごとに読み込みが要ります(上のとおりスタイルシートは項目ごとです)。
+- <span class="ioprop">input.default-stylesheet</span>で全項目に読み込ませます。EPUBを書き換えずに済みますが、
+	作者のスタイルシートより弱いので、作者の指定を上書きする宣言には `!important` を付けてください。
+
+```css
+/* 文庫判・縦組みの例 */
+@page {
+  size: 105mm 148mm;
+  margin-top: 15mm;
+  margin-bottom: 13mm;
+}
+@page :right {
+  margin-left: 11.5mm;
+  margin-right: 9.5mm;
+  @bottom-right { content: counter(page); font-size: 7pt; }
+}
+@page :left {
+  margin-left: 9.5mm;
+  margin-right: 11.5mm;
+  @bottom-left { content: counter(page); font-size: 7pt; }
+}
+html { writing-mode: vertical-rl; }
+body { font-size: 8.5pt; line-height: 1.75; }
+h2 { string-set: chapter content(); }
+```

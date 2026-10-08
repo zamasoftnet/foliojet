@@ -55,6 +55,21 @@ public class DocumentContext {
 		return this.svgAuthorCss;
 	}
 
+	/**
+	 * The identity of the document when several documents are laid out into one output (an EPUB spine item's path,
+	 * 2026-10-08), or {@code null} for a single document. Unlike the base URI, {@code <base href>} does not change it.
+	 * It keys the per-document carried style sheet and qualifies element ids in the output.
+	 */
+	private URI documentURI = null;
+
+	public URI getDocumentURI() {
+		return this.documentURI;
+	}
+
+	public void setDocumentURI(final URI documentURI) {
+		this.documentURI = documentURI;
+	}
+
 	public void setBaseURI(URI baseURI) {
 		this.baseURI = baseURI;
 	}

@@ -213,7 +213,7 @@ public class UAContext {
 	}
 
 	/**
-	 * Stylesheet carried across passes (2026-08-08).
+	 * Stylesheets carried across passes (2026-08-08), one per document (2026-10-08).
 	 * <p>
 	 * In single-pass streaming, {@code <style>} elements appearing later in the document (inside body)
 	 * cannot apply retroactively to earlier elements. SSR such as Nuxt inserts component styles
@@ -221,17 +221,42 @@ public class UAContext {
 	 * (found on metro.tokyo.lg.jp).
 	 * For {@code processing.pass-count>=2}, retain the stylesheet collected in the preceding pass
 	 * (including STRUCTURE_SCAN) here so the next pass can apply all rules from the start
-	 * (same lifetime management as {@link SelectorFacts}: reset at STRUCTURE_SCAN start and
+	 * (same lifetime management as {@link SelectorFacts}: cleared at STRUCTURE_SCAN start and
 	 * at single-pass conversion (DOCUMENT) start). Recollection in later passes adds duplicate rules,
 	 * but identical duplicates do not change cascade results (last-wins simply selects the same value).
+	 * </p>
+	 * <p>
+	 * The key is {@link DocumentContext#getDocumentURI()}: the spine items of an EPUB laid out into one output are
+	 * separate documents, and one sheet for the whole conversion made the style sheets of an item apply to every later
+	 * item (and, with two passes, to the earlier ones too). A single HTML document has a {@code null} key.
+	 * </p>
 	 */
-	private net.zamasoft.foliojet.css.CSSStyleSheet carriedStyleSheet;
+	private final Map<java.net.URI, net.zamasoft.foliojet.css.CSSStyleSheet> carriedStyleSheets = new HashMap<>();
 
-	public net.zamasoft.foliojet.css.CSSStyleSheet getCarriedStyleSheet() {
-		return this.carriedStyleSheet;
+	public net.zamasoft.foliojet.css.CSSStyleSheet getCarriedStyleSheet(final java.net.URI document) {
+		return this.carriedStyleSheets.get(document);
 	}
 
-	public void setCarriedStyleSheet(net.zamasoft.foliojet.css.CSSStyleSheet styleSheet) {
-		this.carriedStyleSheet = styleSheet;
+	public void setCarriedStyleSheet(final java.net.URI document, final net.zamasoft.foliojet.css.CSSStyleSheet styleSheet) {
+		this.carriedStyleSheets.put(document, styleSheet);
+	}
+
+	public void clearCarriedStyleSheets() {
+		this.carriedStyleSheets.clear();
+	}
+
+	/**
+	 * The documents laid out into this one output (the included spine items of an EPUB, 2026-10-08), or {@code null}
+	 * for a single document. A link whose target resolves into one of them is an internal link, and element ids
+	 * are qualified by their document in the output (see {@code AbstractVisitor}).
+	 */
+	private java.util.Set<java.net.URI> documentSet = null;
+
+	public java.util.Set<java.net.URI> getDocumentSet() {
+		return this.documentSet;
+	}
+
+	public void setDocumentSet(final java.util.Set<java.net.URI> documentSet) {
+		this.documentSet = documentSet;
 	}
 }
