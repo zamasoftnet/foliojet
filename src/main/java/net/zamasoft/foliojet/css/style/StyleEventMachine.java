@@ -1043,7 +1043,10 @@ final class StyleEventMachine {
 		}
 	}
 
-	/** Warn about disabled page references once per document. */
+	/**
+	 * Warn about disabled page references once per document: in the output pass only, so a document laid out in
+	 * two or more passes is warned once (2026-10-08).
+	 */
 	private boolean warnedPageReferencesDisabled = false;
 
 	/**
@@ -1053,6 +1056,9 @@ final class StyleEventMachine {
 	 * numbers absent from the output table of contents.
 	 */
 	private void warnPageReferencesDisabled() {
+		if (this.ua.isMeasurePass() || this.ua.isStructureScanPass()) {
+			return;
+		}
 		if (!this.warnedPageReferencesDisabled) {
 			this.warnedPageReferencesDisabled = true;
 			this.ua.message(MessageCodes.WARN_INEFFECTIVE_CSS_COMBINATION, "target-counter()",
@@ -1118,7 +1124,8 @@ final class StyleEventMachine {
 
 	private void pageRef(TargetCounterValue pageRefFunc, String ref, CSSStyle style) {
 		final boolean slot = this.targetCounterSlot(pageRefFunc, style);
-		if (!slot && !net.zamasoft.foliojet.ua.props.UAProps.PROCESSING_PAGE_REFERENCES.getBoolean(this.ua)) {
+		if (!slot && !net.zamasoft.foliojet.ua.props.UAProps.PROCESSING_PAGE_REFERENCES.getBoolean(this.ua)
+				&& !PageRef.laidOutMoreThanOnce(this.ua)) {
 			this.warnPageReferencesDisabled();
 		}
 		PageRef pageRef = this.ua.getUAContext().getPageRef();

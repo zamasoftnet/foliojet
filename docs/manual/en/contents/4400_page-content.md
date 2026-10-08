@@ -388,9 +388,10 @@ selectors that do not match**. If a style is not applied, check the pass count f
 | [Generating a table of contents](#style-xml-toc) (cssj:make-toc element) | Requires the page number of each heading |
 | [Page references](#style-page-references) (-cssj-page-ref function) | Requires the page number of the reference target |
 
-For tables of contents and page references, also
+For tables of contents and `target-text()`, also
 set <span class="ioprop">processing.page-references</span> to true.
-However, decimal `target-counter()` displays numbers in a single pass for PDF and page-split SVG output
+Page number references (`target-counter()`, `target-counters()`, and the -cssj-page-ref function) display numbers without it.
+Decimal `target-counter()` displays numbers even in a single pass for PDF and page-split SVG output
 ([Page references](#style-page-references)).
 
 **Stylesheets that appear later in the body**<span class="since">4.0.0</span>
@@ -462,15 +463,16 @@ You need <span class="ioprop">processing.middle-pass</span> only when
 You can [generate a table of contents](#style-xml-toc) (cssj:make-toc element) and
 [display the page number](#style-cssj-page-ref) on which particular content is printed (-cssj-page-ref function).
 
-To use these features, set <span class="ioprop">processing.page-references</span>
+To generate a table of contents, set <span class="ioprop">processing.page-references</span>
 to true to enable collection of page reference information. Also use [conversion with two or more passes](#style-multipass) as needed.
+Page number references (the -cssj-page-ref function, `target-counter()`, and `target-counters()`) display numbers
+with two or more passes without <span class="ioprop">processing.page-references</span><span class="since">4.0.0</span>.
+`target-text()`, which outputs the target's content, also needs <span class="ioprop">processing.page-references</span>=true.
 
 If you only need decimal page numbers from the CSS standard `target-counter()`, **PDF and page-split SVG output
 display the numbers in a single pass without any settings**<span class="since">4.0.0</span>.
 The engine first reserves a number field with a fixed digit width, then fills in numbers for later pages afterward. For details, see the note under [-cssj-page-ref function](#style-cssj-page-ref).
-**When you use [two or more passes](#style-multipass) for another reason, `target-counter()` also needs
-<span class="ioprop">processing.page-references</span>=true** (the single-pass fill-in is not used; without the setting
-the numbers are empty and a warning is issued).
+With [two or more passes](#style-multipass), this fill-in is not used; the numbers known from the previous pass are laid out as text.
 
 ### <a id="style-gray">Grayscale printing</a>
 

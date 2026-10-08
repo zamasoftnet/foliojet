@@ -388,9 +388,10 @@ session.property("processing.pass-count", "2");
 | [目次の生成](#style-xml-toc)(cssj:make-toc要素) | 各見出しのページ番号が必要 |
 | [ページの参照](#style-page-references)(-cssj-page-ref関数) | 参照先のページ番号が必要 |
 
-目次とページ参照については、あわせて
+目次と`target-text()`については、あわせて
 <span class="ioprop">processing.page-references</span>をtrueにしてください。
-ただし、PDF出力とページ分割SVG出力の十進の`target-counter()`は1パスのままで番号が出ます
+ページ番号の参照(`target-counter()`・`target-counters()`・-cssj-page-ref関数)は設定なしで番号が出ます。
+PDF出力とページ分割SVG出力の十進の`target-counter()`は1パスのままでも番号が出ます
 ([ページの参照](#style-page-references))。
 
 **本文の後方に現れるスタイルシート**<span class="since">4.0.0</span>
@@ -462,15 +463,16 @@ SSRフレームワークが生成する、本文中に`<style>`が散らばっ�
 [目次をつくる機能](#style-xml-toc)(cssj:make-toc要素)と、
 ある内容が印刷される[ページ番号を表示する機能](#style-cssj-page-ref)(-cssj-page-ref関数)があります。
 
-これらの機能を利用するためには、 <span class="ioprop">processing.page-references</span>
+目次を生成するには、<span class="ioprop">processing.page-references</span>
 をtrueに設定し、ページ参照情報を収集する機能を有効にしてください。 また、必要に応じて[2パス以上の変換処理](#style-multipass)を行ってください。
+ページ番号の参照(-cssj-page-ref関数、`target-counter()`・`target-counters()`)は、2パス以上にすれば
+<span class="ioprop">processing.page-references</span>の設定なしで番号が出ます<span class="since">4.0.0</span>。
+参照先の内容を出す`target-text()`には、<span class="ioprop">processing.page-references</span>=trueも要ります。
 
 CSS標準の`target-counter()`で十進のページ番号を出すだけなら、**PDF出力とページ分割SVG出力では
 1パスのまま、設定なしで番号が出ます**<span class="since">4.0.0</span>。
 番号の欄を決まった桁数の幅で先に組み、後ろのページの番号は後から書き込むためです。詳しくは[-cssj-page-ref関数](#style-cssj-page-ref)の注を参照してください。
-**ほかの理由で[2パス以上](#style-multipass)にしたときは、`target-counter()`にも
-<span class="ioprop">processing.page-references</span>=trueが要ります**(1パスの書き込みの仕組みは使われず、
-設定が無いと番号が空になって警告が出ます)。
+[2パス以上](#style-multipass)にしたときは、この書き込みの仕組みは使わず、前のパスで分かった番号を文字として組みます。
 
 ### <a id="style-gray">グレイスケール印刷</a>
 

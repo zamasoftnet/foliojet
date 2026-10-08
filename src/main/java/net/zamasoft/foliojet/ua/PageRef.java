@@ -45,6 +45,16 @@ public class PageRef {
 	}
 
 	/**
+	 * Whether the document is laid out more than once ({@code processing.pass-count} of 2 or more, or a pass the
+	 * application marks with {@code processing.middle-pass}). Then the counters of elements with an id are collected
+	 * without {@code processing.page-references}, so {@code target-counter()} reads the previous pass (2026-10-08).
+	 */
+	public static boolean laidOutMoreThanOnce(final UserAgent ua) {
+		return net.zamasoft.foliojet.ua.props.UAProps.PROCESSING_PASS_COUNT.getInteger(ua) >= 2
+				|| net.zamasoft.foliojet.ua.props.UAProps.PROCESSING_MIDDLE_PASS.getBoolean(ua);
+	}
+
+	/**
 	 * The key of the element with {@code id} in the document whose base URI is {@code base}.
 	 *
 	 * <p>

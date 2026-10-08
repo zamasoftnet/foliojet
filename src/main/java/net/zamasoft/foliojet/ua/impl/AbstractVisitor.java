@@ -88,10 +88,13 @@ public abstract class AbstractVisitor implements Visitor {
 	private boolean processPageReference;
 
 	/**
-	 * Registers only per-id counters to fill {@code target-counter()} slots later in single-pass PDF
-	 * (2026-10-04). Captures body text and sections only when page references are enabled.
+	 * Registers per-id counters even when page references ({@code processing.page-references}) are off: to fill
+	 * {@code target-counter()} slots later in single-pass PDF (2026-10-04), and for the next pass to read when the
+	 * document is laid out more than once (2026-10-08; previously {@code target-counter()} was empty in two or more
+	 * passes without the property). Body text ({@code target-text()}) and sections are captured only when page
+	 * references are enabled.
 	 */
-	private final boolean slotCounters;
+	private final boolean idCounters;
 	private boolean hyperlinks;
 
 	private boolean fragments;
@@ -110,7 +113,8 @@ public abstract class AbstractVisitor implements Visitor {
 	protected AbstractVisitor(UserAgent ua) {
 		this.ua = ua;
 		this.setProcessPageReference(UAProps.PROCESSING_PAGE_REFERENCES.getBoolean(this.ua));
-		this.slotCounters = net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage.available(ua);
+		this.idCounters = net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage.available(ua)
+				|| PageRef.laidOutMoreThanOnce(ua);
 	}
 
 	protected abstract void addFragment(String id, Point2D location);
@@ -342,7 +346,7 @@ public abstract class AbstractVisitor implements Visitor {
 		} else {
 			pageRef = null;
 		}
-		final PageRef counterRef = pageRef != null || !this.slotCounters ? pageRef
+		final PageRef counterRef = pageRef != null || !this.idCounters ? pageRef
 				: this.ua.getUAContext().getPageRef();
 
 		final BoxType type = box.getType();
