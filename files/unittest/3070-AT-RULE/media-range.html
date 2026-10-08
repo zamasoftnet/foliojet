@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Media Queries 4 range syntax</title>
+<style>
+@page { margin: 0 }
+body { margin: 0; font: 16px/20px sans-serif }
+p { margin-top: 0; margin-bottom: 0 }
+/* ph-css dropped every @media block written in the range syntax (Docusaurus: @media (width <= 996px)). The page is
+   800px x 600px (MediaRangeTest sets output.page-width/height). Chrome 151 with an 800x600 viewport: R1 x=10, R2 x=0,
+   R3 x=30, R4 x=0, R5 x=50, R6 x=0, R7 x=70, R8 x=80, R9 x=0, R10 x=100, R11 x=110, R12 x=0, R13 x=130, R14 x=0,
+   R15 x=150, R16 x=160, R17 x=170, R18 x=180 (2026-10-09). */
+@media (width <= 800px) { .r1 { margin-left: 10px } }
+@media (width < 800px) { .r2 { margin-left: 20px } }
+@media (800px >= width) { .r3 { margin-left: 30px } }
+@media (800px > width) { .r4 { margin-left: 40px } }
+@media (799px < width < 801px) { .r5 { margin-left: 50px } }
+@media (800px < width <= 900px) { .r6 { margin-left: 60px } }
+@media (width = 800px) { .r7 { margin-left: 70px } }
+@media (height >= 600px) { .r8 { margin-left: 80px } }
+@media (height > 600px) { .r9 { margin-left: 90px } }
+@media (500px <= height < 601px) { .r10 { margin-left: 100px } }
+@media (aspect-ratio = 4/3) { .r11 { margin-left: 110px } }
+@media (aspect-ratio > 4/3) { .r12 { margin-left: 120px } }
+@media (1/1 < aspect-ratio < 2/1) { .r13 { margin-left: 130px } }
+@media (aspect-ratio <= 1) { .r14 { margin-left: 140px } }
+@media (min-aspect-ratio: 4/3) { .r15 { margin-left: 150px } }
+@media all and (width >= 50em) and (max-height: 600px) { .r16 { margin-left: 160px } }
+@media (width<=800px) { .r17 { margin-left: 170px } }
+.r18 { margin-left: 180px }
+</style>
+</head>
+<body><p class="r1">R1</p><p class="r2">R2</p><p class="r3">R3</p><p class="r4">R4</p><p class="r5">R5</p><p class="r6">R6</p><p class="r7">R7</p><p class="r8">R8</p><p class="r9">R9</p><p class="r10">R10</p><p class="r11">R11</p><p class="r12">R12</p><p class="r13">R13</p><p class="r14">R14</p><p class="r15">R15</p><p class="r16">R16</p><p class="r17">R17</p><p class="r18">R18</p></body>
+</html>

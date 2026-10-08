@@ -908,9 +908,10 @@ public class CSSStyleSheetBuilder {
 	 * before document parsing, so evaluation needs no lookahead and works in 1P.
 	 * <p>
 	 * ph-css 8.2.1 can parse only up to the equivalent of Media Queries Level 3.
-	 * (Rules using Level 4's `or` combinator, `not (...)` without enclosing parentheses,
-	 * or range syntax such as `(width &gt;= 400px)` are ignored during parsing.
-	 * See the support table.)
+	 * (Rules using Level 4's `or` combinator or `not (...)` without enclosing parentheses
+	 * are ignored during parsing. See the support table.) The range syntax such as
+	 * `(width &gt;= 400px)` arrives rewritten into Level 3 features and the strict
+	 * `-foliojet-gt-`/`-foliojet-lt-` ones (2026-10-09, {@link AtRulePreludeRewriter}).
 	 * </p>
 	 */
 	private boolean evaluateMediaExpression(CSSMediaExpression expression) {
@@ -937,6 +938,9 @@ public class CSSStyleSheetBuilder {
 			return false;
 		}
 		String valueText = expression.getValue().getAsCSSString(MEDIA_WRITER_SETTINGS, 0);
+		if (feature.endsWith("aspect-ratio") && !feature.contains("device")) {
+			return this.evaluateAspectRatio(feature, valueText);
+		}
 		AbsoluteLengthValue value = ValueUtils.toAbsoluteLength(this.ua, false, valueText);
 		if (value == null) {
 			value = this.mediaFontRelativeLength(valueText);
@@ -958,8 +962,55 @@ public class CSSStyleSheetBuilder {
 			return this.resolvePageHeight() >= length;
 		case "max-height":
 			return this.resolvePageHeight() <= length;
+		// The strict comparisons of the range syntax (width > 400px), rewritten by AtRulePreludeRewriter.
+		case AtRulePreludeRewriter.MEDIA_GT + "width":
+			return this.resolvePageWidth() > length;
+		case AtRulePreludeRewriter.MEDIA_LT + "width":
+			return this.resolvePageWidth() < length;
+		case AtRulePreludeRewriter.MEDIA_GT + "height":
+			return this.resolvePageHeight() > length;
+		case AtRulePreludeRewriter.MEDIA_LT + "height":
+			return this.resolvePageHeight() < length;
 		default:
-			// Conservatively treat unsupported features such as aspect-ratio as non-matching.
+			// Conservatively treat unsupported features as non-matching.
+			return false;
+		}
+	}
+
+	/**
+	 * Evaluates aspect-ratio, min-/max-aspect-ratio and their strict range forms against the page's width / height
+	 * (2026-10-09). The value is a ratio ({@code 16/9}) or a number ({@code 1.5}).
+	 */
+	private boolean evaluateAspectRatio(final String feature, final String valueText) {
+		final String text = valueText.replaceAll("\\s+", "");
+		final int slash = text.indexOf('/');
+		final double a, b;
+		try {
+			a = Double.parseDouble(slash == -1 ? text : text.substring(0, slash));
+			b = slash == -1 ? 1 : Double.parseDouble(text.substring(slash + 1));
+		} catch (NumberFormatException e) {
+			return false;
+		}
+		final double width = this.resolvePageWidth(), height = this.resolvePageHeight();
+		if (!(a > 0) || !(b > 0) || !(height > 0)) {
+			return false;
+		}
+		// Compare width / height with a / b without dividing (width * b against height * a).
+		final double left = width * b, right = height * a;
+		final double epsilon = 1e-9 * Math.max(left, right);
+		final int cmp = Math.abs(left - right) <= epsilon ? 0 : Double.compare(left, right);
+		switch (feature) {
+		case "aspect-ratio":
+			return cmp == 0;
+		case "min-aspect-ratio":
+			return cmp >= 0;
+		case "max-aspect-ratio":
+			return cmp <= 0;
+		case AtRulePreludeRewriter.MEDIA_GT + "aspect-ratio":
+			return cmp > 0;
+		case AtRulePreludeRewriter.MEDIA_LT + "aspect-ratio":
+			return cmp < 0;
+		default:
 			return false;
 		}
 	}

@@ -24,6 +24,13 @@ import java.util.function.Predicate;
  * {@link #layerNamePath} splits the name there again. daisyui's utilities ({@code @layer daisyui.l1.l2}) and
  * Docusaurus's theme ({@code @layer docusaurus.theme-classic}) were lost, with the outer layer around them. An escaped
  * dot written in the source ({@code a\.b}) is read as a separator too.</li>
+ * <li>{@code @media} range features (Media Queries 4: {@code (width <= 996px)}, {@code (996px >= width)},
+ * {@code (400px < width <= 700px)}): ph-css drops the whole {@code @media} block. Each becomes the Level 3 form joined
+ * with {@code and}: {@code >=} {@code min-}, {@code <=} {@code max-}, {@code =} the plain feature, and the strict
+ * {@code >} and {@code <} {@code -foliojet-gt-} and {@code -foliojet-lt-} ({@link #MEDIA_GT}, {@link #MEDIA_LT}), which
+ * {@code CSSStyleSheetBuilder} evaluates. Docusaurus writes its breakpoints this way ({@code (width <= 996px)}).
+ * Features other than width, height and aspect-ratio become {@code (-foliojet-unknown: 0)}, which does not match, as
+ * before.</li>
  * </ul>
  *
  * <p>
@@ -34,12 +41,18 @@ public final class AtRulePreludeRewriter {
 	/** The property name of the replacement condition for {@code @supports} functions. */
 	public static final String MARKER = "-foliojet-supports";
 
+	/** The prefix of a strict "greater than" media feature written as a range ({@code width > 400px}). */
+	public static final String MEDIA_GT = "-foliojet-gt-";
+
+	/** The prefix of a strict "less than" media feature written as a range ({@code width < 400px}). */
+	public static final String MEDIA_LT = "-foliojet-lt-";
+
 	private AtRulePreludeRewriter() {
 		// utility
 	}
 
 	/**
-	 * Rewrites every {@code @supports} and {@code @layer} prelude.
+	 * Rewrites every {@code @supports}, {@code @layer} and {@code @media} prelude.
 	 *
 	 * @param css               a stylesheet
 	 * @param selectorSupported tells whether one complex selector (the argument of {@code selector()}, trimmed) is
@@ -51,7 +64,7 @@ public final class AtRulePreludeRewriter {
 			return css;
 		}
 		final String lower = css.toLowerCase(Locale.ROOT);
-		if (!lower.contains("@supports") && !lower.contains("@layer")) {
+		if (!lower.contains("@supports") && !lower.contains("@layer") && !lower.contains("@media")) {
 			return css;
 		}
 		final StringBuilder out = new StringBuilder(css.length());
@@ -78,6 +91,15 @@ public final class AtRulePreludeRewriter {
 				final int end = preludeEnd(css, i);
 				final String prelude = css.substring(i, end);
 				final String rewritten = rewriteSupports(prelude, selectorSupported);
+				changed |= !rewritten.equals(prelude);
+				out.append(rewritten);
+				i = end;
+			} else if (c == '@' && atKeyword(css, i, "media")) {
+				out.append(css, i, i + 6);
+				i += 6;
+				final int end = preludeEnd(css, i);
+				final String prelude = css.substring(i, end);
+				final String rewritten = rewriteMedia(prelude);
 				changed |= !rewritten.equals(prelude);
 				out.append(rewritten);
 				i = end;
@@ -199,6 +221,136 @@ public final class AtRulePreludeRewriter {
 			++i;
 		}
 		return out.toString();
+	}
+
+	/** Rewrites the range features of one {@code @media} prelude (every parenthesized group, nested ones too). */
+	static String rewriteMedia(final String prelude) {
+		if (prelude.indexOf('<') == -1 && prelude.indexOf('>') == -1 && prelude.indexOf('=') == -1) {
+			return prelude;
+		}
+		final StringBuilder out = new StringBuilder(prelude.length() + 16);
+		final int n = prelude.length();
+		int i = 0;
+		while (i < n) {
+			final char c = prelude.charAt(i);
+			if (c == '/' && i + 1 < n && prelude.charAt(i + 1) == '*') {
+				final int end = commentEnd(prelude, i);
+				out.append(prelude, i, end);
+				i = end;
+			} else if (c == '"' || c == '\'') {
+				final int end = stringEnd(prelude, i);
+				out.append(prelude, i, end);
+				i = end;
+			} else if (c == '(') {
+				final int close = closingParen(prelude, i);
+				final boolean closed = close - 1 > i && prelude.charAt(close - 1) == ')';
+				final String inner = prelude.substring(i + 1, closed ? close - 1 : close);
+				final String range = closed ? rangeFeature(inner) : null;
+				if (range != null) {
+					out.append(range);
+				} else {
+					out.append('(').append(rewriteMedia(inner)).append(closed ? ")" : "");
+				}
+				i = close;
+			} else {
+				out.append(c);
+				++i;
+			}
+		}
+		return out.toString();
+	}
+
+	/**
+	 * The Level 3 form of one parenthesized range feature ({@code width <= 996px} without the parentheses), or null
+	 * when the group is not a range (a plain {@code (min-width: 400px)}, a nested condition).
+	 */
+	private static String rangeFeature(final String inner) {
+		final List<String> parts = new ArrayList<>();
+		final List<String> ops = new ArrayList<>();
+		int depth = 0;
+		int start = 0;
+		for (int i = 0; i < inner.length(); ++i) {
+			final char c = inner.charAt(i);
+			if (c == '"' || c == '\'') {
+				i = stringEnd(inner, i) - 1;
+			} else if (c == '(') {
+				++depth;
+			} else if (c == ')') {
+				--depth;
+			} else if (depth == 0 && c == ':') {
+				return null;
+			} else if (depth == 0 && (c == '<' || c == '>' || c == '=')) {
+				final boolean eq = c != '=' && i + 1 < inner.length() && inner.charAt(i + 1) == '=';
+				parts.add(inner.substring(start, i).trim());
+				ops.add(eq ? c + "=" : String.valueOf(c));
+				i += eq ? 1 : 0;
+				start = i + 1;
+			}
+		}
+		if (ops.isEmpty()) {
+			return null;
+		}
+		parts.add(inner.substring(start).trim());
+		final String unknown = "(-foliojet-unknown: 0)";
+		if (parts.size() == 2) {
+			if (isName(parts.get(0)) && !isName(parts.get(1))) {
+				return feature(parts.get(0), ops.get(0), parts.get(1));
+			}
+			if (isName(parts.get(1)) && !isName(parts.get(0))) {
+				return feature(parts.get(1), flip(ops.get(0)), parts.get(0));
+			}
+			return unknown;
+		}
+		if (parts.size() == 3 && isName(parts.get(1)) && !isName(parts.get(0)) && !isName(parts.get(2))) {
+			final String a = ops.get(0), b = ops.get(1);
+			final boolean less = a.startsWith("<") && b.startsWith("<");
+			final boolean greater = a.startsWith(">") && b.startsWith(">");
+			if (less || greater) {
+				// a < name <= b: name > a and name <= b
+				return feature(parts.get(1), flip(a), parts.get(0)) + " and " + feature(parts.get(1), b, parts.get(2));
+			}
+		}
+		return unknown;
+	}
+
+	/** One Level 3 feature for "name op value". */
+	private static String feature(final String name, final String op, final String value) {
+		final String lower = name.toLowerCase(Locale.ROOT);
+		if (!lower.equals("width") && !lower.equals("height") && !lower.equals("aspect-ratio") || value.isEmpty()) {
+			return "(-foliojet-unknown: 0)";
+		}
+		final String prefix = switch (op) {
+		case ">=" -> "min-";
+		case "<=" -> "max-";
+		case ">" -> MEDIA_GT;
+		case "<" -> MEDIA_LT;
+		default -> "";
+		};
+		return "(" + prefix + lower + ": " + value + ")";
+	}
+
+	/** The operator seen from the other side ({@code 400px < width} is {@code width > 400px}). */
+	private static String flip(final String op) {
+		return switch (op) {
+		case "<" -> ">";
+		case "<=" -> ">=";
+		case ">" -> "<";
+		case ">=" -> "<=";
+		default -> op;
+		};
+	}
+
+	private static boolean isName(final String s) {
+		if (s.isEmpty() || !isNameStart(s.charAt(0)) || (s.charAt(0) == '-' && s.length() > 1
+				&& Character.isDigit(s.charAt(1)))) {
+			return false;
+		}
+		for (int i = 0; i < s.length(); ++i) {
+			if (!isNameChar(s.charAt(i))) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/** Escapes the dots of one {@code @layer} prelude (outside strings, comments and escapes). */
