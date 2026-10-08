@@ -231,15 +231,20 @@ In CSS, use <span class="cssprop">direction</span> and
 <dd>Specify ltr (left to right, the initial value) or rtl.
 	This determines the base direction of a line and which sides are the line start and line end.</dd>
 <dt>unicode-bidi</dt>
-<dd>Specify normal (the initial value), embed, or bidi-override.
+<dd>Specify normal (the initial value), embed, bidi-override, isolate, isolate-override, or plaintext<span class="since">4.0.0</span>.
 	embed treats the range as an embedding with its own direction,
 	while bidi-override ignores the properties of the characters within the range
-	and forces them into the order specified by <span class="cssprop">direction</span>.</dd>
+	and forces them into the order specified by <span class="cssprop">direction</span>.
+	isolate and isolate-override order the range in the same way as embed and bidi-override respectively,
+	but do not affect the order of the characters outside the range.
+	plaintext determines the direction from the first strong character in the range.</dd>
 
 </dl>
 
 The HTML bdo element is equivalent to
-<span class="cssdecl">unicode-bidi: bidi-override;</span>.
+<span class="cssdecl">unicode-bidi: isolate-override;</span>. The dir attribute is treated as
+<span class="cssdecl">unicode-bidi: isolate;</span>, and dir="auto" and the bdi element as
+<span class="cssdecl">unicode-bidi: plaintext;</span>.
 
 #### Switching styles by direction
 

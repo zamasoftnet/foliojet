@@ -231,15 +231,18 @@ CSSでは<span class="cssprop">direction</span>と
 <dd>ltr(左から右、初期値)またはrtlを指定します。
 	行の基準となる方向と、行頭・行末がどちら側かが決まります。</dd>
 <dt>unicode-bidi</dt>
-<dd>normal(初期値)、embed、bidi-overrideを指定します。
+<dd>normal(初期値)、embed、bidi-override、isolate、isolate-override、plaintext<span class="since">4.0.0</span>を指定します。
 	embedはその範囲を独立した方向の埋め込みとして扱い、
 	bidi-overrideは中の文字の性質を無視して
-	<span class="cssprop">direction</span>の方向へ強制的に並べます。</dd>
+	<span class="cssprop">direction</span>の方向へ強制的に並べます。
+	isolateとisolate-overrideはそれぞれembedとbidi-overrideと同じ並べ方をしますが、範囲の外の文字の並びには影響しません。
+	plaintextは、範囲の中の最初の強い文字で方向を決めます。</dd>
 
 </dl>
 
-HTMLのbdo要素は<span class="cssdecl">unicode-bidi: bidi-override;</span>
-に相当します。
+HTMLのbdo要素は<span class="cssdecl">unicode-bidi: isolate-override;</span>
+に相当します。dir属性は<span class="cssdecl">unicode-bidi: isolate;</span>、
+dir="auto"とbdi要素は<span class="cssdecl">unicode-bidi: plaintext;</span>として扱います。
 
 #### 方向で切り替えるスタイル
 
