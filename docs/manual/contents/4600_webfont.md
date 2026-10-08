@@ -112,6 +112,8 @@ WebFontの利用は開発時や、どうしても使用する必要がある場�
 
 @font-faceで読み込んだフォントは、フォントの方針(<span class="ioprop">output.pdf.fonts.policy</span>)にかかわらず使い、PDFに埋め込みます<span class="since">4.0.0</span>。既定の方針(コアフォントとCID-Keyedフォント)のままでも、文書が名前で指定したフォントは置き換わりません。
 
+@font-faceのフォントは、そのfamilyを指定したスタイルが現れたときに初めて取得して読みます<span class="since">4.0.0</span>。文書が宣言しても使わないfamily(サイト共通のスタイルシートが読み込む和文のWebフォントなど)は取得しません。srcのどれも読めないときの警告も、そのfamilyを使ったときにだけ出ます。
+
 次の例は、漢字には[IPA Pゴシック](https://ipafont.ipa.go.jp/)、 ひらがなと英数字には[きろ字](http://ola.kironono.com/entry/fonts-kiloji) を使用します。
 
 ```xml

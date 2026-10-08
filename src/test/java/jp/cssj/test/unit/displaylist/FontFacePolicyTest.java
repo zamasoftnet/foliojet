@@ -108,6 +108,38 @@ public class FontFacePolicyTest extends TestCase {
 				&& fonts.get(0).endsWith("/embedded"));
 	}
 
+	/**
+	 * A face the document declares and never uses is not fetched (2026-10-08): its sources are tried only when a font
+	 * style names the family, so an unreadable source is reported for a used face only. wordpress-docs imports a CJK
+	 * web font in 61 unicode-range files and never uses it; reading them all doubled its time.
+	 */
+	public void testUnusedFaceIsNotFetched() throws Exception {
+		final String html = "<!DOCTYPE html><html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta charset=\"UTF-8\"/>"
+				+ "<style>@font-face { font-family: 'unused'; src: local('No Such Font 20261008'),"
+				+ " url('file:///no/such/unused-20261008.woff2') }"
+				+ " @font-face { font-family: 'used'; src: local('No Such Font 20261008'),"
+				+ " url('file:///no/such/used-20261008.woff2') }"
+				+ " p { font-family: 'used', serif }</style></head><body><p>April</p><p>is the cruellest month</p>"
+				+ "</body></html>";
+		final List<String> messages = new ArrayList<>();
+		final ByteArrayOutputStream out = new ByteArrayOutputStream();
+		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
+				null);
+		try {
+			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+			session.setMessageHandler((code, args, message) -> messages.add(Integer.toHexString(code) + " " + message));
+			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
+			session.property("input.include", "**");
+			CTISessionHelper.transcodeStream(session, new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8)),
+					URI.create("file:///font-face-unused.xhtml"), "application/xhtml+xml", null);
+		} finally {
+			session.close();
+		}
+		final List<String> missing = messages.stream().filter(m -> m.startsWith("281e ")).toList();
+		assertEquals("読めない書体の警告は使った face の分だけ: " + messages, 1, missing.size());
+		assertTrue(missing.get(0), missing.get(0).contains("used-20261008") && !missing.get(0).contains("unused"));
+	}
+
 	public void testInstalledFamilyNamedFirstWins() throws Exception {
 		final List<String> fonts = fonts(null, "", "Helvetica, 'own'");
 		assertEquals(fonts.toString(), 1, fonts.size());

@@ -112,6 +112,8 @@ The supported font formats are TrueType, OTF, and WOFF<span class="since">3.1.0<
 
 Fonts loaded with @font-face are used and embedded in the PDF whatever the font policy (<span class="ioprop">output.pdf.fonts.policy</span>)<span class="since">4.0.0</span>. Even with the default policy (core and CID-keyed fonts), a font the document names is not replaced.
 
+An @font-face font is fetched and read when a style that names its family first appears<span class="since">4.0.0</span>. A family the document declares but never uses (such as a Japanese web font that a site-wide style sheet imports) is not fetched. The warning that none of the src entries can be read also comes only when the family is used.
+
 The following example uses [IPA P Gothic](https://ipafont.ipa.go.jp/) for kanji and [Kiloji](http://ola.kironono.com/entry/fonts-kiloji) for hiragana, Latin letters, and digits.
 
 ```xml

@@ -1160,18 +1160,29 @@ public class CSSStyleSheetBuilder {
 		}
 		CSSStyle style = CSSStyle.getCSSStyle(this.ua, null, null);
 		decl.applyProperties(style);
-		URI[] uris = Src.get(style);
-		if (uris != null) {
-			boolean missing = true;
-			for (int i = 0; i < uris.length; ++i) {
-				URI srcUri = uris[i];
+		final URI[] uris = Src.get(style);
+		if (uris == null) {
+			return;
+		}
+		final FontFace face = new FontFace();
+		face.fontFamily = CSSFontFamily.get(style);
+		face.fontWeight = FontWeight.get(style);
+		face.fontStyle = CSSFontStyle.get(style);
+		face.widthClass = net.zamasoft.foliojet.css.impl.property.font.FontStretch.getWidthClass(style);
+		face.unicodeRange = CSSUnicodeRange.get(style);
+		face.variationSettings = net.zamasoft.foliojet.css.impl.property.font.FontVariationSettings.get(style);
+		// The sources are tried when a font style first names the family (2026-10-08): a face the document never uses
+		// is not fetched or read, and a source that cannot be read is reported only for a face that is used. Reading
+		// every face when the style sheet was parsed doubled the time of a page that imports a CJK web font in 61
+		// unicode-range files and never uses it (wordpress-docs: 9 -> 18 seconds).
+		face.loader = (pending, reader) -> {
+			for (final URI srcUri : uris) {
 				try {
 					Source src = null;
 					try {
-						FontFace face;
 						if (srcUri.getScheme() != null && srcUri.getScheme().equals("local-font")) {
-							String name = srcUri.getSchemeSpecificPart();
-							Font local = Font.decode(name);
+							final String name = srcUri.getSchemeSpecificPart();
+							final Font local = Font.decode(name);
 							// Font.decode never fails: a name not installed comes back as the Dialog logical font. Try
 							// the next source instead (2026-10-08); once the policy stopped hiding @font-face fonts,
 							// local('Meiryo') on a server without Meiryo set Japanese text in Dialog.
@@ -1179,28 +1190,18 @@ public class CSSStyleSheetBuilder {
 									&& !"Dialog".equalsIgnoreCase(name))) {
 								continue;
 							}
-							face = new FontFace();
-							face.local = local;
+							pending.src = null;
+							pending.local = local;
 						} else {
 							src = this.ua.resolve(srcUri);
 							if (!src.exists()) {
 								continue;
 							}
-							face = new FontFace();
-							face.src = src;
+							pending.local = null;
+							pending.src = src;
 						}
-
-						face.fontFamily = CSSFontFamily.get(style);
-						face.fontWeight = FontWeight.get(style);
-						face.fontStyle = CSSFontStyle.get(style);
-						face.widthClass = net.zamasoft.foliojet.css.impl.property.font.FontStretch.getWidthClass(style);
-						face.unicodeRange = CSSUnicodeRange.get(style);
-						face.variationSettings = net.zamasoft.foliojet.css.impl.property.font.FontVariationSettings
-								.get(style);
-						FontManager fm = this.ua.getFontManager();
-						fm.addFontFace(face);
-						missing = false;
-						break;
+						reader.read(pending);
+						return true;
 					} finally {
 						if (src != null) {
 							this.ua.release(src);
@@ -1210,9 +1211,16 @@ public class CSSStyleSheetBuilder {
 					LOG.log(Level.FINE, "Font error", e);
 				}
 			}
-			if (missing) {
-				this.ua.message(MessageCodes.WARN_MISSING_FONT_FILE, Arrays.asList(uris).toString());
-			}
+			pending.src = null;
+			pending.local = null;
+			this.ua.message(MessageCodes.WARN_MISSING_FONT_FILE, Arrays.asList(uris).toString());
+			return false;
+		};
+		try {
+			final FontManager fm = this.ua.getFontManager();
+			fm.addFontFace(face);
+		} catch (Exception e) {
+			LOG.log(Level.FINE, "Font error", e);
 		}
 	}
 
