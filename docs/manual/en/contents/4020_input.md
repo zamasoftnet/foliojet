@@ -425,9 +425,17 @@ For PDF and image output, the items (XHTML) are laid out in spine order onto one
 - Page numbers (the `page` counter) and the left/right sides of spreads continue through the whole book. If the spine's
 	`page-progression-direction` is `rtl`, the book is bound on the right; with `ltr`, on the left
 	(<span class="ioprop">output.print-mode</span> becomes `right-side` or `left-side`).
-- `page-spread-left` and `page-spread-right` on an itemref (also with the `rendition:` prefix) start the item on that side
-	of a spread<span class="since">4.0.0</span>. A blank page is added only when the side does not match.
-	In a book bound on the left, right pages are odd; in a book bound on the right, left pages are odd.
+- For a fixed-layout item (`rendition:layout` is `pre-paginated`), `page-spread-left` and `page-spread-right` on an itemref
+	(also with the `rendition:` prefix) start the item on that side of a spread<span class="since">4.0.0</span>. A blank page is added only when
+	the side does not match. In a book bound on the left, right pages are odd; in a book bound on the right, left pages are odd.
+	A reflowable item ignores page-spread, as reading apps do<span class="since">4.0.0</span> (no blank pages are added even when every item has
+	`page-spread-left`, as in the Electronic Book Publishing Association template). To start chapters on odd pages,
+	write `break-before: recto` or similar in the print style sheet.
+- A fixed-layout item is laid out as one page the size of the item's `<meta name="viewport">`<span class="since">4.0.0</span>.
+	The page margins start at 0 (the item's `@page` takes precedence). An item without a viewport is laid out on the
+	default page size, and warning 2826 is issued once per conversion.
+- An item in the spine that is an image (such as an SVG cover) is scaled to fit the page area on one page in a reflowable
+	book<span class="since">4.0.0</span>. In a fixed-layout book, the image's own size is the page.
 - A link to an item (`href="ch2.xhtml"`) or into another item (`href="ch2.xhtml#sec2"`) becomes a link within the PDF,
 	and `target-counter()` gives its page number<span class="since">4.0.0</span>.
 	PDF named destinations are named "item path`#`id" (the start of an item is the item path).
@@ -437,7 +445,8 @@ For PDF and image output, the items (XHTML) are laid out in spine order onto one
 	are not used. With <span class="ioprop">output.use-meta-info</span> set to `false`, the package is not used either.
 	For tagged PDF, `dc:language` is the document language unless <span class="ioprop">output.pdf.tagged.lang</span> is given.
 - Encrypted (DRM) EPUB files cannot be converted. An item that cannot be read as XML stops the conversion with error 3815,
-	which names the item.
+	which names the item. A file that is not a ZIP archive (another kind of file named .epub) stops the conversion with
+	error 3816<span class="since">4.0.0</span>.
 
 With paged SVG output, each item becomes an independent bundle
 (<a href="#style-output-paged-svg-epub" class="pageref">EPUB bundles for each item</a>).

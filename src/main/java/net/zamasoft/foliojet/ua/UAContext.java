@@ -199,6 +199,22 @@ public class UAContext {
 	}
 
 	/**
+	 * CSS declaration warnings (unsupported property, invalid value) already reported in this conversion (2026-10-08).
+	 * Cleared at the start of each conversion with the carried style sheets.
+	 */
+	private final java.util.Set<String> reportedStyleWarnings = new java.util.HashSet<String>();
+
+	/** Whether the declaration warning with this key is reported for the first time in this conversion. */
+	public synchronized boolean firstStyleWarning(final String key) {
+		return this.reportedStyleWarnings.add(key);
+	}
+
+	/** Forgets the reported declaration warnings (at the start of a conversion). */
+	public synchronized void clearReportedStyleWarnings() {
+		this.reportedStyleWarnings.clear();
+	}
+
+	/**
 	 * Carryover of Paged SVG font subsets (2026-08-29). Since the UA is recreated for each conversion,
 	 * the session ({@code DirectSession}) owns the actual state and passes it here at conversion start.
 	 * Allows the preceding subset to be emitted before the first page when laying out the same book

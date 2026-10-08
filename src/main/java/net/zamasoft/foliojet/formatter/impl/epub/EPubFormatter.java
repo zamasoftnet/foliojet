@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.ZipFile;
@@ -94,8 +95,9 @@ import org.xml.sax.SAXParseException;
  * ({@link UserAgent#beginDocument}), element keys continue across items so two-pass facts do not collide,
  * one imposition serves the whole book (slug page numbers and n-up sheets continue), links between items become
  * internal links (resolved at output time against {@link net.zamasoft.foliojet.ua.UAContext#getDocumentSet}),
- * {@code page-spread-left/right} becomes a recto/verso break before the item, and the document information
- * comes from the package rather than from the items.
+ * {@code page-spread-left/right} of a fixed-layout item becomes a recto/verso break before the item (a reflowable
+ * item ignores it, as reading systems do), an image in the spine of a reflowable book is scaled to the page, and the
+ * document information comes from the package rather than from the items.
  * </p>
  */
 public class EPubFormatter implements MultiDocumentFormatter {
@@ -228,7 +230,13 @@ public class EPubFormatter implements MultiDocumentFormatter {
 				}
 			}
 			try {
-				try (final ZipFile zip = new ZipFile(epubFile)) {
+				final ZipFile archive;
+				try {
+					archive = new ZipFile(epubFile);
+				} catch (final java.util.zip.ZipException e) {
+					throw notZip(ua, source, e);
+				}
+				try (final ZipFile zip = archive) {
 					// Set the ZIP file as the data source
 					final CompositeSourceResolver resolver = new CompositeSourceResolver();
 					resolver.addSourceResolver("zip", new ZIPFileSourceResolver(zip));
@@ -248,6 +256,20 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		} catch (final Exception e) {
 			throw pluginFailure(ua, e);
 		}
+	}
+
+	/**
+	 * The input is not a ZIP archive (a file merely named .epub): one message, no stack trace (2026-10-08). It used to
+	 * go through {@link #pluginFailure}, which printed "zip END header not found" and the whole exception.
+	 */
+	private static TranscoderException notZip(final UserAgent ua, final Source source, final Exception e) {
+		LOG.log(Level.FINE, "EPUB input is not a ZIP archive: " + source.getURI(), e);
+		final short code = MessageCodes.ERROR_EPUB_NOT_ZIP;
+		final String[] args = { String.valueOf(source.getURI()), e.getMessage() };
+		ua.message(code, args);
+		final TranscoderException failure = new TranscoderException(code, args, MessageCodeUtils.toString(code, args));
+		failure.initCause(e);
+		return failure;
 	}
 
 	private static TranscoderException pluginFailure(final UserAgent ua, final Throwable e) {
@@ -351,13 +373,19 @@ public class EPubFormatter implements MultiDocumentFormatter {
 			// The items' <title> and <meta> are chapter titles, not the book's (restored below)
 			ua.setProperty(UAProps.OUTPUT_USE_META_INFO.getName(), "false");
 		}
+		final AtomicBoolean noViewportReported = new AtomicBoolean();
 		try {
 			for (int i = 0; i < contents.spine.length; ++i) {
 				if (!included[i]) {
 					continue;
 				}
 				final ItemRef ir = contents.spine[i];
-				this.formatItem(ua, ir, opener, spreadBreak(ir.pageSpread, leftBind), isFixedLayout(contents, ir));
+				final boolean fixedLayout = isFixedLayout(contents, ir);
+				// A reflowable item ignores page-spread-left/right, as reading systems do (2026-10-08). The Electronic
+				// Book Publishing Association template sets page-spread-left on every item, which put a blank page
+				// after each one-page item. A book that wants its chapters to start on a recto says so in CSS.
+				this.formatItem(ua, ir, opener, fixedLayout ? spreadBreak(ir.pageSpread, leftBind) : null, fixedLayout,
+						noViewportReported);
 			}
 			// Closes the last n-up sheet once, at the end of the book (each item's PageSequence skips it)
 			imposition.finish();
@@ -433,6 +461,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 			return t;
 		});
 		final List<Future<?>> futures = new ArrayList<>();
+		final AtomicBoolean noViewportReported = new AtomicBoolean();
 		try {
 			for (int i = 0; i < contents.spine.length; ++i) {
 				if (!included[i]) {
@@ -442,7 +471,8 @@ public class EPubFormatter implements MultiDocumentFormatter {
 				final UserAgent child = ua.openDocument(units.get(i));
 				futures.add(pool.submit(() -> {
 					try (AutoCloseable scope = context.apply()) {
-						this.formatItemPasses(child, ir, opener, passCount, isFixedLayout(contents, ir));
+						this.formatItemPasses(child, ir, opener, passCount, isFixedLayout(contents, ir),
+								noViewportReported);
 					} catch (final TranscoderException | RuntimeException | Error e) {
 						// AbortException is a RuntimeException. Let it propagate unchanged
 						throw e;
@@ -540,26 +570,26 @@ public class EPubFormatter implements MultiDocumentFormatter {
 	 * (structure scan → intermediate × n → final). Reopens the ZIP item for input, so no temporary file is needed.
 	 */
 	private void formatItemPasses(final UserAgent child, final ItemRef ir, final EntryOpener opener,
-			final int passCount, final boolean fixedLayout) throws Exception {
+			final int passCount, final boolean fixedLayout, final AtomicBoolean noViewportReported) throws Exception {
 		// Independent bundles have no spread to align with: page-spread is left to the reader (no blank pages)
 		if (passCount <= 1) {
 			child.prepare(PrepareMode.DOCUMENT);
 			child.getUAContext().setPassCount(1);
 			child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
-			this.formatItem(child, ir, opener, null, fixedLayout);
+			this.formatItem(child, ir, opener, null, fixedLayout, noViewportReported);
 		} else {
 			child.prepare(PrepareMode.STRUCTURE_SCAN);
-			this.formatItem(child, ir, opener, null, fixedLayout);
+			this.formatItem(child, ir, opener, null, fixedLayout, noViewportReported);
 			for (int remaining = passCount; remaining > 1; --remaining) {
 				child.prepare(PrepareMode.MIDDLE_PASS);
 				child.getUAContext().setPassCount(remaining);
 				child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(remaining));
-				this.formatItem(child, ir, opener, null, fixedLayout);
+				this.formatItem(child, ir, opener, null, fixedLayout, noViewportReported);
 			}
 			child.prepare(PrepareMode.LAST_PASS);
 			child.getUAContext().setPassCount(1);
 			child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
-			this.formatItem(child, ir, opener, null, fixedLayout);
+			this.formatItem(child, ir, opener, null, fixedLayout, noViewportReported);
 		}
 		child.finish();
 	}
@@ -569,15 +599,25 @@ public class EPubFormatter implements MultiDocumentFormatter {
 	 *
 	 * @param spreadBreak {@code recto} or {@code verso} when the item must start on that side, otherwise {@code null}
 	 * @param fixedLayout whether the item is pre-paginated (fixed layout): its viewport is the page
+	 * @param noViewportReported set once a pre-paginated item without a viewport has been reported in this conversion
 	 */
 	private void formatItem(final UserAgent ua, final ItemRef ir, final EntryOpener opener, final String spreadBreak,
-			final boolean fixedLayout) throws Exception {
+			final boolean fixedLayout, final AtomicBoolean noViewportReported) throws Exception {
 		ua.getPassContext().resetNonPageCounters();
 		final URI path = URIHelper.create("UTF-8", ir.item.fullPath);
 		ua.beginDocument(path);
 		final Source zSource = opener.open(path, ir.item.mediaType);
 		final String mimeType = zSource.getMimeType();
+		final Source document;
 		if (mimeType.equals("application/xhtml+xml")) {
+			document = zSource;
+		} else if (!fixedLayout && mimeType.startsWith("image/")) {
+			// An image in the spine of a reflowable book (an SVG cover): the book's page, the image scaled to fit
+			document = imagePage(path);
+		} else {
+			document = null;
+		}
+		if (document != null) {
 			ParserFactory pf = PluginRegistry.getInstance().search(ParserFactory.class, mimeType);
 			Parser parser = pf.createParser();
 			TranscoderHandler transcoderHandler = new TranscoderHandler(ua);
@@ -607,7 +647,14 @@ public class EPubFormatter implements MultiDocumentFormatter {
 				entryPoint = XMLHandler.of(new WritingModeHandler(entryPoint, true), null);
 			}
 			try {
-				parser.parse(ua, zSource, entryPoint);
+				parser.parse(ua, document, entryPoint);
+				if (fixedLayout && java.util.Objects.equals(ua.getProperty(restore[1]), saved[1])
+						&& java.util.Objects.equals(ua.getProperty(restore[2]), saved[2])
+						&& noViewportReported.compareAndSet(false, true)) {
+					// No <meta name="viewport"> set the page (2026-10-08): the item is laid out on the default page
+					// as before, which slices a large page image, but the book is told once
+					ua.message(MessageCodes.WARN_EPUB_NO_VIEWPORT, ir.item.fullPath);
+				}
 			} catch (final SAXParseException e) {
 				// Encrypted (DRM) books and broken items: one message naming the item (2026-10-08).
 				// Previously the parser's "Content is not allowed in prolog" surfaced as a plugin failure with a stack trace.
@@ -627,9 +674,29 @@ public class EPubFormatter implements MultiDocumentFormatter {
 				}
 			}
 		} else {
+			// Other media types, and an image item of a fixed-layout book: the image's own size is its viewport
 			Formatter formatter = PluginRegistry.getInstance().search(Formatter.class, zSource);
 			formatter.format(zSource, ua);
 		}
+	}
+
+	/**
+	 * An XHTML page that holds the image item at {@code path}, scaled to fit the page area (2026-10-08). A spine item
+	 * that is an image (EPUB 3 allows SVG content documents; old converters put the cover there) used to become a page
+	 * of the image's own size: a 169×240 viewBox gave a 45×64mm cover in an A4 book. Reading systems and Chrome scale
+	 * an SVG without width and height to the viewport. A fixed box fills the page area, also when a print style sheet
+	 * ({@code input.default-stylesheet}) sets another page size ({@code vw}/{@code vh} follow the default page).
+	 */
+	private static Source imagePage(final URI path) {
+		final String raw = path.toString();
+		final String name = raw.substring(raw.lastIndexOf('/') + 1);
+		final String xhtml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+				+ "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title></title><style type=\"text/css\">"
+				+ "body{margin:0}img{position:fixed;top:0;left:0;width:100%;height:100%;object-fit:contain}</style></head>"
+				+ "<body><img src=\"" + XMLUtils.escapePseudeAttr(name) + "\" alt=\"\"/></body></html>";
+		return new net.zamasoft.zstream.resolver.protocol.stream.StreamSource(path,
+				new java.io.ByteArrayInputStream(xhtml.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+				"application/xhtml+xml");
 	}
 
 	// ---- Spine filtering and overall description

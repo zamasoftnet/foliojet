@@ -31,14 +31,15 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * </p>
  */
 final class EpubBooks {
-	/** One spine item. */
-	record Item(String id, String href, String properties, String xhtml) {
+	/** One spine item: XHTML, or another file ({@code data}) whose media type follows its extension. */
+	record Item(String id, String href, String properties, String xhtml, byte[] data) {
 	}
 
 	private final List<Item> items = new ArrayList<>();
 	private final Map<String, byte[]> files = new LinkedHashMap<>();
 	private String metadata = "<dc:title>Test Book</dc:title><dc:language>en</dc:language>";
 	private String progression = null;
+	private byte[] raw = null;
 
 	EpubBooks metadata(final String dcElements) {
 		this.metadata = dcElements;
@@ -52,7 +53,19 @@ final class EpubBooks {
 	}
 
 	EpubBooks item(final String id, final String href, final String properties, final String xhtml) {
-		this.items.add(new Item(id, href, properties, xhtml));
+		this.items.add(new Item(id, href, properties, xhtml, null));
+		return this;
+	}
+
+	/** A spine item that is not XHTML (an SVG cover). */
+	EpubBooks spineFile(final String id, final String href, final String properties, final byte[] data) {
+		this.items.add(new Item(id, href, properties, null, data));
+		return this;
+	}
+
+	/** Converts these bytes instead of a built book (input that is not an EPUB). */
+	EpubBooks raw(final byte[] bytes) {
+		this.raw = bytes;
 		return this;
 	}
 
@@ -77,6 +90,9 @@ final class EpubBooks {
 	}
 
 	byte[] build() throws Exception {
+		if (this.raw != null) {
+			return this.raw;
+		}
 		final StringBuilder opf = new StringBuilder();
 		opf.append("<?xml version=\"1.0\"?>")
 				.append("<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"3.0\" unique-identifier=\"uid\">")
@@ -85,7 +101,8 @@ final class EpubBooks {
 				.append("</metadata><manifest>");
 		for (final Item item : this.items) {
 			opf.append("<item id=\"").append(item.id()).append("\" href=\"").append(item.href())
-					.append("\" media-type=\"application/xhtml+xml\"/>");
+					.append("\" media-type=\"")
+					.append(item.xhtml() != null ? "application/xhtml+xml" : mediaType(item.href())).append("\"/>");
 		}
 		int n = 0;
 		for (final String href : this.files.keySet()) {
@@ -127,7 +144,8 @@ final class EpubBooks {
 					.getBytes(StandardCharsets.UTF_8));
 			entry(zip, "OEBPS/content.opf", opf.toString().getBytes(StandardCharsets.UTF_8));
 			for (final Item item : this.items) {
-				entry(zip, "OEBPS/" + item.href(), item.xhtml().getBytes(StandardCharsets.UTF_8));
+				entry(zip, "OEBPS/" + item.href(),
+						item.xhtml() != null ? item.xhtml().getBytes(StandardCharsets.UTF_8) : item.data());
 			}
 			for (final Map.Entry<String, byte[]> file : this.files.entrySet()) {
 				entry(zip, "OEBPS/" + file.getKey(), file.getValue());

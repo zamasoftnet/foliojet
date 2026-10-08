@@ -55,6 +55,7 @@
 | 2823<span class="since">4.0.0</span> | Property name(string)<br />Reason it has no effect(string) | The declaration was parsed but has no effect in this combination. Floated or absolutely positioned elements with <span class="cssdecl">display: flex</span>/<span class="cssdecl">display: grid</span> fall back to normal blocks (items are stacked vertically). Unlike unsupported properties (2802) or intentional ignoring (2821), this reports features that <b>work on their own but fall back because of the context</b>. Reported once per type. |
 | 2824<span class="since">4.0.0</span> | Output format(string) | <span class="ioprop">output.image.transparent</span> was specified, but the output format cannot preserve transparency, so the background remains white. PNG, GIF, and TIFF can preserve transparency; JPEG, BMP, and WBMP cannot. Reported once per document. |
 | 2825<span class="since">4.0.0</span> | Property name(string)<br />Limit(string)<br />Requested value(string) | A requested setting was less restrictive than the value in the operator's limits file (<tt>jp.cssj.driver.limits</tt>). Conversion uses the limit value instead of the requested value. |
+| 2826<span class="since">4.0.0</span> | Item path(string) | A fixed-layout (pre-paginated) EPUB item has no <tt>&lt;meta name="viewport"&gt;</tt>. It is laid out on the default page size, so a page image may be cut across several pages. Reported once per conversion. |
 
 **Errors**
 
@@ -80,6 +81,7 @@
 | 3813<span class="since">4.0.0</span> | Output format(string) | An unsupported format was specified for <span class="ioprop">output.type</span>. |
 | 3814<span class="since">4.0.0</span> | PDF version(string) | PDF/UA was selected, but the document language was not specified with <span class="ioprop">output.pdf.tagged.lang</span>. |
 | 3815<span class="since">4.0.0</span> | Item path(string)<br />XML parser message(string) | An EPUB item cannot be read as XHTML. The EPUB is encrypted (DRM) or the item is broken. |
+| 3816<span class="since">4.0.0</span> | Input URI(string)<br />ZIP reader message(string) | The input cannot be read as an EPUB. It is not a ZIP archive (for example, another kind of file named .epub). |
 
 **Fatal errors**
 

@@ -424,9 +424,17 @@ PDFと画像の出力では、spine の順に項目(XHTML)を1冊の続いたペ
 - ページ番号(`page` カウンタ)と見開きの左右は本全体で続きます。spine の `page-progression-direction` が
 	`rtl` なら右綴じ、`ltr` なら左綴じとして組みます(<span class="ioprop">output.print-mode</span>を
 	`right-side`・`left-side` にします)。
-- itemref の `page-spread-left`・`page-spread-right`(`rendition:` の付いた名前も同じ)は、その項目を見開きの
-	その側から始めます<span class="since">4.0.0</span>。合わないときだけ白ページを1枚入れます。
+- 固定レイアウト(`rendition:layout` が `pre-paginated`)の項目では、itemref の `page-spread-left`・`page-spread-right`
+	(`rendition:` の付いた名前も同じ)は、その項目を見開きのその側から始めます<span class="since">4.0.0</span>。合わないときだけ白ページを1枚入れます。
 	左綴じの本では右が奇数ページ、右綴じの本では左が奇数ページです。
+	リフローの項目では、読書アプリと同じく page-spread を使いません<span class="since">4.0.0</span>(電書協のテンプレートのように全部の項目に
+	`page-spread-left` があっても、白ページを入れません)。章を奇数ページから始めたいときは、印刷用のスタイルシートに
+	`break-before: recto` などと書いてください。
+- 固定レイアウトの項目は、その項目の `<meta name="viewport">` の大きさを1ページとして組みます<span class="since">4.0.0</span>。
+	ページの余白は0から始めます(項目の `@page` が優先します)。viewport の無い項目は既定のページの大きさで組み、
+	警告 2826 を変換ごとに1回出します。
+- spine に画像(SVGの表紙など)を直接置いた項目は、リフローの本ではページの版面に収まるよう縮尺して1ページに置きます<span class="since">4.0.0</span>。
+	固定レイアウトの本では、画像の大きさがそのまま1ページです。
 - 項目へのリンク(`href="ch2.xhtml"`)と、ほかの項目の中へのリンク(`href="ch2.xhtml#sec2"`)は、
 	PDFの中のリンクになり、`target-counter()` でページ番号を引けます<span class="since">4.0.0</span>。
 	PDFの名前付き宛先は「項目のパス`#`id」(項目の頭は項目のパス)という名前になります。
@@ -436,6 +444,7 @@ PDFと画像の出力では、spine の順に項目(XHTML)を1冊の続いたペ
 	<span class="ioprop">output.use-meta-info</span>を `false` にすると、OPFからも取りません。
 	タグ付きPDFで<span class="ioprop">output.pdf.tagged.lang</span>を指定しなければ、`dc:language` を文書の言語にします。
 - 暗号化(DRM)されたEPUBは変換できません。XMLとして読めない項目があると、その項目の名前を示すエラー 3815 で止まります。
+	ZIP形式でないファイル(名前だけ .epub の別の形式のファイル)は、エラー 3816 で止まります<span class="since">4.0.0</span>。
 
 ページ分割SVGでは、項目ごとに独立したバンドルになります
 (<a href="#style-output-paged-svg-epub" class="pageref">EPUBは項目ごとのバンドル</a>)。

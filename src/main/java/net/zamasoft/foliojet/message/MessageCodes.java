@@ -82,6 +82,8 @@ public interface MessageCodes {
 	public static final short WARN_NO_ALPHA_IN_IMAGE_FORMAT = 0x2824;
 	/** Warning for a setting looser than the operator's limit (uses the limit value; 2026-10-03). */
 	public static final short WARN_OPERATOR_LIMIT = 0x2825;
+	/** Warning: a fixed-layout EPUB item has no viewport; it is laid out on the default page (2026-10-08). */
+	public static final short WARN_EPUB_NO_VIEWPORT = 0x2826;
 	public static final short WARN_PLUGIN = 0x28FF;
 
 	public static final short ERROR_BAD_XSLT_STYLESHEET = 0x3801;
@@ -111,6 +113,8 @@ public interface MessageCodes {
 	public static final short ERROR_PDFUA_LANG = 0x3814;
 	/** Error: an EPUB item cannot be read as XML, typically an encrypted (DRM) book (2026-10-08). */
 	public static final short ERROR_EPUB_ITEM_NOT_XML = 0x3815;
+	/** Error: the EPUB input is not a ZIP archive (a file merely named .epub; 2026-10-08). */
+	public static final short ERROR_EPUB_NOT_ZIP = 0x3816;
 	public static final short ERROR_PLUGIN = 0x38FF;
 
 	public static final short FATAL_XSLT_FATAL = 0x4801;

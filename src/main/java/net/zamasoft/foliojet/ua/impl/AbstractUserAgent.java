@@ -569,7 +569,22 @@ public abstract class AbstractUserAgent implements UserAgent {
 		if (this.messageHandler == null) {
 			return;
 		}
+		if (isDeclarationWarning(code)
+				&& !this.getUAContext().firstStyleWarning(code + "\u0000" + String.join("\u0000", args))) {
+			return;
+		}
 		this.messageHandler.message(code, args.length == 0 ? null : args, null);
+	}
+
+	/**
+	 * The warnings about one CSS declaration (unsupported or ignored property, invalid value) and about a style sheet
+	 * that cannot be loaded come once per conversion (2026-10-08). An EPUB parses its shared style sheet again for every
+	 * item, and every pass parses the style sheets again, so the same warning came once per item and pass (4950 lines
+	 * for one book).
+	 */
+	private static boolean isDeclarationWarning(final short code) {
+		return code == MessageCodes.WARN_UNSUPPORTED_CSS_PROPERTY || code == MessageCodes.WARN_IGNORED_CSS_PROPERTY
+				|| code == MessageCodes.WARN_BAD_CSS_ARGMENTS || code == MessageCodes.WARN_MISSING_CSS_STYLESHEET;
 	}
 
 	public void setSourceResolver(SourceResolver resolver) {
@@ -801,6 +816,7 @@ public abstract class AbstractUserAgent implements UserAgent {
 			// (see UAContext.getCarriedStyleSheet Javadoc). Intermediate and final
 			// passes inherit the preceding pass's collection
 			this.getUAContext().clearCarriedStyleSheets();
+			this.getUAContext().clearReportedStyleWarnings();
 			// Reset the footnote area per document as well. CSS parsing in each pass sets the rules again.
 			this.getUAContext().setFootnoteArea(null);
 			// Image dimensions have the same lifetime. The same URI can refer to different content in another document

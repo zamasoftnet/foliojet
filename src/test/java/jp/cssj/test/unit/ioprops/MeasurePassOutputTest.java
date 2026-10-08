@@ -128,7 +128,8 @@ public class MeasurePassOutputTest extends TestCase {
 	 * A page-spread blank page in a two-pass EPUB. Since 2026-10-08 (D-16) the blank page is made by the layout
 	 * ({@code break-before: recto/verso} on the item's body), so the measure pass lays it out like any page and
 	 * neither creates the writer nor renders; it is counted by the page counter. Previously EPubFormatter drew it
-	 * with {@code ua.nextPage()}, also in the measure pass, and this test checked that path.
+	 * with {@code ua.nextPage()}, also in the measure pass, and this test checked that path. The book is fixed layout:
+	 * a reflowable item ignores page-spread (2026-10-08).
 	 */
 	public void testEpubPageSpreadBlankRunsInMeasurePass() throws Exception {
 		final CountingPDFUserAgent ua = new CountingPDFUserAgent();
@@ -213,19 +214,21 @@ public class MeasurePassOutputTest extends TestCase {
 			put(zip, "OEBPS/content.opf", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 					+ "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"3.0\">"
 					+ "<metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title>spread</dc:title>"
-					+ "<dc:identifier>spread</dc:identifier></metadata><manifest>"
+					+ "<dc:identifier>spread</dc:identifier><meta property=\"rendition:layout\">pre-paginated</meta>"
+					+ "</metadata><manifest>"
 					+ "<item id=\"a\" href=\"a.xhtml\" media-type=\"application/xhtml+xml\"/>"
 					+ "<item id=\"b\" href=\"b.xhtml\" media-type=\"application/xhtml+xml\"/>"
 					+ "</manifest><spine page-progression-direction=\"ltr\"><itemref idref=\"a\"/>"
 					+ "<itemref idref=\"b\" properties=\"page-spread-right\"/></spine></package>");
+			final String viewport = "<meta name=\"viewport\" content=\"width=133, height=133\"/>";
 			final String style = "@page{size:100pt 100pt;margin:5pt;counter-increment:page}"
 					+ "body{margin:0;font:10pt sans-serif}a:after{content:' TARGET-' target-counter(attr(href),page)"
 					+ " ' TOTAL-' counter(page) '/' counter(pages)}";
 			put(zip, "OEBPS/a.xhtml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-					+ "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head><style>" + style
+					+ "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head>" + viewport + "<style>" + style
 					+ "</style></head><body><a href=\"b.xhtml#target\">FIRST</a></body></html>");
 			put(zip, "OEBPS/b.xhtml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-					+ "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head><style>" + style
+					+ "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head>" + viewport + "<style>" + style
 					+ "</style></head><body><div id=\"target\">SECOND</div></body></html>");
 		}
 		return out.toByteArray();

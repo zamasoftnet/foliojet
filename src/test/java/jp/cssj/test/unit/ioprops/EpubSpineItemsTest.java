@@ -22,6 +22,7 @@ import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink;
 import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDDestination;
 import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDNamedDestination;
 import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDPageDestination;
+import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
 
 import jp.cssj.cti2.TranscoderException;
@@ -34,7 +35,8 @@ import junit.framework.TestCase;
  * <ul>
  * <li>Style sheets of an item apply to that item only, in every pass (D-13).</li>
  * <li>Structural selector facts of the two-pass scan (:last-child, ...) do not collide between items (D-20).</li>
- * <li>{@code page-spread-left/right} puts an item on that side, adding a blank page only when needed (D-16).</li>
+ * <li>{@code page-spread-left/right} puts a fixed-layout item on that side, adding a blank page only when needed
+ * (D-16); a reflowable item ignores it, as reading systems do.</li>
  * <li>Links to an item or to a fragment in another item are internal links, and target-counter() resolves both
  * (D-1, D-2). Element ids may repeat across items.</li>
  * <li>The document information comes from the package (dc:title, dc:creator, dc:description, dc:language),
@@ -43,7 +45,12 @@ import junit.framework.TestCase;
  * <li>The page number in the slug and n-up sheets continue across items (D-9, D-10).</li>
  * <li>An item that is not XML (an encrypted book) fails with one message naming the item (D-5).</li>
  * <li>An SVG image inside the book can embed data: URIs (D-12).</li>
- * <li>A fixed-layout (pre-paginated) item uses its viewport as the page (D-21).</li>
+ * <li>A fixed-layout (pre-paginated) item uses its viewport as the page (D-21); one without a viewport is reported
+ * once (D-25).</li>
+ * <li>An image in the spine of a reflowable book is scaled to the page; in a fixed-layout book its size is the page
+ * (D-22).</li>
+ * <li>Input that is not a ZIP archive fails with one message (D-23).</li>
+ * <li>A style sheet warning shared by the items comes once (D-24).</li>
  * <li>target-counter() finds ids with spaces, which book tools write in indexes.</li>
  * </ul>
  */
@@ -117,7 +124,22 @@ public class EpubSpineItemsTest extends TestCase {
 
 	// ---- D-16
 
+	private static final String FIXED_LAYOUT = "<dc:title>Test Book</dc:title><dc:language>en</dc:language>"
+			+ "<meta property=\"rendition:layout\">pre-paginated</meta>";
+
+	/** A fixed-layout book of one-page items (viewport 267×200 px, the 200pt × 150pt page of {@link #PAGE}). */
 	private static EpubBooks spreadBook(final String direction, final String... spreads) {
+		final EpubBooks book = new EpubBooks().metadata(FIXED_LAYOUT).progression(direction);
+		for (int i = 0; i < spreads.length; ++i) {
+			final int n = i + 1;
+			book.item("p" + n, "p" + n + ".xhtml", spreads[i],
+					item("<meta name=\"viewport\" content=\"width=267, height=200\"/>", "<p>ITEM " + n + "</p>"));
+		}
+		return book;
+	}
+
+	/** The same items in a reflowable book. */
+	private static EpubBooks reflowableSpreadBook(final String direction, final String... spreads) {
 		final EpubBooks book = new EpubBooks().progression(direction);
 		for (int i = 0; i < spreads.length; ++i) {
 			final int n = i + 1;
@@ -155,6 +177,17 @@ public class EpubSpineItemsTest extends TestCase {
 			assertEquals("白頁の幅", item.getMediaBox().getWidth(), blank.getMediaBox().getWidth(), 0.01);
 			assertEquals("白頁の高さ", item.getMediaBox().getHeight(), blank.getMediaBox().getHeight(), 0.01);
 		}
+	}
+
+	public void testReflowableItemsIgnorePageSpreads() throws Exception {
+		// The Electronic Book Publishing Association template: page-spread-left on every item. Right binding: the
+		// first item would need a right page and every later one a left page, a blank page before each.
+		final EpubBooks.Converted r = reflowableSpreadBook("rtl", "page-spread-right", "page-spread-left",
+				"page-spread-left", "page-spread-left").convert();
+		assertPages(pageTexts(r.first()), "ITEM 1", "ITEM 2", "ITEM 3", "ITEM 4");
+		// Left binding the same
+		assertPages(pageTexts(reflowableSpreadBook("ltr", "page-spread-left", "page-spread-left").convert().first()),
+				"ITEM 1", "ITEM 2");
 	}
 
 	public void testPagedSvgItemBundlesHaveNoSpreadBlankPages() throws Exception {
@@ -270,6 +303,83 @@ public class EpubSpineItemsTest extends TestCase {
 			assertEquals("ビューポートの幅 300px", 225f, doc.getPage(0).getMediaBox().getWidth(), 0.01f);
 			assertEquals("ビューポートの高さ 400px", 300f, doc.getPage(0).getMediaBox().getHeight(), 0.01f);
 			assertEquals("リフローの項目は自分の @page", 200f, doc.getPage(1).getMediaBox().getWidth(), 0.01f);
+		}
+	}
+
+	public void testFixedLayoutItemWithoutViewportIsReportedOnce() throws Exception {
+		final String noViewport = EpubBooks.xhtml("p", "<style type=\"text/css\">body{margin:0}</style>", "<p>PAGE</p>");
+		final EpubBooks.Converted r = new EpubBooks().metadata(FIXED_LAYOUT).item("p1", "p1.xhtml", noViewport)
+				.item("p2", "p2.xhtml", noViewport).convert();
+		assertEquals("2 頁", 2, pageTexts(r.first()).size());
+		final List<String> reported = r.messages.stream().filter(m -> m.startsWith("2826 ")).toList();
+		assertEquals("viewport の無い固定レイアウトの項目を 1 回だけ知らせる: " + r.messages, 1, reported.size());
+		assertTrue(reported.get(0), reported.get(0).contains("OEBPS/p1.xhtml"));
+	}
+
+	// ---- D-22
+
+	private static final byte[] COVER_SVG = ("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+			+ "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 169 240\">"
+			+ "<rect x=\"0\" y=\"0\" width=\"169\" height=\"240\" fill=\"#ff0000\"/></svg>")
+			.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+	public void testImageItemOfAReflowableBookIsScaledToThePage() throws Exception {
+		final byte[] pdf = new EpubBooks().spineFile("cv", "cover.svg", null, COVER_SVG)
+				.item("c1", "c1.xhtml", item("", "<p>TEXT</p>")).convert().first();
+		try (PDDocument doc = Loader.loadPDF(pdf)) {
+			assertEquals(2, doc.getNumberOfPages());
+			final PDPage cover = doc.getPage(0);
+			// The default page (A4), not the SVG's 169×240 px (126.75pt × 180pt)
+			assertEquals("表紙の幅", 595.3f, cover.getMediaBox().getWidth(), 0.5f);
+			assertEquals("表紙の高さ", 841.9f, cover.getMediaBox().getHeight(), 0.5f);
+			final BufferedImage image = new PDFRenderer(doc).renderImageWithDPI(0, 18);
+			final int w = image.getWidth();
+			final int h = image.getHeight();
+			for (final int[] at : new int[][] { { w / 2, h / 2 }, { w / 8, h / 2 }, { w * 7 / 8, h / 2 },
+					{ w / 2, h * 9 / 10 } }) {
+				assertEquals("縮尺した表紙が頁の版面を覆う (" + at[0] + "," + at[1] + ")", 0xff0000,
+						image.getRGB(at[0], at[1]) & 0xffffff);
+			}
+		}
+	}
+
+	public void testImageItemOfAFixedLayoutBookIsItsOwnPage() throws Exception {
+		final byte[] pdf = new EpubBooks().metadata(FIXED_LAYOUT).spineFile("cv", "cover.svg", null, COVER_SVG)
+				.convert().first();
+		try (PDDocument doc = Loader.loadPDF(pdf)) {
+			assertEquals("SVG の大きさがビューポート", 126.75f, doc.getPage(0).getMediaBox().getWidth(), 0.5f);
+			assertEquals(180f, doc.getPage(0).getMediaBox().getHeight(), 0.5f);
+		}
+	}
+
+	// ---- D-24
+
+	public void testStyleSheetWarningsComeOncePerBook() throws Exception {
+		final String head = "<link rel=\"stylesheet\" href=\"s.css\"/><link rel=\"stylesheet\" href=\"missing.css\"/>";
+		final EpubBooks.Converted r = new EpubBooks().item("c1", "c1.xhtml", item(head, "<p>one</p>"))
+				.item("c2", "c2.xhtml", item(head, "<p>two</p>")).item("c3", "c3.xhtml", item(head, "<p>three</p>"))
+				.file("s.css", "p { -webkit-word-break: break-all; -webkit-writing-mode: horizontal-tb }")
+				.convert("processing.pass-count", "2");
+		assertEquals("未対応の警告は 1 回: " + r.messages, 1,
+				r.messages.stream().filter(m -> m.startsWith("2802 ")).count());
+		assertEquals("読めないスタイルシートの警告は 1 回: " + r.messages, 1,
+				r.messages.stream().filter(m -> m.startsWith("2803 ")).count());
+	}
+
+	// ---- D-23
+
+	public void testInputThatIsNotZipFailsWithOneMessage() throws Exception {
+		// Neither a ZIP archive nor anything another input format claims (a JPEG named .epub goes to the image input)
+		final byte[] bytes = new byte[256];
+		for (int i = 0; i < bytes.length; ++i) {
+			bytes[i] = (byte) (i * 7 + 1);
+		}
+		final EpubBooks book = new EpubBooks().raw(bytes);
+		try {
+			book.convert();
+			fail("ZIP でない入力で変換が成功した");
+		} catch (final TranscoderException e) {
+			assertEquals(e.getMessage(), (short) 0x3816, e.getCode());
 		}
 	}
 

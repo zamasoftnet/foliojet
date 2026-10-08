@@ -55,6 +55,7 @@
 | 2823<span class="since">4.0.0</span> | プロパティ名(string)<br />効かない理由(string) | 宣言は解釈できたが、その組み合わせでは効かない指定。浮動体・絶対配置の<span class="cssdecl">display: flex</span>/<span class="cssdecl">display: grid</span>は通常のブロックへ落ちる(itemは縦に積まれる)。未対応(2802)や意図的な無視(2821)と違い、<b>単体なら効くのに文脈のせいで落ちる</b>ものを知らせる。種類ごとに1回。 |
 | 2824<span class="since">4.0.0</span> | 出力形式(string) | <span class="ioprop">output.image.transparent</span>が指定されたが、その出力形式は透明を保てないため背景を白のまま描いた。PNG・GIF・TIFFは保てる。JPEG・BMP・WBMPは保てない。文書ごとに1回。 |
 | 2825<span class="since">4.0.0</span> | プロパティ名(string)<br />上限(string)<br />指定値(string) | 運用者の上限ファイル(<tt>jp.cssj.driver.limits</tt>)の値より緩い指定を受けた。指定は使わず、上限の値で変換する。 |
+| 2826<span class="since">4.0.0</span> | 項目のパス(string) | 固定レイアウト(pre-paginated)のEPUBの項目に<tt>&lt;meta name="viewport"&gt;</tt>がない。既定の頁の大きさで組むので、頁の画像が何頁にも切れることがある。変換に1回だけ出る。 |
 
 **エラー**
 
@@ -80,6 +81,7 @@
 | 3813<span class="since">4.0.0</span> | 出力形式(string) | <span class="ioprop">output.type</span>に対応していない形式が指定された。 |
 | 3814<span class="since">4.0.0</span> | PDFのバージョン(string) | PDF/UAを選んだのに、文書の言語が<span class="ioprop">output.pdf.tagged.lang</span>で指定されていない。 |
 | 3815<span class="since">4.0.0</span> | 項目のパス(string)<br />XMLパーサのメッセージ(string) | EPUBの項目をXHTMLとして読めない。暗号化(DRM)されたEPUBか、項目が壊れている。 |
+| 3816<span class="since">4.0.0</span> | 入力のURI(string)<br />ZIPの読み込みのメッセージ(string) | EPUBとして読めない。ZIP形式のファイルではない(名前だけ.epubの別の形式のファイルなど)。 |
 
 **深刻なエラー**
 

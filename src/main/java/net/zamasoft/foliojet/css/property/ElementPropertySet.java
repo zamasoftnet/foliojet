@@ -671,6 +671,19 @@ public final class ElementPropertySet extends PropertySet {
 		// text-combine-horizontal: the earlier name of text-combine-upright
 		alias("-epub-text-combine-horizontal", TextCombineShorthand.INFO);
 		alias("text-combine-horizontal", TextCombineShorthand.INFO);
+		// The -webkit- names that Chrome still accepts for these (2026-10-08, CSS.supports in Chrome 154). E-book
+		// style sheets write them next to the -epub- and standard names; an EPUB with 150 items logged 4950
+		// "unsupported" warnings. -webkit-text-combine-upright, -webkit-word-break and -webkit-text-align-last are not
+		// in Chrome and stay unsupported.
+		alias("-webkit-writing-mode", WritingModeStandard.INFO);
+		alias("-webkit-text-orientation", TextOrientation.INFO);
+		alias("-webkit-text-emphasis-style", TextEmphasisStyle.INFO);
+		alias("-webkit-text-emphasis-color", TextEmphasisColor.INFO);
+		alias("-webkit-text-emphasis", TextEmphasisShorthand.INFO);
+		alias("-webkit-text-emphasis-position", TextEmphasisPosition.INFO);
+		alias("-webkit-line-break", net.zamasoft.foliojet.css.impl.property.text.LineBreak.INFO);
+		alias("-webkit-text-combine", TextCombineShorthand.INFO);
+		alias("-webkit-ruby-position", net.zamasoft.foliojet.css.impl.property.text.RubyPosition.INFO);
 
 		alias("transform", Transform.INFO);
 		alias("transform-origin", TransformOrigin.INFO_X);
