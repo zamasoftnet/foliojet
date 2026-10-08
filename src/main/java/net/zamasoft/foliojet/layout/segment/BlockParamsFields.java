@@ -29,14 +29,15 @@ record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLinePara
 		Dimension maxSize, BoxSizingMode boxSizing, OverflowMode overflow,
 		net.zamasoft.foliojet.layout.box.params.BoxAlignment blockAlignContent, boolean paintClip, Columns columns,
 		net.zamasoft.foliojet.layout.box.params.ClipPathShape clipPath, boolean flowRoot, byte textOverflow, double aspectRatio,
-		int lineClamp) {
+		int lineClamp, double naturalLineSize) {
 	static BlockParamsFields freeze(final BlockParams source) {
 		final FirstLineParamsTemplate firstLineStyle = source.firstLineStyle == null ? null
 				: FirstLineParamsTemplate.freeze(source.firstLineStyle);
 		return new BlockParamsFields(LineParamsFields.freeze(source), source.frame, firstLineStyle,
 				source.pageBreakInside, source.orphans, source.widows, source.size, source.minSize, source.maxSize,
 				source.boxSizing, source.overflow, source.blockAlignContent, source.paintClip, source.columns,
-				source.clipPath, source.flowRoot, source.textOverflow, source.aspectRatio, source.lineClamp);
+				source.clipPath, source.flowRoot, source.textOverflow, source.aspectRatio, source.lineClamp,
+				source.naturalLineSize);
 	}
 
 	/**
@@ -67,5 +68,8 @@ record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLinePara
 		target.aspectRatio = this.aspectRatio;
 		// line-clamp (2026-08-29). Omitting it loses the line-count cutoff on replay.
 		target.lineClamp = this.lineClamp;
+		// The natural size of a form control (2026-10-09). Omitting it lost the size a cyclic percentage
+		// counts as in the scratch measurement (CyclicPercent).
+		target.naturalLineSize = this.naturalLineSize;
 	}
 }

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@page { size: 600px 2400px; margin: 0; }
+html, body { margin: 0; padding: 0; }
+body { width: 600px; font: 16px/1.25 serif; }
+.case { margin: 0 0 12px; }
+.o { border: 1px solid #000; }
+input { font: 13.3333px sans-serif; }
+img.i { display: block; }
+</style>
+</head>
+<body>
+<!-- Cyclic percentages (CSS Sizing 3 §5.2): in a shrink-to-fit box, a child's percentage width counts as auto
+     for the box's max-content size (a form control's as its natural width, an image's as its natural width), then
+     resolves against the box. Chrome 151 widths (px) in the comments; the input's natural width differs (Chrome
+     177px border box, Copper 20ex), so the test compares with the auto-width references r1 and r2. -->
+<div class="case"><input id="r1" type="text"> <textarea id="r2"></textarea></div>
+<!-- 191 / 185 -->
+<div class="case"><button id="c1" class="o"><input id="i1" type="text" style="width: 100%"></button></div>
+<!-- 179 / 185 -->
+<div class="case"><span id="c3" class="o" style="display: inline-block"><input id="i3" type="text" style="width: 100%"></span></div>
+<!-- 179 / 96.5 -->
+<div class="case"><span id="c4" class="o" style="display: inline-block"><input id="i4" type="text" style="width: 50%"></span></div>
+<!-- 65.55 / 63.55 -->
+<div class="case"><div id="c5" class="o" style="display: inline-block"><div id="i5" style="width: 100%; background: #ddd">block text</div></div></div>
+<!-- 179 / 185 -->
+<div class="case" style="overflow: hidden"><div id="c6" class="o" style="float: left"><input id="i6" type="text" style="width: 100%"></div></div>
+<!-- 185 / 185 -->
+<div class="case"><table id="c7" class="o"><tr><td id="d7"><input id="i7" type="text" style="width: 100%"></td></tr></table></div>
+<!-- 122 / 120 -->
+<div class="case"><span id="c9" class="o" style="display: inline-block"><img id="i9" class="i" src="cyclic-percentage-box.svg" style="width: 100%"></span></div>
+<!-- 302 / 308 -->
+<div class="case"><div id="c12" class="o" style="display: inline-block; width: 300px"><input id="i12" type="text" style="width: 100%"></div></div>
+<!-- 170 / 174 -->
+<div class="case"><div id="c13" class="o" style="display: inline-block"><textarea id="i13" style="width: 100%"></textarea></div></div>
+<!-- 179 / 185: an absolutely positioned box -->
+<div class="case" style="position: relative; height: 30px"><div id="c15" class="o" style="position: absolute; left: 0; top: 0"><input id="i15" type="text" style="width: 100%"></div></div>
+<!-- 122 / 120 -->
+<div class="case" style="position: relative; height: 40px"><div id="c16" class="o" style="position: absolute; left: 0; top: 0"><img id="i16" class="i" src="cyclic-percentage-box.svg" style="width: 100%"></div></div>
+</body>
+</html>

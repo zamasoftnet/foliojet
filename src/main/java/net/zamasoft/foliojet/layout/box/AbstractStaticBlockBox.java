@@ -164,6 +164,15 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		return this.getStaticPos().offset != null;
 	}
 
+	/** Whether a line-axis length is a cyclic percentage: one (or calc() with one) resolved against the scratch page's
+	 * line while an intrinsic size is measured (CSS Sizing 3 §5.2;
+	 * {@link net.zamasoft.foliojet.layout.sizing.CyclicPercent#cyclic(double)}). */
+	private static boolean cyclicLength(final Dimension dimension, final WritingMode flow, final double basis) {
+		final LengthType type = dimension.getLineType(flow);
+		return (type == LengthType.RELATIVE || type == LengthType.MIXED)
+				&& net.zamasoft.foliojet.layout.sizing.CyclicPercent.cyclic(basis);
+	}
+
 	public void shrinkToFit(LayoutStack layoutStack, IntrinsicSizes sizes, boolean table) {
 		this.shrinkToFit(layoutStack, sizes, table, LayoutUtils.NONE);
 	}
@@ -231,7 +240,11 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		final double cLine = columnFootnote ? hostLineSize : sameAxisFlow ? lineSize : context.availableLine();
 
 		// Line axis: fit-content and min/max clamping
-		double lineExtent = LayoutUtils.computeDimensionLine(this.size, flow, cLine);
+		// While an intrinsic size is being measured, a percentage (or calc() with one) is cyclic and counts as auto
+		// (CSS Sizing 3 §5.2, 2026-10-09): resolved against the scratch page's 10^6 it made a button holding a
+		// width: 100% input as wide as the page.
+		final boolean cyclic = cyclicLength(this.size, flow, cLine);
+		double lineExtent = cyclic ? LayoutUtils.NONE : LayoutUtils.computeDimensionLine(this.size, flow, cLine);
 		// aspect-ratio: If the line-axis size is auto and the page-axis size is an absolute length,
 		// derive the line-axis size from the ratio instead of fit-content (2026-08-29: a float/inline-block
 		// with height:40px;aspect-ratio:2 has width 80px).
@@ -254,7 +267,11 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		}
 		final double limitLine = columnFootnote ? Math.max(0, hostLineSize - this.frame.getFrameLineExtent(flow))
 				: this.availableLineExtent(layoutStack, containerBox, cLine);
-		if (this.size.getLineType(flow) == LengthType.AUTO && !ratioLine) {
+		if (cyclic && !ratioLine && this.params.naturalLineSize > 0) {
+			// A form control: its natural width for max-content, 0 for min-content (compressible)
+			lineExtent = net.zamasoft.foliojet.layout.sizing.CyclicPercent.maxContent() ? this.params.naturalLineSize
+					: 0;
+		} else if ((this.size.getLineType(flow) == LengthType.AUTO || cyclic) && !ratioLine) {
 			final IntrinsicSize intrinsic = table ? null : this.params.intrinsicLine;
 			if (intrinsic != null) {
 				// Intrinsic sizing keywords (2026-08-29): max-content/min-content use the measured values themselves;
@@ -310,7 +327,9 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		final double borderBoxLine = this.params.boxSizing == BoxSizingMode.BORDER_BOX
 				? this.frame.getBorderLineExtent(flow)
 				: 0;
-		double maxLine = LayoutUtils.computeDimensionLine(this.params.maxSize, flow, cLine);
+		// Cyclic percentages of max-width/min-width count as none/0 while an intrinsic size is measured (2026-10-09)
+		double maxLine = cyclicLength(this.params.maxSize, flow, cLine) ? LayoutUtils.NONE
+				: LayoutUtils.computeDimensionLine(this.params.maxSize, flow, cLine);
 		if (!LayoutUtils.isNone(maxLine)) {
 			maxLine = Math.max(0, maxLine - borderBoxLine);
 		}
@@ -322,7 +341,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		if (!LayoutUtils.isNone(maxLine) && lineExtent > maxLine) {
 			lineExtent = maxLine;
 		}
-		double minLine = LayoutUtils.computeDimensionLine(this.minSize, flow, cLine);
+		double minLine = cyclicLength(this.minSize, flow, cLine) ? LayoutUtils.NONE
+				: LayoutUtils.computeDimensionLine(this.minSize, flow, cLine);
 		if (!LayoutUtils.isNone(minLine)) {
 			minLine = Math.max(0, minLine - borderBoxLine);
 		}
@@ -514,6 +534,32 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	}
 
 	/**
+	 * Whether the containing block is the root of a builder laying out the content of a shrink-to-fit box
+	 * (inline-block, float, absolutely positioned box) after its line-axis size is determined (2026-10-09).
+	 * getFixedWidth() skips such a root, whose specified width is auto, so a percentage resolved against the nearest
+	 * ancestor with a specified width: a width: 100% input in an inline-block button became as wide as the page. Once
+	 * sized, the box is the percentage basis for its content (CSS Sizing 3 §5.2). A two-pass builder records content
+	 * before the size is known, so it keeps the old basis. Footnotes, page floats and margin notes leave the box for
+	 * an area of the page, so they keep it too.
+	 */
+	private boolean sizedShrinkToFitRoot(final LayoutStack layoutStack, final AbstractContainerBox containerBox,
+			final WritingMode flow) {
+		final Pos pos = this.getPos();
+		if (pos instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos
+				|| pos instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos
+				|| pos instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos) {
+			return false;
+		}
+		if (!(layoutStack instanceof net.zamasoft.foliojet.layout.builder.Builder builder) || builder.isTwoPass()
+				|| containerBox != layoutStack.getRootBox()
+				|| containerBox.getBlockParams().flow.isVertical() != flow.isVertical()) {
+			return false;
+		}
+		final PosType type = containerBox.getPos().getType();
+		return type == PosType.INLINE || type == PosType.FLOAT || type == PosType.ABSOLUTE;
+	}
+
+	/**
 	 * Derives the constraint space for fit-content sizing from the containing context.
 	 * specifiedPageAxis must be determined before this call.
 	 *
@@ -538,7 +584,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		final double cPage = (cParams.flow.isVertical() != flow.isVertical())
 				? containerBox.getInnerLineExtent(cParams.flow)
 				: fixedPageBox.getInnerPageExtent(flow);
-		double cLine = table ? containerBox.getInnerLineExtent(flow)
+		double cLine = table || sizedShrinkToFitRoot(layoutStack, containerBox, flow)
+				? containerBox.getInnerLineExtent(flow)
 				// Same as above (0 in orthogonal flow makes fit-content produce zero width)
 				: layoutStack.getOrthogonalLineBasis(flow);
 		if (LayoutUtils.isNone(cLine) || LayoutUtils.compare(cLine, 0) <= 0) {

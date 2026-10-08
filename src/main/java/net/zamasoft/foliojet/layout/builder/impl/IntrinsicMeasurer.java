@@ -713,8 +713,20 @@ final class IntrinsicMeasurer {
 						pageSize = stfSizes.minContent() + lineFrame;
 					}
 				}
-				minAdvance = Math.max(minAdvance, box.getLineExtent(params.flow));
-				maxAdvance = Math.max(maxAdvance, box.getLineExtent(params.flow));
+				final LengthType lineType = params.size.getLineType(params.flow);
+				if (cParams.flow.isVertical() == params.flow.isVertical()
+						&& (lineType == LengthType.RELATIVE || lineType == LengthType.MIXED)) {
+					// A percentage width is cyclic here and counts as auto (CSS Sizing 3 §5.2, 2026-10-09): the content
+					// as measured, or a form control's natural width for max-content and 0 for min-content
+					// (compressible). Its used size resolves against this measurement, not the other way round.
+					if (params.naturalLineSize > 0) {
+						minAdvance = lineFrame;
+						maxAdvance = params.naturalLineSize + lineFrame;
+					}
+				} else {
+					minAdvance = Math.max(minAdvance, box.getLineExtent(params.flow));
+					maxAdvance = Math.max(maxAdvance, box.getLineExtent(params.flow));
+				}
 				pageSize = Math.max(pageSize, box.getPageExtent(params.flow));
 			} else {
 				if (inlineQuad instanceof InlineStartQuad) {

@@ -172,6 +172,11 @@ public final class LayoutUtils {
 		if (blockBox.getPos().getType() == PosType.ABSOLUTE) {
 			return lineType != LengthType.ABSOLUTE;
 		}
+		if (net.zamasoft.foliojet.layout.sizing.CyclicPercent.active()
+				&& (lineType == LengthType.RELATIVE || lineType == LengthType.MIXED)) {
+			// While an intrinsic size is measured, a percentage width is cyclic and counts as auto (2026-10-09)
+			return true;
+		}
 		return lineType == LengthType.AUTO;
 	}
 
@@ -695,7 +700,8 @@ public final class LayoutUtils {
 					refMaxHeight =refHeight = LayoutUtils.NONE;
 				} else if (containerBox.getPos().getType() != PosType.FLOW
 						&& containerBox.getPos().getType() != PosType.FLOAT
-						&& containerBox.getPos().getType() != PosType.TABLE_CELL) {
+						&& containerBox.getPos().getType() != PosType.TABLE_CELL
+						&& !sizedShrinkToFitRoot(builder, containerBox)) {
 					if (rootContext) {
 						box = builder.getFixedHeightContextBox();
 					} else {
@@ -733,7 +739,8 @@ public final class LayoutUtils {
 					refMaxWidth = refWidth = LayoutUtils.NONE;
 				} else if (containerBox.getPos().getType() != PosType.FLOW
 						&& containerBox.getPos().getType() != PosType.FLOAT
-						&& containerBox.getPos().getType() != PosType.TABLE_CELL) {
+						&& containerBox.getPos().getType() != PosType.TABLE_CELL
+						&& !sizedShrinkToFitRoot(builder, containerBox)) {
 					if (rootContext) {
 						box = builder.getFixedWidthContextBox();
 					} else {
@@ -747,6 +754,19 @@ public final class LayoutUtils {
 				} else {
 					refMaxWidth = refWidth = lineSize;
 				}
+			}
+		}
+		// A line-axis percentage against the scratch page's line is cyclic in the max-content measurement and counts as
+		// auto: the natural size (2026-10-09). In the min-content one it resolves against 0, as compressible replaced
+		// elements contribute 0 (CSS Sizing 3 §5.2). Resolved against 10^6, a width: 100% image made its inline-block
+		// as wide as the page.
+		if (net.zamasoft.foliojet.layout.sizing.CyclicPercent.maxContent()) {
+			if (params.flow.isVertical()) {
+				if (net.zamasoft.foliojet.layout.sizing.CyclicPercent.cyclic(refHeight)) {
+					refMaxHeight = refHeight = LayoutUtils.NONE;
+				}
+			} else if (net.zamasoft.foliojet.layout.sizing.CyclicPercent.cyclic(refWidth)) {
+				refMaxWidth = refWidth = LayoutUtils.NONE;
 			}
 		}
 		// Fill the neutral wrapper (flex item) along the line axis (2026-08-09). The wrapper has
@@ -776,6 +796,20 @@ public final class LayoutUtils {
 			}
 		}
 		replacedBox.calculateSize(refWidth, refHeight, refMaxWidth, refMaxHeight);
+	}
+
+	/**
+	 * Whether the container is the root of a single-pass builder laying out the content of an inline-block or an
+	 * absolutely positioned box, whose size is then determined (2026-10-09). Its inner size, not the nearest ancestor
+	 * with a specified size, is the percentage basis: a width: 100% image in an inline-block was as wide as the page
+	 * (CSS Sizing 3 §5.2). Floats are already in the list of the caller.
+	 */
+	private static boolean sizedShrinkToFitRoot(final Builder builder, final AbstractContainerBox containerBox) {
+		if (builder.isTwoPass() || containerBox != builder.getRootBox()) {
+			return false;
+		}
+		final PosType type = containerBox.getPos().getType();
+		return type == PosType.INLINE || type == PosType.ABSOLUTE;
 	}
 
 	/**

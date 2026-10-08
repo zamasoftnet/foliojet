@@ -443,9 +443,11 @@ input[size]:not([type=button]):not([type=submit]):not([type=reset]):not([type=ch
 	-cssj-auto-width: attr(size ex, 20ex);
 }
 
+/* The natural width goes to -cssj-auto-width, as for input fields: width: auto computes to it, and a percentage
+   width keeps it for the max-content size (cyclic percentage, 2026-10-09) */
 textarea {
 	display: inline-block;
-	width: 20ex;
+	-cssj-auto-width: 20ex;
 	height: 4em;
 	background-color: white;
 	border: thin inset;
@@ -558,7 +560,7 @@ pre[width] { width: attr(width px); }
 pre[wrap]  { white-space: pre-wrap; }
 
 /* TEXTAREA */
-textarea[cols] { width: attr(cols ex); }
+textarea[cols] { -cssj-auto-width: attr(cols ex, 20ex); }
 textarea[rows] { height: attr(rows em); }
 textarea[disabled] { color: gray; }
 textarea { padding: 1pt; }

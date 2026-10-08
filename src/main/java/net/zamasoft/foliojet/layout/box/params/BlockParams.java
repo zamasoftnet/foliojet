@@ -24,6 +24,14 @@ public class BlockParams extends AbstractLineParams {
 	public Dimension maxSize = Dimension.AUTO_DIMENSION;
 
 	/**
+	 * The natural line-axis content size of a form control (an input field's {@code size}, a textarea's {@code cols}:
+	 * the {@code -cssj-auto-width} its {@code width: auto} computes to), 0 for other boxes (2026-10-09). When the
+	 * line-axis size is a cyclic percentage, it is what the control contributes to a max-content size instead
+	 * (CSS Sizing 3 §5.2; {@link net.zamasoft.foliojet.layout.sizing.CyclicPercent}).
+	 */
+	public double naturalLineSize = 0;
+
+	/**
 	 * Intrinsic size keywords specified for line-direction width/min-width/max-width (height properties
 	 * in vertical writing) (2026-08-29). null if absent. When present, the corresponding line-direction
 	 * value in {@code size}/{@code minSize}/{@code maxSize} is AUTO (see {@link IntrinsicSize}).

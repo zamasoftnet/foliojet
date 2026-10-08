@@ -30,7 +30,7 @@ public final class MeasuredIntrinsics {
 	/**
 	 * A "sufficiently wide" line width for max-content measurement.
 	 */
-	private static final double INFINITE = 1e6;
+	static final double INFINITE = 1e6;
 
 	private MeasuredIntrinsics() {
 		// pure functions
@@ -138,12 +138,18 @@ public final class MeasuredIntrinsics {
 		}
 		final WritingMode flow = template.flow;
 		final boolean vertical = flow.isVertical();
-		// max-content: lay out without wrapping at line width ∞.
-		final MeasurePageGenerator wide = SourceReplayer.measure(log, selfId + 1, endId - 1, template, ua, INFINITE,
-				INFINITE, false);
+		// max-content: lay out without wrapping at line width ∞. Line-axis percentages inside count as auto
+		// (CyclicPercent), not as a share of ∞.
+		final MeasurePageGenerator wide;
+		try (CyclicPercent.Scope cyclic = CyclicPercent.enter(true)) {
+			wide = SourceReplayer.measure(log, selfId + 1, endId - 1, template, ua, INFINITE, INFINITE, false);
+		}
 		// min-content: break at every opportunity at line width 0.
-		final MeasurePageGenerator narrow = SourceReplayer.measure(log, selfId + 1, endId - 1, template, ua,
-				vertical ? INFINITE : 0, vertical ? 0 : INFINITE, false);
+		final MeasurePageGenerator narrow;
+		try (CyclicPercent.Scope cyclic = CyclicPercent.enter(false)) {
+			narrow = SourceReplayer.measure(log, selfId + 1, endId - 1, template, ua, vertical ? INFINITE : 0,
+					vertical ? 0 : INFINITE, false);
+		}
 		if (wide.getLastPage() == null || narrow.getLastPage() == null) {
 			return null;
 		}
@@ -158,8 +164,8 @@ public final class MeasuredIntrinsics {
 			// (IntrinsicMeasurer) sets the flag, so the existing clamp works.
 			return null;
 		}
-		final double maxContent = usedLineExtent(wide.getLastPage().getContainer(), flow);
-		final double minContent = usedLineExtent(narrow.getLastPage().getContainer(), flow);
+		final double maxContent = usedLineExtent(wide.getLastPage().getContainer(), flow, true);
+		final double minContent = usedLineExtent(narrow.getLastPage().getContainer(), flow, false);
 		final double minPage = wide.getLastPage().getContainer().getContentSize();
 		return new IntrinsicSizes(minContent, maxContent, minPage);
 	}
@@ -189,8 +195,17 @@ public final class MeasuredIntrinsics {
 	 * (also used for margin-box max-content measurement).
 	 */
 	public static double usedLineExtent(final Container container, final WritingMode flow) {
+		return usedLineExtent(container, flow, true);
+	}
+
+	/**
+	 * {@link #usedLineExtent(Container, WritingMode)} of the max-content ({@code maxContent}) or the min-content
+	 * scratch layout: a block whose line-axis size is a cyclic percentage counts with its content, as auto, and a form
+	 * control among them with its natural size for max-content, 0 for min-content (CSS Sizing 3 §5.2, 2026-10-09).
+	 */
+	private static double usedLineExtent(final Container container, final WritingMode flow, final boolean maxContent) {
 		final double[] max = { 0 };
-		container.eachFlowBox(box -> max[0] = Math.max(max[0], boxLineExtent(box, flow)));
+		container.eachFlowBox(box -> max[0] = Math.max(max[0], boxLineExtent(box, flow, maxContent)));
 		if (container instanceof FlowContainer fc) {
 			// Floats contribute directly to the used width.
 			max[0] = Math.max(max[0], fc.floatingsLineExtent(flow));
@@ -213,7 +228,7 @@ public final class MeasuredIntrinsics {
 				+ (margin.getRightType() == abs ? margin.getRight() : 0);
 	}
 
-	private static double boxLineExtent(final IBox box, final WritingMode flow) {
+	private static double boxLineExtent(final IBox box, final WritingMode flow, final boolean maxContent) {
 		final boolean vertical = flow.isVertical();
 		switch (box.getType()) {
 		case TEXT_BLOCK:
@@ -226,12 +241,26 @@ public final class MeasuredIntrinsics {
 			// available width (over-constrained adjustment) absorbs the block's used end margin.
 			// Treat percentages and auto as 0 for intrinsic sizes.
 			final double margins = specifiedLineMargins(block, flow);
-			if (block.getBlockParams().flow.isVertical() != vertical || !block.isAutoLineSize()) {
+			final boolean orthogonal = block.getBlockParams().flow.isVertical() != vertical;
+			final net.zamasoft.foliojet.layout.box.params.LengthType lineType = block.getBlockParams().size
+					.getLineType(flow);
+			// A percentage (or calc() with one) is cyclic here: the block counts with its content, as auto (CSS Sizing 3
+			// §5.2, 2026-10-09); the scratch page resolved it against 10^6 or 0.
+			final boolean cyclic = lineType == net.zamasoft.foliojet.layout.box.params.LengthType.RELATIVE
+					|| lineType == net.zamasoft.foliojet.layout.box.params.LengthType.MIXED;
+			if (orthogonal || (!block.isAutoLineSize() && !cyclic)) {
 				// For an orthogonal child, the parent's line axis is the child's page axis; use physical sizes after layout.
 				// For a block with a specified width, that width is the used width.
 				return margins + (vertical ? block.getHeight() : block.getWidth());
 			}
-			double inner = block.getFrame().getBorderLineExtent(flow) + usedLineExtent(block.getContainer(), flow);
+			double inner = block.getFrame().getBorderLineExtent(flow)
+					+ usedLineExtent(block.getContainer(), flow, maxContent);
+			if (cyclic && block.getBlockParams().naturalLineSize > 0) {
+				// A form control (input display: block; width: 100%): its natural size for max-content, 0 for
+				// min-content (compressible).
+				inner = block.getFrame().getBorderLineExtent(flow)
+						+ (maxContent ? block.getBlockParams().naturalLineSize : 0);
+			}
 			// Clamp by min-width/max-width (absolute lengths only; 2026-08-08,
 			// css-sizing outer contribution). On scratch pages, available-width resolution may not reflect
 			// min-width in an auto-width block's actual size. Wrappers of nested grids with
@@ -254,7 +283,8 @@ public final class MeasuredIntrinsics {
 			return margins + inner;
 		}
 		default:
-			// Use actual sizes for replaced elements and the like.
+			// Use actual sizes for replaced elements and the like (their percentages were resolved as auto, or
+			// against 0, during the measurement: LayoutUtils.calculateReplacedSize).
 			return vertical ? box.getHeight() : box.getWidth();
 		}
 	}
