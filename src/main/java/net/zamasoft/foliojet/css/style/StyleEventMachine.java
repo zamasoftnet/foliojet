@@ -204,7 +204,7 @@ final class StyleEventMachine {
 
 		final boolean footnote = this.startFootnote(style, ce, explDisplay);
 
-		this.settleMarkerBeforeTable(explDisplay);
+		this.settleMarkerBeforeTable(style, explDisplay);
 
 		this.emitter._startStyle(style);
 
@@ -465,18 +465,27 @@ final class StyleEventMachine {
 	private static final double FOOTNOTE_BAND_GAP = 6;
 
 	/**
-	 * Finalizes an outside list marker before opening a table (prevents it from entering cell content).
+	 * Finalizes an outside list marker before opening a table (prevents it from entering cell content), or a box
+	 * whose writing mode is orthogonal to the list item's.
 	 * (Extracted from startStyle on 2026-09-02; body moved unchanged.)
+	 *
+	 * <p>
+	 * An orthogonal first child has no line box of the list item's, so the marker went into the child's own first
+	 * line, where it took that line's start in the other axis: the first characters moved down by the marker
+	 * (a vertical-lr child of a horizontal li), a block in an inline moved over by a line, and a floated li grew past
+	 * its shrink-to-fit width off the paper (fit sweep seed 12297742, 2026-10-08). Chrome gives the marker no
+	 * room there. Settle it before the child, overlaying, as for a table.
+	 * </p>
 	 */
-	private void settleMarkerBeforeTable(final short explDisplay) {
+	private void settleMarkerBeforeTable(final CSSStyle style, final short explDisplay) {
 		// Outside list markers are normally deferred to the line created by the first character.
 		// If the first child is a table, however, that character first appears in its first cell.
 		// Deferring that far mixes the marker into cell content; splitting a row can then leave
 		// only the marker in the earlier fragment and the cell body in the later fragment,
 		// moving the body to a later page than neighboring cells (seed 455). Finalize the marker
 		// before opening the table, while still directly under list-item.
-		if (this.marker != null
-				&& (explDisplay == DisplayValue.TABLE || explDisplay == DisplayValue.INLINE_TABLE)) {
+		if (this.marker != null && (explDisplay == DisplayValue.TABLE || explDisplay == DisplayValue.INLINE_TABLE
+				|| BlockFlow.get(style).isVertical() != this.marker.ownerVertical)) {
 			if (this.marker.box instanceof OutsideMarkerBox outsideMarker) {
 				outsideMarker.setOverlaysFollowingBlock(true);
 			}
@@ -724,6 +733,7 @@ final class StyleEventMachine {
 				case ListStylePositionValue.OUTSIDE:
 					// Outside marker
 					marker.box = new OutsideMarkerBox(params, pos);
+					marker.ownerVertical = BlockFlow.get(style).isVertical();
 					this.marker = marker;
 					break;
 				default:

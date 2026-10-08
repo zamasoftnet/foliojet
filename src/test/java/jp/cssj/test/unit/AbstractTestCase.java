@@ -20,6 +20,7 @@ import jp.cssj.cti2.message.MessageHandler;
 import jp.cssj.cti2.results.SingleResult;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
+import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.message.MessageCodeUtils;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 import net.zamasoft.zstream.io.FragmentedOutput;
@@ -107,6 +108,14 @@ public abstract class AbstractTestCase extends TestCase implements
 		if (fail != null) {
 			fail(fail);
 		}
+	}
+
+	/**
+	 * Called for every drawn box on the first pass, before the {@code check_<id>} dispatch. For boxes that carry no
+	 * element id of their own, such as an outside list marker (a {@code ::marker} child style since 2026-10-08).
+	 */
+	protected void visitAnyBox(IBox box, int pageNumber, double x, double y) {
+		// nothing by default
 	}
 
 	protected abstract void transcode() throws Exception;

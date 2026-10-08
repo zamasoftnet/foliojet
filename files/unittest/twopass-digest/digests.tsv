@@ -1017,7 +1017,7 @@
 0500-ext-css/text-combine-all.html	1	3fb2388fde71b32688d1d124ec84e6bbd51a1a5be3b6b0afe5a1ff1e4321dd40
 0500-ext-css/v-text-combine.html	1	f562d83fe3d106ead6444ad356c463cacba0b894e6a698a67a2bdd09eb7693b1
 0500-ext-css/vertical-tcy-dash-regression.html	1	e2bda6bb9fafd3d7d02cbea8ed08da322938f84a7eaa2192052006856b6a3204
-0500-grid/absolute-flex-grid.html	1	ac11deeb0cec0c06850ff18af729ec4e09a4900a62176111f9050680e2ff0b8d
+0500-grid/absolute-flex-grid.html	1	cf28c4640643d15e3f4bc4edbe84a0f447df9fa3f047a595f77e0026451ad02e
 0500-grid/alignment-content.html	1	ee38848c64d3652e2224e8efe6f343ee29a4baee24cccf0748a68969c5a31a31
 0500-grid/alignment-in-float.html	1	2930cd49a7293e194ac9667416acbdb852c753926980cbd3bf4ea46fad0f30eb
 0500-grid/alignment-items.html	1	974924e7d567d0624994164290e4a0cc7ebd4e8f75109ca66de678621beaa4b8
@@ -1589,10 +1589,10 @@ fuzz-repro/seed-5448946-nested-writing-mode.html	2	c6389bb4283207dd5f595c70f8a22
 fuzz-repro/top-float-exclusion-after-limit-shrinks.html	1	f2c01e0d33cebac2eee9c637a66331352a85eca2132f32b9835942d0ac1a4087
 fuzz-repro/top-float-exclusion-after-limit-shrinks.html	2	f89199a92e3a9f7a181d9fb3dc9da2827f9a566ffb1b31272392063102a778d8
 fuzz-repro/vertical-table-first-cell-reading-order.html	1	394f04783defd5df37789ff7e6a11e4bc77d63d3d071afd4afe97aaf479e0730
-fuzz-repro/vertical-table-first-cell-reading-order.html	2	4a6871f10fb10cab8d8a77ab9c86049e5fc5b5344d09155d035837f16bc1a9ac
-fuzz-repro/vertical-table-first-cell-reading-order.html	3	e61c1661076c9eb6cc53a50b9041b13f938a01e7be52c4fe20f4cf56ca1fedfa
-fuzz-repro/vertical-table-first-cell-reading-order.html	4	5ce2ea416e0f986adb37737b9b010fd716bb7854e8f37b853bc71dabaa7e5807
-fuzz-repro/vertical-table-first-cell-reading-order.html	5	9cb2c3a0e3d32a2bef61f62ed69f630a198c45494e4ef571850409710875b8f0
+fuzz-repro/vertical-table-first-cell-reading-order.html	2	b88ee036499c302b90727a1c516c70832f53a630735d5825bac68f413c4aca89
+fuzz-repro/vertical-table-first-cell-reading-order.html	3	0016b4ff8b0dccbaf7e616165bbe027d028be63b1e862f9ee3807fb1bc37de9e
+fuzz-repro/vertical-table-first-cell-reading-order.html	4	9d1503123203e056b4267e0884f0c508ad8ea7adbe33b63df63b10b32ab53524
+fuzz-repro/vertical-table-first-cell-reading-order.html	5	c2ddd1ac21a9de107945f24181b3f22062f84789d24f89a14f6fa5a023f61218
 imageTest/0040-overflow/absolute-in-hidden.html	1	ab7be2bc3a74fa1e7f50b444c6121df60c9da08e29b08d20c9de7c4e33865a1b
 imageTest/0080-border-collapse/auto-pagebreak-headerfooter.html	1	8fbf5915d3418f7e3fd64feca9fe9c0779b15678a344e51fa4f44baf7c4794ba
 imageTest/0080-border-collapse/auto-pagebreak-headerfooter.html	2	9ecc6ba31756b6332b0b22789927c879e58eb64bc82b993fd42b4b12bd62675b

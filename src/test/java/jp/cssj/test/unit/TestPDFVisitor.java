@@ -41,6 +41,7 @@ public class TestPDFVisitor extends PDFVisitor {
 			return;
 		}
 
+		this.test.visitAnyBox(box, this.pageNumber, x, y);
 		// E-6 increment 3b-4: A source-replayed box may have a StructureToken as its element.
 		// Read it through the shared StructureElement contract (which also includes id).
 		StructureElement ce = box.getParams().element;

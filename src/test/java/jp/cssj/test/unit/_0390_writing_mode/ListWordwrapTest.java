@@ -13,23 +13,24 @@ public class ListWordwrapTest extends AbstractTestCase {
 		super(name);
 	}
 
+	/** The first item's (#a) outside marker: the rightmost one in vertical-rl. {x, y, height}. */
+	private double[] marker;
+
 	protected void transcode() throws Exception {
 		File file = new File(
 				"files/unittest/0390-writing-mode/list-wordwrap.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
+		assertNotNull("no outside marker drawn", this.marker);
+		assertEquals(163, this.marker[0], 1);
+		assertEquals(25, this.marker[1], 0);
+		assertEquals(0, this.marker[2], 0);
 	}
 
-	public boolean check_a(IBox box, int pageNumber, double x, double y) {
-		if (box instanceof OutsideMarkerBox) {
-			System.out.println("x: " + x);
-			System.out.println("y: " + y);
-			System.out.println("height: " + box.getHeight());
-			assertEquals(163, x, 1);
-			assertEquals(25, y, 0);
-			assertEquals(0, box.getHeight(), 0);
-			return true;
+	// The marker is a ::marker child style without the li's id (2026-10-08), so it is found by type.
+	protected void visitAnyBox(IBox box, int pageNumber, double x, double y) {
+		if (box instanceof OutsideMarkerBox && (this.marker == null || x > this.marker[0])) {
+			this.marker = new double[] { x, y, box.getHeight() };
 		}
-		return false;
 	}
 
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {

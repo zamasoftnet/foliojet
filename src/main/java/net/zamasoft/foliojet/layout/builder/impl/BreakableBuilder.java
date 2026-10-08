@@ -1089,7 +1089,21 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			if (LayoutUtils.compare(columnLimit, this.getPageOwnerLimit() - lastFrame) > 0) {
 				final BreakMode mode = new AutoBreakMode(flow.box, this.getPageOwnerLimit());
 				final byte flags = IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_LAST;
-				this.columnBreak(flow, mode, flags, lastFrame, 1);
+				// A refused column break (no break point, Keep/Move) has still reset the pending break state
+				// (beginBreak). Restore it, or the interflow check below is skipped and the multicol stays on this
+				// page however far it overflows: fit sweep seed 12465506 (2026-10-08), a vertical-rl multicol whose
+				// last child is a float after an orthogonal box wider than the paper put the whole document on one
+				// page, off the paper; an in-flow block after the float made it break.
+				final boolean interflow = this.interflowBreak;
+				final boolean canBreak = this.canBreakBefore;
+				final PageBreakMode pendingAfter = this.breakAfter;
+				final java.util.EnumSet<FloatSide> pendingFloats = java.util.EnumSet.copyOf(this.breakFloats);
+				if (!this.columnBreak(flow, mode, flags, lastFrame, 1)) {
+					this.interflowBreak = interflow;
+					this.canBreakBefore = canBreak;
+					this.breakAfter = pendingAfter;
+					this.breakFloats.addAll(pendingFloats);
+				}
 			}
 		}
 

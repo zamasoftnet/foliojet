@@ -1,0 +1,27 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="120pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<!-- A multicol whose last child is a float after an orthogonal box longer than the paper along the page axis: the overflow is first seen when the multicol closes, the column break is refused, and the page break must still happen (fit sweep seed 12465506, 2026-10-08). -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>fuzz v2 1379014124</title>
+<meta name="foliojet-fuzz-generator" content="2" />
+<style>
+@page{margin:5pt}
+body{margin:0;font:normal 12pt/1.2 serif;writing-mode:vertical-rl}
+p,div,td{margin:0;padding:0}
+table{border-collapse:separate;table-layout:auto}
+td{border:1pt solid black}
+</style></head><body data-fuzz-generator="2">
+<div style="writing-mode:vertical-rl">
+<ul style="list-style-position:inside;list-style-type:lower-roman">
+<li>T0</li>
+<li>T1</li>
+<li>T2</li>
+<li>T3</li>
+</ul>
+</div>
+<div style="column-count:3;column-gap:18pt">
+<div style="writing-mode:horizontal-tb;width:200pt">H0 H1</div>
+<div style="float:left;width:8em"><p>F0</p></div>
+</div>
+</body></html>

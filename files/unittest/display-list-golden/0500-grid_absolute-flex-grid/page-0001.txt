@@ -10,5 +10,5 @@ drawer z=0
   x=10.00 y=36.00 AbsoluteRectFrame[w=60.00 h=12.00]
   x=10.00 y=36.00 Text["CELL" asc=9.00 desc=3.00]
   x=10.00 y=60.00 AbsoluteRectFrame[w=60.00 h=12.00]
-  x=30.00 y=180.00 AbsoluteRectFrame[w=10.00 h=10.00]
-  x=10.00 y=60.00 Text["LISTITEM" asc=10.00 desc=3.00]
+  x=0.00 y=61.00 AbsoluteRectFrame[w=10.00 h=10.00]
+  x=10.00 y=60.00 Text["LISTITEM" asc=11.00 desc=3.00]
