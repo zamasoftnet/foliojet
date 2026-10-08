@@ -10,11 +10,20 @@ import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 
 /**
- * Column flex containers with an indefinite main size that are retained and placed as a whole (stage 2, 2026-10-08;
- * copperpdf4/docs/design/column-flex-indefinite-main-design.md §4): {@code column-reverse}, an absolute
- * {@code max-height} and {@code align-items} other than stretch. The items whose main size depends on their content
- * are measured at their cross size before the real bind. Expected positions are Chrome's (measured on the same
- * document, 12pt/20pt text).
+ * Column flex containers with an indefinite main size (stage 2, 2026-10-08;
+ * copperpdf4/docs/design/column-flex-indefinite-main-design.md §4): {@code column-reverse} and an absolute
+ * {@code max-height} are retained and placed as a whole, the items whose main size depends on their content measured
+ * at their cross size before the real bind. Expected positions are Chrome's (measured on the same document, 12pt/20pt
+ * text), except where noted.
+ *
+ * <p>
+ * Since 2026-10-09 a column with {@code align-items} other than stretch is no longer retained (every page relaid all
+ * of its remaining content, so a long centered body grew with pages times content). It stays streamed: an item with a
+ * width is aligned by {@code align-self}/{@code align-items}, while an item whose width is auto fills the column as
+ * before stage 2. Chrome shrinks such an item to its content and aligns it (x1, z1, z3); the measured path of
+ * {@code width: fit-content} that would do so did not break across pages when it held an app shell's whole body
+ * (openprops, quarto-book), so those are recorded differences.
+ * </p>
  *
  * <ul>
  * <li>r: reverse with 40pt bases: r3, r2, r1 from the top, 40pt apart.</li>
@@ -27,11 +36,14 @@ import net.zamasoft.foliojet.layout.box.IBox;
  * takes 80pt, the next one comes after it and a 6pt gap.</li>
  * <li>w: a float holding an {@code align-items: flex-start} column of 100pt and 60pt items is 100pt wide (the row sum
  * made it 160pt).</li>
- * <li>x: {@code max-width: 60pt} bounds a centered item (three lines at 70pt) and {@code max-width: 50pt} a stretched
- * one (at the start).</li>
+ * <li>x: {@code max-width: 60pt} bounds an auto-width item of a centered column (at the start, see above) and
+ * {@code max-width: 50pt} a stretched one (at the start).</li>
  * <li>y: auto cross margins come before align-items: {@code margin: 0 auto} centers a 40pt item at 80pt,
  * {@code margin-left: auto} puts a 30pt item at 170pt, and an item with auto margins in a stretch container keeps
  * its fit-content width, centered.</li>
+ * <li>z: an item with {@code margin: 0 auto} and an auto width in a stretching streamed column fills it (codex review
+ * 2026-10-08, B-7; not supported, see above); in a centered column, {@code align-self: stretch} fills the 200pt and so
+ * does an auto-width item.</li>
  * <li>v: vertical-rl reverse: the first item at the left, 30pt apart.</li>
  * </ul>
  */
@@ -57,7 +69,9 @@ public class FlexColumnIndefiniteRetainedTest extends AbstractTestCase {
 		assertEquals(60, x("h2"), 0.1);
 		assertEquals(86, y("t2") - y("t1"), 0.1);
 		assertEquals(100, this.at.get("w0")[3], 0.1);
-		assertEquals(70, x("x1"), 0.1);
+		// Auto-width items of a streamed column stretch, as before stage 2 (2026-10-09): Chrome shrinks x1 to its content and
+		// centers it at 70pt; taking the fit-content width would need the item measured first (see the class comment)
+		assertEquals(0, x("x1"), 0.1);
 		assertEquals(60, this.at.get("x1")[3], 0.1);
 		assertEquals(60, y("x2") - y("x1"), 0.1);
 		assertEquals(0, x("x2"), 0.1);
@@ -66,6 +80,13 @@ public class FlexColumnIndefiniteRetainedTest extends AbstractTestCase {
 		assertEquals(170, x("y2"), 0.1);
 		assertEquals(100, x("y3") + this.at.get("y3")[3] / 2, 0.1);
 		assertTrue("y3 stretched", this.at.get("y3")[3] < 50);
+		// z1 and z3 are recorded differences (2026-10-09): Chrome shrinks them to their content (21pt) and centers them
+		assertEquals(0, x("z1"), 0.1);
+		assertEquals(200, this.at.get("z1")[3], 0.1);
+		assertEquals(0, x("z2"), 0.1);
+		assertEquals(200, this.at.get("z2")[3], 0.1);
+		assertEquals(0, x("z3"), 0.1);
+		assertEquals(200, this.at.get("z3")[3], 0.1);
 		assertEquals(30, x("v2") - x("v1"), 0.1);
 		assertEquals(30, x("v3") - x("v2"), 0.1);
 	}
@@ -82,7 +103,12 @@ public class FlexColumnIndefiniteRetainedTest extends AbstractTestCase {
 
 	private boolean record(final String id, final IBox box, final int pageNumber, final double x, final double y) {
 		if (box.getType() == BoxType.BLOCK) {
-			this.at.putIfAbsent(id, new double[] { x, y, pageNumber, box.getWidth() });
+			// The border box: an item aligned in a streamed column is placed by its margins (2026-10-09)
+			final net.zamasoft.foliojet.layout.part.AbsoluteInsets margin = box instanceof net.zamasoft.foliojet.layout.box.AbstractBlockBox block
+					? block.getFrame().margin
+					: new net.zamasoft.foliojet.layout.part.AbsoluteInsets(0, 0, 0, 0);
+			this.at.putIfAbsent(id,
+					new double[] { x + margin.left, y, pageNumber, box.getWidth() - margin.left - margin.right });
 			return true;
 		}
 		return false;
@@ -170,6 +196,18 @@ public class FlexColumnIndefiniteRetainedTest extends AbstractTestCase {
 
 	public boolean check_y3(IBox box, int pageNumber, double x, double y) {
 		return this.record("y3", box, pageNumber, x, y);
+	}
+
+	public boolean check_z1(IBox box, int pageNumber, double x, double y) {
+		return this.record("z1", box, pageNumber, x, y);
+	}
+
+	public boolean check_z2(IBox box, int pageNumber, double x, double y) {
+		return this.record("z2", box, pageNumber, x, y);
+	}
+
+	public boolean check_z3(IBox box, int pageNumber, double x, double y) {
+		return this.record("z3", box, pageNumber, x, y);
 	}
 
 	public boolean check_v1(IBox box, int pageNumber, double x, double y) {

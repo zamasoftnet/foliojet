@@ -480,6 +480,27 @@ public class DocumentBuilder implements TableBuilderHost {
 		return null;
 	}
 
+	/**
+	 * Aligns an item of a column flex laid out in normal flow by its {@code align-self}, else the container's
+	 * {@code align-items} (2026-10-09). An item with a width keeps it and goes to the start, the center or the end;
+	 * an item whose width is auto fills the column as before (taking its fit-content width would need its content
+	 * measured first; a column with align-items other than stretch is no longer retained whole for that, since every
+	 * page relaid all of its remaining content).
+	 */
+	private static void alignInStreamedColumn(final Builder builder, final FlowBlockBox box) {
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox
+				|| box.getBlockParams().size.getLineType(box.getBlockParams().flow)
+						== net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
+			return;
+		}
+		final net.zamasoft.foliojet.layout.box.params.Align align = net.zamasoft.foliojet.layout.builder.impl.BlockBuilder
+				.streamedColumnAlign(builder.getFlowBox(), box.getFlowPos().flexItem);
+		if (align != null
+				&& box.getBlockParams().flow.isVertical() == builder.getFlowBox().getBlockParams().flow.isVertical()) {
+			box.alignInStreamedColumn(align);
+		}
+	}
+
 	/** Pushes the same coordinator for live construction and child-range replay without Start. */
 	private boolean startItemCoordinator(final Builder builder, final AbstractContainerBox box) {
 		if (box instanceof GridBox grid && GridBuilderLifecycle.eligible(grid, builder)) {
@@ -1058,6 +1079,7 @@ public class DocumentBuilder implements TableBuilderHost {
 			}
 			this.endContainer();
 			final Builder builder = this.containerBuilder().builder;
+			alignInStreamedColumn(builder, blockBox);
 			// Blocks with intrinsic size keywords (width:max-content, etc.; 2026-08-29)
 			// get their widths only after measuring content, so route them through
 			// the same two-pass path as orthogonal flows (newBuilder→TwoPass→shrinkToFit).

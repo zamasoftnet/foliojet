@@ -1219,7 +1219,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 			frame = replacedBox.getFrame();
 			FlowPos pos = (FlowPos) flowBox.getPos();
 			clear = pos.clear;
-			align = pos.align;
+			// An image in a streamed column follows the column's alignment (2026-10-09)
+			final net.zamasoft.foliojet.layout.box.params.Align flexAlign = streamedColumnAlign(flow.box,
+					pos.flexItem);
+			align = flexAlign != null ? flexAlign : pos.align;
 		}
 			break;
 		case BLOCK: {
@@ -1852,7 +1855,28 @@ public class BlockBuilder implements Builder, LayoutContext {
 		containerFlow.flexItemPlaced = true;
 	}
 
-	private static boolean isStreamedColumnFlex(final IBox box) {
+	/**
+	 * Where an item of a column flex laid out in normal flow goes across the column (2026-10-09): its
+	 * {@code align-self}, else the container's {@code align-items}. Null for stretch, or when {@code container} is not
+	 * such a column. Physical start/end of the line axis (left/right in horizontal writing).
+	 */
+	public static net.zamasoft.foliojet.layout.box.params.Align streamedColumnAlign(final IBox container,
+			final net.zamasoft.foliojet.layout.box.params.FlexItemSpec spec) {
+		if (!isStreamedColumnFlex(container)) {
+			return null;
+		}
+		final net.zamasoft.foliojet.layout.box.params.BoxAlignment align = net.zamasoft.foliojet.layout.box.params.BoxAlignment
+				.resolve(spec == null ? net.zamasoft.foliojet.layout.box.params.BoxAlignment.AUTO : spec.alignSelf(),
+						((net.zamasoft.foliojet.layout.box.impl.FlexBox) container).getFlexParams().alignItems);
+		return switch (align) {
+		case CENTER -> net.zamasoft.foliojet.layout.box.params.Align.CENTER;
+		case END -> net.zamasoft.foliojet.layout.box.params.Align.END;
+		case START -> net.zamasoft.foliojet.layout.box.params.Align.START;
+		default -> null;
+		};
+	}
+
+	public static boolean isStreamedColumnFlex(final IBox box) {
 		// isPageAtomicNow: true once FlexBuilder placed the items (its continuation fragments are restyled through
 		// this builder too, item by item, and must keep FlexBuilder's sizes).
 		return box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox flex

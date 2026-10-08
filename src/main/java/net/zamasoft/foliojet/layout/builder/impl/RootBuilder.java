@@ -232,11 +232,23 @@ public class RootBuilder extends BreakableBuilder {
 	private final java.util.ArrayDeque<java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange>> resumeScopes = new java.util.ArrayDeque<>();
 
 	/**
+	 * The retained-text count stopped for each scope of {@link #resumeScopes} (empty without accounting): the remainder
+	 * relaid after a break was counted when it was first laid out (2026-10-09). A retained flex or grid holds all of
+	 * its remaining content in its continuation, and every page relaid all of it inside the still-open container scope,
+	 * so the count grew with pages times content (a row flex of 1800 paragraphs, a centered column of 2000, both over the
+	 * default 16 MiB). Content arriving after the resume is counted as before.
+	 */
+	private final java.util.ArrayDeque<java.util.Optional<net.zamasoft.foliojet.layout.RetainedTextLimit.Suspension>> resumeSuspensions = new java.util.ArrayDeque<>();
+
+	/**
 	 * Starts a scope for rebuilding the remainder after a break, with the recorded replay ranges (C2).
 	 */
 	public final void beginBreakRestyle(
 			final java.util.Map<net.zamasoft.foliojet.layout.box.IBox, net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> ranges) {
 		this.resumeScopes.push(ranges);
+		final net.zamasoft.foliojet.layout.RetainedTextLimit limit = net.zamasoft.foliojet.layout.RetainedTextLimit
+				.get(this);
+		this.resumeSuspensions.push(java.util.Optional.ofNullable(limit == null ? null : limit.suspend()));
 	}
 
 	/**
@@ -247,6 +259,7 @@ public class RootBuilder extends BreakableBuilder {
 			throw new IllegalStateException("再開スコープの対応が壊れています");
 		}
 		this.resumeScopes.pop();
+		this.resumeSuspensions.pop().ifPresent(net.zamasoft.foliojet.layout.RetainedTextLimit.Suspension::close);
 	}
 
 	/**

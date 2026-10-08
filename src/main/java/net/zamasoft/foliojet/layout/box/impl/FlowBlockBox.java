@@ -79,6 +79,14 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
+	 * Aligns this item of a column flex laid out in normal flow across the column (2026-10-09): its margins take the
+	 * room its width leaves, as {@code margin: 0 auto} does (auto margins still come first).
+	 */
+	public final void alignInStreamedColumn(final Align align) {
+		this.resolvedAlign = align;
+	}
+
+	/**
 	 * Restores page-axis content size inflated by restyle reconstruction
 	 * (2026-08-08; exclusively for {@code RowSplitContainer.restoreAnchoredPageAxis};
 	 * generalized from flex to shared flex/grid use on 2026-08-10).

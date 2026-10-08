@@ -253,7 +253,9 @@ public class LimitIoPropertyTest extends TestCase {
 			if (boxReplay) {
 				assertEquals("ソース再生が不適格となりボックス再生へ進むこと", 0L, sourceReplays);
 			} else {
-				assertEquals("suspendしたbalanceがソース再生を通ること", suspensions, sourceReplays);
+				// Resuming after a column or page break suspends accounting too (2026-10-09,
+				// RootBuilder.beginBreakRestyle), so not every suspension is a balance replay
+				assertTrue("suspendしたbalanceがソース再生を通ること", sourceReplays > 0 && sourceReplays <= suspensions);
 			}
 			assertEquals("balance再生は文字数×2を二重計数しないこと", payload, result.highWater());
 		}

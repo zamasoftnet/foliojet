@@ -56,20 +56,25 @@ public final class FlexBuilderLifecycle {
 
 	/**
 	 * Whether a column flex with an indefinite main size is retained and placed as a whole (2026-10-08), judged
-	 * from the container's own declarations at its start: {@code column-reverse} (the last item comes first), an
-	 * absolute max main size (items shrink or wrap at it), or {@code align-items} other than stretch/normal (items
-	 * take their fit-content width). Their contents are retained up to {@code processing.retained-text-limit}.
-	 * Item declarations ({@code order}, {@code align-self}) are not known at the start; streamed columns ignore them.
+	 * from the container's own declarations at its start: {@code column-reverse} (the last item comes first) or an
+	 * absolute max main size (items shrink or wrap at it). Their contents are retained up to
+	 * {@code processing.retained-text-limit}.
+	 *
+	 * <p>
+	 * {@code align-items} other than stretch no longer retains the container (2026-10-09): every page of a retained
+	 * container relaid all of its remaining content, so a centered column holding a whole body took time and retained
+	 * text growing with pages times content (2000 paragraphs exceeded the 16 MiB limit). Streamed columns align items
+	 * with a width and images instead ({@code DocumentBuilder.alignInStreamedColumn},
+	 * {@code BlockBuilder.streamedColumnAlign}); items whose width is auto fill the column, since taking their
+	 * fit-content width would measure each one as a single box that does not break across pages. {@code order}
+	 * stays ignored there.
+	 * </p>
 	 */
 	static boolean retainsIndefiniteColumn(final FlexParams params) {
 		if (params.flexDirection.isReverse()) {
 			return true;
 		}
-		if (params.maxSize.getPageType(params.flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
-			return true;
-		}
-		return params.alignItems != net.zamasoft.foliojet.layout.box.params.BoxAlignment.STRETCH
-				&& params.alignItems != net.zamasoft.foliojet.layout.box.params.BoxAlignment.NORMAL;
+		return params.maxSize.getPageType(params.flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE;
 	}
 
 	/** Starts a FlexBuilder (eligibility must already be checked). */

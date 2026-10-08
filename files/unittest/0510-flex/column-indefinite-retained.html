@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>flex: column with an indefinite main size placed as a whole (reverse, max, align-items, percentage heights, intrinsic width, max-width, auto margins)</title>
+<title>flex: column with an indefinite main size placed as a whole (reverse, max, align-items, percentage heights, intrinsic width, max-width, auto margins, align-self)</title>
 <style type="text/css">
 body { font: 12pt/20pt serif; margin: 0; }
 div { margin: 0; padding: 0; }
@@ -30,6 +30,9 @@ div { margin: 0; padding: 0; }
 <!-- y: auto cross margins center (both) or push to the end (start only) before align-items, and keep a stretched item at its fit-content width -->
 <div class="c" style="width: 200pt; align-items: flex-start"><div id="y1" style="margin: 0 auto; width: 40pt">T27</div><div id="y2" style="margin-left: auto; width: 30pt">T28</div></div>
 <div class="c" style="height: 30pt; width: 200pt"><div id="y3" style="margin: 0 auto">T29</div></div>
+<!-- z: an auto line-axis margin in a stretching column shrinks the item and centers it; align-self: stretch fills a centered column -->
+<div class="c" style="width: 200pt"><div id="z1" style="margin: 0 auto; background: silver">T30</div></div>
+<div class="c" style="width: 200pt; align-items: center"><div id="z2" style="align-self: stretch; background: silver">T31</div><div id="z3" style="background: silver">T32</div></div>
 <!-- v: vertical-rl column-reverse: the first item at the left, the last at the right -->
 <div class="c r" style="writing-mode: vertical-rl; height: 100pt"><div id="v1" style="flex: 0 1 30pt">T13</div><div id="v2" style="flex: 0 1 30pt">T14</div><div id="v3" style="flex: 0 1 30pt">T15</div></div>
 </body>
