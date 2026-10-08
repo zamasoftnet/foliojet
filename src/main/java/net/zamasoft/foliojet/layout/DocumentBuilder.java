@@ -482,15 +482,21 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	/**
 	 * Aligns an item of a column flex laid out in normal flow by its {@code align-self}, else the container's
-	 * {@code align-items} (2026-10-09). An item with a width keeps it and goes to the start, the center or the end;
-	 * an item whose width is auto fills the column as before (taking its fit-content width would need its content
-	 * measured first; a column with align-items other than stretch is no longer retained whole for that, since every
-	 * page relaid all of its remaining content).
+	 * {@code align-items} (2026-10-09). An item with a width keeps it and goes to the start, the center or the end, and
+	 * so does an item whose auto width a {@code max-width} keeps narrower than the column (Chrome takes its fit-content
+	 * width, which is that maximum once the content is longer). Any other item whose width is auto fills the column as
+	 * before (taking its fit-content width would need its content measured first; a column with align-items other than
+	 * stretch is no longer retained whole for that, since every page relaid all of its remaining content).
 	 */
 	private static void alignInStreamedColumn(final Builder builder, final FlowBlockBox box) {
-		if (box instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox
-				|| box.getBlockParams().size.getLineType(box.getBlockParams().flow)
-						== net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
+		if (box instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox) {
+			return;
+		}
+		final net.zamasoft.foliojet.layout.box.params.BlockParams params = box.getBlockParams();
+		if (params.size.getLineType(params.flow) == net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
+				&& (params.maxSize.getLineType(params.flow) == net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
+						|| net.zamasoft.foliojet.layout.util.LayoutUtils.compare(box.getLineExtent(params.flow),
+								builder.getFlowBox().getLineSize()) >= 0)) {
 			return;
 		}
 		final net.zamasoft.foliojet.layout.box.params.Align align = net.zamasoft.foliojet.layout.builder.impl.BlockBuilder

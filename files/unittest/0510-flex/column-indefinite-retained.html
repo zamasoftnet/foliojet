@@ -30,6 +30,8 @@ div { margin: 0; padding: 0; }
 <!-- y: auto cross margins center (both) or push to the end (start only) before align-items, and keep a stretched item at its fit-content width -->
 <div class="c" style="width: 200pt; align-items: flex-start"><div id="y1" style="margin: 0 auto; width: 40pt">T27</div><div id="y2" style="margin-left: auto; width: 30pt">T28</div></div>
 <div class="c" style="height: 30pt; width: 200pt"><div id="y3" style="margin: 0 auto">T29</div></div>
+<!-- u: a max-width in percent and align-self: flex-end align an auto-width item at its maximum -->
+<div class="c" style="width: 200pt; align-items: center"><div id="u1" style="max-width: 50%">T41 T42 T43 T44 T45 T46 T47 T48</div><div id="u2" style="align-self: flex-end; max-width: 60pt">T49 T50 T51 T52 T53</div></div>
 <!-- z: an auto line-axis margin in a stretching column shrinks the item and centers it; align-self: stretch fills a centered column -->
 <div class="c" style="width: 200pt"><div id="z1" style="margin: 0 auto; background: silver">T30</div></div>
 <div class="c" style="width: 200pt; align-items: center"><div id="z2" style="align-self: stretch; background: silver">T31</div><div id="z3" style="background: silver">T32</div></div>
