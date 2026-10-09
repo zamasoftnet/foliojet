@@ -54,7 +54,10 @@ public class HTMLParser implements Parser {
 			public void startDocument(XMLLocator locator, String encoding, NamespaceContext namespaceContext,
 					Augmentations augs) throws XNIException {
 				super.startDocument(locator, encoding, namespaceContext, augs);
-				xmlHandler.setDocumentLocator(new HTMLSourceLocator(locator));
+				// The balancer's locator: the events of a table it holds back (foster parenting) report the positions
+				// they were read at, not the position of the table's end (2026-10-09)
+				final XMLLocator handed = balancer.getLocator();
+				xmlHandler.setDocumentLocator(new HTMLSourceLocator(handed != null ? handed : locator));
 			}
 		}, balancer };
 		parser.setProperty("http://cyberneko.org/html/properties/filters", filters);

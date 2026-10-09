@@ -18,6 +18,11 @@ public class TextInFixedTest extends AbstractTestCase {
 		super(name);
 	}
 
+	/*
+	 * The text directly in the table goes before it, on one line (foster parenting in html-balancer, 2026-10-09; Chrome:
+	 * rows a and b at 130.5pt and 147pt). Until then each piece of text took a line of its own above the table, and row
+	 * a was at 181pt, row b at the top of page 2.
+	 */
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.TABLE_ROW) {
 			System.err.println(pageNumber);
@@ -25,7 +30,7 @@ public class TextInFixedTest extends AbstractTestCase {
 			System.err.println(y);
 			assertEquals(1, pageNumber);
 			assertEquals(1, x, 1);
-			assertEquals(181, y, 1);
+			assertEquals(137, y, 1);
 			return true;
 		}
 		return false;
@@ -36,9 +41,9 @@ public class TextInFixedTest extends AbstractTestCase {
 			System.err.println(pageNumber);
 			System.err.println(x);
 			System.err.println(y);
-			assertEquals(2, pageNumber);
+			assertEquals(1, pageNumber);
 			assertEquals(1, x, 1);
-			assertEquals(1, y, 1);
+			assertEquals(154.5, y, 1);
 			return true;
 		}
 		return false;

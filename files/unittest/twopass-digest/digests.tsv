@@ -40,7 +40,7 @@
 0050-white-space/page-break-by-br.html	2	77317cbb58d065eada4d1f2f2daa08728969d42258f46b13b2afcb69f6631f5e
 0050-white-space/page-break-by-br.html	3	9ae8e4a897010cbf716efd6354317a8bf3a3630c6acfa376594d5ff114b3d1e6
 0050-white-space/tab-size.html	1	475f2142298449665f852118eaa4acf93f2768a34ae7641aa2316e711cae8cc3
-0050-white-space/wrap-full-width-spaces-copper.html	1	0eb8ca87fcb73bc36da102968d4771c83f3c5a29d1ce0140c99dc420ac59af97
+0050-white-space/wrap-full-width-spaces-copper.html	1	3c6ad72de2b8415ef78976c923752764a95e3522be3fe8f749ce73fd192a77a4
 0050-white-space/wrap.html	1	214456ebed9ae28b3831c14ce5ba1d1ea9b8c40fc5ae27e02dc9fa0a0d49f93b
 0060-page-break-after/auto-table-cell.html	1	423949bffdd82457c0c54b3530e4b226e481bb65ae101cbf15dc3b0ef4029f58
 0060-page-break-after/auto-table-cell.html	2	63c33642b5c8b3c3b1f21f82f833b5b10ab10e24755f35d7dcb20c11e8df7a37
@@ -116,8 +116,8 @@
 0070-table-layout/float-in-fixed.html	1	95b6402e1d7b801ad180898940494bf7d2b8ba123859068e7c24422da45df793
 0070-table-layout/inline-block-in-auto.html	1	ee7f973df198321aa3a3a90a04cb25465a6a98cda9e0953199ec810eb451508d
 0070-table-layout/separate-col-width.html	1	bea255d2f01a9e79b5e4ed979dc2077bacc620951aaf7fed2174ee55bb7dcc2a
-0070-table-layout/text-in-fixed.html	1	8e6fc44fdef66cb73dac3643824bf16b8675333d12cdb25679e9eb88df446e47
-0070-table-layout/text-in-fixed.html	2	e6398eca5b5268e892e43ea8e70a72ca756783e491c8d4864dbd5f6a1dc368ab
+0070-table-layout/text-in-fixed.html	1	f45517796b54aba51198b11d3f3ca1071461c6e5dcc29159db96760a1652f781
+0070-table-layout/text-in-fixed.html	2	e211d02470ec483ae798e125af082dd253427049b7a61826f3d74010c1f32b88
 0080-width/broken-image-declared-size.html	1	93e15e8848d9a7b3208591b7e44279fd4eca0ab8e158a4a18598cd493aea474c
 0080-width/column-width-copper.html	1	c0c8471cf4eedd2f09ea0ed5f97a82aba4c5140d7a71cf9c499d5d6f84457859
 0080-width/flow-in-table-copper.html	1	92e30acf196dabaa0950b44a28eb4775d87a7c45810851a6d7f6a6857051e24d
@@ -1566,9 +1566,7 @@ fuzz-repro/float-sliver-progress.html	3	584cad13fcefd581bf6134026ce6a05fed6b9b5e
 fuzz-repro/float-sliver-progress.html	4	f2c01e0d33cebac2eee9c637a66331352a85eca2132f32b9835942d0ac1a4087
 fuzz-repro/float-sliver-progress.html	5	fc7060cf9adbb4eac6414389ea2e3ac25b0f8f0a9cdb5a1b503aab1b11fd7489
 fuzz-repro/float-sliver-progress.html	6	1df94aecefcfb475156513f639f542f93065d5c93509bf3f049aa97132d25d1a
-fuzz-repro/float-split-without-progress.html	1	bd70ba70ddd9ae5bb3da8a167d46c760de1b0eabdb8eb1da405d0a31f820bb73
-fuzz-repro/float-split-without-progress.html	2	f2c01e0d33cebac2eee9c637a66331352a85eca2132f32b9835942d0ac1a4087
-fuzz-repro/float-split-without-progress.html	3	f2c01e0d33cebac2eee9c637a66331352a85eca2132f32b9835942d0ac1a4087
+fuzz-repro/float-split-without-progress.html	1	56998b3758247fc49f07712f2dd51588f41a4c7a013376c276e1d9b0da032319
 fuzz-repro/flowstack-depth-pagefloat-footnote.html	1	ae60e04c4eaae60bceb90d82ed0b99ce3bfcb429ec53780494f51cc7653ad36e
 fuzz-repro/interline-break-with-page-float.html	1	c4f5e5fe50dea4f5153de2928498b1f61f9d12a0c89e81abddf7860e4ebd745d
 fuzz-repro/interline-break-with-page-float.html	2	a74a8f8507356e3f701c799f7848e8e134a22842cea56da14d2fd6cd88f4201e
@@ -1892,7 +1890,7 @@ imageTest/legacy/0143-table-misc/000-FLOAT_AND_TABLE.html	2	c14b57b583121092a374
 imageTest/legacy/0143-table-misc/001-FLOAT_AND_TABLE.html	1	2ac2f6b9aa5d1756b57a30b013b8a9858c8874b687830497a94d72b98948642c
 imageTest/legacy/0143-table-misc/010-FLOATING_TABLE.html	1	50a1449a0955645e181943628e48fed4226b8578d0da39efae2c635d0f123d38
 imageTest/legacy/0143-table-misc/020-FLOAT_IN_TABLE.html	1	aa14382778653780274335dd1b3631b85b69752af18e649a41107d924e6f436f
-imageTest/legacy/0143-table-misc/021-FLOAT_IN_TABLE.html	1	4366572da566bea6bdb96552522da0b716a482125c9c565709f1e11927591563
+imageTest/legacy/0143-table-misc/021-FLOAT_IN_TABLE.html	1	c70addcf1d31c8abcfaa07151b6db264deda7330b438d0020bbb8f2265888b54
 imageTest/legacy/0143-table-misc/030-ACID2_TABLE.html	1	1e200b509305b941d2be7ce6b2d8ecd7f47c21848a2b1062c2127c118f3f1119
 imageTest/legacy/0143-table-misc/040-ANON_ELEMENT.html	1	7e0dd58a48be08c29a9591e194dbbd790c573009b70898d0657d5f4342204396
 imageTest/legacy/0143-table-misc/050-ANON_ELEMENT.html	1	069b18a84cf9e35ab0ed3fea10a38d2b5e43ff95b848ca91a52fed91b7fa3f33
