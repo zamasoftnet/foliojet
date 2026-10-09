@@ -728,6 +728,12 @@ final class IntrinsicMeasurer {
 					maxAdvance = Math.max(maxAdvance, box.getLineExtent(params.flow));
 				}
 				pageSize = Math.max(pageSize, box.getPageExtent(params.flow));
+				if (box instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox) {
+					// An outside marker hangs in front of the line and takes no room in it (its advance is 0 when
+					// laid out; 2026-10-09): counted, a list as a grid or flex item got a column wider by the marker
+					// (Chrome does not count it either, and the shrink-to-fit of a float did not).
+					minAdvance = maxAdvance = 0;
+				}
 			} else {
 				if (inlineQuad instanceof InlineStartQuad) {
 					this.inlineStack.add(inlineQuad.getBox());

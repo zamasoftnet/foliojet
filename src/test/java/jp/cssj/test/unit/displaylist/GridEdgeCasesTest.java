@@ -311,6 +311,33 @@ public class GridEdgeCasesTest extends TestCase {
 	}
 
 	/**
+	 * A grid item contributes its padding and margins to its column, and an outside list marker nothing (2026-10-09).
+	 * The padding and margins of an item that is its own box were resolved only after the columns were sized, so its
+	 * column was as wide as its text; the marker, which hangs in front of the line, was counted. A ul with padding-left:
+	 * 40px got a column of marker + text, its text wrapped below the marker line or ran into the next column. Chrome: the
+	 * column is as wide as the same list floated (55.3pt), 25.3pt without the padding, 89.99 for width: 50pt + 40px.
+	 */
+	public void testItemFrameAndOutsideMarkerContribute() throws Exception {
+		final String page = convertPages("item-frame", document("""
+				@page { size: 300pt 300pt; margin: 0 } body { font: 10pt/15pt serif }
+				ul { margin: 0; padding: 0 0 0 40px }
+				.a { display: grid; grid-auto-flow: column; justify-content: start; gap: 10pt }
+				""", """
+				<div class="a"><ul><li>T1</li></ul><div>G1</div></div>
+				<div><ul style="float: left"><li>T2</li></ul>F1</div>
+				<div class="a" style="clear: both"><ul style="padding: 0"><li>T3</li></ul><div>G3</div></div>
+				<div class="a"><div style="margin-left: 40px">T4</div><div>G4</div></div>
+				<div class="a"><div style="width: 50pt; padding-left: 40px">T5</div><div>G5</div></div>
+				""")).get(0);
+		final double floated = x(page, "F1");
+		assertEquals("padding を数え、マーカーは数えない(浮動と同じ幅):\n" + page, floated + 10, x(page, "G1"), 0.5);
+		assertEquals("T1 は折り返さない", y(page, "G1"), y(page, "T1"), 0.5);
+		assertEquals("padding 0 ならマーカーを数えず字の幅だけ", floated - 30 + 10, x(page, "G3"), 0.5);
+		assertEquals("margin も数える", floated + 10, x(page, "G4"), 0.5);
+		assertEquals("width: 50pt と padding 30pt", 90, x(page, "G5"), 0.5);
+	}
+
+	/**
 	 * A descendant's max-inline-size caps what a grid or flex item contributes to its container's min-content size,
 	 * as it already did for a plain shrink-to-fit block (Chrome: the boxes are 300px = 225pt).
 	 */

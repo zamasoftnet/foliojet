@@ -967,19 +967,43 @@ public final class GridBuilder
 			final double declared = ip.size.getLineType(flow) == LengthType.ABSOLUTE
 					? ip.size.getLineLength(flow)
 					: Double.NaN;
-			final double extras = item.itemBox.getFrame().getBorderLineExtent(flow);
+			final double[] frame = takeoverLineFrame(item.itemBox, flow);
+			final double extras = frame[0];
 			if (!Double.isNaN(declared)) {
 				final double used = ip.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
 						? Math.max(declared, extras)
 						: declared + extras;
-				itemMin = used;
-				itemMax = used;
+				itemMin = used + frame[1];
+				itemMax = used + frame[1];
 			} else {
-				itemMin += extras;
-				itemMax += extras;
+				itemMin += extras + frame[1];
+				itemMax += extras + frame[1];
 			}
 		}
 		return new double[] { itemMin, itemMax };
+	}
+
+	/**
+	 * The line-axis frame a taken-over item contributes to its columns: {border + padding, margins} (2026-10-09). Its
+	 * padding and margins are resolved against the grid area only at bind, so the used frame read here had a 0 padding
+	 * and margin: an item with padding-left: 40px got a column as wide as its text and its text ran into the next
+	 * column (Chrome counts both, as for any box's outer size). A percentage refers to the area, which the columns are
+	 * being sized for: cyclic, it counts as 0 here (css-sizing-3 §5.2.1), as Chrome does; auto margins count as 0.
+	 */
+	private static double[] takeoverLineFrame(final GridItemBox itemBox,
+			final net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame used = itemBox.getFrame();
+		final net.zamasoft.foliojet.layout.part.AbsoluteInsets padding = new net.zamasoft.foliojet.layout.part.AbsoluteInsets();
+		final net.zamasoft.foliojet.layout.part.AbsoluteInsets margin = new net.zamasoft.foliojet.layout.part.AbsoluteInsets();
+		LayoutUtils.computePaddings(padding, used.frame.padding, 0);
+		LayoutUtils.computeMarginsAutoToZero(margin, used.frame.margin, 0);
+		final net.zamasoft.foliojet.layout.box.params.RectBorder border = used.frame.border;
+		if (flow.isVertical()) {
+			return new double[] { border.getTop().width + border.getBottom().width + padding.top + padding.bottom,
+					margin.top + margin.bottom };
+		}
+		return new double[] { border.getLeft().width + border.getRight().width + padding.left + padding.right,
+				margin.left + margin.right };
 	}
 
 	/**
