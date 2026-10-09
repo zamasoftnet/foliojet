@@ -627,15 +627,39 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 					: Double.isNaN(measured) ? item.sizes.minPage() : measured;
 			final double maxContent = axis.mainIsLine ? item.sizes.maxContent()
 					: Double.isNaN(measured) ? item.sizes.minPage() : measured;
+			final double minMain;
+			if (axis.mainIsLine && p.intrinsicMinLine != null) {
+				// min-width: max-content and the like (2026-10-09): the item's own content size, in the box-sizing of
+				// min-width. It was 0, so a row shrank its items below their words (Primer's buttons).
+				final double inner = this.intrinsicMinMain(p, minContent, maxContent, axis);
+				minMain = p.boxSizing == BoxSizingMode.BORDER_BOX ? inner + axis.mainFrame(p.frame) : inner;
+			} else {
+				minMain = axis.minMainAuto(item.spec) ? Double.NaN : Math.max(0, zeroIfNaN(axis.mainValue(p.minSize)));
+			}
 			metrics.add(FlexItemMetricsResolver.resolve(new FlexItemMetricsResolver.Input(oi,
-					item.spec.grow(), item.spec.shrink(), item.spec.basis(), axis.mainValue(p.size),
-					axis.minMainAuto(item.spec) ? Double.NaN
-							: Math.max(0, zeroIfNaN(axis.mainValue(p.minSize))),
+					item.spec.grow(), item.spec.shrink(), item.spec.basis(), axis.mainValue(p.size), minMain,
 					axis.mainMaxValue(p.maxSize), axis.mainFrame(p.frame), axis.mainMargin(p.frame),
 					p.boxSizing == BoxSizingMode.BORDER_BOX, p.overflow != net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE,
 					minContent, maxContent, axis.mainBase)));
 		}
 		return metrics;
+	}
+
+	/**
+	 * The inner size an intrinsic min-width ({@code max-content}, {@code min-content}, {@code fit-content(L)}) asks of
+	 * a row item, as {@code AbstractBlockBox.resolveIntrinsicLine} does for a block: fit-content is bounded by L, else
+	 * by the container's inner line size.
+	 */
+	private double intrinsicMinMain(final BlockParams p, final double minContent, final double maxContent,
+			final MainAxis axis) {
+		double bound = axis.mainBase;
+		if (p.intrinsicMinLine.hasArgument()) {
+			final double argument = LayoutUtils.computeLength(p.intrinsicMinLine.argument(), axis.mainBase);
+			if (!LayoutUtils.isNone(argument)) {
+				bound = p.boxSizing == BoxSizingMode.BORDER_BOX ? argument - axis.mainFrame(p.frame) : argument;
+			}
+		}
+		return Math.max(0, p.intrinsicMinLine.resolve(minContent, maxContent, bound));
 	}
 
 	/** Breaks main-axis lines (rows for row, columns for column) (§9.3; nowrap is a single line). */

@@ -46,8 +46,9 @@ public final class MinBlockSize extends AbstractPrimitivePropertyInfo {
 		}
 		if (ValueUtils.isAuto(lu)) {
 			// auto (the css-sizing-3 initial value) equals 0 in normal flow. Layout handles
-			// the "automatic minimum size" of flex/grid items separately (2026-08-29).
-			return AbsoluteLengthValue.ZERO;
+			// the "automatic minimum size" of flex/grid items separately (2026-08-29), which this value keeps
+			// (2026-10-09).
+			return AbsoluteLengthValue.AUTO_MIN_SIZE;
 		}
 		Value value = BoxValueUtils.toPositiveLength(ua, lu);
 		if (value == null) {

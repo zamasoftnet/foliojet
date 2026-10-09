@@ -20,7 +20,17 @@ public abstract class AbsoluteLengthValue implements LengthValue, Comparable<Abs
 	 */
 	public abstract double getLength();
 
-	public static final AbsoluteLengthValue ZERO = new AbsoluteLengthValue() {
+	public static final AbsoluteLengthValue ZERO = new Zero();
+
+	/**
+	 * The {@code auto} of min-width, min-height, min-inline-size and min-block-size (2026-10-09): 0, as {@link #ZERO}
+	 * is in normal flow, but a value of its own, so a flex or grid item keeps its automatic minimum size under it and
+	 * loses it only under an authored length ({@code min-width: 0}). Parsed to {@link #ZERO}, an explicit
+	 * {@code min-width: auto} removed the automatic minimum, and the items shrank below their words.
+	 */
+	public static final AbsoluteLengthValue AUTO_MIN_SIZE = new Zero();
+
+	private static final class Zero extends AbsoluteLengthValue {
 		public Unit getUnit() {
 			return Unit.PT;
 		}
@@ -50,7 +60,7 @@ public abstract class AbsoluteLengthValue implements LengthValue, Comparable<Abs
 		public boolean isZero() {
 			return true;
 		}
-	};
+	}
 
 	public static AbsoluteLengthValue create(UserAgent ua, double value, Unit unit) {
 		if (value == 0) {

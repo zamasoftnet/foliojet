@@ -415,16 +415,19 @@ final class BoxStyleMapper {
 	 * Returns whether the author declares min-width (vertical=false) or min-height
 	 * (vertical=true) (Flex F1a: input to automatic minimum size §4.5 checks).
 	 * As in {@code MinWidth.get}/{@code MinHeight.get}, physical properties take precedence,
-	 * and logical properties are mapped according to the writing direction.
+	 * and logical properties are mapped according to the writing direction. A declared {@code auto} is the automatic
+	 * minimum itself (2026-10-09): only its value tells it apart, since it lays out as 0 in normal flow.
 	 */
 	private static boolean minSizeDeclared(final CSSStyle style, final boolean height) {
-		if (style.isDeclared(height ? net.zamasoft.foliojet.css.impl.property.box.MinHeight.INFO
-				: net.zamasoft.foliojet.css.impl.property.box.MinWidth.INFO)) {
-			return true;
-		}
 		final boolean vertical = net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style).isVertical();
-		return style.isDeclared(height == vertical ? net.zamasoft.foliojet.css.impl.property.box.MinInlineSize.INFO
-				: net.zamasoft.foliojet.css.impl.property.box.MinBlockSize.INFO);
+		if (!style.isDeclared(height ? net.zamasoft.foliojet.css.impl.property.box.MinHeight.INFO
+				: net.zamasoft.foliojet.css.impl.property.box.MinWidth.INFO)
+				&& !style.isDeclared(height == vertical ? net.zamasoft.foliojet.css.impl.property.box.MinInlineSize.INFO
+						: net.zamasoft.foliojet.css.impl.property.box.MinBlockSize.INFO)) {
+			return false;
+		}
+		return net.zamasoft.foliojet.css.impl.property.box.LogicalSide.minSize(style,
+				height) != net.zamasoft.foliojet.css.value.AbsoluteLengthValue.AUTO_MIN_SIZE;
 	}
 
 	/**

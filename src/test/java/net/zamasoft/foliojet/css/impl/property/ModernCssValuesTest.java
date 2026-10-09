@@ -429,10 +429,12 @@ public class ModernCssValuesTest extends TestCase {
 	// ---- 8. min-*: auto、text-decoration
 
 	public void testMinSizeAuto() {
-		assertSame(AbsoluteLengthValue.ZERO, this.single("min-width", "auto"));
-		assertSame(AbsoluteLengthValue.ZERO, this.single("min-height", "auto"));
-		assertSame(AbsoluteLengthValue.ZERO, this.single("min-inline-size", "auto"));
-		assertSame(AbsoluteLengthValue.ZERO, this.single("min-block-size", "auto"));
+		// A zero length of its own, so a flex or grid item keeps its automatic minimum size (2026-10-09)
+		assertSame(AbsoluteLengthValue.AUTO_MIN_SIZE, this.single("min-width", "auto"));
+		assertSame(AbsoluteLengthValue.AUTO_MIN_SIZE, this.single("min-height", "auto"));
+		assertSame(AbsoluteLengthValue.AUTO_MIN_SIZE, this.single("min-inline-size", "auto"));
+		assertSame(AbsoluteLengthValue.AUTO_MIN_SIZE, this.single("min-block-size", "auto"));
+		assertTrue(AbsoluteLengthValue.AUTO_MIN_SIZE.isZero());
 	}
 
 	public void testTextDecorationShorthand() {
