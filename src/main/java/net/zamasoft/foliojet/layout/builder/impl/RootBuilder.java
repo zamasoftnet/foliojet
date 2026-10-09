@@ -1264,6 +1264,11 @@ public class RootBuilder extends BreakableBuilder {
 		net.zamasoft.foliojet.layout.fragment.ContinuationValidator.validatePage(snapshot, continuation);
 
 		this.flowStack.clear();
+		// The barrier depth counts the flows open inside a page-atomic or orthogonal box, and resume's startFlowBlock()
+		// counts them again (2026-10-09). A break inside the barrier (a table row of a flex item split across pages
+		// bypasses it) kept the old count: the barrier never closed, and nothing after the box broke again
+		// (stripe-docs ran 3300pt past the bottom of its last page).
+		this.breakDepth = -1;
 		// 2026-07-23 (exclusion space P1 increment 1): discard the old fragment's hidden-scope ledger
 		// (resume's startFlowBlock() re-registers resumed hidden flows).
 		this.rebuildNoOverflowFloatingScopes();
@@ -1274,6 +1279,8 @@ public class RootBuilder extends BreakableBuilder {
 			session.resume();
 			assert !session.hasUnconsumedLeases() : "未消費の吸収済み再生範囲が残っています";
 		}
+		assert this.breakDepth < this.flowStack.size() : "改ページ禁止の深さ " + this.breakDepth + " が開いた箱の数 "
+				+ this.flowStack.size() + " を越えています";
 		this.pageGenerator.compactLayoutSource(watermark);
 		// 2026-07-21: previously only an assert checked this (unchecked in production). The ChatGPT Pro
 		// consultation identified tables with orthogonal writing-mode (page breaks through
@@ -1696,6 +1703,8 @@ public class RootBuilder extends BreakableBuilder {
 	private boolean pageHadContent = false;
 
 	public void finish() {
+		// Every box is closed, so is every barrier: a leftover depth stopped page breaking until here (2026-10-09)
+		assert this.breakDepth == -1 : "文書の終わりで改ページ禁止の深さが " + this.breakDepth + " のままです";
 		this.requireNoIncompleteTable();
 		this.finishLayout();
 		// Footnotes F4: if footnotes deferred for capacity remain, generate note-only pages

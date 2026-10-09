@@ -1974,6 +1974,10 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					break;
 				}
 				this.flowStack.remove(i);
+				// As endFlowBlock() does: resume's startFlowBlock() counts the flow again (2026-10-09)
+				if (this.breakDepth != -1) {
+					--this.breakDepth;
+				}
 			}
 		}
 	}
