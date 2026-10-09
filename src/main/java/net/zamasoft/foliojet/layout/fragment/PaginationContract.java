@@ -16,17 +16,15 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  * </p>
  *
  * <p>
- * <b>The two predicates intentionally differ in strength.</b>
- * {@link #isChainAtomicBoundary} requires an exact {@link WritingMode} match
- * (RL⇄LR direction changes also form boundaries) and prevents automatic page breaking from starting
- * inside the box at all (commit {@code 77eef99} , same treatment as
- * {@link ContinuationCapability#SAME_AXIS_DIRECTION_CHANGE} ).
- * By contrast, {@link #splitsInPageAxis} compares only the axis (vertical/horizontal) to determine whether
- * a geometric cut in place makes sense. Different directions on the same axis (RL⇄LR) have identical
- * page-axis geometry, so actual cutting remains possible.
- * Since the upstream barrier suppresses automatic page breaks, this difference appears in real documents
- * only on limited paths such as forced page breaks. This asymmetry is shipped behavior;
- * unifying it requires review of all golden differences.
+ * Both predicates require an exact {@link WritingMode} match: a box whose block flow runs the other way on the
+ * same axis (RL⇄LR) is atomic like an orthogonal one. {@link #isChainAtomicBoundary} prevents automatic page
+ * breaking from starting inside the box at all (commit {@code 77eef99} , same treatment as
+ * {@link ContinuationCapability#SAME_AXIS_DIRECTION_CHANGE} ), and {@link #splitsInPageAxis} keeps it from being
+ * cut in place: it fits entirely or moves entirely to the next page, as in Chrome.
+ * {@link #splitsInPageAxis} compared only the axis until 2026-10-09. Cutting a reversed box put its start (where
+ * its content begins) past the cut, and column balancing cut it into column-high pieces it could not fill: in a
+ * column-count: 3 or more multicol that left the box in a column narrower than the page's rest, and its text off
+ * the page (sweep defect R).
  * </p>
  *
  * @see ContinuationCapability classification for ancestor-chain collection (open chain)
@@ -98,29 +96,29 @@ public final class PaginationContract {
 	}
 
 	/**
-	 * Determines whether a child block with writing direction {@code inner} can be cut in place
-	 * (whether the cut makes geometric sense on the page axis) in a context whose page progression axis is
-	 * {@code vertical} (whether writing is vertical).
+	 * Determines whether a child block with writing direction {@code inner} can be cut in place in a context with
+	 * writing direction {@code outer}.
 	 *
 	 * <p>
-	 * Children on a different axis (equivalent to {@link ContinuationCapability#ORTHOGONAL_FLOW} ) are not cut;
-	 * they follow the same atomic path as replaced elements (keep entirely or move entirely to the next page).
+	 * Children on a different axis (equivalent to {@link ContinuationCapability#ORTHOGONAL_FLOW} ) or in the other
+	 * direction on the same axis (equivalent to {@link ContinuationCapability#SAME_AXIS_DIRECTION_CHANGE} ) are not
+	 * cut; they follow the same atomic path as replaced elements (keep entirely or move entirely to the next page).
 	 * </p>
 	 */
-	public static boolean splitsInPageAxis(final boolean vertical, final WritingMode inner) {
-		return vertical == inner.isVertical();
+	public static boolean splitsInPageAxis(final WritingMode outer, final WritingMode inner) {
+		return outer == inner;
 	}
 
 	/**
 	 * Variant that examines the box itself (Grid G0). {@code PageAtomicBox} also skips geometric cutting
 	 * in place (move entirely → visual rescue).
 	 */
-	public static boolean splitsInPageAxis(final boolean vertical,
+	public static boolean splitsInPageAxis(final WritingMode outer,
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
 		if (box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox atomic && atomic.isPageAtomicNow()
 				&& !isRowSplitEligible(box)) {
 			return false;
 		}
-		return splitsInPageAxis(vertical, box.getBlockParams().flow);
+		return splitsInPageAxis(outer, box.getBlockParams().flow);
 	}
 }

@@ -1422,7 +1422,7 @@ public class FlowContainer implements Container {
 				// §5.10 rule 3), use the atomic REPLACED path without an internal page break.
 				if ((cParams.pageBreakInside != PageBreakMode.AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0
 						|| unfulfillableAvoid)
-						&& net.zamasoft.foliojet.layout.fragment.PaginationContract.splitsInPageAxis(vertical,
+						&& net.zamasoft.foliojet.layout.fragment.PaginationContract.splitsInPageAxis(this.box.getBlockParams().flow,
 								(AbstractContainerBox) prevFlow.box)) {
 					if (plan != null && plan.selects(prevFlow.box)) {
 						// C1d-C: Continue a chain member. Fragments propagate to the parent in the return value
