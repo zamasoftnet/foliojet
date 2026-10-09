@@ -254,6 +254,63 @@ public class GridEdgeCasesTest extends TestCase {
 	}
 
 	/**
+	 * An item that align-items: center puts below its row start is split at the cut line as it lies in the item
+	 * (2026-10-09). Split at the cut line as it lies in the row, a centered item that the cut line passed above stayed
+	 * whole on the first page, below the paper (smolcss: the tags beside a long form at y=1103 on a 770pt page).
+	 * Chrome: an item wholly below the cut line goes on the next page where the unbroken row put it, one that the cut
+	 * line crosses starts the next page, and a centered list that the cut line crosses splits between its lines.
+	 */
+	public void testCenteredItemInSplitRow() throws Exception {
+		final String style = "@page { size: 300pt 300pt; margin: 0 } body { margin: 0; font: 10pt/15pt serif }"
+				+ " p, ul { margin: 0 } .a { display: grid; grid-auto-flow: column; align-items: center;"
+				+ " justify-content: start; gap: 10pt }";
+		// 50 lines (750pt) from the page top: TAGS at 367.5, page 2 at 67.5.
+		List<String> pages = convertPages("center-below", centeredRow(style, 0, 50, "<li>TAGS</li>"));
+		assertFalse("TAGS は 1 頁目に残らない:\n" + pages.get(0), pages.get(0).contains("Text[\"TAGS\""));
+		assertEquals("TAGS は 2 頁目の行の中ほど", 67.5, y(pages.get(1), "TAGS"), 0.5);
+		// 40 lines (600pt): TAGS at 292.5 crosses the page bottom and starts page 2.
+		pages = convertPages("center-across", centeredRow(style, 0, 40, "<li>TAGS</li>"));
+		assertFalse("TAGS は 1 頁目に残らない:\n" + pages.get(0), pages.get(0).contains("Text[\"TAGS\""));
+		assertEquals("TAGS は 2 頁目の頭", 0, y(pages.get(1), "TAGS"), 0.5);
+		// 30 lines after 100pt, 8 tags (120pt) at 265: two lines fit on page 1, the rest start page 2.
+		pages = convertPages("center-split", centeredRow(style, 100, 30,
+				"<li>TAGS</li><li>T2</li><li>T3</li><li>T4</li><li>T5</li><li>T6</li><li>T7</li><li>T8</li>"));
+		assertEquals("TAGS", 265, y(pages.get(0), "TAGS"), 0.5);
+		assertEquals("T2", 280, y(pages.get(0), "T2"), 0.5);
+		assertEquals("T3 は 2 頁目の頭", 0, y(pages.get(1), "T3"), 0.5);
+		assertOnPaper(pages);
+		// An explicit row taller than the page with nothing that splits: TAGS at 392.5 goes on where the row continues
+		// (Chrome: 92.25 on page 2; Copper leaves out the blank first page).
+		pages = convertPages("center-tall-row", document(style.replace("grid-auto-flow: column;",
+				"grid-template-rows: 800pt;"), "<div class=\"a\"><ul><li>TAGS</li></ul></div><p>END</p>"));
+		final String tags = pages.stream().filter(p -> p.contains("Text[\"TAGS\"")).findFirst().orElseThrow();
+		assertEquals("TAGS は行の続きの中ほど", 92.5, y(tags, "TAGS"), 0.5);
+		assertOnPaper(pages);
+	}
+
+	private static void assertOnPaper(final List<String> pages) {
+		for (final String page : pages) {
+			final Matcher m = TEXT.matcher(page);
+			while (m.find()) {
+				assertTrue(m.group(3) + " が紙面の外:\n" + page, Double.parseDouble(m.group(2)) < 300);
+			}
+		}
+	}
+
+	private static String centeredRow(final String style, final int before, final int lines, final String tags) {
+		final StringBuilder body = new StringBuilder();
+		if (before > 0) {
+			body.append("<div style=\"height: ").append(before).append("pt\">PRE</div>");
+		}
+		body.append("<div class=\"a\"><ul>").append(tags).append("</ul><div>");
+		for (int i = 0; i < lines; ++i) {
+			body.append("<p>D").append(i).append(" lorem ipsum dolor sit amet.</p>");
+		}
+		body.append("</div></div><p>END</p>");
+		return document(style, body.toString());
+	}
+
+	/**
 	 * A descendant's max-inline-size caps what a grid or flex item contributes to its container's min-content size,
 	 * as it already did for a plain shrink-to-fit block (Chrome: the boxes are 300px = 225pt).
 	 */

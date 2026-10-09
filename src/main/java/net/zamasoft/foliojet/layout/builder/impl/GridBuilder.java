@@ -1302,6 +1302,7 @@ public final class GridBuilder
 			}
 			final List<GridBox.Row> gridRows = new ArrayList<>();
 			final List<GridItemBox> gridRowItems = new ArrayList<>(count);
+			final double[] gridRowOffsets = new double[count];
 			int rowStartFlow = 0;
 			double itemsEnd = 0;
 			int currentRow = plan.areas().get(order[0]).row();
@@ -1318,11 +1319,12 @@ public final class GridBuilder
 				final double startShim = r == 0 ? 0 : this.rowSubgridGapShim;
 				itemsEnd = Math.max(itemsEnd, yOffsets[i] - startShim
 						+ this.items.get(i).itemBox.paintedPageExtent(params.flow));
+				gridRowOffsets[idx] = yOffsets[i] - startShim;
 				gridRowItems.add(this.items.get(i).itemBox);
 			}
 			gridRows.add(new GridBox.Row(rowStartFlow, count - rowStartFlow, ledgerRowStarts[currentRow],
 					ledgerRowHeights[currentRow], itemsEnd));
-			this.gridBox.setGridRows(gridRows, gridRowItems);
+			this.gridBox.setGridRows(gridRows, gridRowItems, gridRowOffsets);
 		}
 		this.rowSubgridLink = null;
 		this.rowSubgridOwner = null;
@@ -1617,6 +1619,7 @@ public final class GridBuilder
 			rowMajor = true;
 		}
 		final double[] itemPageEnds = new double[count];
+		final double[] yOffsets = new double[count];
 		for (int idx = 0; idx < count; ++idx) {
 			final int i = order[idx];
 			final GridItemBox itemBox = this.items.get(i).itemBox;
@@ -1642,6 +1645,7 @@ public final class GridBuilder
 			final double free = Math.max(0, areaHeight - extents[i]);
 			final double yOffset = aligns[i] == BoxAlignment.CENTER ? free / 2
 					: aligns[i] == BoxAlignment.END ? free : 0;
+			yOffsets[i] = yOffset;
 			this.gridBox.getContainer().addFlow(itemBox, rowStarts[area.row()] + yOffset);
 			// For the row splitting (G6) slack check: the end **actually painted** by an item relative to row start
 			// (2026-08-29, G7). Without a background/frame, use the content end; otherwise use
@@ -1669,6 +1673,7 @@ public final class GridBuilder
 		if (rowMajor) {
 			final java.util.List<GridBox.Row> gridRows = new ArrayList<>();
 			final java.util.List<GridItemBox> gridRowItems = new ArrayList<>(count);
+			final double[] gridRowOffsets = new double[count];
 			int rowStartFlow = 0;
 			double itemsEnd = 0;
 			int currentRow = plan.areas().get(order[0]).row();
@@ -1683,11 +1688,12 @@ public final class GridBuilder
 					currentRow = r;
 				}
 				itemsEnd = Math.max(itemsEnd, itemPageEnds[i]);
+				gridRowOffsets[idx] = yOffsets[i];
 				gridRowItems.add(this.items.get(i).itemBox);
 			}
 			gridRows.add(new GridBox.Row(rowStartFlow, count - rowStartFlow, rowStarts[currentRow],
 					rowHeights[currentRow], itemsEnd));
-			this.gridBox.setGridRows(gridRows, gridRowItems);
+			this.gridBox.setGridRows(gridRows, gridRowItems, gridRowOffsets);
 		}
 		final LayoutContext.Flow active = target.getFlow();
 		assert active.box == this.gridBox : "Grid bindでactive flowがGridではない: " + active.box;

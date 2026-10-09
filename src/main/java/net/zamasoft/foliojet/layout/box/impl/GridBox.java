@@ -97,6 +97,12 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 	private List<GridItemBox> rowItems;
 
 	/**
+	 * The page-axis offset of each item of {@link #rowItems} from its row start: the space {@code align-self: center}
+	 * or {@code end} puts before a shorter item (2026-10-09). null when every item is at its row start.
+	 */
+	private double[] rowItemOffsets;
+
+	/**
 	 * Whether track placement ({@code GridBuilder.bind}) actually ran. If not, the contents
 	 * are single-column normal flow (G0 degradation with TwoPass inactive), with no track
 	 * placement to protect, so do not assert the atomic contract ({@link #isPageAtomicNow}).
@@ -142,6 +148,19 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 	 * after placement; also used to rebase continuation-fragment ledgers during splitting).
 	 */
 	public final void setGridRows(final List<Row> rows, final List<GridItemBox> rowItems) {
+		this.setGridRows(rows, rowItems, null);
+	}
+
+	/**
+	 * Sets row boundary information with the offset of each item from its row start ({@link #rowItemOffsets}; null
+	 * when every item is at its row start).
+	 */
+	public final void setGridRows(final List<Row> rows, final List<GridItemBox> rowItems, final double[] offsets) {
+		assert offsets == null || offsets.length == rowItems.size() : "offsets " + offsets.length + " != items "
+				+ rowItems.size();
+		// Rounding noise of the alignment (free / 2 of an item as tall as its row) is no offset
+		this.rowItemOffsets = offsets == null || java.util.Arrays.stream(offsets).allMatch(o -> Math.abs(o) < 1e-6) ? null
+				: java.util.Arrays.stream(offsets).map(o -> Math.abs(o) < 1e-6 ? 0 : o).toArray();
 		List<Row> withGaps = rows;
 		for (int i = 0; i < rows.size(); ++i) {
 			final Row row = rows.get(i);
@@ -290,8 +309,18 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 		if (crosses) {
 			final double remaining = pageLimit - boundaryRow.start();
 			final GridItemBox[] boundaryItems = new GridItemBox[boundaryRow.itemCount()];
+			// An item that align-self put below its row start splits at the cut line as it lies in the item
+			// (2026-10-09). Splitting it at the cut line as it lies in the row kept an item the cut line passed
+			// above (a centered item in a row taller than the rest of the page) whole on this page, below the paper
+			// (smolcss: the tags beside a long CodePen form at y=1103 on a 770pt page).
+			final double[] offsets = new double[boundaryItems.length];
+			final boolean[] below = new boolean[boundaryItems.length];
+			boolean anyBelow = false;
 			for (int k = 0; k < boundaryItems.length; ++k) {
 				boundaryItems[k] = this.rowItems.get(boundaryRow.startFlow() + k);
+				offsets[k] = this.itemOffset(boundaryRow.startFlow() + k);
+				below[k] = LayoutUtils.compare(offsets[k], remaining) >= 0;
+				anyBelow |= below[k];
 			}
 			// Item height before splitting (for the remainder lower bound below). Measured before the probe, which
 			// already splits the items it can (2026-10-09, as FlexBox.split): measured after it, it was the kept height.
@@ -301,7 +330,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			for (int k = 0; k < boundaryItems.length; ++k) {
 				preExtents[k] = boundaryItems[k].getPageExtent(flow);
 				contentExtents[k] = RowSplitBox.contentPageExtent(boundaryItems[k], preExtents[k], flow);
-				contentExtent = Math.max(contentExtent, contentExtents[k]);
+				contentExtent = Math.max(contentExtent, offsets[k] + contentExtents[k]);
 			}
 			final boolean followsContent = LayoutUtils.compare(this.rowExtent(boundaryRow, flow), contentExtent) <= 0;
 			final SplitResult[] probed = new SplitResult[boundaryItems.length];
@@ -313,12 +342,21 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 					&& LayoutUtils.compare(this.itemsEnd(boundaryRow, boundaryItems, flow), remaining) <= 0;
 			if (!anySplit && !slack) {
 				for (int k = 0; k < boundaryItems.length; ++k) {
-					final SplitResult r = boundaryItems[k].split(remaining, mode, xflags);
+					if (below[k]) {
+						// The whole item lies below the cut line: it goes on with the remainder of the row.
+						continue;
+					}
+					final SplitResult r = boundaryItems[k].split(remaining - offsets[k], mode,
+							itemFlags(xflags, offsets[k]));
 					probed[k] = r;
 					if (r instanceof SplitResult.Split) {
 						anySplit = true;
 					}
 				}
+				// A row at the page start that nothing splits is kept whole below: one with an item below the cut line
+				// is split all the same, or that item stayed below the paper (a centered item in an explicit row taller
+				// than the page). A later row moves to the next page whole instead, as before.
+				anySplit |= anyBelow && boundary == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0;
 			}
 			if (slack) {
 				// All items in the boundary row fit before the cut line; only trailing row space
@@ -329,6 +367,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				final RowSplitContainer cont = new RowSplitContainer();
 				final List<Row> contRows = new ArrayList<>();
 				final List<GridItemBox> contItems = new ArrayList<>();
+				double[] contOffsets = null;
 				if (boundary + 1 < this.rows.size()) {
 					final Row nextRow = this.rows.get(boundary + 1);
 					((Container) this.container).migrateFlowsFrom(nextRow.startFlow(), cont, pageLimit);
@@ -340,13 +379,14 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 						shift += old.itemCount();
 					}
 					contItems.addAll(this.rowItems.subList(nextRow.startFlow(), this.rowItems.size()));
+					contOffsets = this.offsetsFrom(nextRow.startFlow());
 				}
 				cont.anchorCurrent(0);
 				final AbstractContainerBox continuation = this.splitPage(cont, pageLimit, false);
 				if (continuation instanceof GridBox contGrid) {
 					contGrid.markTrackLayout();
 					if (!contRows.isEmpty()) {
-						contGrid.setGridRows(contRows, contItems);
+						contGrid.setGridRows(contRows, contItems, contOffsets);
 					}
 				}
 				this.keepHeadRows(boundary + 1);
@@ -358,7 +398,8 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				final GridItemBox[] remainders = new GridItemBox[boundaryItems.length];
 				for (int k = 0; k < boundaryItems.length; ++k) {
 					final SplitResult r = probed[k] instanceof SplitResult.Split ? probed[k]
-							: boundaryItems[k].split(remaining, mode, forcedFlags);
+							: boundaryItems[k].split(Math.max(0, remaining - offsets[k]), mode,
+									itemFlags(forcedFlags, offsets[k]));
 					if (!(r instanceof SplitResult.Split(final IPageBreakableBox remainder))
 							|| !(remainder instanceof GridItemBox typedRemainder)) {
 						throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
@@ -374,18 +415,28 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				// (paintedPageExtent; boxes with visible frames use the full box, conservatively falling
 				// on the cut line as before) to close the kept fragment at its actual consumed extent
 				// and subtract the same amount from the continuation row starts.
+				// An item below the row start ends its kept side at its offset plus what it kept; one wholly below
+				// the cut line keeps nothing here.
 				double consumed = 0;
 				for (int k = 0; k < boundaryItems.length; ++k) {
-					consumed = Math.max(consumed, boundaryItems[k].paintedPageExtent(flow));
+					if (!below[k]) {
+						consumed = Math.max(consumed, offsets[k] + boundaryItems[k].paintedPageExtent(flow));
+					}
 				}
-				consumed = Math.min(consumed, remaining);
+				// Nothing kept but an item below the cut line: the page took the blank part of the row.
+				consumed = consumed > 0 || !anyBelow ? Math.min(consumed, remaining) : remaining;
 				final double keptEnd = boundaryRow.start() + consumed;
+				// The remainders start the continuation row, except that an item wholly below the cut line keeps its
+				// place in the row as if the row were not broken (css-grid-1 §12: minimize the distortion; Chrome
+				// puts it there too when the row starts its page): its offset less what the row used on this page.
+				final double[] contOffsets = new double[boundaryItems.length];
 				final RowSplitContainer cont = new RowSplitContainer();
 				double newRowExtent = 0;
 				for (int k = 0; k < remainders.length; ++k) {
+					contOffsets[k] = below[k] ? Math.max(0, offsets[k] - consumed) : 0;
 					remainders[k].setGridLineOffset(boundaryItems[k].getGridLineOffset());
-					cont.addFlow(remainders[k], 0);
-					newRowExtent = Math.max(newRowExtent, remainders[k].getPageExtent(flow));
+					cont.addFlow(remainders[k], contOffsets[k]);
+					newRowExtent = Math.max(newRowExtent, contOffsets[k] + remainders[k].getPageExtent(flow));
 				}
 				// **Keep the continuation row height at least as large as the remainder** (2026-08-17).
 				// The remainder is not laid out at this point (before anchor restoration),
@@ -400,8 +451,9 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				// side (2026-10-09, as FlexBox.split; gd2 fell 4pt behind a page with the bounds below).
 				if (followsContent) {
 					for (int k = 0; k < boundaryItems.length; ++k) {
-						newRowExtent = Math.max(newRowExtent,
-								contentExtents[k] - FlexBox.keptContentEnd(boundaryItems[k], consumed, flow));
+						newRowExtent = Math.max(newRowExtent, below[k] ? contOffsets[k] + contentExtents[k]
+								: contentExtents[k] - FlexBox.keptContentEnd(boundaryItems[k],
+										Math.max(0, consumed - offsets[k]), flow));
 					}
 				} else {
 					newRowExtent = Math.max(newRowExtent, this.rowExtent(boundaryRow, flow) - consumed);
@@ -414,7 +466,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				// (observed in smolcss: the kept side sent an atomic demo box onward and ended ~65 pt early,
 				// so the next article's body text overlapped the previous article's footer).
 				for (int k = 0; k < boundaryItems.length && !followsContent; ++k) {
-					newRowExtent = Math.max(newRowExtent, preExtents[k] - consumed);
+					newRowExtent = Math.max(newRowExtent, offsets[k] + preExtents[k] - consumed);
 				}
 				final List<GridItemBox> contItems = new ArrayList<>(
 						remainders.length + this.rowItems.size() - (boundaryRow.startFlow() + boundaryItems.length));
@@ -440,11 +492,19 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 					}
 					contItems.addAll(this.rowItems.subList(nextRow.startFlow(), this.rowItems.size()));
 				}
+				final double[] allContOffsets = new double[contItems.size()];
+				System.arraycopy(contOffsets, 0, allContOffsets, 0, contOffsets.length);
+				if (boundary + 1 < this.rows.size()) {
+					final double[] later = this.offsetsFrom(this.rows.get(boundary + 1).startFlow());
+					if (later != null) {
+						System.arraycopy(later, 0, allContOffsets, contOffsets.length, later.length);
+					}
+				}
 				cont.anchorCurrent(remainders.length);
 				final AbstractContainerBox continuation = this.splitPage(cont, keptEnd, false);
 				if (continuation instanceof GridBox contGrid) {
 					contGrid.markTrackLayout();
-					contGrid.setGridRows(contRows, contItems);
+					contGrid.setGridRows(contRows, contItems, allContOffsets);
 				}
 				this.keepHeadRows(boundary + 1);
 				return new SplitResult.Split(continuation);
@@ -477,7 +537,8 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 		if (continuation instanceof GridBox contGrid) {
 			contGrid.markTrackLayout();
 			contGrid.setGridRows(shiftRows(this.rows, firstRow, keptExtent),
-					new ArrayList<>(this.rowItems.subList(first.startFlow(), this.rowItems.size())));
+					new ArrayList<>(this.rowItems.subList(first.startFlow(), this.rowItems.size())),
+					this.offsetsFrom(first.startFlow()));
 		}
 		this.keepHeadRows(firstRow);
 		return new SplitResult.Split(continuation);
@@ -494,7 +555,8 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 		double extent = row.extent();
 		if (Double.isNaN(row.itemsEnd())) {
 			for (int k = 0; k < row.itemCount(); ++k) {
-				extent = Math.max(extent, this.rowItems.get(row.startFlow() + k).getPageExtent(flow));
+				extent = Math.max(extent, this.itemOffset(row.startFlow() + k)
+						+ this.rowItems.get(row.startFlow() + k).getPageExtent(flow));
 			}
 		}
 		return extent;
@@ -502,7 +564,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 
 	/**
 	 * The end the items of a row paint, relative to the row start: the ledger's value, or for a row of remainders
-	 * (NaN, recorded before they were laid out) the largest painted extent of its items, which sit at the row start
+	 * (NaN, recorded before they were laid out) the largest painted end of its items, from their offsets
 	 * (2026-10-09).
 	 */
 	private double itemsEnd(final Row row, final GridItemBox[] items, final WritingMode flow) {
@@ -510,10 +572,37 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			return row.itemsEnd();
 		}
 		double end = 0;
-		for (final GridItemBox item : items) {
-			end = Math.max(end, item.paintedPageExtent(flow));
+		for (int k = 0; k < items.length; ++k) {
+			end = Math.max(end, this.itemOffset(row.startFlow() + k) + items[k].paintedPageExtent(flow));
 		}
 		return end;
+	}
+
+	/** The offset of an item of {@link #rowItems} from its row start ({@link #rowItemOffsets}). */
+	private double itemOffset(final int index) {
+		return this.rowItemOffsets == null || index >= this.rowItemOffsets.length ? 0 : this.rowItemOffsets[index];
+	}
+
+	/** The offsets of the items of {@link #rowItems} from {@code from} on; null when they are all 0. */
+	private double[] offsetsFrom(final int from) {
+		if (this.rowItemOffsets == null) {
+			return null;
+		}
+		final int count = Math.min(this.rowItemOffsets.length, this.rowItems.size()) - from;
+		if (count <= 0) {
+			return null;
+		}
+		final double[] result = new double[count];
+		System.arraycopy(this.rowItemOffsets, from, result, 0, count);
+		return result;
+	}
+
+	/**
+	 * The flags for splitting an item of the boundary row: one below its row start is not at the start of the page
+	 * (2026-10-09), so it does not keep a line that crosses the cut line to make progress.
+	 */
+	private static byte itemFlags(final byte flags, final double offset) {
+		return LayoutUtils.compare(offset, 0) > 0 ? (byte) (flags & ~IPageBreakableBox.FLAGS_FIRST) : flags;
 	}
 
 	/**
@@ -528,6 +617,9 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				: Math.min(this.rowItems.size(), this.rows.get(rows - 1).startFlow() + this.rows.get(rows - 1).itemCount());
 		this.rows = new ArrayList<>(this.rows.subList(0, rows));
 		this.rowItems = new ArrayList<>(this.rowItems.subList(0, items));
+		if (this.rowItemOffsets != null) {
+			this.rowItemOffsets = java.util.Arrays.copyOf(this.rowItemOffsets, Math.min(items, this.rowItemOffsets.length));
+		}
 	}
 
 	/**
