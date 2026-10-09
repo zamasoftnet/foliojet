@@ -406,6 +406,14 @@ public final class FlowCutter {
 									flowPageExtents)) {
 						return new MoveResolution.RelaxInside(relaxInsideIndex, lastOrphan);
 					}
+					// The cut line is the probe of an avoid pushback of the parent, asking for a break inside this
+					// box that keeps the avoids. There is none, so the box stays whole and the parent relaxes its
+					// avoid: ignoring the avoids here broke before this box's last flow and left its first one alone
+					// on the page, page after page (jp-wikisource with dl, dd { page-break-before: avoid } and no
+					// margins: pages of one article).
+					if ((outerFlags & IPageBreakableBox.FLAGS_AVOID_PROBE) != 0) {
+						return new MoveResolution.Terminal(new PreDecision.KeepFloats(prevPageSize));
+					}
 					// Normally, ignore page-break prohibitions
 					return new MoveResolution.RestartIgnoringAvoid(lastOrphan);
 				}

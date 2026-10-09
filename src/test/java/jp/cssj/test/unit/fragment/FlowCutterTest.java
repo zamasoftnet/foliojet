@@ -155,6 +155,15 @@ public class FlowCutterTest extends TestCase {
 				&& restart.nextIndex() == 2);
 	}
 
+	public void testResolveMovePhysicalFirstTowedKeepsWholeAtAvoidProbe() {
+		// At an avoid probe of the parent (2026-10-09): there is no break that keeps the avoids, so the box stays whole
+		// and the parent relaxes its avoid.
+		final FlowCutter.MoveResolution r = resolveMove(FIRST,
+				(byte) (FIRST | net.zamasoft.foliojet.layout.box.IPageBreakableBox.FLAGS_AVOID_PROBE), 0, 2, false);
+		assertTrue(r instanceof FlowCutter.MoveResolution.Terminal t
+				&& t.action() instanceof FlowCutter.PreDecision.KeepFloats);
+	}
+
 	public void testResolveMovePhysicalFirstTowedRelaxesInsideWhenChainExceedsEmptyFragmentainer() {
 		final FlowCutter.MoveResolution r = resolveMove(FIRST, FIRST, 0, 1, false, 1, 70);
 		assertTrue(r instanceof FlowCutter.MoveResolution.RelaxInside relax && relax.index() == 1

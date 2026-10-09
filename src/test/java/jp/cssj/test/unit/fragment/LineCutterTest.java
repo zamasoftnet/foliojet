@@ -21,8 +21,13 @@ public class LineCutterTest extends TestCase {
 	}
 
 	private static Decision decide(int lineCount, double pageLimit, int orphans, int widows, boolean first) {
+		return decide(lineCount, pageLimit, orphans, widows, first, false);
+	}
+
+	private static Decision decide(int lineCount, double pageLimit, int orphans, int widows, boolean first,
+			boolean probe) {
 		final double[][] l = lines(lineCount);
-		return LineCutter.decide(pageLimit, lineCount * 10, 10, orphans, widows, first, l[0], l[1]);
+		return LineCutter.decide(pageLimit, lineCount * 10, 10, orphans, widows, first, probe, l[0], l[1]);
 	}
 
 	public void testKeepWhenFits() {
@@ -79,5 +84,19 @@ public class LineCutterTest extends TestCase {
 		final Decision d = decide(4, 15, 2, 1, true);
 		assertTrue(d instanceof Decision.CutAfter);
 		assertEquals(0, ((Decision.CutAfter) d).lastLine());
+	}
+
+	public void testFirstKeepsWholeAtAvoidProbe() {
+		// At the top of the page, at an avoid probe of the parent no cut keeps widows, and the block fits: it stays
+		// whole instead of leaving one line (2026-10-09). The end of the page still leaves one line.
+		assertTrue(decide(2, 19, 2, 2, true, true) instanceof Decision.Keep);
+		assertTrue(decide(3, 29, 1, 3, true, true) instanceof Decision.Keep);
+		assertTrue(decide(2, 19, 2, 2, true, false) instanceof Decision.CutAfter);
+		// A cut that keeps widows is still taken.
+		final Decision d = decide(4, 39, 1, 2, true, true);
+		assertTrue(d instanceof Decision.CutAfter);
+		assertEquals(1, ((Decision.CutAfter) d).lastLine());
+		// Not first: the block moves as before.
+		assertTrue(decide(2, 19, 2, 2, false, true) instanceof Decision.Move);
 	}
 }

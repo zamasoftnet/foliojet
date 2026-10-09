@@ -407,8 +407,8 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		final double[] lineEnds = new double[this.lines.size()];
 		this.measureLines(lineStarts, lineEnds);
 		final LineCutter.Decision decision = LineCutter.decide(pageLimit, pageSize, this.params.lineHeight,
-				this.params.orphans, this.params.widows, (flags & IPageBreakableBox.FLAGS_FIRST) != 0, lineStarts,
-				lineEnds);
+				this.params.orphans, this.params.widows, (flags & IPageBreakableBox.FLAGS_FIRST) != 0,
+				(flags & IPageBreakableBox.FLAGS_AVOID_PROBE) != 0, lineStarts, lineEnds);
 		switch (decision) {
 		case LineCutter.Decision.Keep keep:
 			return SplitResult.KEEP;

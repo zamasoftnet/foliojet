@@ -46,6 +46,14 @@ public interface IPageBreakableBox extends IBox {
 	public static final byte FLAGS_FLOAT_CROSSES = 16;
 
 	/**
+	 * The cut line is the probe an avoid pushback of the parent puts just before the end of this box (2026-10-09). The
+	 * box fits; the parent only asks for a break inside it that keeps the avoids, and relaxes its avoid when there is
+	 * none. Such a break need not make progress, so at the start of the page the box stays whole rather than keep
+	 * its first line alone. Set by {@code FlowContainer} and passed down unchanged.
+	 */
+	public static final byte FLAGS_AVOID_PROBE = 32;
+
+	/**
 	 * Splits the box along the page axis (M4-A3: native SplitResult).
 	 *
 	 * @param pageLimit the distance from the box's outer edge (page-axis start) to the split position.

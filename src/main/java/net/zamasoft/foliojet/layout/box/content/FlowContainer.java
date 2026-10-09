@@ -1291,6 +1291,8 @@ public class FlowContainer implements Container {
 
 		FlowContainer nextBox = null;
 		boolean ignoreAvoid = false;
+		// The flow an avoid pushback probes just before its end (FLAGS_AVOID_PROBE, 2026-10-09)
+		int probeIndex = -1;
 		int relaxInsideIndex = -1;
 		double savePageLimit = pageLimit;
 		// B5c-2 Step3 (automatic page-break main loop, retried 2026-07-22): Whether the chain member
@@ -1318,7 +1320,9 @@ public class FlowContainer implements Container {
 					((AutoBreakMode) mode).box == this.box, innerFlags);
 			final double splitLine = step.splitLine();
 			final byte lflags = step.positionMask();
-			final byte xflags = step.splitFlags();
+			final byte xflags = !ignoreAvoid && i == probeIndex
+					? (byte) (step.splitFlags() | IPageBreakableBox.FLAGS_AVOID_PROBE)
+					: step.splitFlags();
 
 			final boolean monolithicAvoid;
 			final boolean unfulfillableAvoid;
@@ -1619,6 +1623,7 @@ public class FlowContainer implements Container {
 					// When a page break between blocks is prohibited
 					i = resumeIndex;
 					pageLimit = newPageLimit;
+					probeIndex = resumeIndex + 1;
 					continue;
 				case FlowCutter.MoveResolution.Partition partition:
 					nextBox = this.applyPartition(i, outcome);

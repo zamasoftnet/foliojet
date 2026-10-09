@@ -9,7 +9,8 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * <p>
  * Evaluates widows/orphans against the virtual line count obtained by dividing the target range's height
  * by line-height. If both constraints cannot be satisfied, moves the entire block to the next page.
- * At the page start (first), however, ignores orphans and leaves at least one line on the preceding page.
+ * At the page start (first), however, ignores orphans and leaves at least one line on the preceding page,
+ * unless the cut line is an avoid probe of the parent: then the block stays whole.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -80,13 +81,14 @@ public final class LineCutter {
 	 * @param orphans minimum virtual line count to leave on the preceding page
 	 * @param widows minimum virtual line count to send to the next page
 	 * @param first whether the box is at the page start (FLAGS_FIRST)
+	 * @param probe whether the cut line is an avoid probe of the parent (FLAGS_AVOID_PROBE): the box fits
 	 * @param lineStarts top-edge position of each line
 	 * @param lineEnds bottom-edge position of each line
 	 * @return the cut decision
 	 */
 	public static Decision decide(final double pageLimit, final double pageSize, final double lineHeight,
-			final int orphans, final int widows, final boolean first, final double[] lineStarts,
-			final double[] lineEnds) {
+			final int orphans, final int widows, final boolean first, final boolean probe,
+			final double[] lineStarts, final double[] lineEnds) {
 		if (LayoutUtils.compare(pageLimit, pageSize) >= 0) {
 			// No move if the cut line is at or below the bottom edge.
 			return Decision.KEEP;
@@ -122,6 +124,11 @@ public final class LineCutter {
 		if (lastOrphan == -1) {
 			if (!first) {
 				return Decision.MOVE;
+			}
+			if (probe) {
+				// The block fits, and the parent only asks for a break that keeps widows: stay whole, so that the
+				// parent relaxes its avoid instead of leaving one line alone on the page, page after page (2026-10-09).
+				return Decision.KEEP;
 			}
 			lastOrphan = 0;
 		}
