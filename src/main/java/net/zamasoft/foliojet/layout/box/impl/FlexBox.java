@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.layout.box.impl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
@@ -97,6 +98,13 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	private List<FlexItemBox> lineItems;
 
 	/**
+	 * The page-axis offset of each item of {@link #lineItems} from its line start: the space {@code align-self: center}
+	 * or {@code end} (or an auto margin) puts before an item shorter than its line (2026-10-09, as
+	 * {@code GridBox.rowItemOffsets}). null when every item is at its line start.
+	 */
+	private double[] lineItemOffsets;
+
+	/**
 	 * Whether {@link #lines} were carried over by {@link #split} to this continuation (2026-10-09). Their sizes are then
 	 * lower bounds set before the items were laid out again, which the items can outgrow; the lines FlexBuilder placed
 	 * are the layout itself.
@@ -152,6 +160,19 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	 * immediately after placement).
 	 */
 	public final void setFlexLines(final List<Line> lines, final List<FlexItemBox> lineItems) {
+		this.setFlexLines(lines, lineItems, null);
+	}
+
+	/**
+	 * Sets line boundary information with the offset of each item from its line start ({@link #lineItemOffsets}; null
+	 * when every item is at its line start).
+	 */
+	public final void setFlexLines(final List<Line> lines, final List<FlexItemBox> lineItems, final double[] offsets) {
+		assert offsets == null || offsets.length == lineItems.size() : "offsets " + offsets.length + " != items "
+				+ lineItems.size();
+		// Rounding noise of the alignment (free / 2 of an item as tall as its line) is no offset
+		this.lineItemOffsets = offsets == null || Arrays.stream(offsets).allMatch(o -> Math.abs(o) < 1e-6) ? null
+				: Arrays.stream(offsets).map(o -> Math.abs(o) < 1e-6 ? 0 : o).toArray();
 		List<Line> withGaps = lines;
 		for (int i = 0; i < lines.size(); ++i) {
 			final Line line = lines.get(i);
@@ -339,7 +360,8 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 				final Line line = this.lines.get(li);
 				for (int k = 0; k < line.itemCount(); ++k) {
 					if (LayoutUtils.compare(pageLimit,
-							line.start() + this.lineItems.get(line.startFlow() + k).paintedPageExtent(flow)) < 0) {
+							line.start() + this.itemOffset(line.startFlow() + k)
+									+ this.lineItems.get(line.startFlow() + k).paintedPageExtent(flow)) < 0) {
 						boundary = li;
 						crosses = true;
 						crossesByPaint = true;
@@ -370,24 +392,21 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			if (boundary == 0) {
 				return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
 			}
-			final double keptExtent = boundaryLine.start();
-			final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
-			((Container) this.container).migrateFlowsFrom(boundaryLine.startFlow(), cont, keptExtent);
-			cont.anchorCurrent(0);
-			final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
-			if (continuation instanceof FlexBox contFlex) {
-				contFlex.markFlexLayout();
-				contFlex.carriedLines = true;
-				contFlex.setFlexLines(shiftLines(this.lines, boundary, keptExtent),
-						new ArrayList<>(this.lineItems.subList(boundaryLine.startFlow(), this.lineItems.size())));
-			}
-			this.keepHeadLines(boundary, boundaryLine.startFlow());
-			return new SplitResult.Split(continuation);
+			return this.carryLines(boundary);
 		}
 		final double remaining = pageLimit - boundaryLine.start();
 		final FlexItemBox[] boundaryItems = new FlexItemBox[boundaryLine.itemCount()];
+		// An item that align-self put below its line start splits at the cut line as it lies in the item (2026-10-09,
+		// as GridBox.split). Splitting it at the cut line as it lies in the line kept an item the cut line passed above
+		// (a centered item in a line taller than the rest of the page) whole on this page, below the paper.
+		final double[] offsets = new double[boundaryItems.length];
+		final boolean[] below = new boolean[boundaryItems.length];
+		boolean anyBelow = false;
 		for (int k = 0; k < boundaryItems.length; ++k) {
 			boundaryItems[k] = this.lineItems.get(boundaryLine.startFlow() + k);
+			offsets[k] = this.itemOffset(boundaryLine.startFlow() + k);
+			below[k] = LayoutUtils.compare(offsets[k], remaining) >= 0;
+			anyBelow |= below[k];
 		}
 
 		// Item height before splitting (for the remainder lower-bound calculation below). Measured before the probe,
@@ -401,7 +420,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			preExtents[k] = boundaryItems[k].getPageExtent(flow);
 			contentExtents[k] = net.zamasoft.foliojet.layout.box.RowSplitBox.contentPageExtent(boundaryItems[k],
 					preExtents[k], flow);
-			contentExtent = Math.max(contentExtent, contentExtents[k]);
+			contentExtent = Math.max(contentExtent, offsets[k] + contentExtents[k]);
 		}
 		final boolean followsContent = LayoutUtils.compare(boundaryLine.pageSize(), contentExtent) <= 0;
 		final double[] prePainted = new double[boundaryItems.length];
@@ -412,14 +431,22 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		boolean anySplit = (flags & IPageBreakableBox.FLAGS_SPLIT) != 0;
 		if (!anySplit) {
 			for (int k = 0; k < boundaryItems.length; ++k) {
-				final SplitResult r = boundaryItems[k].split(remaining, mode, xflags);
+				if (below[k]) {
+					// The whole item lies below the cut line: it goes on with the remainder of the line.
+					continue;
+				}
+				final SplitResult r = boundaryItems[k].split(remaining - offsets[k], mode, itemFlags(xflags, offsets[k]));
 				probed[k] = r;
 				if (r instanceof SplitResult.Split) {
 					anySplit = true;
 				}
 			}
+			// A line at the page start that nothing splits is kept whole below: one with an item below the cut line is
+			// split all the same, or that item stayed below the paper. A later line moves to the next page whole
+			// instead, as before.
+			anySplit |= anyBelow && boundary == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0;
 		}
-		if (crossesByPaint && boundary == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0) {
+		if (crossesByPaint && boundary == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0 && !anyBelow) {
 			// Nothing left the items: their content past the cut line is one piece that does not break (materialui:
 			// an anonymous item laid out again at another width came to 11974pt of one tall line). The fragment stays
 			// whole as before instead of carrying an empty remainder to a page of its own (2026-10-09).
@@ -437,19 +464,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			if (boundary == 0) {
 				return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
 			}
-			final double keptExtent = boundaryLine.start();
-			final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
-			((Container) this.container).migrateFlowsFrom(boundaryLine.startFlow(), cont, keptExtent);
-			cont.anchorCurrent(0);
-			final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
-			if (continuation instanceof FlexBox contFlex) {
-				contFlex.markFlexLayout();
-				contFlex.carriedLines = true;
-				contFlex.setFlexLines(shiftLines(this.lines, boundary, keptExtent),
-						new ArrayList<>(this.lineItems.subList(boundaryLine.startFlow(), this.lineItems.size())));
-			}
-			this.keepHeadLines(boundary, boundaryLine.startFlow());
-			return new SplitResult.Split(continuation);
+			return this.carryLines(boundary);
 		}
 
 		// Boundary row: forcibly split even items that were not split (Keep decision).
@@ -457,7 +472,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		final FlexItemBox[] remainders = new FlexItemBox[boundaryItems.length];
 		for (int k = 0; k < boundaryItems.length; ++k) {
 			final SplitResult r = probed[k] instanceof SplitResult.Split ? probed[k]
-					: boundaryItems[k].split(remaining, mode, forcedFlags);
+					: boundaryItems[k].split(Math.max(0, remaining - offsets[k]), mode, itemFlags(forcedFlags, offsets[k]));
 			if (!(r instanceof SplitResult.Split(final IPageBreakableBox remainder))
 					|| !(remainder instanceof FlexItemBox typedRemainder)) {
 				throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(
@@ -470,9 +485,13 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		// Splitting moves indivisible content whole to the remainder, so the kept fragment's actual content
 		// can end before the cut line. Close the kept fragment at its actual painted end,
 		// and subtract the same amount from the continuation line starts.
+		// An item below the line start ends its kept side at its offset plus what it kept; one wholly below the cut
+		// line keeps nothing here.
 		double consumed = 0;
 		for (int k = 0; k < boundaryItems.length; ++k) {
-			consumed = Math.max(consumed, boundaryItems[k].paintedPageExtent(flow));
+			if (!below[k]) {
+				consumed = Math.max(consumed, offsets[k] + boundaryItems[k].paintedPageExtent(flow));
+			}
 		}
 		consumed = Math.min(consumed, remaining);
 		// Even if structural splitting succeeds, a kept side with only empty or invisible items
@@ -488,11 +507,16 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		final double keptEnd = boundaryLine.start() + consumed;
 		final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
 		final boolean vertical = flow.isVertical();
+		// The remainders start the continuation line, except that an item wholly below the cut line keeps its place in
+		// the line as if the line were not broken (Chrome puts it there too): its offset less what the line used on
+		// this page.
+		final double[] contOffsets = new double[boundaryItems.length];
 		double newLinePageSize = 0;
 		for (int k = 0; k < remainders.length; ++k) {
+			contOffsets[k] = below[k] ? Math.max(0, offsets[k] - consumed) : 0;
 			remainders[k].setFlexLineOffset(boundaryItems[k].getFlexLineOffset(vertical), vertical);
-			cont.addFlow(remainders[k], 0);
-			newLinePageSize = Math.max(newLinePageSize, remainders[k].getPageExtent(flow));
+			cont.addFlow(remainders[k], contOffsets[k]);
+			newLinePageSize = Math.max(newLinePageSize, contOffsets[k] + remainders[k].getPageExtent(flow));
 		}
 		// **Keep the continuation line height at least as large as the remainder** (2026-08-17;
 		// guards against the same ledger error as the corresponding correction in GridBox.split).
@@ -506,8 +530,8 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		// lines after it fell behind by as much (gd2's grid: 4pt a page, 96pt after 25 pages).
 		if (followsContent) {
 			for (int k = 0; k < boundaryItems.length; ++k) {
-				newLinePageSize = Math.max(newLinePageSize,
-						contentExtents[k] - keptContentEnd(boundaryItems[k], consumed, flow));
+				newLinePageSize = Math.max(newLinePageSize, below[k] ? contOffsets[k] + contentExtents[k]
+						: contentExtents[k] - keptContentEnd(boundaryItems[k], Math.max(0, consumed - offsets[k]), flow));
 			}
 		} else {
 			newLinePageSize = Math.max(newLinePageSize, boundaryLine.pageSize() - consumed);
@@ -515,7 +539,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			// (2026-08-18; same correction as in GridBox.split). The kept side can end before
 			// the available extent because indivisible content moves to the remainder.
 			for (int k = 0; k < boundaryItems.length; ++k) {
-				newLinePageSize = Math.max(newLinePageSize, preExtents[k] - consumed);
+				newLinePageSize = Math.max(newLinePageSize, offsets[k] + preExtents[k] - consumed);
 			}
 		}
 		final List<FlexItemBox> contItems = new ArrayList<>(remainders.length
@@ -544,15 +568,69 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			contItems.addAll(this.lineItems.subList(nextLine.startFlow(), this.lineItems.size()));
 		}
 
+		final double[] allContOffsets = new double[contItems.size()];
+		System.arraycopy(contOffsets, 0, allContOffsets, 0, contOffsets.length);
+		if (boundary + 1 < this.lines.size()) {
+			final double[] later = this.offsetsFrom(this.lines.get(boundary + 1).startFlow());
+			if (later != null) {
+				System.arraycopy(later, 0, allContOffsets, contOffsets.length, later.length);
+			}
+		}
 		cont.anchorCurrent(remainders.length);
 		final AbstractContainerBox continuation = this.splitPage(cont, keptEnd, false);
 		if (continuation instanceof FlexBox contFlex) {
 			contFlex.markFlexLayout();
 			contFlex.carriedLines = true;
-			contFlex.setFlexLines(contLines, contItems);
+			contFlex.setFlexLines(contLines, contItems, allContOffsets);
 		}
 		this.keepHeadLines(boundary + 1, boundaryLine.startFlow() + boundaryItems.length);
 		return new SplitResult.Split(continuation);
+	}
+
+	/** Carries the lines from {@code boundary} on whole to the continuation. */
+	private SplitResult carryLines(final int boundary) {
+		final Line boundaryLine = this.lines.get(boundary);
+		final double keptExtent = boundaryLine.start();
+		final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
+		((Container) this.container).migrateFlowsFrom(boundaryLine.startFlow(), cont, keptExtent);
+		cont.anchorCurrent(0);
+		final AbstractContainerBox continuation = this.splitPage(cont, keptExtent, false);
+		if (continuation instanceof FlexBox contFlex) {
+			contFlex.markFlexLayout();
+			contFlex.carriedLines = true;
+			contFlex.setFlexLines(shiftLines(this.lines, boundary, keptExtent),
+					new ArrayList<>(this.lineItems.subList(boundaryLine.startFlow(), this.lineItems.size())),
+					this.offsetsFrom(boundaryLine.startFlow()));
+		}
+		this.keepHeadLines(boundary, boundaryLine.startFlow());
+		return new SplitResult.Split(continuation);
+	}
+
+	/** The offset of an item of {@link #lineItems} from its line start ({@link #lineItemOffsets}). */
+	private double itemOffset(final int index) {
+		return this.lineItemOffsets == null || index >= this.lineItemOffsets.length ? 0 : this.lineItemOffsets[index];
+	}
+
+	/** The offsets of the items of {@link #lineItems} from {@code from} on; null when they are all 0. */
+	private double[] offsetsFrom(final int from) {
+		if (this.lineItemOffsets == null) {
+			return null;
+		}
+		final int count = Math.min(this.lineItemOffsets.length, this.lineItems.size()) - from;
+		if (count <= 0) {
+			return null;
+		}
+		final double[] result = new double[count];
+		System.arraycopy(this.lineItemOffsets, from, result, 0, count);
+		return result;
+	}
+
+	/**
+	 * The flags for splitting an item of the boundary line: one below its line start is not at the start of the page
+	 * (2026-10-09), so it does not keep a line that crosses the cut line to make progress.
+	 */
+	private static byte itemFlags(final byte flags, final double offset) {
+		return LayoutUtils.compare(offset, 0) > 0 ? (byte) (flags & ~IPageBreakableBox.FLAGS_FIRST) : flags;
 	}
 
 	/**
@@ -570,6 +648,9 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	private void keepHeadLines(final int lineCount, final int itemCount) {
 		this.lines = new ArrayList<>(this.lines.subList(0, Math.min(lineCount, this.lines.size())));
 		this.lineItems = new ArrayList<>(this.lineItems.subList(0, Math.min(itemCount, this.lineItems.size())));
+		if (this.lineItemOffsets != null) {
+			this.lineItemOffsets = Arrays.copyOf(this.lineItemOffsets, Math.min(itemCount, this.lineItemOffsets.length));
+		}
 	}
 
 	/**

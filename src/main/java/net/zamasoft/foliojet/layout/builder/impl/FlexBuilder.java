@@ -808,6 +808,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		// rows/cells lists in TableRowGroupBox).
 		final List<FlexBox.Line> flexLines = new ArrayList<>(lines.size());
 		final List<FlexItemBox> flexLineItems = new ArrayList<>(this.items.size());
+		final double[] flexLineOffsets = new double[this.items.size()];
 		for (int v = 0; v < lines.size(); ++v) {
 			final int li = crossReversed ? lines.size() - 1 - v : v;
 			final FlexLineBreaker.Line line = lines.get(li);
@@ -842,13 +843,14 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 							: align == BoxAlignment.END ? Math.max(0, freeCross) : 0;
 				}
 				this.flexBox.getContainer().addFlow(item.itemBox, crossCursor + crossOffset);
+				flexLineOffsets[flexLineItems.size()] = crossOffset;
 				flexLineItems.add(item.itemBox);
 			}
 			flexLines.add(new FlexBox.Line(lineStartFlow, line.to() - line.from(), lineStart, lineExtent));
 			crossCursor += lineExtent + (v < lines.size() - 1 ? dist.between() : 0);
 		}
 		if (!this.items.isEmpty()) {
-			this.flexBox.setFlexLines(flexLines, flexLineItems);
+			this.flexBox.setFlexLines(flexLines, flexLineItems, flexLineOffsets);
 		}
 		this.flexBox.setPageAxis(this.items.isEmpty() ? 0 : Math.max(content, crossCursor));
 	}
