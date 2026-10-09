@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+@page { size: 600px 1600px; margin: 0; }
+html, body { margin: 0; padding: 0; }
+body { width: 600px; font: 16px/1.25 serif; }
+.case { margin: 0 0 12px; }
+.w { width: 300px; border: 1px solid #000; }
+</style></head><body>
+<!-- Chrome's UA sizes the border box of buttons and selects (2026-10-09). Chrome 151: s1-s5 300px wide, s6 100x40,
+     s7 150, s8 85x19 (auto: Copper's own width), s9 and s10 41.95 (auto) -->
+<div class="case w" id="d1"><select id="s1" style="width: 100%"><option>option</option></select></div>
+<div class="case w" id="d2"><input id="s2" type="submit" value="Go" style="width: 100%"></div>
+<div class="case w" id="d3"><input id="s3" type="button" value="Go" style="width: 100%"></div>
+<div class="case w" id="d4"><input id="s4" type="reset" style="width: 100%"></div>
+<div class="case w" id="d5"><button id="s5" style="width: 100%">Go</button></div>
+<div class="case"><button id="s6" style="width: 100px; height: 40px">Go</button></div>
+<div class="case"><select id="s7" style="width: 150px"><option>option</option></select></div>
+<div class="case"><select id="s8"><option>option one</option><option>two</option></select></div>
+<div class="case"><button id="s9">auto</button> <input id="s10" type="submit" value="auto"></div>
+<div class="case"><select id="s11" size="3"><option>a</option><option>b</option><option>c</option></select></div>
+<!-- One row: the options after the first take no height but count for the width (Chrome 151: s12 147px, s13 30px wide, both 19 high) -->
+<div class="case"><select id="s12"><option>a</option><option>a much longer option</option></select> <select id="s13"><option>a</option></select></div>
+<!-- A drop-down shows its selected option; a multiple select without size shows 4 rows (Chrome 151: "Osaka", 4 rows) -->
+<div class="case"><select id="s14"><option id="o1">Tokyo</option><option id="o2" selected>Osaka</option><option>Kyoto</option></select>
+<select id="s15" multiple><option>m1</option><option>m2</option><option>m3</option><option>m4</option><option>m5</option></select></div>
+</body></html>

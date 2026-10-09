@@ -17,6 +17,12 @@ public abstract class AbstractLineParams extends AbstractTextParams {
 
 	public static final byte TEXT_ALIGN_X_JUSTIFY_CENTER = 101;
 
+	/**
+	 * Centered even when the content is wider than the line (2026-10-09): the emphasis marks over narrow characters.
+	 * Other alignments start-align such a line (AbstractLineBox.align).
+	 */
+	public static final byte TEXT_ALIGN_X_CENTER_OVERHANG = 102;
+
 	public byte textAlign = TEXT_ALIGN_START;
 
 	public byte textAlignLast = TEXT_ALIGN_START;

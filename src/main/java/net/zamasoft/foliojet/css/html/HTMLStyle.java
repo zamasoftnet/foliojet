@@ -178,9 +178,22 @@ public class HTMLStyle {
 			// **Construct arrow dimensions in pt (the type area unit)** (2026-08-02). Previously,
 			// values converted to PX were passed, so arrows placed in pt coordinates were
 			// enlarged by 1/0.75 (a 10 pt size rendered at 13.33 pt).
-			double size = Height.getLength(parent).getLength();
+			final net.zamasoft.foliojet.layout.box.params.Length height = Height.getLength(parent);
 			style.set(CSSPosition.INFO, PositionValue.ABSOLUTE_VALUE);
 			double border = BorderWidth.get(parent, Side.TOP);
+			double size;
+			if (height.getType() == net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
+				// One row, the first option: 1em with line-height: 1 (html-ua.css, 2026-10-09)
+				size = FontSize.get(parent);
+			} else {
+				size = height.getLength();
+				if (net.zamasoft.foliojet.css.impl.property.box.BoxSizing
+						.get(parent) == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX) {
+					// A select sizes its border box (2026-10-09, html-ua.css): the arrow spans the content box
+					size -= border + BorderWidth.get(parent, Side.BOTTOM) + absolutePadding(parent, Side.TOP)
+							+ absolutePadding(parent, Side.BOTTOM);
+				}
+			}
 			// **Place it inside the box** (2026-08-02). SELECT reserves 1em of right
 			// padding, but negative insets placed the arrow outside the box,
 			// overlapping subsequent content (measured: for a 31 pt wide box,
@@ -192,6 +205,11 @@ public class HTMLStyle {
 		}
 			break;
 		}
+	}
+
+	/** The padding of {@code style} on {@code side} if it is an absolute length, else 0. */
+	private static double absolutePadding(final CSSStyle style, final Side side) {
+		return Padding.get(style, side) instanceof AbsoluteLengthValue length ? length.getLength() : 0;
 	}
 
 	public static void applyBeforeStyle(CSSStyle style) {

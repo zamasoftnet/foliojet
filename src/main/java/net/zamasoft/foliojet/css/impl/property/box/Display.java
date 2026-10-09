@@ -121,6 +121,12 @@ public class Display extends AbstractPrimitivePropertyInfo {
 				case DisplayValue.TABLE_FOOTER_GROUP:
 				case DisplayValue.TABLE_ROW:
 					break;
+				case DisplayValue.TABLE_CELL:
+					if (parentStyle.isAnonStyle()) {
+						// The anonymous cell the boxes before it left open (2026-10-09): the caption belongs to the
+						// table, which StyleEventMachine reaches by closing that cell
+						break;
+					}
 				default:
 					value = DisplayValue.BLOCK_VALUE;
 					display = DisplayValue.BLOCK;

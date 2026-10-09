@@ -1,0 +1,15 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+@page { size: 400pt 300pt; margin: 10pt }
+body { margin: 0; font: 10pt/15pt serif }
+.t { display: table; width: 100%; border: 1pt solid; margin-bottom: 8pt }
+.t > div { border: 1pt solid #888 }
+</style></head><body>
+<!-- Children of a display: table that are not table parts share one anonymous cell (CSS 2.1 §17.2.1, 2026-10-09):
+     blocks stack, inlines go on in a line, text directly in the table joins them. Chrome 151 (px from the table's
+     border edge): p1 (1,1) and d1 (1,23) 533 wide; x1 (1,1), the text (1,25), x2 (1,43); s1 (1,3), s2 (15.1,3);
+     c1 (1,1) 261 wide, e1 (262,1) and e2 (262,23) 272 wide. -->
+<div class="t"><div id="p1">PROTO</div><div id="d1">DOC</div></div>
+<div class="t"><div id="x1">X1</div>text<div id="x2">X2</div></div>
+<div class="t"><span id="s1">S1</span><span id="s2">S2</span></div>
+<div class="t"><div id="c1" style="display: table-cell">C1</div><div id="e1">D1</div><div id="e2">D2</div></div>
+</body></html>

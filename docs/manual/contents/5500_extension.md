@@ -98,7 +98,7 @@
 | -cssj-no-break-characters | 3.0.6 |  | none | すべての要素 | 独自プロパティです<br /> 禁則文字を追加します。 詳細は<a href="#style-no-break" class="pageref">禁則処理</a>を参照してください。 |
 | -cssj-break-characters | 3.0.6 |  | none | すべての要素 | 独自プロパティです<br /> 禁則文字を解除します。 詳細は<a href="#style-no-break" class="pageref">禁則処理</a>を参照してください。 |
 | background-clip | 3.2.16 |  | border-box | すべての要素。 | CSS Backgrounds and Borders Module Level 4 に沿った実装です。 値がtextの場合、テーブルと複数カラムには未対応であり、CID-Keyedフォントまたは絵文字以外のフォントに対してのみ有効です。 |
-| box-sizing | 3.1.10 |  | content-box | <span class="cssprop">width</span>, <span class="cssprop">height</span>を指定可能な要素 | CSS Basic User Interface Module Level 3 に沿った実装です。 |
+| box-sizing | 3.1.10 |  | content-box | <span class="cssprop">width</span>, <span class="cssprop">height</span>を指定可能な要素 | CSS Basic User Interface Module Level 3 に沿った実装です。 HTMLのbutton・select(size属性の無いもの)・input(type="button"・"submit"・"reset")は、既定のスタイルシートでborder-boxにしています(Chrome と同じ)<span class="since">4.0.0</span>。 |
 | -cssj-ruby | 3.0.0 |  | none | すべての要素 | 独自プロパティです<br /> ルビの役割(親文字・ふりがな・注釈コンテナ)を指定します。 値はnone, ruby, rb, rt, rtcのいずれかです。 通常はHTMLのruby/rb/rt/rtc要素に対して既定のスタイルシートが設定するため、指定する必要はありません。 詳細は<a href="#style-xml-ruby" class="pageref">ルビ</a>を参照してください。 |
 | -cssj-warichu | 4.0.0 | する | none | インライン要素 | JLREQの割注を指定する独自プロパティです。値はnone, autoです。autoでは半サイズの2段とし、長文は禁則を守る断片として本文行をまたぎます。詳細は<a href="#style-autospace" class="pageref">和文詰め</a>を参照してください。 |
 | block-flow<br />-cssj-block-flow | 3.0.0 |  | tb | すべての要素 | Internet Explorer 互換の書字方向指定です。 値はtb, rl, lrのいずれかです。 新しく書く文書では<span class="cssprop">writing-mode</span>を使用してください。 |

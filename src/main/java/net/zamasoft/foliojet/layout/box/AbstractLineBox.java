@@ -256,6 +256,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		}
 		switch (textAlign) {
 		case AbstractLineParams.TEXT_ALIGN_CENTER:
+		case AbstractLineParams.TEXT_ALIGN_X_CENTER_OVERHANG:
 			// Center.
 			this.lineAlign = (maxLineAxis - lineWidth) / 2.0 + textIndent;
 			break;
@@ -307,6 +308,16 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 
 		default:
 			throw new IllegalStateException();
+		}
+		if (LayoutUtils.compare(maxLineAxis, lineWidth) < 0
+				&& textAlign != AbstractLineParams.TEXT_ALIGN_X_CENTER_OVERHANG) {
+			// Contents too long for the line are start-aligned whatever text-align says, overflowing at the end edge
+			// (CSS Text 3 §7.1, as Chrome does; 2026-10-09). Centered, an icon wider than its button stuck out of
+			// both sides, past the page's left edge. An emphasis mark over a narrow character stays centered.
+			this.lineAlign = this.bidiBaseDirection == AbstractTextParams.DIRECTION_RTL
+					&& !TypesettingMode.usesSidewaysInlineAxis(params.flow, params.writingModeVariant)
+							? maxLineAxis - lineWidth + textIndent
+							: textIndent;
 		}
 
 		// Page-axis alignment.

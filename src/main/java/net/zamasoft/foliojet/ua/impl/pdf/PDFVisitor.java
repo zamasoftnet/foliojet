@@ -99,7 +99,11 @@ public class PDFVisitor extends AbstractVisitor {
 		final String tooltip;
 		final boolean disabled;
 		final boolean combo;
-		final java.util.List<String> options = new java.util.ArrayList<>();
+		/** {element key, option}: sorted into document order at emission (2026-10-09: the UA style sheet places the
+		 * selected option of a drop-down out of the flow, so it is visited after the others) */
+		final java.util.List<java.util.Map.Entry<Long, String>> options = new java.util.ArrayList<>();
+		/** Element key of the selected option, -1 if none (the last one in document order wins) */
+		long selectedKey = -1;
 		String selected;
 
 		SelectBuilder(String name, Rectangle2D.Double rect, String tooltip, boolean disabled, boolean combo) {
@@ -251,11 +255,16 @@ public class PDFVisitor extends AbstractVisitor {
 		this.pendingSelects.add(select);
 		// Emit at paint time; the option list is complete by then.
 		this.visitStructContent("Form", out -> {
-			String selected = select.selected;
-			if (selected == null && select.combo && !select.options.isEmpty()) {
-				selected = select.options.get(0);
+			select.options.sort(java.util.Map.Entry.comparingByKey());
+			final java.util.List<String> options = new java.util.ArrayList<>();
+			for (final java.util.Map.Entry<Long, String> option : select.options) {
+				options.add(option.getValue());
 			}
-			final ChoiceField field = new ChoiceField(select.name, select.rect, select.options, selected, select.combo,
+			String selected = select.selected;
+			if (selected == null && select.combo && !options.isEmpty()) {
+				selected = options.get(0);
+			}
+			final ChoiceField field = new ChoiceField(select.name, select.rect, options, selected, select.combo,
 					select.tooltip, 0, select.disabled, false);
 			try {
 				out.addFormField(field);
@@ -277,8 +286,10 @@ public class PDFVisitor extends AbstractVisitor {
 		final String label = sb.toString().trim().replaceAll("\\s+", " ");
 		final String value = optionCe.atts().getValue("value");
 		final String option = (value != null) ? value : label;
-		select.options.add(option);
-		if (optionCe.atts().getValue("selected") != null) {
+		final long key = optionCe.elementKey();
+		select.options.add(java.util.Map.entry(key, option));
+		if (optionCe.atts().getValue("selected") != null && key >= select.selectedKey) {
+			select.selectedKey = key;
 			select.selected = option;
 		}
 	}

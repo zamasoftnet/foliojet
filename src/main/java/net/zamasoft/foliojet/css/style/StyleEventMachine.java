@@ -253,6 +253,7 @@ final class StyleEventMachine {
 					case DisplayValue.TABLE_FOOTER_GROUP:
 					case DisplayValue.TABLE_ROW_GROUP:
 						switch (anonDisplay) {
+						case DisplayValue.TABLE_CELL:
 						case DisplayValue.TABLE_ROW:
 						case DisplayValue.TABLE_ROW_GROUP:
 							break;
@@ -260,8 +261,35 @@ final class StyleEventMachine {
 							break WHILE;
 						}
 						break;
+					case DisplayValue.TABLE_CAPTION:
+					case DisplayValue.TABLE_COLUMN_GROUP:
+					case DisplayValue.TABLE_COLUMN:
+						// A caption or a column belongs to the table: it closes the anonymous cell, row and row group left
+						// open by the boxes before it (2026-10-09; the caption of a display: table figure went into the
+						// cell of the figure's content)
+						switch (anonDisplay) {
+						case DisplayValue.TABLE_CELL:
+						case DisplayValue.TABLE_ROW:
+						case DisplayValue.TABLE_ROW_GROUP:
+							break;
+						default:
+							break WHILE;
+						}
+						break;
+					case DisplayValue.TABLE_ROW:
+						// A row closes the anonymous cell and row left open by the boxes before it (2026-10-09)
+						switch (anonDisplay) {
+						case DisplayValue.TABLE_CELL:
+						case DisplayValue.TABLE_ROW:
+							break;
+						default:
+							break WHILE;
+						}
+						break;
 					case DisplayValue.TABLE_CELL:
 						switch (anonDisplay) {
+						case DisplayValue.TABLE_CELL:
+							// The anonymous cell of the boxes before it ends; the cell joins its row (2026-10-09)
 						case DisplayValue.TABLE_ROW_GROUP:
 						case DisplayValue.TABLE:
 						case DisplayValue.INLINE_TABLE:
@@ -1303,6 +1331,7 @@ final class StyleEventMachine {
 					}
 					this.emitter._endStyle();
 				}
+				this.openAnonymousCellForText(ch, off, len);
 			}
 
 			// Wrap text directly under display:contents in an anonymous inline inheriting
@@ -1364,7 +1393,11 @@ final class StyleEventMachine {
 						et.set(Width.INFO, PercentageValue.FULL);
 						et.set(emPosition.isUnder() ? Inset.TOP : Inset.BOTTOM, EM_1_4);
 					}
-					et.set(TextAlign.INFO, TextAlignValue.CENTER_VALUE);
+					// Centered over the character even when the mark is wider (2026-10-09: a line too long for its box is
+					// otherwise start-aligned)
+					et.set(TextAlign.INFO, TextAlignValue.X_CENTER_OVERHANG_VALUE);
+					et.set(net.zamasoft.foliojet.css.impl.property.text.TextAlignLast.INFO,
+							TextAlignValue.X_CENTER_OVERHANG_VALUE);
 					this.emitter._startStyle(et);
 					this.sink.characters(-1, emc, 0, 1, false);
 					this.emitter._endStyle();
@@ -1379,6 +1412,47 @@ final class StyleEventMachine {
 		}
 	}
 
+
+	/**
+	 * Text directly in a table, row group or row goes into an anonymous cell, the one the boxes before it left open
+	 * or a new one (CSS 2.1 §17.2.1, Chrome; 2026-10-09). Until then it was laid out above the table. HTML table
+	 * elements keep that: the HTML parser takes such text out of the table (foster parenting), which html-balancer
+	 * does not do. White space alone makes no cell (§17.2.1 1.1: it is treated as display: none).
+	 */
+	private void openAnonymousCellForText(final char[] ch, final int off, final int len) {
+		final CSSStyle current = this.context.getCurrentStyle();
+		boolean blank = true;
+		for (int i = 0; i < len && blank; ++i) {
+			blank = TextUtils.isWhiteSpace(ch[off + i]);
+		}
+		if (blank) {
+			return;
+		}
+		switch (Display.get(current)) {
+		case DisplayValue.TABLE:
+		case DisplayValue.INLINE_TABLE:
+		case DisplayValue.TABLE_ROW_GROUP:
+		case DisplayValue.TABLE_HEADER_GROUP:
+		case DisplayValue.TABLE_FOOTER_GROUP:
+		case DisplayValue.TABLE_ROW:
+			break;
+		default:
+			return;
+		}
+		switch (net.zamasoft.foliojet.css.html.HTMLCodes.code(current.getExplicitStyle().getCSSElement())) {
+		case net.zamasoft.foliojet.css.html.HTMLCodes.TABLE:
+		case net.zamasoft.foliojet.css.html.HTMLCodes.TBODY:
+		case net.zamasoft.foliojet.css.html.HTMLCodes.THEAD:
+		case net.zamasoft.foliojet.css.html.HTMLCodes.TFOOT:
+		case net.zamasoft.foliojet.css.html.HTMLCodes.TR:
+			return;
+		default:
+			break;
+		}
+		final CSSStyle cell = current.inheritAnonStyle(CSSElement.ANON_TD);
+		cell.set(Display.INFO, DisplayValue.TABLE_CELL_VALUE);
+		this.emitter._startStyle(cell);
+	}
 
 	void checkMarker() {
 		if (this.marker == null) {
@@ -1621,13 +1695,18 @@ final class StyleEventMachine {
 					break;
 				case DisplayValue.INLINE:
 				case DisplayValue.BLOCK:
+				case DisplayValue.GRID:
+				case DisplayValue.FLEX:
 				case DisplayValue.LIST_ITEM:
 				case DisplayValue.INLINE_BLOCK:
 				case DisplayValue.TABLE:
 				case DisplayValue.INLINE_TABLE:
 					switch (anonDisplay) {
-					// Stop at the row if an anonymous cell was generated
-					case DisplayValue.TABLE_ROW:
+					// Keep the anonymous cell open (2026-10-09): the following children that are not table parts go
+					// into the same cell, stacked or in the same line (CSS 2.1 §17.2.1, Chrome). Until then it stopped
+					// at the row, so each child got a cell of its own side by side (doxygen's memproto and memdoc in a
+					// display: table memitem). A table part or the end of the table closes it.
+					case DisplayValue.TABLE_CELL:
 						break WHILE;
 					}
 					break;

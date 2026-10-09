@@ -435,8 +435,10 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			// Fall through to AUTO if percentBasePage is indefinite (existing intentional behavior)
 		case AUTO:
 			// Ledger #4 resolved (2026-07-17): The old implementation retained the existing value only
-			// for tables in vertical writing. Always use 0, as in horizontal writing (content determines it later).
-			pageExtent = 0;
+			// for tables in vertical writing. Start from the min size, as in horizontal writing (content determines
+			// it later). Starting from 0 lost min-height on an empty box, as setPageAxis applies it only when content
+			// grows the box (2026-10-09: an empty inline-block, a select without options).
+			pageExtent = Math.min(minPage, maxPage);
 			break;
 		case ABSOLUTE:
 			pageExtent = this.size.getPageLength(flow);
@@ -458,7 +460,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				minPage = maxPage = pageExtent;
 				break;
 			}
-			pageExtent = 0;
+			pageExtent = Math.min(minPage, maxPage);
 			break;
 		default:
 			throw new IllegalStateException();

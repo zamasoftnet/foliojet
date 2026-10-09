@@ -76,7 +76,7 @@ CSS3以降のモジュール(段組・縦書き・Gridレイアウト・論理�
 | <span class="negative">cue</span> | しない | 音声スタイルのため、印刷には無関係です。 |
 | <span class="negative">cursor</span> | しない | インタラクティブスタイルのため、印刷には無関係です。 |
 | direction | する<span class="since">4.0.0</span> | 右から左へ書く言語(アラビア語・ヘブライ語など)に対応しています。段落単位のUnicode双方向アルゴリズム(UAX #9)で、ブロックの方向を基底に行内を視覚順に並べ替えます。括弧類は鏡像化し、右から左の行は<tt>text-align: start</tt>が右端になります。 |
-| display | する | `contents`<span class="since">4.0.0</span>(要素自身のボックスを作らず子を親へ流す)に対応します。`run-in`には対応していません。`inline-flex`/`inline-grid`はブロックレベルのflex/gridとして近似します<span class="since">4.0.0</span>。 |
+| display | する | `contents`<span class="since">4.0.0</span>(要素自身のボックスを作らず子を親へ流す)に対応します。`run-in`には対応していません。`inline-flex`/`inline-grid`はブロックレベルのflex/gridとして近似します<span class="since">4.0.0</span>。`table`の直下の表の部品でない子(ブロック・インライン・文字)は、続いたものを1つの匿名のセルにまとめます<span class="since">4.0.0</span>。 |
 | <span class="negative">elevation</span> | しない | 音声スタイルのため、印刷には無関係です。 |
 | empty-cells | する | |
 | float | する | 独立した整形文脈を作るブロック(<span class="cssdecl">display: flow-root;</span>、<tt>overflow</tt>が<tt>visible</tt>以外、flex・grid・段組)はフロートに重ならず、フロートの横の幅に箱ごと狭まります。横に入らないとき(幅を指定した箱が収まらない、または全幅のフロートの後)はフロートの下へ送ります(CSS 2.1 9.5)<span class="since">4.0.0</span>。ふつうのブロックは全幅のままで、中の行だけが回り込みます。 |
@@ -142,7 +142,7 @@ CSS3以降のモジュール(段組・縦書き・Gridレイアウト・論理�
 | <span class="negative">speech-rate</span> | しない | 音声スタイルのため、印刷には無関係です。 |
 | <span class="negative">stress</span> | しない | 音声スタイルのため、印刷には無関係です。 |
 | table-layout | する | |
-| text-align | する | <tt>match-parent</tt><span class="since">4.0.0</span>にも対応します(親の値を継ぎ、親の<tt>start</tt>/<tt>end</tt>は親の<span class="cssprop">direction</span>で左右に確定します)。<span class="cssprop">text-align-last</span>の<tt>match-parent</tt>も同じです。 |
+| text-align | する | <tt>match-parent</tt><span class="since">4.0.0</span>にも対応します(親の値を継ぎ、親の<tt>start</tt>/<tt>end</tt>は親の<span class="cssprop">direction</span>で左右に確定します)。<span class="cssprop">text-align-last</span>の<tt>match-parent</tt>も同じです。行に収まらない内容は、指定にかかわらず行頭に寄せます<span class="since">4.0.0</span>。 |
 | text-decoration | する | |
 | text-indent | する | |
 | text-transform | する | <tt>full-width</tt><span class="since">4.0.0</span>(ASCII の英数字と記号を全角へ、空白を全角の空白へ。縦組みでは全角にした数字が正立します)に対応します。<tt>uppercase full-width</tt> のように大文字・小文字の変換と組み合わせられます。半角カナは変えません。<tt>full-size-kana</tt>・<tt>math-auto</tt>には対応していません。 |

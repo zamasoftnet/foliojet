@@ -418,6 +418,8 @@ input[type=button], input[type=reset], input[type=submit] {
 	   確かめている */
 	padding: 1pt;
 	white-space: nowrap;
+	/* The border box, as in Chrome's UA (2026-10-09): a width: 100% button overflowed its box by its frame */
+	box-sizing: border-box;
 }
 
 button[disabled],
@@ -462,6 +464,8 @@ select {
 	background-color: white;
 	border: thin inset;
 	white-space: nowrap;
+	/* The border box, as in Chrome's UA (2026-10-09) */
+	box-sizing: border-box;
 }
 
 ruby, rb, rt {
@@ -766,6 +770,35 @@ table[border]:not([border="0"])[rules=groups] tfoot {
 }
 
 /* SELECT: size は行数(em)。既定は1行 */
-select { height: 1em; }
-select[size] { height: attr(size em, 1em); }
+/* A drop-down shows one row (2026-10-09): the options after the first take no height and are not shown, but still
+   count for the width; the height is left auto, so the author's border adds to it as in Chrome (a height of 1em
+   clipped the other options until then; with the border box it would have taken the frame out of the row) */
+select:not([size]):not([multiple]) option ~ option, select:not([size]):not([multiple]) optgroup ~ optgroup,
+select:not([size]):not([multiple]) option ~ optgroup, select:not([size]):not([multiple]) optgroup ~ option {
+	height: 0;
+	visibility: hidden;
+}
+/* The selected option shows in the row, over the first one, with the select's background (Chrome). Placed in the
+   content box (the select's padding: thin, 16 on the right for the arrow, HTMLStyle); out of the flow, it does not
+   count for the width */
+select:not([size]):not([multiple]) optgroup { background-color: inherit; }
+select:not([size]):not([multiple]) option ~ option[selected],
+select:not([size]):not([multiple]) optgroup ~ option[selected],
+select:not([size]):not([multiple]) optgroup ~ optgroup option[selected],
+select:not([size]):not([multiple]) option ~ optgroup option[selected] {
+	visibility: visible;
+	position: absolute;
+	top: 1pt;
+	left: 1pt;
+	right: 16pt;
+	height: 1em;
+	background-color: inherit;
+}
+/* A drop-down without options (filled by a script) keeps its row: 1em and the frame (thin border and thin padding,
+   HTMLStyle) */
+select:not([size]):not([multiple]) { min-height: calc(1em + 4pt); }
+/* A list box shows its rows: the size attribute, or 4 for multiple (Chrome). It keeps the content box, as attr() does
+   not go into calc() (2026-10-09; a multiple select without size showed one row until then) */
+select[size] { height: attr(size em, 1em); box-sizing: content-box; }
+select[multiple]:not([size]) { height: 4em; box-sizing: content-box; }
 select[disabled] { color: dimgray; background-color: lightgray; }

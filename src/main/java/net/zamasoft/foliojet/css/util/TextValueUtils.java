@@ -77,6 +77,8 @@ public final class TextValueUtils {
 			return AbstractLineParams.TEXT_ALIGN_END;
 		case TextAlignValue.X_JUSTIFY_CENTER:
 			return AbstractLineParams.TEXT_ALIGN_X_JUSTIFY_CENTER;
+		case TextAlignValue.X_CENTER_OVERHANG:
+			return AbstractLineParams.TEXT_ALIGN_X_CENTER_OVERHANG;
 		default:
 			throw new IllegalStateException();
 		}

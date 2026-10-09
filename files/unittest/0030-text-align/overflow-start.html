@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+@page { size: 600px 1200px; margin: 0; }
+html, body { margin: 0; padding: 0; }
+body { width: 600px; font: 16px/1.25 serif; }
+.case { margin: 0 0 12px 50px; width: 100px; border: 1px solid #000; }
+.wide { display: inline-block; width: 150px; height: 10px; background: #ccc; }
+.fit { display: inline-block; width: 60px; height: 10px; background: #ccc; }
+</style></head><body>
+<!-- A line too long for its box is start-aligned (CSS Text 3 §7.1, 2026-10-09). Chrome 151, left of each span from
+     its div's border edge: a1 a2 a7 a9 1px, a3 21 (centered), a4 41 (right), a5 a6 -49 (rtl: right), a8 11 (text-indent) -->
+<div class="case" id="d1" style="text-align: center"><span class="wide" id="a1"></span></div>
+<div class="case" id="d2" style="text-align: right"><span class="wide" id="a2"></span></div>
+<div class="case" id="d3" style="text-align: center"><span class="fit" id="a3"></span></div>
+<div class="case" id="d4" style="text-align: right"><span class="fit" id="a4"></span></div>
+<div class="case" id="d5" style="direction: rtl; text-align: center"><span class="wide" id="a5"></span></div>
+<div class="case" id="d6" style="direction: rtl; text-align: left"><span class="wide" id="a6"></span></div>
+<div class="case" id="d7" style="text-align: justify; text-align-last: center"><span class="wide" id="a7"></span></div>
+<div class="case" id="d8" style="text-align: center; text-indent: 10px"><span class="wide" id="a8"></span></div>
+<div class="case" id="d9" style="text-align: center">abc <span class="wide" id="a9"></span> def</div>
+</body></html>
