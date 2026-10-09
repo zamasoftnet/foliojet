@@ -344,6 +344,93 @@ public class GridEdgeCasesTest extends TestCase {
 		assertEquals("A3 の位置", 267.3, x(page, "A3"), 1.5);
 	}
 
+	/**
+	 * Table parts as grid or flex items are blockified one by one (CSS Display 3 §2.7, 2026-10-09). Before, consecutive
+	 * table cells shared one anonymous table: in a grid all three went into its first column, in a column flex they
+	 * stood side by side, and a table whose rows are subgrids lost its columns. Chrome: G1 G2 G3 at 0, 100, 200pt;
+	 * F2 below F1; the rows of the subgrid table share their columns.
+	 */
+	public void testTablePartsAreBlockifiedItems() throws Exception {
+		final String page = convert("table-parts-items", document("""
+				.g { display: grid; grid-template-columns: 100pt 100pt 100pt; margin-bottom: 8pt }
+				.fc { display: flex; flex-direction: column; margin-bottom: 8pt }
+				.tc { display: table-cell }
+				.t { display: grid; grid-template-columns: auto auto 1fr; margin: 0 }
+				.t > tbody, .t > tbody > tr { display: grid; grid-column: -1 / 1; grid-template-columns: subgrid }
+				td { padding: 2pt }
+				""", "<div class=\"g\"><div class=\"tc\">G1</div><div class=\"tc\">G2</div><div class=\"tc\">G3</div></div>"
+				+ "<div class=\"fc\"><div class=\"tc\">F1</div><div class=\"tc\">F2</div></div>"
+				+ "<table class=\"t\"><tbody><tr><td>A1</td><td>A2</td><td>AAAA3</td></tr>"
+				+ "<tr><td>BBBBBB1</td><td>BBBB2</td><td>B3</td></tr></tbody></table>"));
+		assertEquals("G2:\n" + page, 100, x(page, "G2"), 0.01);
+		assertEquals("G3", 200, x(page, "G3"), 0.01);
+		assertEquals("F2 は F1 の下", x(page, "F1"), x(page, "F2"), 0.01);
+		assertTrue("F2 は F1 の下", y(page, "F2") > y(page, "F1"));
+		assertEquals("表の 2 列目がそろう", x(page, "A2"), x(page, "BBBB2"), 0.01);
+		assertEquals("表の 3 列目がそろう", x(page, "AAAA3"), x(page, "B3"), 0.01);
+		assertTrue("表の列が並ぶ", x(page, "BBBBBB1") < x(page, "BBBB2") && x(page, "BBBB2") < x(page, "B3"));
+	}
+
+	/**
+	 * An auto-width table that is a grid item fills its stretched area; with justify-self: start it keeps its
+	 * content width (2026-10-09). It used to keep its content width in both. Chrome: GA2 at 250pt (the table spans
+	 * the 500pt grid), GB2 at 125pt (one 250pt column), GC2 right after GC1.
+	 */
+	public void testTableItemFillsItsArea() throws Exception {
+		final String page = convert("table-item-stretch", document("""
+				.g { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 8pt }
+				table { border-spacing: 0 }
+				td { padding: 0 }
+				""", "<div class=\"g\"><table style=\"grid-column: 1 / -1\"><tr><td>GA1</td><td>GA2</td></tr></table></div>"
+				+ "<div class=\"g\"><table><tr><td>GB1</td><td>GB2</td></tr></table><div>other</div></div>"
+				+ "<div class=\"g\"><table style=\"justify-self: start\"><tr><td>GC1</td><td>GC2</td></tr></table></div>"));
+		assertEquals("GA2:\n" + page, 250, x(page, "GA2"), 0.5);
+		assertEquals("GB2", 125, x(page, "GB2"), 0.5);
+		assertTrue("GC2 は GC1 のすぐ後", x(page, "GC2") < 30);
+	}
+
+	/**
+	 * A grid item's auto margins take the free space of its area, and keep it on every page the item runs over
+	 * (css-grid-1 §11.1, 2026-10-09). Before, the first page kept the item at the start of the area and each later
+	 * page moved it right by another 40pt (materialui). Chrome: the text starts at 70pt on every page (a 200pt
+	 * border-box item centered in a 320pt column, 10pt padding). A width: 100% item with border-box spans the whole
+	 * area (the percentage refers to the area, not the area less the item's frame): its text starts at its padding.
+	 */
+	public void testItemAutoMarginsCenterOnEveryPage() throws Exception {
+		final StringBuilder paras = new StringBuilder();
+		for (int i = 0; i < 30; ++i) {
+			paras.append("<p>P").append(i).append(" lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do.</p>");
+		}
+		final List<String> pages = convertPages("item-auto-margins", """
+				<!DOCTYPE html>
+				<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/>
+				<style>
+				@page { size: 400pt 300pt; margin: 0 }
+				body { margin: 0; font-size: 10pt; line-height: 15pt }
+				p { margin: 0 0 4pt }
+				.g { display: grid; grid-template-columns: 1fr 80pt }
+				.c { margin: 0 auto; max-width: 200pt; padding: 0 10pt; box-sizing: border-box; background: #eee }
+				.w { width: 100%%; padding: 0 18pt; margin: 0 auto; box-sizing: border-box }
+				.f { width: 100%%; padding: 0 18pt; box-sizing: border-box; background: #ccc }
+				</style></head><body><div class="g"><div class="c">%s</div><div>NAV</div></div>
+				<div class="g"><div class="w"><p>WIDE</p></div></div>
+				<div class="g"><div class="f"><p>FULL</p></div></div>
+				</body></html>
+				""".formatted(paras));
+		assertTrue("3 頁以上", pages.size() >= 3);
+		for (int i = 0; i < 3; ++i) {
+			final Matcher m = Pattern.compile("x=(-?[\\d.]+) y=(-?[\\d.]+) Text\\[\"P\\d+\"").matcher(pages.get(i));
+			assertTrue((i + 1) + " 頁目に本文が無い", m.find());
+			assertEquals((i + 1) + " 頁目の本文の左端:\n" + pages.get(i), 70, Double.parseDouble(m.group(1)), 0.5);
+		}
+		// A percentage refers to the grid area (320pt), not the area less the item's padding (Chrome: 320).
+		final String last = pages.get(pages.size() - 1);
+		final Matcher full = Pattern.compile("x=0\\.00 y=[\\d.]+ AbsoluteRectFrame\\[w=([\\d.]+)").matcher(last);
+		assertTrue("width: 100% の項目の背景が無い:\n" + last, full.find());
+		assertEquals("width: 100% の項目の幅:\n" + last, 320, Double.parseDouble(full.group(1)), 0.5);
+		assertEquals("width: 100% で auto margin の項目", 18, x(last, "WIDE"), 0.5);
+	}
+
 	private static double x(final String page, final String text) {
 		final Matcher m = TEXT.matcher(page);
 		while (m.find()) {

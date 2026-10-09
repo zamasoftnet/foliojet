@@ -163,6 +163,15 @@ public class GridItemBox extends FlowBlockBox {
 				.getPageType(this.getBlockParams().flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE;
 	}
 
+	/**
+	 * GridBuilder resolves a grid item's auto margins in its area (css-grid-1 §11.1; 2026-10-09, as flex items do,
+	 * see {@link FlowBlockBox#coordinatorOwnsAutoMargins}): a rebuild keeps them instead of resolving them again.
+	 */
+	@Override
+	public boolean coordinatorOwnsAutoMargins() {
+		return true;
+	}
+
 	/** Sets the spanned parent tracks (parent's {@code GridBuilder.bind}, 2026-08-29). */
 	public void setSubgridTracks(final SubgridTracks tracks) {
 		this.subgridTracks = tracks;

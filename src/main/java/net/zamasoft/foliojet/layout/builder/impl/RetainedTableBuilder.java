@@ -909,6 +909,14 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
+	 * Whether the table is a grid item itself: its flow container is a grid item box that wraps the item element
+	 * (not one taken over by an authored element, whose children are in normal block flow).
+	 */
+	private static boolean isItemTable(final AbstractContainerBox containerBox) {
+		return containerBox instanceof net.zamasoft.foliojet.layout.box.impl.GridItemBox item && !item.isTakeover();
+	}
+
+	/**
 	 * Resolves table/column sizes and opens the anonymous block (P2-5 (a): bind stage 1).
 	 */
 	private TableShape resolveShape(final BlockBuilder builder) {
@@ -1033,7 +1041,12 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					&& LayoutUtils.compare(lineMaxSize, available) < 0) {
 				available = lineMaxSize;
 			}
-			final AutoColumnWidths.Sized sized = this.columnWidths.resolve(tableSize, available,
+			// An auto-width table that is itself a grid item fills the item (2026-10-09, css-grid-1 §6.2 stretch;
+			// Chrome does the same). The item's width is already resolved by its alignment: stretched to its area, or
+			// fit-content (= this table's own shrink-to-fit) otherwise. Shrink-to-fit inside the stretched item left
+			// a 2-column-wide table at its content width. Flex items do not come here (FlexItemBox, not done).
+			final double specified = LayoutUtils.isNone(tableSize) && isItemTable(containerBox) ? available : tableSize;
+			final AutoColumnWidths.Sized sized = this.columnWidths.resolve(specified, available,
 					tableFrame, lineBorderSpacing, tableParams.borderCollapse == TableParams.BORDER_SEPARATE);
 			tableSize = sized.tableSize();
 			columnSizes = sized.columnSizes();

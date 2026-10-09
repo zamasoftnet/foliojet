@@ -48,6 +48,23 @@ public class Display extends AbstractPrimitivePropertyInfo {
 		return DisplayValue.NONE;
 	}
 
+	/** Whether the display is a table part (layout-internal: rows, groups, columns, cells, caption). */
+	private static boolean isTableInternal(final byte display) {
+		switch (display) {
+		case DisplayValue.TABLE_ROW_GROUP:
+		case DisplayValue.TABLE_HEADER_GROUP:
+		case DisplayValue.TABLE_FOOTER_GROUP:
+		case DisplayValue.TABLE_ROW:
+		case DisplayValue.TABLE_CELL:
+		case DisplayValue.TABLE_COLUMN:
+		case DisplayValue.TABLE_COLUMN_GROUP:
+		case DisplayValue.TABLE_CAPTION:
+			return true;
+		default:
+			return false;
+		}
+	}
+
 	public Value getComputedValue(Value value, CSSStyle style) {
 		byte display = ((DisplayValue) value).getDisplay();
 
@@ -175,6 +192,23 @@ public class Display extends AbstractPrimitivePropertyInfo {
 				if (parentDisplay == DisplayValue.GRID || parentDisplay == DisplayValue.FLEX) {
 					value = DisplayValue.BLOCK_VALUE;
 					display = DisplayValue.BLOCK;
+				}
+			}
+		} else if (isTableInternal(display) || display == DisplayValue.INLINE_TABLE) {
+			// Table parts and inline tables as Grid/Flex items are blockified too (CSS Display 3 §2.7,
+			// 2026-10-09): a table part becomes a block container and an inline table a table. Left as they were,
+			// each table part got an anonymous table around it, and consecutive cells shared one, so three tds in
+			// a grid went into its first column (primer-like tables with display: grid rows).
+			if (style.getParentStyle() != null) {
+				final byte parentDisplay = Display.getFlattenedParentDisplay(style);
+				if (parentDisplay == DisplayValue.GRID || parentDisplay == DisplayValue.FLEX) {
+					if (display == DisplayValue.INLINE_TABLE) {
+						value = DisplayValue.TABLE_VALUE;
+						display = DisplayValue.TABLE;
+					} else {
+						value = DisplayValue.BLOCK_VALUE;
+						display = DisplayValue.BLOCK;
+					}
 				}
 			}
 		}

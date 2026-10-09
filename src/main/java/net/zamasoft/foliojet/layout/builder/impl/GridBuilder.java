@@ -772,6 +772,50 @@ public final class GridBuilder
 	}
 
 	/**
+	 * Line-axis auto margins of a taken-over item (its own frame is the item's): they take the free space of the
+	 * grid area before alignment, and the item is not stretched (css-grid-1 §11.1, 2026-10-09). The item gets its
+	 * fit-content width (within its min/max-width) and the start margin's share as its line offset, which a split
+	 * carries to the continuation; the margins themselves stay 0, and {@link GridItemBox#coordinatorOwnsAutoMargins}
+	 * keeps a rebuild from resolving them again. Before, they were taken as 0 here (the item stretched and kept to
+	 * the start) and then resolved by the block rules on each rebuild, moving the item right page after page
+	 * (materialui).
+	 *
+	 * @return whether the item has a line-axis auto margin (then {@code widths[index]} and {@code offsets[index]}
+	 *         are set)
+	 */
+	private static boolean resolveAutoMargins(final GridItemBox itemBox,
+			final net.zamasoft.foliojet.layout.box.params.WritingMode flow, final double areaWidth,
+			final double innerArea, final double authoredLine, final IntrinsicSizes sizes, final double[] widths,
+			final double[] offsets, final int index) {
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = itemBox.getFrame();
+		final net.zamasoft.foliojet.layout.box.params.Insets spec = frame.frame.margin;
+		final boolean vertical = flow.isVertical();
+		final boolean autoStart = (vertical ? spec.getTopType() : spec.getLeftType()) == LengthType.AUTO;
+		final boolean autoEnd = (vertical ? spec.getBottomType() : spec.getRightType()) == LengthType.AUTO;
+		if (!autoStart && !autoEnd) {
+			return false;
+		}
+		double width = !Double.isNaN(authoredLine) ? authoredLine
+				: Sizing.fitContent(sizes.minContent(), sizes.maxContent(), innerArea);
+		final BlockParams p = itemBox.getBlockParams();
+		final double borderBoxAdjust = p.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
+				? frame.getBorderLineExtent(flow)
+				: 0;
+		final double max = LayoutUtils.computeDimensionLine(p.maxSize, flow, areaWidth);
+		if (!LayoutUtils.isNone(max)) {
+			width = Math.min(width, Math.max(0, max - borderBoxAdjust));
+		}
+		final double min = LayoutUtils.computeDimensionLine(p.minSize, flow, areaWidth);
+		if (!LayoutUtils.isNone(min)) {
+			width = Math.max(width, min - borderBoxAdjust);
+		}
+		widths[index] = Math.max(0, width);
+		final double free = Math.max(0, innerArea - widths[index]);
+		offsets[index] = autoStart ? (autoEnd ? free / 2 : free) : 0;
+		return true;
+	}
+
+	/**
 	 * Item's authored line-axis size (content-box); auto/unspecified is NaN (G7, 2026-08-29).
 	 * For {@code box-sizing: border-box}, subtract the frame to obtain the inner size.
 	 */
@@ -1370,7 +1414,14 @@ public final class GridBuilder
 			final double innerArea = Math.max(0, areaWidth - lineExtras);
 			// Explicit width takes precedence over stretch (css-grid §6.6). With wrappers,
 			// the inner child applied it itself; it is now lost unless handled here.
-			final double authoredLine = authoredLineSize(item.itemBox, params.flow, innerArea);
+			// A percentage refers to the grid area, the item's containing block (2026-10-09; it was taken of the
+			// area less the item's own frame, so width: 100% with border-box came out short by that frame).
+			final double authoredLine = authoredLineSize(item.itemBox, params.flow, areaWidth);
+			if (item.takeover && resolveAutoMargins(item.itemBox, params.flow, areaWidth, innerArea, authoredLine,
+					item.sizes, itemWidths, itemXOffsets, i)) {
+				// Auto margins took the free space (css-grid-1 §11.1): no stretch, no justify-self.
+				continue;
+			}
 			if (!Double.isNaN(authoredLine)) {
 				itemWidths[i] = authoredLine;
 			} else if (justify == BoxAlignment.STRETCH) {
