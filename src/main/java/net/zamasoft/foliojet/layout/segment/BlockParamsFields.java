@@ -29,7 +29,9 @@ record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLinePara
 		Dimension maxSize, BoxSizingMode boxSizing, OverflowMode overflow,
 		net.zamasoft.foliojet.layout.box.params.BoxAlignment blockAlignContent, boolean paintClip, Columns columns,
 		net.zamasoft.foliojet.layout.box.params.ClipPathShape clipPath, boolean flowRoot, byte textOverflow, double aspectRatio,
-		int lineClamp, double naturalLineSize) {
+		int lineClamp, double naturalLineSize, net.zamasoft.foliojet.layout.box.params.IntrinsicSize intrinsicLine,
+		net.zamasoft.foliojet.layout.box.params.IntrinsicSize intrinsicMinLine,
+		net.zamasoft.foliojet.layout.box.params.IntrinsicSize intrinsicMaxLine) {
 	static BlockParamsFields freeze(final BlockParams source) {
 		final FirstLineParamsTemplate firstLineStyle = source.firstLineStyle == null ? null
 				: FirstLineParamsTemplate.freeze(source.firstLineStyle);
@@ -37,7 +39,7 @@ record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLinePara
 				source.pageBreakInside, source.orphans, source.widows, source.size, source.minSize, source.maxSize,
 				source.boxSizing, source.overflow, source.blockAlignContent, source.paintClip, source.columns,
 				source.clipPath, source.flowRoot, source.textOverflow, source.aspectRatio, source.lineClamp,
-				source.naturalLineSize);
+				source.naturalLineSize, source.intrinsicLine, source.intrinsicMinLine, source.intrinsicMaxLine);
 	}
 
 	/**
@@ -71,5 +73,10 @@ record BlockParamsFields(LineParamsFields common, RectFrame frame, FirstLinePara
 		// The natural size of a form control (2026-10-09). Omitting it lost the size a cyclic percentage
 		// counts as in the scratch measurement (CyclicPercent).
 		target.naturalLineSize = this.naturalLineSize;
+		// The intrinsic size keywords of width/min-width/max-width (2026-10-09). Omitting them made a box replayed on
+		// the next page fill the line (width: fit-content) and lose its min/max (min-width: max-content).
+		target.intrinsicLine = this.intrinsicLine;
+		target.intrinsicMinLine = this.intrinsicMinLine;
+		target.intrinsicMaxLine = this.intrinsicMaxLine;
 	}
 }

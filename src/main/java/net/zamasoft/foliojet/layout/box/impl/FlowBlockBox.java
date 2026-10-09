@@ -1070,6 +1070,14 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	public final void restyle(final BlockBuilder builder, final net.zamasoft.foliojet.layout.fragment.OpenShape shape) {
+		if (shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.Closed && this.params.intrinsicLine != null
+				&& LayoutUtils.isNone(this.params.flow.isVertical() ? this.restyleLineHeight : this.restyleLineWidth)) {
+			// A box moved whole keeps the line size its content gave it (width: fit-content and the like, 2026-10-09):
+			// startFlowBlock resolves only the block rules, which fill the line (a tab list moved to the next page came
+			// out the width of the page).
+			this.prepareRestyleLineExtent(this.width + this.frame.getFrameWidth(), this.height + this.frame.getFrameHeight(),
+					this.params.flow.isVertical());
+		}
 		builder.startFlowBlock(this);
 		super.restyle(builder, shape);
 		if (!(shape instanceof net.zamasoft.foliojet.layout.fragment.OpenShape.Closed)) {
