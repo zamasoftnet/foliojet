@@ -67,8 +67,18 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	 *                  The same design as {@link GridBox.Row#start}.
 	 * @param pageSize  finalized page-axis size of this line (cross axis; vertical in row-direction),
 	 *                  the same value as {@code lineExtents[li]} in {@code FlexBuilder.placeRow}
+	 * @param gapBefore the space between the end of the previous line and the start of this one as FlexBuilder placed
+	 *                  them ({@code row-gap}, {@code align-content}; 0 for the first line), kept through splits
+	 *                  (2026-10-09). It was inferred again from the ledger after each restyle, so a line that came out
+	 *                  taller than its ledger turned the difference into a gap the next time (eurekalert: 19.57pt
+	 *                  between lines placed edge to edge), or swallowed a real gap. NaN until {@link #setFlexLines}
+	 *                  takes it from the geometry.
 	 */
-	public record Line(int startFlow, int itemCount, double start, double pageSize) {
+	public record Line(int startFlow, int itemCount, double start, double pageSize, double gapBefore) {
+		/** A line as FlexBuilder places it; {@link #setFlexLines} takes its gap from the geometry. */
+		public Line(final int startFlow, final int itemCount, final double start, final double pageSize) {
+			this(startFlow, itemCount, start, pageSize, Double.NaN);
+		}
 	}
 
 	/**
@@ -142,7 +152,19 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	 * immediately after placement).
 	 */
 	public final void setFlexLines(final List<Line> lines, final List<FlexItemBox> lineItems) {
-		this.lines = lines;
+		List<Line> withGaps = lines;
+		for (int i = 0; i < lines.size(); ++i) {
+			final Line line = lines.get(i);
+			if (Double.isNaN(line.gapBefore())) {
+				if (withGaps == lines) {
+					withGaps = new ArrayList<>(lines);
+				}
+				final double gap = i == 0 ? 0
+						: Math.max(0, line.start() - (lines.get(i - 1).start() + lines.get(i - 1).pageSize()));
+				withGaps.set(i, new Line(line.startFlow(), line.itemCount(), line.start(), line.pageSize(), gap));
+			}
+		}
+		this.lines = withGaps;
 		this.lineItems = lineItems;
 	}
 
@@ -162,7 +184,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		final double[][] result = new double[this.lines.size()][];
 		for (int i = 0; i < this.lines.size(); ++i) {
 			final Line line = this.lines.get(i);
-			result[i] = new double[] { line.startFlow(), line.itemCount(), line.start(), line.pageSize() };
+			result[i] = new double[] { line.startFlow(), line.itemCount(), line.start(), line.pageSize(), line.gapBefore() };
 		}
 		return result;
 	}
@@ -172,7 +194,17 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		for (int i = 0; i < this.lines.size(); ++i) {
 			final Line old = this.lines.get(i);
 			if (old.start() != starts[i]) {
-				this.lines.set(i, new Line(old.startFlow(), old.itemCount(), starts[i], old.pageSize()));
+				this.lines.set(i, new Line(old.startFlow(), old.itemCount(), starts[i], old.pageSize(), old.gapBefore()));
+			}
+		}
+	}
+
+	@Override
+	public final void syncRowGeometry(final double[] starts, final double[] extents) {
+		for (int i = 0; i < this.lines.size(); ++i) {
+			final Line old = this.lines.get(i);
+			if (old.start() != starts[i] || old.pageSize() != extents[i]) {
+				this.lines.set(i, new Line(old.startFlow(), old.itemCount(), starts[i], extents[i], old.gapBefore()));
 			}
 		}
 	}
@@ -233,6 +265,14 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 	 * {@link FlexItemBox#setFlexLineOffset}.
 	 * </p>
 	 */
+	/**
+	 * Where the kept side of a split item ends in the item as it was before the split: its frame start and kept content,
+	 * the trailing margin of the last block kept included, or what it painted if that ends later (2026-10-09).
+	 */
+	static double keptContentEnd(final FlowBlockBox kept, final double painted, final WritingMode flow) {
+		return Math.max(painted, kept.getFrame().getFramePageStart(flow) + kept.getContainer().getContentSize());
+	}
+
 	public final SplitResult split(double pageLimit, final BreakMode mode, final byte flags) {
 		// Unlike TableRowBox.split, this shares the generic BoxType.BLOCK path
 		// (case BLOCK in FlowContainer.splitPageAxis) with normal blocks,
@@ -350,6 +390,20 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			boundaryItems[k] = this.lineItems.get(boundaryLine.startFlow() + k);
 		}
 
+		// Item height before splitting (for the remainder lower-bound calculation below). Measured before the probe,
+		// which already splits the items it can (2026-10-09): measured after it, it was the kept height, the lower bound
+		// fell back to the line less the kept extent, and what the item grew when laid out again never reached the
+		// ledger (sphinx-api: 875pt behind after 105 pages).
+		final double[] preExtents = new double[boundaryItems.length];
+		final double[] contentExtents = new double[boundaryItems.length];
+		double contentExtent = 0;
+		for (int k = 0; k < boundaryItems.length; ++k) {
+			preExtents[k] = boundaryItems[k].getPageExtent(flow);
+			contentExtents[k] = net.zamasoft.foliojet.layout.box.RowSplitBox.contentPageExtent(boundaryItems[k],
+					preExtents[k], flow);
+			contentExtent = Math.max(contentExtent, contentExtents[k]);
+		}
+		final boolean followsContent = LayoutUtils.compare(boundaryLine.pageSize(), contentExtent) <= 0;
 		final double[] prePainted = new double[boundaryItems.length];
 		for (int k = 0; k < boundaryItems.length; ++k) {
 			prePainted[k] = boundaryItems[k].paintedPageExtent(flow);
@@ -401,11 +455,6 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		// Boundary row: forcibly split even items that were not split (Keep decision).
 		final byte forcedFlags = (byte) (xflags | IPageBreakableBox.FLAGS_SPLIT);
 		final FlexItemBox[] remainders = new FlexItemBox[boundaryItems.length];
-		// Item height before splitting (for the remainder lower-bound calculation below).
-		final double[] preExtents = new double[boundaryItems.length];
-		for (int k = 0; k < boundaryItems.length; ++k) {
-			preExtents[k] = boundaryItems[k].getPageExtent(flow);
-		}
 		for (int k = 0; k < boundaryItems.length; ++k) {
 			final SplitResult r = probed[k] instanceof SplitResult.Split ? probed[k]
 					: boundaryItems[k].split(remaining, mode, forcedFlags);
@@ -450,12 +499,24 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		// The remainder is not laid out yet, so getPageExtent may return nearly 0. Flex boundary searches
 		// use cumulative sums, avoiding grid's "empty continuation fragment" (an actual defect), but
 		// cut positions for later lines in a multi-line continuation shift. Enforce a geometric lower bound.
-		newLinePageSize = Math.max(newLinePageSize, boundaryLine.pageSize() - consumed);
-		// Per item, also enforce "item height before splitting - measured height of the kept side"
-		// (2026-08-18; same correction as in GridBox.split). The kept side can end before
-		// the available extent because indivisible content moves to the remainder.
-		for (int k = 0; k < boundaryItems.length; ++k) {
-			newLinePageSize = Math.max(newLinePageSize, preExtents[k] - consumed);
+		// A line its items' content alone set (followsContent) is what is left of that content after the kept side:
+		// each item's frame and content less where its kept content ends, the trailing margin of the last block kept
+		// included (2026-10-09). A stretched item counts its content only, not the line it was stretched to.
+		// Less what the kept side painted, as for any other line, the margin was counted again on every page and the
+		// lines after it fell behind by as much (gd2's grid: 4pt a page, 96pt after 25 pages).
+		if (followsContent) {
+			for (int k = 0; k < boundaryItems.length; ++k) {
+				newLinePageSize = Math.max(newLinePageSize,
+						contentExtents[k] - keptContentEnd(boundaryItems[k], consumed, flow));
+			}
+		} else {
+			newLinePageSize = Math.max(newLinePageSize, boundaryLine.pageSize() - consumed);
+			// Per item, also enforce "item height before splitting - measured height of the kept side"
+			// (2026-08-18; same correction as in GridBox.split). The kept side can end before
+			// the available extent because indivisible content moves to the remainder.
+			for (int k = 0; k < boundaryItems.length; ++k) {
+				newLinePageSize = Math.max(newLinePageSize, preExtents[k] - consumed);
+			}
 		}
 		final List<FlexItemBox> contItems = new ArrayList<>(remainders.length
 				+ (this.lineItems.size() - (boundaryLine.startFlow() + boundaryItems.length)));
@@ -463,16 +524,21 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			contItems.add(rem);
 		}
 		final List<Line> contLines = new ArrayList<>();
-		contLines.add(new Line(0, boundaryItems.length, 0, newLinePageSize));
+		contLines.add(new Line(0, boundaryItems.length, 0, newLinePageSize, 0));
 
 		if (boundary + 1 < this.lines.size()) {
 			final Line nextLine = this.lines.get(boundary + 1);
-			((Container) this.container).migrateFlowsFrom(nextLine.startFlow(), cont, keptEnd);
+			// The later lines keep their gap after the remainder line (2026-10-09), up or down. The restyle only pushes
+			// them down when the remainder comes out taller.
+			final double gap = Double.isNaN(nextLine.gapBefore()) ? 0 : nextLine.gapBefore();
+			final double down = newLinePageSize + gap - (nextLine.start() - keptEnd);
+			((Container) this.container).migrateFlowsFrom(nextLine.startFlow(), cont, keptEnd - down);
 			int shift = boundaryItems.length;
 			for (int j = boundary + 1; j < this.lines.size(); ++j) {
 				final Line old = this.lines.get(j);
-				// Match start to the actual drawing position after transfer (-keptEnd).
-				contLines.add(new Line(shift, old.itemCount(), old.start() - keptEnd, old.pageSize()));
+				// Match start to the actual drawing position after transfer (-keptEnd, +down).
+				contLines.add(new Line(shift, old.itemCount(), old.start() - keptEnd + down, old.pageSize(),
+						old.gapBefore()));
 				shift += old.itemCount();
 			}
 			contItems.addAll(this.lineItems.subList(nextLine.startFlow(), this.lineItems.size()));
@@ -517,7 +583,8 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		for (int j = fromIndex; j < lines.size(); ++j) {
 			final Line old = lines.get(j);
 			// Match start to the actual drawing position after transfer (-keptExtent).
-			result.add(new Line(shift, old.itemCount(), old.start() - keptExtent, old.pageSize()));
+			result.add(new Line(shift, old.itemCount(), old.start() - keptExtent, old.pageSize(),
+					j == fromIndex ? 0 : old.gapBefore()));
 			shift += old.itemCount();
 		}
 		return result;

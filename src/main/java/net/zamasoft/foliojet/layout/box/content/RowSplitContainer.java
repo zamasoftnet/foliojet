@@ -212,12 +212,17 @@ public final class RowSplitContainer extends FlowContainer {
 		}
 		final boolean vertical = this.box.getBlockParams().flow.isVertical();
 		final double[] newStarts = new double[rows.length];
+		final double[] newExtents = new double[rows.length];
 		newStarts[0] = rows[0][2];
 		// Actual content end of row 0.
 		double prevEnd = this.rowContentEnd(rows[0], vertical);
-		boolean shifted = false;
+		newExtents[0] = Math.max(rows[0][3], prevEnd - rows[0][2]);
+		boolean shifted = newExtents[0] != rows[0][3];
 		for (int r = 1; r < rows.length; ++r) {
-			final double ledgerGap = Math.max(0, rows[r][2] - (rows[r - 1][2] + rows[r - 1][3]));
+			// The gap the ledger keeps (2026-10-09), else inferred from the ledger. Inferred, the difference between a
+			// row's content as laid out again and its ledger extent became a gap the next time (eurekalert: 19.57pt).
+			final double ledgerGap = rows[r].length > 4 && !Double.isNaN(rows[r][4]) ? rows[r][4]
+					: Math.max(0, rows[r][2] - (rows[r - 1][2] + rows[r - 1][3]));
 			final double required = prevEnd + ledgerGap;
 			double start = rows[r][2];
 			if (LayoutUtils.compare(start, required) < 0) {
@@ -238,11 +243,13 @@ public final class RowSplitContainer extends FlowContainer {
 				shifted = true;
 			}
 			newStarts[r] = start;
-			prevEnd = Math.max(prevEnd, this.rowContentEnd(new double[] { rows[r][0], rows[r][1], start, rows[r][3] },
-					vertical));
+			final double rowEnd = this.rowContentEnd(new double[] { rows[r][0], rows[r][1], start, rows[r][3] }, vertical);
+			newExtents[r] = Math.max(rows[r][3], rowEnd - start);
+			shifted |= newExtents[r] != rows[r][3];
+			prevEnd = Math.max(prevEnd, rowEnd);
 		}
 		if (shifted) {
-			rowSplit.syncRowStarts(newStarts);
+			rowSplit.syncRowGeometry(newStarts, newExtents);
 		}
 	}
 
