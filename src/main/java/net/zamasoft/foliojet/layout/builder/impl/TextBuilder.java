@@ -619,6 +619,29 @@ public class TextBuilder {
 	}
 
 	/**
+	 * Takes back the pair adjustment of the run that starts the next line when this line broke between two runs
+	 * (2026-10-09; CSS Text 4 text-autospace and JLREQ: no Japanese/Latin space, no pair trim across a line break).
+	 * The next line starts at the first buffered element from {@code from} on that takes room; zero-width inline
+	 * boundaries before it keep the pair, as they do when the adjustment is made.
+	 */
+	private void dropLeadAdjustmentAtLineStart(final int from) {
+		for (int i = from; i < this.textBuffer.size(); ++i) {
+			final Element e = (Element) this.textBuffer.get(i);
+			if (e instanceof TextImpl run) {
+				final Double adjustment = this.runLeadAdjustments.remove(run);
+				if (adjustment != null && run.getGlyphCount() > 0) {
+					run.addXAdvance(0, -adjustment);
+					this.lineAxis -= adjustment;
+				}
+				return;
+			}
+			if (e.getAdvance() != 0) {
+				return;
+			}
+		}
+	}
+
+	/**
 	 * Next page-direction position to try when a line does not fit.
 	 *
 	 * <p>
@@ -1322,6 +1345,8 @@ public class TextBuilder {
 							// Split at a breakable position.
 							e = text.split(this.opportunity.glyphCount());
 							TextImpl prevText = (TextImpl) e;
+							// The run object keeps the tail: its lead adjustment belongs to the head on this line
+							this.runLeadAdjustments.remove(text);
 							// Undo kerning at the split and calculate the position
 							// (T1a: font-layer kern is GPOS only; punctuation compression/autospace
 							// adjustments are undone below).
@@ -1339,6 +1364,7 @@ public class TextBuilder {
 						}
 					}
 					this.addElement(e);
+					this.runLeadAdjustments.remove(e);
 					trimEndCandidate = (TextImpl) e;
 				} else if (e instanceof TextControl) {
 					final TextControl quad = (TextControl) e;
@@ -1380,6 +1406,7 @@ public class TextBuilder {
 				break;
 			}
 			this.lineBox.addAdvance(-lastSpaceAdvance);
+			this.dropLeadAdjustmentAtLineStart(count);
 			int remainder = this.textBuffer.size() - count;
 			for (int i = 0; i < remainder; ++i) {
 				this.textBuffer.set(i, this.textBuffer.get(count + i));
@@ -1483,6 +1510,14 @@ public class TextBuilder {
 
 	/** Japanese spacing compression A2: text-autospace pair tracking. */
 	private final net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker autospace = new net.zamasoft.foliojet.layout.text.spacing.AutospaceTracker();
+
+	/**
+	 * The pair adjustment (autospace gap less punctuation trim) put before the first glyph of a buffered run, against
+	 * the last glyph of the run before it (2026-10-09). A line that breaks between the two runs takes it back from the
+	 * run that starts the next line, as {@link #boundaryAdjustment} does for a break inside a run: otherwise the
+	 * Japanese/Latin quarter-em stayed at the start of the next line (「号」 at 0.25em after 「41」 wrapped).
+	 */
+	private final java.util.Map<TextImpl, Double> runLeadAdjustments = new java.util.IdentityHashMap<>();
 
 	/** Japanese spacing compression H1: flag enabling hanging-punctuation: allow-end. */
 	private boolean hangingEnd;
@@ -1967,6 +2002,11 @@ public class TextBuilder {
 			this.text.addXAdvance(this.text.getGlyphCount() - 1, adjustment);
 			this.unitAdvance += adjustment;
 			this.lineAxis += adjustment;
+			if (this.text.getGlyphCount() == 1) {
+				// The pair adjustment with the run before (another font or a zero-width inline boundary): undone if
+				// the line breaks between the two runs (see drawLine).
+				this.runLeadAdjustments.put(this.text, adjustment);
+			}
 		}
 		this.autospace.glyphAdded(this.text, fontSize, ch, coff, clen, gid);
 		this.lastSpaceAdvance = 0;

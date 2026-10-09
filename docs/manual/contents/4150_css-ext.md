@@ -416,6 +416,7 @@ anywhereはbreak-wordと同じに扱います(仕様では最小内容幅の計�
 	句読点(、。，．)は全角なら対象外(字形が自身の後ろに空きを持つ)ですが、
 	比例幅(送りが0.75em以下——IPA P系の書体や<span class="cssprop">font-feature-settings</span>の
 	<tt>palt</tt>指定)のときは、その後ろの欧文・数字との間にも四分アキを入れます<span class="since">4.0.0</span>。
+	境界で行を折り返したときは、行頭にも行末にもアキを入れません。
 	旧バージョンの見た目に戻すには<span class="cssdecl">text-autospace: no-autospace;</span>を
 	指定してください。</dd>
 <dt><span class="cssprop">text-spacing-trim</span></dt>
@@ -428,7 +429,7 @@ trim-startは行頭を天付き、trim-bothは行頭と行末を詰めます。a
 trim-both相当です。space-firstは初行・強制改行直後だけ行頭のアキを残し、
 space-allは約物の詰めを無効にします。段落第1行の字下げ量は
 <span class="cssprop">text-indent</span>で指定します。比例幅の約物には固定0.5emの
-詰めを適用しません。</dd>
+詰めを適用しません。行をまたぐ約物の組は詰めません。</dd>
 <dt><span class="cssprop">hanging-punctuation</span></dt>
 <dd>none、first、allow-end、force-endを指定できます。firstは最初の整形行の
 先頭約物、allow-endは通常位置に収まらない行末句読点、force-endは全ての

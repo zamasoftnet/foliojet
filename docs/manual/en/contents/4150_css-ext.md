@@ -416,6 +416,7 @@ does not claim full conformance. The subset described here defines the implement
 	Full-width commas and full stops (、。，．) are excluded because their glyphs already have trailing space.
 	When they are proportional (with an advance of 0.75 em or less, as in IPA P fonts or with <span class="cssprop">font-feature-settings</span>
 	set to <tt>palt</tt>), quarter-em spacing is also inserted between them and following Latin text or digits<span class="since">4.0.0</span>.
+	When a line breaks at such a boundary, no spacing is left at the start or the end of the lines.
 	To restore the appearance of older versions, specify
 	<span class="cssdecl">text-autospace: no-autospace;</span>.</dd>
 <dt><span class="cssprop">text-spacing-trim</span></dt>
@@ -428,7 +429,7 @@ trim-start sets the line start flush, and trim-both trims both line starts and l
 equivalent to trim-both. space-first retains space at the line start only on the first line and immediately after a forced line break,
 and space-all disables punctuation spacing reduction. Specify the indentation of the first line of a paragraph
 with <span class="cssprop">text-indent</span>. A fixed reduction of 0.5 em is not applied
-to proportional punctuation.</dd>
+to proportional punctuation. A pair of punctuation characters split across a line break is not trimmed.</dd>
 <dt><span class="cssprop">hanging-punctuation</span></dt>
 <dd>You can specify none, first, allow-end, and force-end. first hangs the leading punctuation on the first formatted line;
 allow-end hangs commas and full stops at line ends when they do not fit in the normal position; force-end hangs all
