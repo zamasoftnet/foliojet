@@ -909,11 +909,25 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
-	 * Whether the table is a grid item itself: its flow container is a grid item box that wraps the item element
-	 * (not one taken over by an authored element, whose children are in normal block flow).
+	 * Whether the table is a grid or flex item itself: its flow container is an item box that wraps the item element
+	 * (not one taken over by an authored element, whose children are in normal block flow). A flex item's wrapper has
+	 * the neutral params of {@code FlexBuilder.startNeutralElementItem}, with no element (2026-10-09).
 	 */
-	private static boolean isItemTable(final AbstractContainerBox containerBox) {
-		return containerBox instanceof net.zamasoft.foliojet.layout.box.impl.GridItemBox item && !item.isTakeover();
+	private boolean isItemTable(final AbstractContainerBox containerBox) {
+		if (containerBox instanceof net.zamasoft.foliojet.layout.box.impl.GridItemBox item && !item.isTakeover()
+				|| containerBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox flexItem
+						&& flexItem.getParams().element == null) {
+			return true;
+		}
+		// An item of a column flex laid out in normal flow, stretched across the column by the container's
+		// align-items (a table's position does not carry align-self; an auto margin across the column centers it)
+		final net.zamasoft.foliojet.layout.box.params.Insets margin = this.tableBox.getTableParams().frame.margin;
+		final boolean vertical = this.tableBox.getTableParams().flow.isVertical();
+		final boolean autoMargin = vertical
+				? margin.getTopType() == LengthType.AUTO || margin.getBottomType() == LengthType.AUTO
+				: margin.getLeftType() == LengthType.AUTO || margin.getRightType() == LengthType.AUTO;
+		return BlockBuilder.isStreamedColumnFlex(containerBox) && !autoMargin
+				&& BlockBuilder.streamedColumnAlign(containerBox, null) == null;
 	}
 
 	/**
@@ -1044,7 +1058,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			// An auto-width table that is itself a grid item fills the item (2026-10-09, css-grid-1 §6.2 stretch;
 			// Chrome does the same). The item's width is already resolved by its alignment: stretched to its area, or
 			// fit-content (= this table's own shrink-to-fit) otherwise. Shrink-to-fit inside the stretched item left
-			// a 2-column-wide table at its content width. Flex items do not come here (FlexItemBox, not done).
+			// a 2-column-wide table at its content width. A flex item's width is its main size (flex: 1) or its cross
+			// size (stretched in a column), so the table fills it too.
 			final double specified = LayoutUtils.isNone(tableSize) && isItemTable(containerBox) ? available : tableSize;
 			final AutoColumnWidths.Sized sized = this.columnWidths.resolve(specified, available,
 					tableFrame, lineBorderSpacing, tableParams.borderCollapse == TableParams.BORDER_SEPARATE);
