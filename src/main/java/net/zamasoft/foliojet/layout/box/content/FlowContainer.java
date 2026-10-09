@@ -610,7 +610,7 @@ public class FlowContainer implements Container {
 
 	@Override
 	public double balancePageSizeFloor() {
-		if (this.flows == null) {
+		if (this.flows == null && this.floatings == null) {
 			return 0;
 		}
 		// Same-axis reverse-progression children (RL⇄LR) are atomic under the pagination contract.
@@ -627,6 +627,11 @@ public class FlowContainer implements Container {
 		// horizontal columns became shorter than their children, overlapping subsequent content. This also applies
 		// when nested inside same-writing-direction children, so descend into them to search (2026-10-03, sweep seed
 		// 11587843). Traverse with a worklist to avoid stack consumption in deep nesting.
+		//
+		// Floats that cannot be cut (in the other writing direction, orthogonal or replaced) set the floor as well
+		// (2026-10-09, sweep defect R2, seed 12679054). The capacity search counts only the flows, so a multicol
+		// holding only floats got the least capacity and stayed where the rest of the page was too small for them:
+		// a vertical-lr float in vertical-rl columns ran 133pt off the page. With the floor, the multicol moves on.
 		final WritingMode outer = this.box.getBlockParams().flow;
 		double floor = 0;
 		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
@@ -636,6 +641,16 @@ public class FlowContainer implements Container {
 		while (!containers.isEmpty()) {
 			final FlowContainer container = containers.pop();
 			final double offset = offsets.pop();
+			if (container.floatings != null) {
+				for (int i = 0; i < container.floatings.getCount(); ++i) {
+					final Floating floating = container.floatings.getFloating(i);
+					final BoxType type = floating.box.getType();
+					if (type == BoxType.REPLACED || type == BoxType.RESCUE || (type == BoxType.BLOCK
+							&& ((AbstractContainerBox) floating.box).getBlockParams().flow != outer)) {
+						floor = Math.max(floor, offset + floating.pageAxis + floating.box.getPageExtent(outer));
+					}
+				}
+			}
 			if (container.flows == null) {
 				continue;
 			}
@@ -1423,7 +1438,7 @@ public class FlowContainer implements Container {
 				if ((cParams.pageBreakInside != PageBreakMode.AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0
 						|| unfulfillableAvoid)
 						&& net.zamasoft.foliojet.layout.fragment.PaginationContract.splitsInPageAxis(this.box.getBlockParams().flow,
-								(AbstractContainerBox) prevFlow.box)) {
+								(AbstractContainerBox) prevFlow.box, (xflags & IPageBreakableBox.FLAGS_FIRST) != 0)) {
 					if (plan != null && plan.selects(prevFlow.box)) {
 						// C1d-C: Continue a chain member. Fragments propagate to the parent in the return value
 						// as frames, not boxes

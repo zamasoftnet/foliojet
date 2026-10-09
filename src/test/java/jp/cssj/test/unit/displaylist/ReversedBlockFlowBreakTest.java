@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import jp.cssj.cti2.helpers.CTISessionHelper;
@@ -37,18 +38,27 @@ public class ReversedBlockFlowBreakTest extends TestCase {
 		assertMovesWhole("background: #fee");
 	}
 
-	/** A float is not cut either. */
-	public void testFloat() throws Exception {
-		assertMovesWhole("background: #fee", "float: right; ");
+	/**
+	 * At the start of the page, where moving makes no progress, a box larger than the page is cut, as in Chrome: kept
+	 * whole, its start ran 80pt off the page (2026-10-09, after 85272cf8; seed 12555259).
+	 */
+	public void testLargerThanThePageIsCutAtThePageStart() throws Exception {
+		final List<String> pages = convert("<div style=\"writing-mode: vertical-lr\">"
+				+ "<div style=\"width: 60pt\">B0</div><div style=\"width: 60pt\">B1</div><div style=\"width: 60pt\">B2</div>"
+				+ "</div><p>END</p>");
+		assertEquals("pages", 2, pages.size());
+		for (final String page : pages) {
+			final Matcher m = Pattern.compile(" x=(-?[\\d.]+) y=[\\d.]+ Text\\[\"(\\w+)").matcher(page);
+			while (m.find()) {
+				final double x = Double.parseDouble(m.group(1));
+				assertTrue(m.group(2) + " on the page: " + x, x >= 0 && x < 100);
+			}
+		}
 	}
 
 	private static void assertMovesWhole(final String container) throws Exception {
-		assertMovesWhole(container, "");
-	}
-
-	private static void assertMovesWhole(final String container, final String box) throws Exception {
 		final List<String> pages = convert("<div style=\"width: 70pt\">PRE</div><div style=\"" + container
-				+ "\"><div style=\"" + box + "writing-mode: vertical-lr; min-width: 64pt\">BOX</div></div><p>END</p>");
+				+ "\"><div style=\"writing-mode: vertical-lr; min-width: 64pt\">BOX</div></div><p>END</p>");
 		assertEquals("pages", 2, pages.size());
 		assertFalse("not on the first page", pages.get(0).contains("Text[\"BOX\""));
 		assertTrue("at the start of the second page: " + pages.get(1),

@@ -89,8 +89,8 @@ public interface Container {
 	 * The minimum page-axis capacity for column balancing (2026-08-22).
 	 * Children that are atomic under the pagination contract (same-axis reverse progression or orthogonal
 	 * writing directions, including those nested in children with the same writing direction; 2026-10-03)
-	 * cannot split internally at column boundaries, so their full extent sets the capacity floor.
-	 * 0 if there are no such children.
+	 * cannot split internally at column boundaries, so their full extent sets the capacity floor, as does that of
+	 * floats that cannot be cut (2026-10-09). 0 if there are no such children.
 	 */
 	public default double balancePageSizeFloor() {
 		return 0;

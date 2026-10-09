@@ -26,7 +26,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * @param pageStart       measured page-axis start ({@code Floating.pageAxis})
  * @param pageEnd         measured page-axis end ({@code pageStart + pageExtent})
  * @param pageExtent      measured page-axis size in the owner's writing direction
- * @param sameWritingAxis whether the owner and float have the same actual writing axis (vertical/horizontal) and direction.
+ * @param sameWritingAxis whether the owner and float have the same actual writing axis (vertical/horizontal).
  *                        Always true for REPLACED, which is atomic and bypasses the axis check
  * @param fragmentHead    whether physically at the fragment start
  *                        ({@code LayoutUtils.compare(pageStart, 0) <= 0}).
@@ -136,16 +136,17 @@ public record FloatMeasurement(
 	}
 
 	/**
-	 * Returns whether the owner and float contents share the actual writing axis (vertical/horizontal; 2026-09-04) and
-	 * its direction (2026-10-09): a float whose block flow runs the other way is not cut either, as
-	 * {@code PaginationContract.splitsInPageAxis} does not cut such a block (sweep defect R).
+	 * Returns whether the owner and float contents share the actual writing axis (vertical/horizontal; 2026-09-04).
+	 * A float whose block flow runs the other way on the same axis is cut as before: from 85272cf8 to 2026-10-09 it
+	 * was kept whole like an orthogonal one, which left one larger than the page off the page. Only column
+	 * balancing keeps it whole ({@code FlowContainer.balancePageSizeFloor}).
 	 */
 	public static boolean sameWritingAxis(final WritingMode ownerFlow, final IFloatBox box) {
 		if (box.getType() != BoxType.BLOCK) {
 			return true;
 		}
 		final WritingMode floatFlow = ((AbstractContainerBox) box).getBlockParams().flow;
-		return ownerFlow == floatFlow;
+		return ownerFlow.isVertical() == floatFlow.isVertical();
 	}
 
 	/**

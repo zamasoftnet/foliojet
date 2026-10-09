@@ -20,11 +20,13 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
  * same axis (RL⇄LR) is atomic like an orthogonal one. {@link #isChainAtomicBoundary} prevents automatic page
  * breaking from starting inside the box at all (commit {@code 77eef99} , same treatment as
  * {@link ContinuationCapability#SAME_AXIS_DIRECTION_CHANGE} ), and {@link #splitsInPageAxis} keeps it from being
- * cut in place: it fits entirely or moves entirely to the next page, as in Chrome.
+ * cut in place: it moves entirely to the next page, as in Chrome.
  * {@link #splitsInPageAxis} compared only the axis until 2026-10-09. Cutting a reversed box put its start (where
  * its content begins) past the cut, and column balancing cut it into column-high pieces it could not fill: in a
  * column-count: 3 or more multicol that left the box in a column narrower than the page's rest, and its text off
- * the page (sweep defect R).
+ * the page (sweep defect R). At the start of a fragment, where moving makes no progress, a reversed box is still
+ * cut in place (on the same axis the cut makes geometric sense): kept whole, one larger than the page ran off it
+ * (seed 12555259; Chrome cuts it too). An orthogonal box there goes to visual rescue instead.
  * </p>
  *
  * @see ContinuationCapability classification for ancestor-chain collection (open chain)
@@ -100,13 +102,17 @@ public final class PaginationContract {
 	 * writing direction {@code outer}.
 	 *
 	 * <p>
-	 * Children on a different axis (equivalent to {@link ContinuationCapability#ORTHOGONAL_FLOW} ) or in the other
-	 * direction on the same axis (equivalent to {@link ContinuationCapability#SAME_AXIS_DIRECTION_CHANGE} ) are not
-	 * cut; they follow the same atomic path as replaced elements (keep entirely or move entirely to the next page).
+	 * Children on a different axis (equivalent to {@link ContinuationCapability#ORTHOGONAL_FLOW} ) are not cut; they
+	 * follow the same atomic path as replaced elements (keep entirely or move entirely to the next page). Children in
+	 * the other direction on the same axis (equivalent to {@link ContinuationCapability#SAME_AXIS_DIRECTION_CHANGE} )
+	 * follow it too, except at the start of a fragment.
 	 * </p>
+	 *
+	 * @param fragmentStart whether the child is at the start of the fragment (FLAGS_FIRST)
 	 */
-	public static boolean splitsInPageAxis(final WritingMode outer, final WritingMode inner) {
-		return outer == inner;
+	public static boolean splitsInPageAxis(final WritingMode outer, final WritingMode inner,
+			final boolean fragmentStart) {
+		return outer == inner || (fragmentStart && outer.isVertical() == inner.isVertical());
 	}
 
 	/**
@@ -114,11 +120,11 @@ public final class PaginationContract {
 	 * in place (move entirely → visual rescue).
 	 */
 	public static boolean splitsInPageAxis(final WritingMode outer,
-			final net.zamasoft.foliojet.layout.box.AbstractContainerBox box) {
+			final net.zamasoft.foliojet.layout.box.AbstractContainerBox box, final boolean fragmentStart) {
 		if (box instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox atomic && atomic.isPageAtomicNow()
 				&& !isRowSplitEligible(box)) {
 			return false;
 		}
-		return splitsInPageAxis(outer, box.getBlockParams().flow);
+		return splitsInPageAxis(outer, box.getBlockParams().flow, fragmentStart);
 	}
 }
