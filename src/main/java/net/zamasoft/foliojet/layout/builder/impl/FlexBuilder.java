@@ -103,6 +103,9 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	/** Bind runs only once. */
 	private boolean bound;
 
+	/** See {@link #streamedInFlow}. */
+	private boolean streamed;
+
 	FlexBuilder(final Builder host, final FlexBox flexBox) {
 		this.host = host;
 		this.hostStack = (LayoutStack) host;
@@ -379,6 +382,11 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 * live processing; likewise between StartFlow(FlexBox) and EndFlow for range replay).
 	 */
 	@Override
+	public boolean streamedInFlow() {
+		return this.streamed;
+	}
+
+	@Override
 	public void bind(final Builder hostBuilder) {
 		assert !this.bound : "Flexの二重bind";
 		this.bound = true;
@@ -419,12 +427,55 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		final int[] seq = reversed ? reverseWithinLines(ordered, lines) : ordered;
 		final List<FlexItemMetrics> metrics = reversed ? reverseWithinLines(orderedMetrics, lines) : orderedMetrics;
 		final double[] mainSizeByOriginal = this.resolveMainSizes(seq, metrics, lines, axis);
+		if (mainIsLine && this.streamsInFlow(target, axis, metrics, lines, mainSizeByOriginal)) {
+			// The host's own flow advanced with the item: no line ledger, no cursor to synchronize
+			this.streamed = true;
+			target.releaseRetainedFlow();
+			this.items.get(0).stream(target, axis.marginBase, axis.mainBase);
+			FLEX_ITEM_BINDS.incrementAndGet();
+			return;
+		}
 		if (mainIsLine) {
 			this.placeRow(target, axis, seq, metrics, lines, mainSizeByOriginal);
 		} else {
 			this.placeColumn(target, axis, seq, metrics, lines, mainSizeByOriginal, crossWidths, crossExtras);
 		}
 		this.syncHostCursor(target, params);
+	}
+
+	/**
+	 * Whether the single item of a row container is laid out in the live host's flow (2026-10-09, closed-after C of
+	 * copperpdf4/docs/design/retained-container-relayout-design.md). Only where nothing but the item's own content
+	 * sets the line: the container has no definite or minimum page-axis size (so stretch and cross alignment do
+	 * nothing), and the item fills the line (its auto margins are 0, and it takes the line's extent as a block). Only a host that breaks pages live takes it; a measuring host, a restyle or a replayed range binds as
+	 * before.
+	 */
+	private boolean streamsInFlow(final BlockBuilder target, final MainAxis axis, final List<FlexItemMetrics> metrics,
+			final List<FlexLineBreaker.Line> lines, final double[] mainSizeByOriginal) {
+		if (this.items.size() != 1 || lines.size() != 1) {
+			return false;
+		}
+		if (!(target instanceof RootBuilder root) || !root.supportsIncompleteTableIntake()
+				|| net.zamasoft.foliojet.layout.fragment.ReplayIntent.current() != net.zamasoft.foliojet.layout.fragment.ReplayIntent.MAIN) {
+			return false;
+		}
+		final FlexParams params = this.flexBox.getFlexParams();
+		final WritingMode flow = params.flow;
+		if (params.size.getPageType(flow) != LengthType.AUTO || params.maxSize.getPageType(flow) != LengthType.AUTO) {
+			return false;
+		}
+		final LengthType minType = params.minSize.getPageType(flow);
+		if (minType != LengthType.AUTO
+				&& !(minType == LengthType.ABSOLUTE && (flow.isVertical() ? params.minSize.getWidth()
+						: params.minSize.getHeight()) <= 0)) {
+			return false;
+		}
+		final FlexItemContent item = this.items.get(0);
+		final net.zamasoft.foliojet.layout.box.params.BlockParams itemParams = item.itemBox.getBlockParams();
+		if (itemParams.flow.isVertical() != flow.isVertical() || itemParams.aspectRatio > 0) {
+			return false;
+		}
+		return Math.abs(mainSizeByOriginal[0] + metrics.get(0).outerMainExtra() - axis.mainBase) < 0.01;
 	}
 
 	/**

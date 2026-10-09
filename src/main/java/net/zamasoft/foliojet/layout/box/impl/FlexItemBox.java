@@ -31,6 +31,12 @@ public class FlexItemBox extends FlowBlockBox {
 	 */
 	private boolean neutralLineFill;
 
+	/**
+	 * Whether the item is laid out in the normal flow of its container's host, breaking across pages as a block does
+	 * (2026-10-09, {@code FlexBuilder} for a single item that fills its line). It still seals its margins and floats.
+	 */
+	private boolean streamedInFlow;
+
 	public FlexItemBox(final BlockParams params, final FlowPos pos) {
 		super(params, pos);
 		this.markSpecifiedPageAxisFromSize();
@@ -50,6 +56,16 @@ public class FlexItemBox extends FlowBlockBox {
 	private void markSpecifiedPageAxisFromSize() {
 		this.specifiedPageAxis = this.size
 				.getPageType(this.getBlockParams().flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE;
+	}
+
+	/** See {@link #streamedInFlow}. */
+	public void markStreamedInFlow() {
+		this.streamedInFlow = true;
+	}
+
+	/** See {@link #streamedInFlow}. */
+	public boolean isStreamedInFlow() {
+		return this.streamedInFlow;
 	}
 
 	/** Records takeover of the line-axis size (neutral wrappers only). */
@@ -195,6 +211,7 @@ public class FlexItemBox extends FlowBlockBox {
 						? this.frame.getBorderLineExtent(params.flow)
 						: 0);
 		final boolean fill = this.neutralLineFill;
+		final boolean streamed = this.streamedInFlow;
 		return (state, container) -> {
 			final net.zamasoft.foliojet.layout.box.params.Dimension ns = state.nextSize();
 			final net.zamasoft.foliojet.layout.box.params.Dimension sized = vertical
@@ -207,6 +224,9 @@ public class FlexItemBox extends FlowBlockBox {
 					container);
 			if (fill) {
 				next.markNeutralLineFill();
+			}
+			if (streamed) {
+				next.markStreamedInFlow();
 			}
 			return next;
 		};

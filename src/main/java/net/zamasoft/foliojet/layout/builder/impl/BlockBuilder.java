@@ -711,9 +711,11 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// An item of a column flex container laid out in normal flow (F0+). With an indefinite main size the free space
 		// is zero, so the item's own flex-basis decides its main size; it seals its margins and floats (a flex item
 		// establishes an independent formatting context).
-		final boolean flexItem = isStreamedColumnFlex(containerBox)
+		final boolean columnItem = isStreamedColumnFlex(containerBox)
 				&& !(flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox);
-		if (flexItem && flowBox.getBlockParams().flow.isVertical() == cParams.flow.isVertical()) {
+		final boolean flexItem = columnItem
+				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item && item.isStreamedInFlow();
+		if (columnItem && flowBox.getBlockParams().flow.isVertical() == cParams.flow.isVertical()) {
 			flowBox.applyStreamedFlexBasis(flowBox.getFlowPos().flexItem);
 		}
 		final AxisSpan containerBand = new AxisSpan(this.lineAxis, this.lineAxis + containerBox.getLineSize());
@@ -991,6 +993,17 @@ public class BlockBuilder implements Builder, LayoutContext {
 	protected final RetainedTextLimit.Scope takeRetainedFlow() {
 		return this.retainedFlows == null ? null
 				: this.retainedFlows.remove(this.flowStack == null ? 0 : this.flowStack.size());
+	}
+
+	/**
+	 * Forgets the retained text of the active flow (2026-10-09): a flex container whose single item is laid out in
+	 * this flow no longer holds its content back, and measuring the item already counted it once.
+	 */
+	final void releaseRetainedFlow() {
+		final var retained = this.takeRetainedFlow();
+		if (retained != null) {
+			retained.close();
+		}
 	}
 
 	public void endFlowBlock() {

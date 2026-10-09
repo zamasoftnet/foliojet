@@ -25,4 +25,12 @@ public interface RetainedFlex extends TwoPass {
 	 */
 	public void bind(Builder host);
 
+	/**
+	 * Whether {@link #bind} laid the container's single item out in the host's own flow, breaking pages as it went
+	 * (2026-10-09), instead of placing the container as one box.
+	 */
+	public default boolean streamedInFlow() {
+		return false;
+	}
+
 }

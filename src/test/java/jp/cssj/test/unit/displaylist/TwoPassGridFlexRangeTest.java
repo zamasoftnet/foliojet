@@ -196,7 +196,7 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 			final String html = """
 					<!DOCTYPE html><html><head><meta charset='UTF-8'><style>
 					@page{size:400pt 300pt;margin:10pt}body{margin:0;font:12px/normal sans-serif}
-					.host{display:flex;width:300px}.host>div{flex:1 1}
+					.host{display:flex;width:300px}.host>div{flex:0 1 290px}
 					p{margin:0;page-break-inside:avoid}
 					.icon,.middle{display:inline-block;vertical-align:middle}
 					.icon{background:#def;outline:1pt solid #246}
@@ -206,7 +206,8 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 					<span class='middle'>34℃</span><br>熱中症指数</p></div></div>
 					</body></html>
 					""".formatted(pushed ? 260 : 0);
-			// A normal fixed-width block does not become TwoPass, so use a flex item as the host.
+			// A normal fixed-width block does not become TwoPass, so use a flex item as the host. It does not fill
+			// the line: a single item that fills it is laid out in the flow (2026-10-09), not as a TwoPass host.
 			// DirectSession converts on another thread. Observe reconstruction with the existing static AtomicLong.
 			final long replays = BoxRecipeBoxFactory.FLEX_REPLAYS.get();
 			ContinuationStats.reset();

@@ -100,6 +100,31 @@ final class FlexItemContent {
 	}
 
 	/**
+	 * Lays the item out in the host's own flow (2026-10-09): the host breaks pages as the body is replayed into it, as
+	 * for a block, so the rest of the item is never laid out whole and relaid on every page. For a single item that
+	 * fills its line: its outer line extent is the line's, whatever its own width says ({@code flex: 1; width: 50%}).
+	 */
+	void stream(final BlockBuilder host, final double insetBase, final double lineExtent) {
+		// The item fills its line, so its auto margins are 0; the block rules would not resolve them for an item
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = this.itemBox.getFrame();
+		net.zamasoft.foliojet.layout.util.LayoutUtils.computePaddings(frame.padding, frame.frame.padding, insetBase);
+		net.zamasoft.foliojet.layout.util.LayoutUtils.computeMarginsAutoToZero(frame.margin, frame.frame.margin,
+				insetBase);
+		this.itemBox.markStreamedInFlow();
+		this.itemBox.prepareRestyleLineExtent(lineExtent, lineExtent, this.itemBox.getBlockParams().flow.isVertical());
+		host.startFlowBlock(this.itemBox);
+		if (this.body == null) {
+			this.content.bind(host);
+		} else {
+			this.body.bind(host, this.pageGenerator);
+			if (this.censusTag != null) {
+				this.censusTag.record(ContinuationStats.TwoPassCensusEvent.BIND);
+			}
+		}
+		host.endFlowBlock();
+	}
+
+	/**
 	 * Whether the item's column main size depends on its content: {@code flex-basis: content}, or {@code auto} with
 	 * an auto page-axis size (2026-10-08, for {@link #measureMain}).
 	 */

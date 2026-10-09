@@ -3200,7 +3200,8 @@ public class RootBuilder extends BreakableBuilder {
 		final double start = this.getFlow().pageAxis;
 		final int narrowings = this.pageFloatNarrowings;
 		super.addFlex(flexBuilder);
-		if (this.pageFloatNarrowings == narrowings) {
+		// An item laid out in this flow saw the page exclusions itself, and the page may have turned since start
+		if (!flexBuilder.streamedInFlow() && this.pageFloatNarrowings == narrowings) {
 			this.exclusionBlindBoxPlaced(start);
 		}
 	}
