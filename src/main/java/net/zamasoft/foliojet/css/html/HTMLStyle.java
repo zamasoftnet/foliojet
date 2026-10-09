@@ -111,6 +111,21 @@ public class HTMLStyle {
 	private static final ValueListValue CLOSE_QUOTE = new ValueListValue(new Value[] { QuoteValue.CLOSE_QUOTE_VALUE });
 	private static final ValueListValue EMPTY = new ValueListValue(new Value[] { new StringValue("") });
 
+	/** "Strip newlines" (HTML Standard): removes every line feed and carriage return; null stays null. */
+	private static String stripNewlines(final String value) {
+		if (value == null || (value.indexOf('\n') < 0 && value.indexOf('\r') < 0)) {
+			return value;
+		}
+		final StringBuilder b = new StringBuilder(value.length());
+		for (int i = 0; i < value.length(); ++i) {
+			final char c = value.charAt(i);
+			if (c != '\n' && c != '\r') {
+				b.append(c);
+			}
+		}
+		return b.toString();
+	}
+
 	public static void applyAfterStyle(CSSStyle style) {
 		// :after
 		assert style.getCSSElement() == CSSElement.AFTER;
@@ -122,7 +137,7 @@ public class HTMLStyle {
 			byte type = HTMLStyleUtils.getInputType(parentCe.atts.getValue("type"));
 			switch (type) {
 			case HTMLStyleUtils.INPUT_PASSWORD: {
-				String value = parentCe.atts.getValue("value");
+				String value = stripNewlines(parentCe.atts.getValue("value"));
 				if (value != null) {
 					char[] chars = new char[value.length()];
 					for (int i = 0; i < chars.length; ++i) {
@@ -145,7 +160,10 @@ public class HTMLStyle {
 			case HTMLStyleUtils.INPUT_BUTTON:
 			case HTMLStyleUtils.INPUT_SUBMIT:
 			case HTMLStyleUtils.INPUT_RESET: {
-				String value = parentCe.atts.getValue("value");
+				// A field's value loses its line breaks (the HTML Standard's value sanitization); a button's keeps them
+				// and shows them, as Chrome does (white-space: pre in html-ua.css, 2026-10-09)
+				String value = type == HTMLStyleUtils.INPUT_TEXT ? stripNewlines(parentCe.atts.getValue("value"))
+						: parentCe.atts.getValue("value");
 				if (value != null) {
 					style.set(Content.INFO, new ValueListValue(new Value[] { new StringValue(value+"\u200B") }));
 				} else {

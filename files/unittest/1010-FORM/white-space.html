@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+/* White space in form controls, as in the HTML Standard and Chrome (2026-10-09); FormWhiteSpaceTest */
+@page { size: 300pt 300pt; margin: 0; }
+body { margin: 0; font: 12pt/15pt sans-serif; }
+button, input, textarea { font: inherit; padding: 0; border: 0; margin: 0; vertical-align: top; position: absolute; left: 10pt; }
+/* A button wraps (white-space: normal): three lines */
+#b { top: 10pt; width: 60pt; background: rgb(255,0,0); }
+/* An input button keeps the line feed of its value (white-space: pre): two lines */
+#i { top: 70pt; width: 60pt; background: rgb(0,160,0); }
+/* A field takes the line feed out of its value: one line */
+#t { top: 120pt; width: 60pt; background: rgb(0,0,255); }
+/* A textarea drops the line feed after its start tag and keeps the others (white-space: pre-wrap) */
+#ta { top: 160pt; width: 120pt; height: 60pt; background: rgb(255,255,0); }
+</style></head><body>
+<button id="b">One two three four</button>
+<input id="i" type="button" value="Aa&#10;Bb">
+<input id="t" value="Cc&#10;Dd">
+<textarea id="ta">
+Ee
+Ff</textarea>
+</body></html>
