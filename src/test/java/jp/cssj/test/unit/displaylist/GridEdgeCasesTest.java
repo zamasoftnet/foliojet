@@ -289,6 +289,71 @@ public class GridEdgeCasesTest extends TestCase {
 		return frames;
 	}
 
+	/**
+	 * A column subgrid's cells size the parent's intrinsic tracks as if they were the parent's own items
+	 * (css-grid-2 §9, 2026-10-09). Before, the subgrid counted as one item spanning all three tracks: its contribution
+	 * went to the 1fr track alone, the auto tracks stayed at zero and the cells were drawn on top of each other
+	 * (primer-css's prop tables). Each subgrid row (line numbers, reversed lines, span, a subgrid in a subgrid)
+	 * places its cells where the same cells sit as direct items.
+	 */
+	public void testSubgridCellsSizeAutoTracks() throws Exception {
+		// Cell texts are digits (equal advances): "1r", "22222r", "3r" for row r.
+		final String cells = "<div class=\"c\">1%1$d</div><div class=\"c\">22222%1$d</div><div class=\"c\">3%1$d</div>";
+		final StringBuilder body = new StringBuilder();
+		body.append("<div class=\"g\">").append(cells.formatted(0)).append("</div>");
+		final String[] subgrids = { "grid-column: 1 / -1", "grid-column: -1 / 1", "grid-column: span 3" };
+		for (int r = 1; r <= subgrids.length; ++r) {
+			body.append("<div class=\"g\"><div class=\"s\" style=\"").append(subgrids[r - 1]).append("\">")
+					.append(cells.formatted(r)).append("</div></div>");
+		}
+		body.append("<div class=\"g\"><div class=\"s\" style=\"grid-column: 1 / -1\"><div class=\"s\" style=\"grid-column: 1 / -1\">")
+				.append(cells.formatted(4)).append("</div></div></div>");
+		final String page = convert("subgrid-auto", document("""
+				.g { display: grid; grid-template-columns: auto auto 1fr; margin-bottom: 8pt }
+				.s { display: grid; grid-template-columns: subgrid }
+				.c { padding: 2pt }
+				""", body.toString()));
+		final double[] direct = { x(page, "10"), x(page, "222220"), x(page, "30") };
+		assertTrue("直下の項目の列が並ぶ:\n" + page, direct[0] < direct[1] && direct[1] < direct[2]);
+		for (int r = 1; r <= 4; ++r) {
+			assertEquals(r + " 行目の 1 列目:\n" + page, direct[0], x(page, "1" + r), 0.01);
+			assertEquals(r + " 行目の 2 列目:\n" + page, direct[1], x(page, "22222" + r), 0.01);
+			assertEquals(r + " 行目の 3 列目:\n" + page, direct[2], x(page, "3" + r), 0.01);
+		}
+	}
+
+	/**
+	 * Auto-only parent tracks take their widths from the subgrid's cells and share the rest equally, as Chrome does
+	 * (Chrome: A1 1.7pt, AAAAAA2 116.5pt, A3 267.3pt in a 380pt grid; the cells used to get 126.7pt each).
+	 */
+	public void testSubgridCellsSizeAutoOnlyTracks() throws Exception {
+		final String page = convert("subgrid-auto-only", """
+				<!DOCTYPE html>
+				<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/>
+				<style>
+				@page { size: 400pt 300pt; margin: 10pt }
+				body { margin: 0; font: 10pt/15pt serif }
+				.g { display: grid; grid-template-columns: auto auto auto }
+				.s { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1 }
+				.c { padding: 2pt }
+				</style></head><body>
+				<div class="g"><div class="s"><div class="c">A1</div><div class="c">AAAAAA2</div><div class="c">A3</div></div></div>
+				</body></html>
+				""");
+		assertEquals("AAAAAA2 の位置:\n" + page, 116.5, x(page, "AAAAAA2"), 1.5);
+		assertEquals("A3 の位置", 267.3, x(page, "A3"), 1.5);
+	}
+
+	private static double x(final String page, final String text) {
+		final Matcher m = TEXT.matcher(page);
+		while (m.find()) {
+			if (m.group(3).equals(text)) {
+				return Double.parseDouble(m.group(1));
+			}
+		}
+		throw new AssertionError(text + " が無い:\n" + page);
+	}
+
 	private static double y(final String page, final String text) {
 		final Matcher m = TEXT.matcher(page);
 		while (m.find()) {

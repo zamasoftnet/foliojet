@@ -93,7 +93,51 @@ public class GridItemBox extends FlowBlockBox {
 		}
 	}
 
+	/**
+	 * What a column subgrid directly under this item contributes to the parent's column sizing (css-grid-2 §9,
+	 * 2026-10-09): an immutable copy taken when the subgrid's recording ends, so the parent sizes its tracks from
+	 * the subgrid's items instead of the subgrid as one spanning item (whose contribution reached only fr tracks
+	 * and left auto tracks at zero, piling the cells up). No live builder is kept: builders are rebuilt from the
+	 * source on replay.
+	 *
+	 * @param cells          the subgrid's items in source order
+	 * @param lineNames      the subgrid's own line names ({@code subgrid [a] [b]}), added to the parent's
+	 * @param startInset     the subgrid's own margin, border and padding at the line start
+	 * @param endInset       the same at the line end
+	 * @param autoFlowColumn {@code grid-auto-flow: column}
+	 * @param dense          {@code grid-auto-flow: dense}
+	 * @param explicitRows   the subgrid's explicit row count (0 when its rows are a subgrid too)
+	 */
+	public record SubgridSource(java.util.List<SubgridCell> cells, java.util.List<java.util.List<String>> lineNames,
+			double startInset, double endInset, boolean autoFlowColumn, boolean dense, int explicitRows) {
+		public SubgridSource {
+			cells = java.util.List.copyOf(cells);
+			lineNames = lineNames.stream().map(java.util.List::copyOf).toList();
+		}
+	}
+
+	/**
+	 * One item of a {@link SubgridSource}: its placement (line names unresolved) and its column contribution, already
+	 * settled for takeover, explicit width and the minimum cap; or, for an item hosting a column subgrid itself,
+	 * that subgrid's source, whose cells take its place.
+	 */
+	public record SubgridCell(net.zamasoft.foliojet.layout.box.params.GridItemSpec spec, double min, double max,
+			SubgridSource nested) {
+	}
+
 	private SubgridTracks subgridTracks;
+
+	private SubgridSource subgridSource;
+
+	/** Registers the column contributions of the subgrid directly under this item (its {@code GridBuilder.finish}). */
+	public void setSubgridSource(final SubgridSource source) {
+		this.subgridSource = source;
+	}
+
+	/** The column contributions of the subgrid directly under this item; null when there is none. */
+	public SubgridSource getSubgridSource() {
+		return this.subgridSource;
+	}
 
 	public GridItemBox(final BlockParams params, final FlowPos pos, final double trackWidth) {
 		super(params, pos);

@@ -331,6 +331,7 @@ public final class GridBuilder
 	 */
 	public void finish() {
 		assert this.openItemBuilder == null : "item未クローズでGrid終端に到達";
+		this.publishSubgridSource();
 		this.host.addGrid(this);
 	}
 
@@ -889,39 +890,146 @@ public final class GridBuilder
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
 			final GridItemContent item = this.items.get(i);
-			// Override the automatic minimum size (see GridItemContent.minContributionCap).
-			double itemMin = item.minContributionCap >= 0
-					? Math.min(item.sizes.minContent(), item.minContributionCap)
-					: item.sizes.minContent();
-			if (inflatedCap >= 0 && item.sizes.columnInflated() && itemMin > inflatedCap) {
-				itemMin = inflatedCap;
+			final GridItemBox.SubgridSource source = item.takeover ? null : item.itemBox.getSubgridSource();
+			if (source != null) {
+				// A column subgrid directly under the item: its items size the tracks it spans (css-grid-2 §9,
+				// 2026-10-09). As one spanning item it reached only the fr tracks, and auto tracks stayed at zero.
+				expandSubgrid(source, area.column(), area.columnSpan(),
+						this.columnLines.subList(area.column(), area.column() + area.columnSpan() + 1), contributions);
+				continue;
 			}
-			double itemMax = item.sizes.maxContent();
-			if (item.takeover) {
-				// In takeover, the authored root's frame and declared width lie outside the recorded body
-				// (G7, 2026-08-29). Unless added back, a sized item has its track resolved
-				// to the narrow content-only size (observed in D of place-shorthand).
-				final net.zamasoft.foliojet.layout.box.params.WritingMode flow = this.gridBox.getGridParams().flow;
-				final BlockParams ip = item.itemBox.getBlockParams();
-				final double declared = ip.size.getLineType(flow) == LengthType.ABSOLUTE
-						? ip.size.getLineLength(flow)
-						: Double.NaN;
-				final double extras = item.itemBox.getFrame().getBorderLineExtent(flow);
-				if (!Double.isNaN(declared)) {
-					final double used = ip.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
-							? Math.max(declared, extras)
-							: declared + extras;
-					itemMin = used;
-					itemMax = used;
-				} else {
-					itemMin += extras;
-					itemMax += extras;
-				}
-			}
-			contributions.add(new BasicGridTrackSizing.ItemContribution(area.column(), area.columnSpan(),
-					itemMin, itemMax));
+			final double[] c = this.lineContribution(item, inflatedCap);
+			contributions.add(new BasicGridTrackSizing.ItemContribution(area.column(), area.columnSpan(), c[0], c[1]));
 		}
 		return contributions;
+	}
+
+	/** The min/max column contribution of an item (as a single item; see {@link #columnContributions}). */
+	private double[] lineContribution(final GridItemContent item, final double inflatedCap) {
+		// Override the automatic minimum size (see GridItemContent.minContributionCap).
+		double itemMin = item.minContributionCap >= 0
+				? Math.min(item.sizes.minContent(), item.minContributionCap)
+				: item.sizes.minContent();
+		if (inflatedCap >= 0 && item.sizes.columnInflated() && itemMin > inflatedCap) {
+			itemMin = inflatedCap;
+		}
+		double itemMax = item.sizes.maxContent();
+		if (item.takeover) {
+			// In takeover, the authored root's frame and declared width lie outside the recorded body
+			// (G7, 2026-08-29). Unless added back, a sized item has its track resolved
+			// to the narrow content-only size (observed in D of place-shorthand).
+			final net.zamasoft.foliojet.layout.box.params.WritingMode flow = this.gridBox.getGridParams().flow;
+			final BlockParams ip = item.itemBox.getBlockParams();
+			final double declared = ip.size.getLineType(flow) == LengthType.ABSOLUTE
+					? ip.size.getLineLength(flow)
+					: Double.NaN;
+			final double extras = item.itemBox.getFrame().getBorderLineExtent(flow);
+			if (!Double.isNaN(declared)) {
+				final double used = ip.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
+						? Math.max(declared, extras)
+						: declared + extras;
+				itemMin = used;
+				itemMax = used;
+			} else {
+				itemMin += extras;
+				itemMax += extras;
+			}
+		}
+		return new double[] { itemMin, itemMax };
+	}
+
+	/**
+	 * Adds the contributions of a column subgrid's items to the tracks [start, start + span) of this grid
+	 * (css-grid-2 §9, 2026-10-09). The items are placed again in the subgrid's real column count (its span here),
+	 * with this grid's line names plus its own; items beyond its columns are clamped into them. The subgrid's own
+	 * margin, border and padding count as extra margin on the items at its edges. A nested column subgrid is
+	 * expanded the same way into the columns its item spans.
+	 *
+	 * @param lines this grid's line names for the span (span + 1 entries)
+	 */
+	private static void expandSubgrid(final GridItemBox.SubgridSource source, final int start, final int span,
+			final List<List<String>> lines, final List<BasicGridTrackSizing.ItemContribution> out) {
+		final List<GridItemBox.SubgridCell> cells = source.cells();
+		if (cells.isEmpty() || span <= 0) {
+			if (span > 0) {
+				final double frame = source.startInset() + source.endInset();
+				out.add(new BasicGridTrackSizing.ItemContribution(start, span, frame, frame));
+			}
+			return;
+		}
+		final List<List<String>> merged = new ArrayList<>(span + 1);
+		for (int i = 0; i <= span; ++i) {
+			final List<String> names = new ArrayList<>(i < lines.size() ? lines.get(i) : List.of());
+			if (i < source.lineNames().size()) {
+				names.addAll(source.lineNames().get(i));
+			}
+			merged.add(names);
+		}
+		final List<List<String>> rowLines = List.of(List.of());
+		final List<GridItemSpec> specs = new ArrayList<>(cells.size());
+		for (final GridItemBox.SubgridCell cell : cells) {
+			specs.add(net.zamasoft.foliojet.layout.sizing.GridLineNameResolver.resolve(cell.spec(), merged, rowLines));
+		}
+		List<GridPlacementResolver.GridArea> areas = null;
+		final GridPlacementResolver.Result placement = GridPlacementResolver.resolve(specs, span,
+				source.explicitRows(), source.autoFlowColumn(), source.dense());
+		if (placement instanceof GridPlacementResolver.Result.Resolved resolved) {
+			areas = resolved.plan().areas();
+		}
+		final int end = start + span;
+		for (int k = 0; k < cells.size(); ++k) {
+			final GridItemBox.SubgridCell cell = cells.get(k);
+			int column = areas == null ? k % span : Math.min(areas.get(k).column(), span - 1);
+			final int columnSpan = areas == null ? 1 : Math.max(1, Math.min(areas.get(k).columnSpan(), span - column));
+			column += start;
+			final int first = out.size();
+			if (cell.nested() != null) {
+				expandSubgrid(cell.nested(), column, columnSpan,
+						merged.subList(column - start, column - start + columnSpan + 1), out);
+			} else {
+				out.add(new BasicGridTrackSizing.ItemContribution(column, columnSpan, cell.min(), cell.max()));
+			}
+			// The subgrid's own frame is extra margin on what touches its edges.
+			for (int j = first; j < out.size(); ++j) {
+				final BasicGridTrackSizing.ItemContribution c = out.get(j);
+				double extra = 0;
+				if (c.column() == start) {
+					extra += source.startInset();
+				}
+				if (c.column() + c.span() == end) {
+					extra += source.endInset();
+				}
+				if (extra != 0) {
+					out.set(j, new BasicGridTrackSizing.ItemContribution(c.column(), c.span(), c.minContent() + extra,
+							c.maxContent() + extra));
+				}
+			}
+		}
+	}
+
+	/**
+	 * Registers this grid's column contributions on the item it sits directly under when its columns are a subgrid
+	 * (2026-10-09; see {@link GridItemBox.SubgridSource}). Same condition as {@link #resolveSubgrid}: the host is the
+	 * item's body with only this grid open above the item, and the item is not the authored element itself.
+	 */
+	private void publishSubgridSource() {
+		final GridParams params = this.gridBox.getGridParams();
+		if (!params.columnsSubgrid || !(this.host instanceof TwoPassBlockBuilder body)
+				|| !(body.getRootBox() instanceof GridItemBox item) || item.isTakeover() || body.getFlowDepth() != 2
+				|| body.getFlowBox() != this.gridBox) {
+			return;
+		}
+		final List<GridItemBox.SubgridCell> cells = new ArrayList<>(this.items.size());
+		for (final GridItemContent child : this.items) {
+			final GridItemBox.SubgridSource nested = child.takeover ? null : child.itemBox.getSubgridSource();
+			final double[] c = this.lineContribution(child, -1);
+			cells.add(new GridItemBox.SubgridCell(child.spec, c[0], c[1], nested));
+		}
+		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = this.gridBox.getFrame();
+		item.setSubgridSource(new GridItemBox.SubgridSource(cells, params.columnLineNames,
+				frame.getFrameLineStart(params.flow), frame.getFrameLineEnd(params.flow), params.autoFlowColumn,
+				params.autoFlowDense, params.rowsSubgrid ? 0 : Math.max(params.templateRows.size(),
+						params.templateAreas.getRowCount())));
 	}
 
 	/**

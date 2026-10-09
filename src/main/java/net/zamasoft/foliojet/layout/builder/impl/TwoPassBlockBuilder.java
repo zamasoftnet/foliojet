@@ -608,6 +608,11 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		return (AbstractContainerBox) this.flowStack.get(this.flowStack.size() - 1);
 	}
 
+	/** The number of open flows, the root included (a box directly under the root is at depth 2). */
+	public int getFlowDepth() {
+		return this.flowStack.size();
+	}
+
 	public void startFlowBlock(final FlowBlockBox flowBox) {
 		// A block box in normal flow.
 		AbstractContainerBox containerBox = this.getFlowBox();
