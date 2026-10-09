@@ -485,7 +485,7 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 	}
 
-	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
+	public void pushTextShapeSteps(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x, double y,
 			java.util.Deque<TextShapeStep> worklist) {
 		switch (this.getLineParams().flow) {
 		case WritingMode.TB:
@@ -503,6 +503,6 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		default:
 			throw new IllegalStateException();
 		}
-		super.pushTextShapeSteps(pageBox, path, transform, x, y, worklist);
+		super.pushTextShapeSteps(pageBox, sink, transform, x, y, worklist);
 	}
 }

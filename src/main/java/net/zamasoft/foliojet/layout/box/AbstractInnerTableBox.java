@@ -58,7 +58,7 @@ public abstract class AbstractInnerTableBox extends AbstractBox implements INonR
 		return this.getHeight();
 	}
 	
-	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d,
+	public void pushTextShapeSteps(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x, double d,
 			Deque<TextShapeStep> worklist) {
 		// TODO
 	}

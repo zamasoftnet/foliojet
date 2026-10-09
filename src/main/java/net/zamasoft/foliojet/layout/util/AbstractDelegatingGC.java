@@ -12,6 +12,7 @@ import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.paint.BlendMode;
 import net.zamasoft.pdfg2d.gc.paint.Paint;
 import net.zamasoft.pdfg2d.gc.text.Text;
+import net.zamasoft.pdfg2d.gc.text.TextClip;
 
 /**
  * Base {@link GC} that forwards every operation to {@link #delegate()}
@@ -185,6 +186,14 @@ public abstract class AbstractDelegatingGC implements GC, DelegatingGC {
 	@Override
 	public void clip(final Shape shape) throws GraphicsException {
 		this.gc.clip(shape);
+	}
+
+	/**
+	 * Lets the wrapped graphics context clip, so that PDF clips with text, and paints through this wrapper.
+	 */
+	@Override
+	public void clipToText(final TextClip clip, final Painter painter) throws GraphicsException {
+		this.gc.clipToText(clip, g -> painter.paint(this));
 	}
 
 	@Override

@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.layout.box.impl;
 
+import net.zamasoft.foliojet.layout.box.TextShapeSink;
 import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
 import java.awt.Shape;
@@ -689,7 +690,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 	}
 	
-	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d,
+	public void pushTextShapeSteps(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x, double d,
 			Deque<TextShapeStep> worklist) {
 		// TODO
 	}

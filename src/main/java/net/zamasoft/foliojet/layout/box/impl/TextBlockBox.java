@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.layout.box.impl;
 
+import net.zamasoft.foliojet.layout.box.TextShapeSink;
 import net.zamasoft.foliojet.layout.fragment.LineCutter;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
 
@@ -376,13 +377,13 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		}
 	}
 
-	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
+	public void pushTextShapeSteps(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x, double y,
 			Deque<TextShapeStep> worklist) {
 		// Push in reverse order (last line first) to preserve the original traversal order (first line first).
 		for (int i = this.lines.size() - 1; i >= 0; --i) {
 			Line line = (Line) this.lines.get(i);
 			AbstractLineBox lineBox = line.box;
-			worklist.push(IBox.textShapeStep(lineBox, pageBox, path, transform,
+			worklist.push(IBox.textShapeStep(lineBox, pageBox, sink, transform,
 					LayoutUtils.drawX(this.params.flow, x, this.getPageSize(), line.pageAxis, line.getPageEnd(), 0),
 					LayoutUtils.drawY(this.params.flow, y, line.pageAxis, 0)));
 		}

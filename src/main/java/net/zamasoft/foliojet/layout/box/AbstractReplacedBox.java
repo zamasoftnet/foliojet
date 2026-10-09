@@ -537,7 +537,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		}
 	}
 	
-	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d,
+	public void pushTextShapeSteps(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x, double d,
 			java.util.Deque<TextShapeStep> worklist) {
 		// ignore
 	}

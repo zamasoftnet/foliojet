@@ -49,7 +49,7 @@
 | 281E | フォントファイルのURI(string) | フォントファイルを読み込むことができない。 |
 | 281F | 対象のテキスト(string) | 使用可能なフォントがない。 |
 | 28FF | プラグイン名(string)<br />メッセージ(string) | プラグインからの警告。 |
-| 2820<span class="since">3.2.16</span> | 対象のテキスト(string) | CID-Keyedフォントまたは絵文字は<span class="cssdecl">background-clip: text;</span>で使えない。 |
+| 2820<span class="since">3.2.16</span> | 対象のテキスト(string) | 画像の絵文字は<span class="cssdecl">background-clip: text;</span>の切り抜きに使えない。 |
 | 2821<span class="since">4.0.0</span> | プロパティ名(string) | 静的な組版に意味がないため意図的に無視するCSSプロパティ(<span class="cssprop">cursor</span>、<span class="cssprop">transition</span>、<span class="cssprop">animation</span>等)。未対応(2802)とは区別される。 |
 | 2822<span class="since">4.0.0</span> | プロパティ名(string)<br />出力形式(string)<br />近似の内容(string) | 対応しているが、その出力形式では厳密に描けず近似で描いた(透明を使えないPDF/A-1・PDF/X-1a・PDF/X-3(およびPDF 1.3以前)での<span class="cssprop">box-shadow</span>/<span class="cssprop">text-shadow</span>のぼかし——通常のPDFでは影を画素にして厳密に描きます<span class="since">4.0.0</span>——・SVGでの<span class="cssdecl">conic-gradient()</span>(PDFはメッシュシェーディングで厳密<span class="since">4.0.0</span>)・<span class="cssprop">mix-blend-mode</span>等)。PDFの<span class="cssprop">filter</span>は要素を画像にして厳密に描くが、その要素の文字が選択・検索できなくなるため、その旨をこの警告(内容 filter-rasterized)で知らせる<span class="since">4.0.0</span>。画像出力(PNG/JPEG)やSVG系出力では厳密に描けるものが多く、そのときは出ない。文書ごと・プロパティごとに1回。 |
 | 2823<span class="since">4.0.0</span> | プロパティ名(string)<br />効かない理由(string) | 宣言は解釈できたが、その組み合わせでは効かない指定。浮動体・絶対配置の<span class="cssdecl">display: flex</span>/<span class="cssdecl">display: grid</span>は通常のブロックへ落ちる(itemは縦に積まれる)。未対応(2802)や意図的な無視(2821)と違い、<b>単体なら効くのに文脈のせいで落ちる</b>ものを知らせる。種類ごとに1回。 |

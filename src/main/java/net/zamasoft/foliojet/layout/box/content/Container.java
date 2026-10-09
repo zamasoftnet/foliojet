@@ -6,6 +6,7 @@ import java.awt.geom.GeneralPath;
 
 import java.util.Deque;
 
+import net.zamasoft.foliojet.layout.box.TextShapeSink;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
@@ -218,7 +219,7 @@ public interface Container {
 	 * Iterative textShape (2026-07-20, for the same reason as IBox.pushDrawSteps).
 	 * Pushes child outline steps onto {@code worklist}.
 	 */
-	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
+	public void pushTextShapeSteps(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x, double y,
 			Deque<TextShapeStep> worklist);
 
 	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,

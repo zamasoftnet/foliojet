@@ -745,6 +745,7 @@
 3070-AT-RULE/media-supports.html	files/unittest/3070-AT-RULE/media-supports.html	1	text/html	input.include=**	input.property-pi=true
 3070-AT-RULE/page-marks-bleed.html	files/unittest/3070-AT-RULE/page-marks-bleed.html	1	text/html	input.include=**	input.property-pi=true
 3080-MODERN-CSS/aspect-ratio.html	files/unittest/3080-MODERN-CSS/aspect-ratio.html	1	text/html	input.include=**	input.property-pi=true
+3080-MODERN-CSS/background-clip-text.html	files/unittest/3080-MODERN-CSS/background-clip-text.html	1	text/html	input.include=**	input.property-pi=true
 3080-MODERN-CSS/bg-shorthand-size-and-alpha.html	files/unittest/3080-MODERN-CSS/bg-shorthand-size-and-alpha.html	1	text/html	input.include=**	input.property-pi=true
 3080-MODERN-CSS/bg-svg-intrinsic.html	files/unittest/3080-MODERN-CSS/bg-svg-intrinsic.html	1	text/html	input.include=**	input.property-pi=true
 3080-MODERN-CSS/box-shadow-outline.html	files/unittest/3080-MODERN-CSS/box-shadow-outline.html	1	text/html	input.include=**	input.property-pi=true

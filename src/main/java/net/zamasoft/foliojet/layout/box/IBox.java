@@ -318,43 +318,40 @@ public interface IBox {
 	public void pushGetTextSteps(StringBuilder textBuff, Deque<GetTextStep> worklist);
 
 	/**
-	 * Accumulates clipping outlines in {@code path}
-	 * (2026-07-20, converted to iteration for the same reason as draw).
+	 * Walks the text of this box and its in-flow descendants, handing each run to {@code sink} as
+	 * {@link net.zamasoft.pdfg2d.gc.GC#drawText} would draw it at the origin of the given transform
+	 * (2026-07-20, converted to iteration for the same reason as draw; 2026-10-09, runs instead of glyph outlines,
+	 * so that {@code background-clip: text} also clips with fonts that have no local outlines).
 	 */
-	public default void textShape(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d) {
+	public default void textShape(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x, double d) {
 		final Deque<TextShapeStep> worklist = new ArrayDeque<>();
-		worklist.push(IBox.textShapeStep(this, pageBox, path, transform, x, d));
+		worklist.push(IBox.textShapeStep(this, pageBox, sink, transform, x, d));
 		while (!worklist.isEmpty()) {
 			worklist.pop().run(worklist);
 		}
 	}
 
 	/**
-	 * Collects outlines for measurement. Ignores fonts that do not provide glyph outlines
-	 * and does not emit the warning for {@code background-clip:text}.
+	 * Collects glyph outlines into {@code path}, for measurement. Fonts that have no local glyph outlines are
+	 * left out without a warning.
 	 */
 	public default void textShapeQuiet(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double d) {
-		TextShapeContext.beginQuiet();
-		try {
-			this.textShape(pageBox, path, transform, x, d);
-		} finally {
-			TextShapeContext.endQuiet();
-		}
+		this.textShape(pageBox, TextShapeSink.outlines(path), transform, x, d);
 	}
 
 	/**
 	 * Creates one {@link TextShapeStep} that calls {@link #pushTextShapeSteps} on {@code box}.
 	 */
-	public static TextShapeStep textShapeStep(final IBox box, final PageBox pageBox, final GeneralPath path,
+	public static TextShapeStep textShapeStep(final IBox box, final PageBox pageBox, final TextShapeSink sink,
 			final AffineTransform transform, final double x, final double y) {
-		return worklist -> box.pushTextShapeSteps(pageBox, path, transform, x, y, worklist);
+		return worklist -> box.pushTextShapeSteps(pageBox, sink, transform, x, y, worklist);
 	}
 
 	/**
-	 * Pushes outline steps for this box (and its descendants) onto {@code worklist}.
+	 * Pushes text walking steps for this box (and its descendants) onto {@code worklist}.
 	 * Follow the same convention as {@link #pushDrawSteps}: push in **reverse order**
 	 * to preserve the original traversal order.
 	 */
-	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
+	public void pushTextShapeSteps(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x, double y,
 			Deque<TextShapeStep> worklist);
 }

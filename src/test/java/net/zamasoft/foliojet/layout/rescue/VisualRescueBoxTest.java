@@ -16,6 +16,7 @@ import net.zamasoft.foliojet.layout.box.GetTextStep;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
+import net.zamasoft.foliojet.layout.box.TextShapeSink;
 import net.zamasoft.foliojet.layout.box.TextShapeStep;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
@@ -129,7 +130,7 @@ public class VisualRescueBoxTest extends TestCase {
 
 		Visitor drawVisitor;
 
-		public void pushTextShapeSteps(final PageBox pageBox, final GeneralPath path, final AffineTransform transform,
+		public void pushTextShapeSteps(final PageBox pageBox, final TextShapeSink sink, final AffineTransform transform,
 				final double x, final double y, final Deque<TextShapeStep> worklist) {
 			++this.textShapeCount;
 			this.textShapeX = x;
@@ -496,7 +497,7 @@ public class VisualRescueBoxTest extends TestCase {
 	/** Outlines are visual, so all fragments delegate (shifting only the coordinates). */
 	public void testTextShapeIsDelegatedWithShiftedOrigin() {
 		final FakeSource src = source(WritingMode.TB);
-		fragment(src, WritingMode.TB, 40, 30).textShape(null, new GeneralPath(), new AffineTransform(), 10, 200);
+		fragment(src, WritingMode.TB, 40, 30).textShapeQuiet(null, new GeneralPath(), new AffineTransform(), 10, 200);
 		assertEquals(1, src.textShapeCount);
 		assertEquals(10.0, src.textShapeX, 0);
 		assertEquals(160.0, src.textShapeY, 0);

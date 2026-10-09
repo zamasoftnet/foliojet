@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
+import net.zamasoft.foliojet.layout.box.TextShapeSink;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
@@ -263,9 +264,19 @@ public class ColumnsContainer implements Container {
 		}
 	}
 	
-	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
+	public void pushTextShapeSteps(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x, double y,
 			Deque<TextShapeStep> worklist) {
-		// TODO
+		// At the positions of pushDrawFlows (2026-10-09, for background-clip: text)
+		final BlockParams params = this.box.getBlockParams();
+		final double columnSize = this.box.getLineSize() + params.columns.gap;
+		for (int i = this.columns.size() - 1; i >= 0; --i) {
+			final FlowContainer container = (FlowContainer) this.columns.get(i);
+			final double lineStart = LayoutUtils.inlineToPhysical(params, this.box.getInnerHeight(), i * columnSize,
+					i * columnSize + this.box.getLineSize());
+			container.pushTextShapeSteps(pageBox, sink, transform,
+					LayoutUtils.drawX(this.box.getBlockParams().flow, x, 0, 0, 0, i * columnSize),
+					LayoutUtils.drawY(this.box.getBlockParams().flow, y, 0, lineStart), worklist);
+		}
 	}
 
 	public boolean hasFloatings() {

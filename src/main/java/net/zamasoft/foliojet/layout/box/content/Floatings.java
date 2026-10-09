@@ -151,6 +151,27 @@ public class Floatings {
 		}
 	}
 
+	/**
+	 * Walks the text of the float boxes at the positions {@link #pushDraw} draws them at, for
+	 * {@code background-clip: text}, which clips with the text of floated descendants too (CSS Backgrounds 4,
+	 * Chrome; 2026-10-09).
+	 */
+	public void pushTextShape(AbstractContainerBox box, PageBox pageBox, net.zamasoft.foliojet.layout.box.TextShapeSink sink,
+			AffineTransform transform, double x, double y, Deque<net.zamasoft.foliojet.layout.box.TextShapeStep> worklist) {
+		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = box.getBlockParams().flow;
+		final double parentPageExtent = box.getInnerWidth();
+		final double parentLineExtent = box.getInnerHeight();
+		for (int i = this.floatings.size() - 1; i >= 0; --i) {
+			final Floating floating = (Floating) this.floatings.get(i);
+			final double lineStart = LayoutUtils.inlineToPhysical(box.getBlockParams(), parentLineExtent,
+					floating.lineAxis, floating.lineAxis + floating.box.getHeight());
+			worklist.push(IBox.textShapeStep(floating.box, pageBox, sink, transform,
+					LayoutUtils.drawX(flow, x, parentPageExtent, floating.pageAxis,
+							floating.pageAxis + floating.box.getWidth(), floating.lineAxis),
+					LayoutUtils.drawY(flow, y, floating.pageAxis, lineStart)));
+		}
+	}
+
 	/** Detaches column footnotes for collection before balancing (increment 6). Returns false if not found. */
 	public boolean removeFloating(final IFloatBox box) {
 		for (int i = 0; i < this.floatings.size(); ++i) {

@@ -9,6 +9,7 @@ import org.w3c.dom.svg.SVGPreserveAspectRatio;
 import net.zamasoft.foliojet.css.value.PaintValue;
 import net.zamasoft.foliojet.layout.util.BorderRenderer;
 import net.zamasoft.pdfg2d.gc.GC;
+import net.zamasoft.pdfg2d.gc.text.TextClip;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.foliojet.layout.part.CenteredImage;
@@ -182,7 +183,7 @@ public class Background {
 	 * @throws GraphicsException TODO
 	 */
 	public void draw(GC gc, double x, double y, double width, double height, RectBorder border, Insets padding,
-			Shape textClip) throws GraphicsException {
+			TextClip textClip) throws GraphicsException {
 		/* NoAndroid begin */
 		double pbLeft = border == null ? 0 : border.getLeft().width;
 		double pbTop = border == null ? 0 : border.getTop().width;
@@ -193,10 +194,9 @@ public class Background {
 		double ppRight = padding == null ? 0 : padding.getRight();
 		double ppBottom = padding == null ? 0 : padding.getBottom();
 
+		// background-clip: text paints the border box (whose bounds also size the gradients) inside the text
 		final Shape shape;
-		if (this.backgroundClip == TEXT && textClip != null) {
-			shape = textClip;
-		} else if (border == null) {
+		if (border == null) {
 			switch (this.backgroundClip) {
 			case TEXT:
 			case BORDER_BOX:
@@ -236,6 +236,19 @@ public class Background {
 							 * BorderRenderer.INSTANCE.getBorderXRectF (border, x, y, width, height);
 							 * }
 							 *//* Android end */
+		if (this.backgroundClip == TEXT && textClip != null) {
+			gc.clipToText(textClip, g -> this.paint(g, shape, x, y, width, height, pbLeft, pbTop, pbRight, pbBottom,
+					ppLeft, ppTop, ppRight, ppBottom));
+		} else {
+			this.paint(gc, shape, x, y, width, height, pbLeft, pbTop, pbRight, pbBottom, ppLeft, ppTop, ppRight,
+					ppBottom);
+		}
+	}
+
+	private void paint(final GC gc, final Shape shape, final double x, final double y, final double width,
+			final double height, final double pbLeft, final double pbTop, final double pbRight, final double pbBottom,
+			final double ppLeft, final double ppTop, final double ppRight, final double ppBottom)
+			throws GraphicsException {
 		try (final var gcState = gc.begin()) {
 			if (this.backgroundPaint != null) {
 				// Background color. Keep fill paint in its own scope: leaving an alpha-bearing

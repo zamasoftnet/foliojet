@@ -10,7 +10,10 @@ import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.IInlineBox;
 import net.zamasoft.foliojet.layout.box.INonReplacedBox;
+import net.zamasoft.foliojet.layout.box.TextShapeSink;
+import net.zamasoft.foliojet.layout.box.TextShapeStep;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
+import net.zamasoft.foliojet.layout.box.params.Background;
 import net.zamasoft.foliojet.layout.box.params.InlineParams;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.Params;
@@ -27,6 +30,7 @@ import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
+import net.zamasoft.pdfg2d.gc.text.TextClip;
 
 public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplacedBox {
 	/**
@@ -293,8 +297,11 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			}
 
 			if (this.frame.isVisible()) {
+				final TextClip textClip = this.frame.frame.background.getBackgroundClip() == Background.TEXT
+						? this.textClip(pageBox, x, y)
+						: null;
 				Drawable drawable = new AbsoluteRectFrameDrawable(pageBox, clip, this.params.opacity, transform,
-						this.frame, this.getWidth(), this.getHeight(), null).withBlendMode(this.params.blendMode).withFilter(this.params.filter); // TODO textClip
+						this.frame, this.getWidth(), this.getHeight(), textClip).withBlendMode(this.params.blendMode).withFilter(this.params.filter);
 				drawer.visitDrawable(drawable, x, y);
 			}
 			if (this.getTextParams().flow.isVertical()) {
@@ -317,6 +324,44 @@ public class InlineBox extends AbstractTextBox implements IInlineBox, INonReplac
 			// Draw the internal text and inlines
 			super.pushDrawSteps(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 		}
+	}
+
+	/**
+	 * Walks the text at the content origin that {@link #pushDrawSteps} draws it from: shifted by the relative
+	 * offset and by the frame at the inline start (2026-10-09; the walk took the frame's origin, so text in an
+	 * inline with padding, a border or a relative offset was clipped out of place).
+	 */
+	@Override
+	public void pushTextShapeSteps(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x,
+			double y, java.util.Deque<TextShapeStep> worklist) {
+		x += this.offsetX;
+		y += this.offsetY;
+		if (this.getTextParams().flow.isVertical()) {
+			y += this.frame.getFrameTop();
+		} else {
+			x += this.frame.getFrameLeft();
+		}
+		super.pushTextShapeSteps(pageBox, sink, transform, x, y, worklist);
+	}
+
+	/**
+	 * The text of this inline for {@code background-clip: text}, in the space its frame is drawn in ({@code x},
+	 * {@code y}: the frame's origin after the relative offset, as in {@link #pushDrawSteps}).
+	 */
+	private TextClip textClip(final PageBox pageBox, double x, double y) {
+		if (this.getTextParams().flow.isVertical()) {
+			y += this.frame.getFrameTop();
+		} else {
+			x += this.frame.getFrameLeft();
+		}
+		final TextClip textClip = new TextClip();
+		final java.util.Deque<TextShapeStep> worklist = new java.util.ArrayDeque<>();
+		super.pushTextShapeSteps(pageBox, TextShapeSink.backgroundClip(pageBox, textClip), new AffineTransform(), x,
+				y, worklist);
+		while (!worklist.isEmpty()) {
+			worklist.pop().run(worklist);
+		}
+		return textClip;
 	}
 
 	public final InlineBox splitLine(boolean cut) {

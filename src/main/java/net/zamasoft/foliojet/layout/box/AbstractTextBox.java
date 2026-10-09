@@ -1979,24 +1979,14 @@ public abstract class AbstractTextBox extends AbstractBox {
 		}
 	}
 
-	private void missingFontOutline(final PageBox pageBox, final Text text) {
-		final String c = new String(text.getChars(), 0, text.getCharCount());
-		final StringBuilder codes = new StringBuilder();
-		for (int j = 0; j < c.length(); ++j) {
-			codes.append("[").append(Integer.toHexString(c.charAt(j))).append("]");
-		}
-		pageBox.getUserAgent().message(MessageCodes.WARN_MISSING_FONT_OUTLINE, c + codes);
-	}
-
-	public void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x, double y,
+	public void pushTextShapeSteps(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x, double y,
 			java.util.Deque<TextShapeStep> worklist) {
 		final List<Object> drawingContents = this.getDrawingContents();
 		if (drawingContents == null || drawingContents.isEmpty()) {
 			return;
 		}
-		// Drawing order does not matter for appends to a clipping path, so text can be appended
-		// immediately here. Only push child (inline) outlines onto
-		// the worklist (2026-07-20: converted to iteration for the same reason as draw).
+		// The order of the runs does not matter to a clip, so text goes to the sink immediately here. Only push
+		// child (inline) walks onto the worklist (2026-07-20: converted to iteration for the same reason as draw).
 		final List<TextShapeStep> localSteps = new ArrayList<>();
 		double xx = x, yy = y;
 
@@ -2011,55 +2001,31 @@ public abstract class AbstractTextBox extends AbstractBox {
 		for (int i = 0; i < drawingContents.size(); ++i) {
 			switch (drawingContents.get(i)) {
 			case Text text -> {
-				// Text
-				Font font = ((FontMetricsImpl) text.getFontMetrics()).getFont();
+				// Text, placed as TextSequenceDrawable draws it
+				final AffineTransform at;
 				if (sideways) {
-					if (font instanceof ShapedFont) {
-						final double drawY = bottomToTop
-								? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, yy - y,
-										yy - y + text.getAdvance())
-								: yy;
-						AffineTransform at = SidewaysGeometry.runTransform(lineParams.writingModeVariant, xx, drawY,
-								this.ascent, this.descent, text.getAdvance());
-						at.preConcatenate(transform);
-						FontUtils.addTextPath(path, (ShapedFont)font, text, at);
-					} else {
-						if (TextShapeContext.warnIfMissing()) {
-							this.missingFontOutline(pageBox, text);
-						}
-					}
+					final double drawY = bottomToTop
+							? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, yy - y,
+									yy - y + text.getAdvance())
+							: yy;
+					at = SidewaysGeometry.runTransform(lineParams.writingModeVariant, xx, drawY, this.ascent,
+							this.descent, text.getAdvance());
 					yy += text.getAdvance();
 				} else if (vertical) {
 					// Vertical writing
-					if (font instanceof ShapedFont) {
-						final double drawY = bottomToTop
-								? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, yy - y,
-										yy - y + text.getAdvance())
-								: yy;
-						AffineTransform at = AffineTransform.getTranslateInstance(xx + this.descent, drawY);
-						at.preConcatenate(transform);
-						FontUtils.addTextPath(path, (ShapedFont)font, text, at);
-					}
-					else {
-						if (TextShapeContext.warnIfMissing()) {
-							this.missingFontOutline(pageBox, text);
-						}
-					}
+					final double drawY = bottomToTop
+							? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, yy - y,
+									yy - y + text.getAdvance())
+							: yy;
+					at = AffineTransform.getTranslateInstance(xx + this.descent, drawY);
 					yy += text.getAdvance();
 				} else {
 					// Horizontal writing
-					if (font instanceof ShapedFont) {
-						AffineTransform at = AffineTransform.getTranslateInstance(xx, yy + this.ascent);
-						at.preConcatenate(transform);
-						FontUtils.addTextPath(path, (ShapedFont)font, text, at);
-					}
-					else {
-						if (TextShapeContext.warnIfMissing()) {
-							this.missingFontOutline(pageBox, text);
-						}
-					}
+					at = AffineTransform.getTranslateInstance(xx, yy + this.ascent);
 					xx += text.getAdvance();
 				}
+				at.preConcatenate(transform);
+				sink.text(text, at);
 			}
 
 			case Inline inline -> {
@@ -2112,12 +2078,12 @@ public abstract class AbstractTextBox extends AbstractBox {
 							? y + LayoutUtils.inlineToPhysical(lineParams, inlineExtent, inlineStart,
 									inlineStart + inlineBox.getHeight())
 							: yy;
-					localSteps.add(IBox.textShapeStep(inlineBox, pageBox, path, transform, sx, sy));
+					localSteps.add(IBox.textShapeStep(inlineBox, pageBox, sink, transform, sx, sy));
 					yy += inlineBox.getHeight();
 				} else {
 					// Horizontal writing
 					final double sx = xx, sy = yy - voffset - inline.verticalAlign;
-					localSteps.add(IBox.textShapeStep(inlineBox, pageBox, path, transform, sx, sy));
+					localSteps.add(IBox.textShapeStep(inlineBox, pageBox, sink, transform, sx, sy));
 					xx += inlineBox.getWidth();
 				}
 			}

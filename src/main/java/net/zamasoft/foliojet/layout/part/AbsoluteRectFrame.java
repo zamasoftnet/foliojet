@@ -7,6 +7,7 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.util.BoxDecorationRenderer;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.pdfg2d.gc.GC;
+import net.zamasoft.pdfg2d.gc.text.TextClip;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 
 /**
@@ -153,7 +154,27 @@ public class AbsoluteRectFrame {
 		return this.frame.isVisible();
 	}
 
-	public void draw(GC gc, double x, double y, double width, double height, Shape textClip) throws GraphicsException {
+	/**
+	 * What a drawing of the frame paints (2026-10-09). A background clipped to the text is painted apart from
+	 * the rest of the frame, with the box's content.
+	 */
+	public enum Part {
+		/** The whole frame. */
+		ALL,
+		/** The frame without the background: shadows, border and outline. */
+		DECORATIONS,
+		/** The background alone. */
+		BACKGROUND
+	}
+
+	/**
+	 * Draws the frame, or part of it.
+	 *
+	 * @param textClip the text that clips the background ({@code background-clip: text}), or null
+	 * @param part     what to draw
+	 */
+	public void draw(GC gc, double x, double y, double width, double height, TextClip textClip, Part part)
+			throws GraphicsException {
 		assert !LayoutUtils.isNone(x) : "Undefined x";
 		assert !LayoutUtils.isNone(y) : "Undefined y";
 		assert !LayoutUtils.isNone(width) : "Undefined width";
@@ -166,11 +187,17 @@ public class AbsoluteRectFrame {
 		// Outer shadows are below the background; inner shadows are above it and below borders;
 		// outlines are above borders. Outlines should be above content, but this frame drawable
 		// draws them just after borders (negative offsets overlapping content place them below it).
-		BoxDecorationRenderer.drawOuterShadows(gc, this.frame, x, y, width, height);
-		this.frame.background.draw(gc, x, y, width, height, this.frame.border, this.frame.padding, textClip);
-		BoxDecorationRenderer.drawInsetShadows(gc, this.frame, x, y, width, height);
-		this.frame.border.draw(gc, x, y, width, height);
-		BoxDecorationRenderer.drawOutline(gc, this.frame, x, y, width, height);
+		if (part != Part.BACKGROUND) {
+			BoxDecorationRenderer.drawOuterShadows(gc, this.frame, x, y, width, height);
+		}
+		if (part != Part.DECORATIONS) {
+			this.frame.background.draw(gc, x, y, width, height, this.frame.border, this.frame.padding, textClip);
+		}
+		if (part != Part.BACKGROUND) {
+			BoxDecorationRenderer.drawInsetShadows(gc, this.frame, x, y, width, height);
+			this.frame.border.draw(gc, x, y, width, height);
+			BoxDecorationRenderer.drawOutline(gc, this.frame, x, y, width, height);
+		}
 	}
 
 	public AbsoluteRectFrame cut(boolean top, boolean right, boolean bottom, boolean left) {

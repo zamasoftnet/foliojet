@@ -23,6 +23,11 @@ public class TextStrokeColor extends AbstractPrimitivePropertyInfo {
 
 	public static net.zamasoft.pdfg2d.gc.paint.Color get(CSSStyle style) {
 		Value value = style.get(TextStrokeColor.INFO);
+		if (value == KeywordValue.TRANSPARENT) {
+			// A fully transparent color, as TextFillColor returns (2026-10-09; the cast below failed and the whole
+			// conversion stopped on -webkit-text-stroke: 1px transparent)
+			return net.zamasoft.pdfg2d.gc.paint.RGBAColor.create(0, 0, 0, 0);
+		}
 		if (value == KeywordValue.DEFAULT) {
 			return CSSColor.get(style);
 		}

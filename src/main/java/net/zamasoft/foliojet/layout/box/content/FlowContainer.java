@@ -1,5 +1,6 @@
 package net.zamasoft.foliojet.layout.box.content;
 
+import net.zamasoft.foliojet.layout.box.TextShapeSink;
 import net.zamasoft.foliojet.layout.fragment.FlowCutter;
 import net.zamasoft.foliojet.layout.fragment.SplitResult;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
@@ -1057,7 +1058,7 @@ public class FlowContainer implements Container {
 		}
 	}
 
-	public final void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x,
+	public final void pushTextShapeSteps(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x,
 			double y, Deque<TextShapeStep> worklist) {
 		if (this.flows == null) {
 			return;
@@ -1068,9 +1069,13 @@ public class FlowContainer implements Container {
 		// Normal flows (push onto the stack in reverse order to preserve traversal order)
 		for (int i = this.flows.size() - 1; i >= 0; --i) {
 			final Flow c = (Flow) this.flows.get(i);
-			worklist.push(IBox.textShapeStep(c.box, pageBox, path, transform,
+			worklist.push(IBox.textShapeStep(c.box, pageBox, sink, transform,
 					LayoutUtils.drawX(flow, x, parentPageExtent, c.pageAxis, c.pageAxis + c.box.getWidth(), 0),
 					LayoutUtils.drawY(flow, y, c.pageAxis, 0)));
+		}
+		// Floats
+		if (this.floatings != null) {
+			this.floatings.pushTextShape(this.box, pageBox, sink, transform, x, y, worklist);
 		}
 	}
 

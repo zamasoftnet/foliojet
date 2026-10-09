@@ -6,6 +6,7 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Rectangle2D;
 import java.util.Deque;
 
+import net.zamasoft.foliojet.layout.box.TextShapeSink;
 import net.zamasoft.foliojet.layout.box.AbstractBox;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.DrawStep;
@@ -396,9 +397,9 @@ public class VisualRescueBox extends AbstractBox {
 	 * Outlines are visual, so every fragment delegates to the original box (shifting only coordinates).
 	 * Note that this criterion differs from text extraction ({@link #pushGetTextSteps}).
 	 */
-	public void pushTextShapeSteps(final PageBox pageBox, final GeneralPath path, final AffineTransform transform,
+	public void pushTextShapeSteps(final PageBox pageBox, final TextShapeSink sink, final AffineTransform transform,
 			final double x, final double y, final Deque<TextShapeStep> worklist) {
-		worklist.push(IBox.textShapeStep(this.source, pageBox, path, transform, this.sourceDrawX(x),
+		worklist.push(IBox.textShapeStep(this.source, pageBox, sink, transform, this.sourceDrawX(x),
 				this.sourceDrawY(y)));
 	}
 

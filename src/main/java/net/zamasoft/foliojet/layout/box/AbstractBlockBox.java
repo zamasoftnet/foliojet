@@ -4,7 +4,6 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
 import java.util.Deque;
 
 import net.zamasoft.foliojet.layout.box.content.Container;
@@ -25,6 +24,7 @@ import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
+import net.zamasoft.pdfg2d.gc.text.TextClip;
 
 /**
  * A block box implementation.
@@ -183,22 +183,8 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		transform = this.transform(transform, x, y);
 		drawer.adoptTransform(this.params, transform);
 
-		if (this.params.opacity != 0f && this.frame.isVisible()) {
-			final Shape textClip;
-			if (this.getBlockParams().frame.background.getBackgroundClip() == Background.TEXT) {
-				final GeneralPath path = new GeneralPath();
-				this.textShape(pageBox, path, transform, x, y);
-				textClip = path;
-			}
-			else {
-				textClip = null;
-			}
-			// clip-path also clips the box's own background and border (unlike overflow).
-			final Drawable drawable = new AbsoluteRectFrameDrawable(pageBox, this.clipWithClipPath(clip, x, y),
-					this.params.opacity, transform, this.frame,
-					this.getWidth(), this.getHeight(), textClip).withBlendMode(this.params.blendMode).withFilter(this.params.filter);
-			drawer.visitDrawable(drawable, x, y);
-		}
+		this.visitFrame(pageBox, drawer, clip, transform, x, y,
+				this.textClipped() ? AbsoluteRectFrame.Part.DECORATIONS : AbsoluteRectFrame.Part.ALL);
 
 		clip = this.clip(clip, x, y);
 
@@ -208,7 +194,61 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		y = this.blockAlignedY(y);
 		this.container.pushFramesSteps(pageBox, drawer, clip, transform, x, y, worklist);
 	}
+
+	/**
+	 * Whether the background is clipped to the text ({@code background-clip: text}). Such a background is drawn at
+	 * the start of the box's content, while the rest of the frame stays with the frames (2026-10-09): in PDF the
+	 * clip shows the text, which is then the copy that text extraction finds, in the place of the box's text
+	 * instead of ahead of all the text of the page. Only what overlaps the text from the box's descendant blocks
+	 * or later siblings comes out in a different order from CSS's.
+	 */
+	private boolean textClipped() {
+		return this.getBlockParams().frame.background.getBackgroundClip() == Background.TEXT;
+	}
+
+	private void visitFrame(final PageBox pageBox, final Drawer drawer, final Shape clip,
+			final AffineTransform transform, final double x, final double y, final AbsoluteRectFrame.Part part) {
+		final RectFrame f = this.frame.frame;
+		final boolean visible = switch (part) {
+		case ALL -> f.isVisible();
+		case DECORATIONS -> f.border.isVisible() || f.shadows != null || f.outline != null;
+		case BACKGROUND -> f.background.isVisible();
+		};
+		if (this.params.opacity == 0f || !visible) {
+			return;
+		}
+		// clip-path also clips the box's own background and border (unlike overflow).
+		final Shape frameClip = this.clipWithClipPath(clip, x, y);
+		final AbsoluteRectFrameDrawable frameDrawable = switch (part) {
+		case ALL -> new AbsoluteRectFrameDrawable(pageBox, frameClip, this.params.opacity, transform, this.frame,
+				this.getWidth(), this.getHeight(), null);
+		case DECORATIONS -> new AbsoluteRectFrameDrawable.WithoutBackground(pageBox, frameClip, this.params.opacity,
+				transform, this.frame, this.getWidth(), this.getHeight());
+		case BACKGROUND -> new AbsoluteRectFrameDrawable.BackgroundOnly(pageBox, frameClip, this.params.opacity,
+				transform, this.frame, this.getWidth(), this.getHeight(), this.textClip(pageBox, x, y));
+		};
+		final Drawable drawable = frameDrawable.withBlendMode(this.params.blendMode).withFilter(this.params.filter);
+		drawer.visitDrawable(drawable, x, y);
+	}
 	
+
+	/**
+	 * The text of this box's content for {@code background-clip: text}, in the space the frame is drawn in
+	 * ({@code x}, {@code y}: the frame's origin, as in {@link #pushFramesSteps}). The walk starts inside this box,
+	 * so the box's own transform, which the frame drawable applies, is not applied again (2026-10-09).
+	 */
+	private TextClip textClip(final PageBox pageBox, final double x, final double y) {
+		final TextClip textClip = new TextClip();
+		final TextShapeSink sink = TextShapeSink.backgroundClip(pageBox, textClip);
+		final Deque<TextShapeStep> worklist = new java.util.ArrayDeque<>();
+		this.container.pushTextShapeSteps(pageBox, sink, new AffineTransform(),
+				this.blockAlignedX(x + this.frame.getFrameLeft()), this.blockAlignedY(y + this.frame.getFrameTop()),
+				worklist);
+		while (!worklist.isEmpty()) {
+			worklist.pop().run(worklist);
+		}
+		return textClip;
+	}
 
 	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y, final Deque<DrawStep> worklist) {
@@ -221,6 +261,10 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		drawer.adoptTransform(this.params, transform);
 
 		visitor.visitBox(transform, this, drawer, x, y);
+
+		if (this.textClipped()) {
+			this.visitFrame(pageBox, drawer, clip, transform, x, y, AbsoluteRectFrame.Part.BACKGROUND);
+		}
 
 		clip = this.clip(clip, x, y);
 

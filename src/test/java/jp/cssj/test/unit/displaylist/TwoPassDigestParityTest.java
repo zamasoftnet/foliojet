@@ -429,6 +429,8 @@ public final class TwoPassDigestParityTest extends TestCase {
 				Map.entry(DRAW + "BackgroundDrawable", "background width height"),
 				Map.entry(DRAW + "BackgroundBorderDrawable", "background border padding width height"),
 				Map.entry(DRAW + "AbsoluteRectFrameDrawable", "frame width height textClip"),
+				Map.entry(DRAW + "AbsoluteRectFrameDrawable$WithoutBackground", ""),
+				Map.entry(DRAW + "AbsoluteRectFrameDrawable$BackgroundOnly", ""),
 				Map.entry(DRAW + "DebugDrawable", "width height color"),
 				Map.entry(BOX + "AbstractReplacedBox$ReplacedBoxDrawable", "image objectFit objectPosition"),
 				Map.entry(BOX + "AbstractTextBox$TextSequenceDrawable",
@@ -665,6 +667,14 @@ public final class TwoPassDigestParityTest extends TestCase {
 					path(path, shape);
 				} else if (v instanceof Text text) {
 					text(path, text);
+				} else if (v instanceof net.zamasoft.pdfg2d.gc.text.TextClip clip) {
+					// background-clip: text (2026-10-09): the runs and where they are placed
+					final var runs = clip.getRuns();
+					line(path, "textClip[" + runs.size() + "]");
+					for (int i = 0; i < runs.size(); ++i) {
+						value(path + "[" + i + "].text", runs.get(i).text());
+						value(path + "[" + i + "].transform", runs.get(i).transform());
+					}
 				} else if (v instanceof FontStyle font) {
 					font(path, font);
 				} else if (v instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue length) {

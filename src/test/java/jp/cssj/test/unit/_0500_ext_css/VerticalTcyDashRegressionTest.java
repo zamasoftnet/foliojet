@@ -28,7 +28,7 @@ public class VerticalTcyDashRegressionTest extends AbstractTestCase {
 		assertEquals("縦中横セルは1em", 12, box.getWidth(), .01);
 		assertEquals("縦中横セルは1em", 12, box.getHeight(), .01);
 		final java.awt.geom.GeneralPath ink = new java.awt.geom.GeneralPath();
-		box.textShape(null, ink, new java.awt.geom.AffineTransform(), 0, 0);
+		box.textShapeQuiet(null, ink, new java.awt.geom.AffineTransform(), 0, 0);
 		assertFalse("縦中横の字面輪郭", ink.getBounds2D().isEmpty());
 		assertEquals("縮小後の字面を送り幅でなく実輪郭により1em中央へ置く",
 				box.getWidth() / 2.0, ink.getBounds2D().getCenterX(), .02);

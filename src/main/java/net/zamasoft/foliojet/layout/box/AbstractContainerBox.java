@@ -886,7 +886,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		this.container.pushGetTextSteps(textBuff, worklist);
 	}
 	
-	public final void pushTextShapeSteps(PageBox pageBox, GeneralPath path, AffineTransform transform, double x,
+	public final void pushTextShapeSteps(PageBox pageBox, TextShapeSink sink, AffineTransform transform, double x,
 			double y, java.util.Deque<TextShapeStep> worklist) {
 		x += this.offsetX;
 		y += this.offsetY;
@@ -895,7 +895,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		y += this.frame.getFrameTop();
 		x = this.blockAlignedX(x);
 		y = this.blockAlignedY(y);
-		this.container.pushTextShapeSteps(pageBox, path, transform, x, y, worklist);
+		this.container.pushTextShapeSteps(pageBox, sink, transform, x, y, worklist);
 	}
 
 	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape) {
