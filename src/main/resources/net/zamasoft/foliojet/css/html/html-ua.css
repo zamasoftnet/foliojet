@@ -255,19 +255,19 @@ body {
 }
 
 /* 段落系のblock方向マージン(旧applyParagraphMargins) */
-p, dl, dir, menu, ol, blockquote, fieldset {
+p, blockquote, fieldset {
 	margin-block-start: 1.12em;
 	margin-block-end: 1.12em;
 }
 
-ul {
-	margin-block-start: 1.12em;
-	margin-block-end: 1.12em;
+/* Lists as in the HTML Standard's rendering section and Chrome (2026-10-09): 1em above and below, none for a list in
+   a list (any of dir, dl, menu, ol, ul; until then 1.12em, and only ul in ul lost it) */
+dir, dl, menu, ol, ul {
+	margin-block-start: 1em;
+	margin-block-end: 1em;
 }
 
-/* UL入れ子(UL祖先を持つUL)は段落マージンなし——旧実装のUL深さ
-   カウントと同じ結果になる(OL内のULは深さ0扱いで上のマージンが付く) */
-ul ul {
+:is(dir, dl, menu, ol, ul) :is(dir, dl, menu, ol, ul) {
 	margin-block-start: 0;
 	margin-block-end: 0;
 }
@@ -323,30 +323,31 @@ blockquote {
 	margin-inline-end: 40px;
 }
 
-/* リストのinline-startインデント(旧applyListMargins) */
-dd, dir, menu, ol, ul {
+/* The indent of lists is padding, of dd margin (HTML Standard, Chrome; 2026-10-09). With a margin, an author's
+   ul { margin: 0 } took the indent away and put the markers out of the page, and ul { padding-left: 0 } left it */
+dd {
 	margin-inline-start: 40px;
 }
 
-dd, dl, menu, ol, ul {
-	page-break-before: avoid;
+dir, menu, ol, ul {
+	padding-inline-start: 40px;
 }
 
 ol {
 	list-style-type: decimal;
 }
 
-/* ULのマーカーはUL入れ子深さで変える(旧実装のUL深さカウントと同じ
-   結果——固有性 ul < ul ul < ul ul ul で深い規則が勝つ) */
-ul {
+/* The marker of an unordered list goes by its depth in lists of any kind (HTML Standard, Chrome; 2026-10-09: a ul in
+   an ol had disc) */
+dir, menu, ul {
 	list-style-type: disc;
 }
 
-ul ul {
+:is(dir, menu, ol, ul) :is(dir, menu, ul) {
 	list-style-type: circle;
 }
 
-ul ul ul {
+:is(dir, menu, ol, ul) :is(dir, menu, ol, ul) :is(dir, menu, ul) {
 	list-style-type: square;
 }
 

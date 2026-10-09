@@ -21,7 +21,8 @@ public class ListWordwrapTest extends AbstractTestCase {
 				"files/unittest/0390-writing-mode/list-wordwrap.html");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 		assertNotNull("no outside marker drawn", this.marker);
-		assertEquals(163, this.marker[0], 1);
+		// The ul's margin is 1em (HTML Standard, Chrome; 1.12em until 2026-10-09): 1.2pt more to the right
+		assertEquals(165, this.marker[0], 1);
 		// The bullet image is 0.7em long (ListBulletImage, 2026-10-08), so the box starts 3pt later; the dot stays at 32.
 		assertEquals(28, this.marker[1], 0);
 		assertEquals(0, this.marker[2], 0);
@@ -39,7 +40,8 @@ public class ListWordwrapTest extends AbstractTestCase {
 			System.out.println("x: " + x);
 			System.out.println("y: " + y);
 			System.out.println("height: " + box.getHeight());
-			assertEquals(102.6, x, 1);
+			// After the ul, whose margins on both sides are 1.2pt less (2026-10-09)
+			assertEquals(105, x, 1);
 			assertEquals(45, y, 1);
 			assertEquals(20, box.getHeight(), 1);
 			return true;

@@ -29,6 +29,8 @@ ol {
 li {
 	page-break-inside: avoid;
 }
+/* The scenario keeps lists with what comes before them, as the UA style sheet did until 2026-10-09 */
+dd, dl, menu, ol, ul { page-break-before: avoid; }
 </style>
 </head>
 <body>

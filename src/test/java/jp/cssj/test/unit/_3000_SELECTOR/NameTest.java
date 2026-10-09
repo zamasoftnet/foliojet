@@ -21,7 +21,8 @@ public class NameTest extends AbstractTestCase {
 		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x+"/"+y);
 			assertEquals(36,x, 1);
-			assertEquals(13,y, 1);
+			// The ol's margin is 1em (HTML Standard, Chrome; 1.12em until 2026-10-09)
+			assertEquals(12,y, 1);
 			return true;
 		}
 		return false;
@@ -31,7 +32,7 @@ public class NameTest extends AbstractTestCase {
 		if (box.getType() == BoxType.BLOCK) {
 			System.err.println(x+"/"+y);
 			assertEquals(36,x, 1);
-			assertEquals(28,y, 1);
+			assertEquals(26.9,y, 1);
 			return true;
 		}
 		return false;
@@ -41,7 +42,7 @@ public class NameTest extends AbstractTestCase {
 		if (box.getType() == BoxType.INLINE) {
 			System.err.println(x+"/"+y);
 			assertEquals(36,x, 1);
-			assertEquals(43,y, 1);
+			assertEquals(42.3,y, 1);
 			return true;
 		}
 		return false;
@@ -51,7 +52,7 @@ public class NameTest extends AbstractTestCase {
 		if (box.getType() == BoxType.INLINE) {
 			System.err.println(x+"/"+y);
 			assertEquals(75,x, 1);
-			assertEquals(43,y, 1);
+			assertEquals(42.3,y, 1);
 			return true;
 		}
 		return false;

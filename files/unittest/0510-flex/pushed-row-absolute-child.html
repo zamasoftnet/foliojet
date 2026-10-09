@@ -19,6 +19,8 @@ body { margin: 0; font-family: sans-serif; font-size: 12px; }
 .arrow { display: flex; align-items: center; justify-content: center; width: 22px; }
 .rtext { flex: 1 1; min-width: 0; }
 dl, dt, dd { margin: 0; }
+/* The scenario keeps lists with what comes before them, as the UA style sheet did until 2026-10-09 */
+dd, dl, menu, ol, ul { page-break-before: avoid; }
 </style>
 </head>
 <body>
