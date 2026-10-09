@@ -119,6 +119,13 @@ public class CSSStyle {
 	private Set<String> importantCustomProperties = null;
 
 	/**
+	 * The value of a custom property declared {@code initial} (the guaranteed-invalid value, css-variables-1 §2.2):
+	 * it hides the ancestors' value, and {@code var()} takes its fallback. Compared by identity.
+	 */
+	private static final List<CssToken> GUARANTEED_INVALID = java.util.Collections
+			.unmodifiableList(new java.util.ArrayList<>());
+
+	/**
 	 * The source of custom properties for parentless styles (page and margin boxes): the root element's style.
 	 * On 2026-10-06, jigensha reported that variables declared on {@code :root} failed to resolve in {@code @page}
 	 * margin boxes, so page numbers used the default font. css-page-3 §6 makes the page context inherit from the root.
@@ -387,6 +394,26 @@ public class CSSStyle {
 		} else if (this.importantCustomProperties != null && this.importantCustomProperties.contains(name)) {
 			return;
 		}
+		// CSS-wide keywords (2026-10-09; stripe-docs declares --col-repeat: initial for
+		// repeat(var(--col-repeat, auto-fill), ...)): they used to be substituted as the word itself, which made
+		// the declaration that used the variable invalid. initial is the guaranteed-invalid value; inherit, unset
+		// and revert take the parent's value, as custom properties inherit and the UA declares none.
+		if (tokens.size() == 1 && tokens.get(0) instanceof CssToken.Keyword keyword) {
+			if (keyword == CssToken.Keyword.INITIAL) {
+				tokens = GUARANTEED_INVALID;
+			} else {
+				if (this.customProperties != null) {
+					this.customProperties.remove(name);
+				}
+				return;
+			}
+		} else if (tokens.size() == 1 && tokens.get(0) instanceof CssToken.Ident ident
+				&& (ident.is("revert") || ident.is("revert-layer"))) {
+			if (this.customProperties != null) {
+				this.customProperties.remove(name);
+			}
+			return;
+		}
 		if (this.customProperties == null) {
 			this.customProperties = new HashMap<String, List<CssToken>>();
 		}
@@ -401,7 +428,8 @@ public class CSSStyle {
 	 */
 	public List<CssToken> getCustomProperty(String name) {
 		final CSSStyle owner = this.getCustomPropertyOwner(name);
-		return owner == null ? null : owner.customProperties.get(name);
+		final List<CssToken> tokens = owner == null ? null : owner.customProperties.get(name);
+		return tokens == GUARANTEED_INVALID ? null : tokens;
 	}
 
 	/**

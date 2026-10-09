@@ -59,6 +59,12 @@ import net.zamasoft.foliojet.css.value.PercentageValue;
  * excluded from the formal subset definition.
  * </p>
  *
+ * <p>
+ * {@code min()}/{@code max()}/{@code clamp()} mixing percentages and lengths
+ * ({@code minmax(min(calc(100% / 3 - 16px), 100%), 1fr)}) compare their arguments at layout, against the
+ * container's width ({@link GridTrackListValue.Extremum}; 2026-10-09). They used to drop the whole declaration.
+ * </p>
+ *
  * @author MIYABE Tatsuhiko
  */
 public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
@@ -124,6 +130,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 						resolveLeaf(minMax.max, style)));
 			} else if (t instanceof RawAutoRepeat autoRepeat) {
 				double minLength = 0, minRatio = 0;
+				final List<GridTrackListValue.Extremum> minExtrema = new ArrayList<>();
 				for (final Object min : autoRepeat.mins) {
 					if (min instanceof Double ratio) {
 						minRatio += ratio;
@@ -133,12 +140,13 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 					if (size instanceof GridTrackListValue.Percentage calc) {
 						minRatio += calc.ratio();
 						minLength += calc.offset();
+						minExtrema.addAll(calc.extrema());
 					} else if (size instanceof GridTrackListValue.Fixed fixed) {
 						minLength += fixed.length();
 					}
 				}
 				tracks.add(new GridTrackListValue.AutoRepeat(resolveTracks(autoRepeat.unit, style),
-						autoRepeat.unitLineNames, minLength, minRatio, autoRepeat.fit));
+						autoRepeat.unitLineNames, minLength, minRatio, minExtrema, autoRepeat.fit));
 			} else {
 				tracks.add(toTrackSize((Value) t, style));
 			}
@@ -159,6 +167,9 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 	 * ({@code calc(50% + 10px)}, {@code calc(100% - 2em)}; 2026-10-08). A negative calc() length counts as 0.
 	 */
 	private static GridTrackListValue.TrackSize toTrackSize(final Value raw, final CSSStyle style) {
+		if (raw instanceof RawMath math) {
+			return new GridTrackListValue.Percentage(0, 0, List.of(toExtremum(math, style)));
+		}
 		final Value value = ValueUtils.emExToAbsoluteLength(raw, style);
 		if (value instanceof CalcLengthValue calc) {
 			return new GridTrackListValue.Percentage(calc.getRatio(), calc.getAbsolute());
@@ -167,6 +178,26 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			return new GridTrackListValue.Percentage(percentage.getRatio());
 		}
 		return new GridTrackListValue.Fixed(Math.max(0, ((AbsoluteLengthValue) value).getLength()));
+	}
+
+	/** A RawMath at computation: its arguments made absolute, each with its percentage part kept. */
+	private static GridTrackListValue.Extremum toExtremum(final RawMath math, final CSSStyle style) {
+		final List<GridTrackListValue.Percentage> args = new ArrayList<>(math.args.size());
+		for (final Object arg : math.args) {
+			if (arg instanceof RawMath nested) {
+				args.add(new GridTrackListValue.Percentage(0, 0, List.of(toExtremum(nested, style))));
+				continue;
+			}
+			final Value value = ValueUtils.emExToAbsoluteLength((Value) arg, style);
+			if (value instanceof CalcLengthValue calc) {
+				args.add(new GridTrackListValue.Percentage(calc.getRatio(), calc.getAbsolute()));
+			} else if (value instanceof PercentageValue percentage) {
+				args.add(new GridTrackListValue.Percentage(percentage.getRatio()));
+			} else {
+				args.add(new GridTrackListValue.Percentage(0, ((AbsoluteLengthValue) value).getLength()));
+			}
+		}
+		return new GridTrackListValue.Extremum(math.isMax, args);
 	}
 
 	private static double toAbsolute(final Value raw, final CSSStyle style) {
@@ -194,6 +225,14 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			}
 			return best;
 		}
+	}
+
+	/**
+	 * Intermediate form for {@code min()}/{@code max()}/{@code clamp()} whose arguments mix percentages and lengths
+	 * (2026-10-09). Each argument is a length or percentage Value not yet made absolute, or a nested RawMath; the
+	 * arguments are compared at layout ({@link GridTrackListValue.Extremum}).
+	 */
+	private record RawMath(boolean isMax, List<Object> args) implements Value {
 	}
 
 	/**
@@ -383,12 +422,16 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			final List<Value> lengths = new ArrayList<>(args.size());
 			for (final TokenStream arg : args) {
 				final CssToken argToken = arg.next();
-				if (argToken == null || arg.hasNext() || argToken instanceof CssToken.Percent) {
-					throw new PropertyException();
-				}
-				final Value length = ValueUtils.toLength(ua, argToken);
+				final Value length = argToken == null || arg.hasNext() || argToken instanceof CssToken.Percent ? null
+						: ValueUtils.toLength(ua, argToken);
 				if (length == null) {
-					throw new PropertyException();
+					// A percentage or calc() among the arguments: compared at layout (2026-10-09).
+					final RawMath math = toRawMath(ua, token, 0);
+					if (math == null) {
+						throw new PropertyException();
+					}
+					acc.addTrack(math, acc.mins != null ? math : null);
+					return;
 				}
 				lengths.add(length);
 			}
@@ -438,7 +481,48 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		if (token instanceof CssToken.Dim dim && dim.value() < 0 || token instanceof CssToken.Num num && num.value() < 0) {
 			throw new PropertyException();
 		}
-		return toTrackLength(ua, token);
+		final Value length = toTrackLength(ua, token);
+		return length != null ? length : toRawMath(ua, token, 0);
+	}
+
+	/** Bound of min()/max()/clamp() nesting in a track (as in {@code CalcValueUtils}). */
+	private static final int MAX_MATH_DEPTH = 32;
+
+	/**
+	 * Reads {@code min()}/{@code max()}/{@code clamp()} whose arguments are lengths, percentages or {@code calc()}
+	 * (or such functions again) into a {@link RawMath} (2026-10-09); null for anything else.
+	 * {@code clamp(A, B, C)} is {@code max(A, min(B, C))}.
+	 */
+	private static RawMath toRawMath(final UserAgent ua, final CssToken token, final int depth) {
+		if (!(token instanceof CssToken.Func func) || depth > MAX_MATH_DEPTH) {
+			return null;
+		}
+		final boolean clamp = func.is("clamp");
+		if (!clamp && !func.is("min") && !func.is("max")) {
+			return null;
+		}
+		final List<TokenStream> groups = func.argStream().splitComma();
+		if (groups.isEmpty() || clamp && groups.size() != 3) {
+			return null;
+		}
+		final List<Object> args = new ArrayList<>(groups.size());
+		for (final TokenStream group : groups) {
+			final CssToken arg = group.next();
+			if (arg == null || group.hasNext()) {
+				return null;
+			}
+			final Value value = arg instanceof CssToken.Percent percent ? PercentageValue.create(percent.value())
+					: toTrackLength(ua, arg);
+			final Object math = value != null ? value : toRawMath(ua, arg, depth + 1);
+			if (math == null) {
+				return null;
+			}
+			args.add(math);
+		}
+		if (clamp) {
+			return new RawMath(true, List.of(args.get(0), new RawMath(false, List.of(args.get(1), args.get(2)))));
+		}
+		return new RawMath(func.is("max"), args);
 	}
 
 	/**
@@ -469,7 +553,8 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 		if (token instanceof CssToken.Ident || token instanceof CssToken.Dim dim && dim.unitText().equalsIgnoreCase("fr")) {
 			return null;
 		}
-		return toTrackLength(ua, token);
+		final Value length = toTrackLength(ua, token);
+		return length != null ? length : toRawMath(ua, token, 0);
 	}
 
 	/**
@@ -498,7 +583,8 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 			final double ratio = percent.value() / 100.0;
 			acc.addTrack(new GridTrackListValue.Percentage(ratio), minOverride != null ? minOverride : ratio);
 		} else {
-			final Value length = toTrackLength(ua, token);
+			final Value calc = toTrackLength(ua, token);
+			final Value length = calc != null ? calc : toRawMath(ua, token, 0);
 			if (length == null) {
 				throw new PropertyException();
 			}

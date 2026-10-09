@@ -503,7 +503,7 @@ public final class GridBuilder
 			}
 			if (t instanceof GridTrackListValue.AutoRepeat repeat) {
 				final int unitSize = repeat.unit().size();
-				final double unitMin = repeat.unitMinLength() + repeat.unitMinRatio() * available;
+				final double unitMin = repeat.unitMin(available);
 				int reps = 1;
 				if (available > 0 && unitMin > 0) {
 					final double room = available - fixedSum - gap * fixedCount;

@@ -92,10 +92,19 @@ public final class GridTrackListValue implements Value {
 	 * ({@code 25%} becomes 0.25), plus an absolute part for {@code calc()} ({@link #resolve}). During intrinsic
 	 * sizing, when the reference width is indefinite, treats it as {@code auto}, as the specification requires.
 	 */
-	public record Percentage(double ratio, double offset) implements TrackSize {
+	public record Percentage(double ratio, double offset, List<Extremum> extrema) implements TrackSize {
+		public Percentage {
+			extrema = List.copyOf(extrema);
+		}
+
 		/** A plain {@code %} track. */
 		public Percentage(final double ratio) {
 			this(ratio, 0);
+		}
+
+		/** A {@code calc()} track mixing a percentage and a length. */
+		public Percentage(final double ratio, final double offset) {
+			this(ratio, offset, List.of());
 		}
 
 		/**
@@ -104,13 +113,56 @@ public final class GridTrackListValue implements Value {
 		 * track used to drop the whole {@code grid-template-columns} declaration. A negative result counts as 0.
 		 */
 		public double resolve(final double reference) {
-			return Math.max(0, this.ratio * reference + this.offset);
+			return Math.max(0, this.raw(reference));
+		}
+
+		/** The size before it is clamped at 0 ({@link Extremum} compares its arguments so). */
+		public double raw(final double reference) {
+			double length = this.ratio * reference + this.offset;
+			for (final Extremum extremum : this.extrema) {
+				length += extremum.raw(reference);
+			}
+			return length;
 		}
 
 		@Override
 		public String toString() {
-			return this.offset == 0 ? (this.ratio * 100) + "%"
-					: "calc(" + (this.ratio * 100) + "% + " + this.offset + "pt)";
+			if (this.extrema.isEmpty()) {
+				return this.offset == 0 ? (this.ratio * 100) + "%"
+						: "calc(" + (this.ratio * 100) + "% + " + this.offset + "pt)";
+			}
+			final StringBuilder buff = new StringBuilder("calc(" + (this.ratio * 100) + "% + " + this.offset + "pt");
+			for (final Extremum extremum : this.extrema) {
+				buff.append(" + ").append(extremum);
+			}
+			return buff.append(')').toString();
+		}
+	}
+
+	/**
+	 * {@code min()} or {@code max()} of lengths relative to the grid container's inline size, resolved with it like
+	 * {@link Percentage} (2026-10-09). {@code clamp(A, B, C)} is {@code max(A, min(B, C))}. A track such as
+	 * {@code minmax(min(calc(100% / 3 - 16px), 100%), 1fr)} used to drop the whole declaration: the percentage and the
+	 * length in min() have no order before the reference is known (stripe-docs: 3 images in 1 column).
+	 */
+	public record Extremum(boolean max, List<Percentage> args) {
+		public Extremum {
+			args = List.copyOf(args);
+		}
+
+		/** The smallest (largest for max()) argument against {@code reference}, not clamped. */
+		public double raw(final double reference) {
+			double best = this.max ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
+			for (final Percentage arg : this.args) {
+				final double length = arg.raw(reference);
+				best = this.max ? Math.max(best, length) : Math.min(best, length);
+			}
+			return best;
+		}
+
+		@Override
+		public String toString() {
+			return (this.max ? "max" : "min") + this.args;
 		}
 	}
 
@@ -146,10 +198,30 @@ public final class GridTrackListValue implements Value {
 	 * @param unitLineNames line names within the unit (unit.size()+1 elements)
 	 * @param unitMinLength the absolute-length part of one repetition's minimum width (pt, excluding gaps)
 	 * @param unitMinRatio  the percentage part of one repetition's minimum width (a ratio to the reference width)
+	 * @param unitMinExtrema the min()/max() parts of one repetition's minimum width (2026-10-09)
 	 * @param fit           whether this is auto-fit (collapses trailing tracks without items)
 	 */
 	public record AutoRepeat(List<TrackSize> unit, List<List<String>> unitLineNames, double unitMinLength,
-			double unitMinRatio, boolean fit) implements TrackSize {
+			double unitMinRatio, List<Extremum> unitMinExtrema, boolean fit) implements TrackSize {
+		public AutoRepeat {
+			unitMinExtrema = List.copyOf(unitMinExtrema);
+		}
+
+		/** Without min()/max() in the unit's minimum. */
+		public AutoRepeat(final List<TrackSize> unit, final List<List<String>> unitLineNames, final double unitMinLength,
+				final double unitMinRatio, final boolean fit) {
+			this(unit, unitLineNames, unitMinLength, unitMinRatio, List.of(), fit);
+		}
+
+		/** The unit's minimum against {@code reference} (the count of repetitions comes from it). */
+		public double unitMin(final double reference) {
+			double min = this.unitMinLength + this.unitMinRatio * reference;
+			for (final Extremum extremum : this.unitMinExtrema) {
+				min += extremum.raw(reference);
+			}
+			return min;
+		}
+
 		@Override
 		public String toString() {
 			return "repeat(" + (this.fit ? "auto-fit" : "auto-fill") + "," + this.unit + ")";

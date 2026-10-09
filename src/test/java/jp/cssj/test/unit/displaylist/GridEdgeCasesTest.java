@@ -32,6 +32,9 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * failed: the image arrived after display was computed.</li>
  * <li>A track {@code calc()} mixing a percentage and a length dropped the whole {@code grid-template-columns}.</li>
  * <li>A grid without items lost its explicit rows (height 0).</li>
+ * <li>A track {@code min()}/{@code max()}/{@code clamp()} mixing a percentage and a length dropped the whole
+ * {@code grid-template-columns}, and a custom property declared {@code initial} was substituted as the word itself
+ * (2026-10-09, stripe-docs: 3 images in 1 column).</li>
  * </ul>
  */
 public class GridEdgeCasesTest extends TestCase {
@@ -123,6 +126,75 @@ public class GridEdgeCasesTest extends TestCase {
 		for (int i = 0; i < expected.length; ++i) {
 			assertEquals(names[i] + " の x", expected[i][0], frames.get(i)[0], 0.01);
 			assertEquals(names[i] + " の幅", expected[i][1], frames.get(i)[2], 0.01);
+		}
+	}
+
+	/**
+	 * Track min()/max()/clamp() whose arguments mix percentages and lengths, resolved against the container's width
+	 * (360pt, column gap 12pt); the x of each item as in Chrome.
+	 */
+	public void testMathFunctionTracks() throws Exception {
+		final String[][] grids = {
+				{ "repeat(auto-fill, minmax(min(calc(100% / 3 - 16px), 100%), 1fr))", "0 124 248 0" },
+				{ "min(50%, 100pt) 1fr", "0 112" },
+				{ "max(20%, 50pt) max(20%, 100pt) 1fr", "0 84 196" },
+				{ "clamp(60pt, 30%, 90pt) clamp(60pt, 10%, 90pt) clamp(10pt, 50%, 90pt) 1fr", "0 102 174 276" },
+				{ "minmax(min(100pt, 20%), max(30%, 50pt)) 1fr", "0 120" },
+				{ "repeat(auto-fill, min(100pt, 40%))", "0 112 224" },
+				{ "repeat(auto-fit, minmax(max(25%, 100pt), 1fr))", "0 124 248 0 124" },
+				{ "min(calc(50% - 10pt), max(30%, 150pt)) 1fr", "0 162" } };
+		assertItemColumns("math", "", grids);
+	}
+
+	/**
+	 * A custom property declared with a CSS-wide keyword: {@code initial} makes {@code var()} take its fallback,
+	 * {@code inherit} and {@code unset} take the parent's value (stripe-docs: {@code --col-repeat: initial} for
+	 * {@code repeat(var(--col-repeat, auto-fill), ...)}). The repeat count shows the value, as in Chrome.
+	 */
+	public void testCssWideKeywordCustomProperty() throws Exception {
+		final String[][] grids = {
+				{ "repeat(var(--col-repeat, auto-fill), minmax(min(calc(100% / 3 - 16px), 100%), 1fr))", "0 124 248 0" },
+				{ "repeat(var(--x, 3), 1fr)", "0 124 248 0" },
+				{ "repeat(var(--y, 3), 1fr)", "0 93 186 279 0" },
+				{ "repeat(var(--z, 3), 1fr)", "0 93 186 279 0" } };
+		assertItemColumns("keyword", """
+				body { --x: 2; --y: 2; --z: 2 }
+				.g0 { --col-repeat: initial }
+				.p { --y: 4; --z: 4 }
+				.g1 { --x: initial } .g2 { --y: inherit } .g3 { --z: unset }
+				""", grids);
+	}
+
+	/**
+	 * One grid per row of {@code grids} (its grid-template-columns, then the expected x of its items in order), each
+	 * 360pt wide with 12pt gaps; the third and fourth sit in {@code <div class="p">}.
+	 */
+	private static void assertItemColumns(final String name, final String style, final String[][] grids)
+			throws Exception {
+		final StringBuilder css = new StringBuilder(style).append(".g { display: grid; width: 360pt; gap: 12pt }\n");
+		final StringBuilder body = new StringBuilder();
+		for (int i = 0; i < grids.length; ++i) {
+			css.append(".g").append(i).append(" { grid-template-columns: ").append(grids[i][0]).append(" }\n");
+			if (i == 2) {
+				body.append("<div class=\"p\">");
+			}
+			body.append("<div class=\"g g").append(i).append("\">");
+			final String[] xs = grids[i][1].split(" ");
+			for (int k = 0; k < xs.length; ++k) {
+				body.append("<div>G").append(i).append('x').append(k).append("</div>");
+			}
+			body.append("</div>");
+			if (i == 3) {
+				body.append("</div>");
+			}
+		}
+		final String page = convert(name, document(css.toString(), body.toString()));
+		for (int i = 0; i < grids.length; ++i) {
+			final String[] xs = grids[i][1].split(" ");
+			for (int k = 0; k < xs.length; ++k) {
+				assertEquals(grids[i][0] + " の項目 " + (k + 1) + " の x", Double.parseDouble(xs[k]),
+						x(page, "G" + i + "x" + k), 0.01);
+			}
 		}
 	}
 
