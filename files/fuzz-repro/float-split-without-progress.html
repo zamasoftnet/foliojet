@@ -3,6 +3,7 @@
 <?jp.cssj.property name="output.page-height" value="60pt"?>
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <title>fuzz v2 2264275</title>
+<!-- 2026-10-09: the table is written with display: table. As HTML table markup, the div between the cells is fostered before the table (html-balancer 8e7aa28, as in browsers) and the scene is lost; written so, it lays out as the table did before (the same display list). -->
 <meta name="foliojet-fuzz-generator" content="2" />
 <style>
 @page{margin:0pt}
@@ -22,13 +23,8 @@ body{font:normal 6pt/1.2 serif;writing-mode:vertical-rl}
 
 
 <div style="float:start">
-<table>
-
-<td></td>
-
-
-
-
+<div style="display:table;border-spacing:2px">
+<div style="display:table-cell;vertical-align:middle;padding:1px"></div>
 <div>
 <div style="display:table-cell;writing-mode:horizontal-tb">
 
@@ -38,12 +34,8 @@ body{font:normal 6pt/1.2 serif;writing-mode:vertical-rl}
 
 </div>
 </div>
-
-
-
-<td>T143</td><td>T144</td><td>T145</td>
-
-</table>
+<div style="display:table-cell;vertical-align:middle;padding:1px">T143</div><div style="display:table-cell;vertical-align:middle;padding:1px">T144</div><div style="display:table-cell;vertical-align:middle;padding:1px">T145</div>
+</div>
 </div>
 
 
