@@ -1437,7 +1437,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// plus overlapping cells (a table model error, resolved differently by each UA) that put Copper's columns
 			// 19 pt further: its last cell's list lands 5 pt past the second sheet.
 			new IndividualExclusion(12_318_384, "fit-v1", 514_363_755, "紙2枚の行内寸法の表と重なるセルの列の割り当て差",
-					"2026-10-08"));
+					"2026-10-08"),
+			// Triage §25: on vertical-lr paper (130 pt of line length) a table in an inline-block, whose cell holds a
+			// nowrap flex with a min-width:8em item: its inline size is 319 pt in Chrome, which draws T15 on off the
+			// paper too. The table estimate does not count flex items in cells.
+			new IndividualExclusion(12_668_387, "fit-v1", 96_200_447, "作者の溢れ: セルの中のflexで表の行内寸法が版面の2.5倍(Chromeも紙の外)",
+					"2026-10-09"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
@@ -5482,14 +5487,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	/** Float side ({@code float:left|right}). */
 	private static final Pattern FLOAT_SIDE_DECLARATION = Pattern.compile("\\s*float\\s*:\\s*(left|right)\\s*");
-	/** Declarations that do not move or size a float ({@link #floatWrapperSide}). */
+	/**
+	 * Declarations that do not move or size a float ({@link #floatWrapperSide}). {@code display:table} too
+	 * (2026-10-09, fit seed 12527351): the float is a table around the table it wraps and as wide as it (a div has no
+	 * border-spacing; Chrome: the div and the table both 149.04pt).
+	 */
 	private static final Pattern FLOAT_NEUTRAL_DECLARATION = Pattern
-			.compile("\\s*(?:display\\s*:\\s*(?:inline|block)|writing-mode\\s*:\\s*horizontal-tb)\\s*");
+			.compile("\\s*(?:display\\s*:\\s*(?:inline|block|table)|writing-mode\\s*:\\s*horizontal-tb)\\s*");
 
 	/**
 	 * Whether a float may directly wrap a table: a div whose only attribute is style,
 	 * with only {@code float:left|right} and {@code position:static} declarations (no width/margins), plus
-	 * {@code display:inline|block} and {@code writing-mode:horizontal-tb}.
+	 * {@code display:inline|block|table} and {@code writing-mode:horizontal-tb}.
 	 * Return the side as {@code 'L'}/{@code 'R'}, or {@link #NOT_FLOATED} if ineligible.
 	 */
 	static char floatWrapperSide(final String name, final String attrs) {

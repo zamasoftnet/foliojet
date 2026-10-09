@@ -1012,6 +1012,22 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
+	 * fit seed 12527351 (v2 800003103): a table with a nested table in {@code <div style="display:table;float:right;">}
+	 * on 60 pt paper. The float is a table around the one it wraps and as wide as it (Chrome: both 149.04 pt, T0 to
+	 * T18 left of the paper; Copper: T19 at x=141), so {@code display:table} leaves the float a wrapper (2026-10-09).
+	 */
+	public void testSeedTableInDisplayTableFloatIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(800_003_103, true, false, false).html()));
+		assertEquals('R', RandomDocumentFuzzTest.floatWrapperSide("div", " style=\"display:table;float:right;\""));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc("<div style=\"display:table;float:right\">" + TABLE_OVER + "</div>")));
+		// Other display values still make the float something else than a wrapper.
+		assertEquals(RandomDocumentFuzzTest.NOT_FLOATED,
+				RandomDocumentFuzzTest.floatWrapperSide("div", " style=\"display:flex;float:right;\""));
+	}
+
+	/**
 	 * fit seed 11898581 (v2 249173394): a table in a div with
 	 * {@code float:none;width:8em;min-width:8em;max-width:90%} on vertical-writing paper (line length 60 pt).
 	 * Width properties in vertical writing size the block axis and do not change line length.
