@@ -15,7 +15,9 @@ public enum OverflowValue implements Value {
 	// distinguished values other than HIDDEN). Corrected when clipping was introduced.
 	AUTO_VALUE(OverflowMode.AUTO),
 
-	SCROLL_VALUE(OverflowMode.SCROLL);
+	SCROLL_VALUE(OverflowMode.SCROLL),
+
+	CLIP_VALUE(OverflowMode.CLIP);
 
 	private final OverflowMode overflow;
 
@@ -40,6 +42,9 @@ public enum OverflowValue implements Value {
 
 		case OverflowMode.AUTO:
 			return "auto";
+
+		case OverflowMode.CLIP:
+			return "clip";
 
 		default:
 			throw new IllegalStateException();

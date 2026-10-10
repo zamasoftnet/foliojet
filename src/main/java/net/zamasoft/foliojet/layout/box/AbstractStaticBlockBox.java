@@ -381,6 +381,14 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			lineExtent = minLine;
 		}
 
+		// An element in a neutral flex wrapper fills it (2026-10-10): the wrapper took over its line-axis size, min and
+		// max, keywords included (FlexBuilder.startNeutralElementItem), as for one without keywords
+		// (FlowBlockBox.calculateSize). Applied again here, a flex container with min-width: max-content and
+		// max-width: 40px came out 60px wide in its 120px wrapper, and its items shrank to half their width.
+		if (sameAxisFlow && containerBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item
+				&& item.isNeutralLineFill()) {
+			lineExtent = Math.max(0, limitLine);
+		}
 		// Column footnotes fill the host's line length regardless of short text or the author's inline min/max.
 		if (columnFootnote) lineExtent = limitLine;
 

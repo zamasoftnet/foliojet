@@ -533,6 +533,15 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 				: this.getPageContext();
 		if (root != null) {
 			final AbstractContainerBox rootBox = (AbstractContainerBox) this.getRootBox();
+			if (rootBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox) {
+				// A flex container sized by its own intrinsic keyword (width: min-content, fit-content, max-content;
+				// 2026-10-10) takes the flex intrinsic sizes (Flexbox §9.9, FlexBuilder.getIntrinsicSizes through
+				// measurer.flex), as a nested flex container does. Laid out on the scratch page at line width 0, its
+				// items shrank to what bind lets them, not to their min-content contributions: a row of an item with
+				// flex: 0 0 200px came out 200px wide where Chrome makes its min-content 60px. Its own sizes are left
+				// out, which its shrink-to-fit applies.
+				return this.measurer.sizesBeforeRoot();
+			}
 			final IntrinsicSizes measured = net.zamasoft.foliojet.layout.sizing.MeasuredIntrinsics.of(
 					root.getPageGenerator().getLayoutSource(), rootBox, rootBox.getBlockParams(),
 					root.getPageGenerator().getUserAgent());
@@ -602,6 +611,19 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 
 	public AbstractContainerBox getRootBox() {
 		return (AbstractContainerBox) this.flowStack.get(0);
+	}
+
+	/**
+	 * The flow holding a box on this builder's stack: the one under it, the parent's current flow for the root, or the
+	 * current flow when the box is not on the stack (2026-10-10, IntrinsicMeasurer).
+	 */
+	AbstractContainerBox flowHolding(final AbstractContainerBox box) {
+		for (int i = this.flowStack.size() - 1; i >= 0; --i) {
+			if (this.flowStack.get(i) == box) {
+				return i > 0 ? this.flowStack.get(i - 1) : this.layoutStack == null ? null : this.layoutStack.getFlowBox();
+			}
+		}
+		return this.getFlowBox();
 	}
 
 	public AbstractContainerBox getFlowBox() {

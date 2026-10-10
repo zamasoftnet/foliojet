@@ -6,7 +6,13 @@ package net.zamasoft.foliojet.layout.box.params;
  * @author MIYABE Tatsuhiko
  */
 public enum OverflowMode {
-	VISIBLE, HIDDEN, SCROLL, AUTO;
+	VISIBLE, HIDDEN, SCROLL, AUTO,
+
+	/**
+	 * overflow: clip (2026-10-10). It clips as hidden does, in print the same, but the box is not a scroll container,
+	 * so a flex item keeps its automatic minimum size (CSS Flexbox §4.5).
+	 */
+	CLIP;
 
 	/**
 	 * Whether to clip overflowing drawing at the box (2026-08-09). On screen, CSS scroll containers
@@ -18,5 +24,13 @@ public enum OverflowMode {
 	 */
 	public boolean clipsPaint() {
 		return this != VISIBLE;
+	}
+
+	/**
+	 * Whether the box is a scroll container (CSS Overflow 3): every value but visible and clip. A flex item that is one
+	 * has no automatic minimum size (CSS Flexbox §4.5).
+	 */
+	public boolean isScrollContainer() {
+		return this != VISIBLE && this != CLIP;
 	}
 }

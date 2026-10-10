@@ -95,7 +95,10 @@ public final class AnonymousItemRangeTest extends TestCase {
 				.mapToLong(Map.Entry::getValue).sum();
 	}
 
-	/** Anonymous body content is replayed in both MEASURE and MAIN rooted at the Grid/Flex itself. */
+	/**
+	 * Anonymous body content is replayed in both MEASURE and MAIN rooted at the Grid itself, and in MAIN rooted at the
+	 * Flex.
+	 */
 	public void testIntrinsicHostRangesAndCensus() throws Exception {
 		for (final String display : List.of("grid", "flex")) {
 			for (final String width : List.of("max-content", "fit-content")) {
@@ -116,7 +119,8 @@ public final class AnonymousItemRangeTest extends TestCase {
 						assertTrue(name + ": 匿名MAIN未発火", binds.entrySet().stream().anyMatch(entry ->
 								entry.getKey().itemKind() == TwoPassItemKind.ANONYMOUS
 								&& !entry.getKey().measurement() && entry.getValue() > 0));
-						assertTrue(name + ": 匿名MEASURE未発火", measures.entrySet().stream().anyMatch(entry ->
+						// A flex root takes the flex intrinsic sizes (CSS Flexbox §9.9, 2026-10-10), not a scratch measurement
+						assertEquals(name + ": 匿名MEASURE", display.equals("grid"), measures.entrySet().stream().anyMatch(entry ->
 								entry.getKey().itemKind() == TwoPassItemKind.ANONYMOUS
 								&& entry.getKey().measurement() && entry.getValue() > 0));
 						assertTrue(name + ": 宿主range未発火", binds.entrySet().stream().anyMatch(entry ->

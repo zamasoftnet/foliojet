@@ -364,7 +364,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			return;
 		}
 		final boolean minAuto = vertical ? spec.minWidthAuto() : spec.minHeightAuto();
-		if (minAuto && this.params.overflow == net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE) {
+		if (minAuto && !this.params.overflow.isScrollContainer()) {
 			// min wins over max, so clamp the basis by an absolute max first.
 			double start = Math.max(0, length);
 			if (this.params.maxSize.getPageType(flow) == LengthType.ABSOLUTE) {
@@ -545,7 +545,11 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				}
 				switch (state) {
 				case 0:
-					maxHeight = LayoutUtils.computeDimensionHeight(this.params.maxSize, lineSize);
+					// A neutral wrapper took the line-axis min and max sizes with the size (FlexBuilder.startNeutralElementItem):
+					// resolved again here against the wrapper, a percentage counted twice (2026-10-10: max-width:
+					// calc(100% - 115px) left 31.96pt of quarto-book's 118.21pt logo; Chrome 118.2).
+					maxHeight = neutralLineFill ? LayoutUtils.NONE
+							: LayoutUtils.computeDimensionHeight(this.params.maxSize, lineSize);
 					if (LayoutUtils.isNone(maxHeight)) {
 						maxHeight = Double.MAX_VALUE;
 					} else {
@@ -560,7 +564,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					}
 					state = 1;
 				case 1:
-					minHeight = this.lineMinMaxToContent(LayoutUtils.computeDimensionHeight(this.minSize, lineSize), true);
+					minHeight = neutralLineFill ? 0
+							: this.lineMinMaxToContent(LayoutUtils.computeDimensionHeight(this.minSize, lineSize), true);
 					if (this.height < minHeight) {
 						this.height = minHeight;
 						continue;
@@ -780,7 +785,9 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				}
 				switch (state) {
 				case 0:
-					maxWidth = LayoutUtils.computeDimensionWidth(this.params.maxSize, lineSize);
+					// A neutral wrapper took the line-axis min and max sizes (see the vertical branch)
+					maxWidth = neutralLineFill ? LayoutUtils.NONE
+							: LayoutUtils.computeDimensionWidth(this.params.maxSize, lineSize);
 					if (LayoutUtils.isNone(maxWidth)) {
 						maxWidth = Double.MAX_VALUE;
 					} else {
@@ -800,7 +807,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					}
 					state = 1;
 				case 1:
-					minWidth = this.lineMinMaxToContent(LayoutUtils.computeDimensionWidth(this.minSize, lineSize), false);
+					minWidth = neutralLineFill ? 0
+							: this.lineMinMaxToContent(LayoutUtils.computeDimensionWidth(this.minSize, lineSize), false);
 					if (this.width < minWidth) {
 						this.width = minWidth;
 						continue;

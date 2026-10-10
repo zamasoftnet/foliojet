@@ -68,8 +68,9 @@ public class Overflow extends AbstractPrimitivePropertyInfo {
 			return x;
 		}
 		// If both axes are non-visible but have different types, they all clip during rendering
-		// and are equivalent. Prefer the stronger mode (hidden).
-		return (x == OverflowMode.HIDDEN || y == OverflowMode.HIDDEN) ? OverflowMode.HIDDEN : x;
+		// and are equivalent. Prefer the stronger mode (hidden); clip with any of them computes to hidden (CSS Overflow 3).
+		return (x == OverflowMode.HIDDEN || y == OverflowMode.HIDDEN || x == OverflowMode.CLIP
+				|| y == OverflowMode.CLIP) ? OverflowMode.HIDDEN : x;
 	}
 
 	/**
@@ -80,10 +81,11 @@ public class Overflow extends AbstractPrimitivePropertyInfo {
 		if (physical == OverflowMode.VISIBLE) {
 			return logical;
 		}
-		if (logical == OverflowMode.VISIBLE) {
+		if (logical == OverflowMode.VISIBLE || physical == logical) {
 			return physical;
 		}
-		return (physical == OverflowMode.HIDDEN || logical == OverflowMode.HIDDEN) ? OverflowMode.HIDDEN : physical;
+		return (physical == OverflowMode.HIDDEN || logical == OverflowMode.HIDDEN || physical == OverflowMode.CLIP
+				|| logical == OverflowMode.CLIP) ? OverflowMode.HIDDEN : physical;
 	}
 
 	private Overflow(String name) {
@@ -99,6 +101,16 @@ public class Overflow extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
+		if (value == OverflowValue.CLIP_VALUE) {
+			// clip computes to hidden when another axis is scroll, auto or hidden (CSS Overflow 3 §3.1, 2026-10-10), so
+			// that a child inherits hidden
+			for (final PrimitivePropertyInfo other : new PrimitivePropertyInfo[] { INFO_X, INFO_Y, INFO_BLOCK,
+					INFO_INLINE }) {
+				if (other != this && style.get(other) instanceof OverflowValue o && o.getOverflow().isScrollContainer()) {
+					return OverflowValue.HIDDEN_VALUE;
+				}
+			}
+		}
 		return value;
 	}
 
@@ -121,10 +133,11 @@ public class Overflow extends AbstractPrimitivePropertyInfo {
 			case "visible":
 				return OverflowValue.VISIBLE_VALUE;
 			case "hidden":
-			// clip (CSS Overflow 3) clips without scrolling. For print,
-			// it is equivalent to hidden.
-			case "clip":
 				return OverflowValue.HIDDEN_VALUE;
+			case "clip":
+				// clip (CSS Overflow 3) clips without scrolling: in print it paints as hidden does, but the box is not a
+				// scroll container (OverflowMode.CLIP, 2026-10-10)
+				return OverflowValue.CLIP_VALUE;
 			case "scroll":
 				return OverflowValue.SCROLL_VALUE;
 			case "auto":

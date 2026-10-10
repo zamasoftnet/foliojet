@@ -60,6 +60,9 @@ final class IntrinsicMeasurer {
 
 	private int columnCount = 1;
 
+	/** {min, max} line sizes of the root's own flex or grid content before its own sizes; see {@link #sizesBeforeRoot}. */
+	private double[] rootContent;
+
 	/**
 	 * Whether {@link #minLineSize} includes multiplication by the column count (2026-07-28).
 	 * See {@link net.zamasoft.foliojet.layout.sizing.IntrinsicSizes#columnInflated()}.
@@ -111,6 +114,18 @@ final class IntrinsicMeasurer {
 	IntrinsicSizes sizes() {
 		return new IntrinsicSizes(Math.max(this.minLineSize, this.orthogonalMinLine),
 				Math.max(this.maxLineSize, this.orthogonalMaxLine), this.minPageSize, this.columnInflated);
+	}
+
+	/**
+	 * The sizes before the root's own width, min-width and max-width (2026-10-10): for a flex or grid root, what its
+	 * content asks of its shrink-to-fit; {@link #sizes()} when the root contributed nothing of its own.
+	 */
+	IntrinsicSizes sizesBeforeRoot() {
+		if (this.rootContent == null) {
+			return this.sizes();
+		}
+		return new IntrinsicSizes(Math.max(this.rootContent[0], this.orthogonalMinLine),
+				Math.max(this.rootContent[1], this.orthogonalMaxLine), this.minPageSize, this.columnInflated);
 	}
 
 	/** Intrinsic sizes excluding orthogonal child contributions (see {@link #orthogonalMinLine}). */
@@ -198,6 +213,8 @@ final class IntrinsicMeasurer {
 		}
 
 		final double[] entered = this.flowSizeStack.remove(this.flowSizeStack.size() - 1);
+		// An element in a neutral flex wrapper left its min-width and max-width to the wrapper
+		final boolean wrapped = wrapped(containerBox);
 		final boolean fixedLineSize;
 		switch (params.flow) {
 		case WritingMode.TB:
@@ -231,7 +248,7 @@ final class IntrinsicMeasurer {
 			// min-width.
 			final WritingMode selfFlow = flowParams.flow;
 			final net.zamasoft.foliojet.layout.box.params.Dimension maxSpec = flowParams.maxSize;
-			if (maxSpec.getLineType(selfFlow) == LengthType.ABSOLUTE) {
+			if (!wrapped && maxSpec.getLineType(selfFlow) == LengthType.ABSOLUTE) {
 				final double bb = flowParams.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
 						? flowBox.getFrame().getBorderLineExtent(selfFlow)
 						: 0;
@@ -250,7 +267,7 @@ final class IntrinsicMeasurer {
 			// tabs. Do not count %/calc because their basis is unresolved.
 			final WritingMode selfFlow = flowParams.flow;
 			final net.zamasoft.foliojet.layout.box.params.Dimension minSpec = flowParams.minSize;
-			if (minSpec.getLineType(selfFlow) == LengthType.ABSOLUTE && minSpec.getLineLength(selfFlow) > 0) {
+			if (!wrapped && minSpec.getLineType(selfFlow) == LengthType.ABSOLUTE && minSpec.getLineLength(selfFlow) > 0) {
 				final double bb = flowParams.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX
 						? flowBox.getFrame().getBorderLineExtent(selfFlow)
 						: 0;
@@ -455,7 +472,17 @@ final class IntrinsicMeasurer {
 		this.columnInflated |= sizes.columnInflated();
 		double min = sizes.minContent();
 		double max = sizes.maxContent();
-		if (box != null) {
+		if (box != null && box == this.builder.getRootBox()) {
+			// What the root's content asks before its own sizes, which its shrink-to-fit applies (2026-10-10: a
+			// width: min-content flex root with min-width: max-content and max-width: 40px came out 40px, Chrome its
+			// content's 120px); its parent still takes them clamped
+			this.rootContent = new double[] { Math.max(this.minLineSize, min * this.columnCount + this.lineFrame),
+					Math.max(this.maxLineSize, max * this.columnCount + this.lineFrame) };
+		}
+		final boolean wrapped = box != null && wrapped(this.builder.flowHolding(box));
+		// An element in a neutral wrapper that is this builder's root (shrink-to-fit for its intrinsic keywords) gives
+		// its content whole: the wrapper's item applies its width, min-width and max-width
+		if (box != null && !(wrapped && box == this.builder.getRootBox())) {
 			// Clamp the contribution using the container’s own width/min-width/max-width
 			// (absolute lengths only) (2026-08-08, css-sizing outer contribution).
 			// Without this, a nested grid wrapper with min-width:100px (NHK navigation
@@ -471,13 +498,13 @@ final class IntrinsicMeasurer {
 				min = max = Math.max(0, size.getLineLength(flow) - bb);
 			}
 			final net.zamasoft.foliojet.layout.box.params.Dimension maxSize = box.getBlockParams().maxSize;
-			if (maxSize.getLineType(flow) == LengthType.ABSOLUTE) {
+			if (!wrapped && maxSize.getLineType(flow) == LengthType.ABSOLUTE) {
 				final double v = Math.max(0, maxSize.getLineLength(flow) - bb);
 				min = Math.min(min, v);
 				max = Math.min(max, v);
 			}
 			final net.zamasoft.foliojet.layout.box.params.Dimension minSize = box.getBlockParams().minSize;
-			if (minSize.getLineType(flow) == LengthType.ABSOLUTE) {
+			if (!wrapped && minSize.getLineType(flow) == LengthType.ABSOLUTE) {
 				final double v = Math.max(0, minSize.getLineLength(flow) - bb);
 				min = Math.max(min, v);
 				max = Math.max(max, v);
@@ -485,6 +512,20 @@ final class IntrinsicMeasurer {
 		}
 		this.minLineSize = Math.max(this.minLineSize, min * this.columnCount + this.lineFrame);
 		this.maxLineSize = Math.max(this.maxLineSize, max * this.columnCount + this.lineFrame);
+	}
+
+	/**
+	 * Whether a box is a neutral flex wrapper (2026-10-10). The element it holds left its line-axis min-width and
+	 * max-width to it (FlexBuilder.startNeutralElementItem) and lays out without them, so the element contributes its
+	 * content within its width, and the wrapper's item contributions (FlexBuilder.lineContributions) apply them, once.
+	 * Applied here too, an element's max-width capped the content that its own min-width: max-content then took: a flex
+	 * container with min-width: max-content and max-width: 40px came out 40px wide where Chrome makes it its content's
+	 * 120px. (Its width still counts here, as it did, unless the element is the root of its own builder, shrink-to-fit
+	 * for its keywords: left out, a 24px box with a short text shrank below its width where Chrome had the room to keep
+	 * it, square-docs' search hotkey.)
+	 */
+	private static boolean wrapped(final AbstractContainerBox parent) {
+		return parent instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item && item.isNeutralLineFill();
 	}
 
 	void table(final IntrinsicSizes tableSizes, final boolean orthogonal) {

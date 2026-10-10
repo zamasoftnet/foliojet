@@ -56,7 +56,7 @@ public final class FlexItemMetricsResolver {
 
 	public static FlexItemMetrics resolve(final Input in) {
 		final double preferred = inner(in.preferredMain(), in);
-		final double max = inner(in.maxMain(), in);
+		double max = inner(in.maxMain(), in);
 		// Flex base size (initial subset of §9.2.3).
 		double base;
 		final Double basisSize = basisSize(in);
@@ -78,6 +78,10 @@ public final class FlexItemMetricsResolver {
 				min = Math.min(min, max);
 			}
 		}
+		// min-width wins over max-width (CSS 2 §10.4; 2026-10-10), here and in the §9.7 clamp, which takes this max.
+		// An item with min-width: max-content and max-width: 40px was laid out 40px wide where its contribution to the
+		// container (FlexBuilder.lineContributions) and Chrome make it its max-content.
+		max = Math.max(max, min);
 		// max-content should be finite, but adding sentinels for unresolved percentage replaced elements
 		// during intrinsic measurement can saturate to Infinity. Passing Infinity to shrink calculations
 		// for a finite container makes scaled factors Infinity/Infinity=NaN, preventing §9.7

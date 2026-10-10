@@ -1,7 +1,3 @@
 drawer z=0
-  x=0.00 y=0.00 AbsoluteRectFrame[w=61.36 h=59.00]
-  x=109.00 y=4.00 AbsoluteRectFrame[w=100.00 h=20.00]
-  x=4.00 y=4.00 Text["ROOT" asc=9.59 desc=4.41]
-  x=32.92 y=4.00 Text["GRID" asc=9.59 desc=4.41]
-  x=112.00 y=7.00 Text["FIT" asc=9.59 desc=4.41]
-  x=4.00 y=29.00 Text["TAIL" asc=9.59 desc=4.41]
+  x=0.00 y=0.00 AbsoluteRectFrame[w=61.36 h=30.00]
+  x=4.00 y=0.00 Text["TAIL" asc=9.59 desc=4.41]
