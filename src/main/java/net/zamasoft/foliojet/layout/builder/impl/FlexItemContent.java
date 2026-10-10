@@ -64,6 +64,7 @@ final class FlexItemContent {
 				insetBase);
 		net.zamasoft.foliojet.layout.util.LayoutUtils.computeMarginsAutoToZero(frame.margin, frame.frame.margin,
 				insetBase);
+		this.itemBox.setInsetBase(insetBase);
 		this.itemBox.setFlexMainSize(mainSize, this.itemBox.getBlockParams().flow.isVertical());
 		// aspect-ratio (2026-08-29): flex items skip calculateSize, so once the line-axis size is set,
 		// derive the page-axis size from the ratio here (if content is taller, grow only for
@@ -110,6 +111,7 @@ final class FlexItemContent {
 		net.zamasoft.foliojet.layout.util.LayoutUtils.computePaddings(frame.padding, frame.frame.padding, insetBase);
 		net.zamasoft.foliojet.layout.util.LayoutUtils.computeMarginsAutoToZero(frame.margin, frame.frame.margin,
 				insetBase);
+		this.itemBox.setInsetBase(insetBase);
 		this.itemBox.markStreamedInFlow();
 		this.itemBox.prepareRestyleLineExtent(lineExtent, lineExtent, this.itemBox.getBlockParams().flow.isVertical());
 		host.startFlowBlock(this.itemBox);

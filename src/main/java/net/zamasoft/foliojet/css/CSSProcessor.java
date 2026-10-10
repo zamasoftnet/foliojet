@@ -673,7 +673,7 @@ public class CSSProcessor implements XMLHandler {
 				this.ua.message(MessageCodes.WARN_BAD_INLINE_OBJECT, e.getMessage());
 			}
 			this.inlineObjectDepth = 1;
-			HTMLStyleUtils.applyWidthHeight(lName, style);
+			HTMLStyleUtils.applySvgWidthHeight(lName, style);
 			this.inlineObjectStyle = style;
 			if (this.inlineObject instanceof StyleAwareInlineObject styleAware) {
 				// Style context for resolving var() in author CSS with the custom

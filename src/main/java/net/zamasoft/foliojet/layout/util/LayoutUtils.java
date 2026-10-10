@@ -12,6 +12,7 @@ import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.PosType;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
+import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.Length;
@@ -676,7 +677,11 @@ public final class LayoutUtils {
 		// do not omit definite sizes held by nested contexts from the flow search.
 		final boolean rootContext = containerBox == builder.getRootBox()
 				&& containerBox == builder.getContextBox();
-		replacedBox.calculateFrame(lineSize);
+		// The neutral wrapper of a flex item is not the element's containing block: its padding resolves against the
+		// flex container, as the wrapper's own insets do (2026-10-10)
+		final double insetBase = containerBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item
+				&& item.isNeutralLineFill() && !LayoutUtils.isNone(item.getInsetBase()) ? item.getInsetBase() : lineSize;
+		replacedBox.calculateFrame(insetBase);
 		if (params.flow.isVertical()) {
 			// Vertical writing
 			AbstractContainerBox box;
@@ -774,20 +779,34 @@ public final class LayoutUtils {
 		// reapplying the same percentage to the wrapper's inner size in the child applies it twice
 		// (width:50% shrinks to the equivalent of 25%). Replace the percentage reference so the child's
 		// expression returns exactly the wrapper's inner size; 100% is a fixed point, unchanged. Absolute lengths
-		// are not applied twice, so leave them alone. Ignore the child's own margin, practically unused for icons
-		// (if used, this does not favor the unsafe outcome of overflow)
-		if (containerBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item
-				&& item.isNeutralLineFill()) {
+		// are not applied twice, so leave them alone.
+		// The wrapper is the element's border box and holds its margins (NeutralTransfer, 2026-10-10): the element
+		// leaves its own margins out, and for content-box its border and padding come off the wrapper's inner size
+		final net.zamasoft.foliojet.layout.box.impl.FlexItemBox wrapper = containerBox
+				instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item && item.isNeutralLineFill() ? item : null;
+		if (wrapper != null) {
+			final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = replacedBox.getFrame();
+			frame.margin.top = frame.margin.right = frame.margin.bottom = frame.margin.left = 0;
+			if (!LayoutUtils.isNone(wrapper.getPageBase())) {
+				// Percentages along the page axis are of the flex container (FlexItemBox.pageBase)
+				if (params.flow.isVertical()) {
+					refWidth = refMaxWidth = wrapper.getPageBase();
+				} else {
+					refHeight = refMaxHeight = wrapper.getPageBase();
+				}
+			}
 			final Dimension size = replacedBox.getReplacedParams().size;
+			final boolean borderBox = replacedBox.getReplacedParams().boxSizing == BoxSizingMode.BORDER_BOX;
 			if (params.flow.isVertical()) {
-				final double innerHeight = containerBox.getInnerHeight();
+				final double innerHeight = withoutBox(containerBox.getInnerHeight(),
+						borderBox ? 0 : frame.getBorderHeight());
 				if (size.getHeightType() == LengthType.RELATIVE && size.getHeight() != 0) {
 					refHeight = refMaxHeight = innerHeight / size.getHeight();
 				} else if (size.getHeightType() == LengthType.MIXED && size.getHeightRatio() != 0) {
 					refHeight = refMaxHeight = (innerHeight - size.getHeight()) / size.getHeightRatio();
 				}
 			} else {
-				final double innerWidth = containerBox.getInnerWidth();
+				final double innerWidth = withoutBox(containerBox.getInnerWidth(), borderBox ? 0 : frame.getBorderWidth());
 				if (size.getWidthType() == LengthType.RELATIVE && size.getWidth() != 0) {
 					refWidth = refMaxWidth = innerWidth / size.getWidth();
 				} else if (size.getWidthType() == LengthType.MIXED && size.getWidthRatio() != 0) {
@@ -796,6 +815,25 @@ public final class LayoutUtils {
 			}
 		}
 		replacedBox.calculateSize(refWidth, refHeight, refMaxWidth, refMaxHeight);
+		if (wrapper != null && wrapper.isReplacedMainFill() && !builder.isTwoPass()) {
+			// In a row the flex algorithm sized the wrapper, its constraints included: the element fills it along the
+			// main axis, whatever its own width, as the flex item itself does in Chrome (2026-10-10). Its own
+			// percentages resolved again against the wrapper shrank it (max-width: 35% of its own item), and with a
+			// flex-basis, flex-grow or flex-shrink an absolute width stayed as it was beside the item's size
+			final boolean vertical = params.flow.isVertical();
+			final double inner = vertical ? containerBox.getInnerHeight() : containerBox.getInnerWidth();
+			if (!LayoutUtils.isNone(inner)) {
+				final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = replacedBox.getFrame();
+				replacedBox.fillLine(vertical,
+						Math.max(0, inner - (vertical ? frame.getBorderHeight() : frame.getBorderWidth())),
+						vertical ? refWidth : refHeight, vertical ? refMaxWidth : refMaxHeight);
+			}
+		}
+	}
+
+	/** The inner size of a flex item's wrapper less its replaced child's border and padding; NONE stays NONE. */
+	private static double withoutBox(final double inner, final double box) {
+		return LayoutUtils.isNone(inner) ? inner : inner - box;
 	}
 
 	/**

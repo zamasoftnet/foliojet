@@ -32,6 +32,28 @@ public class FlexItemBox extends FlowBlockBox {
 	private boolean neutralLineFill;
 
 	/**
+	 * Whether this neutral wrapper holds a replaced element and the flex main axis is the line axis (2026-10-10,
+	 * {@code FlexBuilder.NeutralTransfer}): the wrapper is the element's border box, sized by the flex algorithm, and
+	 * the element fills it along the line axis ({@code LayoutUtils.calculateReplacedSize}).
+	 */
+	private boolean replacedMainFill;
+
+	/**
+	 * The percentage basis of the item's padding and margins, the flex container's inner line size, once the item is
+	 * bound (NONE before; 2026-10-10). A replaced element in a neutral wrapper resolves its own padding against it: the
+	 * wrapper is not its containing block in Chrome.
+	 */
+	private double insetBase = net.zamasoft.foliojet.layout.util.LayoutUtils.NONE;
+
+	/**
+	 * The percentage basis along the page axis of a replaced element in this neutral wrapper: the flex container's
+	 * definite inner page-axis size, NONE without one (2026-10-10). The element's containing block is the flex
+	 * container in Chrome; the wrapper's own height is not known while the element is measured, so an svg logo with
+	 * height: 80% and only a ratio measured 0 wide (KaTeX's documents).
+	 */
+	private double pageBase = net.zamasoft.foliojet.layout.util.LayoutUtils.NONE;
+
+	/**
 	 * Whether the item is laid out in the normal flow of its container's host, breaking across pages as a block does
 	 * (2026-10-09, {@code FlexBuilder} for a single item that fills its line). It still seals its margins and floats.
 	 */
@@ -76,6 +98,36 @@ public class FlexItemBox extends FlowBlockBox {
 	/** See {@link #markNeutralLineFill}. */
 	public boolean isNeutralLineFill() {
 		return this.neutralLineFill;
+	}
+
+	/** See {@link #replacedMainFill}. */
+	public void markReplacedMainFill() {
+		this.replacedMainFill = true;
+	}
+
+	/** See {@link #replacedMainFill}. */
+	public boolean isReplacedMainFill() {
+		return this.replacedMainFill;
+	}
+
+	/** See {@link #insetBase}. */
+	public void setInsetBase(final double insetBase) {
+		this.insetBase = insetBase;
+	}
+
+	/** See {@link #insetBase}. */
+	public double getInsetBase() {
+		return this.insetBase;
+	}
+
+	/** See {@link #pageBase}. */
+	public void setPageBase(final double pageBase) {
+		this.pageBase = pageBase;
+	}
+
+	/** See {@link #pageBase}. */
+	public double getPageBase() {
+		return this.pageBase;
 	}
 
 	/**
@@ -167,6 +219,9 @@ public class FlexItemBox extends FlowBlockBox {
 		final FlexItemBox replica = new FlexItemBox(this.getBlockParams(), this.pos, this.size, this.minSize, frameCopy,
 				new net.zamasoft.foliojet.layout.box.content.FlowContainer());
 		replica.neutralLineFill = this.neutralLineFill;
+		replica.replacedMainFill = this.replacedMainFill;
+		replica.insetBase = this.insetBase;
+		replica.pageBase = this.pageBase;
 		return replica;
 	}
 
@@ -211,6 +266,9 @@ public class FlexItemBox extends FlowBlockBox {
 						? this.frame.getBorderLineExtent(params.flow)
 						: 0);
 		final boolean fill = this.neutralLineFill;
+		final boolean replacedFill = this.replacedMainFill;
+		final double base = this.insetBase;
+		final double pageBase = this.pageBase;
 		final boolean streamed = this.streamedInFlow;
 		return (state, container) -> {
 			final net.zamasoft.foliojet.layout.box.params.Dimension ns = state.nextSize();
@@ -225,6 +283,11 @@ public class FlexItemBox extends FlowBlockBox {
 			if (fill) {
 				next.markNeutralLineFill();
 			}
+			if (replacedFill) {
+				next.markReplacedMainFill();
+			}
+			next.insetBase = base;
+			next.pageBase = pageBase;
 			if (streamed) {
 				next.markStreamedInFlow();
 			}

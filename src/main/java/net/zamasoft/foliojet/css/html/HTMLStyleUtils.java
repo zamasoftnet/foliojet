@@ -151,6 +151,44 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
+	 * Applies the width and height attributes of an inline svg, which come after the cascade, only to a size the
+	 * author's CSS left auto (2026-10-10): they are presentation hints, below any author rule. Applied over the CSS, an
+	 * icon with width="16" stayed 16px under width: 1em (Material UI's chips), and the BBC logo's height="48" won over
+	 * height: 32px.
+	 *
+	 * @param elem the element name, for messages
+	 * @param style the svg's computed style
+	 */
+	public static void applySvgWidthHeight(String elem, CSSStyle style) {
+		UserAgent ua = style.getUserAgent();
+		CSSElement ce = style.getCSSElement();
+		String width = ce.atts.getValue("width");
+		if (width != null && Width.get(style) == net.zamasoft.foliojet.css.value.KeywordValue.AUTO) {
+			try {
+				QuantityValue length = HTMLStyleUtils.parseLength(ua, width);
+				if (length.isNegative()) {
+					throw new NumberFormatException();
+				}
+				style.set(Width.INFO, length);
+			} catch (Exception e) {
+				ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "width", width);
+			}
+		}
+		String height = ce.atts.getValue("height");
+		if (height != null && Height.get(style) == net.zamasoft.foliojet.css.value.KeywordValue.AUTO) {
+			try {
+				QuantityValue length = HTMLStyleUtils.parseLength(ua, height);
+				if (length.isNegative()) {
+					throw new NumberFormatException();
+				}
+				style.set(Height.INFO, length);
+			} catch (Exception e) {
+				ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "height", height);
+			}
+		}
+	}
+
+	/**
 	 * Applies the hspace and vspace attributes.
 	 *
 	 * @param style

@@ -315,6 +315,10 @@ final class IntrinsicMeasurer {
 
 			double minLineAxis, maxLineAxis = 0, minPageAxis;
 			BlockParams params = containerBox.getBlockParams();
+			// The maximum is the used size with its frame, as the minimum (2026-10-10). An absolute size used to count as
+			// specified, without the frame and past its max-width: a negative margin did not take room off (Material UI's
+			// chip came out wider than its content) and a width: 100pt; max-width: 50pt image made an absolutely
+			// positioned box or a table cell 100pt wide where it takes 50pt.
 			if (params.flow.isVertical()) {
 				// Vertical writing
 				minLineAxis = lineMinContribution(replacedBox.getHeight(),
@@ -323,9 +327,7 @@ final class IntrinsicMeasurer {
 						replacedBox.getReplacedParams().maxSize.getHeightType(),
 						replacedBox.getReplacedParams().maxSize.getHeight());
 				minPageAxis = replacedBox.getWidth();
-				maxLineAxis = replacedBox.getReplacedParams().size.getHeightType() == LengthType.ABSOLUTE
-						? replacedBox.getReplacedParams().size.getHeight()
-						: replacedBox.getHeight();
+				maxLineAxis = replacedBox.getHeight();
 			} else {
 				// Horizontal writing
 				minLineAxis = lineMinContribution(replacedBox.getWidth(),
@@ -334,9 +336,7 @@ final class IntrinsicMeasurer {
 						replacedBox.getReplacedParams().maxSize.getWidthType(),
 						replacedBox.getReplacedParams().maxSize.getWidth());
 				minPageAxis = replacedBox.getHeight();
-				maxLineAxis = replacedBox.getReplacedParams().size.getWidthType() == LengthType.ABSOLUTE
-						? replacedBox.getReplacedParams().size.getWidth()
-						: replacedBox.getWidth();
+				maxLineAxis = replacedBox.getWidth();
 			}
 			minPageAxis += this.pageFrame;
 			minLineAxis *= this.columnCount;

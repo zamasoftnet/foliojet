@@ -321,6 +321,73 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		this.height = height;
 	}
 
+	/**
+	 * Sets the content size along the line axis to one decided outside, after {@link #calculateSize}: a flex item's
+	 * main size, which the flex algorithm resolved from this element's size, limits and margins (2026-10-10,
+	 * {@code LayoutUtils.calculateReplacedSize}). The other axis follows: its specified size, else the ratio from the
+	 * new size, else what it was; then its own min and max sizes.
+	 *
+	 * @param vertical whether the line axis is the height (vertical writing)
+	 * @param content the content size along the line axis
+	 * @param ref the percentage basis of the other axis's size and minimum
+	 * @param refMax the percentage basis of the other axis's maximum
+	 */
+	public final void fillLine(final boolean vertical, final double content, final double ref, final double refMax) {
+		final boolean borderBox = this.params.boxSizing == BoxSizingMode.BORDER_BOX;
+		double ratio = 0;
+		if (this.params.aspectRatio > 0) {
+			final boolean natural = this.params.image.getWidth() > 0 && this.params.image.getHeight() > 0;
+			ratio = this.params.aspectRatioAuto && natural ? 0 : this.params.aspectRatio;
+		}
+		final double imageWidth = this.params.image.getWidth(), imageHeight = this.params.image.getHeight();
+		if (vertical) {
+			double width = LayoutUtils.computeDimensionWidth(this.params.size, ref);
+			if (!LayoutUtils.isNone(width)) {
+				if (borderBox) {
+					width -= this.frame.getBorderWidth();
+				}
+			} else if (ratio > 0) {
+				width = this.ratioWidth(content, ratio);
+			} else if (imageWidth > 0 && imageHeight > 0) {
+				width = content * imageWidth / imageHeight;
+			} else {
+				width = this.width;
+			}
+			this.height = content;
+			this.width = this.clampCross(width, LayoutUtils.computeDimensionWidth(this.params.minSize, ref),
+					LayoutUtils.computeDimensionWidth(this.params.maxSize, refMax), borderBox ? this.frame.getBorderWidth() : 0);
+		} else {
+			double height = LayoutUtils.computeDimensionHeight(this.params.size, ref);
+			if (!LayoutUtils.isNone(height)) {
+				if (borderBox) {
+					height -= this.frame.getBorderHeight();
+				}
+			} else if (ratio > 0) {
+				height = this.ratioHeight(content, ratio);
+			} else if (imageWidth > 0 && imageHeight > 0) {
+				height = content * imageHeight / imageWidth;
+			} else {
+				height = this.height;
+			}
+			this.width = content;
+			this.height = this.clampCross(height, LayoutUtils.computeDimensionHeight(this.params.minSize, ref),
+					LayoutUtils.computeDimensionHeight(this.params.maxSize, refMax),
+					borderBox ? this.frame.getBorderHeight() : 0);
+		}
+	}
+
+	/** A content size between a minimum and a maximum (NONE: none), both on the box-sizing scale. */
+	private double clampCross(final double size, final double min, final double max, final double box) {
+		double result = size;
+		if (!LayoutUtils.isNone(max)) {
+			result = Math.min(result, max - box);
+		}
+		if (!LayoutUtils.isNone(min)) {
+			result = Math.max(result, min - box);
+		}
+		return Math.max(0, result);
+	}
+
 	public void finishLayoutSelf(IFramedBox containerBox) {
 		// Relative positioning
 		AbstractStaticPos pos = (AbstractStaticPos) this.getPos();

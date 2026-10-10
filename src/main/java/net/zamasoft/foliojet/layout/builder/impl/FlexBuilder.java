@@ -159,9 +159,10 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 * BlockParams passing on 2026-08-09: a replaced element's ReplacedParams is not BlockParams).
 	 */
 	public record NeutralTransfer(Dimension size, Dimension minSize, Dimension maxSize, BoxSizingMode boxSizing,
-			Insets margin) {
+			Insets margin, boolean replaced) {
 		public static NeutralTransfer of(final BlockParams p) {
-			return p == null ? null : new NeutralTransfer(p.size, p.minSize, p.maxSize, p.boxSizing, p.frame.margin);
+			return p == null ? null
+					: new NeutralTransfer(p.size, p.minSize, p.maxSize, p.boxSizing, p.frame.margin, false);
 		}
 
 		/**
@@ -175,7 +176,72 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		 * width serves as lineSize, the child's % basis.
 		 */
 		public static NeutralTransfer of(final net.zamasoft.foliojet.layout.box.params.ReplacedParams p) {
-			return new NeutralTransfer(p.size, p.minSize, p.maxSize, p.boxSizing, p.frame.margin);
+			// The wrapper is the element's border box and takes its margins (2026-10-09): the flex algorithm sizes and
+			// places it as Chrome does the element, margins (auto, negative and percentages too) outside its size, and
+			// the element fills it (LayoutUtils.calculateReplacedSize). For content-box the sizes take the border and
+			// the padding in. Taken over as they were, the margins stayed inside a wrapper as wide as the content box:
+			// the next item overlapped an icon's margin-right (the svg icon of a button).
+			final double[] w = boxExtent(p, false), h = boxExtent(p, true);
+			return new NeutralTransfer(withBox(p.size, w, h), withBox(p.minSize, w, h), withBox(p.maxSize, w, h),
+					p.boxSizing, p.frame.margin, true);
+		}
+
+		/**
+		 * {absolute part, percentage part} of a replaced element's border and padding along the width (or the height)
+		 * when its size is the content box's (box-sizing: content-box); {0, 0} for border-box (2026-10-10).
+		 */
+		private static double[] boxExtent(final net.zamasoft.foliojet.layout.box.params.ReplacedParams p,
+				final boolean height) {
+			if (p.boxSizing == BoxSizingMode.BORDER_BOX) {
+				return new double[] { 0, 0 };
+			}
+			final RectFrame frame = p.frame;
+			final Insets padding = frame.padding;
+			final double[] a = height ? part(padding.getTop(), padding.getTopRatio(), padding.getTopType())
+					: part(padding.getLeft(), padding.getLeftRatio(), padding.getLeftType());
+			final double[] b = height ? part(padding.getBottom(), padding.getBottomRatio(), padding.getBottomType())
+					: part(padding.getRight(), padding.getRightRatio(), padding.getRightType());
+			return new double[] {
+					a[0] + b[0] + (height ? frame.border.getFrameHeight() : frame.border.getFrameWidth()), a[1] + b[1] };
+		}
+
+		/** {absolute part, percentage part} of an inset (a percentage is held as its ratio). */
+		private static double[] part(final double value, final double ratio, final LengthType type) {
+			return switch (type) {
+			case ABSOLUTE -> new double[] { value, 0 };
+			case RELATIVE -> new double[] { 0, value };
+			case MIXED -> new double[] { value, ratio };
+			default -> new double[] { 0, 0 };
+			};
+		}
+
+		/** The dimension plus border and padding ({absolute, ratio} per axis); auto stays auto. */
+		private static Dimension withBox(final Dimension d, final double[] w, final double[] h) {
+			if ((w[0] == 0 && w[1] == 0 || d.getWidthType() == LengthType.AUTO)
+					&& (h[0] == 0 && h[1] == 0 || d.getHeightType() == LengthType.AUTO)) {
+				return d;
+			}
+			final double[] pw = plus(d.getWidthType(), d.getWidth(), d.getWidthRatio(), w);
+			final double[] ph = plus(d.getHeightType(), d.getHeight(), d.getHeightRatio(), h);
+			return Dimension.create(pw[0], pw[1], ph[0], ph[1], plusType(d.getWidthType(), w),
+					plusType(d.getHeightType(), h));
+		}
+
+		/** {absolute part, percentage part} of a length plus an extent. */
+		private static double[] plus(final LengthType type, final double value, final double ratio, final double[] e) {
+			return switch (type) {
+			case ABSOLUTE -> new double[] { value + e[0], e[1] };
+			case RELATIVE -> new double[] { e[0], value + e[1] };
+			case MIXED -> new double[] { value + e[0], ratio + e[1] };
+			default -> new double[] { value, ratio };
+			};
+		}
+
+		private static LengthType plusType(final LengthType type, final double[] e) {
+			if (type == LengthType.AUTO || e[0] == 0 && e[1] == 0) {
+				return type;
+			}
+			return type == LengthType.ABSOLUTE && e[1] == 0 ? LengthType.ABSOLUTE : LengthType.MIXED;
 		}
 	}
 
@@ -205,6 +271,14 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			wrapper.size = lineOnly(authored.size(), vertical);
 			wrapper.minSize = lineOnly(authored.minSize(), vertical);
 			wrapper.maxSize = lineOnly(authored.maxSize(), vertical);
+			if (authored.replaced() && !this.flexBox.getFlexParams().flexDirection.isRow()) {
+				// In a column the page axis is the main axis: a replaced element's absolute height and min and max
+				// heights size its wrapper as they do the flex item in Chrome (2026-10-10). Left to the content, a
+				// wrapper with min-height: 80pt shrank to 40pt and the next item overlapped the image
+				wrapper.size = withAbsolutePage(wrapper.size, authored.size(), vertical);
+				wrapper.minSize = withAbsolutePage(wrapper.minSize, authored.minSize(), vertical);
+				wrapper.maxSize = withAbsolutePage(wrapper.maxSize, authored.maxSize(), vertical);
+			}
 			wrapper.boxSizing = authored.boxSizing();
 			// Auto margins absorb free space at the item (wrapper) level (§8.1),
 			// so take over only auto edges into the wrapper (2026-08-09: the real bug where
@@ -212,7 +286,11 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			// Auto margins left inside are harmless because the wrapper has no internal free space
 			// (no double shift). Non-auto margins are visually equivalent inside, so leave them there.
 			final Insets margin = authored.margin();
-			if (margin.getTopType() == LengthType.AUTO || margin.getRightType() == LengthType.AUTO
+			if (authored.replaced()) {
+				// A replaced element's wrapper takes all its margins, which the element then leaves out (2026-10-10,
+				// NeutralTransfer.of(ReplacedParams))
+				wrapper.frame = RectFrame.create(margin, null, null, null);
+			} else if (margin.getTopType() == LengthType.AUTO || margin.getRightType() == LengthType.AUTO
 					|| margin.getBottomType() == LengthType.AUTO || margin.getLeftType() == LengthType.AUTO) {
 				wrapper.frame = RectFrame.create(
 						Insets.create(0, 0, 0, 0,
@@ -226,6 +304,15 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		final FlexItemBox itemBox = new FlexItemBox(wrapper, new FlowPos());
 		if (transfer) {
 			itemBox.markNeutralLineFill();
+			if (authored.replaced() && this.flexBox.getFlexParams().flexDirection.isRow()) {
+				itemBox.markReplacedMainFill();
+			}
+			if (authored.replaced()) {
+				final double page = this.definiteInnerPage();
+				if (page > 0) {
+					itemBox.setPageBase(page);
+				}
+			}
 		}
 		final TwoPassBlockBuilder builder = this.startItem(itemBox, false, spec);
 		this.openItemAnchor = sourceAnchor;
@@ -237,6 +324,44 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return vertical
 				? Dimension.create(0, 0, d.getHeight(), d.getHeightRatio(), LengthType.AUTO, d.getHeightType())
 				: Dimension.create(d.getWidth(), d.getWidthRatio(), 0, 0, d.getWidthType(), LengthType.AUTO);
+	}
+
+	/**
+	 * The container's inner page-axis size when its specified size is an absolute length, from its params (its box is
+	 * not sized yet while its items are measured); NaN otherwise (2026-10-10, FlexItemBox.pageBase).
+	 */
+	private double definiteInnerPage() {
+		final FlexParams params = this.flexBox.getFlexParams();
+		final WritingMode flow = this.flow();
+		if (params.size.getPageType(flow) != LengthType.ABSOLUTE) {
+			return Double.NaN;
+		}
+		double page = params.size.getPageLength(flow);
+		if (params.boxSizing == BoxSizingMode.BORDER_BOX) {
+			final Insets padding = params.frame.padding;
+			page -= flow.isVertical()
+					? params.frame.border.getFrameWidth() + absolute(padding.getLeft(), padding.getLeftType())
+							+ absolute(padding.getRight(), padding.getRightType())
+					: params.frame.border.getFrameHeight() + absolute(padding.getTop(), padding.getTopType())
+							+ absolute(padding.getBottom(), padding.getBottomType());
+		}
+		return page;
+	}
+
+	private static double absolute(final double value, final LengthType type) {
+		return type == LengthType.ABSOLUTE ? value : 0;
+	}
+
+	/** {@code line} with the page-axis component of {@code d} when that is an absolute length. */
+	private static Dimension withAbsolutePage(final Dimension line, final Dimension d, final boolean vertical) {
+		if (vertical) {
+			return d.getWidthType() != LengthType.ABSOLUTE ? line
+					: Dimension.create(d.getWidth(), 0, line.getHeight(), line.getHeightRatio(), LengthType.ABSOLUTE,
+							line.getHeightType());
+		}
+		return d.getHeightType() != LengthType.ABSOLUTE ? line
+				: Dimension.create(line.getWidth(), line.getWidthRatio(), d.getHeight(), 0, line.getWidthType(),
+						LengthType.ABSOLUTE);
 	}
 
 	/** Opens an anonymous item for direct text (reuses it if already open). */
