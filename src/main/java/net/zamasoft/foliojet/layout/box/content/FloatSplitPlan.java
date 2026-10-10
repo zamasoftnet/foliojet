@@ -174,7 +174,8 @@ public record FloatSplitPlan(
 		if (!m.monolithic()
 				&& !FloatMeasurement.isUnsplittable(m.boxType(), m.sameWritingAxis(), m.pageBreakInside(), first)) {
 			// Branch table 3: Mark for a single split at commit time (do not predict the result)
-			final byte splitFlags = first ? IPageBreakableBox.FLAGS_FIRST : IPageBreakableBox.FLAGS_SPLIT;
+			final byte splitFlags = (byte) ((first ? IPageBreakableBox.FLAGS_FIRST : IPageBreakableBox.FLAGS_SPLIT)
+					| (flags & IPageBreakableBox.FLAGS_ROW_ITEM));
 			return new FloatItemPlan.SplitOnCommit(m, pageLimit - m.pageStart(), splitFlags);
 		}
 		if (FloatMeasurement.fitsPageUnsplittable(m.pageEnd(), pageLimit)) {

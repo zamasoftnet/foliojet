@@ -627,7 +627,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				return SplitResult.MOVE;
 			}
 		}
-		byte xflags = (byte) (flags & (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT));
+		byte xflags = (byte) (flags & (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT
+				| IPageBreakableBox.FLAGS_ROW_ITEM));
 		final double pageWindow = this.pageSize - pageLimit;
 		TableRowBox nextRowBox = null;
 		if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0) {

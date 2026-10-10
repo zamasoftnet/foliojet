@@ -892,7 +892,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				pageLimit -= prevRowGroupSize;
 				continue;
 			}
-			byte lflags = (byte) (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT);
+			byte lflags = (byte) (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT
+					| (flags & IPageBreakableBox.FLAGS_ROW_ITEM));
 			if (i > 0) {
 				lflags ^= IPageBreakableBox.FLAGS_FIRST;
 			}
