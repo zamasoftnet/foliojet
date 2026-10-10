@@ -146,6 +146,24 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		}
 	}
 
+	/** What the box's max-size left for this continuation fragment ({@link #limitContinuationPageAxis}). */
+	protected double continuationMaxPageAxis = Double.MAX_VALUE;
+
+	/**
+	 * Caps a continuation fragment's page-axis size at what the box's max-size left after the preceding fragments
+	 * (2026-10-10, {@code FragmentState#withMaxPageExtent}); its content may overflow it, as in Chrome.
+	 */
+	public final void limitContinuationPageAxis(final double max) {
+		this.continuationMaxPageAxis = max;
+		this.maxPageAxis = Math.min(this.maxPageAxis, max);
+		this.minPageAxis = Math.min(this.minPageAxis, this.maxPageAxis);
+		if (this.params.flow.isVertical()) {
+			this.width = Math.min(this.width, this.maxPageAxis);
+		} else {
+			this.height = Math.min(this.height, this.maxPageAxis);
+		}
+	}
+
 	/**
 	 * The page-axis content-box size derived from {@code aspect-ratio}
 	 * (2026-08-29, css-sizing-4 §5). The ratio is physical width/height and applies to the
@@ -514,6 +532,9 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			}
 			this.specifiedPageAxis = true;
 		}
+		maxPage = Math.min(maxPage, this.continuationMaxPageAxis);
+		minPage = Math.min(minPage, maxPage);
+		pageExtent = Math.min(pageExtent, maxPage);
 		this.minPageAxis = minPage;
 		this.maxPageAxis = maxPage;
 

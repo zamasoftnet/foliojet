@@ -32,10 +32,43 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * @param nextSize       continuation fragment's specified size (remainder on the page axis)
  * @param nextMinSize    continuation fragment's minimum size (remainder on the page axis)
  * @param prevPageExtent preceding fragment's page-axis usage
+ * @param nextMaxPageExtent continuation fragment's page-axis maximum (content box; what the box's max-size left after
+ *                       the preceding fragment, 2026-10-10), or {@code Double.MAX_VALUE} without one
  * @author MIYABE Tatsuhiko
  */
 public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextFrame, Dimension nextSize,
-		Dimension nextMinSize, double prevPageExtent) {
+		Dimension nextMinSize, double prevPageExtent, double nextMaxPageExtent) {
+
+	/** Without a page-axis maximum for the continuation. */
+	public FragmentState(final AbsoluteRectFrame prevFrame, final AbsoluteRectFrame nextFrame, final Dimension nextSize,
+			final Dimension nextMinSize, final double prevPageExtent) {
+		this(prevFrame, nextFrame, nextSize, nextMinSize, prevPageExtent, Double.MAX_VALUE);
+	}
+
+	/**
+	 * This state for a box held by its max-size (2026-10-10): the preceding fragment uses {@code prevPageExtent} (no more
+	 * than the box itself reaches, when only its overflowing content runs past the cut) and the continuation may take
+	 * what is left of {@code maxPageExtent} (content box). A float with {@code height: auto} and
+	 * {@code max-height: 60pt} split at 30pt went on with all its content on the next pages (30 + 80 + 50pt); Chrome stops
+	 * the box at 60pt in all and lets the rest of the content overflow.
+	 */
+	public FragmentState withMaxPageExtent(final double prevPageExtent, final double maxPageExtent) {
+		return new FragmentState(this.prevFrame, this.nextFrame, this.nextSize, this.nextMinSize, prevPageExtent,
+				Math.max(0, maxPageExtent - prevPageExtent));
+	}
+
+	/**
+	 * {@link #withMaxPageExtent} for a box that ends, with its end frame, before the cut: only its overflowing content
+	 * runs past it (2026-10-10). The preceding fragment keeps {@code frame} whole and the continuation, which holds only
+	 * that content, draws no frame edge on the page axis.
+	 */
+	public FragmentState withBoxEndingBefore(final AbsoluteRectFrame frame, final WritingMode flow,
+			final double prevPageExtent, final double maxPageExtent) {
+		final AbsoluteRectFrame next = flow.isVertical() ? frame.cut(true, false, true, false)
+				: frame.cut(false, true, false, true);
+		return new FragmentState(frame, next, this.nextSize, this.nextMinSize, prevPageExtent,
+				Math.max(0, maxPageExtent - prevPageExtent));
+	}
 
 	/**
 	 * Calculates fragment state for a split (pure function).

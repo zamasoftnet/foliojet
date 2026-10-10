@@ -956,6 +956,10 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			this.minPageAxis = minHeight;
 			this.maxPageAxis = maxHeight;
 		}
+		if (this.continuationMaxPageAxis < Double.MAX_VALUE) {
+			// What the max-size left for this continuation (2026-10-10, limitContinuationPageAxis).
+			this.limitContinuationPageAxis(this.continuationMaxPageAxis);
+		}
 		assert !LayoutUtils.isNone(marginTop);
 		assert !LayoutUtils.isNone(marginRight);
 		assert !LayoutUtils.isNone(marginBottom);

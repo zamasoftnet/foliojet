@@ -526,11 +526,31 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		// sweep seed 11599998: a float of width: 0pt in vertical writing grew to its content, 538pt, and each page
 		// carried the rest of that on as a definite width, 732 pages).
 		final double extent = vertical ? this.width : this.height;
-		final net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
+		net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
 				.of(this.params.flow, columnSpanning, this.frame, this.size,
 						minSize, Double.isNaN(this.continuedPageAxis) ? extent : Math.min(extent, this.continuedPageAxis),
 						contentLimit, ownerExtent, this.container.getContentSize(), this.isSpecifiedPageSize(),
 						preserveSpecifiedPageSize);
+		if (!columnSpanning && !this.isSpecifiedPageSize() && !this.params.flow.isVertical()
+				&& !(this instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox)
+				&& this.params.maxSize.getPageType(this.params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
+				&& this.maxPageAxis < Double.MAX_VALUE) {
+			// What the max-size leaves goes on with the continuation (2026-10-10, FragmentState#withMaxPageExtent). Held
+			// by its max-size, the box itself ends at it; ending with its end frame (not counting its margin) before the
+			// cut, it keeps that frame. Only a max-size of its own (column balancing and aspect-ratio set the maximum
+			// too), and horizontal writing only: an opposite-progression region checks its floats by the box, not by
+			// what they paint, so capping a vertical continuation could hide the content still to go. Not a flex or
+			// grid container either: their restyle sets the size from their items again, and a capped grid left its
+			// overflowing rows over what follows (radix-ui's code block).
+			if (LayoutUtils.compare(extent, this.maxPageAxis) >= 0) {
+				final double end = this.frame.getFrameBottom() - this.frame.margin.bottom;
+				state = LayoutUtils.compare(extent + end, state.prevPageExtent()) <= 0
+						? state.withBoxEndingBefore(this.frame, this.params.flow, extent, this.maxPageAxis)
+						: state.withMaxPageExtent(Math.min(extent, state.prevPageExtent()), this.maxPageAxis);
+			} else {
+				state = state.withMaxPageExtent(state.prevPageExtent(), this.maxPageAxis);
+			}
+		}
 		if (vertical) {
 			this.width = state.prevPageExtent();
 		} else {
@@ -582,6 +602,10 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			final net.zamasoft.foliojet.layout.fragment.FragmentState state, final Container container,
 			final double crossExtent) {
 		final AbstractBlockBox nextBlock = recipe.instantiate(state, container);
+		if (state != null && state.nextMaxPageExtent() < Double.MAX_VALUE
+				&& nextBlock instanceof AbstractStaticBlockBox staticBlock) {
+			staticBlock.limitContinuationPageAxis(state.nextMaxPageExtent());
+		}
 		if (nextBlock.params.flow.isVertical()) {
 			nextBlock.height = crossExtent;
 		} else {

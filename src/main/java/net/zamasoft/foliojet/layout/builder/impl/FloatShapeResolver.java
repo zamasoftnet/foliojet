@@ -8,7 +8,6 @@ import java.awt.geom.Rectangle2D;
 import net.zamasoft.foliojet.layout.box.AbstractContainerBox;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
-import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
 import net.zamasoft.foliojet.layout.box.params.ClipPathShape;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.RectBorder;
@@ -40,8 +39,8 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * ({@link VisualRescueFloatBox}) shift the original box's entire shape upward by
  * {@code offset} and clip it to the fragment rectangle (the circle's lower half appears
  * at the start of the next page). Continuation fragments from normal block float splitting
- * (SplitOnCommit) lack the original dimensions and position, so they fall back to the
- * margin-box rectangle (a known limitation).
+ * (SplitOnCommit) resolve the shape against their own box, as Chrome does for each fragment (2026-10-10; they fell
+ * back to the margin-box rectangle before).
  * </p>
  */
 final class FloatShapeResolver {
@@ -68,8 +67,6 @@ final class FloatShapeResolver {
 		if (box instanceof VisualRescueFloatBox fragment) {
 			geometry = (IFloatBox) fragment.getSource();
 			offset = fragment.getOffset();
-		} else if (box instanceof FloatBlockBox block && block.isContinuationFragment()) {
-			return null;
 		} else {
 			geometry = box;
 			offset = 0;
