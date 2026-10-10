@@ -328,13 +328,18 @@ public abstract class AbstractContainerBox extends AbstractBox
 
 	/** Whether columns of {@code pageSize} fit in the room left on the page (or the column) the builder is filling. */
 	private boolean fitsInPage(final BlockBuilder builder, final double pageSize) {
+		final double room = this.roomInPage(builder);
+		return Double.isNaN(room) || LayoutUtils.compare(pageSize, room) <= 0;
+	}
+
+	/** The room left for the columns on the page (or the column) the builder is filling; NaN outside a paged flow. */
+	private double roomInPage(final BlockBuilder builder) {
 		if (!(builder instanceof net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder paged)
 				|| paged.getPageContext() == null) {
-			return true;
+			return Double.NaN;
 		}
-		final double room = paged.getPageLimit() - builder.getPageAxis()
+		return paged.getPageLimit() - builder.getPageAxis()
 				- this.getFrame().getFramePageStart(this.getBlockParams().flow);
-		return LayoutUtils.compare(pageSize, room) <= 0;
 	}
 
 	public final void balance(final BlockBuilder builder) {
@@ -366,7 +371,25 @@ public abstract class AbstractContainerBox extends AbstractBox
 		// Atomic children on the same axis with reverse progression cannot split at column boundaries.
 		// Prefer the floor over ColumnBalancer's approximation that assumes progress to the proposed
 		// position when no boundary exists (see Container.balancePageSizeFloor; 2026-08-22).
-		pageSize = Math.max(pageSize, oldCont.balancePageSizeFloor());
+		final double floor = oldCont.balancePageSizeFloor();
+		pageSize = Math.max(pageSize, floor);
+		// The floats past the flows ask more than the room left on the page (2026-10-10): the columns take the room,
+		// and the rest goes on to the next page, as Chrome fills the columns of each page. Left balanced, the first
+		// column ran past the paper. Not when something that cannot be cut needs more than the room: the multicol then
+		// moves on as a whole.
+		if (oldCont instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer flows) {
+			final double room = this.roomInPage(builder);
+			// Not below the least capacity of a column (BreakableBuilder.MIN_PAGE_LIMIT), which the column builder would
+			// take instead: the columns would then run past the page.
+			if (!Double.isNaN(room)
+					&& LayoutUtils.compare(room,
+							net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder.MIN_PAGE_LIMIT) >= 0
+					&& LayoutUtils.compare(pageSize, room) > 0
+					&& LayoutUtils.compare(floor, room) <= 0
+					&& LayoutUtils.compare(flows.floatPageEnd(), oldCont.getContentSize()) > 0) {
+				pageSize = room;
+			}
+		}
 
 		// 2026-07-25 (withdrawal of exclusion area P2): removed all balance probes (M6c-2 through
 		// M6c-5) that rebuilt all contents in an isolated session in addition to the capacity calculation above.
@@ -411,6 +434,21 @@ public abstract class AbstractContainerBox extends AbstractBox
 			// multicol-float-after-overwide-box), and it is balanced again where it goes.
 			if (this.fitsInPage(builder, pageSize)) {
 				columnBuilder.splitReservedFloats();
+				// The floats the last column could not hold make the multicol taller than its columns, for the page break
+				// its close checks for: with the room taken, and also when the cuts, at line boundaries, left the last
+				// column more than the estimate that a float can be cut anywhere. The floats alone: the flows of a column
+				// count from the multicol, so an empty block split over two columns made it as tall as both.
+				final net.zamasoft.foliojet.layout.box.content.FlowContainer last = this.container instanceof net.zamasoft.foliojet.layout.box.content.ColumnsContainer columns
+						? columns.getLastColumn()
+						: (net.zamasoft.foliojet.layout.box.content.FlowContainer) this.container;
+				final double end = last.floatPageEnd();
+				if (LayoutUtils.compare(end, pageSize) > 0) {
+					if (vertical) {
+						this.maxPageAxis = this.width = end;
+					} else {
+						this.maxPageAxis = this.height = end;
+					}
+				}
 			}
 		}
 	}
