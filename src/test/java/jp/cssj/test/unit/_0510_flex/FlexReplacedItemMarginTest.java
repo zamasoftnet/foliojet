@@ -136,6 +136,76 @@ public class FlexReplacedItemMarginTest extends TestCase {
 	 * max-width 50pt with margin-left 20pt makes an absolutely positioned box or a table cell 70pt wide, as in Chrome.
 	 * A 1pt border stands for the outline, which a table cell does not draw.
 	 */
+	/**
+	 * The sizes the flex algorithm gives a replaced item reach the element (2026-10-10, tmp/ab/repro/buttonws/qa2/ and
+	 * qa/K, Chrome): a stretched row makes an image of height auto as high as the line (S1, 40 x 100), flex: 1 in a
+	 * column gives it the free height (S2, 40 x 90), and a stretched column makes an image of width auto as wide as the
+	 * column, its height following the ratio (K, 200 x 100; with height 30pt, 200 x 30), within its own max-width and
+	 * margins, not with an auto margin (K3-K7).
+	 */
+	public void testStretchAndColumnMain() throws Exception {
+		Boxes b = qa("#f{align-items:stretch;height:100pt} #i{width:40pt;height:auto}");
+		b.image("S1, a stretched row", 0, 40, 100);
+		b.next("S1", 40, 0);
+		b = qa("#f{flex-direction:column;height:100pt} #i{width:40pt;height:auto;flex:1 1 0;min-height:0}");
+		b.image("S2, flex: 1 in a column", 0, 40, 90);
+		b.next("S2", 0, 90);
+		b = qa("#f{flex-direction:column;align-items:stretch} #i{width:auto}");
+		b.image("K, a stretched column", 0, 200, 100);
+		b.next("K", 0, 100);
+		b = qa("#f{flex-direction:column;align-items:stretch} #i{width:auto;height:30pt}");
+		b.image("K2, the same with a height", 0, 200, 30);
+		b.next("K2", 0, 30);
+		// Its own limits, margins and box (a column with an auto height lays its items out in normal flow)
+		b = qa("#f{flex-direction:column;align-items:stretch} #i{width:auto;max-width:150pt}");
+		b.image("K3, max-width", 0, 150, 75);
+		b.next("K3", 0, 75);
+		b = qa("#f{flex-direction:column;align-items:stretch} #i{width:auto;margin:0 20pt}");
+		b.image("K4, margins", 20, 160, 80);
+		b.next("K4", 0, 80);
+		b = qa("#f{flex-direction:column;align-items:stretch} #i{width:auto;margin-left:auto}");
+		b.image("K5, an auto margin is not stretched", 80, 120, 60);
+		b.next("K5", 0, 60);
+		b = qa("#f{flex-direction:column;align-items:stretch} #i{width:auto;padding:0 10pt;border:3pt solid #00ff00}");
+		b.image("K6, padding and border", 0, 200, 93);
+		b.content("K6", 13, 174);
+		b.next("K6", 0, 93);
+		b = qa("#f{flex-direction:column;align-items:stretch} #i{width:auto;max-width:50%}");
+		b.image("K7, max-width: 50%", 0, 100, 50);
+		b.next("K7", 0, 50);
+		// The stretched height keeps to percentage limits of the container's height (codex's review)
+		b = qa("#f{align-items:stretch;height:100pt} #i{width:40pt;height:auto;max-height:50%}");
+		b.image("Y4, a stretched row with max-height: 50%", 0, 40, 50);
+		b.next("Y4", 40, 0);
+		b = qa("#f{align-items:stretch;height:100pt} #i{width:40pt;height:auto;min-height:120%}");
+		b.image("Y6, a stretched row with min-height: 120%", 0, 40, 120);
+		b.next("Y6", 40, 0);
+		b = qa("body{height:100pt} #f{align-items:stretch;height:100%} #i{width:100pt;height:auto;max-height:50%}");
+		b.image("Z2, max-height: 50% in a container of height: 100%", 0, 100, 50);
+		b.next("Z2", 100, 0);
+	}
+
+	/**
+	 * Percentages of a replaced item's height in a column are of the container, as the wrapper takes them over
+	 * (2026-10-10, qa2/C1, C2: Chrome 90 and 30 in a 100pt column), and a border-box container's percentage padding
+	 * comes off the basis of the image's percentage height (C3: 60 x 30 at y 20).
+	 */
+	public void testColumnPercentages() throws Exception {
+		Boxes b = qa("#f{flex-direction:column;height:100pt} #i{width:40pt;height:80pt;min-height:90%;flex:0 1 auto}");
+		b.image("C1, min-height: 90%", 0, 40, 90);
+		b.next("C1", 0, 90);
+		b = qa("#f{flex-direction:column;height:100pt} #i{width:40pt;height:80pt;max-height:30%}");
+		b.image("C2, max-height: 30%", 0, 40, 30);
+		b.next("C2", 0, 30);
+		b = qa("body{width:200pt} #f{box-sizing:border-box;height:100pt;padding:10% 0} #i{width:auto;height:50%}");
+		b.image("C3, the padding of a border-box container", 0, 60, 30);
+		b.next("C3", 60, 20);
+		// A percentage padding taken over in the height is of the container's width (codex's review)
+		b = qa("#f{flex-direction:column;height:100pt} #i{width:40pt;height:40pt;min-height:0;padding-top:10%}");
+		b.image("Y5, padding-top: 10% in a column", 0, 40, 60);
+		b.next("Y5", 0, 60);
+	}
+
 	public void testMeasureUsesTheUsedSize() throws Exception {
 		for (final String f : new String[] { "#f{display:block;position:absolute;width:auto}",
 				"#f{display:table-cell;width:auto}", "#f{display:inline-block;width:auto}" }) {
@@ -155,7 +225,9 @@ public class FlexReplacedItemMarginTest extends TestCase {
 	public void testSvgSizeAttributesAreHints() throws Exception {
 		final Pattern frame = Pattern.compile("AbsoluteRectFrame\\[w=([\\d.]+) h=([\\d.]+)\\]");
 		for (final String[] c : new String[][] { { "width: 30px; height: 30px", "22.5" },
-				{ "width: 1em; height: 1em; font-size: 18px", "13.5" } }) {
+				{ "width: 1em; height: 1em; font-size: 18px", "13.5" },
+				// A declared width: auto counts: the width follows the height through the ratio (2026-10-10)
+				{ "width: auto; height: 30px", "22.5" } }) {
 			for (final String display : new String[] { "block", "flex" }) {
 				final String page = convert("<div style=\"display: " + display + "\"><svg width=\"16\" height=\"16\" style=\""
 						+ c[0] + "; background: red\" " + SVG + "</div>");
@@ -167,6 +239,14 @@ public class FlexReplacedItemMarginTest extends TestCase {
 						0.01);
 			}
 		}
+		// A declared height: auto keeps the attribute's height when the attributes give no ratio (2026-10-11,
+		// Bootstrap's placeholder, without a viewBox: 250px high in Chrome)
+		final String page = convert("<div style=\"width: 300pt\"><svg width=\"100%\" height=\"250\" style=\"max-width: 100%;"
+				+ " height: auto; background: red\"><rect width=\"32\" height=\"32\"/></svg></div>");
+		final Matcher f = frame.matcher(page);
+		assertTrue(page, f.find());
+		assertEquals("width=\"100%\" height=\"250\": width\n" + page, 300, Double.parseDouble(f.group(1)), 0.01);
+		assertEquals("width=\"100%\" height=\"250\": height", 187.5, Double.parseDouble(f.group(2)), 0.01);
 	}
 
 	private static final String QA ="<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>"

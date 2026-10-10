@@ -785,6 +785,7 @@ public final class LayoutUtils {
 		final net.zamasoft.foliojet.layout.box.impl.FlexItemBox wrapper = containerBox
 				instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item && item.isNeutralLineFill() ? item : null;
 		if (wrapper != null) {
+			wrapper.setReplacedChild(replacedBox);
 			final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = replacedBox.getFrame();
 			frame.margin.top = frame.margin.right = frame.margin.bottom = frame.margin.left = 0;
 			if (!LayoutUtils.isNone(wrapper.getPageBase())) {
@@ -815,11 +816,15 @@ public final class LayoutUtils {
 			}
 		}
 		replacedBox.calculateSize(refWidth, refHeight, refMaxWidth, refMaxHeight);
-		if (wrapper != null && wrapper.isReplacedMainFill() && !builder.isTwoPass()) {
+		if (wrapper != null && !builder.isTwoPass()
+				&& (wrapper.isReplacedMainFill() || wrapper.isReplacedCrossFill())) {
 			// In a row the flex algorithm sized the wrapper, its constraints included: the element fills it along the
 			// main axis, whatever its own width, as the flex item itself does in Chrome (2026-10-10). Its own
 			// percentages resolved again against the wrapper shrank it (max-width: 35% of its own item), and with a
-			// flex-basis, flex-grow or flex-shrink an absolute width stayed as it was beside the item's size
+			// flex-basis, flex-grow or flex-shrink an absolute width stayed as it was beside the item's size. In a
+			// column the wrapper's width is the item's cross size, stretched or from the element's width and limits:
+			// left to calculateSize, width 40pt, height 80pt and min-height: 90% took CSS 2.1's ratio-keeping table and
+			// came out 45 x 90 (Chrome 40 x 90)
 			final boolean vertical = params.flow.isVertical();
 			final double inner = vertical ? containerBox.getInnerHeight() : containerBox.getInnerWidth();
 			if (!LayoutUtils.isNone(inner)) {

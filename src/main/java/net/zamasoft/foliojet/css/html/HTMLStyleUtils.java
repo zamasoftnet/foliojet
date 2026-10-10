@@ -151,10 +151,15 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * Applies the width and height attributes of an inline svg, which come after the cascade, only to a size the
-	 * author's CSS left auto (2026-10-10): they are presentation hints, below any author rule. Applied over the CSS, an
-	 * icon with width="16" stayed 16px under width: 1em (Material UI's chips), and the BBC logo's height="48" won over
-	 * height: 32px.
+	 * Applies the width and height attributes of an inline svg, which come after the cascade, only to a size the CSS
+	 * does not declare (2026-10-10): they are presentation hints, below any author rule. Applied over the CSS, an icon
+	 * with width="16" stayed 16px under width: 1em (Material UI's chips), and the BBC logo's height="48" won over
+	 * height: 32px. A declared width: auto counts too when the CSS sizes the height and both attributes are absolute:
+	 * the width then follows the height through their ratio (Chrome: width: auto; height: 30pt makes a 160 x 80 svg
+	 * 60 x 30pt), where the attribute took over. With one attribute and a viewBox the attribute still applies (Chrome
+	 * takes the viewBox's ratio there; Copper would make the svg square, 2026-10-11). Otherwise the attribute stays the size of a declared auto
+	 * (2026-10-11: Bootstrap's placeholder, width="100%" height="250" under height: auto, is 250px high in Chrome; it
+	 * came out from a made-up ratio).
 	 *
 	 * @param elem the element name, for messages
 	 * @param style the svg's computed style
@@ -163,7 +168,11 @@ public final class HTMLStyleUtils {
 		UserAgent ua = style.getUserAgent();
 		CSSElement ce = style.getCSSElement();
 		String width = ce.atts.getValue("width");
-		if (width != null && Width.get(style) == net.zamasoft.foliojet.css.value.KeywordValue.AUTO) {
+		final String heightAttr = ce.atts.getValue("height");
+		final boolean ratio = absoluteLength(ua, width) && absoluteLength(ua, heightAttr);
+		final boolean widthHint = width != null && !ratioDecides(style, false, ratio);
+		final boolean heightHint = heightAttr != null && !ratioDecides(style, true, ratio);
+		if (width != null && widthHint) {
 			try {
 				QuantityValue length = HTMLStyleUtils.parseLength(ua, width);
 				if (length.isNegative()) {
@@ -174,8 +183,8 @@ public final class HTMLStyleUtils {
 				ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "width", width);
 			}
 		}
-		String height = ce.atts.getValue("height");
-		if (height != null && Height.get(style) == net.zamasoft.foliojet.css.value.KeywordValue.AUTO) {
+		String height = heightAttr;
+		if (height != null && heightHint) {
 			try {
 				QuantityValue length = HTMLStyleUtils.parseLength(ua, height);
 				if (length.isNegative()) {
@@ -186,6 +195,52 @@ public final class HTMLStyleUtils {
 				ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "height", height);
 			}
 		}
+	}
+
+	/**
+	 * Whether the CSS leaves the width (or the height) to the ratio, so that the attribute does not apply: it declares
+	 * the size, and either not auto, or auto while it declares the other axis other than auto and both attributes are
+	 * absolute lengths, which give the natural ratio (Chrome takes it from them before the viewBox).
+	 */
+	private static boolean ratioDecides(final CSSStyle style, final boolean height, final boolean ratio) {
+		if (!declaredSize(style, height)) {
+			return false;
+		}
+		return !isAuto(style, height) || ratio && declaredSize(style, !height) && !isAuto(style, !height);
+	}
+
+	private static boolean isAuto(final CSSStyle style, final boolean height) {
+		final boolean vertical = net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style).isVertical();
+		final net.zamasoft.foliojet.css.property.PrimitivePropertyInfo logical = height != vertical
+				? net.zamasoft.foliojet.css.impl.property.box.BlockSize.INFO
+				: net.zamasoft.foliojet.css.impl.property.box.InlineSize.INFO;
+		if (style.isDeclared(logical) && style.get(logical) != net.zamasoft.foliojet.css.value.KeywordValue.AUTO) {
+			// inline-size: 30px lands on the width (codex, 2026-10-11)
+			return false;
+		}
+		return style.get(height ? Height.INFO : Width.INFO) == net.zamasoft.foliojet.css.value.KeywordValue.AUTO;
+	}
+
+	private static boolean absoluteLength(final UserAgent ua, final String value) {
+		if (value == null || value.trim().endsWith("%")) {
+			return false;
+		}
+		try {
+			return !HTMLStyleUtils.parseLength(ua, value).isNegative();
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	/**
+	 * Whether the CSS declares the width (or the height), physically or through the logical size that lands on it in
+	 * the element's writing mode.
+	 */
+	private static boolean declaredSize(final CSSStyle style, final boolean height) {
+		final boolean vertical = net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style).isVertical();
+		return style.isDeclared(height ? Height.INFO : Width.INFO)
+				|| style.isDeclared(height != vertical ? net.zamasoft.foliojet.css.impl.property.box.BlockSize.INFO
+						: net.zamasoft.foliojet.css.impl.property.box.InlineSize.INFO);
 	}
 
 	/**

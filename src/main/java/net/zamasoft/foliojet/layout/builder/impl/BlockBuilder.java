@@ -1236,6 +1236,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 			final net.zamasoft.foliojet.layout.box.params.Align flexAlign = streamedColumnAlign(flow.box,
 					pos.flexItem);
 			align = flexAlign != null ? flexAlign : pos.align;
+			if (flexAlign == null && isStreamedColumnFlex(flow.box)
+					&& replacedBox.getReplacedParams().size.getLineType(params.flow) == LengthType.AUTO
+					&& !lineAutoMargin(frame.frame.margin, vertical)) {
+				// ... and is stretched across it (2026-10-10): Chrome makes an image of width auto as wide as the
+				// column, its height following the ratio; in normal flow it kept its natural width
+				replacedBox.stretchLine(vertical, flow.box.getLineSize());
+			}
 		}
 			break;
 		case BLOCK: {
@@ -1895,6 +1902,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 		case START -> net.zamasoft.foliojet.layout.box.params.Align.START;
 		default -> null;
 		};
+	}
+
+	/** Whether either margin along the line axis is auto (such an item is not stretched, css-flexbox-1 §9.4 step 11). */
+	private static boolean lineAutoMargin(final net.zamasoft.foliojet.layout.box.params.Insets margin,
+			final boolean vertical) {
+		return vertical ? margin.getTopType() == LengthType.AUTO || margin.getBottomType() == LengthType.AUTO
+				: margin.getLeftType() == LengthType.AUTO || margin.getRightType() == LengthType.AUTO;
 	}
 
 	public static boolean isStreamedColumnFlex(final IBox box) {

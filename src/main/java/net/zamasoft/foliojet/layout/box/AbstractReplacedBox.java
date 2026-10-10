@@ -376,6 +376,61 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 		}
 	}
 
+	/**
+	 * Stretches the element across the line of a column flex laid out in normal flow, {@code outer} being the line for
+	 * its margin box (2026-10-10, {@code BlockBuilder}): its content size along the line is what is left of it after
+	 * the margins, borders and padding, within its own min and max sizes (whose percentages are of {@code outer}); the
+	 * other axis follows as in {@link #fillLine}.
+	 *
+	 * @param vertical whether the line axis is the height (vertical writing)
+	 * @param outer the line size of the column
+	 */
+	public final void stretchLine(final boolean vertical, final double outer) {
+		final boolean borderBox = this.params.boxSizing == BoxSizingMode.BORDER_BOX;
+		final double box = vertical ? this.frame.getBorderHeight() : this.frame.getBorderWidth();
+		final double content = outer - (vertical ? this.frame.getFrameHeight() : this.frame.getFrameWidth());
+		final double min = vertical ? LayoutUtils.computeDimensionHeight(this.params.minSize, outer)
+				: LayoutUtils.computeDimensionWidth(this.params.minSize, outer);
+		final double max = vertical ? LayoutUtils.computeDimensionHeight(this.params.maxSize, outer)
+				: LayoutUtils.computeDimensionWidth(this.params.maxSize, outer);
+		this.fillLine(vertical, this.clampCross(content, min, max, borderBox ? box : 0), LayoutUtils.NONE,
+				LayoutUtils.NONE);
+	}
+
+	/**
+	 * Sets the content size along the page axis to one decided outside, after layout (2026-10-10, {@code
+	 * FlexItemBox.passPageSizeToReplaced}): the main size of a column, or the stretched cross size of a row, which keeps
+	 * to the element's min and max sizes.
+	 *
+	 * @param vertical whether the line axis is the height (vertical writing; the page axis is then the width)
+	 * @param content the content size along the page axis
+	 * @param clamp whether the element's own min and max sizes bound it
+	 * @param ref the percentage basis of those min and max sizes, the container's page-axis size (NONE: percentages
+	 *            do not apply; 2026-10-10, max-height: 50% of a stretched row)
+	 */
+	public final void fillPage(final boolean vertical, final double content, final boolean clamp, final double ref) {
+		double size = content;
+		if (clamp) {
+			final boolean borderBox = this.params.boxSizing == BoxSizingMode.BORDER_BOX;
+			final double box = borderBox ? (vertical ? this.frame.getBorderWidth() : this.frame.getBorderHeight()) : 0;
+			final double max = vertical ? LayoutUtils.computeDimensionWidth(this.params.maxSize, ref)
+					: LayoutUtils.computeDimensionHeight(this.params.maxSize, ref);
+			final double min = vertical ? LayoutUtils.computeDimensionWidth(this.params.minSize, ref)
+					: LayoutUtils.computeDimensionHeight(this.params.minSize, ref);
+			if (!LayoutUtils.isNone(max)) {
+				size = Math.min(size, max - box);
+			}
+			if (!LayoutUtils.isNone(min)) {
+				size = Math.max(size, min - box);
+			}
+		}
+		if (vertical) {
+			this.width = Math.max(0, size);
+		} else {
+			this.height = Math.max(0, size);
+		}
+	}
+
 	/** A content size between a minimum and a maximum (NONE: none), both on the box-sizing scale. */
 	private double clampCross(final double size, final double min, final double max, final double box) {
 		double result = size;

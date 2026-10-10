@@ -105,9 +105,83 @@ public class FlexItemBox extends FlowBlockBox {
 		this.replacedMainFill = true;
 	}
 
+	/**
+	 * Whether this neutral wrapper holds a replaced element in a column, where the line axis is the cross axis
+	 * (2026-10-10): an element of auto width fills the wrapper's width, which stretch makes the column's (Chrome
+	 * stretches an image of width auto; without stretch the wrapper is the element's own width).
+	 */
+	private boolean replacedCrossFill;
+
+	/** See {@link #replacedCrossFill}. */
+	public void markReplacedCrossFill() {
+		this.replacedCrossFill = true;
+	}
+
+	/** See {@link #replacedCrossFill}. */
+	public boolean isReplacedCrossFill() {
+		return this.replacedCrossFill;
+	}
+
 	/** See {@link #replacedMainFill}. */
 	public boolean isReplacedMainFill() {
 		return this.replacedMainFill;
+	}
+
+	/**
+	 * The replaced element laid out in this neutral wrapper, set when it is sized ({@code LayoutUtils
+	 * .calculateReplacedSize}; null otherwise): the flex algorithm stretches the wrapper along the cross axis of a row
+	 * and gives it the main size of a column after the element is laid out, and passes the size on (2026-10-10,
+	 * {@code FlexBuilder}).
+	 */
+	private net.zamasoft.foliojet.layout.box.AbstractReplacedBox replacedChild;
+
+	/** See {@link #replacedChild}. */
+	public void setReplacedChild(final net.zamasoft.foliojet.layout.box.AbstractReplacedBox replacedChild) {
+		this.replacedChild = replacedChild;
+	}
+
+	/** See {@link #replacedChild}. */
+	public net.zamasoft.foliojet.layout.box.AbstractReplacedBox getReplacedChild() {
+		return this.replacedChild;
+	}
+
+	/**
+	 * Passes a page-axis size the flex algorithm gave this wrapper on to its replaced element, along the page axis
+	 * (2026-10-10): the whole size for the main size of a column, the stretched size for the cross axis of a row when
+	 * the element's height is auto. Chrome sizes the element itself so; the element stayed at its own height inside the
+	 * larger wrapper (an image with flex: 1 in a column, an image of height auto in a stretched row).
+	 *
+	 * @param whatever false to pass it on only when the element's page-axis size is auto
+	 */
+	public void passPageSizeToReplaced(final boolean whatever) {
+		final net.zamasoft.foliojet.layout.box.AbstractReplacedBox image = this.replacedChild;
+		if (image == null) {
+			return;
+		}
+		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = this.getBlockParams().flow;
+		final net.zamasoft.foliojet.layout.box.params.Dimension size = image.getReplacedParams().size;
+		if (!whatever && (flow.isVertical() ? size.getWidthType() : size.getHeightType())
+				!= net.zamasoft.foliojet.layout.box.params.LengthType.AUTO) {
+			return;
+		}
+		if (!whatever && net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(this.pageBase)
+				&& (percentage(flow.isVertical() ? image.getReplacedParams().minSize.getWidthType()
+						: image.getReplacedParams().minSize.getHeightType())
+						|| percentage(flow.isVertical() ? image.getReplacedParams().maxSize.getWidthType()
+								: image.getReplacedParams().maxSize.getHeightType()))) {
+			// A percentage limit without a basis (the container's height is not an absolute length): the element keeps
+			// its own size, which resolved it against the laid-out container (codex, 2026-10-10: height: 100% of a
+			// 100pt block with max-height: 50% stretched to 100, Chrome 50)
+			return;
+		}
+		image.fillPage(flow.isVertical(),
+				Math.max(0, this.getInnerPageExtent(flow) - image.getFrame().getBorderPageExtent(flow)), !whatever,
+				this.pageBase);
+	}
+
+	private static boolean percentage(final net.zamasoft.foliojet.layout.box.params.LengthType type) {
+		return type == net.zamasoft.foliojet.layout.box.params.LengthType.RELATIVE
+				|| type == net.zamasoft.foliojet.layout.box.params.LengthType.MIXED;
 	}
 
 	/** See {@link #insetBase}. */
@@ -220,6 +294,7 @@ public class FlexItemBox extends FlowBlockBox {
 				new net.zamasoft.foliojet.layout.box.content.FlowContainer());
 		replica.neutralLineFill = this.neutralLineFill;
 		replica.replacedMainFill = this.replacedMainFill;
+		replica.replacedCrossFill = this.replacedCrossFill;
 		replica.insetBase = this.insetBase;
 		replica.pageBase = this.pageBase;
 		return replica;
@@ -267,6 +342,7 @@ public class FlexItemBox extends FlowBlockBox {
 						: 0);
 		final boolean fill = this.neutralLineFill;
 		final boolean replacedFill = this.replacedMainFill;
+		final boolean replacedCrossFill = this.replacedCrossFill;
 		final double base = this.insetBase;
 		final double pageBase = this.pageBase;
 		final boolean streamed = this.streamedInFlow;
@@ -285,6 +361,9 @@ public class FlexItemBox extends FlowBlockBox {
 			}
 			if (replacedFill) {
 				next.markReplacedMainFill();
+			}
+			if (replacedCrossFill) {
+				next.markReplacedCrossFill();
 			}
 			next.insetBase = base;
 			next.pageBase = pageBase;

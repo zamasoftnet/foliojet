@@ -166,7 +166,8 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 * BlockParams passing on 2026-08-09: a replaced element's ReplacedParams is not BlockParams).
 	 */
 	public record NeutralTransfer(Dimension size, Dimension minSize, Dimension maxSize, BoxSizingMode boxSizing,
-			Insets margin, boolean replaced, BlockParams block) {
+			Insets margin, boolean replaced, BlockParams block,
+			net.zamasoft.foliojet.layout.box.params.ReplacedParams image) {
 		/**
 		 * Takeover from a block (a button laid out as a flex container, say). The element's params go too (2026-10-10):
 		 * its intrinsic size keywords ({@code min-width: max-content} kept the element whole but left the wrapper free
@@ -175,7 +176,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		 */
 		public static NeutralTransfer of(final BlockParams p) {
 			return p == null ? null
-					: new NeutralTransfer(p.size, p.minSize, p.maxSize, p.boxSizing, p.frame.margin, false, p);
+					: new NeutralTransfer(p.size, p.minSize, p.maxSize, p.boxSizing, p.frame.margin, false, p, null);
 		}
 
 		/**
@@ -196,7 +197,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			// the next item overlapped an icon's margin-right (the svg icon of a button).
 			final double[] w = boxExtent(p, false), h = boxExtent(p, true);
 			return new NeutralTransfer(withBox(p.size, w, h), withBox(p.minSize, w, h), withBox(p.maxSize, w, h),
-					p.boxSizing, p.frame.margin, true, null);
+					p.boxSizing, p.frame.margin, true, null, p);
 		}
 
 		/**
@@ -285,12 +286,20 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			wrapper.minSize = lineOnly(authored.minSize(), vertical);
 			wrapper.maxSize = lineOnly(authored.maxSize(), vertical);
 			if (authored.replaced() && !this.flexBox.getFlexParams().flexDirection.isRow()) {
-				// In a column the page axis is the main axis: a replaced element's absolute height and min and max
-				// heights size its wrapper as they do the flex item in Chrome (2026-10-10). Left to the content, a
-				// wrapper with min-height: 80pt shrank to 40pt and the next item overlapped the image
-				wrapper.size = withAbsolutePage(wrapper.size, authored.size(), vertical);
-				wrapper.minSize = withAbsolutePage(wrapper.minSize, authored.minSize(), vertical);
-				wrapper.maxSize = withAbsolutePage(wrapper.maxSize, authored.maxSize(), vertical);
+				// In a column the page axis is the main axis: a replaced element's height and min and max heights size
+				// its wrapper as they do the flex item in Chrome (2026-10-10). Left to the content, a wrapper with
+				// min-height: 80pt shrank to 40pt and the next item overlapped the image. Percentages go too, of the
+				// container as for the element (min-height: 90%, max-height: 30%). The padding they take in is a
+				// percentage of the container's line size, not of its height (padding-top: 10% made a 40pt image 50pt
+				// high in a 200 x 100pt column, Chrome 60)
+				final double[] box = authored.image() == null ? null : NeutralTransfer.boxExtent(authored.image(),
+						!vertical);
+				final double line = this.flexBox.getLineSize();
+				wrapper.size = withPage(wrapper.size, withPageBox(authored.size(), box, line, vertical), vertical);
+				wrapper.minSize = withPage(wrapper.minSize, withPageBox(authored.minSize(), box, line, vertical),
+						vertical);
+				wrapper.maxSize = withPage(wrapper.maxSize, withPageBox(authored.maxSize(), box, line, vertical),
+						vertical);
 			}
 			wrapper.boxSizing = authored.boxSizing();
 			// The keywords of an element in the other writing mode size the wrapper's page axis (a vertical child's
@@ -330,6 +339,8 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			}
 			if (authored.replaced() && this.flexBox.getFlexParams().flexDirection.isRow()) {
 				itemBox.markReplacedMainFill();
+			} else if (authored.replaced()) {
+				itemBox.markReplacedCrossFill();
 			}
 			if (authored.replaced()) {
 				final double page = this.definiteInnerPage();
@@ -362,12 +373,15 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		}
 		double page = params.size.getPageLength(flow);
 		if (params.boxSizing == BoxSizingMode.BORDER_BOX) {
+			// The border and the padding as resolved (a percentage padding too: it is of the container's own
+			// containing block, known once the container starts), at least their absolute parts
 			final Insets padding = params.frame.padding;
-			page -= flow.isVertical()
+			final double absolute = flow.isVertical()
 					? params.frame.border.getFrameWidth() + absolute(padding.getLeft(), padding.getLeftType())
 							+ absolute(padding.getRight(), padding.getRightType())
 					: params.frame.border.getFrameHeight() + absolute(padding.getTop(), padding.getTopType())
 							+ absolute(padding.getBottom(), padding.getBottomType());
+			page -= Math.max(absolute, this.flexBox.getFrame().getBorderPageExtent(flow));
 		}
 		return page;
 	}
@@ -376,16 +390,38 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return type == LengthType.ABSOLUTE ? value : 0;
 	}
 
-	/** {@code line} with the page-axis component of {@code d} when that is an absolute length. */
-	private static Dimension withAbsolutePage(final Dimension line, final Dimension d, final boolean vertical) {
-		if (vertical) {
-			return d.getWidthType() != LengthType.ABSOLUTE ? line
-					: Dimension.create(d.getWidth(), 0, line.getHeight(), line.getHeightRatio(), LengthType.ABSOLUTE,
-							line.getHeightType());
+	/**
+	 * {@code d} with the percentage part of {@code box} (the element's border and padding along the page axis, which
+	 * {@link NeutralTransfer#of(net.zamasoft.foliojet.layout.box.params.ReplacedParams)} added to its page-axis size)
+	 * resolved against {@code line}, the container's line size, of which a padding percentage is (2026-10-10).
+	 */
+	private static Dimension withPageBox(final Dimension d, final double[] box, final double line,
+			final boolean vertical) {
+		if (box == null || box[1] == 0 || LayoutUtils.isNone(line)) {
+			return d;
 		}
-		return d.getHeightType() != LengthType.ABSOLUTE ? line
-				: Dimension.create(line.getWidth(), line.getWidthRatio(), d.getHeight(), 0, line.getWidthType(),
-						LengthType.ABSOLUTE);
+		final LengthType type = vertical ? d.getWidthType() : d.getHeightType();
+		if (type != LengthType.MIXED) {
+			return d;
+		}
+		final double value = (vertical ? d.getWidth() : d.getHeight()) + box[1] * line;
+		final double ratio = (vertical ? d.getWidthRatio() : d.getHeightRatio()) - box[1];
+		final LengthType resolved = ratio == 0 ? LengthType.ABSOLUTE : LengthType.MIXED;
+		return vertical
+				? Dimension.create(value, ratio, d.getHeight(), d.getHeightRatio(), resolved, d.getHeightType())
+				: Dimension.create(d.getWidth(), d.getWidthRatio(), value, ratio, d.getWidthType(), resolved);
+	}
+
+	/** {@code line} with the page-axis component of {@code d} unless that is auto. */
+	private static Dimension withPage(final Dimension line, final Dimension d, final boolean vertical) {
+		if (vertical) {
+			return d.getWidthType() == LengthType.AUTO ? line
+					: Dimension.create(d.getWidth(), d.getWidthRatio(), line.getHeight(), line.getHeightRatio(),
+							d.getWidthType(), line.getHeightType());
+		}
+		return d.getHeightType() == LengthType.AUTO ? line
+				: Dimension.create(line.getWidth(), line.getWidthRatio(), d.getHeight(), d.getHeightRatio(),
+						line.getWidthType(), d.getHeightType());
 	}
 
 	/** Opens an anonymous item for direct text (reuses it if already open). */
@@ -1072,6 +1108,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 						final double deficit = lineExtent - item.itemBox.getPageExtent(params.flow);
 						if (deficit > 0) {
 							item.itemBox.setPageAxis(item.itemBox.getInnerPageExtent(params.flow) + deficit);
+							item.itemBox.passPageSizeToReplaced(false);
 						}
 					}
 				} else {
@@ -1173,6 +1210,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				final FlexItemContent item = this.items.get(seq[k]);
 				// Resolve the main (page) size (the §9.7 result takes precedence over specified height).
 				item.itemBox.setColumnMainSize(mainSizeByOriginal[seq[k]]);
+				item.itemBox.passPageSizeToReplaced(true);
 				// Cross alignment (line axis): remaining space in the column + column start position.
 				// wrap-reverse swaps start/end symmetrically with row (2026-08-02: removed
 				// an asymmetry found while checking the unification).
