@@ -137,6 +137,72 @@ public class FlexReplacedItemMarginTest extends TestCase {
 	 * A 1pt border stands for the outline, which a table cell does not draw.
 	 */
 	/**
+	 * The automatic minimum of a replaced item is its content size suggestion (2026-10-10, CSS Flexbox §4.5): the height
+	 * through the ratio when the height is absolute, else the natural width. In a 100pt row Chrome shrinks a 200 x 20pt
+	 * image to 90pt beside a 10pt item, keeps a 200pt image with height auto at its natural 120pt, and gives a width:
+	 * auto image 40pt from its height (tmp/ab/repro/buttonws/qa2/, M1-M3). It stayed 200pt wide.
+	 */
+	public void testAutomaticMinimum() throws Exception {
+		Boxes b = qa("#f{width:100pt} #i{width:200pt;height:20pt;flex:0 1 auto}");
+		b.image("M1, an absolute height", 0, 90, 20);
+		b.next("M1", 90, 0);
+		b = qa("#f{width:100pt} #i{width:200pt;height:auto;flex:0 1 auto}");
+		b.image("M2, the natural width", 0, 120, 60);
+		b.next("M2", 120, 0);
+		b = qa("#f{width:100pt} #i{width:auto;height:20pt;flex:0 1 auto}");
+		b.image("M3, an auto width", 0, 40, 20);
+		b.next("M3", 40, 0);
+	}
+
+	/**
+	 * A percentage height goes through the ratio as the container resolves it, and an SVG with only a viewBox has no
+	 * natural width for the automatic minimum (2026-10-10, 3c's A/B: frontiers-art's logo, viewBox 2811 wide and
+	 * height: 100%, was drawn 2108pt wide; katex's, height: 80%, 67.88 for Chrome's 60.35).
+	 */
+	public void testAutomaticMinimumWithPercentages() throws Exception {
+		Boxes b = qaHtml(ratioOnly(String.format(QA, "#f{height:20pt} #i{width:auto;height:100%;flex:0 1 auto}")));
+		b.image("R1, a viewBox only, height: 100%", 0, 80, 20);
+		b.next("R1", 80, 0);
+		b = qa("#f{height:40pt} #i{width:auto;height:50%;flex:0 1 auto}");
+		b.image("R2, a natural size, height: 50%", 0, 40, 20);
+		b.next("R2", 40, 0);
+		b = qaHtml(ratioOnly(String.format(QA,
+				"#f{height:40pt} #i{width:auto;height:50%;flex:0 1 auto;margin-right:10pt}")));
+		b.image("R3, a viewBox only with a margin", 0, 80, 20);
+		b.next("R3", 90, 0);
+	}
+
+	/**
+	 * The suggestion keeps to the limits of the other axis through the ratio and to its own max, and a specified
+	 * aspect-ratio of a border-box image is of its border box (2026-10-10, codex's review, qa2/X1-X4 in Chrome).
+	 */
+	public void testAutomaticMinimumWithLimits() throws Exception {
+		Boxes b = qa("#f{width:100pt} #i{width:auto;flex:0 1 auto;max-height:20pt}");
+		b.image("X1, max-height", 0, 40, 20);
+		b.next("X1", 40, 0);
+		b = qa("#f{width:100pt} #i{width:auto;flex:0 1 auto;height:20pt;min-height:80pt}");
+		b.image("X2, min-height", 0, 160, 80);
+		b.next("X2", 160, 0);
+		b = qa("#f{width:100pt} #i{width:auto;flex:0 1 auto;height:60pt;aspect-ratio:3;box-sizing:border-box;"
+				+ "padding:10pt}");
+		b.image("X3, aspect-ratio of a border box", 0, 180, 60);
+		b.next("X3", 180, 0);
+		b = qa("#f{width:100pt} #i{width:200pt;flex:0 1 auto;height:20pt;max-width:150pt;min-height:30pt}");
+		b.image("X4, shrinks to the line", 0, 90, 30);
+		b.next("X4", 90, 0);
+		b = qa("#f{width:100pt;height:40pt} #i{width:auto;flex:0 1 auto;max-height:50%}");
+		b.image("Z1, a percentage max-height", 0, 40, 20);
+		b.next("Z1", 40, 0);
+	}
+
+	/** The QA image as an SVG with only a viewBox of 160 x 40. */
+	private static String ratioOnly(final String html) {
+		final String sized = "width='160' height='80'%3E%3Crect width='160' height='80'";
+		assertTrue(html.contains(sized));
+		return html.replace(sized, "viewBox='0 0 160 40'%3E%3Crect width='160' height='40'");
+	}
+
+	/**
 	 * The sizes the flex algorithm gives a replaced item reach the element (2026-10-10, tmp/ab/repro/buttonws/qa2/ and
 	 * qa/K, Chrome): a stretched row makes an image of height auto as high as the line (S1, 40 x 100), flex: 1 in a
 	 * column gives it the free height (S2, 40 x 90), and a stretched column makes an image of width auto as wide as the
@@ -280,10 +346,14 @@ public class FlexReplacedItemMarginTest extends TestCase {
 	}
 
 	private static Boxes qa(final String css) throws Exception {
+		return qaHtml(String.format(QA, css));
+	}
+
+	private static Boxes qaHtml(final String html) throws Exception {
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		final File dir = Files.createTempDirectory("flex-replaced-qa").toFile();
 		final File input = new File(dir, "input.html");
-		Files.writeString(input.toPath(), String.format(QA, css), StandardCharsets.UTF_8);
+		Files.writeString(input.toPath(), html, StandardCharsets.UTF_8);
 		try (DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"), null)) {
 			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
 			CTISessionHelper.transcodeFile(session, input, "text/html", null);
@@ -296,7 +366,7 @@ public class FlexReplacedItemMarginTest extends TestCase {
 			b.border = green == null ? red : red == null ? green : union(red, green);
 			b.next = bbox(img, 0, 0, 255);
 			b.outline = bbox(img, 0, 0, 0);
-			assertNotNull(css + ": no image", b.border);
+			assertNotNull(html + ": no image", b.border);
 			return b;
 		}
 	}

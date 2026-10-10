@@ -142,6 +142,9 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 */
 	private final java.util.Map<Object, BlockParams> neutralBlocks = new java.util.IdentityHashMap<>();
 
+	/** The params of the replaced element in each neutral wrapper (2026-10-10, {@link #replacedContentSuggestion}). */
+	private final java.util.Map<Object, net.zamasoft.foliojet.layout.box.params.ReplacedParams> neutralImages = new java.util.IdentityHashMap<>();
+
 	/** Params for a neutral item ({@link NeutralItemParams}). */
 	private BlockParams itemParams() {
 		return NeutralItemParams.of(this.flexBox.getFlexParams());
@@ -337,6 +340,9 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			if (authored.block() != null) {
 				this.neutralBlocks.put(itemBox, authored.block());
 			}
+			if (authored.image() != null) {
+				this.neutralImages.put(itemBox, authored.image());
+			}
 			if (authored.replaced() && this.flexBox.getFlexParams().flexDirection.isRow()) {
 				itemBox.markReplacedMainFill();
 			} else if (authored.replaced()) {
@@ -384,6 +390,110 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			page -= Math.max(absolute, this.flexBox.getFrame().getBorderPageExtent(flow));
 		}
 		return page;
+	}
+
+	/**
+	 * The content size suggestion of a replaced element along the line axis (CSS Flexbox §4.5), on its wrapper's scale,
+	 * the border box (2026-10-10): the other axis's absolute size, within its absolute min and max, through the ratio,
+	 * else the natural size; then within the min and max of the other axis through the ratio and within its own absolute
+	 * max. NaN (the measured min-content stays) without either, and for a percentage on the other axis, whose transferred
+	 * size the measured min-content already gives (it resolves the percentage against the container): katex's logo,
+	 * height: 80%, came out 67.88pt (Chrome 60.35). An SVG with only a viewBox has no natural size, though the image
+	 * reports the viewBox as its size: frontiers-art's logo, height: 100%, took its viewBox of 2811 as the suggestion and
+	 * was drawn 2108pt wide. A specified aspect-ratio of a border-box element is of its border box, as in
+	 * {@code AbstractReplacedBox}; a natural ratio is of the content box.
+	 */
+	static double replacedContentSuggestion(final net.zamasoft.foliojet.layout.box.params.ReplacedParams p,
+			final boolean vertical) {
+		final double nw = p.image.getWidth(), nh = p.image.getHeight();
+		final boolean natural = nw > 0 && nh > 0;
+		final boolean specifiedRatio = p.aspectRatio > 0 && !(p.aspectRatioAuto && natural);
+		final double ratio = specifiedRatio ? p.aspectRatio : natural ? nw / nh : 0;
+		final LengthType crossType = vertical ? p.size.getWidthType() : p.size.getHeightType();
+		if (crossType != LengthType.ABSOLUTE && crossType != LengthType.AUTO) {
+			return Double.NaN;
+		}
+		if (percentage(vertical ? p.minSize.getWidthType() : p.minSize.getHeightType())
+				|| percentage(vertical ? p.maxSize.getWidthType() : p.maxSize.getHeightType())) {
+			// The measured min-content resolves a percentage limit (max-height: 50% of a 40pt row: 40 x 20, Chrome)
+			return Double.NaN;
+		}
+		final boolean borderBox = p.boxSizing == BoxSizingMode.BORDER_BOX;
+		final double crossBox = boxAbsolute(p, !vertical), mainBox = boxAbsolute(p, vertical);
+		// The box the ratio is of: the border box for a specified ratio of a border-box element, else the content box
+		final boolean ratioOfBorder = specifiedRatio && borderBox;
+		final double crossMin = absoluteCross(p.minSize, vertical), crossMax = absoluteCross(p.maxSize, vertical);
+		double main;
+		if (crossType == LengthType.ABSOLUTE && ratio > 0) {
+			double cross = vertical ? p.size.getWidth() : p.size.getHeight();
+			if (!Double.isNaN(crossMax)) {
+				cross = Math.min(cross, crossMax);
+			}
+			if (!Double.isNaN(crossMin)) {
+				cross = Math.max(cross, crossMin);
+			}
+			main = throughRatio(cross, ratio, vertical, borderBox, ratioOfBorder, crossBox, mainBox);
+		} else {
+			if (p.image.getIntrinsic() != net.zamasoft.pdfg2d.gc.image.Image.Intrinsic.SIZE) {
+				return Double.NaN;
+			}
+			main = vertical ? nh : nw;
+			if (!(main > 0)) {
+				return Double.NaN;
+			}
+			main += mainBox;
+			if (ratio > 0) {
+				if (!Double.isNaN(crossMax)) {
+					main = Math.min(main,
+							throughRatio(crossMax, ratio, vertical, borderBox, ratioOfBorder, crossBox, mainBox));
+				}
+				if (!Double.isNaN(crossMin)) {
+					main = Math.max(main,
+							throughRatio(crossMin, ratio, vertical, borderBox, ratioOfBorder, crossBox, mainBox));
+				}
+			}
+		}
+		final LengthType maxType = vertical ? p.maxSize.getHeightType() : p.maxSize.getWidthType();
+		if (maxType == LengthType.ABSOLUTE) {
+			final double max = vertical ? p.maxSize.getHeight() : p.maxSize.getWidth();
+			main = Math.min(main, borderBox ? max : max + mainBox);
+		}
+		return Math.max(0, main);
+	}
+
+	private static boolean percentage(final LengthType type) {
+		return type == LengthType.RELATIVE || type == LengthType.MIXED;
+	}
+
+	/** The absolute min or max size of a replaced element along the other axis than the line, NaN otherwise. */
+	private static double absoluteCross(final Dimension d, final boolean vertical) {
+		return (vertical ? d.getWidthType() : d.getHeightType()) == LengthType.ABSOLUTE
+				? (vertical ? d.getWidth() : d.getHeight())
+				: Double.NaN;
+	}
+
+	/**
+	 * The border-box size along the line of a replaced element whose size along the other axis is {@code cross} on the
+	 * scale of its box-sizing, through {@code ratio} (width / height).
+	 */
+	private static double throughRatio(final double cross, final double ratio, final boolean vertical,
+			final boolean borderBox, final boolean ratioOfBorder, final double crossBox, final double mainBox) {
+		// The other axis on the ratio's box
+		final double c = borderBox && !ratioOfBorder ? Math.max(0, cross - crossBox)
+				: !borderBox && ratioOfBorder ? cross + crossBox : cross;
+		final double m = vertical ? c / ratio : c * ratio;
+		return ratioOfBorder ? m : m + mainBox;
+	}
+
+	/** The absolute border and padding of a replaced element along the height (or the width). */
+	private static double boxAbsolute(final net.zamasoft.foliojet.layout.box.params.ReplacedParams p,
+			final boolean height) {
+		final Insets padding = p.frame.padding;
+		return height
+				? p.frame.border.getFrameHeight() + absolute(padding.getTop(), padding.getTopType())
+						+ absolute(padding.getBottom(), padding.getBottomType())
+				: p.frame.border.getFrameWidth() + absolute(padding.getLeft(), padding.getLeftType())
+						+ absolute(padding.getRight(), padding.getRightType());
 	}
 
 	private static double absolute(final double value, final LengthType type) {
@@ -842,8 +952,18 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			// For column, the intrinsic main size is the content height measured at the item's cross size
 			// (2026-10-08); items that were not measured keep the simulated minPage (an F4b approximation).
 			final double measured = measuredMain == null ? Double.NaN : measuredMain[oi];
-			final double minContent = axis.mainIsLine ? item.sizes.minContent()
+			double minContent = axis.mainIsLine ? item.sizes.minContent()
 					: Double.isNaN(measured) ? item.sizes.minPage() : measured;
+			final net.zamasoft.foliojet.layout.box.params.ReplacedParams image = this.neutralImages.get(item.itemBox);
+			if (axis.mainIsLine && image != null) {
+				// The automatic minimum of a replaced item takes its content size suggestion, not its min-content
+				// contribution (2026-10-10, CSS Flexbox §4.5): an image of width 200pt and height 20pt stayed 200pt in a
+				// 100pt row, where Chrome lets it shrink down to what the height asks through the ratio (40pt)
+				final double suggestion = replacedContentSuggestion(image, this.flow().isVertical());
+				if (!Double.isNaN(suggestion)) {
+					minContent = suggestion;
+				}
+			}
 			final double maxContent = axis.mainIsLine ? item.sizes.maxContent()
 					: Double.isNaN(measured) ? item.sizes.minPage() : measured;
 			// A neutral wrapper's min and max sizes are its element's, given for the element's box-sizing box (2026-10-10)
