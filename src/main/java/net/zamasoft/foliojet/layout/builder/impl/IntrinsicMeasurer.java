@@ -76,6 +76,19 @@ final class IntrinsicMeasurer {
 
 	private double atomicLineSize = 0;
 
+	/**
+	 * The advance of the collapsible spaces at the end of the current line so far (2026-10-10). A line drops them, so
+	 * the max-content size leaves them out: counted, they made an anonymous flex item such as the label of a
+	 * {@code <button>} written over several lines one space wider than in Chrome.
+	 */
+	private double trailingSpace = 0;
+
+	/**
+	 * The part of {@link #trailingSpace} in the current atomic run (2026-10-10), which the min-content size leaves out:
+	 * cleared with the run, so that the spaces are not taken out again at the end of the block.
+	 */
+	private double atomicTrailingSpace = 0;
+
 	private double letterSpacing = 0;
 
 	private double textIndent;
@@ -671,6 +684,7 @@ final class IntrinsicMeasurer {
 		advance += step.letterSpacing();
 		this.atomicLineSize += advance;
 		this.lineAxis += advance;
+		this.keepSpaces();
 		double minPageAxis = this.getCurrentLineHeight() + this.pageFrame;
 		if (minPageAxis > this.minPageSize) {
 			this.minPageSize = minPageAxis;
@@ -691,6 +705,7 @@ final class IntrinsicMeasurer {
 			if (quad instanceof InlineReplacedQuad) {
 				// Image
 				final AbstractReplacedBox box = (AbstractReplacedBox) inlineQuad.getBox();
+				this.keepSpaces();
 				maxAdvance = quad.getAdvance();
 				assert LayoutUtils.isDrawable(maxAdvance) : "置換要素の未確定な行寸法が固有寸法へ混入しました: advance="
 							+ maxAdvance + ", width=" + box.getWidth() + ", height=" + box.getHeight()
@@ -727,6 +742,7 @@ final class IntrinsicMeasurer {
 					pageSize = box.getHeight();
 				}
 			} else if (quad instanceof InlineBlockQuad) {
+				this.keepSpaces();
 				// Inline block
 				final AbstractContainerBox box = (AbstractContainerBox) inlineQuad.getBox();
 				final double lineFrame = box.getFrame().getFrameLineExtent(cParams.flow);
@@ -778,10 +794,20 @@ final class IntrinsicMeasurer {
 			} else {
 				if (inlineQuad instanceof InlineStartQuad) {
 					this.inlineStack.add(inlineQuad.getBox());
+					if (inlineQuad.getAdvance() != 0) {
+						// The spaces before an inline start with a frame stay on the line too (TextBuilder)
+						this.keepSpaces();
+					}
 					final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
 					this.letterSpacing = LayoutUtils.computeLength(inlineStartQuad.box.getTextParams().letterSpacing,
 							this.builder.getFlowBox().getLineSize());
 				} else if (inlineQuad instanceof InlineEndQuad) {
+					if (inlineQuad.getAdvance() != 0) {
+						// The spaces before an inline end with a frame stay on the line (TextBuilder keeps them so; Chrome
+						// drops them, a difference left as it was): without them here the item came out too narrow for
+						// its text and wrapped it
+						this.keepSpaces();
+					}
 					this.inlineStack.remove(this.inlineStack.size() - 1);
 					AbstractTextParams params;
 					if (this.inlineStack.isEmpty()) {
@@ -797,12 +823,24 @@ final class IntrinsicMeasurer {
 				pageSize = inlineQuad.getBox().getPageExtent(cParams.flow);
 			}
 		} else if (quad instanceof net.zamasoft.foliojet.layout.text.LeaderQuad leader) {
+			this.keepSpaces();
 			// leader() L1: both min-content/max-content use one pattern cycle
 			// (do not read the allocated advance, to prevent leakage during remeasurement).
 			minAdvance = maxAdvance = leader.minAdvance;
 			pageSize = 0;
 		} else {
 			minAdvance = maxAdvance = quad.getAdvance();
+			if (quad instanceof net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace) {
+				// A space (a control, not a glyph): at the end of the line it goes when the text collapses spaces
+				if (this.collapsesSpaces()) {
+					this.trailingSpace += maxAdvance;
+					this.atomicTrailingSpace += maxAdvance;
+				} else {
+					this.keepSpaces();
+				}
+			} else if (!(quad instanceof LineBreak)) {
+				this.keepSpaces();
+			}
 			pageSize = 0;
 		}
 		pageSize = Math.max(pageSize, this.getCurrentLineHeight());
@@ -814,8 +852,15 @@ final class IntrinsicMeasurer {
 		this.lineAxis += maxAdvance;
 	}
 
+	/** Something other than a collapsible space came: the spaces so far are not at the end of the line. */
+	private void keepSpaces() {
+		this.trailingSpace = 0;
+		this.atomicTrailingSpace = 0;
+	}
+
 	void flush() {
-		double minLineSize = this.atomicLineSize;
+		// An atomic run ends at a break opportunity, where its trailing spaces go too
+		double minLineSize = this.atomicLineSize - this.atomicTrailingSpace;
 		if (this.blockHead) {
 			minLineSize += this.textIndent;
 			this.blockHead = false;
@@ -829,16 +874,19 @@ final class IntrinsicMeasurer {
 			}
 		}
 		this.atomicLineSize = 0;
+		this.atomicTrailingSpace = 0;
 		if (this.toLineFeed != null) {
 			assert !LayoutUtils.isNone(this.lineAxis);
 			assert !LayoutUtils.isNone(this.lineFrame);
-			double maxLineSize = this.textIndent + this.maxStartFloatAdvance + this.maxEndFloatAdvance + this.lineAxis;
+			double maxLineSize = this.textIndent + this.maxStartFloatAdvance + this.maxEndFloatAdvance + this.lineAxis
+					- this.trailingSpace;
 			maxLineSize *= this.columnCount;
 			maxLineSize += this.lineFrame;
 			if (maxLineSize > this.maxLineSize) {
 				this.maxLineSize = maxLineSize;
 			}
 			this.lineAxis = 0;
+			this.trailingSpace = 0;
 			this.toLineFeed = null;
 			this.textIndent = 0;
 			this.clearFloatAdvance(ClearMode.BOTH);
@@ -849,7 +897,7 @@ final class IntrinsicMeasurer {
 		assert !LayoutUtils.isNone(this.lineAxis) : "lineAxis=" + this.lineAxis + ", atomicLineSize="
 				+ this.atomicLineSize + ", lineFrame=" + this.lineFrame + ", inlineDepth=" + this.inlineStack.size();
 		assert !LayoutUtils.isNone(this.lineFrame) : "lineFrame=" + this.lineFrame + ", lineAxis=" + this.lineAxis;
-		double minLineSize = this.atomicLineSize;
+		double minLineSize = this.atomicLineSize - this.atomicTrailingSpace;
 		if (this.blockHead) {
 			minLineSize += this.textIndent;
 			this.blockHead = false;
@@ -859,7 +907,8 @@ final class IntrinsicMeasurer {
 		if (minLineSize > this.minLineSize) {
 			this.minLineSize = minLineSize;
 		}
-		double maxLineSize = this.textIndent + this.maxStartFloatAdvance + this.maxEndFloatAdvance + this.lineAxis;
+		double maxLineSize = this.textIndent + this.maxStartFloatAdvance + this.maxEndFloatAdvance + this.lineAxis
+				- this.trailingSpace;
 		maxLineSize *= this.columnCount;
 		maxLineSize += this.lineFrame;
 		if (maxLineSize > this.maxLineSize) {
@@ -867,6 +916,7 @@ final class IntrinsicMeasurer {
 		}
 		this.atomicLineSize = 0;
 		this.lineAxis = 0;
+		this.keepSpaces();
 	}
 
 	private void clearFloatAdvance(ClearMode clear) {
@@ -886,6 +936,23 @@ final class IntrinsicMeasurer {
 		default:
 			throw new IllegalStateException();
 		}
+	}
+
+	/**
+	 * Whether the current text collapses its spaces (white-space: normal, nowrap or pre-line). A list marker keeps its
+	 * spaces: its trailing space is the gap before the item's text (MeasuredIntrinsics leaves markers to this
+	 * measurer for that).
+	 */
+	private boolean collapsesSpaces() {
+		final IBox root = this.builder.getRootBox();
+		if (root instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox
+				|| root instanceof net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox) {
+			return false;
+		}
+		final byte whiteSpace = this.inlineStack.isEmpty() ? this.builder.getFlowBox().getBlockParams().whiteSpace
+				: ((InlineBox) this.inlineStack.get(this.inlineStack.size() - 1)).getTextParams().whiteSpace;
+		return whiteSpace == AbstractTextParams.WHITE_SPACE_NORMAL || whiteSpace == AbstractTextParams.WHITE_SPACE_NOWRAP
+				|| whiteSpace == AbstractTextParams.WHITE_SPACE_PRE_LINE;
 	}
 
 	private double getCurrentLineHeight() {

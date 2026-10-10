@@ -36,7 +36,8 @@ public class InlineBlockInAbsoluteTest extends AbstractTestCase {
 			System.err.println(x);
 			System.err.println(y);
 			System.err.println(box.getWidth());
-			assertEquals(201, x, 1);
+			// The table no longer counts the space before </td> (2026-10-10; Chrome 197.4)
+			assertEquals(198.4, x, 1);
 			assertEquals(15, y, 1);
 			assertEquals(60, box.getWidth(), 1);
 			return true;
