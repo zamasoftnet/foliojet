@@ -202,7 +202,7 @@
 0110-clear/break-by-image.html	2	08860cd55484c56148dbc17ccc44f543e5df842245b925c114c3f5e3d30be8c4
 0110-clear/float-clear-margin.html	1	2437ac642acf83f844bc772ea8326a88101313124482573703a350edcc4e8ce5
 0120-float/after-auto-margin-table.html	1	72d4c9f21769da509aa2a0a4c9f58b4934b9bbc43a8d4c82a9f520fb4351fb34
-0120-float/after-auto-margin-table.html	2	799f0a597865a81e93842ea4a6072db6d85d010caf8c506b72ef1775842765e0
+0120-float/after-auto-margin-table.html	2	28bc8543ff420244258232f3378db9e499831cb0e73eded527a67f5134c7bedf
 0120-float/atomic-explicit-height-page-break.html	1	7b27f2cca9e383310d6f6e2c09f136fb9adf13c7eaf04bc9285f7364323bb856
 0120-float/atomic-explicit-height-page-break.html	2	62538a7ada320ca4a6c85a3307d191a139c4db4e3c7c7ce28aa29cd37988617b
 0120-float/atomic-inline-wrapper-page-break.html	1	8386cddb1889798a2ce649a088a94ccb8d46881c96418d7ddb280f1691dd65fa
@@ -222,7 +222,7 @@
 0120-float/float-break-always.html	7	f2e9844902fc35ba1a19a09cb39edc2cabb44cd4306dc44e5aa416c064076e3a
 0120-float/float-break-always.html	8	f8a0fe9099a0820a325f1616b8fe3424032df434365ef681acc59841a822eb3e
 0120-float/float-break-always.html	9	f2c01e0d33cebac2eee9c637a66331352a85eca2132f32b9835942d0ac1a4087
-0120-float/float-break-always.html	10	784589efdbf38c8e14551a1a40149911743659d1090b35d896213b34292c4941
+0120-float/float-break-always.html	10	324d41a63be9c88626dacc9ded4e6838b583f27b881764e1b7475cffbba4e1d6
 0120-float/float-break-always.html	11	f2c01e0d33cebac2eee9c637a66331352a85eca2132f32b9835942d0ac1a4087
 0120-float/float-break-always.html	12	29fb442e9df39ad10438a959527f8ac246691648125c171a79ebbb711f4ecf49
 0120-float/float-break-indent.html	1	fd2368148187610830428400e8b881877329ed739b2b407dae916871885a31bb
@@ -910,7 +910,7 @@
 0460-segment-restyle/float-in-moved.html	1	19b16853ca7ca707859f8643313592491f0b6ad008b69b144ea3fa19905f21f1
 0460-segment-restyle/float-in-moved.html	2	a76c9332fe087260b601fb40d1bfcf9613156fe1339f7e82ea2535f2a9faa100
 0460-segment-restyle/float-split-in-chain.html	1	5966c64f1f753152b11a145bd6c9d41db9638338b621f0cf4663dabe3bd808a6
-0460-segment-restyle/float-split-in-chain.html	2	c6723f8dc0087dbc167733eaa1426f8938964ce89b3318058610ae16a9c70810
+0460-segment-restyle/float-split-in-chain.html	2	004e85415266478a45cd52786c9366df7a838a21681d83e97f1067f4ea50b177
 0460-segment-restyle/float-uncut-before-prefix.html	1	cf5077660d7e1f42461f9da62980ae5ae3d4b194e26045b12332dc93af535ddc
 0460-segment-restyle/float-uncut-before-prefix.html	2	67be71ce5d18240d7655154fe4080840962d54096a177de3abc56f4c64fde536
 0460-segment-restyle/mid-paragraph.html	1	07c58ff230d27621b6af8c7bb0fcf15f9576a01699dc32b2a520200f3829f755
@@ -2187,7 +2187,7 @@ imageTest/legacy/0500-html/240-HEAD_CONTENT.html	1	26b8638bdf52bf661b4ccc7758bee
 imageTest/legacy/0510-legacy/000-line-height_MSIE.html	1	530b312ce29fc4775eeaaaeccf720526ce9e14b76593511beb69efd19413259c
 imageTest/legacy/0600-misc/BKtenmaya_honbun.html	1	13d193990b6b1fd46f55edeb5db6d89311811f136570fd0bef677c2bc9cd8d52
 imageTest/legacy/0600-misc/asahi.html	1	fee4387e53e31df89b9c2df6fce3b2f6c83151b61c495fd62d06af1eb8ff4174
-imageTest/legacy/0600-misc/asahi.html	2	38a63fd0b34e8978f29cdb03f65984b40899519a47a643c4f3ba51ce653b0ffb
+imageTest/legacy/0600-misc/asahi.html	2	112bb5dd947ba7c324859d7c3b6e18b7c1373b5888536bbda3dd28f808a936db
 imageTest/legacy/0600-misc/asahi.html	3	7950484df20ee814e24106663e40064a521d6fb4f37dd58abb49b123d8b47d16
 imageTest/legacy/0600-misc/asahi.html	4	5aea66603e10b6ee36fd21afa2450ca21d8019c41ca42e97c3db57f894fe7a69
 imageTest/legacy/0600-misc/asahi.html	5	363f12c4bfc72ca71cb89ef2454b7fdc3e071519dd334369fe123cc57ae04644

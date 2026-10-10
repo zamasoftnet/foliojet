@@ -497,9 +497,27 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		// local/shrink/strict-347-min.html). Block this on the side that was cut.
 		this.markFragmented();
 		final boolean vertical = this.params.flow.isVertical();
+		// A page-axis min-size with a percentage (or a calc() with one) splits as the length it resolved to (2026-10-10):
+		// FragmentState reads the length of the Dimension, which holds the ratio for a percentage, so the rest of a
+		// float's min-height: 60% came out 0 on the next page.
+		net.zamasoft.foliojet.layout.box.params.Dimension minSize = this.minSize;
+		final net.zamasoft.foliojet.layout.box.params.LengthType minType = minSize.getPageType(this.params.flow);
+		if (minType == net.zamasoft.foliojet.layout.box.params.LengthType.RELATIVE
+				|| minType == net.zamasoft.foliojet.layout.box.params.LengthType.MIXED) {
+			final double resolved = this.minPageAxis + (this.params.boxSizing == BoxSizingMode.BORDER_BOX
+					? this.frame.getBorderPageExtent(this.params.flow)
+					: 0);
+			minSize = vertical
+					? net.zamasoft.foliojet.layout.box.params.Dimension.create(resolved, 0, minSize.getHeight(),
+							minSize.getHeightRatio(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE,
+							minSize.getHeightType())
+					: net.zamasoft.foliojet.layout.box.params.Dimension.create(minSize.getWidth(),
+							minSize.getWidthRatio(), resolved, 0, minSize.getWidthType(),
+							net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE);
+		}
 		final net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
 				.of(this.params.flow, columnSpanning, this.frame, this.size,
-						this.minSize, vertical ? this.width : this.height, contentLimit, ownerExtent,
+						minSize, vertical ? this.width : this.height, contentLimit, ownerExtent,
 						this.container.getContentSize(), this.isSpecifiedPageSize(), preserveSpecifiedPageSize);
 		if (vertical) {
 			this.width = state.prevPageExtent();

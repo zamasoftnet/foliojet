@@ -121,6 +121,31 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	}
 
 	/**
+	 * Takes a continuation fragment's page-axis size from what its split left of a definite size and of a min-size
+	 * (2026-10-10). A float's continuation is laid out again without {@link #shrinkToFit}, so it took neither and fitted
+	 * its content: a float with {@code height: 60pt} split at 30pt went on 0pt tall on the next page, where Chrome keeps
+	 * the other 30pt, and so did one with {@code min-height}. A block's continuation gets them from
+	 * {@code calculateSize}. The rest is a floor only: content longer than it still makes the continuation grow, as
+	 * before, which the overflow checks of an opposite-progression region need (they measure the box, not what it
+	 * paints).
+	 */
+	protected final void continuePageAxis() {
+		final WritingMode flow = this.params.flow;
+		final double min = this.minSize.getPageType(flow) == LengthType.ABSOLUTE ? this.minSize.getPageLength(flow) : 0;
+		double extent = min;
+		if (this.size.getPageType(flow) == LengthType.ABSOLUTE) {
+			extent = Math.max(this.size.getPageLength(flow), min);
+			this.specifiedPageAxis = true;
+		}
+		this.minPageAxis = extent;
+		if (flow.isVertical()) {
+			this.width = extent;
+		} else {
+			this.height = extent;
+		}
+	}
+
+	/**
 	 * The page-axis content-box size derived from {@code aspect-ratio}
 	 * (2026-08-29, css-sizing-4 §5). The ratio is physical width/height and applies to the
 	 * {@code box-sizing} box (including padding+border for border-box).
@@ -597,8 +622,12 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			// beyond the paper (measured on 2026-09-16; "all drawing outside the paper" in the sweep).
 			cLine = layoutStack.getOrthogonalLineBasis(flow);
 		}
-		// Resolve page-axis percentages only when the basis is definite
-		final double pagePercentBase = (!table && this.isSpecifiedPageSize()) ? cPage : LayoutUtils.NONE;
+		// Resolve page-axis percentages only when the basis is definite: this box's own page-axis size, or for min and
+		// max sizes the containing block's (2026-10-10: a float's min-height: 60% in a box of height: 100pt was
+		// dropped while its height was auto; Chrome takes 60pt).
+		final double pagePercentBase = !table && (this.isSpecifiedPageSize()
+				|| (cParams.flow.isVertical() == flow.isVertical() && containerBox.isSpecifiedPageSize())) ? cPage
+						: LayoutUtils.NONE;
 		return new SizingContext(SizingMode.FIT_CONTENT, cLine, cLine, pagePercentBase);
 	}
 
