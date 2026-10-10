@@ -854,6 +854,15 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	private double atomicFloatFloor = 0;
 
+	/**
+	 * Maximum root page-axis end of content painting past the block that holds it, among blocks closed in the current
+	 * PageBox (2026-10-10): a box of definite height or max-height whose content is taller. The cursor stops at the box's
+	 * end, and a top float translated in by the cursor alone pushed that content off the paper (a 20pt flex holding a
+	 * 40pt item lost its last line). Covers, like {@link #atomicFloatFloor}, only blocks RootBuilder closes itself in the
+	 * root writing mode ({@link #noteOverflowPastBox}).
+	 */
+	private double overflowFloor = 0;
+
 	public RootBuilder(PageGenerator pageGenerator, byte mode) {
 		super(null, null, mode);
 		this.pageGenerator = pageGenerator;
@@ -887,6 +896,7 @@ public class RootBuilder extends BreakableBuilder {
 		this.bottomFloatOneDimensionalFallback = false;
 		this.bottomFloatsDeferredOnPage = false;
 		this.atomicFloatFloor = 0;
+		this.overflowFloor = 0;
 		this.narrowTopPlacedWithTextBeside = false;
 		return next;
 	}
@@ -2947,8 +2957,56 @@ public class RootBuilder extends BreakableBuilder {
 	 * page top before interflow overflow checks.
 	 */
 	@Override
-	protected void afterFlowBlockClosed() {
+	protected void afterFlowBlockClosed(final Flow closed) {
+		this.noteOverflowPastBox(closed);
 		this.tryTranslateForTopFloats();
+	}
+
+	/**
+	 * Raises {@link #overflowFloor} to where the content of the block just closed paints, when that runs past the block's
+	 * content box ({@link net.zamasoft.foliojet.layout.box.content.Container#paintedPageEnd}, which also reaches into the
+	 * items of a flex or grid container laid out by their own builders). Measured only where content can run past: a box
+	 * whose content is larger than its size, and flex and grid containers. Skipped where the position is not final or the
+	 * overflow is not painted: inside an open flex or grid container (a restyle stacks its items before it puts them
+	 * back), in a box that clips its overflow or inside one, in columns, and off the root writing mode. A container with
+	 * absolutely positioned children answers its own size (paintedPageEnd), and its overflow is not seen. The painted
+	 * extent of a framed descendant includes its end margin, so such a margin running past the box can keep out a float
+	 * that would fit: it goes to the next page, and nothing is lost.
+	 */
+	private void noteOverflowPastBox(final Flow closed) {
+		if (!(closed.box instanceof FlowBlockBox box) || box.getColumnCount() > 1) {
+			return;
+		}
+		final WritingMode flow = box.getBlockParams().flow;
+		if (flow != this.pageBox.getBlockParams().flow || box.getBlockParams().clipsOverflowPaint()) {
+			return;
+		}
+		final double inner = box.getInnerPageExtent(flow);
+		if (!isFlexOrGrid(box)
+				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(box.getContentSize(), inner) <= 0) {
+			return;
+		}
+		// The walks over the open flows only for a box whose content can run past it: every block closes here.
+		if (this.getMulticolumnBox() != null || !this.hasRootWritingModePath()) {
+			return;
+		}
+		for (int i = 0; i < this.getFlowCount(); ++i) {
+			final var open = this.getFlow(i).box;
+			if (open.getBlockParams().clipsOverflowPaint() || isFlexOrGrid(open)) {
+				return;
+			}
+		}
+		final double content = box.getContainer().paintedPageEnd();
+		if (net.zamasoft.foliojet.layout.util.LayoutUtils.compare(content, inner) <= 0) {
+			return;
+		}
+		// The flow's page axis is the box's inner edge, where its content starts.
+		this.overflowFloor = Math.max(this.overflowFloor, closed.pageAxis + content);
+	}
+
+	private static boolean isFlexOrGrid(final net.zamasoft.foliojet.layout.box.IBox box) {
+		return box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
+				|| box instanceof net.zamasoft.foliojet.layout.box.impl.GridBox;
 	}
 
 	/**
@@ -3035,6 +3093,7 @@ public class RootBuilder extends BreakableBuilder {
 		if (this.atomicFloatFloor > 0) {
 			used = Math.max(used, this.atomicFloatFloor);
 		}
+		used = Math.max(used, this.overflowFloor);
 		final net.zamasoft.foliojet.layout.box.content.FlowContainer pageContainer =
 				(net.zamasoft.foliojet.layout.box.content.FlowContainer) this.pageBox.getContainer();
 		used = Math.max(used,
@@ -3089,6 +3148,9 @@ public class RootBuilder extends BreakableBuilder {
 		this.shiftFloatLedgers(dy);
 		if (this.atomicFloatFloor > 0) {
 			this.atomicFloatFloor += dy;
+		}
+		if (this.overflowFloor > 0) {
+			this.overflowFloor += dy;
 		}
 		if (this.pageMarginNoteStartCursor > 0) {
 			this.pageMarginNoteStartCursor += dy;

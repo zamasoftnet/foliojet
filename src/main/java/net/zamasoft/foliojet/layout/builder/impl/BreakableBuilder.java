@@ -1212,7 +1212,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.breakDepth != -1) {
 			--this.breakDepth;
 		}
-		this.afterFlowBlockClosed();
+		this.afterFlowBlockClosed(flow);
 
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
 			double pageLimit = closesColumnOwner ? this.getPageOwnerLimit() : this.getPageLimit();
@@ -1330,8 +1330,10 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	 * Hook immediately after closing a flow block and restoring {@link #breakDepth}.
 	 * Does nothing by default. RootBuilder attempts to translate top floats on the current
 	 * page before the inter-block overflow check.
+	 *
+	 * @param closed the flow of the block just closed (after any break, the fragment that closed)
 	 */
-	protected void afterFlowBlockClosed() {
+	protected void afterFlowBlockClosed(final Flow closed) {
 		// Do nothing for builders that do not own the whole page, such as ColumnBuilder.
 	}
 
