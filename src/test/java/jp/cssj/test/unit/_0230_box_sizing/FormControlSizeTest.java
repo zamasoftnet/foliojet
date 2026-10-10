@@ -40,8 +40,11 @@ public class FormControlSizeTest extends TestCase {
 
 	public void testLineHeight() throws Exception {
 		final List<double[]> f = frames("<div style=\"line-height: 2\"><button>Go</button> <input /></div>");
-		// The heights (the widths of a button differ by its padding: Chrome 25.35pt, Copper 16.22pt)
-		assertEquals("a button in a line-height: 2 block", 15.75, f.get(0)[1], EPSILON);
+		// A button has Chrome's padding and border too: 25.35pt wide (2026-10-11, it was 16.22pt). Its height is 1.76pt
+		// above Chrome's: the zero-width space that gives an empty button its line falls back to another font, which
+		// makes the line 13pt (Chrome 11.5pt; recorded)
+		assertEquals("a button in a line-height: 2 block: width", 25.35, f.get(0)[0], EPSILON);
+		assertEquals("a button in a line-height: 2 block: height", 15.75, f.get(0)[1], 2);
 		assertEquals("an input in a line-height: 2 block", 15.75, f.get(1)[1], EPSILON);
 	}
 

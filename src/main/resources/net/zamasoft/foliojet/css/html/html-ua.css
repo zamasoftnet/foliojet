@@ -420,11 +420,10 @@ input[type=button], input[type=reset], input[type=submit] {
 	display: inline-block;
 	text-align: center;
 	background-color: lightgray;
-	border: thin outset;
-	/* Javaは padding にも thin(=このUAでは1pt)を使っていた。CSSのpaddingでは
-	   境界幅キーワードが使えないので実値を書く——goldenのバイト一致で同値性を
-	   確かめている */
-	padding: 1pt;
+	/* Chrome's padding and border (2026-10-11): 1pt and thin left a label less room than in Chrome, hidden by the
+	   inherited line-height until buttons took line-height: normal (narou: Chrome 14.61pt high, 12.75) */
+	border: 2px outset;
+	padding: 1px 6px;
 	/* The border box, as in Chrome's UA (2026-10-09): a width: 100% button overflowed its box by its frame */
 	box-sizing: border-box;
 }
