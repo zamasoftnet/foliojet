@@ -52,6 +52,14 @@ public final class RowSplitContainer extends FlowContainer {
 	private Map<IFlowBox, Anchor> anchored;
 
 	/**
+	 * Whether this container anchored itself on a restyle (2026-10-10): its box moved whole to another page, it was not
+	 * split. Such a box keeps its definite page-axis size when its content ends on the page
+	 * ({@link #restoreAnchoredPageAxis}); a split continuation takes its content's size, which later splits of its rows
+	 * measure.
+	 */
+	private boolean movedWhole;
+
+	/**
 	 * Snapshots the placement of all items currently in {@link #flows} as authoritative.
 	 * Called once, immediately after {@code FlexBox.split} finishes assembling {@code cont}
 	 * with {@code addFlow}/{@code migrateFlowsFrom} (before restyle can touch it).
@@ -109,6 +117,7 @@ public final class RowSplitContainer extends FlowContainer {
 			// (resolution by startFlowBlock/endFlowBlock overwrites width:auto with the containing width
 			// and height:auto with the content height -- ranking badges on yahoo.co.jp).
 			this.anchorCurrent(0);
+			this.movedWhole = true;
 		}
 		final boolean vertical = this.box.getBlockParams().flow.isVertical();
 		// When restyling an empty container, flows itself has not been created yet.
@@ -180,10 +189,34 @@ public final class RowSplitContainer extends FlowContainer {
 				if (this.box instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox host) {
 					// Vertical-stack contentSize written to the parent by each item's endFlowBlock remains
 					// because Math.max only increases it; reset it by assignment (shared by flex/grid).
-					host.restoreContentExtent(trueEnd);
+					// Content running past the page grows the box as before: the page breaks that carry the overflow
+					// on measure the box (a flex of width: 0 in vertical-rl went off the paper when it kept its size).
+					if (this.movedWhole && this.contentEndsOnPage(builder, trueEnd)) {
+						host.restoreContentExtentWithin(trueEnd);
+					} else {
+						host.restoreContentExtent(trueEnd);
+					}
 				}
 			}
 		}
+	}
+
+	/**
+	 * Whether the content of this container ends on the page (2026-10-10): both the cursor and the farthest item end,
+	 * measured from the container's content start, are within the page limit. The cursor alone does not tell: a
+	 * negative trailing margin pulls it back over items that still run past the page (an 80pt item kept in a 20pt flex
+	 * went off the paper). When a break during the restyle left another flow open, the content did not end here.
+	 */
+	private boolean contentEndsOnPage(final BlockBuilder builder, final double trueEnd) {
+		if (!(builder instanceof net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder breakable)) {
+			return false;
+		}
+		final double limit = breakable.getPageLimit();
+		if (LayoutUtils.compare(builder.getPageAxis(), limit) > 0) {
+			return false;
+		}
+		final net.zamasoft.foliojet.layout.builder.LayoutContext.Flow flow = builder.getFlow();
+		return flow.box == this.box && LayoutUtils.compare(flow.pageAxis + trueEnd, limit) <= 0;
 	}
 
 	/**

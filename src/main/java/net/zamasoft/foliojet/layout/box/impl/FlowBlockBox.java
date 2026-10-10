@@ -112,6 +112,22 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
+	 * {@link #restoreContentExtent} whose page-axis size stays within this box's min and max, as {@link #setPageAxis}
+	 * keeps it (2026-10-10): a container with a definite height keeps it when its items take more. A 27pt tab list
+	 * (shadcn) moved whole to the next page came out 32.4pt, the height of its overflowing buttons, when an
+	 * absolutely positioned descendant made the move relay it out.
+	 */
+	public final void restoreContentExtentWithin(final double content) {
+		this.restoreContentExtent(content);
+		final double extent = Math.min(this.maxPageAxis, Math.max(this.minPageAxis, content));
+		if (this.getBlockParams().flow.isVertical()) {
+			this.width = extent;
+		} else {
+			this.height = extent;
+		}
+	}
+
+	/**
 	 * Updates only the end of an incomplete table. Reapplies setPageAxis once from the
 	 * accounting state before table placement, so the provisional incomplete height does not
 	 * remain as the contentSize maximum. Also finalizes shrinking due to a negative trailing
