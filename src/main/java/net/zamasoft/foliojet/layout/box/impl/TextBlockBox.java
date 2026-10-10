@@ -159,13 +159,69 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	 * to always choose the conservative result (= there is content to paint). {@link #getPageSize()},
 	 * which returns the geometric size, returns 0 when empty; painting presence is handled separately.
 	 * </p>
+	 *
+	 * <p>
+	 * <b>A text block whose lines all hold nothing paints nothing</b>, wherever its lines sit (2026-10-11): lines of no
+	 * extent and no ellipsis holding only inline boxes that paint no frame (in no fragment: a fragment's cut edges come
+	 * back for drawing), carry no id or link, and hold nothing themselves. The end of an inline element
+	 * left on a line of its own goes down past a float, and the block reached that far: when the float was a continuation
+	 * that kept the rest of its definite size (4c3a010e), a page holding only the two answered that it paints, and stayed
+	 * as a blank page (sweep seed 11846535). Such a line at the start answered 0 already. Any other line keeps the answer
+	 * where the last line ends.
+	 * </p>
 	 */
 	@Override
 	public double paintedPageExtent(final net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
 		if (this.lines.isEmpty()) {
 			return LayoutUtils.PAINTS_UNKNOWN;
 		}
+		if (flow.isVertical() == this.params.flow.isVertical() && this.linesHoldNothing()) {
+			return 0;
+		}
 		return this.getPageExtent(flow);
+	}
+
+	private boolean linesHoldNothing() {
+		for (int i = 0; i < this.lines.size(); ++i) {
+			final AbstractLineBox line = ((Line) this.lines.get(i)).box;
+			if (line.getAscent() + line.getDescent() > 0 || line.getEllipsis() != null || !holdsNothing(line)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** Whether a text box holds only inline boxes that paint no frame, mark nothing and hold nothing themselves. */
+	private static boolean holdsNothing(final net.zamasoft.foliojet.layout.box.AbstractTextBox box) {
+		for (final Object content : box.getLogicalContents()) {
+			if (!(content instanceof net.zamasoft.foliojet.layout.box.AbstractTextBox.Inline inline)
+					|| !(inline.box instanceof InlineBox inlineBox) || inlineBox.getFrame().isVisible()
+					|| inlineBox.getInlineParams().frame.isVisible() || marksSomething(inlineBox)
+					|| !holdsNothing(inlineBox)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** Whether the element of an inline box has an id (a destination) or an href (a link annotation). */
+	private static boolean marksSomething(final InlineBox box) {
+		final net.zamasoft.foliojet.css.StructureElement element = box.getParams().element;
+		if (element == null) {
+			return false;
+		}
+		if (element.id() != null) {
+			return true;
+		}
+		final org.xml.sax.Attributes atts = element.atts();
+		if (atts != null) {
+			for (int i = 0; i < atts.getLength(); ++i) {
+				if ("href".equals(atts.getLocalName(i))) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	/**

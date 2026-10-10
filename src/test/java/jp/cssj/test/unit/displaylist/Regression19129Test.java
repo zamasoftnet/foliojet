@@ -16,11 +16,20 @@ import junit.framework.TestCase;
  * marked as having a definite size, so the next split carried the rest of the content's size on as the definite size,
  * page after page: the original document ran to 732 pages and failed at the page limit. The split goes on with what is
  * left of the floor.</li>
+ * <li>{@code float-continuation-blank-page} (2026-10-11, seed 11846535): a float of {@code width: 96pt} in vertical
+ * writing, holding one column of text, split 92+4pt at the page end. Its continuation keeps the other 4pt, and the empty
+ * line after the float (the end of an inline element) went down past it, 4pt into the body's text block. That block
+ * answered that it paints, by the end of its last line, and the second page, which paints nothing, was kept: a blank
+ * page. A line of no extent paints nothing wherever it sits.</li>
  * </ul>
  */
 public class Regression19129Test extends TestCase {
 	public void testFloatContinuationFloorEnds() throws Exception {
 		check("float-continuation-floor");
+	}
+
+	public void testEmptyFloatContinuationAddsNoPage() throws Exception {
+		check("float-continuation-blank-page");
 	}
 
 	private static void check(final String name) throws Exception {
