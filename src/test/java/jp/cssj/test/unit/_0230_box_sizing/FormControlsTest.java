@@ -13,7 +13,8 @@ import net.zamasoft.foliojet.layout.box.IBox;
  * Buttons and selects size their border box, as Chrome's UA does (2026-10-09;
  * files/unittest/0230-box-sizing/form-controls.html). A width: 100% select or submit button overflowed its box by its
  * padding and border. The expected sizes are Chrome 151's (in the comment of the HTML file); the select keeps its
- * height (one row plus its 4pt frame).
+ * height (one row plus its 4pt frame). The row is 10pt since controls take Chrome's 13.333px font (2026-10-10; Chrome
+ * 14.25pt high, 52.5pt for 4 rows, whose rows are taller than 1em there).
  */
 public class FormControlsTest extends AbstractTestCase {
 	private static final double EPSILON = 0.1;
@@ -54,16 +55,16 @@ public class FormControlsTest extends AbstractTestCase {
 		assertEquals("s6 width", 75, this.size("s6")[0], EPSILON);
 		assertEquals("s6 height", 30, this.size("s6")[1], EPSILON);
 		assertEquals("s7", 112.5, this.size("s7")[0], EPSILON);
-		// The select's height: one 12pt row and the frame
+		// The select's height: one 10pt row and the frame
 		for (final String id : new String[] { "s1", "s7", "s8", "s12", "s13" }) {
-			assertEquals(id + " height", 16, this.size(id)[1], EPSILON);
+			assertEquals(id + " height", 14, this.size(id)[1], EPSILON);
 		}
 		// The options after the first are not shown but count for the width
 		assertTrue("s12 wider than s13", this.size("s12")[0] > this.size("s13")[0] + 50);
 		// The selected option shows in the row of the first one, 1em high
 		assertEquals("o2 y", this.size("o1")[2], this.size("o2")[2], EPSILON);
-		assertEquals("o2 height", 12, this.size("o2")[1], EPSILON);
-		// A multiple select without size: 4 rows and the frame
+		assertEquals("o2 height", 10, this.size("o2")[1], EPSILON);
+		// A multiple select without size: 4 rows of 1.2em and the frame
 		assertEquals("s15 height", 4 * 12 + 4, this.size("s15")[1], EPSILON);
 	}
 }

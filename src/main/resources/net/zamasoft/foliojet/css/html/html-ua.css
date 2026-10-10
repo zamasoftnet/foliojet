@@ -387,8 +387,12 @@ table {
 	border-spacing: 2px;
 }
 
+/* Form controls take Chrome's small control font size, 13.333px (2026-10-10; font: -webkit-small-control in its UA
+   sheet). medium made buttons, fields and lists 16px, wider and taller than in Chrome. A textarea keeps its inherited
+   font: Chrome's is 13.333px monospace, and at 13.333px of the inherited family its width in ex and its rows in em
+   came out narrower and lower than Chrome's (rows=2: 24pt, Chrome 27pt, inherited 16px 28pt) */
 button, select {
-	font-size: medium;
+	font-size: 13.333333px;
 }
 
 /*
@@ -442,14 +446,23 @@ input[type=button][disabled], input[type=reset][disabled], input[type=submit][di
  * CSSで書くと :not() の連鎖になるため(一律 input にするとチェックボックスが
  * 20ex角になる——実際に踏んだ)。
  */
-input:not([type=button]):not([type=submit]):not([type=reset]):not([type=checkbox]):not([type=radio]):not([type=image]):not([type=hidden]),
+/* Chrome's width of a text field (2026-10-10): 0.525em a character of size and 2.375em more (its widest glyph beyond
+   the average), 132.75pt for size 20 at the 13.333px control font. A size takes its width in HTMLStyle, as attr() does
+   not go into calc(); 20ex made it 104pt at 13.333px */
+input:not([type=button]):not([type=submit]):not([type=reset]):not([type=checkbox]):not([type=radio]):not([type=image]):not([type=hidden]):not([type=color]):not([type=date]):not([type=time]):not([type=datetime-local]):not([type=month]):not([type=week]):not([type=range]),
 isindex {
-	-cssj-auto-width: 20ex;
+	-cssj-auto-width: 12.875em;
 }
-
-input[size]:not([type=button]):not([type=submit]):not([type=reset]):not([type=checkbox]):not([type=radio]):not([type=image]):not([type=hidden]) {
-	-cssj-auto-width: attr(size ex, 20ex);
-}
+/* The inputs that are no text fields keep to Chrome's widths, whatever size says (2026-10-10, at 13.333px: color 37.5,
+   date 87.25, time 55.5, datetime-local 123.25, month 108.25, week 102.25, range 96.75pt; number is 132.75pt as a
+   text field without size) */
+input[type=color] { -cssj-auto-width: 3.35em; }
+input[type=date] { -cssj-auto-width: 8.325em; }
+input[type=time] { -cssj-auto-width: 5.15em; }
+input[type=datetime-local] { -cssj-auto-width: 11.925em; }
+input[type=month] { -cssj-auto-width: 10.425em; }
+input[type=week] { -cssj-auto-width: 9.825em; }
+input[type=range] { -cssj-auto-width: 9.275em; }
 
 /* The natural width goes to -cssj-auto-width, as for input fields: width: auto computes to it, and a percentage
    width keeps it for the max-content size (cyclic percentage, 2026-10-09) */
@@ -596,7 +609,7 @@ iframe[align=middle] { vertical-align: middle; }
 iframe[align=bottom] { vertical-align: baseline; }
 
 /* 第9弾(2026-08-03): INPUT。type の既定(無い/未知は text)は :not() 連鎖で書く */
-input { font-size: medium; }
+input { font-size: 13.333333px; }
 input[type=hidden] { display: none; }
 
 input:not([type=button]):not([type=submit]):not([type=reset]):not([type=checkbox]):not([type=radio]):not([type=image]):not([type=hidden]):not([type=file]) {
@@ -811,6 +824,11 @@ select:not([size]):not([multiple]) option ~ optgroup option[selected] {
 select:not([size]):not([multiple]) { min-height: calc(1em + 4pt); }
 /* A list box shows its rows: the size attribute, or 4 for multiple (Chrome). It keeps the content box, as attr() does
    not go into calc() (2026-10-09; a multiple select without size showed one row until then) */
-select[size] { height: attr(size em, 1em); box-sizing: content-box; }
-select[multiple]:not([size]) { height: 4em; box-sizing: content-box; }
+select[size] { height: attr(size lh, 1lh); box-sizing: content-box; }
+select[multiple]:not([size]) { height: 4lh; box-sizing: content-box; }
+/* Its rows are a line of the normal height, whatever line-height the author gives the list or its options, as in
+   Chrome (2026-10-10: rows of 1em made 4 rows 44pt with the 13.333px control font, Chrome 52.5pt; with the author's
+   line-height: 100px they would have been 304pt) */
+select:is([size], [multiple]) { line-height: normal !important; }
+select:is([size], [multiple]) option { height: 1lh; line-height: normal !important; }
 select[disabled] { color: dimgray; background-color: lightgray; }

@@ -106,6 +106,14 @@ public class HTMLStyle {
 	}
 
 	private static final RelativeLengthValue EX_20 = RelativeLengthValue.ex(20);
+
+	/** The input types that keep their width whatever the size attribute says (Chrome; see html-ua.css). */
+	private static final java.util.Set<String> SIZELESS_INPUTS = java.util.Set.of("number", "color", "date", "time",
+			"datetime-local", "month", "week", "range");
+
+	/** The leading digits of an HTML non-negative integer, after white space and an optional plus sign. */
+	private static final java.util.regex.Pattern LEADING_INTEGER = java.util.regex.Pattern
+			.compile("[\\t\\n\\f\\r ]*\\+?([0-9]+)");
 	private static final ValueListValue WBR = new ValueListValue(new Value[] { new StringValue("\u200B") });
 	private static final ValueListValue OPEN_QUOTE = new ValueListValue(new Value[] { QuoteValue.OPEN_QUOTE_VALUE });
 	private static final ValueListValue CLOSE_QUOTE = new ValueListValue(new Value[] { QuoteValue.CLOSE_QUOTE_VALUE });
@@ -1013,6 +1021,29 @@ public class HTMLStyle {
 			case HTMLStyleUtils.INPUT_RADIO:
 				CSSJInternalImage.setImage(style, new RadioButtonImage(ce.atts.getValue("checked") != null,
 						ce.atts.getValue("disabled") != null));
+				break;
+			case HTMLStyleUtils.INPUT_TEXT:
+			case HTMLStyleUtils.INPUT_PASSWORD: {
+				// The width of a field with a size, as Chrome's (2026-10-10): 0.525em a character and 2.375em more (the
+				// default, size 20, and the widths of number, date, color and the like, which do not take a size, are in
+				// html-ua.css). The size is read as HTML reads a non-negative integer: its leading digits ("10px" is 10,
+				// "1.5" is 1), and 0 or none keeps the default
+				final String size = ce.atts.getValue("size");
+				final String inputType = ce.atts.getValue("type");
+				if (size != null && (inputType == null
+						|| !SIZELESS_INPUTS.contains(inputType.toLowerCase(java.util.Locale.ROOT)))) {
+					final java.util.regex.Matcher m = LEADING_INTEGER.matcher(size);
+					if (!m.lookingAt()) {
+						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "INPUT", "size", size);
+					} else {
+						final String digits = m.group(1).replaceFirst("^0+", "");
+						if (!digits.isEmpty() && digits.length() < 9) {
+							style.set(CSSJAutoWidth.INFO,
+									RelativeLengthValue.em(0.525 * Integer.parseInt(digits) + 2.375));
+						}
+					}
+				}
+			}
 				break;
 			default:
 				break;

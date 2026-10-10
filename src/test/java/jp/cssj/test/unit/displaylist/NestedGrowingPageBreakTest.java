@@ -40,7 +40,7 @@ public class NestedGrowingPageBreakTest extends TestCase {
 
 			<div style="float:left">
 
-			<input size="11" />
+			<input size="11" style="font-size:medium;width:66pt" />
 			<div style="display:grid;width:0pt;grid-template-columns:fit-content(0pt) minmax(0pt,1fr)">
 			<p><span style="display:inline-block;width:111pt;height:46pt"></span></p>
 
