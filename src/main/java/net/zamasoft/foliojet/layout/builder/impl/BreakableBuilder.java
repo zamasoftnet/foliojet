@@ -84,6 +84,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	protected boolean interflowBreak = true;
 
 	/**
+	 * Whether the resume of this page left it overflowing with the breaks off (2026-10-09, set by {@code RootBuilder}):
+	 * the closing box that breaks for the overflow keeps breaking until it fits, as a closing flex or grid does, since
+	 * nothing else may come to break the rest. That break uses it up; a box that fits or paints nothing leaves it to the
+	 * boxes closing after it. Every break clears it ({@link #beginBreak}), so it never reaches another page.
+	 */
+	protected boolean resumedOverflow = false;
+
+	/**
 	 * Nesting depth of relayout (resuming the remainder after a break).
 	 * When replayed content overflows the new page, another page break occurs inside resume.
 	 * With a boolean, completion of the inner resume would clear the outer resume context
@@ -1231,7 +1239,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		this.afterFlowBlockClosed();
 
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
-			final double pageLimit = closesColumnOwner ? this.getPageOwnerLimit() : this.getPageLimit();
+			double pageLimit = closesColumnOwner ? this.getPageOwnerLimit() : this.getPageLimit();
 			FlowBlockBox flowBox = (FlowBlockBox) flow.box;
 
 			final FlowPos pos = (FlowPos) flowBox.getPos();
@@ -1252,7 +1260,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// loop breaks blank-page suppression and existing fuzz behavior).
 				// Exit when autoBreak returns false (for example, abandonment by the progress guarantee guard),
 				// so the loop cannot run forever.
-				final boolean repeat = flowBox instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox;
+				final boolean repeat = flowBox instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox
+						|| this.resumedOverflow;
 				for (;;) {
 					final double pageAxis = this.pageAxis - (this.poLastMargin + this.neLastMargin);
 					if (LayoutUtils.compare(pageAxis, pageLimit) <= 0 || !this.paintsBeyondPage(flow, flowBox, pageLimit)) {
@@ -1262,11 +1271,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 						LOG.fine("page break [interflow]" + "/" + flowBox.getParams().element);
 					}
 					this.checkAbort();
+					this.resumedOverflow = false;
 					if (!this.autoBreak() || !repeat || this.flowStack.isEmpty()) {
 						// autoBreak can empty flowStack during a page break
 						// (observed in fuzzing: retrieving from the empty stack causes IndexOutOfBounds).
 						break;
 					}
+					// The limit of the page the remainder is on now (2026-10-10): left and right pages can differ.
+					pageLimit = closesColumnOwner ? this.getPageOwnerLimit() : this.getPageLimit();
 					// Retrieve the flow again after the page break (the split recreated it).
 					// **Retrieve the box again too** (2026-08-19): the trailing box after splitting is
 					// a continuation fragment (a different instance). The old reference (retained side)
@@ -1729,6 +1741,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		this.breakAfter = null;
 		this.canBreakBefore = false;
 		this.interflowBreak = false;
+		this.resumedOverflow = false;
 	}
 
 	/**

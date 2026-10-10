@@ -264,6 +264,17 @@ public final class StyleBoxEmitter {
 				&& length.getLength() == 0;
 	}
 
+	/**
+	 * Params of the block that replaces a floated flex or grid container (2026-10-10): the ones display: block gets, so
+	 * the element, the text settings and everything else are those of a block.
+	 */
+	private BlockParams fallbackBlockParams(final CSSStyle style) {
+		final BlockParams params = new BlockParams();
+		this.mapper.setupBlockParams(params, style, this.context.getCurrentStyle(), this.context.isInBody(),
+				this.pageSequence);
+		return params;
+	}
+
 	AbstractBlockBox createBlockBox(CSSStyle style, BlockParams params, byte position, byte display,
 			byte floating) {
 		final AbstractBlockBox blockBox;
@@ -728,7 +739,12 @@ public final class StyleBoxEmitter {
 							"display: flex",
 							net.zamasoft.foliojet.message.MessageCodeUtils.detail("2823.flex-not-in-flow"));
 				}
-				blockBox = this.createBlockBox(style, params, position, DisplayValue.BLOCK, floating);
+				// The block that replaces the container is set up as display: block sets it up (2026-10-10). With the
+				// flex params kept, the shrink-to-fit measurement of a float replayed its content in a flex container
+				// (the measure wrapper follows the params), where text directly inside opened an anonymous item that
+				// the recording never had, and the conversion failed (TwoPass NO_RANGE, A/B ff-e).
+				blockBox = this.createBlockBox(style, this.fallbackBlockParams(style), position, DisplayValue.BLOCK,
+						floating);
 			}
 			this.requireRoot(params.direction, params.flow, params.writingModeVariant);
 			this.sink.start(blockBox);
@@ -775,7 +791,9 @@ public final class StyleBoxEmitter {
 							"display: grid",
 							net.zamasoft.foliojet.message.MessageCodeUtils.detail("2823.grid-not-in-flow"));
 				}
-				blockBox = this.createBlockBox(style, params, position, DisplayValue.BLOCK, floating);
+				// Block params, as for a flex container that falls back (2026-10-10).
+				blockBox = this.createBlockBox(style, this.fallbackBlockParams(style), position, DisplayValue.BLOCK,
+						floating);
 			}
 			this.requireRoot(params.direction, params.flow, params.writingModeVariant);
 			this.sink.start(blockBox);
