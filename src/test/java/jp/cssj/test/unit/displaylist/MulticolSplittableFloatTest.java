@@ -102,6 +102,28 @@ public class MulticolSplittableFloatTest extends TestCase {
 		assertTrue(lines.get("L4")[1] != lines.get("L1")[1]);
 	}
 
+	/**
+	 * A float of an opposite-progression region in a multicol (Q in columns): the check Q added at the end of a page
+	 * resume runs at the end of a column resume too. T9 stayed in the second column at x=103.6 of a 60pt paper.
+	 */
+	public void testOppositeProgressionRegionInColumns() throws Exception {
+		final List<String> pages = convert("@page { size: 60pt 120pt; margin: 0 } body { margin: 0; "
+				+ "font: 7pt/1.2 serif; writing-mode: vertical-lr }", "<div style=\"column-count: 2; column-gap: 0\">"
+						+ "<div style=\"writing-mode: vertical-rl\"><div style=\"float: right\"><div style=\"width: 46pt; "
+						+ "background: #ccc\">T1</div>T8<div style=\"width: 56pt; background: #aaa\">T9</div>"
+						+ "<div style=\"width: 56pt; background: #888\">T10</div></div></div></div>");
+		final java.util.Set<String> seen = new java.util.HashSet<>();
+		for (int i = 0; i < pages.size(); ++i) {
+			final Matcher m = TEXT.matcher(pages.get(i));
+			while (m.find()) {
+				final double x = Double.parseDouble(m.group(1));
+				assertTrue(m.group(3) + " at x=" + x + " on page " + (i + 1), x >= 0 && x < 60);
+				assertTrue(m.group(3) + " twice", seen.add(m.group(3)));
+			}
+		}
+		assertEquals(seen.toString(), 4, seen.size());
+	}
+
 	private static final String SHORT = "@page { size: 300pt 100pt; margin: 0 } body { margin: 0; font: 8pt/10pt serif; "
 			+ "orphans: 1; widows: 1 } .c { columns: 2 }";
 

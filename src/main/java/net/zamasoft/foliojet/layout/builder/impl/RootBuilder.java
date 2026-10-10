@@ -504,6 +504,9 @@ public class RootBuilder extends BreakableBuilder {
 			final net.zamasoft.foliojet.layout.fragment.ColumnContinuation continuation) {
 		try (ColumnResumeSession session = new ColumnResumeSession(target, continuation)) {
 			session.resume();
+			// The column a resume fills can overflow as the page one can (2026-10-10): Q's float of an
+			// opposite-progression region in a multicol stayed in the second column past the paper.
+			target.markResumedOverflow();
 			assert !session.hasUnconsumedLeases() : "未消費の吸収済み再生範囲が残っています";
 		}
 	}
@@ -1335,18 +1338,7 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		}
 		this.endRestyling();
-		// A closed box carried here by the break (or its continuation) can overflow this page again, a float of an
-		// opposite-progression region that the region keeps in its own extent (2026-10-09, fit seed 12555259). When the
-		// resume also left the breaks off, no closing box would check that overflow: turn them on, and mark the page so
-		// that the closing box that breaks for it keeps breaking until the page fits. With the breaks on, the usual
-		// checks already break the rest. The next break clears the mark (beginBreak); a break nested in this resume
-		// may have set it already, for this same page, and it stays.
-		if (!(this.canBreakBefore && this.interflowBreak)
-				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(this.pageAxis, this.getPageLimit()) > 0) {
-			this.resumedOverflow = true;
-			this.canBreakBefore = true;
-			this.interflowBreak = true;
-		}
+		this.markResumedOverflow();
 		// Increment 5: if the owner's continuation did not receive the carry-over during replay (multi-column
 		// layout does not continue, another multi-column layout opened elsewhere, or nested continuation became
 		// ineligible), return it to the page host before laying out body text (codex review 2026-09-08 requirement 2).

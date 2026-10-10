@@ -1275,6 +1275,23 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
+	 * Called at the end of a resume (a page's, or a column's). A closed box carried here by the break (or its
+	 * continuation) can overflow this fragment again, a float of an opposite-progression region that the region keeps in
+	 * its own extent (2026-10-09, fit seed 12555259). When the resume also left the breaks off, no closing box would check
+	 * that overflow: turn them on, and mark the fragment so that the closing box that breaks for it keeps breaking until
+	 * the fragment fits. With the breaks on, the usual checks already break the rest. The next break clears the mark
+	 * (beginBreak); a break nested in this resume may have set it already, for this same fragment, and it stays.
+	 */
+	final void markResumedOverflow() {
+		if (!(this.canBreakBefore && this.interflowBreak)
+				&& LayoutUtils.compare(this.pageAxis, this.getPageLimit()) > 0) {
+			this.resumedOverflow = true;
+			this.canBreakBefore = true;
+			this.interflowBreak = true;
+		}
+	}
+
+	/**
 	 * Splits the floats reserved for a split at the fragment boundary ({@code breakFloats}), breaking until they fit or
 	 * no further fragment can be made. The root runs this when it closes a top-level block, and a multicol's
 	 * {@code ColumnBuilder} when balancing has rebuilt its columns (2026-10-10): its floats are placed in the band
