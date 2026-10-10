@@ -931,6 +931,31 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
+	 * A table's intrinsic size keyword as its size, margins included as in the column widths' sizes (2026-10-11): its
+	 * min-content or max-content, or for fit-content its auto width within its argument (a border box, the table's) or
+	 * the available size, percentage columns widening it as they do an auto table (Chrome: a 60px column of 25%
+	 * makes a fit-content table 240px wide, a max-content one 120px); NONE without one.
+	 */
+	private double resolveKeyword(final net.zamasoft.foliojet.layout.box.params.IntrinsicSize keyword,
+			final double minContent, final double maxContent, final double available, final double lineSize,
+			final double lineMargin, final double tableFrame) {
+		if (keyword == null) {
+			return LayoutUtils.NONE;
+		}
+		if (keyword.kind() != net.zamasoft.foliojet.layout.box.params.IntrinsicSize.Kind.FIT_CONTENT) {
+			return Math.max(minContent, keyword.resolve(minContent, maxContent, available));
+		}
+		double bound = available;
+		if (keyword.hasArgument()) {
+			final double argument = LayoutUtils.computeLength(keyword.argument(), lineSize);
+			if (!LayoutUtils.isNone(argument)) {
+				bound = argument + lineMargin;
+			}
+		}
+		return Math.max(minContent, this.columnWidths.usedLineSize(LayoutUtils.NONE, bound, tableFrame));
+	}
+
+	/**
 	 * Resolves table/column sizes and opens the anonymous block (P2-5 (a): bind stage 1).
 	 */
 	private TableShape resolveShape(final BlockBuilder builder) {
@@ -951,6 +976,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		double tableSize;
 		// Retain the upper bound after resolution so it also applies to auto-width tables (auto layout below).
 		double lineMaxSize;
+		// The numeric min-width and the line-axis margins, for clamping by intrinsic size keywords (auto layout below)
+		double lineMinSize, lineMargin;
 		final double tableFrame, lineBorderSpacing;
 		if (this.vertical) {
 			// Vertical writing
@@ -962,6 +989,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				tableSize = Math.min(maxSize, tableSize);
 			}
 			lineMaxSize = maxSize;
+			lineMinSize = minSize;
+			lineMargin = this.tableBox.getFrame().margin.getFrameHeight();
 			if (tableParams.size.getHeightType() != LengthType.AUTO) {
 				tableSize += this.tableBox.getFrame().margin.getFrameHeight();
 			}
@@ -977,6 +1006,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				tableSize = Math.min(maxSize, tableSize);
 			}
 			lineMaxSize = maxSize;
+			lineMinSize = minSize;
+			lineMargin = this.tableBox.getFrame().margin.getFrameWidth();
 			if (tableParams.size.getWidthType() != LengthType.AUTO) {
 				tableSize += this.tableBox.getFrame().margin.getFrameWidth();
 			}
@@ -1060,7 +1091,62 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			// fit-content (= this table's own shrink-to-fit) otherwise. Shrink-to-fit inside the stretched item left
 			// a 2-column-wide table at its content width. A flex item's width is its main size (flex: 1) or its cross
 			// size (stretched in a column), so the table fills it too.
-			final double specified = LayoutUtils.isNone(tableSize) && isItemTable(containerBox) ? available : tableSize;
+			double specified = LayoutUtils.isNone(tableSize) && isItemTable(containerBox) ? available : tableSize;
+			if (tableParams.flow.isVertical() == this.vertical && !isItemTable(containerBox)
+					&& (tableParams.intrinsicLine != null || tableParams.intrinsicMinLine != null
+							|| tableParams.intrinsicMaxLine != null)) {
+				// Intrinsic size keywords (2026-10-11): width, min-width and max-width of min-content, max-content or
+				// fit-content resolve against the table's own min-content and max-content, frame included, and
+				// fit-content within the containing block. They were ignored: a table with width: min-content took its
+				// max-content, and one with min-width: max-content and max-width: 40px wrapped its content at 40px
+				// (Chrome its max-content). A table that is a flex or grid item keeps the item's size as before: its
+				// item does not take the keywords, so a table wider than its item overlapped the next one.
+				final double fit = blockBox.getLineSize();
+				// The content sizes of the table: its captions' min-content floors them (as Chrome)
+				double minContent = this.columnWidths.minLineSize();
+				for (final Builder caption : this.topCaptions) {
+					minContent = Math.max(minContent, ((TwoPassBlockBuilder) caption).getIntrinsicSizes().minContent()
+							+ lineMargin);
+				}
+				for (final Builder caption : this.bottomCaptions) {
+					minContent = Math.max(minContent, ((TwoPassBlockBuilder) caption).getIntrinsicSizes().minContent()
+							+ lineMargin);
+				}
+				final double maxContent = Math.max(minContent, this.columnWidths.maxLineSize());
+				if (LayoutUtils.isNone(specified)) {
+					specified = this.resolveKeyword(tableParams.intrinsicLine, minContent, maxContent, fit, lineSize,
+							lineMargin, tableFrame);
+					if (!LayoutUtils.isNone(specified)) {
+						// Not cut at the containing block (a max-content table overflows it, as in Chrome), within a
+						// numeric max-width
+						available = Math.max(fit, specified);
+						if (!LayoutUtils.isNone(lineMaxSize)) {
+							available = Math.min(available, lineMaxSize);
+						}
+					}
+				}
+				// The used size, then max-width, then min-width (min wins; the numeric one too). As a limit, max-content
+				// takes in the widening for percentage columns (Chrome: max-width: max-content keeps a table with a 25%
+				// column of 60px at 240px, where width: max-content makes it 120px)
+				double used = this.columnWidths.usedLineSize(specified, available, tableFrame);
+				final double maxContentLimit = Math.max(maxContent,
+						this.columnWidths.usedLineSize(LayoutUtils.NONE, Math.max(fit, maxContent), tableFrame));
+				final double max = this.resolveKeyword(tableParams.intrinsicMaxLine, minContent, maxContentLimit, fit,
+						lineSize, lineMargin, tableFrame);
+				if (!LayoutUtils.isNone(max)) {
+					used = Math.min(used, max);
+				}
+				if (!LayoutUtils.isNone(lineMinSize)) {
+					used = Math.max(used, lineMinSize + lineMargin);
+				}
+				final double min = this.resolveKeyword(tableParams.intrinsicMinLine, minContent, maxContentLimit, fit,
+						lineSize, lineMargin, tableFrame);
+				if (!LayoutUtils.isNone(min)) {
+					used = Math.max(used, min);
+				}
+				specified = used;
+				available = Math.max(available, used);
+			}
 			final AutoColumnWidths.Sized sized = this.columnWidths.resolve(specified, available,
 					tableFrame, lineBorderSpacing, tableParams.borderCollapse == TableParams.BORDER_SEPARATE);
 			tableSize = sized.tableSize();

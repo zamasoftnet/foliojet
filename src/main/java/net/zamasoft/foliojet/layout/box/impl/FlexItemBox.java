@@ -194,6 +194,17 @@ public class FlexItemBox extends FlowBlockBox {
 		return this.insetBase;
 	}
 
+	/**
+	 * The percentage basis of the padding and margins of a box laid out in {@code containerBox} (2026-10-11): for the
+	 * element a neutral wrapper holds, the flex container's inner line size ({@link #insetBase}) once the item is
+	 * bound, the wrapper not being the element's containing block in Chrome; {@code lineSize} otherwise.
+	 */
+	public static double elementInsetBase(final net.zamasoft.foliojet.layout.box.AbstractContainerBox containerBox,
+			final double lineSize) {
+		return containerBox instanceof FlexItemBox item && item.isNeutralLineFill()
+				&& !net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(item.insetBase) ? item.insetBase : lineSize;
+	}
+
 	/** See {@link #pageBase}. */
 	public void setPageBase(final double pageBase) {
 		this.pageBase = pageBase;

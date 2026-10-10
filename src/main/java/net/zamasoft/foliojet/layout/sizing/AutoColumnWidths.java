@@ -49,26 +49,22 @@ public final class AutoColumnWidths {
 	public record Result(double[] mins, double[] specs, double[] desired, byte[] types, double minLineSize,
 			double maxLineSize) {
 		/**
-		 * Determines the table's used line-axis size and column widths (CSS 2.1 17.5.2.2
-		 * [Column widths influence the final table width as follows]).
-		 * Without a specified size, tries to expand for percentage columns based on the maximum line-axis size.
-		 * Clamps to the minimum/maximum table width, converts percentage specifications to absolute values
-		 * (mutating specs), and distributes column widths with ColumnDistribution.
+		 * The table's used line-axis size, including the frame, that {@link #resolve} distributes (CSS 2.1 17.5.2.2
+		 * [Column widths influence the final table width as follows]), without side effects. Without a specified
+		 * size, tries to expand for percentage columns based on the maximum line-axis size; clamps to the
+		 * minimum/maximum table width. Split from resolve (2026-10-11) so that a table's intrinsic min-width and
+		 * max-width clamp it before the columns are resolved once.
 		 *
 		 * @param specifiedLineSize Specified table size (LayoutUtils.NONE if absent)
 		 * @param maxTableSize      Maximum available table size
 		 * @param tableFrame        Table frame
-		 * @param lineBorderSpacing Border spacing along the line axis
-		 * @param separateBorders   True for separate borders
-		 * @return Table size and column widths
+		 * @return Table size
 		 */
-		public Sized resolve(final double specifiedLineSize, final double maxTableSize, final double tableFrame,
-				final double lineBorderSpacing, final boolean separateBorders) {
+		public double usedLineSize(final double specifiedLineSize, final double maxTableSize, final double tableFrame) {
 			final int columnCount = this.mins.length;
 			double tableSize = specifiedLineSize;
-			double[] columnSizes = new double[columnCount];
 			if (columnCount == 0) {
-				return new Sized(LayoutUtils.isNone(tableSize) ? 0 : tableSize, columnSizes);
+				return LayoutUtils.isNone(tableSize) ? 0 : tableSize;
 			}
 			if (LayoutUtils.isNone(tableSize)) {
 				tableSize = this.maxLineSize;
@@ -127,6 +123,29 @@ public final class AutoColumnWidths {
 			if (tableSize < this.minLineSize && (this.minLineSize <= maxTableSize
 					|| this.minLineSize > maxTableSize * MIN_OVERFLOW_TOLERANCE)) {
 				tableSize = this.minLineSize;
+			}
+			return tableSize;
+		}
+
+		/**
+		 * Determines the table's used line-axis size ({@link #usedLineSize}) and column widths. Converts percentage
+		 * specifications to absolute values (mutating specs, so call it once), and distributes column widths with
+		 * ColumnDistribution.
+		 *
+		 * @param specifiedLineSize Specified table size (LayoutUtils.NONE if absent)
+		 * @param maxTableSize      Maximum available table size
+		 * @param tableFrame        Table frame
+		 * @param lineBorderSpacing Border spacing along the line axis
+		 * @param separateBorders   True for separate borders
+		 * @return Table size and column widths
+		 */
+		public Sized resolve(final double specifiedLineSize, final double maxTableSize, final double tableFrame,
+				final double lineBorderSpacing, final boolean separateBorders) {
+			final int columnCount = this.mins.length;
+			final double tableSize = this.usedLineSize(specifiedLineSize, maxTableSize, tableFrame);
+			double[] columnSizes = new double[columnCount];
+			if (columnCount == 0) {
+				return new Sized(tableSize, columnSizes);
 			}
 			final double innerSize = tableSize - tableFrame;
 			// Calculate percentage widths.

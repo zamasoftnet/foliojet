@@ -679,8 +679,8 @@ public final class LayoutUtils {
 				&& containerBox == builder.getContextBox();
 		// The neutral wrapper of a flex item is not the element's containing block: its padding resolves against the
 		// flex container, as the wrapper's own insets do (2026-10-10)
-		final double insetBase = containerBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item
-				&& item.isNeutralLineFill() && !LayoutUtils.isNone(item.getInsetBase()) ? item.getInsetBase() : lineSize;
+		final double insetBase = net.zamasoft.foliojet.layout.box.impl.FlexItemBox.elementInsetBase(containerBox,
+				lineSize);
 		replacedBox.calculateFrame(insetBase);
 		if (params.flow.isVertical()) {
 			// Vertical writing

@@ -264,11 +264,14 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		//
 		// ■ Calculate padding
 		//
+		// The element a neutral flex wrapper holds resolves its margins against the flex container (2026-10-11)
+		final double insetBase = columnFootnote ? lineSize
+				: net.zamasoft.foliojet.layout.box.impl.FlexItemBox.elementInsetBase(containerBox, lineSize);
 		LayoutUtils.computePaddings(this.frame.padding, this.frame.frame.padding, lineSize);
 		//
 		// ■ Calculate margins
 		//
-		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineSize);
+		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, insetBase);
 
 		//
 		// ■ Calculate the line-axis size

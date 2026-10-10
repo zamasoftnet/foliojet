@@ -165,6 +165,7 @@ final class FlexItemContent {
 				insetBase);
 		net.zamasoft.foliojet.layout.util.LayoutUtils.computeMarginsAutoToZero(frame.margin, frame.frame.margin,
 				insetBase);
+		replica.setInsetBase(insetBase);
 		replica.setFlexMainSize(lineSize, replica.getBlockParams().flow.isVertical());
 		replica.applyAspectRatio(lineSize);
 		// The disposable copy is counted apart from the live flex scope, as table Pass B does: otherwise the

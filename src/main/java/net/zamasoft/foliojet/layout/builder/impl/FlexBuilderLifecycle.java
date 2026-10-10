@@ -35,7 +35,9 @@ public final class FlexBuilderLifecycle {
 				return false;
 			}
 			if (params.flexWrap != FlexWrap.NOWRAP
-					&& params.size.getLineType(params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+					&& params.size.getLineType(params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE
+					&& !(builder instanceof BlockBuilder block && params.intrinsicLine == null
+							&& lineKnownBeforeContent(block, params.flow))) {
 				return false;
 			}
 			return builder instanceof BlockBuilder || builder instanceof TwoPassBlockBuilder;
@@ -74,6 +76,42 @@ public final class FlexBuilderLifecycle {
 			return true;
 		}
 		return params.maxSize.getPageType(params.flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE;
+	}
+
+	/**
+	 * Whether the line size of a container just started in a block builder is known before its content (2026-10-11): the
+	 * boxes it is in, up to one with an absolute line size or the builder's root, are blocks of the same writing mode
+	 * that do not size themselves by their content. A flex or grid item, a table cell, a box with an intrinsic size
+	 * keyword (width: max-content, min-width: min-content, ...), or an inline-block, float or absolute box of auto
+	 * line size sizes it by its measured content, a wrapping column measured as one column (the content of such a box
+	 * is replayed into a block builder, too).
+	 */
+	private static boolean lineKnownBeforeContent(final BlockBuilder builder,
+			final net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
+		for (int i = builder.getFlowCount() - 2; i >= 0; --i) {
+			final net.zamasoft.foliojet.layout.box.AbstractContainerBox box = builder.getFlow(i).box;
+			if (box instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox
+					|| box instanceof net.zamasoft.foliojet.layout.box.impl.GridItemBox
+					|| box instanceof net.zamasoft.foliojet.layout.box.impl.TableCellBox) {
+				return false;
+			}
+			final net.zamasoft.foliojet.layout.box.params.BlockParams p = box.getBlockParams();
+			if (p.flow.isVertical() != flow.isVertical() || p.intrinsicLine != null || p.intrinsicMinLine != null
+					|| p.intrinsicMaxLine != null) {
+				return false;
+			}
+			final net.zamasoft.foliojet.layout.box.params.LengthType type = p.size.getLineType(flow);
+			if (type == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+				return true;
+			}
+			if (type == net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
+					&& (box instanceof net.zamasoft.foliojet.layout.box.impl.InlineBlockBox
+							|| box instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox
+							|| box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/** Starts a FlexBuilder (eligibility must already be checked). */

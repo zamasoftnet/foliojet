@@ -464,6 +464,9 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		// the direct child resolves its line-axis size as fill (auto) (2026-08-08: resolving percentages
 		// in both wrapper and child would apply them twice; see FlexItemBox).
 		final boolean neutralLineFill = containerBox instanceof FlexItemBox item && item.isNeutralLineFill();
+		// The neutral wrapper is not the element's containing block: its margins resolve against the flex container,
+		// as the flex algorithm counts them (2026-10-11)
+		final double insetBase = FlexItemBox.elementInsetBase(containerBox, lineSize);
 		if (this.params.flow.isVertical()) {
 			// Vertical-writing flow
 			this.specifiedPageAxis = this.size.getWidthType() == LengthType.ABSOLUTE
@@ -481,7 +484,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		//
 		// ■ Calculate margins
 		//
-		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, lineSize);
+		LayoutUtils.computeMarginsAutoToZero(this.frame.margin, this.frame.frame.margin, insetBase);
 
 		Insets margin = this.frame.frame.margin;
 		AbsoluteInsets amargin = this.frame.margin;
