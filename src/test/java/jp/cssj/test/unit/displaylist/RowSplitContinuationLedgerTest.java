@@ -313,7 +313,10 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 				<?jp.cssj.property name="output.page-width" value="60pt"?>
 				<?jp.cssj.property name="output.page-height" value="60pt"?>
 				<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-				<style>@page{margin:10pt}body{margin:0;font:normal 12pt/1.2 serif;writing-mode:vertical-lr}</style>
+				<style>@page{margin:10pt}body{margin:0;font:normal 12pt/1.2 serif;writing-mode:vertical-lr}
+				/* 2026-10-11: the inputs as this reproduction was reduced with, their natural width across the column (a
+				   vertical field now takes it along its inline axis, as in Chrome) */
+				input{width:128.75pt;-cssj-auto-width:auto}</style>
 				</head><body><table>
 				<thead><th>T181</th></thead>
 				<td>T223<div style="display:flex;flex-direction:row-reverse;flex-wrap:wrap-reverse;width:8em">

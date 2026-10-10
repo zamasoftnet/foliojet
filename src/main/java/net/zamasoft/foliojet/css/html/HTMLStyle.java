@@ -111,6 +111,23 @@ public class HTMLStyle {
 	private static final java.util.Set<String> SIZELESS_INPUTS = java.util.Set.of("number", "color", "date", "time",
 			"datetime-local", "month", "week", "range");
 
+	/**
+	 * A TEXTAREA's cols or rows as HTML reads a non-negative integer (its leading digits after white space and an
+	 * optional plus sign), 0 when there is none or it is 0 (2026-10-11).
+	 */
+	private static int positiveInteger(final UserAgent ua, final String value, final String name) {
+		if (value == null) {
+			return 0;
+		}
+		final java.util.regex.Matcher m = LEADING_INTEGER.matcher(value);
+		if (!m.lookingAt()) {
+			ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "TEXTAREA", name, value);
+			return 0;
+		}
+		final String digits = m.group(1).replaceFirst("^0+", "");
+		return digits.isEmpty() || digits.length() >= 9 ? 0 : Integer.parseInt(digits);
+	}
+
 	/** The leading digits of an HTML non-negative integer, after white space and an optional plus sign. */
 	private static final java.util.regex.Pattern LEADING_INTEGER = java.util.regex.Pattern
 			.compile("[\\t\\n\\f\\r ]*\\+?([0-9]+)");
@@ -1262,9 +1279,23 @@ public class HTMLStyle {
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
 		}
 			break;
-		case HTMLCodes.TEXTAREA:
-			// <TEXTAREA cols rows disabled wrap> was moved to html-ua.css.
-			// (2026-08-03)
+		case HTMLCodes.TEXTAREA: {
+			// <TEXTAREA cols rows disabled wrap> was moved to html-ua.css (2026-08-03). Its font is monospace, as
+			// Chrome's (2026-10-11; in Java, as for code: see html-ua.css), and cols give its width as Chrome's: 0.55em
+			// a column and 1.125em more (its scrollbar), and rows its block size, a line height each, both read as HTML
+			// reads a non-negative integer (rows="0" keeps the default, "3x" is 3); the defaults, 20 and 2, are in
+			// html-ua.css
+			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
+			final int cols = positiveInteger(ua, ce.atts.getValue("cols"), "cols");
+			if (cols > 0) {
+				style.set(CSSJAutoWidth.INFO, RelativeLengthValue.em(0.55 * cols + 1.125));
+			}
+			final int rows = positiveInteger(ua, ce.atts.getValue("rows"), "rows");
+			if (rows > 0) {
+				style.set(net.zamasoft.foliojet.css.impl.property.box.BlockSize.INFO,
+						RelativeLengthValue.of(net.zamasoft.foliojet.css.token.Unit.LH, rows));
+			}
+		}
 			break;
 		case HTMLCodes.UL:
 			// <UL type> was moved to html-ua.css (2026-08-03; testing the first character

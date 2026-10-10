@@ -902,9 +902,10 @@ final class BoxStyleMapper {
 		params.size = BoxValueUtils.toDimension(Width.get(style), Height.get(style));
 		params.minSize = BoxValueUtils.toMinDimension(MinWidth.get(style), MinHeight.get(style));
 		params.maxSize = BoxValueUtils.toDimension(MaxWidth.get(style), MaxHeight.get(style));
-		if (!params.flow.isVertical()) {
-			// A form control's natural width (-cssj-auto-width: input size, textarea cols), which width: auto computes to.
-			// Kept for a cyclic percentage width, which counts as it in max-content sizes (2026-10-09, CyclicPercent).
+		{
+			// A form control's natural inline size (-cssj-auto-width: input size, textarea cols), which an auto width (the
+			// height in vertical writing, 2026-10-11) computes to. Kept for a cyclic percentage, which counts as it in
+			// max-content sizes (2026-10-09, CyclicPercent).
 			if (net.zamasoft.foliojet.css.impl.property.internal.CSSJAutoWidth
 					.get(style) instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue natural) {
 				params.naturalLineSize = Math.max(0, natural.getLength());

@@ -388,11 +388,14 @@ table {
 }
 
 /* Form controls take Chrome's small control font size, 13.333px (2026-10-10; font: -webkit-small-control in its UA
-   sheet). medium made buttons, fields and lists 16px, wider and taller than in Chrome. A textarea keeps its inherited
-   font: Chrome's is 13.333px monospace, and at 13.333px of the inherited family its width in ex and its rows in em
-   came out narrower and lower than Chrome's (rows=2: 24pt, Chrome 27pt, inherited 16px 28pt) */
-button, select {
+   sheet). medium made buttons, fields and lists 16px, wider and taller than in Chrome. A textarea's is monospace
+   (HTMLStyle, as for code). The font shorthand of Chrome's sheet sets line-height: normal too: a button in a
+   line-height: 2 block was 25pt high, Chrome 15.75pt (2026-10-11). A select keeps its own line-height below */
+button, select, textarea {
 	font-size: 13.333333px;
+}
+button, input, textarea {
+	line-height: normal;
 }
 
 /*
@@ -465,11 +468,14 @@ input[type=week] { -cssj-auto-width: 9.825em; }
 input[type=range] { -cssj-auto-width: 9.275em; }
 
 /* The natural width goes to -cssj-auto-width, as for input fields: width: auto computes to it, and a percentage
-   width keeps it for the max-content size (cyclic percentage, 2026-10-09) */
+   width keeps it for the max-content size (cyclic percentage, 2026-10-09). Chrome's: 0.55em a column and 1.125em
+   more (its scrollbar), 20 columns by default; cols take their width in HTMLStyle, as attr() does not go into calc().
+   2 rows of the line height by default, on the block axis, and rows in HTMLStyle too (2026-10-11: Chrome 126 x 27pt;
+   20ex and 4em made it 124 x 52pt) */
 textarea {
 	display: inline-block;
-	-cssj-auto-width: 20ex;
-	height: 4em;
+	-cssj-auto-width: 12.125em;
+	block-size: 2lh;
 	background-color: white;
 	border: thin inset;
 	/* The HTML Standard's and Chrome's (2026-10-09; nowrap put the text on one line, beyond the box). The text beyond
@@ -587,8 +593,6 @@ pre[width] { width: attr(width px); }
 pre[wrap]  { white-space: pre-wrap; }
 
 /* TEXTAREA */
-textarea[cols] { -cssj-auto-width: attr(cols ex, 20ex); }
-textarea[rows] { height: attr(rows em); }
 textarea[disabled] { color: gray; }
 textarea { padding: 1pt; }
 textarea[wrap=off] { white-space: pre; overflow-wrap: normal; }

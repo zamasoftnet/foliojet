@@ -12,5 +12,5 @@ drawer z=0
   x=0.00 y=70.80 AbsoluteRectFrame[w=34.00 h=14.00]
   x=2.00 y=72.80 Text["OPT" asc=8.00 desc=2.00] clip=[1.00 71.80 32.00 12.00]
   x=16.00 y=72.80 AbsoluteRectFrame[w=16.00 h=10.00] clip=[1.00 71.80 32.00 12.00]
-  x=0.00 y=87.80 AbsoluteRectFrame[w=104.00 h=24.00]
-  x=2.00 y=89.80 Text["AREA" asc=9.00 desc=3.00] clip=[1.00 88.80 102.00 22.00]
+  x=0.00 y=87.80 AbsoluteRectFrame[w=125.25 h=28.00]
+  x=2.00 y=89.80 Text["AREA" asc=9.00 desc=3.00] clip=[1.00 88.80 123.25 26.00]
