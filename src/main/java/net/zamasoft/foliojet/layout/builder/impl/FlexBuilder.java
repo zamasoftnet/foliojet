@@ -135,6 +135,14 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		return this.openItemSource != null && this.openItemSource == box;
 	}
 
+	/**
+	 * The params of the elements held by neutral wrappers (2026-10-10). The wrapper takes the element's sizes, but the
+	 * element keeps its frame, which the item's contributions need. (Its overflow is left with it too: a wrapper's
+	 * automatic minimum stays the content's even for an element that clips, which Chrome lets shrink; taking that in
+	 * clipped the items of navigation bars whose other items Chrome hides and Copper does not.)
+	 */
+	private final java.util.Map<Object, BlockParams> neutralBlocks = new java.util.IdentityHashMap<>();
+
 	/** Params for a neutral item ({@link NeutralItemParams}). */
 	private BlockParams itemParams() {
 		return NeutralItemParams.of(this.flexBox.getFlexParams());
@@ -159,10 +167,16 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 * BlockParams passing on 2026-08-09: a replaced element's ReplacedParams is not BlockParams).
 	 */
 	public record NeutralTransfer(Dimension size, Dimension minSize, Dimension maxSize, BoxSizingMode boxSizing,
-			Insets margin, boolean replaced) {
+			Insets margin, boolean replaced, BlockParams block) {
+		/**
+		 * Takeover from a block (a button laid out as a flex container, say). The element's params go too (2026-10-10):
+		 * its intrinsic size keywords ({@code min-width: max-content} kept the element whole but left the wrapper free
+		 * to shrink, so the next item overlapped it: Primer's size buttons), and its frame, which stays with the
+		 * element inside the wrapper but counts in the item's contributions.
+		 */
 		public static NeutralTransfer of(final BlockParams p) {
 			return p == null ? null
-					: new NeutralTransfer(p.size, p.minSize, p.maxSize, p.boxSizing, p.frame.margin, false);
+					: new NeutralTransfer(p.size, p.minSize, p.maxSize, p.boxSizing, p.frame.margin, false, p);
 		}
 
 		/**
@@ -183,7 +197,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			// the next item overlapped an icon's margin-right (the svg icon of a button).
 			final double[] w = boxExtent(p, false), h = boxExtent(p, true);
 			return new NeutralTransfer(withBox(p.size, w, h), withBox(p.minSize, w, h), withBox(p.maxSize, w, h),
-					p.boxSizing, p.frame.margin, true);
+					p.boxSizing, p.frame.margin, true, null);
 		}
 
 		/**
@@ -280,6 +294,14 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				wrapper.maxSize = withAbsolutePage(wrapper.maxSize, authored.maxSize(), vertical);
 			}
 			wrapper.boxSizing = authored.boxSizing();
+			// The keywords of an element in the other writing mode size the wrapper's page axis (a vertical child's
+			// min-height: max-content is not a min-width), which the wrapper leaves to the element.
+			final BlockParams block = authored.block();
+			if (block != null && block.flow.isVertical() == vertical) {
+				wrapper.intrinsicLine = block.intrinsicLine;
+				wrapper.intrinsicMinLine = block.intrinsicMinLine;
+				wrapper.intrinsicMaxLine = block.intrinsicMaxLine;
+			}
 			// Auto margins absorb free space at the item (wrapper) level (§8.1),
 			// so take over only auto edges into the wrapper (2026-08-09: the real bug where
 			// a nested Bootstrap navbar .ml-auto container did not align to the right edge).
@@ -304,6 +326,9 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		final FlexItemBox itemBox = new FlexItemBox(wrapper, new FlowPos());
 		if (transfer) {
 			itemBox.markNeutralLineFill();
+			if (authored.block() != null) {
+				this.neutralBlocks.put(itemBox, authored.block());
+			}
 			if (authored.replaced() && this.flexBox.getFlexParams().flexDirection.isRow()) {
 				itemBox.markReplacedMainFill();
 			}
@@ -753,7 +778,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			final double maxContent = axis.mainIsLine ? item.sizes.maxContent()
 					: Double.isNaN(measured) ? item.sizes.minPage() : measured;
 			final double minMain;
-			if (axis.mainIsLine && p.intrinsicMinLine != null) {
+			if (axis.mainIsLine && this.ownLine(p, p.intrinsicMinLine) != null) {
 				// min-width: max-content and the like (2026-10-09): the item's own content size, in the box-sizing of
 				// min-width. It was 0, so a row shrank its items below their words (Primer's buttons).
 				final double inner = this.intrinsicMinMain(p, minContent, maxContent, axis);
@@ -1182,29 +1207,13 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		boolean columnInflated = false;
 		final boolean wrap = this.flexBox.getFlexParams().flexWrap.isWrap();
 		for (final FlexItemContent item : this.items) {
-			final BlockParams itemParams = item.itemBox.getBlockParams();
-			final RectFrame frame = itemParams.frame;
+			final RectFrame frame = item.itemBox.getBlockParams().frame;
 			final double extra = insetsLine(frame.margin, 0) + insetsLine(frame.padding, 0) + borderLine(frame);
-			// **Count dimensions declared by the item itself** (2026-08-05).
-			// Previously, only content dimensions were added, ignoring these declarations, so an empty
-			// item with `width:20pt` counted as 0. **Nested flex containers then had intrinsic
-			// sizes accounting only for text**. From outside, this made
-			// the main-axis free space negative, and default flex-shrink
-			// collapsed inner items to width 0: the cause of "children disappear in nested flex".
-			// Prioritize flex-basis as at bind time (FlexItemMetricsResolver).
-			final double declared = declaredLineBase(item);
-			double itemMin = item.sizes.minContent();
-			double itemMax = item.sizes.maxContent();
-			if (!Double.isNaN(declared)) {
-				final double outer = itemParams.boxSizing == BoxSizingMode.BORDER_BOX
-						? Math.max(declared, insetsLine(frame.padding, 0) + borderLine(frame))
-						: declared + insetsLine(frame.padding, 0) + borderLine(frame);
-				itemMin = Math.max(itemMin, outer - insetsLine(frame.padding, 0) - borderLine(frame));
-				itemMax = Math.max(itemMax, outer - insetsLine(frame.padding, 0) - borderLine(frame));
-			}
-			// With wrap, min is the "largest item" (each item can wrap to a new line); with nowrap, use the sum.
-			min = wrap ? Math.max(min, itemMin + extra) : min + itemMin + extra;
-			max += itemMax + extra;
+			final double[] contribution = this.lineContributions(item, true);
+			// With wrap, min is the "largest item" (each item can wrap to a new line), without the flex basis clamp
+			// (Chrome); with nowrap, use the sum.
+			min = wrap ? Math.max(min, contribution[2] + extra) : min + contribution[0] + extra;
+			max += contribution[1] + extra;
 			minPage = Math.max(minPage, item.sizes.minPage());
 			columnInflated |= item.sizes.columnInflated();
 		}
@@ -1215,7 +1224,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				min += gaps;
 			}
 		}
-		return new IntrinsicSizes(min, max, minPage, columnInflated);
+		return new IntrinsicSizes(min, Math.max(min, max), minPage, columnInflated);
 	}
 
 	/**
@@ -1229,21 +1238,11 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		double min = 0, max = 0, minPage = 0;
 		boolean columnInflated = false;
 		for (final FlexItemContent item : this.items) {
-			final BlockParams itemParams = item.itemBox.getBlockParams();
-			final RectFrame frame = itemParams.frame;
+			final RectFrame frame = item.itemBox.getBlockParams().frame;
 			final double extra = insetsLine(frame.margin, 0) + insetsLine(frame.padding, 0) + borderLine(frame);
-			double itemMin = item.sizes.minContent();
-			double itemMax = item.sizes.maxContent();
-			final double declared = lineValue(itemParams.size, 0);
-			if (!Double.isNaN(declared)) {
-				final double inner = itemParams.boxSizing == BoxSizingMode.BORDER_BOX
-						? Math.max(0, declared - insetsLine(frame.padding, 0) - borderLine(frame))
-						: declared;
-				itemMin = Math.max(itemMin, inner);
-				itemMax = Math.max(itemMax, inner);
-			}
-			min = Math.max(min, itemMin + extra);
-			max = Math.max(max, itemMax + extra);
+			final double[] contribution = this.lineContributions(item, false);
+			min = Math.max(min, contribution[0] + extra);
+			max = Math.max(max, contribution[1] + extra);
 			minPage += item.sizes.minPage();
 			columnInflated |= item.sizes.columnInflated();
 		}
@@ -1254,18 +1253,128 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
-	 * Line-axis base size <b>declared by the item itself</b> (NaN if indefinite).
-	 * Prioritize {@code flex-basis} over {@code width}, in the same order as
-	 * {@link FlexItemMetricsResolver}.
+	 * An item's min-content and max-content contributions to the container's line, inside its own frame (2026-10-10,
+	 * CSS Flexbox §9.9.1 as Chrome sizes them), and the min-content one without the flex basis clamp, which a wrapping
+	 * row takes. The item's content size, or its own width: an absolute length (2026-08-05: an empty item with
+	 * {@code width:20pt} counted as 0, nested flex containers measured only their text, and default flex-shrink
+	 * collapsed the inner items to width 0) or a keyword resolved against the content. In a row, a definite flex base
+	 * size caps it when the item cannot grow and floors it when it cannot shrink. Then max-width caps it and min-width
+	 * floors it (min wins): a keyword, an absolute length, or for an auto min-width in a row the automatic minimum
+	 * (§4.5) of an item whose overflow is visible. Until then the flex basis and the width only floored the
+	 * content size and neither max-width nor min-width counted: an item with {@code flex: 1 1 300px} asked 300px of the
+	 * container's min-content (Chrome asks its longest word), and a row of buttons with {@code min-width: max-content}
+	 * counted only their min-content, so the column holding them shrank below them (Primer's main column, by 113px).
+	 *
+	 * <p>
+	 * An element in a neutral wrapper (a flex or grid container, a table) keeps its frame inside the wrapper, whose
+	 * measured content is the element's margin box: its sizes, given for its box-sizing box, take that frame in.
+	 * </p>
 	 */
-	private double declaredLineBase(final FlexItemContent item) {
-		final net.zamasoft.foliojet.css.value.FlexBasisValue basis = item.spec.basis();
-		if (!basis.isAuto() && !basis.isContent()
-				&& basis.getSize() instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue length) {
-			// The percentage basis is the container inner size, unresolved at this stage, so do not count it.
-			return length.getLength();
+	private double[] lineContributions(final FlexItemContent item, final boolean row) {
+		final BlockParams p = item.itemBox.getBlockParams();
+		final BlockParams element = this.neutralBlocks.get(item.itemBox);
+		final double frame = insetsLine(p.frame.padding, 0) + borderLine(p.frame);
+		// What a length in the box-sizing box adds or takes off to compare with the content size
+		final double adjust = element == null
+				? (p.boxSizing == BoxSizingMode.BORDER_BOX ? -frame : 0)
+				: insetsLine(element.frame.margin, 0) + (element.boxSizing == BoxSizingMode.BORDER_BOX ? 0
+						: insetsLine(element.frame.padding, 0) + borderLine(element.frame));
+		final double minContent = item.sizes.minContent(), maxContent = item.sizes.maxContent();
+		final double[] width = this.lineSize(p, p.intrinsicLine, p.size, adjust, minContent, maxContent);
+		double low = Double.isNaN(width[0]) ? minContent : width[0];
+		double high = Double.isNaN(width[1]) ? maxContent : width[1];
+		double unclamped = low;
+		if (row) {
+			final double basis = this.absoluteBasis(item);
+			if (!Double.isNaN(basis)) {
+				final double inner = Math.max(0, basis + adjust);
+				if (item.spec.grow() == 0) {
+					low = Math.min(low, inner);
+					high = Math.min(high, inner);
+				}
+				if (item.spec.shrink() == 0) {
+					low = Math.max(low, inner);
+					high = Math.max(high, inner);
+				}
+			}
 		}
-		return lineValue(item.itemBox.getBlockParams().size, 0);
+		final double[] max = this.lineSize(p, p.intrinsicMaxLine, p.maxSize, adjust, minContent, maxContent);
+		if (!Double.isNaN(max[0])) {
+			low = Math.min(low, max[0]);
+			unclamped = Math.min(unclamped, max[0]);
+			high = Math.min(high, max[1]);
+		}
+		double[] min;
+		if (this.ownLine(p, p.intrinsicMinLine) == null
+				&& (this.flow().isVertical() ? item.spec.minHeightAuto() : item.spec.minWidthAuto())) {
+			// min-width: auto. In a row, the automatic minimum of an item whose overflow is visible: the content size
+			// suggestion (the min-content within max-width), or the width when it is smaller. Otherwise none.
+			double auto = Double.NaN;
+			if (row && p.overflow == net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE) {
+				auto = Double.isNaN(max[0]) ? minContent : Math.min(minContent, max[0]);
+				if (!Double.isNaN(width[0])) {
+					auto = Math.min(auto, width[0]);
+				}
+			}
+			min = new double[] { auto, auto };
+		} else {
+			min = this.lineSize(p, p.intrinsicMinLine, p.minSize, adjust, minContent, maxContent);
+		}
+		if (!Double.isNaN(min[0])) {
+			low = Math.max(low, min[0]);
+			unclamped = Math.max(unclamped, min[0]);
+			high = Math.max(high, min[1]);
+		}
+		return new double[] { Math.max(0, low), Math.max(0, high), Math.max(0, unclamped) };
+	}
+
+	/**
+	 * An item's width, min-width or max-width as sizes to compare with its content {for the min-content contribution,
+	 * for the max-content one}; NaN for none. A keyword is resolved against the content: fit-content is the min-content
+	 * for the min-content contribution and the max-content for the other (no space to fit, or all of it), unless its
+	 * argument bounds it. A length is in the box-sizing box, which {@code adjust} turns into the content's.
+	 */
+	private double[] lineSize(final BlockParams p, final net.zamasoft.foliojet.layout.box.params.IntrinsicSize keyword,
+			final Dimension size, final double adjust, final double minContent, final double maxContent) {
+		final net.zamasoft.foliojet.layout.box.params.IntrinsicSize own = this.ownLine(p, keyword);
+		if (own == null) {
+			final double length = this.absoluteLine(size);
+			final double v = Double.isNaN(length) ? Double.NaN : Math.max(0, length + adjust);
+			return new double[] { v, v };
+		}
+		double low = 0, high = Double.POSITIVE_INFINITY;
+		if (own.hasArgument()) {
+			final double argument = LayoutUtils.computeLength(own.argument(), 0);
+			if (!LayoutUtils.isNone(argument)) {
+				low = high = Math.max(0, argument + adjust);
+			}
+		}
+		return new double[] { own.resolve(minContent, maxContent, low), own.resolve(minContent, maxContent, high) };
+	}
+
+	/**
+	 * An intrinsic size keyword of an item (its min-width: max-content, say) when the item's own line is the
+	 * container's; null otherwise (a vertical item's keywords size its height, the container's page axis).
+	 */
+	private net.zamasoft.foliojet.layout.box.params.IntrinsicSize ownLine(final BlockParams p,
+			final net.zamasoft.foliojet.layout.box.params.IntrinsicSize keyword) {
+		return keyword != null && p.flow.isVertical() == this.flow().isVertical() ? keyword : null;
+	}
+
+	/** An absolute line-axis length of a Dimension; NaN for auto and percentages (unresolved while measuring). */
+	private double absoluteLine(final Dimension size) {
+		return size.getLineType(this.flow()) == LengthType.ABSOLUTE ? size.getLineLength(this.flow()) : Double.NaN;
+	}
+
+	/** The item's flex basis when it is an absolute length, or its absolute width for {@code flex-basis: auto}; else NaN. */
+	private double absoluteBasis(final FlexItemContent item) {
+		final net.zamasoft.foliojet.css.value.FlexBasisValue basis = item.spec.basis();
+		if (basis.isAuto()) {
+			return this.absoluteLine(item.itemBox.getBlockParams().size);
+		}
+		return !basis.isContent() && basis.getSize() instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue length
+				? length.getLength()
+				: Double.NaN;
 	}
 
 	/**
