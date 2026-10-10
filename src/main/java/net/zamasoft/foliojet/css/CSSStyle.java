@@ -386,6 +386,12 @@ public class CSSStyle {
 	 * once important, ignore subsequent NORMAL declarations.
 	 */
 	public void setCustomProperty(String name, List<CssToken> tokens, byte mode) {
+		if (tokens.size() == 1 && tokens.get(0) instanceof CssToken.Ident ident && ident.is("revert-layer")) {
+			// revert-layer restores the preceding layer's value: the declaration is ignored, as PropertySet does for
+			// ordinary properties, so an earlier value stays and an ignored declaration is not marked important
+			// (2026-10-10). This differs from Chrome only when the same layer has another declaration for the element.
+			return;
+		}
 		if (mode == MODE_IMPORTANT) {
 			if (this.importantCustomProperties == null) {
 				this.importantCustomProperties = new HashSet<String>();
@@ -407,8 +413,7 @@ public class CSSStyle {
 				}
 				return;
 			}
-		} else if (tokens.size() == 1 && tokens.get(0) instanceof CssToken.Ident ident
-				&& (ident.is("revert") || ident.is("revert-layer"))) {
+		} else if (tokens.size() == 1 && tokens.get(0) instanceof CssToken.Ident ident && ident.is("revert")) {
 			if (this.customProperties != null) {
 				this.customProperties.remove(name);
 			}

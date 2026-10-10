@@ -130,7 +130,7 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 						resolveLeaf(minMax.max, style)));
 			} else if (t instanceof RawAutoRepeat autoRepeat) {
 				double minLength = 0, minRatio = 0;
-				final List<GridTrackListValue.Extremum> minExtrema = new ArrayList<>();
+				final List<GridTrackListValue.Percentage> minExpressions = new ArrayList<>();
 				for (final Object min : autoRepeat.mins) {
 					if (min instanceof Double ratio) {
 						minRatio += ratio;
@@ -138,15 +138,14 @@ public class GridTemplateTracks extends AbstractPrimitivePropertyInfo {
 					}
 					final GridTrackListValue.TrackSize size = toTrackSize((Value) min, style);
 					if (size instanceof GridTrackListValue.Percentage calc) {
-						minRatio += calc.ratio();
-						minLength += calc.offset();
-						minExtrema.addAll(calc.extrema());
+						// Clamp each track's whole expression at layout, before summing (2026-10-10).
+						minExpressions.add(calc);
 					} else if (size instanceof GridTrackListValue.Fixed fixed) {
 						minLength += fixed.length();
 					}
 				}
 				tracks.add(new GridTrackListValue.AutoRepeat(resolveTracks(autoRepeat.unit, style),
-						autoRepeat.unitLineNames, minLength, minRatio, minExtrema, autoRepeat.fit));
+						autoRepeat.unitLineNames, minLength, minRatio, minExpressions, autoRepeat.fit));
 			} else {
 				tracks.add(toTrackSize((Value) t, style));
 			}

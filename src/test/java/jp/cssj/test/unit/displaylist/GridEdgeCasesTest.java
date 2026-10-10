@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -163,6 +164,104 @@ public class GridEdgeCasesTest extends TestCase {
 				.p { --y: 4; --z: 4 }
 				.g1 { --x: initial } .g2 { --y: inherit } .g3 { --z: unset }
 				""", grids);
+	}
+
+	/**
+	 * revert-layer in a custom property is ignored as for ordinary properties (2026-10-10): the earlier layer's value
+	 * stays, or the parent's when there is none. A lower-specificity declaration of the same layer also stays (70pt,
+	 * 80pt after an ignored !important): that is the approximation, Chrome rolls the whole layer back. revert takes
+	 * the parent's value everywhere, as in Chrome (the UA declares no custom property).
+	 */
+	public void testRevertCustomPropertyKeepsEarlierValue() throws Exception {
+		final Map<String, double[]> expected = Map.of("revert-layer", new double[] { 90, 20, 70, 80 },
+				"revert", new double[] { 20, 20, 20, 20 });
+		for (final String keyword : new String[] { "revert-layer", "revert" }) {
+			final String page = convert("custom-" + keyword, document("""
+					@page { size: 150pt 100pt; margin: 10pt }
+					body { --w: 20pt }
+					@layer base { .x { --w: 90pt } }
+					@layer override { .x { --w: %1$s } }
+					.inherited { --w: %1$s }
+					div.low { --w: %1$s } .low { --w: 70pt }
+					.important { --w: %1$s !important; --w: 80pt }
+					div { width: var(--w); height: 20pt; background: silver }
+					""".formatted(keyword), """
+					<div class="x">ABC</div><div class="inherited">DEF</div>
+					<div class="low">GHI</div><div class="important">JKL</div>
+					"""));
+			final List<double[]> frames = frames(page);
+			assertEquals(keyword + ": four boxes:\n" + page, 4, frames.size());
+			final double[] widths = expected.get(keyword);
+			for (int i = 0; i < widths.length; ++i) {
+				assertEquals(keyword + ": box " + i + " width", widths[i], frames.get(i)[2], 0.01);
+			}
+		}
+	}
+
+	/** Inherit/unset still replace earlier values with the parent's; initial still takes the fallback (2026-10-10). */
+	public void testCustomPropertyKeywordsReplaceEarlierValue() throws Exception {
+		final String page = convert("custom-keyword-earlier", document("""
+				@page { size: 150pt 100pt; margin: 10pt }
+				body { --w: 20pt }
+				@layer base { .x { --w: 90pt } }
+				@layer override {
+					.inherit { --w: inherit } .unset { --w: unset } .initial { --w: initial }
+				}
+				.x { width: var(--w, 30pt); height: 20pt; background: silver }
+				""", """
+				<div class="x inherit">A</div><div class="x unset">B</div><div class="x initial">C</div>
+				"""));
+		final List<double[]> frames = frames(page);
+		assertEquals("Three keyword boxes:\n" + page, 3, frames.size());
+		final double[] widths = { 20, 20, 30 };
+		for (int i = 0; i < widths.length; ++i) {
+			assertEquals("Keyword box " + i + " width", widths[i], frames.get(i)[2], 0.01);
+		}
+	}
+
+	/**
+	 * Clamp each auto-repeat track minimum before summing (2026-10-10): at 180pt, (-20pt, 50pt) fits three units,
+	 * hence six columns and two rows. A positive (20pt, 50pt) unit still fits twice (four columns, three rows).
+	 */
+	public void testAutoRepeatClampsEachTrackMinimum() throws Exception {
+		final String[] minima = { "min(calc(100% - 200pt), 20pt)", "calc(100% - 200pt)",
+				"min(calc(100% - 160pt), 20pt)" };
+		final double[][] columns = { { 0, 10, 60, 70, 120, 130 }, { 0, 10, 60, 70, 120, 130 }, { 0, 40, 90, 130 } };
+		final String letters = "ABCDEFGHIJKL";
+		final StringBuilder body = new StringBuilder("<div class=\"g\">");
+		for (int i = 0; i < letters.length(); ++i) {
+			body.append("<i>").append(letters.charAt(i)).append("</i>");
+		}
+		body.append("</div>");
+		for (final String repeat : new String[] { "auto-fill", "auto-fit" }) {
+			for (int i = 0; i < minima.length; ++i) {
+				final String name = repeat + "-minimum-" + i;
+				final List<String> pages = convertPages(name, document("""
+						@page { size: 200pt 120pt; margin: 10pt }
+						body { margin: 0; font: 6pt serif }
+						.g { display: grid; width: 180pt; grid-template-columns: repeat(%s, minmax(%s, 1fr) 50pt) }
+						""".formatted(repeat, minima[i]), body.toString()));
+				assertEquals(name + ": one page", 1, pages.size());
+				final String page = pages.get(0);
+				assertEquals(name + ": all twelve letters", 12L, TEXT.matcher(page).results().count());
+				final double left = x(page, "A");
+				for (int k = 0; k < letters.length(); ++k) {
+					final String letter = letters.substring(k, k + 1);
+					final int column = k % columns[i].length;
+					final int rowStart = k - column;
+					final double rowY = y(page, letters.substring(rowStart, rowStart + 1));
+					assertEquals(name + ": " + letter + " column", columns[i][column], x(page, letter) - left, 0.01);
+					assertEquals(name + ": " + letter + " row", rowY, y(page, letter), 0.01);
+					if (column == 0 && k > 0) {
+						assertTrue(name + ": next row", rowY > y(page, letters.substring(k - 1, k)));
+					}
+					assertTrue(name + ": " + letter + " inside page horizontally",
+							x(page, letter) >= 0 && x(page, letter) + 6 <= 200);
+					assertTrue(name + ": " + letter + " inside page vertically",
+							y(page, letter) >= 0 && y(page, letter) + 6 <= 120);
+				}
+			}
+		}
 	}
 
 	/**

@@ -190,24 +190,24 @@ public final class GridTrackListValue implements Value {
 	 * {@code repeat(auto-fill|auto-fit, <unit>)} (2026-08-29). At layout time, when the container
 	 * width is known, expands to as many repetitions as fit ({@code GridBuilder}).
 	 * The repetition count uses the <b>minimum width</b> of each unit track
-	 * (the min in {@code minmax(min, max)}: {@code unitMinLength} +
-	 * {@code unitMinRatio} × reference width). The expanded tracks themselves repeat
-	 * {@code unit} (minmax retains the existing approximation using its maximum side).
+	 * (the fixed min in {@code minmax(min, max)}, otherwise its fixed max).
+	 * Each calculated minimum is clamped at zero before summing (2026-10-10).
+	 * The expanded tracks themselves repeat {@code unit}, retaining both minmax bounds.
 	 *
 	 * @param unit          the track sequence for one repetition
 	 * @param unitLineNames line names within the unit (unit.size()+1 elements)
-	 * @param unitMinLength the absolute-length part of one repetition's minimum width (pt, excluding gaps)
-	 * @param unitMinRatio  the percentage part of one repetition's minimum width (a ratio to the reference width)
-	 * @param unitMinExtrema the min()/max() parts of one repetition's minimum width (2026-10-09)
+	 * @param unitMinLength the sum of nonnegative fixed track minima (pt, excluding gaps)
+	 * @param unitMinRatio  the sum of nonnegative plain percentage track minima (a ratio to the reference width)
+	 * @param unitMinExpressions calculated track minima, kept separately until the reference width is known
 	 * @param fit           whether this is auto-fit (collapses trailing tracks without items)
 	 */
 	public record AutoRepeat(List<TrackSize> unit, List<List<String>> unitLineNames, double unitMinLength,
-			double unitMinRatio, List<Extremum> unitMinExtrema, boolean fit) implements TrackSize {
+			double unitMinRatio, List<Percentage> unitMinExpressions, boolean fit) implements TrackSize {
 		public AutoRepeat {
-			unitMinExtrema = List.copyOf(unitMinExtrema);
+			unitMinExpressions = List.copyOf(unitMinExpressions);
 		}
 
-		/** Without min()/max() in the unit's minimum. */
+		/** Without calculated track minima. */
 		public AutoRepeat(final List<TrackSize> unit, final List<List<String>> unitLineNames, final double unitMinLength,
 				final double unitMinRatio, final boolean fit) {
 			this(unit, unitLineNames, unitMinLength, unitMinRatio, List.of(), fit);
@@ -216,8 +216,8 @@ public final class GridTrackListValue implements Value {
 		/** The unit's minimum against {@code reference} (the count of repetitions comes from it). */
 		public double unitMin(final double reference) {
 			double min = this.unitMinLength + this.unitMinRatio * reference;
-			for (final Extremum extremum : this.unitMinExtrema) {
-				min += extremum.raw(reference);
+			for (final Percentage expression : this.unitMinExpressions) {
+				min += expression.resolve(reference);
 			}
 			return min;
 		}
