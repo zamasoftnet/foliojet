@@ -449,10 +449,13 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		if (crossesByPaint && boundary == 0 && (flags & IPageBreakableBox.FLAGS_FIRST) != 0 && !anyBelow) {
 			// Nothing left the items: their content past the cut line is one piece that does not break (materialui:
 			// an anonymous item laid out again at another width came to 11974pt of one tall line). The fragment stays
-			// whole as before instead of carrying an empty remainder to a page of its own (2026-10-09).
+			// whole as before instead of carrying an empty remainder to a page of its own (2026-10-09). An item the probe
+			// split has moved content out, though what it paints may not shrink (a float overflowing it): kept whole, its
+			// remainder was dropped with its content (2026-10-10, 19127, seed 11500164).
 			boolean moved = false;
 			for (int k = 0; k < boundaryItems.length && !moved; ++k) {
-				moved = LayoutUtils.compare(boundaryItems[k].paintedPageExtent(flow), prePainted[k]) < 0;
+				moved = probed[k] instanceof SplitResult.Split
+						|| LayoutUtils.compare(boundaryItems[k].paintedPageExtent(flow), prePainted[k]) < 0;
 			}
 			if (!moved) {
 				return SplitResult.KEEP;

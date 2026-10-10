@@ -104,6 +104,8 @@ public class RootBuilder extends BreakableBuilder {
 		++this.emittedTableFragments;
 	}
 	private int stalledBreakRun = 0;
+	/** The resume depth ({@code sessions}) at the last automatic page break the guard saw (2026-10-10). */
+	private int lastGuardSessions = Integer.MAX_VALUE;
 	/** Automatic page-break termination state for scratch builders without a LayoutSource. */
 	private boolean autoBreaksAbandoned = false;
 
@@ -117,6 +119,7 @@ public class RootBuilder extends BreakableBuilder {
 		this.stalledBreakRun = 0;
 		this.floatCarry = 0;
 		this.lastFloatCarry = Double.NaN;
+		this.lastGuardSessions = Integer.MAX_VALUE;
 		this.breakFingerprintCounts.clear();
 		this.depthFreeBreakCounts.clear();
 		this.clearNestedGrowth();
@@ -180,8 +183,13 @@ public class RootBuilder extends BreakableBuilder {
 		// finishes each page's resumption before proceeding to the next identical page break;
 		// resetting there would miss a livelock that the previous detection caught.
 		final double carry = this.floatCarry;
-		final boolean floatsConsumed = !Double.isNaN(this.lastFloatCarry)
+		// Not when this break is nested deeper in resumes than the last one (2026-10-10, 19127): such a break recurses,
+		// and counting its float carry as progress let it recurse until the stack overflowed (seed 11535244). A break at
+		// the same depth, as in the resume of a column break, still counts.
+		final boolean floatsConsumed = this.sessions.size() <= this.lastGuardSessions
+				&& !Double.isNaN(this.lastFloatCarry)
 				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(carry, this.lastFloatCarry - 1) < 0;
+		this.lastGuardSessions = this.sessions.size();
 		this.floatCarry = 0;
 		this.lastFloatCarry = carry;
 		if (ingest != this.breakHistoryIngest || this.boundTableRows != this.breakHistoryTableRows
