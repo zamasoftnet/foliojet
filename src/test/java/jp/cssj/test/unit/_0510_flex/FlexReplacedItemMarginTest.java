@@ -313,6 +313,13 @@ public class FlexReplacedItemMarginTest extends TestCase {
 		assertTrue(page, f.find());
 		assertEquals("width=\"100%\" height=\"250\": width\n" + page, 300, Double.parseDouble(f.group(1)), 0.01);
 		assertEquals("width=\"100%\" height=\"250\": height", 187.5, Double.parseDouble(f.group(2)), 0.01);
+		// An inherited width is the parent's, here from its inline-size (Chrome 22.5 x 60; codex, 2026-10-11)
+		final String inherited = convert("<div style=\"inline-size: 30px\"><svg width=\"160\" height=\"80\""
+				+ " style=\"width: inherit; background: red\"><rect width=\"32\" height=\"32\"/></svg></div>");
+		final Matcher g = frame.matcher(inherited);
+		assertTrue(inherited, g.find());
+		assertEquals("width: inherit\n" + inherited, 22.5, Double.parseDouble(g.group(1)), 0.01);
+		assertEquals("width: inherit: height", 60, Double.parseDouble(g.group(2)), 0.01);
 	}
 
 	private static final String QA ="<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>"

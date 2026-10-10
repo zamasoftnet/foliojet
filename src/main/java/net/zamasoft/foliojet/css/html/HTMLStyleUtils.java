@@ -218,6 +218,11 @@ public final class HTMLStyleUtils {
 			// inline-size: 30px lands on the width (codex, 2026-10-11)
 			return false;
 		}
+		if (style.isDeclaredInherit(height ? Height.INFO : Width.INFO) || style.isDeclaredInherit(logical)) {
+			// An inherited size is the parent's, which may come from the other property of the pair (width: inherit
+			// under inline-size: 30px is 30px; codex, 2026-10-11)
+			return false;
+		}
 		return style.get(height ? Height.INFO : Width.INFO) == net.zamasoft.foliojet.css.value.KeywordValue.AUTO;
 	}
 
@@ -226,7 +231,9 @@ public final class HTMLStyleUtils {
 			return false;
 		}
 		try {
-			return !HTMLStyleUtils.parseLength(ua, value).isNegative();
+			// A zero gives no ratio (width="0": Chrome keeps the width 0; codex, 2026-10-11)
+			final QuantityValue length = HTMLStyleUtils.parseLength(ua, value);
+			return !length.isNegative() && !length.isZero();
 		} catch (Exception e) {
 			return false;
 		}
