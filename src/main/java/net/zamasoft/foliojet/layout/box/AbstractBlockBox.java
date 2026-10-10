@@ -470,6 +470,12 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		return this.splitPageState(contentLimit, ownerExtent, columnSpanning, false);
 	}
 
+	/**
+	 * The page-axis size a continuation fragment took from what its split left of a definite size or min-size, or NaN
+	 * (2026-10-10, set by {@code AbstractStaticBlockBox.continuePageAxis}). Its content may grow it beyond.
+	 */
+	protected double continuedPageAxis = Double.NaN;
+
 	private net.zamasoft.foliojet.layout.fragment.FragmentState splitPageState(final double pageLimit,
 			final boolean columnSpanning, final boolean preserveSpecifiedPageSize) {
 		return this.splitPageState(pageLimit, pageLimit, columnSpanning, preserveSpecifiedPageSize);
@@ -515,10 +521,16 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 							minSize.getWidthRatio(), resolved, 0, minSize.getWidthType(),
 							net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE);
 		}
+		// The rest of a definite size that a float's continuation keeps is a floor its content may outgrow
+		// (continuePageAxis): the next split goes on with what is left of that floor, not of the content (2026-10-10,
+		// sweep seed 11599998: a float of width: 0pt in vertical writing grew to its content, 538pt, and each page
+		// carried the rest of that on as a definite width, 732 pages).
+		final double extent = vertical ? this.width : this.height;
 		final net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
 				.of(this.params.flow, columnSpanning, this.frame, this.size,
-						minSize, vertical ? this.width : this.height, contentLimit, ownerExtent,
-						this.container.getContentSize(), this.isSpecifiedPageSize(), preserveSpecifiedPageSize);
+						minSize, Double.isNaN(this.continuedPageAxis) ? extent : Math.min(extent, this.continuedPageAxis),
+						contentLimit, ownerExtent, this.container.getContentSize(), this.isSpecifiedPageSize(),
+						preserveSpecifiedPageSize);
 		if (vertical) {
 			this.width = state.prevPageExtent();
 		} else {

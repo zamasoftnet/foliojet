@@ -138,6 +138,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			this.specifiedPageAxis = true;
 		}
 		this.minPageAxis = extent;
+		this.continuedPageAxis = extent;
 		if (flow.isVertical()) {
 			this.width = extent;
 		} else {
