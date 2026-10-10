@@ -610,6 +610,19 @@ public class FlowContainer implements Container {
 
 	@Override
 	public double balancePageSizeFloor() {
+		return this.balanceExtent(false);
+	}
+
+	/**
+	 * The page-axis end of the floats in this multicol's content, its own and those of the blocks it holds (2026-10-10):
+	 * balancing counts them, as it counts the flows.
+	 */
+	public double floatPageEnd() {
+		return this.balanceExtent(true);
+	}
+
+	/** {@link #balancePageSizeFloor}, or with {@code floats} {@link #floatPageEnd}. */
+	private double balanceExtent(final boolean floats) {
 		if (this.flows == null && this.floatings == null) {
 			return 0;
 		}
@@ -645,7 +658,7 @@ public class FlowContainer implements Container {
 				for (int i = 0; i < container.floatings.getCount(); ++i) {
 					final Floating floating = container.floatings.getFloating(i);
 					final BoxType type = floating.box.getType();
-					if (type == BoxType.REPLACED || type == BoxType.RESCUE || (type == BoxType.BLOCK
+					if (floats || type == BoxType.REPLACED || type == BoxType.RESCUE || (type == BoxType.BLOCK
 							&& ((AbstractContainerBox) floating.box).getBlockParams().flow != outer)) {
 						floor = Math.max(floor, offset + floating.pageAxis + floating.box.getPageExtent(outer));
 					}
@@ -662,7 +675,9 @@ public class FlowContainer implements Container {
 				final FlowBlockBox block = (FlowBlockBox) f.box;
 				if (net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(outer,
 						block.getBlockParams().flow)) {
-					floor = Math.max(floor, offset + f.pageAxis + f.box.getPageExtent(outer));
+					if (!floats) {
+						floor = Math.max(floor, offset + f.pageAxis + f.box.getPageExtent(outer));
+					}
 				} else if (block.getContainer() instanceof FlowContainer inner) {
 					containers.push(inner);
 					offsets.push(offset + f.pageAxis + block.getFrame().getFramePageStart(outer));
@@ -1528,6 +1543,18 @@ public class FlowContainer implements Container {
 				// TREAT_AS_MOVE, conversion to Move by pulling, is a prime example of a Probe not being final placement.
 				switch (FlowCutter.resolveKeep(i, lastOrphan, xflags)) {
 				case KEEP_ALL:
+					if (!openTailSelected && this.floatings != null
+							&& (innerFlags & IPageBreakableBox.FLAGS_FLOAT_CROSSES) != 0
+							&& !net.zamasoft.foliojet.layout.fragment.OpenBoxes
+									.isOpen(((Flow) this.flows.get(this.flows.size() - 1)).box)) {
+						// The flows fit but a float crosses the cut (2026-10-10): split the floats and keep the owner, as
+						// when the cut lies past the box (PreDecision.KeepFloats). A column holds its floats in a box as
+						// tall as the column, which they overflow: kept whole, a float taller than the column stayed in
+						// it past the paper when the column also held a line of text. Not while the last flow is open (the
+						// plan selects it, or it is a nested multicol being closed): it goes on in the next fragment, which
+						// keeping the owner would leave without it (see openTailSelected).
+						return plain(this.splitFloatingsKeepingOwner(prevPageSize, flags));
+					}
 					return plain(null);
 				case EXAMINE_NEXT:
 					continue;

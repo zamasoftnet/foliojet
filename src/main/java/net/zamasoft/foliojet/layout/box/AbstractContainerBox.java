@@ -326,6 +326,17 @@ public abstract class AbstractContainerBox extends AbstractBox
 				: 0;
 	}
 
+	/** Whether columns of {@code pageSize} fit in the room left on the page (or the column) the builder is filling. */
+	private boolean fitsInPage(final BlockBuilder builder, final double pageSize) {
+		if (!(builder instanceof net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder paged)
+				|| paged.getPageContext() == null) {
+			return true;
+		}
+		final double room = paged.getPageLimit() - builder.getPageAxis()
+				- this.getFrame().getFramePageStart(this.getBlockParams().flow);
+		return LayoutUtils.compare(pageSize, room) <= 0;
+	}
+
 	public final void balance(final BlockBuilder builder) {
 		final Container oldCont = this.container;
 
@@ -341,7 +352,16 @@ public abstract class AbstractContainerBox extends AbstractBox
 		} else {
 			// Simulate actual cuts at the single stack's rounded-down boundaries and search
 			// for the minimum capacity that fits all columns (M5-B).
-			pageSize = ColumnBalancer.balance(oldCont::getCutPointBelow, oldCont.getContentSize(), columnCount);
+			// The floats count too (2026-10-10): balanced on its flows alone, a multicol holding a float got columns
+			// shorter than the float, or none at all when the float was all it held.
+			// Past the flows a float can be cut anywhere.
+			final double content = oldCont.getContentSize();
+			double total = content;
+			if (oldCont instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer flows) {
+				total = Math.max(total, flows.floatPageEnd());
+			}
+			pageSize = ColumnBalancer.balance(
+					position -> position >= content ? position : oldCont.getCutPointBelow(position), total, columnCount);
 		}
 		// Atomic children on the same axis with reverse progression cannot split at column boundaries.
 		// Prefer the floor over ColumnBalancer's approximation that assumes progress to the proposed
@@ -384,6 +404,13 @@ public abstract class AbstractContainerBox extends AbstractBox
 							root.getPageGenerator());
 			if (!replayed) {
 				oldCont.restyle(columnBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, true);
+			}
+			// Split the floats a column cannot hold over the next columns (2026-10-10). Only when the columns fit in what
+			// is left of the page: a multicol that does not moves on or is split as a whole by the page break that its
+			// close checks for, which columns already broken here would refuse (fuzz-repro
+			// multicol-float-after-overwide-box), and it is balanced again where it goes.
+			if (this.fitsInPage(builder, pageSize)) {
+				columnBuilder.splitReservedFloats();
 			}
 		}
 	}

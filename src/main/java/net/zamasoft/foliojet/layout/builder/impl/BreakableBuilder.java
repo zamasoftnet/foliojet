@@ -1191,31 +1191,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 			// Split floating boxes inside the root box.
 			if (this.flowStack.size() == 1) {
-				while (!this.breakFloats.isEmpty()) {
-					this.checkAbort();
-					if (!this.canFragmentFurther()) {
-						// No more fragments can be created (multi-column layout exhausted its columns).
-						// Exiting without clearing reservations causes an **infinite loop**
-						// (only beginBreak() clears breakFloats).
-						// Leave floats in the last column and let them overflow.
-						// (2026-07-28)
-						this.breakFloats.clear();
-						break;
-					}
-					if (LOG.isLoggable(Level.FINE)) {
-						LOG.fine("page break [floats]");
-					}
-					// Extend the height to ensure a split.
-					this.pageAxis = this.getPageLimit() + 1;
-					this.autoBreak();
-					if (this.textBuilder != null) {
-						// If a split float still overflows the next fragment, continuation replay
-						// opens a text block and reserves breakFloats again.
-						// The next loop iteration again breaks the column at a block boundary,
-						// so close it immediately after each split, as in breakByClear().
-						this.endTextBlock();
-					}
-				}
+				this.splitReservedFloats();
 			}
 
 			// Retrieve the flow object after the page break.
@@ -1294,6 +1270,41 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			// above).
 			if (this.mode == MODE_PAGE_BREAK) {
 				this.applyBreakAfter(pos.pageBreakAfter);
+			}
+		}
+	}
+
+	/**
+	 * Splits the floats reserved for a split at the fragment boundary ({@code breakFloats}), breaking until they fit or
+	 * no further fragment can be made. The root runs this when it closes a top-level block, and a multicol's
+	 * {@code ColumnBuilder} when balancing has rebuilt its columns (2026-10-10): its floats are placed in the band
+	 * before the columns exist and classified only there, against the column, and nothing ran the reservation, so a
+	 * float taller than a column stayed whole and ran past the paper.
+	 */
+	public final void splitReservedFloats() {
+		while (!this.breakFloats.isEmpty()) {
+			this.checkAbort();
+			if (!this.canFragmentFurther()) {
+				// No more fragments can be created (multi-column layout exhausted its columns).
+				// Exiting without clearing reservations causes an **infinite loop**
+				// (only beginBreak() clears breakFloats).
+				// Leave floats in the last column and let them overflow.
+				// (2026-07-28)
+				this.breakFloats.clear();
+				break;
+			}
+			if (LOG.isLoggable(Level.FINE)) {
+				LOG.fine("page break [floats]");
+			}
+			// Extend the height to ensure a split.
+			this.pageAxis = this.getPageLimit() + 1;
+			this.autoBreak();
+			if (this.textBuilder != null) {
+				// If a split float still overflows the next fragment, continuation replay
+				// opens a text block and reserves breakFloats again.
+				// The next loop iteration again breaks the column at a block boundary,
+				// so close it immediately after each split, as in breakByClear().
+				this.endTextBlock();
 			}
 		}
 	}
