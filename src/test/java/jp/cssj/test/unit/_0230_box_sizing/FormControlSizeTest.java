@@ -117,6 +117,27 @@ public class FormControlSizeTest extends TestCase {
 		assertEquals("a child's width: inherit", 75, f.get(f.size() - 1)[0], EPSILON);
 	}
 
+	/**
+	 * The author's ::before and ::after of an input or a textarea are not drawn, as in Chrome (repro/fs/fs5.html): an
+	 * input keeps its value and size, a textarea its size; in a running element too.
+	 */
+	public void testNoAuthorPseudo() throws Exception {
+		final String style = "<style>#a::after, #b::after { content: \"AFTER\"; display: block; height: 100pt }</style>";
+		final List<double[]> plain = frames("<div><input value=\"v\" /></div><div><textarea>x</textarea></div>");
+		final List<double[]> f = frames(style + "<div><input id=\"a\" value=\"v\" /></div><div><textarea id=\"b\">x"
+				+ "</textarea></div>");
+		assertSize("the input", f.get(0), plain.get(0)[0], plain.get(0)[1]);
+		assertSize("the textarea", f.get(1), plain.get(1)[0], plain.get(1)[1]);
+		final String page = page("<style>@page { @top-center { content: element(hdr) } } #c::after { content: \"AFTER\" }"
+				+ "</style><div style=\"position: running(hdr)\"><input id=\"c\" value=\"vv\" /></div><p>body</p>");
+		assertTrue("the running input's value: " + page, page.contains("Text[\"vv"));
+		assertFalse("the running input's ::after: " + page, page.contains("AFTER"));
+		// Chrome draws them on a date input (fs7.html)
+		final String date = page("<style>#d::before { content: \"DATEB\" }</style>"
+				+ "<div><input id=\"d\" type=\"date\" /></div>");
+		assertTrue("a date input's ::before: " + date, date.contains("DATEB"));
+	}
+
 	public void testVertical() throws Exception {
 		final List<double[]> f = frames("<div><textarea rows=\"2\" cols=\"20\" style=\"writing-mode: vertical-rl\">"
 				+ "</textarea></div><div><input style=\"writing-mode: vertical-rl\" /></div>"
@@ -132,6 +153,21 @@ public class FormControlSizeTest extends TestCase {
 	}
 
 	private static List<double[]> frames(final String body) throws Exception {
+		final String page = page(body);
+		final List<double[]> frames = new ArrayList<>();
+		for (final String line : page.split("\n")) {
+			// The frames of the controls: not the page's (at a negative x), nor the clipped inner ones
+			final Matcher m = FRAME.matcher(line);
+			if (m.find() && Double.parseDouble(m.group(1)) >= 0 && !line.contains("clip=")) {
+				frames.add(new double[] { Double.parseDouble(m.group(2)), Double.parseDouble(m.group(3)) });
+			}
+		}
+		assertFalse(page, frames.isEmpty());
+		return frames;
+	}
+
+	/** The display list of page 1. */
+	private static String page(final String body) throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>"
 				+ "@page { size: 400pt 600pt; margin: 20pt } body { margin: 0; font: 16px serif } div { margin: 0 0 6pt }"
 				+ "</style></head><body>" + body + "</body></html>";
@@ -144,16 +180,6 @@ public class FormControlSizeTest extends TestCase {
 			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
 			CTISessionHelper.transcodeFile(session, input, "text/html", null);
 		}
-		final String page = Files.readString(new File(dir, "page-0001.txt").toPath(), StandardCharsets.UTF_8);
-		final List<double[]> frames = new ArrayList<>();
-		for (final String line : page.split("\n")) {
-			// The frames of the controls: not the page's (at a negative x), nor the clipped inner ones
-			final Matcher m = FRAME.matcher(line);
-			if (m.find() && Double.parseDouble(m.group(1)) >= 0 && !line.contains("clip=")) {
-				frames.add(new double[] { Double.parseDouble(m.group(2)), Double.parseDouble(m.group(3)) });
-			}
-		}
-		assertFalse(page, frames.isEmpty());
-		return frames;
+		return Files.readString(new File(dir, "page-0001.txt").toPath(), StandardCharsets.UTF_8);
 	}
 }

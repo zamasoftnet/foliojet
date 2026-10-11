@@ -143,7 +143,9 @@ public final class RunningCapture {
 		}
 		this.context.startElement(ce);
 		try {
-			final Declaration declaration = this.context.merge(null);
+			// (not an input's or a textarea's, HTMLStyle.authorPseudo)
+			final Declaration declaration = HTMLStyle.authorPseudo(parent.getCSSElement()) ? this.context.merge(null)
+					: null;
 			final boolean br = ce == CSSElement.AFTER
 					&& net.zamasoft.foliojet.xml.vocab.XHTML.BR_ELEM.equalsElement(parent.getCSSElement());
 			final boolean html = ce == CSSElement.BEFORE ? HTMLStyle.hasBeforeContent(parent.getCSSElement())

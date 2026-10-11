@@ -1015,7 +1015,8 @@ final class StyleEventMachine {
 			// :before
 			CSSElement beforeCe = CSSElement.BEFORE;
 			this.styleContext.startElement(beforeCe);
-			final Declaration beforeDeclaration = this.styleContext.merge(null);
+			// (not an input's or a textarea's, HTMLStyle.authorPseudo)
+			final Declaration beforeDeclaration = HTMLStyle.authorPseudo(ce) ? this.styleContext.merge(null) : null;
 			if (beforeDeclaration != null || HTMLStyle.hasBeforeContent(ce)) {
 				CSSStyle beforeStyle = CSSStyle.getCSSStyle(this.ua, style, beforeCe);
 				HTMLStyle.applyBeforeStyle(beforeStyle);
@@ -1632,7 +1633,8 @@ final class StyleEventMachine {
 			boolean br = XHTML.BR_ELEM.equalsElement(ce);
 			CSSElement afterCe = CSSElement.AFTER;
 			this.styleContext.startElement(afterCe);
-			final Declaration afterDeclaration = this.styleContext.merge(null);
+			// (not an input's or a textarea's, HTMLStyle.authorPseudo)
+			final Declaration afterDeclaration = HTMLStyle.authorPseudo(ce) ? this.styleContext.merge(null) : null;
 			if (afterDeclaration != null || br || HTMLStyle.hasAfterContent(ce)) {
 				CSSStyle afterStyle = CSSStyle.getCSSStyle(this.ua, style, afterCe);
 				HTMLStyle.applyAfterStyle(afterStyle);

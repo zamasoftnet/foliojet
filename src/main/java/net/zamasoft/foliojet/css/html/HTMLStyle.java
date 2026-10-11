@@ -661,6 +661,29 @@ public class HTMLStyle {
 		return false;
 	}
 
+	/**
+	 * Whether the author's ::before and ::after of the element apply (2026-10-11): not for a textarea nor for the inputs
+	 * Chrome draws none on, the text fields (text, search, email, url, tel, password, number and unknown types), the
+	 * input buttons (submit, reset, button, image), color and hidden (input::after { content: "AFTER" } replaced a
+	 * field's value). Chrome draws them on file, range, the date and time inputs, checkbox and radio (repro/fs/fs6.html,
+	 * fs7). The UA's own content (applyBeforeStyle, applyAfterStyle) stays. StyleEventMachine and RunningCapture ask it.
+	 */
+	public static boolean authorPseudo(final CSSElement ce) {
+		final short code = HTMLCodes.code(ce);
+		if (code == HTMLCodes.TEXTAREA) {
+			return false;
+		}
+		if (code != HTMLCodes.INPUT) {
+			return true;
+		}
+		final String type = ce.atts == null ? null : ce.atts.getValue("type");
+		return type != null && PSEUDO_INPUTS.contains(type.trim().toLowerCase(java.util.Locale.ROOT));
+	}
+
+	/** The input types Chrome draws an author's ::before and ::after on (authorPseudo). */
+	private static final java.util.Set<String> PSEUDO_INPUTS = java.util.Set.of("file", "range", "date", "time",
+			"datetime-local", "month", "week", "checkbox", "radio");
+
 	public static boolean hasBeforeContent(CSSElement ce) {
 		short code = HTMLCodes.code(ce);
 		switch (code) {
