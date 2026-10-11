@@ -284,6 +284,37 @@ public class FlexReplacedItemMarginTest extends TestCase {
 	}
 
 	/**
+	 * With a natural ratio an inline svg under a declared auto takes its size from the ratio or the line, not from its
+	 * attribute (2026-10-11, copper4/tmp/ab/repro/svg/st.html and buttonws/qa3/r6.html in Chrome): width="16"
+	 * height="16" with height: auto in a stretched 30pt row is 12 x 30pt; width="100%" height="250" with a viewBox of
+	 * 4:1 under height: auto in 300pt is 300 x 75; one attribute (width="160") and a viewBox of 2:1 under width: auto;
+	 * height: 30px is 45 x 22.5, where the missing attribute used to be copied (a square).
+	 */
+	public void testSvgAttributesWithRatio() throws Exception {
+		final Pattern frame = Pattern.compile("AbsoluteRectFrame\\[w=([\\d.]+) h=([\\d.]+)\\]");
+		final String[][] cases = {
+				{ "<div style=\"display: flex; height: 30pt\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\""
+						+ " style=\"height: auto; background: red\"><rect width=\"16\" height=\"16\"/></svg></div>", "12", "30" },
+				{ "<div style=\"width: 300pt\"><svg width=\"100%\" height=\"250\" viewBox=\"0 0 400 100\""
+						+ " style=\"height: auto; background: red\"><rect width=\"10\" height=\"10\"/></svg></div>", "300", "75" },
+				{ "<div><svg width=\"160\" viewBox=\"0 0 160 80\" style=\"width: auto; height: 30px; background: red\">"
+						+ "<rect width=\"10\" height=\"10\"/></svg></div>", "45", "22.5" },
+				// A unit, and a font-relative attribute (codex, 2026-10-11; Chrome 72 x 36pt and 36 x 18pt)
+				{ "<div><svg width=\"1in\" viewBox=\"0 0 400 200\" style=\"background: red\">"
+						+ "<rect width=\"10\" height=\"10\"/></svg></div>", "72", "36" },
+				{ "<div style=\"font-size: 24px\"><svg width=\"2em\" height=\"24\" viewBox=\"0 0 48 24\""
+						+ " style=\"width: auto; background: red\"><rect width=\"10\" height=\"10\"/></svg></div>", "36",
+						"18" } };
+		for (final String[] c : cases) {
+			final String page = convert(c[0]);
+			final Matcher f = frame.matcher(page);
+			assertTrue(page, f.find());
+			assertEquals(c[0] + ": width\n" + page, Double.parseDouble(c[1]), Double.parseDouble(f.group(1)), 0.01);
+			assertEquals(c[0] + ": height", Double.parseDouble(c[2]), Double.parseDouble(f.group(2)), 0.01);
+		}
+	}
+
+	/**
 	 * The width and height attributes of an inline svg are hints below the author's CSS (2026-10-10): with width="16"
 	 * and CSS 30px, or 1em at 18px, Chrome draws the svg 22.5pt or 13.5pt wide (svgpx.html, svgem.html). They won over
 	 * the CSS, which made Material UI's chip icon 1.5pt too small once its margins counted.

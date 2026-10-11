@@ -154,10 +154,9 @@ public final class HTMLStyleUtils {
 	 * Applies the width and height attributes of an inline svg, which come after the cascade, only to a size the CSS
 	 * does not declare (2026-10-10): they are presentation hints, below any author rule. Applied over the CSS, an icon
 	 * with width="16" stayed 16px under width: 1em (Material UI's chips), and the BBC logo's height="48" won over
-	 * height: 32px. A declared width: auto counts too when the CSS sizes the height and both attributes are absolute:
-	 * the width then follows the height through their ratio (Chrome: width: auto; height: 30pt makes a 160 x 80 svg
-	 * 60 x 30pt), where the attribute took over. With one attribute and a viewBox the attribute still applies (Chrome
-	 * takes the viewBox's ratio there; Copper would make the svg square, 2026-10-11). Otherwise the attribute stays the size of a declared auto
+	 * height: 32px. A declared width: auto counts too when the svg has a natural ratio: the width then follows the
+	 * height through it (Chrome: width: auto; height: 30pt makes a 160 x 80 svg 60 x 30pt), where the attribute took
+	 * over (2026-10-11: a viewBox gives a ratio too). Otherwise the attribute stays the size of a declared auto
 	 * (2026-10-11: Bootstrap's placeholder, width="100%" height="250" under height: auto, is 250px high in Chrome; it
 	 * came out from a made-up ratio).
 	 *
@@ -169,7 +168,9 @@ public final class HTMLStyleUtils {
 		CSSElement ce = style.getCSSElement();
 		String width = ce.atts.getValue("width");
 		final String heightAttr = ce.atts.getValue("height");
-		final boolean ratio = absoluteLength(ua, width) && absoluteLength(ua, heightAttr);
+		// (a font-relative attribute stays a hint, resolved against the element's font: Batik's em is its own 12px)
+		final boolean ratio = !fontRelative(width) && !fontRelative(heightAttr)
+				&& (absoluteLength(ua, width) && absoluteLength(ua, heightAttr) || viewBoxRatio(ce.atts.getValue("viewBox")));
 		final boolean widthHint = width != null && !ratioDecides(style, false, ratio);
 		final boolean heightHint = heightAttr != null && !ratioDecides(style, true, ratio);
 		if (width != null && widthHint) {
@@ -198,15 +199,29 @@ public final class HTMLStyleUtils {
 	}
 
 	/**
-	 * Whether the CSS leaves the width (or the height) to the ratio, so that the attribute does not apply: it declares
-	 * the size, and either not auto, or auto while it declares the other axis other than auto and both attributes are
-	 * absolute lengths, which give the natural ratio (Chrome takes it from them before the viewBox).
+	 * Whether the CSS takes the width (or the height) from the attribute: it declares the size, and either not auto, or
+	 * auto while the svg has a natural ratio (both attributes absolute lengths, or a viewBox), which with the line or
+	 * the other axis gives the size, as in Chrome (a stretched row stretches it). Without a ratio the attribute is the
+	 * size auto comes to, and stays (2026-10-11).
 	 */
 	private static boolean ratioDecides(final CSSStyle style, final boolean height, final boolean ratio) {
 		if (!declaredSize(style, height)) {
 			return false;
 		}
-		return !isAuto(style, height) || ratio && declaredSize(style, !height) && !isAuto(style, !height);
+		return !isAuto(style, height) || ratio;
+	}
+
+	/** Whether a viewBox gives a ratio: four numbers, the last two positive. */
+	private static boolean viewBoxRatio(final String viewBox) {
+		if (viewBox == null) {
+			return false;
+		}
+		final String[] v = viewBox.trim().split("[\\s,]+");
+		try {
+			return v.length == 4 && Double.parseDouble(v[2]) > 0 && Double.parseDouble(v[3]) > 0;
+		} catch (NumberFormatException e) {
+			return false;
+		}
 	}
 
 	private static boolean isAuto(final CSSStyle style, final boolean height) {
@@ -226,8 +241,16 @@ public final class HTMLStyleUtils {
 		return style.get(height ? Height.INFO : Width.INFO) == net.zamasoft.foliojet.css.value.KeywordValue.AUTO;
 	}
 
+	/** Whether an attribute's length is relative to a font (em, ex, ch), which Batik resolves against its own. */
+	private static boolean fontRelative(final String value) {
+		final String v = value == null ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
+		return v.endsWith("em") || v.endsWith("ex") || v.endsWith("ch");
+	}
+
 	private static boolean absoluteLength(final UserAgent ua, final String value) {
-		if (value == null || value.trim().endsWith("%")) {
+		// Not a percentage, nor relative to a font, which Batik resolves against its own (2026-10-11)
+		final String v = value == null ? null : value.trim().toLowerCase(java.util.Locale.ROOT);
+		if (v == null || v.endsWith("%") || v.endsWith("em") || v.endsWith("ex") || v.endsWith("ch")) {
 			return false;
 		}
 		try {

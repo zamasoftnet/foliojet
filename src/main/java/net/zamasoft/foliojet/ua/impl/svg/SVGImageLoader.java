@@ -251,6 +251,34 @@ public class SVGImageLoader implements ImageLoader {
 		}
 	}
 
+	/**
+	 * An attribute's length in px when it is a number with no unit or an absolute unit (px, pt, pc, mm, cm, in), NaN
+	 * otherwise (a percentage, a font-relative unit, nothing): SVG's units at 96px an inch (2026-10-11).
+	 */
+	static double absolutePx(final String value) {
+		if (value == null) {
+			return Double.NaN;
+		}
+		final java.util.regex.Matcher m = ABSOLUTE_LENGTH.matcher(value.trim().toLowerCase(java.util.Locale.ROOT));
+		if (!m.matches()) {
+			return Double.NaN;
+		}
+		final double v = Double.parseDouble(m.group(1));
+		final String unit = m.group(2);
+		return switch (unit) {
+		case "", "px" -> v;
+		case "pt" -> v * 96 / 72;
+		case "pc" -> v * 16;
+		case "mm" -> v * 96 / 25.4;
+		case "cm" -> v * 96 / 2.54;
+		case "in" -> v * 96;
+		default -> Double.NaN;
+		};
+	}
+
+	private static final java.util.regex.Pattern ABSOLUTE_LENGTH = java.util.regex.Pattern
+			.compile("([+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:e[+-]?\\d+)?)(px|pt|pc|mm|cm|in|)");
+
 	private Image buildImage(String docURI, final Document doc, final UserAgent ua) throws IOException {
 		try {
 			SVGOMSVGElement root = (SVGOMSVGElement) doc.getDocumentElement();
@@ -268,6 +296,30 @@ public class SVGImageLoader implements ImageLoader {
 				// For absent or invalid viewBox, defer to intrinsic size resolution below.
 			}
 			MyBridgeContext ctx = new MyBridgeContext(docURI, ua, viewport, this);
+			// The attributes as written decide the natural size's kind below
+			final String writtenWidth = root.getAttribute("width"), writtenHeight = root.getAttribute("height");
+			{
+				// With a viewBox, the size its ratio gives goes into the attributes before the graphics tree is built,
+				// so that the tree's viewport is the size reported below (2026-10-11): one absolute attribute gives the
+				// other through the ratio (the missing one was copied, a square); with none, the viewBox's size stands for
+				// the ratio (percentages of nothing: width="100%" height="50%" made it 4:1 for a 2:1 viewBox)
+				// (A length with a unit is converted here, Batik resolves none before the tree is built; a font-relative
+				// one, em or ex, is left to Batik as before: a hint in CSS, see HTMLStyleUtils, codex 2026-10-11)
+				final String aw = root.getAttribute("width"), ah = root.getAttribute("height");
+				final boolean fw = aw != null && aw.length() > 0 && !aw.trim().endsWith("%");
+				final boolean fh = ah != null && ah.length() > 0 && !ah.trim().endsWith("%");
+				if (vbWidth > 0 && vbHeight > 0) {
+					final double pw = fw ? absolutePx(aw) : Double.NaN, ph = fh ? absolutePx(ah) : Double.NaN;
+					if (fw && !fh && !Double.isNaN(pw)) {
+						root.setAttribute("height", String.valueOf(pw * vbHeight / vbWidth));
+					} else if (fh && !fw && !Double.isNaN(ph)) {
+						root.setAttribute("width", String.valueOf(ph * vbWidth / vbHeight));
+					} else if (!fw && !fh) {
+						root.setAttribute("width", String.valueOf(vbWidth));
+						root.setAttribute("height", String.valueOf(vbHeight));
+					}
+				}
+			}
 			// A workaround here once stripped clip-path attributes and retried on BridgeException
 			// (2026-08-06). The cause, failed same-document fragment reference resolution
 			// (url(#id)) against data: bases, was fixed at its source by MyURIResolver.getNode()
@@ -275,17 +327,23 @@ public class SVGImageLoader implements ImageLoader {
 			GVTBuilder gvt = new PDFGVTBuilder();
 			GraphicsNode gvtRoot = gvt.build(ctx, doc);
 
-			String width = root.getAttribute("width");
-			String height = root.getAttribute("height");
+			String width = writtenWidth;
+			String height = writtenHeight;
 			// Determine intrinsic dimensions from **raw attributes** (2026-08-27). width defaults to
 			// 100%, and with viewBox present, getCheckedValue() below resolves it to viewBox dimensions.
 			// Resolved values therefore cannot distinguish this from SVGs with dimensions set by attributes.
 			// Percentages do not define intrinsic dimensions (SVG2/CSS).
 			final boolean attrWidthFixed = width != null && width.length() > 0 && !width.trim().endsWith("%");
 			final boolean attrHeightFixed = height != null && height.length() > 0 && !height.trim().endsWith("%");
-			if ((width == null || width.length() == 0) && (height != null && height.length() > 0)) {
+			// One attribute without a viewBox stands for both (a square); with a viewBox the other comes from its ratio
+			// below (2026-10-11: width="160" and a viewBox of 160 x 80 made a square, Chrome 2:1)
+			// (and a font-relative one is copied as before)
+			final boolean viewBoxRatio = vbWidth > 0 && vbHeight > 0;
+			if ((!viewBoxRatio || Double.isNaN(absolutePx(height))) && (width == null || width.length() == 0)
+					&& (height != null && height.length() > 0)) {
 				root.setAttribute("width", height);
-			} else if ((height == null || height.length() == 0) && (width != null && width.length() > 0)) {
+			} else if ((!viewBoxRatio || Double.isNaN(absolutePx(width))) && (height == null || height.length() == 0)
+					&& (width != null && width.length() > 0)) {
 				root.setAttribute("height", width);
 			}
 			// 'width' attribute - default is 100%
