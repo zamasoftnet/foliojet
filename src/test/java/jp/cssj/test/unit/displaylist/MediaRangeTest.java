@@ -28,7 +28,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * apply (Docusaurus writes its breakpoints this way). {@link AtRulePreludeRewriter} rewrites each range feature into the
  * Level 3 form; the strict comparisons and aspect-ratio are evaluated by {@code CSSStyleSheetBuilder}. The expected
  * margins are Chrome 151's for {@code files/unittest/3070-AT-RULE/media-range.html} with an 800x600 viewport (the page
- * here is 800px x 600px).
+ * here is 800px x 600px with no margins: media queries measure the page area).
  * </p>
  */
 public class MediaRangeTest extends TestCase {
@@ -76,6 +76,7 @@ public class MediaRangeTest extends TestCase {
 			try {
 				session.property("output.page-width", "800px");
 				session.property("output.page-height", "600px");
+				session.property("output.page-margins", "0");
 				session.setResults(new SingleResult(new StreamFragmentedOutput(new ByteArrayOutputStream())));
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				CTISessionHelper.transcodeFile(session, new File(fixture), "text/html", null);

@@ -226,7 +226,7 @@ final class IntrinsicMeasurer {
 		}
 
 		final double[] entered = this.flowSizeStack.remove(this.flowSizeStack.size() - 1);
-		// An element in a neutral flex wrapper left its min-width and max-width to the wrapper
+		// An element in a neutral flex wrapper left its width, min-width and max-width to the wrapper
 		final boolean wrapped = wrapped(containerBox);
 		final boolean fixedLineSize;
 		switch (params.flow) {
@@ -234,14 +234,14 @@ final class IntrinsicMeasurer {
 			// Horizontal writing
 			this.lineFrame -= flowBox.getFrame().getFrameWidth() * this.columnCount;
 			this.pageFrame -= flowBox.getFrame().getFrameHeight();
-			fixedLineSize = flowParams.size.getWidthType() == LengthType.ABSOLUTE;
+			fixedLineSize = !wrapped && flowParams.size.getWidthType() == LengthType.ABSOLUTE;
 			break;
 		case WritingMode.LR:
 		case WritingMode.RL:
 			// Vertical writing
 			this.lineFrame -= flowBox.getFrame().getFrameHeight() * this.columnCount;
 			this.pageFrame -= flowBox.getFrame().getFrameWidth();
-			fixedLineSize = flowParams.size.getHeightType() == LengthType.ABSOLUTE;
+			fixedLineSize = !wrapped && flowParams.size.getHeightType() == LengthType.ABSOLUTE;
 			break;
 		default:
 			throw new IllegalStateException();
@@ -507,7 +507,7 @@ final class IntrinsicMeasurer {
 					? box.getFrame().getBorderLineExtent(flow)
 					: 0;
 			final net.zamasoft.foliojet.layout.box.params.Dimension size = box.getBlockParams().size;
-			if (size.getLineType(flow) == LengthType.ABSOLUTE) {
+			if (!wrapped && size.getLineType(flow) == LengthType.ABSOLUTE) {
 				min = max = Math.max(0, size.getLineLength(flow) - bb);
 			}
 			final net.zamasoft.foliojet.layout.box.params.Dimension maxSize = box.getBlockParams().maxSize;
@@ -528,14 +528,12 @@ final class IntrinsicMeasurer {
 	}
 
 	/**
-	 * Whether a box is a neutral flex wrapper (2026-10-10). The element it holds left its line-axis min-width and
-	 * max-width to it (FlexBuilder.startNeutralElementItem) and lays out without them, so the element contributes its
-	 * content within its width, and the wrapper's item contributions (FlexBuilder.lineContributions) apply them, once.
-	 * Applied here too, an element's max-width capped the content that its own min-width: max-content then took: a flex
-	 * container with min-width: max-content and max-width: 40px came out 40px wide where Chrome makes it its content's
-	 * 120px. (Its width still counts here, as it did, unless the element is the root of its own builder, shrink-to-fit
-	 * for its keywords: left out, a 24px box with a short text shrank below its width where Chrome had the room to keep
-	 * it, square-docs' search hotkey.)
+	 * Whether a box is a neutral flex wrapper (2026-10-10). The element it holds left its line-axis width, min-width
+	 * and max-width to it (FlexBuilder.startNeutralElementItem) and lays out without them, so the element contributes its
+	 * content, and the wrapper's item contributions (FlexBuilder.lineContributions) apply them, once. Applied here too,
+	 * an element's max-width capped the content that its own min-width: max-content then took (a flex container with
+	 * min-width: max-content and max-width: 40px came out 40px wide where Chrome makes it its content's 120px), and its
+	 * width stood in for its content's min-content, the item's automatic minimum (2026-10-11).
 	 */
 	private static boolean wrapped(final AbstractContainerBox parent) {
 		return parent instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item && item.isNeutralLineFill();

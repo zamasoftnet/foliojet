@@ -845,7 +845,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			if (p.size.getLineType(params.flow) != LengthType.AUTO) {
 				// Explicit width
 				crossWidth = this.clampCross(item,
-						Math.max(0, lineValue(p.size, innerLine) - borderBoxAdjust + this.wrappedMargins(item, innerLine)),
+						Math.max(0, lineValue(p.size, innerLine) - borderBoxAdjust + this.wrappedFrame(item, innerLine)),
 						innerLine, borderBoxAdjust, available);
 			} else if (keyword != null) {
 				// width: max-content and the like (2026-10-10): stretched, it lost to the column's width
@@ -894,6 +894,13 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				: lineValue(p.minSize, innerLine) - borderBoxAdjust + frame;
 		if (!Double.isNaN(min)) {
 			width = Math.max(width, min);
+		}
+		// A wrapped element is no narrower than its padding and border (2026-10-11): a border-box width under its
+		// percentage padding, taken against the container, left the next column over the element
+		final BlockParams element = this.neutralBlocks.get(item.itemBox);
+		if (element != null) {
+			width = Math.max(width, insetsLine(element.frame.margin, innerLine)
+					+ insetsLine(element.frame.padding, innerLine) + borderLine(element.frame));
 		}
 		return Math.max(0, width);
 	}
@@ -1007,21 +1014,13 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			// axis it keeps its own size: a wrapper shrunk below it let it overlap the next item of a column.
 			final boolean scroll = axis.mainIsLine ? this.scrollContainer(item) : p.overflow.isScrollContainer();
 			final double keywordFrame = borderBox ? mainFrame : 0;
-			final double minMaxExtra = wrapped == null ? 0 : wrapped.minMaxExtra();
-			// A wrapped element is no narrower than its padding and border, its content 0 (2026-10-10): with no
-			// automatic minimum (overflow: hidden) the wrapper shrank below them and the next item overlapped the element
-			final double floor = wrapped != null ? this.wrappedPaddingBorder(item, axis.marginBase) : 0;
-			double minMain;
+			final double minMain;
 			if (axis.mainIsLine && this.ownLine(p, p.intrinsicMinLine) != null) {
 				// min-width: max-content and the like (2026-10-09): the item's own content size, in the box-sizing of
 				// min-width. It was 0, so a row shrank its items below their words (Primer's buttons).
 				minMain = this.intrinsicMain(p, p.intrinsicMinLine, minContent, maxContent, axis, keywordFrame);
 			} else {
-				minMain = axis.minMainAuto(item.spec) ? Double.NaN
-						: Math.max(0, zeroIfNaN(axis.mainValue(minSize))) + minMaxExtra;
-			}
-			if (floor > 0 && (Double.isNaN(minMain) ? scroll : minMain < floor)) {
-				minMain = floor;
+				minMain = axis.minMainAuto(item.spec) ? Double.NaN : Math.max(0, zeroIfNaN(axis.mainValue(minSize)));
 			}
 			// width: min-content and the like, and max-width: min-content (2026-10-10): the element applied them itself
 			// until it filled its wrapper
@@ -1037,7 +1036,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 							: axis.mainValue(size),
 					minMain,
 					max != null ? this.intrinsicMain(p, max, minContent, maxContent, axis, keywordFrame)
-							: axis.mainMaxValue(maxSize) + minMaxExtra,
+							: axis.mainMaxValue(maxSize),
 					mainFrame, mainMargin, borderBox, scroll, minContent, maxContent, axis.mainBase)));
 		}
 		return metrics;
@@ -1065,25 +1064,13 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 * What the flex algorithm sizes for a neutral wrapper in a row (2026-10-11): the element's line-axis sizes in its
 	 * own box-sizing ({@code borderBox}), its padding and border, and the margins it keeps inside the wrapper (a block's;
 	 * a replaced element's are the wrapper's own). {@code extra} is what the wrapper's content adds to the element's
-	 * content box; {@code minMaxExtra} what min-width and max-width add to compare with it.
+	 * content box.
 	 */
 	private record WrappedFrame(Dimension size, Dimension minSize, Dimension maxSize, boolean borderBox,
-			double paddingBorder, double margins, double minMaxExtra) {
+			double paddingBorder, double margins) {
 		double extra() {
 			return this.paddingBorder + this.margins;
 		}
-	}
-
-	/** The line-axis padding and border of the element a neutral wrapper holds (2026-10-10); 0 for other items. */
-	private double wrappedPaddingBorder(final FlexItemContent item, final double base) {
-		final BlockParams element = this.neutralBlocks.get(item.itemBox);
-		return element == null ? 0 : insetsLine(element.frame.padding, base) + borderLine(element.frame);
-	}
-
-	/** The line-axis margins of the element a neutral wrapper holds (2026-10-11); 0 for other items. */
-	private double wrappedMargins(final FlexItemContent item, final double base) {
-		final BlockParams element = this.neutralBlocks.get(item.itemBox);
-		return element == null ? 0 : insetsLine(element.frame.margin, base);
 	}
 
 	/**
@@ -1098,13 +1085,14 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 
 	/**
 	 * The percentage part, at {@code base}, of the line-axis frame that a neutral wrapper's measured content includes
-	 * (2026-10-11): a block's margins, a replaced element's padding. The content is measured before percentages have a
-	 * basis, so its sizes lack it. 0 for other items.
+	 * (2026-10-11): a block's margins and padding, a replaced element's padding. The content is measured before
+	 * percentages have a basis, so its sizes lack it. 0 for other items.
 	 */
 	private double wrappedPercentFrame(final FlexItemContent item, final double base) {
 		final BlockParams element = this.neutralBlocks.get(item.itemBox);
 		if (element != null) {
-			return insetsLine(element.frame.margin, base) - insetsLine(element.frame.margin, 0);
+			return insetsLine(element.frame.margin, base) - insetsLine(element.frame.margin, 0)
+					+ insetsLine(element.frame.padding, base) - insetsLine(element.frame.padding, 0);
 		}
 		final net.zamasoft.foliojet.layout.box.params.ReplacedParams image = this.neutralImages.get(item.itemBox);
 		return image == null ? 0 : insetsLine(image.frame.padding, base) - insetsLine(image.frame.padding, 0);
@@ -1129,17 +1117,16 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		final BlockParams element = this.neutralBlocks.get(item.itemBox);
 		final BlockParams p = item.itemBox.getBlockParams();
 		if (element != null) {
-			// The wrapper took the element's sizes as they are (startNeutralElementItem); its width stands for the
-			// element's border box, its min and max take a content-box element's padding and border
-			return new WrappedFrame(p.size, p.minSize, p.maxSize, true, 0, insetsLine(element.frame.margin, base),
-					element.boxSizing == BoxSizingMode.BORDER_BOX ? 0
-							: insetsLine(element.frame.padding, base) + borderLine(element.frame));
+			// The wrapper took the element's sizes as they are (startNeutralElementItem)
+			return new WrappedFrame(p.size, p.minSize, p.maxSize, element.boxSizing == BoxSizingMode.BORDER_BOX,
+					insetsLine(element.frame.padding, base) + borderLine(element.frame),
+					insetsLine(element.frame.margin, base));
 		}
 		final net.zamasoft.foliojet.layout.box.params.ReplacedParams image = this.neutralImages.get(item.itemBox);
 		if (image != null) {
 			return new WrappedFrame(image.size, image.minSize, image.maxSize,
 					image.boxSizing == BoxSizingMode.BORDER_BOX,
-					insetsLine(image.frame.padding, base) + borderLine(image.frame), 0, 0);
+					insetsLine(image.frame.padding, base) + borderLine(image.frame), 0);
 		}
 		return null;
 	}

@@ -169,30 +169,8 @@ final class PageSequence {
 
 		// Margins
 		{
-			AbsoluteLengthValue[] margins;
-			String s = UAProps.OUTPUT_PAGE_MARGINS.getString(ua);
-			if (s != null) {
-				String[] values = s.split("[\\s]+");
-				if (values.length <= 0 || values.length > 4) {
-					ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_PAGE_MARGINS.name, s);
-					margins = null;
-				} else {
-					margins = new AbsoluteLengthValue[values.length];
-					for (int i = 0; i < values.length; ++i) {
-						AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, false, values[i]);
-						if (length != null) {
-							margins[i] = length;
-						} else {
-							ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_PAGE_MARGINS.name, s);
-							margins = null;
-							break;
-						}
-					}
-				}
-			} else {
-				margins = null;
-			}
-			this.margins = margins;
+			// Read once for the pages and for the page area media queries measure (2026-10-11)
+			this.margins = net.zamasoft.foliojet.css.util.ConfiguredPage.margins(ua, true);
 		}
 
 		// Maximum page count
@@ -268,32 +246,11 @@ final class PageSequence {
 
 		// Default margins
 		if (this.margins != null) {
-			switch (this.margins.length) {
-			case 1:
-				pageStyle.set(Margin.TOP, this.margins[0]);
-				pageStyle.set(Margin.RIGHT, this.margins[0]);
-				pageStyle.set(Margin.BOTTOM, this.margins[0]);
-				pageStyle.set(Margin.LEFT, this.margins[0]);
-				break;
-			case 2:
-				pageStyle.set(Margin.TOP, this.margins[0]);
-				pageStyle.set(Margin.RIGHT, this.margins[1]);
-				pageStyle.set(Margin.BOTTOM, this.margins[0]);
-				pageStyle.set(Margin.LEFT, this.margins[1]);
-				break;
-			case 3:
-				pageStyle.set(Margin.TOP, this.margins[1]);
-				pageStyle.set(Margin.RIGHT, this.margins[2]);
-				pageStyle.set(Margin.BOTTOM, this.margins[3]);
-				pageStyle.set(Margin.LEFT, this.margins[2]);
-				break;
-			case 4:
-				pageStyle.set(Margin.TOP, this.margins[0]);
-				pageStyle.set(Margin.RIGHT, this.margins[1]);
-				pageStyle.set(Margin.BOTTOM, this.margins[2]);
-				pageStyle.set(Margin.LEFT, this.margins[3]);
-				break;
-			}
+			// Top, right, bottom and left (ConfiguredPage.margins)
+			pageStyle.set(Margin.TOP, this.margins[0]);
+			pageStyle.set(Margin.RIGHT, this.margins[1]);
+			pageStyle.set(Margin.BOTTOM, this.margins[2]);
+			pageStyle.set(Margin.LEFT, this.margins[3]);
 		}
 
 		declaration.applyProperties(pageStyle);

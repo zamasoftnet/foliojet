@@ -112,6 +112,31 @@ public class FlexWrappedItemFrameTest extends TestCase {
 				0.1);
 	}
 
+	public void testColumnItemPercentPadding() throws Exception {
+		// padding-top: 10% of a flex container held in a 150pt column is 15pt, measured as laid out: Chrome puts the box
+		// after it at 22.5pt (it was 11.25, the padding taken against the wrapper)
+		assertEquals(22.5, black("<div style=\"display: flex; flex-direction: column; width: 150pt; height: 75pt; "
+				+ "align-items: flex-start\"><div style=\"display: flex; flex: none; width: 37.5pt; padding-top: 10%\">"
+				+ "<div style=\"flex: none; width: 30pt; height: 7.5pt\"></div></div>" + BOX + "</div>")[1], 0.1);
+	}
+
+	public void testPercentPaddingOutsideMeasuredContent() throws Exception {
+		// padding-left: 10% of a border-box flex container sized by its 30pt content in a 150pt row: Chrome puts the next
+		// box at 45pt (it was 30, the padding taken from inside)
+		assertEquals(45, black("<div style=\"display: flex; width: 150pt; align-items: flex-start\"><div style=\"display: "
+				+ "flex; flex: none; padding-left: 10%; box-sizing: border-box\"><div style=\"flex: none; width: 30pt; "
+				+ "height: 7.5pt\"></div></div>" + BOX + "</div>")[0], 0.1);
+	}
+
+	public void testColumnCrossNotUnderPadding() throws Exception {
+		// A border-box flex container 7.5pt wide with padding-left: 10% of a 150pt column wrap: its 15pt of padding
+		// make it 15pt wide, and Chrome puts the next column at 15pt
+		assertEquals(15, black("<div style=\"display: flex; flex-flow: column wrap; width: 150pt; height: 7.5pt; "
+				+ "align-content: flex-start; align-items: flex-start\"><div style=\"display: flex; flex: none; "
+				+ "box-sizing: border-box; width: 7.5pt; height: 7.5pt; padding-left: 10%\"></div>" + BOX + "</div>")[0],
+				0.1);
+	}
+
 	private static final String BOX = "<div style=\"flex: none; width: 10px; height: 10px; background: #000\"></div>";
 
 	/** {x, y} of the 10px black box. */

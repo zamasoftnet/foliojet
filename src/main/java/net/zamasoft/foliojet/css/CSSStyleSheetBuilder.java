@@ -904,8 +904,11 @@ public class CSSStyleSheetBuilder {
 
 	/**
 	 * Evaluates media feature expressions (such as `(min-width: 400px)`). Page dimensions
-	 * are statically determined by `output.page-width`/`output.page-height`
-	 * before document parsing, so evaluation needs no lookahead and works in 1P.
+	 * are statically determined by `output.page-width`/`output.page-height` less `output.page-margins`
+	 * before document parsing, so evaluation needs no lookahead and works in 1P: the page area of the configured
+	 * paper, as viewport units take it and as Chrome's print measures its print settings' paper and margins, not the
+	 * document's {@code @page} (2026-10-11). It was the whole paper: on A4 (page area 698px) furo's
+	 * {@code @media (max-width: 48em)} never held, and its main column stayed 46em wide.
 	 * <p>
 	 * ph-css 8.2.1 can parse only up to the equivalent of Media Queries Level 3.
 	 * (Rules using Level 4's `or` combinator or `not (...)` without enclosing parentheses
@@ -1046,20 +1049,18 @@ public class CSSStyleSheetBuilder {
 
 	private Double pageWidth, pageHeight;
 
+	/** The page area's width that media queries measure (see {@link #evaluateMediaExpression}). */
 	private double resolvePageWidth() {
 		if (this.pageWidth == null) {
-			AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(this.ua, false,
-					UAProps.OUTPUT_PAGE_WIDTH.getString(this.ua));
-			this.pageWidth = length != null ? length.getLength() : 0;
+			this.pageWidth = net.zamasoft.foliojet.css.util.ConfiguredPage.contentArea(this.ua)[0];
 		}
 		return this.pageWidth;
 	}
 
+	/** The page area's height that media queries measure (see {@link #evaluateMediaExpression}). */
 	private double resolvePageHeight() {
 		if (this.pageHeight == null) {
-			AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(this.ua, false,
-					UAProps.OUTPUT_PAGE_HEIGHT.getString(this.ua));
-			this.pageHeight = length != null ? length.getLength() : 0;
+			this.pageHeight = net.zamasoft.foliojet.css.util.ConfiguredPage.contentArea(this.ua)[1];
 		}
 		return this.pageHeight;
 	}
