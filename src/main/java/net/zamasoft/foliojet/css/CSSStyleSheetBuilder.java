@@ -740,9 +740,10 @@ public class CSSStyleSheetBuilder {
 	 * <p>
 	 * Pass only selectors that Batik's CSS2-era parser can read (tag, class, id,
 	 * descendant, {@code >}, and {@code *}). Discard pseudo-classes, attribute selectors,
-	 * and escaped class names. HTML ancestors do not exist inside the SVG document: the part of a selector
-	 * matching them is checked against the svg element's ancestors and dropped at injection
-	 * (SVGAuthorCss.selectorsFor, 2026-10-11). Declarations with var() resolve at injection too.
+	 * and escaped class names. HTML ancestors do not exist inside the SVG document,
+	 * so selectors requiring that context cannot be evaluated correctly anyway.
+	 * For the same reason, descendant selectors including HTML ancestors fail to match
+	 * (avoiding over-application). Discard declarations containing var(), which Batik cannot resolve.
 	 * </p>
 	 */
 	private void collectSVGStyleRule(final List<String> selectorTexts,

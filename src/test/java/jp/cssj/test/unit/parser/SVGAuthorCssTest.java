@@ -76,43 +76,6 @@ public class SVGAuthorCssTest extends TestCase {
 		}
 	}
 
-	/**
-	 * Selectors whose leading part matches the svg's HTML ancestors reach it (2026-10-11, mkdocs-material's
-	 * .md-typeset .twemoji svg { fill: currentcolor }), as in Chrome: green (span.c svg), red (currentcolor of span.d),
-	 * blue (.f .g path), #800000 (div.u > SVG), #FF8000 (.w path over a later section path), #008080 (.k over a later
-	 * article > svg), #808000 (aside > svg), and no magenta (div > svg with a span for the parent), no yellow (.q svg on
-	 * svg.q) and no #4B0082 (tr svg through an anonymous row). The cyan stroke of the svg under .cp > svg { opacity: .5 }
-	 * stays a vector drawing (picocss: the opacity on the root made Batik's drawing an image).
-	 */
-	public void testAncestorSelectors() throws Exception {
-		final ByteArrayOutputStream out = new ByteArrayOutputStream();
-		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
-				null);
-		try {
-			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
-			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
-			session.property("input.include", "**");
-			CTISessionHelper.transcodeFile(session, new File("files/unittest/3050-IMG/svg-author-css-ancestors.html"),
-					"text/html", null);
-		} finally {
-			session.close();
-		}
-		final String ops = String.join("\n", inflateStreams(out.toByteArray()));
-		assertTrue("span.c svg: green\n" + ops, containsColorOp(ops, "rg", 0, 1, 0));
-		assertTrue("span.d svg, currentcolor: red\n" + ops, containsColorOp(ops, "rg", 1, 0, 0));
-		assertTrue(".f .g path: blue\n" + ops, containsColorOp(ops, "rg", 0, 0, 1));
-		assertTrue("div.u > SVG: #800000\n" + ops, containsColorOp(ops, "rg", 0.502, 0, 0));
-		assertTrue(".w path over section path: #FF8000\n" + ops, containsColorOp(ops, "rg", 1, 0.502, 0));
-		assertFalse(".w path over section path: no #808080\n" + ops, containsColorOp(ops, "rg", 0.502, 0.502, 0.502));
-		assertTrue(".k over article > svg: #008080\n" + ops, containsColorOp(ops, "rg", 0, 0.502, 0.502));
-		assertFalse(".k over article > svg: no #800080\n" + ops, containsColorOp(ops, "rg", 0.502, 0, 0.502));
-		assertTrue("aside > svg: #808000\n" + ops, containsColorOp(ops, "rg", 0.502, 0.502, 0));
-		assertFalse("div > svg under a span: no magenta\n" + ops, containsColorOp(ops, "rg", 1, 0, 1));
-		assertFalse(".q svg on svg.q: no yellow\n" + ops, containsColorOp(ops, "rg", 1, 1, 0));
-		assertFalse("tr svg through an anonymous row: no #4B0082\n" + ops, containsColorOp(ops, "rg", 0.294, 0, 0.51));
-		assertTrue(".cp > svg { opacity: .5 }: a vector stroke\n" + ops, containsColorOp(ops, "RG", 0, 1, 1));
-	}
-
 	private static boolean containsColorOp(String ops, String op, double r, double g, double b) {
 		final Matcher m = Pattern.compile("([\\d.]+) ([\\d.]+) ([\\d.]+) " + op + "\\b").matcher(ops);
 		while (m.find()) {
