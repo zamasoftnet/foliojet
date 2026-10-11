@@ -250,8 +250,10 @@ public final class MeasuredIntrinsics {
 					|| lineType == net.zamasoft.foliojet.layout.box.params.LengthType.MIXED;
 			if (orthogonal || (!block.isAutoLineSize() && !cyclic)) {
 				// For an orthogonal child, the parent's line axis is the child's page axis; use physical sizes after layout.
-				// For a block with a specified width, that width is the used width.
-				return margins + (vertical ? block.getHeight() : block.getWidth());
+				// For a block with a specified width, that width is the used width. The border box, with the specified
+				// margins (2026-10-11): the size with its used margins counted the start margin twice, as the scratch page
+				// keeps it (a float holding a 24px block with margin-left: 8px came out 40px wide, Chrome 32px).
+				return margins + block.getInnerLineExtent(flow) + block.getFrame().getBorderLineExtent(flow);
 			}
 			double inner = block.getFrame().getBorderLineExtent(flow)
 					+ usedLineExtent(block.getContainer(), flow, maxContent);
