@@ -426,6 +426,9 @@ input[type=button], input[type=reset], input[type=submit] {
 	padding: 1px 6px;
 	/* The border box, as in Chrome's UA (2026-10-09): a width: 100% button overflowed its box by its frame */
 	box-sizing: border-box;
+	/* As wide as its content in the flow whatever its display, as in Chrome (2026-10-11: a display: block button filled
+	   the line); flex, grid and absolute positioning stretch it as before (CSSJAutoWidth.fitContent) */
+	-cssj-auto-width: fit-content;
 }
 
 /* A button's content wraps (white-space: normal, HTML Standard and Chrome); the value of an input button keeps its

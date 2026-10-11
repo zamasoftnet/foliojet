@@ -95,6 +95,28 @@ public class FormControlSizeTest extends TestCase {
 		assertSize("cols 10, inline-size: auto, vertical", f.get(3), 30, 78.75);
 	}
 
+	/**
+	 * A button is as wide as its content in the flow whatever its display, and stretches in a flex column, a grid and
+	 * absolutely positioned (2026-10-11, repro/btn/bb.html in Chrome: block 56.48pt, its content's, and 225pt, the
+	 * container's, in the three). A child's width: inherit gets auto, not fit-content (codex).
+	 */
+	public void testBlockButton() throws Exception {
+		final String box = "<div style=\"width: 300px; position: relative; height: 30px";
+		final List<double[]> f = frames(box + "\"><button>Language</button></div>"
+				+ box + "\"><button style=\"display: block\">Language</button></div>"
+				+ box + "; display: flex; flex-direction: column\"><button>Language</button></div>"
+				+ box + "; display: grid\"><button>Language</button></div>"
+				+ box + "\"><button style=\"position: absolute; left: 0; right: 0\">Language</button></div>"
+				+ box + "\"><button style=\"min-width: 100px; padding: 0; border: 0\"><span style=\"display: block;"
+				+ " width: inherit; height: 10px; background: red\"></span></button></div>");
+		assertEquals("display: block, as inline-block", f.get(0)[0], f.get(1)[0], 0.01);
+		assertTrue("display: block, narrower than the line: " + f.get(1)[0], f.get(1)[0] < 100);
+		assertEquals("in a flex column", 225, f.get(2)[0], EPSILON);
+		assertEquals("in a grid", 225, f.get(3)[0], EPSILON);
+		assertEquals("absolutely positioned between left and right", 225, f.get(4)[0], EPSILON);
+		assertEquals("a child's width: inherit", 75, f.get(f.size() - 1)[0], EPSILON);
+	}
+
 	public void testVertical() throws Exception {
 		final List<double[]> f = frames("<div><textarea rows=\"2\" cols=\"20\" style=\"writing-mode: vertical-rl\">"
 				+ "</textarea></div><div><input style=\"writing-mode: vertical-rl\" /></div>"

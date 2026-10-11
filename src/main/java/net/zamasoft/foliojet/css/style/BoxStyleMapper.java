@@ -899,6 +899,8 @@ final class BoxStyleMapper {
 			}
 		}
 
+		// A button's auto inline size is fit-content in the flow (CSSJAutoWidth.fitContent, 2026-10-11)
+		final boolean fitContent = net.zamasoft.foliojet.css.impl.property.internal.CSSJAutoWidth.fitContent(style);
 		params.size = BoxValueUtils.toDimension(Width.get(style), Height.get(style));
 		params.minSize = BoxValueUtils.toMinDimension(MinWidth.get(style), MinHeight.get(style));
 		params.maxSize = BoxValueUtils.toDimension(MaxWidth.get(style), MaxHeight.get(style));
@@ -918,7 +920,9 @@ final class BoxStyleMapper {
 			// or 0/none for min/max, respectively, as specified. Converting to AUTO
 			// on the Dimension side (BoxValueUtils.lengthType) is therefore sufficient.
 			final boolean vertical = params.flow.isVertical();
-			params.intrinsicLine = BoxValueUtils.toIntrinsicSize(vertical ? Height.get(style) : Width.get(style));
+			final Value line = vertical ? Height.get(style) : Width.get(style);
+			params.intrinsicLine = BoxValueUtils
+					.toIntrinsicSize(fitContent && line == KeywordValue.AUTO ? KeywordValue.FIT_CONTENT : line);
 			params.intrinsicMinLine = BoxValueUtils
 					.toIntrinsicSize(vertical ? MinHeight.get(style) : MinWidth.get(style));
 			params.intrinsicMaxLine = BoxValueUtils
