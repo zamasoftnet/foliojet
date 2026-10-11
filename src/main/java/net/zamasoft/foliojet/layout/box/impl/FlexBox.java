@@ -385,8 +385,7 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		// of a later line that took FLAGS_FIRST kept a first line that did not fit as if at the page top, so the line of
 		// a wrapping flex at the page top that crossed the page bottom stayed there and ran off the paper (flexgal2).
 		final int firstFlag = boundary == 0 ? IPageBreakableBox.FLAGS_FIRST : 0;
-		final byte xflags = (byte) ((flags & (firstFlag | IPageBreakableBox.FLAGS_SPLIT))
-				| IPageBreakableBox.FLAGS_ROW_ITEM);
+		final byte xflags = (byte) (flags & (firstFlag | IPageBreakableBox.FLAGS_SPLIT));
 		final Line boundaryLine = this.lines.get(boundary);
 		if (!crosses) {
 			// The boundary row starts at or beyond the cut line: carry it whole without splitting.
@@ -408,16 +407,6 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			offsets[k] = this.itemOffset(boundaryLine.startFlow() + k);
 			below[k] = LayoutUtils.compare(offsets[k], remaining) >= 0;
 			anyBelow |= below[k];
-		}
-		if ((flags & IPageBreakableBox.FLAGS_ROW_ITEM) == 0 && !anyBelow && !crossesByPaint
-				&& !this.hasOwnAbsolutes() && this.itemsEndBefore(boundaryLine, remaining, flow)) {
-			// The line crosses the cut line only with the space after its items (a line of a flex of definite height,
-			// its items centered): it stays whole on this side and the box breaks at the cut line as a block does, the
-			// rest of its size and the lines after it going on in the continuation (2026-10-11, NEXT-SESSION §5-1). Moved
-			// whole to the next page, the box ran past a parent of definite height broken there and covered what followed
-			// (shopify-doc: a 33pt band in a 78pt header broken 70+8). Chrome breaks the box and keeps the line. Not
-			// for a flex split as an item of a line (FLAGS_ROW_ITEM): that line moves whole when no item splits.
-			return this.keepLinesToCut(boundary, pageLimit);
 		}
 
 		// Item height before splitting (for the remainder lower-bound calculation below). Measured before the probe,
@@ -598,97 +587,6 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			contFlex.setFlexLines(contLines, contItems, allContOffsets);
 		}
 		this.keepHeadLines(boundary + 1, boundaryLine.startFlow() + boundaryItems.length);
-		return new SplitResult.Split(continuation);
-	}
-
-	/**
-	 * Whether every item of a line ends before {@code remaining} from the line start: its offset in the line and its
-	 * extent, margins included, or its border box if a negative end margin pulls the margin box back over it, or what
-	 * it paints if that ends later. An item with anything in it moved along the page axis by relative positioning, or
-	 * with a negative end margin inside it, does not count as ending there (drawn past the line, it would be cut off at
-	 * the page end; the line moves to the next page as before).
-	 */
-	private boolean itemsEndBefore(final Line line, final double remaining, final WritingMode flow) {
-		for (int k = 0; k < line.itemCount(); ++k) {
-			final FlexItemBox item = this.lineItems.get(line.startFlow() + k);
-			final double extent = item.getPageExtent(flow);
-			final double end = this.itemOffset(line.startFlow() + k)
-					+ Math.max(Math.max(extent, extent - (flow.isVertical() ? item.getFrame().margin.left
-							: item.getFrame().margin.bottom)), item.paintedPageExtent(flow));
-			if (LayoutUtils.compare(end, remaining) > 0 || drawnAway(item, flow)) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	/** Whether this box holds absolutely positioned boxes of its own (placed against it when the page is drawn). */
-	private boolean hasOwnAbsolutes() {
-		final boolean[] found = { false };
-		((Container) this.container).eachAbsoluteBox(box -> found[0] = true);
-		return found[0];
-	}
-
-	/**
-	 * Whether anything in a box (the box included) is drawn away from where it was laid out along the page axis: a
-	 * relative offset, a negative end margin of a box inside it, or an absolutely positioned box (placed only when the
-	 * page is drawn; one below the item went off the paper where the line moved whole before).
-	 */
-	private static boolean drawnAway(final net.zamasoft.foliojet.layout.box.IBox box, final WritingMode flow) {
-		final java.util.ArrayDeque<net.zamasoft.foliojet.layout.box.IBox> stack = new java.util.ArrayDeque<>();
-		stack.push(box);
-		while (!stack.isEmpty()) {
-			final net.zamasoft.foliojet.layout.box.IBox b = stack.pop();
-			if (b instanceof net.zamasoft.foliojet.layout.box.IAbsoluteBox) {
-				return true;
-			}
-			if (b.getPos() instanceof net.zamasoft.foliojet.layout.box.params.AbstractStaticPos pos && pos.offset != null) {
-				final net.zamasoft.foliojet.layout.box.params.Offset offset = pos.offset;
-				final boolean shifted = flow.isVertical()
-						? offset.getXType() == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE
-								&& offset.getX() != 0
-						: offset.getYType() == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE
-								&& offset.getY() != 0;
-				if (shifted) {
-					return true;
-				}
-			}
-			if (b != box) {
-				final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = b instanceof net.zamasoft.foliojet.layout.box.IFramedBox framed
-						? framed.getFrame()
-						: b instanceof net.zamasoft.foliojet.layout.box.AbstractReplacedBox replaced ? replaced.getFrame() : null;
-				if (frame != null && (flow.isVertical() ? frame.margin.left : frame.margin.bottom) < 0) {
-					return true;
-				}
-			}
-			b.forEachAssignmentChild(stack::push);
-		}
-		return false;
-	}
-
-	/**
-	 * Keeps the lines up to {@code boundary} whole and ends this fragment at {@code cut}, the lines after them going on
-	 * whole in the continuation, which starts with the rest of the box (2026-10-11).
-	 */
-	private SplitResult keepLinesToCut(final int boundary, final double cut) {
-		final int next = boundary + 1;
-		final net.zamasoft.foliojet.layout.box.content.RowSplitContainer cont = new net.zamasoft.foliojet.layout.box.content.RowSplitContainer();
-		final int nextFlow = next < this.lines.size() ? this.lines.get(next).startFlow() : this.lineItems.size();
-		if (next < this.lines.size()) {
-			((Container) this.container).migrateFlowsFrom(nextFlow, cont, cut);
-		}
-		cont.anchorCurrent(0);
-		final AbstractContainerBox continuation = this.splitPage(cont, cut, false);
-		if (continuation instanceof FlexBox contFlex) {
-			contFlex.markFlexLayout();
-			contFlex.carriedLines = true;
-			if (next < this.lines.size()) {
-				contFlex.setFlexLines(shiftLines(this.lines, next, cut),
-						new ArrayList<>(this.lineItems.subList(nextFlow, this.lineItems.size())),
-						this.offsetsFrom(nextFlow));
-			}
-		}
-		this.keepHeadLines(next, nextFlow);
 		return new SplitResult.Split(continuation);
 	}
 

@@ -347,8 +347,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 				pageLimit -= prevRowSize;
 				continue;
 			}
-			byte xflags = (byte) (flags & (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT
-					| IPageBreakableBox.FLAGS_ROW_ITEM));
+			byte xflags = (byte) (flags & (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT));
 			{
 				// Row flags at the start of a page (decision extracted into pure logic in TableCutter).
 				// Check whether the first row has spanning cells.

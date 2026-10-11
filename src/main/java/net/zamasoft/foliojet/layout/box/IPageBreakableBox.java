@@ -54,15 +54,6 @@ public interface IPageBreakableBox extends IBox {
 	public static final byte FLAGS_AVOID_PROBE = 32;
 
 	/**
-	 * The box is split as an item of a flex or grid line, or inside one (2026-10-11): the line splits its items
-	 * together, and moves whole when none of them can split. A flex line that crosses the cut line only with the space
-	 * after its items does not break its box here ({@code FlexBox.split}), or the line around it, which moved whole,
-	 * came apart over two pages. Set by {@code FlexBox} and {@code GridBox} and passed down unchanged, through tables
-	 * and float splits too.
-	 */
-	public static final byte FLAGS_ROW_ITEM = 64;
-
-	/**
 	 * Splits the box along the page axis (M4-A3: native SplitResult).
 	 *
 	 * @param pageLimit the distance from the box's outer edge (page-axis start) to the split position.

@@ -304,8 +304,7 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 		// row 0): a nested grid in a later row that took FLAGS_FIRST kept its first row across the page bottom
 		// instead of moving (primer-css's prop tables).
 		final int firstFlag = boundary == 0 ? IPageBreakableBox.FLAGS_FIRST : 0;
-		final byte xflags = (byte) ((flags & (firstFlag | IPageBreakableBox.FLAGS_SPLIT))
-				| IPageBreakableBox.FLAGS_ROW_ITEM);
+		final byte xflags = (byte) (flags & (firstFlag | IPageBreakableBox.FLAGS_SPLIT));
 		final Row boundaryRow = this.rows.get(boundary);
 		if (crosses) {
 			final double remaining = pageLimit - boundaryRow.start();
