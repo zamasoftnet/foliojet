@@ -54,6 +54,17 @@ public interface IPageBreakableBox extends IBox {
 	public static final byte FLAGS_AVOID_PROBE = 32;
 
 	/**
+	 * Every break between the start of the fragmentainer and the cut line breaks an avoid (2026-10-11): an avoid
+	 * pushback of the parent reached the start of the fragmentainer and relaxed its avoids. The box breaks at the cut
+	 * line, its own {@code break-inside: avoid} and the avoids inside it relaxed too, as Chrome takes the last of the
+	 * breaks that break an avoid. Moved instead, a box of {@code break-inside: avoid} after a heading kept by
+	 * {@code break-before: avoid} left the heading alone on the page, page after page for nested lists (weasyprint-doc
+	 * with Furo's print style sheet: "EXTRA INFORMATION" and "Changelog" each on a page of its own). Set by
+	 * {@code FlowContainer} and passed down unchanged; tables, flex and grid containers and float splits mask it off.
+	 */
+	public static final byte FLAGS_AVOID_SPENT = 64;
+
+	/**
 	 * Splits the box along the page axis (M4-A3: native SplitResult).
 	 *
 	 * @param pageLimit the distance from the box's outer edge (page-axis start) to the split position.

@@ -1332,7 +1332,8 @@ public class FlowContainer implements Container {
 		}
 
 		FlowContainer nextBox = null;
-		boolean ignoreAvoid = false;
+		// Avoids spent by the parent hold here no more (FLAGS_AVOID_SPENT, 2026-10-11)
+		boolean ignoreAvoid = (flags & IPageBreakableBox.FLAGS_AVOID_SPENT) != 0;
 		// The flow an avoid pushback probes just before its end (FLAGS_AVOID_PROBE, 2026-10-09)
 		int probeIndex = -1;
 		int relaxInsideIndex = -1;
@@ -1362,9 +1363,15 @@ public class FlowContainer implements Container {
 					((AutoBreakMode) mode).box == this.box, innerFlags);
 			final double splitLine = step.splitLine();
 			final byte lflags = step.positionMask();
-			final byte xflags = !ignoreAvoid && i == probeIndex
-					? (byte) (step.splitFlags() | IPageBreakableBox.FLAGS_AVOID_PROBE)
-					: step.splitFlags();
+			// With the avoids relaxed, the flows probed again break at the cut line, with the avoids inside them
+			// (FLAGS_AVOID_SPENT, 2026-10-11). Not under the probe of a parent's pushback, which asks for a break that
+			// keeps the avoids.
+			final byte xflags = ignoreAvoid
+					? (flags & IPageBreakableBox.FLAGS_AVOID_PROBE) == 0
+							? (byte) (step.splitFlags() | IPageBreakableBox.FLAGS_AVOID_SPENT)
+							: step.splitFlags()
+					: i == probeIndex ? (byte) (step.splitFlags() | IPageBreakableBox.FLAGS_AVOID_PROBE)
+							: step.splitFlags();
 
 			final boolean monolithicAvoid;
 			final boolean unfulfillableAvoid;
@@ -1463,7 +1470,7 @@ public class FlowContainer implements Container {
 				// differ (PaginationContract.splitsInPageAxis=false,
 				// §5.10 rule 3), use the atomic REPLACED path without an internal page break.
 				if ((cParams.pageBreakInside != PageBreakMode.AVOID || (xflags & IPageBreakableBox.FLAGS_FIRST) != 0
-						|| unfulfillableAvoid)
+						|| unfulfillableAvoid || (xflags & IPageBreakableBox.FLAGS_AVOID_SPENT) != 0)
 						&& net.zamasoft.foliojet.layout.fragment.PaginationContract.splitsInPageAxis(this.box.getBlockParams().flow,
 								(AbstractContainerBox) prevFlow.box, (xflags & IPageBreakableBox.FLAGS_FIRST) != 0)) {
 					if (plan != null && plan.selects(prevFlow.box)) {

@@ -55,7 +55,11 @@ public class AvoidChainPageStartTest extends TestCase {
 		assertTrue("the chain starts on page 2", pages.get(1).contains("Text[\"T00"));
 	}
 
-	/** Each dl at the start of a page stays whole: 4 pages. */
+	/**
+	 * A chain from the start of the page fills it: 4 pages, 20 lines each. Every break from the top of the page breaks an
+	 * avoid, and the last of them is taken, between a dt and its dd (Chrome: T09 | D09, T19 | D19, T29 | D29;
+	 * 2026-10-11, FLAGS_AVOID_SPENT; before, each dl moved whole).
+	 */
 	public void testChainOfDefinitionListsFillsPages() throws Exception {
 		final StringBuilder body = new StringBuilder("<p>HEAD</p>");
 		for (int i = 0; i < 30; ++i) {
@@ -67,25 +71,20 @@ public class AvoidChainPageStartTest extends TestCase {
 		final int[] descPage = new int[30];
 		Arrays.fill(termPage, -1);
 		Arrays.fill(descPage, -1);
-		final int[] perPage = new int[pages.size()];
 		for (int p = 0; p < pages.size(); ++p) {
 			final Matcher m = WORD.matcher(pages.get(p));
 			while (m.find()) {
 				final int i = Integer.parseInt(m.group(2));
 				if (m.group(1).equals("T")) {
 					termPage[i] = p;
-					++perPage[p];
 				} else {
 					descPage[i] = p;
 				}
 			}
 		}
 		for (int i = 0; i < 30; ++i) {
-			assertTrue("article " + i + " is drawn", termPage[i] >= 0);
-			assertEquals("dd keeps with its dt: article " + i, termPage[i], descPage[i]);
-		}
-		for (int p = 0; p < pages.size() - 1; ++p) {
-			assertTrue("page " + (p + 1) + " is filled: " + Arrays.toString(perPage), perPage[p] >= 9);
+			assertEquals("dt " + i, i / 10, termPage[i]);
+			assertEquals("dd " + i, (i + 1) / 10, descPage[i]);
 		}
 	}
 
