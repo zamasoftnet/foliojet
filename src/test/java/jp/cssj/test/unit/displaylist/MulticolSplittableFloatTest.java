@@ -141,6 +141,27 @@ public class MulticolSplittableFloatTest extends TestCase {
 	}
 
 	/**
+	 * The same in the columns of a multicol of definite height, which are filled, not balanced (2026-10-11, codex's
+	 * review of the fix for sweep seed 12585971): L7 goes on to the next outer column, as it does on a page. With the rest
+	 * of the inner multicol not carried on, L7 ran 4pt past the paper.
+	 */
+	public void testLastColumnRestGoesOnInFixedMulticol() throws Exception {
+		final List<String> pages = convert(SHORT, "<div style=\"columns: 2; height: 100pt\"><div style=\"height: 65pt\">PRE"
+				+ "</div><div class=\"c\"><div style=\"float: left; width: 40pt; background: #ccc\">L1<br>L2<br>L3<br>L4<br>L5"
+				+ "<br>L6<br>L7</div></div></div>");
+		assertOnPaper(pages, 100);
+		for (int i = 1; i <= 7; ++i) {
+			assertTrue("L" + i, pages.get(0).contains("Text[\"L" + i + "\""));
+		}
+		final Matcher m = TEXT.matcher(pages.get(0));
+		while (m.find()) {
+			if (m.group(3).equals("L7")) {
+				assertTrue("L7 は外側の 2 段目: x=" + m.group(1), Double.parseDouble(m.group(1)) >= 150);
+			}
+		}
+	}
+
+	/**
 	 * Less room than the least capacity of a column (20pt): no column the room high, the multicol goes on to the next
 	 * page (codex's review). B ran past the paper.
 	 */

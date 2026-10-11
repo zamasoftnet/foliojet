@@ -376,8 +376,13 @@ public abstract class AbstractContainerBox extends AbstractBox
 		// The floats past the flows ask more than the room left on the page (2026-10-10): the columns take the room,
 		// and the rest goes on to the next page, as Chrome fills the columns of each page. Left balanced, the first
 		// column ran past the paper. Not when something that cannot be cut needs more than the room: the multicol then
-		// moves on as a whole.
-		if (oldCont instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer flows) {
+		// moves on as a whole. Nor for a multicol in the columns of another being balanced (2026-10-11, sweep seed
+		// 12585971): balancing the outer columns lays it out again, the rest it hands on to the next column grows what the
+		// outer columns have to hold, and the two balancings fed each other until the page was laid out again without
+		// end. In the columns of a multicol of definite size, which are filled, not balanced, it goes on as on a page.
+		final boolean inColumn = builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder columns
+				&& columns.isBalancing();
+		if (!inColumn && oldCont instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer flows) {
 			final double room = this.roomInPage(builder);
 			// Not below the least capacity of a column (BreakableBuilder.MIN_PAGE_LIMIT), which the column builder would
 			// take instead: the columns would then run past the page.
@@ -407,7 +412,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		this.container = new FlowContainer();
 		this.container.setBox(this);
 
-		final ColumnBuilder columnBuilder = new ColumnBuilder(builder, this);
+		final ColumnBuilder columnBuilder = new ColumnBuilder(builder, this).balancing();
 		// At balancing time, this multicol is a closed subtree (the SAX head follows immediately),
 		// so its contents can be rebuilt from source (M6c). Unlike box replay, this is nondestructive
 		// and could support repeated capacity probes in the future. Fall back to box replay for
@@ -442,7 +447,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 						? columns.getLastColumn()
 						: (net.zamasoft.foliojet.layout.box.content.FlowContainer) this.container;
 				final double end = last.floatPageEnd();
-				if (LayoutUtils.compare(end, pageSize) > 0) {
+				if (!inColumn && LayoutUtils.compare(end, pageSize) > 0) {
 					if (vertical) {
 						this.maxPageAxis = this.width = end;
 					} else {

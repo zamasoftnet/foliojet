@@ -21,6 +21,11 @@ import junit.framework.TestCase;
  * line after the float (the end of an inline element) went down past it, 4pt into the body's text block. That block
  * answered that it paints, by the end of its last line, and the second page, which paints nothing, was kept: a blank
  * page. A line of no extent paints nothing wherever it sits.</li>
+ * <li>{@code multicol-in-column-float-rest} (2026-10-11, STRICT seed 12585971, eb8ad7ba): a multicol in a column of
+ * another, holding a float taller than the page in vertical writing. Its columns took the room left in the outer column
+ * and the multicol grew to what its last column held, for the break after it to carry on; balancing the outer columns
+ * laid it out again with more to hold each time, and the same page was laid out again until the progress guard aborted
+ * the conversion. A multicol in a column is balanced as before.</li>
  * </ul>
  */
 public class Regression19129Test extends TestCase {
@@ -30,6 +35,10 @@ public class Regression19129Test extends TestCase {
 
 	public void testEmptyFloatContinuationAddsNoPage() throws Exception {
 		check("float-continuation-blank-page");
+	}
+
+	public void testMulticolInColumnEnds() throws Exception {
+		check("multicol-in-column-float-rest");
 	}
 
 	private static void check(final String name) throws Exception {

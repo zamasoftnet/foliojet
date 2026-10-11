@@ -8,8 +8,25 @@ import net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 
 public class ColumnBuilder extends BreakableBuilder {
+	/**
+	 * Whether this builder lays the content of its multicol out again to balance its columns
+	 * ({@code AbstractContainerBox.balance}), rather than filling the columns of a multicol of definite size (2026-10-11).
+	 */
+	private boolean balancing;
+
 	public ColumnBuilder(LayoutStack layoutStack, AbstractContainerBox contextBox) {
 		super(layoutStack, contextBox, MODE_AUTO);
+	}
+
+	/** Marks this builder as the one balancing its multicol's columns. */
+	public final ColumnBuilder balancing() {
+		this.balancing = true;
+		return this;
+	}
+
+	/** Whether this builder balances its multicol's columns ({@link #balancing()}). */
+	public final boolean isBalancing() {
+		return this.balancing;
 	}
 
 	/**
