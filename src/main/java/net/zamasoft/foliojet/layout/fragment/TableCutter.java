@@ -84,19 +84,6 @@ public final class TableCutter {
 	}
 
 	/**
-	 * For incomplete tables, subtracts only the start frame and header, without reserving the trailing margin
-	 * or end frame.
-	 */
-	public static double reserveIncompleteNonBreakable(double pageLimit, final double framePageStart,
-			final double headerSize) {
-		pageLimit -= framePageStart;
-		if (headerSize >= 0) {
-			pageLimit -= headerSize;
-		}
-		return pageLimit;
-	}
-
-	/**
 	 * Break avoidance at row-group boundaries. Checks the preceding group's break-after and the current
 	 * group's break-before, plus rows adjoining the boundary (the preceding group's last-row break-after
 	 * and the current group's first-row break-before).
@@ -265,19 +252,6 @@ public final class TableCutter {
 	 */
 	public record TableFragmentFrames(net.zamasoft.foliojet.layout.part.AbsoluteRectFrame prevFrame,
 			net.zamasoft.foliojet.layout.part.AbsoluteRectFrame nextFrame) {
-	}
-
-	/**
-	 * The effective frame of an incomplete table. The final remainder retains the original frame until
-	 * complete().
-	 * Tables with footers have a separate end-reservation contract and are not accepted as incomplete tables.
-	 */
-	public static net.zamasoft.foliojet.layout.part.AbsoluteRectFrame incompleteFrame(final boolean vertical,
-			final boolean repeatFooter, final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame) {
-		if (repeatFooter) {
-			throw new IllegalStateException("Incomplete tables do not support a repeated footer");
-		}
-		return vertical ? frame.cut(true, true, true, false) : frame.cut(true, true, false, true);
 	}
 
 	/**

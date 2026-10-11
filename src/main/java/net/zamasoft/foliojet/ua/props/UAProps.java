@@ -606,10 +606,6 @@ public final class UAProps {
 	public static final LongPropManager PROCESSING_RETAINED_TEXT_LIMIT = new LongPropManager(
 			"processing.retained-text-limit", 16L << 20);
 
-	/** Enables row-by-row emission of retained tables. The default uses the existing path that places completed tables. */
-	public static final BooleanPropManager PROCESSING_TABLE_ROW_EMISSION = new BooleanPropManager(
-			"processing.table-row-emission", false);
-
 	/**
 	 * The maximum elapsed time allowed to convert one document (milliseconds). A value of 0 or less means unlimited.
 	 */

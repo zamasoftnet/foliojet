@@ -17,12 +17,12 @@ public final class FlexBuilderLifecycle {
 
 	/**
 	 * Checks whether Flex row placement applies (consult-codex-2026-08-02-
-	 * flexbox.txt, "phased fallback rules", F1: TB+row+nowrap only).
-	 * Eligible hosts include BlockBuilder and TwoPass (F1f: record the execution plan as
-	 * a FlexEvent and bind after width resolution; column = F4, reverse/wrap = F2/F5,
-	 * vertical writing = F6).
+	 * flexbox.txt, "phased fallback rules", F1: TB+row+nowrap only), from the container's own declarations alone.
+	 * Every host takes it, BlockBuilder and TwoPass alike (F1f: record the execution plan as a FlexEvent and bind
+	 * after width resolution; column = F4, reverse/wrap = F2/F5, vertical writing = F6); the host type check that
+	 * was here was always true (2026-10-11: those are the only builders).
 	 */
-	public static boolean eligible(final FlexBox flexBox, final Builder builder) {
+	public static boolean eligible(final FlexBox flexBox) {
 		final FlexParams params = flexBox.getFlexParams();
 		if (!params.flexDirection.isRow()) {
 			// F4b/F4d: column takes a definite main axis (absolute length). Since 2026-10-08 a column whose main size
@@ -38,7 +38,7 @@ public final class FlexBuilderLifecycle {
 					&& params.size.getLineType(params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 				return false;
 			}
-			return builder instanceof BlockBuilder || builder instanceof TwoPassBlockBuilder;
+			return true;
 		}
 		final net.zamasoft.foliojet.layout.box.params.LengthType crossType = params.flow.isVertical()
 				? params.size.getWidthType()
@@ -50,7 +50,7 @@ public final class FlexBuilderLifecycle {
 			// remain outside the subset).
 			return false;
 		}
-		return builder instanceof BlockBuilder || builder instanceof TwoPassBlockBuilder;
+		return true;
 	}
 
 	/**

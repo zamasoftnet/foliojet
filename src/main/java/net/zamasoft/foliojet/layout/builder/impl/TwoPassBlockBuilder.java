@@ -181,8 +181,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		}
 
 		/**
-		 * Redrives the sealed range into {@code builder} for table Pass B (row measurement)
-		 * (E-6 increment 5b-1, 2026-07-24; codex design §4.4). Uses the same SegmentExecutor as
+		 * Redrives the sealed range into {@code builder} to measure it (E-6 increment 5b-1, 2026-07-24; codex design
+		 * §4.4: a column flex item's content size, an orthogonal absolute box's trial). Uses the same SegmentExecutor as
 		 * {@link #bind}, but <b>does not release the lease</b> (the subsequent actual bind captures
 		 * the same range again; capture is a nondestructive read that acquires and releases its
 		 * slice's own lease each time). Does not count statistics (TWO_PASS_RANGE_BINDS) either
@@ -241,8 +241,6 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 			if (this.handle != null) this.handle.subsume();
 			else if (this.body instanceof ReplayBody.Empty empty) empty.consumed = true;
 		}
-
-		boolean isEmpty() { return this.body instanceof ReplayBody.Empty; }
 	}
 
 	protected final LayoutStack layoutStack;

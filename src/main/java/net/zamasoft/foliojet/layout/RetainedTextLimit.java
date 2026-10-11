@@ -28,9 +28,6 @@ public final class RetainedTextLimit implements AutoCloseable {
 	/** For diagnostics and tests. Counts entries into suspended accounting during replay. */
 	public static final AtomicLong SUSPEND_ENTRIES = new AtomicLong();
 
-	/** Used only for observation after Pass B ends and before MAIN starts. Tests must save and restore it. */
-	public static volatile java.util.function.Consumer<RetainedTextLimit> beforeTableMainBind;
-
 	private final UserAgent ua;
 	private long limit;
 	private Accounting accounting = new Accounting(null);
@@ -161,7 +158,7 @@ public final class RetainedTextLimit implements AutoCloseable {
 
 	/**
 	 * Accounting for disposable copies. Does not carry measured amounts over to the MAIN parent.
-	 * Since Pass B runs while the parent binds, saves the entire stack, unlike ordinary nesting.
+	 * Since a measurement runs while the parent binds, saves the entire stack, unlike ordinary nesting.
 	 * Shares the high-water mark and limit, enforcing the same limit during measurement.
 	 */
 	public Measurement measurement(final String elementName) {
@@ -345,6 +342,17 @@ public final class RetainedTextLimit implements AutoCloseable {
 
 		public boolean isClosed() {
 			return this.closed;
+		}
+
+		/**
+		 * Forgets what was counted so far when this is the outermost open element, which stays open and counts on
+		 * (2026-10-11): a balanced multicol broken across pages no longer holds what the break emitted. Inside another
+		 * retaining element, nothing changes.
+		 */
+		public void restartCount() {
+			if (!this.closed && this.accounting.elements.peekFirst() == this) {
+				this.accounting.currentBytes = 0;
+			}
 		}
 
 		@Override

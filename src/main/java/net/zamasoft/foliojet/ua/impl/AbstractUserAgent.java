@@ -816,6 +816,9 @@ public abstract class AbstractUserAgent implements UserAgent {
 		this.fontMagnification = -1;
 		this.pixelsPerInch = -1;
 		this.pixelToUnit = null;
+		// Only the passes of a multi-pass conversion keep the facts of :has() by element key, for the passes that follow
+		// (2026-10-11)
+		this.getUAContext().getSelectorFacts().setAcrossPasses(mode != PrepareMode.DOCUMENT);
 		if (mode != PrepareMode.DOCUMENT) {
 			int pages = this.getPassContext().getPageNumber();
 			this.passContext = new PassContext();
@@ -830,10 +833,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 			// across multiple LAYOUT passes, so resetting once at STRUCTURE_SCAN start
 			// is sufficient.
 			this.getUAContext().getSelectorFacts().reset();
-			// ContainerFacts has the same lifetime as SelectorFacts (reset once at STRUCTURE_SCAN start,
-			// then accumulate/overwrite in all later passes).
-			// See the development records §2 for the design
-			this.getUAContext().getContainerFacts().reset();
 		}
 		if (mode == PrepareMode.STRUCTURE_SCAN || mode == PrepareMode.DOCUMENT) {
 			// Clear the carried stylesheet at conversion (document) start

@@ -808,8 +808,8 @@ final class FuzzShrinker {
 			return true;
 		}
 		// Reject candidates that break the table content model (2026-08-23). Stripping td/tr
-		// leaves bare text directly under the table; the HTML parser's foster parenting
-		// moves it **before** the table, invalidating the oracle's assumption that the
+		// leaves bare text directly under the table; the layout puts it **before** the
+		// table, invalidating the oracle's assumption that the
 		// generator's token order (source order) is the expected reading order. This falsely
 		// reports legitimate layout as reversed reading order (seen while shrinking v2 seed 30;
 		// the generator itself never produces this structure).

@@ -750,7 +750,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		if (this.items.size() != 1 || lines.size() != 1) {
 			return false;
 		}
-		if (!(target instanceof RootBuilder root) || !root.supportsIncompleteTableIntake()
+		if (!(target instanceof RootBuilder root) || !root.breaksPagesLive()
 				|| net.zamasoft.foliojet.layout.fragment.ReplayIntent.current() != net.zamasoft.foliojet.layout.fragment.ReplayIntent.MAIN) {
 			return false;
 		}

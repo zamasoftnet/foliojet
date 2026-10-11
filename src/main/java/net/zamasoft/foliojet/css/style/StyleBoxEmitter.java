@@ -106,7 +106,7 @@ public final class StyleBoxEmitter {
 			this.current = root;
 			this.rightSide = rightSide;
 			this.events = events;
-			final StyleContext empty = new StyleContext(new net.zamasoft.foliojet.css.CSSStyleSheet(), null, null);
+			final StyleContext empty = new StyleContext(new net.zamasoft.foliojet.css.CSSStyleSheet(), null);
 			this.emitter = new StyleBoxEmitter(this, new RecordingLayoutSink(events),
 					new BoxStyleMapper(ua, empty), null, ua, null);
 		}

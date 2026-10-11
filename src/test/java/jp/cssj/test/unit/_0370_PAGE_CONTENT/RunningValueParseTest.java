@@ -180,7 +180,7 @@ public class RunningValueParseTest extends TestCase {
 		final InputSource source = new InputSource(new StringReader(css));
 		source.setURI(URI_BASE.toString());
 		builder.parse(source);
-		return new StyleContext(sheet, null, null);
+		return new StyleContext(sheet, null);
 	}
 
 	private CSSStyle style(final String declaration) {

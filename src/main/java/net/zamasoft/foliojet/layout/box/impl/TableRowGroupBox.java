@@ -47,27 +47,6 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 
 	protected List<TableRowBox> rows = null;
 
-	/** Dry run of automatic cutting (B-2b-6). {@code TableBox} deducts the table frame and header. */
-	public boolean emissionCutDetermined(final double pageLimit) {
-		return net.zamasoft.foliojet.layout.builder.impl.TableBuildPlanner.cutDetermined(this.rowPageSizes(),
-				this.getPageSize(), pageLimit);
-	}
-
-	/** Returns each row's page-direction size in cut-traversal order. An empty array if there are no rows. */
-	public double[] rowPageSizes() {
-		if (this.rows == null) return new double[0];
-		final double[] sizes = new double[this.rows.size()];
-		for (int i = 0; i < sizes.length; ++i) sizes[i] = this.rows.get(i).getPageSize();
-		return sizes;
-	}
-
-	/** The same plan as TableBox. Not set on complete tables. */
-	IncompleteTablePlan incompletePlan;
-
-	void updateIncompleteSize() {
-		this.pageSize = this.incompletePlan.visibleGroupSize();
-	}
-
 	public TableRowGroupBox(final InnerTableParams params, final TableRowGroupPos pos) {
 		super(params);
 		this.pos = pos;
@@ -260,22 +239,6 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 	}
 
 	public final SplitResult split(double pageLimit, BreakMode mode, final byte flags) {
-		if (this.incompletePlan != null) {
-			final SplitResult result = this.splitRows(pageLimit, mode, flags);
-			if (result instanceof SplitResult.Split split) {
-				final TableRowGroupBox next = (TableRowGroupBox) split.remainder();
-				next.incompletePlan = this.incompletePlan.split(this, next,
-						mode instanceof BreakMode.ForceBreakMode ? IncompleteTablePlan.SplitKind.FORCED
-								: IncompleteTablePlan.SplitKind.AUTO);
-				this.pageSize = this.incompletePlan.visibleGroupSize();
-				next.pageSize = next.incompletePlan.visibleGroupSize();
-			}
-			return result;
-		}
-		return this.splitRows(pageLimit, mode, flags);
-	}
-
-	private SplitResult splitRows(double pageLimit, BreakMode mode, final byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		if (mode instanceof BreakMode.ForceBreakMode) {
 			// Forced page break

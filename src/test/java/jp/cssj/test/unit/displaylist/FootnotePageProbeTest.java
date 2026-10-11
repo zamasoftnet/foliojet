@@ -460,7 +460,7 @@ public final class FootnotePageProbeTest extends TestCase {
 				final PDFUserAgent ua = new PDFUserAgent() { };
 				ua.setProperty("output.print-mode", mode);
 				final var imposition = new net.zamasoft.foliojet.ua.impl.NopImposition(ua);
-				final var context = new net.zamasoft.foliojet.css.StyleContext(new net.zamasoft.foliojet.css.CSSStyleSheet(), null, null);
+				final var context = new net.zamasoft.foliojet.css.StyleContext(new net.zamasoft.foliojet.css.CSSStyleSheet(), null);
 				final Object sequence = constructor.newInstance(ua, context, imposition, null, null, (Consumer<String>) name -> { });
 				imposition.setBoundSide(bound);
 				ua.getPassContext().setPageNumber(42);

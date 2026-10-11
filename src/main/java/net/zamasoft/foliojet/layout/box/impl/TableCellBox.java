@@ -160,20 +160,18 @@ public class TableCellBox extends AbstractContainerBox {
 	}
 
 	/**
-	 * Creates a scratch replica for table Pass B (row measurement) (E-6 increment 5b-1, 2026-07-24:
-	 * a component of the measurement primitive in codex design §4.4, "replay the cell range at the
-	 * final column width, obtain only dimensions, and discard"). Returns a fresh cell with the same
+	 * Creates a scratch replica of this cell (E-6 increment 5b-1, 2026-07-24; now read only by the scratch-replay
+	 * tests, which replay a cell range into it before the real bind). Returns a fresh cell with the same
 	 * initial layout state as this cell after prepareLayout and column-width application
 	 * (setWidth/setHeight): frame, min/max page-direction size, collapsed-border flag, and inner sizes
 	 * along both axes. Copies the frame defensively so replica layout does not touch this cell's state.
-	 * Multi-column cells (non-FlowContainer) are unsupported and return null
-	 * (the caller treats them as ineligible for Pass B).
+	 * Multi-column cells (non-FlowContainer) are unsupported and return null.
 	 *
 	 * @return the replica cell, or null for a multi-column cell
 	 */
 	public final TableCellBox newMeasureReplica() {
 		if (!this.canMeasureReplica()) {
-			// Container replication for multi-column cells is unsupported (ineligible for Pass B).
+			// Container replication for multi-column cells is unsupported.
 			return null;
 		}
 		final AbsoluteRectFrame frameCopy = new AbsoluteRectFrame(this.frame.frame);
@@ -192,8 +190,7 @@ public class TableCellBox extends AbstractContainerBox {
 
 	/**
 	 * Checks whether {@link #newMeasureReplica()} can create a replica (i.e., this is not a multi-column
-	 * cell) without creating one (E-6 increment 5b-2, 2026-07-24). Table Pass C's per-table eligibility
-	 * check, {@code RetainedTableBuilder.isRowSequentialBindEligible}, uses this in its pre-bind scan.
+	 * cell) without creating one (E-6 increment 5b-2, 2026-07-24).
 	 */
 	public final boolean canMeasureReplica() {
 		return this.container instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer;

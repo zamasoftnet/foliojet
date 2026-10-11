@@ -170,6 +170,85 @@ public class CSSStyleSheet {
 		}
 	}
 
+	/** The conversion the current pass belongs to ({@link #beginPass}). */
+	private int conversion = Integer.MIN_VALUE;
+
+	/** The rules and page rules offered in this pass ({@link #addRule}, {@link #addPageRule}). */
+	private int offeredRules, offeredPageRules;
+
+	/** The rules and page rules already in the sheet from an earlier pass of the same conversion. */
+	private int carriedRules, carriedPageRules;
+
+	/** A style sheet source ({@link #beginSource}) and the rules and page rules offered before it in its pass. */
+	private record Source(String key, int rules, int pageRules) {
+	}
+
+	/** The sources read so far by the passes of this conversion, in order; null once a pass read others. */
+	private List<Source> sources;
+
+	/** The next source of {@link #sources} this pass is expected to read. */
+	private int sourceCursor;
+
+	/**
+	 * Starts a pass that reads the document's style sheets into this sheet (2026-10-11). With
+	 * {@code processing.pass-count} of 2 or more the sheet is carried over from the previous pass (see
+	 * {@code UAContext.getCarriedStyleSheet}) and the same style sheets come again in the same order: the rules and
+	 * page rules the earlier passes added are not added twice. Until then each pass appended copies after them: on
+	 * the elements before a {@code <style>} in the body, a head rule then beat the body's rule of the same
+	 * specificity (the reverse of Chrome), and the copies' {@code :has()} conditions had none of the facts the earlier
+	 * pass had found for the originals. If a pass reads other sources than the earlier ones ({@link #beginSource}: a
+	 * style sheet fetched in one pass and not in another), it adds its rules from there on, as before. A sheet left by
+	 * another conversion of a continuous session takes the new document's rules after its own, as before.
+	 *
+	 * @param conversion {@code UAContext.getConversionNumber()}
+	 */
+	public void beginPass(final int conversion) {
+		if (conversion == this.conversion && this.sources != null) {
+			this.carriedRules = Math.max(this.carriedRules, this.offeredRules);
+			this.carriedPageRules = Math.max(this.carriedPageRules, this.offeredPageRules);
+		} else {
+			this.conversion = conversion;
+			this.carriedRules = 0;
+			this.carriedPageRules = 0;
+			this.sources = new ArrayList<Source>();
+		}
+		this.offeredRules = 0;
+		this.offeredPageRules = 0;
+		this.sourceCursor = 0;
+	}
+
+	/**
+	 * Notes that a style sheet source starts ({@code CSSStyleSheetBuilder.parse}). A later pass skips the rules of
+	 * the sources the earlier passes read, in the same order, only.
+	 *
+	 * @param key the source's URI and text
+	 */
+	public void beginSource(final String key) {
+		if (this.sources == null) {
+			return;
+		}
+		final boolean same;
+		if (this.sourceCursor < this.sources.size()) {
+			final Source expected = this.sources.get(this.sourceCursor);
+			same = expected.key().equals(key) && expected.rules() == this.offeredRules
+					&& expected.pageRules() == this.offeredPageRules;
+		} else {
+			// A source after those of the earlier passes: right after all of their rules
+			same = this.offeredRules >= this.carriedRules && this.offeredPageRules >= this.carriedPageRules;
+			if (same) {
+				this.sources.add(new Source(key, this.offeredRules, this.offeredPageRules));
+			}
+		}
+		if (same) {
+			++this.sourceCursor;
+			return;
+		}
+		// Not what the earlier passes read here: add every rule from now on
+		this.carriedRules = 0;
+		this.carriedPageRules = 0;
+		this.sources = null;
+	}
+
 	/**
 	 * Adds a rule (inside {@code @container}, 2026-08-15 stage 4).
 	 *
@@ -178,6 +257,10 @@ public class CSSStyleSheet {
 	public void addRule(List<Selector> selectors, Declaration declaration, Origin origin, int layer,
 			net.zamasoft.foliojet.css.container.ContainerQuery containerQuery) {
 		if (declaration == null) {
+			return;
+		}
+		if (this.offeredRules++ < this.carriedRules) {
+			// Added by an earlier pass (beginPass)
 			return;
 		}
 		final Layer cascadeLayer = layer == Rule.NO_LAYER ? null : this.layersById.get(layer);
@@ -331,6 +414,10 @@ public class CSSStyleSheet {
 	 */
 	public PageRule addPageRule(String name, byte pseudoMask, Declaration declaration) {
 		final PageRule rule = new PageRule(name, pseudoMask, declaration, this.pageRules.size());
+		if (this.offeredPageRules++ < this.carriedPageRules) {
+			// Added by an earlier pass (beginPass): the caller's margin boxes go to this unused copy
+			return rule;
+		}
 		this.pageRules.add(rule);
 		return rule;
 	}

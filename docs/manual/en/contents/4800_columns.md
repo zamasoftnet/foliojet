@@ -253,6 +253,8 @@ However, the columns immediately before the spanning element are balanced regard
 When multi-column content extends beyond the end of the page, a column break occurs if possible; otherwise, a page break occurs.
 For example, within a three-column element, overflow in the first or second column causes a column break, while overflow in the third causes a page break.
 Column breaks split content in the same way as page breaks.
+Floating boxes inside a multi-column element, however, are not split by columns: a floating box taller than the rest of
+the page stays in the last column and can overflow the page.
 
 Page breaks occur within floating boxes and table cells,
 but not within floating boxes or table cells that have a multi-column layout. They also do not occur within boxes with a specified height.

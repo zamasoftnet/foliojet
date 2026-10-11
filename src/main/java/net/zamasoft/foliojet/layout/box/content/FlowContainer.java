@@ -610,19 +610,6 @@ public class FlowContainer implements Container {
 
 	@Override
 	public double balancePageSizeFloor() {
-		return this.balanceExtent(false);
-	}
-
-	/**
-	 * The page-axis end of the floats in this multicol's content, its own and those of the blocks it holds (2026-10-10):
-	 * balancing counts them, as it counts the flows.
-	 */
-	public double floatPageEnd() {
-		return this.balanceExtent(true);
-	}
-
-	/** {@link #balancePageSizeFloor}, or with {@code floats} {@link #floatPageEnd}. */
-	private double balanceExtent(final boolean floats) {
 		if (this.flows == null && this.floatings == null) {
 			return 0;
 		}
@@ -645,33 +632,22 @@ public class FlowContainer implements Container {
 		// (2026-10-09, sweep defect R2, seed 12679054). The capacity search counts only the flows, so a multicol
 		// holding only floats got the least capacity and stayed where the rest of the page was too small for them:
 		// a vertical-lr float in vertical-rl columns ran 133pt off the page. With the floor, the multicol moves on.
-		//
-		// The floats count as far as they paint (2026-10-11): the continuation of a float with a max-size stops at what
-		// the max-size left (AbstractBlockBox.splitPageState), and its content past it, counted by the box alone, was
-		// left out of the balancing and of the multicol's extent: the last lines ran past the paper and were lost.
-		// Not inside a block that clips its overflow (codex): what it hides takes no room.
 		final WritingMode outer = this.box.getBlockParams().flow;
 		double floor = 0;
 		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
 		final Deque<Double> offsets = new ArrayDeque<Double>();
-		// Whether a block the container is in clips what overflows it: the floats there count by their box only.
-		final Deque<Boolean> clipped = new ArrayDeque<Boolean>();
 		containers.push(this);
 		offsets.push(0.0);
-		clipped.push(Boolean.FALSE);
 		while (!containers.isEmpty()) {
 			final FlowContainer container = containers.pop();
 			final double offset = offsets.pop();
-			final boolean clips = clipped.pop();
 			if (container.floatings != null) {
 				for (int i = 0; i < container.floatings.getCount(); ++i) {
 					final Floating floating = container.floatings.getFloating(i);
 					final BoxType type = floating.box.getType();
-					if (floats || type == BoxType.REPLACED || type == BoxType.RESCUE || (type == BoxType.BLOCK
+					if (type == BoxType.REPLACED || type == BoxType.RESCUE || (type == BoxType.BLOCK
 							&& ((AbstractContainerBox) floating.box).getBlockParams().flow != outer)) {
-						floor = Math.max(floor, offset + floating.pageAxis + (floats && !clips
-								? FloatMeasurement.occupiedPageExtent(floating.box, outer)
-								: floating.box.getPageExtent(outer)));
+						floor = Math.max(floor, offset + floating.pageAxis + floating.box.getPageExtent(outer));
 					}
 				}
 			}
@@ -686,13 +662,10 @@ public class FlowContainer implements Container {
 				final FlowBlockBox block = (FlowBlockBox) f.box;
 				if (net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(outer,
 						block.getBlockParams().flow)) {
-					if (!floats) {
-						floor = Math.max(floor, offset + f.pageAxis + f.box.getPageExtent(outer));
-					}
+					floor = Math.max(floor, offset + f.pageAxis + f.box.getPageExtent(outer));
 				} else if (block.getContainer() instanceof FlowContainer inner) {
 					containers.push(inner);
 					offsets.push(offset + f.pageAxis + block.getFrame().getFramePageStart(outer));
-					clipped.push(clips || block.getBlockParams().clipsOverflowPaint());
 				}
 			}
 		}
@@ -1562,18 +1535,6 @@ public class FlowContainer implements Container {
 				// TREAT_AS_MOVE, conversion to Move by pulling, is a prime example of a Probe not being final placement.
 				switch (FlowCutter.resolveKeep(i, lastOrphan, xflags)) {
 				case KEEP_ALL:
-					if (!openTailSelected && this.floatings != null
-							&& (innerFlags & IPageBreakableBox.FLAGS_FLOAT_CROSSES) != 0
-							&& !net.zamasoft.foliojet.layout.fragment.OpenBoxes
-									.isOpen(((Flow) this.flows.get(this.flows.size() - 1)).box)) {
-						// The flows fit but a float crosses the cut (2026-10-10): split the floats and keep the owner, as
-						// when the cut lies past the box (PreDecision.KeepFloats). A column holds its floats in a box as
-						// tall as the column, which they overflow: kept whole, a float taller than the column stayed in
-						// it past the paper when the column also held a line of text. Not while the last flow is open (the
-						// plan selects it, or it is a nested multicol being closed): it goes on in the next fragment, which
-						// keeping the owner would leave without it (see openTailSelected).
-						return plain(this.splitFloatingsKeepingOwner(prevPageSize, flags));
-					}
 					return plain(null);
 				case EXAMINE_NEXT:
 					continue;

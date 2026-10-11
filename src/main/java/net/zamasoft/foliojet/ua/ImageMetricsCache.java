@@ -25,7 +25,7 @@ import net.zamasoft.pdfg2d.gc.image.Image;
  * </p>
  *
  * <p>
- * Lifetime matches {@link SelectorFacts}/{@link ContainerFacts}; resets at the start of
+ * Lifetime matches {@link SelectorFacts}; resets at the start of
  * {@code STRUCTURE_SCAN} (multiple passes) and {@code DOCUMENT} (single pass),
  * since the same URI can refer to different content in another document.
  * </p>

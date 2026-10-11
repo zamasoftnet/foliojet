@@ -19,7 +19,7 @@ import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
  * What measuring the content of retained column flex items costs (codex review 2026-10-08).
  *
  * <ul>
- * <li>The measurement copy is counted apart from the live container, as table Pass B does: a centered column holding
+ * <li>The measurement copy is counted apart from the live container: a centered column holding
  * one paragraph retains no more text than the same paragraph with a fixed height, which is not measured (the copy was
  * charged to the container and the bind charged the text again, so a limit twice the text was exceeded).</li>
  * <li>Nested centered columns reuse the measurements of the same ranges: 12 levels bind a few hundred items, not

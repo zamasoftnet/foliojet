@@ -380,9 +380,10 @@ to 2 or more.
 | `:empty` | Requires waiting until the element closes to confirm that it has no children |
 | `:has()` | Requires reading the entire subtree to determine whether any descendant matches |
 
-The same applies when you use these inside `:not()`.
-If the pass count is insufficient, these selectors are **silently ignored as
-selectors that do not match**. If a style is not applied, check the pass count first.
+If the pass count is insufficient, these selectors are **treated as selectors that do not match,
+without a warning**. Inside `:not()` they match every element instead (`li:not(:last-child)` also applies
+to the last `li`). Only `:has()` applies to the elements after the descendant that satisfies it.
+If a style is not applied, or applied too widely, check the pass count first.
 
 **Counters and references**
 

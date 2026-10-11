@@ -172,26 +172,6 @@ public class LimitIoPropertyTest extends TestCase {
 		assertNull(this.convertRetained(RETAINED_FLOAT, between).failure());
 	}
 
-	public void testRetainedTextLimitPassBReleased() throws Exception {
-		final var previous = RetainedTextLimit.beforeTableMainBind;
-		final var samples = new java.util.concurrent.atomic.AtomicLong();
-		final var current = new java.util.concurrent.atomic.AtomicLong(-1);
-		final var measured = new java.util.concurrent.atomic.AtomicLong();
-		try {
-			RetainedTextLimit.beforeTableMainBind = limit -> {
-				samples.incrementAndGet();
-				current.accumulateAndGet(limit.getCurrentBytes(), Math::max);
-				measured.accumulateAndGet(limit.getHighWater(), Math::max);
-			};
-			assertNull(this.convertRetained(RETAINED_TABLE, 0).failure());
-			assertTrue("MAIN前の観測点を通ること", samples.get() > 0);
-			assertTrue("Pass B中も数えていること", measured.get() > 1024);
-			assertEquals("破棄したPass Bの量はMAINへ残らないこと", 0L, current.get());
-		} finally {
-			RetainedTextLimit.beforeTableMainBind = previous;
-		}
-	}
-
 	public void testRetainedTextLimitMarginBoxesIsolated() throws Exception {
 		this.checkRetainedMarginBoxes(false);
 	}
@@ -353,7 +333,7 @@ public class LimitIoPropertyTest extends TestCase {
 				assertEquals(600L, limit.getCurrentBytes());
 				try (var measurement = limit.measurement("td")) {
 					limit.add(800);
-					assertEquals("加算保留中でもPass B自身は数えること", 800L, limit.getCurrentBytes());
+					assertEquals("加算保留中でも計測自身は数えること", 800L, limit.getCurrentBytes());
 					try {
 						limit.add(226);
 						fail("計測用複製にも上限を適用すること");

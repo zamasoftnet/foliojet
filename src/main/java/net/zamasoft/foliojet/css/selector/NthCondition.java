@@ -4,10 +4,9 @@ package net.zamasoft.foliojet.css.selector;
  * A condition taking An+B syntax as its argument (:nth-child() / :nth-of-type()).
  *
  * <p>
- * Matches simply by iteratively walking the preceding-sibling chain
- * (CSSElement.precedingElement) toward its beginning to count the position
- * (1P, no lookahead), without adding state to the element stack.
- * Iterates over the chain length but does not recurse.
+ * Matches the position the element was given among its siblings as it started ({@code CSSElement.childIndex},
+ * {@code typeIndex}; 1P, no lookahead). Until 2026-10-11 the position was counted by walking the chain of preceding
+ * siblings back to the first child each time.
  * </p>
  */
 public final class NthCondition implements Condition {

@@ -54,67 +54,17 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 public class RetentionHighWaterReportTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
-	/** Detect zero actual fragment emissions using the same persistent documents as golden/D7. */
-	public void testRowStreamingFixtureEmitsAndBoundsRows() throws Exception {
-		final RowRetentionReport report = new RowRetentionReport();
-		try (final AutoCloseable observer = report.observe()) {
-			TwoPassDigestParityTest.transcode(new TwoPassDigestParityTest.CorpusInput(
-					"files/unittest/0240-table/row-streaming-emit.html", 1, "text/html",
-					Map.of("input.include", "**", "input.property-pi", "true", "processing.fail-on-fatal-error", "true",
-							"processing.table-row-emission", "true")));
-		}
-		// Pages are at most 100 pt; body lines are at least 9.1 pt. Include the 0.5 pt equivalence band and one more line.
-		report.assertStreamingBound((int) Math.floor(100.5 / 9.1), 1, 1, 2);
-		System.err.println("[B-2c permanent fixture] " + report);
-	}
-
-	public void testRowStreamingCaptionFixtureEmitsOnlyBottomSide() throws Exception {
-		final RowRetentionReport report = streamingFixture("caption");
-		// Three tables: top only, bottom only, and both. The bottom-only table emits; the table with both is excluded by CAPTION.
-		report.assertFeature(RowRetentionReport.Feature.TOP_CAPTION, 2, 0);
-		report.assertFeature(RowRetentionReport.Feature.BOTTOM_CAPTION, 2, 1);
-		// A caption's break-before declaration alone does not prove that a page break occurred during its placement.
-		report.assertTableCounts(3, 1);
-		report.assertStreamingBound((int) Math.floor(100.5 / 9.1), 1, 1, 2);
-		assertEquals(2, report.exclusionCount(
-				net.zamasoft.foliojet.layout.builder.impl.TableBuildPlanner.RowEmissionExclusion.CAPTION));
-	}
-
-	public void testRowStreamingGroupHeightFixtureActuallyDistributesHeight() throws Exception {
-		final RowRetentionReport report = streamingFixture("group-height");
-		// Distribute for both tables, but do not emit ABSOLUTE because parent dimension accounting does not support it yet.
-		report.assertFeature(RowRetentionReport.Feature.ABSOLUTE_GROUP_SIZE, 2, 0);
-		report.assertFeature(RowRetentionReport.Feature.GROUP_SIZE_GROWTH, 2, 0);
-		report.assertFeature(RowRetentionReport.Feature.ZERO_GROUP_SIZE_GROWTH, 1, 0);
-		report.assertFeature(RowRetentionReport.Feature.TABLE_SIZE_AFTER_GROUP, 2, 0);
-		report.assertTableCounts(2, 0);
-		assertEquals(2, report.exclusionCount(
-				net.zamasoft.foliojet.layout.builder.impl.TableBuildPlanner.RowEmissionExclusion.GROUP_PAGE_SIZE));
-	}
-
-	private static RowRetentionReport streamingFixture(final String name) throws Exception {
-		final RowRetentionReport report = new RowRetentionReport();
-		try (final AutoCloseable observer = report.observe()) {
-			TwoPassDigestParityTest.transcode(new TwoPassDigestParityTest.CorpusInput(
-					"files/unittest/0240-table/row-streaming-" + name + ".html", 1, "text/html",
-					Map.of("input.include", "**", "input.property-pi", "true", "processing.fail-on-fatal-error", "true",
-							"processing.table-row-emission", "true")));
-		}
-		System.err.println("[B-3-1 permanent fixture " + name + "] " + report);
-		return report;
-	}
-
 	/** Normal CI: verify slice ownership, compaction, and release before final cleanup for 40 short-cell rows. */
 	public void testShortCellOwnershipAndRelease() throws Exception {
 		final int rows = 40;
 		final File file = EnduranceTest.generateManyRowsTable("t5a-short-cell-ownership", rows);
-		final var afterPassB = new AtomicReference<RetentionSnapshot>();
+		final var beforeBind = new AtomicReference<RetentionSnapshot>();
 		final var compacted = new AtomicReference<RetentionSnapshot>();
 		final var beforeClose = new ArrayList<RetentionSnapshot>();
 		final var afterTableRows = new AtomicReference<Integer>();
 		try (final AutoCloseable stages = RangeOnlyInvariantTest.observe(RetainedTableBuilder.class,
 				"retentionObserver", (BiConsumer<String, LayoutSource>) (stage, source) -> {
-			if (stage.equals("after-pass-b")) afterPassB.set(source.retentionSnapshot());
+			if (stage.equals("before-top-captions")) beforeBind.set(source.retentionSnapshot());
 		}); final AutoCloseable plans = RangeOnlyInvariantTest.observe(RetainedTableBuilder.class,
 				"retentionPlanObserver", (BiConsumer<String, RetainedTableBuilder>) (stage, table) -> {
 			if (stage.equals("after-table-end") && ReplayIntent.current() == ReplayIntent.MAIN) {
@@ -132,10 +82,10 @@ public class RetentionHighWaterReportTest extends TestCase {
 			Files.deleteIfExists(file.toPath());
 		}
 		assertEquals("MAIN適用後に行計画が残っている(または未観測)", Integer.valueOf(0), afterTableRows.get());
-		final var measured = afterPassB.get();
-		assertNotNull("Pass B後の観測なし", measured);
-		assertTrue("計測後も全本文セルのslice所有を保持", measured.slicedRanges() >= rows * 3);
-		assertTrue("計測で本文の所有を消費していない", measured.openRanges() >= rows * 3);
+		final var measured = beforeBind.get();
+		assertNotNull("bind前の観測なし", measured);
+		assertTrue("bind前に全本文セルのslice所有を保持", measured.slicedRanges() >= rows * 3);
+		assertTrue("bind前に本文の所有を消費していない", measured.openRanges() >= rows * 3);
 		assertTrue("本文イベントのslice化が未発火", measured.slicedEvents() >= rows * 3);
 		final var reclaimed = compacted.get();
 		assertNotNull("sliceを保持したcompactの観測なし", reclaimed);
@@ -155,15 +105,12 @@ public class RetentionHighWaterReportTest extends TestCase {
 	 * from retention after MAIN consumption but before final cleanup.
 	 * Run the 6,000-row conversion, explicit GC, and histogram only with {@code -Dfoliojet.perf} or
 	 * {@code -Dfoliojet.retentionDiag}. Override the row count with {@code -Dfoliojet.retentionRows}.
-	 * Table observation stages are before-table-end, after-input-rows-N, before-pass-b,
-	 * after-pass-b, during-pass-c, after-row-N (every 2,000 rows across all groups),
-	 * before-row-emission, after-row-emission, after-row-completion, and after-table-end.
+	 * Table observation stages are before-table-end, after-input-rows-N, before-column-widths,
+	 * before-top-captions, after-row-sizes, after-row-N (every 2,000 rows across all groups), and after-table-end.
 	 *
 	 * <p>Follow-up: why a single 5 MB cell went from OOM (18 seconds) to TIMEOUT (420 seconds) remains unknown;
-	 * do not count this as improved completion. Next, observe Pass B/C times, GC time, and compact scan counts.
-	 * For 10,000 rows, observe row-wise layout after overall dimensions are finalized, distinguishing
-	 * the entire row tree, the laid-out tree, and plan references. R1-lite releases only row plans
-	 * already applied in MAIN.</p>
+	 * do not count this as improved completion. Next, observe bind times, GC time, and compact scan counts.
+	 * R1-lite releases only row plans already applied in MAIN.</p>
 	 */
 	public void testShortCellManyRowsRetention() throws Exception {
 		if (System.getProperty("foliojet.perf") == null
@@ -182,11 +129,6 @@ public class RetentionHighWaterReportTest extends TestCase {
 		try (final AutoCloseable stages = RangeOnlyInvariantTest.observe(RetainedTableBuilder.class,
 				"retentionObserver", (BiConsumer<String, LayoutSource>)
 						(stage, source) -> reportStage(stage, source));
-				final AutoCloseable plans = RangeOnlyInvariantTest.observe(RetainedTableBuilder.class,
-						"retentionPlanObserver", (BiConsumer<String, RetainedTableBuilder>) (stage, table) -> {
-					System.err.println("[B-2 row retention] stage=" + stage + " intent=" + ReplayIntent.current()
-							+ " " + table.rowRetention() + " exclusions=" + table.rowEmissionExclusions());
-				});
 				final AutoCloseable compact = RangeOnlyInvariantTest.observe(LayoutSource.class,
 						"compactObserver", (Consumer<LayoutSource>) source -> {
 					lastCompact.set(source.retentionSnapshot());
@@ -232,10 +174,9 @@ public class RetentionHighWaterReportTest extends TestCase {
 		final long usedAfterGc = runtime.totalMemory() - runtime.freeMemory();
 		System.err.println("[T5a short cells] stage=" + stage + " heapUsed=" + used
 				+ " heapUsedAfterGc=" + usedAfterGc + " " + source.retentionSnapshot());
-		if (stage.startsWith("after-input-rows-") || stage.equals("before-pass-b")
-				|| stage.equals("before-first-row-emission")
-				|| stage.equals("after-pass-b") || stage.equals("during-pass-c")
-				|| stage.startsWith("after-row-") || stage.equals("after-table-end")) return reportClassHistogram(stage);
+		if (stage.startsWith("after-input-rows-") || stage.equals("before-column-widths")
+				|| stage.equals("after-row-sizes") || stage.startsWith("after-row-")
+				|| stage.equals("after-table-end")) return reportClassHistogram(stage);
 		return null;
 	}
 
@@ -387,8 +328,6 @@ public class RetentionHighWaterReportTest extends TestCase {
 		final long autoBefore = TableBuildStats.retentionReasonCount(TableRetentionReason.AUTO_COLUMNS);
 		final long cellSealsBefore = ContinuationStats.CELL_RANGE_SEALS.get();
 		final long cellRangeBindsBefore = ContinuationStats.CELL_RANGE_BINDS.get();
-		final long passCTablesBefore = ContinuationStats.TABLE_PASS_C_TABLES.get();
-		final long passBMeasuresBefore = ContinuationStats.TABLE_PASS_B_CELL_MEASURES.get();
 		final File doc = generateAutoTable("e6-hw-auto-table", bodyRows, columns);
 		this.transcode(doc, "e6-hw-auto-table", 1);
 
@@ -426,15 +365,6 @@ public class RetentionHighWaterReportTest extends TestCase {
 				cellSeals >= bodyRows);
 		assertEquals("セルseal数とセルrange bind数が一致しません(リース取り残しの疑い)", cellSeals,
 				cellRangeBinds);
-
-		// E-6 increment 5b-2: all real cells in this table qualify for sealing, so Pass C
-		// (sequential row-wise binding) handles it, and Pass B (row measurement) fires for all real cells.
-		// This observes "zero bound cell-body trees during row-height calculation (measurement trees discarded each time)."
-		assertTrue("auto表が表Pass C(行単位逐次bind)で処理されていません",
-				ContinuationStats.TABLE_PASS_C_TABLES.get() > passCTablesBefore);
-		final long passBMeasures = ContinuationStats.TABLE_PASS_B_CELL_MEASURES.get() - passBMeasuresBefore;
-		assertTrue("表Pass B(行計測)がauto表の実セル規模で発火していません: " + passBMeasures,
-				passBMeasures >= bodyRows);
 
 		report();
 	}
@@ -478,10 +408,6 @@ public class RetentionHighWaterReportTest extends TestCase {
 		s.append("  CELL_RANGE_SEALS=").append(ContinuationStats.CELL_RANGE_SEALS.get()).append('\n');
 		s.append("  CELL_RANGE_BINDS=").append(ContinuationStats.CELL_RANGE_BINDS.get()).append('\n');
 
-		s.append("  TABLE_PASS_C_TABLES=").append(ContinuationStats.TABLE_PASS_C_TABLES.get()).append('\n');
-		s.append("  TABLE_LEGACY_BINDROWS=").append(ContinuationStats.TABLE_LEGACY_BINDROWS.get()).append('\n');
-		s.append("  TABLE_PASS_B_CELL_MEASURES=").append(ContinuationStats.TABLE_PASS_B_CELL_MEASURES.get())
-				.append('\n');
 		for (final TableRetentionReason reason : TableRetentionReason.values()) {
 			s.append("  RETENTION_REASON_").append(reason).append('=')
 					.append(TableBuildStats.retentionReasonCount(reason)).append('\n');
@@ -575,7 +501,6 @@ public class RetentionHighWaterReportTest extends TestCase {
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
-				session.property("processing.table-row-emission", "true");
 				if (passCount > 1) {
 					session.property("processing.pass-count", String.valueOf(passCount));
 				}

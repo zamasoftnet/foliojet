@@ -20,7 +20,6 @@ import net.zamasoft.foliojet.css.selector.Selector.SelectorType;
 import net.zamasoft.foliojet.css.selector.SelectorListCondition;
 import net.zamasoft.foliojet.css.selector.SimpleSelector;
 import net.zamasoft.foliojet.css.container.ContainerQuery;
-import net.zamasoft.foliojet.ua.ContainerFacts;
 import net.zamasoft.foliojet.ua.SelectorFacts;
 import net.zamasoft.foliojet.xml.vocab.XHTML;
 
@@ -40,17 +39,9 @@ public class StyleContext {
 	 */
 	private final SelectorFacts selectorFacts;
 
-	/**
-	 * Element facts for {@code @container} queries (2026-08-15 stage 4).
-	 * Like {@link #selectorFacts}, reset at the start of STRUCTURE_SCAN
-	 * and accumulated across passes (see {@link ContainerFacts}).
-	 */
-	private final ContainerFacts containerFacts;
-
-	public StyleContext(CSSStyleSheet styleSheet, SelectorFacts selectorFacts, ContainerFacts containerFacts) {
+	public StyleContext(CSSStyleSheet styleSheet, SelectorFacts selectorFacts) {
 		this.styleSheet = styleSheet;
 		this.selectorFacts = selectorFacts;
-		this.containerFacts = containerFacts;
 	}
 
 	/**
@@ -167,9 +158,9 @@ public class StyleContext {
 		// Match only candidate rules from the rightmost selector index.
 		final CSSElement top = (CSSElement) this.elementStack.get(this.elementStack.size() - 1);
 
-		// Accumulate :has() results (truth values are not final until an element ends,
-		// so record them in SelectorFacts across passes; see "two-pass control mode"
-		// in the development plan).
+		// Accumulate :has() results (truth values are not final until an element ends: a single pass records them
+		// on the elements, passes that carry them over in SelectorFacts; see "two-pass control mode" in the
+		// development plan).
 		if (this.selectorFacts != null) {
 			recordHasFacts(this.styleSheet.getHasConditions(), this.elementStack, this.selectorFacts);
 		}
@@ -181,7 +172,7 @@ public class StyleContext {
 		for (List<Rule> bucket : buckets) {
 		for (Rule rule : bucket) {
 			if (matchesFromPath(rule.getSelector(), this.elementStack, this.selectorFacts)
-					&& containerQueryMatches(rule.getContainerQuery(), this.elementStack, this.containerFacts)) {
+					&& containerQueryMatches(rule.getContainerQuery(), this.elementStack)) {
 				if (result == null) {
 					result = new ArrayList<Rule>();
 				}
@@ -323,13 +314,8 @@ public class StyleContext {
 				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
 					selector = combinator.getAncestorSelector();
 					child = true;
-					// Walk back until a preceding sibling matches the rightmost part of the left-hand selector.
-					CSSElement sib = ce.precedingElement;
-					List<CSSElement> ancestors = path.subList(0, j);
-					while (sib != null
-							&& !evaluateSimpleSelector(selector.getSimpleSelector(), withLast(ancestors, sib), facts)) {
-						sib = sib.precedingElement;
-					}
+					// The nearest preceding sibling that matches the rightmost part of the left-hand selector.
+					CSSElement sib = precedingMatch(selector.getSimpleSelector(), ce, path.subList(0, j), facts);
 					if (sib == null) {
 						break NEXT;
 					}
@@ -366,6 +352,7 @@ public class StyleContext {
 	 * never changes. Calling this throughout the document incrementally accumulates
 	 * :has() truth values that become final when elements end. A single pass cannot finish this,
 	 * so callers must invoke it across passes; see "two-pass control mode" in the development plan.
+	 * A single pass records them on the subjects ({@link #hasMatch}).
 	 *
 	 * @param hasConditions all :has() conditions in the document (in document order)
 	 * @param path          ancestor chain (current element last)
@@ -376,20 +363,43 @@ public class StyleContext {
 			// Without an ancestor, there can be no subject for :has().
 			return;
 		}
+		final boolean onElements = !facts.isAcrossPasses();
 		for (Condition hasCondition : hasConditions) {
 			for (Selector relativeSelector : ((SelectorListCondition) hasCondition).getSelectors()) {
 				for (int sIndex = path.size() - 2; sIndex >= 0; --sIndex) {
 					CSSElement subject = path.get(sIndex);
-					if (facts.isHasMatch(subject.elementKey, hasCondition)) {
+					if (onElements && subject.elementKey < 0) {
+						// A pseudo or synthetic element (some are shared constants)
+						continue;
+					}
+					if (hasMatch(subject, hasCondition, facts)) {
 						continue;
 					}
 					List<CSSElement> subPath = path.subList(sIndex + 1, path.size());
 					if (matchesFromPath(relativeSelector, subPath, facts)) {
-						facts.setHasMatch(subject.elementKey, hasCondition);
+						if (onElements) {
+							subject.setHasMatch(hasCondition);
+						} else {
+							facts.setHasMatch(subject.elementKey, hasCondition);
+						}
 					}
 				}
 			}
 		}
+	}
+
+	/**
+	 * Whether {@code hasCondition} was found true for {@code ce}: on the element in a single pass, by element key
+	 * when the facts are kept across passes ({@link SelectorFacts#isAcrossPasses()}, 2026-10-11).
+	 */
+	private static boolean hasMatch(CSSElement ce, Condition hasCondition, SelectorFacts facts) {
+		if (facts == null) {
+			return false;
+		}
+		if (!facts.isAcrossPasses()) {
+			return ce.elementKey >= 0 && ce.isHasMatch(hasCondition);
+		}
+		return facts.isHasMatch(ce.elementKey, hasCondition);
 	}
 
 	/**
@@ -403,30 +413,26 @@ public class StyleContext {
 	 * If there is no such container, the query does not match.
 	 *
 	 * <p>
-	 * The sizes are the ones {@link ContainerFacts} holds, estimated from the styles as each container starts
-	 * ({@code ContainerSizeEstimate}, 2026-10-11): any number of passes gives the same answer. {@code NaN}, a size not
-	 * known, never matches.
+	 * The sizes are the ones each container holds ({@link CSSElement#getQueryContainer()}), estimated from the styles
+	 * as it starts ({@code ContainerSizeEstimate}, 2026-10-11): any number of passes gives the same answer.
+	 * {@code NaN}, a size not known, never matches.
 	 * </p>
 	 */
-	private static boolean containerQueryMatches(ContainerQuery query, List<CSSElement> path,
-			ContainerFacts facts) {
+	private static boolean containerQueryMatches(ContainerQuery query, List<CSSElement> path) {
 		if (query == null) {
 			return true;
 		}
-		if (facts == null) {
-			return false;
-		}
 		final String name = query.getName();
 		for (int i = path.size() - 2; i >= 0; --i) {
-			final CSSElement ancestor = path.get(i);
-			if (ancestor.elementKey < 0 || !facts.isInlineSizeContainer(ancestor.elementKey)) {
+			final CSSElement.QueryContainer container = path.get(i).getQueryContainer();
+			if (container == null) {
 				continue;
 			}
-			if (name != null && !containsName(facts.getContainerNames(ancestor.elementKey), name)) {
+			if (name != null && !containsName(container.names(), name)) {
 				continue;
 			}
-			final ContainerFacts.Size size = facts.getSize(ancestor.elementKey);
-			return !Double.isNaN(size.inline()) && query.getCondition().evaluate(size.inline(), size.em(), size.rem());
+			return !Double.isNaN(container.inline())
+					&& query.getCondition().evaluate(container.inline(), container.em(), container.rem());
 		}
 		return false;
 	}
@@ -435,6 +441,74 @@ public class StyleContext {
 		for (final String candidate : names) {
 			if (candidate.equals(name)) {
 				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * The nearest preceding sibling of {@code ce} that matches {@code selector} with {@code ancestors} as its
+	 * ancestors, or null (2026-10-11). A {@link Siblings.Memo} remembers the answer for the newest sibling asked
+	 * about, so the next query walks back only over the siblings that came since: walking back to the first sibling
+	 * each time was the square of the siblings. The chain itself is kept {@link Siblings#KEPT} siblings back at least.
+	 */
+	private static CSSElement precedingMatch(SimpleSelector selector, CSSElement ce, List<CSSElement> ancestors,
+			SelectorFacts facts) {
+		final CSSElement start = ce.precedingElement;
+		if (start == null) {
+			return null;
+		}
+		final Siblings siblings = start.siblings;
+		final Siblings.Memo memo = siblings == null ? null : siblings.memo(selector, ancestors.size());
+		if (memo != null && memo.cacheable && start.childIndex >= memo.scanned.childIndex) {
+			CSSElement found = memo.match;
+			for (CSSElement sib = start; sib != null
+					&& sib.childIndex > memo.scanned.childIndex; sib = sib.precedingElement) {
+				if (evaluateSimpleSelector(selector, withLast(ancestors, sib), facts)) {
+					found = sib;
+					break;
+				}
+			}
+			memo.scanned = start;
+			memo.match = found;
+			return found;
+		}
+		// The first query, a selector whose answer may change (it has :has()), or a sibling before the one the memo
+		// holds (a chain of sibling combinators)
+		CSSElement sib = start;
+		while (sib != null && !evaluateSimpleSelector(selector, withLast(ancestors, sib), facts)) {
+			sib = sib.precedingElement;
+		}
+		if (siblings != null && memo == null) {
+			siblings.addMemo(selector, new Siblings.Memo(ancestors.size(), !containsHas(selector), start, sib));
+		}
+		return sib;
+	}
+
+	/** Whether a {@code :has()} condition is in the selector, at any depth of its arguments. */
+	private static boolean containsHas(SimpleSelector selector) {
+		if (selector.getSelectorType() != SelectorType.ELEMENT_NODE_SELECTOR) {
+			return false;
+		}
+		for (Condition condition : ((ElementSelector) selector).getConditions()) {
+			switch (condition.getConditionType()) {
+			case HAS_CONDITION:
+				return true;
+			case NOT_CONDITION:
+			case IS_CONDITION:
+			case WHERE_CONDITION:
+				for (Selector nested : ((SelectorListCondition) condition).getSelectors()) {
+					for (Selector s = nested; s != null; s = s instanceof CombinatorSelector c
+							? c.getAncestorSelector()
+							: null) {
+						if (containsHas(s.getSimpleSelector())) {
+							return true;
+						}
+					}
+				}
+				break;
+			default:
+				break;
 			}
 		}
 		return false;
@@ -629,11 +703,11 @@ public class StyleContext {
 		// An+B condition (:nth-child() / :nth-of-type())
 		case NTH_CHILD_CONDITION: {
 			NthCondition nth = (NthCondition) condition;
-			return nth.matches(siblingPosition(ce, false));
+			return nth.matches(ce.childIndex);
 		}
 		case NTH_OF_TYPE_CONDITION: {
 			NthCondition nth = (NthCondition) condition;
-			return nth.matches(siblingPosition(ce, true));
+			return nth.matches(ce.typeIndex);
 		}
 
 		// Pseudo-classes counted from the end (consult SelectorFacts collected by STRUCTURE_SCAN).
@@ -653,7 +727,7 @@ public class StyleContext {
 		case ONLY_OF_TYPE_CONDITION:
 			// An element satisfying both the equivalent of :first-of-type
 			// (existing siblingPosition(ce,true)==1) and :last-of-type (STRUCTURE_SCAN)
-			return siblingPosition(ce, true) == 1 && facts != null && facts.isLastOfType(ce.elementKey);
+			return ce.typeIndex == 1 && facts != null && facts.isLastOfType(ce.elementKey);
 		case NTH_LAST_CHILD_CONDITION: {
 			if (facts == null) {
 				return false;
@@ -670,9 +744,9 @@ public class StyleContext {
 		}
 
 		// :has() (multiple arguments allowed, ORed). Only consult results accumulated
-		// across passes by recordHasFacts, called from StyleContext.merge.
+		// by recordHasFacts, called from StyleContext.merge.
 		case HAS_CONDITION:
-			return facts != null && facts.isHasMatch(ce.elementKey, condition);
+			return hasMatch(ce, condition, facts);
 
 		// Prefix, suffix, and substring attribute value conditions
 		case PREFIX_ATTRIBUTE_CONDITION:
@@ -744,31 +818,6 @@ public class StyleContext {
 		}
 	}
 
-	/**
-	 * Returns the sequence number among siblings (one-based). Iteratively follows
-	 * the preceding sibling chain (CSSElement.precedingElement) toward the beginning
-	 * (1P, without examining following elements); no recursion.
-	 *
-	 * @param ce           target element
-	 * @param sameTypeOnly if true, count only siblings with the same element name
-	 *                                         (for :nth-of-type())
-	 */
-	private static int siblingPosition(CSSElement ce, boolean sameTypeOnly) {
-		int position = 1;
-		for (CSSElement sibling = ce.precedingElement; sibling != null; sibling = sibling.precedingElement) {
-			if (!sameTypeOnly || sameElementType(sibling, ce)) {
-				++position;
-			}
-		}
-		return position;
-	}
-
-	private static boolean sameElementType(CSSElement a, CSSElement b) {
-		if (!java.util.Objects.equals(a.lName, b.lName)) {
-			return false;
-		}
-		return java.util.Objects.equals(a.uri, b.uri);
-	}
 }
 
 /**

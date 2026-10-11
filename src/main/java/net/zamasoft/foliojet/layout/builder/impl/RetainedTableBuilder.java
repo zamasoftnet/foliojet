@@ -20,7 +20,6 @@ import net.zamasoft.foliojet.layout.box.params.CaptionSideMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +31,6 @@ import net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.FloatBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.FlowBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
-import net.zamasoft.foliojet.layout.box.impl.IncompleteTablePlan;
 import net.zamasoft.foliojet.layout.box.impl.TableBox;
 import net.zamasoft.foliojet.layout.box.impl.TableCellBox;
 import net.zamasoft.foliojet.layout.box.impl.TableColumnBox;
@@ -82,14 +80,12 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	 * </p>
 	 */
 	private double captionInsetStart() {
-		if (this.tableBox == null) return this.rowEmissionCaptionInsetStart;
 		final AbsoluteInsets margin = this.tableBox.getFrame().margin;
 		return this.vertical ? margin.top : margin.left;
 	}
 
 	/** Caption inset at the line-axis end. Same reason as captionInsetStart. */
 	private double captionInsetEnd() {
-		if (this.tableBox == null) return this.rowEmissionCaptionInsetEnd;
 		final AbsoluteInsets margin = this.tableBox.getFrame().margin;
 		return this.vertical ? margin.bottom : margin.right;
 	}
@@ -104,12 +100,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	private final boolean vertical, fixed;
 	private final boolean sliceCellText;
 	private final LayoutStack layoutStack;
-	private TableBox tableBox;
-	/** Line-axis insets used by the bottom caption after emission. Retains no ownership of the table or frame. */
-	private double rowEmissionCaptionInsetStart, rowEmissionCaptionInsetEnd;
-	private long tableSourceAnchor = -1;
-	private BreakableBuilder.IncompleteTableResult rowEmission;
-	private java.util.EnumSet<TableBuildPlanner.RowEmissionExclusion> rowEmissionExclusions;
+	private final TableBox tableBox;
 	private final List<AbstractInnerTableBox> innerTableStack = new ArrayList<AbstractInnerTableBox>();
 	private final List<Builder> topCaptions = new ArrayList<Builder>();
 	private final List<Builder> bottomCaptions = new ArrayList<Builder>();
@@ -139,11 +130,10 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	private AutoColumnWidths.Result columnWidths;
 
 	/**
-	 * Shadow verification hook for table Pass B (row measurement) (E-6 increment 5b-1,
-	 * 2026-07-24; test-only, following LayoutSourceTestHooks in 3b-2). Remains null in
-	 * production with no behavioral change. Shadow tests observe immediately before/after
-	 * cell bind and verify that independent {@link CellPassBMeasurer} measurements match
-	 * actual bound dimensions. Tests setting this must always clear it in finally (shared static state).
+	 * Shadow verification hook around cell bind (E-6 increment 5b-1, 2026-07-24; test-only, following
+	 * LayoutSourceTestHooks in 3b-2). Remains null in production with no behavioral change. Shadow tests observe
+	 * immediately before/after cell bind and replay the same sealed cell range into scratch replicas
+	 * ({@code ScratchReplayScopeTest}). Tests setting this must always clear it in finally (shared static state).
 	 */
 	interface CellBindShadow {
 		/** Immediately before cell bind ({@code cell.bind}); column widths already applied. */
@@ -161,51 +151,6 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 	/** Checks release of plan references at the same observation points (test-only; save and restore when using). */
 	static volatile java.util.function.BiConsumer<String, RetainedTableBuilder> retentionPlanObserver;
-
-	/** For B-2c. The parent owns current-page bodies; repetitions share headers/footers. The fields do not overlap. */
-	public record RowRetention(int pendingRows, int pendingCells, int boundRows, int boundCells,
-			int currentPageRows, int currentPageCells, int repeatedRows, int repeatedCells) {
-	}
-
-	/** Count trees only when observing. Do not confuse pending plans with bound body trees. */
-	public RowRetention rowRetention() {
-		int pendingCells = 0;
-		for (final List<CellContent> cells : this.rowToCells.values()) {
-			for (final CellContent cell : cells) if (!cell.isExtended()) ++pendingCells;
-		}
-		int boundRows = 0, boundCells = 0;
-		for (final TableRowGroupBox group : this.bodyGroups) {
-			boundRows += group.getTableRowCount();
-			boundCells += cellCount(group);
-		}
-		final TableRowGroupBox current = this.rowEmission == null ? null : this.rowEmission.body();
-		return new RowRetention(this.rowToCells.size(), pendingCells, boundRows, boundCells,
-				current == null ? 0 : current.getTableRowCount(), cellCount(current),
-				(this.headerGroup == null ? 0 : this.headerGroup.getTableRowCount())
-						+ (this.footerGroup == null ? 0 : this.footerGroup.getTableRowCount()),
-				cellCount(this.headerGroup) + cellCount(this.footerGroup));
-	}
-
-	private static int cellCount(final TableRowGroupBox group) {
-		int count = 0;
-		if (group != null) {
-			for (int i = 0; i < group.getTableRowCount(); ++i) {
-				final TableRowBox row = group.getTableRow(i);
-				for (int j = 0; j < row.getCellCount(); ++j) if (row.getCell(j).isSource()) ++count;
-			}
-		}
-		return count;
-	}
-
-	/** Null before Pass B. Thereafter, reasons for choosing the normal path; an empty set means an emission candidate. */
-	public java.util.Set<TableBuildPlanner.RowEmissionExclusion> rowEmissionExclusions() {
-		return this.rowEmissionExclusions == null ? null : Collections.unmodifiableSet(this.rowEmissionExclusions);
-	}
-
-	/** Actual fragments detached by the latest parent notification. 0 before acceptance. */
-	public int rowEmittedFragments() {
-		return this.rowEmission == null ? 0 : this.rowEmission.emittedFragments();
-	}
 
 	private void observeRetention(final String stage) {
 		final var planObserver = retentionPlanObserver;
@@ -262,14 +207,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		return new IntrinsicSizes(min, max, 0);
 	}
 
-	/** Null after MAIN row emission transfers ownership to the parent. Use getSourceAnchor to identify the plan. */
 	public final TableBox getTableBox() {
 		return this.tableBox;
-	}
-
-	@Override
-	public final long getSourceAnchor() {
-		return this.tableBox == null ? this.tableSourceAnchor : this.tableBox.getSourceAnchor();
 	}
 
 	public final void startInnerTable(final AbstractInnerTableBox box) {
@@ -617,7 +556,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			// Table absorption (codex increment 5): unreachable because parent range replay reconstructs the table.
 			throw new IllegalStateException("親のrange化に吸収済みの表計画へのprepareLayout");
 		}
-		this.observeRetention("before-pass-b");
+		this.observeRetention("before-column-widths");
 		this.compactCellText(true);
 		TableParams tableParams = this.tableBox.getTableParams();
 
@@ -894,15 +833,12 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		// Full type propagation (making the bind chain and SourceReplayer.bindTwoPassRange
 		// use Builder) is recorded as A-2b in PLAN.md §1.5.
 		final BlockBuilder builder = (BlockBuilder) host;
-		this.tableSourceAnchor = this.tableBox.getSourceAnchor();
 		final TableShape shape = this.resolveShape(builder);
 		final RetainedTextLimit limit = RetainedTextLimit.get(builder);
 		try (var retained = limit == null ? null
 				: limit.enter(RetainedTextLimit.elementName(this.tableBox.getParams(), "table"))) {
-			final double[] rowSizes = this.bindRows(shape);
-			if (this.rowEmission == null) this.assemble(shape, rowSizes);
+			this.assemble(shape, this.bindRows(shape));
 			this.finishTable(builder, shape, retained);
-			this.rowEmission = null;
 		}
 		this.observeRetention("after-table-end");
 		this.compactCellText(true);
@@ -1259,22 +1195,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			rowCount += rows.size();
 		}
 
-		// E-6 increment 5b-2 (2026-07-24): check eligibility for table Pass C (row-wise sequential bind)
-		// per table, failing closed (codex design §4.4). If eligible, subsequent row height calculation
-		// reads only scratch measurements from Pass B without binding. Bind runs row by row
-		// in the "finalize cell heights" loop after row heights resolve (Pass C). Otherwise, retain
-		// the old "bind all cells before row height calculation" path. Calculation code is shared:
-		// only the input source and bind timing change.
-		final boolean rowSequentialBind = this.isRowSequentialBindEligible();
-		if (rowSequentialBind) {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTablePassC();
-		} else {
-			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTableLegacyBindRows();
-		}
-		// Pass B measurements (used page-axis size for each actual cell box). Null on the old path.
-		Map<TableCellBox, Double> measuredPageAxis = rowSequentialBind
-				? new IdentityHashMap<TableCellBox, Double>()
-				: null;
+		// Every cell is bound once, in row order, before the row heights are calculated: the rows read the cells'
+		// used sizes. (2026-10-11: the Pass B/C path, which measured eligible cells in scratch copies first and bound
+		// them row by row afterwards, went with the row emission it prepared; it laid out each of those cells twice.)
 
 		// Calculate row heights
 		double[] rowRatios = new double[rowCount]; // Percentage heights
@@ -1340,26 +1263,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 						k += span - 1;
 						TableCellMetrics.applyLineAxis(cellBox, cell::getIntrinsicSizes, size, this.vertical,
 								tableParams);
-						if (measuredPageAxis != null) {
-							// E-6 increment 5b-2, Pass B: scratch measurement without bind (discard the tree
-							// built on the replica box after collecting values; at this point,
-							// no bound cell body trees exist). Row height calculation reads only
-							// these measurements. Bit-for-bit equality with actual bound sizes was proved in 5b-1
-							// by RetainedCellPassBShadowTest.
-							final CellPassBMeasurer.Result measured = CellPassBMeasurer.measure(cell, this.layoutStack,
-									this.vertical);
-							if (measured == null) {
-								// Cannot occur: isRowSequentialBindEligible already checked eligibility.
-								throw new IllegalStateException("Pass C適格表のセルがPass B計測できません");
-							}
-							measuredPageAxis.put(cellBox, measured.pageAxisSize());
-							net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordTablePassBCellMeasure();
-						} else {
-							// Old path: bind all cells before row height calculation.
-							// E-6 increment 5a: sealed cells use SegmentExecutor range execution;
-							// ineligible cells use the old records replay (CellContent.bind selects the path).
-							this.bindCell(cell, cellBox);
-						}
+						// E-6 increment 5a: sealed cells use SegmentExecutor range execution;
+						// ineligible cells use the old records replay (CellContent.bind selects the path).
+						this.bindCell(cell, cellBox);
 
 						this.cellToSource.put(cellBox, rowBox.addTableSourceCell(cellBox));
 						int cellRowspan = Math.min(rows.size() - j, cell.rowspan);
@@ -1369,9 +1275,8 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 						} else {
 							// Spanning rows (treat % heights as auto for spans)
 							// Use the shared core for both requested sizes and registration (A-4).
-							final double cellSize = RowLayoutEngine.demandPageSize(
-									this.boundPageAxisSize(measuredPageAxis, cellBox), cellParams, cellBox,
-									this.vertical);
+							final double cellSize = RowLayoutEngine.demandPageSize(this.pageAxisSize(cellBox),
+									cellParams, cellBox, this.vertical);
 							RowLayoutEngine.addSpannedDemand(rowspans, rowspanList, j, cellRowspan, cellSize);
 						}
 					}
@@ -1386,15 +1291,13 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 						int cellRowspan = Math.min(rows.size() - j, cell.rowspan);
 						if (cellRowspan <= 1) {
 							final BlockParams cellParams = cellBox.getBlockParams();
-							double cellSize;
+							double cellSize = this.pageAxisSize(cellBox);
 							if (this.vertical) {
-								cellSize = this.boundPageAxisSize(measuredPageAxis, cellBox);
 								if (cellParams.size.getWidthType() == LengthType.ABSOLUTE) {
 									double width = cellParams.size.getWidth();
 									cellSize = Math.max(cellSize, width);
 								}
 							} else {
-								cellSize = this.boundPageAxisSize(measuredPageAxis, cellBox);
 								if (cellParams.size.getHeightType() == LengthType.ABSOLUTE) {
 									double height = cellParams.size.getHeight();
 									cellSize = Math.max(cellSize, height);
@@ -1509,18 +1412,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			}
 		}
 
-		// Pass C bind and row height application do not read the measurement map. Retain only the path decision.
-		measuredPageAxis = null;
-		this.rowEmissionExclusions = this.rowEmissionExclusions(shape, rowSequentialBind);
-		if (rowSequentialBind
-				&& net.zamasoft.foliojet.layout.fragment.ReplayIntent.current()
-						== net.zamasoft.foliojet.layout.fragment.ReplayIntent.MAIN) {
-			final var observer = RetainedTextLimit.beforeTableMainBind;
-			final RetainedTextLimit limit = RetainedTextLimit.get(this.layoutStack);
-			if (observer != null && limit != null) observer.accept(limit);
-		}
-		this.observeRetention("after-pass-b");
-		final boolean emitRows = this.rowEmissionExclusions.isEmpty();
+		this.observeRetention("after-row-sizes");
 		this.compactCellText(true);
 		// Finalize cell heights (shared core — P2-5 (c))
 		final boolean releaseRowPlans = net.zamasoft.foliojet.layout.fragment.ReplayIntent.current()
@@ -1531,10 +1423,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			this.upperRow = null;
 		}
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
-			TableRowGroupBox rowGroup = this.rowGroups.get(i);
-			List<TableRowBox> rows = releaseRowPlans ? this.rowGroupToRows.remove(rowGroup)
+			final TableRowGroupBox rowGroup = this.rowGroups.get(i);
+			final List<TableRowBox> rows = releaseRowPlans ? this.rowGroupToRows.remove(rowGroup)
 					: this.rowGroupToRows.get(rowGroup);
-			boolean emitBody = emitRows && rowGroup != this.headerGroup;
 			final double[] groupRowSizes = new double[rows.size()];
 			for (int j = 0; j < rows.size(); ++j) {
 				groupRowSizes[j] = rows.get(j).getPageSize();
@@ -1542,22 +1433,10 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			for (int j = 0; j < rows.size(); ++j) {
 				TableRowBox rowBox = rows.get(j);
 				rowBox.setLineSize(tableInnerSize);
-				if (this.rowEmission == null) {
-					rowGroup.addTableRow(rowBox);
-				} else {
-					this.rowEmission.body().addTableRow(rowBox);
-				}
+				rowGroup.addTableRow(rowBox);
 				// Finalizing one row is **actual work completed** (2026-07-27, progress signal for the deadline).
 				this.noteTableProgress();
 				final List<CellContent> cells = this.rowToCells.get(rowBox);
-				if (rowSequentialBind) {
-					// E-6 increment 5b-2, Pass C: row-wise sequential bind. Bind the current row’s actual
-					// cells just before applying resolved row heights (applyCellExtents) and
-					// baseline alignment (maxFirstAscent). Actual cell sizes and firstAscent after bind
-					// match Pass B measurements bit for bit, so subsequent reads get the same values
-					// as the old path. Bind order (row order, then cell order within a row) is unchanged too.
-					this.bindRowCells(cells);
-				}
 				CellContent.applyCellExtents(cells, groupRowSizes, j, CellContent.maxFirstAscent(cells),
 						this.vertical);
 				// border-collapse in assemble reads only row heights. rowGroup retains completed rows/body trees;
@@ -1569,52 +1448,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					cells.clear();
 					rows.set(j, null);
 				}
-				if (emitBody) {
-					boolean notified = false;
-					if (this.rowEmission != null) {
-						anonBuilder.getPageContext().noteRetainedTableRowsBound(1);
-						// Splits after notification cannot be undone. Defer the visible end within the boundary until later rows or complete.
-						if (j == rows.size() - 1 || this.rowEmission.hasRowEmissionOverflow()) {
-							this.observeRetention("before-row-emission");
-							if (j == rows.size() - 1) this.rowEmission.complete();
-							else this.rowEmission.rowsAppended();
-							notified = true;
-						}
-					} else if (j < rows.size() - 1 && this.tableBox.emissionCutDetermined(
-							((BreakableBuilder) anonBuilder).getPageLimit() - anonBuilder.getPageAxis(), rowGroup,
-							this.headerGroup == null ? -1 : this.headerGroup.getPageSize())) {
-						// Check the host state after bind too, before suppressing termination.
-						if (!((BreakableBuilder) anonBuilder).supportsIncompleteTableIntake()) {
-							this.rowEmissionExclusions.add(TableBuildPlanner.RowEmissionExclusion.UNSUPPORTED_HOST);
-							emitBody = false;
-						} else {
-							// Enough subsequent rows are visible to split. The parent decides splitting, movement, and termination.
-							this.observeRetention("before-row-emission");
-							this.attachGroups();
-							this.sizeColumns(columnSizes);
-							this.tableBox.markIncomplete();
-							this.tableBox.setIncompletePlan(new IncompleteTablePlan(groupRowSizes,
-									this.headerGroup == null ? 0 : this.headerGroup.getPageSize()));
-							// Acceptance also draws the preceding fragment. Transfer body group, column tree, and table ownership first.
-							this.bodyGroups.clear();
-							this.rowGroups.set(i, null);
-							rowGroup = null;
-							this.columnGroupBox = null;
-							// First bound body row passed to acceptance. Do not advance for short tables that never start emission.
-							anonBuilder.getPageContext().noteRetainedTableRowsBound(j + 1);
-							this.rowEmission = this.acceptRows((BreakableBuilder) anonBuilder);
-							notified = true;
-						}
-					}
-					if (notified && (j == rows.size() - 1
-							|| this.rowEmission.emittedFragments() > 0
-							|| this.rowEmission.status() == BreakableBuilder.IncompleteTableStatus.SPLIT
-							|| this.rowEmission.status() == BreakableBuilder.IncompleteTableStatus.MOVED)) {
-						this.observeRetention(j == rows.size() - 1 ? "after-row-completion" : "after-row-emission");
-					}
-				}
 				this.compactCellText(false);
-				if (j == rows.size() / 2) this.observeRetention("during-pass-c");
 				if ((retentionObserver != null || retentionPlanObserver != null) && boundRows % 2000 == 0) {
 					this.observeRetention("after-row-" + boundRows);
 				}
@@ -1623,86 +1457,15 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		return rowSizes;
 	}
 
-	private BreakableBuilder.IncompleteTableResult acceptRows(final BreakableBuilder host) {
-		final TableBox table = this.tableBox;
-		// Acceptance proceeds through page breaks and drawing, so save only required values before transferring ownership.
-		// Line-axis margins do not change on table splits. Completed tables read their own frame as before.
-		this.rowEmissionCaptionInsetStart = this.captionInsetStart();
-		this.rowEmissionCaptionInsetEnd = this.captionInsetEnd();
-		this.tableBox = null;
-		final var result = host.acceptIncompleteTable(table);
-		if (!result.isAccepted()) {
-			throw new IllegalStateException("The eligible incomplete table was not accepted");
-		}
-		return result;
-	}
-
-	private java.util.EnumSet<TableBuildPlanner.RowEmissionExclusion> rowEmissionExclusions(
-			final TableShape shape, final boolean passCEligible) {
-		return TableBuildPlanner.rowEmissionExclusionsAfterPassB(this.tableBox, shape.anonBuilder(),
-				passCEligible, this.bodyGroups.size(), this.footerGroup != null,
-				!this.topCaptions.isEmpty(), shape.columnSizes().length,
-				this.columnGroupBox != null, this.headerGroup, this.rowGroups, this.rowGroupToRows, this.rowToCells);
-	}
-
-	/**
-	 * Table-wide eligibility for Pass C (row-wise sequential bind) (E-6 increment 5b-2,
-	 * 2026-07-24; Pass B/C in codex design §4.4; fail closed). Eligibility:
-	 * <ul>
-	 * <li>All actual cells support Pass B measurement ({@link CellContent#isPassBMeasurable}:
-	 * sealed ranges or empty cells with no records). Any cell ineligible for sealing,
-	 * such as one with nested builders, or any multi-column cell sends the whole table
-	 * to the old path.</li>
-	 * </ul>
-	 *
-	 * <p>
-	 * 2026-07-30 (DP increment 5): removed the former "no captions" condition.
-	 * Caption bind lies entirely outside row processing (top: before row height calculation;
-	 * bottom: after addBound), so switching to Pass C does not affect it.
-	 * Enabled after a captioned-table fixture in {@code RetainedCellPassBShadowTest}
-	 * proved bit-for-bit equality (maxDiff=0.0) between Pass B measurements and actual
-	 * sizes from legacy all-at-once bind. Caption bind itself (records replay)
-	 * remains outside this eligibility check.
-	 * </p>
-	 */
-	private boolean isRowSequentialBindEligible() {
-		for (int i = 0; i < this.rowGroups.size(); ++i) {
-			final List<TableRowBox> rows = this.rowGroupToRows.get(this.rowGroups.get(i));
-			for (int j = 0; j < rows.size(); ++j) {
-				final List<CellContent> cells = this.rowToCells.get(rows.get(j));
-				for (int k = 0; k < cells.size(); ++k) {
-					final CellContent cell = cells.get(k);
-					if (cell.isExtended()) {
-						continue;
-					}
-					if (!cell.isPassBMeasurable()) {
-						return false;
-					}
-				}
-			}
-		}
-		return true;
-	}
-
-	/**
-	 * Used cell page-axis size read by row height calculation (E-6 increment 5b-2).
-	 * Pass C tables ({@code measured != null}) use Pass B scratch measurements
-	 * (bit-for-bit equality with actual bound sizes proved in 5b-1);
-	 * the old path uses actual sizes from bound cell boxes.
-	 */
-	private double boundPageAxisSize(final Map<TableCellBox, Double> measured, final TableCellBox cellBox) {
-		if (measured != null) {
-			return measured.get(cellBox);
-		}
+	/** The used page-axis size of a bound cell, the extent its row heights read. */
+	private double pageAxisSize(final TableCellBox cellBox) {
 		return this.vertical ? cellBox.getWidth() : cellBox.getHeight();
 	}
 
 	/**
-	 * Binds one cell (shared core for the old all-at-once bind and Pass C row-order bind).
-	 * E-6 increment 5a: sealed cells use SegmentExecutor range execution; ineligible cells
-	 * replay records, selected by {@code CellContent.bind}. E-6 increment 5b-1:
-	 * the shadow verification hook (test-only, production=null) observes immediately
-	 * before and after bind.
+	 * Binds one cell. E-6 increment 5a: sealed cells use SegmentExecutor range execution; ineligible cells
+	 * replay records, selected by {@code CellContent.bind}. E-6 increment 5b-1: the shadow verification hook
+	 * (test-only, production=null) observes immediately before and after bind.
 	 */
 	private void bindCell(final CellContent cell, final TableCellBox cellBox) {
 		final CellBindShadow shadow = cellBindShadow;
@@ -1714,20 +1477,6 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		cellBindBuilder.close();
 		if (shadow != null) {
 			shadow.afterCellBind(cell, cellBox, this.vertical);
-		}
-	}
-
-	/**
-	 * Binds a row's actual cells in cell order (E-6 increment 5b-2, Pass C).
-	 * Extended slots (rowspan/colspan continuations) are or will be bound at their owning row/column.
-	 */
-	private void bindRowCells(final List<CellContent> cells) {
-		for (int k = 0; k < cells.size(); ++k) {
-			final CellContent cell = cells.get(k);
-			if (cell.isExtended()) {
-				continue;
-			}
-			this.bindCell(cell, cell.getCellBox());
 		}
 	}
 
@@ -1787,7 +1536,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		});
 	}
 
-	/** Closes exactly once after submitting a completed table or completing an unfinished-table handle. */
+	/** Closes exactly once after submitting a completed table. */
 	private void finishTable(final BlockBuilder builder, final TableShape shape,
 			final RetainedTextLimit.Scope retained) {
 		final BlockBuilder anonBuilder = shape.anonBuilder();

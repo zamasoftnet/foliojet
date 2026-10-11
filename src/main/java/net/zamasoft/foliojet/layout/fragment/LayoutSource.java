@@ -792,7 +792,7 @@ public final class LayoutSource implements AutoCloseable {
 	/**
 	 * Reclaims only the collected portion of a Retained table placed immediately.
 	 * Protects unplaced content preceding the table and never advances past the smallest fromId of OPEN leases.
-	 * During recording, called each time the watermark advances by 1024 events; uses force at Pass B/C
+	 * During recording, called each time the watermark advances by 1024 events; uses force at the bind
 	 * boundaries.
 	 */
 	public boolean compactRetainedTable(final long tableId, final long watermark, final boolean force) {

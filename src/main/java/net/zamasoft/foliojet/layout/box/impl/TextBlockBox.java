@@ -165,9 +165,9 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	 * extent and no ellipsis holding only inline boxes that paint no frame (in no fragment: a fragment's cut edges come
 	 * back for drawing), carry no id or link, and hold nothing themselves. The end of an inline element
 	 * left on a line of its own goes down past a float, and the block reached that far: when the float was a continuation
-	 * that kept the rest of its definite size (4c3a010e), a page holding only the two answered that it paints, and stayed
-	 * as a blank page (sweep seed 11846535). Such a line at the start answered 0 already. Any other line keeps the answer
-	 * where the last line ends.
+	 * that kept the rest of its definite size (4c3a010e, taken out on 2026-10-11), a page holding only the two answered
+	 * that it paints, and stayed as a blank page (sweep seed 11846535). Such a line at the start answered 0 already. Any
+	 * other line keeps the answer where the last line ends.
 	 * </p>
 	 */
 	@Override

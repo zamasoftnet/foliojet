@@ -115,6 +115,8 @@ public class CSSStyleSheetBuilder {
 	 */
 	public void parse(InputSource source) throws IOException, CSSException {
 		String css = read(source.getReader());
+		// A later pass skips the rules this source added in an earlier pass (CSSStyleSheet.beginPass)
+		this.cssStyleSheet.beginSource(source.getURI() + '\n' + sha256(css));
 		css = css.replace("{literal}", "").replace("{/literal}", "");
 		// Implicitly close an unclosed comment at the end (see DeclarationParser;
 		// ph-css lexical analysis cannot recover here and discards the entire sheet).
@@ -637,7 +639,7 @@ public class CSSStyleSheetBuilder {
 	 * registered queries as always non-matching. From stage 4, {@link net.zamasoft.foliojet.css.container.ContainerQuery}
 	 * (the stage 3 parser) parses the conditions and stores them on the rule
 	 * as {@link Rule#getContainerQuery}. {@code StyleContext.merge} performs the actual match
-	 * (ancestor container lookup and {@code ContainerFacts} access). Here, always pass {@code mediaOk}
+	 * (ancestor container lookup, {@code CSSElement.getQueryContainer()}). Here, always pass {@code mediaOk}
 	 * through unchanged and <b>only register</b> the rules (stage 1's "always false" was removed).
 	 * </p>
 	 *
@@ -1353,5 +1355,15 @@ public class CSSStyleSheetBuilder {
 			builder.append(buffer, 0, len);
 		}
 		return builder.toString();
+	}
+
+	/** The SHA-256 of a style sheet's text, in hex (identifies a source across passes). */
+	private static String sha256(final String text) {
+		try {
+			return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+					.digest(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		} catch (final java.security.NoSuchAlgorithmException e) {
+			throw new IllegalStateException(e);
+		}
 	}
 }

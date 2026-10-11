@@ -18,8 +18,6 @@ public class UAContext {
 
 	private final SelectorFacts selectorFacts = new SelectorFacts();
 
-	private final ContainerFacts containerFacts = new ContainerFacts();
-
 	private final ImageMetricsCache imageMetrics = new ImageMetricsCache();
 
 	/**
@@ -129,11 +127,6 @@ public class UAContext {
 
 	public SelectorFacts getSelectorFacts() {
 		return this.selectorFacts;
-	}
-
-	/** Element facts for {@code @container} queries (2026-08-15, stage 4). */
-	public ContainerFacts getContainerFacts() {
-		return this.containerFacts;
 	}
 
 	/**
@@ -267,8 +260,8 @@ public class UAContext {
 	 * For {@code processing.pass-count>=2}, retain the stylesheet collected in the preceding pass
 	 * (including STRUCTURE_SCAN) here so the next pass can apply all rules from the start
 	 * (same lifetime management as {@link SelectorFacts}: cleared at STRUCTURE_SCAN start and
-	 * at single-pass conversion (DOCUMENT) start). Recollection in later passes adds duplicate rules,
-	 * but identical duplicates do not change cascade results (last-wins simply selects the same value).
+	 * at single-pass conversion (DOCUMENT) start). Later passes read the style sheets again without adding their
+	 * rules twice ({@code CSSStyleSheet.beginPass}, 2026-10-11).
 	 * </p>
 	 * <p>
 	 * The key is {@link DocumentContext#getDocumentURI()}: the spine items of an EPUB laid out into one output are

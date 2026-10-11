@@ -4,6 +4,8 @@ import java.util.Locale;
 
 import org.xml.sax.Attributes;
 
+import net.zamasoft.foliojet.css.selector.Condition;
+
 /**
  * Information about a CSS element.
  *
@@ -143,8 +145,43 @@ public class CSSElement implements StructureElement {
 	/** XML/HTML attributes. */
 	public final Attributes atts;
 
-	/** The preceding element. */
-	public final CSSElement precedingElement;
+	/**
+	 * The preceding sibling, null for the first child. The chain is cut about {@link Siblings#KEPT} siblings back
+	 * ({@link Siblings#keepBounded}, 2026-10-11): until then the closed siblings of every open element stayed, the
+	 * attributes included, however many there were.
+	 */
+	CSSElement precedingElement;
+
+	/**
+	 * The one-based position among the siblings and among the siblings of the same element type, for
+	 * {@code :nth-child()} and {@code :nth-of-type()} (2026-10-11: they were counted by walking the chain back to the
+	 * first child each time, the square of the siblings).
+	 */
+	final int childIndex, typeIndex;
+
+	/** The siblings this element is one of (the children of its parent), null for pseudo and synthetic elements. */
+	final Siblings siblings;
+
+	/**
+	 * The {@code :has()} conditions found true for this element in a single-pass conversion (2026-10-11): they go
+	 * with the element, so they are dropped when it can no longer be matched. Passes that carry them over keep them
+	 * in {@code SelectorFacts} by element key.
+	 */
+	private Condition[] hasMatches;
+
+	/**
+	 * A {@code container-type: inline-size} query container: its {@code container-name} and the sizes its queries
+	 * and container units read (pt, {@code NaN} if not known): its inline size estimated from the styles
+	 * ({@code ContainerSizeEstimate}) and the font sizes em and rem stand for, its own and the root's, as in Chrome.
+	 */
+	public record QueryContainer(String[] names, double inline, double em, double rem) {
+	}
+
+	/**
+	 * Set when this element is a query container, as its style is resolved and before its descendants are styled
+	 * (2026-10-11; until then a table of the whole document by element key, kept across passes).
+	 */
+	private QueryContainer queryContainer;
 
 	/** The position in the document. */
 	public final int charOffset;
@@ -153,7 +190,7 @@ public class CSSElement implements StructureElement {
 	 * A sequence number in document order (zero-based, stable across passes such as STRUCTURE_SCAN/LAYOUT,
 	 * because the same input receives numbers in the same traversal order).
 	 * Used as a stable key for features that cache matching results across passes,
-	 * such as {@code :has()}/{@code :last-child} (see {@code SelectorFacts}).
+	 * such as {@code :has()} with two passes or more and {@code :last-child} (see {@code SelectorFacts}).
 	 * Not assigned to pseudo-elements (remains -1, since only actual DOM elements are eligible).
 	 * This dedicated counter is used instead of charOffset (the byte position in the source)
 	 * because charOffset becomes -1 on paths without a locator and may collide.
@@ -175,6 +212,17 @@ public class CSSElement implements StructureElement {
 	 */
 	public CSSElement(String uri, String lName, String id, String[] styleClasses, byte[] pseudoClasses, Locale lang,
 			String dir, Attributes atts, CSSElement precedingElement, int charOffset, long elementKey) {
+		this(uri, lName, id, styleClasses, pseudoClasses, lang, dir, atts, precedingElement, charOffset, elementKey,
+				null);
+	}
+
+	/**
+	 * Constructs an element of a document, one of {@code siblings} (null for a synthetic element: its positions are
+	 * then counted from {@code precedingElement} alone).
+	 */
+	CSSElement(String uri, String lName, String id, String[] styleClasses, byte[] pseudoClasses, Locale lang,
+			String dir, Attributes atts, CSSElement precedingElement, int charOffset, long elementKey,
+			Siblings siblings) {
 		this.uri = uri;
 		this.lName = lName;
 		this.id = id;
@@ -186,6 +234,9 @@ public class CSSElement implements StructureElement {
 		this.precedingElement = precedingElement;
 		this.charOffset = charOffset;
 		this.elementKey = elementKey;
+		this.siblings = siblings;
+		this.childIndex = precedingElement == null ? 1 : precedingElement.childIndex + 1;
+		this.typeIndex = siblings == null ? 1 : siblings.nextTypeIndex(uri, lName);
 	}
 
 	/**
@@ -265,6 +316,37 @@ public class CSSElement implements StructureElement {
 
 	public boolean isPseudoElement() {
 		return this.atts == null && this.lName != null;
+	}
+
+	/** Whether {@code hasCondition} was found true for this element (single pass, see {@link #hasMatches}). */
+	boolean isHasMatch(final Condition hasCondition) {
+		if (this.hasMatches != null) {
+			for (final Condition c : this.hasMatches) {
+				if (c == hasCondition) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/** Records that {@code hasCondition} is true for this element; once true it stays true. */
+	void setHasMatch(final Condition hasCondition) {
+		if (this.hasMatches == null) {
+			this.hasMatches = new Condition[] { hasCondition };
+		} else if (!this.isHasMatch(hasCondition)) {
+			this.hasMatches = java.util.Arrays.copyOf(this.hasMatches, this.hasMatches.length + 1);
+			this.hasMatches[this.hasMatches.length - 1] = hasCondition;
+		}
+	}
+
+	/** The query container this element is, or null. */
+	public QueryContainer getQueryContainer() {
+		return this.queryContainer;
+	}
+
+	public void setQueryContainer(final QueryContainer queryContainer) {
+		this.queryContainer = queryContainer;
 	}
 
 	public String toString() {

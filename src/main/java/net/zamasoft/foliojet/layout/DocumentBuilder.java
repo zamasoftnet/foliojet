@@ -509,12 +509,12 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	/** Pushes the same coordinator for live construction and child-range replay without Start. */
 	private boolean startItemCoordinator(final Builder builder, final AbstractContainerBox box) {
-		if (box instanceof GridBox grid && GridBuilderLifecycle.eligible(grid, builder)) {
+		if (box instanceof GridBox grid) {
 			this.pushScopedBuilder(GridBuilderLifecycle.start(builder, grid));
 			return true;
 		}
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox flex
-				&& FlexBuilderLifecycle.eligible(flex, builder)) {
+				&& FlexBuilderLifecycle.eligible(flex)) {
 			this.pushScopedBuilder(FlexBuilderLifecycle.start(builder, flex));
 			return true;
 		}
@@ -1518,7 +1518,7 @@ public class DocumentBuilder implements TableBuilderHost {
 						if (!this.contextBuilder().builder.isTwoPass()) body.completeScratchHost();
 						break;
 					}
-					// Disposable measurement (table Pass B): skip seal, prepareBind, and anchoring;
+					// Disposable measurement (a scratch replica): skip seal, prepareBind, and anchoring;
 					// discard the child builder with its replica (sealing would acquire a real lease
 					// that becomes orphaned when discarded). Absolute positioning is out of flow
 					// and does not contribute to measurements, so measurement remains equivalent

@@ -37,8 +37,7 @@ public class RootBuilder extends BreakableBuilder {
 	 * such as A/B/A/B. For details, see
 	 * {@link net.zamasoft.foliojet.layout.fragment.ContinuationStats#STALLED_AUTO_BREAK_LIMIT}.
 	 */
-	private record BreakFingerprint(long ingest, long boundTableRows, long emittedTableFragments,
-			int depth, long pageAxisBits, int target) {
+	private record BreakFingerprint(long ingest, int depth, long pageAxisBits, int target) {
 	}
 
 	/** FIFO-prefix placement plan for top page floats. */
@@ -53,15 +52,14 @@ public class RootBuilder extends BreakableBuilder {
 		}
 	}
 
-	private final java.util.Map<BreakFingerprint, Integer> breakFingerprintCounts = new java.util.HashMap<>();
 	/**
-	 * Counts a second fingerprint that excludes depth (2026-08-23). In a livelock that repeatedly reenters the same
+	 * Counts the break fingerprints without the flow depth (2026-08-23). In a livelock that repeatedly reenters the same
 	 * page break during resumption (wild seed 1490848), each iteration adds an unfinished ResumeSession and an
-	 * open-tail flow, changing the physical depth. The first fingerprint, which includes depth, therefore sees every
-	 * iteration as a different state and never fires.
-	 * Conversely, normalizing depth uniformly breaks detection of a period-two livelock with stable depth (seed
-	 * 44749). Count both fingerprints and stop when either reaches its threshold. Nesting 33 page breaks with no input
-	 * progress and the same cursor and target element is not progress, even if their depths differ.
+	 * open-tail flow, changing the physical depth, so a fingerprint with the depth sees every iteration as a different
+	 * state and never fires. Nesting 33 page breaks with no input progress and the same cursor and target element is
+	 * not progress, even if their depths differ. A second count with the depth was kept beside this one until
+	 * 2026-10-11; it grew with the same breaks and was cleared at the same points, so it never reached the threshold
+	 * first (the period-two livelock of seed 44749 has a stable depth and is caught here as well).
 	 */
 	private final java.util.Map<BreakFingerprint, Integer> depthFreeBreakCounts = new java.util.HashMap<>();
 	/**
@@ -84,25 +82,10 @@ public class RootBuilder extends BreakableBuilder {
 	 * (2026-10-09). Floats broken page by page after the end of the input consume their content with the input
 	 * position, the cursor and the target all unchanged: rubydoc-api's 47000pt {@code main} float went down by about
 	 * 766pt a page, yet the guard counted 32 identical breaks and let the remaining 14000 words overflow. A carry
-	 * smaller than the last one by more than a point is progress, as are new input events and table rows; a carry that
-	 * stays or grows is not, so the stalls the guard is for are still caught.
+	 * smaller than the last one by more than a point is progress, as are new input events; a carry that stays or grows
+	 * is not, so the stalls the guard is for are still caught.
 	 */
 	private double floatCarry = 0, lastFloatCarry = Double.NaN;
-	private long boundTableRows, emittedTableFragments;
-	private long breakHistoryTableRows, breakHistoryTableFragments;
-
-	/**
-	 * Counts only execution consumption of Pass C emission targets, excluding input collection, MEASURE, and
-	 * append notifications.
-	 */
-	final void noteRetainedTableRowsBound(final int rows) {
-		this.boundTableRows += rows;
-	}
-
-	/** Actual fragments detached by the parent onto the previous page. Moving an entire table does not advance this. */
-	final void noteRetainedTableFragmentEmitted() {
-		++this.emittedTableFragments;
-	}
 	private int stalledBreakRun = 0;
 	/** The resume depth ({@code sessions}) at the last automatic page break the guard saw (2026-10-10). */
 	private int lastGuardSessions = Integer.MAX_VALUE;
@@ -120,7 +103,6 @@ public class RootBuilder extends BreakableBuilder {
 		this.floatCarry = 0;
 		this.lastFloatCarry = Double.NaN;
 		this.lastGuardSessions = Integer.MAX_VALUE;
-		this.breakFingerprintCounts.clear();
 		this.depthFreeBreakCounts.clear();
 		this.clearNestedGrowth();
 		this.breakHistoryIngest = Long.MIN_VALUE;
@@ -177,8 +159,8 @@ public class RootBuilder extends BreakableBuilder {
 		if (source != null ? source.areAutoBreaksAbandoned() : this.autoBreaksAbandoned) {
 			return true;
 		}
-		// Discard earlier iterations when input events or Pass C execution consumption advance.
-		// Without table emission, both counters stay at 0, giving the same decision as the original fingerprint.
+		// Discard earlier iterations when input events advance (2026-10-11: the table rows and fragments the row
+		// emission consumed counted too; they went with it).
 		// Keep the history even when sessions temporarily becomes empty. The period-one loop of seed 7662
 		// finishes each page's resumption before proceeding to the next identical page break;
 		// resetting there would miss a livelock that the previous detection caught.
@@ -192,28 +174,18 @@ public class RootBuilder extends BreakableBuilder {
 		this.lastGuardSessions = this.sessions.size();
 		this.floatCarry = 0;
 		this.lastFloatCarry = carry;
-		if (ingest != this.breakHistoryIngest || this.boundTableRows != this.breakHistoryTableRows
-				|| this.emittedTableFragments != this.breakHistoryTableFragments || floatsConsumed) {
-			this.breakFingerprintCounts.clear();
+		if (ingest != this.breakHistoryIngest || floatsConsumed) {
 			this.depthFreeBreakCounts.clear();
 			this.clearNestedGrowth();
 			this.breakHistoryIngest = ingest;
-			this.breakHistoryTableRows = this.boundTableRows;
-			this.breakHistoryTableFragments = this.emittedTableFragments;
 		}
-		final BreakFingerprint fingerprint = new BreakFingerprint(ingest, this.boundTableRows,
-				this.emittedTableFragments, depth,
-				Double.doubleToLongBits(this.pageAxis), target);
-		final int occurrences = this.breakFingerprintCounts.merge(fingerprint, 1, Integer::sum);
-		// Depth-independent second fingerprint (depth fixed at -1; see the field comment).
-		final BreakFingerprint depthFree = new BreakFingerprint(ingest, this.boundTableRows,
-				this.emittedTableFragments, -1,
+		// The fingerprint without the depth (fixed at -1; see the field comment).
+		final BreakFingerprint depthFree = new BreakFingerprint(ingest, -1,
 				Double.doubleToLongBits(this.pageAxis), target);
 		final int depthFreeOccurrences = this.depthFreeBreakCounts.merge(depthFree, 1, Integer::sum);
-		// Third detection: the same page break occurs farther along the cursor while resuming the previous break
+		// Second detection: the same page break occurs farther along the cursor while resuming the previous break
 		// (see the nestedBreakKey comment). Compare fingerprints with the cursor excluded.
-		final BreakFingerprint nestedKey = new BreakFingerprint(ingest, this.boundTableRows,
-				this.emittedTableFragments, depth, 0L, target);
+		final BreakFingerprint nestedKey = new BreakFingerprint(ingest, depth, 0L, target);
 		final int sessionDepth = this.sessions.size();
 		if (nestedKey.equals(this.nestedBreakKey) && sessionDepth == this.nestedBreakSessions + 1
 				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(this.pageAxis, this.nestedBreakPageAxis) > 0) {
@@ -224,10 +196,9 @@ public class RootBuilder extends BreakableBuilder {
 		this.nestedBreakKey = nestedKey;
 		this.nestedBreakSessions = sessionDepth;
 		this.nestedBreakPageAxis = this.pageAxis;
-		this.stalledBreakRun = Math.max(Math.max(occurrences, depthFreeOccurrences) - 1, this.nestedGrowthRun);
+		this.stalledBreakRun = Math.max(depthFreeOccurrences - 1, this.nestedGrowthRun);
 		if (DebugFlags.BREAK_FINGERPRINT) {
 			System.out.println("[fp] ingest=" + ingest + " depth=" + depth + " pageAxis=" + this.pageAxis
-					+ " boundTableRows=" + this.boundTableRows + " emittedTableFragments=" + this.emittedTableFragments
 					+ " target=" + target + " resumeDepth=" + this.sessions.size() + " stalled="
 					+ this.stalledBreakRun);
 		}
@@ -237,7 +208,6 @@ public class RootBuilder extends BreakableBuilder {
 			// places the content with overflow in the current fragment (seed 7662).
 			// All iteration sites, including breakByClear, exit on false.
 			this.stalledBreakRun = 0;
-			this.breakFingerprintCounts.clear();
 			this.depthFreeBreakCounts.clear();
 			this.clearNestedGrowth();
 			this.breakHistoryIngest = Long.MIN_VALUE;
@@ -504,9 +474,6 @@ public class RootBuilder extends BreakableBuilder {
 			final net.zamasoft.foliojet.layout.fragment.ColumnContinuation continuation) {
 		try (ColumnResumeSession session = new ColumnResumeSession(target, continuation)) {
 			session.resume();
-			// The column a resume fills can overflow as the page one can (2026-10-10): Q's float of an
-			// opposite-progression region in a multicol stayed in the second column past the paper.
-			target.markResumedOverflow();
 			assert !session.hasUnconsumedLeases() : "未消費の吸収済み再生範囲が残っています";
 		}
 	}
@@ -1284,6 +1251,7 @@ public class RootBuilder extends BreakableBuilder {
 		// so with the gate retired, discard it and retain only structural validation.
 		net.zamasoft.foliojet.layout.fragment.ContinuationValidator.validatePage(snapshot, continuation);
 
+		this.restartRetainedMulticols();
 		this.flowStack.clear();
 		// The barrier depth counts the flows open inside a page-atomic or orthogonal box, and resume's startFlowBlock()
 		// counts them again (2026-10-09). A break inside the barrier (a table row of a flex item split across pages
@@ -1348,7 +1316,18 @@ public class RootBuilder extends BreakableBuilder {
 			}
 		}
 		this.endRestyling();
-		this.markResumedOverflow();
+		// A closed box carried here by the break (or its continuation) can overflow this page again, a float of an
+		// opposite-progression region that the region keeps in its own extent (2026-10-09, fit seed 12555259). When the
+		// resume also left the breaks off, no closing box would check that overflow: turn them on, and mark the page so
+		// that the closing box that breaks for it keeps breaking until the page fits. With the breaks on, the usual
+		// checks already break the rest. The next break clears the mark (beginBreak); a break nested in this resume
+		// may have set it already, for this same page, and it stays.
+		if (!(this.canBreakBefore && this.interflowBreak)
+				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(this.pageAxis, this.getPageLimit()) > 0) {
+			this.resumedOverflow = true;
+			this.canBreakBefore = true;
+			this.interflowBreak = true;
+		}
 		// Increment 5: if the owner's continuation did not receive the carry-over during replay (multi-column
 		// layout does not continue, another multi-column layout opened elsewhere, or nested continuation became
 		// ineligible), return it to the page host before laying out body text (codex review 2026-09-08 requirement 2).
@@ -1727,7 +1706,6 @@ public class RootBuilder extends BreakableBuilder {
 	public void finish() {
 		// Every box is closed, so is every barrier: a leftover depth stopped page breaking until here (2026-10-09)
 		assert this.breakDepth == -1 : "文書の終わりで改ページ禁止の深さが " + this.breakDepth + " のままです";
-		this.requireNoIncompleteTable();
 		this.finishLayout();
 		// Footnotes F4: if footnotes deferred for capacity remain, generate note-only pages
 		// until pending is empty. An iteration with no progress (no note placed)

@@ -56,10 +56,6 @@ public abstract class AbstractBox implements IBox {
 	}
 
 	public final boolean isSourceReplayable() {
-		if (this instanceof net.zamasoft.foliojet.layout.box.impl.TableBox table && table.isIncomplete()) {
-			// An unfinished fragment's anchor points to the whole table, so exclude it from whole-table source replay.
-			return false;
-		}
 		return this.sourceAnchor >= 0 && !this.fragmented && !this.sourceReplayInvalidated;
 	}
 

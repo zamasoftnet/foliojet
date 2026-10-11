@@ -15,7 +15,7 @@ package net.zamasoft.foliojet.layout.builder;
  * @see TableBuilder#finish(Builder) entry point for each execution plan's completion processing
  */
 public interface RetainedTable extends TableBuilder, TwoPass {
-	/** Source identifier of the table plan, accessible even after rows are emitted. */
+	/** Source identifier of the table plan. */
 	public default long getSourceAnchor() {
 		return this.getTableBox().getSourceAnchor();
 	}

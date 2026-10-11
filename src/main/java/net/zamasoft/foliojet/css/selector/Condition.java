@@ -20,9 +20,9 @@ public interface Condition {
 		/**
 		 * {@code :has()}. Its truth value is not determined until the subject element's subtree ends.
 		 * For each element, StyleContext accumulates checks of candidate subjects (walking back
-		 * through elementStack) and records them in SelectorFacts across passes
-		 * (see the development plan, "2パス制御モード"; requires processing.pass-count>=2,
-		 * as with the :last-child family).
+		 * through elementStack) and records them: on the subjects in a single pass, where a subject matches
+		 * only for the elements after the descendant that makes it true; in SelectorFacts across passes
+		 * with processing.pass-count>=2 (see the development plan, "2パス制御モード").
 		 */
 		HAS_CONDITION
 	}

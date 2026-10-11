@@ -191,10 +191,8 @@ final class StyleEventMachine {
 		if (!ce.isPseudoElement() && ce.elementKey >= 0
 				&& net.zamasoft.foliojet.css.impl.property.container.ContainerType.get(style) //
 						== net.zamasoft.foliojet.css.value.ContainerTypeValue.INLINE_SIZE) {
-			final net.zamasoft.foliojet.ua.ContainerFacts facts = this.ua.getUAContext().getContainerFacts();
-			facts.setInlineSizeContainer(ce.elementKey,
-					net.zamasoft.foliojet.css.impl.property.container.ContainerName.get(style));
-			facts.setSize(ce.elementKey, new net.zamasoft.foliojet.ua.ContainerFacts.Size(
+			ce.setQueryContainer(new CSSElement.QueryContainer(
+					net.zamasoft.foliojet.css.impl.property.container.ContainerName.get(style),
 					this.containerSizes.contentWidth(style,
 							net.zamasoft.foliojet.css.util.ConfiguredPage.contentArea(this.ua)[0]),
 					net.zamasoft.foliojet.css.impl.property.font.FontSize.get(style),

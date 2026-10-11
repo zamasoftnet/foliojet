@@ -65,7 +65,6 @@ public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 		super(params, size, minSize, frame, container);
 		this.pos = pos;
 		this.continuation = true;
-		this.continuePageAxis();
 	}
 
 	public final boolean isContinuationFragment() {

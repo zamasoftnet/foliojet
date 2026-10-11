@@ -50,33 +50,6 @@ public sealed interface BoxRecipe {
 	BoxKind kind();
 
 	/**
-	 * A form that searches up to a fixed page axis to resolve percentage sizes even if the containing block's
-	 * height is auto. Excludes ordinary Flow height/min-height, which refer to the immediate parent.
-	 * Conservatively returns true even when actual ancestors can resolve them; does not create or bind boxes.
-	 */
-	default boolean hasPageRelativeSize() {
-		final BlockParamsFields fields = switch (this) {
-		case InlineBlock box -> box.params().fields();
-		case Marker box -> box.params().fields();
-		case InsideMarker box -> box.params().fields();
-		case FloatBlock box -> box.params().fields();
-		case Absolute box -> box.params().fields();
-		case Table box -> box.params().common();
-		case PlacedTable box -> box.params().common();
-		default -> null;
-		};
-		if (fields == null) return false;
-		// For orthogonal children, physical height becomes the line axis. Check both axes and conservatively
-		// include percentage widths resolvable by the containing cell (the same policy as the Replaced check).
-		return hasRelativeSize(fields.size()) || hasRelativeSize(fields.minSize()) || hasRelativeSize(fields.maxSize())
-				|| (this instanceof PlacedTable box && box.placement().hasPageRelativeSize());
-	}
-
-	private static boolean hasRelativeSize(final net.zamasoft.foliojet.layout.box.params.Dimension size) {
-		return size.getWidthType().needsReference() || size.getHeightType().needsReference();
-	}
-
-	/**
 	 * Inline/float/absolute tables in the main log and repeated content.
 	 * The kind remains TABLE with only one Start/End pair.
 	 * Like TABLE freezing, freezes positioning from the inner blockBox's pos

@@ -87,7 +87,8 @@ could not be retrieved or could not be read.
 <dt>The style cannot be determined in one pass</dt>
 <dd>
 	Selectors such as `:last-child` and `:has()`, which require reading
-	later content, do not work in one pass.
+	later content, do not work in one pass, or work for some elements only
+	(`:not(:last-child)` applies to every element).
 	→ <a href="#style-multipass-required" class="pageref">Features that require two passes</a>
 </dd>
 

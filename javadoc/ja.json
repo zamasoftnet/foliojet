@@ -1044,11 +1044,6 @@
     "en": "The text payload limit for each retained element. A value of 0 or less means unlimited. 16 MiB since\n2026-10-08 (8 MiB before): the body of rustdoc's std index, a flex container retained as a whole, went 2 bytes\npast 8 MiB.",
     "ja": "溜める要素1つの文字payload上限。0以下で無制限。2026-10-08から16 MiB(以前は8 MiB)\n——丸ごと溜めるflexコンテナであるrustdocのstd索引の本文が、8 MiBを2バイト\n超えたため。"
   },
-  "net.zamasoft.foliojet.ua.props.UAProps#PROCESSING_TABLE_ROW_EMISSION": {
-    "hash": "d5c0ecf9d279bceb",
-    "en": "Enables row-by-row emission of retained tables. The default uses the existing path that places completed tables.",
-    "ja": "Retained表の行単位送出を有効にします。既定は完成表を配置する従来経路です。"
-  },
   "net.zamasoft.foliojet.ua.props.UAProps#PROCESSING_TARGET_COUNTER_DIGITS": {
     "hash": "25f8297a4bf5fb90",
     "en": "The number of digits reserved for {@code target-counter()} numbers in single-pass PDF (2026-10-04).\nEven for a number on a later page, a field of this many digits is laid out in advance, and the value\nis written when the document closes. A number that exceeds the field overflows to the left. Range: 1–9.",

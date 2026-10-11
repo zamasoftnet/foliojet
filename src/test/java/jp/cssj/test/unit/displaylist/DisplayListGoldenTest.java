@@ -104,7 +104,7 @@ public class DisplayListGoldenTest extends TestCase {
 			"0240-table/single-row-split-after-line.html", //
 			"0240-table/rowspan-after-empty-row.html", //
 			"0240-table/rowspan-after-short-row.html", //
-			// Retained row emission. RetentionHighWaterReportTest verifies activation and retention bounds.
+			// Tables written for the retained row emission (taken out on 2026-10-11), kept as table goldens.
 			"0240-table/row-streaming-emit.html", //
 			"0240-table/row-streaming-caption.html", //
 			"0240-table/row-streaming-group-height.html", //
@@ -719,14 +719,6 @@ public class DisplayListGoldenTest extends TestCase {
 		s.append("  CELL_RANGE_SEALS=").append(cellSeals).append('\n');
 		s.append("  CELL_RANGE_BINDS=").append(cellRangeBinds).append('\n');
 
-		// E-6 increment 5b-2: Per-table adoption rate of table Pass C (incremental row-by-row bind).
-		final long passCTables = net.zamasoft.foliojet.layout.fragment.ContinuationStats.TABLE_PASS_C_TABLES.get();
-		final long legacyBindRows = net.zamasoft.foliojet.layout.fragment.ContinuationStats.TABLE_LEGACY_BINDROWS.get();
-		s.append("  TABLE_PASS_C_TABLES=").append(passCTables).append('\n');
-		s.append("  TABLE_LEGACY_BINDROWS=").append(legacyBindRows).append('\n');
-		s.append("  TABLE_PASS_B_CELL_MEASURES=")
-				.append(net.zamasoft.foliojet.layout.fragment.ContinuationStats.TABLE_PASS_B_CELL_MEASURES.get())
-				.append('\n');
 		long total = seals;
 		for (final net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject r : net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassSealReject
 				.values()) {
@@ -771,18 +763,6 @@ public class DisplayListGoldenTest extends TestCase {
 		if (cellSeals != cellRangeBinds + cellSubsumed + cellAbandoned) {
 			failures.add("未終端のセルリース: seals=" + cellSeals + " binds=" + cellRangeBinds
 					+ " subsumed=" + cellSubsumed + " abandoned=" + cellAbandoned);
-		}
-
-		// E-6 increment 5b-2: Verify table Pass C wiring (incremental row-by-row bind). The corpus
-		// includes Retained tables with all real cells eligible, so no Pass C activation is a vacuous pass.
-		if (passCTables == 0) {
-			failures.add("表Pass C(E-6増分5b-2)がgoldenコーパスで一度も発火していません(空虚な緑)");
-		}
-		// Row-by-row bind and upfront binding of all cells are separate contracts depending on table measurability.
-		// Continue to verify that upfront binding of all cells does not occur in this corpus.
-		if (legacyBindRows != 0) {
-			failures.add("表の全セル先行bind(旧経路)がgoldenコーパスで発火しました(増分10の0固定の退行): "
-					+ legacyBindRows);
 		}
 	}
 

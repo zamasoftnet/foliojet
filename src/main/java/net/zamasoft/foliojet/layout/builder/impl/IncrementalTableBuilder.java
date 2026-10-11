@@ -864,7 +864,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 			this.bodyRowSizes = nextBodyRowSizes;
 		}
 
-		this.builder.addBound(this.tableBox);
+		this.builder.addIncrementalTable(this.tableBox);
 		this.updateColumnHeights();
 		this.tableBox = this.tableBox.splitTableBox();
 		PageBreakMode breakMode = PageBreakMode.COLUMN;
@@ -1062,7 +1062,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 			this.firstLayout();
 			this.tableBox.setSize(this.tableInnerSize, 0);
 		}
-		this.builder.addBound(this.tableBox);
+		this.builder.addIncrementalTable(this.tableBox);
 
 		// Bottom caption
 		for (int i = 0; i < this.bottomCaptions.size(); ++i) {

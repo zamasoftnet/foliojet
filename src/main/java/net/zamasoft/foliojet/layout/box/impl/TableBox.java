@@ -71,17 +71,6 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	 */
 	private boolean tableContinuation = false;
 
-	/** A table fragment waiting for subsequent body rows. Enabled in production in B-2. */
-	private boolean incomplete = false;
-
-	/** Only the final remainder that owns this can restore the end frame. */
-	private AbsoluteRectFrame completionFrame = null;
-
-	/** Numeric plan from acceptance of an incomplete table. Also needed for the final split after complete. */
-	private IncompleteTablePlan incompletePlan;
-
-	private boolean incompleteColumnsSplit;
-
 	protected List<TableRowGroupBox> bodyGroups = null;
 
 	protected TableRowGroupBox footerGroupBox = null;
@@ -128,95 +117,6 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 	public final AbsoluteRectFrame getFrame() {
 		return this.frame;
-	}
-
-	/**
-	 * Marks the table as incomplete after frame calculation and before its first placement in the parent.
-	 * Repeated footers require an end frame on each fragment, so this contract excludes them.
-	 */
-	public final void markIncomplete() {
-		if (this.incomplete || this.isFragmented()) {
-			throw new IllegalStateException("Only an unsplit table can be marked incomplete");
-		}
-		final AbsoluteRectFrame openFrame = net.zamasoft.foliojet.layout.fragment.TableCutter
-				.incompleteFrame(this.params.flow.isVertical(), this.footerGroupBox != null, this.frame);
-		this.completionFrame = this.frame;
-		this.frame = openFrame;
-		this.incomplete = true;
-		// Even after completion, replaying the full table source must not resurrect emitted rows.
-		this.invalidateSourceReplay();
-	}
-
-	public final boolean isIncomplete() {
-		return this.incomplete;
-	}
-
-	/** Attaches the plan for all row heights only before initial acceptance. Not attached to ordinary complete tables. */
-	public final void setIncompletePlan(final IncompleteTablePlan plan) {
-		if (!this.incomplete || this.isFragmented() || this.incompletePlan != null
-				|| this.params.flow.isVertical() || this.getTableBodyCount() != 1
-				|| this.footerGroupBox != null || this.params.borderCollapse != TableParams.BORDER_SEPARATE
-				|| plan.start() != 0 || plan.visibleEnd() != 0
-				|| Double.doubleToLongBits(plan.headerSize()) != Double.doubleToLongBits(
-						this.headerGroupBox == null ? 0 : this.headerGroupBox.getPageSize())) {
-			throw new IllegalStateException("Expected a new horizontal incomplete table and plan");
-		}
-		final TableRowGroupBox body = this.getTableBody(0);
-		plan.rowsAppended(body);
-		this.incompletePlan = plan;
-		body.incompletePlan = plan;
-		body.updateIncompleteSize();
-		this.height = plan.visibleTableSize();
-		this.updateIncompleteColumns();
-		// The normal-flow wrapper owns the previous page's body. Tables emitted using a numeric plan
-		// inherit only placement metadata, breaking the continuation table → original wrapper → previous fragment chain.
-		if (this.block instanceof FlowBlockBox flow) {
-			this.block = new FlowBlockBox(flow.getBlockParams(), flow.getFlowPos());
-		}
-	}
-
-	public final IncompleteTablePlan getIncompletePlan() {
-		return this.incompletePlan;
-	}
-
-	/**
-	 * Releases body ownership from an emitted fragment after the parent finishes its page break, drawing,
-	 * and remainder resumption. Do not retain the row tree even if an old wrapper or the latest drawer
-	 * references the previous page's TableBox. Applies only to numeric plans with one body group and no
-	 * rowspan. Leaves the remainder and repeated headers untouched, and preserves the height, width, and
-	 * frame that the parent flow reads for dimension accounting.
-	 */
-	public final void releaseDrawnRowFragment() {
-		if (this.incompletePlan != null && this.incompletePlan.cut() != null) {
-			this.bodyGroups = null;
-		}
-	}
-
-	/** Reproduces rounding in complete-table placement → inner size and end subtraction without enlarging the actual box. */
-	public final double incompleteForceBreakStart(final double pageStart) {
-		if (!this.incomplete || this.incompletePlan == null || this.completionFrame == null) {
-			throw new IllegalStateException("Expected an active incomplete numeric plan");
-		}
-		final double size = this.incompletePlan.tableSize();
-		return (pageStart + (size + this.completionFrame.getFrameHeight()))
-				- (size + this.completionFrame.getFrameBottom());
-	}
-
-	/**
-	 * Restores the final remainder's end frame exactly once.
-	 * The B-2 completion operation finalizes the parent cursor and trailing margin.
-	 */
-	public final void complete() {
-		if (!this.incomplete || this.completionFrame == null) {
-			throw new IllegalStateException("Only the final incomplete table remainder can be completed");
-		}
-		if (this.incompletePlan != null && this.incompletePlan.visibleEnd() != this.incompletePlan.end()) {
-			throw new IllegalStateException("All planned rows must be visible before completion");
-		}
-		this.frame = this.completionFrame;
-		this.completionFrame = null;
-		this.incomplete = false;
-		this.updateIncompleteColumns();
 	}
 
 	public final double getInnerWidth() {
@@ -321,9 +221,6 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	public final void setTableFooter(TableRowGroupBox footerGroup) {
-		if (this.incomplete) {
-			throw new IllegalStateException("Incomplete tables do not support a repeated footer");
-		}
 		this.footerGroupBox = footerGroup;
 		if (this.params.flow.isVertical()) {
 			this.width += footerGroup.getWidth();
@@ -360,95 +257,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		}
 	}
 
-	/**
-	 * Updates dimensions for rows appended to the single body group of the final remainder accepted by the parent.
-	 * Only the parent's incomplete-table handle may call this. addTableRow has already added the rows;
-	 * previousRowCount / previousPageSize are the group's values at the previous acceptance.
-	 * Uses the group height summed in row order as is, preserving the header + body assembly order.
-	 * Do not add the difference back: height += newBodySize - oldBodySize changes rounding.
-	 * If a plan exists, use its operation history for the entire remainder.
-	 */
-	public final void updateIncompleteBody(final TableRowGroupBox body, final int previousRowCount,
-			final double previousPageSize) {
-		if (!this.incomplete || this.completionFrame == null || this.params.flow.isVertical()
-				|| this.getTableBodyCount() != 1 || this.getTableBody(0) != body
-				|| previousRowCount < 0 || body.getTableRowCount() <= previousRowCount) {
-			throw new IllegalStateException("Expected appended rows in the current incomplete table body");
-		}
-		double pageSize = previousPageSize;
-		for (int i = previousRowCount; i < body.getTableRowCount(); ++i) {
-			pageSize += body.getTableRow(i).getPageSize();
-		}
-		if (Double.doubleToLongBits(pageSize) != Double.doubleToLongBits(body.getPageSize())) {
-			throw new IllegalStateException("The incomplete table body was changed beyond appending rows");
-		}
-		if (this.incompletePlan != null) {
-			this.incompletePlan.rowsAppended(body);
-			body.updateIncompleteSize();
-			this.height = this.incompletePlan.visibleTableSize();
-			if (body.getWidth() > this.width) {
-				this.width = body.getWidth();
-			}
-			this.updateIncompleteColumns();
-			return;
-		}
-		this.height = 0;
-		if (this.headerGroupBox != null) {
-			this.height += this.headerGroupBox.getHeight();
-		}
-		this.height += body.getHeight();
-		if (body.getWidth() > this.width) {
-			this.width = body.getWidth();
-		}
-		this.updateIncompleteColumns();
-	}
-
-	/** Only on append/completion of an incomplete table, sets the current column tree's inner size as in complete-table assembly. */
-	private void updateIncompleteColumns() {
-		if (this.columnGroupBox != null) {
-			// As in RetainedTableBuilder.assemble, set via eachColumn without including the frame.
-			final double pageSize = this.params.flow.isVertical() ? this.getInnerWidth() : this.getInnerHeight();
-			if (this.incompleteColumnsSplit) {
-				// Automatic splitPageAxis also sets dimensions on the traversal root.
-				this.columnGroupBox.setPageSize(pageSize);
-			}
-			this.columnGroupBox.eachColumn((column, col, span) -> column.setPageSize(pageSize));
-		}
-	}
-
 	public final TableRowGroupBox getTableBody(int i) {
 		return (TableRowGroupBox) this.bodyGroups.get(i);
-	}
-
-	/**
-	 * Whether the visible rows alone determine the cut for an incomplete table (B-2b-6). Uses the same
-	 * function for deductions (start frame and header) that {@code splitTable} applies to incomplete tables.
-	 * If the header does not fit, moving the entire table is conclusive; otherwise, delegates to a dry run
-	 * of the body-group cut traversal.
-	 *
-	 * @param tableLimit cut limit the parent passes to the table (capacity from the table's start position)
-	 */
-	public final boolean emissionCutDetermined(final double tableLimit) {
-		if (this.bodyGroups == null || this.bodyGroups.isEmpty()) return false;
-		return this.emissionCutDetermined(tableLimit, this.getTableBody(0));
-	}
-
-	/**
-	 * Variant with an explicit body group. Even for a remainder table whose {@code bodyGroups} were released
-	 * after drawing, the body group being emitted (held separately by the parent) allows this check.
-	 */
-	public final boolean emissionCutDetermined(final double tableLimit, final TableRowGroupBox body) {
-		return this.emissionCutDetermined(tableLimit, body,
-				this.headerGroupBox != null ? this.headerGroupBox.getPageSize() : -1);
-	}
-
-	/** Before acceptance (Pass C), when the header group is not yet attached, supplies the header height explicitly. */
-	public final boolean emissionCutDetermined(final double tableLimit, final TableRowGroupBox body,
-			final double headerSize) {
-		final double limit = net.zamasoft.foliojet.layout.fragment.TableCutter.reserveIncompleteNonBreakable(tableLimit,
-				this.frame.getFramePageStart(this.params.flow), headerSize);
-		if (LayoutUtils.compare(limit, 0) <= 0) return true;
-		return body.emissionCutDetermined(limit);
 	}
 
 	public final int getTableBodyCount() {
@@ -777,36 +587,6 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
-		if (this.incompletePlan != null) {
-			return this.splitIncomplete(pageLimit, mode, flags);
-		}
-		return this.splitTable(pageLimit, mode, flags);
-	}
-
-	/** Finalizes retained-side values before the parent reads dimensions and before pageBreak draws the previous page. */
-	private SplitResult splitIncomplete(final double pageLimit, final BreakMode mode, final byte flags) {
-		if (mode instanceof BreakMode.ForceBreakMode && this.columnGroupBox != null) {
-			throw new IllegalStateException("Forced breaks with columns are outside the numeric plan");
-		}
-		final SplitResult result = this.splitTable(pageLimit, mode, flags);
-		if (result instanceof SplitResult.Split(final IPageBreakableBox remainder)) {
-			final TableBox next = (TableBox) remainder;
-			next.incompletePlan = next.getTableBody(0).incompletePlan;
-			if (this.incompletePlan.cut() == null || next.incompletePlan == null) {
-				throw new IllegalStateException("Expected a planned body cut");
-			}
-			this.height = this.incompletePlan.visibleTableSize();
-			next.height = next.incompletePlan.visibleTableSize();
-			if (mode instanceof BreakMode.AutoBreakMode) {
-				this.incompleteColumnsSplit = next.incompleteColumnsSplit = true;
-				this.updateIncompleteColumns();
-				next.updateIncompleteColumns();
-			}
-		}
-		return result;
-	}
-
-	private SplitResult splitTable(double pageLimit, BreakMode mode, byte flags) {
 		// assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 
 		final boolean vertical = this.params.flow.isVertical();
@@ -861,12 +641,7 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		// (Decision extracted into pure logic in TableCutter.)
 		final double headerSize = this.headerGroupBox != null ? this.headerGroupBox.getPageSize() : -1;
 		final double footerSize = this.footerGroupBox != null ? this.footerGroupBox.getPageSize() : -1;
-		if (this.incomplete) {
-			// The last visible row is not the logical end. Defer cuts caused by trailing margins.
-			// FLAGS_LAST is a split-position contract; do not change it based on the incomplete flag.
-			pageLimit = net.zamasoft.foliojet.layout.fragment.TableCutter.reserveIncompleteNonBreakable(pageLimit,
-					this.frame.getFramePageStart(this.params.flow), headerSize);
-		} else if (vertical) {
+		if (vertical) {
 			pageLimit = net.zamasoft.foliojet.layout.fragment.TableCutter.reserveNonBreakable(pageLimit,
 					this.getWidth(), this.frame.getFrameRight(), this.frame.getFrameLeft(), this.frame.margin.left,
 					headerSize, footerSize);
@@ -988,9 +763,6 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	public final TableBox splitTableBox() {
-		if (this.incomplete && this.completionFrame == null) {
-			throw new IllegalStateException("Only the final incomplete table remainder can be split");
-		}
 		net.zamasoft.foliojet.layout.builder.impl.TableBuildStats.TABLE_FRAGMENTS.incrementAndGet();
 		// Table set T-b (2026-07-30): The preceding fragment (this) keeps its anchor, but its range
 		// also includes the remainder held by the continuation fragment (row-cutting progress).
@@ -1004,14 +776,6 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				.tableFragmentFrames(vertical, this.headerGroupBox != null, this.footerGroupBox != null, this.frame);
 		// A split fragment is a continuation (no anchor; not replayed as a fresh box. P0).
 		TableBox nextTable = new TableBox(this.params, frames.nextFrame(), this.block);
-		if (this.incomplete) {
-			nextTable.incomplete = true;
-			nextTable.invalidateSourceReplay();
-			// Keep the original end; if there is no repeated header, remove only the start before passing it on.
-			nextTable.completionFrame = net.zamasoft.foliojet.layout.fragment.TableCutter
-					.tableFragmentFrames(vertical, this.headerGroupBox != null, false, this.completionFrame).nextFrame();
-			this.completionFrame = null;
-		}
 		// Tagged PDF defect ② (2026-07-30): Headers in continuation fragments are repetitions
 		// (see isRepeatedGroup).
 		nextTable.tableContinuation = true;

@@ -138,9 +138,9 @@ final class FlexItemContent {
 	/**
 	 * Measures the inner page-axis size the item's content takes at {@code lineSize}, for a column flex whose basis
 	 * depends on the content (2026-10-08, design: docs/design/column-flex-indefinite-main-design.md §4-2). The body is
-	 * replayed into an empty replica of the item without being consumed ({@code DeferredBind.measureInto}, as table
-	 * Pass B does), and the replica is dropped; the real bind follows once. Until then such containers fell back to
-	 * stacking the items in one column (F4c).
+	 * replayed into an empty replica of the item without being consumed ({@code DeferredBind.measureInto}), and the
+	 * replica is dropped; the real bind follows once. Until then such containers fell back to stacking the items in
+	 * one column (F4c).
 	 *
 	 * @return the content's page-axis size, or NaN if the item cannot be replicated (multi-column item)
 	 */
@@ -168,7 +168,7 @@ final class FlexItemContent {
 		replica.setInsetBase(insetBase);
 		replica.setFlexMainSize(lineSize, replica.getBlockParams().flow.isVertical());
 		replica.applyAspectRatio(lineSize);
-		// The disposable copy is counted apart from the live flex scope, as table Pass B does: otherwise the
+		// The disposable copy is counted apart from the live flex scope: otherwise the
 		// measured text stayed charged to the container and the bind charged it again (codex review 2026-10-08)
 		final net.zamasoft.foliojet.layout.RetainedTextLimit limit = net.zamasoft.foliojet.layout.RetainedTextLimit
 				.get(host);

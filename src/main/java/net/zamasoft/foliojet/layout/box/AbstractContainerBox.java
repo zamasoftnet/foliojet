@@ -326,22 +326,6 @@ public abstract class AbstractContainerBox extends AbstractBox
 				: 0;
 	}
 
-	/** Whether columns of {@code pageSize} fit in the room left on the page (or the column) the builder is filling. */
-	private boolean fitsInPage(final BlockBuilder builder, final double pageSize) {
-		final double room = this.roomInPage(builder);
-		return Double.isNaN(room) || LayoutUtils.compare(pageSize, room) <= 0;
-	}
-
-	/** The room left for the columns on the page (or the column) the builder is filling; NaN outside a paged flow. */
-	private double roomInPage(final BlockBuilder builder) {
-		if (!(builder instanceof net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder paged)
-				|| paged.getPageContext() == null) {
-			return Double.NaN;
-		}
-		return paged.getPageLimit() - builder.getPageAxis()
-				- this.getFrame().getFramePageStart(this.getBlockParams().flow);
-	}
-
 	public final void balance(final BlockBuilder builder) {
 		final Container oldCont = this.container;
 
@@ -357,44 +341,12 @@ public abstract class AbstractContainerBox extends AbstractBox
 		} else {
 			// Simulate actual cuts at the single stack's rounded-down boundaries and search
 			// for the minimum capacity that fits all columns (M5-B).
-			// The floats count too (2026-10-10): balanced on its flows alone, a multicol holding a float got columns
-			// shorter than the float, or none at all when the float was all it held.
-			// Past the flows a float can be cut anywhere.
-			final double content = oldCont.getContentSize();
-			double total = content;
-			if (oldCont instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer flows) {
-				total = Math.max(total, flows.floatPageEnd());
-			}
-			pageSize = ColumnBalancer.balance(
-					position -> position >= content ? position : oldCont.getCutPointBelow(position), total, columnCount);
+			pageSize = ColumnBalancer.balance(oldCont::getCutPointBelow, oldCont.getContentSize(), columnCount);
 		}
 		// Atomic children on the same axis with reverse progression cannot split at column boundaries.
 		// Prefer the floor over ColumnBalancer's approximation that assumes progress to the proposed
 		// position when no boundary exists (see Container.balancePageSizeFloor; 2026-08-22).
-		final double floor = oldCont.balancePageSizeFloor();
-		pageSize = Math.max(pageSize, floor);
-		// The floats past the flows ask more than the room left on the page (2026-10-10): the columns take the room,
-		// and the rest goes on to the next page, as Chrome fills the columns of each page. Left balanced, the first
-		// column ran past the paper. Not when something that cannot be cut needs more than the room: the multicol then
-		// moves on as a whole. Nor for a multicol in the columns of another being balanced (2026-10-11, sweep seed
-		// 12585971): balancing the outer columns lays it out again, the rest it hands on to the next column grows what the
-		// outer columns have to hold, and the two balancings fed each other until the page was laid out again without
-		// end. In the columns of a multicol of definite size, which are filled, not balanced, it goes on as on a page.
-		final boolean inColumn = builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder columns
-				&& columns.isBalancing();
-		if (!inColumn && oldCont instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer flows) {
-			final double room = this.roomInPage(builder);
-			// Not below the least capacity of a column (BreakableBuilder.MIN_PAGE_LIMIT), which the column builder would
-			// take instead: the columns would then run past the page.
-			if (!Double.isNaN(room)
-					&& LayoutUtils.compare(room,
-							net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder.MIN_PAGE_LIMIT) >= 0
-					&& LayoutUtils.compare(pageSize, room) > 0
-					&& LayoutUtils.compare(floor, room) <= 0
-					&& LayoutUtils.compare(flows.floatPageEnd(), oldCont.getContentSize()) > 0) {
-				pageSize = room;
-			}
-		}
+		pageSize = Math.max(pageSize, oldCont.balancePageSizeFloor());
 
 		// 2026-07-25 (withdrawal of exclusion area P2): removed all balance probes (M6c-2 through
 		// M6c-5) that rebuilt all contents in an isolated session in addition to the capacity calculation above.
@@ -412,7 +364,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		this.container = new FlowContainer();
 		this.container.setBox(this);
 
-		final ColumnBuilder columnBuilder = new ColumnBuilder(builder, this).balancing();
+		final ColumnBuilder columnBuilder = new ColumnBuilder(builder, this);
 		// At balancing time, this multicol is a closed subtree (the SAX head follows immediately),
 		// so its contents can be rebuilt from source (M6c). Unlike box replay, this is nondestructive
 		// and could support repeated capacity probes in the future. Fall back to box replay for
@@ -432,28 +384,6 @@ public abstract class AbstractContainerBox extends AbstractBox
 							root.getPageGenerator());
 			if (!replayed) {
 				oldCont.restyle(columnBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, true);
-			}
-			// Split the floats a column cannot hold over the next columns (2026-10-10). Only when the columns fit in what
-			// is left of the page: a multicol that does not moves on or is split as a whole by the page break that its
-			// close checks for, which columns already broken here would refuse (fuzz-repro
-			// multicol-float-after-overwide-box), and it is balanced again where it goes.
-			if (this.fitsInPage(builder, pageSize)) {
-				columnBuilder.splitReservedFloats();
-				// The floats the last column could not hold make the multicol taller than its columns, for the page break
-				// its close checks for: with the room taken, and also when the cuts, at line boundaries, left the last
-				// column more than the estimate that a float can be cut anywhere. The floats alone: the flows of a column
-				// count from the multicol, so an empty block split over two columns made it as tall as both.
-				final net.zamasoft.foliojet.layout.box.content.FlowContainer last = this.container instanceof net.zamasoft.foliojet.layout.box.content.ColumnsContainer columns
-						? columns.getLastColumn()
-						: (net.zamasoft.foliojet.layout.box.content.FlowContainer) this.container;
-				final double end = last.floatPageEnd();
-				if (!inColumn && LayoutUtils.compare(end, pageSize) > 0) {
-					if (vertical) {
-						this.maxPageAxis = this.width = end;
-					} else {
-						this.maxPageAxis = this.height = end;
-					}
-				}
 			}
 		}
 	}

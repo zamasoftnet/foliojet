@@ -1006,6 +1006,29 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 	}
 
+	/**
+	 * Restarts the retained-text count of a balanced multicol open across a page break (2026-10-11). The break emits
+	 * what it held before it, and balancing at its end lays out only its last fragment again, yet it counted all its
+	 * text until it closed: a multicol of seven pages failed a limit of about four pages' text, and
+	 * {@code body { column-count: 2 }} failed the default 16 MiB at about 8 million characters. Its scope stays open, so
+	 * what its last fragment holds still counts (codex review: with the scope dropped, paragraphs of no height could pile
+	 * up uncounted on the last page). Only an outermost retaining element restarts (Scope#restartCount).
+	 */
+	final void restartRetainedMulticols() {
+		if (this.retainedFlows == null || this.flowStack == null) {
+			return;
+		}
+		for (int i = 0; i < this.flowStack.size(); ++i) {
+			final AbstractContainerBox box = ((Flow) this.flowStack.get(i)).box;
+			if (box.getColumnCount() > 1 && box.getBlockParams().columns.fill == Columns.FILL_BALANCE) {
+				final RetainedTextLimit.Scope scope = this.retainedFlows.get(i + 1);
+				if (scope != null) {
+					scope.restartCount();
+				}
+			}
+		}
+	}
+
 	public void endFlowBlock() {
 		final var retained = this.takeRetainedFlow();
 		try (retained) {
@@ -1344,22 +1367,14 @@ public class BlockBuilder implements Builder, LayoutContext {
 				this.pageAxis -= amargin.top;
 			}
 		}
-		if (flowBox instanceof TableBox tableBox && tableBox.isIncomplete()) {
-			this.poLastMargin = this.neLastMargin = 0;
-		} else if (vertical) {
+		if (vertical) {
 			this.poLastMargin = this.neLastMargin = amargin.left;
 		} else {
 			this.poLastMargin = this.neLastMargin = amargin.bottom;
 		}
 		flow.box.addFlow(flowBox, this.pageAxis - flow.pageAxis);
 
-		if (flowBox instanceof TableBox tableBox && tableBox.isIncomplete()) {
-			// getFrame() is the effective frame with its end deferred. Preserve the ordinary path's operation order.
-			this.incompleteTablePlaced(tableBox, this.pageAxis);
-			this.pageAxis += tableBox.getInnerPageExtent(params.flow) + frame.getFramePageExtent(params.flow);
-		} else {
-			this.pageAxis += flowBox.getPageExtent(params.flow);
-		}
+		this.pageAxis += flowBox.getPageExtent(params.flow);
 		flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
 	}
 
@@ -2114,10 +2129,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 			retained.beginRetainedContext(blockBox);
 		}
 		return builder;
-	}
-
-	/** Passes the start after margin collapse to the parent for initial incomplete-table placement and remainder placement. */
-	protected void incompleteTablePlaced(final TableBox tableBox, final double pageStart) {
 	}
 
 	public void finish() {

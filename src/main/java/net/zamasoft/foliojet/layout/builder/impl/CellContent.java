@@ -195,15 +195,6 @@ class CellContent {
 	}
 
 	/**
-	 * Returns the DeferredBind of the sealed body (E-6 increment 5b-1, for the table Pass B
-	 * measurement primitive {@link CellPassBMeasurer}). Returns null for unsealed
-	 * (still measuring) and extended cells (outside Pass B).
-	 */
-	TwoPassBlockBuilder.DeferredBind rangeBody() {
-		return this.cell instanceof TwoPassBlockBuilder.DeferredBind body && body.handle() != null ? body : null;
-	}
-
-	/**
 	 * Absorbs the cell into the parent's range representation (table absorption = commit phase
 	 * of codex increment 5, 2026-07-30). Process only sealed cells: release the DeferredBind
 	 * lease, account for the cell's SUBSUMED termination, and reduce retained state to the
@@ -234,13 +225,6 @@ class CellContent {
 	 */
 	TwoPassBlockBuilder unsealedBuilderOrNull() {
 		return this.cell instanceof TwoPassBlockBuilder builder ? builder : null;
-	}
-
-	/** Only range bodies and empty bodies support scratch measurement. */
-	boolean isPassBMeasurable() {
-		return this.cell instanceof TwoPassBlockBuilder.DeferredBind body
-				&& (body.handle() != null || body.isEmpty())
-				&& this.getCellBox().canMeasureReplica();
 	}
 
 	public TableCellBox getCellBox() {

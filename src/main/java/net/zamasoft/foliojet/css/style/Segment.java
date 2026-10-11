@@ -9,7 +9,7 @@ import net.zamasoft.foliojet.css.CSSStyle;
  * Relayout uses frozen {@code LayoutSource/BoxRecipe} data. No consumer reads styles
  * or characters of closed elements from this legacy M6a window. Retaining Start/End
  * until a page boundary would retain every td/tr's {@code CSSStyle.values/computedValues}
- * until Pass B starts for auto tables.
+ * until auto tables bind their cells.
  * </p>
  *
  * <p>

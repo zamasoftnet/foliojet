@@ -172,8 +172,7 @@ public final class TableBuildStats {
 
 	/**
 	 * Records reasons for routing to Retained (E-6 increment 1). Call exactly once per table
-	 * from TableBuilderLifecycle.start, where routing occurs. Do not count inside
-	 * TableBuildPlanner.plan, which is also called for queries.
+	 * from TableBuilderLifecycle.start, where routing occurs (not inside TableBuildPlanner.plan).
 	 */
 	public static void recordRetentionReasons(final Set<TableRetentionReason> reasons) {
 		for (final TableRetentionReason reason : reasons) {

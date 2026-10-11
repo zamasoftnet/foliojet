@@ -55,7 +55,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * <p>
  * Subset: fixed/auto/fr/minmax/etc. columns; auto rows (maximum actual item height in the row)
  * or fixed-height rows; source-order row auto-placement.
- * Eligibility is checked by {@link GridBuilderLifecycle#eligible}.
+ * Every grid takes it ({@link GridBuilderLifecycle#start}).
  * </p>
  *
  * <p>
@@ -184,7 +184,7 @@ public final class GridBuilder
 		this.gridBox = gridBox;
 		final GridParams params = gridBox.getGridParams();
 		// No template means a single implicit auto column (2026-08-09;
-		// see GridBuilderLifecycle.eligible).
+		// see GridBuilderLifecycle.start).
 		this.tracks = params.templateColumns.isEmpty()
 				? List.of(net.zamasoft.foliojet.css.value.GridTrackListValue.Auto.INSTANCE)
 				: params.templateColumns;

@@ -4,7 +4,6 @@ import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.impl.property.container.ContainerType;
 import net.zamasoft.foliojet.css.token.Unit;
-import net.zamasoft.foliojet.ua.ContainerFacts;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
@@ -19,8 +18,8 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * The specification defines {@code cqw} as the physical width axis and {@code cqi} as
  * the writing mode's inline axis (height in vertical writing); they can differ for
  * {@code container-type: size} containers. This implementation supports only
- * {@code container-type: inline-size} (design §4), and {@code ContainerFacts} stores
- * only one used inline-size, so it simplifies by <b>resolving {@code cqw} and {@code cqi}
+ * {@code container-type: inline-size} (design §4), and a query container holds
+ * only one inline size ({@code CSSElement.QueryContainer}), so it simplifies by <b>resolving {@code cqw} and {@code cqi}
  * to the same value</b>. Supporting {@code container-type: size} containers
  * (distinguishing both axes) is future work.
  * </p>
@@ -59,19 +58,15 @@ public final class ContainerRelativeLengthValue implements LengthValue {
 
 	public AbsoluteLengthValue toAbsoluteLength(CSSStyle style) {
 		final UserAgent ua = style.getUserAgent();
-		final ContainerFacts facts = ua.getUAContext().getContainerFacts();
 		for (CSSStyle s = style.getParentStyle(); s != null; s = s.getParentStyle()) {
 			final CSSElement ce = s.getCSSElement();
-			if (ce == null || ce.elementKey < 0) {
+			if (ce == null || ce.getQueryContainer() == null) {
 				continue;
 			}
 			if (ContainerType.get(s) != ContainerTypeValue.INLINE_SIZE) {
 				continue;
 			}
-			if (!facts.isInlineSizeContainer(ce.elementKey)) {
-				continue;
-			}
-			final double inlineSize = facts.getInlineSize(ce.elementKey);
+			final double inlineSize = ce.getQueryContainer().inline();
 			if (Double.isNaN(inlineSize)) {
 				break;
 			}

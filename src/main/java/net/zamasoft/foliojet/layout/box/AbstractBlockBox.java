@@ -470,12 +470,6 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		return this.splitPageState(contentLimit, ownerExtent, columnSpanning, false);
 	}
 
-	/**
-	 * The page-axis size a continuation fragment took from what its split left of a definite size or min-size, or NaN
-	 * (2026-10-10, set by {@code AbstractStaticBlockBox.continuePageAxis}). Its content may grow it beyond.
-	 */
-	protected double continuedPageAxis = Double.NaN;
-
 	private net.zamasoft.foliojet.layout.fragment.FragmentState splitPageState(final double pageLimit,
 			final boolean columnSpanning, final boolean preserveSpecifiedPageSize) {
 		return this.splitPageState(pageLimit, pageLimit, columnSpanning, preserveSpecifiedPageSize);
@@ -503,54 +497,10 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		// local/shrink/strict-347-min.html). Block this on the side that was cut.
 		this.markFragmented();
 		final boolean vertical = this.params.flow.isVertical();
-		// A page-axis min-size with a percentage (or a calc() with one) splits as the length it resolved to (2026-10-10):
-		// FragmentState reads the length of the Dimension, which holds the ratio for a percentage, so the rest of a
-		// float's min-height: 60% came out 0 on the next page.
-		net.zamasoft.foliojet.layout.box.params.Dimension minSize = this.minSize;
-		final net.zamasoft.foliojet.layout.box.params.LengthType minType = minSize.getPageType(this.params.flow);
-		if (minType == net.zamasoft.foliojet.layout.box.params.LengthType.RELATIVE
-				|| minType == net.zamasoft.foliojet.layout.box.params.LengthType.MIXED) {
-			final double resolved = this.minPageAxis + (this.params.boxSizing == BoxSizingMode.BORDER_BOX
-					? this.frame.getBorderPageExtent(this.params.flow)
-					: 0);
-			minSize = vertical
-					? net.zamasoft.foliojet.layout.box.params.Dimension.create(resolved, 0, minSize.getHeight(),
-							minSize.getHeightRatio(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE,
-							minSize.getHeightType())
-					: net.zamasoft.foliojet.layout.box.params.Dimension.create(minSize.getWidth(),
-							minSize.getWidthRatio(), resolved, 0, minSize.getWidthType(),
-							net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE);
-		}
-		// The rest of a definite size that a float's continuation keeps is a floor its content may outgrow
-		// (continuePageAxis): the next split goes on with what is left of that floor, not of the content (2026-10-10,
-		// sweep seed 11599998: a float of width: 0pt in vertical writing grew to its content, 538pt, and each page
-		// carried the rest of that on as a definite width, 732 pages).
-		final double extent = vertical ? this.width : this.height;
-		net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
+		final net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
 				.of(this.params.flow, columnSpanning, this.frame, this.size,
-						minSize, Double.isNaN(this.continuedPageAxis) ? extent : Math.min(extent, this.continuedPageAxis),
-						contentLimit, ownerExtent, this.container.getContentSize(), this.isSpecifiedPageSize(),
-						preserveSpecifiedPageSize);
-		if (!columnSpanning && !this.isSpecifiedPageSize() && !this.params.flow.isVertical()
-				&& !(this instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox)
-				&& this.params.maxSize.getPageType(this.params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
-				&& this.maxPageAxis < Double.MAX_VALUE) {
-			// What the max-size leaves goes on with the continuation (2026-10-10, FragmentState#withMaxPageExtent). Held
-			// by its max-size, the box itself ends at it; ending with its end frame (not counting its margin) before the
-			// cut, it keeps that frame. Only a max-size of its own (column balancing and aspect-ratio set the maximum
-			// too), and horizontal writing only: an opposite-progression region checks its floats by the box, not by
-			// what they paint, so capping a vertical continuation could hide the content still to go. Not a flex or
-			// grid container either: their restyle sets the size from their items again, and a capped grid left its
-			// overflowing rows over what follows (radix-ui's code block).
-			if (LayoutUtils.compare(extent, this.maxPageAxis) >= 0) {
-				final double end = this.frame.getFrameBottom() - this.frame.margin.bottom;
-				state = LayoutUtils.compare(extent + end, state.prevPageExtent()) <= 0
-						? state.withBoxEndingBefore(this.frame, this.params.flow, extent, this.maxPageAxis)
-						: state.withMaxPageExtent(Math.min(extent, state.prevPageExtent()), this.maxPageAxis);
-			} else {
-				state = state.withMaxPageExtent(state.prevPageExtent(), this.maxPageAxis);
-			}
-		}
+						this.minSize, vertical ? this.width : this.height, contentLimit, ownerExtent,
+						this.container.getContentSize(), this.isSpecifiedPageSize(), preserveSpecifiedPageSize);
 		if (vertical) {
 			this.width = state.prevPageExtent();
 		} else {
@@ -602,10 +552,6 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			final net.zamasoft.foliojet.layout.fragment.FragmentState state, final Container container,
 			final double crossExtent) {
 		final AbstractBlockBox nextBlock = recipe.instantiate(state, container);
-		if (state != null && state.nextMaxPageExtent() < Double.MAX_VALUE
-				&& nextBlock instanceof AbstractStaticBlockBox staticBlock) {
-			staticBlock.limitContinuationPageAxis(state.nextMaxPageExtent());
-		}
 		if (nextBlock.params.flow.isVertical()) {
 			nextBlock.height = crossExtent;
 		} else {

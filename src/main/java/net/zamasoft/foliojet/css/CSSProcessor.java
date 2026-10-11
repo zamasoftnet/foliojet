@@ -89,6 +89,9 @@ public class CSSProcessor implements XMLHandler {
 
 	private CSSElement precedingElement = null;
 
+	/** The siblings the next element joins, null when it is the first child (a new {@link Siblings} then). */
+	private Siblings siblings = null;
+
 	private StyleBuilder builder = null;
 
 	private int noneStack = 0;
@@ -133,10 +136,11 @@ public class CSSProcessor implements XMLHandler {
 			carried = new CSSStyleSheet();
 			this.ua.getUAContext().setCarriedStyleSheet(document, carried);
 		}
+		// A later pass reads the same style sheets again without adding their rules twice (2026-10-11)
+		carried.beginPass(this.ua.getUAContext().getConversionNumber());
 		// Element keys continue across the documents of a pass (see PassContext.getElementKeyBase)
 		this.nextElementKey = this.ua.getPassContext().getElementKeyBase();
-		StyleContext styleContext = new StyleContext(carried, this.ua.getUAContext().getSelectorFacts(),
-				this.ua.getUAContext().getContainerFacts());
+		StyleContext styleContext = new StyleContext(carried, this.ua.getUAContext().getSelectorFacts());
 
 		this.styleSheetBuilder = new CSSStyleSheetBuilder(this.ua);
 		this.styleSheetBuilder.setCSSStyleSheet(styleContext.styleSheet);
@@ -597,9 +601,14 @@ public class CSSProcessor implements XMLHandler {
 			dir = parentStyle == null ? null : parentStyle.getCSSElement().dir;
 		}
 
+		if (this.siblings == null) {
+			this.siblings = new Siblings();
+		}
 		CSSElement ce = new CSSElement(uri, lName, id, styleClasses, pseudoClasses, loca, dir, atts,
-				this.precedingElement, charOffset, this.nextElementKey++);
+				this.precedingElement, charOffset, this.nextElementKey++, this.siblings);
+		Siblings.keepBounded(ce);
 		this.precedingElement = null;
+		this.siblings = null;
 
 		// Build the style
 		CSSStyle style = CSSStyle.getCSSStyle(this.ua, parentStyle, ce);
@@ -769,6 +778,7 @@ public class CSSProcessor implements XMLHandler {
 				// An inline object (svg, math) precedes the next sibling too (codex, 2026-10-11: it did not, and the next
 				// one took :first-child)
 				this.precedingElement = this.inlineObjectStyle.getCSSElement();
+				this.siblings = this.precedingElement.siblings;
 				this.firstChild = false;
 				this.inlineObjectStyle = null;
 				this.inlineObject = null;
@@ -783,6 +793,7 @@ public class CSSProcessor implements XMLHandler {
 				// The end of a display: none element: it precedes the next sibling all the same, as in Chrome (it was
 				// skipped: the next one counted from 1 for :nth-child() and took :first-child, 2026-10-11)
 				this.precedingElement = this.noneElement;
+				this.siblings = this.precedingElement.siblings;
 				this.noneElement = null;
 				this.firstChild = false;
 				return;
@@ -805,6 +816,7 @@ public class CSSProcessor implements XMLHandler {
 		this.builder.endStyle();
 		this.applier.endStyle();
 		this.precedingElement = currentStyle.getExplicitStyle().getCSSElement();
+		this.siblings = this.precedingElement.siblings;
 		this.firstChild = false;
 	}
 

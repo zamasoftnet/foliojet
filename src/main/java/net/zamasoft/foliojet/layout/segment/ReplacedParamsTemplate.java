@@ -3,7 +3,6 @@ package net.zamasoft.foliojet.layout.segment;
 import net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage;
 import net.zamasoft.foliojet.layout.box.params.BoxSizingMode;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
-import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.ObjectFitMode;
 import net.zamasoft.foliojet.layout.box.params.Offset;
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
@@ -100,15 +99,6 @@ public final class ReplacedParamsTemplate {
 				source.lineHeight, image, source.aspectRatio, source.aspectRatioAuto);
 	}
 
-	/** Whether width, height, or their bounds still contain percentage sizes referencing the containing block. */
-	public boolean hasRelativeSize() {
-		return hasRelativeSize(this.size) || hasRelativeSize(this.minSize) || hasRelativeSize(this.maxSize);
-	}
-
-	private static boolean hasRelativeSize(final Dimension size) {
-		return size.getWidthType() == LengthType.RELATIVE || size.getWidthType() == LengthType.MIXED
-				|| size.getHeightType() == LengthType.RELATIVE || size.getHeightType() == LengthType.MIXED;
-	}
 
 	/** Returns a fresh {@code ReplacedParams} on each call (multiple calls do not affect one another). */
 	public ReplacedParams materialize() {

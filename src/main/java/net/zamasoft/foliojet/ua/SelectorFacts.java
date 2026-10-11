@@ -66,6 +66,27 @@ public final class SelectorFacts {
 	/** Current total (element, condition) pairs (auxiliary observation counter; not used for decisions). */
 	private long hasPairCount;
 
+	/**
+	 * Whether a pass other than a single one ({@code PrepareMode.DOCUMENT}) has started on this UA: the passes of
+	 * {@code processing.pass-count} of 2 or more, and of {@code processing.middle-pass}. Only then are the facts of
+	 * {@code :has()} kept here, by element key, for the passes that follow. A single pass keeps them on the elements
+	 * ({@code CSSElement}), which drop them when they can no longer be matched (2026-10-11: until then they stayed
+	 * here to the end of the document).
+	 */
+	private boolean acrossPasses;
+
+	/**
+	 * Sets whether the facts of {@code :has()} are kept across passes ({@link #acrossPasses}), at the start of every
+	 * pass: a one-pass conversion after a multi-pass one on the same UA keeps them on the elements again.
+	 */
+	public void setAcrossPasses(final boolean acrossPasses) {
+		this.acrossPasses = acrossPasses;
+	}
+
+	public boolean isAcrossPasses() {
+		return this.acrossPasses;
+	}
+
 	private Set<Long> lastChild;
 	private Set<Long> lastOfType;
 	private Set<Long> empty;

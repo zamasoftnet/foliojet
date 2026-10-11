@@ -128,22 +128,6 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
-	 * Updates only the end of an incomplete table. Reapplies setPageAxis once from the
-	 * accounting state before table placement, so the provisional incomplete height does not
-	 * remain as the contentSize maximum. Also finalizes shrinking due to a negative trailing
-	 * margin while preserving specified-height and min/max rules.
-	 */
-	public final void updateIncompleteTableExtent(final double pageSize, final double beforeContentSize,
-			final double beforePageSize) {
-		if (this.params.flow.isVertical()) {
-			throw new IllegalStateException("Incomplete table intake requires horizontal flow");
-		}
-		this.contentSize = beforeContentSize;
-		this.height = beforePageSize;
-		this.setPageAxis(pageSize);
-	}
-
-	/**
 	 * Restores finalized dimensions overwritten by restyle reconstruction
 	 * (2026-08-08; exclusively for {@code RowSplitContainer.restyle}; generalized from flex
 	 * to shared flex/grid use on 2026-08-10). The item coordinator (FlexBuilder/GridBuilder)
@@ -974,10 +958,6 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		} else {
 			this.minPageAxis = minHeight;
 			this.maxPageAxis = maxHeight;
-		}
-		if (this.continuationMaxPageAxis < Double.MAX_VALUE) {
-			// What the max-size left for this continuation (2026-10-10, limitContinuationPageAxis).
-			this.limitContinuationPageAxis(this.continuationMaxPageAxis);
 		}
 		assert !LayoutUtils.isNone(marginTop);
 		assert !LayoutUtils.isNone(marginRight);

@@ -116,279 +116,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 	protected TableBox lastTableBox;
 
-	private IncompleteTableResult incompleteTable;
-
-	/** Result of the latest accept/append/complete operation. UNSPLITTABLE if overflow remains after splitting. */
-	public enum IncompleteTableStatus {
-		UNSUPPORTED, UNSPLIT, MOVED, SPLIT, UNSPLITTABLE
-	}
-
 	/**
-	 * Handle whose parent owns the placed final remainder.
-	 * The caller must not addBound remainder() again or call splitTableBox().
-	 * After addTableRow on body(), call rowsAppended() once.
-	 * The final append can be accounted for by complete(), omitting rowsAppended().
-	 * Each operation can replace the remainder/body group; always retrieve the next append target again.
-	 * Do not interleave other flow content before complete(), or directly complete() the table.
-	 * Always pass the final append to complete() if a negative end frame changes the page break result.
-	 * If a large negative margin also affects earlier splits, the B-2b caller uses the whole plan
-	 * to decide when to defer emission of accept/append notifications. Emitted splits cannot be undone.
+	 * Whether this host breaks pages live (actual state, not a declaration): page-break mode, outside any barrier,
+	 * not restyling, no open text, and able to fragment further. A single-item row flex lays its item out in such a
+	 * host's flow ({@code FlexBuilder.streamsInFlow}).
 	 */
-	public final class IncompleteTableResult {
-		private IncompleteTableStatus status;
-		private TableBox remainder;
-		private TableRowGroupBox body;
-		private int rowCount;
-		private int emittedFragments;
-		private double bodySize, pageStart, placedPageAxis, beforeContentSize, beforePageSize;
-		private Flow flow;
-		private boolean completed;
-
-		private IncompleteTableResult(final IncompleteTableStatus status) {
-			this.status = status;
-		}
-
-		public IncompleteTableStatus status() {
-			return this.status;
-		}
-
-		/** Actual fragments sent to the previous page by the latest accept/append/complete; excludes whole-box moves. */
-		public int emittedFragments() {
-			return this.emittedFragments;
-		}
-
-		public boolean isAccepted() {
-			return this.status != IncompleteTableStatus.UNSUPPORTED;
-		}
-
-		/** Null only if unsupported. After completion, this is the last placed completed fragment. */
-		public TableBox remainder() {
-			return this.remainder;
-		}
-
-		public TableRowGroupBox body() {
-			return this.body;
-		}
-
-		/**
-		 * Whether post-notification splitting is determined within the visible range, including
-		 * unnotified rows (B-2b-6). Used by B-2b to defer emission.
-		 * pageAxis includes notified outer sizes, so use pageStart from placement as the starting
-		 * point for remaining capacity. TableBox dry-runs the same split scan as the implementation
-		 * after subtracting the frame/header.
-		 */
-		public boolean hasRowEmissionOverflow() {
-			this.requireActive();
-			return this.remainder.emissionCutDetermined(BreakableBuilder.this.getPageLimit() - this.pageStart);
-		}
-
-		/** Virtual whole-row plan for the current remainder. Null for standalone B-2a acceptance. */
-		public net.zamasoft.foliojet.layout.box.impl.IncompleteTablePlan plan() {
-			return this.remainder == null ? null : this.remainder.getIncompletePlan();
-		}
-
-		private void requireActive() {
-			if (BreakableBuilder.this.incompleteTable != this || this.completed || this.remainder == null
-					|| !this.remainder.isIncomplete() || BreakableBuilder.this.lastTableBox != this.remainder
-					|| BreakableBuilder.this.getFlow() != this.flow
-					|| Double.doubleToLongBits(BreakableBuilder.this.pageAxis) != Double.doubleToLongBits(this.placedPageAxis)
-					|| BreakableBuilder.this.isRestyling() || BreakableBuilder.this.textSession != null
-					|| BreakableBuilder.this.textBuilder != null) {
-				throw new IllegalStateException("The incomplete table handle is not the active flow tail");
-			}
-		}
-
-		/**
-		 * Accounts only for appended rows; the parent performs needed page breaks and repositions
-		 * the remainder. Checks before restoring the end frame, so use complete() instead for
-		 * a final append whose restored frame changes the split result.
-		 * Duplicate notifications without new rows, notifications before acceptance, and
-		 * notifications after completion throw IllegalStateException.
-		 */
-		public IncompleteTableStatus rowsAppended() {
-			this.requireActive();
-			this.remainder.updateIncompleteBody(this.body, this.rowCount, this.bodySize);
-			this.updateExtent();
-			this.status = BreakableBuilder.this.breakIncompleteTable(this);
-			this.rememberBody();
-			BreakableBuilder.this.interflowBreak = false;
-			return this.status;
-		}
-
-		/**
-		 * Accounts for the unnotified final append, restores the end frame and trailing accounting,
-		 * then checks the final page break exactly once. Appends are checked under the same conditions
-		 * as rowsAppended(). May be called even if all rows were notified; they are not counted twice.
-		 * If splitting from an earlier notification does not affect the completion result, direct
-		 * complete() and complete() after rowsAppended() are equivalent.
-		 * Call directly when a negative end frame cancels a split.
-		 */
-		public IncompleteTableStatus complete() {
-			this.requireActive();
-			if (this.body.getTableRowCount() != this.rowCount
-					|| Double.doubleToLongBits(this.body.getPageSize()) != Double.doubleToLongBits(this.bodySize)) {
-				this.remainder.updateIncompleteBody(this.body, this.rowCount, this.bodySize);
-			}
-			this.remainder.complete();
-			this.completed = true;
-			this.updateExtent();
-			BreakableBuilder.this.poLastMargin = BreakableBuilder.this.neLastMargin = this.remainder.getFrame().margin.bottom;
-			this.status = BreakableBuilder.this.breakIncompleteTable(this);
-			this.rememberBody();
-			BreakableBuilder.this.canBreakBefore = true;
-			BreakableBuilder.this.interflowBreak = true;
-			BreakableBuilder.this.applyBreakAfter(PageBreakMode.AUTO);
-			BreakableBuilder.this.incompleteTable = null;
-			return this.status;
-		}
-
-		private void updateExtent() {
-			// Replace the outer size from the start position after initial margin collapse and float avoidance.
-			// Avoid rounding in (oldCursor + (newExtent - oldExtent)) and duplicate placement.
-			BreakableBuilder.this.pageAxis = this.pageStart + this.remainder.getHeight();
-			if (this.flow.box instanceof FlowBlockBox flowBox) {
-				flowBox.updateIncompleteTableExtent(BreakableBuilder.this.pageAxis - this.flow.pageAxis,
-						this.beforeContentSize, this.beforePageSize);
-			} else {
-				this.flow.box.setPageAxis(BreakableBuilder.this.pageAxis - this.flow.pageAxis);
-			}
-			this.placedPageAxis = BreakableBuilder.this.pageAxis;
-		}
-
-		private void rememberBody() {
-			this.body = this.remainder.getTableBody(0);
-			this.rowCount = this.body.getTableRowCount();
-			this.bodySize = this.body.getPageSize();
-			this.placedPageAxis = BreakableBuilder.this.pageAxis;
-		}
-	}
-
-	/** Actual host state shared by the post-Pass B check and the acceptance entry point. */
-	final boolean supportsIncompleteTableIntake() {
+	final boolean breaksPagesLive() {
 		return this.mode == MODE_PAGE_BREAK && this.breakDepth == -1 && !this.isRestyling()
 				&& this.textSession == null && this.textBuilder == null && this.canFragmentFurther();
-	}
-
-	/**
-	 * Dedicated entry point for unfinished tables. BlockBuilder handles initial margin collapse
-	 * and float avoidance. Forced/automatic splits use firstTableForceBreak / autoBreak
-	 * (and TableBox.split beneath them), as for completed Retained tables.
-	 * The parent also repositions the remainder. The caller must use the returned handle to
-	 * append/complete, without calling splitTableBox().
-	 *
-	 * Accepts only normal horizontal-writing flow in MODE_PAGE_BREAK. Continuous mode is excluded
-	 * because DocumentBuilder uses MODE_NO_BREAK. Requires one body group; excludes footers/collapse.
-	 * B-2b checks Pass C plan eligibility and calls this entry point. Boxes carrying specified height
-	 * other than body height are also excluded. Returns UNSUPPORTED without placement if ineligible.
-	 * The caller can complete() the unaccepted box and then return to the old path.
-	 */
-	public final IncompleteTableResult acceptIncompleteTable(final TableBox tableBox) {
-		if (!this.supportsIncompleteTableIntake() || this.getRootBox().getBlockParams().flow.isVertical()
-				|| this.getFlowBox().getBlockParams().flow.isVertical() || tableBox.getTableParams().flow.isVertical()
-				|| tableBox.getBlockBox().getPos().getType() != PosType.FLOW
-				|| tableBox.getTableBodyCount() != 1 || tableBox.getTableFooter() != null
-				|| tableBox.getTableParams().borderCollapse != net.zamasoft.foliojet.layout.box.params.TableParams.BORDER_SEPARATE
-				|| Double.doubleToLongBits(tableBox.getInnerHeight()) != Double.doubleToLongBits(
-						(tableBox.getTableHeader() == null ? 0 : tableBox.getTableHeader().getHeight())
-								+ tableBox.getTableBody(0).getHeight())) {
-			return new IncompleteTableResult(IncompleteTableStatus.UNSUPPORTED);
-		}
-		if (this.incompleteTable != null || (this.lastTableBox != null && this.lastTableBox.isIncomplete())
-				|| !tableBox.isIncomplete() || tableBox.isFragmented()
-				|| this.lastTableBox == tableBox) {
-			throw new IllegalStateException("Expected a new incomplete table with no active intake");
-		}
-		// TablePos before/after are AUTO. As at the existing entry point, handle a preceding forced break first.
-		final boolean namedTransition = this.resolveNamedPageTransition(tableBox);
-		final boolean forcedBreak = this.breakAfter != null;
-		if (forcedBreak) {
-			this.forceBreak(this.breakAfter);
-		}
-		if (namedTransition && !forcedBreak) {
-			this.namedTransitionBreak();
-		}
-		final IncompleteTableResult result = new IncompleteTableResult(IncompleteTableStatus.UNSPLIT);
-		this.incompleteTable = result;
-		super.addBound(tableBox);
-		this.lastTableBox = tableBox;
-		result.status = this.breakIncompleteTable(result);
-		result.rememberBody();
-		this.interflowBreak = false;
-		return result;
-	}
-
-	@Override
-	protected void incompleteTablePlaced(final TableBox tableBox, final double pageStart) {
-		if (this.incompleteTable != null) {
-			this.incompleteTable.remainder = tableBox;
-			this.incompleteTable.pageStart = pageStart;
-			this.incompleteTable.flow = this.getFlow();
-			this.incompleteTable.beforePageSize = this.getFlowBox().getInnerHeight();
-			if (this.getFlowBox() instanceof FlowBlockBox flowBox) {
-				this.incompleteTable.beforeContentSize = flowBox.getContentSize();
-			}
-		}
-	}
-
-	/** Captures unfinished-table operation results without changing the existing Retained loop in addBound. */
-	private IncompleteTableStatus breakIncompleteTable(final IncompleteTableResult result) {
-		result.emittedFragments = 0;
-		IncompleteTableStatus status = IncompleteTableStatus.UNSPLIT;
-		for (;;) {
-			this.checkAbort();
-			final TableBox tableBox = result.remainder;
-			final TableForceBreakMode force = this.firstTableForceBreak(tableBox);
-			if (force != null) {
-				this.lastTableBox = null;
-				this.forceBreak(force);
-			} else {
-				if (LayoutUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
-					return status;
-				}
-				this.lastTableBox = null;
-				if (!this.autoBreak()) {
-					this.lastTableBox = tableBox;
-					return IncompleteTableStatus.UNSPLITTABLE;
-				}
-			}
-			if (this.lastTableBox == null) {
-				if (result.completed) {
-					// If the completed table stays on the previous page with no remainder on the next, stop as in the old loop.
-					++result.emittedFragments;
-					if (this.getPageContext() != null) this.getPageContext().noteRetainedTableFragmentEmitted();
-					return status;
-				}
-				throw new IllegalStateException("The parent lost the incomplete table remainder during a break");
-			}
-			if (this.lastTableBox != tableBox) {
-				++result.emittedFragments;
-				if (this.getPageContext() != null) {
-					this.getPageContext().noteRetainedTableFragmentEmitted();
-					// Root pageBreak returns after drawing the previous page and resuming the remainder.
-					// MOVE needs the same box on the next page, so release it only if a different remainder is returned.
-					tableBox.releaseDrawnRowFragment();
-				}
-				status = IncompleteTableStatus.SPLIT;
-			} else if (force != null) {
-				// If a forced inter-row split leaves the remainder unchanged, there is no progress. Do not keep retrying.
-				return IncompleteTableStatus.UNSPLITTABLE;
-			} else if (status == IncompleteTableStatus.UNSPLIT) {
-				status = IncompleteTableStatus.MOVED;
-			}
-			result.remainder = this.lastTableBox;
-		}
-	}
-
-	protected final void requireNoIncompleteTable() {
-		if (this.incompleteTable != null || (this.lastTableBox != null && this.lastTableBox.isIncomplete())) {
-			throw new IllegalStateException("The incomplete table must be completed before finish");
-		}
-	}
-
-	@Override
-	public void finish() {
-		this.requireNoIncompleteTable();
-		super.finish();
 	}
 
 	public BreakableBuilder(LayoutStack layoutStack, AbstractContainerBox contextBox, byte mode) {
@@ -407,16 +142,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (tableBox.getTableBodyCount() <= 0) {
 			return null;
 		}
-		double last = this.pageAxis;
 		final WritingMode tableFlow = tableBox.getTableParams().flow;
-		if (tableBox.isIncomplete() && tableBox.getIncompletePlan() != null) {
-			last = tableBox.incompleteForceBreakStart(this.incompleteTable.pageStart);
-		} else if (tableBox.isIncomplete()) {
-			// Placement of an unfinished table does not add the end frame.
-			last -= tableBox.getInnerPageExtent(tableFlow);
-		} else {
-			last -= tableBox.getInnerPageExtent(tableFlow) + tableBox.getFrame().getFramePageEnd(tableFlow);
-		}
+		double last = this.pageAxis
+				- (tableBox.getInnerPageExtent(tableFlow) + tableBox.getFrame().getFramePageEnd(tableFlow));
 		if (tableBox.getTableHeader() != null) {
 			last += tableBox.getTableHeader().getPageSize();
 		}
@@ -724,6 +452,19 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	public final void addBound(IBox box) {
+		this.placeBound(box, false);
+	}
+
+	/**
+	 * Places a table fragment of {@code IncrementalTableBuilder}, which breaks its table between rows itself, so the
+	 * host does not break it (2026-10-11: the host told the two apart by asking {@code TableBuildPlanner} again which
+	 * plan the table had, judged against this host rather than the one that started the table).
+	 */
+	final void addIncrementalTable(final TableBox tableBox) {
+		this.placeBound(tableBox, true);
+	}
+
+	private void placeBound(final IBox box, final boolean selfBreakingTable) {
 		// M3c: prevent page break checks (forceBreak, etc.) from interleaving with K-P accumulation;
 		// if accumulating, finalize via legacy before checking.
 		if (this.textSession != null) {
@@ -791,8 +532,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (!this.isRestyling()) {
 			switch (box.getType()) {
 			case TABLE:
-				// The table may end up split: the rest of the code reads the box that remains in the flow
-				box = this.breakTable((TableBox) box);
+				if (!selfBreakingTable) {
+					this.breakTable((TableBox) box);
+				}
 				break;
 			case BLOCK:
 				break;
@@ -833,11 +575,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 		}
 
-		if (box instanceof TableBox tableBox && tableBox.isIncomplete()) {
-			// Subsequent rows are not yet accepted, so the boundary/avoid immediately after the table is not final.
-			this.interflowBreak = false;
-			return;
-		}
 		this.canBreakBefore = true;
 		this.interflowBreak = true;
 
@@ -852,42 +589,20 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 	/**
 	 * Breaks the page inside a table just added to the flow until what remains fits (2026-10-08, extracted from
-	 * {@link #addBound}), and returns the table box that remains in the flow: the table itself, or the remainder of
-	 * its last split. Each split replaces the remainder through {@code lastTableBox}, which the page break sets.
+	 * {@link #addBound}). Each split replaces the remainder through {@code lastTableBox}, which the page break sets.
 	 *
 	 * <p>
-	 * Exits, in the order of the original loop (each returns the current table box):
+	 * Exits, in the order of the original loop:
 	 * </p>
 	 * <ol>
-	 * <li>a complete table that is not retained (IncrementalTableBuilder repositions it itself)</li>
-	 * <li>(entry) an incomplete table is kept as {@code lastTableBox} even without a split</li>
 	 * <li>a forced break in the table: break and continue with the remainder the break left in {@code lastTableBox}</li>
 	 * <li>it fits</li>
-	 * <li>no break point, incomplete table: keep it as {@code lastTableBox} (headers and footers may not fit)</li>
-	 * <li>no break point, complete table: {@code lastTableBox} stays {@code null}</li>
+	 * <li>no break point: {@code lastTableBox} stays {@code null}</li>
 	 * <li>broken, but no remainder</li>
 	 * <li>broken: continue with the remainder</li>
 	 * </ol>
 	 */
-	private TableBox breakTable(TableBox tableBox) {
-		// 2026-07-21 (M6b Phase B5e cleanup): previously, a separate implementation,
-		// LayoutUtils.needsIntrinsicSizing(TableBox), rechecked the old four conditions.
-		// It duplicated TableBuildPlanner.plan() completely,
-		// but lacked the ORTHOGONAL_WRITING_MODE condition added in B5e,
-		// creating an inconsistency between the two.
-		// Measurements had confirmed no actual harm, but adding similar conditions
-		// would risk repeating the problem, so eliminate it by using the single
-		// decision point, TableBuildPlanner.plan().
-		if (!tableBox.isIncomplete()
-				&& TableBuildPlanner.plan(this, tableBox).mode() != TableBuildPlan.Mode.RETAINED) {
-			// For Incremental (fixed layout, etc.),
-			// IncrementalTableBuilder handles repositioning.
-			return tableBox;
-		}
-		if (tableBox.isIncomplete()) {
-			// Retain the current remainder even without splitting. Existing repositioning code updates it on a split.
-			this.lastTableBox = tableBox;
-		}
+	private void breakTable(TableBox tableBox) {
 		for (;;) {
 			this.checkAbort();
 			// Check forced table page breaks
@@ -901,7 +616,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 
 			if (LayoutUtils.compare(this.pageAxis, this.getPageLimit()) <= 0) {
-				return tableBox;
+				return;
 			}
 
 			// Automatic page break
@@ -909,15 +624,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				LOG.fine("page break [in table]");
 			}
 			this.lastTableBox = null;
-			if (!this.autoBreak()) {
-				// Table headers and footers may not fit.
-				if (tableBox.isIncomplete()) {
-					this.lastTableBox = tableBox;
-				}
-				return tableBox;
-			}
-			if (this.lastTableBox == null) {
-				return tableBox;
+			if (!this.autoBreak() || this.lastTableBox == null) {
+				// No break point (table headers and footers may not fit), or no remainder
+				return;
 			}
 			tableBox = this.lastTableBox;
 		}
@@ -1191,7 +900,31 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 			// Split floating boxes inside the root box.
 			if (this.flowStack.size() == 1) {
-				this.splitReservedFloats();
+				while (!this.breakFloats.isEmpty()) {
+					this.checkAbort();
+					if (!this.canFragmentFurther()) {
+						// No more fragments can be created (multi-column layout exhausted its columns).
+						// Exiting without clearing reservations causes an **infinite loop**
+						// (only beginBreak() clears breakFloats).
+						// Leave floats in the last column and let them overflow.
+						// (2026-07-28)
+						this.breakFloats.clear();
+						break;
+					}
+					if (LOG.isLoggable(Level.FINE)) {
+						LOG.fine("page break [floats]");
+					}
+					// Extend the height to ensure a split.
+					this.pageAxis = this.getPageLimit() + 1;
+					this.autoBreak();
+					if (this.textBuilder != null) {
+						// If a split float still overflows the next fragment, continuation replay
+						// opens a text block and reserves breakFloats again.
+						// The next loop iteration again breaks the column at a block boundary,
+						// so close it immediately after each split, as in breakByClear().
+						this.endTextBlock();
+					}
+				}
 			}
 
 			// Retrieve the flow object after the page break.
@@ -1270,58 +1003,6 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			// above).
 			if (this.mode == MODE_PAGE_BREAK) {
 				this.applyBreakAfter(pos.pageBreakAfter);
-			}
-		}
-	}
-
-	/**
-	 * Called at the end of a resume (a page's, or a column's). A closed box carried here by the break (or its
-	 * continuation) can overflow this fragment again, a float of an opposite-progression region that the region keeps in
-	 * its own extent (2026-10-09, fit seed 12555259). When the resume also left the breaks off, no closing box would check
-	 * that overflow: turn them on, and mark the fragment so that the closing box that breaks for it keeps breaking until
-	 * the fragment fits. With the breaks on, the usual checks already break the rest. The next break clears the mark
-	 * (beginBreak); a break nested in this resume may have set it already, for this same fragment, and it stays.
-	 */
-	final void markResumedOverflow() {
-		if (!(this.canBreakBefore && this.interflowBreak)
-				&& LayoutUtils.compare(this.pageAxis, this.getPageLimit()) > 0) {
-			this.resumedOverflow = true;
-			this.canBreakBefore = true;
-			this.interflowBreak = true;
-		}
-	}
-
-	/**
-	 * Splits the floats reserved for a split at the fragment boundary ({@code breakFloats}), breaking until they fit or
-	 * no further fragment can be made. The root runs this when it closes a top-level block, and a multicol's
-	 * {@code ColumnBuilder} when balancing has rebuilt its columns (2026-10-10): its floats are placed in the band
-	 * before the columns exist and classified only there, against the column, and nothing ran the reservation, so a
-	 * float taller than a column stayed whole and ran past the paper.
-	 */
-	public final void splitReservedFloats() {
-		while (!this.breakFloats.isEmpty()) {
-			this.checkAbort();
-			if (!this.canFragmentFurther()) {
-				// No more fragments can be created (multi-column layout exhausted its columns).
-				// Exiting without clearing reservations causes an **infinite loop**
-				// (only beginBreak() clears breakFloats).
-				// Leave floats in the last column and let them overflow.
-				// (2026-07-28)
-				this.breakFloats.clear();
-				break;
-			}
-			if (LOG.isLoggable(Level.FINE)) {
-				LOG.fine("page break [floats]");
-			}
-			// Extend the height to ensure a split.
-			this.pageAxis = this.getPageLimit() + 1;
-			this.autoBreak();
-			if (this.textBuilder != null) {
-				// If a split float still overflows the next fragment, continuation replay
-				// opens a text block and reserves breakFloats again.
-				// The next loop iteration again breaks the column at a block boundary,
-				// so close it immediately after each split, as in breakByClear().
-				this.endTextBlock();
 			}
 		}
 	}

@@ -65,9 +65,6 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * otherwise MOVE; the next page starts with KEEP, so termination is guaranteed).</li>
  * <li>Separate JVM with -Xmx128m (perf gate): measure the scale at which a huge single-cell auto table
 	 * and a 100,000-row short-cell auto table complete.</li>
-	 * <li>{@code -Dfoliojet.rowRetentionDiag=true}: in a separate JVM, separately observe row/cell counts
-	 * for pending plans, bound but unsubmitted rows, the parent's current page, and repeated groups.
-	 * Observe B-2c emission-eligible tables even without this option and also collect histograms.</li>
  * <li>Visual rescue splitting (2026-07-25, increment 8): a fixture combines a 20,000 pt float,
  * a 20,000 pt block with a mismatched writing direction, and a 3,000 pt line.
  * Verify no crashes, infinite loops, or stalls; finite, reasonable page counts; and no
@@ -78,9 +75,6 @@ public class EnduranceTest extends TestCase {
 	private static final URI COPPER_URI = URI.create("copper:direct:");
 
 	private static final File WORK_DIR = new File("local/unittest/endurance");
-
-	private static final double STREAMING_PAGE_HEIGHT = 794; // 842 pt - 24 pt at the top and bottom.
-	private static final double STREAMING_ROW_HEIGHT = 9.1;
 
 	/**
 	 * The image's <b>absolute URI</b>. With a relative path, moving the fixture silently
@@ -567,32 +561,6 @@ public class EnduranceTest extends TestCase {
 		}
 	}
 
-	/**
-	 * B-2c: Measure an actually emitting table with short rows and no frame, separately from existing comparison
-	 * tables.
-	 */
-	public void testConstrainedHeapRowStreaming() throws Exception {
-		if (System.getProperty("foliojet.perf") == null) return;
-		final int[] rowsToMeasure = java.util.Arrays.stream(System.getProperty(
-				"foliojet.enduranceRows", "8000,10000").split(",")).mapToInt(Integer::parseInt).toArray();
-		final List<String> failures = new ArrayList<>();
-		for (final int rows : rowsToMeasure) {
-			final File doc = generateStreamingRowsTable("row-streaming-" + rows, rows);
-			final ChildResult result;
-			try {
-				result = this.runChild(doc, "row-streaming-" + rows + "-128m", null, 300_000, "128m", true);
-			} finally {
-				doc.delete();
-			}
-			System.err.println("[B-2c endurance] rows=" + rows + " heap=128m -> " + result);
-			// Completing 10,000 rows at 128m is the target. Treat OOM/timeout as measurements; fail on contract violations or other errors.
-			if (!result.ok && (rows == 8000 || (!result.timedOut && !result.stats.equals("OutOfMemoryError")))) {
-				failures.add("rows=" + rows + ": " + result);
-			}
-		}
-		assertTrue("行送出の発火・保持上限または変換が失敗: " + failures, failures.isEmpty());
-	}
-
 	/** Result from a separate JVM run (ok means normal exit, i.e. completion). */
 	private static final class ChildResult {
 		final boolean ok;
@@ -628,11 +596,6 @@ public class EnduranceTest extends TestCase {
 
 	private ChildResult runChild(final File doc, final String name, final String budget,
 			final long timeoutMs, final String heap) throws Exception {
-		return this.runChild(doc, name, budget, timeoutMs, heap, false);
-	}
-
-	private ChildResult runChild(final File doc, final String name, final String budget,
-			final long timeoutMs, final String heap, final boolean streaming) throws Exception {
 		final File pdfDir = new File(WORK_DIR, "pdf");
 		pdfDir.mkdirs();
 		final File pdf = new File(pdfDir, name + ".pdf");
@@ -645,7 +608,6 @@ public class EnduranceTest extends TestCase {
 		// ExitOnOutOfMemoryError bypasses Child's catch/finally and erases the stack.
 		// Preserve the cause in logs through normal OOM propagation (the parent's watchdog handles nontermination).
 		command.add("-Djava.awt.headless=true");
-		if (Boolean.getBoolean("foliojet.rowRetentionDiag")) command.add("-Dfoliojet.rowRetentionDiag=true");
 		command.add("-Djava.io.tmpdir=" + System.getProperty("java.io.tmpdir"));
 		command.add("-Djp.cssj.driver.default=" + System.getProperty("jp.cssj.driver.default"));
 		command.add("-cp");
@@ -654,7 +616,6 @@ public class EnduranceTest extends TestCase {
 		command.add(doc.getPath());
 		command.add(pdf.getPath());
 		command.add(budget == null ? "-" : budget);
-		command.add(Boolean.toString(streaming));
 		final ProcessBuilder pb = new ProcessBuilder(command);
 		pb.directory(new File(System.getProperty("user.dir")));
 		pb.redirectErrorStream(true);
@@ -672,9 +633,6 @@ public class EnduranceTest extends TestCase {
 			for (final String line : Files.readAllLines(log.toPath(), StandardCharsets.UTF_8)) {
 				if (line.startsWith("ENDURANCE-OK ")) {
 					stats = line.substring("ENDURANCE-OK ".length());
-				} else if (streaming && (line.startsWith("[B-2") || line.startsWith("[T5a"))) {
-					// Also save the child JVM's histogram from the same point in the parent test log.
-					System.err.println(line);
 				} else if (line.contains("OutOfMemoryError")) {
 					stats = "OutOfMemoryError";
 				}
@@ -691,27 +649,8 @@ public class EnduranceTest extends TestCase {
 	 * to stdout and exit 0; otherwise exit nonzero.
 	 */
 	public static final class Child {
-		private static final RowRetentionReport ROW_RETENTION = new RowRetentionReport();
-
 		public static void main(final String[] args) {
-			final boolean streaming = args.length > 3 && Boolean.parseBoolean(args[3]);
-			final boolean[] beforeFirstEmission = { false };
-			final long stalledAlarms = ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get();
-			try (final AutoCloseable rows = streaming || Boolean.getBoolean("foliojet.rowRetentionDiag")
-					? ROW_RETENTION.observe() : null;
-					final AutoCloseable histogram = !streaming ? null : RangeOnlyInvariantTest.observe(
-							net.zamasoft.foliojet.layout.builder.impl.RetainedTableBuilder.class, "retentionObserver",
-							(java.util.function.BiConsumer<String, LayoutSource>) (stage, source) -> {
-								if (stage.equals("before-row-emission") && !beforeFirstEmission[0]) {
-									beforeFirstEmission[0] = true;
-									RetentionHighWaterReportTest.reportStage("before-first-row-emission", source);
-								} else if (stage.equals("before-pass-b") || stage.equals("after-pass-b")
-										|| stage.equals("during-pass-c") || stage.matches("after-row-[0-9]+")
-										|| stage.equals("after-table-end")) {
-									final var live = RetentionHighWaterReportTest.reportStage(stage, source);
-									if (stage.equals("after-table-end")) ROW_RETENTION.recordTableEndHistogram(live);
-								}
-							})) {
+			try {
 				final File doc = new File(args[0]);
 				final File pdf = new File(args[1]);
 				final String budget = args[2];
@@ -724,7 +663,6 @@ public class EnduranceTest extends TestCase {
 						session.property("input.include", "**");
 						session.property("input.property-pi", "true");
 						session.property("processing.fail-on-fatal-error", "true");
-						if (streaming) session.property("processing.table-row-emission", "true");
 						if (!"-".equals(budget)) {
 							session.property("processing.text-spill-budget", budget);
 						}
@@ -733,18 +671,10 @@ public class EnduranceTest extends TestCase {
 						session.close();
 					}
 				}
-				if (streaming) {
-					final int pageRows = (int) Math.floor((STREAMING_PAGE_HEIGHT + 0.5) / STREAMING_ROW_HEIGHT);
-					ROW_RETENTION.assertStreamingBound(pageRows, 1, 1, 3);
-					ROW_RETENTION.assertLiveTableBound(pageRows + 1 + 1, 3);
-					assertEquals("行消費中に停滞を誤検出", stalledAlarms, ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get());
-				}
-				if (streaming) System.err.println("[B-2c row retention summary] " + ROW_RETENTION);
 				System.out.println("ENDURANCE-OK " + retentionStats());
 				System.exit(0);
 			} catch (final Throwable t) {
 				t.printStackTrace();
-				if (streaming) System.err.println("[B-2c row retention summary] " + ROW_RETENTION);
 				System.err.println("ENDURANCE-FAIL " + retentionStats());
 				System.exit(3);
 			}
@@ -759,12 +689,9 @@ public class EnduranceTest extends TestCase {
 						+ TableBuildStats.RETAINED_ROW_HIGH_WATER.get() + " sourceLeaseHW="
 						+ TableBuildStats.SOURCE_LEASE_HIGH_WATER.get() + " retainedEventHW="
 						+ TableBuildStats.SOURCE_RETAINED_EVENT_HIGH_WATER.get() + " cellRangeSeals="
-						+ ContinuationStats.CELL_RANGE_SEALS.get() + " passCTables="
-						+ ContinuationStats.TABLE_PASS_C_TABLES.get() + " legacyBindRows="
-						+ ContinuationStats.TABLE_LEGACY_BINDROWS.get() + " oldestWatermark="
+						+ ContinuationStats.CELL_RANGE_SEALS.get() + " oldestWatermark="
 						+ TableBuildStats.SOURCE_OLDEST_WATERMARK_AT_HIGH_WATER.get() + " watermarkLagHW="
-						+ TableBuildStats.SOURCE_OLDEST_WATERMARK_LAG_HIGH_WATER.get()
-						+ (Boolean.getBoolean("foliojet.rowRetentionDiag") ? " " + ROW_RETENTION : "");
+						+ TableBuildStats.SOURCE_OLDEST_WATERMARK_LAG_HIGH_WATER.get();
 		}
 	}
 
@@ -835,14 +762,6 @@ public class EnduranceTest extends TestCase {
 
 	/** Auto table with short cells ({@code r{i}c{j}}) × 3 columns (with one thead row). */
 	static File generateManyRowsTable(final String name, final int rows) throws IOException {
-		return generateManyRowsTable(name, rows, false);
-	}
-
-	static File generateStreamingRowsTable(final String name, final int rows) throws IOException {
-		return generateManyRowsTable(name, rows, true);
-	}
-
-	private static File generateManyRowsTable(final String name, final int rows, final boolean streaming) throws IOException {
 		WORK_DIR.mkdirs();
 		final File file = new File(WORK_DIR, name + ".html");
 		try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
@@ -850,13 +769,7 @@ public class EnduranceTest extends TestCase {
 			w.write("<?jp.cssj.property name=\"output.page-width\" value=\"595pt\"?>\n");
 			w.write("<?jp.cssj.property name=\"output.page-height\" value=\"842pt\"?>\n");
 			w.write("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
-			if (streaming) {
-				w.write("<style>@page{margin:24pt}body{margin:0;font:6pt/1 serif}"
-						+ "table{width:400pt;border-collapse:separate;border-spacing:0;margin:0;border:0}"
-						+ "td,th{padding:0;border:0}td{height:" + STREAMING_ROW_HEIGHT + "pt}</style>\n");
-			} else {
-				w.write("<style>@page{margin:24pt}body{font:normal 8pt/1 serif}td,th{border:1pt solid black}</style>\n");
-			}
+			w.write("<style>@page{margin:24pt}body{font:normal 8pt/1 serif}td,th{border:1pt solid black}</style>\n");
 			w.write("</head><body><table>\n");
 			w.write("<thead><tr><th>h0</th><th>h1</th><th>h2</th></tr></thead>\n");
 			w.write("<tbody>\n");

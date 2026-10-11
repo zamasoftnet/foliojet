@@ -9,7 +9,7 @@ package net.zamasoft.foliojet.css.value;
  * conflicts with page breaking, so stages 1–3 do not treat it as a query container
  * (design §4: do not include `container-type: size` initially).
  * Retains the value itself and warns at the stage that actually consults
- * {@code ContainerFacts}.
+ * the query containers ({@code CSSElement.QueryContainer}).
  * </p>
  *
  * @author MIYABE Tatsuhiko

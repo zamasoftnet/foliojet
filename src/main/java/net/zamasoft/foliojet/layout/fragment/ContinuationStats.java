@@ -539,47 +539,6 @@ public final class ContinuationStats {
 		CELL_RANGE_BINDS.incrementAndGet();
 	}
 
-	// ---- E-6 increment 5b-2 (2026-07-24): firing counters for table Pass C (sequential row binds) ----
-
-	/**
-	 * Number of Retained tables whose bindRows runs Pass B/C (scratch measurement of all cells →
-	 * finalize row heights → sequential row binds). Added 2026-07-24, E-6 increment 5b-2.
-	 * Eligibility fails closed per table: all real cells are converted to ranges (or Empty),
-	 * there are no captions, and all cells can be cloned for measurement
-	 * ({@code RetainedTableBuilder.isRowSequentialBindEligible}).
-	 */
-	public static final AtomicLong TABLE_PASS_C_TABLES = new AtomicLong();
-
-	/**
-	 * Number of ineligible Retained tables falling back to the conventional bindRows path
-	 * (batch bind of all cells before row-height calculation).
-	 * E-6 increment 5b-2; contributes to the eligibility-rate denominator.
-	 */
-	public static final AtomicLong TABLE_LEGACY_BINDROWS = new AtomicLong();
-
-	/**
-	 * Number of scratch measurements in Pass B (row measurement), E-6 increment 5b-2.
-	 * In a Pass C table, row heights read only these measurements, and no bound cell body trees exist
-	 * (measurement trees are discarded after collecting values). This observes "zero cell body trees
-	 * retained during Pass B." RetentionHighWaterReportTest verifies firings at real-cell scale.
-	 */
-	public static final AtomicLong TABLE_PASS_B_CELL_MEASURES = new AtomicLong();
-
-	/** Counts tables processed by the Pass B/C path (E-6 increment 5b-2). */
-	public static void recordTablePassC() {
-		TABLE_PASS_C_TABLES.incrementAndGet();
-	}
-
-	/** Counts tables falling back to the conventional bindRows path (E-6 increment 5b-2). */
-	public static void recordTableLegacyBindRows() {
-		TABLE_LEGACY_BINDROWS.incrementAndGet();
-	}
-
-	/** Counts Pass B cell scratch measurements (E-6 increment 5b-2). */
-	public static void recordTablePassBCellMeasure() {
-		TABLE_PASS_B_CELL_MEASURES.incrementAndGet();
-	}
-
 	/** Number of seal rejections for {@code reason} (E-6 increment 4a/4b). */
 	public static long twoPassSealRejects(final TwoPassSealReject reason) {
 		return TWO_PASS_SEAL_REJECTS.get(reason).get();
@@ -798,9 +757,6 @@ public final class ContinuationStats {
 		CAPTION_CONTEXT_ACCEPTS.set(0);
 		CELL_RANGE_SEALS.set(0);
 		CELL_RANGE_BINDS.set(0);
-		TABLE_PASS_C_TABLES.set(0);
-		TABLE_LEGACY_BINDROWS.set(0);
-		TABLE_PASS_B_CELL_MEASURES.set(0);
 		for (final AtomicLong counter : TWO_PASS_SEAL_REJECTS.values()) {
 			counter.set(0);
 		}

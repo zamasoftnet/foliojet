@@ -311,10 +311,11 @@ public final class TwoPassGridFlexRangeTest extends TestCase {
 				measures.incrementAndGet();
 			}
 		};
-		try {
+		try (final AutoCloseable scratch = ScratchReplayScopeTest.measureCellsInScratch()) {
 			seal.set(null, onSeal);
 			replay.set(null, onReplay);
-			// Items bound directly, items absorbed into an outer float, and items measured in cell Pass B.
+			// Items bound directly, items absorbed into an outer float, and items in a cell measured in scratch before
+			// its bind (as table Pass B did until 2026-10-11).
 			final var measured = renderItems("item lifecycle", fixtureFile("item-lifecycle"), TwoPassItemKind.TAKEOVER);
 			assertTrue("項目自身のMEASURE範囲再生が未発火", measured.keySet().stream()
 					.anyMatch(key -> key.itemKind() == TwoPassItemKind.TAKEOVER || key.itemKind() == TwoPassItemKind.ELEMENT));

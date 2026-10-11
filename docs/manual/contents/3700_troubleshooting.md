@@ -87,7 +87,8 @@
 <dt>1パスでは決まらないスタイル</dt>
 <dd>
 	`:last-child` や `:has()` のように、後ろまで読まないと決まらない
-	セレクタは、1パスでは効きません。
+	セレクタは、1パスでは効かないか、一部の要素にだけ効きます
+	(`:not(:last-child)` はすべての要素に当たります)。
 	→ <a href="#style-multipass-required" class="pageref">2パスが必要な機能</a>
 </dd>
 

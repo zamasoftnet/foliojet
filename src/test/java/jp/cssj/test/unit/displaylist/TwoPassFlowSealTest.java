@@ -81,7 +81,9 @@ public final class TwoPassFlowSealTest extends TestCase {
 
 	public void testT0ScratchFloatsUseRanges() throws Exception {
 		for (final String doc : SCRATCH_DOCUMENTS) {
-			try (final var census = ContinuationStats.beginTwoPassCensus()) {
+			// Cells measured in scratch before their bind, as table Pass B did (2026-10-11)
+			try (final var census = ContinuationStats.beginTwoPassCensus();
+					final AutoCloseable scratch = ScratchReplayScopeTest.measureCellsInScratch()) {
 				ContinuationStats.reset();
 				render(new File("files/unittest", doc));
 				report(doc);

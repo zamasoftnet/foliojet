@@ -134,7 +134,7 @@ public class PassContext {
 
 	/**
 	 * The first ElementKey of the next document in this pass (2026-10-08). Keys count elements in document order and
-	 * key the two-pass facts ({@code SelectorFacts}, {@code ContainerFacts}); when the spine items of an EPUB are laid
+	 * key the two-pass facts ({@code SelectorFacts}); when the spine items of an EPUB are laid
 	 * out into one output, the keys of each item continue after the previous item's, so the facts of different items
 	 * do not overwrite each other. Every pass reads the items in the same order, so the keys match between passes.
 	 */

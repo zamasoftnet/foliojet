@@ -137,9 +137,9 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		final AtomicBoolean compacted = new AtomicBoolean();
 		try (final AutoCloseable observer = observe(net.zamasoft.foliojet.layout.builder.impl.RetainedTableBuilder.class,
 				"retentionObserver", (java.util.function.BiConsumer<String, LayoutSource>) (stage, source) -> {
-			if (stage.equals("after-pass-b")) {
+			if (stage.equals("before-top-captions")) {
 				assertTrue("セル本文のsliceが未発火", source.retentionSnapshot().slicedEvents() >= 120 * 3);
-				assertTrue("Pass B後も表全体のログを保持", source.size() < 1024);
+				assertTrue("bind前も表全体のログを保持", source.size() < 1024);
 				compacted.set(true);
 			}
 		})) {
@@ -147,7 +147,7 @@ public final class RangeOnlyInvariantTest extends TestCase {
 		} finally {
 			java.nio.file.Files.deleteIfExists(document.toPath());
 		}
-		assertTrue("sliceを保持したPass B後のcompactが未観測", compacted.get());
+		assertTrue("sliceを保持したbind前のcompactが未観測", compacted.get());
 	}
 
 	public void testTextSliceSurvivesCompactionAndRetainsPayloadBudget() throws Exception {

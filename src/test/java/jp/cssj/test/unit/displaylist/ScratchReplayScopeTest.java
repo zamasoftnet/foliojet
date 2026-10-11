@@ -178,6 +178,45 @@ public final class ScratchReplayScopeTest extends TestCase {
 
 	}
 
+	/** The sealed range body of a cell ({@code CellContent}); null for a cell still measuring, an extended one or an empty body. */
+	private static TwoPassBlockBuilder.DeferredBind rangeBody(final Object cell) throws Exception {
+		final Method sealedBody = Class.forName("net.zamasoft.foliojet.layout.builder.impl.CellContent")
+				.getDeclaredMethod("sealedBodyOrNull");
+		sealedBody.setAccessible(true);
+		final var body = (TwoPassBlockBuilder.DeferredBind) sealedBody.invoke(cell);
+		return body != null && body.handle() != null ? body : null;
+	}
+
+	/**
+	 * Measures each sealed cell range once in a scratch replica right before its real bind, as table Pass B did until
+	 * 2026-10-11, so that tests still drive the scratch (MEASURE) replay of what cells hold: production replays content
+	 * that way for column flex items and orthogonal absolute boxes. Close to uninstall.
+	 */
+	static AutoCloseable measureCellsInScratch() throws Exception {
+		final Field hook = RetainedTableBuilder.class.getDeclaredField("cellBindShadow");
+		hook.setAccessible(true);
+		final Object saved = hook.get(null);
+		final Class<?> contract = hook.getType();
+		final Object shadow = Proxy.newProxyInstance(contract.getClassLoader(), new Class<?>[] { contract },
+				(proxy, method, args) -> {
+					if (!method.getName().equals("beforeCellBind") || ReplayIntent.current() == ReplayIntent.MEASURE) {
+						return null;
+					}
+					final TwoPassBlockBuilder.DeferredBind body = rangeBody(args[0]);
+					final TableCellBox cell = (TableCellBox) args[1];
+					if (body != null && cell.canMeasureReplica()) {
+						try (final ScratchReplayScope scope = new ScratchReplayScope()) {
+							final BlockBuilder target = new BlockBuilder((LayoutStack) args[2], cell.newMeasureReplica());
+							body.measureInto(target);
+							target.close();
+						}
+					}
+					return null;
+				});
+		hook.set(null, shadow);
+		return () -> hook.set(null, saved);
+	}
+
 	static List<byte[]> checkDocument(final File source) throws Exception {
 		ContinuationStats.reset();
 		final List<byte[]> baseline = TwoPassFlowSealTest.render(source);
@@ -185,17 +224,13 @@ public final class ScratchReplayScopeTest extends TestCase {
 		hook.setAccessible(true);
 		final Object saved = hook.get(null);
 		final Class<?> contract = hook.getType();
-		final Method rangeBody = Class.forName("net.zamasoft.foliojet.layout.builder.impl.CellContent")
-				.getDeclaredMethod("rangeBody");
-		rangeBody.setAccessible(true);
 		final AtomicInteger checked = new AtomicInteger();
 		final boolean[] busy = { false };
 		final Object shadow = Proxy.newProxyInstance(contract.getClassLoader(), new Class<?>[] { contract },
 				(proxy, method, args) -> {
 					if (method.getName().equals("afterCellBind") && !busy[0]
 							&& ReplayIntent.current() == ReplayIntent.MAIN) {
-						final TwoPassBlockBuilder.DeferredBind body =
-								(TwoPassBlockBuilder.DeferredBind) rangeBody.invoke(args[0]);
+						final TwoPassBlockBuilder.DeferredBind body = rangeBody(args[0]);
 						if (body != null) {
 							assertEquals("本bind後はCONSUMED", State.CONSUMED, body.handle().state());
 							assertIllegalState(() -> body.handle().bind(null, null));
@@ -206,8 +241,7 @@ public final class ScratchReplayScopeTest extends TestCase {
 							|| ReplayIntent.current() == ReplayIntent.MEASURE) {
 						return null;
 					}
-					final TwoPassBlockBuilder.DeferredBind body =
-							(TwoPassBlockBuilder.DeferredBind) rangeBody.invoke(args[0]);
+					final TwoPassBlockBuilder.DeferredBind body = rangeBody(args[0]);
 					final TableCellBox cell = (TableCellBox) args[1];
 					if (body == null || !cell.canMeasureReplica()) {
 						return null;
