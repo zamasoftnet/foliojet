@@ -420,8 +420,8 @@ input[type=button], input[type=reset], input[type=submit] {
 	display: inline-block;
 	text-align: center;
 	background-color: lightgray;
-	/* Chrome's padding and border (2026-10-11): 1pt and thin left a label less room than in Chrome, hidden by the
-	   inherited line-height until buttons took line-height: normal (narou: Chrome 14.61pt high, 12.75) */
+	/* Chrome's padding and border (2026-10-11): with 1pt and thin a button was narrower and lower than in Chrome
+	   ("Go": 16.22pt wide, Chrome 25.35pt) */
 	border: 2px outset;
 	padding: 1px 6px;
 	/* The border box, as in Chrome's UA (2026-10-09): a width: 100% button overflowed its box by its frame */
@@ -465,16 +465,21 @@ input[type=datetime-local] { -cssj-auto-width: 11.925em; }
 input[type=month] { -cssj-auto-width: 10.425em; }
 input[type=week] { -cssj-auto-width: 9.825em; }
 input[type=range] { -cssj-auto-width: 9.275em; }
+/* field-sizing does not apply to them: Chrome keeps their widths under field-sizing: content (2026-10-11; they shrank
+   to their borders) */
+input:is([type=color], [type=date], [type=time], [type=datetime-local], [type=month], [type=week], [type=range]) {
+	field-sizing: fixed !important;
+}
 
 /* The natural width goes to -cssj-auto-width, as for input fields: width: auto computes to it, and a percentage
    width keeps it for the max-content size (cyclic percentage, 2026-10-09). Chrome's: 0.55em a column and 1.125em
    more (its scrollbar), 20 columns by default; cols take their width in HTMLStyle, as attr() does not go into calc().
-   2 rows of the line height by default, on the block axis, and rows in HTMLStyle too (2026-10-11: Chrome 126 x 27pt;
-   20ex and 4em made it 124 x 52pt) */
+   2 rows of the line height by default, its natural block size, and rows in HTMLStyle too (2026-10-11: Chrome
+   126 x 27pt; 20ex and 4em made it 124 x 52pt). field-sizing: content drops both */
 textarea {
 	display: inline-block;
 	-cssj-auto-width: 12.125em;
-	block-size: 2lh;
+	-cssj-internal-auto-block-size: 2lh;
 	background-color: white;
 	border: thin inset;
 	/* The HTML Standard's and Chrome's (2026-10-09; nowrap put the text on one line, beyond the box). The text beyond

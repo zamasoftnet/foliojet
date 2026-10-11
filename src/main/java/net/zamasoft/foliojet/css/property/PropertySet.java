@@ -169,7 +169,7 @@ public abstract class PropertySet {
 			"scroll-margin-right", "scroll-padding-top", "scroll-padding-bottom",
 			"scroll-padding-left", "scroll-padding-right", "scroll-margin-block",
 			"scroll-margin-inline", "scroll-padding-block", "scroll-padding-inline",
-			"scroll-timeline", "view-transition-name", "accent-color", "field-sizing",
+			"scroll-timeline", "view-transition-name", "accent-color",
 			"box-orient", "box-direction", "box-pack", "box-align", "box-flex",
 			"box-ordinal-group", "box-lines", "font-optical-sizing",
 			// zoom (render-time scaling) and text-underline-position were implemented and removed from the ignore list on 2026-08-29

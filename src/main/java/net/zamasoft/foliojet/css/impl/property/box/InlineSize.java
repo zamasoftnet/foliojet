@@ -34,6 +34,12 @@ public final class InlineSize extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value getComputedValue(Value value, CSSStyle style) {
+		// auto is a form control's natural size, as for width and height (2026-10-11: block-size: auto on a textarea
+		// with rows="3" made it 0pt high, Chrome 45pt)
+		if (value == KeywordValue.AUTO) {
+			value = net.zamasoft.foliojet.css.impl.property.internal.CSSJAutoWidth.natural(style,
+					net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style).isVertical());
+		}
 		return ValueUtils.emExToAbsoluteLength(value, style);
 	}
 

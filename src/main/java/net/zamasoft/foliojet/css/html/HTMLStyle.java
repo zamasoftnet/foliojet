@@ -198,6 +198,15 @@ public class HTMLStyle {
 				break;
 			}
 			break;
+		case HTMLCodes.TEXTAREA:
+			// Under field-sizing: content a zero-width space ends a textarea, as a text field's value (2026-10-11): an
+			// empty one keeps a line and a last line break opens one, as in Chrome (an empty one was 0pt high). Not
+			// otherwise: the space, missing from the textarea's font, takes another one and lowered its last line by 1pt
+			// (FormWhiteSpaceTest), and the textarea's size does not depend on its lines
+			if (net.zamasoft.foliojet.css.impl.property.box.FieldSizing.isContent(style.getParentStyle())) {
+				style.set(Content.INFO, WBR);
+			}
+			break;
 		case HTMLCodes.ISINDEX:
 			// <ISINDEX>
 			HTMLStyle.applyTextField(style, false, null);
@@ -646,6 +655,7 @@ public class HTMLStyle {
 		case HTMLCodes.Q:
 		case HTMLCodes.WBR:
 		case HTMLCodes.SELECT:
+		case HTMLCodes.TEXTAREA:
 			return true;
 		}
 		return false;
@@ -1282,7 +1292,8 @@ public class HTMLStyle {
 		case HTMLCodes.TEXTAREA: {
 			// <TEXTAREA cols rows disabled wrap> was moved to html-ua.css (2026-08-03). Its font is monospace, as
 			// Chrome's (2026-10-11; in Java, as for code: see html-ua.css), and cols give its width as Chrome's: 0.55em
-			// a column and 1.125em more (its scrollbar), and rows its block size, a line height each, both read as HTML
+			// a column and 1.125em more (its scrollbar), and rows its natural block size, a line height each (both
+			// dropped under field-sizing: content), read as HTML
 			// reads a non-negative integer (rows="0" keeps the default, "3x" is 3); the defaults, 20 and 2, are in
 			// html-ua.css
 			style.set(CSSFontFamily.INFO, FontFamilyValue.MONOSPACE);
@@ -1292,7 +1303,7 @@ public class HTMLStyle {
 			}
 			final int rows = positiveInteger(ua, ce.atts.getValue("rows"), "rows");
 			if (rows > 0) {
-				style.set(net.zamasoft.foliojet.css.impl.property.box.BlockSize.INFO,
+				style.set(net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalAutoBlockSize.INFO,
 						RelativeLengthValue.of(net.zamasoft.foliojet.css.token.Unit.LH, rows));
 			}
 		}

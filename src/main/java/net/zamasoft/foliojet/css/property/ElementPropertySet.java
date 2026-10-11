@@ -726,6 +726,8 @@ public final class ElementPropertySet extends PropertySet {
 		reg(CSSJNoBreakCharacters.INFO);
 
 		reg(CSSJAutoWidth.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalAutoBlockSize.INFO);
+		reg(net.zamasoft.foliojet.css.impl.property.box.FieldSizing.INFO);
 		reg(CSSJHtmlAlign.INFO);
 		reg(CSSJHtmlCellPadding.INFO);
 		reg(CSSJHtmlTableBorder.INFO);

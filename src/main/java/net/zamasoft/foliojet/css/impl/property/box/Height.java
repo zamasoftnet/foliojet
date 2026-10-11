@@ -66,16 +66,16 @@ public class Height extends AbstractPrimitivePropertyInfo {
 	 * </p>
 	 */
 	public Value getComputedValue(Value value, CSSStyle style) {
-		// A form control's natural width is its inline size, the height in vertical writing (2026-10-11: a vertical
-		// input was 132.75 x 4pt, Chrome 15.75 x 132.75)
-		final boolean vertical = net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style).isVertical();
-		if (value == KeywordValue.AUTO && vertical) {
-			value = net.zamasoft.foliojet.css.impl.property.internal.CSSJAutoWidth.get(style);
+		// A form control's natural size along the height: its block size (a textarea's rows), or its inline size in
+		// vertical writing (2026-10-11: a vertical input was 132.75 x 4pt, Chrome 15.75 x 132.75), none under
+		// field-sizing: content
+		if (value == KeywordValue.AUTO) {
+			value = net.zamasoft.foliojet.css.impl.property.internal.CSSJAutoWidth.natural(style, true);
 		}
 		final Value resolved = ValueUtils.emExToAbsoluteLength(value, style);
 		if (resolved instanceof net.zamasoft.foliojet.css.value.QuantityValue q && q.isNegative()) {
-			return vertical ? ValueUtils.emExToAbsoluteLength(
-					net.zamasoft.foliojet.css.impl.property.internal.CSSJAutoWidth.get(style), style) : KeywordValue.AUTO;
+			return ValueUtils.emExToAbsoluteLength(
+					net.zamasoft.foliojet.css.impl.property.internal.CSSJAutoWidth.natural(style, true), style);
 		}
 		return resolved;
 	}

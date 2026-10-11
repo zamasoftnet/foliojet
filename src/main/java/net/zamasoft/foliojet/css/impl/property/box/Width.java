@@ -67,14 +67,14 @@ public class Width extends AbstractPrimitivePropertyInfo {
 	 * </p>
 	 */
 	public Value getComputedValue(Value value, CSSStyle style) {
-		// A form control's natural width is its inline size: the height in vertical writing (Height, 2026-10-11)
-		final boolean vertical = net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style).isVertical();
-		if (value == KeywordValue.AUTO && !vertical) {
-			value = CSSJAutoWidth.get(style);
+		// A form control's natural size along the width: its inline size, or its block size in vertical writing
+		// (2026-10-11), none under field-sizing: content
+		if (value == KeywordValue.AUTO) {
+			value = CSSJAutoWidth.natural(style, false);
 		}
 		final Value resolved = ValueUtils.emExToAbsoluteLength(value, style);
 		if (resolved instanceof net.zamasoft.foliojet.css.value.QuantityValue q && q.isNegative()) {
-			return vertical ? KeywordValue.AUTO : ValueUtils.emExToAbsoluteLength(CSSJAutoWidth.get(style), style);
+			return ValueUtils.emExToAbsoluteLength(CSSJAutoWidth.natural(style, false), style);
 		}
 		return resolved;
 	}

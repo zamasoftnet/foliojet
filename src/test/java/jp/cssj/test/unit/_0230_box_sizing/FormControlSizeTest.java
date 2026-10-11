@@ -48,6 +48,53 @@ public class FormControlSizeTest extends TestCase {
 		assertEquals("an input in a line-height: 2 block", 15.75, f.get(1)[1], EPSILON);
 	}
 
+	/**
+	 * field-sizing: content sizes the control to its content (2026-10-11, NEXT-SESSION §5-6; repro/fs/fs2.html): a
+	 * textarea with "ab" is 24.22 x 21.14pt, one with two lines and rows="20" 18.87 x 34.78pt in Chrome; an input with
+	 * "hello world" is narrower than its natural 132.75pt (Chrome 53.8pt).
+	 */
+	public void testFieldSizingContent() throws Exception {
+		final String textarea = "style=\"field-sizing: content; font-family: monospace; font-size: 13px; line-height: 1.4;"
+				+ " padding: 4px 8px; border: 1px solid; box-sizing: border-box; white-space: pre\"";
+		final List<double[]> f = frames("<div><textarea " + textarea + ">ab</textarea></div><div><textarea rows=\"20\" "
+				+ textarea + ">a\nb</textarea></div><div><input style=\"field-sizing: content\" value=\"hello world\" />"
+				+ "</div>");
+		assertSize("a textarea with ab", f.get(0), 24.22, 21.14);
+		assertSize("a textarea of two lines, rows 20", f.get(1), 18.87, 34.78);
+		assertTrue("an input with hello world: " + f.get(2)[0], f.get(2)[0] > 40 && f.get(2)[0] < 60);
+	}
+
+	/**
+	 * What field-sizing: content leaves (repro/fs/fs3.html in Chrome): a range keeps its width, 96.75pt; an empty
+	 * textarea a line, 15.75pt high (5.25pt wide in Chrome with its 1.5pt padding and 0.75pt caret, Copper's padding is
+	 * 1pt and has no caret).
+	 */
+	public void testFieldSizingLeaves() throws Exception {
+		final List<double[]> f = frames("<div><input type=\"range\" style=\"field-sizing: content\" /></div>"
+				+ "<div><textarea style=\"field-sizing: content\"></textarea></div>");
+		assertEquals("a range under field-sizing: content", 96.75, f.get(0)[0], EPSILON);
+		assertEquals("an empty textarea under field-sizing: content: height", 15.75, f.get(1)[1], EPSILON);
+		assertTrue("an empty textarea under field-sizing: content: width " + f.get(1)[0], f.get(1)[0] < 6);
+	}
+
+	/**
+	 * inline-size and block-size auto give a control its natural size, as width and height auto do, in vertical writing
+	 * too (repro/fs/fs3.html, fs4.html in Chrome): rows 3 146.25 x 45pt, cols 10 78.75 x 30pt, and 45 x 146.25pt,
+	 * 30 x 78.75pt vertical (they were 0pt along the logical axis).
+	 */
+	public void testLogicalAuto() throws Exception {
+		final String z = "font: 16px/20px monospace; padding: 0; border: 0";
+		final String v = "; writing-mode: vertical-rl";
+		final List<double[]> f = frames("<div><textarea rows=\"3\" style=\"block-size: auto; " + z + "\"></textarea></div>"
+				+ "<div><textarea cols=\"10\" style=\"inline-size: auto; " + z + "\"></textarea></div>"
+				+ "<div><textarea rows=\"3\" style=\"block-size: auto; " + z + v + "\"></textarea></div>"
+				+ "<div><textarea cols=\"10\" style=\"inline-size: auto; " + z + v + "\"></textarea></div>");
+		assertSize("rows 3, block-size: auto", f.get(0), 146.25, 45);
+		assertSize("cols 10, inline-size: auto", f.get(1), 78.75, 30);
+		assertSize("rows 3, block-size: auto, vertical", f.get(2), 45, 146.25);
+		assertSize("cols 10, inline-size: auto, vertical", f.get(3), 30, 78.75);
+	}
+
 	public void testVertical() throws Exception {
 		final List<double[]> f = frames("<div><textarea rows=\"2\" cols=\"20\" style=\"writing-mode: vertical-rl\">"
 				+ "</textarea></div><div><input style=\"writing-mode: vertical-rl\" /></div>"

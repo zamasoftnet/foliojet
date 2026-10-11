@@ -26,6 +26,20 @@ public class CSSJAutoWidth extends AbstractPrimitivePropertyInfo {
 		return style.get(INFO);
 	}
 
+	/**
+	 * The natural size of a form control along the width (or the height), which an auto size there computes to
+	 * (2026-10-11): its natural inline size (this property: an input's size, a textarea's cols) along the inline axis,
+	 * its natural block size ({@link CSSJInternalAutoBlockSize}: a textarea's rows) along the block axis, by its writing
+	 * mode; auto under field-sizing: content, which sizes the control to its content.
+	 */
+	public static Value natural(final CSSStyle style, final boolean height) {
+		if (net.zamasoft.foliojet.css.impl.property.box.FieldSizing.isContent(style)) {
+			return net.zamasoft.foliojet.css.value.KeywordValue.AUTO;
+		}
+		final boolean vertical = net.zamasoft.foliojet.css.impl.property.text.BlockFlow.get(style).isVertical();
+		return height != vertical ? CSSJInternalAutoBlockSize.get(style) : get(style);
+	}
+
 	protected CSSJAutoWidth() {
 		super("-cssj-auto-width");
 	}
