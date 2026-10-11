@@ -57,7 +57,8 @@ public final class SVGAuthorCss {
 	/**
 	 * Builds CSS text to pass to Batik. Resolves declarations containing var()
 	 * in {@code varContext} (the style of the SVG element receiving injection),
-	 * discarding those that cannot resolve (undefined with no fallback, etc.).
+	 * discarding those that cannot resolve (undefined with no fallback, etc.). Each selector also goes in from its
+	 * compounds that can start inside the svg ({@link #selectorsFor}, 2026-10-11).
 	 */
 	public synchronized String toCssText(CSSStyle varContext) {
 		if (this.rules.isEmpty()) {
@@ -66,6 +67,8 @@ public final class SVGAuthorCss {
 		final StringBuilder buff = new StringBuilder();
 		for (final Rule rule : this.rules.values()) {
 			StringBuilder decls = null;
+			// Without what the svg's HTML box applies already (svgDecls)
+			final StringBuilder svgDecls = new StringBuilder();
 			for (final Decl d : rule.declarations()) {
 				List<CssToken> tokens = d.tokens();
 				if (VarSubstitution.containsVarReference(tokens)) {
@@ -96,6 +99,7 @@ public final class SVGAuthorCss {
 				if (decls == null) {
 					decls = new StringBuilder();
 				}
+				final int start = decls.length();
 				decls.append(d.property()).append(':').append(value);
 				if (d.important()) {
 					decls.append(" !important");
@@ -113,12 +117,170 @@ public final class SVGAuthorCss {
 					}
 					decls.append(';');
 				}
+				if (!BOX_PROPERTIES.contains(d.property())) {
+					svgDecls.append(decls, start, decls.length());
+				}
 			}
-			if (decls != null) {
-				buff.append(rule.selectors()).append('{').append(decls).append("}\n");
+			if (decls == null) {
+				continue;
+			}
+			final StringBuilder selectors = new StringBuilder();
+			final StringBuilder onSvg = new StringBuilder();
+			for (final String selector : rule.selectors().split(",")) {
+				if (!selector.isBlank()) {
+					selectors.append(selectors.length() == 0 ? "" : ",")
+							.append(selectorsFor(selector.trim(), varContext, onSvg));
+				}
+			}
+			buff.append(selectors).append('{').append(decls).append("}\n");
+			if (onSvg.length() > 0 && svgDecls.length() > 0) {
+				buff.append(onSvg).append('{').append(svgDecls).append("}\n");
 			}
 		}
 		return buff.toString();
+	}
+
+	/**
+	 * A selector as it applies in one inline svg (2026-10-11): as written, which may match inside the SVG document, and
+	 * from each compound that can start inside the svg, the part before matched against the svg element's ancestors in
+	 * the HTML document and dropped. Batik sees no HTML ancestor: "span.c svg" matched nothing (Chrome fills the svg in
+	 * span.c), and mkdocs-material's ".md-typeset .twemoji svg { fill: currentcolor }" left its icons black.
+	 * <ul>
+	 * <li>The compound after a child combinator, when it matches the svg element and the part before its ancestors
+	 * ("div.u > SVG" as "svg").</li>
+	 * <li>A compound after a descendant combinator, when the part before matches proper ancestors (".f .g path" as
+	 * "path"; ".q svg" does not reach svg.q itself).</li>
+	 * </ul>
+	 * The specificity of the part dropped does not count inside the svg, and "div > svg" reaches a nested svg too
+	 * (CSS-SUPPORT §8). A form whose subject can be the svg element goes into {@code onSvg}, to take the rule without
+	 * what the svg's HTML box applies already (codex: picocss's ".code > a.copy-to-clipboard > svg { opacity: .5 }" on
+	 * the root made Batik's drawing an image).
+	 *
+	 * @param selector a selector in the Batik-safe form (tags, classes, ids, descendant and child combinators;
+	 *                 CSSStyleSheetBuilder.collectSVGStyleRule)
+	 * @param host     the svg element's style, null for none
+	 * @param onSvg    receives the forms whose subject can be the svg element, comma-separated
+	 */
+	static String selectorsFor(final String selector, final CSSStyle host, final StringBuilder onSvg) {
+		final CSSElement svg = host == null ? null : host.getCSSElement();
+		if (svg == null) {
+			return selector;
+		}
+		final List<CSSElement> ancestors = new ArrayList<CSSElement>();
+		for (CSSStyle s = host.getParentStyle(); s != null; s = s.getParentStyle()) {
+			// Elements of the document only, not anonymous boxes (codex: "tr svg" in a display: table-cell div)
+			if (s.getCSSElement() != null && !s.isAnonStyle()) {
+				ancestors.add(s.getCSSElement());
+			}
+		}
+		final List<String> compounds = new ArrayList<String>();
+		final List<Boolean> child = new ArrayList<Boolean>(); // whether '>' comes before the compound
+		boolean nextChild = false;
+		for (final String token : selector.replace(">", " > ").trim().split("\\s+")) {
+			if (token.equals(">")) {
+				nextChild = true;
+				continue;
+			}
+			compounds.add(token);
+			child.add(nextChild);
+			nextChild = false;
+		}
+		final StringBuilder out = new StringBuilder(selector);
+		final Map<Long, Boolean> memo = new java.util.HashMap<Long, Boolean>();
+		for (int k = 1; k < compounds.size(); ++k) {
+			final String compound = compounds.get(k);
+			final boolean onRoot = matches(compound, svg);
+			if (child.get(k) ? onRoot && prefix(compounds, child, k - 1, true, ancestors, 0, memo)
+					: prefix(compounds, child, k - 1, false, ancestors, 0, memo)) {
+				final StringBuilder form = onRoot && k == compounds.size() - 1 ? onSvg : out;
+				// The type of the svg element in lower case, as Batik matches it ("div.u > SVG")
+				final int end = typeEnd(compound);
+				form.append(form.length() == 0 ? "" : ",")
+						.append(onRoot ? compound.substring(0, end).toLowerCase(java.util.Locale.ROOT)
+								: compound.substring(0, end))
+						.append(compound.substring(end));
+				for (int i = k + 1; i < compounds.size(); ++i) {
+					form.append(child.get(i) ? " > " : " ").append(compounds.get(i));
+				}
+			}
+		}
+		return out.toString();
+	}
+
+	/**
+	 * Whether compounds[0..last] match the ancestors from index {@code from} outwards: compounds[last] on that one when
+	 * a child combinator follows it, else on it or one further out. Memoised (a long run of descendant combinators
+	 * over a deep tree tried the same pairs again and again).
+	 */
+	private static boolean prefix(final List<String> compounds, final List<Boolean> child, final int last,
+			final boolean childNext, final List<CSSElement> ancestors, final int from, final Map<Long, Boolean> memo) {
+		if (last < 0) {
+			return true;
+		}
+		final long key = ((long) last << 33) | ((long) from << 1) | (childNext ? 1 : 0);
+		final Boolean known = memo.get(key);
+		if (known != null) {
+			return known.booleanValue();
+		}
+		boolean result = false;
+		for (int i = from; i < ancestors.size(); ++i) {
+			if (matches(compounds.get(last), ancestors.get(i))
+					&& prefix(compounds, child, last - 1, child.get(last), ancestors, i + 1, memo)) {
+				result = true;
+				break;
+			}
+			if (childNext) {
+				break;
+			}
+		}
+		memo.put(key, Boolean.valueOf(result));
+		return result;
+	}
+
+	/** What the HTML box of an svg element applies to it already (toCssText). */
+	private static final java.util.Set<String> BOX_PROPERTIES = java.util.Set.of("opacity", "filter", "clip-path",
+			"mask");
+
+	/** The end of the type selector at the start of a compound (0 when it has none). */
+	private static int typeEnd(final String compound) {
+		int i = 0;
+		while (i < compound.length() && compound.charAt(i) != '.' && compound.charAt(i) != '#') {
+			++i;
+		}
+		return i;
+	}
+
+	/** Whether a compound of the Batik-safe form (a type or *, .classes, #ids) matches the element. */
+	private static boolean matches(final String compound, final CSSElement ce) {
+		int i = typeEnd(compound);
+		final String type = compound.substring(0, i);
+		if (!type.isEmpty() && !type.equals("*") && (ce.lName == null || !ce.lName.equalsIgnoreCase(type))) {
+			return false;
+		}
+		while (i < compound.length()) {
+			final char kind = compound.charAt(i);
+			int j = i + 1;
+			while (j < compound.length() && compound.charAt(j) != '.' && compound.charAt(j) != '#') {
+				++j;
+			}
+			final String name = compound.substring(i + 1, j);
+			if (kind == '#' ? !name.equals(ce.id) : !hasClass(ce, name)) {
+				return false;
+			}
+			i = j;
+		}
+		return true;
+	}
+
+	private static boolean hasClass(final CSSElement ce, final String name) {
+		if (ce.styleClasses != null) {
+			for (final String c : ce.styleClasses) {
+				if (c.equals(name)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	/**

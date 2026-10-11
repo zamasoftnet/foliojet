@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Author CSS reaching inline svg through HTML ancestors</title>
+<!--
+Selectors whose leading part matches the inline svg's HTML ancestors (2026-10-11, mkdocs-material's
+.md-typeset .twemoji svg { fill: currentcolor }; SVGAuthorCssTest.testAncestorSelectors). Chrome fills green
+(span.c svg), red (currentcolor of span.d), blue (.f .g path), #800000 (div.u > SVG), #FF8000 (.w path over a later
+section path), #008080 (.k over a later article > svg) and #808000 (aside > svg); no magenta (div > svg, the svg's parent
+being a span), no yellow (.q svg, the svg itself being .q), no #4B0082 (tr svg through a display: table-cell's
+anonymous row). The cyan stroke under .cp > svg { opacity: .5 } stays a vector drawing (picocss's copy-to-clipboard).
+-->
+<style>
+@page { size: 300pt 400pt; margin: 10pt }
+body { margin: 0; color: black }
+span.c svg { fill: #00FF00 }
+span.d { color: #FF0000 }
+span.d svg { fill: currentcolor }
+.f .g path { fill: #0000FF }
+div > svg { fill: #FF00FF }
+.q svg { fill: #FFFF00 }
+div.u > SVG { fill: #800000 }
+.w path { fill: #FF8000 }
+section path { fill: #808080 }
+.k { fill: #008080 }
+article > svg { fill: #800080 }
+aside > svg { fill: #808000 }
+tr svg { fill: #4B0082 }
+.cp > svg { display: block; opacity: .5 }
+</style></head><body>
+<p><span class="c"><svg width="20" height="20" viewBox="0 0 10 10"><path d="M0 0H10V10H0z"/></svg></span>
+<span class="d"><svg width="20" height="20" viewBox="0 0 10 10"><path d="M0 0H10V10H0z"/></svg></span>
+<span class="f"><span class="g"><svg width="20" height="20" viewBox="0 0 10 10"><path d="M0 0H10V10H0z"/></svg></span></span>
+<span><svg width="20" height="20" viewBox="0 0 10 10"><path d="M0 0H10V10H0z"/></svg></span>
+<span><svg class="q" width="20" height="20" viewBox="0 0 10 10"><path d="M0 0H10V10H0z"/></svg></span></p>
+<div class="u"><svg width="20" height="20" viewBox="0 0 10 10"><path d="M0 0H10V10H0z"/></svg></div>
+<section><svg class="w" width="20" height="20" viewBox="0 0 10 10"><path d="M0 0H10V10H0z"/></svg></section>
+<article><svg class="k" width="20" height="20" viewBox="0 0 10 10"><path d="M0 0H10V10H0z"/></svg></article>
+<aside><svg width="20" height="20" viewBox="0 0 10 10"><path d="M0 0H10V10H0z"/></svg></aside>
+<p style="display: table-cell"><svg width="20" height="20" viewBox="0 0 10 10"><path d="M0 0H10V10H0z"/></svg></p>
+<p class="cp"><svg width="20" height="20" viewBox="0 0 10 10" fill="none" stroke="#00FFFF"><path d="M1 1H9V9H1z"/></svg></p>
+</body></html>
