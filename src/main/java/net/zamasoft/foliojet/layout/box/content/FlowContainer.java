@@ -645,22 +645,33 @@ public class FlowContainer implements Container {
 		// (2026-10-09, sweep defect R2, seed 12679054). The capacity search counts only the flows, so a multicol
 		// holding only floats got the least capacity and stayed where the rest of the page was too small for them:
 		// a vertical-lr float in vertical-rl columns ran 133pt off the page. With the floor, the multicol moves on.
+		//
+		// The floats count as far as they paint (2026-10-11): the continuation of a float with a max-size stops at what
+		// the max-size left (AbstractBlockBox.splitPageState), and its content past it, counted by the box alone, was
+		// left out of the balancing and of the multicol's extent: the last lines ran past the paper and were lost.
+		// Not inside a block that clips its overflow (codex): what it hides takes no room.
 		final WritingMode outer = this.box.getBlockParams().flow;
 		double floor = 0;
 		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
 		final Deque<Double> offsets = new ArrayDeque<Double>();
+		// Whether a block the container is in clips what overflows it: the floats there count by their box only.
+		final Deque<Boolean> clipped = new ArrayDeque<Boolean>();
 		containers.push(this);
 		offsets.push(0.0);
+		clipped.push(Boolean.FALSE);
 		while (!containers.isEmpty()) {
 			final FlowContainer container = containers.pop();
 			final double offset = offsets.pop();
+			final boolean clips = clipped.pop();
 			if (container.floatings != null) {
 				for (int i = 0; i < container.floatings.getCount(); ++i) {
 					final Floating floating = container.floatings.getFloating(i);
 					final BoxType type = floating.box.getType();
 					if (floats || type == BoxType.REPLACED || type == BoxType.RESCUE || (type == BoxType.BLOCK
 							&& ((AbstractContainerBox) floating.box).getBlockParams().flow != outer)) {
-						floor = Math.max(floor, offset + floating.pageAxis + floating.box.getPageExtent(outer));
+						floor = Math.max(floor, offset + floating.pageAxis + (floats && !clips
+								? FloatMeasurement.occupiedPageExtent(floating.box, outer)
+								: floating.box.getPageExtent(outer)));
 					}
 				}
 			}
@@ -681,6 +692,7 @@ public class FlowContainer implements Container {
 				} else if (block.getContainer() instanceof FlowContainer inner) {
 					containers.push(inner);
 					offsets.push(offset + f.pageAxis + block.getFrame().getFramePageStart(outer));
+					clipped.push(clips || block.getBlockParams().clipsOverflowPaint());
 				}
 			}
 		}
