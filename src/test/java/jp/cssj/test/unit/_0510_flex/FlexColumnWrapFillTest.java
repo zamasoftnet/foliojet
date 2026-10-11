@@ -19,26 +19,26 @@ import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 
 /**
- * A wrapping column whose width fills its block breaks into columns (2026-10-11; Chrome's positions): it stayed one
- * stacked column of full-width items, a width that is not absolute being taken for unknown.
+ * A wrapping column of auto width stays one column (2026-10-11), as in the manual (CSS-SUPPORT §8): Chrome breaks it into
+ * columns. 33528938 did so where its width filled its block, and was taken back the same day: a block builder found
+ * that width known up to its root, also when it replayed the content of a box sized from its content, which the
+ * recording had streamed, and the conversion failed (Regression19132Test).
  */
 public class FlexColumnWrapFillTest extends TestCase {
 	private static final Pattern ITEM = Pattern.compile("x=([\\d.]+) y=([\\d.]+) AbsoluteRectFrame\\[w=60.00 h=15.00\\]");
 
-	public void testColumnsInAFilledBlock() throws Exception {
-		// Two 15pt items with a 3.75pt gap in an 18.75pt-high column 135pt wide: two columns, the second at 69.375pt
-		// (the lines stretched, align-content: normal)
-		final Matcher m = ITEM.matcher(convert("<div style=\"display: flex; flex-flow: column wrap; height: 18.75pt; "
-				+ "gap: 3.75pt; align-items: flex-start\"><div></div><div></div></div>"));
+	public void testOneColumnInAFilledBlock() throws Exception {
+		// Two 15pt items with a 3.75pt gap in an 18.75pt-high column 135pt wide: one column, the second item under the
+		// first (Chrome makes two columns, the second at 69.375pt)
+		final Matcher m = Pattern.compile("x=([\\d.]+) y=([\\d.]+) AbsoluteRectFrame\\[w=[\\d.]+ h=15.00\\]")
+				.matcher(convert("<div style=\"display: flex; flex-flow: column wrap; height: 18.75pt; gap: 3.75pt; "
+						+ "align-items: flex-start\"><div></div><div></div></div>"));
 		final List<Double> xy = new ArrayList<>();
 		while (m.find()) {
 			xy.add(Double.parseDouble(m.group(1)));
 			xy.add(Double.parseDouble(m.group(2)));
 		}
-		assertEquals(xy.toString(), 4, xy.size());
-		assertEquals(0, xy.get(0), 0.01);
-		assertEquals(69.375, xy.get(2), 0.01);
-		assertEquals(0, xy.get(3), 0.01);
+		assertEquals(List.of(0.0, 0.0, 0.0, 18.75), xy);
 	}
 
 	public void testShrinkToFitHostKeepsOneColumn() throws Exception {
