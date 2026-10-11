@@ -66,7 +66,7 @@ CSS3以降のモジュール(段組・縦書き・Gridレイアウト・論理�
 | border-image<span class="since">4.0.0</span> | 一部 | <span class="cssprop">border-image-source</span>・<span class="cssprop">border-image-slice</span>・<span class="cssprop">border-image-width</span>・<span class="cssprop">border-image-outset</span>・<span class="cssprop">border-image-repeat</span>と短縮形に対応し、画像を9つに切って枠を描きます。<span class="cssprop">border-image-repeat</span>の<tt>repeat</tt>・<tt>round</tt>・<tt>space</tt>は、実際に画像を並べて描きます<span class="since">4.0.0</span>。<tt>repeat</tt>は中央を基準に並べて両端を切り、<tt>round</tt>は整数個に収まるよう大きさを調節し、<tt>space</tt>は整数個だけ置いて余りを均等な隙間に配ります(1個も入らない辺は描きません)。画像のかわりにグラデーションを指定した場合は、仕様どおり枠の外縁の矩形を画像の大きさとみなして9つに切り分け、各部分を画像と同じ規則(伸縮・並べ方・<span class="cssprop">border-image-slice</span>・<tt>fill</tt>)で描きます<span class="since">4.0.0</span>。<span class="cssprop">border-image-width</span>が<tt>auto</tt>のときは境界の幅を使います。 |
 | image-orientation<span class="since">4.0.0</span> | する | <tt>from-image</tt>(初期値)と<tt>none</tt>に対応します。写真のEXIFに記録された向きは既定で反映し、<tt>none</tt>を指定すると反映しません。現在の仕様に角度の指定はないため受け付けません。 |
 | clip-path<span class="since">4.0.0</span> | 一部 | 基本形状の<tt>inset()</tt>(round対応、角の半径は縦横同値)・<tt>rect()</tt>・<tt>xywh()</tt>・<tt>circle()</tt>・<tt>ellipse()</tt>・<tt>polygon()</tt>・<tt>path()</tt>(SVGパスデータ、座標はpx、fill-rule任意)と参照ボックス(border-box等)に対応します。<tt>url()</tt>参照には対応していません(宣言ごと無視されます)。ページをまたいで分割されたボックスは断片ごとに切り抜かれます。 |
-| clip | する | `rect(上 右 下 左)`で切り抜く範囲を指定します。各値は長さかautoです。 |
+| clip | しない | 読み込むだけで、切り抜きはしません。切り抜くには<span class="cssprop">clip-path</span>の<tt>rect()</tt>・<tt>inset()</tt>を使ってください。 |
 | color | する | |
 | content | する | |
 | counter-increment | する | |
