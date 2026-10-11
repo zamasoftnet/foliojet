@@ -163,7 +163,10 @@ public class StyledTextUnitizer {
 	}
 
 	private void changeTextState(AbstractTextParams params) {
-		this.wordSpacing = params.wordSpacing;
+		// letter-spacing goes after a space too, as in Chrome (2026-10-11; Copper 3.2 left it off)
+		this.wordSpacing = params.wordSpacing
+				+ net.zamasoft.foliojet.layout.util.LayoutUtils.computeLength(params.letterSpacing,
+						this.builder.getFlowBox().getLineSize());
 		switch (params.whiteSpace) {
 		case AbstractTextParams.WHITE_SPACE_PRE:
 			this.collapseSpaces = false;

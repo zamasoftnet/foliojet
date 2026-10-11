@@ -152,6 +152,13 @@ public class TextBuilder {
 
 	private List<Element> textBuffer = new ArrayList<Element>();
 
+	/**
+	 * The spaces of the buffer that collapse at the end of a line (white-space: normal, nowrap, pre-line), for {@link
+	 * #collapseFramedTrailingSpaces} (2026-10-11).
+	 */
+	private final java.util.Set<WhiteSpace> collapsibleSpaces = java.util.Collections
+			.newSetFromMap(new java.util.IdentityHashMap<>());
+
 	private double unitAdvance = 0;
 
 	/**
@@ -1327,6 +1334,7 @@ public class TextBuilder {
 		boolean content;
 		if (count > 0) {
 			this.allocateLeaders(count, last);
+			this.collapseFramedTrailingSpaces(count);
 			TextImpl trimEndCandidate = null;
 			for (int i = 0; i < count; ++i) {
 				Element e = (Element) this.textBuffer.get(i);
@@ -1406,6 +1414,9 @@ public class TextBuilder {
 				break;
 			}
 			this.lineBox.addAdvance(-lastSpaceAdvance);
+			for (int i = 0; i < count; ++i) {
+				this.collapsibleSpaces.remove(this.textBuffer.get(i));
+			}
 			this.dropLeadAdjustmentAtLineStart(count);
 			int remainder = this.textBuffer.size() - count;
 			for (int i = 0; i < remainder; ++i) {
@@ -1426,6 +1437,43 @@ public class TextBuilder {
 		this.opportunity = this.captureOpportunity();
 		this.builder.checkFloatings();
 		return content;
+	}
+
+	/**
+	 * Collapses the spaces at the end of the line that only inline starts and ends follow, one of them with an advance
+	 * (padding, a border or a margin; 2026-10-11). Chrome removes them there too: {@code <span style="padding-right:
+	 * 12px">AAAA </span>} is the characters and the padding wide, right-aligned as well. They stayed on the line and
+	 * pushed the padding out. The spaces after the last such edge go as before, by {@code lastSpaceAdvance}. Only
+	 * collapsible spaces, inline starts and ends, absolute placeholders and soft hyphens may follow them: anything else,
+	 * even without width (text, a preserved space or tab, a leader, an inline-block, a replaced element), ends them, as
+	 * Chrome keeps the space before it (codex, 2026-10-11).
+	 *
+	 * @param count the number of elements of the line in the buffer
+	 */
+	private void collapseFramedTrailingSpaces(final int count) {
+		boolean framed = false;
+		for (int i = count - 1; i >= 0; --i) {
+			final Element e = this.textBuffer.get(i);
+			if (e instanceof WhiteSpace space) {
+				if (!this.collapsibleSpaces.contains(space)) {
+					return;
+				}
+				if (framed) {
+					this.lineAxis -= space.getAdvance();
+					space.collapse();
+				}
+				continue;
+			}
+			if (e instanceof InlineStartQuad || e instanceof InlineEndQuad) {
+				framed |= e.getAdvance() != 0;
+				continue;
+			}
+			if (e instanceof InlineQuad quad && quad.getType() == InlineQuad.INLINE_ABSOLUTE
+					|| e instanceof Control control && control.getControlChar() == SoftHyphen.CHAR) {
+				continue;
+			}
+			return;
+		}
 	}
 
 	/**
@@ -2060,11 +2108,16 @@ public class TextBuilder {
 				// Tab stops are integer multiples of tab width from line start (fixed at 24 pt until 2026-08-29).
 				Tab tab = (Tab) control;
 				tab.advance = tabAdvance(this.currentTextParams(), this.lineAxis);
+				// The spaces before it are not at the end of the line (codex, 2026-10-11)
+				this.lastSpaceAdvance = 0;
 				break;
 
 			case '\u0020':
 				// Space.
 				if (!this.collapseSpaces) {
+					// A preserved space: the collapsible ones before it are not at the end of the line (codex,
+					// 2026-10-11; a padded inline start no longer resets this)
+					this.lastSpaceAdvance = 0;
 					break;
 				}
 				WhiteSpace whiteSpace = (WhiteSpace) control;
@@ -2074,6 +2127,7 @@ public class TextBuilder {
 				} else {
 					// Collapse trailing space.
 					this.lastSpaceAdvance = whiteSpace.getAdvance();
+					this.collapsibleSpaces.add(whiteSpace);
 				}
 				break;
 
@@ -2105,9 +2159,8 @@ public class TextBuilder {
 				assert this.textParamStack.isEmpty() || ((IBox) this.textParamStack.get(this.textParamStack.size() - 1))
 						.getParams().element != params.element : params.element;
 				this.textParamStack.add(inlineStartQuad.box);
-				if (inlineStartQuad.getAdvance() != 0) {
-					this.lastSpaceAdvance = 0;
-				}
+				// A frame (padding, border, margin) keeps the spaces before it collapsible at the end of the line, as in
+				// Chrome (collapseFramedTrailingSpaces, 2026-10-11): lastSpaceAdvance stays
 			}
 				break;
 
@@ -2131,9 +2184,7 @@ public class TextBuilder {
 				}
 
 				this.changeTextState(params);
-				if (inlineEndQuad.getAdvance() != 0) {
-					this.lastSpaceAdvance = 0;
-				}
+				// As at an inline start, the spaces before stay collapsible at the end of the line (2026-10-11)
 			}
 				break;
 
@@ -2145,6 +2196,8 @@ public class TextBuilder {
 					this.maxLineSize = 0;
 				}
 				this.lineHead = false;
+				// The spaces before it are not at the end of the line (codex, 2026-10-11)
+				this.lastSpaceAdvance = 0;
 				break;
 
 			case InlineQuad.INLINE_ABSOLUTE:

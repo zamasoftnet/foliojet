@@ -794,20 +794,12 @@ final class IntrinsicMeasurer {
 			} else {
 				if (inlineQuad instanceof InlineStartQuad) {
 					this.inlineStack.add(inlineQuad.getBox());
-					if (inlineQuad.getAdvance() != 0) {
-						// The spaces before an inline start with a frame stay on the line too (TextBuilder)
-						this.keepSpaces();
-					}
 					final InlineStartQuad inlineStartQuad = (InlineStartQuad) inlineQuad;
 					this.letterSpacing = LayoutUtils.computeLength(inlineStartQuad.box.getTextParams().letterSpacing,
 							this.builder.getFlowBox().getLineSize());
 				} else if (inlineQuad instanceof InlineEndQuad) {
-					if (inlineQuad.getAdvance() != 0) {
-						// The spaces before an inline end with a frame stay on the line (TextBuilder keeps them so; Chrome
-						// drops them, a difference left as it was): without them here the item came out too narrow for
-						// its text and wrapped it
-						this.keepSpaces();
-					}
+					// The spaces before an inline end or start with a frame go at the end of the line too, as in Chrome
+					// (TextBuilder.collapseFramedTrailingSpaces, 2026-10-11)
 					this.inlineStack.remove(this.inlineStack.size() - 1);
 					AbstractTextParams params;
 					if (this.inlineStack.isEmpty()) {

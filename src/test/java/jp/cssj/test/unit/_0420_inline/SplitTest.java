@@ -20,8 +20,9 @@ public class SplitTest extends AbstractTestCase {
 	public boolean check_a(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.err.println("width: " + box.getWidth());
-			// Fixed the built-in CID-keyed font width table, restoring full widths for 　、。(2026-09-11).
-			assertEquals(420, box.getWidth(), 0);
+			// Fixed the built-in CID-keyed font width table, restoring full widths for 　、。(2026-09-11). The space at
+			// the end of the line before the inline ends goes though #a's border follows, as in Chrome (2026-10-11: 420)
+			assertEquals(417, box.getWidth(), 0);
 			return true;
 		}
 		return false;
@@ -30,8 +31,9 @@ public class SplitTest extends AbstractTestCase {
 	public boolean check_b(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.err.println("width: " + box.getWidth());
-			// Fixed the built-in CID-keyed font width table, restoring full widths for 　、。(2026-09-11).
-			assertEquals(414, box.getWidth(), 0);
+			// Fixed the built-in CID-keyed font width table, restoring full widths for 　、。(2026-09-11). Without the
+			// space at the end of the line (2026-10-11: 414)
+			assertEquals(411, box.getWidth(), 0);
 			return true;
 		}
 		return false;
@@ -40,7 +42,8 @@ public class SplitTest extends AbstractTestCase {
 	public boolean check_c(IBox box, int pageNumber, double x, double y) {
 		if (box.getType() == BoxType.INLINE) {
 			System.err.println("width: " + box.getWidth());
-			assertEquals(414, box.getWidth(), 0);
+			// Without the space at the end of the line (2026-10-11: 414)
+			assertEquals(411, box.getWidth(), 0);
 			return true;
 		}
 		return false;
