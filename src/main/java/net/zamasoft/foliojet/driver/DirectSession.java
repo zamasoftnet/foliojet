@@ -1386,22 +1386,6 @@ public class DirectSession extends AbstractCTISession
 								+ " that changed during the final layout pass;"
 								+ " consider increasing processing.pass-count.");
 					}
-					// @container G5 (2026-08-15 stage 5, design §3/§4): if the container's
-					// used inline-size has not reached a fixed point relative to the previous value
-					// in the final pass, report a diagnostic instead of silently outputting it
-					// (output still uses final-pass values: design §4 "fail closedを破らない" (preserve fail-closed behavior)).
-					if (!this.ua.getUAContext().getContainerFacts().isConverged()) {
-						LOG.warning("@container query evaluated against a container inline-size that"
-								+ " changed during the final layout pass;"
-								+ " consider increasing processing.pass-count.");
-					}
-					// A period-2 oscillation was resolved by fixing it to the narrower size. The page
-					// does not break, but layout no longer follows the author's query exactly.
-					if (this.ua.getUAContext().getContainerFacts().hasOscillation()) {
-						LOG.warning("@container query oscillated between two container inline-sizes;"
-								+ " pinned the narrower one. The layout is stable but may not match"
-								+ " the authored query.");
-					}
 				} finally {
 					if (tmpFile != null) {
 						// Do not silently ignore deletion failures (2026-07-24 architecture review E-1).

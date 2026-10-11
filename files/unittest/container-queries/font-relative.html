@@ -1,0 +1,44 @@
+<?jp.cssj.property name="output.page-width" value="450pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html style="font-size: 7.5pt">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>container-font-relative</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	margin: 0;
+}
+.wrap {
+	container-type: inline-size;
+	width: 225pt;
+	font-size: 15pt;
+}
+.box {
+	font: 10pt/1 monospace;
+}
+.box:before {
+	content: "no-";
+}
+/* rem is the root's 7.5pt: 187.5pt, held (at the initial 12pt it would be 300pt) */
+@container (min-width: 25rem) {
+	#rem:before {
+		content: "rem-";
+	}
+}
+/* em is the container's 15pt: 255pt, not held (at the initial 12pt it would be 204pt) */
+@container (min-width: 17em) {
+	#em:before {
+		content: "em-";
+	}
+}
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap"><div id="rem" class="box">X</div><div id="em" class="box">X</div></div>
+  </body>
+
+</html>

@@ -126,6 +126,9 @@ import net.zamasoft.foliojet.css.impl.property.box.Inset;
 final class StyleEventMachine {
 	private static final Logger LOG = Logger.getLogger(StyleEventMachine.class.getName());
 
+	/** The inline sizes of query containers, estimated as they start (2026-10-11). */
+	private final ContainerSizeEstimate containerSizes = new ContainerSizeEstimate();
+
 	private static final ValueListValue LF = new ValueListValue(new Value[] { new StringValue("\n") });
 
 	private static final RelativeLengthValue EM_1_618 = RelativeLengthValue.em(1.618);
@@ -181,16 +184,21 @@ final class StyleEventMachine {
 			return;
 		}
 
-		// @container G4 (2026-08-15 stage 4, development record §2):
-		// For a container-type: inline-size element, record that it is a query container
-		// and its name now (style finalized, before layout).
-		// Write its measured inline-size separately after layout is finalized
-		// (AbstractVisitor.visitBox). Exclude pseudo-elements: their elementKey is unstable (-1).
+		// @container: for a container-type: inline-size element, record that it is a query container, its name, its
+		// inline size estimated from the styles (2026-10-11, ContainerSizeEstimate) and the font sizes em and rem in its
+		// queries stand for now, before its descendants are styled. Exclude pseudo-elements: their elementKey is
+		// unstable (-1).
 		if (!ce.isPseudoElement() && ce.elementKey >= 0
 				&& net.zamasoft.foliojet.css.impl.property.container.ContainerType.get(style) //
 						== net.zamasoft.foliojet.css.value.ContainerTypeValue.INLINE_SIZE) {
-			this.ua.getUAContext().getContainerFacts().setInlineSizeContainer(ce.elementKey,
+			final net.zamasoft.foliojet.ua.ContainerFacts facts = this.ua.getUAContext().getContainerFacts();
+			facts.setInlineSizeContainer(ce.elementKey,
 					net.zamasoft.foliojet.css.impl.property.container.ContainerName.get(style));
+			facts.setSize(ce.elementKey, new net.zamasoft.foliojet.ua.ContainerFacts.Size(
+					this.containerSizes.contentWidth(style,
+							net.zamasoft.foliojet.css.util.ConfiguredPage.contentArea(this.ua)[0]),
+					net.zamasoft.foliojet.css.impl.property.font.FontSize.get(style),
+					net.zamasoft.foliojet.css.impl.property.font.FontSize.get(style.getRootStyle())));
 		}
 
 		if (!ce.isPseudoElement()) {

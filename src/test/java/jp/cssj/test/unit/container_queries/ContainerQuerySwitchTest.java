@@ -16,10 +16,9 @@ import net.zamasoft.foliojet.layout.box.IBox;
  * switching by width) in two {@code container-type: inline-size} containers of different widths.
  * Only the wide container (400 pt) matches {@code @container (min-width: 200pt)} and produces
  * "wide-X"; the narrow container (40 pt) remains unmatched and produces "narrow-X".
- * Uses {@code processing.pass-count=2}: one MIDDLE_PASS finalizes measured inline-size,
- * and LAST_PASS reads it. This end-to-end integration check verifies that both stage 4's writers
- * ({@code StyleEventMachine}/{@code AbstractVisitor.visitBox}) and reader
- * ({@code StyleContext.merge}) are correctly wired up, which parser unit tests cannot detect.
+ * In one pass (2026-10-11): the containers' sizes are estimated as they start. This end-to-end integration check
+ * verifies that the writer ({@code StyleEventMachine}) and the reader ({@code StyleContext.merge}) are wired up,
+ * which parser unit tests cannot detect.
  * </p>
  */
 public class ContainerQuerySwitchTest extends AbstractTestCase {
@@ -29,7 +28,6 @@ public class ContainerQuerySwitchTest extends AbstractTestCase {
 
 	protected void transcode() throws Exception {
 		File file = new File("files/unittest/container-queries/inline-size-switch.html");
-		this.session.property("processing.pass-count", "2");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 

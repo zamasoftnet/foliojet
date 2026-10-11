@@ -344,22 +344,6 @@ public abstract class AbstractVisitor implements Visitor {
 			return;
 		}
 
-		// @container G4 (2026-08-15, stage 4, the development records §2):
-		// At this point after layout is finalized, write the query container's
-		// (container-type: inline-size, already recorded by StyleEventMachine.startStyle)
-		// used inline-size to ContainerFacts. The flow axis determines
-		// whether width or height is the inline axis (height in vertical writing).
-		// StyleContext.merge in the next pass reads it (not used to evaluate later elements
-		// in this pass: the design uses pass N dimensions for pass N+1 queries)
-		if (ce.elementKey() >= 0) {
-			final net.zamasoft.foliojet.ua.ContainerFacts containerFacts = this.ua.getUAContext()
-					.getContainerFacts();
-			if (containerFacts.isInlineSizeContainer(ce.elementKey()) && box.getParams() instanceof BlockParams bp) {
-				final double inlineSize = bp.flow.isVertical() ? box.getHeight() : box.getWidth();
-				containerFacts.setInlineSize(ce.elementKey(), inlineSize);
-			}
-		}
-
 		final PageRef pageRef;
 		if (this.processPageReference) {
 			pageRef = this.ua.getUAContext().getPageRef();

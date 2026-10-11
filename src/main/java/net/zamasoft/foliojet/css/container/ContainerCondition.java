@@ -44,22 +44,25 @@ public final class ContainerCondition {
 		return new ContainerCondition(true, false, List.copyOf(features));
 	}
 
-	/** {@code not (a)}: negates one feature expression. */
-	static ContainerCondition not(ContainerFeature feature) {
-		return new ContainerCondition(true, true, List.of(feature));
+	/**
+	 * {@code not (a)}: negates one feature expression, or the conjunction a range of the range syntax stands for
+	 * ({@code not (150px < width <= 250px)}, 2026-10-11).
+	 */
+	static ContainerCondition not(List<ContainerFeature> features) {
+		return new ContainerCondition(true, true, List.copyOf(features));
 	}
 
 	/**
-	 * Evaluates the condition against the container's used inline-size (pt).
-	 * Conditions that could not be parsed always return {@code false}.
+	 * Evaluates the condition against the container's inline size (pt); em and rem stand for the container's and the
+	 * root's font size (pt, 2026-10-11). Conditions that could not be parsed always return {@code false}.
 	 */
-	public boolean evaluate(double inlineSize) {
+	public boolean evaluate(double inlineSize, double em, double rem) {
 		if (!this.valid) {
 			return false;
 		}
 		boolean allMatch = true;
 		for (final ContainerFeature feature : this.features) {
-			if (!feature.matches(inlineSize)) {
+			if (!feature.matches(inlineSize, em, rem)) {
 				allMatch = false;
 				break;
 			}

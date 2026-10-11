@@ -403,8 +403,9 @@ public class StyleContext {
 	 * If there is no such container, the query does not match.
 	 *
 	 * <p>
-	 * Measured dimensions are values recorded by {@link ContainerFacts} through the previous pass
-	 * ({@code NaN} means undetermined, hence always non-matching; design §2, "all queries are false in pass 1").
+	 * The sizes are the ones {@link ContainerFacts} holds, estimated from the styles as each container starts
+	 * ({@code ContainerSizeEstimate}, 2026-10-11): any number of passes gives the same answer. {@code NaN}, a size not
+	 * known, never matches.
 	 * </p>
 	 */
 	private static boolean containerQueryMatches(ContainerQuery query, List<CSSElement> path,
@@ -424,8 +425,8 @@ public class StyleContext {
 			if (name != null && !containsName(facts.getContainerNames(ancestor.elementKey), name)) {
 				continue;
 			}
-			final double inlineSize = facts.getInlineSize(ancestor.elementKey);
-			return !Double.isNaN(inlineSize) && query.getCondition().evaluate(inlineSize);
+			final ContainerFacts.Size size = facts.getSize(ancestor.elementKey);
+			return !Double.isNaN(size.inline()) && query.getCondition().evaluate(size.inline(), size.em(), size.rem());
 		}
 		return false;
 	}

@@ -835,11 +835,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 			// See the development records §2 for the design
 			this.getUAContext().getContainerFacts().reset();
 		}
-		if (mode == PrepareMode.MIDDLE_PASS || mode == PrepareMode.LAST_PASS) {
-			// Stage 5 (design §3): snapshot values before this pass's writes and
-			// use them for the fixed-point check after the pass (see DirectSession.format)
-			this.getUAContext().getContainerFacts().beginPass();
-		}
 		if (mode == PrepareMode.STRUCTURE_SCAN || mode == PrepareMode.DOCUMENT) {
 			// Clear the carried stylesheet at conversion (document) start
 			// (see UAContext.getCarriedStyleSheet Javadoc). Intermediate and final

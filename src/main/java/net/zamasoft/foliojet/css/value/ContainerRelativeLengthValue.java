@@ -28,7 +28,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * <p>
  * Searches the {@code CSSStyle.getParentStyle()} chain for the nearest ancestor query
  * container (no name specified; must have {@code container-type: inline-size}).
- * If absent, or its measured value is unknown ({@code NaN}, equivalent to pass 1),
+ * If absent, or its estimated size is not known ({@code NaN}, ContainerSizeEstimate),
  * resolves to 0 as specified (CSS Containment 3: without a container, cqw/cqi, etc.
  * compute to 0).
  * </p>

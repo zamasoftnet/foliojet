@@ -143,7 +143,7 @@
 | @layer | 4.0.0 | CSS Cascading and Inheritance Level 5 に沿った実装です。カスケードレイヤーを定義します。 |
 | @supports | 4.0.0 | CSS Conditional Rules Module Level 3 に沿った実装です。プロパティの対応状況による条件付き規則です。 |
 | @media(特性クエリ) | 4.0.0 | メディアタイプに加え、width/height/orientation等の特性クエリに対応しました。 |
-| @container | 4.0.0 | 名前付きまたは無名の`container-type: inline-size`コンテナに対して、width/inline-sizeのmin/max/exact条件、and、単一条件のnotを使えます。前パスの実測幅を使うため<span class="ioprop">processing.pass-count</span>を2以上にします。or、style query、block軸条件には対応しません。 |
+| @container | 4.0.0 | 名前付きまたは無名の`container-type: inline-size`コンテナに対して、width/inline-sizeのmin/max/exact条件と範囲の書き方、and、単一条件のnotを使えます。コンテナの幅は組版の前にCSSから見積もります(CSSプロパティの対応表のContainer Queriesを参照)。or、style query、block軸条件には対応しません。 |
 
 #### CSS擬似クラス
 

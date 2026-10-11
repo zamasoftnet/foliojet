@@ -143,7 +143,7 @@ or the implementation does not accept it even if one exists.
 | @layer | 4.0.0 | An implementation based on CSS Cascading and Inheritance Level 5. Defines cascade layers. |
 | @supports | 4.0.0 | An implementation based on CSS Conditional Rules Module Level 3. Provides conditional rules based on property support. |
 | @media (feature queries) | 4.0.0 | Supports feature queries such as width/height/orientation in addition to media types. |
-| @container | 4.0.0 | For named or unnamed `container-type: inline-size` containers, you can use min/max/exact conditions on width/inline-size, the and operator, and not with a single condition. Set <span class="ioprop">processing.pass-count</span> to 2 or more because queries use the measured width from the previous pass. The or operator, style query, and block-axis conditions are not supported. |
+| @container | 4.0.0 | For named or unnamed `container-type: inline-size` containers, you can use min/max/exact conditions and the range syntax on width/inline-size, the and operator, and not with a single condition. The container width is estimated from the CSS before layout (see Container Queries in the table of supported CSS). The or operator, style query, and block-axis conditions are not supported. |
 
 #### CSS pseudo-classes
 

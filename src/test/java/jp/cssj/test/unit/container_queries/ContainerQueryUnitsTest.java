@@ -13,9 +13,8 @@ import net.zamasoft.foliojet.layout.box.IBox;
  *
  * <p>
  * {@code #box}, a child of {@code #outer} (container-type: inline-size, 300 pt), has
- * {@code width: 50cqi}, which should resolve to 50% of outer's measured inline-size (300 pt) = 150 pt.
- * With `processing.pass-count=2`, outer's measurement is finalized in the first MIDDLE_PASS,
- * and `#box` reads it in the final pass (the same timing as fixture 1).
+ * {@code width: 50cqi}, which should resolve to 50% of outer's inline size (300 pt) = 150 pt, in one pass
+ * (2026-10-11).
  * For {@code #free}, which has no query-container ancestor,
  * {@code cqw}/{@code cqi} should resolve to 0 as specified.
  * </p>
@@ -27,7 +26,6 @@ public class ContainerQueryUnitsTest extends AbstractTestCase {
 
 	protected void transcode() throws Exception {
 		File file = new File("files/unittest/container-queries/cq-units.html");
-		this.session.property("processing.pass-count", "2");
 		CTISessionHelper.transcodeFile(this.session, file, "text/html", null);
 	}
 

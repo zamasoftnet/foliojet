@@ -14,27 +14,40 @@ package net.zamasoft.foliojet.css.container;
  */
 final class ContainerFeature {
 	enum Kind {
-		EXACT, MIN, MAX
+		EXACT, MIN, MAX,
+		/** Strictly less or greater than the length: the range syntax's {@code <} and {@code >} (2026-10-11). */
+		LT, GT
 	}
 
 	final Kind kind;
 
-	/** Length to compare against (pt). */
-	final double length;
+	/** Length to compare against (pt), or its number of em or rem (2026-10-11). */
+	final double length, em, rem;
 
-	ContainerFeature(Kind kind, double length) {
+	ContainerFeature(Kind kind, double length, double em, double rem) {
 		this.kind = kind;
 		this.length = length;
+		this.em = em;
+		this.rem = rem;
 	}
 
-	boolean matches(double inlineSize) {
+	/**
+	 * Compares the container's inline size with the length; em and rem stand for the container's and the root's font
+	 * size (pt).
+	 */
+	boolean matches(double inlineSize, double emSize, double remSize) {
+		final double length = this.length + this.em * emSize + this.rem * remSize;
 		switch (this.kind) {
 		case EXACT:
-			return inlineSize == this.length;
+			return inlineSize == length;
 		case MIN:
-			return inlineSize >= this.length;
+			return inlineSize >= length;
 		case MAX:
-			return inlineSize <= this.length;
+			return inlineSize <= length;
+		case LT:
+			return inlineSize < length;
+		case GT:
+			return inlineSize > length;
 		default:
 			throw new IllegalStateException();
 		}

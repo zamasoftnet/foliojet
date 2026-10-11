@@ -16,6 +16,8 @@ import com.helger.css.writer.CSSWriterSettings;
 
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.LengthValue;
+import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
@@ -52,7 +54,9 @@ public final class ContainerQuery {
 			"min-width", ContainerFeature.Kind.MIN, //
 			"min-inline-size", ContainerFeature.Kind.MIN, //
 			"max-width", ContainerFeature.Kind.MAX, //
-			"max-inline-size", ContainerFeature.Kind.MAX);
+			"max-inline-size", ContainerFeature.Kind.MAX, //
+			net.zamasoft.foliojet.css.parser.AtRulePreludeRewriter.MEDIA_LT + "width", ContainerFeature.Kind.LT, //
+			net.zamasoft.foliojet.css.parser.AtRulePreludeRewriter.MEDIA_GT + "width", ContainerFeature.Kind.GT);
 
 	private static final CSSWriterSettings VALUE_WRITER_SETTINGS = new CSSWriterSettings();
 
@@ -109,8 +113,13 @@ public final class ContainerQuery {
 			negate = true;
 			text = text.substring(4).trim();
 		}
-		final List<String> groups = splitParenGroups(text);
-		if (groups == null || groups.isEmpty() || (negate && groups.size() != 1)) {
+		// not takes one authored group; a range in it may stand for two features, negated together
+		final List<String> authored = splitParenGroups(text);
+		if (authored == null || authored.isEmpty() || (negate && authored.size() != 1)) {
+			return ContainerCondition.never();
+		}
+		final List<String> groups = splitParenGroups(levelThree(text));
+		if (groups == null || groups.isEmpty()) {
 			return ContainerCondition.never();
 		}
 		final List<ContainerFeature> features = new ArrayList<>(groups.size());
@@ -121,7 +130,23 @@ public final class ContainerQuery {
 			}
 			features.add(feature);
 		}
-		return negate ? ContainerCondition.not(features.get(0)) : ContainerCondition.and(features);
+		return negate ? ContainerCondition.not(features) : ContainerCondition.and(features);
+	}
+
+	/**
+	 * The range syntax of Media Queries 4 ({@code (width < 300px)}, {@code (400px < width <= 700px)}) in the Level 3
+	 * form, as {@code @media} takes it (AtRulePreludeRewriter, 2026-10-11): strict comparisons become
+	 * {@code -foliojet-lt-width} and {@code -foliojet-gt-width}. inline-size is read as width, the same axis here. It did
+	 * not parse, so such a query never held (GitBook hides its header links with them).
+	 */
+	private static String levelThree(final String condition) {
+		if (condition.indexOf('<') == -1 && condition.indexOf('>') == -1 && condition.indexOf('=') == -1) {
+			return condition;
+		}
+		final String css = net.zamasoft.foliojet.css.parser.AtRulePreludeRewriter
+				.rewrite("@media " + condition.replaceAll("(?i)\\binline-size\\b", "width") + "{}", s -> false);
+		final int start = "@media ".length(), end = css.lastIndexOf('{');
+		return css.startsWith("@media ") && end >= start ? css.substring(start, end).trim() : condition;
 	}
 
 	/**
@@ -215,10 +240,23 @@ public final class ContainerQuery {
 			return null;
 		}
 		final String valueText = expression.getValue().getAsCSSString(VALUE_WRITER_SETTINGS, 0);
-		final AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, false, valueText);
-		if (length == null) {
-			return null;
+		final LengthValue length = ValueUtils.toLength(ua, false, valueText);
+		if (length instanceof AbsoluteLengthValue absolute) {
+			return new ContainerFeature(kind, absolute.getLength(), 0, 0);
 		}
-		return new ContainerFeature(kind, length.getLength());
+		// em and rem stand for the container's and the root's font size, as in Chrome: kept as numbers and resolved as
+		// the condition is evaluated (2026-10-11; until then the query never held, as Tailwind's
+		// @container (min-width: 42rem)). ex, ch and lh need font metrics and stay unsupported.
+		if (length instanceof RelativeLengthValue relative) {
+			switch (relative.getUnit()) {
+			case EM:
+				return new ContainerFeature(kind, 0, relative.getValue(), 0);
+			case REM:
+				return new ContainerFeature(kind, 0, 0, relative.getValue());
+			default:
+				break;
+			}
+		}
+		return null;
 	}
 }
