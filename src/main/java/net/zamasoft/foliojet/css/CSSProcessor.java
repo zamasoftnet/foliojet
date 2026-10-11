@@ -94,6 +94,12 @@ public class CSSProcessor implements XMLHandler {
 	private int noneStack = 0;
 
 	/**
+	 * The element with display: none whose subtree noneStack skips, null otherwise: still the preceding sibling of the
+	 * next element for :nth-child(), :first-child and the sibling combinators (2026-10-11)
+	 */
+	private CSSElement noneElement = null;
+
+	/**
 	 * The next ElementKey to assign (sequence number in document order, zero-based). Used
 	 * as a stable key across passes in {@code CSSElement.elementKey}
 	 * (see the {@code CSSElement} Javadoc).
@@ -611,6 +617,7 @@ public class CSSProcessor implements XMLHandler {
 			// Do not display
 			this.applier.endStyle();
 			this.noneStack = 1;
+			this.noneElement = ce;
 			return;
 		}
 
@@ -759,6 +766,10 @@ public class CSSProcessor implements XMLHandler {
 				} else {
 					this.ua.message(MessageCodes.WARN_BAD_INLINE_OBJECT, "インラインオブジェクトを読み込めませんでした");
 				}
+				// An inline object (svg, math) precedes the next sibling too (codex, 2026-10-11: it did not, and the next
+				// one took :first-child)
+				this.precedingElement = this.inlineObjectStyle.getCSSElement();
+				this.firstChild = false;
 				this.inlineObjectStyle = null;
 				this.inlineObject = null;
 				this.applier.endStyle();
@@ -768,6 +779,14 @@ public class CSSProcessor implements XMLHandler {
 		CSSStyle currentStyle = this.builder.getCurrentStyle();
 		if (this.noneStack > 0) {
 			--this.noneStack;
+			if (this.noneStack == 0 && this.noneElement != null) {
+				// The end of a display: none element: it precedes the next sibling all the same, as in Chrome (it was
+				// skipped: the next one counted from 1 for :nth-child() and took :first-child, 2026-10-11)
+				this.precedingElement = this.noneElement;
+				this.noneElement = null;
+				this.firstChild = false;
+				return;
+			}
 			if (this.noneStack == 0) {
 				if (currentStyle == null) {
 					// Occurs when the root element is none
