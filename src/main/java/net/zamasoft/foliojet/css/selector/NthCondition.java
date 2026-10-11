@@ -32,14 +32,6 @@ public final class NthCondition implements Condition {
 		return this.type;
 	}
 
-	public int getA() {
-		return this.a;
-	}
-
-	public int getB() {
-		return this.b;
-	}
-
 	public String getValue() {
 		return this.raw;
 	}

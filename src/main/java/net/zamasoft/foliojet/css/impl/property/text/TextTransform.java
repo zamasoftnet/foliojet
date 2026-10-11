@@ -10,7 +10,6 @@ import net.zamasoft.foliojet.css.value.TextTransformValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**

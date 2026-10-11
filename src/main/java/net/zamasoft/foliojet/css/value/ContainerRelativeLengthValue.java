@@ -48,14 +48,6 @@ public final class ContainerRelativeLengthValue implements LengthValue {
 		return new ContainerRelativeLengthValue(unit, value);
 	}
 
-	public Unit getUnit() {
-		return this.unit;
-	}
-
-	public double getValue() {
-		return this.value;
-	}
-
 	public AbsoluteLengthValue toAbsoluteLength(CSSStyle style) {
 		final UserAgent ua = style.getUserAgent();
 		for (CSSStyle s = style.getParentStyle(); s != null; s = s.getParentStyle()) {

@@ -1,7 +1,6 @@
 package net.zamasoft.foliojet.layout.builder.impl;
 
 import net.zamasoft.foliojet.layout.box.impl.FlexBox;
-import net.zamasoft.foliojet.layout.box.params.FlexDirection;
 import net.zamasoft.foliojet.layout.box.params.FlexParams;
 import net.zamasoft.foliojet.layout.box.params.FlexWrap;
 import net.zamasoft.foliojet.layout.builder.Builder;

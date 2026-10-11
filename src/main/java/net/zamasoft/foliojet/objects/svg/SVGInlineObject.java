@@ -12,9 +12,7 @@ import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
-import net.zamasoft.foliojet.css.InlineObject;
 import net.zamasoft.foliojet.css.util.LengthUtils;
-import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.ua.impl.svg.SVGImageLoader;
 import net.zamasoft.foliojet.ua.ImageMap;
 import net.zamasoft.foliojet.ua.UserAgent;

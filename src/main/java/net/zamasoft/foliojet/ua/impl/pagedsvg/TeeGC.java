@@ -35,10 +35,6 @@ class TeeGC implements GC {
 		this.secondary = secondary;
 	}
 
-	GC primary() {
-		return this.primary;
-	}
-
 	GC secondary() {
 		return this.secondary;
 	}

@@ -65,7 +65,6 @@ import net.zamasoft.foliojet.css.impl.property.font.CSSUnicodeRange;
 import net.zamasoft.foliojet.css.impl.property.font.Src;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
-import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.util.XMLUtils;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;

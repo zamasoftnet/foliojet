@@ -2,7 +2,6 @@ package net.zamasoft.foliojet.layout.box.content;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;

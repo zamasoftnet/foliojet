@@ -16,7 +16,5 @@ public enum BarrierReason {
 	/** Content not yet represented as {@code SegmentEvent}, such as tables/replaced elements (former {@code Opaque}). */
 	NOT_YET_SUPPORTED,
 	/** Conversion detected an unknown type and took the safe path (fail closed). */
-	UNKNOWN_TYPE,
-	/** The corresponding {@code Start} is not yet closed (subtree not finalized). */
-	UNCLOSED_SUBTREE;
+	UNKNOWN_TYPE;
 }

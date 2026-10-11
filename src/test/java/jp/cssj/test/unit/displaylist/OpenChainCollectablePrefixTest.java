@@ -9,7 +9,6 @@ import java.io.Writer;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
-import jp.cssj.cti2.TranscoderException;
 import jp.cssj.cti2.helpers.CTIMessageHelper;
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;

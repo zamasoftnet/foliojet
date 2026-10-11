@@ -3,7 +3,6 @@ package net.zamasoft.foliojet.layout.box.impl;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
-import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox;
 import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
@@ -45,30 +44,16 @@ public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 	}
 
 	protected final FloatPos pos;
-	/**
-	 * Whether this is a continuation fragment from a page-break split (2026-08-29).
-	 * {@code shape-outside} resolution ({@code FloatShapeResolver}) uses this to fall back
-	 * to the margin-box rectangle for continuation fragments, which lack the original dimensions
-	 * and position. Continuation fragments are created only by the protected constructor
-	 * through {@link #fragmentRecipe}.
-	 */
-	private final boolean continuation;
 
 	public FloatBlockBox(final BlockParams params, final FloatPos pos) {
 		super(params);
 		this.pos = pos;
-		this.continuation = false;
 	}
 
 	protected FloatBlockBox(final BlockParams params, final FloatPos pos, final Dimension size, final Dimension minSize,
 			final AbsoluteRectFrame frame, Container container) {
 		super(params, size, minSize, frame, container);
 		this.pos = pos;
-		this.continuation = true;
-	}
-
-	public final boolean isContinuationFragment() {
-		return this.continuation;
 	}
 
 	public final Pos getPos() {

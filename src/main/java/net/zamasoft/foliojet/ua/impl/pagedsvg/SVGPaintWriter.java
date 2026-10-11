@@ -48,13 +48,7 @@ final class SVGPaintWriter {
 	/**
 	 * Returns a paint specification: {@code #rrggbb} for solid colors or {@code url(#id)}
 	 * for gradients, registering the definition in defs.
-	 */
-	String toSVGPaint(final Paint paint) throws IOException {
-		return this.toSVGPaint(paint, null);
-	}
-
-	/**
-	 * Returns a paint specification under the current transformation {@code ctm} (2026-09-03).
+	 * The specification is made under the current transformation {@code ctm} (2026-09-03).
 	 * Paths and clips are written with transformed coordinates, so gradient and tiling coordinate
 	 * systems must also map to page coordinates with the same transformation. Otherwise, shapes and
 	 * colors misalign in transformed boxes (transform, nine-slice border-image tiles, etc.).

@@ -12,7 +12,6 @@ import net.zamasoft.foliojet.css.value.PositionValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.impl.property.text.BlockFlow;
 import net.zamasoft.foliojet.css.impl.property.internal.CSSJInternalImage;
-import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;

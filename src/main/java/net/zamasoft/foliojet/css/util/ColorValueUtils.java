@@ -1197,10 +1197,6 @@ public final class ColorValueUtils {
 	 *               ({@code top}=modern {@code to bottom}); angles are counterclockwise
 	 *               with east as zero (modern=90deg−legacy).
 	 */
-	private static PaintValue toLinearGradient(UserAgent ua, TokenStream args, boolean legacy) {
-		return toLinearGradient(ua, args, legacy, false);
-	}
-
 	private static PaintValue toLinearGradient(UserAgent ua, TokenStream args, boolean legacy, boolean repeating) {
 		try {
 			double angle = 180 * Math.PI * 2 / 360;

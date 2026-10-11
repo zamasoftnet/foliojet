@@ -9,7 +9,6 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
@@ -38,7 +37,7 @@ public class MaxWidth extends AbstractPrimitivePropertyInfo {
 
 	private Value getDefault(UserAgent ua) {
 		// **The initial value is none** (2026-08-17, for the same reason as max-height).
-		// The UA's {@code getMaxSize()} is the PDF paper dimension limit,
+		// The UA's former maximum size (14400 pt) was the PDF paper dimension limit,
 		// not a box dimension limit.
 		return KeywordValue.NONE;
 	}

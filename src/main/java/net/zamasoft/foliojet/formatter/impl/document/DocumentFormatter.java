@@ -15,7 +15,6 @@ import net.zamasoft.foliojet.ua.AbortException;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.xml.Parser;
 import net.zamasoft.foliojet.xml.ParserFactory;
-import net.zamasoft.foliojet.xml.XMLHandler;
 import net.zamasoft.foliojet.plugin.PluginRegistry;
 import net.zamasoft.zstream.resolver.Source;
 

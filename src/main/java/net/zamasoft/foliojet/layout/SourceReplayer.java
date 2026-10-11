@@ -320,12 +320,6 @@ public final class SourceReplayer {
 		return true;
 	}
 
-	/** The existing replay entry point specifying a child range directly. The caller owns and closes the lease. */
-	public static void bindTwoPassRange(final LayoutSource log, final long fromId, final long toId,
-			final BlockBuilder target, final PageGenerator pageGenerator) {
-		bindTwoPassRange(log, fromId, toId, target, pageGenerator, ReplayIntent.current());
-	}
-
 	/**
 	 * For MEASURE, drives a fresh DocumentBuilder and releases temporary leases acquired during replay
 	 * in finally. Does not own the lease of the caller's cell handle.

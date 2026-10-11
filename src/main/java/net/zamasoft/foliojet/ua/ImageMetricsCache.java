@@ -107,11 +107,6 @@ public final class ImageMetricsCache {
 		return this.assets.get(uri);
 	}
 
-	/** Recorded resource identities (for export). */
-	public Map<String, Asset> assets() {
-		return this.assets == null ? Map.of() : Collections.unmodifiableMap(this.assets);
-	}
-
 	/** Recorded URIs and dimensions (for export). Never returns {@code null}, even when empty. */
 	public Map<String, Image> entries() {
 		return this.metrics == null ? Map.of() : Collections.unmodifiableMap(this.metrics);

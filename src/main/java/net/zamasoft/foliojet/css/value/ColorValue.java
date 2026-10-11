@@ -23,14 +23,6 @@ public class ColorValue implements PaintValue {
 		return this.color;
 	}
 
-	public Paint.Type getPaintType() {
-		return this.color.getPaintType();
-	}
-
-	public Color.Type getColorType() {
-		return this.color.getColorType();
-	}
-
 	public float getRed() {
 		return this.color.getRed();
 	}
@@ -45,10 +37,6 @@ public class ColorValue implements PaintValue {
 
 	public float getAlpha() {
 		return this.color.getAlpha();
-	}
-
-	public float getComponent(int i) {
-		return this.color.getComponent(i);
 	}
 
 	public boolean equals(Object o) {

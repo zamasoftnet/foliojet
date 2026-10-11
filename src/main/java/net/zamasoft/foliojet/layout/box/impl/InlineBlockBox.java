@@ -3,7 +3,6 @@ package net.zamasoft.foliojet.layout.box.impl;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
-import net.zamasoft.foliojet.layout.box.AbstractBlockBox;
 import net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox;
 import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.IInlineBox;

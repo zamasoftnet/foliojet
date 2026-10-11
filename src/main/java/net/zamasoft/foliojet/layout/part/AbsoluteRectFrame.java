@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.layout.part;
 
-import java.awt.Shape;
 
 import net.zamasoft.foliojet.layout.box.params.RectFrame;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;

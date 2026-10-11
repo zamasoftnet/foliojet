@@ -14,7 +14,6 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
-import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import net.zamasoft.foliojet.layout.draw.Drawer;

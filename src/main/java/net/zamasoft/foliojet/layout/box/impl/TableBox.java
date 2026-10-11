@@ -5,7 +5,6 @@ import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
 import java.util.ArrayList;
 import java.util.List;
 

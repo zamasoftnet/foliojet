@@ -96,8 +96,4 @@ public class DefaultXMLHandlerFilter implements XMLHandlerFilter {
 	public void setXMLHandler(XMLHandler handler) {
 		this.outHandler = handler;
 	}
-
-	public XMLHandler getXMLHandler() {
-		return this.outHandler;
-	}
 }

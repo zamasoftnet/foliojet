@@ -10,8 +10,4 @@ public class PropertiedString {
 	public PropertiedString(String text) {
 		this.text = text;
 	}
-
-	public String getMeta(String key) {
-		return this.meta.get(key);
-	}
 }

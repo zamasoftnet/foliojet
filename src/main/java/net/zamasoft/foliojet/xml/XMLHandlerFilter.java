@@ -13,11 +13,4 @@ public interface XMLHandlerFilter extends XMLHandler {
 	 * @param xmlHandler
 	 */
 	public void setXMLHandler(XMLHandler xmlHandler);
-
-	/**
-	 * Returns the destination XMLHandler.
-	 *
-	 * @return
-	 */
-	public XMLHandler getXMLHandler();
 }

@@ -1,7 +1,5 @@
 package net.zamasoft.foliojet.layout.box.impl;
 
-import java.util.ArrayList;
-import java.util.List;
 
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage;
@@ -11,10 +9,7 @@ import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.gc.font.FontMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
-import net.zamasoft.pdfg2d.gc.text.GlyphHandler;
-import net.zamasoft.pdfg2d.gc.text.TextControl;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
-import net.zamasoft.pdfg2d.gc.text.TextShaper;
 
 /**
  * An unresolved footnote-number label (footnotes F5, 2026-07-31 --

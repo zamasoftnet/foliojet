@@ -69,10 +69,6 @@ public class GridItemBox extends FlowBlockBox {
 			return this.columnLineNames;
 		}
 
-		public double rowGap() {
-			return this.rowGap;
-		}
-
 		public java.util.List<java.util.List<String>> rowLineNames() {
 			return this.rowLineNames;
 		}

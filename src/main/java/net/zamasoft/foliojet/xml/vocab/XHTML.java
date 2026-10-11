@@ -40,20 +40,6 @@ public final class XHTML {
 	/** Anchor element. */
 	public static final ElementNode A_ELEM = new ElementNode(URI, PREFIX, "a");
 
-	/** Image element. */
-	public static final ElementNode IMG_ELEM = new ElementNode(URI, PREFIX, "img");
-
-	/** Embed element. */
-	public static final ElementNode EMBED_ELEM = new ElementNode(URI, PREFIX, "embed");
-
-	/** Object element. */
-	public static final ElementNode OBJECT_ELEM = new ElementNode(URI, PREFIX, "object");
-
-	/** INPUT element. */
-	public static final ElementNode INPUT_ELEM = new ElementNode(URI, PREFIX, "input");
-
-	/** BUTTON element. */
-	public static final ElementNode BUTTON_ELEM = new ElementNode(URI, PREFIX, "button");
 	//
 	// /** RUBY element. */
 	// public static final ElementNode RUBY_ELEM = new ElementNode(URI, PREFIX,
@@ -70,12 +56,6 @@ public final class XHTML {
 	public static final ElementNode LI_ELEM = new ElementNode(XHTML.URI, XHTML.PREFIX, "li");
 
 	public static final ElementNode SPAN_ELEM = new ElementNode(XHTML.URI, XHTML.PREFIX, "span");
-
-	public static final ElementNode P_ELEM = new ElementNode(XHTML.URI, XHTML.PREFIX, "p");
-
-	public static final ElementNode TD_ELEM = new ElementNode(XHTML.URI, XHTML.PREFIX, "td");
-
-	public static final ElementNode TH_ELEM = new ElementNode(XHTML.URI, XHTML.PREFIX, "th");
 
 	public static final ElementNode H1_ELEM = new ElementNode(XHTML.URI, XHTML.PREFIX, "h1");
 
@@ -105,9 +85,6 @@ public final class XHTML {
 
 	/** Attribute for the :dir() selector. */
 	public static final AttributeNode DIR_ATTR = new AttributeNode("dir");
-
-	/** Advisory text attribute. */
-	public static final AttributeNode TITLE_ATTR = new AttributeNode("title");
 
 	/** Table column span attribute. */
 	public static final AttributeNode SPAN_ATTR = new AttributeNode("span");

@@ -27,10 +27,6 @@ public final class FixedGridLayout {
 		return this.columnWidths.length;
 	}
 
-	public double columnWidth(final int index) {
-		return this.columnWidths[index % this.columnWidths.length];
-	}
-
 	/** Returns the column index for an item's source index. */
 	public int columnOf(final int sourceIndex) {
 		return sourceIndex % this.columnWidths.length;

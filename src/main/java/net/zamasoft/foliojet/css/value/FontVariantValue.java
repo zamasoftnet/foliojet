@@ -48,15 +48,6 @@ public enum FontVariantValue implements Value {
 	}
 
 	/**
-	 * Returns the variant code.
-	 *
-	 * @return
-	 */
-	public byte getFontVariant() {
-		return this.fontVariant;
-	}
-
-	/**
 	 * Returns the corresponding OpenType feature tags. {@code all-*} enables both the lowercase
 	 * and uppercase tags. If the font lacks the feature, it naturally has no effect in pdfg2d.
 	 */

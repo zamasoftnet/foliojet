@@ -1,7 +1,6 @@
 package net.zamasoft.foliojet.layout.imposition;
 
 import net.zamasoft.foliojet.css.CSSElement;
-import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.foliojet.ua.BoundSide;
@@ -37,8 +36,6 @@ public interface Imposition {
 	public OutputFitToPaper getAlign();
 
 	public void setAlign(OutputFitToPaper align);
-
-	public OutputAutoRotate getAutoRotate();
 
 	public void setAutoRotate(OutputAutoRotate autoRotate);
 
@@ -86,13 +83,6 @@ public interface Imposition {
 	public void setCuttingMargin(double cuttingMargin);
 
 	/**
-	 * Returns the spine width.
-	 *
-	 * @return
-	 */
-	public double getSpineWidth();
-
-	/**
 	 * Sets the spine width.
 	 *
 	 * @param spineWidth
@@ -100,8 +90,6 @@ public interface Imposition {
 	public void setSpineWidth(double spineWidth);
 
 	public void fitPaperWidth();
-
-	public double getPaperWidth();
 
 	/**
 	 * Sets the paper width.
@@ -111,8 +99,6 @@ public interface Imposition {
 	public void setPaperWidth(double paperWidth);
 
 	public void fitPaperHeight();
-
-	public double getPaperHeight();
 
 	/**
 	 * Sets the paper height.
@@ -147,8 +133,6 @@ public interface Imposition {
 	 * @param clip
 	 */
 	public void setClip(boolean clip);
-
-	public boolean isClip();
 
 	/**
 	 * Sets whether to draw cross marks (center marks).

@@ -15,7 +15,6 @@ import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
 import net.zamasoft.foliojet.layout.draw.Drawer;
-import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
 /**

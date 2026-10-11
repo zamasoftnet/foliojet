@@ -11,7 +11,6 @@ import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;

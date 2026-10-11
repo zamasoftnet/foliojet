@@ -2,7 +2,6 @@ package net.zamasoft.foliojet.layout.box;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
@@ -11,7 +10,6 @@ import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.TableParams;
 import net.zamasoft.foliojet.layout.draw.Drawer;
-import net.zamasoft.foliojet.layout.util.LayoutUtils;
 
 public abstract class AbstractInnerTableBox extends AbstractBox implements INonReplacedBox {
 	protected final InnerTableParams params;

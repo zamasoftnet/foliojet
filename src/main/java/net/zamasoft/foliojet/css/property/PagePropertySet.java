@@ -20,7 +20,6 @@ import net.zamasoft.foliojet.css.impl.property.border.BorderStyle;
 import net.zamasoft.foliojet.css.impl.property.box.Padding;
 import net.zamasoft.foliojet.css.impl.property.box.Margin;
 import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
-import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.css.impl.property.page.PageBleed;
 import net.zamasoft.foliojet.css.impl.property.page.PageMarks;
 import net.zamasoft.foliojet.css.impl.property.page.PageSize;

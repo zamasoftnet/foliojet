@@ -22,8 +22,6 @@ import org.apache.batik.util.ParsedURL;
 import org.apache.batik.util.XMLResourceDescriptor;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 import org.w3c.dom.svg.SVGRect;
 
 import net.zamasoft.foliojet.ua.ImageLoader;

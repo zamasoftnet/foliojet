@@ -145,14 +145,8 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 
 	/**
 	 * Sets row boundary information (called once by {@code GridBuilder.bind} immediately
-	 * after placement; also used to rebase continuation-fragment ledgers during splitting).
-	 */
-	public final void setGridRows(final List<Row> rows, final List<GridItemBox> rowItems) {
-		this.setGridRows(rows, rowItems, null);
-	}
-
-	/**
-	 * Sets row boundary information with the offset of each item from its row start ({@link #rowItemOffsets}; null
+	 * after placement; also used to rebase continuation-fragment ledgers during splitting)
+	 * with the offset of each item from its row start ({@link #rowItemOffsets}; null
 	 * when every item is at its row start).
 	 */
 	public final void setGridRows(final List<Row> rows, final List<GridItemBox> rowItems, final double[] offsets) {

@@ -11,7 +11,6 @@ import net.zamasoft.foliojet.css.scan.StructureScanHandler;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.layout.imposition.Imposition;
 import net.zamasoft.foliojet.ua.impl.Impositions;
-import net.zamasoft.foliojet.ua.DocumentContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.DefaultXMLHandlerFilter;

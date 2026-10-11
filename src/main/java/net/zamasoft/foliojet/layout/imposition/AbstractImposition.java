@@ -164,10 +164,6 @@ public abstract class AbstractImposition implements Imposition {
 		this.align = align;
 	}
 
-	public final OutputAutoRotate getAutoRotate() {
-		return this.autoRotate;
-	}
-
 	public final void setAutoRotate(OutputAutoRotate autoRotate) {
 		this.autoRotate = autoRotate;
 	}
@@ -224,10 +220,6 @@ public abstract class AbstractImposition implements Imposition {
 		return Math.max(0, this.pageHeight - this.trimInset * 2.0);
 	}
 
-	public final double getSpineWidth() {
-		return this.spineWidth;
-	}
-
 	public final void setSpineWidth(double spineWidth) {
 		this.spineWidth = spineWidth;
 	}
@@ -256,16 +248,8 @@ public abstract class AbstractImposition implements Imposition {
 		this.paperHeight = this.getTrimHeight() + this.trimTop + this.trimBottom;
 	}
 
-	public final double getPaperWidth() {
-		return this.paperWidth;
-	}
-
 	public final void setPaperWidth(double paperWidth) {
 		this.paperWidth = paperWidth;
-	}
-
-	public final double getPaperHeight() {
-		return this.paperHeight;
 	}
 
 	public final void setPaperHeight(double paperHeight) {
@@ -301,10 +285,6 @@ public abstract class AbstractImposition implements Imposition {
 
 	public final void setCross(boolean cross) {
 		this.cross = cross;
-	}
-
-	public final boolean isClip() {
-		return this.clip;
 	}
 
 	public final void setClip(boolean clip) {

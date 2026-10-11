@@ -13,7 +13,6 @@ import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.layout.box.BoxType;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineFragmentView;
-import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.ReplacedParams;
 import net.zamasoft.foliojet.layout.draw.Drawer;
 import net.zamasoft.foliojet.layout.visitor.Visitor;

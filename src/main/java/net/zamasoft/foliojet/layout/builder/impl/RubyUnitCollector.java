@@ -61,10 +61,6 @@ final class RubyUnitCollector {
 		this.paramsStack.add(containerParams);
 	}
 
-	InlineParams containerParams() {
-		return this.containerParams;
-	}
-
 	void startInline(final InlineParams params) {
 		++this.depth;
 		this.paramsStack.add(params);

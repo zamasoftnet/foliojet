@@ -140,11 +140,6 @@ public class FlexItemBox extends FlowBlockBox {
 		this.replacedChild = replacedChild;
 	}
 
-	/** See {@link #replacedChild}. */
-	public net.zamasoft.foliojet.layout.box.AbstractReplacedBox getReplacedChild() {
-		return this.replacedChild;
-	}
-
 	/**
 	 * Passes a page-axis size the flex algorithm gave this wrapper on to its replaced element, along the page axis
 	 * (2026-10-10): the whole size for the main size of a column, the stretched size for the cross axis of a row when
@@ -187,11 +182,6 @@ public class FlexItemBox extends FlowBlockBox {
 	/** See {@link #insetBase}. */
 	public void setInsetBase(final double insetBase) {
 		this.insetBase = insetBase;
-	}
-
-	/** See {@link #insetBase}. */
-	public double getInsetBase() {
-		return this.insetBase;
 	}
 
 	/**

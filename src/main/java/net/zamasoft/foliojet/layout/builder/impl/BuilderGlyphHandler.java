@@ -143,13 +143,6 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	private final TextEventJournal journal = new TextEventJournal();
 
 	/**
-	 * Returns the boundary event journal (M3b Phase 0).
-	 */
-	public TextEventJournal getJournal() {
-		return this.journal;
-	}
-
-	/**
 	 * Returns the end offset of delivered source characters (M6b v3).
 	 *
 	 * <p>

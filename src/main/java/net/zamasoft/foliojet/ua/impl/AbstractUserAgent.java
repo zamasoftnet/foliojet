@@ -17,8 +17,6 @@ import net.zamasoft.foliojet.css.util.LengthUtils;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.FontFamilyValue;
-import net.zamasoft.foliojet.css.value.LengthValue;
-import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.AbortException;
@@ -39,8 +37,6 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.image.util.TransformedImage;
-import net.zamasoft.foliojet.css.value.KeywordValue;
-import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 import net.zamasoft.foliojet.css.token.Unit;
 import net.zamasoft.foliojet.ua.AbsoluteFontSize;
 import net.zamasoft.foliojet.ua.BorderWidthKeyword;
@@ -79,8 +75,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 
 	private double normalLineHeight;
 
-	private LengthValue defaultMarkerOffset;
-
 	private AbsoluteLengthValue[] borderTable;
 
 	private ColorValue defaultColor;
@@ -92,10 +86,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 	private AbsoluteLengthValue mediumFontSize;
 
 	private double fontScaleRatio;
-
-	private LengthValue minSize;
-
-	private Value maxSize = KeywordValue.NONE;
 
 	private double pixelsPerInch = -1, fontMagnification = -1;
 
@@ -126,11 +116,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 	public AbstractUserAgent() {
 		this.setDefaultLocale(Locale.getDefault());
 		this.setNormalLineHeight(1.2);
-		this.setDefaultMarkerOffset(RelativeLengthValue.ex(1));
-
-		this.setMinSize(AbsoluteLengthValue.ZERO);
-		// 14400 is the PDF size limit
-		this.setMaxSize(AbsoluteLengthValue.create(this, 14400, Unit.PT));
 		this.setBorderTable(new AbsoluteLengthValue[] { AbsoluteLengthValue.create(this, 1),
 				AbsoluteLengthValue.create(this, 2), AbsoluteLengthValue.create(this, 3) });
 		this.setFontScaleRatio(1.2);
@@ -405,10 +390,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return this.normalLineHeight;
 	}
 
-	public LengthValue getDefaultMarkerOffset() {
-		return this.defaultMarkerOffset;
-	}
-
 	public AbsoluteLengthValue getBorderWidth(BorderWidthKeyword keyword) {
 		return this.borderTable[keyword.ordinal()];
 	}
@@ -482,27 +463,11 @@ public abstract class AbstractUserAgent implements UserAgent {
 		return fontSize / this.fontScaleRatio;
 	}
 
-	public LengthValue getMinSize() {
-		return this.minSize;
-	}
-
-	public Value getMaxSize() {
-		return this.maxSize;
-	}
-
 	public double getPixelsPerInch() {
 		if (this.pixelsPerInch == -1) {
 			this.pixelsPerInch = UAProps.OUTPUT_RESOLUTION.getDouble(this);
 		}
 		return this.pixelsPerInch;
-	}
-
-	/**
-	 * @param defaultMarkerOffset
-	 *            The defaultMarkerOffset to set.
-	 */
-	public void setDefaultMarkerOffset(LengthValue defaultMarkerOffset) {
-		this.defaultMarkerOffset = defaultMarkerOffset;
 	}
 
 	/**
@@ -558,14 +523,6 @@ public abstract class AbstractUserAgent implements UserAgent {
 	 */
 	public void setMediumFontSize(AbsoluteLengthValue mediumFontSize) {
 		this.mediumFontSize = mediumFontSize;
-	}
-
-	public void setMinSize(LengthValue minSize) {
-		this.minSize = minSize;
-	}
-
-	public void setMaxSize(Value maxSize) {
-		this.maxSize = maxSize;
 	}
 
 	protected AffineTransform getPixelToUnit() {

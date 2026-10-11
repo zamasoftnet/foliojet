@@ -141,8 +141,6 @@ import net.zamasoft.foliojet.css.impl.property.box.Margin;
 import net.zamasoft.foliojet.css.impl.property.box.MaskImage;
 import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
 import net.zamasoft.foliojet.css.impl.property.box.Inset;
-import net.zamasoft.foliojet.css.impl.property.border.Corner;
-import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.css.impl.property.page.PageBleed;
 import net.zamasoft.foliojet.css.impl.property.page.PageMarks;
 import net.zamasoft.foliojet.css.impl.property.page.PageSize;

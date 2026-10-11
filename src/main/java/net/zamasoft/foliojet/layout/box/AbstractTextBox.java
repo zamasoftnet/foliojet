@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.layout.box;
 
-import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
@@ -19,7 +18,6 @@ import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
 import net.zamasoft.foliojet.layout.box.params.AbstractLineParams;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
-import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Decoration;
 import net.zamasoft.foliojet.layout.box.params.InlinePos;
 import net.zamasoft.foliojet.layout.box.params.TextShadow;

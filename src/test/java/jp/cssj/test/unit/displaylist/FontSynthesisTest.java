@@ -3,7 +3,6 @@ package jp.cssj.test.unit.displaylist;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.net.URI;
-import java.util.List;
 
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.contentstream.operator.Operator;

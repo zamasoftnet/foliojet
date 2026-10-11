@@ -5,7 +5,6 @@ import net.zamasoft.foliojet.layout.box.params.ClipPathShape;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
 import java.awt.geom.Rectangle2D;
 
 import net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage;

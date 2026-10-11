@@ -12,7 +12,6 @@ import net.zamasoft.foliojet.css.Declaration;
 import net.zamasoft.foliojet.css.MarginBoxName;
 import net.zamasoft.foliojet.css.StyleContext;
 import net.zamasoft.foliojet.css.counterstyle.CounterStyles;
-import net.zamasoft.foliojet.css.util.GeneratedValueUtils;
 import net.zamasoft.foliojet.css.value.CounterValue;
 import net.zamasoft.foliojet.css.value.CountersValue;
 import net.zamasoft.foliojet.css.value.StringFunctionValue;

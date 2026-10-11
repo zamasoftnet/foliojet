@@ -2,7 +2,6 @@ package net.zamasoft.foliojet.layout.box;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
 import java.awt.geom.Rectangle2D;
 
 import net.zamasoft.foliojet.layout.box.content.BreakMode;

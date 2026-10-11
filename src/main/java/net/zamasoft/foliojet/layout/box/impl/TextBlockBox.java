@@ -8,7 +8,6 @@ import net.zamasoft.foliojet.layout.box.content.BreakToken;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -94,13 +93,6 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 
 	public final BoxType getType() {
 		return BoxType.TEXT_BLOCK;
-	}
-
-	/**
-	 * Returns this text block's continuation token (M6b).
-	 */
-	public final BreakToken getBreakToken() {
-		return this.breakToken;
 	}
 
 	public final Params getParams() {

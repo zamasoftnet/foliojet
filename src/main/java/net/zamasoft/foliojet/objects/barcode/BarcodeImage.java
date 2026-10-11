@@ -4,7 +4,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 
 import net.zamasoft.foliojet.css.util.LengthUtils;
-import net.zamasoft.foliojet.css.value.LengthValue;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.content.ReplacedBoxImage;

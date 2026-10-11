@@ -80,11 +80,6 @@ final class DocumentRelease {
 		return unit;
 	}
 
-	/** Number of released pages (the total page count after all items finish). */
-	synchronized int releasedPages() {
-		return this.releasedPages;
-	}
-
 	/** Item completion. If it is the first item, promote the next. */
 	private synchronized void done(final Unit unit, final int pageCount) throws IOException {
 		unit.done = true;

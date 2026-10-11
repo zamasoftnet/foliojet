@@ -15,8 +15,6 @@ public class NavPoint {
 
 	/** The entry's ID (NCX only). */
 	public String id;
-	/** The entry's playback order (NCX only). */
-	public int playOrder;
 
 	/** The child entries. */
 	public NavPoint[] children;

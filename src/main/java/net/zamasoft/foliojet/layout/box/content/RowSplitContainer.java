@@ -60,16 +60,6 @@ public final class RowSplitContainer extends FlowContainer {
 	private boolean movedWhole;
 
 	/**
-	 * Snapshots the placement of all items currently in {@link #flows} as authoritative.
-	 * Called once, immediately after {@code FlexBox.split} finishes assembling {@code cont}
-	 * with {@code addFlow}/{@code migrateFlowsFrom} (before restyle can touch it).
-	 * Other reconstruction paths (see {@link #restyle}) anchor themselves on entry.
-	 */
-	public void anchorCurrent() {
-		this.anchorCurrent(this.flows == null ? 0 : this.flows.size());
-	}
-
-	/**
 	 * Anchors the current items, accepting post-restyle dimensions only for the first
 	 * {@code reflowablePrefixCount} items. New remainder items created by forced row splitting
 	 * may shrink to fit the next fragment, while items transferred whole from later rows must

@@ -1,6 +1,5 @@
 package net.zamasoft.foliojet.css.impl.part;
 
-import java.awt.geom.Rectangle2D;
 
 import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;

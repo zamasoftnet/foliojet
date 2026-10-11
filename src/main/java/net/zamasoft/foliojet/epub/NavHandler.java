@@ -34,8 +34,6 @@ class NavHandler extends DefaultHandler {
 					if ("toc".equals(type)) {
 						this.navDepth = 1;
 					}
-				} else if (lName.equals("title")) {
-					this.textBuff = new StringBuilder();
 				}
 			} else {
 				if (lName.equals("a")) {
@@ -64,26 +62,19 @@ class NavHandler extends DefaultHandler {
 	}
 
 	public void endElement(String uri, String lName, String qName) throws SAXException {
-		if (uri.equals(EPubFile.XHTML_NS)) {
-			if (this.navDepth <= 0) {
-				if (lName.equals("title")) {
-					this.toc.docTitle = this.textBuff.toString();
-					this.textBuff = null;
-				}
-			} else {
-				if (lName.equals("li")) {
-					List<NavPoint> list = this.stack.get(this.stack.size() - 2);
-					NavPoint navPoint = list.get(list.size() - 1);
-					list = this.stack.remove(this.stack.size() - 1);
-					navPoint.children = list.toArray(new NavPoint[list.size()]);
-				} else if (this.textBuff == null) {
-					// ignore
-				} else if (lName.equals("a")) {
-					List<NavPoint> list = this.stack.get(this.stack.size() - 2);
-					NavPoint navPoint = list.get(list.size() - 1);
-					navPoint.label = this.textBuff.toString();
-					this.textBuff = null;
-				}
+		if (uri.equals(EPubFile.XHTML_NS) && this.navDepth > 0) {
+			if (lName.equals("li")) {
+				List<NavPoint> list = this.stack.get(this.stack.size() - 2);
+				NavPoint navPoint = list.get(list.size() - 1);
+				list = this.stack.remove(this.stack.size() - 1);
+				navPoint.children = list.toArray(new NavPoint[list.size()]);
+			} else if (this.textBuff == null) {
+				// ignore
+			} else if (lName.equals("a")) {
+				List<NavPoint> list = this.stack.get(this.stack.size() - 2);
+				NavPoint navPoint = list.get(list.size() - 1);
+				navPoint.label = this.textBuff.toString();
+				this.textBuff = null;
 			}
 		}
 		if (this.navDepth != 0) {

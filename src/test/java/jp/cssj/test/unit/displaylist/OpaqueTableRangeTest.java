@@ -43,7 +43,6 @@ import net.zamasoft.foliojet.layout.builder.PageGenerator;
 import net.zamasoft.foliojet.layout.builder.impl.RetainedTableBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.TwoPassBlockBuilder;
 import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
-import net.zamasoft.foliojet.layout.fragment.ContinuationStats.TwoPassCensusEvent;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
 import net.zamasoft.foliojet.layout.fragment.RangeHandle;
 import net.zamasoft.foliojet.layout.segment.BoxKind;

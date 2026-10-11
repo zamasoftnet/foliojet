@@ -49,10 +49,6 @@ public class LinearGradientValue implements PaintValue {
 		return this.stops;
 	}
 
-	public double getAngle() {
-		return this.angle;
-	}
-
 	public Paint getPaint(Rectangle2D box) {
 		return this.paint(box, null);
 	}

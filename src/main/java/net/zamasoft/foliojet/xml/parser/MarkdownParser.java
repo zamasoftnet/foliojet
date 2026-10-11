@@ -241,7 +241,6 @@ public class MarkdownParser implements Parser {
 	private static final class EventBridge {
 
 		private final UserAgent ua;
-		private final XMLHandler xmlHandler;
 		private final TagBalancer balancer;
 		/** Head of the chain (foreign content filter). Send all events here. */
 		private final XMLDocumentHandler head;
@@ -257,7 +256,6 @@ public class MarkdownParser implements Parser {
 
 		EventBridge(final UserAgent ua, final XMLHandler xmlHandler) {
 			this.ua = ua;
-			this.xmlHandler = xmlHandler;
 			this.balancer = new TagBalancer();
 			final boolean changeDefaultNamespace = UAProps.INPUT_CHANGE_DEFAULT_NAMESPACE.getBoolean(ua);
 			// HTMLParser's foreign content filter (HTML5 namespaces for math/svg) + ElementProps switch in standards mode

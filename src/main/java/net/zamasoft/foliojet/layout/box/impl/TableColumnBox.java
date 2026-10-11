@@ -11,7 +11,6 @@ import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.FinishLayoutStep;
 import net.zamasoft.foliojet.layout.box.FramesStep;
 import net.zamasoft.foliojet.layout.box.GetTextStep;
-import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.Pos;
@@ -83,11 +82,6 @@ public class TableColumnBox extends AbstractInnerTableBox {
 	}
 
 	public final void pushGetTextSteps(final StringBuilder textBuff, Deque<GetTextStep> worklist) {
-		// ignore
-	}
-
-	public final void floats(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, double contextX,
-			double contextY, double x, double y) {
 		// ignore
 	}
 

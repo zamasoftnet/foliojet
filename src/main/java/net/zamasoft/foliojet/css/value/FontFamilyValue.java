@@ -13,12 +13,6 @@ public class FontFamilyValue implements Value {
 
 	public static final FontFamilyValue SERIF = new FontFamilyValue(FontFamily.SERIF_VALUE);
 
-	public static final FontFamilyValue SANS_SERIF = new FontFamilyValue(FontFamily.SANS_SERIF_VALUE);
-
-	public static final FontFamilyValue CURSIVE = new FontFamilyValue(FontFamily.CURSIVE_VALUE);
-
-	public static final FontFamilyValue FANTASY = new FontFamilyValue(FontFamily.FANTASY_VALUE);
-
 	public static final FontFamilyValue MONOSPACE = new FontFamilyValue(FontFamily.MONOSPACE_VALUE);
 
 	private final FontFamilyList list;

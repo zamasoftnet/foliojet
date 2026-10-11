@@ -9,7 +9,6 @@ import net.zamasoft.foliojet.css.property.PropertyException;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
 import net.zamasoft.foliojet.css.util.ValueUtils;
 import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.Length;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.css.token.CssToken;
@@ -38,7 +37,7 @@ public class MaxHeight extends AbstractPrimitivePropertyInfo {
 
 	private Value getDefault(UserAgent ua) {
 		// **The initial value is none** (2026-08-17). Previously this returned the UA's
-		// {@code getMaxSize()} (=14400 pt, the PDF <b>paper</b> dimension limit),
+		// maximum size (=14400 pt, the PDF <b>paper</b> dimension limit),
 		// but that is not a box height limit. Blocks taller than 14400 pt
 		// (long tables, etc.) were truncated to this value by {@code AbstractBlockBox},
 		// preventing pagination from ever advancing. The w3c-jlreq glossary table

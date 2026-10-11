@@ -13,7 +13,6 @@ import net.zamasoft.foliojet.css.value.AngleValue;
 import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
 import net.zamasoft.foliojet.css.value.CalcFontRelativeValue.Term;
 import net.zamasoft.foliojet.css.value.CalcLengthValue;
-import net.zamasoft.foliojet.css.value.QuantityValue;
 import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;

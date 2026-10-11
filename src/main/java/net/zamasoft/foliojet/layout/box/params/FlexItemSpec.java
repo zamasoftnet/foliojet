@@ -34,8 +34,4 @@ public record FlexItemSpec(double grow, double shrink, FlexBasisValue basis, Box
 		}
 		return new FlexItemSpec(grow, shrink, basis, alignSelf, order, minWidthAuto, minHeightAuto);
 	}
-
-	public boolean isDefault() {
-		return this == DEFAULT;
-	}
 }

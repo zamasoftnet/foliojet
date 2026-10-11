@@ -40,16 +40,6 @@ public final class CSSJML {
 	public static final ElementNode MAKE_TOC_ELEM = new ElementNode(URI, PREFIX, "make-toc");
 
 	/**
-	 * Generates an index.
-	 */
-	public static final ElementNode MAKE_INDEX_ELEM = new ElementNode(URI, PREFIX, "make-index");
-
-	/**
-	 * Marks an index keyword.
-	 */
-	public static final ElementNode INDEX_ELEM = new ElementNode(URI, PREFIX, "index");
-
-	/**
 	 * Stops with an error (for testing).
 	 */
 	public static final ElementNode FAIL_ELEM = new ElementNode(URI, PREFIX, "fail");

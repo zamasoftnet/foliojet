@@ -14,7 +14,6 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.impl.property.border.BorderWidth;
 import net.zamasoft.foliojet.css.impl.property.border.BorderStyle;
-import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.css.impl.property.border.BorderColor;
 
 /**

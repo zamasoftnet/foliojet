@@ -31,7 +31,6 @@ class NcxHandler extends DefaultHandler {
 			} else if (lName.equals("navPoint")) {
 				NavPoint navPoint = new NavPoint();
 				navPoint.id = atts.getValue("id");
-				navPoint.playOrder = Integer.parseInt(atts.getValue("playOrder"));
 				List<NavPoint> list = this.stack.get(this.stack.size() - 1);
 				list.add(navPoint);
 				this.stack.add(new ArrayList<NavPoint>());
@@ -66,13 +65,12 @@ class NcxHandler extends DefaultHandler {
 			if (lName.equals("text")) {
 				this.inText = false;
 				return;
-			} else if (lName.equals("docTitle") && this.toc != null) {
-				this.toc.docTitle = this.textBuff.toString();
 			} else if (lName.equals("navLabel")) {
 				List<NavPoint> list = this.stack.get(this.stack.size() - 2);
 				NavPoint navPoint = list.get(list.size() - 1);
 				navPoint.label = this.textBuff.toString();
-			} else {
+			} else if (!lName.equals("docTitle")) {
+				// The document title is not kept; its end only drops the buffered text below.
 				return;
 			}
 		} else {

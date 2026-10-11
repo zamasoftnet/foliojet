@@ -5,8 +5,6 @@ import java.util.Locale;
 import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
 import net.zamasoft.foliojet.css.value.ColorValue;
 import net.zamasoft.foliojet.css.value.FontFamilyValue;
-import net.zamasoft.foliojet.css.value.LengthValue;
-import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ext.CSSJFontPolicyValue;
 import net.zamasoft.pdfg2d.gc.font.FontManager;
 
@@ -49,11 +47,6 @@ public interface DeviceStyle {
 	public ColorValue getMatColor();
 
 	/**
-	 * Returns the default marker offset (the distance between a list item's marker and its text).
-	 */
-	public LengthValue getDefaultMarkerOffset();
-
-	/**
 	 * Returns the default font.
 	 */
 	public FontFamilyValue getDefaultFontFamily();
@@ -87,16 +80,6 @@ public interface DeviceStyle {
 	 * Returns the border thickness. Used for properties such as border-width.
 	 */
 	public AbsoluteLengthValue getBorderWidth(BorderWidthKeyword keyword);
-
-	/**
-	 * Returns the minimum box size.
-	 */
-	public LengthValue getMinSize();
-
-	/**
-	 * Returns the maximum box size.
-	 */
-	public Value getMaxSize();
 
 	/**
 	 * Returns the font manager.

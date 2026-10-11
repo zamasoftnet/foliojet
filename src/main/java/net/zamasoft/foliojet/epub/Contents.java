@@ -61,11 +61,6 @@ public class Contents {
 
 	Map<String, Item> fullPathToItem;
 
-	/** Returns the item for a path. */
-	public Item getItem(String fullPath) {
-		return this.fullPathToItem.get(fullPath);
-	}
-
 	/** An array of book items in page order. */
 	public ItemRef[] spine;
 

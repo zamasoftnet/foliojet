@@ -22,14 +22,6 @@ public class UnicodeRangeValue implements Value {
 		return this.list;
 	}
 
-	public boolean canDisplay(int c) {
-		return this.list.canDisplay(c);
-	}
-
-	public boolean isEmpty() {
-		return this.list.isEmpty();
-	}
-
 	@Override
 	public String toString() {
 		return this.list.toString();

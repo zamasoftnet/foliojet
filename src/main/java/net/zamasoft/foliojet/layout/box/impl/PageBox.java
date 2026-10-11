@@ -18,7 +18,6 @@ import net.zamasoft.foliojet.layout.box.params.Background;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
-import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.PagePos;
 import net.zamasoft.foliojet.layout.box.params.Pos;

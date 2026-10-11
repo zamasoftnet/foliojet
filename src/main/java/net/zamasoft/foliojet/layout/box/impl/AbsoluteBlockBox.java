@@ -20,7 +20,6 @@ import net.zamasoft.foliojet.layout.box.IFramedBox;
 import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.AbsolutePos;
-import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.Fiducial;

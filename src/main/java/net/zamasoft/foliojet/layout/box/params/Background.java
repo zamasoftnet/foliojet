@@ -130,11 +130,6 @@ public class Background {
 		return this.backgroundPaint;
 	}
 
-	/** Background layers (first is frontmost). null if absent. */
-	public Layer[] getLayers() {
-		return this.layers;
-	}
-
 	/**
 	 * Summarizes gradient layers for display-list dumps.
 	 * An empty string if there are no gradients (preserves existing golden data).

@@ -57,18 +57,6 @@ public final class TypedAttrValue implements QuantityValue, PaintValue {
 		this.fallback = fallback;
 	}
 
-	public String getName() {
-		return this.name;
-	}
-
-	public Kind getKind() {
-		return this.kind;
-	}
-
-	public Unit getUnit() {
-		return this.unit;
-	}
-
 	/**
 	 * Reads the attribute and resolves it to a value. If it is absent or cannot be parsed,
 	 * returns the fallback, or null if no fallback exists (<b>invalid at used-value computation time</b>:

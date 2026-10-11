@@ -128,15 +128,6 @@ public final class TokenStream {
 		return null;
 	}
 
-	/** Consumes and returns the next token if it is a function with the given name; otherwise null. */
-	public CssToken.Func func(String name) {
-		if (this.peek() instanceof CssToken.Func func && func.is(name)) {
-			++this.pos;
-			return func;
-		}
-		return null;
-	}
-
 	/**
 	 * Consumes the remaining tokens and returns them split at commas.
 	 * Commas themselves are excluded. Empty groups are omitted.

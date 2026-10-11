@@ -2,7 +2,6 @@ package net.zamasoft.foliojet.css.style;
 
 import net.zamasoft.foliojet.layout.box.params.PageBreakMode;
 
-import net.zamasoft.foliojet.css.CSSElement;
 import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.StyleContext;
 import net.zamasoft.foliojet.layout.fragment.LayoutSource;
@@ -161,10 +160,6 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 
 	public UserAgent getUserAgent() {
 		return this.ua;
-	}
-
-	public CSSElement getPageElement() {
-		return this.pageSequence.getPageElement();
 	}
 
 	public CSSStyle getCurrentStyle() {
