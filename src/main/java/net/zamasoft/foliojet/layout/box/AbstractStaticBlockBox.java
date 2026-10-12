@@ -121,6 +121,33 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	}
 
 	/**
+	 * Takes a continuation fragment's page-axis size from what its split left of a definite size and of a min-size
+	 * (2026-10-10). A float's continuation is laid out again without {@link #shrinkToFit}, so it took neither and fitted
+	 * its content: a float with {@code height: 60pt} split at 30pt went on 0pt tall on the next page, where Chrome keeps
+	 * the other 30pt, and so did one with {@code min-height}. A block's continuation gets them from
+	 * {@code calculateSize}. The rest is a floor only: content longer than it still makes the continuation grow, as
+	 * before, which the overflow checks of an opposite-progression region need (they measure the box, not what it
+	 * paints). Kept when the rest of column-split floats was taken out (2026-10-12): without it, the continuation of a
+	 * float in an opposite-progression region ran off the paper (sweep seed 12344062). A max-height is not carried on.
+	 */
+	protected final void continuePageAxis() {
+		final WritingMode flow = this.params.flow;
+		final double min = this.minSize.getPageType(flow) == LengthType.ABSOLUTE ? this.minSize.getPageLength(flow) : 0;
+		double extent = min;
+		if (this.size.getPageType(flow) == LengthType.ABSOLUTE) {
+			extent = Math.max(this.size.getPageLength(flow), min);
+			this.specifiedPageAxis = true;
+		}
+		this.minPageAxis = extent;
+		this.continuedPageAxis = extent;
+		if (flow.isVertical()) {
+			this.width = extent;
+		} else {
+			this.height = extent;
+		}
+	}
+
+	/**
 	 * The page-axis content-box size derived from {@code aspect-ratio}
 	 * (2026-08-29, css-sizing-4 §5). The ratio is physical width/height and applies to the
 	 * {@code box-sizing} box (including padding+border for border-box).

@@ -54,6 +54,7 @@ public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 			final AbsoluteRectFrame frame, Container container) {
 		super(params, size, minSize, frame, container);
 		this.pos = pos;
+		this.continuePageAxis();
 	}
 
 	public final Pos getPos() {

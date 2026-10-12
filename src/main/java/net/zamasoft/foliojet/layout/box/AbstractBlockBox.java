@@ -470,6 +470,12 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		return this.splitPageState(contentLimit, ownerExtent, columnSpanning, false);
 	}
 
+	/**
+	 * The page-axis size a continuation fragment took from what its split left of a definite size or min-size, or NaN
+	 * (2026-10-10, set by {@code AbstractStaticBlockBox.continuePageAxis}). Its content may grow it beyond.
+	 */
+	protected double continuedPageAxis = Double.NaN;
+
 	private net.zamasoft.foliojet.layout.fragment.FragmentState splitPageState(final double pageLimit,
 			final boolean columnSpanning, final boolean preserveSpecifiedPageSize) {
 		return this.splitPageState(pageLimit, pageLimit, columnSpanning, preserveSpecifiedPageSize);
@@ -497,10 +503,34 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		// local/shrink/strict-347-min.html). Block this on the side that was cut.
 		this.markFragmented();
 		final boolean vertical = this.params.flow.isVertical();
+		// A page-axis min-size with a percentage (or a calc() with one) splits as the length it resolved to (2026-10-10):
+		// FragmentState reads the length of the Dimension, which holds the ratio for a percentage, so the rest of a
+		// float's min-height: 60% came out 0 on the next page.
+		net.zamasoft.foliojet.layout.box.params.Dimension minSize = this.minSize;
+		final net.zamasoft.foliojet.layout.box.params.LengthType minType = minSize.getPageType(this.params.flow);
+		if (minType == net.zamasoft.foliojet.layout.box.params.LengthType.RELATIVE
+				|| minType == net.zamasoft.foliojet.layout.box.params.LengthType.MIXED) {
+			final double resolved = this.minPageAxis + (this.params.boxSizing == BoxSizingMode.BORDER_BOX
+					? this.frame.getBorderPageExtent(this.params.flow)
+					: 0);
+			minSize = vertical
+					? net.zamasoft.foliojet.layout.box.params.Dimension.create(resolved, 0, minSize.getHeight(),
+							minSize.getHeightRatio(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE,
+							minSize.getHeightType())
+					: net.zamasoft.foliojet.layout.box.params.Dimension.create(minSize.getWidth(),
+							minSize.getWidthRatio(), resolved, 0, minSize.getWidthType(),
+							net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE);
+		}
+		// The rest of a definite size that a float's continuation keeps is a floor its content may outgrow
+		// (continuePageAxis): the next split goes on with what is left of that floor, not of the content (2026-10-10,
+		// sweep seed 11599998: a float of width: 0pt in vertical writing grew to its content, 538pt, and each page
+		// carried the rest of that on as a definite width, 732 pages).
+		final double extent = vertical ? this.width : this.height;
 		final net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
 				.of(this.params.flow, columnSpanning, this.frame, this.size,
-						this.minSize, vertical ? this.width : this.height, contentLimit, ownerExtent,
-						this.container.getContentSize(), this.isSpecifiedPageSize(), preserveSpecifiedPageSize);
+						minSize, Double.isNaN(this.continuedPageAxis) ? extent : Math.min(extent, this.continuedPageAxis),
+						contentLimit, ownerExtent, this.container.getContentSize(), this.isSpecifiedPageSize(),
+						preserveSpecifiedPageSize);
 		if (vertical) {
 			this.width = state.prevPageExtent();
 		} else {
