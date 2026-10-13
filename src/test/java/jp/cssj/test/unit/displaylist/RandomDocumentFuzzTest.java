@@ -1490,6 +1490,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §34: nested tables with overlapping cells in a float on 60 pt vertical-lr paper run to y = 126 pt;
 			// Chrome runs them off the top instead (T0 at y = -134 pt).
 			new IndividualExclusion(14_187_565, "fit-v1", 1_481_119_028, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の2倍超(Chromeも)",
+					"2026-10-14"),
+			// Triage §35, the same limitation as 13106246 (standing user decision 2026-10-13): a vertical-rl float holding
+			// a four-column multicol on vertical-lr paper; Copper draws T0 at x = -13.7 pt, Chrome at 1.2 pt.
+			new IndividualExclusion(14_407_889, "fit-v1", 1_413_641_605, "既知の制限: 逆進行のfloatの中の段組が紙の左の外",
+					"2026-10-14"),
+			// Triage §35: on 200 pt vertical-rl paper a flex of max-content items with a multicol of an image and form
+			// controls runs along the line to y = 816 pt; Chrome runs it on to 848 pt too.
+			new IndividualExclusion(14_442_433, "fit-v1", 510_489_695, "作者の溢れ: max-contentのflexの中の段組が行の向きに紙の4倍(Chromeも)",
 					"2026-10-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
