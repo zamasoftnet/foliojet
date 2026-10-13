@@ -1411,7 +1411,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * A document excluded one by one from the off-paper checks (invariants 6 and 10) when its overflow is the
 	 * author's but no predicate can state it (2026-10-08, user decision), or when it is a known engine limitation the
 	 * user decided to accept (2026-10-13; the reason starts with 既知の制限). Only off-paper checks and, for an
-	 * accepted page-count blowup, the page-count limit (invariant 3); every other invariant still applies. The predicates come first, so this catches only documents they do not exclude.
+	 * accepted page-count blowup or blank page, the page-count limit (invariant 3) or the blank-page check; every
+	 * other invariant still applies. The predicates come first, so this catches only documents they do not exclude.
 	 *
 	 * <p>
 	 * Matched by the document (generator version and seed in its title, no extreme scenarios), not by the sweep
@@ -1458,6 +1459,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 19135: 1,690); Chrome's whole document is 2,378 pt long. A table in a column-count:3 multicol is squeezed
 			// into columns of a few pt (Chrome sizes the multicol from its content, 658 pt).
 			new IndividualExclusion(13_366_722, "standard", 13_366_722, "既知の制限: 狭い紙で入れ子の段組の表が細く組まれ頁数が暴走",
+					"2026-10-13"),
+			// Triage §31, the same limitation as 13106246 (user decision 2026-10-13): a vertical-rl inline-block float
+			// holding a four-column multicol on vertical-lr paper; Copper draws T0 at x = -8.9 pt, Chrome at 0.9 pt.
+			new IndividualExclusion(13_571_754, "standard", 13_571_754, "既知の制限: 逆進行のfloatの中の段組が紙の左の外",
+					"2026-10-13"),
+			// Triage §31, a known engine limitation since 19128 (user decision 2026-10-13): a three-column multicol in a
+			// grid holding an unsplittable vertical-rl float of width: 77%; column balancing counts the float
+			// (78c439ea), the multicol goes on to the next page and leaves page 2 blank (19124 and Chrome: two pages).
+			new IndividualExclusion(13_581_859, "standard", 13_581_859, "既知の制限: 段組の高さ合わせが割れないfloatを数えて白紙の頁",
 					"2026-10-13"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
@@ -2533,6 +2543,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			} else if (hasUntypesettableFloat(doc.html())) {
 				deferredExclusion = new ExcludedByUntypesettableFloat(
 						"白紙ページ " + blanks + " (" + html + ") [組版できない幅の浮動体]");
+			} else if (individualExclusion(doc.html()) != null) {
+				// An accepted blank-page limitation (2026-10-13, triage §31), deferred like the others so the loss
+				// and destination checks below still run.
+				final IndividualExclusion exclusion = individualExclusion(doc.html());
+				deferredExclusion = new ExcludedIndividually(
+						"白紙ページ " + blanks + " (" + html + ") [個別: " + exclusion.reason() + "]", exclusion);
 			} else {
 				fail("白紙ページ " + blanks + " (" + html + ")");
 			}
