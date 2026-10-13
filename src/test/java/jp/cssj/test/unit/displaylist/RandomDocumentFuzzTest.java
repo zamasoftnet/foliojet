@@ -1498,6 +1498,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §35: on 200 pt vertical-rl paper a flex of max-content items with a multicol of an image and form
 			// controls runs along the line to y = 816 pt; Chrome runs it on to 848 pt too.
 			new IndividualExclusion(14_442_433, "fit-v1", 510_489_695, "作者の溢れ: max-contentのflexの中の段組が行の向きに紙の4倍(Chromeも)",
+					"2026-10-14"),
+			// Triage §36, a known engine limitation since 19124 (standing user decision 2026-10-13): on 120x400 vertical-rl
+			// paper a column-reverse flex holding floats, a table, a multicol and nested flexes is not split across pages;
+			// Copper draws its items up to x = -388 pt on page 1 of 2, Chrome prints them on six pages.
+			new IndividualExclusion(14_723_614, "fit-v1", 777_932_504, "既知の制限: 縦組みの逆順のcolumnのflexが頁で分かれず紙の左の外",
 					"2026-10-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
