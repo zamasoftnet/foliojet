@@ -1479,6 +1479,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 19135: 1,690); Chrome's whole document is 2,378 pt long. A table in a column-count:3 multicol is squeezed
 			// into columns of a few pt (Chrome sizes the multicol from its content, 658 pt).
 			new IndividualExclusion(13_366_722, "standard", 13_366_722, "既知の制限: 狭い紙で入れ子の段組の表が細く組まれ頁数が暴走",
+					"2026-10-13"),
+			// Triage §29: an inline-block larger than the 120x400 vertical-rl paper is drawn on each of its three pages
+			// shifted and clipped to the paper (not marked artifact), so the copies outside the clip count as off the
+			// paper; every token shows on one of the pages, as in Chrome's three printed pages.
+			new IndividualExclusion(13_297_595, "fit-v1", 1_373_713_673, "判定の穴: 割れない箱の頁ごとの写しが版面で切られている",
+					"2026-10-13"),
+			// Triage §29: min-width:8em flex items in a table cell on 120 pt horizontal paper; Chrome puts T15 off the
+			// right too (265 pt vs 254.5 pt).
+			new IndividualExclusion(13_306_464, "fit-v1", 977_837_674, "作者の溢れ: セルの中のflexの最小幅で表が紙の2倍超(Chromeも紙の外)",
 					"2026-10-13"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
