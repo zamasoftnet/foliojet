@@ -1409,7 +1409,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	/**
 	 * A document excluded one by one from the off-paper checks (invariants 6 and 10) when its overflow is the
-	 * author's but no predicate can state it (2026-10-08, user decision). Only off-paper checks; every other
+	 * author's but no predicate can state it (2026-10-08, user decision), or when it is a known engine limitation the
+	 * user decided to accept (2026-10-13; the reason starts with 既知の制限). Only off-paper checks; every other
 	 * invariant still applies. The predicates come first, so this catches only documents they do not exclude.
 	 *
 	 * <p>
@@ -1450,6 +1451,28 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §26: on vertical-lr paper a vertical-rl float 91 pt wide holds a vertical-lr div with a
 			// display:table float 121 pt wide; Chrome also draws its only line off the paper's left (x=-23.6 pt).
 			new IndividualExclusion(12_903_866, "fit-v1", 621_085_571, "作者の溢れ: 同軸逆進行の入れ物より広い表のfloat(Chromeも紙の左の外)",
+					"2026-10-13"),
+			// Triage §27: a nowrap row-reverse flex of min-width:8em items in a table cell on 120 pt horizontal paper;
+			// Chrome puts T3 at the same x (298.5 pt vs 299.7 pt).
+			new IndividualExclusion(13_160_957, "fit-v1", 1_583_435_166, "作者の溢れ: セルの中のflexの最小幅で表が紙の2倍超(Chromeも同じ位置)",
+					"2026-10-13"),
+			// Triage §27: on vertical-rl paper 150 pt tall the lines run on to y = 310 pt in Chrome too.
+			new IndividualExclusion(13_009_496, "fit-v1", 708_513_240, "作者の溢れ: 行の向きに紙の2倍超(Chromeも同じ)",
+					"2026-10-13"),
+			// Triage §27: on 60 pt vertical-lr paper a table with a min-width:8em flex in a cell and overlapping cells;
+			// Chrome's print shrinks it to about 0.67 to fit, Copper (which does not shrink) puts T19 at y = 137 pt.
+			new IndividualExclusion(13_023_880, "fit-v1", 1_877_220_961, "作者の溢れ: セルの中のflexと重なるセルの表(Chromeは縮めて刷る)",
+					"2026-10-13"),
+			// Triage §27, a known engine limitation (user decision 2026-10-13, not the author's overflow): a grid float
+			// of width: 109pt on vertical-lr paper whose content far outgrows it. The floor a float's continuation keeps
+			// of its definite size (8abc2bb0, kept for seed 12344062) stops the rest from splitting, so T19 on lands at
+			// x = 437 to 735 pt on page 2; 19134 and Chrome go on page by page. A seesaw with 12344062: accepted.
+			new IndividualExclusion(13_121_632, "fit-v1", 200_602_274, "既知の制限: 決まった大きさのfloatの続きの下限で中身が次の頁へ分かれない(12344062とシーソー)",
+					"2026-10-13"),
+			// Triage §27, a known engine limitation since 19124 at least (user decision 2026-10-13): a vertical-rl float
+			// on vertical-lr paper holding a four-column multicol with a horizontal-tb inline-block; Copper draws the
+			// list at x = -59 pt, Chrome at 30 pt.
+			new IndividualExclusion(13_106_246, "fit-v1", 1_252_673_476, "既知の制限: 逆進行のfloatの中の段組と直交する箱が紙の左の外",
 					"2026-10-13"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
