@@ -1468,6 +1468,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// grid holding an unsplittable vertical-rl float of width: 77%; column balancing counts the float
 			// (78c439ea), the multicol goes on to the next page and leaves page 2 blank (19124 and Chrome: two pages).
 			new IndividualExclusion(13_581_859, "standard", 13_581_859, "既知の制限: 段組の高さ合わせが割れないfloatを数えて白紙の頁",
+					"2026-10-13"),
+			// Triage §32: a document of form controls only, in a display:table float right of an orthogonal table on
+			// 300 pt horizontal paper; Chrome draws the float off the right too (x = 346 pt, Copper from 300 pt).
+			new IndividualExclusion(13_699_368, "fit-v1", 385_727_702, "作者の溢れ: 直交する表を包むfloatのフォームの部品が紙の右の外(Chromeも)",
 					"2026-10-13"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
