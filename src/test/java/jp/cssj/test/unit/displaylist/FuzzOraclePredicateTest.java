@@ -1180,7 +1180,11 @@ public class FuzzOraclePredicateTest extends TestCase {
 			};
 			assertTrue(String.valueOf(e), doc.html().contains("<title>fuzz v2 " + e.document() + "</title>"));
 			assertSame(e, RandomDocumentFuzzTest.individualExclusion(doc.html()));
-			assertFalse(String.valueOf(e), RandomDocumentFuzzTest.offPageCheckExcused(doc));
+			// A page-count exclusion of a standard sweep (13366722, 2026-10-13) may well be excused from the off-paper
+			// checks; only a fit document must not be, or fit would not have picked it.
+			if (e.profile().equals("fit-v1")) {
+				assertFalse(String.valueOf(e), RandomDocumentFuzzTest.offPageCheckExcused(doc));
+			}
 		}
 		assertNull(RandomDocumentFuzzTest.individualExclusion(RandomDocumentFuzzTest.generate(12_180_614, true, false, false).html()));
 		assertNull(RandomDocumentFuzzTest.individualExclusion(shrinkerDoc("T0")));
