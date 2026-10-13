@@ -1442,7 +1442,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// nowrap flex with a min-width:8em item: its inline size is 319 pt in Chrome, which draws T15 on off the
 			// paper too. The table estimate does not count flex items in cells.
 			new IndividualExclusion(12_668_387, "fit-v1", 96_200_447, "作者の溢れ: セルの中のflexで表の行内寸法が版面の2.5倍(Chromeも紙の外)",
-					"2026-10-09"));
+					"2026-10-09"),
+			// Triage §26: the same form on 120 pt horizontal paper: a nowrap flex of three min-width:8em items in a
+			// nested table cell widens the table to 263 pt; Chrome puts T5 at the same x (247.5 pt vs 248.5 pt).
+			new IndividualExclusion(12_976_259, "fit-v1", 1_103_300_724, "作者の溢れ: セルの中のflexの最小幅で表が紙の2倍超(Chromeも同じ位置)",
+					"2026-10-13"),
+			// Triage §26: on vertical-lr paper a vertical-rl float 91 pt wide holds a vertical-lr div with a
+			// display:table float 121 pt wide; Chrome also draws its only line off the paper's left (x=-23.6 pt).
+			new IndividualExclusion(12_903_866, "fit-v1", 621_085_571, "作者の溢れ: 同軸逆進行の入れ物より広い表のfloat(Chromeも紙の左の外)",
+					"2026-10-13"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
