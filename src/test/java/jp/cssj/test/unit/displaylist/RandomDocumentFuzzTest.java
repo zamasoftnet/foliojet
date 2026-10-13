@@ -1430,38 +1430,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	static final List<IndividualExclusion> INDIVIDUAL_EXCLUSIONS = List.of(
-			// Triage §23: column-reverse wrapping flex items with min-width:8em in a table cell inside an inline-block on
-			// vertical-lr paper 120 pt wide make the unbreakable box more than three sheets wide (Chrome too).
-			new IndividualExclusion(12_180_614, "fit-v1", 239_490_920, "割れない箱の中のcolumnのflexが紙3枚より広い",
-					"2026-10-08"),
+			// Records dropped on 2026-10-13 because the oracle now counts em sizes (maxExplicitEmSize) and skips drawings
+			// clipped away (clippedAway): 12180614, 12668387, 12976259, 13160957, 13009496, 13023880, 13297595,
+			// 13306464 (triage §23 to §29, §30).
 			// Triage §24: on 60 pt vertical-rl paper a table whose inline size is already two sheets in Chrome (120.7 pt),
 			// plus overlapping cells (a table model error, resolved differently by each UA) that put Copper's columns
 			// 19 pt further: its last cell's list lands 5 pt past the second sheet.
 			new IndividualExclusion(12_318_384, "fit-v1", 514_363_755, "紙2枚の行内寸法の表と重なるセルの列の割り当て差",
 					"2026-10-08"),
-			// Triage §25: on vertical-lr paper (130 pt of line length) a table in an inline-block, whose cell holds a
-			// nowrap flex with a min-width:8em item: its inline size is 319 pt in Chrome, which draws T15 on off the
-			// paper too. The table estimate does not count flex items in cells.
-			new IndividualExclusion(12_668_387, "fit-v1", 96_200_447, "作者の溢れ: セルの中のflexで表の行内寸法が版面の2.5倍(Chromeも紙の外)",
-					"2026-10-09"),
-			// Triage §26: the same form on 120 pt horizontal paper: a nowrap flex of three min-width:8em items in a
-			// nested table cell widens the table to 263 pt; Chrome puts T5 at the same x (247.5 pt vs 248.5 pt).
-			new IndividualExclusion(12_976_259, "fit-v1", 1_103_300_724, "作者の溢れ: セルの中のflexの最小幅で表が紙の2倍超(Chromeも同じ位置)",
-					"2026-10-13"),
 			// Triage §26: on vertical-lr paper a vertical-rl float 91 pt wide holds a vertical-lr div with a
 			// display:table float 121 pt wide; Chrome also draws its only line off the paper's left (x=-23.6 pt).
 			new IndividualExclusion(12_903_866, "fit-v1", 621_085_571, "作者の溢れ: 同軸逆進行の入れ物より広い表のfloat(Chromeも紙の左の外)",
-					"2026-10-13"),
-			// Triage §27: a nowrap row-reverse flex of min-width:8em items in a table cell on 120 pt horizontal paper;
-			// Chrome puts T3 at the same x (298.5 pt vs 299.7 pt).
-			new IndividualExclusion(13_160_957, "fit-v1", 1_583_435_166, "作者の溢れ: セルの中のflexの最小幅で表が紙の2倍超(Chromeも同じ位置)",
-					"2026-10-13"),
-			// Triage §27: on vertical-rl paper 150 pt tall the lines run on to y = 310 pt in Chrome too.
-			new IndividualExclusion(13_009_496, "fit-v1", 708_513_240, "作者の溢れ: 行の向きに紙の2倍超(Chromeも同じ)",
-					"2026-10-13"),
-			// Triage §27: on 60 pt vertical-lr paper a table with a min-width:8em flex in a cell and overlapping cells;
-			// Chrome's print shrinks it to about 0.67 to fit, Copper (which does not shrink) puts T19 at y = 137 pt.
-			new IndividualExclusion(13_023_880, "fit-v1", 1_877_220_961, "作者の溢れ: セルの中のflexと重なるセルの表(Chromeは縮めて刷る)",
 					"2026-10-13"),
 			// Triage §27, a known engine limitation (user decision 2026-10-13, not the author's overflow): a grid float
 			// of width: 109pt on vertical-lr paper whose content far outgrows it. The floor a float's continuation keeps
@@ -1479,15 +1458,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 19135: 1,690); Chrome's whole document is 2,378 pt long. A table in a column-count:3 multicol is squeezed
 			// into columns of a few pt (Chrome sizes the multicol from its content, 658 pt).
 			new IndividualExclusion(13_366_722, "standard", 13_366_722, "既知の制限: 狭い紙で入れ子の段組の表が細く組まれ頁数が暴走",
-					"2026-10-13"),
-			// Triage §29: an inline-block larger than the 120x400 vertical-rl paper is drawn on each of its three pages
-			// shifted and clipped to the paper (not marked artifact), so the copies outside the clip count as off the
-			// paper; every token shows on one of the pages, as in Chrome's three printed pages.
-			new IndividualExclusion(13_297_595, "fit-v1", 1_373_713_673, "判定の穴: 割れない箱の頁ごとの写しが版面で切られている",
-					"2026-10-13"),
-			// Triage §29: min-width:8em flex items in a table cell on 120 pt horizontal paper; Chrome puts T15 off the
-			// right too (265 pt vs 254.5 pt).
-			new IndividualExclusion(13_306_464, "fit-v1", 977_837_674, "作者の溢れ: セルの中のflexの最小幅で表が紙の2倍超(Chromeも紙の外)",
 					"2026-10-13"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
@@ -3085,6 +3055,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 				while (m.find()) {
 				final double x = Double.parseDouble(m.group(1)), y = Double.parseDouble(m.group(2));
 				final double width = Double.parseDouble(m.group(3)), height = Double.parseDouble(m.group(4));
+				if (clippedAway(raw, x, y, width, height)) {
+					continue;
+				}
 				// Count only overflow by an entire sheet (a 1 pt edge excess can be disregarded;
 				// strict checking there fluctuates with border rounding). Measure from the bounding rectangle's
 				// nearest edge, not just its origin. Seed 473636's input field
@@ -3407,6 +3380,51 @@ public class RandomDocumentFuzzTest extends TestCase {
 	/** Explicit sizes emitted by the generator (e.g., {@code width:120pt}). */
 	static final Pattern EXPLICIT_SIZE = Pattern.compile("(?:width|height):(\\d+)pt");
 
+	/** An em length in a size or flex declaration, alone or inside calc(): min-width:8em, width:calc(35% + 8em), flex:2 1 8em. */
+	private static final Pattern EXPLICIT_EM_SIZE = Pattern
+			.compile("(?:width|height|flex|flex-basis):[^;\"]*?(\\d+(?:\\.\\d+)?)em\\b");
+	private static final Pattern BODY_FONT_SIZE = Pattern.compile("body\\{margin:0;font:normal (\\d+)pt/");
+
+	/**
+	 * The largest em length the generator put in a size or flex declaration, in pt at the body's font size
+	 * (2026-10-13, triage §26 to §29). {@link #EXPLICIT_SIZE} reads only pt, so a min-width:8em that makes flex items,
+	 * and the table around them, wider than the paper counted as no explicit size at all, and the fit sweep stopped
+	 * on seven documents whose overflow Chrome shows the same way. Elements with a font-size of their own are spans
+	 * the generator gives no size, so the body's size is the size of every em counted here.
+	 */
+	static double maxExplicitEmSize(final String html) {
+		final Matcher font = BODY_FONT_SIZE.matcher(html);
+		if (!font.find()) {
+			return 0;
+		}
+		final double fontSize = Double.parseDouble(font.group(1));
+		double max = 0;
+		final Matcher em = EXPLICIT_EM_SIZE.matcher(html);
+		while (em.find()) {
+			max = Math.max(max, Double.parseDouble(em.group(1)) * fontSize);
+		}
+		return max;
+	}
+
+	private static final Pattern CLIP_IN_DUMP = Pattern
+			.compile(" clip=\\[(-?[\\d.]+) (-?[\\d.]+) (-?[\\d.]+) (-?[\\d.]+)\\]");
+
+	/**
+	 * Whether a drawing lies wholly outside its clip ({@code clip=[x y w h]} in the dump), so nothing of it shows
+	 * (2026-10-13, triage §29: an inline-block larger than the paper is drawn shifted on each of its pages and clipped
+	 * to the paper, without the artifact mark; the copies outside the clip are not off-paper placement).
+	 */
+	static boolean clippedAway(final String raw, final double x, final double y, final double width,
+			final double height) {
+		final Matcher clip = CLIP_IN_DUMP.matcher(raw);
+		if (!clip.find()) {
+			return false;
+		}
+		final double cx = Double.parseDouble(clip.group(1)), cy = Double.parseDouble(clip.group(2));
+		final double cw = Double.parseDouble(clip.group(3)), ch = Double.parseDouble(clip.group(4));
+		return x + width <= cx || x >= cx + cw || y + height <= cy || y >= cy + ch;
+	}
+
 	private static final Pattern EXPLICIT_WIDTH = Pattern.compile("width:(\\d+)pt");
 	private static final Pattern EXPLICIT_HEIGHT = Pattern.compile("height:(\\d+)pt");
 	private static final Pattern FONT_SIZE = Pattern.compile("(?:font-size:|font:normal )(\\d+)pt");
@@ -3623,6 +3641,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		while (em.find()) {
 			maxExplicit = Math.max(maxExplicit, Double.parseDouble(em.group(1)));
 		}
+		maxExplicit = Math.max(maxExplicit, maxExplicitEmSize(out));
 		return new Generated(out, tokens, reorderable, size[0], size[1], maxExplicit, isOversized(out, size),
 				isTinyPage(out, size));
 	}
