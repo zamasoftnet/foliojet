@@ -1503,6 +1503,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// paper a column-reverse flex holding floats, a table, a multicol and nested flexes is not split across pages;
 			// Copper draws its items up to x = -388 pt on page 1 of 2, Chrome prints them on six pages.
 			new IndividualExclusion(14_723_614, "fit-v1", 777_932_504, "既知の制限: 縦組みの逆順のcolumnのflexが頁で分かれず紙の左の外",
+					"2026-10-14"),
+			// Triage §37: nested vertical-rl / vertical-lr blocks on 300x150 vertical-lr paper put everything left of the
+			// paper; Chrome puts T0 to T5 at the same x (-164 to -72 pt).
+			new IndividualExclusion(15_008_242, "fit-v1", 2_008_379_845, "作者の溢れ: 逆進行の入れ子で全部が紙の左の外(Chromeも同じ位置)",
+					"2026-10-14"),
+			// Triage §37, a known engine limitation since 19124 (standing user decision 2026-10-13): on horizontal A4 a
+			// display:table float right holding a vertical-lr float of width: 139pt; Copper draws the text at x = 609 pt,
+			// right of the paper, Chrome at 472 pt.
+			new IndividualExclusion(15_025_776, "fit-v1", 1_180_588_683, "既知の制限: 縦組みの中身を包む右寄せの表のfloatが紙の右の外",
 					"2026-10-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
