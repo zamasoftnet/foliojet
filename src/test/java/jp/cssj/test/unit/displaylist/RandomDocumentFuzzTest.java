@@ -1481,7 +1481,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §33: nested tables with overlapping cells on 60 pt vertical-lr paper run to y = 155 pt; Chrome puts
 			// T19 at 153 pt too (its print shrinks the page to fit).
 			new IndividualExclusion(13_827_856, "fit-v1", 1_039_931_635, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の2倍超(Chromeも)",
-					"2026-10-13"));
+					"2026-10-13"),
+			// Triage §34, a known engine limitation (user decision 2026-10-14): on 60 pt vertical-lr paper a horizontal-tb
+			// float of three textareas takes 375 pt of the page axis and pushes the vertical-rl ruby paragraph after it to
+			// x = -334 pt; exposed by 3f90e52c (textareas at Chrome's size), Chrome keeps it on the paper (38.6 pt).
+			new IndividualExclusion(14_146_344, "fit-v1", 153_648_479, "既知の制限: 縦組みの紙の横組みのfloatが幅を取りすぎて後ろの段落が紙の外",
+					"2026-10-14"),
+			// Triage §34: nested tables with overlapping cells in a float on 60 pt vertical-lr paper run to y = 126 pt;
+			// Chrome runs them off the top instead (T0 at y = -134 pt).
+			new IndividualExclusion(14_187_565, "fit-v1", 1_481_119_028, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の2倍超(Chromeも)",
+					"2026-10-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
