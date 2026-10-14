@@ -1568,6 +1568,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §44: vertical-lr boxes of fixed widths inside vertical-rl paper of 200 pt put T0 right of the paper;
 			// Chrome's print shows nothing on the page either.
 			new IndividualExclusion(18_220_047, "fit-v1", 878_677_054, "作者の溢れ: 逆進行の入れ子で全部が紙の右の外(Chromeの印刷も紙に無い)",
+					"2026-10-14"),
+			// Triage §45, the same limitation as 13106246 (standing user decision 2026-10-13): a vertical-rl block holding
+			// a four-column multicol on vertical-lr A4; Copper draws T0 at x = -10.1 pt, Chrome at 1.4 pt.
+			new IndividualExclusion(18_343_725, "fit-v1", 1_416_311_513, "既知の制限: 逆進行の箱の中の段組が紙の左の外",
+					"2026-10-14"),
+			// Triage §45, the same limitation as 14723614 (standing user decision 2026-10-13): a row-reverse wrap-reverse
+			// flex on 60 pt vertical-lr paper holding tables with overlapping cells is not split across pages (T22 to T24 at
+			// x = 137 to 171 pt); Chrome's print splits it over four pages.
+			new IndividualExclusion(18_328_595, "fit-v1", 275_159_850, "既知の制限: 縦組みの逆順のflexが頁で分かれず紙の外",
 					"2026-10-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
