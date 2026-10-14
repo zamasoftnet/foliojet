@@ -1426,8 +1426,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * @param document generator seed of the document (the number in its title)
 	 * @param reason   why the overflow is the author's (part of the aggregation category name)
 	 * @param date     date of the decision
+	 * @param endless  the conversion does not end (an accepted endless page blowup): the abort by the watchdog is
+	 *                 excluded too (2026-10-14, triage §41)
 	 */
-	record IndividualExclusion(int seed, String profile, int document, String reason, String date) {
+	record IndividualExclusion(int seed, String profile, int document, String reason, String date, boolean endless) {
+		IndividualExclusion(final int seed, final String profile, final int document, final String reason,
+				final String date) {
+			this(seed, profile, document, reason, date, false);
+		}
 	}
 
 	static final List<IndividualExclusion> INDIVIDUAL_EXCLUSIONS = List.of(
@@ -1540,7 +1546,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §40: a column-reverse flex with nested tables on 60 pt vertical-rl paper runs along the line to
 			// y = 136.6 pt; Chrome to 134.5 pt.
 			new IndividualExclusion(16_106_999, "fit-v1", 1_400_198_075, "作者の溢れ: 入れ子の表が行の向きに紙の2倍超(Chromeも同じ)",
-					"2026-10-14"));
+					"2026-10-14"),
+			// Triage §41, a known engine limitation since 19124 (standing user decision 2026-10-13): on 60 pt vertical-lr
+			// paper a grid, floats wider than the paper and nested writing modes run to pages without end (10,000 pages in
+			// 20 s with the CLI); the watchdog aborts the conversion. The shared service stops it at its page limit.
+			new IndividualExclusion(16_716_403, "standard", 16_716_403, "既知の制限: 狭い紙で紙より広いfloatと書字方向の入れ子の頁が尽きない",
+					"2026-10-14", true));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
@@ -2519,6 +2530,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 				if (c instanceof PageCountLimitExceeded) {
 					throwIfIndividuallyExcluded(doc, c.getMessage() + " (" + html + ")");
 				}
+			}
+			// An accepted endless blowup is aborted by the watchdog before it reaches the page limit (2026-10-14, triage §41).
+			final IndividualExclusion endless = individualExclusion(doc.html());
+			if (endless != null && endless.endless()) {
+				throw new ExcludedIndividually("変換が終わらない (" + html + ") [個別: " + endless.reason() + "]", endless);
 			}
 			throw new AssertionError("変換が例外で終わった (" + html + ")", failure[0]);
 		}
