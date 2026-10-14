@@ -1577,7 +1577,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// flex on 60 pt vertical-lr paper holding tables with overlapping cells is not split across pages (T22 to T24 at
 			// x = 137 to 171 pt); Chrome's print splits it over four pages.
 			new IndividualExclusion(18_328_595, "fit-v1", 275_159_850, "既知の制限: 縦組みの逆順のflexが頁で分かれず紙の外",
-					"2026-10-14"));
+					"2026-10-14"),
+			// Triage §46, a known engine limitation since 19124 (standing user decision 2026-10-13): on 120x400 vertical-rl
+			// paper a table whose cell holds a column flex of min-width:8em items is not split across pages; T5 to T10 land
+			// left of the paper (19124: down to x = -285 pt, 19135: -301 pt), Chrome prints five pages on the paper.
+			new IndividualExclusion(18_501_356, "standard", 18_501_356, "既知の制限: 縦組みのセルにflexを持つ表が頁で分かれず紙の左の外",
+					"2026-10-15"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
