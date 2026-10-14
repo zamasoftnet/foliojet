@@ -1582,6 +1582,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// paper a table whose cell holds a column flex of min-width:8em items is not split across pages; T5 to T10 land
 			// left of the paper (19124: down to x = -285 pt, 19135: -301 pt), Chrome prints five pages on the paper.
 			new IndividualExclusion(18_501_356, "standard", 18_501_356, "既知の制限: 縦組みのセルにflexを持つ表が頁で分かれず紙の左の外",
+					"2026-10-15"),
+			// Triage §47, the same limitation as 14723614 (standing user decision 2026-10-13): a wrapping flex with
+			// horizontal-tb textareas on 60 pt vertical-lr paper is not split across pages (19124 already put T0 at x = 219
+			// pt; 3f90e52c's wider textareas push it to 355 pt). Chrome's print splits it over three pages.
+			new IndividualExclusion(18_587_157, "fit-v1", 1_171_799_893, "既知の制限: 縦組みのflexが頁で分かれず紙の外",
+					"2026-10-15"),
+			// Triage §47: nested tables with overlapping cells on 120 pt horizontal paper; Chrome puts T31 off the right
+			// too (363 pt).
+			new IndividualExclusion(18_602_425, "fit-v1", 1_393_080_278, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
 					"2026-10-15"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
