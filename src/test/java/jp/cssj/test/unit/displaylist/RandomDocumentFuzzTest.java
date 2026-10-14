@@ -1528,6 +1528,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §39: a row-reverse nowrap flex of min-width:8em items in a table cell on 120 pt horizontal paper;
 			// Chrome puts T14 off the right too (432 pt vs 434 pt), the order of the overflowing items differs.
 			new IndividualExclusion(15_649_570, "fit-v1", 370_268_067, "作者の溢れ: セルの中のrow-reverseのflexの最小幅で紙の外(Chromeも)",
+					"2026-10-14"),
+			// Triage §40, the same limitation as 13106246 (standing user decision 2026-10-13): a vertical-rl display:table
+			// holding a four-column multicol on vertical-lr paper; Copper draws T0 at x = -11.3 pt, Chrome at 0.3 pt.
+			new IndividualExclusion(16_012_558, "fit-v1", 1_100_888_380, "既知の制限: 逆進行の箱の中の段組が紙の左の外",
+					"2026-10-14"),
+			// Triage §40: a grid of max-content items with a multicol of floats and an image 206 pt wide on 300x150 paper runs
+			// to x = 1224 pt; Chrome runs it to 895 pt.
+			new IndividualExclusion(16_094_541, "fit-v1", 1_012_017_701, "作者の溢れ: max-contentのgridの中の段組が紙の4倍の幅(Chromeも紙の外)",
+					"2026-10-14"),
+			// Triage §40: a column-reverse flex with nested tables on 60 pt vertical-rl paper runs along the line to
+			// y = 136.6 pt; Chrome to 134.5 pt.
+			new IndividualExclusion(16_106_999, "fit-v1", 1_400_198_075, "作者の溢れ: 入れ子の表が行の向きに紙の2倍超(Chromeも同じ)",
 					"2026-10-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
