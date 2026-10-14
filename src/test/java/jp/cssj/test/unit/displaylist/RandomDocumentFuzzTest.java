@@ -1512,6 +1512,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// display:table float right holding a vertical-lr float of width: 139pt; Copper draws the text at x = 609 pt,
 			// right of the paper, Chrome at 472 pt.
 			new IndividualExclusion(15_025_776, "fit-v1", 1_180_588_683, "既知の制限: 縦組みの中身を包む右寄せの表のfloatが紙の右の外",
+					"2026-10-14"),
+			// Triage §38: nested vertical-rl / vertical-lr boxes of fixed widths on 200 pt vertical-lr paper put T0 and T1
+			// left of the paper; Chrome at the same x (-47.7 and -40.6 pt).
+			new IndividualExclusion(15_346_627, "fit-v1", 1_038_640_097, "作者の溢れ: 逆進行の入れ子で全部が紙の左の外(Chromeも同じ位置)",
 					"2026-10-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
