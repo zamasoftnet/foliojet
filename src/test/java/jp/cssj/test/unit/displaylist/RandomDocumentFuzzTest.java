@@ -1516,6 +1516,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §38: nested vertical-rl / vertical-lr boxes of fixed widths on 200 pt vertical-lr paper put T0 and T1
 			// left of the paper; Chrome at the same x (-47.7 and -40.6 pt).
 			new IndividualExclusion(15_346_627, "fit-v1", 1_038_640_097, "作者の溢れ: 逆進行の入れ子で全部が紙の左の外(Chromeも同じ位置)",
+					"2026-10-14"),
+			// Triage §39: a vertical-rl inline with a float and a horizontal-tb ruby on 200 pt vertical-lr paper; Chrome
+			// puts every token at the same x, left of the paper (-28.8 to -15.3 pt).
+			new IndividualExclusion(15_635_413, "fit-v1", 1_592_773_084, "作者の溢れ: 逆進行のinlineのfloatで全部が紙の左の外(Chromeも同じ位置)",
+					"2026-10-14"),
+			// Triage §39: nested tables with overlapping cells in a right float on 60 pt vertical-lr paper; Copper runs them
+			// down to y = 138 pt, Chrome up off the top (T0 at y = -139 pt).
+			new IndividualExclusion(15_548_850, "fit-v1", 863_850_901, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の2倍超(Chromeも)",
+					"2026-10-14"),
+			// Triage §39: a row-reverse nowrap flex of min-width:8em items in a table cell on 120 pt horizontal paper;
+			// Chrome puts T14 off the right too (432 pt vs 434 pt), the order of the overflowing items differs.
+			new IndividualExclusion(15_649_570, "fit-v1", 370_268_067, "作者の溢れ: セルの中のrow-reverseのflexの最小幅で紙の外(Chromeも)",
 					"2026-10-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
