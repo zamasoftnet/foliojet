@@ -1564,6 +1564,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §43: nested tables with overlapping cells on 120 pt horizontal paper; Chrome puts T25 off the right
 			// too (242.7 pt vs 249.2 pt).
 			new IndividualExclusion(17_864_092, "fit-v1", 1_824_490_871, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
+					"2026-10-14"),
+			// Triage §44: vertical-lr boxes of fixed widths inside vertical-rl paper of 200 pt put T0 right of the paper;
+			// Chrome's print shows nothing on the page either.
+			new IndividualExclusion(18_220_047, "fit-v1", 878_677_054, "作者の溢れ: 逆進行の入れ子で全部が紙の右の外(Chromeの印刷も紙に無い)",
 					"2026-10-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
