@@ -1551,7 +1551,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// paper a grid, floats wider than the paper and nested writing modes run to pages without end (10,000 pages in
 			// 20 s with the CLI); the watchdog aborts the conversion. The shared service stops it at its page limit.
 			new IndividualExclusion(16_716_403, "standard", 16_716_403, "既知の制限: 狭い紙で紙より広いfloatと書字方向の入れ子の頁が尽きない",
-					"2026-10-14", true));
+					"2026-10-14", true),
+			// Triage §42, a known engine limitation since 19124 (standing user decision 2026-10-13): on 120x400 vertical-rl
+			// paper a four-column multicol holding an avoid block with a table and floats is not split across pages; T13 to
+			// T19 land at x = -85 to -424 pt on page 1, Chrome prints three pages with everything on the paper.
+			new IndividualExclusion(17_536_390, "fit-v1", 1_104_732_103, "既知の制限: 縦組みの段組の中の割れない塊が頁で分かれず紙の左の外",
+					"2026-10-14"),
+			// Triage §42: nested tables with overlapping cells in an inline-block on 60 pt horizontal paper run down to
+			// y = 158.6 pt; Chrome to 155.6 pt.
+			new IndividualExclusion(17_682_694, "fit-v1", 944_256_338, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
+					"2026-10-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
