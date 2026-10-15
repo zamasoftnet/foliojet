@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?jp.cssj.property name="output.page-width" value="400pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>inline-block baseline with content in the other writing direction</title>
+<style type="text/css">
+@page { margin: 0 }
+body { margin: 0; font: normal 6pt/1.2 serif }
+p, div { margin: 0; padding: 0 }
+.ib { display: inline-block }
+.ref { display: inline-block; width: 10pt; height: 10pt }
+.v { writing-mode: vertical-rl; width: 30pt; height: 60pt }
+.h { writing-mode: horizontal-tb; width: 60pt; height: 30pt }
+</style>
+</head>
+<body>
+<!-- A box in the other writing direction gives no baseline: the inline-block takes the last line box in its own
+     direction, or puts its bottom margin edge on the baseline when there is none, as browsers do.
+     2026-10-16, fit sweep seed 20063206. -->
+<div style="padding-top: 80pt; height: 100pt">X<span id="ref" class="ref"></span>X<span id="x1"
+ class="ib">X</span>X<span id="v1" class="ib"><div class="v">X</div></span>X<span id="v3" class="ib"><div
+ class="v">X<br />X<br />X</div></span>X<span id="vw" class="ib"><div><div class="v">X</div></div></span>X<span
+ id="vp" class="ib" style="padding-bottom: 8pt"><div class="v">X</div></span>X<span id="pv" class="ib"><p>X</p><div
+ class="v">X</div></span>X<span id="pe" class="ib"><p>X</p><div style="height: 20pt"></div></span>X</div>
+<div style="writing-mode: vertical-rl; height: 150pt; padding-right: 80pt">X<span id="vref"
+ class="ref"></span>X<span id="y1" class="ib">X</span>X<span id="h1" class="ib"><div class="h">X</div></span>X<span
+ id="h3" class="ib"><div class="h">X<br />X<br />X</div></span>X<span id="ph" class="ib"><p>X</p><div
+ class="h">X</div></span>X</div>
+</body>
+</html>

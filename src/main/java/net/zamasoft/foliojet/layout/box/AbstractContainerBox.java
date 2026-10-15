@@ -405,7 +405,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 	 * inline-block on the line (CSS 2.1 §10.8.1: the baseline of its last line box).
 	 *
 	 * <p>
-	 * The container measures from its last flow, which is only right when the content fills the content box. A
+	 * The container measures to the end of its last flow, which is only right when the content fills the content box. A
 	 * fixed or minimum block size leaves space after the content, and a smaller one lets the content overflow;
 	 * either way the space between the end of the content and the end of the content box is added here, so the
 	 * baseline stays on the last line wherever that line is. Before 2026-10-07 a one-line inline-block with

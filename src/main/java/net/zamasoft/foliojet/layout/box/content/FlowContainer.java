@@ -524,41 +524,68 @@ public class FlowContainer implements Container {
 		return ascent;
 	}
 
+	/**
+	 * Returns the distance from the baseline of the last line box to the block-end outer edge, or
+	 * {@link LayoutUtils#NONE} when the content has no line box to take a baseline from.
+	 *
+	 * <p>
+	 * The baseline comes from the last flow that has one: a block in the other writing direction has no baseline on
+	 * this axis, and neither has a block that returns {@code NONE} (an empty one, or one holding only such blocks), so
+	 * these are skipped and the space they take after the line is added. Browsers do the same (CSS 2.1 §10.8.1: the
+	 * last line box in the normal flow). Until 2026-10-16 the last flow was taken as is, so a vertical box at the end of
+	 * a horizontal inline-block gave the horizontal distance from its last line to its left edge as the depth below the
+	 * baseline, and side-by-side cards of vertical text sat lower the fewer lines they had (sweep seed 20063206).
+	 * </p>
+	 */
 	public double getLastDescent() {
-		final Flow flow = this.getLastFlow();
-		if (flow == null) {
+		if (this.flows == null || this.flows.isEmpty()) {
 			return LayoutUtils.NONE;
 		}
-
-		double descent;
-		switch (flow.box.getType()) {
-		case BLOCK: {
-			final AbstractContainerBox containerBox = (AbstractContainerBox) flow.box;
-			final double lastDescent = containerBox.getLastDescent();
-			if (LayoutUtils.isNone(lastDescent)) {
-				return lastDescent;
+		final BlockParams params = this.box.getBlockParams();
+		final WritingMode writingMode = params.flow;
+		// Flex and grid items do not follow one another to the content end: the last one is taken as is
+		final boolean stacked = !(params instanceof net.zamasoft.foliojet.layout.box.params.FlexParams)
+				&& !(params instanceof net.zamasoft.foliojet.layout.box.params.GridParams);
+		final double contentSize = this.getContentSize();
+		double descent = LayoutUtils.NONE;
+		for (int i = this.flows.size() - 1; i >= 0 && LayoutUtils.isNone(descent); --i) {
+			final Flow flow = this.flows.get(i);
+			switch (flow.box.getType()) {
+			case BLOCK: {
+				final AbstractContainerBox containerBox = (AbstractContainerBox) flow.box;
+				if (stacked && containerBox.getBlockParams().flow.isVertical() != writingMode.isVertical()) {
+					continue;
+				}
+				descent = containerBox.getLastDescent();
 			}
-			descent = lastDescent;
-		}
-			break;
+				break;
 
-		case TEXT_BLOCK: {
-			final TextBlockBox textBox = (TextBlockBox) flow.box;
-			double lastDescent = textBox.getLastDescent();
-			descent = lastDescent;
-		}
-			break;
+			case TEXT_BLOCK: {
+				final TextBlockBox textBox = (TextBlockBox) flow.box;
+				descent = textBox.getLastDescent();
+			}
+				break;
 
-		case RESCUE:
-		case REPLACED:
-		case TABLE:
-			descent = 0;
-			break;
-		default:
-			throw new IllegalStateException();
+			case RESCUE:
+			case REPLACED:
+			case TABLE:
+				descent = 0;
+				break;
+			default:
+				throw new IllegalStateException();
+			}
+			if (!stacked) {
+				break;
+			}
+			if (!LayoutUtils.isNone(descent)) {
+				descent += contentSize - (flow.pageAxis + flow.box.getPageExtent(writingMode));
+			}
+		}
+		if (LayoutUtils.isNone(descent)) {
+			return descent;
 		}
 
-		switch (this.box.getBlockParams().flow) {
+		switch (writingMode) {
 		case WritingMode.TB:
 			// Horizontal writing
 			descent += this.box.getFrame().getFrameBottom();
