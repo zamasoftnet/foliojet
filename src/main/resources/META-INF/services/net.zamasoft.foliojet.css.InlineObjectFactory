@@ -1,3 +1,4 @@
 net.zamasoft.foliojet.objects.svg.SVGInlineObjectFactory
 net.zamasoft.foliojet.objects.barcode.BarcodeInlineObjectFactory
 net.zamasoft.foliojet.objects.mathml.MathMLInlineObjectFactory
+net.zamasoft.foliojet.objects.media.MediaInlineObjectFactory

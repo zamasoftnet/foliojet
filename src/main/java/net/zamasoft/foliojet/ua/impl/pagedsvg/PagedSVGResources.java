@@ -21,7 +21,7 @@ import net.zamasoft.foliojet.ua.props.PagedSvgFontScope;
 import net.zamasoft.foliojet.ua.props.PagedSvgImageCompression;
 import net.zamasoft.foliojet.ua.props.PagedSvgResourceMode;
 import net.zamasoft.pdfg2d.font.FontSource;
-import net.zamasoft.pdfg2d.font.ShapedFont;
+import net.zamasoft.pdfg2d.font.ShapedFont;
 import net.zamasoft.foliojet.ua.JsonText;
 
 /** Per-book resource registry and manifest/page JSON serializer. */
@@ -59,6 +59,31 @@ final class PagedSVGResources {
 	}
 
 	record LinkData(String href, String contents, double minX, double minY, double maxX, double maxY) {
+	}
+
+	/**
+	 * One audio or video file (2026-10-15, TECH-20261015-005): emitted under {@code assets/media/} by content, or
+	 * referenced at its http(s) source with {@code resources=source}.
+	 */
+	record MediaAsset(String uri, String sha256, String mediaType, long bytes, boolean omitted, String baseUri,
+			String source) {
+		/** Reference written in the page JSON, relative to the page as image references in the page SVG are. */
+		String href() {
+			return this.source != null ? this.source : this.baseUri + this.uri;
+		}
+	}
+
+	/**
+	 * One candidate of a playable element: the file and the type the page data gives the reader. The type is the
+	 * {@code type} attribute as written, codecs included, so that the browser can tell which candidate it plays
+	 * (codex review 2026-10-15); without one, the file's type.
+	 */
+	record MediaSourceRef(MediaAsset asset, String type) {
+	}
+
+	/** A playable element on a page: its sources in order and the content box in page units. */
+	record MediaData(String tag, List<MediaSourceRef> sources, boolean controls, boolean autoplay, boolean loop,
+			boolean muted, boolean poster, String label, double minX, double minY, double maxX, double maxY) {
 	}
 
 	record FragmentData(String id, int page, double x, double y) {
@@ -106,6 +131,7 @@ final class PagedSVGResources {
 		final Map<String, String> fonts = new LinkedHashMap<>();
 		final List<LinkData> links = new ArrayList<>();
 		final List<FragmentData> fragments = new ArrayList<>();
+		final List<MediaData> media = new ArrayList<>();
 
 		PageData(final int number, final double width, final double height) {
 			this.number = number;
@@ -176,7 +202,42 @@ final class PagedSVGResources {
 				json.append(",\"x\":").append(JsonText.number(fragment.x)).append(",\"y\":")
 						.append(JsonText.number(fragment.y)).append('}');
 			}
-			json.append("\n  ]\n}\n");
+			json.append("\n  ]");
+			if (!this.media.isEmpty()) {
+				json.append(",\n  \"media\":[");
+				for (int i = 0; i < this.media.size(); ++i) {
+					final MediaData media = this.media.get(i);
+					if (i != 0) {
+						json.append(',');
+					}
+					json.append("\n    {\"tag\":");
+					json.append(JsonText.quoted(media.tag));
+					json.append(",\"sources\":[");
+					for (int j = 0; j < media.sources.size(); ++j) {
+						final MediaSourceRef source = media.sources.get(j);
+						if (j != 0) {
+							json.append(',');
+						}
+						json.append("{\"src\":");
+						json.append(JsonText.quoted(source.asset.href()));
+						json.append(",\"type\":");
+						json.append(JsonText.quoted(source.type));
+						json.append('}');
+					}
+					json.append("],\"controls\":").append(media.controls).append(",\"autoplay\":").append(media.autoplay)
+							.append(",\"loop\":").append(media.loop).append(",\"muted\":").append(media.muted)
+							.append(",\"poster\":").append(media.poster);
+					if (media.label != null) {
+						json.append(",\"label\":");
+						json.append(JsonText.quoted(media.label));
+					}
+					json.append(",\"bounds\":[").append(JsonText.number(media.minX)).append(',')
+							.append(JsonText.number(media.minY)).append(',').append(JsonText.number(media.maxX)).append(',')
+							.append(JsonText.number(media.maxY)).append("]}");
+				}
+				json.append("\n  ]");
+			}
+			json.append("\n}\n");
 			return json.toString().getBytes(StandardCharsets.UTF_8);
 		}
 	}
@@ -683,6 +744,187 @@ final class PagedSVGResources {
 				bounds.getMaxY()));
 	}
 
+	// ---- Audio and video (2026-10-15, TECH-20261015-005)
+
+	/** Writes one result as a stream (media files can be large). Set by PagedSVGUserAgent; null emits no media. */
+	@FunctionalInterface
+	interface StreamEmitter {
+		void emit(String uri, String mimeType, PagedSVGUserAgent.ContentWriter content) throws IOException;
+	}
+
+	private StreamEmitter streamEmitter;
+
+	void setStreamEmitter(final StreamEmitter streamEmitter) {
+		this.streamEmitter = streamEmitter;
+	}
+
+	/** Media files by content hash, and the outcome of each source address (null for one that failed). */
+	private final Map<String, MediaAsset> media = new LinkedHashMap<>();
+	private final Map<String, MediaAsset> mediaBySource = new java.util.HashMap<>();
+
+	/**
+	 * Adds a playable element to the page: its readable sources in order and its place. Sources go through the user
+	 * agent's resolver, so the input ACL applies even to those referenced at their address.
+	 */
+	void addMedia(final net.zamasoft.foliojet.ua.UserAgent ua, final PageData page, final java.awt.Shape shape,
+			final net.zamasoft.foliojet.objects.media.MediaImage media) {
+		if (this.streamEmitter == null) {
+			return;
+		}
+		final List<MediaSourceRef> sources = new ArrayList<>();
+		for (final net.zamasoft.foliojet.objects.media.MediaImage.Source source : media.sources) {
+			final MediaAsset asset = this.mediaAsset(ua, source.uri(), source.type());
+			if (asset != null) {
+				final String type = source.type() != null && !source.type().isBlank() ? source.type().trim()
+						: asset.mediaType;
+				sources.add(new MediaSourceRef(asset, type));
+			}
+		}
+		if (sources.isEmpty()) {
+			return;
+		}
+		final Rectangle2D bounds = shape.getBounds2D();
+		page.media.add(new MediaData(media.tag, sources, media.controls, media.autoplay, media.loop, media.muted,
+				media.getPoster() != null, media.label, bounds.getMinX(), bounds.getMinY(), bounds.getMaxX(),
+				bounds.getMaxY()));
+	}
+
+	/**
+	 * The file of one source, or null if it cannot be read (warned once per address). Only reading fails this way:
+	 * a failure to write the result or an abort ends the conversion as for any other result (codex review).
+	 */
+	private MediaAsset mediaAsset(final net.zamasoft.foliojet.ua.UserAgent ua, final URI uri, final String type) {
+		final String key = uri.toString();
+		if (this.mediaBySource.containsKey(key)) {
+			return this.mediaBySource.get(key);
+		}
+		MediaAsset asset = null;
+		try {
+			asset = this.loadMedia(ua, uri, type);
+		} catch (final IOException e) {
+			ua.message(net.zamasoft.foliojet.message.MessageCodes.WARN_MISSING_MEDIA, withoutUserInfo(uri),
+					String.valueOf(e.getMessage()));
+		}
+		this.mediaBySource.put(key, asset);
+		return asset;
+	}
+
+	private MediaAsset loadMedia(final net.zamasoft.foliojet.ua.UserAgent ua, final URI uri, final String type)
+			throws IOException {
+		final net.zamasoft.zstream.resolver.Source source = ua.resolve(uri);
+		try {
+			final String mediaType = mediaType(type, source.getMimeType(), uri);
+			final String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(java.util.Locale.ROOT);
+			if (this.resourceMode == PagedSvgResourceMode.SOURCE && (scheme.equals("http") || scheme.equals("https"))) {
+				// The reader fetches it from where it is; the resolver has checked the address against the ACL.
+				return new MediaAsset(key(uri), null, mediaType, -1, true, this.baseUri, uri.toString());
+			}
+			// Hash while copying to a temporary file: the name needs the hash, and the file may be large. The copy keeps
+			// to input.resource-size-limit by itself: a file inside an EPUB comes through the book's own resolver,
+			// past the byte budget of external resources (codex review).
+			final long limit = net.zamasoft.foliojet.ua.props.UAProps.INPUT_RESOURCE_SIZE_LIMIT.getLong(ua);
+			final java.nio.file.Path temp = java.nio.file.Files.createTempFile("copper-media-", ".tmp");
+			try {
+				final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+				long bytes = 0;
+				try (java.io.InputStream in = source.getInputStream();
+						java.io.OutputStream out = new java.security.DigestOutputStream(
+								java.nio.file.Files.newOutputStream(temp), digest)) {
+					final byte[] buffer = new byte[64 * 1024];
+					for (int n; (n = in.read(buffer)) != -1;) {
+						bytes += n;
+						if (limit >= 0 && bytes > limit) {
+							throw new IOException("too-large > " + limit);
+						}
+						out.write(buffer, 0, n);
+						ua.checkAbort(jp.cssj.cti2.CTISession.ABORT_NORMAL);
+					}
+				}
+				final String hash = HexFormat.of().formatHex(digest.digest());
+				MediaAsset asset = this.media.get(hash);
+				if (asset == null) {
+					final boolean omit = this.resourceMode == PagedSvgResourceMode.OMIT;
+					asset = new MediaAsset("assets/media/" + hash + '.' + extension(mediaType, uri), hash, mediaType,
+							bytes, omit, this.baseUri, null);
+					if (!omit) {
+						try {
+							this.streamEmitter.emit(asset.uri, mediaType, out -> java.nio.file.Files.copy(temp, out));
+						} catch (final IOException e) {
+							// Writing the result failed: not a missing file.
+							throw new java.io.UncheckedIOException(e);
+						}
+					}
+					this.media.put(hash, asset);
+				}
+				return asset;
+			} catch (final NoSuchAlgorithmException e) {
+				throw new IllegalStateException(e);
+			} finally {
+				java.nio.file.Files.deleteIfExists(temp);
+			}
+		} finally {
+			ua.release(source);
+		}
+	}
+
+	private static String key(final URI uri) {
+		return uri.toString();
+	}
+
+	private static String withoutUserInfo(final URI uri) {
+		if (uri.getRawUserInfo() == null) {
+			return uri.toString();
+		}
+		try {
+			return new URI(uri.getScheme(), null, uri.getHost(), uri.getPort(), uri.getPath(), uri.getQuery(),
+					uri.getFragment()).toString();
+		} catch (final java.net.URISyntaxException e) {
+			return "";
+		}
+	}
+
+	private static final Map<String, String> MEDIA_TYPES = Map.ofEntries(Map.entry("mp3", "audio/mpeg"),
+			Map.entry("m4a", "audio/mp4"), Map.entry("aac", "audio/aac"), Map.entry("wav", "audio/wav"),
+			Map.entry("oga", "audio/ogg"), Map.entry("ogg", "audio/ogg"), Map.entry("opus", "audio/ogg"),
+			Map.entry("flac", "audio/flac"), Map.entry("mp4", "video/mp4"), Map.entry("m4v", "video/mp4"),
+			Map.entry("webm", "video/webm"), Map.entry("ogv", "video/ogg"), Map.entry("mov", "video/quicktime"));
+
+	/** The {@code type} attribute without parameters, else the source's type, else by the file extension. */
+	static String mediaType(final String type, final String sourceType, final URI uri) {
+		if (type != null && !type.isBlank()) {
+			return type.split(";", 2)[0].trim().toLowerCase(java.util.Locale.ROOT);
+		}
+		if (sourceType != null && !sourceType.isBlank() && !sourceType.startsWith("application/octet-stream")
+				&& !sourceType.startsWith("text/")) {
+			return sourceType.split(";", 2)[0].trim().toLowerCase(java.util.Locale.ROOT);
+		}
+		final String byName = MEDIA_TYPES.get(pathExtension(uri));
+		return byName != null ? byName : "application/octet-stream";
+	}
+
+	private static String extension(final String mediaType, final URI uri) {
+		final String byPath = pathExtension(uri);
+		if (MEDIA_TYPES.containsKey(byPath)) {
+			return byPath;
+		}
+		for (final Map.Entry<String, String> entry : new java.util.TreeMap<>(MEDIA_TYPES).entrySet()) {
+			if (entry.getValue().equals(mediaType)) {
+				return entry.getKey();
+			}
+		}
+		return "bin";
+	}
+
+	private static String pathExtension(final URI uri) {
+		final String path = uri.getPath() != null ? uri.getPath() : uri.getSchemeSpecificPart();
+		if (path == null) {
+			return "";
+		}
+		final int slash = path.lastIndexOf('/');
+		final int dot = path.lastIndexOf('.');
+		return dot > slash && dot + 1 < path.length() ? path.substring(dot + 1).toLowerCase(java.util.Locale.ROOT) : "";
+	}
+
 	void addFragment(final PageData page, final String id, final Point2D location) {
 		final FragmentData fragment = new FragmentData(id, page.number, location.getX(), location.getY());
 		page.fragments.add(fragment);
@@ -796,7 +1038,41 @@ final class PagedSVGResources {
 			}
 			json.append('}');
 		}
-		json.append("\n  ],\n  \"anchors\":{");
+		json.append("\n  ],");
+		if (!this.media.isEmpty() || this.mediaBySource.values().stream().anyMatch(m -> m != null && m.source != null)) {
+			// Audio and video files (2026-10-15), as images; a source reference has no hash.
+			json.append("\n  \"media\":[");
+			index = 0;
+			final java.util.Set<MediaAsset> listed = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+			for (final MediaAsset media : this.mediaBySource.values()) {
+				if (media == null || !listed.add(media)) {
+					continue;
+				}
+				if (index++ != 0) {
+					json.append(',');
+				}
+				json.append("\n    {\"uri\":");
+				json.append(JsonText.quoted(media.uri));
+				if (media.sha256 != null) {
+					json.append(",\"sha256\":\"").append(media.sha256).append('"');
+				}
+				json.append(",\"mediaType\":");
+				json.append(JsonText.quoted(media.mediaType));
+				if (media.bytes >= 0) {
+					json.append(",\"bytes\":").append(media.bytes);
+				}
+				if (media.omitted) {
+					json.append(",\"omitted\":true");
+				}
+				if (media.source != null) {
+					json.append(",\"source\":");
+					json.append(JsonText.quoted(media.source));
+				}
+				json.append('}');
+			}
+			json.append("\n  ],");
+		}
+		json.append("\n  \"anchors\":{");
 		index = 0;
 		for (final FragmentData fragment : this.fragments.values()) {
 			if (index++ != 0) {

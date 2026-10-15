@@ -84,6 +84,11 @@ public interface MessageCodes {
 	public static final short WARN_OPERATOR_LIMIT = 0x2825;
 	/** Warning: a fixed-layout EPUB item has no viewport; it is laid out on the default page (2026-10-08). */
 	public static final short WARN_EPUB_NO_VIEWPORT = 0x2826;
+	/**
+	 * Warning that an audio or video file cannot be read (2026-10-15). Arguments: {0} = URI without userinfo,
+	 * {1} = reason. The element keeps its place and poster.
+	 */
+	public static final short WARN_MISSING_MEDIA = 0x2827;
 	public static final short WARN_PLUGIN = 0x28FF;
 
 	public static final short ERROR_BAD_XSLT_STYLESHEET = 0x3801;

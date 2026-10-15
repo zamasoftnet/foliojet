@@ -42,8 +42,17 @@ details:not([open]) > *:not(summary) {
 	display: none !important;
 }
 
-audio, canvas {
+canvas {
 	display: inline;
+}
+
+/* A replaced element since 2026-10-15 (MediaInlineObject); without controls it is not rendered, as in HTML. */
+audio {
+	display: inline-block;
+}
+
+audio:not([controls]) {
+	display: none;
 }
 
 data, mark, meter, output, picture, progress, time, bdi {

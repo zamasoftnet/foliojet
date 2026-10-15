@@ -639,17 +639,28 @@ pages/0002.json
 assets/fonts/font-0001.woff2
 assets/images/<SHA-256>.png
 assets/images/<SHA-256>.jpg
+assets/media/<SHA-256>.mp3
 ```
 
 `manifest.json` contains the total page count, binding direction (`binding`), page progression direction (`pageProgressionDirection`:
 `ltr`/`rtl`; if the root `writing-mode` is `vertical-rl`, this is `rtl`. Readers should arrange pages using this value, not the binding direction——
 `binding` is `single` if <span class="ioprop">output.print-mode</span> is not set. The same applies to an EPUB's `index.json` and its `binding`: even when `page-progression-direction` is `ltr`, it can be `single`), document metadata, a hierarchical table of contents, document-wide
 anchors, page dimensions, and the URIs and SHA-256 hashes of each page and shared resource. Page JSON contains
-searchable text and positions, links, anchors within the page, and mappings between original characters and subset glyphs.
+searchable text and positions, links, anchors within the page, mappings between original characters and subset glyphs, and <span class="since">4.0.0</span>audio and video (`media`).
 Each SVG references shared resources by relative URI, so the receiver must preserve the result URIs' directory structure
 when saving them. Identical images are deduplicated by their content's SHA-256 hash, and font subsets are also
 shared within the document (EPUBs use an independent bundle for each spine item——
 <a href="#style-output-paged-svg-epub" class="pageref">EPUB bundles for each item</a>).
+
+<span class="since">4.0.0</span>`<audio>` and `<video>` put each element's place and candidate files in the page JSON's `media`
+(`{"tag":"audio","sources":[{"src":"../assets/media/<SHA-256>.mp3","type":"audio/mpeg"}],"controls":true,
+"autoplay":false,"loop":false,"muted":false,"poster":false,"label":"…","bounds":[left,top,right,bottom]}`).
+`bounds` is the content box (inside border and padding), in the same page coordinates as a link's `bounds`. `src` is a URI
+relative to the page, and `type` is the `<source>` element's `type` attribute as written (codecs included). The files go
+under `assets/media/` named by the SHA-256 of their content and are listed in `manifest.json`'s `media`. A file that cannot be
+read is left out with a warning (2827), and so is one larger than <span class="ioprop">input.resource-size-limit</span>.
+The page SVG draws only the element's background, border and `poster`, so a reader plays them by laying its own controls over
+`bounds`. The page JSON and `manifest.json` of a document without audio or video have no `media` key at all.
 
 If you convert web content to SVG and display it on the same website, <span class="ioprop">output.paged-svg.resources</span>=`source`
 lets you reference web images at their original URLs without copying them (the manifest's `images[].source`).

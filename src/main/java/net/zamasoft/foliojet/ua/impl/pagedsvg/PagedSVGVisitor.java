@@ -50,6 +50,14 @@ final class PagedSVGVisitor extends AbstractVisitor {
 	}
 
 	@Override
+	protected void addMedia(Shape shape, final net.zamasoft.foliojet.objects.media.MediaImage media) {
+		if (this.pageTransform != null) {
+			shape = this.pageTransform.createTransformedShape(shape);
+		}
+		this.resources.addMedia(this.ua, this.page, shape, media);
+	}
+
+	@Override
 	protected void startBookmark(final String title, final Point2D location) {
 		this.resources.startOutline(this.page, title, this.pagePoint(location));
 	}

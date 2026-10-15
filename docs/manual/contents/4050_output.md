@@ -639,17 +639,28 @@ pages/0002.json
 assets/fonts/font-0001.woff2
 assets/images/<SHA-256>.png
 assets/images/<SHA-256>.jpg
+assets/media/<SHA-256>.mp3
 ```
 
 `manifest.json`には総ページ数、綴じ方向(`binding`)、頁の進む向き(`pageProgressionDirection`:
 `ltr`/`rtl`。根の`writing-mode`が`vertical-rl`なら`rtl`。読み器は綴じではなくこちらで頁を並べてください——
 `binding`は<span class="ioprop">output.print-mode</span>が無いと`single`です。EPUBの`index.json`の`binding`も同じで、`page-progression-direction`が`ltr`でも`single`になり得ます)、文書メタデータ、階層付き目次、文書全体の
 アンカー、ページ寸法、各ページ・共有資源のURIとSHA-256が入ります。ページJSONには
-検索用文字列と位置、リンク、ページ内アンカー、元文字とサブセット字形の対応が入ります。
+検索用文字列と位置、リンク、ページ内アンカー、元文字とサブセット字形の対応、<span class="since">4.0.0</span>音声・動画(`media`)が入ります。
 各SVGは共有資源を相対URIで参照するため、受信側は結果URIのディレクトリ構造を保って
 保存してください。同じ画像は内容のSHA-256で重複排除され、フォントサブセットも
 文書内で共有されます(EPUBはspine項目ごとに独立したバンドルになります——
 <a href="#style-output-paged-svg-epub" class="pageref">EPUBは項目ごとのバンドル</a>)。
+
+<span class="since">4.0.0</span>`<audio>`・`<video>`は、ページJSONの`media`に要素ごとの場所と候補のファイルを出します
+(`{"tag":"audio","sources":[{"src":"../assets/media/<SHA-256>.mp3","type":"audio/mpeg"}],"controls":true,
+"autoplay":false,"loop":false,"muted":false,"poster":false,"label":"…","bounds":[左,上,右,下]}`)。
+`bounds`は内容の箱(枠と余白の内側)で、リンクの`bounds`と同じページの座標です。`src`はページから見た相対URIで、
+`type`は`<source>`の`type`属性のまま(codecsも含む)です。ファイルは内容のSHA-256の名前で`assets/media/`に出し、
+`manifest.json`の`media`に一覧します。読み込めないファイルは警告(2827)を出して省き、
+<span class="ioprop">input.resource-size-limit</span>を超えるファイルも省きます。ページSVGには要素の背景・枠と
+`poster`だけが描かれるので、再生は読み器が`bounds`の上に部品を重ねて行います。音声・動画が無い文書のページJSONと
+`manifest.json`には`media`の鍵自体がありません。
 
 ウェブの内容をSVGにして同じウェブで見せるなら、<span class="ioprop">output.paged-svg.resources</span>=`source`で
 ウェブ上の画像を複写せず取得元のURLをそのまま参照できます(manifestの`images[].source`)。

@@ -1335,14 +1335,10 @@ public class HTMLStyle {
 			// <UL type> was moved to html-ua.css (2026-08-03; testing the first character
 			// is equivalent to using a prefix-matching attribute selector).
 			break;
-		case HTMLCodes.VIDEO: {
-			// <VIDEO width height poster> (display:inline-block moved to html-ua.css).
+		case HTMLCodes.VIDEO:
+			// <VIDEO width height> (display:inline-block is in html-ua.css). The poster is read by MediaInlineObject
+			// since video became a replaced element (2026-10-15).
 			HTMLStyleUtils.applyWidthHeight("VIDEO", style);
-			String poster = ce.atts.getValue("poster");
-			if (poster != null) {
-				HTMLStyle.applyImage(style, poster, null, "");
-			}
-		}
 			break;
 		// WBR: no attribute-driven logic or defaults, so no Java case is needed.
 		case HTMLCodes.XMP: {

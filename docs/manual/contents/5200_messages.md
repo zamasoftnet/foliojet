@@ -56,6 +56,7 @@
 | 2824<span class="since">4.0.0</span> | 出力形式(string) | <span class="ioprop">output.image.transparent</span>が指定されたが、その出力形式は透明を保てないため背景を白のまま描いた。PNG・GIF・TIFFは保てる。JPEG・BMP・WBMPは保てない。文書ごとに1回。 |
 | 2825<span class="since">4.0.0</span> | プロパティ名(string)<br />上限(string)<br />指定値(string) | 運用者の上限ファイル(<tt>jp.cssj.driver.limits</tt>)の値より緩い指定を受けた。指定は使わず、上限の値で変換する。 |
 | 2826<span class="since">4.0.0</span> | 項目のパス(string) | 固定レイアウト(pre-paginated)のEPUBの項目に<tt>&lt;meta name="viewport"&gt;</tt>がない。既定の頁の大きさで組むので、頁の画像が何頁にも切れることがある。変換に1回だけ出る。 |
+| 2827<span class="since">4.0.0</span> | 音声・動画のURI(string)<br />理由(string) | <tt>&lt;audio&gt;</tt>・<tt>&lt;video&gt;</tt>の音声・動画のファイルを読み込めない(参照を解決できない、取得に失敗した、アクセスが許可されていない)。要素の場所とポスターはそのまま組み、ページ分割SVGの頁のデータにはそのファイルを出さない。URIの認証情報は除いて出す。 |
 
 **エラー**
 

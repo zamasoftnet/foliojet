@@ -110,6 +110,13 @@ public abstract class AbstractVisitor implements Visitor {
 	private final java.util.Set<StructureElement> emittedControls = java.util.Collections
 			.newSetFromMap(new java.util.IdentityHashMap<>());
 
+	/**
+	 * Media already emitted on the current page, by the immutable image a recorded layout shares between passes
+	 * (the element of a replayed box is another StructureToken).
+	 */
+	private final java.util.Set<net.zamasoft.foliojet.objects.media.MediaImage> emittedMedia = java.util.Collections
+			.newSetFromMap(new java.util.IdentityHashMap<>());
+
 	protected AbstractVisitor(UserAgent ua) {
 		this.ua = ua;
 		this.setProcessPageReference(UAProps.PROCESSING_PAGE_REFERENCES.getBoolean(this.ua));
@@ -185,6 +192,19 @@ public abstract class AbstractVisitor implements Visitor {
 	public void nextPage() {
 		this.counters = null;
 		this.emittedControls.clear();
+		this.emittedMedia.clear();
+	}
+
+	/**
+	 * Emits an {@code <audio>} or {@code <video>} element's place and sources for outputs that can play it
+	 * (2026-10-15, TECH-20261015-005). The default implementation does nothing: the poster, if any, is drawn as an
+	 * image in every output.
+	 *
+	 * @param rect  the element's content box in page coordinates
+	 * @param media the element's sources and attributes
+	 */
+	protected void addMedia(Shape rect, net.zamasoft.foliojet.objects.media.MediaImage media) {
+		// no-op by default
 	}
 
 	public void setBookmarks(boolean bookmarks) {
@@ -465,6 +485,19 @@ public abstract class AbstractVisitor implements Visitor {
 					}
 				}
 			}
+		}
+
+		// Audio and video, apart from hyperlinks (codex review 2026-10-15): once per page, over the content box (the
+		// poster and the box's frame are drawn by the replaced box itself).
+		if (type == BoxType.REPLACED && box instanceof net.zamasoft.foliojet.layout.box.AbstractReplacedBox replaced
+				&& ((ReplacedParams) box.getParams()).image instanceof net.zamasoft.foliojet.objects.media.MediaImage media
+				&& !media.sources.isEmpty() && this.emittedMedia.add(media)) {
+			Shape s = new Rectangle2D.Double(x + replaced.getFrame().getFrameLeft(),
+					y + replaced.getFrame().getFrameTop(), replaced.getInnerWidth(), replaced.getInnerHeight());
+			if (!transform.isIdentity()) {
+				s = transform.createTransformedShape(s);
+			}
+			this.addMedia(s, media);
 		}
 
 		// Bidi visual fragments retain each fragment's link rectangle, while semantic side effects

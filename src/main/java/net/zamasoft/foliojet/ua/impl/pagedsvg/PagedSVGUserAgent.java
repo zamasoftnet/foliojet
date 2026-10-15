@@ -219,6 +219,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		this.page = 0;
 		this.metadata.clear();
 		this.resources = new PagedSVGResources(this::emit, this.getUAContext().getPagedSvgFontCarry());
+		this.resources.setStreamEmitter(this::emit);
 		if (this.unit != null && this.unit.uri() != null) {
 			// Carryover keys are per item. Even with the same font, glyph order differs between chapters.
 			this.resources.setDocument(this.unit.uri().toString());

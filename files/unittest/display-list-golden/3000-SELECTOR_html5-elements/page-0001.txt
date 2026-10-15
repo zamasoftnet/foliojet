@@ -13,5 +13,6 @@ drawer z=0
   x=85.00 y=107.20 Text["after" asc=9.00 desc=3.00]
   x=0.00 y=130.40 Text["after" asc=9.00 desc=3.00]
   x=30.00 y=130.40 Text["template" asc=9.00 desc=3.00]
-  x=0.00 y=179.80 Text["after" asc=9.00 desc=3.00]
-  x=30.00 y=179.80 Text["video" asc=9.00 desc=3.00]
+  x=0.00 y=153.60 AbsoluteRectFrame[w=225.00 h=112.50]
+  x=0.00 y=280.30 Text["after" asc=9.00 desc=3.00]
+  x=30.00 y=280.30 Text["video" asc=9.00 desc=3.00]

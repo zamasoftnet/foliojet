@@ -56,6 +56,7 @@
 | 2824<span class="since">4.0.0</span> | Output format(string) | <span class="ioprop">output.image.transparent</span> was specified, but the output format cannot preserve transparency, so the background remains white. PNG, GIF, and TIFF can preserve transparency; JPEG, BMP, and WBMP cannot. Reported once per document. |
 | 2825<span class="since">4.0.0</span> | Property name(string)<br />Limit(string)<br />Requested value(string) | A requested setting was less restrictive than the value in the operator's limits file (<tt>jp.cssj.driver.limits</tt>). Conversion uses the limit value instead of the requested value. |
 | 2826<span class="since">4.0.0</span> | Item path(string) | A fixed-layout (pre-paginated) EPUB item has no <tt>&lt;meta name="viewport"&gt;</tt>. It is laid out on the default page size, so a page image may be cut across several pages. Reported once per conversion. |
+| 2827<span class="since">4.0.0</span> | Audio or video URI(string)<br />Reason(string) | The audio or video file of an <tt>&lt;audio&gt;</tt> or <tt>&lt;video&gt;</tt> cannot be read (its reference cannot be resolved, fetching it failed, or access is not allowed). The element keeps its place and poster, and the paged SVG page data does not list the file. User information is removed from the URI. |
 
 **Errors**
 

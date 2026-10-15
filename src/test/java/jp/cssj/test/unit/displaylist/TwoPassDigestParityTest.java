@@ -943,6 +943,14 @@ public final class TwoPassDigestParityTest extends TestCase {
 				value(path + ".ascent", get(image, "ascent"));
 				value(path + ".descent", get(image, "descent"));
 				value(path + ".color", get(image, "color"));
+			} else if (image instanceof net.zamasoft.foliojet.objects.media.MediaImage media) {
+				// Audio/video (2026-10-15): what the outputs read, and the poster it draws.
+				value(path + ".tag", media.tag);
+				value(path + ".sources", media.sources.stream().map(s -> s.uri() + " " + s.type()).toList().toString());
+				value(path + ".flags", List.of(media.controls, media.autoplay, media.loop, media.muted).toString());
+				value(path + ".label", media.label);
+				value(path + ".size", List.of(media.getWidth(), media.getHeight()).toString());
+				value(path + ".poster", media.getPoster());
 			} else if (image.getClass().getName().equals("net.zamasoft.foliojet.ua.impl.pagedsvg.SourcedImage")) {
 				value(path + ".image", get(image, "image"));
 				value(path + ".companion", get(image, "companion"));
