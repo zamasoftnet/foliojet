@@ -1017,7 +1017,8 @@ Inside <span class="cssprop">@page</span>, specify this with an <span class="css
   If specified, the rule spans the full width of the footnote area with the specified thickness and color (it is drawn as a solid line).
   <span class="cssdecl">border-top: none</span> suppresses the rule. If unspecified,
   the default is a black, 0.5 pt rule spanning 1/3 of the type area width. The rule is drawn in the center of the gap (6 pt)
-  from the body text, so a rule thicker than the gap overlaps the body text or footnotes.
+  from the body text. A rule thicker than 6 pt makes its own thickness the space between body text and footnotes (with no
+  space above or below it).
 - <span class="cssprop">margin-top</span> and <span class="cssprop">padding-top</span> set the space around the rule:
   <span class="cssprop">margin-top</span> between the body text and the rule, <span class="cssprop">padding-top</span>
   between the rule and the footnotes (both as lengths). With either one given, the space between body text and footnotes

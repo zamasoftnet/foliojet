@@ -100,6 +100,19 @@ public class FootnoteSeparatorBorderTest extends TestCase {
 	}
 
 	/**
+	 * A line thicker than the UA's 6 pt gap takes its own thickness (2026-10-15, TECH-20261015-007 ⑤): before, it stayed
+	 * centered in 6 pt and ran over the first note line. A line up to 6 pt keeps the old gap.
+	 */
+	public void testThickLineTakesItsThickness() throws Exception {
+		final String plain = convert("thin", document("@footnote { border-top: 1pt solid black; }"));
+		final String thick = convert("thick", document("@footnote { border-top: 12pt solid black; }"));
+		final double plainGap = find(NOTE_Y, plain, "注") - find(SEPARATOR_Y, plain, "区切り線");
+		// The thin line's top is 3 + 0.5 pt above the notes; the thick one's top is 12 pt above them.
+		assertEquals("太い線の下に注", plainGap - 3.5 + 12,
+				find(NOTE_Y, thick, "注") - find(SEPARATOR_Y, thick, "区切り線"), 0.01);
+	}
+
+	/**
 	 * The same spacing in the bottom band of a vertical page, which places the line from the body side of the gap
 	 * (horizontal notes, so the note's y is comparable).
 	 */

@@ -141,32 +141,35 @@ public final class FootnoteArea {
 	}
 
 	/**
-	 * The gap between body text and notes in pt. Without {@code margin-top}/{@code padding-top} it is the UA's
-	 * {@link #DEFAULT_GAP}; otherwise margin + separator thickness + padding, an unspecified side counting as 0
-	 * (their initial value).
+	 * The gap between body text and notes in pt: margin + separator thickness + padding, an unspecified side counting
+	 * as 0 (their initial value). Without {@code margin-top}/{@code padding-top} both sides share what the line leaves of
+	 * the UA's {@link #DEFAULT_GAP}, so the line sits at its center; a line thicker than the gap takes its own thickness
+	 * (2026-10-15, TECH-20261015-007 ⑤: a 4.5mm border-top ran over the first note line).
 	 */
 	public double gap() {
-		if (!this.isGapSpecified()) {
-			return DEFAULT_GAP;
-		}
-		return this.marginTopOrZero() + this.separatorThickness() + this.paddingTopOrZero();
+		return this.marginTopOrDefault() + this.separatorThickness() + this.paddingTopOrDefault();
 	}
 
 	/** Distance from the body-text side of the gap to the separator's center line in pt. */
 	public double ruleFromBody() {
-		return this.isGapSpecified() ? this.marginTopOrZero() + this.separatorThickness() / 2 : DEFAULT_GAP / 2;
+		return this.marginTopOrDefault() + this.separatorThickness() / 2;
 	}
 
 	/** Distance from the notes side of the gap to the separator's center line in pt. */
 	public double ruleFromNotes() {
-		return this.isGapSpecified() ? this.paddingTopOrZero() + this.separatorThickness() / 2 : DEFAULT_GAP / 2;
+		return this.paddingTopOrDefault() + this.separatorThickness() / 2;
 	}
 
-	private double marginTopOrZero() {
-		return this.marginTop == null ? 0 : this.marginTop;
+	/** Half of what the line leaves of the UA's gap when neither margin-top nor padding-top is given. */
+	private double defaultSide() {
+		return Math.max(0, (DEFAULT_GAP - this.separatorThickness()) / 2);
 	}
 
-	private double paddingTopOrZero() {
-		return this.paddingTop == null ? 0 : this.paddingTop;
+	private double marginTopOrDefault() {
+		return this.marginTop != null ? this.marginTop : this.isGapSpecified() ? 0 : this.defaultSide();
+	}
+
+	private double paddingTopOrDefault() {
+		return this.paddingTop != null ? this.paddingTop : this.isGapSpecified() ? 0 : this.defaultSide();
 	}
 }

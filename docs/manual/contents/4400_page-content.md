@@ -1017,7 +1017,7 @@ title要素は表示されないため、`string-set`の対象にできません
   指定すると脚注領域の幅いっぱいに、その太さ・色で引きます(線種は実線で描きます)。
   <span class="cssdecl">border-top: none</span>なら引きません。指定が無ければ
   既定の線(0.5pt・黒・版面の幅の 1/3)です。区切り線は本文との間隙(6pt)の中央に
-  引くので、間隙より太い線は本文や注に重なります。
+  引きます。6ptより太い線は、その太さが本文と注の間のあきになります(線の上下にあきは付きません)。
 - <span class="cssprop">margin-top</span>と<span class="cssprop">padding-top</span>で
   区切り線の上下のあきを決められます。<span class="cssprop">margin-top</span>は本文と区切り線の間、
   <span class="cssprop">padding-top</span>は区切り線と注の間です(どちらも長さで指定します)。
