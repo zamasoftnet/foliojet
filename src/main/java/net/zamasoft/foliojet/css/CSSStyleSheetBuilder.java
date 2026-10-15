@@ -229,6 +229,22 @@ public class CSSStyleSheetBuilder {
 					area = "height".equals(property) ? area.withHeight(points) : area.withMinHeight(points);
 				}
 				break;
+			case "margin-top":
+			case "padding-top": {
+				// Space around the separator (2026-10-15, TECH-20261015-006 ④): the margin above the line, the padding
+				// below it. Absolute lengths only, resolved like height.
+				final net.zamasoft.foliojet.css.value.LengthValue space = tokens.size() == 1
+						? ValueUtils.toLength(this.ua, tokens.get(0)) : null;
+				final double spacePoints = space == null || space.isNegative() ? Double.NaN
+						: space.toAbsoluteLength(CSSStyle.getCSSStyle(this.ua, null, CSSElement.BEFORE)).getLength();
+				if (!Double.isFinite(spacePoints) || spacePoints < 0) {
+					supported = false;
+				} else {
+					area = "margin-top".equals(property) ? area.withMarginTop(spacePoints)
+							: area.withPaddingTop(spacePoints);
+				}
+				break;
+			}
 			case "float":
 				if ("bottom".equals(value)) {
 					area = area.withPosition(net.zamasoft.foliojet.ua.FootnoteArea.Position.BOTTOM);

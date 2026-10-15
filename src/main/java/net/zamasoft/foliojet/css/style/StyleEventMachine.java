@@ -481,7 +481,7 @@ final class StyleEventMachine {
 				// below the type area and is clipped (observed: y=86→230 on 220pt paper).
 				//
 				// Band dimension descriptors include the gap, so subtract it for line length.
-				final double band = area.height.doubleValue() - FOOTNOTE_BAND_GAP;
+				final double band = area.height.doubleValue() - area.gap();
 				if (band > 0) {
 					style.set(Height.INFO, AbsoluteLengthValue.create(this.ua, band), CSSStyle.MODE_IMPORTANT);
 					style.set(BoxSizing.INFO, net.zamasoft.foliojet.css.value.css3.BoxSizingValue.BORDER_BOX_VALUE,
@@ -493,9 +493,6 @@ final class StyleEventMachine {
 		}
 		return footnote;
 	}
-
-	/** Gap between the bottom band and body text (equal to {@code RootBuilder.FOOTNOTE_GAP}). */
-	private static final double FOOTNOTE_BAND_GAP = 6;
 
 	/**
 	 * Finalizes an outside list marker before opening a table (prevents it from entering cell content), or a box

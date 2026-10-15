@@ -69,4 +69,34 @@ public interface RowSplitBox {
 		return Math.min(extent,
 				item.getFrame().getFramePageStart(flow) + content + item.getFrame().getFramePageEnd(flow));
 	}
+
+	/**
+	 * Whether the cut line crosses an item of {@code break-inside: avoid} that fits in a fragmentainer (2026-10-15,
+	 * TECH-20261015-006 ②). The row then goes to the next page whole, as a table row with such a cell does
+	 * ({@code TableCutter.rowPreDecide}). Before, a grid or flex container split the item at the cut line: it calls the
+	 * item's split directly, past the avoid check that a block child gets from its parent's FlowContainer. The caller
+	 * leaves out a row at the page start (the avoid yields there) and a split after the parent relaxed its avoids
+	 * ({@code FLAGS_AVOID_SPENT}); an item taller than a fragmentainer splits as before.
+	 *
+	 * @param items     the row's items
+	 * @param offsets   each item's page-axis offset from the row start
+	 * @param extents   each item's page-axis extent before any split
+	 * @param below     whether each item lies wholly below the cut line
+	 * @param remaining the cut line's distance from the row start
+	 */
+	static boolean avoidsBreakInside(final FlowBlockBox[] items, final double[] offsets, final double[] extents,
+			final boolean[] below, final double remaining, final net.zamasoft.foliojet.layout.box.content.BreakMode mode) {
+		final double capacity = mode instanceof net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode auto
+				? auto.fragmentCapacity : -1;
+		for (int k = 0; k < items.length; ++k) {
+			if (!below[k]
+					&& items[k].getBlockParams().pageBreakInside == net.zamasoft.foliojet.layout.box.params.PageBreakMode.AVOID
+					&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(offsets[k] + extents[k], remaining) > 0
+					&& (capacity <= 0
+							|| net.zamasoft.foliojet.layout.util.LayoutUtils.compare(extents[k], capacity) <= 0)) {
+				return true;
+			}
+		}
+		return false;
+	}
 }

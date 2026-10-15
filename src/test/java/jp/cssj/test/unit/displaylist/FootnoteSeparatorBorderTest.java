@@ -70,6 +70,54 @@ public class FootnoteSeparatorBorderTest extends TestCase {
 		assertTrue("脚注が無い", dump.contains("\"T1\""));
 	}
 
+	private static final Pattern SEPARATOR_Y = Pattern.compile("y=(-?[\\d.]+) (?:artifact )?FootnoteSeparator\\[");
+	private static final Pattern NOTE_Y = Pattern.compile("y=(-?[\\d.]+) Text\\[\"T1\"");
+
+	private static double find(final Pattern pattern, final String dump, final String what) {
+		final Matcher m = pattern.matcher(dump);
+		assertTrue(what + "が無い", m.find());
+		return Double.parseDouble(m.group(1));
+	}
+
+	/**
+	 * margin-top and padding-top space the separator (2026-10-15, TECH-20261015-006 ④). Without them the 6 pt gap
+	 * holds the line at its center; with them the line sits margin-top below the body text and padding-top above the
+	 * notes. Compared through the distance from the line's top to the note's text, which cancels the font metrics.
+	 */
+	public void testMarginAndPaddingTop() throws Exception {
+		final String line = "border-top: 1pt solid black;";
+		final String plain = convert("space-plain", document("@footnote { " + line + " }"));
+		final String both = convert("space-both",
+				document("@footnote { " + line + " margin-top: 10pt; padding-top: 4pt; }"));
+		final String margin = convert("space-margin", document("@footnote { " + line + " margin-top: 10pt; }"));
+		final double plainGap = find(NOTE_Y, plain, "注") - find(SEPARATOR_Y, plain, "区切り線");
+		// The plain line's top is 3 + 0.5 pt above the notes; with padding-top 4 pt it is 4 + 1 pt above them.
+		assertEquals("padding-top の分だけ線が注から離れる", plainGap + 1.5,
+				find(NOTE_Y, both, "注") - find(SEPARATOR_Y, both, "区切り線"), 0.01);
+		// Without padding-top the line's bottom touches the notes.
+		assertEquals("padding-top が無ければ線の下は注に接する", plainGap - 2.5,
+				find(NOTE_Y, margin, "注") - find(SEPARATOR_Y, margin, "区切り線"), 0.01);
+	}
+
+	/**
+	 * The same spacing in the bottom band of a vertical page, which places the line from the body side of the gap
+	 * (horizontal notes, so the note's y is comparable).
+	 */
+	public void testMarginAndPaddingTopInBottomBand() throws Exception {
+		final String line = "float: bottom; writing-mode: horizontal-tb; border-top: 1pt solid black;";
+		final String plain = convert("band-plain", document("@footnote { " + line + " }")
+				.replace("font: 10pt serif", "font: 10pt serif; writing-mode: vertical-rl"));
+		final String both = convert("band-both", document("@footnote { " + line + " margin-top: 10pt; padding-top: 4pt; }")
+				.replace("font: 10pt serif", "font: 10pt serif; writing-mode: vertical-rl"));
+		final String margin = convert("band-margin", document("@footnote { " + line + " margin-top: 10pt; }")
+				.replace("font: 10pt serif", "font: 10pt serif; writing-mode: vertical-rl"));
+		final double plainGap = find(NOTE_Y, plain, "注") - find(SEPARATOR_Y, plain, "区切り線");
+		assertEquals("padding-top の分だけ線が注から離れる", plainGap + 1.5,
+				find(NOTE_Y, both, "注") - find(SEPARATOR_Y, both, "区切り線"), 0.01);
+		assertEquals("padding-top が無ければ線の下は注に接する", plainGap - 2.5,
+				find(NOTE_Y, margin, "注") - find(SEPARATOR_Y, margin, "区切り線"), 0.01);
+	}
+
 	private static String convert(final String name, final String html) throws Exception {
 		final File dir = new File("local/footnote-separator-border/" + name);
 		dir.mkdirs();

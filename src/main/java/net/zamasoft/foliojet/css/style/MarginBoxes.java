@@ -22,8 +22,13 @@ import net.zamasoft.foliojet.css.value.TextAlignValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.VerticalAlignValue;
 import net.zamasoft.foliojet.css.util.BoxValueUtils;
+import net.zamasoft.foliojet.css.impl.property.box.BoxSizing;
+import net.zamasoft.foliojet.css.impl.property.box.Height;
 import net.zamasoft.foliojet.css.impl.property.box.Margin;
 import net.zamasoft.foliojet.css.impl.property.box.Padding;
+import net.zamasoft.foliojet.css.impl.property.box.Width;
+import net.zamasoft.foliojet.css.value.AbsoluteLengthValue;
+import net.zamasoft.foliojet.css.value.KeywordValue;
 import net.zamasoft.foliojet.css.impl.property.box.Side;
 import net.zamasoft.foliojet.css.impl.property.box.VerticalAlign;
 import net.zamasoft.foliojet.css.impl.property.content.Content;
@@ -78,8 +83,10 @@ import net.zamasoft.foliojet.css.style.running.RunningRenderer;
  * Vertical writing (writing-mode) since 2026-09-06: vertical-align controls top/bottom alignment,
  * the group of lines is centered in the band, and the background fills the region
  * (matching Vivliostyle observations). Unsupported (FINE log): url() images, quotes,
- * attr(), page-ref, width/height. Width distribution uses the basic css-page-3 §7.3 form
+ * attr(), page-ref. Width distribution uses the basic css-page-3 §7.3 form
  * (center takes precedence; otherwise proportional to max-content).
+ * Absolute {@code width}/{@code height} (2026-10-15, TECH-20261015-006 ③) size the box inside its region and put it
+ * against the page area, as Vivliostyle does: center boxes stay centered, auto margins center the box.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -130,27 +137,27 @@ final class MarginBoxes {
 		final double contentW = pageBox.getWidth() - margin.left - margin.right;
 		final double contentH = pageBox.getHeight() - margin.top - margin.bottom;
 
-		// Top/bottom bands (content area width between corners)
+		// Top/bottom bands (content area width between corners). A box of explicit height sits against the page area.
 		band(ua, boxes, MarginBoxName.TOP_LEFT, MarginBoxName.TOP_CENTER, MarginBoxName.TOP_RIGHT, 0, -margin.top,
-				contentW, margin.top, drawer, visitor);
+				contentW, margin.top, 1, drawer, visitor);
 		band(ua, boxes, MarginBoxName.BOTTOM_LEFT, MarginBoxName.BOTTOM_CENTER, MarginBoxName.BOTTOM_RIGHT, 0,
-				contentH, contentW, margin.bottom, drawer, visitor);
+				contentH, contentW, margin.bottom, 0, drawer, visitor);
 
 		// Corners
-		place(ua, boxes.get(MarginBoxName.TOP_LEFT_CORNER), -margin.left, -margin.top, margin.left, margin.top,
+		corner(ua, boxes.get(MarginBoxName.TOP_LEFT_CORNER), -margin.left, -margin.top, margin.left, margin.top, 1, 1,
 				drawer, visitor);
-		place(ua, boxes.get(MarginBoxName.TOP_RIGHT_CORNER), contentW, -margin.top, margin.right, margin.top, drawer,
-				visitor);
-		place(ua, boxes.get(MarginBoxName.BOTTOM_LEFT_CORNER), -margin.left, contentH, margin.left, margin.bottom,
+		corner(ua, boxes.get(MarginBoxName.TOP_RIGHT_CORNER), contentW, -margin.top, margin.right, margin.top, 0, 1,
 				drawer, visitor);
-		place(ua, boxes.get(MarginBoxName.BOTTOM_RIGHT_CORNER), contentW, contentH, margin.right, margin.bottom,
+		corner(ua, boxes.get(MarginBoxName.BOTTOM_LEFT_CORNER), -margin.left, contentH, margin.left, margin.bottom, 1,
+				0, drawer, visitor);
+		corner(ua, boxes.get(MarginBoxName.BOTTOM_RIGHT_CORNER), contentW, contentH, margin.right, margin.bottom, 0, 0,
 				drawer, visitor);
 
 		// Side columns (content area height between corners)
 		column(ua, boxes, MarginBoxName.LEFT_TOP, MarginBoxName.LEFT_MIDDLE, MarginBoxName.LEFT_BOTTOM, -margin.left,
-				0, margin.left, contentH, drawer, visitor);
+				0, margin.left, contentH, 1, drawer, visitor);
 		column(ua, boxes, MarginBoxName.RIGHT_TOP, MarginBoxName.RIGHT_MIDDLE, MarginBoxName.RIGHT_BOTTOM, contentW,
-				0, margin.right, contentH, drawer, visitor);
+				0, margin.right, contentH, 0, drawer, visitor);
 	}
 
 	/**
@@ -159,7 +166,7 @@ final class MarginBoxes {
 	 */
 	private static void band(final UserAgent ua, final Map<MarginBoxName, Box> boxes, final MarginBoxName leftName,
 			final MarginBoxName centerName, final MarginBoxName rightName, final double x, final double y,
-			final double w, final double h, final Drawer drawer, final Visitor visitor) {
+			final double w, final double h, final double ay, final Drawer drawer, final Visitor visitor) {
 		final Box left = boxes.get(leftName);
 		final Box center = boxes.get(centerName);
 		final Box right = boxes.get(rightName);
@@ -167,21 +174,21 @@ final class MarginBoxes {
 			return;
 		}
 		if (center != null) {
-			final double cw = Math.min(center.preferredWidth(ua), w);
+			final double cw = Math.min(center.preferredOuterWidth(ua), w);
 			final double side = (w - cw) / 2;
-			place(ua, left, x, y, side, h, drawer, visitor);
-			place(ua, center, x + side, y, cw, h, drawer, visitor);
-			place(ua, right, x + w - side, y, side, h, drawer, visitor);
+			place(ua, left, x, y, side, h, 0, crossY(left, ay), drawer, visitor);
+			place(ua, center, x + side, y, cw, h, 0.5, crossY(center, ay), drawer, visitor);
+			place(ua, right, x + w - side, y, side, h, 1, crossY(right, ay), drawer, visitor);
 		} else if (left != null && right != null) {
-			final double pl = left.preferredWidth(ua);
-			final double pr = right.preferredWidth(ua);
+			final double pl = left.preferredOuterWidth(ua);
+			final double pr = right.preferredOuterWidth(ua);
 			final double lw = (pl + pr) <= 0 ? w / 2 : Math.min(w * pl / (pl + pr), w);
-			place(ua, left, x, y, lw, h, drawer, visitor);
-			place(ua, right, x + lw, y, w - lw, h, drawer, visitor);
+			place(ua, left, x, y, lw, h, 0, crossY(left, ay), drawer, visitor);
+			place(ua, right, x + lw, y, w - lw, h, 1, crossY(right, ay), drawer, visitor);
 		} else if (left != null) {
-			place(ua, left, x, y, w, h, drawer, visitor);
+			place(ua, left, x, y, w, h, 0, crossY(left, ay), drawer, visitor);
 		} else {
-			place(ua, right, x, y, w, h, drawer, visitor);
+			place(ua, right, x, y, w, h, 1, crossY(right, ay), drawer, visitor);
 		}
 	}
 
@@ -190,7 +197,7 @@ final class MarginBoxes {
 	 */
 	private static void column(final UserAgent ua, final Map<MarginBoxName, Box> boxes, final MarginBoxName topName,
 			final MarginBoxName middleName, final MarginBoxName bottomName, final double x, final double y,
-			final double w, final double h, final Drawer drawer, final Visitor visitor) {
+			final double w, final double h, final double ax, final Drawer drawer, final Visitor visitor) {
 		final Box top = boxes.get(topName);
 		final Box middle = boxes.get(middleName);
 		final Box bottom = boxes.get(bottomName);
@@ -198,31 +205,59 @@ final class MarginBoxes {
 			return;
 		}
 		if (middle != null) {
-			final double ch = Math.min(middle.preferredHeight(ua, w, h), h);
+			final double ch = Math.min(middle.preferredOuterHeight(ua, w, h), h);
 			final double side = (h - ch) / 2;
-			place(ua, top, x, y, w, side, drawer, visitor);
-			place(ua, middle, x, y + side, w, ch, drawer, visitor);
-			place(ua, bottom, x, y + h - side, w, side, drawer, visitor);
+			place(ua, top, x, y, w, side, crossX(top, ax), 0, drawer, visitor);
+			place(ua, middle, x, y + side, w, ch, crossX(middle, ax), 0.5, drawer, visitor);
+			place(ua, bottom, x, y + h - side, w, side, crossX(bottom, ax), 1, drawer, visitor);
 		} else if (top != null && bottom != null) {
-			final double pt = top.preferredHeight(ua, w, h);
-			final double pb = bottom.preferredHeight(ua, w, h);
+			final double pt = top.preferredOuterHeight(ua, w, h);
+			final double pb = bottom.preferredOuterHeight(ua, w, h);
 			final double th = (pt + pb) <= 0 ? h / 2 : Math.min(h * pt / (pt + pb), h);
-			place(ua, top, x, y, w, th, drawer, visitor);
-			place(ua, bottom, x, y + th, w, h - th, drawer, visitor);
+			place(ua, top, x, y, w, th, crossX(top, ax), 0, drawer, visitor);
+			place(ua, bottom, x, y + th, w, h - th, crossX(bottom, ax), 1, drawer, visitor);
 		} else if (top != null) {
-			place(ua, top, x, y, w, h, drawer, visitor);
+			place(ua, top, x, y, w, h, crossX(top, ax), 0, drawer, visitor);
 		} else {
-			place(ua, bottom, x, y, w, h, drawer, visitor);
+			place(ua, bottom, x, y, w, h, crossX(bottom, ax), 1, drawer, visitor);
 		}
+	}
+
+	/** Places a corner box against the page area's corner; auto margins center it on that axis. */
+	private static void corner(final UserAgent ua, final Box box, final double x, final double y, final double w,
+			final double h, final double ax, final double ay, final Drawer drawer, final Visitor visitor) {
+		place(ua, box, x, y, w, h, crossX(box, ax), crossY(box, ay), drawer, visitor);
+	}
+
+	/** Position on the cross axis of a top/bottom band: auto margin-top and margin-bottom center the box. */
+	private static double crossY(final Box box, final double ay) {
+		return box != null && box.autoMarginY ? 0.5 : ay;
+	}
+
+	/** Position on the cross axis of a side column: auto margin-left and margin-right center the box. */
+	private static double crossX(final Box box, final double ax) {
+		return box != null && box.autoMarginX ? 0.5 : ax;
 	}
 
 	/**
 	 * Lays out and draws a box in a rectangle (vertical position follows vertical-align).
+	 * A box of explicit width or height narrower than the rectangle takes that size and sits at {@code ax}/{@code ay}
+	 * of the slack (0 start, 0.5 center, 1 end).
 	 */
-	private static void place(final UserAgent ua, final Box box, final double x, final double y, final double w,
-			final double h, final Drawer drawer, final Visitor visitor) {
+	private static void place(final UserAgent ua, final Box box, double x, double y, double w, double h,
+			final double ax, final double ay, final Drawer drawer, final Visitor visitor) {
 		if (box == null || w <= 0 || h <= 0) {
 			return;
+		}
+		// A size larger than the region is kept too: the box reaches out of the region on the side away from the
+		// page area (a 40pt badge in a 30pt margin stays round).
+		if (Double.isFinite(box.outerWidth())) {
+			x += (w - box.outerWidth()) * ax;
+			w = box.outerWidth();
+		}
+		if (Double.isFinite(box.outerHeight())) {
+			y += (h - box.outerHeight()) * ay;
+			h = box.outerHeight();
 		}
 		final boolean text = box.running == null;
 		final PageBox mini = box.layout(ua, w, h, text);
@@ -322,6 +357,12 @@ final class MarginBoxes {
 
 		final CellAlign verticalAlign;
 
+		/** Explicit width and height including padding, border and margins; infinite when auto. */
+		private double outerWidth = Double.POSITIVE_INFINITY, outerHeight = Double.POSITIVE_INFINITY;
+
+		/** Whether both margins on the axis are auto (the box then centers in its region). */
+		boolean autoMarginX, autoMarginY;
+
 		private double preferredWidth = -1;
 
 		private Box(BlockParams params, String text, CellAlign verticalAlign, RunningRenderer.Content running) {
@@ -329,6 +370,25 @@ final class MarginBoxes {
 			this.text = text;
 			this.verticalAlign = verticalAlign;
 			this.running = running;
+		}
+
+		double outerWidth() {
+			return this.outerWidth;
+		}
+
+		double outerHeight() {
+			return this.outerHeight;
+		}
+
+		/** The explicit outer width, or the max-content width when width is auto. */
+		double preferredOuterWidth(final UserAgent ua) {
+			return Double.isFinite(this.outerWidth) ? this.outerWidth : this.preferredWidth(ua);
+		}
+
+		/** The explicit outer height, or the content height when height is auto. */
+		double preferredOuterHeight(final UserAgent ua, final double width, final double availableHeight) {
+			return Double.isFinite(this.outerHeight) ? this.outerHeight
+					: this.preferredHeight(ua, width, availableHeight);
 		}
 
 		/**
@@ -407,7 +467,36 @@ final class MarginBoxes {
 			params.whiteSpace = WhiteSpace.get(style);
 			params.letterSpacing = LetterSpacing.get(style);
 			params.wordSpacing = WordSpacing.get(style);
-			return new Box(params, text.toString(), VerticalAlign.getForTableCell(style), running);
+			final Box box = new Box(params, text.toString(), VerticalAlign.getForTableCell(style), running);
+			// Absolute width/height only; percentages and keywords stay auto. So does a size whose padding or margin on
+			// that axis is a percentage (it resolves against the box itself here) or whose outer size is not positive.
+			final RectFrame frame = params.frame;
+			final boolean contentBox = BoxSizing.get(style) != BoxSizingMode.BORDER_BOX;
+			if (Width.get(style) instanceof AbsoluteLengthValue width
+					&& !frame.margin.getLeftType().needsReference() && !frame.margin.getRightType().needsReference()
+					&& !frame.padding.getLeftType().needsReference() && !frame.padding.getRightType().needsReference()) {
+				final double outer = width.getLength() + frame.margin.getLeft() + frame.margin.getRight()
+						+ (contentBox ? frame.border.getFrameWidth() + frame.padding.getLeft() + frame.padding.getRight()
+								: 0);
+				if (outer > 0) {
+					box.outerWidth = outer;
+				}
+			}
+			if (Height.get(style) instanceof AbsoluteLengthValue height
+					&& !frame.margin.getTopType().needsReference() && !frame.margin.getBottomType().needsReference()
+					&& !frame.padding.getTopType().needsReference() && !frame.padding.getBottomType().needsReference()) {
+				final double outer = height.getLength() + frame.margin.getTop() + frame.margin.getBottom()
+						+ (contentBox ? frame.border.getFrameHeight() + frame.padding.getTop()
+								+ frame.padding.getBottom() : 0);
+				if (outer > 0) {
+					box.outerHeight = outer;
+				}
+			}
+			box.autoMarginX = Margin.get(style, Side.LEFT) == KeywordValue.AUTO
+					&& Margin.get(style, Side.RIGHT) == KeywordValue.AUTO;
+			box.autoMarginY = Margin.get(style, Side.TOP) == KeywordValue.AUTO
+					&& Margin.get(style, Side.BOTTOM) == KeywordValue.AUTO;
+			return box;
 		}
 
 		/**

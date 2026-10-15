@@ -429,7 +429,13 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		}
 		SplitResult[] probed = new SplitResult[boundaryItems.length];
 		boolean anySplit = (flags & IPageBreakableBox.FLAGS_SPLIT) != 0;
-		if (!anySplit) {
+		// An item of break-inside: avoid that the cut line crosses keeps its line whole (2026-10-15, as GridBox.split).
+		final boolean keepLineWhole = !anySplit
+				&& (boundary > 0 || (flags & IPageBreakableBox.FLAGS_FIRST) == 0)
+				&& (flags & IPageBreakableBox.FLAGS_AVOID_SPENT) == 0
+				&& net.zamasoft.foliojet.layout.box.RowSplitBox.avoidsBreakInside(boundaryItems, offsets, preExtents,
+						below, remaining, mode);
+		if (!anySplit && !keepLineWhole) {
 			for (int k = 0; k < boundaryItems.length; ++k) {
 				if (below[k]) {
 					// The whole item lies below the cut line: it goes on with the remainder of the line.

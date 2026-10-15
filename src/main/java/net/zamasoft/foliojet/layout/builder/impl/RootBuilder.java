@@ -1954,7 +1954,7 @@ public class RootBuilder extends BreakableBuilder {
 		final FootnoteHost host = this.recoveredColumnFootnotes;
 		if (host == null) return;
 		this.recoveredColumnFootnotes = null;
-		double needed = FOOTNOTE_GAP;
+		double needed = this.footnoteGap();
 		for (final FootnoteEntry entry : host.pendingFootnotes) needed += this.footnoteExtent(entry.noteBox);
 		final double available = this.getPageLimit() - pageAxisAfterOwner;
 		if (needed > available) {
@@ -1994,7 +1994,7 @@ public class RootBuilder extends BreakableBuilder {
 		for (final FootnoteEntry entry : host.pendingFootnotes) {
 			if (i++ < host.footnoteReservedCount) continue;
 			if (entry.deferred && !entry.committed && !this.forceFootnoteAttach) break;
-			final double cost = (host.footnoteUsed == 0 ? FOOTNOTE_GAP : 0) + this.columnFootnoteExtent(host, entry);
+			final double cost = (host.footnoteUsed == 0 ? this.footnoteGap() : 0) + this.columnFootnoteExtent(host, entry);
 			if (host.footnoteUsed + cost > maxArea) {
 				if (host.footnoteReservedCount == 0 && (entry.committed || this.forceFootnoteAttach)) {
 					host.footnoteReservation = maxArea;
@@ -2021,7 +2021,7 @@ public class RootBuilder extends BreakableBuilder {
 		for (final FootnoteEntry entry : host.pendingFootnotes) {
 			if (count >= host.footnoteReservedCount || (!entry.committed && !entry.columnCallRetained)) break;
 			final double nextExtent = extent + this.columnFootnoteExtent(host, entry);
-			if (FOOTNOTE_GAP + nextExtent > capacity - MIN_PAGE_LIMIT && !entry.committed) break;
+			if (this.footnoteGap() + nextExtent > capacity - MIN_PAGE_LIMIT && !entry.committed) break;
 			extent = nextExtent;
 			++count;
 		}
@@ -2039,7 +2039,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		if (count > 0) {
 			this.pageBox.addColumnFootnoteSeparator(host.owner, host.owner.getBlockParams().flow, host.lineOrigin,
-					host.pageOrigin, host.lineSize.getAsDouble(), capacity - extent - FOOTNOTE_GAP / 2);
+					host.pageOrigin, host.lineSize.getAsDouble(), capacity - extent - this.footnoteArea().ruleFromNotes());
 		}
 		if (observer != null) observer.accept(new ColumnFootnotePlacement(this.pageGeneration, host.lineOrigin,
 				host.pageOrigin, capacity, host.lineSize.getAsDouble(), host.footnoteReservation, extent,
@@ -2094,13 +2094,23 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
-	 * Page notes use existing measurement (NONE); only column notes use host line length as containing-block
-	 * inline size.
+	 * The line length a note is laid out at: its area's, whatever box holds the call. Column notes take the column's;
+	 * page notes the page's (2026-10-15, TECH-20261015-006 ①: before, they used the existing measurement, so a note
+	 * called from a paragraph inside a grid item, a table cell or any narrow block wrapped at that block's width).
+	 * NONE (the existing measurement) is left for a page note orthogonal to the page and for the bands of a vertical
+	 * page, whose line length {@code StyleEventMachine.footnote} fixes.
 	 */
 	public double getFootnoteLineSize(final net.zamasoft.foliojet.layout.builder.LayoutStack parent,
-			final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner) {
+			final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner, final WritingMode noteFlow) {
 		final FootnoteHost host = this.selectFootnoteHost(parent, owner);
-		return host == this.pageFootnoteHost ? net.zamasoft.foliojet.layout.util.LayoutUtils.NONE : host.lineSize.getAsDouble();
+		if (host != this.pageFootnoteHost) {
+			return host.lineSize.getAsDouble();
+		}
+		final WritingMode pageFlow = this.pageBox.getBlockParams().flow;
+		if (noteFlow.isVertical() != pageFlow.isVertical() || (this.isPageBandFootnoteArea() && pageFlow.isVertical())) {
+			return net.zamasoft.foliojet.layout.util.LayoutUtils.NONE;
+		}
+		return host.lineSize.getAsDouble();
 	}
 	/** Existing observation hook for FootnoteSamePageTest. Only the page host owns and updates the actual FIFO. */
 	private final java.util.ArrayDeque<FootnoteEntry> pendingFootnotes = this.pageFootnoteHost.pendingFootnotes;
@@ -2211,8 +2221,13 @@ public class RootBuilder extends BreakableBuilder {
 		return Math.max(0, this.pageBox.getInnerPageExtent(this.pageBox.getBlockParams().flow) - MIN_PAGE_LIMIT);
 	}
 
-	/** Gap between body text and footnote area (UA-fixed; the separator rule sits at its center). */
-	private static final double FOOTNOTE_GAP = 6;
+	/**
+	 * Gap between body text and footnote area: 6 pt with the separator rule at its center, or what @footnote's
+	 * margin-top and padding-top make it (2026-10-15).
+	 */
+	private double footnoteGap() {
+		return this.footnoteArea().gap();
+	}
 
 	/**
 	 * The part of the page's footnote reservation that belongs to calls not yet committed to a page (2026-10-08,
@@ -2233,7 +2248,7 @@ public class RootBuilder extends BreakableBuilder {
 				break;
 			}
 			if (entry.committed || entry.noteBox == null) {
-				committed += (committed == 0 ? FOOTNOTE_GAP : 0)
+				committed += (committed == 0 ? this.footnoteGap() : 0)
 						+ (entry.noteBox == null ? 0 : this.footnoteExtent(entry.noteBox));
 			}
 		}
@@ -2408,7 +2423,7 @@ public class RootBuilder extends BreakableBuilder {
 				blocked = true;
 				break;
 			}
-			final double cost = (this.pageFootnoteHost.footnoteReservedCount == 0 ? FOOTNOTE_GAP : 0) + height;
+			final double cost = (this.pageFootnoteHost.footnoteReservedCount == 0 ? this.footnoteGap() : 0) + height;
 			if (inset + cost > maxArea) {
 				// Oversized notes wait for call finalization; at the carry-over head, reserve up to the limit and allow overflow.
 				if (this.pageFootnoteHost.footnoteReservedCount == 0 && (entry.committed || this.forceFootnoteAttach)) {
@@ -2439,7 +2454,7 @@ public class RootBuilder extends BreakableBuilder {
 							|| this.footnotePlan.containsKey(id)) continue;
 					final Double height = report.measuredHeights().get(id);
 					if (height == null || report.unmeasuredIds().contains(id) || !Double.isFinite(height) || height < 0) continue;
-					final double cost = (this.footnotePlan.isEmpty() ? FOOTNOTE_GAP : 0) + height;
+					final double cost = (this.footnotePlan.isEmpty() ? this.footnoteGap() : 0) + height;
 					if (inset + cost > maxArea) break;
 					inset += cost;
 					this.bottomFootnote(id).measuredHeight = height;
@@ -2484,7 +2499,7 @@ public class RootBuilder extends BreakableBuilder {
 		for (final FootnoteEntry entry : this.pageFootnoteHost.pendingFootnotes) {
 			if (entry.noteBox == null || (entry.deferred && !entry.committed && !this.forceFootnoteAttach)) break;
 			final double extent = this.isPageBandFootnoteArea() ? this.footnoteBandCost(entry.noteBox) : this.footnoteExtent(entry.noteBox);
-			final double cost = (!verticalBand && this.pageFootnoteHost.footnoteReservedCount == 0 ? FOOTNOTE_GAP : 0) + extent;
+			final double cost = (!verticalBand && this.pageFootnoteHost.footnoteReservedCount == 0 ? this.footnoteGap() : 0) + extent;
 			if (used + cost > capacity) {
 				// For notes that cannot fit even alone, finalize the call first, then allow overflow on the next page.
 				if (this.pageFootnoteHost.footnoteReservedCount == 0 && (entry.committed || this.forceFootnoteAttach)) {
@@ -2548,7 +2563,7 @@ public class RootBuilder extends BreakableBuilder {
 			final double noteExtent = this.footnoteBandExtent(noteBox);
 			final double maxArea = Math.max(0, this.pageBox.getInnerHeight() + this.pageBandInset())
 					* MAX_FOOT_AREA_RATIO;
-			if (FOOTNOTE_GAP + noteExtent > maxArea && !this.warnedOversizedFootnote) {
+			if (this.footnoteGap() + noteExtent > maxArea && !this.warnedOversizedFootnote) {
 				this.warnedOversizedFootnote = true;
 				LOG.warning("footnote larger than the bottom band; placing it anyway: " + noteExtent
 						+ "pt (max footnote area " + maxArea + "pt)");
@@ -2580,7 +2595,7 @@ public class RootBuilder extends BreakableBuilder {
 		final FootnoteHost host = this.selectFootnoteHost(parent, owner);
 		final double noteExtent = this.footnoteExtent(noteBox);
 		final double maxArea = host.capacityBase.getAsDouble() - MIN_PAGE_LIMIT;
-		if (FOOTNOTE_GAP + noteExtent > maxArea && !this.warnedOversizedFootnote) {
+		if (this.footnoteGap() + noteExtent > maxArea && !this.warnedOversizedFootnote) {
 			// A footnote that cannot fit even in an empty page's maximum footnote area
 			// (one note occupying over 90% of the type area). **Do not fail conversion**:
 			// ARCHITECTURE.md §5.13 (user decision on 2026-07-26/27) states that conversion failure
@@ -2631,7 +2646,7 @@ public class RootBuilder extends BreakableBuilder {
 					this.traceFootnote("reserve-stop-deferred", entry, 0, java.util.Set.of());
 					break;
 				}
-				final double cost = (this.pageFootnoteHost.footnoteReservation == 0 ? FOOTNOTE_GAP : 0)
+				final double cost = (this.pageFootnoteHost.footnoteReservation == 0 ? this.footnoteGap() : 0)
 						+ this.footnoteExtent(entry.noteBox);
 				if (this.pageFootnoteHost.footnoteReservation + cost > maxArea) {
 					// For a footnote that cannot fit even alone on its call page, do not
@@ -2684,7 +2699,7 @@ public class RootBuilder extends BreakableBuilder {
 				break;
 			}
 			final double before = this.pageFootnoteHost.footnoteReservation;
-			final double cost = (this.pageFootnoteHost.footnoteReservedCount == 0 ? FOOTNOTE_GAP : 0) + this.footnoteExtent(entry.noteBox);
+			final double cost = (this.pageFootnoteHost.footnoteReservedCount == 0 ? this.footnoteGap() : 0) + this.footnoteExtent(entry.noteBox);
 			if (this.pageFootnoteHost.footnoteUsed + cost > maxArea) {
 				if (this.pageFootnoteHost.footnoteReservedCount == 0 && (entry.committed || this.forceFootnoteAttach)) {
 					this.pageFootnoteHost.footnoteReservation = Math.max(this.pageFootnoteHost.footnoteReservation, maxArea);
@@ -3669,7 +3684,7 @@ public class RootBuilder extends BreakableBuilder {
 					break;
 				}
 				if (intrusion > 0 && !forced && net.zamasoft.foliojet.layout.util.LayoutUtils.compare(
-						FOOTNOTE_GAP + attachedExtent + this.footnoteExtent(entry.noteBox),
+						this.footnoteGap() + attachedExtent + this.footnoteExtent(entry.noteBox),
 						this.pageFootnoteHost.footnoteReservation - intrusion) > 0) {
 					break;
 				}
@@ -3679,7 +3694,7 @@ public class RootBuilder extends BreakableBuilder {
 					final double height = this.isPageBandFootnoteArea() ? this.footnoteBandCost(entry.noteBox) : this.footnoteExtent(entry.noteBox);
 					final double capacity = this.isPageBandFootnoteArea() ? this.footnoteBandCapacity() : this.pageFootnoteHost.footnoteReservation;
 					// A vertical band's gap lies along paper height, outside the horizontal note-stacking calculation.
-					final double gap = this.isVerticalFootnoteBand() ? 0 : FOOTNOTE_GAP;
+					final double gap = this.isVerticalFootnoteBand() ? 0 : this.footnoteGap();
 					if (!(i == 0 && reservation.oversized())
 							&& (net.zamasoft.foliojet.layout.util.LayoutUtils.compare(height, reservation.height()) > 0
 									|| net.zamasoft.foliojet.layout.util.LayoutUtils.compare(gap + attachedExtent + height, capacity) > 0)) break;
@@ -3731,7 +3746,7 @@ public class RootBuilder extends BreakableBuilder {
 		// kept past the cut line moves them, and the rule, below it; capacity was checked against the area minus the
 		// intrusion above (codex review 2026-10-08: a figure 6pt into a min-height area ran under the rule and note).
 		final double areaStart = sizedBlockArea ? base - blockArea + intrusion : 0;
-		double pageAxis = sizedBlockArea ? areaStart + FOOTNOTE_GAP : base - attachedExtent;
+		double pageAxis = sizedBlockArea ? areaStart + this.footnoteGap() : base - attachedExtent;
 		// Arrange bands from the reserved area's line start. Even oversized notes must not overflow toward body text.
 		// Bottom lies outside the type area bottom (positive); top lies above the content origin (negative).
 		// For top bands, PageBox.reserveHeadArea has lowered the content origin by the band extent,
@@ -3739,7 +3754,7 @@ public class RootBuilder extends BreakableBuilder {
 		double lineAxis = 0;
 		if (this.isPageBandFootnoteArea()) {
 			lineAxis = this.footnoteArea().isHeadBand() ? -this.pageBox.getHeadInset()
-					: this.pageBox.getInnerHeight() + FOOTNOTE_GAP;
+					: this.pageBox.getInnerHeight() + this.footnoteGap();
 		}
 		// Horizontal paper position for notes stacked in a vertical band (advance from block-start).
 		double bandPageAxis = 0;
@@ -3789,9 +3804,10 @@ public class RootBuilder extends BreakableBuilder {
 			if (attachCount > 0) {
 				final net.zamasoft.foliojet.ua.FootnoteArea area = this.pageBox.getUserAgent()
 						.getUAContext().getFootnoteArea();
-				// Center the rule in the body-to-band gap. A top band's rule is above the content origin, hence negative.
+				// Put the rule in the body-to-band gap (its center unless @footnote sets margin-top/padding-top).
+				// A top band's rule is above the content origin, hence negative.
 				this.pageBox.setFootnoteSeparatorLineAxis(
-						area.isHeadBand() ? -FOOTNOTE_GAP / 2 : this.pageBox.getInnerHeight() + FOOTNOTE_GAP / 2,
+						area.isHeadBand() ? -area.ruleFromBody() : this.pageBox.getInnerHeight() + area.ruleFromBody(),
 						area.flow == null ? this.pageBox.getBlockParams().flow : area.flow);
 			}
 			this.pageFootnoteHost.footnoteReservedCount = 0;
@@ -3800,14 +3816,14 @@ public class RootBuilder extends BreakableBuilder {
 			return 0;
 		}
 		if (attachCount > 0) {
-			// Separator rule (F6/F7 recommendation ①): centered in the existing gap, so no extra
+			// Separator rule (F6/F7 recommendation ①): inside the existing gap, so no extra
 			// reservation. Draw after flows in PageSequence.drawPage (artifact).
-			this.pageBox.setFootnoteSeparatorAxis(sizedBlockArea ? areaStart + FOOTNOTE_GAP / 2
-					: base - attachedExtent - FOOTNOTE_GAP / 2);
+			this.pageBox.setFootnoteSeparatorAxis(sizedBlockArea ? areaStart + this.footnoteArea().ruleFromBody()
+					: base - attachedExtent - this.footnoteArea().ruleFromNotes());
 		}
 		this.pageFootnoteHost.footnoteReservedCount = 0;
 		this.pageFootnoteHost.footnoteReservation = 0;
-		return sizedBlockArea ? blockArea : attachedExtent == 0 ? 0 : attachedExtent + FOOTNOTE_GAP;
+		return sizedBlockArea ? blockArea : attachedExtent == 0 ? 0 : attachedExtent + this.footnoteGap();
 	}
 
 	/** Numbers all hosts once by logical ID (document order). Carry-in does not consume a new number. */

@@ -533,14 +533,32 @@ You can use the following inside margin boxes.
 	and `string()` (below)
 - Fonts, colors, `text-align`, and `vertical-align` (top, middle, bottom)
 - `margin`, `border`, `padding`, and `background`
+- `width` and `height` (when given as lengths)
 - `writing-mode` and `text-orientation` (vertical running headers; [see below](#style-vertical-side-boxes))
 
 `background` and `border` are drawn across the entire area assigned to the box (the full margin band). They do not fit themselves to the content size.
 `vertical-align` and `text-align` move only the content.
 
+When `width` or `height` is given as a length, the box takes that size and sits in its area against the type area
+(the bottom of a top band, the top of a bottom band, the type-area side of a side band; a center box stays centered).
+`margin` spaces it from the type area, and `margin: auto` centers it across the band.
+A box larger than its area reaches out on the side away from the type area (toward the sheet's edge).
+For example, a round page-number badge:
+
+```css
+@page {
+	@bottom-center {
+		content: counter(page);
+		width: 12mm; height: 12mm; margin-top: 2mm;
+		border-radius: 50%; background: #1d1a22; color: #fff;
+	}
+}
+```
+
+Percentages and `auto` keep drawing the box across its area.
+
 The following are not supported: images with `url()`, quotation marks, `attr()`,
-`-cssj-page-ref()`, `leader()`, and setting dimensions with `width` or `height`
-(the box size is determined by the content and margins).
+`-cssj-page-ref()`, and `leader()`.
 
 #### <a id="style-running-heading">Running headers</a>
 
@@ -1000,9 +1018,25 @@ Inside <span class="cssprop">@page</span>, specify this with an <span class="css
   <span class="cssdecl">border-top: none</span> suppresses the rule. If unspecified,
   the default is a black, 0.5 pt rule spanning 1/3 of the type area width. The rule is drawn in the center of the gap (6 pt)
   from the body text, so a rule thicker than the gap overlaps the body text or footnotes.
+- <span class="cssprop">margin-top</span> and <span class="cssprop">padding-top</span> set the space around the rule:
+  <span class="cssprop">margin-top</span> between the body text and the rule, <span class="cssprop">padding-top</span>
+  between the rule and the footnotes (both as lengths). With either one given, the space between body text and footnotes
+  is margin-top + rule thickness + padding-top, the other one counting as 0. With neither, the rule sits in the center of
+  the 6 pt gap as above. A band with a fixed <span class="cssprop">height</span> includes this space in its size.
+
+  ```css
+  @page {
+    @footnote {
+      border-top: 1px dashed #000;
+      margin-top: 6mm;  /* between body text and rule */
+      padding-top: 3mm; /* between rule and footnotes */
+    }
+  }
+  ```
 - The width of a horizontal footnote is the type area width of the page containing its call (including the footnote element's
   <span class="cssprop">padding</span> and <span class="cssprop">border</span>,
-  and ignoring its left and right <span class="cssprop">margin</span>). Even if a footnote moves to a named page
+  and ignoring its left and right <span class="cssprop">margin</span>), even when the call is in a table cell, a grid or flex
+  item, or a block of a given width. Even if a footnote moves to a named page
   with a different width, it keeps the width from the call's page and is aligned to the left edge.
 
 ### <a id="style-page-floats">Moving figures and tables to page edges<span class="since">4.0.0</span></a>

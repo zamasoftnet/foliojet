@@ -764,8 +764,6 @@ public class PageBox extends AbstractBlockBox {
 		this.footnoteSeparatorFlow = flow;
 	}
 
-	/** Separator rule thickness and its length as a fraction of the type area's line-axis width (fixed by the UA). */
-	private static final double FOOTNOTE_SEPARATOR_THICKNESS = 0.5;
 
 	/**
 	 * Draws footnote separator rules (after flow and before fixed in {@code PageSequence.drawPage}).
@@ -778,7 +776,8 @@ public class PageBox extends AbstractBlockBox {
 		// and color; draw nothing if thickness is 0. If unspecified, use the UA default rule.
 		final net.zamasoft.foliojet.ua.FootnoteArea.Separator spec = this.getUserAgent().getUAContext()
 				.getFootnoteArea().separator;
-		final double thickness = spec == null ? FOOTNOTE_SEPARATOR_THICKNESS : spec.thickness();
+		final double thickness = spec == null ? net.zamasoft.foliojet.ua.FootnoteArea.DEFAULT_SEPARATOR_THICKNESS
+				: spec.thickness();
 		if (!(thickness > 0)) {
 			return;
 		}

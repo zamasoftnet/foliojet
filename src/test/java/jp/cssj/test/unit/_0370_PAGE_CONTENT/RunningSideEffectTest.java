@@ -310,10 +310,11 @@ public final class RunningSideEffectTest extends TestCase {
 				final Object box = marginBox(agent, "content:'" + logical + "';font-size:10pt");
 				final var place = Class.forName("net.zamasoft.foliojet.css.style.MarginBoxes").getDeclaredMethod("place",
 						net.zamasoft.foliojet.ua.UserAgent.class, box.getClass(), double.class, double.class,
-						double.class, double.class, Drawer.class, net.zamasoft.foliojet.layout.visitor.Visitor.class);
+						double.class, double.class, double.class, double.class, Drawer.class,
+						net.zamasoft.foliojet.layout.visitor.Visitor.class);
 				place.setAccessible(true);
 				final Drawer drawer = new Drawer(0);
-				place.invoke(null, agent, box, 0.0, 0.0, 200.0, 30.0, drawer,
+				place.invoke(null, agent, box, 0.0, 0.0, 200.0, 30.0, 0.0, 0.0, drawer,
 						net.zamasoft.foliojet.layout.visitor.ArtifactVisitor.INSTANCE);
 				final List<String> replacements = new ArrayList<String>();
 				drawer.draw(new net.zamasoft.pdfg2d.gc.NoOpGC(agent.getFontManager()) {

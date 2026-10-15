@@ -1421,7 +1421,14 @@ public class DocumentBuilder implements TableBuilderHost {
 						// Inside a TwoPass parent, complete the body during that parent's MEASURE replay.
 						if (!parentBuilder.isTwoPass()) {
 							if (entry.builder instanceof TwoPassBlockBuilder contentBuilder) {
-								noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false);
+								// The same line length as the production pass below, or the probe reserves for notes
+								// of another width (2026-10-15).
+								noteBox.shrinkToFit(parentBuilder, contentBuilder.intrinsicSizesMeasured(), false,
+										this.pageContext() instanceof RootBuilder probeRoot
+												? probeRoot.getFootnoteLineSize(parentBuilder,
+														RootBuilder.footnoteColumnOwner(parentBuilder),
+														noteBox.getBlockParams().flow)
+												: LayoutUtils.NONE);
 								final BlockBuilder noteBuilder = new BlockBuilder(this.pageContextBuilder(), noteBox);
 								contentBuilder.bind(noteBuilder, ReplayIntent.MEASURE);
 								noteBuilder.close();
@@ -1444,7 +1451,8 @@ public class DocumentBuilder implements TableBuilderHost {
 					if (entry.builder.isTwoPass()) {
 						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
 						final double hostLineSize = this.pageContext() instanceof RootBuilder root
-								? root.getFootnoteLineSize(parentBuilder, footnoteOwner) : LayoutUtils.NONE;
+								? root.getFootnoteLineSize(parentBuilder, footnoteOwner, noteBox.getBlockParams().flow)
+								: LayoutUtils.NONE;
 						if (LayoutUtils.isNone(hostLineSize)) {
 							noteBox.shrinkToFit(parentBuilder, this.shrinkToFitSizes(noteBox, contentBuilder, parentBuilder),
 									false);

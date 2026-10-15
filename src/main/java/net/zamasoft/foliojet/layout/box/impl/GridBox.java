@@ -334,7 +334,14 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			// making the path that splits min-height-derived blank space unreachable.
 			final boolean slack = !anySplit
 					&& LayoutUtils.compare(this.itemsEnd(boundaryRow, boundaryItems, flow), remaining) <= 0;
-			if (!anySplit && !slack) {
+			// An item of break-inside: avoid that the cut line crosses keeps its row whole (2026-10-15): the row goes on
+			// with the remainder, or the grid moves when it is the first row. Not for the first row at the page start, nor
+			// once the parent has relaxed its avoids (RowSplitBox.avoidsBreakInside).
+			final boolean keepRowWhole = !anySplit && !slack
+					&& (boundary > 0 || (flags & IPageBreakableBox.FLAGS_FIRST) == 0)
+					&& (flags & IPageBreakableBox.FLAGS_AVOID_SPENT) == 0
+					&& RowSplitBox.avoidsBreakInside(boundaryItems, offsets, preExtents, below, remaining, mode);
+			if (!anySplit && !slack && !keepRowWhole) {
 				for (int k = 0; k < boundaryItems.length; ++k) {
 					if (below[k]) {
 						// The whole item lies below the cut line: it goes on with the remainder of the row.

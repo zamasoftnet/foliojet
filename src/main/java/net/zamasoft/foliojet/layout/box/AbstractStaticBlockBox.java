@@ -205,8 +205,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	}
 
 	/**
-	 * Containing-block line length for column footnotes only.
-	 * NONE uses the existing measurement, including page footnotes.
+	 * Containing-block line length of a footnote's area (a column's or, since 2026-10-15, the page's): the note fills
+	 * it, whatever box holds the call. NONE uses the existing measurement.
 	 */
 	public void shrinkToFit(LayoutStack layoutStack, IntrinsicSizes sizes, boolean table, final double hostLineSize) {
 		final boolean columnFootnote = !LayoutUtils.isNone(hostLineSize);

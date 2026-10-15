@@ -533,14 +533,32 @@ CSS標準の`target-counter()`で十進のページ番号を出すだけなら�
 	`string()`(下記)
 - フォント、色、`text-align`、`vertical-align`(top、middle、bottom)
 - `margin`、`border`、`padding`、`background`
+- `width`・`height`(長さで指定したとき)
 - `writing-mode`と`text-orientation`(縦書きの柱。[下記](#style-vertical-side-boxes))
 
 `background`と`border`はボックスに割り当てられた領域全体(余白の帯いっぱい)に描かれます。内容の大きさには合わせません。
 `vertical-align`と`text-align`は内容だけを動かします。
 
+`width`・`height`を長さで指定すると、ボックスはその大きさになり、割り当てられた領域の中で版面の側に寄せて
+置きます(上の帯なら下端、下の帯なら上端、左右の帯なら版面の側。帯の中央のボックスは中央のまま)。
+`margin`で版面との間をあけられ、`margin: auto`なら帯の中で上下(左右の帯では左右)の中央に置きます。
+領域より大きいときは、版面と反対の側(用紙の端の方)へはみ出します。
+ノンブルを丸い札にする例です。
+
+```css
+@page {
+	@bottom-center {
+		content: counter(page);
+		width: 12mm; height: 12mm; margin-top: 2mm;
+		border-radius: 50%; background: #1d1a22; color: #fff;
+	}
+}
+```
+
+百分率と`auto`は従来どおり、領域の大きさで描きます。
+
 次のものには対応していません。`url()`による画像、引用符、`attr()`、
-`-cssj-page-ref()`、`leader()`、および`width`・`height`による大きさの指定です
-(ボックスの大きさは内容と余白から決まります)。
+`-cssj-page-ref()`、`leader()`です。
 
 #### <a id="style-running-heading">柱(ランニングヘッダー)</a>
 
@@ -1000,9 +1018,26 @@ title要素は表示されないため、`string-set`の対象にできません
   <span class="cssdecl">border-top: none</span>なら引きません。指定が無ければ
   既定の線(0.5pt・黒・版面の幅の 1/3)です。区切り線は本文との間隙(6pt)の中央に
   引くので、間隙より太い線は本文や注に重なります。
+- <span class="cssprop">margin-top</span>と<span class="cssprop">padding-top</span>で
+  区切り線の上下のあきを決められます。<span class="cssprop">margin-top</span>は本文と区切り線の間、
+  <span class="cssprop">padding-top</span>は区切り線と注の間です(どちらも長さで指定します)。
+  どちらかを指定すると、本文と注の間は margin-top+線の太さ+padding-top になり、指定しなかった方は0です。
+  どちらも指定しなければ、前項のとおり6ptの中央に線を引きます。
+  <span class="cssprop">height</span>を指定した帯では、このあきも寸法に含みます。
+
+  ```css
+  @page {
+    @footnote {
+      border-top: 1px dashed #000;
+      margin-top: 6mm;  /* 本文と線の間 */
+      padding-top: 3mm; /* 線と注の間 */
+    }
+  }
+  ```
 - 横書きの脚注の幅は、呼び出しのページの版面の幅です(脚注要素の
   <span class="cssprop">padding</span>と<span class="cssprop">border</span>を
-  含み、左右の<span class="cssprop">margin</span>は無視します)。名前付きページで
+  含み、左右の<span class="cssprop">margin</span>は無視します)。呼び出しが表のセル、
+  grid や flex の項目、幅を指定したブロックの中にあっても同じです。名前付きページで
   幅の違うページへ送られた脚注も、呼び出しのページの幅のまま左端に揃えて置きます。
 
 ### <a id="style-page-floats">図表をページの端へ寄せる<span class="since">4.0.0</span></a>

@@ -327,7 +327,9 @@ public final class FootnoteColumnsTest extends TestCase {
 			final HostRoot root = pages.root();
 			final FlowBlockBox owner = hostColumns(false);
 			root.path(owner);
-			assertTrue(LayoutUtils.isNone(root.getFootnoteLineSize(root, owner)));
+			// A page note takes the page's line length (2026-10-15); one orthogonal to the page keeps the measurement.
+			assertFalse(LayoutUtils.isNone(root.getFootnoteLineSize(root, owner, WritingMode.TB)));
+			assertTrue(LayoutUtils.isNone(root.getFootnoteLineSize(root, owner, WritingMode.RL)));
 			assertEquals(root.getPageOwnerLimit(), root.getPageLimit(), 0.0);
 		}
 	}
