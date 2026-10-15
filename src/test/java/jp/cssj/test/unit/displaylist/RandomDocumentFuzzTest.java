@@ -1609,6 +1609,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// it, so they overflow to the right; Copper puts T22 353 pt right of the paper (19124 alike), Chrome's screen
 			// about 390 pt and its print drops T18 to T22.
 			new IndividualExclusion(19_563_463, "standard", 19_563_463, "作者の溢れ: 幅61ptの縦組みgridの中身が紙の右の外(Chromeも同じ)",
+					"2026-10-15"),
+			// Triage §51: on 120x400 pt paper a vertical-lr box of width:115pt holds a table whose cell has a wrapping column
+			// flex, and the rows run far to the right; Copper puts T15 at x = 527.5 pt (19124 alike), Chrome's screen lays it
+			// out within 9 pt of Copper (411 pt right of the paper) and its print drops T15.
+			new IndividualExclusion(19_734_748, "fit-v1", 1_004_098_180, "作者の溢れ: 幅115ptの縦組みの箱の表が紙の右の外(Chromeも同じ)",
 					"2026-10-15"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
