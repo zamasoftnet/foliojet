@@ -518,9 +518,9 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					} else if (LayoutUtils.isNone(marginBottom)) {
 						// Bottom margin is undetermined
 						marginBottom = lineSize - marginBottom - this.frame.getFrameHeight();
-					} else {
-						// Over-constrained
-												switch (this.resolvedAlign) {
+					} else if (!ownedMargins) {
+						// Over-constrained (an item its coordinator placed keeps its margins; see the horizontal branch)
+						switch (this.resolvedAlign) {
 						case Align.START:
 							// Align to top
 							marginBottom = 0;
@@ -757,9 +757,12 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 						} else if (LayoutUtils.isNone(marginRight)) {
 							// Right margin is undetermined
 							marginRight = lineSize - this.width - this.frame.getFrameWidth();
-						} else {
-							// Over-constrained
-														switch (this.resolvedAlign) {
+						} else if (!ownedMargins) {
+							// Over-constrained. Not for a flex or grid item: its coordinator placed it by its margin box, and a
+							// continuation rebuilt in a row split (RowSplitContainer) restores that box's outer width from the frame.
+							// Zeroed here, the item's margin-right went into its width: an image of 13mm with margin-right: 3.5mm sent
+							// to the next page with the rest of its row was drawn 16.5mm wide (2026-10-15, the faces of a textbook)
+							switch (this.resolvedAlign) {
 							case Align.START:
 								// Align to left
 								marginRight = 0;
