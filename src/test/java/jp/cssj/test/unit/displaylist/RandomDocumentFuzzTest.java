@@ -1626,7 +1626,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 19135 alike) keeps one page with every token left of the paper (T5 at -30 pt, T15 at -183 pt), Chrome's print
 			// continues on a second page. Without the multicol Copper pages it too; plain text in a vertical multicol pages.
 			new IndividualExclusion(19_972_186, "standard", 19_972_186, "既知の制限: 縦組みの段組の中の逆進行の箱が紙の左の外",
-					"2026-10-15"));
+					"2026-10-15"),
+			// Triage §53, the same limitation as 19928551: on A4 vertical-lr paper an inline vertical-rl box holds a float
+			// and in it a vertical-lr display:table float of width:106pt with a ruby; Copper (19124, 19138 and 19139 alike)
+			// puts T0 at x = -21.2 pt at the foot of the page, Chrome prints it at x = 21.1 pt, y = 0.
+			new IndividualExclusion(19_862_213, "fit-v1", 1_622_962_815, "既知の制限: 逆進行の箱の中の表の浮動体のルビが紙の左の外",
+					"2026-10-16"),
+			// Triage §53, the limitation of 14146344 (user decision 2026-10-14): on 120x400 pt vertical-rl paper a float of
+			// width:86pt holds a horizontal-tb form of two textareas at Chrome's size (125 pt); Copper (19138 and 19139 alike)
+			// sets them side by side from x = -130.5 pt, each "x" left of the paper, Chrome's print stacks them at x = -5.6 pt.
+			// 19124 drew them 84 pt wide, the second on the paper (before 3f90e52c).
+			new IndividualExclusion(19_868_609, "fit-v1", 1_168_479_292, "既知の制限: 縦組みの紙の横組みのfloatの中のtextareaが紙の左の外",
+					"2026-10-16"),
+			// Triage §53: on 60 pt vertical-lr paper a horizontal-tb inline holds nested tables far wider than the paper;
+			// Copper puts T23 at x = 139.8 pt (19124 alike), Chrome's screen at x = 189 pt (its print shrinks the page).
+			new IndividualExclusion(19_812_834, "fit-v1", 797_984_127, "作者の溢れ: 縦組みの紙の横組みの入れ子の表が紙の右の外(Chromeも同じ)",
+					"2026-10-16"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
