@@ -1614,6 +1614,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// flex, and the rows run far to the right; Copper puts T15 at x = 527.5 pt (19124 alike), Chrome's screen lays it
 			// out within 9 pt of Copper (411 pt right of the paper) and its print drops T15.
 			new IndividualExclusion(19_734_748, "fit-v1", 1_004_098_180, "作者の溢れ: 幅115ptの縦組みの箱の表が紙の右の外(Chromeも同じ)",
+					"2026-10-15"),
+			// Triage §52, the same limitation as 13106246 (standing user decision 2026-10-13): on 300x150 pt vertical-lr
+			// paper a vertical-rl float of width:56pt holds a vertical-lr box with an 89 pt display:table float (long ruby)
+			// and a relative inline vertical-rl form; Copper (19124 and 19135 alike) puts everything left of the paper,
+			// the button T24 at x = -51 pt, Chrome prints T24 at x = 42.6 pt (only the ruby goes off the left).
+			new IndividualExclusion(19_928_551, "standard", 19_928_551, "既知の制限: 逆進行の箱より広い浮動体と書式が紙の左の外",
+					"2026-10-15"),
+			// Triage §52, the same limitation: on 120x400 pt vertical-rl paper a three-column multicol holds a vertical-lr
+			// wrap-reverse flex and a vertical-rl list-item float (min-width:8em), wider than the column; Copper (19124 and
+			// 19135 alike) keeps one page with every token left of the paper (T5 at -30 pt, T15 at -183 pt), Chrome's print
+			// continues on a second page. Without the multicol Copper pages it too; plain text in a vertical multicol pages.
+			new IndividualExclusion(19_972_186, "standard", 19_972_186, "既知の制限: 縦組みの段組の中の逆進行の箱が紙の左の外",
 					"2026-10-15"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
