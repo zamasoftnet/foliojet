@@ -1646,7 +1646,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// along the line axis; Copper puts T7 at y = 125.2 pt (19124 alike), Chrome's screen puts T7 at y = 103.2 pt and
 			// its print, shrunk, leaves T6, T7, T10 and T11 off the page.
 			new IndividualExclusion(20_487_105, "fit-v1", 140_776_299, "作者の溢れ: 縦組みの紙で行の方向に紙より長い表が紙の下の外(Chromeも同じ)",
-					"2026-10-16"));
+					"2026-10-16"),
+			// Triage §56, a known engine limitation since 19124 (standing user decision 2026-10-13): on 60 pt vertical-rl
+			// paper nested multicols, column flexes and floats in other writing modes restart page 29 without end (about
+			// 15,000 times in two minutes with the CLI, 19124 and 19140 alike); the watchdog aborts the conversion.
+			new IndividualExclusion(20_581_114, "standard", 20_581_114, "既知の制限: 縦組みの段組とflexとfloatの入れ子で頁の組み直しが終わらない",
+					"2026-10-16", true));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
