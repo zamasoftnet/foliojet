@@ -78,14 +78,24 @@ public class RootBuilder extends BreakableBuilder {
 	private int nestedGrowthRun = 0;
 	private long breakHistoryIngest = Long.MIN_VALUE;
 	/**
-	 * What the floats committed since the last automatic page break carry past their page, and the same at that break
-	 * (2026-10-09). Floats broken page by page after the end of the input consume their content with the input
-	 * position, the cursor and the target all unchanged: rubydoc-api's 47000pt {@code main} float went down by about
-	 * 766pt a page, yet the guard counted 32 identical breaks and let the remaining 14000 words overflow. A carry
-	 * smaller than the last one by more than a point is progress, as are new input events; a carry that stays or grows
-	 * is not, so the stalls the guard is for are still caught.
+	 * What the floats committed since the last automatic page break carry past their page (2026-10-09). Floats broken
+	 * page by page after the end of the input consume their content with the input position, the cursor and the target
+	 * all unchanged: rubydoc-api's 47000pt {@code main} float went down by about 766pt a page, yet the guard counted 32
+	 * identical breaks and let the remaining 14000 words overflow. A carry below {@link #leastFloatCarry} by more than
+	 * 1pt (and the comparison's 0.5pt tolerance) is progress, as are new input events; a carry that stays or grows is
+	 * not, so the stalls the guard is for are still caught.
 	 */
-	private double floatCarry = 0, lastFloatCarry = Double.NaN;
+	private double floatCarry = 0;
+	/**
+	 * The least {@link #floatCarry} at an automatic page break since the input last advanced or the history was last
+	 * cleared (2026-10-16). Compared with the last carry instead, a carry that went down and back up again was progress
+	 * at every other break and cleared the history each time, so a page was laid out again without end (seed 20581114
+	 * cut down: a 3-column multicol on vertical-rl paper laid page 6 out 24,000 times in 30 s; since 7181a2e6). A carry
+	 * that has to go below its least by 1.5pt each time runs out. The cost: when a second long float starts after a
+	 * first one ended at the same input position, its carry starts above the least and does not count as progress (an
+	 * unmeasured case from the review, not seen in the corpus or the sweep).
+	 */
+	private double leastFloatCarry = Double.NaN;
 	private int stalledBreakRun = 0;
 	/** The resume depth ({@code sessions}) at the last automatic page break the guard saw (2026-10-10). */
 	private int lastGuardSessions = Integer.MAX_VALUE;
@@ -101,7 +111,7 @@ public class RootBuilder extends BreakableBuilder {
 	private void clearBreakProgressHistory() {
 		this.stalledBreakRun = 0;
 		this.floatCarry = 0;
-		this.lastFloatCarry = Double.NaN;
+		this.leastFloatCarry = Double.NaN;
 		this.lastGuardSessions = Integer.MAX_VALUE;
 		this.depthFreeBreakCounts.clear();
 		this.clearNestedGrowth();
@@ -169,11 +179,12 @@ public class RootBuilder extends BreakableBuilder {
 		// and counting its float carry as progress let it recurse until the stack overflowed (seed 11535244). A break at
 		// the same depth, as in the resume of a column break, still counts.
 		final boolean floatsConsumed = this.sessions.size() <= this.lastGuardSessions
-				&& !Double.isNaN(this.lastFloatCarry)
-				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(carry, this.lastFloatCarry - 1) < 0;
+				&& !Double.isNaN(this.leastFloatCarry)
+				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(carry, this.leastFloatCarry - 1) < 0;
 		this.lastGuardSessions = this.sessions.size();
 		this.floatCarry = 0;
-		this.lastFloatCarry = carry;
+		this.leastFloatCarry = ingest != this.breakHistoryIngest || Double.isNaN(this.leastFloatCarry) ? carry
+				: Math.min(this.leastFloatCarry, carry);
 		if (ingest != this.breakHistoryIngest || floatsConsumed) {
 			this.depthFreeBreakCounts.clear();
 			this.clearNestedGrowth();

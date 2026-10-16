@@ -58,4 +58,44 @@ public class FloatProgressGuardTest extends TestCase {
 		assertEquals("paragraphs", 1200, count);
 		assertEquals("pages", 150, pages.length);
 	}
+
+	/**
+	 * A float carry that goes down and back up again is not progress at every other break (2026-10-16, sweep seed 20581114
+	 * cut down). Compared with the last carry, the guard cleared its history at every drop and page 6 of this 3-column
+	 * multicol on vertical-rl paper was laid out again without end (24,000 times in 30 s; since 7181a2e6). Compared
+	 * with the least carry the guard fires as it did before: two pages, every token drawn (past the paper, as before).
+	 */
+	public void testCarryThatGoesBackUp() throws Exception {
+		final String html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>"
+				+ "@page { size: 60pt 60pt; margin: 0 } body { margin: 0; font: 7pt/1.2 serif; writing-mode: vertical-rl }"
+				+ " p, div { margin: 0; padding: 0 }</style></head><body>"
+				+ "<div style=\"column-count: 3; column-gap: 6pt\"><p>T1</p>"
+				+ "<div style=\"writing-mode: horizontal-tb; width: max-content; min-width: 8em; max-width: 90%\"></div>"
+				+ "<div style=\"width: max-content; min-width: 8em; max-width: 90%\"></div>"
+				+ "<div style=\"width: fit-content(70%); min-width: 8em; max-width: 90%\"></div>"
+				+ "<div style=\"writing-mode: vertical-rl; width: 119pt\"><div style=\"float: right; width: 59pt\"><p>T2</p></div></div>"
+				+ "<div style=\"writing-mode: horizontal-tb\"><div style=\"writing-mode: vertical-lr\"><p>T3</p>"
+				+ "<div style=\"width: 46pt\"></div><p>T4</p><p>T5</p></div></div></div></body></html>";
+		final File dir = Files.createTempDirectory("float-progress-guard").toFile();
+		final File input = new File(dir, "input.html");
+		Files.writeString(input.toPath(), html, StandardCharsets.UTF_8);
+		try (DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"), null);
+				ByteArrayOutputStream out = new ByteArrayOutputStream();
+				AutoCloseable dump = DisplayListDumper.scopedDir(dir.getPath())) {
+			// The old guard never ends: abort it instead of hanging the suite
+			session.property("processing.time-limit", "30000");
+			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+			CTISessionHelper.transcodeFile(session, input, "text/html", null);
+		}
+		final File[] pages = dir.listFiles((d, n) -> n.startsWith("page-") && n.endsWith(".txt"));
+		assertNotNull(pages);
+		final StringBuilder all = new StringBuilder();
+		for (final File page : pages) {
+			all.append(Files.readString(page.toPath(), StandardCharsets.UTF_8));
+		}
+		for (int i = 1; i <= 5; ++i) {
+			assertTrue("T" + i + " drawn", all.indexOf("Text[\"T" + i + "\"") >= 0);
+		}
+		assertEquals("pages", 2, pages.length);
+	}
 }
