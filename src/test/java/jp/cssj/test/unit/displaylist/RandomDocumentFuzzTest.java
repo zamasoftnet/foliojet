@@ -1651,7 +1651,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// paper nested multicols, column flexes and floats in other writing modes restart page 29 without end (about
 			// 15,000 times in two minutes with the CLI, 19124 and 19140 alike); the watchdog aborts the conversion.
 			new IndividualExclusion(20_581_114, "standard", 20_581_114, "既知の制限: 縦組みの段組とflexとfloatの入れ子で頁の組み直しが終わらない",
-					"2026-10-16", true));
+					"2026-10-16", true),
+			// Triage §57, a judgment hole under the limitation of 14146344 (user decision 2026-10-14): on 200 pt paper a
+			// float in a vertical-lr flex holds a vertical textarea and input at Chrome's size, so the float runs 239 pt down
+			// the 200 pt page (Chrome's print, scaled back, 223 pt) and a blank page follows; the oracle sees only the sizes
+			// the HTML gives. Exposed by 3f90e52c; 19124 drew the controls horizontally in 3 pages.
+			new IndividualExclusion(20_596_828, "fit-v1", 914_039_587, "判定の穴: textareaの大きさでfloatが紙より長く白紙の頁(Chromeも紙を超える)",
+					"2026-10-16"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
