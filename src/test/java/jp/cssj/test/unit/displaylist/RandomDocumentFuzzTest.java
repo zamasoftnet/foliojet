@@ -1657,7 +1657,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// the 200 pt page (Chrome's print, scaled back, 223 pt) and a blank page follows; the oracle sees only the sizes
 			// the HTML gives. Exposed by 3f90e52c; 19124 drew the controls horizontally in 3 pages.
 			new IndividualExclusion(20_596_828, "fit-v1", 914_039_587, "判定の穴: textareaの大きさでfloatが紙より長く白紙の頁(Chromeも紙を超える)",
-					"2026-10-16"));
+					"2026-10-16"),
+			// Triage §58, the limitation of 13820690 since 19124 (standing user decision 2026-10-13): on vertical-lr A4 a
+			// vertical-rl div holds a vertical-lr div with a float:right display:table around a radio; Copper draws the
+			// radio at x = -32.4 pt (19124 and 19141 alike), Chrome at 3.75 pt.
+			new IndividualExclusion(21_124_348, "fit-v1", 2_037_688_248, "既知の制限: 逆進行の領域のfloatの中で向きを戻した表が紙の左の外",
+					"2026-10-17"),
+			// Triage §58, the same limitation: on 200 pt vertical-lr paper a vertical-rl float holds a float and a
+			// vertical-lr display:table with a float of ruby; Copper draws the ruby at x = -16.05 pt (19124 and 19141
+			// alike), Chrome at 12 pt.
+			new IndividualExclusion(21_154_698, "fit-v1", 1_239_330_776, "既知の制限: 逆進行の領域のfloatの中で向きを戻した表が紙の左の外",
+					"2026-10-17"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
