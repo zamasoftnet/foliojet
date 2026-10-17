@@ -1759,6 +1759,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// inline direction; Copper puts T13 at y = 125.4 pt (19124 alike), Chrome's screen at 121.7 pt and its print
 			// drops it.
 			new IndividualExclusion(24_846_661, "standard", 24_846_661, "作者の溢れ: 重なるセルの表が紙の2倍超(Chromeも同じ)",
+					"2026-10-18"),
+			// Triage §72: a floated table on 60 pt vertical-rl paper whose cell holds a three-column table, more than
+			// twice the paper long in the inline direction; Copper puts T15 at y = 123.2 pt (19124 alike), Chrome's
+			// screen at 118.4 pt and its print drops it.
+			new IndividualExclusion(25_174_390, "fit-v1", 1_240_370_598, "作者の溢れ: セルに表を入れた表が紙の2倍超(Chromeも同じ)",
 					"2026-10-18"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
