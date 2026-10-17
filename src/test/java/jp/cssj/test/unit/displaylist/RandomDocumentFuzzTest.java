@@ -1718,6 +1718,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// float, wider than the float, so they overflow to the left; Copper draws T5 and T6 at x = -16 pt (19124
 			// alike), Chrome's screen at -16 and -15.1 pt and its print drops every token.
 			new IndividualExclusion(22_798_332, "fit-v1", 69_220_745, "作者の溢れ: 幅101ptの逆進行のfloatより広い中身が紙の左の外(Chromeも同じ)",
+					"2026-10-17"),
+			// Triage §66: a table with overlapping cells and nested tables on 60 pt vertical-rl paper, more than twice the
+			// paper long in the inline direction; Copper puts T9 at y = 127.2 pt (19124 alike), Chrome's screen at 122 pt
+			// and its print drops it.
+			new IndividualExclusion(23_019_702, "fit-v1", 1_891_956_271, "作者の溢れ: 重なるセルの表が紙の2倍超(Chromeも同じ)",
 					"2026-10-17"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
