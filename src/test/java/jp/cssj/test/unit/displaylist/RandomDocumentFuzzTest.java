@@ -1743,6 +1743,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// than twice the paper in its block direction; Copper puts the marker of T18 at x = 121 pt (19124 alike),
 			// Chrome's screen T18 at 140 pt and its print drops T21 to T25.
 			new IndividualExclusion(23_601_552, "fit-v1", 1_245_389_705, "作者の溢れ: 紙の2倍超の横組みの表のインラインブロック(Chromeも紙の外)",
+					"2026-10-18"),
+			// Triage §69, the documented limitation that floats inside a multicol are not split (CSS-SUPPORT, R2 removed
+			// 2026-10-11): on 120x400 pt vertical-lr paper a two-column multicol holds floats far longer than the page;
+			// Copper keeps them on page 1 up to x = 457 pt (19124 alike), Chrome's print splits them over three pages.
+			// Without the multicol, or with a single column, Copper splits them over four pages.
+			new IndividualExclusion(24_503_948, "fit-v1", 1_919_731_044, "既知の制限: 段組の中の頁より長いfloatを段で割らず紙の外",
+					"2026-10-18"),
+			// Triage §69: a table with overlapping cells and a nested table on 60 pt horizontal-tb paper, more than twice
+			// the paper wide; Copper puts T22 at x = 139.8 pt (19124 alike), Chrome's screen at 137.9 pt and its print
+			// drops it.
+			new IndividualExclusion(24_556_182, "fit-v1", 1_606_941_091, "作者の溢れ: 重なるセルの表が紙の2倍超(Chromeも同じ)",
 					"2026-10-18"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
