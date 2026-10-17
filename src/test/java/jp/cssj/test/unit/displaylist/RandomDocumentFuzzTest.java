@@ -1667,6 +1667,47 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// vertical-lr display:table with a float of ruby; Copper draws the ruby at x = -16.05 pt (19124 and 19141
 			// alike), Chrome at 12 pt.
 			new IndividualExclusion(21_154_698, "fit-v1", 1_239_330_776, "既知の制限: 逆進行の領域のfloatの中で向きを戻した表が紙の左の外",
+					"2026-10-17"),
+			// Triage §59, the mirror of 13106246 (standing user decision 2026-10-13): on vertical-rl A4 a vertical-lr
+			// list-item holds a four-column multicol with an ol; Copper draws T0 at x = 595.5 pt (19124 and 19141 alike),
+			// right of the paper, Chrome prints it at 589 pt. The shift grows with the column count (1: 581.8, 2: 591.4).
+			new IndividualExclusion(21_268_585, "fit-v1", 1_960_224_416, "既知の制限: 逆進行の箱の中の段組が紙の右の外",
+					"2026-10-17"),
+			// Triage §59: on 200 pt vertical-rl paper a nowrap row-reverse flex holds a table, a float with a textarea and
+			// a three-column multicol with a 196 pt inline-block, about five times the paper in the inline direction; Copper
+			// puts the table off the bottom (T11 at y = 867 pt), Chrome's screen puts the other items up to 720 pt above the
+			// paper and its print drops T16 to T24. 19124 differed only by the textarea size fixed in 19132 (now 123 pt,
+			// Chrome 126 pt).
+			new IndividualExclusion(21_444_811, "fit-v1", 1_736_317_156, "作者の溢れ: 折り返さないrow-reverseのflexが紙の5倍(Chromeも紙の外)",
+					"2026-10-17"),
+			// Triage §60, the same limitation as 13106246 (standing user decision 2026-10-13): on vertical-lr A4 a
+			// vertical-rl float holds a four-column multicol with an ol; Copper draws T0 at x = -7.7 pt (19124 alike),
+			// Chrome prints it at 0.9 pt. Only the y changed since 19124 (607 to 661 pt, Chrome 662 pt).
+			new IndividualExclusion(21_644_027, "fit-v1", 1_600_220_832, "既知の制限: 逆進行の箱の中の段組が紙の左の外",
+					"2026-10-17"),
+			// Triage §61: on 300x150 pt vertical-lr paper a vertical-rl div of width:48pt holds a horizontal-tb table and a
+			// 106 pt display:table float, wider than the div, so they overflow to the left; Copper draws T0 at x = -55.5 pt
+			// (19124 alike), Chrome's screen at -55.75 pt and its print drops every token.
+			new IndividualExclusion(21_920_848, "fit-v1", 949_382_975, "作者の溢れ: 幅48ptの逆進行の箱より広い横組みの表が紙の左の外(Chromeも同じ)",
+					"2026-10-17"),
+			// Triage §62, the same limitation as 13106246 (standing user decision 2026-10-13): on 120x400 pt vertical-lr
+			// paper a vertical-rl div holds a four-column multicol with a ul; Copper draws T0 at x = -7.7 pt (19124 alike),
+			// Chrome prints it at 0.65 pt. A single paragraph in place of the ul goes off too (-5.4 pt).
+			new IndividualExclusion(22_470_828, "fit-v1", 706_451_664, "既知の制限: 逆進行の箱の中の段組が紙の左の外",
+					"2026-10-17"),
+			// Triage §63, the same limitation as 13106246 (standing user decision 2026-10-13): on vertical-lr A4 a relative
+			// vertical-rl div holds a four-column multicol with an ol; Copper draws T0 at x = -14.9 pt (19124 alike),
+			// Chrome prints it at 0.8 pt.
+			new IndividualExclusion(22_643_777, "standard", 22_643_777, "既知の制限: 逆進行の箱の中の段組が紙の左の外",
+					"2026-10-17"),
+			// Triage §64: on 200 pt vertical-rl paper a vertical-lr box of width:49pt holds a vertical-rl box of width:74pt
+			// with ruby, overflowing to the right; Copper draws the ruby at x = 223 pt (19124 alike), Chrome's screen at
+			// 390 pt and its print drops it.
+			new IndividualExclusion(22_615_522, "fit-v1", 1_206_123_339, "作者の溢れ: 幅49ptの縦組みの箱より広い箱のルビが紙の右の外(Chromeも同じ)",
+					"2026-10-17"),
+			// Triage §64: nested tables with overlapping cells on 300x150 pt vertical-lr paper, twice the paper long; Copper
+			// puts T25 at y = 326 pt (19124 alike), Chrome's screen at 297 pt and its print drops T0 to T29.
+			new IndividualExclusion(22_674_189, "fit-v1", 1_717_646_750, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
 					"2026-10-17"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
