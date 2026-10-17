@@ -34,7 +34,9 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  *                        (flags vary per call, so are not fixed here)
  * @param moveToNext      one-time transfer determined at placement by intersection with the 2-D bottom band
  * @param monolithic      placement found that splitting makes no progress
- *                        (2026-09-17, {@code FloatBlockBox#splitMakesNoProgress})
+ *                        (2026-09-17, {@code FloatBlockBox#splitMakesNoProgress}), or the float is the remainder
+ *                        of a fragment-start split and has not shrunk (2026-10-18,
+ *                        {@code FloatBlockBox#fragmentStartSplitExtent})
  * @param boxType         {@link BoxType#BLOCK} or {@link BoxType#REPLACED}
  * @param pageBreakInside {@code page-break-inside} for BLOCK; null for REPLACED, where it does not apply
  */
@@ -79,7 +81,9 @@ public record FloatMeasurement(
 		return new FloatMeasurement(ordinal, floating.serial, floating.box, floating.pageAxis,
 				floating.pageAxis + pageExtent, pageExtent, sameWritingAxis,
 				LayoutUtils.compare(floating.pageAxis, 0) <= 0, floating.moveToNext, boxType, pageBreakInside,
-				floating.box instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox f && f.splitMakesNoProgress());
+				floating.box instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox f && (f.splitMakesNoProgress()
+						|| !Double.isNaN(f.fragmentStartSplitExtent())
+								&& LayoutUtils.compare(pageExtent, f.fragmentStartSplitExtent()) >= 0));
 	}
 
 	/**

@@ -102,6 +102,38 @@ public class PageFloatTerminationTest extends TestCase {
 		draws.forEach((k, v) -> assertEquals("語 " + k + " が複数回描かれた", 1, v.intValue()));
 	}
 
+	/**
+	 * Wild seed 24521670 (2026-10-18): on 120x400 pt vertical-lr paper, a table float in a three-column multicol holds a
+	 * cell with a wrapping row-reverse flex and an orthogonal item. Floats in multi-column layout skip the
+	 * placement-time progress check, and since e18e4fb6 the table measured 102.1 pt on the 100 pt page; its remainder
+	 * was rebuilt at 108.25 pt and split again at every page start (51,000 pages in 300 s with the 19141 CLI). A
+	 * remainder of a fragment-start split that has not shrunk is now unsplittable, so it is rescue-split or placed
+	 * overflowing.
+	 */
+	public void testMulticolFloatSplitWithoutProgressTerminates() throws Exception {
+		check("multicol-float-split-without-progress");
+		final File[] pages = new File("build/fuzz-regressions/multicol-float-split-without-progress-dl")
+				.listFiles((d, n) -> n.startsWith("page-") && n.endsWith(".txt"));
+		assertNotNull(pages);
+		assertTrue("ページ数 " + pages.length + " (同じ大きさの残りの分割が止まっていない)", pages.length <= 5);
+		final java.util.Map<String, Integer> draws = new java.util.TreeMap<>();
+		final java.util.regex.Pattern token = java.util.regex.Pattern.compile("Text\\[\"(T\\d+)\"");
+		for (final File page : pages) {
+			for (final String line : Files.readAllLines(page.toPath(), StandardCharsets.UTF_8)) {
+				if (line.contains(" artifact ")) {
+					continue;
+				}
+				final java.util.regex.Matcher m = token.matcher(line);
+				while (m.find()) {
+					draws.merge(m.group(1), 1, Integer::sum);
+				}
+			}
+		}
+		assertEquals(draws.toString(),
+				java.util.Set.of("T200", "T201", "T202", "T203", "T204", "T205", "T206", "T207", "T208"), draws.keySet());
+		draws.forEach((k, v) -> assertEquals("語 " + k + " が複数回描かれた", 1, v.intValue()));
+	}
+
 	private static void check(final String name) throws Exception {
 		final File fixture = new File("files/fuzz-repro/" + name + ".html");
 		final String html = Files.readString(fixture.toPath(), StandardCharsets.UTF_8);

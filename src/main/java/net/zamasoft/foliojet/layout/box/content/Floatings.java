@@ -347,6 +347,12 @@ public class Floatings {
 					// the next fragment start, with its serial inherited.
 					sourceSide.add(floating);
 					final net.zamasoft.foliojet.layout.box.IFloatBox tailBox = fragment.materialize();
+					if ((splitFlags & net.zamasoft.foliojet.layout.box.IPageBreakableBox.FLAGS_FIRST) != 0
+							&& tailBox instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox tail) {
+						// A split at the fragment start that leaves a remainder no smaller than the float made no
+						// progress (FloatBlockBox#fragmentStartSplitExtent)
+						tail.noteFragmentStartSplitExtent(expected.pageExtent());
+					}
 					if (DebugFlags.FLOAT_TRACE) {
 						System.err.println("[float] 残余断片 元=" + System.identityHashCode(floating.getBox()) + " 断片="
 								+ System.identityHashCode(tailBox));

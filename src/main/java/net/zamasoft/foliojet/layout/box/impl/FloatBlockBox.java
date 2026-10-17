@@ -43,6 +43,24 @@ public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 		return this.splitMakesNoProgress;
 	}
 
+	/**
+	 * For the remainder of a float split at a fragment start by page-break classification, the occupied page extent
+	 * the float had before that split; NaN otherwise (2026-10-18). The placement-time check above does not run for
+	 * floats in multi-column layout (they are placed unconditionally in the column band), so a remainder that a
+	 * column break rebuilt at the same size or larger was split again at every page start without end (wild seed
+	 * 24521670: a table float in a three-column multicol, 102.1pt and then 108.25pt on a 100pt page, 51,000 pages in
+	 * 300 s since e18e4fb6). A remainder that has not shrunk below this counts as {@link #splitMakesNoProgress()}.
+	 */
+	private double fragmentStartSplitExtent = Double.NaN;
+
+	public final void noteFragmentStartSplitExtent(final double extent) {
+		this.fragmentStartSplitExtent = extent;
+	}
+
+	public final double fragmentStartSplitExtent() {
+		return this.fragmentStartSplitExtent;
+	}
+
 	protected final FloatPos pos;
 
 	public FloatBlockBox(final BlockParams params, final FloatPos pos) {
