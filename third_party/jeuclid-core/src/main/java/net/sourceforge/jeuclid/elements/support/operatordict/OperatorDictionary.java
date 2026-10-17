@@ -96,4 +96,37 @@ public interface OperatorDictionary {
     String getDefaultAttributeValue(final String operator, final String form,
             final String attributeName) throws UnknownAttributeException;
 
+    /**
+     * Like {@link #getDefaultAttributeValue(String, String, String)}, but
+     * when the dictionary has an entry for this form that leaves the
+     * attribute out, returns the attribute's default instead of borrowing
+     * another form's value (Copper PDF, 2026-10-17). Operators without an
+     * entry for the form fall back as before.
+     *
+     * @param operator
+     *            operator character
+     * @param form
+     *            form string
+     * @param attributeName
+     *            name of attribute
+     * @return VALUE_UNKOWN or value from dict.
+     * @throws UnknownAttributeException
+     *             Raised, if wrong attributeName was provided.
+     */
+    String getDefaultAttributeValueOfForm(final String operator,
+            final String form, final String attributeName)
+            throws UnknownAttributeException;
+
+    /**
+     * Whether the dictionary has an entry for this operator in this form
+     * (Copper PDF, 2026-10-17).
+     *
+     * @param operator
+     *            operator character
+     * @param form
+     *            form string
+     * @return true if an entry records any attribute for the form.
+     */
+    boolean hasEntry(final String operator, final String form);
+
 }

@@ -1319,19 +1319,34 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// Also avoid page-float bands (2026-10-05). Tables/replaced elements do not lay out their contents with page
 			// exclusions, so starting in a bottom-figure band caused overlap (jigensha's vertical book). Place beside
 			// the figure if it fits; otherwise, move to the band end (page edge) and carry over to the next page.
+			// The cursor is where the margin box starts once the preceding margin collapses with this one, so the border
+			// box starts one collapsed margin further on. Until 2026-10-17 the margin was subtracted instead: a table with
+			// a top margin right after a full-width figure escaped the check and overlapped it, and one moved below a band
+			// got its margin twice (TECH-20261017-004).
 			final double marginAdjust = vertical ? amargin.right : amargin.top;
-			final double pageStart = this.pageAxis - marginAdjust;
-			final double bandEnd = pageSpace.bandEndAt(pageStart);
-			if (!Double.isNaN(bandEnd)) {
-				final AxisSpan room = pageSpace.narrowLineBandAt(pageStart,
-						new AxisSpan(this.lineAxis + xMarginStart, lineEnd));
+			double pageStart = this.pageAxis
+					+ (marginAdjust >= 0 ? Math.max(0, marginAdjust - this.poLastMargin) : marginAdjust);
+			final AxisSpan floatRoom = new AxisSpan(this.lineAxis + xMarginStart, lineEnd);
+			for (;;) {
+				final double bandEnd = pageSpace.bandEndAt(pageStart);
+				if (Double.isNaN(bandEnd)) {
+					break;
+				}
+				final AxisSpan room = pageSpace.narrowLineBandAt(pageStart, floatRoom);
 				if (LayoutUtils.compare(room.extent(), lineSize) >= 0) {
 					xMarginStart = room.start() - this.lineAxis;
 					lineEnd = room.end();
-				} else {
-					this.poLastMargin = this.neLastMargin = 0;
-					this.pageAxis = bandEnd + marginAdjust;
+					break;
 				}
+				// Below the band, keeping the box's own margin from the figure; the margin may reach the next band of
+				// figures stacked there, so look again from the new start (codex review)
+				this.poLastMargin = this.neLastMargin = 0;
+				this.pageAxis = bandEnd;
+				final double next = bandEnd + marginAdjust;
+				if (LayoutUtils.compare(next, pageStart) <= 0) {
+					break;
+				}
+				pageStart = next;
 			}
 		}
 		xMarginEnd = lineStop - lineEnd;

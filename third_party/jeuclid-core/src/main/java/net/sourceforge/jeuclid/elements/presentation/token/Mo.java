@@ -29,6 +29,7 @@ import net.sourceforge.jeuclid.elements.support.GraphicsSupport;
 import net.sourceforge.jeuclid.elements.support.attributes.AttributesHelper;
 import net.sourceforge.jeuclid.elements.support.operatordict.OperatorDictionary;
 import net.sourceforge.jeuclid.elements.support.operatordict.OperatorDictionary2;
+import net.sourceforge.jeuclid.elements.support.operatordict.OperatorDictionary3;
 import net.sourceforge.jeuclid.elements.support.operatordict.UnknownAttributeException;
 import net.sourceforge.jeuclid.elements.support.text.StringUtil;
 import net.sourceforge.jeuclid.elements.support.text.StringUtil.TextLayoutInfo;
@@ -143,6 +144,12 @@ public final class Mo extends AbstractJEuclidElement implements
     private final OperatorDictionary opDict;
 
     private boolean inChangeHook;
+
+    /**
+     * Whether the form is infix because the operator stands between other
+     * elements of a row (Copper PDF, 2026-10-17; see changeHook).
+     */
+    private boolean infixInRow;
 
     /**
      * Logger for this class
@@ -295,7 +302,21 @@ public final class Mo extends AbstractJEuclidElement implements
         if (!this.inChangeHook) {
             this.inChangeHook = true;
             this.detectFormParameter();
-            this.loadAttributeFromDictionary(Mo.ATTR_LARGEOP, Constants.FALSE);
+            // Copper PDF (2026-10-17): a large operator is a prefix property.
+            // The MathML 2 dictionary gives the circled operators an infix
+            // entry and a largeop prefix entry (the n-ary forms of the MathML 2
+            // entities, &bigoplus; is U+2295), and borrowing the prefix value
+            // drew a (+) b with an n-ary sized (+) (the publishing department's
+            // book). Only operators that MathML 3 knows as infix stop
+            // borrowing: it lists the n-ary union and its kin as prefix only,
+            // so A = (U) B keeps them large. An operator alone, such as the
+            // base of munderover, keeps borrowing: its form should come from
+            // the embellished operator.
+            final boolean ownFormOnly = this.infixInRow
+                    && OperatorDictionary3.getInstance().hasEntry(
+                            this.getText(), OperatorDictionary.FORM_INFIX);
+            this.loadAttributeFromDictionary(Mo.ATTR_LARGEOP, Constants.FALSE,
+                    ownFormOnly);
             this.loadAttributeFromDictionary(Mo.ATTR_SYMMETRIC, Constants.TRUE);
             this.loadAttributeFromDictionary(Mo.ATTR_STRETCHY, Constants.FALSE);
             this.loadAttributeFromDictionary(Mo.ATTR_FENCE, Constants.FALSE);
@@ -304,7 +325,7 @@ public final class Mo extends AbstractJEuclidElement implements
             this.loadAttributeFromDictionary(Mo.ATTR_RSPACE,
                     AttributesHelper.THICKMATHSPACE);
             this.loadAttributeFromDictionary(Mo.ATTR_MOVABLELIMITS,
-                    Constants.FALSE);
+                    Constants.FALSE, ownFormOnly);
             // TODO: Load all.
             this.registerWithParentsForEvents();
             if (this.isFence()) {
@@ -339,10 +360,20 @@ public final class Mo extends AbstractJEuclidElement implements
 
     private void loadAttributeFromDictionary(final String attrname,
             final String defvalue) {
+        this.loadAttributeFromDictionary(attrname, defvalue, false);
+    }
+
+    private void loadAttributeFromDictionary(final String attrname,
+            final String defvalue, final boolean ownFormOnly) {
         String attr;
         try {
-            attr = this.opDict.getDefaultAttributeValue(this.getText(), this
-                    .getForm(), attrname);
+            if (ownFormOnly) {
+                attr = this.opDict.getDefaultAttributeValueOfForm(this
+                        .getText(), this.getForm(), attrname);
+            } else {
+                attr = this.opDict.getDefaultAttributeValue(this.getText(),
+                        this.getForm(), attrname);
+            }
         } catch (final UnknownAttributeException e) {
             attr = defvalue;
         }
@@ -356,6 +387,7 @@ public final class Mo extends AbstractJEuclidElement implements
     private void detectFormParameter() {
         final String form;
         final JEuclidElement parent = this.getParent();
+        this.infixInRow = false;
         // Copper PDF (2026-10-04): math, mstyle, msqrt, mtd and the like have
         // an inferred mrow, so a leading operator there is prefix as well
         // (it used to be infix). An operator alone in a row is infix (MathML
@@ -371,6 +403,7 @@ public final class Mo extends AbstractJEuclidElement implements
                     form = OperatorDictionary.FORM_POSTFIX;
                 } else {
                     form = OperatorDictionary.FORM_INFIX;
+                    this.infixInRow = true;
                 }
             }
         } else {

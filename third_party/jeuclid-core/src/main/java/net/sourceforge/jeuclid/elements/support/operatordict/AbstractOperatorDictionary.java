@@ -170,4 +170,44 @@ public abstract class AbstractOperatorDictionary implements OperatorDictionary,
         return retVal;
     }
 
+    /** {@inheritDoc} */
+    public String getDefaultAttributeValueOfForm(final String operator,
+            final String form, final String attributeName)
+            throws UnknownAttributeException {
+        final OperatorForm intForm = OperatorForm.parseOperatorForm(form);
+        final OperatorAttribute attribute = OperatorAttribute
+                .parseOperatorAttribute(attributeName);
+        if (!this.hasForm(operator, intForm)) {
+            return this.getDefaultAttributeValue(operator, intForm, attribute);
+        }
+        final Map<String, Map<OperatorForm, String>> opForAttr = this.dict
+                .get(attribute);
+        final Map<OperatorForm, String> valuesPerForm = (opForAttr == null) ? null
+                : opForAttr.get(operator);
+        final String value = (valuesPerForm == null) ? null : valuesPerForm
+                .get(intForm);
+        return (value == null) ? attribute.getDefaultValue() : value;
+    }
+
+    /** {@inheritDoc} */
+    public boolean hasEntry(final String operator, final String form) {
+        return this.hasForm(operator, OperatorForm.parseOperatorForm(form));
+    }
+
+    /**
+     * Whether the dictionary has an entry for this operator in this form (an
+     * entry records at least one attribute).
+     */
+    private boolean hasForm(final String operator, final OperatorForm form) {
+        for (final Map<String, Map<OperatorForm, String>> opForAttr : this.dict
+                .values()) {
+            final Map<OperatorForm, String> valuesPerForm = opForAttr
+                    .get(operator);
+            if ((valuesPerForm != null) && valuesPerForm.containsKey(form)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 }

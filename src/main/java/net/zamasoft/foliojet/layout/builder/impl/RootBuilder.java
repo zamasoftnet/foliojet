@@ -738,6 +738,9 @@ public class RootBuilder extends BreakableBuilder {
 	/** Page-axis end of the top prefix placed on this page in FIFO order. */
 	private double topPageFloatStackEnd = 0;
 
+	/** Where the body of this page starts below full-width top floats ({@link #fullWidthTopFloatEnd()}). */
+	private double topFloatBodyStart = 0;
+
 	/** Immutable snapshot containing only top floats. */
 	private ExclusionSpace topPageFloatExclusionSnapshot = ExclusionSpace.EMPTY;
 
@@ -865,6 +868,7 @@ public class RootBuilder extends BreakableBuilder {
 		this.pageFloatSequence = 0;
 		this.topPageFloatExclusions = new java.util.ArrayList<>();
 		this.topPageFloatStackEnd = 0;
+		this.topFloatBodyStart = 0;
 		this.topPageFloatExclusionSnapshot = ExclusionSpace.EMPTY;
 		this.bottomPageFloatExclusionSnapshot = ExclusionSpace.EMPTY;
 		this.pageFloatExclusionSnapshot = ExclusionSpace.EMPTY;
@@ -1449,7 +1453,8 @@ public class RootBuilder extends BreakableBuilder {
 		this.reserveBottomFloats();
 		this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
 				super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation, true));
-		this.resetFragmentCursor(0, 0);
+		this.topFloatBodyStart = this.fullWidthTopFloatEnd();
+		this.resetFragmentCursor(this.topFloatBodyStart, 0);
 		return pageBox;
 	}
 
@@ -1736,7 +1741,8 @@ public class RootBuilder extends BreakableBuilder {
 			this.reserveBottomFloats();
 			this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
 					super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation, true));
-			this.resetFragmentCursor(0, 0);
+			this.topFloatBodyStart = this.fullWidthTopFloatEnd();
+			this.resetFragmentCursor(this.topFloatBodyStart, 0);
 			this.finishLayout();
 			// An iteration without progress means a footnote's call remained on no page
 			// (calls inside table cells or absolute positioning are outside the scan).
@@ -2908,6 +2914,15 @@ public class RootBuilder extends BreakableBuilder {
 			if (placeOnCurrentPage) {
 				this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
 						super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation, true));
+				// The page is still empty, so start its body below a full-width figure here too (a table written right
+				// after a figure that opens the page overlapped it). Only in the page's own coordinates: columns and
+				// other writing modes on the path keep the exclusion.
+				final double bodyStart = this.fullWidthTopFloatEnd();
+				if (bodyStart > this.topFloatBodyStart && this.hasRootWritingModePath() && this.findColumnBreak() == null) {
+					this.topFloatBodyStart = bodyStart;
+					this.pageAxis = bodyStart;
+					this.poLastMargin = this.neLastMargin = 0;
+				}
 			} else {
 				this.pendingCurrentTopFloats.add(new CurrentTopFloat(floatBox, this.pageGeneration));
 				this.tryTranslateForTopFloats();
@@ -3231,7 +3246,8 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	private boolean isCurrentPageEmptyForTopFloat() {
 		return this.textBuilder == null
-				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(this.currentPagePosition(), 0) == 0
+				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(this.currentPagePosition(),
+						this.topFloatBodyStart) == 0
 				// Exclude top floats already placed immediately from the empty check. Exclude only box identities
 				// in the typed placement-generation ledger, never ordinary floats or body text.
 				&& !this.pageBox.getContainer().hasNonDecorationContentExcludingFloatings(
@@ -3555,6 +3571,32 @@ public class RootBuilder extends BreakableBuilder {
 		}
 		this.topPageFloatExclusionSnapshot = ExclusionSpace.copyOfSorted(this.topPageFloatExclusions);
 		this.refreshPageFloatExclusionSnapshot();
+	}
+
+	/**
+	 * End of the full-width top floats stacked from the page start, where the body of the page begins (2026-10-17,
+	 * TECH-20261017-004). Top floats are exclusions for line scanning only, so a table, a grid or the continuation of a
+	 * bordered box at the page start ignored them: a figure carried to the next page sat on the table that followed it
+	 * (the publishing department's book). No text can go beside a float spanning the whole line, so the body starts
+	 * below it, as it did before the two-dimensional exclusion of 2026-09-04. Returns 0 when the first float is narrower
+	 * (text goes beside it) or when the stack leaves less than {@link #MIN_PAGE_LIMIT} for the body (the exclusion keeps
+	 * handling those).
+	 *
+	 * @return page-axis start of the body on this page
+	 */
+	private double fullWidthTopFloatEnd() {
+		double end = 0;
+		for (final FloatExclusion exclusion : this.topPageFloatExclusions) {
+			if (net.zamasoft.foliojet.layout.util.LayoutUtils.compare(exclusion.pageSpan().start(), end) != 0
+					|| net.zamasoft.foliojet.layout.util.LayoutUtils.compare(exclusion.lineSpan().extent(),
+							this.pageBox.getLineSize()) < 0) {
+				break;
+			}
+			end = exclusion.pageSpan().end();
+		}
+		final double maxArea = super.getPageLimit() - this.pageFootnoteHost.footnoteReservation
+				- this.bottomFloatReservation;
+		return end + MIN_PAGE_LIMIT > maxArea ? 0 : end;
 	}
 
 	/** Whether float placement advanced on the most recent page (finish() progress guard). */
