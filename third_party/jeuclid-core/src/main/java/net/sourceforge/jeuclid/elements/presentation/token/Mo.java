@@ -29,7 +29,6 @@ import net.sourceforge.jeuclid.elements.support.GraphicsSupport;
 import net.sourceforge.jeuclid.elements.support.attributes.AttributesHelper;
 import net.sourceforge.jeuclid.elements.support.operatordict.OperatorDictionary;
 import net.sourceforge.jeuclid.elements.support.operatordict.OperatorDictionary2;
-import net.sourceforge.jeuclid.elements.support.operatordict.OperatorDictionary3;
 import net.sourceforge.jeuclid.elements.support.operatordict.UnknownAttributeException;
 import net.sourceforge.jeuclid.elements.support.text.StringUtil;
 import net.sourceforge.jeuclid.elements.support.text.StringUtil.TextLayoutInfo;
@@ -144,6 +143,16 @@ public final class Mo extends AbstractJEuclidElement implements
     private final OperatorDictionary opDict;
 
     private boolean inChangeHook;
+
+    /**
+     * The operators of the MathML 2 dictionary with both an infix entry and a
+     * largeop prefix entry that MathML 3 lists as infix only: circled plus,
+     * minus, times and dot, and multiset union (Copper PDF, 2026-10-17).
+     * Written out, as loading the MathML 3 dictionary (OperatorDictionary3)
+     * takes seconds: it walks the appendix with XPath.
+     */
+    private static final java.util.Set<String> INFIX_ONLY_IN_MATHML3 = java.util.Set
+            .of("⊕", "⊖", "⊗", "⊙", "⊎");
 
     /**
      * Whether the form is infix because the operator stands between other
@@ -307,14 +316,13 @@ public final class Mo extends AbstractJEuclidElement implements
             // entry and a largeop prefix entry (the n-ary forms of the MathML 2
             // entities, &bigoplus; is U+2295), and borrowing the prefix value
             // drew a (+) b with an n-ary sized (+) (the publishing department's
-            // book). Only operators that MathML 3 knows as infix stop
+            // book). Only operators that MathML 3 knows as infix only stop
             // borrowing: it lists the n-ary union and its kin as prefix only,
             // so A = (U) B keeps them large. An operator alone, such as the
             // base of munderover, keeps borrowing: its form should come from
             // the embellished operator.
             final boolean ownFormOnly = this.infixInRow
-                    && OperatorDictionary3.getInstance().hasEntry(
-                            this.getText(), OperatorDictionary.FORM_INFIX);
+                    && Mo.INFIX_ONLY_IN_MATHML3.contains(this.getText());
             this.loadAttributeFromDictionary(Mo.ATTR_LARGEOP, Constants.FALSE,
                     ownFormOnly);
             this.loadAttributeFromDictionary(Mo.ATTR_SYMMETRIC, Constants.TRUE);

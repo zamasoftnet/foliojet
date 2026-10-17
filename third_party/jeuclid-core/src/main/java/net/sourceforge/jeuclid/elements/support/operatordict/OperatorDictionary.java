@@ -117,16 +117,4 @@ public interface OperatorDictionary {
             final String form, final String attributeName)
             throws UnknownAttributeException;
 
-    /**
-     * Whether the dictionary has an entry for this operator in this form
-     * (Copper PDF, 2026-10-17).
-     *
-     * @param operator
-     *            operator character
-     * @param form
-     *            form string
-     * @return true if an entry records any attribute for the form.
-     */
-    boolean hasEntry(final String operator, final String form);
-
 }

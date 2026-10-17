@@ -189,11 +189,6 @@ public abstract class AbstractOperatorDictionary implements OperatorDictionary,
         return (value == null) ? attribute.getDefaultValue() : value;
     }
 
-    /** {@inheritDoc} */
-    public boolean hasEntry(final String operator, final String form) {
-        return this.hasForm(operator, OperatorForm.parseOperatorForm(form));
-    }
-
     /**
      * Whether the dictionary has an entry for this operator in this form (an
      * entry records at least one attribute).
