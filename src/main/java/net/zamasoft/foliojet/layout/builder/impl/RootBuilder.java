@@ -1450,12 +1450,65 @@ public class RootBuilder extends BreakableBuilder {
 		// Resume the context. Place top page floats at the new page start,
 		// and apply two-dimensional exclusion to body text from the page start.
 		this.contextFlow = new Flow(this.pageBox, 0, 0);
-		this.reserveBottomFloats();
-		this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
-				super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation, true));
+		this.placeCarriedPageFloats();
 		this.topFloatBodyStart = this.fullWidthTopFloatEnd();
 		this.resetFragmentCursor(this.topFloatBodyStart, 0);
 		return pageBox;
+	}
+
+	/**
+	 * Places the page floats carried to a new page in document order (2026-10-18, TECH-20261017-004 ④). Only the first
+	 * of them is placed whether it fits or not (the page-start progress rule); the others are placed only where they fit,
+	 * and a top float that comes after a bottom float left for the next page waits too. Reserving the bottom floats first
+	 * and then placing the top floats in what remained forced both onto the page when they did not fit together: a
+	 * 130 mm figure carried with float: top and a 70 mm illustration carried with float: bottom after it overlapped on an
+	 * A5 page that had no room left for body text. Floats whose order is unknown (pseudo-elements) keep the old order,
+	 * bottom first.
+	 */
+	private void placeCarriedPageFloats() {
+		final double area = super.getPageLimit() - this.pageFootnoteHost.footnoteReservation;
+		if (!this.pendingBottomFloats.isEmpty() && documentOrder(this.pendingBottomFloats.peekFirst()) >= 0) {
+			this.placeTopPageFloats(planTopFloats(this.topFloatsBefore(this.pendingBottomFloats.peekFirst()),
+					this::footnoteExtent, this.topPageFloatStackEnd, area, true));
+		}
+		this.reserveBottomFloats();
+		net.zamasoft.foliojet.layout.box.impl.FloatBlockBox unreserved = null;
+		int i = 0;
+		for (final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBox : this.pendingBottomFloats) {
+			if (i++ == this.bottomFloatReservedCount) {
+				unreserved = floatBox;
+				break;
+			}
+		}
+		this.placeTopPageFloats(planTopFloats(unreserved == null ? this.pendingTopFloats : this.topFloatsBefore(unreserved),
+				this::footnoteExtent, this.topPageFloatStackEnd, area - this.bottomFloatReservation,
+				this.bottomFloatReservedCount == 0));
+	}
+
+	/**
+	 * The leading pending top floats that come before this bottom float in the document; all of them when its order is
+	 * unknown.
+	 */
+	private java.util.List<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> topFloatsBefore(
+			final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox bottom) {
+		final long limit = documentOrder(bottom);
+		final java.util.List<net.zamasoft.foliojet.layout.box.impl.FloatBlockBox> before = new java.util.ArrayList<>();
+		for (final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox top : this.pendingTopFloats) {
+			final long order = documentOrder(top);
+			if (limit >= 0 && (order < 0 || order >= limit)) {
+				break;
+			}
+			before.add(top);
+		}
+		return before;
+	}
+
+	/** The element's document-order key, or -1 for a pseudo-element or an anonymous box. */
+	private static long documentOrder(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBox) {
+		return floatBox.getParams() != null
+				&& floatBox.getParams().element instanceof net.zamasoft.foliojet.css.StructureElement structure
+						? structure.elementKey()
+						: -1;
 	}
 
 	/** Formats the flow stack contents for humans (for invariant diagnostics). */
@@ -1738,9 +1791,7 @@ public class RootBuilder extends BreakableBuilder {
 			this.resetPageMarginNoteCursors();
 			this.contextFlow = new Flow(this.pageBox, 0, 0);
 			this.reserveFootnotes();
-			this.reserveBottomFloats();
-			this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
-					super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation, true));
+			this.placeCarriedPageFloats();
 			this.topFloatBodyStart = this.fullWidthTopFloatEnd();
 			this.resetFragmentCursor(this.topFloatBodyStart, 0);
 			this.finishLayout();
@@ -2912,8 +2963,10 @@ public class RootBuilder extends BreakableBuilder {
 			this.pendingTopFloats.addLast(floatBox);
 			this.pendingTopFloatGenerations.put(floatBox, this.pageGeneration);
 			if (placeOnCurrentPage) {
+				// Beside bottom floats already on the page (they came first) only where it fits (2026-10-18)
 				this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
-						super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation, true));
+						super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation,
+						this.bottomFloatReservedCount == 0));
 				// The page is still empty, so start its body below a full-width figure here too (a table written right
 				// after a figure that opens the page overlapped it). Only in the page's own coordinates: columns and
 				// other writing modes on the path keep the exclusion.
@@ -3204,11 +3257,12 @@ public class RootBuilder extends BreakableBuilder {
 	 * placement plan, without shrinking body capacity. Normally reserve the first entry even if larger than the type
 	 * area, so EOF draining advances. On pages with an atomic floor, however, send even the first entry to the next
 	 * page if it violates that floor (2026-09-04). Progress is preserved because the next page reserves it before
-	 * registering the floor.
+	 * registering the floor. The top floats placed on this page bound the area like the floor, and with any of them in
+	 * its line range the first entry is not forced either (2026-10-18, {@link #placeCarriedPageFloats}): it waits for a
+	 * page where it comes first.
 	 */
 	private void reserveBottomFloats() {
-		final double bottomMaxArea = super.getPageLimit() - Math.max(MIN_PAGE_LIMIT, this.atomicFloatFloor)
-				- this.pageFootnoteHost.footnoteReservation;
+		final double area = super.getPageLimit() - this.pageFootnoteHost.footnoteReservation;
 		int i = 0;
 		for (final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBox : this.pendingBottomFloats) {
 			if (i++ < this.bottomFloatReservedCount) {
@@ -3220,8 +3274,9 @@ public class RootBuilder extends BreakableBuilder {
 				break;
 			}
 			final double cost = this.footnoteExtent(floatBox);
-			if (this.bottomFloatReservation + cost > bottomMaxArea) {
-				if (this.bottomFloatReservedCount == 0 && i == 1 && this.atomicFloatFloor <= 0) {
+			final double topReach = this.topFloatReach(floatBox);
+			if (this.bottomFloatReservation + cost > area - Math.max(Math.max(MIN_PAGE_LIMIT, this.atomicFloatFloor), topReach)) {
+				if (this.bottomFloatReservedCount == 0 && i == 1 && this.atomicFloatFloor <= 0 && topReach <= 0) {
 					this.bottomFloatReservation = cost;
 					this.bottomFloatReservedCount = 1;
 					LOG.warning("bottom page float too large for the remaining page area: " + cost + "pt");
@@ -3232,6 +3287,25 @@ public class RootBuilder extends BreakableBuilder {
 			++this.bottomFloatReservedCount;
 		}
 		this.rebuildBottomPageFloatExclusions();
+	}
+
+	/**
+	 * How far down the page the top floats placed on this page reach in the line range this bottom float takes
+	 * (2026-10-18). In horizontal writing both start at the line start, so it is the end of the top stack; a physical
+	 * bottom float in vertical writing goes to the line end and is clear of narrow top floats at the line start.
+	 */
+	private double topFloatReach(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBox) {
+		if (!this.bottomAtLineEnd(floatBox)) {
+			return this.topPageFloatStackEnd;
+		}
+		final double lineStart = this.pageBox.getLineSize() - floatBox.getLineExtent(this.pageBox.getBlockParams().flow);
+		double reach = 0;
+		for (final FloatExclusion exclusion : this.topPageFloatExclusions) {
+			if (net.zamasoft.foliojet.layout.util.LayoutUtils.compare(exclusion.lineSpan().end(), lineStart) > 0) {
+				reach = Math.max(reach, exclusion.pageSpan().end());
+			}
+		}
+		return reach;
 	}
 
 	/** Current position farther toward block-end of the body cursor and the open line's actual extent. */

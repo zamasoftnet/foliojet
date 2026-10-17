@@ -96,6 +96,45 @@ public class TopFloatBodyStartTest extends TestCase {
 				0.01);
 	}
 
+	/**
+	 * A figure carried with float: top and an illustration carried with float: bottom after it that do not fit on one
+	 * page together: the figure, first in the document, takes the page and the illustration waits for the next one
+	 * (2026-10-18, TECH-20261017-004 ④; both were put on the page and the illustration covered the figure's lower part
+	 * and its caption).
+	 */
+	public void testCarriedIllustrationAfterFigureWaits() throws Exception {
+		final List<List<Entry>> pages = layout(body(30) + FIGURE + body(3) + illustration(250) + body(20));
+		final List<Entry> page = figurePage(pages, 2);
+		assertBelowFigure(page);
+		assertNull("illustration on the figure's page", sized(page, 250));
+		final Entry illustration = sized(pages.get(2), 250);
+		assertNotNull("illustration on the next page", illustration);
+		assertEquals("illustration at the bottom", 150, illustration.y, 0.01);
+	}
+
+	/** When they fit together, both stay on the page, the figure at the top and the illustration at the bottom. */
+	public void testCarriedFigureAndIllustrationThatFit() throws Exception {
+		final List<List<Entry>> pages = layout(body(30) + FIGURE + body(3) + illustration(200) + body(20));
+		final Entry illustration = sized(figurePage(pages, 2), 200);
+		assertNotNull("illustration with the figure", illustration);
+		assertEquals("illustration at the bottom", 200, illustration.y, 0.01);
+	}
+
+	private static String illustration(final int height) {
+		return "<div style=\"float: bottom; width: 100%\"><div style=\"height: " + height
+				+ "pt; background: #ffb060\"></div></div>";
+	}
+
+	/** The first frame or background of this height. */
+	private static Entry sized(final List<Entry> page, final double height) {
+		for (final Entry entry : page) {
+			if (!Double.isNaN(entry.height) && Math.abs(entry.height - height) < 0.01) {
+				return entry;
+			}
+		}
+		return null;
+	}
+
 	private static String body(final int lines) {
 		final StringBuilder out = new StringBuilder();
 		for (int i = 1; i <= lines; ++i) {
