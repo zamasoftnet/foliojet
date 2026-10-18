@@ -1805,6 +1805,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §78, as §63: on vertical-lr A4 a relative vertical-rl div holds a four-column multicol with a ul;
 			// Copper draws T0 at x = -11.3 pt (display list identical to 19124), Chrome prints it at 0.85 pt.
 			new IndividualExclusion(27_157_809, "fit-v1", 290_303_630, "既知の制限: 逆進行の箱の中の段組が紙の左の外",
+					"2026-10-18"),
+			// Triage §79, as §63: on vertical-lr A4 a relative vertical-rl div holds a four-column multicol with a
+			// vertical-lr inline-block; Copper draws T0 at x = -83.3 pt (19124 alike), Chrome prints it at 0.35 pt.
+			new IndividualExclusion(27_315_759, "fit-v1", 1_942_480_417, "既知の制限: 逆進行の箱の中の段組が紙の左の外",
+					"2026-10-18"),
+			// Triage §79: a table on 60 pt paper with a nested table of overlapping cells in a cell, about 134 pt wide;
+			// Copper puts T19 at x = 124.0 pt (19124 alike), Chrome's screen at 118.8 pt and its print drops it.
+			new IndividualExclusion(27_486_259, "fit-v1", 2_141_997_428, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
 					"2026-10-18"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
