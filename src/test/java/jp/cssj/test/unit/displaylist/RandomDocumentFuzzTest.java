@@ -1770,6 +1770,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// print carries it over four pages. A grid or flex container with a fixed page-axis size does not
 			// fragment its overflow (a block does).
 			new IndividualExclusion(25_308_321, "fit-v1", 170_839_639, "既知の制限: 大きさを決めたgrid・flexから溢れた中身を頁に分けない",
+					"2026-10-18"),
+			// Triage §74: a vertical-lr float on 60 pt paper holding a table with overlapping cells and a list in a
+			// cell, wider and longer than the paper; Copper puts T27 at x = 93.5 pt, y = 124.7 pt (19124 alike),
+			// Chrome's screen at x = 92.7 pt, y = 153.0 pt and its print shrinks the page and drops T24 to T27.
+			new IndividualExclusion(25_574_885, "fit-v1", 1_403_448_992, "作者の溢れ: 重なるセルの表が紙の外へ(Chromeも同じ)",
 					"2026-10-18"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
