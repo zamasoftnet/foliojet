@@ -1796,6 +1796,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// blank one (19124: one page). Floats of an orthogonal flow with content shorter than the page and long
 			// paragraphs after them are not affected.
 			new IndividualExclusion(26_483_315, "fit-v1", 353_009_495, "既知の制限: 直交フローのfloatが頁より長い割れない中身を持つと白紙ページ",
+					"2026-10-18"),
+			// Triage §78, the same limitation as 13106246 (standing user decision 2026-10-13): on vertical-lr A4 a
+			// vertical-rl div holds a three-column multicol with a vertical-lr inline-block; Copper draws T0 at
+			// x = -58.7 pt (display list identical to 19124), Chrome prints it at 1.1 pt.
+			new IndividualExclusion(27_155_525, "fit-v1", 769_068_290, "既知の制限: 逆進行の箱の中の段組が紙の左の外",
+					"2026-10-18"),
+			// Triage §78, as §63: on vertical-lr A4 a relative vertical-rl div holds a four-column multicol with a ul;
+			// Copper draws T0 at x = -11.3 pt (display list identical to 19124), Chrome prints it at 0.85 pt.
+			new IndividualExclusion(27_157_809, "fit-v1", 290_303_630, "既知の制限: 逆進行の箱の中の段組が紙の左の外",
 					"2026-10-18"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
