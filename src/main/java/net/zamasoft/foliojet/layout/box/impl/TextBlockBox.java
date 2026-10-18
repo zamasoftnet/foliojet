@@ -159,7 +159,9 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	 * left on a line of its own goes down past a float, and the block reached that far: when the float was a continuation
 	 * that kept the rest of its definite size (4c3a010e, taken out on 2026-10-11), a page holding only the two answered
 	 * that it paints, and stayed as a blank page (sweep seed 11846535). Such a line at the start answered 0 already. Any
-	 * other line keeps the answer where the last line ends.
+	 * other line keeps the answer where the last line ends. A collapsed white space (no advance) holds nothing either
+	 * (2026-10-18): the white space after a float that ends an anonymous block went down past the continuation of the
+	 * float alone on the last page, and kept that page as a blank one (sweep seed 25836309, triage §75).
 	 * </p>
 	 */
 	@Override
@@ -183,9 +185,17 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return true;
 	}
 
-	/** Whether a text box holds only inline boxes that paint no frame, mark nothing and hold nothing themselves. */
+	/**
+	 * Whether a text box holds only collapsed white space and inline boxes that paint no frame, mark nothing and hold
+	 * nothing themselves.
+	 */
 	private static boolean holdsNothing(final net.zamasoft.foliojet.layout.box.AbstractTextBox box) {
 		for (final Object content : box.getLogicalContents()) {
+			// Exactly 0, not LayoutUtils.compare: many spaces of a small advance add up to a decorated run (codex)
+			if (content instanceof net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace space
+					&& space.getAdvance() == 0) {
+				continue;
+			}
 			if (!(content instanceof net.zamasoft.foliojet.layout.box.AbstractTextBox.Inline inline)
 					|| !(inline.box instanceof InlineBox inlineBox) || inlineBox.getFrame().isVisible()
 					|| inlineBox.getInlineParams().frame.isVisible() || marksSomething(inlineBox)

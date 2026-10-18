@@ -21,6 +21,10 @@ import junit.framework.TestCase;
  * split 92+4pt at the page end. Its continuation kept the other 4pt, and the empty line after the float (the end of an
  * inline element) went down past it: the second page painted nothing. A text block whose lines all hold nothing now
  * also paints nothing (TextBlockBox, 7256e77c).</li>
+ * <li>{@code float-continuation-blank-space} (FIT seed 25836309, 2026-10-18): the same split of a float of
+ * {@code min-width: 8em} 58+22pt, after an inline-block that made the anonymous block reach past the page. The line
+ * left after the float held only a collapsed white space and went down past the continuation: the second page painted
+ * nothing again. A collapsed white space now holds nothing too (TextBlockBox).</li>
  * <li>{@code multicol-in-column-float-rest} (STRICT seed 12585971): a multicol in a column of another, holding a float
  * taller than the page in vertical writing. Capped at the room left and grown to its last column's floats, it made the
  * two balancings feed each other until the progress guard aborted the conversion.</li>
@@ -36,6 +40,10 @@ public class Regression19129Test extends TestCase {
 
 	public void testEmptyFloatContinuationAddsNoPage() throws Exception {
 		check("float-continuation-blank-page");
+	}
+
+	public void testCollapsedSpaceAfterFloatContinuationAddsNoPage() throws Exception {
+		check("float-continuation-blank-space");
 	}
 
 	public void testMulticolInColumnEnds() throws Exception {
