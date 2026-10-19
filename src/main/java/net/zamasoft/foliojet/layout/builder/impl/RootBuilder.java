@@ -71,10 +71,21 @@ public class RootBuilder extends BreakableBuilder {
 	 * Because the cursor differs each time, the fingerprints do not identify the same state; nesting reached 53,000
 	 * levels and overflowed the stack. In ordinary nested page breaks, the cursor stops near the page limit and does
 	 * not keep advancing.
+	 * <p>
+	 * The cursor may also go up and down by turns while growing: a float split at a column's last 4pt into an empty
+	 * head and a remainder of its full size, in a four-column multicol on 60pt vertical-lr paper, broke at +43.5pt and
+	 * -30pt by turns, 13.5pt farther every two breaks (wild seed 27364217, 2026-10-18; 19124 loops on the cut-down
+	 * form too). Growth over the lower of the last two breaks counts. A wobble that narrows near the page limit (500,
+	 * 520, 500.5, 519.5, ...) would count too, but it has to rise at each of 32 nested breaks: in the real-world corpus
+	 * (2026-10-19), 66 of 235 documents nest breaks with no input progress, up to 172 in a row, and the cursor never
+	 * rises at one of them.
+	 * </p>
 	 */
 	private BreakFingerprint nestedBreakKey = null;
 	private int nestedBreakSessions = -1;
 	private double nestedBreakPageAxis;
+	/** The cursor of the nested break before {@link #nestedBreakPageAxis} in the same run; NaN when none. */
+	private double nestedBreakPageAxisBefore = Double.NaN;
 	private int nestedGrowthRun = 0;
 	private long breakHistoryIngest = Long.MIN_VALUE;
 	/**
@@ -121,6 +132,7 @@ public class RootBuilder extends BreakableBuilder {
 	private void clearNestedGrowth() {
 		this.nestedBreakKey = null;
 		this.nestedBreakSessions = -1;
+		this.nestedBreakPageAxisBefore = Double.NaN;
 		this.nestedGrowthRun = 0;
 	}
 
@@ -198,12 +210,16 @@ public class RootBuilder extends BreakableBuilder {
 		// (see the nestedBreakKey comment). Compare fingerprints with the cursor excluded.
 		final BreakFingerprint nestedKey = new BreakFingerprint(ingest, depth, 0L, target);
 		final int sessionDepth = this.sessions.size();
-		if (nestedKey.equals(this.nestedBreakKey) && sessionDepth == this.nestedBreakSessions + 1
-				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(this.pageAxis, this.nestedBreakPageAxis) > 0) {
+		final boolean nested = nestedKey.equals(this.nestedBreakKey) && sessionDepth == this.nestedBreakSessions + 1;
+		// Growth over the lower of the last two breaks, so a cursor going up and down by turns counts too
+		final double nestedFloor = !nested || Double.isNaN(this.nestedBreakPageAxisBefore) ? this.nestedBreakPageAxis
+				: Math.min(this.nestedBreakPageAxis, this.nestedBreakPageAxisBefore);
+		if (nested && net.zamasoft.foliojet.layout.util.LayoutUtils.compare(this.pageAxis, nestedFloor) > 0) {
 			++this.nestedGrowthRun;
 		} else {
 			this.nestedGrowthRun = 0;
 		}
+		this.nestedBreakPageAxisBefore = nested ? this.nestedBreakPageAxis : Double.NaN;
 		this.nestedBreakKey = nestedKey;
 		this.nestedBreakSessions = sessionDepth;
 		this.nestedBreakPageAxis = this.pageAxis;
