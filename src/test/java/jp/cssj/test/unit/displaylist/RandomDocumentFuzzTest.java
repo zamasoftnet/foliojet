@@ -1817,6 +1817,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §81: on vertical-rl 60 pt paper a table of overlapping cells, seven columns, runs about 127 pt down
 			// the page; Copper puts T12 at y = 121.7 pt (19124 alike), Chrome's screen at 117.9 pt and its print drops it.
 			new IndividualExclusion(27_594_073, "fit-v1", 1_260_169_656, "作者の溢れ: 縦組みで列の多い重なるセルの表が紙の2倍超(Chromeも同じ)",
+					"2026-10-19"),
+			new IndividualExclusion(27_985_767, "fit-v1", 223_729_864, "作者の溢れ: 縦組みで 10 列の入れ子の表のある表が紙の2倍超(Chromeも同じ)",
 					"2026-10-19"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
