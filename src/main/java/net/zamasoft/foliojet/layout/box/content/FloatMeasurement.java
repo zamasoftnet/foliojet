@@ -34,11 +34,13 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  *                        (flags vary per call, so are not fixed here)
  * @param moveToNext      one-time transfer determined at placement by intersection with the 2-D bottom band
  * @param monolithic      placement found that splitting makes no progress
- *                        (2026-09-17, {@code FloatBlockBox#splitMakesNoProgress}), or the float is the remainder
- *                        of a fragment-start split and has not shrunk (2026-10-18,
- *                        {@code FloatBlockBox#fragmentStartSplitExtent})
+ *                        (2026-09-17, {@code FloatBlockBox#splitMakesNoProgress})
  * @param boxType         {@link BoxType#BLOCK} or {@link BoxType#REPLACED}
  * @param pageBreakInside {@code page-break-inside} for BLOCK; null for REPLACED, where it does not apply
+ * @param notShrunk       the float is the remainder of a fragment-start split and has not shrunk below its extent
+ *                        before that split ({@code FloatBlockBox#fragmentStartSplitExtent}, 2026-10-18). Splitting
+ *                        it again counts as no progress only when it is "first" again; the branch table applies that
+ *                        (2026-10-19, triage §83)
  */
 public record FloatMeasurement(
 		int ordinal,
@@ -52,7 +54,8 @@ public record FloatMeasurement(
 		boolean moveToNext,
 		BoxType boxType,
 		PageBreakMode pageBreakInside,
-		boolean monolithic) {
+		boolean monolithic,
+		boolean notShrunk) {
 
 	/**
 	 * Collects measurements from a placed float (read-only; affects neither {@code floating}
@@ -78,12 +81,13 @@ public record FloatMeasurement(
 			sameWritingAxis = true;
 			pageBreakInside = null;
 		}
+		final var block = floating.box instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox f ? f : null;
 		return new FloatMeasurement(ordinal, floating.serial, floating.box, floating.pageAxis,
 				floating.pageAxis + pageExtent, pageExtent, sameWritingAxis,
 				LayoutUtils.compare(floating.pageAxis, 0) <= 0, floating.moveToNext, boxType, pageBreakInside,
-				floating.box instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox f && (f.splitMakesNoProgress()
-						|| !Double.isNaN(f.fragmentStartSplitExtent())
-								&& LayoutUtils.compare(pageExtent, f.fragmentStartSplitExtent()) >= 0));
+				block != null && block.splitMakesNoProgress(),
+				block != null && !Double.isNaN(block.fragmentStartSplitExtent())
+						&& LayoutUtils.compare(pageExtent, block.fragmentStartSplitExtent()) >= 0);
 	}
 
 	/**

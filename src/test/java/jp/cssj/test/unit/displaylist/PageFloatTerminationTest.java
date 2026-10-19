@@ -134,6 +134,37 @@ public class PageFloatTerminationTest extends TestCase {
 		draws.forEach((k, v) -> assertEquals("語 " + k + " が複数回描かれた", 1, v.intValue()));
 	}
 
+	/**
+	 * Strict seed 28051409 (2026-10-19): on 60x60 pt vertical-lr paper, a 35 pt float holding a 156 pt inline-block is
+	 * split at the first page start, and its remainder is moved on page after page behind body text, rebuilt larger
+	 * each time. The fragment-start split extent above (2790435d) kept the remainder unsplittable there too, so it grew
+	 * to 11,700 pt and was rescue-sliced over 290 pages (dde89366: 18 pages, 19124: 10). The extent now judges only a
+	 * remainder at a fragment start.
+	 */
+	public void testMovedFloatRemainderIsSplitBehindText() throws Exception {
+		check("moved-float-remainder-split-behind-text");
+		final File[] pages = new File("build/fuzz-regressions/moved-float-remainder-split-behind-text-dl")
+				.listFiles((d, n) -> n.startsWith("page-") && n.endsWith(".txt"));
+		assertNotNull(pages);
+		assertTrue("ページ数 " + pages.length + " (送られた残りが分けられずに刻まれた)", pages.length <= 30);
+		final java.util.Map<String, Integer> draws = new java.util.TreeMap<>();
+		final java.util.regex.Pattern token = java.util.regex.Pattern.compile("Text\\[\"(T\\d+)\"");
+		for (final File page : pages) {
+			for (final String line : Files.readAllLines(page.toPath(), StandardCharsets.UTF_8)) {
+				if (line.contains(" artifact ")) {
+					continue;
+				}
+				final java.util.regex.Matcher m = token.matcher(line);
+				while (m.find()) {
+					draws.merge(m.group(1), 1, Integer::sum);
+				}
+			}
+		}
+		assertEquals(draws.toString(), java.util.Set.of("T84", "T85", "T86", "T87", "T88", "T89", "T90", "T91", "T92",
+				"T93", "T117"), draws.keySet());
+		draws.forEach((k, v) -> assertEquals("語 " + k + " が複数回描かれた", 1, v.intValue()));
+	}
+
 	private static void check(final String name) throws Exception {
 		final File fixture = new File("files/fuzz-repro/" + name + ".html");
 		final String html = Files.readString(fixture.toPath(), StandardCharsets.UTF_8);

@@ -49,7 +49,8 @@ public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 	 * floats in multi-column layout (they are placed unconditionally in the column band), so a remainder that a
 	 * column break rebuilt at the same size or larger was split again at every page start without end (wild seed
 	 * 24521670: a table float in a three-column multicol, 102.1pt and then 108.25pt on a 100pt page, 51,000 pages in
-	 * 300 s since e18e4fb6). A remainder that has not shrunk below this counts as {@link #splitMakesNoProgress()}.
+	 * 300 s since e18e4fb6). A remainder that has not shrunk below this counts as unsplittable when it is first again
+	 * ({@code FloatMeasurement#notShrunk}); behind body text it is split by content as before (triage §83).
 	 */
 	private double fragmentStartSplitExtent = Double.NaN;
 

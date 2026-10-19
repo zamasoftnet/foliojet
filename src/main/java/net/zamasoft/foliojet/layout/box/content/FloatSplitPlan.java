@@ -148,7 +148,8 @@ public record FloatSplitPlan(
 			System.err.println("[float-classify] " + plan.getClass().getSimpleName() + " el="
 					+ (m.box().getParams() == null ? "-" : m.box().getParams().element) + " start=" + m.pageStart()
 					+ " end=" + m.pageEnd() + " extent=" + m.pageExtent() + " limit=" + pageLimit + " flags=" + flags
-					+ " head=" + m.fragmentHead() + " type=" + m.boxType() + " mono=" + m.monolithic());
+					+ " head=" + m.fragmentHead() + " type=" + m.boxType() + " mono=" + m.monolithic()
+					+ " notShrunk=" + m.notShrunk());
 		}
 		return plan;
 	}
@@ -170,8 +171,11 @@ public record FloatSplitPlan(
 			return new FloatItemPlan.Move(m);
 		}
 		// monolithic: If the placement progress check found that a float does not shrink when split, even a splittable
-		// BLOCK falls through to branch table 5/5-R (rescue split or leave overflowing; 2026-09-17).
-		if (!m.monolithic()
+		// BLOCK falls through to branch table 5/5-R (rescue split or leave overflowing; 2026-09-17). So does the
+		// remainder of a fragment-start split that is first again without having shrunk (multicol, 2026-10-18). Behind
+		// body text such a remainder is split by content as before 2026-10-18 (strict seed 28051409, triage §83: one
+		// moved page after page was kept whole there, grew to 11,700pt and was rescue-sliced over 290 pages).
+		if (!m.monolithic() && !(first && m.notShrunk())
 				&& !FloatMeasurement.isUnsplittable(m.boxType(), m.sameWritingAxis(), m.pageBreakInside(), first)) {
 			// Branch table 3: Mark for a single split at commit time (do not predict the result)
 			final byte splitFlags = first ? IPageBreakableBox.FLAGS_FIRST : IPageBreakableBox.FLAGS_SPLIT;
