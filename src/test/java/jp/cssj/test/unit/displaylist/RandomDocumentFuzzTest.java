@@ -1819,7 +1819,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 			new IndividualExclusion(27_594_073, "fit-v1", 1_260_169_656, "作者の溢れ: 縦組みで列の多い重なるセルの表が紙の2倍超(Chromeも同じ)",
 					"2026-10-19"),
 			new IndividualExclusion(27_985_767, "fit-v1", 223_729_864, "作者の溢れ: 縦組みで 10 列の入れ子の表のある表が紙の2倍超(Chromeも同じ)",
-					"2026-10-19"));
+					"2026-10-19"),
+			// Triage §84: on vertical-rl 120 pt paper a nowrap flex row holds an 82 pt image, a floated select and
+			// textarea, two more textareas and a button, about 500 pt wide; Copper puts T2 at x = 499.8 pt (19124: 462.0),
+			// Chrome's screen at 709.6 pt and its print drops it.
+			new IndividualExclusion(28_016_984, "fit-v1", 1_025_091_589, "作者の溢れ: 折り返さないフレックスの行に入力欄が並び紙の4倍超(Chromeも同じ)",
+					"2026-10-20"),
+			// Triage §84: on 120 pt paper a right float holds a table with a seven-column nested table, about 290 pt wide;
+			// Copper puts T4 at x = 276.4 pt (19124 alike), Chrome's screen at 316.9 pt and its print drops most words.
+			new IndividualExclusion(28_211_470, "fit-v1", 1_563_515_821, "作者の溢れ: 浮動の表に 7 列の入れ子の表があり紙の2倍超(Chromeも同じ)",
+					"2026-10-20"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
