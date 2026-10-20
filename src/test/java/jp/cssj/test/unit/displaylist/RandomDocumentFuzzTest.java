@@ -1862,7 +1862,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// inline direction; Copper puts T12 at y = 174 pt (19124 alike), Chrome's screen at 167 pt and its print drops
 			// twelve of the 29 words.
 			new IndividualExclusion(29_464_671, "fit-v1", 1_334_986_538, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
-					"2026-10-20"));
+					"2026-10-20"),
+			// Triage §90, the same limitation as 13106246 (standing user decision 2026-10-13): on vertical-lr A4 a
+			// vertical-rl float of width:109pt holds a three-column multicol with a 120 pt display:table and an image float;
+			// Copper draws everything left of the paper (T0 at x = -118.8 pt, 19124 alike), Chrome prints T0 at 1.5 pt.
+			new IndividualExclusion(29_645_890, "fit-v1", 57_666_634, "既知の制限: 逆進行のfloatの中の段組が紙の左の外",
+					"2026-10-21"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
