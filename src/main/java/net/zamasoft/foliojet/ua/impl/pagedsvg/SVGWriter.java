@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
+import net.zamasoft.pdfg2d.util.ColorUtils;
 
 /**
  * A minimal writer for <b>streaming SVG without assembling it</b>.
@@ -59,6 +60,8 @@ final class SVGWriter {
 		 */
 		java.util.function.UnaryOperator<String> fontSrc = uri -> "../" + uri;
 		int nextId = 0;
+		/** {@code output.color=gray}: colors are written as their gray (2026-10-20). */
+		boolean gray;
 	}
 
 	private final Shared shared;
@@ -72,6 +75,28 @@ final class SVGWriter {
 	SVGWriter(final Writer out, final SVGWriter parent) {
 		this.out = out;
 		this.shared = parent.shared;
+	}
+
+	/** Writes every color of the page (and of its layers) as gray ({@code output.color=gray}, 2026-10-20). */
+	void setGray(final boolean gray) {
+		this.shared.gray = gray;
+	}
+
+	boolean gray() {
+		return this.shared.gray;
+	}
+
+	/**
+	 * A color as {@code #rrggbb}; in gray mode the gray of PDF's gray mode ({@link ColorUtils#toGray(
+	 * net.zamasoft.pdfg2d.gc.paint.Color)}: 0.3R + 0.59G + 0.11B for RGB, the CMYK formula for CMYK, the effective
+	 * color for spot colors).
+	 */
+	String color(final net.zamasoft.pdfg2d.gc.paint.Color color) {
+		if (!this.shared.gray) {
+			return SVGPaintWriter.toHex(color);
+		}
+		final int g = ColorUtils.toOctet(ColorUtils.toGray(color).getRed());
+		return String.format("#%02x%02x%02x", g, g, g);
 	}
 
 	/** Registers one definition and returns its reference ID. */

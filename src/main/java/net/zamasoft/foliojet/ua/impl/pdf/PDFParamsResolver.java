@@ -22,6 +22,7 @@ import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;
 import net.zamasoft.pdfg2d.pdf.FacturX;
 import net.zamasoft.pdfg2d.pdf.params.OutputIntent;
+import net.zamasoft.pdfg2d.pdf.params.CMYKConversion;
 import net.zamasoft.pdfg2d.pdf.params.RenderingIntent;
 import net.zamasoft.pdfg2d.pdf.PDFMetaInfo;
 import net.zamasoft.pdfg2d.pdf.action.JavaScriptAction;
@@ -346,6 +347,16 @@ final class PDFParamsResolver {
 					renderingIntent);
 			}
 		}
+
+		// Rules for converting RGB to CMYK (2026-10-20, a publishing request: K-only near-black text, total ink)
+		final int neutralTolerance = UAProps.OUTPUT_PDF_CMYK_NEUTRAL_TOLERANCE.getInteger(ua);
+		int inkLimit = UAProps.OUTPUT_PDF_CMYK_INK_LIMIT.getInteger(ua);
+		if (inkLimit > 0 && inkLimit < 100) {
+			// Below 100% even K alone would exceed it
+			ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.OUTPUT_PDF_CMYK_INK_LIMIT.name, String.valueOf(inkLimit));
+			inkLimit = 0;
+		}
+		params = params.withCMYKConversion(new CMYKConversion(neutralTolerance, inkLimit));
 
 		// Color
 		OutputColor color = UAProps.OUTPUT_COLOR.get(ua);

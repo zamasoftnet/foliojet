@@ -89,6 +89,12 @@ public interface MessageCodes {
 	 * {1} = reason. The element keeps its place and poster.
 	 */
 	public static final short WARN_MISSING_MEDIA = 0x2827;
+	/**
+	 * Warning that a forward reference ({@code target-counter()}, {@code target-counters()}, {@code target-text()})
+	 * changed during the final pass, so processing.pass-count is too small (2026-10-20; before, only the server log
+	 * said so and CTI clients could not tell). No arguments.
+	 */
+	public static final short WARN_UNCONVERGED_PAGE_REFERENCES = 0x2828;
 	public static final short WARN_PLUGIN = 0x28FF;
 
 	public static final short ERROR_BAD_XSLT_STYLESHEET = 0x3801;

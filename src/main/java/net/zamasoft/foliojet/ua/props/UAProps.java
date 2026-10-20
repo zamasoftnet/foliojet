@@ -749,6 +749,20 @@ public final class UAProps {
 			"output.pdf.rendering-intent", null);
 
 	/**
+	 * How far apart (0-255, in 8-bit sRGB steps) the components of a solid color or of every gradient stop may be for
+	 * the color to be written with K only when converting to CMYK. 0 keeps only exact grays (2026-10-20).
+	 */
+	public static final IntegerPropManager OUTPUT_PDF_CMYK_NEUTRAL_TOLERANCE = new IntegerPropManager(
+			"output.pdf.cmyk.neutral-tolerance", 0, 0, 255);
+
+	/**
+	 * The upper bound of the total ink C+M+Y+K in percent (100-400) for colors and images converted to CMYK. 0 means
+	 * no limit (2026-10-20).
+	 */
+	public static final IntegerPropManager OUTPUT_PDF_CMYK_INK_LIMIT = new IntegerPropManager(
+			"output.pdf.cmyk.ink-limit", 0, 0, 400);
+
+	/**
 	 * The spine width.
 	 */
 	public static final StringPropManager OUTPUT_MARKS_SPINE_WIDTH = new StringPropManager("output.marks.spine-width",

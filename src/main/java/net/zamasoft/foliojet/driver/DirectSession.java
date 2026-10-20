@@ -1382,9 +1382,8 @@ public class DirectSession extends AbstractCTISession
 					// during the final pass changed within that pass, pass-count
 					// is insufficient. Forward references themselves are normal and do not trigger warnings.
 					if (this.ua.getUAContext().getPageRef().isUnconverged()) {
-						LOG.warning("target-counter()/target-counters()/target-text() resolved to a value"
-								+ " that changed during the final layout pass;"
-								+ " consider increasing processing.pass-count.");
+						// A message, not only the server log, so that CTI clients see it (2026-10-20)
+						this.ua.message(MessageCodes.WARN_UNCONVERGED_PAGE_REFERENCES);
 					}
 				} finally {
 					if (tmpFile != null) {

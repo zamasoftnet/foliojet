@@ -59,7 +59,7 @@ final class SVGPaintWriter {
 			return "none";
 		}
 		return switch (paint.getPaintType()) {
-		case COLOR -> toHex((Color) paint);
+		case COLOR -> this.writer.color((Color) paint);
 		case LINEAR_GRADIENT -> this.linearGradient((LinearGradient) paint, ctm);
 		case RADIAL_GRADIENT -> this.radialGradient((RadialGradient) paint, ctm);
 		case PATTERN -> this.pattern((net.zamasoft.pdfg2d.gc.paint.Pattern) paint, ctm);
@@ -160,7 +160,7 @@ final class SVGPaintWriter {
 		appendSpread(def, g.spread());
 		appendGradientTransform(def, compose(ctm, g.transform()));
 		def.append('>');
-		appendStops(def, g.fractions(), g.colors());
+		this.appendStops(def, g.fractions(), g.colors());
 		def.append("</linearGradient>");
 		this.writer.addDef(def.toString());
 		return "url(#" + id + ")";
@@ -176,7 +176,7 @@ final class SVGPaintWriter {
 		appendSpread(def, g.spread());
 		appendGradientTransform(def, compose(ctm, g.transform()));
 		def.append('>');
-		appendStops(def, g.fractions(), g.colors());
+		this.appendStops(def, g.fractions(), g.colors());
 		def.append("</radialGradient>");
 		this.writer.addDef(def.toString());
 		return "url(#" + id + ")";
@@ -205,11 +205,11 @@ final class SVGPaintWriter {
 		}
 	}
 
-	private static void appendStops(final StringBuilder def, final double[] fractions, final Color[] colors) {
+	private void appendStops(final StringBuilder def, final double[] fractions, final Color[] colors) {
 		for (int i = 0; i < colors.length; ++i) {
 			final double offset = i < fractions.length ? fractions[i] : 1.0;
 			def.append("<stop offset=\"").append(SVGWriter.number(offset)).append("\" stop-color=\"")
-					.append(toHex(colors[i])).append('"');
+					.append(this.writer.color(colors[i])).append('"');
 			final float alpha = colors[i].getAlpha();
 			if (alpha < 1f) {
 				def.append(" stop-opacity=\"").append(SVGWriter.number(alpha)).append('"');

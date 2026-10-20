@@ -373,6 +373,25 @@ class DirectSVGGC implements GC {
 	}
 
 	/**
+	 * In gray mode, a color matrix of an effect (sepia, hue-rotate ...) can bring color back into the gray content;
+	 * follow it by the gray of {@link SVGWriter#color} (2026-10-20). {@code null} stays {@code null}.
+	 */
+	private static float[] grayAfter(final float[] m) {
+		if (m == null) {
+			return null;
+		}
+		final float[] g = new float[20];
+		for (int c = 0; c < 5; ++c) {
+			final float v = .3f * m[c] + .59f * m[5 + c] + .11f * m[10 + c];
+			g[c] = v;
+			g[5 + c] = v;
+			g[10 + c] = v;
+			g[15 + c] = m[15 + c];
+		}
+		return g;
+	}
+
+	/**
 	 * Creates a {@code <filter>} for effects on a layer (group image) and returns its ID
 	 * (null if there are no effects; 2026-08-29). Compute color matrices in sRGB, like CSS filter
 	 * functions (SVG defaults to linearRGB). Apply in {@link GroupEffects} order:
@@ -383,7 +402,7 @@ class DirectSVGGC implements GC {
 	 */
 	protected final String effectsFilter(final net.zamasoft.pdfg2d.gc.GroupEffects effects, final double w,
 			final double h) {
-		final float[] m = effects.colorMatrix();
+		final float[] m = this.writer.gray() ? grayAfter(effects.colorMatrix()) : effects.colorMatrix();
 		final double blur = effects.blurSigma() > 0 ? effects.blurSigma() : 0;
 		final net.zamasoft.pdfg2d.gc.GroupEffects.DropShadow shadow = effects.dropShadow();
 		if (m == null && blur <= 0 && shadow == null) {
@@ -416,7 +435,7 @@ class DirectSVGGC implements GC {
 					.append(SVGWriter.number(shadow.dy())).append("\" stdDeviation=\"")
 					.append(SVGWriter.number(Math.max(0, shadow.sigma()))).append('"');
 			if (shadow.color() != null) {
-				f.append(" flood-color=\"").append(SVGPaintWriter.toHex(shadow.color())).append('"');
+				f.append(" flood-color=\"").append(this.writer.color(shadow.color())).append('"');
 				if (shadow.color().getAlpha() < 1f) {
 					f.append(" flood-opacity=\"").append(SVGWriter.number(shadow.color().getAlpha())).append('"');
 				}

@@ -346,6 +346,11 @@ ICCレジストリの特性化識別名(例: `JC200103`、`FOGRA39`)を、
 <span class="ioprop">output.pdf.output-intent.icc-profile</span>には
 ICCプロファイルのURIを設定します。
 
+CTIで変換するときは、ICCプロファイルを<tt>data:</tt> URIで渡せません(CTIPのプロパティの値は64KBまで)。
+リソースとして送り(またはリゾルバで返し)、`urn:x-icc:jc`のようなhttp(s)以外の絶対URIで指します。
+相対URIは、EPUBを入力にするとEPUBの中から探されます。http(s)のURIはアクセスの制限
+(<span class="ioprop">input.include</span>)にかかります。
+
 **指定が無いとき**、PDF/X(全版)と<span class="ioprop">output.color</span>=<tt>cmyk</tt>では
 同梱の ISO Coated v2 300% (ECI)(識別名`FOGRA39`、欧州の塗工紙向け)を出力インテントにします。
 これは印刷所の指定が無いときの互換フォールバックであり、日本の標準ではありません。
@@ -370,6 +375,10 @@ PDFに記録される`ri`演算子だけに効き、この変換には効きま�
 
 - **無彩色(R=G=B)の単色**と、**全部の停止色が無彩色のグラデーション**は
   Kだけで表します(リッチブラックにしません)。
+- <span class="ioprop">output.pdf.cmyk.neutral-tolerance</span>で、**わずかに色味のある単色**も
+  Kだけにできます。RGBの成分(0〜255)の最大と最小の差がこの値以下ならKだけで、Kの値は1から
+  グレイスケールと同じ式の明るさ(0.3R+0.59G+0.11B、成分は0〜1)を引いたものです。本文の字の色が`#1d1a22`(差が8)なら8以上にします。
+  小さい字を4色の黒にすると、版のずれでにじむおそれがあります。
 - **混色のグラデーション・メッシュ・画像は全画素をICC変換**します。
   画像の中の灰や黒は4色になります。<span class="cssprop">box-shadow</span>や
   <span class="cssprop">filter</span>のぼかし、SVGの効果は画像に落としてから変換するため、
@@ -385,6 +394,11 @@ PDFに記録される`ri`演算子だけに効き、この変換には効きま�
 | <tt>1.4X-1</tt> | 全部CMYKに変換(画像も) | CMYKだけを受け付ける印刷所 |
 | <tt>1.6X-4</tt> | ICC付きのRGB(ICCBased sRGB)で残す。透明も使える | RGB混在を受け付ける印刷所 |
 | <tt>1.6X-4</tt> + <span class="ioprop">output.color</span>=<tt>cmyk</tt> | 全部CMYKに変換 | PDF/X-4だが色変換は自分で済ませて渡したいとき |
+
+総インキ量(C+M+Y+K)は出力インテントのICCプロファイルで抑えられます(Japan Color 2001 Coatedは350%)。
+印刷所がそれより低い値を求めるときは、<span class="ioprop">output.pdf.cmyk.ink-limit</span>(%)を指定します。
+変換した色と画像の画素がその値を超えると、まずC・M・Yの共通部分をKへ移し(下色除去)、
+それでも超えればC・M・Yを比例して減らします。元からCMYKの色とCMYKのJPEGには効きません。
 
 #### <a id="style-pdf-compression">PDFの圧縮形式</a>
 
@@ -422,6 +436,10 @@ JPEG / JPEG2000による再圧縮は不可逆であり、 画像を劣化させ�
 縦が80ピクセル、横が100ピクセルの画像はFlateDecodeで可逆圧縮されます。 ただし、元の画像がJPEG / JPEG2000で、
 <span class="ioprop">output.pdf.image.compression</span>で指定した形式と同じ場合は、
 そのままの形式でPDFに埋め込みます。
+
+CMYKへ変換するとき(<tt>1.4X-1</tt>、または<span class="ioprop">output.color</span>=<tt>cmyk</tt>)も、
+jpegを指定するとCMYKのJPEGで入れます。PhotoshopのCMYKのJPEGと同じAdobe形式(APP14マーカー付き)です。
+CMYKではjpeg2000の指定もJPEGになります。
 
 #### <a id="style-pdf-encoding">PDFの表示環境のキャラクタ・エンコーディング</a>
 
@@ -670,6 +688,10 @@ assets/media/<SHA-256>.mp3
 ラスタ画像をJPEGに再圧縮)と<span class="ioprop">output.paged-svg.image.max-width</span>/
 <span class="ioprop">output.paged-svg.image.max-height</span>(ピクセル数の上限で縮小)を使います。
 PDFの`output.pdf.image.*`と同じ意味の鍵です。
+
+<span class="ioprop">output.color</span>=`gray`<span class="since">4.0.0</span>にすると、ページSVGの色
+(字・背景・グラデーション・効果)と共有画像をグレーにします(PDFのグレーと同じ式)。共有画像はグレーに
+組み直すので、`output.paged-svg.resources=source`でも取得元を参照せず、前の変換の資源も使い回しません。
 
 同じ本をPDFでも配るなら、<span class="ioprop">output.paged-svg.pdf</span>=`true`で
 **1回の変換でPDFも**出せます。結果集合に`document.pdf`が加わり(`manifest.json`の`pdf`)、

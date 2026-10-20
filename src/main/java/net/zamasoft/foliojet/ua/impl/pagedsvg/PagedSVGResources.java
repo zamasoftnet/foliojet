@@ -331,6 +331,17 @@ final class PagedSVGResources {
 	private int imageMaxHeight = 0;
 	private boolean pageChecksums = true;
 
+	/** {@code output.color=gray}: images are re-encoded as gray (2026-10-20, a publishing request). */
+	private boolean gray = false;
+
+	void setGray(final boolean gray) {
+		this.gray = gray;
+	}
+
+	boolean gray() {
+		return this.gray;
+	}
+
 	void setImagePolicy(final PagedSvgImageCompression compression, final int lossless, final int maxWidth,
 			final int maxHeight) {
 		this.imageCompression = compression;
@@ -384,7 +395,7 @@ final class PagedSVGResources {
 		final boolean jpegWanted = this.imageCompression == PagedSvgImageCompression.JPEG && !alpha
 				&& width + height > this.imageCompressionLossless;
 		final boolean alreadyJpeg = "image/jpeg".equals(mediaType);
-		if (scale >= 1 && (!jpegWanted || alreadyJpeg)) {
+		if (scale >= 1 && (!jpegWanted || alreadyJpeg) && !this.gray) {
 			return null;
 		}
 		final java.awt.image.BufferedImage source = toBuffered(rendered);
@@ -405,10 +416,14 @@ final class PagedSVGResources {
 				g.dispose();
 			}
 		}
+		if (this.gray) {
+			out = toGray(out, alpha);
+		}
 		final java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
 		// Keep downscaled JPEGs as JPEGs (do not inflate them with lossless encoding).
 		if (jpegWanted || (alreadyJpeg && !alpha)) {
-			if (out.getType() != java.awt.image.BufferedImage.TYPE_INT_RGB) {
+			if (out.getType() != java.awt.image.BufferedImage.TYPE_INT_RGB
+					&& !(this.gray && out.getType() == java.awt.image.BufferedImage.TYPE_BYTE_GRAY)) {
 				final java.awt.image.BufferedImage rgb = new java.awt.image.BufferedImage(w, h,
 						java.awt.image.BufferedImage.TYPE_INT_RGB);
 				final java.awt.Graphics2D g = rgb.createGraphics();
@@ -435,6 +450,55 @@ final class PagedSVGResources {
 		}
 		javax.imageio.ImageIO.write(out, "png", buffer);
 		return new Encoded(buffer.toByteArray(), "image/png", "png", w, h);
+	}
+
+	/**
+	 * The gray of an image with the luminance of PDF's gray mode (0.3R + 0.59G + 0.11B on sRGB). Opaque images
+	 * become one-component gray with the samples written raw (no CS_GRAY gamma); images with alpha stay ARGB with
+	 * equal channels. One-component sources keep their samples: getRGB() would map them through the CS_GRAY gamma
+	 * (128 becomes 188) and lighten an already gray image (codex review 2026-10-20).
+	 */
+	private static java.awt.image.BufferedImage toGray(final java.awt.image.BufferedImage source, final boolean alpha) {
+		final int w = source.getWidth();
+		final int h = source.getHeight();
+		final java.awt.image.ColorModel cm = source.getColorModel();
+		final boolean oneComponent = cm instanceof java.awt.image.ComponentColorModel
+				&& cm.getNumColorComponents() == 1;
+		if (oneComponent && !alpha && source.getType() == java.awt.image.BufferedImage.TYPE_BYTE_GRAY) {
+			return source;
+		}
+		final java.awt.image.BufferedImage gray = new java.awt.image.BufferedImage(w, h,
+				alpha ? java.awt.image.BufferedImage.TYPE_INT_ARGB : java.awt.image.BufferedImage.TYPE_BYTE_GRAY);
+		final int[] row = new int[w];
+		final Object pixel = oneComponent ? source.getRaster().getDataElements(0, 0, null) : null;
+		final float[] components = oneComponent ? new float[cm.getNumComponents()] : null;
+		for (int y = 0; y < h; ++y) {
+			if (oneComponent) {
+				for (int x = 0; x < w; ++x) {
+					source.getRaster().getDataElements(x, y, pixel);
+					cm.getNormalizedComponents(pixel, components, 0);
+					final int v = Math.round(components[0] * 255);
+					final int a = cm.hasAlpha() ? Math.round(components[components.length - 1] * 255) : 255;
+					row[x] = (a << 24) | (v << 16) | (v << 8) | v;
+				}
+			} else {
+				source.getRGB(0, y, w, 1, row, 0, w);
+			}
+			for (int x = 0; x < w; ++x) {
+				final int argb = row[x];
+				final int v = (int) Math.round(.3 * ((argb >> 16) & 0xFF) + .59 * ((argb >> 8) & 0xFF)
+						+ .11 * (argb & 0xFF));
+				if (alpha) {
+					row[x] = (argb & 0xFF000000) | (v << 16) | (v << 8) | v;
+				} else {
+					gray.getRaster().setSample(x, y, 0, v);
+				}
+			}
+			if (alpha) {
+				gray.setRGB(0, y, w, 1, row, 0, w);
+			}
+		}
+		return gray;
 	}
 
 	private static java.awt.image.BufferedImage toBuffered(final RenderedImage rendered) {

@@ -346,6 +346,11 @@ the characterization identifier in the ICC registry (such as `JC200103` or `FOGR
 <span class="ioprop">output.pdf.output-intent.icc-profile</span> to
 the URI of the ICC profile.
 
+When converting through CTI, an ICC profile cannot be passed as a <tt>data:</tt> URI (a CTIP property value can be
+at most 64 KB). Send it as a resource (or return it from the resolver) and refer to it with an absolute URI other
+than http(s), such as `urn:x-icc:jc`. With EPUB input a relative URI is looked up inside the EPUB, and http(s) URIs
+are subject to access restrictions (<span class="ioprop">input.include</span>).
+
 **If you do not specify one**, PDF/X (all versions) and <span class="ioprop">output.color</span>=<tt>cmyk</tt> use
 the bundled ISO Coated v2 300% (ECI) (identifier `FOGRA39`, for coated paper in Europe) as the output intent.
 This is a compatibility fallback when the print shop has not specified a profile, not the standard for Japan.
@@ -370,6 +375,10 @@ only the `ri` operator recorded in the PDF, not this conversion.
 
 - **Achromatic (R=G=B) solid colors** and **gradients whose color stops are all achromatic**
   use only K (not rich black).
+- With <span class="ioprop">output.pdf.cmyk.neutral-tolerance</span>, **slightly tinted solid colors** can use
+  only K as well: if the largest and the smallest RGB components (0–255) differ by at most this value, only K is
+  used, with K being one minus the lightness of the grayscale formula (0.3R+0.59G+0.11B, components from 0 to 1). If the body text color is `#1d1a22`
+  (a difference of 8), set 8 or more. Small type in four-color black can blur when the plates are misregistered.
 - **Every pixel in mixed-color gradients, meshes, and images undergoes ICC conversion**.
   Gray and black in images use all four colors. <span class="cssprop">box-shadow</span>,
   <span class="cssprop">filter</span> blurs, and SVG effects are rasterized before conversion,
@@ -385,6 +394,12 @@ only the `ri` operator recorded in the PDF, not this conversion.
 | <tt>1.4X-1</tt> | Converts everything to CMYK (including images) | Print shops that accept only CMYK |
 | <tt>1.6X-4</tt> | Preserves RGB with an ICC profile (ICCBased sRGB). Also supports transparency | Print shops that accept a mix including RGB |
 | <tt>1.6X-4</tt> + <span class="ioprop">output.color</span>=<tt>cmyk</tt> | Converts everything to CMYK | When you want to supply PDF/X-4 after completing color conversion yourself |
+
+The total ink (C+M+Y+K) is bounded by the output intent's ICC profile (350% for Japan Color 2001 Coated).
+When the print shop requires a lower value, specify <span class="ioprop">output.pdf.cmyk.ink-limit</span> (percent).
+Converted colors and image pixels above it first have the common part of C, M, and Y moved into K (under-color
+removal), and if they still exceed it, C, M, and Y are reduced proportionally. Colors already in CMYK and CMYK
+JPEGs are not affected.
 
 #### <a id="style-pdf-compression">PDF compression formats</a>
 
@@ -422,6 +437,10 @@ For example, an image 100 pixels high and 110 pixels wide is recompressed as JPE
 while an image 80 pixels high and 100 pixels wide uses lossless FlateDecode compression. However, if the original image is JPEG / JPEG2000 and
 matches the format specified in <span class="ioprop">output.pdf.image.compression</span>,
 it is embedded in the PDF in its original format.
+
+When converting to CMYK (<tt>1.4X-1</tt>, or <span class="ioprop">output.color</span>=<tt>cmyk</tt>), jpeg also
+embeds CMYK JPEGs, in the Adobe format (with an APP14 marker) that Photoshop writes for CMYK JPEGs.
+With CMYK, a jpeg2000 request also becomes JPEG.
 
 #### <a id="style-pdf-encoding">Character encoding of the PDF viewing environment</a>
 
@@ -670,6 +689,11 @@ To reduce size, use <span class="ioprop">output.paged-svg.image.compression</spa
 raster images without transparent areas as JPEG) and <span class="ioprop">output.paged-svg.image.max-width</span>/
 <span class="ioprop">output.paged-svg.image.max-height</span> (reduces dimensions to a pixel limit).
 These keys have the same meaning as PDF's `output.pdf.image.*`.
+
+With <span class="ioprop">output.color</span>=`gray`<span class="since">4.0.0</span>, the colors of the page SVGs
+(text, backgrounds, gradients, and effects) and the shared images become gray (with the same formula as gray PDF).
+Because shared images are re-encoded as gray, they are neither referenced at their source with
+`output.paged-svg.resources=source` nor reused from a previous conversion.
 
 If you also distribute the same book as a PDF, <span class="ioprop">output.paged-svg.pdf</span>=`true`
 lets you **produce the PDF in the same conversion**. The result set includes `document.pdf` (the `manifest.json` entry `pdf`),

@@ -226,10 +226,20 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		}
 		// Record the resource identity of drawn images in the dimension table (2026-08-28).
 		// Given this table, the next reconversion can write the same references without opening images.
-		this.resources.setAssetRecorder((uri, asset) -> this.getUAContext().getImageMetrics().putAsset(uri.toString(),
-				new net.zamasoft.foliojet.ua.ImageMetricsCache.Asset(asset.sha256(), asset.mediaType(),
-						extensionOf(asset.uri()), asset.width(), asset.height())));
+		// Not in gray mode: a later conversion in color would reuse the gray resources (2026-10-20)
+		this.resources.setAssetRecorder((uri, asset) -> {
+			if (!this.gray()) {
+				this.getUAContext().getImageMetrics().putAsset(uri.toString(),
+						new net.zamasoft.foliojet.ua.ImageMetricsCache.Asset(asset.sha256(), asset.mediaType(),
+								extensionOf(asset.uri()), asset.width(), asset.height()));
+			}
+		});
 		this.visitor = null;
+	}
+
+	/** {@code output.color=gray} (2026-10-20, a publishing request; before, only PDF honored it). */
+	private boolean gray() {
+		return UAProps.OUTPUT_COLOR.get(this) == net.zamasoft.foliojet.ua.props.OutputColor.GRAY;
 	}
 
 	/** Extracts the extension from a resource URI ({@code assets/images/<sha>.<ext>}). */
@@ -375,7 +385,9 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		if (this.isMeasurePass() || this.isStructureScanPass()) {
 			return null;
 		}
-		if (UAProps.OUTPUT_PAGED_SVG_RESOURCES.get(this) != net.zamasoft.foliojet.ua.props.PagedSvgResourceMode.OMIT) {
+		if (UAProps.OUTPUT_PAGED_SVG_RESOURCES.get(this) != net.zamasoft.foliojet.ua.props.PagedSvgResourceMode.OMIT
+				|| this.gray()) {
+			// Gray mode re-encodes the pixels, and the recorded identities are of the colored resources
 			return null;
 		}
 		final var metrics = this.getUAContext().getImageMetrics();
@@ -477,6 +489,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 					UAProps.OUTPUT_PAGED_SVG_IMAGE_COMPRESSION_LOSSLESS.getInteger(this),
 					UAProps.OUTPUT_PAGED_SVG_IMAGE_MAX_WIDTH.getInteger(this),
 					UAProps.OUTPUT_PAGED_SVG_IMAGE_MAX_HEIGHT.getInteger(this));
+			this.resources.setGray(this.gray());
 			this.resources.setPageChecksums(UAProps.OUTPUT_PAGED_SVG_PAGE_CHECKSUMS.getBoolean(this));
 			this.resources.setRasterPixelLimit(UAProps.OUTPUT_IMAGE_PIXEL_LIMIT.getLong(this));
 			// Do not compress contents when returning ZIP: ZIP already compresses them, so this would be redundant,
@@ -523,6 +536,7 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		try {
 			this.directBuffer = new java.io.StringWriter(1 << 14);
 			this.directPage = new SVGPageOutput(this.directBuffer, page.width, page.height);
+			this.directPage.writer().setGray(this.resources.gray());
 			final String base = this.resources.getBaseUri();
 			this.directPage.writer().setFontSrc(uri -> base + uri);
 		} catch (final IOException e) {

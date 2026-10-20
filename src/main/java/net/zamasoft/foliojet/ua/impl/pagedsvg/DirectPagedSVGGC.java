@@ -151,7 +151,8 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 	 */
 	private PagedSVGResources.ImageAsset imageAsset(final Image image, final BufferedImage raster, final byte[] png)
 			throws IOException {
-		if (this.resources.referencesSources()) {
+		// A source reference would show the original colors; gray mode writes the converted pixels
+		if (this.resources.referencesSources() && !this.resources.gray()) {
 			final java.net.URI source = webSourceOf(image);
 			if (source != null) {
 				return this.resources.sourceImage(source, raster, png, raster.getWidth(), raster.getHeight());
@@ -716,7 +717,7 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 		if (color == null) {
 			return;
 		}
-		w.attr(name, SVGPaintWriter.toHex(color));
+		w.attr(name, w.color(color));
 		final float alpha = color.getAlpha() * stateAlpha;
 		if (alpha != 1) {
 			w.attr(name + "-opacity", alpha);

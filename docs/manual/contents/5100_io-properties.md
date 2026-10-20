@@ -51,7 +51,7 @@
 | <a id="appx-ioprop-output.auto-rotate"></a>output.auto-rotate | none | 2.1.9 | 用紙と内容の向きが合わない場合の自動回転です。none(回転しない)、content(内容を回す)、paper(用紙の向きを入れ替える)のいずれかです。<br />詳細は<a href="#style-auto-rotate" class="pageref">縦長・横長が合わないとき</a>を参照してください。 |
 | <a id="appx-ioprop-output.broken-image"></a>output.broken-image | none | 1.2.2<br />noneは2.0.0<br />annotationは2.1.2 | 画像を読み込めなかった場合の表示です。none, hidden, cross, annotation のいずれかです。<br />詳細は<a href="#style-image-broken" class="pageref">画像を読み込めない場合</a>を参照してください。 |
 | <a id="appx-ioprop-output.clip"></a>output.clip | true | 2.0.3 | trueに設定した場合、印刷面の外側(トンボのドブの外側、あるいはページの外側)を描画しません。 falseに設定した場合、印刷面の外側を描画します。 |
-| <a id="appx-ioprop-output.color"></a>output.color | rgb | 1.2.1<br />cmykは3.1.0 | 出力結果のカラー・タイプです。rgb,cmyk,grayで指定します。 rgbでは、指定通りのカラーで出力されます。 cmykでは全てCMYKカラーに変換されます(4.0.0から出力インテントのICCプロファイルによる変換。無彩色の単色はK単色、画像は全画素変換)。 grayでは、全てグレイスケールに変換されます。 |
+| <a id="appx-ioprop-output.color"></a>output.color | rgb | 1.2.1<br />cmykは3.1.0 | 出力結果のカラー・タイプです。rgb,cmyk,grayで指定します。 rgbでは、指定通りのカラーで出力されます。 cmykでは全てCMYKカラーに変換されます(4.0.0から出力インテントのICCプロファイルによる変換。無彩色の単色はK単色、画像は全画素変換)。 grayでは、全てグレイスケールに変換されます(PDFとページ分割SVG。ページ分割SVGは4.0.0から。画像と単一のSVGの出力には効きません)。 |
 | <a id="appx-ioprop-output.default-font-family"></a>output.default-font-family | serif | 2.0.0 | デフォルトのフォントファミリです。 ドキュメント中でフォントが指定されていない場合、 あるいは該当するフォントが見つからない場合、このフォントを使用します。<br /> CSSの<span class="cssprop">font-family</span>と同じ形式で複数のフォントを指定することができます。 空白を含むフォント名はクウォート('または")で囲うことに注意してください。 |
 | <a id="appx-ioprop-output.expand-with-content"></a>output.expand-with-content | false | 3.2.1 | 内容がページに収まらない場合に、収まらない分だけページを広げます。<br />詳細は<a href="#style-expand-with-content" class="pageref">内容の分だけ紙を伸ばす</a>を参照してください。 |
 | <a id="appx-ioprop-output.fit-to-paper"></a>output.fit-to-paper | false | 2.0.0<br /> preserve-aspect-ratioは2.1.9 | 用紙と印刷面の大きさが違うときの配置です。 trueに設定した場合、印刷面を用紙いっぱいに合わせます。 falseに設定した場合、中央寄せされます。 preserve-aspect-ratioを設定すると、縦横比を保ったまま用紙に合わせます。<br /> <b>倍率は「用紙÷印刷面」なので、印刷面のほうが大きければ縮小になります。</b> 紙より広く作られたページを用紙に収める手順は<a href="#style-fit-wide-page" class="pageref">紙より広く作られたページを用紙に収める</a>を参照してください。 |
@@ -144,7 +144,7 @@
 				<td>なし<br />なし<br />http://www.color.org<br />なし<br />なし</td>
 				<td class="nowrap">4.0.0<br />(PDF 1.4)
 				</td>
-				<td>出力インテント(/OutputIntents——想定する印刷条件)の設定です。<tt>.identifier</tt>(JC200103、FOGRA39などICCレジストリの特性化識別名)を設定すると出力されます。印刷所の指定に合わせてください。<br /><tt>.icc-profile</tt>にICCプロファイルのURIを指定すると、DestOutputProfileとして埋め込まれます(色成分数はプロファイルヘッダから自動判別)。未登録の印刷条件では<tt>.info</tt>の指定を推奨します。<br />未指定のとき、PDF/X(全版)とoutput.color=cmykでは同梱のISO Coated v2 300% (ECI)(FOGRA39、CMYK)が、それ以外ではsRGBが使われます。PDF/XではICCプロファイルを完全に検証し、読めない・出力用(prtr)でない・CMYKでない・識別名が空ならエラー380Eになります(PDF/X以外は警告)。PDF/Xでは、識別名だけで<tt>.icc-profile</tt>が無いとき、識別名・レジストリ名に印字可能なASCII以外の字があるときも380Eです。PDF/Xで<tt>.info</tt>を省略すると、<tt>.condition</tt>(無ければ識別名)をInfoに書きます(未登録の印刷条件ではInfoが必須のため)。RGB→CMYKの変換にもこのプロファイルが使われます。</td>
+				<td>出力インテント(/OutputIntents——想定する印刷条件)の設定です。<tt>.identifier</tt>(JC200103、FOGRA39などICCレジストリの特性化識別名)を設定すると出力されます。印刷所の指定に合わせてください。<br /><tt>.icc-profile</tt>にICCプロファイルのURIを指定すると、DestOutputProfileとして埋め込まれます(色成分数はプロファイルヘッダから自動判別)。未登録の印刷条件では<tt>.info</tt>の指定を推奨します。<br />未指定のとき、PDF/X(全版)とoutput.color=cmykでは同梱のISO Coated v2 300% (ECI)(FOGRA39、CMYK)が、それ以外ではsRGBが使われます。PDF/XではICCプロファイルを完全に検証し、読めない・出力用(prtr)でない・CMYKでない・識別名が空ならエラー380Eになります(PDF/X以外は警告)。PDF/Xでは、識別名だけで<tt>.icc-profile</tt>が無いとき、識別名・レジストリ名に印字可能なASCII以外の字があるときも380Eです。PDF/Xで<tt>.info</tt>を省略すると、<tt>.condition</tt>(無ければ識別名)をInfoに書きます(未登録の印刷条件ではInfoが必須のため)。RGB→CMYKの変換にもこのプロファイルが使われます。<br />CTI(CTIP)ではプロパティの値は64KBまでなので、ICCプロファイルは<tt>data:</tt> URIでなく、リソースとして送ってそのURIを指定してください。そのURIは<tt>urn:x-icc:jc</tt>のようなhttp(s)以外の絶対URIにします。相対URIはEPUBを入力にするとEPUBの中から探され、http(s)はアクセスの制限にかかります。</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.rendering-intent">
 				<td class="nowrap">output.pdf.rendering-intent</td>
@@ -152,6 +152,18 @@
 				<td class="nowrap">4.0.0<br />(PDF 1.4)
 				</td>
 				<td>既定のレンダリングインテントです。perceptual, relative-colorimetric, saturation, absolute-colorimetricのいずれかを指定すると、各ページのコンテンツストリーム先頭でri演算子として出力されます。output.color=cmykやPDF/X-1aでのRGB→CMYK変換はperceptual固定で、この設定には影響されません。</td>
+			</tr>
+			<tr id="appx-ioprop-output.pdf.cmyk.neutral-tolerance">
+				<td class="nowrap">output.pdf.cmyk.neutral-tolerance</td>
+				<td>0</td>
+				<td class="nowrap">4.0.0</td>
+				<td>CMYKへ変換するとき(output.color=cmyk、PDF/X-1a)、Kだけで表す単色の範囲です。RGBの成分(0〜255)の最大と最小の差がこの値以下の単色と、全部の停止色がそうであるグラデーションをKだけにします。0(既定)はR=G=Bの無彩色だけです。わずかに色味のある黒の字(例: <tt>#1d1a22</tt>は差が8)を4色の黒にしたくないときに使います。Kの値は、1からグレイスケールと同じ式の明るさ(0.3R+0.59G+0.11B、成分は0〜1)を引いたものです。画像には効きません。<br />詳細は<a href="#style-pdf-cmyk-conversion" class="pageref">RGBからCMYKへの変換</a>を参照してください。</td>
+			</tr>
+			<tr id="appx-ioprop-output.pdf.cmyk.ink-limit">
+				<td class="nowrap">output.pdf.cmyk.ink-limit</td>
+				<td>0</td>
+				<td class="nowrap">4.0.0</td>
+				<td>CMYKへ変換した色と画像の画素の総インキ量(C+M+Y+K、%)の上限です。100〜400で指定し、0(既定)は上限なしです(100未満は警告して上限なし)。超えた分は、まずC・M・Yの共通部分をKへ移し(下色除去)、それでも超えるときはC・M・Yを比例して減らします。Kは減らしません。元からCMYKで指定した色とCMYKのJPEGには効きません。</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.bookmarks">
 				<td class="nowrap">output.pdf.bookmarks</td>
@@ -387,7 +399,7 @@
 				<td class="nowrap">output.pdf.image.compression</td>
 				<td>flate</td>
 				<td class="nowrap">2.0.3</td>
-				<td>PDFへ埋め込む画像の圧縮形式です。flate, jpeg, jpeg2000 のいずれかです。<br />詳細は<a href="#style-pdf-image" class="pageref">PDF中の画像の圧縮形式</a>を参照してください。</td>
+				<td>PDFへ埋め込む画像の圧縮形式です。flate, jpeg, jpeg2000 のいずれかです。CMYKへ変換する出力(output.color=cmyk、PDF/X-1a)でもjpegが効き、CMYKのJPEGで入ります(jpeg2000の指定はJPEGになります)。<br />詳細は<a href="#style-pdf-image" class="pageref">PDF中の画像の圧縮形式</a>を参照してください。</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.image.compression.lossless">
 				<td class="nowrap">output.pdf.image.compression.lossless</td>
