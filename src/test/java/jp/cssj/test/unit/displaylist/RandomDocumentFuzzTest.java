@@ -1837,6 +1837,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// fixed-width column-reverse flex; Copper draws every word left of the paper (T1 at x = -12.5 pt, 19124
 			// alike), Chrome prints them at 1.5-13.2 pt.
 			new IndividualExclusion(28_550_178, "fit-v1", 244_702_200, "既知の制限: 逆進行の箱の中の段組が紙の左の外",
+					"2026-10-20"),
+			// Triage §87, as §46: on 120x400 pt vertical-rl paper a grid of width:61pt holds a table whose cell has a column
+			// flex of min-width:8em items; the table is not split across pages and T19 lands at x = -393.9 pt (19124 at
+			// -396.1 pt), Chrome prints six pages with every word on the paper.
+			new IndividualExclusion(29_244_022, "standard", 29_244_022, "既知の制限: 縦組みのセルにflexを持つ表が頁で分かれず紙の左の外",
 					"2026-10-20"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
