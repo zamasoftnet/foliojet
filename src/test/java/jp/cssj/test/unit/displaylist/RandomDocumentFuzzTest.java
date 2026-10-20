@@ -1872,6 +1872,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// paper, far longer than the paper in the inline direction; Copper puts T37 at y = 326 pt (19124 alike),
 			// Chrome's screen puts T2 at y = -259 pt and its print drops 25 of the 38 words.
 			new IndividualExclusion(29_900_790, "fit-v1", 1_939_620_710, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
+					"2026-10-21"),
+			// Triage §92: on vertical-lr 120x400 pt paper a float:right holds a vertical-rl wrapping column flex of
+			// width:119pt whose four lines span about 220 pt; the rest of the float is not split across pages and runs off
+			// the right of page 2 (T47 at x = 689.6 pt). 19124 split this document but already failed the same way with a
+			// nowrap flex; the wrap form fails from 19135. In a plain div the flex splits. Chrome prints eight pages.
+			new IndividualExclusion(30_125_121, "fit-v1", 2_022_675_755, "既知の制限: 逆進行のflexを持つfloatが頁で分かれず紙の右の外",
 					"2026-10-21"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
