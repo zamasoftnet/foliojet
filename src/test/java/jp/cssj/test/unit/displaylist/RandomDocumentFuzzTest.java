@@ -1878,7 +1878,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 19124 places it the same. Chrome breaks the ruby bases but still runs past the paper (T100 at y = 612 pt on
 			// screen) and its print, shrunk to 67%, cuts T96, T98 and T100 at the bottom.
 			new IndividualExclusion(30_349_300, "fit-v1", 2_081_561_069,
-					"作者の溢れ: 逆進行の折り返さないflexに長いルビの項目が並び紙の高さの3倍(Chromeも同じ)", "2026-10-21"));
+					"作者の溢れ: 逆進行の折り返さないflexに長いルビの項目が並び紙の高さの3倍(Chromeも同じ)", "2026-10-21"),
+			// Triage §95: on vertical-rl 60x60 pt paper a floated table holds a nested table of nine columns along the inline
+			// axis, about 150 pt long; Copper puts T19 at y = 141 pt (19124 alike), Chrome's screen spans y = -145..0 pt and
+			// its print keeps 5 of the 21 words.
+			new IndividualExclusion(30_542_995, "fit-v1", 996_479_065, "作者の溢れ: 浮動体の入れ子の表が行の向きに紙の2.5倍(Chromeも同じ)",
+					"2026-10-21"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
