@@ -28,8 +28,8 @@ import net.zamasoft.foliojet.message.MessageCodes;
  * <p>
  * Items undergo layout in parallel, but the result sink (CTIP connection or result set) is a single,
  * ordered channel. Thus <b>only the first unfinished item writes directly</b>; later items spool
- * to their own temporary files. When the first finishes, flush the next item's spool and let
- * that item write directly. The consumer receives the same sequence with sequential execution
+ * to their own temporary files (only messages so far: in memory). When the first finishes, flush the next item's
+ * spool and let that item write directly. The consumer receives the same sequence with sequential execution
  * (parallelism 1) or parallel execution.
  * </p>
  *
@@ -128,6 +128,13 @@ final class DocumentRelease {
 		private int pageOffset;
 		private File spillFile;
 		private DataOutputStream spill;
+		/**
+		 * The spool while it holds only messages (2026-10-21). With two or more passes the items of a book wait for each
+		 * other after every pass (EPubFormatter), and the measuring passes write only messages, so a file per waiting
+		 * item would keep one descriptor open per item until the first item is released. The file is opened, with the
+		 * messages first, when the first result is spooled.
+		 */
+		private java.io.ByteArrayOutputStream memory;
 
 		Unit(final String prefix) {
 			this.prefix = prefix;
@@ -203,10 +210,25 @@ final class DocumentRelease {
 			DocumentRelease.this.done(this, pageCount);
 		}
 
+		/** The spool for a message: in memory until a result is spooled. */
 		private DataOutputStream requireSpill() throws IOException {
 			if (this.spill == null) {
+				this.memory = new java.io.ByteArrayOutputStream();
+				this.spill = new DataOutputStream(this.memory);
+			}
+			return this.spill;
+		}
+
+		/** The spool for a result: a file, starting with the messages spooled in memory before it. */
+		private DataOutputStream requireFileSpill() throws IOException {
+			if (this.spillFile == null) {
+				final java.io.ByteArrayOutputStream before = this.memory;
 				this.spillFile = File.createTempFile("copper-epub-item", ".spill");
 				this.spill = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(this.spillFile), 1 << 16));
+				this.memory = null;
+				if (before != null) {
+					before.writeTo(this.spill);
+				}
 			}
 			return this.spill;
 		}
@@ -216,7 +238,7 @@ final class DocumentRelease {
 		 * so delimit chunks by their lengths and terminate with a negative length.
 		 */
 		private OutputStream openSpillResult(final String uri, final String mimeType) throws IOException {
-			final DataOutputStream out = this.requireSpill();
+			final DataOutputStream out = this.requireFileSpill();
 			out.writeByte(RECORD_RESULT);
 			writeText(out, uri);
 			writeText(out, mimeType);
@@ -250,8 +272,9 @@ final class DocumentRelease {
 			}
 			this.spill.close();
 			this.spill = null;
-			try (DataInputStream in = new DataInputStream(
-					new BufferedInputStream(new FileInputStream(this.spillFile), 1 << 16))) {
+			try (DataInputStream in = new DataInputStream(this.spillFile == null
+					? new java.io.ByteArrayInputStream(this.memory.toByteArray())
+					: new BufferedInputStream(new FileInputStream(this.spillFile), 1 << 16))) {
 				final byte[] buffer = new byte[1 << 16];
 				for (;;) {
 					final int kind;
@@ -308,6 +331,7 @@ final class DocumentRelease {
 				}
 				this.spill = null;
 			}
+			this.memory = null;
 			if (this.spillFile != null) {
 				if (!this.spillFile.delete() && this.spillFile.exists()) {
 					LOG.log(Level.WARNING, "Failed to delete temporary file: " + this.spillFile);

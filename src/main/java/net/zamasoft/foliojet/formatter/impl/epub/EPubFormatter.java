@@ -455,29 +455,62 @@ public class EPubFormatter implements MultiDocumentFormatter {
 			t.setDaemon(true);
 			return t;
 		});
-		final List<Future<?>> futures = new ArrayList<>();
 		final AtomicBoolean noViewportReported = new AtomicBoolean();
+		final List<UserAgent> children = new ArrayList<>();
+		final List<ItemRef> items = new ArrayList<>();
+		final List<URI> documents = new ArrayList<>();
 		try {
 			for (int i = 0; i < contents.spine.length; ++i) {
-				if (!included[i]) {
-					continue;
+				if (included[i]) {
+					items.add(contents.spine[i]);
+					documents.add(units.get(i).uri());
+					children.add(ua.openDocument(units.get(i)));
 				}
-				final ItemRef ir = contents.spine[i];
-				final UserAgent child = ua.openDocument(units.get(i));
-				futures.add(pool.submit(() -> {
-					try (AutoCloseable scope = context.apply()) {
-						this.formatItemPasses(child, ir, opener, passCount, isFixedLayout(contents, ir),
-								noViewportReported);
-					} catch (final TranscoderException | RuntimeException | Error e) {
-						// AbortException is a RuntimeException. Let it propagate unchanged
-						throw e;
-					} catch (final Exception e) {
-						throw pluginFailure(child, e);
-					}
-					return null;
-				}));
 			}
-			awaitAll(ua, futures);
+			final ItemPass pass = (k, mode, remaining, book) -> {
+				final UserAgent child = children.get(k);
+				child.prepare(mode);
+				if (book != null) {
+					book.begin(k);
+				}
+				child.getUAContext().setPassCount(remaining);
+				child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(remaining));
+				// Independent bundles have no spread to align with: page-spread is left to the reader (no blank pages)
+				this.formatItem(child, items.get(k), opener, null, isFixedLayout(contents, items.get(k)),
+						noViewportReported);
+			};
+			if (passCount <= 1) {
+				stage(ua, pool, context, children, k -> {
+					pass.run(k, PrepareMode.DOCUMENT, 1, null);
+					children.get(k).finish();
+				});
+			} else {
+				// Every item ends a pass before any item starts the next, so each pass knows the page numbers of the
+				// whole book and the targets in the other items (2026-10-21, BookPageNumbers). The structure scan
+				// is not counted in processing.pass-count, as in DirectSession.format
+				final BookPageNumbers book = new BookPageNumbers(children, documents);
+				stage(ua, pool, context, children, k -> {
+					final UserAgent child = children.get(k);
+					child.prepare(PrepareMode.STRUCTURE_SCAN);
+					this.formatItem(child, items.get(k), opener, null, isFixedLayout(contents, items.get(k)),
+							noViewportReported);
+					pass.run(k, PrepareMode.MIDDLE_PASS, passCount, null);
+				});
+				for (int remaining = passCount - 1; remaining > 1; --remaining) {
+					book.share();
+					final int r = remaining;
+					stage(ua, pool, context, children, k -> pass.run(k, PrepareMode.MIDDLE_PASS, r, book));
+				}
+				book.share();
+				stage(ua, pool, context, children, k -> {
+					pass.run(k, PrepareMode.LAST_PASS, 1, book);
+					children.get(k).finish();
+				});
+				if (!book.converged()) {
+					// As DirectSession does for a single document (a message, so that CTI clients see it)
+					ua.message(MessageCodes.WARN_UNCONVERGED_PAGE_REFERENCES);
+				}
+			}
 		} finally {
 			// Return only when no writers remain. Even on abort, wait for all children
 			// to stop (prevent writes after the caller closes the session)
@@ -497,6 +530,42 @@ public class EPubFormatter implements MultiDocumentFormatter {
 				Thread.currentThread().interrupt();
 			}
 		}
+	}
+
+	/** One pass of item {@code k}; {@code book} is {@code null} until the items have ended a pass together. */
+	@FunctionalInterface
+	private interface ItemPass {
+		void run(int k, PrepareMode mode, int remaining, BookPageNumbers book) throws Exception;
+	}
+
+	@FunctionalInterface
+	private interface ItemTask {
+		void run(int k) throws Exception;
+	}
+
+	/**
+	 * Runs {@code task} for every item on the pool, earlier items first so that results start releasing sooner,
+	 * and waits for all of them ({@link #awaitAll}).
+	 */
+	private static void stage(final MultiDocumentOutput ua, final ExecutorService pool,
+			final LayoutThreadContext context, final List<UserAgent> children, final ItemTask task)
+			throws AbortException, TranscoderException {
+		final List<Future<?>> futures = new ArrayList<>();
+		for (int k = 0; k < children.size(); ++k) {
+			final int item = k;
+			futures.add(pool.submit(() -> {
+				try (AutoCloseable scope = context.apply()) {
+					task.run(item);
+				} catch (final TranscoderException | RuntimeException | Error e) {
+					// AbortException is a RuntimeException. Let it propagate unchanged
+					throw e;
+				} catch (final Exception e) {
+					throw pluginFailure(children.get(item), e);
+				}
+				return null;
+			}));
+		}
+		awaitAll(ua, futures);
 	}
 
 	/**
@@ -560,34 +629,6 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		return Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors()));
 	}
 
-	/**
-	 * Drives the passes for one item in the same order as {@code DirectSession.format}
-	 * (structure scan → intermediate × n → final). Reopens the ZIP item for input, so no temporary file is needed.
-	 */
-	private void formatItemPasses(final UserAgent child, final ItemRef ir, final EntryOpener opener,
-			final int passCount, final boolean fixedLayout, final AtomicBoolean noViewportReported) throws Exception {
-		// Independent bundles have no spread to align with: page-spread is left to the reader (no blank pages)
-		if (passCount <= 1) {
-			child.prepare(PrepareMode.DOCUMENT);
-			child.getUAContext().setPassCount(1);
-			child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
-			this.formatItem(child, ir, opener, null, fixedLayout, noViewportReported);
-		} else {
-			child.prepare(PrepareMode.STRUCTURE_SCAN);
-			this.formatItem(child, ir, opener, null, fixedLayout, noViewportReported);
-			for (int remaining = passCount; remaining > 1; --remaining) {
-				child.prepare(PrepareMode.MIDDLE_PASS);
-				child.getUAContext().setPassCount(remaining);
-				child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(remaining));
-				this.formatItem(child, ir, opener, null, fixedLayout, noViewportReported);
-			}
-			child.prepare(PrepareMode.LAST_PASS);
-			child.getUAContext().setPassCount(1);
-			child.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(1));
-			this.formatItem(child, ir, opener, null, fixedLayout, noViewportReported);
-		}
-		child.finish();
-	}
 
 	/**
 	 * Lays out one item in the currently prepared pass.

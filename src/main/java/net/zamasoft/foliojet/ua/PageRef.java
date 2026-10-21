@@ -240,7 +240,9 @@ public class PageRef {
 		return (uri, name, all) -> {
 			final List<Integer> values = new ArrayList<Integer>();
 			final List<Fragment> fragments = this.uriToFragments.get(uri);
-			if (fragments != null) {
+			if (fragments == null) {
+				this.missing.add(uri);
+			} else {
 				for (final Fragment fragment : fragments) {
 					if (fragment.generation < this.generation - 1) {
 						continue;
@@ -276,7 +278,92 @@ public class PageRef {
 		if (list != null && !list.isEmpty()) {
 			list.removeIf(f -> f.generation < this.generation - 1);
 		}
+		if (list == null || list.isEmpty()) {
+			this.missing.add(uri);
+		}
 		return list;
+	}
+
+	/**
+	 * Targets looked up in this conversion and not found (2026-10-21). The spine items of an EPUB laid out to Paged
+	 * SVG are separate documents; after each pass the targets an item missed are looked up in the other items
+	 * ({@code BookPageNumbers}), so a table of contents in one item reads the page numbers of the others.
+	 */
+	private final java.util.Set<URI> missing = new java.util.HashSet<>();
+
+	/** The targets looked up and not found (see {@link #missing}). Kept across passes. */
+	public java.util.Set<URI> getMissing() {
+		return this.missing;
+	}
+
+	/** This pass's fragments of {@code uri}, or an empty list. */
+	public List<Fragment> currentFragments(final URI uri) {
+		final List<Fragment> list = this.uriToFragments.get(uri);
+		if (list == null) {
+			return List.of();
+		}
+		final List<Fragment> current = new ArrayList<Fragment>(list.size());
+		for (final Fragment f : list) {
+			if (f.generation == this.generation) {
+				current.add(f);
+			}
+		}
+		return current;
+	}
+
+	/**
+	 * Moves the {@code page} counter of this pass's fragments by {@code delta} and sets {@code pages} to the book's
+	 * page count (2026-10-21): an EPUB item laid out on its own counted its pages from 1, and the next pass continues
+	 * the book's numbering. A page counter the author resets inside the item is moved too (a known limit).
+	 */
+	public void shiftPages(final int delta, final int pages) {
+		final Map<Counter[], Counter[]> shifted = new java.util.IdentityHashMap<Counter[], Counter[]>();
+		for (final List<Fragment> list : this.uriToFragments.values()) {
+			for (final Fragment f : list) {
+				if (f.generation == this.generation && f.counters != null) {
+					f.counters = shifted.computeIfAbsent(f.counters, counters -> {
+						final Counter[] copy = new Counter[counters.length];
+						for (int i = 0; i < counters.length; ++i) {
+							final Counter c = counters[i];
+							copy[i] = c.name.equalsIgnoreCase("page") ? new Counter(c.name, c.value + delta)
+									: c.name.equalsIgnoreCase("pages") ? new Counter(c.name, pages) : c;
+						}
+						return copy;
+					});
+				}
+			}
+		}
+	}
+
+	/**
+	 * Replaces the fragments of {@code uri} with copies of another document's (2026-10-21). They belong to this pass,
+	 * so the next pass reads them as the previous pass's values, as it reads a forward reference, and marks what it
+	 * read ({@link #readChanged}). Returns the copies.
+	 */
+	public List<Fragment> importFragments(final URI uri, final List<Fragment> fragments) {
+		final List<Fragment> copies = new ArrayList<Fragment>(fragments.size());
+		for (final Fragment f : fragments) {
+			final Fragment copy = new Fragment(f.uid, uri, f.counters);
+			copy.text = f.text;
+			copy.generation = this.generation;
+			copies.add(copy);
+		}
+		this.uriToFragments.put(uri, copies);
+		return copies;
+	}
+
+	/**
+	 * Whether what a reference read from {@code read} as a previous pass's value differs from {@code now}: only the
+	 * counters it read, and the text only if {@code target-text()} read it (2026-10-21, for targets imported from
+	 * another document).
+	 */
+	public static boolean readChanged(final Fragment read, final Fragment now) {
+		return read.isStale() && changed(read, now.counters, now.text);
+	}
+
+	/** A target on the first page of a document, for a reference without a fragment ({@code href="ch2.xhtml"}). */
+	public static Fragment documentStart(final URI uri, final int page, final int pages) {
+		return new Fragment(1, uri, new Counter[] { new Counter("page", page), new Counter("pages", pages) });
 	}
 
 	/**
