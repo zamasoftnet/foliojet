@@ -50,16 +50,26 @@ public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 	 * column break rebuilt at the same size or larger was split again at every page start without end (wild seed
 	 * 24521670: a table float in a three-column multicol, 102.1pt and then 108.25pt on a 100pt page, 51,000 pages in
 	 * 300 s since e18e4fb6). A remainder that has not shrunk below this counts as unsplittable when it is first again
-	 * ({@code FloatMeasurement#notShrunk}); behind body text it is split by content as before (triage §83).
+	 * ({@code FloatMeasurement#notShrunk}); behind body text it is split by content as before (triage §83). A remainder
+	 * that grew counts so only once a remainder of the same float has grown before
+	 * ({@code FloatMeasurement#splitMadeNoProgress}, 2026-10-21).
 	 */
 	private double fragmentStartSplitExtent = Double.NaN;
 
-	public final void noteFragmentStartSplitExtent(final double extent) {
+	/** Whether a remainder of this float, before this one, was split at a fragment start after it had grown. */
+	private boolean fragmentStartSplitGrew;
+
+	public final void noteFragmentStartSplitExtent(final double extent, final boolean grew) {
 		this.fragmentStartSplitExtent = extent;
+		this.fragmentStartSplitGrew = grew;
 	}
 
 	public final double fragmentStartSplitExtent() {
 		return this.fragmentStartSplitExtent;
+	}
+
+	public final boolean fragmentStartSplitGrew() {
+		return this.fragmentStartSplitGrew;
 	}
 
 	protected final FloatPos pos;

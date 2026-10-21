@@ -3692,7 +3692,10 @@ public class RootBuilder extends BreakableBuilder {
 	/** Whether float placement advanced on the most recent page (finish() progress guard). */
 	private boolean pageFloatProgressed = false;
 
-	/** Most recent (page generation, occupied size) per element for floats split at page start. */
+	/**
+	 * Most recent (page generation, occupied size, 1 once a remainder has grown) per element for floats split at page
+	 * start.
+	 */
 	private final java.util.Map<Object, double[]> fragmentStartFloatSplits = new java.util.IdentityHashMap<>();
 
 	/**
@@ -3709,8 +3712,9 @@ public class RootBuilder extends BreakableBuilder {
 	 *
 	 * <p>
 	 * If occupied size has not shrunk since the previous page-start split, no progress has occurred. Stop splitting
-	 * and place with overflow (same treatment as an unsplittable float at page start). Do not compare reclassification
-	 * within the same page generation (column balancing/restyle).
+	 * and place with overflow (same treatment as an unsplittable float at page start). A remainder that has grown may
+	 * still be split once ({@link FloatMeasurement#splitMadeNoProgress}). Do not compare reclassification within the
+	 * same page generation (column balancing/restyle).
 	 * </p>
 	 *
 	 * @return true if splitting is allowed; false if no progress occurred
@@ -3722,15 +3726,20 @@ public class RootBuilder extends BreakableBuilder {
 		final double[] previous = this.fragmentStartFloatSplits.get(element);
 		if (DebugFlags.FLOAT_TRACE) {
 			System.err.println("[float-progress] gen=" + this.pageGeneration + " extent=" + occupiedExtent + " previous="
-					+ (previous == null ? "null" : previous[0] + "/" + previous[1]) + " element=" + System.identityHashCode(element));
+					+ (previous == null ? "null" : previous[0] + "/" + previous[1] + "/" + previous[2]) + " element="
+					+ System.identityHashCode(element));
 		}
-		if (previous != null && previous[0] < this.pageGeneration
-				&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(occupiedExtent, previous[1]) >= 0) {
-			this.fragmentStartFloatSplits.remove(element);
-			return false;
-		}
-		if (previous == null || previous[0] < this.pageGeneration) {
-			this.fragmentStartFloatSplits.put(element, new double[] { this.pageGeneration, occupiedExtent });
+		if (previous != null && previous[0] < this.pageGeneration) {
+			final boolean grewBefore = previous[2] != 0;
+			if (FloatMeasurement.splitMadeNoProgress(occupiedExtent, previous[1], grewBefore)) {
+				this.fragmentStartFloatSplits.remove(element);
+				return false;
+			}
+			final boolean grew = grewBefore
+					|| net.zamasoft.foliojet.layout.util.LayoutUtils.compare(occupiedExtent, previous[1]) > 0;
+			this.fragmentStartFloatSplits.put(element, new double[] { this.pageGeneration, occupiedExtent, grew ? 1 : 0 });
+		} else if (previous == null) {
+			this.fragmentStartFloatSplits.put(element, new double[] { this.pageGeneration, occupiedExtent, 0 });
 		}
 		return true;
 	}

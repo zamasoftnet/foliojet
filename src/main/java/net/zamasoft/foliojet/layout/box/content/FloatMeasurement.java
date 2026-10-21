@@ -86,8 +86,27 @@ public record FloatMeasurement(
 				floating.pageAxis + pageExtent, pageExtent, sameWritingAxis,
 				LayoutUtils.compare(floating.pageAxis, 0) <= 0, floating.moveToNext, boxType, pageBreakInside,
 				block != null && block.splitMakesNoProgress(),
-				block != null && !Double.isNaN(block.fragmentStartSplitExtent())
-						&& LayoutUtils.compare(pageExtent, block.fragmentStartSplitExtent()) >= 0);
+				block != null && !Double.isNaN(block.fragmentStartSplitExtent()) && splitMadeNoProgress(pageExtent,
+						block.fragmentStartSplitExtent(), block.fragmentStartSplitGrew()));
+	}
+
+	/**
+	 * Whether a float split at a fragment start made no progress, judged from the remainder's occupied extent against
+	 * the extent before that split (2026-10-21). The same size is no progress. A larger remainder is too once a
+	 * remainder of the same float has grown before: a box moved whole into the remainder can be laid out again at
+	 * its content (RowSplitContainer grows a moved flex whose items run past the page), which makes the remainder
+	 * larger although the split left content on the page (FIT seed 30125121, triage §92: a float with a 119pt
+	 * vertical-rl column flex in vertical-lr grew from 396.2pt to 557.7pt and was placed off the paper whole).
+	 * Allowing one growth keeps the guard against remainders rebuilt larger every time (wild seed 24521670: 102.1pt,
+	 * then 108.25pt on every page), at the cost of one more split.
+	 *
+	 * @param extent     occupied extent of the remainder now
+	 * @param before     occupied extent before the split that made it
+	 * @param grewBefore whether a remainder of this float has already grown
+	 */
+	public static boolean splitMadeNoProgress(final double extent, final double before, final boolean grewBefore) {
+		final int c = LayoutUtils.compare(extent, before);
+		return c == 0 || (c > 0 && grewBefore);
 	}
 
 	/**

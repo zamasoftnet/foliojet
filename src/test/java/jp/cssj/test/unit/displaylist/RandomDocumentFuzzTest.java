@@ -1873,12 +1873,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Chrome's screen puts T2 at y = -259 pt and its print drops 25 of the 38 words.
 			new IndividualExclusion(29_900_790, "fit-v1", 1_939_620_710, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
 					"2026-10-21"),
-			// Triage §92: on vertical-lr 120x400 pt paper a float:right holds a vertical-rl wrapping column flex of
-			// width:119pt whose four lines span about 220 pt; the rest of the float is not split across pages and runs off
-			// the right of page 2 (T47 at x = 689.6 pt). 19124 split this document but already failed the same way with a
-			// nowrap flex; the wrap form fails from 19135. In a plain div the flex splits. Chrome prints eight pages.
-			new IndividualExclusion(30_125_121, "fit-v1", 2_022_675_755, "既知の制限: 逆進行のflexを持つfloatが頁で分かれず紙の右の外",
-					"2026-10-21"),
 			// Triage §93: on vertical-rl 120x400 pt paper a vertical-lr nowrap row flex lines up three items of long ruby
 			// and a floated table along the 400 pt main axis; the table ends near y = 1250 pt (T100 at y = 1222.7 pt).
 			// 19124 places it the same. Chrome breaks the ruby bases but still runs past the paper (T100 at y = 612 pt on

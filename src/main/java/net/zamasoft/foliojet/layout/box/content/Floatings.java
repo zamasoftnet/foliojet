@@ -347,11 +347,20 @@ public class Floatings {
 					// the next fragment start, with its serial inherited.
 					sourceSide.add(floating);
 					final net.zamasoft.foliojet.layout.box.IFloatBox tailBox = fragment.materialize();
-					if ((splitFlags & net.zamasoft.foliojet.layout.box.IPageBreakableBox.FLAGS_FIRST) != 0
-							&& tailBox instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox tail) {
+					if (tailBox instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox tail) {
 						// A split at the fragment start that leaves a remainder no smaller than the float made no
-						// progress (FloatBlockBox#fragmentStartSplitExtent)
-						tail.noteFragmentStartSplitExtent(expected.pageExtent());
+						// progress (FloatBlockBox#fragmentStartSplitExtent). Every remainder carries whether one has
+						// grown already (FloatMeasurement#splitMadeNoProgress), so a split elsewhere in between does
+						// not allow growth again.
+						final boolean grew = floating.box instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox source
+								&& (source.fragmentStartSplitGrew() || !Double.isNaN(source.fragmentStartSplitExtent())
+										&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(expected.pageExtent(),
+												source.fragmentStartSplitExtent()) > 0);
+						tail.noteFragmentStartSplitExtent(
+								(splitFlags & net.zamasoft.foliojet.layout.box.IPageBreakableBox.FLAGS_FIRST) != 0
+										? expected.pageExtent()
+										: Double.NaN,
+								grew);
 					}
 					if (DebugFlags.FLOAT_TRACE) {
 						System.err.println("[float] 残余断片 元=" + System.identityHashCode(floating.getBox()) + " 断片="
