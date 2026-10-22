@@ -151,6 +151,19 @@ public interface Container {
 	 */
 	public double getCutPointBelow(double pageAxis);
 
+	/**
+	 * The cut oracle of column balancing ({@link net.zamasoft.foliojet.layout.fragment.ColumnBalancer}): the
+	 * {@link #getCutPointBelow(double)} position if it is after the start of the column. Otherwise the start of the
+	 * column or before it if the first line there ends after the proposed position (the column cannot hold even one
+	 * line), and the proposed position if not, as the actual cut may still find a boundary the oracle does not see
+	 * (inside a table, a float or a flex item).
+	 *
+	 * @param from     the start of the column (distance from the content start)
+	 * @param pageAxis the proposed position (distance from the content start)
+	 * @return the cut position
+	 */
+	public double getBalanceCutPointBelow(double from, double pageAxis);
+
 	public boolean avoidBreakBefore();
 
 	public boolean avoidBreakAfter();

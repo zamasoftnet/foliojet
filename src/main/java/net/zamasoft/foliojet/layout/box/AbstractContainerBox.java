@@ -340,7 +340,7 @@ public abstract class AbstractContainerBox extends AbstractBox
 		} else {
 			// Simulate actual cuts at the single stack's rounded-down boundaries and search
 			// for the minimum capacity that fits all columns (M5-B).
-			pageSize = ColumnBalancer.balance(oldCont::getCutPointBelow, oldCont.getContentSize(), columnCount);
+			pageSize = ColumnBalancer.balance(oldCont::getBalanceCutPointBelow, oldCont.getContentSize(), columnCount);
 		}
 		// Atomic children on the same axis with reverse progression cannot split at column boundaries.
 		// Prefer the floor over ColumnBalancer's approximation that assumes progress to the proposed

@@ -417,6 +417,25 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return result;
 	}
 
+	/**
+	 * Returns whether the first line ending after {@code from} also ends after {@code pageAxis} (column balancing,
+	 * {@code FlowContainer.getBalanceCutPointBelow}).
+	 *
+	 * @param from     the start of the column
+	 * @param pageAxis the proposed position
+	 * @return true if a column from {@code from} to {@code pageAxis} cannot hold that line
+	 */
+	public final boolean firstLineEndsAfter(final double from, final double pageAxis) {
+		for (int i = 0; i < this.lines.size(); ++i) {
+			final Line line = (Line) this.lines.get(i);
+			final double bottom = line.pageAxis + line.box.getPageExtent(this.getBlockParams().flow);
+			if (LayoutUtils.compare(bottom, from) > 0) {
+				return LayoutUtils.compare(bottom, pageAxis) > 0;
+			}
+		}
+		return false;
+	}
+
 	public final void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip,
 			AffineTransform transform, double contextX, double contextY, double x, double y,
 			Deque<DrawStep> worklist) {

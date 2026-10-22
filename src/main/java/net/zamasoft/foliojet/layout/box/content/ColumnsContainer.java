@@ -180,6 +180,11 @@ public class ColumnsContainer implements Container {
 		return first.getCutPointBelow(pageAxis);
 	}
 
+	public double getBalanceCutPointBelow(double from, double pageAxis) {
+		FlowContainer first = (FlowContainer) this.columns.get(0);
+		return first.getBalanceCutPointBelow(from, pageAxis);
+	}
+
 	public void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
 			double y, Deque<FramesStep> worklist) {
 		final BlockParams params = this.box.getBlockParams();

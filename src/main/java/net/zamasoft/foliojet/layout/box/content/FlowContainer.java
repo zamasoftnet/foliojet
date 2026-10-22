@@ -856,6 +856,43 @@ public class FlowContainer implements Container {
 		return result;
 	}
 
+	public double getBalanceCutPointBelow(final double from, final double pageAxis) {
+		final double cut = this.getCutPointBelow(pageAxis);
+		if (LayoutUtils.compare(cut, from) > 0 || this.firstLineEndsAfter(from, pageAxis)) {
+			return cut;
+		}
+		// No boundary that this oracle sees (inside a table, a float or a flex item next to an empty one): the actual cut
+		// may still find one, so the content is taken as cut at the proposed position.
+		return pageAxis;
+	}
+
+	/**
+	 * Returns whether the first line ending after {@code from}, searched through blocks, also ends after
+	 * {@code pageAxis}: a column starting at {@code from} cannot hold even that line. Not where there are floats: a line
+	 * pushed below a float does not start the column, as the actual cut can leave part of the float before it.
+	 */
+	private boolean firstLineEndsAfter(final double from, final double pageAxis) {
+		if (!this.hasFlows() || this.hasFloatings()) {
+			return false;
+		}
+		final WritingMode flow = this.box.getBlockParams().flow;
+		for (int i = 0; i < this.flows.size(); ++i) {
+			final Flow f = (Flow) this.flows.get(i);
+			if (LayoutUtils.compare(f.pageAxis + f.box.getPageExtent(flow), from) <= 0) {
+				continue;
+			}
+			if (f.box.getType() == BoxType.TEXT_BLOCK) {
+				return ((TextBlockBox) f.box).firstLineEndsAfter(from - f.pageAxis, pageAxis - f.pageAxis);
+			}
+			if (f.box.getType() == BoxType.BLOCK && ((FlowBlockBox) f.box).getContainer() instanceof FlowContainer inner) {
+				final double frameStart = ((FlowBlockBox) f.box).getFrame().getFramePageStart(flow);
+				return inner.firstLineEndsAfter(from - f.pageAxis - frameStart, pageAxis - f.pageAxis - frameStart);
+			}
+			return false;
+		}
+		return false;
+	}
+
 	public void eachFlowBox(final java.util.function.Consumer<IFlowBox> consumer) {
 		if (this.flows != null) {
 			for (int i = 0; i < this.flows.size(); ++i) {
