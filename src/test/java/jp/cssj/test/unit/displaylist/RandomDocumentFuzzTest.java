@@ -1828,6 +1828,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// padding of 40px (30 pt), wider than the box, so its only item starts at x = 121 pt, past the paper's right
 			// edge (19124 alike); Chrome also draws it past the right edge and prints nothing on the paper.
 			new IndividualExclusion(31_742_245, "fit-v1", 1_079_745_350, "作者の溢れ: 幅27ptの箱のulの既定の字下げ30ptで項目が紙の右の外(Chromeも)",
+					"2026-10-22"),
+			// Triage §100: on 120x400 pt paper a table cell holds a nowrap flex row whose items carry min-width:8em,
+			// width:120pt and width:116pt, so the table's minimum width is about four times the paper's and T13 lands
+			// at x = 494 pt (19146 alike, 19124 also off the paper); Chrome's screen puts T13 at 493 pt and its print
+			// cuts the right columns. tableColumnBeyondPage counts only borders for cells with styled contents, and
+			// the document has floats.
+			new IndividualExclusion(31_824_053, "fit-v1", 539_051_368, "作者の溢れ: 表のセルのflexの最小幅が紙の約4倍(Chromeも)", "2026-10-22"),
+			// Triage §100: on vertical-rl 120x400 pt paper a vertical-lr box of width:110pt (its block size) holds a
+			// column flex container of tables, floats and a multi-column float that runs far past 110 pt; T17 lands at
+			// x = 632 pt (19146 alike, 19124 at 542 pt). Chrome's screen overflows the box up to x = 805 pt and its
+			// print puts T10 to T20 on no page.
+			new IndividualExclusion(31_953_642, "fit-v1", 1_594_208_864, "作者の溢れ: 幅110ptに決めた逆向きの箱から中身が溢れる(Chromeも)",
 					"2026-10-22"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
