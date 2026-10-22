@@ -1823,6 +1823,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// reversed box or the width, Copper splits it too. hasUntypesettableOppositeProgression compares one box at a
 			// time, not boxes stacked along the page axis.
 			new IndividualExclusion(31_651_828, "standard", 31_651_828, "既知の制限: 同軸逆進行の箱の中の大きさを決めた箱が頁で分かれず紙の左の外",
+					"2026-10-22"),
+			// Triage §99: on 120x400 pt paper (margin 0) a float:right holds a box of width:27pt whose ul keeps the UA
+			// padding of 40px (30 pt), wider than the box, so its only item starts at x = 121 pt, past the paper's right
+			// edge (19124 alike); Chrome also draws it past the right edge and prints nothing on the paper.
+			new IndividualExclusion(31_742_245, "fit-v1", 1_079_745_350, "作者の溢れ: 幅27ptの箱のulの既定の字下げ30ptで項目が紙の右の外(Chromeも)",
 					"2026-10-22"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
