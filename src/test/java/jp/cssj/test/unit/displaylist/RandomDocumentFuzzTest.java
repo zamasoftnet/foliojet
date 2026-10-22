@@ -1816,6 +1816,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// x = 255 pt (19146 alike), Chrome's screen at 314 pt. The table-width predicate (tableColumnBeyondPage)
 			// does not judge documents with floats.
 			new IndividualExclusion(31_008_185, "standard", 31_008_185, "作者の溢れ: 入れ子の表の最小幅が紙の2倍超、前後にfloat(Chromeも同じ)",
+					"2026-10-22"),
+			// Triage §98, as seed 2129171 (triage §4-3): on vertical-rl 120x400 pt paper a vertical-lr box holds a vertical-rl
+			// box of width:96pt (its page-axis size) with boxes of min-width:8em stacked inside. Copper keeps it on page 1
+			// and T9 lands at x = -384 pt (19124 at -387 pt); Chrome's print goes on over three pages. Without the
+			// reversed box or the width, Copper splits it too. hasUntypesettableOppositeProgression compares one box at a
+			// time, not boxes stacked along the page axis.
+			new IndividualExclusion(31_651_828, "standard", 31_651_828, "既知の制限: 同軸逆進行の箱の中の大きさを決めた箱が頁で分かれず紙の左の外",
 					"2026-10-22"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
