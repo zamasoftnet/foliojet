@@ -25,6 +25,7 @@ import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.Pos;
+import net.zamasoft.foliojet.layout.box.params.ParamsType;
 
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
@@ -961,6 +962,13 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		} else {
 			this.minPageAxis = minHeight;
 			this.maxPageAxis = maxHeight;
+		}
+		if (this.params.getType() == ParamsType.TABLE) {
+			// A table's wrapper takes none of the table's page-axis sizes (its size and min-size are dropped in
+			// AbstractBlockBox): the table builder clamps the table by them, and a table grows to its content. Capped
+			// by max-height, the wrapper ended inside a taller table and the following content overlapped it (2026-10-24;
+			// Chrome grows the table).
+			this.maxPageAxis = Double.MAX_VALUE;
 		}
 		assert !LayoutUtils.isNone(marginTop);
 		assert !LayoutUtils.isNone(marginRight);

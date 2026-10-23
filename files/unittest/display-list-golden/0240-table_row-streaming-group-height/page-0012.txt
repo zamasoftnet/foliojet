@@ -21,5 +21,3 @@ drawer z=0
   x=70.24 y=47.12 Text["r46b" asc=4.55 desc=1.45]
   x=1.50 y=64.01 Text["r47a" asc=4.55 desc=1.45]
   x=70.24 y=64.01 Text["r47b" asc=4.55 desc=1.45]
-  x=0.10 y=0.40 Text["after" asc=4.55 desc=1.45]
-  x=12.59 y=0.40 Text["proportional" asc=4.55 desc=1.45]

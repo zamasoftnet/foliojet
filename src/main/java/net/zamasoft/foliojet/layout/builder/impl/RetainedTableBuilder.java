@@ -41,6 +41,7 @@ import net.zamasoft.foliojet.layout.box.impl.TableRowGroupBox;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.Border;
+import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.PosType;
 import net.zamasoft.foliojet.layout.box.params.TableCaptionPos;
@@ -864,6 +865,37 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	}
 
 	/**
+	 * A page-axis size of the table ({@code width} in vertical writing, {@code height} in horizontal): an absolute
+	 * size less the table's frame, a percentage of the nearest box with a fixed page-axis size; NONE for auto.
+	 */
+	private double pageAxisSize(final Dimension size) {
+		if (this.vertical) {
+			switch (size.getWidthType()) {
+			case ABSOLUTE:
+				return size.getWidth() - this.tableBox.getFrame().getFrameWidth();
+			case RELATIVE:
+			case MIXED:
+				return LayoutUtils.computeDimensionWidth(size, this.layoutStack.getFixedWidth());
+			case AUTO:
+				return LayoutUtils.NONE;
+			default:
+				throw new IllegalStateException();
+			}
+		}
+		switch (size.getHeightType()) {
+		case ABSOLUTE:
+			return size.getHeight() - this.tableBox.getFrame().getFrameHeight();
+		case RELATIVE:
+		case MIXED:
+			return LayoutUtils.computeDimensionHeight(size, this.layoutStack.getFixedHeight());
+		case AUTO:
+			return LayoutUtils.NONE;
+		default:
+			throw new IllegalStateException();
+		}
+	}
+
+	/**
 	 * A table's intrinsic size keyword as its size, margins included as in the column widths' sizes (2026-10-11): its
 	 * min-content or max-content, or for fit-content its auto width within its argument (a border box, the table's) or
 	 * the available size, percentage columns widening it as they do an auto table (Chrome: a 60px column of 25%
@@ -1086,40 +1118,25 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			columnSizes = sized.columnSizes();
 		}
 
-		final double specifiedPageSize;
-		if (this.vertical) {
-			// Vertical writing
-			switch (tableParams.size.getWidthType()) {
-			case ABSOLUTE:
-				specifiedPageSize = tableParams.size.getWidth() - this.tableBox.getFrame().getFrameWidth();
-				break;
-			case RELATIVE:
-			case MIXED:
-				specifiedPageSize = LayoutUtils.computeDimensionWidth(tableParams.size,
-						this.layoutStack.getFixedWidth());
-				break;
-			case AUTO:
-				specifiedPageSize = 0;
-				break;
-			default:
-				throw new IllegalStateException();
-			}
+		double specifiedPageSize = this.pageAxisSize(tableParams.size);
+		if (LayoutUtils.isNone(specifiedPageSize)) {
+			specifiedPageSize = 0;
 		} else {
-			// Horizontal writing
-			switch (tableParams.size.getHeightType()) {
-			case ABSOLUTE:
-				specifiedPageSize = tableParams.size.getHeight() - this.tableBox.getFrame().getFrameHeight();
-				break;
-			case RELATIVE:
-			case MIXED:
-				specifiedPageSize = LayoutUtils.computeDimensionHeight(tableParams.size,
-						this.layoutStack.getFixedHeight());
-				break;
-			case AUTO:
-				specifiedPageSize = 0;
-				break;
-			default:
-				throw new IllegalStateException();
+			// The page-axis max and min sizes clamp a specified page-axis size, against the same basis (fit seed
+			// 34634928, 2026-10-24: a vertical-rl float table of width: calc(35% + 8em); min-width: 8em; max-width: 90%
+			// in a 96 pt box took 129.6 pt and ran off the paper; Chrome takes 96 pt, and clamps a table's block size by
+			// max-height/min-height alike). An auto page-axis size stays content-driven.
+			final double maxPageSize = this.pageAxisSize(tableParams.maxSize);
+			if (!LayoutUtils.isNone(maxPageSize)) {
+				specifiedPageSize = Math.min(maxPageSize, specifiedPageSize);
+			}
+			// No min-size (the default absolute 0) stays none: less the frame, which counts margins, a negative margin
+			// would make it positive (codex review).
+			final boolean noMin = tableParams.minSize.getPageType(tableParams.flow) == LengthType.ABSOLUTE
+					&& tableParams.minSize.getPageLength(tableParams.flow) <= 0;
+			final double minPageSize = noMin ? LayoutUtils.NONE : this.pageAxisSize(tableParams.minSize);
+			if (!LayoutUtils.isNone(minPageSize)) {
+				specifiedPageSize = Math.max(minPageSize, specifiedPageSize);
 			}
 		}
 		final double tableInnerSize = tableSize - tableFrame;

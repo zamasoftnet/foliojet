@@ -1,0 +1,9 @@
+drawer z=0
+  x=0.00 y=0.00 AbsoluteRectFrame[w=200.00 h=80.50]
+  x=1.40 y=0.00 BackgroundBorder[w=69.80 h=12.46]
+  x=71.20 y=0.00 BackgroundBorder[w=69.80 h=12.46]
+  x=1.40 y=24.91 BackgroundBorder[w=69.80 h=12.46]
+  x=71.20 y=24.91 BackgroundBorder[w=69.80 h=12.46]
+  x=1.40 y=49.82 BackgroundBorder[w=69.80 h=12.46]
+  x=71.20 y=49.82 BackgroundBorder[w=69.80 h=12.46]
+  x=1.20 y=0.00 TableBorder[w=140.00 h=74.74]

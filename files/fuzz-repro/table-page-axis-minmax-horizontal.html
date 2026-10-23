@@ -1,0 +1,33 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="600pt"?>
+<!-- Tables whose height is specified are clamped by max-height and min-height, as Chrome does: 150pt with max-height: 80pt, 50pt with min-height: 120pt; min wins over max-height: 80pt. Their wrapper takes no max-height, so a table taller than it (min over max, or content over max-height) no longer overlaps the following text (2026-10-24, fit sweep seed 34634928, the horizontal counterpart). -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>table-page-axis-minmax-horizontal</title>
+<style>
+@page{margin:5pt}
+body{margin:0;font:normal 12pt/1.2 serif;writing-mode:horizontal-tb}
+p,div,td{margin:0;padding:0}
+table{border-collapse:separate;table-layout:auto}
+td{border:1pt solid black}
+</style></head><body>
+<table style="height:150pt;max-height:80pt"><tbody>
+<tr><td>T0</td></tr>
+<tr><td>T1</td></tr>
+</tbody></table>
+<table style="height:50pt;min-height:120pt"><tbody>
+<tr><td>T2</td></tr>
+<tr><td>T3</td></tr>
+</tbody></table>
+<table style="height:50pt;min-height:120pt;max-height:80pt"><tbody>
+<tr><td>T4</td></tr>
+<tr><td>T5</td></tr>
+</tbody></table>
+<p>T6</p>
+<table style="max-height:30pt"><tbody>
+<tr><td>T7</td></tr>
+<tr><td>T8</td></tr>
+<tr><td>T9</td></tr>
+</tbody></table>
+<p>T10</p>
+</body></html>

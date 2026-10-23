@@ -27,6 +27,7 @@ import net.zamasoft.foliojet.layout.box.params.Insets;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.RectBorder;
+import net.zamasoft.foliojet.layout.box.params.ParamsType;
 
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.builder.impl.TwoPassBlockBuilder;
@@ -316,12 +317,15 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		final RectBorder border = this.frame.frame.border;
 		final boolean vertical = this.params.flow.isVertical();
 		final double cPage = vertical ? cWidth : cHeight;
+		// A table's wrapper takes none of the table's page-axis sizes, as in FlowBlockBox (2026-10-24).
+		final Dimension maxSize = this.params.getType() == ParamsType.TABLE ? Dimension.AUTO_DIMENSION
+				: this.params.maxSize;
 		return AbsoluteSizing.resolvePage(new AbsoluteSizing.PageInput( //
 				cPage, //
 				vertical ? LayoutUtils.computeDimensionWidth(this.size, cWidth)
 						: LayoutUtils.computeDimensionHeight(this.size, cHeight), //
-				vertical ? LayoutUtils.computeDimensionWidth(this.params.maxSize, cWidth)
-						: LayoutUtils.computeDimensionHeight(this.params.maxSize, cHeight), //
+				vertical ? LayoutUtils.computeDimensionWidth(maxSize, cWidth)
+						: LayoutUtils.computeDimensionHeight(maxSize, cHeight), //
 				vertical ? LayoutUtils.computeDimensionWidth(this.minSize, cWidth)
 						: LayoutUtils.computeDimensionHeight(this.minSize, cHeight), //
 				vertical ? LayoutUtils.computeInsetsLeft(pos.location, cWidth)

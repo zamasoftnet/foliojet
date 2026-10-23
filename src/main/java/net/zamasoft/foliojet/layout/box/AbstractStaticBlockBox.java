@@ -19,6 +19,7 @@ import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.IntrinsicSize;
 import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
+import net.zamasoft.foliojet.layout.box.params.ParamsType;
 
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
@@ -520,7 +521,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			this.specifiedPageAxis = true;
 		}
 		this.minPageAxis = minPage;
-		this.maxPageAxis = maxPage;
+		// A table's wrapper takes none of the table's page-axis sizes, as in FlowBlockBox (2026-10-24).
+		this.maxPageAxis = this.params.getType() == ParamsType.TABLE ? Double.MAX_VALUE : maxPage;
 
 		// Write back to physical dimensions
 		if (flow.isVertical()) {

@@ -1,0 +1,21 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<!-- A vertical-rl display:table float of width: calc(35% + 8em); min-width: 8em; max-width: 90% in an auto-width box inside a 96 pt box. The table resolved its width against the 96 pt box (129.6 pt) but read no max-width or min-width, so the float ran off the paper's right edge (T0 at x=210.4); clamped, it takes 96 pt as with width: 96pt (2026-10-24, fit sweep seed 34634928). -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>table-page-axis-minmax-vertical</title>
+<style>
+@page{margin:5pt}
+body{margin:0;font:normal 12pt/1.2 serif;writing-mode:vertical-rl}
+p,div,td{margin:0;padding:0}
+table{border-collapse:separate;table-layout:fixed}
+td{border:1pt solid black}
+</style></head><body>
+<div style="float:none;writing-mode:vertical-lr;width:8em;min-width:8em;max-width:90%;">
+<div style="writing-mode:vertical-rl">
+<div style="display:table;float:right;writing-mode:vertical-rl;width:39pt;width:calc(35% + 8em);min-width:8em;max-width:90%;">
+<p>T0 T1</p>
+</div>
+</div>
+</div>
+</body></html>
