@@ -32,7 +32,7 @@ public final class PendingStringSet {
 	 * A {@code content()} position (2026-10-23): {@code text} (also {@code content()}), {@code before}, {@code after}
 	 * or {@code first-letter}.
 	 */
-	public static final class Content {
+	public static final class Content implements java.util.function.Function<String, String> {
 		private final ContentFunctionValue kind;
 		private final Capture capture;
 
@@ -45,7 +45,8 @@ public final class PendingStringSet {
 		 * @param boxText the element's whole text as laid out, its own {@code ::before} and {@code ::after} included
 		 * @return the text this position takes
 		 */
-		public String resolve(final String boxText) {
+		@Override
+		public String apply(final String boxText) {
 			if (this.kind == ContentFunctionValue.BEFORE) {
 				return this.capture.before.toString();
 			}

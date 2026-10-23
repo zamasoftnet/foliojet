@@ -172,7 +172,7 @@
 				</td>
 				<td>ブックマーク機能です。falseまたはtrueで指定します。<br />
 					trueにすると、H1〜H6要素をもとにブックマーク(アウトライン)を生成します。<br />
-					CSSの<span class="cssprop">bookmark-level</span>(<span class="cssdecl">auto</span>・<span class="cssdecl">none</span>・1以上の整数)で段数を変えたり見出しを外したり、見出しでない要素をしおりにしたりできます。<span class="cssdecl">auto</span>(既定)はH1〜H6の段数に従います。<span class="cssprop">bookmark-label</span>(文字列・<span class="cssdecl">content()</span>・<span class="cssdecl">attr()</span>の並び)でしおりの文字を変えられます。<span class="cssdecl">counter()</span>は使えません(番号は::beforeに書けばしおりの文字に入ります)。<span class="since">4.0.0</span>
+					CSSの<span class="cssprop">bookmark-level</span>(<span class="cssdecl">auto</span>・<span class="cssdecl">none</span>・1以上の整数)で段数を変えたり見出しを外したり、見出しでない要素をしおりにしたりできます。<span class="cssdecl">auto</span>(既定)はH1〜H6の段数に従います。<span class="cssprop">bookmark-label</span>(文字列・<span class="cssdecl">counter()</span>・<span class="cssdecl">attr()</span>・<span class="cssdecl">content()</span>の並び。<span class="cssprop">string-set</span>と同じく、<span class="cssdecl">content()</span>は::beforeと::afterを除いた文字、<span class="cssdecl">content(before)</span>・<span class="cssdecl">content(after)</span>はそれぞれの文字)でしおりの文字を変えられます。初期値は::beforeを含む要素の文字です。::beforeの番号と題の間を空けるには<span class="cssdecl">content(before) " " content()</span>と書きます。<span class="since">4.0.0</span>
 				</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.compression">

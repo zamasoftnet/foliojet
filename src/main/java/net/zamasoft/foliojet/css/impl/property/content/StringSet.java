@@ -54,6 +54,46 @@ public class StringSet extends AbstractPrimitivePropertyInfo {
 		return value;
 	}
 
+	/**
+	 * One item of a GCPM {@code <content-list>} as string-set and bookmark-label take it (2026-10-23):
+	 * {@code <string>}, {@code counter()}, {@code counters()}, {@code attr()} or
+	 * {@code content( [ text | before | after | first-letter ]? )}.
+	 */
+	static Value parsePart(final CssToken lu, final UserAgent ua) throws PropertyException {
+		if (lu instanceof CssToken.Str str) {
+			return new StringValue(str.value());
+		}
+		if (!(lu instanceof CssToken.Func func)) {
+			throw new PropertyException();
+		}
+		if (func.is("counter")) {
+			return Content.parseCounter(func.argStream(), ua);
+		}
+		if (func.is("counters")) {
+			return Content.parseCounters(func.argStream(), ua);
+		}
+		if (func.is("attr")) {
+			final TokenStream params = func.argStream();
+			final String attrName = params.ident();
+			if (attrName == null || params.hasNext()) {
+				throw new PropertyException();
+			}
+			return new AttrValue(attrName);
+		}
+		if (func.is("content")) {
+			final TokenStream params = func.argStream();
+			final boolean hasArgument = params.hasNext();
+			final String ident = hasArgument ? params.ident() : null;
+			final ContentFunctionValue content = hasArgument && ident == null ? null
+					: ContentFunctionValue.forStringSet(ident == null ? null : ident.toLowerCase(java.util.Locale.ROOT));
+			if (content == null || params.hasNext()) {
+				throw new PropertyException();
+			}
+			return content;
+		}
+		throw new PropertyException();
+	}
+
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		if (tokens.size() == 1 && ValueUtils.isNone(tokens.peek())) {// none
 			return KeywordValue.NONE;
@@ -67,39 +107,7 @@ public class StringSet extends AbstractPrimitivePropertyInfo {
 			}
 			List<Value> parts = new ArrayList<Value>();
 			while (group.hasNext()) {
-				final CssToken lu = group.next();
-				if (lu instanceof CssToken.Str str) {
-					parts.add(new StringValue(str.value()));
-				} else if (lu instanceof CssToken.Func func) {
-					if (func.is("counter")) {
-						parts.add(Content.parseCounter(func.argStream(), ua));
-					} else if (func.is("counters")) {
-						parts.add(Content.parseCounters(func.argStream(), ua));
-					} else if (func.is("attr")) {
-						final TokenStream params = func.argStream();
-						final String attrName = params.ident();
-						if (attrName == null || params.hasNext()) {
-							throw new PropertyException();
-						}
-						parts.add(new AttrValue(attrName));
-					} else if (func.is("content")) {
-						// content( [ text | before | after | first-letter ]? ) (2026-10-23)
-						final TokenStream params = func.argStream();
-						final boolean hasArgument = params.hasNext();
-						final String ident = hasArgument ? params.ident() : null;
-						final ContentFunctionValue content = hasArgument && ident == null ? null
-								: ContentFunctionValue.forStringSet(
-										ident == null ? null : ident.toLowerCase(java.util.Locale.ROOT));
-						if (content == null || params.hasNext()) {
-							throw new PropertyException();
-						}
-						parts.add(content);
-					} else {
-						throw new PropertyException();
-					}
-				} else {
-					throw new PropertyException();
-				}
+				parts.add(parsePart(group.next(), ua));
 			}
 			if (parts.isEmpty()) {
 				throw new PropertyException();

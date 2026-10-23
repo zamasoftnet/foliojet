@@ -529,6 +529,8 @@ final class BoxStyleMapper {
 	 * Computed values of {@code bookmark-level} and {@code bookmark-label} (2026-10-04).
 	 * Null if both are defaults. Resolves {@code attr()} from element attributes here;
 	 * leaves {@code content()} as a null component (element text at bookmark creation time).
+	 * Counters and the parts of {@code content()} are filled in after the element's counter-increment
+	 * ({@code StyleEventMachine.applyBookmarkLabel}, 2026-10-23).
 	 */
 	private static net.zamasoft.foliojet.layout.box.params.BookmarkSpec bookmark(final CSSStyle style) {
 		final CSSElement ce = style.getCSSElement();
@@ -540,18 +542,22 @@ final class BoxStyleMapper {
 		if (level == net.zamasoft.foliojet.layout.box.params.BookmarkSpec.LEVEL_AUTO && parts == null) {
 			return null;
 		}
-		String[] label = null;
+		Object[] label = null;
 		if (parts != null) {
-			label = new String[parts.length];
-			for (int i = 0; i < parts.length; ++i) {
-				final Value part = parts[i];
-				if (part instanceof net.zamasoft.foliojet.css.value.StringValue str) {
-					label[i] = str.getString();
-				} else if (part instanceof net.zamasoft.foliojet.css.value.AttrValue attr) {
-					final String value = ce.atts == null ? null : ce.atts.getValue(attr.getName());
-					label[i] = value == null ? "" : value;
+			// Shared with the style: applyBookmarkLabel fills in the rest after the box is made (CSSStyle.bookmarkLabel).
+			label = style.bookmarkLabel;
+			if (label == null) {
+				label = style.bookmarkLabel = new Object[parts.length];
+				for (int i = 0; i < parts.length; ++i) {
+					final Value part = parts[i];
+					if (part instanceof net.zamasoft.foliojet.css.value.StringValue str) {
+						label[i] = str.getString();
+					} else if (part instanceof net.zamasoft.foliojet.css.value.AttrValue attr) {
+						final String value = ce.atts == null ? null : ce.atts.getValue(attr.getName());
+						label[i] = value == null ? "" : value;
+					}
+					// content(), counters: leave null (applyBookmarkLabel)
 				}
-				// content(): leave null
 			}
 		}
 		return new net.zamasoft.foliojet.layout.box.params.BookmarkSpec(level, label);

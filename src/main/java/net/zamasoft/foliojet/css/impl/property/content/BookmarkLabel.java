@@ -8,11 +8,8 @@ import net.zamasoft.foliojet.css.CSSStyle;
 import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
 import net.zamasoft.foliojet.css.property.PropertyException;
-import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
-import net.zamasoft.foliojet.css.value.AttrValue;
 import net.zamasoft.foliojet.css.value.ContentFunctionValue;
-import net.zamasoft.foliojet.css.value.StringValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.css.value.ValueListValue;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -21,12 +18,12 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * GCPM {@code bookmark-label: <content-list>} (2026-10-04).
  *
  * <p>
- * Accepts sequences of {@code <string>}, {@code content()}, {@code content(text)}
- * (both use the element's text), and {@code attr(<name>)}. The initial value is
- * {@code content(text)}, so heading text (including generated ::before content) becomes
- * the bookmark, as before. Does not accept {@code counter()}: when the box is created,
- * the element's {@code counter-increment} has not yet taken effect, so chapter numbers
- * would be off by one. Putting the number in {@code ::before} includes it in the bookmark text.
+ * Accepts the same items as {@code string-set} (2026-10-23, reported by tech; before then only strings,
+ * {@code attr()} and {@code content()}): {@code <string>}, {@code counter()}, {@code counters()},
+ * {@code attr()} and {@code content( [ text | before | after | first-letter ]? )}, where {@code content()} is the
+ * element's text without its own ::before and ::after. The initial value stays the element's whole text, ::before
+ * included, so a number put in {@code ::before} is in the bookmark as before. Counters are read after the element's
+ * {@code counter-increment} ({@code StyleEventMachine.applyBookmarkLabel}).
  * </p>
  */
 public class BookmarkLabel extends AbstractPrimitivePropertyInfo {
@@ -62,28 +59,7 @@ public class BookmarkLabel extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(final TokenStream tokens, final UserAgent ua, final URI uri) throws PropertyException {
 		final List<Value> parts = new ArrayList<Value>();
 		while (tokens.hasNext()) {
-			final CssToken lu = tokens.next();
-			if (lu instanceof CssToken.Str str) {
-				parts.add(new StringValue(str.value()));
-			} else if (lu instanceof CssToken.Func func && func.is("attr")) {
-				final TokenStream params = func.argStream();
-				final String attrName = params.ident();
-				if (attrName == null || params.hasNext()) {
-					throw new PropertyException();
-				}
-				parts.add(new AttrValue(attrName));
-			} else if (lu instanceof CssToken.Func func && func.is("content")) {
-				final TokenStream params = func.argStream();
-				if (params.hasNext()) {
-					final String kind = params.ident();
-					if (!"text".equals(kind) || params.hasNext()) {
-						throw new PropertyException();
-					}
-				}
-				parts.add(ContentFunctionValue.INSTANCE);
-			} else {
-				throw new PropertyException();
-			}
+			parts.add(StringSet.parsePart(tokens.next(), ua));
 		}
 		if (parts.isEmpty()) {
 			throw new PropertyException();

@@ -228,6 +228,8 @@ final class StyleEventMachine {
 
 		this.applyStringSets(style, ce, depth);
 
+		this.applyBookmarkLabel(style, ce, depth);
+
 		this.startListMarker(style, explDisplay, depth);
 
 		this.emitGeneratedContent(style, ce, depth);
@@ -621,7 +623,6 @@ final class StyleEventMachine {
 			final List<PendingStringSet> assignments = new ArrayList<PendingStringSet>();
 			// Later values replace same-name assignments on the same element; do not register the same (name, order) twice
 			final java.util.LinkedHashMap<String, List<Object>> byName = new java.util.LinkedHashMap<String, List<Object>>();
-			PendingStringSet.Capture capture = null;
 			for (int i = 0; i < stringSets.length; ++i) {
 				final StringSetEntryValue entry = (StringSetEntryValue) stringSets[i];
 				final Value[] parts = entry.getParts();
@@ -629,12 +630,7 @@ final class StyleEventMachine {
 				for (int j = 0; j < parts.length; ++j) {
 					final Value part = parts[j];
 					if (part instanceof ContentFunctionValue content) {
-						if (capture == null) {
-							// The element's own ::before and ::after are typeset after this (synthesizeBefore/After).
-							capture = new PendingStringSet.Capture();
-							this.pseudoCaptures.put(style, capture);
-						}
-						resolvedParts.add(new PendingStringSet.Content(content, capture));
+						resolvedParts.add(new PendingStringSet.Content(content, this.captureFor(style)));
 					} else {
 						resolvedParts.add(this.generated.stringSetPart(part, ce, depth));
 					}
@@ -658,6 +654,41 @@ final class StyleEventMachine {
 			if (!assignments.isEmpty()) {
 				this.sink.stringAssignments(assignments, style,
 						Display.get(style) == DisplayValue.CONTENTS ? null : this.sink.sourceBox());
+			}
+		}
+	}
+
+	/**
+	 * Where the element's own ::before and ::after text goes for {@code content()} in string-set and bookmark-label
+	 * (2026-10-23): they are typeset after this (synthesizeBefore, endStyle).
+	 */
+	private PendingStringSet.Capture captureFor(final CSSStyle style) {
+		return this.pseudoCaptures.computeIfAbsent(style, key -> new PendingStringSet.Capture());
+	}
+
+	/**
+	 * Fills in the bookmark-label items BoxStyleMapper could not (2026-10-23, reported by tech): counters, read after
+	 * the element's counter-increment as string-set reads them, and the parts of {@code content()}, which take the
+	 * element's own ::before and ::after text. The box, if already made (the root's comes later), and the recording
+	 * that froze its params share the array ({@link CSSStyle#bookmarkLabel}), which is filled in place.
+	 */
+	private void applyBookmarkLabel(final CSSStyle style, final CSSElement ce, final int depth) {
+		final Value[] parts = net.zamasoft.foliojet.css.impl.property.content.BookmarkLabel.get(style);
+		if (parts == null || ce.isPseudoElement()) {
+			return;
+		}
+		Object[] label = style.bookmarkLabel;
+		if (label == null) {
+			label = style.bookmarkLabel = new Object[parts.length];
+		}
+		for (int i = 0; i < parts.length; ++i) {
+			final Value part = parts[i];
+			if (part == ContentFunctionValue.INSTANCE) {
+				label[i] = null;
+			} else if (part instanceof ContentFunctionValue content) {
+				label[i] = new PendingStringSet.Content(content, this.captureFor(style));
+			} else {
+				label[i] = this.generated.stringSetPart(part, ce, depth);
 			}
 		}
 	}

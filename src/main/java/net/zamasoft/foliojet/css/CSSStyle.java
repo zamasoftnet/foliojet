@@ -108,6 +108,14 @@ public class CSSStyle {
 	public long footnoteId = -1;
 
 	/**
+	 * The items of the element's {@code bookmark-label}, shared by the box's {@code BookmarkSpec} (2026-10-23).
+	 * {@code BoxStyleMapper} makes the box, and the recording freezes its params, before the element's
+	 * counter-increment; {@code StyleEventMachine.applyBookmarkLabel} fills in the counters and {@code content()} items
+	 * afterwards in this same array, so the frozen recipe sees them too. Null when not used.
+	 */
+	public Object[] bookmarkLabel = null;
+
+	/**
 	 * Declared values of custom properties (--name): raw token sequences with var() still unresolved.
 	 * Managed separately from the regular property values[]/computedValues[]
 	 * (the fixed code space assigned by ElementPropertySet.CODES). Custom property names

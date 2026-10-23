@@ -50,6 +50,55 @@ public class BookmarkPropertiesTest extends TestCase {
 	}
 
 	/**
+	 * bookmark-label takes the content-list items string-set takes (2026-10-23, reported by tech): counter() after the
+	 * element's counter-increment, and content(before)/content(after); content() leaves out ::before and ::after,
+	 * while the initial value keeps the whole text. Before, counter() and content(before) were invalid values, so a
+	 * number in ::before could only be glued to the title ("1Alpha").
+	 */
+	public void testContentListItems() throws Exception {
+		final String html = """
+				<!DOCTYPE html>
+				<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/>
+				<style>
+				body { counter-reset: sec }
+				h2 { counter-increment: sec }
+				h2::before { content: counter(sec); margin-right: .6em }
+				h2::after { content: "!" }
+				.b { bookmark-label: counter(sec) }
+				.c { bookmark-label: content() }
+				.d { bookmark-label: content(before) }
+				.f { bookmark-label: content(before) " " content() }
+				.g { bookmark-label: counter(sec) ". " content(text) }
+				.h { bookmark-label: content(AFTER) }
+				.i { bookmark-label: content(first-letter) }
+				</style></head><body>
+				<h2>Alpha</h2>
+				<h2 class="b">Bravo</h2>
+				<h2 class="c">Charlie</h2>
+				<h2 class="d">Delta</h2>
+				<h2 class="f">Foxtrot</h2>
+				<h2 class="g">Golf</h2>
+				<h2 class="h">Hotel</h2>
+				<h2 class="i">India</h2>
+				<div style="columns: 2"><h2 class="g">Juliett</h2><p>Kilo</p></div>
+				</body></html>
+				""";
+		// The heading in balanced columns is laid out again from the recording (codex review).
+		assertEquals("しおり", List.of("1:1Alpha!", "1:2", "1:Charlie", "1:4", "1:5 Foxtrot", "1:6. Golf", "1:!", "1:8",
+				"1:9. Juliett"), outline(convert(html)));
+	}
+
+	/** The root's box is made after its counters are set; its label still takes them (codex review). */
+	public void testRootLabelWithCounter() throws Exception {
+		final String html = """
+				<!DOCTYPE html>
+				<html xmlns="http://www.w3.org/1999/xhtml" style="counter-reset: n 7; bookmark-level: 1; bookmark-label: 'Doc ' counter(n)"><head><meta charset="UTF-8"/>
+				</head><body><p>Text</p></body></html>
+				""";
+		assertEquals("しおり", List.of("1:Doc 7"), outline(convert(html)));
+	}
+
+	/**
 	 * A section split across pages starts its bookmark once (2026-10-08, EPUB brush-up D-14). Each page's fragment of
 	 * the section was taken as a new section start, so a chapter got a level-1 bookmark on every page it spans and its
 	 * subsections were hung under the copies.

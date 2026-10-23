@@ -242,7 +242,7 @@ public abstract class AbstractVisitor implements Visitor {
 							appendSemanticText(placement.box(), text);
 						}
 					}
-					resolved.append(content.resolve(text.toString()));
+					resolved.append(content.apply(text.toString()));
 				} else {
 					resolved.append((String) part);
 				}

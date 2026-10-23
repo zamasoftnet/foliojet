@@ -5,9 +5,10 @@ package net.zamasoft.foliojet.css.value;
  * replaced with text of the assigning element. Never enters evaluation of the {@code content:} property.
  *
  * <p>
- * In {@code string-set} (2026-10-23) {@code content()} and {@code content(text)} are {@link #TEXT}, the element's text
- * without its own {@code ::before} and {@code ::after}; {@code content(before)}, {@code content(after)} and
- * {@code content(first-letter)} are the rest. {@code bookmark-label} keeps {@link #INSTANCE}, the whole rendered text.
+ * In {@code string-set} and {@code bookmark-label} (2026-10-23) {@code content()} and {@code content(text)} are
+ * {@link #TEXT}, the element's text without its own {@code ::before} and {@code ::after}; {@code content(before)},
+ * {@code content(after)} and {@code content(first-letter)} are the rest. The initial value of {@code bookmark-label} is
+ * {@link #INSTANCE}, the whole rendered text.
  * </p>
  *
  * @author MIYABE Tatsuhiko
@@ -31,7 +32,7 @@ public final class ContentFunctionValue implements Value {
 	}
 
 	/**
-	 * @param argument the argument of {@code content()} in {@code string-set}, or null for none
+	 * @param argument the argument of {@code content()} in {@code string-set} or {@code bookmark-label}, or null for none
 	 * @return the value, or null if the argument is not one of text, before, after and first-letter
 	 */
 	public static ContentFunctionValue forStringSet(final String argument) {
