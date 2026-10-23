@@ -1685,11 +1685,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Without the multicol, or with a single column, Copper splits them over four pages.
 			new IndividualExclusion(24_503_948, "fit-v1", 1_919_731_044, "既知の制限: 段組の中の頁より長いfloatを段で割らず紙の外",
 					"2026-10-18"),
-			// Triage §69: a table with overlapping cells and a nested table on 60 pt horizontal-tb paper, more than twice
-			// the paper wide; Copper puts T22 at x = 139.8 pt (19124 alike), Chrome's screen at 137.9 pt and its print
-			// drops it.
-			new IndividualExclusion(24_556_182, "fit-v1", 1_606_941_091, "作者の溢れ: 重なるセルの表が紙の2倍超(Chromeも同じ)",
-					"2026-10-18"),
 			// Triage §71: a table with overlapping cells on 60 pt vertical-rl paper, more than twice the paper long in the
 			// inline direction; Copper puts T13 at y = 125.4 pt (19124 alike), Chrome's screen at 121.7 pt and its print
 			// drops it.
@@ -5594,14 +5589,24 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return !STYLE_WRITING_MODE.matcher(attrs).find() && isPlainWrapper(name, attrs, vertical, vertical);
 	}
 
-	/** Declarations that only control fragmentation or restate a div's default display. */
+	/**
+	 * Declarations that only control fragmentation, restate a div's default display, or make the div a table
+	 * ({@code display:table}, fit seed 34553213, 2026-10-24: a table in {@code <div style="display:table;
+	 * writing-mode:vertical-rl;">} on vertical-lr paper put T3 at y=127.16 on 60 pt paper; Chrome at y=121.43).
+	 * A table div wraps its content in one anonymous row and cell without frames, and the div's border-spacing is
+	 * inherited from the plain path (body's initial 0), so the content starts at the div's content start; the
+	 * anonymous table's minimum is the content's, so a table inside keeps its column minimums.
+	 */
 	private static final Pattern NEUTRAL_WRAPPER_DECLARATION = Pattern
-			.compile("\\s*(?:display\\s*:\\s*block|page-break-inside\\s*:\\s*[a-z]+)\\s*");
+			.compile("\\s*(?:display\\s*:\\s*(?:block|table)|page-break-inside\\s*:\\s*[a-z]+)\\s*");
+	private static final Pattern DISPLAY_TABLE_DECLARATION = Pattern
+			.compile("(?:^|;)\\s*display\\s*:\\s*table\\s*(?:;|$)");
 	private static final Pattern WRITING_MODE_DECLARATION = Pattern
 			.compile("\\s*writing-mode\\s*:\\s*([a-z-]+)\\s*");
 
 	/**
-	 * Extend {@link #isPlainWrapper(String, String, boolean)} with {@code display:block},
+	 * Extend {@link #isPlainWrapper(String, String, boolean)} with {@code display:block} (and {@code display:table},
+	 * see {@link #NEUTRAL_WRAPPER_DECLARATION}),
 	 * {@code page-break-inside} and a {@code writing-mode} that keeps the parent's axis ({@code parentVertical})
 	 * (2026-10-08, fit seed 12137870: a table in {@code <div style="page-break-inside:avoid;margin:0pt">} and
 	 * {@code <div style="display:block;writing-mode:vertical-lr;">} on {@code vertical-rl} paper). Between
@@ -5620,6 +5625,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (!style.matches()) {
 			return false;
 		}
+		// A table div shrinks to fit, so auto margins center it, and in vertical writing Copper keeps a negative
+		// remainder (FlowBlockBox), moving an overflowing table's start backward (codex review, 2026-10-24).
+		final boolean tableDiv = DISPLAY_TABLE_DECLARATION.matcher(style.group(1)).find();
 		for (final String declaration : style.group(1).split(";")) {
 			if (declaration.isBlank() || declaration.trim().equals("float:none") || declaration.trim().equals("position:static")
 					|| (vertical ? BLOCK_SIZE_DECLARATION_VERTICAL : BLOCK_SIZE_DECLARATION_HORIZONTAL).matcher(declaration)
@@ -5635,7 +5643,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 				continue;
 			}
 			final Matcher frame = FRAME_DECLARATION.matcher(declaration);
-			if (!frame.matches() || frame.group(1).contains("-") || frame.group(1).contains("calc")) {
+			if (!frame.matches() || frame.group(1).contains("-") || frame.group(1).contains("calc")
+					|| tableDiv && frame.group(1).contains("auto")) {
 				return false;
 			}
 		}

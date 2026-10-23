@@ -1244,6 +1244,29 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
+	 * fit seed 34553213 (v2 1771476398): on {@code vertical-lr} paper with a 50 pt line, a table with a nested table
+	 * inside {@code <div style="display:table;writing-mode:vertical-rl;">}; a table div is a plain wrapper (2026-10-24).
+	 * Copper put T3 at y=127.16, Chrome at y=121.43.
+	 */
+	public void testSeedTableInTableDivIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(1_771_476_398, true, false, false).html()));
+		// It covers the individual exclusion of triage §69 (fit seed 24556182, removed): a table in
+		// <div style="display:table;float:none;writing-mode:horizontal-tb;"> on 60 pt horizontal-tb paper.
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(1_606_941_091, true, false, false).html()));
+		assertTrue(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:table;writing-mode:vertical-rl;\"", true,
+				true));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:inline-table\"", true, true));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:table-cell\"", true, true));
+		// Auto margins center a table div; in vertical writing a negative remainder moves the table backward (codex
+		// review). A block div fills its line, so its auto margins are zero.
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:table;margin:auto\"", true, true));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"margin-top:auto;display:table\"", true, true));
+		assertTrue(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:block;margin:auto\"", true, true));
+	}
+
+	/**
 	 * fit seed 12072875 (v2 2124912302): on {@code vertical-rl} paper 60 pt wide, a
 	 * {@code display:inline;float:left;writing-mode:horizontal-tb} float holds a table about 150 pt wide (a nested
 	 * table in one cell). Copper puts its right edge at the content's right edge and T4 at x=-88.83; Chrome puts it
