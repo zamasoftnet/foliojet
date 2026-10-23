@@ -63,7 +63,9 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 
 		/**
 		 * Line-axis offset of this cell from the row's line start, or {@code NaN} when the cell sits after the
-		 * preceding cells of the row (the usual case). See {@link TableRowBox#cutUnextendedRowspanCells}.
+		 * preceding cells of the row (the usual case). See {@link TableRowBox#cutUnextendedRowspanCells}. A cell with
+		 * an offset does not advance the line, but the following cells start no earlier than its end (2026-10-23,
+		 * {@link TableRowBox#addTableExtendedCell(Cell, boolean)}).
 		 */
 		public double getLineOffset();
 	}
@@ -131,9 +133,20 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 
 	protected static class ExtendedCellImpl extends AbstractCell implements ExtendedCell {
 		protected Cell source;
+		private final double lineOffset;
 
 		public ExtendedCellImpl(TableRowBox row) {
+			this(row, Double.NaN);
+		}
+
+		ExtendedCellImpl(TableRowBox row, double lineOffset) {
 			super(row);
+			this.lineOffset = lineOffset;
+		}
+
+		@Override
+		public double getLineOffset() {
+			return this.lineOffset;
 		}
 
 		public boolean isSource() {
@@ -193,7 +206,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 
 	/**
 	 * Line-axis offset of cell {@code index} from the row's line start, accumulated the same way the drawing loops do:
-	 * the line extents of the preceding cells that have no explicit offset.
+	 * the line extents of the preceding cells that have no explicit offset, and no less than the end of those that
+	 * have one.
 	 */
 	private double lineOffsetOf(final int index) {
 		final double explicit = this.cells.get(index).getLineOffset();
@@ -204,15 +218,42 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 		double offset = 0;
 		for (int i = 0; i < index; ++i) {
 			final Cell cell = this.cells.get(i);
+			final double extent = vertical ? cell.getCellBox().getHeight() : cell.getCellBox().getWidth();
 			if (Double.isNaN(cell.getLineOffset())) {
-				offset += vertical ? cell.getCellBox().getHeight() : cell.getCellBox().getWidth();
+				offset += extent;
+			} else {
+				offset = Math.max(offset, cell.getLineOffset() + extent);
 			}
 		}
 		return offset;
 	}
 
 	public final ExtendedCell addTableExtendedCell(Cell cell) {
-		ExtendedCell extended = new ExtendedCellImpl(this);
+		return this.addTableExtendedCell(cell, false);
+	}
+
+	/**
+	 * Adds the extension of a rowspan cell into this row.
+	 *
+	 * <p>
+	 * {@code overlapped}: an earlier cell of this row covers the cell's first columns (a colspan over the rowspan, an
+	 * HTML table model error). The extension then keeps the cell's line offset, so the row's later cells start after
+	 * the cell's end, in their own columns, and the cell's remainder keeps its place when the row moves to the next
+	 * page (2026-10-23). Laid after the overlapping cell, the extension pushed them one span further: fit sweep seed
+	 * 32746134 put T24 at y=310.76 instead of 165.60 (Chrome 161.36) on 150 pt vertical paper. Chrome draws the
+	 * overlapping cells over each other, as now.
+	 * </p>
+	 */
+	public final ExtendedCell addTableExtendedCell(final Cell cell, final boolean overlapped) {
+		double lineOffset = Double.NaN;
+		if (overlapped) {
+			final TableRowBox row = cell.getTableRow();
+			final int index = row.cells.indexOf(cell);
+			if (index >= 0) {
+				lineOffset = row.lineOffsetOf(index);
+			}
+		}
+		ExtendedCell extended = new ExtendedCellImpl(this, lineOffset);
 		extended.setSourceCell(cell.getSource());
 		cell.setNextExtendedCell(extended);
 		this.cells.add(extended);
@@ -325,6 +366,9 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				if (Double.isNaN(cell.getLineOffset())) {
 					y += cellBox.getHeight();
 					logicalLine += cellBox.getHeight();
+				} else if (cell.getLineOffset() + cellBox.getHeight() > logicalLine) {
+					logicalLine = cell.getLineOffset() + cellBox.getHeight();
+					y = lineOrigin + logicalLine;
 				}
 			}
 		} else {
@@ -341,6 +385,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				}
 				if (Double.isNaN(cell.getLineOffset())) {
 					x += cellBox.getWidth();
+				} else {
+					x = Math.max(x, lineOrigin + cell.getLineOffset() + cellBox.getWidth());
 				}
 			}
 		}
@@ -382,6 +428,9 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				if (Double.isNaN(cell.getLineOffset())) {
 					y += cellBox.getHeight();
 					logicalLine += cellBox.getHeight();
+				} else if (cell.getLineOffset() + cellBox.getHeight() > logicalLine) {
+					logicalLine = cell.getLineOffset() + cellBox.getHeight();
+					y = lineOrigin + logicalLine;
 				}
 			}
 		} else {
@@ -397,6 +446,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				}
 				if (Double.isNaN(cell.getLineOffset())) {
 					x += cellBox.getWidth();
+				} else {
+					x = Math.max(x, lineOrigin + cell.getLineOffset() + cellBox.getWidth());
 				}
 			}
 		}
@@ -455,6 +506,9 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				if (Double.isNaN(cell.getLineOffset())) {
 					y += cellBox.getHeight();
 					logicalLine += cellBox.getHeight();
+				} else if (cell.getLineOffset() + cellBox.getHeight() > logicalLine) {
+					logicalLine = cell.getLineOffset() + cellBox.getHeight();
+					y = lineOrigin + logicalLine;
 				}
 			}
 		} else {
@@ -471,6 +525,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				}
 				if (Double.isNaN(cell.getLineOffset())) {
 					x += cellBox.getWidth();
+				} else {
+					x = Math.max(x, lineOrigin + cell.getLineOffset() + cellBox.getWidth());
 				}
 			}
 		}
@@ -831,8 +887,8 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				prevCell.setHeight(cutPageAxis);
 			}
 			this.restyleCell(nextCell);
-			// Update directly instead of using addTableSourceCell.
-			Cell source = new SourceCellImpl(nextCell, this);
+			// Update directly instead of using addTableSourceCell. An overlapped extension's remainder keeps its offset.
+			Cell source = new SourceCellImpl(nextCell, this, cell.getLineOffset());
 			this.cells.set(i, source);
 			ExtendedCell xcell = cell.getNextExtendedCell();
 			int span = 1;

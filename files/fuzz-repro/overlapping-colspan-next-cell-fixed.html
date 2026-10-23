@@ -1,0 +1,19 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<!-- A fixed-layout table: row 3's colspan covers the second column of row 2's spanning cell T6 (an HTML table model error). T9 takes the last column, T4's and T7's; it went past the column count and was dropped (2026-10-23, fit sweep seed 32746134). -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>overlapping-colspan-next-cell-fixed</title>
+<style>
+@page{margin:5pt}
+body{margin:0;font:normal 6pt/1.2 serif;writing-mode:horizontal-tb}
+p,div,td{margin:0;padding:0}
+table{border-collapse:separate;table-layout:fixed;width:100%}
+td{border:1pt solid black}
+</style></head><body>
+<table><tbody>
+<tr><td>T1</td><td>T2</td><td>T3</td><td>T4</td></tr>
+<tr><td>T5</td><td colspan="2" rowspan="2">T6</td><td>T7</td></tr>
+<tr><td colspan="2">T8</td><td>T9</td></tr>
+</tbody></table>
+</body></html>

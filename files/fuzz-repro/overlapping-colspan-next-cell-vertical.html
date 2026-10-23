@@ -1,0 +1,20 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="150pt"?>
+<!-- Row 4's colspan covers the second column of row 3's spanning cell T5 (an HTML table model error). T8 takes the next free column, T6's, as in Chrome; it went one column further (2026-10-23, fit sweep seed 32746134). -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>overlapping-colspan-next-cell-vertical</title>
+<style>
+@page{margin:0pt}
+body{margin:0;font:normal 13pt/1.2 serif;writing-mode:vertical-lr}
+p,div,td{margin:0;padding:0}
+table{border-collapse:separate;table-layout:auto}
+td{border:1pt solid black}
+</style></head><body>
+<table><tbody>
+<tr><td>T1</td><td>T2</td></tr>
+<tr><td rowspan="2">T3</td><td colspan="2">T4</td></tr>
+<tr><td colspan="2" rowspan="2">T5</td><td>T6</td></tr>
+<tr><td colspan="2">T7</td><td>T8</td></tr>
+</tbody></table>
+</body></html>

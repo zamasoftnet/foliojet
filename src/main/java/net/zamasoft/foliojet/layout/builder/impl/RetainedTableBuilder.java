@@ -345,10 +345,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			List<CellContent> cells = (ArrayList<CellContent>) this.rowToCells.get(rowBox);
 			this.complementRowspan(rowBox);
 			CellContent cell = new CellContent((TwoPassBlockBuilder) builder);
-			cells.add(cell);
-			for (int colspan = cell.colspan; colspan > 1; --colspan) {
-				cells.add(new CellContent(cell.getCellBox(), cell.rowspan, colspan));
-			}
+			CellContent.addSpanning(cells, cell);
 			// E-6 increment 5a: remember the seal-on-cell-close target.
 			this.pendingSealCell = cell;
 		}
@@ -1236,7 +1233,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 						if (cell.isExtended()) {
 							k += span - 1;
 							Cell rcell = (Cell) this.cellToSource.get(cellBox);
-							this.cellToSource.put(cellBox, rowBox.addTableExtendedCell(rcell));
+							this.cellToSource.put(cellBox, rowBox.addTableExtendedCell(rcell, cell.overlapped));
 							continue;
 						}
 						final BlockParams cellParams = cellBox.getBlockParams();

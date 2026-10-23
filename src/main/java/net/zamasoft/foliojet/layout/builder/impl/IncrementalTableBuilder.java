@@ -458,7 +458,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 				if (cell.isExtended()) {
 					i += span - 1;
 					Cell rcell = (Cell) this.cellToSource.get(cell.getCellBox());
-					this.cellToSource.put(cell.getCellBox(), rowBox.addTableExtendedCell(rcell));
+					this.cellToSource.put(cell.getCellBox(), rowBox.addTableExtendedCell(rcell, cell.overlapped));
 					continue;
 				}
 				final TableCellBox cellBox = cell.getCellBox();
@@ -1007,10 +1007,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 				colspan = Math.min(colspan, remainder);
 			}
 			CellContent cell = new CellContent((TwoPassBlockBuilder) builder, colspan);
-			this.cells.add(cell);
-			for (int i = cell.colspan; i > 1; --i) {
-				this.cells.add(new CellContent(cell.getCellBox(), cell.rowspan, i));
-			}
+			CellContent.addSpanning(this.cells, cell);
 			this.complementRowspan();
 			// DP increment 1: remember the seal-on-close target. Cells discarded for exceeding the
 			// column count (the remainder<=0 break above) never become CellContent,

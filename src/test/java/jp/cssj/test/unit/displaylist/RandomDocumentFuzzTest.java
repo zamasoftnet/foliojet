@@ -1440,20 +1440,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Records dropped on 2026-10-13 because the oracle now counts em sizes (maxExplicitEmSize) and skips drawings
 			// clipped away (clippedAway): 12180614, 12668387, 12976259, 13160957, 13009496, 13023880, 13297595,
 			// 13306464 (triage §23 to §29, §30).
-			// Triage §24: on 60 pt vertical-rl paper a table whose inline size is already two sheets in Chrome (120.7 pt),
-			// plus overlapping cells (a table model error, resolved differently by each UA) that put Copper's columns
-			// 19 pt further: its last cell's list lands 5 pt past the second sheet.
-			new IndividualExclusion(12_318_384, "fit-v1", 514_363_755, "紙2枚の行内寸法の表と重なるセルの列の割り当て差",
-					"2026-10-08"),
+			// Records dropped on 2026-10-23 (triage §101): 12318384 (§24) and 20487105 (§55), overlapping cells that put
+			// Copper's later cells one column further, now in their own columns; 13121632 (§27), which passes since the
+			// float remainder split of triage §94.
 			// Triage §26: on vertical-lr paper a vertical-rl float 91 pt wide holds a vertical-lr div with a
 			// display:table float 121 pt wide; Chrome also draws its only line off the paper's left (x=-23.6 pt).
 			new IndividualExclusion(12_903_866, "fit-v1", 621_085_571, "作者の溢れ: 同軸逆進行の入れ物より広い表のfloat(Chromeも紙の左の外)",
-					"2026-10-13"),
-			// Triage §27, a known engine limitation (user decision 2026-10-13, not the author's overflow): a grid float
-			// of width: 109pt on vertical-lr paper whose content far outgrows it. The floor a float's continuation keeps
-			// of its definite size (8abc2bb0, kept for seed 12344062) stops the rest from splitting, so T19 on lands at
-			// x = 437 to 735 pt on page 2; 19134 and Chrome go on page by page. A seesaw with 12344062: accepted.
-			new IndividualExclusion(13_121_632, "fit-v1", 200_602_274, "既知の制限: 決まった大きさのfloatの続きの下限で中身が次の頁へ分かれない(12344062とシーソー)",
 					"2026-10-13"),
 			// Triage §28, a known engine limitation since 19124 at least (user decision 2026-10-13): on 60 pt
 			// vertical-lr paper, multicols, flexes and tables nested in floats run to about 1,600 pages (19124: 1,576,
@@ -1616,11 +1608,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §53: on 60 pt vertical-lr paper a horizontal-tb inline holds nested tables far wider than the paper;
 			// Copper puts T23 at x = 139.8 pt (19124 alike), Chrome's screen at x = 189 pt (its print shrinks the page).
 			new IndividualExclusion(19_812_834, "fit-v1", 797_984_127, "作者の溢れ: 縦組みの紙の横組みの入れ子の表が紙の右の外(Chromeも同じ)",
-					"2026-10-16"),
-			// Triage §55: on 60 pt vertical-rl paper a fixed table of overlapping row and column spans runs about 133 pt
-			// along the line axis; Copper puts T7 at y = 125.2 pt (19124 alike), Chrome's screen puts T7 at y = 103.2 pt and
-			// its print, shrunk, leaves T6, T7, T10 and T11 off the page.
-			new IndividualExclusion(20_487_105, "fit-v1", 140_776_299, "作者の溢れ: 縦組みの紙で行の方向に紙より長い表が紙の下の外(Chromeも同じ)",
 					"2026-10-16"),
 			// Triage §56, a known engine limitation since 19124 (standing user decision 2026-10-13): on 60 pt vertical-rl
 			// paper nested multicols, column flexes and floats in other writing modes restart page 29 without end (about

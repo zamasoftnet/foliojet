@@ -33,6 +33,12 @@ class CellContent {
 	public final int rowspan, colspan;
 
 	/**
+	 * A span continuation that resumes inside the cell's columns: an earlier cell of this row covers the cell's first
+	 * columns (a colspan over the rowspan, an HTML table model error). See {@link #complementRowspan}.
+	 */
+	public final boolean overlapped;
+
+	/**
 	 * From a measurement builder (read colspan from pos).
 	 */
 	public CellContent(TwoPassBlockBuilder cellBuilder) {
@@ -47,35 +53,63 @@ class CellContent {
 		this.cell = cellBuilder;
 		this.rowspan = this.cellBox.getTableCellPos().rowspan;
 		this.colspan = colspan;
+		this.overlapped = false;
 	}
 
 	/**
 	 * From a span continuation (resolved cell box).
 	 */
 	public CellContent(TableCellBox cell, int rowspan, int colspan) {
+		this(cell, rowspan, colspan, false);
+	}
+
+	private CellContent(TableCellBox cell, int rowspan, int colspan, boolean overlapped) {
 		assert rowspan >= 1;
 		assert colspan >= 1;
 		this.cellBox = cell;
 		this.cell = cell;
 		this.rowspan = rowspan;
 		this.colspan = colspan;
+		this.overlapped = overlapped;
+	}
+
+	/**
+	 * Adds a row's own cell followed by one entry for each further column it spans (2026-10-23).
+	 * An entry's colspan counts the columns from that entry to the end of the span, as in the entries
+	 * {@link #complementRowspan} adds. These entries counted one more, so when a cell of the next row
+	 * overlapped the span (an HTML table model error), complementRowspan, which resumes at the first column
+	 * after that cell, carried the span over one column too many: a phantom column in auto layout, discarded
+	 * cells in fixed layout (36M fit sweep seed 32746134).
+	 *
+	 * @param cells current row's cells (appended to)
+	 * @param cell  the row's own cell
+	 */
+	static void addSpanning(final java.util.List<CellContent> cells, final CellContent cell) {
+		cells.add(cell);
+		for (int colspan = cell.colspan - 1; colspan >= 1; --colspan) {
+			cells.add(new CellContent(cell.getCellBox(), cell.rowspan, colspan));
+		}
 	}
 
 	/**
 	 * Fills in cells joined by rowspan (P2-2 shared core. Unifies the identical algorithms
 	 * in both builders; only the source of the lists differed).
 	 * Consult the previous row's cells and add a continuation CellContent to the current
-	 * row for each cell whose rowspan continues.
+	 * row for each cell whose rowspan continues. A continuation that resumes inside the cell's columns, after
+	 * this row's cell covering its first columns, is {@link #overlapped} (2026-10-23), as are its own continuations.
 	 *
 	 * @param cells      current row's cells (appended to)
 	 * @param upperCells previous row's cells
 	 */
 	static void complementRowspan(final java.util.List<CellContent> cells, final java.util.List<CellContent> upperCells) {
 		while (upperCells.size() > cells.size()) {
-			final CellContent upperCell = upperCells.get(cells.size());
+			final int column = cells.size();
+			final CellContent upperCell = upperCells.get(column);
 			if (upperCell.rowspan > 1) {
+				final boolean overlapped = upperCell.overlapped
+						|| column > 0 && upperCells.get(column - 1).getCellBox() == upperCell.getCellBox();
 				for (int colspan = upperCell.colspan; colspan >= 1; --colspan) {
-					cells.add(new CellContent(upperCell.getCellBox(), upperCell.rowspan - 1, colspan));
+					cells.add(new CellContent(upperCell.getCellBox(), upperCell.rowspan - 1, colspan, overlapped));
 				}
 			} else {
 				break;
