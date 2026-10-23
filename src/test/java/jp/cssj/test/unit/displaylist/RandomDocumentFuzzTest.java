@@ -5498,11 +5498,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final boolean collapsedTables) {
 		double bound = 0;
 		for (int at = html.indexOf("<table>", from); at >= 0 && at < to; at = html.indexOf("<table>", at + 7)) {
-			// Overlapping-cell tables yield no column lower bound (zero), but cell sums for non-overlapping rows remain valid lower bounds.
-			// (2026-10-07, fit seed 11606508: nested-table T22 colspan 3 overlapped T21 rowspan 3's column,
-			// dropping the nested contribution from outer column bounds and falsely flagging off-paper text. Chrome used the same position.)
-			bound = Math.max(bound, Math.max(columnLowerBoundTotal(placeTableCells(html, at + 7, font, collapsedTables)),
-					tableMinContentLowerBound(html, at + 7, font, collapsedTables)));
+			// The table end's column-boundary lower bound ({@link #boundaryLowerBounds}) holds for overlapping-cell tables
+			// too (on the HTML grid; see its exception), and is at least both the per-row cell sums of non-overlapping rows
+			// and the single-column sums: Copper's minimum line size sums column minimums that cover every cell, colspan
+			// cells included (AutoColumnWidths).
+			// History: per-column sums gave zero for overlapping cells (fit seed 11606508, 2026-10-07, falsely flagging
+			// off-paper text), then the sums of non-overlapping rows alone stayed within the shrink tolerance (fit seed
+			// 33623307, 2026-10-24: a 13-column nested table of 46 pt by those rows put T16 at y=120.49 on 60 pt
+			// vertical-lr paper; Chrome put its cell at y=114.49 to 127.26).
+			final TableGrid grid = placeTableCells(html, at + 7, font, collapsedTables);
+			if (grid != null) {
+				bound = Math.max(bound, boundaryLowerBounds(grid)[grid.columns()]);
+			}
 		}
 		return bound;
 	}
@@ -5546,33 +5553,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 		}
 		return !content.replaceAll("style=\"[^\"]*\"", "").contains("style");
-	}
-
-	/**
-	 * Per-column width lower bounds (maximum single-column cell minimum width + spacing; zero without such a cell).
-	 * With separate borders, half the spacing goes on each side of a cell. In Copper, columns covered only
-	 * by colspan cells may become zero, including spacing.
-	 */
-	private static double[] columnLowerBounds(final TableGrid grid) {
-		final double[] column = new double[grid.columns()];
-		for (final PlacedCell cell : grid.cells()) {
-			if (cell.colspan() == 1) {
-				column[cell.column()] = Math.max(column[cell.column()], cell.min() + grid.spacing());
-			}
-		}
-		return column;
-	}
-
-	/** Table minimum-width lower bound (half-spacing at both ends + sum of {@link #columnLowerBounds}). Zero for overlapping cells. */
-	private static double columnLowerBoundTotal(final TableGrid grid) {
-		if (grid == null || !grid.overlappedRows().isEmpty()) {
-			return 0;
-		}
-		double total = grid.spacing();
-		for (final double w : columnLowerBounds(grid)) {
-			total += w;
-		}
-		return total;
 	}
 
 	/**
@@ -5794,6 +5774,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * Copper (since c803652d) and Chrome use the same HTML cell-start placement: skip occupied columns,
 	 * start there, then advance by colspan. Overlapping cells still have their own widths
 	 * (in seed 11866613, T20 is in column 7 in both Copper and Chrome).
+	 * </p>
+	 *
+	 * <p>
+	 * Exception (codex review, 2026-10-24): when a row's cell covers every column of a rowspan continuing from above,
+	 * Copper drops the continuation ({@code CellContent.complementRowspan} resumes after that cell), so later rows of
+	 * the span may place cells left of their grid columns. With {@code <td>T1</td><td colspan="2" rowspan="3">T2</td>},
+	 * then {@code <td colspan="3">T3</td><td colspan="3" rowspan="2">T4</td>}, then {@code <td colspan="2">T5</td>
+	 * <td colspan="2">T6</td>}, Copper put T6 at x=22.75 over T2, Chrome at x=40.52 after T4. These bounds follow the
+	 * HTML grid (Chrome), so such a document may be excluded although Copper's narrower grid fits the paper. Accepted:
+	 * a table-model error built by codex, not seen in the sweep or in real documents.
 	 * </p>
 	 */
 	private static double[] boundaryLowerBounds(final TableGrid grid) {

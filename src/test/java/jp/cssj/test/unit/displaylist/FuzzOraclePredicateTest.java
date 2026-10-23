@@ -1006,6 +1006,26 @@ public class FuzzOraclePredicateTest extends TestCase {
 				shrinkerDoc(TABLE_OVER.replace(">T2</td>", ">T2<div style=\"float:left\">T9</div></td>"))));
 	}
 
+	/**
+	 * fit seed 33623307 (v2 272125854): on {@code vertical-lr} paper with a 60 pt line, a table cell holds a
+	 * 13-column nested table whose last two rows overlap (T10 colspan 2 over T7 rowspan 3). The sums of its
+	 * non-overlapping rows (46 pt) kept the outer table within the shrink tolerance; the column-boundary lower bound
+	 * holds for overlapping cells too (2026-10-24). Copper put T16 at y=120.49, Chrome its cell at y=114.49 to 127.26.
+	 */
+	public void testSeedOverlappingNestedTableIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(272_125_854, true, false, false).html()));
+		// Row 2 overlaps (T3 colspan 2 over T2 rowspan 2). Row 1 sums to 17.7 pt; the boundaries reach 66.3 pt, and T9's
+		// column starts at 1.5+58.2=59.7 pt, beyond the paper edge (55 pt). Without T9, T8 starts on the paper (51.6 pt).
+		final String nested = "<table><tbody>\n<tr><td>T0<div data-fuzz-role=\"cell-child\">\n<table><tbody>\n"
+				+ "<tr><td>T1</td><td rowspan=\"2\">T2</td></tr>\n"
+				+ "<tr><td colspan=\"2\">T3</td><td>T4</td><td>T5</td><td>T6</td><td>T7</td><td>T8</td><td>T9</td></tr>\n"
+				+ "</tbody></table>\n</div></td></tr>\n</tbody></table>\n";
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(nested)));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(nested.replace("<td>T9</td>", ""))));
+	}
+
 	/** A right float requires evidence cells on both start/end sides; a left float needs only the start side. */
 	public void testTableInFloatNeedsEvidenceOnTheSideItCanOverflow() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
