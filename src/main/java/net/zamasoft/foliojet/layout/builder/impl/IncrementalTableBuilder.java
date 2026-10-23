@@ -819,6 +819,10 @@ public class IncrementalTableBuilder implements TableBuilder {
 	}
 
 	private boolean pageBreak(final BreakMode mode, double pageLimit, byte flags) {
+		if (mode instanceof BreakMode.AutoBreakMode && !this.builder.canBreakAutomatically()) {
+			// Slides: the table stays whole and the page grows (2026-10-23).
+			return false;
+		}
 		if (LayoutUtils.compare(this.builder.getPageAxis(), 0) > 0) {
 			flags &= ~IPageBreakableBox.FLAGS_FIRST;
 		}

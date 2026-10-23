@@ -98,9 +98,11 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 
 	@Override
 	public boolean isFootnotePageProbeEnabled() {
+		// Not on slides (2026-10-23): the probe paginates as print does, so its pages are not the slides.
 		return this.ua.getUAContext().getFootnoteArea().isPageBand()
 				&& !this.ua.getUAContext().getFootnoteArea().isHeightFixed()
-				&& this.pageSequence.getProgression().isVertical();
+				&& this.pageSequence.getProgression().isVertical()
+				&& (this.doc.getPageMode() & DocumentBuilder.PAGE_MODE_SLIDES) == 0;
 	}
 
 	@Override
@@ -136,14 +138,20 @@ public class StyleBuilder implements PageGenerator, StyleBuildContext {
 		this.sink.setAssignments(ua.getPassContext().getRunningRegistry());
 
 		byte pageMode = 0;
-		// Automatic height
-		if (UAProps.OUTPUT_AUTO_HEIGHT.getBoolean(ua)) {
-			pageMode |= DocumentBuilder.PAGE_MODE_CONTINUOUS;
-		}
+		if (UAProps.slides(ua)) {
+			// Slides break only where the document forces a break; output.auto-height only drops the page's
+			// least block size, and output.no-page-break does not apply (2026-10-23).
+			pageMode = DocumentBuilder.PAGE_MODE_SLIDES;
+		} else {
+			// Automatic height
+			if (UAProps.OUTPUT_AUTO_HEIGHT.getBoolean(ua)) {
+				pageMode |= DocumentBuilder.PAGE_MODE_CONTINUOUS;
+			}
 
-		// Prohibit page breaks
-		if (UAProps.OUTPUT_NO_PAGE_BREAK.getBoolean(ua)) {
-			pageMode |= DocumentBuilder.PAGE_MODE_NO_BREAK;
+			// Prohibit page breaks
+			if (UAProps.OUTPUT_NO_PAGE_BREAK.getBoolean(ua)) {
+				pageMode |= DocumentBuilder.PAGE_MODE_NO_BREAK;
+			}
 		}
 		this.doc.setPageMode(pageMode);
 

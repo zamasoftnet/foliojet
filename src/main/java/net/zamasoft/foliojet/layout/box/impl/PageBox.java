@@ -308,6 +308,16 @@ public class PageBox extends AbstractBlockBox {
 			if (this.size.getHeightType() == LengthType.ABSOLUTE) {
 				this.visualHeight = this.height = this.size.getHeight() - this.frame.getFrameHeight();
 			}
+			// Slides (2026-10-23): an auto block size starts at the page's least size and grows with the content
+			// (setPageAxis). Only slides pass a nonzero least size; output.auto-height starts from nothing.
+			if (this.size.getHeightType() == LengthType.AUTO && this.minSize.getHeight() > 0) {
+				this.minPageAxis = Math.max(0, this.minSize.getHeight() - this.frame.getFrameHeight());
+				this.visualHeight = this.height = this.minPageAxis;
+			}
+			if (this.size.getWidthType() == LengthType.AUTO && this.minSize.getWidth() > 0) {
+				this.minPageAxis = Math.max(0, this.minSize.getWidth() - this.frame.getFrameWidth());
+				this.visualWidth = this.width = this.minPageAxis;
+			}
 		}
 	}
 

@@ -273,7 +273,7 @@ final class PageSequence {
 		double width = resolvedSize[0];
 		double height = resolvedSize[1];
 
-		if ((this.doc.getPageMode() & DocumentBuilder.PAGE_MODE_CONTINUOUS) != 0) {
+		if ((this.doc.getPageMode() & (DocumentBuilder.PAGE_MODE_CONTINUOUS | DocumentBuilder.PAGE_MODE_SLIDES)) != 0) {
 			if (this.imposition.getBoundSide() == BoundSide.LEFT) {
 				// Horizontal writing
 				return Dimension.create(width, height, LengthType.ABSOLUTE, LengthType.AUTO);
@@ -284,6 +284,18 @@ final class PageSequence {
 		} else {
 			return Dimension.create(width, height, LengthType.ABSOLUTE, LengthType.ABSOLUTE);
 		}
+	}
+
+	/**
+	 * A slide's least size (2026-10-23): the page size along the block axis, which is auto ({@link #pageSize}), unless
+	 * output.auto-height asks for pages as tall as their content.
+	 */
+	private Dimension pageMinSize(final CSSStyle pageStyle) {
+		if ((this.doc.getPageMode() & DocumentBuilder.PAGE_MODE_SLIDES) == 0 || UAProps.OUTPUT_AUTO_HEIGHT.getBoolean(this.ua)) {
+			return Dimension.ZERO_DIMENSION;
+		}
+		final Dimension size = this.pageSize(pageStyle);
+		return Dimension.create(size.getWidth(), size.getHeight(), LengthType.ABSOLUTE, LengthType.ABSOLUTE);
 	}
 
 	private Insets pageMargin(final CSSStyle pageStyle) {
@@ -324,6 +336,7 @@ final class PageSequence {
 		final CSSStyle style = this.pageStyle(element, name);
 		final BlockParams params = this.pageParams(style);
 		params.size = this.pageSize(style);
+		params.minSize = this.pageMinSize(style);
 		params.frame = this.pageFrame(style, this.pageMargin(style), Background.NULL_BACKGROUND);
 		// Share inner-size calculations for percentage margins/border/padding with PageBox too. Do not draw or register.
 		final PageBox geometry = new PageBox(params, this.ua);
@@ -435,6 +448,7 @@ final class PageSequence {
 		}
 
 		params.size = this.pageSize(pageStyle);
+		params.minSize = this.pageMinSize(pageStyle);
 		params.overflow = OverflowMode.VISIBLE;
 		Insets margin = this.pageMargin(pageStyle);
 

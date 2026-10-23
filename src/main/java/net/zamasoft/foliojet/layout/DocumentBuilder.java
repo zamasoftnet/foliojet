@@ -71,6 +71,8 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	public static final byte PAGE_MODE_CONTINUOUS = 1;
 	public static final byte PAGE_MODE_NO_BREAK = 1 << 1;
+	/** Slides ({@link net.zamasoft.foliojet.ua.props.UAProps#slides}): only forced breaks start a page (2026-10-23). */
+	public static final byte PAGE_MODE_SLIDES = 1 << 2;
 	
 	private final boolean normalizeText;
 
@@ -239,7 +241,7 @@ public class DocumentBuilder implements TableBuilderHost {
 		}
 		byte mode = (this.pageMode & (PAGE_MODE_CONTINUOUS | PAGE_MODE_NO_BREAK)) != 0 ? BreakableBuilder.MODE_NO_BREAK
 				: BreakableBuilder.MODE_PAGE_BREAK;
-		BlockBuilder builder = new RootBuilder(this.pageGenerator, mode);
+		final RootBuilder builder = new RootBuilder(this.pageGenerator, mode, (this.pageMode & PAGE_MODE_SLIDES) != 0);
 		this.startContainerBuilder(builder);
 		this.startContainer();
 	}

@@ -163,6 +163,52 @@ The difference from <span class="ioprop">output.auto-height</span> is that
 whereas <span class="ioprop">output.expand-with-content</span>
 **uses the specified size as a minimum and expands only by the amount of overflow**.
 
+### <a id="style-slides">Typesetting as slides<span class="since">4.0.0</span></a>
+
+When <span class="ioprop">output.media_types</span> includes `projection`, the document is typeset as **slides**.
+`projection` is the CSS2 media type "intended for projected presentations".
+Media Queries 4 deprecated it, but Copper PDF supports it.
+
+Slides differ from print as follows.
+
+- **There are no automatic page breaks.** Pages break only at page breaks made explicit with `break-before` and `break-after` (`page-break-before` and `page-break-after`) and where the [named page](#style-named-pages) changes. A document without explicit page breaks becomes a single slide.
+- **The page size varies from page to page.** The width (the height in vertical writing) stays the `size` of `@page`. The height (the width in vertical writing) starts at `size` and grows by as much as the content needs. Named pages can give each slide its own size.
+- [Footnotes](#style-footnotes) and `float: bottom` figures are placed after the content, and the page grows for them as well. When a `float: top` figure is longer than the content, the page grows to hold the figure. Parallel notes (`float: -cssj-note-start` and `-cssj-note-end`) are also placed beside their calls, and the page grows for them.
+- The `height` of `@footnote` is treated as a minimum height (`min-height`). Footnotes that do not fit in that height stay on the same slide (except for the band at the edge of the paper on vertical slides).
+- On vertical slides whose footnote area is the band at the bottom of the paper (`@footnote { float: bottom; }`), the band lies along the axis that does not grow, so footnotes that do not fit in it go to the next slide.
+- When a slide has a narrow `float: top` figure with text flowing beside it and then another `float: top` figure, the later figure goes to the top of the next slide.
+
+An example of 16:9 slides.
+Because `print` is left out, `@media print` rules do not apply.
+
+```
+session.property("output.media_types", "all projection paged visual bitmap static");
+```
+
+```css
+@page { size: 1280px 720px; margin: 40px; }
+@media projection {
+  section { break-after: page; }
+}
+```
+
+To fit the height exactly to the content regardless of `size`, also set <span class="ioprop">output.auto-height</span> to true.
+<span class="ioprop">output.no-page-break</span> has no effect on slides.
+
+Stylesheets can also tell whether the document is being typeset as slides:
+besides `@media projection`, the `overflow-block` media feature is available.
+
+| Layout | Value of `overflow-block` |
+|---|---|
+| Normal | `paged` |
+| Slides | `optional-paged` |
+| <span class="ioprop">output.auto-height</span> is true | `scroll` |
+| <span class="ioprop">output.no-page-break</span> is true | `none` |
+
+`optional-paged` is a value from the Media Queries 4 drafts (its example was slideshows).
+It was dropped from the specification because no user agent behaved that way, but Copper PDF's slides follow that definition, so the value matches.
+`(overflow-block)` alone matches unless the value is `none`.
+
 ### <a id="style-imposition">Imposition<span class="since">4.0.0</span></a>
 
 **Imposition** arranges multiple logical pages on one sheet of paper.

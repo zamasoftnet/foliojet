@@ -353,10 +353,25 @@ public final class UAProps {
 	public static final CodePropManager<OutputMarks> OUTPUT_MARKS = new CodePropManager<>("output.marks", OutputMarks.class, OutputMarks.NONE);
 
 	/**
-	 * The CSS media type to apply.
+	 * The CSS media type to apply. With {@code projection} the document is typeset as slides ({@link #slides}).
 	 */
 	public static final StringPropManager OUTPUT_MEDIA_TYPES = new StringPropManager("output.media_types",
 			"all print paged visual bitmap static");
+
+	/**
+	 * Whether the document is typeset as slides (2026-10-23): {@link #OUTPUT_MEDIA_TYPES} names {@code projection},
+	 * the CSS2 media type that Media Queries 4 retired and Opera Show used for slideshows. Pages break only where the
+	 * document forces a break, and a page grows along the block axis to hold its content; {@code (overflow-block:
+	 * optional-paged)} holds instead of {@code paged}.
+	 */
+	public static boolean slides(final net.zamasoft.foliojet.ua.UserAgent ua) {
+		for (final String type : OUTPUT_MEDIA_TYPES.getString(ua).trim().split("\\s+")) {
+			if (type.equalsIgnoreCase("projection")) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/**
 	 * How to handle images that cannot be displayed.

@@ -65,6 +65,7 @@ import net.zamasoft.foliojet.css.impl.property.font.CSSUnicodeRange;
 import net.zamasoft.foliojet.css.impl.property.font.Src;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.xml.util.XMLUtils;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;
@@ -953,6 +954,14 @@ public class CSSStyleSheetBuilder {
 			}
 			return false;
 		}
+		if (feature.equals("overflow-block")) {
+			final String overflow = this.overflowBlock();
+			if (expression.getValue() == null) {
+				return !overflow.equals("none");
+			}
+			return overflow.equals(expression.getValue().getAsCSSString(MEDIA_WRITER_SETTINGS, 0).trim()
+					.toLowerCase(java.util.Locale.ROOT));
+		}
 		if (expression.getValue() == null) {
 			// Boolean context queries without values (e.g., (color), (monochrome)) are unsupported.
 			return false;
@@ -995,6 +1004,25 @@ public class CSSStyleSheetBuilder {
 			// Conservatively treat unsupported features as non-matching.
 			return false;
 		}
+	}
+
+	/**
+	 * The value of the overflow-block media feature (2026-10-23): {@code optional-paged} for slides, the value that
+	 * Media Queries 4 dropped for want of a user agent ({@link UAProps#slides}); {@code scroll} for one page as tall as
+	 * its content (output.auto-height); {@code none} where nothing past the page is shown (output.no-page-break);
+	 * {@code paged} otherwise.
+	 */
+	private String overflowBlock() {
+		if (UAProps.slides(this.ua)) {
+			return "optional-paged";
+		}
+		if (UAProps.OUTPUT_AUTO_HEIGHT.getBoolean(this.ua)) {
+			return "scroll";
+		}
+		if (UAProps.OUTPUT_NO_PAGE_BREAK.getBoolean(this.ua)) {
+			return "none";
+		}
+		return "paged";
 	}
 
 	/**

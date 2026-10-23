@@ -112,6 +112,12 @@ public class RootBuilder extends BreakableBuilder {
 	private int lastGuardSessions = Integer.MAX_VALUE;
 	/** Automatic page-break termination state for scratch builders without a LayoutSource. */
 	private boolean autoBreaksAbandoned = false;
+	/**
+	 * Whether content past the page area starts a new page (2026-10-23). Slides turn it off: a page ends only at a
+	 * forced break or a named-page change, and the page box, whose block size is then auto, grows to hold its content
+	 * ({@link #RootBuilder(PageGenerator, byte, boolean)}).
+	 */
+	private boolean autoPageBreaks = true;
 
 	/** Adds what a float committed at a page break carries past its page ({@link #floatCarry}). */
 	final void noteFloatCarry(final double extent) {
@@ -861,13 +867,52 @@ public class RootBuilder extends BreakableBuilder {
 	private double overflowFloor = 0;
 
 	public RootBuilder(PageGenerator pageGenerator, byte mode) {
+		this(pageGenerator, mode, false);
+	}
+
+	/**
+	 * @param slides slides (2026-10-23): no automatic page breaks. Content past the page area stays on the page as if
+	 *               nothing could be cut there, the way {@link #guardBreakProgress} leaves it once it abandons automatic
+	 *               breaks; forced breaks and column breaks are untouched. Set before the first page opens, whose
+	 *               footnote and bottom-float reservations depend on it.
+	 */
+	public RootBuilder(PageGenerator pageGenerator, byte mode, boolean slides) {
 		super(null, null, mode);
 		this.pageGenerator = pageGenerator;
+		this.autoPageBreaks = !slides;
 		this.pageBox = this.nextPage();
 		this.beginPage();
 
 		this.pageSide = this.pageGenerator.getPageSide();
 		this.contextFlow = new Flow(this.pageBox, 0, 0);
+	}
+
+	/**
+	 * Whether content past the page area may be cut automatically here (2026-10-23): not on slides, unless a multi-column
+	 * box can take it to its next column. A fixed table (IncrementalTableBuilder) cuts itself before it asks for the
+	 * break, as a column break that falls back to a page, so it asks this first.
+	 */
+	boolean canBreakAutomatically() {
+		return this.autoPageBreaks || this.findColumnBreak() != null;
+	}
+
+	/**
+	 * Slides: before the page is drawn, its auto block size takes in the content and the bands reserved at its end for
+	 * footnotes and bottom floats ({@link #pageOwnedReservation}), which are placed from the page's end. Content does
+	 * not stop at the reserved bands here, so without them the notes would sit on the last lines.
+	 */
+	private void growSlide() {
+		if (this.autoPageBreaks) {
+			return;
+		}
+		// Top page floats, unsplittable floats, content painted past a box of definite size and margin notes can end
+		// after the flow.
+		final net.zamasoft.foliojet.layout.box.content.FlowContainer container =
+				(net.zamasoft.foliojet.layout.box.content.FlowContainer) this.pageBox.getContainer();
+		final double contentEnd = Math.max(Math.max(this.maxNormalFlowPageEnd(container), this.topPageFloatStackEnd),
+				Math.max(Math.max(this.atomicFloatFloor, this.overflowFloor),
+						container.maxPageMarginNotePageEnd(this.pageBox.getBlockParams().flow)));
+		this.pageBox.setPageAxis(contentEnd + this.pageOwnedReservation());
 	}
 
 	/** Creates a PageBox and its page-float exclusion space together. */
@@ -891,7 +936,8 @@ public class RootBuilder extends BreakableBuilder {
 		this.placedTopFloatGenerations.clear();
 		this.placedBottomFloatGenerations.clear();
 		this.bottomFloatOrders.clear();
-		this.bottomFloatOneDimensionalFallback = false;
+		// Slides reserve bottom floats one-dimensionally: lines cannot avoid a page end that is not known yet.
+		this.bottomFloatOneDimensionalFallback = !this.autoPageBreaks;
 		this.bottomFloatsDeferredOnPage = false;
 		this.atomicFloatFloor = 0;
 		this.overflowFloor = 0;
@@ -1010,6 +1056,9 @@ public class RootBuilder extends BreakableBuilder {
 	protected boolean pageBreak(BreakMode mode, byte flags) {
 		this.beginBreak();
 		if (this.flowStack.isEmpty()) {
+			return false;
+		}
+		if (!this.autoPageBreaks && mode instanceof BreakMode.AutoBreakMode) {
 			return false;
 		}
 		// Only automatic breaks set the record: a later forced break of the same page keeps what this page's automatic
@@ -1433,6 +1482,9 @@ public class RootBuilder extends BreakableBuilder {
 	 * @return the closed page
 	 */
 	private PageBox turnPage(final BreakMode mode) {
+		// Slides: the root element is still open here, so no closing box has passed its extent to the page as at the
+		// end of the document.
+		this.growSlide();
 		this.finishLayout();
 		// Pages with nothing drawn are not output (css-break-3 §4.4). A dropped page
 		// does not consume a side (recto/verso), so do not advance our side tracking
@@ -1791,6 +1843,8 @@ public class RootBuilder extends BreakableBuilder {
 	public void finish() {
 		// Every box is closed, so is every barrier: a leftover depth stopped page breaking until here (2026-10-09)
 		assert this.breakDepth == -1 : "文書の終わりで改ページ禁止の深さが " + this.breakDepth + " のままです";
+		// Slides: before finishLayout places the bottom floats and footnotes from the page's end.
+		this.growSlide();
 		this.finishLayout();
 		// Footnotes F4: if footnotes deferred for capacity remain, generate note-only pages
 		// until pending is empty. An iteration with no progress (no note placed)
@@ -1810,6 +1864,8 @@ public class RootBuilder extends BreakableBuilder {
 			this.placeCarriedPageFloats();
 			this.topFloatBodyStart = this.fullWidthTopFloatEnd();
 			this.resetFragmentCursor(this.topFloatBodyStart, 0);
+			// Slides: the carried notes and floats are reserved without a capacity limit.
+			this.growSlide();
 			this.finishLayout();
 			// An iteration without progress means a footnote's call remained on no page
 			// (calls inside table cells or absolute positioning are outside the scan).
@@ -2041,7 +2097,8 @@ public class RootBuilder extends BreakableBuilder {
 		double needed = this.footnoteGap();
 		for (final FootnoteEntry entry : host.pendingFootnotes) needed += this.footnoteExtent(entry.noteBox);
 		final double available = this.getPageLimit() - pageAxisAfterOwner;
-		if (needed > available) {
+		// Slides place the notes after the columns and grow the page by them (growSlide).
+		if (this.autoPageBreaks && needed > available) {
 			for (final FootnoteEntry entry : host.pendingFootnotes) {
 				entry.holdReservationUntil = this.pageGeneration;
 				this.traceFootnote("column-hold", entry, needed - available, java.util.Set.of());
@@ -2287,7 +2344,15 @@ public class RootBuilder extends BreakableBuilder {
 		// Do not reserve document bands on mini-pages measuring headers, running elements, or partial ranges.
 		if (this.pageGenerator instanceof net.zamasoft.foliojet.layout.MeasurePageGenerator measure
 				&& !measure.isFootnoteProbe()) return net.zamasoft.foliojet.ua.FootnoteArea.DEFAULT;
-		return this.pageBox.getUserAgent().getUAContext().getFootnoteArea();
+		final net.zamasoft.foliojet.ua.FootnoteArea area = this.pageBox.getUserAgent().getUAContext().getFootnoteArea();
+		// Slides grow along the block axis, so there a fixed height is a least height: the notes that do not fit stay on
+		// their slide instead of making note-only slides (2026-10-23). A page band on vertical pages lies along the axis
+		// that does not grow and keeps its height.
+		if (this.autoPageBreaks || !area.isHeightFixed()
+				|| (area.isPageBand() && this.pageBox.getBlockParams().flow.isVertical())) {
+			return area;
+		}
+		return area.withMinHeight(Math.max(area.minHeight, area.height)).withHeight(null);
 	}
 
 	private double requestedFootnoteArea(final double maxArea) {
@@ -2302,6 +2367,10 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	private double blockFootnoteMaxArea() {
+		if (!this.autoPageBreaks) {
+			// Slides: every note stays with its call, and the page grows by them (growSlide, 2026-10-23).
+			return Double.POSITIVE_INFINITY;
+		}
 		return Math.max(0, this.pageBox.getInnerPageExtent(this.pageBox.getBlockParams().flow) - MIN_PAGE_LIMIT);
 	}
 
@@ -2720,7 +2789,9 @@ public class RootBuilder extends BreakableBuilder {
 			return;
 		}
 		final double previousReservation = this.pageFootnoteHost.footnoteReservation;
-		final double maxArea = this.pageFootnoteHost.capacityBase.getAsDouble() - Math.max(MIN_PAGE_LIMIT, this.atomicFloatFloor);
+		// Slides keep every note with its call; the page grows by them (growSlide, 2026-10-23).
+		final double maxArea = !this.autoPageBreaks ? Double.POSITIVE_INFINITY
+				: this.pageFootnoteHost.capacityBase.getAsDouble() - Math.max(MIN_PAGE_LIMIT, this.atomicFloatFloor);
 		int i = 0;
 		for (final FootnoteEntry entry : this.pageFootnoteHost.pendingFootnotes) {
 			if (i >= this.pageFootnoteHost.footnoteReservedCount) {
@@ -2824,15 +2895,20 @@ public class RootBuilder extends BreakableBuilder {
 	@Override
 	public double getPageOwnerLimit() {
 		final double base = super.getPageLimit();
-		// Scan multi-column layout only on pages with reserved bottom floats (avoid tracing deeply nested stacks every time).
-		final double reserved = this.pageFootnoteHost.footnoteReservation + (this.bottomFloatReservation != 0
-				&& (this.bottomFloatOneDimensionalFallback || this.getMulticolumnBox() != null)
-						? this.bottomFloatReservation
-						: 0);
+		final double reserved = this.pageOwnedReservation();
 		if (reserved == 0) {
 			return base;
 		}
 		return Math.max(MIN_PAGE_LIMIT, base - reserved);
+	}
+
+	/** The bands reserved at the page's end that body text does not enter ({@link #getPageOwnerLimit}). */
+	private double pageOwnedReservation() {
+		// Scan multi-column layout only on pages with reserved bottom floats (avoid tracing deeply nested stacks every time).
+		return this.pageFootnoteHost.footnoteReservation + (this.bottomFloatReservation != 0
+				&& (this.bottomFloatOneDimensionalFallback || this.getMulticolumnBox() != null)
+						? this.bottomFloatReservation
+						: 0);
 	}
 
 	@Override
@@ -2945,8 +3021,10 @@ public class RootBuilder extends BreakableBuilder {
 		final double pageLimit = super.getPageLimit();
 		final double extent = this.footnoteExtent(noteBox);
 		final double cursor = start ? this.pageMarginNoteStartCursor : this.pageMarginNoteEndCursor;
-		double pageAxis = Math.max(cursor, Math.max(0, Math.min(this.pageAxis, pageLimit)));
-		if (extent <= pageLimit && pageAxis + extent > pageLimit) {
+		// Slides: the page grows to hold the note beside its call (growSlide).
+		double pageAxis = Math.max(cursor,
+				Math.max(0, this.autoPageBreaks ? Math.min(this.pageAxis, pageLimit) : this.pageAxis));
+		if (this.autoPageBreaks && extent <= pageLimit && pageAxis + extent > pageLimit) {
 			// Move back inside the page without straying farther than necessary from the corresponding body position.
 			pageAxis = Math.max(cursor, pageLimit - extent);
 		}
@@ -2980,8 +3058,10 @@ public class RootBuilder extends BreakableBuilder {
 			this.pendingTopFloatGenerations.put(floatBox, this.pageGeneration);
 			if (placeOnCurrentPage) {
 				// Beside bottom floats already on the page (they came first) only where it fits (2026-10-18)
+				// Slides take every top float: the page grows to hold them (growSlide, 2026-10-23).
 				this.placeTopPageFloats(this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
-						super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation,
+						!this.autoPageBreaks ? Double.POSITIVE_INFINITY
+								: super.getPageLimit() - this.pageFootnoteHost.footnoteReservation - this.bottomFloatReservation,
 						this.bottomFloatReservedCount == 0));
 				// The page is still empty, so start its body below a full-width figure here too (a table written right
 				// after a figure that opens the page overlapped it). Only in the page's own coordinates: columns and
@@ -3007,8 +3087,9 @@ public class RootBuilder extends BreakableBuilder {
 			final int reservedBefore = this.bottomFloatReservedCount;
 			final double reservationBefore = this.bottomFloatReservation;
 			this.reserveBottomFloats();
-			if (this.bottomFloatReservedCount > reservedBefore && (this.currentPositionPastFirstReservedBottom()
-					|| this.earlierColumnPastFirstReservedBottom())) {
+			// Not on slides: their band moves to the end of the content when the page grows (growSlide).
+			if (this.autoPageBreaks && this.bottomFloatReservedCount > reservedBefore
+					&& (this.currentPositionPastFirstReservedBottom() || this.earlierColumnPastFirstReservedBottom())) {
 				// Body text has already reached the placement band. Reserving here would shrink the remaining page
 				// one-dimensionally, pushing body text below the placement area (including lines before the anchor)
 				// onto the next page and leaving only the float at the bottom of the page before its anchor
@@ -3108,7 +3189,7 @@ public class RootBuilder extends BreakableBuilder {
 
 		final double used = this.currentTranslateUsedPageEnd();
 		final double limit = this.getUnsplittableFloatPageLimit();
-		final double maxArea = limit - (used - this.topPageFloatStackEnd);
+		final double maxArea = !this.autoPageBreaks ? Double.POSITIVE_INFINITY : limit - (used - this.topPageFloatStackEnd);
 		final TopFloatPlan plan = this.planTopFloats(this.pendingTopFloats, this.topPageFloatStackEnd,
 				maxArea, false);
 		if (plan.boxes.isEmpty()) {
@@ -3291,7 +3372,9 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			final double cost = this.footnoteExtent(floatBox);
 			final double topReach = this.topFloatReach(floatBox);
-			if (this.bottomFloatReservation + cost > area - Math.max(Math.max(MIN_PAGE_LIMIT, this.atomicFloatFloor), topReach)) {
+			// Slides take every bottom float: the page grows by the reservation (growSlide).
+			if (this.autoPageBreaks && this.bottomFloatReservation + cost
+					> area - Math.max(Math.max(MIN_PAGE_LIMIT, this.atomicFloatFloor), topReach)) {
 				if (this.bottomFloatReservedCount == 0 && i == 1 && this.atomicFloatFloor <= 0 && topReach <= 0) {
 					this.bottomFloatReservation = cost;
 					this.bottomFloatReservedCount = 1;
@@ -3421,7 +3504,7 @@ public class RootBuilder extends BreakableBuilder {
 
 	/** Reselects this page's path from the current placed range and the first bottom float's placedStart. */
 	private void updateBottomFloatFallbackForCurrentPosition() {
-		final boolean fallback = this.currentPositionPastFirstReservedBottom();
+		final boolean fallback = !this.autoPageBreaks || this.currentPositionPastFirstReservedBottom();
 		if (this.bottomFloatOneDimensionalFallback != fallback) {
 			this.bottomFloatOneDimensionalFallback = fallback;
 			this.rebuildBottomPageFloatExclusions();
@@ -3634,7 +3717,9 @@ public class RootBuilder extends BreakableBuilder {
 			// and violating the ascending pageSpan.end contract (ExclusionSpace.copyOfSorted)
 			// (AssertionError in the wild sweep; production disables asserts, so it used
 			// the out-of-order exclusions unchanged).
-			final double exclusionEnd = Math.max(placedStart, Math.min(placedEnd, fragmentLimit));
+			// Slides: lines beside the float go on past the page's least size, which only grows (2026-10-23).
+			final double exclusionEnd = !this.autoPageBreaks ? placedEnd
+					: Math.max(placedStart, Math.min(placedEnd, fragmentLimit));
 			if (DebugFlags.TOP_FLOAT) {
 				System.err.println("[topFloat] gen=" + this.pageGeneration + " start=" + placedStart + " extent=" + extent
 						+ " end=" + placedEnd + " fragmentLimit=" + fragmentLimit + " exclusionEnd=" + exclusionEnd

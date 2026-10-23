@@ -163,6 +163,52 @@ output.fit-to-paper = preserve-aspect-ratio
 <span class="ioprop">output.expand-with-content</span>は
 **指定した大きさを下限として、はみ出した分だけ広げる**点です。
 
+### <a id="style-slides">スライドとして組む<span class="since">4.0.0</span></a>
+
+<span class="ioprop">output.media_types</span>に`projection`を入れると、文書を**スライド**として組みます。
+`projection`はCSS2の「プロジェクターで見せる発表用」のメディアタイプです。
+Media Queries 4では廃止されましたが、Copper PDFでは使えます。
+
+スライドの組み方は、印刷と次の点が違います。
+
+- **自動の改ページをしません。** ページが分かれるのは、`break-before`・`break-after`(`page-break-before`・`page-break-after`)で明示した改ページと、[名前付きページ](#style-named-pages)が切り替わる所だけです。改ページを明示しない文書は、全体が1枚になります。
+- **ページの大きさがページごとに変わります。** 幅(縦書きでは高さ)は`@page`の`size`のままです。高さ(縦書きでは幅)は`size`を最小として、中身が収まらなければその分だけ伸びます。名前付きページで1枚ごとに大きさを変えることもできます。
+- [脚注](#style-footnotes)と`float: bottom`の図は、中身の後ろに置き、ページはその分も伸びます。`float: top`の図が中身より長いときも、ページは図の分まで伸びます。並列注(`float: -cssj-note-start`・`-cssj-note-end`)も呼び出しの横に置き、ページはその分も伸びます。
+- `@footnote`の`height`は、最小の高さ(`min-height`)として扱います。その高さに入りきらない脚注も、同じスライドに置きます(縦書きで用紙の端の帯に置いたときを除きます)。
+- 縦書きのスライドで脚注を用紙の下端の帯(`@footnote { float: bottom; }`)に置くと、帯は伸びない向きにあるので、入りきらない脚注は次のスライドへ送ります。
+- 幅の狭い`float: top`の図の横に本文が回り込んだ後で、同じスライドに`float: top`の図をもう1つ置くと、後の図は次のスライドの上端へ送ります。
+
+16:9のスライドの例です。
+`print`を外しているので、`@media print`の規則は効きません。
+
+```
+session.property("output.media_types", "all projection paged visual bitmap static");
+```
+
+```css
+@page { size: 1280px 720px; margin: 40px; }
+@media projection {
+  section { break-after: page; }
+}
+```
+
+高さを`size`に関係なく中身にぴったり合わせたいときは、<span class="ioprop">output.auto-height</span>もtrueにします。
+スライドでは<span class="ioprop">output.no-page-break</span>は効きません。
+
+スライドとして組んでいるかどうかは、スタイルシートの側でも見分けられます。
+`@media projection`のほか、メディア特性`overflow-block`が使えます。
+
+| 組み方 | `overflow-block`の値 |
+|---|---|
+| 通常 | `paged` |
+| スライド | `optional-paged` |
+| <span class="ioprop">output.auto-height</span>がtrue | `scroll` |
+| <span class="ioprop">output.no-page-break</span>がtrue | `none` |
+
+`optional-paged`は、Media Queries 4の草案にあった値です(例はスライドショーでした)。
+同じ動きをするUAが無いという理由で規格から外されましたが、Copper PDFのスライドはこの定義どおりに動くので、当たるようにしています。
+`(overflow-block)`だけを書くと、`none`のとき以外に当たります。
+
 ### <a id="style-imposition">面付け<span class="since">4.0.0</span></a>
 
 **面付け**は、1枚の用紙に複数の論理ページを並べて配置することです。
