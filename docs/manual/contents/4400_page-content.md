@@ -643,6 +643,24 @@ h1 { string-set: chapter content(); }
 
 そのページで一度も設定されなければ、いずれも前のページから引き継いだ値になります。
 
+`content()`は、要素の文字から、その要素の`::before`と`::after`を除いたものです。括弧の中に次の値を書くと、取り込む部分を選べます<span class="since">4.0.0</span>。
+
+<dl>
+
+<dt>text</dt>
+<dd>`content()`と同じです。</dd>
+<dt>before</dt>
+<dd>要素の`::before`の文字です。</dd>
+<dt>after</dt>
+<dd>要素の`::after`の文字です。</dd>
+<dt>first-letter</dt>
+<dd>要素の最初の1字です。`::first-letter`と同じく`::before`の文字から数え、前後に付く約物も含みます。</dd>
+
+</dl>
+
+見出しの番号を`::before`で付けているときは、`string-set: chapter content(before) content();`と書くと番号ごと取り込めます。
+ページをまたぐ要素では、`content(after)`が空になることがあります(値はその要素が始まるページで決まるため)。
+
 #### <a id="style-vertical-side-boxes">縦組みの柱を小口に置く<span class="since">4.0.0</span></a>
 
 縦組みの本では、柱を左右の余白(小口)に縦書きで置きます。左右のマージンボックスに

@@ -643,6 +643,24 @@ The second argument to `string()` specifies which value on the page to use.
 
 If no value is set on the page, all of these use the value carried over from the previous page.
 
+`content()` is the text of the element without its own `::before` and `::after`. A value in the parentheses selects which part to take<span class="since">4.0.0</span>.
+
+<dl>
+
+<dt>text</dt>
+<dd>The same as `content()`.</dd>
+<dt>before</dt>
+<dd>The text of the element's `::before`.</dd>
+<dt>after</dt>
+<dd>The text of the element's `::after`.</dd>
+<dt>first-letter</dt>
+<dd>The first letter of the element, counted from the text of its `::before` as `::first-letter` does, with any punctuation before and after it.</dd>
+
+</dl>
+
+When a heading is numbered with `::before`, `string-set: chapter content(before) content();` takes the number as well.
+For an element that spans pages, `content(after)` may be empty (the value is fixed on the page where the element starts).
+
 #### <a id="style-vertical-side-boxes">Placing vertical running headers at the fore edge<span class="since">4.0.0</span></a>
 
 In books with vertical writing, running headers are placed vertically in the left and right margins (at the fore edge). Specifying

@@ -1,0 +1,90 @@
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="100pt"?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>string-set content() with ::before and ::after</title>
+    <style type="text/css">
+@page {
+	margin: 0;
+}
+body {
+	line-height: 1;
+	counter-reset: s;
+}
+body > * + * {
+	page-break-before: always;
+}
+h2, .marker {
+	font: 10pt/1 monospace;
+	display: block;
+}
+h2 {
+	counter-increment: s;
+}
+h2::before {
+	content: counter(s) ". ";
+}
+h2::after {
+	content: " !";
+}
+#a {
+	string-set: x content();
+}
+#b {
+	string-set: x content(text);
+}
+#c {
+	string-set: x content(Before) "|" content(after);
+}
+#e {
+	string-set: x content(first-letter);
+}
+h3 {
+	font: 10pt/1 monospace;
+}
+#g::before {
+	content: "sec ";
+	text-transform: uppercase;
+}
+#h::before {
+	content: "A";
+	float: left;
+}
+#g, #h {
+	string-set: x content();
+}
+#i {
+	string-set: x content();
+}
+#i::before {
+	content: "P";
+}
+ol {
+	margin: 0;
+	font: 10pt/1 monospace;
+}
+.marker:before {
+	content: string(x);
+}
+    </style>
+  </head>
+
+  <body>
+    <h2 id="a">Alpha</h2>
+    <span class="marker" id="fa"></span>
+    <h2 id="b">Bravo</h2>
+    <span class="marker" id="fb"></span>
+    <h2 id="c">Charlie</h2>
+    <span class="marker" id="fc"></span>
+    <h2 id="e">(Echo)</h2>
+    <span class="marker" id="fe"></span>
+    <h3 id="g">Golf</h3>
+    <span class="marker" id="fg"></span>
+    <h3 id="h">Alpha</h3>
+    <span class="marker" id="fh"></span>
+    <ol><li id="i">India</li></ol>
+    <span class="marker" id="fi"></span>
+  </body>
+
+</html>

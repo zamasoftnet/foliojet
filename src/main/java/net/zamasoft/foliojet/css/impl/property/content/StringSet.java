@@ -23,7 +23,7 @@ import net.zamasoft.foliojet.css.token.TokenStream;
 /**
  * GCPM {@code string-set: <ident> <value>+ [, <ident> <value>+]*}.
  * {@code <value>} is {@code <string>}/{@code counter()}/{@code counters()}/
- * {@code attr()}/{@code content()}.
+ * {@code attr()}/{@code content()} ({@code text}, {@code before}, {@code after} or {@code first-letter}).
  *
  * @author MIYABE Tatsuhiko
  */
@@ -83,10 +83,17 @@ public class StringSet extends AbstractPrimitivePropertyInfo {
 						}
 						parts.add(new AttrValue(attrName));
 					} else if (func.is("content")) {
-						if (func.argStream().hasNext()) {
+						// content( [ text | before | after | first-letter ]? ) (2026-10-23)
+						final TokenStream params = func.argStream();
+						final boolean hasArgument = params.hasNext();
+						final String ident = hasArgument ? params.ident() : null;
+						final ContentFunctionValue content = hasArgument && ident == null ? null
+								: ContentFunctionValue.forStringSet(
+										ident == null ? null : ident.toLowerCase(java.util.Locale.ROOT));
+						if (content == null || params.hasNext()) {
 							throw new PropertyException();
 						}
-						parts.add(ContentFunctionValue.INSTANCE);
+						parts.add(content);
 					} else {
 						throw new PropertyException();
 					}

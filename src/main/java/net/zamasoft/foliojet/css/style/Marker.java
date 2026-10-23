@@ -17,4 +17,6 @@ class Marker {
 	 * a child whose writing mode is orthogonal to it ({@code StyleEventMachine.settleMarkerBeforeTable}).
 	 */
 	boolean ownerVertical = false;
+	/** Where the marker text goes when the list item's string-set takes content() (2026-10-23). */
+	net.zamasoft.foliojet.ua.PendingStringSet.Capture capture = null;
 }

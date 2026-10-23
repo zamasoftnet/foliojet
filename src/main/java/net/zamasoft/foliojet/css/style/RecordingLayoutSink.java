@@ -53,6 +53,19 @@ final class RecordingLayoutSink {
 	void endContentsSource(final net.zamasoft.foliojet.css.CSSStyle style) {
 		this.contentsSources.remove(style);
 	}
+
+	/** Where the text of the ::before or ::after being typeset goes, for string-set content() (2026-10-23). */
+	private StringBuilder pseudoCapture;
+
+	/**
+	 * @param capture where text goes from here on, or null to stop
+	 * @return where it went until now
+	 */
+	StringBuilder startCapture(final StringBuilder capture) {
+		final StringBuilder previous = this.pseudoCapture;
+		this.pseudoCapture = capture;
+		return previous;
+	}
 	private net.zamasoft.foliojet.css.style.running.RunningRegistry assignments;
 	private static final class AnchorFrame {
 		final long source;
@@ -97,7 +110,7 @@ final class RecordingLayoutSink {
 			this.assignments.bindBox(order, source.getAssignmentAnchor());
 		} else {
 			// display:contents has no box of its own. Collect only its own input and attach it to the next placement.
-			if (strings.stream().anyMatch(value -> value.parts.contains(net.zamasoft.foliojet.ua.PendingStringSet.CONTENT))) {
+			if (strings.stream().anyMatch(value -> net.zamasoft.foliojet.ua.PendingStringSet.needsContent(value.parts))) {
 				final StringBuilder text = new StringBuilder();
 				this.contentsSources.put(style, text);
 				this.assignments.strings(order, strings, buffer -> {
@@ -482,6 +495,7 @@ final class RecordingLayoutSink {
 	 */
 	void characters(final int charOffset, final char[] ch, final int off, final int len, final boolean fixed) {
 		if (this.events != null) {
+			if (this.pseudoCapture != null) this.pseudoCapture.append(ch, off, len);
 			this.events.accept(new net.zamasoft.foliojet.layout.segment.SegmentEvent.Text(
 					charOffset, new String(ch, off, len), fixed));
 			return;
@@ -497,6 +511,7 @@ final class RecordingLayoutSink {
 			}
 			return;
 		}
+		if (this.pseudoCapture != null) this.pseudoCapture.append(ch, off, len);
 		for (final StringBuilder text : this.contentsSources.values()) {
 			text.append(ch, off, len);
 		}

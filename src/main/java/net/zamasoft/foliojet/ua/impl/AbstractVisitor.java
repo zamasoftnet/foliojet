@@ -233,7 +233,7 @@ public abstract class AbstractVisitor implements Visitor {
 		for (final PendingStringSet assignment : placement.strings()) {
 			final StringBuilder resolved = new StringBuilder();
 			for (final Object part : assignment.parts) {
-				if (part == PendingStringSet.CONTENT) {
+				if (part instanceof PendingStringSet.Content content) {
 					if (text == null) {
 						text = new StringBuilder();
 						if (placement.sourceText() != null) {
@@ -242,7 +242,7 @@ public abstract class AbstractVisitor implements Visitor {
 							appendSemanticText(placement.box(), text);
 						}
 					}
-					resolved.append(text);
+					resolved.append(content.resolve(text.toString()));
 				} else {
 					resolved.append((String) part);
 				}

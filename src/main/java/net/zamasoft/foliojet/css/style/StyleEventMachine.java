@@ -155,6 +155,11 @@ final class StyleEventMachine {
 	private Marker marker = null;
 	private boolean firstLetter = false;
 	private final net.zamasoft.foliojet.css.style.running.RunningCapture runningCapture;
+	/**
+	 * Open elements whose {@code string-set} takes {@code content()}: their own {@code ::before} and {@code ::after}
+	 * text is collected while it is typeset (2026-10-23). Removed when the element ends.
+	 */
+	private final Map<CSSStyle, PendingStringSet.Capture> pseudoCaptures = new java.util.IdentityHashMap<>();
 
 	StyleEventMachine(final StyleBuildContext context, final Segment segment, final RecordingLayoutSink sink,
 			final BoxStyleMapper mapper, final StyleBoxEmitter emitter, final PageSequence pageSequence,
@@ -616,14 +621,20 @@ final class StyleEventMachine {
 			final List<PendingStringSet> assignments = new ArrayList<PendingStringSet>();
 			// Later values replace same-name assignments on the same element; do not register the same (name, order) twice
 			final java.util.LinkedHashMap<String, List<Object>> byName = new java.util.LinkedHashMap<String, List<Object>>();
+			PendingStringSet.Capture capture = null;
 			for (int i = 0; i < stringSets.length; ++i) {
 				final StringSetEntryValue entry = (StringSetEntryValue) stringSets[i];
 				final Value[] parts = entry.getParts();
 				final List<Object> resolvedParts = new ArrayList<Object>(parts.length);
 				for (int j = 0; j < parts.length; ++j) {
 					final Value part = parts[j];
-					if (part instanceof ContentFunctionValue) {
-						resolvedParts.add(PendingStringSet.CONTENT);
+					if (part instanceof ContentFunctionValue content) {
+						if (capture == null) {
+							// The element's own ::before and ::after are typeset after this (synthesizeBefore/After).
+							capture = new PendingStringSet.Capture();
+							this.pseudoCaptures.put(style, capture);
+						}
+						resolvedParts.add(new PendingStringSet.Content(content, capture));
 					} else {
 						resolvedParts.add(this.generated.stringSetPart(part, ce, depth));
 					}
@@ -635,7 +646,7 @@ final class StyleEventMachine {
 				final List<Object> resolvedParts = e.getValue();
 				assignments.add(new PendingStringSet(name, resolvedParts, order));
 				this.ua.getPassContext().getBuildStringState().begin(name, order);
-				if (!resolvedParts.contains(PendingStringSet.CONTENT)) {
+				if (!PendingStringSet.needsContent(resolvedParts)) {
 					// Register immediately at build time too, so body-side string() on the same page can read it
 					final StringBuilder buff = new StringBuilder();
 					for (final Object part : resolvedParts) {
@@ -760,6 +771,7 @@ final class StyleEventMachine {
 				marker.imageBox = new InlineReplacedBox(rparams, pos);
 			}
 			if (marker != null) {
+				marker.capture = this.pseudoCaptures.get(style);
 				switch (ListStylePosition.get(style)) {
 				case ListStylePositionValue.INSIDE:
 					// Inside marker
@@ -1008,6 +1020,14 @@ final class StyleEventMachine {
 	}
 
 	/**
+	 * Whether a {@code ::before} or {@code ::after} is part of the element's box text (string-set content(),
+	 * 2026-10-23): a float is not; an inline absolutely positioned box is.
+	 */
+	private static boolean inFlow(final CSSStyle style) {
+		return CSSFloat.get(style) == CSSFloatValue.NONE;
+	}
+
+	/**
 	 * Synthesizes the element's ::before (not for a synthetic pseudo-element itself).
 	 * (Extracted from startStyle on 2026-09-02; body moved unchanged.)
 	 */
@@ -1027,8 +1047,14 @@ final class StyleEventMachine {
 					beforeDeclaration.applyProperties(beforeStyle);
 				}
 				if (this.usableGeneratedContent(beforeStyle) && Display.get(beforeStyle) != DisplayValue.NONE) {
+					final PendingStringSet.Capture capture = this.pseudoCaptures.get(style);
+					if (capture != null) {
+						capture.beforeInFlow = inFlow(beforeStyle);
+					}
+					this.sink.startCapture(capture == null ? null : capture.before);
 					this.startStyle(beforeStyle);
 					this.endStyle();
+					this.sink.startCapture(null);
 				}
 			}
 			this.styleContext.endElement();
@@ -1471,8 +1497,11 @@ final class StyleEventMachine {
 	private void marker(Marker marker) {
 		this.sink.start(marker.box);
 		if (marker.text != null) {
-			// Marker text
+			// Marker text. A list item's marker comes out with its first content, which may be a ::before whose text
+			// string-set content(before) is collecting; the marker goes to the list item's own capture instead.
+			final StringBuilder capture = this.sink.startCapture(marker.capture == null ? null : marker.capture.marker);
 			this.sink.characters(-1, marker.text, 0, marker.text.length, false);
+			this.sink.startCapture(capture);
 		} else if (marker.imageBox != null) {
 			this.sink.replaced(marker.imageBox);
 		}
@@ -1627,6 +1656,15 @@ final class StyleEventMachine {
 			return;
 		}
 		CSSStyle style = this.context.getCurrentStyle();
+		PendingStringSet.Capture capture = null;
+		if (!this.pseudoCaptures.isEmpty()) {
+			// The element may end inside anonymous wrappers, which are closed below.
+			CSSStyle owner = style;
+			while (owner != null && owner.isAnonStyle()) {
+				owner = owner.getParentStyle();
+			}
+			capture = this.pseudoCaptures.remove(owner);
+		}
 
 		final CSSElement ce = style.getCSSElement();
 		if (!ce.isPseudoElement()
@@ -1659,8 +1697,13 @@ final class StyleEventMachine {
 					}
 				}
 				if (this.usableGeneratedContent(afterStyle) && Display.get(afterStyle) != DisplayValue.NONE) {
+					if (capture != null) {
+						capture.afterInFlow = inFlow(afterStyle);
+					}
+					this.sink.startCapture(capture == null ? null : capture.after);
 					this.startStyle(afterStyle);
 					this.endStyle();
+					this.sink.startCapture(null);
 				}
 			}
 			this.styleContext.endElement();
