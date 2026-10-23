@@ -890,7 +890,7 @@ public class FuzzOraclePredicateTest extends TestCase {
 
 	/**
 	 * Do not exclude documents with indeterminate table placement or cells that cannot serve as evidence:
-	 * table attributes, a table not directly under body, floats/display:none/position offsets in the document,
+	 * table attributes, a table not directly under body, display:none/position offsets in the document,
 	 * overlapping cells, or an evidence cell with style/dir or not starting with a word.
 	 */
 	public void testTableColumnCounterexamplesAreNotUnfittable() {
@@ -898,8 +898,6 @@ public class FuzzOraclePredicateTest extends TestCase {
 				shrinkerDoc(TABLE_OVER.replace("<table>", "<table style=\"margin-left:-60pt\">"))));
 		// Evaluate tables inside divs with only frames/margins (testPlainWrapper); skip divs that can change writing direction.
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc("<div dir=\"rtl\">" + TABLE_OVER + "</div>")));
-		assertNull(RandomDocumentFuzzTest
-				.findUnfittableContent(shrinkerDoc("<div style=\"float:left\">T9</div>" + TABLE_OVER)));
 		assertNull(RandomDocumentFuzzTest
 				.findUnfittableContent(shrinkerDoc("<p style=\"display:none\">T9</p>" + TABLE_OVER)));
 		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
@@ -989,6 +987,23 @@ public class FuzzOraclePredicateTest extends TestCase {
 	public void testSeedTableInRightFloatIsUnfittable() {
 		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
 				.findUnfittableContent(RandomDocumentFuzzTest.generate(1_797_278_838, true, false, false).html()));
+	}
+
+	/**
+	 * fit seed 33119263 (v2 1968184587): a {@code float:left} paragraph precedes a table with a nested table on
+	 * {@code vertical-rl} paper with a 60 pt line. A float that is not an ancestor of the table cannot move its start
+	 * before the content start, so judge the table (2026-10-23). Copper put T23 at y=125.72, Chrome its cell at
+	 * y=120.19 (both beyond twice the paper). Previously any float in the document stopped the judgment.
+	 */
+	public void testSeedTableAfterFloatIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(1_968_184_587, true, false, false).html()));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc("<div style=\"float:left\">T9</div>" + TABLE_OVER)));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc("<div style=\"float:right;width:30pt\">T9</div>" + TABLE_OVER)));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc(TABLE_OVER.replace(">T2</td>", ">T2<div style=\"float:left\">T9</div></td>"))));
 	}
 
 	/** A right float requires evidence cells on both start/end sides; a left float needs only the start side. */

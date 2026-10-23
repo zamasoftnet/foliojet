@@ -1443,6 +1443,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Records dropped on 2026-10-23 (triage §101): 12318384 (§24) and 20487105 (§55), overlapping cells that put
 			// Copper's later cells one column further, now in their own columns; 13121632 (§27), which passes since the
 			// float remainder split of triage §94.
+			// Records dropped on 2026-10-23 (triage §102): 23019702 (§66), 25574885 (§74), 26097683 (§76), 27486259 (§79),
+			// 27594073 (§81) and 27985767, documents with a float and a table wider than the paper outside it, which the
+			// unfittable-table predicate now judges (floats other than the table's ancestors allowed).
 			// Triage §26: on vertical-lr paper a vertical-rl float 91 pt wide holds a vertical-lr div with a
 			// display:table float 121 pt wide; Chrome also draws its only line off the paper's left (x=-23.6 pt).
 			new IndividualExclusion(12_903_866, "fit-v1", 621_085_571, "作者の溢れ: 同軸逆進行の入れ物より広い表のfloat(Chromeも紙の左の外)",
@@ -1661,11 +1664,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// alike), Chrome's screen at -16 and -15.1 pt and its print drops every token.
 			new IndividualExclusion(22_798_332, "fit-v1", 69_220_745, "作者の溢れ: 幅101ptの逆進行のfloatより広い中身が紙の左の外(Chromeも同じ)",
 					"2026-10-17"),
-			// Triage §66: a table with overlapping cells and nested tables on 60 pt vertical-rl paper, more than twice the
-			// paper long in the inline direction; Copper puts T9 at y = 127.2 pt (19124 alike), Chrome's screen at 122 pt
-			// and its print drops it.
-			new IndividualExclusion(23_019_702, "fit-v1", 1_891_956_271, "作者の溢れ: 重なるセルの表が紙の2倍超(Chromeも同じ)",
-					"2026-10-17"),
 			// Triage §67: on 300x150 pt vertical-lr paper a vertical-rl div of width:77pt holds a vertical-lr display:table
 			// of width:106pt and a 145 pt image, wider than the div, so they overflow to the left; Copper draws T0 at
 			// x = -35.5 pt (19124 alike), Chrome's screen at -36.3 pt and its print drops it.
@@ -1708,19 +1706,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// fragment its overflow (a block does).
 			new IndividualExclusion(25_308_321, "fit-v1", 170_839_639, "既知の制限: 大きさを決めたgrid・flexから溢れた中身を頁に分けない",
 					"2026-10-18"),
-			// Triage §74: a vertical-lr float on 60 pt paper holding a table with overlapping cells and a list in a
-			// cell, wider and longer than the paper; Copper puts T27 at x = 93.5 pt, y = 124.7 pt (19124 alike),
-			// Chrome's screen at x = 92.7 pt, y = 153.0 pt and its print shrinks the page and drops T24 to T27.
-			new IndividualExclusion(25_574_885, "fit-v1", 1_403_448_992, "作者の溢れ: 重なるセルの表が紙の外へ(Chromeも同じ)",
-					"2026-10-18"),
 			// Triage §75: a right float on 60 pt paper holding tables nested three deep with overlapping cells, about
 			// 143 pt wide; Copper puts T25 at x = 141.7 pt (19124 alike), Chrome's print drops most of the table.
 			new IndividualExclusion(25_905_164, "fit-v1", 1_117_346_553, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
-					"2026-10-18"),
-			// Triage §76: a table of seven columns on 60 pt paper, one cell holding an outside-marker list with its
-			// default 30 pt indent, about 131 pt wide; Copper puts T25 at x = 121.7 pt (19124 alike), Chrome's screen
-			// at x = 119.4 pt and its print drops T19 to T21, T24 and T25.
-			new IndividualExclusion(26_097_683, "fit-v1", 1_196_871_643, "作者の溢れ: 列の多い表とリストの字下げで表が紙の2倍超(Chromeも同じ)",
 					"2026-10-18"),
 			// Triage §77: a horizontal-tb float on 60 pt vertical-rl paper holding three textareas on one line, each
 			// 125 pt wide (Chrome's 126 pt since 3f90e52c; 74 pt in 19124); Copper puts the first at x = -315.8 pt,
@@ -1734,16 +1722,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// paragraphs after them are not affected.
 			new IndividualExclusion(26_483_315, "fit-v1", 353_009_495, "既知の制限: 直交フローのfloatが頁より長い割れない中身を持つと白紙ページ",
 					"2026-10-18"),
-			// Triage §79: a table on 60 pt paper with a nested table of overlapping cells in a cell, about 134 pt wide;
-			// Copper puts T19 at x = 124.0 pt (19124 alike), Chrome's screen at 118.8 pt and its print drops it.
-			new IndividualExclusion(27_486_259, "fit-v1", 2_141_997_428, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
-					"2026-10-18"),
-			// Triage §81: on vertical-rl 60 pt paper a table of overlapping cells, seven columns, runs about 127 pt down
-			// the page; Copper puts T12 at y = 121.7 pt (19124 alike), Chrome's screen at 117.9 pt and its print drops it.
-			new IndividualExclusion(27_594_073, "fit-v1", 1_260_169_656, "作者の溢れ: 縦組みで列の多い重なるセルの表が紙の2倍超(Chromeも同じ)",
-					"2026-10-19"),
-			new IndividualExclusion(27_985_767, "fit-v1", 223_729_864, "作者の溢れ: 縦組みで 10 列の入れ子の表のある表が紙の2倍超(Chromeも同じ)",
-					"2026-10-19"),
 			// Triage §84: on vertical-rl 120 pt paper a nowrap flex row holds an 82 pt image, a floated select and
 			// textarea, two more textareas and a button, about 500 pt wide; Copper puts T2 at x = 499.8 pt (19124: 462.0),
 			// Chrome's screen at 709.6 pt and its print drops it.
@@ -5720,7 +5698,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * Its left edge is at or after the content start; columns run from the writing-direction start.
 	 * Wrapper divs specify no width, so available width is at most paper content width, which suffices
 	 * for the tolerance check. A nested table's minimum-width lower bound contributes to its cell's bound
-	 * ({@link #placeTableCells}). As with {@link #flexLineOverflows}, do not judge documents with floats,
+	 * ({@link #placeTableCells}). As with {@link #flexLineOverflows}, do not judge documents with
 	 * {@code display:none}, {@code visibility:hidden}/{@code collapse}, absolute positioning, or displacements.
 	 * Evidence cells have only colspan/rowspan attributes, content beginning with a word
 	 * (the generator puts words first in cells), and no inner style/dir
@@ -5733,6 +5711,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * directly wrapping the table (overload below); column-boundary lower bounds include colspan cells
 	 * ({@link #boundaryLowerBounds}); judge overlapping-cell tables too, and use nested-table cells as evidence
 	 * ({@link #cellBeyondFromStart}).
+	 * </p>
+	 *
+	 * <p>
+	 * Expanded on 2026-10-23 (fit seed 33119263): allow floats that are not ancestors of the table (on a plain
+	 * path no ancestor is a float). A float only moves a table's start toward the line end or moves the table past
+	 * it (a table, a block formatting context, must not overlap its margin box), never before the content start;
+	 * a float beside the table only narrows the available width, which the tolerance check bounds from above.
+	 * Floats inside cells have style declarations, so their cells contribute no word bound and are no evidence.
+	 * In 33119263 a {@code float:left} paragraph preceded a table with a nested table on {@code vertical-rl} paper
+	 * with a 60 pt line; Copper put T23 at y=125.72, Chrome its cell at y=120.19 (both beyond twice the paper).
 	 * </p>
 	 */
 	static boolean tableColumnBeyondPage(final String html, final int from, final double extent, final double margin,
@@ -5760,7 +5748,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			++floats;
 		}
 		if (html.contains("display:none") || html.contains("visibility:hidden") || html.contains("visibility:collapse")
-				|| floats > (floatSide == NOT_FLOATED ? 0 : 1) || OUT_OF_FLOW.matcher(html).find()
+				|| floatSide != NOT_FLOATED && floats > 1 || OUT_OF_FLOW.matcher(html).find()
 				|| POSITION_OFFSET.matcher(html).find()) {
 			return false;
 		}
