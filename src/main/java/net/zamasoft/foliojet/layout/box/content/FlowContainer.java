@@ -721,6 +721,23 @@ public class FlowContainer implements Container {
 		return end;
 	}
 
+	/**
+	 * Where the floats end, their margin boxes included (2026-10-23): a float paints less than it occupies when it is
+	 * transparent and its content does not fill it.
+	 */
+	public double floatingPageEnd() {
+		if (this.floatings == null) {
+			return 0;
+		}
+		final WritingMode flow = this.box.getBlockParams().flow;
+		double end = 0;
+		for (int i = 0; i < this.floatings.getCount(); ++i) {
+			final Floating floating = this.floatings.getFloating(i);
+			end = Math.max(end, floating.pageAxis + floating.box.getPageExtent(flow));
+		}
+		return end;
+	}
+
 	public boolean paintsAnything() {
 		if (this.absolutes != null) {
 			// Absolutely positioned boxes may paint independently of their static positions. Since this is unpredictable,

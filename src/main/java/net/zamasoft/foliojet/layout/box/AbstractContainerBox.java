@@ -385,6 +385,20 @@ public abstract class AbstractContainerBox extends AbstractBox
 				oldCont.restyle(columnBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, true);
 			}
 		}
+		// The box ends at its longest column (2026-10-23). The one-shot estimate for columns already built counts the
+		// space left at the end of a full column (where the next block did not fit) as content: in a two-column A4
+		// sample the capacity came out 36pt longer than both columns, and the footnotes that fitted below them went
+		// to a page of their own (cti.li sample, settleRecoveredFootnotes). A capacity too small is left as it was.
+		if (this.container instanceof ColumnsContainer columns) {
+			final double end = Math.max(this.minPageAxis, columns.longestColumnEnd());
+			if (net.zamasoft.foliojet.layout.util.LayoutUtils.compare(end, pageSize) < 0) {
+				if (vertical) {
+					this.maxPageAxis = this.width = end;
+				} else {
+					this.maxPageAxis = this.height = end;
+				}
+			}
+		}
 	}
 
 	@Override

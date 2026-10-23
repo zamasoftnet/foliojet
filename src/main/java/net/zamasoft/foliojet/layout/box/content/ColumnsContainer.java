@@ -101,6 +101,18 @@ public class ColumnsContainer implements Container {
 		return (FlowContainer) this.columns.get(this.columns.size() - 1);
 	}
 
+	/** Where the longest column ends: its flows, its floats or what it paints, whichever is farthest (2026-10-23). */
+	public final double longestColumnEnd() {
+		double end = 0;
+		for (final Container column : this.columns) {
+			end = Math.max(end, Math.max(column.getContentSize(), column.paintedPageEnd()));
+			if (column instanceof FlowContainer flows) {
+				end = Math.max(end, flows.floatingPageEnd());
+			}
+		}
+		return end;
+	}
+
 	public void addFlow(IFlowBox box, double pageAxis) {
 		this.getLastColumn().addFlow(box, pageAxis);
 	}

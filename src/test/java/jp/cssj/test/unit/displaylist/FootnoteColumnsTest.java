@@ -219,6 +219,36 @@ public final class FootnoteColumnsTest extends TestCase {
 	}
 
 	/**
+	 * Balanced columns already built in two columns end at their longest column (2026-10-23, a cti.li sample from
+	 * tech). The one-shot capacity estimate counted the space left at the end of the first column, where the table did
+	 * not fit, as content; the box came out 36pt longer than both columns, and the two notes that fitted below it went
+	 * to a page of their own.
+	 */
+	public void testBalancedColumnsEndAtTheLongestColumn() throws Exception {
+		final String html = Files.readString(Path.of("files/unittest/0125-footnote", "footnote-columns-balance-slack.html"), StandardCharsets.UTF_8);
+		final Capture capture = transcode(html);
+		assertEquals(2, capture.notes.size());
+		assertEquals("1頁に収まる", 1, capture.pages.size());
+		final Column column = capture.columns.get(0);
+		final double columnEnd = column.bounds().y() + column.bounds().height();
+		final double notesTop = capture.notes.stream().mapToDouble(note -> note.placement().y()).min().orElseThrow();
+		double lastLine = 0;
+		for (final Placement line : bodyLines(capture)) {
+			if (line.page() == 1 && line.y() > column.bounds().y() && line.y() + line.height() <= notesTop + EPSILON) {
+				lastLine = Math.max(lastLine, line.y() + line.height());
+			}
+		}
+		assertTrue("段組は最も長い段で終わる: " + columnEnd + " 最後の行 " + lastLine,
+				columnEnd >= lastLine - EPSILON && columnEnd < lastLine + 10);
+		for (final Note note : capture.notes) {
+			assertEquals("注は呼び出しの頁", 1, note.placement().page());
+			assertTrue("注は段組の後", note.placement().y() >= columnEnd - EPSILON);
+			for (final Placement line : bodyLines(capture)) assertFalse("本文と注を重ねない", overlaps(note.placement(), line));
+		}
+		assertTrue("EOF救済で注を捨てない: " + capture.footnoteWarnings, capture.footnoteWarnings.isEmpty());
+	}
+
+	/**
 	 * codex review 2026-09-08, required item 2: the carry-over owner becomes nested and ineligible on
 	 * the next page, and another multi-column container opens elsewhere. The carry-over is not accepted;
 	 * at replay end it returns to the page host (it is not discarded).

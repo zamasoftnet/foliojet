@@ -1,0 +1,43 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><style>
+@page { size: A4; margin: 19mm 17mm 18mm;
+ @top-left { content: string(doc); font: 7.5pt "Noto Sans JP", sans-serif; vertical-align: bottom; padding-bottom: 3mm; }
+ @top-right { content: string(sec); font: 7.5pt "Noto Sans JP", sans-serif; vertical-align: bottom; padding-bottom: 3mm; }
+ @bottom-center { content: counter(page); font: 8pt "Noto Sans JP", sans-serif; }
+ @footnote { border-top: 0.4pt solid #999; padding-top: 2mm; margin-top: 3mm; } }
+html { font-family: '源暎ちくご明朝 v3', 'Noto Serif JP', serif; font-size: 9.2pt; line-height: 1.75; text-align: justify; }
+body { margin: 0; }
+.kicker { font: 600 8pt "Noto Sans JP", sans-serif; letter-spacing: 0.2em; margin: 0 0 2mm; }
+h1 { string-set: doc content(); font: 800 21pt "Noto Sans JP", sans-serif; line-height: 1.35; margin: 0 0 2mm; }
+.sub { font-size: 10.5pt; margin: 0 0 5mm; }
+.meta { font: 7.5pt "Noto Sans JP", sans-serif; border-top: 1.2pt solid #1a1a1a; border-bottom: 0.4pt solid #999; padding: 1.6mm 0; margin-bottom: 6mm; display: flex; justify-content: space-between; }
+.abstract { background: #f1f5f2; padding: 3.5mm 4.5mm; margin-bottom: 6mm; font-size: 8.8pt; line-height: 1.7; }
+.cols { column-count: 2; column-gap: 7mm; }
+h2 { font: 700 10.5pt "Noto Sans JP", sans-serif; margin: 4mm 0 1.5mm; break-after: avoid; }
+h2 .no { margin-right: 0.6em; } h2 .t { string-set: sec content(); }
+p { margin: 0; text-indent: 1em; }
+.fig { column-span: all; margin: 0 0 5mm; text-align: center; } .fig svg { width: 100%; height: auto; }
+.cap { font: 7.5pt "Noto Sans JP", sans-serif; margin-top: 1.5mm; text-indent: 0; }
+.fn { float: footnote; font-size: 7.3pt; line-height: 1.6; text-indent: 0; }
+.fn::footnote-call { content: counter(footnote); font-size: 6pt; vertical-align: super; }
+.fn::footnote-marker { content: counter(footnote) " "; }
+table { width: 100%; border-collapse: collapse; font: 7.6pt/1.5 "Noto Sans JP", sans-serif; margin: 2mm 0 1mm; }
+th, td { border-bottom: 0.4pt solid #bbb; padding: 1mm 1.2mm; text-align: left; } .tbl { break-inside: avoid; margin: 2mm 0 3mm; }
+</style></head><body>
+<p class="kicker">組版見本 ― 報告書</p><h1>ウェブの文書を印刷物の体裁で組む</h1><p class="sub">HTML と CSS だけで、段組み・脚注・柱まで決める</p>
+<div class="meta"><span>cti.li 組版見本</span><span>A4・2 段組み・Copper PDF で組版</span></div>
+<div class="abstract"><b>概要</b>この頁は、HTML と CSS で書いた原稿を組版エンジンで組んだものです。段組み、段をまたぐ図、頁の下の脚注、柱とノンブルは、どれも原稿の CSS に書いた指定で決まります。ワープロで頁を作るのと違い、原稿を直せば何度でも同じ規則で組み直せます。</div>
+<div class="fig"><svg viewBox="0 0 640 120" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="22" width="170" height="76" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="1.2"/><rect x="235" y="14" width="170" height="92" rx="6" fill="#167A40"/><rect x="466" y="22" width="170" height="76" rx="6" fill="#fff" stroke="#1a1a1a" stroke-width="1.2"/></svg><p class="cap">図 1　原稿から頁ができるまで。段をまたぐ図は column-span で置く</p></div>
+<div class="cols">
+<h2><span class="no">1</span><span class="t">画面の文書と紙の文書</span></h2>
+<p>ウェブの文書は、読む人の画面の幅に合わせて流れます。どこで行が折れ、どこで頁が変わるかは、書いた人には決められません。紙に刷る文書や、配って読んでもらう資料では、これが困ります。表が頁の境目で割れたり、見出しだけが頁の最後に取り残されたりするからです。</p>
+<p>組版エンジンは、同じ HTML を決まった大きさの頁に割り付けます。行の長さ、段の数、余白、頁の頭と足に入れるものを先に決めておき、原稿をその枠に流し込みます<span class="fn">CSS の規格では「CSS Paged Media」と呼ばれる部分。頁の大きさや余白を @page で書く。</span>。</p>
+<h2><span class="no">2</span><span class="t">組版で決めること</span></h2>
+<p>頁の上には柱を、下にはノンブルを置きます。この頁では、柱に文書の題と節の名前を入れています。節が変わると、次の頁から柱の文字も変わります。脚注は本文の中に書いておけば、注を付けた行と同じ頁の下へ送られます。</p>
+<p>見出しのすぐ後で頁が変わらないこと、段落の最初や最後の一行だけが別の頁へ離れないことも、規則として書けます<span class="fn">widows と orphans の指定。見出しには break-after: avoid を付ける。</span>。どれも、原稿を直して組み直すたびに同じように効きます。</p>
+<div class="tbl"><table><tr><th>決めること</th><th>CSS の書き方</th></tr><tr><td>頁の大きさと余白</td><td>@page { size; margin }</td></tr><tr><td>柱とノンブル</td><td>string-set、counter(page)</td></tr><tr><td>段組み・段抜き</td><td>column-count、column-span</td></tr><tr><td>脚注</td><td>float: footnote</td></tr><tr><td>目次の頁番号</td><td>target-counter()</td></tr></table><p class="cap">表 1　この見本で使った指定</p></div>
+<h2><span class="no">3</span><span class="t">組み直せることの強み</span></h2>
+<p>原稿と体裁を分けておくと、同じ原稿を別の判型で組めます。A4 の報告書を、そのまま A5 の冊子や画面で読む版に組み直せます。体裁の指定は一度書けば使い回せるので、二冊目からは原稿を書くだけで済みます。</p>
+<p>原稿は人が書いても、手元のファイルから作っても、AI に書かせてもかまいません。組版の規則が同じなら、できあがる頁の質は変わりません。</p>
+<h2><span class="no">4</span><span class="t">目次と相互参照</span></h2>
+<p>目次の頁番号や「表 1 を見よ」の参照は、組み上がった頁から数えて入ります。PDF のしおりも見出しから作られます。</p>
+</div></body></html>
