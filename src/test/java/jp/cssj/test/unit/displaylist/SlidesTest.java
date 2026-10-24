@@ -243,6 +243,15 @@ public class SlidesTest extends TestCase {
 		final double g1 = text(inline.get(0), "G1")[1];
 		final double g2 = text(inline.get(0), "G2")[1];
 		assertTrue("G2はG1の下: " + g1 + " " + g2, g2 > g1 + 15);
+
+		// Right after the tall float, with no block between (codex review; since 19147)
+		final List<String> adjacent = convert("clearing-floats-adjacent", single(".f { float: left; width: 80pt }",
+				"<div class=\"f\" style=\"height:400pt;background:#ccc\">TALL</div>"
+						+ "<div class=\"f\" style=\"clear:both\">H1</div><div class=\"f\" style=\"clear:both\">H2</div>"));
+		final double h1 = text(adjacent.get(0), "H1")[1];
+		final double h2 = text(adjacent.get(0), "H2")[1];
+		assertTrue("H1はTALLの下: " + h1, h1 >= 400);
+		assertTrue("H2はH1の下: " + h1 + " " + h2, h2 > h1 + 15);
 	}
 
 	/**

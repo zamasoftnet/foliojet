@@ -1024,6 +1024,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	protected void addStartFloat(IFloatBox box) {
+		this.dropFloatsWaitingOnSlide();
 		if (this.deferredByClear(box.getFloatPos().clear)) {
 			this.commitFloatPlacement(this.deferByClear(box, FloatSide.START));
 		} else {
@@ -1032,6 +1033,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	protected void addEndFloat(IFloatBox box) {
+		this.dropFloatsWaitingOnSlide();
 		if (this.deferredByClear(box.getFloatPos().clear)) {
 			this.commitFloatPlacement(this.deferByClear(box, FloatSide.END));
 		} else {
@@ -1440,13 +1442,14 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
-	 * On a slide, where content past the page area is not cut, drops the floats waiting for a split, which never comes
-	 * (2026-10-24). The refused break asked for here used to drop them; kept, they deferred later clearing floats in the
-	 * same paragraph to the same place (codex review: two {@code float:left; clear:both} spans overlapped). Exhausted
-	 * columns keep their earlier behavior.
+	 * On a slide, where content past the page area is not cut (no column break can take it), drops the floats waiting
+	 * for a split, which never comes (2026-10-24). Asked between lines and before a first line, where the refused break
+	 * used to drop them, and before a float is placed: kept, they deferred later clearing floats to the same place past
+	 * the page limit (codex review: two {@code float:left; clear:both} spans in a paragraph, and two clearing floats right
+	 * after a float taller than the slide, overlapped; the latter since 19147). Exhausted columns keep their behavior.
 	 */
 	private void dropFloatsWaitingOnSlide() {
-		if (!this.makesAutomaticPageBreaks()) {
+		if (!this.makesAutomaticPageBreaks() && !this.canFragmentAutomatically()) {
 			this.breakFloats.clear();
 		}
 	}
