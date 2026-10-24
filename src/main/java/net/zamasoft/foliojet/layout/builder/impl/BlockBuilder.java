@@ -1425,6 +1425,13 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 	}
 
+	/**
+	 * Called by {@link TextBuilder} for an absolutely positioned box it puts in a line, which comes in neither through
+	 * {@link #addBound} nor as room the line takes (2026-10-24, BreakableBuilder counts it as placed on the page).
+	 */
+	void inlineAbsoluteAdded() {
+	}
+
 	/** Registers an absolutely positioned box and its static position with the flow owner. */
 	private void addAbsoluteBound(final IBox box) {
 		// Ordinary absolute/fixed positioning

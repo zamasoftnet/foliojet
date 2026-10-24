@@ -201,7 +201,7 @@ public final class MeasurePageGenerator implements PageGenerator {
 		// Do not draw. Record B's own output eligibility from body content, forced page breaks, and the final page.
 		// B lacks running headers, etc., so its output presence is not guaranteed to match C's.
 		final boolean paints = page.paintsAnything();
-		final boolean emitted = !(page.isNamedTransitionClosed() && !paints)
+		final boolean emitted = !page.isRenamedByNamedTransition()
 				&& (paints || page.isForcedBreakOrigin() || (this.emittedPages == 0 && lastPage));
 		if (emitted) ++this.emittedPages;
 		final java.util.Set<Long> calls = net.zamasoft.foliojet.layout.builder.impl.RootBuilder.collectFootnoteCalls(page);

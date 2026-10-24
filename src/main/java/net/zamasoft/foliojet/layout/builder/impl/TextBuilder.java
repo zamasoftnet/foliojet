@@ -1783,6 +1783,7 @@ public class TextBuilder {
 				// Absolutely positioned box.
 				final InlineAbsoluteQuad inlineAbsoluteQuad = (InlineAbsoluteQuad) inlineQuad;
 				this.getTextBox().addAbsolute(inlineAbsoluteQuad.box);
+				this.builder.inlineAbsoluteAdded();
 			}
 				break;
 

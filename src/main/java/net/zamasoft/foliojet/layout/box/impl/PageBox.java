@@ -578,14 +578,37 @@ public class PageBox extends AbstractBlockBox {
 	 */
 	private boolean namedTransitionClosed = false;
 
-	/** Records closure due to a page-name transition (for {@code RootBuilder.pageBreak} only). */
-	public final void markNamedTransitionClosed() {
+	/** Whether nothing had been placed on this page when a page-name transition closed it (2026-10-24). */
+	private boolean namedTransitionUnplaced = false;
+
+	/**
+	 * Records closure due to a page-name transition (for {@code RootBuilder.pageBreak} only).
+	 *
+	 * @param placed whether anything had been placed on this page ({@code BreakableBuilder.placedOnPage})
+	 */
+	public final void markNamedTransitionClosed(final boolean placed) {
 		this.namedTransitionClosed = true;
+		this.namedTransitionUnplaced = !placed;
 	}
 
-	/** Returns true if this page was closed by a page-name transition. */
-	public final boolean isNamedTransitionClosed() {
-		return this.namedTransitionClosed;
+	/**
+	 * Whether a page-name transition only renames this page (N2b), so it is not output: it paints nothing, or nothing
+	 * had been placed on it and only its own decoration (the {@code @page} background and frame of the old name)
+	 * paints (2026-10-24: a named first element under an {@code @page} background gave a blank first page). A page
+	 * that holds a placed box keeps its decoration: an empty block of definite height under {@code @page :first}
+	 * is a cover.
+	 */
+	public final boolean isRenamedByNamedTransition() {
+		if (!this.namedTransitionClosed) {
+			return false;
+		}
+		return this.namedTransitionUnplaced ? !this.paintsContent() : !this.paintsAnything();
+	}
+
+	/** Whether body content or fixed content paints, leaving out the page's own background and frame. */
+	private boolean paintsContent() {
+		return (this.fixeds != null && !this.fixeds.isEmpty()) || (this.toAddFixeds != null && !this.toAddFixeds.isEmpty())
+				|| this.container.paintsAnything();
 	}
 
 	/**
@@ -599,16 +622,7 @@ public class PageBox extends AbstractBlockBox {
 	 */
 	@Override
 	public boolean paintsAnything() {
-		if (this.pageBackground.isVisible()) {
-			return true;
-		}
-		if (this.fixeds != null && !this.fixeds.isEmpty()) {
-			return true;
-		}
-		if (this.toAddFixeds != null && !this.toAddFixeds.isEmpty()) {
-			return true;
-		}
-		return super.paintsAnything();
+		return this.pageBackground.isVisible() || this.frame.isVisible() || this.paintsContent();
 	}
 
 	@Override

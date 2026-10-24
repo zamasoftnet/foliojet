@@ -882,6 +882,11 @@ public class RootBuilder extends BreakableBuilder {
 		this.autoPageBreaks = !slides;
 		this.pageBox = this.nextPage();
 		this.beginPage();
+		// No forced break before anything is placed, as at the start of every later page (beginBreak): there is no
+		// break point at the start of a document (css-break-3 §3.1). drawPage drops the page such a break closes only
+		// when it paints nothing, so an @page background kept it as a blank first page (2026-10-24).
+		this.canBreakBefore = false;
+		this.firstPage = true;
 
 		this.pageSide = this.pageGenerator.getPageSide();
 		this.contextFlow = new Flow(this.pageBox, 0, 0);
@@ -1514,13 +1519,14 @@ public class RootBuilder extends BreakableBuilder {
 		// either; doing so would invert every subsequent left/right page break.
 		if (mode instanceof ForceBreakMode force && force.namedTransition) {
 			// Drop pages closed by a name transition if blank (N2b; drawPage decides).
-			this.pageBox.markNamedTransitionClosed();
+			this.pageBox.markNamedTransitionClosed(this.placedOnPage);
 		}
 		final boolean emitted = this.pageGenerator.drawPage(this.pageBox, false,
 				mode instanceof BreakMode.ForceBreakMode);
 		final PageBox pageBox = this.pageBox;
 		this.pageBox = this.nextPage();
 		this.beginPage();
+		this.placedOnPage = false;
 		this.resetPageMarginNoteCursors();
 		if (mode instanceof BreakMode.ForceBreakMode) {
 			// Keep pages started by a forced page break even if blank, as the author's intent.
@@ -3032,6 +3038,8 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	public void addPageMarginNote(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox noteBox,
 			final boolean start) {
+		// Placed on this page, as a page float (addPageFloat)
+		this.notePlaced();
 		if (this.rowSubgridBindDepth > 0) {
 			final String detailKey = "2823.subgrid-rows-margin-note";
 			final net.zamasoft.foliojet.ua.UserAgent ua = this.pageGenerator.getUserAgent();
@@ -3068,6 +3076,9 @@ public class RootBuilder extends BreakableBuilder {
 	 */
 	public void addPageFloat(final net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBox,
 			final boolean top) {
+		// A page float counts as placed, as a float through addBound does: a figure before the first section's
+		// break-before keeps its page (2026-10-24)
+		this.notePlaced();
 		if (top) {
 			// TwoPass/continuation replay passes here again. Do not enqueue the same box twice
 			// if it is pending or already placed on this page.

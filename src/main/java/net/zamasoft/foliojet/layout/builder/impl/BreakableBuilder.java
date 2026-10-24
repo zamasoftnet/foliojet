@@ -79,6 +79,37 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	protected boolean canBreakBefore = true;
 
 	/**
+	 * Whether anything was placed on the current page since it began (2026-10-24; RootBuilder clears it when it turns
+	 * the page, a column break does not): lines, a box added whole (absolutely positioned too), or a closed block that
+	 * takes room or paints. A box only opened (the open ancestors, a continuation) is not, nor an empty block that takes
+	 * no room. A page-name transition reads it to tell a page that has not begun from one that holds something.
+	 */
+	protected boolean placedOnPage = false;
+
+	/**
+	 * Whether no break has been begun yet (2026-10-24, set by {@code RootBuilder}, cleared by {@link #beginBreak}): the
+	 * document starts with {@link #canBreakBefore} off, as every later page does, and anything placed turns it on.
+	 * Until then the start took every forced break and dropped the page if it painted nothing, which an {@code @page}
+	 * background defeated; once something is on it, it still takes them, although {@link #canBreakBefore} counts less
+	 * (not an empty block of definite height, the cover under an {@code @page :first} background, nor an absolutely
+	 * positioned box or a page float).
+	 */
+	protected boolean firstPage = false;
+
+	/** Records that something was placed on this page ({@link #placedOnPage}). */
+	protected final void notePlaced() {
+		this.placedOnPage = true;
+		if (this.firstPage) {
+			this.canBreakBefore = true;
+		}
+	}
+
+	@Override
+	void inlineAbsoluteAdded() {
+		this.notePlaced();
+	}
+
+	/**
 	 * Flag allowing a natural page break between blocks.
 	 */
 	protected boolean interflowBreak = true;
@@ -472,6 +503,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		if (this.mode == MODE_NO_BREAK || this.breakDepth != -1) {
 			super.addBound(box);
+			this.notePlaced();
 			return;
 		}
 
@@ -498,6 +530,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		case ABSOLUTE: {
 			// Absolute positioning
 			super.addBound(box);
+			this.notePlaced();
 			return;
 		}
 		case TABLE: {
@@ -575,6 +608,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 		}
 
+		this.notePlaced();
 		this.canBreakBefore = true;
 		this.interflowBreak = true;
 
@@ -660,6 +694,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				}
 			}
 		}
+		this.notePlaced();
 		this.canBreakBefore = true;
 		this.interflowBreak = true;
 	}
@@ -790,7 +825,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	public final void endTextBlock() {
+		final double start = this.pageAxis;
 		super.endTextBlock();
+		if (this.pageAxis > start) {
+			// Lines (collapsed white space between blocks makes none)
+			this.notePlaced();
+		}
 		if (this.pageAxis > 0) {
 			this.canBreakBefore = true;
 			this.interflowBreak = true;
@@ -945,6 +985,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				&& footnoteRoot.isEligibleFootnoteColumnOwner(this, flow.box);
 		if (footnoteRoot != null) footnoteRoot.closeFootnoteColumn(flow.box);
 		super.endFlowBlock();
+		// An empty anchor block takes no room and leaves the page unbegun. Only the block's own frame: what it holds was
+		// placed already (searching the descendants at every closing level of a deep nest would be quadratic).
+		if (!this.placedOnPage
+				&& (LayoutUtils.compare(flow.box.getPageExtent(this.getRootBox().getBlockParams().flow), 0) > 0
+						|| flow.box.getFrame().isVisible())) {
+			this.notePlaced();
+		}
 		// After balance resolves the multi-column height, check whether the collected column notes fit (increment 6).
 		if (footnoteRoot != null && closesColumnOwner) footnoteRoot.settleRecoveredFootnotes(this.pageAxis);
 		if (this.breakDepth != -1) {
@@ -1497,6 +1544,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		this.breakFloats.clear();
 		this.breakAfter = null;
 		this.canBreakBefore = false;
+		this.firstPage = false;
 		this.interflowBreak = false;
 		this.resumedOverflow = false;
 	}

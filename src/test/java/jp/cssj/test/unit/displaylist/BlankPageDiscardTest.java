@@ -315,6 +315,78 @@ public class BlankPageDiscardTest extends TestCase {
 				+ " ——落としたページが面を消費している", pages.pagesContaining("VERSO").contains(landed));
 	}
 
+	/**
+	 * Boundary 5 (2026-10-24): nothing placed yet, so no page, under an {@code @page} background too. There is no
+	 * break point at the start of a document, and a page-name transition only renames a page that has not begun. The
+	 * background made the page that the first section's break-before (or its page name) closed paint, so it stayed as
+	 * a blank first page; slides with a break-before on every slide began with an empty slide.
+	 */
+	private static final String START_UNDER_BACKGROUND = """
+			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+			<?jp.cssj.property name="output.page-width" value="300pt"?>
+			<?jp.cssj.property name="output.page-height" value="200pt"?>
+			<html><head><style>
+			@page{margin:10pt;background:#eef}
+			@page s{background:#fee}
+			%s
+			</style></head><body>
+			<section><p>T0</p></section>
+			<section><p>T1</p></section>
+			</body></html>
+			""";
+
+	public void testNoBreakAtTheStartUnderAPageBackground() throws Exception {
+		// Both sections share the page name s, so the name alone makes one page. An open ancestor's padding and
+		// background make no page of their own either (Chrome alike; the old code left the strip on a page)
+		final String[] cases = { "section{break-before:page}", "section{page:s}", "section{page:s;break-before:page}",
+				"body{padding-top:20pt;background:#ccc} section{break-before:page}" };
+		final int[] counts = { 2, 1, 2, 2 };
+		for (int i = 0; i < cases.length; ++i) {
+			final Pages pages = convert("start-bg-" + i, START_UNDER_BACKGROUND.formatted(cases[i]));
+			pages.assertTokens(2);
+			assertEquals(cases[i] + ": ページ数", counts[i], pages.count());
+			assertEquals(cases[i] + ": 背景だけの頁が先頭に残った", List.of(1), pages.pagesContaining("T0"));
+		}
+	}
+
+	/**
+	 * Boundary 5b: an empty block of definite height under an {@code @page :first} background is a cover, and its
+	 * page stays: the block was placed, unlike the open ancestors of the first section (codex, 2026-10-24: dropping
+	 * any page that paints only its background dropped this cover).
+	 */
+	private static final String COVER_UNDER_FIRST_BACKGROUND = """
+			<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+			<?jp.cssj.property name="output.page-width" value="300pt"?>
+			<?jp.cssj.property name="output.page-height" value="200pt"?>
+			<html><head><style>
+			@page{margin:10pt;background:#eef}
+			@page :first{background:#f88}
+			@page m{background:#efe}
+			body{margin:0}
+			.cover{height:50pt}
+			%s
+			</style></head><body>
+			<div class="cover"></div>
+			<section><p>T0</p></section>
+			</body></html>
+			""";
+
+	public void testCoverOfDefiniteHeightIsKept() throws Exception {
+		// The first page takes the forced breaks it took before once anything is on it: here an empty block that only
+		// takes room, then a page float and an absolutely positioned box, which do not turn canBreakBefore on
+		final String[] cases = { ".cover{break-after:page}", "section{page:m}", "section{break-before:page}",
+				".cover{height:auto} .cover::before{content:'';float:bottom;width:50pt;height:50pt;background:#88f}"
+						+ " section{break-before:page}",
+				".cover{height:auto} .cover::before{content:'';position:absolute;width:50pt;height:50pt;background:#88f}"
+						+ " section{break-before:page}" };
+		for (int i = 0; i < cases.length; ++i) {
+			final Pages pages = convert("cover-bg-" + i, COVER_UNDER_FIRST_BACKGROUND.formatted(cases[i]));
+			pages.assertTokens(1);
+			assertEquals(cases[i] + ": ページ数", 2, pages.count());
+			assertEquals(cases[i] + ": 表紙の頁が消えた", List.of(2), pages.pagesContaining("T0"));
+		}
+	}
+
 	/** Page display lists for one document. */
 	private record Pages(String name, List<String> dumps) {
 		int count() {

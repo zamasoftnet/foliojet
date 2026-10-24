@@ -490,7 +490,7 @@ final class PageSequence {
 	 * legacy, and margin box declarations. Does not count crop marks or page numbers.
 	 */
 	private boolean paintsNothing(final PageBox pageBox, final boolean lastPage, final boolean closedByForcedBreak) {
-		if (pageBox.isNamedTransitionClosed() && !pageBox.paintsAnything()) {
+		if (pageBox.isRenamedByNamedTransition()) {
 			// Blank page closed by a page-name transition at page start (N2b).
 			// Discard even with running header declarations or a forced-break origin: equivalent
 			// to replacing an unfinalized page with the old name by one with the new name
