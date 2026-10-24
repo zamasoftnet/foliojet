@@ -673,7 +673,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
 			for (;;) {
 				final double pageLimit = this.getPageLimit();
-				if (TextBuilder.hasFirstLineBandInFragment(this, pageLimit) || !this.canFragmentAutomatically()) {
+				if (TextBuilder.hasFirstLineBandInFragment(this, pageLimit)) {
+					break;
+				}
+				if (!this.canFragmentAutomatically()) {
+					this.dropFloatsWaitingOnSlide();
 					break;
 				}
 				this.checkAbort();
@@ -756,6 +760,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// Closing the text block here leaves it unable to reopen,
 				// and this.textBuilder would be used while null. **Do not close it**;
 				// let content overflow in place (2026-07-28).
+				this.dropFloatsWaitingOnSlide();
 				continue;
 			}
 
@@ -1432,6 +1437,18 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	/** Whether {@link #pageBreak} makes automatic breaks: not on slides ({@link RootBuilder}, 2026-10-24). */
 	protected boolean makesAutomaticPageBreaks() {
 		return true;
+	}
+
+	/**
+	 * On a slide, where content past the page area is not cut, drops the floats waiting for a split, which never comes
+	 * (2026-10-24). The refused break asked for here used to drop them; kept, they deferred later clearing floats in the
+	 * same paragraph to the same place (codex review: two {@code float:left; clear:both} spans overlapped). Exhausted
+	 * columns keep their earlier behavior.
+	 */
+	private void dropFloatsWaitingOnSlide() {
+		if (!this.makesAutomaticPageBreaks()) {
+			this.breakFloats.clear();
+		}
 	}
 
 	/**

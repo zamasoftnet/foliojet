@@ -233,6 +233,16 @@ public class SlidesTest extends TestCase {
 		final double f2 = text(slides.get(0), "F2")[1];
 		assertTrue("F2はF1の下: " + f1 + " " + f2, f2 > f1 + 15);
 		assertTrue("ENDはfloatの横", text(slides.get(0), "END")[0] >= 80);
+
+		// Within one paragraph that runs past the slide (codex review: no refused break between its lines drops the wait)
+		final List<String> inline = convert("clearing-floats-inline", single(
+				".f { float: left; width: 80pt } .s { float: left; clear: both; width: 60pt }",
+				"<div class=\"f\" style=\"height:400pt;background:#ccc\">TALL</div><p>" + words(300)
+						+ " <span class=\"s\">G1</span> x1 x2 x3 <span class=\"s\">G2</span>" + words(300) + "</p>"));
+		assertEquals(1, inline.size());
+		final double g1 = text(inline.get(0), "G1")[1];
+		final double g2 = text(inline.get(0), "G2")[1];
+		assertTrue("G2はG1の下: " + g1 + " " + g2, g2 > g1 + 15);
 	}
 
 	/**
