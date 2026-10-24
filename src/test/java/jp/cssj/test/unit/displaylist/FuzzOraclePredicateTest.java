@@ -1267,6 +1267,82 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
+	 * fit seed 34999082 (v2 886675928): on 60 pt horizontal-tb paper, a table with a nested table inside
+	 * {@code <div style="position:relative;float:right;writing-mode:vertical-rl;">} and a
+	 * {@code page-break-inside:avoid;margin:1pt} div (2026-10-24). Copper put T24 at y=128.16, Chrome its cell at
+	 * y=121.68.
+	 */
+	public void testSeedTableInVerticalFloatIsUnfittable() {
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+				.findUnfittableContent(RandomDocumentFuzzTest.generate(886_675_928, true, false, false).html()));
+		// The columns run down from the float's top whatever side it floats to, also through plain wrappers.
+		for (final String side : new String[] { "left", "right" }) {
+			final String floated = "<div style=\"float:" + side + ";writing-mode:vertical-rl\">";
+			assertEquals(side, RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+					RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(floated + TABLE_OVER + "</div>")));
+			assertEquals(side, RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+					.findUnfittableContent(shrinkerDoc(floated + "<div style=\"margin:1pt\">" + TABLE_OVER + "</div></div>")));
+		}
+		// A wrapper that can move the table backward, and offsets, are not judged.
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc("<div style=\"float:left;writing-mode:vertical-rl\">"
+				+ "<div style=\"margin-top:-40pt\">" + TABLE_OVER + "</div></div>")));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(
+				"<div style=\"position:relative;top:-40pt;float:left;writing-mode:vertical-rl\">" + TABLE_OVER + "</div>")));
+	}
+
+	/**
+	 * fit seed 34950126 (v2 596237805): on A4 horizontal-tb paper, a {@code display:list-item;writing-mode:vertical-rl}
+	 * div holds a 75 pt float with a 136 pt {@code display:table} div, which overflows to the left: T0 at x=-60.40
+	 * (Chrome -60.55). The list marker touching the page area's top edge (y=-4.20, h=4.20) was the nearest drawing,
+	 * so the overflow was taken as being in the page axis (2026-10-24). Overflow is in the line axis when some drawing
+	 * lies beyond it and none beyond the page axis.
+	 */
+	public void testSeedListMarkerDoesNotDecideOverflowAxis() throws Exception {
+		final RandomDocumentFuzzTest.Generated doc = RandomDocumentFuzzTest.generate(596_237_805, true, false, false);
+		assertTrue(doc.html().contains("display:list-item;writing-mode:vertical-rl;"));
+		assertEquals("[直交フローの行軸]", offPageFailure(doc, "  x=68.40 y=-4.20 AbsoluteRectFrame[w=6.00 h=4.20]\n"
+				+ "  x=-60.40 y=0.00 Text[\"T0\" asc=3.00 desc=3.00] w=6.00 h=6.67\n"));
+		// Any drawing beyond the page axis keeps it failing (codex review): a token beyond it with a frame beyond the
+		// line axis, a token beyond both axes with a frame beyond the page axis, and a frame beyond the page axis with
+		// a token beyond the line axis.
+		assertEquals("", offPageFailure(doc, "  x=-20.00 y=10.00 AbsoluteRectFrame[w=6.00 h=4.20]\n"
+				+ "  x=10.00 y=900.00 Text[\"T0\" asc=3.00 desc=3.00] w=6.00 h=6.67\n"));
+		assertEquals("", offPageFailure(doc, "  x=10.00 y=843.00 AbsoluteRectFrame[w=6.00 h=4.00]\n"
+				+ "  x=-20.00 y=843.00 Text[\"T0\" asc=3.00 desc=3.00] w=6.00 h=6.00\n"));
+		assertEquals("", offPageFailure(doc, "  x=10.00 y=843.00 AbsoluteRectFrame[w=6.00 h=4.00]\n"
+				+ "  x=-20.00 y=30.00 Text[\"T0\" asc=3.00 desc=3.00] w=6.00 h=6.00\n"));
+		// A token, or a fragment of a split one, touching the paper's bottom edge from below is lost in the page axis
+		// too (codex review). An ordered-list marker touching it is not.
+		assertEquals("", offPageFailure(doc, "  x=10.00 y=842.00 Text[\"T0\" asc=3.00 desc=3.00] w=6.00 h=6.00\n"
+				+ "  x=-20.00 y=10.00 Text[\"T1\" asc=3.00 desc=3.00] w=6.00 h=6.00\n"));
+		assertEquals("", offPageFailure(doc, "  x=-20.00 y=10.00 Text[\"T1\" asc=3.00 desc=3.00] w=6.00 h=6.00\n"
+				+ "  x=10.00 y=842.00 Text[\"2\" asc=3.00 desc=3.00] w=3.00 h=6.00\n"));
+		assertEquals("[直交フローの行軸]", offPageFailure(doc, "  x=-20.00 y=10.00 Text[\"T1\" asc=3.00 desc=3.00] w=6.00 h=6.00\n"
+				+ "  x=10.00 y=-6.00 Text[\"1.\" asc=3.00 desc=3.00] w=6.00 h=6.00\n"));
+		// Artifact copies of a box spanning pages and drawings outside their clip are no evidence (codex review).
+		assertEquals("[直交フローの行軸]", offPageFailure(doc, "  x=-20.00 y=10.00 Text[\"T0\" asc=3.00 desc=3.00] w=6.00 h=6.00\n"
+				+ "  x=-20.00 y=-50.00 artifact Text[\"T0\" asc=3.00 desc=3.00] w=6.00 h=6.00\n"
+				+ "  x=-20.00 y=900.00 Text[\"T1\" asc=3.00 desc=3.00] clip=[0.00 0.00 100.00 50.00] w=6.00 h=6.00\n"));
+	}
+
+	/** The bracketed exclusion of {@link RandomDocumentFuzzTest#assertSomeDrawingOnPage}, or "" for a failure. */
+	private static String offPageFailure(final RandomDocumentFuzzTest.Generated doc, final String lines) throws Exception {
+		final File dump = writeDump(lines);
+		try {
+			RandomDocumentFuzzTest.assertSomeDrawingOnPage(doc, new File[] { dump }, dump);
+		} catch (final AssertionError e) {
+			final String message = String.valueOf(e.getMessage());
+			assertTrue(message, message.startsWith("全描画が紙面外"));
+			final int bracket = message.lastIndexOf(" [");
+			return bracket < 0 ? "" : message.substring(bracket + 1);
+		} finally {
+			dump.delete();
+		}
+		fail("全描画が紙面外なら失敗しなければならない");
+		return null;
+	}
+
+	/**
 	 * fit seed 12072875 (v2 2124912302): on {@code vertical-rl} paper 60 pt wide, a
 	 * {@code display:inline;float:left;writing-mode:horizontal-tb} float holds a table about 150 pt wide (a nested
 	 * table in one cell). Copper puts its right edge at the content's right edge and T4 at x=-88.83; Chrome puts it

@@ -3561,7 +3561,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 	static void assertSomeDrawingOnPage(final Generated doc, final File[] pages, final File html)
 			throws Exception {
 		double nearest = Double.POSITIVE_INFINITY;
-		boolean nearestIsY = false;
+		final boolean pageAxisY = pageAxisIsY(doc.html());
+		// Evidence of the overflow's axis from shown drawings (not artifact copies or drawings outside their clip, as in
+		// assertNoUnexplainedOffPage): something beyond the line axis, and something lost in the page axis.
+		boolean beyondLine = false, beyondPage = false;
 		String nearestAt = null;
 		for (final File page : pages) {
 			final String dump = Files.readString(Path.of(page.toURI()), StandardCharsets.UTF_8);
@@ -3580,9 +3583,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 				final double dx = Math.max(Math.max(-x - width, x - doc.pageWidth()), 0);
 				final double dy = Math.max(Math.max(-y - height, y - doc.pageHeight()), 0);
 				final double distance = Math.hypot(dx, dy);
+				if (!raw.contains(" artifact ") && !clippedAway(raw, x, y, width, height)) {
+					// Text (a token or a fragment of a split one) wholly outside the page-axis range is lost even when it
+					// only touches the edge (codex review); other drawings must lie beyond it, since a list marker in the
+					// margin touches the page area's edge (dump coordinates start at the page area, fit seed 34950126).
+					final boolean pageOutside = pageAxisY ? y >= doc.pageHeight() || y + height <= 0
+							: x >= doc.pageWidth() || x + width <= 0;
+					beyondLine |= (pageAxisY ? dx : dy) > 0;
+					beyondPage |= (pageAxisY ? dy : dx) > 0 || pageOutside && paintsText(raw);
+				}
 				if (distance < nearest) {
 					nearest = distance;
-					nearestIsY = dy >= dx;
 					nearestAt = "x=" + x + " y=" + y + " w=" + width + " h=" + height + " "
 							+ page.getName();
 				}
@@ -3613,7 +3624,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (unfittable != null) {
 			throw new ExcludedByUnfittableContent(detail + " [" + unfittable + "]", unfittable);
 		}
-		final boolean outsideInLineAxis = nearestIsY != pageAxisIsY(doc.html());
+		// Overflow in the line axis only: some drawing lies beyond it and nothing is lost in the page axis (fit seed
+		// 34950126, 2026-10-24). Before, the nearest drawing decided the axis: a list marker in the margin, touching the
+		// page area's top edge at 0 pt, hid T0 beyond the paper's left edge. Any loss in the page axis keeps the document
+		// failing (codex review): page breaks could have placed it.
+		final boolean outsideInLineAxis = beyondLine && !beyondPage;
 		if (outsideInLineAxis && hasOrthogonalFlow(doc.html())) {
 			throw new ExcludedByOrthogonalLineAxis(detail + " [直交フローの行軸]");
 		}
@@ -3622,6 +3637,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		throwIfIndividuallyExcluded(doc, detail);
 		fail(detail);
+	}
+
+	/**
+	 * Whether a dump line paints text that may be a token or a fragment of a split one ({@code "2"} of {@code T12},
+	 * codex review 2026-10-24): any text run but an ordered-list marker.
+	 */
+	private static boolean paintsText(final String raw) {
+		final Matcher text = TEXT_IN_DUMP.matcher(raw);
+		return text.find() && !ORDERED_LIST_MARKER.matcher(text.group(1)).matches();
 	}
 
 	/** Whether two positive-area rectangles intersect the paper. Mere boundary contact does not count. */
@@ -5080,14 +5104,27 @@ public class RandomDocumentFuzzTest extends TestCase {
 					}
 				}
 			}
-			char side = plainPaths.peek().booleanValue() && !vertical ? floatWrapperSide(name, attrs) : NOT_FLOATED;
-			if (side != NOT_FLOATED && verticals.peek().booleanValue()) {
+			final boolean parentVertical = verticals.peek().booleanValue();
+			char side = plainPaths.peek().booleanValue() && !(vertical && parentVertical) ? floatWrapperSide(name, attrs)
+					: NOT_FLOATED;
+			if (side != NOT_FLOATED && parentVertical) {
 				// A horizontal float in vertical writing (an orthogonal flow): its table's columns run along the paper's
 				// block axis, anchored by the block progression, whatever side it floats to.
 				side = !bodyModePaths.peek().booleanValue() ? NOT_FLOATED
 						: rootMode.equals("vertical-rl") ? END_ANCHORED : 'L';
+			} else if (side != NOT_FLOATED && vertical) {
+				// A vertical float in horizontal writing (fit seed 34999082, 2026-10-24): its table's columns run down
+				// the paper's block axis from the float's top, whatever side it floats to. Copper gives the float the
+				// page's content height as its line and moves it to the next page's top when it does not fit, so the
+				// table starts at or after the content start, as un-floated tables do.
+				side = 'L';
 			}
-			final boolean parentVertical = verticals.peek().booleanValue();
+			// A plain wrapper inside such a float keeps its side (fit seed 34999082: a page-break-inside:avoid;margin:1pt
+			// div between the float and the table). Its frames only move the table inward from the float's edges.
+			if (side == NOT_FLOATED && floatSides.peek().charValue() != NOT_FLOATED
+					&& isPlainWrapper(name, attrs, vertical, parentVertical)) {
+				side = floatSides.peek().charValue();
+			}
 			verticals.push(Boolean.valueOf(vertical));
 			extents.push(new double[] { width, height });
 			flexParents.push(Boolean.valueOf(STYLE_FLEX.matcher(attrs).find()));
@@ -5721,8 +5758,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 	static final char NOT_FLOATED = 0;
 
 	/**
-	 * Extend {@link #tableColumnBeyondPage} with the side of a float directly wrapping the table
-	 * ({@link #floatWrapperSide}; horizontal writing only) (2026-10-07, fit seed 11866613).
+	 * Extend {@link #tableColumnBeyondPage} with the side of a float wrapping the table, directly or through plain
+	 * wrapper divs ({@link #floatWrapperSide}) (2026-10-07, fit seed 11866613).
 	 * It must be the document's only float. Left floats align to the content start, like un-floated tables.
 	 * For a right float wider than the paper, Copper aligns to content start and overflows toward the end,
 	 * while Chrome aligns to the end and overflows toward the start, per CSS 2.1 §9.5.1 rule 9.
@@ -5931,15 +5968,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 	/**
 	 * Declarations that do not move or size a float ({@link #floatWrapperSide}). {@code display:table} too
 	 * (2026-10-09, fit seed 12527351): the float is a table around the table it wraps and as wide as it (a div has no
-	 * border-spacing; Chrome: the div and the table both 149.04pt).
+	 * border-spacing; Chrome: the div and the table both 149.04pt). {@code position:relative} too (fit seed 34999082,
+	 * 2026-10-24): {@link #tableColumnBeyondPage} rejects documents with offsets, so it does not move the float.
 	 */
-	private static final Pattern FLOAT_NEUTRAL_DECLARATION = Pattern
-			.compile("\\s*(?:display\\s*:\\s*(?:inline|block|table)|writing-mode\\s*:\\s*horizontal-tb)\\s*");
+	private static final Pattern FLOAT_NEUTRAL_DECLARATION = Pattern.compile(
+			"\\s*(?:display\\s*:\\s*(?:inline|block|table)|position\\s*:\\s*(?:static|relative)"
+					+ "|writing-mode\\s*:\\s*(?:horizontal-tb|vertical-rl|vertical-lr))\\s*");
 
 	/**
-	 * Whether a float may directly wrap a table: a div whose only attribute is style,
-	 * with only {@code float:left|right} and {@code position:static} declarations (no width/margins), plus
-	 * {@code display:inline|block|table} and {@code writing-mode:horizontal-tb}.
+	 * Whether a float may wrap a table: a div whose only attribute is style,
+	 * with only {@code float:left|right} and {@code position:static|relative} declarations (no width/margins), plus
+	 * {@code display:inline|block|table} and {@code writing-mode}. The caller checks the float's axis against its
+	 * parent's: a horizontal float in either writing, or a vertical float in horizontal writing.
 	 * Return the side as {@code 'L'}/{@code 'R'}, or {@link #NOT_FLOATED} if ineligible.
 	 */
 	static char floatWrapperSide(final String name, final String attrs) {
@@ -5953,9 +5993,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 		char side = NOT_FLOATED;
 		for (final String declaration : style.group(1).split(";")) {
 			// A float is blockified (CSS 2.1 §9.7), so display:inline/block do not change it (2026-10-08, fit seed
-			// 12072875). writing-mode:horizontal-tb is allowed; the caller checks the axis against the parent's.
-			if (declaration.isBlank() || declaration.trim().equals("position:static")
-					|| FLOAT_NEUTRAL_DECLARATION.matcher(declaration).matches()) {
+			// 12072875). A writing-mode is allowed; the caller checks the axis against the parent's.
+			if (declaration.isBlank() || FLOAT_NEUTRAL_DECLARATION.matcher(declaration).matches()) {
 				continue;
 			}
 			final Matcher f = FLOAT_SIDE_DECLARATION.matcher(declaration);
