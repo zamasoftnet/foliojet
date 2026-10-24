@@ -862,11 +862,25 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			}
 			crossWidthByOriginal[oi] = crossWidth;
 			itemCrossExtras[oi] = lineExtras;
-			measured[oi] = this.measuresContent(item, indefiniteMain)
+			measured[oi] = this.measuresContent(item, indefiniteMain) || this.measuresAutomaticMinimum(item, indefiniteMain)
 					? item.measureMain(target, crossWidth, innerLine, params.flow)
 					: Double.NaN;
 		}
 		return measured;
+	}
+
+	/**
+	 * Whether a column item with a definite flex basis is measured for its automatic minimum (2026-10-25, fit sweep
+	 * seed 37360492): in a container whose main size is indefinite, an item whose min main size is auto and whose
+	 * overflow is visible is at least as long as its content (css-flexbox-1 §4.5), as a streamed column makes it
+	 * ({@code FlowBlockBox.applyStreamedFlexBasis}). It kept the simulated minPage, so a {@code column-reverse} item
+	 * with {@code flex: 2 2 24pt} stayed 24pt and its content overflowed it, in vertical-rl past the paper's left edge.
+	 * An item that cannot be replicated keeps minPage rather than making the container fall back.
+	 */
+	private boolean measuresAutomaticMinimum(final FlexItemContent item, final boolean indefiniteMain) {
+		return indefiniteMain && !item.spec.basis().isAuto()
+				&& (this.flow().isVertical() ? item.spec.minWidthAuto() : item.spec.minHeightAuto())
+				&& !item.itemBox.getBlockParams().overflow.isScrollContainer();
 	}
 
 	/**

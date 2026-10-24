@@ -37,5 +37,9 @@ div { margin: 0; padding: 0; }
 <div class="c" style="width: 200pt; align-items: center"><div id="z2" style="align-self: stretch; background: silver">T31</div><div id="z3" style="background: silver">T32</div></div>
 <!-- v: vertical-rl column-reverse: the first item at the left, the last at the right -->
 <div class="c r" style="writing-mode: vertical-rl; height: 100pt"><div id="v1" style="flex: 0 1 30pt">T13</div><div id="v2" style="flex: 0 1 30pt">T14</div><div id="v3" style="flex: 0 1 30pt">T15</div></div>
+<!-- k: column-reverse with 10pt bases: the item of two lines grows to them (automatic minimum), with overflow: hidden it stays at 10pt -->
+<div class="c r" style="width: 30pt"><div id="k0">T60</div><div id="k1" style="flex: 0 1 10pt">T61 T62</div><div id="k2" style="flex: 0 1 10pt; overflow: hidden">T63 T64</div><div id="k3">T65</div></div>
+<!-- q: the same in vertical-rl, main axis left to right -->
+<div class="c r" style="writing-mode: vertical-rl; height: 30pt"><div id="q0">T66</div><div id="q1" style="flex: 0 1 10pt">T67 T68</div><div id="q2">T69</div></div>
 </body>
 </html>

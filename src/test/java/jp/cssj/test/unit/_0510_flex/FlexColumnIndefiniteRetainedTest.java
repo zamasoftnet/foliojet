@@ -48,6 +48,10 @@ import net.zamasoft.foliojet.layout.box.IBox;
  * 2026-10-08, B-7; not supported, see above); in a centered column, {@code align-self: stretch} fills the 200pt and so
  * does an auto-width item.</li>
  * <li>v: vertical-rl reverse: the first item at the left, 30pt apart.</li>
+ * <li>k: reverse with 10pt bases in a 30pt wide container: the item of two lines grows to 40pt (the automatic
+ * minimum; it stayed at its basis and the next item covered its second line, fit sweep seed 37360492, 2026-10-25), the
+ * same with {@code overflow: hidden} stays at 10pt.</li>
+ * <li>q: the same in vertical-rl: the item of two lines is 40pt wide.</li>
  * </ul>
  */
 public class FlexColumnIndefiniteRetainedTest extends AbstractTestCase {
@@ -95,6 +99,11 @@ public class FlexColumnIndefiniteRetainedTest extends AbstractTestCase {
 		assertEquals(200, this.at.get("z3")[3], 0.1);
 		assertEquals(30, x("v2") - x("v1"), 0.1);
 		assertEquals(30, x("v3") - x("v2"), 0.1);
+		assertEquals(20, y("k2") - y("k3"), 0.1);
+		assertEquals(10, y("k1") - y("k2"), 0.1);
+		assertEquals(40, y("k0") - y("k1"), 0.1);
+		assertEquals(20, x("q1") - x("q0"), 0.1);
+		assertEquals(40, x("q2") - x("q1"), 0.1);
 	}
 
 	private double x(final String id) {
@@ -234,5 +243,33 @@ public class FlexColumnIndefiniteRetainedTest extends AbstractTestCase {
 
 	public boolean check_v3(IBox box, int pageNumber, double x, double y) {
 		return this.record("v3", box, pageNumber, x, y);
+	}
+
+	public boolean check_k0(IBox box, int pageNumber, double x, double y) {
+		return this.record("k0", box, pageNumber, x, y);
+	}
+
+	public boolean check_k1(IBox box, int pageNumber, double x, double y) {
+		return this.record("k1", box, pageNumber, x, y);
+	}
+
+	public boolean check_k2(IBox box, int pageNumber, double x, double y) {
+		return this.record("k2", box, pageNumber, x, y);
+	}
+
+	public boolean check_k3(IBox box, int pageNumber, double x, double y) {
+		return this.record("k3", box, pageNumber, x, y);
+	}
+
+	public boolean check_q0(IBox box, int pageNumber, double x, double y) {
+		return this.record("q0", box, pageNumber, x, y);
+	}
+
+	public boolean check_q1(IBox box, int pageNumber, double x, double y) {
+		return this.record("q1", box, pageNumber, x, y);
+	}
+
+	public boolean check_q2(IBox box, int pageNumber, double x, double y) {
+		return this.record("q2", box, pageNumber, x, y);
 	}
 }
