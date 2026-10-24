@@ -1291,6 +1291,44 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
+	 * strict seed 35141826: on 120 pt horizontal-tb paper, a table with nested tables inside
+	 * {@code <div style="display:block;position:relative;">} (2026-10-24). Copper put T9 at x=299.32, Chrome its cell
+	 * at x=290.82.
+	 */
+	public void testSeedTableInRelativeWrapperIsUnfittable() {
+		// The standard document of the seed, whatever profile the test JVM runs (codex review).
+		final String html = RandomDocumentFuzzTest.generate(35_141_826, true, false, false).html();
+		assertTrue(html.contains("<div style=\"display:block;position:relative;\">"));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(html));
+		assertTrue(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"position:relative\""));
+		final String relative = "<div style=\"position:relative\">";
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(relative + TABLE_OVER + "</div>")));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc(relative + TABLE_OVER.replace("<td>T15</td>", "") + "</div>")));
+		// Also between an accepted float and the table (codex review): horizontal and vertical floats on either side.
+		for (final String floated : new String[] { "float:left", "float:right", "float:left;writing-mode:vertical-rl",
+				"float:right;writing-mode:vertical-rl" }) {
+			final String open = "<div style=\"" + floated + "\">" + relative;
+			assertEquals(floated, RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+					RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(open + TABLE_OVER + "</div></div>")));
+			assertNull(floated, RandomDocumentFuzzTest.findUnfittableContent(
+					shrinkerDoc(open + TABLE_OVER.replace("<td>T15</td>", "") + "</div></div>")));
+		}
+		// Offsets move the table, so they are not judged.
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(
+				shrinkerDoc("<div style=\"position:relative;left:-40pt\">" + TABLE_OVER + "</div>")));
+		// The documents of the individual exclusions dropped for this (fit seeds 13827856, 22674189 and 29464671; triage
+		// §33, §64 and §89).
+		for (final int document : new int[] { 1_039_931_635, 1_717_646_750, 1_334_986_538 }) {
+			final String dropped = RandomDocumentFuzzTest.generate(document, true, false, false).html();
+			assertTrue(dropped.contains("position:relative;"));
+			assertEquals(String.valueOf(document), RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+					RandomDocumentFuzzTest.findUnfittableContent(dropped));
+		}
+	}
+
+	/**
 	 * fit seed 34950126 (v2 596237805): on A4 horizontal-tb paper, a {@code display:list-item;writing-mode:vertical-rl}
 	 * div holds a 75 pt float with a 136 pt {@code display:table} div, which overflows to the left: T0 at x=-60.40
 	 * (Chrome -60.55). The list marker touching the page area's top edge (y=-4.20, h=4.20) was the nearest drawing,

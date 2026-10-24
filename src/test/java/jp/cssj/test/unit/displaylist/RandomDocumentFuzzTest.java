@@ -1446,6 +1446,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Records dropped on 2026-10-23 (triage §102): 23019702 (§66), 25574885 (§74), 26097683 (§76), 27486259 (§79),
 			// 27594073 (§81) and 27985767, documents with a float and a table wider than the paper outside it, which the
 			// unfittable-table predicate now judges (floats other than the table's ancestors allowed).
+			// Records dropped on 2026-10-24 (triage §106): 13827856 (§33), 22674189 (§64) and 29464671 (§89), nested
+			// tables with overlapping cells in a position:relative div, which the unfittable-table predicate now judges.
 			// Triage §26: on vertical-lr paper a vertical-rl float 91 pt wide holds a vertical-lr div with a
 			// display:table float 121 pt wide; Chrome also draws its only line off the paper's left (x=-23.6 pt).
 			new IndividualExclusion(12_903_866, "fit-v1", 621_085_571, "作者の溢れ: 同軸逆進行の入れ物より広い表のfloat(Chromeも紙の左の外)",
@@ -1469,10 +1471,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// defects): on vertical-lr A4 a vertical-rl region holding float:left;width:8em with a vertical-lr display:table;
 			// Copper draws T0 at x = -28.5 pt, Chrome at 2 pt.
 			new IndividualExclusion(13_820_690, "fit-v1", 1_266_463_150, "既知の制限: 逆進行の領域のfloatの中で向きを戻した表が紙の左の外",
-					"2026-10-13"),
-			// Triage §33: nested tables with overlapping cells on 60 pt vertical-lr paper run to y = 155 pt; Chrome puts
-			// T19 at 153 pt too (its print shrinks the page to fit).
-			new IndividualExclusion(13_827_856, "fit-v1", 1_039_931_635, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の2倍超(Chromeも)",
 					"2026-10-13"),
 			// Triage §34, a known engine limitation (user decision 2026-10-14): on 60 pt vertical-lr paper a horizontal-tb
 			// float of three textareas takes 375 pt of the page axis and pushes the vertical-rl ruby paragraph after it to
@@ -1650,10 +1648,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 390 pt and its print drops it.
 			new IndividualExclusion(22_615_522, "fit-v1", 1_206_123_339, "作者の溢れ: 幅49ptの縦組みの箱より広い箱のルビが紙の右の外(Chromeも同じ)",
 					"2026-10-17"),
-			// Triage §64: nested tables with overlapping cells on 300x150 pt vertical-lr paper, twice the paper long; Copper
-			// puts T25 at y = 326 pt (19124 alike), Chrome's screen at 297 pt and its print drops T0 to T29.
-			new IndividualExclusion(22_674_189, "fit-v1", 1_717_646_750, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
-					"2026-10-17"),
 			// Triage §65: on 200 pt vertical-lr paper a vertical-rl float holds a float of width:84pt with a vertical-lr
 			// display:table of width:139pt, wider than the float, so it overflows to the left; Copper draws T0 at
 			// x = -49.0 pt (19124 at -48.3), Chrome's screen at -48.6 pt and its print drops every token.
@@ -1739,11 +1733,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// overflows to the left; Copper and Chrome's screen both put T0 at x = -52 pt (19124 alike), Chrome's print
 			// drops it.
 			new IndividualExclusion(29_235_233, "fit-v1", 1_839_204_398, "作者の溢れ: 幅50ptの逆進行の箱より広い横組みの箱が紙の左の外(Chromeも同じ)",
-					"2026-10-20"),
-			// Triage §89: nested tables with overlapping cells on 60 pt vertical-lr paper, far longer than the paper in the
-			// inline direction; Copper puts T12 at y = 174 pt (19124 alike), Chrome's screen at 167 pt and its print drops
-			// twelve of the 29 words.
-			new IndividualExclusion(29_464_671, "fit-v1", 1_334_986_538, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
 					"2026-10-20"),
 			// Triage §90, the same limitation as 13106246 (standing user decision 2026-10-13): on vertical-lr A4 a
 			// vertical-rl float of width:109pt holds a three-column multicol with a 120 pt display:table and an image float;
@@ -5621,6 +5610,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * {@code float:none;width:8em;min-width:8em;max-width:90%}).
 	 * Allow {@code float:none}, {@code position:static}, and block-axis dimensions in the div's writing direction
 	 * ({@code width} properties for vertical writing, {@code height} properties for horizontal writing).
+	 * Also allow {@code position:relative} (strict seed 35141826, 2026-10-24: a table with nested tables in
+	 * {@code <div style="display:block;position:relative;">} on 120 pt paper put T9 at x=299.32; Chrome its cell at
+	 * x=290.82): without offsets it does not move the div, and documents with offsets are not judged
+	 * ({@link #POSITION_OFFSET}).
 	 */
 	static boolean isPlainWrapper(final String name, final String attrs, final boolean vertical) {
 		return !STYLE_WRITING_MODE.matcher(attrs).find() && isPlainWrapper(name, attrs, vertical, vertical);
@@ -5667,6 +5660,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final boolean tableDiv = DISPLAY_TABLE_DECLARATION.matcher(style.group(1)).find();
 		for (final String declaration : style.group(1).split(";")) {
 			if (declaration.isBlank() || declaration.trim().equals("float:none") || declaration.trim().equals("position:static")
+					|| declaration.trim().equals("position:relative")
 					|| (vertical ? BLOCK_SIZE_DECLARATION_VERTICAL : BLOCK_SIZE_DECLARATION_HORIZONTAL).matcher(declaration)
 							.matches()
 					|| NEUTRAL_WRAPPER_DECLARATION.matcher(declaration).matches()) {
