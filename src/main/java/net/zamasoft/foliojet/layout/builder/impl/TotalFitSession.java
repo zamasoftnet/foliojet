@@ -57,7 +57,8 @@ import net.zamasoft.pdfg2d.gc.text.pipeline.TotalFit;
  * If a page break between lines ({@code BreakableBuilder.flush()}) replaces TextBuilder during
  * optimized replay, the plan remains bound to the original TextBuilder instance, so the remaining
  * events naturally use legacy greedy layout (the plan's coordinate system does not get mixed
- * with the replay mechanism after the page break).
+ * with the replay mechanism after the page break). If the break closes TextBuilder without opening
+ * another, replay reopens it at the next event as live delivery does (2026-10-24).
  * </p>
  */
 final class TotalFitSession {
@@ -552,20 +553,51 @@ final class TotalFitSession {
 		}
 		try {
 			int ordinal = 0;
+			// The run open in the replay, for a text block reopened after a break between lines
+			Recorded.Run openRun = null;
 			for (int i = 0; i < this.events.size(); ++i) {
 				this.replayIndex = i;
-				// Read again each time because a page break between lines replaces TextBuilder.
+				// Read again each time because a page break between lines replaces TextBuilder. It may also close it
+				// without opening another (no automatic page break on a slide, a break the page refuses, or a resumption
+				// with nothing left of the split line): reopen it as live delivery does (BlockBuilder.startTextRun,
+				// glyph, endTextRun and control; TECH-20261024-005, 2026-10-24).
 				switch (this.events.get(i)) {
-				case Recorded.Run run -> this.builder.textBuilder.startTextRun(run.fontStyle(), run.fontMetrics());
+				case Recorded.Run run -> {
+					openRun = run;
+					if (this.builder.textBuilder == null) {
+						this.builder.requireTextBlock();
+					}
+					this.builder.textBuilder.startTextRun(run.fontStyle(), run.fontMetrics());
+				}
 				case Recorded.Glyph glyph -> {
 					if (glyph.charOffset() >= 0) {
 						this.maxDeliveredGlyphEnd = Math.max(this.maxDeliveredGlyphEnd,
 								glyph.charOffset() + glyph.clen());
 					}
+					if (this.builder.textBuilder == null) {
+						final FontStyle style = openRun != null ? openRun.fontStyle() : this.builder.getOpenRunFontStyle();
+						final FontMetrics metrics = openRun != null ? openRun.fontMetrics()
+								: this.builder.getOpenRunFontMetrics();
+						if (style == null || metrics == null) {
+							throw new IllegalStateException("glyph outside a text run");
+						}
+						this.builder.requireTextBlock();
+						this.builder.textBuilder.startTextRun(style, metrics);
+					}
 					this.builder.textBuilder.glyph(glyph.charOffset(), glyph.cluster(), 0, glyph.clen(), glyph.gid());
 				}
-				case Recorded.RunEnd runEnd -> this.builder.textBuilder.endTextRun();
-				case Recorded.Ctrl ctrl -> this.builder.textBuilder.control(ctrl.quad());
+				case Recorded.RunEnd runEnd -> {
+					openRun = null;
+					if (this.builder.textBuilder != null) {
+						this.builder.textBuilder.endTextRun();
+					}
+				}
+				case Recorded.Ctrl ctrl -> {
+					if (this.builder.textBuilder == null) {
+						this.builder.requireTextBlock();
+					}
+					this.builder.textBuilder.control(ctrl.quad());
+				}
 				case Recorded.Flush flush -> {
 					if (plan != null) {
 						plan.arriveFlush(ordinal);

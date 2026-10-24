@@ -2266,6 +2266,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (this.textSession != null && this.textSession.recordRun(fontStyle, fontMetrics)) {
 			return;
 		}
+		if (this.textBuilder == null) {
+			// The session aborted to legacy and its replay ended on a break between lines that closed the block
+			this.requireTextBlock();
+		}
 		this.textBuilder.startTextRun(fontStyle, fontMetrics);
 	}
 
@@ -2343,6 +2347,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (this.textSession != null && this.textSession.recordControl(quad)) {
 			return;
 		}
+		if (this.textBuilder == null) {
+			// The session aborted to legacy and its replay ended on a break between lines that closed the block
+			this.requireTextBlock();
+		}
 		this.textBuilder.control(quad);
 	}
 
@@ -2389,9 +2397,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 				// identical to legacy if ineligible). Do nothing on reentry during replay.
 				this.textSession.finishSession();
 			}
-			this.textBuilder.finish(fragmentBreak);
-			this.pageAxis += this.textBuilder.getFlowPageAdvance();
-			this.textBuilder = null;
+			// A break between lines at the end of the replay may have closed the block already (2026-10-24)
+			if (this.textBuilder != null) {
+				this.textBuilder.finish(fragmentBreak);
+				this.pageAxis += this.textBuilder.getFlowPageAdvance();
+				this.textBuilder = null;
+			}
 		}
 		final Flow flow = this.getFlow();
 		flow.box.setPageAxis(this.pageAxis - flow.pageAxis);

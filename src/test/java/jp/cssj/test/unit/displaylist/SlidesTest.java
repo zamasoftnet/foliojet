@@ -121,6 +121,134 @@ public class SlidesTest extends TestCase {
 		assertTrue("最後の行が紙の中: " + l30[0], l30[0] >= -18 && l30[0] < size[0]);
 	}
 
+	/**
+	 * vertical-lr is bound on the left, and output.print-mode can bind vertical-rl on the left: the page still grows in
+	 * width (2026-10-24; the auto axis followed the binding side, and PageBox, which takes a vertical page's line from
+	 * its height, failed on an auto height). Without slides, output.auto-height does the same.
+	 */
+	public void testVerticalSlidesGrowInWidthWhicheverSideIsBound() throws Exception {
+		final String leftBound = "<?jp.cssj.property name=\"output.print-mode\" value=\"left-side\"?>\n";
+		for (final String[] c : new String[][] { { "vertical-lr", "" }, { "vertical-rl", leftBound } }) {
+			final List<String> slides = convert("vertical-" + c[0] + (c[1].isEmpty() ? "" : "-left"),
+					deck(media(SLIDES) + c[1], c[0], 30));
+			assertEquals(c[0], 4, slides.size());
+			final double[] size = pageSize(slides.get(1));
+			assertEquals(c[0] + ": 縦書きでは幅が伸びる", 31 * 19.6 + 36, size[0], 1);
+			assertEquals(c[0] + ": 高さは@pageのまま", 270.0, size[1], 0.01);
+			final double[] l30 = text(slides.get(1), "L30");
+			assertTrue(c[0] + ": 最後の行が紙の中: " + l30[0], l30[0] >= 0 && l30[0] < size[0]);
+		}
+		// output.auto-height makes no breaks at all: one page as wide as the whole deck
+		final List<String> auto = convert("auto-height-vertical-lr",
+				deck("<?jp.cssj.property name=\"output.auto-height\" value=\"true\"?>\n", "vertical-lr", 30));
+		assertEquals(1, auto.size());
+		final double[] size = pageSize(auto.get(0));
+		assertEquals("auto-height の縦書きも幅が伸びる", 34 * 19.6 + 36, size[0], 1);
+		final double[] s4 = text(auto.get(0), "S4");
+		assertTrue("最後の行が紙の中: " + s4[0], s4[0] >= 0 && s4[0] < size[0]);
+	}
+
+
+	/** A slide with one paragraph of 300 words, about 25 lines in a page area of 234 pt. */
+	private static String longParagraph(final String css) {
+		final StringBuilder words = new StringBuilder("S2");
+		for (int i = 1; i <= 300; ++i) {
+			words.append(" w").append(i);
+		}
+		return single(css, "<section><p>S1</p></section><section><p>" + words
+				+ "</p></section><section><p>S3</p></section><section><p>S4</p></section>");
+	}
+
+	/**
+	 * A slide whose paragraph runs past the page asks for a break at its end. The refusal must leave the next slide's
+	 * break-before and a pending break-after in place (2026-10-24, TECH-20261024-005: every later slide went onto the
+	 * long one, past its end).
+	 */
+	public void testBreaksAfterAnOverflowingSlide() throws Exception {
+		// The first slide takes no break-before: with the page background it would leave a blank page before it, a
+		// separate matter (print alike)
+		for (final String css : new String[] { "", "section { break-after: auto } section + section { break-before: page }" }) {
+			final List<String> slides = convert("overflow" + (css.isEmpty() ? "-after" : "-before"), longParagraph(css));
+			assertEquals(css, 4, slides.size());
+			assertTrue(css + ": 長いスライドは伸びる", pageSize(slides.get(1))[1] > 400);
+			text(slides.get(1), "w300");
+			assertTrue(css + ": 次のスライドは次の頁の頭", text(slides.get(2), "S3")[1] < 40);
+			assertTrue(css, text(slides.get(3), "S4")[1] < 40);
+		}
+	}
+
+	/**
+	 * The lines of a paragraph that runs past a slide are those of the same paragraph on a page tall enough, greedy or
+	 * {@code text-wrap-style: pretty} (2026-10-24, TECH-20261024-005). Each line past the least page asked for a refused
+	 * break that closed the text block: a greedy paragraph lost words from the line before (a line of one word), and
+	 * the replay of a pretty paragraph met the closed block (NullPointerException).
+	 */
+	public void testLongParagraphKeepsItsLines() throws Exception {
+		for (final String css : new String[] { "", "p { text-wrap-style: pretty }" }) {
+			final List<String> slides = convert("long-paragraph" + (css.isEmpty() ? "" : "-pretty"), longParagraph(css));
+			final String tall = longParagraph(css + "\n@page { size: 480pt 2000pt }").replace(media(SLIDES), "");
+			final List<String> print = convert("long-paragraph-tall" + (css.isEmpty() ? "" : "-pretty"), tall);
+			for (int i = 1; i <= 300; ++i) {
+				final double[] a = text(slides.get(1), "w" + i);
+				final double[] b = text(print.get(1), "w" + i);
+				assertEquals(css + " w" + i + " x", b[0], a[0], 0.01);
+				assertEquals(css + " w" + i + " y", b[1], a[1], 0.01);
+			}
+		}
+	}
+
+	private static String words(final int count) {
+		final StringBuilder words = new StringBuilder();
+		for (int i = 1; i <= count; ++i) {
+			words.append(" w").append(i);
+		}
+		return words.toString();
+	}
+
+	/**
+	 * A single-item flex streams in the page's flow, so forced breaks inside it still part the slides, also after one
+	 * that runs past the page (codex review 2026-10-24: asking whether automatic breaks can come made it a plain box).
+	 */
+	public void testForcedBreaksInsideSingleItemFlex() throws Exception {
+		final List<String> slides = convert("flex-sections", single("<div style=\"display:flex\"><div style=\"flex:1\">"
+				+ "<section><p>A1</p></section><section><p>A2" + words(300) + "</p></section><section><p>A3</p></section>"
+				+ "</div></div>"));
+		assertEquals(3, slides.size());
+		text(slides.get(1), "w300");
+		text(slides.get(2), "A3");
+	}
+
+	/**
+	 * Floats cleared past a float taller than the slide are placed one after another: no later fragment comes to defer
+	 * them to (codex review 2026-10-24: they overlapped).
+	 */
+	public void testClearingFloatsAfterATallFloat() throws Exception {
+		// The tall float paints its whole height (a background), so it waits for a split (codex review)
+		final List<String> slides = convert("clearing-floats", single(".f { float: left; width: 80pt }",
+				"<div class=\"f\" style=\"height:400pt;background:#ccc\">TALL</div><div style=\"clear:both\"></div>"
+						+ "<div class=\"f\" style=\"clear:both\">F1</div><div class=\"f\" style=\"clear:both\">F2</div>"
+						+ "<p>END</p>"));
+		assertEquals(1, slides.size());
+		final double f1 = text(slides.get(0), "F1")[1];
+		final double f2 = text(slides.get(0), "F2")[1];
+		assertTrue("F2はF1の下: " + f1 + " " + f2, f2 > f1 + 15);
+		assertTrue("ENDはfloatの横", text(slides.get(0), "END")[0] >= 80);
+	}
+
+	/**
+	 * A column break refused inside a multicol on a slide leaves the next slide's break-before in place, as a refused
+	 * page break does (codex review 2026-10-24: the next slide went onto the multicol's).
+	 */
+	public void testRefusedColumnBreakKeepsTheNextSlide() throws Exception {
+		final String block = "<div style=\"break-inside:avoid\"><p>" + words(150) + "</p></div>";
+		final List<String> slides = convert("refused-column-break",
+				single("section { break-after: auto } section + section { break-before: page }",
+						"<section><div style=\"columns:2;column-fill:auto\">" + block + block
+								+ "</div></section><section><p>NEXT</p></section>"));
+		assertEquals(2, slides.size());
+		assertTrue("次のスライドは次の頁の頭", text(slides.get(1), "NEXT")[1] < 40);
+	}
+
 	/** A footnote and a bottom float go after the content, and the page grows by them. */
 	public void testFootnoteAndBottomFloatFollowTheContent() throws Exception {
 		final StringBuilder html = new StringBuilder("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");

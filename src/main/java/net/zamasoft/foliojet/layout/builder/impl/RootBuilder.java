@@ -897,6 +897,22 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
+	 * On slides content past the page area goes on in place unless a column break can take it (2026-10-24,
+	 * TECH-20261024-005). Each overflowing line of a slide closed its text block for a page break that was refused,
+	 * which broke the line short, and the replay of a {@code text-wrap-style: pretty} paragraph met the closed block.
+	 * Forced breaks still come, so {@link #canFragmentFurther()} stays true (a single-item flex streams in this flow).
+	 */
+	@Override
+	protected boolean canFragmentAutomatically() {
+		return this.canBreakAutomatically();
+	}
+
+	@Override
+	protected boolean makesAutomaticPageBreaks() {
+		return this.autoPageBreaks;
+	}
+
+	/**
 	 * Slides: before the page is drawn, its auto block size takes in the content and the bands reserved at its end for
 	 * footnotes and bottom floats ({@link #pageOwnedReservation}), which are placed from the page's end. Content does
 	 * not stop at the reserved bands here, so without them the notes would sit on the last lines.
@@ -1054,11 +1070,18 @@ public class RootBuilder extends BreakableBuilder {
 	 * @param flags
 	 */
 	protected boolean pageBreak(BreakMode mode, byte flags) {
-		this.beginBreak();
-		if (this.flowStack.isEmpty()) {
+		// Refuse before beginBreak() (2026-10-24, TECH-20261024-005): it clears whether a break may come before the next
+		// block and the pending page-break-after, as a break would. A slide whose paragraph ran past the page area asked
+		// for a break at its end, and the next slide's break-before: page then found nothing to break before: every later
+		// slide went onto that page, past its end.
+		if (!this.autoPageBreaks && mode instanceof BreakMode.AutoBreakMode) {
+			// Floats waiting for a split never get one here: clear them as beginBreak() did, so later clearing floats are
+			// placed as usual instead of being deferred to a next fragment (codex review: two of them overlapped)
+			this.breakFloats.clear();
 			return false;
 		}
-		if (!this.autoPageBreaks && mode instanceof BreakMode.AutoBreakMode) {
+		this.beginBreak();
+		if (this.flowStack.isEmpty()) {
 			return false;
 		}
 		// Only automatic breaks set the record: a later forced break of the same page keeps what this page's automatic

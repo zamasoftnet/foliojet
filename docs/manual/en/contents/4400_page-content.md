@@ -177,6 +177,7 @@ Slides differ from print as follows.
 - The `height` of `@footnote` is treated as a minimum height (`min-height`). Footnotes that do not fit in that height stay on the same slide (except for the band at the edge of the paper on vertical slides).
 - On vertical slides whose footnote area is the band at the bottom of the paper (`@footnote { float: bottom; }`), the band lies along the axis that does not grow, so footnotes that do not fit in it go to the next slide.
 - When a slide has a narrow `float: top` figure with text flowing beside it and then another `float: top` figure, the later figure goes to the top of the next slide.
+- Content overflowing a box or float of specified size, and floats and inline blocks overflowing inside a box of another writing mode (vertical text in horizontal text, for example), may not count toward how far the page grows. The overflow then falls off the paper.
 
 An example of 16:9 slides.
 Because `print` is left out, `@media print` rules do not apply.

@@ -43,7 +43,6 @@ import net.zamasoft.foliojet.ua.impl.Impositions;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.AbortException;
-import net.zamasoft.foliojet.ua.BoundSide;
 import net.zamasoft.foliojet.ua.PassContext;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.OutputPageLimitAbort;
@@ -274,7 +273,10 @@ final class PageSequence {
 		double height = resolvedSize[1];
 
 		if ((this.doc.getPageMode() & (DocumentBuilder.PAGE_MODE_CONTINUOUS | DocumentBuilder.PAGE_MODE_SLIDES)) != 0) {
-			if (this.imposition.getBoundSide() == BoundSide.LEFT) {
+			// The block axis grows. Follow the page's writing mode (params.flow), not the binding side (2026-10-24):
+			// vertical-lr is bound on the left and output.print-mode can bind either side, and a vertical page given an
+			// auto height broke PageBox, which takes its line from the height.
+			if (this.progression == WritingMode.TB) {
 				// Horizontal writing
 				return Dimension.create(width, height, LengthType.ABSOLUTE, LengthType.AUTO);
 			} else {

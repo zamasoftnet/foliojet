@@ -673,7 +673,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {
 			for (;;) {
 				final double pageLimit = this.getPageLimit();
-				if (TextBuilder.hasFirstLineBandInFragment(this, pageLimit) || !this.canFragmentFurther()) {
+				if (TextBuilder.hasFirstLineBandInFragment(this, pageLimit) || !this.canFragmentAutomatically()) {
 					break;
 				}
 				this.checkAbort();
@@ -751,8 +751,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				continue;
 			}
 
-			if (!this.canFragmentFurther()) {
-				// No more fragments can be created (multi-column layout exhausted its columns).
+			if (!this.canFragmentAutomatically()) {
+				// No more fragments can be created (multi-column layout exhausted its columns, or a slide).
 				// Closing the text block here leaves it unable to reopen,
 				// and this.textBuilder would be used while null. **Do not close it**;
 				// let content overflow in place (2026-07-28).
@@ -902,8 +902,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			if (this.flowStack.size() == 1) {
 				while (!this.breakFloats.isEmpty()) {
 					this.checkAbort();
-					if (!this.canFragmentFurther()) {
-						// No more fragments can be created (multi-column layout exhausted its columns).
+					if (!this.canFragmentAutomatically()) {
+						// No more fragments can be created (multi-column layout exhausted its columns, or a slide).
 						// Exiting without clearing reservations causes an **infinite loop**
 						// (only beginBreak() clears breakFloats).
 						// Leave floats in the last column and let them overflow.
@@ -1409,14 +1409,40 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 		if (columnBreak != null) {
 			final double lastFrame = this.lastFrame(columnBreak.flow(), columnBreak.depth());
+			final boolean interflow = this.interflowBreak;
+			final boolean canBreak = this.canBreakBefore;
+			final PageBreakMode pendingAfter = this.breakAfter;
 			if (this.columnBreak(columnBreak.flow(), mode, flags, lastFrame, columnBreak.depth())) {
 				return true;
+			}
+			if (!this.makesAutomaticPageBreaks()) {
+				// A refused column break on a slide has no page break to fall back on: undo what its beginBreak() cleared,
+				// as a refused page break leaves it (codex review, 2026-10-24)
+				this.interflowBreak = interflow;
+				this.canBreakBefore = canBreak;
+				this.breakAfter = pendingAfter;
+				return false;
 			}
 		}
 		return this.pageBreak(mode, flags);
 	}
 
 	protected abstract boolean pageBreak(BreakMode mode, byte flags);
+
+	/** Whether {@link #pageBreak} makes automatic breaks: not on slides ({@link RootBuilder}, 2026-10-24). */
+	protected boolean makesAutomaticPageBreaks() {
+		return true;
+	}
+
+	/**
+	 * Whether content past the fragment may be cut here automatically (2026-10-24): {@link #canFragmentFurther()}, but on
+	 * slides only where a column break can take it ({@link RootBuilder}). Asked before a break between lines, before
+	 * the first line and between float splits, which close the open text block or loop on the break; forced breaks and
+	 * {@link #breaksPagesLive()} keep asking {@link #canFragmentFurther()}.
+	 */
+	protected boolean canFragmentAutomatically() {
+		return this.canFragmentFurther();
+	}
 
 	/**
 	 * Returns whether this builder <b>can still create a fragment (page/column)</b>
