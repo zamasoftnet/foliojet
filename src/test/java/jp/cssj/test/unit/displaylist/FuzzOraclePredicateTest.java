@@ -1240,7 +1240,8 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"writing-mode:horizontal-tb\"", false, true));
 		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"writing-mode:vertical-rl\"", true, false));
 		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"writing-mode:vertical-lr\"", true));
-		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:inline-block\"", true, true));
+		// An inline-block is a plain wrapper since fit seed 35756273 (testSeedTableInInlineBlockIsUnfittable).
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:flex\"", true, true));
 	}
 
 	/**
@@ -1326,6 +1327,28 @@ public class FuzzOraclePredicateTest extends TestCase {
 			assertEquals(String.valueOf(document), RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
 					RandomDocumentFuzzTest.findUnfittableContent(dropped));
 		}
+	}
+
+	/**
+	 * fit seed 35756273 (v2 1413179138): on 60 pt vertical-lr paper, a table with a nested table and overlapping cells
+	 * inside {@code <div style="display:inline-block;position:relative;">} (2026-10-24). Copper put T19 at y=126.49,
+	 * Chrome its cell at y=120.49.
+	 */
+	public void testSeedTableInInlineBlockIsUnfittable() {
+		final String html = RandomDocumentFuzzTest.generate(1_413_179_138, true, false, false).html();
+		assertTrue(html.contains("<div style=\"display:inline-block;position:relative;\">"));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(html));
+		final String inlineBlock = "<div style=\"display:inline-block\">";
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(inlineBlock + TABLE_OVER + "</div>")));
+		// After text on the same line it starts later or on the next line, never before the content start.
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc("T0 T0 " + inlineBlock + TABLE_OVER + "</div>")));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc(inlineBlock + TABLE_OVER.replace("<td>T15</td>", "") + "</div>")));
+		// Auto margins are refused to stay conservative (they are 0 on an inline-block).
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:inline-block;margin:auto\"", false, false));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:inline\"", false, false));
 	}
 
 	/**

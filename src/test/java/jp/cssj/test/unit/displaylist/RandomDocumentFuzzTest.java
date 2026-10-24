@@ -1789,7 +1789,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// x = 632 pt (19146 alike, 19124 at 542 pt). Chrome's screen overflows the box up to x = 805 pt and its
 			// print puts T10 to T20 on no page.
 			new IndividualExclusion(31_953_642, "fit-v1", 1_594_208_864, "作者の溢れ: 幅110ptに決めた逆向きの箱から中身が溢れる(Chromeも)",
-					"2026-10-22"));
+					"2026-10-22"),
+			// Triage §107: on 200 pt vertical-lr paper (margin 0) a vertical-rl grid float of width:105pt holds an image
+			// 110 pt long, form controls and a float:right grid of boxes with min-width:8em, tables and floats, which runs
+			// far left of the float. Copper draws T16 at x = -524 pt; Chrome's screen puts its cell at x = -339 pt and the
+			// inner grid at -394 pt, also left of the paper.
+			new IndividualExclusion(35_808_808, "fit-v1", 308_912_465, "作者の溢れ: 幅105ptの逆進行のgridのfloatより広い中身が紙の左の外(Chromeも)",
+					"2026-10-24"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
@@ -5626,17 +5632,25 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * A table div wraps its content in one anonymous row and cell without frames, and the div's border-spacing is
 	 * inherited from the plain path (body's initial 0), so the content starts at the div's content start; the
 	 * anonymous table's minimum is the content's, so a table inside keeps its column minimums.
+	 * An inline-block div ({@code display:inline-block}, fit seed 35756273, 2026-10-24: a table with a nested table in
+	 * {@code <div style="display:inline-block;position:relative;">} on 60 pt vertical-lr paper put T19 at y=126.49;
+	 * Chrome its cell at y=120.49) sits in a line of its parent, at the line start or after preceding inline content,
+	 * and its content starts at its content start; a plain path has no text-align or text-indent to move the line
+	 * (Copper's start-aligned lines keep an overflowing line at its start). Unlike the other wrappers it may grow past
+	 * the line when its content's minimum does (shrink-to-fit), but the table inside still keeps its column minimums
+	 * from that start, which is all the column bounds use. As with floats, Copper may rescue-slice an oversized line
+	 * across pages (codex review); accepted under the unfittable-content policy (triage §105, §107).
 	 */
 	private static final Pattern NEUTRAL_WRAPPER_DECLARATION = Pattern
-			.compile("\\s*(?:display\\s*:\\s*(?:block|table)|page-break-inside\\s*:\\s*[a-z]+)\\s*");
-	private static final Pattern DISPLAY_TABLE_DECLARATION = Pattern
-			.compile("(?:^|;)\\s*display\\s*:\\s*table\\s*(?:;|$)");
+			.compile("\\s*(?:display\\s*:\\s*(?:block|table|inline-block)|page-break-inside\\s*:\\s*[a-z]+)\\s*");
+	private static final Pattern DISPLAY_SHRINK_TO_FIT_DECLARATION = Pattern
+			.compile("(?:^|;)\\s*display\\s*:\\s*(?:table|inline-block)\\s*(?:;|$)");
 	private static final Pattern WRITING_MODE_DECLARATION = Pattern
 			.compile("\\s*writing-mode\\s*:\\s*([a-z-]+)\\s*");
 
 	/**
-	 * Extend {@link #isPlainWrapper(String, String, boolean)} with {@code display:block} (and {@code display:table},
-	 * see {@link #NEUTRAL_WRAPPER_DECLARATION}),
+	 * Extend {@link #isPlainWrapper(String, String, boolean)} with {@code display:block} (and {@code display:table} and
+	 * {@code display:inline-block}, see {@link #NEUTRAL_WRAPPER_DECLARATION}),
 	 * {@code page-break-inside} and a {@code writing-mode} that keeps the parent's axis ({@code parentVertical})
 	 * (2026-10-08, fit seed 12137870: a table in {@code <div style="page-break-inside:avoid;margin:0pt">} and
 	 * {@code <div style="display:block;writing-mode:vertical-lr;">} on {@code vertical-rl} paper). Between
@@ -5656,8 +5670,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 			return false;
 		}
 		// A table div shrinks to fit, so auto margins center it, and in vertical writing Copper keeps a negative
-		// remainder (FlowBlockBox), moving an overflowing table's start backward (codex review, 2026-10-24).
-		final boolean tableDiv = DISPLAY_TABLE_DECLARATION.matcher(style.group(1)).find();
+		// remainder (FlowBlockBox), moving an overflowing table's start backward (codex review, 2026-10-24). An
+		// inline-block's auto margins are 0 (CSS 2.1 §10.3.9, as in Copper); they are refused only to stay conservative.
+		final boolean shrinkToFit = DISPLAY_SHRINK_TO_FIT_DECLARATION.matcher(style.group(1)).find();
 		for (final String declaration : style.group(1).split(";")) {
 			if (declaration.isBlank() || declaration.trim().equals("float:none") || declaration.trim().equals("position:static")
 					|| declaration.trim().equals("position:relative")
@@ -5675,7 +5690,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			final Matcher frame = FRAME_DECLARATION.matcher(declaration);
 			if (!frame.matches() || frame.group(1).contains("-") || frame.group(1).contains("calc")
-					|| tableDiv && frame.group(1).contains("auto")) {
+					|| shrinkToFit && frame.group(1).contains("auto")) {
 				return false;
 			}
 		}
