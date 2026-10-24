@@ -75,17 +75,22 @@ public class RootBuilder extends BreakableBuilder {
 	 * The cursor may also go up and down by turns while growing: a float split at a column's last 4pt into an empty
 	 * head and a remainder of its full size, in a four-column multicol on 60pt vertical-lr paper, broke at +43.5pt and
 	 * -30pt by turns, 13.5pt farther every two breaks (wild seed 27364217, 2026-10-18; 19124 loops on the cut-down
-	 * form too). Growth over the lower of the last two breaks counts. A wobble that narrows near the page limit (500,
-	 * 520, 500.5, 519.5, ...) would count too, but it has to rise at each of 32 nested breaks: in the real-world corpus
-	 * (2026-10-19), 66 of 235 documents nest breaks with no input progress, up to 172 in a row, and the cursor never
-	 * rises at one of them.
+	 * form too). Or in longer waves: a float with a min-size larger than the page, holding a multicol with a column flex
+	 * wider than the page and a float in it, on the same paper, broke 10 to 20 times lower and lower, then higher again,
+	 * so a count over the lower of the last two breaks (4777e01c) went back to 0 at every wave; nesting went on to about
+	 * 500 levels in 85 s (sweep strict seed 37576227, 2026-10-25, since 8abc2bb0 brought back the float continuation's
+	 * floor). Growth over the least cursor of the run counts: a break whose cursor is not more than the comparison's
+	 * 0.5pt above the least of the run sets the count back to 0, so 32 nested breaks in a row that stay above the least
+	 * are caught. A cursor near the page limit that stays above its least (500, 560, 559, ..., 529) counts too, but only
+	 * while the input does not move on and each break nests one level deeper: in the real-world corpus (2026-10-19,
+	 * measured again on 2026-10-25), 66 of 235 documents nest breaks with no input progress, up to 172 in a row, and the
+	 * cursor never goes above the least of its run.
 	 * </p>
 	 */
 	private BreakFingerprint nestedBreakKey = null;
 	private int nestedBreakSessions = -1;
-	private double nestedBreakPageAxis;
-	/** The cursor of the nested break before {@link #nestedBreakPageAxis} in the same run; NaN when none. */
-	private double nestedBreakPageAxisBefore = Double.NaN;
+	/** The least cursor of the nested breaks in the current run; NaN when none. */
+	private double nestedLeastPageAxis = Double.NaN;
 	private int nestedGrowthRun = 0;
 	private long breakHistoryIngest = Long.MIN_VALUE;
 	/**
@@ -138,7 +143,7 @@ public class RootBuilder extends BreakableBuilder {
 	private void clearNestedGrowth() {
 		this.nestedBreakKey = null;
 		this.nestedBreakSessions = -1;
-		this.nestedBreakPageAxisBefore = Double.NaN;
+		this.nestedLeastPageAxis = Double.NaN;
 		this.nestedGrowthRun = 0;
 	}
 
@@ -217,18 +222,15 @@ public class RootBuilder extends BreakableBuilder {
 		final BreakFingerprint nestedKey = new BreakFingerprint(ingest, depth, 0L, target);
 		final int sessionDepth = this.sessions.size();
 		final boolean nested = nestedKey.equals(this.nestedBreakKey) && sessionDepth == this.nestedBreakSessions + 1;
-		// Growth over the lower of the last two breaks, so a cursor going up and down by turns counts too
-		final double nestedFloor = !nested || Double.isNaN(this.nestedBreakPageAxisBefore) ? this.nestedBreakPageAxis
-				: Math.min(this.nestedBreakPageAxis, this.nestedBreakPageAxisBefore);
-		if (nested && net.zamasoft.foliojet.layout.util.LayoutUtils.compare(this.pageAxis, nestedFloor) > 0) {
+		// Growth over the least cursor of the run, so a cursor going up and down while it grows counts too
+		if (nested && net.zamasoft.foliojet.layout.util.LayoutUtils.compare(this.pageAxis, this.nestedLeastPageAxis) > 0) {
 			++this.nestedGrowthRun;
 		} else {
 			this.nestedGrowthRun = 0;
 		}
-		this.nestedBreakPageAxisBefore = nested ? this.nestedBreakPageAxis : Double.NaN;
+		this.nestedLeastPageAxis = nested ? Math.min(this.nestedLeastPageAxis, this.pageAxis) : this.pageAxis;
 		this.nestedBreakKey = nestedKey;
 		this.nestedBreakSessions = sessionDepth;
-		this.nestedBreakPageAxis = this.pageAxis;
 		this.stalledBreakRun = Math.max(depthFreeOccurrences - 1, this.nestedGrowthRun);
 		if (DebugFlags.BREAK_FINGERPRINT) {
 			System.out.println("[fp] ingest=" + ingest + " depth=" + depth + " pageAxis=" + this.pageAxis

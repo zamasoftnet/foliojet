@@ -139,6 +139,50 @@ public class FloatProgressGuardTest extends TestCase {
 		assertEquals("pages", 2, pages.length);
 	}
 
+	/**
+	 * A nested break whose cursor goes down and up in longer waves while growing is a livelock too (2026-10-25, strict
+	 * seed 37576227 cut down; since 8abc2bb0). A float with a min-size of 80pt on 40pt pages holds a multicol with a
+	 * column flex of 98pt and a float in it; each resume broke again, 10 to 20 times lower and lower and then higher
+	 * again, so the count over the lower of the last two breaks went back to 0 at every wave and the guard fired only
+	 * after about 100 nested breaks (59 s). Counted over the least cursor of the run, it fires after 32: five pages,
+	 * each text drawn once.
+	 */
+	public void testCursorInLongWaves() throws Exception {
+		final String html = String.join("\n", "<!DOCTYPE html>", "<html><head><meta charset=\"utf-8\">", "<style>",
+				"@page { size: 60pt 60pt; margin: 10pt }",
+				"body { margin: 0; font: 10pt/1.2 serif; writing-mode: vertical-lr }", "p, div { margin: 0; padding: 0 }",
+				"</style></head><body>",
+				"<form><input type=\"text\" value=\"x\" size=\"1\"><select><option>x</option><option>y</option></select></form>",
+				"<div style=\"column-count: 4\">", "<div style=\"float: right; min-width: 8em\">",
+				"<div style=\"column-count: 4\">",
+				"<div style=\"display: flex; width: 98pt; flex-direction: column; flex-wrap: wrap-reverse\">",
+				"<div style=\"width: 119pt\">", "<p>T187</p>", "</div>", "<div>", "<div style=\"float: right\">",
+				"<p>T189</p>", "<div style=\"min-width: 8em\">", "</div>", "</div>", "</div>", "<p>T197</p>", "</div>",
+				"</div>", "</div>", "<div style=\"writing-mode: horizontal-tb\">",
+				"<div><span style=\"font-size: 8pt\">T198</span></div>", "</div>", "</div>", "</body></html>", "");
+		final File dir = Files.createTempDirectory("float-progress-guard").toFile();
+		final File input = new File(dir, "input.html");
+		Files.writeString(input.toPath(), html, StandardCharsets.UTF_8);
+		try (DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"), null);
+				ByteArrayOutputStream out = new ByteArrayOutputStream();
+				AutoCloseable dump = DisplayListDumper.scopedDir(dir.getPath())) {
+			// The old guard takes about a minute: abort it instead of slowing the suite
+			session.property("processing.time-limit", "30000");
+			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
+			CTISessionHelper.transcodeFile(session, input, "text/html", null);
+		}
+		final File[] pages = dir.listFiles((d, n) -> n.startsWith("page-") && n.endsWith(".txt"));
+		assertNotNull(pages);
+		final StringBuilder all = new StringBuilder();
+		for (final File page : pages) {
+			all.append(Files.readString(page.toPath(), StandardCharsets.UTF_8));
+		}
+		for (final String text : new String[] { "T187", "T189", "T197", "T198" }) {
+			assertEquals(text + " drawn once", 1, count(all, "Text[\"" + text + "\""));
+		}
+		assertEquals("pages", 5, pages.length);
+	}
+
 	private static int count(final StringBuilder text, final String part) {
 		int n = 0;
 		for (int i = text.indexOf(part); i >= 0; i = text.indexOf(part, i + 1)) {
