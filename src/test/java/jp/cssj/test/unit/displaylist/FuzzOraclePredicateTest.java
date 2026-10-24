@@ -1352,6 +1352,80 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
+	 * fit seed 36209301 (v2 317651874): on 60 pt vertical-lr paper, a table with a nested table and overlapping cells
+	 * inside {@code <div style="display:inline-block;position:relative;writing-mode:horizontal-tb;">} (2026-10-24).
+	 * Copper put T11 at x=147.49, Chrome its cell at x=144.89.
+	 */
+	public void testSeedTableInOrthogonalInlineBlockIsUnfittable() {
+		final String html = RandomDocumentFuzzTest.generate(317_651_874, true, false, false).html();
+		assertTrue(html.contains("<div style=\"display:inline-block;position:relative;writing-mode:horizontal-tb;\">"));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(html));
+		// Vertical paper anchors the table at the block start (the right edge on vertical-rl paper, where only end-side
+		// evidence counts), and horizontal paper at the top; after text it moves later, never before the content start.
+		// T10 is the only end-side evidence and T15 the only start-side one (codex review).
+		final String noEndEvidence = TABLE_OVER.replace("<td>T10</td>", "<td><b>T10</b></td>");
+		final String noStartEvidence = TABLE_OVER.replace("<td>T15</td>", "<td><b>T15</b></td>");
+		final String[][] cases = { { "vertical-lr", "horizontal-tb" }, { "vertical-rl", "horizontal-tb" },
+				{ "horizontal-tb", "vertical-rl" }, { "horizontal-tb", "vertical-lr" } };
+		for (final String[] c : cases) {
+			final String open = "<div style=\"display:inline-block;writing-mode:" + c[1] + "\">";
+			final String label = c[0] + " " + c[1];
+			final boolean endAnchored = c[0].equals("vertical-rl");
+			final String evidence = endAnchored ? noStartEvidence : noEndEvidence;
+			assertEquals(label, RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+					RandomDocumentFuzzTest.findUnfittableContent(verticalShrinkerDoc(c[0], open + evidence + "</div>")));
+			assertEquals(label, RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+					.findUnfittableContent(verticalShrinkerDoc(c[0], "T0 T0 " + open + evidence + "</div>")));
+			assertNull(label, RandomDocumentFuzzTest.findUnfittableContent(
+					verticalShrinkerDoc(c[0], open + (endAnchored ? noEndEvidence : noStartEvidence) + "</div>")));
+			assertNull(label, RandomDocumentFuzzTest.findUnfittableContent(
+					verticalShrinkerDoc(c[0], open + TABLE_OVER.replace("<td>T15</td>", "") + "</div>")));
+			// An ancestor's block size beyond the paper widens the box's line (codex review), for floats too; a
+			// smaller one does not.
+			final String size = c[0].startsWith("vertical") ? "width" : "height";
+			assertNull(label, RandomDocumentFuzzTest.findUnfittableContent(verticalShrinkerDoc(c[0],
+					"<div style=\"" + size + ":300pt\">" + open + TABLE_OVER + "</div></div>")));
+			assertNull(label, RandomDocumentFuzzTest.findUnfittableContent(verticalShrinkerDoc(c[0], "<div style=\"" + size
+					+ ":300pt\"><div style=\"float:left;writing-mode:" + c[1] + "\">" + TABLE_OVER + "</div></div>")));
+			assertEquals(label, RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+					.findUnfittableContent(verticalShrinkerDoc(c[0], "<div style=\"" + size + ":30pt\">" + open + TABLE_OVER
+							+ "</div></div>")));
+		}
+		// A multicol clamps a shrink-to-fit box to the line, so an end-anchored table may overflow it toward the end
+		// (codex review). Called directly: on this paper the columns alone are unfittable.
+		final String columns = verticalShrinkerDoc("vertical-rl", "<div style=\"display:inline-block;writing-mode:horizontal-tb\">"
+				+ "<div style=\"column-count:2\">T0 T1</div>" + TABLE_OVER + "</div>");
+		final int from = columns.indexOf("<table>") + "<table>".length();
+		assertFalse(RandomDocumentFuzzTest.tableColumnBeyondPage(columns, from, 50, 5, 6, false,
+				RandomDocumentFuzzTest.END_ANCHORED));
+		final String noColumns = columns.replace("column-count:2", "margin:0");
+		assertTrue(RandomDocumentFuzzTest.tableColumnBeyondPage(noColumns, noColumns.indexOf("<table>") + "<table>".length(),
+				50, 5, 6, false, RandomDocumentFuzzTest.END_ANCHORED));
+		// An inline size lets the table overflow the inline-block toward the end; other displays are not judged.
+		assertTrue(RandomDocumentFuzzTest.isOrthogonalInlineBlock("div",
+				" style=\"display:inline-block;writing-mode:horizontal-tb;height:9em;margin:1pt\"", false));
+		assertFalse(RandomDocumentFuzzTest.isOrthogonalInlineBlock("div",
+				" style=\"display:inline-block;writing-mode:horizontal-tb;width:20pt\"", false));
+		assertFalse(RandomDocumentFuzzTest.isOrthogonalInlineBlock("div", " style=\"writing-mode:horizontal-tb\"", false));
+		assertFalse(RandomDocumentFuzzTest.isOrthogonalInlineBlock("div",
+				" style=\"display:table;writing-mode:horizontal-tb\"", false));
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(verticalShrinkerDoc("vertical-lr",
+				"<div style=\"display:block;writing-mode:horizontal-tb\">" + TABLE_OVER + "</div>")));
+		// Between a reversed block progression and the paper the anchor is unknown, so it is not judged.
+		assertNull(RandomDocumentFuzzTest.findUnfittableContent(verticalShrinkerDoc("vertical-lr",
+				"<div style=\"writing-mode:vertical-rl\"><div style=\"display:inline-block;writing-mode:horizontal-tb\">"
+						+ TABLE_OVER + "</div></div>")));
+		// The documents of the individual exclusions dropped for this (fit seeds 17682694 and 23601552; triage §42 and
+		// §68): a vertical inline-block on horizontal paper and a horizontal-tb one on vertical-lr paper.
+		for (final int document : new int[] { 944_256_338, 1_245_389_705 }) {
+			final String dropped = RandomDocumentFuzzTest.generate(document, true, false, false).html();
+			assertTrue(dropped.contains("display:inline-block;"));
+			assertEquals(String.valueOf(document), RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+					RandomDocumentFuzzTest.findUnfittableContent(dropped));
+		}
+	}
+
+	/**
 	 * fit seed 34950126 (v2 596237805): on A4 horizontal-tb paper, a {@code display:list-item;writing-mode:vertical-rl}
 	 * div holds a 75 pt float with a 136 pt {@code display:table} div, which overflows to the left: T0 at x=-60.40
 	 * (Chrome -60.55). The list marker touching the page area's top edge (y=-4.20, h=4.20) was the nearest drawing,

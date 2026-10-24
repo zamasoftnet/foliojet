@@ -1448,6 +1448,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// unfittable-table predicate now judges (floats other than the table's ancestors allowed).
 			// Records dropped on 2026-10-24 (triage §106): 13827856 (§33), 22674189 (§64) and 29464671 (§89), nested
 			// tables with overlapping cells in a position:relative div, which the unfittable-table predicate now judges.
+			// Records dropped on 2026-10-24 (triage §108): 17682694 (§42) and 23601552 (§68), tables in an inline-block
+			// whose writing mode is orthogonal to the paper's, which the unfittable-table predicate now judges.
 			// Triage §26: on vertical-lr paper a vertical-rl float 91 pt wide holds a vertical-lr div with a
 			// display:table float 121 pt wide; Chrome also draws its only line off the paper's left (x=-23.6 pt).
 			new IndividualExclusion(12_903_866, "fit-v1", 621_085_571, "作者の溢れ: 同軸逆進行の入れ物より広い表のfloat(Chromeも紙の左の外)",
@@ -1532,10 +1534,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// paper a four-column multicol holding an avoid block with a table and floats is not split across pages; T13 to
 			// T19 land at x = -85 to -424 pt on page 1, Chrome prints three pages with everything on the paper.
 			new IndividualExclusion(17_536_390, "fit-v1", 1_104_732_103, "既知の制限: 縦組みの段組の中の割れない塊が頁で分かれず紙の左の外",
-					"2026-10-14"),
-			// Triage §42: nested tables with overlapping cells in an inline-block on 60 pt horizontal paper run down to
-			// y = 158.6 pt; Chrome to 155.6 pt.
-			new IndividualExclusion(17_682_694, "fit-v1", 944_256_338, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
 					"2026-10-14"),
 			// Triage §43: nested tables with overlapping cells on 120 pt horizontal paper; Chrome puts T25 off the right
 			// too (242.7 pt vs 249.2 pt).
@@ -1667,11 +1665,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// three buttons, wider than the float, so they overflow to the left; Copper draws T0 at x = -31 pt (19124
 			// alike), Chrome's screen at -31 pt too and its print drops every token.
 			new IndividualExclusion(23_558_157, "fit-v1", 774_153_672, "作者の溢れ: 幅63ptの逆進行のfloatより広い中身が紙の左の外(Chromeも同じ)",
-					"2026-10-18"),
-			// Triage §68: on 60 pt vertical-lr paper a horizontal-tb inline-block holds a table about 150 pt wide, more
-			// than twice the paper in its block direction; Copper puts the marker of T18 at x = 121 pt (19124 alike),
-			// Chrome's screen T18 at 140 pt and its print drops T21 to T25.
-			new IndividualExclusion(23_601_552, "fit-v1", 1_245_389_705, "作者の溢れ: 紙の2倍超の横組みの表のインラインブロック(Chromeも紙の外)",
 					"2026-10-18"),
 			// Triage §69, the documented limitation that floats inside a multicol are not split (CSS-SUPPORT, R2 removed
 			// 2026-10-11): on 120x400 pt vertical-lr paper a two-column multicol holds floats far longer than the page;
@@ -5102,6 +5095,20 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final boolean parentVertical = verticals.peek().booleanValue();
 			char side = plainPaths.peek().booleanValue() && !(vertical && parentVertical) ? floatWrapperSide(name, attrs)
 					: NOT_FLOATED;
+			// An orthogonal inline-block wraps its table across the axis change as an orthogonal float does
+			// ({@link #isOrthogonalInlineBlock}, fit seed 36209301).
+			if (side == NOT_FLOATED && plainPaths.peek().booleanValue() && vertical != parentVertical
+					&& isOrthogonalInlineBlock(name, attrs, vertical)) {
+				side = 'L';
+			}
+			// An orthogonal box takes an ancestor's definite block size as its available inline size (codex review,
+			// 2026-10-24: in a width:300pt div on 60 pt vertical-lr paper Copper ran a horizontal-tb inline-block's
+			// lines to x=111 pt, and wrapped them at 50 pt without it). Beyond the paper the table may shrink below its
+			// minimum within the tolerance of that larger size, so the column bounds no longer hold.
+			final int blockAxis = parentVertical ? 0 : 1;
+			if (side != NOT_FLOATED && vertical != parentVertical && extents.peek()[blockAxis] > pageExtent[blockAxis]) {
+				side = NOT_FLOATED;
+			}
 			if (side != NOT_FLOATED && parentVertical) {
 				// A horizontal float in vertical writing (an orthogonal flow): its table's columns run along the paper's
 				// block axis, anchored by the block progression, whatever side it floats to.
@@ -5697,6 +5704,28 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return true;
 	}
 
+	private static final Pattern DISPLAY_INLINE_BLOCK_DECLARATION = Pattern
+			.compile("(?:^|;)\\s*display\\s*:\\s*inline-block\\s*(?:;|$)");
+
+	/**
+	 * Whether a div is an inline-block that is a plain wrapper in its own writing direction ({@code vertical}),
+	 * which differs in axis from its parent's (fit seed 36209301, 2026-10-24: a table with a nested table in
+	 * {@code <div style="display:inline-block;position:relative;writing-mode:horizontal-tb;">} on 60 pt vertical-lr
+	 * paper put T11 at x=147.49; Chrome its cell at x=144.89). The caller treats it as an orthogonal float: the table's
+	 * columns run along the paper's block axis from the inline-block's block-start edge. The inline-block lies in one
+	 * of the parent's lines, which stack from the content's block start and contain it, so that edge is at or after
+	 * the content's block start; its frames only move the table inward. Copper put the table of a
+	 * {@code horizontal-tb} inline-block at the content's left edge on vertical-lr paper and ended it at the content's
+	 * right edge on vertical-rl paper, and started the table of a vertical one at the content's top on horizontal-tb
+	 * paper; after text it moved the inline-block to the next page's start (triage §108). Inline-size declarations
+	 * are refused: a narrower inline-block would let the table overflow it toward the end.
+	 */
+	static boolean isOrthogonalInlineBlock(final String name, final String attrs, final boolean vertical) {
+		final Matcher style = STYLE_ONLY_ATTRIBUTE.matcher(attrs);
+		return isPlainWrapper(name, attrs, vertical, vertical) && style.matches()
+				&& DISPLAY_INLINE_BLOCK_DECLARATION.matcher(style.group(1)).find();
+	}
+
 	/** Allowed attributes on a cell used as evidence (generator template). */
 	private static final Pattern PLAIN_CELL_ATTRIBUTES = Pattern
 			.compile("(?:\\s+(?:colspan|rowspan)\\s*=\\s*\"\\d+\")*\\s*");
@@ -5798,7 +5827,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			return false;
 		}
 		if (floatSide == END_ANCHORED) {
-			return cellBeforeFromEnd(grid, extent, -margin);
+			// A multicol inside a shrink-to-fit box clamps the box to the line (AbstractStaticBlockBox, columnInflated),
+			// so the table overflows it toward the end instead of ending at the content's end (codex review, 2026-10-24:
+			// with a column-count:2 div beside the table, Copper started the table of a horizontal-tb float or
+			// inline-block on 60 pt vertical-rl paper at the content's left edge).
+			return !STYLE_COLUMN_COUNT.matcher(html).find() && cellBeforeFromEnd(grid, extent, -margin);
 		}
 		final boolean bordered = !collapsedTables && html.contains(SOLID_CELL_BORDER);
 		final boolean fromStart = cellBeyondFromStart(html, grid, 0, extent + margin, font, collapsedTables, bordered);
