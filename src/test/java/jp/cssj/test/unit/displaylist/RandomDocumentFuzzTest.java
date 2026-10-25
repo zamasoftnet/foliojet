@@ -1788,7 +1788,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// far left of the float. Copper draws T16 at x = -524 pt; Chrome's screen puts its cell at x = -339 pt and the
 			// inner grid at -394 pt, also left of the paper.
 			new IndividualExclusion(35_808_808, "fit-v1", 308_912_465, "作者の溢れ: 幅105ptの逆進行のgridのfloatより広い中身が紙の左の外(Chromeも)",
-					"2026-10-24"));
+					"2026-10-24"),
+			// Triage §111, the same hole as §57: on 200 pt horizontal paper (margin 0) a float:right in a vertical-lr div
+			// holds two vertical textareas at Chrome's size (125 pt each since 3f90e52c), set on one line 250.5 pt down
+			// the 200 pt page; a blank page follows and T5 goes to the third (19124: horizontal controls, one page).
+			// Chrome's print also stacks them, 258 pt scaled back; the oracle sees only the sizes the HTML gives.
+			new IndividualExclusion(38_686_418, "fit-v1", 1_088_101_607, "判定の穴: 縦組みのtextarea2つでfloatが紙より長く白紙の頁(Chromeも紙を超える)",
+					"2026-10-25"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
