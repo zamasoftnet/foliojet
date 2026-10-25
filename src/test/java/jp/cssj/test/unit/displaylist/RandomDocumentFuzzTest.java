@@ -1840,6 +1840,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Chrome's print puts both at y = 248 pt. min-height: 0 on the item, or dropping the flex, either multicol or the
 			// image, keeps them on the paper.
 			new IndividualExclusion(41_456_738, "fit-v1", 2_029_359_648, "既知の制限: 縦組みのflexの項目の入れ子の段組の最小の長さを段の数だけ足して紙の下の外",
+					"2026-10-26"),
+			// Triage §118: on 200 pt vertical-lr paper a vertical-rl box holds a list item of width:8em (96 pt) whose line
+			// is a horizontal inline-block of width:117pt, so the line runs past the item's left edge and T0 lands at
+			// x = -24 pt (19124 alike); Chrome puts it at x = -21 pt and its print leaves the page blank.
+			new IndividualExclusion(41_651_302, "standard", 41_651_302, "作者の溢れ: 幅8emの逆進行の項目に幅117ptの行で紙の左の外(Chromeの印刷も白紙)",
 					"2026-10-26"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
