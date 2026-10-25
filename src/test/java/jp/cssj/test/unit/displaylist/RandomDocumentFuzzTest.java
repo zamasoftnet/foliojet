@@ -1808,6 +1808,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// float off the trial layout for orthogonal content, so the float is 0 pt long and its content lands below the
 			// paper (y = 150 pt). Chrome's print puts the image at y = 66 pt.
 			new IndividualExclusion(39_668_953, "fit-v1", 68_384_495, "既知の制限: 縦組みの表のfloatのセルの中の横組みの表がfloatの長さに入らず紙の下の外",
+					"2026-10-25"),
+			// Triage §114: on 120x400 pt vertical-lr paper a nowrap column-reverse flex with width: 105pt holds items
+			// about 650 pt long in its main axis. Copper keeps the overflow on page 1 up to x = 636 pt (19124 alike, the
+			// limitation of §73); Chrome's print overflows it to the left of the paper and shows only T2.
+			new IndividualExclusion(39_964_688, "fit-v1", 1_494_491_760, "作者の溢れ: 縦組みの幅を決めた逆順のflexから中身が紙の5倍溢れる(Chromeの印刷も紙の左の外)",
 					"2026-10-25"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
