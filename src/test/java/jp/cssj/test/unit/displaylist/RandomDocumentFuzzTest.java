@@ -1817,7 +1817,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §115: a right float on 60 pt paper holding a table with overlapping row spans and a nested table,
 			// about 131 pt wide; Copper puts T11 at x = 120 pt (19124 alike), Chrome's print shows only T1 to T9.
 			new IndividualExclusion(40_424_483, "fit-v1", 755_628_702, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeの印刷も紙の外)",
-					"2026-10-25"));
+					"2026-10-25"),
+			// Triage §116, the same limitation as 13106246 (standing user decision 2026-10-13): on vertical-rl A4 a
+			// vertical-lr block holds a four-column multicol with a vertical-lr display:table around an outside list; Copper
+			// draws the marker and T0 at x = 597.4 pt, right of the paper (19124: 598.1 pt), Chrome's print at 581.7 pt.
+			// One column, no multicol or no display:table puts T0 on the paper.
+			new IndividualExclusion(41_057_158, "fit-v1", 734_587_462, "既知の制限: 逆進行の箱の中の段組の表が紙の右の外",
+					"2026-10-26"),
+			// Triage §116: a right float on 60 pt vertical-rl paper holding a table with overlapping cells and a nested
+			// table, about 190 pt long in the line direction; Copper puts T27 and T31 at y = 174.7 pt (19124 alike), Chrome's
+			// print shows only six tokens on the paper.
+			new IndividualExclusion(41_089_292, "fit-v1", 1_953_458_425, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の3倍(Chromeの印刷も紙の外)",
+					"2026-10-26"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
