@@ -1828,6 +1828,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// table, about 190 pt long in the line direction; Copper puts T27 and T31 at y = 174.7 pt (19124 alike), Chrome's
 			// print shows only six tokens on the paper.
 			new IndividualExclusion(41_089_292, "fit-v1", 1_953_458_425, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の3倍(Chromeの印刷も紙の外)",
+					"2026-10-26"),
+			// Triage §117: a right float on 60 pt vertical-rl paper holding a table with overlapping cells and a nested
+			// table; Copper puts T19 at y = 167.3 pt (19124 alike), Chrome's print leaves T9 to T15 and T17 to T19 off the
+			// paper as well.
+			new IndividualExclusion(41_395_460, "fit-v1", 899_856_450, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の3倍(Chromeの印刷も紙の外)",
+					"2026-10-26"),
+			// Triage §117, a known limitation since 19124 (standing user decision 2026-10-13): on horizontal A4 a vertical-lr
+			// wrap-reverse flex holds a three-column multicol around a four-column multicol with a 240 pt tall image. The
+			// item's automatic minimum size counts every column (about 2,970 pt), so T1 and T2 land at y = 1244 and 2734 pt;
+			// Chrome's print puts both at y = 248 pt. min-height: 0 on the item, or dropping the flex, either multicol or the
+			// image, keeps them on the paper.
+			new IndividualExclusion(41_456_738, "fit-v1", 2_029_359_648, "既知の制限: 縦組みのflexの項目の入れ子の段組の最小の長さを段の数だけ足して紙の下の外",
 					"2026-10-26"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
