@@ -1845,6 +1845,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// is a horizontal inline-block of width:117pt, so the line runs past the item's left edge and T0 lands at
 			// x = -24 pt (19124 alike); Chrome puts it at x = -21 pt and its print leaves the page blank.
 			new IndividualExclusion(41_651_302, "standard", 41_651_302, "作者の溢れ: 幅8emの逆進行の項目に幅117ptの行で紙の左の外(Chromeの印刷も白紙)",
+					"2026-10-26"),
+			// Triage §119, as §99: on A4 (margin 0) a right float holds an inline-block of width:20pt whose ul keeps the
+			// UA padding of 40px (30 pt), so its items start at x = 601 pt, past the paper's right edge (19124 alike);
+			// Chrome's print leaves the page blank.
+			new IndividualExclusion(41_762_292, "fit-v1", 1_057_488_224, "作者の溢れ: 幅20ptの箱のulの既定の字下げ30ptで項目が紙の右の外(Chromeの印刷も白紙)",
+					"2026-10-26"),
+			// Triage §119, as seed 19812834: on 60 pt horizontal paper an inline vertical-rl box holds a table with
+			// overlapping cells and a ul with the UA padding, about 2.2 times the paper's height, so T18 to T20 land
+			// below the paper (19124 alike); Chrome lays it out past the viewport too and its print slices it over pages.
+			new IndividualExclusion(41_780_172, "fit-v1", 62_744_249, "作者の溢れ: 横組みの紙の縦組みの重なるセルの表が紙の2倍超(Chromeも紙の外まで組む)",
 					"2026-10-26"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
