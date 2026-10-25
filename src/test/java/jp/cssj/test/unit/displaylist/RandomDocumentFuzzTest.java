@@ -1813,6 +1813,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// about 650 pt long in its main axis. Copper keeps the overflow on page 1 up to x = 636 pt (19124 alike, the
 			// limitation of §73); Chrome's print overflows it to the left of the paper and shows only T2.
 			new IndividualExclusion(39_964_688, "fit-v1", 1_494_491_760, "作者の溢れ: 縦組みの幅を決めた逆順のflexから中身が紙の5倍溢れる(Chromeの印刷も紙の左の外)",
+					"2026-10-25"),
+			// Triage §115: a right float on 60 pt paper holding a table with overlapping row spans and a nested table,
+			// about 131 pt wide; Copper puts T11 at x = 120 pt (19124 alike), Chrome's print shows only T1 to T9.
+			new IndividualExclusion(40_424_483, "fit-v1", 755_628_702, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeの印刷も紙の外)",
 					"2026-10-25"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
