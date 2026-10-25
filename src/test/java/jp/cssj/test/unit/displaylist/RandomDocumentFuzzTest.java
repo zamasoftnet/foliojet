@@ -1794,6 +1794,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// the 200 pt page; a blank page follows and T5 goes to the third (19124: horizontal controls, one page).
 			// Chrome's print also stacks them, 258 pt scaled back; the oracle sees only the sizes the HTML gives.
 			new IndividualExclusion(38_686_418, "fit-v1", 1_088_101_607, "判定の穴: 縦組みのtextarea2つでfloatが紙より長く白紙の頁(Chromeも紙を超える)",
+					"2026-10-25"),
+			// Triage §112, the known limitation of floats in a multicol (CSS-SUPPORT, since 19124; standing user decision
+			// 2026-10-13): on 120x400 pt vertical-lr paper a two-column multicol holds a float:right column-wrap flex
+			// about 420 pt long in the block axis, which is not split across pages; T34 to T37 land at x = 436.8 pt on
+			// page 1 (19124: 433.6 pt). Without the multicol the float goes over five pages on the paper; Chrome's print
+			// splits it over three pages and drops most of the table.
+			new IndividualExclusion(39_552_631, "standard", 39_552_631, "既知の制限: 縦組みの段組の中のfloatが頁で分かれず紙の右の外",
 					"2026-10-25"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
