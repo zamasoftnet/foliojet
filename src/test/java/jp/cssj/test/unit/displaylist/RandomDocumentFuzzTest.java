@@ -1801,6 +1801,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// page 1 (19124: 433.6 pt). Without the multicol the float goes over five pages on the paper; Chrome's print
 			// splits it over three pages and drops most of the table.
 			new IndividualExclusion(39_552_631, "standard", 39_552_631, "既知の制限: 縦組みの段組の中のfloatが頁で分かれず紙の右の外",
+					"2026-10-25"),
+			// Triage §113, a known engine limitation since 19124 (standing user decision 2026-10-13): on 300x150 pt
+			// vertical-rl paper a display:table float:right holds a horizontal-tb div around a table with an image
+			// 197x82 pt. The orthogonal div holding only a table contributes no page extent and the table cell keeps the
+			// float off the trial layout for orthogonal content, so the float is 0 pt long and its content lands below the
+			// paper (y = 150 pt). Chrome's print puts the image at y = 66 pt.
+			new IndividualExclusion(39_668_953, "fit-v1", 68_384_495, "既知の制限: 縦組みの表のfloatのセルの中の横組みの表がfloatの長さに入らず紙の下の外",
 					"2026-10-25"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
