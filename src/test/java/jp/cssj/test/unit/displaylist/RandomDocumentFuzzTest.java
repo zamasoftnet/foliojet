@@ -1855,6 +1855,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// overlapping cells and a ul with the UA padding, about 2.2 times the paper's height, so T18 to T20 land
 			// below the paper (19124 alike); Chrome lays it out past the viewport too and its print slices it over pages.
 			new IndividualExclusion(41_780_172, "fit-v1", 62_744_249, "作者の溢れ: 横組みの紙の縦組みの重なるセルの表が紙の2倍超(Chromeも紙の外まで組む)",
+					"2026-10-26"),
+			// Triage §120, a known limitation since 19124 (standing user decision 2026-10-13, as §98): on 60 pt vertical-rl
+			// paper (margin 5) a horizontal box of min-width:8em (48 pt) sits inside 20 pt of margins and padding, more
+			// than the 50 pt page area. Copper keeps it on page 1 and T0 lands at x = -7 pt, half cut by the paper's
+			// left edge; Chrome's print splits the box over two pages and puts T0 on the paper.
+			new IndividualExclusion(42_044_965, "fit-v1", 1_554_219_123, "既知の制限: 縦組みの紙の最小幅を決めた横組みの箱が頁で分かれず紙の左の縁",
+					"2026-10-26"),
+			// Triage §120: a left float on 60 pt vertical-lr paper holding a vertical-rl table with overlapping cells and
+			// a nested table about 2.5 times the paper in the line direction (19124 alike); Chrome's print leaves T1 to
+			// T3, T10 to T12, T15 to T23 and others off the paper as well.
+			new IndividualExclusion(42_084_456, "fit-v1", 2_065_976_665, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の2倍超(Chromeの印刷も紙の外)",
 					"2026-10-26"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
