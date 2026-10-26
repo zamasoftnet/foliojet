@@ -616,7 +616,7 @@ public final class HTMLStyleUtils {
 					style.set(FontSize.INFO,
 							AbsoluteLengthValue.create(ua, NumberUtils.parseDouble(pointSize), Unit.PT));
 				} catch (NumberFormatException e) {
-					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "point-size", size);
+					ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, elem, "point-size", pointSize);
 				}
 			}
 		}

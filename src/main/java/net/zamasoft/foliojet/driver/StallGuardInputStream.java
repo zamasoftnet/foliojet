@@ -32,7 +32,15 @@ final class StallGuardInputStream extends InputStream {
 
 	@Override
 	public int read(final byte[] b, final int off, final int len) throws IOException {
-		final java.util.concurrent.Future<Integer> f = this.executor.submit(() -> this.delegate.read(b, off, len));
+		final java.util.concurrent.Future<Integer> f;
+		try {
+			f = this.executor.submit(() -> this.delegate.read(b, off, len));
+		} catch (final java.util.concurrent.RejectedExecutionException e) {
+			// The resolver was closed (an abort) and shut the executor down (2026-10-26, codex review).
+			final java.io.InterruptedIOException closed = new java.io.InterruptedIOException("the HTTP resolver was closed");
+			closed.initCause(e);
+			throw closed;
+		}
 		try {
 			return f.get(this.timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS);
 		} catch (final java.util.concurrent.TimeoutException e) {

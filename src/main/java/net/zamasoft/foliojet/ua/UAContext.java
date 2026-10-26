@@ -290,11 +290,11 @@ public class UAContext {
 	 */
 	private java.util.Set<java.net.URI> documentSet = null;
 
-	public java.util.Set<java.net.URI> getDocumentSet() {
+	public synchronized java.util.Set<java.net.URI> getDocumentSet() {
 		return this.documentSet;
 	}
 
-	public void setDocumentSet(final java.util.Set<java.net.URI> documentSet) {
+	public synchronized void setDocumentSet(final java.util.Set<java.net.URI> documentSet) {
 		this.documentSet = documentSet;
 		this.normalizedDocuments = null;
 	}

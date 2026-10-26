@@ -184,6 +184,17 @@ class MyHttpSourceResolver implements SourceResolver {
 	}
 
 	/**
+	 * The executor for a body's stall guard, read under the lock (2026-10-26, SpotBugs): {@link #close()} (an abort)
+	 * may clear it while another thread is still reading a response, which used to hand the guard a null.
+	 */
+	private synchronized ExecutorService liveExecutor() throws IOException {
+		if (this.executor == null) {
+			throw new java.io.InterruptedIOException("the HTTP resolver was closed");
+		}
+		return this.executor;
+	}
+
+	/**
 	 * The maximum concurrent prefetch requests. HTTP/2 multiplexes them over one connection.
 	 * Measured (Wikipedia, about 100 images, 24.3 s baseline): 6.7–7.4 s at 8, 6.4–6.7 s at 16;
 	 * beyond this, bandwidth and RTT dominate.
@@ -804,7 +815,7 @@ class MyHttpSourceResolver implements SourceResolver {
 				throw new FileNotFoundException();
 			}
 			if (requestTimeout > 0) {
-				body = new StallGuardInputStream(body, MyHttpSourceResolver.this.executor, requestTimeout);
+				body = new StallGuardInputStream(body, MyHttpSourceResolver.this.liveExecutor(), requestTimeout);
 			}
 			if (this.contentEncoding != null) {
 				switch (this.contentEncoding.trim().toLowerCase()) {
