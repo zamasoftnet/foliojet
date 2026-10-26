@@ -230,14 +230,29 @@ public class StyleContext {
 		return false;
 	}
 
+	/** Results of matching a compound and the rest of the selector to its left (as WebKit's SelectorChecker). */
+	private static final byte MATCHES = 0, FAILS_LOCALLY = 1, FAILS_ALL_SIBLINGS = 2, FAILS_COMPLETELY = 3;
+
 	/**
 	 * Determines whether selector (which may contain a combinator chain) matches
 	 * starting from the last element in path. Shared by top-level rule evaluation
-	 * in {@link #merge} and argument evaluation for :is()/:where()/:not(),
+	 * in {@link #merge} and argument evaluation for :is()/:where()/:not()/:has(),
 	 * whose arguments may contain descendant (space), child (&gt;), adjacent sibling (+),
-	 * or general sibling (~) combinators (2026-07-19: unified duplicated logic). Non-recursive:
-	 * iteratively traverse selector from right to left and path from its end (target element)
-	 * to its beginning (most distant ancestor), without recursion over either tree.
+	 * or general sibling (~) combinators (2026-07-19: unified duplicated logic).
+	 *
+	 * <p>
+	 * Backtracks as WebKit's SelectorChecker does (2026-10-26): when the rest of the selector fails from the nearest
+	 * ancestor or sibling matching a compound, the farther ones are tried. Until then the nearest one was taken and
+	 * never retried, so {@code .a > .b .c} missed a {@code .c} inside two nested {@code .b}, and {@code .p + .q .d} one
+	 * inside two nested {@code .q}, which browsers match. The failures are graded to prune the search: one that holds
+	 * for every sibling (an ancestor did not match) or for every farther ancestor (the ancestors ran out) stops the
+	 * loops that could not change it, so a match costs about path length × compounds.
+	 * </p>
+	 *
+	 * <p>
+	 * Non-recursive: the compounds are matched right to left and each one owns one frame of the arrays below (a
+	 * compound only calls the one to its left), so the depth is the number of compounds, not the depth of the tree.
+	 * </p>
 	 *
 	 * @param selector selector to evaluate
 	 * @param path     ancestor chain ending at the target element (most distant ancestor first);
@@ -248,100 +263,128 @@ public class StyleContext {
 	 *                                 (:has() and :last-child variants); may be null if unavailable
 	 */
 	private static boolean matchesFromPath(Selector selector, List<CSSElement> path, SelectorFacts facts) {
-		boolean first = true;// For the first selector, a matching element must appear immediately.
-		boolean child = false;// For a child selector, a matching element must appear immediately, excluding pseudo-elements.
-		boolean sibling = false;// For an adjacent selector, move to the neighboring element without ascending path.
-		CSSElement ce = null;
-		List<CSSElement> ceView = null;// Ancestor chain ending at ce (for nested evaluation of :is()/:where()/:not())
-		NEXT: for (int j = path.size() - 1; j >= 0; --j) {
-			if (sibling) {
-				sibling = false;
-				ceView = withLast(path.subList(0, j), ce);
-			} else {
-				ce = path.get(j);
-				ceView = path.subList(0, j + 1);
-			}
-			switch (selector.getSelectorType()) {
-			// Child selector
-			case CHILD_SELECTOR: {
-				CombinatorSelector combinator = (CombinatorSelector) selector;
-				SimpleSelector simpleSelector = combinator.getSimpleSelector();
-				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
-					selector = combinator.getAncestorSelector();
-					child = true;
-				} else if (first || (!ce.isPseudoElement() && child)) {
-					break NEXT;
-				}
-			}
-				break;
-
-			// Descendant selector
-			case DESCENDANT_SELECTOR: {
-				CombinatorSelector combinator = (CombinatorSelector) selector;
-				SimpleSelector simpleSelector = combinator.getSimpleSelector();
-				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
-					selector = combinator.getAncestorSelector();
-					child = simpleSelector.getSelectorType() == SelectorType.PSEUDO_ELEMENT_SELECTOR;
-				} else if (first || (!ce.isPseudoElement() && child)) {
-					break NEXT;
-				}
-			}
-				break;
-
-			// Adjacent selector
-			case DIRECT_ADJACENT_SELECTOR: {
-				CombinatorSelector combinator = (CombinatorSelector) selector;
-				SimpleSelector simpleSelector = combinator.getSimpleSelector();
-				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
-					selector = combinator.getAncestorSelector();
-					child = true;
-					ce = ce.precedingElement;
-					if (ce == null) {
-						break NEXT;
-					}
-					++j;
-					sibling = true;
-				} else if (first || (!ce.isPseudoElement() && child)) {
-					break NEXT;
-				}
-			}
-				break;
-
-			// General sibling selector
-			case GENERAL_ADJACENT_SELECTOR: {
-				CombinatorSelector combinator = (CombinatorSelector) selector;
-				SimpleSelector simpleSelector = combinator.getSimpleSelector();
-				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
-					selector = combinator.getAncestorSelector();
-					child = true;
-					// The nearest preceding sibling that matches the rightmost part of the left-hand selector.
-					CSSElement sib = precedingMatch(selector.getSimpleSelector(), ce, path.subList(0, j), facts);
-					if (sib == null) {
-						break NEXT;
-					}
-					ce = sib;
-					++j;
-					sibling = true;
-				} else if (first || (!ce.isPseudoElement() && child)) {
-					break NEXT;
-				}
-			}
-				break;
-
-			// Simple selector
-			default: {
-				SimpleSelector simpleSelector = selector.getSimpleSelector();
-				if (evaluateSimpleSelector(simpleSelector, ceView, facts)) {
-					return true;
-				} else if (first || (!ce.isPseudoElement() && child)) {
-					break NEXT;
-				}
-			}
-				break;
-			}
-			first = false;
+		// The rightmost compound first: most candidate rules fail there, before anything is allocated (codex review).
+		if (!evaluateSimpleSelector(selector.getSimpleSelector(), path, facts)) {
+			return false;
 		}
-		return false;
+		if (!(selector instanceof CombinatorSelector)) {
+			return true;
+		}
+		// Compound i (0 = the rightmost, n = the leftmost) and the combinator between compound i and i + 1.
+		int n = 0;
+		for (Selector s = selector; s instanceof CombinatorSelector c; s = c.getAncestorSelector()) {
+			++n;
+		}
+		final SimpleSelector[] compound = new SimpleSelector[n + 1];
+		final SelectorType[] combinator = new SelectorType[n];
+		Selector s = selector;
+		for (int i = 0; i < n; ++i) {
+			final CombinatorSelector c = (CombinatorSelector) s;
+			compound[i] = c.getSimpleSelector();
+			combinator[i] = c.getSelectorType();
+			s = c.getAncestorSelector();
+		}
+		compound[n] = s.getSimpleSelector();
+
+		// Frame i: the element compound i is matched against (its ancestors are path[0, ancestors[i])), the next
+		// ancestor index to try for compound i + 1 and the last sibling tried for it.
+		final int[] ancestors = new int[n + 1];
+		final CSSElement[] element = new CSSElement[n + 1];
+		final int[] next = new int[n + 1];
+		final CSSElement[] sibling = new CSSElement[n + 1];
+		final boolean[] entered = new boolean[n + 1];
+		ancestors[0] = path.size() - 1;
+		element[0] = path.get(path.size() - 1);
+		entered[0] = true;
+		next[0] = ancestors[0] - 1;
+		int i = 0;
+		// What frame i + 1 returned to frame i, or -1 before frame i calls it.
+		byte returned = -1;
+		for (;;) {
+			byte result = -1;
+			if (!entered[i]) {
+				entered[i] = true;
+				returned = -1;
+				if (!evaluateSimpleSelector(compound[i], view(path, ancestors[i], element[i]), facts)) {
+					result = FAILS_LOCALLY;
+				} else if (i == n) {
+					result = MATCHES;
+				} else {
+					next[i] = ancestors[i] - 1;
+					sibling[i] = null;
+				}
+			}
+			if (result == -1) {
+				CSSElement call = null;
+				int callAncestors = 0;
+				switch (combinator[i]) {
+				case DESCENDANT_SELECTOR:
+					if (compound[i].getSelectorType() != SelectorType.PSEUDO_ELEMENT_SELECTOR) {
+						if (returned == MATCHES || returned == FAILS_COMPLETELY) {
+							result = returned;
+						} else if (next[i] < 0) {
+							result = FAILS_COMPLETELY;
+						} else {
+							callAncestors = next[i]--;
+							call = path.get(callAncestors);
+						}
+						break;
+					}
+					// A pseudo-element hangs on its originating element, as a child does.
+				case CHILD_SELECTOR:
+					// Pseudo-element ancestors that the compound does not match are passed over.
+					if (returned != -1 && !(returned == FAILS_LOCALLY && path.get(next[i] + 1).isPseudoElement())) {
+						result = returned == MATCHES || returned == FAILS_COMPLETELY ? returned : FAILS_ALL_SIBLINGS;
+					} else if (next[i] < 0) {
+						result = FAILS_COMPLETELY;
+					} else {
+						callAncestors = next[i]--;
+						call = path.get(callAncestors);
+					}
+					break;
+				case DIRECT_ADJACENT_SELECTOR:
+					if (returned != -1) {
+						result = returned;
+					} else if ((call = element[i].precedingElement) == null) {
+						result = FAILS_ALL_SIBLINGS;
+					} else {
+						callAncestors = ancestors[i];
+					}
+					break;
+				case GENERAL_ADJACENT_SELECTOR:
+					if (returned == MATCHES || returned == FAILS_ALL_SIBLINGS || returned == FAILS_COMPLETELY) {
+						result = returned;
+					} else if ((call = precedingMatch(compound[i + 1], sibling[i] == null ? element[i] : sibling[i],
+							path.subList(0, ancestors[i]), facts)) == null) {
+						result = FAILS_ALL_SIBLINGS;
+					} else {
+						sibling[i] = call;
+						callAncestors = ancestors[i];
+					}
+					break;
+				default:
+					throw new IllegalStateException(String.valueOf(combinator[i]));
+				}
+				if (result == -1) {
+					++i;
+					ancestors[i] = callAncestors;
+					element[i] = call;
+					entered[i] = false;
+					continue;
+				}
+			}
+			if (i == 0) {
+				return result == MATCHES;
+			}
+			--i;
+			returned = result;
+		}
+	}
+
+	/** The ancestor chain ending at {@code e}, whose ancestors are {@code path[0, ancestors)}. */
+	private static List<CSSElement> view(final List<CSSElement> path, final int ancestors, final CSSElement e) {
+		return ancestors < path.size() && path.get(ancestors) == e ? path.subList(0, ancestors + 1)
+				: withLast(path.subList(0, ancestors), e);
 	}
 
 	/**

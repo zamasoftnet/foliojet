@@ -70,7 +70,7 @@ public class SiblingPositionAndPassCarryTest extends TestCase {
 	}
 
 	/** The paragraphs drawn, in order. */
-	private static List<String> shown(final String css, final String body, final int passes) throws Exception {
+	static List<String> shown(final String css, final String body, final int passes) throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>"
 				+ "@page { size: 400pt 900pt; margin: 20pt } body { margin: 0; font: 8pt serif } p, i { margin: 0; display: none }\n"
 				+ css + "</style></head><body>" + body + "</body></html>";
