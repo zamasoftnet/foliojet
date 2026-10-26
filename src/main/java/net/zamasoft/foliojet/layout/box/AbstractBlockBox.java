@@ -153,11 +153,13 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			} else {
 				this.height = Math.max(0, this.height - borderBoxLine);
 			}
-			double maxHeight = LayoutUtils.computeDimensionWidth(params.maxSize, lineSize);
+			// The height components, as for the size above (they read the width ones until 2026-10-26: a min-width in a
+			// vertical table cell stretched the column; FlowBlockBox.calculateSize had them right).
+			double maxHeight = LayoutUtils.computeDimensionHeight(params.maxSize, lineSize);
 			if (!LayoutUtils.isNone(maxHeight)) {
 				this.height = Math.min(this.height, Math.max(0, maxHeight - borderBoxLine));
 			}
-			double minHeight = LayoutUtils.computeDimensionWidth(this.minSize, lineSize);
+			double minHeight = LayoutUtils.computeDimensionHeight(this.minSize, lineSize);
 			if (!LayoutUtils.isNone(minHeight)) {
 				this.height = Math.max(this.height, Math.max(0, minHeight - borderBoxLine));
 			}
