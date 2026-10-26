@@ -1348,7 +1348,51 @@ public class FuzzOraclePredicateTest extends TestCase {
 				.findUnfittableContent(shrinkerDoc(inlineBlock + TABLE_OVER.replace("<td>T15</td>", "") + "</div>")));
 		// Auto margins are refused to stay conservative (they are 0 on an inline-block).
 		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:inline-block;margin:auto\"", false, false));
-		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:inline\"", false, false));
+		// An inline is a plain wrapper since fit seed 43317647 (testSeedTableInInlineIsUnfittable).
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:inline-flex\"", false, false));
+	}
+
+	/**
+	 * fit seed 43317647 (v2 2113406149): on 60 pt vertical-lr paper, a table with a nested table and overlapping cells
+	 * inside {@code <div style="display:inline;float:none;">} (2026-10-27). Copper put T18 at y=122.22, Chrome at
+	 * y=117.19.
+	 */
+	public void testSeedTableInInlineIsUnfittable() {
+		final String html = RandomDocumentFuzzTest.generate(2_113_406_149, true, false, false).html();
+		assertTrue(html.contains("<div style=\"display:inline;float:none;\">"));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(html));
+		// The table becomes a block at the content start, also after text and inside an inline with frames.
+		for (final String open : new String[] { "<div style=\"display:inline\">", "T0 T0 <div style=\"display:inline\">",
+				"<div style=\"display:inline;margin:4pt;padding:3pt;border:1pt solid black\">" }) {
+			assertEquals(open, RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+					RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(open + TABLE_OVER + "</div>")));
+			assertNull(open, RandomDocumentFuzzTest
+					.findUnfittableContent(shrinkerDoc(open + TABLE_OVER.replace("<td>T15</td>", "") + "</div>")));
+		}
+		// Also nested with other plain wrappers and floats, and with a block-axis size (codex review); Copper started each
+		// table at the content start, after the T0 line (triage §124).
+		for (final String open : new String[] { "<div style=\"display:inline\"><div style=\"display:inline\">",
+				"<div style=\"display:inline\"><div style=\"display:inline-block\">",
+				"<div style=\"display:inline\"><div style=\"float:left\">", "<div style=\"float:left\"><div style=\"display:inline\">",
+				"<div style=\"float:right\"><div style=\"display:inline\">", "<div style=\"display:inline;height:30pt\"><div>" }) {
+			assertEquals(open, RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+					RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc("T0 " + open + TABLE_OVER + "</div></div>")));
+			assertNull(open, RandomDocumentFuzzTest.findUnfittableContent(
+					shrinkerDoc("T0 " + open + TABLE_OVER.replace("<td>T15</td>", "") + "</div></div>")));
+		}
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(
+				verticalShrinkerDoc("vertical-lr", "T0 <div style=\"display:inline;width:30pt\">" + TABLE_OVER + "</div>")));
+		// The reversed block progression keeps the line start at the top.
+		for (final String[] modes : new String[][] { { "vertical-rl", "vertical-lr" }, { "vertical-lr", "vertical-rl" } }) {
+			final String open = "<div style=\"display:inline;writing-mode:" + modes[1] + "\">";
+			assertEquals(modes[0], RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+					.findUnfittableContent(verticalShrinkerDoc(modes[0], open + TABLE_OVER + "</div>")));
+			assertNull(modes[0], RandomDocumentFuzzTest.findUnfittableContent(
+					verticalShrinkerDoc(modes[0], open + TABLE_OVER.replace("<td>T15</td>", "") + "</div>")));
+		}
+		// Auto margins are refused to stay conservative (they are 0 on an inline), and so are negative ones.
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:inline;margin:auto\"", false, false));
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:inline;margin-left:-4pt\"", false, false));
 	}
 
 	/**

@@ -6141,17 +6141,23 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * the line when its content's minimum does (shrink-to-fit), but the table inside still keeps its column minimums
 	 * from that start, which is all the column bounds use. As with floats, Copper may rescue-slice an oversized line
 	 * across pages (codex review); accepted under the unfittable-content policy (triage §105, §107).
+	 * An inline div ({@code display:inline}, fit seed 43317647, 2026-10-27: a table with a nested table in
+	 * {@code <div style="display:inline;float:none;">} on 60 pt vertical-lr paper put T18 at y=122.22; Chrome at
+	 * y=117.19) breaks its line around the table, which becomes a block of the parent's flow at the content start;
+	 * its frames only move the empty line fragments before and after it. Copper put such a table at the plain div's
+	 * line start in all three writing modes, also with frames, after text, and with the reversed block progression
+	 * (triage §124).
 	 */
 	private static final Pattern NEUTRAL_WRAPPER_DECLARATION = Pattern
-			.compile("\\s*(?:display\\s*:\\s*(?:block|table|inline-block)|page-break-inside\\s*:\\s*[a-z]+)\\s*");
-	private static final Pattern DISPLAY_SHRINK_TO_FIT_DECLARATION = Pattern
-			.compile("(?:^|;)\\s*display\\s*:\\s*(?:table|inline-block)\\s*(?:;|$)");
+			.compile("\\s*(?:display\\s*:\\s*(?:block|table|inline-block|inline)|page-break-inside\\s*:\\s*[a-z]+)\\s*");
+	private static final Pattern DISPLAY_AUTO_MARGIN_REFUSED_DECLARATION = Pattern
+			.compile("(?:^|;)\\s*display\\s*:\\s*(?:table|inline-block|inline)\\s*(?:;|$)");
 	private static final Pattern WRITING_MODE_DECLARATION = Pattern
 			.compile("\\s*writing-mode\\s*:\\s*([a-z-]+)\\s*");
 
 	/**
-	 * Extend {@link #isPlainWrapper(String, String, boolean)} with {@code display:block} (and {@code display:table} and
-	 * {@code display:inline-block}, see {@link #NEUTRAL_WRAPPER_DECLARATION}),
+	 * Extend {@link #isPlainWrapper(String, String, boolean)} with {@code display:block} (and {@code display:table},
+	 * {@code display:inline-block} and {@code display:inline}, see {@link #NEUTRAL_WRAPPER_DECLARATION}),
 	 * {@code page-break-inside} and a {@code writing-mode} that keeps the parent's axis ({@code parentVertical})
 	 * (2026-10-08, fit seed 12137870: a table in {@code <div style="page-break-inside:avoid;margin:0pt">} and
 	 * {@code <div style="display:block;writing-mode:vertical-lr;">} on {@code vertical-rl} paper). Between
@@ -6172,8 +6178,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		// A table div shrinks to fit, so auto margins center it, and in vertical writing Copper keeps a negative
 		// remainder (FlowBlockBox), moving an overflowing table's start backward (codex review, 2026-10-24). An
-		// inline-block's auto margins are 0 (CSS 2.1 §10.3.9, as in Copper); they are refused only to stay conservative.
-		final boolean shrinkToFit = DISPLAY_SHRINK_TO_FIT_DECLARATION.matcher(style.group(1)).find();
+		// inline-block's and an inline's auto margins are 0 (CSS 2.1 §10.3.1, §10.3.9, as in Copper); they are refused
+		// only to stay conservative.
+		final boolean refusesAutoMargin = DISPLAY_AUTO_MARGIN_REFUSED_DECLARATION.matcher(style.group(1)).find();
 		for (final String declaration : style.group(1).split(";")) {
 			if (declaration.isBlank() || declaration.trim().equals("float:none") || declaration.trim().equals("position:static")
 					|| declaration.trim().equals("position:relative")
@@ -6191,7 +6198,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			final Matcher frame = FRAME_DECLARATION.matcher(declaration);
 			if (!frame.matches() || frame.group(1).contains("-") || frame.group(1).contains("calc")
-					|| shrinkToFit && frame.group(1).contains("auto")) {
+					|| refusesAutoMargin && frame.group(1).contains("auto")) {
 				return false;
 			}
 		}
