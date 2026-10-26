@@ -387,6 +387,14 @@ public class ColumnsContainer implements Container {
 	 * all inner content disappeared in three levels of nested multi-column layout.
 	 * Addresses the content-loss defect in nested multi-column layout (2026-07-27).
 	 * </p>
+	 *
+	 * <p>
+	 * <b>The old columns always hand their absolutely positioned boxes back to {@code builder}</b>, whatever
+	 * {@code restyleAbsolutes} says (2026-10-26). That flag lets a container that lays its contents out again in
+	 * itself keep its absolutes where they are; the old columns are dropped here, so absolutes left in them were
+	 * lost: a float holding two balanced columns with an absolutely positioned box, moved whole to the next page,
+	 * came out without that box (sweep WILD seed 42500097).
+	 * </p>
 	 */
 	public void restyle(BlockBuilder builder, net.zamasoft.foliojet.layout.fragment.OpenShape shape,
 			boolean restyleAbsolutes) {
@@ -395,7 +403,7 @@ public class ColumnsContainer implements Container {
 		for (int i = 0; i <= last; ++i) {
 			final FlowContainer container = (FlowContainer) snapshot.get(i);
 			container.restyle(builder,
-					i == last ? shape : net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, restyleAbsolutes);
+					i == last ? shape : net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, true);
 		}
 	}
 

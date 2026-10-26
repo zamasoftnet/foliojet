@@ -1838,9 +1838,8 @@ public class DocumentBuilder implements TableBuilderHost {
 	 * {@link #shrinkToFitSizes(net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox, TwoPassBlockBuilder, Builder)}
 	 * for any box; {@code shrink} applies provisional sizes to the box before the trial layout. Used directly by
 	 * normal floats and fixed positioning (2026-10-08), and by footnotes and page-margin notes (the same day). Absolute
-	 * positioning still takes the simulated measurement as is, so with a table inside a child of the other writing
-	 * mode the box shrinks to its frame and the table sticks out of it: its body is bound later from a sealed range
-	 * (DeferredBind) and has no place for a trial layout here.
+	 * positioning, whose body is bound later from a sealed range (DeferredBind), lays its orthogonal content out on
+	 * trial in {@code AbsoluteBlockBox.orthogonalSizes} instead (5af441da).
 	 */
 	private net.zamasoft.foliojet.layout.sizing.IntrinsicSizes shrinkToFitSizes(final AbstractBlockBox box,
 			final TwoPassBlockBuilder content,

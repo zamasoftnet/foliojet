@@ -2667,7 +2667,10 @@ public class FlowContainer implements Container {
 				final net.zamasoft.foliojet.layout.fragment.OpenShape columnShape = c == scope.snapshot.size() - 1
 						? scope.inner
 						: net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED;
-				column.pushWorklistFrame(stack, builder, columnShape, false, List.of());
+				// The old column is dropped, so its absolutely positioned boxes go back through the builder as in
+				// ColumnsContainer.restyle (2026-10-26: a block kept together with break-inside: avoid, holding
+				// columns and an absolutely positioned label, lost the label when it moved to the next page).
+				column.pushWorklistFrame(stack, builder, columnShape, true, List.of());
 				continue;
 			}
 			final RestyleFrame frame = (RestyleFrame) step;
