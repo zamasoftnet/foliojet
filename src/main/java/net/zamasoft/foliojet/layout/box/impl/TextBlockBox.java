@@ -241,10 +241,38 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	 * will receive content through source replay; discarding it as empty <b>loses content</b>
 	 * (see that method's Javadoc).
 	 * </p>
+	 *
+	 * <p>
+	 * <b>A line holding an absolutely positioned box paints</b>, as {@code FlowContainer.paintsAnything} answers for
+	 * one in a block (2026-10-26): the box paints wherever its offsets put it, while the line takes no room. An
+	 * inline-level one alone on the last page left that page painting nothing, and the page was dropped with the box
+	 * and its content (sweep WILD seed 42500063).
+	 * </p>
 	 */
 	@Override
 	public boolean paintsAnything() {
-		return LayoutUtils.compare(this.paintedPageExtent(this.params.flow), 0) > 0;
+		if (LayoutUtils.compare(this.paintedPageExtent(this.params.flow), 0) > 0) {
+			return true;
+		}
+		for (int i = 0; i < this.lines.size(); ++i) {
+			if (holdsAbsolute(((Line) this.lines.get(i)).box)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Whether a text box holds an absolutely positioned box, directly or in an inline box. */
+	private static boolean holdsAbsolute(final net.zamasoft.foliojet.layout.box.AbstractTextBox box) {
+		for (final Object content : box.getLogicalContents()) {
+			if (content instanceof net.zamasoft.foliojet.layout.box.IAbsoluteBox
+					|| content instanceof net.zamasoft.foliojet.layout.box.AbstractTextBox.Inline inline
+							&& inline.box instanceof net.zamasoft.foliojet.layout.box.AbstractTextBox inner
+							&& holdsAbsolute(inner)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public final double getWidth() {

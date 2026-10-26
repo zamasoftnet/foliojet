@@ -320,9 +320,17 @@ public class VisualRescueBox extends AbstractBox {
 	}
 
 	/**
-	 * Pushes no children, because running finishLayout again on the original box would calculate twice.
+	 * The first fragment finishes the original box, and only it does (2026-10-26). The cut replaced the original box
+	 * with the fragments in its container, so no other traversal reaches it, and finishing it on every fragment would
+	 * run it again. Until then nothing in a rescued box was finished: an absolutely positioned box in it lays its
+	 * content out in its own finishLayoutSelf, so it was drawn empty on every fragment and its text was lost (sweep
+	 * WILD seeds 42500023, 42500043, 42500095, 42500131: a vertical flex container or a float longer than the page,
+	 * holding an absolutely positioned table or paragraph).
 	 */
 	public void pushFinishLayoutChildren(final IFramedBox containerBox, final Deque<FinishLayoutStep> worklist) {
+		if (this.isFirstFragment()) {
+			worklist.push(IBox.step(this.source, containerBox));
+		}
 	}
 
 	/**
