@@ -2377,6 +2377,12 @@ public class FlowContainer implements Container {
 				break;
 			case BLOCK:
 				final AbstractContainerBox blockBox = (AbstractContainerBox) flow.box;
+				if (blockBox.getBlockParams().flow.isVertical() != this.box.getBlockParams().flow.isVertical()) {
+					// An orthogonal box is not split in the page axis (PaginationContract.splitsInPageAxis), and its floats lie
+					// in its own axes, so the page limit here is a position on the other axis. They stay with the box
+					// (2026-10-26, triage §77: a float in a vertical box of a horizontal textbook went to the next page).
+					break;
+				}
 				double pageAxis = pageLimit - flow.pageAxis;
 				pageAxis -= blockBox.getFrame().getFramePageStart(blockBox.getBlockParams().flow);
 				// The child detaches and returns its own ledger (detachMovedFloatings recursion).

@@ -1751,13 +1751,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Chrome's screen at x = -39.9 pt with the line running 378 pt past the paper the other way.
 			new IndividualExclusion(26_260_989, "fit-v1", 472_156_206, "作者の溢れ: 横組みのfloatの1行にtextarea3つで紙の6倍(Chromeも同じ)",
 					"2026-10-18"),
-			// Triage §77: a vertical-rl float in a vertical-lr block on 300 x 150 pt horizontal paper holding a
-			// vertical textarea and text input 242 pt long (vertical since 3f90e52c, as in Chrome); the float's
-			// continuation paints nothing yet takes the page, so the paragraph after it goes to the third page past a
-			// blank one (19124: one page). Floats of an orthogonal flow with content shorter than the page and long
-			// paragraphs after them are not affected.
-			new IndividualExclusion(26_483_315, "fit-v1", 353_009_495, "既知の制限: 直交フローのfloatが頁より長い割れない中身を持つと白紙ページ",
-					"2026-10-18"),
 			// Triage §84: on vertical-rl 120 pt paper a nowrap flex row holds an 82 pt image, a floated select and
 			// textarea, two more textareas and a button, about 500 pt wide; Copper puts T2 at x = 499.8 pt (19124: 462.0),
 			// Chrome's screen at 709.6 pt and its print drops it.
