@@ -1924,6 +1924,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// columns with overlapping spans whose cell nests a seven-column table; with no sizes its min-content runs
 			// to about 150 pt in the line axis, so T3 and T19 land at y = 141 pt. The same on c3587d0e.
 			new IndividualExclusion(42_710_839, "fit-v1", 714_461_116, "作者の溢れ: 逆進行のfloatの中の表の最小幅が紙の行長60ptの約2.6倍",
+					"2026-10-26"),
+			// Triage §123, a known limitation since 19124 (as §73): on 120 x 400 pt vertical-rl paper a grid with
+			// width: 114pt holds a table whose cell has a column flex of 8em items, then a table and a list; the rows
+			// overflow the grid by about 390 pt and Copper keeps them on page 1 (T16 at x = -501.6 pt, 19124 alike).
+			new IndividualExclusion(43_174_996, "standard", 43_174_996, "既知の制限: 大きさを決めたgrid・flexから溢れた中身を頁に分けない",
 					"2026-10-26"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
