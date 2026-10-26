@@ -1919,6 +1919,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// controls. Copper keeps the multicol on page 1 and T6 to T14 land at x = -56 to -654 pt; without the
 			// multicol they go over five pages on the paper. Chrome's print loses T5, T6 and T10 to T13 as well.
 			new IndividualExclusion(42_377_714, "fit-v1", 1_381_878_066, "既知の制限: 縦組みの段組の中のfloatが頁で分かれず紙の左の外",
+					"2026-10-26"),
+			// Triage §122, the author's overflow: on 60 pt vertical-lr paper a vertical-rl float holds a table of six
+			// columns with overlapping spans whose cell nests a seven-column table; with no sizes its min-content runs
+			// to about 150 pt in the line axis, so T3 and T19 land at y = 141 pt. The same on c3587d0e.
+			new IndividualExclusion(42_710_839, "fit-v1", 714_461_116, "作者の溢れ: 逆進行のfloatの中の表の最小幅が紙の行長60ptの約2.6倍",
 					"2026-10-26"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
