@@ -756,8 +756,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 			if (!Double.isNaN(at)) {
 				this.poLastMargin = this.neLastMargin = 0;
-				this.pageAxis = at
-						- (cParams.flow.isVertical() ? flowBox.getFrame().margin.right : flowBox.getFrame().margin.top);
+				this.pageAxis = at - flowBox.getFrame().getMarginPageStart(cParams.flow);
 			}
 		}
 		final FlowPos pos = flowBox.getFlowPos();
@@ -777,12 +776,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 		if (pos.clear != ClearMode.NONE && this.getFloatingCount() > 0) {
 			// If clear is specified
-			final double marginStart;
-			if (cParams.flow.isVertical()) {
-				marginStart = frame.margin.right;
-			} else {
-				marginStart = frame.margin.top;
-			}
+			final double marginStart = frame.getMarginPageStart(cParams.flow);
 			final double pageStart = this.pageAxis - marginStart;
 			final ExclusionSpace snapshot = this.snapshotExclusions();
 			final FloatExclusion found = snapshot.findClearBoundary(pageStart, marginStart, pos.clear);
@@ -819,19 +813,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 		LayoutContext.Flow parentFlow = this.getFlow(this.getFlowCount() - 1);
 		double marginStart, frameStart, frameHead;
 		boolean bordered;
-		if (cParams.flow.isVertical()) {
-			// Vertical writing
-			marginStart = frame.margin.right;
-			frameHead = frame.getFrameTop();
-			frameStart = frame.getFrameRight();
-			bordered = frame.padding.right > 0 || !frame.frame.border.getRight().isNull();
-		} else {
-			// Horizontal-writing flow
-			marginStart = frame.margin.top;
-			frameHead = frame.getFrameLeft();
-			frameStart = frame.getFrameTop();
-			bordered = frame.padding.top > 0 || !frame.frame.border.getTop().isNull();
-		}
+		// The start side of the page axis: top, right in vertical-rl, left in vertical-lr (2026-10-26, see
+		// AbsoluteRectFrame.getFramePageStart)
+		marginStart = frame.getMarginPageStart(cParams.flow);
+		frameStart = frame.getFramePageStart(cParams.flow);
+		bordered = frame.isBorderedPageStart(cParams.flow);
+		frameHead = frame.getFrameLineStart(cParams.flow);
 		if (flexItem) {
 			// Flex items' margins do not collapse with each other (css-flexbox-1 §4.2), and the main-axis gap separates
 			// them (2026-10-08; until then streamed columns ignored gap).
@@ -1091,10 +1078,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final double marginEnd, frameEnd;
 		boolean bordered;
 		if (parentParams.flow.isVertical()) {
-			// Vertical writing
-			marginEnd = frame.margin.left;
-			bordered = frame.padding.left > 0 || !frame.frame.border.getLeft().isNull()
-					|| flow.flexItem || sealsMargins(flowBox);
+			// Vertical writing: the end is the left in vertical-rl, the right in vertical-lr (2026-10-26)
+			marginEnd = frame.getMarginPageEnd(parentParams.flow);
+			bordered = frame.isBorderedPageEnd(parentParams.flow) || flow.flexItem || sealsMargins(flowBox);
 			double width = flowBox.getInnerWidth();
 			if (flowBox.getContentSize() != width || bordered) {
 				this.pageAxis = flow.pageAxis + width;
@@ -1102,7 +1088,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 					bordered = true;
 				}
 			}
-			frameEnd = frame.getFrameLeft();
+			frameEnd = frame.getFramePageEnd(parentParams.flow);
 		} else {
 			// Horizontal writing
 			marginEnd = frame.margin.bottom;
@@ -1310,12 +1296,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// Check clear and prevent replaced boxes and tables from overlapping floating boxes.
 			// *** Note that CLEAR_NONE is also checked. ***
 			final double pageStart;
-			final double marginAdjust;
-			if (vertical) {
-				marginAdjust = amargin.right;
-			} else {
-				marginAdjust = amargin.top;
-			}
+			final double marginAdjust = frame.getMarginPageStart(params.flow);
 			pageStart = this.pageAxis - marginAdjust;
 			final ExclusionSpace snapshot = this.snapshotExclusions();
 			final ExclusionSpace.BoundAvoidance found = snapshot.findBoundAvoidance(pageStart, lineSize, lineStop,
@@ -1336,7 +1317,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// box starts one collapsed margin further on. Until 2026-10-17 the margin was subtracted instead: a table with
 			// a top margin right after a full-width figure escaped the check and overlapped it, and one moved below a band
 			// got its margin twice (TECH-20261017-004).
-			final double marginAdjust = vertical ? amargin.right : amargin.top;
+			final double marginAdjust = frame.getMarginPageStart(params.flow);
 			double pageStart = this.pageAxis
 					+ (marginAdjust >= 0 ? Math.max(0, marginAdjust - this.poLastMargin) : marginAdjust);
 			final AxisSpan floatRoom = new AxisSpan(this.lineAxis + xMarginStart, lineEnd);
@@ -1395,11 +1376,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 				this.pageAxis -= amargin.top;
 			}
 		}
-		if (vertical) {
-			this.poLastMargin = this.neLastMargin = amargin.left;
-		} else {
-			this.poLastMargin = this.neLastMargin = amargin.bottom;
-		}
+		this.poLastMargin = this.neLastMargin = frame.getMarginPageEnd(params.flow);
 		flow.box.addFlow(flowBox, this.pageAxis - flow.pageAxis);
 
 		this.pageAxis += flowBox.getPageExtent(params.flow);
@@ -2054,7 +2031,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 
 	/** Frame start of the box about to open, after collapsing with the preceding margin (same calculation as below). */
 	private double collapsedBorderStart(final AbsoluteRectFrame frame, final BlockParams cParams) {
-		final double marginStart = cParams.flow.isVertical() ? frame.margin.right : frame.margin.top;
+		final double marginStart = frame.getMarginPageStart(cParams.flow);
 		double start = this.pageAxis;
 		if (marginStart >= 0) {
 			start -= marginStart > this.poLastMargin ? this.poLastMargin : marginStart;

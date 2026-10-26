@@ -101,14 +101,10 @@ public record FragmentState(AbsoluteRectFrame prevFrame, AbsoluteRectFrame nextF
 			// For multiple columns, keep the boundary and size the height to the content
 			prevFrame = nextFrame = frame;
 			limit = Math.max(limit, contentSize);
-		} else if (vertical) {
-			// Vertical writing: the page axis runs right to left. Drop the preceding fragment's left (end) edge
-			prevFrame = frame.cut(true, true, true, false);
-			nextFrame = frame.cut(true, false, true, true);
 		} else {
-			// Horizontal writing: drop the preceding fragment's bottom (end) edge
-			prevFrame = frame.cut(true, true, false, true);
-			nextFrame = frame.cut(false, true, true, true);
+			// Drop the preceding fragment's end edge and the continuation's start edge
+			prevFrame = frame.cutPageEnd(flow);
+			nextFrame = frame.cutPageStart(flow);
 		}
 
 		final Dimension nextSize;

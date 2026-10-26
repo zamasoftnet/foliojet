@@ -78,25 +78,93 @@ public class AbsoluteRectFrame {
 
 	/**
 	 * Returns the frame width on the start side of the page direction
-	 * (top in horizontal writing, right in vertical writing).
-	 * Internal coordinates for vertical writing always run right to left (LR is reversed during drawing).
+	 * (top in horizontal writing, right in vertical-rl, left in vertical-lr).
+	 * Page-axis positions run from the block start, and drawing puts a box's content inside its physical left and top
+	 * frames, so in vertical-lr the start is the left frame (2026-10-26: this read the right frame in both vertical
+	 * modes, which agreed with drawing only while the two frames were equal; a vertical-lr box cut at a page break
+	 * lost its start frame on the first page and kept it on the next, where its text overlapped the next block).
 	 *
 	 * @param flow writing direction that determines the axes
 	 * @return frame width on the start side of the page direction
 	 */
 	public final double getFramePageStart(WritingMode flow) {
-		return flow.isVertical() ? this.getFrameRight() : this.getFrameTop();
+		return switch (flow) {
+		case TB -> this.getFrameTop();
+		case RL -> this.getFrameRight();
+		case LR -> this.getFrameLeft();
+		};
 	}
 
 	/**
 	 * Returns the frame width on the end side of the page direction
-	 * (bottom in horizontal writing, left in vertical writing).
+	 * (bottom in horizontal writing, left in vertical-rl, right in vertical-lr).
 	 *
 	 * @param flow writing direction that determines the axes
 	 * @return frame width on the end side of the page direction
 	 */
 	public final double getFramePageEnd(WritingMode flow) {
-		return flow.isVertical() ? this.getFrameLeft() : this.getFrameBottom();
+		return switch (flow) {
+		case TB -> this.getFrameBottom();
+		case RL -> this.getFrameLeft();
+		case LR -> this.getFrameRight();
+		};
+	}
+
+	/**
+	 * Returns the margin on the start side of the page direction (the side of {@link #getFramePageStart}).
+	 *
+	 * @param flow writing direction that determines the axes
+	 * @return margin on the start side of the page direction
+	 */
+	public final double getMarginPageStart(WritingMode flow) {
+		return switch (flow) {
+		case TB -> this.margin.top;
+		case RL -> this.margin.right;
+		case LR -> this.margin.left;
+		};
+	}
+
+	/**
+	 * Returns the margin on the end side of the page direction (the side of {@link #getFramePageEnd}).
+	 *
+	 * @param flow writing direction that determines the axes
+	 * @return margin on the end side of the page direction
+	 */
+	public final double getMarginPageEnd(WritingMode flow) {
+		return switch (flow) {
+		case TB -> this.margin.bottom;
+		case RL -> this.margin.left;
+		case LR -> this.margin.right;
+		};
+	}
+
+	/**
+	 * Whether the start side of the page direction has a border or padding, which keeps the box's start margin
+	 * from collapsing with its first child's.
+	 *
+	 * @param flow writing direction that determines the axes
+	 * @return whether the start side has a border or padding
+	 */
+	public final boolean isBorderedPageStart(WritingMode flow) {
+		return switch (flow) {
+		case TB -> this.padding.top > 0 || !this.frame.border.getTop().isNull();
+		case RL -> this.padding.right > 0 || !this.frame.border.getRight().isNull();
+		case LR -> this.padding.left > 0 || !this.frame.border.getLeft().isNull();
+		};
+	}
+
+	/**
+	 * Whether the end side of the page direction has a border or padding (see {@link #isBorderedPageStart}).
+	 *
+	 * @param flow writing direction that determines the axes
+	 * @return whether the end side has a border or padding
+	 */
+	public final boolean isBorderedPageEnd(WritingMode flow) {
+		return switch (flow) {
+		case TB -> this.padding.bottom > 0 || !this.frame.border.getBottom().isNull();
+		case RL -> this.padding.left > 0 || !this.frame.border.getLeft().isNull();
+		case LR -> this.padding.right > 0 || !this.frame.border.getRight().isNull();
+		};
 	}
 
 	/**
@@ -202,6 +270,34 @@ public class AbsoluteRectFrame {
 	public AbsoluteRectFrame cut(boolean top, boolean right, boolean bottom, boolean left) {
 		return new AbsoluteRectFrame(this.frame.cut(top, right, bottom, left),
 				this.margin.cut(top, right, bottom, left), this.padding.cut(top, right, bottom, left));
+	}
+
+	/**
+	 * This frame without its edge on the end side of the page direction: the part of a box before a break.
+	 *
+	 * @param flow writing direction that determines the axes
+	 * @return the frame without the page-end edge
+	 */
+	public AbsoluteRectFrame cutPageEnd(WritingMode flow) {
+		return switch (flow) {
+		case TB -> this.cut(true, true, false, true);
+		case RL -> this.cut(true, true, true, false);
+		case LR -> this.cut(true, false, true, true);
+		};
+	}
+
+	/**
+	 * This frame without its edge on the start side of the page direction: the continuation of a box after a break.
+	 *
+	 * @param flow writing direction that determines the axes
+	 * @return the frame without the page-start edge
+	 */
+	public AbsoluteRectFrame cutPageStart(WritingMode flow) {
+		return switch (flow) {
+		case TB -> this.cut(false, true, true, true);
+		case RL -> this.cut(true, false, true, true);
+		case LR -> this.cut(true, true, true, false);
+		};
 	}
 
 	public String toString() {

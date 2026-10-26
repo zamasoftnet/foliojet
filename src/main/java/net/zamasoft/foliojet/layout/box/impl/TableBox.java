@@ -642,7 +642,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		final double footerSize = this.footerGroupBox != null ? this.footerGroupBox.getPageSize() : -1;
 		if (vertical) {
 			pageLimit = net.zamasoft.foliojet.layout.fragment.TableCutter.reserveNonBreakable(pageLimit,
-					this.getWidth(), this.frame.getFrameRight(), this.frame.getFrameLeft(), this.frame.margin.left,
+					this.getWidth(), this.frame.getFramePageStart(this.params.flow),
+					this.frame.getFramePageEnd(this.params.flow), this.frame.getMarginPageEnd(this.params.flow),
 					headerSize, footerSize);
 		} else {
 			pageLimit = net.zamasoft.foliojet.layout.fragment.TableCutter.reserveNonBreakable(pageLimit,
@@ -772,7 +773,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		final boolean vertical = this.params.flow.isVertical();
 		// Frame-cut decisions extracted into pure logic in TableCutter (C4-T2).
 		final net.zamasoft.foliojet.layout.fragment.TableCutter.TableFragmentFrames frames = net.zamasoft.foliojet.layout.fragment.TableCutter
-				.tableFragmentFrames(vertical, this.headerGroupBox != null, this.footerGroupBox != null, this.frame);
+				.tableFragmentFrames(this.params.flow, this.headerGroupBox != null, this.footerGroupBox != null,
+						this.frame);
 		// A split fragment is a continuation (no anchor; not replayed as a fresh box. P0).
 		TableBox nextTable = new TableBox(this.params, frames.nextFrame(), this.block);
 		// Tagged PDF defect ② (2026-07-30): Headers in continuation fragments are repetitions

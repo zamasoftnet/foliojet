@@ -88,7 +88,7 @@ public class TableCutterTest extends TestCase {
 				.create(0, 0, net.zamasoft.foliojet.layout.box.params.LengthType.AUTO,
 						net.zamasoft.foliojet.layout.box.params.LengthType.AUTO);
 		final net.zamasoft.foliojet.layout.fragment.TableCutter.CellFragmentState state = net.zamasoft.foliojet.layout.fragment.TableCutter
-				.cellFragmentState(false, size, auto, frame, 100, 30);
+				.cellFragmentState(net.zamasoft.foliojet.layout.box.params.WritingMode.TB, size, auto, frame, 100, 30);
 		// The specified page-direction size is split into an absolute remaining size (100-30).
 		assertEquals(70, state.nextSize().getHeight(), 0.01);
 		assertEquals(net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE, state.nextSize().getHeightType());
@@ -97,7 +97,8 @@ public class TableCutterTest extends TestCase {
 		assertSame(auto, state.nextMinSize());
 		// The remaining size cannot be negative.
 		assertEquals(0, net.zamasoft.foliojet.layout.fragment.TableCutter
-				.cellFragmentState(false, size, auto, frame, 100, 120).nextSize().getHeight(), 0.01);
+				.cellFragmentState(net.zamasoft.foliojet.layout.box.params.WritingMode.TB, size, auto, frame, 100, 120)
+				.nextSize().getHeight(), 0.01);
 	}
 
 	public void testTableFragmentFrames() {
@@ -105,7 +106,7 @@ public class TableCutterTest extends TestCase {
 				net.zamasoft.foliojet.layout.box.params.RectFrame.NULL_FRAME);
 		// If headers/footers repeat, do not cut the frame (same reference).
 		final net.zamasoft.foliojet.layout.fragment.TableCutter.TableFragmentFrames repeat = net.zamasoft.foliojet.layout.fragment.TableCutter
-				.tableFragmentFrames(false, true, true, frame);
+				.tableFragmentFrames(net.zamasoft.foliojet.layout.box.params.WritingMode.TB, true, true, frame);
 		assertSame(frame, repeat.nextFrame());
 		assertSame(frame, repeat.prevFrame());
 	}

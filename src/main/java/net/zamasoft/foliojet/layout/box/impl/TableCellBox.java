@@ -460,7 +460,7 @@ public class TableCellBox extends AbstractContainerBox {
 		final boolean vertical = this.params.flow.isVertical();
 		// Fragment-state calculation extracted into pure logic in TableCutter (C4-T2).
 		final net.zamasoft.foliojet.layout.fragment.TableCutter.CellFragmentState state = net.zamasoft.foliojet.layout.fragment.TableCutter
-				.cellFragmentState(vertical, this.size, this.minSize, this.frame,
+				.cellFragmentState(this.params.flow, this.size, this.minSize, this.frame,
 						vertical ? this.width : this.height, pageLimit);
 
 		// A split fragment is a continuation (no anchor; not replayed as a fresh box. P0).

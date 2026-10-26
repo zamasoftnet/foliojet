@@ -349,8 +349,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		case BLOCK:
 			AbstractBlockBox blockBox = flowBox;
 			// Allow page-break-after before the boundary.
-			if (this.getRootBox().getBlockParams().flow.isVertical()) {
-				canBreakAfter = !blockBox.getFrame().frame.border.getRight().isNull();
+			final WritingMode rootFlow = this.getRootBox().getBlockParams().flow;
+			if (rootFlow.isVertical()) {
+				// The start border: the right one in vertical-rl, the left one in vertical-lr (2026-10-26)
+				canBreakAfter = !(rootFlow == WritingMode.LR ? blockBox.getFrame().frame.border.getLeft()
+						: blockBox.getFrame().frame.border.getRight()).isNull();
 			} else {
 				canBreakAfter = !blockBox.getFrame().frame.border.getTop().isNull();
 			}
@@ -908,8 +911,11 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		case BLOCK:
 			AbstractBlockBox blockBox = (AbstractBlockBox) flow.box;
 			// Allow forced page-break-after immediately after the boundary.
-			if (this.getRootBox().getBlockParams().flow.isVertical()) {
-				if (!blockBox.getFrame().frame.border.getLeft().isNull()) {
+			final WritingMode rootFlow = this.getRootBox().getBlockParams().flow;
+			if (rootFlow.isVertical()) {
+				// The end border: the left one in vertical-rl, the right one in vertical-lr (2026-10-26)
+				if (!(rootFlow == WritingMode.LR ? blockBox.getFrame().frame.border.getRight()
+						: blockBox.getFrame().frame.border.getLeft()).isNull()) {
 					this.canBreakBefore = true;
 					this.interflowBreak = true;
 					canBreakAfter = true;

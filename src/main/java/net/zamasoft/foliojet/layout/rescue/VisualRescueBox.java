@@ -232,7 +232,7 @@ public class VisualRescueBox extends AbstractBox {
 			return 0;
 		}
 		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = framed.getFrame();
-		return flow.isVertical() ? frame.margin.left : frame.margin.bottom;
+		return frame.getMarginPageEnd(flow);
 	}
 
 	public final Params getParams() {

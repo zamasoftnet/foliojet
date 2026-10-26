@@ -202,14 +202,14 @@ public final class TableCutter {
 	 * PLAN cycle 18).
 	 * </p>
 	 *
-	 * @param vertical whether writing is vertical
+	 * @param flow writing direction
 	 * @param size specified size
 	 * @param minSize minimum size
 	 * @param frame frame before cutting
 	 * @param pageExtent inner page-direction extent before cutting (width in vertical writing)
 	 * @param pageLimit cut position (from the inner edge)
 	 */
-	public static CellFragmentState cellFragmentState(final boolean vertical,
+	public static CellFragmentState cellFragmentState(final net.zamasoft.foliojet.layout.box.params.WritingMode flow,
 			final net.zamasoft.foliojet.layout.box.params.Dimension size,
 			final net.zamasoft.foliojet.layout.box.params.Dimension minSize,
 			final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame, final double pageExtent,
@@ -217,6 +217,7 @@ public final class TableCutter {
 		final net.zamasoft.foliojet.layout.box.params.Dimension nextSize, nextMinSize;
 		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame nextFrame, prevFrame;
 		final double rest = Math.max(0, pageExtent - pageLimit);
+		final boolean vertical = flow.isVertical();
 		if (vertical) {
 			nextSize = size.getWidthType() != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
 					? net.zamasoft.foliojet.layout.box.params.Dimension.create(rest, size.getHeight(),
@@ -226,8 +227,6 @@ public final class TableCutter {
 					? net.zamasoft.foliojet.layout.box.params.Dimension.create(rest, minSize.getHeight(),
 							net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE, minSize.getHeightType())
 					: minSize;
-			nextFrame = frame.cut(true, false, true, true);
-			prevFrame = frame.cut(true, true, true, false);
 		} else {
 			nextSize = size.getHeightType() != net.zamasoft.foliojet.layout.box.params.LengthType.AUTO
 					? net.zamasoft.foliojet.layout.box.params.Dimension.create(size.getWidth(), rest,
@@ -237,9 +236,10 @@ public final class TableCutter {
 					? net.zamasoft.foliojet.layout.box.params.Dimension.create(minSize.getWidth(), rest,
 							minSize.getWidthType(), net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE)
 					: minSize;
-			nextFrame = frame.cut(false, true, true, true);
-			prevFrame = frame.cut(true, true, false, true);
 		}
+		// The page-start edge of vertical-lr is the left one (2026-10-26; the cut used vertical-rl's edges)
+		nextFrame = frame.cutPageStart(flow);
+		prevFrame = frame.cutPageEnd(flow);
 		return new CellFragmentState(nextSize, nextMinSize, nextFrame, prevFrame);
 	}
 
@@ -257,17 +257,18 @@ public final class TableCutter {
 	/**
 	 * Calculates table-fragment frames (pure function; the frame-cut decisions from the former splitTableBox).
 	 *
-	 * @param vertical whether writing is vertical
+	 * @param flow writing direction
 	 * @param repeatHeader whether a header row group exists (repeats in all fragments)
 	 * @param repeatFooter whether a footer row group exists (repeats in all fragments)
 	 * @param frame frame before cutting
 	 */
-	public static TableFragmentFrames tableFragmentFrames(final boolean vertical, final boolean repeatHeader,
-			final boolean repeatFooter, final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame) {
+	public static TableFragmentFrames tableFragmentFrames(final net.zamasoft.foliojet.layout.box.params.WritingMode flow,
+			final boolean repeatHeader, final boolean repeatFooter,
+			final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame) {
 		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame nextFrame = repeatHeader ? frame
-				: (vertical ? frame.cut(true, false, true, true) : frame.cut(false, true, true, true));
+				: frame.cutPageStart(flow);
 		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame prevFrame = repeatFooter ? frame
-				: (vertical ? frame.cut(true, true, true, false) : frame.cut(true, true, false, true));
+				: frame.cutPageEnd(flow);
 		return new TableFragmentFrames(prevFrame, nextFrame);
 	}
 
