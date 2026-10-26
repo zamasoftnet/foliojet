@@ -1,16 +1,11 @@
 package net.zamasoft.foliojet.css.impl.property.text;
 
-import java.net.URI;
+import java.util.Map;
 
 import net.zamasoft.foliojet.css.CSSStyle;
-import net.zamasoft.foliojet.css.property.AbstractPrimitivePropertyInfo;
+import net.zamasoft.foliojet.css.property.KeywordPropertyInfo;
 import net.zamasoft.foliojet.css.property.PrimitivePropertyInfo;
-import net.zamasoft.foliojet.css.property.PropertyException;
-import net.zamasoft.foliojet.css.token.CssToken;
-import net.zamasoft.foliojet.css.token.TokenStream;
 import net.zamasoft.foliojet.css.value.TextCombineValue;
-import net.zamasoft.foliojet.css.value.Value;
-import net.zamasoft.foliojet.ua.UserAgent;
 
 /**
  * Internal property carrying the type of tate-chu-yoko (2026-08-11).
@@ -27,7 +22,7 @@ import net.zamasoft.foliojet.ua.UserAgent;
  *
  * @author MIYABE Tatsuhiko
  */
-public class TextCombineMode extends AbstractPrimitivePropertyInfo {
+public class TextCombineMode extends KeywordPropertyInfo {
 	public static final PrimitivePropertyInfo INFO = new TextCombineMode();
 
 	public static byte get(CSSStyle style) {
@@ -36,33 +31,7 @@ public class TextCombineMode extends AbstractPrimitivePropertyInfo {
 	}
 
 	protected TextCombineMode() {
-		super("-cssj-text-combine-mode");
-	}
-
-	public Value getDefault(CSSStyle style) {
-		return TextCombineValue.NONE_VALUE;
-	}
-
-	public boolean isInherited() {
-		return false;
-	}
-
-	public Value getComputedValue(Value value, CSSStyle style) {
-		return value;
-	}
-
-	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
-		final CssToken lu = tokens.next();
-		if (lu instanceof CssToken.Ident) {
-			String ident = ((CssToken.Ident) lu).lower();
-			if (ident.equals("none")) {
-				return TextCombineValue.NONE_VALUE;
-			} else if (ident.equals("horizontal")) {
-				return TextCombineValue.HORIZONTAL_VALUE;
-			} else if (ident.equals("all")) {
-				return TextCombineValue.ALL_VALUE;
-			}
-		}
-		throw new PropertyException();
+		super("-cssj-text-combine-mode", false, TextCombineValue.NONE_VALUE, Map.of("none", TextCombineValue.NONE_VALUE,
+				"horizontal", TextCombineValue.HORIZONTAL_VALUE, "all", TextCombineValue.ALL_VALUE));
 	}
 }
