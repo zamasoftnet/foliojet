@@ -172,6 +172,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 		case TABLE_ROW_GROUP: {
 			// Row group
 			this.rowGroupBox = (TableRowGroupBox) box;
+			this.headerFooterSeen = HeaderFooterGroups.demoteRepeated(this.rowGroupBox, this.headerFooterSeen);
 			if (this.bindRowGroupBox == null) {
 				this.bindRowGroupBox = this.rowGroupBox;
 			}
@@ -933,6 +934,9 @@ public class IncrementalTableBuilder implements TableBuilder {
 	 * row. In fixed layout, later cells disappeared as beyond the column count. Found by codex review.
 	 */
 	private boolean rowGroupBoundary = false;
+
+	/** The header and footer groups the table already has ({@link HeaderFooterGroups}). */
+	private int headerFooterSeen = 0;
 
 	private void complementRowspan() {
 		if (this.rowGroupBoundary) {

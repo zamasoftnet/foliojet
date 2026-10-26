@@ -107,6 +107,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	private final List<Builder> bottomCaptions = new ArrayList<Builder>();
 	private TableRowGroupBox headerGroup = null;
 	private TableRowGroupBox footerGroup = null;
+
+	/** The header and footer groups the table already has ({@link HeaderFooterGroups}). */
+	private int headerFooterSeen = 0;
 	private TableRowBox firstRowBox = null;
 	private final List<TableRowGroupBox> bodyGroups = new ArrayList<TableRowGroupBox>();
 	private final Map<TableRowGroupBox, ArrayList<TableRowBox>> rowGroupToRows = new HashMap<TableRowGroupBox, ArrayList<TableRowBox>>();
@@ -237,6 +240,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			// Row group
 			final TableRowGroupBox rowGroup = (TableRowGroupBox) box;
 			this.rowGroupToRows.put(rowGroup, new ArrayList<TableRowBox>());
+			this.headerFooterSeen = HeaderFooterGroups.demoteRepeated(rowGroup, this.headerFooterSeen);
 			switch (rowGroup.getTableRowGroupPos().rowGroupType) {
 			case RowGroupType.HEADER:
 				this.headerGroup = rowGroup;
