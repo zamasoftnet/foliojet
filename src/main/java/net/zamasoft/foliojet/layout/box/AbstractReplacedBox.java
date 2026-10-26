@@ -510,6 +510,22 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			return super.describe();
 		}
 
+		@Override
+		public String describeGeometry(final double x, final double y) {
+			// Mark the author's images in detailed dumps so the random sweep can count them (2026-10-26): their frame
+			// line is otherwise the same as a box's. Not the parts the user agent draws (form controls, list bullets,
+			// broken-image marks in css.impl.part), footnote labels or target-counter slots. Detailed geometry is
+			// sweep-only, so goldens are unchanged.
+			if (!net.zamasoft.foliojet.layout.draw.DisplayListDumper.currentDetailedGeometry()
+					|| this.image instanceof net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage
+					|| this.image instanceof net.zamasoft.foliojet.layout.box.impl.TargetCounterSlotImage
+					|| this.image.getClass().getPackageName()
+							.equals(net.zamasoft.foliojet.css.impl.part.CheckBoxImage.class.getPackageName())) {
+				return super.describeGeometry(x, y);
+			}
+			return super.describeGeometry(x, y) + " replaced";
+		}
+
 		/**
 		 * {@code filter: drop-shadow()}: For raster images, draw a blurred shadow of the opacity silhouette
 		 * at the image's position and size, with an offset (2026-08-29).

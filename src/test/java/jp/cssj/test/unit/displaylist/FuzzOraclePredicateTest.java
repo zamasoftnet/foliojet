@@ -1636,6 +1636,75 @@ public class FuzzOraclePredicateTest extends TestCase {
 				"table{table-layout:fixed;width:100%}", "")));
 	}
 
+	// Report-only layout checks (2026-10-26, RandomDocumentFuzzTest#layoutFindings).
+
+	public void testGlyphBoxesOverlapOnlyBeyondAnEdge() {
+		assertTrue(RandomDocumentFuzzTest.glyphBoxesOverlap(new double[] { 0, 0, 20, 10 }, new double[] { 5, 2, 20, 10 }));
+		// Adjacent lines at line-height 1.2: font boxes touch at most.
+		assertFalse(RandomDocumentFuzzTest.glyphBoxesOverlap(new double[] { 0, 0, 20, 10 }, new double[] { 0, 12, 20, 10 }));
+		assertFalse(RandomDocumentFuzzTest.glyphBoxesOverlap(new double[] { 0, 0, 20, 10 }, new double[] { 20, 0, 20, 10 }));
+		// A sliver (0.4 pt) is an edge, not an overlap.
+		assertFalse(RandomDocumentFuzzTest.glyphBoxesOverlap(new double[] { 0, 0, 20, 10 }, new double[] { 19.6, 0, 20, 10 }));
+	}
+
+	public void testTokensOfThePlainFlowDrawnOverEachOtherAreObserved() {
+		final String over = "drawer z=0\n  x=0.00 y=0.00 Text[\"T0\" asc=5.00 desc=1.00] w=12.00 h=6.00\n"
+				+ "  x=4.00 y=1.00 Text[\"T1\" asc=5.00 desc=1.00] w=12.00 h=6.00\n";
+		final RandomDocumentFuzzTest.Generated plain = body("<p>T0</p><div style=\"margin:2pt\"><span style=\"font-size:9pt\">"
+				+ "T1</span></div>");
+		assertEquals(List.of("(観測)流れの字の重なり"), keys(RandomDocumentFuzzTest.layoutFindings(plain, new String[] { over })));
+		assertEquals(List.of(), keys(RandomDocumentFuzzTest.layoutFindings(plain,
+				new String[] { "drawer z=0\n  x=0.00 y=0.00 Text[\"T0\" asc=5.00 desc=1.00] w=12.00 h=6.00\n"
+						+ "  x=0.00 y=7.20 Text[\"T1\" asc=5.00 desc=1.00] w=12.00 h=6.00\n" })));
+		// A token clipped away does not count.
+		assertEquals(List.of(), keys(RandomDocumentFuzzTest.layoutFindings(plain,
+				new String[] { "drawer z=0\n  x=0.00 y=0.00 Text[\"T0\" asc=5.00 desc=1.00] w=12.00 h=6.00\n"
+						+ "  x=4.00 y=1.00 Text[\"T1\" asc=5.00 desc=1.00] w=12.00 h=6.00 clip=[30.00 0.00 10.00 10.00]\n" })));
+		// Content of a sized float, an inline-block or an orthogonal flow may overflow onto its neighbour.
+		for (final String constrained : List.of("<div style=\"float:right;width:36pt\">T1</div>",
+				"<p><span style=\"display:inline-block;width:20pt\">T1</span></p>",
+				"<div style=\"writing-mode:vertical-rl\">T1</div>", "<table><tr><td>T1</td></tr></table>")) {
+			assertEquals(constrained, List.of(), keys(RandomDocumentFuzzTest.layoutFindings(
+					body("<p>T0</p>" + constrained), new String[] { over })));
+		}
+	}
+
+	private static RandomDocumentFuzzTest.Generated body(final String body) {
+		return new RandomDocumentFuzzTest.Generated("<html><body>" + body + "</body></html>", List.of("T0", "T1"),
+				Set.of(), 60, 60, 0, false, false);
+	}
+
+	public void testTokenDrawnWholeOnTwoPagesIsObserved() {
+		final String line = "drawer z=0\n  x=0.00 y=10.00 Text[\"T0\" asc=5.00 desc=1.00] w=12.00 h=6.00\n";
+		assertEquals(List.of("(観測)頁をまたぐ重複"),
+				keys(RandomDocumentFuzzTest.layoutFindings(generated(), new String[] { line, line })));
+		// A glyph crossing the page boundary is drawn in parts, beyond the paper on each page.
+		assertEquals(List.of(), keys(RandomDocumentFuzzTest.layoutFindings(generated(), new String[] {
+				"drawer z=0\n  x=0.00 y=57.00 Text[\"T0\" asc=5.00 desc=1.00] w=12.00 h=6.00\n",
+				"drawer z=0\n  x=0.00 y=-3.00 Text[\"T0\" asc=5.00 desc=1.00] w=12.00 h=6.00\n" })));
+	}
+
+	public void testLostImageIsObserved() {
+		final RandomDocumentFuzzTest.Generated doc = new RandomDocumentFuzzTest.Generated(
+				"<html><body><img src=\"red.png\" /></body></html>", List.of(), Set.of(), 60, 60, 0, false, false);
+		assertEquals(List.of("(観測)画像の消失"), keys(RandomDocumentFuzzTest.layoutFindings(doc,
+				new String[] { "drawer z=0\n  x=0.00 y=0.00 AbsoluteRectFrame[w=10.00 h=10.00]\n" })));
+		assertEquals(List.of(), keys(RandomDocumentFuzzTest.layoutFindings(doc,
+				new String[] { "drawer z=0\n  x=0.00 y=0.00 AbsoluteRectFrame[w=10.00 h=10.00] replaced\n" })));
+	}
+
+	public void testTokensUnderHiddenBoxesMayBeAbsent() {
+		final Set<String> hidden = new java.util.HashSet<>();
+		RandomDocumentFuzzTest.collectHiddenTokens(FuzzShrinker.parseBody("<html><body><p>T0</p>"
+				+ "<div style=\"overflow:hidden;visibility:hidden\"><p>T1</p><div style=\"visibility:visible\">T2</div></div>"
+				+ "<div style=\"display:none\">T3</div></body></html>"), false, hidden);
+		assertEquals(Set.of("T1", "T2", "T3"), hidden);
+	}
+
+	private static List<String> keys(final List<String[]> findings) {
+		return findings.stream().map(f -> f[0]).filter(k -> !k.startsWith("(生存)")).toList();
+	}
+
 	private static String shrinkerDoc(final String body) {
 		return "<?jp.cssj.property name=\"output.page-width\" value=\"60pt\"?>"
 				+ "<?jp.cssj.property name=\"output.page-height\" value=\"60pt\"?>"

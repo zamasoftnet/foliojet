@@ -70,6 +70,15 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * (because intended blank pages and intended overflow cannot be distinguished).
  * </p>
  *
+ * <h2>Observations (report-only)</h2>
+ *
+ * <p>
+ * Since 2026-10-26 some checks only count what they find ({@link #observe}): tokens drawn over each other, a token drawn
+ * whole on two pages, lost images, lost WILD content, an empty or unreadable PDF, and the invariants an exclusion used to
+ * skip. Their false positives are measured before any of them may stop the sweep
+ * (docs/history/2026-10-26-defect-trends-and-sweep-oracles.md).
+ * </p>
+ *
  * <h2>Running</h2>
  *
  * <p>
@@ -201,6 +210,31 @@ public class RandomDocumentFuzzTest extends TestCase {
 	/** Bounding rectangle of a drawable with dimensions in the detailed dump. */
 	private static final Pattern DRAWING_GEOMETRY_IN_DUMP = Pattern.compile(
 			"x=(-?[\\d.]+) y=(-?[\\d.]+) (?:artifact )?[^\\n]*?w=([\\d.]+) h=([\\d.]+)");
+	/** Mark of a replaced element (an image) in the detailed dump ({@code AbstractReplacedBox}, 2026-10-26). */
+	private static final Pattern REPLACED_IN_DUMP = Pattern.compile(" replaced(?: |$)");
+
+	/**
+	 * Report-only observations of the document being checked (2026-10-26,
+	 * docs/history/2026-10-26-defect-trends-and-sweep-oracles.md).
+	 *
+	 * <p>
+	 * A new check first <b>counts</b> what it would report, so that its false positives are known before it may stop the
+	 * sweep. The counts go to the manifest's {@code observationCounts}, which the sweep's stop rule
+	 * ({@code defects} in {@code start-fuzz36m.sh}) does not read. Outside a sweep (single-seed runs) they are printed.
+	 * </p>
+	 */
+	private static final ThreadLocal<List<String>> OBSERVATIONS = new ThreadLocal<>();
+	/** Seeds kept per observation key: enough to sample a range's findings for triage. */
+	private static final int OBSERVED_SEEDS_KEPT = 40;
+
+	private static void observe(final String key, final String detail) {
+		final List<String> sink = OBSERVATIONS.get();
+		if (sink != null) {
+			sink.add(key);
+		} else {
+			System.out.println("[fuzzObserve] " + key + " " + detail);
+		}
+	}
 
 	public RandomDocumentFuzzTest(String name) {
 		super(name);
@@ -1186,6 +1220,26 @@ public class RandomDocumentFuzzTest extends TestCase {
 			for (final CoverageKey key : structure.coverageKeys()) {
 				this.coverage.computeIfAbsent(key,
 						x -> new java.util.concurrent.atomic.LongAdder()).increment();
+			}
+		}
+
+		/** Report-only observations ({@link #observe}): documents per key and their first seeds. */
+		final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicInteger> observationCount =
+				new java.util.concurrent.ConcurrentHashMap<>();
+		final java.util.concurrent.ConcurrentHashMap<String, java.util.List<Integer>> observationSeeds =
+				new java.util.concurrent.ConcurrentHashMap<>();
+
+		void recordObservations(final int seed, final List<String> keys) {
+			for (final String key : new java.util.LinkedHashSet<>(keys)) {
+				this.observationCount.computeIfAbsent(key,
+						x -> new java.util.concurrent.atomic.AtomicInteger()).incrementAndGet();
+				final java.util.List<Integer> list = this.observationSeeds.computeIfAbsent(key,
+						x -> java.util.Collections.synchronizedList(new ArrayList<>()));
+				synchronized (list) {
+					if (list.size() < OBSERVED_SEEDS_KEPT) {
+						list.add(seed);
+					}
+				}
 			}
 		}
 	}
@@ -2190,7 +2244,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 								+ new java.util.TreeMap<>(classCount));
 						try {
 							writeFuzzManifest(strict, from, seeds, threads, n, false,
-									classCount, seedsOf, defectCount, defectSeeds);
+									classCount, seedsOf, defectCount, defectSeeds, measurements);
 						} catch (final Exception e) {
 							System.err.println("[fuzzProgress] manifestのcheckpointを書けない: " + e);
 						}
@@ -2228,6 +2282,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 		System.out.println("[fuzzReport] mode=" + mode + " 出力ページ数分布 "
 				+ measurements.pages.summary());
 		System.out.println("[fuzzReport] mode=" + mode + " 紙面外検査の生存 " + measurements.offPageSummary());
+		for (final String k : new java.util.TreeSet<>(measurements.observationCount.keySet())) {
+			System.out.println("[fuzzReport] mode=" + mode + " 観測 " + k + " : "
+					+ measurements.observationCount.get(k).get() + "件 seeds=" + measurements.observationSeeds.get(k));
+		}
 		// Count of prevented rescue attempts on open boxes not selected by the plan (2026-10-07, OpenBoxes; JVM-wide total).
 		System.out.println("[fuzzReport] mode=" + mode + " 開いた箱の救済の抑止(計画外) "
 				+ net.zamasoft.foliojet.layout.fragment.OpenBoxes.UNSELECTED_RESCUES_PREVENTED.get());
@@ -2249,7 +2307,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 		}
 		writeFuzzManifest(strict, from, seeds, threads, done.get(), true,
-				classCount, seedsOf, defectCount, defectSeeds);
+				classCount, seedsOf, defectCount, defectSeeds, measurements);
 	}
 
 	private void checkSweepDocument(final int seed, final boolean strict,
@@ -2257,7 +2315,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final Generated doc = generate(seed, strict);
 		measurements.record(inspectGeneratedStructure(doc.html()));
 		measurements.recordOffPageLiveness(doc);
-		checkOne(seed, strict, doc, measurements.pages::add);
+		final List<String> observed = new ArrayList<>();
+		OBSERVATIONS.set(observed);
+		try {
+			checkOne(seed, strict, doc, measurements.pages::add);
+		} finally {
+			OBSERVATIONS.remove();
+			measurements.recordObservations(seed, observed);
+		}
 	}
 
 	private static int minimumDocuments(final int t) {
@@ -2383,7 +2448,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return escaped.toString();
 	}
 
-	private static synchronized void writeFuzzManifest(final boolean strict, final int from,
+	private static void writeFuzzManifest(final boolean strict, final int from,
 			final int seeds, final int threads, final int processed, final boolean completed,
 			final java.util.concurrent.ConcurrentHashMap<String,
 					java.util.concurrent.atomic.AtomicInteger> classCount,
@@ -2391,6 +2456,21 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final java.util.concurrent.ConcurrentHashMap<String,
 					java.util.concurrent.atomic.AtomicInteger> defectCount,
 			final java.util.concurrent.ConcurrentHashMap<String, java.util.List<Integer>> defectSeeds)
+			throws Exception {
+		writeFuzzManifest(strict, from, seeds, threads, processed, completed, classCount, seedsOf, defectCount,
+				defectSeeds, null);
+	}
+
+	/** @param measurements the sweep's observations ({@code observationCounts}), or null for none */
+	private static synchronized void writeFuzzManifest(final boolean strict, final int from,
+			final int seeds, final int threads, final int processed, final boolean completed,
+			final java.util.concurrent.ConcurrentHashMap<String,
+					java.util.concurrent.atomic.AtomicInteger> classCount,
+			final java.util.concurrent.ConcurrentHashMap<String, java.util.List<Integer>> seedsOf,
+			final java.util.concurrent.ConcurrentHashMap<String,
+					java.util.concurrent.atomic.AtomicInteger> defectCount,
+			final java.util.concurrent.ConcurrentHashMap<String, java.util.List<Integer>> defectSeeds,
+			final SweepMeasurements measurements)
 			throws Exception {
 		final String manifestProperty = System.getProperty("foliojet.fuzzManifest");
 		if (manifestProperty == null || manifestProperty.isBlank()) {
@@ -2435,6 +2515,21 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		json.append("},\"normalizedDefectSeeds\":");
 		appendSeedMap(json, defectSeeds);
+		if (measurements != null) {
+			// Report-only (2026-10-26): the stop rule reads classificationCounts only.
+			json.append(",\"observationCounts\":{");
+			first = true;
+			for (final String key : new java.util.TreeSet<>(measurements.observationCount.keySet())) {
+				if (!first) {
+					json.append(',');
+				}
+				first = false;
+				json.append('"').append(jsonEscape(key)).append("\":")
+						.append(measurements.observationCount.get(key).get());
+			}
+			json.append("},\"observationSeeds\":");
+			appendSeedMap(json, measurements.observationSeeds);
+		}
 		json.append("}\n");
 
 		final Path target = Path.of(manifestProperty).toAbsolutePath();
@@ -2872,16 +2967,31 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (pageObserver != null) {
 			pageObserver.accept(pages.length);
 		}
+		// Every conversion writes a PDF; invariant 9 used to skip an empty one silently (2026-10-26, report-only).
+		final File pdf = new File(outDir, "out.pdf");
+		if (!pdf.isFile() || pdf.length() == 0) {
+			observe("(観測)PDFが空", "(" + html + ")");
+		} else if (!pdfFramed(pdf)) {
+			observe("(観測)PDFの頭か末尾が無い", "(" + html + ")");
+		}
 
 		// **WILD stops here** (2026-07-28). Invariants 4–8 are STRICT-only,
 		// so WILD uses none of the following read/parse results. Previously it read and parsed all pages
 		// before discarding them (the early return was **after** parsing).
 		// Measurements differed only within noise, but there is no reason to keep work whose results are discarded.
+		// Its content is observed since 2026-10-26 (report-only, {@link #observeWildContent}).
 		if (!strict) {
+			try {
+				observeWildContent(doc, pages, html);
+			} catch (final Exception e) {
+				// A report-only check never fails a document.
+				observe("(観測)観測が例外で終わった", e + " (" + html + ")");
+			}
 			return pages.length;
 		}
 
 		java.util.Arrays.sort(pages);
+		final String[] dumps = new String[pages.length];
 		final List<ObservedText> observedText = new ArrayList<>();
 		// The **first page on which each token appears** (invariant 7). Within-page painting order
 		// is an implementation detail (rowspan cells are painted after their spanned rows are finalized),
@@ -2892,6 +3002,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final List<Integer> blanks = new ArrayList<>();
 		for (int i = 0; i < pages.length; ++i) {
 			final String dump = Files.readString(Path.of(pages[i].toURI()), StandardCharsets.UTF_8);
+			dumps[i] = dump;
 			boolean drew = false;
 			for (final String line : dump.split("\n")) {
 				final String t = line.trim();
@@ -2933,7 +3044,31 @@ public class RandomDocumentFuzzTest extends TestCase {
 				max[0] = Math.max(max[0], e.getValue()[0]);
 			}
 		}
+		// Report-only layout checks (2026-10-26), observed with the document's outcome: the ones of documents that pass
+		// every invariant are the interesting ones.
+		List<String[]> findings;
+		try {
+			findings = layoutFindings(doc, dumps);
+		} catch (final RuntimeException e) {
+			// A report-only check never fails a document.
+			findings = List.<String[]>of(new String[] { "(観測)観測が例外で終わった", e + " (" + html + ")" });
+		}
+		boolean passed = false;
+		try {
+			final int n = checkPageInvariants(doc, html, outDir, pages, observedText, firstPage, drawn, blanks);
+			passed = true;
+			return n;
+		} finally {
+			for (final String[] finding : findings) {
+				observe(passed ? finding[0] : finding[0] + "[除外か失敗の文書]", finding[1]);
+			}
+		}
+	}
 
+	/** Invariants 4–10 on the parsed pages of a STRICT document (split from {@link #checkDocument} on 2026-10-26). */
+	private static int checkPageInvariants(final Generated doc, final File html, final File outDir, final File[] pages,
+			final List<ObservedText> observedText, final java.util.Map<String, Integer> firstPage,
+			final java.util.Map<String, int[]> drawn, final List<Integer> blanks) throws Exception {
 		// Invariant 5: no unintended blank pages.
 		//
 		// **Exclude documents containing boxes that cannot fit on the paper** (user decision on 2026-07-26).
@@ -2977,18 +3112,289 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// Invariant 9: no loss of PDF destinations (id fragments).
 		checkFragments(doc, outDir, html);
 		if (deferredExclusion != null) {
-			// Blank-page exclusion (above). Skip remaining invariants because an unworkable type area affects them.
+			// Blank-page exclusion (above). An unworkable type area affects the remaining invariants, so they do not stop
+			// the sweep; but skipping them hid the document's other branches (2026-10-26), so observe them instead.
+			observeAfterExclusion(() -> checkNoDuplication(doc, drawn, html));
+			observeAfterExclusion(() -> assertNoUnexplainedOffPage(doc, pages, html));
+			observeAfterExclusion(() -> assertSomeDrawingOnPage(doc, pages, html));
+			observeAfterExclusion(() -> checkReadingOrder(doc, firstPage, html));
 			throw deferredExclusion;
 		}
 		// Invariant 8: no content duplication (report-only for now).
 		checkNoDuplication(doc, drawn, html);
-		// Invariant 6: no unexplained off-paper placement.
-		assertNoUnexplainedOffPage(doc, pages, html);
+		// Invariant 6: no unexplained off-paper placement. An exclusion skips 10 and 7, observed as above.
+		try {
+			assertNoUnexplainedOffPage(doc, pages, html);
+		} catch (final AssertionError e) {
+			if (classify(e).startsWith("(除外)")) {
+				observeAfterExclusion(() -> assertSomeDrawingOnPage(doc, pages, html));
+				observeAfterExclusion(() -> checkReadingOrder(doc, firstPage, html));
+			}
+			throw e;
+		}
 		// Invariant 10: at least one body-text drawing intersects the actual paper.
-		assertSomeDrawingOnPage(doc, pages, html);
+		try {
+			assertSomeDrawingOnPage(doc, pages, html);
+		} catch (final AssertionError e) {
+			if (classify(e).startsWith("(除外)")) {
+				observeAfterExclusion(() -> checkReadingOrder(doc, firstPage, html));
+			}
+			throw e;
+		}
 		// Invariant 7: reading order is preserved (report-only for now).
 		checkReadingOrder(doc, firstPage, html);
 		return pages.length;
+	}
+
+	/**
+	 * Whether a PDF starts with its header and ends with an end-of-file marker: a cheap check of a truncated file (a
+	 * second close once cut a finished one) for documents whose destinations are not read with PDFBox.
+	 */
+	private static boolean pdfFramed(final File pdf) {
+		try (java.io.RandomAccessFile in = new java.io.RandomAccessFile(pdf, "r")) {
+			final byte[] head = new byte[5];
+			in.readFully(head);
+			final int tail = (int) Math.min(1024, in.length());
+			final byte[] end = new byte[tail];
+			in.seek(in.length() - tail);
+			in.readFully(end);
+			return new String(head, StandardCharsets.ISO_8859_1).equals("%PDF-")
+					&& new String(end, StandardCharsets.ISO_8859_1).contains("%%EOF");
+		} catch (final java.io.IOException e) {
+			return false;
+		}
+	}
+
+	/** A check that reports by throwing. */
+	private interface Check {
+		void run() throws Exception;
+	}
+
+	/**
+	 * Run a check that an exclusion would have skipped, and observe what it finds beyond what an exclusion explains
+	 * (2026-10-26, report-only).
+	 */
+	private static void observeAfterExclusion(final Check check) {
+		try {
+			check.run();
+		} catch (final Exception | AssertionError e) {
+			final String category = classify(e);
+			if (!category.startsWith("(除外)")) {
+				observe("(観測)除外の後の" + category, String.valueOf(e.getMessage()));
+			}
+		}
+	}
+
+	/**
+	 * Report-only layout checks of a STRICT document's pages (2026-10-26). Invariants 4–10 see only whether a token is
+	 * drawn, on which page and how far beyond the paper, so a token drawn over another, a token drawn whole on two pages
+	 * and a lost image pass all of them. Returns [key, detail] pairs.
+	 */
+	static List<String[]> layoutFindings(final Generated doc, final String[] dumps) {
+		final List<String[]> findings = new ArrayList<>();
+		final Set<String> free = new java.util.HashSet<>();
+		collectFreeTokens(FuzzShrinker.parseBody(doc.html()), free);
+		final java.util.Map<String, java.util.SortedSet<Integer>> wholeOnPaper = new java.util.TreeMap<>();
+		String overlap = null;
+		boolean compared = false;
+		int images = 0;
+		for (int i = 0; i < dumps.length; ++i) {
+			final List<double[]> boxes = new ArrayList<>();
+			final List<String> texts = new ArrayList<>();
+			for (final String raw : dumps[i].split("\n")) {
+				if (raw.contains(" artifact ")) {
+					continue;
+				}
+				final Matcher g = DRAWING_GEOMETRY_IN_DUMP.matcher(raw);
+				if (!g.find()) {
+					continue;
+				}
+				final double x = Double.parseDouble(g.group(1)), y = Double.parseDouble(g.group(2));
+				final double w = Double.parseDouble(g.group(3)), h = Double.parseDouble(g.group(4));
+				if (REPLACED_IN_DUMP.matcher(raw).find()) {
+					++images;
+				}
+				final Matcher t = TEXT_IN_DUMP.matcher(raw);
+				if (!t.find() || w <= 0 || h <= 0 || clippedAway(raw, x, y, w, h)) {
+					continue;
+				}
+				final String text = t.group(2) == null ? t.group(1) : t.group(1) + " " + t.group(2);
+				if (!TOKEN.matcher(text).find()) {
+					continue;
+				}
+				final double[] box = visiblePart(raw, x, y, w, h);
+				// Whole and wholly visible on the paper: a glyph crossing a page boundary is drawn in parts on both
+				// pages, each partly beyond the paper (the 603 false positives of invariant 8's cross-page count).
+				final boolean whole = box[2] >= w - 0.01 && box[3] >= h - 0.01;
+				if (whole && x >= -0.5 && y >= -0.5 && x + w <= doc.pageWidth() + 0.5
+						&& y + h <= doc.pageHeight() + 0.5) {
+					for (final String piece : text.split("[ \t]+")) {
+						if (TOKEN.matcher(piece).matches()) {
+							wholeOnPaper.computeIfAbsent(piece, k -> new java.util.TreeSet<>()).add(i + 1);
+						}
+					}
+				}
+				// Only text in the plain flow: an author's size, float or atomic box legitimately lets content overflow
+				// onto its neighbour (5,000 v2 documents: 56% overlapped, the first one a 45 pt token in a 36 pt float).
+				if (!onlyTokensOf(text, free)) {
+					continue;
+				}
+				compared |= !boxes.isEmpty();
+				for (int j = 0; overlap == null && j < boxes.size(); ++j) {
+					if (glyphBoxesOverlap(boxes.get(j), box)) {
+						overlap = "\"" + texts.get(j) + "\" と \"" + text + "\" (page-" + (i + 1) + ")";
+					}
+				}
+				boxes.add(box);
+				texts.add(text);
+			}
+		}
+		if (compared) {
+			// Liveness: documents with two plain-flow runs on a page to compare.
+			findings.add(new String[] { "(生存)流れの字の重なり", "" });
+		}
+		if (overlap != null) {
+			findings.add(new String[] { "(観測)流れの字の重なり", overlap });
+		}
+		final List<String> twice = new ArrayList<>();
+		for (final var e : wholeOnPaper.entrySet()) {
+			if (e.getValue().size() > 1) {
+				twice.add(e.getKey() + "@" + e.getValue());
+			}
+		}
+		if (!twice.isEmpty()) {
+			findings.add(new String[] { "(観測)頁をまたぐ重複", twice.toString() });
+		}
+		final int expectedImages = countOccurrences(doc.html(), "<img ");
+		if (images < expectedImages) {
+			findings.add(new String[] { "(観測)画像の消失", images + "/" + expectedImages });
+		}
+		return findings;
+	}
+
+	/**
+	 * Whether two glyph boxes overlap by more than an edge: by over 0.5 pt in both axes and by over a fifth of the
+	 * smaller box. Font boxes (ascent + descent) of adjacent lines do not overlap at line-height 1.2.
+	 */
+	static boolean glyphBoxesOverlap(final double[] a, final double[] b) {
+		final double ix = Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]);
+		final double iy = Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]);
+		return ix > 0.5 && iy > 0.5 && ix * iy > 0.2 * Math.min(a[2] * a[3], b[2] * b[3]);
+	}
+
+	/** The part of a drawing's box inside its clip, or the whole box when it has none. */
+	private static double[] visiblePart(final String raw, final double x, final double y, final double width,
+			final double height) {
+		final Matcher clip = CLIP_IN_DUMP.matcher(raw);
+		if (!clip.find()) {
+			return new double[] { x, y, width, height };
+		}
+		final double cx = Double.parseDouble(clip.group(1)), cy = Double.parseDouble(clip.group(2));
+		final double cw = Double.parseDouble(clip.group(3)), ch = Double.parseDouble(clip.group(4));
+		final double left = Math.max(x, cx), top = Math.max(y, cy);
+		return new double[] { left, top, Math.min(x + width, cx + cw) - left, Math.min(y + height, cy + ch) - top };
+	}
+
+	/** Style that sizes a box, takes it out of the flow, makes it atomic or turns its flow (a constraining ancestor). */
+	private static final Pattern CONSTRAINING_STYLE = Pattern.compile(
+			"width:|height:|display:(?!block\\b|list-item\\b|inline(?![\\w-]))|float:(?!none)|column-count|writing-mode:"
+					+ "|position:(?!static|relative)");
+	/** Elements whose content is laid out apart from the plain flow. */
+	private static final Set<String> CONSTRAINING_TAGS = Set.of("table", "td", "th", "ruby", "rt", "img", "form",
+			"input", "textarea", "select", "button");
+
+	/** Tokens of the plain flow: no ancestor sizes, floats, makes atomic or turns the flow ({@link #layoutFindings}). */
+	static void collectFreeTokens(final List<FuzzShrinker.Node> nodes, final Set<String> out) {
+		for (final FuzzShrinker.Node n : nodes) {
+			if (n.tag == null) {
+				if (n.text != null) {
+					final Matcher m = TOKEN.matcher(n.text);
+					while (m.find()) {
+						out.add(m.group());
+					}
+				}
+				continue;
+			}
+			final String style = n.attr("style");
+			if (!CONSTRAINING_TAGS.contains(n.tag) && (style == null || !CONSTRAINING_STYLE.matcher(style).find())) {
+				collectFreeTokens(n.children, out);
+			}
+		}
+	}
+
+	/** Whether every token in a text run is one of {@code tokens}. */
+	private static boolean onlyTokensOf(final String text, final Set<String> tokens) {
+		final Matcher m = TOKEN.matcher(text);
+		boolean any = false;
+		while (m.find()) {
+			if (!tokens.contains(m.group())) {
+				return false;
+			}
+			any = true;
+		}
+		return any;
+	}
+
+	private static int countOccurrences(final String s, final String part) {
+		int n = 0;
+		for (int at = s.indexOf(part); at >= 0; at = s.indexOf(part, at + part.length())) {
+			++n;
+		}
+		return n;
+	}
+
+	/**
+	 * Report-only content check of a WILD document (2026-10-26). WILD alone generates footnotes, page floats, absolute
+	 * positioning and forced breaks, yet checked only exceptions, termination and page count, so their content was
+	 * never looked at. Tokens under {@code display:none} or {@code visibility:hidden}/{@code collapse} may be absent (a
+	 * {@code visibility:visible} descendant may still show them); every other token must be drawn somewhere.
+	 */
+	private static void observeWildContent(final Generated doc, final File[] pages, final File html) throws java.io.IOException {
+		final Set<String> hidden = new java.util.HashSet<>();
+		collectHiddenTokens(FuzzShrinker.parseBody(doc.html()), false, hidden);
+		java.util.Arrays.sort(pages);
+		final List<ObservedText> runs = new ArrayList<>();
+		for (int i = 0; i < pages.length; ++i) {
+			for (final String raw : Files.readString(Path.of(pages[i].toURI()), StandardCharsets.UTF_8).split("\n")) {
+				final Matcher m = TEXT_IN_DUMP.matcher(raw);
+				final boolean artifact = raw.contains(" artifact ");
+				while (m.find()) {
+					runs.add(new ObservedText(m.group(1), i, artifact));
+					if (m.group(2) != null) {
+						runs.add(new ObservedText(m.group(2), i, artifact));
+					}
+				}
+			}
+		}
+		final Set<String> expectedTokens = Set.copyOf(doc.tokens);
+		final List<String> lost = new ArrayList<>();
+		for (final String token : doc.tokens) {
+			if (!hidden.contains(token) && firstObservedTokenPage(token, runs, expectedTokens) < 0) {
+				lost.add(token);
+			}
+		}
+		if (!lost.isEmpty()) {
+			observe("(観測)WILDの内容の消失" + (doc.html().contains("overflow:hidden") ? "[overflow:hidden]" : ""),
+					lost + " (" + html + ")");
+		}
+	}
+
+	static void collectHiddenTokens(final List<FuzzShrinker.Node> nodes, final boolean hidden,
+			final Set<String> out) {
+		for (final FuzzShrinker.Node n : nodes) {
+			if (n.tag == null) {
+				if (hidden && n.text != null) {
+					final Matcher m = TOKEN.matcher(n.text);
+					while (m.find()) {
+						out.add(m.group());
+					}
+				}
+				continue;
+			}
+			final String style = n.attr("style");
+			collectHiddenTokens(n.children, hidden || style != null && (style.contains("display:none")
+					|| style.contains("visibility:hidden") || style.contains("visibility:collapse")), out);
+		}
 	}
 
 	/**
@@ -3008,7 +3414,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * <p>
 	 * Destinations are not drawing commands, so only here do we <b>actually read the output PDF</b>
 	 * (PDFBox). Skip the check if unreadable: other checks cover PDF validity,
-	 * and failing twice here serves no purpose.
+	 * and failing twice here serves no purpose. An unreadable or empty PDF is observed (2026-10-26, report-only).
 	 * </p>
 	 */
 	private static void checkFragments(final Generated doc, final File outDir, final File html) throws Exception {
@@ -3042,7 +3448,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 			collectDestinationNamesRaw(names.getDests(), found);
 		} catch (final java.io.IOException e) {
-			// Do not check PDF readability here.
+			// Not a stop here (failing twice serves no purpose), but no longer silent (2026-10-26, report-only).
+			observe("(観測)PDFを読めない", e + " (" + html + ")");
 			return;
 		}
 		final java.util.List<String> lost = new ArrayList<>();
