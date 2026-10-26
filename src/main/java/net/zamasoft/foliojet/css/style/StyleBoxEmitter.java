@@ -454,9 +454,7 @@ public final class StyleBoxEmitter {
 					case DisplayValue.TABLE_ROW: {
 						// CSS 2.1 17.2.1 #2
 						// Insert a table row group above a table row
-						if (parentDisplay != DisplayValue.TABLE_ROW_GROUP
-								&& parentDisplay != DisplayValue.TABLE_HEADER_GROUP
-								&& parentDisplay != DisplayValue.TABLE_FOOTER_GROUP) {
+						if (!DisplayValue.isRowGroup(parentDisplay)) {
 							CSSStyle rowGroup = style.insertAnonStyle(CSSElement.ANON_TBODY);
 							rowGroup.set(Display.INFO, DisplayValue.TABLE_ROW_GROUP_VALUE);
 							inserted = rowGroup;
@@ -474,7 +472,7 @@ public final class StyleBoxEmitter {
 					case DisplayValue.TABLE_FOOTER_GROUP: {
 						// CSS 2.1 17.2.1 #2
 						// Insert a table above a table column group or row group
-						if (parentDisplay != DisplayValue.TABLE && parentDisplay != DisplayValue.INLINE_TABLE) {
+						if (!DisplayValue.isTable(parentDisplay)) {
 							CSSStyle table = style.insertAnonStyle(CSSElement.ANON_TBODY);
 							if (parentDisplay == DisplayValue.INLINE) {
 								table.set(Display.INFO, DisplayValue.INLINE_TABLE_VALUE);
@@ -488,8 +486,7 @@ public final class StyleBoxEmitter {
 
 					case DisplayValue.TABLE_COLUMN: {
 						// Insert a table above a table column
-						if (parentDisplay != DisplayValue.TABLE && parentDisplay != DisplayValue.INLINE_TABLE
-								&& parentDisplay != DisplayValue.TABLE_COLUMN_GROUP) {
+						if (!DisplayValue.isTable(parentDisplay) && parentDisplay != DisplayValue.TABLE_COLUMN_GROUP) {
 							CSSStyle table = style.insertAnonStyle(CSSElement.ANON_TABLE);
 							if (parentDisplay == DisplayValue.INLINE) {
 								table.set(Display.INFO, DisplayValue.INLINE_TABLE_VALUE);
@@ -502,18 +499,9 @@ public final class StyleBoxEmitter {
 						break;
 
 					case DisplayValue.TABLE_CAPTION:
-						switch (parentDisplay) {
-						case DisplayValue.INLINE_TABLE:
-						case DisplayValue.TABLE:
-						case DisplayValue.TABLE_ROW_GROUP:
-						case DisplayValue.TABLE_HEADER_GROUP:
-						case DisplayValue.TABLE_FOOTER_GROUP:
-						case DisplayValue.TABLE_ROW:
-							break;
-						default:
+						if (!DisplayValue.isTabularContainer(parentDisplay)) {
 							// Convert a table caption to a block
 							style.set(Display.INFO, DisplayValue.BLOCK_VALUE, CSSStyle.MODE_IMPORTANT);
-							break;
 						}
 						break;
 
@@ -526,13 +514,7 @@ public final class StyleBoxEmitter {
 					case DisplayValue.INLINE:
 					case DisplayValue.INLINE_BLOCK:
 						// Insert a cell above tables, blocks, and inlines inside a table
-						switch (parentDisplay) {
-						case DisplayValue.INLINE_TABLE:
-						case DisplayValue.TABLE:
-						case DisplayValue.TABLE_ROW_GROUP:
-						case DisplayValue.TABLE_HEADER_GROUP:
-						case DisplayValue.TABLE_FOOTER_GROUP:
-						case DisplayValue.TABLE_ROW:
+						if (DisplayValue.isTabularContainer(parentDisplay)) {
 							CSSStyle anon = style.insertAnonStyle(CSSElement.ANON_TD);
 							anon.set(Display.INFO, DisplayValue.TABLE_CELL_VALUE);
 							inserted = anon;

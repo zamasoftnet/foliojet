@@ -89,6 +89,24 @@ public enum DisplayValue implements Value {
 	 */
 	public static final byte CONTENTS = 18;
 
+	/** Whether the display is a row group: table-row-group, table-header-group or table-footer-group. */
+	public static boolean isRowGroup(final int display) {
+		return display == TABLE_ROW_GROUP || display == TABLE_HEADER_GROUP || display == TABLE_FOOTER_GROUP;
+	}
+
+	/** Whether the display makes a table box: table or inline-table. */
+	public static boolean isTable(final int display) {
+		return display == TABLE || display == INLINE_TABLE;
+	}
+
+	/**
+	 * Whether the display is a tabular container (CSS 2.1 §17.2.1): a table, a row group or a row, whose other
+	 * children get an anonymous cell and whose captions stay captions.
+	 */
+	public static boolean isTabularContainer(final int display) {
+		return isTable(display) || isRowGroup(display) || display == TABLE_ROW;
+	}
+
 	private final byte display;
 
 	private DisplayValue(byte display) {

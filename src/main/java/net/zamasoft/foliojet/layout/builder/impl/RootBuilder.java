@@ -321,11 +321,10 @@ public class RootBuilder extends BreakableBuilder {
 		private final net.zamasoft.foliojet.layout.fragment.OpenPathSnapshot snapshot;
 
 		/**
-		 * Leases for absorbed replay ranges, per occurrence. Absorbed ranges carry no boxes (no fallback), so protect
-		 * them from compaction until consumed (LayoutSource clamps the watermark). Replay through the map (resumeScopes)
-		 * retains boxes and can fall back to box-restyle, so it needs no lease.
+		 * Leases for absorbed replay ranges ({@link net.zamasoft.foliojet.layout.fragment.ReplayLeases}). Replay through
+		 * the map (resumeScopes) retains boxes and can fall back to box-restyle, so it needs no lease.
 		 */
-		private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange, net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease> leases = new java.util.IdentityHashMap<>();
+		private final net.zamasoft.foliojet.layout.fragment.ReplayLeases leases = new net.zamasoft.foliojet.layout.fragment.ReplayLeases();
 
 		private State state = State.NEW;
 
@@ -339,15 +338,7 @@ public class RootBuilder extends BreakableBuilder {
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log = RootBuilder.this.pageGenerator
 					.getLayoutSource();
 			if (log != null) {
-				for (net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f = continuation
-						.root(); f != null;) {
-					for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : f.prefixItems()) {
-						this.leases.put(r, log.retainFrom(r.fromId()));
-					}
-					f = f.tail() instanceof net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
-							final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) ? child
-									: null;
-				}
+				this.leases.retainChain(log, continuation.root());
 			}
 		}
 
@@ -389,11 +380,7 @@ public class RootBuilder extends BreakableBuilder {
 		 * Marks consumption of an absorbed range as complete (from replaySubtree's finally block).
 		 */
 		public void releaseLease(final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange occurrence) {
-			final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease = this.leases
-					.remove(occurrence);
-			if (lease != null) {
-				lease.close();
-			}
+			this.leases.release(occurrence);
 		}
 
 		public boolean hasUnconsumedLeases() {
@@ -405,13 +392,8 @@ public class RootBuilder extends BreakableBuilder {
 			if (this.state == State.CLOSED) {
 				return;
 			}
-			// Normal consumption has already released all leases. Clean up any remaining after an exception here
-			// (leaving them behind would clamp all subsequent compaction permanently).
-			for (final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease : this.leases
-					.values()) {
-				lease.close();
-			}
-			this.leases.clear();
+			// Normal consumption has already released all leases; after an exception, release what is left.
+			this.leases.releaseAll();
 			this.state = State.CLOSED;
 		}
 	}
@@ -526,7 +508,11 @@ public class RootBuilder extends BreakableBuilder {
 		private final BreakableBuilder target;
 		/** Canonical COLUMN continuation token (replaced the program in E-3 increment 5). */
 		private final net.zamasoft.foliojet.layout.fragment.ColumnContinuation continuation;
-		private final java.util.IdentityHashMap<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange, net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease> leases = new java.util.IdentityHashMap<>();
+		/**
+		 * Leases for absorbed replay ranges ({@link net.zamasoft.foliojet.layout.fragment.ReplayLeases}). Replay through
+		 * the map (resumeScopes) retains boxes and can fall back to box-restyle, so it needs no lease.
+		 */
+		private final net.zamasoft.foliojet.layout.fragment.ReplayLeases leases = new net.zamasoft.foliojet.layout.fragment.ReplayLeases();
 		private State state = State.NEW;
 
 		ColumnResumeSession(final BreakableBuilder target,
@@ -536,19 +522,8 @@ public class RootBuilder extends BreakableBuilder {
 			final net.zamasoft.foliojet.layout.fragment.LayoutSource log = RootBuilder.this.pageGenerator
 					.getLayoutSource();
 			if (log != null) {
-				for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : continuation.anchor()
-						.prefixItems()) {
-					this.leases.put(r, log.retainFrom(r.fromId()));
-				}
-				for (net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame f = continuation
-						.childFrame(); f != null;) {
-					for (final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange r : f.prefixItems()) {
-						this.leases.put(r, log.retainFrom(r.fromId()));
-					}
-					f = f.tail() instanceof net.zamasoft.foliojet.layout.fragment.Continuation.OpenTail.Child(
-							final net.zamasoft.foliojet.layout.fragment.Continuation.ContinuationFrame child) ? child
-									: null;
-				}
+				this.leases.retain(log, continuation.anchor().prefixItems());
+				this.leases.retainChain(log, continuation.childFrame());
 			}
 		}
 
@@ -600,11 +575,7 @@ public class RootBuilder extends BreakableBuilder {
 		}
 
 		public void releaseLease(final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange occurrence) {
-			final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease = this.leases
-					.remove(occurrence);
-			if (lease != null) {
-				lease.close();
-			}
+			this.leases.release(occurrence);
 		}
 
 		public boolean hasUnconsumedLeases() {
@@ -616,11 +587,7 @@ public class RootBuilder extends BreakableBuilder {
 			if (this.state == State.CLOSED) {
 				return;
 			}
-			for (final net.zamasoft.foliojet.layout.fragment.LayoutSource.RetentionLease lease : this.leases
-					.values()) {
-				lease.close();
-			}
-			this.leases.clear();
+			this.leases.releaseAll();
 			this.state = State.CLOSED;
 		}
 	}
