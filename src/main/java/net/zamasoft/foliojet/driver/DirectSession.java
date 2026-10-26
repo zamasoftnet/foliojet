@@ -540,8 +540,10 @@ public class DirectSession extends AbstractCTISession
 
 	public void setUserAgent(UserAgent ua) {
 		assert ua != null;
-		this.ua = asResultUserAgent(ua);
-		this.applyOperatorLimits(this.ua);
+		// Checked before it is installed: a refused UA must not stay for the next conversion (codex review).
+		final RandomResultUserAgent checked = asResultUserAgent(ua);
+		this.applyOperatorLimits(checked);
+		this.ua = checked;
 	}
 
 	private static RandomResultUserAgent asResultUserAgent(final UserAgent ua) {
@@ -1035,8 +1037,9 @@ public class DirectSession extends AbstractCTISession
 		UserAgentFactory factory = PluginRegistry.getInstance().search(UserAgentFactory.class,
 				outputType);
 		if (factory != null) {
-			this.ua = asResultUserAgent(factory.createUserAgent());
-			this.applyOperatorLimits(this.ua);
+			final RandomResultUserAgent created = asResultUserAgent(factory.createUserAgent());
+			this.applyOperatorLimits(created);
+			this.ua = created;
 		} else {
 			// Reject configuration errors while leaving the session usable (until 2026-10-05, failed with an unexpected exception).
 			final short code = MessageCodes.ERROR_UNSUPPORTED_OUTPUT_TYPE;
@@ -1105,10 +1108,17 @@ public class DirectSession extends AbstractCTISession
 	/** Operator-defined limits that users cannot relax (2026-10-03). Read in {@link #setup()}. */
 	private OperatorLimits operatorLimits = OperatorLimits.NONE;
 
-	/** Passes the operator's limits to the UA. */
+	/**
+	 * Passes the operator's limits to the UA. While limits are set, a UA that cannot enforce them is refused
+	 * (2026-10-26, design-pattern review): they reach only an {@code AbstractUserAgent}, which every shipped UA extends,
+	 * so a custom one used to run without them.
+	 */
 	private void applyOperatorLimits(final UserAgent ua) {
 		if (ua instanceof net.zamasoft.foliojet.ua.impl.AbstractUserAgent abstractUa) {
 			abstractUa.setOperatorLimits(this.operatorLimits);
+		} else if (!this.operatorLimits.isEmpty()) {
+			throw new IllegalArgumentException(
+					"the user agent cannot enforce the operator's limits: " + ua.getClass().getName());
 		}
 	}
 
@@ -1274,6 +1284,20 @@ public class DirectSession extends AbstractCTISession
 	 * @throws AbortException
 	 * @throws TranscoderException
 	 */
+	/**
+	 * Starts a pass of {@link #format}: the UA prepares for it, then learns the document's base URI and, for a counted
+	 * pass ({@code remaining > 0}), how many passes remain, which it also reports. In this order: {@code prepare()}
+	 * replaces the document context (2026-10-26, written four times until then).
+	 */
+	private void beginPass(final PrepareMode mode, final Source source, final int remaining) {
+		this.ua.prepare(mode);
+		this.ua.getDocumentContext().setBaseURI(source.getURI());
+		if (remaining > 0) {
+			this.ua.getUAContext().setPassCount(remaining);
+			this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(remaining));
+		}
+	}
+
 	protected void format(Source source) throws AbortException, TranscoderException {
 		final long inputLimit = UAProps.INPUT_SIZE_LIMIT.getLong(this.ua);
 		if (inputLimit >= 0) {
@@ -1325,10 +1349,7 @@ public class DirectSession extends AbstractCTISession
 					this.ua.setResults(results);
 				}
 				this.middlePath = middlePath;
-				this.ua.prepare(mode);
-				this.ua.getDocumentContext().setBaseURI(source.getURI());
-				this.ua.getUAContext().setPassCount(passCount);
-				this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(passCount));
+				this.beginPass(mode, source, passCount);
 				// source is reassigned to an input-limit wrapper within this method, so it is not
 				// effectively final. Take a copy because the lambda cannot capture it directly.
 				final Source formatSource = source;
@@ -1348,8 +1369,7 @@ public class DirectSession extends AbstractCTISession
 					// (Since source is assumed to be readable only once, all later reads
 					// must use tmpFile. The old processing combined saving with MIDDLE_PASS;
 					// this dedicated step now handles saving separately.)
-					this.ua.prepare(PrepareMode.STRUCTURE_SCAN);
-					this.ua.getDocumentContext().setBaseURI(source.getURI());
+					this.beginPass(PrepareMode.STRUCTURE_SCAN, source, 0);
 					try (final FileOutputStream out = new FileOutputStream(tmpFile);
 							final TeeInputStream in = new TeeInputStream(source.getInputStream(), out)) {
 						final Source fileSource = new StreamSource(source.getURI(), in, source.getMimeType(),
@@ -1358,10 +1378,7 @@ public class DirectSession extends AbstractCTISession
 					}
 					// Intermediate processing.
 					for (int remaining = passCount; remaining > 1; --remaining) {
-						this.ua.prepare(PrepareMode.MIDDLE_PASS);
-						this.ua.getDocumentContext().setBaseURI(source.getURI());
-						this.ua.getUAContext().setPassCount(remaining);
-						this.ua.message(MessageCodes.INFO_PASS_REMAINDER, String.valueOf(remaining));
+						this.beginPass(PrepareMode.MIDDLE_PASS, source, remaining);
 						try (final InputStream in = new FileInputStream(tmpFile)) {
 							final Source fileSource = new StreamSource(source.getURI(), in, source.getMimeType(),
 									source.getEncoding());
@@ -1369,8 +1386,8 @@ public class DirectSession extends AbstractCTISession
 						}
 					}
 					// Generate the output.
-					this.ua.prepare(PrepareMode.LAST_PASS);
-					this.ua.getDocumentContext().setBaseURI(source.getURI());
+					// The count is set and reported once the temporary file is open, as before (codex review).
+					this.beginPass(PrepareMode.LAST_PASS, source, 0);
 					try (final InputStream in = new FileInputStream(tmpFile)) {
 						final Source fileSource = new StreamSource(source.getURI(), in, source.getMimeType(),
 								source.getEncoding());

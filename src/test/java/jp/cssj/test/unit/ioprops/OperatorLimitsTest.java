@@ -1,9 +1,11 @@
 package jp.cssj.test.unit.ioprops;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -22,6 +24,7 @@ import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
 import net.zamasoft.foliojet.driver.OperatorLimits;
 import net.zamasoft.foliojet.message.MessageCodes;
+import net.zamasoft.foliojet.ua.RandomResultUserAgent;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
@@ -146,6 +149,65 @@ public class OperatorLimitsTest extends TestCase {
 			assertFalse("画像を取得しないこと",
 					new String(pdf, StandardCharsets.ISO_8859_1).contains("/Subtype /Image"));
 		});
+	}
+
+	/**
+	 * A user agent that cannot enforce the limits is refused while they are set (2026-10-26, design-pattern review):
+	 * the limits reach only an AbstractUserAgent, so a custom one used to run without them. Without limits it is taken.
+	 */
+	public void testUnsupportedUserAgentIsRefused() throws Exception {
+		final RandomResultUserAgent custom = (RandomResultUserAgent) Proxy.newProxyInstance(
+				RandomResultUserAgent.class.getClassLoader(), new Class<?>[] { RandomResultUserAgent.class },
+				(proxy, method, args) -> defaultValue(method.getReturnType()));
+		this.withLimits("output.page-limit=100\n", () -> {
+			final File dir = new File("local/unittest/operator-limits/" + this.getName());
+			dir.mkdirs();
+			final File input = new File(dir, "input.html");
+			Files.writeString(input.toPath(), THREE_PAGES, StandardCharsets.UTF_8);
+			final ByteArrayOutputStream pdf = new ByteArrayOutputStream();
+			final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+			try {
+				try {
+					session.setUserAgent(custom);
+					fail("上限があるのに受け付けた");
+				} catch (final IllegalArgumentException e) {
+					// ok
+				}
+				// The refused UA is not kept: the next conversion lays out with a UA that applies the limits (codex
+				// review: it used to be installed before the check).
+				session.setResults(new SingleResult(new StreamFragmentedOutput(pdf)));
+				CTISessionHelper.transcodeFile(session, input, "text/html", null);
+			} finally {
+				session.close();
+			}
+			assertEquals("はねた UA が残らず、次の変換は組める", 3, pageCount(pdf.toByteArray()));
+		});
+		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
+		try {
+			session.setUserAgent(custom);
+		} finally {
+			session.close();
+		}
+	}
+
+	private static Object defaultValue(final Class<?> type) {
+		if (!type.isPrimitive() || type == void.class) {
+			return null;
+		}
+		if (type == boolean.class) {
+			return false;
+		}
+		if (type == char.class) {
+			return '\0';
+		}
+		return switch (type.getName()) {
+		case "byte" -> (byte) 0;
+		case "short" -> (short) 0;
+		case "int" -> 0;
+		case "long" -> 0L;
+		case "float" -> 0f;
+		default -> 0d;
+		};
 	}
 
 	/** Without a limits file, nothing changes. */
