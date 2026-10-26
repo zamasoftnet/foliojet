@@ -177,6 +177,127 @@ public class VerticalPageFloatTest extends TestCase {
 		assertTrue("図が無い", found);
 	}
 
+	/** Head (y) of the lower column of the two-column vertical documents below: column line size + 2em gap. */
+	private static final double LOWER_COLUMN_HEAD = (CONTENT_HEIGHT - 2 * FONT) / 2 + 2 * FONT;
+
+	/** A top figure of the given size at the head of a two-column vertical text of {@code count} sentences. */
+	private static String multicolTop(final String width, final String height, final int count) {
+		return """
+				<!DOCTYPE html>
+				<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/>
+				<style>
+				@page{size:120mm 80mm;margin:6mm}
+				html{writing-mode:vertical-rl;font:10pt/1.5 serif}
+				body{margin:0}
+				p{margin:0}
+				.text{column-count:2;column-gap:2em}
+				.fig{float:top;writing-mode:horizontal-tb;margin:0}
+				.fig div{width:%s;height:%s;background:#c66}
+				</style></head><body><div class="text">
+				<div class="fig"><div></div></div><p>%s</p>
+				</div></body></html>
+				""".formatted(width, height, "本文。".repeat(count));
+	}
+
+	/** Lines of the lower column (vertical-rl: the lines starting at or after its head). */
+	private static List<double[]> lowerColumnLines(final String page) {
+		final List<double[]> lower = new ArrayList<>();
+		for (final double[] line : lines(page)) {
+			if (line[1] > LOWER_COLUMN_HEAD - 0.5) {
+				lower.add(line);
+			}
+		}
+		return lower;
+	}
+
+	/**
+	 * A top figure over the upper column leaves the lower column whole (2026-10-26, tech reports from the cti.li
+	 * reader): the page bands were applied in every column's own coordinates, so the lower column had the same gap
+	 * at its head, whether the figure was as wide as the type area or narrower.
+	 */
+	public void testTopInVerticalMulticolLeavesLowerColumnHead() throws Exception {
+		for (final String width : new String[] { "108mm", "60mm" }) {
+			final String[] pages = convert("rl-multicol-top-" + width, multicolTop(width, "20mm", 200));
+			final double[] fig = frame(pages[0]);
+			assertNoOverlap(pages[0], fig);
+			final List<double[]> lower = lowerColumnLines(pages[0]);
+			assertFalse(width + ": 下の段に行が無い", lower.isEmpty());
+			for (final double[] line : lower) {
+				assertEquals(width + ": 下の段の行は天から " + Arrays.toString(line), LOWER_COLUMN_HEAD, line[1], 0.5);
+			}
+		}
+	}
+
+	/**
+	 * A top figure leaving less than a character in the upper column sends the text to the lower column of the same
+	 * page, not to the next page (2026-10-26, tech report: the page held only the photograph).
+	 */
+	public void testTopFillingUpperColumnSendsTextToLowerColumn() throws Exception {
+		// The upper column is 86.4pt long; 29mm (82.2pt) leaves 4pt, less than a 10pt character. With 3 sentences the
+		// multicol ends on the page and is balanced, which has to skip the blocked column again (codex review).
+		for (final int count : new int[] { 200, 3 }) {
+			final String[] pages = convert("rl-multicol-top-fill-" + count, multicolTop("108mm", "29mm", count));
+			final double[] fig = frame(pages[0]);
+			assertNoOverlap(pages[0], fig);
+			final List<double[]> lower = lowerColumnLines(pages[0]);
+			assertFalse(count + ": 1 頁目の下の段に本文が無い", lower.isEmpty());
+			assertEquals(count + ": 1 頁目の行は全部下の段", lines(pages[0]).size(), lower.size());
+			if (count == 3) {
+				assertEquals("3: 1 頁", 1, pages.length);
+			}
+		}
+	}
+
+	/**
+	 * A multicol that ends on the page is balanced, which lays its contents out again in its own coordinates; the
+	 * lines there ignored the page floats and ran over the figure (2026-10-26, found while fixing the tech reports;
+	 * 19124 alike).
+	 */
+	public void testTopInBalancedVerticalMulticolDoesNotOverlap() throws Exception {
+		for (final String width : new String[] { "108mm", "60mm" }) {
+			final String page = single(convert("rl-multicol-top-balanced-" + width, multicolTop(width, "20mm", 20)));
+			assertNoOverlap(page, frame(page));
+			for (final double[] line : lowerColumnLines(page)) {
+				assertEquals(width + ": 下の段の行は天から " + Arrays.toString(line), LOWER_COLUMN_HEAD, line[1], 0.5);
+			}
+		}
+	}
+
+	/**
+	 * In horizontal writing a top figure narrower than the first column does not narrow the second (2026-10-26, the
+	 * same cause as above: the second column had a gap of the figure's size at its top).
+	 */
+	public void testTopInHorizontalMulticolOnlyNarrowsTheColumnItCovers() throws Exception {
+		final String html = """
+				<!DOCTYPE html>
+				<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="UTF-8"/>
+				<style>
+				@page{size:120mm 80mm;margin:6mm}
+				html{font:10pt/1.5 serif}
+				body{margin:0}
+				p{margin:0}
+				.text{column-count:2;column-gap:2em}
+				.fig{float:top;width:30mm;height:20mm;margin:0;background:#c66}
+				</style></head><body><div class="text">
+				<div class="fig"></div><p>%s</p>
+				</div></body></html>
+				""".formatted("本文。".repeat(200));
+		final String page = convert("h-multicol-top-narrow", html)[0];
+		final double secondColumn = (CONTENT_WIDTH - 2 * FONT) / 2 + 2 * FONT;
+		double top = Double.POSITIVE_INFINITY, start = Double.NaN;
+		final Matcher t = TEXT.matcher(page);
+		while (t.find()) {
+			final double x = Double.parseDouble(t.group(1)), y = Double.parseDouble(t.group(2));
+			if (x > secondColumn - 0.5 && y < top) {
+				top = y;
+				start = x;
+			}
+		}
+		assertTrue("右の段に行が無い", top < Double.POSITIVE_INFINITY);
+		assertEquals("右の段の最初の行は天に", 0, top, 0.5);
+		assertEquals("右の段の最初の行は段の頭から(図の脇で短くならない)", secondColumn, start, 0.5);
+	}
+
 	private static String single(final String[] pages) {
 		assertEquals("1 頁", 1, pages.length);
 		return pages[0];

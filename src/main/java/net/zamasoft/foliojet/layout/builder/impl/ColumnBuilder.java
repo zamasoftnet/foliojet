@@ -8,8 +8,31 @@ import net.zamasoft.foliojet.layout.box.content.BreakMode.ForceBreakMode;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
 
 public class ColumnBuilder extends BreakableBuilder {
+	/** Where this builder's coordinates start in the page's (RootBuilder's), or NaN when it does not know. */
+	private double pageLineOrigin = Double.NaN, pagePageOrigin = Double.NaN;
+
 	public ColumnBuilder(LayoutStack layoutStack, AbstractContainerBox contextBox) {
 		super(layoutStack, contextBox, MODE_AUTO);
+	}
+
+	/**
+	 * Places this builder's coordinates at {@code lineOrigin}/{@code pageOrigin} of the page, so that the lines
+	 * avoid the page floats (2026-10-26). Balancing lays the multicol out again in its own coordinates, where the
+	 * lines used to ignore the page floats and ran over a float: top on the page where the multicol ended.
+	 */
+	public final void placeInPage(final double lineOrigin, final double pageOrigin) {
+		this.pageLineOrigin = lineOrigin;
+		this.pagePageOrigin = pageOrigin;
+	}
+
+	@Override
+	protected net.zamasoft.foliojet.layout.constraint.ExclusionSpace pageFloatExclusionsForLineLayout() {
+		if (Double.isNaN(this.pageLineOrigin) || !(this.getParentBuilder() instanceof RootBuilder root)
+				|| this.contextFlow.box.getBlockParams().flow != root.getRootBox().getBlockParams().flow) {
+			return net.zamasoft.foliojet.layout.constraint.ExclusionSpace.EMPTY;
+		}
+		return root.pageFloatExclusionsForLineLayout().shifted(-this.pageLineOrigin - this.activeColumnLineOffset(),
+				-this.pagePageOrigin);
 	}
 
 	/**
@@ -94,7 +117,8 @@ public class ColumnBuilder extends BreakableBuilder {
 		}
 		flags |= IPageBreakableBox.FLAGS_LAST;
 		final double lastFrame = this.lastFrame(this.contextFlow, depth);
-		return this.columnBreak(this.contextFlow, mode, flags, lastFrame, depth);
+		return this.columnBreak(this.contextFlow, mode, flags, lastFrame, depth)
+				|| this.breakEmptyColumn(this.contextFlow, lastFrame, depth);
 	}
 
 	public final void finish() {

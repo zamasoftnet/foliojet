@@ -112,6 +112,25 @@ public final class ExclusionSpace {
 		return copyOfSorted(merged);
 	}
 
+	/**
+	 * The same bands moved by {@code lineDelta} along the line direction and {@code pageDelta} along the page
+	 * (2026-10-26). Every band moves by the same amount, so the ascending {@code pageSpan.end} contract holds without
+	 * sorting.
+	 */
+	public ExclusionSpace shifted(final double lineDelta, final double pageDelta) {
+		if (lineDelta == 0 && pageDelta == 0 || this.isEmpty()) {
+			return this;
+		}
+		final List<FloatExclusion> shifted = new ArrayList<>(this.ascendingByPageEnd.size());
+		for (final FloatExclusion exclusion : this.ascendingByPageEnd) {
+			shifted.add(new FloatExclusion(exclusion.order(), exclusion.side(),
+					new AxisSpan(exclusion.pageSpan().start() + pageDelta, exclusion.pageSpan().end() + pageDelta),
+					new AxisSpan(exclusion.lineSpan().start() + lineDelta, exclusion.lineSpan().end() + lineDelta),
+					exclusion.shape() == null ? null : exclusion.shape().shifted(lineDelta, pageDelta)));
+		}
+		return new ExclusionSpace(Collections.unmodifiableList(shifted));
+	}
+
 	/** Whether the set is empty. */
 	public boolean isEmpty() {
 		return this.ascendingByPageEnd.isEmpty();

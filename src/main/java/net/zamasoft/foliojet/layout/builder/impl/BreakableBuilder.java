@@ -721,7 +721,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// then recheck on the next page with its replaced page exclusions.
 				final double savedPageAxis = this.pageAxis;
 				this.pageAxis = pageLimit + 1;
-				if (!this.autoBreak()) {
+				if (!this.autoBreak(true)) {
 					this.pageAxis = savedPageAxis;
 					break;
 				}
@@ -1445,6 +1445,47 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	private boolean autoBreak() {
+		return this.autoBreak(false);
+	}
+
+	/** Whether the current automatic break comes from a first line that the page floats leave no room for. */
+	private boolean firstLineBlockedByPageFloats;
+
+	/**
+	 * Breaks the column anyway when the automatic column break was refused, the page floats leave no room in it for
+	 * the first line and the column paints nothing yet (2026-10-26, tech report: a float: top filling the upper column
+	 * of a vertical two-column page sent the text to the next page and left the lower column empty; the empty column
+	 * had nothing to cut, so the automatic break was refused). Only then: elsewhere a refused break falls back to the
+	 * page as before (a column holding a float went on to the next page in fuzz-repro/first-line-break-reopens-closed-
+	 * text.html, and breaking it moved the footnotes and a bottom float off their page).
+	 */
+	protected final boolean breakEmptyColumn(final Flow flow, final double lastFrame, final int depth) {
+		// canColumnBreak() lets a multicol with a specified page-axis size add columns past column-count (codex review);
+		// a column skipped only for the page floats must not.
+		if (!this.firstLineBlockedByPageFloats || flow.box.getActualColumnCount() >= flow.box.getColumnCount()) {
+			return false;
+		}
+		final net.zamasoft.foliojet.layout.box.content.Container owner = flow.box.getContainer();
+		final net.zamasoft.foliojet.layout.box.content.Container column = owner instanceof net.zamasoft.foliojet.layout.box.content.ColumnsContainer columns
+				? columns.getLastColumn()
+				: owner;
+		return !column.hasFloatings() && !column.paintsAnything() && this.columnBreak(flow,
+				new ForceBreakMode(this.getFlowBox(), PageBreakMode.COLUMN), IPageBreakableBox.FLAGS_FIRST, lastFrame,
+				depth);
+	}
+
+	/** @param firstLineBlocked whether the page floats leave no room for the first line here ({@link #breakEmptyColumn}) */
+	private boolean autoBreak(final boolean firstLineBlocked) {
+		final boolean saved = this.firstLineBlockedByPageFloats;
+		this.firstLineBlockedByPageFloats = firstLineBlocked;
+		try {
+			return this.autoBreakContent();
+		} finally {
+			this.firstLineBlockedByPageFloats = saved;
+		}
+	}
+
+	private boolean autoBreakContent() {
 		if (DebugFlags.BREAK_TRACE) {
 			System.err.println("[break] pageAxis=" + this.pageAxis + " flow="
 					+ this.getFlowBox().getParams().element + " stack="
@@ -1467,6 +1508,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			final boolean canBreak = this.canBreakBefore;
 			final PageBreakMode pendingAfter = this.breakAfter;
 			if (this.columnBreak(columnBreak.flow(), mode, flags, lastFrame, columnBreak.depth())) {
+				return true;
+			}
+			if (this.breakEmptyColumn(columnBreak.flow(), lastFrame, columnBreak.depth())) {
 				return true;
 			}
 			if (!this.makesAutomaticPageBreaks()) {

@@ -990,6 +990,19 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return ExclusionSpace.EMPTY;
 	}
 
+	/** Line-axis offset of the active columns of the open multi-column boxes from their first columns. */
+	protected final double activeColumnLineOffset() {
+		double offset = 0;
+		for (int i = 0; i < this.getFlowCount(); ++i) {
+			final AbstractContainerBox box = this.getFlow(i).box;
+			final int active = box.getActualColumnCount() - 1;
+			if (active > 0) {
+				offset += active * (box.getLineSize() + box.getBlockParams().columns.gap);
+			}
+		}
+		return offset;
+	}
+
 	protected final RetainedTextLimit.Scope takeRetainedFlow() {
 		return this.retainedFlows == null ? null
 				: this.retainedFlows.remove(this.flowStack == null ? 0 : this.flowStack.size());
@@ -1047,7 +1060,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (flowBox.getColumnCount() > 1 && params.columns.fill == Columns.FILL_BALANCE) {
 			// Column balancing
 			this.pageAxis = flow.pageAxis;
-			flowBox.balance(this);
+			flowBox.balance(this, flow.lineAxis, flow.pageAxis);
 		}
 		if (flow.flexItem || establishesIndependentFloatScope(flowBox, parentParams)) {
 			// Remove floats inside independent BFCs from the parent's exclusion area.

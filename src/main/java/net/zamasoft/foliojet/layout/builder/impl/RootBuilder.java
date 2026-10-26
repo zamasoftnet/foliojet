@@ -991,7 +991,11 @@ public class RootBuilder extends BreakableBuilder {
 			// transforms axes, leave placement to the outer frame instead of passing page coordinates inside.
 			return ExclusionSpace.EMPTY;
 		}
-		return this.pageFloatExclusionSnapshot;
+		// Columns after the first lay out their lines at the same line-axis positions as the first and are moved by
+		// i×(column width + gap) only when drawn (ColumnsContainer), so move the page bands back by the active columns'
+		// offsets (2026-10-26, tech reports: a float: top over the upper column of a vertical two-column page left the
+		// same gap at the head of the lower column, and when it filled the upper column the text went to the next page).
+		return this.pageFloatExclusionSnapshot.shifted(-this.activeColumnLineOffset(), 0);
 	}
 
 	/**

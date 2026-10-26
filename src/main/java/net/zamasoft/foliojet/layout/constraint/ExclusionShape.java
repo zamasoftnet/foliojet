@@ -41,6 +41,18 @@ public abstract class ExclusionShape {
 	 */
 	public abstract AxisSpan lineSpanAt(double v0, double v1);
 
+	/** The same shape moved by {@code lineDelta} along the line direction (u) and {@code pageDelta} along the page (v). */
+	public ExclusionShape shifted(final double lineDelta, final double pageDelta) {
+		final ExclusionShape base = this;
+		return new ExclusionShape() {
+			@Override
+			public AxisSpan lineSpanAt(final double v0, final double v1) {
+				final AxisSpan span = base.lineSpanAt(v0 - pageDelta, v1 - pageDelta);
+				return span == null ? null : new AxisSpan(span.start() + lineDelta, span.end() + lineDelta);
+			}
+		};
+	}
+
 	/**
 	 * Creates from a shape in logical coordinates. Clips to {@code bounds} (the float's exclusion rectangle = margin
 	 * box), per specification §4.1: the shape is clipped to the margin box and cannot expand the exclusion area.

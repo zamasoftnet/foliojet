@@ -326,6 +326,14 @@ public abstract class AbstractContainerBox extends AbstractBox
 	}
 
 	public final void balance(final BlockBuilder builder) {
+		this.balance(builder, Double.NaN, Double.NaN);
+	}
+
+	/**
+	 * Balances the columns; {@code lineOrigin}/{@code pageOrigin} is where the contents start in {@code builder}'s
+	 * coordinates (NaN when unknown), so that the lines laid out again avoid the page floats.
+	 */
+	public final void balance(final BlockBuilder builder, final double lineOrigin, final double pageOrigin) {
 		final Container oldCont = this.container;
 
 		final int acc = this.getActualColumnCount();
@@ -364,6 +372,9 @@ public abstract class AbstractContainerBox extends AbstractBox
 		this.container.setBox(this);
 
 		final ColumnBuilder columnBuilder = new ColumnBuilder(builder, this);
+		if (!Double.isNaN(lineOrigin)) {
+			columnBuilder.placeInPage(lineOrigin, pageOrigin);
+		}
 		// At balancing time, this multicol is a closed subtree (the SAX head follows immediately),
 		// so its contents can be rebuilt from source (M6c). Unlike box replay, this is nondestructive
 		// and could support repeated capacity probes in the future. Fall back to box replay for
