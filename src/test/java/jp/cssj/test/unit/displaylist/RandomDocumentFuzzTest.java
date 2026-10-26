@@ -1866,6 +1866,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// a nested table about 2.5 times the paper in the line direction (19124 alike); Chrome's print leaves T1 to
 			// T3, T10 to T12, T15 to T23 and others off the paper as well.
 			new IndividualExclusion(42_084_456, "fit-v1", 2_065_976_665, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の2倍超(Chromeの印刷も紙の外)",
+					"2026-10-26"),
+			// Triage §121, a known limitation since 19124 (standing user decision 2026-10-13, as §112): on 200 pt
+			// vertical-rl paper a two-column multicol holds floats of 101 to 128 pt with a table, an image and form
+			// controls. Copper keeps the multicol on page 1 and T6 to T14 land at x = -56 to -654 pt; without the
+			// multicol they go over five pages on the paper. Chrome's print loses T5, T6 and T10 to T13 as well.
+			new IndividualExclusion(42_377_714, "fit-v1", 1_381_878_066, "既知の制限: 縦組みの段組の中のfloatが頁で分かれず紙の左の外",
 					"2026-10-26"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
