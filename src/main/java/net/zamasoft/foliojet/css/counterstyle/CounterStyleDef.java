@@ -36,6 +36,12 @@ public final class CounterStyleDef {
 
 	private static final int MAX_REPEAT = 1000;
 
+	/**
+	 * Most characters a repetition may produce (2026-10-26, codex review): the repetition cap alone let a symbol of a
+	 * megabyte make a gigabyte.
+	 */
+	private static final int MAX_LENGTH = 10_000;
+
 	public final System system;
 
 	/** {@code symbols}(cyclic/numeric/alphabetic/symbolic/fixed)。 */
@@ -159,10 +165,11 @@ public final class CounterStyleDef {
 			}
 			final int size = this.symbols.size();
 			final int count = (number - 1) / size + 1;
-			if (count > MAX_REPEAT) {
+			final String symbol = this.symbols.get((number - 1) % size);
+			if (count > MAX_REPEAT || (long) symbol.length() * count > MAX_LENGTH) {
 				return null;
 			}
-			return this.symbols.get((number - 1) % size).repeat(count);
+			return symbol.repeat(count);
 		}
 
 		case ALPHABETIC: {
@@ -198,7 +205,10 @@ public final class CounterStyleDef {
 		}
 		final StringBuilder buff = new StringBuilder();
 		int length = core.codePointCount(0, core.length());
-		while (length < this.padLength) {
+		// At most MAX_REPEAT symbols, as the other repetitions (2026-10-26, loop audit: pad: 2147483647 "0" filled the
+		// heap on the first marker of a 230-byte document).
+		final int target = Math.min(this.padLength, length + MAX_REPEAT);
+		while (length < target && buff.length() + this.padSymbol.length() <= MAX_LENGTH) {
 			buff.append(this.padSymbol);
 			++length;
 		}
@@ -251,7 +261,7 @@ public final class CounterStyleDef {
 		}
 		final StringBuilder buff = new StringBuilder();
 		long rest = number;
-		int repeats = 0;
+		long repeats = 0;
 		for (int i = 0; i < this.additiveWeights.length && rest > 0; ++i) {
 			final int weight = this.additiveWeights[i];
 			if (weight <= 0) {
@@ -261,11 +271,13 @@ public final class CounterStyleDef {
 			if (count == 0) {
 				continue;
 			}
+			// In long: a count past the int range wrapped the sum and slipped the check (codex review).
 			repeats += count;
-			if (repeats > MAX_REPEAT) {
+			final String symbol = this.additiveSymbols.get(i);
+			if (repeats > MAX_REPEAT || buff.length() + (long) symbol.length() * count > MAX_LENGTH) {
 				return null;
 			}
-			buff.append(this.additiveSymbols.get(i).repeat((int) count));
+			buff.append(symbol.repeat((int) count));
 			rest -= count * weight;
 		}
 		return rest == 0 ? buff.toString() : null;

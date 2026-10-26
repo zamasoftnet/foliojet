@@ -1616,7 +1616,11 @@ public abstract class AbstractTextBox extends AbstractBox {
 				throws GraphicsException {
 			gc.setStrokePaint(line.color());
 			gc.setLineWidth(t);
-			switch (line.style()) {
+			// A decoration thinner than 0.05 pt is drawn as a solid line, whatever its style: no style can be told apart
+			// at that thickness in print, and a vanishing one gave dotted and dashed lines dash lengths that Java2D's
+			// dasher cannot get past (an all-zero pattern is rejected, 1e-20 loops) and waves billions of steps
+			// (2026-10-26, loop audit and codex review).
+			switch (t >= 0.05 ? line.style() : AbstractTextParams.DECORATION_STYLE_SOLID) {
 			case AbstractTextParams.DECORATION_STYLE_DOUBLE: {
 				final double dx = vertical ? t : 0, dy = vertical ? 0 : t;
 				gc.draw(new Line2D.Double(x0 - dx, y0 - dy, x1 - dx, y1 - dy));
@@ -1637,7 +1641,8 @@ public abstract class AbstractTextBox extends AbstractBox {
 				// Quadratic curve with half-period 2t and amplitude t (control points at ±2t give extrema at ±t).
 				// For the final partial half-period, scale amplitude with length so the curve ends on the line.
 				final double length = vertical ? y1 - y0 : x1 - x0;
-				final double half = t * 2;
+				// At most 10,000 half-periods: a huge letter-spacing made one underline millions of curves (codex review).
+				final double half = Math.max(t * 2, length / 10_000);
 				final java.awt.geom.Path2D.Double path = new java.awt.geom.Path2D.Double();
 				path.moveTo(x0, y0);
 				double p = 0;

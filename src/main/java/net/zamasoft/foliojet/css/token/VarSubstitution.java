@@ -26,6 +26,38 @@ public final class VarSubstitution {
 	 */
 	private static final int MAX_DEPTH = 64;
 
+	/**
+	 * Most tokens one var() substitution may produce, counting each var() resolved as one too (2026-10-26, loop audit).
+	 * Every level of references can multiply them ({@code --b: var(--a) var(--a) ...}): nine levels of ten made 10^9
+	 * tokens and filled the heap with a 1 KB document, in a JVM that other conversions share; references that expand to
+	 * nothing ({@code var(--missing,)}) multiply the work alike, hence the resolutions are counted. Browsers also cap
+	 * the substituted value; past the cap the declaration is invalid at computed-value time, as for a cycle.
+	 */
+	private static final int MAX_TOKENS = 10_000;
+
+	/** The tokens still allowed in the substitution under way; once spent, every level gives up at once. */
+	private static final class Budget {
+		private int left = MAX_TOKENS;
+
+		boolean take() {
+			return --this.left >= 0;
+		}
+
+		/** Takes one unit for every token, function arguments included. */
+		boolean takeAll(final List<CssToken> tokens) {
+			for (final CssToken token : tokens) {
+				if (!this.take() || token instanceof CssToken.Func func && !this.takeAll(func.args())) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		boolean spent() {
+			return this.left < 0;
+		}
+	}
+
 	/** Returns whether tokens contain a var() call (including nested function arguments). */
 	public static boolean containsVarReference(List<CssToken> tokens) {
 		return containsFunction(tokens, "var");
@@ -128,19 +160,20 @@ public final class VarSubstitution {
 	 * the caller should ignore this entire declaration).
 	 */
 	public static List<CssToken> substitute(List<CssToken> tokens, CSSStyle style) {
-		return substitute(tokens, style, Collections.emptySet(), 0);
+		return substitute(tokens, style, Collections.emptySet(), 0, new Budget());
 	}
 
+	/** Leaf tokens and function wrappers are counted once each, where they are emitted. */
 	private static List<CssToken> substitute(List<CssToken> tokens, CSSStyle style, Set<String> resolving,
-			int depth) {
-		if (depth > MAX_DEPTH) {
+			int depth, Budget budget) {
+		if (depth > MAX_DEPTH || budget.spent()) {
 			return null;
 		}
 		List<CssToken> result = new ArrayList<CssToken>(tokens.size());
 		for (CssToken token : tokens) {
 			if (token instanceof CssToken.Func func) {
 				if (func.is("var")) {
-					List<CssToken> resolved = resolveVar(func, style, resolving, depth);
+					List<CssToken> resolved = resolveVar(func, style, resolving, depth, budget);
 					if (resolved == null) {
 						return null;
 					}
@@ -152,15 +185,22 @@ public final class VarSubstitution {
 					if (resolved == null) {
 						return null;
 					}
+					// With the arguments of functions in the fallback (codex review: env(unknown, f(...)) cost one token)
+					if (!budget.takeAll(resolved)) {
+						return null;
+					}
 					result.addAll(resolved);
 				} else {
-					List<CssToken> substitutedArgs = substitute(func.args(), style, resolving, depth + 1);
-					if (substitutedArgs == null) {
+					List<CssToken> substitutedArgs = substitute(func.args(), style, resolving, depth + 1, budget);
+					if (substitutedArgs == null || !budget.take()) {
 						return null;
 					}
 					result.add(new CssToken.Func(func.name(), substitutedArgs));
 				}
 			} else {
+				if (!budget.take()) {
+					return null;
+				}
 				result.add(token);
 			}
 		}
@@ -168,7 +208,11 @@ public final class VarSubstitution {
 	}
 
 	/** Returns replacement tokens after resolving var(--name[, fallback...]), or null if resolution fails. */
-	private static List<CssToken> resolveVar(CssToken.Func func, CSSStyle style, Set<String> resolving, int depth) {
+	private static List<CssToken> resolveVar(CssToken.Func func, CSSStyle style, Set<String> resolving, int depth,
+			Budget budget) {
+		if (!budget.take()) {
+			return null;
+		}
 		List<CssToken> args = func.args();
 		if (args.isEmpty() || !(args.get(0) instanceof CssToken.Ident nameToken)
 				|| !nameToken.name().startsWith("--")) {
@@ -193,7 +237,7 @@ public final class VarSubstitution {
 			if (declared != null) {
 				Set<String> nextResolving = new HashSet<String>(resolving);
 				nextResolving.add(name);
-				List<CssToken> resolvedDeclared = substitute(declared, owner, nextResolving, depth + 1);
+				List<CssToken> resolvedDeclared = substitute(declared, owner, nextResolving, depth + 1, budget);
 				if (resolvedDeclared != null) {
 					return resolvedDeclared;
 				}
@@ -203,7 +247,7 @@ public final class VarSubstitution {
 			}
 		}
 		if (fallback != null) {
-			return substitute(fallback, style, resolving, depth + 1);
+			return substitute(fallback, style, resolving, depth + 1, budget);
 		}
 		return null;
 	}

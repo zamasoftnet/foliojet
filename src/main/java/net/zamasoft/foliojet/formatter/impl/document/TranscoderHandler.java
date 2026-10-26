@@ -19,6 +19,7 @@ import net.zamasoft.foliojet.xml.XMLHandlerFilter;
 import net.zamasoft.foliojet.xml.vocab.CSSJML;
 import net.zamasoft.foliojet.xml.filter.CSSJMLHandlerFilter;
 import net.zamasoft.foliojet.xml.filter.DocumentFilters;
+import net.zamasoft.foliojet.xml.filter.NestingDepthFilter;
 import net.zamasoft.foliojet.xml.util.SAXEventRecorder;
 import net.zamasoft.foliojet.xml.util.SAXEventRecorder.SAXEvent;
 import net.zamasoft.foliojet.xml.util.XMLUtils;
@@ -243,6 +244,12 @@ public class TranscoderHandler extends DefaultXMLHandlerFilter {
 				exitPoint.setXMLHandler(handlerFilter);
 				exitPoint = handlerFilter;
 			}
+
+			// At most 512 levels of elements, as Chrome's HTML parser (2026-10-26). Before both the structure scan
+			// and the layout, so that the two passes number the same elements.
+			final XMLHandlerFilter depthLimit = new NestingDepthFilter();
+			exitPoint.setXMLHandler(depthLimit);
+			exitPoint = depthLimit;
 
 			if (this.ua.isStructureScanPass()) {
 				// STRUCTURE_SCAN: A lightweight preliminary scan that performs no box construction
