@@ -45,6 +45,15 @@ final class IntrinsicMeasurer {
 	 */
 	private double minLineSize = 0, maxLineSize = 0, minPageSize = 0;
 
+	/**
+	 * The page-axis size at the max-content line size so far ({@link IntrinsicSizes#maxContentPage()}, 2026-10-27): the
+	 * finished lines and blocks of the current flow, stacked, and the thickness of its open line. Entering a flow saves
+	 * the enclosing flow's on {@link #stackedPageStack}. Margins count whole, as the frames of {@link #minPageSize} do.
+	 */
+	private double stackedPage = 0, openLine = 0;
+
+	private final List<Double> stackedPageStack = new ArrayList<Double>();
+
 	private double maxStartFloatAdvance = 0, maxEndFloatAdvance = 0;
 
 	/**
@@ -126,7 +135,20 @@ final class IntrinsicMeasurer {
 
 	IntrinsicSizes sizes() {
 		return new IntrinsicSizes(Math.max(this.minLineSize, this.orthogonalMinLine),
-				Math.max(this.maxLineSize, this.orthogonalMaxLine), this.minPageSize, this.columnInflated);
+				Math.max(this.maxLineSize, this.orthogonalMaxLine), this.minPageSize, this.columnInflated,
+				this.maxContentPage());
+	}
+
+	private double maxContentPage() {
+		// Lengths add up past the largest double (line-height: pow(10, 308), codex 2026-10-27)
+		final double stacked = this.stackedPage + this.openLine;
+		return Double.isFinite(stacked) ? Math.max(this.minPageSize, stacked) : this.minPageSize;
+	}
+
+	/** Ends the open line: a forced break, the end of the text or a block. */
+	private void stackLine() {
+		this.stackedPage += this.openLine;
+		this.openLine = 0;
 	}
 
 	/**
@@ -138,12 +160,14 @@ final class IntrinsicMeasurer {
 			return this.sizes();
 		}
 		return new IntrinsicSizes(Math.max(this.rootContent[0], this.orthogonalMinLine),
-				Math.max(this.rootContent[1], this.orthogonalMaxLine), this.minPageSize, this.columnInflated);
+				Math.max(this.rootContent[1], this.orthogonalMaxLine), this.minPageSize, this.columnInflated,
+				this.maxContentPage());
 	}
 
 	/** Intrinsic sizes excluding orthogonal child contributions (see {@link #orthogonalMinLine}). */
 	IntrinsicSizes sizesWithoutOrthogonal() {
-		return new IntrinsicSizes(this.minLineSize, this.maxLineSize, this.minPageSize, this.columnInflated);
+		return new IntrinsicSizes(this.minLineSize, this.maxLineSize, this.minPageSize, this.columnInflated,
+				this.maxContentPage());
 	}
 
 	/** Whether there are orthogonal children (tables/blocks). */
@@ -183,6 +207,9 @@ final class IntrinsicMeasurer {
 		this.flowSizeStack.add(new double[] { this.minLineSize, this.maxLineSize, lineSize });
 		this.lineFrame += frameAdd * this.columnCount;
 		this.pageFrame += flowBox.getFrame().getFramePageExtent(params.flow);
+		this.stackLine();
+		this.stackedPageStack.add(this.stackedPage);
+		this.stackedPage = 0;
 		assert !LayoutUtils.isNone(this.lineFrame);
 		if (this.lineFrame > this.minLineSize) {
 			this.minLineSize = this.lineFrame;
@@ -218,6 +245,15 @@ final class IntrinsicMeasurer {
 		AbstractContainerBox containerBox = this.builder.getFlowBox();
 		BlockParams params = containerBox.getBlockParams();
 		BlockParams flowParams = flowBox.getBlockParams();
+		this.stackLine();
+		double inner = this.stackedPage;
+		if (flowParams.size.getPageType(params.flow) == LengthType.ABSOLUTE
+				&& flowParams.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX) {
+			// A length for the flow's page-axis size is its size, whatever its content (codex 2026-10-27)
+			inner = params.flow.isVertical() ? flowParams.size.getWidth() : flowParams.size.getHeight();
+		}
+		this.stackedPage = this.stackedPageStack.remove(this.stackedPageStack.size() - 1) + inner
+				+ flowBox.getFrame().getFramePageExtent(params.flow);
 		this.columnCount /= flowBox.getColumnCount();
 		// Symmetrically with startFlow, remove **only the added portion**, using the same multiplier.
 		if (flowBox.getColumnCount() > 0) {
@@ -368,6 +404,8 @@ final class IntrinsicMeasurer {
 				minPageAxis = replacedBox.getHeight();
 				maxLineAxis = replacedBox.getWidth();
 			}
+			this.stackLine();
+			this.stackedPage += minPageAxis;
 			minPageAxis += this.pageFrame;
 			minLineAxis *= this.columnCount;
 			minLineAxis += this.lineFrame;
@@ -631,9 +669,12 @@ final class IntrinsicMeasurer {
 			maxLine = childSizes.maxContent() + frameLine;
 			minPage = childSizes.minPage() + framePage;
 		} else {
-			// The child’s minimum page-axis thickness becomes its line-axis width as seen by the parent.
-			minLine = maxLine = childSizes.minPage() + frameLine;
+			// The child’s page-axis size becomes its line-axis width as seen by the parent: laid out at the max-content
+			// line size, not its thickest line (2026-10-27, triage §113)
+			minLine = maxLine = childSizes.maxContentPage() + frameLine;
 			minPage = childSizes.minContent() + framePage;
+			this.stackLine();
+			this.stackedPage += minPage;
 			// One-line minimum thickness is not the child's actual height; track it for layout remeasurement (2026-10-05).
 			this.orthogonalContent = true;
 			this.orthogonalMinLine = Math.max(this.orthogonalMinLine, minLine * this.columnCount + this.lineFrame);
@@ -647,6 +688,8 @@ final class IntrinsicMeasurer {
 		this.maxLineSize = Math.max(this.maxLineSize,
 				maxLine * this.columnCount + this.lineFrame);
 		this.minPageSize = Math.max(this.minPageSize, minPage + this.pageFrame);
+		this.stackLine();
+		this.stackedPage += childSizes.maxContentPage() + framePage;
 	}
 
 	/**
@@ -683,6 +726,7 @@ final class IntrinsicMeasurer {
 		this.atomicLineSize += advance;
 		this.lineAxis += advance;
 		this.keepSpaces();
+		this.openLine = Math.max(this.openLine, this.getCurrentLineHeight());
 		double minPageAxis = this.getCurrentLineHeight() + this.pageFrame;
 		if (minPageAxis > this.minPageSize) {
 			this.minPageSize = minPageAxis;
@@ -697,6 +741,8 @@ final class IntrinsicMeasurer {
 		}
 
 		double minAdvance, maxAdvance, pageSize;
+		// An inline-block's page-axis size at the max-content line size, for the line's (2026-10-27, codex)
+		double maxContentPageSize = 0;
 		if (quad instanceof InlineQuad) {
 			final InlineQuad inlineQuad = (InlineQuad) quad;
 			final BlockParams cParams = this.builder.getFlowBox().getBlockParams();
@@ -762,10 +808,13 @@ final class IntrinsicMeasurer {
 						minAdvance = stfSizes.minContent() + lineFrame;
 						maxAdvance = stfSizes.maxContent() + lineFrame;
 						pageSize = stfSizes.minPage() + pageFrame;
+						maxContentPageSize = stfSizes.maxContentPage() + pageFrame;
 					} else {
-						// Tate-chu-yoko / vertical text in horizontal writing
-						minAdvance = maxAdvance = stfSizes.minPage() + pageFrame;
-						pageSize = stfSizes.minContent() + lineFrame;
+						// Tate-chu-yoko / vertical text in horizontal writing: laid out at the max-content line size
+						// (2026-10-27, triage §113). The frames are in this flow's axes: its line-axis frame goes with the
+						// box's page-axis size, as in fitBlock (they were the other way round)
+						minAdvance = maxAdvance = stfSizes.maxContentPage() + lineFrame;
+						pageSize = stfSizes.minContent() + pageFrame;
 					}
 				}
 				final LengthType lineType = params.size.getLineType(params.flow);
@@ -834,6 +883,7 @@ final class IntrinsicMeasurer {
 			pageSize = 0;
 		}
 		pageSize = Math.max(pageSize, this.getCurrentLineHeight());
+		this.openLine = Math.max(this.openLine, Math.max(pageSize, maxContentPageSize));
 		pageSize += this.pageFrame;
 		if (pageSize > this.minPageSize) {
 			this.minPageSize = pageSize;
@@ -880,6 +930,7 @@ final class IntrinsicMeasurer {
 			this.toLineFeed = null;
 			this.textIndent = 0;
 			this.clearFloatAdvance(ClearMode.BOTH);
+			this.stackLine();
 		}
 	}
 
@@ -907,6 +958,7 @@ final class IntrinsicMeasurer {
 		this.atomicLineSize = 0;
 		this.lineAxis = 0;
 		this.keepSpaces();
+		this.stackLine();
 	}
 
 	private void clearFloatAdvance(ClearMode clear) {

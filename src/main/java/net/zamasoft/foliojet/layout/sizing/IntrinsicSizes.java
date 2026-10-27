@@ -7,6 +7,10 @@ package net.zamasoft.foliojet.layout.sizing;
  * <li>maxContent — Max-content size (line-axis size when laid out without wrapping)</li>
  * <li>minPage — Minimum page-axis size</li>
  * <li>columnInflated — Whether {@code minContent} includes <b>multiplication by the column count</b></li>
+ * <li>maxContentPage — Page-axis size laid out at the max-content line size: the lines a forced break or a block ends,
+ * stacked. What content of the other axis takes of its parent's line axis (2026-10-27, triage §113: taken as
+ * {@code minPage}, the thickest one line, a vertical heading of two lines in a horizontal table ran into the next cell).
+ * {@code minPage} where not measured.</li>
  * </ul>
  *
  * <p>
@@ -27,11 +31,18 @@ package net.zamasoft.foliojet.layout.sizing;
  *
  * @author MIYABE Tatsuhiko
  */
-public record IntrinsicSizes(double minContent, double maxContent, double minPage, boolean columnInflated) {
+public record IntrinsicSizes(double minContent, double maxContent, double minPage, boolean columnInflated,
+		double maxContentPage) {
 	public static final IntrinsicSizes ZERO = new IntrinsicSizes(0, 0, 0);
 
 	/** Intrinsic sizes without multiplication by the column count ({@code columnInflated = false}). */
 	public IntrinsicSizes(final double minContent, final double maxContent, final double minPage) {
 		this(minContent, maxContent, minPage, false);
+	}
+
+	/** Intrinsic sizes without a measured {@code maxContentPage} ({@code minPage}). */
+	public IntrinsicSizes(final double minContent, final double maxContent, final double minPage,
+			final boolean columnInflated) {
+		this(minContent, maxContent, minPage, columnInflated, minPage);
 	}
 }

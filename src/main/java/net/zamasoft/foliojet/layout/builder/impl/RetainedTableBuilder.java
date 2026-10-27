@@ -697,7 +697,9 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					final IntrinsicSizes cellSizes = cell.getIntrinsicSizes();
 					double min, des;
 					if (cellParams.flow.isVertical() != this.vertical) {
-						min = des = cellSizes.minPage();
+						// A cell of the other axis is as thick as its lines at the max-content line size (2026-10-27,
+						// triage §113: its thickest line made a vertical heading of two lines run into the next cell)
+						min = des = cellSizes.maxContentPage();
 					} else {
 						min = cellSizes.minContent();
 						des = cellSizes.maxContent();
