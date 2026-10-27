@@ -939,8 +939,12 @@ final class BoxStyleMapper {
 	 */
 	void setupTableParams(TableParams params, CSSStyle style, CSSStyle currentStyle, boolean inBody, PageSequence pageSequence) {
 		this.setupBlockParams(params, style, currentStyle, inBody, pageSequence);
-		params.borderSpacingH = BorderSpacing.getHorizontal(style);
-		params.borderSpacingV = BorderSpacing.getVertical(style);
+		// Kept physical. The first value is the spacing in the inline direction and the second in the block direction, as
+		// in Chrome (2026-10-27: taken as horizontal and vertical, a vertical table with border-spacing: 2pt 20pt had its
+		// cells 20pt apart and its rows 2pt; found by the sweep's writing-mode mirror check)
+		final boolean vertical = params.flow.isVertical();
+		params.borderSpacingH = vertical ? BorderSpacing.getVertical(style) : BorderSpacing.getHorizontal(style);
+		params.borderSpacingV = vertical ? BorderSpacing.getHorizontal(style) : BorderSpacing.getVertical(style);
 		params.borderCollapse = BorderCollapse.get(style);
 		params.layout = TableLayout.get(style);
 	}

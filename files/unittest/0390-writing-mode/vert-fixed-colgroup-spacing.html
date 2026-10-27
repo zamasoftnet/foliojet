@@ -9,16 +9,15 @@ table {
   table-layout: fixed;
   height: 200px;
   border-collapse: separate;
-  border-spacing: 10px 2px; /* H=10px(7.5pt) ≠ V=2px(1.5pt) で軸を判別 */
+  border-spacing: 10px 2px; /* 行方向 10px(7.5pt) ≠ ブロック方向 2px(1.5pt) で軸を判別 */
 }
 td { padding: 0; background-color: #ffe; }
 </style>
 </head>
 <body>
-<!-- 縦書き表の行方向(=垂直)の境界間隔は border-spacing の V 成分。
-     旧 TwoPass fixed は colgroup 幅に H 成分を加算していた
-     (col 50px + 10px=45pt)。論理軸なら V 成分(50px + 2px=39pt)。
-     フロート内に置いて TwoPass 経路(実測文脈)を通す。 -->
+<!-- 縦書き表の行方向(=垂直)の境界間隔は border-spacing の 1 つ目の値(Chrome と同じ。2026-10-27 までは
+     2 つ目の値を使っていた)。旧 TwoPass fixed は colgroup 幅に別の軸の成分を加算していた。
+     いまは col 50px + 10px=45pt(行方向の間隔)。フロート内に置いて TwoPass 経路(実測文脈)を通す。 -->
 <div style="float: left;">
 <table>
 <colgroup><col style="height: 50px"><col></colgroup>
