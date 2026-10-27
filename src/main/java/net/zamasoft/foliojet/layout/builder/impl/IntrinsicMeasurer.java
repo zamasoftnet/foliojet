@@ -15,9 +15,11 @@ import net.zamasoft.foliojet.layout.box.impl.InlineBox;
 import net.zamasoft.foliojet.layout.box.params.AbstractTextParams;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.ClearMode;
+import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.FloatSide;
 import net.zamasoft.foliojet.layout.box.params.FlowPos;
 import net.zamasoft.foliojet.layout.box.params.LengthType;
+import net.zamasoft.foliojet.layout.box.params.Pos;
 import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.builder.InlineQuad;
 import net.zamasoft.foliojet.layout.builder.InlineQuad.InlineBlockQuad;
@@ -607,7 +609,25 @@ final class IntrinsicMeasurer {
 		return parent instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item && item.isNeutralLineFill();
 	}
 
-	void table(final IntrinsicSizes tableSizes, final boolean orthogonal) {
+	void table(final IntrinsicSizes tableSizes, final boolean orthogonal, final Pos pos) {
+		if (!orthogonal) {
+			// Its page-axis extent, as a block's or a float's (2026-10-27: counted 0, a block of the other writing mode
+			// holding only a table made its cell 0 thick, fit sweep seed 44161211). An inline table counts as inline
+			// content (the inline measurement token).
+			switch (pos.getType()) {
+			case FLOW:
+				this.clearFloatPage(((FlowPos) pos).clear);
+				this.stackLine();
+				this.stackedPage += tableSizes.maxContentPage();
+				break;
+			case FLOAT:
+				this.clearFloatPage(((FloatPos) pos).clear);
+				this.floatPage(tableSizes.maxContentPage());
+				break;
+			default:
+				break;
+			}
+		}
 		if (orthogonal) {
 			// Orthogonal table sizes follow its line axis (width), not the parent's. Track the old contribution separately.
 			this.orthogonalContent = true;

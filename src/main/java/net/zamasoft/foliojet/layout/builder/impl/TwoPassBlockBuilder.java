@@ -662,7 +662,8 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		autoTableBuilder.prepareLayout();
 		final IntrinsicSizes tableSizes = autoTableBuilder.getIntrinsicSizes();
 		this.measurer.table(tableSizes, autoTableBuilder.getTableBox().getBlockBox().getBlockParams().flow
-				.isVertical() != this.getFlowBox().getBlockParams().flow.isVertical());
+				.isVertical() != this.getFlowBox().getBlockParams().flow.isVertical(),
+				autoTableBuilder.getTableBox().getBlockBox().getPos());
 		this.noteLayoutContent();
 		this.ownershipLedger().addPlan(autoTableBuilder, OwnershipLedger.Kind.TABLE);
 		switch (autoTableBuilder.getTableBox().getBlockBox().getPos().getType()) {

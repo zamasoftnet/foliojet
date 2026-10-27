@@ -48,6 +48,7 @@ import net.zamasoft.foliojet.layout.box.params.TableCaptionPos;
 import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.box.params.TableColumnPos;
 import net.zamasoft.foliojet.layout.box.params.TableParams;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 
 import net.zamasoft.foliojet.layout.builder.Builder;
 import net.zamasoft.foliojet.layout.builder.LayoutStack;
@@ -134,6 +135,14 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	private AutoColumnWidths.Result columnWidths;
 
 	/**
+	 * The table's page-axis extent at its max-content column widths with its frame and margins
+	 * ({@link IntrinsicSizes#maxContentPage()}, 2026-10-27): each row as thick as its thickest cell, a row-spanning cell
+	 * counted in its first row (more, not less). Without it a table counted 0, and a block of the other writing mode
+	 * holding only a table made its cell 0 thick (fit sweep seed 44161211, the whole document off the paper).
+	 */
+	private double maxContentPage = 0;
+
+	/**
 	 * Shadow verification hook around cell bind (E-6 increment 5b-1, 2026-07-24; test-only, following
 	 * LayoutSourceTestHooks in 3b-2). Remains null in production with no behavioral change. Shadow tests observe
 	 * immediately before/after cell bind and replay the same sealed cell range into scratch replicas
@@ -208,7 +217,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				max = Math.max(max, tableParams.size.getWidth());
 			}
 		}
-		return new IntrinsicSizes(min, max, 0);
+		return new IntrinsicSizes(min, max, 0, false, this.maxContentPage);
 	}
 
 	public final TableBox getTableBox() {
@@ -665,10 +674,14 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 		// Calculate cell widths
 		int row = 0;
+		// The rows' page-axis extents, and the cells spanning rows as {first row, rows, extent}
+		final double[] rowPages = new double[rowCount];
+		final List<double[]> rowSpans = new ArrayList<double[]>();
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
 			List<TableRowBox> rows = this.rowGroupToRows.get(this.rowGroups.get(i));
 			for (int j = 0; j < rows.size(); ++j) {
 				List<CellContent> cells = this.rowToCells.get(rows.get(j));
+				double rowPage = 0;
 				// Specified width
 				for (int col = 0; col < cells.size(); ++col) {
 					final CellContent cell = cells.get(col);
@@ -695,6 +708,32 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					// E-6 increment 5a: for sealed cells, read the emulated measurement snapshot
 					// resolved at close (equivalent to the old read through the builder).
 					final IntrinsicSizes cellSizes = cell.getIntrinsicSizes();
+					{
+						// Its thickness: the lines at the max-content line size, or the line size of a cell of the other axis
+						final double framePage = this.vertical ? cellBox.getFrame().getFrameWidth()
+								: cellBox.getFrame().getFrameHeight();
+						double page = cellParams.flow.isVertical() != this.vertical ? cellSizes.maxContent()
+								: cellSizes.maxContentPage();
+						if ((this.vertical ? cellParams.size.getWidthType()
+								: cellParams.size.getHeightType()) == LengthType.ABSOLUTE) {
+							page = Math.max(page, this.vertical ? cellParams.size.getWidth() : cellParams.size.getHeight());
+						}
+						if ((this.vertical ? cellParams.minSize.getWidthType()
+								: cellParams.minSize.getHeightType()) == LengthType.ABSOLUTE) {
+							page = Math.max(page,
+									this.vertical ? cellParams.minSize.getWidth() : cellParams.minSize.getHeight());
+						}
+						if ((this.vertical ? cellParams.maxSize.getWidthType()
+								: cellParams.maxSize.getHeightType()) == LengthType.ABSOLUTE) {
+							page = Math.min(page,
+									this.vertical ? cellParams.maxSize.getWidth() : cellParams.maxSize.getHeight());
+						}
+						if (cellPos.rowspan > 1) {
+							rowSpans.add(new double[] { row, cellPos.rowspan, page + framePage });
+						} else {
+							rowPage = Math.max(rowPage, page + framePage);
+						}
+					}
 					double min, des;
 					if (cellParams.flow.isVertical() != this.vertical) {
 						// A cell of the other axis is as thick as its lines at the max-content line size (2026-10-27,
@@ -794,8 +833,55 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 					widths.cell(col, span, min, des, type, spec);
 				}
+				// A length for the row's size is its minimum
+				final RowLayoutEngine.RowSpec rowSpec = RowLayoutEngine.rowSpec(rows.get(j).getInnerTableParams());
+				if (!rowSpec.auto()) {
+					rowPage = Math.max(rowPage, rowSpec.size());
+				}
+				rowPages[row] = rowPage;
 				++row;
 			}
+		}
+		{
+			// A cell spanning rows adds what its rows lack to the last of them, the shorter spans first (counted whole in
+			// its first row, staggered spans came out three times as thick, codex 2026-10-27)
+			rowSpans.sort((a, b) -> Double.compare(a[1], b[1]));
+			for (final double[] spanned : rowSpans) {
+				final int first = (int) spanned[0];
+				final int last = Math.min(rowCount, first + (int) spanned[1]) - 1;
+				double sum = 0;
+				for (int r = first; r <= last; ++r) {
+					sum += rowPages[r];
+				}
+				if (spanned[2] > sum) {
+					rowPages[last] += spanned[2] - sum;
+				}
+			}
+			// The cells' frames hold half the spacing (or the collapsed borders) each side, the table's the outer halves
+			double page = this.vertical ? this.tableBox.getFrame().getFrameWidth() : this.tableBox.getFrame().getFrameHeight();
+			for (final double rowPage : rowPages) {
+				page += rowPage;
+			}
+			for (final List<Builder> captions : List.of(this.topCaptions, this.bottomCaptions)) {
+				for (final Builder caption : captions) {
+					if (caption instanceof TwoPassBlockBuilder captionBuilder) {
+						// Its content, or a length for its size, and its frame
+						final AbstractContainerBox captionBox = captionBuilder.getRootBox();
+						final BlockParams captionParams = captionBox.getBlockParams();
+						final WritingMode flow = tableParams.flow;
+						double extent = captionBuilder.getIntrinsicSizes().maxContentPage();
+						if (captionParams.size.getPageType(flow) == LengthType.ABSOLUTE) {
+							extent = Math.max(extent, captionParams.size.getPageLength(flow));
+						}
+						page += extent + captionBox.getFrame().getFramePageExtent(flow);
+					}
+				}
+			}
+			// A length for the table's size (its frame included, see pageAxisSize) is its minimum
+			if ((this.vertical ? tableParams.size.getWidthType() : tableParams.size.getHeightType()) == LengthType.ABSOLUTE) {
+				page = Math.max(page, this.vertical ? tableParams.size.getWidth() : tableParams.size.getHeight());
+			}
+			this.maxContentPage = Double.isFinite(page) ? page : 0;
 		}
 
 		this.columnWidths = widths.finish(tableFrame);
