@@ -640,10 +640,27 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		}
 		// Resolve page-axis percentages only when the basis is definite: this box's own page-axis size, or for min and
 		// max sizes the containing block's (2026-10-10: a float's min-height: 60% in a box of height: 100pt was
-		// dropped while its height was auto; Chrome takes 60pt).
-		final double pagePercentBase = !table && (this.isSpecifiedPageSize()
-				|| (cParams.flow.isVertical() == flow.isVertical() && containerBox.isSpecifiedPageSize())) ? cPage
-						: LayoutUtils.NONE;
+		// dropped while its height was auto; Chrome takes 60pt). A length for the box's own size says nothing of the
+		// basis, except in orthogonal flow, where it is the containing block's line axis: taken as definite, a vertical
+		// float with width: 8em and max-width: 90% in an auto-sized block of a table resolved the percentage against the
+		// cell's 0, came out 0 wide, and its content ran off the paper from its block start (2026-10-27, sweep seed
+		// 43632324; Chrome treats the percentage as none). Containing blocks definite by their context keep it: the page,
+		// a flex or grid item (stretched only after its content is bound, so not yet marked), a block of percentage size
+		// (whose basis those may be: html, body { height: 100% }) and the page area of a page float, margin note or
+		// footnote (each came out 64pt instead of 44pt without, codex 2026-10-27).
+		final boolean orthogonal = cParams.flow.isVertical() != flow.isVertical();
+		final boolean ownPercent = this.params.size.getPageType(flow).needsReference();
+		final Pos pos = this.getPos();
+		final boolean definiteByContext = containerBox instanceof net.zamasoft.foliojet.layout.box.impl.PageBox
+				|| containerBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox
+				|| containerBox instanceof net.zamasoft.foliojet.layout.box.impl.GridItemBox
+				|| cParams.size.getPageType(cParams.flow).needsReference()
+				|| pos instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos
+				|| pos instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos
+				|| pos instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos;
+		final double pagePercentBase = !table
+				&& (this.isSpecifiedPageSize() && (ownPercent || orthogonal || definiteByContext)
+						|| !orthogonal && containerBox.isSpecifiedPageSize()) ? cPage : LayoutUtils.NONE;
 		return new SizingContext(SizingMode.FIT_CONTENT, cLine, cLine, pagePercentBase);
 	}
 
