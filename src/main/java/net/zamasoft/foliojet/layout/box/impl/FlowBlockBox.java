@@ -225,6 +225,11 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				}
 			}
 			final double remainder = containerBox.getLineSize() - this.height;
+			// A table longer than its containing block aligns to the start, as in horizontal writing below (2026-10-27:
+			// vertical writing centered it, so margin: auto put its top above the paper; found by the sweep's mirror check)
+			if (remainder < 0) {
+				align = Align.START;
+			}
 			switch (unsizedOrthogonal ? null : align) {
 			case null:
 				break;
@@ -510,7 +515,14 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 							: amargin.top;
 					marginBottom = margin.getBottomType() == LengthType.AUTO && !ownedMargins ? LayoutUtils.NONE
 							: amargin.bottom;
-					if (LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
+					final double autoRemainder = lineSize - this.height - this.frame.getFrameHeight();
+					if (autoRemainder < 0 && (LayoutUtils.isNone(marginTop) || LayoutUtils.isNone(marginBottom))) {
+						// A box longer than its containing block aligns to the start, as in horizontal writing below
+						// (2026-10-27: the auto margin went negative and put the box's start above the paper; found by the
+						// sweep's writing-mode mirror check)
+						marginTop = LayoutUtils.isNone(marginTop) ? 0 : marginTop;
+						marginBottom = LayoutUtils.isNone(marginBottom) ? 0 : marginBottom;
+					} else if (LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
 						// Make the top and bottom margins equal
 						marginTop = marginBottom = (lineSize - this.height - this.frame.getFrameHeight()) / 2.0;
 					} else if (LayoutUtils.isNone(marginTop)) {
@@ -574,6 +586,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 							: this.lineMinMaxToContent(LayoutUtils.computeDimensionHeight(this.minSize, lineSize), true);
 					if (this.height < minHeight) {
 						this.height = minHeight;
+						// Resolve the margins again for the new size (see the horizontal branch)
+						state = 0;
 						continue;
 					}
 					state = 2;
@@ -820,6 +834,10 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 							: this.lineMinMaxToContent(LayoutUtils.computeDimensionWidth(this.minSize, lineSize), false);
 					if (this.width < minWidth) {
 						this.width = minWidth;
+						// Resolve the margins again for the new size, as for max-width (2026-10-27, codex: the loop ended with
+						// the margins of the smaller size, so width: 50%; min-width; margin: auto went off center and a box
+						// longer than its containing block did not align to the start; Chrome resolves them for the minimum)
+						state = 0;
 						continue;
 					}
 					state = 2;
