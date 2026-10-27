@@ -1069,6 +1069,9 @@ public class FlowContainer implements Container {
 			containerBox = (IFramedBox) this.box;
 		}
 		final IFramedBox childContainerBox = containerBox;
+		// Popped last: floats added while the children below are finalized.
+		final int floatingCount = this.floatings == null ? 0 : this.floatings.getCount();
+		worklist.push(w -> this.pushLateFloatings(floatingCount, childContainerBox, w));
 		// To preserve traversal order (flows→floatings→absolutes, each from the start),
 		// push onto the stack in reverse order (absolutes→floatings→flows, each from the end).
 		if (this.absolutes != null) {
@@ -1088,6 +1091,24 @@ public class FlowContainer implements Container {
 				final Flow flow = (Flow) this.flows.get(i);
 				worklist.push(IBox.step(flow.box, childContainerBox));
 			}
+		}
+	}
+
+	/**
+	 * Finalizes the floats added after {@link #pushFinishLayoutChildren} listed them (2026-10-27). A page float or a
+	 * margin note inside an absolutely positioned box reaches the page only when that box binds its deferred content in
+	 * its own finishLayout; the float was drawn but never finalized, so absolutely positioned boxes inside it kept no
+	 * content (sweep seed 43575183, WILD).
+	 */
+	private void pushLateFloatings(final int from, final IFramedBox containerBox,
+			final Deque<FinishLayoutStep> worklist) {
+		final int count = this.floatings == null ? 0 : this.floatings.getCount();
+		if (count <= from) {
+			return;
+		}
+		worklist.push(w -> this.pushLateFloatings(count, containerBox, w));
+		for (int i = count - 1; i >= from; --i) {
+			worklist.push(IBox.step(this.floatings.getFloating(i).box, containerBox));
 		}
 	}
 
