@@ -1396,6 +1396,26 @@ public class FuzzOraclePredicateTest extends TestCase {
 	}
 
 	/**
+	 * fit seed 44935447 (v2 1385112688): on 60 pt vertical-rl paper, a table with a nested table and overlapping cells
+	 * inside {@code <div style="display:list-item;position:relative;writing-mode:vertical-lr;">} (2026-10-28). Copper
+	 * put T15 at y=150, Chrome drew the frames to y=94.75 and dropped most cells.
+	 */
+	public void testSeedTableInListItemIsUnfittable() {
+		final String html = RandomDocumentFuzzTest.generate(1_385_112_688, true, false, false).html();
+		assertTrue(html.contains("<div style=\"display:list-item;position:relative;writing-mode:vertical-lr;\">"));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(html));
+		// Its marker goes outside the content, so the table starts at the content start.
+		final String open = "<div style=\"display:list-item\">";
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN,
+				RandomDocumentFuzzTest.findUnfittableContent(shrinkerDoc(open + TABLE_OVER + "</div>")));
+		assertNull(RandomDocumentFuzzTest
+				.findUnfittableContent(shrinkerDoc(open + TABLE_OVER.replace("<td>T15</td>", "") + "</div>")));
+		// An inside marker is not taken: it is not a declaration of a plain wrapper.
+		assertFalse(RandomDocumentFuzzTest.isPlainWrapper("div", " style=\"display:list-item;list-style-position:inside\"",
+				false, false));
+	}
+
+	/**
 	 * fit seed 36209301 (v2 317651874): on 60 pt vertical-lr paper, a table with a nested table and overlapping cells
 	 * inside {@code <div style="display:inline-block;position:relative;writing-mode:horizontal-tb;">} (2026-10-24).
 	 * Copper put T11 at x=147.49, Chrome its cell at x=144.89.

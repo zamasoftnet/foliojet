@@ -1528,6 +1528,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 15025776 (§37), 17536390 (§42), 19868609 (§53), 20596828 (§57), 21124348 and 21154698 (§58), 38686418
 			// (§111), 13366722 (§28), 13581859 (§31) and 19563463 (§50); all but 13699368 passed before that day's
 			// fixes already.
+			// Record dropped on 2026-10-28 (triage §130): 17864092 (§43), nested tables with overlapping cells in a
+			// display:list-item div, which the unfittable-table predicate now judges.
 			// Record dropped on 2026-10-27 (triage §128): 39668953 (§113), a table in a horizontal div in a cell of a
 			// vertical floated table, which passes since the intrinsic measurement counts a table's page-axis extent.
 			// Triage §26: on vertical-lr paper a vertical-rl float 91 pt wide holds a vertical-lr div with a
@@ -1580,10 +1582,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 20 s with the CLI); the watchdog aborts the conversion. The shared service stops it at its page limit.
 			new IndividualExclusion(16_716_403, "standard", 16_716_403, "既知の制限: 狭い紙で紙より広いfloatと書字方向の入れ子の頁が尽きない",
 					"2026-10-14", true),
-			// Triage §43: nested tables with overlapping cells on 120 pt horizontal paper; Chrome puts T25 off the right
-			// too (242.7 pt vs 249.2 pt).
-			new IndividualExclusion(17_864_092, "fit-v1", 1_824_490_871, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
-					"2026-10-14"),
 			// Triage §44: vertical-lr boxes of fixed widths inside vertical-rl paper of 200 pt put T0 right of the paper;
 			// Chrome's print shows nothing on the page either.
 			new IndividualExclusion(18_220_047, "fit-v1", 878_677_054, "作者の溢れ: 逆進行の入れ子で全部が紙の右の外(Chromeの印刷も紙に無い)",
@@ -6166,10 +6164,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * y=117.19) breaks its line around the table, which becomes a block of the parent's flow at the content start;
 	 * its frames only move the empty line fragments before and after it. Copper put such a table at the plain div's
 	 * line start in all three writing modes, also with frames, after text, and with the reversed block progression
-	 * (triage §124).
+	 * (triage §124). A list-item div ({@code display:list-item}, fit seed 44935447, 2026-10-28: a table with a nested
+	 * table and overlapping cells in {@code <div style="display:list-item;position:relative;writing-mode:vertical-lr;">}
+	 * on 60 pt vertical-rl paper put T15 at y=150; Chrome drew its frames to y=94.75 and dropped most cells) is a block
+	 * whose marker goes outside its content or on a line of its own before the table; a later start only widens the
+	 * overflow (triage §130).
 	 */
 	private static final Pattern NEUTRAL_WRAPPER_DECLARATION = Pattern
-			.compile("\\s*(?:display\\s*:\\s*(?:block|table|inline-block|inline)|page-break-inside\\s*:\\s*[a-z]+)\\s*");
+			.compile("\\s*(?:display\\s*:\\s*(?:block|table|inline-block|inline|list-item)|page-break-inside\\s*:\\s*[a-z]+)\\s*");
 	private static final Pattern DISPLAY_AUTO_MARGIN_REFUSED_DECLARATION = Pattern
 			.compile("(?:^|;)\\s*display\\s*:\\s*(?:table|inline-block|inline)\\s*(?:;|$)");
 	private static final Pattern WRITING_MODE_DECLARATION = Pattern
