@@ -54,6 +54,16 @@ final class IntrinsicMeasurer {
 
 	private final List<Double> stackedPageStack = new ArrayList<Double>();
 
+	/**
+	 * The page-axis end of the floats of the current flow, from its start as {@link #stackedPage} (2026-10-27). A block
+	 * counts as holding its floats, as the orthogonal flow measured through {@link #fitBlock} does: a float alone in a
+	 * vertical block in a table cell made the cell 0 wide, and the floated table went off the paper (fit sweep seed
+	 * 43939201). Entering a flow saves the enclosing flow's on {@link #floatPageEndStack}.
+	 */
+	private double floatPageEnd = 0;
+
+	private final List<Double> floatPageEndStack = new ArrayList<Double>();
+
 	private double maxStartFloatAdvance = 0, maxEndFloatAdvance = 0;
 
 	/**
@@ -141,8 +151,21 @@ final class IntrinsicMeasurer {
 
 	private double maxContentPage() {
 		// Lengths add up past the largest double (line-height: pow(10, 308), codex 2026-10-27)
-		final double stacked = this.stackedPage + this.openLine;
+		final double stacked = Math.max(this.stackedPage + this.openLine, this.floatPageEnd);
 		return Double.isFinite(stacked) ? Math.max(this.minPageSize, stacked) : this.minPageSize;
+	}
+
+	/** A float of the current flow, starting at the current line, ends {@code extent} further on the page axis. */
+	private void floatPage(final double extent) {
+		this.floatPageEnd = Math.max(this.floatPageEnd, this.stackedPage + extent);
+	}
+
+	/** Content that clears floats starts past them. */
+	private void clearFloatPage(final ClearMode clear) {
+		if (clear != ClearMode.NONE) {
+			this.stackLine();
+			this.stackedPage = Math.max(this.stackedPage, this.floatPageEnd);
+		}
 	}
 
 	/** Ends the open line: a forced break, the end of the text or a block. */
@@ -187,6 +210,7 @@ final class IntrinsicMeasurer {
 		BlockParams params = containerBox.getBlockParams();
 		FlowPos pos = (FlowPos) flowBox.getPos();
 		this.clearFloatAdvance(pos.clear);
+		this.clearFloatPage(pos.clear);
 
 		// From outside, multi-column content needs its line-axis size multiplied by the column count.
 		// **Scale only the newly added portion**: {@link #lineFrame} accumulates ancestor frames,
@@ -210,6 +234,8 @@ final class IntrinsicMeasurer {
 		this.stackLine();
 		this.stackedPageStack.add(this.stackedPage);
 		this.stackedPage = 0;
+		this.floatPageEndStack.add(this.floatPageEnd);
+		this.floatPageEnd = 0;
 		assert !LayoutUtils.isNone(this.lineFrame);
 		if (this.lineFrame > this.minLineSize) {
 			this.minLineSize = this.lineFrame;
@@ -246,7 +272,8 @@ final class IntrinsicMeasurer {
 		BlockParams params = containerBox.getBlockParams();
 		BlockParams flowParams = flowBox.getBlockParams();
 		this.stackLine();
-		double inner = this.stackedPage;
+		double inner = Math.max(this.stackedPage, this.floatPageEnd);
+		this.floatPageEnd = this.floatPageEndStack.remove(this.floatPageEndStack.size() - 1);
 		if (flowParams.size.getPageType(params.flow) == LengthType.ABSOLUTE
 				&& flowParams.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX) {
 			// A length for the flow's page-axis size is its size, whatever its content (codex 2026-10-27)
@@ -377,6 +404,7 @@ final class IntrinsicMeasurer {
 			IFlowBox flowBox = (IFlowBox) replacedBox;
 			FlowPos pos = (FlowPos) flowBox.getPos();
 			this.clearFloatAdvance(pos.clear);
+			this.clearFloatPage(pos.clear);
 			LayoutUtils.calculateReplacedSize(this.builder, replacedBox);
 
 			double minLineAxis, maxLineAxis = 0, minPageAxis;
@@ -430,6 +458,7 @@ final class IntrinsicMeasurer {
 			AbstractContainerBox containerBox = this.builder.getFlowBox();
 			IFloatBox floatingBox = (IFloatBox) replacedBox;
 			this.clearFloatAdvance(floatingBox.getFloatPos().clear);
+			this.clearFloatPage(floatingBox.getFloatPos().clear);
 			LayoutUtils.calculateReplacedSize(this.builder, replacedBox);
 
 			// Count the float exclusion area (advance) using used sizes; treat % as 0 only for
@@ -469,6 +498,7 @@ final class IntrinsicMeasurer {
 			if (minPageAxis > this.minPageSize) {
 				this.minPageSize = minPageAxis;
 			}
+			this.floatPage(minPageAxis);
 
 			switch (floatingBox.getFloatPos().floating) {
 			case FloatSide.START: {
@@ -605,10 +635,36 @@ final class IntrinsicMeasurer {
 	void fitFloating(TwoPassBlockBuilder childBuilder) {
 		FloatBlockBox floatingBox = (FloatBlockBox) childBuilder.getRootBox();
 		this.clearFloatAdvance(floatingBox.getFloatPos().clear);
+		this.clearFloatPage(floatingBox.getFloatPos().clear);
 
 		BlockParams params = floatingBox.getBlockParams();
 		BlockParams flowParams = this.builder.getFlowBox().getBlockParams();
 		final WritingMode floatFlow = flowParams.flow;
+		{
+			// Its page-axis extent with its margins: a length for its page-axis size within its min and max, else its
+			// content laid out at max-content
+			final double framePage = floatingBox.getFrame().getFramePageExtent(floatFlow);
+			final double page;
+			if (params.size.getPageType(floatFlow) == LengthType.ABSOLUTE) {
+				final boolean vertical = floatFlow.isVertical();
+				double size = vertical ? params.size.getWidth() : params.size.getHeight();
+				if (params.maxSize.getPageType(floatFlow) == LengthType.ABSOLUTE) {
+					size = Math.min(size, vertical ? params.maxSize.getWidth() : params.maxSize.getHeight());
+				}
+				if (params.minSize.getPageType(floatFlow) == LengthType.ABSOLUTE) {
+					size = Math.max(size, vertical ? params.minSize.getWidth() : params.minSize.getHeight());
+				}
+				final net.zamasoft.foliojet.layout.part.AbsoluteInsets margin = floatingBox.getFrame().margin;
+				page = size + (params.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX
+						? framePage
+						: vertical ? margin.left + margin.right : margin.top + margin.bottom);
+			} else {
+				final IntrinsicSizes floatSizes = childBuilder.getIntrinsicSizes();
+				page = (params.flow.isVertical() == floatFlow.isVertical() ? floatSizes.maxContentPage()
+						: floatSizes.maxContent()) + framePage;
+			}
+			this.floatPage(page);
+		}
 		double minLineAxis, maxLineAxis;
 		// Resolved ledger #1 (2026-07-17): previously, only min in vertical writing added the
 		// page-axis frame (FrameWidth), while max used the line axis. Logical axis
@@ -808,7 +864,16 @@ final class IntrinsicMeasurer {
 						minAdvance = stfSizes.minContent() + lineFrame;
 						maxAdvance = stfSizes.maxContent() + lineFrame;
 						pageSize = stfSizes.minPage() + pageFrame;
-						maxContentPageSize = stfSizes.maxContentPage() + pageFrame;
+						// A length for its page-axis size is its thickness, whatever its content (its floats, codex 2026-10-27)
+						if (params.size.getPageType(params.flow) == LengthType.ABSOLUTE) {
+							final boolean vertical = params.flow.isVertical();
+							final net.zamasoft.foliojet.layout.part.AbsoluteInsets margin = box.getFrame().margin;
+							maxContentPageSize = (vertical ? params.size.getWidth() : params.size.getHeight())
+									+ (params.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX ? pageFrame
+											: vertical ? margin.left + margin.right : margin.top + margin.bottom);
+						} else {
+							maxContentPageSize = stfSizes.maxContentPage() + pageFrame;
+						}
 					} else {
 						// Tate-chu-yoko / vertical text in horizontal writing: laid out at the max-content line size
 						// (2026-10-27, triage §113). The frames are in this flow's axes: its line-axis frame goes with the
