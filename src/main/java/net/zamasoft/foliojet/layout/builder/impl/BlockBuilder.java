@@ -1361,19 +1361,23 @@ public class BlockBuilder implements Builder, LayoutContext {
 			this.poLastMargin = this.neLastMargin = 0;
 			this.advanceStreamedFlexGap(flow);
 		}
-		if (amargin.top >= 0) {
-			if (amargin.top > this.poLastMargin) {
+		// Collapse the block-start margin with the preceding one (2026-10-27: the top margin was taken in vertical writing
+		// too, so a table or block image added its margin-block-start to the paragraph's, and a margin: 10pt 0 written for
+		// horizontal writing took the paragraph's away; found by review, seen by the sweep's writing-mode mirror check)
+		final double marginStart = frame.getMarginPageStart(params.flow);
+		if (marginStart >= 0) {
+			if (marginStart > this.poLastMargin) {
 				this.pageAxis -= this.poLastMargin;
-				this.poLastMargin = amargin.top;
+				this.poLastMargin = marginStart;
 			} else {
-				this.pageAxis -= amargin.top;
+				this.pageAxis -= marginStart;
 			}
 		} else {
-			if (amargin.top < this.neLastMargin) {
+			if (marginStart < this.neLastMargin) {
 				this.pageAxis -= this.neLastMargin;
-				this.neLastMargin = amargin.top;
+				this.neLastMargin = marginStart;
 			} else {
-				this.pageAxis -= amargin.top;
+				this.pageAxis -= marginStart;
 			}
 		}
 		this.poLastMargin = this.neLastMargin = frame.getMarginPageEnd(params.flow);
