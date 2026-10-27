@@ -127,7 +127,23 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return value != null && !value.equals("0") && !value.equalsIgnoreCase("false");
 	}
 
+	/**
+	 * Opt-in sweep profile that lays out each document in both writing modes and compares them (2026-10-27,
+	 * {@code -Dfoliojet.fuzzMirror=1}, {@link MirrorDocumentGenerator}). Its own generator: v2 documents are not
+	 * written in logical directions.
+	 */
+	private static boolean mirrorProfile() {
+		final String value = System.getProperty("foliojet.fuzzMirror");
+		return value != null && !value.equals("0") && !value.equalsIgnoreCase("false");
+	}
+
 	private static String generatorProfile() {
+		if (mirrorProfile()) {
+			if (fitProfile() || extremeProfile()) {
+				throw new IllegalStateException("foliojet.fuzzMirror はほかの型と同時に使えない");
+			}
+			return "mirror-v" + MirrorDocumentGenerator.VERSION;
+		}
 		if (fitProfile()) {
 			if (extremeProfile()) {
 				throw new IllegalStateException("foliojet.fuzzFit と foliojet.fuzzExtreme は同時に使えない");
@@ -138,7 +154,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	private static String generatorLabel() {
-		return extremeProfile() || fitProfile() ? GENERATOR_VERSION + "/" + generatorProfile()
+		return extremeProfile() || fitProfile() || mirrorProfile() ? GENERATOR_VERSION + "/" + generatorProfile()
 				: String.valueOf(GENERATOR_VERSION);
 	}
 
@@ -246,6 +262,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	public void testWildDocumentsNeverCrashOrHang() throws Exception {
+		if (mirrorProfile()) {
+			// The mirror profile has one mode (it runs with the strict test).
+			return;
+		}
 		checkFuzzImage();
 		sweep(false);
 	}
@@ -2315,6 +2335,17 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	private void checkSweepDocument(final int seed, final boolean strict,
 			final SweepMeasurements measurements) throws Exception {
+		if (mirrorProfile()) {
+			final List<String> observed = new ArrayList<>();
+			OBSERVATIONS.set(observed);
+			try {
+				checkMirror(seed, measurements.pages::add);
+			} finally {
+				OBSERVATIONS.remove();
+				measurements.recordObservations(seed, observed);
+			}
+			return;
+		}
 		final Generated doc = generate(seed, strict);
 		measurements.record(inspectGeneratedStructure(doc.html()));
 		measurements.recordOffPageLiveness(doc);
@@ -2833,7 +2864,55 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	private int checkOne(final int seed, final boolean strict) throws Exception {
+		if (mirrorProfile()) {
+			return checkMirror(seed, null);
+		}
 		return checkOne(seed, strict, generate(seed, strict), null);
+	}
+
+	/**
+	 * mirror-v1 (2026-10-27): lays the document out in both writing modes, each with the invariants of every document
+	 * (an end, no exception, a bounded page count), and counts where the two layouts differ and where a token of an
+	 * auto table leaves the cells. Both are report-only until their false positives are known.
+	 */
+	private static int checkMirror(final int seed, final java.util.function.IntConsumer pageObserver) throws Exception {
+		final MirrorDocumentGenerator.Document doc = MirrorDocumentGenerator.generate(seed);
+		final boolean keep = System.getProperty("foliojet.fuzzOnlySeed") != null || !reportMode();
+		final String slot = keep ? String.valueOf(seed) : Thread.currentThread().getName();
+		final List<List<String>> dumps = new ArrayList<>();
+		final List<File> files = new ArrayList<>();
+		int pages = 0;
+		for (final String variant : new String[] { "h", "v" }) {
+			final String html = variant.equals("h") ? doc.horizontal() : doc.vertical();
+			final File file = new File(workDir(), "mirror-" + variant + "-" + slot + ".html");
+			final File outDir = new File(workDir(), "dl-mirror-" + variant + "-" + slot);
+			pages = checkDocument(new Generated(html, doc.tokens(), Set.of(), 0, 0, 0, false, false), file, outDir,
+					false, "fuzz-" + seed + "-" + variant, variant.equals("h") ? pageObserver : null);
+			final File[] pageFiles = outDir.listFiles((d, n) -> n.endsWith(".txt"));
+			java.util.Arrays.sort(pageFiles);
+			final List<String> texts = new ArrayList<>();
+			for (final File f : pageFiles) {
+				texts.add(Files.readString(f.toPath(), StandardCharsets.UTF_8));
+			}
+			dumps.add(texts);
+			files.add(file);
+		}
+		try {
+			final String difference = MirrorComparison.compare(doc.family(), doc.height(), dumps.get(0), dumps.get(1));
+			if (difference != null) {
+				observe("(観測)縦横の食い違い", difference + " (" + files.get(0) + " と " + files.get(1) + ")");
+			}
+			for (int i = 0; i < 2; ++i) {
+				final String outside = MirrorComparison.confinement(dumps.get(i), doc.confined());
+				if (outside != null) {
+					observe("(観測)セルの外の字", outside + " (" + files.get(i) + ")");
+				}
+			}
+		} catch (final RuntimeException e) {
+			// A report-only check never fails a document.
+			observe("(観測)観測が例外で終わった", e + " (" + files.get(0) + ")");
+		}
+		return pages;
 	}
 
 	/** Check historical seeds using the v1 input distribution (expected results were recorded for v1 documents). */
@@ -4327,7 +4406,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	/** Default sweep image (reference for dimension checks when substituting it). */
 	private static final String DEFAULT_FUZZ_IMAGE = "files/unittest/red.png";
 
-	private static final String RED_PNG_URI = new File(
+	static final String RED_PNG_URI = new File(
 			System.getProperty("foliojet.fuzzImage", DEFAULT_FUZZ_IMAGE)).getAbsoluteFile().toURI().toString();
 
 	/**
