@@ -637,11 +637,19 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 	 * surfaced contract violations as {@code ClassCastException} (2026-07-24 architecture review E-1:
 	 * only clarifies the exception type for contract violations; normal-path logic remains unchanged).
 	 */
-	private static TableCellBox forcedCellRemainder(final TableCellBox cellBox, final double cutPageAxis,
+	private TableCellBox forcedCellRemainder(final TableCellBox cellBox, final double cutPageAxis,
 			final BreakMode mode, final byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_SPLIT) != 0;
+		if (this.isOrthogonal(cellBox)) {
+			return cellBox.splitOrthogonal(cutPageAxis, this.tableParams.flow);
+		}
 		return net.zamasoft.foliojet.layout.fragment.TableCutter.requireSplitRemainder(
 				cellBox.split(cutPageAxis, mode, flags), TableCellBox.class, "TableCellBox.split with FLAGS_SPLIT");
+	}
+
+	/** Whether the cell's writing mode is orthogonal to the table's (its content is not cut with the row). */
+	private boolean isOrthogonal(final TableCellBox cellBox) {
+		return cellBox.getBlockParams().flow.isVertical() != this.tableParams.flow.isVertical();
 	}
 
 	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
@@ -699,7 +707,9 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			TableCellBox prevCellBox = cell.getCellBox();
 			TableCellBox nextCellBox;
 			final double cutPageAxis = cellCutPageAxis(cell, pageLimit);
-			final SplitResult cellResult = prevCellBox.split(cutPageAxis, mode, xflags);
+			// A cell of the other writing mode is cut only with the others (forcedCellRemainder)
+			final SplitResult cellResult = this.isOrthogonal(prevCellBox) ? SplitResult.KEEP
+					: prevCellBox.split(cutPageAxis, mode, xflags);
 			if (cellResult instanceof SplitResult.Split(final IPageBreakableBox cellRemainder)) {
 				if (!(cellRemainder instanceof TableCellBox typedRemainder)) {
 					throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(

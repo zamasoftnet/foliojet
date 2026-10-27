@@ -480,6 +480,38 @@ public class TableCellBox extends AbstractContainerBox {
 		return cell;
 	}
 
+	/**
+	 * Cuts a cell whose writing mode is orthogonal to the table's, along the table's page axis (2026-10-27). Its lines
+	 * run along that axis and cannot be cut: the content stays whole in this fragment, the continuation is an empty
+	 * cell, and the other cells of the row are cut as usual. {@link #split} cut it along the cell's own page axis, when
+	 * an enclosing table's row forced the cut: this fragment took the cut line as its line-axis size (a 45pt column
+	 * 390pt wide) and the continuation kept the whole page-axis size, so the row was continued on every page up to the
+	 * page limit (sweep seed 43722269, mirror).
+	 *
+	 * @param pageLimit the cut line from the cell's page start along the table's page axis
+	 * @param tableFlow the table's writing mode
+	 * @return the continuation cell
+	 */
+	public final TableCellBox splitOrthogonal(final double pageLimit,
+			final net.zamasoft.foliojet.layout.box.params.WritingMode tableFlow) {
+		final boolean vertical = tableFlow.isVertical();
+		final net.zamasoft.foliojet.layout.fragment.TableCutter.CellFragmentState state = net.zamasoft.foliojet.layout.fragment.TableCutter
+				.cellFragmentState(tableFlow, this.size, this.minSize, this.frame, vertical ? this.width : this.height,
+						pageLimit);
+		final TableCellBox cell = new TableCellBox(this.params, this.pos, state.nextSize(), state.nextMinSize(),
+				state.nextFrame(), new net.zamasoft.foliojet.layout.box.content.FlowContainer());
+		cell.collapse = this.collapse;
+		cell.forceDraw = this.draw();
+		this.frame = state.prevFrame();
+		if (vertical) {
+			cell.height = this.height;
+		} else {
+			cell.width = this.width;
+		}
+		this.forceDraw = this.draw();
+		return cell;
+	}
+
 	public final SplitResult split(double pageLimit, BreakMode mode, byte flags) {
 		assert (flags & IPageBreakableBox.FLAGS_LAST) == 0;
 		// A-3b physical alignment contract: The cut position passed to cell content is

@@ -1569,7 +1569,6 @@ fuzz-repro/float-sliver-progress.html	5	378f9d0b2e7def6d31371a11629c8d64514c836f
 fuzz-repro/float-sliver-progress.html	6	b7926094eb4f7b95b9cd129acba6b7a756a03fe499c50f49ff36b62631714f10
 fuzz-repro/float-split-without-progress.html	1	5135c3658af316da28a814f382227557485f2e14d33d23cf032d5abb95a15378
 fuzz-repro/float-split-without-progress.html	2	f2c01e0d33cebac2eee9c637a66331352a85eca2132f32b9835942d0ac1a4087
-fuzz-repro/float-split-without-progress.html	3	f2c01e0d33cebac2eee9c637a66331352a85eca2132f32b9835942d0ac1a4087
 fuzz-repro/flowstack-depth-pagefloat-footnote.html	1	ae60e04c4eaae60bceb90d82ed0b99ce3bfcb429ec53780494f51cc7653ad36e
 fuzz-repro/interline-break-with-page-float.html	1	fe752c5b4e4310435a341090c2a165c56de5302658413b0f12d01183f614d519
 fuzz-repro/interline-break-with-page-float.html	2	25b5b145d32cd0f97ebdf9bf95137d0574a05add5bb6e8e9d033a6ca2e62f9f8

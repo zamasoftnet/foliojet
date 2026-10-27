@@ -159,21 +159,6 @@ public final class TableCutter {
 	}
 
 	/**
-	 * Keeps a row containing cells whose writing direction differs from the table before the break,
-	 * without cutting or moving it (splitting mixed vertical/horizontal writing is unsupported).
-	 *
-	 * @param cellFlowMatch whether each cell in the current row matches the table's writing direction
-	 */
-	public static boolean mixedFlowKeep(final boolean[] cellFlowMatch) {
-		for (final boolean match : cellFlowMatch) {
-			if (!match) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
 	 * Cell-fragment dimensions and frame state (C4-T2; corresponds to block {@link FragmentState} ,
 	 * but calculates remaining minimum size differently:
 	 * cells subtract from actual size; blocks subtract from min(specified, actual)).
@@ -348,10 +333,8 @@ public final class TableCutter {
 			// Even if a rowspan overflows, later processing cuts it.
 			return SplitResult.KEEP;
 		}
-		// Do not move if writing directions differ.
-		if (mixedFlowKeep(cellFlowMatch)) {
-			return SplitResult.KEEP;
-		}
+		// Cells of the other writing mode are not cut: they stay whole in this fragment while the others are cut
+		// (TableCellBox.splitOrthogonal, 2026-10-27). The row was kept whole and ran off the paper.
 		// Give up splitting if any cell has no top boundary and zero height.
 		for (final boolean collapsed : cellCollapsedAtStart) {
 			if (collapsed) {

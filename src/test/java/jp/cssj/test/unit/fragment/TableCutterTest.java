@@ -72,12 +72,6 @@ public class TableCutterTest extends TestCase {
 				new boolean[] { true }));
 	}
 
-	public void testMixedFlowKeep() {
-		assertFalse(TableCutter.mixedFlowKeep(new boolean[] { true, true }));
-		assertTrue(TableCutter.mixedFlowKeep(new boolean[] { true, false }));
-		assertFalse(TableCutter.mixedFlowKeep(new boolean[] {}));
-	}
-
 	public void testCellFragmentStateHorizontal() {
 		final net.zamasoft.foliojet.layout.part.AbsoluteRectFrame frame = new net.zamasoft.foliojet.layout.part.AbsoluteRectFrame(
 				net.zamasoft.foliojet.layout.box.params.RectFrame.NULL_FRAME);
@@ -151,9 +145,9 @@ public class TableCutterTest extends TestCase {
 		// Keep it if it fits.
 		assertSame(SplitResult.KEEP, TableCutter.rowPreDecide(true, true, 40, 30, false, extents, match, noAvoid,
 				new boolean[] { false }, -1));
-		// Keep it if the writing mode differs (do not move).
-		assertSame(SplitResult.KEEP, TableCutter.rowPreDecide(true, true, 10, 30, false, extents,
-				new boolean[] { false }, noAvoid, new boolean[] { false }, -1));
+		// A cell of the other writing mode no longer keeps the row whole: the others are cut (2026-10-27).
+		assertNull(TableCutter.rowPreDecide(true, true, 10, 30, false, extents, new boolean[] { false }, noAvoid,
+				new boolean[] { false }, -1));
 		// Give up splitting if there is a zero-height cell without an upper boundary.
 		assertSame(SplitResult.KEEP, TableCutter.rowPreDecide(true, true, 10, 30, false, extents, match, noAvoid,
 				new boolean[] { true }, -1));

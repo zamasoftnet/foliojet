@@ -382,18 +382,8 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 					}
 				}
 
-				// Never break if writing modes differ (decision extracted into pure logic in TableCutter).
-				{
-					final boolean tableVertical = this.tableParams.flow.isVertical();
-					final boolean[] flowMatch = new boolean[prevRow.getCellCount()];
-					for (int j = 0; j < prevRow.getCellCount(); ++j) {
-						flowMatch[j] = prevRow.getCell(j).getCellBox().getBlockParams().flow
-								.isVertical() == tableVertical;
-					}
-					if (net.zamasoft.foliojet.layout.fragment.TableCutter.mixedFlowKeep(flowMatch)) {
-						return SplitResult.KEEP;
-					}
-				}
+				// A row with a cell of the other writing mode moves too (2026-10-27): moving it cuts no cell. It was kept
+				// here with every later row, so a table whose rows had vertical headers never broke and ran off the paper.
 
 				// Split vertically spanning cells when carrying them forward.
 				prevRow.cutRowspanCells();

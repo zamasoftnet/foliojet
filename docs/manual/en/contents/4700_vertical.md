@@ -56,6 +56,8 @@ which requires positional glyph shaping and joining, is also outside the impleme
 <span class="notice">You can specify <span class="cssprop">writing-mode</span> on table cells (td, th), but
 	changing the writing mode of a table cell is not recommended.
 	Page breaks are always disabled within a table cell whose writing mode has been changed.
+	A row containing such a cell moves to the next page as a whole when it does not fit. In a row longer than a page, only the other cells
+	continue on the next page; the cell whose writing mode was changed is kept whole on the first page (<span class="since">4.0.0</span>).
 	Instead, for example, nest a div tag with <span class="cssprop">writing-mode</span> set inside the table cell.
 </span>
 
