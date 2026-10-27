@@ -499,24 +499,28 @@ public class FlowContainer implements Container {
 		case RESCUE:
 		case REPLACED:
 		case TABLE:
-			ascent = flow.box.getHeight();
+			// Its page-axis size (the width in vertical writing; codex 2026-10-27: its height was taken)
+			ascent = this.box.getBlockParams().flow.isVertical() ? flow.box.getWidth() : flow.box.getHeight();
 			break;
 		default:
 			throw new IllegalStateException(String.valueOf(flow.box.getType()));
 		}
 
+		// The frame of the block-start side, where the first line is (2026-10-27: the block-end side was counted in vertical
+		// writing, so a cell's padding-block-start left cells aligned on their baselines apart, and its padding-block-end
+		// moved the other cells; found by review, seen by the sweep's writing-mode mirror check)
 		switch (this.box.getBlockParams().flow) {
 		case WritingMode.TB:
 			// Horizontal writing
 			ascent += this.box.getFrame().getFrameTop();
 			break;
 		case WritingMode.RL:
-			// Vertical writing (Mongolian)
-			ascent += this.box.getFrame().getFrameLeft();
-			break;
-		case WritingMode.LR:
 			// Vertical writing (Japanese)
 			ascent += this.box.getFrame().getFrameRight();
+			break;
+		case WritingMode.LR:
+			// Vertical writing (Mongolian)
+			ascent += this.box.getFrame().getFrameLeft();
 			break;
 		default:
 			throw new IllegalStateException();
