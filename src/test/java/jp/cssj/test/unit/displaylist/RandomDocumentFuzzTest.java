@@ -1524,29 +1524,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// tables with overlapping cells in a position:relative div, which the unfittable-table predicate now judges.
 			// Records dropped on 2026-10-24 (triage §108): 17682694 (§42) and 23601552 (§68), tables in an inline-block
 			// whose writing mode is orthogonal to the paper's, which the unfittable-table predicate now judges.
+			// Records dropped on 2026-10-27 (triage §128), which pass now: 13699368 (§32), 13820690 (§33), 14723614 (§36),
+			// 15025776 (§37), 17536390 (§42), 19868609 (§53), 20596828 (§57), 21124348 and 21154698 (§58), 38686418
+			// (§111), 13366722 (§28), 13581859 (§31) and 19563463 (§50); all but 13699368 passed before that day's
+			// fixes already.
+			// Record dropped on 2026-10-27 (triage §128): 39668953 (§113), a table in a horizontal div in a cell of a
+			// vertical floated table, which passes since the intrinsic measurement counts a table's page-axis extent.
 			// Triage §26: on vertical-lr paper a vertical-rl float 91 pt wide holds a vertical-lr div with a
 			// display:table float 121 pt wide; Chrome also draws its only line off the paper's left (x=-23.6 pt).
 			new IndividualExclusion(12_903_866, "fit-v1", 621_085_571, "作者の溢れ: 同軸逆進行の入れ物より広い表のfloat(Chromeも紙の左の外)",
-					"2026-10-13"),
-			// Triage §28, a known engine limitation since 19124 at least (user decision 2026-10-13): on 60 pt
-			// vertical-lr paper, multicols, flexes and tables nested in floats run to about 1,600 pages (19124: 1,576,
-			// 19135: 1,690); Chrome's whole document is 2,378 pt long. A table in a column-count:3 multicol is squeezed
-			// into columns of a few pt (Chrome sizes the multicol from its content, 658 pt).
-			new IndividualExclusion(13_366_722, "standard", 13_366_722, "既知の制限: 狭い紙で入れ子の段組の表が細く組まれ頁数が暴走",
-					"2026-10-13"),
-			// Triage §31, a known engine limitation since 19128 (user decision 2026-10-13): a three-column multicol in a
-			// grid holding an unsplittable vertical-rl float of width: 77%; column balancing counts the float
-			// (78c439ea), the multicol goes on to the next page and leaves page 2 blank (19124 and Chrome: two pages).
-			new IndividualExclusion(13_581_859, "standard", 13_581_859, "既知の制限: 段組の高さ合わせが割れないfloatを数えて白紙の頁",
-					"2026-10-13"),
-			// Triage §32: a document of form controls only, in a display:table float right of an orthogonal table on
-			// 300 pt horizontal paper; Chrome draws the float off the right too (x = 346 pt, Copper from 300 pt).
-			new IndividualExclusion(13_699_368, "fit-v1", 385_727_702, "作者の溢れ: 直交する表を包むfloatのフォームの部品が紙の右の外(Chromeも)",
-					"2026-10-13"),
-			// Triage §33, a known engine limitation since 19124 (standing user decision 2026-10-13 for unchanged contrived
-			// defects): on vertical-lr A4 a vertical-rl region holding float:left;width:8em with a vertical-lr display:table;
-			// Copper draws T0 at x = -28.5 pt, Chrome at 2 pt.
-			new IndividualExclusion(13_820_690, "fit-v1", 1_266_463_150, "既知の制限: 逆進行の領域のfloatの中で向きを戻した表が紙の左の外",
 					"2026-10-13"),
 			// Triage §34, a known engine limitation (user decision 2026-10-14): on 60 pt vertical-lr paper a horizontal-tb
 			// float of three textareas takes 375 pt of the page axis and pushes the vertical-rl ruby paragraph after it to
@@ -1561,19 +1547,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// controls runs along the line to y = 816 pt; Chrome runs it on to 848 pt too.
 			new IndividualExclusion(14_442_433, "fit-v1", 510_489_695, "作者の溢れ: max-contentのflexの中の段組が行の向きに紙の4倍(Chromeも)",
 					"2026-10-14"),
-			// Triage §36, a known engine limitation since 19124 (standing user decision 2026-10-13): on 120x400 vertical-rl
-			// paper a column-reverse flex holding floats, a table, a multicol and nested flexes is not split across pages;
-			// Copper draws its items up to x = -388 pt on page 1 of 2, Chrome prints them on six pages.
-			new IndividualExclusion(14_723_614, "fit-v1", 777_932_504, "既知の制限: 縦組みの逆順のcolumnのflexが頁で分かれず紙の左の外",
-					"2026-10-14"),
 			// Triage §37: nested vertical-rl / vertical-lr blocks on 300x150 vertical-lr paper put everything left of the
 			// paper; Chrome puts T0 to T5 at the same x (-164 to -72 pt).
 			new IndividualExclusion(15_008_242, "fit-v1", 2_008_379_845, "作者の溢れ: 逆進行の入れ子で全部が紙の左の外(Chromeも同じ位置)",
-					"2026-10-14"),
-			// Triage §37, a known engine limitation since 19124 (standing user decision 2026-10-13): on horizontal A4 a
-			// display:table float right holding a vertical-lr float of width: 139pt; Copper draws the text at x = 609 pt,
-			// right of the paper, Chrome at 472 pt.
-			new IndividualExclusion(15_025_776, "fit-v1", 1_180_588_683, "既知の制限: 縦組みの中身を包む右寄せの表のfloatが紙の右の外",
 					"2026-10-14"),
 			// Triage §38: nested vertical-rl / vertical-lr boxes of fixed widths on 200 pt vertical-lr paper put T0 and T1
 			// left of the paper; Chrome at the same x (-47.7 and -40.6 pt).
@@ -1604,11 +1580,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 20 s with the CLI); the watchdog aborts the conversion. The shared service stops it at its page limit.
 			new IndividualExclusion(16_716_403, "standard", 16_716_403, "既知の制限: 狭い紙で紙より広いfloatと書字方向の入れ子の頁が尽きない",
 					"2026-10-14", true),
-			// Triage §42, a known engine limitation since 19124 (standing user decision 2026-10-13): on 120x400 vertical-rl
-			// paper a four-column multicol holding an avoid block with a table and floats is not split across pages; T13 to
-			// T19 land at x = -85 to -424 pt on page 1, Chrome prints three pages with everything on the paper.
-			new IndividualExclusion(17_536_390, "fit-v1", 1_104_732_103, "既知の制限: 縦組みの段組の中の割れない塊が頁で分かれず紙の左の外",
-					"2026-10-14"),
 			// Triage §43: nested tables with overlapping cells on 120 pt horizontal paper; Chrome puts T25 off the right
 			// too (242.7 pt vs 249.2 pt).
 			new IndividualExclusion(17_864_092, "fit-v1", 1_824_490_871, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
@@ -1645,11 +1616,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// inline direction; Chrome puts them off the paper too (screen up to y = -137 pt, print keeps 7 of the 28 tokens).
 			new IndividualExclusion(19_071_741, "fit-v1", 192_214_379, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
 					"2026-10-15"),
-			// Triage §50: on 120x400 pt vertical-rl paper a vertical-lr grid of width:61pt holds span-2 items far wider than
-			// it, so they overflow to the right; Copper puts T22 353 pt right of the paper (19124 alike), Chrome's screen
-			// about 390 pt and its print drops T18 to T22.
-			new IndividualExclusion(19_563_463, "standard", 19_563_463, "作者の溢れ: 幅61ptの縦組みgridの中身が紙の右の外(Chromeも同じ)",
-					"2026-10-15"),
 			// Triage §51: on 120x400 pt paper a vertical-lr box of width:115pt holds a table whose cell has a wrapping column
 			// flex, and the rows run far to the right; Copper puts T15 at x = 527.5 pt (19124 alike), Chrome's screen lays it
 			// out within 9 pt of Copper (411 pt right of the paper) and its print drops T15.
@@ -1672,12 +1638,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// puts T0 at x = -21.2 pt at the foot of the page, Chrome prints it at x = 21.1 pt, y = 0.
 			new IndividualExclusion(19_862_213, "fit-v1", 1_622_962_815, "既知の制限: 逆進行の箱の中の表の浮動体のルビが紙の左の外",
 					"2026-10-16"),
-			// Triage §53, the limitation of 14146344 (user decision 2026-10-14): on 120x400 pt vertical-rl paper a float of
-			// width:86pt holds a horizontal-tb form of two textareas at Chrome's size (125 pt); Copper (19138 and 19139 alike)
-			// sets them side by side from x = -130.5 pt, each "x" left of the paper, Chrome's print stacks them at x = -5.6 pt.
-			// 19124 drew them 84 pt wide, the second on the paper (before 3f90e52c).
-			new IndividualExclusion(19_868_609, "fit-v1", 1_168_479_292, "既知の制限: 縦組みの紙の横組みのfloatの中のtextareaが紙の左の外",
-					"2026-10-16"),
 			// Triage §53: on 60 pt vertical-lr paper a horizontal-tb inline holds nested tables far wider than the paper;
 			// Copper puts T23 at x = 139.8 pt (19124 alike), Chrome's screen at x = 189 pt (its print shrinks the page).
 			new IndividualExclusion(19_812_834, "fit-v1", 797_984_127, "作者の溢れ: 縦組みの紙の横組みの入れ子の表が紙の右の外(Chromeも同じ)",
@@ -1687,22 +1647,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 15,000 times in two minutes with the CLI, 19124 and 19140 alike); the watchdog aborts the conversion.
 			new IndividualExclusion(20_581_114, "standard", 20_581_114, "既知の制限: 縦組みの段組とflexとfloatの入れ子で頁の組み直しが終わらない",
 					"2026-10-16", true),
-			// Triage §57, a judgment hole under the limitation of 14146344 (user decision 2026-10-14): on 200 pt paper a
-			// float in a vertical-lr flex holds a vertical textarea and input at Chrome's size, so the float runs 239 pt down
-			// the 200 pt page (Chrome's print, scaled back, 223 pt) and a blank page follows; the oracle sees only the sizes
-			// the HTML gives. Exposed by 3f90e52c; 19124 drew the controls horizontally in 3 pages.
-			new IndividualExclusion(20_596_828, "fit-v1", 914_039_587, "判定の穴: textareaの大きさでfloatが紙より長く白紙の頁(Chromeも紙を超える)",
-					"2026-10-16"),
-			// Triage §58, the limitation of 13820690 since 19124 (standing user decision 2026-10-13): on vertical-lr A4 a
-			// vertical-rl div holds a vertical-lr div with a float:right display:table around a radio; Copper draws the
-			// radio at x = -32.4 pt (19124 and 19141 alike), Chrome at 3.75 pt.
-			new IndividualExclusion(21_124_348, "fit-v1", 2_037_688_248, "既知の制限: 逆進行の領域のfloatの中で向きを戻した表が紙の左の外",
-					"2026-10-17"),
-			// Triage §58, the same limitation: on 200 pt vertical-lr paper a vertical-rl float holds a float and a
-			// vertical-lr display:table with a float of ruby; Copper draws the ruby at x = -16.05 pt (19124 and 19141
-			// alike), Chrome at 12 pt.
-			new IndividualExclusion(21_154_698, "fit-v1", 1_239_330_776, "既知の制限: 逆進行の領域のfloatの中で向きを戻した表が紙の左の外",
-					"2026-10-17"),
 			// Triage §59: on 200 pt vertical-rl paper a nowrap row-reverse flex holds a table, a float with a textarea and
 			// a three-column multicol with a 196 pt inline-block, about five times the paper in the inline direction; Copper
 			// puts the table off the bottom (T11 at y = 867 pt), Chrome's screen puts the other items up to 720 pt above the
@@ -1856,25 +1800,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// inner grid at -394 pt, also left of the paper.
 			new IndividualExclusion(35_808_808, "fit-v1", 308_912_465, "作者の溢れ: 幅105ptの逆進行のgridのfloatより広い中身が紙の左の外(Chromeも)",
 					"2026-10-24"),
-			// Triage §111, the same hole as §57: on 200 pt horizontal paper (margin 0) a float:right in a vertical-lr div
-			// holds two vertical textareas at Chrome's size (125 pt each since 3f90e52c), set on one line 250.5 pt down
-			// the 200 pt page; a blank page follows and T5 goes to the third (19124: horizontal controls, one page).
-			// Chrome's print also stacks them, 258 pt scaled back; the oracle sees only the sizes the HTML gives.
-			new IndividualExclusion(38_686_418, "fit-v1", 1_088_101_607, "判定の穴: 縦組みのtextarea2つでfloatが紙より長く白紙の頁(Chromeも紙を超える)",
-					"2026-10-25"),
 			// Triage §112, the known limitation of floats in a multicol (CSS-SUPPORT, since 19124; standing user decision
 			// 2026-10-13): on 120x400 pt vertical-lr paper a two-column multicol holds a float:right column-wrap flex
 			// about 420 pt long in the block axis, which is not split across pages; T34 to T37 land at x = 436.8 pt on
 			// page 1 (19124: 433.6 pt). Without the multicol the float goes over five pages on the paper; Chrome's print
 			// splits it over three pages and drops most of the table.
 			new IndividualExclusion(39_552_631, "standard", 39_552_631, "既知の制限: 縦組みの段組の中のfloatが頁で分かれず紙の右の外",
-					"2026-10-25"),
-			// Triage §113, a known engine limitation since 19124 (standing user decision 2026-10-13): on 300x150 pt
-			// vertical-rl paper a display:table float:right holds a horizontal-tb div around a table with an image
-			// 197x82 pt. The orthogonal div holding only a table contributes no page extent and the table cell keeps the
-			// float off the trial layout for orthogonal content, so the float is 0 pt long and its content lands below the
-			// paper (y = 150 pt). Chrome's print puts the image at y = 66 pt.
-			new IndividualExclusion(39_668_953, "fit-v1", 68_384_495, "既知の制限: 縦組みの表のfloatのセルの中の横組みの表がfloatの長さに入らず紙の下の外",
 					"2026-10-25"),
 			// Triage §114: on 120x400 pt vertical-lr paper a nowrap column-reverse flex with width: 105pt holds items
 			// about 650 pt long in its main axis. Copper keeps the overflow on page 1 up to x = 636 pt (19124 alike, the
@@ -1949,7 +1880,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// width: 114pt holds a table whose cell has a column flex of 8em items, then a table and a list; the rows
 			// overflow the grid by about 390 pt and Copper keeps them on page 1 (T16 at x = -501.6 pt, 19124 alike).
 			new IndividualExclusion(43_174_996, "standard", 43_174_996, "既知の制限: 大きさを決めたgrid・flexから溢れた中身を頁に分けない",
-					"2026-10-26"));
+					"2026-10-26"),
+			// Triage §128, the same known limitation: on 200 x 200 pt vertical-rl paper a vertical-lr grid with
+			// width: 123pt holds a floated grid, inline-blocks of 97pt and 87pt and lists; its rows overflow it by about
+			// 550 pt to the right and Copper keeps them on page 1 (T15 at x = 670.8 pt, 9b14ee02 alike).
+			new IndividualExclusion(44_152_316, "fit-v1", 1_251_094_355, "既知の制限: 大きさを決めたgrid・flexから溢れた中身を頁に分けない",
+					"2026-10-27"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
