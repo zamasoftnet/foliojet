@@ -518,7 +518,9 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 						marginTop = lineSize - this.height - this.frame.getFrameHeight();
 					} else if (LayoutUtils.isNone(marginBottom)) {
 						// Bottom margin is undetermined
-						marginBottom = lineSize - marginBottom - this.frame.getFrameHeight();
+						// (2026-10-27: took the undetermined margin for the height since 2026-05, so a margin-inline-end: auto
+						// block of vertical writing drew its frame -1.7e308pt high; found by the sweep's writing-mode mirror check)
+						marginBottom = lineSize - this.height - this.frame.getFrameHeight();
 					} else if (!ownedMargins) {
 						// Over-constrained (an item its coordinator placed keeps its margins; see the horizontal branch)
 						switch (this.resolvedAlign) {
