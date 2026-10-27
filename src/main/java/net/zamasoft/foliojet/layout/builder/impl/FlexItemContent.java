@@ -97,6 +97,14 @@ final class FlexItemContent {
 				: params.size.getHeightType();
 		if (pageType == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 			this.itemBox.setPageAxis(Math.max(0, vertical ? params.size.getWidth() : params.size.getHeight()));
+		} else {
+			// The item establishes an independent formatting context: its auto size holds its floats (CSS 2.1 §10.6.7,
+			// 2026-10-27: an item with a 79pt float and a line of text was 8.5pt high, so the paragraph after the flex
+			// container ran over the float; found by the sweep's writing-mode mirror check)
+			final double contained = target.floatContainingPageExtent(true);
+			if (contained > this.itemBox.getInnerPageExtent(params.flow)) {
+				this.itemBox.setPageAxis(contained);
+			}
 		}
 	}
 
@@ -172,6 +180,7 @@ final class FlexItemContent {
 		// measured text stayed charged to the container and the bind charged it again (codex review 2026-10-08)
 		final net.zamasoft.foliojet.layout.RetainedTextLimit limit = net.zamasoft.foliojet.layout.RetainedTextLimit
 				.get(host);
+		double contained = 0;
 		try (var retained = limit == null ? null
 				: limit.measurement(net.zamasoft.foliojet.layout.RetainedTextLimit.elementName(replica.getParams(),
 						"flex-item"));
@@ -179,8 +188,12 @@ final class FlexItemContent {
 			final BlockBuilder builder = new BlockBuilder(host, replica);
 			this.content.measureInto(builder);
 			builder.close();
+			// Its floats too, as bind holds them (2026-10-27, codex: a column flex took the text's height)
+			if (replica.getBlockParams().flow.isVertical() == flow.isVertical()) {
+				contained = builder.floatContainingPageExtent(false);
+			}
 		}
-		final double measured = replica.getInnerPageExtent(flow);
+		final double measured = Math.max(replica.getInnerPageExtent(flow), contained);
 		if (key != null) {
 			memo.put(key, measured);
 		}

@@ -161,6 +161,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 	private List<AbstractContainerBox> independentFloatScopeOwners = null;
 
 	/**
+	 * Whether a multi-column box was opened in this builder (2026-10-27): its floats stay in the registry where they
+	 * were before balancing, so they do not measure the root ({@link #floatContainingPageExtent}).
+	 */
+	private boolean multicolFlows = false;
+
+	/**
 	 * Generation counter for the {@link #floatings} registry (2026-07-24, E-5: eliminates the O(N)
 	 * snapshot rebuild per query identified in the codex architecture review). Every registry mutation
 	 * entry point calls {@link #noteFloatingsChanged()} to increment it:
@@ -258,6 +264,31 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 		}
 		return pageEnd;
+	}
+
+	/**
+	 * The inner page-axis size the root box takes to hold its floats when it establishes an independent formatting
+	 * context (CSS 2.1 §10.6.7; 2026-10-27, for the flex and grid items bound at the root of their own builder): its
+	 * floats' end where its size is not definite, within its max size if {@code withinMax} (not for a flex base size);
+	 * its inner size otherwise or when larger. Not with multi-column boxes, whose floats keep their places before
+	 * balancing.
+	 */
+	final double floatContainingPageExtent(final boolean withinMax) {
+		final AbstractContainerBox box = (AbstractContainerBox) this.contextFlow.box;
+		final BlockParams params = box.getBlockParams();
+		final double inner = box.getInnerPageExtent(params.flow);
+		if (box.isSpecifiedPageSize() || this.multicolFlows || box.getColumnCount() > 1 || params.columns.count >= 2) {
+			return inner;
+		}
+		double end = this.maxActiveFloatingPageEnd();
+		if (withinMax && params.maxSize.getPageType(params.flow) == LengthType.ABSOLUTE) {
+			double max = params.maxSize.getPageLength(params.flow);
+			if (params.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.BORDER_BOX) {
+				max -= box.getFrame().getBorderPageExtent(params.flow);
+			}
+			end = Math.min(end, max);
+		}
+		return Math.max(inner, end);
 	}
 
 	private void replaceShiftedFloatings(final List<Floating> ledger,
@@ -760,6 +791,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 		}
 		final FlowPos pos = flowBox.getFlowPos();
+		if (flowBox.getColumnCount() > 1 || flowBox.getBlockParams().columns.count >= 2) {
+			this.multicolFlows = true;
+		}
 
 		if (flexItem || establishesIndependentFloatScope(flowBox, cParams)) {
 			// Both overflow:hidden and writing-mode changes establish independent BFCs

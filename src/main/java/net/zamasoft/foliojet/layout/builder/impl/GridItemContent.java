@@ -121,6 +121,13 @@ final class GridItemContent {
 		if (pageType == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 			this.itemBox.applySpecifiedPageAxis(
 					Math.max(0, vertical ? params.size.getWidth() : params.size.getHeight()));
+		} else {
+			// The item establishes an independent formatting context: its auto size holds its floats (2026-10-27, as
+			// FlexItemContent.bind; a grid item's float ran past it and the next row's text beside it)
+			final double contained = target.floatContainingPageExtent(true);
+			if (contained > this.itemBox.getInnerPageExtent(params.flow)) {
+				this.itemBox.setPageAxis(contained);
+			}
 		}
 	}
 
