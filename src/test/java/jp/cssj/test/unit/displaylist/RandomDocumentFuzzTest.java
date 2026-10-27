@@ -1885,6 +1885,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// width: 123pt holds a floated grid, inline-blocks of 97pt and 87pt and lists; its rows overflow it by about
 			// 550 pt to the right and Copper keeps them on page 1 (T15 at x = 670.8 pt, 9b14ee02 alike).
 			new IndividualExclusion(44_152_316, "fit-v1", 1_251_094_355, "既知の制限: 大きさを決めたgrid・flexから溢れた中身を頁に分けない",
+					"2026-10-27"),
+			// Triage §129, the author's overflow: on 120 x 400 pt horizontal paper a nowrap row-reverse flex of width: 98pt holds
+			// three items of min-width: 8em and a form of three textareas at Chrome's size, about 680 pt in all; Copper lets
+			// them run to x = 677 pt on the right (829046c0 alike), Chrome to x = -328 pt on the left and its print drops them.
+			new IndividualExclusion(44_394_782, "fit-v1", 1_056_078_890, "作者の溢れ: 縮まないflexのitemが入れ物の約7倍(Chromeも紙の左の外)",
 					"2026-10-27"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
