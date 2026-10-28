@@ -282,6 +282,38 @@ public class VisualRescueSplitTest extends TestCase {
 		assertTrue("2ページ目の本文が排除域を避けている: " + pages.get(1), pages.get(1).contains("x=100.00 y=0.00 Text["));
 	}
 
+	/**
+	 * A float whose paragraph runs past its own size (80pt, the words take 180pt) and is sliced across pages, in
+	 * vertical-rl and in its horizontal mirror (2026-10-28, mirror seed 137): every slice of the vertical one mirrors
+	 * the horizontal one. The RL origin was taken from the occupancy, which counts the overflow, so the vertical
+	 * words were drawn 100pt to the left, off the paper (T58 at x=-0.88 instead of 112.56).
+	 */
+	public void testOverflowingFloatSlicesMirrorInVerticalRl() throws Exception {
+		final List<String> rl = render("0480-rescue-split/float-overflow-rl.html", RescuePolicy.ENABLED);
+		final List<String> tb = render("0480-rescue-split/float-overflow-tb.html", RescuePolicy.ENABLED);
+		assertEquals(tb.size(), rl.size());
+		final java.util.regex.Pattern word = java.util.regex.Pattern
+				.compile("x=(-?[\\d.]+) y=(-?[\\d.]+) (?:artifact )?Text\\[\"(T(?:5[89]|6\\d))\"");
+		int compared = 0;
+		for (int i = 0; i < tb.size(); ++i) {
+			final java.util.Map<String, Double> rlX = new java.util.HashMap<>();
+			final java.util.regex.Matcher r = word.matcher(rl.get(i));
+			while (r.find()) {
+				rlX.putIfAbsent(r.group(3), Double.parseDouble(r.group(1)));
+			}
+			final java.util.regex.Matcher t = word.matcher(tb.get(i));
+			while (t.find()) {
+				// The type area is 144pt across the page axis, a line 18pt
+				final double mirrored = 144 - Double.parseDouble(t.group(2)) - 18;
+				final Double x = rlX.get(t.group(3));
+				assertNotNull("page " + (i + 1) + " " + t.group(3) + ": " + rl.get(i), x);
+				assertEquals("page " + (i + 1) + " " + t.group(3), mirrored, x, 0.01);
+				++compared;
+			}
+		}
+		assertTrue("compared " + compared, compared >= 20);
+	}
+
 	/** Disabling rescue loses the float continuation, and body text flows from the left edge (previous behavior). */
 	public void testTallFloatWithoutRescueLosesTheRemainder() throws Exception {
 		final List<String> pages = render("0480-rescue-split/float-tall.html", RescuePolicy.DISABLED);

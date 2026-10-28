@@ -47,7 +47,7 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
  * <pre>
  * Horizontal writing (TB):             sourceX = x
  *                                      sourceY = y - offset
- * Vertical writing, right to left (RL): sourceX = x - (sourcePageExtent - offset - sliceExtent)
+ * Vertical writing, right to left (RL): sourceX = x - (width - offset - sliceExtent)
  *                                      sourceY = y
  * Vertical writing, left to right (LR): sourceX = x - offset
  *                                      sourceY = y
@@ -57,9 +57,11 @@ import net.zamasoft.foliojet.layout.visitor.Visitor;
  * The description of {@link LayoutUtils#drawX} is authoritative for page-axis <b>direction</b>;
  * the formulas above derive from it. TB and LR, whose directions are positive, both use
  * {@code - offset} . Only RL, whose direction is negative, subtracts the unconsumed remainder,
- * {@code sourcePageExtent - offset - sliceExtent}
+ * {@code width - offset - sliceExtent}
  * (in vertical RL writing, the page-direction start is the original box's right edge;
  * that remainder is the distance from the fragment's left edge {@code x} to the original box's left edge).
+ * {@code width} is the original box's own page extent: the occupancy {@code sourcePageExtent} also counts content
+ * painted past the box's end, which in RL lies left of the box (2026-10-28).
  * </p>
  *
  * <h2>Borders and margins</h2>
@@ -272,9 +274,12 @@ public class VisualRescueBox extends AbstractBox {
 		// Handle page-axis direction according to the same rule as LayoutUtils.drawX.
 		// (2026-07-25, vertical-lr support. Previously isVertical() treated RL and LR
 		// as identical and provided only the RL formula.)
+		// RL measures from the original box's own right edge: with its own width, not the occupancy, which also
+		// counts content painted past its left edge (2026-10-28, mirror seed 137: a float of 80pt whose paragraph
+		// ran on for 180pt was drawn 100pt to the left, off the paper, on both of its pages)
 		return switch (this.progression) {
 		case TB -> fragmentX;
-		case RL -> fragmentX - (this.sourcePageExtent - this.offset - this.sliceExtent);
+		case RL -> fragmentX - (this.source.getPageExtent(this.progression) - this.offset - this.sliceExtent);
 		case LR -> fragmentX - this.offset;
 		};
 	}
