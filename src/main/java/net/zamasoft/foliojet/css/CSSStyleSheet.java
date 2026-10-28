@@ -413,7 +413,12 @@ public class CSSStyleSheet {
 	 * @return the added rule (the caller populates its margin boxes)
 	 */
 	public PageRule addPageRule(String name, byte pseudoMask, Declaration declaration) {
-		final PageRule rule = new PageRule(name, pseudoMask, declaration, this.pageRules.size());
+		return this.addPageRule(name, pseudoMask, java.util.List.of(), declaration);
+	}
+
+	/** A page rule with {@code :nth()} conditions (2026-10-28). */
+	public PageRule addPageRule(String name, byte pseudoMask, java.util.List<PageRule.Nth> nths, Declaration declaration) {
+		final PageRule rule = new PageRule(name, pseudoMask, nths, declaration, this.pageRules.size());
 		if (this.offeredPageRules++ < this.carriedPageRules) {
 			// Added by an earlier pass (beginPass): the caller's margin boxes go to this unused copy
 			return rule;

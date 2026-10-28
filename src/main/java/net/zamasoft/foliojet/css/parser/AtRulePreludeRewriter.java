@@ -31,6 +31,9 @@ import java.util.function.Predicate;
  * {@code CSSStyleSheetBuilder} evaluates. Docusaurus writes its breakpoints this way ({@code (width <= 996px)}).
  * Features other than width, height and aspect-ratio become {@code (-foliojet-unknown: 0)}, which does not match, as
  * before.</li>
+ * <li>{@code @page} selectors' {@code :nth(An+B [of name])} (CSS GCPM 3, 2026-10-28): ph-css drops the whole
+ * stylesheet. Each becomes the pseudo-class {@code :-foliojet-nth-...} ({@link #rewritePage}), which
+ * {@code CSSStyleSheetBuilder} reads back ({@link #decodePageNth}).</li>
  * </ul>
  *
  * <p>
@@ -64,7 +67,8 @@ public final class AtRulePreludeRewriter {
 			return css;
 		}
 		final String lower = css.toLowerCase(Locale.ROOT);
-		if (!lower.contains("@supports") && !lower.contains("@layer") && !lower.contains("@media")) {
+		if (!lower.contains("@supports") && !lower.contains("@layer") && !lower.contains("@media")
+				&& !lower.contains("@page")) {
 			return css;
 		}
 		final StringBuilder out = new StringBuilder(css.length());
@@ -100,6 +104,26 @@ public final class AtRulePreludeRewriter {
 				final int end = preludeEnd(css, i);
 				final String prelude = css.substring(i, end);
 				final String rewritten = rewriteMedia(prelude);
+				changed |= !rewritten.equals(prelude);
+				out.append(rewritten);
+				i = end;
+			} else if (c == '@' && atKeyword(css, i, "page")) {
+				out.append(css, i, i + 5);
+				i += 5;
+				// Up to the block, past comments and strings: an unclosed :nth( must not carry the scan past it
+				int end = i;
+				while (end < n && css.charAt(end) != '{' && css.charAt(end) != ';' && css.charAt(end) != '}') {
+					if (css.charAt(end) == '/' && end + 1 < n && css.charAt(end + 1) == '*') {
+						end = commentEnd(css, end);
+					} else if (css.charAt(end) == '"' || css.charAt(end) == '\'') {
+						end = stringEnd(css, end);
+					} else {
+						end += css.charAt(end) == '\\' ? 2 : 1;
+					}
+				}
+				end = Math.min(end, n);
+				final String prelude = css.substring(i, end);
+				final String rewritten = rewritePage(prelude);
 				changed |= !rewritten.equals(prelude);
 				out.append(rewritten);
 				i = end;
@@ -354,6 +378,170 @@ public final class AtRulePreludeRewriter {
 	}
 
 	/** Escapes the dots of one {@code @layer} prelude (outside strings, comments and escapes). */
+	/** The prefix of the pseudo-class {@code :nth()} of {@code @page} becomes for ph-css ({@link #rewritePage}). */
+	private static final String PAGE_NTH = "-foliojet-nth-";
+
+	private static final String PAGE_NTH_INVALID = PAGE_NTH + "invalid";
+
+	private static final java.util.regex.Pattern NTH_OF = java.util.regex.Pattern
+			.compile("(?is)^(.*?)\\s+of\\s+(-?[_a-z\\u0080-\\uffff][-_a-z0-9\\u0080-\\uffff]*)\\s*$");
+
+	private static final java.util.regex.Pattern NTH_AN_B = java.util.regex.Pattern
+			.compile("(?i)^([+-]?\\d*)n(?:\\s*([+-])\\s*(\\d+))?$");
+
+	private static final java.util.regex.Pattern NTH_B = java.util.regex.Pattern.compile("^[+-]?\\d+$");
+
+	/**
+	 * {@code @page} selectors' {@code :nth(<An+B> [of <custom-ident>])} (CSS GCPM 3 §3.1, 2026-10-28): ph-css cannot
+	 * read them and drops the whole stylesheet. Each becomes {@code :-foliojet-nth-<A>-<B>[-<name>]}, the numbers with
+	 * {@code m} for a minus and the name as the hex of its UTF-8 bytes; an argument that is not An+B, or a {@code :nth(}
+	 * that does not close, becomes {@code :-foliojet-nth-invalid}, which CSSStyleSheetBuilder warns about and drops
+	 * with its selector.
+	 */
+	static String rewritePage(String prelude) {
+		if (indexOfNth(prelude, 0) == -1) {
+			return prelude;
+		}
+		// Comments go: they would hide or split the arguments (selectors read no comments between their tokens)
+		if (prelude.contains("/*")) {
+			final StringBuilder plain = new StringBuilder(prelude.length());
+			for (int k = 0; k < prelude.length();) {
+				if (prelude.charAt(k) == '/' && k + 1 < prelude.length() && prelude.charAt(k + 1) == '*') {
+					k = commentEnd(prelude, k);
+				} else {
+					plain.append(prelude.charAt(k++));
+				}
+			}
+			prelude = plain.toString();
+		}
+		int at = indexOfNth(prelude, 0);
+		final StringBuilder out = new StringBuilder(prelude.length());
+		int i = 0;
+		while (at != -1) {
+			out.append(prelude, i, at + 1);
+			final int close = prelude.indexOf(')', at + 5);
+			if (close == -1) {
+				out.append(PAGE_NTH_INVALID);
+				return out.toString();
+			}
+			out.append(encodePageNth(prelude.substring(at + 5, close)));
+			i = close + 1;
+			at = indexOfNth(prelude, i);
+		}
+		out.append(prelude, i, prelude.length());
+		return out.toString();
+	}
+
+	/** The next {@code :nth(} from {@code from}, in any case, without changing the offsets (as a lower-cased copy may). */
+	private static int indexOfNth(final String s, final int from) {
+		for (int k = from; k + 5 <= s.length(); ++k) {
+			if (s.charAt(k) == ':' && s.regionMatches(true, k + 1, "nth(", 0, 4)) {
+				return k;
+			}
+		}
+		return -1;
+	}
+
+	/** Numbers beyond this many pages select as the limit does (no output has so many): no overflow on the way. */
+	private static final long NTH_LIMIT = 1_000_000_000L;
+
+	private static int clamp(final String digits) {
+		final String d = digits.startsWith("+") ? digits.substring(1) : digits;
+		final boolean negative = d.startsWith("-");
+		final String magnitude = negative ? d.substring(1) : d;
+		final long v = magnitude.length() > 10 ? NTH_LIMIT : Math.min(NTH_LIMIT, Long.parseLong(magnitude));
+		return (int) (negative ? -v : v);
+	}
+
+	/** CSS-wide keywords and {@code default} are not custom identifiers (CSS Values 4). */
+	private static boolean customIdent(final String name) {
+		switch (name.toLowerCase(Locale.ROOT)) {
+		case "initial", "inherit", "unset", "revert", "revert-layer", "default":
+			return false;
+		default:
+			return true;
+		}
+	}
+
+	private static String encodePageNth(final String argument) {
+		String anb = argument.trim();
+		String of = null;
+		final java.util.regex.Matcher ofMatcher = NTH_OF.matcher(anb);
+		if (ofMatcher.matches()) {
+			anb = ofMatcher.group(1).trim();
+			of = ofMatcher.group(2);
+			if (!customIdent(of)) {
+				return PAGE_NTH_INVALID;
+			}
+		}
+		final int a, b;
+		final String l = anb.toLowerCase(Locale.ROOT);
+		final java.util.regex.Matcher m;
+		if (l.equals("odd")) {
+			a = 2;
+			b = 1;
+		} else if (l.equals("even")) {
+			a = 2;
+			b = 0;
+		} else if ((m = NTH_AN_B.matcher(l)).matches()) {
+			final String coefficient = m.group(1);
+			a = coefficient.isEmpty() || coefficient.equals("+") ? 1 : coefficient.equals("-") ? -1 : clamp(coefficient);
+			b = m.group(2) == null ? 0 : clamp(m.group(2) + m.group(3));
+		} else if (NTH_B.matcher(l).matches()) {
+			a = 0;
+			b = clamp(l);
+		} else {
+			return PAGE_NTH_INVALID;
+		}
+		final StringBuilder out = new StringBuilder(PAGE_NTH).append(signed(a)).append('-').append(signed(b));
+		if (of != null) {
+			out.append('-');
+			for (final byte x : of.getBytes(java.nio.charset.StandardCharsets.UTF_8)) {
+				out.append(Character.forDigit((x >> 4) & 0xF, 16)).append(Character.forDigit(x & 0xF, 16));
+			}
+		}
+		return out.toString();
+	}
+
+	private static String signed(final int v) {
+		return v < 0 ? "m" + (-(long) v) : String.valueOf(v);
+	}
+
+	/** {@code :nth()} written by {@link #rewritePage}, or {@code null} for another pseudo-class (or an invalid one). */
+	public static net.zamasoft.foliojet.css.PageRule.Nth decodePageNth(final String pseudo) {
+		if (!pseudo.startsWith(PAGE_NTH) || pseudo.equals(PAGE_NTH_INVALID)) {
+			return null;
+		}
+		final String[] parts = pseudo.substring(PAGE_NTH.length()).split("-", 3);
+		if (parts.length < 2) {
+			return null;
+		}
+		try {
+			final int a = unsigned(parts[0]);
+			final int b = unsigned(parts[1]);
+			String of = null;
+			if (parts.length == 3) {
+				final byte[] bytes = new byte[parts[2].length() / 2];
+				for (int k = 0; k < bytes.length; ++k) {
+					bytes[k] = (byte) Integer.parseInt(parts[2].substring(2 * k, 2 * k + 2), 16);
+				}
+				of = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+			}
+			return new net.zamasoft.foliojet.css.PageRule.Nth(a, b, of);
+		} catch (final NumberFormatException e) {
+			return null;
+		}
+	}
+
+	private static int unsigned(final String s) {
+		return s.startsWith("m") ? -Integer.parseInt(s.substring(1)) : Integer.parseInt(s);
+	}
+
+	/** The pseudo-class as the author wrote it, for a warning ({@code :-foliojet-nth-invalid} back to {@code nth()}). */
+	public static String unwritePageNth(final String pseudo) {
+		return pseudo.startsWith(PAGE_NTH) ? "nth()" : pseudo;
+	}
+
 	private static String rewriteLayer(final String prelude) {
 		if (prelude.indexOf('.') == -1) {
 			return prelude;

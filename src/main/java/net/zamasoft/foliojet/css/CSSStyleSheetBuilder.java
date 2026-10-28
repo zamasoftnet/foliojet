@@ -1198,13 +1198,16 @@ public class CSSStyleSheetBuilder {
 		final List<String> selectors = pageRule.getAllSelectors();
 		final List<String> names = new ArrayList<String>();
 		final List<Byte> masks = new ArrayList<Byte>();
+		final List<List<net.zamasoft.foliojet.css.PageRule.Nth>> nthLists = new ArrayList<>();
 		if (selectors.isEmpty()) {
 			names.add(null);
 			masks.add((byte) 0);
+			nthLists.add(List.of());
 		} else {
 			selector: for (final String selector : selectors) {
 				String name = null;
 				byte mask = 0;
+				final List<net.zamasoft.foliojet.css.PageRule.Nth> nths = new ArrayList<>();
 				final String[] parts = selector.split(":", -1);
 				if (!parts[0].isEmpty()) {
 					name = parts[0];
@@ -1221,14 +1224,18 @@ public class CSSStyleSheetBuilder {
 						mask |= net.zamasoft.foliojet.css.PageRule.PSEUDO_SINGLE;
 					} else if ("blank".equalsIgnoreCase(pseudo)) {
 						mask |= net.zamasoft.foliojet.css.PageRule.PSEUDO_BLANK;
+					} else if (AtRulePreludeRewriter.decodePageNth(pseudo) != null) {
+						// :nth(An+B [of name]), written by AtRulePreludeRewriter for ph-css (2026-10-28)
+						nths.add(AtRulePreludeRewriter.decodePageNth(pseudo));
 					} else {
 						this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(),
-								"未対応のページ擬似クラスです: :" + pseudo);
+								"未対応のページ擬似クラスです: :" + AtRulePreludeRewriter.unwritePageNth(pseudo));
 						continue selector;
 					}
 				}
 				names.add(name);
 				masks.add(mask);
+				nthLists.add(List.copyOf(nths));
 			}
 		}
 		if (names.isEmpty()) {
@@ -1238,7 +1245,7 @@ public class CSSStyleSheetBuilder {
 				PagePropertySet.getInstance(), this.ua, uri);
 		for (int s = 0; s < names.size(); ++s) {
 			final net.zamasoft.foliojet.css.PageRule rule = this.cssStyleSheet.addPageRule(names.get(s),
-					masks.get(s), declaration);
+					masks.get(s), nthLists.get(s), declaration);
 
 			// Page margin boxes (@top-center, etc., css-page-3 §7)
 			for (ICSSPageRuleMember member : pageRule.getAllMembers()) {

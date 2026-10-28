@@ -90,6 +90,28 @@ final class PageSequence {
 	private CSSElement firstPageElement;
 	private int pageNumber = 0;
 
+	/** The page number before this document's first page: the pages of the documents before it in this output. */
+	private final int startPageNumber;
+
+	/**
+	 * The page group of this document (CSS GCPM 3 §3.2, 2026-10-28): the {@code page} of its html, or of its body. A
+	 * document starts on a new page, so its root or body with a page name makes a group of all its pages; groups made
+	 * by elements inside the body are not read.
+	 */
+	private String pageGroup = null;
+
+	private boolean bodyPageGroup = false;
+
+	/**
+	 * The number of the group's first page: the first page of the document with the group's name (0 before it). Pages
+	 * before it (an html::before ahead of the body's name) are not in the group; pages after it are, whatever their
+	 * names (GCPM 3's broadside example).
+	 */
+	private int pageGroupStart = 0;
+
+	/** Where the current page is ({@link #nextPage}), for its margin boxes when it is drawn. */
+	private net.zamasoft.foliojet.css.PagePosition currentPosition = net.zamasoft.foliojet.css.PagePosition.NONE;
+
 	int getPageNumber() {
 		return this.pageNumber;
 	}
@@ -134,6 +156,7 @@ final class PageSequence {
 		this.segment = segment;
 		this.reservedCounterWarner = reservedCounterWarner;
 		this.pageNumber = ua.getPassContext().getPageNumber();
+		this.startPageNumber = this.pageNumber;
 
 		// Page width
 		{
@@ -335,7 +358,16 @@ final class PageSequence {
 	 */
 	net.zamasoft.foliojet.layout.FootnotePageProbe.PageGeometry footnotePageGeometry(final String name, final int emitted) {
 		final CSSElement element = this.footnotePageElement(emitted);
-		final CSSStyle style = this.pageStyle(element, name);
+		// A page ahead: the group as it stands, without starting it
+		final int ahead = this.startPageNumber + emitted + 1;
+		this.styleContext.setPagePosition(this.pageGroupStart == 0 ? new net.zamasoft.foliojet.css.PagePosition(
+				ahead + this.ua.getPassContext().getPagesBefore(), 0, null) : this.position(ahead, name));
+		final CSSStyle style;
+		try {
+			style = this.pageStyle(element, name);
+		} finally {
+			this.styleContext.setPagePosition(this.currentPosition);
+		}
 		final BlockParams params = this.pageParams(style);
 		params.size = this.pageSize(style);
 		params.minSize = this.pageMinSize(style);
@@ -344,6 +376,31 @@ final class PageSequence {
 		final PageBox geometry = new PageBox(params, this.ua);
 		return new net.zamasoft.foliojet.layout.FootnotePageProbe.PageGeometry(
 				geometry.getInnerWidth(), geometry.getInnerHeight(), params.flow);
+	}
+
+	/**
+	 * The document's page group from its html ({@code body} false) or its body element's used {@code page} (2026-10-28):
+	 * the body's wins, and is taken once.
+	 */
+	void setDocumentPageGroup(final boolean body, final String name) {
+		if (body) {
+			if (!this.bodyPageGroup) {
+				this.pageGroup = name;
+				this.bodyPageGroup = true;
+			}
+		} else if (!this.bodyPageGroup) {
+			this.pageGroup = name;
+		}
+	}
+
+	/** Where the page of this number and name is: in the output (after an EPUB item's pages before it), in the group. */
+	private net.zamasoft.foliojet.css.PagePosition position(final int pageNumber, final String pageName) {
+		if (this.pageGroupStart == 0 && this.pageGroup != null && this.pageGroup.equals(pageName)) {
+			this.pageGroupStart = pageNumber;
+		}
+		final boolean inGroup = this.pageGroupStart != 0 && pageNumber >= this.pageGroupStart;
+		return new net.zamasoft.foliojet.css.PagePosition(pageNumber + this.ua.getPassContext().getPagesBefore(),
+				inGroup ? pageNumber - this.pageGroupStart + 1 : 0, inGroup ? this.pageGroup : null);
 	}
 
 	PageBox nextPage() {
@@ -366,6 +423,9 @@ final class PageSequence {
 		}
 		this.pageElement = this.imposition.nextPageSide();
 		if (this.firstPageElement == null) this.firstPageElement = this.pageElement;
+		// The number this page gets below (a discarded page gives it back)
+		this.currentPosition = this.position(this.pageNumber + 1, this.pageName);
+		this.styleContext.setPagePosition(this.currentPosition);
 		CSSStyle pageStyle = this.pageStyle(this.pageElement, this.pageName);
 
 		// Reset page counters
@@ -548,6 +608,7 @@ final class PageSequence {
 			return false;
 		}
 		// Treat declared page margin boxes (running headers/page numbers) as drawing content
+		this.styleContext.setPagePosition(this.currentPosition = this.position(this.pageNumber, this.pageName));
 		return this.styleContext.pageMarginBoxes(this.pageElement, this.pageName).isEmpty();
 	}
 
@@ -687,6 +748,8 @@ final class PageSequence {
 			// drawing anything (e.g. a blank page inserted by left/right page breaks). This is known
 			// only now, after content is finalized, so :blank affects only margin boxes.
 			final boolean blank = pageBox.isForcedBreakOrigin() && !pageBox.paintsAnything();
+			// Again at drawing: the body may have named the group after the page began
+			this.styleContext.setPagePosition(this.currentPosition = this.position(this.pageNumber, this.pageName));
 			MarginBoxes.draw(this.ua, this.styleContext, this.pageElement, this.pageName, pageBox, drawer, visitor, running,
 					blank);
 

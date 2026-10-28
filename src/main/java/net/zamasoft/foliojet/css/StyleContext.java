@@ -102,6 +102,13 @@ public class StyleContext {
 		return result;
 	}
 
+	/** Where the page being styled is, for {@code @page :nth()} (2026-10-28; set by the page sequence). */
+	private PagePosition pagePosition = PagePosition.NONE;
+
+	public void setPagePosition(final PagePosition pagePosition) {
+		this.pagePosition = pagePosition;
+	}
+
 	/** Returns matching rules in ascending specificity (source order for ties). */
 	private List<PageRule> matchingPageRules(CSSElement page, String pageName, boolean blank) {
 		byte pseudo = blank ? PageRule.PSEUDO_BLANK : 0;
@@ -119,7 +126,7 @@ public class StyleContext {
 		}
 		final List<PageRule> matched = new ArrayList<PageRule>();
 		for (final PageRule rule : this.styleSheet.pageRules) {
-			if (rule.matches(pageName, pseudo)) {
+			if (rule.matches(pageName, pseudo, this.pagePosition)) {
 				matched.add(rule);
 			}
 		}

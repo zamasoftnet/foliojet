@@ -1322,6 +1322,15 @@ final class BoxStyleMapper {
 				pageSequence.setProgression(BlockFlow.get(style));
 			}
 		}
+		{
+			// The document's page group, for @page :nth(An+B of name) (2026-10-28). Outside the check above: an html::before
+			// laid out before the body already put the builder in the body (codex)
+			final CSSElement ce = style.getCSSElement();
+			if (pageSequence != null && (XHTML.HTML_ELEM.equalsElement(ce) || XHTML.BODY_ELEM.equalsElement(ce))) {
+				pageSequence.setDocumentPageGroup(XHTML.BODY_ELEM.equalsElement(ce),
+						net.zamasoft.foliojet.css.impl.property.page.PageProperty.getUsed(style));
+			}
+		}
 
 		// Margins
 		final Insets margin;

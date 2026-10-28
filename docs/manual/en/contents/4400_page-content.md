@@ -902,9 +902,42 @@ A page break occurs automatically at a boundary between pages with different nam
 You can also combine a name with a pseudo-class (:first, :left, :right),
 as in `@page front:first`. However, <span class="cssdecl">:first</span> matches
 only **the first page of the document** (as specified by CSS Paged Media Level 3).
-`@page chapter:first` applies only when the first page of the document is named chapter;
-it **cannot select the first page of each chapter**. To hide a running header on a chapter opening page, use
-<span class="cssprop">string-set</span> for the header with `string(…, first-except)`, for example.
+`@page chapter:first` applies only when the first page of the document is named chapter.
+Select the first page of each chapter with <span class="cssdecl">:nth()</span>, below.
+
+#### <a id="style-page-nth">Pages of each chapter (<span class="cssdecl">:nth()</span>)<span class="since">4.0.0</span></a>
+
+<span class="cssdecl">@page :nth(An+B)</span> selects pages by their position in the output
+(CSS Generated Content for Paged Media Level 3). `:nth(1)` is the first page, as `:first` is,
+`:nth(2n)` the even pages, and `:nth(-n+3)` the first three.
+
+<span class="cssdecl">@page :nth(An+B of name)</span> selects pages by their position in a **page group**.
+Naming the `html` or `body` of a document with <span class="cssprop">page</span> makes all the pages of that
+document a group of that name. In an EPUB each spine item (XHTML) is a document of its own, so **each item starts
+a new group**: the first page of every item matches `:nth(1 of name)`, even when the items share the name.
+
+```css
+/* No folio on the first page of each chapter (EPUB item) */
+body { page: chapter; }
+@page {
+  @bottom-center { content: counter(page); }
+}
+@page :nth(1 of chapter) {
+  @bottom-center { content: none; }
+}
+```
+
+On a named rule, `@page chapter:nth(2)` matches the second page of the chapter group.
+`:nth()` counts the pages in order, regardless of the <span class="cssprop">page</span> counter.
+
+<div class="note">
+
+Only the <span class="cssprop">page</span> of a document's `html` and `body` makes a group. Elements inside the body
+(`section { page: chapter; break-before: page }`, for example) make none, so the first page of each chapter of one
+HTML document cannot be selected this way. Split the chapters into EPUB items, or use
+<span class="cssprop">string-set</span> with `string(…, first-except)` for the running header, for example.
+
+</div>
 
 #### Blank pages (<span class="cssdecl">:blank</span>)<span class="since">4.0.0</span>
 

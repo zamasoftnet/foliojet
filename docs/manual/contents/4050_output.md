@@ -874,6 +874,11 @@ copper -in book.epub -if application/epub+zip \
 246KB→987KBになりますが、出力全体(11MB)に対しては+6.7%です。欧文だけなら誤差です。
 
 ページ番号は項目の中で1から始まり、`index.json`の`firstPage`が通しの番号を与えます。
+<span class="ioprop">processing.pass-count</span>を2以上にすると、各項目の
+<span class="cssdecl">counter(page)</span>・左右(`:left`・`:right`)・`:first`・`:nth()`は
+**本の通し**になり、PDFと同じページに同じ柱が出ます(`:first`は本の最初のページだけ。
+章ごとの最初のページは<a href="#style-page-nth" class="pageref">:nth(1 of 名前)</a>で選びます)<span class="since">4.0.0</span>。
+1回組みでは項目の中の番号と左右のままです。
 `page-number`のメッセージ(CTIP)は通しの番号で届くので、クライアントは今までどおり
 進捗を数えられます。目次からのリンクや項目をまたぐリンクは、`items[].uri`で項目を引き、
 その項目の`manifest.json`の`anchors`で位置を引いてください。

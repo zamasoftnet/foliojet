@@ -902,9 +902,42 @@ title要素は表示されないため、`string-set`の対象にできません
 `@page front:first`のように、名前と擬似クラス(:first、:left、:right)を
 組み合わせることもできます。ただし<span class="cssdecl">:first</span>は
 **文書の最初のページ**だけに合います(CSS Paged Media Level 3 のとおり)。
-`@page chapter:first`は「文書の最初のページが chapter のとき」だけ効き、
-**章ごとの最初のページは選べません**。章扉の柱を消すには、柱の
-<span class="cssprop">string-set</span>と`string(…, first-except)`などを使ってください。
+`@page chapter:first`は「文書の最初のページが chapter のとき」だけ効きます。
+章ごとの最初のページは、次の<span class="cssdecl">:nth()</span>で選びます。
+
+#### <a id="style-page-nth">章ごとのページ(<span class="cssdecl">:nth()</span>)<span class="since">4.0.0</span></a>
+
+<span class="cssdecl">@page :nth(An+B)</span>は、出力の中の何ページ目かでページを選びます
+(CSS Generated Content for Paged Media Level 3)。`:nth(1)`は`:first`と同じく最初のページ、
+`:nth(2n)`は偶数ページ、`:nth(-n+3)`は最初の3ページです。
+
+<span class="cssdecl">@page :nth(An+B of 名前)</span>は、**ページのまとまり**の中の何ページ目かで選びます。
+文書の`html`か`body`に<span class="cssprop">page</span>で名前を付けると、その文書のページ全体が
+その名前のまとまりになります。EPUBではspineの項目(XHTML)ごとに文書が分かれるので、
+**項目ごとに新しいまとまり**になり、名前が同じでも各項目の最初のページが`:nth(1 of 名前)`に合います。
+
+```css
+/* 各章(EPUBの項目)の最初のページはノンブルを出さない */
+body { page: chapter; }
+@page {
+  @bottom-center { content: counter(page); }
+}
+@page :nth(1 of chapter) {
+  @bottom-center { content: none; }
+}
+```
+
+名前付きの規則に付けた`@page chapter:nth(2)`は、chapter のまとまりの2ページ目に合います。
+`:nth()`は<span class="cssprop">page</span>のカウンタとは関係なく、ページの並びで数えます。
+
+<div class="note">
+
+まとまりを作るのは文書の`html`と`body`の<span class="cssprop">page</span>だけです。
+本文の途中の要素(`section { page: chapter; break-before: page }`など)ではまとまりを作らないので、
+1つのHTMLの中の章ごとの最初のページは選べません。章をEPUBの項目に分けるか、
+柱の<span class="cssprop">string-set</span>と`string(…, first-except)`などを使ってください。
+
+</div>
 
 #### 白紙のページ(<span class="cssdecl">:blank</span>)<span class="since">4.0.0</span>
 
