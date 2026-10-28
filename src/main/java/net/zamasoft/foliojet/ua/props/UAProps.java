@@ -79,6 +79,17 @@ public final class UAProps {
 	public static final StringPropManager INPUT_EPUB_SPINE = new StringPropManager("input.epub.spine", null);
 
 	/**
+	 * The page count of every spine item of an EPUB from an earlier conversion, in spine order, separated by
+	 * {@code ,} (2026-10-28, an e-book reader). Paged SVG lays out the items independently; with these counts a single
+	 * pass, and the first pass of several, number the pages and take their sides as in the whole book, and laying out
+	 * one chapter only ({@link #INPUT_EPUB_SPINE}) numbers it as in the whole book. The counts are of logical pages
+	 * (those {@code counter(page)} counts). Ignored with a warning if their number differs from the spine's or a value
+	 * is not a count; read only for items laid out independently.
+	 */
+	public static final StringPropManager INPUT_EPUB_PAGE_COUNTS = new StringPropManager("input.epub.page-counts",
+			null);
+
+	/**
 	 * The default XSLT stylesheet.
 	 */
 	public static final StringPropManager INPUT_XSLT_DEFAULT_STYLESHEET = new StringPropManager(

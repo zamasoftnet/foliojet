@@ -446,6 +446,7 @@ public class EPubFormatter implements MultiDocumentFormatter {
 		if (includedCount == 0) {
 			return;
 		}
+		final int[] pageCounts = pageCounts(ua, contents.spine.length);
 
 		// Submit items in spine order. Earlier items run first, allowing results to start releasing sooner
 		final int concurrency = Math.min(includedCount, concurrency(ua));
@@ -480,21 +481,34 @@ public class EPubFormatter implements MultiDocumentFormatter {
 						noViewportReported);
 			};
 			if (passCount <= 1) {
+				// The page counts of an earlier conversion number the book (2026-10-28, an e-book reader)
+				final BookPageNumbers book = pageCounts == null ? null : new BookPageNumbers(children, documents);
+				if (book != null) {
+					book.seed(pageCounts, included);
+				}
 				stage(ua, pool, context, children, k -> {
-					pass.run(k, PrepareMode.DOCUMENT, 1, null);
+					pass.run(k, PrepareMode.DOCUMENT, 1, book);
 					children.get(k).finish();
 				});
+				final String changed = book == null ? null : book.changedFromSeed();
+				if (changed != null) {
+					ua.message(MessageCodes.WARN_EPUB_PAGE_COUNTS_CHANGED, changed);
+				}
 			} else {
 				// Every item ends a pass before any item starts the next, so each pass knows the page numbers of the
 				// whole book and the targets in the other items (2026-10-21, BookPageNumbers). The structure scan
 				// is not counted in processing.pass-count, as in DirectSession.format
 				final BookPageNumbers book = new BookPageNumbers(children, documents);
+				if (pageCounts != null) {
+					// The first pass too numbers the book from an earlier conversion's counts (2026-10-28)
+					book.seed(pageCounts, included);
+				}
 				stage(ua, pool, context, children, k -> {
 					final UserAgent child = children.get(k);
 					child.prepare(PrepareMode.STRUCTURE_SCAN);
 					this.formatItem(child, items.get(k), opener, null, isFixedLayout(contents, items.get(k)),
 							noViewportReported);
-					pass.run(k, PrepareMode.MIDDLE_PASS, passCount, null);
+					pass.run(k, PrepareMode.MIDDLE_PASS, passCount, book);
 				});
 				for (int remaining = passCount - 1; remaining > 1; --remaining) {
 					book.share();
@@ -758,6 +772,34 @@ public class EPubFormatter implements MultiDocumentFormatter {
 	}
 
 	// ---- Spine filtering and overall description
+
+	/**
+	 * The page count of every spine item from {@code input.epub.page-counts}, or {@code null} if it is not given or is
+	 * ignored with a warning: a count of entries other than the spine's, a value that is not a count, or more than
+	 * 1,000,000 pages in all.
+	 */
+	static int[] pageCounts(final UserAgent ua, final int spineLength) {
+		final String value = UAProps.INPUT_EPUB_PAGE_COUNTS.getString(ua);
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		final String[] tokens = value.trim().split("\\s*,\\s*", -1);
+		final int[] counts = new int[tokens.length];
+		long total = 0;
+		boolean valid = tokens.length == spineLength;
+		for (int i = 0; i < tokens.length && valid; ++i) {
+			valid = tokens[i].matches("[0-9]{1,7}");
+			if (valid) {
+				counts[i] = Integer.parseInt(tokens[i]);
+				total += counts[i];
+			}
+		}
+		if (!valid || total > 1_000_000) {
+			ua.message(MessageCodes.WARN_BAD_IO_PROPERTY, UAProps.INPUT_EPUB_PAGE_COUNTS.getName(), value);
+			return null;
+		}
+		return counts;
+	}
 
 	/**
 	 * Selects items to lay out via {@code input.epub.spine}; empty means all items. Entries can be

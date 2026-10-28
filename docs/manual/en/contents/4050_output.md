@@ -880,7 +880,7 @@ With <span class="ioprop">processing.pass-count</span> 2 or more, each item's
 <span class="cssdecl">counter(page)</span>, sides (`:left`, `:right`), `:first` and `:nth()` follow **the whole
 book**, so the same running heads appear on the same pages as in PDF (`:first` is the book's first page only; select
 the first page of each chapter with <a href="#style-page-nth" class="pageref">:nth(1 of name)</a>)<span class="since">4.0.0</span>.
-A single pass keeps each item's own numbers and sides.
+A single pass keeps each item's own numbers and sides, unless the page count of each item in an earlier conversion is given in <span class="ioprop">input.epub.page-counts</span>: then a single pass numbers the book too (an e-book reader sends the `pageCount` of the previous `index.json`; one chapter laid out again is numbered as in the whole book) <span class="since">4.0.0</span>.
 The `page-number` messages (CTIP) use overall page numbers, so clients can continue
 tracking progress as before. For links from the table of contents and links across items, look up the item using `items[].uri`,
 then use that item's `manifest.json` and its `anchors` to find the position.

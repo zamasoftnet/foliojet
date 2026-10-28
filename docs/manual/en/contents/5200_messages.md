@@ -58,6 +58,7 @@
 | 2826<span class="since">4.0.0</span> | Item path(string) | A fixed-layout (pre-paginated) EPUB item has no <tt>&lt;meta name="viewport"&gt;</tt>. It is laid out on the default page size, so a page image may be cut across several pages. Reported once per conversion. |
 | 2827<span class="since">4.0.0</span> | Audio or video URI(string)<br />Reason(string) | The audio or video file of an <tt>&lt;audio&gt;</tt> or <tt>&lt;video&gt;</tt> cannot be read (its reference cannot be resolved, fetching it failed, or access is not allowed). The element keeps its place and poster, and the paged SVG page data does not list the file. User information is removed from the URI. |
 | 2828<span class="since">4.0.0</span> | | The page number or text of a forward reference (<tt>target-counter()</tt>, <tt>target-counters()</tt>, <tt>target-text()</tt>) changed during the final pass. Numbers in a table of contents may be wrong or unstable. Increase <span class="ioprop">processing.pass-count</span>. Issued once per conversion. |
+| 2829<span class="since">4.0.0</span> | Items and page counts that differ(string) | In a single pass, EPUB items were laid out to other page counts than <span class="ioprop">input.epub.page-counts</span> (`3:28→29`: the third spine item has 29 pages, not 28; the first five if many). The items after them were numbered from the given counts, so their numbers are off. Pass the counts again, corrected with the `pageCount` of `index.json`. Issued once per conversion. |
 
 **Errors**
 

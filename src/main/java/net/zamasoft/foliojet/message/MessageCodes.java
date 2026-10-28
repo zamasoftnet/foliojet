@@ -95,6 +95,12 @@ public interface MessageCodes {
 	 * said so and CTI clients could not tell). No arguments.
 	 */
 	public static final short WARN_UNCONVERGED_PAGE_REFERENCES = 0x2828;
+	/**
+	 * Warning that a single pass laid out EPUB items to other page counts than {@code input.epub.page-counts}, so the
+	 * pages of the items after them are numbered from the given counts (2026-10-28). Argument: the items that
+	 * changed, as {@code 3:28→29} (one-based spine positions).
+	 */
+	public static final short WARN_EPUB_PAGE_COUNTS_CHANGED = 0x2829;
 	public static final short WARN_PLUGIN = 0x28FF;
 
 	public static final short ERROR_BAD_XSLT_STYLESHEET = 0x3801;

@@ -58,6 +58,7 @@
 | 2826<span class="since">4.0.0</span> | 項目のパス(string) | 固定レイアウト(pre-paginated)のEPUBの項目に<tt>&lt;meta name="viewport"&gt;</tt>がない。既定の頁の大きさで組むので、頁の画像が何頁にも切れることがある。変換に1回だけ出る。 |
 | 2827<span class="since">4.0.0</span> | 音声・動画のURI(string)<br />理由(string) | <tt>&lt;audio&gt;</tt>・<tt>&lt;video&gt;</tt>の音声・動画のファイルを読み込めない(参照を解決できない、取得に失敗した、アクセスが許可されていない)。要素の場所とポスターはそのまま組み、ページ分割SVGの頁のデータにはそのファイルを出さない。URIの認証情報は除いて出す。 |
 | 2828<span class="since">4.0.0</span> | | 前方参照(<tt>target-counter()</tt>・<tt>target-counters()</tt>・<tt>target-text()</tt>)の頁番号や文字が、最後のパスの途中で変わった。目次の番号がずれている、または揺れているおそれがある。<span class="ioprop">processing.pass-count</span>を増やす。変換に1回だけ出る。 |
+| 2829<span class="since">4.0.0</span> | 違った項目と頁数(string) | 1回組みで、EPUBの項目の頁数が<span class="ioprop">input.epub.page-counts</span>と違った(`3:28→29`はspineの3番目の項目が28頁でなく29頁だったこと。多いときは最初の5つ)。後ろの項目の頁番号は渡した数で数えたので、ずれている。`index.json`の`pageCount`で数を直して渡し直す。変換に1回だけ出る。 |
 
 **エラー**
 

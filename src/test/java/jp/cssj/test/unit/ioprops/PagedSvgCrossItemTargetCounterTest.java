@@ -108,6 +108,98 @@ public class PagedSvgCrossItemTargetCounterTest extends TestCase {
 		}
 	}
 
+	/**
+	 * The page counts of an earlier conversion ({@code input.epub.page-counts}, 2026-10-28, an e-book reader) number a
+	 * single pass as the book: the numbers, the sides and :first as two passes give them.
+	 */
+	public void testPageCountsNumberASinglePass() throws Exception {
+		final String book = "1.1 A1|FIRST|RIGHT|p1|,1.2 A2|LEFT|p2|,1.3 A3|RIGHT|p3|,2.1 B1|LEFT|p4|,2.2 B2|RIGHT|p5|,"
+				+ "2.3 B3|LEFT|p6|,2.4 B4|RIGHT|p7|,2.5 B5|LEFT|p8|,3.1 C1|RIGHT|p9|,3.2 C2|LEFT|p10|,3.3 C3|RIGHT|p11|";
+		final Run r = run(sideBook(), Map.of("processing.pass-count", "1", "input.epub.page-counts", "3, 5,3"));
+		assertEquals(book, pages(r));
+		assertFalse("the counts held: " + r.codes, r.codes.contains(MessageCodes.WARN_EPUB_PAGE_COUNTS_CHANGED));
+		// counter(pages) is the book's
+		final Run toc = run(tocBook(), Map.of("processing.pass-count", "1", "input.epub.page-counts", "1,1,1"));
+		assertEquals("BBB|F2/3|", toc.texts("items/0002/pages/0001.svg"));
+	}
+
+	/** One chapter laid out alone is numbered as in the whole book, in one pass or two. */
+	public void testPageCountsNumberOneChapter() throws Exception {
+		for (final String passes : new String[] { "1", "2" }) {
+			final Run r = run(sideBook(), Map.of("processing.pass-count", passes, "input.epub.spine", "2",
+					"input.epub.page-counts", "3,5,3"));
+			assertEquals("passes " + passes,
+					"2.1 B1|LEFT|p4|,2.2 B2|RIGHT|p5|,2.3 B3|LEFT|p6|,2.4 B4|RIGHT|p7|,2.5 B5|LEFT|p8|", pages(r));
+			// index.json stays the bundle's own
+			assertTrue(r.text("index.json"), r.text("index.json").contains("\"firstPage\":1,\"pageCount\":5"));
+		}
+	}
+
+	/** Counts of another number of items than the spine's, or values that are not counts, are ignored with a warning. */
+	public void testBadPageCountsAreIgnored() throws Exception {
+		for (final String counts : new String[] { "3,5", "3,5,3,1", "3,-5,3", "3,x,3", "3,,3", "3,5,9999999" }) {
+			final Run r = run(sideBook(), Map.of("processing.pass-count", "1", "input.epub.page-counts", counts));
+			assertTrue(counts + ": " + r.codes, r.codes.contains(MessageCodes.WARN_BAD_IO_PROPERTY));
+			assertEquals(counts, "B1|FIRST|RIGHT|p1|", r.texts("items/0002/pages/0001.svg"));
+		}
+	}
+
+	/**
+	 * A single pass whose item has another page count than given warns: the items after it are numbered from the
+	 * given counts (a has 3 pages, not 1).
+	 */
+	public void testChangedPageCountsWarn() throws Exception {
+		final Run r = run(sideBook(), Map.of("processing.pass-count", "1", "input.epub.page-counts", "1,5,3"));
+		assertTrue("must warn: " + r.codes, r.codes.contains(MessageCodes.WARN_EPUB_PAGE_COUNTS_CHANGED));
+		assertEquals("B1|LEFT|p2|", r.texts("items/0002/pages/0001.svg"));
+		// Several passes number from what they lay out: no such warning
+		final Run two = run(sideBook(), Map.of("processing.pass-count", "2", "input.epub.page-counts", "1,5,3"));
+		assertFalse(two.codes.toString(), two.codes.contains(MessageCodes.WARN_EPUB_PAGE_COUNTS_CHANGED));
+		assertEquals("B1|LEFT|p4|", two.texts("items/0002/pages/0001.svg"));
+	}
+
+	/**
+	 * The first of two passes is laid out with the counts too. Where the pages do not depend on their sides, the
+	 * result is the same as without them; where they do (b fills two narrow left pages but one right page), the right
+	 * counts converge in two passes and none do not.
+	 */
+	public void testPageCountsInTwoPasses() throws Exception {
+		final Run seeded = run(tocBook(), Map.of("processing.pass-count", "2", "input.epub.page-counts", "1,1,1"));
+		final Run plain = run(tocBook(), Map.of("processing.pass-count", "2"));
+		assertEquals(plain.order, seeded.order);
+		for (final String uri : plain.order) {
+			assertTrue(uri + " must be byte-identical",
+					Arrays.equals(plain.data.get(uri).toByteArray(), seeded.data.get(uri).toByteArray()));
+		}
+
+		final String css = "@page { size: 120pt 90pt; margin: 8pt; @bottom-center { content: counter(page); } }"
+				+ " @page :left { margin-left: 50pt } body { margin: 0; font-size: 8pt; line-height: 10pt }";
+		final byte[] book = epub(css, "<p>AAA</p>", "<p>" + "甲乙丙丁戊己庚辛壬癸".repeat(6) + "</p>", "<p>CCC</p>");
+		final Run right = run(book, Map.of("processing.pass-count", "2", "input.epub.page-counts", "1,2,1"));
+		assertFalse("must converge: " + right.codes, right.codes.contains(MessageCodes.WARN_UNCONVERGED_PAGE_REFERENCES));
+		assertEquals("CCC|4|", right.texts("items/0003/pages/0001.svg"));
+		final Run none = run(book, Map.of("processing.pass-count", "2"));
+		assertTrue("b grows on its left page: " + none.order, none.data.containsKey("items/0002/pages/0002.svg"));
+		assertTrue("must warn: " + none.codes, none.codes.contains(MessageCodes.WARN_UNCONVERGED_PAGE_REFERENCES));
+	}
+
+	/** PDF lays out the items in one document, numbered as the book already: the counts are not read. */
+	public void testPdfDoesNotReadPageCounts() throws Exception {
+		final Run r = run(sideBook(), Map.of("output.type", "application/pdf", "input.epub.page-counts", "1,2"));
+		assertFalse(r.codes.toString(), r.codes.contains(MessageCodes.WARN_BAD_IO_PROPERTY));
+	}
+
+	/** Each page SVG of the output in order, as {@code item.page texts}. */
+	private static String pages(final Run r) {
+		final List<String> pages = new ArrayList<>();
+		for (final String uri : r.order) {
+			if (uri.matches("items/\\d+/pages/\\d+\\.svg")) {
+				pages.add(uri.replaceAll("items/0*(\\d+)/pages/0*(\\d+)\\.svg", "$1.$2") + " " + r.texts(uri));
+			}
+		}
+		return String.join(",", pages);
+	}
+
 	/** The items wait for each other between passes; the output stays the same at any parallelism. */
 	public void testConcurrencyDoesNotChangeTheOutput() throws Exception {
 		final Run sequential = run(tocBook(), Map.of("processing.pass-count", "2", "processing.concurrency", "1"));

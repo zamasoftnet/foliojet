@@ -25,6 +25,13 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * </p>
  *
  * <p>
+ * The page counts of an earlier conversion ({@code input.epub.page-counts}, {@link #seed}) stand in for that before the
+ * first pass (2026-10-28, an e-book reader): a single pass, and the first pass of several, number the book from them.
+ * They cover the whole spine, so the items not laid out keep their counts in the book: one chapter laid out alone is
+ * numbered as in the whole book.
+ * </p>
+ *
+ * <p>
  * Only the included items count ({@code input.epub.spine}), as in {@code index.json}. A page counter that the author
  * resets inside an item is not followed: the targets after the reset move with the item, and the next item starts
  * after the item's pages (PDF continues from the reset).
@@ -47,6 +54,18 @@ final class BookPageNumbers {
 
 	private boolean shared = false;
 
+	/** The pages of the items not laid out before each item, from the seed (0 without one). */
+	private final int[] base;
+
+	/** The pages of the items not laid out, from the seed. */
+	private int notLaidOut = 0;
+
+	/** The seed's count of each item, or {@code null} without a seed. */
+	private int[] seeded = null;
+
+	/** The one-based spine position of each item (for messages), or {@code null} without a seed. */
+	private int[] positions = null;
+
 	/** The copies of another item's targets that an item got at the last {@link #share()}. */
 	private record Read(int item, URI uri, List<PageRef.Fragment> copies) {
 	}
@@ -58,6 +77,38 @@ final class BookPageNumbers {
 		this.documents = documents;
 		this.offsets = new int[items.size()];
 		this.counts = new int[items.size()];
+		this.base = new int[items.size()];
+	}
+
+	/**
+	 * Numbers the book from the page counts of an earlier conversion, before the first pass.
+	 *
+	 * @param spineCounts the page count of every spine item, in spine order
+	 * @param included    whether each spine item is laid out (the items of this object, in order)
+	 */
+	void seed(final int[] spineCounts, final boolean[] included) {
+		final int n = this.items.size();
+		this.seeded = new int[n];
+		this.positions = new int[n];
+		int k = 0;
+		int pages = 0;
+		int skipped = 0;
+		for (int i = 0; i < spineCounts.length; ++i) {
+			if (included[i]) {
+				this.offsets[k] = pages;
+				this.base[k] = skipped;
+				this.seeded[k] = spineCounts[i];
+				this.positions[k] = i + 1;
+				++k;
+			} else {
+				skipped += spineCounts[i];
+			}
+			pages += spineCounts[i];
+		}
+		assert k == n;
+		this.notLaidOut = skipped;
+		this.pages = pages;
+		this.shared = true;
 	}
 
 	/** After a pass of every item: numbers the book for the next pass and shares the targets between the items. */
@@ -66,10 +117,12 @@ final class BookPageNumbers {
 		final int[] next = new int[n];
 		int pages = 0;
 		for (int k = 0; k < n; ++k) {
-			next[k] = pages;
+			// The items not laid out keep the seed's pages before this one
+			next[k] = this.base[k] + pages;
 			this.counts[k] = this.items.get(k).getPassContext().getPageNumber();
 			pages += this.counts[k];
 		}
+		pages += this.notLaidOut;
 		for (int k = 0; k < n; ++k) {
 			this.pageRef(k).shiftPages(next[k] - this.offsets[k], pages);
 		}
@@ -146,6 +199,31 @@ final class BookPageNumbers {
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * The items whose page count differs from the seed, as {@code 3:28→29} (one-based spine positions; the first five and
+	 * how many more), or {@code null} if none or without a seed. Call after the last pass of every item.
+	 */
+	String changedFromSeed() {
+		if (this.seeded == null) {
+			return null;
+		}
+		final StringBuilder changed = new StringBuilder();
+		int count = 0;
+		for (int k = 0; k < this.items.size(); ++k) {
+			final int pages = this.items.get(k).getPassContext().getPageNumber();
+			if (pages != this.seeded[k] && ++count <= 5) {
+				if (changed.length() > 0) {
+					changed.append(", ");
+				}
+				changed.append(this.positions[k]).append(':').append(this.seeded[k]).append('\u2192').append(pages);
+			}
+		}
+		if (count > 5) {
+			changed.append(", +").append(count - 5);
+		}
+		return count == 0 ? null : changed.toString();
 	}
 
 	private PageRef pageRef(final int k) {

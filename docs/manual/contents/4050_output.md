@@ -878,7 +878,7 @@ copper -in book.epub -if application/epub+zip \
 <span class="cssdecl">counter(page)</span>・左右(`:left`・`:right`)・`:first`・`:nth()`は
 **本の通し**になり、PDFと同じページに同じ柱が出ます(`:first`は本の最初のページだけ。
 章ごとの最初のページは<a href="#style-page-nth" class="pageref">:nth(1 of 名前)</a>で選びます)<span class="since">4.0.0</span>。
-1回組みでは項目の中の番号と左右のままです。
+1回組みでは項目の中の番号と左右のままですが、前回の変換の項目ごとの頁数を<span class="ioprop">input.epub.page-counts</span>で渡すと、1回組みでも本の通しになります(電子書籍の読み器が前回の`index.json`の`pageCount`を送る形。1章だけ組み直すときも本全体の中の番号になります)<span class="since">4.0.0</span>。
 `page-number`のメッセージ(CTIP)は通しの番号で届くので、クライアントは今までどおり
 進捗を数えられます。目次からのリンクや項目をまたぐリンクは、`items[].uri`で項目を引き、
 その項目の`manifest.json`の`anchors`で位置を引いてください。
