@@ -332,8 +332,11 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 			// **Check slack before attempting to split** (2026-08-29, G7). Items now stretch to row height,
 			// so checking later would let even undecorated items return Split first,
 			// making the path that splits min-height-derived blank space unreachable.
-			final boolean slack = !anySplit
-					&& LayoutUtils.compare(this.itemsEnd(boundaryRow, boundaryItems, flow), remaining) <= 0;
+			// A forced split (FLAGS_SPLIT) takes it too (2026-10-28): forcing the items instead kept only what they
+			// paint, so empty items stretched to an explicit row height consumed nothing and the remainder row was the
+			// whole row again. A float of a grid of 122pt in a column of nested multicol was split so on every column and
+			// page without end (wild seed 45210105).
+			final boolean slack = LayoutUtils.compare(this.itemsEnd(boundaryRow, boundaryItems, flow), remaining) <= 0;
 			// An item of break-inside: avoid that the cut line crosses keeps its row whole (2026-10-15): the row goes on
 			// with the remainder, or the grid moves when it is the first row. Not for the first row at the page start, nor
 			// once the parent has relaxed its avoids (RowSplitBox.avoidsBreakInside).

@@ -2,8 +2,14 @@ package jp.cssj.test.unit.displaylist;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import jp.cssj.cti2.helpers.CTIMessageHelper;
 import jp.cssj.cti2.helpers.CTISessionHelper;
@@ -11,7 +17,7 @@ import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
-import net.zamasoft.foliojet.layout.fragment.ContinuationStats;
+import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 
@@ -22,6 +28,14 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * Resuming a page break triggered another break, growing the cursor by 43.2 pt per step and nesting
  * 53,000 levels until {@code StackOverflowError}. Since the cursor differed each time,
  * the fingerprint counting identical page breaks did not catch it.
+ *
+ * <p>
+ * The page break was abandoned (placed with overflow, T168 at x=289.8 on 120 pt paper) until 2026-10-28. Then the
+ * continuation stopped being rebuilt at the same size: a forced split of the grid (width 0pt, whose items paint
+ * nothing past the cut line) takes the slack path and consumes the cut ({@code GridBox.split}, wild seed 45210105),
+ * so the document ends without the stall alarm, with every word on the paper. {@link AlternatingPageBreakLivelockTest}
+ * and {@link TallBlockPaginationTest} still exercise the alarm.
+ * </p>
  */
 public class NestedGrowingPageBreakTest extends TestCase {
 	private static final String HTML = """
@@ -75,24 +89,35 @@ public class NestedGrowingPageBreakTest extends TestCase {
 		super(name);
 	}
 
-	public void testNestedGrowingBreaksAreAbandoned() throws Exception {
-		final long alarms = ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get();
+	public void testNestedGrowingBreaksTerminate() throws Exception {
+		final File dir = Files.createTempDirectory("nested-growing-page-break").toFile();
 		final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(URI.create("copper:direct:"),
 				null);
-		try {
+		try (AutoCloseable dump = DisplayListDumper.scopedDir(dir.getPath())) {
 			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
 			session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
 			session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 			session.property("input.property-pi", "true");
+			session.property("output.page-limit", "20");
 			CTISessionHelper.transcodeStream(session, new ByteArrayInputStream(HTML.getBytes(StandardCharsets.UTF_8)),
 					URI.create("file:///nested-growing-page-break.html"), "text/html", null);
 		} finally {
 			session.close();
 		}
 		assertTrue("PDF が出ていない", out.size() > 0);
-		// Terminate by abandoning the page break (place with overflow).
-		assertTrue("the nested growing page break was not abandoned",
-				ContinuationStats.STALLED_AUTO_BREAK_ALARMS.get() > alarms);
+		// Every word once, on the 110pt type area (the abandoned break put T168 at x=289.8).
+		final Map<String, Integer> draws = new TreeMap<>();
+		final Pattern text = Pattern.compile("x=(-?[\\d.]+) y=-?[\\d.]+ Text\\[\"(T\\d+)\"");
+		int pages = 0;
+		for (File page; (page = new File(dir, String.format("page-%04d.txt", pages + 1))).exists(); ++pages) {
+			final Matcher m = text.matcher(Files.readString(page.toPath(), StandardCharsets.UTF_8));
+			while (m.find()) {
+				draws.merge(m.group(2), 1, Integer::sum);
+				assertTrue(m.group(0), Double.parseDouble(m.group(1)) < 110);
+			}
+		}
+		assertTrue("pages=" + pages, pages <= 4);
+		assertEquals("{T164=1, T165=1, T168=1}", draws.toString());
 	}
 }
