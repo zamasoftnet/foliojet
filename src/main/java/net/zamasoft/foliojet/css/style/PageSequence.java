@@ -355,6 +355,15 @@ final class PageSequence {
 		// nextPageSide() advances the side (recto/verso). Discarded pages do not consume
 		// a side, so remember the value before advancing (discardPage restores it).
 		this.previousPageSide = this.ua.getPassContext().getPageSide();
+		if (this.previousPageSide == null && this.ua.getPassContext().getPagesBefore() > 0) {
+			// The first page of a document that continues a book (an EPUB item laid out on its own, 2026-10-28): take the
+			// side of the pages before it, so it is not :first and the sides alternate across the items
+			CSSElement side = null;
+			for (int i = this.ua.getPassContext().getPagesBefore(); i > 0; --i) {
+				side = this.imposition.getNextPageSide(side);
+			}
+			this.ua.getPassContext().setPageSide(side);
+		}
 		this.pageElement = this.imposition.nextPageSide();
 		if (this.firstPageElement == null) this.firstPageElement = this.pageElement;
 		CSSStyle pageStyle = this.pageStyle(this.pageElement, this.pageName);

@@ -106,7 +106,22 @@ public class PassContext {
 	public void setPageSide(CSSElement pageSide) {
 		this.pageSide = pageSide;
 	}
-	
+
+	/**
+	 * The pages of the book before this document (2026-10-28): an EPUB spine item laid out as its own document (Paged
+	 * SVG) starts after the items before it, so its first page takes the side that page has in the book, and only the
+	 * book's first page is {@code :first}, as in PDF. 0 for a document of its own.
+	 */
+	private int pagesBefore = 0;
+
+	public int getPagesBefore() {
+		return this.pagesBefore;
+	}
+
+	public void setPagesBefore(final int pagesBefore) {
+		this.pagesBefore = pagesBefore;
+	}
+
 	public void resetNonPageCounters() {
 		if (this.counterContext == null) {
 			return;

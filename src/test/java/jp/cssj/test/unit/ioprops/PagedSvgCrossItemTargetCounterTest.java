@@ -88,6 +88,26 @@ public class PagedSvgCrossItemTargetCounterTest extends TestCase {
 		assertEquals("CCC|BACKA|DOCB|SELF|F1/0|", r.texts("items/0003/pages/0001.svg"));
 	}
 
+	/**
+	 * The sides and :first of the book in two passes (2026-10-28, tech: cti.li's reader numbered and sided each
+	 * chapter from its first page): a 3, b 5 and c 3 pages, as one PDF gives them. Before, each item began on a
+	 * right :first page.
+	 */
+	public void testPageSidesOfTheBookInTwoPasses() throws Exception {
+		final String book = "1.1 A1|FIRST|RIGHT|p1|,1.2 A2|LEFT|p2|,1.3 A3|RIGHT|p3|,2.1 B1|LEFT|p4|,2.2 B2|RIGHT|p5|,"
+				+ "2.3 B3|LEFT|p6|,2.4 B4|RIGHT|p7|,2.5 B5|LEFT|p8|,3.1 C1|RIGHT|p9|,3.2 C2|LEFT|p10|,3.3 C3|RIGHT|p11|";
+		for (final String passes : new String[] { "2", "3" }) {
+			final Run r = run(sideBook(), Map.of("processing.pass-count", passes));
+			final List<String> pages = new ArrayList<>();
+			for (final String uri : r.order) {
+				if (uri.matches("items/\\d+/pages/\\d+\\.svg")) {
+					pages.add(uri.replaceAll("items/0*(\\d+)/pages/0*(\\d+)\\.svg", "$1.$2") + " " + r.texts(uri));
+				}
+			}
+			assertEquals("passes " + passes, book, String.join(",", pages));
+		}
+	}
+
 	/** The items wait for each other between passes; the output stays the same at any parallelism. */
 	public void testConcurrencyDoesNotChangeTheOutput() throws Exception {
 		final Run sequential = run(tocBook(), Map.of("processing.pass-count", "2", "processing.concurrency", "1"));
@@ -155,6 +175,16 @@ public class PagedSvgCrossItemTargetCounterTest extends TestCase {
 				Map.of("processing.pass-count", "2"));
 		assertEquals("A|2|", page.texts("items/0001/pages/0001.svg"));
 		assertFalse("no warning: " + page.codes, page.codes.contains(MessageCodes.WARN_UNCONVERGED_PAGE_REFERENCES));
+	}
+
+	/** Page sides and :first of the whole book (tech 2026-10-28, cti.li's reader): a 3, b 5, c 3 pages. */
+	private static byte[] sideBook() throws Exception {
+		final String css = "@page { size: 120pt 90pt; margin: 15pt; @bottom-center { content: \"p\" counter(page); } }"
+				+ " @page :left { @top-left { content: \"LEFT\"; } } @page :right { @top-right { content: \"RIGHT\"; } }"
+				+ " @page :first { @top-center { content: \"FIRST\"; } } body { margin: 0; font-size: 8pt }"
+				+ " p { margin: 0; break-after: page } p:last-child { break-after: auto }";
+		return epub(css, "<p>A1</p><p>A2</p><p>A3</p>", "<p>B1</p><p>B2</p><p>B3</p><p>B4</p><p>B5</p>",
+				"<p>C1</p><p>C2</p><p>C3</p>");
 	}
 
 	private static byte[] epub(final String css, final String a, final String b, final String c) throws Exception {

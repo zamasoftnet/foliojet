@@ -19,7 +19,9 @@ import net.zamasoft.foliojet.ua.UserAgent;
  * numbers its targets recorded move by the same amount, and the targets an item looked up and did not find are
  * looked up in the other items. The next pass reads them as it reads a forward reference, so {@code counter(page)},
  * {@code counter(pages)} and a {@code target-counter()} into another item give the numbers of the book, as in PDF.
- * A single pass keeps the item's own numbering: nothing is known about the other items until they are laid out.
+ * Each item's pages also take their sides in the book: only the book's first page is {@code :first}, and the sides
+ * alternate across the items (2026-10-28). A single pass keeps the item's own numbering: nothing is known about the
+ * other items until they are laid out.
  * </p>
  *
  * <p>
@@ -118,6 +120,8 @@ final class BookPageNumbers {
 		final CounterScope scope = this.items.get(k).getPassContext().getCounterScope(0, true);
 		scope.reset("page", this.offsets[k]);
 		scope.reset("pages", this.pages);
+		// Its pages take their sides in the book: only the book's first page is :first (2026-10-28, cti.li's reader)
+		this.items.get(k).getPassContext().setPagesBefore(this.offsets[k]);
 	}
 
 	/**
