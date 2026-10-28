@@ -1888,7 +1888,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// three items of min-width: 8em and a form of three textareas at Chrome's size, about 680 pt in all; Copper lets
 			// them run to x = 677 pt on the right (829046c0 alike), Chrome to x = -328 pt on the left and its print drops them.
 			new IndividualExclusion(44_394_782, "fit-v1", 1_056_078_890, "作者の溢れ: 縮まないflexのitemが入れ物の約7倍(Chromeも紙の左の外)",
-					"2026-10-27"));
+					"2026-10-27"),
+			// Triage §131, the author's overflow: on vertical-rl A4 a vertical-lr div holds a position:relative div of
+			// width: 45pt with a three-column multicol around a vertical-rl display:table of width: 106pt, which runs out of
+			// the 45pt box with the reversed block progression; Copper draws T0 at x = 618.6 pt (829046c0 alike), Chrome at
+			// x = 603.25 pt, and Chrome's print drops it.
+			new IndividualExclusion(45_017_349, "fit-v1", 1_500_868_206, "作者の溢れ: 逆進行の入れ物より広い表が紙の右の外(Chromeも)",
+					"2026-10-28"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
