@@ -497,7 +497,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	private TableCollapsedBorders createBorders(int columnCount, int headerRowCount, int bodyRowCount,
 			int footerRowCount, List<List<TableRowBox>> rowLists, List<List<CellContent>> cellLists) {
 		final TableParams params = this.tableBox.getTableParams();
-		final BorderAxes ax = this.vertical ? BorderAxes.VERTICAL : BorderAxes.HORIZONTAL;
+		final BorderAxes ax = BorderAxes.of(this.tableBox.getTableParams().flow);
 		final List<Border[]> headerH = new ArrayList<>(), headerV = new ArrayList<>();
 		final List<Border[]> bodyH = new ArrayList<>(), bodyV = new ArrayList<>();
 		final List<Border[]> footerH = new ArrayList<>(), footerV = new ArrayList<>();
@@ -696,7 +696,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 					final AbsoluteInsets cellSpacing = tableParams.borderCollapse == TableParams.BORDER_SEPARATE
 							? CollapsedBorderRules.separateSpacing(tableParams)
 							: CollapsedBorderRules.gridSpacing(this.borders, row, col, cellPos.rowspan,
-									cellPos.colspan, rowCount, columnCount, this.vertical);
+									cellPos.colspan, rowCount, columnCount, tableParams.flow);
 					cellBox.prepareLayout(this.layoutStack.getFlowBox().getLineSize(), this.tableBox, cellSpacing);
 
 					final double cellFrame;
@@ -1387,17 +1387,26 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 						}
 					}
 
-					// Align baselines
+					// Align baselines: a baseline-aligned cell is moved down to the row's baseline when its heights are
+					// applied (CellContent.applyCellExtents), so it asks for that much more (2026-10-28)
+					final double rowAscent = CellContent.maxFirstAscent(cells);
 					for (int k = 0; k < cells.size(); ++k) {
 						final CellContent cell = cells.get(k);
 						if (cell.isExtended()) {
 							continue;
 						}
 						final TableCellBox cellBox = cell.getCellBox();
+						final double shift = CellContent.baselineShift(cellBox, rowAscent, this.vertical);
 						int cellRowspan = Math.min(rows.size() - j, cell.rowspan);
+						if (cellRowspan > 1 && shift > 0) {
+							RowLayoutEngine.addSpannedDemand(rowspans, rowspanList, j, cellRowspan,
+									RowLayoutEngine.demandPageSize(this.pageAxisSize(cellBox) + shift,
+											cellBox.getBlockParams(), cellBox, this.vertical));
+						}
 						if (cellRowspan <= 1) {
 							final BlockParams cellParams = cellBox.getBlockParams();
-							double cellSize = this.pageAxisSize(cellBox);
+							// The moved content, against a length for the cell's size
+							double cellSize = this.pageAxisSize(cellBox) + shift;
 							if (this.vertical) {
 								if (cellParams.size.getWidthType() == LengthType.ABSOLUTE) {
 									double width = cellParams.size.getWidth();

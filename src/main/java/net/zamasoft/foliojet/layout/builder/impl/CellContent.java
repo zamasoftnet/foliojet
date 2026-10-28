@@ -137,6 +137,23 @@ class CellContent {
 	}
 
 	/**
+	 * How far {@link TableCellBox#baseline} will move the content of a baseline-aligned cell down to the row's
+	 * baseline (2026-10-28): the row must be that much longer, or the cell's last lines were drawn over the next row
+	 * (a cell of three lines beside a cell with 20pt of padding above its line overlapped the row after it by 16.5pt;
+	 * the sweep's mirror check, 13 of 25 out-of-cell observations).
+	 */
+	static double baselineShift(final TableCellBox cellBox, final double rowAscent, final boolean vertical) {
+		if (cellBox.getTableCellPos().verticalAlign != net.zamasoft.foliojet.layout.box.params.CellAlign.BASELINE
+				|| cellBox.getBlockParams().flow.isVertical() != vertical) {
+			// An orthogonal cell moves along the other axis (codex review)
+			return 0;
+		}
+		final double firstAscent = cellBox.getFirstAscent();
+		return net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(firstAscent) ? 0
+				: Math.max(0, rowAscent - firstAscent);
+	}
+
+	/**
 	 * Applies row heights to cells (P2-5 (c) shared core; unifies three identical operations).
 	 * For each cell that is not a continuation, set its page-axis size to the sum of the row
 	 * heights in its span, then apply vertical alignment.

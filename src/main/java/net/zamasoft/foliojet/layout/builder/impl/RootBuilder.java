@@ -147,6 +147,13 @@ public class RootBuilder extends BreakableBuilder {
 		this.nestedGrowthRun = 0;
 	}
 
+	/** Puts back the page-axis sizes of the open boxes that a page break grew to the cut line and did not use. */
+	private void restoreOpenPageAxes(final double[][] marks) {
+		for (int i = 0; i < marks.length && i < this.flowStack.size(); ++i) {
+			((Flow) this.flowStack.get(i)).box.restorePageAxis(marks[i]);
+		}
+	}
+
 	/**
 	 * Checks whether a full automatic page-break cycle leaves the state completely unchanged.
 	 *
@@ -1075,9 +1082,13 @@ public class RootBuilder extends BreakableBuilder {
 			return false;
 		}
 
-		// Calculate the box height.
+		// Calculate the box height. Where no break is made, the boxes are put back (2026-10-28): the growth stayed, and a
+		// box in vertical writing, whose page-axis size only grows, kept the extent of columns balanced afterwards
+		// (mirror seed 45250557: a body 170pt wide around columns of 65.5pt). Horizontal writing set it again at the end.
+		final double[][] marks = new double[this.flowStack.size()][];
 		for (int i = 0; i < this.flowStack.size(); ++i) {
 			final Flow flow = (Flow) this.flowStack.get(i);
+			marks[i] = flow.box.pageAxisMark();
 			flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
 		}
 
@@ -1195,6 +1206,7 @@ public class RootBuilder extends BreakableBuilder {
 						&& (fc.hasFlows() || fc.hasFloatings());
 				if (!hasContent) {
 					// KEEP/MOVE: no page-break point.
+					this.restoreOpenPageAxes(marks);
 					return false;
 				}
 				nextRootContainer = chainStopContainer;
@@ -1210,6 +1222,7 @@ public class RootBuilder extends BreakableBuilder {
 			}
 			if (nextRootContainer == null || nextRootContainer == prevRootBox.getContainer()) {
 				// KEEP/MOVE: no page-break point.
+				this.restoreOpenPageAxes(marks);
 				return false;
 			}
 			final boolean vertical = prevRootBox.getBlockParams().flow.isVertical();

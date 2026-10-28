@@ -80,9 +80,10 @@ final class MirrorDocumentGenerator {
 	 * @param width     content width of the horizontal variant's page (pt), its height in the vertical variant
 	 * @param height    content height of the horizontal variant's page (pt)
 	 * @param confined  the tokens of each cell of an auto table, to be drawn inside the cell's frame
+	 * @param split     the cells of {@code confined} of a table in columns, which may continue in the next column
 	 */
 	record Document(int seed, Family family, String horizontal, String vertical, double width, double height,
-			List<String> tokens, List<Set<String>> confined) {
+			List<String> tokens, List<Set<String>> confined, Set<Integer> split) {
 	}
 
 	private static final String[] SIDES = { "block-start", "block-end", "inline-start", "inline-end" };
@@ -122,6 +123,9 @@ final class MirrorDocumentGenerator {
 		final Family family;
 		final List<String> tokens = new ArrayList<>();
 		final List<Set<String>> confined = new ArrayList<>();
+		final Set<Integer> split = new java.util.HashSet<>();
+		/** How many multi-column boxes the generation is in (2026-10-28). */
+		int columns;
 		int elements;
 
 		Gen(final Random r, final Family family) {
@@ -211,7 +215,9 @@ final class MirrorDocumentGenerator {
 				final Node div = new Node("div", "").css("column-count", String.valueOf(2 + this.r.nextInt(2)))
 						.css("column-gap", this.pt(0, 12));
 				this.box(div, 20);
+				++this.columns;
 				this.blocks(div, depth + 1);
+				--this.columns;
 				parent.add(div);
 			}
 			case 9 -> parent.add(this.flex(depth));
@@ -461,6 +467,9 @@ final class MirrorDocumentGenerator {
 						this.words(cell, 1 + this.r.nextInt(5), true);
 					}
 					if (confine && first < this.tokens.size()) {
+						if (this.columns > 0) {
+							this.split.add(this.confined.size());
+						}
 						this.confined.add(Set.copyOf(this.tokens.subList(first, this.tokens.size())));
 					}
 					tr.add(cell);
@@ -496,7 +505,7 @@ final class MirrorDocumentGenerator {
 					new int[] { margin[3], margin[2], margin[1], margin[0] }, font, line, 2);
 		}
 		return new Document(seed, family, horizontal, vertical, width, height, List.copyOf(g.tokens),
-				List.copyOf(g.confined));
+				List.copyOf(g.confined), Set.copyOf(g.split));
 	}
 
 	/**

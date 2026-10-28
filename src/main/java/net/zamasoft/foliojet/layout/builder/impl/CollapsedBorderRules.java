@@ -9,6 +9,7 @@ import net.zamasoft.foliojet.layout.box.params.Border;
 import net.zamasoft.foliojet.layout.box.params.InnerTableParams;
 import net.zamasoft.foliojet.layout.box.params.TableCellPos;
 import net.zamasoft.foliojet.layout.box.params.TableParams;
+import net.zamasoft.foliojet.layout.box.params.WritingMode;
 import net.zamasoft.foliojet.layout.part.AbsoluteInsets;
 import net.zamasoft.foliojet.layout.part.TableCollapsedBorders;
 
@@ -78,7 +79,7 @@ final class CollapsedBorderRules {
 	 * Use the maximum border half-width over the span for each edge.
 	 */
 	static AbsoluteInsets gridSpacing(final TableCollapsedBorders borders, final int row, final int col,
-			final int rowspan, final int colspan, final int rowCount, final int columnCount, final boolean vertical) {
+			final int rowspan, final int colspan, final int rowCount, final int columnCount, final WritingMode flow) {
 		double pageFirst = 0, lineEnd = 0, pageLast = 0, lineStart = 0;
 		final int bottomIndex = row + rowspan;
 		for (int k = 0; k < colspan; ++k) {
@@ -102,7 +103,7 @@ final class CollapsedBorderRules {
 				lineEnd = Math.max(lineEnd, halfWidth(borders.getVBorder(kk, rightIndex)));
 			}
 		}
-		return spacing(pageFirst, lineEnd, pageLast, lineStart, vertical);
+		return spacing(pageFirst, lineEnd, pageLast, lineStart, flow);
 	}
 
 	/**
@@ -129,7 +130,7 @@ final class CollapsedBorderRules {
 	 */
 	static AbsoluteInsets streamSpacing(final List<Border[]> hborders, final List<Border[]> vborders,
 			final int borderRow, final int col, final int rowspan, final int colspan, final int columnCount,
-			final boolean vertical) {
+			final WritingMode flow) {
 		double pageFirst = 0, lineEnd = 0, pageLast = 0, lineStart = 0;
 		final Border[] prevBorder = hborders.get(borderRow - 1);
 		final Border[] nextBorder = hborders.get(Math.min(hborders.size() - 1, borderRow + rowspan - 1));
@@ -167,15 +168,21 @@ final class CollapsedBorderRules {
 				lineEnd = Math.max(lineEnd, rowLine[rightIndex].width / 2.0);
 			}
 		}
-		return spacing(pageFirst, lineEnd, pageLast, lineStart, vertical);
+		return spacing(pageFirst, lineEnd, pageLast, lineStart, flow);
 	}
 
+	/**
+	 * The physical insets of the logical ones. The page axis runs to the left in vertical-rl and to the right in
+	 * vertical-lr (2026-10-28: vertical-lr took the vertical-rl sides, so a cell put the half of the border before it
+	 * after it and its content began that much early; mirror seed 45250368).
+	 */
 	private static AbsoluteInsets spacing(final double pageFirst, final double lineEnd, final double pageLast,
-			final double lineStart, final boolean vertical) {
-		if (vertical) {
-			return new AbsoluteInsets(lineStart, pageFirst, lineEnd, pageLast);
-		}
-		return new AbsoluteInsets(pageFirst, lineEnd, pageLast, lineStart);
+			final double lineStart, final WritingMode flow) {
+		return switch (flow) {
+		case RL -> new AbsoluteInsets(lineStart, pageFirst, lineEnd, pageLast);
+		case LR -> new AbsoluteInsets(lineStart, pageLast, lineEnd, pageFirst);
+		case TB -> new AbsoluteInsets(pageFirst, lineEnd, pageLast, lineStart);
+		};
 	}
 
 	/**

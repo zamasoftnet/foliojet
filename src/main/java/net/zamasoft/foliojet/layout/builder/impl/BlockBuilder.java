@@ -1164,7 +1164,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		}
 		this.pageAxis += frameEnd;
 
-		parentFlow.box.setPageAxis(this.pageAxis - parentFlow.pageAxis);
+		parentFlow.box.setPageAxisAtChildEnd(this.pageAxis - parentFlow.pageAxis);
 		// **Undo exactly the amount pushed.** Do not reread it from frame:
 		// margin:auto is resolved inside the flow, so the values can differ, such as
 		// subtracting 106.75 after pushing 0 (see the description of Flow.frameHead).
@@ -1726,15 +1726,22 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// Extend ancestor box widths for floating boxes.
 		Flow contextFlow = this.getSubContextFlow();
 		double pageAxis = pageStart + pageWidth;
+		// A float in columns has its place only after they are balanced: its end is not a floor for the boxes outside
+		// (setPageAxisAtChildEnd; mirror seed 45251085)
+		boolean inColumns = false;
 		int i;
 		if (this.flowStack != null) {
 			i = this.flowStack.size() - 1;
 			for (; i >= 0; --i) {
 				contextFlow = (Flow) this.flowStack.get(i);
 				final BlockParams params = contextFlow.box.getBlockParams();
+				inColumns |= contextFlow.box.getColumnCount() > 1 || params.columns.count >= 2;
 				if (this.independentFloatScopeOwners != null
 						&& this.independentFloatScopeOwners.contains(contextFlow.box)) {
 					contextFlow.box.setPageAxis(pageAxis - contextFlow.pageAxis);
+					if (!inColumns) {
+						contextFlow.box.noteFloatPageEnd(pageAxis - contextFlow.pageAxis);
+					}
 					// Propagate only the specified dimensions of overflow:hidden or the finalized inner
 					// extent of a BFC created by a writing-mode change to ancestors.
 					pageAxis = contextFlow.box.getInnerPageExtent(params.flow) + contextFlow.pageAxis;
@@ -1746,6 +1753,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (i == -1) {
 			AbstractContainerBox rootBox = this.getRootBox();
 			rootBox.setPageAxis(pageAxis);
+			if (!inColumns) {
+				rootBox.noteFloatPageEnd(pageAxis);
+			}
 		}
 	}
 
@@ -2199,6 +2209,18 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// Column balancing
 			this.pageAxis = this.contextFlow.pageAxis;
 			flowBox.balance(this);
+		}
+		// A box laid out at the root of its own builder that establishes an independent formatting context (an
+		// orthogonal flow, or an intrinsic line size with overflow or flow-root) holds its floats in its auto size
+		// (CSS 2.1 §10.6.7; 2026-10-28, mirror seeds 45250977 and 45250912). In horizontal writing the end of its last
+		// line set it back to the line: a horizontal-tb box in vertical-lr writing was 59.68pt with its float reaching
+		// 81.36pt, while the vertical-lr box in horizontal writing, whose page-axis size only grows, held it, and a
+		// width: max-content box of overflow: hidden clipped its float to the line.
+		if (flowBox instanceof FlowBlockBox root && root.isOwnContextRoot()) {
+			final double contained = this.floatContainingPageExtent(true);
+			if (contained > flowBox.getInnerPageExtent(params.flow)) {
+				flowBox.setPageAxis(contained);
+			}
 		}
 	}
 

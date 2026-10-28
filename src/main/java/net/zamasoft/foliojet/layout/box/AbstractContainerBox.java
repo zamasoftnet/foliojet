@@ -176,6 +176,39 @@ public abstract class AbstractContainerBox extends AbstractBox
 	 * @param newSize
 	 */
 
+	/**
+	 * The page-axis size, to put back after a growth that turned out unneeded ({@link #restorePageAxis}, 2026-10-28):
+	 * {@code RootBuilder.pageBreak} grows the open boxes to the cut line before it knows whether it breaks there.
+	 */
+	public double[] pageAxisMark() {
+		return new double[] { this.getBlockParams().flow.isVertical() ? this.width : this.height };
+	}
+
+	/** Puts back the page-axis size of {@link #pageAxisMark}. */
+	public void restorePageAxis(final double[] mark) {
+		if (this.getBlockParams().flow.isVertical()) {
+			this.width = mark[0];
+		} else {
+			this.height = mark[0];
+		}
+	}
+
+	/**
+	 * Sets the page-axis size to the cursor after a child box ends ({@code BlockBuilder.endFlowBlockContent}).
+	 * {@link #setPageAxis} unless a box overrides it.
+	 */
+	public void setPageAxisAtChildEnd(final double newSize) {
+		this.setPageAxis(newSize);
+	}
+
+	/**
+	 * Notes the page-axis end of a float that grew this box ({@code BlockBuilder.extendParents}), below which
+	 * {@link #setPageAxisAtChildEnd} does not shrink it. Nothing unless a box overrides it.
+	 */
+	public void noteFloatPageEnd(final double pageEnd) {
+		// Nothing
+	}
+
 	public void setPageAxis(final double newSize) {
 		final BlockParams params = this.getBlockParams();
 		if (params.flow.isVertical()) {

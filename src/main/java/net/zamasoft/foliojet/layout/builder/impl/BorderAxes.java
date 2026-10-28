@@ -16,6 +16,17 @@ record BorderAxes(Function<RectBorder, Border> hStart, Function<RectBorder, Bord
 		Function<RectBorder, Border> vStart, Function<RectBorder, Border> vEnd) {
 	static final BorderAxes VERTICAL = new BorderAxes(RectBorder::getRight, RectBorder::getLeft, RectBorder::getTop,
 			RectBorder::getBottom);
+	/** vertical-lr, whose rows progress to the right (2026-10-28; it took the vertical-rl sides before). */
+	static final BorderAxes VERTICAL_LR = new BorderAxes(RectBorder::getLeft, RectBorder::getRight, RectBorder::getTop,
+			RectBorder::getBottom);
+
+	static BorderAxes of(final net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
+		return switch (flow) {
+		case RL -> VERTICAL;
+		case LR -> VERTICAL_LR;
+		case TB -> HORIZONTAL;
+		};
+	}
 	static final BorderAxes HORIZONTAL = new BorderAxes(RectBorder::getTop, RectBorder::getBottom, RectBorder::getLeft,
 			RectBorder::getRight);
 }

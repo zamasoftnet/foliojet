@@ -409,6 +409,65 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		this.specifiedPageAxis = true;
 	}
 
+	@Override
+	public final double[] pageAxisMark() {
+		return new double[] { this.params.flow.isVertical() ? this.width : this.height, this.contentSize };
+	}
+
+	@Override
+	public final void restorePageAxis(final double[] mark) {
+		super.restorePageAxis(mark);
+		this.contentSize = mark[1];
+	}
+
+	/**
+	 * In vertical writing, shrinks to the cursor after a child as horizontal writing does (2026-10-28). The vertical
+	 * branch of {@link #setPageAxis} only grows, so a box kept an extent its contents no longer had: a child that came
+	 * out smaller laid out again (balanced columns, a flex or a table relaid at its final size) left the box, and all
+	 * that followed it, at the earlier size (mirror seeds 45251085, 45250977, 45250796, 45250912). Not for a box that
+	 * holds floats itself, whose extent in vertical writing counts them (legacy 0190-tbrl/070-FLOAT), nor where
+	 * {@link #setPageAxis} keeps the size (a specified size, columns).
+	 */
+	@Override
+	public final void setPageAxisAtChildEnd(final double newSize) {
+		// Not below the floats that grew it (codex review: a float in a child of a box laid out at the root of its own
+		// builder grows only the root)
+		final double size = Math.max(newSize, this.floatPageEnd);
+		if (!this.params.flow.isVertical() || !(size < this.width) || this.isSpecifiedPageSize()
+				|| this.getColumnCount() > 1
+				|| this.container instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer flows
+						&& flows.hasFloatings()) {
+			this.setPageAxis(newSize);
+			return;
+		}
+		this.contentSize = Math.max(this.contentSize, size);
+		this.width = Math.min(this.maxPageAxis, Math.max(this.minPageAxis, size));
+	}
+
+	/** The page-axis end of the floats that grew this box ({@link #noteFloatPageEnd}). */
+	private double floatPageEnd = 0;
+
+	@Override
+	public final void noteFloatPageEnd(final double pageEnd) {
+		this.floatPageEnd = Math.max(this.floatPageEnd, pageEnd);
+	}
+
+	/**
+	 * Whether this box, laid out at the root of its own builder, establishes an independent formatting context
+	 * (2026-10-28): it is in an orthogonal flow, or a box of an intrinsic line size ({@code width: max-content}) with
+	 * overflow other than visible or {@code display: flow-root}. Set by {@code DocumentBuilder} where it opens the
+	 * builder; such a box holds its floats ({@code BlockBuilder.finishContent}).
+	 */
+	private boolean ownContextRoot = false;
+
+	public final void markOwnContextRoot() {
+		this.ownContextRoot = true;
+	}
+
+	public final boolean isOwnContextRoot() {
+		return this.ownContextRoot;
+	}
+
 	public final void setPageAxis(final double newSize) {
 		this.contentSize = Math.max(this.contentSize, newSize);
 

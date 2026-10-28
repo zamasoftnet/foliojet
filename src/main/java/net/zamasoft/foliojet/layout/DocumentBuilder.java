@@ -1101,6 +1101,15 @@ public class DocumentBuilder implements TableBuilderHost {
 				this.startItemCoordinator(builder, blockBox);
 			} else {
 				// When page progression directions differ.
+				final net.zamasoft.foliojet.layout.box.params.WritingMode outer = builder.getRootBox().getBlockParams().flow;
+				if (!(blockBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox)
+						&& !(blockBox instanceof net.zamasoft.foliojet.layout.box.impl.GridItemBox)
+						&& (params.flow != outer
+								|| params.overflow != net.zamasoft.foliojet.layout.box.params.OverflowMode.VISIBLE
+								|| params.flowRoot)) {
+					// It establishes an independent formatting context at the root of its own builder (2026-10-28)
+					blockBox.markOwnContextRoot();
+				}
 				final Builder newBuilder = builder.newBuilder(blockBox);
 				this.startContainerBuilder(newBuilder);
 				// Grid/Flex itself becomes the TwoPass root even for orthogonal flows or intrinsic size keywords.

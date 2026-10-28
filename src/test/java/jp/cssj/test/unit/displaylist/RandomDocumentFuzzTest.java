@@ -2848,7 +2848,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 				observe("(観測)縦横の食い違い", difference + " (" + files.get(0) + " と " + files.get(1) + ")");
 			}
 			for (int i = 0; i < 2; ++i) {
-				final String outside = MirrorComparison.confinement(dumps.get(i), doc.confined());
+				final String outside = MirrorComparison.confinement(dumps.get(i), doc.confined(), doc.split());
 				if (outside != null) {
 					observe("(観測)セルの外の字", outside + " (" + files.get(i) + ")");
 				}

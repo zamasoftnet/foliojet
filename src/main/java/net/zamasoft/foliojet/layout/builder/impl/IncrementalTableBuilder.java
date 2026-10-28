@@ -423,7 +423,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 			default:
 				throw new IllegalStateException();
 			}
-			final BorderAxes ax = this.vertical ? BorderAxes.VERTICAL : BorderAxes.HORIZONTAL;
+			final BorderAxes ax = BorderAxes.of(this.tableBox.getTableParams().flow);
 			for (int row = 0; row < this.cellsUnit.size(); ++row) {
 				List<CellContent> cells = this.cellsUnit.get(row);
 				Border[] lineBorder = new Border[this.columnSizes.length + 1];
@@ -487,7 +487,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 					}
 					final int borderRow = hborders.size() - this.cellsUnit.size() + row;
 					cellSpacing = CollapsedBorderRules.streamSpacing(hborders, vborders, borderRow, i, cell.rowspan,
-							cell.colspan, this.columnSizes.length, this.vertical);
+							cell.colspan, this.columnSizes.length, this.tableBox.getTableParams().flow);
 				}
 				cellBox.prepareLayout(this.builder.getFlowBox().getLineSize(), this.tableBox, cellSpacing);
 
@@ -519,13 +519,13 @@ public class IncrementalTableBuilder implements TableBuilder {
 				final BlockParams cellParams = cellBox.getBlockParams();
 				double cellSize;
 				if (this.vertical) {
-					cellSize = cellBox.getWidth();
+					cellSize = cellBox.getWidth() + CellContent.baselineShift(cellBox, rowAscent, this.vertical);
 					if (cellParams.size.getWidthType() == LengthType.ABSOLUTE) {
 						double width = cellParams.size.getWidth();
 						cellSize = Math.max(cellSize, width);
 					}
 				} else {
-					cellSize = cellBox.getHeight();
+					cellSize = cellBox.getHeight() + CellContent.baselineShift(cellBox, rowAscent, this.vertical);
 					if (cellParams.size.getHeightType() == LengthType.ABSOLUTE) {
 						double height = cellParams.size.getHeight();
 						cellSize = Math.max(cellSize, height);

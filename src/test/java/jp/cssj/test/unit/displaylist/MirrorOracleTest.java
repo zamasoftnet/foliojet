@@ -128,7 +128,7 @@ public class MirrorOracleTest extends TestCase {
 		final String outside = MirrorComparison.confinement(dumps(document(writingMode, 300, 300,
 				body.replace("<td", "<td style=\"border: 1pt solid\"").replace("<th", "<th style=\"border: 1pt solid\"")
 						.replace("\" style=\"", "; "))),
-				groups);
+				groups, Set.of());
 		assertNull(body + ": " + outside, outside);
 	}
 

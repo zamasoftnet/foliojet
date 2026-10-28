@@ -331,8 +331,8 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 
 		case TableParams.BORDER_COLLAPSE: {
 			// Collapsed borders
-			Drawable drawable = new CollapsedBordersDrawable(pageBox, clip, this.params.opacity, transform,
-					this.borders, this.params.flow.isVertical()).withBlendMode(this.params.blendMode).withFilter(this.params.filter);
+			Drawable drawable = CollapsedBordersDrawable.of(pageBox, clip, this.params.opacity, transform,
+					this.borders, this.params.flow).withBlendMode(this.params.blendMode).withFilter(this.params.filter);
 			drawer.visitDrawable(drawable, xx, yy);
 		}
 			break;
@@ -537,6 +537,14 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 			this.vertical = vertical;
 		}
 
+		/** The drawable for the borders of a table in {@code flow}. */
+		static CollapsedBordersDrawable of(PageBox pageBox, Shape clip, float opacity, AffineTransform transform,
+				TableCollapsedBorders borders, net.zamasoft.foliojet.layout.box.params.WritingMode flow) {
+			return flow == net.zamasoft.foliojet.layout.box.params.WritingMode.LR
+					? new LeftToRightCollapsedBordersDrawable(pageBox, clip, opacity, transform, borders)
+					: new CollapsedBordersDrawable(pageBox, clip, opacity, transform, borders, flow.isVertical());
+		}
+
 		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
 			BorderRenderer.INSTANCE.drawTableCollapseBorders(gc, this.borders, x, y, this.vertical);
 
@@ -568,6 +576,29 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 				}
 			}
 			return sb.append(']').toString();
+		}
+	}
+
+	/**
+	 * Collapsed borders of a table in vertical-lr (2026-10-28, mirror seed 45250016). The drawing lays the rows out
+	 * from the right as vertical-rl does: mirrored across the table, the first row is on the left.
+	 */
+	protected static final class LeftToRightCollapsedBordersDrawable extends CollapsedBordersDrawable {
+		LeftToRightCollapsedBordersDrawable(PageBox pageBox, Shape clip, float opacity, AffineTransform transform,
+				TableCollapsedBorders borders) {
+			super(pageBox, clip, opacity, transform, borders, true);
+		}
+
+		@Override
+		public void innerDraw(GC gc, double x, double y) throws GraphicsException {
+			double extent = 0;
+			for (int row = 0; row < this.borders.getRowCount(); ++row) {
+				extent += this.borders.getRowSize(row);
+			}
+			try (final var state = gc.begin()) {
+				gc.transform(new AffineTransform(-1, 0, 0, 1, 2 * x + extent, 0));
+				BorderRenderer.INSTANCE.drawTableCollapseBorders(gc, this.borders, x, y, true);
+			}
 		}
 	}
 

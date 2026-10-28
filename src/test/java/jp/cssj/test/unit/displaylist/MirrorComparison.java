@@ -129,8 +129,9 @@ final class MirrorComparison {
 	 * the author sized, does not count.
 	 *
 	 * @param cells the tokens of each cell
+	 * @param split the cells of a table in columns, which may go on in another frame of the page
 	 */
-	static String confinement(final List<String> pages, final List<Set<String>> cells) {
+	static String confinement(final List<String> pages, final List<Set<String>> cells, final Set<Integer> split) {
 		for (int p = 0; p < pages.size(); ++p) {
 			final List<Item> items = parse(pages.get(p));
 			final List<double[]> frames = new ArrayList<>();
@@ -160,10 +161,21 @@ final class MirrorComparison {
 				final String where = "page-" + (p + 1) + " の " + text + " " + format(item.box);
 				final double[] own = frameOf.get(cell);
 				if (own != null) {
-					if (!inside(item.box, own)) {
-						return where + " が同じセルの枠 " + format(own) + " の外";
+					if (inside(item.box, own)) {
+						continue;
 					}
-					continue;
+					// A cell split between columns has a frame in each column of the page, of the same inline size and
+					// apart from each other (2026-10-28: 27 of 40 sampled observations were tokens in the cell's frame
+					// in the next column). A frame around the first one (a row or a table) does not count.
+					final double[] next = smallest(item.box, frames);
+					final Integer nextOwner = next == null ? null : owner.get(next);
+					if (split.contains(cell) && next != null && (nextOwner == null || nextOwner == cell)
+							&& !overlap(next, own)
+							&& (Math.abs(next[2] - own[2]) <= TOLERANCE || Math.abs(next[3] - own[3]) <= TOLERANCE)) {
+						owner.put(next, cell);
+						continue;
+					}
+					return where + " が同じセルの枠 " + format(own) + " の外";
 				}
 				final double[] frame = smallest(item.box, frames);
 				if (frame == null) {
@@ -177,6 +189,11 @@ final class MirrorComparison {
 			}
 		}
 		return null;
+	}
+
+	private static boolean overlap(final double[] a, final double[] b) {
+		return a[0] < b[0] + b[2] - TOLERANCE && b[0] < a[0] + a[2] - TOLERANCE && a[1] < b[1] + b[3] - TOLERANCE
+				&& b[1] < a[1] + a[3] - TOLERANCE;
 	}
 
 	private static boolean inside(final double[] b, final double[] f) {

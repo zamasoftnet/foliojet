@@ -437,6 +437,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 				Map.entry(BOX + "AbstractTextBox$TextDecorationDrawable", "params decoration ascent descent width height"),
 				Map.entry(BOX + "impl.TableBox$BorderDrawable", "border width height"),
 				Map.entry(BOX + "impl.TableBox$CollapsedBordersDrawable", "borders vertical"),
+				Map.entry(BOX + "impl.TableBox$LeftToRightCollapsedBordersDrawable", ""),
 				Map.entry(BOX + "impl.TableCellBox$TableCellBoxDrawable", "collapse spacing"),
 				Map.entry(BOX + "content.ColumnsContainer$ColumnRuleDrawable", "x y this$0"),
 				Map.entry(BOX + "impl.RubyUnitBox$RubyUnitDrawable", "box"),
