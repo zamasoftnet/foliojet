@@ -111,6 +111,32 @@ public class MirrorOracleTest extends TestCase {
 				+ "</tr></table>", "T1", "T2 T3");
 	}
 
+	/**
+	 * A table wider than its column runs into the next one, where the next cell's frame lies over the frame before it
+	 * (2026-10-28, 45250415): the token is in its own frame. A token run into the next cell is still out of its cell
+	 * when a container's frame is around both.
+	 */
+	public void testOverlappingCellFrames() {
+		final List<Set<String>> cells = List.of(Set.of("T1"), Set.of("T2"), Set.of("T3"));
+		final String over = "drawer z=0\n  x=0.00 y=0.00 BackgroundBorder[w=30.00 h=20.00]\n"
+				+ "  x=30.00 y=0.00 BackgroundBorder[w=30.00 h=20.00]\n  x=5.00 y=5.00 Text[\"T1\" asc=8.00 desc=2.00] w=10.00 h=10.00\n"
+				+ "  x=35.00 y=5.00 Text[\"T2\" asc=8.00 desc=2.00] w=10.00 h=10.00\n"
+				+ "  x=40.00 y=0.00 BackgroundBorder[w=30.00 h=40.00]\n"
+				+ "  x=45.00 y=5.00 Text[\"T3\" asc=8.00 desc=2.00] w=10.00 h=10.00\n";
+		assertNull(MirrorComparison.confinement(List.of(over), cells, Set.of()));
+		final String run = "drawer z=0\n  x=0.00 y=0.00 BackgroundBorder[w=100.00 h=100.00]\n"
+				+ "  x=0.00 y=0.00 BackgroundBorder[w=30.00 h=20.00]\n  x=30.00 y=0.00 BackgroundBorder[w=30.00 h=20.00]\n"
+				+ "  x=35.00 y=5.00 Text[\"T1\" asc=8.00 desc=2.00] w=10.00 h=10.00\n"
+				+ "  x=45.00 y=5.00 Text[\"T2\" asc=8.00 desc=2.00] w=10.00 h=10.00\n";
+		assertNotNull(MirrorComparison.confinement(List.of(run), cells, Set.of()));
+		// The continuation drawn after the cell, its first frame over the cell (45250266)
+		final String later = "drawer z=0\n  x=0.00 y=0.00 BackgroundBorder[w=30.00 h=40.00]\n"
+				+ "  x=5.00 y=25.00 Text[\"T1\" asc=8.00 desc=2.00] w=10.00 h=10.00\n"
+				+ "  x=2.00 y=20.00 BackgroundBorder[w=20.00 h=20.00]\n"
+				+ "  x=5.00 y=25.50 Text[\"T2\" asc=8.00 desc=2.00] w=10.00 h=10.00\n";
+		assertNull(MirrorComparison.confinement(List.of(later), cells, Set.of()));
+	}
+
 	/** The body laid out horizontal-tb on 200x300pt and vertical-rl on 300x200pt draws the same, turned. */
 	private static void assertMirrored(final String body) throws Exception {
 		final String difference = MirrorComparison.compare(Family.ROTATE, 300,

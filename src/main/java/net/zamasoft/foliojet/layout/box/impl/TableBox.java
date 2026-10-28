@@ -265,6 +265,74 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 	}
 
 	/**
+	 * How far a fragment starting at {@code from} must reach to take the first piece of the table there, both from the
+	 * table's page start (2026-10-28): the first row starting at or after {@code from} with the end of its cells' first
+	 * lines (of a cell of one piece, the cell's end; of a cell of the other writing axis, which is not cut with its row,
+	 * the whole cell), the header before it (repeated before a later row), and the footer and the end of the frame that
+	 * every fragment of a table with a footer keeps ({@code TableCutter.reserveNonBreakable}). The space that
+	 * vertical-align leaves above a cell's content does not count: a cut gives it up ({@code TableCellBox.split}).
+	 * NONE when {@code from} is inside a row, or past the rows.
+	 *
+	 * <p>
+	 * Column balancing asks it for a table at the start of a column ({@code FlowContainer.firstLineEndsAfter}): taken as
+	 * cut anywhere, a one-row table in three columns got columns shorter than its line, the row was cut there, its
+	 * text ran out of the cell and the cell went on empty in the next column (sweep mirror check, seed 45251237).
+	 * {@code FlowContainer.getCutPoint} asks it for a table at the start of a cell, which was one piece.
+	 * </p>
+	 */
+	public final double firstUnitEnd(final double from) {
+		if (this.bodyGroups == null) {
+			return LayoutUtils.NONE;
+		}
+		final WritingMode flow = this.params.flow;
+		final double header = this.headerGroupBox != null ? this.headerGroupBox.getPageSize() : 0;
+		final double reserve = this.footerGroupBox != null
+				? this.footerGroupBox.getPageSize() + this.frame.getFramePageEnd(flow)
+				: 0;
+		double top = this.frame.getFramePageStart(flow) + header;
+		boolean first = true;
+		for (int i = 0; i < this.bodyGroups.size(); ++i) {
+			final TableRowGroupBox group = this.bodyGroups.get(i);
+			for (int r = 0; r < group.getTableRowCount(); ++r) {
+				final TableRowBox row = group.getTableRow(r);
+				if (LayoutUtils.compare(top, from) < 0) {
+					top += row.getPageSize();
+					first = false;
+					if (LayoutUtils.compare(top, from) > 0) {
+						return LayoutUtils.NONE;
+					}
+					continue;
+				}
+				double end = first ? 0 : header;
+				for (int j = 0; j < row.getCellCount(); ++j) {
+					final TableRowBox.Cell cell = row.getCell(j);
+					if (!cell.isSource()) {
+						continue;
+					}
+					final TableCellBox cellBox = cell.getCellBox();
+					final WritingMode cellFlow = cellBox.getBlockParams().flow;
+					if (cellFlow.isVertical() != flow.isVertical()) {
+						end = Math.max(end, (first ? 0 : header) + cellBox.getPageExtent(flow));
+						continue;
+					}
+					final net.zamasoft.foliojet.layout.box.content.Container container = cellBox.getContainer();
+					if (container.hasNonDecorationContent()) {
+						final double unit = container.getCutPoint(0);
+						// Content of one piece takes the end of the cell along: cut after it, the cell would go on in
+						// the next column as its bottom border alone
+						end = Math.max(end, (first ? 0 : header) + cellBox.getFrame().getFramePageStart(cellFlow) + unit
+								+ (LayoutUtils.compare(unit, container.getContentSize()) >= 0
+										? cellBox.getFrame().getFramePageEnd(cellFlow)
+										: 0));
+					}
+				}
+				return top + end + reserve;
+			}
+		}
+		return LayoutUtils.NONE;
+	}
+
+	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>

@@ -150,6 +150,115 @@ public class MulticolShortContentTest extends TestCase {
 		}
 	}
 
+	/**
+	 * A table of one row starting a column is not cut inside its first line (2026-10-28, sweep mirror check seed
+	 * 45251237): the row of one line went into columns of 12pt for its 17pt, the line ran out of the cell and the cell
+	 * went on empty in the next column. A cell of the other writing axis, not cut with its row, likewise.
+	 */
+	public void testTableRowStartingAColumnKeepsItsLine() throws Exception {
+		final String[] cells = { "<td style=\"border-style:solid\">T0</td><td>T1</td>",
+				"<td style=\"writing-mode:vertical-lr;border-style:solid\">T0</td><td>T1</td>" };
+		for (int i = 0; i < cells.length; ++i) {
+			final String html = """
+					<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+					<?jp.cssj.property name="output.page-width" value="355pt"?>
+					<?jp.cssj.property name="output.page-height" value="407pt"?>
+					<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+					<style>
+					@page{margin:5pt 5pt 0 0}
+					body{margin:0;font:9pt/11pt serif;text-orientation:sideways}
+					</style></head><body>
+					<div style="column-count:3"><table style="border-spacing:3pt 6pt;margin-top:5pt"><tr>%s</tr></table></div>
+					</body></html>
+					""".formatted(cells[i]);
+			final String dump = convert("table-row-" + i, html);
+			assertEquals(i + ": セルが次の段に続いた\n" + dump, 1, dump.split("BackgroundBorder", -1).length - 1);
+			assertInCell(i + "", dump, "T0", "T0");
+		}
+	}
+
+	/**
+	 * A block of the other writing axis in a cell is not cut either (2026-10-28, sweep mirror check seed 45251398): the
+	 * cut point of the cell's content was the end of the first glyph of the vertical line, the columns came out shorter
+	 * than the line and its last glyph ran out of the cell.
+	 */
+	public void testVerticalBlockInACellKeepsItsLine() throws Exception {
+		final String html = """
+				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+				<?jp.cssj.property name="output.page-width" value="293pt"?>
+				<?jp.cssj.property name="output.page-height" value="298pt"?>
+				<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+				<style>
+				@page{margin:5pt}
+				body{margin:0;font:10pt/15pt serif;text-orientation:sideways}
+				td{border:1pt solid}
+				</style></head><body>
+				<div style="column-count:3"><table><tr><td><div style="writing-mode:vertical-lr">T0 T1 T2 T3</div></td>
+				<td>T4<br>T5</td></tr><tr><td>T6</td><td>T7</td></tr><tr><td>T8</td><td>T9</td></tr></table></div>
+				</body></html>
+				""";
+		assertInCell("", convert("vertical-block-in-cell", html), "T0", "T3");
+	}
+
+	/**
+	 * The first piece of a row is still small enough to spread the table (2026-10-28, codex review of the fix above): a
+	 * bottom-aligned cell beside a cell of six lines (the space above it is given up at a cut), a nested table at the
+	 * start of the only cell (its first row, not the whole table), and a table with a footer, which every fragment
+	 * keeps (the first column must hold it besides the first row).
+	 */
+	public void testTableFirstPieceStillSpreads() throws Exception {
+		final String[][] cases = {
+				{ ".cols{column-count:3} table{border-spacing:0} td{padding:0}",
+						"<div class=\"cols\"><table><tr><td>T0<br>T1<br>T2<br>T3<br>T4<br>T5</td>"
+								+ "<td style=\"vertical-align:bottom\">T6</td></tr></table></div>",
+						"T3", "60" },
+				{ "table{border-spacing:0} td{padding:0}", "<div class=\"cols\"><table><tr><td><table>"
+						+ "<tr><td>T0</td></tr><tr><td>T1</td></tr><tr><td>T2</td></tr><tr><td>T3</td></tr><tr><td>T4</td></tr>"
+						+ "<tr><td>T5</td></tr><tr><td>T6</td></tr><tr><td>T7</td></tr><tr><td>T8</td></tr><tr><td>T9</td></tr>"
+						+ "</table></td></tr></table></div>", "T9", "130" } };
+		for (int i = 0; i < cases.length; ++i) {
+			final String dump = convert("first-piece-" + i, twoColumns(cases[i][0], cases[i][1] + "<div>T99</div>"));
+			assertTrue(i + ": " + cases[i][2] + " が次の段に行っていない: x=" + x(dump, cases[i][2]),
+					x(dump, cases[i][2]) > Double.parseDouble(cases[i][3]));
+		}
+		// The footer: no text of the table runs into the paragraph after the columns
+		final String dump = convert("first-piece-footer", twoColumns("table{border-spacing:0} td{padding:0}",
+				"<div class=\"cols\"><table><tfoot><tr><td>T9</td></tr></tfoot><tr><td>T0</td></tr><tr><td>T1</td></tr>"
+						+ "</table></div><div>T99</div>"));
+		for (final String token : new String[] { "T0", "T1", "T9" }) {
+			assertTrue("tfoot: " + token + " が後ろの段落 T99 に重なる\n" + dump, y(dump, token) + 20 <= y(dump, "T99") + TOLERANCE);
+		}
+	}
+
+	/** The bottom of {@code last} is in the smallest frame around the top of {@code first}. */
+	private static void assertInCell(final String name, final String dump, final String first, final String last) {
+		final double[] start = box(dump, first), end = box(dump, last);
+		double[] frame = null;
+		final Matcher m = Pattern.compile("x=(-?[\\d.]+) y=(-?[\\d.]+) BackgroundBorder\\[w=([\\d.]+) h=([\\d.]+)")
+				.matcher(dump);
+		while (m.find()) {
+			final double[] f = { Double.parseDouble(m.group(1)), Double.parseDouble(m.group(2)),
+					Double.parseDouble(m.group(3)), Double.parseDouble(m.group(4)) };
+			if (f[0] <= start[0] + TOLERANCE && f[1] <= start[1] + TOLERANCE && start[0] < f[0] + f[2]
+					&& start[1] < f[1] + f[3] && (frame == null || f[2] * f[3] < frame[2] * frame[3])) {
+				frame = f;
+			}
+		}
+		assertNotNull(name + ": " + first + " を囲む枠が無い\n" + dump, frame);
+		assertTrue(name + ": " + last + " の下 " + (end[1] + end[3]) + " がセルの枠の下 " + (frame[1] + frame[3]) + " より下\n"
+				+ dump, end[1] + end[3] <= frame[1] + frame[3] + TOLERANCE);
+	}
+
+	/** A token's text box (x, y, w, h). */
+	private static double[] box(final String dump, final String token) {
+		final Matcher m = Pattern
+				.compile("x=(-?[\\d.]+) y=(-?[\\d.]+) Text\\[\"" + token + "\"[^\\]]*\\] w=([\\d.]+) h=([\\d.]+)")
+				.matcher(dump);
+		assertTrue(token + " が描かれていない:\n" + dump, m.find());
+		return new double[] { Double.parseDouble(m.group(1)), Double.parseDouble(m.group(2)),
+				Double.parseDouble(m.group(3)), Double.parseDouble(m.group(4)) };
+	}
+
 	private static double x(final String dump, final String token) {
 		return position(dump, token)[0];
 	}
@@ -186,7 +295,8 @@ public class MulticolShortContentTest extends TestCase {
 		final Throwable[] failure = new Throwable[1];
 		final Thread worker = new Thread(null, () -> {
 			try (OutputStream out = new FileOutputStream(new File(dir, "out.pdf"));
-					AutoCloseable scope = DisplayListDumper.scopedDir(dir.getPath())) {
+					AutoCloseable scope = DisplayListDumper.scopedDir(dir.getPath());
+					AutoCloseable geometry = DisplayListDumper.scopedDetailedGeometry(true)) {
 				final DirectSession session = (DirectSession) new DirectDriver()
 						.getSession(URI.create("copper:direct:"), null);
 				try {

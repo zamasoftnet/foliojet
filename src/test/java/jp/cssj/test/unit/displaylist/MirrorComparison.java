@@ -134,15 +134,16 @@ final class MirrorComparison {
 	static String confinement(final List<String> pages, final List<Set<String>> cells, final Set<Integer> split) {
 		for (int p = 0; p < pages.size(); ++p) {
 			final List<Item> items = parse(pages.get(p));
+			// A cell's frame is drawn before its content: the frames drawn so far (2026-10-28: the frame of the
+			// continuation of a table wider than its column, drawn after, lay over the cell before it)
 			final List<double[]> frames = new ArrayList<>();
-			for (final Item item : items) {
-				if (item.box != null && item.kind.equals("BackgroundBorder")) {
-					frames.add(item.box);
-				}
-			}
 			final java.util.Map<double[], Integer> owner = new java.util.IdentityHashMap<>();
 			final java.util.Map<Integer, double[]> frameOf = new java.util.HashMap<>();
 			for (final Item item : items) {
+				if (item.box != null && item.kind.equals("BackgroundBorder")) {
+					frames.add(item.box);
+					continue;
+				}
 				if (item.box == null || !item.kind.startsWith("Text\"")) {
 					continue;
 				}
@@ -164,36 +165,31 @@ final class MirrorComparison {
 					if (inside(item.box, own)) {
 						continue;
 					}
-					// A cell split between columns has a frame in each column of the page, of the same inline size and
-					// apart from each other (2026-10-28: 27 of 40 sampled observations were tokens in the cell's frame
-					// in the next column). A frame around the first one (a row or a table) does not count.
-					final double[] next = smallest(item.box, frames);
-					final Integer nextOwner = next == null ? null : owner.get(next);
-					if (split.contains(cell) && next != null && (nextOwner == null || nextOwner == cell)
-							&& !overlap(next, own)
+					// A cell split between columns has a frame in each column of the page, of the same inline size
+					// (2026-10-28: 27 of 40 sampled observations were tokens in the cell's frame in the next column).
+					// A frame around the first one (a row or a table) does not count. The frames overlap when the
+					// table is wider than its column and runs into the next one, as in a browser.
+					final double[] next = smallest(item.box, frames, owner, cell);
+					if (split.contains(cell) && next != null && !inside(own, next)
 							&& (Math.abs(next[2] - own[2]) <= TOLERANCE || Math.abs(next[3] - own[3]) <= TOLERANCE)) {
 						owner.put(next, cell);
 						continue;
 					}
 					return where + " が同じセルの枠 " + format(own) + " の外";
 				}
-				final double[] frame = smallest(item.box, frames);
+				// The frame of another cell that runs over this one (a table wider than its column) is not this
+				// cell's frame.
+				final double[] frame = smallest(item.box, frames, owner, cell);
 				if (frame == null) {
-					return where + " がどのセルの枠にも入らない";
+					final double[] other = smallest(item.box, frames, owner, -1);
+					return other == null ? where + " がどのセルの枠にも入らない"
+							: where + " が別のセル(" + cells.get(owner.get(other)) + ")の枠 " + format(other) + " に入る";
 				}
-				final Integer other = owner.putIfAbsent(frame, cell);
-				if (other != null && other != cell) {
-					return where + " が別のセル(" + cells.get(other) + ")の枠 " + format(frame) + " に入る";
-				}
+				owner.put(frame, cell);
 				frameOf.put(cell, frame);
 			}
 		}
 		return null;
-	}
-
-	private static boolean overlap(final double[] a, final double[] b) {
-		return a[0] < b[0] + b[2] - TOLERANCE && b[0] < a[0] + a[2] - TOLERANCE && a[1] < b[1] + b[3] - TOLERANCE
-				&& b[1] < a[1] + a[3] - TOLERANCE;
 	}
 
 	private static boolean inside(final double[] b, final double[] f) {
@@ -201,12 +197,31 @@ final class MirrorComparison {
 				&& b[1] + b[3] <= f[1] + f[3] + TOLERANCE;
 	}
 
-	private static double[] smallest(final double[] b, final List<double[]> frames) {
+	/**
+	 * The smallest frame around a box that no cell but the given one owns (any frame when the cell is -1). A frame
+	 * around another cell's frame that holds the box is a row's, a table's or a container's, not the cell's.
+	 */
+	private static double[] smallest(final double[] b, final List<double[]> frames,
+			final java.util.Map<double[], Integer> owner, final int cell) {
 		double[] found = null;
 		for (final double[] f : frames) {
-			if (inside(b, f) && (found == null || f[2] * f[3] < found[2] * found[3])) {
-				found = f;
+			if (!inside(b, f) || found != null && f[2] * f[3] >= found[2] * found[3]) {
+				continue;
 			}
+			if (cell != -1) {
+				final Integer o = owner.get(f);
+				if (o != null && o != cell) {
+					continue;
+				}
+				boolean around = false;
+				for (final java.util.Map.Entry<double[], Integer> g : owner.entrySet()) {
+					around |= g.getValue() != cell && g.getKey() != f && inside(b, g.getKey()) && inside(g.getKey(), f);
+				}
+				if (around) {
+					continue;
+				}
+			}
+			found = f;
 		}
 		return found;
 	}

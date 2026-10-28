@@ -784,7 +784,13 @@ public class FlowContainer implements Container {
 				if (LayoutUtils.compare(bottom, pageAxis) >= 0) {
 					if (f.box.getType() == BoxType.BLOCK) {
 						final FlowBlockBox blockBox = (FlowBlockBox) f.box;
-						if (blockBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID) {
+						// A block of the other writing axis (or of the opposite progression) is not cut in this axis:
+						// its own cut points run along the other one (2026-10-28, a vertical line of a block in a
+						// horizontal cell was taken as cut at its first glyph, and a table in columns got columns
+						// shorter than the line, which ran out of the cell; sweep mirror check, seed 45251398)
+						if (blockBox.getBlockParams().pageBreakInside == PageBreakMode.AVOID
+								|| net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(flow,
+										blockBox.getBlockParams().flow)) {
 							pageAxis = bottom;
 							break;
 						}
@@ -795,6 +801,14 @@ public class FlowContainer implements Container {
 								+ frame.getFramePageStart(flow) + frame.getFramePageEnd(flow);
 					} else if (f.box.getType() == BoxType.TEXT_BLOCK) {
 						pageAxis = f.pageAxis + ((TextBlockBox) f.box).getCutPoint(pageAxis - f.pageAxis);
+					} else if (f.box.getType() == BoxType.TABLE && LayoutUtils.compare(pageAxis, f.pageAxis) <= 0
+							&& ((net.zamasoft.foliojet.layout.box.impl.TableBox) f.box).getTableParams().flow
+									.isVertical() == flow.isVertical()) {
+						// The first piece of a table of this axis that starts here, not the whole table (2026-10-28,
+						// TableBox.firstUnitEnd: a nested table at the start of a cell took the whole outer table into
+						// one column, codex review)
+						final double end = ((net.zamasoft.foliojet.layout.box.impl.TableBox) f.box).firstUnitEnd(0);
+						pageAxis = LayoutUtils.isNone(end) ? bottom : Math.min(bottom, f.pageAxis + end);
 					} else {
 						pageAxis = bottom;
 					}
@@ -908,6 +922,14 @@ public class FlowContainer implements Container {
 			if (f.box.getType() == BoxType.BLOCK && ((FlowBlockBox) f.box).getContainer() instanceof FlowContainer inner) {
 				final double frameStart = ((FlowBlockBox) f.box).getFrame().getFramePageStart(flow);
 				return inner.firstLineEndsAfter(from - f.pageAxis - frameStart, pageAxis - f.pageAxis - frameStart);
+			}
+			if (f.box.getType() == BoxType.TABLE
+					&& ((net.zamasoft.foliojet.layout.box.impl.TableBox) f.box).getTableParams().flow.isVertical() == flow
+							.isVertical()) {
+				// The first lines of the row that starts the column (2026-10-28, TableBox.firstUnitEnd)
+				final double end = ((net.zamasoft.foliojet.layout.box.impl.TableBox) f.box)
+						.firstUnitEnd(Math.max(0, from - f.pageAxis));
+				return !LayoutUtils.isNone(end) && LayoutUtils.compare(f.pageAxis + end, pageAxis) > 0;
 			}
 			return false;
 		}
