@@ -1753,7 +1753,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (i == -1) {
 			AbstractContainerBox rootBox = this.getRootBox();
 			rootBox.setPageAxis(pageAxis);
-			if (!inColumns) {
+			// A root that holds its floats (isOwnContextRoot) holds those in its columns too (triage §135, seed
+			// 46544470): the balanced columns do not count a float in them, so a vertical-rl box around two columns
+			// holding only a float shrank to 0pt after them and left the float off the paper.
+			if (!inColumns || rootBox instanceof FlowBlockBox root && root.isOwnContextRoot()) {
 				rootBox.noteFloatPageEnd(pageAxis);
 			}
 		}

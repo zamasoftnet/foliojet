@@ -1907,6 +1907,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// y = 125.68 pt (74c36bf8 alike), Chrome's screen at 131.3 pt. The predicate does not judge tables in
 			// orthogonal block divs (only orthogonal inline-blocks and floats, §108).
 			new IndividualExclusion(46_657_620, "standard", 46_657_620, "作者の溢れ: 直交のdivの中の重なるセルの表が紙の2倍近く、後ろの字が紙の外(Chromeも)",
+					"2026-10-29"),
+			// Triage §135: on vertical-lr A4 a vertical-rl box of width:8em (104 pt) holds, through a vertical-lr div, a
+			// 192 pt inline-block, which overflows it to the left: T0 at x = -88 pt (74c36bf8 alike), Chrome's screen at
+			// -86.67 pt, and its print drops it.
+			new IndividualExclusion(46_575_429, "fit-v1", 92_915_711, "作者の溢れ: 逆進行の箱より広いinline-blockが紙の左の外(Chromeも)",
+					"2026-10-29"),
+			// Triage §135, as §46 and §87: on 200x200 pt vertical-rl paper a table's cell holds two columns of
+			// column-reverse flexes; the table is not split across pages and T33 lands at x = -490.5 pt (74c36bf8 alike),
+			// Chrome prints three pages with those words on the paper.
+			new IndividualExclusion(46_681_865, "fit-v1", 143_952_072, "既知の制限: 縦組みのセルにflexを持つ表が頁で分かれず紙の左の外",
 					"2026-10-29"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");

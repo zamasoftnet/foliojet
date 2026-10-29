@@ -88,6 +88,22 @@ public class WritingModePageAxisTest extends TestCase {
 		assertEquals(h[0], v[1], 0.01);
 	}
 
+	/**
+	 * A box of the other writing mode holds a float in its columns (triage §135, seed 46544470): on horizontal-tb paper
+	 * a vertical-rl box around two columns holding only a float shrank to 0pt after them, and the float's words went
+	 * off the paper's left edge. They stand where they do without the columns.
+	 */
+	public void testOrthogonalBoxHoldsTheFloatInItsColumns() throws Exception {
+		final String floated = "<div style=\"float: right; width: 61pt\"><p>T1 T2</p></div>";
+		final double[] plain = pos("120pt 400pt; margin: 0", "horizontal-tb",
+				"<div style=\"writing-mode: vertical-rl\"><div>" + floated + "</div></div>", "T1");
+		assertTrue("on the paper: " + plain[0], plain[0] > 0);
+		assertEquals(plain[0], pos("120pt 400pt; margin: 0", "horizontal-tb", "<div style=\"writing-mode: vertical-rl\">"
+				+ "<div style=\"column-count: 2\">" + floated + "</div></div>", "T1")[0], 0.01);
+		assertEquals(plain[0], pos("120pt 400pt; margin: 0", "horizontal-tb",
+				"<div style=\"writing-mode: vertical-rl; column-count: 2\">" + floated + "</div>", "T1")[0], 0.01);
+	}
+
 	/** The position of {@code token}, or with {@code null} the size of the first frame. */
 	private static double[] pos(final String page, final String writingMode, final String body, final String token)
 			throws Exception {
