@@ -1917,7 +1917,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// column-reverse flexes; the table is not split across pages and T33 lands at x = -490.5 pt (74c36bf8 alike),
 			// Chrome prints three pages with those words on the paper.
 			new IndividualExclusion(46_681_865, "fit-v1", 143_952_072, "既知の制限: 縦組みのセルにflexを持つ表が頁で分かれず紙の左の外",
-					"2026-10-29"));
+					"2026-10-29"),
+			// Triage §136: on 60x60 pt vertical-lr paper a vertical-rl float holds nested tables of overlapping cells
+			// about 130 pt long along their lines, which do not break across pages; T23 is at y = 124.5 pt, 4 pt past
+			// one more sheet (Chrome's screen puts it at 122.8 pt, and its print drops the words past the paper).
+			new IndividualExclusion(47_128_582, "fit-v1", 1_921_342_267,
+					"作者の溢れ: 縦組みの浮動体の中の重なるセルの入れ子の表が行の向きに紙の2倍、後ろの字が紙の下の外(Chromeも)", "2026-10-29"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
