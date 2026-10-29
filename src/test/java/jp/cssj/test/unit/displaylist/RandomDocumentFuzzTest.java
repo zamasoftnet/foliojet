@@ -1894,7 +1894,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// the 45pt box with the reversed block progression; Copper draws T0 at x = 618.6 pt (829046c0 alike), Chrome at
 			// x = 603.25 pt, and Chrome's print drops it.
 			new IndividualExclusion(45_017_349, "fit-v1", 1_500_868_206, "作者の溢れ: 逆進行の入れ物より広い表が紙の右の外(Chromeも)",
-					"2026-10-28"));
+					"2026-10-28"),
+			// Triage §133, the known limitation of §112 and §121 (floats in a multicol are not split by its columns,
+			// CSS-SUPPORT; the split was tried and taken out on 2026-10-11): on 120x400 pt vertical-rl paper a four-column
+			// multicol holds a float grid (width: 41%) whose second row holds a 107 pt box and a table. Copper keeps the
+			// grid in the first column and its rows run to x = -451 pt (19155 and 19154 alike); Chrome's print puts the
+			// second row in the second column, on the paper.
+			new IndividualExclusion(46_022_628, "fit-v1", 1_879_599_391, "既知の制限: 縦組みの段組の中のfloatのgridが段で分かれず紙の左の外",
+					"2026-10-29"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
