@@ -1927,7 +1927,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// second holding three textareas of the UA size (two in a row); the table grows to about 525 pt and T4 is at
 			// x = 505.9 pt (Chrome's screen puts it at 467 pt).
 			new IndividualExclusion(47_601_040, "fit-v1", 471_152_118,
-					"作者の溢れ: 表のセルのgridのmax-contentの列にUAの寸法のtextareaが2つ並び、表が紙の4倍の幅(Chromeも)", "2026-10-30"));
+					"作者の溢れ: 表のセルのgridのmax-contentの列にUAの寸法のtextareaが2つ並び、表が紙の4倍の幅(Chromeも)", "2026-10-30"),
+			// Triage §138, as §136: on 60x60 pt vertical-rl paper a vertical-rl right float holds three levels of nested
+			// tables of overlapping cells about 200 pt long along their lines, which do not break across pages; T38 is
+			// at y = 195.3 pt (Chrome's screen runs the table from y = -194 pt to the paper's top, and its print drops
+			// T27 to T30 and T33).
+			new IndividualExclusion(48_359_836, "fit-v1", 440_656_388,
+					"作者の溢れ: 縦組みの右の浮動体の中の重なるセルの入れ子の表が行の向きに紙の3倍、後ろの字が紙の下の外(Chromeも)", "2026-10-30"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
