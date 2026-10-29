@@ -1565,8 +1565,7 @@ fuzz-repro/float-sliver-progress.html	1	863bbb06b4b1d7b4fb5427765438b0a7dbfbd2c0
 fuzz-repro/float-sliver-progress.html	2	0854fe42ed95587702443901923804612077772813beed0a5d6a70280ac6bd14
 fuzz-repro/float-sliver-progress.html	3	f2c01e0d33cebac2eee9c637a66331352a85eca2132f32b9835942d0ac1a4087
 fuzz-repro/float-sliver-progress.html	4	a7b5ad0932682c2d1384b585c84b434debe76feaa9ff1e9a8a34db5e46d925f9
-fuzz-repro/float-sliver-progress.html	5	378f9d0b2e7def6d31371a11629c8d64514c836fd81fc1af9ce2db336379625f
-fuzz-repro/float-sliver-progress.html	6	b7926094eb4f7b95b9cd129acba6b7a756a03fe499c50f49ff36b62631714f10
+fuzz-repro/float-sliver-progress.html	5	ed36a9ac8dccc7925f2d6691841941f236b7b849198eee6bc059f1f099fe7df3
 fuzz-repro/float-split-without-progress.html	1	5135c3658af316da28a814f382227557485f2e14d33d23cf032d5abb95a15378
 fuzz-repro/float-split-without-progress.html	2	f2c01e0d33cebac2eee9c637a66331352a85eca2132f32b9835942d0ac1a4087
 fuzz-repro/flowstack-depth-pagefloat-footnote.html	1	ae60e04c4eaae60bceb90d82ed0b99ce3bfcb429ec53780494f51cc7653ad36e
@@ -1577,8 +1576,7 @@ fuzz-repro/interline-break-with-page-float.html	4	6fd1c9c15007d15229b04dd73dc288
 fuzz-repro/nested-flex-in-page-float-footnote.html	1	a27789aa46f4d800a2c28829f042b5d7c6a6244f5a188e0eab19875a7410506e
 fuzz-repro/nested-flex-in-page-float-footnote.html	2	c02453f66b4ba6bf0e4ab465df39941a2195be4cc3c6a23967cd7f56d862684b
 fuzz-repro/nested-float-content-loss.html	1	bb8eaa5d11dd2a7a88550e52c13bdbe98e61ce86d7352b8f502b52159209a2ba
-fuzz-repro/nested-float-content-loss.html	2	e67dcee2a7df77804cec7c5d91132ddf6eb1d0af2f650dcd90b5faf471f82997
-fuzz-repro/nested-float-content-loss.html	3	4b566d9b77188c5dc1c40d63fa7ebc10fd050efb9262a1cfa495b95f265f7ea5
+fuzz-repro/nested-float-content-loss.html	2	476c3d0c3ea5434580eb24251df457f7b0b44402cdf3a48378c346225fa5f27e
 fuzz-repro/oversized-footnote-after-multicol.html	1	6d92a08a686895bdb7120da4e7f5d2a47f04bc8dad5cbb18adc33acb6674eaf8
 fuzz-repro/oversized-footnote-after-multicol.html	2	e4a9c899fc8323cb568c8e57c60cf6e72d8e9b84d7b03d04e4b58bda11f19914
 fuzz-repro/oversized-top-float-before-flow.html	1	88fdb587090010c31a0e738095a0e0d63f3ac0ffffc231f72da5d3adac2aa1d3
@@ -1656,7 +1654,7 @@ imageTest/legacy/0001-directive/000-import.html	1	e4dc300975dd831c7e7c17454f204d
 imageTest/legacy/0001-directive/010-large-css.html	1	320fad1a1e5f3174b856b1805b02c413701d9b62ed5689c9458d16fd772ca1c4
 imageTest/legacy/0002-css/000-first-letter.html	1	b0725ffd0ce194aa39d2b483929b548018598f8168b1e225fe6d45cec3bbc4e2
 imageTest/legacy/0002-css/010-class-selector.html	1	4249edffe8ad9c904f5aa6934ba28f2b22af3949a1e349fb6c7328aacdc8db99
-imageTest/legacy/0002-css/020-selector.html	1	0a92d2d7ac1d9153bc424f491a4ef20a362b51b0fc844ea2c6de24da259e7b0a
+imageTest/legacy/0002-css/020-selector.html	1	3156e7cf3b5dc6c2a7a343d8beda70cdbe65ae1edf4ed8f95f901b672dfcc451
 imageTest/legacy/0002-css/030-SYNTAX.html	1	b8baae5d4ed518ddea5b337c8a55ff004373daac83bc95c24df889cfdef777e8
 imageTest/legacy/0002-css/031-SYNTAX.html	1	9fa7c21a7b0c47e172bd75befebeae22508d575571b7deea3e093a72943183a9
 imageTest/legacy/0002-css/040-first-line.html	1	8d9000a98b01294db8fe8350a5ff4038584d7b01a1aff13a98328efd1dcce966

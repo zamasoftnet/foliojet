@@ -394,9 +394,9 @@ public class TextBuilder {
 					measure.locateLine();
 					measure.firstUnit = false;
 				}
-				if (measure.opportunity.elementCount() == 0
+				if (!measure.bufferHoldsOnlyOutsideMarker() && (measure.opportunity.elementCount() == 0
 						|| LayoutUtils.compare(measure.lineAxis - measure.lastSpaceAdvance,
-								measure.maxLineSize - measure.textIndent) <= 0) {
+								measure.maxLineSize - measure.textIndent) <= 0)) {
 					measure.opportunity = measure.captureOpportunity();
 				}
 			}
@@ -2196,7 +2196,10 @@ public class TextBuilder {
 					// Force wrapping when the line-height limit is exceeded.
 					this.maxLineSize = 0;
 				}
-				this.lineHead = false;
+				if (!isOutsideMarker(quad)) {
+					// An outside marker takes no room: the spaces after it still lead the line (2026-10-30)
+					this.lineHead = false;
+				}
 				// The spaces before it are not at the end of the line (codex, 2026-10-11)
 				this.lastSpaceAdvance = 0;
 				break;
@@ -2265,9 +2268,36 @@ public class TextBuilder {
 			}
 		}
 		//if (this.wrap) {
+		if (!this.bufferHoldsOnlyOutsideMarker()) {
 			this.opportunity = this.captureOpportunity();
+		}
 		//}
 		return false;
+	}
+
+	/**
+	 * Whether the buffer holds an outside list marker and nothing that takes room on the line besides inline starts,
+	 * inline ends and collapsed spaces. The marker sits outside the line, so a break after it is no break at all: a
+	 * list item's first image, inline block or long word wider than the line went to a second line, leaving the
+	 * marker alone on an empty first line (fit seed 47551580, 2026-10-30). Chrome breaks nowhere there. An inside
+	 * marker takes room and keeps its break.
+	 */
+	private boolean bufferHoldsOnlyOutsideMarker() {
+		boolean marker = false;
+		for (final Element e : this.textBuffer) {
+			if (isOutsideMarker(e)) {
+				marker = true;
+			} else if (!(e instanceof InlineStartQuad || e instanceof InlineEndQuad || e instanceof WhiteSpace)
+					|| e.getAdvance() != 0) {
+				return false;
+			}
+		}
+		return marker;
+	}
+
+	private static boolean isOutsideMarker(final Element e) {
+		return e instanceof InlineQuad quad && quad.getType() == InlineQuad.INLINE_BLOCK
+				&& quad.getBox() instanceof net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox;
 	}
 
 	/**

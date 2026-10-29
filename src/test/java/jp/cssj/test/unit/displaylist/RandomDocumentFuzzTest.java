@@ -1922,7 +1922,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// about 130 pt long along their lines, which do not break across pages; T23 is at y = 124.5 pt, 4 pt past
 			// one more sheet (Chrome's screen puts it at 122.8 pt, and its print drops the words past the paper).
 			new IndividualExclusion(47_128_582, "fit-v1", 1_921_342_267,
-					"作者の溢れ: 縦組みの浮動体の中の重なるセルの入れ子の表が行の向きに紙の2倍、後ろの字が紙の下の外(Chromeも)", "2026-10-29"));
+					"作者の溢れ: 縦組みの浮動体の中の重なるセルの入れ子の表が行の向きに紙の2倍、後ろの字が紙の下の外(Chromeも)", "2026-10-29"),
+			// Triage §137: on 120x400 pt paper a table cell holds a grid of min-content and max-content columns, the
+			// second holding three textareas of the UA size (two in a row); the table grows to about 525 pt and T4 is at
+			// x = 505.9 pt (Chrome's screen puts it at 467 pt).
+			new IndividualExclusion(47_601_040, "fit-v1", 471_152_118,
+					"作者の溢れ: 表のセルのgridのmax-contentの列にUAの寸法のtextareaが2つ並び、表が紙の4倍の幅(Chromeも)", "2026-10-30"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
