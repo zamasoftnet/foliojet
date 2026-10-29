@@ -1901,6 +1901,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// grid in the first column and its rows run to x = -451 pt (19155 and 19154 alike); Chrome's print puts the
 			// second row in the second column, on the paper.
 			new IndividualExclusion(46_022_628, "fit-v1", 1_879_599_391, "既知の制限: 縦組みの段組の中のfloatのgridが段で分かれず紙の左の外",
+					"2026-10-29"),
+			// Triage §134: on 60 pt horizontal-tb paper an inline-block holds a vertical-lr block div with a table of
+			// overlapping cells, about 118 pt long in the inline direction, and a 36 pt T21 after it. Copper puts T21 at
+			// y = 125.68 pt (74c36bf8 alike), Chrome's screen at 131.3 pt. The predicate does not judge tables in
+			// orthogonal block divs (only orthogonal inline-blocks and floats, §108).
+			new IndividualExclusion(46_657_620, "standard", 46_657_620, "作者の溢れ: 直交のdivの中の重なるセルの表が紙の2倍近く、後ろの字が紙の外(Chromeも)",
 					"2026-10-29"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
