@@ -1031,7 +1031,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 						|| this.resumedOverflow;
 				for (;;) {
 					final double pageAxis = this.pageAxis - (this.poLastMargin + this.neLastMargin);
-					if (LayoutUtils.compare(pageAxis, pageLimit) <= 0 || !this.paintsBeyondPage(flow, flowBox, pageLimit)) {
+					// A flex or grid whose items paint past the page breaks though its own box ends on it (2026-10-30,
+					// fit sweep seed 49415336): its items are laid out apart and never took the cursor past the limit,
+					// so content overflowing a definite size ran off the paper (Chrome carries it to the next page).
+					if (LayoutUtils.compare(pageAxis, pageLimit) <= 0
+							&& !(flowBox instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox atomic
+									&& atomic.isPageAtomicNow())
+							|| !this.paintsBeyondPage(flow, flowBox, pageLimit)) {
 						break;
 					}
 					if (LOG.isLoggable(Level.FINE)) {

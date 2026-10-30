@@ -76,14 +76,20 @@ public class AbortTest extends TestCase {
 		worker.setDaemon(true);
 		worker.start();
 
-		// Wait briefly for conversion to start, then stop it.
+		// Wait briefly for conversion to start, then stop it. Ask again until it takes (2026-10-30): abort() does nothing
+		// before the conversion has made its user agent, and in a loaded full test run 1.5 s did not always get there,
+		// so the whole document was laid out past the 30 s wait (two red gates in a day; with no wait, the lost abort
+		// let the conversion finish in 10 s).
 		Thread.sleep(1500L);
-		session.abort(CTISession.ABORT_FORCE);
-
-		worker.join(30_000L);
+		final long deadline = System.nanoTime() + 30_000_000_000L;
+		while (worker.isAlive() && System.nanoTime() < deadline) {
+			session.abort(CTISession.ABORT_FORCE);
+			worker.join(200L);
+		}
 		assertFalse("中断要求を出したのに変換が止まらない。"
 				+ "checkAbort() を呼ぶ場所が足りていない可能性がある", worker.isAlive());
 		assertTrue(finished[0]);
+		assertNotNull("変換が中断されずに最後まで組まれた", failure[0]);
 	}
 
 	/** A long table on a tiny page. Row placement continues for a long time within one page. */

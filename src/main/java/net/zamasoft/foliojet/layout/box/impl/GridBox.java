@@ -259,7 +259,9 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 		if (LayoutUtils.compare(pageLimit, 0) < 0) {
 			return SplitResult.MOVE;
 		}
-		if (LayoutUtils.compare(pageLimit, this.getPageExtent(flow)) >= 0) {
+		// Whole only when what its items paint fits as well (2026-10-30): content overflowing a definite size
+		// goes on to the next page as Chrome's does, instead of off the paper.
+		if (LayoutUtils.compare(pageLimit, Math.max(this.getPageExtent(flow), this.paintedPageExtent(flow))) >= 0) {
 			return SplitResult.KEEP;
 		}
 		if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0
@@ -280,6 +282,19 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				boundary = ri;
 				crosses = true;
 				break;
+			}
+		}
+		for (int ri = 0; ri < this.rows.size() && boundary < 0; ++ri) {
+			// A row whose item paints past the cut line crosses it all the same (2026-10-30): with rows of a definite
+			// size the content overflowing an item stayed off the paper and only what followed the grid moved on.
+			final Row row = this.rows.get(ri);
+			for (int k = 0; k < row.itemCount(); ++k) {
+				if (LayoutUtils.compare(pageLimit, row.start() + this.itemOffset(row.startFlow() + k)
+						+ this.rowItems.get(row.startFlow() + k).paintedPageExtent(flow)) < 0) {
+					boundary = ri;
+					crosses = true;
+					break;
+				}
 			}
 		}
 		if (boundary < 0) {

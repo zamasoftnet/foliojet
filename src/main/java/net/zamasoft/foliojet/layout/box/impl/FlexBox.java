@@ -321,7 +321,9 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		if (LayoutUtils.compare(pageLimit, 0) < 0) {
 			return SplitResult.MOVE;
 		}
-		if (LayoutUtils.compare(pageLimit, this.getPageExtent(flow)) >= 0) {
+		// Whole only when what its items paint fits as well (2026-10-30): content overflowing a definite size
+		// goes on to the next page as Chrome's does, instead of off the paper.
+		if (LayoutUtils.compare(pageLimit, Math.max(this.getPageExtent(flow), this.paintedPageExtent(flow))) >= 0) {
 			return SplitResult.KEEP;
 		}
 		if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0
