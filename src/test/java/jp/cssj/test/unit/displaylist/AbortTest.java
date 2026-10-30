@@ -86,8 +86,15 @@ public class AbortTest extends TestCase {
 			session.abort(CTISession.ABORT_FORCE);
 			worker.join(200L);
 		}
-		assertFalse("中断要求を出したのに変換が止まらない。"
-				+ "checkAbort() を呼ぶ場所が足りていない可能性がある", worker.isAlive());
+		if (worker.isAlive()) {
+			// Show where the conversion runs without reading the abort flag
+			final StringBuilder where = new StringBuilder();
+			for (final StackTraceElement e : worker.getStackTrace()) {
+				where.append("\n\tat ").append(e);
+			}
+			fail("中断要求を出したのに変換が止まらない。"
+					+ "checkAbort() を呼ぶ場所が足りていない可能性がある" + where);
+		}
 		assertTrue(finished[0]);
 		assertNotNull("変換が中断されずに最後まで組まれた", failure[0]);
 	}
