@@ -1933,7 +1933,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// at y = 195.3 pt (Chrome's screen runs the table from y = -194 pt to the paper's top, and its print drops
 			// T27 to T30 and T33).
 			new IndividualExclusion(48_359_836, "fit-v1", 440_656_388,
-					"作者の溢れ: 縦組みの右の浮動体の中の重なるセルの入れ子の表が行の向きに紙の3倍、後ろの字が紙の下の外(Chromeも)", "2026-10-30"));
+					"作者の溢れ: 縦組みの右の浮動体の中の重なるセルの入れ子の表が行の向きに紙の3倍、後ろの字が紙の下の外(Chromeも)", "2026-10-30"),
+			new IndividualExclusion(50_240_847, "fit-v1", 1_264_179_287,
+					"作者の溢れ: 幅110ptのvertical-rlの中のcolumnのflex(96pt)にmin-width:8emのitemが3つ、計約290ptが紙の左の外(Chromeも)", "2026-10-30"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
