@@ -1585,8 +1585,7 @@ fuzz-repro/rescue-split-open-chain-member.html	2	d175c25ab6aa7a3157c9f5833a686e4
 fuzz-repro/seed-5448946-nested-writing-mode.html	1	59795486740aaf8bb57dbd1a517398980928e5f178fc7bc28843004185f45257
 fuzz-repro/seed-5448946-nested-writing-mode.html	2	c6389bb4283207dd5f595c70f8a22d4e7731d3266c138a75c99fa55aa02f3859
 fuzz-repro/top-float-exclusion-after-limit-shrinks.html	1	f2c01e0d33cebac2eee9c637a66331352a85eca2132f32b9835942d0ac1a4087
-fuzz-repro/top-float-exclusion-after-limit-shrinks.html	2	b89ba4dde9fa3b8320f67329aae896148e54c1fb4e2e07ff379b03bce0899911
-fuzz-repro/top-float-exclusion-after-limit-shrinks.html	3	b45b4f68d13c50c79500dcf45611b9993ed5cd495464fca84e45335ec99b0ebf
+fuzz-repro/top-float-exclusion-after-limit-shrinks.html	2	f89199a92e3a9f7a181d9fb3dc9da2827f9a566ffb1b31272392063102a778d8
 fuzz-repro/vertical-table-first-cell-reading-order.html	1	04408158d1a33941418b2c5e92a78469cdb1dee507966247c3b2931b1c24dac9
 fuzz-repro/vertical-table-first-cell-reading-order.html	2	6e8c85b29141f0fbeb0a3fbe1d7ccdc2edd1814be3f36a558f32a7185658226f
 fuzz-repro/vertical-table-first-cell-reading-order.html	3	09ca719c8637b87881b36e1856d137fd75c2e484f14cf80feb7b5313a025422c
