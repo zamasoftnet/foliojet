@@ -114,7 +114,7 @@ public final class FootnotePageProbe {
 			if (this.doc == null) this.start();
 			return this.doc.preDispatch(type, box, nextId);
 		} catch (final RuntimeException failure) {
-			throw new FootnoteProbeException(failure);
+			throw probeFailure(failure);
 		}
 	}
 
@@ -131,7 +131,7 @@ public final class FootnotePageProbe {
 			this.dispatch(event, id, fresh);
 			this.charOffset = Math.max(this.charOffset, this.doc.getDeliveredCharEnd());
 		} catch (final RuntimeException failure) {
-			throw new FootnoteProbeException(failure);
+			throw probeFailure(failure);
 		}
 		this.reclaim();
 	}
@@ -152,7 +152,7 @@ public final class FootnotePageProbe {
 		try {
 			this.reclaimResources();
 		} catch (final RuntimeException failure) {
-			throw new FootnoteProbeException(failure);
+			throw probeFailure(failure);
 		}
 	}
 
@@ -230,7 +230,7 @@ public final class FootnotePageProbe {
 				this.doc.end();
 				this.inputFinished = true;
 			} catch (final RuntimeException failure) {
-				throw new FootnoteProbeException(failure);
+				throw probeFailure(failure);
 			}
 			this.reclaim();
 		}
@@ -264,5 +264,13 @@ public final class FootnotePageProbe {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Wraps a failure of the probe, except an abort (2026-10-31, codex): the probe reads the abort flag like the real
+	 * layout, and wrapped, an abort was reported as an unexpected failure.
+	 */
+	private static RuntimeException probeFailure(final RuntimeException failure) {
+		return failure instanceof net.zamasoft.foliojet.ua.AbortException ? failure : new FootnoteProbeException(failure);
 	}
 }

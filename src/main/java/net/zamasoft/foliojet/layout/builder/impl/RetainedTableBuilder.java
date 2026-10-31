@@ -277,6 +277,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 			// until all rows are read, so this is its only progress signal
 			// (2026-07-27: the cause of the 37.5-second no-output interval for 400,000 rows).
 			this.noteTableProgress();
+			this.checkAbort();
 			this.rowToCells.put(row, new ArrayList<CellContent>());
 		}
 			break;
@@ -680,6 +681,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 		for (int i = 0; i < this.rowGroups.size(); ++i) {
 			List<TableRowBox> rows = this.rowGroupToRows.get(this.rowGroups.get(i));
 			for (int j = 0; j < rows.size(); ++j) {
+				this.checkAbort();
 				List<CellContent> cells = this.rowToCells.get(rows.get(j));
 				double rowPage = 0;
 				// Specified width
@@ -1322,6 +1324,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 
 				// Row height/cell layout
 				for (int j = 0; j < rows.size(); ++j) {
+					this.checkAbort();
 					TableRowBox rowBox = rows.get(j);
 					double rowSize;
 
@@ -1551,6 +1554,7 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 				rowGroup.addTableRow(rowBox);
 				// Finalizing one row is **actual work completed** (2026-07-27, progress signal for the deadline).
 				this.noteTableProgress();
+				this.checkAbort();
 				final List<CellContent> cells = this.rowToCells.get(rowBox);
 				CellContent.applyCellExtents(cells, groupRowSizes, j, CellContent.maxFirstAscent(cells),
 						this.vertical);
@@ -1735,6 +1739,18 @@ public class RetainedTableBuilder implements net.zamasoft.foliojet.layout.builde
 	 */
 	private void noteTableProgress() {
 		this.layoutStack.getPageContext().getPageGenerator().getUserAgent().noteProgress();
+	}
+
+	/**
+	 * Abort point, once a row (2026-10-31). A retained table places nothing until every row is read and measured, so the
+	 * page-level abort points do not come round until then: 40,000 rows held an abort for 2.4 s on an idle machine and
+	 * over 30 s under load (AbortTest).
+	 */
+	private void checkAbort() {
+		final var context = this.layoutStack.getPageContext();
+		if (context != null) {
+			context.getPageGenerator().getUserAgent().checkAbort(jp.cssj.cti2.CTISession.ABORT_FORCE);
+		}
 	}
 
 }

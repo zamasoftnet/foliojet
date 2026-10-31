@@ -7,10 +7,13 @@ import java.io.Writer;
 import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import jp.cssj.cti2.CTISession;
 import jp.cssj.cti2.helpers.CTIMessageCodes;
-import jp.cssj.cti2.helpers.CTIMessageHelper;
 import jp.cssj.cti2.helpers.CTISessionHelper;
 import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
@@ -43,6 +46,9 @@ public class AbortTest extends TestCase {
 		super(name);
 	}
 
+	/** How long the engine may go on after the abort reached it before it reads the abort. */
+	private static final long READ_WITHIN_NANOS = 2_000_000_000L;
+
 	/**
 	 * An abort request must end conversion <b>without waiting for a page boundary</b>.
 	 *
@@ -50,18 +56,33 @@ public class AbortTest extends TestCase {
 	 * Place a long table on a tiny page. It keeps laying out rows within one page,
 	 * so abort points only at page boundaries cannot stop it.
 	 * </p>
+	 *
+	 * <p>
+	 * Judged by how long the engine goes on after the abort reached it before an abort point reads it, and by where
+	 * (2026-10-31). Judged by a 30 s wait, the test passed whenever the conversion got to an abort point in time: an
+	 * auto-layout table was read and measured with none (RetainedTableBuilder), so it was green on an idle machine and
+	 * red only under load. Not judged by when the conversion ends: releasing what the table held takes 0.5 s more for
+	 * 200,000 rows.
+	 * </p>
 	 */
 	public void testAbortStopsConversionMidPage() throws Exception {
 		final File html = writeLongDocument();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);
 		final Throwable[] failure = new Throwable[1];
-		final boolean[] finished = { false };
+		// When the abort reached the engine, when an abort point read it, and when the conversion ended. The first
+		// INFO_ABORT comes from abort() before it sets the flag, the next from the abort point that throws
+		final AtomicLong acceptedAt = new AtomicLong(), readAt = new AtomicLong(), endedAt = new AtomicLong();
+		final AtomicBoolean readInTable = new AtomicBoolean();
 
 		final Thread worker = new Thread(() -> {
 			try (OutputStream out = new FileOutputStream(new File("local/abort-test.pdf"))) {
 				session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
-				session.setMessageHandler(CTIMessageHelper
-						.createStreamMessageHandler(new java.io.PrintStream(OutputStream.nullOutputStream())));
+				session.setMessageHandler((code, args, mes) -> {
+					if (code == CTIMessageCodes.INFO_ABORT && !acceptedAt.compareAndSet(0L, System.nanoTime())
+							&& readAt.compareAndSet(0L, System.nanoTime())) {
+						readInTable.set(in(Thread.currentThread().getStackTrace(), "RetainedTableBuilder"));
+					}
+				});
 				session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
 				session.property("input.include", "**");
 				session.property("input.property-pi", "true");
@@ -70,42 +91,69 @@ public class AbortTest extends TestCase {
 				// Abort is propagated as an exception. Only completion matters here.
 				failure[0] = t;
 			} finally {
-				finished[0] = true;
+				endedAt.set(System.nanoTime());
 			}
 		}, "abort-test-conversion");
 		worker.setDaemon(true);
 		worker.start();
 
-		// Wait briefly for conversion to start, then stop it. Ask again until it takes (2026-10-30): abort() does nothing
-		// before the conversion has made its user agent, and in a loaded full test run 1.5 s did not always get there,
-		// so the whole document was laid out past the 30 s wait (two red gates in a day; with no wait, the lost abort
-		// let the conversion finish in 10 s).
-		Thread.sleep(1500L);
-		final long deadline = System.nanoTime() + 30_000_000_000L;
+		// Abort once the table is being read, its cells built by TwoPassBlockBuilder (2026-10-31, codex). After a fixed
+		// wait the request could come before the session gave the user agent its message handler, losing the first
+		// notification, or before the table, where a block's abort point read it and the test passed without the table's.
+		// Past the limit, keep waiting to report how long it really took, and show where the conversion runs without
+		// reading the abort flag: on the layout thread, which the worker only joins (DirectSession.runOnLargeStack)
+		final long deadline = System.nanoTime() + 60_000_000_000L;
+		while (worker.isAlive() && System.nanoTime() < deadline
+				&& !in(layoutThreadStack(), "RetainedTableBuilder", "TwoPassBlockBuilder")) {
+			Thread.sleep(10L);
+		}
+		String where = "";
 		while (worker.isAlive() && System.nanoTime() < deadline) {
 			session.abort(CTISession.ABORT_FORCE);
 			worker.join(200L);
-		}
-		if (worker.isAlive()) {
-			// Show where the conversion runs without reading the abort flag: on the layout thread, which the worker
-			// only joins (DirectSession.runOnLargeStack)
-			final StringBuilder where = new StringBuilder();
-			for (final var e : Thread.getAllStackTraces().entrySet()) {
-				if (e.getKey().getName().equals("foliojet-layout")) {
-					where.append("\n").append(e.getKey());
-					for (final StackTraceElement frame : e.getValue()) {
-						where.append("\n\tat ").append(frame);
-					}
-				}
+			final long accepted = acceptedAt.get();
+			if (where.isEmpty() && accepted != 0L && readAt.get() == 0L
+					&& System.nanoTime() - accepted > READ_WITHIN_NANOS) {
+				where = "\n" + Arrays.stream(layoutThreadStack()).map(f -> "\tat " + f).collect(Collectors.joining("\n"));
 			}
-			fail("中断要求を出したのに変換が止まらない。"
-					+ "checkAbort() を呼ぶ場所が足りていない可能性がある" + where);
 		}
-		assertTrue(finished[0]);
+		final long accepted = acceptedAt.get(), read = readAt.get();
+		if (accepted == 0L) {
+			fail(worker.isAlive() ? "60 秒たっても中断要求が組版に届かない" : "中断要求が組版に届かないまま変換が終わった");
+		}
+		final long readMillis = ((read != 0L ? read : System.nanoTime()) - accepted) / 1_000_000L;
+		System.out.println("[abort] " + (read != 0L ? "read " : "not read in ") + readMillis
+				+ " ms after the abort reached the engine" + (readInTable.get() ? " in the table" : "")
+				+ (worker.isAlive() ? ", still running" : ", ended after " + (endedAt.get() - accepted) / 1_000_000L + " ms"));
+		if (read == 0L || readMillis * 1_000_000L > READ_WITHIN_NANOS) {
+			fail("中断要求が届いてから " + readMillis + " ms 読まれなかった" + (read == 0L ? "(まだ読まれていない)" : "")
+					+ "。checkAbort() を呼ぶ場所が足りていない可能性がある" + where);
+		}
+		assertTrue("表を読んでいる途中の中断を表の外で読んだ(行ごとの確かめを通っていない)", readInTable.get());
+		assertFalse("中断を読んだのに 60 秒たっても変換が終わらない", worker.isAlive());
 		assertNotNull("変換が中断されずに最後まで組まれた", failure[0]);
 	}
 
-	/** A long table on a tiny page. Row placement continues for a long time within one page. */
+	/** The layout thread's stack, empty when there is none. */
+	private static StackTraceElement[] layoutThreadStack() {
+		for (final var e : Thread.getAllStackTraces().entrySet()) {
+			if (e.getKey().getName().equals("foliojet-layout")) return e.getValue();
+		}
+		return new StackTraceElement[0];
+	}
+
+	private static boolean in(final StackTraceElement[] stack, final String... simpleNames) {
+		for (final StackTraceElement frame : stack) {
+			final String name = frame.getClassName().substring(frame.getClassName().lastIndexOf('.') + 1);
+			if (Arrays.asList(simpleNames).contains(name)) return true;
+		}
+		return false;
+	}
+
+	/**
+	 * A long table on a tiny page. Row placement continues for a long time within one page. 200,000 rows (2026-10-31), so
+	 * that reading the table outlasts the limit even on an idle machine: with 40,000 rows an abort waited for it only 1 s.
+	 */
 	private static File writeLongDocument() throws Exception {
 		final StringBuilder s = new StringBuilder();
 		s.append("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">\n");
@@ -114,7 +162,7 @@ public class AbortTest extends TestCase {
 		s.append("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n");
 		s.append("<style>@page{margin:5pt}body{margin:0;font:normal 8pt/1.2 serif}\n");
 		s.append("td{border:1pt solid black}</style></head><body>\n<table>\n");
-		for (int i = 0; i < 40000; ++i) {
+		for (int i = 0; i < 200000; ++i) {
 			s.append("<tr><td>R").append(i).append("</td><td>C").append(i).append("</td></tr>\n");
 		}
 		s.append("</table>\n</body></html>\n");
