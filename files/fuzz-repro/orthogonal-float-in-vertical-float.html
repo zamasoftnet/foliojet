@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="150pt"?>
+<!-- A horizontal float in a vertical float: the inner one sits at the top and T99 in the first column, as in Chrome (fit sweep seed 52425737, 2026-10-31). Measured by its width, the outer float was as tall as the unbreakable run, the inner one floated to its bottom below the paper (T40 at y = 222) and T99 went off the left. -->
+<html><head><meta charset="UTF-8"><style>@page{margin:5pt}body{margin:0;font:normal 12pt/1.2 serif;writing-mode:vertical-rl} p,div{margin:0;padding:0}</style></head><body>
+<div style="float:left"><div style="float:right;writing-mode:horizontal-tb"><p><span style="white-space:nowrap">T40 T41 T42 T43 T44 T45 T46 T47 T48 T49 T50 T51</span> T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13 T14 T15 T16 T17 T18</p></div></div><p>T99</p>
+</body></html>

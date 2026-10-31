@@ -691,6 +691,29 @@ final class IntrinsicMeasurer {
 		// accessors unify both writing modes and use the line-axis frame for both min/max.
 		if (params.size.getLineType(floatFlow) != LengthType.AUTO) {
 			minLineAxis = maxLineAxis = floatingBox.getLineExtent(floatFlow);
+		} else if (params.flow.isVertical() != floatFlow.isVertical()) {
+			// An orthogonal float is as long along the line as it is thick, as in fitBlock, and is laid out on trial to
+			// read its actual extent (2026-10-31, fit sweep seed 52425737: counted by its width, a horizontal float made
+			// the vertical float holding it as tall as that, and floated to its bottom it left the paper). Thick at
+			// least as one line at its max-content size, it still adds up with the floats beside it. Its own min and max
+			// along that axis hold, as for its page axis above (in a table cell it is not laid out on trial).
+			final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
+			this.columnInflated |= childSizes.columnInflated();
+			final double frameLine = floatingBox.getFrame().getFrameLineExtent(floatFlow);
+			final boolean vertical = floatFlow.isVertical();
+			final net.zamasoft.foliojet.layout.part.AbsoluteInsets margin = floatingBox.getFrame().margin;
+			final double outside = params.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX
+					? frameLine
+					: vertical ? margin.top + margin.bottom : margin.left + margin.right;
+			double line = childSizes.maxContentPage() + frameLine;
+			if (params.maxSize.getLineType(floatFlow) == LengthType.ABSOLUTE) {
+				line = Math.min(line, (vertical ? params.maxSize.getHeight() : params.maxSize.getWidth()) + outside);
+			}
+			if (params.minSize.getLineType(floatFlow) == LengthType.ABSOLUTE) {
+				line = Math.max(line, (vertical ? params.minSize.getHeight() : params.minSize.getWidth()) + outside);
+			}
+			minLineAxis = maxLineAxis = line;
+			this.orthogonalContent = true;
 		} else {
 			final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
 			this.columnInflated |= childSizes.columnInflated();

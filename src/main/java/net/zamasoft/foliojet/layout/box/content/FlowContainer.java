@@ -265,38 +265,51 @@ public class FlowContainer implements Container {
 	 * For orthogonal children, use border-box size plus non-auto margins (exclude auto margins,
 	 * which may be resolved before sizing). For blocks in the same direction, add the frame and traverse
 	 * their contents. Exclude text lines (the simulated measurement already measures them correctly).
+	 * Orthogonal floats count too (2026-10-31, fit sweep seed 52425737): a horizontal float in a vertical float was
+	 * measured by its width, so the outer float grew as tall as that and the inner one, floated to its bottom, left the
+	 * paper. The floats of the same axis are not looked into: their own size or clipping may hold what is inside.
 	 */
 	public final double orthogonalLineExtent(final WritingMode flow) {
 		double max = 0;
-		if (this.flows == null) {
-			return max;
-		}
-		for (final Flow f : this.flows) {
-			if (!(f.box instanceof AbstractContainerBox child)) {
-				continue;
+		if (this.flows != null) {
+			for (final Flow f : this.flows) {
+				max = Math.max(max, orthogonalLineExtent(flow, f.box, true));
 			}
-			final AbsoluteRectFrame frame = child.getFrame();
-			final net.zamasoft.foliojet.layout.box.params.Insets specified = frame.frame.margin;
-			final boolean vertical = flow.isVertical();
-			final boolean startAuto = (vertical ? specified.getTopType() : specified.getLeftType())
-					== net.zamasoft.foliojet.layout.box.params.LengthType.AUTO;
-			final boolean endAuto = (vertical ? specified.getBottomType() : specified.getRightType())
-					== net.zamasoft.foliojet.layout.box.params.LengthType.AUTO;
-			final double margins = (startAuto ? 0 : vertical ? frame.margin.top : frame.margin.left)
-					+ (endAuto ? 0 : vertical ? frame.margin.bottom : frame.margin.right);
-			final double border = frame.getBorderLineExtent(flow);
-			if (child.getBlockParams().flow.isVertical() != vertical) {
-				final double inner = vertical ? child.getHeight() - frame.getFrameHeight()
-						: child.getWidth() - frame.getFrameWidth();
-				max = Math.max(max, inner + border + margins);
-			} else if (child.getContainer() instanceof FlowContainer inner) {
-				final double nested = inner.orthogonalLineExtent(flow);
-				if (nested > 0) {
-					max = Math.max(max, nested + border + margins);
-				}
+		}
+		if (this.floatings != null) {
+			for (int i = 0; i < this.floatings.getCount(); ++i) {
+				max = Math.max(max, orthogonalLineExtent(flow, this.floatings.getFloating(i).box, false));
 			}
 		}
 		return max;
+	}
+
+	private static double orthogonalLineExtent(final WritingMode flow, final IBox box, final boolean nested) {
+		if (!(box instanceof AbstractContainerBox child)) {
+			return 0;
+		}
+		final AbsoluteRectFrame frame = child.getFrame();
+		final net.zamasoft.foliojet.layout.box.params.Insets specified = frame.frame.margin;
+		final boolean vertical = flow.isVertical();
+		final boolean startAuto = (vertical ? specified.getTopType() : specified.getLeftType())
+				== net.zamasoft.foliojet.layout.box.params.LengthType.AUTO;
+		final boolean endAuto = (vertical ? specified.getBottomType() : specified.getRightType())
+				== net.zamasoft.foliojet.layout.box.params.LengthType.AUTO;
+		final double margins = (startAuto ? 0 : vertical ? frame.margin.top : frame.margin.left)
+				+ (endAuto ? 0 : vertical ? frame.margin.bottom : frame.margin.right);
+		final double border = frame.getBorderLineExtent(flow);
+		if (child.getBlockParams().flow.isVertical() != vertical) {
+			final double inner = vertical ? child.getHeight() - frame.getFrameHeight()
+					: child.getWidth() - frame.getFrameWidth();
+			return inner + border + margins;
+		}
+		if (nested && child.getContainer() instanceof FlowContainer inner) {
+			final double extent = inner.orthogonalLineExtent(flow);
+			if (extent > 0) {
+				return extent + border + margins;
+			}
+		}
+		return 0;
 	}
 
 	@Override

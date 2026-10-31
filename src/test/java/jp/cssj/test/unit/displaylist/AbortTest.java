@@ -87,10 +87,16 @@ public class AbortTest extends TestCase {
 			worker.join(200L);
 		}
 		if (worker.isAlive()) {
-			// Show where the conversion runs without reading the abort flag
+			// Show where the conversion runs without reading the abort flag: on the layout thread, which the worker
+			// only joins (DirectSession.runOnLargeStack)
 			final StringBuilder where = new StringBuilder();
-			for (final StackTraceElement e : worker.getStackTrace()) {
-				where.append("\n\tat ").append(e);
+			for (final var e : Thread.getAllStackTraces().entrySet()) {
+				if (e.getKey().getName().equals("foliojet-layout")) {
+					where.append("\n").append(e.getKey());
+					for (final StackTraceElement frame : e.getValue()) {
+						where.append("\n\tat ").append(frame);
+					}
+				}
 			}
 			fail("中断要求を出したのに変換が止まらない。"
 					+ "checkAbort() を呼ぶ場所が足りていない可能性がある" + where);

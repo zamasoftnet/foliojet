@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="150pt"?>
+<!-- A vertical float of min-width:100pt in a table cell: the cell is 100pt wide and T2 starts at x = 100, as in Chrome (2026-10-31, codex on the fix for fit sweep seed 52425737). Counted by its content, the cell was 30pt and the float ran into T2. -->
+<html><head><meta charset="UTF-8"><style>@page{margin:5pt}body{margin:0;font:normal 12pt/1.2 serif;writing-mode:horizontal-tb} p,div,td{margin:0;padding:0}</style></head><body>
+<table style="border-spacing:0"><tr><td style="padding:0"><div style="float:left;writing-mode:vertical-rl;min-width:100pt"><div style="width:20pt;height:30pt">T1</div></div></td><td>T2</td></tr></table>
+</body></html>
