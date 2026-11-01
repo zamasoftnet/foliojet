@@ -1698,7 +1698,13 @@ public abstract class AbstractTextBox extends AbstractBox {
 		final List<GetTextStep> localSteps = new ArrayList<>();
 		for (int i = 0; i < this.contents.size(); ++i) {
 			switch (this.contents.get(i)) {
-			case Text text -> localSteps.add(w -> textBuff.append(text.getChars(), 0, text.getCharCount()));
+			case Text text -> {
+				// A hyphen made for the line end is no part of the text, as in restyle: the soft hyphen after it is. Taken
+				// along, string() and target-text() showed it inside the word (2026-11-01).
+				if (!(text instanceof TextImpl impl && impl.materializedHyphen)) {
+					localSteps.add(w -> textBuff.append(text.getChars(), 0, text.getCharCount()));
+				}
+			}
 			case Inline inline -> localSteps.add(IBox.getTextStep(inline.box, textBuff));
 			case IAbsoluteBox absoluteBox -> localSteps.add(IBox.getTextStep(absoluteBox, textBuff));
 			case Control control ->

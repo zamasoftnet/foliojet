@@ -543,6 +543,11 @@ public class GridBox extends FlowBlockBox implements PageAtomicBox, RowSplitBox 
 				// pagination (openprops: 46 pages became 7, with 5000 words off the page).
 				return this.carryRowsFrom(1, boundaryRow.start() + this.rowExtent(boundaryRow, flow));
 			}
+			if (!crosses && LayoutUtils.compare(pageLimit, 0) > 0) {
+				// All the rows start below this page, which holds only the blank end of a row that a page before it left
+				// (a slack split): the page takes its share of the blank (2026-11-01). Kept, every row stayed below the paper.
+				return this.carryRowsFrom(0, pageLimit);
+			}
 			return SplitResult.KEEP;
 		}
 		return this.carryRowsFrom(boundary, boundaryRow.start());

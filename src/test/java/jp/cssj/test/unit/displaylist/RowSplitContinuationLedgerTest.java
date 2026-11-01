@@ -341,7 +341,10 @@ public class RowSplitContinuationLedgerTest extends TestCase {
 			w.write(html);
 		}
 		final int pages = convertFile("later-vertical-flex-rows", dir, input);
-		assertTrue("後続行の寸法が増幅している(ページ数=" + pages + ")", pages <= 30);
+		// 3.7pt of the page is left under the repeated header, and a row loses only what it is cut at: this 308pt row takes
+		// some 85 pages since the lines after a blank line go on instead of off the paper (2026-11-01). The x bound below
+		// is what catches the growth.
+		assertTrue("後続行の寸法が増幅している(ページ数=" + pages + ")", pages <= 100);
 		final java.util.regex.Pattern xPattern = java.util.regex.Pattern.compile("\\bx=(-?[0-9.E+-]+)");
 		final StringBuilder displayLists = new StringBuilder();
 		for (int p = 1; p <= pages; ++p) {

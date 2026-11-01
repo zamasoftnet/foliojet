@@ -475,7 +475,13 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		if (!anySplit) {
 			// No item in the boundary row can split: treat the entire row as the boundary and carry it whole.
 			if (boundary == 0) {
-				return (flags & IPageBreakableBox.FLAGS_FIRST) != 0 ? SplitResult.KEEP : SplitResult.MOVE;
+				if ((flags & IPageBreakableBox.FLAGS_FIRST) == 0) {
+					return SplitResult.MOVE;
+				}
+				// The first line on a fresh page neither fits nor splits: keep that line alone and carry the later lines on
+				// (2026-11-01, as GridBox.split). Keeping the whole box put every later line below the paper: an item of
+				// height: 300pt with one line of text on a page of 200pt, and all the items after it were gone.
+				return this.lines.size() > 1 ? this.carryLines(1) : SplitResult.KEEP;
 			}
 			return this.carryLines(boundary);
 		}
@@ -515,6 +521,15 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 		// succeeded, use the available extent as layout progress only when nothing is painted.
 		// The normal path with painted content still uses the actual painted end.
 		if (LayoutUtils.compare(consumed, 0) <= 0 && LayoutUtils.compare(remaining, 0) > 0) {
+			consumed = remaining;
+		}
+		// When no content went on with the remainders, the rest of the line is blank and this page took its share
+		// (2026-11-01): closed at the painted end, the blank came back whole on the next page, a page of its own.
+		boolean blankRemainders = true;
+		for (int k = 0; k < remainders.length; ++k) {
+			blankRemainders &= !remainders[k].paintsAnything();
+		}
+		if (blankRemainders) {
 			consumed = remaining;
 		}
 		final double keptEnd = boundaryLine.start() + consumed;

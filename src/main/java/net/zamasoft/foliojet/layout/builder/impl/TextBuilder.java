@@ -1747,6 +1747,10 @@ public class TextBuilder {
 				// hyphenate-character:"" breaks without displaying a character.
 				this.addElement(hyphen);
 			}
+			// The line keeps the soft hyphen as well: laying it out again drops the hyphen (AbstractTextBox.restyle), and
+			// the word could no more break here (2026-11-01). Each layout used up the breaks it took: in a table cell of
+			// many pages the hyphens were gone by page 6, and long words ran out of a narrow column into the next.
+			this.addElement((TextControl) quad);
 		} else if (quad instanceof InlineQuad) {
 			// Inline box.
 			final InlineQuad inlineQuad = (InlineQuad) quad;

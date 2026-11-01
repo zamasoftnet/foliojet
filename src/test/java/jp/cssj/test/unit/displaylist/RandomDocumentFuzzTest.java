@@ -3218,6 +3218,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		assertTrue("内容が失われた " + lost + " (" + html + ")", lost.isEmpty());
 		// Invariant 9: no loss of PDF destinations (id fragments).
 		checkFragments(doc, outDir, html);
+		observeTextBelowThePaper(doc, pages);
 		if (deferredExclusion != null) {
 			// Blank-page exclusion (above). An unworkable type area affects the remaining invariants, so they do not stop
 			// the sweep; but skipping them hid the document's other branches (2026-10-26), so observe them instead.
@@ -3922,6 +3923,39 @@ public class RandomDocumentFuzzTest extends TestCase {
 				nextCell = cellSeq[0]++;
 			}
 			collectTableTokens(n.children, nextTable, nextCell, result, tableSeq, cellSeq);
+		}
+	}
+
+	/**
+	 * Report-only: text wholly below the paper in a document of horizontal writing alone (2026-11-01).
+	 *
+	 * <p>
+	 * Invariant 6 did not see the rows of a flex or grid left below the paper by an item taller than the page: the size
+	 * that causes it makes the document {@link #isOversized}, excluded, and the allowance is twice the largest explicit
+	 * size besides. Without vertical writing, text has no way below the paper but a page break that did not happen.
+	 * 100,000 strict seeds gave two such documents before the fix (11594100, the defect) and one after it (11542431, a
+	 * table row held up by an image taller than the page, which stays), 100,000 fit seeds none after it. Report-only for
+	 * that one kind: stopping for it would stop the sweep about once an interval.
+	 * </p>
+	 */
+	private static void observeTextBelowThePaper(final Generated doc, final File[] pages) throws Exception {
+		if (doc.tinyPage() || doc.html().contains("vertical") || doc.html().contains("sideways")) {
+			return;
+		}
+		for (final File page : pages) {
+			final String dump = Files.readString(Path.of(page.toURI()), StandardCharsets.UTF_8);
+			for (final String raw : dump.split("\n")) {
+				if (raw.contains(" artifact ") || !paintsText(raw)) {
+					continue;
+				}
+				final Matcher m = DRAWING_GEOMETRY_IN_DUMP.matcher(raw);
+				if (m.find() && Double.parseDouble(m.group(2)) >= doc.pageHeight() && !clippedAway(raw,
+						Double.parseDouble(m.group(1)), Double.parseDouble(m.group(2)), Double.parseDouble(m.group(3)),
+						Double.parseDouble(m.group(4)))) {
+					observe("(観測)横書きの文書の紙の下の字", raw.trim());
+					return;
+				}
+			}
 		}
 	}
 

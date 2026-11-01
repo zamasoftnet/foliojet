@@ -225,6 +225,105 @@ public class RepeatedRelayoutTest extends TestCase {
 		}
 	}
 
+	/**
+	 * An item that paints less than it takes, on a page it does not fit (2026-11-01). What was left of its line found
+	 * nothing to split, so the box stayed whole on that page with every line after it, and the rest of the document ran off
+	 * the paper. The sweep did not see it: a document with an explicit size over the page is left out of that check.
+	 */
+	public void testLinesAfterATallItemStayOnThePaper() throws Exception {
+		final String[] boxes = { ".g { display: flex; flex-wrap: wrap } .g > div { width: 100% }", ".g { display: grid }" };
+		final String[] firstItems = { "<div style=\"height: 150pt\">A</div>", "<div style=\"height: 500pt\">A</div>",
+				"<div style=\"padding-bottom: 300pt\">A</div>", "<div style=\"margin-bottom: 300pt\">A</div>",
+				"<div><div style=\"min-height: 300pt\">A</div></div>",
+				"<div><div style=\"float: left; width: 50pt; height: 300pt\">A</div>B</div>" };
+		for (final String box : boxes) {
+			for (final String first : firstItems) {
+				final List<String> pages = convertPages("tall-item",
+						document(box, "<div class=\"g\">" + first + items(30, "") + "</div>"));
+				assertOrder(pages, 30);
+				assertOnThePaper(box + " " + first, pages, 100);
+			}
+		}
+	}
+
+	/** The blank of such an item ends on the page where it ends: it is no page of its own (2026-11-01, as Chrome). */
+	public void testItemsFollowTheBlankOfATallItem() throws Exception {
+		final List<String> flex = convertPages("tall-item-flex", document(
+				".g { display: flex; flex-wrap: wrap } .g > div { width: 100% }",
+				"<div class=\"g\"><div style=\"height: 150pt\">A</div>" + items(30, "") + "</div>"));
+		assertEquals(50.0, firstY(flex.get(1), "T0Z"));
+		final List<String> grid = convertPages("tall-item-grid", document(".g { display: grid }",
+				"<div class=\"g\"><div style=\"height: 250pt\">A</div>" + items(30, "") + "</div>"));
+		// The page wholly blank in between is not output
+		assertEquals(50.0, firstY(grid.get(1), "T0Z"));
+	}
+
+	/**
+	 * A line the ledger holds taller than the page though what is left of its items fits (2026-11-01): the lower bound of a
+	 * remainder line, here 569pt on a page of 538pt. Nothing split, and all the items after it stayed on page 9, down to
+	 * y=4970.
+	 */
+	public void testLinesAfterARemainderLineTallerThanThePageStayOnThePaper() throws Exception {
+		final String source = java.nio.file.Files.readString(
+				new File("files/unittest/0190-vertical-align/text-top-bottom.html").toPath(), StandardCharsets.ISO_8859_1);
+		final String body = source.substring(source.indexOf("<body>") + 6, source.indexOf("</body>"));
+		final List<String> pages = convertPages("remainder-line", document(
+				"@page { size: 419.53pt 595.28pt; margin: 10mm } body { font: 24pt serif } p { margin: 1em 0 }"
+						+ "span.large { font-size: 2em } span.small { font-size: 0.5em }"
+						+ ".f { display: flex; flex-wrap: wrap } .f > div { width: 45% }",
+				"<div class=\"f\">" + ("<div>" + body + "</div>").repeat(18) + "</div>"));
+		assertTrue("頁数 " + pages.size(), pages.size() >= 10);
+		assertOnThePaper("items", pages, 538.6);
+	}
+
+	/**
+	 * A line that broke at a soft hyphen keeps the soft hyphen (2026-11-01). Laying the line out again leaves the hyphen out,
+	 * and each layout used up the breaks it took: in a cell of many pages the hyphens were gone by page 6, and from there on
+	 * long words ran 16pt out of their column into the next.
+	 */
+	public void testHyphensSurviveLayingOutAgain() throws Exception {
+		final List<String> pages = convertPages("hyphens", document(
+				"@page { size: 220pt 160pt; margin: 10pt } p { hyphens: auto }"
+						+ "table { table-layout: fixed; width: 200pt; border-collapse: collapse } td { padding: 0; vertical-align: top }",
+				"<table><colgroup><col style=\"width: 70pt\"/><col/></colgroup><tbody><tr><td>"
+						+ paragraphs(40, " internationalization representativeness incomprehensibilities")
+						+ "</td><td>R</td></tr></tbody></table>"));
+		assertTrue("頁数 " + pages.size(), pages.size() >= 20);
+		assertTrue("最後から 2 頁目にハイフンが無い: " + pages.get(pages.size() - 2), pages.get(pages.size() - 2).contains("-\""));
+		assertOrder(pages, 40);
+	}
+
+	/** A hyphen made for the end of a line is not in the text that string() repeats: "ab-" and "cd" are "abcd" (codex, 2026-11-01). */
+	public void testStringLeavesTheLineEndHyphenOut() throws Exception {
+		final List<String> pages = convertPages("hyphen-string", document(
+				"@page { size: 200pt 100pt; margin: 0 } body { font: 10pt/12pt monospace; hyphens: manual }"
+						+ "#source { width: 3.1ch; string-set: title content() } #copy { width: 4.1ch; break-before: page }"
+						+ "#copy::before { content: string(title) } #wide { break-before: page } #wide::before { content: string(title) }",
+				"<div id=\"source\">ab­cd</div><div id=\"copy\"></div><div id=\"wide\"></div>"));
+		assertEquals("頁数", 3, pages.size());
+		assertFalse("ハイフンが重なった: " + pages.get(1), pages.get(1).contains("--"));
+		assertFalse("語の途中にハイフン: " + pages.get(2), pages.get(2).contains("-"));
+	}
+
+	private static double firstY(final String page, final String token) {
+		final Matcher m = TEXT.matcher(page);
+		while (m.find()) {
+			if (m.group(3).contains(token)) {
+				return Double.parseDouble(m.group(2));
+			}
+		}
+		fail(token + " が無い: " + page);
+		return 0;
+	}
+
+	private static void assertOnThePaper(final String what, final List<String> pages, final double height) {
+		for (int i = 0; i < pages.size(); ++i) {
+			for (final double y : ys(pages.get(i))) {
+				assertTrue(what + ": " + (i + 1) + " 頁の y=" + y + " は紙の外", y < height);
+			}
+		}
+	}
+
 	private static List<Double> ys(final String page) {
 		final List<Double> ys = new ArrayList<>();
 		final Matcher m = TEXT.matcher(page);
