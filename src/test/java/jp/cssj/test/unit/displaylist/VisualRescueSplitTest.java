@@ -167,6 +167,21 @@ public class VisualRescueSplitTest extends TestCase {
 	}
 
 	/**
+	 * The same box wider than its parent, with white space after it (2026-11-01, fit sweep seed 53252716). The white
+	 * space falls on a line of no height below the box, which is not a second line to break at: counted as one, it kept
+	 * the box from being sliced, and everything past the page was lost.
+	 */
+	public void testTallInlineBlockWiderThanItsLineIsSliced() throws Exception {
+		final List<String> pages = render("0480-rescue-split/wide-tall-inline-block.html", RescuePolicy.ENABLED);
+		assertEquals("インラインブロック500pt / ページ200pt = 3断片", 3, pages.size());
+		assertNoBlankPage(pages);
+		assertDrawableAt(pages.get(0), 0, 50.0, 0.0, false);
+		assertDrawableAt(pages.get(1), 0, 50.0, -200.0, true);
+		assertDrawableAt(pages.get(2), 0, 50.0, -400.0, true);
+		assertTrue("後続の段落は最後の断片の後: " + pages.get(2), pages.get(2).contains("後続"));
+	}
+
+	/**
 	 * <b>Do not rescue paragraphs with multiple lines</b>. Line splitting actually advances
 	 * (leaving the first line and sending the rest to the next fragment), so this is not a point
 	 * where progress stops. Geometrically cutting the entire paragraph here causes a clear regression:

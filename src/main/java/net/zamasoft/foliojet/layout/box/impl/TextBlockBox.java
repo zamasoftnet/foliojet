@@ -186,6 +186,23 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	/**
+	 * Whether a line has no height and holds only collapsed white space. Unlike {@link #holdsNothing}, an empty inline
+	 * box counts as something here: a footnote call or a running element's assignment can rest on it.
+	 */
+	private static boolean isCollapsedSpaceLine(final AbstractLineBox line) {
+		if (line.getAscent() + line.getDescent() > 0 || line.getEllipsis() != null) {
+			return false;
+		}
+		for (final Object content : line.getLogicalContents()) {
+			if (!(content instanceof net.zamasoft.pdfg2d.gc.text.layout.control.WhiteSpace space)
+					|| space.getAdvance() != 0) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Whether a text box holds only collapsed white space and inline boxes that paint no frame, mark nothing and hold
 	 * nothing themselves.
 	 */
@@ -374,14 +391,24 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	 * A paragraph whose first line alone is extremely tall still overflows as before.
 	 * </p>
 	 *
+	 * <p>
+	 * Trailing lines of collapsed white space do not count (2026-11-01, fit sweep seed 53252716). The white space after
+	 * an inline-block wider than its line falls on a line of its own below the box; taken for a second line, it kept the
+	 * box from rescue and everything past the page was lost.
+	 * </p>
+	 *
 	 * @return the bottom edge of the sole line if no progress is possible; {@code NONE} otherwise
 	 */
 	public final double getUnbreakableLinePageEnd() {
 		if (this.lines.isEmpty()) {
 			return LayoutUtils.NONE;
 		}
-		final double[] lineStarts = new double[this.lines.size()];
-		final double[] lineEnds = new double[this.lines.size()];
+		int lineCount = this.lines.size();
+		while (lineCount > 1 && isCollapsedSpaceLine(((Line) this.lines.get(lineCount - 1)).box)) {
+			--lineCount;
+		}
+		final double[] lineStarts = new double[lineCount];
+		final double[] lineEnds = new double[lineCount];
 		this.measureLines(lineStarts, lineEnds);
 		if (!LineCutter.singleEffectiveLine(lineStarts, lineEnds)) {
 			return LayoutUtils.NONE;
@@ -402,7 +429,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 
 	/** Collects each line's top and bottom edges (distances from this box's top edge). */
 	private void measureLines(final double[] lineStarts, final double[] lineEnds) {
-		for (int i = 0; i < this.lines.size(); ++i) {
+		for (int i = 0; i < lineStarts.length; ++i) {
 			final Line line = (Line) this.lines.get(i);
 			lineStarts[i] = line.pageAxis;
 			lineEnds[i] = line.getPageEnd();
