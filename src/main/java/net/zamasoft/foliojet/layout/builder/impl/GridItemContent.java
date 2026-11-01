@@ -92,6 +92,21 @@ final class GridItemContent {
 			// the grid item in 3080-MODERN-CSS/aspect-ratio collapses to its content height.
 			this.itemBox.applyAspectRatio(trackWidth);
 		}
+		// A takeover item (a root box that inherits authored params) applies its specified height
+		// to itself (G7, 2026-08-29: like FlexItemContent.bind).
+		// In normal flow, the parent's startFlowBlock applies it, but no one applies it to
+		// the bind builder's root. Without this, the takeover item's
+		// height declaration is lost entirely (observed: height:20mm became the content height of 2.7 mm).
+		// Before the content, whose percentages resolve against it (as FlexItemContent.bind).
+		final net.zamasoft.foliojet.layout.box.params.BlockParams params = this.itemBox.getBlockParams();
+		final boolean vertical = params.flow.isVertical();
+		final net.zamasoft.foliojet.layout.box.params.LengthType pageType = vertical
+				? params.size.getWidthType()
+				: params.size.getHeightType();
+		if (pageType == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
+			this.itemBox.applySpecifiedPageAxis(
+					Math.max(0, vertical ? params.size.getWidth() : params.size.getHeight()));
+		}
 		final BlockBuilder target = new BlockBuilder(host, this.itemBox);
 		if (this.body == null) {
 			this.content.bind(target);
@@ -108,20 +123,7 @@ final class GridItemContent {
 		}
 		target.close();
 		if (ReplayIntent.current() == ReplayIntent.MEASURE && this.body != null) this.body.completeScratchHost();
-		// A takeover item (a root box that inherits authored params) applies its specified height
-		// to itself (G7, 2026-08-29: like FlexItemContent.bind).
-		// In normal flow, the parent's startFlowBlock applies it, but no one applies it to
-		// the bind builder's root. Without this, the takeover item's
-		// height declaration is lost entirely (observed: height:20mm became the content height of 2.7 mm).
-		final net.zamasoft.foliojet.layout.box.params.BlockParams params = this.itemBox.getBlockParams();
-		final boolean vertical = params.flow.isVertical();
-		final net.zamasoft.foliojet.layout.box.params.LengthType pageType = vertical
-				? params.size.getWidthType()
-				: params.size.getHeightType();
-		if (pageType == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
-			this.itemBox.applySpecifiedPageAxis(
-					Math.max(0, vertical ? params.size.getWidth() : params.size.getHeight()));
-		} else {
+		if (pageType != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 			// The item establishes an independent formatting context: its auto size holds its floats (2026-10-27, as
 			// FlexItemContent.bind; a grid item's float ran past it and the next row's text beside it)
 			final double contained = target.floatContainingPageExtent(true);

@@ -1425,7 +1425,10 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		}
 		// Bind in source order (F5a: preserve source order for Tagged PDF reading order and structure).
 		for (int i = 0; i < count; ++i) {
-			this.items.get(i).bind(target, crossWidthByOriginal[i], axis.marginBase);
+			final FlexItemContent item = this.items.get(i);
+			// A main size from the content is no basis for the percentages in it, measured without one
+			item.bind(target, crossWidthByOriginal[i], axis.marginBase,
+					item.spec.basis().isContent() ? FlexItemContent.NO_PAGE_SIZE : mainSizeByOriginal[i]);
 			FLEX_ITEM_BINDS.incrementAndGet();
 		}
 		// Place in visual order. Stack columns along the cross axis (wrap-reverse reverses column order).

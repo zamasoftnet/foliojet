@@ -506,6 +506,25 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		return Math.max(0, specified - (lineIsHeight ? this.frame.getBorderHeight() : this.frame.getBorderWidth()));
 	}
 
+	/**
+	 * Whether a percentage min/max page-axis size has a basis in {@code containerBox} (2026-11-02). An absolutely
+	 * positioned box answers {@link #isSpecifiedPageSize} yes but takes its size after its content, so the limit came
+	 * out 0: max-width: 100% with overflow: hidden in vertical writing clipped all the text. It is ignored there. Chrome
+	 * ignores it when the box's own size is auto, and resolves it when it is definite.
+	 */
+	private static boolean hasPercentBasis(final AbstractContainerBox containerBox) {
+		return containerBox.isSpecifiedPageSize() && !(containerBox instanceof AbsoluteBlockBox);
+	}
+
+	/**
+	 * Whether a percentage min/max-height applies (2026-11-02). Only to a box of definite height, the existing intentional
+	 * behavior, and not against a container without a basis: height: 66pt; max-height: 90% in a parent of auto height came
+	 * out 0 high and what followed ran over it (Chrome 66). The page is a basis for the root box, though it says no.
+	 */
+	private boolean resolvesPercentHeightLimit(final AbstractContainerBox containerBox) {
+		return this.isSpecifiedPageSize() && (hasPercentBasis(containerBox) || containerBox instanceof PageBox);
+	}
+
 	public void calculateSize(LayoutStack layoutStack, double xmargin, double lineSize) {
 		final AbstractContainerBox containerBox = layoutStack.getFlowBox();
 		final BlockParams cParams = containerBox.getBlockParams();
@@ -661,7 +680,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			// (size definiteness), so max-width:90% on a width:66pt (definite) box collapsed to 0
 			// against an indefinite parent width (0) (2026-08-23, v2 sweep seed 2006804).
 			case RELATIVE:
-				if (containerBox.isSpecifiedPageSize()) {
+				if (hasPercentBasis(containerBox)) {
 					minWidth = this.minSize.getWidth() * containerBox.getInnerWidth();
 					break;
 				}
@@ -673,7 +692,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				minWidth = this.minSize.getWidth();
 				break;
 			case MIXED:
-				if (containerBox.isSpecifiedPageSize()) {
+				if (hasPercentBasis(containerBox)) {
 					minWidth = this.minSize.getWidth() + this.minSize.getWidthRatio() * containerBox.getInnerWidth();
 					break;
 				}
@@ -684,7 +703,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			}
 			switch (this.params.maxSize.getWidthType()) {
 			case RELATIVE:
-				if (containerBox.isSpecifiedPageSize()) {
+				if (hasPercentBasis(containerBox)) {
 					maxWidth = this.params.maxSize.getWidth() * containerBox.getInnerWidth();
 					break;
 				}
@@ -696,7 +715,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				maxWidth = this.params.maxSize.getWidth();
 				break;
 			case MIXED:
-				if (containerBox.isSpecifiedPageSize()) {
+				if (hasPercentBasis(containerBox)) {
 					maxWidth = this.params.maxSize.getWidth()
 							+ this.params.maxSize.getWidthRatio() * containerBox.getInnerWidth();
 					break;
@@ -907,7 +926,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			assert !LayoutUtils.isNone(maxWidth);
 			switch (this.minSize.getHeightType()) {
 			case RELATIVE:
-				if (this.isSpecifiedPageSize()) {
+				if (this.resolvesPercentHeightLimit(containerBox)) {
 					minHeight = this.minSize.getHeight() * containerBox.getInnerHeight();
 					break;
 				}
@@ -919,7 +938,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				minHeight = this.minSize.getHeight();
 				break;
 			case MIXED:
-				if (this.isSpecifiedPageSize()) {
+				if (this.resolvesPercentHeightLimit(containerBox)) {
 					minHeight = this.minSize.getHeight() + this.minSize.getHeightRatio() * containerBox.getInnerHeight();
 					break;
 				}
@@ -930,7 +949,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			}
 			switch (this.params.maxSize.getHeightType()) {
 			case RELATIVE:
-				if (this.isSpecifiedPageSize()) {
+				if (this.resolvesPercentHeightLimit(containerBox)) {
 					maxHeight = this.params.maxSize.getHeight() * containerBox.getInnerHeight();
 					break;
 				}
@@ -942,7 +961,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				maxHeight = this.params.maxSize.getHeight();
 				break;
 			case MIXED:
-				if (this.isSpecifiedPageSize()) {
+				if (this.resolvesPercentHeightLimit(containerBox)) {
 					maxHeight = this.params.maxSize.getHeight()
 							+ this.params.maxSize.getHeightRatio() * containerBox.getInnerHeight();
 					break;

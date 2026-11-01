@@ -51,6 +51,18 @@ final class FlexItemContent {
 	 * (the TwoPass record → measure → bind lifecycle; same as {@code GridItemContent.bind}).
 	 */
 	void bind(final BlockBuilder host, final double mainSize, final double insetBase) {
+		this.bind(host, mainSize, insetBase, Double.NaN);
+	}
+
+	/** For {@link #bind(BlockBuilder, double, double, double)}: no page-axis size before the content. */
+	static final double NO_PAGE_SIZE = -1;
+
+	/**
+	 * @param usedPageSize the page-axis size the flex algorithm gave the item of a column, NaN for its specified size: a
+	 *                     percentage in it resolves against what it comes out, not what it declares;
+	 *                     {@link #NO_PAGE_SIZE} when that size follows from the content
+	 */
+	void bind(final BlockBuilder host, final double mainSize, final double insetBase, final double usedPageSize) {
 		// **Resolve used frame sizes** (2026-08-04). For normal flow boxes,
 		// firstPassLayout / calculateSize converts relative padding/margin values (% and em)
 		// to used sizes (AbsoluteInsets). **Flex item boxes pass through neither**,
@@ -70,6 +82,21 @@ final class FlexItemContent {
 		// derive the page-axis size from the ratio here (if content is taller, grow only for
 		// overflow:visible — the same rule as FlowBlockBox.calculateSize).
 		this.itemBox.applyAspectRatio(mainSize);
+		// A takeover item (root box inheriting authored params) applies its specified height
+		// itself. In normal flow, the parent startFlowBlock applies it, but
+		// a bind builder root has no such caller (F1d: absolute lengths only;
+		// F1e unifies %, min/max, and border-box normalization in cross-axis measurement).
+		// Before the content, whose percentages resolve against it: height: 50% in an item of height: 100pt came out 0
+		// high and what followed ran over it (strict seed 56646882, 2026-11-02; Chrome 50).
+		final net.zamasoft.foliojet.layout.box.params.BlockParams params = this.itemBox.getBlockParams();
+		final boolean vertical = params.flow.isVertical();
+		final net.zamasoft.foliojet.layout.box.params.LengthType pageType = vertical
+				? params.size.getWidthType()
+				: params.size.getHeightType();
+		if (pageType == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE && usedPageSize != NO_PAGE_SIZE) {
+			this.itemBox.setPageAxis(Math.max(0, !Double.isNaN(usedPageSize) ? usedPageSize
+					: vertical ? params.size.getWidth() : params.size.getHeight()));
+		}
 		final BlockBuilder target = new BlockBuilder(host, this.itemBox);
 		if (this.body == null) {
 			this.content.bind(target);
@@ -86,18 +113,7 @@ final class FlexItemContent {
 		}
 		target.close();
 		if (ReplayIntent.current() == ReplayIntent.MEASURE && this.body != null) this.body.completeScratchHost();
-		// A takeover item (root box inheriting authored params) applies its specified height
-		// itself. In normal flow, the parent startFlowBlock applies it, but
-		// a bind builder root has no such caller (F1d: absolute lengths only;
-		// F1e unifies %, min/max, and border-box normalization in cross-axis measurement).
-		final net.zamasoft.foliojet.layout.box.params.BlockParams params = this.itemBox.getBlockParams();
-		final boolean vertical = params.flow.isVertical();
-		final net.zamasoft.foliojet.layout.box.params.LengthType pageType = vertical
-				? params.size.getWidthType()
-				: params.size.getHeightType();
-		if (pageType == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
-			this.itemBox.setPageAxis(Math.max(0, vertical ? params.size.getWidth() : params.size.getHeight()));
-		} else {
+		if (pageType != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 			// The item establishes an independent formatting context: its auto size holds its floats (CSS 2.1 §10.6.7,
 			// 2026-10-27: an item with a 79pt float and a line of text was 8.5pt high, so the paragraph after the flex
 			// container ran over the float; found by the sweep's writing-mode mirror check)
