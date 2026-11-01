@@ -1990,7 +1990,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §157, a known limit, not the author's overflow: a horizontal box on a vertical page, first on it after margins, counts as at
 			// the page start, and overflowing by under 20 pt is not sliced, so the start of its lines stays off the paper; Chrome shows them.
 			new IndividualExclusion(57_861_579, "fit-v1", 543_284_679,
-					"既知の制限: 余白の後の頁の先頭の横組みの箱が紙の左の外(Chromeは次の頁)", "2026-11-02"));
+					"既知の制限: 余白の後の頁の先頭の横組みの箱が紙の左の外(Chromeは次の頁)", "2026-11-02"),
+			// Triage §159, a known limit, not the author's overflow: a vertical-rl flex on a horizontal page holding columns stops at the height of
+			// the paper (150 pt, Chrome 286), its last item past it, so no page break comes; the text below the paper is lost, Chrome has it on page 2.
+			new IndividualExclusion(58_159_393, "fit-v1", 809_201_200,
+					"既知の制限: 横組みの頁の縦組みのflexが段組の項目で紙の高さに止まり字が紙の下(Chromeは次の頁)", "2026-11-02"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
