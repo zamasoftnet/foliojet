@@ -149,6 +149,25 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	}
 
 	/**
+	 * Takes the box back to its floor before its content is laid out again in the same box (2026-11-01). A size content
+	 * can outgrow (a float's continuation, {@link #continuePageAxis}, and a float sized by aspect-ratio) still counts as
+	 * specified, so a percentage in it resolves against the box as it stands: left at the size it grew to, the content
+	 * came out longer on every pass. The children of a {@code width: 75pt} float's continuation with 162% between them
+	 * grew it 1.4 times a pass, to 520,000,000pt, and rescue slicing went on for millions of pages (sweep seed 53649982,
+	 * triage §146). A fragment a split has cut below the floor stays as it is.
+	 */
+	protected final void restartPageAxis() {
+		if (!this.specifiedPageAxis) {
+			return;
+		}
+		if (this.params.flow.isVertical()) {
+			this.width = Math.min(this.width, this.minPageAxis);
+		} else {
+			this.height = Math.min(this.height, this.minPageAxis);
+		}
+	}
+
+	/**
 	 * The page-axis content-box size derived from {@code aspect-ratio}
 	 * (2026-08-29, css-sizing-4 §5). The ratio is physical width/height and applies to the
 	 * {@code box-sizing} box (including padding+border for border-box).

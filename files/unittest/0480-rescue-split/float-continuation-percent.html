@@ -1,0 +1,36 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="120pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<!--
+A float's continuation with percentages in it, laid out again by the columns and the pages around it.
+They add up to more than 100%: left at the size it grew to, the float came out 1.4 times wider on each pass.
+Sweep seed 53649982, triage 146. Shrunken by the sweep's shrinker: the line breaks in the divs count, leave them.
+-->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+@page{margin:10pt}
+body{font:normal 12pt/1.2 serif;writing-mode:vertical-rl}
+</style></head><body>
+<span style="display:inline-block;width:120pt"></span>
+<div style="float:left">
+<img src="../red.png" />
+<div style="column-count:2">
+<div style="float:start;width:75pt">
+<ul>
+T93
+</ul>
+<div style="width:65%">
+</div>
+<div style="width:calc(35% + 8em)">
+</div>
+<div style="width:62%">
+</div>
+</div>
+<ul style="list-style-position:inside">
+<li></li>
+<li></li>
+</ul>
+</div>
+</div>
+<table></table>
+</body></html>

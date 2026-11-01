@@ -362,6 +362,27 @@ public class VisualRescueSplitTest extends TestCase {
 	}
 
 	/**
+	 * A float's continuation may outgrow its size, and a percentage in it resolves against the box as it stands. Laid
+	 * out again from the size it grew to, it came out 1.4 times wider on each pass here, and rescue slicing filled 532
+	 * pages with nothing (the sweep's document ran to millions of pages; seed 53649982, triage §146).
+	 */
+	public void testAFloatContinuationLaidOutAgainDoesNotGrowOnEachPass() throws Exception {
+		final List<String> pages = render("0480-rescue-split/float-continuation-percent.html", RescuePolicy.ENABLED);
+		assertTrue("頁数=" + pages.size(), pages.size() < 10);
+		assertEquals(1, count(String.join("\n", pages), "\"T93\""));
+	}
+
+	/**
+	 * A size set by aspect-ratio is a floor too: the second pass takes the percentage from the first pass's 40pt, not
+	 * from the 60pt the box grew to (triage §146).
+	 */
+	public void testAnAspectRatioFloatLaidOutAgainDoesNotGrowOnEachPass() throws Exception {
+		final String page = render("0480-rescue-split/float-aspect-ratio-percent.html", RescuePolicy.ENABLED).get(0);
+		assertTrue(page, page.contains("AbsoluteRectFrame[w=60.00"));
+		assertFalse(page, page.contains("AbsoluteRectFrame[w=90.00"));
+	}
+
+	/**
 	 * The rescue check itself never runs except at a point where progress stops
 	 * (no interference with normal paths). Use one golden document as a representative of the existing corpus.
 	 */

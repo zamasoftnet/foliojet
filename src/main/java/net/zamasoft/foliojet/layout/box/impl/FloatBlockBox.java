@@ -13,7 +13,9 @@ import net.zamasoft.foliojet.layout.box.params.Dimension;
 import net.zamasoft.foliojet.layout.box.params.FloatPos;
 import net.zamasoft.foliojet.layout.box.params.Params;
 import net.zamasoft.foliojet.layout.box.params.Pos;
+import net.zamasoft.foliojet.layout.builder.impl.BlockBuilder;
 import net.zamasoft.foliojet.layout.draw.Drawer;
+import net.zamasoft.foliojet.layout.fragment.OpenShape;
 import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 
@@ -88,6 +90,12 @@ public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 
 	public final Pos getPos() {
 		return this.pos;
+	}
+
+	@Override
+	public void restyle(final BlockBuilder builder, final OpenShape shape) {
+		this.restartPageAxis();
+		super.restyle(builder, shape);
 	}
 
 	public final AbstractStaticPos getStaticPos() {

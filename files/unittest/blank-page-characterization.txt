@@ -5,6 +5,7 @@
 0120-float/float-break-always.html	0009,0011
 0120-float/inline-float-break.html	0001
 0130-display/all-none.html	0001
+0480-rescue-split/float-continuation-percent.html	0001,0002
 1000-TABLE/root-table.html	0001
 1060-META/double-decl-meta.html	0001
 1060-META/double-decl.html	0001
