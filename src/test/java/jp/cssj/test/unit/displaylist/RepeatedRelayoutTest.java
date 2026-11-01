@@ -143,6 +143,88 @@ public class RepeatedRelayoutTest extends TestCase {
 		assertOrder(pages, 20);
 	}
 
+	private static final String FLEX_ROW = ".r { display: flex } .r > aside { flex: none; width: 50pt } .r > main { flex: 1; min-width: 0 }";
+
+	private static final String GRID_ROW = ".r { display: grid; grid-template-columns: 50pt 1fr }";
+
+	/** A body beside a side item: the side item stops it from flowing, so all that remains of it is stacked at each page. */
+	private static String row(final String body) {
+		return "<div class=\"r\"><aside>S</aside><main>" + body + "</main></div>";
+	}
+
+	/** It stays boxes rather than being replayed from source, which made such a document quadratic (2026-11-01). */
+	public void testRowItemKeepsLinesOfPlainText() throws Exception {
+		for (final String style : new String[] { FLEX_ROW, GRID_ROW }) {
+			final long before = TextBlockBox.LINES_KEPT.get();
+			final List<String> pages = convertPages("row-item", document(style, row(paragraphs(40, ""))));
+			assertTrue("頁数 " + pages.size(), pages.size() >= 4);
+			assertTrue("行が持ち越されていない", TextBlockBox.LINES_KEPT.get() > before);
+			assertOrder(pages, 40);
+		}
+	}
+
+	public void testRowItemLaysOutAgainWhatDoesNotRepeat() throws Exception {
+		for (final String extra : new String[] { " <img src=\"data:,\" style=\"width: 10pt; height: 10pt\"/>",
+				" <span style=\"vertical-align: top; font-size: 20pt\">x</span>",
+				" <span style=\"display: inline-block\">x</span>" }) {
+			final long before = TextBlockBox.LINES_KEPT.get();
+			final List<String> pages = convertPages("row-item-not-plain", document(FLEX_ROW, row(paragraphs(40, extra))));
+			assertTrue("頁数 " + pages.size(), pages.size() >= 4);
+			assertEquals(extra, before, TextBlockBox.LINES_KEPT.get());
+			assertOrder(pages, 40);
+		}
+		final long before = TextBlockBox.LINES_KEPT.get();
+		final List<String> pages = convertPages("row-item-pretty", document(FLEX_ROW + " p { text-wrap: pretty }", row(paragraphs(40, ""))));
+		assertEquals("text-wrap: pretty", before, TextBlockBox.LINES_KEPT.get());
+		assertOrder(pages, 40);
+	}
+
+	/** The lines past a line clamp are gone from the box, and with them what told it to end in an ellipsis (codex, 2026-11-01). */
+	public void testRowItemKeepsTheEllipsisOfALineClamp() throws Exception {
+		final String clamped = "<p class=\"c\">" + "clamped words past the end of the second line ".repeat(6) + "</p>";
+		final List<String> pages = convertPages("row-item-clamp",
+				document(FLEX_ROW + " p.c { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden }",
+						row(paragraphs(30, "") + clamped + paragraphs(10, ""))));
+		assertTrue("頁数 " + pages.size(), pages.size() >= 3);
+		assertTrue("省略記号が無い", String.join("", pages).contains("…"));
+	}
+
+	/** A block without text has no lines that tell of a replay, and a replay measures one sized by its content (codex, 2026-11-01). */
+	public void testRowItemMeasuresABlockSizedByItsContentAgain() throws Exception {
+		final String body = paragraphs(30, "") + "<div class=\"i\"></div>" + "<p>T30Z</p>";
+		final List<String> fit = convertPages("row-item-fit",
+				document(FLEX_ROW + " .i { width: fit-content; min-width: 20pt; aspect-ratio: 1 }", row(body)));
+		final List<String> fixed = convertPages("row-item-fixed", document(FLEX_ROW + " .i { width: 20pt; height: 20pt }", row(body)));
+		assertEquals(fixed.size(), fit.size());
+		for (int i = 0; i < fit.size(); ++i) {
+			assertEquals("頁 " + i, ys(fixed.get(i)), ys(fit.get(i)));
+		}
+	}
+
+	/**
+	 * A table that breaks the page during the restyle takes the barrier with it: what follows in the item is laid out with
+	 * the breaks on, and goes by the forced breaks in it. Laid out alone, it went by them no more (2026-11-01).
+	 */
+	public void testForcedBreaksFollowATableInARowItem() throws Exception {
+		final StringBuilder body = new StringBuilder(paragraphs(8, " words words words words words words words words words words"));
+		body.append("<table><tbody>");
+		for (int i = 0; i < 30; ++i) {
+			body.append("<tr><td>R</td></tr>");
+		}
+		body.append("</tbody></table>");
+		for (int i = 8; i < 40; ++i) {
+			body.append(i % 7 == 3 ? "<p class=\"b\">T" : "<p>T").append(i).append("Z words words words words words words words words</p>");
+		}
+		final List<String> pages = convertPages("row-item-forced",
+				document(GRID_ROW + " table { width: 100%; table-layout: fixed } td { height: 12pt } p.b { break-after: page }", row(body.toString())));
+		assertOrder(pages, 40);
+		for (int i = 10; i < 39; i += 7) {
+			for (final String page : pages) {
+				assertFalse("T" + i + "Z の後で改頁していない", page.contains("T" + i + "Z") && page.contains("T" + (i + 1) + "Z"));
+			}
+		}
+	}
+
 	private static List<Double> ys(final String page) {
 		final List<Double> ys = new ArrayList<>();
 		final Matcher m = TEXT.matcher(page);

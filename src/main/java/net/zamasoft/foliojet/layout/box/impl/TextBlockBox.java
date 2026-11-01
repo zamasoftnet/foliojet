@@ -646,6 +646,11 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		}
 	}
 
+	/** Whether {@link #keepLines} can take these lines for what a layout would repeat. */
+	public final boolean laidOutAlone() {
+		return !Double.isNaN(this.aloneLineSize);
+	}
+
 	/**
 	 * Whether the lines hold what laying them out again at the same line size repeats (2026-10-31): text, control
 	 * characters and inline boxes of the same. Replaced elements, inline blocks and absolutely positioned boxes depend

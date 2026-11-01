@@ -836,9 +836,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 	}
 
-	public final void endTextBlock() {
-		final double start = this.pageAxis;
-		super.endTextBlock();
+	@Override
+	void textBlockEnded(final double start) {
 		if (this.pageAxis > start) {
 			// Lines (collapsed white space between blocks makes none)
 			this.notePlaced();
@@ -846,6 +845,16 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (this.pageAxis > 0) {
 			this.canBreakBefore = true;
 			this.interflowBreak = true;
+		}
+	}
+
+	public final void endTextBlock() {
+		final double start = this.pageAxis;
+		super.endTextBlock();
+		this.textBlockEnded(start);
+		if (this.restylesRowSplitItem() && this.relaysTextAlone() && this.lastClosedTextBlock() != null) {
+			// A replay gave these lines: the next page need not ask it again (FlowContainer.keepsLines)
+			this.lastClosedTextBlock().noteLaidOutAlone(this);
 		}
 
 		if (this.mode != MODE_NO_BREAK && this.breakDepth == -1) {

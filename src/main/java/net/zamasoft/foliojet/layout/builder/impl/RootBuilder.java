@@ -3193,6 +3193,25 @@ public class RootBuilder extends BreakableBuilder {
 		this.overflowFloor = Math.max(this.overflowFloor, closed.pageAxis + content);
 	}
 
+	/**
+	 * The items of a flex or grid resumed on a page are stacked again with the breaks off (2026-11-01): a line goes by the
+	 * line size of its block alone, as in a table cell. Once a break during the resume drops the barrier (a table in an
+	 * item, {@code breakDepth} is -1 again), what follows is laid out with the breaks on, and goes the usual way.
+	 */
+	@Override
+	boolean restylesRowSplitItem() {
+		if (!this.isRestyling() || this.breakDepth == -1) {
+			return false;
+		}
+		for (int i = this.getFlowCount() - 2; i >= 0; --i) {
+			if (this.getFlow(i).box instanceof net.zamasoft.foliojet.layout.box.RowSplitBox rowSplit
+					&& rowSplit.hasRowSplitLines()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private static boolean isFlexOrGrid(final net.zamasoft.foliojet.layout.box.IBox box) {
 		return box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
 				|| box instanceof net.zamasoft.foliojet.layout.box.impl.GridBox;

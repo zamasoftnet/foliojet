@@ -280,6 +280,10 @@ public class ScalingProbeTest extends TestCase {
 					n -> "<div class=f>" + repeat(n, i -> "<div>item " + i + "</div>") + "</div>"),
 			new Shape("grid", 3000, n -> ".g{display:grid;grid-template-columns:repeat(4,1fr)}",
 					n -> "<div class=g>" + repeat(n, i -> "<div>item " + i + "</div>") + "</div>"),
+			new Shape("flexBody", 1500, n -> ".w{display:flex}.w>aside{flex:none;width:100pt}.w>main{flex:1;min-width:0}",
+					n -> "<div class=w><aside>side</aside><main>" + repeat(n, i -> "<p>" + i + " " + TEXT + "</p>") + "</main></div>"),
+			new Shape("gridBody", 1500, n -> ".w{display:grid;grid-template-columns:100pt 1fr}",
+					n -> "<div class=w><aside>side</aside><main>" + repeat(n, i -> "<p>" + i + " " + TEXT + "</p>") + "</main></div>"),
 			new Shape("targetCounter", 500, n -> "a::after{content:' p.' target-counter(attr(href),page)}.b{break-before:page}",
 					n -> repeat(n, i -> "<p><a href=#t" + i + ">ref " + i + "</a></p>") + repeat(n, i -> "<p class=" + (i % 10 == 0 ? "b" : "x")
 							+ " id=t" + i + ">target " + i + " " + TEXT + "</p>")),

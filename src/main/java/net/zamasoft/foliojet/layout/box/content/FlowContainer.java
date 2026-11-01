@@ -489,11 +489,17 @@ public class FlowContainer implements Container {
 	 * plain text}, however deep: nothing laying it out again would do but give the same lines.
 	 */
 	public final boolean holdsPlainText() {
+		return this.holdsOnly(container -> true, TextBlockBox::holdsPlainText);
+	}
+
+	/** Whether this container holds only plain blocks of its writing mode that {@code block} and text that {@code text} accepts, however deep. */
+	private boolean holdsOnly(final java.util.function.Predicate<FlowContainer> block,
+			final java.util.function.Predicate<TextBlockBox> text) {
 		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
 		containers.push(this);
 		while (!containers.isEmpty()) {
 			final FlowContainer container = containers.pop();
-			if (container.floatings != null || container.absolutes != null) {
+			if (container.floatings != null || container.absolutes != null || !block.test(container)) {
 				return false;
 			}
 			if (container.flows == null) {
@@ -502,13 +508,13 @@ public class FlowContainer implements Container {
 			final WritingMode flow = container.box.getBlockParams().flow;
 			for (int i = 0; i < container.flows.size(); ++i) {
 				final IFlowBox box = container.flows.get(i).box;
-				if (box instanceof TextBlockBox text) {
-					if (!text.holdsPlainText()) {
+				if (box instanceof TextBlockBox textBlock) {
+					if (!text.test(textBlock)) {
 						return false;
 					}
-				} else if (box instanceof FlowBlockBox block && block.getContainer().getClass() == FlowContainer.class
-						&& block.getBlockParams().flow == flow) {
-					containers.push((FlowContainer) block.getContainer());
+				} else if (box instanceof FlowBlockBox flowBlock && flowBlock.getContainer().getClass() == FlowContainer.class
+						&& flowBlock.getBlockParams().flow == flow) {
+					containers.push((FlowContainer) flowBlock.getContainer());
 				} else {
 					return false;
 				}
@@ -2995,6 +3001,21 @@ public class FlowContainer implements Container {
 	}
 
 	/**
+	 * Whether a closed block has its lines from a replay with nothing around them, which another replay would only
+	 * repeat (2026-11-01). What remains of a flex or grid item is laid out again at each page, all of it: replaying a body
+	 * of 6,000 paragraphs beside a side bar took 20s and 28GB. Such a block is restyled as a box and keeps its lines
+	 * ({@link TextBlockBox#keepLines}): the box is what a replay falls back on anyway, and the scope of the resume drops
+	 * the unused range. A block without text has no lines to tell of a replay, and a replay measures a block sized by its
+	 * content (width: fit-content) again, which a restyle does not: those are replayed.
+	 */
+	private static boolean keepsLines(final BlockBuilder builder, final AbstractContainerBox box) {
+		return builder.relaysTextAlone() && box.getContainer().getClass() == FlowContainer.class
+				&& ((FlowContainer) box.getContainer()).holdsOnly(
+						container -> container.flows != null && container.box.getBlockParams().intrinsicLine == null,
+						TextBlockBox::laidOutAlone);
+	}
+
+	/**
 	 * Shared dispatch for one entry in sorted {@code items} (2026-07-22).
 	 * Extracted from the {@code restyle()} for-loop body for B6a1 preparation: purely a function
 	 * extraction with no behavior changes (old {@code continue} statements were mechanically
@@ -3080,6 +3101,7 @@ public class FlowContainer implements Container {
 							} else if (!((builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder
 									|| builder instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder)
 									&& builder.getPageContext() != null
+									&& !keepsLines(builder, containerBox)
 									&& builder.getPageContext().replayFromSource(containerBox, builder))) {
 								// Replay wholly moved closed subtrees from source (M6b segment-restyle).
 								// If false, fall back to box replay.

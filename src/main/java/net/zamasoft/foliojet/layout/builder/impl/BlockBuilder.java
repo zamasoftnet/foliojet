@@ -2465,15 +2465,20 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
-	 * Whether this builder lays out a box of its own (a table cell, a float) with nothing around the text that a line
-	 * depends on besides its line size: no floats, no line clamp, no column of a flex container and no text open. Such
-	 * a layout repeats itself when given its own lines again, which
+	 * Whether this builder lays out a box of its own (a table cell, a float, an item of a flex or grid being stacked
+	 * again) with nothing around the text that a line depends on besides its line size: no floats, no line clamp, no
+	 * column of a flex container and no text open. Such a layout repeats itself when given its own lines again, which
 	 * {@link net.zamasoft.foliojet.layout.box.impl.TextBlockBox#keepLines} relies on (2026-10-31).
 	 */
 	public final boolean relaysTextAlone() {
-		return this.getClass() == BlockBuilder.class && this.textBuilder == null && this.textSession == null
-				&& !this.hasLineExclusions() && !isStreamedColumnFlex(this.getFlow().box)
+		return (this.getClass() == BlockBuilder.class || this.restylesRowSplitItem()) && this.textBuilder == null
+				&& this.textSession == null && !this.hasLineExclusions() && !isStreamedColumnFlex(this.getFlow().box)
 				&& net.zamasoft.foliojet.layout.builder.LineClampState.find(this) == null;
+	}
+
+	/** Whether this builder is a page stacking the items of a flex or grid again ({@code RootBuilder}). */
+	boolean restylesRowSplitItem() {
+		return false;
 	}
 
 	/** The block the last {@link #endTextBlock()} closed, null when it closed none. */
@@ -2499,6 +2504,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			return false;
 		}
 		final Flow flow = this.getFlow();
+		final double start = this.pageAxis;
 		this.breakToken = BreakToken.MidFlow.UNKNOWN;
 		flow.box.addFlow(block, this.pageAxis - flow.pageAxis);
 		this.pageAxis += pageAdvance;
@@ -2506,7 +2512,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 			this.poLastMargin = this.neLastMargin = 0;
 		}
 		flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
+		this.textBlockEnded(start);
 		return true;
+	}
+
+	/**
+	 * Called when a text block has ended, closed or {@linkplain #placeTextBlock placed}.
+	 *
+	 * @param start the cursor before it
+	 */
+	void textBlockEnded(final double start) {
 	}
 
 	/**
