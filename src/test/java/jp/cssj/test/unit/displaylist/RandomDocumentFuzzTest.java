@@ -1974,7 +1974,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §151, as §150: on 60x60 pt vertical-lr paper a float holds tables nested three deep, 142 pt along the line
 			// (T27 at y = 132 pt on page 1; Chrome's screen has T8 at 114 pt to Copper's 119 pt).
 			new IndividualExclusion(54_721_231, "fit-v1", 2_079_944_939,
-					"作者の溢れ: 紙より長い入れ子の表が行の向きに紙の2倍超、floatの中で紙の下の外(Chromeも)", "2026-11-01"));
+					"作者の溢れ: 紙より長い入れ子の表が行の向きに紙の2倍超、floatの中で紙の下の外(Chromeも)", "2026-11-01"),
+			// Triage §153: on vertical-lr 300x150 pt paper a vertical-rl float 93 pt wide holds a vertical-lr table 125 pt wide, which
+			// overflows it to the left in both engines (T0 at x = -32 pt, Chrome's screen -31 pt, its print has no token; A4 paper changes nothing).
+			new IndividualExclusion(56_381_704, "standard", 56_381_704,
+					"作者の溢れ: 幅93ptのvertical-rlのfloatに幅125ptの表で紙の左の外(Chromeも)", "2026-11-02"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
